@@ -1,7 +1,6 @@
 ---
 name: http-cloud-function
 description: Use when developing HTTP-triggered cloud functions that support Node.js, Python, Go, Java, or any framework. Recommend for websocket SSE use cases.
-alwaysApply: false
 ---
 
 # HTTP Cloud Functions Development

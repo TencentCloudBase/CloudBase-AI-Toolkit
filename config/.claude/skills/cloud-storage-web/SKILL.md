@@ -1,7 +1,6 @@
 ---
 name: cloud-storage-web
 description: Complete guide for CloudBase cloud storage using Web SDK (@cloudbase/js-sdk) - upload, download, temporary URLs, file management, and best practices.
-alwaysApply: false
 ---
 
 # Cloud Storage Web SDK

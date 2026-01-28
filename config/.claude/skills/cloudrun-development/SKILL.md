@@ -1,7 +1,6 @@
 ---
 name: cloudrun-development
 description: CloudBase Run development rules (Function mode/Container mode). Use this skill when deploying （Containers or any http services）services on CloudBase that require long connections, multi-language support, custom environments, or AI agent development. MUST READ before using manageCloudRun or queryCloudRun tools.
-alwaysApply: false
 ---
 
 ## When to use this skill

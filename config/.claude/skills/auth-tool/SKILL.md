@@ -1,7 +1,6 @@
 ---
 name: auth-tool-cloudbase
 description: Use CloudBase Auth tool to configure and manage authentication providers for web applications - enable/disable login methods (SMS, Email, WeChat Open Platform, Google, Anonymous, Username/password, OAuth, SAML, CAS, Dingding, etc.) and configure provider settings via MCP tools `callCloudApi`.
-alwaysApply: false
 ---
 
 ## Overview
