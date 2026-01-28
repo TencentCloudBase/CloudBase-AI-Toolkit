@@ -308,7 +308,7 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
     "manageCloudRun",
     {
       title: "管理 CloudRun 服务",
-      description: "管理云托管服务，按开发顺序支持：初始化项目（可从模板开始，模板列表可通过 queryCloudRun 查询）、下载服务代码、本地运行（仅函数型服务）、部署代码、删除服务。部署可配置CPU、内存、实例数、访问类型等参数。删除操作需要确认，建议设置force=true。",
+      description: "管理云托管服务，按开发顺序支持：初始化项目（可从模板开始，模板列表可通过 queryCloudRun 查询）、下载服务代码、本地运行（仅函数型服务）、部署代码、删除服务。部署可配置CPU、内存、实例数、访问类型等参数。删除操作需要确认，建议设置force=true。每次调用时都需传入所有相关参数，不要省略已传递过的参数，例如端口号、配置等都应一并完整传入。特别是端口号",
       inputSchema: ManageCloudRunInputSchema,
       annotations: {
         readOnlyHint: false,
@@ -586,6 +586,9 @@ for await (let x of res.textStream) {
               // Ignore cloudbaserc.json creation errors
             }
 
+            // Build console URL (defined outside try block for use in return message)
+            const consoleUrl = `https://tcb.cloud.tencent.com/dev?envId=${currentEnvId}#/platform-run/service/detail?serverName=${input.serverName}&tabId=overview&envId=${currentEnvId}`;
+
             // Send deployment notification to CodeBuddy IDE
             try {
               // Query service details to get access URL
@@ -619,9 +622,6 @@ for await (let x of res.textStream) {
               // Extract project name from targetPath
               const projectName = path.basename(targetPath);
 
-              // Build console URL
-              const consoleUrl = `https://tcb.cloud.tencent.com/dev?envId=${currentEnvId}#/platform-run/service/detail?serverName=${input.serverName}&tabId=overview&envId=${currentEnvId}`;
-
               // Send notification
               await sendDeployNotification(server, {
                 deployType: 'cloudrun',
@@ -648,7 +648,7 @@ for await (let x of res.textStream) {
                       serverType: serverType,
                       cloudbasercGenerated: true
                     },
-                    message: `Successfully deployed ${serverType} service '${input.serverName}' from ${targetPath}`
+                    message: `Successfully trigger an deployment of ${serverType} service '${input.serverName}' from ${targetPath}. You can see the progress in ${consoleUrl}`
                   }, null, 2)
                 }
               ]

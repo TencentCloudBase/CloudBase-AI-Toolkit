@@ -7,6 +7,7 @@ import path from 'path';
 
 // 支持的 Node.js 运行时列表
 export const SUPPORTED_NODEJS_RUNTIMES = [
+  'Nodejs20.19',
   'Nodejs18.15',
   'Nodejs16.13',
   'Nodejs14.18',
@@ -147,6 +148,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             subnetId: z.string()
           }).optional().describe("私有网络配置"),
           runtime: z.string().optional().describe("运行时环境,建议指定为 'Nodejs18.15'，其他可选值：" + SUPPORTED_NODEJS_RUNTIMES.join('，')),
+          type: z.enum(['Event', 'HTTP']).optional().describe("Function type: 'Event' for event-triggered functions (default), 'HTTP' for HTTP-triggered functions"),
           triggers: z.array(z.object({
             name: z.string().describe("Trigger name"),
             type: z.enum(SUPPORTED_TRIGGER_TYPES).describe("Trigger type, currently only supports 'timer'"),
@@ -206,7 +208,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       const result = await cloudbase.functions.createFunction({
         func,
         functionRootPath: processedRootPath,
-        force
+        force,
+        deployMode: 'cos' // Default to COS deployment mode
       });
       logCloudBaseResult(server.logger, result);
       return {

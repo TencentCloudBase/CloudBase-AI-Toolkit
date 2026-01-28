@@ -1,12 +1,12 @@
 ---
 name: cloudrun-development
-description: CloudBase Run backend development rules (Function mode/Container mode). Use this skill when deploying backend services that require long connections, multi-language support, custom environments, or AI agent development.
+description: CloudBase Run development rules (Function mode/Container mode). Use this skill when deploying （Containers or any http services）services on CloudBase that require long connections, multi-language support, custom environments, or AI agent development. MUST READ before using manageCloudRun or queryCloudRun tools.
 alwaysApply: false
 ---
 
 ## When to use this skill
 
-Use this skill for **CloudBase Run backend service development** when you need:
+Use this skill for **CloudBase Run service development** when you need:
 
 - Long connection capabilities: WebSocket / SSE / server push
 - Long-running or persistent processes: tasks that are not suitable for cloud functions, background jobs
@@ -18,8 +18,10 @@ Use this skill for **CloudBase Run backend service development** when you need:
 
 **Do NOT use for:**
 - Simple cloud functions (use cloud function development instead)
-- Frontend-only applications
+- Pure static website without backend (use static hosting instead)
 - Database schema design (use data-model-creation skill)
+
+**Note:** Full-stack applications with both frontend and backend are perfect for CloudBase Run
 
 ---
 
@@ -27,7 +29,7 @@ Use this skill for **CloudBase Run backend service development** when you need:
 
 1. **Choose the right mode**
    - **Function mode**: Fastest to get started, built-in HTTP/WebSocket/SSE, fixed port 3000, local running supported
-   - **Container mode**: Any language and runtime, requires Dockerfile, local running not supported by tools
+   - **Container mode**: Any language and runtime, requires Dockerfile, local running not supported by tools. Project already includes Dockerfile
 
 2. **Follow mandatory requirements**
    - Must listen on `PORT` environment variable (real port in container)
@@ -37,14 +39,15 @@ Use this skill for **CloudBase Run backend service development** when you need:
    - Resource constraints: `Mem = 2 × CPU` (e.g., 0.25 vCPU → 0.5 GB)
    - Access control: Only enable public network for Web scenarios; mini-programs prioritize internal direct connection, recommend closing public network
 
-3. **Use tools correctly**
+3. **Follow the workflow**
+   - Initialize project → Check/generate Dockerfile (for container mode) → Local run (function mode only) → Configure access → Deploy → Verify
+   - CloudBase run have a default preview url ends with `.run.tcloudbase.com`. If the project contain settings like CORS, allowHost or other config relative to the http origin. We should add this url too.
+
+4. **Use tools correctly**
    - **Read operations**: `queryCloudRun` (list, detail, templates)
    - **Write operations**: `manageCloudRun` (init, download, run, deploy, delete, createAgent)
    - Always use absolute paths for `targetPath`
    - Use `force: true` for delete operations
-
-4. **Follow the workflow**
-   - Initialize project → Check/generate Dockerfile (for container mode) → Local run (function mode only) → Configure access → Deploy → Verify
 
 ---
 

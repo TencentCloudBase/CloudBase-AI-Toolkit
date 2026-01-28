@@ -442,4 +442,4 @@ exports.main = async (event, context) => {
 - `cloudrun-development` - For multi-language backend services
 - `http-api` - For HTTP API invocation patterns
 - `cloudbase-platform` - For general CloudBase platform knowledge
-
+- `http-cloud-function` - For HTTP type cloud function(Recommended for SSE-Events WebSocket usage)
