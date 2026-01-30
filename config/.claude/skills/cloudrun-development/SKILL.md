@@ -39,8 +39,7 @@ Use this skill for **CloudBase Run service development** when you need:
    - Access control: Only enable public network for Web scenarios; mini-programs prioritize internal direct connection, recommend closing public network
 
 3. **Follow the workflow**
-   - Initialize project → Check/generate Dockerfile (for container mode) → Local run (function mode only) → Configure access → Deploy → Verify
-   - CloudBase run have a default preview url ends with `.run.tcloudbase.com`. If the project contain settings like CORS, allowHost or other config relative to the http origin. We should add this url too.
+   - Initialize project → Check/generate Dockerfile (for container mode) → **⚠️ CHECK: CORS/Host/Origin config** → Local run (function mode only) → Configure access → Deploy → Verify
 
 4. **Use tools correctly**
    - **Read operations**: `queryCloudRun` (list, detail, templates)
@@ -117,40 +116,53 @@ A concise guide for AI assistants and engineering collaboration, providing "when
 
 2) **Initialize local project**
    - General: Use template `init` (both Function mode and Container mode can start from templates)
-   - Container mode must "check or generate Dockerfile":
-     - Node.js minimal example:
-       ```dockerfile
-       FROM node:18-alpine
-       WORKDIR /app
-       COPY package*.json ./
-       RUN npm ci --omit=dev
-       COPY . .
-       ENV NODE_ENV=production
-       EXPOSE 3000
-       CMD ["node","server.js"]
-       ```
-     - Python minimal example:
-       ```dockerfile
-       FROM python:3.11-slim
-       WORKDIR /app
-       COPY requirements.txt ./
-       RUN pip install -r requirements.txt --no-cache-dir
-       COPY . .
-       ENV PORT=3000
-       EXPOSE 3000
-       CMD ["python","app.py"]
-       ```
+   - Container mode must "check or generate Dockerfile"
+   - Check if the existed Dockerfile is suitable for CloudRun and user requirements
+   - Decide whether to use the existed Dockerfile or Create a new one? You should not modify the original Dockerfile. But just create a dedicated one like `Dockerfile.cloudrun`
+   - Node.js minimal example:
+      ```dockerfile
+      FROM node:18-alpine
+      WORKDIR /app
+      COPY package*.json ./
+      RUN npm ci --omit=dev
+      COPY . .
+      ENV NODE_ENV=production
+      EXPOSE 3000
+      CMD ["node","server.js"]
+      ```
+    - Python minimal example:
+      ```dockerfile
+      FROM python:3.11-slim
+      WORKDIR /app
+      COPY requirements.txt ./
+      RUN pip install -r requirements.txt --no-cache-dir
+      COPY . .
+      ENV PORT=3000
+      EXPOSE 3000
+      CMD ["python","app.py"]
+      ```
 
-3) **Local running** (Function mode only)
-   - Automatically use `npm run dev/start` or entry file via `run`
+      Make sure the application are actually Running on the PORT.
 
-4) **Configure access**
+3) **⚠️ CHECK: CORS / Host / Origin Configuration (CRITICAL)**
+   - CloudBase Run provides a default preview URL ending with `.run.tcloudbase.com`
+   - **MUST verify** backend CORS / `Access-Control-Allow-Origin` / `allowHost` allows `*.run.tcloudbase.com`
+   - **Check locations** (common places):
+     - CORS middleware configuration (e.g., `cors` package in Express)
+     - `Access-Control-Allow-Origin` header settings
+     - Framework-specific CORS configs (NestJS, FastAPI, Spring Boot, etc.)
+     - Environment variables like `ALLOWED_ORIGINS`, `CORS_ORIGIN`
+   - If using custom domain in production, ensure both custom domain AND `.run.tcloudbase.com` are allowed
+
+4) **Local running** (Function mode only)
+
+5) **Configure access**
    - Set `OpenAccessTypes` (WEB/VPC/PRIVATE) as needed; configure security domain and authentication for Web scenarios
 
-5) **Deploy**
+6) **Deploy**
    - Specify CPU/Mem/instance count/environment variables, etc. during `deploy`
 
-6) **Verify**
+7) **Verify**
    - Use `detail` to confirm access address and configuration meet expectations
 
 ### Example Tool Calls
@@ -178,10 +190,11 @@ A concise guide for AI assistants and engineering collaboration, providing "when
 { "name": "manageCloudRun", "arguments": { "action": "run", "serverName": "my-svc", "targetPath": "/abs/ws/my-svc", "runOptions": { "port": 3000 } } }
 ```
 
-5) **Deploy**
+5) **Deploy** (⚠️ Confirm Step 3 CORS check completed)
 ```json
 { "name": "manageCloudRun", "arguments": { "action": "deploy", "serverName": "my-svc", "targetPath": "/abs/ws/my-svc", "serverConfig": { "OpenAccessTypes": ["WEB"], "Cpu": 0.5, "Mem": 1, "MinNum": 0, "MaxNum": 5 } } }
 ```
+Make sure application are actually running on PORT that defined here.
 
 6) **Create AI agent** (optional)
 ```json
@@ -205,6 +218,7 @@ A concise guide for AI assistants and engineering collaboration, providing "when
 ## 7. Quick Troubleshooting
 
 - **Access failure**: Check OpenAccessTypes/domain/port, whether instance scaled down to 0
+- **CORS errors**: Backend must allow `*.run.tcloudbase.com` origin. See Step 3 in Core Workflow.
 - **Deployment failure**: Verify Dockerfile/build logs/image volume and CPU/Mem ratio
 - **Local running failure**: Only Function mode supported; requires `package.json` `dev`/`start` or entry `index.js|app.js|server.js`
 - **Performance jitter**: Reduce dependencies and initialization; appropriately increase MinNum; optimize cold start
