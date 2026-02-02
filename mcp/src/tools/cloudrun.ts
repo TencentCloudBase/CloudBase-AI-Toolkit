@@ -15,8 +15,8 @@ export const CLOUDRUN_ACCESS_TYPES = ['OA', 'PUBLIC', 'MINIAPP', 'VPC'] as const
 export type CloudRunAccessType = typeof CLOUDRUN_ACCESS_TYPES[number];
 
 // Input schema for queryCloudRun tool
-const queryCloudRunInputSchema = {
-  action: z.enum(['list', 'detail', 'templates']).describe('查询操作类型：list=获取云托管服务列表（支持分页和筛选），detail=查询指定服务的详细信息（包括配置、版本、访问地址等），templates=获取可用的项目模板列表（用于初始化新项目）'),
+const queryCloudRunInputSchema = z.object({
+  action: z.enum(['list', 'detail', 'templates', 'getDeployLog']).describe('查询操作类型：list=获取云托管服务列表（支持分页和筛选），detail=查询指定服务的详细信息（包括配置、版本、访问地址等），templates=获取可用的项目模板列表（用于初始化新项目），getDeployLog=获取部署log，默认最新一次'),
 
   // List operation parameters
   pageSize: z.number().min(1).max(100).optional().default(10).describe('分页大小，控制每页返回的服务数量。取值范围：1-100，默认值：10。建议根据网络性能和显示需求调整'),
@@ -25,8 +25,9 @@ const queryCloudRunInputSchema = {
   serverType: z.enum(CLOUDRUN_SERVICE_TYPES).optional().describe('服务类型筛选条件：function=函数型云托管（仅支持Node.js，有特殊的开发要求和限制，适合简单的API服务），container=容器型服务（推荐使用，支持任意语言和框架如Java/Go/Python/PHP/.NET等，适合大多数应用场景）'),
 
   // Detail operation parameters
-  detailServerName: z.string().optional().describe('要查询详细信息的服务名称。当action为detail时必需提供，必须是已存在的服务名称。可通过list操作获取可用的服务名称列表'),
-};
+  detailServerName: z.string().optional().describe('要查询详细信息的服务名称。当action为detail或getDeployLog时必需提供，必须是已存在的服务名称。可通过list操作获取可用的服务名称列表'),
+  // buildId: z.number().optional().describe('构建ID，用于在getDeployLog时指定获取某次构建的ID，默认获取最新一次')
+});
 
 // Input schema for manageCloudRun tool
 const ManageCloudRunInputSchema = {
@@ -80,14 +81,7 @@ const ManageCloudRunInputSchema = {
   serverType: z.enum(CLOUDRUN_SERVICE_TYPES).optional().describe('服务类型配置：function=函数型云托管（仅支持Node.js，有特殊的开发要求和限制，适合简单的API服务），container=容器型服务（推荐使用，支持任意语言和框架如Java/Go/Python/PHP/.NET等，适合大多数应用场景）。不提供时自动检测：1)现有服务类型 2)有Dockerfile→container 3)有@cloudbase/aiagent-framework依赖→function 4)其他情况→container'),
 };
 
-type queryCloudRunInput = {
-  action: 'list' | 'detail' | 'templates';
-  pageSize?: number;
-  pageNum?: number;
-  serverName?: string;
-  serverType?: CloudRunServiceType;
-  detailServerName?: string;
-};
+type queryCloudRunInput = z.infer<typeof queryCloudRunInputSchema>
 
 type ManageCloudRunInput = {
   action: 'init' | 'download' | 'run' | 'deploy' | 'delete' | 'createAgent';
@@ -184,7 +178,7 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
     {
       title: "查询 CloudRun 服务信息",
       description: "查询云托管服务信息，支持获取服务列表、查询服务详情和获取可用模板列表。返回的服务信息包括服务名称、状态、访问类型、配置详情等。",
-      inputSchema: queryCloudRunInputSchema,
+      inputSchema: queryCloudRunInputSchema.shape,
       annotations: {
         readOnlyHint: true,
         openWorldHint: true,
@@ -203,21 +197,66 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
 
       switch (input.action) {
         case 'list': {
-            const listParams: any = {
-              pageSize: input.pageSize,
-              pageNum: input.pageNum,
+          const listParams: any = {
+            pageSize: input.pageSize,
+            pageNum: input.pageNum,
+          };
+
+          if (input.serverName) {
+            listParams.serverName = input.serverName;
+          }
+
+          if (input.serverType) {
+            listParams.serverType = input.serverType;
+          }
+
+          const result = await cloudrunService.list(listParams);
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  data: {
+                    services: result.ServerList || [],
+                    pagination: {
+                      total: result.Total || 0,
+                      pageSize: input.pageSize,
+                      pageNum: input.pageNum,
+                      totalPages: Math.ceil((result.Total || 0) / (input.pageSize || 10))
+                    }
+                  },
+                  message: `Found ${result.ServerList?.length || 0} CloudRun services`
+                }, null, 2)
+              }
+            ]
+          };
+        }
+
+        case 'detail': {
+          const serverName = input.detailServerName || input.serverName!;
+          const result = await cloudrunService.detail({ serverName });
+          const deployRecords = await cloudrunService.getDeployRecords({ serverName });
+          let message = `Retrieved details for service '${serverName}'`;
+
+          if (!result) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: `Service '${serverName}' not found`,
+                    message: "Please check the service name and try again."
+                  }, null, 2)
+                }
+              ]
             };
+          }
 
-            if (input.serverName) {
-              listParams.serverName = input.serverName;
-            }
-
-            if (input.serverType) {
-              listParams.serverType = input.serverType;
-            }
-
-            const result = await cloudrunService.list(listParams);
-
+          if (deployRecords.DeployRecords.length <= 0) {
+            message = `Service '${serverName}' has no deploy records. Maybe you need to refetch the detail again or deploy the service again.`;
             return {
               content: [
                 {
@@ -225,77 +264,121 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
                   text: JSON.stringify({
                     success: true,
                     data: {
-                      services: result.ServerList || [],
-                      pagination: {
-                        total: result.Total || 0,
-                        pageSize: input.pageSize,
-                        pageNum: input.pageNum,
-                        totalPages: Math.ceil((result.Total || 0) / (input.pageSize || 10))
-                      }
+                      service: result,
                     },
-                    message: `Found ${result.ServerList?.length || 0} CloudRun services`
+                    message: message
                   }, null, 2)
                 }
               ]
-            };
-          }
-
-          case 'detail': {
-            const serverName = input.detailServerName || input.serverName!;
-            const result = await cloudrunService.detail({ serverName });
-
-            if (!result) {
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify({
-                      success: false,
-                      error: `Service '${serverName}' not found`,
-                      message: "Please check the service name and try again."
-                    }, null, 2)
-                  }
-                ]
-              };
             }
+          }
+          const latestDeploy = deployRecords.DeployRecords[0];
+          // https://iwiki.woa.com/p/4014114778 状态枚举
+          if (latestDeploy.Status.includes('failed')) {
+            message = `Service '${serverName}' latest deploy failed. Please check the deploy log for details.`;
+          } else if (latestDeploy.Status.includes('creating')) {
+            message = `Service '${serverName}' latest deploy is creating. Please check later. Usually it will take serval minutes.`;
+          } else {
+            message = `Service '${serverName}' latest service status: ${result.BaseInfo.Status}, latest deploy status: ${latestDeploy.Status}. Please check both service info and latest deploy info`;
+          }
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  data: {
+                    service: result,
+                    latestDeploy: latestDeploy
+                  },
+                  message
+                }, null, 2)
+              }
+            ]
+          }
 
+
+        }
+
+        case 'templates': {
+          const result = await cloudrunService.getTemplates();
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  data: {
+                    templates: result || []
+                  },
+                  message: `Found ${result?.length || 0} available templates`
+                }, null, 2)
+              }
+            ]
+          };
+        }
+
+        case 'getDeployLog': {
+          const serverName = input.detailServerName || input.serverName;
+          if (!serverName) {
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify({
-                    success: true,
-                    data: {
-                      service: result
-                    },
-                    message: `Retrieved details for service '${serverName}'`
+                    success: false,
+                    error: "detailServerName or serverName is required for getDeployLog action",
+                    message: "Please provide detailServerName or serverName."
                   }, null, 2)
                 }
               ]
             };
           }
-
-          case 'templates': {
-            const result = await cloudrunService.getTemplates();
-
+          const deployRecords = await cloudrunService.getDeployRecords({ serverName });
+          if (deployRecords.DeployRecords.length <= 0) {
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify({
-                    success: true,
-                    data: {
-                      templates: result || []
-                    },
-                    message: `Found ${result?.length || 0} available templates`
+                    success: false,
+                    error: `Service '${serverName}' has no deploy records.Maybe you need to refetch the detail again or deploy the service again.`,
+                    message: "Please check the service name and try again."
                   }, null, 2)
                 }
               ]
             };
           }
+          const latestDeploy = deployRecords.DeployRecords[0];
+
+          const result = await cloudrunService.getBuildLog({
+            serverName,
+          });
+
+          const processLog = await cloudrunService.getProcessLog({
+            RunId: latestDeploy.RunId,
+          })
+          // 拼在一起
+          if (processLog?.Logs?.length >= 0) {
+            result.Log.Text += processLog.Logs.map((log) => log).join('\n');
+          }
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  data: result ?? {},
+                  message: `Retrieved build log for service '${serverName}'`
+                }, null, 2)
+              }
+            ]
+          };
+        }
 
         default:
-          throw new Error(`Unsupported action: ${input.action}`);
+          throw new Error(`Unsupported action: ${input.action} `);
       }
     }
   );
@@ -335,122 +418,122 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
 
       switch (input.action) {
         case 'createAgent': {
-            if (!targetPath) {
-              throw new Error("targetPath is required for createAgent operation");
+          if (!targetPath) {
+            throw new Error("targetPath is required for createAgent operation");
+          }
+
+          if (!input.agentConfig) {
+            throw new Error("agentConfig is required for createAgent operation");
+          }
+
+          const { agentName, botTag, description, template = 'blank' } = input.agentConfig;
+
+          // Generate BotId
+          const botId = botTag ? `ibot - ${agentName} -${botTag} ` : `ibot - ${agentName} -${Date.now()} `;
+
+          // Create Agent using CloudBase Manager
+          const agentResult = await manager.agent.createFunctionAgent(targetPath, {
+            Name: agentName,
+            BotId: botId,
+            Introduction: description || `Agent created by ${agentName} `,
+            Avatar: undefined
+          });
+
+          // Create project directory
+          const projectDir = path.join(targetPath, input.serverName);
+          if (!fs.existsSync(projectDir)) {
+            fs.mkdirSync(projectDir, { recursive: true });
+          }
+
+          // Generate package.json
+          const packageJson = {
+            name: input.serverName,
+            version: "1.0.0",
+            description: description || `Agent created by ${agentName} `,
+            main: "index.js",
+            scripts: {
+              "dev": "tcb cloudrun run --runMode=agent -w",
+              "deploy": "tcb cloudrun deploy",
+              "start": "node index.js"
+            },
+            dependencies: {
+              "@cloudbase/aiagent-framework": "^1.0.0-beta.10"
+            },
+            devDependencies: {
+              "@cloudbase/cli": "^2.6.16"
             }
+          };
 
-            if (!input.agentConfig) {
-              throw new Error("agentConfig is required for createAgent operation");
-            }
+          fs.writeFileSync(path.join(projectDir, 'package.json'), JSON.stringify(packageJson, null, 2));
 
-            const { agentName, botTag, description, template = 'blank' } = input.agentConfig;
+          // Generate index.js with Agent template
+          const indexJsContent = `const { IBot } = require("@cloudbase/aiagent-framework");
+            const { BotRunner } = require("@cloudbase/aiagent-framework");
 
-            // Generate BotId
-            const botId = botTag ? `ibot-${agentName}-${botTag}` : `ibot-${agentName}-${Date.now()}`;
+            const ANSWER = "你好，我是一个智能体，但我只会说这一句话。";
 
-            // Create Agent using CloudBase Manager
-            const agentResult = await manager.agent.createFunctionAgent(targetPath, {
-              Name: agentName,
-              BotId: botId,
-              Introduction: description || `Agent created by ${agentName}`,
-              Avatar: undefined
-            });
-
-            // Create project directory
-            const projectDir = path.join(targetPath, input.serverName);
-            if (!fs.existsSync(projectDir)) {
-              fs.mkdirSync(projectDir, { recursive: true });
-            }
-
-            // Generate package.json
-            const packageJson = {
-              name: input.serverName,
-              version: "1.0.0",
-              description: description || `Agent created by ${agentName}`,
-              main: "index.js",
-              scripts: {
-                "dev": "tcb cloudrun run --runMode=agent -w",
-                "deploy": "tcb cloudrun deploy",
-                "start": "node index.js"
-              },
-              dependencies: {
-                "@cloudbase/aiagent-framework": "^1.0.0-beta.10"
-              },
-              devDependencies: {
-                "@cloudbase/cli": "^2.6.16"
+            /**
+             * @typedef {import('@cloudbase/aiagent-framework').IAbstractBot} IAbstractBot
+             * 
+             * @class
+             * @implements {IAbstractBot}
+             */
+            class MyBot extends IBot {
+              async sendMessage() {
+                return new Promise((res) => {
+                  // 创建个字符数组
+                  const charArr = ANSWER.split("");
+                  const interval = setInterval(() => {
+                    // 定时循环从数组中去一个字符
+                    const char = charArr.shift();
+                    if (typeof char === "string") {
+                      // 有字符时，发送 SSE 消息给客户端
+                      this.sseSender.send({ data: { content: char } });
+                    } else {
+                      // 字符用光后，结束定时循环
+                      clearInterval(interval);
+                      // 结束 SSE
+                      this.sseSender.end();
+                      res();
+                    }
+                  }, 50);
+                });
               }
+            }
+
+            /**
+             * 类型完整定义请参考：https://docs.cloudbase.net/cbrf/how-to-writing-functions-code#%E5%AE%8C%E6%95%B4%E7%A4%BA%E4%BE%8B
+             * "{demo: string}"" 为 event 参数的示例类型声明，请根据实际情况进行修改
+             * 需要 \`pnpm install\` 安装依赖后类型提示才会生效
+             * 
+             * @type {import('@cloudbase/functions-typings').TcbEventFunction<unknown>}
+             */
+            exports.main = function (event, context) {
+              return BotRunner.run(event, context, new MyBot(context));
             };
+            `;
 
-            fs.writeFileSync(path.join(projectDir, 'package.json'), JSON.stringify(packageJson, null, 2));
+          fs.writeFileSync(path.join(projectDir, 'index.js'), indexJsContent);
 
-            // Generate index.js with Agent template
-            const indexJsContent = `const { IBot } = require("@cloudbase/aiagent-framework");
-const { BotRunner } = require("@cloudbase/aiagent-framework");
+          // Generate cloudbaserc.json
+          const currentEnvId = await getEnvId(cloudBaseOptions);
+          const cloudbasercContent = {
+            envId: currentEnvId,
+            cloudrun: {
+              name: input.serverName
+            }
+          };
 
-const ANSWER = "你好，我是一个智能体，但我只会说这一句话。";
+          fs.writeFileSync(path.join(projectDir, 'cloudbaserc.json'), JSON.stringify(cloudbasercContent, null, 2));
 
-/**
- * @typedef {import('@cloudbase/aiagent-framework').IAbstractBot} IAbstractBot
- * 
- * @class
- * @implements {IAbstractBot}
- */
-class MyBot extends IBot {
-  async sendMessage() {
-    return new Promise((res) => {
-      // 创建个字符数组
-      const charArr = ANSWER.split("");
-      const interval = setInterval(() => {
-        // 定时循环从数组中去一个字符
-        const char = charArr.shift();
-        if (typeof char === "string") {
-          // 有字符时，发送 SSE 消息给客户端
-          this.sseSender.send({ data: { content: char } });
-        } else {
-          // 字符用光后，结束定时循环
-          clearInterval(interval);
-          // 结束 SSE
-          this.sseSender.end();
-          res();
-        }
-      }, 50);
-    });
-  }
-}
-
-/**
- * 类型完整定义请参考：https://docs.cloudbase.net/cbrf/how-to-writing-functions-code#%E5%AE%8C%E6%95%B4%E7%A4%BA%E4%BE%8B
- * "{demo: string}"" 为 event 参数的示例类型声明，请根据实际情况进行修改
- * 需要 \`pnpm install\` 安装依赖后类型提示才会生效
- * 
- * @type {import('@cloudbase/functions-typings').TcbEventFunction<unknown>}
- */
-exports.main = function (event, context) {
-  return BotRunner.run(event, context, new MyBot(context));
-};
-`;
-
-            fs.writeFileSync(path.join(projectDir, 'index.js'), indexJsContent);
-
-            // Generate cloudbaserc.json
-            const currentEnvId = await getEnvId(cloudBaseOptions);
-            const cloudbasercContent = {
-              envId: currentEnvId,
-              cloudrun: {
-                name: input.serverName
-              }
-            };
-
-            fs.writeFileSync(path.join(projectDir, 'cloudbaserc.json'), JSON.stringify(cloudbasercContent, null, 2));
-
-            // Generate README.md
-            const readmeContent = `# ${agentName} Agent
+          // Generate README.md
+          const readmeContent = `# ${agentName} Agent
 
 这是一个基于函数型云托管的 AI 智能体。
 
 ## 开发
 
-\`\`\`bash
+            \`\`\`bash
 # 安装依赖
 npm install
 
@@ -490,236 +573,236 @@ for await (let x of res.textStream) {
 \`\`\`
 `;
 
-            fs.writeFileSync(path.join(projectDir, 'README.md'), readmeContent);
+          fs.writeFileSync(path.join(projectDir, 'README.md'), readmeContent);
 
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    success: true,
-                    data: {
-                      agentName: agentName,
-                      botId: botId,
-                      projectDir: projectDir,
-                      serverName: input.serverName,
-                      template: template,
-                      filesCreated: ['package.json', 'index.js', 'cloudbaserc.json', 'README.md']
-                    },
-                    message: `Successfully created Agent '${agentName}' with BotId '${botId}' in ${projectDir}`
-                  }, null, 2)
-                }
-              ]
-            };
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  data: {
+                    agentName: agentName,
+                    botId: botId,
+                    projectDir: projectDir,
+                    serverName: input.serverName,
+                    template: template,
+                    filesCreated: ['package.json', 'index.js', 'cloudbaserc.json', 'README.md']
+                  },
+                  message: `Successfully created Agent '${agentName}' with BotId '${botId}' in ${projectDir}`
+                }, null, 2)
+              }
+            ]
+          };
+        }
+
+        case 'deploy': {
+          if (!targetPath) {
+            throw new Error("targetPath is required for deploy operation");
           }
 
-          case 'deploy': {
-            if (!targetPath) {
-              throw new Error("targetPath is required for deploy operation");
-            }
-
-            // Determine service type - use input.serverType if provided, otherwise auto-detect
-            let serverType: 'function' | 'container';
-            if (input.serverType) {
-              serverType = input.serverType;
-            } else {
-              try {
-                // First try to get existing service details
-                const details = await cloudrunService.detail({ serverName: input.serverName });
-                serverType = details.BaseInfo?.ServerType || 'container';
-              } catch (e) {
-                // If service doesn't exist, determine by project structure
-                const dockerfilePath = path.join(targetPath, 'Dockerfile');
-                if (fs.existsSync(dockerfilePath)) {
-                  serverType = 'container';
-                } else {
-                  // Check if it's a Node.js function project (has package.json with specific structure)
-                  const packageJsonPath = path.join(targetPath, 'package.json');
-                  if (fs.existsSync(packageJsonPath)) {
-                    try {
-                      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-                      // If it has function-specific dependencies or scripts, treat as function
-                      if (packageJson.dependencies?.['@cloudbase/aiagent-framework'] ||
-                        packageJson.scripts?.['dev']?.includes('cloudrun run')) {
-                        serverType = 'function';
-                      } else {
-                        serverType = 'container';
-                      }
-                    } catch (parseError) {
+          // Determine service type - use input.serverType if provided, otherwise auto-detect
+          let serverType: 'function' | 'container';
+          if (input.serverType) {
+            serverType = input.serverType;
+          } else {
+            try {
+              // First try to get existing service details
+              const details = await cloudrunService.detail({ serverName: input.serverName });
+              serverType = details.BaseInfo?.ServerType || 'container';
+            } catch (e) {
+              // If service doesn't exist, determine by project structure
+              const dockerfilePath = path.join(targetPath, 'Dockerfile');
+              if (fs.existsSync(dockerfilePath)) {
+                serverType = 'container';
+              } else {
+                // Check if it's a Node.js function project (has package.json with specific structure)
+                const packageJsonPath = path.join(targetPath, 'package.json');
+                if (fs.existsSync(packageJsonPath)) {
+                  try {
+                    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+                    // If it has function-specific dependencies or scripts, treat as function
+                    if (packageJson.dependencies?.['@cloudbase/aiagent-framework'] ||
+                      packageJson.scripts?.['dev']?.includes('cloudrun run')) {
+                      serverType = 'function';
+                    } else {
                       serverType = 'container';
                     }
-                  } else {
-                    // No package.json, default to container
+                  } catch (parseError) {
                     serverType = 'container';
                   }
-                }
-              }
-            }
-
-            const deployParams: any = {
-              serverName: input.serverName,
-              targetPath: targetPath,
-              force: input.force,
-              serverType: serverType,
-            };
-
-            // Add server configuration if provided
-            if (input.serverConfig) {
-              deployParams.serverConfig = input.serverConfig;
-            }
-
-            const result = await cloudrunService.deploy(deployParams);
-
-            // Generate cloudbaserc.json configuration file
-            const currentEnvId = await getEnvId(cloudBaseOptions);
-            const cloudbasercPath = path.join(targetPath, 'cloudbaserc.json');
-            const cloudbasercContent = {
-              envId: currentEnvId,
-              cloudrun: {
-                name: input.serverName
-              }
-            };
-
-            try {
-              fs.writeFileSync(cloudbasercPath, JSON.stringify(cloudbasercContent, null, 2));
-            } catch (error) {
-              // Ignore cloudbaserc.json creation errors
-            }
-
-            // Build console URL (defined outside try block for use in return message)
-            const consoleUrl = `https://tcb.cloud.tencent.com/dev?envId=${currentEnvId}#/platform-run/service/detail?serverName=${input.serverName}&tabId=overview&envId=${currentEnvId}`;
-
-            // Send deployment notification to CodeBuddy IDE
-            try {
-              // Query service details to get access URL
-              let serviceUrl = "";
-              try {
-                const serviceDetails = await cloudrunService.detail({ serverName: input.serverName });
-                // Extract access URL from service details
-                // Priority: DefaultDomainName > CustomDomainName > PublicDomain > InternalDomain
-                const details = serviceDetails as any; // Use any to access dynamic properties
-                if (details?.BaseInfo?.DefaultDomainName) {
-                  // DefaultDomainName is already a complete URL (e.g., https://...)
-                  serviceUrl = details.BaseInfo.DefaultDomainName;
-                } else if (details?.BaseInfo?.CustomDomainName) {
-                  // CustomDomainName might be a domain without protocol
-                  const customDomain = details.BaseInfo.CustomDomainName;
-                  serviceUrl = customDomain.startsWith('http') ? customDomain : `https://${customDomain}`;
-                } else if (details?.BaseInfo?.PublicDomain) {
-                  serviceUrl = `https://${details.BaseInfo.PublicDomain}`;
-                } else if (details?.BaseInfo?.InternalDomain) {
-                  serviceUrl = `https://${details.BaseInfo.InternalDomain}`;
-                } else if (details?.AccessInfo?.PublicDomain) {
-                  serviceUrl = `https://${details.AccessInfo.PublicDomain}`;
                 } else {
-                  serviceUrl = ""; // URL not available
+                  // No package.json, default to container
+                  serverType = 'container';
                 }
-              } catch (detailErr) {
-                // If query fails, continue with empty URL
-                serviceUrl = "";
               }
-
-              // Extract project name from targetPath
-              const projectName = path.basename(targetPath);
-
-              // Send notification
-              await sendDeployNotification(server, {
-                deployType: 'cloudrun',
-                url: serviceUrl,
-                projectId: currentEnvId,
-                projectName: projectName,
-                consoleUrl: consoleUrl
-              });
-            } catch (notifyErr) {
-              // Notification failure should not affect deployment flow
-              // Error is already logged in sendDeployNotification
             }
-
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    success: true,
-                    data: {
-                      serviceName: input.serverName,
-                      status: 'deployed',
-                      deployPath: targetPath,
-                      serverType: serverType,
-                      cloudbasercGenerated: true
-                    },
-                    message: `Successfully trigger an deployment of ${serverType} service '${input.serverName}' from ${targetPath}. You can see the progress in ${consoleUrl}`
-                  }, null, 2)
-                }
-              ]
-            };
           }
 
-          case 'run': {
-            if (!targetPath) {
-              throw new Error("targetPath is required for run operation");
+          const deployParams: any = {
+            serverName: input.serverName,
+            targetPath: targetPath,
+            force: input.force,
+            serverType: serverType,
+          };
+
+          // Add server configuration if provided
+          if (input.serverConfig) {
+            deployParams.serverConfig = input.serverConfig;
+          }
+
+          const result = await cloudrunService.deploy(deployParams);
+
+          // Generate cloudbaserc.json configuration file
+          const currentEnvId = await getEnvId(cloudBaseOptions);
+          const cloudbasercPath = path.join(targetPath, 'cloudbaserc.json');
+          const cloudbasercContent = {
+            envId: currentEnvId,
+            cloudrun: {
+              name: input.serverName
             }
+          };
 
-            // Do not support container services locally: basic heuristic - if Dockerfile exists, treat as container
-            const dockerfilePath = path.join(targetPath, 'Dockerfile');
-            if (fs.existsSync(dockerfilePath)) {
-              throw new Error("Local run is only supported for function-type CloudRun services. Container services are not supported.");
-            }
+          try {
+            fs.writeFileSync(cloudbasercPath, JSON.stringify(cloudbasercContent, null, 2));
+          } catch (error) {
+            // Ignore cloudbaserc.json creation errors
+          }
 
-            // Check if this is an Agent project
-            const isAgent = checkIfAgentProject(targetPath);
-            const runMode = input.runOptions?.runMode || (isAgent ? 'agent' : 'normal');
+          // Build console URL (defined outside try block for use in return message)
+          const consoleUrl = `https://tcb.cloud.tencent.com/dev?envId=${currentEnvId}#/platform-run/service/detail?serverName=${input.serverName}&tabId=overview&envId=${currentEnvId}`;
 
-            // Check if service is already running and verify process exists
-            if (runningProcesses.has(input.serverName)) {
-              const existingPid = runningProcesses.get(input.serverName)!;
-              try {
-                // Check if process actually exists
-                process.kill(existingPid, 0);
-                return {
-                  content: [
-                    {
-                      type: "text",
-                      text: JSON.stringify({
-                        success: true,
-                        data: {
-                          serviceName: input.serverName,
-                          status: 'running',
-                          pid: existingPid,
-                          cwd: targetPath
-                        },
-                        message: `Service '${input.serverName}' is already running locally (pid=${existingPid})`
-                      }, null, 2)
-                    }
-                  ]
-                };
-              } catch (error) {
-                // Process doesn't exist, remove from tracking
-                runningProcesses.delete(input.serverName);
+          // Send deployment notification to CodeBuddy IDE
+          try {
+            // Query service details to get access URL
+            let serviceUrl = "";
+            try {
+              const serviceDetails = await cloudrunService.detail({ serverName: input.serverName });
+              // Extract access URL from service details
+              // Priority: DefaultDomainName > CustomDomainName > PublicDomain > InternalDomain
+              const details = serviceDetails as any; // Use any to access dynamic properties
+              if (details?.BaseInfo?.DefaultDomainName) {
+                // DefaultDomainName is already a complete URL (e.g., https://...)
+                serviceUrl = details.BaseInfo.DefaultDomainName;
+              } else if (details?.BaseInfo?.CustomDomainName) {
+                // CustomDomainName might be a domain without protocol
+                const customDomain = details.BaseInfo.CustomDomainName;
+                serviceUrl = customDomain.startsWith('http') ? customDomain : `https://${customDomain}`;
+              } else if (details?.BaseInfo?.PublicDomain) {
+                serviceUrl = `https://${details.BaseInfo.PublicDomain}`;
+              } else if (details?.BaseInfo?.InternalDomain) {
+                serviceUrl = `https://${details.BaseInfo.InternalDomain}`;
+              } else if (details?.AccessInfo?.PublicDomain) {
+                serviceUrl = `https://${details.AccessInfo.PublicDomain}`;
+              } else {
+                serviceUrl = ""; // URL not available
               }
+            } catch (detailErr) {
+              // If query fails, continue with empty URL
+              serviceUrl = "";
             }
 
-            const runPort = input.runOptions?.port ?? 3000;
-            const extraEnv = input.runOptions?.envParams ?? {};
+            // Extract project name from targetPath
+            const projectName = path.basename(targetPath);
 
-            // Set environment variables for functions-framework
-            const env = {
-              ...process.env,
-              PORT: String(runPort),
-              ...extraEnv,
-              // Add functions-framework specific environment variables
-              ENABLE_CORS: 'true',
-              ALLOWED_ORIGINS: '*'
-            };
+            // Send notification
+            await sendDeployNotification(server, {
+              deployType: 'cloudrun',
+              url: serviceUrl,
+              projectId: currentEnvId,
+              projectName: projectName,
+              consoleUrl: consoleUrl
+            });
+          } catch (notifyErr) {
+            // Notification failure should not affect deployment flow
+            // Error is already logged in sendDeployNotification
+          }
 
-            // Choose execution method based on run mode
-            let child;
-            let command;
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  data: {
+                    serviceName: input.serverName,
+                    status: 'deployed',
+                    deployPath: targetPath,
+                    serverType: serverType,
+                    cloudbasercGenerated: true
+                  },
+                  message: `Successfully trigger an deployment of ${serverType} service '${input.serverName}' from ${targetPath}. You can see the progress in ${consoleUrl}`
+                }, null, 2)
+              }
+            ]
+          };
+        }
 
-            if (runMode === 'agent') {
-              // For Agent mode, use a different approach since functions-framework doesn't support Agent mode
-              // We'll use a custom script that sets up the Agent environment
-              command = `node -e "
+        case 'run': {
+          if (!targetPath) {
+            throw new Error("targetPath is required for run operation");
+          }
+
+          // Do not support container services locally: basic heuristic - if Dockerfile exists, treat as container
+          const dockerfilePath = path.join(targetPath, 'Dockerfile');
+          if (fs.existsSync(dockerfilePath)) {
+            throw new Error("Local run is only supported for function-type CloudRun services. Container services are not supported.");
+          }
+
+          // Check if this is an Agent project
+          const isAgent = checkIfAgentProject(targetPath);
+          const runMode = input.runOptions?.runMode || (isAgent ? 'agent' : 'normal');
+
+          // Check if service is already running and verify process exists
+          if (runningProcesses.has(input.serverName)) {
+            const existingPid = runningProcesses.get(input.serverName)!;
+            try {
+              // Check if process actually exists
+              process.kill(existingPid, 0);
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify({
+                      success: true,
+                      data: {
+                        serviceName: input.serverName,
+                        status: 'running',
+                        pid: existingPid,
+                        cwd: targetPath
+                      },
+                      message: `Service '${input.serverName}' is already running locally (pid=${existingPid})`
+                    }, null, 2)
+                  }
+                ]
+              };
+            } catch (error) {
+              // Process doesn't exist, remove from tracking
+              runningProcesses.delete(input.serverName);
+            }
+          }
+
+          const runPort = input.runOptions?.port ?? 3000;
+          const extraEnv = input.runOptions?.envParams ?? {};
+
+          // Set environment variables for functions-framework
+          const env = {
+            ...process.env,
+            PORT: String(runPort),
+            ...extraEnv,
+            // Add functions-framework specific environment variables
+            ENABLE_CORS: 'true',
+            ALLOWED_ORIGINS: '*'
+          };
+
+          // Choose execution method based on run mode
+          let child;
+          let command;
+
+          if (runMode === 'agent') {
+            // For Agent mode, use a different approach since functions-framework doesn't support Agent mode
+            // We'll use a custom script that sets up the Agent environment
+            command = `node -e "
                 const { runCLI } = require('@cloudbase/functions-framework');
                 process.env.PORT = '${runPort}';
                 process.env.ENABLE_CORS = 'true';
@@ -729,15 +812,15 @@ for await (let x of res.textStream) {
                 runCLI();
               "`;
 
-              child = spawn(process.execPath, ['-e', command], {
-                cwd: targetPath,
-                env,
-                stdio: ['ignore', 'pipe', 'pipe'],
-                detached: true
-              });
-            } else {
-              // Normal function mode
-              command = `node -e "
+            child = spawn(process.execPath, ['-e', command], {
+              cwd: targetPath,
+              env,
+              stdio: ['ignore', 'pipe', 'pipe'],
+              detached: true
+            });
+          } else {
+            // Normal function mode
+            command = `node -e "
                 const { runCLI } = require('@cloudbase/functions-framework');
                 process.env.PORT = '${runPort}';
                 process.env.ENABLE_CORS = 'true';
@@ -746,180 +829,180 @@ for await (let x of res.textStream) {
                 runCLI();
               "`;
 
-              child = spawn(process.execPath, ['-e', command], {
-                cwd: targetPath,
-                env,
-                stdio: ['ignore', 'pipe', 'pipe'],
-                detached: true
-              });
-            }
-
-            // Handle process exit to clean up tracking
-            child.on('exit', (code, signal) => {
-              runningProcesses.delete(input.serverName);
+            child = spawn(process.execPath, ['-e', command], {
+              cwd: targetPath,
+              env,
+              stdio: ['ignore', 'pipe', 'pipe'],
+              detached: true
             });
-
-            child.on('error', (error) => {
-              runningProcesses.delete(input.serverName);
-            });
-
-            child.unref();
-            if (typeof child.pid !== 'number') {
-              throw new Error('Failed to start local process: PID is undefined.');
-            }
-            runningProcesses.set(input.serverName, child.pid);
-
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    success: true,
-                    data: {
-                      serviceName: input.serverName,
-                      status: 'running',
-                      pid: child.pid,
-                      port: runPort,
-                      runMode: runMode,
-                      isAgent: isAgent,
-                      command: command,
-                      cwd: targetPath
-                    },
-                    message: `Started local run for ${runMode} service '${input.serverName}' on port ${runPort} (pid=${child.pid})`
-                  }, null, 2)
-                }
-              ]
-            };
           }
 
-          case 'download': {
-            if (!targetPath) {
-              throw new Error("targetPath is required for download operation");
-            }
+          // Handle process exit to clean up tracking
+          child.on('exit', (code, signal) => {
+            runningProcesses.delete(input.serverName);
+          });
 
-            const result = await cloudrunService.download({
-              serverName: input.serverName,
-              targetPath: targetPath,
-            });
+          child.on('error', (error) => {
+            runningProcesses.delete(input.serverName);
+          });
 
-            // Generate cloudbaserc.json configuration file
-            const currentEnvId = await getEnvId(cloudBaseOptions);
-            const cloudbasercPath = path.join(targetPath, 'cloudbaserc.json');
-            const cloudbasercContent = {
-              envId: currentEnvId,
-              cloudrun: {
-                name: input.serverName
+          child.unref();
+          if (typeof child.pid !== 'number') {
+            throw new Error('Failed to start local process: PID is undefined.');
+          }
+          runningProcesses.set(input.serverName, child.pid);
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  data: {
+                    serviceName: input.serverName,
+                    status: 'running',
+                    pid: child.pid,
+                    port: runPort,
+                    runMode: runMode,
+                    isAgent: isAgent,
+                    command: command,
+                    cwd: targetPath
+                  },
+                  message: `Started local run for ${runMode} service '${input.serverName}' on port ${runPort} (pid=${child.pid})`
+                }, null, 2)
               }
-            };
+            ]
+          };
+        }
 
-            try {
-              fs.writeFileSync(cloudbasercPath, JSON.stringify(cloudbasercContent, null, 2));
-            } catch (error) {
-              // Ignore cloudbaserc.json creation errors
-            }
-
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    success: true,
-                    data: {
-                      serviceName: input.serverName,
-                      downloadPath: targetPath,
-                      filesCount: 0,
-                      cloudbasercGenerated: true
-                    },
-                    message: `Successfully downloaded service '${input.serverName}' to ${targetPath}`
-                  }, null, 2)
-                }
-              ]
-            };
+        case 'download': {
+          if (!targetPath) {
+            throw new Error("targetPath is required for download operation");
           }
 
-          case 'delete': {
-            if (!input.force) {
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify({
-                      success: false,
-                      error: "Delete operation requires confirmation",
-                      message: "Please set force: true to confirm deletion of the service. This action cannot be undone."
-                    }, null, 2)
-                  }
-                ]
-              };
+          const result = await cloudrunService.download({
+            serverName: input.serverName,
+            targetPath: targetPath,
+          });
+
+          // Generate cloudbaserc.json configuration file
+          const currentEnvId = await getEnvId(cloudBaseOptions);
+          const cloudbasercPath = path.join(targetPath, 'cloudbaserc.json');
+          const cloudbasercContent = {
+            envId: currentEnvId,
+            cloudrun: {
+              name: input.serverName
             }
+          };
 
-            const result = await cloudrunService.delete({
-              serverName: input.serverName,
-            });
-
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    success: true,
-                    data: {
-                      serviceName: input.serverName,
-                      status: 'deleted'
-                    },
-                    message: `Successfully deleted service '${input.serverName}'`
-                  }, null, 2)
-                }
-              ]
-            };
+          try {
+            fs.writeFileSync(cloudbasercPath, JSON.stringify(cloudbasercContent, null, 2));
+          } catch (error) {
+            // Ignore cloudbaserc.json creation errors
           }
 
-          case 'init': {
-            if (!targetPath) {
-              throw new Error("targetPath is required for init operation");
-            }
-
-            const result = await cloudrunService.init({
-              serverName: input.serverName,
-              targetPath: targetPath,
-              template: input.template,
-            });
-
-            // Generate cloudbaserc.json configuration file
-            const currentEnvId = await getEnvId(cloudBaseOptions);
-            const cloudbasercPath = path.join(targetPath, input.serverName, 'cloudbaserc.json');
-            const cloudbasercContent = {
-              envId: currentEnvId,
-              cloudrun: {
-                name: input.serverName
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  data: {
+                    serviceName: input.serverName,
+                    downloadPath: targetPath,
+                    filesCount: 0,
+                    cloudbasercGenerated: true
+                  },
+                  message: `Successfully downloaded service '${input.serverName}' to ${targetPath}`
+                }, null, 2)
               }
-            };
+            ]
+          };
+        }
 
-            try {
-              fs.writeFileSync(cloudbasercPath, JSON.stringify(cloudbasercContent, null, 2));
-            } catch (error) {
-              // Ignore cloudbaserc.json creation errors
-            }
-
+        case 'delete': {
+          if (!input.force) {
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify({
-                    success: true,
-                    data: {
-                      serviceName: input.serverName,
-                      template: input.template,
-                      initPath: targetPath,
-                      projectDir: result.projectDir || path.join(targetPath, input.serverName),
-                      cloudbasercGenerated: true
-                    },
-                    message: `Successfully initialized service '${input.serverName}' with template '${input.template}' at ${targetPath}`
+                    success: false,
+                    error: "Delete operation requires confirmation",
+                    message: "Please set force: true to confirm deletion of the service. This action cannot be undone."
                   }, null, 2)
                 }
               ]
             };
           }
+
+          const result = await cloudrunService.delete({
+            serverName: input.serverName,
+          });
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  data: {
+                    serviceName: input.serverName,
+                    status: 'deleted'
+                  },
+                  message: `Successfully deleted service '${input.serverName}'`
+                }, null, 2)
+              }
+            ]
+          };
+        }
+
+        case 'init': {
+          if (!targetPath) {
+            throw new Error("targetPath is required for init operation");
+          }
+
+          const result = await cloudrunService.init({
+            serverName: input.serverName,
+            targetPath: targetPath,
+            template: input.template,
+          });
+
+          // Generate cloudbaserc.json configuration file
+          const currentEnvId = await getEnvId(cloudBaseOptions);
+          const cloudbasercPath = path.join(targetPath, input.serverName, 'cloudbaserc.json');
+          const cloudbasercContent = {
+            envId: currentEnvId,
+            cloudrun: {
+              name: input.serverName
+            }
+          };
+
+          try {
+            fs.writeFileSync(cloudbasercPath, JSON.stringify(cloudbasercContent, null, 2));
+          } catch (error) {
+            // Ignore cloudbaserc.json creation errors
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  data: {
+                    serviceName: input.serverName,
+                    template: input.template,
+                    initPath: targetPath,
+                    projectDir: result.projectDir || path.join(targetPath, input.serverName),
+                    cloudbasercGenerated: true
+                  },
+                  message: `Successfully initialized service '${input.serverName}' with template '${input.template}' at ${targetPath}`
+                }, null, 2)
+              }
+            ]
+          };
+        }
 
         default:
           throw new Error(`Unsupported action: ${input.action}`);
