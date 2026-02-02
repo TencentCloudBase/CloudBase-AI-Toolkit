@@ -39,7 +39,7 @@ Use this skill for **CloudBase Run service development** when you need:
    - Access control: Only enable public network for Web scenarios; mini-programs prioritize internal direct connection, recommend closing public network
 
 3. **Follow the workflow**
-   - Initialize project → Check/generate Dockerfile (for container mode) → **⚠️ CHECK: CORS/Host/Origin config** → Local run (function mode only) → Configure access → Deploy → Verify
+   - Initialize project → Check/generate Dockerfile (for container mode) → **Local build & run verification** (if docker/podman available) → **⚠️ CHECK: CORS/Host/Origin config** → Local run (function mode only) → Configure access → Deploy → Verify
 
 4. **Use tools correctly**
    - **Read operations**: `queryCloudRun` (list, detail, templates)
@@ -76,7 +76,7 @@ A concise guide for AI assistants and engineering collaboration, providing "when
 | Runtime | Function framework loads functions (Runtime) | Docker image starts process |
 | Port | Fixed 3000 | Application listens on `PORT` (injected by platform during deployment) |
 | Dockerfile | Not required | Required (and must pass local build) |
-| Local Running | Supported (built-in tools) | Not supported (recommend using Docker for debugging) |
+| Local Running | Supported (built-in tools) | Not supported by tools; recommend local build & run with Docker/Podman before deploy |
 | Typical Scenarios | WebSocket/SSE/streaming responses, forms/files, low latency, multiple functions per instance, shared memory | Arbitrary system dependencies/languages, migrating existing containerized applications |
 
 ## 3. Development Requirements (Must Meet)
@@ -144,7 +144,14 @@ A concise guide for AI assistants and engineering collaboration, providing "when
 
       Make sure the application are actually Running on the PORT.
 
-3) **⚠️ CHECK: CORS / Host / Origin Configuration (CRITICAL)**
+3) **Local build and run verification (Container mode, when Docker/Podman available)**
+   - After writing or updating the Dockerfile, if the user's environment has `docker` or `podman` available (check with `docker --version` or `podman --version`), perform local build and run before deploying to CloudRun.
+   - **Build**: From the project root (where Dockerfile lives), run e.g. `docker build -t my-svc:local .` or `podman build -t my-svc:local .`. Use the same Dockerfile that will be used for CloudRun (e.g. `-f Dockerfile.cloudrun` if using a dedicated file).
+   - **Run**: Start the container with `PORT` set to the port your app listens on (see Dockerfile `EXPOSE` or app config). Map host port to container port: `docker run -p <host_port>:<container_port> -e PORT=<container_port> <image>` (same for `podman run`).
+   - **Verify**: Confirm the app responds on the mapped host port (e.g. `curl http://localhost:<host_port>` or hit a health/root endpoint). Fix any build or runtime errors locally.
+   - **Then proceed**: Only after local build and run succeed, continue to CORS check and deploy. If docker/podman is not available, skip this step and proceed to deploy (CloudRun will build remotely).
+
+4) **⚠️ CHECK: CORS / Host / Origin Configuration (CRITICAL)**
    - CloudBase Run provides a default preview URL ending with `.run.tcloudbase.com`
    - **MUST verify** backend CORS / `Access-Control-Allow-Origin` / `allowHost` allows `*.run.tcloudbase.com`
    - **Check locations** (common places):
@@ -154,15 +161,15 @@ A concise guide for AI assistants and engineering collaboration, providing "when
      - Environment variables like `ALLOWED_ORIGINS`, `CORS_ORIGIN`
    - If using custom domain in production, ensure both custom domain AND `.run.tcloudbase.com` are allowed
 
-4) **Local running** (Function mode only)
+5) **Local running** (Function mode only)
 
-5) **Configure access**
+6) **Configure access**
    - Set `OpenAccessTypes` (WEB/VPC/PRIVATE) as needed; configure security domain and authentication for Web scenarios
 
-6) **Deploy**
+7) **Deploy**
    - Specify CPU/Mem/instance count/environment variables, etc. during `deploy`
 
-7) **Verify**
+8) **Verify**
    - Use `detail` to confirm access address and configuration meet expectations
 
 ### Example Tool Calls
@@ -185,12 +192,12 @@ A concise guide for AI assistants and engineering collaboration, providing "when
 { "name": "manageCloudRun", "arguments": { "action": "download", "serverName": "my-svc", "targetPath": "/abs/ws/my-svc" } }
 ```
 
-4) **Local running** (Function mode only)
+4) **Local running** (Function mode only; use the port your app listens on in `runOptions.port`)
 ```json
 { "name": "manageCloudRun", "arguments": { "action": "run", "serverName": "my-svc", "targetPath": "/abs/ws/my-svc", "runOptions": { "port": 3000 } } }
 ```
 
-5) **Deploy** (⚠️ Confirm Step 3 CORS check completed)
+7) **Deploy** (⚠️ Confirm CORS check completed; for container mode, recommend local build & run with Docker/Podman first when available)
 ```json
 { "name": "manageCloudRun", "arguments": { "action": "deploy", "serverName": "my-svc", "targetPath": "/abs/ws/my-svc", "serverConfig": { "OpenAccessTypes": ["WEB"], "Cpu": 0.5, "Mem": 1, "MinNum": 0, "MaxNum": 5 } } }
 ```
@@ -201,7 +208,7 @@ Make sure application are actually running on PORT that defined here.
 { "name": "manageCloudRun", "arguments": { "action": "createAgent", "serverName": "my-agent", "targetPath": "/abs/ws/agents", "agentConfig": { "agentName": "MyAgent", "botTag": "demo", "description": "My agent", "template": "blank" } } }
 ```
 
-7) **Run agent** (optional)
+7) **Run agent** (optional; use the port your app listens on in `runOptions.port`)
 ```json
 { "name": "manageCloudRun", "arguments": { "action": "run", "serverName": "my-agent", "targetPath": "/abs/ws/agents/my-agent", "runOptions": { "port": 3000, "runMode": "agent" } } }
 ```
@@ -219,7 +226,7 @@ Make sure application are actually running on PORT that defined here.
 
 - **Access failure**: Check OpenAccessTypes/domain/port, whether instance scaled down to 0
 - **CORS errors**: Backend must allow `*.run.tcloudbase.com` origin. See Step 3 in Core Workflow.
-- **Deployment failure**: Verify Dockerfile/build logs/image volume and CPU/Mem ratio
+- **Deployment failure**: Verify Dockerfile/build logs/image volume and CPU/Mem ratio; if possible, reproduce with local `docker build` / `podman build` and `docker run` / `podman run` first
 - **Local running failure**: Only Function mode supported; requires `package.json` `dev`/`start` or entry `index.js|app.js|server.js`
 - **Performance jitter**: Reduce dependencies and initialization; appropriately increase MinNum; optimize cold start
 - **Agent running failure**: Check `@cloudbase/aiagent-framework` dependency, BotId format, SSE response format
