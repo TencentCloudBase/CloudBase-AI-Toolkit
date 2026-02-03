@@ -39,7 +39,7 @@ function createCLIConfigs() {
     externals: createMinimalExternals("commonjs"),
     plugins: [...baseConfig.plugins, ...cliPlugins],
     optimization: {
-      minimize: false,
+      minimize: true,
       minimizer: [
         new TerserPlugin({
           terserOptions: {
