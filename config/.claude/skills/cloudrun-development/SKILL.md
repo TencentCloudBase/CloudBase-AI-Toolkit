@@ -144,8 +144,8 @@ A concise guide for AI assistants and engineering collaboration, providing "when
 
       Make sure the application are actually Running on the PORT.
 
-3) **Local build and run verification (Container mode, when Docker/Podman available)**
-   - After writing or updating the Dockerfile, if the user's environment has `docker` or `podman` available (check with `docker --version` or `podman --version`), perform local build and run before deploying to CloudRun.
+3) **IMPORTANT: Local build and run verification (Container mode, when Docker/Podman available. ALWAYS check it)**
+   - After writing or updating the Dockerfile, if the user's environment has `docker` or `podman` available (check with `docker --version` or `podman --version`), perform local build and run before deploying to CloudRun. ALWAYS check it.
    - **Build**: From the project root (where Dockerfile lives), run e.g. `docker build -t my-svc:local .` or `podman build -t my-svc:local .`. Use the same Dockerfile that will be used for CloudRun (e.g. `-f Dockerfile.cloudrun` if using a dedicated file).
    - **Run**: Start the container with `PORT` set to the port your app listens on (see Dockerfile `EXPOSE` or app config). Map host port to container port: `docker run -p <host_port>:<container_port> -e PORT=<container_port> <image>` (same for `podman run`).
    - **Verify**: Confirm the app responds on the mapped host port (e.g. `curl http://localhost:<host_port>` or hit a health/root endpoint). Fix any build or runtime errors locally.
@@ -230,7 +230,7 @@ Make sure application are actually running on PORT that defined here.
 - **Local running failure**: Only Function mode supported; requires `package.json` `dev`/`start` or entry `index.js|app.js|server.js`
 - **Performance jitter**: Reduce dependencies and initialization; appropriately increase MinNum; optimize cold start
 - **Agent running failure**: Check `@cloudbase/aiagent-framework` dependency, BotId format, SSE response format
-
+- **Port listening Problem**: `Readiness probe failed: dial tcp <ip>:<port>: connect: connection refused, [service]:[Liveness probe failed: dial tcp <ip>:<port>: connect: connection refused,Readiness probe failed: dial tcp <ip>:<port>: connect: connection refused,]` Error message like this is usually caused by the app not listening on correct port.
 ## 8. Function Mode CloudRun (Function Mode) Key Points (Concise)
 
 - **Definition**: CloudRun + function framework (`@cloudbase/functions-framework`) + function code, making container service development as simple as writing cloud functions

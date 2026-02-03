@@ -51,7 +51,7 @@ const ManageCloudRunInputSchema = {
     EnvParams: z.string().optional().describe('环境变量配置，JSON字符串格式。用于传递配置信息给服务代码，如\'{"DATABASE_URL":"mysql://...","NODE_ENV":"production"}\'。敏感信息建议使用环境变量而非硬编码'),
     Dockerfile: z.string().optional().describe('Dockerfile文件名配置，仅容器型服务需要。指定用于构建容器镜像的Dockerfile文件路径，默认为项目根目录下的Dockerfile'),
     BuildDir: z.string().optional().describe('构建目录配置，指定代码构建的目录路径。当代码结构与标准不同时使用，默认为项目根目录'),
-    InternalAccess: z.string().optional().describe('内网访问开关配置，控制是否启用内网访问。true=启用内网访问（可通过云开发SDK直接调用），false=关闭内网访问（仅公网访问）'),
+    InternalAccess: z.boolean().optional().describe('内网访问开关配置，控制是否启用内网访问。true=启用内网访问（可通过云开发SDK直接调用），false=关闭内网访问（仅公网访问）'),
     InternalDomain: z.string().optional().describe('内网域名配置，用于配置服务的内网访问域名。仅在启用内网访问时有效'),
     EntryPoint: z.array(z.string()).optional().describe('Dockerfile EntryPoint参数配置，仅容器型服务需要。指定容器启动时的入口程序数组，如["node","app.js"]'),
     Cmd: z.array(z.string()).optional().describe('Dockerfile Cmd参数配置，仅容器型服务需要。指定容器启动时的默认命令数组，如["npm","start"]'),
@@ -277,7 +277,7 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
           if (latestDeploy.Status.includes('failed')) {
             message = `Service '${serverName}' latest deploy failed. Please check the deploy log for details.`;
           } else if (latestDeploy.Status.includes('creating')) {
-            message = `Service '${serverName}' latest deploy is creating. Please check later. Usually it will take serval minutes.`;
+            message = `Service '${serverName}' latest deploy is creating. Please check later. Usually it will take serval minutes. sleep for serval seconds and then check again.`;
           } else {
             message = `Service '${serverName}' latest service status: ${result.BaseInfo.Status}, latest deploy status: ${latestDeploy.Status}. Please check both service info and latest deploy info`;
           }
