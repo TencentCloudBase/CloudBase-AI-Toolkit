@@ -19,6 +19,8 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.16.0",
+    "@types/node": "^25.3.2",
+    "@types/turndown": "^5.0.6",
     "conventional-changelog-angular": "^6.0.0",
     "conventional-changelog-cli": "^4.1.0",
     "js-yaml": "^4.1.1",
@@ -28,5 +30,12 @@
     "commitUrlFormat": "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/{{hash}}",
     "compareUrlFormat": "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/compare/{{previousTag}}...{{currentTag}}",
     "issueUrlFormat": "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues/{{id}}"
+  },
+  "dependencies": {
+    "defuddle": "^0.7.0",
+    "jsdom": "^24.1.3",
+    "p-limit": "^7.3.0",
+    "turndown": "^7.2.2",
+    "turndown-plugin-gfm": "^1.0.2"
   }
 }
