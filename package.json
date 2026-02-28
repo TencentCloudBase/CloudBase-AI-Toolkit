@@ -32,9 +32,11 @@
     "issueUrlFormat": "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues/{{id}}"
   },
   "dependencies": {
+    "@cloudbase/manager-node": "^4.10.1",
     "defuddle": "^0.7.0",
     "jsdom": "^24.1.3",
     "p-limit": "^7.3.0",
+    "simple-git": "^3.32.3",
     "turndown": "^7.2.2",
     "turndown-plugin-gfm": "^1.0.2"
   }

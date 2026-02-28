@@ -4,6 +4,11 @@
  *
  * Usage:
  *   npx tsx scripts/crawl-tcb-docs.ts
+ *   npx tsx scripts/crawl-tcb-docs.ts --commit
+ *
+ * Options:
+ *   --commit    After crawling, commit and push changes to remote branch
+ *               Requires: branch must be 'chore/pure_doc_skill' and up-to-date with remote
  *
  * Output: config/.claude/skills/pure-doc/references/
  */
@@ -13,6 +18,7 @@ import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import pLimit from 'p-limit';
+import simpleGit from 'simple-git';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,6 +35,60 @@ const COMMON_PARAMS_URL = 'https://cloud.tencent.com/document/api/876/34812';
 const API_OVERVIEW_URL = 'https://cloud.tencent.com/document/api/876/34809';
 const CONCURRENCY = 10;
 const DEFAULT_OUTPUT_DIR = 'config/.claude/skills/pure-doc/references';
+const SKILL_DIR = 'config/.claude/skills/pure-doc';
+const REQUIRED_BRANCH = 'chore/pure_doc_skill';
+
+const git = simpleGit(projectRoot);
+
+async function checkGitPrerequisites(): Promise<void> {
+  // 1. Check current branch
+  const branchSummary = await git.branch();
+  const currentBranch = branchSummary.current;
+
+  if (currentBranch !== REQUIRED_BRANCH) {
+    throw new Error(`❌ Current branch is '${currentBranch}', but must be '${REQUIRED_BRANCH}'`);
+  }
+  console.log(`✅ Branch: ${currentBranch}`);
+
+  // 2. Fetch remote to get latest state
+  console.log('📡 Fetching remote...');
+  await git.fetch();
+
+  // 3. Check if behind remote (not up-to-date)
+  const status = await git.status();
+  if (status.behind > 0) {
+    throw new Error(`❌ Local branch is ${status.behind} commits behind remote. Please pull first.`);
+  }
+  console.log('✅ Not behind remote');
+}
+
+async function commitAndPush(): Promise<void> {
+  // Check if there are changes in the skill directory
+  const status = await git.status();
+  const skillChanges = status.files.filter(
+    (f) => f.path.startsWith(SKILL_DIR) || f.path.startsWith(SKILL_DIR.replace(/\//g, '\\'))
+  );
+
+  if (skillChanges.length === 0) {
+    console.log('\n📭 No changes in skill directory, nothing to commit.');
+    return;
+  }
+
+  console.log(`\n📝 Found ${skillChanges.length} changed files in ${SKILL_DIR}`);
+
+  // Stage changes in skill directory
+  await git.add(`${SKILL_DIR}/*`);
+
+  // Commit
+  const commitMessage = `docs(pure-doc): 🔄 update CloudBase API references\n\nCrawled at ${new Date().toISOString()}`;
+  await git.commit(commitMessage);
+  console.log('✅ Committed changes');
+
+  // Push to remote
+  console.log('📤 Pushing to remote...');
+  await git.push('origin', REQUIRED_BRANCH);
+  console.log('✅ Pushed to remote');
+}
 
 interface CrawlResult {
   url: string;
@@ -74,9 +134,17 @@ function urlToFilename(url: string, title: string): string {
 }
 
 async function main() {
+  const shouldCommit = process.argv.includes('--commit');
   const outputDir = process.argv.includes('--output')
     ? process.argv[process.argv.indexOf('--output') + 1]
     : join(projectRoot, DEFAULT_OUTPUT_DIR);
+
+  // If --commit flag is set, check prerequisites first
+  if (shouldCommit) {
+    console.log('🔍 Checking git prerequisites...\n');
+    await checkGitPrerequisites();
+    console.log('');
+  }
 
   if (existsSync(outputDir)) {
     console.log(`🧹 Cleaning existing files in ${outputDir}...`);
@@ -148,7 +216,15 @@ async function main() {
   writeFileSync(join(outputDir, 'README.md'), indexContent);
 
   console.log(`\n✅ Done! ${results.length} documents saved to ${outputDir}`);
+
+  // If --commit flag is set, commit and push changes
+  if (shouldCommit) {
+    await commitAndPush();
+  }
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  console.error(err.message || err);
+  process.exit(1);
+});
 
