@@ -26,9 +26,9 @@ alwaysApply: false
 
 设置环境变量：
 ```bash
-export SECRET_ID="your-secret-id"
-export SECRET_KEY="your-secret-key"
-export ENV_ID="your-env-id"
+export TENCENTCLOUD_SECRETID="your-secret-id"
+export TENCENTCLOUD_SECRETKEY="your-secret-key"
+export CLOUDBASE_ENV_ID="your-env-id"
 ```
 
 ### 使用方式
@@ -45,11 +45,10 @@ export ENV_ID="your-env-id"
 
 # 获取数据库权限
 {baseDir}/scripts/tcb-api.sh --action DescribeDatabaseACL \
-  --params '{"EnvId":"xxx","CollectionName":"users"}'
+  --params '{"CollectionName":"users"}'
 
 # 查询数据库表
-{baseDir}/scripts/tcb-api.sh --action DescribeDatabases \
-  --params '{"EnvId":"xxx"}'
+{baseDir}/scripts/tcb-api.sh --action DescribeDatabases
 
 # 调用其他云服务（如 SCF）
 {baseDir}/scripts/tcb-api.sh --service scf --action ListFunctions \
@@ -63,7 +62,6 @@ export ENV_ID="your-env-id"
 | `--action, -a` | API Action 名称 | 必填 |
 | `--params, -p` | API 参数 JSON | `{}` |
 | `--service, -s` | 服务类型 | `tcb` |
-| `--env-id, -e` | 环境 ID | `$ENV_ID` |
 | `--help, -h` | 显示帮助 | - |
 
 ---

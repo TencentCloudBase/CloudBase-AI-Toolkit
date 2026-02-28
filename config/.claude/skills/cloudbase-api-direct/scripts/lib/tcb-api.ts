@@ -3,17 +3,16 @@
  * CloudBase TCB API 通用调用脚本
  *
  * 使用方式:
- *   npx tsx tcb-api.ts --action <Action> [--params <JSON>] [--service <service>] [--env-id <envId>]
+ *   npx tsx tcb-api.ts --action <Action> [--params <JSON>] [--service <service>]
  *
  * 环境变量:
- *   SECRET_ID   - 腾讯云 SecretId
- *   SECRET_KEY  - 腾讯云 SecretKey
- *   ENV_ID      - CloudBase 环境 ID (可选，也可通过 --env-id 指定)
+ *   TENCENTCLOUD_SECRETID   - 腾讯云 SecretId (必填)
+ *   TENCENTCLOUD_SECRETKEY  - 腾讯云 SecretKey (必填)
+ *   CLOUDBASE_ENV_ID        - CloudBase 环境 ID (必填)
  *
  * 示例:
  *   npx tsx tcb-api.ts --action DescribeEnvs
- *   npx tsx tcb-api.ts --action DescribeEnvs --params '{"EnvId":"your-env-id"}'
- *   npx tsx tcb-api.ts --action DescribeDatabaseACL --params '{"EnvId":"xxx","CollectionName":"users"}'
+ *   npx tsx tcb-api.ts --action DescribeDatabaseACL --params '{"CollectionName":"users"}'
  */
 
 import CloudBase from '@cloudbase/manager-node'
@@ -90,20 +89,19 @@ CloudBase TCB API 通用调用脚本
   -a, --action <name>     API Action 名称 (必填)
   -p, --params <json>     API 参数 JSON 字符串 (默认: {})
   -s, --service <name>    服务类型 (默认: tcb)
-  -e, --env-id <id>       环境 ID (默认: 从 ENV_ID 环境变量读取)
   -h, --help              显示帮助
 
 环境变量:
-  SECRET_ID               腾讯云 SecretId (必填)
-  SECRET_KEY              腾讯云 SecretKey (必填)
-  ENV_ID                  CloudBase 环境 ID (可选)
+  TENCENTCLOUD_SECRETID   腾讯云 SecretId (必填)
+  TENCENTCLOUD_SECRETKEY  腾讯云 SecretKey (必填)
+  CLOUDBASE_ENV_ID        CloudBase 环境 ID (必填)
 
 示例:
   # 获取环境列表
   npx tsx tcb-api.ts --action DescribeEnvs
 
   # 获取数据库权限
-  npx tsx tcb-api.ts --action DescribeDatabaseACL --params '{"EnvId":"xxx","CollectionName":"users"}'
+  npx tsx tcb-api.ts --action DescribeDatabaseACL --params '{"CollectionName":"users"}'
 
   # 调用其他服务
   npx tsx tcb-api.ts --service scf --action ListFunctions --params '{"Namespace":"default"}'
@@ -120,15 +118,22 @@ async function main() {
     process.exit(1)
   }
 
-  const secretId = process.env.SECRET_ID
-  const secretKey = process.env.SECRET_KEY
-  const defaultEnvId = envId || process.env.ENV_ID || ''
+  const secretId = process.env.TENCENTCLOUD_SECRETID
+  const secretKey = process.env.TENCENTCLOUD_SECRETKEY
+  const defaultEnvId = envId || process.env.CLOUDBASE_ENV_ID
 
   if (!secretId || !secretKey) {
-    console.error('❌ 缺少环境变量 SECRET_ID 或 SECRET_KEY')
+    console.error('❌ 缺少环境变量 TENCENTCLOUD_SECRETID 或 TENCENTCLOUD_SECRETKEY')
     console.error('   请设置腾讯云 API 密钥:')
-    console.error('   export SECRET_ID="your-secret-id"')
-    console.error('   export SECRET_KEY="your-secret-key"')
+    console.error('   export TENCENTCLOUD_SECRETID="your-secret-id"')
+    console.error('   export TENCENTCLOUD_SECRETKEY="your-secret-key"')
+    process.exit(1)
+  }
+
+  if (!defaultEnvId) {
+    console.error('❌ 缺少环境变量 CLOUDBASE_ENV_ID')
+    console.error('   请设置 CloudBase 环境 ID:')
+    console.error('   export CLOUDBASE_ENV_ID="your-env-id"')
     process.exit(1)
   }
 

@@ -6,9 +6,9 @@
 #   ./tcb-api.sh --action <Action> [--params <JSON>] [--service <service>]
 #
 # 环境变量:
-#   SECRET_ID   - 腾讯云 SecretId (必填)
-#   SECRET_KEY  - 腾讯云 SecretKey (必填)
-#   ENV_ID      - CloudBase 环境 ID (可选)
+#   TENCENTCLOUD_SECRETID   - 腾讯云 SecretId (必填)
+#   TENCENTCLOUD_SECRETKEY  - 腾讯云 SecretKey (必填)
+#   CLOUDBASE_ENV_ID        - CloudBase 环境 ID (必填)
 #
 # 示例:
 #   ./tcb-api.sh --action DescribeEnvs
@@ -60,13 +60,12 @@ CloudBase TCB API 通用调用脚本
   -a, --action <name>     API Action 名称 (必填)
   -p, --params <json>     API 参数 JSON 字符串 (默认: {})
   -s, --service <name>    服务类型 (默认: tcb)
-  -e, --env-id <id>       环境 ID (默认: 从 ENV_ID 环境变量读取)
   -h, --help              显示帮助
 
 环境变量:
-  SECRET_ID               腾讯云 SecretId (必填)
-  SECRET_KEY              腾讯云 SecretKey (必填)
-  ENV_ID                  CloudBase 环境 ID (可选)
+  TENCENTCLOUD_SECRETID   腾讯云 SecretId (必填)
+  TENCENTCLOUD_SECRETKEY  腾讯云 SecretKey (必填)
+  CLOUDBASE_ENV_ID        CloudBase 环境 ID (必填)
 
 示例:
   # 获取环境列表
@@ -91,11 +90,18 @@ main() {
     done
     
     # 检查环境变量
-    if [ -z "$SECRET_ID" ] || [ -z "$SECRET_KEY" ]; then
-        echo "❌ 缺少环境变量 SECRET_ID 或 SECRET_KEY" >&2
+    if [ -z "$TENCENTCLOUD_SECRETID" ] || [ -z "$TENCENTCLOUD_SECRETKEY" ]; then
+        echo "❌ 缺少环境变量 TENCENTCLOUD_SECRETID 或 TENCENTCLOUD_SECRETKEY" >&2
         echo "   请设置腾讯云 API 密钥:" >&2
-        echo "   export SECRET_ID=\"your-secret-id\"" >&2
-        echo "   export SECRET_KEY=\"your-secret-key\"" >&2
+        echo "   export TENCENTCLOUD_SECRETID=\"your-secret-id\"" >&2
+        echo "   export TENCENTCLOUD_SECRETKEY=\"your-secret-key\"" >&2
+        exit 1
+    fi
+
+    if [ -z "$CLOUDBASE_ENV_ID" ]; then
+        echo "❌ 缺少环境变量 CLOUDBASE_ENV_ID" >&2
+        echo "   请设置 CloudBase 环境 ID:" >&2
+        echo "   export CLOUDBASE_ENV_ID=\"your-env-id\"" >&2
         exit 1
     fi
     
