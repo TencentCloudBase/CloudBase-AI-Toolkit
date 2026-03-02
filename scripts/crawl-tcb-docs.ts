@@ -10,7 +10,7 @@
  *   --commit    After crawling, commit and push changes to remote branch
  *               Requires: branch must be 'chore/pure_doc_skill' and up-to-date with remote
  *
- * Output: config/.claude/skills/pure-doc/references/
+ * Output: config/.claude/skills/cloudbase-api-direct/references/
  */
 
 import { writeFileSync, mkdirSync, existsSync, rmSync, readdirSync } from 'fs';
@@ -34,8 +34,8 @@ const BASE_URL = 'https://cloud.tencent.com';
 const COMMON_PARAMS_URL = 'https://cloud.tencent.com/document/api/876/34812';
 const API_OVERVIEW_URL = 'https://cloud.tencent.com/document/api/876/34809';
 const CONCURRENCY = 10;
-const DEFAULT_OUTPUT_DIR = 'config/.claude/skills/pure-doc/references';
-const SKILL_DIR = 'config/.claude/skills/pure-doc';
+const DEFAULT_OUTPUT_DIR = 'config/.claude/skills/cloudbase-api-direct/references';
+const SKILL_DIR = 'config/.claude/skills/cloudbase-api-direct';
 const REQUIRED_BRANCH = 'chore/pure_doc_skill';
 
 const git = simpleGit(projectRoot);
@@ -80,7 +80,7 @@ async function commitAndPush(): Promise<void> {
   await git.add(`${SKILL_DIR}/*`);
 
   // Commit
-  const commitMessage = `docs(pure-doc): 🔄 update CloudBase API references\n\nCrawled at ${new Date().toISOString()}`;
+  const commitMessage = `docs(cloudbase-api-direct): 🔄 update CloudBase API references\n\nCrawled at ${new Date().toISOString()}`;
   await git.commit(commitMessage);
   console.log('✅ Committed changes');
 
@@ -227,4 +227,3 @@ main().catch((err) => {
   console.error(err.message || err);
   process.exit(1);
 });
-
