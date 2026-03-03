@@ -18,31 +18,14 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NODE_MODULES_DIR="$SCRIPT_DIR/node_modules"
-PACKAGE_JSON="$SCRIPT_DIR/package.json"
+LIB_DIR="$SCRIPT_DIR/lib"
 
 # 检查并安装依赖
 ensure_dependencies() {
-    # 检查 node_modules 是否存在
-    if [ ! -d "$NODE_MODULES_DIR" ] || [ ! -d "$NODE_MODULES_DIR/@cloudbase/manager-node" ]; then
+    # 检查 lib/node_modules 是否存在
+    if [ ! -d "$LIB_DIR/node_modules" ]; then
         echo "📦 Installing dependencies..." >&2
-        
-        # 如果没有 package.json，创建一个
-        if [ ! -f "$PACKAGE_JSON" ]; then
-            cat > "$PACKAGE_JSON" << 'EOF'
-{
-  "name": "tcb-api-scripts",
-  "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "@cloudbase/manager-node": "^4.0.0"
-  }
-}
-EOF
-        fi
-        
-        # 安装依赖
-        cd "$SCRIPT_DIR"
+        cd "$LIB_DIR"
         npm install --silent --no-audit --no-fund 2>&1 | grep -v "^npm" >&2 || true
         echo "✅ Dependencies installed" >&2
     fi
@@ -109,7 +92,7 @@ main() {
     ensure_dependencies
     
     # 调用 TypeScript 脚本
-    npx tsx "$SCRIPT_DIR/lib/tcb-api.ts" "$@"
+    npx tsx "$LIB_DIR/src/tcb-api.ts" "$@"
 }
 
 main "$@"

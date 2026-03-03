@@ -1,0 +1,17 @@
+{
+  "name": "tcb-api-lib",
+  "version": "1.0.0",
+  "description": "Minimal CloudBase API client for tcb-api.ts",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^12.7.4",
+    "@types/node-fetch": "^2.5.0",
+    "rimraf": "^3.0.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "https-proxy-agent": "^5.0.1",
+    "node-fetch": "^2.6.0",
+    "query-string": "^6.8.3"
+  }
+}

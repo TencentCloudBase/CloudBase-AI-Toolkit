@@ -15,7 +15,7 @@
  *   npx tsx tcb-api.ts --action DescribeDatabaseACL --params '{"CollectionName":"users"}'
  */
 
-import CloudBase from '@cloudbase/manager-node'
+import CloudBase from './index'
 
 interface CliArgs {
   action: string
