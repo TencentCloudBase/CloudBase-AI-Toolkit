@@ -33,7 +33,10 @@ const { gfm } = require('turndown-plugin-gfm');
 const BASE_URL = 'https://cloud.tencent.com';
 const COMMON_PARAMS_URL = 'https://cloud.tencent.com/document/api/876/34812';
 const API_OVERVIEW_URL = 'https://cloud.tencent.com/document/api/876/34809';
-const CONCURRENCY = 10;
+const CONCURRENCY = 2; // 降低并发数，避免触发限流
+const REQUEST_DELAY_MS = 500; // 请求间隔（毫秒）
+const MAX_RETRIES = 3; // 最大重试次数
+const RETRY_DELAY_MS = 2000; // 重试等待时间（毫秒）
 const DEFAULT_OUTPUT_DIR = 'config/.claude/skills/cloudbase-api-direct/references';
 const SKILL_DIR = 'config/.claude/skills/cloudbase-api-direct';
 const REQUIRED_BRANCH = 'chore/pure_doc_skill';
@@ -104,14 +107,48 @@ function createTurndown() {
   return turndown;
 }
 
-async function fetchMarkdown(url: string): Promise<{ title: string; content: string }> {
-  const response = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36', Accept: 'text/html' },
-  });
-  if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`);
-  const html = await response.text();
-  const result = await Defuddle(html, url);
-  return { title: result.title || 'Untitled', content: createTurndown().turndown(result.content || '') };
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchMarkdownWithRetry(url: string, retries = MAX_RETRIES): Promise<{ title: string; content: string }> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        },
+      });
+
+      if (!response.ok) {
+        // 如果是 567 或其他 5xx 错误，可以重试
+        if (response.status >= 500 && attempt < retries) {
+          console.log(`      ⚠️  Attempt ${attempt}/${retries} failed (${response.status}), retrying in ${RETRY_DELAY_MS}ms...`);
+          await sleep(RETRY_DELAY_MS * attempt); // 指数退避
+          continue;
+        }
+        throw new Error(`Failed to fetch ${url}: ${response.status}`);
+      }
+
+      const html = await response.text();
+      const result = await Defuddle(html, url);
+
+      // 请求成功后等待一下再返回，避免请求太快
+      await sleep(REQUEST_DELAY_MS);
+
+      return { title: result.title || 'Untitled', content: createTurndown().turndown(result.content || '') };
+    } catch (err) {
+      if (attempt < retries) {
+        console.log(`      ⚠️  Attempt ${attempt}/${retries} failed, retrying in ${RETRY_DELAY_MS}ms...`);
+        await sleep(RETRY_DELAY_MS * attempt);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error(`Failed to fetch ${url} after ${retries} attempts`);
 }
 
 function extractApiLinks(content: string): string[] {
@@ -160,27 +197,31 @@ async function main() {
   const results: CrawlResult[] = [];
   const limit = pLimit(CONCURRENCY);
   let completed = 0;
+  let failedCount = 0; // 跟踪失败数量
 
   console.log('📄 Fetching common parameters doc...');
   try {
-    const common = await fetchMarkdown(COMMON_PARAMS_URL);
+    const common = await fetchMarkdownWithRetry(COMMON_PARAMS_URL);
     results.push({ url: COMMON_PARAMS_URL, title: common.title, content: common.content, filename: urlToFilename(COMMON_PARAMS_URL, common.title) });
     console.log(`   ✅ ${common.title}`);
   } catch (err) {
     console.error(`   ❌ Failed: ${err}`);
+    failedCount++;
   }
 
   console.log('📄 Fetching API overview...');
   let apiLinks: string[] = [];
   try {
-    const overview = await fetchMarkdown(API_OVERVIEW_URL);
+    const overview = await fetchMarkdownWithRetry(API_OVERVIEW_URL);
     results.push({ url: API_OVERVIEW_URL, title: overview.title, content: overview.content, filename: urlToFilename(API_OVERVIEW_URL, overview.title) });
     console.log(`   ✅ ${overview.title}`);
     apiLinks = extractApiLinks(overview.content);
     console.log(`   📋 Found ${apiLinks.length} API links`);
   } catch (err) {
     console.error(`   ❌ Failed: ${err}`);
-    return;
+    failedCount++;
+    console.error('\n❌ Cannot continue without API overview. Aborting.');
+    process.exit(1);
   }
 
   console.log(`\n📄 Fetching ${apiLinks.length} API docs...`);
@@ -189,23 +230,27 @@ async function main() {
   const fetchTasks = apiLinks.map((url) =>
     limit(async () => {
       try {
-        const doc = await fetchMarkdown(url);
+        const doc = await fetchMarkdownWithRetry(url);
         completed++;
         if (doc.title.includes('API 概览') || doc.title.includes('API概览')) {
           console.log(`   [${completed}/${apiLinks.length}] ⏭️  skipped`);
-          return null;
+          return { success: true, result: null };
         }
         console.log(`   [${completed}/${apiLinks.length}] ✅ ${doc.title}`);
-        return { url, title: doc.title, content: doc.content, filename: urlToFilename(url, doc.title) } as CrawlResult;
+        return { success: true, result: { url, title: doc.title, content: doc.content, filename: urlToFilename(url, doc.title) } as CrawlResult };
       } catch (err) {
         completed++;
         console.error(`   [${completed}/${apiLinks.length}] ❌ ${url}: ${err}`);
-        return null;
+        return { success: false, result: null };
       }
     })
   );
 
-  const validResults = (await Promise.all(fetchTasks)).filter((r): r is CrawlResult => r !== null);
+  const fetchResults = await Promise.all(fetchTasks);
+  const validResults = fetchResults.filter((r) => r.success && r.result !== null).map((r) => r.result as CrawlResult);
+  const apiFailed = fetchResults.filter((r) => !r.success).length;
+  failedCount += apiFailed;
+
   results.push(...validResults);
   console.log(`   ⏱️  Fetched in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
 
@@ -216,6 +261,15 @@ async function main() {
   writeFileSync(join(outputDir, 'README.md'), indexContent);
 
   console.log(`\n✅ Done! ${results.length} documents saved to ${outputDir}`);
+
+  // 如果有失败，不执行 commit
+  if (failedCount > 0) {
+    console.log(`\n⚠️  ${failedCount} documents failed to fetch. Skipping commit.`);
+    if (shouldCommit) {
+      console.log('   Use --commit only when all documents are fetched successfully.');
+    }
+    process.exit(1);
+  }
 
   // If --commit flag is set, commit and push changes
   if (shouldCommit) {
