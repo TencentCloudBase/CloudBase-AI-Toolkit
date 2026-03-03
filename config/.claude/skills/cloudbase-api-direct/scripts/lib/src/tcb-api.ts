@@ -108,6 +108,9 @@ CloudBase TCB API 通用调用脚本
 `)
 }
 
+// 未对外的云API，禁止使用
+const tcbCapiForbidList = ['DescribeStorageACL', 'ModifyStorageACL'];
+
 async function main() {
   const { action, params, service, version, envId } = parseArgs()
 
@@ -145,6 +148,12 @@ async function main() {
   })
 
   try {
+    if (service === 'tcb') {
+      if (tcbCapiForbidList.includes(action)) {
+        console.error(`❌  ${service}/${action} 云API未对外或不存在，请使用其他API`)
+        process.exit(1)
+      }
+    }
     console.error(`📡 调用 ${service}.${action}...`)
 
     const result = await manager.commonService(service, version).call({
