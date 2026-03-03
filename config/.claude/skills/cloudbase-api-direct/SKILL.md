@@ -45,14 +45,7 @@ export CLOUDBASE_ENV_ID="your-env-id"
 
 # 获取数据库权限
 {baseDir}/scripts/tcb-api.sh --action DescribeDatabaseACL \
-  --params '{"CollectionName":"users"}'
-
-# 查询数据库表
-{baseDir}/scripts/tcb-api.sh --action DescribeDatabases
-
-# 调用其他云服务（如 SCF）
-{baseDir}/scripts/tcb-api.sh --service scf --action ListFunctions \
-  --params '{"Namespace":"default"}'
+  --params '{"xxx":"yyy"}' 
 ```
 
 ### 脚本参数
