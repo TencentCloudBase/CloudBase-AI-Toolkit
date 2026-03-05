@@ -109,7 +109,20 @@ CloudBase TCB API 通用调用脚本
 }
 
 // 未对外的云API，禁止使用
-const tcbCapiForbidList = ['DescribeStorageACL', 'ModifyStorageACL'];
+const tcbCapiForbidList = [
+  // 未明确对外的云API
+  'DescribeStorageACL', 'ModifyStorageACL', 'DescribeSecurityRule',
+  // 要下线的云API
+  "ListTables",
+  "DescribeCloudBaseGWAPI",
+  "DescribeCloudBaseGWService",
+  "CreateCloudBaseGWAPI",
+  "DeleteCloudBaseGWAPI",
+  "ModifyCloudBaseGWAPI",
+  "DeleteCloudBaseGWDomain",
+  "BindCloudBaseGWDomain",
+  "BindCloudBaseAccessDomain"
+];
 
 async function main() {
   const { action, params, service, version, envId } = parseArgs()
