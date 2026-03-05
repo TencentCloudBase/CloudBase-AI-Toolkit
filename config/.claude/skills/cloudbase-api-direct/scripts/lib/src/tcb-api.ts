@@ -16,6 +16,7 @@
  */
 
 import CloudBase from './index'
+import TCB_ALLOWED_ACTIONS from './action-list'
 
 interface CliArgs {
   action: string
@@ -162,8 +163,14 @@ async function main() {
 
   try {
     if (service === 'tcb') {
+      // 1. 检查是否在允许列表中（从文档提取的对外 API）
+      if (!TCB_ALLOWED_ACTIONS.includes(action)) {
+        console.error(`❌ ${action} 不在允许的 TCB API 列表中，可能是未公开的 API`)
+        process.exit(1)
+      }
+      // 2. 检查是否在禁止列表中（即使在文档里，但我们不允许使用）
       if (tcbCapiForbidList.includes(action)) {
-        console.error(`❌  ${service}/${action} 云API未对外或不存在，请使用其他API`)
+        console.error(`❌ ${action} 云API未对外或已禁止使用，请使用其他API`)
         process.exit(1)
       }
     }

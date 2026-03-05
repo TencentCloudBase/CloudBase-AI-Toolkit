@@ -1,0 +1,50 @@
+name: Generate Action List
+
+on:
+  push:
+    branches:
+      - chore/pure_doc_skill
+    paths:
+      - 'config/.claude/skills/cloudbase-api-direct/references/**'
+      - 'scripts/generate-actionlist.ts'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate actionlist.ts
+        run: npx tsx scripts/generate-actionlist.ts
+
+      - name: Check for changes
+        id: changes
+        run: |
+          # 检查文件是否有变更（包括新文件和修改）
+          if git status --porcelain config/.claude/skills/cloudbase-api-direct/scripts/lib/src/action-list.ts | grep -q .; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add config/.claude/skills/cloudbase-api-direct/scripts/lib/src/action-list.ts
+          git commit -m "chore: 🔄 update action-list.ts [skip ci]"
+          git pull --rebase
+          git push
+
