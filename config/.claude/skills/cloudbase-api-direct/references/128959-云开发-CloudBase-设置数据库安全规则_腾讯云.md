@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 获取云托管代码上传和下载url
+## 设置数据库安全规则
 
-最近更新时间：2026-03-06 02:54:35
+最近更新时间：2026-03-06 02:54:57
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,14 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-获取云托管代码上传url
+设置数据库安全规则。  
+安全规则，用于控制C端用户的访问权限。详见 [安全规则介绍](https://cloud.tencent.com/document/product/876/123478) 。
 
 默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeCloudBaseBuildService)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=ModifySafeRule)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,52 +35,45 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeCloudBaseBuildService。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：ModifySafeRule。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| EnvId | 是 | String | 环境id  
-示例值：env-asdasfa |
-| ServiceName | 是 | String | 服务名  
-示例值：service-name |
-| CIBusiness | 否 | String | build类型,枚举值有: cloudbaserun, framework-ci  
-示例值：cloudbaserun |
-| ServiceVersion | 否 | String | 服务版本  
-示例值：service-name-0.1 |
-| Suffix | 否 | String | 文件后缀  
-示例值：.zip |
+| EnvId | 是 | String | 环境ID  
+示例值：myenv-c849jgkdldcmsd |
+| CollectionName | 是 | String | 集合名称  
+示例值：my-table |
+| AclTag | 是 | String | 权限标签。包含以下取值：  
+-   READONLY：所有用户可读，仅创建者和管理员可写
+-   PRIVATE：仅创建者及管理员可读写
+-   ADMINWRITE：所有用户可读，仅管理员可写
+-   ADMINONLY：仅管理员可读写
+-   CUSTOM：自定义安全规则
+  
+示例值：CUSTOM |
+| Rule | 否 | String | 安全规则内容。  
+当 AclTag=CUSTOM 时，此参数必填。  
+详情参考： [文档型数据库安全规则](https://docs.cloudbase.net/database/security-rules)  
+示例值：{ "read": true, "write": "doc.\_openid == auth.openid" } |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| UploadUrl | String | 上传url  
-示例值：http://uploadurl |
-| UploadHeaders | Array of [KVPair](/document/api/876/34822#KVPair) | 上传header  
-示例值：\[{"key":"value"}\] |
-| PackageName | String | 包名  
-示例值：packageName |
-| PackageVersion | String | 包版本  
-示例值：0.0.1 |
-| DownloadUrl | String | 下载链接  
-示例值：http://downloadurl |
-| DownloadHeaders | Array of [KVPair](/document/api/876/34822#KVPair) | 下载Httpheader  
-示例值：\[{"key":"value"}\] |
-| OutDate | Boolean | 下载链接是否过期  
-示例值：false |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 获取云托管代码上传url
+### 示例1 修改安全规则为私有读写
 
-通过环境id,获得云托管代码上传url, 用来上传代码
+将环境ID:myenv-c849jgkdldcmsd 下，文档型数据库(数据表 blogs) 的安全规则，调整为私有读写（PRIVATE，仅创建者可读写）
 
 #### 输入示例
 
 ```
-https://tcb.tencentcloudapi.com/?Action=DescribeCloudBaseBuildService
-&EnvId=cdnheader-v2a
-&ServiceName=nginx-test
+https://tcb.tencentcloudapi.com/?Action=ModifySafeRule
+&EnvId=myenv-c849jgkdldcmsd
+&CollectionName=blogs
+&AclTag=PRIVATE
 &<公共请求参数>
 ```
 
@@ -88,24 +82,7 @@ https://tcb.tencentcloudapi.com/?Action=DescribeCloudBaseBuildService
 ```json
 {
     "Response": {
-        "DownloadHeaders": [
-            {
-                "Value": "value",
-                "Key": "key"
-            }
-        ],
-        "UploadHeaders": [
-            {
-                "Value": "value1",
-                "Key": "key1"
-            }
-        ],
-        "UploadUrl": "http://url",
-        "DownloadUrl": "http://url/download",
-        "RequestId": "asdasd-asfasfas-asfasfa",
-        "OutDate": true,
-        "PackageVersion": "version",
-        "PackageName": "name"
+        "RequestId": "51a33e48-a808-4fe7-8c02-4e7be5245351"
     }
 }
 ```
@@ -145,11 +122,7 @@ https://tcb.tencentcloudapi.com/?Action=DescribeCloudBaseBuildService
 | --- | --- |
 | InternalError | 内部错误。 |
 | InvalidParameter | 参数错误。 |
-| InvalidParameter.ServiceNotExist | 服务不存在。 |
-| ResourceNotFound | 资源不存在。 |
-| ResourceNotFound.VersionNotFound | 请求参数中的云托管版本未找到 |
-| ResourceUnavailable.ResourceBanned | 资源被封禁 |
-| ResourceUnavailable.ResourceFrozen | 资源已冻结 |
-| ResourceUnavailable.ResourceIsolated | 资源已隔离 |
+| MissingParameter | 缺少参数错误。 |
+| MissingParameter.Param | 缺少必要参数。 |
 
 目录

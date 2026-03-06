@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 获取云托管代码上传和下载url
+## 删除合法域名
 
-最近更新时间：2026-03-06 02:54:35
+最近更新时间：2026-03-06 02:55:00
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,18 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-获取云托管代码上传url
+删除合法域名。  
+云开发会校验网页应用请求的来源域名，您需要将来源域名加入到WEB安全域名列表中。  
+可以通过接口 [DescribeAuthDomains](https://cloud.tencent.com/document/product/876/42151) 获取当前已绑定生效的安全域名。
+
+注意⚠️  
+安全域名被删除之后，可能会引起跨域问题，请谨慎操作。
 
 默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeCloudBaseBuildService)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DeleteAuthDomain)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,52 +39,32 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeCloudBaseBuildService。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DeleteAuthDomain。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| EnvId | 是 | String | 环境id  
-示例值：env-asdasfa |
-| ServiceName | 是 | String | 服务名  
-示例值：service-name |
-| CIBusiness | 否 | String | build类型,枚举值有: cloudbaserun, framework-ci  
-示例值：cloudbaserun |
-| ServiceVersion | 否 | String | 服务版本  
-示例值：service-name-0.1 |
-| Suffix | 否 | String | 文件后缀  
-示例值：.zip |
+| EnvId | 是 | String | 开发者的环境ID  
+示例值：yourEnv |
+| DomainIds.N | 是 | Array of String | 域名ID列表，支持批量  
+示例值：\["abc.com\\n"\] |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| UploadUrl | String | 上传url  
-示例值：http://uploadurl |
-| UploadHeaders | Array of [KVPair](/document/api/876/34822#KVPair) | 上传header  
-示例值：\[{"key":"value"}\] |
-| PackageName | String | 包名  
-示例值：packageName |
-| PackageVersion | String | 包版本  
-示例值：0.0.1 |
-| DownloadUrl | String | 下载链接  
-示例值：http://downloadurl |
-| DownloadHeaders | Array of [KVPair](/document/api/876/34822#KVPair) | 下载Httpheader  
-示例值：\[{"key":"value"}\] |
-| OutDate | Boolean | 下载链接是否过期  
-示例值：false |
+| Deleted | Integer | 删除的域名个数  
+示例值：1 |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 获取云托管代码上传url
-
-通过环境id,获得云托管代码上传url, 用来上传代码
+### 示例1 示例一
 
 #### 输入示例
 
 ```
-https://tcb.tencentcloudapi.com/?Action=DescribeCloudBaseBuildService
-&EnvId=cdnheader-v2a
-&ServiceName=nginx-test
+https://tcb.tencentcloudapi.com/?Action=DeleteAuthDomain
+&EnvId=yourEnv
+&DomainIds.0=abc.com
 &<公共请求参数>
 ```
 
@@ -88,24 +73,8 @@ https://tcb.tencentcloudapi.com/?Action=DescribeCloudBaseBuildService
 ```json
 {
     "Response": {
-        "DownloadHeaders": [
-            {
-                "Value": "value",
-                "Key": "key"
-            }
-        ],
-        "UploadHeaders": [
-            {
-                "Value": "value1",
-                "Key": "key1"
-            }
-        ],
-        "UploadUrl": "http://url",
-        "DownloadUrl": "http://url/download",
-        "RequestId": "asdasd-asfasfas-asfasfa",
-        "OutDate": true,
-        "PackageVersion": "version",
-        "PackageName": "name"
+        "Deleted": 1,
+        "RequestId": "68fbd710-0e87-4943-8988-c91d05e6d0f5"
     }
 }
 ```
@@ -145,11 +114,8 @@ https://tcb.tencentcloudapi.com/?Action=DescribeCloudBaseBuildService
 | --- | --- |
 | InternalError | 内部错误。 |
 | InvalidParameter | 参数错误。 |
-| InvalidParameter.ServiceNotExist | 服务不存在。 |
-| ResourceNotFound | 资源不存在。 |
-| ResourceNotFound.VersionNotFound | 请求参数中的云托管版本未找到 |
-| ResourceUnavailable.ResourceBanned | 资源被封禁 |
-| ResourceUnavailable.ResourceFrozen | 资源已冻结 |
-| ResourceUnavailable.ResourceIsolated | 资源已隔离 |
+| MissingParameter.Param | 缺少必要参数。 |
+| OperationDenied.ResourceFrozen | 操作失败：资源被冻结。 |
+| ResourceUnavailable | 资源不可用。 |
 
 目录
