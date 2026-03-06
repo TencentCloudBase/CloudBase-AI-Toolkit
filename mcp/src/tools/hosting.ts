@@ -32,7 +32,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       title: "上传静态文件",
       description: "上传文件到静态网站托管",
       inputSchema: {
-        localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt"),
+        localPath: z.string().optional().describe("本地文件或文件夹路径，用于上传到静态托管。必须是绝对路径，例如：/Users/username/dist/index.html"),
         cloudPath: z.string().optional().describe("云端文件或文件夹路径，例如files/data.txt"),
         files: z.array(z.object({
           localPath: z.string(),

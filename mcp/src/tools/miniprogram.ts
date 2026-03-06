@@ -41,7 +41,7 @@ export function registerMiniprogramTools(server: ExtendedMcpServer) {
       description: "上传小程序代码到微信平台",
       inputSchema: {
         appId: z.string().describe("小程序 appId"),
-        projectPath: z.string().describe("项目路径"),
+        projectPath: z.string().describe("小程序项目路径，指向包含 project.config.json 的目录。必须是绝对路径，例如：/Users/username/miniprogram"),
         version: z.string().describe("版本号"),
         desc: z.string().optional().describe("版本描述"),
         setting: z.object({
@@ -116,7 +116,7 @@ export function registerMiniprogramTools(server: ExtendedMcpServer) {
       description: "预览小程序代码并生成二维码",
       inputSchema: {
         appId: z.string().describe("小程序 appId"),
-        projectPath: z.string().describe("项目路径"),
+        projectPath: z.string().describe("小程序项目路径，指向包含 project.config.json 的目录。必须是绝对路径，例如：/Users/username/miniprogram"),
         desc: z.string().optional().describe("预览描述"),
         setting: z.object({
           es6: z.boolean().optional().describe("是否启用 ES6 转 ES5"),
@@ -201,7 +201,7 @@ export function registerMiniprogramTools(server: ExtendedMcpServer) {
       description: "构建小程序 npm 包",
       inputSchema: {
         appId: z.string().describe("小程序 appId"),
-        projectPath: z.string().describe("项目路径"),
+        projectPath: z.string().describe("小程序项目路径，指向包含 project.config.json 的目录。必须是绝对路径，例如：/Users/username/miniprogram"),
         type: z.enum(["miniProgram", "miniGame"]).optional().describe("项目类型"),
         robot: z.number().optional().describe("机器人编号，1-30"),
         ignores: z.array(z.string()).optional().describe("忽略文件列表")
@@ -253,7 +253,7 @@ export function registerMiniprogramTools(server: ExtendedMcpServer) {
       description: "获取小程序项目配置信息",
       inputSchema: {
         appId: z.string().describe("小程序 appId"),
-        projectPath: z.string().describe("项目路径"),
+        projectPath: z.string().describe("小程序项目路径，指向包含 project.config.json 的目录。必须是绝对路径，例如：/Users/username/miniprogram"),
         type: z.enum(["miniProgram", "miniGame"]).optional().describe("项目类型")
       },
       annotations: {
@@ -298,7 +298,7 @@ export function registerMiniprogramTools(server: ExtendedMcpServer) {
       description: "获取最近上传版本的 SourceMap，用于生产环境错误调试",
       inputSchema: {
         appId: z.string().describe("小程序 appId"),
-        projectPath: z.string().describe("项目路径"),
+        projectPath: z.string().describe("小程序项目路径，指向包含 project.config.json 的目录。必须是绝对路径，例如：/Users/username/miniprogram"),
         robot: z.number().describe("指定使用哪一个 ci 机器人，可选值：1~30"),
         sourceMapSavePath: z.string().describe("SourceMap 保存路径"),
         type: z.enum(["miniProgram", "miniGame"]).optional().describe("项目类型")
@@ -353,7 +353,7 @@ export function registerMiniprogramTools(server: ExtendedMcpServer) {
       description: "检查小程序代码质量，生成质量报告（需要 miniprogram-ci 1.9.11+）",
       inputSchema: {
         appId: z.string().describe("小程序 appId"),
-        projectPath: z.string().describe("项目路径"),
+        projectPath: z.string().describe("小程序项目路径，指向包含 project.config.json 的目录。必须是绝对路径，例如：/Users/username/miniprogram"),
         saveReportPath: z.string().describe("质量报告保存路径"),
         type: z.enum(["miniProgram", "miniGame"]).optional().describe("项目类型")
       },

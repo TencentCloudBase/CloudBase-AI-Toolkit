@@ -17,6 +17,7 @@ import { registerDataModelTools } from "./tools/dataModel.js";
 import { registerGatewayTools } from "./tools/gateway.js";
 import { registerInviteCodeTools } from "./tools/invite-code.js";
 import { registerSecurityRuleTools } from "./tools/security-rule.js";
+import { registerAgentTools } from "./tools/agent.js";
 import { CloudBaseOptions, Logger } from "./types.js";
 import { enableCloudMode } from "./utils/cloud-mode.js";
 import { info } from './utils/logger.js';
@@ -45,6 +46,7 @@ const DEFAULT_PLUGINS = [
   "security-rule",
   "invite-code",
   "capi",
+  "agent",
 ];
 
 function registerDatabase(server: ExtendedMcpServer) {
@@ -77,6 +79,7 @@ const AVAILABLE_PLUGINS: Record<string, PluginDefinition> = {
   "invite-code": { name: "invite-code", register: registerInviteCodeTools },
   cloudrun: { name: "cloudrun", register: registerCloudRunTools },
   capi: { name: "capi", register: registerCapiTools },
+  agent: { name: "agent", register: registerAgentTools },
 };
 
 /**

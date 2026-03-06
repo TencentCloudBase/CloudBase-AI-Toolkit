@@ -269,15 +269,31 @@
           "sort": {
             "anyOf": [
               {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": true
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "description": "sort 字段名"
+                    },
+                    "direction": {
+                      "type": "number",
+                      "description": "排序方向,1:升序,-1:降序"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "direction"
+                  ],
+                  "additionalProperties": true
+                }
               },
               {
                 "type": "string"
               }
             ],
-            "description": "排序条件(对象或字符串,推荐对象)"
+            "description": "排序条件，使用对象或字符串。"
           },
           "limit": {
             "type": "number",
@@ -633,7 +649,7 @@
           },
           "functionRootPath": {
             "type": "string",
-            "description": "函数根目录（云函数目录的父目录），这里需要传操作系统上文件的绝对路径，注意：不要包含函数名本身，例如函数名为 'hello'，应传入 '/path/to/cloudfunctions'，而不是 '/path/to/cloudfunctions/hello'"
+            "description": "函数根目录（云函数目录的父目录），注意：不要包含函数名本身。必须是绝对路径，例如：/Users/username/project/cloudfunctions（而不是 /Users/username/project/cloudfunctions/hello）"
           },
           "force": {
             "type": "boolean",
@@ -660,7 +676,7 @@
           },
           "functionRootPath": {
             "type": "string",
-            "description": "函数根目录（云函数目录的父目录），这里需要传操作系统上文件的绝对路径"
+            "description": "函数根目录（云函数目录的父目录）。必须是绝对路径，例如：/Users/username/project/cloudfunctions"
           }
         },
         "required": [
@@ -887,7 +903,7 @@
         "properties": {
           "localPath": {
             "type": "string",
-            "description": "本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt"
+            "description": "本地文件或文件夹路径，用于上传到静态托管。必须是绝对路径，例如：/Users/username/dist/index.html"
           },
           "cloudPath": {
             "type": "string",
@@ -1181,7 +1197,7 @@
           },
           "localPath": {
             "type": "string",
-            "description": "本地文件路径，建议传入绝对路径，例如 /tmp/files/data.txt"
+            "description": "本地文件路径，用于上传或下载操作。必须是绝对路径，例如：/Users/username/files/data.txt"
           },
           "cloudPath": {
             "type": "string",
@@ -1507,7 +1523,7 @@
           },
           "targetPath": {
             "type": "string",
-            "description": "本地代码路径，必须是绝对路径。在deploy操作中指定要部署的代码目录，在download操作中指定下载目标目录，在init操作中指定云托管服务的上级目录（会在该目录下创建以serverName命名的子目录）。建议约定：项目根目录下的cloudrun/目录，例如：/Users/username/projects/my-project/cloudrun"
+            "description": "本地代码路径，deploy 指定部署目录，download 指定下载目录，init 指定上级目录（会创建 serverName 子目录）。必须是绝对路径，例如：/Users/username/projects/my-project/cloudrun"
           },
           "serverConfig": {
             "type": "object",
@@ -1881,6 +1897,298 @@
         "required": [
           "service",
           "action"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "queryAgent",
+      "description": "查询 AI 智能体（Agent）列表。返回所有 Agent 的基本信息。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pageNumber": {
+            "type": "number",
+            "default": 1,
+            "description": "页码，默认 1"
+          },
+          "pageSize": {
+            "type": "number",
+            "default": 20,
+            "description": "每页数量，默认 20"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "getAgentStatus",
+      "description": "查询单个 AI 智能体（Agent）的详情和可用状态。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "description": "Agent ID，如 \"agent-xxx\""
+          }
+        },
+        "required": [
+          "agentId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "createAgent",
+      "description": "创建云函数 AI 智能体，上传本地代码部署。目录需包含可执行的 scf_bootstrap 启动脚本，监听 SCF_RUNTIME_PORT 端口。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "description": "智能体名称，仅支持英文"
+          },
+          "targetPath": {
+            "type": "string",
+            "description": "本地代码目录路径"
+          },
+          "runtime": {
+            "type": "string",
+            "enum": [
+              "Nodejs20.19",
+              "Nodejs18.15",
+              "Nodejs16.13",
+              "Nodejs14.18",
+              "Python3.10",
+              "Python3.9",
+              "Python3.7",
+              "Php8.0",
+              "Php7.4",
+              "Go1",
+              "Java11",
+              "Java8"
+            ],
+            "description": "运行时：Nodejs20.19 | Python3.10 | Go1 等"
+          },
+          "agentId": {
+            "type": "string",
+            "description": "自定义 Agent ID，不传则自动生成"
+          },
+          "timeout": {
+            "type": "number",
+            "description": "超时时间（秒），默认 7200"
+          },
+          "memorySize": {
+            "type": "number",
+            "description": "内存大小（MB），64 或 128-3072（128阶梯）"
+          },
+          "installDependency": {
+            "type": "boolean",
+            "description": "自动安装依赖，不上传 node_modules 时必须为 true"
+          },
+          "environment": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "环境变量，键值对格式"
+          },
+          "ignore": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "忽略文件 glob 模式，如 ['**/node_modules/**', '*.log']"
+          },
+          "sessionConfig": {
+            "type": "object",
+            "properties": {
+              "SessionSource": {
+                "type": "string",
+                "enum": [
+                  "HEADER",
+                  "COOKIE",
+                  "QUERY_STRING"
+                ],
+                "description": "会话来源，默认 'HEADER'"
+              },
+              "SessionName": {
+                "type": "string",
+                "description": "会话名称，5-40字符，字母开头"
+              },
+              "MaximumConcurrencySessionPerInstance": {
+                "type": "number",
+                "description": "单实例并发会话数，1-100，默认 1"
+              },
+              "MaximumTTLInSeconds": {
+                "type": "number",
+                "description": "会话最长生命周期（秒），1-604800，默认 21600"
+              },
+              "MaximumIdleTimeInSeconds": {
+                "type": "number",
+                "description": "会话最长空闲时间（秒），不超过 TTL，默认 1800"
+              },
+              "MaxConcurrency": {
+                "type": "number",
+                "description": "单实例最大并发数，1-100，默认 50"
+              }
+            },
+            "additionalProperties": false,
+            "description": "会话配置（可选）"
+          }
+        },
+        "required": [
+          "name",
+          "targetPath",
+          "runtime"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "updateAgent",
+      "description": "更新 AI 智能体（Agent）的代码或配置，可同时更新多个配置。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "description": "Agent ID"
+          },
+          "targetPath": {
+            "type": "string",
+            "description": "本地代码目录路径"
+          },
+          "environment": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "环境变量，键值对格式"
+          },
+          "runtime": {
+            "type": "string",
+            "enum": [
+              "Nodejs20.19",
+              "Nodejs18.15",
+              "Nodejs16.13",
+              "Nodejs14.18",
+              "Python3.10",
+              "Python3.9",
+              "Python3.7",
+              "Php8.0",
+              "Php7.4",
+              "Go1",
+              "Java11",
+              "Java8"
+            ],
+            "description": "运行时版本"
+          },
+          "timeout": {
+            "type": "number",
+            "description": "超时时间（秒），1-900"
+          },
+          "memorySize": {
+            "type": "number",
+            "description": "内存大小（MB），64 或 128-3072（128阶梯）"
+          },
+          "installDependency": {
+            "type": "boolean",
+            "description": "自动安装依赖，不上传 node_modules 时必须为 true"
+          },
+          "ignore": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "忽略文件 glob 模式，如 ['**/node_modules/**', '**/.git/**']，仅 targetPath 方式有效"
+          }
+        },
+        "required": [
+          "agentId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "getAgentLogs",
+      "description": "查询 AI 智能体的调用日志，支持按数量、时间、请求 ID 筛选。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "description": "Agent ID"
+          },
+          "limit": {
+            "type": "number",
+            "default": 10,
+            "description": "返回数量，默认 10"
+          },
+          "offset": {
+            "type": "number",
+            "default": 0,
+            "description": "偏移量，默认 0"
+          },
+          "startTime": {
+            "type": "string",
+            "description": "开始时间，如 \"2025-01-01 00:00:00\""
+          },
+          "endTime": {
+            "type": "string",
+            "description": "结束时间，如 \"2025-01-01 23:59:59\""
+          },
+          "requestId": {
+            "type": "string",
+            "description": "按 RequestId 筛选"
+          }
+        },
+        "required": [
+          "agentId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "deleteAgent",
+      "description": "删除指定的 AI 智能体，不可恢复，需 force=true 确认。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "description": "Agent ID"
+          },
+          "force": {
+            "type": "boolean",
+            "default": false,
+            "description": "确认删除，设为 true"
+          }
+        },
+        "required": [
+          "agentId"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"

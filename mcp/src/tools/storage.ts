@@ -12,7 +12,7 @@ const queryStorageInputSchema = {
 // Input schema for manageStorage tool
 const manageStorageInputSchema = {
   action: z.enum(['upload', 'download', 'delete']).describe('管理操作类型：upload=上传文件或目录，download=下载文件或目录，delete=删除文件或目录'),
-  localPath: z.string().describe('本地文件路径，建议传入绝对路径，例如 /tmp/files/data.txt'),
+  localPath: z.string().describe('本地文件路径，用于上传或下载操作。必须是绝对路径，例如：/Users/username/files/data.txt'),
   cloudPath: z.string().describe('云端文件路径，例如 files/data.txt'),
   force: z.boolean().optional().default(false).describe('强制操作开关，删除操作时建议设置为true以确认删除，默认false'),
   isDirectory: z.boolean().optional().default(false).describe('是否为目录操作，true=目录操作，false=文件操作，默认false')
