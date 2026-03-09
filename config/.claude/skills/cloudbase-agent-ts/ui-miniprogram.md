@@ -5,7 +5,7 @@ WeChat Mini Program SDK for AG-UI protocol. Headless behavior mixin pattern.
 ## Installation
 
 ```bash
-npm install @cloudbase/agent-ui-miniprogram
+npm install @cloudbase/agent-ui-miniprogram@latest
 ```
 
 ## Basic Usage
