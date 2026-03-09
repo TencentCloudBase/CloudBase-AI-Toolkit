@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 开通 MySql 结果查询
+## 执行数据库命令
 
-最近更新时间：2026-03-09 02:55:02
+最近更新时间：2026-03-09 02:55:30
 
 -   微信扫一扫 
 -   QQ
@@ -18,14 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-查询开通Mysql结果， `Response.Data.Status = "notexist"` 表示未开通，如果未开通，可以调用 [CreateMySQL](https://cloud.tencent.com/document/api/876/128186) 来开通  
-`Response.Data. Status = "success"` 表示开通成功，Mysql开通成功后，可通过接口设置数据库账号相关功能包括但不限于【创建账号、删除账号、查询可授权权限列表、查询账号已有权限、修改主机、修改配置、修改账号库表权限】、集群操作相关【查询集群参数、修改集群参数】，连接设置相关【关闭外网、开通外网、查询集群信息】，备份回档相关【创建手动回档、删除手动回档、修改自动备份配置信息、查询备份文件列表、集群回档、查询任务列表、获取table列表、获取集群数据库列表、查询备份下载地址】，相关功能接口文档： [TDSQL-C MySQL API文档](https://cloud.tencent.com/document/product/1003/48106)
+本接口用于执行数据库命令
 
 默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeCreateMySQLResult)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=RunCommands)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -35,38 +34,38 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeCreateMySQLResult。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：RunCommands。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
-| Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| EnvId | 是 | String | 云开发环境ID  
-示例值： **s _e_ - **\*\***** 2dbc0df14561 |
-| TaskId | 否 | String | OpenMysql 返回任务 Id  
-示例值：38654 |
+| Region | 是 | String | [公共参数](/document/api/876/34812) ，详见产品支持的 [地域列表](/document/api/876/34812#.E5.9C.B0.E5.9F.9F.E5.88.97.E8.A1.A8) 。 |
+| MgoCommands.N | 是 | Array of [MgoCommandParam](/document/api/876/34822#MgoCommandParam) | 待执行命令 |
+| Tag | 否 | String | 实例ID  
+示例值：tnt-xxxx |
+| EnvId | 否 | String | 环境id  
+示例值：lowcode-123 |
+| MongoConnector | 否 | [MongoConnector](/document/api/876/34822#MongoConnector) | Mongo连接器实例信息 |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| Data | [DescribeCreateMySQLResult](/document/api/876/34822#DescribeCreateMySQLResult) | 查询开通结果 |
+| Data | Array of String | 返回结果，返回结果为一个json字符串  
+注意：此字段可能返回 null，表示取不到有效值。  
+示例值：\["string"\] |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 DescribeCreateMySQLResult
+### 示例1 查询一条数据
 
 #### 输入示例
 
 ```
-POST / HTTP/1.1
-Host: tcb.tencentcloudapi.com
-Content-Type: application/json
-X-TC-Action: DescribeCreateMySQLResult
-<公共请求参数>
-
-{
-    "EnvId": "**s*e*-********2dbc0df14561",
-    "TaskId": "38654"
-}
+https://tcb.tencentcloudapi.com/?Action=RunCommands
+&Tag=tnt-nl7hjzasw
+&MgoCommands.0.TableName=luke_test
+&MgoCommands.0.CommandType=QUERY
+&MgoCommands.0.Command={"find":"test","filter":{"_id":{"$eq":"1"}}}"}
+&<公共请求参数>
 ```
 
 #### 输出示例
@@ -74,12 +73,10 @@ X-TC-Action: DescribeCreateMySQLResult
 ```json
 {
     "Response": {
-        "Data": {
-            "FailReason": null,
-            "FreezeStatus": false,
-            "Status": "success"
-        },
-        "RequestId": "c110db5b-5fd8-4a02-9a86-c2a46679abd7"
+        "Data": [
+            "[\"{\\\"_id\\\":\\\"1\\\",\\\"category\\\":\\\"Web\\\",\\\"tags\\\":[\\\"JavaScript\\\",\\\"C#\\\"],\\\"date\\\":{\\\"$date\\\":{\\\"$numberLong\\\":\\\"1572937669786\\\"}}}\"]"
+        ],
+        "RequestId": "25785311-b03c-48d3-af34-36ff65e62d4a"
     }
 }
 ```
@@ -113,6 +110,21 @@ X-TC-Action: DescribeCreateMySQLResult
 
 ## 6\. 错误码
 
-该接口暂无业务逻辑相关的错误码，其他错误码详见 [公共错误码](/document/api/876/34823#.E5.85.AC.E5.85.B1.E9.94.99.E8.AF.AF.E7.A0.81) 。
+以下仅列出了接口业务逻辑相关的错误码，其他错误码详见 [公共错误码](/document/api/876/34823#.E5.85.AC.E5.85.B1.E9.94.99.E8.AF.AF.E7.A0.81) 。
+
+| 错误码 | 描述 |
+| --- | --- |
+| FailedOperation | 操作失败。 |
+| FailedOperation.Timeout | FailedOperation.Timeout |
+| InternalError | 内部错误。 |
+| InvalidParameter | 参数错误。 |
+| InvalidParameterValue | 参数取值错误。 |
+| InvalidParameterValue.InvalidDoc | InvalidParameterValue.InvalidDoc |
+| LimitExceeded.NoValidConnection | LimitExceeded.NoValidConnection |
+| LimitExceeded.OutOfResultSizeLimit | 超过响应大小限制 |
+| ResourceNotFound.Connector | 连接器未找到,请创建连接器或检查连接器参数是否正确 |
+| ResourceNotFound.Table | 表未找到,请创建表或检查表名参数是否正确 |
+| ResourceUnavailable.MongoIsolated | MongoDB集群已隔离,由于集群已被隔离写入被禁止,请跳转MongoDB控制台查看详情 |
+| ResourceUnavailable.ResourceOverdue | 资源过期。 |
 
 目录

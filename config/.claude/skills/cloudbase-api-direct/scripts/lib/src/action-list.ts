@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 53
+ * Action 数量: 54
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -58,6 +58,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'ModifyUser',
   'ReinstateEnv',
   'RenewEnv',
+  'RunCommands',
   'RunSql',
   'SearchClsLog',
   'UpdateTable',

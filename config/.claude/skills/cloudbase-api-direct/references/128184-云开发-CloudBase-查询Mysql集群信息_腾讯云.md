@@ -2,7 +2,7 @@
 
 ## 查询Mysql集群信息
 
-最近更新时间：2026-03-03 02:04:25
+最近更新时间：2026-03-09 02:55:01
 
 -   微信扫一扫 
 -   QQ
@@ -19,6 +19,8 @@ _我的收藏_
 接口请求域名： tcb.tencentcloudapi.com 。
 
 查询Mysql集群信息
+
+调用该接口前需要先查询Mysql是否开通，可通过 [DescribeCreateMySQLResult](https://cloud.tencent.com/document/api/876/128185) 查询，只有已开通的才能查到集群信息
 
 默认接口请求频率限制：20次/秒。
 

@@ -2,7 +2,7 @@
 
 ## 开通 MySql
 
-最近更新时间：2026-03-02 12:47:57
+最近更新时间：2026-03-09 02:55:03
 
 -   微信扫一扫 
 -   QQ
@@ -19,6 +19,8 @@ _我的收藏_
 接口请求域名： tcb.tencentcloudapi.com 。
 
 开通Mysql
+
+开通后，可通过 [DescribeCreateMySQLResult](https://cloud.tencent.com/document/api/876/128185) 查询开通结果
 
 默认接口请求频率限制：20次/秒。
 

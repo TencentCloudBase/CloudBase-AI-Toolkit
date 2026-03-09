@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-03-06 02:55:11
+最近更新时间：2026-03-09 02:55:41
 
 -   微信扫一扫 
 -   QQ
@@ -98,6 +98,7 @@ _我的收藏_
 | [DescribeMySQLTaskStatus](/document/api/876/128183) | 销毁Mysql结果查询 | 20 |
 | [DestroyMySQL](/document/api/876/128182) | 销毁MySql | 20 |
 | [RunSql](/document/api/876/127880) | 执行SQL语句 | 20 |
+| [RunCommands](/document/api/876/129012) | 执行数据库命令 | 20 |
 
 ## 云开发接入相关接口
 

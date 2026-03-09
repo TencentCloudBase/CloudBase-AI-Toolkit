@@ -2,7 +2,7 @@
 
 ## 创建环境
 
-最近更新时间：2026-03-02 12:47:52
+最近更新时间：2026-03-09 02:54:53
 
 -   微信扫一扫 
 -   QQ
@@ -69,6 +69,13 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 | Tags.N | 否 | Array of [Tag](/document/api/876/34822#Tag) | 环境标签。  
 可取值通过接口 [tag:DescribeTags](https://cloud.tencent.com/document/product/651/35316) 可获取到。  
 不传或为空则默认不打任何标签。 |
+| RenewFlag | 否 | String | 自动续费标识。取值范围：  
+\- NOTIFY\_AND\_AUTO\_RENEW：通知过期且自动续费  
+\- NOTIFY\_AND\_MANUAL\_RENEW：通知过期不自动续费（需要手动续费，可通过接口 [RenewEnv](https://cloud.tencent.com/document/product/876/128590) 来续费）  
+  
+默认取值：NOTIFY\_AND\_MANUAL\_RENEW。  
+若该参数指定为NOTIFY\_AND\_AUTO\_RENEW（即：自动续费），在账户余额充足的情况下，实例到期后将按月自动续费；但如果账户余额不足，将无法自动续费。请留意腾讯云短信和邮件通知。  
+示例值：NOTIFY\_AND\_MANUAL\_RENEW |
 
 ## 3\. 输出参数
 

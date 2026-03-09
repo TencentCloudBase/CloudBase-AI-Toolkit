@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-03-08T04:05:11.308Z
+爬取时间: 2026-03-09T04:10:35.853Z
 
 ## 文档列表
 
@@ -50,6 +50,7 @@
 - [云开发 CloudBase 销毁Mysql结果查询_腾讯云](./128183-云开发-CloudBase-销毁Mysql结果查询_腾讯云.md)
 - [云开发 CloudBase 销毁MySql_腾讯云](./128182-云开发-CloudBase-销毁MySql_腾讯云.md)
 - [云开发 CloudBase 执行SQL语句_腾讯云](./127880-云开发-CloudBase-执行SQL语句_腾讯云.md)
+- [云开发 CloudBase 执行数据库命令_腾讯云](./129012-云开发-CloudBase-执行数据库命令_腾讯云.md)
 - [云开发 CloudBase 获取网关API列表_腾讯云](./128121-云开发-CloudBase-获取网关API列表_腾讯云.md)
 - [云开发 CloudBase 获取网关服务_腾讯云](./128120-云开发-CloudBase-获取网关服务_腾讯云.md)
 - [云开发 CloudBase 创建云开发网关API_腾讯云](./128124-云开发-CloudBase-创建云开发网关API_腾讯云.md)

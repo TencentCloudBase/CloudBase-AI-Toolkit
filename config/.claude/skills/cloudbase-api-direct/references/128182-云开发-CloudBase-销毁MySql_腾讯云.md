@@ -2,7 +2,7 @@
 
 ## 销毁MySql
 
-最近更新时间：2026-03-02 12:47:55
+最近更新时间：2026-03-09 02:55:00
 
 -   微信扫一扫 
 -   QQ
@@ -19,6 +19,8 @@ _我的收藏_
 接口请求域名： tcb.tencentcloudapi.com 。
 
 销毁Mysql
+
+销毁后可以通过 [DescribeMySQLTaskStatus](https://cloud.tencent.com/document/api/876/128183) 接口查询销毁结果，如果 `Response.Data. Status = FAILED` 表示销毁失败，可以重新调用销毁接口重试
 
 默认接口请求频率限制：20次/秒。
 
