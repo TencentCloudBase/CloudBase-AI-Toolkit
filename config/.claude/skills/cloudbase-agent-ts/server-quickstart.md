@@ -2,6 +2,14 @@
 
 Deploy AG-UI compatible agents as HTTP servers.
 
+## Installation
+
+```bash
+npm install @cloudbase/agent-server@latest
+```
+
+**Important:** Always use `@latest` for `@cloudbase/agent-*` packages. Do NOT use version ranges like `^1.0.0` or exact versions, as these versions may not exist. The packages do not follow traditional semantic versioning.
+
 ## Deployment Methods
 
 ### run() - Standalone

@@ -1,7 +1,7 @@
 ---
 name: cloudbase-agent-ts
 description: "Build and deploy AI agents with Cloudbase Agent (TypeScript), a TypeScript SDK implementing the AG-UI protocol. Use when: (1) deploying agent servers with @cloudbase/agent-server, (2) using LangGraph adapter with ClientStateAnnotation, (3) using LangChain adapter with clientTools(), (4) building custom adapters that implement AbstractAgent, (5) understanding AG-UI protocol events, (6) building web UI clients with @ag-ui/client, (7) building WeChat Mini Program UIs with @cloudbase/agent-ui-miniprogram."
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Cloudbase Agent (TypeScript)
@@ -58,6 +58,16 @@ Use this skill for **AI agent development** when you need to:
 | Deep-dive @cloudbase/agent-ui-miniprogram | [ui-miniprogram](ui-miniprogram.md) |
 
 ## Quick Start
+
+**1. Install dependencies:**
+
+```bash
+npm install @cloudbase/agent-server@latest @cloudbase/agent-adapter-langgraph@latest
+```
+
+**Critical:** Always use `@latest` for all `@cloudbase/agent-*` packages. Never use version ranges (e.g., `^1.0.0`) or specific versions (e.g., `1.0.0`), as these versions may not exist.
+
+**2. Create and run your agent:**
 
 ```typescript
 import { run } from "@cloudbase/agent-server";
