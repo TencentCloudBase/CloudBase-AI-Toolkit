@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 54
+ * Action 数量: 68
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -15,14 +15,18 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'CreateBillDeal',
   'CreateCloudBaseGWAPI',
   'CreateEnv',
+  'CreateHTTPServiceRoute',
   'CreateHostingDomain',
   'CreateMySQL',
+  'CreateRole',
   'CreateStaticStore',
   'CreateTable',
   'CreateUser',
   'DeleteAuthDomain',
   'DeleteCloudBaseGWAPI',
   'DeleteCloudBaseGWDomain',
+  'DeleteHTTPServiceRoute',
+  'DeleteRoles',
   'DeleteTable',
   'DeleteUsers',
   'DescribeAuthDomains',
@@ -35,10 +39,16 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DescribeEnvAccountCircle',
   'DescribeEnvLimit',
   'DescribeEnvs',
+  'DescribeHTTPServiceRoute',
   'DescribeHostingDomainTask',
   'DescribeMySQLClusterDetail',
   'DescribeMySQLTaskStatus',
   'DescribeQuotaData',
+  'DescribeResourcePermission',
+  'DescribeRestoreTables',
+  'DescribeRestoreTask',
+  'DescribeRestoreTime',
+  'DescribeRoleList',
   'DescribeSafeRule',
   'DescribeStaticStore',
   'DescribeTable',
@@ -54,10 +64,14 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'ModifyDatabaseACL',
   'ModifyEnv',
   'ModifyEnvPlan',
+  'ModifyHTTPServiceRoute',
+  'ModifyResourcePermission',
+  'ModifyRole',
   'ModifySafeRule',
   'ModifyUser',
   'ReinstateEnv',
   'RenewEnv',
+  'RestoreTCBTables',
   'RunCommands',
   'RunSql',
   'SearchClsLog',
