@@ -42,19 +42,29 @@ Client (React / MiniProgram / curl)
 
 ## Installation
 
+CloudBase Agent Python SDK is published to PyPI as separate packages. **Note: PyPI package names use hyphens (`cloudbase-agent-*`), and Python imports use the same namespace (`cloudbase_agent.*`)**.
+
 ```bash
-# Core + LangGraph (most common)
-pip install cloudbase_agent[langgraph]
-
-# Core only
-pip install cloudbase_agent
-
-# Other frameworks
-pip install cloudbase_agent[crewai]
-pip install cloudbase_agent[all]
+# Core + Server + LangGraph (most common)
+pip install cloudbase-agent-langgraph
 
 # Individual packages
-pip install cloudbase-agent-tools cloudbase-agent-storage cloudbase-agent-observability
+pip install cloudbase-agent-core        # Core framework
+pip install cloudbase-agent-server      # FastAPI server
+pip install cloudbase-agent-langgraph   # LangGraph integration
+pip install cloudbase-agent-tools       # Tool system
+pip install cloudbase-agent-storage     # Memory/Storage
+pip install cloudbase-agent-observability  # OpenTelemetry/Langfuse
+pip install cloudbase-agent-coze        # Coze platform
+pip install cloudbase-agent-crewai      # CrewAI integration
+```
+
+**Import Note**: All packages share the `cloudbase_agent` namespace:
+```python
+# After installing cloudbase-agent-langgraph, import from cloudbase_agent
+from cloudbase_agent.langgraph import LangGraphAgent
+from cloudbase_agent.server import AgentServiceApp
+from cloudbase_agent.tools import create_bash_tool
 ```
 
 ## Quick Start: 3 Steps
@@ -173,5 +183,5 @@ my-agent-project/
 1. **Agent Creator Pattern**: Every request creates a fresh agent via factory function. Supports cleanup callbacks for resource release.
 2. **Dual Protocol**: Every agent supports both AG-UI native (SSE + rich events) and OpenAI-compatible (`/chat/completions`).
 3. **Middleware = Generator**: Use `yield` — pre-yield = pre-processing, post-yield = post-processing (onion model).
-4. **Namespace Package**: `cloudbase_agent` spans multiple packages (core, server, tools, storage, langgraph, crewai, observability). All via `from cloudbase_agent.xxx import ...`.
+4. **Namespace Package**: `cloudbase_agent` spans multiple PyPI packages (cloudbase-agent-core, cloudbase-agent-server, cloudbase-agent-langgraph, etc.). PyPI names use hyphens, but all imports use `from cloudbase_agent.xxx import ...`.
 5. **Observability Auto-Integration**: Install `cloudbase-agent-observability` and tracing works automatically — zero config needed.
