@@ -33,6 +33,7 @@ const { gfm } = require('turndown-plugin-gfm');
 const BASE_URL = 'https://cloud.tencent.com';
 const COMMON_PARAMS_URL = 'https://cloud.tencent.com/document/api/876/34812';
 const API_OVERVIEW_URL = 'https://cloud.tencent.com/document/api/876/34809';
+const DEPS_INDEX_URL = 'https://cloud.tencent.com/document/api/876/34808';
 const CONCURRENCY = 2; // 降低并发数，避免触发限流
 const REQUEST_DELAY_MS = 500; // 请求间隔（毫秒）
 const MAX_RETRIES = 3; // 最大重试次数
@@ -164,10 +165,32 @@ function extractApiLinks(content: string): string[] {
   return links;
 }
 
+// Extract cross-product API links from the deps index page (product/1003, product/583, api/436, etc.)
+function extractDepsLinks(content: string): string[] {
+  const links: string[] = [];
+  const seen = new Set<string>();
+  // Match full URLs: https://cloud.tencent.com/document/(api|product)/{productId}/{docId}
+  const re = /https:\/\/cloud\.tencent\.com(\/document\/(api|product)\/(\d+)\/(\d+))/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content)) !== null) {
+    const productId = m[3];
+    // Skip TCB (876) links — those are handled by the main crawler
+    if (productId === '876') continue;
+    const url = `${BASE_URL}${m[1]}`;
+    if (!seen.has(url)) {
+      seen.add(url);
+      links.push(url);
+    }
+  }
+  return links;
+}
+
 function urlToFilename(url: string, title: string): string {
-  const docId = url.match(/\/(\d+)$/)?.[1] || 'unknown';
+  // Extract product id + doc id for namespacing, e.g. "1003-71660" or "876-34812"
+  const productMatch = url.match(/\/(api|product)\/(\d+)\/(\d+)/);
+  const prefix = productMatch ? `${productMatch[2]}-${productMatch[3]}` : url.match(/\/(\d+)$/)?.[1] || 'unknown';
   const cleanTitle = title.replace(/[^\w\u4e00-\u9fa5]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
-  return `${docId}-${cleanTitle}.md`;
+  return `${prefix}-${cleanTitle}.md`;
 }
 
 async function main() {
@@ -253,6 +276,48 @@ async function main() {
 
   results.push(...validResults);
   console.log(`   ⏱️  Fetched in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
+
+  // --- Deps docs ---
+  console.log('\n📄 Fetching deps index page...');
+  let depsLinks: string[] = [];
+  try {
+    const depsIndex = await fetchMarkdownWithRetry(DEPS_INDEX_URL);
+    console.log(`   ✅ ${depsIndex.title}`);
+    depsLinks = extractDepsLinks(depsIndex.content);
+    console.log(`   📋 Found ${depsLinks.length} deps API links`);
+  } catch (err) {
+    console.error(`   ❌ Failed to fetch deps index: ${err}`);
+    failedCount++;
+  }
+
+  if (depsLinks.length > 0) {
+    console.log(`\n📄 Fetching ${depsLinks.length} deps API docs...`);
+    const depsStartTime = Date.now();
+    let depsCompleted = 0;
+
+    const depsTasks = depsLinks.map((url) =>
+      limit(async () => {
+        try {
+          const doc = await fetchMarkdownWithRetry(url);
+          depsCompleted++;
+          console.log(`   [${depsCompleted}/${depsLinks.length}] ✅ ${doc.title}`);
+          return { success: true, result: { url, title: doc.title, content: doc.content, filename: urlToFilename(url, doc.title) } as CrawlResult };
+        } catch (err) {
+          depsCompleted++;
+          console.error(`   [${depsCompleted}/${depsLinks.length}] ❌ ${url}: ${err}`);
+          return { success: false, result: null };
+        }
+      })
+    );
+
+    const depsResults = await Promise.all(depsTasks);
+    const validDepsResults = depsResults.filter((r) => r.success && r.result !== null).map((r) => r.result as CrawlResult);
+    const depsFailed = depsResults.filter((r) => !r.success).length;
+    failedCount += depsFailed;
+
+    results.push(...validDepsResults);
+    console.log(`   ⏱️  Fetched in ${((Date.now() - depsStartTime) / 1000).toFixed(1)}s`);
+  }
 
   console.log(`\n💾 Saving ${results.length} documents...`);
   results.forEach((r) => writeFileSync(join(outputDir, r.filename), r.content));
