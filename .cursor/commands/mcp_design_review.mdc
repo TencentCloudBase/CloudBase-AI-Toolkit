@@ -1,0 +1,58 @@
+### `/mcp_design_review`
+
+**Function**  
+Check whether all MCP tools and specs follow the unified MCP design guidelines.
+
+**Trigger Condition**  
+When the user types `/mcp_design_review`.
+
+**Behavior**  
+
+1. **Collect design sources**  
+   - Read MCP-related specs (e.g. `specs/agent-functionality/`, `specs/interactive-tools/`, `specs/code-quality-analysis/REFACTORING_CHECKLIST.md`, `specs/function-tool-ai-ergonomics/` if present).  
+   - Read MCP implementation files (primarily `mcp/src/tools/*.ts`, especially `functions.ts`, `env.ts`, `storage.ts`, etc).
+
+2. **Evaluate design against the guidelines**  
+   For each tool and its surrounding design, check:
+
+   - **Tool responsibility & naming**  
+     - Single clear responsibility per tool (no “god” tools).  
+     - Names follow `verbNoun` style and reflect the domain (e.g. `getFunctionLayers`, `writeFunctionLayers`).  
+
+   - **Read vs write separation**  
+     - Read tools are side‑effect free and focused on querying.  
+     - Write tools perform explicit mutations with clear targets and payloads.
+
+   - **Declarative vs lifecycle design**  
+     - Prefer declarative APIs when a target state can be described in one shot.  
+     - Only use lifecycle / multi‑step flows where necessary (e.g. create → attach → detach → delete), with each step independently callable and retryable.
+
+   - **Return envelope & AI ergonomics**  
+     - All tools return a consistent envelope, roughly:  
+       - `success: boolean`  
+       - `data: …` (stable, well‑typed structure)  
+       - `message: string` (human/AI‑friendly summary)  
+       - Optional `errorCode` or similar for programmatic checks  
+       - Optional `nextActions: { tool, action, reason }[]` suggesting follow‑up calls.  
+     - Logs / raw stdout are not mixed into `data` but exposed via dedicated log/diagnostic tools where needed.
+
+   - **Parameter design & safety**  
+     - Parameters use clear, strongly‑typed fields (enums/union types where possible), avoiding `any` and giant anonymous blobs.  
+     - Dangerous operations (delete, overwrite, publish, reset) require explicit confirmation flags (`confirm`, `force`, `dryRun`, etc) with safe defaults.  
+
+   - **Environment & auth conventions**  
+     - Tools obtain CloudBase environment and credentials via unified config, not by forcing the caller to pass raw secrets.  
+     - Patterns for env usage are consistent across tools.
+
+   - **Long‑running operations & logs**  
+     - Long‑running or multi‑step operations expose status/progress in structured form, not just plain text.  
+     - Tool descriptions clarify time/side‑effects and where to look for detailed logs.
+
+3. **Produce a structured report**  
+   - Output a markdown report with three sections:  
+     - **Summary**: overall pass/fail status and high‑level observations.  
+     - **Per‑tool checklist**: for each major tool group (`functions`, `env`, `database`, `storage`, etc.), list which guidelines are satisfied and which are violated or unclear.  
+     - **Actionable recommendations**: concrete refactoring suggestions (e.g. “split X into read/write”, “add `nextActions` to Y”, “add `confirm` flag to Z delete operation”).
+
+4. **Optional follow‑up**  
+   - If requested, generate a prioritized refactoring plan based on the findings (smallest, safest changes first), referencing the existing refactoring checklist in `specs/code-quality-analysis/REFACTORING_CHECKLIST.md`.
