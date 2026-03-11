@@ -193,10 +193,10 @@ test('向后兼容性验证', async () => {
     
     console.log(`📊 找到 ${databaseTools.length} 个数据库相关工具`);
     
-    // 验证关键工具仍然存在
+    // 验证关键工具仍然存在（使用新名称）
     const expectedTools = [
-      "readNoSqlDatabaseStructure",
-      "writeNoSqlDatabaseStructure",
+      "queryNoSqlDatabase",  // formerly readNoSqlDatabaseStructure
+      "manageNoSqlDatabase", // formerly writeNoSqlDatabaseStructure
       "readNoSqlDatabaseContent",
       "writeNoSqlDatabaseContent",
       "manageDataModel",
