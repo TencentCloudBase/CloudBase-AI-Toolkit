@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getCloudBaseManager, getEnvId, logCloudBaseResult } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
+import { successResult, toMCPResponse } from "../utils/response-builder.js";
 
 /**
  * 权限类别（AclTag）
@@ -127,26 +128,17 @@ export function registerSecurityRuleTools(server: ExtendedMcpServer) {
       } else {
         throw new Error(`不支持的资源类型: ${resourceType}`);
       }
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                success: true,
-                resourceType,
-                resourceId,
-                aclTag: result.AclTag,
-                rule: result.Rule ?? null,
-                raw: result,
-                message: "安全规则读取成功",
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
+      return toMCPResponse(successResult(
+        {
+          resourceType,
+          resourceId,
+          aclTag: result.AclTag,
+          rule: result.Rule ?? null,
+          raw: result,
+        },
+        "安全规则读取成功"
+        // No nextActions - simple read-only query
+      ));
     },
   );
 
@@ -304,23 +296,14 @@ export function registerSecurityRuleTools(server: ExtendedMcpServer) {
       } else {
         throw new Error(`不支持的资源类型: ${resourceType}`);
       }
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                success: true,
-                requestId: result.RequestId,
-                raw: result,
-                message: "安全规则写入成功",
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
+      return toMCPResponse(successResult(
+        {
+          requestId: result.RequestId,
+          raw: result,
+        },
+        "安全规则写入成功"
+        // No nextActions - complete operation
+      ));
     },
   );
 }
