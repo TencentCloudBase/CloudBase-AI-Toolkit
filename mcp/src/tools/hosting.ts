@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getCloudBaseManager, getEnvId, logCloudBaseResult } from '../cloudbase-manager.js';
 import { ExtendedMcpServer } from '../server.js';
 import { sendDeployNotification } from '../utils/notification.js';
+import { successResult, toMCPResponse } from '../utils/response-builder.js';
 
 
 // 定义扩展的EnvInfo接口，包含StaticStorages属性
@@ -106,19 +107,15 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         // Error is already logged in sendDeployNotification
       }
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              ...result,
-              staticDomain,
-              message: "文件上传成功",
-              accessUrl: accessUrl
-            }, null, 2)
-          }
-        ]
-      };
+      return toMCPResponse(successResult(
+        {
+          ...result,
+          staticDomain,
+          accessUrl: accessUrl
+        },
+        "文件上传成功"
+        // No nextActions - complete operation
+      ));
     }
   );
 
@@ -149,14 +146,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         isDir
       });
       logCloudBaseResult(server.logger, result);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2)
-          }
-        ]
-      };
+      return toMCPResponse(successResult(
+        result,
+        "文件删除成功"
+        // No nextActions - complete operation
+      ));
     }
   );
 
@@ -185,14 +179,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         maxKeys
       });
       logCloudBaseResult(server.logger, result);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2)
-          }
-        ]
-      };
+      return toMCPResponse(successResult(
+        result,
+        "文件搜索成功"
+        // No nextActions - simple read-only query
+      ));
     }
   );
 
@@ -303,14 +294,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
           throw new Error(`不支持的操作类型: ${action}`);
       }
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2)
-          }
-        ]
-      };
+      return toMCPResponse(successResult(
+        result,
+        `域名${action === 'create' ? '绑定' : action === 'delete' ? '解绑' : action === 'check' ? '查询' : '修改'}成功`
+        // No nextActions - complete operations
+      ));
     }
   );
 }
