@@ -7,6 +7,7 @@ import { z } from "zod";
 import { FALLBACK_CLAUDE_PROMPT } from "../config/claude-prompt.js";
 import { ExtendedMcpServer } from "../server.js";
 import { debug, warn } from "../utils/logger.js";
+import { successResult, toMCPResponse } from "../utils/response-builder.js";
 
 // 1. 枚举定义
 const KnowledgeBaseEnum = z.enum(["cloudbase", "scf", "miniprogram"]);
@@ -523,11 +524,11 @@ export async function registerRagTools(server: ExtendedMcpServer) {
     "searchKnowledgeBase",
     {
       title: "云开发知识库检索",
-      description: `云开发知识库智能检索工具，支持向量查询 (vector)、固定文档 (doc) 和 OpenAPI 文档 (openapi) 查询。
+      description: `云开发知识库智能检索工具，支持向量查询 (vector)、技能文档 (skills) 和 OpenAPI 文档 (openapi) 查询。
 
-      强烈推荐始终优先使用固定文档 (doc) 或 OpenAPI 文档 (openapi) 模式进行检索，仅当固定文档无法覆盖你的问题时，再使用向量查询 (vector) 模式。
+      强烈推荐始终优先使用技能文档 (skills) 或 OpenAPI 文档 (openapi) 模式进行检索，仅当固定文档无法覆盖你的问题时，再使用向量查询 (vector) 模式。
 
-      固定文档 (doc) 查询当前支持 ${skills.length} 个固定文档，分别是：
+      技能文档 (skills) 查询当前支持 ${skills.length} 个 CloudBase 使用指南文档，分别是：
       ${skills
           .map(
             (skill) =>
@@ -541,15 +542,15 @@ export async function registerRagTools(server: ExtendedMcpServer) {
           .map((api) => `API名：${api.name} API介绍：${api.description}`)
           .join("\n")}`,
       inputSchema: {
-        mode: z.enum(["vector", "doc", "openapi"]),
-        docName: z
+        mode: z.enum(["vector", "skills", "openapi"]),
+        skillName: z
           .enum(
             skills.map((skill) =>
               path.basename(path.dirname(skill.absolutePath)),
             ) as unknown as [string, ...string[]],
           )
           .optional()
-          .describe("mode=doc 时指定。文档名称。"),
+          .describe("mode=skills 时指定。技能文档名称（CloudBase 使用指南）。"),
         apiName: z
           .enum(
             openapis.map((api) => api.name) as unknown as [string, ...string[]],
@@ -597,45 +598,54 @@ export async function registerRagTools(server: ExtendedMcpServer) {
       limit = 5,
       threshold = 0.5,
       mode,
-      docName,
+      skillName,
       apiName,
     }) => {
-      if (mode === "doc") {
-        const absolutePath = skills.find((skill) =>
-          skill.absolutePath.includes(docName!),
-        )!.absolutePath;
+      if (mode === "skills") {
+        const skill = skills.find((s) =>
+          s.absolutePath.includes(skillName!),
+        );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: `The doc's absolute path is: ${absolutePath}. ${(await fs.readFile(absolutePath)).toString()}`,
-            },
-          ],
-        };
+        if (!skill) {
+          throw new Error(`Skill document not found: ${skillName}`);
+        }
+
+        const skillContent = (await fs.readFile(skill.absolutePath)).toString();
+
+        // Return documentation without nextActions (AI reads and decides next step)
+        return toMCPResponse(successResult(
+          {
+            skillName: path.basename(path.dirname(skill.absolutePath)),
+            description: skill.description,
+            location: skill.absolutePath,
+            content: skillContent
+          },
+          `Found CloudBase skill documentation: ${skillName}`
+          // No nextActions - documentation is complete, AI reads and decides
+        ));
       }
 
       if (mode === "openapi") {
         const api = openapis.find((api) => api.name === apiName);
         if (!api) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `OpenAPI document "${apiName}" not found. Available APIs: ${openapis.map((a) => a.name).join(", ")}`,
-              },
-            ],
-          };
+          throw new Error(
+            `OpenAPI document "${apiName}" not found. Available APIs: ${openapis.map((a) => a.name).join(", ")}`
+          );
         }
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: `OpenAPI document: ${api.name}\nDescription: ${api.description}\nPath: ${api.absolutePath}\n\n${(await fs.readFile(api.absolutePath)).toString()}`,
-            },
-          ],
-        };
+        const apiContent = (await fs.readFile(api.absolutePath)).toString();
+
+        // Return OpenAPI documentation without nextActions (complete documentation)
+        return toMCPResponse(successResult(
+          {
+            apiName: api.name,
+            description: api.description,
+            location: api.absolutePath,
+            content: apiContent
+          },
+          `Found OpenAPI documentation: ${api.name}`
+          // No nextActions - OpenAPI doc is complete, AI reads and decides
+        ));
       }
 
       // 向量检索模式下必须提供 id 和 content，避免后端报「知识库名称不能为空」
@@ -703,28 +713,30 @@ export async function registerRagTools(server: ExtendedMcpServer) {
         throw new Error(result.message);
       }
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: safeStringify(
-              result.data.documents
-                .filter((item: any) => item.score >= threshold)
-                .map((item: any) => {
-                  return {
-                    score: item.score,
-                    fileTile: item.documentSet.fileTitle,
-                    url: safeParse(item.documentSet.fileMetaData).url,
-                    paragraphTitle: item.data.paragraphTitle,
-                    text: `${item.data.pre?.join("\n") || ""}
-    ${item.data.text}
-    ${item.data.next?.join("\n") || ""}`,
-                  };
-                }),
-            ),
-          },
-        ],
-      };
+      const documents = result.data.documents
+        .filter((item: any) => item.score >= threshold)
+        .map((item: any) => {
+          return {
+            score: item.score,
+            fileTile: item.documentSet.fileTitle,
+            url: safeParse(item.documentSet.fileMetaData).url,
+            paragraphTitle: item.data.paragraphTitle,
+            text: `${item.data.pre?.join("\n") || ""}
+${item.data.text}
+${item.data.next?.join("\n") || ""}`,
+          };
+        });
+
+      return toMCPResponse(successResult(
+        {
+          knowledgeBase: id,
+          threshold,
+          totalResults: documents.length,
+          documents
+        },
+        `Found ${documents.length} relevant documents (threshold: ${threshold})`
+        // No nextActions - vector search results are complete, AI reads and decides
+      ));
     },
   );
 }
