@@ -93,12 +93,12 @@ export function buildNextAction(
  * Convert ToolResult to MCP JSON response format
  */
 export function toMCPResponse<T>(result: ToolResult<T>): {
-  content: Array<{ type: string; text: string }>;
+  content: Array<{ type: 'text'; text: string }>;
 } {
   return {
     content: [
       {
-        type: 'text',
+        type: 'text' as const,
         text: JSON.stringify(result, null, 2)
       }
     ]

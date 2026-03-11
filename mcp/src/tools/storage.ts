@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getCloudBaseManager } from '../cloudbase-manager.js';
 import { ExtendedMcpServer } from '../server.js';
+import { successResult, errorResult, toMCPResponse, buildNextAction } from '../utils/response-builder.js';
 
 // Input schema for queryStorage tool
 const queryStorageInputSchema = {
@@ -66,44 +67,30 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         case 'list': {
           const result = await storageService.listDirectoryFiles(input.cloudPath);
 
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  success: true,
-                  data: {
-                    action: 'list',
-                    cloudPath: input.cloudPath,
-                    files: result || [],
-                    totalCount: result?.length || 0
-                  },
-                  message: `Successfully listed ${result?.length || 0} files in directory '${input.cloudPath}'`
-                }, null, 2)
-              }
-            ]
-          };
+          return toMCPResponse(successResult(
+            {
+              action: 'list',
+              cloudPath: input.cloudPath,
+              files: result || [],
+              totalCount: result?.length || 0
+            },
+            `Successfully listed ${result?.length || 0} files in directory '${input.cloudPath}'`
+            // No nextActions - simple query operation (AI can decide next step)
+          ));
         }
 
         case 'info': {
           const result = await storageService.getFileInfo(input.cloudPath);
 
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  success: true,
-                  data: {
-                    action: 'info',
-                    cloudPath: input.cloudPath,
-                    fileInfo: result
-                  },
-                  message: `Successfully retrieved file info for '${input.cloudPath}'`
-                }, null, 2)
-              }
-            ]
-          };
+          return toMCPResponse(successResult(
+            {
+              action: 'info',
+              cloudPath: input.cloudPath,
+              fileInfo: result
+            },
+            `Successfully retrieved file info for '${input.cloudPath}'`
+            // No nextActions - simple query operation
+          ));
         }
 
         case 'url': {
@@ -112,24 +99,17 @@ export function registerStorageTools(server: ExtendedMcpServer) {
             maxAge: input.maxAge || 3600
           }]);
 
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  success: true,
-                  data: {
-                    action: 'url',
-                    cloudPath: input.cloudPath,
-                    temporaryUrl: result[0]?.url || "",
-                    expireTime: `${input.maxAge || 3600}秒`,
-                    fileId: result[0]?.fileId || ""
-                  },
-                  message: `Successfully generated temporary URL for '${input.cloudPath}'`
-                }, null, 2)
-              }
-            ]
-          };
+          return toMCPResponse(successResult(
+            {
+              action: 'url',
+              cloudPath: input.cloudPath,
+              temporaryUrl: result[0]?.url || "",
+              expireTime: `${input.maxAge || 3600}秒`,
+              fileId: result[0]?.fileId || ""
+            },
+            `Successfully generated temporary URL for '${input.cloudPath}'`
+            // No nextActions - complete operation
+          ));
         }
 
         default:
@@ -188,25 +168,18 @@ export function registerStorageTools(server: ExtendedMcpServer) {
             maxAge: 3600
           }]);
 
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  success: true,
-                  data: {
-                    action: 'upload',
-                    localPath: input.localPath,
-                    cloudPath: input.cloudPath,
-                    isDirectory: input.isDirectory,
-                    temporaryUrl: fileUrls[0]?.url || "",
-                    expireTime: "1小时"
-                  },
-                  message: `Successfully uploaded ${input.isDirectory ? 'directory' : 'file'} from '${input.localPath}' to '${input.cloudPath}'`
-                }, null, 2)
-              }
-            ]
-          };
+          return toMCPResponse(successResult(
+            {
+              action: 'upload',
+              localPath: input.localPath,
+              cloudPath: input.cloudPath,
+              isDirectory: input.isDirectory,
+              temporaryUrl: fileUrls[0]?.url || "",
+              expireTime: "1小时"
+            },
+            `Successfully uploaded ${input.isDirectory ? 'directory' : 'file'} from '${input.localPath}' to '${input.cloudPath}'`
+            // No nextActions - complete operation
+          ));
         }
 
         case 'download': {
@@ -222,39 +195,39 @@ export function registerStorageTools(server: ExtendedMcpServer) {
             });
           }
 
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  success: true,
-                  data: {
-                    action: 'download',
-                    cloudPath: input.cloudPath,
-                    localPath: input.localPath,
-                    isDirectory: input.isDirectory
-                  },
-                  message: `Successfully downloaded ${input.isDirectory ? 'directory' : 'file'} from '${input.cloudPath}' to '${input.localPath}'`
-                }, null, 2)
-              }
-            ]
-          };
+          return toMCPResponse(successResult(
+            {
+              action: 'download',
+              cloudPath: input.cloudPath,
+              localPath: input.localPath,
+              isDirectory: input.isDirectory
+            },
+            `Successfully downloaded ${input.isDirectory ? 'directory' : 'file'} from '${input.cloudPath}' to '${input.localPath}'`
+            // No nextActions - complete operation
+          ));
         }
 
         case 'delete': {
           if (!input.force) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    success: false,
-                    error: "Delete operation requires confirmation",
-                    message: "Please set force: true to confirm deletion. This action cannot be undone."
-                  }, null, 2)
-                }
+            // Error with nextActions: recommend retry with force=true
+            return toMCPResponse(errorResult(
+              "Delete operation requires confirmation. Please set force=true to confirm deletion. This action cannot be undone.",
+              null,
+              [
+                buildNextAction(
+                  'manageStorage',
+                  {
+                    action: 'delete',
+                    cloudPath: input.cloudPath,
+                    localPath: input.localPath,
+                    isDirectory: input.isDirectory,
+                    force: true
+                  },
+                  'Retry delete operation with force=true after confirming',
+                  'high'
+                )
               ]
-            };
+            ));
           }
 
           if (input.isDirectory) {
@@ -263,23 +236,16 @@ export function registerStorageTools(server: ExtendedMcpServer) {
             await storageService.deleteFile([input.cloudPath]);
           }
 
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  success: true,
-                  data: {
-                    action: 'delete',
-                    cloudPath: input.cloudPath,
-                    isDirectory: input.isDirectory,
-                    deleted: true
-                  },
-                  message: `Successfully deleted ${input.isDirectory ? 'directory' : 'file'} '${input.cloudPath}'`
-                }, null, 2)
-              }
-            ]
-          };
+          return toMCPResponse(successResult(
+            {
+              action: 'delete',
+              cloudPath: input.cloudPath,
+              isDirectory: input.isDirectory,
+              deleted: true
+            },
+            `Successfully deleted ${input.isDirectory ? 'directory' : 'file'} '${input.cloudPath}'`
+            // No nextActions - complete operation
+          ));
         }
 
         default:
