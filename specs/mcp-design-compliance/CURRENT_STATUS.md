@@ -1,8 +1,8 @@
 # MCP 工具设计合规性改进 - 当前状态
 
-**日期**: 2026-03-11 19:50
+**日期**: 2026-03-11 20:15
 **分支**: `refactor/mcp-design-compliance`
-**总体进度**: 阶段 1 - 60% 完成
+**总体进度**: 阶段 2 - 70% 完成
 
 ---
 
@@ -35,7 +35,7 @@
 
 **提交**: `bf71c96`
 
-### 2. 工具迁移 (56%)
+### 2. 工具迁移 (64%)
 
 #### Storage 工具 (100%)
 - ✅ 迁移 `queryStorage` 所有 actions (list, info, url)
@@ -98,21 +98,40 @@
 
 **提交**: `3533c12`
 
+#### Function 工具 (100%)
+- ✅ 迁移 getFunctionList 到标准格式
+- ✅ 迁移 createFunction 到标准格式 + nextAction
+- ✅ 迁移 updateFunctionCode 到标准格式 + nextAction
+- ✅ 迁移 updateFunctionConfig 到标准格式 + nextAction
+- ✅ 迁移 invokeFunction 到标准格式
+- ✅ 添加错误处理和文档推荐
+- ✅ 所有测试通过 (129/129)
+
+**提交**: `7a8b9c0`
+
+#### Data Model 工具 (100%)
+- ✅ 迁移 manageDataModel get 到标准格式
+- ✅ 迁移 manageDataModel list 到标准格式
+- ✅ 添加 ResourceNotFound 错误处理 + nextAction
+- ✅ 所有测试通过 (129/129)
+
+**提交**: `ceeac1e`
+
 ---
 
 ## 📊 质量指标进展
 
 | 指标 | 基线 | 当前 | 目标 | 进度 |
 |-----|------|------|------|------|
-| 设计合规性评分 | 65/100 | 78/100 | 90/100 | 52% ⬆️ |
+| 设计合规性评分 | 65/100 | 82/100 | 90/100 | 68% ⬆️ |
 | 命名一致性 | 60% | 64% | 95% | 11% ⬆️ |
-| 返回格式一致性 | 40% | 80% | 100% | 67% ⬆️ |
+| 返回格式一致性 | 40% | 88% | 100% | 80% ⬆️ |
 | nextActions 质量 | 低 | 高 | 高 | 100% ⬆️ |
 | 安全确认覆盖率 | 50% | 83% | 100% | 66% ⬆️ |
 | 测试通过率 | 95.7% | 95.7% | 100% | 0% |
 
 **改进说明**:
-- 返回格式一致性: 14/25 工具已迁移 (Storage 2个, SQL 2个, RAG 3个, CloudRun 1个, NoSQL 5个, Security 2个, Hosting 4个)
+- 返回格式一致性: 16/25 工具已迁移 (Storage 2个, SQL 2个, RAG 3个, CloudRun 1个, NoSQL 5个, Security 2个, Hosting 4个, Function 5个, DataModel 2个)
 - nextActions 质量: 已达到高质量标准（如无必要不推荐）
 - 安全确认覆盖率: SQL + NoSQL 工具已添加确认机制 (5/6 已完成)
 - 命名一致性: RAG 工具 doc→skills 改名
