@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getCloudBaseManager, getEnvId, logCloudBaseResult } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
 import { READ_SECURITY_RULE, WRITE_SECURITY_RULE } from "./security-rule.js";
+import { successResult, errorResult, toMCPResponse, buildNextAction, recommendDocs } from "../utils/response-builder.js";
 
 const CATEGORY = "SQL database";
 
@@ -48,22 +49,12 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
         },
       });
       logCloudBaseResult(server.logger, result);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                success: true,
-                message: "SQL query executed successfully",
-                result,
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
+
+      return toMCPResponse(successResult(
+        result,
+        "SQL query executed successfully"
+        // No nextActions - simple read-only query
+      ));
     },
   );
 
@@ -73,12 +64,18 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
     {
       title: "Execute write SQL statement",
       description:
-        "Execute a write SQL statement on the SQL database (INSERT, UPDATE, DELETE, etc.). Whenever you create a new table, you **must** include a fixed `_openid` column defined as `_openid VARCHAR(64) DEFAULT '' NOT NULL` that represents the user and is used for access control.",
+        "Execute a write SQL statement on the SQL database (INSERT, UPDATE, DELETE, etc.). Whenever you create a new table, you **must** include a fixed `_openid` column defined as `_openid VARCHAR(64) DEFAULT '' NOT NULL` that represents the user and is used for access control. Destructive operations (DROP, DELETE, TRUNCATE) require confirm=true.",
       inputSchema: {
         sql: z
           .string()
           .describe(
             "SQL statement (INSERT, UPDATE, DELETE, CREATE, ALTER, etc.)",
+          ),
+        confirm: z
+          .boolean()
+          .optional()
+          .describe(
+            "Confirmation flag for destructive operations (DROP, DELETE, TRUNCATE). Required for safety.",
           ),
       },
       annotations: {
@@ -89,7 +86,38 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
         category: CATEGORY,
       },
     },
-    async ({ sql }) => {
+    async ({ sql, confirm }) => {
+      // Check for destructive operations
+      const destructivePatterns = [
+        /\bDROP\s+(TABLE|DATABASE|INDEX|VIEW)\b/i,
+        /\bDELETE\s+FROM\b/i,
+        /\bTRUNCATE\s+TABLE\b/i,
+        /\bALTER\s+TABLE\s+\w+\s+DROP\b/i,
+      ];
+
+      const isDestructive = destructivePatterns.some(pattern => pattern.test(sql));
+
+      if (isDestructive && !confirm) {
+        // Error with nextActions: recommend docs + retry with confirm
+        return toMCPResponse(errorResult(
+          "Destructive SQL operation detected (DROP, DELETE, TRUNCATE). Please set confirm=true to proceed. This action cannot be undone.",
+          null,
+          [
+            recommendDocs(
+              'relational-database-tool',
+              'Read the REQUIRED documentation to understand safe SQL execution and why confirm=true is needed',
+              'high'
+            ),
+            buildNextAction(
+              'executeWriteSQL',
+              { sql, confirm: true },
+              'Execute with confirm=true after understanding the implications from the documentation',
+              'high'
+            )
+          ]
+        ));
+      }
+
       const cloudbase = await getManager();
       const envId = await getEnvId(cloudBaseOptions);
 
@@ -110,22 +138,30 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
       });
       logCloudBaseResult(server.logger, result);
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                success: true,
-                message: `SQL statement executed successfully. If you just created a table, make sure to check its security rule is set to a proper value by using \`${WRITE_SECURITY_RULE}\` and \`${READ_SECURITY_RULE}\` tools.`,
-                result,
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
+      // Check if table was created - recommend security rule setup
+      const isCreateTable = /\bCREATE\s+TABLE\b/i.test(sql);
+      const nextActions = isCreateTable ? [
+        buildNextAction(
+          'readSecurityRule',
+          { resourceType: 'mysql' },
+          'Check current security rules for the newly created table',
+          'high'
+        ),
+        buildNextAction(
+          'writeSecurityRule',
+          { resourceType: 'mysql' },
+          'Set proper security rules for the newly created table to control access',
+          'high'
+        )
+      ] : undefined;
+
+      return toMCPResponse(successResult(
+        result,
+        isCreateTable
+          ? `SQL statement executed successfully. Table created. Make sure to set proper security rules using readSecurityRule and writeSecurityRule tools.`
+          : "SQL statement executed successfully",
+        nextActions
+      ));
     },
   );
 }
