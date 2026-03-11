@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getCloudBaseManager, getEnvId } from '../cloudbase-manager.js';
 import { ExtendedMcpServer } from '../server.js';
 import { sendDeployNotification } from '../utils/notification.js';
+import { buildNextAction } from '../utils/response-builder.js';
 
 // CloudRun service types
 export const CLOUDRUN_SERVICE_TYPES = ['function', 'container'] as const;
@@ -648,7 +649,15 @@ for await (let x of res.textStream) {
                       serverType: serverType,
                       cloudbasercGenerated: true
                     },
-                    message: `Successfully deployed ${serverType} service '${input.serverName}' from ${targetPath}`
+                    message: `Successfully deployed ${serverType} service '${input.serverName}' from ${targetPath}`,
+                    nextActions: [
+                      buildNextAction(
+                        'queryCloudRun',
+                        { action: 'get', serverName: input.serverName },
+                        'Check deployment status and service details (deployment is async)',
+                        'high'
+                      )
+                    ]
                   }, null, 2)
                 }
               ]
