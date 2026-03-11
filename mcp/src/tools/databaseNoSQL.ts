@@ -6,6 +6,7 @@ import {
 } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
 import { Logger } from "../types.js";
+import { successResult, errorResult, toMCPResponse, buildNextAction } from "../utils/response-builder.js";
 
 const CATEGORY = "NoSQL database";
 
@@ -79,24 +80,15 @@ checkIndex: 检查索引是否存在`),
           MgoLimit: limit,
         });
         logCloudBaseResult(server.logger, result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  success: true,
-                  requestId: result.RequestId,
-                  collections: result.Collections,
-                  pager: result.Pager,
-                  message: "获取 NoSQL 数据库集合列表成功",
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
+        return toMCPResponse(successResult(
+          {
+            requestId: result.RequestId,
+            collections: result.Collections,
+            pager: result.Pager,
+          },
+          "获取 NoSQL 数据库集合列表成功"
+          // No nextActions - simple read-only query
+        ));
       }
 
       if (action === "checkCollection") {
@@ -106,25 +98,16 @@ checkIndex: 检查索引是否存在`),
         const result =
           await cloudbase.database.checkCollectionExists(collectionName);
         logCloudBaseResult(server.logger, result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  success: true,
-                  exists: result.Exists,
-                  requestId: result.RequestId,
-                  message: result.Exists
-                    ? "云开发数据库集合已存在"
-                    : "云开发数据库集合不存在",
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
+        return toMCPResponse(successResult(
+          {
+            exists: result.Exists,
+            requestId: result.RequestId,
+          },
+          result.Exists
+            ? "云开发数据库集合已存在"
+            : "云开发数据库集合不存在"
+          // No nextActions - simple check operation
+        ));
       }
 
       if (action === "describeCollection") {
@@ -134,24 +117,15 @@ checkIndex: 检查索引是否存在`),
         const result =
           await cloudbase.database.describeCollection(collectionName);
         logCloudBaseResult(server.logger, result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  success: true,
-                  requestId: result.RequestId,
-                  indexNum: result.IndexNum,
-                  indexes: result.Indexes,
-                  message: "获取云开发数据库集合信息成功",
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
+        return toMCPResponse(successResult(
+          {
+            requestId: result.RequestId,
+            indexNum: result.IndexNum,
+            indexes: result.Indexes,
+          },
+          "获取云开发数据库集合信息成功"
+          // No nextActions - simple read-only query
+        ));
       }
 
       if (action === "listIndexes") {
@@ -161,24 +135,15 @@ checkIndex: 检查索引是否存在`),
         const result =
           await cloudbase.database.describeCollection(collectionName);
         logCloudBaseResult(server.logger, result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  success: true,
-                  requestId: result.RequestId,
-                  indexNum: result.IndexNum,
-                  indexes: result.Indexes,
-                  message: "获取索引列表成功",
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
+        return toMCPResponse(successResult(
+          {
+            requestId: result.RequestId,
+            indexNum: result.IndexNum,
+            indexes: result.Indexes,
+          },
+          "获取索引列表成功"
+          // No nextActions - simple read-only query
+        ));
       }
 
       if (action === "checkIndex") {
@@ -190,23 +155,14 @@ checkIndex: 检查索引是否存在`),
           indexName,
         );
         logCloudBaseResult(server.logger, result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  success: true,
-                  exists: result.Exists,
-                  requestId: result.RequestId,
-                  message: result.Exists ? "索引已存在" : "索引不存在",
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
+        return toMCPResponse(successResult(
+          {
+            exists: result.Exists,
+            requestId: result.RequestId,
+          },
+          result.Exists ? "索引已存在" : "索引不存在"
+          // No nextActions - simple check operation
+        ));
       }
 
       throw new Error(`不支持的操作类型: ${action}`);
@@ -218,7 +174,7 @@ checkIndex: 检查索引是否存在`),
     "writeNoSqlDatabaseStructure",
     {
       title: "修改 NoSQL 数据库结构",
-      description: "修改 NoSQL 数据库结构",
+      description: "修改 NoSQL 数据库结构。删除集合操作需要 confirm=true 确认。",
       inputSchema: {
         action: z.enum([
           "createCollection",
@@ -226,8 +182,12 @@ checkIndex: 检查索引是否存在`),
           "deleteCollection",
         ]).describe(`createCollection: 创建集合
 updateCollection: 更新集合
-deleteCollection: 删除集合`),
+deleteCollection: 删除集合（需要 confirm=true）`),
         collectionName: z.string().describe("集合名称"),
+        confirm: z
+          .boolean()
+          .optional()
+          .describe("删除集合时需要设置为 true 以确认操作"),
         updateOptions: z
           .object({
             CreateIndexes: z
@@ -265,7 +225,7 @@ deleteCollection: 删除集合`),
         category: CATEGORY,
       },
     },
-    async ({ action, collectionName, updateOptions }) => {
+    async ({ action, collectionName, updateOptions, confirm }) => {
       const cloudbase = await getManager();
       if (action === "createCollection") {
         const result =
@@ -319,27 +279,39 @@ deleteCollection: 删除集合`),
       }
 
       if (action === "deleteCollection") {
+        if (!confirm) {
+          // Error with nextActions: recommend retry with confirm=true
+          return toMCPResponse(errorResult(
+            "删除集合操作需要确认。请设置 confirm=true 以确认删除。此操作不可撤销。",
+            null,
+            [
+              buildNextAction(
+                'writeNoSqlDatabaseStructure',
+                {
+                  action: 'deleteCollection',
+                  collectionName,
+                  confirm: true
+                },
+                '确认后重试删除集合操作',
+                'high'
+              )
+            ]
+          ));
+        }
+
         const result =
           await cloudbase.database.deleteCollection(collectionName);
         logCloudBaseResult(server.logger, result);
-        const body: Record<string, unknown> = {
-          success: true,
-          requestId: result.RequestId,
-          action,
-          message:
-            result.Exists === false ? "集合不存在" : "云开发数据库集合删除成功",
-        };
-        if (result.Exists === false) {
-          body.exists = false;
-        }
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(body, null, 2),
-            },
-          ],
-        };
+
+        return toMCPResponse(successResult(
+          {
+            requestId: result.RequestId,
+            action,
+            exists: result.Exists !== false,
+          },
+          result.Exists === false ? "集合不存在" : "云开发数据库集合删除成功"
+          // No nextActions - complete operation
+        ));
       }
 
       throw new Error(`不支持的操作类型: ${action}`);
