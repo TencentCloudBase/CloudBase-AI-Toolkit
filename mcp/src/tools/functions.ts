@@ -230,31 +230,47 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       if (action === "list") {
         const result = await cloudbase.functions.getFunctionList(limit, offset);
         logCloudBaseResult(server.logger, result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+
+        return toMCPResponse(successResult(
+          {
+            functions: result.Functions || [],
+            totalCount: result.TotalCount || 0,
+            requestId: result.RequestId
+          },
+          `成功获取 ${result.TotalCount || 0} 个云函数`
+          // No nextActions - simple read-only query
+        ));
       } else if (action === "detail") {
         if (!name) {
-          throw new Error("获取函数详情时，name 参数是必需的");
+          return toMCPResponse(errorResult(
+            "获取函数详情时，name 参数是必需的",
+            null,
+            [
+              recommendDocs(
+                'cloud-functions',
+                'Read cloud functions guide to understand how to query function details',
+                'high'
+              ),
+              buildNextAction(
+                'getFunctionList',
+                { action: 'list' },
+                'List all functions to find the function name',
+                'high'
+              )
+            ]
+          ));
         }
         const result = await cloudbase.functions.getFunctionDetail(
           name,
           codeSecret,
         );
         logCloudBaseResult(server.logger, result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+
+        return toMCPResponse(successResult(
+          result,
+          `成功获取函数 ${name} 的详细信息`
+          // No nextActions - complete query operation
+        ));
       } else {
         throw new Error(`不支持的操作类型: ${action}`);
       }
@@ -442,14 +458,19 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         force,
       });
       logCloudBaseResult(server.logger, result);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
+
+      return toMCPResponse(successResult(
+        result,
+        `成功创建云函数 ${func.name}`,
+        [
+          buildNextAction(
+            'getFunctionList',
+            { action: 'detail', name: func.name },
+            'Verify function was created successfully',
+            'high'
+          )
+        ]
+      ));
     },
   );
 
@@ -513,14 +534,19 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       const cloudbase = await getManager();
       const result = await cloudbase.functions.updateFunctionCode(updateParams);
       logCloudBaseResult(server.logger, result);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
+
+      return toMCPResponse(successResult(
+        result,
+        `成功更新云函数 ${name} 的代码`,
+        [
+          buildNextAction(
+            'invokeFunction',
+            { name },
+            'Test the updated function to verify it works correctly',
+            'high'
+          )
+        ]
+      ));
     },
   );
 
@@ -596,14 +622,19 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         vpc: Object.assign({}, vpc, funcParam.vpc ?? {}),
       });
       logCloudBaseResult(server.logger, result);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
+
+      return toMCPResponse(successResult(
+        result,
+        `成功更新云函数 ${funcParam.name} 的配置`,
+        [
+          buildNextAction(
+            'getFunctionList',
+            { action: 'detail', name: funcParam.name },
+            'Verify configuration was updated successfully',
+            'high'
+          )
+        ]
+      ));
     },
   );
 
@@ -637,14 +668,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         const cloudbase = await getManager();
         const result = await cloudbase.functions.invokeFunction(name, params);
         logCloudBaseResult(server.logger, result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+
+        return toMCPResponse(successResult(
+          result,
+          `成功调用云函数 ${name}`
+          // No nextActions - complete operation
+        ));
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
