@@ -178,13 +178,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
   // 创建闭包函数来获取 CloudBase Manager
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
 
-  // getFunctionList - 获取云函数列表或详情(推荐)
+  // queryFunctions - 查询云函数列表或详情 (formerly getFunctionList)
   server.registerTool?.(
-    "getFunctionList",
+    "queryFunctions",
     {
       title: "查询云函数列表或详情",
       description:
-        "获取云函数列表或单个函数详情。通过 action 参数区分操作类型：list=获取函数列表（默认，无需额外参数），detail=获取函数详情（需要提供 name 参数指定函数名称，返回结果中包含函数当前绑定的 Layers 信息）",
+        "查询云函数列表或单个函数详情 (formerly getFunctionList)。通过 action 参数区分操作类型：list=获取函数列表（默认，无需额外参数），detail=获取函数详情（需要提供 name 参数指定函数名称，返回结果中包含函数当前绑定的 Layers 信息）",
       inputSchema: {
         action: z
           .enum(["list", "detail"])
@@ -277,9 +277,9 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     },
   );
 
-  // createFunction - 创建云函数 (cloud-incompatible)
+  // manageFunctions - 创建云函数 (formerly createFunction)
   server.registerTool(
-    "createFunction",
+    "manageFunctions",
     {
       title: "创建云函数",
       description:
@@ -540,7 +540,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         `成功更新云函数 ${name} 的代码`,
         [
           buildNextAction(
-            'invokeFunction',
+            'invokeFunctions',
             { name },
             'Test the updated function to verify it works correctly',
             'high'
@@ -638,12 +638,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     },
   );
 
-  // invokeFunction - 调用函数
+  // invokeFunctions - 调用函数 (formerly invokeFunction)
   server.registerTool?.(
-    "invokeFunction",
+    "invokeFunctions",
     {
       title: "调用云函数",
-      description: "调用云函数",
+      description: "调用云函数 (formerly invokeFunction)",
       inputSchema: {
         name: z.string().describe("函数名称"),
         params: z.record(z.any()).optional().describe("调用参数"),
@@ -684,7 +684,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         ) {
           throw new Error(
             `${errorMessage}\n\n` +
-              `Tip: "invokeFunction" can only call deployed cloud functions. ` +
+              `Tip: "invokeFunctions" can only call deployed cloud functions. ` +
               `For database operations (such as creating collections), ` +
               `please use the appropriate database tools instead.`,
           );
