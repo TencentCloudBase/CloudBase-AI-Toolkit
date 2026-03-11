@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getCloudBaseManager, getEnvId, logCloudBaseResult } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
+import { successResult, errorResult, toMCPResponse } from "../utils/response-builder.js";
 
 // 导入Mermaid转换功能
 let mermaidToJsonSchema: any = null;

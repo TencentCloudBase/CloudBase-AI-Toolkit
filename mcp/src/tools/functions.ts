@@ -6,6 +6,7 @@ import {
 } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
 import { debug } from "../utils/logger.js";
+import { successResult, errorResult, toMCPResponse, buildNextAction, recommendDocs } from "../utils/response-builder.js";
 
 import { IEnvVariable } from "@cloudbase/manager-node/types/function/types.js";
 import path from "path";
