@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getCloudBaseManager, getEnvId, logCloudBaseResult } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
-import { successResult, errorResult, toMCPResponse } from "../utils/response-builder.js";
+import { successResult, errorResult, toMCPResponse, buildNextAction } from "../utils/response-builder.js";
 
 // 导入Mermaid转换功能
 let mermaidToJsonSchema: any = null;
@@ -787,42 +787,28 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
                 mermaid: mermaidDiagram,
               };
 
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(
-                      {
-                        success: true,
-                        action: "get",
-                        data: simplifiedModel,
-                        message: "获取数据模型成功",
-                      },
-                      null,
-                      2
-                    ),
-                  },
-                ],
-              };
+              return toMCPResponse(successResult(
+                {
+                  action: "get",
+                  data: simplifiedModel,
+                },
+                "获取数据模型成功"
+                // No nextActions - simple read-only query
+              ));
             } catch (error: any) {
               if (error.original?.Code === "ResourceNotFound") {
-                return {
-                  content: [
-                    {
-                      type: "text",
-                      text: JSON.stringify(
-                        {
-                          success: false,
-                          action: "get",
-                          error: "ResourceNotFound",
-                          message: `数据模型 ${name} 不存在`,
-                        },
-                        null,
-                        2
-                      ),
-                    },
-                  ],
-                };
+                return toMCPResponse(errorResult(
+                  `数据模型 ${name} 不存在`,
+                  { action: "get", error: "ResourceNotFound" },
+                  [
+                    buildNextAction(
+                      'manageDataModel',
+                      { action: 'list' },
+                      'List all data models to find available models',
+                      'high'
+                    )
+                  ]
+                ));
               }
               throw error;
             }
@@ -859,24 +845,15 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
               UpdatedAt: model.UpdatedAt,
             }));
 
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      success: true,
-                      action: "list",
-                      data: simplifiedModels,
-                      count: simplifiedModels.length,
-                      message: "获取数据模型列表成功",
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
+            return toMCPResponse(successResult(
+              {
+                action: "list",
+                data: simplifiedModels,
+                count: simplifiedModels.length,
+              },
+              "获取数据模型列表成功"
+              // No nextActions - simple read-only query
+            ));
 
           case "docs":
             if (!name) {
