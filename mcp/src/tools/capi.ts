@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getCloudBaseManager, logCloudBaseResult } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
+import { successResult, toMCPResponse } from "../utils/response-builder.js";
 
 const CATEGORY = "cloud-api";
 
@@ -107,18 +108,11 @@ export function registerCapiTools(server: ExtendedMcpServer) {
             });
             logCloudBaseResult(logger, result);
 
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: JSON.stringify(
-                            result,
-                            null,
-                            2,
-                        ),
-                    },
-                ],
-            };
+            return toMCPResponse(successResult(
+                result,
+                `成功调用 ${service}/${action} API`
+                // No nextActions - generic API call, result is complete
+            ));
         },
     );
 }

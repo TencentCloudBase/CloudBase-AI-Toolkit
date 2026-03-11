@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ExtendedMcpServer } from "../server.js";
 import { info } from "../utils/logger.js";
 import ci from "miniprogram-ci";
+import { successResult, toMCPResponse } from "../utils/response-builder.js";
 
 // 获取私钥配置
 function getPrivateKeyConfig() {
@@ -93,18 +94,11 @@ export function registerMiniprogramTools(server: ExtendedMcpServer) {
         }
       });
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              success: true,
-              message: "小程序代码上传成功",
-              data: result
-            }, null, 2)
-          }
-        ]
-      };
+      return toMCPResponse(successResult(
+        result,
+        "小程序代码上传成功"
+        // No nextActions - complete operation
+      ));
     }
   );
 
@@ -178,18 +172,11 @@ export function registerMiniprogramTools(server: ExtendedMcpServer) {
         }
       });
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              success: true,
-              message: "小程序预览成功",
-              data: result
-            }, null, 2)
-          }
-        ]
-      };
+      return toMCPResponse(successResult(
+        result,
+        "小程序预览成功"
+        // No nextActions - complete operation
+      ));
     }
   );
 

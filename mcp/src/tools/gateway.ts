@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getCloudBaseManager, logCloudBaseResult } from '../cloudbase-manager.js';
 import { ExtendedMcpServer } from '../server.js';
+import { successResult, toMCPResponse } from '../utils/response-builder.js';
 
 export function registerGatewayTools(server: ExtendedMcpServer) {
   // 获取 cloudBaseOptions，如果没有则为 undefined
@@ -42,14 +43,12 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         path
       });
       logCloudBaseResult(server.logger, result);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2)
-          }
-        ]
-      };
+
+      return toMCPResponse(successResult(
+        result,
+        `成功为云函数 ${name} 创建 HTTP 访问路径 ${path}`
+        // No nextActions - complete operation
+      ));
     }
   );
 }

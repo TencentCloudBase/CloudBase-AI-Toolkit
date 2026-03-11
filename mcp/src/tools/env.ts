@@ -27,6 +27,7 @@ import {
   toolPayloadErrorToResult,
 } from "../utils/tool-result.js";
 import { getClaudePrompt } from "./rag.js";
+import { successResult, errorResult, toMCPResponse, buildNextAction } from "../utils/response-builder.js";
 
 /**
  * Simplify environment list data by keeping only essential fields for AI assistant
