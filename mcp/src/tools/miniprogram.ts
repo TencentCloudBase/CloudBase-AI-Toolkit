@@ -34,12 +34,12 @@ async function createProject(projectPath: string, appId: string, type: "miniProg
 }
 
 export function registerMiniprogramTools(server: ExtendedMcpServer) {
-  // 上传小程序代码
+  // 管理小程序 - 上传代码
   server.registerTool?.(
-    "uploadMiniprogramCode",
+    "manageMiniprogram",
     {
-      title: "上传小程序代码",
-      description: "上传小程序代码到微信平台",
+      title: "管理小程序",
+      description: "管理小程序代码（上传）(formerly uploadMiniprogramCode)",
       inputSchema: {
         appId: z.string().describe("小程序 appId"),
         projectPath: z.string().describe("项目路径"),
@@ -102,12 +102,12 @@ export function registerMiniprogramTools(server: ExtendedMcpServer) {
     }
   );
 
-  // 预览小程序代码
+  // 查询小程序 - 预览代码
   server.registerTool?.(
-    "previewMiniprogramCode",
+    "queryMiniprogram",
     {
-      title: "预览小程序代码",
-      description: "预览小程序代码并生成二维码",
+      title: "查询小程序",
+      description: "预览小程序代码并生成二维码 (formerly previewMiniprogramCode)",
       inputSchema: {
         appId: z.string().describe("小程序 appId"),
         projectPath: z.string().describe("项目路径"),

@@ -11,10 +11,10 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
 
   server.registerTool?.(
-    "createFunctionHTTPAccess",
+    "manageGateway",
     {
-      title: "创建云函数HTTP访问",
-      description: "创建云函数的 HTTP 访问",
+      title: "管理云函数网关",
+      description: "管理云函数的 HTTP 访问网关 (formerly createFunctionHTTPAccess)",
       inputSchema: {
         name: z.string().describe("函数名"),
         path: z.string().describe("HTTP 访问路径"),

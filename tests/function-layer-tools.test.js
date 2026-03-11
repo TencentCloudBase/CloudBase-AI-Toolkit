@@ -114,10 +114,10 @@ describe("Function layer tools tests", () => {
     expect(allTools).toContain("readFunctionLayers");
     expect(allTools).toContain("writeFunctionLayers");
 
-    // Backward compatibility checks.
-    expect(allTools).toContain("createFunction");
-    expect(allTools).toContain("getFunctionList");
-    expect(allTools).toContain("updateFunctionConfig");
+    // New tool names (after renaming)
+    expect(allTools).toContain("manageFunctions");
+    expect(allTools).toContain("queryFunctions");
+    expect(allTools).toContain("invokeFunctions");
   });
 
   test("readFunctionLayers schema is correct", async () => {

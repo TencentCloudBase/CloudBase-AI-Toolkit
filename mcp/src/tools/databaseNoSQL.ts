@@ -28,12 +28,12 @@ export function registerDatabaseTools(server: ExtendedMcpServer) {
   // 创建闭包函数来获取 CloudBase Manager
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
 
-  // readNoSqlDatabaseStructure
+  // queryNoSqlDatabase
   server.registerTool?.(
-    "readNoSqlDatabaseStructure",
+    "queryNoSqlDatabase",
     {
-      title: "读取 NoSQL 数据库结构",
-      description: "读取 NoSQL 数据库结构",
+      title: "查询 NoSQL 数据库",
+      description: "查询 NoSQL 数据库结构 (formerly readNoSqlDatabaseStructure)",
       inputSchema: {
         action: z.enum([
           "listCollections",
@@ -169,12 +169,12 @@ checkIndex: 检查索引是否存在`),
     },
   );
 
-  // writeNoSqlDatabaseStructure
+  // manageNoSqlDatabase
   server.registerTool?.(
-    "writeNoSqlDatabaseStructure",
+    "manageNoSqlDatabase",
     {
-      title: "修改 NoSQL 数据库结构",
-      description: "修改 NoSQL 数据库结构。删除集合操作需要 confirm=true 确认。",
+      title: "管理 NoSQL 数据库",
+      description: "管理 NoSQL 数据库结构 (formerly writeNoSqlDatabaseStructure)。删除集合操作需要 confirm=true 确认。",
       inputSchema: {
         action: z.enum([
           "createCollection",
@@ -286,7 +286,7 @@ deleteCollection: 删除集合（需要 confirm=true）`),
             null,
             [
               buildNextAction(
-                'writeNoSqlDatabaseStructure',
+                'manageNoSqlDatabase',
                 {
                   action: 'deleteCollection',
                   collectionName,
