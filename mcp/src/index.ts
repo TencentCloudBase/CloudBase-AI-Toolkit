@@ -53,6 +53,20 @@ export {
   DEFAULT_NODEJS_RUNTIME
 } from "./tools/functions.js";
 
+// Export response builder utilities
+export {
+  buildToolResult,
+  successResult,
+  errorResult,
+  buildNextAction,
+  toMCPResponse,
+  recommendDocs,
+  errorWithDocs,
+  isToolResult,
+  type ToolResult,
+  type NextAction
+} from "./utils/response-builder.js";
+
 /**
  * Get interactive server instance (CommonJS compatible)
  */
