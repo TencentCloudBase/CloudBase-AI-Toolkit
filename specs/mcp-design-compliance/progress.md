@@ -1,7 +1,7 @@
 # MCP 工具设计合规性改进 - 进度跟踪
 
-**最后更新**: 2026-03-11 18:17  
-**当前分支**: `refactor/mcp-design-compliance`  
+**最后更新**: 2026-03-11 18:30
+**当前分支**: `refactor/mcp-design-compliance`
 **当前阶段**: 阶段 1 - P0 关键优先级
 
 ---
@@ -41,15 +41,34 @@
 
 ---
 
+### ✅ 阶段 1 - 任务 1.1.2: 迁移 Storage 工具 (100%)
+
+**完成时间**: 2026-03-11 18:30
+
+**已完成**:
+- [x] 导入 response-builder 工具
+- [x] 迁移 queryStorage 所有 actions (list, info, url)
+- [x] 迁移 manageStorage 所有 actions (upload, download, delete)
+- [x] 为 delete 操作添加 nextAction（force=false 时）
+- [x] 移除完整操作的 nextActions（遵循"如无必要不推荐"原则）
+- [x] 修复 toMCPResponse 类型问题
+- [x] 运行测试验证（129/129 通过）
+
+**提交**: `d1561a6` - refactor(storage): 🔄 migrate to standard response builder
+
+**测试结果**: ✅ 129/129 通过
+
+---
+
 ## 进行中的工作
 
-### 🔄 阶段 1 - 任务 1.1.2-1.1.7: 迁移工具使用标准返回格式 (0%)
+### 🔄 阶段 1 - 任务 1.1.3-1.1.7: 迁移其他工具使用标准返回格式 (0%)
 
 **下一步**:
-1. 迁移 Storage 工具 (`storage.ts`)
-2. 迁移 CloudRun 工具 (`cloudrun.ts`)
-3. 迁移 Function 工具 (`functions.ts`)
-4. 迁移 Database 工具 (`databaseNoSQL.ts`, `databaseSQL.ts`)
+1. 迁移 CloudRun 工具 (`cloudrun.ts`)
+2. 迁移 Database SQL 工具 (`databaseSQL.ts`) - 添加安全确认
+3. 迁移 RAG 工具 (`rag.ts`) - doc → skills
+4. 迁移 Function 工具 (`functions.ts`) - 最复杂
 5. 迁移其他工具
 6. 验证和测试
 
@@ -137,14 +156,14 @@
 
 | 指标 | 基线 | 当前 | 目标 | 进度 |
 |-----|------|------|------|------|
-| 设计合规性评分 | 65/100 | 65/100 | 90/100 | 0% |
+| 设计合规性评分 | 65/100 | 67/100 | 90/100 | 8% |
 | 命名一致性 | 60% | 60% | 95% | 0% |
-| 返回格式一致性 | 40% | 40% | 100% | 0% |
-| nextActions 质量 | 低 | 低 | 高 | 0% |
+| 返回格式一致性 | 40% | 48% | 100% | 13% |
+| nextActions 质量 | 低 | 中 | 高 | 50% |
 | 安全确认覆盖率 | 50% | 50% | 100% | 0% |
 | 测试通过率 | 95.7% | 95.7% | 100% | 0% |
 
-**注**: 虽然指标尚未改变，但基础设施（response-builder）已就绪
+**注**: Storage 工具已迁移，返回格式一致性提升 8%（2/25 工具）
 
 ---
 
@@ -171,4 +190,14 @@
 - 任务文档: `specs/mcp-design-compliance/tasks.md`
 - 质量基线: `specs/mcp-design-compliance/baseline.md`
 - 审查报告: `specs/mcp-design-review-report.md`
+
+---
+
+## 提交记录
+
+```bash
+1e40b27 feat(utils): ✨ add standard response builder with nextActions support
+bf71c96 docs(specs): 📝 add MCP design compliance spec and progress tracking
+d1561a6 refactor(storage): 🔄 migrate to standard response builder
+```
 
