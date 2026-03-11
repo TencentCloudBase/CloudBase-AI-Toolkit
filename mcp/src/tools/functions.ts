@@ -541,137 +541,137 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
   );
 
   // getFunctionLogs - 获取云函数日志（新版，参数直接展开）
-  server.registerTool?.(
-    "getFunctionLogs",
-    {
-      title: "获取云函数日志（新版）",
-      description:
-        "获取云函数日志基础信息（LogList），如需日志详情请用 RequestId 调用 getFunctionLogDetail 工具。此接口基于 manger-node 4.4.0+ 的 getFunctionLogsV2 实现，不返回具体日志内容。参数 offset+limit 不得大于 10000，startTime/endTime 间隔不得超过一天。",
-      inputSchema: {
-        name: z.string().describe("函数名称"),
-        offset: z
-          .number()
-          .optional()
-          .describe("数据的偏移量，Offset+Limit 不能大于 10000"),
-        limit: z
-          .number()
-          .optional()
-          .describe("返回数据的长度，Offset+Limit 不能大于 10000"),
-        startTime: z
-          .string()
-          .optional()
-          .describe(
-            "查询的具体日期，例如：2017-05-16 20:00:00，只能与 EndTime 相差一天之内",
-          ),
-        endTime: z
-          .string()
-          .optional()
-          .describe(
-            "查询的具体日期，例如：2017-05-16 20:59:59，只能与 StartTime 相差一天之内",
-          ),
-        requestId: z.string().optional().describe("执行该函数对应的 requestId"),
-        qualifier: z.string().optional().describe("函数版本，默认为 $LATEST"),
-      },
-      annotations: {
-        readOnlyHint: true,
-        openWorldHint: true,
-        category: "functions",
-      },
-    },
-    async ({
-      name,
-      offset,
-      limit,
-      startTime,
-      endTime,
-      requestId,
-      qualifier,
-    }) => {
-      if ((offset || 0) + (limit || 0) > 10000) {
-        throw new Error("offset+limit 不能大于 10000");
-      }
-      if (startTime && endTime) {
-        const start = new Date(startTime).getTime();
-        const end = new Date(endTime).getTime();
-        if (end - start > 24 * 60 * 60 * 1000) {
-          throw new Error("startTime 和 endTime 间隔不能超过一天");
-        }
-      }
-      const cloudbase = await getManager();
-      const result = await cloudbase.functions.getFunctionLogsV2({
-        name,
-        offset,
-        limit,
-        startTime,
-        endTime,
-        requestId,
-        qualifier,
-      });
-      logCloudBaseResult(server.logger, result);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
-    },
-  );
+  // server.registerTool?.(
+  //   "getFunctionLogs",
+  //   {
+  //     title: "获取云函数日志（新版）",
+  //     description:
+  //       "获取云函数日志基础信息（LogList），如需日志详情请用 RequestId 调用 getFunctionLogDetail 工具。此接口基于 manger-node 4.4.0+ 的 getFunctionLogsV2 实现，不返回具体日志内容。参数 offset+limit 不得大于 10000，startTime/endTime 间隔不得超过一天。",
+  //     inputSchema: {
+  //       name: z.string().describe("函数名称"),
+  //       offset: z
+  //         .number()
+  //         .optional()
+  //         .describe("数据的偏移量，Offset+Limit 不能大于 10000"),
+  //       limit: z
+  //         .number()
+  //         .optional()
+  //         .describe("返回数据的长度，Offset+Limit 不能大于 10000"),
+  //       startTime: z
+  //         .string()
+  //         .optional()
+  //         .describe(
+  //           "查询的具体日期，例如：2017-05-16 20:00:00，只能与 EndTime 相差一天之内",
+  //         ),
+  //       endTime: z
+  //         .string()
+  //         .optional()
+  //         .describe(
+  //           "查询的具体日期，例如：2017-05-16 20:59:59，只能与 StartTime 相差一天之内",
+  //         ),
+  //       requestId: z.string().optional().describe("执行该函数对应的 requestId"),
+  //       qualifier: z.string().optional().describe("函数版本，默认为 $LATEST"),
+  //     },
+  //     annotations: {
+  //       readOnlyHint: true,
+  //       openWorldHint: true,
+  //       category: "functions",
+  //     },
+  //   },
+  //   async ({
+  //     name,
+  //     offset,
+  //     limit,
+  //     startTime,
+  //     endTime,
+  //     requestId,
+  //     qualifier,
+  //   }) => {
+  //     if ((offset || 0) + (limit || 0) > 10000) {
+  //       throw new Error("offset+limit 不能大于 10000");
+  //     }
+  //     if (startTime && endTime) {
+  //       const start = new Date(startTime).getTime();
+  //       const end = new Date(endTime).getTime();
+  //       if (end - start > 24 * 60 * 60 * 1000) {
+  //         throw new Error("startTime 和 endTime 间隔不能超过一天");
+  //       }
+  //     }
+  //     const cloudbase = await getManager();
+  //     const result = await cloudbase.functions.getFunctionLogsV2({
+  //       name,
+  //       offset,
+  //       limit,
+  //       startTime,
+  //       endTime,
+  //       requestId,
+  //       qualifier,
+  //     });
+  //     logCloudBaseResult(server.logger, result);
+  //     return {
+  //       content: [
+  //         {
+  //           type: "text",
+  //           text: JSON.stringify(result, null, 2),
+  //         },
+  //       ],
+  //     };
+  //   },
+  // );
 
   // getFunctionLogDetail - 查询日志详情（参数直接展开）
-  server.registerTool?.(
-    "getFunctionLogDetail",
-    {
-      title: "获取云函数日志详情",
-      description:
-        "根据 getFunctionLogs 返回的 RequestId 查询日志详情。参数 startTime、endTime、requestId，返回日志内容（LogJson 等）。仅支持 manger-node 4.4.0+。",
-      inputSchema: {
-        startTime: z
-          .string()
-          .optional()
-          .describe(
-            "查询的具体日期，例如：2017-05-16 20:00:00，只能与 EndTime 相差一天之内",
-          ),
-        endTime: z
-          .string()
-          .optional()
-          .describe(
-            "查询的具体日期，例如：2017-05-16 20:59:59，只能与 StartTime 相差一天之内",
-          ),
-        requestId: z.string().describe("执行该函数对应的 requestId"),
-      },
-      annotations: {
-        readOnlyHint: true,
-        openWorldHint: true,
-        category: "functions",
-      },
-    },
-    async ({ startTime, endTime, requestId }) => {
-      if (startTime && endTime) {
-        const start = new Date(startTime).getTime();
-        const end = new Date(endTime).getTime();
-        if (end - start > 24 * 60 * 60 * 1000) {
-          throw new Error("startTime 和 endTime 间隔不能超过一天");
-        }
-      }
-      const cloudbase = await getManager();
-      const result = await cloudbase.functions.getFunctionLogDetail({
-        startTime,
-        endTime,
-        logRequestId: requestId,
-      });
-      logCloudBaseResult(server.logger, result);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
-    },
-  );
+  // server.registerTool?.(
+  //   "getFunctionLogDetail",
+  //   {
+  //     title: "获取云函数日志详情",
+  //     description:
+  //       "根据 getFunctionLogs 返回的 RequestId 查询日志详情。参数 startTime、endTime、requestId，返回日志内容（LogJson 等）。仅支持 manger-node 4.4.0+。",
+  //     inputSchema: {
+  //       startTime: z
+  //         .string()
+  //         .optional()
+  //         .describe(
+  //           "查询的具体日期，例如：2017-05-16 20:00:00，只能与 EndTime 相差一天之内",
+  //         ),
+  //       endTime: z
+  //         .string()
+  //         .optional()
+  //         .describe(
+  //           "查询的具体日期，例如：2017-05-16 20:59:59，只能与 StartTime 相差一天之内",
+  //         ),
+  //       requestId: z.string().describe("执行该函数对应的 requestId"),
+  //     },
+  //     annotations: {
+  //       readOnlyHint: true,
+  //       openWorldHint: true,
+  //       category: "functions",
+  //     },
+  //   },
+  //   async ({ startTime, endTime, requestId }) => {
+  //     if (startTime && endTime) {
+  //       const start = new Date(startTime).getTime();
+  //       const end = new Date(endTime).getTime();
+  //       if (end - start > 24 * 60 * 60 * 1000) {
+  //         throw new Error("startTime 和 endTime 间隔不能超过一天");
+  //       }
+  //     }
+  //     const cloudbase = await getManager();
+  //     const result = await cloudbase.functions.getFunctionLogDetail({
+  //       startTime,
+  //       endTime,
+  //       logRequestId: requestId,
+  //     });
+  //     logCloudBaseResult(server.logger, result);
+  //     return {
+  //       content: [
+  //         {
+  //           type: "text",
+  //           text: JSON.stringify(result, null, 2),
+  //         },
+  //       ],
+  //     };
+  //   },
+  // );
 
   // manageFunctionTriggers - 管理云函数触发器（创建/删除）
   server.registerTool?.(

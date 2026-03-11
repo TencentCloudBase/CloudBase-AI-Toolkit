@@ -125,7 +125,7 @@ export function registerAgentTools(server: ExtendedMcpServer) {
         return {
           content: [{
             type: "text",
-            text: `查询智能体失败: ${error instanceof Error ? error.message : String(error)}`,
+            text: `Failed to query agent: ${error instanceof Error ? error.message : String(error)}`,
           }],
         };
       }
@@ -153,7 +153,7 @@ export function registerAgentTools(server: ExtendedMcpServer) {
         memorySize: z.number().optional().describe("内存大小（MB），64 或 128-3072"),
         installDependency: z.boolean().optional().describe("自动安装依赖，更新即创建时如果部署代码不携带依赖时需为true"),
         envVariables: z.record(z.string(), z.string()).optional().describe("环境变量键值对"),
-        ignore: z.union([z.string(), z.array(z.string())]).optional().describe("忽略文件 glob 模式"),
+        ignore: z.union([z.string(), z.array(z.string())]).optional().describe("忽略文件/目录，如 ['.git', 'node_modules', '*.log']"),
         sessionConfig: SessionConfigSchema.describe("会话配置"),
         force: z.boolean().optional().describe("确认删除标志"),
       },
@@ -231,7 +231,7 @@ export function registerAgentTools(server: ExtendedMcpServer) {
               type: "text",
               text: JSON.stringify({
                 success: true,
-                message: `成功创建智能体 "${name}"`,
+                message: `Agent "${name}" created successfully`,
                 agentId: result.AgentId,
                 data: result,
               }, null, 2),
@@ -245,7 +245,7 @@ export function registerAgentTools(server: ExtendedMcpServer) {
 
           // 校验必需参数
           if (!agentId) {
-            return { content: [{ type: "text", text: JSON.stringify({ success: false, error: "update 需要 agentId 参数" }, null, 2) }] };
+            return { content: [{ type: "text", text: JSON.stringify({ success: false, error: "agentId is required for update" }, null, 2) }] };
           }
 
           // 验证路径
@@ -253,7 +253,7 @@ export function registerAgentTools(server: ExtendedMcpServer) {
           if (targetPath) {
             cwd = path.resolve(targetPath);
             if (!fs.existsSync(cwd)) {
-              throw new Error(`代码目录不存在: ${cwd}`);
+              throw new Error(`Code directory not found: ${cwd}`);
             }
           }
 
@@ -270,23 +270,12 @@ export function registerAgentTools(server: ExtendedMcpServer) {
 
           logCloudBaseResult(logger, result);
 
-          // 收集更新的字段
-          const updatedFields: Record<string, boolean> = {};
-          if (targetPath) updatedFields.code = true;
-          if (envVariables) updatedFields.envVariables = true;
-          if (runtime) updatedFields.runtime = true;
-          if (timeout !== undefined) updatedFields.timeout = true;
-          if (memorySize !== undefined) updatedFields.memorySize = true;
-          if (installDependency !== undefined) updatedFields.installDependency = true;
-          if (ignore) updatedFields.ignore = true;
-
           return {
             content: [{
               type: "text",
               text: JSON.stringify({
                 success: true,
-                message: `成功更新智能体 "${agentId}"`,
-                updatedFields,
+                message: `成功提交更新智能体 "${agentId}"，需用 queryAgent 查询部署状态`,
               }, null, 2),
             }],
           };
@@ -331,14 +320,14 @@ export function registerAgentTools(server: ExtendedMcpServer) {
         return {
           content: [{
             type: "text",
-            text: JSON.stringify({ success: false, error: `未知操作: ${action}` }, null, 2),
+            text: JSON.stringify({ success: false, error: `Unknown action: ${action}` }, null, 2),
           }],
         };
       } catch (error) {
         return {
           content: [{
             type: "text",
-            text: `管理智能体失败: ${error instanceof Error ? error.message : String(error)}`,
+            text: `Failed to manage agent: ${error instanceof Error ? error.message : String(error)}`,
           }],
         };
       }
