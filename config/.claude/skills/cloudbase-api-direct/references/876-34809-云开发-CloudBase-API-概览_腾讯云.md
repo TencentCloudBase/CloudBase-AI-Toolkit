@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-03-09 02:55:41
+最近更新时间：2026-03-12 02:04:47
 
 -   微信扫一扫 
 -   QQ
@@ -21,9 +21,10 @@ _我的收藏_
 -   [云托管相关接口](#.E4.BA.91.E6.89.98.E7.AE.A1.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "云托管相关接口")
 -   [其他接口](#.E5.85.B6.E4.BB.96.E6.8E.A5.E5.8F.A3 "其他接口")
 -   [服务操作相关接口](#.E6.9C.8D.E5.8A.A1.E6.93.8D.E4.BD.9C.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "服务操作相关接口")
--   [云数据库相关接口](#.E4.BA.91.E6.95.B0.E6.8D.AE.E5.BA.93.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "云数据库相关接口")
+-   [文档型云数据库相关接口](#.E6.96.87.E6.A1.A3.E5.9E.8B.E4.BA.91.E6.95.B0.E6.8D.AE.E5.BA.93.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "文档型云数据库相关接口")
 -   [云开发接入相关接口](#.E4.BA.91.E5.BC.80.E5.8F.91.E6.8E.A5.E5.85.A5.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "云开发接入相关接口")
 -   [搜索日志相关接口](#.E6.90.9C.E7.B4.A2.E6.97.A5.E5.BF.97.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "搜索日志相关接口")
+-   [SQL型云数据库相关接口](#SQL.E5.9E.8B.E4.BA.91.E6.95.B0.E6.8D.AE.E5.BA.93.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "SQL型云数据库相关接口")
 
 ## 环境相关接口
 
@@ -44,6 +45,12 @@ _我的收藏_
 | [CreateEnv](/document/api/876/128592) | 创建环境 | 20 |
 | [ModifyEnvPlan](/document/api/876/128591) | 更新云开发环境套餐 | 20 |
 | [RenewEnv](/document/api/876/128590) | 续费云开发环境 | 20 |
+| [CreateHostingDomain](/document/api/876/42153) | 创建托管域名 | 20 |
+| [DestroyStaticStore](/document/api/876/42148) | 销毁静态资源 | 20 |
+| [DescribeEnvLimit](/document/api/876/42146) | 查询环境个数上限接口 | 20 |
+| [DescribeHostingDomainTask](/document/api/876/57514) | 查询静态托管域名任务状态 | 20 |
+| [DescribeQuotaData](/document/api/876/42145) | 查询环境的配额使用量 | 2000 |
+| [ReinstateEnv](/document/api/876/42144) | 恢复环境，解除隔离状态 | 20 |
 
 ## 用户权限相关接口
 
@@ -65,15 +72,9 @@ _我的收藏_
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
-| [CreateHostingDomain](/document/api/876/42153) | 创建托管域名 | 20 |
-| [DestroyStaticStore](/document/api/876/42148) | 销毁静态资源 | 20 |
 | [ModifyClsTopic](/document/api/876/81547) | 修改日志主题 | 20 |
 | [ModifyDatabaseACL](/document/api/876/34819) | 修改数据库权限 | 50 |
 | [DescribeDatabaseACL](/document/api/876/34821) | 获取数据库权限 | 50 |
-| [DescribeEnvLimit](/document/api/876/42146) | 查询环境个数上限接口 | 20 |
-| [DescribeHostingDomainTask](/document/api/876/57514) | 查询静态托管域名任务状态 | 20 |
-| [DescribeQuotaData](/document/api/876/42145) | 查询环境的配额使用量 | 2000 |
-| [ReinstateEnv](/document/api/876/42144) | 恢复环境，解除隔离状态 | 20 |
 | [DeleteAuthDomain](/document/api/876/128960) | 删除合法域名 | 20 |
 
 ## 服务操作相关接口
@@ -82,7 +83,7 @@ _我的收藏_
 | --- | --- | --- |
 | [ModifySafeRule](/document/api/876/128959) | 设置数据库安全规则 | 20 |
 
-## 云数据库相关接口
+## 文档型云数据库相关接口
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
@@ -92,12 +93,6 @@ _我的收藏_
 | [DescribeTables](/document/api/876/127962) | 查询所有表信息 | 20 |
 | [ListTables](/document/api/876/127965) | 查询所有表 | 20 |
 | [UpdateTable](/document/api/876/127964) | 修改表索引信息 | 20 |
-| [CreateMySQL](/document/api/876/128186) | 开通 MySql | 20 |
-| [DescribeCreateMySQLResult](/document/api/876/128185) | 开通 MySql 结果查询 | 20 |
-| [DescribeMySQLClusterDetail](/document/api/876/128184) | 查询Mysql集群信息 | 20 |
-| [DescribeMySQLTaskStatus](/document/api/876/128183) | 销毁Mysql结果查询 | 20 |
-| [DestroyMySQL](/document/api/876/128182) | 销毁MySql | 20 |
-| [RunSql](/document/api/876/127880) | 执行SQL语句 | 20 |
 | [RunCommands](/document/api/876/129012) | 执行数据库命令 | 20 |
 
 ## 云开发接入相关接口
@@ -118,6 +113,17 @@ _我的收藏_
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
 | [SearchClsLog](/document/api/876/128127) | 搜索CLS日志 | 20 |
+
+## SQL型云数据库相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [CreateMySQL](/document/api/876/128186) | 开通 MySql | 20 |
+| [DescribeCreateMySQLResult](/document/api/876/128185) | 开通 MySql 结果查询 | 20 |
+| [DescribeMySQLClusterDetail](/document/api/876/128184) | 查询Mysql集群信息 | 20 |
+| [DescribeMySQLTaskStatus](/document/api/876/128183) | 销毁Mysql结果查询 | 20 |
+| [DestroyMySQL](/document/api/876/128182) | 销毁MySql | 20 |
+| [RunSql](/document/api/876/127880) | 执行SQL语句 | 20 |
 
 > 注意：
 > 
