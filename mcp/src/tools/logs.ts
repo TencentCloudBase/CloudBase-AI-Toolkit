@@ -67,7 +67,7 @@ export function registerLogTools(server: ExtendedMcpServer) {
     "searchLogs",
     {
       title: "搜索日志",
-      description: `查询云开发环境日志。queryString 使用 CLS 检索语法，。
+      description: `查询云开发环境日志。queryString 使用 CLS 检索语法。
 
 ## 可检索字段（queryString 中可用）
 
@@ -148,15 +148,24 @@ export function registerLogTools(server: ExtendedMcpServer) {
         const result = await logService.searchClsLog(searchParams);
         logCloudBaseResult(logger, result);
 
+        const logCount = result?.Results?.length ?? 0;
+        const hasMore = !!result?.Context;
+        const nextActions: { tool: string; reason: string }[] = [];
+        if (hasMore) {
+          nextActions.push({ tool: "searchLogs", reason: "传入 context 参数获取下一页日志" });
+        }
+
         return {
           content: [{
             type: "text",
             text: JSON.stringify({
               success: true,
+              data: result,
+              message: `查询到 ${logCount} 条日志${hasMore ? "，还有更多结果可翻页" : ""}`,
               queryString,
               startTime,
               endTime,
-              data: result,
+              ...(nextActions.length > 0 ? { nextActions } : {}),
             }, null, 2),
           }],
         };

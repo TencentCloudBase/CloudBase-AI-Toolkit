@@ -103,7 +103,16 @@ export function registerAgentTools(server: ExtendedMcpServer) {
           return {
             content: [{
               type: "text",
-              text: JSON.stringify(result, null, 2),
+              text: JSON.stringify({
+                success: true,
+                data: { agent: result },
+                message: `查询到智能体 "${agentId}" 的详情`,
+                nextActions: [
+                  { tool: "manageAgent", action: "update", reason: "更新该智能体配置或代码" },
+                  { tool: "manageAgent", action: "delete", reason: "删除该智能体" },
+                  { tool: "searchLogs", reason: "查询该智能体的运行日志" },
+                ],
+              }, null, 2),
             }],
           };
         }
@@ -115,17 +124,29 @@ export function registerAgentTools(server: ExtendedMcpServer) {
         });
         logCloudBaseResult(logger, result);
 
+        const agents = result.AgentList || [];
         return {
           content: [{
             type: "text",
-            text: JSON.stringify(result, null, 2),
+            text: JSON.stringify({
+              success: true,
+              data: { agents, total: (result as any).TotalCount ?? agents.length, pageNumber, pageSize },
+              message: `查询到 ${agents.length} 个智能体`,
+              nextActions: [
+                { tool: "queryAgent", action: "detail", reason: "查看某个智能体的详细信息" },
+                { tool: "manageAgent", action: "create", reason: "创建新的智能体" },
+              ],
+            }, null, 2),
           }],
         };
       } catch (error) {
         return {
           content: [{
             type: "text",
-            text: `Failed to query agent: ${error instanceof Error ? error.message : String(error)}`,
+            text: JSON.stringify({
+              success: false,
+              error: `查询智能体失败: ${error instanceof Error ? error.message : String(error)}`,
+            }, null, 2),
           }],
         };
       }
@@ -139,7 +160,9 @@ export function registerAgentTools(server: ExtendedMcpServer) {
     "manageAgent",
     {
       title: "管理智能体",
-      description: `管理云开发 AI 智能体（基于云函数的长连接 AI 服务，支持 SSE 流式输出和会话保持）：创建、更新、删除。代码目录需包含可执行的 scf_bootstrap 启动脚本，监听 SCF_RUNTIME_PORT 端口。创建/更新后需用 queryAgent 查询状态，底层云函数可能仍在部署中。`,
+      description: `管理云开发 AI 智能体/Agent（基于云函数的长连接 AI 服务，支持 SSE 流式输出和会话保持）：创建、更新、删除。当用户要求部署/更新/创建 Agent 智能体时，必须使用本工具（manageAgent），而非云托管服务。即使代码目录中存在 Dockerfile，只要用户明确操作的是智能体/Agent，就应使用本工具。
+
+部署前检查：代码目录必须包含 scf_bootstrap 启动脚本（无后缀名，需有可执行权限），脚本内容需启动服务并监听 $SCF_RUNTIME_PORT 端口。如果目录中不存在 scf_bootstrap，必须先为用户创建该文件再进行部署。`,
       inputSchema: {
         action: z.enum(["create", "update", "delete"]).describe(`操作类型：
 - create: 创建智能体，必需 name/targetPath/runtime，可选 timeout/memorySize/envVariables/installDependency/ignore/sessionConfig/agentId
@@ -208,7 +231,7 @@ export function registerAgentTools(server: ExtendedMcpServer) {
           // 验证路径
           const resolvedPath = path.resolve(targetPath);
           if (!fs.existsSync(resolvedPath)) {
-            throw new Error(`代码目录不存在: ${resolvedPath}`);
+            return { content: [{ type: "text", text: JSON.stringify({ success: false, error: `代码目录不存在: ${resolvedPath}` }, null, 2) }] };
           }
 
           const result = await manager.agent.createScfAgent({
@@ -231,9 +254,11 @@ export function registerAgentTools(server: ExtendedMcpServer) {
               type: "text",
               text: JSON.stringify({
                 success: true,
-                message: `Agent "${name}" created successfully`,
-                agentId: result.AgentId,
-                data: result,
+                data: { agentId: result.AgentId, ...result },
+                message: `智能体 "${name}" 创建成功，底层云函数可能仍在部署中`,
+                nextActions: [
+                  { tool: "queryAgent", action: "detail", reason: "查询部署状态" },
+                ],
               }, null, 2),
             }],
           };
@@ -245,7 +270,7 @@ export function registerAgentTools(server: ExtendedMcpServer) {
 
           // 校验必需参数
           if (!agentId) {
-            return { content: [{ type: "text", text: JSON.stringify({ success: false, error: "agentId is required for update" }, null, 2) }] };
+            return { content: [{ type: "text", text: JSON.stringify({ success: false, error: "update 需要 agentId 参数" }, null, 2) }] };
           }
 
           // 验证路径
@@ -253,11 +278,15 @@ export function registerAgentTools(server: ExtendedMcpServer) {
           if (targetPath) {
             cwd = path.resolve(targetPath);
             if (!fs.existsSync(cwd)) {
-              throw new Error(`Code directory not found: ${cwd}`);
+              return { content: [{ type: "text", text: JSON.stringify({ success: false, error: `代码目录不存在: ${cwd}` }, null, 2) }] };
             }
           }
 
-          const result = await manager.agent.updateAgent({
+          // 超时时间（毫秒）- 超过 30 秒未完成则先返回，不阻塞
+          const UPDATE_TIMEOUT_MS = 20 * 1000;
+          const TIMEOUT_FLAG = Symbol("timeout");
+
+          const updatePromise = manager.agent.updateAgent({
             AgentId: agentId,
             cwd,
             envVariables,
@@ -268,14 +297,42 @@ export function registerAgentTools(server: ExtendedMcpServer) {
             Ignore: ignore,
           });
 
-          logCloudBaseResult(logger, result);
+          const timeoutPromise = new Promise<typeof TIMEOUT_FLAG>((resolve) => {
+            setTimeout(() => resolve(TIMEOUT_FLAG), UPDATE_TIMEOUT_MS);
+          });
+
+          const raceResult = await Promise.race([updatePromise, timeoutPromise]);
+
+          if (raceResult === TIMEOUT_FLAG) {
+            // 超时：更新仍在进行中，先返回提示
+            return {
+              content: [{
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  data: null,
+                  message: `智能体 "${agentId}" 更新已提交，正在部署中，请稍后查询状态`,
+                  nextActions: [
+                    { tool: "queryAgent", action: "detail", params: { agentId }, reason: "查询智能体部署状态" },
+                  ],
+                }, null, 2),
+              }],
+            };
+          }
+
+          // 正常完成
+          logCloudBaseResult(logger, raceResult);
 
           return {
             content: [{
               type: "text",
               text: JSON.stringify({
                 success: true,
-                message: `成功提交更新智能体 "${agentId}"，需用 queryAgent 查询部署状态`,
+                data: raceResult,
+                message: `成功更新智能体 "${agentId}"`,
+                nextActions: [
+                  { tool: "queryAgent", action: "detail", reason: "查询部署状态" },
+                ],
               }, null, 2),
             }],
           };
@@ -309,8 +366,11 @@ export function registerAgentTools(server: ExtendedMcpServer) {
               type: "text",
               text: JSON.stringify({
                 success: true,
+                data: result,
                 message: `成功删除智能体 "${agentId}"`,
-                result,
+                nextActions: [
+                  { tool: "queryAgent", action: "list", reason: "确认智能体已删除" },
+                ],
               }, null, 2),
             }],
           };
@@ -327,7 +387,10 @@ export function registerAgentTools(server: ExtendedMcpServer) {
         return {
           content: [{
             type: "text",
-            text: `Failed to manage agent: ${error instanceof Error ? error.message : String(error)}`,
+            text: JSON.stringify({
+              success: false,
+              error: `管理智能体失败: ${error instanceof Error ? error.message : String(error)}`,
+            }, null, 2),
           }],
         };
       }
