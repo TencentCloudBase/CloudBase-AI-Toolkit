@@ -56,7 +56,6 @@ Use this skill for **CloudBase platform knowledge** when you need to:
    - Use `envQuery` tool to get environment ID
 
 4. **Use CloudBase MCP via mcporter (CLI) when IDE MCP is not available**
-   - **When managing or deploying CloudBase, you MUST use MCP and MUST understand tool details first.** Before calling any CloudBase tool, run `npx mcporter describe cloudbase` (or equivalent in your IDE) to inspect the server config and available tools.
    - You do **not** need to hard-code Secret ID / Secret Key / Env ID in config
    - CloudBase MCP will support device-code login via the `auth` tool, so credentials can be obtained interactively
    - Add CloudBase MCP server:
@@ -68,7 +67,7 @@ Use this skill for **CloudBase platform knowledge** when you need to:
      ```
    - Discover tools and schemas:
      - `npx mcporter list` — list configured servers
-     - **Required:** `npx mcporter describe cloudbase` — inspect CloudBase server config and available tools (must run before managing/deploying CloudBase)
+     - `npx mcporter describe cloudbase` — inspect CloudBase server config and available tools
      - `npx mcporter list cloudbase --schema` — get full JSON schema for all CloudBase tools
      - `npx mcporter call cloudbase.help --output json` — discover available CloudBase tools and their schemas
    - Call CloudBase tools (auth flow examples):
