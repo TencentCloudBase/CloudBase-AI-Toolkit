@@ -7,6 +7,7 @@ import { reportEvent } from './analytics';
 
 // IDE list for icons (from IDESelector)
 const POPULAR_IDES = [
+    { id: 'openclaw', iconUrl: 'https://openclaw.ai/favicon.svg' },
     { id: 'cursor', iconSlug: 'cursor' },
     { id: 'codebuddy', iconUrl: 'https://codebuddy-1328495429.cos.accelerate.myqcloud.com/web/ide/logo.svg' },
     { id: 'github-copilot', iconUrl: 'https://code.visualstudio.com/favicon.ico' },
@@ -192,4 +193,3 @@ export default function ErrorCodeIDEButton({
         </div>
     );
 }
-

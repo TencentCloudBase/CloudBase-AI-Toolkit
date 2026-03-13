@@ -20,6 +20,13 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/wechat-devtools',
   },
   {
+    id: 'openclaw',
+    name: 'OpenClaw',
+    platform: '命令行工具',
+    iconUrl: 'https://openclaw.ai/favicon.svg',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/openclaw',
+  },
+  {
     id: 'cursor',
     name: 'Cursor',
     platform: '独立 IDE',
@@ -207,4 +214,3 @@ export default function IDEIconGrid() {
     </div>
   );
 }
-

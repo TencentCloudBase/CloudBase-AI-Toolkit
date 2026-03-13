@@ -40,6 +40,16 @@ const IDES: IDE[] = [
     configExample: '',
   },
   {
+    id: 'openclaw',
+    name: 'OpenClaw',
+    platform: '命令行工具',
+    configPath: 'CloudBase Skills',
+    iconUrl: 'https://openclaw.ai/favicon.svg',
+    docUrl: 'https://docs.openclaw.ai/getting-started',
+    useCommandInsteadOfConfig: true,
+    configExample: '',
+  },
+  {
     id: 'cursor',
     name: 'Cursor',
     platform: '独立 IDE',
@@ -233,6 +243,7 @@ const IDES: IDE[] = [
     platform: '命令行工具',
     configPath: '.openai-codex/mcp.json',
     iconSlug: 'openai',
+    docUrl: 'https://help.openai.com/en/articles/11096431-openai-codex-ci-getting-started',
     useCommandInsteadOfConfig: true,
     installCommand: 'codex mcp add cloudbase --env INTEGRATION_IDE=CodeX -- cloudbase-mcp',
     installCommandDocs: '**前置步骤：** 请先全局安装 CloudBase MCP 工具：\n```bash\nnpm i @cloudbase/cloudbase-mcp -g\n```\n\n根据运行系统在终端中运行指令：\n\n**MacOS, Linux, WSL:**\n```bash\ncodex mcp add cloudbase --env INTEGRATION_IDE=CodeX -- cloudbase-mcp\n```\n\n**Windows Powershell:**\n```bash\ncodex mcp add cloudbase --env INTEGRATION_IDE=CodeX -- cmd /c cloudbase-mcp\n```',
@@ -255,6 +266,7 @@ const IDES: IDE[] = [
     platform: '命令行工具',
     configPath: '.qwen/settings.json',
     iconSlug: 'qwen',
+    docUrl: 'https://qwenlm.github.io/qwen-code-docs/zh/cli/index',
     configExample: `{
   "mcpServers": {
     "cloudbase": {
@@ -312,6 +324,7 @@ const IDES: IDE[] = [
     platform: '命令行工具',
     configPath: '.opencode.json',
     iconUrl: 'https://avatars.githubusercontent.com/u/66570915?s=200&v=4',
+    docUrl: 'https://opencode.ai/docs/config',
     configExample: `{
   "mcpServers": {
     "cloudbase": {
@@ -758,25 +771,14 @@ export default function IDESelector({
 
   const [copiedPrompt, setCopiedPrompt] = useState(false);
   const [copiedCli, setCopiedCli] = useState(false);
-  // Second prompt row: customPrompt if provided, otherwise random prompt
-  const [secondPrompt, setSecondPrompt] = useState<string>(() => 
-    customPrompt || getRandomPrompt()
-  );
+  const [randomPrompt, setRandomPrompt] = useState<string>(() => getRandomPrompt());
   const [copiedSecondPrompt, setCopiedSecondPrompt] = useState(false);
-
-  // Update secondPrompt when customPrompt changes
-  useEffect(() => {
-    if (customPrompt) {
-      setSecondPrompt(customPrompt);
-    } else {
-      setSecondPrompt(getRandomPrompt());
-    }
-  }, [customPrompt]);
+  const secondPrompt = customPrompt || randomPrompt;
 
   const handleRefreshPrompt = () => {
     // Only refresh if there's no customPrompt (customPrompt is fixed)
     if (!customPrompt) {
-      setSecondPrompt(getRandomPrompt());
+      setRandomPrompt(getRandomPrompt());
       reportEvent({
         name: 'IDE Selector - Refresh Prompt',
         ideId: ide.id,
@@ -1035,6 +1037,17 @@ export default function IDESelector({
                 >
                   {t.viewTemplates}
                 </a>
+              </div>
+            )}
+
+            {ide.id === 'openclaw' && (
+              <div className={styles.templateHint}>
+                <strong>{isEnglish ? 'Chat-based setup:' : '通过对话安装：'}</strong>
+                {isEnglish ? (
+                  <span> In OpenClaw, you can install CloudBase Skills through chat. If you do not need extra CloudBase rules yet, you can also start the conversation directly.</span>
+                ) : (
+                  <span> 在 OpenClaw 中可通过对话安装 CloudBase Skills；如果暂时不需要额外的 CloudBase 规则和工作流，也可以直接开始对话。</span>
+                )}
               </div>
             )}
 
