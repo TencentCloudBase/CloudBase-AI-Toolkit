@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 查询所有表信息
+## 销毁静态托管资源
 
-最近更新时间：2026-03-11 02:02:22
+最近更新时间：2026-03-13 02:04:46
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-本接口(DescribeTables)用于查询所有表信息，包括表名、表中数据条数、表中数据量、索引个数及索引的大小等
+销毁静态托管资源，该接口创建异步销毁任务，资源最终状态可从DestroyStaticStore接口查看
 
 默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeTables)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DestroyStaticStore)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,42 +34,31 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeTables。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DestroyStaticStore。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
-| Region | 是 | String | [公共参数](/document/api/876/34812) ，详见产品支持的 [地域列表](/document/api/876/34812#.E5.9C.B0.E5.9F.9F.E5.88.97.E8.A1.A8) 。 |
-| MgoLimit | 是 | Integer | 分页条件  
-示例值：10 |
-| Tag | 否 | String | 实例ID  
-示例值：tnt-abc |
-| MgoOffset | 否 | Integer | 分页条件  
-示例值：0 |
-| EnvId | 否 | String | 环境id  
-示例值：lowcode-abc |
-| MongoConnector | 否 | [MongoConnector](/document/api/876/34822#MongoConnector) | MongoConnector |
-| TableNames.N | 否 | Array of String | 指定表名过滤，为空时返回所有表  
-示例值：\["table\_name"\] |
+| Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
+| EnvId | 是 | String | 环境ID  
+示例值：env-xxyyaaza |
+| CdnDomain | 否 | String | cdn域名  
+示例值：cloudbase.tencentcloud.com |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| Tables | Array of [TableInfo](/document/api/876/34822#TableInfo) | 表信息  
-注意：此字段可能返回 null，表示取不到有效值。 |
-| Pager | [Pager](/document/api/876/34822#Pager) | 分页信息  
-注意：此字段可能返回 null，表示取不到有效值。 |
+| Result | String | 条件任务结果(succ/fail)  
+示例值：succ |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 查询所有表信息
+### 示例1 销毁资源
 
 #### 输入示例
 
 ```
-https://tcb.tencentcloudapi.com/?Action=DescribeTables
-&MgoOffset=0
-&MgoLimit=20
-&Tag=tnt-xxxxxxxxxxx
+https://tcb.tencentcloudapi.com/?Action=DestroyStaticStore
+&EnvId=lotestapi100004
 &<公共请求参数>
 ```
 
@@ -78,42 +67,8 @@ https://tcb.tencentcloudapi.com/?Action=DescribeTables
 ```json
 {
     "Response": {
-        "RequestId": "4ce5365a-af8c-4859-a0dd-a4bfe1f2a3d8",
-        "Tables": [
-            {
-                "TableName": "adise",
-                "Count": 12,
-                "Size": 899,
-                "IndexCount": 1,
-                "IndexSize": 36864
-            },
-            {
-                "TableName": "test2",
-                "Count": 1,
-                "Size": 36,
-                "IndexCount": 1,
-                "IndexSize": 16384
-            },
-            {
-                "TableName": "test3",
-                "Count": 0,
-                "Size": 0,
-                "IndexCount": 1,
-                "IndexSize": 4096
-            },
-            {
-                "TableName": "test4",
-                "Count": 0,
-                "Size": 0,
-                "IndexCount": 1,
-                "IndexSize": 4096
-            }
-        ],
-        "Pager": {
-            "Offset": 0,
-            "Limit": 20,
-            "Total": 4
-        }
+        "Result": "succ",
+        "RequestId": "5620b49e-a25a-4007-84ef-03c9035c584d"
     }
 }
 ```
@@ -151,20 +106,7 @@ https://tcb.tencentcloudapi.com/?Action=DescribeTables
 
 | 错误码 | 描述 |
 | --- | --- |
-| FailedOperation | 操作失败。 |
-| FailedOperation.ListTable | FailedOperation.ListTable |
-| FailedOperation.Timeout | FailedOperation.Timeout |
 | InternalError | 内部错误。 |
 | InvalidParameter | 参数错误。 |
-| LimitExceeded | 超过配额限制。 |
-| LimitExceeded.NoValidConnection | LimitExceeded.NoValidConnection |
-| LimitExceeded.OutOfReadRequestQuota | LimitExceeded.OutOfReadRequestQuota |
-| MissingParameter | 缺少参数错误。 |
-| ResourceInUse | 资源被占用。 |
-| ResourceNotFound.Connector | 连接器未找到,请创建连接器或检查连接器参数是否正确 |
-| ResourceNotFound.Table | 表未找到,请创建表或检查表名参数是否正确 |
-| ResourceUnavailable.MongoIsolated | MongoDB集群已隔离,由于集群已被隔离写入被禁止,请跳转MongoDB控制台查看详情 |
-| ResourceUnavailable.ResourceOverdue | 资源过期。 |
-| UnauthorizedOperation | 未授权操作。 |
 
 目录

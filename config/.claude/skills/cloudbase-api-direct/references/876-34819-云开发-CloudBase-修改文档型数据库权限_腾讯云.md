@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 修改表索引信息
+## 修改文档型数据库权限
 
-最近更新时间：2026-03-12 02:04:32
+最近更新时间：2026-03-13 02:04:27
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-本接口(UpdateTable)用于修改表信息，当前可以支持创建和删除索引
+修改文档型数据库权限
 
-默认接口请求频率限制：20次/秒。
+默认接口请求频率限制：50次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=UpdateTable)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=ModifyDatabaseACL)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,18 +34,20 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：UpdateTable。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：ModifyDatabaseACL。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
-| Region | 是 | String | [公共参数](/document/api/876/34812) ，详见产品支持的 [地域列表](/document/api/876/34812#.E5.9C.B0.E5.9F.9F.E5.88.97.E8.A1.A8) 。 |
-| TableName | 是 | String | 表名  
-示例值：demo\_users |
-| Tag | 否 | String | FlexDB实例ID  
-示例值：tnt-nl7hjzasw |
-| DropIndexes.N | 否 | Array of [DropIndex](/document/api/876/34822#DropIndex) | 待删除索引信息 |
-| CreateIndexes.N | 否 | Array of [CreateIndex](/document/api/876/34822#CreateIndex) | 待创建索引信息 |
-| EnvId | 否 | String | 云开发环境ID  
-示例值：lowcode-abc |
-| MongoConnector | 否 | [MongoConnector](/document/api/876/34822#MongoConnector) | MongoDB连接器配置 |
+| Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
+| EnvId | 是 | String | 环境ID  
+示例值：env-xxyyzzaa |
+| CollectionName | 是 | String | 集合名称  
+示例值：my-table |
+| AclTag | 是 | String | 权限标签。包含以下取值：  
+-   READONLY：所有用户可读，仅创建者和管理员可写
+-   PRIVATE：仅创建者及管理员可读写
+-   ADMINWRITE：所有用户可读，仅管理员可写
+-   ADMINONLY：仅管理员可读写
+  
+示例值：READONLY |
 
 ## 3\. 输出参数
 
@@ -55,18 +57,15 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 ## 4\. 示例
 
-### 示例1 创建索引
+### 示例1 示例
 
 #### 输入示例
 
 ```
-https://tcb.tencentcloudapi.com/?Action=UpdateTable
-&TableName=adise
-&Tag=tnt-jas2zvl90
-&CreateIndexes.0.IndexName=test-index
-&CreateIndexes.0.MgoKeySchema.MgoIndexKeys.0.Name=adise
-&CreateIndexes.0.MgoKeySchema.MgoIndexKeys.0.Direction=1
-&CreateIndexes.0.MgoKeySchema.MgoIsUnique=false
+https://tcb.tencentcloudapi.com/?Action=ModifyDatabaseACL
+&EnvId=test-23
+&CollectionName=testCollection
+&AclTag=PRIVATE
 &<公共请求参数>
 ```
 
@@ -75,73 +74,7 @@ https://tcb.tencentcloudapi.com/?Action=UpdateTable
 ```json
 {
     "Response": {
-        "RequestId": "C563943B-3BEA-FE92-29FE-591EAEB7871F"
-    }
-}
-```
-
-### 示例2 删除索引
-
-#### 输入示例
-
-```
-https://tcb.tencentcloudapi.com/?Action=UpdateTable
-&TableName=adise
-&Tag=tnt-jas2zvl90
-&DropIndexes.0.IndexName=testIndex
-&<公共请求参数>
-```
-
-#### 输出示例
-
-```json
-{
-    "Response": {
-        "RequestId": "C563943B-3BEA-FE92-29FE-591EAEB7871F"
-    }
-}
-```
-
-### 示例3 创建索引-使用MongoDB连接器
-
-#### 输入示例
-
-```
-POST / HTTP/1.1
-Host: tcb.tencentcloudapi.com
-Content-Type: application/json
-X-TC-Action: UpdateTable
-<公共请求参数>
-
-{
-    "TableName": "test2",
-    "CreateIndexes": [
-        {
-            "IndexName": "adise",
-            "MgoKeySchema": {
-                "MgoIndexKeys": [
-                    {
-                        "Name": "adise",
-                        "Direction": "1"
-                    }
-                ]
-            }
-        }
-    ],
-    "EnvId": "lowcode-1g1ac0pjd4eca700",
-    "MongoConnector": {
-        "InstanceId": "luke_test2",
-        "DatabaseName": "adise"
-    }
-}
-```
-
-#### 输出示例
-
-```json
-{
-    "Response": {
-        "RequestId": "5811a2a8-a892-4600-a7dc-96bf1c4b28ab"
+        "RequestId": "51a33e48-a808-4fe7-8c02-4e7be5245351"
     }
 }
 ```
@@ -179,24 +112,10 @@ X-TC-Action: UpdateTable
 
 | 错误码 | 描述 |
 | --- | --- |
-| FailedOperation | 操作失败。 |
-| FailedOperation.ListTable | FailedOperation.ListTable |
-| FailedOperation.Timeout | FailedOperation.Timeout |
 | InternalError | 内部错误。 |
 | InvalidParameter | 参数错误。 |
-| InvalidParameterValue | 参数取值错误。 |
-| LimitExceeded | 超过配额限制。 |
-| LimitExceeded.NoValidConnection | LimitExceeded.NoValidConnection |
-| LimitExceeded.OutOfIndexQuota | LimitExceeded.OutOfIndexQuota |
 | MissingParameter | 缺少参数错误。 |
-| ResourceInUse.IndexCreating | ResourceInUse.IndexCreating |
-| ResourceNotFound | 资源不存在。 |
-| ResourceNotFound.Connector | 连接器未找到,请创建连接器或检查连接器参数是否正确 |
-| ResourceNotFound.Table | 表未找到,请创建表或检查表名参数是否正确 |
-| ResourceUnavailable | 资源不可用。 |
-| ResourceUnavailable.IndexOptionsConflict | 索引对应的字段已经存在 |
-| ResourceUnavailable.MongoIsolated | MongoDB集群已隔离,由于集群已被隔离写入被禁止,请跳转MongoDB控制台查看详情 |
-| ResourceUnavailable.ResourceOverdue | 资源过期。 |
-| UnauthorizedOperation | 未授权操作。 |
+| MissingParameter.Param | 缺少必要参数。 |
+| ResourceInUse.FsACLJobUnDone | 云存储目前后后台任务正在执行，请稍后再重试。 |
 
 目录

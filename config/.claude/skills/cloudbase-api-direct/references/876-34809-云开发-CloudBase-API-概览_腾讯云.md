@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-03-12 02:04:47
+最近更新时间：2026-03-13 02:04:41
 
 -   微信扫一扫 
 -   QQ
@@ -46,7 +46,7 @@ _我的收藏_
 | [ModifyEnvPlan](/document/api/876/128591) | 更新云开发环境套餐 | 20 |
 | [RenewEnv](/document/api/876/128590) | 续费云开发环境 | 20 |
 | [CreateHostingDomain](/document/api/876/42153) | 创建托管域名 | 20 |
-| [DestroyStaticStore](/document/api/876/42148) | 销毁静态资源 | 20 |
+| [DestroyStaticStore](/document/api/876/42148) | 销毁静态托管资源 | 20 |
 | [DescribeEnvLimit](/document/api/876/42146) | 查询环境个数上限接口 | 20 |
 | [DescribeHostingDomainTask](/document/api/876/57514) | 查询静态托管域名任务状态 | 20 |
 | [DescribeQuotaData](/document/api/876/42145) | 查询环境的配额使用量 | 2000 |
@@ -73,8 +73,6 @@ _我的收藏_
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
 | [ModifyClsTopic](/document/api/876/81547) | 修改日志主题 | 20 |
-| [ModifyDatabaseACL](/document/api/876/34819) | 修改数据库权限 | 50 |
-| [DescribeDatabaseACL](/document/api/876/34821) | 获取数据库权限 | 50 |
 | [DeleteAuthDomain](/document/api/876/128960) | 删除合法域名 | 20 |
 
 ## 服务操作相关接口
@@ -87,13 +85,15 @@ _我的收藏_
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
-| [CreateTable](/document/api/876/127968) | 创建表 | 20 |
-| [DeleteTable](/document/api/876/127967) | 删除表 | 20 |
-| [DescribeTable](/document/api/876/127966) | 查询表信息 | 20 |
-| [DescribeTables](/document/api/876/127962) | 查询所有表信息 | 20 |
-| [ListTables](/document/api/876/127965) | 查询所有表 | 20 |
-| [UpdateTable](/document/api/876/127964) | 修改表索引信息 | 20 |
-| [RunCommands](/document/api/876/129012) | 执行数据库命令 | 20 |
+| [ModifyDatabaseACL](/document/api/876/34819) | 修改文档型数据库权限 | 50 |
+| [DescribeDatabaseACL](/document/api/876/34821) | 获取文档型数据库权限 | 50 |
+| [CreateTable](/document/api/876/127968) | 创建文档型数据库表 | 20 |
+| [DeleteTable](/document/api/876/127967) | 删除文档型数据库表 | 20 |
+| [DescribeTable](/document/api/876/127966) | 查询文档型数据库表信息 | 20 |
+| [DescribeTables](/document/api/876/127962) | 查询文档型数据库所有表信息 | 20 |
+| [ListTables](/document/api/876/127965) | 查询文档型数据库所有表 | 20 |
+| [UpdateTable](/document/api/876/127964) | 修改文档型数据库表索引信息 | 20 |
+| [RunCommands](/document/api/876/129012) | 执行文档型数据库命令 | 20 |
 
 ## 云开发接入相关接口
 
@@ -123,7 +123,7 @@ _我的收藏_
 | [DescribeMySQLClusterDetail](/document/api/876/128184) | 查询Mysql集群信息 | 20 |
 | [DescribeMySQLTaskStatus](/document/api/876/128183) | 销毁Mysql结果查询 | 20 |
 | [DestroyMySQL](/document/api/876/128182) | 销毁MySql | 20 |
-| [RunSql](/document/api/876/127880) | 执行SQL语句 | 20 |
+| [RunSql](/document/api/876/127880) | 执行MySQL语句 | 20 |
 
 > 注意：
 > 
