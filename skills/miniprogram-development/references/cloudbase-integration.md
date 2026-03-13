@@ -1,45 +1,31 @@
-# CloudBase Mini Program References
+# CloudBase Mini Program Integration
 
-This document supplements `SKILL.md` with practical **WeChat Mini Program + CloudBase** integration guidance.
+This reference supplements `SKILL.md` when a **WeChat Mini Program project explicitly uses CloudBase**.
+
+## When to read this reference
+
+Read this file when the task includes any of the following:
+
+- `wx.cloud`
+- CloudBase / Tencent CloudBase / 腾讯云开发 / 云开发
+- CloudBase database, storage, or cloud functions
+- CloudBase identity handling in mini programs
+- CloudBase MCP or mcporter usage for mini program projects
+
+Do **not** assume this reference applies to every mini program project.
 
 ## How to use this reference (for a coding agent)
 
-1. **Understand platform differences**
-   - WeChat Mini Program and Web have completely different authentication approaches.
-   - Must strictly distinguish between platforms.
-   - Never mix Web authentication methods into mini program projects.
-   - Mini programs with CloudBase are naturally login-free.
+1. **Confirm CloudBase is actually in scope**
+   - Look for user intent, code, config, or dependency evidence that the project uses CloudBase
 
-2. **Follow CloudBase best practices**
-   - Use `wx.cloud` APIs on the mini program client side.
-   - Configure appropriate database permissions before relying on client writes.
-   - Prefer cloud functions for cross-collection operations and privileged writes.
-   - Use `OPENID` from `cloud.getWXContext()` as the stable user identifier on the server side.
+2. **Apply CloudBase-specific rules only after confirmation**
+   - Use `wx.cloud` APIs on the mini program client side
+   - Use CloudBase environment configuration and server-side identity handling where relevant
 
-3. **Use correct SDKs and APIs**
-   - Mini program client code should use `wx.cloud.database()`, `wx.cloud.callFunction()`, and `wx.cloud.uploadFile()` as appropriate.
-   - Do not use Web SDK authentication patterns in mini programs.
-   - Use `envQuery` to get environment ID when available.
-
-4. **Use CloudBase MCP via mcporter (CLI) when IDE MCP is not available**
-   - You do **not** need to hard-code Secret ID / Secret Key / Env ID in config.
-   - CloudBase MCP supports device-code login via the `auth` tool, so credentials can be obtained interactively.
-   - Add CloudBase MCP server:
-     ```bash
-     npx mcporter config add cloudbase \
-       --command "npx" \
-       --arg "@cloudbase/cloudbase-mcp@latest" \
-       --description "CloudBase MCP"
-     ```
-   - Discover tools and schemas:
-     - `npx mcporter list` — list configured servers
-     - `npx mcporter describe cloudbase` — inspect CloudBase server config and available tools
-     - `npx mcporter list cloudbase --schema` — get full JSON schema for all CloudBase tools
-     - `npx mcporter call cloudbase.help --output json` — discover available CloudBase tools and their schemas
-   - Call CloudBase tools (auth flow examples):
-     - `npx mcporter call cloudbase.auth action=status --output json`
-     - `npx mcporter call cloudbase.auth action=start_auth authMode=device --output json`
-     - `npx mcporter call cloudbase.auth action=set_env envId=env-xxx --output json`
+3. **Keep boundaries clear**
+   - Use general mini program rules from `SKILL.md` for project structure and base workflows
+   - Use this file only for CloudBase-specific capabilities and constraints
 
 ## 1. Environment Initialization
 
@@ -58,19 +44,19 @@ App({
 
 ### Rules
 
-- Always obtain the environment ID via `envQuery` when available.
+- Obtain the environment ID via `envQuery` when available.
 - Prefer a single app-level initialization instead of repeated page-level initialization.
-- Use `traceUser: true` unless there is a clear reason not to, so CloudBase can associate requests with the current WeChat user.
+- Use `traceUser: true` unless there is a clear reason not to.
 
 ## 2. Authentication Model
 
-Mini program CloudBase is **naturally login-free**.
+CloudBase mini programs are naturally login-free.
 
 ### Required behavior
 
-- Do **not** generate login pages or login flows.
-- Do **not** port Web authentication patterns into mini programs.
-- In cloud functions, retrieve user identity with `cloud.getWXContext().OPENID`.
+- Do **not** generate login pages or login flows for CloudBase mini programs.
+- Do **not** copy Web SDK authentication patterns into CloudBase mini programs.
+- Retrieve user identity in cloud functions with `cloud.getWXContext().OPENID`.
 
 ```js
 const cloud = require("wx-server-sdk");
@@ -84,55 +70,122 @@ exports.main = async () => {
 };
 ```
 
-## 3. Recommended Capability Boundaries
+### Recommended usage
 
-Use the right CloudBase capability in the right layer.
+- Use `OPENID` as the stable user identifier for per-user records.
+- Perform user bootstrap logic inside cloud functions when needed.
+- Keep privileged profile updates in cloud functions when business rules matter.
 
-### Client side
+## 3. Client vs. Cloud Function Boundaries
 
-- `wx.cloud.database()` for client-safe reads and user-scoped writes
-- `wx.cloud.uploadFile()` for user-generated assets
-- `wx.cloud.callFunction()` for invoking backend orchestration
+Use the right CloudBase capability for the right job.
 
-### Cloud functions
+### Use `wx.cloud.database()` for:
 
-- Privileged writes
-- Cross-collection transactions or workflows
-- Third-party API integration
-- Data normalization / validation
-- Accessing trusted user identity via `OPENID`
+- Client-safe reads
+- User-scoped writes with correct security rules
+- Simple collection CRUD where server orchestration is unnecessary
 
-## 4. Environment Selection
+### Use `wx.cloud.callFunction()` for:
 
-- Do not hard-code a random environment ID.
-- Prefer obtaining the environment ID from tooling such as `envQuery`.
-- Initialize CloudBase once, usually in `app.js` / `app.ts`.
+- Cross-collection operations
+- Privileged or admin-only writes
+- Multi-step orchestration
+- Operations requiring `OPENID`-based trust on the server side
+- Calls to third-party APIs or secret-bearing logic
 
-## 5. WeChat Developer Tools and Project Shape
+### Use Cloud Storage APIs for:
 
-- Confirm `project.config.json` includes `appid` before asking the user to open the project.
-- Mini program source is typically under `miniprogram/`.
-- Cloud functions are typically under `cloudfunctions/`.
-- Generated pages should include companion config files such as `index.json`.
+- User-uploaded images and attachments
+- Files that need access control
+- Temporary file access through CloudBase file APIs
 
-## 6. AI and Model Usage
+## 4. Database Permission Guidance
 
-- Mini programs on supported base library versions can use `wx.cloud.extend.AI`.
-- Keep prompts and model selection explicit.
-- If streaming is used, consume the stream fully and update UI incrementally where appropriate.
+CloudBase database access is permission-controlled. Configure permissions before relying on client writes.
 
-## 7. Fallback When IDE MCP Is Unavailable
+### Practical rules
 
-If IDE-native MCP integration is unavailable, use the CloudBase MCP through `mcporter` and complete login with device-code auth instead of embedding secrets in config.
+- For user-owned content, prefer rules that only allow users to operate on their own documents.
+- For system-managed data, prefer server-side writes via cloud functions.
+- For cross-collection operations, prefer cloud functions by default.
+- If security rules become complex, move write logic to cloud functions.
 
-## 8. Console and Operational Links
+## 5. Cloud Functions for Mini Programs
 
-When relevant, guide users to the CloudBase console for:
+### Initialization
 
-- environment settings
-- database permission rules
-- cloud function deployment status
-- storage management
-- billing / package information
+Use dynamic current environment in mini program cloud functions:
 
-Prefer console guidance over guessing permissions or environment state.
+```js
+const cloud = require("wx-server-sdk");
+cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
+```
+
+### Recommendations
+
+- Keep function directories under `cloudfunctions`
+- Include `package.json` for dependencies
+- Prefer cloud-side dependency installation
+- For permission-sensitive capabilities, redeploy once in WeChat Developer Tools if needed
+
+## 6. Cloud Storage and Static Resources
+
+- Store user-generated or private files in Cloud Storage
+- Use Cloud Storage instead of bundling large dynamic files into the mini program package
+- If local assets are referenced, ensure they exist in the project
+
+## 7. AI Model Usage in CloudBase Mini Programs
+
+When the mini program base library supports it, `wx.cloud.extend.AI` can be used directly.
+
+### Guidance
+
+- Keep prompts close to the business scenario
+- Prefer streaming APIs for chat or long-form generation
+- Move privileged orchestration or multi-model workflows to cloud functions when needed
+
+## 8. CloudBase MCP via mcporter
+
+When IDE MCP is not available, CloudBase MCP can be used through mcporter.
+
+- You do **not** need to hard-code Secret ID / Secret Key / Env ID
+- CloudBase MCP supports device-code login via the `auth` tool
+
+Example:
+
+```bash
+npx mcporter config add cloudbase \
+  --command "npx" \
+  --arg "@cloudbase/cloudbase-mcp@latest" \
+  --description "CloudBase MCP"
+```
+
+Common discovery commands:
+
+- `npx mcporter list`
+- `npx mcporter describe cloudbase`
+- `npx mcporter list cloudbase --schema`
+- `npx mcporter call cloudbase.help --output json`
+
+## 9. Console References
+
+After creating resources, provide console links using the actual `envId`.
+
+- Overview: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/overview`
+- Document Database: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/db/doc`
+- MySQL Database: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/db/mysql`
+- Cloud Functions: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/scf`
+- Cloud Storage: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/storage`
+- Identity Authentication: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/identity`
+- Logs & Monitoring: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/logs`
+- Environment Settings: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/settings`
+
+## 10. Anti-Patterns
+
+Avoid these mistakes in CloudBase mini program projects:
+
+- Generating login pages for CloudBase mini programs
+- Copying Web SDK auth flows into CloudBase mini programs
+- Putting privileged writes directly in client code without rule review
+- Using cross-collection client logic when a cloud function should own it
