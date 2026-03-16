@@ -29,10 +29,37 @@ Pre-install dependencies locally targeting the Linux x86_64 platform, then deplo
 
 **Steps:**
 
-1. Pre-install dependencies to `./env` directory:
+1. **⚠️ MANDATORY: Create and activate a Python 3.10 virtual environment BEFORE installing dependencies:**
+
+> **CRITICAL — DO NOT SKIP THIS STEP**
+>
+> You **MUST** use a real Python 3.10 interpreter to install dependencies. Do **NOT** rely on pip's `--python-version 3.10` flag alone from a higher Python version (e.g., 3.11+).
+>
+> **Why?** pip's `--python-version` flag correctly selects wheel files for the target version, but it does **NOT** reliably evaluate environment markers (e.g., `exceptiongroup; python_version < "3.11"`) — it may use the **host interpreter's version** instead of the target version. This causes conditional dependencies like `exceptiongroup` (required by `anyio` on Python < 3.11) to be silently skipped, leading to `ModuleNotFoundError` at runtime on the cloud (which runs Python 3.10).
 
 ```bash
-python3.10 -m pip install -r ./requirements.txt \
+# Option 1: Using pyenv (recommended)
+pyenv install 3.10
+pyenv local 3.10
+python3 --version  # Verify: must show Python 3.10.x
+
+# Option 2: Using conda
+conda create -n agent-env python=3.10 -y
+conda activate agent-env
+python3 --version  # Verify: must show Python 3.10.x
+```
+
+**Verification (REQUIRED):** Before proceeding to step 2, confirm the active Python is 3.10:
+```bash
+python3 --version
+# Expected output: Python 3.10.x
+# If it shows 3.11+ or 3.9-, STOP and fix your environment first.
+```
+
+2. Pre-install dependencies to `./env` directory **using the Python 3.10 environment from step 1**:
+
+```bash
+python3 -m pip install -r ./requirements.txt \
   --platform manylinux2014_x86_64 \
   --target ./env \
   --python-version 3.10 \
@@ -40,7 +67,9 @@ python3.10 -m pip install -r ./requirements.txt \
   --upgrade
 ```
 
-2. Deploy using `manageAgent` with `installDependency=false` (dependencies are already bundled in `./env`):
+> **NOTE**: The `--platform manylinux2014_x86_64` and `--python-version 3.10` flags are still needed to download Linux x86_64 wheels (since you're likely on macOS/Windows). But the **host interpreter MUST be Python 3.10** to ensure conditional dependencies are resolved correctly.
+
+3. Deploy using `manageAgent` with `installDependency=false` (dependencies are already bundled in `./env`):
 
 ```
 manageAgent(action="create", runtime="Python3.10", installDependency=false, targetPath="...")
@@ -84,7 +113,7 @@ export PYTHONPATH="./env:$PYTHONPATH"
 |--------|------------------------------|----------------------------|
 | Cold-start speed | ✅ Fast (deps already present) | ❌ Slow (first cold-start installs deps) |
 | C-extension compatibility | ✅ Guaranteed (pre-built for Linux) | ⚠️ May fail for some packages |
-| Local toolchain required | Yes (Python 3.10 + pip) | No |
+| Local toolchain required | **Python 3.10** (via pyenv/conda) + pip (**MANDATORY**) | No |
 | Upload size | Larger (includes `./env`) | Smaller (code only) |
 | Recommended for production | ✅ Yes | For prototyping only |
 
@@ -247,7 +276,7 @@ CMD ["python", "server.py"]
 |----------|--------|
 | **Deployment tool** | `manageAgent` MCP tool (MUST USE) |
 | **Python runtime** | Python 3.10 (MUST USE, `runtime="Python3.10"`) |
-| **Dependency strategy** | Path A: local pre-packaging to `./env` (recommended) or Path B: `installDependency=true` |
+| **Dependency strategy** | Path A: local pre-packaging to `./env` (recommended, **MUST use Python 3.10 interpreter**) or Path B: `installDependency=true` |
 | **Default platform** | HTTP Cloud Functions |
 | **Fallback platform** | CloudRun (only for special requirements) |
 | **Startup script** | `scf_bootstrap` — set `PYTHONPATH="./env:$PYTHONPATH"`, do NOT `pip install` at startup |
