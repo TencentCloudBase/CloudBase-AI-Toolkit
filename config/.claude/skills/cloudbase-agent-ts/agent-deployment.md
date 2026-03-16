@@ -2,7 +2,7 @@
 
 ## Core Principle
 
-When deploying Agent services to CloudBase, **always prefer HTTP Cloud Functions**. Use CloudRun only when HTTP Cloud Functions cannot meet your requirements.
+**Always use the `manageAgent` MCP tool to deploy Agent services.** It natively supports SSE streaming, session persistence, and Node.js 20 runtime — purpose-built for Agent scenarios. Do NOT use `createFunction` or `manageCloudRun` for Agent deployment.
 
 ## Why HTTP Cloud Functions First
 
