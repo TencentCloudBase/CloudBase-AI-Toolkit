@@ -60,6 +60,8 @@ Use this skill for **AI agent development** when you need to:
 
 ## Quick Start
 
+**Prerequisites:** Node.js >= 20 is required.
+
 **1. Install dependencies:**
 
 ```bash

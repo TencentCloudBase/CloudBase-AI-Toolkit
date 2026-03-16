@@ -17,7 +17,7 @@ When deploying Agent services to CloudBase, **always prefer HTTP Cloud Functions
 
 ## Deployment Steps (HTTP Cloud Functions)
 
-1. Create an HTTP Cloud Function (select Node.js runtime)
+1. Create an HTTP Cloud Function (**select Node.js 20 runtime**)
 2. Upload Agent code (including `@cloudbase/agent-server`)
 3. Configure HTTP access path
 4. Set environment variables (API keys, model config, etc.)
