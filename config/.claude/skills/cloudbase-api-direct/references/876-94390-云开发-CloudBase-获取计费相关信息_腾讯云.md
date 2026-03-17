@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 查询文档型数据库表信息
+## 获取计费相关信息
 
-最近更新时间：2026-03-17 02:57:11
+最近更新时间：2026-03-17 02:57:05
 
 -   微信扫一扫 
 -   QQ
@@ -18,15 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-本接口（DescribeTable）用于查询文档型数据库表的相关信息，包括索引等信息。
+获取计费相关信息
 
-接口入参中的 Tag 为文档型数据库的实例 Id，可以通过 [DescribeEnvs](https://cloud.tencent.com/document/api/876/34820) 接口返回的 EnvList\[0\].Databases\[0\].InstanceId 获取。
-
-默认接口请求频率限制：20次/秒。
+默认接口请求频率限制：50次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeTable)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeBillingInfo)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -36,36 +34,28 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeTable。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeBillingInfo。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
-| Region | 是 | String | [公共参数](/document/api/876/34812) ，详见产品支持的 [地域列表](/document/api/876/34812#.E5.9C.B0.E5.9F.9F.E5.88.97.E8.A1.A8) 。 |
-| TableName | 是 | String | 表名  
-示例值：demo\_users |
-| Tag | 否 | String | FlecDB实例ID  
-示例值：tnt-xxx |
-| EnvId | 否 | String | 云开发环境ID  
-示例值：lowcode-abc |
-| MongoConnector | 否 | [MongoConnector](/document/api/876/34822#MongoConnector) | MongoDB连接器配置 |
+| Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
+| EnvId | 否 | String | 环境ID  
+示例值：env-xxyyzzaa |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| Indexes | Array of [IndexInfo](/document/api/876/34822#IndexInfo) | 索引相关信息 |
-| IndexNum | Integer | 索引个数  
-示例值：1 |
+| EnvBillingInfoList | Array of [EnvBillingInfoItem](/document/api/876/34822#EnvBillingInfoItem) | 环境计费信息列表 |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 查询表信息
+### 示例1 示例
 
 #### 输入示例
 
 ```
-https://tcb.tencentcloudapi.com/?Action=DescribeTable
-&TableName=adisa
-&Tag=tnt-a5a7a8aeu
+https://tcb.tencentcloudapi.com/?Action=DescribeBillingInfo
+&EnvId=tnt-j715s5gda
 &<公共请求参数>
 ```
 
@@ -74,106 +64,38 @@ https://tcb.tencentcloudapi.com/?Action=DescribeTable
 ```json
 {
     "Response": {
-        "Indexes": [
+        "EnvBillingInfoList": [
             {
-                "Name": "example-index-0",
-                "Size": 16384,
-                "Unique": false,
-                "Keys": [
-                    {
-                        "Name": "key0",
-                        "Direction": "1"
-                    }
-                ],
-                "Accesses": {
-                    "Ops": 0,
-                    "Since": "2019-03-05T19:47:53.797+08:00"
-                }
-            },
-            {
-                "Name": "_id_",
-                "Size": 36864,
-                "Unique": true,
-                "Keys": [
-                    {
-                        "Name": "_id",
-                        "Direction": "1"
-                    }
-                ],
-                "Accesses": {
-                    "Ops": 0,
-                    "Since": "2019-02-28T11:46:20.919+08:00"
-                }
+                "EnvId": "tnt-j715s5gda",
+                "PackageId": "professional",
+                "IsAutoRenew": true,
+                "Status": "NORMAL",
+                "PayMode": "PREPAYMENT",
+                "IsolatedTime": "2011-5-16 12:15:01",
+                "ExpireTime": "2019-5-25 12:15:01",
+                "CreateTime": "2016-5-25 12:15:01",
+                "UpdateTime": "2019-4-25 12:15:01",
+                "FreeQuota": "",
+                "PaymentChannel": "qcloud",
+                "ExtPackageType": "baas",
+                "OrderInfo": {
+                    "CreateTime": "",
+                    "ExtensionId": "",
+                    "Flag": "",
+                    "PackageId": "",
+                    "PayMode": "",
+                    "ReqBody": "",
+                    "ResourceReady": "",
+                    "TranId": "",
+                    "TranStatus": "",
+                    "TranType": "",
+                    "UpdateTime": ""
+                },
+                "IsAlwaysFree": false,
+                "EnableOverrun": true
             }
         ],
-        "IndexNum": 2,
-        "RequestId": "b9872df9-b00e-497d-9fdd-33338f0f64b4"
-    }
-}
-```
-
-### 示例2 查询表信息-使用MongoDB连接器
-
-查询连接器内的表信息
-
-#### 输入示例
-
-```
-POST / HTTP/1.1
-Host: tcb.tencentcloudapi.com
-Content-Type: application/json
-X-TC-Action: DescribeTable
-<公共请求参数>
-
-{
-    "TableName": "luke_test",
-    "EnvId": "lowcode-1g1ac0pjd4eca700",
-    "MongoConnector": {
-        "InstanceId": "luke_test2",
-        "DatabaseName": "adise"
-    }
-}
-```
-
-#### 输出示例
-
-```json
-{
-    "Response": {
-        "IndexNum": 2,
-        "Indexes": [
-            {
-                "Accesses": {
-                    "Ops": 0,
-                    "Since": "2025-12-09T16:37:19.051+08:00"
-                },
-                "Keys": [
-                    {
-                        "Direction": "1",
-                        "Name": "_id"
-                    }
-                ],
-                "Name": "_id_",
-                "Size": 36864,
-                "Unique": false
-            },
-            {
-                "Accesses": {
-                    "Ops": 2,
-                    "Since": "2025-12-09T16:37:19.083+08:00"
-                },
-                "Keys": [
-                    {
-                        "Direction": "1",
-                        "Name": "_openid"
-                    }
-                ],
-                "Name": "_openid_1",
-                "Size": 36864,
-                "Unique": false
-            }
-        ],
-        "RequestId": "1c71e3a6-c0ef-411c-819a-5321e3480800"
+        "RequestId": "ec5dde6a-6c21-4777-bf4a-99e1f910247e"
     }
 }
 ```
@@ -211,20 +133,10 @@ X-TC-Action: DescribeTable
 
 | 错误码 | 描述 |
 | --- | --- |
-| FailedOperation | 操作失败。 |
-| FailedOperation.ListTable | FailedOperation.ListTable |
-| FailedOperation.Timeout | FailedOperation.Timeout |
 | InternalError | 内部错误。 |
 | InvalidParameter | 参数错误。 |
-| InvalidParameterValue | 参数取值错误。 |
-| LimitExceeded | 超过配额限制。 |
-| LimitExceeded.NoValidConnection | LimitExceeded.NoValidConnection |
-| LimitExceeded.OutOfReadRequestQuota | LimitExceeded.OutOfReadRequestQuota |
-| ResourceNotFound | 资源不存在。 |
-| ResourceNotFound.Connector | 连接器未找到,请创建连接器或检查连接器参数是否正确 |
-| ResourceNotFound.Table | 表未找到,请创建表或检查表名参数是否正确 |
-| ResourceUnavailable.MongoIsolated | MongoDB集群已隔离,由于集群已被隔离写入被禁止,请跳转MongoDB控制台查看详情 |
-| ResourceUnavailable.ResourceOverdue | 资源过期。 |
-| UnauthorizedOperation | 未授权操作。 |
+| MissingParameter | 缺少参数错误。 |
+| MissingParameter.Param | 缺少必要参数。 |
+| ResourceUnavailable | 资源不可用。 |
 
 目录

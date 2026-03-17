@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-03-13 02:04:41
+最近更新时间：2026-03-17 02:57:55
 
 -   微信扫一扫 
 -   QQ
@@ -34,6 +34,7 @@ _我的收藏_
 | [DestroyEnv](/document/api/876/42149) | 销毁环境 | 20 |
 | [CheckTcbService](/document/api/876/42154) | 检查是否开通Tcb服务 | 20 |
 | [CreateBillDeal](/document/api/876/128117) | 创建计费订单 | 20 |
+| [DescribeBillingInfo](/document/api/876/94390) | 获取计费相关信息 | 50 |
 | [DescribeEnvAccountCircle](/document/api/876/128119) | 查询环境当前计费周期 | 20 |
 | [DescribeBaasPackageList](/document/api/876/78167) | 获取新套餐 | 20 |
 | [DescribeStaticStore](/document/api/876/128129) | 查看静态托管资源信息 | 20 |
@@ -66,6 +67,7 @@ _我的收藏_
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
+| [DescribeCloudBaseRunServerVersion](/document/api/876/49739) | 查询云托管服务版本的详情 | 1000 |
 | [DescribeCloudBaseBuildService](/document/api/876/48345) | 获取云托管代码上传和下载url | 20 |
 
 ## 其他接口

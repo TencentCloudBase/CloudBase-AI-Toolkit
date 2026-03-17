@@ -2,7 +2,7 @@
 
 ## 开通 MySql
 
-最近更新时间：2026-03-13 02:04:37
+最近更新时间：2026-03-17 02:57:20
 
 -   微信扫一扫 
 -   QQ
@@ -18,9 +18,9 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-开通Mysql型数据库
+本接口（CreateMySQL）用于开通Mysql型数据库。
 
-开通后，可通过 [DescribeCreateMySQLResult](https://cloud.tencent.com/document/api/876/128185) 查询开通结果，Mysql开通成功后，可通过接口设置数据库账号相关功能包括但不限于【创建账号、删除账号、查询可授权权限列表、查询账号已有权限、修改主机、修改配置、修改账号库表权限】、集群操作相关【查询集群参数、修改集群参数】，连接设置相关【关闭外网、开通外网、查询集群信息】，备份回档相关【创建手动回档、删除手动回档、修改自动备份配置信息、查询备份文件列表、集群回档、查询任务列表、获取table列表、获取集群数据库列表、查询备份下载地址】，相关功能接口文档： [TDSQL-C MySQL API文档](https://cloud.tencent.com/document/product/1003/48106) ，可以通过 [RunSql](https://cloud.tencent.com/document/api/876/127880) 接口来执行 sql 命令，比如创建表格、插入数据、删除表格等 sql 命令
+开通后，可通过 [DescribeCreateMySQLResult](https://cloud.tencent.com/document/api/876/128185) 查询开通结果，Mysql开通成功后，可通过接口设置数据库账号相关功能包括但不限于【创建账号、删除账号、查询可授权权限列表、查询账号已有权限、修改主机、修改配置、修改账号库表权限】、集群操作相关【查询集群参数、修改集群参数】，连接设置相关【关闭外网、开通外网、查询集群信息】，备份回档相关【创建手动回档、删除手动回档、修改自动备份配置信息、查询备份文件列表、集群回档、查询任务列表、获取table列表、获取集群数据库列表、查询备份下载地址】，相关功能接口文档： [TDSQL-C MySQL API文档](https://cloud.tencent.com/document/product/1003/48106) ，可以通过 [RunSql](https://cloud.tencent.com/document/api/876/127880) 接口来执行 sql 命令，比如创建表格、插入数据、删除表格等 sql 命令。
 
 默认接口请求频率限制：20次/秒。
 

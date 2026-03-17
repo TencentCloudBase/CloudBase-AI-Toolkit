@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 查询文档型数据库表信息
+## 查询云托管服务版本的详情
 
-最近更新时间：2026-03-17 02:57:11
+最近更新时间：2026-03-17 02:57:13
 
 -   微信扫一扫 
 -   QQ
@@ -18,15 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-本接口（DescribeTable）用于查询文档型数据库表的相关信息，包括索引等信息。
+查询服务版本的详情，CPU和MEM 请使用CPUSize和MemSize
 
-接口入参中的 Tag 为文档型数据库的实例 Id，可以通过 [DescribeEnvs](https://cloud.tencent.com/document/api/876/34820) 接口返回的 EnvList\[0\].Databases\[0\].InstanceId 获取。
-
-默认接口请求频率限制：20次/秒。
+默认接口请求频率限制：1000次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeTable)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeCloudBaseRunServerVersion)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -36,85 +34,107 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeTable。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeCloudBaseRunServerVersion。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
-| Region | 是 | String | [公共参数](/document/api/876/34812) ，详见产品支持的 [地域列表](/document/api/876/34812#.E5.9C.B0.E5.9F.9F.E5.88.97.E8.A1.A8) 。 |
-| TableName | 是 | String | 表名  
-示例值：demo\_users |
-| Tag | 否 | String | FlecDB实例ID  
-示例值：tnt-xxx |
-| EnvId | 否 | String | 云开发环境ID  
-示例值：lowcode-abc |
-| MongoConnector | 否 | [MongoConnector](/document/api/876/34822#MongoConnector) | MongoDB连接器配置 |
+| Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
+| EnvId | 是 | String | 环境ID  
+示例值：env-98772234 |
+| ServerName | 是 | String | 服务名称  
+示例值：sv |
+| VersionName | 是 | String | 版本名称  
+示例值：sv-001 |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| Indexes | Array of [IndexInfo](/document/api/876/34822#IndexInfo) | 索引相关信息 |
-| IndexNum | Integer | 索引个数  
+| VersionName | String | 版本名称  
+示例值：sv-001 |
+| Remark | String | 备注  
+示例值：remark |
+| DockerfilePath | String | Dockerfile的路径  
+示例值：Dockerfile |
+| BuildDir | String | DockerBuild的目录  
+示例值：. |
+| Cpu | Float | 请使用CPUSize  
+示例值：1.0 |
+| Mem | Float | 请使用MemSize  
+示例值：2.0 |
+| MinNum | Integer | 副本最小值  
 示例值：1 |
+| MaxNum | Integer | 副本最大值  
+示例值：50 |
+| PolicyType | String | 策略类型  
+示例值：Dockerfile |
+| PolicyThreshold | Float | 策略阈值  
+示例值：60.0 |
+| EnvParams | String | 环境变量  
+示例值：key=value |
+| CreatedTime | String | 创建时间  
+示例值：2024-12-01 12:00:00 |
+| UpdatedTime | String | 更新时间  
+示例值：2024-12-01 12:00:00 |
+| VersionIP | String | 版本的IP  
+示例值：127.0.0.1 |
+| VersionPort | Integer | 版本的端口号  
+示例值：80 |
+| Status | String | 版本状态  
+示例值：normal |
+| PackageName | String | 代码包的名字  
+示例值：package |
+| PackageVersion | String | 代码版本的名字  
+示例值：134sd |
+| UploadType | String | 枚举（package/repository/image)  
+示例值：package |
+| RepoType | String | Repo的类型(gitlab/github/coding)  
+示例值：gitlab |
+| Repo | String | 地址  
+示例值：adress |
+| Branch | String | 分支  
+示例值：master |
+| ServerName | String | 服务名字  
+示例值：version |
+| IsPublic | Boolean | 是否对于外网开放  
+示例值：false |
+| VpcId | String | vpc id  
+示例值：vpc-sdfsdf |
+| SubnetIds | Array of String | 子网实例id  
+注意：此字段可能返回 null，表示取不到有效值。  
+示例值：\["subnet-sdfsdf"\] |
+| CustomLogs | String | 日志采集路径  
+示例值：stdout |
+| ContainerPort | Integer | 监听端口  
+示例值：80 |
+| InitialDelaySeconds | Integer | 延迟多长时间开始健康检查（单位s）  
+示例值：80 |
+| ImageUrl | String | 镜像地址  
+示例值：url |
+| CpuSize | Float | CPU 大小  
+示例值：2.0 |
+| MemSize | Float | MEM 大小  
+示例值：4.0 |
+| HasDockerfile | Integer | 是否有Dockerfile：0-default has, 1-has, 2-has not  
+示例值：0 |
+| BaseImage | String | 基础镜像  
+示例值：JDK7 |
+| EntryPoint | String | 容器启动入口命令  
+示例值：java -jar app.jar |
+| RepoLanguage | String | 仓库语言  
+示例值：Java |
+| PolicyDetail | Array of [HpaPolicy](/document/api/876/34822#HpaPolicy) | 自动扩缩容策略组  
+注意：此字段可能返回 null，表示取不到有效值。 |
+| TkeClusterInfo | [TkeClusterInfo](/document/api/876/34822#TkeClusterInfo) | Tke集群信息  
+注意：此字段可能返回 null，表示取不到有效值。  
+示例值：cluster-sddff |
+| TkeWorkloadType | String | 版本工作负载类型；deployment/deamonset  
+示例值：deployment |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 查询表信息
+### 示例1 示例
 
-#### 输入示例
-
-```
-https://tcb.tencentcloudapi.com/?Action=DescribeTable
-&TableName=adisa
-&Tag=tnt-a5a7a8aeu
-&<公共请求参数>
-```
-
-#### 输出示例
-
-```json
-{
-    "Response": {
-        "Indexes": [
-            {
-                "Name": "example-index-0",
-                "Size": 16384,
-                "Unique": false,
-                "Keys": [
-                    {
-                        "Name": "key0",
-                        "Direction": "1"
-                    }
-                ],
-                "Accesses": {
-                    "Ops": 0,
-                    "Since": "2019-03-05T19:47:53.797+08:00"
-                }
-            },
-            {
-                "Name": "_id_",
-                "Size": 36864,
-                "Unique": true,
-                "Keys": [
-                    {
-                        "Name": "_id",
-                        "Direction": "1"
-                    }
-                ],
-                "Accesses": {
-                    "Ops": 0,
-                    "Since": "2019-02-28T11:46:20.919+08:00"
-                }
-            }
-        ],
-        "IndexNum": 2,
-        "RequestId": "b9872df9-b00e-497d-9fdd-33338f0f64b4"
-    }
-}
-```
-
-### 示例2 查询表信息-使用MongoDB连接器
-
-查询连接器内的表信息
+查询版本信息
 
 #### 输入示例
 
@@ -122,16 +142,13 @@ https://tcb.tencentcloudapi.com/?Action=DescribeTable
 POST / HTTP/1.1
 Host: tcb.tencentcloudapi.com
 Content-Type: application/json
-X-TC-Action: DescribeTable
+X-TC-Action: DescribeCloudBaseRunServerVersion
 <公共请求参数>
 
 {
-    "TableName": "luke_test",
-    "EnvId": "lowcode-1g1ac0pjd4eca700",
-    "MongoConnector": {
-        "InstanceId": "luke_test2",
-        "DatabaseName": "adise"
-    }
+    "EnvId": "env-sdfd",
+    "ServerName": "server",
+    "VersionName": "ver"
 }
 ```
 
@@ -140,40 +157,57 @@ X-TC-Action: DescribeTable
 ```json
 {
     "Response": {
-        "IndexNum": 2,
-        "Indexes": [
+        "VersionName": "",
+        "Remark": "",
+        "DockerfilePath": "",
+        "BuildDir": "",
+        "Cpu": 0,
+        "Mem": 0,
+        "MinNum": 0,
+        "MaxNum": 0,
+        "PolicyType": "",
+        "PolicyThreshold": 0,
+        "EnvParams": "",
+        "CreatedTime": "",
+        "UpdatedTime": "",
+        "VersionIP": "",
+        "VersionPort": 0,
+        "Status": "",
+        "PackageName": "",
+        "PackageVersion": "",
+        "UploadType": "",
+        "RepoType": "",
+        "Repo": "",
+        "Branch": "",
+        "ServerName": "",
+        "IsPublic": true,
+        "VpcId": "",
+        "SubnetIds": [
+            ""
+        ],
+        "CustomLogs": "",
+        "ContainerPort": 0,
+        "InitialDelaySeconds": 0,
+        "ImageUrl": "",
+        "CpuSize": 0,
+        "MemSize": 0,
+        "HasDockerfile": 0,
+        "BaseImage": "",
+        "EntryPoint": "",
+        "RepoLanguage": "",
+        "PolicyDetail": [
             {
-                "Accesses": {
-                    "Ops": 0,
-                    "Since": "2025-12-09T16:37:19.051+08:00"
-                },
-                "Keys": [
-                    {
-                        "Direction": "1",
-                        "Name": "_id"
-                    }
-                ],
-                "Name": "_id_",
-                "Size": 36864,
-                "Unique": false
-            },
-            {
-                "Accesses": {
-                    "Ops": 2,
-                    "Since": "2025-12-09T16:37:19.083+08:00"
-                },
-                "Keys": [
-                    {
-                        "Direction": "1",
-                        "Name": "_openid"
-                    }
-                ],
-                "Name": "_openid_1",
-                "Size": 36864,
-                "Unique": false
+                "PolicyType": "",
+                "PolicyThreshold": 0
             }
         ],
-        "RequestId": "1c71e3a6-c0ef-411c-819a-5321e3480800"
+        "TkeClusterInfo": {
+            "ClusterId": "",
+            "VpcId": "",
+            "VersionClbSubnetId": ""
+        },
+        "TkeWorkloadType": "",
+        "RequestId": ""
     }
 }
 ```
@@ -212,19 +246,16 @@ X-TC-Action: DescribeTable
 | 错误码 | 描述 |
 | --- | --- |
 | FailedOperation | 操作失败。 |
-| FailedOperation.ListTable | FailedOperation.ListTable |
-| FailedOperation.Timeout | FailedOperation.Timeout |
 | InternalError | 内部错误。 |
 | InvalidParameter | 参数错误。 |
-| InvalidParameterValue | 参数取值错误。 |
-| LimitExceeded | 超过配额限制。 |
-| LimitExceeded.NoValidConnection | LimitExceeded.NoValidConnection |
-| LimitExceeded.OutOfReadRequestQuota | LimitExceeded.OutOfReadRequestQuota |
+| InvalidParameter.ServiceNotExist | 服务不存在。 |
+| LimitExceeded.ErrNamespaceMaxLimit | 命名空间超过配额。 |
+| LimitExceeded.ErrRepoMaxLimit | 镜像容器超过配额。 |
 | ResourceNotFound | 资源不存在。 |
-| ResourceNotFound.Connector | 连接器未找到,请创建连接器或检查连接器参数是否正确 |
-| ResourceNotFound.Table | 表未找到,请创建表或检查表名参数是否正确 |
-| ResourceUnavailable.MongoIsolated | MongoDB集群已隔离,由于集群已被隔离写入被禁止,请跳转MongoDB控制台查看详情 |
-| ResourceUnavailable.ResourceOverdue | 资源过期。 |
-| UnauthorizedOperation | 未授权操作。 |
+| ResourceNotFound.ServerNotFound | 请求的云托管服务未找到 |
+| ResourceNotFound.VersionNotFound | 请求参数中的云托管版本未找到 |
+| ResourceUnavailable.ResourceBanned | 资源被封禁 |
+| ResourceUnavailable.ResourceFrozen | 资源已冻结 |
+| ResourceUnavailable.ResourceIsolated | 资源已隔离 |
 
 目录

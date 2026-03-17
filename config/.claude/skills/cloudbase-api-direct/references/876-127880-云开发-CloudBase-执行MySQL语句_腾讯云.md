@@ -2,7 +2,7 @@
 
 ## 执行MySQL语句
 
-最近更新时间：2026-03-13 02:04:35
+最近更新时间：2026-03-17 02:57:17
 
 -   微信扫一扫 
 -   QQ
@@ -18,11 +18,11 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-执行MySQL语句
+本接口（RunSql）用于执行MySQL语句。
 
-该接口用来执行 MySql 语句，比如创建表格、插入数据、修改数据、删除字段、添加索引等可以通过sql 语句实现的都可以使用该接口
+该接口用来执行 MySql 语句，比如创建表格、插入数据、修改数据、删除字段、添加索引等可以通过sql 语句实现的都可以使用该接口。
 
-调用该接口前需要先查询Mysql是否开通，可通过 [DescribeCreateMySQLResult](https://cloud.tencent.com/document/api/876/128185) 查询，只有开通成功才能操作
+调用该接口前需要先查询Mysql是否开通，可通过 [DescribeCreateMySQLResult](https://cloud.tencent.com/document/api/876/128185) 查询，只有开通成功才能操作。
 
 默认接口请求频率限制：20次/秒。
 
