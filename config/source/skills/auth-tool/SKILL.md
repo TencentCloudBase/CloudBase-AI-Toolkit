@@ -15,72 +15,54 @@ Configure CloudBase authentication providers: Anonymous, Username/Password, SMS,
 
 ## Authentication Scenarios
 
-### 1. Get Login Strategy
+## Capability Boundary
 
-Query current login configuration:
+- Do **not** assume `lowcode/DescribeLoginStrategy` and `lowcode/ModifyLoginStrategy` are callable through MCP. In evaluate and hosted environments these actions can be unavailable or intentionally blocked.
+- For login methods backed by provider management, prefer `tcb/GetProviders` and `tcb/ModifyProvider`.
+- If a login toggle is not exposed through current MCP tools or Cloud APIs, say so explicitly and guide the user to the CloudBase console instead of guessing alternative actions.
+
+### 1. Inspect Provider Configuration
+
+Query current provider configuration:
 ```js
 {
     "params": { "EnvId": `env` },
-    "service": "lowcode",
-    "action": "DescribeLoginStrategy"
+    "service": "tcb",
+    "action": "GetProviders"
 }
 ```
-Returns `LoginStrategy` object or `false` if not configured.
+Use this to inspect provider-backed login methods such as email, WeChat Open Platform, Google, and other third-party providers.
 
 ---
 
 ### 2. Anonymous Login
 
-1. Get `LoginStrategy` (see Scenario 1)
-2. Set `LoginStrategy.AnonymousLogin = true` (on) or `false` (off)
-3. Update:
-```js
-{
-    "params": { "EnvId": `env`, ...LoginStrategy },
-    "service": "lowcode",
-    "action": "ModifyLoginStrategy"
-}
-```
+Anonymous login enable/disable is **not guaranteed to be exposed through MCP** in all environments.
+
+- First check whether the current MCP environment exposes a documented auth-management action for anonymous login.
+- If not exposed, direct the user to CloudBase console login management page instead of guessing hidden `lowcode` actions.
+- Console fallback: `https://tcb.cloud.tencent.com/dev?envId={env}#/identity/login-manage`
 
 ---
 
 ### 3. Username/Password Login
 
-1. Get `LoginStrategy` (see Scenario 1)
-2. Set `LoginStrategy.UserNameLogin = true` (on) or `false` (off)
-3. Update:
-```js
-{
-    "params": { "EnvId": `env`, ...LoginStrategy },
-    "service": "lowcode",
-    "action": "ModifyLoginStrategy"
-}
-```
+Username/password login enable/disable is **not currently documented as a stable MCP-callable Cloud API path**.
+
+- Do **not** call `lowcode/DescribeLoginStrategy` or `lowcode/ModifyLoginStrategy` as a default solution.
+- If the user needs username/password login enabled and no explicit MCP tool is available, direct them to CloudBase console login management page.
+- Console fallback: `https://tcb.cloud.tencent.com/dev?envId={env}#/identity/login-manage`
+- After console-side enablement, frontend usage can still follow the `auth-web` skill's password login examples.
 
 ---
 
 ### 4. SMS Login
 
-1. Get `LoginStrategy` (see Scenario 1)
-2. Modify:
-   - **Turn on**: `LoginStrategy.PhoneNumberLogin = true`
-   - **Turn off**: `LoginStrategy.PhoneNumberLogin = false`
-   - **Config** (optional):
-     ```js
-     LoginStrategy.SmsVerificationConfig = {
-         Type: 'default',      // 'default' or 'apis'
-         Method: 'methodName',
-         SmsDayLimit: 30       // -1 = unlimited
-     }
-     ```
-3. Update:
-```js
-{
-    "params": { "EnvId": `env`, ...LoginStrategy },
-    "service": "lowcode",
-    "action": "ModifyLoginStrategy"
-}
-```
+SMS login toggle and verification strategy are **not guaranteed to be exposed through the deprecated `LoginStrategy` actions**.
+
+- Prefer current documented MCP / provider-management paths if available.
+- If no explicit MCP action exists in the current environment, direct the user to CloudBase console login management page.
+- Console fallback: `https://tcb.cloud.tencent.com/dev?envId={env}#/identity/login-manage`
 
 ---
 
