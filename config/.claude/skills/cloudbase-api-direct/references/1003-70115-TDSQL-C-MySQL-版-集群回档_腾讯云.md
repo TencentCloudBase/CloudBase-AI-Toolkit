@@ -1,6 +1,6 @@
 ## 集群回档
 
-最近更新时间：2026-02-03 01:37:14
+最近更新时间：2026-03-18 01:38:33
 
 -   微信扫一扫 
 -   QQ
@@ -51,6 +51,8 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 | RollbackTables.N | 否 | Array of [RollbackTable](/document/api/1003/48097#RollbackTable) | 回档数据库表列表 |
 | RollbackMode | 否 | String | 按时间点回档模式，full: 普通; db: 快速; table: 极速 （默认是普通）  
 示例值：full |
+| VaultId | 否 | String | 保险箱id  
+示例值：vault-b5044c44-9e41-4c88-b75d-72a77ed8a759 |
 
 ## 3\. 输出参数
 

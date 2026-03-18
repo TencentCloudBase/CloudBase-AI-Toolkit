@@ -1,6 +1,6 @@
 ## 创建手动备份
 
-最近更新时间：2026-02-03 01:37:17
+最近更新时间：2026-03-18 01:38:36
 
 -   微信扫一扫 
 -   QQ
@@ -44,6 +44,7 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 | BackupTables.N | 否 | Array of [DatabaseTables](/document/api/1003/48097#DatabaseTables) | 备份的表, 只在 BackupType 为 logic 时有效 |
 | BackupName | 否 | String | 备注名  
 示例值：备份备注 |
+| Vaults.N | 否 | Array of [CreateBackupVaultItem](/document/api/1003/48097#CreateBackupVaultItem) | 投递到保险箱的信息 |
 
 ## 3\. 输出参数
 

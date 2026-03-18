@@ -2,7 +2,7 @@
 
 ## 搜索CLS日志
 
-最近更新时间：2026-03-12 02:04:35
+最近更新时间：2026-03-18 02:55:09
 
 -   微信扫一扫 
 -   QQ
@@ -43,7 +43,7 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 示例值：2026-02-04 10:34:44 |
 | EndTime | 是 | String | 查询结束时间条件  
 示例值：2026-02-04 11:34:44 |
-| QueryString | 是 | String | 查询语句，例如查询云函数：(src:app OR src:system) AND log:"START RequestId\*"， 查询云数据库：module:database，查询审批流：module:workflow，查询模型：module:model，查询用户权限：module:auth，以上仅为示例语句，实际使用时请根据具体日志内容进行调整，查询语句需严格遵循CLS（Cloud Log Service）语法规范 详细的语法规则请参考官方档：https://cloud.tencent.com/document/product/614/47044  
+| QueryString | 是 | String | 查询语句， 例如查询云函数：(src:app OR src:system) AND log:"START RequestId _"， 聚合云函数请求状态：_ | select request\_id, max(status\_code) as status where ((request\_id='44738f94-16dd-11f1-\*\*\*\*' AND retry\_num=0) AND retry\_num=0)) AND status\_code!=202 group by request\_id, retry\_num 查询云数据库\[文档型\]：module:database， 查询云数据库\[文档型\]事件：module:database AND eventType:(MongoSlowQuery)，MongoSlowQuery为文档型数据库慢查询事件 查询云数据库\[SQL型\]：module:rdb， 查询云数据库\[SQL型\]事件：module:rdb AND eventType:(MysqlFreeze OR MysqlRecover OR MysqlSlowQuery)，MysqlFreeze为mysql数据库冻结事件、MysqlRecover为mysql数据库恢复事件、MysqlSlowQuery为mysql数据库慢查询事件 查询审批流：module:workflow， 查询模型：module:model， 查询用户权限：module:auth， 查询大模型：module:llm AND logType:llm-tracelog 查询网关服务调用：logType:accesslog 查询应用发布/删除事件：module:app AND eventType:(AppProdPub OR AppProdDel)，AppProdPub为应用发布事件，AppProdDel为应用删除事件 以上仅为示例语句，实际使用时请根据具体日志内容进行调整，查询语句需严格遵循CLS（Cloud Log Service）语法规范 详细的语法规则请参考官方档：https://cloud.tencent.com/document/product/614/47044  
 示例值：module:database |
 | Limit | 是 | Integer | 单次要返回的日志条数，单次返回的最大条数为100  
 示例值：10 |
