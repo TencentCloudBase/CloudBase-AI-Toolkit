@@ -489,7 +489,7 @@ curl 'http://127.0.0.1:3000/v1/aibot/bots/${botId}/send-message' \\
 
 ### Web 调用
 \`\`\`html
-<script src="//static.cloudbase.net/cloudbase-js-sdk/2.9.0/cloudbase.full.js"></script>
+<script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
 <script>
 const app = cloudbase.init({ env: "your-env-id" });
 const auth = app.auth();
