@@ -1,6 +1,6 @@
 ## 查询备份文件列表
 
-最近更新时间：2026-02-03 01:37:16
+最近更新时间：2026-03-19 01:20:16
 
 -   微信扫一扫 
 -   QQ
@@ -67,6 +67,8 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 示例值：ap-beijing |
 | IsCrossRegionsBackup | 否 | String | 是否跨地域备份  
 示例值：yes |
+| BackupStatus.N | 否 | Array of String | 需要查询的状态  
+示例值：\["done"\] |
 
 ## 3\. 输出参数
 

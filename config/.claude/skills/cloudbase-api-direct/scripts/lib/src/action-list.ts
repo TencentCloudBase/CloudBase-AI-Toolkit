@@ -4,10 +4,11 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 57
+ * Action 数量: 67
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
+  'AddProvider',
   'BindCloudBaseAccessDomain',
   'BindCloudBaseGWDomain',
   'CheckTcbService',
@@ -15,6 +16,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'CreateBillDeal',
   'CreateCloudBaseGWAPI',
   'CreateEnv',
+  'CreateEnvResource',
   'CreateHostingDomain',
   'CreateMySQL',
   'CreateStaticStore',
@@ -23,11 +25,13 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DeleteAuthDomain',
   'DeleteCloudBaseGWAPI',
   'DeleteCloudBaseGWDomain',
+  'DeleteProvider',
   'DeleteTable',
   'DeleteUsers',
   'DescribeAuthDomains',
   'DescribeBaasPackageList',
   'DescribeBillingInfo',
+  'DescribeClient',
   'DescribeCloudBaseBuildService',
   'DescribeCloudBaseGWAPI',
   'DescribeCloudBaseGWService',
@@ -39,6 +43,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DescribeEnvLimit',
   'DescribeEnvs',
   'DescribeHostingDomainTask',
+  'DescribeLoginConfig',
   'DescribeMySQLClusterDetail',
   'DescribeMySQLTaskStatus',
   'DescribeQuotaData',
@@ -47,16 +52,21 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DescribeTable',
   'DescribeTables',
   'DescribeUserList',
+  'DescribeVmSpec',
   'DestroyEnv',
   'DestroyMySQL',
   'DestroyStaticStore',
   'EditAuthConfig',
+  'GetProviders',
   'ListTables',
+  'ModifyClient',
   'ModifyCloudBaseGWAPI',
   'ModifyClsTopic',
   'ModifyDatabaseACL',
   'ModifyEnv',
   'ModifyEnvPlan',
+  'ModifyLoginConfig',
+  'ModifyProvider',
   'ModifySafeRule',
   'ModifyUser',
   'ReinstateEnv',

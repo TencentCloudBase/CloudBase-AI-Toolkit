@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-03-18 02:55:52
+最近更新时间：2026-03-19 02:07:54
 
 -   微信扫一扫 
 -   QQ
@@ -23,8 +23,10 @@ _我的收藏_
 -   [服务操作相关接口](#.E6.9C.8D.E5.8A.A1.E6.93.8D.E4.BD.9C.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "服务操作相关接口")
 -   [文档型云数据库相关接口](#.E6.96.87.E6.A1.A3.E5.9E.8B.E4.BA.91.E6.95.B0.E6.8D.AE.E5.BA.93.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "文档型云数据库相关接口")
 -   [云开发接入相关接口](#.E4.BA.91.E5.BC.80.E5.8F.91.E6.8E.A5.E5.85.A5.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "云开发接入相关接口")
+-   [云服务器相关接口](#.E4.BA.91.E6.9C.8D.E5.8A.A1.E5.99.A8.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "云服务器相关接口")
 -   [搜索日志相关接口](#.E6.90.9C.E7.B4.A2.E6.97.A5.E5.BF.97.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "搜索日志相关接口")
 -   [SQL型云数据库相关接口](#SQL.E5.9E.8B.E4.BA.91.E6.95.B0.E6.8D.AE.E5.BA.93.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "SQL型云数据库相关接口")
+-   [登录配置相关接口](#.E7.99.BB.E5.BD.95.E9.85.8D.E7.BD.AE.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "登录配置相关接口")
 
 ## 环境相关接口
 
@@ -52,6 +54,7 @@ _我的收藏_
 | [DescribeHostingDomainTask](/document/api/876/57514) | 查询静态托管域名任务状态 | 20 |
 | [DescribeQuotaData](/document/api/876/42145) | 查询环境的配额使用量 | 2000 |
 | [ReinstateEnv](/document/api/876/42144) | 恢复环境，解除隔离状态 | 20 |
+| [CreateEnvResource](/document/api/876/129358) | 创建环境相关资源 | 20 |
 
 ## 用户权限相关接口
 
@@ -111,6 +114,12 @@ _我的收藏_
 | [BindCloudBaseGWDomain](/document/api/876/128125) | 绑定自定义域名 | 20 |
 | [BindCloudBaseAccessDomain](/document/api/876/128126) | 绑定云开发自定义域名 | 100 |
 
+## 云服务器相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [DescribeVmSpec](/document/api/876/129360) | 获取VM规格 | 20 |
+
 ## 搜索日志相关接口
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
@@ -127,6 +136,19 @@ _我的收藏_
 | [DescribeMySQLTaskStatus](/document/api/876/128183) | 销毁Mysql结果查询 | 20 |
 | [DestroyMySQL](/document/api/876/128182) | 销毁MySql | 20 |
 | [RunSql](/document/api/876/127880) | 执行MySQL语句 | 20 |
+
+## 登录配置相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [DescribeClient](/document/api/876/129355) | 查询应用客户端详情 | 20 |
+| [ModifyLoginConfig](/document/api/876/129351) | 修改登录策略 | 20 |
+| [DescribeLoginConfig](/document/api/876/129354) | 获取登录策略 | 20 |
+| [ModifyClient](/document/api/876/129352) | 修改应用客户端 | 20 |
+| [GetProviders](/document/api/876/129353) | 获取三方认证源列表 | 20 |
+| [ModifyProvider](/document/api/876/129350) | 修改第三方认证源 | 20 |
+| [DeleteProvider](/document/api/876/129356) | 删除第三方认证源 | 20 |
+| [AddProvider](/document/api/876/129357) | 添加第三方认证源 | 20 |
 
 > 注意：
 > 

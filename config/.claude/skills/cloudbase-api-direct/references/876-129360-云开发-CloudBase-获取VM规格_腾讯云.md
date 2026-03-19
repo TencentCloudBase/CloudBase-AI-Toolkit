@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 绑定自定义域名
+## 获取VM规格
 
-最近更新时间：2026-03-19 02:07:25
+最近更新时间：2026-03-19 02:07:47
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-绑定自定义域名
+云服务器规格list
 
 默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=BindCloudBaseGWDomain)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeVmSpec)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,34 +34,36 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：BindCloudBaseGWDomain。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeVmSpec。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| ServiceId | 是 | String | 服务ID |
-| Domain | 是 | String | 服务域名 |
-| CertId | 否 | String | 证书ID |
-| EnableRegion | 否 | Boolean | 是否启用多地域 |
+| Type | 否 | String | 类型：  
+LightHouse = 轻量云服务器  
+CVM = 云服务器  
+示例值：LightHouse |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
+| SpecList | Array of [VMSpec](/document/api/876/34822#VMSpec) | 规格列表 |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 云接入绑定自定义域名
-
-云接入绑定自定义域名
+### 示例1 查询LightHouse规格
 
 #### 输入示例
 
 ```
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: DescribeVmSpec
+<公共请求参数>
+
 {
-  "ServiceId": "xx",
-  "Domain": "xx",
-  "CertId": "xx",
-  "EnableRegion": true
+    "Type": "LightHouse"
 }
 ```
 
@@ -70,7 +72,24 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 ```json
 {
     "Response": {
-        "RequestId": "xx"
+        "SpecList": [
+            {
+                "LightHouseSpec": {
+                    "BundleConfig": "{\"BundleId\":\"bundle_starter_mc_med2_01\",\"Memory\":2,\"SystemDiskType\":\"CLOUD_SSD\",\"SystemDiskSize\":40,\"MonthlyTraffic\":200,\"SupportLinuxUnixPlatform\":true,\"SupportWindowsPlatform\":true,\"Price\":{\"InstancePrice\":{\"OriginalBundlePrice\":40,\"OriginalPrice\":40,\"Discount\":100,\"DiscountPrice\":40,\"Currency\":\"CNY\"}},\"CPU\":2,\"InternetMaxBandwidthOut\":3,\"InternetChargeType\":\"TRAFFIC_POSTPAID_BY_HOUR\",\"BundleSalesState\":\"AVAILABLE\",\"BundleType\":\"STARTER_BUNDLE\",\"BundleTypeDescription\":\"入门型\",\"BundleTypePriority\":20,\"BundleDisplayLabel\":\"NORMAL\",\"TrafficUnlimited\":false,\"BandwidthType\":\"BANDWIDTH\"}",
+                    "BundleId": "bundle_starter_mc_med2_01"
+                },
+                "Price": {
+                    "Currency": "CNY",
+                    "Discount": 100,
+                    "DiscountCredits": 1333.3334,
+                    "DiscountPrice": 40,
+                    "OriginalCredits": 1333.3334,
+                    "OriginalPrice": 40
+                },
+                "Type": "LightHouse"
+            }
+        ],
+        "RequestId": "435b540b-3677-4960-9f5c-3960f0d837c5"
     }
 }
 ```
@@ -104,19 +123,6 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 ## 6\. 错误码
 
-以下仅列出了接口业务逻辑相关的错误码，其他错误码详见 [公共错误码](/document/api/876/34823#.E5.85.AC.E5.85.B1.E9.94.99.E8.AF.AF.E7.A0.81) 。
-
-| 错误码 | 描述 |
-| --- | --- |
-| InternalError.SystemFail | 系统失败。 |
-| InvalidParameter | 参数错误。 |
-| InvalidParameter.APINoExist | API不存在。 |
-| InvalidParameter.CNAMENotMatch | 域名cname不正确。 |
-| InvalidParameter.DomainExist | 域名已经绑定。 |
-| InvalidParameter.DomainNotExist | 域名不存在。 |
-| InvalidParameter.ExclusiveCert | 独占证书。 |
-| InvalidParameter.ServiceEvil | 没有操作权限。 |
-| InvalidParameter.ServiceICP | 域名没有备案。 |
-| InvalidParameter.ServiceThreshold | Domain超上限了。 |
+该接口暂无业务逻辑相关的错误码，其他错误码详见 [公共错误码](/document/api/876/34823#.E5.85.AC.E5.85.B1.E9.94.99.E8.AF.AF.E7.A0.81) 。
 
 目录

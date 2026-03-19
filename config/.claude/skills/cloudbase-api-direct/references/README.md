@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-03-18T04:20:42.151Z
+爬取时间: 2026-03-19T04:19:22.961Z
 
 ## 文档列表
 
@@ -28,6 +28,7 @@
 - [云开发 CloudBase 查询静态托管域名任务状态_腾讯云](./876-57514-云开发-CloudBase-查询静态托管域名任务状态_腾讯云.md)
 - [云开发 CloudBase 查询环境的配额使用量_腾讯云](./876-42145-云开发-CloudBase-查询环境的配额使用量_腾讯云.md)
 - [云开发 CloudBase 恢复环境，解除隔离状态_腾讯云](./876-42144-云开发-CloudBase-恢复环境-解除隔离状态_腾讯云.md)
+- [云开发 CloudBase 创建环境相关资源_腾讯云](./876-129358-云开发-CloudBase-创建环境相关资源_腾讯云.md)
 - [云开发 CloudBase 删除tcb用户_腾讯云](./876-127960-云开发-CloudBase-删除tcb用户_腾讯云.md)
 - [云开发 CloudBase 创建tcb用户_腾讯云](./876-127961-云开发-CloudBase-创建tcb用户_腾讯云.md)
 - [云开发 CloudBase 查询tcb用户列表_腾讯云](./876-127959-云开发-CloudBase-查询tcb用户列表_腾讯云.md)
@@ -56,6 +57,7 @@
 - [云开发 CloudBase 删除网关域名_腾讯云](./876-128122-云开发-CloudBase-删除网关域名_腾讯云.md)
 - [云开发 CloudBase 绑定自定义域名_腾讯云](./876-128125-云开发-CloudBase-绑定自定义域名_腾讯云.md)
 - [云开发 CloudBase 绑定云开发自定义域名_腾讯云](./876-128126-云开发-CloudBase-绑定云开发自定义域名_腾讯云.md)
+- [云开发 CloudBase 获取VM规格_腾讯云](./876-129360-云开发-CloudBase-获取VM规格_腾讯云.md)
 - [云开发 CloudBase 搜索CLS日志_腾讯云](./876-128127-云开发-CloudBase-搜索CLS日志_腾讯云.md)
 - [云开发 CloudBase 开通 MySql_腾讯云](./876-128186-云开发-CloudBase-开通-MySql_腾讯云.md)
 - [云开发 CloudBase 开通 MySql 结果查询_腾讯云](./876-128185-云开发-CloudBase-开通-MySql-结果查询_腾讯云.md)
@@ -63,6 +65,14 @@
 - [云开发 CloudBase 销毁Mysql结果查询_腾讯云](./876-128183-云开发-CloudBase-销毁Mysql结果查询_腾讯云.md)
 - [云开发 CloudBase 销毁MySql_腾讯云](./876-128182-云开发-CloudBase-销毁MySql_腾讯云.md)
 - [云开发 CloudBase 执行MySQL语句_腾讯云](./876-127880-云开发-CloudBase-执行MySQL语句_腾讯云.md)
+- [云开发 CloudBase 查询应用客户端详情_腾讯云](./876-129355-云开发-CloudBase-查询应用客户端详情_腾讯云.md)
+- [云开发 CloudBase 修改登录策略_腾讯云](./876-129351-云开发-CloudBase-修改登录策略_腾讯云.md)
+- [云开发 CloudBase 获取登录策略_腾讯云](./876-129354-云开发-CloudBase-获取登录策略_腾讯云.md)
+- [云开发 CloudBase 修改应用客户端_腾讯云](./876-129352-云开发-CloudBase-修改应用客户端_腾讯云.md)
+- [云开发 CloudBase 获取三方认证源列表_腾讯云](./876-129353-云开发-CloudBase-获取三方认证源列表_腾讯云.md)
+- [云开发 CloudBase 修改第三方认证源_腾讯云](./876-129350-云开发-CloudBase-修改第三方认证源_腾讯云.md)
+- [云开发 CloudBase 删除第三方认证源_腾讯云](./876-129356-云开发-CloudBase-删除第三方认证源_腾讯云.md)
+- [云开发 CloudBase 添加第三方认证源_腾讯云](./876-129357-云开发-CloudBase-添加第三方认证源_腾讯云.md)
 - [TDSQL-C MySQL 版 创建用户账号_腾讯云](./1003-71660-TDSQL-C-MySQL-版-创建用户账号_腾讯云.md)
 - [TDSQL-C MySQL 版 删除用户账号_腾讯云](./1003-92718-TDSQL-C-MySQL-版-删除用户账号_腾讯云.md)
 - [TDSQL-C MySQL 版 查询账号所有可授予权限_腾讯云](./1003-70114-TDSQL-C-MySQL-版-查询账号所有可授予权限_腾讯云.md)
