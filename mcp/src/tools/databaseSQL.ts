@@ -61,6 +61,9 @@ type InstanceInfoResult = {
   schema: string;
   rawStatus: string | null;
   status: SqlLifecycleStatus;
+  clusterId?: string;
+  clusterDetail?: Record<string, unknown>;
+  createResult?: Record<string, unknown>;
 };
 
 type QuerySqlDatabaseArgs = {
@@ -215,8 +218,42 @@ function pickLifecycleSource(result: Record<string, unknown>) {
   );
 }
 
+function pickDataPayload(result: Record<string, unknown>) {
+  const data = result.Data;
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return undefined;
+  }
+
+  return data as Record<string, unknown>;
+}
+
 function pickProgress(result: Record<string, unknown>) {
   return result.Progress ?? result.Percent ?? result.Schedule ?? undefined;
+}
+
+function pickClusterDetail(result: Record<string, unknown>) {
+  const candidate =
+    result.ClusterDetail ??
+    (result.Data as Record<string, unknown> | undefined)?.ClusterDetail;
+
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+    return undefined;
+  }
+
+  return candidate as Record<string, unknown>;
+}
+
+function extractErrorCode(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return undefined;
+  }
+
+  const maybeCode =
+    (error as Record<string, unknown>).code ??
+    (error as Record<string, unknown>).Code ??
+    (error as Record<string, unknown>).errorCode;
+
+  return typeof maybeCode === "string" ? maybeCode : undefined;
 }
 
 function normalizeLifecycleStatus(
@@ -305,26 +342,90 @@ async function getSqlInstanceInfo({
 }: QueryManageContext): Promise<InstanceInfoResult> {
   const cloudbase = await getManager();
   const envId = await getEnvId(cloudBaseOptions);
-  const result = await cloudbase.env.getEnvInfo();
-  logCloudBaseResult(server.logger, result);
+  const createResult = await callSqlControlPlane(cloudbase, "DescribeCreateMySQLResult", {
+    EnvId: envId,
+  });
+  logCloudBaseResult(server.logger, createResult);
 
-  const envInfo = result?.EnvInfo;
-  const database = envInfo?.Databases?.[0];
-  const instanceId = database?.InstanceId || "default";
-  const rawStatus = typeof database?.Status === "string" ? database.Status : null;
-  const exists = Boolean(database?.InstanceId);
+  const createData = pickDataPayload(createResult);
+  const createRawStatus = createData?.Status ?? pickLifecycleSource(createResult);
+  const createStatus = normalizeLifecycleStatus(createRawStatus, {
+    hasInstance: false,
+  });
 
-  return {
-    exists,
-    envId,
-    instanceId,
-    schema: envId,
-    rawStatus,
-    status: normalizeLifecycleStatus(rawStatus, {
-      hasInstance: exists,
-      defaultIfPresent: "READY",
-    }),
-  };
+  if (createStatus === "NOT_CREATED") {
+    return {
+      exists: false,
+      envId,
+      instanceId: "default",
+      schema: envId,
+      rawStatus:
+        typeof createRawStatus === "string" ? createRawStatus : null,
+      status: "NOT_CREATED",
+      createResult: createData ?? createResult,
+    };
+  }
+
+  try {
+    const clusterResult = await callSqlControlPlane(
+      cloudbase,
+      "DescribeMySQLClusterDetail",
+      {
+        EnvId: envId,
+      },
+    );
+    logCloudBaseResult(server.logger, clusterResult);
+
+    const clusterDetail = pickClusterDetail(clusterResult);
+    const clusterId =
+      typeof clusterDetail?.ClusterId === "string"
+        ? clusterDetail.ClusterId
+        : undefined;
+    const instanceId =
+      typeof clusterDetail?.InstanceId === "string"
+        ? clusterDetail.InstanceId
+        : clusterId || "default";
+    const rawStatusSource =
+      clusterDetail?.ClusterStatus ??
+      clusterDetail?.Status ??
+      pickLifecycleSource(clusterResult) ??
+      createRawStatus;
+    const rawStatus =
+      typeof rawStatusSource === "string" ? rawStatusSource : null;
+
+    return {
+      exists: true,
+      envId,
+      instanceId,
+      schema: envId,
+      rawStatus,
+      status: normalizeLifecycleStatus(rawStatusSource, {
+        hasInstance: true,
+        defaultIfPresent: "READY",
+      }),
+      clusterId,
+      clusterDetail,
+      createResult: createData ?? createResult,
+    };
+  } catch (error) {
+    const errorCode = extractErrorCode(error);
+    const isNotFound = errorCode === "FailedOperation.DataSourceNotExist";
+
+    if (!isNotFound) {
+      throw error;
+    }
+
+    return {
+      exists: createStatus === "PENDING" || createStatus === "RUNNING",
+      envId,
+      instanceId: "default",
+      schema: envId,
+      rawStatus:
+        typeof createRawStatus === "string" ? createRawStatus : null,
+      status: createStatus,
+      createResult: createData ?? createResult,
+    };
+  }
 }
 
 function buildProvisionNextActions(
@@ -431,7 +532,8 @@ async function handleDescribeCreateResult(
   });
   logCloudBaseResult(context.server.logger, result);
 
-  const rawStatus = pickLifecycleSource(result);
+  const createData = pickDataPayload(result);
+  const rawStatus = createData?.Status ?? pickLifecycleSource(result);
   const status = normalizeLifecycleStatus(rawStatus);
   return buildSqlToolResult({
     success: status !== "FAILED",
@@ -439,9 +541,11 @@ async function handleDescribeCreateResult(
     data: {
       status,
       rawStatus,
+      createResult: createData ?? result,
       instance: {
         envId,
         instanceId:
+          (createData?.InstanceId as string | undefined) ||
           (result.InstanceId as string | undefined) ||
           (request.InstanceId as string | undefined) ||
           "default",
@@ -547,7 +651,11 @@ async function handleProvisionMySQL(
   }
 
   const existing = await getSqlInstanceInfo(context);
-  if (existing.exists) {
+  if (
+    existing.status === "READY" ||
+    existing.status === "PENDING" ||
+    existing.status === "RUNNING"
+  ) {
     return buildSqlToolResult({
       success: true,
       data: existing,

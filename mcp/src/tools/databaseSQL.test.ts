@@ -119,10 +119,16 @@ describe("SQL database tools", () => {
   });
 
   it("querySqlDatabase(getInstanceInfo) suggests provisioning when instance is missing", async () => {
-    mockGetEnvInfo.mockResolvedValue({
-      EnvInfo: {
-        Databases: [],
-      },
+    mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+      if (Action === "DescribeCreateMySQLResult") {
+        return {
+          RequestId: "req-create",
+          Status: "NOT_FOUND",
+        };
+      }
+      throw Object.assign(new Error("not found"), {
+        code: "FailedOperation.DataSourceNotExist",
+      });
     });
 
     const { tools } = createMockServer();
@@ -145,15 +151,21 @@ describe("SQL database tools", () => {
   });
 
   it("manageSqlDatabase(initializeSchema) blocks when MySQL is not ready", async () => {
-    mockGetEnvInfo.mockResolvedValue({
-      EnvInfo: {
-        Databases: [
-          {
-            InstanceId: "default",
-            Status: "PENDING",
-          },
-        ],
-      },
+    mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+      if (Action === "DescribeCreateMySQLResult") {
+        return {
+          RequestId: "req-create",
+          Status: "PENDING",
+        };
+      }
+      if (Action === "DescribeMySQLClusterDetail") {
+        throw Object.assign(new Error("cluster not ready"), {
+          code: "FailedOperation.DataSourceNotExist",
+        });
+      }
+      return {
+        RequestId: "req-1",
+      };
     });
 
     const { tools } = createMockServer();
@@ -166,6 +178,44 @@ describe("SQL database tools", () => {
     expect(payload).toMatchObject({
       success: false,
       errorCode: "MYSQL_NOT_READY",
+    });
+  });
+
+  it("querySqlDatabase(getInstanceInfo) uses cluster detail after create result succeeds", async () => {
+    mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+      if (Action === "DescribeCreateMySQLResult") {
+        return {
+          RequestId: "req-create",
+          Status: "SUCCESS",
+        };
+      }
+      if (Action === "DescribeMySQLClusterDetail") {
+        return {
+          RequestId: "req-cluster",
+          ClusterDetail: {
+            ClusterId: "cluster-1",
+            ClusterStatus: "RUNNING",
+          },
+        };
+      }
+      return {
+        RequestId: "req-1",
+      };
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.querySqlDatabase.handler({
+      action: "getInstanceInfo",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        exists: true,
+        clusterId: "cluster-1",
+        status: "READY",
+      },
     });
   });
 });
