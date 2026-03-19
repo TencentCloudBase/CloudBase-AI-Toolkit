@@ -234,10 +234,10 @@ classDiagram
 4. **Only when you need to update existing data model structure AND want visual ER diagrams**
 
 ### When to SKIP this tool (Most Cases)
-- Simple table creation → Use `executeWriteSQL` with CREATE TABLE
-- Schema changes → Use `executeWriteSQL` with ALTER TABLE
+- Simple table creation → Use `manageSqlDatabase(action="runStatement")` with CREATE TABLE
+- Schema changes → Use `manageSqlDatabase(action="runStatement")` with ALTER TABLE
 - Basic CRUD → Use appropriate SQL statements directly
-- Data queries → Use `executeReadOnlySQL`
+- Data queries → Use `querySqlDatabase(action="runQuery")`
 
 ### Parameter Usage Guide
 - `mermaidDiagram`: Complete mermaid classDiagram code
@@ -330,4 +330,3 @@ classDiagram
 ```
 
 These rules will guide AI Agents to generate high-quality, business-requirement-compliant data models during the data modeling process.
-
