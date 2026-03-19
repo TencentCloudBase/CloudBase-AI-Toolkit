@@ -24,12 +24,19 @@ This document supplements `SKILL.md` with practical **WeChat Mini Program + Clou
 4. **Use CloudBase MCP via mcporter (CLI) when IDE MCP is not available**
    - You do **not** need to hard-code Secret ID / Secret Key / Env ID in config.
    - CloudBase MCP supports device-code login via the `auth` tool, so credentials can be obtained interactively.
-   - Add CloudBase MCP server:
-     ```bash
-     npx mcporter config add cloudbase \
-       --command "npx" \
-       --arg "@cloudbase/cloudbase-mcp@latest" \
-       --description "CloudBase MCP"
+   - Add CloudBase MCP server in `config/mcporter.json`:
+     If other MCP servers already exist, keep them and only add the `cloudbase` entry.
+     ```json
+     {
+       "mcpServers": {
+         "cloudbase": {
+           "command": "npx",
+           "args": ["@cloudbase/cloudbase-mcp@latest"],
+           "description": "CloudBase MCP",
+           "lifecycle": "keep-alive"
+         }
+       }
+     }
      ```
    - Discover tools and schemas:
      - `npx mcporter list` — list configured servers
