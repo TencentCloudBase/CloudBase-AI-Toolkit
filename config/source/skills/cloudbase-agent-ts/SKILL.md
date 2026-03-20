@@ -1,7 +1,7 @@
 ---
 name: cloudbase-agent-ts
 description: "Build and deploy AI agents with Cloudbase Agent (TypeScript), a TypeScript SDK implementing the AG-UI protocol. Use when: (1) deploying agent servers with @cloudbase/agent-server, (2) using LangGraph adapter with ClientStateAnnotation, (3) using LangChain adapter with clientTools(), (4) building custom adapters that implement AbstractAgent, (5) understanding AG-UI protocol events, (6) building web UI clients with @ag-ui/client, (7) building WeChat Mini Program UIs with @cloudbase/agent-ui-miniprogram."
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Cloudbase Agent (TypeScript)
@@ -36,7 +36,7 @@ Use this skill for **AI agent development** when you need to:
 2. **Deploy the agent server**
    - Use `@cloudbase/agent-server` to expose HTTP endpoints
    - Configure CORS, logging, and observability as needed
-   - Deploy to CloudRun or any Node.js hosting environment
+   - **Prefer deploying to CloudBase using `manageAgent` MCP tool** (see [agent-deployment](agent-deployment.md))
 
 3. **Build the UI client**
    - Use `@ag-ui/client` for web applications
@@ -49,6 +49,7 @@ Use this skill for **AI agent development** when you need to:
 
 | Task | Read |
 |------|------|
+| Deploy agent to CloudBase (**read this first**) | [agent-deployment](agent-deployment.md) |
 | Deploy agent server (@cloudbase/agent-server) | [server-quickstart](server-quickstart.md) |
 | Use LangGraph adapter | [adapter-langgraph](adapter-langgraph.md) |
 | Use LangChain adapter | [adapter-langchain](adapter-langchain.md) |
@@ -59,6 +60,18 @@ Use this skill for **AI agent development** when you need to:
 
 ## Quick Start
 
+**Prerequisites:** Node.js >= 20 is required.
+
+**1. Install dependencies:**
+
+```bash
+npm install @cloudbase/agent-server@latest @cloudbase/agent-adapter-langgraph@latest
+```
+
+**Critical:** Always use `@latest` for all `@cloudbase/agent-*` packages. Never use version ranges (e.g., `^1.0.0`) or specific versions (e.g., `1.0.0`), as these versions may not exist.
+
+**2. Create and run your agent:**
+
 ```typescript
 import { run } from "@cloudbase/agent-server";
 import { LanggraphAgent } from "@cloudbase/agent-adapter-langgraph";
@@ -68,3 +81,5 @@ run({
   port: 9000,
 });
 ```
+
+
