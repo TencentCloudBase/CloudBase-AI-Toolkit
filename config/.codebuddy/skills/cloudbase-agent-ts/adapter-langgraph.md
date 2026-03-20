@@ -5,8 +5,12 @@ Adapter that wraps a compiled LangGraph `StateGraph` workflow as an AG-UI compat
 ## Installation
 
 ```bash
-npm install @cloudbase/agent-adapter-langgraph @langchain/langgraph @langchain/openai
+npm install @cloudbase/agent-adapter-langgraph@latest @langchain/langgraph @langchain/openai
 ```
+
+**Important:** Always use `@latest` for `@cloudbase/agent-*` packages to get the newest stable releases. Do NOT specify version ranges like `^1.0.0` or exact versions like `1.0.0`, as the package versions may not follow semantic versioning expectations and such versions may not exist.
+
+For projects requiring version locking, install first with `@latest`, then commit `package-lock.json`.
 
 ## Exports
 

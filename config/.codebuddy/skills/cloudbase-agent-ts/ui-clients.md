@@ -7,7 +7,7 @@ Connect your UI to AG-UI endpoints served by @cloudbase/agent-server.
 Use `@ag-ui/client` (official AG-UI SDK):
 
 ```bash
-npm install @ag-ui/client
+npm install @ag-ui/client@latest
 ```
 
 ```typescript
@@ -31,7 +31,7 @@ See AG-UI documentation for full API: https://docs.ag-ui.com
 Use `@cloudbase/agent-ui-miniprogram` (headless behavior mixin):
 
 ```bash
-npm install @cloudbase/agent-ui-miniprogram
+npm install @cloudbase/agent-ui-miniprogram@latest
 ```
 
 ```typescript
