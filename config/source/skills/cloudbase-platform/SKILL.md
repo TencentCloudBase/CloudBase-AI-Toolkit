@@ -111,8 +111,8 @@ Use this skill for **CloudBase platform knowledge** when you need to:
 
 1. **Node.js Cloud Functions**:
    - Node.js cloud functions need to include `package.json`, declaring required dependencies
-   - Can use `createFunction` to create functions
-   - Use `updateFunctionCode` to deploy cloud functions
+   - Can use `manageFunctions(action="createFunction")` to create functions
+   - Use `manageFunctions(action="updateFunctionCode")` to deploy cloud functions
    - Prioritize cloud dependency installation, do not upload node_modules
    - `functionRootPath` refers to the parent directory of function directories, e.g., `cloudfunctions` directory
 

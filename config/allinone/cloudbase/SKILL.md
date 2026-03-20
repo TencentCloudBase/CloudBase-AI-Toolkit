@@ -28,36 +28,6 @@ cloudbase/
 ---
 
 
-## Activation Contract
-
-Read this section first. The routing contract uses stable skill identifiers such as `auth-tool`, `auth-web`, and `http-api`, so it works across source files, generated artifacts, and local installs.
-
-### Global rules before action
-
-- Identify the scenario first, then read the matching source skill before writing code or calling CloudBase APIs.
-- Prefer semantic sources when maintaining the toolkit, but express runtime routing in stable skill identifiers rather than repo-only paths. Do not treat generated, mirrored, or IDE-specific artifacts as the primary knowledge source.
-- Use MCP or mcporter first for CloudBase management tasks, and inspect tool schemas before execution.
-- If the task includes UI, read `ui-design` first and output the design specification before interface code.
-- If the task includes login, registration, or auth configuration, read `auth-tool` first and enable required providers before frontend implementation.
-
-### High-priority routing
-
-| Scenario | Read first | Then read | Do NOT route to first | Must check before action |
-|----------|------------|-----------|------------------------|--------------------------|
-| Web login / registration / auth UI | `auth-tool` | `auth-web`, `web-development` | `cloud-functions`, `http-api` | Provider status and publishable key |
-| WeChat mini program + CloudBase | `miniprogram-development` | `auth-wechat`, `no-sql-wx-mp-sdk` | `auth-web`, `web-development` | Whether the project really uses CloudBase / `wx.cloud` |
-| Native App / Flutter / React Native | `http-api` | `auth-tool`, `relational-database-tool` | `auth-web`, `web-development`, `no-sql-web-sdk` | SDK boundary, OpenAPI, auth method |
-| Cloud Functions | `cloud-functions` | domain skill as needed | `cloudrun-development` | Event vs HTTP function, runtime, `scf_bootstrap` |
-| CloudRun backend | `cloudrun-development` | domain skill as needed | `cloud-functions` | Container boundary, Dockerfile, CORS |
-| UI generation | `ui-design` | platform skill | backend-only skills | Design specification first |
-| Spec workflow / architecture design | `spec-workflow` | `cloudbase` and platform skill | direct implementation skills | Requirements, design, tasks confirmed |
-
-### Routing reminders
-
-- Web auth failures are usually caused by skipping provider configuration, not by missing frontend code snippets.
-- Native App failures are usually caused by reading Web SDK paths, not by missing HTTP API knowledge.
-- Mini program failures are usually caused by treating `wx.cloud` like Web auth or Web SDK.
-
 ## 💡 Recommended: MCP Installation
 
 **For enhanced CloudBase development experience, we recommend installing CloudBase MCP (Model Context Protocol).**
@@ -346,7 +316,8 @@ When users request deployment to CloudBase:
    - Determine if this is a new deployment or update to existing services
 
 1. **Backend Deployment (if applicable)**:
-   - Only for nodejs cloud functions: deploy directly using `createFunction` tools
+   - Only for nodejs cloud functions: deploy directly using `manageFunctions(action="createFunction")` / `manageFunctions(action="updateFunctionCode")`
+     - Legacy compatibility: if older materials mention `createFunction`, `updateFunctionCode`, or `getFunctionList`, map them to `manageFunctions(...)` and `queryFunctions(...)`
      - Criteria: function directory contains `index.js` with cloud function format export: `exports.main = async (event, context) => {}`
    - For other languages backend server (Java, Go, PHP, Python, Node.js): deploy to Cloud Run
    - Ensure backend code supports CORS by default

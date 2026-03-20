@@ -1,108 +1,280 @@
 import { z } from "zod";
-import {
-  getCloudBaseManager,
-  getEnvId,
-  logCloudBaseResult,
-} from "../cloudbase-manager.js";
+import { getCloudBaseManager, logCloudBaseResult } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
+
+const QUERY_GATEWAY_ACTIONS = [
+  "getAccess",
+  "listDomains",
+] as const;
+
+const MANAGE_GATEWAY_ACTIONS = [
+  "createAccess",
+] as const;
+
+type QueryGatewayAction = (typeof QUERY_GATEWAY_ACTIONS)[number];
+type ManageGatewayAction = (typeof MANAGE_GATEWAY_ACTIONS)[number];
+type GatewayTargetType = "function";
+
+type GatewayToolEnvelope = {
+  success: boolean;
+  data: Record<string, unknown>;
+  message: string;
+  nextActions?: Array<{
+    tool: string;
+    action: string;
+    reason: string;
+  }>;
+};
+
+type QueryGatewayInput = {
+  action: QueryGatewayAction;
+  targetType?: GatewayTargetType;
+  targetName?: string;
+};
+
+type ManageGatewayInput = {
+  action: ManageGatewayAction;
+  targetType: GatewayTargetType;
+  targetName: string;
+  path?: string;
+  type?: "Event" | "HTTP";
+  auth?: boolean;
+};
+
+function jsonContent(body: unknown) {
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify(body, null, 2),
+      },
+    ],
+  };
+}
+
+function normalizeAccessPath(path: string | undefined): string {
+  if (!path) {
+    return "/";
+  }
+
+  return path.startsWith("/") ? path : `/${path}`;
+}
 
 export function registerGatewayTools(server: ExtendedMcpServer) {
   const cloudBaseOptions = server.cloudBaseOptions;
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
 
-  server.registerTool?.(
-    "createFunctionHTTPAccess",
-    {
-      title: "创建云函数HTTP访问",
-      description: "创建云函数的 HTTP 访问，并返回可直接使用的访问地址提示",
-      inputSchema: {
-        name: z.string().describe("函数名"),
-        path: z.string().describe("HTTP 访问路径"),
-        type: z
-          .enum(["Event", "HTTP"])
-          .optional()
-          .describe(
-            "函数类型，Event 为事件型云函数（默认），HTTP 为 HTTP 云函数",
-          ),
-      },
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: true as const,
-        category: "gateway",
-      },
-    },
-    async ({
-      name,
-      path,
-      type,
-    }: {
-      name: string;
-      path: string;
-      type?: "Event" | "HTTP";
-    }) => {
-      const cloudbase = await getManager();
-      const normalizedPath = `/${path.trim().replace(/^\/+/, "")}`;
+  const buildEnvelope = (
+    data: Record<string, unknown>,
+    message: string,
+    nextActions?: GatewayToolEnvelope["nextActions"],
+  ): GatewayToolEnvelope => ({
+    success: true,
+    data,
+    message,
+    ...(nextActions?.length ? { nextActions } : {}),
+  });
 
-      if (normalizedPath === "/" && path.trim() === "") {
-        throw new Error("HTTP 访问路径不能为空");
+  const buildErrorEnvelope = (error: unknown) => ({
+    success: false,
+    data: {},
+    message: error instanceof Error ? error.message : String(error),
+  });
+
+  const withEnvelope = async (handler: () => Promise<GatewayToolEnvelope>) => {
+    try {
+      return jsonContent(await handler());
+    } catch (error) {
+      return jsonContent(buildErrorEnvelope(error));
+    }
+  };
+
+  const listGatewayDomains = async () => {
+    const cloudbase = await getManager();
+    const result = await cloudbase.access.getDomainList();
+    logCloudBaseResult(server.logger, result);
+
+    const domains = [
+      result.DefaultDomain,
+      ...(result.ServiceSet || []).map((item) => item.Domain),
+    ].filter(Boolean);
+
+    return {
+      domains,
+      enableService: result.EnableService,
+      raw: result,
+    };
+  };
+
+  const handleQueryGateway = async (
+    input: QueryGatewayInput,
+  ): Promise<GatewayToolEnvelope> => {
+    switch (input.action) {
+    case "listDomains": {
+      const result = await listGatewayDomains();
+      return buildEnvelope(
+        {
+          action: input.action,
+          domains: result.domains,
+          enableService: result.enableService,
+          raw: result.raw,
+        },
+        `已获取 ${result.domains.length} 个网关域名`,
+        [
+          {
+            tool: "queryGateway",
+            action: "getAccess",
+            reason: "查看某个目标当前的访问入口",
+          },
+        ],
+      );
+    }
+    case "getAccess": {
+      if (!input.targetName) {
+        throw new Error("getAccess 操作时，targetName 参数是必需的");
       }
 
-      const accessType = type === "HTTP" ? 6 : 1;
+      const cloudbase = await getManager();
+      const [accessList, domainInfo] = await Promise.all([
+        cloudbase.access.getAccessList({ name: input.targetName }),
+        listGatewayDomains(),
+      ]);
 
-      const typedAccessType = accessType as unknown as 1 | 2 | undefined;
+      logCloudBaseResult(server.logger, accessList);
 
+      const urls = Array.from(
+        new Set(
+          (accessList.APISet || []).flatMap((api) =>
+            domainInfo.domains.map((domain) => {
+              const normalizedPath = normalizeAccessPath(api.Path);
+              return `https://${domain}${normalizedPath}`;
+            }),
+          ),
+        ),
+      );
+
+      return buildEnvelope(
+        {
+          action: input.action,
+          targetType: input.targetType ?? "function",
+          targetName: input.targetName,
+          apis: accessList.APISet || [],
+          total: accessList.Total || 0,
+          domains: domainInfo.domains,
+          urls,
+          enableService:
+            accessList.EnableService ?? domainInfo.enableService ?? false,
+          raw: {
+            accessList,
+            domainList: domainInfo.raw,
+          },
+        },
+        `已获取目标 ${input.targetName} 的网关访问配置`,
+        [
+          {
+            tool: "manageGateway",
+            action: "createAccess",
+            reason: "为该目标新增访问路径",
+          },
+        ],
+      );
+    }
+    default:
+      throw new Error(`不支持的操作类型: ${input.action}`);
+    }
+  };
+
+  const handleManageGateway = async (
+    input: ManageGatewayInput,
+  ): Promise<GatewayToolEnvelope> => {
+    switch (input.action) {
+    case "createAccess": {
+      const cloudbase = await getManager();
+      const accessPath = normalizeAccessPath(input.path || `/${input.targetName}`);
       const result = await cloudbase.access.createAccess({
-        // Backend accepts HTTP function type 6, but current SDK typing only exposes 1 | 2.
-        // We keep the runtime value in accessType and satisfy TypeScript with a narrowed alias.
-        type: typedAccessType,
-        name,
-        path: normalizedPath,
+        name: input.targetName,
+        path: accessPath,
+        type: ((input.type || "Event") === "HTTP" ? 6 : 1) as 1 | 2,
+        auth: input.auth,
       });
       logCloudBaseResult(server.logger, result);
 
-      const envId = await getEnvId(cloudBaseOptions);
-      const region = cloudBaseOptions?.region ?? process.env.TCB_REGION ?? null;
-      const invokeUrl = region
-        ? `https://${envId}.${region}.app.tcloudbase.com${normalizedPath}`
-        : null;
-
-      const payload = {
-        ok: true,
-        code: "HTTP_ACCESS_CREATED",
-        message: "云函数 HTTP 访问创建成功。",
-        function_name: name,
-        function_type: type ?? "Event",
-        access_type: accessType,
-        env_id: envId,
-        region,
-        path: normalizedPath,
-        invoke_url: invokeUrl,
-        readiness: {
-          status: "created",
-          note: "HTTP 服务激活可能有短暂延迟；若首次访问失败，请稍后重试。",
+      return buildEnvelope(
+        {
+          action: input.action,
+          targetType: input.targetType,
+          targetName: input.targetName,
+          path: accessPath,
+          raw: result,
         },
-        next_steps: invokeUrl
-          ? [
-              `Use GET ${invokeUrl} to verify the entrypoint.`,
-              "If the gateway reports activation/not-ready errors, retry after the service finishes provisioning.",
-            ]
-          : [
-              "Region is unavailable, so the default invoke URL could not be generated.",
-              "Set cloudBaseOptions.region or TCB_REGION to enable direct invoke URL guidance.",
-            ],
-        raw_result: result,
-      };
-
-      return {
-        content: [
+        `已为目标 ${input.targetName} 创建网关访问路径`,
+        [
           {
-            type: "text",
-            text: JSON.stringify(payload, null, 2),
+            tool: "queryGateway",
+            action: "getAccess",
+            reason: "确认访问入口是否已生效",
           },
         ],
-      };
+      );
+    }
+    default:
+      throw new Error(`不支持的操作类型: ${input.action}`);
+    }
+  };
+
+  server.registerTool?.(
+    "queryGateway",
+    {
+      title: "查询网关域资源",
+      description:
+        "网关域统一只读入口。通过 action 查询网关域名、访问入口和目标暴露情况。",
+      inputSchema: {
+        action: z
+          .enum(QUERY_GATEWAY_ACTIONS)
+          .describe("只读操作类型，例如 getAccess、listDomains"),
+        targetType: z
+          .enum(["function"])
+          .optional()
+          .describe("目标资源类型。当前支持 function，后续可扩展"),
+        targetName: z
+          .string()
+          .optional()
+          .describe("目标资源名称。getAccess 时必填"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        openWorldHint: true,
+        category: "gateway",
+      },
     },
+    async (input: QueryGatewayInput) => withEnvelope(() => handleQueryGateway(input)),
+  );
+
+  server.registerTool?.(
+    "manageGateway",
+    {
+      title: "管理网关域资源",
+      description:
+        "网关域统一写入口。通过 action 创建目标访问入口，后续承接更通用的网关配置能力。",
+      inputSchema: {
+        action: z.enum(MANAGE_GATEWAY_ACTIONS).describe("写操作类型，例如 createAccess"),
+        targetType: z
+          .enum(["function"])
+          .describe("目标资源类型。当前支持 function，后续可扩展"),
+        targetName: z.string().describe("目标资源名称"),
+        path: z.string().optional().describe("访问路径，默认 /{targetName}"),
+        type: z.enum(["Event", "HTTP"]).optional().describe("函数接入类型"),
+        auth: z.boolean().optional().describe("是否开启鉴权"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+        category: "gateway",
+      },
+    },
+    async (input: ManageGatewayInput) =>
+      withEnvelope(() => handleManageGateway(input)),
   );
 }

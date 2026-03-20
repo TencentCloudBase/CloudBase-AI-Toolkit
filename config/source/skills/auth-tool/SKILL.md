@@ -4,6 +4,37 @@ description: Use CloudBase Auth tool to configure and manage authentication prov
 alwaysApply: false
 ---
 
+## Activation Contract
+
+### Use this first when
+
+- The user mentions login, registration, authentication, provider setup, SMS, email, anonymous login, or third-party login.
+- A Web, native App, or backend flow needs CloudBase auth configuration before implementation.
+
+### Read before writing code if
+
+- The request includes any auth UI or auth API work. Provider status must be checked first.
+
+### Then also read
+
+- Web auth UI -> `../auth-web/SKILL.md`
+- Mini program auth -> `../auth-wechat/SKILL.md`
+- Native App / raw HTTP -> `../http-api/SKILL.md`
+
+### Do NOT use this as
+
+- A replacement for platform implementation rules. This skill configures providers; it does not define the full frontend or client integration path.
+
+### Common mistakes / gotchas
+
+- Writing login UI before enabling the required provider.
+- Implementing Web login in cloud functions.
+- Routing native App auth to Web SDK flows.
+
+### Minimal checklist
+
+- Read [Authentication Activation Checklist](checklist.md) before auth implementation.
+
 ## Overview
 
 Configure CloudBase authentication providers: Anonymous, Username/Password, SMS, Email, WeChat, Google, and more.
@@ -11,7 +42,6 @@ Configure CloudBase authentication providers: Anonymous, Username/Password, SMS,
 **Prerequisites**: CloudBase environment ID (`env`)
 
 ---
-
 
 ## Authentication Scenarios
 

@@ -4,6 +4,35 @@ description: Professional UI design and frontend interface guidelines. Use this 
 alwaysApply: false
 ---
 
+## Activation Contract
+
+### Use this first when
+
+- The request involves any page, component, screen, visual prototype, or frontend styling work.
+
+### Read before writing code if
+
+- The response will include UI code, layout structure, typography, color decisions, or visual behavior.
+
+### Then also read
+
+- Web implementation -> `../web-development/SKILL.md`
+- Mini program implementation -> `../miniprogram-development/SKILL.md`
+
+### Do NOT use for
+
+- Backend-only tasks, database design, or pure API work without interface output.
+
+### Common mistakes / gotchas
+
+- Writing JSX, WXML, or CSS before outputting the design specification.
+- Falling back to generic AI layouts instead of an explicit aesthetic direction.
+- Ignoring platform constraints after the visual concept is defined.
+
+### Minimal checklist
+
+- Read [UI Design Activation Checklist](checklist.md) before interface generation.
+
 ## When to use this skill
 
 Use this skill for **frontend UI design and interface creation** in any project that requires:

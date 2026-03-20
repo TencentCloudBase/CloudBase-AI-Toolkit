@@ -62,7 +62,9 @@ exports.main = async (event, context) => {
 
 ⚠️ **Important:** When creating cloud functions that use AI models (especially `generateImage()` and large language model generation), set a longer timeout as these operations can be slow.
 
-**Using MCP Tool `createFunction`:**
+**Using MCP Tool `manageFunctions(action="createFunction")`:**
+
+Legacy compatibility: if an older prompt still says `createFunction`, keep the same payload shape but execute it through `manageFunctions(action="createFunction")`.
 
 Set the `timeout` parameter in the `func` object:
 

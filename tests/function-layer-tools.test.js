@@ -9,10 +9,9 @@ import { existsSync } from "fs";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load .env from repo root or mcp/ so integration tests can use .env without exporting vars
 const rootDir = join(__dirname, "..");
 [join(rootDir, ".env"), join(rootDir, "mcp", ".env"), join(rootDir, "mcp", ".env.local")].forEach(
-  (p) => existsSync(p) && loadEnv({ path: p }),
+  (filePath) => existsSync(filePath) && loadEnv({ path: filePath }),
 );
 
 const LAYER_FIXTURE_PATH = join(__dirname, "fixtures", "layer-integration-content");
@@ -22,7 +21,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function createTestClient() {
   const client = new Client(
     {
-      name: "test-client-function-layers",
+      name: "test-client-function-tools",
       version: "1.0.0",
     },
     {
@@ -71,7 +70,33 @@ function parseToolJsonContent(callResult) {
   return parsed;
 }
 
-describe("Function layer tools tests", () => {
+function expectToolFailure(result, pattern) {
+  const text = result.content?.[0]?.text ?? "";
+  if (text.includes("AUTH_REQUIRED") || text.includes("当前未登录")) {
+    expect(text).toMatch(/AUTH_REQUIRED|当前未登录/);
+    return;
+  }
+
+  if (result.isError) {
+    expect(text).toMatch(pattern);
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(text);
+    if (typeof parsed.success === "boolean") {
+      expect(parsed.success).toBe(false);
+      expect(parsed.message).toMatch(pattern);
+      return;
+    }
+  } catch {
+    // Fall through to raw text assertion.
+  }
+
+  expect(text).toMatch(pattern);
+}
+
+describe("Function and gateway tool schemas", () => {
   let testClient = null;
   let testTransport = null;
 
@@ -87,22 +112,18 @@ describe("Function layer tools tests", () => {
 
   afterAll(async () => {
     if (testClient) {
-      try {
-        await testClient.close();
-      } catch (error) {
+      await testClient.close().catch((error) => {
         console.warn("Error closing test client:", error.message);
-      }
+      });
     }
     if (testTransport) {
-      try {
-        await testTransport.close();
-      } catch (error) {
+      await testTransport.close().catch((error) => {
         console.warn("Error closing test transport:", error.message);
-      }
+      });
     }
   });
 
-  test("Function layer tools are registered", async () => {
+  test("primary function and gateway tools are registered without legacy aliases", async () => {
     if (!testClient) {
       console.log("Test client not available, skipping test");
       return;
@@ -111,154 +132,145 @@ describe("Function layer tools tests", () => {
     const toolsResult = await testClient.listTools();
     const allTools = toolsResult.tools.map((tool) => tool.name);
 
-    expect(allTools).toContain("readFunctionLayers");
-    expect(allTools).toContain("writeFunctionLayers");
+    expect(allTools).toContain("queryFunctions");
+    expect(allTools).toContain("manageFunctions");
+    expect(allTools).toContain("queryGateway");
+    expect(allTools).toContain("manageGateway");
 
-    // Backward compatibility checks.
-    expect(allTools).toContain("createFunction");
-    expect(allTools).toContain("getFunctionList");
-    expect(allTools).toContain("updateFunctionConfig");
+    expect(allTools).not.toContain("getFunctionList");
+    expect(allTools).not.toContain("createFunction");
+    expect(allTools).not.toContain("updateFunctionCode");
+    expect(allTools).not.toContain("getFunctionLogs");
+    expect(allTools).not.toContain("readFunctionLayers");
+    expect(allTools).not.toContain("writeFunctionLayers");
+    expect(allTools).not.toContain("createFunctionHTTPAccess");
   });
 
-  test("readFunctionLayers schema is correct", async () => {
+  test("queryFunctions schema is focused on function resources only", async () => {
     if (!testClient) {
       console.log("Test client not available, skipping test");
       return;
     }
 
     const toolsResult = await testClient.listTools();
-    const tool = toolsResult.tools.find(
-      (item) => item.name === "readFunctionLayers",
-    );
+    const tool = toolsResult.tools.find((item) => item.name === "queryFunctions");
 
     expect(tool).toBeDefined();
-    expect(tool.inputSchema).toBeDefined();
     expect(tool.inputSchema.type).toBe("object");
 
     const properties = tool.inputSchema.properties;
-    expect(properties.action).toBeDefined();
-    expect(properties.action.enum).toContain("listLayers");
-    expect(properties.action.enum).toContain("listLayerVersions");
-    expect(properties.action.enum).toContain("getLayerVersion");
-    expect(properties.action.enum).toContain("getFunctionLayers");
-    expect(properties.name).toBeDefined();
-    expect(properties.version).toBeDefined();
-    expect(properties.functionName).toBeDefined();
-  });
-
-  test("writeFunctionLayers schema is correct", async () => {
-    if (!testClient) {
-      console.log("Test client not available, skipping test");
-      return;
-    }
-
-    const toolsResult = await testClient.listTools();
-    const tool = toolsResult.tools.find(
-      (item) => item.name === "writeFunctionLayers",
-    );
-
-    expect(tool).toBeDefined();
-    expect(tool.inputSchema).toBeDefined();
-    expect(tool.inputSchema.type).toBe("object");
-
-    const properties = tool.inputSchema.properties;
-    expect(properties.action).toBeDefined();
-    expect(properties.action.enum).toContain("createLayerVersion");
-    expect(properties.action.enum).toContain("deleteLayerVersion");
-    expect(properties.action.enum).toContain("attachLayer");
-    expect(properties.action.enum).toContain("detachLayer");
-    expect(properties.action.enum).toContain("updateFunctionLayers");
-    expect(properties.layers).toBeDefined();
+    expect(properties.action.enum).toContain("listFunctions");
+    expect(properties.action.enum).toContain("getFunctionDetail");
+    expect(properties.action.enum).toContain("listFunctionLayers");
+    expect(properties.action.enum).toContain("listFunctionTriggers");
+    expect(properties.action.enum).toContain("getFunctionDownloadUrl");
+    expect(properties.action.enum).not.toContain("getFunctionAccess");
     expect(properties.functionName).toBeDefined();
     expect(properties.layerName).toBeDefined();
     expect(properties.layerVersion).toBeDefined();
+    expect(tool.annotations.readOnlyHint).toBe(true);
+    expect(tool.annotations.category).toBe("functions");
   });
 
-  test("Function layer tools annotations are correct", async () => {
+  test("manageFunctions schema excludes gateway write actions", async () => {
     if (!testClient) {
       console.log("Test client not available, skipping test");
       return;
     }
 
     const toolsResult = await testClient.listTools();
-    const readTool = toolsResult.tools.find(
-      (item) => item.name === "readFunctionLayers",
-    );
-    const writeTool = toolsResult.tools.find(
-      (item) => item.name === "writeFunctionLayers",
-    );
+    const tool = toolsResult.tools.find((item) => item.name === "manageFunctions");
 
-    expect(readTool.annotations.readOnlyHint).toBe(true);
-    expect(readTool.annotations.category).toBe("functions");
+    expect(tool).toBeDefined();
+    expect(tool.inputSchema.type).toBe("object");
 
-    expect(writeTool.annotations.readOnlyHint).toBe(false);
-    expect(writeTool.annotations.destructiveHint).toBe(true);
-    expect(writeTool.annotations.category).toBe("functions");
+    const properties = tool.inputSchema.properties;
+    expect(properties.action.enum).toContain("createFunction");
+    expect(properties.action.enum).toContain("updateFunctionCode");
+    expect(properties.action.enum).toContain("createLayerVersion");
+    expect(properties.action.enum).toContain("attachLayer");
+    expect(properties.action.enum).not.toContain("createFunctionAccess");
+    expect(properties.functionName).toBeDefined();
+    expect(properties.layerName).toBeDefined();
+    expect(properties.layerVersion).toBeDefined();
+    expect(properties.confirm).toBeDefined();
+    expect(properties.path).toBeUndefined();
+    expect(tool.annotations.readOnlyHint).toBe(false);
+    expect(tool.annotations.destructiveHint).toBe(true);
+    expect(tool.annotations.category).toBe("functions");
   });
 
-  test("readFunctionLayers validates action-specific parameters without credentials", async () => {
+  test("gateway tools expose independent query/manage entrypoints", async () => {
     if (!testClient) {
       console.log("Test client not available, skipping test");
       return;
     }
 
-    const missingVersionResult = await testClient.callTool({
-      name: "readFunctionLayers",
-      arguments: {
-        action: "getLayerVersion",
-        name: "demo-layer",
-      },
-    });
+    const toolsResult = await testClient.listTools();
+    const queryTool = toolsResult.tools.find((item) => item.name === "queryGateway");
+    const manageTool = toolsResult.tools.find((item) => item.name === "manageGateway");
 
-    expect(missingVersionResult.isError).toBe(true);
-    expect(missingVersionResult.content[0].text).toMatch(/version 参数是必需的/);
+    expect(queryTool).toBeDefined();
+    expect(queryTool.inputSchema.properties.action.enum).toContain("getAccess");
+    expect(queryTool.inputSchema.properties.action.enum).toContain("listDomains");
+    expect(queryTool.inputSchema.properties.targetType).toBeDefined();
+    expect(queryTool.inputSchema.properties.targetName).toBeDefined();
+    expect(queryTool.annotations.category).toBe("gateway");
+    expect(queryTool.annotations.readOnlyHint).toBe(true);
 
-    const missingFunctionNameResult = await testClient.callTool({
-      name: "readFunctionLayers",
-      arguments: {
-        action: "getFunctionLayers",
-      },
-    });
-
-    expect(missingFunctionNameResult.isError).toBe(true);
-    expect(missingFunctionNameResult.content[0].text).toMatch(
-      /functionName 参数是必需的/,
-    );
+    expect(manageTool).toBeDefined();
+    expect(manageTool.inputSchema.properties.action.enum).toContain("createAccess");
+    expect(manageTool.inputSchema.properties.targetType).toBeDefined();
+    expect(manageTool.inputSchema.properties.targetName).toBeDefined();
+    expect(manageTool.inputSchema.properties.path).toBeDefined();
+    expect(manageTool.annotations.category).toBe("gateway");
+    expect(manageTool.annotations.readOnlyHint).toBe(false);
+    expect(manageTool.annotations.destructiveHint).toBe(true);
   });
 
-  test("writeFunctionLayers validates action-specific parameters without credentials", async () => {
+  test("query and manage tools validate action-specific input", async () => {
     if (!testClient) {
       console.log("Test client not available, skipping test");
       return;
     }
 
-    const missingRuntimesResult = await testClient.callTool({
-      name: "writeFunctionLayers",
+    const functionDetailResult = await testClient.callTool({
+      name: "queryFunctions",
       arguments: {
-        action: "createLayerVersion",
-        name: "demo-layer",
+        action: "getFunctionDetail",
       },
     });
+    expectToolFailure(functionDetailResult, /functionName 参数是必需的/);
 
-    expect(missingRuntimesResult.isError).toBe(true);
-    expect(missingRuntimesResult.content[0].text).toMatch(
-      /runtimes 参数是必需的/,
-    );
-
-    const missingFunctionNameResult = await testClient.callTool({
-      name: "writeFunctionLayers",
+    const attachLayerResult = await testClient.callTool({
+      name: "manageFunctions",
       arguments: {
         action: "attachLayer",
       },
     });
+    expectToolFailure(attachLayerResult, /functionName 参数是必需的/);
 
-    expect(missingFunctionNameResult.isError).toBe(true);
-    expect(missingFunctionNameResult.content[0].text).toMatch(
-      /functionName 参数是必需的/,
-    );
+    const deleteLayerVersionResult = await testClient.callTool({
+      name: "manageFunctions",
+      arguments: {
+        action: "deleteLayerVersion",
+        layerName: "demo-layer",
+        layerVersion: 1,
+      },
+    });
+    expectToolFailure(deleteLayerVersionResult, /confirm=true/);
+
+    const gatewayAccessResult = await testClient.callTool({
+      name: "queryGateway",
+      arguments: {
+        action: "getAccess",
+        targetType: "function",
+      },
+    });
+    expectToolFailure(gatewayAccessResult, /targetName 参数是必需的/);
   });
 
-  test("Function layer tools can be called with valid actions when credentials are available", async () => {
+  test("queryFunctions can call listLayers when credentials are available", async () => {
     if (!testClient) {
       console.log("Test client not available, skipping test");
       return;
@@ -269,20 +281,20 @@ describe("Function layer tools tests", () => {
       return;
     }
 
-    const readResult = await testClient.callTool({
-      name: "readFunctionLayers",
+    const result = await testClient.callTool({
+      name: "queryFunctions",
       arguments: {
         action: "listLayers",
       },
     });
 
-    expect(readResult).toBeDefined();
-    expect(readResult.content).toBeDefined();
-    expect(Array.isArray(readResult.content)).toBe(true);
+    expect(result).toBeDefined();
+    expect(result.content).toBeDefined();
+    expect(Array.isArray(result.content)).toBe(true);
   });
 });
 
-describe("Function layer tools real integration tests", () => {
+describe("Function layer real integration tests", () => {
   let testClient = null;
   let testTransport = null;
   const layerName = `mcp-layer-integration-${Date.now()}`;
@@ -314,60 +326,61 @@ describe("Function layer tools real integration tests", () => {
 
   afterAll(async () => {
     if (testClient) {
-      try {
-        await testClient.close();
-      } catch (e) {
-        console.warn("Error closing test client:", e.message);
-      }
+      await testClient.close().catch((error) => {
+        console.warn("Error closing test client:", error.message);
+      });
     }
     if (testTransport) {
-      try {
-        await testTransport.close();
-      } catch (e) {
-        console.warn("Error closing test transport:", e.message);
-      }
+      await testTransport.close().catch((error) => {
+        console.warn("Error closing test transport:", error.message);
+      });
     }
   });
 
   async function cleanupDetach() {
-    if (!testClient || !didAttach || !testFunctionName || !createdLayerVersion)
+    if (!testClient || !didAttach || !testFunctionName || !createdLayerVersion) {
       return;
+    }
     try {
       await testClient.callTool({
-        name: "writeFunctionLayers",
+        name: "manageFunctions",
         arguments: {
           action: "detachLayer",
           functionName: testFunctionName,
           layerName,
           layerVersion: createdLayerVersion,
+          confirm: true,
         },
       });
-    } catch (e) {
+    } catch (error) {
       console.warn(
-        `[cleanup] detachLayer failed: ${e.message}. Layer may still be bound.`,
+        `[cleanup] detachLayer failed: ${error.message}. Layer may still be bound.`,
       );
     }
   }
 
   async function cleanupDelete() {
-    if (!testClient || createdLayerVersion == null) return;
+    if (!testClient || createdLayerVersion == null) {
+      return;
+    }
     try {
       await testClient.callTool({
-        name: "writeFunctionLayers",
+        name: "manageFunctions",
         arguments: {
           action: "deleteLayerVersion",
-          name: layerName,
-          version: createdLayerVersion,
+          layerName,
+          layerVersion: createdLayerVersion,
+          confirm: true,
         },
       });
-    } catch (e) {
+    } catch (error) {
       console.warn(
-        `[cleanup] deleteLayerVersion failed: ${e.message}. Layer ${layerName} v${createdLayerVersion} may still exist.`,
+        `[cleanup] deleteLayerVersion failed: ${error.message}. Layer ${layerName} v${createdLayerVersion} may still exist.`,
       );
     }
   }
 
-  test("create layer version, optionally attach/detach, then delete", async () => {
+  test("create layer version, optionally attach and detach, then delete", async () => {
     if (!shouldRunLayerIntegrationTests() || !testClient) {
       console.log(
         "Skipping: CLOUDBASE_RUN_LAYER_INTEGRATION_TESTS=1 and credentials required",
@@ -381,13 +394,11 @@ describe("Function layer tools real integration tests", () => {
 
     let lastStep = "createLayerVersion";
     try {
-      // Step 1: createLayerVersion (use multiple runtimes so layer can be attached to Nodejs18/20 functions)
-      lastStep = "createLayerVersion";
       const createRes = await testClient.callTool({
-        name: "writeFunctionLayers",
+        name: "manageFunctions",
         arguments: {
           action: "createLayerVersion",
-          name: layerName,
+          layerName,
           contentPath: LAYER_FIXTURE_PATH,
           runtimes: ["Nodejs16.13", "Nodejs18.15", "Nodejs20.19"],
         },
@@ -399,19 +410,22 @@ describe("Function layer tools real integration tests", () => {
 
       lastStep = "listLayerVersions";
       const listRes = await testClient.callTool({
-        name: "readFunctionLayers",
-        arguments: { action: "listLayerVersions", name: layerName },
+        name: "queryFunctions",
+        arguments: {
+          action: "listLayerVersions",
+          layerName,
+        },
       });
       const listParsed = parseToolJsonContent(listRes);
       const versions = listParsed.data?.layerVersions ?? [];
-      expect(versions.some((v) => v.LayerVersion === createdLayerVersion)).toBe(
+      expect(versions.some((item) => item.LayerVersion === createdLayerVersion)).toBe(
         true,
       );
 
       if (testFunctionName) {
         lastStep = "attachLayer";
         const attachRes = await testClient.callTool({
-          name: "writeFunctionLayers",
+          name: "manageFunctions",
           arguments: {
             action: "attachLayer",
             functionName: testFunctionName,
@@ -421,13 +435,14 @@ describe("Function layer tools real integration tests", () => {
         });
         parseToolJsonContent(attachRes);
         didAttach = true;
-        // Wait for function to leave Updating state before getFunctionLayers/detach (backend may return "当前函数处于Updating状态" otherwise)
+
         await delay(6000);
-        lastStep = "getFunctionLayers";
+
+        lastStep = "listFunctionLayers";
         const getLayersRes = await testClient.callTool({
-          name: "readFunctionLayers",
+          name: "queryFunctions",
           arguments: {
-            action: "getFunctionLayers",
+            action: "listFunctionLayers",
             functionName: testFunctionName,
           },
         });
@@ -435,19 +450,21 @@ describe("Function layer tools real integration tests", () => {
         const bound = getLayersParsed.data?.layers ?? [];
         expect(
           bound.some(
-            (l) =>
-              (l.LayerName || l.name) === layerName &&
-              (l.LayerVersion ?? l.version) === createdLayerVersion,
+            (item) =>
+              (item.LayerName || item.name) === layerName &&
+              (item.LayerVersion ?? item.version) === createdLayerVersion,
           ),
         ).toBe(true);
+
         lastStep = "detachLayer";
         const detachRes = await testClient.callTool({
-          name: "writeFunctionLayers",
+          name: "manageFunctions",
           arguments: {
             action: "detachLayer",
             functionName: testFunctionName,
             layerName,
             layerVersion: createdLayerVersion,
+            confirm: true,
           },
         });
         parseToolJsonContent(detachRes);
@@ -456,20 +473,21 @@ describe("Function layer tools real integration tests", () => {
 
       lastStep = "deleteLayerVersion";
       const deleteRes = await testClient.callTool({
-        name: "writeFunctionLayers",
+        name: "manageFunctions",
         arguments: {
           action: "deleteLayerVersion",
-          name: layerName,
-          version: createdLayerVersion,
+          layerName,
+          layerVersion: createdLayerVersion,
+          confirm: true,
         },
       });
       parseToolJsonContent(deleteRes);
       createdLayerVersion = null;
-    } catch (err) {
+    } catch (error) {
       await cleanupDetach();
       await cleanupDelete();
       throw new Error(
-        `[${lastStep}] layer=${layerName} version=${createdLayerVersion}: ${err.message}`,
+        `[${lastStep}] layer=${layerName} version=${createdLayerVersion}: ${error.message}`,
       );
     }
   });

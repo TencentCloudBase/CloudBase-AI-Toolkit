@@ -97,7 +97,7 @@ As the most important part of application development, the following four core c
 
 ### 4. Backend Deployment (Cloud Functions or CloudRun)
 **Refer to \`rules/cloudrun-development/rule.md\`**
-- **Cloud Function Deployment**: Use \`getFunctionList\` to query, then call \`createFunction\` or \`updateFunctionCode\` to deploy
+- **Cloud Function Deployment**: Prefer \`queryFunctions\` to inspect current state, then use \`manageFunctions\` with \`action="createFunction"\` or \`action="updateFunctionCode"\`
 - **CloudRun Deployment**: Use \`manageCloudRun\` tool for containerized deployment
 - Ensure backend code supports CORS, prepare Dockerfile (for container type)
 
@@ -196,7 +196,7 @@ If remote links are needed in the application, can continue to call uploadFile t
 
 ### Deployment Process
 
-1. **Cloud Function Deployment Process**: Can use getFunctionList MCP tool to query if there are cloud functions, then directly call createFunction or updateFunctionCode to update cloud function code. Only need to point functionRootPath to parent directory of cloud function directory (e.g., absolute path of cloudfunctions directory). No need for code compression and other operations. The above tools will automatically read files from cloud function subdirectories with same name under parent directory and automatically deploy
+1. **Cloud Function Deployment Process**: Prefer \`queryFunctions\` to query current functions, then call \`manageFunctions\` with \`action="createFunction"\` or \`action="updateFunctionCode"\` to deploy cloud function code. Only need to point \`functionRootPath\` to the parent directory of the cloud function directory (for example, the absolute path of the \`cloudfunctions\` directory). No need for code compression or other preprocessing.
 
 2. **CloudRun Deployment Process**: For non-cloud function backend services (Java, Go, PHP, Python, Node.js, etc.), use manageCloudRun tool for deployment. Ensure backend code supports CORS, prepare Dockerfile, then call manageCloudRun for containerized deployment. For details, refer to \`rules/cloudrun-development/rule.md\`
 

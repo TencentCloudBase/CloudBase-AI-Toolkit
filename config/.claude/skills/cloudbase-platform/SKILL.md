@@ -40,12 +40,19 @@ Use this skill for **CloudBase platform knowledge** when you need to:
 4. **Use CloudBase MCP via mcporter (CLI) when IDE MCP is not available**
    - You do **not** need to hard-code Secret ID / Secret Key / Env ID in config
    - CloudBase MCP will support device-code login via the `auth` tool, so credentials can be obtained interactively
-   - Add CloudBase MCP server:
-     ```bash
-     npx mcporter config add cloudbase \
-       --command "npx" \
-       --arg "@cloudbase/cloudbase-mcp@latest" \
-       --description "CloudBase MCP"
+   - Add CloudBase MCP server in `config/mcporter.json`:
+     If other MCP servers already exist, keep them and only add the `cloudbase` entry.
+     ```json
+     {
+       "mcpServers": {
+         "cloudbase": {
+           "command": "npx",
+           "args": ["@cloudbase/cloudbase-mcp@latest"],
+           "description": "CloudBase MCP",
+           "lifecycle": "keep-alive"
+         }
+       }
+     }
      ```
    - Discover tools and schemas:
      - `npx mcporter list` — list configured servers
@@ -104,8 +111,8 @@ Use this skill for **CloudBase platform knowledge** when you need to:
 
 1. **Node.js Cloud Functions**:
    - Node.js cloud functions need to include `package.json`, declaring required dependencies
-   - Can use `createFunction` to create functions
-   - Use `updateFunctionCode` to deploy cloud functions
+   - Can use `manageFunctions(action="createFunction")` to create functions
+   - Use `manageFunctions(action="updateFunctionCode")` to deploy cloud functions
    - Prioritize cloud dependency installation, do not upload node_modules
    - `functionRootPath` refers to the parent directory of function directories, e.g., `cloudfunctions` directory
 

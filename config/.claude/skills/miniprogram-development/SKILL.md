@@ -4,6 +4,32 @@ description: WeChat Mini Program development skill for building, debugging, prev
 alwaysApply: false
 ---
 
+## Activation Contract
+
+### Use this first when
+
+- The request is about WeChat Mini Program structure, pages, preview, publishing, or CloudBase mini program integration.
+
+### Read before writing code if
+
+- The user mentions `wx.cloud`, CloudBase mini programs, OPENID, or mini program deployment/debug workflows.
+
+### Then also read
+
+- CloudBase auth -> `../auth-wechat/SKILL.md`
+- CloudBase document DB -> `../no-sql-wx-mp-sdk/SKILL.md`
+- UI generation -> `../ui-design/SKILL.md` first
+
+### Do NOT use for
+
+- Web auth flows or Web SDK-specific frontend implementation.
+
+### Common mistakes / gotchas
+
+- Generating a Web-style login flow for mini programs.
+- Mixing Web SDK assumptions into `wx.cloud` projects.
+- Applying CloudBase constraints before confirming the project actually uses CloudBase.
+
 ## When to use this skill
 
 Use this skill for **WeChat Mini Program development** when you need to:

@@ -84,24 +84,20 @@
       "description": "Delete documents from database collections"
     },
     {
-      "name": "createFunction",
-      "description": "Create and deploy cloud functions with automatic dependency management"
+      "name": "queryFunctions",
+      "description": "Query cloud function details, logs, layers, triggers, and download URLs"
     },
     {
-      "name": "updateFunctionCode",
-      "description": "Update cloud function code and configuration"
+      "name": "manageFunctions",
+      "description": "Create, update, invoke, and configure cloud functions and layers"
     },
     {
-      "name": "getFunctionList",
-      "description": "List all cloud functions in the environment"
+      "name": "queryGateway",
+      "description": "Query gateway domains and target access entries"
     },
     {
-      "name": "invokeFunction",
-      "description": "Invoke cloud functions with parameters"
-    },
-    {
-      "name": "getFunctionLogs",
-      "description": "Retrieve cloud function execution logs for debugging"
+      "name": "manageGateway",
+      "description": "Create gateway access entries for supported targets"
     },
     {
       "name": "uploadFiles",
@@ -184,4 +180,4 @@
     "china",
     "full-stack"
   ]
-} 
+}

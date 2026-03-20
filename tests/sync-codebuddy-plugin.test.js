@@ -25,6 +25,8 @@ test('sync-codebuddy-plugin copies generated all-in-one skill into the plugin sk
 
     const mainSkill = fs.readFileSync(path.join(destinationDir, 'SKILL.md'), 'utf8');
     expect(mainSkill).toContain('name: cloudbase');
+    expect(mainSkill).toContain('## Activation Contract');
+    expect(mainSkill).toContain('Native App / Flutter / React Native');
   } finally {
     fs.rmSync(tempRootDir, { recursive: true, force: true });
   }

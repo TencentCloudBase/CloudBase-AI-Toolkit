@@ -4,6 +4,31 @@ description: CloudBase Web Authentication Quick Guide - Provides concise and pra
 alwaysApply: false
 ---
 
+## Activation Contract
+
+### Use this first when
+
+- The task is a CloudBase Web login, registration, session, or user profile flow built with `@cloudbase/js-sdk`.
+
+### Read before writing code if
+
+- The user needs a login page, auth modal, session handling, or protected Web route. Read `auth-tool` first to ensure providers are enabled.
+
+### Then also read
+
+- `../auth-tool/SKILL.md` for provider setup
+- `../web-development/SKILL.md` for Web project structure and deployment
+
+### Do NOT use for
+
+- Mini program auth, native App auth, or server-side auth setup.
+
+### Common mistakes / gotchas
+
+- Skipping publishable key and provider checks.
+- Replacing built-in Web auth with cloud function login logic.
+- Reusing this flow in Flutter, React Native, or native iOS/Android code.
+
 ## Overview
 
 **Prerequisites**: CloudBase environment ID (`env`)
@@ -16,7 +41,6 @@ alwaysApply: false
 **Use Case**: Web frontend projects using `@cloudbase/js-sdk@2.24.0+` for user authentication  
 **Key Benefits**: Compatible with `supabase-js` API, supports phone, email, anonymous, username/password, and third-party login methods
 **`@cloudbase/js-sdk` cdn source**: `https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js`
-
 
 ## Prerequisites
 

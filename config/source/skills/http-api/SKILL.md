@@ -4,6 +4,35 @@ description: Use CloudBase HTTP API to access CloudBase platform features (datab
 alwaysApply: false
 ---
 
+## Activation Contract
+
+### Use this first when
+
+- The request comes from Android, iOS, Flutter, React Native, non-Node backends, or admin scripts that must call CloudBase via raw HTTP.
+
+### Read before writing code if
+
+- The platform does not support a CloudBase SDK, or the user explicitly asks for HTTP API integration.
+
+### Then also read
+
+- Auth configuration -> `../auth-tool/SKILL.md`
+- MySQL MCP management -> `../relational-database-tool/SKILL.md`
+
+### Do NOT use for
+
+- CloudBase Web SDK flows, mini program SDK flows, or MCP-driven management tasks.
+
+### Common mistakes / gotchas
+
+- Treating Web SDK examples as valid for native Apps.
+- Guessing endpoints without reading OpenAPI definitions.
+- Mixing raw HTTP API integration with MCP management logic.
+
+### Minimal checklist
+
+- Read [HTTP API Routing Checklist](checklist.md) before implementation.
+
 ## When to use this skill
 
 Use this skill whenever you need to call **CloudBase platform features** via **raw HTTP APIs**, for example:

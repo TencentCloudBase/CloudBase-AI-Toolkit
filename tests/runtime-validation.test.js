@@ -148,8 +148,9 @@ function main_handler($event, $context) {
 
     try {
       const result = await testClient.callTool({
-        name: 'createFunction',
+        name: 'manageFunctions',
         arguments: {
+          action: 'createFunction',
           functionRootPath: functionDir,
           force: true,
           func: {
@@ -192,8 +193,9 @@ function main_handler($event, $context) {
 
     try {
       const result = await testClient.callTool({
-        name: 'createFunction',
+        name: 'manageFunctions',
         arguments: {
+          action: 'createFunction',
           functionRootPath: functionDir,
           force: true,
           func: {

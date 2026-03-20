@@ -15,6 +15,10 @@ When the user types `/mcp_design_review`.
 2. **Evaluate design against the guidelines**  
    For each tool and its surrounding design, check:
 
+   - **Confirmed target shape takes precedence**
+     - If the current spec, task, or explicit user feedback has already locked a shape (for example “this module must converge to one `queryXxx` and one `manageXxx`”), treat deviations as failures, not optional suggestions.
+     - Do not propose a locally elegant alternative if it breaks an already confirmed module boundary, naming style, or migration target.
+
    - **Tool responsibility & naming**  
      - Single clear responsibility per tool (no “god” tools).  
      - Names follow `verbNoun` style and reflect the domain (e.g. `getFunctionLayers`, `writeFunctionLayers`).  
@@ -25,10 +29,16 @@ When the user types `/mcp_design_review`.
        - a manage tool: `manageXxx` – performs all mutations via a required `action` field.  
      - The `manageXxx` tool:  
        - Uses a string literal union for `action` (e.g. `"create" | "update" | "delete" | "attachLayer" | "detachLayer"`).  
-       - Groups parameters by `action` (discriminated unions or clearly documented per‑action payload).  
+       - Uses action-specific parameters that are easy for AI to map correctly. Prefer the repository’s established style first; do not invent namespaced actions or grouped payloads unless the surrounding modules already use that pattern.
        - Treats missing/unknown `action` as invalid and fails safely.  
      - Tool count control: avoid creating many small tools (e.g. `createX`, `updateX`, `deleteX`) in the same domain when a single `manageXxx` with multiple actions is sufficient.  
+     - Before approving any new fine-grained tool, explicitly check whether the capability can be merged into an existing `queryXxx` / `manageXxx` primary entrance in the same module.
      - Safety & annotations: tools must clearly indicate whether they are read‑only or mutating in their metadata, and dangerous actions (delete, publish, reset, overwrite, etc.) must require explicit confirmation flags with safe defaults.
+
+   - **Cross-module consistency**
+     - Compare the proposed schema with neighboring modules in `mcp/src/tools/`, not just the local file.
+     - Flag designs that introduce one-off conventions, such as namespaced action strings or special payload grouping, when other modules use flat action names and top-level fields.
+     - Check whether target identifiers stay consistent across actions (`functionName`, `layerName`, `triggerName`) instead of mixing generic `name` with domain-specific names.
 
    - **Read vs write separation**  
      - Read tools are side‑effect free and focused on querying.  
@@ -63,7 +73,7 @@ When the user types `/mcp_design_review`.
    - Output a markdown report with three sections:  
      - **Summary**: overall pass/fail status and high‑level observations.  
      - **Per‑tool checklist**: for each major tool group (`functions`, `env`, `database`, `storage`, etc.), list which guidelines are satisfied and which are violated or unclear.  
-     - **Actionable recommendations**: concrete refactoring suggestions (e.g. “split X into read/write”, “add `nextActions` to Y”, “add `confirm` flag to Z delete operation”).
+     - **Actionable recommendations**: concrete refactoring suggestions (e.g. “merge X into existing `queryXxx`”, “keep flat actions to match other modules”, “add `confirm` flag to Z delete operation”).
 
 4. **Optional follow‑up**  
    - If requested, generate a prioritized refactoring plan based on the findings (smallest, safest changes first), referencing the existing refactoring checklist in `specs/code-quality-analysis/REFACTORING_CHECKLIST.md`.

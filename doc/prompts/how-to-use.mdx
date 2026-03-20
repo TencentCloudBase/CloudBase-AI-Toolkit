@@ -28,11 +28,18 @@ npx skills add tencentcloudbase/cloudbase-skills
 
 若希望 AI 更稳定地使用 CloudBase 相关 Skill，可以：
 
-- **首行注入**：在提问开头加一句，例如：*「You MUST read the cloudbase-guidelines skill FIRST when working with CloudBase projects.」*
-- **项目级规则**：在项目根目录的 `CLAUDE.md` 或 `AGENT.md` 中写入上述约束，无需每次在对话里重复。
-- **Hooks（编辑器钩子）**：在发送前通过编辑器钩子强制 AI 先做“是否使用 Skill”的评估再回答，激活率最高（实测可达 80%+）。完整思路与配置见 [CloudBase Skills：后发制人的“岗位手册”](https://mp.weixin.qq.com/s/aFjz4D3VMNH98-7oPKnISw)。
+- **首行注入**：在提问开头加一句，例如：*「You MUST identify the CloudBase scenario first, then read `auth-tool` / `http-api` / `miniprogram-development` / `ui-design` as appropriate before implementation.」*
+- **项目级规则**：在项目根目录的 `CLAUDE.md` 或 `AGENT.md` 中写入同样的路由约束，无需每次在对话里重复。
+- **Hooks（编辑器钩子）**：在发送前通过编辑器钩子强制 AI 先做“场景识别 -> first-read -> before-action 检查”再回答，激活率最高。完整思路与配置见 [CloudBase Skills：后发制人的“岗位手册”](https://mp.weixin.qq.com/s/aFjz4D3VMNH98-7oPKnISw)。
 
-**激活率**：未做任何干预时较低（约 20%）；首行注入或项目规则可明显提升；Hooks 最高，适合对规范要求高的场景。
+推荐直接把高频路由写成显式规则：
+
+- 登录 / 注册 / 认证配置：先读 `auth-tool`，再读平台实现 skill。
+- 原生 App / Flutter / React Native：先读 `http-api`，不要先走 Web SDK。
+- 小程序 + 云开发：先读 `miniprogram-development`，再看 `auth-wechat` 或数据库 skill。
+- 页面 / 组件 / 样式：先读 `ui-design`，先输出设计规格，再写 UI 代码。
+
+**激活率**：未做任何干预时较低；首行注入或项目规则可明显提升；Hooks 对“必须先读关键知识”这类场景最稳定。
 
 ### 搭配 MCP 使用
 

@@ -119,19 +119,19 @@ https://tcb-api.cloud.tencent.com/mcp/v1?env_id=YOUR_ENV_ID&disable_plugins=rag&
 
 ## 支持的工具
 
-当前提供约 37 个 MCP 工具，按插件分布如下。完整参数与说明见 [MCP 工具](/ai/cloudbase-ai-toolkit/mcp-tools)。
+当前提供约 32 个 MCP 工具，按插件分布如下。完整参数与说明见 [MCP 工具](/ai/cloudbase-ai-toolkit/mcp-tools)。
 
 | 插件 | 工具名 |
 |------|--------|
 | env | `auth`, `envQuery`, `envDomainManagement` |
 | database | `readNoSqlDatabaseStructure`, `writeNoSqlDatabaseStructure`, `readNoSqlDatabaseContent`, `writeNoSqlDatabaseContent`, `executeReadOnlySQL`, `executeWriteSQL`, `manageDataModel`, `modifyDataModel` |
-| functions | `getFunctionList`, `createFunction`, `updateFunctionCode`, `updateFunctionConfig`, `invokeFunction`, `getFunctionLogs`, `getFunctionLogDetail`, `manageFunctionTriggers` |
+| functions | `queryFunctions`, `manageFunctions` |
 | hosting | `uploadFiles`, `deleteFiles`, `findFiles`, `domainManagement` |
 | storage | `queryStorage`, `manageStorage` |
 | setup | `downloadTemplate`, `downloadRemoteFile` |
 | interactive | `interactiveDialog` |
 | rag | `searchWeb`, `searchKnowledgeBase` |
-| gateway | `createFunctionHTTPAccess` |
+| gateway | `queryGateway`, `manageGateway` |
 | cloudrun | `queryCloudRun`, `manageCloudRun` |
 | security-rule | `readSecurityRule`, `writeSecurityRule` |
 | invite-code | `activateInviteCode` |

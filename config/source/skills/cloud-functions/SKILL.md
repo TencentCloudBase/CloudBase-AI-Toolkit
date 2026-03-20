@@ -6,6 +6,37 @@ alwaysApply: false
 
 # Cloud Functions Development
 
+## Activation Contract
+
+### Use this first when
+
+- The task is to create, update, deploy, inspect, or debug a CloudBase Event Function or HTTP Function.
+
+### Read before writing code if
+
+- The request mentions runtime, HTTP function, `scf_bootstrap`, function logs, or function deployment.
+
+### Then also read
+
+- Auth setup or provider-related backend work -> `../auth-tool/SKILL.md`
+- AI in functions -> `../ai-model-nodejs/SKILL.md`
+
+### Do NOT use for
+
+- CloudRun container services or Web authentication UI implementation.
+
+### Common mistakes / gotchas
+
+- Picking the wrong function type and trying to compensate later.
+- Forgetting that runtime cannot be changed after creation.
+- Using cloud functions as the first solution for Web login.
+
+### Minimal checklist
+
+- Read [Cloud Functions Execution Checklist](checklist.md) before deployment or runtime changes.
+
+## Overview
+
 Use this skill when developing, deploying, and managing CloudBase cloud functions. CloudBase supports two types of cloud functions:
 
 - **Event Functions (普通云函数)**: Traditional serverless functions triggered by events (SDK calls, timers)
@@ -40,15 +71,31 @@ Use this skill for **cloud function operations** when you need to:
    - If runtime needs to change, must delete and recreate function
 
 3. **Deploy functions correctly**
-   - **MCP Tool**: Use `createFunction` with `type: "Event"` or `type: "HTTP"`
+   - **Preferred MCP Tools**: Use `queryFunctions` for reads, `manageFunctions(action="createFunction")` for creation, and `manageFunctions(action="updateFunctionCode")` for code deployment
+   - **Legacy compatibility**: If older prompts mention `createFunction` / `updateFunctionCode`, map them to the `manageFunctions` actions above
    - **CLI**: Use `tcb fn deploy` (Event) or `tcb fn deploy --httpFn` (HTTP)
    - HTTP Functions require `scf_bootstrap` file in the function directory
    - Provide correct `functionRootPath` (parent directory of function folder)
 
 4. **Query logs properly**
-   - Use `getFunctionLogs` for log list (basic info)
-   - Use `getFunctionLogDetail` with RequestId for detailed logs
+   - Use `queryFunctions(action="listFunctionLogs")` for log list (basic info)
+   - Use `queryFunctions(action="getFunctionLogDetail")` with RequestId for detailed logs
+   - **Legacy compatibility**: Treat `getFunctionLogs` / `getFunctionLogDetail` as the two `queryFunctions` actions above
    - Note time range limitations (max 1 day interval)
+
+5. **Handle legacy tool names safely**
+   - Prefer the converged entrances: `queryFunctions`, `manageFunctions`, `queryGateway`, `manageGateway`
+   - If old names appear in historical docs or prompts, convert them before acting:
+     - `getFunctionList` -> `queryFunctions`
+     - `createFunction` -> `manageFunctions(action="createFunction")`
+     - `updateFunctionCode` -> `manageFunctions(action="updateFunctionCode")`
+     - `updateFunctionConfig` -> `manageFunctions(action="updateFunctionConfig")`
+     - `getFunctionLogs` -> `queryFunctions(action="listFunctionLogs")`
+     - `getFunctionLogDetail` -> `queryFunctions(action="getFunctionLogDetail")`
+     - `manageFunctionTriggers` -> `manageFunctions(action="createFunctionTrigger"|"deleteFunctionTrigger")`
+     - `readFunctionLayers` -> `queryFunctions(action="listLayers"|"listLayerVersions"|"getLayerVersionDetail"|"listFunctionLayers")`
+     - `writeFunctionLayers` -> `manageFunctions(action="createLayerVersion"|"deleteLayerVersion"|"attachLayer"|"detachLayer"|"updateFunctionLayers")`
+     - `createFunctionHTTPAccess` -> `manageGateway(action="createAccess")`
 
 ---
 
@@ -115,16 +162,18 @@ Event functions require:
 
 **Creating New Functions:**
 
-Use `createFunction` tool (see MCP tool documentation for full parameter list):
+Use `manageFunctions(action="createFunction")` (see MCP tool documentation for full parameter list):
 - **Important**: Always specify `func.runtime` explicitly (defaults to `Nodejs18.15`)
 - Provide `functionRootPath` as parent directory of function folders (absolute path)
 - Use `force=true` to overwrite existing function
+- **Legacy compatibility**: If an older prompt says `createFunction`, keep the same payload but send it through `manageFunctions`
 
 **Updating Function Code:**
 
-Use `updateFunctionCode` tool:
+Use `manageFunctions(action="updateFunctionCode")`:
 - **⚠️ Note**: Only updates code, **cannot change runtime**
 - If runtime needs to change, delete and recreate function
+- **Legacy compatibility**: If an older prompt says `updateFunctionCode`, map it to this `manageFunctions` action
 
 **Deployment Best Practices:**
 
@@ -201,7 +250,8 @@ app.listen(9000);  // Must be port 9000
 
 **MCP Tool:**
 ```javascript
-createFunction({
+manageFunctions({
+  action: "createFunction",
   func: {
     name: "myHttpFunction",
     type: "HTTP",           // Required for HTTP Function
@@ -234,14 +284,16 @@ curl -L 'https://{envId}.api.tcloudbasegateway.com/v1/functions/{name}?webfn=tru
 
 **Method 2: HTTP Access Service (Custom Domain)**
 
-Use `createFunctionHTTPAccess` MCP tool to configure HTTP access:
+Use `manageGateway(action="createAccess")` to configure HTTP access:
 
 ```javascript
-createFunctionHTTPAccess({
-  name: "myHttpFunction",
+manageGateway({
+  action: "createAccess",
+  targetType: "function",
+  targetName: "myHttpFunction",
   type: "HTTP",           // "HTTP" for HTTP Function
   path: "/api/hello",     // Trigger path
-  // domain: "your-domain.com"  // Optional custom domain
+  // auth: false            // Optional gateway auth switch
 })
 ```
 
@@ -272,7 +324,7 @@ const es = new EventSource('https://your-domain/stream');
 es.onmessage = (e) => console.log(JSON.parse(e.data));
 ```
 
-**WebSocket:** Enable via `protocolType: "WS"` in `createFunction`. For bidirectional real-time communication.
+**WebSocket:** Enable via `protocolType: "WS"` in `manageFunctions(action="createFunction")`. For bidirectional real-time communication.
 
 | Limit | Value |
 |-------|-------|
@@ -292,7 +344,7 @@ wss.on('connection', (ws) => {
 
 **Querying Logs:**
 
-**Primary Method:** Use `getFunctionLogs` and `getFunctionLogDetail` tools (see MCP tool documentation).
+**Primary Method:** Use `queryFunctions(action="listFunctionLogs")` and `queryFunctions(action="getFunctionLogDetail")` (see MCP tool documentation).
 
 **Alternative Method (Plan B):** If tools unavailable, use `callCloudApi`:
 
@@ -402,7 +454,7 @@ Use CloudBase HTTP API to invoke event functions:
 
 **Creating HTTP Access:**
 
-**Primary Method:** Use `createFunctionHTTPAccess` tool (see MCP tool documentation).
+**Primary Method:** Use `manageGateway(action="createAccess")` (see MCP tool documentation).
 
 **Alternative Method (Plan B):** If tool unavailable, use `callCloudApi` with `CreateCloudBaseGWAPI`:
 
@@ -449,7 +501,7 @@ Set via `func.envVariables` when creating/updating:
 
 When updating environment variables for existing functions:
 
-1. **MUST first query current environment variables** using `getFunctionList` with `action=detail` to get the function's current configuration
+1. **MUST first query current environment variables** using `queryFunctions(action="getFunctionDetail")` to get the function's current configuration
 2. **MUST merge** new environment variables with existing ones
 3. **DO NOT directly overwrite** - this will delete existing environment variables not included in the update
 
@@ -457,9 +509,9 @@ When updating environment variables for existing functions:
 
 ```javascript
 // 1. First, get current function details
-const currentFunction = await getFunctionList({
-  action: "detail",
-  name: "functionName"
+const currentFunction = await queryFunctions({
+  action: "getFunctionDetail",
+  functionName: "functionName"
 });
 
 // 2. Merge existing envVariables with new ones
@@ -469,11 +521,10 @@ const mergedEnvVariables = {
 };
 
 // 3. Update with merged variables
-await updateFunctionConfig({
-  funcParam: {
-    name: "functionName",
-    envVariables: mergedEnvVariables
-  }
+await manageFunctions({
+  action: "updateFunctionConfig",
+  functionName: "functionName",
+  envVariables: mergedEnvVariables
 });
 ```
 
@@ -514,25 +565,31 @@ For accessing VPC resources:
 ## MCP Tools Reference
 
 **Function Management:**
-- `getFunctionList` - List functions or get function details
-- `createFunction` - Create cloud function (supports both Event and HTTP types via `type` parameter)
-  - `type: "Event"` - Event Function (default)
-  - `type: "HTTP"` - HTTP Function
-  - `protocolType: "WS"` - Enable WebSocket for HTTP Function
-- `updateFunctionCode` - Update function code (runtime cannot change)
-- `updateFunctionConfig` - Update function configuration (⚠️ when updating envVariables, must first query and merge with existing values to avoid overwriting)
+- `queryFunctions(action="listFunctions"|"getFunctionDetail")` - Preferred read entrance for function inventory and detail
+- `manageFunctions(action="createFunction")` - Create cloud function (supports both Event and HTTP types via `func.type`)
+  - `func.type: "Event"` - Event Function (default)
+  - `func.type: "HTTP"` - HTTP Function
+  - `func.protocolType: "WS"` - Enable WebSocket for HTTP Function
+- `manageFunctions(action="updateFunctionCode")` - Update function code (runtime cannot change)
+- `manageFunctions(action="updateFunctionConfig")` - Update function configuration (⚠️ when updating envVariables, must first query and merge with existing values to avoid overwriting)
+- Legacy aliases still seen in historical prompts: `getFunctionList`, `createFunction`, `updateFunctionCode`, `updateFunctionConfig`
 
 **Logging:**
-- `getFunctionLogs` - Get function log list (basic info)
-- `getFunctionLogDetail` - Get detailed log content by RequestId
+- `queryFunctions(action="listFunctionLogs")` - Get function log list (basic info)
+- `queryFunctions(action="getFunctionLogDetail")` - Get detailed log content by RequestId
 - `callCloudApi` (Plan B) - Use `GetFunctionLogs` and `GetFunctionLogDetail` actions if direct tools unavailable
+- Legacy aliases still seen in historical prompts: `getFunctionLogs`, `getFunctionLogDetail`
 
 **HTTP Access:**
-- `createFunctionHTTPAccess` - Create HTTP access for function (supports both Event and HTTP types via `type` parameter)
+- `queryGateway(action="getAccess")` - Query current function gateway exposure
+- `manageGateway(action="createAccess")` - Create HTTP access for function
 - `callCloudApi` (Plan B) - Use `CreateCloudBaseGWAPI` action if direct tool unavailable
+- Legacy alias still seen in historical prompts: `createFunctionHTTPAccess`
 
 **Triggers:**
-- `manageFunctionTriggers` - Create or delete function triggers
+- `queryFunctions(action="listFunctionTriggers")` - Inspect triggers
+- `manageFunctions(action="createFunctionTrigger"|"deleteFunctionTrigger")` - Create or delete function triggers
+- Legacy alias still seen in historical prompts: `manageFunctionTriggers`
 
 **CLI Commands:**
 - `tcb fn deploy <name>` - Deploy Event Function
@@ -631,4 +688,3 @@ exports.main = async (event, context) => {
 - `cloudrun-development` - For container-based backend services
 - `http-api` - For HTTP API invocation patterns
 - `cloudbase-platform` - For general CloudBase platform knowledge
-

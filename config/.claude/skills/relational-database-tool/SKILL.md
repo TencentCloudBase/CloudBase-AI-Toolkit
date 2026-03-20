@@ -4,6 +4,31 @@ description: This is the required documentation for agents operating on the Clou
 alwaysApply: false
 ---
 
+## Activation Contract
+
+### Use this first when
+
+- The agent must run SQL, inspect schema, or manage security rules through MCP tools.
+
+### Read before writing code if
+
+- The task includes `executeReadOnlySQL`, `executeWriteSQL`, `readSecurityRule`, or `writeSecurityRule`.
+
+### Then also read
+
+- Web application integration -> `../relational-database-web/SKILL.md`
+- Raw HTTP database access -> `../http-api/SKILL.md`
+
+### Do NOT use for
+
+- Frontend or backend application code that should use SDKs instead of MCP operations.
+
+### Common mistakes / gotchas
+
+- Initializing SDKs in an MCP management flow.
+- Running write SQL before verifying assumptions with SELECT.
+- Treating document database tasks as MySQL management tasks.
+
 ## When to use this skill
 
 Use this skill when an **agent** needs to operate on **CloudBase Relational Database via MCP tools**, for example:

@@ -4,6 +4,32 @@ description: Web frontend project development rules. Use this skill when develop
 alwaysApply: false
 ---
 
+## Activation Contract
+
+### Use this first when
+
+- The request is for a CloudBase Web app, static hosting site, frontend page, or Web SDK integration.
+
+### Read before writing code if
+
+- The task includes frontend structure, build config, deployment, routing, or Web SDK usage.
+
+### Then also read
+
+- Login flow -> `../auth-tool/SKILL.md`, then `../auth-web/SKILL.md`
+- UI work -> `../ui-design/SKILL.md` first
+- NoSQL / MySQL data work -> matching database skill
+
+### Do NOT use for
+
+- Mini programs, native Apps, or container backend services.
+
+### Common mistakes / gotchas
+
+- Treating cloud functions as the default solution for Web authentication.
+- Starting UI implementation before reading `ui-design`.
+- Routing native App requests into Web SDK code paths.
+
 ## When to use this skill
 
 Use this skill for **Web frontend project development** when you need to:

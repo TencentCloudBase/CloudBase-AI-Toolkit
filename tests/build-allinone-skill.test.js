@@ -68,5 +68,7 @@ test.skipIf(!hasNode24ViaNvm())(
     const mainSkill = fs.readFileSync(path.join(outputDir, 'SKILL.md'), 'utf8');
     expect(mainSkill).toContain('name: cloudbase');
     expect(mainSkill).toContain('references/auth-web/SKILL.md');
+    expect(mainSkill).toContain('## Activation Contract');
+    expect(mainSkill).toContain('Provider status and publishable key');
   },
 );

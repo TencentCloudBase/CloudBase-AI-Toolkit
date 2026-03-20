@@ -192,7 +192,7 @@ As the most important part of application development, the following four core c
 - Generate markdown format access links with random queryString
 
 ### 4. Backend Deployment (Cloud Functions or CloudRun)
-- **Cloud Function Deployment**: Refer to `rules/cloud-functions/rule.md` - Use `getFunctionList` to query, then call `createFunction` or `updateFunctionCode` to deploy. **Important**: Runtime cannot be changed after creation, must select correct runtime initially.
+- **Cloud Function Deployment**: Refer to `rules/cloud-functions/rule.md` - Use `queryFunctions` to query, then call `manageFunctions` with `action="createFunction"` or `action="updateFunctionCode"` to deploy. **Important**: Runtime cannot be changed after creation, must select correct runtime initially.
 - **CloudRun Deployment**: Refer to `rules/cloudrun-development/rule.md` - Use `manageCloudRun` tool for containerized deployment
 - Ensure backend code supports CORS, prepare Dockerfile (for container type)
 
@@ -313,9 +313,9 @@ If remote links are needed in the application, can continue to call uploadFile t
 
 ### Deployment Process
 
-1. **Cloud Function Deployment Process**: Can use getFunctionList tool to query if there are cloud functions, then directly call createFunction or updateFunctionCode to update cloud function code. Only need to point functionRootPath to parent directory of cloud function directory (e.g., absolute path of cloudfunctions directory). No need for code compression and other operations. The above tools will automatically read files from cloud function subdirectories with same name under parent directory and automatically deploy
+1. **Cloud Function Deployment Process**: Can use `queryFunctions` to query if there are cloud functions, then directly call `manageFunctions` with `action="createFunction"` or `action="updateFunctionCode"` to update cloud function code. Only need to point `functionRootPath` to parent directory of cloud function directory (e.g., absolute path of cloudfunctions directory). No need for code compression and other operations. The tool will automatically read files from cloud function subdirectories with same name under parent directory and automatically deploy
 
-2. **Cloud Function Deployment Process**: For Node.js cloud functions, use `getFunctionList` to query, then call `createFunction` or `updateFunctionCode` to deploy. **Important**: Runtime cannot be changed after creation. For details, refer to `rules/cloud-functions/rule.md`
+2. **Cloud Function Deployment Process**: For Node.js cloud functions, use `queryFunctions` to query, then call `manageFunctions` with `action="createFunction"` or `action="updateFunctionCode"` to deploy. **Important**: Runtime cannot be changed after creation. For details, refer to `rules/cloud-functions/rule.md`
 
 3. **CloudRun Deployment Process**: For non-cloud function backend services (Java, Go, PHP, Python, Node.js, etc.), use manageCloudRun tool for deployment. Ensure backend code supports CORS, prepare Dockerfile, then call manageCloudRun for containerized deployment. For details, refer to `rules/cloudrun-development/rule.md`
 

@@ -1,26 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ExtendedMcpServer } from "../server.js";
 import { registerGatewayTools } from "./gateway.js";
+import type { ExtendedMcpServer } from "../server.js";
 
 const {
+  mockGetAccessList,
+  mockGetDomainList,
   mockCreateAccess,
   mockGetCloudBaseManager,
-  mockGetEnvId,
   mockLogCloudBaseResult,
 } = vi.hoisted(() => ({
+  mockGetAccessList: vi.fn(),
+  mockGetDomainList: vi.fn(),
   mockCreateAccess: vi.fn(),
   mockGetCloudBaseManager: vi.fn(),
-  mockGetEnvId: vi.fn(),
   mockLogCloudBaseResult: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
   getCloudBaseManager: mockGetCloudBaseManager,
-  getEnvId: mockGetEnvId,
   logCloudBaseResult: mockLogCloudBaseResult,
 }));
 
-function createMockServer(overrides?: { region?: string }) {
+function createMockServer() {
   const tools: Record<
     string,
     {
@@ -30,11 +31,7 @@ function createMockServer(overrides?: { region?: string }) {
   > = {};
 
   const server: ExtendedMcpServer = {
-    cloudBaseOptions: {
-      envId: "env-test",
-      region:
-        overrides && "region" in overrides ? overrides.region : "ap-guangzhou",
-    },
+    cloudBaseOptions: { envId: "env-test", region: "ap-guangzhou" },
     logger: vi.fn(),
     registerTool: vi.fn(
       (name: string, meta: any, handler: (args: any) => Promise<any>) => {
@@ -45,67 +42,143 @@ function createMockServer(overrides?: { region?: string }) {
 
   registerGatewayTools(server);
 
-  return { tools };
+  return {
+    server,
+    tools,
+  };
 }
 
 describe("gateway tools", () => {
+  let tools: ReturnType<typeof createMockServer>["tools"];
+
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreateAccess.mockResolvedValue({ APIId: "api-123" });
+
+    mockGetAccessList.mockResolvedValue({
+      Total: 1,
+      EnableService: true,
+      APISet: [
+        {
+          Path: "api/hello",
+        },
+      ],
+    });
+    mockGetDomainList.mockResolvedValue({
+      DefaultDomain: "env-test.app.tcloudbase.com",
+      EnableService: true,
+      ServiceSet: [
+        {
+          Domain: "api.example.com",
+        },
+      ],
+    });
+    mockCreateAccess.mockResolvedValue({
+      RequestId: "req-create-access",
+      APIId: "api-123",
+    });
     mockGetCloudBaseManager.mockResolvedValue({
       access: {
+        getAccessList: mockGetAccessList,
+        getDomainList: mockGetDomainList,
         createAccess: mockCreateAccess,
       },
     });
-    mockGetEnvId.mockResolvedValue("env-test");
+
+    ({ tools } = createMockServer());
   });
 
-  it("should expose createFunctionHTTPAccess tool", () => {
-    const { tools } = createMockServer();
-    expect(typeof tools.createFunctionHTTPAccess?.handler).toBe("function");
-  });
-
-  it("should normalize path and return invoke guidance", async () => {
-    const { tools } = createMockServer();
-
-    const result = await tools.createFunctionHTTPAccess.handler({
-      name: "demo",
+  it("manageGateway(action=createAccess) should normalize path and return structured payload", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "createAccess",
+      targetType: "function",
+      targetName: "helloFn",
       path: "api/hello",
       type: "HTTP",
+      auth: false,
     });
+
     const payload = JSON.parse(result.content[0].text);
 
     expect(mockCreateAccess).toHaveBeenCalledWith({
-      name: "demo",
+      name: "helloFn",
       path: "/api/hello",
       type: 6,
+      auth: false,
     });
     expect(payload).toMatchObject({
-      ok: true,
-      code: "HTTP_ACCESS_CREATED",
-      function_name: "demo",
-      function_type: "HTTP",
-      env_id: "env-test",
-      region: "ap-guangzhou",
-      path: "/api/hello",
-      invoke_url: "https://env-test.ap-guangzhou.app.tcloudbase.com/api/hello",
+      success: true,
+      data: {
+        action: "createAccess",
+        targetType: "function",
+        targetName: "helloFn",
+        path: "/api/hello",
+      },
+      nextActions: [
+        expect.objectContaining({
+          tool: "queryGateway",
+          action: "getAccess",
+        }),
+      ],
     });
-    expect(payload.next_steps[0]).toContain(
-      "https://env-test.ap-guangzhou.app.tcloudbase.com/api/hello",
-    );
   });
 
-  it("should explain missing region when invoke url cannot be generated", async () => {
-    const { tools } = createMockServer({ region: undefined });
-
-    const result = await tools.createFunctionHTTPAccess.handler({
-      name: "demo",
-      path: "/ready",
+  it("manageGateway(action=createAccess) should default path to targetName when omitted", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "createAccess",
+      targetType: "function",
+      targetName: "helloFn",
+      type: "Event",
     });
+
     const payload = JSON.parse(result.content[0].text);
 
-    expect(payload.invoke_url).toBeNull();
-    expect(payload.next_steps[0]).toContain("Region is unavailable");
+    expect(mockCreateAccess).toHaveBeenCalledWith({
+      name: "helloFn",
+      path: "/helloFn",
+      type: 1,
+      auth: undefined,
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "createAccess",
+        targetType: "function",
+        targetName: "helloFn",
+        path: "/helloFn",
+      },
+    });
+  });
+
+  it("queryGateway(action=getAccess) should aggregate access urls from domains", async () => {
+    const result = await tools.queryGateway.handler({
+      action: "getAccess",
+      targetType: "function",
+      targetName: "helloFn",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockGetAccessList).toHaveBeenCalledWith({ name: "helloFn" });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "getAccess",
+        targetType: "function",
+        targetName: "helloFn",
+        total: 1,
+        domains: ["env-test.app.tcloudbase.com", "api.example.com"],
+        urls: [
+          "https://env-test.app.tcloudbase.com/api/hello",
+          "https://api.example.com/api/hello",
+        ],
+        enableService: true,
+      },
+      nextActions: [
+        expect.objectContaining({
+          tool: "manageGateway",
+          action: "createAccess",
+        }),
+      ],
+    });
   });
 });
-

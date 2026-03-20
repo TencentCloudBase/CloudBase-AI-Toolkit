@@ -40,6 +40,8 @@ test('buildCompatConfig generates compatibility artifacts from minimal sources',
   expect(
     fs.readFileSync(path.join(compatDir, '.cursor', 'rules', 'cloudbase-rules.mdc'), 'utf8'),
   ).toBe(compatGuide);
+  expect(compatGuide).toContain('## Activation Contract');
+  expect(compatGuide).toContain('Native App / raw HTTP');
 
   expect(
     fs.readFileSync(path.join(compatDir, 'rules', 'auth-web', 'rule.md'), 'utf8'),
@@ -50,6 +52,7 @@ test('buildCompatConfig generates compatibility artifacts from minimal sources',
   expect(
     fs.readFileSync(path.join(compatDir, '.codebuddy', 'skills', 'auth-web', 'SKILL.md'), 'utf8'),
   ).toBe(authWebSkill);
+  expect(authWebSkill).toContain('## Activation Contract');
 
   expect(fs.existsSync(path.join(compatDir, '.mcp.json'))).toBe(true);
   expect(fs.existsSync(path.join(compatDir, '.claude', 'commands', 'spec.md'))).toBe(true);
