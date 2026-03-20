@@ -113,7 +113,7 @@ export PYTHONPATH="./env:$PYTHONPATH"
 |--------|------------------------------|----------------------------|
 | Cold-start speed | ✅ Fast (deps already present) | ❌ Slow (first cold-start installs deps) |
 | C-extension compatibility | ✅ Guaranteed (pre-built for Linux) | ⚠️ May fail for some packages |
-| Local toolchain required | Yes (Python 3.10 + pip) | No |
+| Local toolchain required | **Python 3.10** (via pyenv/conda) + pip (**MANDATORY**) | No |
 | Upload size | Larger (includes `./env`) | Smaller (code only) |
 | Recommended for production | ✅ Yes | For prototyping only |
 
@@ -276,7 +276,7 @@ CMD ["python", "server.py"]
 |----------|--------|
 | **Deployment tool** | `manageAgent` MCP tool (MUST USE) |
 | **Python runtime** | Python 3.10 (MUST USE, `runtime="Python3.10"`) |
-| **Dependency strategy** | Path A: local pre-packaging to `./env` (recommended) or Path B: `installDependency=true` |
+| **Dependency strategy** | Path A: local pre-packaging to `./env` (recommended, **MUST use Python 3.10 interpreter**) or Path B: `installDependency=true` |
 | **Default platform** | HTTP Cloud Functions |
 | **Fallback platform** | CloudRun (only for special requirements) |
 | **Startup script** | `scf_bootstrap` — set `PYTHONPATH="./env:$PYTHONPATH"`, do NOT `pip install` at startup |

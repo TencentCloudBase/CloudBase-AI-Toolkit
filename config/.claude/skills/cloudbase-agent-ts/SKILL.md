@@ -36,7 +36,7 @@ Use this skill for **AI agent development** when you need to:
 2. **Deploy the agent server**
    - Use `@cloudbase/agent-server` to expose HTTP endpoints
    - Configure CORS, logging, and observability as needed
-   - Prefer deploying to CloudBase HTTP Cloud Functions (see [agent-deployment](agent-deployment.md))
+   - **Prefer deploying to CloudBase using `manageAgent` MCP tool** (see [agent-deployment](agent-deployment.md))
 
 3. **Build the UI client**
    - Use `@ag-ui/client` for web applications
@@ -49,11 +49,11 @@ Use this skill for **AI agent development** when you need to:
 
 | Task | Read |
 |------|------|
+| Deploy agent to CloudBase (**read this first**) | [agent-deployment](agent-deployment.md) |
 | Deploy agent server (@cloudbase/agent-server) | [server-quickstart](server-quickstart.md) |
 | Use LangGraph adapter | [adapter-langgraph](adapter-langgraph.md) |
 | Use LangChain adapter | [adapter-langchain](adapter-langchain.md) |
 | Build custom adapter | [adapter-development](adapter-development.md) |
-| Deploy agent to CloudBase | [agent-deployment](agent-deployment.md) |
 | Understand AG-UI protocol | [agui-protocol](agui-protocol.md) |
 | Build UI client (Web or Mini Program) | [ui-clients](ui-clients.md) |
 | Deep-dive @cloudbase/agent-ui-miniprogram | [ui-miniprogram](ui-miniprogram.md) |
@@ -81,3 +81,5 @@ run({
   port: 9000,
 });
 ```
+
+

@@ -2,7 +2,11 @@
 
 ## Core Principle
 
-**Always use the `manageAgent` MCP tool to deploy Agent services.** It natively supports SSE streaming, session persistence, and Node.js 20 runtime — purpose-built for Agent scenarios. Do NOT use `createFunction` or `manageCloudRun` for Agent deployment.
+**Always use the `manageAgent` MCP tool to deploy Agent services.**
+
+It natively supports SSE streaming, session persistence, and Node.js 20 runtime — purpose-built for Agent scenarios.
+
+Do **NOT** use `createFunction` or `manageCloudRun` for Agent deployment.
 
 ## Why HTTP Cloud Functions First
 
@@ -17,20 +21,98 @@
 
 ## Deployment Steps (HTTP Cloud Functions)
 
-1. Create an HTTP Cloud Function (**select Node.js 20 runtime**)
-2. Upload Agent code (including `@cloudbase/agent-server`)
-3. Configure HTTP access path
-4. Set environment variables (API keys, model config, etc.)
+1. Ensure project has `scf_bootstrap` startup script (see below)
+2. Install dependencies locally (`npm install`)
+3. Deploy using `manageAgent` MCP tool with `runtime="Nodejs20"`:
+
+```
+manageAgent(action="create", runtime="Nodejs20", installDependency=true, targetPath="...")
+```
+
+4. Set environment variables (OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL, etc.)
 5. Verify SSE connectivity
 
-## Code Adaptation Notes
+> For server code and adapter usage, see [server-quickstart](server-quickstart.md) and [adapter-langgraph](adapter-langgraph.md).
 
-- Listen on the port from environment variable `SCF_RUNTIME_PORT`
-- Name the startup script `scf_bootstrap`
-- Ensure CORS is properly configured
+## Node.js Runtime Version
+
+**Always select Node.js 20 runtime** (`runtime="Nodejs20"`):
+
+- Full compatibility with all `@cloudbase/agent-*` packages
+- ES Module support (`"type": "module"` in package.json)
+- Stable and well-tested on the CloudBase platform
+
+Do **NOT** use Node.js 16 or earlier — many SDK features require Node.js >= 20.
+
+## Startup Script (scf_bootstrap)
+
+The startup script must be named `scf_bootstrap` (no file extension), placed in the project root, and have executable permissions:
+
+```bash
+#!/bin/sh
+node src/index.js
+```
+
+```bash
+chmod +x scf_bootstrap
+```
+
+> **IMPORTANT**: The `scf_bootstrap` script should be minimal — just start the Node.js application. Do NOT include `npm install` in this script. Dependencies are handled during deployment.
+
+> **NOTE**: Use `#!/bin/sh` (not `#!/bin/bash`) for maximum compatibility. The entry point should match your actual server entry file.
+
+## Port & CORS
+
+- Your server **should** listen on port `9000` (the default for CloudBase Agent)
+- In production (CloudBase), CORS is handled by the API gateway — no need to enable it in code
+- For local development, conditionally enable CORS via an environment variable (e.g., `ENABLE_CORS=true`)
+
+## Environment Variables
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `OPENAI_API_KEY` | ✅ | OpenAI API key or compatible service key |
+| `OPENAI_BASE_URL` | ✅ | API base URL, e.g. `https://api.openai.com/v1` |
+| `OPENAI_MODEL` | ✅ | Model name, e.g. `gpt-4o` or `gpt-3.5-turbo` |
+| `LOG_LEVEL` | ❌ | Log level: `trace`/`debug`/`info`/`warn`/`error`/`fatal` (default: `info`) |
+| `ENABLE_CORS` | ❌ | Set to `true` to enable CORS (local dev only) |
 
 ## When to Use CloudRun Instead
 
-- Custom Docker image required (special system-level dependencies)
+Despite HTTP Cloud Functions being preferred, use CloudRun in these cases:
+
+- Custom Docker image required (special system-level dependencies like FFmpeg, Chromium, etc.)
 - Resource requirements exceed Cloud Function limits
 - Persistent local file storage needed
+- Need to install native C extensions that require specific OS packages
+
+For CloudRun deployment, use a Dockerfile:
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm i --production
+
+COPY src ./src
+
+ENV NODE_ENV=production
+EXPOSE 9000
+
+CMD ["node", "src/index.js"]
+```
+
+## Summary
+
+| Decision | Choice |
+|----------|--------|
+| **Deployment tool** | `manageAgent` MCP tool (MUST USE) |
+| **Node.js runtime** | Node.js 20 (MUST USE, `runtime="Nodejs20"`) |
+| **Dependency strategy** | Cloud-side install supported (`installDependency=true`) |
+| **Default platform** | HTTP Cloud Functions |
+| **Fallback platform** | CloudRun (only for special requirements) |
+| **Startup script** | `scf_bootstrap` — `#!/bin/sh` + `node src/index.js` |
+| **Port** | Listen on port `9000` |
+| **CORS** | Production uses API gateway; local dev via `ENABLE_CORS` env var |
+| **Module system** | ES Modules (`"type": "module"` in package.json) |
