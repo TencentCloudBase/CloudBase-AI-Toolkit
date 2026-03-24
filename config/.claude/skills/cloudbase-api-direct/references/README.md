@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-03-23T04:26:19.446Z
+爬取时间: 2026-03-24T04:14:46.467Z
 
 ## 文档列表
 
@@ -85,6 +85,7 @@
 - [TDSQL-C MySQL 版 修改数据库账号密码_腾讯云](./1003-83592-TDSQL-C-MySQL-版-修改数据库账号密码_腾讯云.md)
 - [TDSQL-C MySQL 版 关闭外网_腾讯云](./1003-92737-TDSQL-C-MySQL-版-关闭外网_腾讯云.md)
 - [TDSQL-C MySQL 版 开通外网_腾讯云](./1003-92732-TDSQL-C-MySQL-版-开通外网_腾讯云.md)
+- [TDSQL-C MySQL 版 恢复serverless集群_腾](./1003-70121-TDSQL-C-MySQL-版-恢复serverless集群_腾.md)
 - [TDSQL-C MySQL 版 创建手动备份_腾讯云](./1003-80212-TDSQL-C-MySQL-版-创建手动备份_腾讯云.md)
 - [TDSQL-C MySQL 版 删除手动备份_腾讯云](./1003-82201-TDSQL-C-MySQL-版-删除手动备份_腾讯云.md)
 - [TDSQL-C MySQL 版 修改备份配置_腾讯云](./1003-48090-TDSQL-C-MySQL-版-修改备份配置_腾讯云.md)
