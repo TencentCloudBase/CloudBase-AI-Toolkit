@@ -124,6 +124,14 @@ If `config/mcporter.json` already contains other MCP servers, keep them and only
 - Bind environment after login (envId from CloudBase console):  
   `npx mcporter call cloudbase.auth action=set_env envId=env-xxx --output json`
 
+### Knowledge base docs navigation
+
+- Do **not** assume there is a shell `docs` command. For doc discovery, rely on the CloudBase knowledge-base workflow exposed by the environment or MCP-backed helpers.
+- Treat `docs list` as module discovery, `docs read <module>` as module-level reading, and `docs read <path>` as exact document-path reading.
+- When the argument looks like a path, keep the full path intact first. Do not split on `.` or `/` blindly; nested paths such as `references/cloud-functions/SKILL.md` must resolve as one document path.
+- When `docs search "<keyword>"` returns matches, read the most specific returned path first. If search does not return a direct path, continue with list/read instead of inventing a document.
+- Example flow: `docs list` -> choose `cloudbase-platform` -> `docs read cloudbase-platform` -> `docs read references/auth-web/SKILL.md`
+
 ---
 
 ## CloudBase scenarios (for AI discovery)
