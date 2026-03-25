@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 67
+ * Action 数量: 70
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -28,6 +28,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DeleteProvider',
   'DeleteTable',
   'DeleteUsers',
+  'DeleteVmInstance',
   'DescribeAuthDomains',
   'DescribeBaasPackageList',
   'DescribeBillingInfo',
@@ -52,12 +53,14 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DescribeTable',
   'DescribeTables',
   'DescribeUserList',
+  'DescribeVmInstances',
   'DescribeVmSpec',
   'DestroyEnv',
   'DestroyMySQL',
   'DestroyStaticStore',
   'EditAuthConfig',
   'GetProviders',
+  'InquireVmPrice',
   'ListTables',
   'ModifyClient',
   'ModifyCloudBaseGWAPI',
