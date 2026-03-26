@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 绑定自定义域名
+## 删除HTTP访问服务路由
 
-最近更新时间：2026-03-19 02:07:25
+最近更新时间：2026-03-26 02:55:46
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-绑定自定义域名
+本接口DeleteHTTPServiceRoute用于删除HTTP访问服务域名或者路由。可批量删除多条path路由、删除域名及所有path路由，如果Paths字段为空则删除域名及所有path路由，如果Paths不为空则仅删除path路由。
 
 默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=BindCloudBaseGWDomain)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DeleteHTTPServiceRoute)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,13 +34,15 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：BindCloudBaseGWDomain。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DeleteHTTPServiceRoute。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| ServiceId | 是 | String | 服务ID |
-| Domain | 是 | String | 服务域名 |
-| CertId | 否 | String | 证书ID |
-| EnableRegion | 否 | Boolean | 是否启用多地域 |
+| EnvId | 是 | String | 环境ID  
+示例值： ********\********* -7ezncwdd421446 |
+| Domain | 是 | String | 域名  
+示例值：xxx.******\*\*\*******.cn |
+| Paths.N | 否 | Array of String | 路径列表。为空则表示删除此域名和所有路由  
+示例值：\["/api/v1"\] |
 
 ## 3\. 输出参数
 
@@ -50,18 +52,22 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 ## 4\. 示例
 
-### 示例1 云接入绑定自定义域名
+### 示例1 删除所有路由
 
-云接入绑定自定义域名
+删除域名及所有路由
 
 #### 输入示例
 
 ```
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: DeleteHTTPServiceRoute
+<公共请求参数>
+
 {
-  "ServiceId": "xx",
-  "Domain": "xx",
-  "CertId": "xx",
-  "EnableRegion": true
+    "EnvId": "*****************-7ezncwdd421446",
+    "Domain": "xxx.***************.cn"
 }
 ```
 
@@ -70,7 +76,7 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 ```json
 {
     "Response": {
-        "RequestId": "xx"
+        "RequestId": "ac011e66-c9f3-4de9-8d76-df3316b3c5f8"
     }
 }
 ```
@@ -108,15 +114,7 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 错误码 | 描述 |
 | --- | --- |
-| InternalError.SystemFail | 系统失败。 |
 | InvalidParameter | 参数错误。 |
-| InvalidParameter.APINoExist | API不存在。 |
-| InvalidParameter.CNAMENotMatch | 域名cname不正确。 |
-| InvalidParameter.DomainExist | 域名已经绑定。 |
-| InvalidParameter.DomainNotExist | 域名不存在。 |
-| InvalidParameter.ExclusiveCert | 独占证书。 |
-| InvalidParameter.ServiceEvil | 没有操作权限。 |
-| InvalidParameter.ServiceICP | 域名没有备案。 |
-| InvalidParameter.ServiceThreshold | Domain超上限了。 |
+| InvalidParameter.EnvId | 环境ID非法。 |
 
 目录

@@ -2,7 +2,7 @@
 
 ## 创建静态托管资源
 
-最近更新时间：2026-03-02 12:47:52
+最近更新时间：2026-03-26 02:54:51
 
 -   微信扫一扫 
 -   QQ
@@ -41,6 +41,7 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 示例值：env-xxyyzza |
 | EnableUnion | 否 | Boolean | 是否启用统一域名  
 示例值：false |
+| ExternalStorage | 否 | [ExternalStorage](/document/api/876/34822#ExternalStorage) | 外部存储源。 |
 
 ## 3\. 输出参数
 
@@ -69,6 +70,39 @@ https://tcb.tencentcloudapi.com/?Action=CreateStaticStore
     "Response": {
         "Result": "succ",
         "RequestId": "5620b49e-a25a-4007-84ef-03c9035c584d"
+    }
+}
+```
+
+### 示例2 以腾讯云COS作为外部存储源开通静态托管
+
+#### 输入示例
+
+```
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: CreateStaticStore
+<公共请求参数>
+
+{
+    "EnvId": "cloudbase-0gx36sm8ddc58be0",
+    "ExternalStorage": {
+        "BucketName": "tencent-cos-v2-1257619089",
+        "Region": "ap-shanghai",
+        "BasePath": "cloudbase-0gx36sm8ddc58be-static",
+        "Enabled": true
+    }
+}
+```
+
+#### 输出示例
+
+```json
+{
+    "Response": {
+        "Result": "succ",
+        "RequestId": "39ec0c65-d979-4990-90df-facb97c78e73"
     }
 }
 ```

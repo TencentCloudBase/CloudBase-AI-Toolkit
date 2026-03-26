@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-03-25 02:57:28
+最近更新时间：2026-03-26 02:55:54
 
 -   微信扫一扫 
 -   QQ
@@ -77,6 +77,7 @@ _我的收藏_
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
+| [DescribeGatewayVersions](/document/api/876/129795) | 查询网关版本信息 | 20 |
 | [ModifyClsTopic](/document/api/876/81547) | 修改日志主题 | 20 |
 | [DescribeCurveData](/document/api/876/129258) | 查询环境监控曲线 | 100 |
 | [DeleteAuthDomain](/document/api/876/128960) | 删除合法域名 | 20 |
@@ -113,11 +114,16 @@ _我的收藏_
 | [DeleteCloudBaseGWDomain](/document/api/876/128122) | 删除网关域名 | 20 |
 | [BindCloudBaseGWDomain](/document/api/876/128125) | 绑定自定义域名 | 20 |
 | [BindCloudBaseAccessDomain](/document/api/876/128126) | 绑定云开发自定义域名 | 100 |
+| [CreateHTTPServiceRoute](/document/api/876/129800) | 创建HTTP访问服务路由 | 20 |
+| [DeleteHTTPServiceRoute](/document/api/876/129799) | 删除HTTP访问服务路由 | 20 |
+| [DescribeHTTPServiceRoute](/document/api/876/129798) | 查询HTTP访问服务路由信息 | 20 |
+| [ModifyHTTPServiceRoute](/document/api/876/129797) | 修改HTTP访问服务路由 | 20 |
 
 ## 云服务器相关接口
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
+| [CreateVmInstance](/document/api/876/129796) | 创建服务器实例 | 20 |
 | [DeleteVmInstance](/document/api/876/129761) | 销毁服务器实例 | 20 |
 | [DescribeVmInstances](/document/api/876/129760) | 查询环境下的服务器实例 | 20 |
 | [DescribeVmSpec](/document/api/876/129360) | 获取VM规格 | 20 |

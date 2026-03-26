@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-03-25T04:16:17.676Z
+爬取时间: 2026-03-26T04:30:37.822Z
 
 ## 文档列表
 
@@ -36,6 +36,7 @@
 - [云开发 CloudBase 更新tcb用户_腾讯云](./876-127958-云开发-CloudBase-更新tcb用户_腾讯云.md)
 - [云开发 CloudBase 查询云托管服务版本的详情_腾讯云](./876-49739-云开发-CloudBase-查询云托管服务版本的详情_腾讯云.md)
 - [云开发 CloudBase 获取云托管代码上传和下载url_腾讯](./876-48345-云开发-CloudBase-获取云托管代码上传和下载url_腾讯.md)
+- [云开发 CloudBase 查询网关版本信息_腾讯云](./876-129795-云开发-CloudBase-查询网关版本信息_腾讯云.md)
 - [云开发 CloudBase 修改日志主题_腾讯云](./876-81547-云开发-CloudBase-修改日志主题_腾讯云.md)
 - [云开发 CloudBase 查询环境监控曲线_腾讯云](./876-129258-云开发-CloudBase-查询环境监控曲线_腾讯云.md)
 - [云开发 CloudBase 删除合法域名_腾讯云](./876-128960-云开发-CloudBase-删除合法域名_腾讯云.md)
@@ -49,14 +50,19 @@
 - [云开发 CloudBase 查询文档型数据库所有表_腾讯云](./876-127965-云开发-CloudBase-查询文档型数据库所有表_腾讯云.md)
 - [云开发 CloudBase 修改文档型数据库表索引信息_腾讯云](./876-127964-云开发-CloudBase-修改文档型数据库表索引信息_腾讯云.md)
 - [云开发 CloudBase 执行文档型数据库命令_腾讯云](./876-129012-云开发-CloudBase-执行文档型数据库命令_腾讯云.md)
-- [云开发 CloudBase 获取网关API列表_腾讯云](./876-128121-云开发-CloudBase-获取网关API列表_腾讯云.md)
-- [云开发 CloudBase 获取网关服务_腾讯云](./876-128120-云开发-CloudBase-获取网关服务_腾讯云.md)
-- [云开发 CloudBase 创建云开发网关API_腾讯云](./876-128124-云开发-CloudBase-创建云开发网关API_腾讯云.md)
-- [云开发 CloudBase 删除网关API_腾讯云](./876-128123-云开发-CloudBase-删除网关API_腾讯云.md)
-- [云开发 CloudBase 修改云开发网关API_腾讯云](./876-128128-云开发-CloudBase-修改云开发网关API_腾讯云.md)
-- [云开发 CloudBase 删除网关域名_腾讯云](./876-128122-云开发-CloudBase-删除网关域名_腾讯云.md)
-- [云开发 CloudBase 绑定自定义域名_腾讯云](./876-128125-云开发-CloudBase-绑定自定义域名_腾讯云.md)
-- [云开发 CloudBase 绑定云开发自定义域名_腾讯云](./876-128126-云开发-CloudBase-绑定云开发自定义域名_腾讯云.md)
+- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128121-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
+- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128120-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
+- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128124-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
+- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128123-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
+- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128128-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
+- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128122-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
+- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128125-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
+- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128126-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
+- [云开发 CloudBase 创建HTTP访问服务路由_腾讯云](./876-129800-云开发-CloudBase-创建HTTP访问服务路由_腾讯云.md)
+- [云开发 CloudBase 删除HTTP访问服务路由_腾讯云](./876-129799-云开发-CloudBase-删除HTTP访问服务路由_腾讯云.md)
+- [云开发 CloudBase 查询HTTP访问服务路由信息_腾讯云](./876-129798-云开发-CloudBase-查询HTTP访问服务路由信息_腾讯云.md)
+- [云开发 CloudBase 修改HTTP访问服务路由_腾讯云](./876-129797-云开发-CloudBase-修改HTTP访问服务路由_腾讯云.md)
+- [云开发 CloudBase 创建服务器实例_腾讯云](./876-129796-云开发-CloudBase-创建服务器实例_腾讯云.md)
 - [云开发 CloudBase 销毁服务器实例_腾讯云](./876-129761-云开发-CloudBase-销毁服务器实例_腾讯云.md)
 - [云开发 CloudBase 查询环境下的服务器实例_腾讯云](./876-129760-云开发-CloudBase-查询环境下的服务器实例_腾讯云.md)
 - [云开发 CloudBase 获取VM规格_腾讯云](./876-129360-云开发-CloudBase-获取VM规格_腾讯云.md)

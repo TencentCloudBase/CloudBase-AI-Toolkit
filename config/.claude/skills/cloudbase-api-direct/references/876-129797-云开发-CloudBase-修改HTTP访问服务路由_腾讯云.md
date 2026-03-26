@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 删除网关API
+## 修改HTTP访问服务路由
 
-最近更新时间：2026-03-19 02:07:24
+最近更新时间：2026-03-26 02:55:45
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-删除网关API
+本接口ModifyHTTPServiceRoute用于修改HTTP访问服务路由。支持增量修改，对应字段不传参数表示不需要修改
 
-默认接口请求频率限制：100次/秒。
+默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DeleteCloudBaseGWAPI)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=ModifyHTTPServiceRoute)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,34 +34,47 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DeleteCloudBaseGWAPI。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：ModifyHTTPServiceRoute。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| ServiceId | 是 | String | 服务ID |
-| Path | 否 | String | API Path |
-| APIId | 否 | String | API ID |
-| Type | 否 | Integer | API类型 |
-| Name | 否 | String | API Name |
-| Custom | 否 | String | 自定义值字段（Type为2时，传递容器服务名表示需要删除JNSGW） |
-| Domain | 否 | String | 域名 |
+| EnvId | 是 | String | 环境ID  
+示例值： ********\********* -7ezncwdd421446 |
+| Domain | 是 | [HTTPServiceDomainParam](/document/api/876/34822#HTTPServiceDomainParam) | 域名路由信息 |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| Count | Integer | 最终删除API个数 |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 示例
+### 示例1 修改路由信息
+
+修改上游服务名
 
 #### 输入示例
 
 ```
-https://tcb.tencentcloudapi.com/?Action=DeleteCloudBaseGWAPI
-&ServiceId=lotestapi100004
-&<公共请求参数>
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: ModifyHTTPServiceRoute
+<公共请求参数>
+
+{
+    "EnvId": "*****************-7ezncwdd421446",
+    "Domain": {
+        "Domain": "xxx.***************.cn",
+        "Routes": [
+            {
+                "Path": "/api/v1",
+                "UpstreamResourceType": "CBR",
+                "UpstreamResourceName": "my-service-new"
+            }
+        ]
+    }
+}
 ```
 
 #### 输出示例
@@ -69,8 +82,7 @@ https://tcb.tencentcloudapi.com/?Action=DeleteCloudBaseGWAPI
 ```json
 {
     "Response": {
-        "Count": 1,
-        "RequestId": "5620b49e-a25a-4007-84ef-03c9035c584d"
+        "RequestId": "3ebe9641-2c38-4ebd-b429-dc74ba74bcb7"
     }
 }
 ```
@@ -108,10 +120,9 @@ https://tcb.tencentcloudapi.com/?Action=DeleteCloudBaseGWAPI
 
 | 错误码 | 描述 |
 | --- | --- |
-| InternalError.SystemFail | 系统失败。 |
 | InvalidParameter | 参数错误。 |
-| InvalidParameter.APITypeNotSupport | API类型不支持。 |
-| InvalidParameter.ServiceEvil | 没有操作权限。 |
-| ResourceUnavailable.CDNFreezed | 资源不可用，CDN冻结。 |
+| InvalidParameter.CertVerifyFailed | 证书验证失败 |
+| InvalidParameter.EnvId | 环境ID非法。 |
+| LimitExceeded.HTTPServiceRoute | HTTP访问服务路由超过上限 |
 
 目录

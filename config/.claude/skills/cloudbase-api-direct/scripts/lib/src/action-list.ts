@@ -4,27 +4,25 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 70
+ * Action 数量: 68
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
   'AddProvider',
-  'BindCloudBaseAccessDomain',
-  'BindCloudBaseGWDomain',
   'CheckTcbService',
   'CreateAuthDomain',
   'CreateBillDeal',
-  'CreateCloudBaseGWAPI',
   'CreateEnv',
   'CreateEnvResource',
+  'CreateHTTPServiceRoute',
   'CreateHostingDomain',
   'CreateMySQL',
   'CreateStaticStore',
   'CreateTable',
   'CreateUser',
+  'CreateVmInstance',
   'DeleteAuthDomain',
-  'DeleteCloudBaseGWAPI',
-  'DeleteCloudBaseGWDomain',
+  'DeleteHTTPServiceRoute',
   'DeleteProvider',
   'DeleteTable',
   'DeleteUsers',
@@ -34,8 +32,6 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DescribeBillingInfo',
   'DescribeClient',
   'DescribeCloudBaseBuildService',
-  'DescribeCloudBaseGWAPI',
-  'DescribeCloudBaseGWService',
   'DescribeCloudBaseRunServerVersion',
   'DescribeCreateMySQLResult',
   'DescribeCurveData',
@@ -43,6 +39,8 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DescribeEnvAccountCircle',
   'DescribeEnvLimit',
   'DescribeEnvs',
+  'DescribeGatewayVersions',
+  'DescribeHTTPServiceRoute',
   'DescribeHostingDomainTask',
   'DescribeLoginConfig',
   'DescribeMySQLClusterDetail',
@@ -63,11 +61,11 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'InquireVmPrice',
   'ListTables',
   'ModifyClient',
-  'ModifyCloudBaseGWAPI',
   'ModifyClsTopic',
   'ModifyDatabaseACL',
   'ModifyEnv',
   'ModifyEnvPlan',
+  'ModifyHTTPServiceRoute',
   'ModifyLoginConfig',
   'ModifyProvider',
   'ModifySafeRule',

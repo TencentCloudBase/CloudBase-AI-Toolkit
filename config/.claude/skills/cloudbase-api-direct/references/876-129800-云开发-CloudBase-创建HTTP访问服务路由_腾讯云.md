@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 获取网关API列表
+## 创建HTTP访问服务路由
 
-最近更新时间：2026-03-19 02:07:23
+最近更新时间：2026-03-26 02:55:47
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-获取网关API列表
+本接口CreateHTTPServiceRoute用于创建HTTP访问服务路由。如果不传Domain.Routes，仅创建域名信息。首次创建域名后需要调用DescribeHTTPServiceRoute查询域名状态，如果状态是PROCESSING，需要轮询查询域名状态直到SUCCESS或者FAIL。如果状态是FAIL，可以删除后重新创建。创建成功后域名可能无法访问，原因是异步下发的路由，可通过http或者https探测路由是否下发，如果http访问返回404或者https访问握手失败，可等待一会再试，直到访问正常。
 
-默认接口请求频率限制：100次/秒。
+默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeCloudBaseGWAPI)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=CreateHTTPServiceRoute)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,59 +34,60 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeCloudBaseGWAPI。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：CreateHTTPServiceRoute。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| ServiceId | 否 | String | 服务ID  
-示例值：envid |
-| Domain | 否 | String | API域名  
-示例值：www.aaa.cn |
-| Path | 否 | String | API Path  
-示例值：/ |
-| APIId | 否 | String | API ID  
-示例值：randstring |
-| Type | 否 | Integer | API类型，1为云函数，2为容器  
-示例值：1 |
-| Name | 否 | String | API名，Type为1时为云函数名，Type为2时为容器服务名  
-示例值：apiname |
-| Offset | 否 | Integer | 查询的分页参数，用于设置查询的偏移位置，0表示从头开始  
-示例值：0 |
-| Limit | 否 | Integer | 查询的分页参数，用于表示每次查询的最大返回数据量  
-示例值：100 |
-| EnableRegion | 否 | Boolean | 是否启用多地域  
-示例值：true |
-| EnableUnion | 否 | Boolean | 是否使用统一域名  
-示例值：true |
+| EnvId | 是 | String | 环境ID  
+示例值： ********\********* -7ezncwdd421446 |
+| Domain | 是 | [HTTPServiceDomainParam](/document/api/876/34822#HTTPServiceDomainParam) | 域名路由信息 |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| APISet | Array of [CloudBaseGWAPI](/document/api/876/34822#CloudBaseGWAPI) | API列表  
-注意：此字段可能返回 null，表示取不到有效值。 |
-| EnableService | Boolean | 是否开启http调用  
-示例值：true |
-| Total | Integer | 查询结果的数据总量  
-注意：此字段可能返回 null，表示取不到有效值。  
-示例值：100 |
-| Offset | Integer | 查询的分页参数  
-注意：此字段可能返回 null，表示取不到有效值。  
-示例值：0 |
-| Limit | Integer | 查询的分页参数  
-注意：此字段可能返回 null，表示取不到有效值。  
-示例值：100 |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 DescribeCloudBaseGWAPI示例
+### 示例1 创建完整路由
 
 #### 输入示例
 
 ```
-https://tcb.tencentcloudapi.com/?Action=DescribeCloudBaseGWAPI
-&ServiceId="roy-test-666"
-&<公共请求参数>
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: CreateHTTPServiceRoute
+<公共请求参数>
+
+{
+    "EnvId": "*****************-7ezncwdd421446",
+    "Domain": {
+        "Domain": "xxx.***************.cn",
+        "AccessType": "DIRECT",
+        "CertId": "VF******",
+        "Protocol": "HTTP_AND_HTTPS",
+        "CustomCname": "xxx.*********************.dns.com",
+        "Enable": true,
+        "Routes": [
+            {
+                "Path": "/api/v1",
+                "UpstreamResourceType": "CBR",
+                "UpstreamResourceName": "my-service",
+                "EnableSafeDomain": false,
+                "EnablePathTransmission": false,
+                "QPSPolicy": {
+                    "QPSTotal": 100,
+                    "QPSPerClient": {
+                        "LimitBy": "ClientIP",
+                        "LimitValue": 10
+                    }
+                },
+                "Enable": true
+            }
+        ]
+    }
+}
 ```
 
 #### 输出示例
@@ -94,33 +95,7 @@ https://tcb.tencentcloudapi.com/?Action=DescribeCloudBaseGWAPI
 ```json
 {
     "Response": {
-        "APISet": [
-            {
-                "ServiceId": "roy-test-666",
-                "IsShortPath": false,
-                "APIId": "3171368e-e641-4788-bd0e-e856aa713995",
-                "Path": "/lowcode-datasource",
-                "Type": 1,
-                "Name": "lowcode-datasource",
-                "CreateTime": 1741184090,
-                "EnvId": "roy-test-666",
-                "EnableAuth": false,
-                "Custom": "",
-                "AccessType": 13,
-                "Domain": "*",
-                "UnionStatus": 1,
-                "ConflictFlag": false,
-                "DomainStatus": 0,
-                "PathTransmission": 2,
-                "EnableCheckAcrossDomain": 1,
-                "StaticFileDirectory": ""
-            }
-        ],
-        "EnableService": true,
-        "Limit": 100,
-        "Offset": 0,
-        "RequestId": "c16af20e-8b15-421a-8c4a-c9269e3eb38a",
-        "Total": 1
+        "RequestId": "424af1fa-ea4d-4a63-b96c-b374d5dfb020"
     }
 }
 ```
@@ -158,11 +133,16 @@ https://tcb.tencentcloudapi.com/?Action=DescribeCloudBaseGWAPI
 
 | 错误码 | 描述 |
 | --- | --- |
-| InternalError.SystemFail | 系统失败。 |
 | InvalidParameter | 参数错误。 |
-| InvalidParameter.APINoExist | API不存在。 |
-| InvalidParameter.APITypeNotSupport | API类型不支持。 |
-| InvalidParameter.ExclusiveCert | 独占证书。 |
-| InvalidParameter.ServiceEvil | 没有操作权限。 |
+| InvalidParameter.CertVerifyFailed | 证书验证失败 |
+| InvalidParameter.EnvId | 环境ID非法。 |
+| InvalidParameter.HTTPServiceDomainNotICP | HTTP访问服务没有ICP备案 |
+| LimitExceeded.HTTPServiceDomain | HTTP访问服务域名超过限制 |
+| LimitExceeded.HTTPServiceRoute | HTTP访问服务路由超过上限 |
+| OperationDenied.HTTPServiceDomainInBlacklist | 域名在黑名单中，无法创建 |
+| OperationDenied.NonInternalAccount | 非内部账号禁止操作 |
+| ResourceInUse.HTTPServiceDomain | HTTP访问服务域名已经存在 |
+| ResourceInUse.HTTPServiceRoute | HTTP访问服务路由已存在 |
+| ResourceNotFound.HTTPServiceDomain | HTTP访问服务域名不存在 |
 
 目录

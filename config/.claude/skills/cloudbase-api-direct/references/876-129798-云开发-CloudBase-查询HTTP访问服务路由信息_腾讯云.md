@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 绑定云开发自定义域名
+## 查询HTTP访问服务路由信息
 
-最近更新时间：2026-03-19 02:07:25
+最近更新时间：2026-03-26 02:55:45
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-绑定云开发自定义域名，用于云接入和静态托管
+本接口DescribeHTTPServiceRoute用于查询环境下HTTP访问服务路由信息。可通过Filters过滤。如果不存在不会返回错误。
 
-默认接口请求频率限制：100次/秒。
+默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=BindCloudBaseAccessDomain)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeHTTPServiceRoute)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,32 +34,33 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：BindCloudBaseAccessDomain。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeHTTPServiceRoute。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| ServiceId | 是 | String | 服务Id，目前是指环境Id  
-示例值：envid-28383 |
-| Domain | 是 | String | 自定义域名  
-示例值：example.com |
-| CertId | 否 | String | 腾讯云证书Id  
-示例值：certid-2323 |
-| BindFlag | 否 | Integer | 默认1，1 绑定默认Cdn，2 绑定TcbIngress（不经过cdn），4 绑定自定义cdn  
-示例值：1 |
-| CustomCname | 否 | String | 自定义cdn cname域名  
-示例值：example.com.dns.com |
+| EnvId | 是 | String | 环境ID  
+示例值： ********\********* -7ezncwdd421446 |
+| Filters.N | 否 | Array of [Filter](/document/api/876/34822#Filter) | 过滤条件。Key的含义参考对应字段，Value精确匹配。可过滤: Domain、Path、DomainType、UpstreamResourceType。可过滤的Values单条不超过100 |
+| Offset | 否 | Integer | 分页偏移量。默认 0  
+示例值：0 |
+| Limit | 否 | Integer | 分页限制。默认20，最大值1000  
+示例值：10 |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| ServiceId | String | 服务Id，目前是指环境Id  
-注意：此字段可能返回 null，表示取不到有效值。  
-示例值：envid-28383 |
+| Domains | Array of [HTTPServiceDomain](/document/api/876/34822#HTTPServiceDomain) | 域名路由信息列表 |
+| OriginDomain | String | 自定义接入的源站域名（HTTPService接入层域名）  
+示例值： **********************\*\*\***********************.tencentcloudbase.com |
+| TotalCount | Integer | 域名总数，分页查询使用总数判断是否已经拉取到所有数据  
+示例值：1 |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 云接入绑定自定义域名(CDN)
+### 示例1 查询路由信息
+
+通过域名过滤查询单个域名信息
 
 #### 输入示例
 
@@ -67,13 +68,21 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 POST / HTTP/1.1
 Host: tcb.tencentcloudapi.com
 Content-Type: application/json
-X-TC-Action: BindCloudBaseAccessDomain
+X-TC-Action: DescribeHTTPServiceRoute
 <公共请求参数>
 
 {
-    "Domain": "example.cpm",
-    "ServiceId": "envid-12133",
-    "CertId": "certid-1212"
+    "EnvId": "*****************-7ezncwdd421446",
+    "Filters": [
+        {
+            "Name": "Domain",
+            "Values": [
+                "xxx.***************.cn"
+            ]
+        }
+    ],
+    "Offset": 0,
+    "Limit": 10
 }
 ```
 
@@ -82,8 +91,46 @@ X-TC-Action: BindCloudBaseAccessDomain
 ```json
 {
     "Response": {
-        "RequestId": "",
-        "ServiceId": "envid-12133"
+        "Domains": [
+            {
+                "AccessType": "DIRECT",
+                "CertId": "VF******",
+                "Cname": "xxx.*********************************.tencentcloudbase.com",
+                "CreateTime": "2026-03-13T10:03:25+08:00",
+                "DNSStatus": "INVALID",
+                "Domain": "xxx.***************.cn",
+                "DomainType": "HTTPSERVICE",
+                "Enable": true,
+                "IsDefault": false,
+                "Protocol": "HTTP_AND_HTTPS",
+                "Routes": [
+                    {
+                        "CreateTime": "2026-03-13T10:03:26+08:00",
+                        "Enable": true,
+                        "EnableAuth": false,
+                        "EnablePathTransmission": false,
+                        "EnableSafeDomain": false,
+                        "Path": "/api/v1",
+                        "PathRewrite": {},
+                        "QPSPolicy": {
+                            "QPSPerClient": {
+                                "LimitBy": "ClientIP",
+                                "LimitValue": 10
+                            },
+                            "QPSTotal": 100
+                        },
+                        "UpdateTime": "2026-03-13T10:03:26+08:00",
+                        "UpstreamResourceName": "my-service",
+                        "UpstreamResourceType": "CBR"
+                    }
+                ],
+                "Status": "SUCCESS",
+                "UpdateTime": "2026-03-13T10:03:25+08:00"
+            }
+        ],
+        "OriginDomain": "***********************************************.tencentcloudbase.com",
+        "TotalCount": 1,
+        "RequestId": "9d15e1e6-24a7-4de5-9be0-d6470f32120b"
     }
 }
 ```
@@ -121,11 +168,7 @@ X-TC-Action: BindCloudBaseAccessDomain
 
 | 错误码 | 描述 |
 | --- | --- |
-| InvalidParameter.CNAMENotMatch | 域名cname不正确。 |
-| InvalidParameter.DomainExist | 域名已经绑定。 |
-| InvalidParameter.ServiceEvil | 没有操作权限。 |
-| InvalidParameter.ServiceICP | 域名没有备案。 |
-| InvalidParameter.ServiceThreshold | Domain超上限了。 |
-| ResourceUnavailable.CDNFreezed | 资源不可用，CDN冻结。 |
+| InvalidParameter | 参数错误。 |
+| InvalidParameter.EnvId | 环境ID非法。 |
 
 目录
