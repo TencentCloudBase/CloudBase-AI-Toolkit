@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-03-26T04:30:37.822Z
+爬取时间: 2026-03-27T04:31:58.391Z
 
 ## 文档列表
 
@@ -50,14 +50,6 @@
 - [云开发 CloudBase 查询文档型数据库所有表_腾讯云](./876-127965-云开发-CloudBase-查询文档型数据库所有表_腾讯云.md)
 - [云开发 CloudBase 修改文档型数据库表索引信息_腾讯云](./876-127964-云开发-CloudBase-修改文档型数据库表索引信息_腾讯云.md)
 - [云开发 CloudBase 执行文档型数据库命令_腾讯云](./876-129012-云开发-CloudBase-执行文档型数据库命令_腾讯云.md)
-- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128121-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
-- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128120-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
-- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128124-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
-- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128123-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
-- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128128-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
-- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128122-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
-- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128125-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
-- [云开发 CloudBase简介_云开发 CloudBase购买指南_云开发 CloudBase操作指南-腾讯云](./876-128126-云开发-CloudBase简介_云开发-CloudBase购买指南_云开发-CloudBase操作指.md)
 - [云开发 CloudBase 创建HTTP访问服务路由_腾讯云](./876-129800-云开发-CloudBase-创建HTTP访问服务路由_腾讯云.md)
 - [云开发 CloudBase 删除HTTP访问服务路由_腾讯云](./876-129799-云开发-CloudBase-删除HTTP访问服务路由_腾讯云.md)
 - [云开发 CloudBase 查询HTTP访问服务路由信息_腾讯云](./876-129798-云开发-CloudBase-查询HTTP访问服务路由信息_腾讯云.md)
@@ -82,6 +74,9 @@
 - [云开发 CloudBase 修改第三方认证源_腾讯云](./876-129350-云开发-CloudBase-修改第三方认证源_腾讯云.md)
 - [云开发 CloudBase 删除第三方认证源_腾讯云](./876-129356-云开发-CloudBase-删除第三方认证源_腾讯云.md)
 - [云开发 CloudBase 添加第三方认证源_腾讯云](./876-129357-云开发-CloudBase-添加第三方认证源_腾讯云.md)
+- [云开发 CloudBase 创建云开发平台的API Key_腾讯](./876-129835-云开发-CloudBase-创建云开发平台的API-Key_腾讯.md)
+- [云开发 CloudBase 删除云开发平台的API Key_腾讯](./876-129834-云开发-CloudBase-删除云开发平台的API-Key_腾讯.md)
+- [云开发 CloudBase 查询云开发平台的API Key列表_](./876-129833-云开发-CloudBase-查询云开发平台的API-Key列表_.md)
 - [TDSQL-C MySQL 版 创建用户账号_腾讯云](./1003-71660-TDSQL-C-MySQL-版-创建用户账号_腾讯云.md)
 - [TDSQL-C MySQL 版 删除用户账号_腾讯云](./1003-92718-TDSQL-C-MySQL-版-删除用户账号_腾讯云.md)
 - [TDSQL-C MySQL 版 查询账号所有可授予权限_腾讯云](./1003-70114-TDSQL-C-MySQL-版-查询账号所有可授予权限_腾讯云.md)

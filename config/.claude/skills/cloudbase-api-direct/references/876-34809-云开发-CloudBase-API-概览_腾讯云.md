@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-03-26 02:55:54
+最近更新时间：2026-03-27 03:00:02
 
 -   微信扫一扫 
 -   QQ
@@ -106,14 +106,6 @@ _我的收藏_
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
-| [DescribeCloudBaseGWAPI](/document/api/876/128121) | 获取网关API列表 | 100 |
-| [DescribeCloudBaseGWService](/document/api/876/128120) | 获取网关服务 | 2000 |
-| [CreateCloudBaseGWAPI](/document/api/876/128124) | 创建云开发网关API | 100 |
-| [DeleteCloudBaseGWAPI](/document/api/876/128123) | 删除网关API | 100 |
-| [ModifyCloudBaseGWAPI](/document/api/876/128128) | 修改云开发网关API | 20 |
-| [DeleteCloudBaseGWDomain](/document/api/876/128122) | 删除网关域名 | 20 |
-| [BindCloudBaseGWDomain](/document/api/876/128125) | 绑定自定义域名 | 20 |
-| [BindCloudBaseAccessDomain](/document/api/876/128126) | 绑定云开发自定义域名 | 100 |
 | [CreateHTTPServiceRoute](/document/api/876/129800) | 创建HTTP访问服务路由 | 20 |
 | [DeleteHTTPServiceRoute](/document/api/876/129799) | 删除HTTP访问服务路由 | 20 |
 | [DescribeHTTPServiceRoute](/document/api/876/129798) | 查询HTTP访问服务路由信息 | 20 |
@@ -158,6 +150,9 @@ _我的收藏_
 | [ModifyProvider](/document/api/876/129350) | 修改第三方认证源 | 20 |
 | [DeleteProvider](/document/api/876/129356) | 删除第三方认证源 | 20 |
 | [AddProvider](/document/api/876/129357) | 添加第三方认证源 | 20 |
+| [CreateApiKey](/document/api/876/129835) | 创建云开发平台的API Key | 20 |
+| [DeleteApiKey](/document/api/876/129834) | 删除云开发平台的API Key | 20 |
+| [DescribeApiKeyList](/document/api/876/129833) | 查询云开发平台的API Key列表 | 20 |
 
 > 注意：
 > 

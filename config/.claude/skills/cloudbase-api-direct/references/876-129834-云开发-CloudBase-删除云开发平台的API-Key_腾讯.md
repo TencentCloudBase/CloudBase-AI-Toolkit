@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 获取云托管代码上传和下载url
+## 删除云开发平台的API Key
 
-最近更新时间：2026-03-27 02:59:13
+最近更新时间：2026-03-27 02:59:36
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-获取云托管代码上传url
+删除指定云开发环境下的某个 API Key 服务端访问凭证。删除后，该 API Key 对应的 Token 将被吊销，已使用该 Key 发起的请求将失败。该操作具有幂等性，若指定的 API Key 不存在则直接返回成功。需要管理员权限。
 
 默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeCloudBaseBuildService)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DeleteApiKey)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,53 +34,37 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeCloudBaseBuildService。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DeleteApiKey。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
-| Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| EnvId | 是 | String | 环境id  
-示例值：env-asdasfa |
-| ServiceName | 是 | String | 服务名  
-示例值：service-name |
-| CIBusiness | 否 | String | build类型,枚举值有: cloudbaserun, framework-ci  
-示例值：cloudbaserun |
-| ServiceVersion | 否 | String | 服务版本  
-示例值：service-name-0.1 |
-| Suffix | 否 | String | 文件后缀  
-示例值：.zip |
+| Region | 是 | String | [公共参数](/document/api/876/34812) ，详见产品支持的 [地域列表](/document/api/876/34812#.E5.9C.B0.E5.9F.9F.E5.88.97.E8.A1.A8) 。 |
+| EnvId | 是 | String | 环境 ID，用于标识该密钥归属的云开发环境，不同环境之间的数据相互隔离  
+示例值：env-123 |
+| KeyId | 是 | String | 密钥的唯一标识符，用于精确定位指定的 API 密钥。可通过查询密钥列表接口获取  
+示例值：akdj3jsk3112ks |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| UploadUrl | String | 上传url  
-示例值：http://uploadurl |
-| UploadHeaders | Array of [KVPair](/document/api/876/34822#KVPair) | 上传header  
-示例值：\[{"key":"value"}\] |
-| PackageName | String | 包名  
-示例值：packageName |
-| PackageVersion | String | 包版本  
-示例值：0.0.1 |
-| DownloadUrl | String | 下载链接  
-示例值：http://downloadurl |
-| DownloadHeaders | Array of [KVPair](/document/api/876/34822#KVPair) | 下载Httpheader  
-示例值：\[{"key":"value"}\] |
-| OutDate | Boolean | 下载链接是否过期  
-示例值：false |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 获取云托管代码上传url
-
-通过环境id,获得云托管代码上传url, 用来上传代码
+### 示例1 删除API Key
 
 #### 输入示例
 
 ```
-https://tcb.tencentcloudapi.com/?Action=DescribeCloudBaseBuildService
-&EnvId=cdnheader-v2a
-&ServiceName=nginx-test
-&<公共请求参数>
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: DeleteApiKey
+<公共请求参数>
+
+{
+    "EnvId": "env-123",
+    "KeyId": "akdj3jsk3112ks"
+}
 ```
 
 #### 输出示例
@@ -88,24 +72,7 @@ https://tcb.tencentcloudapi.com/?Action=DescribeCloudBaseBuildService
 ```json
 {
     "Response": {
-        "DownloadHeaders": [
-            {
-                "Value": "value",
-                "Key": "key"
-            }
-        ],
-        "UploadHeaders": [
-            {
-                "Value": "value1",
-                "Key": "key1"
-            }
-        ],
-        "UploadUrl": "http://url",
-        "DownloadUrl": "http://url/download",
-        "RequestId": "asdasd-asfasfas-asfasfa",
-        "OutDate": true,
-        "PackageVersion": "version",
-        "PackageName": "name"
+        "RequestId": "265d4d16-7be1-4d8c-b270-8e5fe07d979b"
     }
 }
 ```
@@ -143,13 +110,12 @@ https://tcb.tencentcloudapi.com/?Action=DescribeCloudBaseBuildService
 
 | 错误码 | 描述 |
 | --- | --- |
+| AuthFailure | CAM签名/鉴权错误。 |
+| FailedOperation | 操作失败。 |
 | InternalError | 内部错误。 |
 | InvalidParameter | 参数错误。 |
-| InvalidParameter.ServiceNotExist | 服务不存在。 |
+| InvalidParameterValue | 参数取值错误。 |
 | ResourceNotFound | 资源不存在。 |
-| ResourceNotFound.VersionNotFound | 请求参数中的云托管版本未找到 |
-| ResourceUnavailable.ResourceBanned | 资源被封禁 |
-| ResourceUnavailable.ResourceFrozen | 资源已冻结 |
-| ResourceUnavailable.ResourceIsolated | 资源已隔离 |
+| UnauthorizedOperation | 未授权操作。 |
 
 目录

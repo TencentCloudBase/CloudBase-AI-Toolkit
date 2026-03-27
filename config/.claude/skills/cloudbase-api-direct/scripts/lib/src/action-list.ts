@@ -4,12 +4,13 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 68
+ * Action 数量: 71
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
   'AddProvider',
   'CheckTcbService',
+  'CreateApiKey',
   'CreateAuthDomain',
   'CreateBillDeal',
   'CreateEnv',
@@ -21,12 +22,14 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'CreateTable',
   'CreateUser',
   'CreateVmInstance',
+  'DeleteApiKey',
   'DeleteAuthDomain',
   'DeleteHTTPServiceRoute',
   'DeleteProvider',
   'DeleteTable',
   'DeleteUsers',
   'DeleteVmInstance',
+  'DescribeApiKeyList',
   'DescribeAuthDomains',
   'DescribeBaasPackageList',
   'DescribeBillingInfo',
