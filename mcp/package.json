@@ -99,6 +99,7 @@
     "@types/jest": "^30.0.0",
     "@types/lockfile": "^1.0.4",
     "@types/node": "^22.10.2",
+    "@types/pg": "^8.15.5",
     "@types/ws": "^8.5.12",
     "buffer": "^6.0.3",
     "copy-webpack-plugin": "^13.0.0",

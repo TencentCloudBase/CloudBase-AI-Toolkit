@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -8,6 +9,7 @@ import type { ExtendedMcpServer, PgRuntimeContext } from "../server.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
 
 const execFileAsync = promisify(execFile);
+const require = createRequire(import.meta.url);
 
 const CATEGORY = "PostgreSQL database";
 const QUERY_PG_DATABASE = "queryPgDatabase";
@@ -75,8 +77,49 @@ type PgBootstrapProvider = {
   bootstrap(request: PgBootstrapRequest): Promise<PgBootstrapResult>;
 };
 
+type PgQueryField = {
+  name: string;
+};
+
+type PgQueryResult = {
+  rows: Record<string, unknown>[];
+  rowCount?: number | null;
+  command?: string;
+  fields?: PgQueryField[];
+};
+
+type PgClientLike = {
+  connect(): Promise<unknown>;
+  query(sql: string, values?: unknown[]): Promise<PgQueryResult>;
+  end(): Promise<void>;
+};
+
 type PgToolDependencies = {
   bootstrapProvider: PgBootstrapProvider;
+  createClient: (connectionUri: string) => PgClientLike;
+};
+
+type PgObjectSummary = {
+  schema: string;
+  name: string;
+  schemaTable: string;
+  kind: string;
+  estimatedRows?: number | null;
+  rowCount?: number | null;
+  rowCountSource?: "actual" | "estimated" | "not_applicable";
+  columnCount?: number;
+  rlsEnabled?: boolean;
+};
+
+type PgColumnInfo = {
+  name: string;
+  dataType: string;
+  udtName: string;
+  isNullable: boolean;
+  defaultValue: string | null;
+  characterMaximumLength: number | null;
+  numericPrecision: number | null;
+  numericScale: number | null;
 };
 
 function buildPgToolResult(payload: PgToolPayload) {
@@ -112,7 +155,10 @@ async function loadStoredPgContext() {
   }
 }
 
-async function savePgContext(server: ExtendedMcpServer, context: PgRuntimeContext) {
+async function savePgContext(
+  server: ExtendedMcpServer,
+  context: PgRuntimeContext,
+) {
   const storePath = getPgContextStorePath();
   await fs.mkdir(path.dirname(storePath), { recursive: true });
   await fs.writeFile(storePath, JSON.stringify(context, null, 2), "utf8");
@@ -165,7 +211,9 @@ function sanitizeConnectionUri(connectionUri: string) {
   }
 }
 
-async function discoverCloudbasePgsqlProjectDir(explicitProjectDir?: string) {
+async function discoverCloudbasePgsqlProjectDir(
+  explicitProjectDir?: string,
+) {
   const candidates: string[] = [];
 
   if (explicitProjectDir) {
@@ -220,9 +268,497 @@ async function resolveProjectPassword(projectDir: string) {
   return "cloudbase_secret_2024";
 }
 
+function normalizeLimit(limit?: number, fallback = 20, max = 200) {
+  if (!Number.isFinite(limit)) {
+    return fallback;
+  }
+
+  return Math.max(1, Math.min(max, Math.floor(limit!)));
+}
+
+function stripLeadingSqlComments(sql: string) {
+  let normalized = sql.trim();
+
+  while (normalized.length > 0) {
+    if (normalized.startsWith("--")) {
+      normalized = normalized.replace(/^--.*(?:\r?\n|$)/, "").trimStart();
+      continue;
+    }
+
+    if (normalized.startsWith("#")) {
+      normalized = normalized.replace(/^#.*(?:\r?\n|$)/, "").trimStart();
+      continue;
+    }
+
+    if (normalized.startsWith("/*")) {
+      normalized = normalized.replace(/^\/\*[\s\S]*?\*\//, "").trimStart();
+      continue;
+    }
+
+    break;
+  }
+
+  return normalized;
+}
+
+function getSqlVerb(sql: string) {
+  const normalized = stripLeadingSqlComments(sql);
+  const match = normalized.match(/^([a-zA-Z]+)/);
+  return match ? match[1].toUpperCase() : "";
+}
+
+function isReadOnlySql(sql: string) {
+  const normalized = stripLeadingSqlComments(sql);
+  const verb = getSqlVerb(normalized);
+  const readOnlyVerbs = new Set([
+    "SELECT",
+    "SHOW",
+    "EXPLAIN",
+    "WITH",
+    "VALUES",
+  ]);
+
+  if (!readOnlyVerbs.has(verb)) {
+    return false;
+  }
+
+  return !/\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE|REPLACE|RENAME|GRANT|REVOKE|COMMENT|VACUUM|ANALYZE)\b/i.test(
+    normalized,
+  );
+}
+
+function isDestructiveSql(sql: string) {
+  const normalized = stripLeadingSqlComments(sql);
+  const verb = getSqlVerb(normalized);
+
+  if (["DROP", "TRUNCATE", "DELETE"].includes(verb)) {
+    return true;
+  }
+
+  if (verb === "ALTER") {
+    return /\b(DROP|RENAME)\b/i.test(normalized);
+  }
+
+  return false;
+}
+
+function quoteIdentifier(identifier: string) {
+  return `"${identifier.replace(/"/g, "\"\"")}"`;
+}
+
+function parseSchemaQualifiedName(objectName: string) {
+  const match = objectName.trim().match(
+    /^([A-Za-z_][A-Za-z0-9_$]*)\.([A-Za-z_][A-Za-z0-9_$]*)$/,
+  );
+  if (!match) {
+    return null;
+  }
+
+  return {
+    schema: match[1],
+    name: match[2],
+  };
+}
+
+function serializeValue(value: unknown): unknown {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === "bigint") {
+    return value.toString();
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => serializeValue(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [
+        key,
+        serializeValue(nestedValue),
+      ]),
+    );
+  }
+
+  return value;
+}
+
+function buildSchemaTable(schema: string, name: string) {
+  return `${schema}.${name}`;
+}
+
+function parseTargetTableFromSql(sql: string, defaultSchema: string) {
+  const normalized = stripLeadingSqlComments(sql);
+  const match = normalized.match(
+    /\b(?:into|table|update|from)\s+((?:[A-Za-z_][A-Za-z0-9_$]*\.)?[A-Za-z_][A-Za-z0-9_$]*)/i,
+  );
+  if (!match?.[1]) {
+    return undefined;
+  }
+
+  if (match[1].includes(".")) {
+    return match[1];
+  }
+
+  return `${defaultSchema}.${match[1]}`;
+}
+
+function summarizeQueryResult(
+  result: PgQueryResult,
+  limit: number,
+) {
+  const rows = result.rows.map((row) => serializeValue(row) as Record<string, unknown>);
+  const trimmedRows = rows.slice(0, limit);
+
+  return {
+    columns:
+      result.fields?.map((field) => field.name) ??
+      (trimmedRows[0] ? Object.keys(trimmedRows[0]) : []),
+    rows: trimmedRows,
+    returnedRows: rows.length,
+    truncated: rows.length > trimmedRows.length,
+    truncatedCount: Math.max(rows.length - trimmedRows.length, 0),
+  };
+}
+
+async function withPgClient<T>(
+  context: PgRuntimeContext,
+  deps: PgToolDependencies,
+  callback: (client: PgClientLike) => Promise<T>,
+) {
+  const client = deps.createClient(context.connectionUri);
+  await client.connect();
+
+  try {
+    return await callback(client);
+  } finally {
+    await client.end();
+  }
+}
+
+async function getTableRowCount(
+  client: PgClientLike,
+  schema: string,
+  table: string,
+) {
+  const qualifiedName = `${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
+  const result = await client.query(
+    `SELECT COUNT(*)::bigint AS row_count FROM ${qualifiedName}`,
+  );
+  const rawValue = result.rows[0]?.row_count;
+  const parsed = Number(rawValue);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function listObjects(
+  client: PgClientLike,
+  schema: string | undefined,
+  limit: number,
+) {
+  const result = await client.query(
+    `
+      SELECT
+        n.nspname AS schema,
+        c.relname AS name,
+        CASE c.relkind
+          WHEN 'r' THEN 'table'
+          WHEN 'p' THEN 'partitioned_table'
+          WHEN 'v' THEN 'view'
+          WHEN 'm' THEN 'materialized_view'
+          WHEN 'f' THEN 'foreign_table'
+          ELSE c.relkind::text
+        END AS kind,
+        CASE
+          WHEN c.reltuples >= 0 THEN c.reltuples::bigint
+          ELSE NULL
+        END AS estimated_rows
+      FROM pg_class c
+      INNER JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE c.relkind IN ('r', 'p', 'v', 'm', 'f')
+        AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+        AND n.nspname NOT LIKE 'pg_toast%'
+        AND ($1::text IS NULL OR n.nspname = $1)
+      ORDER BY n.nspname, c.relname
+      LIMIT $2
+    `,
+    [schema ?? null, limit],
+  );
+
+  return result.rows.map((row) => ({
+    schema: String(row.schema),
+    name: String(row.name),
+    schemaTable: buildSchemaTable(String(row.schema), String(row.name)),
+    kind: String(row.kind),
+    estimatedRows:
+      row.estimated_rows === null || row.estimated_rows === undefined
+        ? null
+        : Number(row.estimated_rows),
+  })) as PgObjectSummary[];
+}
+
+async function summarizeMetadata(
+  client: PgClientLike,
+  schema: string | undefined,
+  limit: number,
+) {
+  const result = await client.query(
+    `
+      SELECT
+        n.nspname AS schema,
+        c.relname AS name,
+        CASE c.relkind
+          WHEN 'r' THEN 'table'
+          WHEN 'p' THEN 'partitioned_table'
+          WHEN 'v' THEN 'view'
+          WHEN 'm' THEN 'materialized_view'
+          ELSE c.relkind::text
+        END AS kind,
+        CASE
+          WHEN c.reltuples >= 0 THEN c.reltuples::bigint
+          ELSE NULL
+        END AS estimated_rows,
+        c.relrowsecurity AS rls_enabled,
+        COALESCE(col_counts.column_count, 0)::int AS column_count
+      FROM pg_class c
+      INNER JOIN pg_namespace n ON n.oid = c.relnamespace
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS column_count
+        FROM information_schema.columns cols
+        WHERE cols.table_schema = n.nspname
+          AND cols.table_name = c.relname
+      ) AS col_counts ON TRUE
+      WHERE c.relkind IN ('r', 'p', 'v', 'm')
+        AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+        AND n.nspname NOT LIKE 'pg_toast%'
+        AND ($1::text IS NULL OR n.nspname = $1)
+      ORDER BY n.nspname, c.relname
+      LIMIT $2
+    `,
+    [schema ?? null, limit],
+  );
+
+  const summaries: PgObjectSummary[] = [];
+  for (const row of result.rows) {
+    const summary: PgObjectSummary = {
+      schema: String(row.schema),
+      name: String(row.name),
+      schemaTable: buildSchemaTable(String(row.schema), String(row.name)),
+      kind: String(row.kind),
+      estimatedRows:
+        row.estimated_rows === null || row.estimated_rows === undefined
+          ? null
+          : Number(row.estimated_rows),
+      columnCount: Number(row.column_count ?? 0),
+      rlsEnabled: Boolean(row.rls_enabled),
+    };
+
+    if (summary.kind === "table" || summary.kind === "partitioned_table") {
+      try {
+        summary.rowCount = await getTableRowCount(
+          client,
+          summary.schema,
+          summary.name,
+        );
+        summary.rowCountSource = "actual";
+      } catch {
+        summary.rowCount = summary.estimatedRows ?? null;
+        summary.rowCountSource = "estimated";
+      }
+    } else {
+      summary.rowCount = null;
+      summary.rowCountSource = "not_applicable";
+    }
+
+    summaries.push(summary);
+  }
+
+  return summaries;
+}
+
+async function readSchemaInfo(
+  client: PgClientLike,
+  schema: string,
+  table: string,
+) {
+  const objectCheck = await client.query(
+    `
+      SELECT
+        CASE c.relkind
+          WHEN 'r' THEN 'table'
+          WHEN 'p' THEN 'partitioned_table'
+          WHEN 'v' THEN 'view'
+          WHEN 'm' THEN 'materialized_view'
+          WHEN 'f' THEN 'foreign_table'
+          ELSE c.relkind::text
+        END AS kind,
+        c.relrowsecurity AS row_security_enabled,
+        c.relforcerowsecurity AS force_row_security
+      FROM pg_class c
+      INNER JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = $1 AND c.relname = $2
+      LIMIT 1
+    `,
+    [schema, table],
+  );
+
+  if (!objectCheck.rows[0]) {
+    return null;
+  }
+
+  const columnsResult = await client.query(
+    `
+      SELECT
+        column_name,
+        data_type,
+        udt_name,
+        is_nullable,
+        column_default,
+        character_maximum_length,
+        numeric_precision,
+        numeric_scale
+      FROM information_schema.columns
+      WHERE table_schema = $1 AND table_name = $2
+      ORDER BY ordinal_position
+    `,
+    [schema, table],
+  );
+
+  const primaryKeyResult = await client.query(
+    `
+      SELECT kcu.column_name
+      FROM information_schema.table_constraints tc
+      INNER JOIN information_schema.key_column_usage kcu
+        ON tc.constraint_name = kcu.constraint_name
+       AND tc.table_schema = kcu.table_schema
+       AND tc.table_name = kcu.table_name
+      WHERE tc.constraint_type = 'PRIMARY KEY'
+        AND tc.table_schema = $1
+        AND tc.table_name = $2
+      ORDER BY kcu.ordinal_position
+    `,
+    [schema, table],
+  );
+
+  const foreignKeyResult = await client.query(
+    `
+      SELECT
+        tc.constraint_name,
+        kcu.column_name,
+        ccu.table_schema AS foreign_table_schema,
+        ccu.table_name AS foreign_table_name,
+        ccu.column_name AS foreign_column_name
+      FROM information_schema.table_constraints tc
+      INNER JOIN information_schema.key_column_usage kcu
+        ON tc.constraint_name = kcu.constraint_name
+       AND tc.table_schema = kcu.table_schema
+       AND tc.table_name = kcu.table_name
+      INNER JOIN information_schema.constraint_column_usage ccu
+        ON tc.constraint_name = ccu.constraint_name
+       AND tc.table_schema = ccu.table_schema
+      WHERE tc.constraint_type = 'FOREIGN KEY'
+        AND tc.table_schema = $1
+        AND tc.table_name = $2
+      ORDER BY tc.constraint_name, kcu.ordinal_position
+    `,
+    [schema, table],
+  );
+
+  const indexesResult = await client.query(
+    `
+      SELECT indexname, indexdef
+      FROM pg_indexes
+      WHERE schemaname = $1 AND tablename = $2
+      ORDER BY indexname
+    `,
+    [schema, table],
+  );
+
+  const policiesResult = await client.query(
+    `
+      SELECT policyname, permissive, roles, cmd, qual, with_check
+      FROM pg_policies
+      WHERE schemaname = $1 AND tablename = $2
+      ORDER BY policyname
+    `,
+    [schema, table],
+  );
+
+  let rowCount: number | null = null;
+  try {
+    rowCount = await getTableRowCount(client, schema, table);
+  } catch {
+    rowCount = null;
+  }
+
+  const columns = columnsResult.rows.map((row) => ({
+    name: String(row.column_name),
+    dataType: String(row.data_type),
+    udtName: String(row.udt_name),
+    isNullable: String(row.is_nullable).toUpperCase() === "YES",
+    defaultValue:
+      row.column_default === undefined ? null : String(row.column_default),
+    characterMaximumLength:
+      row.character_maximum_length === null ||
+      row.character_maximum_length === undefined
+        ? null
+        : Number(row.character_maximum_length),
+    numericPrecision:
+      row.numeric_precision === null || row.numeric_precision === undefined
+        ? null
+        : Number(row.numeric_precision),
+    numericScale:
+      row.numeric_scale === null || row.numeric_scale === undefined
+        ? null
+        : Number(row.numeric_scale),
+  })) as PgColumnInfo[];
+
+  return {
+    schemaTable: buildSchemaTable(schema, table),
+    kind: String(objectCheck.rows[0].kind),
+    rowCount,
+    columns,
+    primaryKey: primaryKeyResult.rows.map((row) => String(row.column_name)),
+    foreignKeys: foreignKeyResult.rows.map((row) => ({
+      constraintName: String(row.constraint_name),
+      columnName: String(row.column_name),
+      references: buildSchemaTable(
+        String(row.foreign_table_schema),
+        String(row.foreign_table_name),
+      ),
+      referencedColumn: String(row.foreign_column_name),
+    })),
+    indexes: indexesResult.rows.map((row) => ({
+      name: String(row.indexname),
+      definition: String(row.indexdef),
+    })),
+    security: {
+      rowLevelSecurityEnabled: Boolean(
+        objectCheck.rows[0].row_security_enabled,
+      ),
+      forceRowLevelSecurity: Boolean(
+        objectCheck.rows[0].force_row_security,
+      ),
+      policies: policiesResult.rows.map((row) => ({
+        name: String(row.policyname),
+        permissive: String(row.permissive),
+        roles: Array.isArray(row.roles)
+          ? row.roles.map((role) => String(role))
+          : [],
+        command: String(row.cmd),
+        using: row.qual === null || row.qual === undefined ? null : String(row.qual),
+        withCheck:
+          row.with_check === null || row.with_check === undefined
+            ? null
+            : String(row.with_check),
+      })),
+    },
+  };
+}
+
 class LocalPgBootstrapProvider implements PgBootstrapProvider {
   async bootstrap(request: PgBootstrapRequest): Promise<PgBootstrapResult> {
-    const bootstrapMode = request.bootstrapMode ?? "podman";
+    const bootstrapMode = request.connectionUri
+      ? "manual"
+      : request.bootstrapMode ?? "podman";
 
     if (request.connectionUri) {
       return {
@@ -230,7 +766,7 @@ class LocalPgBootstrapProvider implements PgBootstrapProvider {
         connectionUri: request.connectionUri,
         defaultSchema: request.defaultSchema ?? "public",
         status: "ready",
-        bootstrapMode: "manual",
+        bootstrapMode,
       };
     }
 
@@ -265,7 +801,22 @@ class LocalPgBootstrapProvider implements PgBootstrapProvider {
 function createDefaultDependencies(): PgToolDependencies {
   return {
     bootstrapProvider: new LocalPgBootstrapProvider(),
+    createClient: (connectionUri: string) => {
+      const { Client } = require("pg") as typeof import("pg");
+      return new Client({
+        connectionString: connectionUri,
+      });
+    },
   };
+}
+
+async function ensurePgReady(
+  context: PgRuntimeContext,
+  deps: PgToolDependencies,
+) {
+  await withPgClient(context, deps, async (client) => {
+    await client.query("SELECT 1");
+  });
 }
 
 async function handleInit(
@@ -273,6 +824,7 @@ async function handleInit(
   server: ExtendedMcpServer,
   deps: PgToolDependencies,
 ) {
+  const existing = await getPgContext(server);
   const bootstrapResult = await deps.bootstrapProvider.bootstrap({
     envId: args.envId ?? server.cloudBaseOptions?.envId,
     instanceId: args.instanceId,
@@ -284,24 +836,30 @@ async function handleInit(
 
   const now = new Date().toISOString();
   const context: PgRuntimeContext = {
-    envId: args.envId ?? server.cloudBaseOptions?.envId ?? "local",
+    envId: args.envId ?? server.cloudBaseOptions?.envId ?? existing?.envId ?? "local",
     instanceId: bootstrapResult.instanceId,
     connectionUri: bootstrapResult.connectionUri,
     defaultSchema: bootstrapResult.defaultSchema,
     runtimeMode: "local",
     bootstrapMode: bootstrapResult.bootstrapMode,
     bootstrapProjectDir: bootstrapResult.bootstrapProjectDir,
-    createdAt: now,
+    createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
 
+  await ensurePgReady(context, deps);
   await savePgContext(server, context);
 
   return buildPgToolResult({
     success: true,
     data: {
       context: {
-        ...context,
+        envId: context.envId,
+        instanceId: context.instanceId,
+        defaultSchema: context.defaultSchema,
+        runtimeMode: context.runtimeMode,
+        bootstrapMode: context.bootstrapMode,
+        bootstrapProjectDir: context.bootstrapProjectDir,
         connection: sanitizeConnectionUri(context.connectionUri),
       },
       status: bootstrapResult.status,
@@ -356,11 +914,273 @@ async function handleQueryContext(server: ExtendedMcpServer) {
   });
 }
 
-function buildNotImplementedResult(message: string) {
+async function handleListObjects(
+  args: QueryPgDatabaseArgs,
+  context: PgRuntimeContext,
+  deps: PgToolDependencies,
+) {
+  const limit = normalizeLimit(args.limit);
+  const objects = await withPgClient(context, deps, (client) =>
+    listObjects(client, args.schema, limit),
+  );
+
   return buildPgToolResult({
-    success: false,
-    errorCode: "PG_MVP_NOT_IMPLEMENTED",
-    message,
+    success: true,
+    data: {
+      objects,
+      schemaFilter: args.schema ?? null,
+      limit,
+    },
+    message:
+      objects.length > 0
+        ? `Listed ${objects.length} schema-qualified PostgreSQL objects. Inspect one object schema before writing SQL.`
+        : "No PostgreSQL objects matched the current filter.",
+    nextActions:
+      objects.length > 0
+        ? [
+            buildNextAction(
+              GET_PG_SCHEMA,
+              "inspect",
+              "Inspect the most relevant object schema before querying data.",
+              { objectName: objects[0].schemaTable },
+            ),
+          ]
+        : [
+            buildNextAction(
+              QUERY_PG_DATABASE,
+              "context",
+              "Re-check the current PG context if no objects were expectedly returned.",
+              { action: "context" },
+            ),
+          ],
+  });
+}
+
+async function handleMetadata(
+  args: QueryPgDatabaseArgs,
+  context: PgRuntimeContext,
+  deps: PgToolDependencies,
+) {
+  const limit = normalizeLimit(args.limit);
+  const tables = await withPgClient(context, deps, (client) =>
+    summarizeMetadata(client, args.schema, limit),
+  );
+
+  return buildPgToolResult({
+    success: true,
+    data: {
+      tables,
+      schemaFilter: args.schema ?? null,
+      limit,
+    },
+    message:
+      tables.length > 0
+        ? `Summarized ${tables.length} PostgreSQL objects with row-count and RLS hints. Use schema inspection before composing joins or mutations.`
+        : "No PostgreSQL objects matched the current metadata filter.",
+    nextActions:
+      tables.length > 0
+        ? [
+            buildNextAction(
+              GET_PG_SCHEMA,
+              "inspect",
+              "Inspect the relevant table schema to confirm columns, keys, and policies.",
+              { objectName: tables[0].schemaTable },
+            ),
+          ]
+        : [
+            buildNextAction(
+              QUERY_PG_DATABASE,
+              "objects",
+              "List objects first if metadata is empty or too restrictive.",
+              { action: "objects", schema: args.schema, limit },
+            ),
+          ],
+  });
+}
+
+async function handleReadOnlySql(
+  args: QueryPgDatabaseArgs,
+  context: PgRuntimeContext,
+  deps: PgToolDependencies,
+) {
+  if (!args.sql?.trim()) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "SQL_REQUIRED",
+      message: "Provide a read-only SQL statement when action=sql.",
+    });
+  }
+
+  if (!isReadOnlySql(args.sql)) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "READ_ONLY_SQL_REQUIRED",
+      message:
+        "queryPgDatabase(action=sql) only accepts read-only SQL. Use managePgDatabase(action=execute) for mutations.",
+      nextActions: [
+        buildNextAction(
+          GET_PG_SCHEMA,
+          "inspect",
+          "Inspect schema first if you are deciding which write operation is needed.",
+          { objectName: `${context.defaultSchema}.your_table` },
+        ),
+      ],
+    });
+  }
+
+  const limit = normalizeLimit(args.limit);
+  const result = await withPgClient(context, deps, (client) =>
+    client.query(args.sql!),
+  );
+  const summary = summarizeQueryResult(result, limit);
+
+  return buildPgToolResult({
+    success: true,
+    data: {
+      ...summary,
+      command: result.command ?? "SELECT",
+      rowCount: result.rowCount ?? summary.returnedRows,
+    },
+    message:
+      summary.truncated
+        ? `Read-only SQL executed successfully. Showing ${summary.rows.length} of ${summary.returnedRows} rows to control token usage.`
+        : "Read-only SQL executed successfully.",
+    nextActions: [
+      buildNextAction(
+        GET_PG_SCHEMA,
+        "inspect",
+        "Inspect the table schema if you need to refine joins, filters, or mutations.",
+        {
+          objectName:
+            parseTargetTableFromSql(args.sql, context.defaultSchema) ??
+            `${context.defaultSchema}.your_table`,
+        },
+      ),
+    ],
+  });
+}
+
+async function handleExecuteSql(
+  args: ManagePgDatabaseArgs,
+  context: PgRuntimeContext,
+  deps: PgToolDependencies,
+) {
+  if (!args.sql?.trim()) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "SQL_REQUIRED",
+      message: "Provide a SQL statement when action=execute.",
+    });
+  }
+
+  if (isDestructiveSql(args.sql) && !args.confirm) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "CONFIRM_REQUIRED",
+      message:
+        "This SQL looks destructive. Re-run managePgDatabase(action=execute) with confirm=true if you really want to proceed.",
+      nextActions: [
+        buildNextAction(
+          QUERY_PG_DATABASE,
+          "metadata",
+          "Inspect table size and shape before destructive changes.",
+          { action: "metadata", limit: 20 },
+        ),
+      ],
+    });
+  }
+
+  const result = await withPgClient(context, deps, (client) =>
+    client.query(args.sql!),
+  );
+  const targetTable = parseTargetTableFromSql(args.sql, context.defaultSchema);
+
+  return buildPgToolResult({
+    success: true,
+    data: {
+      command: result.command ?? getSqlVerb(args.sql),
+      rowCount: result.rowCount ?? null,
+      previewRows: result.rows
+        .slice(0, 5)
+        .map((row) => serializeValue(row) as Record<string, unknown>),
+      targetTable: targetTable ?? null,
+    },
+    message: "Write SQL executed successfully.",
+    nextActions: [
+      buildNextAction(
+        QUERY_PG_DATABASE,
+        "sql",
+        "Verify the mutation with a focused read-only SQL query.",
+        {
+          action: "sql",
+          sql: targetTable
+            ? `SELECT * FROM ${targetTable} LIMIT 20`
+            : "SELECT 1",
+          limit: 20,
+        },
+      ),
+    ],
+  });
+}
+
+async function handleGetPgSchema(
+  args: GetPgSchemaArgs,
+  context: PgRuntimeContext,
+  deps: PgToolDependencies,
+) {
+  const parsed = parseSchemaQualifiedName(args.objectName);
+  if (!parsed) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "SCHEMA_QUALIFIED_NAME_REQUIRED",
+      message:
+        "getPgSchema requires a schema-qualified object name like public.users.",
+    });
+  }
+
+  const schemaInfo = await withPgClient(context, deps, (client) =>
+    readSchemaInfo(client, parsed.schema, parsed.name),
+  );
+
+  if (!schemaInfo) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "OBJECT_NOT_FOUND",
+      message: `PostgreSQL object ${args.objectName} was not found in the current local context.`,
+      nextActions: [
+        buildNextAction(
+          QUERY_PG_DATABASE,
+          "objects",
+          "List schema-qualified objects to find the correct table or view name.",
+          { action: "objects", schema: parsed.schema, limit: 20 },
+        ),
+      ],
+    });
+  }
+
+  return buildPgToolResult({
+    success: true,
+    data: schemaInfo as unknown as Record<string, unknown>,
+    message:
+      "Resolved PostgreSQL schema, key, index, and security details. Use this structure before composing multi-table SQL.",
+    nextActions: [
+      buildNextAction(
+        QUERY_PG_DATABASE,
+        "metadata",
+        "Check row-count and RLS hints for nearby tables before more complex queries.",
+        { action: "metadata", schema: parsed.schema, limit: 20 },
+      ),
+      buildNextAction(
+        QUERY_PG_DATABASE,
+        "sql",
+        "Run a focused read-only query now that the schema is known.",
+        {
+          action: "sql",
+          sql: `SELECT * FROM ${args.objectName} LIMIT 20`,
+          limit: 20,
+        },
+      ),
+    ],
   });
 }
 
@@ -416,17 +1236,11 @@ export function registerPGDatabaseTools(
 
       switch (args.action) {
         case "objects":
-          return buildNotImplementedResult(
-            "queryPgDatabase(action=objects) is reserved for schema-first exploration and will be implemented in the next commit.",
-          );
+          return handleListObjects(args, context, deps);
         case "metadata":
-          return buildNotImplementedResult(
-            "queryPgDatabase(action=metadata) is reserved for lightweight table summaries and will be implemented in the next commit.",
-          );
+          return handleMetadata(args, context, deps);
         case "sql":
-          return buildNotImplementedResult(
-            "queryPgDatabase(action=sql) is reserved for read-only SQL execution and will be implemented in the next commit.",
-          );
+          return handleReadOnlySql(args, context, deps);
         default:
           return buildPgToolResult({
             success: false,
@@ -489,9 +1303,7 @@ export function registerPGDatabaseTools(
             return buildMissingContextResult();
           }
 
-          return buildNotImplementedResult(
-            "managePgDatabase(action=execute) is reserved for write SQL execution and will be implemented in the next commit.",
-          );
+          return handleExecuteSql(args, context, deps);
         }
         default:
           return buildPgToolResult({
@@ -526,9 +1338,7 @@ export function registerPGDatabaseTools(
         return buildMissingContextResult();
       }
 
-      return buildNotImplementedResult(
-        "getPgSchema is reserved for schema-first inspection and will be implemented in the next commit.",
-      );
+      return handleGetPgSchema(args, context, deps);
     },
   );
 }
