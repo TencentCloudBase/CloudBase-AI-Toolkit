@@ -27,6 +27,8 @@ When the user types `/mcp_design_review`.
      - Each logical domain module (functions, env, storage, database, etc.) MUST expose at most two primary tools:  
        - a query tool: `queryXxx` – strictly read‑only, no side effects, focused on queries.  
        - a manage tool: `manageXxx` – performs all mutations via a required `action` field.  
+     - Benchmark-critical read-only helpers are allowed only as explicit, documented exceptions when folding them into `queryXxx` would materially reduce agent success rate or obscure structure discovery.  
+     - The PostgreSQL domain’s first approved exception is `getPgSchema`, because schema-qualified structure, RLS/policy visibility, and key/index inspection are benchmark-critical and should not be buried behind a generic query action.
      - The `manageXxx` tool:  
        - Uses a string literal union for `action` (e.g. `"create" | "update" | "delete" | "attachLayer" | "detachLayer"`).  
        - Uses action-specific parameters that are easy for AI to map correctly. Prefer the repository’s established style first; do not invent namespaced actions or grouped payloads unless the surrounding modules already use that pattern.
