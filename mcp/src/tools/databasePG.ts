@@ -1,6 +1,5 @@
 import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
-import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -9,7 +8,6 @@ import type { ExtendedMcpServer, PgRuntimeContext } from "../server.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
 
 const execFileAsync = promisify(execFile);
-const require = createRequire(import.meta.url);
 
 const CATEGORY = "PostgreSQL database";
 const QUERY_PG_DATABASE = "queryPgDatabase";
@@ -96,7 +94,7 @@ type PgClientLike = {
 
 type PgToolDependencies = {
   bootstrapProvider: PgBootstrapProvider;
-  createClient: (connectionUri: string) => PgClientLike;
+  createClient: (connectionUri: string) => Promise<PgClientLike> | PgClientLike;
 };
 
 type PgObjectSummary = {
@@ -425,7 +423,7 @@ async function withPgClient<T>(
   deps: PgToolDependencies,
   callback: (client: PgClientLike) => Promise<T>,
 ) {
-  const client = deps.createClient(context.connectionUri);
+  const client = await deps.createClient(context.connectionUri);
   await client.connect();
 
   try {
@@ -801,8 +799,8 @@ class LocalPgBootstrapProvider implements PgBootstrapProvider {
 function createDefaultDependencies(): PgToolDependencies {
   return {
     bootstrapProvider: new LocalPgBootstrapProvider(),
-    createClient: (connectionUri: string) => {
-      const { Client } = require("pg") as typeof import("pg");
+    createClient: async (connectionUri: string) => {
+      const { Client } = await import("pg");
       return new Client({
         connectionString: connectionUri,
       });
