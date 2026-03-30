@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerDatabaseTools } from "./tools/databaseNoSQL.js";
+import { registerPGDatabaseTools } from "./tools/databasePG.js";
 import { registerSQLDatabaseTools } from "./tools/databaseSQL.js";
 import { registerDownloadTools } from "./tools/download.js";
 import { registerEnvTools } from "./tools/env.js";
@@ -54,6 +55,7 @@ function registerDatabase(server: ExtendedMcpServer) {
     registerDatabaseTools(server);
   }
   registerSQLDatabaseTools(server);
+  registerPGDatabaseTools(server);
   registerDataModelTools(server);
 }
 
@@ -119,12 +121,25 @@ function parseEnabledPlugins(
   return enabledPlugins;
 }
 
+export interface PgRuntimeContext {
+  envId: string;
+  instanceId: string;
+  connectionUri: string;
+  defaultSchema: string;
+  runtimeMode: "local";
+  bootstrapMode: "podman" | "local" | "manual";
+  bootstrapProjectDir?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // 扩展 McpServer 类型以包含 cloudBaseOptions 和新的registerTool方法
 export interface ExtendedMcpServer extends McpServer {
   cloudBaseOptions?: CloudBaseOptions;
   authOptions?: AuthOptions;
   ide?: string;
   logger?: Logger;
+  pgRuntimeContext?: PgRuntimeContext;
 
   setLogger(logger: Logger): void;
 }
