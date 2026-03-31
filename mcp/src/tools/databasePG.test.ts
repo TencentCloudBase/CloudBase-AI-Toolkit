@@ -121,6 +121,47 @@ describe("PG database tools", () => {
     });
   });
 
+  it("managePgDatabase(init) retries readiness checks until PostgreSQL accepts connections", async () => {
+    const { server, tools } = createMockServer();
+    let readyAttempts = 0;
+
+    registerPGDatabaseTools(server, {
+      bootstrapProvider: {
+        bootstrap: vi.fn(async () => createBootstrapResult()),
+      },
+      createClient: vi.fn(() =>
+        createFakeClient(async (sql: string) => {
+          if (sql !== "SELECT 1") {
+            throw new Error(`Unexpected SQL: ${sql}`);
+          }
+
+          readyAttempts += 1;
+          if (readyAttempts < 3) {
+            throw new Error("database is still starting");
+          }
+
+          return { rows: [{ "?column?": 1 }], rowCount: 1 };
+        })
+      ),
+      readyCheckOptions: {
+        maxAttempts: 3,
+        retryDelayMs: 1,
+      },
+    });
+
+    const payload = buildToolPayload(
+      await tools.managePgDatabase.handler({
+        action: "init",
+        connectionUri: "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
+      }),
+    );
+
+    expect(payload).toMatchObject({
+      success: true,
+    });
+    expect(readyAttempts).toBe(3);
+  });
+
   it("queryPgDatabase(sql) rejects mutating SQL", async () => {
     const { server, tools } = createMockServer();
     const fakeClient = createFakeClient(async (sql: string) => {

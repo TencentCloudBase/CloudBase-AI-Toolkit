@@ -92,9 +92,15 @@ type PgClientLike = {
   end(): Promise<void>;
 };
 
+type PgReadyCheckOptions = {
+  maxAttempts?: number;
+  retryDelayMs?: number;
+};
+
 type PgToolDependencies = {
   bootstrapProvider: PgBootstrapProvider;
   createClient: (connectionUri: string) => Promise<PgClientLike> | PgClientLike;
+  readyCheckOptions?: PgReadyCheckOptions;
 };
 
 type PgObjectSummary = {
@@ -800,21 +806,57 @@ function createDefaultDependencies(): PgToolDependencies {
   return {
     bootstrapProvider: new LocalPgBootstrapProvider(),
     createClient: async (connectionUri: string) => {
-      const { Client } = await import("pg");
-      return new Client({
+      const pgModule = await import("pg");
+      const ClientCtor =
+        typeof pgModule.Client === "function"
+          ? pgModule.Client
+          : typeof pgModule.default?.Client === "function"
+            ? pgModule.default.Client
+            : null;
+
+      if (!ClientCtor) {
+        throw new Error("Unable to resolve PostgreSQL Client constructor from pg module");
+      }
+
+      return new ClientCtor({
         connectionString: connectionUri,
       });
     },
   };
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function ensurePgReady(
   context: PgRuntimeContext,
   deps: PgToolDependencies,
+  options?: PgReadyCheckOptions,
 ) {
-  await withPgClient(context, deps, async (client) => {
-    await client.query("SELECT 1");
-  });
+  const maxAttempts = options?.maxAttempts ?? 20;
+  const retryDelayMs = options?.retryDelayMs ?? 1000;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await withPgClient(context, deps, async (client) => {
+        await client.query("SELECT 1");
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt === maxAttempts) {
+        break;
+      }
+      await sleep(retryDelayMs);
+    }
+  }
+
+  const reason = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(
+    `PostgreSQL is not ready after ${maxAttempts} attempts. Last error: ${reason}`,
+  );
 }
 
 async function handleInit(
@@ -845,7 +887,7 @@ async function handleInit(
     updatedAt: now,
   };
 
-  await ensurePgReady(context, deps);
+  await ensurePgReady(context, deps, deps.readyCheckOptions);
   await savePgContext(server, context);
 
   return buildPgToolResult({
