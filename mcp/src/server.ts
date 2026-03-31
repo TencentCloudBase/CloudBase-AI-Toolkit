@@ -68,7 +68,6 @@ const AVAILABLE_PLUGINS: Record<string, PluginDefinition> = {
   rag: { name: "rag", register: registerRagTools },
   download: { name: "download", register: registerDownloadTools },
   gateway: { name: "gateway", register: registerGatewayTools },
-  // miniprogram: { name: 'miniprogram', register: registerMiniprogramTools },
   "security-rule": {
     name: "security-rule",
     register: registerSecurityRuleTools,

@@ -122,22 +122,6 @@
     {
       "name": "downloadTemplate",
       "description": "Download project templates with CloudBase best practices"
-    },
-    {
-      "name": "uploadMiniprogramCode",
-      "description": "Upload WeChat Mini-Program code to WeChat platform for deployment"
-    },
-    {
-      "name": "previewMiniprogramCode",
-      "description": "Preview WeChat Mini-Program code and generate QR code for testing"
-    },
-    {
-      "name": "buildMiniprogramNpm",
-      "description": "Build npm packages for WeChat Mini-Program projects"
-    },
-    {
-      "name": "getMiniprogramProjectConfig",
-      "description": "Get WeChat Mini-Program project configuration and settings"
     }
   ],
   "requirements": {

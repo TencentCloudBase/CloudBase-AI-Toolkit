@@ -82,8 +82,6 @@ export function shouldRegisterTool(toolName: string): boolean {
     'updateFunctionCode',
     'createFunction', // also involves local files
     
-    // Miniprogram tools - local code uploads
-    'uploadMiniprogramCode',
     
     // Download tools - local file downloads
     'downloadTemplate',
