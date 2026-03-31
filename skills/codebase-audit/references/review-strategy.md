@@ -31,6 +31,7 @@ For **every** file, check each category below. Not every category applies to eve
 | Missing input validation | Tool parameters accepted without type/range/format checks |
 | Prototype pollution | Unchecked `Object.assign`, spread of user-controlled objects |
 | SSRF | User-controlled URLs fetched without allowlist validation |
+| Vulnerable dependencies | Known CVEs in direct or transitive dependencies (see `dependency-audit.md`) |
 
 ### 2. Error handling (High priority)
 

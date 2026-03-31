@@ -17,6 +17,7 @@ Use this skill when you need to:
 - Turn code review findings into tracked GitHub issues
 - Fix each issue in isolation (worktree per issue) and submit PRs
 - Run a periodic codebase health check with automated follow-through
+- Audit and fix dependency security vulnerabilities (Dependabot alerts / npm audit)
 
 **Do NOT use for:**
 
@@ -40,6 +41,7 @@ Use this skill when you need to:
    - **Resource leaks**: unclosed connections, missing cleanup
    - **API design**: inconsistent validation, missing required field checks
 4. Record every finding with: file path, line number(s), category, severity (Critical/High/Medium/Low), description, and suggested fix.
+5. **Dependency scan**: Read `references/dependency-audit.md` and run the Dependabot alert fetch + `npm audit` to discover vulnerable dependencies. Record each finding using the dependency-audit format.
 
 ### Phase 2 — Analyze & Classify
 
@@ -92,6 +94,7 @@ Use this skill when you need to:
       git worktree remove ../<repo>-audit-fix-<issue-number>
       ```
 3. One worktree per issue. Never mix fixes across worktrees.
+4. **Dependency fixes**: For dependency vulnerability batches, follow `references/dependency-audit.md` Step 4. These can be grouped into a single PR since they modify `package.json` / `package-lock.json`.
 
 ### Phase 5 — Verify & Report
 
@@ -116,6 +119,7 @@ Use this skill when you need to:
 | How to create well-structured GitHub issues | `references/issue-workflow.md` |
 | How to create worktrees and fix issues in isolation | `references/worktree-fix.md` |
 | How to verify fixes and generate the final report | `references/verification.md` |
+| How to audit and fix dependency vulnerabilities | `references/dependency-audit.md` |
 
 ## Git safety rules
 
@@ -136,7 +140,7 @@ fix(<scope>): 🔒 <english description>
 Closes #<issue-number>
 ```
 
-Scope examples: `security`, `error-handling`, `type-safety`, `code-quality`, `cloudrun`, `database`, `functions`
+Scope examples: `security`, `deps`, `error-handling`, `type-safety`, `code-quality`, `cloudrun`, `database`, `functions`
 
 ## Minimum self-check
 
@@ -148,3 +152,5 @@ Scope examples: `security`, `error-handling`, `type-safety`, `code-quality`, `cl
 - Did I verify build + test pass before pushing each fix?
 - Did I clean up worktrees after creating PRs?
 - Did I generate a final report with links to all issues and PRs?
+- Did I check Dependabot alerts and npm audit for dependency vulnerabilities?
+- Did I apply the correct fix strategy (upgrade / override / replace / dismiss) for each vulnerable dependency?
