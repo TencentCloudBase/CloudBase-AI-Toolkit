@@ -9,6 +9,7 @@
 .skills-repo-output
 .generated
 .DS_Store
+.idea/
 
 # MCP local IDE / rules artifacts
 mcp/.agent/
