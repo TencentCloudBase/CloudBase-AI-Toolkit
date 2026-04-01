@@ -11,6 +11,10 @@ const CATEGORY = "NoSQL database";
 const COLLECTION_READY_TIMEOUT_MS = 10000;
 const COLLECTION_READY_POLL_INTERVAL_MS = 500;
 
+/** Convert object values to JSON strings for API calls */
+const toJSONString = (v: any): any =>
+  typeof v === "object" && v !== null ? JSON.stringify(v) : v;
+
 // 获取数据库实例ID
 async function getDatabaseInstanceId(getManager: () => Promise<any>) {
   const cloudbase = await getManager();
@@ -571,8 +575,6 @@ deleteCollection: 删除集合`),
     async ({ collectionName, query, projection, sort, limit, offset }) => {
       const cloudbase = await getManager();
       const instanceId = await getDatabaseInstanceId(getManager);
-      const toJSONString = (v: any) =>
-        typeof v === "object" && v !== null ? JSON.stringify(v) : v;
       const normalizedSort = normalizeSortInput(sort);
       const result = await cloudbase.commonService("tcb", "2018-06-08").call({
         Action: "QueryRecords",
@@ -794,8 +796,6 @@ async function updateDocuments({
 }) {
   const cloudbase = await getManager();
   const instanceId = await getDatabaseInstanceId(getManager);
-  const toJSONString = (v: any) =>
-    typeof v === "object" && v !== null ? JSON.stringify(v) : v;
   const result = await cloudbase.commonService("tcb", "2018-06-08").call({
     Action: "UpdateItem",
     Param: {
@@ -837,8 +837,6 @@ async function deleteDocuments({
 }) {
   const cloudbase = await getManager();
   const instanceId = await getDatabaseInstanceId(getManager);
-  const toJSONString = (v: any) =>
-    typeof v === "object" && v !== null ? JSON.stringify(v) : v;
   const result = await cloudbase.commonService("tcb", "2018-06-08").call({
     Action: "DeleteItem",
     Param: {

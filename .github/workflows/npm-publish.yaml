@@ -42,6 +42,10 @@ jobs:
         working-directory: ./mcp
         run: npm run build
 
+      - name: Run tests
+        working-directory: ./mcp
+        run: npx vitest run
+
       - name: Resolve npm dist-tag
         id: npm_tag
         working-directory: ./mcp

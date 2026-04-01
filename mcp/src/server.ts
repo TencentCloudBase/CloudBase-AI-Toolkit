@@ -20,7 +20,7 @@ import { CloudBaseOptions, Logger } from "./types.js";
 import type { AuthOptions } from "./auth.js";
 import { enableCloudMode } from "./utils/cloud-mode.js";
 import { info } from './utils/logger.js';
-import { isInternationalRegion } from "./utils/tencet-cloud.js";
+import { isInternationalRegion } from "./utils/tencent-cloud.js";
 import { buildJsonToolResult, isToolPayloadError } from "./utils/tool-result.js";
 import { wrapServerWithTelemetry } from "./utils/tool-wrapper.js";
 

@@ -134,9 +134,9 @@ function main_handler($event, $context) {
     return functionDir;
   }
 
-  test('Validate Python3.9 runtime support for Event function', async () => {
-    if (!testClient || !hasCloudBaseCredentials()) {
-      console.log('⚠️ Skipping Python runtime validation');
+  test.skipIf(!hasCloudBaseCredentials())('Validate Python3.9 runtime support for Event function', async () => {
+    if (!testClient) {
+      console.log('⚠️ Test client not initialized, skipping');
       return;
     }
 
@@ -179,9 +179,9 @@ function main_handler($event, $context) {
     }
   });
 
-  test('Validate PHP7.4 runtime support for Event function', async () => {
-    if (!testClient || !hasCloudBaseCredentials()) {
-      console.log('⚠️ Skipping PHP runtime validation');
+  test.skipIf(!hasCloudBaseCredentials())('Validate PHP7.4 runtime support for Event function', async () => {
+    if (!testClient) {
+      console.log('⚠️ Test client not initialized, skipping');
       return;
     }
 
@@ -223,9 +223,9 @@ function main_handler($event, $context) {
     }
   });
 
-  test('Summary: Runtime validation results', async () => {
-    if (!testClient || !hasCloudBaseCredentials()) {
-      console.log('⚠️ No credentials, skipping summary');
+  test.skipIf(!hasCloudBaseCredentials())('Summary: Runtime validation results', async () => {
+    if (!testClient) {
+      console.log('⚠️ No test client, skipping summary');
       return;
     }
 

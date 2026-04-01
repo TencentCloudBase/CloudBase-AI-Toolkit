@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getCloudBaseManager, logCloudBaseResult } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
+import { jsonContent } from "../utils/json-content.js";
 
 const QUERY_GATEWAY_ACTIONS = [
   "getAccess",
@@ -40,17 +41,6 @@ type ManageGatewayInput = {
   type?: "Event" | "HTTP";
   auth?: boolean;
 };
-
-function jsonContent(body: unknown) {
-  return {
-    content: [
-      {
-        type: "text" as const,
-        text: JSON.stringify(body, null, 2),
-      },
-    ],
-  };
-}
 
 function normalizeAccessPath(path: string | undefined): string {
   if (!path) {

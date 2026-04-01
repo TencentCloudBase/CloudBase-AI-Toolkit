@@ -8,6 +8,9 @@ import {
 } from "./utils/telemetry.js";
 import { info, warn } from "./utils/logger.js";
 
+// 构建时注入的版本号
+declare const __MCP_VERSION__: string;
+
 /**
  * Parse command line arguments
  * Supports --cloud-mode and --integration-ide flags
@@ -84,7 +87,7 @@ if (ide) {
 // Create server instance with conditional telemetry and CLI options
 const server = createCloudBaseMcpServer({
   name: "cloudbase-mcp",
-  version: "1.0.0",
+  version: typeof __MCP_VERSION__ !== 'undefined' ? __MCP_VERSION__ : "1.0.0",
   enableTelemetry,
   cloudMode,
   ide,

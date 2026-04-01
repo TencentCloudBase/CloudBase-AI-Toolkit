@@ -6,6 +6,7 @@ import {
 } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
 import { isCloudMode } from "../utils/cloud-mode.js";
+import { jsonContent } from "../utils/json-content.js";
 import { debug } from "../utils/logger.js";
 
 import { IEnvVariable } from "@cloudbase/manager-node/types/function/types.js";
@@ -254,17 +255,6 @@ const MANAGE_LAYER_SCHEMA = z.object({
   layerName: z.string().describe("层名称"),
   layerVersion: z.number().describe("层版本号"),
 });
-
-function jsonContent(body: unknown) {
-  return {
-    content: [
-      {
-        type: "text" as const,
-        text: JSON.stringify(body, null, 2),
-      },
-    ],
-  };
-}
 
 function normalizeFunctionLayers(layers: unknown): FunctionLayerInput[] {
   if (!Array.isArray(layers)) {

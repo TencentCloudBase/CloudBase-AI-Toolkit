@@ -142,7 +142,7 @@ function checkBasicStats(cnContent, enContent) {
 
 function main() {
   console.log('🔍 CloudBase AI ToolKit README 同步检查\n');
-  console.log('=' * 50);
+  console.log('='.repeat(50));
   
   // 检查文件存在性
   if (!checkFileExists()) {
@@ -167,7 +167,7 @@ function main() {
   
   // 总结
   console.log('\n📋 同步检查总结:');
-  console.log('=' * 30);
+  console.log('='.repeat(30));
   console.log(`章节结构: ${structureOK ? '✅ 通过' : '❌ 失败'}`);
   console.log(`关键词检查: ${termsOK ? '✅ 通过' : '❌ 失败'}`);
   console.log(`语言导航: ${navOK ? '✅ 通过' : '❌ 失败'}`);

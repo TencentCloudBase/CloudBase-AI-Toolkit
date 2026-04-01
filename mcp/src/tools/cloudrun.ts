@@ -4,6 +4,7 @@ import path from 'path';
 import { z } from "zod";
 import { getCloudBaseManager, getEnvId } from '../cloudbase-manager.js';
 import { ExtendedMcpServer } from '../server.js';
+import { debug } from '../utils/logger.js';
 import { sendDeployNotification } from '../utils/notification.js';
 
 // CloudRun service types
@@ -605,7 +606,7 @@ for await (let x of res.textStream) {
             try {
               fs.writeFileSync(cloudbasercPath, JSON.stringify(cloudbasercContent, null, 2));
             } catch (error) {
-              // Ignore cloudbaserc.json creation errors
+              debug('cloudbaserc.json creation skipped:', error instanceof Error ? error : new Error(String(error)));
             }
 
             // Send deployment notification to CodeBuddy IDE
@@ -830,7 +831,7 @@ for await (let x of res.textStream) {
             try {
               fs.writeFileSync(cloudbasercPath, JSON.stringify(cloudbasercContent, null, 2));
             } catch (error) {
-              // Ignore cloudbaserc.json creation errors
+              debug('cloudbaserc.json creation skipped:', error instanceof Error ? error : new Error(String(error)));
             }
 
             return {
@@ -913,7 +914,7 @@ for await (let x of res.textStream) {
             try {
               fs.writeFileSync(cloudbasercPath, JSON.stringify(cloudbasercContent, null, 2));
             } catch (error) {
-              // Ignore cloudbaserc.json creation errors
+              debug('cloudbaserc.json creation skipped:', error instanceof Error ? error : new Error(String(error)));
             }
 
             return {

@@ -24,8 +24,6 @@ export default defineConfig({
     include: ["../tests/**/*.test.js", "src/**/*.test.ts"],
     // Verbose reporter output
     reporter: "verbose",
-    // Stop on first failure
-    bail: 1,
     // Setup hooks
     globalSetup: [],
     setupFiles: [],

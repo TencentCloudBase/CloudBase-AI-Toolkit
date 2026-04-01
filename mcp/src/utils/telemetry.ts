@@ -231,6 +231,38 @@ class TelemetryReporter {
 // 创建全局实例
 export const telemetryReporter = new TelemetryReporter();
 
+/**
+ * 解析环境ID
+ * 优先级：传入配置 > envManager缓存 > 环境变量 > unknown
+ */
+function resolveEnvId(cloudBaseOptions?: CloudBaseOptions): { envId: string; envIdSource: string } {
+    let envId: string = 'unknown';
+    let envIdSource: string = 'unknown';
+    try {
+        if (cloudBaseOptions?.envId) {
+            envId = cloudBaseOptions.envId;
+            envIdSource = 'cloudBaseOptions';
+        } else {
+            const cachedEnvId = getCachedEnvId();
+            if (cachedEnvId) {
+                envId = cachedEnvId;
+                envIdSource = 'envManager.cachedEnvId';
+            } else if (process.env.CLOUDBASE_ENV_ID) {
+                envId = process.env.CLOUDBASE_ENV_ID;
+                envIdSource = 'process.env.CLOUDBASE_ENV_ID';
+            } else {
+                envId = 'unknown';
+                envIdSource = 'default';
+            }
+        }
+    } catch (err) {
+        debug('获取环境ID失败，遥测数据将使用 unknown', err instanceof Error ? err : new Error(String(err)));
+        envId = 'unknown';
+        envIdSource = 'error';
+    }
+    return { envId, envIdSource };
+}
+
 // 便捷方法
 export const reportToolCall =  async (params: {
     toolName: string;
@@ -251,39 +283,14 @@ export const reportToolCall =  async (params: {
     } = telemetryReporter.getUserAgent();
 
     // 安全获取环境ID，优先使用传入的配置
-    let envId: string | undefined;
-    let envIdSource: string = 'unknown';
-    try {
-        // 优先级：传入配置 > envManager缓存 > 环境变量 > unknown
-        if (params.cloudBaseOptions?.envId) {
-            envId = params.cloudBaseOptions.envId;
-            envIdSource = 'cloudBaseOptions';
-        } else {
-            const cachedEnvId = getCachedEnvId();
-            if (cachedEnvId) {
-                envId = cachedEnvId;
-                envIdSource = 'envManager.cachedEnvId';
-            } else if (process.env.CLOUDBASE_ENV_ID) {
-                envId = process.env.CLOUDBASE_ENV_ID;
-                envIdSource = 'process.env.CLOUDBASE_ENV_ID';
-            } else {
-                envId = 'unknown';
-                envIdSource = 'default';
-            }
-        }
-        debug('[telemetry] 工具调用 envId 获取结果', {
-            toolName: params.toolName,
-            envId,
-            envIdSource,
-            hasCloudBaseOptions: !!params.cloudBaseOptions,
-            cloudBaseOptionsEnvId: params.cloudBaseOptions?.envId || null
-        });
-    } catch (err) {
-        // 忽略错误，使用 unknown
-        debug('获取环境ID失败，遥测数据将使用 unknown', err instanceof Error ? err : new Error(String(err)));
-        envId = 'unknown';
-        envIdSource = 'error';
-    }
+    const { envId, envIdSource } = resolveEnvId(params.cloudBaseOptions);
+    debug('[telemetry] 工具调用 envId 获取结果', {
+        toolName: params.toolName,
+        envId,
+        envIdSource,
+        hasCloudBaseOptions: !!params.cloudBaseOptions,
+        cloudBaseOptionsEnvId: params.cloudBaseOptions?.envId || null
+    });
 
     // 报告工具调用情况
     const eventData: { [key: string]: any } = {
@@ -351,39 +358,14 @@ export const reportToolkitLifecycle = async (params: {
     } = telemetryReporter.getUserAgent();
 
     // 安全获取环境ID，优先使用传入的配置
-    let envId: string | undefined;
-    let envIdSource: string = 'unknown';
-    try {
-        // 优先级：传入配置 > envManager缓存 > 环境变量 > unknown
-        if (params.cloudBaseOptions?.envId) {
-            envId = params.cloudBaseOptions.envId;
-            envIdSource = 'cloudBaseOptions';
-        } else {
-            const cachedEnvId = getCachedEnvId();
-            if (cachedEnvId) {
-                envId = cachedEnvId;
-                envIdSource = 'envManager.cachedEnvId';
-            } else if (process.env.CLOUDBASE_ENV_ID) {
-                envId = process.env.CLOUDBASE_ENV_ID;
-                envIdSource = 'process.env.CLOUDBASE_ENV_ID';
-            } else {
-                envId = 'unknown';
-                envIdSource = 'default';
-            }
-        }
-        debug('[telemetry] 生命周期事件 envId 获取结果', {
-            event: params.event,
-            envId,
-            envIdSource,
-            hasCloudBaseOptions: !!params.cloudBaseOptions,
-            cloudBaseOptionsEnvId: params.cloudBaseOptions?.envId || null
-        });
-    } catch (err) {
-        // 忽略错误，使用 unknown
-        debug('获取环境ID失败，遥测数据将使用 unknown', err instanceof Error ? err : new Error(String(err)));
-        envId = 'unknown';
-        envIdSource = 'error';
-    }
+    const { envId, envIdSource } = resolveEnvId(params.cloudBaseOptions);
+    debug('[telemetry] 生命周期事件 envId 获取结果', {
+        event: params.event,
+        envId,
+        envIdSource,
+        hasCloudBaseOptions: !!params.cloudBaseOptions,
+        cloudBaseOptionsEnvId: params.cloudBaseOptions?.envId || null
+    });
 
     // 报告 Toolkit 生命周期事件
     const eventData: { [key: string]: any } = {

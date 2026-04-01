@@ -70,12 +70,7 @@ describe('CloudRun Plugin Tests', () => {
     }
   });
 
-  test('CloudRun plugin tools are registered', async () => {
-    if (!testClient) {
-      console.log('⚠️ Test client not available, skipping test');
-      return;
-    }
-
+  test.skipIf(!testClient)('CloudRun plugin tools are registered', async () => {
     try {
       console.log('Testing CloudRun plugin tool registration...');
       
@@ -112,12 +107,7 @@ describe('CloudRun Plugin Tests', () => {
     }
   });
 
-  test('queryCloudRun tool has correct schema', async () => {
-    if (!testClient) {
-      console.log('⚠️ Test client not available, skipping test');
-      return;
-    }
-
+  test.skipIf(!testClient)('queryCloudRun tool has correct schema', async () => {
     try {
       const toolsResult = await testClient.listTools();
       const queryCloudRunTool = toolsResult.tools.find(tool => tool.name === 'queryCloudRun');
@@ -142,12 +132,7 @@ describe('CloudRun Plugin Tests', () => {
     }
   });
 
-  test('manageCloudRun tool has correct schema', async () => {
-    if (!testClient) {
-      console.log('⚠️ Test client not available, skipping test');
-      return;
-    }
-
+  test.skipIf(!testClient)('manageCloudRun tool has correct schema', async () => {
     try {
       const toolsResult = await testClient.listTools();
       const manageCloudRunTool = toolsResult.tools.find(tool => tool.name === 'manageCloudRun');
@@ -173,12 +158,7 @@ describe('CloudRun Plugin Tests', () => {
     }
   });
 
-  test('queryCloudRun tool validates input parameters (skips without credentials)', async () => {
-    if (!testClient) {
-      console.log('⚠️ Test client not available, skipping test');
-      return;
-    }
-
+  test.skipIf(!testClient)('queryCloudRun tool validates input parameters (skips without credentials)', async () => {
     try {
       const toolsResult = await testClient.listTools();
       const queryCloudRunTool = toolsResult.tools.find(tool => tool.name === 'queryCloudRun');
@@ -218,12 +198,7 @@ describe('CloudRun Plugin Tests', () => {
     }
   });
 
-  test('manageCloudRun tool validates input parameters (skips without credentials)', async () => {
-    if (!testClient) {
-      console.log('⚠️ Test client not available, skipping test');
-      return;
-    }
-
+  test.skipIf(!testClient)('manageCloudRun tool validates input parameters (skips without credentials)', async () => {
     try {
       const toolsResult = await testClient.listTools();
       const manageCloudRunTool = toolsResult.tools.find(tool => tool.name === 'manageCloudRun');
@@ -263,12 +238,7 @@ describe('CloudRun Plugin Tests', () => {
     }
   });
 
-  test('manageCloudRun supports run action (does not require credentials)', async () => {
-    if (!testClient) {
-      console.log('⚠️ Test client not available, skipping test');
-      return;
-    }
-
+  test.skipIf(!testClient)('manageCloudRun supports run action (does not require credentials)', async () => {
     try {
       const toolsResult = await testClient.listTools();
       const manageCloudRunTool = toolsResult.tools.find(tool => tool.name === 'manageCloudRun');
@@ -298,12 +268,7 @@ describe('CloudRun Plugin Tests', () => {
     }
   });
 
-  test('manageCloudRun supports createAgent action (does not require credentials)', async () => {
-    if (!testClient) {
-      console.log('⚠️ Test client not available, skipping test');
-      return;
-    }
-
+  test.skipIf(!testClient)('manageCloudRun supports createAgent action (does not require credentials)', async () => {
     try {
       const toolsResult = await testClient.listTools();
       const manageCloudRunTool = toolsResult.tools.find(tool => tool.name === 'manageCloudRun');

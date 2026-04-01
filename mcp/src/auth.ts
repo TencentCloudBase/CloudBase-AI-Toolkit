@@ -1,6 +1,6 @@
 import { AuthSupervisor } from "@cloudbase/toolbox";
 import { debug } from "./utils/logger.js";
-import { isInternationalRegion } from "./utils/tencet-cloud.js";
+import { isInternationalRegion } from "./utils/tencent-cloud.js";
 
 const auth = AuthSupervisor.getInstance({});
 

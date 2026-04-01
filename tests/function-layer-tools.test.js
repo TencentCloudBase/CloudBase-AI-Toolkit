@@ -123,12 +123,7 @@ describe("Function and gateway tool schemas", () => {
     }
   });
 
-  test("primary function and gateway tools are registered without legacy aliases", async () => {
-    if (!testClient) {
-      console.log("Test client not available, skipping test");
-      return;
-    }
-
+  test.skipIf(!testClient)("primary function and gateway tools are registered without legacy aliases", async () => {
     const toolsResult = await testClient.listTools();
     const allTools = toolsResult.tools.map((tool) => tool.name);
 
@@ -146,12 +141,7 @@ describe("Function and gateway tool schemas", () => {
     expect(allTools).not.toContain("createFunctionHTTPAccess");
   });
 
-  test("queryFunctions schema is focused on function resources only", async () => {
-    if (!testClient) {
-      console.log("Test client not available, skipping test");
-      return;
-    }
-
+  test.skipIf(!testClient)("queryFunctions schema is focused on function resources only", async () => {
     const toolsResult = await testClient.listTools();
     const tool = toolsResult.tools.find((item) => item.name === "queryFunctions");
 
@@ -172,12 +162,7 @@ describe("Function and gateway tool schemas", () => {
     expect(tool.annotations.category).toBe("functions");
   });
 
-  test("manageFunctions schema excludes gateway write actions", async () => {
-    if (!testClient) {
-      console.log("Test client not available, skipping test");
-      return;
-    }
-
+  test.skipIf(!testClient)("manageFunctions schema excludes gateway write actions", async () => {
     const toolsResult = await testClient.listTools();
     const tool = toolsResult.tools.find((item) => item.name === "manageFunctions");
 
@@ -200,12 +185,7 @@ describe("Function and gateway tool schemas", () => {
     expect(tool.annotations.category).toBe("functions");
   });
 
-  test("gateway tools expose independent query/manage entrypoints", async () => {
-    if (!testClient) {
-      console.log("Test client not available, skipping test");
-      return;
-    }
-
+  test.skipIf(!testClient)("gateway tools expose independent query/manage entrypoints", async () => {
     const toolsResult = await testClient.listTools();
     const queryTool = toolsResult.tools.find((item) => item.name === "queryGateway");
     const manageTool = toolsResult.tools.find((item) => item.name === "manageGateway");
@@ -228,12 +208,7 @@ describe("Function and gateway tool schemas", () => {
     expect(manageTool.annotations.destructiveHint).toBe(true);
   });
 
-  test("query and manage tools validate action-specific input", async () => {
-    if (!testClient) {
-      console.log("Test client not available, skipping test");
-      return;
-    }
-
+  test.skipIf(!testClient)("query and manage tools validate action-specific input", async () => {
     const functionDetailResult = await testClient.callTool({
       name: "queryFunctions",
       arguments: {
@@ -270,12 +245,7 @@ describe("Function and gateway tool schemas", () => {
     expectToolFailure(gatewayAccessResult, /targetName 参数是必需的/);
   });
 
-  test("queryFunctions can call listLayers when credentials are available", async () => {
-    if (!testClient) {
-      console.log("Test client not available, skipping test");
-      return;
-    }
-
+  test.skipIf(!testClient)("queryFunctions can call listLayers when credentials are available", async () => {
     if (!hasCloudBaseCredentials()) {
       console.log("No CloudBase credentials detected, skipping real call test");
       return;

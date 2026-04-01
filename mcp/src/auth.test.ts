@@ -24,7 +24,7 @@ vi.mock("./utils/logger.js", () => ({
   debug: vi.fn(),
 }));
 
-vi.mock("./utils/tencet-cloud.js", () => ({
+vi.mock("./utils/tencent-cloud.js", () => ({
   isInternationalRegion: vi.fn(() => false),
 }));
 

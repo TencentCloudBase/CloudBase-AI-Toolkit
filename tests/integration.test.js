@@ -11,6 +11,14 @@ const __dirname = dirname(__filename);
 // Helper function to wait for delay
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Detect if real CloudBase credentials are available
+function hasCloudBaseCredentials() {
+  const secretId = process.env.TENCENTCLOUD_SECRETID || process.env.CLOUDBASE_SECRET_ID;
+  const secretKey = process.env.TENCENTCLOUD_SECRETKEY || process.env.CLOUDBASE_SECRET_KEY;
+  const envId = process.env.CLOUDBASE_ENV_ID;
+  return Boolean(secretId && secretKey && envId);
+}
+
 test("ESM and CJS module exports consistency", async () => {
   try {
     console.log("Testing ESM and CJS module exports consistency...");
@@ -250,7 +258,7 @@ test("Tool consistency between multiple client connections", async () => {
   }
 }, 120000); // 增加到 120 秒
 
-test("Database tools support object/object[] parameters", async () => {
+test.skipIf(!hasCloudBaseCredentials())("Database tools support object/object[] parameters", async () => {
   let transport = null;
   let client = null;
   const testCollection = `test_collection_${Date.now()}`;
@@ -282,24 +290,6 @@ test("Database tools support object/object[] parameters", async () => {
       : "未设置",
   );
   console.log("CLOUDBASE_ENV_ID 值:", process.env.CLOUDBASE_ENV_ID || "未设置");
-
-  // This integration test requires real credentials and a target environment.
-  const hasCloudBaseCredentials = Boolean(
-    process.env.TENCENTCLOUD_SECRETID &&
-      process.env.TENCENTCLOUD_SECRETKEY &&
-      process.env.CLOUDBASE_ENV_ID,
-  );
-  console.log(
-    "🔐 认证信息状态:",
-    hasCloudBaseCredentials ? "✅ 已设置" : "❌ 未设置",
-  );
-
-  if (!hasCloudBaseCredentials) {
-    console.log(
-      "⏭️ 跳过数据库集成测试：缺少 TENCENTCLOUD_SECRETID/TENCENTCLOUD_SECRETKEY/CLOUDBASE_ENV_ID",
-    );
-    return;
-  }
 
   try {
     // 启动 MCP server

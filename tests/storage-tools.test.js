@@ -69,12 +69,7 @@ describe('Storage Tools Tests', () => {
     }
   });
 
-  test('Storage tools are registered correctly', async () => {
-    if (!testClient) {
-      console.log('⚠️ Test client not available, skipping test');
-      return;
-    }
-
+  test.skipIf(!testClient)('Storage tools are registered correctly', async () => {
     try {
       console.log('Testing Storage tools registration...');
       
@@ -123,12 +118,7 @@ describe('Storage Tools Tests', () => {
     }
   }, 30000);
 
-  test('queryStorage tool schema validation', async () => {
-    if (!testClient) {
-      console.log('⚠️ Test client not available, skipping test');
-      return;
-    }
-
+  test.skipIf(!testClient)('queryStorage tool schema validation', async () => {
     try {
       console.log('Testing queryStorage tool schema...');
       
@@ -167,12 +157,7 @@ describe('Storage Tools Tests', () => {
     }
   }, 30000);
 
-  test('manageStorage tool schema validation', async () => {
-    if (!testClient) {
-      console.log('⚠️ Test client not available, skipping test');
-      return;
-    }
-
+  test.skipIf(!testClient)('manageStorage tool schema validation', async () => {
     try {
       console.log('Testing manageStorage tool schema...');
       
@@ -217,12 +202,7 @@ describe('Storage Tools Tests', () => {
     }
   }, 30000);
 
-  test('Storage tools annotations are correct', async () => {
-    if (!testClient) {
-      console.log('⚠️ Test client not available, skipping test');
-      return;
-    }
-
+  test.skipIf(!testClient)('Storage tools annotations are correct', async () => {
     try {
       console.log('Testing Storage tools annotations...');
       
