@@ -185,5 +185,3 @@ X-TC-Action: DescribeBackupList
 | InvalidParameterValue.StoragePoolNotFound | 未找到相关存储pool。 |
 | ResourceNotFound.ClusterNotFoundError | 集群不存在。 |
 | UnauthorizedOperation.PermissionDenied | CAM鉴权不通过。 |
-
-目录

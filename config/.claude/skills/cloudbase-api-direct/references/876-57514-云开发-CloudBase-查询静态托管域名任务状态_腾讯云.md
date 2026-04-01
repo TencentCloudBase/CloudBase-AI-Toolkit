@@ -118,5 +118,3 @@ X-TC-Action: DescribeHostingDomainTask
 | LimitExceeded.Concurrent | 并发请求超过配额限制。 |
 | MissingParameter.Param | 缺少必要参数。 |
 | ResourceNotFound | 资源不存在。 |
-
-目录

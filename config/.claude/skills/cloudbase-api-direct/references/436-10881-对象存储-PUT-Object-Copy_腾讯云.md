@@ -255,5 +255,3 @@ HTTP/1.1 200 OKContent-Type: application/xmlContent-Length: 272Connection: close
 ﻿
 <?xml version="1.0" encoding="UTF-8"?><CopyObjectResult>            <ETag>"22e024392de860289f0baa7d6cf8a549"</ETag>            <CRC64>11596229263574363878</CRC64>            <LastModified>2020-04-11T17:51:56Z</LastModified>            <VersionId>MTg0NDUxNTc0NDYxOTI4MzU0MDI</VersionId></CopyObjectResult>
 ```
-
-目录

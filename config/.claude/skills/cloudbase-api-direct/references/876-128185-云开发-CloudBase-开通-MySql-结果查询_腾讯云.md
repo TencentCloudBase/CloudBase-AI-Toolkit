@@ -116,5 +116,3 @@ X-TC-Action: DescribeCreateMySQLResult
 ## 6\. 错误码
 
 该接口暂无业务逻辑相关的错误码，其他错误码详见 [公共错误码](/document/api/876/34823#.E5.85.AC.E5.85.B1.E9.94.99.E8.AF.AF.E7.A0.81) 。
-
-目录

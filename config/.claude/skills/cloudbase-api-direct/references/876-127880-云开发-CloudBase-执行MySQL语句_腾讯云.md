@@ -303,5 +303,3 @@ X-TC-Action: RunSql
 | ResourceNotFound.InstanceNotFound | 数据库实例不存在。 |
 | ResourceNotFound.TableNotFound | 表不存在。 |
 | UnsupportedOperation.TooManyTables | 表数量超过限制。 |
-
-目录

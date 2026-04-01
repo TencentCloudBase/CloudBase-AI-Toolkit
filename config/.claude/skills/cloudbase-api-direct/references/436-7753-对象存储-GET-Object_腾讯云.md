@@ -237,5 +237,3 @@ HTTP/1.1 403 ForbiddenContent-Type: application/xmlContent-Length: 513Connection
 ﻿
 <?xml version='1.0' encoding='utf-8' ?><Error>            <Code>InvalidObjectState</Code>            <Message>The operation is not valid for the object storage class.</Message>            <Resource>/exampleobject</Resource>            <RequestId>NWUwNGEwMjRfZDcyNzVkNjRfNjZlM183Zjcx****</RequestId>            <TraceId>OGVmYzZiMmQzYjA2OWNhODk0NTRkMTBiOWVmMDAxODc0OWRkZjk0ZDM1NmI1M2E2MTRlY2MzZDhmNmI5MWI1OTBjNjIyOGVlZmJlNDg4NDQ1MzAzMjA2ZDg4OGQ3MDhlMjIzYjI1ZWUwODY5YjdlMTBjY2EwNTgyZWMyMjc0Mjc=</TraceId></Error>
 ```
-
-目录

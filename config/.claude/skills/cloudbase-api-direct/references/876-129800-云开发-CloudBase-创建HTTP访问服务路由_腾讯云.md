@@ -144,5 +144,3 @@ X-TC-Action: CreateHTTPServiceRoute
 | ResourceInUse.HTTPServiceDomain | HTTP访问服务域名已经存在 |
 | ResourceInUse.HTTPServiceRoute | HTTP访问服务路由已存在 |
 | ResourceNotFound.HTTPServiceDomain | HTTP访问服务域名不存在 |
-
-目录

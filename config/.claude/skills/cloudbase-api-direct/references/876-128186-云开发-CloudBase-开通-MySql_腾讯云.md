@@ -130,5 +130,3 @@ X-TC-Action: CreateMySQL
 | --- | --- |
 | InternalError.SYS\_ERR | 系统内部异常。 |
 | InvalidParameter.INVALID\_PARAM | 请求参数错误。 |
-
-目录

@@ -125,5 +125,3 @@ https://cynosdb.tencentcloudapi.com/?Action=ResetAccountPassword
 | ResourceNotFound.ClusterNotFoundError | 集群不存在。 |
 | ResourceUnavailable.InstanceStatusAbnormal | 实例状态异常，暂时不可操作。 |
 | UnauthorizedOperation.PermissionDenied | CAM鉴权不通过。 |
-
-目录

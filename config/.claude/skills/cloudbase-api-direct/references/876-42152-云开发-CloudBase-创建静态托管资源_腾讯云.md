@@ -143,5 +143,3 @@ X-TC-Action: CreateStaticStore
 | InternalError | 内部错误。 |
 | InvalidParameter | 参数错误。 |
 | UnauthorizedOperation | 未授权操作。 |
-
-目录

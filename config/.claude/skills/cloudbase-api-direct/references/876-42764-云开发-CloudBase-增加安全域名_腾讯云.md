@@ -116,5 +116,3 @@ https://tcb.tencentcloudapi.com/?Action=CreateAuthDomain
 | OperationDenied.ResourceFrozen | 操作失败：资源被冻结。 |
 | ResourceInUse | 资源被占用。 |
 | ResourceUnavailable | 资源不可用。 |
-
-目录

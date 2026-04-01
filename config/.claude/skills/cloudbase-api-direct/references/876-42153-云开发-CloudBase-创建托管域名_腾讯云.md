@@ -115,5 +115,3 @@ https://tcb.tencentcloudapi.com/?Action=CreateHostingDomain
 | OperationDenied.ResourceFrozen | 操作失败：资源被冻结。 |
 | ResourceInUse | 资源被占用。 |
 | ResourceNotFound | 资源不存在。 |
-
-目录

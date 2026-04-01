@@ -145,5 +145,3 @@ Action=DescribeInstances&Version=2017-03-12&SignatureMethod=HmacSHA256&Timestamp
 | 华北地区（北京） | ap-beijing |
 | 华南地区（广州） | ap-guangzhou |
 | 华东地区（上海） | ap-shanghai |
-
-目录

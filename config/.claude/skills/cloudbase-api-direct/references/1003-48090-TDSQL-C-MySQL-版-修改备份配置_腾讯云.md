@@ -132,5 +132,3 @@ X-TC-Action: ModifyBackupConfig
 | InvalidParameterValue.ParamError | 参数错误。 |
 | ResourceNotFound.ClusterNotFoundError | 集群不存在。 |
 | UnauthorizedOperation.PermissionDenied | CAM鉴权不通过。 |
-
-目录

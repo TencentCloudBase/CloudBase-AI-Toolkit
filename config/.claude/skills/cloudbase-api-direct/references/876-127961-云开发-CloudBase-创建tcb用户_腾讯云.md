@@ -147,5 +147,3 @@ X-TC-Action: CreateUser
 | FailedOperation.FlexdbResourceOverdue | FailedOperation.FlexdbResourceOverdue |
 | InternalError | 内部错误。 |
 | ResourceNotFound | 资源不存在。 |
-
-目录

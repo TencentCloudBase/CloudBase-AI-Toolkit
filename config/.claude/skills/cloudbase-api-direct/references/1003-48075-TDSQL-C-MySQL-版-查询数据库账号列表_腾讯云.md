@@ -146,5 +146,3 @@ X-TC-Action: DescribeAccounts
 | OperationDenied.ServerlessInstanceStatusDenied | serverless实例当前状态不允许该操作。 |
 | ResourceNotFound.ClusterNotFoundError | 集群不存在。 |
 | UnauthorizedOperation.PermissionDenied | CAM鉴权不通过。 |
-
-目录

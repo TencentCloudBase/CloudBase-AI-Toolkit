@@ -249,5 +249,3 @@ X-TC-Action: SearchClsLog
 | InternalError | 内部错误。 |
 | InvalidParameter | 参数错误。 |
 | ResourceNotFound.TopicNotExist | 主题不存在 |
-
-目录

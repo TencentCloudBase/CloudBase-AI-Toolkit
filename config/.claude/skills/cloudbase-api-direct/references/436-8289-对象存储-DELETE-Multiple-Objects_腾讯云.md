@@ -188,5 +188,3 @@ HTTP/1.1 200 OKContent-Type: application/xmlContent-Length: 253Connection: close
 HTTP/1.1 200 OKContent-Type: application/xmlContent-Length: 703Connection: closeDate: Wed, 21 Aug 2019 12:04:06 GMTServer: tencent-cosx-cos-request-id: NWQ1ZDMzMzVfOTNjMjJhMDlfMzhiM18xMWY3****﻿
 <DeleteResult>    <Deleted>        <Key>example-object-1.jpg</Key>        <DeleteMarker>true</DeleteMarker>        <DeleteMarkerVersionId>MTg0NDUxNzc2ODQ2NjM1NTI2NDY</DeleteMarkerVersionId>    </Deleted>    <Deleted>        <Key>example-object-2.jpg</Key>        <VersionId>MTg0NDUxNzc2ODQ2NjQ1MjM5MTk</VersionId>    </Deleted>    <Deleted>        <Key>example-object-3.jpg</Key>        <DeleteMarker>true</DeleteMarker>        <DeleteMarkerVersionId>MTg0NDUxNzc2ODQ2NjQwMTIwMDI</DeleteMarkerVersionId>        <VersionId>MTg0NDUxNzc2ODQ2NjQwMTIwMDI</VersionId>    </Deleted>    <Error>        <Key>example-object-4.jpg</Key>        <VersionId>MTg0NDUxNzc2ODQ2NjQ0NjI0MDQ</VersionId>        <Code>PathConflict</Code>        <Message>Path conflict.</Message>    </Error></DeleteResult>
 ```
-
-目录

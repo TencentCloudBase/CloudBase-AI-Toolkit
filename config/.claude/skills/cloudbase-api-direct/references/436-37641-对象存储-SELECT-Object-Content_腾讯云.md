@@ -320,5 +320,3 @@ SELECT count(*) FROM COSObject s
 返回对象的某一片段：您不能通过 Range 这类参数指定返回对象的某一部分。
 
 对于归档存储（ARCHIVE）和深度归档存储（DEEP\_ARCHIVE）类型的对象，COS Select 无法直接进行检索，您需要取回数据后再进行操作。
-
-目录

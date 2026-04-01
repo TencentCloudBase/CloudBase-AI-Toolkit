@@ -119,5 +119,3 @@ https://tcb.tencentcloudapi.com/?Action=DescribeAuthDomains
 | InternalError | 内部错误。 |
 | InvalidParameter | 参数错误。 |
 | MissingParameter.Param | 缺少必要参数。 |
-
-目录

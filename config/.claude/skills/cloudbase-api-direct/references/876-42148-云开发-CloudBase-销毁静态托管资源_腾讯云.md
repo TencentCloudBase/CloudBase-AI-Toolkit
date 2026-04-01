@@ -108,5 +108,3 @@ https://tcb.tencentcloudapi.com/?Action=DestroyStaticStore
 | --- | --- |
 | InternalError | 内部错误。 |
 | InvalidParameter | 参数错误。 |
-
-目录

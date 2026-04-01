@@ -131,5 +131,3 @@ HTTP/1.1 204 No ContentContent-Length: 0Connection: closeDate: Wed, 14 Aug 2019 
 ```shell
 HTTP/1.1 204 No ContentContent-Length: 0Connection: closeDate: Wed, 14 Aug 2019 12:00:42 GMTServer: tencent-cosx-cos-delete-marker: truex-cos-request-id: NWQ1M2Y3ZWFfNzljMDBiMDlfMjkyMDJfMWRjNjVm****x-cos-version-id: MTg0NDUxNzgyODk2ODc1NjY0NzQ
 ```
-
-目录
