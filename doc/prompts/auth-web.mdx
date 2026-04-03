@@ -47,6 +47,7 @@ import AIDevelopmentPrompt from '../components/AIDevelopmentPrompt';
 ### Common mistakes / gotchas
 
 - Skipping publishable key and provider checks.
+- Hardcoding an empty publishable key and then disabling or hiding the real login/register action.
 - Replacing built-in Web auth with cloud function login logic.
 - Reusing this flow in Flutter, React Native, or native iOS/Android code.
 - Creating a detached helper file with `auth.signUp` / `verifyOtp` but never wiring it into the existing form handlers, so the actual button clicks still do nothing.
@@ -68,15 +69,18 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 
 ## Prerequisites
 
-- Automatically use `auth-tool-cloudbase` to get `publishable key` and configure login methods. 
-- If `auth-tool-cloudbase` failed, let user go to `https://tcb.cloud.tencent.com/dev?envId={env}#/env/apikey` to get `publishable key` and `https://tcb.cloud.tencent.com/dev?envId={env}#/identity/login-manage` to set up login methods
+- Use `auth-tool-cloudbase` to confirm login methods and provider readiness before writing frontend code.
+- `auth-tool-cloudbase` does **not** currently expose a reliable MCP action for fetching or creating the publishable key. Do **not** guess `callCloudApi` actions for it.
+- For live Web auth, ask the user for the publishable key or direct them to `https://tcb.cloud.tencent.com/dev?envId={env}#/env/apikey`.
+- If provider setup is also needed, use `https://tcb.cloud.tencent.com/dev?envId={env}#/identity/login-manage`.
 
 ### Parameter map
 
 - `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })` use the phone number in a `phone` field, not `phone_number`
 - `auth.signInWithOtp({ email })` and `auth.signUp({ email })` use `email`
 - `verifyOtp({ token })` expects the SMS or email code in `token`
-- `accessKey` is the publishable key from `auth-tool-cloudbase`, not a secret key
+- `accessKey` is the publishable key for Web auth, not a secret key
+- If the publishable key is unavailable, keep the auth form visible and add a clear config/env step instead of hardcoding `''` and disabling the main button
 - If the task mentions provider setup, stop and read `auth-tool-cloudbase` before writing frontend code
 
 ## Quick Start
@@ -87,12 +91,12 @@ import cloudbase from '@cloudbase/js-sdk'
 const app = cloudbase.init({
   env: `env`, // CloudBase environment ID
   region: `region`,  // CloudBase environment Region, default 'ap-shanghai'
-  accessKey: 'publishable key', // required, get from auth-tool-cloudbase
+  accessKey: 'publishable key', // required, usually provided by the user or copied from the CloudBase console
   auth: { detectSessionInUrl: true }, // required
 })
 
-const auth = app.auth
-``
+const auth = app.auth()
+```
 
 ---
 

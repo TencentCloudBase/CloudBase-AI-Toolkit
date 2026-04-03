@@ -395,27 +395,27 @@ Use client APIs for client metadata and token/session settings. Do not use them 
 }
 ```
 
-### 9. Get Publishable Key
+### 9. Publishable Key Readiness
 
-**Query existing key**:
-```js
-{
-    "params": { "EnvId": `env`, "KeyType": "publish_key", "PageNumber": 1, "PageSize": 10 },
-    "service": "lowcode",
-    "action": "DescribeApiKeyTokens"
-}
-```
-Return `PublishableKey.ApiKey` if exists (filter by `Name == "publish_key"`).
+For CloudBase Web auth, `accessKey` must be the **publishable key**.
 
-**Create new key** (if not exists):
-```js
-{
-    "params": { "EnvId": `env`, "KeyType": "publish_key", "KeyName": "publish_key" },
-    "service": "lowcode",
-    "action": "CreateApiKeyToken"
-}
-```
-If creation fails, direct user to: "https://tcb.cloud.tencent.com/dev?envId=`env`#/env/apikey"
+**Important boundary**:
+
+- This repo does **not** currently expose a dedicated MCP tool that reliably reads or creates the publishable key for Web auth.
+- Do **not** guess `callCloudApi` actions such as `lowcode/DescribeApiKeyTokens`, `lowcode/CreateApiKeyToken`, or `tcb/CreateApiKeyToken`.
+- Use `auth-tool-cloudbase` to verify provider readiness and login-method status, then ask the user to obtain the publishable key from the console.
+
+**Console path**:
+
+- Publishable key: `https://tcb.cloud.tencent.com/dev?envId={env}#/env/apikey`
+- Login methods: `https://tcb.cloud.tencent.com/dev?envId={env}#/identity/login-manage`
+
+**Implementation guidance**:
+
+1. Confirm login readiness with `DescribeLoginConfig` and provider-specific config first.
+2. If the task needs runnable live auth, ask the user for the publishable key or direct them to the console link above.
+3. In generated Web code, accept the publishable key from env/config/user input instead of hardcoding an empty string.
+4. If the key is still unavailable, keep the login or registration UI visible and surface a clear configuration step. Do **not** silently disable the primary action behind a missing key.
 ````
 
 </TabItem>
