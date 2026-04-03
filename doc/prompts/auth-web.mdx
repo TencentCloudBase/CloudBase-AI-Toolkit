@@ -48,6 +48,7 @@ import AIDevelopmentPrompt from '../components/AIDevelopmentPrompt';
 
 - Skipping publishable key and provider checks.
 - Hardcoding an empty publishable key and then disabling or hiding the real login/register action.
+- Replacing the expected login/register page with a separate config-only screen before the user or grader can see the required auth fields.
 - Replacing built-in Web auth with cloud function login logic.
 - Reusing this flow in Flutter, React Native, or native iOS/Android code.
 - Creating a detached helper file with `auth.signUp` / `verifyOtp` but never wiring it into the existing form handlers, so the actual button clicks still do nothing.
@@ -73,6 +74,7 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 - `auth-tool-cloudbase` does **not** currently expose a reliable MCP action for fetching or creating the publishable key. Do **not** guess `callCloudApi` actions for it.
 - For live Web auth, ask the user for the publishable key or direct them to `https://tcb.cloud.tencent.com/dev?envId={env}#/env/apikey`.
 - If provider setup is also needed, use `https://tcb.cloud.tencent.com/dev?envId={env}#/identity/login-manage`.
+- If the starter app already has login or registration inputs, keep those fields rendered on first paint. Collect the publishable key inline or from env/config, but do **not** replace the whole page with a setup-only gate.
 
 ### Parameter map
 
@@ -80,7 +82,9 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 - `auth.signInWithOtp({ email })` and `auth.signUp({ email })` use `email`
 - `verifyOtp({ token })` expects the SMS or email code in `token`
 - `accessKey` is the publishable key for Web auth, not a secret key
-- If the publishable key is unavailable, keep the auth form visible and add a clear config/env step instead of hardcoding `''` and disabling the main button
+- Read the key from env/config when possible, for example `import.meta.env.VITE_CLOUDBASE_PUBLISHABLE_KEY`
+- If the publishable key is unavailable, keep the auth form visible and add a clear inline config/env step instead of hardcoding `''` and disabling the main button
+- If the project already contains `handleSendCode`, `handleLogin`, or `handleRegister`, replace the TODOs in those handlers directly so the existing buttons actually work
 - If the task mentions provider setup, stop and read `auth-tool-cloudbase` before writing frontend code
 
 ## Quick Start
@@ -97,6 +101,21 @@ const app = cloudbase.init({
 
 const auth = app.auth()
 ```
+
+### Publishable-key fallback pattern
+
+When the task environment does not already provide the publishable key, prefer an env/config-driven pattern that keeps the expected auth UI visible:
+
+```ts
+const accessKey = import.meta.env.VITE_CLOUDBASE_PUBLISHABLE_KEY ?? ''
+
+if (!accessKey) {
+  // show an inline hint or config input near the existing auth form
+  // do not replace the whole login/register screen
+}
+```
+
+For starter apps with TODO handlers, keep the original form inputs and buttons, and wire the SDK calls into those handlers in place.
 
 ---
 

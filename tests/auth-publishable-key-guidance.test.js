@@ -24,6 +24,8 @@ describe('auth publishable-key guidance', () => {
     expect(authWeb).not.toContain('Automatically use `auth-tool-cloudbase` to get `publishable key`');
     expect(authWeb).toContain('does **not** currently expose a reliable MCP action for fetching or creating the publishable key');
     expect(authWeb).toContain('keep the auth form visible');
+    expect(authWeb).toContain('do **not** replace the whole page with a setup-only gate');
+    expect(authWeb).toContain('VITE_CLOUDBASE_PUBLISHABLE_KEY');
     expect(authWeb).toContain('const auth = app.auth()');
   });
 
@@ -44,6 +46,7 @@ describe('auth publishable-key guidance', () => {
       expect(raw).not.toContain('Automatically use `auth-tool-cloudbase` to get `publishable key`');
       expect(raw).toContain('does **not** currently expose a reliable MCP action for fetching or creating the publishable key');
       expect(raw).toContain('keep the auth form visible');
+      expect(raw).toContain('do **not** replace the whole page with a setup-only gate');
     }
   });
 });
