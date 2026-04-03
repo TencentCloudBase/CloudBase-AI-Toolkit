@@ -2,7 +2,7 @@
 
 ## 查询HTTP访问服务路由信息
 
-最近更新时间：2026-03-26 02:55:45
+最近更新时间：2026-04-03 02:06:37
 
 -   微信扫一扫 
 -   QQ
@@ -18,7 +18,7 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-本接口DescribeHTTPServiceRoute用于查询环境下HTTP访问服务路由信息。可通过Filters过滤。如果不存在不会返回错误。
+本接口DescribeHTTPServiceRoute用于查询环境下HTTP访问服务路由信息。可通过Filters过滤。如果不存在不会返回错误。HTTP访问服务提供了默认域名，通过本接口可直接获取默认域名。
 
 默认接口请求频率限制：20次/秒。
 
