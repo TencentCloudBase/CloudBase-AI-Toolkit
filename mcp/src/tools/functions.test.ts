@@ -127,6 +127,28 @@ describe("functions tool helpers", () => {
     expect(() => resolveEventFunctionRuntime("Ruby3.2")).toThrow(/Python3.9/);
   });
 
+  it("passes isWaitInstall to createFunction when specified", async () => {
+    await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: {
+        name: "receivable",
+        timeout: 10,
+        runtime: "Nodejs18.15",
+        handler: "index.main",
+        isWaitInstall: false,
+        installDependency: true,
+      },
+      functionRootPath: "/tmp/cloudfunctions",
+      force: true,
+    });
+
+    expect(mockCreateFunction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isWaitInstall: false,
+      }),
+    );
+  });
+
   it("guides HTTP functions through anonymous-access follow-up without auto-creating gateway access", async () => {
     const result = await tools.manageFunctions.handler({
       action: "createFunction",

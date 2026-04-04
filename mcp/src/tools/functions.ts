@@ -886,6 +886,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           func,
           functionRootPath: processedRootPath,
           force: Boolean(input.force),
+          ...(func.isWaitInstall !== undefined && { isWaitInstall: func.isWaitInstall }),
         } as any);
       } catch (error) {
         throw wrapFunctionOperationError(
