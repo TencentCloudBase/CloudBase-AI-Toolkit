@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-04-03 02:07:13
+最近更新时间：2026-04-06 02:03:21
 
 -   微信扫一扫 
 -   QQ
@@ -64,7 +64,6 @@ _我的收藏_
 | [DeleteUsers](/document/api/876/127960) | 删除tcb用户 | 20 |
 | [CreateUser](/document/api/876/127961) | 创建tcb用户 | 20 |
 | [DescribeUserList](/document/api/876/127959) | 查询tcb用户列表 | 20 |
-| [EditAuthConfig](/document/api/876/117012) | 编辑登录配置 | 20 |
 | [ModifyUser](/document/api/876/127958) | 更新tcb用户 | 20 |
 
 ## 云托管相关接口
@@ -149,6 +148,7 @@ _我的收藏_
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
+| [EditAuthConfig](/document/api/876/117012) | 编辑登录配置 | 20 |
 | [DescribeClient](/document/api/876/129355) | 查询应用客户端详情 | 20 |
 | [ModifyLoginConfig](/document/api/876/129351) | 修改登录策略 | 20 |
 | [DescribeLoginConfig](/document/api/876/129354) | 获取登录策略 | 20 |

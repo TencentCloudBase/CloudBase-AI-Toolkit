@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-04-05T04:34:42.972Z
+爬取时间: 2026-04-06T04:42:31.994Z
 
 ## 文档列表
 
@@ -32,7 +32,6 @@
 - [云开发 CloudBase 删除tcb用户_腾讯云](./876-127960-云开发-CloudBase-删除tcb用户_腾讯云.md)
 - [云开发 CloudBase 创建tcb用户_腾讯云](./876-127961-云开发-CloudBase-创建tcb用户_腾讯云.md)
 - [云开发 CloudBase 查询tcb用户列表_腾讯云](./876-127959-云开发-CloudBase-查询tcb用户列表_腾讯云.md)
-- [云开发 CloudBase 编辑登录配置_腾讯云](./876-117012-云开发-CloudBase-编辑登录配置_腾讯云.md)
 - [云开发 CloudBase 更新tcb用户_腾讯云](./876-127958-云开发-CloudBase-更新tcb用户_腾讯云.md)
 - [云开发 CloudBase 查询云托管服务版本的详情_腾讯云](./876-49739-云开发-CloudBase-查询云托管服务版本的详情_腾讯云.md)
 - [云开发 CloudBase 获取云托管代码上传和下载url_腾讯](./876-48345-云开发-CloudBase-获取云托管代码上传和下载url_腾讯.md)
@@ -67,6 +66,7 @@
 - [云开发 CloudBase 销毁Mysql结果查询_腾讯云](./876-128183-云开发-CloudBase-销毁Mysql结果查询_腾讯云.md)
 - [云开发 CloudBase 销毁MySql_腾讯云](./876-128182-云开发-CloudBase-销毁MySql_腾讯云.md)
 - [云开发 CloudBase 执行MySQL语句_腾讯云](./876-127880-云开发-CloudBase-执行MySQL语句_腾讯云.md)
+- [云开发 CloudBase 编辑登录配置_腾讯云](./876-117012-云开发-CloudBase-编辑登录配置_腾讯云.md)
 - [云开发 CloudBase 查询应用客户端详情_腾讯云](./876-129355-云开发-CloudBase-查询应用客户端详情_腾讯云.md)
 - [云开发 CloudBase 修改登录策略_腾讯云](./876-129351-云开发-CloudBase-修改登录策略_腾讯云.md)
 - [云开发 CloudBase 获取登录策略_腾讯云](./876-129354-云开发-CloudBase-获取登录策略_腾讯云.md)
