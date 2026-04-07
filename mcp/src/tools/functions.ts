@@ -354,10 +354,10 @@ export function buildFunctionOperationErrorMessage(
 
   if (/依赖安装失败|package\.json/i.test(baseMessage)) {
     suggestions.push(
-      "如果 HTTP 函数只使用原生 Node.js API 且没有第三方依赖，可以保留函数目录中的 index.js 和 scf_bootstrap，工具会跳过依赖安装。",
+      "请检查函数目录下的 package.json：语法是否合法、依赖包版本是否冲突或拼写错误。如果项目不需要依赖，可删除 package.json 以跳过云端构建。",
     );
     suggestions.push(
-      "如果你确实依赖 npm 包，请在函数目录下补充 package.json 后重试。",
+      "如果你确实依赖 npm 包，请在函数目录下补充完整 package.json 后重试。如果 HTTP 函数只使用原生 Node.js API，保留 index.js 和 scf_bootstrap 也会跳过依赖安装。",
     );
   }
 
