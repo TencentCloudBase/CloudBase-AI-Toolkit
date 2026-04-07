@@ -76,7 +76,7 @@ These tools are the supported way to interact with CloudBase Relational Database
 
 - **Purpose:** Query SQL data and provisioning state.
 - **Use for:**
-  - Running `SELECT` and other read-only SQL queries with `action="runQuery"`
+  - Running `SELECT` and other read-only SQL queries with `action="runQuery", EnvId="{envId}"`
   - Checking whether MySQL already exists with `action="getInstanceInfo"`
   - Inspecting asynchronous provisioning progress with `action="describeCreateResult"` or `action="describeTaskStatus"`
 
@@ -85,7 +85,8 @@ These tools are the supported way to interact with CloudBase Relational Database
 ```json
 {
   "action": "runQuery",
-  "sql": "SELECT id, email FROM users ORDER BY created_at DESC LIMIT 50"
+    "EnvId": "{envId}",
+    "sql": "SELECT id, email FROM users ORDER BY created_at DESC LIMIT 50"
 }
 ```
 
@@ -140,7 +141,7 @@ When destroying MySQL, confirm:
 ### Scenario 1: MySQL is not provisioned yet
 
 1. Call `querySqlDatabase(action="getInstanceInfo")`.
-2. If no instance exists, call `manageSqlDatabase(action="provisionMySQL", confirm=true)`.
+2. If no instance exists, call `manageSqlDatabase(action="provisionMySQL", EnvId="{envId}", confirm=true)`.
 3. Poll provisioning status with:
    - `querySqlDatabase(action="describeCreateResult")`
    - `querySqlDatabase(action="describeTaskStatus")`
@@ -149,7 +150,7 @@ When destroying MySQL, confirm:
 
 ### Scenario 2: Safely inspect data in a table
 
-1. Use `querySqlDatabase(action="runQuery")` with a limited `SELECT`.
+1. Use `querySqlDatabase(action="runQuery", EnvId="{envId}")` with a limited `SELECT`.
 2. Include `LIMIT` and relevant filters.
 3. Review the result set and confirm it matches expectations before any write operation.
 
@@ -162,7 +163,7 @@ When destroying MySQL, confirm:
 
 ### Scenario 4: Execute a targeted write or DDL change
 
-1. Use `querySqlDatabase(action="runQuery")` to inspect current data or schema if needed.
+1. Use `querySqlDatabase(action="runQuery", EnvId="{envId}")` to inspect current data or schema if needed.
 2. Run the mutation once with `manageSqlDatabase(action="runStatement")`.
 3. Validate with another read-only query or by checking security rules.
 

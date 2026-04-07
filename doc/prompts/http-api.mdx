@@ -467,8 +467,8 @@ This is the **preferred** authentication flow for native mobile apps (iOS/Androi
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Step 1: Send Verification Code                                        │
 │  POST /auth/v1/verification                                             │
-│  Body: { "phone_number": "+86 13800138000", "target": "ANY" }          │
-│  ⚠️ IMPORTANT: phone_number MUST include "+86 " prefix WITH SPACE      │
+│  Body: { "phoneNumber": "+86 13800138000", "target": "ANY" }          │
+│  ⚠️ IMPORTANT: phoneNumber MUST include "+86 " prefix WITH SPACE      │
 │  Response: { "verification_id": "xxx", "expires_in": 600 }             │
 │  📝 SAVE verification_id for next step!                                 │
 └─────────────────────────────────────────────────────────────────────────┘

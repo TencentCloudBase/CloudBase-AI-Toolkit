@@ -73,7 +73,7 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 
 ### Parameter map
 
-- `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })` use the phone number in a `phone` field, not `phone_number`
+- `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })` use the phone number in a `phone` field, not `phoneNumber`
 - `auth.signInWithOtp({ email })` and `auth.signUp({ email })` use `email`
 - `verifyOtp({ token })` expects the SMS or email code in `token`
 - `accessKey` is the publishable key from `auth-tool-cloudbase`, not a secret key
@@ -108,24 +108,24 @@ const { data: loginData, error: loginError } = await data.verifyOtp({ token:'123
 **2. Email OTP**
 - Automatically use `auth-tool-cloudbase` turn on `Email Login`
 ```js
-const { data, error } = await auth.signInWithOtp({ email: 'user@example.com' })
+const { data, error } = await auth.signInWithOtp({ email: 'user@your-domain.com' })
 const { data: loginData, error: loginError } = await data.verifyOtp({ token: '654321' })
 ```
 
 **3. Password**
 ```js
 const usernameLogin = await auth.signInWithPassword({ username: 'test_user', password: 'pass123' })
-const emailLogin = await auth.signInWithPassword({ email: 'user@example.com', password: 'pass123' })
+const emailLogin = await auth.signInWithPassword({ email: 'user@your-domain.com', password: 'pass123' })
 const phoneLogin = await auth.signInWithPassword({ phone: '13800138000', password: 'pass123' })
 ```
 
 **4. Registration (Smart: auto-login if exists)**
 - Only support email and phone otp registration
 - Automatically use `auth-tool-cloudbase` turn on `Email Login` or `SMS Login`
-- Use `phone` or `email` in the sign-up payload; do not invent `phone_number`
+- Use `phone` or `email` in the sign-up payload; do not invent `phoneNumber`
 ```js
 // Email Otp
-const emailSignUp = await auth.signUp({ email: 'new@example.com', nickname: 'User' })
+const emailSignUp = await auth.signUp({ email: 'new@your-domain.com', nickname: 'User' })
 const emailVerifyResult = await emailSignUp.data.verifyOtp({ token: '123456' })
 
 // Phone Otp
@@ -220,9 +220,9 @@ const updateProfileResult = await auth.updateUser({
 })
 
 // Update user (email or phone)
-const updateEmailResult = await auth.updateUser({ email: 'new@example.com' })
+const updateEmailResult = await auth.updateUser({ email: 'new@your-domain.com' })
 const verifyEmailResult = await updateEmailResult.data.verifyOtp({
-  email: 'new@example.com',
+  email: 'new@your-domain.com',
   token: '123456',
 })
 

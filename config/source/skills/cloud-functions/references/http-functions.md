@@ -90,6 +90,7 @@ Prefer `manageFunctions` over CLI in agent flows.
 ```javascript
 manageFunctions({
   action: "createFunction",
+  EnvId: "{envId}",
   func: {
     name: "myHttpFunction",
     type: "HTTP",
@@ -107,6 +108,7 @@ For WebSocket workloads, keep the function type as HTTP and switch `protocolType
 ```javascript
 manageFunctions({
   action: "createFunction",
+  EnvId: "{envId}",
   func: {
     name: "mySocketFunction",
     type: "HTTP",

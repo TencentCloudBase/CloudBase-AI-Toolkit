@@ -284,7 +284,7 @@ exports.main = async (event, context) => {
     // Find by email
     const { userInfo: byEmail } = await auth.queryUserInfo({
       platform: "EMAIL",
-      platformId: "test@example.com",
+      platformId: "test@your-domain.com",
     });
 
     // Find by customUserId

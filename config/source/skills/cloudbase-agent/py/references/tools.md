@@ -52,7 +52,7 @@ from cloudbase_agent.server.tools import HttpTool
 http_tool = HttpTool(
     name="fetch_data",
     method="GET",
-    url="https://api.example.com/data",
+    url="https://api.your-domain.com/data",
     headers={"Authorization": "Bearer TOKEN"}
 )
 ```
@@ -84,7 +84,7 @@ result = await tool.execute({"query": "search term", "limit": 5})
 async def async_search(query: str) -> dict:
     """Async tool example."""
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"https://api.example.com/search?q={query}")
+        response = await client.get(f"https://api.your-domain.com/search?q={query}")
         return response.json()
 ```
 

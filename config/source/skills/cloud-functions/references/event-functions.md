@@ -37,6 +37,7 @@ Use `manageFunctions(action="createFunction")` and make the function type explic
 ```javascript
 manageFunctions({
   action: "createFunction",
+  EnvId: "{envId}",
   func: {
     name: "myFunction",
     type: "Event",
@@ -54,6 +55,7 @@ Use `manageFunctions(action="updateFunctionCode")` when only code changes.
 ```javascript
 manageFunctions({
   action: "updateFunctionCode",
+  EnvId: "{envId}",
   functionName: "myFunction",
   functionRootPath: "/absolute/path/to/cloudfunctions"
 });

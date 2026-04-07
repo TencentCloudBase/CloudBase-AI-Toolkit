@@ -146,7 +146,7 @@ try {
 
     // Collect user's phone number into variable `phoneNum` by providing an input UI
     const verificationInfo = await auth.getVerification({
-      phone_number: `+86 ${phoneNum}`,
+      phoneNumber: `+86 ${phoneNum}`,
     });
 
     // Collect user's verification code into variable `verificationCode`

@@ -245,7 +245,7 @@ Email has two layers of configuration:
                 "AccountPassword": "password",
                 "AccountUsername": "username",
                 "SecurityMode": "SSL",
-                "SenderAddress": "sender@example.com",
+                "SenderAddress": "sender@your-domain.com",
                 "ServerHost": "smtp.qq.com",
                 "ServerPort": 465
             }
