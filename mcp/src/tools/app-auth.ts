@@ -58,6 +58,36 @@ function normalizePlainObject(
   return value as Record<string, unknown>;
 }
 
+function extractLoginStrategyState(value: unknown): Record<string, unknown> {
+  const source = normalizePlainObject(value, "loginStrategy") ?? {};
+  const data = normalizePlainObject(source.Data, "loginStrategy.Data") ?? source;
+
+  return {
+    PhoneNumberLogin: Boolean(data.PhoneNumberLogin ?? data.PhoneLogin ?? false),
+    EmailLogin: Boolean(data.EmailLogin ?? false),
+    AnonymousLogin: Boolean(data.AnonymousLogin ?? false),
+    UserNameLogin: Boolean(data.UserNameLogin ?? data.UsernameLogin ?? false),
+    ...(data.SmsVerificationConfig ? { SmsVerificationConfig: data.SmsVerificationConfig } : {}),
+    ...(typeof data.Mfa === "boolean" ? { Mfa: data.Mfa } : {}),
+    ...(data.MfaConfig ? { MfaConfig: data.MfaConfig } : {}),
+    ...(data.PwdUpdateStrategy ? { PwdUpdateStrategy: data.PwdUpdateStrategy } : {}),
+  };
+}
+
+function normalizeLoginConfigPatch(value: Record<string, unknown>) {
+  const {
+    PhoneLogin,
+    UsernameLogin,
+    ...rest
+  } = value;
+
+  return {
+    ...rest,
+    ...(typeof PhoneLogin === "boolean" ? { PhoneNumberLogin: PhoneLogin } : {}),
+    ...(typeof UsernameLogin === "boolean" ? { UserNameLogin: UsernameLogin } : {}),
+  };
+}
+
 export function registerAppAuthTools(server: ExtendedMcpServer) {
   const cloudBaseOptions = server.cloudBaseOptions;
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
@@ -70,7 +100,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
     }
   };
 
-  const callTcbAction = async (
+  const callControlPlaneAction = async (
     action: string,
     params?: Record<string, unknown>,
   ) => {
@@ -109,12 +139,13 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
     }) =>
       withEnvelope(async () => {
         const envId = await getEnvId(cloudBaseOptions);
+        const cloudbase = await getManager();
 
         switch (action) {
           case "getLoginConfig": {
-            const result = await callTcbAction("DescribeLoginConfig", {
-              EnvId: envId,
-            });
+            // Manager SDK v5 provides a dedicated helper for login config.
+            const result = await cloudbase.env.getLoginConfigListV2();
+            logCloudBaseResult(server.logger, result);
             return buildEnvelope(
               {
                 action,
@@ -125,7 +156,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
             );
           }
           case "listProviders": {
-            const result = await callTcbAction("GetProviders", {
+            const result = await callControlPlaneAction("GetProviders", {
               EnvId: envId,
             });
             return buildEnvelope(
@@ -142,7 +173,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
             if (!providerId) {
               throw new Error("action=getProvider 时必须提供 providerId");
             }
-            const result = await callTcbAction("GetProviders", {
+            const result = await callControlPlaneAction("GetProviders", {
               EnvId: envId,
             });
             const providers = (result.Providers ??
@@ -163,7 +194,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
             );
           }
           case "getClientConfig": {
-            const result = await callTcbAction("DescribeClient", {
+            const result = await callControlPlaneAction("DescribeClient", {
               EnvId: envId,
             });
             return buildEnvelope(
@@ -176,7 +207,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
             );
           }
           case "listApiKeyTokens": {
-            const result = await callTcbAction("DescribeApiKeyTokens", {
+            const result = await callControlPlaneAction("DescribeApiKeyTokens", {
               EnvId: envId,
             });
             return buildEnvelope(
@@ -190,7 +221,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
             );
           }
           case "getStaticDomain": {
-            const result = await callTcbAction("DescribeStaticDomain", {
+            const result = await callControlPlaneAction("DescribeStaticDomain", {
               EnvId: envId,
             });
             return buildEnvelope(
@@ -247,14 +278,20 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
             if (!normalized) {
               throw new Error("action=updateLoginConfig 时必须提供 loginConfig");
             }
-            const result = await callTcbAction("ModifyLoginConfig", {
+            const current = await cloudbase.env.getLoginConfigListV2();
+            const merged = {
               EnvId: envId,
-              ...normalized,
-            });
+              ...extractLoginStrategyState(current),
+              ...normalizeLoginConfigPatch(normalized),
+            };
+            // Manager SDK v5 provides a dedicated helper for login config updates.
+            const result = await cloudbase.env.updateLoginConfigV2(merged as any);
+            logCloudBaseResult(server.logger, result);
             return buildEnvelope(
               {
                 action,
                 envId,
+                appliedLoginConfig: merged,
                 raw: result,
               },
               "应用登录配置更新成功",
@@ -268,7 +305,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
             if (!normalized) {
               throw new Error("action=updateProvider 时必须提供 config");
             }
-            const result = await callTcbAction("ModifyProvider", {
+            const result = await callControlPlaneAction("ModifyProvider", {
               EnvId: envId,
               Id: providerId,
               ...normalized,
@@ -288,7 +325,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
             if (!normalized) {
               throw new Error("action=updateClientConfig 时必须提供 config");
             }
-            const result = await callTcbAction("ModifyClient", {
+            const result = await callControlPlaneAction("ModifyClient", {
               EnvId: envId,
               ...normalized,
             });
@@ -303,7 +340,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
           }
           case "createApiKeyToken": {
             const normalized = normalizePlainObject(config, "config");
-            const result = await callTcbAction("CreateApiKeyToken", {
+            const result = await callControlPlaneAction("CreateApiKeyToken", {
               EnvId: envId,
               ...(normalized ?? {}),
             });

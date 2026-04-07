@@ -8,12 +8,16 @@ const {
   mockLogCloudBaseResult,
   mockTcbCall,
   mockCreateCustomLoginKeys,
+  mockGetLoginConfigListV2,
+  mockUpdateLoginConfigV2,
 } = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
   mockGetEnvId: vi.fn(),
   mockLogCloudBaseResult: vi.fn(),
   mockTcbCall: vi.fn(),
   mockCreateCustomLoginKeys: vi.fn(),
+  mockGetLoginConfigListV2: vi.fn(),
+  mockUpdateLoginConfigV2: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
@@ -44,6 +48,16 @@ describe("app auth tools", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetEnvId.mockResolvedValue("env-test");
+    mockGetLoginConfigListV2.mockResolvedValue({
+      AnonymousLogin: true,
+      UserNameLogin: true,
+      PhoneNumberLogin: false,
+      EmailLogin: true,
+      SmsVerificationConfig: { Type: "default" },
+      MfaConfig: null,
+      PwdUpdateStrategy: null,
+    });
+    mockUpdateLoginConfigV2.mockResolvedValue(true);
     mockTcbCall.mockResolvedValue({
       AnonymousLogin: true,
       UserNameLogin: true,
@@ -63,17 +77,20 @@ describe("app auth tools", () => {
         call: mockTcbCall,
       })),
       env: {
+        getLoginConfigListV2: mockGetLoginConfigListV2,
+        updateLoginConfigV2: mockUpdateLoginConfigV2,
         createCustomLoginKeys: mockCreateCustomLoginKeys,
       },
     });
     ({ tools } = createMockServer());
   });
 
-  it("queryAppAuth(action=getLoginConfig) should call DescribeLoginConfig", async () => {
+  it("queryAppAuth(action=getLoginConfig) should use manager sdk helper", async () => {
     const result = await tools.queryAppAuth.handler({ action: "getLoginConfig" });
     const payload = JSON.parse(result.content[0].text);
 
-    expect(mockTcbCall).toHaveBeenCalledWith({
+    expect(mockGetLoginConfigListV2).toHaveBeenCalled();
+    expect(mockTcbCall).not.toHaveBeenCalledWith({
       Action: "DescribeLoginConfig",
       Param: { EnvId: "env-test" },
     });
@@ -86,6 +103,49 @@ describe("app auth tools", () => {
           AnonymousLogin: true,
           UserNameLogin: true,
           EmailLogin: true,
+        },
+      },
+    });
+  });
+
+  it("manageAppAuth(action=updateLoginConfig) should use manager sdk helper", async () => {
+    const result = await tools.manageAppAuth.handler({
+      action: "updateLoginConfig",
+      loginConfig: {
+        AnonymousLogin: false,
+        UserNameLogin: true,
+      },
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockGetLoginConfigListV2).toHaveBeenCalled();
+    expect(mockUpdateLoginConfigV2).toHaveBeenCalledWith({
+      EnvId: "env-test",
+      PhoneNumberLogin: false,
+      EmailLogin: true,
+      AnonymousLogin: false,
+      UserNameLogin: true,
+      SmsVerificationConfig: { Type: "default" },
+    });
+    expect(mockTcbCall).not.toHaveBeenCalledWith({
+      Action: "ModifyLoginConfig",
+      Param: {
+        EnvId: "env-test",
+        AnonymousLogin: false,
+        UserNameLogin: true,
+      },
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "updateLoginConfig",
+        envId: "env-test",
+        appliedLoginConfig: {
+          EnvId: "env-test",
+          PhoneNumberLogin: false,
+          EmailLogin: true,
+          AnonymousLogin: false,
+          UserNameLogin: true,
         },
       },
     });
