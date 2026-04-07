@@ -68,8 +68,10 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 
 ## Prerequisites
 
-- Automatically use `auth-tool-cloudbase` to get `publishable key` and configure login methods. 
-- If `auth-tool-cloudbase` failed, let user go to `https://tcb.cloud.tencent.com/dev?envId={env}#/env/apikey` to get `publishable key` and `https://tcb.cloud.tencent.com/dev?envId={env}#/identity/login-manage` to set up login methods
+- Automatically use `auth-tool-cloudbase` to configure login methods.
+- Instruct the user to retrieve their `publishable key` from `https://tcb.cloud.tencent.com/dev?envId={env}#/env/apikey` and save it as an environment variable. Do not attempt to fetch it automatically via MCP tools.
+- Keep login UI visible and accessible, but add a step to input or configure the publishable key if it is not provided in environment variables.
+- Direct the user to `https://tcb.cloud.tencent.com/dev?envId={env}#/identity/login-manage` to set up login methods if automatic setup fails.
 
 ### Parameter map
 
