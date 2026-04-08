@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 72
+ * Action 数量: 70
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -60,7 +60,6 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DestroyEnv',
   'DestroyMySQL',
   'DestroyStaticStore',
-  'EditAuthConfig',
   'GetProviders',
   'InquireVmPrice',
   'ListTables',
@@ -74,7 +73,6 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'ModifyProvider',
   'ModifySafeRule',
   'ModifyUser',
-  'ReinstateEnv',
   'RenewEnv',
   'RunCommands',
   'RunSql',

@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-04-06 02:03:21
+最近更新时间：2026-04-08 02:54:49
 
 -   微信扫一扫 
 -   QQ
@@ -54,7 +54,6 @@ _我的收藏_
 | [DescribeEnvLimit](/document/api/876/42146) | 查询环境个数上限接口 | 20 |
 | [DescribeHostingDomainTask](/document/api/876/57514) | 查询静态托管域名任务状态 | 20 |
 | [DescribeQuotaData](/document/api/876/42145) | 查询环境的配额使用量 | 2000 |
-| [ReinstateEnv](/document/api/876/42144) | 恢复环境，解除隔离状态 | 20 |
 | [CreateEnvResource](/document/api/876/129358) | 创建环境相关资源 | 20 |
 
 ## 用户权限相关接口
@@ -148,7 +147,6 @@ _我的收藏_
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
-| [EditAuthConfig](/document/api/876/117012) | 编辑登录配置 | 20 |
 | [DescribeClient](/document/api/876/129355) | 查询应用客户端详情 | 20 |
 | [ModifyLoginConfig](/document/api/876/129351) | 修改登录策略 | 20 |
 | [DescribeLoginConfig](/document/api/876/129354) | 获取登录策略 | 20 |
