@@ -34,6 +34,8 @@ type ToolEnvelope = {
   success: boolean;
   data: Record<string, unknown>;
   message: string;
+  error?: string;
+  errorCode?: string;
 };
 
 function buildEnvelope(data: Record<string, unknown>, message: string): ToolEnvelope {
@@ -45,10 +47,12 @@ function buildEnvelope(data: Record<string, unknown>, message: string): ToolEnve
 }
 
 function buildErrorEnvelope(error: unknown): ToolEnvelope {
+  const message = error instanceof Error ? error.message : String(error);
   return {
     success: false,
     data: {},
-    message: error instanceof Error ? error.message : String(error),
+    message,
+    error: message,
   };
 }
 
@@ -71,6 +75,48 @@ function normalizeRecordArray(value: unknown, label: string) {
     throw new Error(`${label} 必须是数组`);
   }
   return value as Array<Record<string, unknown>>;
+}
+
+function extractStorageBuckets(envInfo: unknown): string[] {
+  const typedEnvInfo = envInfo as {
+    EnvInfo?: {
+      Storages?: Array<{ Bucket?: string }>;
+      StaticStorages?: Array<{ Bucket?: string }>;
+    };
+  };
+
+  const buckets = [
+    ...(typedEnvInfo.EnvInfo?.Storages ?? []),
+    ...(typedEnvInfo.EnvInfo?.StaticStorages ?? []),
+  ]
+    .map((item) => item.Bucket)
+    .filter((bucket): bucket is string => typeof bucket === "string" && bucket.length > 0);
+
+  return Array.from(new Set(buckets));
+}
+
+async function ensureStorageBucketExists(params: {
+  cloudbase: Awaited<ReturnType<typeof getCloudBaseManager>>;
+  envId: string;
+  resourceType: LegacyResourceType;
+  resourceId: string;
+}) {
+  if (params.resourceType !== "storage") {
+    return;
+  }
+
+  const envService = params.cloudbase?.env;
+  if (!envService?.getEnvInfo) {
+    return;
+  }
+
+  const envInfo = await envService.getEnvInfo();
+  const knownBuckets = extractStorageBuckets(envInfo);
+  if (knownBuckets.length > 0 && !knownBuckets.includes(params.resourceId)) {
+    throw new Error(
+      `Storage bucket "${params.resourceId}" does not exist in env "${params.envId}"`,
+    );
+  }
 }
 
 export function registerPermissionTools(server: ExtendedMcpServer) {
@@ -146,6 +192,12 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
             if (!resourceType || !resourceId) {
               throw new Error("action=getResourcePermission 时必须提供 resourceType 和 resourceId");
             }
+            await ensureStorageBucketExists({
+              cloudbase,
+              envId,
+              resourceType,
+              resourceId,
+            });
             const result = await cloudbase.permission.describeResourcePermission({
               resourceType: mapResourceType(resourceType),
               resources: [resourceId],
