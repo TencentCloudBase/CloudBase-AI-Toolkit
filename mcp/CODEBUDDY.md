@@ -42,6 +42,7 @@ When this document references a rule file, try locations in this order:
 | `ui-design` | UI Design Guidelines |
 | `spec-workflow` | Software Engineering Workflow |
 | `data-model-creation` | Data Model Creation |
+| `runtime-error-handling` | Runtime Error Handling SOP for Web and Mini Programs |
 
 ### Usage Example
 
@@ -375,6 +376,9 @@ For example, many interfaces require a confirm parameter, which is a boolean typ
 
 ### Workflow Skills
 - **Spec Workflow**: `rules/spec-workflow/rule.md` - Standard software engineering process (requirements, design, tasks)
+
+### Error Handling Skills
+- **Runtime Error Handling**: `rules/runtime-error-handling/rule.md` - Runtime error handling SOP for Web pages and Mini Programs (error classification, retry, user feedback, error boundaries)
 
 ## Development Quality Checklist
 

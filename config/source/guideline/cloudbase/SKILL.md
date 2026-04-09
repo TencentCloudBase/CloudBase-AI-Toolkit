@@ -44,12 +44,14 @@ If a skill points to its own `references/...` files, keep following those relati
 | AI Agent (智能体开发) | `cloudbase-agent` |  domain skill as needed | `cloud-functions`,`cloudrun-development`, | AG-UI protocol, scf_bootstrap, SSE streaming |
 | UI generation | `ui-design` | platform skill | backend-only skills | Design specification first |
 | Spec workflow / architecture design | `spec-workflow` | `cloudbase` and platform skill | direct implementation skills | Requirements, design, tasks confirmed |
+| Runtime error handling / error SOP / retry logic | `runtime-error-handling` | platform skill + domain skill | `cloud-functions`, `cloudrun-development` | Error category (auth/network/permission/server) and retryable classification |
 
 ### Routing reminders
 
 - Web auth failures are usually caused by skipping provider configuration, not by missing frontend code snippets.
 - Native App failures are usually caused by reading Web SDK paths, not by missing HTTP API knowledge.
 - Mini program failures are usually caused by treating `wx.cloud` like Web auth or Web SDK.
+- Runtime errors in pages/mini programs should be classified by domain (auth, database, network, server) before choosing a recovery strategy. Read `runtime-error-handling` for error SOP, retry logic, and user-facing error patterns.
 
 ### Web SDK quick reminder
 
@@ -310,6 +312,7 @@ For better UI/UX design, consider reading the `ui-design` skill which provides:
 - `cloudbase-platform` - Universal CloudBase platform knowledge
 - `ui-design` - UI design guidelines (recommended)
 - `spec-workflow` - Standard software engineering process
+- `runtime-error-handling` - Runtime error handling SOP for Web and Mini Program pages (recommended for production apps)
 
 ### Agent Skills
 - `cloudbase-agent` - Build and deploy AI agents with AG-UI protocol (TypeScript & Python)
@@ -350,6 +353,9 @@ For better UI/UX design, consider reading the `ui-design` skill which provides:
 
 ### Workflow Skills
 - **Spec Workflow**: `spec-workflow` - Standard software engineering process (requirements, design, tasks)
+
+### Error Handling Skills
+- **Runtime Error Handling**: `runtime-error-handling` - Runtime error handling SOP for Web pages and Mini Programs (error classification, retry, user feedback, error boundaries)
 
 ### Agent Skills
 - **CloudBase Agent**: `cloudbase-agent` - Build and deploy AI agents with AG-UI protocol, LangGraph/LangChain/CrewAI adapters

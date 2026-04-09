@@ -209,3 +209,30 @@ scenarios:
       - cloud-functions
     commonMistakes:
       - 跳过需求和设计直接开始实现。
+
+  - id: runtime-error-handling
+    priority: 82
+    signals:
+      - 运行态错误处理
+      - error handling SOP
+      - 错误恢复
+      - retry logic
+      - error boundary
+      - 页面报错
+      - 小程序报错处理
+      - runtime error
+      - graceful degradation
+    firstRead: runtime-error-handling
+    thenRead:
+      - web-development
+      - miniprogram-development
+    beforeAction:
+      - 先按错误域分类（auth/network/permission/server），再选恢复策略。
+      - 区分可重试错误和终态错误，不要对权限/参数错误做重试。
+    doNotUse:
+      - cloud-functions
+      - cloudrun-development
+    commonMistakes:
+      - 把所有错误都统一重试，权限错误重试无意义。
+      - 直接把 SDK 原始错误信息展示给用户。
+      - 空 catch 吞掉错误，导致问题无法排查。

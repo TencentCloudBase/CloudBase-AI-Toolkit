@@ -33,6 +33,7 @@ alwaysApply: true
 - Web auth implementation -> `./auth-web/SKILL.md`
 - Browser-side document database CRUD -> `./no-sql-web-sdk/SKILL.md`
 - Browser-side file upload -> `./cloud-storage-web/SKILL.md`
+- Runtime error handling / retry / error boundaries -> `./runtime-error-handling/SKILL.md`
 - Platform overview only when capability selection is still unclear -> `./cloudbase-platform/SKILL.md`
 
 ### Do NOT use this as
