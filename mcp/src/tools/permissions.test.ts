@@ -221,7 +221,8 @@ describe("permission tools", () => {
     expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("doc._openid");
     expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("auth.uid");
     expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("auth.openid");
-    expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("write");
+    expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("新增写入优先由 write 放行");
+    expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("不要只写 create");
     expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("{openid}");
   });
 });

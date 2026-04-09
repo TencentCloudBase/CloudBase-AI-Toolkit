@@ -30,7 +30,7 @@ const MANAGE_PERMISSIONS_DESCRIPTION =
   "权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。数据库权限改成 CUSTOM 时，请同时提供 securityRule，并区分 create 与 read/update/delete 的校验语义：create 校验写入数据，read/update/delete 校验 doc 查询子集。";
 
 const CUSTOM_SECURITY_RULE_DESCRIPTION =
-  "仅在 permission=CUSTOM 时提供，值必须是安全规则 JSON 字符串。常见场景可从这个模板起步： {\"read\":\"doc._openid == auth.openid || doc._openid == auth.uid\",\"write\":\"auth != null && auth.loginType != 'ANONYMOUS'\",\"update\":\"doc._openid == auth.openid || doc._openid == auth.uid\",\"delete\":\"false\"}。其中 owner 判断要同时兼容 `auth.openid`（微信登录）和 `auth.uid`（非微信登录）；如果需求是“登录用户可创建、创建者可修改”，优先把通用创建门槛放在 write，再用 update/delete 细化覆盖。重要：如果必须单独写 create，create 校验写入数据而不是现有文档，不要在 create 规则里依赖 doc.*；需要校验写入字段时请使用 request.data.xxx。read/update/delete 才使用 doc.*。如果规则引用了 doc._openid 或 doc.uid，客户端查询/更新条件也必须包含对应字段，例如 _openid: \"{openid}\" 或 uid: \"{uid}\"，否则会因规则子集校验被拒绝。";
+  "仅在 permission=CUSTOM 时提供，值必须是安全规则 JSON 字符串。像“非匿名登录用户可以创建，登录用户只能读取/修改自己创建的数据”这类需求，直接用这个模板： {\"read\":\"doc._openid == auth.openid || doc._openid == auth.uid\",\"write\":\"auth != null && auth.loginType != 'ANONYMOUS'\",\"update\":\"doc._openid == auth.openid || doc._openid == auth.uid\",\"delete\":\"false\"}。其中 owner 判断要同时兼容 `auth.openid`（微信登录）和 `auth.uid`（非微信登录）。重要：新增写入优先由 write 放行，不要只写 create；如果必须单独写 create，create 校验写入数据而不是现有文档，不要在 create 规则里依赖 doc.*，需要校验写入字段时请使用 request.data.xxx。read/update/delete 才使用 doc.*。如果规则引用了 doc._openid 或 doc.uid，客户端查询/更新条件也必须包含对应字段，例如 _openid: \"{openid}\" 或 uid: \"{uid}\"，否则会因规则子集校验被拒绝。";
 
 type QueryPermissionAction = (typeof QUERY_PERMISSION_ACTIONS)[number];
 type ManagePermissionAction = (typeof MANAGE_PERMISSION_ACTIONS)[number];
