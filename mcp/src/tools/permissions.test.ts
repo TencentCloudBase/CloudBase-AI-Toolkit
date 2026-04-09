@@ -219,6 +219,9 @@ describe("permission tools", () => {
     expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("JSON 字符串");
     expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("request.data");
     expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("doc._openid");
+    expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("auth.uid");
+    expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("auth.openid");
+    expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("write");
     expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("{openid}");
   });
 });
