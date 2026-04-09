@@ -26,6 +26,12 @@ const MANAGE_PERMISSION_ACTIONS = [
   "deleteUsers",
 ] as const;
 
+const MANAGE_PERMISSIONS_DESCRIPTION =
+  "权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。数据库权限改成 CUSTOM 时，请同时提供 securityRule，并区分 create 与 read/update/delete 的校验语义：create 校验写入数据，read/update/delete 校验 doc 查询子集。";
+
+const CUSTOM_SECURITY_RULE_DESCRIPTION =
+  "仅在 permission=CUSTOM 时提供，值必须是安全规则 JSON 字符串，例如 {\"read\":\"doc._openid == auth.openid\",\"create\":\"auth.uid != null && auth.loginType != 'ANONYMOUS'\",\"update\":\"doc._openid == auth.openid\",\"delete\":\"doc._openid == auth.openid\"}。重要：create 校验写入数据而不是现有文档，不要在 create 规则里依赖 doc.*；需要校验写入字段时请使用 request.data.xxx。read/update/delete 才使用 doc.*。如果规则引用了 doc._openid 或 doc.uid，客户端查询/更新条件也必须包含对应字段，例如 _openid: \"{openid}\" 或 uid: \"{uid}\"，否则会因规则子集校验被拒绝。";
+
 type QueryPermissionAction = (typeof QUERY_PERMISSION_ACTIONS)[number];
 type ManagePermissionAction = (typeof MANAGE_PERMISSION_ACTIONS)[number];
 type LegacyResourceType = "noSqlDatabase" | "sqlDatabase" | "function" | "storage";
@@ -284,8 +290,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
     "managePermissions",
     {
       title: "管理权限与用户配置",
-      description:
-        "权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。",
+      description: MANAGE_PERMISSIONS_DESCRIPTION,
       inputSchema: {
         action: z.enum(MANAGE_PERMISSION_ACTIONS),
         resourceType: z
@@ -294,8 +299,9 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
         resourceId: z.string().optional(),
         permission: z
           .enum(["READONLY", "PRIVATE", "ADMINWRITE", "ADMINONLY", "CUSTOM"])
-          .optional(),
-        securityRule: z.string().optional(),
+          .optional()
+          .describe("资源权限级别。优先使用 READONLY、PRIVATE、ADMINWRITE、ADMINONLY；只有需要细粒度数据库规则时才使用 CUSTOM，并同时提供 securityRule。"),
+        securityRule: z.string().optional().describe(CUSTOM_SECURITY_RULE_DESCRIPTION),
         roleId: z.string().optional(),
         roleIds: z.array(z.string()).optional(),
         roleName: z.string().optional(),

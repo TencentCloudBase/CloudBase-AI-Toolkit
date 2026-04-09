@@ -40,7 +40,7 @@
 <tr><td><code>queryAppAuth</code></td><td>应用侧认证配置只读入口。用于查询登录方式、provider、publishable key、client 配置和静态域名等认证准备状态。</td></tr>
 <tr><td><code>manageAppAuth</code></td><td>应用侧认证配置写入口。用于修改登录方式、provider、client 配置，确保 publishable key 和创建自定义登录密钥。</td></tr>
 <tr><td><code>queryPermissions</code></td><td>权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。</td></tr>
-<tr><td><code>managePermissions</code></td><td>权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。</td></tr>
+<tr><td><code>managePermissions</code></td><td>权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。数据库权限改成 CUSTOM 时，请同时提供 <code>securityRule</code>，并区分 <code>create</code> 与 <code>read/update/delete</code> 的校验语义：<code>create</code> 校验写入数据，后者校验 <code>doc</code> 查询子集。</td></tr>
 <tr><td><code>queryLogs</code></td><td>日志域统一只读入口。支持检查日志服务状态并搜索 CLS 日志。</td></tr>
 <tr><td><code>queryAgents</code></td><td>Agent 域统一只读入口。支持列表、详情与日志查询。</td></tr>
 <tr><td><code>manageAgents</code></td><td>Agent 域统一写入口。支持创建、更新和删除远端 Agent。</td></tr>
@@ -840,8 +840,8 @@ API名：storage API介绍：Storage API - 云存储 HTTP API
 <tr><td><code>action</code></td><td>string</td><td>是</td><td>可填写的值: "updateResourcePermission", "createRole", "updateRole", "deleteRoles", "addRoleMembers", "removeRoleMembers", "addRolePolicies", "removeRolePolicies", "createUser", "updateUser", "deleteUsers"</td></tr>
 <tr><td><code>resourceType</code></td><td>string</td><td></td><td>可填写的值: "noSqlDatabase", "sqlDatabase", "function", "storage"</td></tr>
 <tr><td><code>resourceId</code></td><td>string</td><td></td><td></td></tr>
-<tr><td><code>permission</code></td><td>string</td><td></td><td>可填写的值: "READONLY", "PRIVATE", "ADMINWRITE", "ADMINONLY", "CUSTOM"</td></tr>
-<tr><td><code>securityRule</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>permission</code></td><td>string</td><td></td><td>可填写的值: "READONLY", "PRIVATE", "ADMINWRITE", "ADMINONLY", "CUSTOM"。优先使用前四种内置权限；只有需要细粒度数据库规则时才使用 <code>CUSTOM</code>，并同时提供 <code>securityRule</code>。</td></tr>
+<tr><td><code>securityRule</code></td><td>string</td><td></td><td>仅在 <code>permission="CUSTOM"</code> 时提供，值必须是安全规则 JSON 字符串，例如 <code>{"read":"doc._openid == auth.openid","create":"auth.uid != null && auth.loginType != 'ANONYMOUS'","update":"doc._openid == auth.openid","delete":"doc._openid == auth.openid"}</code>。重要：<code>create</code> 校验写入数据，不要在 <code>create</code> 规则里依赖 <code>doc.*</code>；需要校验写入字段时请使用 <code>request.data.xxx</code>。如果 <code>read/update/delete</code> 规则引用了 <code>doc._openid</code> 或 <code>doc.uid</code>，客户端查询/更新条件也必须包含对应字段，例如 <code>_openid: "{openid}"</code> 或 <code>uid: "{uid}"</code>。</td></tr>
 <tr><td><code>roleId</code></td><td>string</td><td></td><td></td></tr>
 <tr><td><code>roleIds</code></td><td>array of string</td><td></td><td></td></tr>
 <tr><td><code>roleName</code></td><td>string</td><td></td><td></td></tr>

@@ -211,4 +211,14 @@ describe("permission tools", () => {
       },
     });
   });
+
+  it("managePermissions should explain CUSTOM securityRule semantics", () => {
+    expect(tools.managePermissions.meta.description).toContain("securityRule");
+    expect(tools.managePermissions.meta.description).toContain("create");
+    expect(tools.managePermissions.meta.inputSchema.permission.description).toContain("CUSTOM");
+    expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("JSON 字符串");
+    expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("request.data");
+    expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("doc._openid");
+    expect(tools.managePermissions.meta.inputSchema.securityRule.description).toContain("{openid}");
+  });
 });
