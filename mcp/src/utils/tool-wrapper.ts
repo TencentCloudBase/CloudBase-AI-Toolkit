@@ -17,6 +17,9 @@ import { isToolPayloadError } from "./tool-result.js";
 // 重新导出 MCP SDK 的类型，方便其他模块使用
 export type { Tool, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 
+// Re-export the CloudBase-extended category type
+export type { ToolCategory } from "../types/tool-category.js";
+
 // 构建时注入的版本号
 declare const __MCP_VERSION__: string;
 
