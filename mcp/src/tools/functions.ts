@@ -73,11 +73,18 @@ export const SUPPORTED_TRIGGER_TYPES = [
 
 export type TriggerType = (typeof SUPPORTED_TRIGGER_TYPES)[number];
 
+export const TIMER_TRIGGER_CRON_GUIDANCE =
+  "触发器配置。timer 必须使用 CloudBase 7 段 cron：second minute hour day month week year。固定每 5 分钟示例：0 */5 * * * * *。常见 5 段写法 */5 * * * * 不可用。";
+
+export const FUNCTION_ROOT_PATH_GUIDANCE =
+  "函数根目录（父目录绝对路径）。推荐本地结构为 cloudfunctions/<functionName>/index.js（或 functions/<functionName>/index.js）；传入的应是 cloudfunctions / functions 这一层父目录，而不是函数目录本身。例如函数 timerHello 对应 /abs/project/cloudfunctions/timerHello/index.js，则 functionRootPath 应传 /abs/project/cloudfunctions。";
+
 export const TRIGGER_CONFIG_EXAMPLES = {
   timer: {
     description:
       "Timer trigger configuration using cron expression format: second minute hour day month week year",
     examples: [
+      "0 */5 * * * * *",
       "0 0 2 1 * * *",
       "0 30 9 * * * *",
       "0 0 12 * * * *",
@@ -194,11 +201,7 @@ const VPC_SCHEMA = z.object({
 const TRIGGER_SCHEMA = z.object({
   name: z.string().describe("触发器名称"),
   type: z.enum(SUPPORTED_TRIGGER_TYPES).describe("触发器类型"),
-  config: z
-    .string()
-    .describe(
-      "触发器配置，timer 使用 7 段 cron：second minute hour day month week year",
-    ),
+  config: z.string().describe(TIMER_TRIGGER_CRON_GUIDANCE),
 });
 
 const CREATE_FUNCTION_SCHEMA = z.object({
@@ -236,7 +239,10 @@ const CREATE_FUNCTION_SCHEMA = z.object({
         `  Java: ${RECOMMENDED_RUNTIMES.java}\n` +
         `  Go: ${RECOMMENDED_RUNTIMES.golang}`,
     ),
-  triggers: z.array(TRIGGER_SCHEMA).optional().describe("触发器配置数组"),
+  triggers: z
+    .array(TRIGGER_SCHEMA)
+    .optional()
+    .describe(`触发器配置数组。${TIMER_TRIGGER_CRON_GUIDANCE}`),
   handler: z.string().optional().describe("函数入口"),
   ignore: z.union([z.string(), z.array(z.string())]).optional().describe("忽略文件"),
   isWaitInstall: z.boolean().optional().describe("是否等待依赖安装"),
@@ -295,6 +301,39 @@ function getExpectedFunctionPath(
 ): string | undefined {
   if (!functionRootPath) return undefined;
   return path.join(path.normalize(functionRootPath), functionName);
+}
+
+export function validateFunctionTriggers(
+  triggers: unknown,
+  action: "createFunction" | "createFunctionTrigger",
+): void {
+  if (!Array.isArray(triggers)) {
+    return;
+  }
+
+  for (const trigger of triggers) {
+    if (!trigger || typeof trigger !== "object") {
+      continue;
+    }
+
+    const { name, type, config } = trigger as {
+      name?: unknown;
+      type?: unknown;
+      config?: unknown;
+    };
+
+    if (type !== "timer" || typeof config !== "string") {
+      continue;
+    }
+
+    const cronSegments = config.trim().split(/\s+/).filter(Boolean);
+    if (cronSegments.length !== 7) {
+      const triggerLabel = typeof name === "string" && name.trim() ? `触发器 ${name}` : "timer 触发器";
+      throw new Error(
+        `${action} 中的 ${triggerLabel} 配置无效：timer 必须使用 7 段 cron（second minute hour day month week year），例如每 5 分钟执行一次应写成 "0 */5 * * * * *"，不要使用 5 段写法 "*/5 * * * *"。`,
+      );
+    }
+  }
 }
 
 export function shouldInstallDependencyForFunction(
@@ -859,6 +898,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         processedRootPath,
         functionName,
       );
+      validateFunctionTriggers(func.triggers, "createFunction");
 
       if (functionType === "HTTP" && !processedRootPath && !input.zipFile) {
         throw new Error(
@@ -1114,6 +1154,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       if (!input.triggers?.length) {
         throw new Error("createFunctionTrigger 操作时，triggers 参数是必需的");
       }
+      validateFunctionTriggers(input.triggers, "createFunctionTrigger");
       const cloudbase = await getManager();
       const result = await cloudbase.functions.createFunctionTriggers(
         input.functionName,
@@ -1398,13 +1439,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "管理云函数域资源",
       description:
-        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。",
+        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。创建本地函数代码时，推荐目录为 cloudfunctions/<functionName>/index.js，并把 functionRootPath 传成 cloudfunctions 这一层父目录。timer 触发器必须使用 7 段 cron，例如每 5 分钟写成 0 */5 * * * * *，不要写成 5 段 */5 * * * *。危险操作需要显式 confirm=true。",
       inputSchema: {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
           .describe("写操作类型，例如 createFunction、invokeFunction、attachLayer"),
         func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
-        functionRootPath: z.string().optional().describe("函数根目录（父目录绝对路径）"),
+        functionRootPath: z.string().optional().describe(FUNCTION_ROOT_PATH_GUIDANCE),
         force: z.boolean().optional().describe("createFunction 时是否覆盖"),
         functionName: z.string().optional().describe("函数名称。大多数 action 使用该字段作为统一目标"),
         zipFile: z.string().optional().describe("代码包的 base64 编码"),
@@ -1413,7 +1454,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         envVariables: z.record(z.string()).optional().describe("配置更新时要合并的环境变量"),
         vpc: VPC_SCHEMA.optional().describe("配置更新时的 VPC 信息"),
         params: z.record(z.any()).optional().describe("invokeFunction 的调用参数"),
-        triggers: z.array(TRIGGER_SCHEMA).optional().describe("createFunctionTrigger 的触发器列表"),
+        triggers: z
+          .array(TRIGGER_SCHEMA)
+          .optional()
+          .describe(`createFunctionTrigger 的触发器列表。${TIMER_TRIGGER_CRON_GUIDANCE}`),
         triggerName: z.string().optional().describe("deleteFunctionTrigger 的目标触发器名称"),
         layerName: z.string().optional().describe("层名称"),
         layerVersion: z.number().optional().describe("层版本号"),

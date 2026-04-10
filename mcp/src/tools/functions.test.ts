@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildFunctionOperationErrorMessage,
   DEFAULT_RUNTIME,
+  FUNCTION_ROOT_PATH_GUIDANCE,
   registerFunctionTools,
   resolveEventFunctionRuntime,
   shouldInstallDependencyForFunction,
+  TIMER_TRIGGER_CRON_GUIDANCE,
 } from "./functions.js";
 import type { ExtendedMcpServer } from "../server.js";
 
@@ -125,6 +127,56 @@ describe("functions tool helpers", () => {
   it("rejects unsupported Event runtimes with a helpful message", () => {
     expect(() => resolveEventFunctionRuntime("Ruby3.2")).toThrow(/不支持的运行时环境/);
     expect(() => resolveEventFunctionRuntime("Ruby3.2")).toThrow(/Python3.9/);
+  });
+
+  it("surfaces timer cron and functionRootPath guidance in manageFunctions metadata", () => {
+    expect(TIMER_TRIGGER_CRON_GUIDANCE).toContain("0 */5 * * * * *");
+    expect(TIMER_TRIGGER_CRON_GUIDANCE).toContain("7 段 cron");
+    expect(FUNCTION_ROOT_PATH_GUIDANCE).toContain("cloudfunctions/<functionName>/index.js");
+    expect(tools.manageFunctions.meta.description).toContain("0 */5 * * * * *");
+    expect(tools.manageFunctions.meta.description).toContain("cloudfunctions/<functionName>/index.js");
+  });
+
+  it("rejects five-field timer cron during createFunction", async () => {
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: {
+        name: "timerHello",
+        runtime: "Nodejs18.15",
+        triggers: [
+          {
+            name: "timer-trigger",
+            type: "timer",
+            config: "*/5 * * * *",
+          },
+        ],
+      },
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("7 段 cron");
+    expect(payload.message).toContain('0 */5 * * * * *');
+    expect(mockCreateFunction).not.toHaveBeenCalled();
+  });
+
+  it("rejects five-field timer cron during createFunctionTrigger", async () => {
+    const result = await tools.manageFunctions.handler({
+      action: "createFunctionTrigger",
+      functionName: "timerHello",
+      triggers: [
+        {
+          name: "timer-trigger",
+          type: "timer",
+          config: "*/5 * * * *",
+        },
+      ],
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("7 段 cron");
+    expect(payload.message).toContain('*/5 * * * *');
   });
 
   it("guides HTTP functions through anonymous-access follow-up without auto-creating gateway access", async () => {
