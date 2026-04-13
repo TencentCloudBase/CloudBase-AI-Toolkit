@@ -492,3 +492,134 @@ describe("cloudbase manager auth gate", () => {
     await expect(getEnvId()).resolves.toBe("env-picked");
   });
 });
+
+describe("resolveNoSqlInstanceId", () => {
+  const {
+    mockGetCloudBaseManager: mgrMock,
+    mockGetEnvInfo,
+    mockCommonServiceCall: csMock,
+  } = vi.hoisted(() => ({
+    mockGetCloudBaseManager: vi.fn(),
+    mockGetEnvInfo: vi.fn(),
+    mockCommonServiceCall: vi.fn(),
+  }));
+
+  let getDatabaseInstanceId: typeof import("./cloudbase-manager.js")["getDatabaseInstanceId"];
+  let resetDatabaseInstanceIdCache: typeof import("./cloudbase-manager.js")["resetDatabaseInstanceIdCache"];
+
+  vi.mock("./auth.js", () => ({
+    getAuthProgressState: vi.fn().mockResolvedValue({ status: "IDLE", updatedAt: Date.now() }),
+    peekLoginState: vi.fn().mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      token: "token",
+      envId: "env-test",
+    }),
+    getLoginState: vi.fn().mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      token: "token",
+      envId: "env-test",
+    }),
+  }));
+
+  vi.mock("@cloudbase/manager-node", () => ({
+    default: vi.fn().mockImplementation(() => ({
+      commonService: vi.fn(() => ({ call: csMock })),
+      env: { getEnvInfo: mockGetEnvInfo, listEnvs: vi.fn().mockResolvedValue({ EnvList: [] }) },
+    })),
+  }));
+
+  vi.mock("./cloudbase-manager.js", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("./cloudbase-manager.js")>();
+    return {
+      ...actual,
+      getCloudBaseManager: mgrMock,
+    };
+  });
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const mod = await import("./cloudbase-manager.js");
+    getDatabaseInstanceId = mod.getDatabaseInstanceId;
+    resetDatabaseInstanceIdCache = mod.resetDatabaseInstanceIdCache;
+    resetDatabaseInstanceIdCache();
+
+    mgrMock.mockResolvedValue({
+      env: { getEnvInfo: mockGetEnvInfo },
+      commonService: vi.fn(() => ({ call: csMock })),
+    });
+  });
+
+  it("should return the single NoSQL instance when Databases has one entry", async () => {
+    mockGetEnvInfo.mockResolvedValue({
+      EnvInfo: {
+        Databases: [{ InstanceId: "tnt-nl7hjzasw" }],
+      },
+    });
+
+    const result = await getDatabaseInstanceId();
+    expect(result.instanceId).toBe("tnt-nl7hjzasw");
+    expect(result.source).toBe("envInfo");
+  });
+
+  it("should pick the NoSQL instance over MySQL when Databases has multiple entries", async () => {
+    mockGetEnvInfo.mockResolvedValue({
+      EnvInfo: {
+        Databases: [
+          { InstanceId: "default", DbInstanceType: "MYSQL", Status: "ONLINE" },
+          { InstanceId: "tnt-abc123" },
+        ],
+      },
+    });
+
+    const result = await getDatabaseInstanceId();
+    expect(result.instanceId).toBe("tnt-abc123");
+  });
+
+  it("should skip MySQL entries identified by DbInstanceType", async () => {
+    mockGetEnvInfo.mockResolvedValue({
+      EnvInfo: {
+        Databases: [
+          { InstanceId: "tnt-mysql-instance", DbInstanceType: "MYSQL" },
+          { InstanceId: "tnt-nosql-instance" },
+        ],
+      },
+    });
+
+    const result = await getDatabaseInstanceId();
+    expect(result.instanceId).toBe("tnt-nosql-instance");
+  });
+
+  it("should fallback to first entry with InstanceId when all are MySQL", async () => {
+    mockGetEnvInfo.mockResolvedValue({
+      EnvInfo: {
+        Databases: [
+          { InstanceId: "default", DbInstanceType: "MYSQL" },
+          { InstanceId: "another-mysql", DbInstanceType: "MYSQL" },
+        ],
+      },
+    });
+
+    const result = await getDatabaseInstanceId();
+    expect(result.instanceId).toBe("default");
+  });
+
+  it("should throw when Databases array is empty", async () => {
+    mockGetEnvInfo.mockResolvedValue({
+      EnvInfo: {
+        Databases: [],
+      },
+    });
+
+    await expect(getDatabaseInstanceId()).rejects.toThrow("无法获取数据库实例ID");
+  });
+
+  it("should throw when Databases is undefined", async () => {
+    mockGetEnvInfo.mockResolvedValue({
+      EnvInfo: {},
+    });
+
+    await expect(getDatabaseInstanceId()).rejects.toThrow("无法获取数据库实例ID");
+  });
+});

@@ -340,6 +340,43 @@ export function invalidateDatabaseInstanceIdCache(options?: {
     databaseInstanceIdCache.delete(cacheKey);
 }
 
+/**
+ * Resolve the NoSQL (FlexDB) instance ID from the Databases array.
+ *
+ * The Databases array from getEnvInfo() may contain both NoSQL (FlexDB) and
+ * MySQL entries. MySQL entries typically have InstanceId "default" while NoSQL
+ * entries have IDs like "tnt-xxx". When multiple entries exist, we must pick
+ * the NoSQL one; taking Databases[0] blindly may return the MySQL entry.
+ */
+function resolveNoSqlInstanceId(
+    databases?: Array<{ InstanceId?: string; DbInstanceType?: string; [k: string]: unknown }>,
+): string | undefined {
+    if (!Array.isArray(databases) || databases.length === 0) {
+        return undefined;
+    }
+
+    // Single entry — use it directly (backward compatible)
+    if (databases.length === 1) {
+        return databases[0].InstanceId || undefined;
+    }
+
+    // Multiple entries — prefer the one that is NOT a MySQL instance.
+    // MySQL instances use DbInstanceType "MYSQL" or InstanceId "default".
+    for (const db of databases) {
+        if (!db.InstanceId) continue;
+        if (db.DbInstanceType === 'MYSQL') continue;
+        if (db.InstanceId === 'default') continue;
+        return db.InstanceId;
+    }
+
+    // Fallback: return the first entry with an InstanceId
+    for (const db of databases) {
+        if (db.InstanceId) return db.InstanceId;
+    }
+
+    return undefined;
+}
+
 export async function getDatabaseInstanceId(options?: {
     instanceId?: string;
     cloudBaseOptions?: CloudBaseOptions;
@@ -380,10 +417,11 @@ export async function getDatabaseInstanceId(options?: {
         const cloudbase =
             options?.cloudbase ?? (await getCloudBaseManager({ cloudBaseOptions: options?.cloudBaseOptions }));
         const { EnvInfo } = await cloudbase.env.getEnvInfo();
-        if (!EnvInfo?.Databases?.[0]?.InstanceId) {
+        const instanceId = resolveNoSqlInstanceId(EnvInfo?.Databases);
+        if (!instanceId) {
             throw new Error("无法获取数据库实例ID");
         }
-        return EnvInfo.Databases[0].InstanceId;
+        return instanceId;
     })();
 
     databaseInstanceIdCache.set(cacheKey, {
