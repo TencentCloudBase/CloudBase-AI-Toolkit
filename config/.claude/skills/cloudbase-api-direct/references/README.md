@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-04-13T04:57:10.926Z
+爬取时间: 2026-04-14T04:43:54.356Z
 
 ## 文档列表
 
@@ -65,6 +65,7 @@
 - [云开发 CloudBase 销毁Mysql结果查询_腾讯云](./876-128183-云开发-CloudBase-销毁Mysql结果查询_腾讯云.md)
 - [云开发 CloudBase 销毁MySql_腾讯云](./876-128182-云开发-CloudBase-销毁MySql_腾讯云.md)
 - [云开发 CloudBase 执行MySQL语句_腾讯云](./876-127880-云开发-CloudBase-执行MySQL语句_腾讯云.md)
+- [云开发 CloudBase 在PostgreSQL数据库上执行S](./876-130469-云开发-CloudBase-在PostgreSQL数据库上执行S.md)
 - [云开发 CloudBase 查询应用客户端详情_腾讯云](./876-129355-云开发-CloudBase-查询应用客户端详情_腾讯云.md)
 - [云开发 CloudBase 修改登录策略_腾讯云](./876-129351-云开发-CloudBase-修改登录策略_腾讯云.md)
 - [云开发 CloudBase 获取登录策略_腾讯云](./876-129354-云开发-CloudBase-获取登录策略_腾讯云.md)

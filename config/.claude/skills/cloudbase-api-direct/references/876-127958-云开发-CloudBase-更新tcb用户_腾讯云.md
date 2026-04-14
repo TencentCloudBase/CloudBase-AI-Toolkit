@@ -2,7 +2,7 @@
 
 ## 更新tcb用户
 
-最近更新时间：2026-04-01 02:07:20
+最近更新时间：2026-04-14 03:00:41
 
 -   微信扫一扫 
 -   QQ
@@ -36,7 +36,7 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 | --- | --- | --- | --- |
 | Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：ModifyUser。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
-| Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
+| Region | 否 | String | [公共参数](/document/api/876/34812) ，此参数为可选参数。 |
 | EnvId | 是 | String | 环境id  
 示例值：testenv-123 |
 | Uid | 是 | String | 用户Id, 不做修改  

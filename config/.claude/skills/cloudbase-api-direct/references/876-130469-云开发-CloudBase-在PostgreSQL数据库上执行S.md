@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 执行文档型数据库命令
+## 在PostgreSQL数据库上执行SQL查询
 
-最近更新时间：2026-04-14 03:00:52
+最近更新时间：2026-04-14 03:01:43
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-本接口（RunCommands）用于执行文档型数据库命令。
+在Postgres数据库上执行SQL
 
 默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=RunCommands)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=ExecutePGSql)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,38 +34,77 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：RunCommands。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：ExecutePGSql。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
-| Region | 是 | String | [公共参数](/document/api/876/34812) ，详见产品支持的 [地域列表](/document/api/876/34812#.E5.9C.B0.E5.9F.9F.E5.88.97.E8.A1.A8) ，本接口仅支持其中的: ap-beijing, ap-guangzhou, ap-shanghai 。 |
-| MgoCommands.N | 是 | Array of [MgoCommandParam](/document/api/876/34822#MgoCommandParam) | 待执行命令 |
-| Tag | 否 | String | 实例ID  
-示例值：tnt-xxxx |
-| EnvId | 否 | String | 环境id  
-示例值：lowcode-123 |
-| MongoConnector | 否 | [MongoConnector](/document/api/876/34822#MongoConnector) | Mongo连接器实例信息 |
+| Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
+| EnvId | 是 | String | 
+云开发环境ID
+
+  
+示例值：pg-mikejliu-0g9cqmar358527a9 |
+| Sql | 是 | String | 
+
+要执行的SQL语句
+
+  
+示例值：select column\_name FROM information\_schema.columns WHERE table\_schema = 'public' AND table\_name = 'test\_products' |
+| Role | 否 | String | 
+
+指定 role 执行 SQL
+
+  
+示例值：cloudbase\_postgres |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| Data | Array of String | 返回结果，返回结果为一个json字符串  
+| AffectedRows | Integer | 
+影响行数
+
+  
+示例值：0 |
+| Columns | Array of String | 
+
+字段名列表
+
+  
 注意：此字段可能返回 null，表示取不到有效值。  
-示例值：\["string"\] |
+示例值：\["column\_name"\] |
+| Rows | Array of String | 
+
+数据行。每一行数据都是一个JSON串，将JSON进行反序列化将得到了每列的值。值可能是 null 或者 字符串，如果是 null 说明该列的值为 <null>，如果是字符串则为该列的值的字符串表示形式。
+
+  
+注意：此字段可能返回 null，表示取不到有效值。  
+示例值：\["\["id"\]"\] |
+| ExecutionTimeMs | Integer | 
+
+SQL执行耗时
+
+单位：毫秒
+
+  
+示例值：58 |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 查询一条数据
+### 示例1 创建表
 
 #### 输入示例
 
 ```
-https://tcb.tencentcloudapi.com/?Action=RunCommands
-&Tag=tnt-nl7hjzasw
-&MgoCommands.0.TableName=luke_test
-&MgoCommands.0.CommandType=QUERY
-&MgoCommands.0.Command={"find":"test","filter":{"_id":{"$eq":"1"}}}"}
-&<公共请求参数>
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: ExecutePGSql
+<公共请求参数>
+
+{
+    "EnvId": "pg-mikejliu-0g9cqmar358527a9",
+    "Sql": "CREATE TABLE test_products (\n    id SERIAL PRIMARY KEY,                        -- 产品唯一标识\n    sku VARCHAR(20) UNIQUE NOT NULL,             -- 库存单位编码，唯一且必填\n    name TEXT NOT NULL,                          -- 产品名称\n    category VARCHAR(50),                        -- 分类\n    price NUMERIC(12, 2) NOT NULL DEFAULT 0.00,  -- 单价\n    stock_quantity INTEGER DEFAULT 0,            -- 库存数量\n    tags JSONB,                                  -- 标签（使用 JSONB 存储扩展属性）\n    last_updated TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() -- 最后更新时间\n);"
+}
 ```
 
 #### 输出示例
@@ -73,10 +112,46 @@ https://tcb.tencentcloudapi.com/?Action=RunCommands
 ```json
 {
     "Response": {
-        "Data": [
-            "[\"{\\\"_id\\\":\\\"1\\\",\\\"category\\\":\\\"Web\\\",\\\"tags\\\":[\\\"JavaScript\\\",\\\"C#\\\"],\\\"date\\\":{\\\"$date\\\":{\\\"$numberLong\\\":\\\"1572937669786\\\"}}}\"]"
+        "AffectedRows": 0,
+        "Columns": null,
+        "ExecutionTimeMs": 34,
+        "Rows": null,
+        "RequestId": "5cf1d355-cdb7-4879-bd22-4e89ddc10095"
+    }
+}
+```
+
+### 示例2 查询表字段
+
+#### 输入示例
+
+```
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: ExecutePGSql
+<公共请求参数>
+
+{
+    "EnvId": "pg-mikejliu-0g9cqmar358527a9",
+    "Sql": "select column_name FROM information_schema.columns WHERE table_schema = 'public'   AND table_name = 'test_products'"
+}
+```
+
+#### 输出示例
+
+```json
+{
+    "Response": {
+        "AffectedRows": 0,
+        "Columns": [
+            "column_name"
         ],
-        "RequestId": "25785311-b03c-48d3-af34-36ff65e62d4a"
+        "ExecutionTimeMs": 58,
+        "Rows": [
+            "[\"id\"]"
+        ],
+        "RequestId": "21b3df84-7ea3-4487-9583-e4de88b4ab89"
     }
 }
 ```
@@ -114,15 +189,9 @@ https://tcb.tencentcloudapi.com/?Action=RunCommands
 
 | 错误码 | 描述 |
 | --- | --- |
-| FailedOperation | 操作失败。 |
-| FailedOperation.Timeout | FailedOperation.Timeout |
-| InternalError | 内部错误。 |
-| InvalidParameter | 参数错误。 |
-| InvalidParameterValue | 参数取值错误。 |
-| InvalidParameterValue.InvalidDoc | InvalidParameterValue.InvalidDoc |
-| LimitExceeded.NoValidConnection | LimitExceeded.NoValidConnection |
-| LimitExceeded.OutOfResultSizeLimit | 超过响应大小限制 |
-| ResourceNotFound.Connector | 连接器未找到,请创建连接器或检查连接器参数是否正确 |
-| ResourceNotFound.Table | 表未找到,请创建表或检查表名参数是否正确 |
-| ResourceUnavailable.MongoIsolated | MongoDB集群已隔离,由于集群已被隔离写入被禁止,请跳转MongoDB控制台查看详情 |
-| ResourceUnavailable.ResourceOverdue | 资源过期。 |
+| FailedOperation.InstanceStatusConflict | Instance status does not match the required status for this operation. |
+| FailedOperation.PGConnectError | Failed to connect to PostgreSQL instance. |
+| FailedOperation.PGExecuteSqlError | Execute SQL error. |
+| InternalError.SYS\_ERR | 系统内部异常。 |
+| InvalidParameter.INVALID\_PARAM | 请求参数错误。 |
+| ResourceNotFound.RoleNotFound | Database role not found. |

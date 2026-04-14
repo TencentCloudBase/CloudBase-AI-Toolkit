@@ -2,7 +2,7 @@
 
 ## 公共参数
 
-最近更新时间：2025-12-19 02:42:21
+最近更新时间：2026-04-14 03:01:05
 
 -   微信扫一扫 
 -   QQ
@@ -145,3 +145,4 @@ Action=DescribeInstances&Version=2017-03-12&SignatureMethod=HmacSHA256&Timestamp
 | 华北地区（北京） | ap-beijing |
 | 华南地区（广州） | ap-guangzhou |
 | 华东地区（上海） | ap-shanghai |
+| 亚太东南（新加坡） | ap-singapore |
