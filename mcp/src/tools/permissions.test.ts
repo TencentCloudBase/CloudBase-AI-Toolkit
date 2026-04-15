@@ -159,6 +159,44 @@ describe("permission tools", () => {
     });
   });
 
+  it("queryPermissions(action=getResourcePermission) should expose aclTag aliases and flattened metadata", async () => {
+    const result = await tools.queryPermissions.handler({
+      action: "getResourcePermission",
+      resourceType: "noSqlDatabase",
+      resourceId: "todos",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.data).toMatchObject({
+      permission: "READONLY",
+      aclTag: "READONLY",
+      AclTag: "READONLY",
+      acl_tag: "READONLY",
+      totalCount: 1,
+      TotalCount: 1,
+      requestId: "req-resource-perm",
+      RequestId: "req-resource-perm",
+      primaryPermission: expect.objectContaining({
+        Resource: "todos",
+        Permission: "READONLY",
+        aclTag: "READONLY",
+        AclTag: "READONLY",
+        acl_tag: "READONLY",
+      }),
+      permissions: [
+        expect.objectContaining({
+          Resource: "todos",
+          Permission: "READONLY",
+          aclTag: "READONLY",
+          AclTag: "READONLY",
+          acl_tag: "READONLY",
+        }),
+      ],
+      permissionList: [expect.objectContaining({ Resource: "todos", aclTag: "READONLY" })],
+      PermissionList: [expect.objectContaining({ Resource: "todos", aclTag: "READONLY" })],
+    });
+  });
+
   it("queryPermissions(action=getResourcePermission) should return a doc-id write hint for risky custom rules", async () => {
     mockDescribeResourcePermission.mockResolvedValueOnce({
       Data: {
@@ -232,6 +270,25 @@ describe("permission tools", () => {
         ]),
       }),
     ]);
+    expect(payload.data).toMatchObject({
+      total: 2,
+      totalCount: 2,
+      TotalCount: 2,
+      requestId: "req-resource-perm-list-risky",
+      RequestId: "req-resource-perm-list-risky",
+    });
+    expect(payload.data.permissions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ Resource: "articles", aclTag: "CUSTOM" }),
+        expect.objectContaining({ Resource: "users", aclTag: "READONLY" }),
+      ]),
+    );
+    expect(payload.data.permissionList).toEqual(
+      expect.arrayContaining([expect.objectContaining({ Resource: "articles", aclTag: "CUSTOM" })]),
+    );
+    expect(payload.data.PermissionList).toEqual(
+      expect.arrayContaining([expect.objectContaining({ Resource: "users", aclTag: "READONLY" })]),
+    );
   });
 
   it("managePermissions(action=createRole) should call permission service", async () => {

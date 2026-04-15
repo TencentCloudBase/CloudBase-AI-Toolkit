@@ -100,6 +100,59 @@ function buildErrorEnvelope(error: unknown): ToolEnvelope {
   };
 }
 
+function getPermissionAclTag(permission: Record<string, any> | null | undefined) {
+  const rawTag = permission?.AclTag ?? permission?.aclTag ?? permission?.acl_tag ?? permission?.Permission;
+  return typeof rawTag === "string" && rawTag.length > 0 ? rawTag : undefined;
+}
+
+function normalizePermissionItem(permission: Record<string, any>) {
+  const aclTag = getPermissionAclTag(permission);
+  if (!aclTag) {
+    return permission;
+  }
+
+  return {
+    ...permission,
+    AclTag: permission.AclTag ?? aclTag,
+    aclTag: permission.aclTag ?? aclTag,
+    acl_tag: permission.acl_tag ?? aclTag,
+  };
+}
+
+function normalizePermissionList(permissionList: unknown) {
+  if (!Array.isArray(permissionList)) {
+    return [] as Record<string, any>[];
+  }
+  return permissionList.map((item) => normalizePermissionItem((item ?? {}) as Record<string, any>));
+}
+
+function buildPermissionLookupAliases(params: {
+  permissionList: Record<string, any>[];
+  requestId?: string;
+  totalCount?: number;
+  resourceId?: string;
+}) {
+  const primaryPermission = params.resourceId
+    ? params.permissionList.find((item) => item.Resource === params.resourceId) ?? params.permissionList[0] ?? null
+    : params.permissionList[0] ?? null;
+  const aclTag = getPermissionAclTag(primaryPermission);
+  const totalCount = params.totalCount ?? params.permissionList.length;
+
+  return {
+    permissions: params.permissionList,
+    permissionList: params.permissionList,
+    PermissionList: params.permissionList,
+    totalCount,
+    TotalCount: totalCount,
+    requestId: params.requestId,
+    RequestId: params.requestId,
+    primaryPermission,
+    aclTag,
+    AclTag: aclTag,
+    acl_tag: aclTag,
+  };
+}
+
 function mapResourceType(resourceType: LegacyResourceType) {
   const resourceTypeMap = {
     noSqlDatabase: "collection",
@@ -318,7 +371,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
     {
       title: "查询权限与用户配置",
       description:
-        "权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。",
+        "权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。查询权限时会同时返回 permissions 数组，以及兼容字段 permissionList / PermissionList、requestId / RequestId、totalCount / TotalCount；其中 getResourcePermission 还会直接给出 aclTag / AclTag / acl_tag，便于把权限标签写入 RESULT.json。",
       inputSchema: {
         action: z.enum(QUERY_PERMISSION_ACTIONS),
         resourceType: z
@@ -379,10 +432,10 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
               resources: [resourceId],
             });
             logCloudBaseResult(server.logger, result);
-            const permissions = result.Data.PermissionList ?? [];
-            const securityRule =
-              permissions.find((item) => item.Resource === resourceId)?.SecurityRule ??
-              permissions[0]?.SecurityRule;
+            const permissions = normalizePermissionList(result.Data.PermissionList);
+            const primaryPermission =
+              permissions.find((item) => item.Resource === resourceId) ?? permissions[0] ?? null;
+            const securityRule = primaryPermission?.SecurityRule;
             const hints = buildPermissionHints(securityRule, resourceId);
             return buildEnvelope(
               {
@@ -390,7 +443,13 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 envId,
                 resourceType,
                 resourceId,
-                permissions,
+                ...buildPermissionLookupAliases({
+                  permissionList: permissions,
+                  requestId: result.RequestId,
+                  totalCount: result.Data.TotalCount,
+                  resourceId,
+                }),
+                permission: primaryPermission?.Permission ?? null,
                 hints,
                 raw: result,
               },
@@ -406,7 +465,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
               resources: resourceIds,
             });
             logCloudBaseResult(server.logger, result);
-            const permissions = result.Data.PermissionList ?? [];
+            const permissions = normalizePermissionList(result.Data.PermissionList);
             const resourceHints = permissions
               .map((item) => ({
                 resourceId: item.Resource ?? "",
@@ -423,8 +482,14 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 envId,
                 resourceType,
                 permissions,
+                permissionList: permissions,
+                PermissionList: permissions,
                 resourceHints,
                 total: result.Data.TotalCount ?? 0,
+                totalCount: result.Data.TotalCount ?? 0,
+                TotalCount: result.Data.TotalCount ?? 0,
+                requestId: result.RequestId,
+                RequestId: result.RequestId,
                 raw: result,
               },
               "资源权限列表查询成功",

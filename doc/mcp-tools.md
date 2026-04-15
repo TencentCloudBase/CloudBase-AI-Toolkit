@@ -750,7 +750,7 @@ classDiagram
 ---
 
 ### `queryPermissions`
-权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。
+权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。查询权限时会同时返回 permissions 数组，以及兼容字段 permissionList / PermissionList、requestId / RequestId、totalCount / TotalCount；其中 getResourcePermission 还会直接给出 aclTag / AclTag / acl_tag，便于把权限标签写入 RESULT.json。
 
 #### 参数
 
