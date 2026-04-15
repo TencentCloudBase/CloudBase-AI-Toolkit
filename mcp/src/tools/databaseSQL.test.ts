@@ -575,4 +575,280 @@ describe("SQL database tools", () => {
       },
     });
   });
+
+  // ── MySQL connector tests ──────────────────────────────────────────────
+
+  it("querySqlDatabase(runQuery) routes SQL through connector when connectorName is provided", async () => {
+    const { tools } = createMockServer();
+
+    await tools.querySqlDatabase.handler({
+      action: "runQuery",
+      sql: "SELECT 1",
+      connectorName: "my-external-db",
+    });
+
+    expect(mockCommonServiceCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Action: "RunSql",
+        Param: expect.objectContaining({
+          EnvId: "env-test",
+          Sql: "SELECT 1",
+          ReadOnly: true,
+          DbInstance: {
+            EnvId: "env-test",
+            InstanceId: "my-external-db",
+            Schema: "my-external-db",
+          },
+        }),
+      }),
+    );
+  });
+
+  it("querySqlDatabase(runQuery) returns CONNECTOR_NOT_FOUND when connector does not exist", async () => {
+    mockCommonServiceCall.mockImplementation(async () => {
+      throw Object.assign(new Error("Database instance not found"), {
+        code: "FailedOperation.DataSourceNotExist",
+      });
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.querySqlDatabase.handler({
+      action: "runQuery",
+      sql: "SELECT 1",
+      connectorName: "nonexistent",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "CONNECTOR_NOT_FOUND",
+    });
+  });
+
+  it("querySqlDatabase(listConnectors) calls lowcode service with QueryConnector=1", async () => {
+    mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+      if (Action === "DescribeDataSourceList") {
+        return {
+          Data: {
+            Rows: [
+              { Name: "my-db", Title: "My DB", Description: "Test", DbInstanceType: "mysql-connector", UpdatedAt: "2025-01-01" },
+            ],
+          },
+        };
+      }
+      return { RequestId: "req-1" };
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.querySqlDatabase.handler({
+      action: "listConnectors",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCommonServiceCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Action: "DescribeDataSourceList",
+        Param: expect.objectContaining({
+          EnvId: "env-test",
+          QueryConnector: 1,
+        }),
+      }),
+    );
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        connectors: [{ name: "my-db", title: "My DB" }],
+        count: 1,
+      },
+    });
+  });
+
+  it("querySqlDatabase(listConnectors) suggests createConnector when no connectors exist", async () => {
+    mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+      if (Action === "DescribeDataSourceList") {
+        return { Data: { Rows: [] } };
+      }
+      return { RequestId: "req-1" };
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.querySqlDatabase.handler({
+      action: "listConnectors",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({ success: true, data: { count: 0 } });
+    expect(payload.nextActions?.[0]).toMatchObject({
+      tool: "manageSqlDatabase",
+      action: "createConnector",
+    });
+  });
+
+  it("querySqlDatabase(getConnector) requires connectorName", async () => {
+    const { tools } = createMockServer();
+    const result = await tools.querySqlDatabase.handler({
+      action: "getConnector",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "CONNECTOR_NAME_REQUIRED",
+    });
+  });
+
+  it("manageSqlDatabase(createConnector) requires connectorName and connectorConfig", async () => {
+    const { tools } = createMockServer();
+    const result = await tools.manageSqlDatabase.handler({
+      action: "createConnector",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "CONNECTOR_NAME_REQUIRED",
+    });
+  });
+
+  it("manageSqlDatabase(createConnector) requires connectorConfig", async () => {
+    const { tools } = createMockServer();
+    const result = await tools.manageSqlDatabase.handler({
+      action: "createConnector",
+      connectorName: "my-db",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "CONNECTOR_CONFIG_REQUIRED",
+    });
+  });
+
+  it("manageSqlDatabase(createConnector) creates a connector via lowcode service", async () => {
+    mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+      if (Action === "CreateDataSource") {
+        return { Data: { Name: "my-db" } };
+      }
+      return { RequestId: "req-1" };
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.manageSqlDatabase.handler({
+      action: "createConnector",
+      connectorName: "my-db",
+      connectorConfig: {
+        host: "10.0.0.1",
+        port: 3306,
+        user: "admin",
+        password: "secret",
+        database: "my_app",
+      },
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCommonServiceCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Action: "CreateDataSource",
+        Param: expect.objectContaining({
+          EnvId: "env-test",
+          Name: "my-db",
+          DbInstanceType: "mysql-connector",
+        }),
+      }),
+    );
+    expect(payload).toMatchObject({
+      success: true,
+      data: { name: "my-db" },
+    });
+    expect(payload.nextActions?.[0]).toMatchObject({
+      tool: "manageSqlDatabase",
+      action: "testConnection",
+    });
+  });
+
+  it("manageSqlDatabase(deleteConnector) requires confirm", async () => {
+    const { tools } = createMockServer();
+    const result = await tools.manageSqlDatabase.handler({
+      action: "deleteConnector",
+      connectorName: "my-db",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "CONFIRM_REQUIRED",
+    });
+  });
+
+  it("manageSqlDatabase(testConnection) tests connectivity via SELECT 1", async () => {
+    const { tools } = createMockServer();
+    const result = await tools.manageSqlDatabase.handler({
+      action: "testConnection",
+      connectorName: "my-db",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCommonServiceCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Action: "RunSql",
+        Param: expect.objectContaining({
+          Sql: "SELECT 1",
+          ReadOnly: true,
+          DbInstance: {
+            EnvId: "env-test",
+            InstanceId: "my-db",
+            Schema: "my-db",
+          },
+        }),
+      }),
+    );
+    expect(payload).toMatchObject({
+      success: true,
+      data: { name: "my-db", connected: true },
+    });
+  });
+
+  it("manageSqlDatabase(testConnection) reports failure when connector is unreachable", async () => {
+    mockCommonServiceCall.mockImplementation(async () => {
+      throw Object.assign(new Error("Database instance not found"), {
+        code: "FailedOperation.DataSourceNotExist",
+      });
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.manageSqlDatabase.handler({
+      action: "testConnection",
+      connectorName: "bad-db",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "CONNECTION_FAILED",
+    });
+  });
+
+  it("manageSqlDatabase(runStatement) routes SQL through connector when connectorName is provided", async () => {
+    const { tools } = createMockServer();
+    await tools.manageSqlDatabase.handler({
+      action: "runStatement",
+      sql: "INSERT INTO users (name) VALUES ('test')",
+      connectorName: "my-external-db",
+    });
+
+    expect(mockCommonServiceCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Action: "RunSql",
+        Param: expect.objectContaining({
+          EnvId: "env-test",
+          Sql: "INSERT INTO users (name) VALUES ('test')",
+          DbInstance: {
+            EnvId: "env-test",
+            InstanceId: "my-external-db",
+            Schema: "my-external-db",
+          },
+        }),
+      }),
+    );
+  });
 });
