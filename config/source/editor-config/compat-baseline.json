@@ -704,7 +704,16 @@
         "rules/ui-design/rule.md": "43c943739781f2707a5b54559b237ed66f30114fd2388db46d89dc667057b53f",
         "rules/web-development/browser-testing.md": "703e35774fe7b9bbb133531fd2f7df6eeca2420567cd70886ef33ebeeebf6614",
         "rules/web-development/frameworks.md": "62fdc117d5174626b032ae51817a125614987eb9264e9a4ac9466d198a8fb6ab",
-        "rules/web-development/rule.md": "4614373678013ccc1f68a511a92c24f2ced4617f6bb9296ba70fa1c6895f5d43"
+        "rules/web-development/rule.md": "4614373678013ccc1f68a511a92c24f2ced4617f6bb9296ba70fa1c6895f5d43",
+        ".agent/rules/ai-model-nodejs/references/tokenhub-direct-access.md": "2e00b4c18fe0bb0ffe6bafccc1302856bc8a045dce0de9f3eb000f8d642bbf7d",
+        ".clinerules/ai-model-nodejs/references/tokenhub-direct-access.md": "2e00b4c18fe0bb0ffe6bafccc1302856bc8a045dce0de9f3eb000f8d642bbf7d",
+        ".codebuddy/skills/ai-model-nodejs/references/tokenhub-direct-access.md": "2e00b4c18fe0bb0ffe6bafccc1302856bc8a045dce0de9f3eb000f8d642bbf7d",
+        ".cursor/rules/ai-model-nodejs/references/tokenhub-direct-access.mdc": "2e00b4c18fe0bb0ffe6bafccc1302856bc8a045dce0de9f3eb000f8d642bbf7d",
+        ".kiro/steering/ai-model-nodejs/references/tokenhub-direct-access.md": "2e00b4c18fe0bb0ffe6bafccc1302856bc8a045dce0de9f3eb000f8d642bbf7d",
+        ".qoder/rules/ai-model-nodejs/references/tokenhub-direct-access.md": "2e00b4c18fe0bb0ffe6bafccc1302856bc8a045dce0de9f3eb000f8d642bbf7d",
+        ".trae/rules/ai-model-nodejs/references/tokenhub-direct-access.md": "2e00b4c18fe0bb0ffe6bafccc1302856bc8a045dce0de9f3eb000f8d642bbf7d",
+        ".windsurf/rules/ai-model-nodejs/references/tokenhub-direct-access.md": "2e00b4c18fe0bb0ffe6bafccc1302856bc8a045dce0de9f3eb000f8d642bbf7d",
+        "rules/ai-model-nodejs/references/tokenhub-direct-access.md": "2e00b4c18fe0bb0ffe6bafccc1302856bc8a045dce0de9f3eb000f8d642bbf7d"
       }
     }
   }
