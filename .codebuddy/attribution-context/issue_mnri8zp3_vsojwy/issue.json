@@ -1,0 +1,47 @@
+{
+  "issueId": "issue_mnri8zp3_vsojwy",
+  "category": "tool",
+  "canonicalTitle": "MCP工具cloudPath参数格式约定不明确导致路径不一致",
+  "resolutionStatus": "in_progress",
+  "owner": "codebuddy-code",
+  "notes": "[rate_limited] | run=application-js-vite-hello-world-hosting-deploy/2026-04-10T03-45-31-sus12x | branch=automation/attribution-issue-mnri8zp3-vsojwy-mcp-cloudpath | files=.agents/skills/mcp-attribution-worktree, .agents/skills/mcp-attribution-worktree/SKILL.md, .agents/skills/mcp-attribution-worktree/references/evaluation-verification.md, .agents/skills/mcp-attribution-worktree/references/iteration-loop.md, .agents/skills/mcp-attribution-worktree/references/report-api-workflow.md, .agents/skills/mcp-attribution-worktree/references/subagent-orchestration.md, .agents/skills/mcp-attribution-worktree/references/value-triage.md, .agents/skills/mcp-attribution-worktree/references/worktree-repair.md, .codebuddy/attribution-context/issue_mnri8zp3_vsojwy/README.md, .codebuddy/attribution-context/issue_mnri8zp3_vsojwy/evaluation-trace.json, .codebuddy/attribution-context/issue_mnri8zp3_vsojwy/issue.json, .codebuddy/attribution-context/issue_mnri8zp3_vsojwy/representative-evidence.json, .codebuddy/attribution-context/issue_mnri8zp3_vsojwy/run-result.json, .codebuddy/attribution-context/issue_mnri8zp3_vsojwy/run-trace.json, .codebuddy/skills/mcp-attribution-worktree, .codebuddy/skills/mcp-attribution-worktree/SKILL.md, .codebuddy/skills/mcp-attribution-worktree/references/evaluation-verification.md, .codebuddy/skills/mcp-attribution-worktree/references/iteration-loop.md, .codebuddy/skills/mcp-attribution-worktree/references/report-api-workflow.md, .codebuddy/skills/mcp-attribution-worktree/references/subagent-orchestration.md, .codebuddy/skills/mcp-attribution-worktree/references/value-triage.md, .codebuddy/skills/mcp-attribution-worktree/references/worktree-repair.md, mcp/src/tools/hosting.ts | summary=agent rate limited (exit=1) README.md tencent-cloud",
+  "runCount": 3,
+  "lastSeenAt": "2026-04-10T03:48:06.185Z",
+  "createdAt": "2026-04-09T13:20:43.192Z",
+  "updatedAt": "2026-04-15T11:39:42.171Z",
+  "runs": [
+    {
+      "caseId": "application-js-vite-hello-world-hosting-deploy",
+      "runId": "2026-04-10T03-45-31-sus12x",
+      "category": "tool",
+      "title": "MCP uploadFiles工具cloudPath参数格式约定不明确导致静态托管路径错误",
+      "status": "done",
+      "runStatus": "fail",
+      "runTs": "2026-04-10T03:45:31.826Z",
+      "runScoreOverall": 0.379,
+      "updatedAt": "2026-04-10T03:48:06.185Z"
+    },
+    {
+      "caseId": "application-js-vite-hello-world-hosting-deploy",
+      "runId": "2026-04-09T16-45-27-p1aere",
+      "category": "tool",
+      "title": "uploadFiles cloudPath 无尾斜杠导致子目录部署 404，文件上传成功但不可访问",
+      "status": "done",
+      "runStatus": "fail",
+      "runTs": "2026-04-09T16:45:27.404Z",
+      "runScoreOverall": 0.351,
+      "updatedAt": "2026-04-09T16:49:02.929Z"
+    },
+    {
+      "caseId": "atomic-js-cloudbase-chain-storage-upload-helloworld-and-poll",
+      "runId": "2026-04-09T13-17-23-jctp3j",
+      "category": "api_design",
+      "title": "存储上传API返回成功但实际对象不存在，缺乏同步确认机制",
+      "status": "done",
+      "runStatus": "fail",
+      "runTs": "2026-04-09T13:17:23.782Z",
+      "runScoreOverall": 0.293,
+      "updatedAt": "2026-04-09T13:21:04.871Z"
+    }
+  ]
+}

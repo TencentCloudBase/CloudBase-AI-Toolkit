@@ -1,0 +1,171 @@
+{
+  "caseId": "application-js-vite-hello-world-hosting-deploy",
+  "runId": "2026-04-10T03-45-31-sus12x",
+  "ts": "2026-04-10T03:45:31.826Z",
+  "agent": {
+    "type": "codebuddy-code",
+    "model": "hunyuan-2.0-thinking-ioa",
+    "rulesRef": "unknown"
+  },
+  "agentSdkVersion": "0.3.117",
+  "mcpVersion": null,
+  "mcpEnabled": true,
+  "tcbCliEnabled": false,
+  "tcbCliVersion": null,
+  "skillSourceRef": "https://github.com/TencentCloudBase/CloudBase-MCP/tree/0dce056894e8d4bf594881cd440de6ed1fb00685/config/allinone/cloudbase",
+  "projectStructure": {
+    "root": ".",
+    "tree": [
+      {
+        "name": ".codebuddy",
+        "type": "dir",
+        "children": [
+          {
+            "name": "skills",
+            "type": "dir",
+            "children": [
+              {
+                "name": "cloudbase",
+                "type": "dir",
+                "children": [
+                  {
+                    "name": "references",
+                    "type": "dir",
+                    "children": [
+                      {
+                        "name": "ai-model-nodejs",
+                        "type": "dir",
+                        "children": [
+                          {
+                            "name": "SKILL.md",
+                            "size": 8174,
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "ai-model-web",
+                        "type": "dir",
+                        "children": [
+                          {
+                            "name": "SKILL.md",
+                            "size": 6021,
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "ai-model-wechat",
+                        "type": "dir",
+                        "children": [
+                          {
+                            "name": "SKILL.md",
+                            "size": 6968,
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "auth-nodejs",
+                        "type": "dir",
+                        "children": [
+                          {
+                            "name": "SKILL.md",
+                            "size": 17480,
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "auth-tool",
+                        "type": "dir",
+                        "children": [
+                          {
+                            "name": "checklist.md",
+                            "size": 1297,
+                            "type": "file"
+                          },
+                          {
+                            "name": "SKILL.md",
+                            "size": 14566,
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "auth-web",
+                        "type": "dir",
+                        "children": [
+                          {
+                            "name": "SKILL.md",
+                            "size": 14072,
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "auth-wechat",
+                        "type": "dir",
+                        "children": [
+                          {
+                            "name": "SKILL.md",
+                            "size": 14360,
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "cloud-functions",
+                        "type": "dir",
+                        "children": [
+                          {
+                            "name": "references",
+                            "type": "dir",
+                            "children": [
+                              {
+                                "name": "event-functions.md",
+                                "size": 3411,
+                                "type": "file"
+                              },
+                              {
+                                "name": "http-functions.md",
+                                "size": 4233,
+                                "type": "file"
+                              },
+                              {
+                                "name": "operations-and-config.md",
+                                "size": 4468,
+                                "type": "file"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "checklist.md",
+                            "size": 1155,
+                            "type": "file"
+                          },
+                          {
+                            "name": "references.md",
+                            "size": 1358,
+                            "type": "file"
+                          },
+                          {
+                            "name": "SKILL.md",
+                            "size": 8776,
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "cloud-storage-web",
+                        "type": "dir",
+                        "children": [
+                          {
+                            "name": "SKILL.md",
+                            "size": 8732,
+                            "type": "file"
+                          }
+                        ]
+                      },
+               
+...[truncated]

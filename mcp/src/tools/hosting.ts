@@ -18,15 +18,42 @@ interface ExtendedEnvInfo {
   [key: string]: any;
 }
 
+function normalizeHostingCloudPath(
+  cloudPath: string | undefined,
+  { forceDirectory }: { forceDirectory?: boolean } = {},
+): string | undefined {
+  if (cloudPath === undefined) return undefined;
+
+  const normalizedCloudPath = cloudPath.trim().replace(/^\/+/, '');
+
+  if (!normalizedCloudPath) {
+    return normalizedCloudPath;
+  }
+
+  if (forceDirectory && !normalizedCloudPath.endsWith('/')) {
+    return `${normalizedCloudPath}/`;
+  }
+
+  return normalizedCloudPath;
+}
+
+function isLocalDirectory(localPath?: string): boolean {
+  if (!localPath) return false;
+
+  try {
+    return fs.statSync(localPath).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 function isDirectoryUploadTarget(localPath?: string, cloudPath?: string): boolean {
+  if (isLocalDirectory(localPath)) {
+    return true;
+  }
+
   if (localPath) {
-    try {
-      if (fs.statSync(localPath).isDirectory()) {
-        return true;
-      }
-    } catch {
-      // Fall back to cloudPath heuristics when local path can't be inspected.
-    }
+    // Fall back to cloudPath heuristics when local path can't be inspected.
   }
 
   const normalizedCloudPath = (cloudPath ?? '').trim();
@@ -69,6 +96,25 @@ function buildUploadFilesErrorMessage(error: unknown, localPath?: string): strin
   return `[uploadFiles] ${baseMessage}\n建议：${suggestions.join(" ")}`;
 }
 
+function normalizeHostingUploadArgs(
+  localPath?: string,
+  cloudPath?: string,
+  files: Array<{ localPath: string; cloudPath: string }> = [],
+) {
+  const normalizedCloudPath = normalizeHostingCloudPath(cloudPath, {
+    forceDirectory: isLocalDirectory(localPath),
+  });
+  const normalizedFiles = files.map((file) => ({
+    ...file,
+    cloudPath: normalizeHostingCloudPath(file.cloudPath) ?? file.cloudPath,
+  }));
+
+  return {
+    cloudPath: normalizedCloudPath,
+    files: normalizedFiles,
+  };
+}
+
 export function registerHostingTools(server: ExtendedMcpServer) {
   // 获取 cloudBaseOptions，如果没有则为 undefined
   const cloudBaseOptions = server.cloudBaseOptions;
@@ -84,11 +130,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
       inputSchema: {
         localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
-        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，例如 files/data.txt。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"),
+        cloudPath: z.string().optional().describe("静态托管相对路径，不要带前导 /。文件示例：vite-demo/index.html；目录示例：vite-demo/。如果传入 /vite-demo 且 localPath 是目录，会自动归一化为 vite-demo/。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"),
         files: z.array(z.object({
           localPath: z.string(),
-          cloudPath: z.string()
-        })).default([]).describe("多文件上传配置"),
+          cloudPath: z.string().describe("静态托管相对文件路径，不要带前导 /，例如 vite-demo/assets/app.js")
+        })).default([]).describe("多文件上传配置；files[].cloudPath 统一使用静态托管相对路径，不要带前导 /。"),
         ignore: z.union([z.string(), z.array(z.string())]).optional().describe("忽略文件模式")
       },
       annotations: {
@@ -106,12 +152,13 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       ignore?: string | string[]
     }) => {
       const cloudbase = await getManager()
+      const normalizedInput = normalizeHostingUploadArgs(localPath, cloudPath, files);
       let result: unknown;
       try {
         result = await cloudbase.hosting.uploadFiles({
           localPath,
-          cloudPath,
-          files,
+          cloudPath: normalizedInput.cloudPath,
+          files: normalizedInput.files,
           ignore
         });
       } catch (error) {
@@ -124,7 +171,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       const envInfo = await cloudbase.env.getEnvInfo() as ExtendedEnvInfo;
       logCloudBaseResult(server.logger, envInfo);
       const staticDomain = envInfo.EnvInfo?.StaticStorages?.[0]?.StaticDomain;
-      const accessUrl = buildHostingAccessUrl(staticDomain, cloudPath, localPath);
+      const accessUrl = buildHostingAccessUrl(staticDomain, normalizedInput.cloudPath, localPath);
 
       // Send deployment notification to CodeBuddy IDE
       try {
@@ -188,7 +235,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       title: "删除静态文件",
       description: "删除静态网站托管的文件或文件夹",
       inputSchema: {
-        cloudPath: z.string().describe("云端文件或文件夹路径"),
+        cloudPath: z.string().describe("静态托管相对路径，不要带前导 /。文件示例：vite-demo/index.html；目录示例：vite-demo/"),
         isDir: z.boolean().default(false).describe("是否为文件夹")
       },
       annotations: {
@@ -201,8 +248,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     },
     async ({ cloudPath, isDir = false }: { cloudPath: string; isDir?: boolean }) => {
       const cloudbase = await getManager()
+      const normalizedCloudPath = normalizeHostingCloudPath(cloudPath, {
+        forceDirectory: isDir,
+      }) ?? cloudPath;
       const result = await cloudbase.hosting.deleteFiles({
-        cloudPath,
+        cloudPath: normalizedCloudPath,
         isDir
       });
       logCloudBaseResult(server.logger, result);
