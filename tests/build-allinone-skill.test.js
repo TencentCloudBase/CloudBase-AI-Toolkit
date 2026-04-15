@@ -91,7 +91,8 @@ test.skipIf(!hasNode24ViaNvm())(
     expect(mainSkill).toContain(`version: ${readSourceGuidelineVersion()}`);
     expect(mainSkill).toContain('references/auth-web/SKILL.md');
     expect(mainSkill).toContain('## Activation Contract');
-    expect(mainSkill).toContain('Provider status and publishable key');
+    expect(mainSkill).toContain('provider and publishable key for Web auth');
+    expect(mainSkill).toContain('raw HTTP APIs');
   },
 );
 
