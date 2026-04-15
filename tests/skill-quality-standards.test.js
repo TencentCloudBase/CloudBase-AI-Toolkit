@@ -103,4 +103,71 @@ describe('skill quality standards', () => {
     expect(reviewReference).toContain('shared rules should have a single canonical source');
     expect(reviewReference).toContain('auth-nodejs');
   });
+
+  test('miniprogram-development closes the preview loop and ships the preview reference', () => {
+    const skill = readSourceSkill('miniprogram-development');
+    const cloudbaseRef = readFile(
+      'config',
+      'source',
+      'skills',
+      'miniprogram-development',
+      'references',
+      'cloudbase-integration.md',
+    );
+    const previewRef = readFile(
+      'config',
+      'source',
+      'skills',
+      'miniprogram-development',
+      'references',
+      'devtools-debug-preview.md',
+    );
+
+    expect(skill).toContain('references/devtools-debug-preview.md');
+    expect(skill).toContain('project.config.json');
+    expect(skill).toContain('miniprogram-ci');
+    expect(skill).toContain('Declaring completion without running a real preview path or clearly stating why preview is blocked.');
+    expect(cloudbaseRef).toContain('validate the changed flow through WeChat Developer Tools, device preview, or `miniprogram-ci`');
+    expect(cloudbaseRef).toContain('reroute to `../../ops-inspector/SKILL.md`');
+    expect(previewRef).toContain('Do not claim the mini program task is complete until one of these is true:');
+    expect(previewRef).toContain('miniprogram-ci preview');
+    expect(previewRef).toContain('ops-inspector');
+  });
+
+  test('runtime guardrail references require evidence, smoke paths, and handoff rules', () => {
+    const browserTesting = readFile(
+      'config',
+      'source',
+      'skills',
+      'web-development',
+      'browser-testing.md',
+    );
+    const functionChecklist = readFile(
+      'config',
+      'source',
+      'skills',
+      'cloud-functions',
+      'checklist.md',
+    );
+    const httpChecklist = readFile(
+      'config',
+      'source',
+      'skills',
+      'http-api',
+      'checklist.md',
+    );
+    const opsInspector = readSourceSkill('ops-inspector');
+
+    expect(browserTesting).toContain('console, network, or runtime evidence');
+    expect(browserTesting).toContain('adjacent smoke interaction');
+    expect(functionChecklist).toContain('post-deploy smoke path');
+    expect(functionChecklist).toContain('Recent logs, runtime evidence, or permission expectations are checked');
+    expect(functionChecklist).toContain('rerouted to `../ops-inspector/SKILL.md`');
+    expect(httpChecklist).toContain('official CloudBase APIs or the user\'s own business API');
+    expect(httpChecklist).toContain('status code, and response shape');
+    expect(httpChecklist).toContain('rerouted to `../ops-inspector/SKILL.md`');
+    expect(opsInspector).toContain('incident time range or observation window');
+    expect(opsInspector).toContain('The incident time range or observation window is fixed before log searches');
+    expect(opsInspector).toContain('Controlled Handoff');
+  });
 });

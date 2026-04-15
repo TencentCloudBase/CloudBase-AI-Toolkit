@@ -15,6 +15,8 @@ This document supplements `SKILL.md` with practical **WeChat Mini Program + Clou
    - Configure appropriate database permissions before relying on client writes.
    - Prefer cloud functions for cross-collection operations and privileged writes.
    - Use `OPENID` from `cloud.getWXContext()` as the stable user identifier on the server side.
+   - Before claiming completion, validate the changed flow through WeChat Developer Tools, device preview, or `miniprogram-ci`, and note any environment or permission blocker explicitly.
+   - If the verified run points to a live runtime, permission, or environment issue instead of an implementation gap, reroute to `../../ops-inspector/SKILL.md` after capturing the affected flow, resource, and time window.
 
 3. **Use correct SDKs and APIs**
    - Mini program client code should use `wx.cloud.database()`, `wx.cloud.callFunction()`, and `wx.cloud.uploadFile()` as appropriate.
@@ -118,9 +120,11 @@ Use the right CloudBase capability in the right layer.
 ## 5. WeChat Developer Tools and Project Shape
 
 - Confirm `project.config.json` includes `appid` before asking the user to open the project.
+- Confirm `project.config.json` points to the correct `miniprogramRoot` before preview, upload, or npm build steps.
 - Mini program source is typically under `miniprogram/`.
 - Cloud functions are typically under `cloudfunctions/`.
 - Generated pages should include companion config files such as `index.json`.
+- For preview, device validation, or CI fallback details, follow `devtools-debug-preview.md` from the same `references/` directory.
 
 ## 6. AI and Model Usage
 

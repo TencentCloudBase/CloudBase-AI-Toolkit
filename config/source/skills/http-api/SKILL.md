@@ -25,12 +25,14 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 - The platform does not support a CloudBase SDK, or the user explicitly asks for HTTP API integration.
 - The user says "HTTP API" but it is unclear whether they mean official CloudBase endpoints or their own business API.
+- The request spans external API contracts, auth choices, and backend integration boundaries; reroute to `../spec-workflow/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/spec-workflow/SKILL.md`) before implementation.
 
 ### Then also read
 
 - Auth configuration -> `../auth-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-tool/SKILL.md`)
 - MySQL MCP management -> `../relational-database-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/relational-database-tool/SKILL.md`)
 - Your own HTTP service on CloudBase -> `../cloud-functions/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloud-functions/SKILL.md`) or `../cloudrun-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudrun-development/SKILL.md`)
+- Live diagnosis after a real API failure -> `../ops-inspector/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/ops-inspector/SKILL.md`)
 
 ### Do NOT use for
 
@@ -43,10 +45,14 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Guessing endpoints without reading OpenAPI definitions.
 - Confusing official CloudBase HTTP APIs with your own function or CloudRun endpoint.
 - Mixing raw HTTP API integration with MCP management logic.
+- Putting API Keys in browser or other untrusted client code.
+- Stopping after drafting request samples without verifying method, path, auth, and response shape against OpenAPI.
 
 ### Minimal checklist
 
 - Read [HTTP API Routing Checklist](checklist.md) before implementation.
+- Fix the official API boundary, auth method, and base URL before writing request code.
+- Verify the final request shape against OpenAPI before claiming the task is complete.
 
 ## When to use this skill
 
@@ -68,10 +74,12 @@ Do **not** use this skill for:
 
 1. **Clarify the scenario**
    - Confirm this code will call HTTP endpoints directly (not SDKs).
+   - Distinguish official CloudBase platform APIs from the user's own HTTP service before you write any request sample.
    - Ask for:
      - `env` – CloudBase environment ID
      - Authentication method (AccessToken, API Key, or Publishable Key)
    - Confirm which CloudBase feature is needed (database, functions, storage, etc.).
+   - If the task mixes external API contract design, backend implementation, and client integration, stop and reroute to `spec-workflow` before continuing.
    - **For user authentication**: If no specific method is requested, **always default to Phone SMS Verification** - it's the most user-friendly and secure option for Chinese users.
 
 2. **Determine the base URL**
@@ -93,6 +101,7 @@ Do **not** use this skill for:
    - Example: `searchKnowledgeBase({ mode: "openapi", apiName: "mysqldb" })`
    - Parse the returned YAML content to understand exact endpoint paths, parameters, request/response schemas
    - Never invent endpoints or parameters - always reference the swagger documentation
+   - Before declaring completion, re-check the final method, path, auth header, and expected response against the OpenAPI contract you used
 
 ---
 

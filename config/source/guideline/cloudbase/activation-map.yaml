@@ -16,12 +16,38 @@ scenarios:
     beforeAction:
       - 先检查并开启所需登录方式，再写前端代码。
       - 优先通过 `queryAppAuth` / `manageAppAuth` 获取 publishable key 并确认使用 Web SDK。
+      - 如果设计方向尚未确定，先转到 `ui-design`；改动完成前至少做一次浏览器级登录流程验证。
     doNotUse:
       - cloud-functions
       - http-api
     commonMistakes:
       - 把 Web 登录实现成云函数认证逻辑。
       - 未开启 provider 就直接生成登录 UI。
+      - 跳过浏览器级验证就宣称登录流程完成。
+
+  - id: web-frontend
+    priority: 94
+    signals:
+      - React 页面
+      - Vue 页面
+      - Vite 项目
+      - 静态托管
+      - browser debug
+      - 浏览器验证
+      - frontend route
+      - 页面调试
+    firstRead: web-development
+    thenRead:
+      - ui-design
+    beforeAction:
+      - 先确认这是 Web 工程实现，不是 UI 方向探索；如果视觉方向未定，先转到 `ui-design`。
+      - 明确改动完成后需要复测的浏览器页面、路由或交互。
+    doNotUse:
+      - cloud-functions
+      - http-api
+    commonMistakes:
+      - 设计方向未定就直接写页面实现。
+      - 改完交互或路由后未做浏览器级 smoke check。
 
   - id: miniapp-cloudbase
     priority: 95
@@ -31,6 +57,11 @@ scenarios:
       - mini program cloudbase
       - OPENID
       - 小程序数据库
+      - project.config.json
+      - appid
+      - miniprogramRoot
+      - WeChat Developer Tools
+      - miniprogram-ci
     firstRead: miniprogram-development
     thenRead:
       - auth-wechat
@@ -38,12 +69,14 @@ scenarios:
     beforeAction:
       - 先确认项目是否真的使用 CloudBase。
       - 使用 wx.cloud 和 OPENID 路径，不要先套 Web 认证模型。
+      - 预览或发布前检查 `project.config.json`、`appid`、`miniprogramRoot`，并明确走 DevTools 还是真机 / `miniprogram-ci` 验证路径。
     doNotUse:
       - auth-web
       - web-development
     commonMistakes:
       - 给小程序生成多余的 Web 登录页。
       - 混用 Web SDK 和小程序 SDK。
+      - 未核对项目配置就直接给出预览或发布建议。
 
   - id: native-http-api
     priority: 100
@@ -53,13 +86,22 @@ scenarios:
       - Flutter CloudBase
       - React Native CloudBase
       - 原生 App 接入
+      - raw HTTP
+      - OpenAPI
+      - curl
+      - RESTful API
+      - admin script
+      - Go CloudBase
+      - Python CloudBase
+      - Java CloudBase
+      - PHP CloudBase
     firstRead: http-api
     thenRead:
       - auth-tool
       - relational-database-tool
     beforeAction:
-      - 先确认当前平台不支持 CloudBase SDK。
-      - 确认 HTTP API 鉴权方式、Base URL 和数据库能力边界；应用侧登录配置仍走 `queryAppAuth` / `manageAppAuth`。
+      - 先确认当前平台不支持 CloudBase SDK，并区分这是官方 CloudBase HTTP API 还是自建业务 API。
+      - 固定 `envId`、region base URL、鉴权方式与 OpenAPI 契约；应用侧登录配置仍走 `queryAppAuth` / `manageAppAuth`。
     doNotUse:
       - auth-web
       - no-sql-web-sdk
@@ -67,6 +109,7 @@ scenarios:
     commonMistakes:
       - 在原生 App 中误用 Web SDK。
       - 未核对 OpenAPI 就猜接口。
+      - 在客户端代码中暴露 API Key。
 
   - id: web-nosql
     priority: 90
@@ -118,19 +161,25 @@ scenarios:
       - getFunctionLogs
       - scf_bootstrap
       - runtime
+      - HTTP Access
+      - Event Function
+      - SSE
+      - WebSocket
     firstRead: cloud-functions
     thenRead:
       - auth-tool
       - ai-model-nodejs
     beforeAction:
-      - 先区分 Event Function 与 HTTP Function。
+      - 先区分 Event Function、HTTP Function 与 CloudRun。
       - 创建前确定 runtime，避免后续不可变限制。
+      - 先区分 HTTP Access 与 HTTP Function 不是同一个实现模型，并明确交付前的访问路径或日志验证动作。
     doNotUse:
       - cloudrun-development
       - auth-web
     commonMistakes:
       - 把 Web 登录逻辑错误地放进云函数。
       - HTTP 函数遗漏 `scf_bootstrap` 或 9000 端口要求。
+      - 把 gateway / HTTP Access 当成 HTTP Function 运行模型。
 
   - id: cloudrun-backend
     priority: 85
@@ -208,7 +257,7 @@ scenarios:
       - cloudrun-development
     beforeAction:
       - 先确认环境已绑定且 CLS 日志服务已开通。
-      - 收集所有资源状态后再下结论，避免孤立分析单一日志。
+      - 先固定日志时间范围并列出目标资源，再汇总资源状态后下结论，避免孤立分析单一日志。
     doNotUse:
       - ui-design
       - spec-workflow

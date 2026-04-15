@@ -28,6 +28,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 - The task includes project structure, framework conventions, build config, deployment, routing, or frontend test and validation flows.
 - The request includes UI implementation but the visual direction is already fixed; otherwise read `ui-design` first.
+- The request spans multiple pages, shared backend contracts, or unclear acceptance boundaries; reroute to `../spec-workflow/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/spec-workflow/SKILL.md`) before implementation.
 
 ### Then also read
 
@@ -35,6 +36,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Browser flow checks or page validation -> `browser-testing.md`
 - Login flow -> `../auth-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-tool/SKILL.md`), then `../auth-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-web/SKILL.md`)
 - CloudBase database work -> matching database skill
+- Cross-module planning or unclear acceptance -> `../spec-workflow/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/spec-workflow/SKILL.md`)
 
 ### Do NOT use for
 
@@ -46,6 +48,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Starting implementation before clarifying whether the task is design or engineering execution.
 - Mixing framework setup, deployment, and CloudBase integration concerns into one vague change.
 - Treating cloud functions as the default solution for Web authentication.
+- Skipping `spec-workflow` when the request spans multiple pages, shared contracts, or unclear acceptance.
 - Skipping browser-level validation after a UI or routing change.
 - In an existing application, detouring into UI redesign or broad repo sweeps before patching the current handlers and services.
 
@@ -70,6 +73,7 @@ Use this skill for Web engineering work such as:
    - Confirm whether the task is framework setup, page implementation, debugging, deployment, validation, or CloudBase integration.
    - Keep the work scoped to the actual Web app surface instead of spreading into unrelated backend changes.
    - If the workspace is an existing application with TODOs, treat it as a targeted repair task, not a greenfield build.
+   - If the request expands into cross-page UX, shared backend contracts, or unclear acceptance boundaries, stop and reroute to `spec-workflow` before continuing.
 
 2. **Follow framework and build conventions**
    - Prefer the existing project stack if one already exists.
@@ -105,7 +109,8 @@ Use this skill for Web engineering work such as:
 
 - Run the relevant local build or test command when available
 - Open the affected page or flow in a browser when behavior depends on rendering, interaction, or navigation
-- Record what was checked: route, action, expected result, and any remaining gap
+- Re-run the exact interaction that motivated the change before claiming completion
+- Record what was checked: route, action, expected result, actual result, and any remaining gap
 
 ## CloudBase Web integration
 

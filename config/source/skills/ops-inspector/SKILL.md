@@ -25,6 +25,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 ### Read before writing code if
 
+- The user has not yet identified the target environment, affected resources, or incident time range.
 - The inspection reveals code-level issues in cloud functions or CloudRun services — then read the relevant implementation skill before suggesting fixes.
 - The user wants to fix a problem found during inspection rather than just diagnose it.
 
@@ -38,7 +39,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 ### Do NOT use for
 
 - Deploying new resources or writing application code. This skill is read-only and diagnostic.
-- Replacing proper monitoring/alerting infrastructure. It provides point-in-time inspection, not continuous monitoring.
+- Replacing proper monitoring or alerting infrastructure. It provides point-in-time inspection, not continuous monitoring.
 - Directly fixing problems — it diagnoses and recommends; actual fixes should use the appropriate implementation skill.
 
 ### Common mistakes / gotchas
@@ -47,14 +48,15 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Ignoring CLS log service status — if CLS is not enabled, `queryLogs` will fail; always check first with `queryLogs(action="checkLogService")`.
 - Searching logs without a time range — this can return excessive or irrelevant results. Always scope searches to a relevant time window.
 - Treating a single error log as the root cause without correlating across resources. A function error may stem from a database or config issue.
+- Recommending code changes before recording the incident window, affected resources, and evidence that supports the diagnosis.
 
 ### Minimal checklist
 
 - [ ] Environment is bound and accessible (`envQuery(action="info")`)
 - [ ] CLS log service is enabled (`queryLogs(action="checkLogService")`)
+- [ ] The incident time range or observation window is fixed before log searches
 - [ ] All target resources are listed before diving into details
-- [ ] Time range is specified for any log searches
-- [ ] Findings are summarized with severity levels and actionable recommendations
+- [ ] Findings are summarized with severity, evidence, and the next handoff target if a code fix is needed
 
 ---
 
@@ -68,6 +70,17 @@ The skill supports two modes based on user intent:
 |------|-------------|-------|
 | **Full inspection** | User asks for a general health check / 巡检 / 全面检查 | All resource types in the environment |
 | **Targeted inspection** | User reports a specific error or asks about a specific resource | One resource type or a specific resource |
+
+### Shared prerequisites
+
+Before any inspection, capture or derive these fields:
+
+- `envId` or the currently bound environment
+- affected resource type and names when known
+- incident time range or observation window
+- reported symptom, error text, or failing route if available
+
+If any of these are missing, gather them before broad log searches or deep diagnosis.
 
 ### Full Inspection Workflow
 
@@ -89,49 +102,57 @@ queryLogs(action="checkLogService")
 
 If CLS is not enabled, note this as a **warning** — log-based diagnosis will be unavailable. Recommend enabling CLS in the console: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/devops/log`
 
-**Step 3 — Cloud Functions Inspection**
+**Step 3 — Resource Inventory**
+
+List the resources that belong to the current inspection scope before narrowing down details.
 
 ```
 queryFunctions(action="listFunctions")
-```
-
-For each function, check:
-- **Status**: Is the function in an active/deployed state?
-- **Recent errors**: `queryFunctions(action="listFunctionLogs", functionName="<name>", startTime="<recent>")`
-- **Common issues**:
-  - Timeout errors (execution exceeded limit)
-  - Memory limit exceeded
-  - Runtime errors (unhandled exceptions)
-  - Cold start frequency
-
-**Step 4 — CloudRun Services Inspection**
-
-```
 queryCloudRun(action="list")
 ```
 
-For each service, check:
+Record which resources are relevant to the current symptom. Do not assume every returned resource is involved.
+
+**Step 4 — Cloud Functions Inspection**
+
+For each relevant function, check:
+
+- **Status**: Is the function in an active or deployed state?
+- **Recent errors**: `queryFunctions(action="listFunctionLogs", functionName="<name>", startTime="<recent>")`
+- **Common issues**:
+  - timeout errors (execution exceeded limit)
+  - memory limit exceeded
+  - runtime errors (unhandled exceptions)
+  - cold start frequency
+  - permission or gateway mismatch
+
+**Step 5 — CloudRun Services Inspection**
+
+For each relevant service, check:
+
 - **Status**: Is the service running?
 - **Detail**: `queryCloudRun(action="detail", detailServerName="<name>")`
 - **Common issues**:
-  - Service not running (scaled to zero or crashed)
-  - Image pull failures
+  - service not running (scaled to zero or crashed)
+  - image pull failures
   - OOMKilled events
-  - Health check failures
+  - health check failures
 
-**Step 5 — Error Log Aggregation** (if CLS is enabled)
+**Step 6 — Error Log Aggregation** (if CLS is enabled)
 
 ```
-queryLogs(action="searchLogs", queryString="ERROR", service="tcb", startTime="<24h-ago>", limit=50)
-queryLogs(action="searchLogs", queryString="ERROR", service="tcbr", startTime="<24h-ago>", limit=50)
+queryLogs(action="searchLogs", queryString="ERROR", service="tcb", startTime="<start>", endTime="<end>", limit=50)
+queryLogs(action="searchLogs", queryString="ERROR", service="tcbr", startTime="<start>", endTime="<end>", limit=50)
 ```
 
 Look for patterns:
-- Repeated error messages (same error many times)
-- Cascading failures (errors in multiple services around the same time)
-- Timeout patterns
 
-**Step 6 — Summary Report**
+- repeated error messages (same error many times)
+- cascading failures (errors in multiple services around the same time)
+- timeout patterns
+- one resource failing because another dependency is unhealthy
+
+**Step 7 — Summary Report**
 
 Generate a structured report:
 
@@ -140,6 +161,7 @@ Generate a structured report:
 
 **Environment**: ${envId}
 **Inspection Time**: ${timestamp}
+**Observation Window**: ${startTime} -> ${endTime}
 
 ## Overall Health: ✅ Healthy / ⚠️ Warnings Found / ❌ Issues Found
 
@@ -154,12 +176,16 @@ Generate a structured report:
 | ... | ... | ... | ... |
 
 ### Error Log Summary
-- Total errors in last 24h: N
+- Total errors in window: N
 - Top error patterns: ...
+- Correlated resources: ...
 
 ## Recommendations
 1. ...
 2. ...
+
+## Next Handoff
+- Continue in `cloud-functions` / `cloudrun-development` / database skill only if the inspection confirms a concrete implementation or config fix path.
 
 ## Console Links
 - Cloud Functions: https://tcb.cloud.tencent.com/dev?envId=${envId}#/scf
@@ -176,6 +202,8 @@ When the user specifies a resource type or a specific resource:
 3. **Database issues**: Check `querySqlDatabase` or `readNoSqlDatabaseStructure` depending on type
 4. **General error search**: `queryLogs(action="searchLogs", queryString="<error-keyword>", ...)`
 
+Always keep the search window aligned with the reported incident instead of using unbounded historical queries.
+
 ### AIOps Methodology
 
 This skill follows AIOps principles for intelligent inspection:
@@ -184,6 +212,7 @@ This skill follows AIOps principles for intelligent inspection:
 2. **Pattern Recognition**: Identify recurring errors, anomaly patterns, and correlations across services
 3. **Root Cause Hypothesis**: Based on error patterns, suggest likely root causes (e.g., a function timeout may be caused by a database query bottleneck)
 4. **Actionable Recommendations**: Provide specific, prioritized remediation steps with links to relevant skills and console pages
+5. **Controlled Handoff**: When a fix is required, route the user to the implementation skill with environment, resource, and evidence context instead of restarting from scratch
 
 ### Severity Levels
 
@@ -229,7 +258,7 @@ This skill follows AIOps principles for intelligent inspection:
 - **Trend analysis**: Last 7 days
 - **Specific incident**: Narrow to the reported time window
 
-Always use ISO 8601 format for `startTime`/`endTime`, e.g., `"2025-01-15 00:00:00"`.
+Always use ISO 8601 format for `startTime` / `endTime`, e.g. `"2025-01-15 00:00:00"`.
 
 ## Related Skills
 

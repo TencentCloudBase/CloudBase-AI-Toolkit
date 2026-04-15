@@ -31,32 +31,40 @@ If a skill points to its own `references/...` files, keep following those relati
 - If the task includes UI, read `ui-design` first and output the design specification before interface code.
 - If the task includes login, registration, or auth configuration, read `auth-tool` first and enable required providers before frontend implementation.
 - Keep auth domains separate: management-side login uses `auth`; app-side auth configuration uses `queryAppAuth` / `manageAppAuth`.
+- If the request is cross-module, architecture-heavy, or has unclear acceptance boundaries, reroute to `spec-workflow` before implementation.
+- Confirm scenario prerequisites before implementation: provider and publishable key for Web auth, `wx.cloud` and project config for mini programs, `envId` plus region/auth/OpenAPI for raw HTTP APIs, function type/runtime for cloud functions, and CLS with a time range for diagnostics.
 
 ### Universal guardrails
 
 - If the same implementation path fails 2-3 times, stop retrying and reroute. Re-check the selected platform skill, runtime, auth domain, permission model, and SDK boundary before editing more code.
 - Always specify `EnvId` explicitly in code, configuration, and command examples when initializing CloudBase clients or manager operations. Do not rely on the current CLI-selected environment, implicit defaults, or copied local state.
+- Do not guess MCP tool schemas, OpenAPI contracts, gateway payloads, or SDK method shapes from memory. Read the relevant schema, docs, or reference first.
+- Before claiming the task is complete, close the loop with the platform-native validation path: browser flow for Web, preview / device or CI validation for mini programs, request verification for raw HTTP APIs, and access or log checks for runtime resources.
+- If the task has shifted from implementation to diagnosing a live failure, reroute to `ops-inspector` after confirming environment access, log prerequisites, and the relevant observation window.
 - Keep scenario-specific pitfall lists in the matching child skills instead of expanding this entry file.
 
 ### High-priority routing
 
 | Scenario | Read first | Then read | Do NOT route to first | Must check before action |
 |----------|------------|-----------|------------------------|--------------------------|
-| Web login / registration / auth UI | `auth-tool` | `auth-web`, `web-development` | `cloud-functions`, `http-api` | Provider status and publishable key |
-| WeChat mini program + CloudBase | `miniprogram-development` | `auth-wechat`, `no-sql-wx-mp-sdk` | `auth-web`, `web-development` | Whether the project really uses CloudBase / `wx.cloud` |
-| Native App / Flutter / React Native | `http-api` | `auth-tool`, `relational-database-tool` | `auth-web`, `web-development`, `no-sql-web-sdk` | SDK boundary, OpenAPI, auth method |
-| Cloud Functions | `cloud-functions` | domain skill as needed | `cloudrun-development` | Event vs HTTP function, runtime, `scf_bootstrap` |
+| Web login / registration / auth UI | `auth-tool` | `auth-web`, `web-development` | `cloud-functions`, `http-api` | Provider status, publishable key, and browser verification path |
+| Web frontend / static hosting / browser debug | `web-development` | `ui-design`, domain skill as needed | `cloud-functions`, `http-api` | Whether the design is already fixed and which browser flow must be rechecked |
+| WeChat mini program + CloudBase | `miniprogram-development` | `auth-wechat`, `no-sql-wx-mp-sdk` | `auth-web`, `web-development` | Whether the project really uses CloudBase / `wx.cloud`, and whether `project.config.json` is preview-ready |
+| Native App / raw HTTP / admin script | `http-api` | `auth-tool`, `relational-database-tool` | `auth-web`, `web-development`, `no-sql-web-sdk` | SDK boundary, official CloudBase API vs self-built API, OpenAPI, base URL, and auth method |
+| Cloud Functions | `cloud-functions` | domain skill as needed | `cloudrun-development` | Event vs HTTP function vs CloudRun, runtime, `scf_bootstrap`, and delivery verification path |
 | CloudRun backend | `cloudrun-development` | domain skill as needed | `cloud-functions` | Container boundary, Dockerfile, CORS |
-| AI Agent (智能体开发) | `cloudbase-agent` |  domain skill as needed | `cloud-functions`,`cloudrun-development`, | AG-UI protocol, scf_bootstrap, SSE streaming |
+| AI Agent (智能体开发) | `cloudbase-agent` | domain skill as needed | `cloud-functions`, `cloudrun-development` | AG-UI protocol, `scf_bootstrap`, SSE streaming |
 | UI generation | `ui-design` | platform skill | backend-only skills | Design specification first |
 | Spec workflow / architecture design | `spec-workflow` | `cloudbase` and platform skill | direct implementation skills | Requirements, design, tasks confirmed |
-| Resource health inspection / troubleshooting / 巡检 / 诊断 | `ops-inspector` | `cloud-functions`, `cloudrun-development` | `ui-design`, `spec-workflow` | CLS enabled, time range for logs |
+| Resource health inspection / troubleshooting / 巡检 / 诊断 | `ops-inspector` | `cloud-functions`, `cloudrun-development` | `ui-design`, `spec-workflow` | Environment binding, CLS enabled, resource inventory, and time range for logs |
 
 ### Routing reminders
 
 - Web auth failures are usually caused by skipping provider configuration, not by missing frontend code snippets.
+- Requests that say “HTTP API” often mix two meanings; distinguish CloudBase official APIs from self-built business endpoints before picking `http-api`.
 - Native App failures are usually caused by reading Web SDK paths, not by missing HTTP API knowledge.
-- Mini program failures are usually caused by treating `wx.cloud` like Web auth or Web SDK.
+- Mini program failures are usually caused by treating `wx.cloud` like Web auth or Web SDK, or by skipping `project.config.json` / `appid` checks before preview.
+- Diagnostic failures are usually caused by skipping CLS readiness, time-range scoping, or cross-resource correlation.
 
 ### Web SDK quick reminder
 

@@ -28,6 +28,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - You still need to decide between Event Function and HTTP Function.
 - The task mentions `manageFunctions`, `queryFunctions`, `manageGateway`, or legacy function-tool names.
 - The task might require `callCloudApi` as a fallback for logs or gateway setup.
+- The request spans function runtime, access paths, permissions, and upstream client contracts; reroute to `../spec-workflow/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/spec-workflow/SKILL.md`) before implementation.
 
 ### Then also read
 
@@ -36,6 +37,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - AI in functions -> `../ai-model-nodejs/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/ai-model-nodejs/SKILL.md`)
 - Long-lived container services or Agent runtimes -> `../cloudrun-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudrun-development/SKILL.md`)
 - Calling CloudBase official platform APIs from a client or script -> `../http-api/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/http-api/SKILL.md`)
+- Live failure diagnosis after deployment -> `../ops-inspector/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/ops-inspector/SKILL.md`)
 
 ### Do NOT use for
 
@@ -53,12 +55,14 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Forgetting that runtime cannot be changed after creation.
 - Using cloud functions as the first answer for Web login.
 - Forgetting that HTTP Functions must ship `scf_bootstrap`, listen on port `9000`, and include dependencies.
+- Stopping after code generation without checking the delivery path, function logs, or permission / access expectations.
 
 ### Minimal checklist
 
 - Read [Cloud Functions Execution Checklist](checklist.md) before deployment or runtime changes.
 - Decide whether the task is Event Function, HTTP Function, or actually CloudRun.
 - Pick the detailed reference file in [references.md](references.md) before writing implementation code.
+- For HTTP-facing delivery, decide how access path, permissions, and post-deploy logs will be verified before declaring completion.
 
 ## Overview
 
@@ -100,6 +104,7 @@ Use this skill when developing, deploying, and operating CloudBase cloud functio
    - Use `manageFunctions(action="updateFunctionCode")` for code updates
    - Keep `functionRootPath` as the parent directory of the function folder
    - Use CLI only as a fallback when MCP tools are unavailable
+   - For HTTP-facing delivery, define how you will verify gateway access, permission expectations, and recent logs before claiming the function is ready
 
 4. **Prefer doc-first fallbacks**
    - If a task falls back to `callCloudApi`, first check the official docs or knowledge-base entry for that action

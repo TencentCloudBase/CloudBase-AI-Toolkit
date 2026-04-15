@@ -23,12 +23,16 @@ Keep local `references/...` paths for files that ship with the current skill dir
 ### Read before writing code if
 
 - The user mentions `wx.cloud`, CloudBase mini programs, OPENID, or mini program deployment/debug workflows.
+- The task involves preview, upload, or release steps that depend on `project.config.json`, `appid`, `miniprogramRoot`, or `miniprogram-ci`.
+- The request spans app-level routing, release workflow, or unclear acceptance boundaries; reroute to `../spec-workflow/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/spec-workflow/SKILL.md`) before implementation.
 
 ### Then also read
 
 - CloudBase auth -> `../auth-wechat/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-wechat/SKILL.md`)
 - CloudBase document DB -> `../no-sql-wx-mp-sdk/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/no-sql-wx-mp-sdk/SKILL.md`)
+- Debugging, preview, publishing, or no-DevTools fallback -> `references/devtools-debug-preview.md`
 - UI generation -> `../ui-design/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/ui-design/SKILL.md`) first
+- Cross-module planning or unclear acceptance -> `../spec-workflow/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/spec-workflow/SKILL.md`)
 
 ### Do NOT use for
 
@@ -39,6 +43,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Generating a Web-style login flow for mini programs.
 - Mixing Web SDK assumptions into `wx.cloud` projects.
 - Applying CloudBase constraints before confirming the project actually uses CloudBase.
+- Skipping `project.config.json` / `appid` / `miniprogramRoot` checks before preview or publish steps.
+- Declaring completion without running a real preview path or clearly stating why preview is blocked.
 
 ## When to use this skill
 
@@ -68,6 +74,7 @@ Use this skill for **WeChat Mini Program development** when you need to:
    - Keep mini program source under the configured mini program root
    - Ensure page files include the required configuration file such as `index.json`
    - Check `project.config.json` before suggesting preview or IDE workflows
+   - If the task expands into app-level routing, release workflow, or unclear acceptance boundaries, reroute to `spec-workflow` before implementation
 
 3. **Route by scenario**
    - If the task involves CloudBase, `wx.cloud`, cloud functions, CloudBase database/storage, or CloudBase identity handling, read [CloudBase integration reference](references/cloudbase-integration.md)
@@ -81,6 +88,8 @@ Use this skill for **WeChat Mini Program development** when you need to:
 5. **Recommend the right preview/debug path**
    - Prefer WeChat Developer Tools for simulator, panel-based debugging, preview, and real-device validation
    - If WeChat Developer Tools is unavailable, use `miniprogram-ci` for preview, upload, and npm build workflows where appropriate
+   - Before declaring completion, record which preview path was used, what route or interaction was checked, and any remaining blocker such as missing `appid`, private key, or device access
+   - If a real preview run reveals a live CloudBase runtime or environment issue, reroute to `../ops-inspector/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/ops-inspector/SKILL.md`) after recording the preview path, time window, and affected resource
 
 ---
 
@@ -135,6 +144,7 @@ Keep the custom `tabBar` layout text-only, and use flex centering or matching `h
 
 - If WeChat Developer Tools is available, use it as the primary path for simulator debugging, panel inspection, preview, and device validation
 - If WeChat Developer Tools is not available, use `miniprogram-ci` as the fallback path for preview, upload, and npm build-related automation
+- Do not claim the task is complete until at least one preview path has been executed or a concrete blocker is recorded
 - For detailed workflows, read [debug and preview reference](references/devtools-debug-preview.md)
 
 ## Minimal project skeleton

@@ -71,9 +71,26 @@ describe('skill activation routing contract', async () => {
 
     expect(byId.get('web-auth').firstRead).toBe('auth-tool');
     expect(byId.get('web-auth').doNotUse).toContain('cloud-functions');
+
+    expect(byId.get('web-frontend').firstRead).toBe('web-development');
+    expect(byId.get('web-frontend').doNotUse).toContain('http-api');
+    expect(byId.get('web-frontend').beforeAction.join(' ')).toContain('浏览器');
+
+    expect(byId.get('miniapp-cloudbase').firstRead).toBe('miniprogram-development');
+    expect(byId.get('miniapp-cloudbase').doNotUse).toContain('auth-web');
+    expect(byId.get('miniapp-cloudbase').beforeAction.join(' ')).toContain('project.config.json');
+    expect(byId.get('miniapp-cloudbase').beforeAction.join(' ')).toContain('miniprogram-ci');
+
     expect(byId.get('native-http-api').firstRead).toBe('http-api');
     expect(byId.get('native-http-api').doNotUse).toContain('auth-web');
+    expect(byId.get('native-http-api').commonMistakes).toContain('在客户端代码中暴露 API Key。');
+
     expect(byId.get('cloud-functions').doNotUse).toContain('cloudrun-development');
+    expect(byId.get('cloud-functions').beforeAction.join(' ')).toContain('日志验证');
+
+    expect(byId.get('ops-inspector').firstRead).toBe('ops-inspector');
+    expect(byId.get('ops-inspector').beforeAction.join(' ')).toContain('时间范围');
+
     expect(byId.get('ui-first').firstRead).toBe('ui-design');
   });
 });
