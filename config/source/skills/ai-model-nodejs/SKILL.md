@@ -1,6 +1,6 @@
 ---
 name: ai-model-nodejs
-description: Use this skill when developing Node.js backend services or CloudBase cloud functions (Express/Koa/NestJS, serverless, backend APIs) that need AI capabilities. Features text generation (generateText), streaming (streamText), AND image generation (generateImage) via @cloudbase/node-sdk ≥3.16.0. Built-in models include Hunyuan (hunyuan-2.0-instruct-20251111 recommended), DeepSeek (deepseek-v3.2 recommended), and hunyuan-image for images. This is the ONLY SDK that supports image generation. NOT for browser/Web apps (use ai-model-web) or WeChat Mini Program (use ai-model-wechat).
+description: Use this skill when developing Node.js backend services or CloudBase cloud functions (Express/Koa/NestJS, serverless, backend APIs) that need CloudBase AI managed model capabilities via @cloudbase/node-sdk ≥3.16.0. It covers generateText, streamText, and CloudBase-managed generateImage(); within the CloudBase SDK family, Node SDK is the only SDK that exposes managed image generation. Do NOT use this skill when the user explicitly wants to call Tencent Cloud / Hunyuan model APIs directly, use separate cloud-side quotas or billing, or avoid the CloudBase AI managed access layer. Not for browser/Web apps (use ai-model-web) or WeChat Mini Program (use ai-model-wechat).
 version: 2.18.0
 alwaysApply: false
 ---
@@ -16,31 +16,48 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 ## When to use this skill
 
-Use this skill for **calling AI models in Node.js backend or CloudBase cloud functions** using `@cloudbase/node-sdk`.
+Use this skill for **calling CloudBase AI managed models in Node.js backends or CloudBase cloud functions** using `@cloudbase/node-sdk`.
 
 **Use it when you need to:**
 
-- Integrate AI text generation in backend services
-- Generate images with Hunyuan Image model
-- Call AI models from CloudBase cloud functions
-- Server-side AI processing
+- Integrate CloudBase AI managed text generation in backend services
+- Generate images through CloudBase AI's managed `generateImage()` entry
+- Call CloudBase AI models from CloudBase cloud functions or Node.js servers
+- Keep model access on the server side behind your backend or function
 
 **Do NOT use for:**
 
 - Browser/Web apps → use `ai-model-web` skill
 - WeChat Mini Program → use `ai-model-wechat` skill
-- HTTP API integration → use `http-api` skill
+- Requests that explicitly require direct Tencent Cloud / Hunyuan model HTTP API access
+- Scenarios that require provider-native quotas, billing, API keys, or parameters instead of CloudBase AI managed access
 
 ---
 
 ## Available Providers and Models
 
-CloudBase provides these built-in providers and models:
+CloudBase AI currently exposes these managed providers and models through Node SDK:
 
 | Provider | Models | Recommended |
 |----------|--------|-------------|
 | `hunyuan-exp` | `hunyuan-turbos-latest`, `hunyuan-t1-latest`, `hunyuan-2.0-thinking-20251109`, `hunyuan-2.0-instruct-20251111` | ✅ `hunyuan-2.0-instruct-20251111` |
 | `deepseek` | `deepseek-r1-0528`, `deepseek-v3-0324`, `deepseek-v3.2` | ✅ `deepseek-v3.2` |
+
+> **Important:** This table describes the models exposed by **CloudBase AI's managed access layer**. It does **not** mean this skill covers every direct Tencent Cloud / Hunyuan API or every provider-native feature.
+
+## Scope boundary: CloudBase-managed vs direct cloud model access
+
+- `app.ai().createModel()` and `createImageModel()` go through **CloudBase AI's managed access layer**.
+- Use this skill when the user wants CloudBase cloud functions / CloudRun / Node.js backends to consume **CloudBase AI** models.
+- Do **not** force this skill when the user explicitly says “直接调用腾讯云上的模型 / 混元 API”, cares about separate Tencent Cloud quotas or billing, or needs provider-native API behavior.
+- In those direct-cloud cases, keep CloudBase only as the runtime host and call the provider's official API from backend code after consulting the official docs.
+
+## If the user explicitly wants TokenHub direct access
+
+- Read `references/tokenhub-direct-access.md` before proposing code.
+- Treat **TokenHub** as the direct cloud model platform and **Token Plan** as the IDE / AI coding tools subscription, not a backend API entitlement.
+- Do **not** recommend Token Plan API keys for cloud functions, cron jobs, backend services, or custom application servers.
+- In this repo's wording, describe the built-in managed route as the **mini program incentive / growth-plan managed path**; do not present it as the general-purpose direct-cloud API route.
 
 ---
 
@@ -170,7 +187,9 @@ const usage = await res.usage;        // Token usage
 
 ## generateImage() - Image Generation
 
-⚠️ **Image generation is only available in Node SDK**, not in JS SDK (Web) or WeChat Mini Program.
+⚠️ **Within the CloudBase SDK family, managed image generation is only available in Node SDK**, not in JS SDK (Web) or WeChat Mini Program.
+
+⚠️ `generateImage()` here belongs to **CloudBase AI's managed access layer**. It is **not** the same as directly calling Tencent Cloud / Hunyuan image APIs. If the user explicitly wants provider-side billing, quota, API keys, or native API behavior, use a backend HTTP client against the official provider API instead of assuming this method.
 
 ```js
 const imageModel = ai.createImageModel("hunyuan-image");
