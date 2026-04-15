@@ -44,6 +44,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Replacing built-in Web auth with cloud function login logic.
 - Reusing this flow in Flutter, React Native, or native iOS/Android code.
 - Creating a detached helper file with `auth.signUp` / `verifyOtp` but never wiring it into the existing form handlers, so the actual button clicks still do nothing.
+- Treating email OTP registration as a one-step API or rebuilding the verification call inside the register handler, so the register button state never matches the real sign-up progress.
 - Using `signInWithEmailAndPassword` or `signUpWithEmailAndPassword` for username-style accounts such as `admin` and `editor`.
 - Keeping the login or register account input as `type="email"` when the task explicitly says the account identifier is a plain username string.
 - Starting implementation before calling `queryAppAuth(action="getLoginConfig")` and enabling `usernamePassword` when it is still off.
@@ -78,6 +79,7 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 - `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })` are the canonical username/password Web auth path
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
 - `verifyOtp({ token })` expects the SMS or email code in `token`
+- Email OTP registration is a two-step flow: call `auth.signUp({ email, ... })` in the send-code action, store the returned `data.verifyOtp` handler, then complete registration from the register button with `verifyOtp({ token })`
 - `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
 - Never set `accessKey` to `envId`, a username, or any placeholder string. If you do not have a real Publishable Key yet, do not fabricate one.
 - If the task mentions provider setup, stop and read `auth-tool-cloudbase` before writing frontend code
@@ -179,23 +181,24 @@ const handleSendCode = async () => {
   try {
     const { data, error } = await auth.signUp({
       email,
-      name: username || email.split('@')[0],
+      nickname: email.split('@')[0],
     })
     if (error) throw error
-    setSignUpData(data)
+    if (!data?.verifyOtp) throw new Error('CloudBase did not return verifyOtp for email sign-up')
+    setSignUpData(data) // keep the returned verifyOtp handler in component state
   } catch (error) {
     console.error('Failed to send sign-up code', error)
   }
 }
+
+const canRegister = !!signUpData?.verifyOtp && code.trim().length > 0
 
 const handleRegister = async () => {
   try {
     if (!signUpData?.verifyOtp) throw new Error('Please send the code first')
 
     const { error } = await signUpData.verifyOtp({
-      email,
       token: code,
-      type: 'signup',
     })
     if (error) throw error
   } catch (error) {
@@ -203,6 +206,8 @@ const handleRegister = async () => {
   }
 }
 ```
+
+For split-button register forms, the register button should derive its enabled state from `!!signUpData?.verifyOtp`, the current code input, and any loading flag. Do not call `auth.signUp` again inside `handleRegister`, and do not pass extra fields such as `email` or `type` to `verifyOtp` unless `sdkHints` explicitly says to.
 
 **5. Anonymous**
 - Automatically use `auth-tool-cloudbase` to turn on `Anonymous Login` through `manageAppAuth`
