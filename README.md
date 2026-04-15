@@ -411,6 +411,8 @@ CodeBuddy 已内置 CloudBase MCP，无需配置即可使用。
 
 ### 最新文章
 
+- [AI Coding全流程教程——0基础搭建"MEMO"健康打卡全栈应用](https://juejin.cn/post/7591655106723987456)
+- [【Skills 实战】AI 编程的下半场：别让 AI 写的代码只活在 localhost 里](https://juejin.cn/post/7599630795805016110)
 - [一个人就是一支团队：OpenClaw+CloudBase实现全自动开发上线](https://mp.weixin.qq.com/s/vKcnro2GrbjI_QyQohpNRw)
 - [Agent Skills实战分享：AI编程最后一公里，别让代码死在localhost里](https://mp.weixin.qq.com/s/soIEU5DG01xfrKMaCetGAA)
 - [查看更多视频与教程](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/tutorials)

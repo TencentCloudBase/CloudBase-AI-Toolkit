@@ -25,6 +25,28 @@ const TERMINAL_ORDER = ['小程序', 'Web', '小游戏', '原生应用'];
 const tutorials: Tutorial[] = [
   // 文章
   {
+    id: 'article-ai-coding-memo-health-checkin',
+    title: 'AI Coding全流程教程——0基础搭建"MEMO"健康打卡全栈应用',
+    description: '掘金技术社区',
+    category: '文章',
+    url: 'https://juejin.cn/post/7591655106723987456',
+    type: 'article',
+    terminalTags: ['Web'],
+    appTypeTags: ['工具/效率'],
+    devToolTags: ['CodeBuddy'],
+  },
+  {
+    id: 'article-ai-coding-last-mile',
+    title: '【Skills 实战】AI 编程的下半场：别让 AI 写的代码只活在 localhost 里',
+    description: '掘金技术社区',
+    category: '文章',
+    url: 'https://juejin.cn/post/7599630795805016110',
+    type: 'article',
+    terminalTags: ['Web', '小程序'],
+    appTypeTags: ['工具/效率'],
+    devToolTags: ['Cursor', 'CodeBuddy'],
+  },
+  {
     id: 'article-qiyi-ai-app-community',
     title: '不会代码，她靠AI开发了APP，要把10万用户的社区运营起来',
     description: '云开发团队',
@@ -388,6 +410,18 @@ const tutorials: Tutorial[] = [
     devToolTags: ['Cursor', 'Figma'],
   },
   // 视频
+  {
+    id: 'video-ios-app-codebuddy-cloudbase',
+    title: '我帮大家把路铺平了！联合腾讯工程师优化 CodeBuddy 后，零基础做个带后端的 iOS App 竟然这么简单？',
+    description: '经本正一',
+    category: '视频教程',
+    url: 'https://www.bilibili.com/video/BV1iUcszSEUG/',
+    type: 'video',
+    thumbnail: 'https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/video-thumbnails/BV1iUcszSEUG.jpg',
+    terminalTags: ['原生应用'],
+    appTypeTags: ['工具/效率'],
+    devToolTags: ['CodeBuddy'],
+  },
   {
     id: 'video-vibecoding-compare-coze-cloudbase',
     title: 'vibecoding托管平台对比 扣子 vs cloudbase',

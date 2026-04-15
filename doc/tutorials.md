@@ -6,6 +6,8 @@ import TutorialsGrid from './components/TutorialsGrid';
 
 ## 最近新增文章
 
+- `2026-01-27` [【Skills 实战】AI 编程的下半场：别让 AI 写的代码只活在 localhost 里](https://juejin.cn/post/7599630795805016110)
+- `2026-01-05` [AI Coding全流程教程——0基础搭建"MEMO"健康打卡全栈应用](https://juejin.cn/post/7591655106723987456)
 - `2026-03-11` [一个人就是一支团队：OpenClaw+CloudBase实现全自动开发上线](https://mp.weixin.qq.com/s/vKcnro2GrbjI_QyQohpNRw)
 - `2026-01-28` [Agent Skills实战分享：AI编程最后一公里，别让代码死在localhost里](https://mp.weixin.qq.com/s/soIEU5DG01xfrKMaCetGAA)
 
