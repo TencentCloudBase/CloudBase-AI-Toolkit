@@ -94,13 +94,43 @@ describe("log tools", () => {
       success: true,
       data: {
         action: "searchLogs",
+        aliasOf: "searchClsLog",
       },
     });
   });
 
-  it("searchClsLog tool should be registered and search cls logs", async () => {
+  it("searchClsLog should expose the canonical log search entry", async () => {
+    const result = await tools.searchClsLog.handler({
+      queryString: 'request_id:"req-search-logs"',
+      startTime: "2026-04-01 00:00:00",
+      endTime: "2026-04-01 23:59:59",
+      limit: 5,
+      sort: "desc",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockSearchClsLog).toHaveBeenCalledWith({
+      queryString: 'request_id:"req-search-logs"',
+      StartTime: "2026-04-01 00:00:00",
+      EndTime: "2026-04-01 23:59:59",
+      Limit: 5,
+      Context: undefined,
+      Sort: "desc",
+      service: undefined,
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "searchClsLog",
+        aliasOf: "queryLogs(action=searchLogs)",
+        queryString: 'request_id:"req-search-logs"',
+      },
+    });
+  });
+
+  it("searchClsLog should register a read-only canonical entry", async () => {
     expect(tools.searchClsLog).toBeDefined();
-    expect(tools.searchClsLog.meta.title).toBe("搜索 CLS 日志");
+    expect(tools.searchClsLog.meta.title).toBe("按 requestId 或 CLS 语句搜索日志");
     expect(tools.searchClsLog.meta.annotations.readOnlyHint).toBe(true);
 
     const result = await tools.searchClsLog.handler({
@@ -124,13 +154,15 @@ describe("log tools", () => {
     expect(payload).toMatchObject({
       success: true,
       data: {
+        action: "searchClsLog",
+        aliasOf: "queryLogs(action=searchLogs)",
         queryString: "level:error",
       },
     });
   });
 
   it("searchClsLog should error when queryString is missing", async () => {
-    const result = await tools.searchClsLog.handler({});
+    const result = await tools.searchClsLog.handler({} as any);
     const payload = JSON.parse(result.content[0].text);
 
     expect(payload).toMatchObject({

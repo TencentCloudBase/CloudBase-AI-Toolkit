@@ -6,11 +6,22 @@ import { jsonContent } from "../utils/json-content.js";
 const QUERY_LOG_ACTIONS = ["checkLogService", "searchLogs"] as const;
 
 type QueryLogAction = (typeof QUERY_LOG_ACTIONS)[number];
+type LogService = "tcb" | "tcbr";
 
 type ToolEnvelope = {
   success: boolean;
   data: Record<string, unknown>;
   message: string;
+};
+
+type SearchClsLogInput = {
+  queryString: string;
+  service?: LogService;
+  startTime?: string;
+  endTime?: string;
+  limit?: number;
+  context?: string;
+  sort?: "asc" | "desc";
 };
 
 function buildEnvelope(data: Record<string, unknown>, message: string): ToolEnvelope {
@@ -29,63 +40,58 @@ function buildErrorEnvelope(error: unknown): ToolEnvelope {
   };
 }
 
+function buildSearchClsLogPayload({
+  queryString,
+  service,
+  startTime,
+  endTime,
+  limit,
+  context,
+  sort,
+}: SearchClsLogInput) {
+  return {
+    queryString,
+    StartTime: startTime ?? "1970-01-01 00:00:00",
+    EndTime: endTime ?? "2099-12-31 23:59:59",
+    Limit: limit ?? 20,
+    Context: context,
+    Sort: sort,
+    service,
+  };
+}
+
 export function registerLogTools(server: ExtendedMcpServer) {
   const cloudBaseOptions = server.cloudBaseOptions;
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
 
-  async function handleSearchClsLog({
-    queryString,
-    service,
-    startTime,
-    endTime,
-    limit,
-    context,
-    sort,
-  }: {
-    queryString?: string;
-    service?: "tcb" | "tcbr";
-    startTime?: string;
-    endTime?: string;
-    limit?: number;
-    context?: string;
-    sort?: "asc" | "desc";
-  }) {
-    try {
-      if (!queryString) {
-        throw new Error("必须提供 queryString");
-      }
-      const cloudbase = await getManager();
-      const result = await cloudbase.log.searchClsLog({
-        queryString,
-        StartTime: startTime ?? "1970-01-01 00:00:00",
-        EndTime: endTime ?? "2099-12-31 23:59:59",
-        Limit: limit ?? 20,
-        Context: context,
-        Sort: sort,
-        service,
-      });
-      logCloudBaseResult(server.logger, result);
-      return jsonContent(
-        buildEnvelope(
-          {
-            queryString,
-            results: result.LogResults ?? null,
-            raw: result,
-          },
-          "日志检索成功",
-        ),
-      );
-    } catch (error) {
-      return jsonContent(buildErrorEnvelope(error));
-    }
-  }
+  const runSearchClsLog = async (
+    input: SearchClsLogInput,
+    action: "searchLogs" | "searchClsLog",
+    aliasOf?: string,
+  ) => {
+    const cloudbase = await getManager();
+    const result = await cloudbase.log.searchClsLog(buildSearchClsLogPayload(input));
+    logCloudBaseResult(server.logger, result);
+    return jsonContent(
+      buildEnvelope(
+        {
+          action,
+          aliasOf,
+          queryString: input.queryString,
+          results: result.LogResults ?? null,
+          raw: result,
+        },
+        "日志检索成功",
+      ),
+    );
+  };
 
   server.registerTool?.(
     "queryLogs",
     {
       title: "查询日志服务",
       description:
-        "日志域统一只读入口。支持检查日志服务状态并搜索 CLS 日志。（原工具名：searchClsLog，为兼容旧AI规则可继续使用该名称；action=searchLogs 与 searchClsLog 工具等价）",
+        "日志域统一只读入口。支持检查日志服务状态，并通过 action=\"searchLogs\" 调用与 CloudBase Manager `searchClsLog` 对齐的 CLS 检索能力。（原工具名：searchClsLog，为兼容旧 AI 规则可继续使用该名称）",
       inputSchema: {
         action: z.enum(QUERY_LOG_ACTIONS),
         queryString: z.string().optional(),
@@ -114,7 +120,7 @@ export function registerLogTools(server: ExtendedMcpServer) {
     }: {
       action: QueryLogAction;
       queryString?: string;
-      service?: "tcb" | "tcbr";
+      service?: LogService;
       startTime?: string;
       endTime?: string;
       limit?: number;
@@ -136,15 +142,23 @@ export function registerLogTools(server: ExtendedMcpServer) {
           );
         }
 
-        return handleSearchClsLog({
-          queryString,
-          service,
-          startTime,
-          endTime,
-          limit,
-          context,
-          sort,
-        });
+        if (!queryString) {
+          throw new Error("action=searchLogs 时必须提供 queryString");
+        }
+
+        return await runSearchClsLog(
+          {
+            queryString,
+            service,
+            startTime,
+            endTime,
+            limit,
+            context,
+            sort,
+          },
+          "searchLogs",
+          "searchClsLog",
+        );
       } catch (error) {
         return jsonContent(buildErrorEnvelope(error));
       }
@@ -154,11 +168,11 @@ export function registerLogTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "searchClsLog",
     {
-      title: "搜索 CLS 日志",
+      title: "按 requestId 或 CLS 语句搜索日志",
       description:
-        "搜索 CLS 日志的直接入口，与 queryLogs(action=\"searchLogs\") 等价。当已知 CloudBase Manager SDK 的 searchClsLog 方法名时可直接使用此工具。",
+        "直接暴露 CloudBase Manager `searchClsLog` 能力，适合按 requestId、关键词或完整 CLS 查询语句检索日志。与 queryLogs(action=\"searchLogs\") 等价，但名称更贴近底层能力。",
       inputSchema: {
-        queryString: z.string(),
+        queryString: z.string().describe("CLS 查询语句，例如 request_id:\"<requestId>\" 或关键词条件"),
         service: z.enum(["tcb", "tcbr"]).optional(),
         startTime: z.string().optional(),
         endTime: z.string().optional(),
@@ -172,6 +186,36 @@ export function registerLogTools(server: ExtendedMcpServer) {
         category: "logs",
       },
     },
-    handleSearchClsLog,
+    async ({
+      queryString,
+      service,
+      startTime,
+      endTime,
+      limit,
+      context,
+      sort,
+    }: SearchClsLogInput) => {
+      try {
+        if (!queryString) {
+          throw new Error("必须提供 queryString");
+        }
+
+        return await runSearchClsLog(
+          {
+            queryString,
+            service,
+            startTime,
+            endTime,
+            limit,
+            context,
+            sort,
+          },
+          "searchClsLog",
+          "queryLogs(action=searchLogs)",
+        );
+      } catch (error) {
+        return jsonContent(buildErrorEnvelope(error));
+      }
+    },
   );
 }
