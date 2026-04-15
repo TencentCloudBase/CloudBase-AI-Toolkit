@@ -53,6 +53,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Forgetting that runtime cannot be changed after creation.
 - Using cloud functions as the first answer for Web login.
 - Forgetting that HTTP Functions must ship `scf_bootstrap`, listen on port `9000`, and include dependencies.
+- Assuming `manageFunctions(action="createFunction")` alone makes an HTTP Function externally reachable. URL delivery still needs explicit gateway access, and anonymous callers may still hit function-permission errors.
+- Copying legacy tool names such as `writeSecurityRule` literally instead of translating them to `queryPermissions` / `managePermissions`.
 
 ### Minimal checklist
 
@@ -99,6 +101,9 @@ Use this skill when developing, deploying, and operating CloudBase cloud functio
    - Use `manageFunctions(action="createFunction")` for creation
    - Use `manageFunctions(action="updateFunctionCode")` for code updates
    - Keep `functionRootPath` as the parent directory of the function folder
+   - If the HTTP Function must be reachable by URL, follow deployment with `manageGateway(action="createAccess")` and confirm the route with `queryGateway(action="getAccess")`
+   - If the caller needs anonymous or broader access, inspect `queryPermissions(action="getResourcePermission", resourceType="function")` first and only then adjust with `managePermissions(action="updateResourcePermission")`
+   - Translate legacy names before acting: `createFunctionHTTPAccess` -> `manageGateway(action="createAccess")`, `readSecurityRule` -> `queryPermissions(...)`, `writeSecurityRule` -> `managePermissions(...)`
    - Use CLI only as a fallback when MCP tools are unavailable
 
 4. **Prefer doc-first fallbacks**

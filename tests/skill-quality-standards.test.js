@@ -82,6 +82,16 @@ describe('skill quality standards', () => {
     expect(raw).toMatch(/path-to-regexp/);
   });
 
+  test('cloud-functions skill makes HTTP delivery follow-up explicit', () => {
+    const raw = readSourceSkill('cloud-functions');
+
+    expect(raw).toContain('manageGateway(action="createAccess")');
+    expect(raw).toContain('queryGateway(action="getAccess")');
+    expect(raw).toContain('queryPermissions(action="getResourcePermission", resourceType="function")');
+    expect(raw).toContain('managePermissions(action="updateResourcePermission")');
+    expect(raw).toContain('`writeSecurityRule` -> `managePermissions(...)`');
+  });
+
   test('cloudbase-agent does not force global activation by default', () => {
     const raw = readSourceSkill('cloudbase-agent');
 
