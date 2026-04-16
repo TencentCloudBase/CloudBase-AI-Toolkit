@@ -1220,9 +1220,9 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     QUERY_SQL_DATABASE,
     {
-      title: "Query SQL database state or execute read-only SQL",
+      title: "Query SQL database / MySQL tables / schema / read-only SQL",
       description:
-        "Query SQL database information. Supports read-only SQL execution, MySQL provisioning result lookup, MySQL task status lookup, and current instance context discovery.",
+        "Query CloudBase SQL database and MySQL state. Supports read-only SQL execution, table/schema inspection, query result lookup, MySQL provisioning result lookup, MySQL task status lookup, and current instance context discovery. Use this for database query, SQL select, table data inspection, schema context lookup, and read-only database troubleshooting.",
       inputSchema: {
         action: z
           .enum(QUERY_ACTIONS)
@@ -1270,9 +1270,9 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     MANAGE_SQL_DATABASE,
     {
-      title: "Manage SQL database lifecycle or execute write SQL",
+      title: "Manage SQL database / MySQL lifecycle / schema / write SQL",
       description:
-        "Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, write SQL/DDL execution, and schema initialization. IMPORTANT: MySQL must be provisioned first (action=provisionMySQL with confirm=true) before any runStatement or initializeSchema call. If MySQL is not yet provisioned, the tool will return MYSQL_NOT_CREATED with a nextAction to provision first.",
+        "Manage CloudBase SQL database and MySQL resources. Supports MySQL provisioning, MySQL destruction, write SQL/DDL execution, table creation, schema initialization, and database lifecycle operations. Use this for creating tables, altering schema, executing insert/update/delete statements, and provisioning or destroying MySQL. IMPORTANT: MySQL must be provisioned first (action=provisionMySQL with confirm=true) before any runStatement or initializeSchema call. If MySQL is not yet provisioned, the tool will return MYSQL_NOT_CREATED with a nextAction to provision first.",
       inputSchema: {
         action: z
           .enum(MANAGE_ACTIONS)

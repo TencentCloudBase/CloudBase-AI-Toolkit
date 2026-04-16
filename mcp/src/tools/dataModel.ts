@@ -625,9 +625,9 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "manageDataModel",
     {
-      title: "数据模型管理",
+      title: "数据模型管理（model / schema / collection 设计）",
       description:
-        "数据模型查询工具，支持查询和列表数据模型（只读操作）。通过 action 参数区分操作类型：list=获取模型列表（不含Schema，可选 names 参数过滤），get=查询单个模型详情（含Schema字段列表、格式、关联关系等，需要提供 name 参数），docs=生成SDK使用文档（需要提供 name 参数）",
+        "CloudBase 数据模型（data model）与 schema 设计查询工具，支持查询和列表模型定义（只读操作）。适用于查看模型 schema、字段结构、关联关系、collection 设计与 SDK 文档。通过 action 参数区分操作类型：list=获取模型列表（不含Schema，可选 names 参数过滤），get=查询单个模型详情（含Schema字段列表、格式、关联关系等，需要提供 name 参数），docs=生成SDK使用文档（需要提供 name 参数）",
       inputSchema: {
         action: z
           .enum(["get", "list", "docs"])
@@ -991,9 +991,9 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "modifyDataModel",
     {
-      title: "修改数据模型（当前仅支持创建）",
+      title: "修改数据模型（当前仅支持创建 model / schema）",
       description:
-        "基于Mermaid classDiagram创建数据模型。为保持兼容性，工具名仍为 modifyDataModel；当前仅支持创建新模型，不支持更新现有模型结构。内置异步任务监控，自动轮询直至完成或超时。",
+        "基于 Mermaid classDiagram 创建 CloudBase 数据模型（data model）与 schema。为保持兼容性，工具名仍为 modifyDataModel；当前仅支持创建新模型，不支持更新现有模型结构。适用于通过自然语言设计 collection/model schema 后落地创建。内置异步任务监控，自动轮询直至完成或超时。",
       inputSchema: {
         mermaidDiagram: z.string()
           .describe(`Mermaid classDiagram代码，描述数据模型结构。

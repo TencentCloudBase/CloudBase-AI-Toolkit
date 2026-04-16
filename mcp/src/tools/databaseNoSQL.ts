@@ -310,9 +310,9 @@ export function registerDatabaseTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "readNoSqlDatabaseStructure",
     {
-      title: "读取 NoSQL 数据库结构",
+      title: "读取 NoSQL 数据库结构（集合 / collection / 索引 / index）",
       description:
-        "读取 NoSQL 数据库集合与索引结构，支持列出集合、查看集合详情、列出索引以及检查索引是否存在。",
+        "读取 CloudBase NoSQL 云数据库的结构信息，支持集合（collection）与索引（index）发现，包括列出集合、查看集合详情、列出索引以及检查索引是否存在。适用于数据库表结构、集合结构、索引结构、schema 概览等只读查询。",
       inputSchema: {
         action: z.enum([
           "listCollections",
@@ -498,9 +498,9 @@ checkIndex: 检查指定索引是否存在`),
   server.registerTool?.(
     "writeNoSqlDatabaseStructure",
     {
-      title: "修改 NoSQL 数据库结构",
+      title: "修改 NoSQL 数据库结构（集合 / collection / 索引 / index）",
       description:
-        "修改 NoSQL 数据库结构，支持创建/删除集合，以及通过 updateCollection 的 updateOptions.CreateIndexes / updateOptions.DropIndexes 添加索引和删除索引。",
+        "修改 CloudBase NoSQL 云数据库结构，支持创建/删除集合（collection），以及通过 updateCollection 的 updateOptions.CreateIndexes / updateOptions.DropIndexes 添加索引和删除索引。适用于数据库建表、集合初始化、索引配置、schema 调整等写操作。",
       inputSchema: {
         action: z.enum([
           "createCollection",
@@ -669,8 +669,9 @@ deleteCollection: 删除集合`),
   server.registerTool?.(
     "readNoSqlDatabaseContent",
     {
-      title: "查询并获取 NoSQL 数据库数据记录",
-      description: "查询并获取 NoSQL 数据库数据记录",
+      title: "查询 NoSQL 数据库文档 / 记录 / document / record",
+      description:
+        "查询 CloudBase NoSQL 云数据库中的文档（document）/ 记录（record）/ 数据行，支持按集合（collection）读取、过滤、排序、分页与字段投影。适用于查数据、读表内容、查询 collection 文档列表、按条件搜索记录等只读场景。",
       inputSchema: {
         collectionName: z.string().describe("集合名称"),
         instanceId: z
@@ -771,9 +772,9 @@ deleteCollection: 删除集合`),
   server.registerTool?.(
     "writeNoSqlDatabaseContent",
     {
-      title: "修改 NoSQL 数据库数据记录",
+      title: "修改 NoSQL 数据库文档 / 记录 / document / record",
       description:
-        "修改 NoSQL 数据库数据记录。可按 MongoDB updateOne/updateMany 的心智模型理解：部分更新必须使用 `$set`、`$inc`、`$push` 等更新操作符；如果直接传“字段到值的普通对象”这类内容，底层会把它当作替换内容，存在覆盖整条文档的风险。更新嵌套对象中的某个字段时必须使用点号路径，例如把 `address.city` 设为 `shenzhen`；如果把整个 `address` 对象作为 `$set` 的值传入，则整个 `address` 对象会被替换，同级其他字段将丢失。若集合中的角色/档案文档会在前端通过 `db.collection(...).doc(uid)` 读取，请确保文档 `_id` 就是该 `uid`；不要用按 `uid` 条件查询再配合 `upsert=true` 的方式去更新 `users` / `profiles`，否则经常会生成一个不同的 `_id`，导致后续 `doc(uid)` 读取命中不到。",
+        "修改 CloudBase NoSQL 云数据库中的文档（document）/ 记录（record）数据，支持 insert、update、delete。适用于新增数据、更新 collection 文档、删除记录、写入表内容等场景。可按 MongoDB updateOne/updateMany 的心智模型理解：部分更新必须使用 `$set`、`$inc`、`$push` 等更新操作符；如果直接传“字段到值的普通对象”这类内容，底层会把它当作替换内容，存在覆盖整条文档的风险。更新嵌套对象中的某个字段时必须使用点号路径，例如把 `address.city` 设为 `shenzhen`；如果把整个 `address` 对象作为 `$set` 的值传入，则整个 `address` 对象会被替换，同级其他字段将丢失。若集合中的角色/档案文档会在前端通过 `db.collection(...).doc(uid)` 读取，请确保文档 `_id` 就是该 `uid`；不要用按 `uid` 条件查询再配合 `upsert=true` 的方式去更新 `users` / `profiles`，否则经常会生成一个不同的 `_id`，导致后续 `doc(uid)` 读取命中不到。",
       inputSchema: {
         action: z
           .enum(["insert", "update", "delete"])
