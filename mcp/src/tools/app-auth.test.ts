@@ -197,6 +197,10 @@ describe("app auth tools", () => {
       envId: "env-test",
       sdkStyle: "supabase-like",
       sdkHints: expectedSdkHints,
+      presetAccountHint: {
+        tool: "queryPermissions",
+        supportedActions: ["getUser", "listUsers"],
+      },
       loginMethods: {
         usernamePassword: true,
         email: true,
@@ -287,6 +291,10 @@ describe("app auth tools", () => {
         email: true,
         anonymous: true,
         phone: false,
+      },
+      presetAccountHint: {
+        tool: "queryPermissions",
+        supportedActions: ["getUser", "listUsers"],
       },
       next_step: {
         tool: "manageAppAuth",

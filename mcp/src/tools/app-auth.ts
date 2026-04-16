@@ -192,6 +192,19 @@ function buildLoginConfigNextStep(loginMethods: ReturnType<typeof buildLoginMeth
   };
 }
 
+function buildPresetAccountHint() {
+  return {
+    tool: "queryPermissions",
+    supportedActions: ["getUser", "listUsers"],
+    note:
+      "预置测试账号、管理员账号或评测账号属于环境侧应用用户，可按普通用户名字符串直接查询，不需要邮箱语义。",
+    examples: [
+      'queryPermissions({ action: "getUser", username: "admin" })',
+      'queryPermissions({ action: "listUsers", username: "editor" })',
+    ],
+  };
+}
+
 function extractProviders(value: unknown): Array<Record<string, unknown>> {
   const payload = normalizePlainObject(value, "providersResult");
   const providers = payload?.Providers ?? payload?.ProviderList ?? payload?.Data ?? [];
@@ -402,6 +415,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
               success: true,
               envId,
               loginMethods,
+              presetAccountHint: buildPresetAccountHint(),
               ...(nextStep ? { next_step: nextStep } : {}),
               ...(webSdkHint ? { webSdkHint } : {}),
             });
