@@ -50,6 +50,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Confusing official CloudBase API client work with building your own HTTP function.
 - Mixing Event Function code shape (`exports.main(event, context)`) with HTTP Function code shape (`req` / `res` on port `9000`).
 - Treating HTTP Access as the implementation model for HTTP Functions. HTTP Access is a gateway configuration for Event Functions, not the HTTP Function runtime model.
+- Assuming an HTTP Function automatically gets a browser/public URL path, or assuming that path is always `/{functionName}`.
+- Writing gateway prefixes such as `/api/httpDemo` into the function router itself. Public gateway path and in-function route path are different layers.
 - Forgetting that runtime cannot be changed after creation.
 - Using cloud functions as the first answer for Web login.
 - Forgetting that HTTP Functions must ship `scf_bootstrap`, listen on port `9000`, and include dependencies.
@@ -198,6 +200,8 @@ server.listen(9000);
 - `queryGateway(action="getAccess")`
 - `manageGateway(action="createAccess")`
 - If gateway operations need raw cloud API fallback, read `./references/operations-and-config.md` first
+
+When a user says they need browser/public access, do not assume creation already exposed the function. HTTP Function runtime routes still live inside the function, while gateway access adds an external path prefix separately.
 
 ## Related skills
 
