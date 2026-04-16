@@ -318,7 +318,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
     {
       title: "查询权限与用户配置",
       description:
-        "权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。",
+        "权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。排查用户名密码登录、预置测试账号或登录账号不匹配时，先用 `action=listUsers` / `action=getUser` 按 `username` 查询环境中已存在的 Auth 用户，确认 `admin`、`editor` 等账号是否真实存在，而不是重复创建不同账号。",
       inputSchema: {
         action: z.enum(QUERY_PERMISSION_ACTIONS),
         resourceType: z
@@ -329,8 +329,11 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
         roleId: z.string().optional(),
         roleIdentity: z.string().optional(),
         roleName: z.string().optional(),
-        uid: z.string().optional(),
-        username: z.string().optional(),
+        uid: z.string().optional().describe("`action=getUser` 时可按 uid 精确查询应用侧 Auth 用户。"),
+        username: z
+          .string()
+          .optional()
+          .describe("`action=listUsers` / `action=getUser` 时按用户名筛选，适合检查 `admin`、`editor` 这类预置账号是否已经存在。"),
         pageNo: z.number().optional(),
         pageSize: z.number().optional(),
       },
