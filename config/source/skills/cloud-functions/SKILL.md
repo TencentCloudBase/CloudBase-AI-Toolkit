@@ -53,6 +53,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Forgetting that runtime cannot be changed after creation.
 - Using cloud functions as the first answer for Web login.
 - Forgetting that HTTP Functions must ship `scf_bootstrap`, listen on port `9000`, and include dependencies.
+- Assuming HTTP Functions imply Express. Node.js HTTP Functions can be implemented with the native `http` module; if no framework is requested, prefer a small raw `http.createServer(...)` implementation and parse the request body explicitly.
 
 ### Minimal checklist
 
@@ -71,6 +72,7 @@ Use this skill when developing, deploying, and operating CloudBase cloud functio
 
 - If the request is for SDK calls, timers, or event-driven workflows, write an **Event Function** with `exports.main = async (event, context) => {}`.
 - If the request is for REST APIs, browser-facing endpoints, SSE, or WebSocket, write an **HTTP Function** with `req` / `res` on port `9000`.
+- For Node.js HTTP Functions, `req` / `res` does not require Express. When the user asks for native Node.js or does not request a framework, use the built-in `http` module and handle JSON parsing, routes, and status codes yourself.
 - If the user mentions HTTP access for an existing Event Function, keep the Event Function code shape and add gateway access separately.
 
 ## Quick decision table
