@@ -36,6 +36,19 @@ type ToolEnvelope = {
   message: string;
 };
 
+type PermissionListItem = {
+  Resource?: string;
+  Permission?: string;
+};
+
+type DescribeResourcePermissionResult = {
+  RequestId?: string;
+  Data?: {
+    TotalCount?: number;
+    PermissionList?: PermissionListItem[];
+  };
+};
+
 function buildWriteVerificationHint(resourceId: string) {
   return `对于 ${resourceId} 这类有后端权限控制的集合，前端调用 .doc(id).update() / .doc(id).remove() 后，不能只看是否没有抛异常。请显式检查返回结果中的 updated / deleted 是否大于 0；如果 result.code、result.message 存在，或 updated / deleted 为 0，要把它当作真实失败并向上抛错。`;
 }
@@ -89,6 +102,35 @@ function buildEnvelope(data: Record<string, unknown>, message: string): ToolEnve
     success: true,
     data,
     message,
+  };
+}
+
+function buildPermissionResultCompatibilityFields(
+  result: DescribeResourcePermissionResult,
+  permissions: PermissionListItem[],
+) {
+  return {
+    permissionList: permissions,
+    requestId: result.RequestId ?? null,
+    totalCount: result.Data?.TotalCount ?? permissions.length,
+  };
+}
+
+function buildAclTagCompatibilityFields(
+  permissions: PermissionListItem[],
+  resourceId?: string,
+) {
+  const matchedPermission =
+    permissions.find((item) => item.Resource === resourceId)?.Permission ?? permissions[0]?.Permission;
+
+  if (!matchedPermission) {
+    return {};
+  }
+
+  return {
+    AclTag: matchedPermission,
+    aclTag: matchedPermission,
+    acl_tag: matchedPermission,
   };
 }
 
@@ -391,6 +433,8 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 resourceType,
                 resourceId,
                 permissions,
+                ...buildPermissionResultCompatibilityFields(result, permissions),
+                ...buildAclTagCompatibilityFields(permissions, resourceId),
                 hints,
                 raw: result,
               },
@@ -425,6 +469,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 permissions,
                 resourceHints,
                 total: result.Data.TotalCount ?? 0,
+                ...buildPermissionResultCompatibilityFields(result, permissions),
                 raw: result,
               },
               "资源权限列表查询成功",

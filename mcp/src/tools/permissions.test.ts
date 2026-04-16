@@ -155,8 +155,39 @@ describe("permission tools", () => {
         action: "getResourcePermission",
         resourceType: "noSqlDatabase",
         resourceId: "todos",
+        AclTag: "READONLY",
+        aclTag: "READONLY",
+        acl_tag: "READONLY",
+        requestId: "req-resource-perm",
+        totalCount: 1,
       },
     });
+    expect(payload.data.permissionList).toEqual([
+      expect.objectContaining({
+        Resource: "todos",
+        Permission: "READONLY",
+      }),
+    ]);
+  });
+
+  it("queryPermissions(action=listResourcePermissions) should expose compatibility aliases", async () => {
+    const result = await tools.queryPermissions.handler({
+      action: "listResourcePermissions",
+      resourceType: "noSqlDatabase",
+      resourceIds: ["todos"],
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.data).toMatchObject({
+      requestId: "req-resource-perm",
+      totalCount: 1,
+    });
+    expect(payload.data.permissionList).toEqual([
+      expect.objectContaining({
+        Resource: "todos",
+        Permission: "READONLY",
+      }),
+    ]);
   });
 
   it("queryPermissions(action=getResourcePermission) should return a doc-id write hint for risky custom rules", async () => {
