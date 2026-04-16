@@ -28,6 +28,7 @@ If a skill points to its own `references/...` files, keep following those relati
 - Identify the scenario first, then read the matching source skill before writing code or calling CloudBase APIs.
 - Prefer semantic sources when maintaining the toolkit, but express runtime routing in stable skill identifiers rather than repo-only paths. Do not treat generated, mirrored, or IDE-specific artifacts as the primary knowledge source.
 - Use MCP or mcporter first for CloudBase management tasks, and inspect tool schemas before execution.
+- When the task asks you to create a local artifact such as `RESULT.json`, a report, or an export file, write it under the workspace project root instead of the MCP package directory or a temp directory. Resolve the root with `WORKSPACE_FOLDER_PATHS`, then `PROJECT_ROOT`, then `GITHUB_WORKSPACE`, then the current working directory. If the user gives only a filename, place it at that root; if the user gives a relative path, resolve it from that root.
 - If the task includes UI, read `ui-design` first and output the design specification before interface code.
 - If the task includes login, registration, or auth configuration, read `auth-tool` first and enable required providers before frontend implementation.
 - Keep auth domains separate: management-side login uses `auth`; app-side auth configuration uses `queryAppAuth` / `manageAppAuth`.
