@@ -65,6 +65,29 @@ describe('skill quality standards', () => {
     expect(raw).toMatch(/cost/i);
   });
 
+  test('cloudbase env guidance resolves aliases to canonical EnvId before binding or init', () => {
+    const guideline = readFile('config', 'source', 'guideline', 'cloudbase', 'SKILL.md');
+    const platform = readSourceSkill('cloudbase-platform');
+    const editorGuide = readFile(
+      'config',
+      'source',
+      'editor-config',
+      'guides',
+      'cloudbase-rules.mdc',
+    );
+
+    expect(guideline).toContain('aliasExact=true');
+    expect(guideline).toMatch(/do not pass it directly/i);
+    expect(guideline).toMatch(/canonical full `EnvId`/);
+
+    expect(platform).toContain('aliasExact=true');
+    expect(platform).toMatch(/short form/i);
+    expect(platform).toMatch(/use the returned full `EnvId`/);
+
+    expect(editorGuide).toContain('aliasExact=true');
+    expect(editorGuide).toMatch(/Do not pass alias-like short forms directly/i);
+  });
+
   test('cloud-functions http reference stays compatible with Express 5 wildcard syntax', () => {
     const raw = readFile(
       'config',

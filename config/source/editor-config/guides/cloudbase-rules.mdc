@@ -373,6 +373,8 @@ For example, many interfaces require a confirm parameter, which is a boolean typ
 
 ### Environment ID Auto-Configuration Rules
 - When generating project configuration files (such as `cloudbaserc.json`, `project.config.json`, etc.), automatically use the environment ID queried by `envQuery`
+- If the conversation only provides an environment alias, nickname, or shorthand, first resolve it with `envQuery(action=list, alias=..., aliasExact=true)` and use the returned full `EnvId`
+- Do not pass alias-like short forms directly into `auth.set_env`, SDK init, console links, or generated config files; if the alias is ambiguous or missing, stop and ask the user to confirm
 - In code examples involving environment ID, automatically fill in current environment ID, no need for manual user replacement
 - In deployment and preview related operations, prioritize using already queried environment information
 
