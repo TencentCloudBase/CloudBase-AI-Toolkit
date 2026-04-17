@@ -101,12 +101,18 @@ Use this skill when developing, deploying, and operating CloudBase cloud functio
    - Keep `functionRootPath` as the parent directory of the function folder
    - Use CLI only as a fallback when MCP tools are unavailable
 
-4. **Prefer doc-first fallbacks**
+4. **Verify the deployed function before concluding**
+   - For Event Functions, use `manageFunctions(action="invokeFunction")` with a realistic payload instead of assuming deployment success means runtime correctness
+   - Capture any returned request or invocation identifier and follow with `queryFunctions(action="listFunctionLogs")` or `queryFunctions(action="getFunctionLogDetail")` when the function output is empty, unexpected, or throws
+   - If direct function logs are insufficient, first check `queryLogs(action="checkLogService")`, then search CLS with `queryLogs(action="searchLogs")`
+   - In completion notes, state what was invoked, whether the invocation succeeded, and which logs were checked
+
+5. **Prefer doc-first fallbacks**
    - If a task falls back to `callCloudApi`, first check the official docs or knowledge-base entry for that action
    - Confirm the exact action name and parameter contract before calling it
    - Do not guess raw cloud API payloads from memory
 
-5. **Read the right detailed reference**
+6. **Read the right detailed reference**
    - Event Function details -> `./references/event-functions.md`
    - HTTP Function details -> `./references/http-functions.md`
    - Logs, gateway, env vars, and legacy mappings -> `./references/operations-and-config.md`
