@@ -76,6 +76,8 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 - `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })` use the phone number in a `phone` field, not `phone_number`
 - `auth.signInWithOtp({ email })` and `auth.signUp({ email })` use `email`
 - `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })` are the canonical username/password Web auth path
+- Email and phone registration are OTP flows: call `auth.signUp({ email|phone, ... })`, then complete the signup with the returned `data.verifyOtp({ token })`
+- Do not describe email registration as `auth.signUp({ email, password })`; for email-based password login, use `auth.signInWithPassword({ email, password })` after the account already exists
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
 - `verifyOtp({ token })` expects the SMS or email code in `token`
 - `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
@@ -128,6 +130,8 @@ const phoneLogin = await auth.signInWithPassword({ phone: '13800138000', passwor
 - For username-style account systems, use username/password registration directly
 - Do not switch to email OTP or phone OTP unless the task explicitly says the account identifier is an email address or phone number
 - When the task uses plain usernames such as `admin`, `editor`, or `user01`, the canonical form code is `auth.signUp({ username, password })`
+- Email and phone signup are verification-code flows. Send the code with `auth.signUp(...)`, then call the returned `verifyOtp({ token })` to finish registration
+- Do not write email registration as `auth.signUp({ email, password })`; email/password is a sign-in flow, not the signup payload shown here
 ```js
 // Username + Password
 const usernameSignUp = await auth.signUp({
@@ -136,15 +140,13 @@ const usernameSignUp = await auth.signUp({
   nickname: 'User',
 })
 
-// Email Otp
+// Email OTP signup.
 // Use only when the task explicitly requires email addresses.
-// Email Otp
 const emailSignUp = await auth.signUp({ email: 'new@example.com', nickname: 'User' })
 const emailVerifyResult = await emailSignUp.data.verifyOtp({ token: '123456' })
 
-// Phone Otp
+// Phone OTP signup.
 // Use only when the task explicitly requires phone numbers.
-// Phone Otp
 const phoneSignUp = await auth.signUp({ phone: '13800138000', nickname: 'User' })
 const phoneVerifyResult = await phoneSignUp.data.verifyOtp({ token: '123456' })
 ```

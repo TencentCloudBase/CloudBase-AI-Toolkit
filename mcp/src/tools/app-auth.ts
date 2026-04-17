@@ -36,8 +36,8 @@ const SUPABASE_LIKE_SDK_HINTS = {
   phoneOtp: "auth.signInWithOtp({ phone })",
   emailOtp: "auth.signInWithOtp({ email })",
   password: "auth.signInWithPassword({ username|email|phone, password })",
-  signup: "auth.signUp({ phone|email, ... })",
-  verifyOtp: "verifyOtp({ token })",
+  signup: "auth.signUp({ username, password }) or auth.signUp({ phone|email, ... })",
+  verifyOtp: "verifyOtp({ token }) for phone/email OTP signup or login",
   anonymous: "auth.signInAnonymously()",
 } as const;
 
