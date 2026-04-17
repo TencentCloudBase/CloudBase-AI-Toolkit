@@ -46,6 +46,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Querying before the user is signed in when the collection rules require identity.
 - Using `wx.cloud.database()` or Node SDK patterns in browser code.
 - Initializing CloudBase lazily with dynamic imports instead of a shared synchronous app instance.
+- For realtime UI, assuming the listener is ready immediately after calling `watch()`. Treat the first `onChange` snapshot whose `docChanges` contain `dataType: 'init'` as the initial data ready signal before rendering room state, enabling actions, or concluding that the query returned no rows.
 - Treating security rules as result filters rather than request validators.
 - For CMS-style collections that need **app-level admin users** to edit/delete all records while editors can only edit/delete their own records, do not oversimplify the rule to `READONLY`. A validated pattern is a `CUSTOM` rule that reads role from `user_roles` by `auth.uid` and combines it with `doc.authorId == auth.uid`, while frontend writes can stay on `.doc(id).update()` / `.doc(id).remove()`.
 - Forgetting pagination or indexes for larger collections.
@@ -118,6 +119,11 @@ Important rules:
 4. **Return user-friendly errors**
    - Database errors must become readable UI or application errors, not silent failures.
    - For writes, do not treat a resolved promise as success by default. Check write result fields such as `updated` / `deleted` or surfaced `code` / `message`.
+
+5. **Handle realtime initialization explicitly**
+   - `.watch()` becomes usable only after the first `onChange` snapshot arrives.
+   - Use the snapshot whose `docChanges` include `dataType: 'init'` as the canonical "initial data is ready" event.
+   - Until that event arrives, keep loading state explicit and avoid enabling turn-based actions that depend on the queried documents.
 
 ## Quick examples
 
