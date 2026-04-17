@@ -191,7 +191,7 @@ await db.collection('todos')
 
 ### Owner Rules for `.doc(id).update()` / `.doc(id).remove()`
 
-CloudBase security rules can be tricky around document-ID writes. For many owner-only patterns, `.doc(id)` plus `doc.authorId` is fragile. But in the CMS article pattern validated by this evaluation loop, the collection uses a `CUSTOM` rule with app-role override:
+CloudBase security rules can be tricky around document-ID writes. For many owner-only patterns, `.doc(id)` plus `doc.authorId` is fragile. But in the CMS article pattern backed by an app-level role collection, the collection uses a `CUSTOM` rule with app-role override:
 
 ```json
 {
@@ -202,7 +202,7 @@ CloudBase security rules can be tricky around document-ID writes. For many owner
 }
 ```
 
-With that rule shape, `.doc(id).update()` / `.doc(id).remove()` is a validated implementation path for CMS-style article management.
+With that rule shape, `.doc(id).update()` / `.doc(id).remove()` is the recommended implementation path for CMS-style article management.
 
 **Problematic rule for document-ID writes:**
 
@@ -214,6 +214,8 @@ With that rule shape, `.doc(id).update()` / `.doc(id).remove()` is a validated i
 ```
 
 This can work for `where({ authorId: auth.uid }).update(...)`, but it is commonly rejected for `.doc(id).update(...)` and `.doc(id).remove()`.
+
+Do not “fix” the CMS article case by switching to `.where({ _id: id }).update(...)` or `.where({ _id: id }).remove()`. Adding only `_id` does not expose the owner field to the rule check, so it does not solve the permission mismatch.
 
 **Prefer simple permission when it already matches the product requirement:**
 
@@ -238,6 +240,8 @@ await db.collection('posts')
   })
   .update({ title: 'Updated Title' });
 ```
+
+This `where({ _id, authorId })` fallback is for owner-only CUSTOM rules. It is not the preferred CMS article pattern when admin users must still be able to edit or delete every article.
 
 Only use `get('database.user_roles.' + auth.uid)` or `get('database.users.' + auth.uid)` when that role collection's document `_id` is exactly the current `auth.uid`. If your users collection is queried by `where({ uid })`, then `get('database.users.' + auth.uid)` is not equivalent and will not resolve the same document. Do not treat `get('database.posts.' + doc._id)` as the default first-choice fix for owner writes.
 
