@@ -220,6 +220,126 @@ describe("SQL database tools", () => {
     });
   });
 
+  it("querySqlDatabase(runQuery) waits for SQL endpoint after control plane reports ready", async () => {
+    let runSqlAttempt = 0;
+    mockCommonServiceCall.mockImplementation(async ({ Action, Param }: { Action: string; Param: any }) => {
+      if (Action === "RunSql") {
+        runSqlAttempt += 1;
+        if (runSqlAttempt === 1) {
+          throw Object.assign(new Error("connect ETIMEDOUT"), {
+            code: "ETIMEDOUT",
+          });
+        }
+
+        return {
+          RequestId: `req-run-${runSqlAttempt}`,
+          RowsAffected: 0,
+          Items: ['{"ready":true}'],
+          Infos: ['{"Field":"ready"}'],
+        };
+      }
+
+      if (Action === "DescribeCreateMySQLResult") {
+        return {
+          RequestId: "req-create",
+          Data: {
+            Status: "success",
+          },
+        };
+      }
+
+      if (Action === "DescribeMySQLClusterDetail") {
+        return {
+          RequestId: "req-cluster",
+          Data: {
+            DbInfo: {
+              ClusterStatus: "running",
+            },
+          },
+        };
+      }
+
+      throw new Error(`unexpected action: ${Action}`);
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.querySqlDatabase.handler({
+      action: "runQuery",
+      sql: "SELECT * FROM demo",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        rows: [{ ready: true }],
+      },
+    });
+    expect(runSqlAttempt).toBe(3);
+  });
+
+  it("manageSqlDatabase(runStatement) returns MYSQL_NOT_READY when SQL endpoint never warms up", async () => {
+    mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+      if (Action === "RunSql") {
+        throw Object.assign(new Error("connect ETIMEDOUT"), {
+          code: "ETIMEDOUT",
+        });
+      }
+
+      if (Action === "DescribeCreateMySQLResult") {
+        return {
+          RequestId: "req-create",
+          Data: {
+            Status: "success",
+          },
+        };
+      }
+
+      if (Action === "DescribeMySQLClusterDetail") {
+        return {
+          RequestId: "req-cluster",
+          Data: {
+            DbInfo: {
+              ClusterStatus: "running",
+            },
+          },
+        };
+      }
+
+      throw new Error(`unexpected action: ${Action}`);
+    });
+
+    const originalNow = Date.now;
+    let now = 0;
+    const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+    const setTimeoutSpy = vi
+      .spyOn(globalThis, "setTimeout")
+      .mockImplementation(((fn: (...args: any[]) => void, ms?: number, ...args: any[]) => {
+        now += typeof ms === "number" ? ms : 0;
+        fn(...args);
+        return 0 as any;
+      }) as typeof setTimeout);
+
+    const { tools } = createMockServer();
+    const result = await tools.manageSqlDatabase.handler({
+      action: "runStatement",
+      sql: "CREATE TABLE demo(id INT)",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "MYSQL_NOT_READY",
+      data: {
+        probeSql: "SELECT 1",
+      },
+    });
+
+    setTimeoutSpy.mockRestore();
+    dateNowSpy.mockRestore();
+    Date.now = originalNow;
+  });
+
   it("querySqlDatabase(describeTaskStatus) maps success to READY", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeMySQLTaskStatus") {

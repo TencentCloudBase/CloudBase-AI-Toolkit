@@ -14,6 +14,9 @@ const MANAGE_SQL_DATABASE = "manageSqlDatabase";
 const QUERY_PERMISSIONS = "queryPermissions";
 const MANAGE_PERMISSIONS = "managePermissions";
 
+const SQL_READY_TIMEOUT_MS = 30000;
+const SQL_READY_POLL_INTERVAL_MS = 1000;
+
 const QUERY_ACTIONS = [
   "runQuery",
   "describeCreateResult",
@@ -114,6 +117,16 @@ type InitializationReadiness =
       payload: ToolResult;
     };
 
+type SqlExecutionOutcome =
+  | {
+      result: TcbServiceResult;
+      payload?: never;
+    }
+  | {
+      result?: never;
+      payload: ToolResult;
+    };
+
 function buildNextAction(
   tool: string,
   action: string,
@@ -131,6 +144,10 @@ function buildNextAction(
 
 function buildSqlToolResult(payload: SqlToolPayload) {
   return buildJsonToolResult(payload);
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function stripLeadingSqlComments(sql: string) {
@@ -279,6 +296,31 @@ function extractErrorCode(error: unknown) {
   return typeof maybeCode === "string" ? maybeCode : undefined;
 }
 
+function extractErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return String(error ?? "");
+}
+
+function isRetryableSqlReadinessError(error: unknown) {
+  const errorCode = extractErrorCode(error);
+  const message = extractErrorMessage(error);
+
+  if (errorCode === "FailedOperation.DataSourceNotExist") {
+    return true;
+  }
+
+  return /ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|socket hang up|timeout|timed out|deadline exceeded|not ready/i.test(
+    message,
+  );
+}
+
 function normalizeCreateResultStatus(rawStatus: unknown): SqlLifecycleStatus {
   if (typeof rawStatus !== "string" || rawStatus.trim().length === 0) {
     return "PENDING";
@@ -388,6 +430,176 @@ async function callSqlControlPlane(
     Action: action,
     Param: param,
   }) as Promise<TcbServiceResult>;
+}
+
+async function waitForSqlDataPlaneReady(
+  context: QueryManageContext,
+  options?: {
+    dbInstance?: DbInstanceInput;
+    rawStatus?: unknown;
+    timeoutMs?: number;
+    pollIntervalMs?: number;
+  },
+): Promise<ToolResult | null> {
+  const timeoutMs = options?.timeoutMs ?? SQL_READY_TIMEOUT_MS;
+  const pollIntervalMs = options?.pollIntervalMs ?? SQL_READY_POLL_INTERVAL_MS;
+  const startedAt = Date.now();
+  const deadline = startedAt + timeoutMs;
+  const cloudbase = await context.getManager();
+  const dbContext = await resolveSqlDbContext(
+    context.getManager,
+    context.cloudBaseOptions,
+    options?.dbInstance,
+  );
+  let lastError: unknown;
+
+  while (Date.now() <= deadline) {
+    try {
+      const result = await callSqlControlPlane(cloudbase, "RunSql", {
+        EnvId: dbContext.envId,
+        Sql: "SELECT 1",
+        ReadOnly: true,
+        DbInstance: {
+          EnvId: dbContext.envId,
+          InstanceId: dbContext.instanceId,
+          Schema: dbContext.schema,
+        },
+      });
+      logCloudBaseResult(context.server.logger, result);
+      return null;
+    } catch (error) {
+      if (!isRetryableSqlReadinessError(error)) {
+        throw error;
+      }
+
+      lastError = error;
+    }
+
+    if (Date.now() + pollIntervalMs > deadline) {
+      break;
+    }
+
+    await delay(pollIntervalMs);
+  }
+
+  return buildSqlToolResult({
+    success: false,
+    errorCode: "MYSQL_NOT_READY",
+    message: `MySQL control plane reports ready, but the SQL endpoint is still not responding after ${timeoutMs}ms. Retry after the database finishes warming up.`,
+    data: {
+      status: "READY",
+      rawStatus: options?.rawStatus,
+      waitedMs: Date.now() - startedAt,
+      probeSql: "SELECT 1",
+      lastError: lastError ? extractErrorMessage(lastError) : undefined,
+    },
+    nextActions: [
+      buildNextAction(
+        QUERY_SQL_DATABASE,
+        "getInstanceInfo",
+        "Check the current MySQL instance state before retrying the SQL operation.",
+      ),
+    ],
+  });
+}
+
+async function executeSqlWithRecovery(
+  context: QueryManageContext,
+  options: {
+    sql: string;
+    readOnly?: boolean;
+    dbInstance?: DbInstanceInput;
+    notCreatedMessage: string;
+    notCreatedReason: string;
+    notReadyMessage: string;
+    notReadyReason: string;
+  },
+): Promise<SqlExecutionOutcome> {
+  const cloudbase = await context.getManager();
+  const dbContext = await resolveSqlDbContext(
+    context.getManager,
+    context.cloudBaseOptions,
+    options.dbInstance,
+  );
+
+  const runSql = async () => {
+    const result = await callSqlControlPlane(cloudbase, "RunSql", {
+      EnvId: dbContext.envId,
+      Sql: options.sql,
+      ...(options.readOnly ? { ReadOnly: true } : {}),
+      DbInstance: {
+        EnvId: dbContext.envId,
+        InstanceId: dbContext.instanceId,
+        Schema: dbContext.schema,
+      },
+    });
+    logCloudBaseResult(context.server.logger, result);
+    return result;
+  };
+
+  try {
+    return {
+      result: await runSql(),
+    };
+  } catch (error) {
+    if (!isRetryableSqlReadinessError(error)) {
+      throw error;
+    }
+
+    const instanceInfo = await getSqlInstanceInfo(context);
+    if (!instanceInfo.exists) {
+      return {
+        payload: buildSqlToolResult({
+          success: false,
+          errorCode: "MYSQL_NOT_CREATED",
+          message: options.notCreatedMessage,
+          nextActions: [
+            buildNextAction(
+              MANAGE_SQL_DATABASE,
+              "provisionMySQL",
+              options.notCreatedReason,
+              { action: "provisionMySQL", confirm: true },
+            ),
+          ],
+        }),
+      };
+    }
+
+    if (instanceInfo.status !== "READY") {
+      return {
+        payload: buildSqlToolResult({
+          success: false,
+          errorCode: "MYSQL_NOT_READY",
+          message: `${options.notReadyMessage} (current status: ${instanceInfo.status}).`,
+          data: {
+            status: instanceInfo.status,
+            rawStatus: instanceInfo.rawStatus,
+          },
+          nextActions: [
+            buildNextAction(
+              QUERY_SQL_DATABASE,
+              "getInstanceInfo",
+              options.notReadyReason,
+            ),
+          ],
+        }),
+      };
+    }
+
+    const readinessPayload = await waitForSqlDataPlaneReady(context, {
+      dbInstance: options.dbInstance,
+      rawStatus: instanceInfo.rawStatus,
+    });
+    if (readinessPayload) {
+      return {
+        payload: readinessPayload,
+      };
+    }
+
+    return {
+      result: await runSql(),
+    };
+  }
 }
 
 async function getSqlInstanceInfo({
@@ -600,47 +812,21 @@ async function handleRunQuery(
       ],
     });
   }
-
-  const cloudbase = await context.getManager();
-  const dbContext = await resolveSqlDbContext(
-    context.getManager,
-    context.cloudBaseOptions,
-    args.dbInstance,
-  );
-  let result;
-  try {
-    result = await callSqlControlPlane(cloudbase, "RunSql", {
-      EnvId: dbContext.envId,
-      Sql: args.sql,
-      ReadOnly: true,
-      DbInstance: {
-        EnvId: dbContext.envId,
-        InstanceId: dbContext.instanceId,
-        Schema: dbContext.schema,
-      },
-    });
-    logCloudBaseResult(context.server.logger, result);
-  } catch (error: any) {
-    const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
-    if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
-      return buildSqlToolResult({
-        success: false,
-        errorCode: "MYSQL_NOT_CREATED",
-        message: "MySQL is not provisioned yet or not found. Please provision MySQL before running queries.",
-        nextActions: [
-          buildNextAction(
-            MANAGE_SQL_DATABASE,
-            "provisionMySQL",
-            "Provision MySQL before querying data.",
-            { action: "provisionMySQL", confirm: true },
-          ),
-        ],
-      });
-    }
-    throw error;
+  const execution = await executeSqlWithRecovery(context, {
+    sql: args.sql,
+    readOnly: true,
+    dbInstance: args.dbInstance,
+    notCreatedMessage:
+      "MySQL is not provisioned yet or not found. Please provision MySQL before running queries.",
+    notCreatedReason: "Provision MySQL before querying data.",
+    notReadyMessage: "MySQL is not ready yet for read-only SQL execution",
+    notReadyReason: "Check current instance status before retrying the query.",
+  });
+  if (execution.payload) {
+    return execution.payload;
   }
 
-  const normalized = normalizeRunSqlResult(result);
+  const normalized = normalizeRunSqlResult(execution.result);
   return buildSqlToolResult({
     success: true,
     data: {
@@ -970,47 +1156,21 @@ async function handleRunStatement(
       ],
     });
   }
-
-  const cloudbase = await context.getManager();
-  const dbContext = await resolveSqlDbContext(
-    context.getManager,
-    context.cloudBaseOptions,
-    args.dbInstance,
-  );
-  let result;
-  try {
-    result = await callSqlControlPlane(cloudbase, "RunSql", {
-      EnvId: dbContext.envId,
-      Sql: args.sql,
-      DbInstance: {
-        EnvId: dbContext.envId,
-        InstanceId: dbContext.instanceId,
-        Schema: dbContext.schema,
-      },
-    });
-    logCloudBaseResult(context.server.logger, result);
-  } catch (error: any) {
-    const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
-    if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
-      return buildSqlToolResult({
-        success: false,
-        errorCode: "MYSQL_NOT_CREATED",
-        message: "MySQL is not provisioned yet or not found. Please provision MySQL before running statements.",
-        nextActions: [
-          buildNextAction(
-            MANAGE_SQL_DATABASE,
-            "provisionMySQL",
-            "Provision MySQL before executing statements.",
-            { action: "provisionMySQL", confirm: true },
-          ),
-        ],
-      });
-    }
-    throw error;
+  const execution = await executeSqlWithRecovery(context, {
+    sql: args.sql,
+    dbInstance: args.dbInstance,
+    notCreatedMessage:
+      "MySQL is not provisioned yet or not found. Please provision MySQL before running statements.",
+    notCreatedReason: "Provision MySQL before executing statements.",
+    notReadyMessage: "MySQL is not ready yet for SQL execution",
+    notReadyReason: "Check current instance status before retrying the statement.",
+  });
+  if (execution.payload) {
+    return execution.payload;
   }
 
   const statementType = getSqlVerb(args.sql) || "UNKNOWN";
-  const normalized = normalizeRunSqlResult(result);
+  const normalized = normalizeRunSqlResult(execution.result);
   return buildSqlToolResult({
     success: true,
     data: {
@@ -1104,6 +1264,17 @@ async function resolveInitializationReadiness(
     };
   }
 
+  const readinessPayload = await waitForSqlDataPlaneReady(context, {
+    dbInstance: args.dbInstance,
+    rawStatus,
+  });
+  if (readinessPayload) {
+    return {
+      ready: false,
+      payload: readinessPayload,
+    };
+  }
+
   return {
     ready: true,
     instanceInfo,
@@ -1142,38 +1313,20 @@ async function handleInitializeSchema(
 
   for (const statement of args.statements) {
     try {
-      let result;
-      try {
-        result = await callSqlControlPlane(cloudbase, "RunSql", {
-          EnvId: dbContext.envId,
-          Sql: statement,
-          DbInstance: {
-            EnvId: dbContext.envId,
-            InstanceId: dbContext.instanceId,
-            Schema: dbContext.schema,
-          },
-        });
-        logCloudBaseResult(context.server.logger, result);
-      } catch (error: any) {
-        const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
-        if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
-          return buildSqlToolResult({
-            success: false,
-            errorCode: "MYSQL_NOT_CREATED",
-            message: "MySQL is not provisioned yet or not found. Please provision MySQL before initializing schema.",
-            nextActions: [
-              buildNextAction(
-                MANAGE_SQL_DATABASE,
-                "provisionMySQL",
-                "Provision MySQL before executing statements.",
-                { action: "provisionMySQL", confirm: true },
-              ),
-            ],
-          });
-        }
-        throw error;
+      const execution = await executeSqlWithRecovery(context, {
+        sql: statement,
+        dbInstance: args.dbInstance,
+        notCreatedMessage:
+          "MySQL is not provisioned yet or not found. Please provision MySQL before initializing schema.",
+        notCreatedReason: "Provision MySQL before executing schema initialization statements.",
+        notReadyMessage: "MySQL is not ready yet for schema initialization",
+        notReadyReason: "Check current instance status before retrying schema initialization.",
+      });
+      if (execution.payload) {
+        return execution.payload;
       }
-      const normalized = normalizeRunSqlResult(result);
+
+      const normalized = normalizeRunSqlResult(execution.result);
       if (typeof normalized.requestId === "string") {
         requestIdList.push(normalized.requestId);
       }
