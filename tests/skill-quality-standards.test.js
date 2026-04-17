@@ -44,6 +44,13 @@ describe('skill quality standards', () => {
     expect(raw).toMatch(/type="text"|type='text'/);
     expect(raw).toMatch(/username-style identifier|plain username string|username-style account/i);
     expect(raw).toMatch(/do not switch to email otp or phone otp unless/i);
+    expect(raw).toContain('envQuery(action="info")');
+    expect(raw).toContain('auth(action="set_env", envId="<actual-env-id>")');
+    expect(raw).toContain('queryAppAuth(action="getPublishableKey")');
+    expect(raw).toContain('manageAppAuth(action="ensurePublishableKey")');
+    expect(raw).toContain("nickname: username || email.split('@')[0]");
+    expect(raw).toContain("const { error } = await signUpData.verifyOtp({ token: code })");
+    expect(raw).not.toContain("type: 'signup'");
   });
 
   test('cloud-storage-web documents exact-origin security-domain setup for local uploads', () => {

@@ -65,7 +65,9 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 
 ## Prerequisites
 
-- Automatically use `auth-tool-cloudbase` to check app-side auth readiness via `queryAppAuth` / `manageAppAuth`, then get the `publishable key` and configure login methods.
+- Use `envQuery(action="info")` or `envQuery(action="list")` to confirm the real CloudBase environment ID before any auth setup. Do not leave the placeholder `env` literal in code, console URLs, or tool calls.
+- If the current MCP session is not already bound to that environment, call `auth(action="set_env", envId="<actual-env-id>")` first so `queryAppAuth` / `manageAppAuth` operate on the correct app.
+- Automatically use `auth-tool-cloudbase` to check app-side auth readiness: `queryAppAuth(action="getLoginConfig")` for login methods, `manageAppAuth(action="patchLoginStrategy")` when a required method is off, and `queryAppAuth(action="getPublishableKey")` or `manageAppAuth(action="ensurePublishableKey")` for the publishable key.
 - If `auth-tool-cloudbase` failed, let user go to `https://tcb.cloud.tencent.com/dev?envId={env}#/env/apikey` to get `publishable key` and `https://tcb.cloud.tencent.com/dev?envId={env}#/identity/login-manage` to set up login methods
 
 ### Parameter map
@@ -88,9 +90,9 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 import cloudbase from '@cloudbase/js-sdk'
 
 const app = cloudbase.init({
-  env: `env`, // CloudBase environment ID
+  env: `env`, // replace with the real CloudBase environment ID from envQuery
   region: `region`,  // CloudBase environment Region, default 'ap-shanghai'
-  accessKey: 'publishable key', // required, get from auth-tool-cloudbase
+  accessKey: 'publishable key', // get via queryAppAuth(getPublishableKey) or manageAppAuth(ensurePublishableKey)
   auth: { detectSessionInUrl: true }, // required
 })
 
@@ -179,7 +181,7 @@ const handleSendCode = async () => {
   try {
     const { data, error } = await auth.signUp({
       email,
-      name: username || email.split('@')[0],
+      nickname: username || email.split('@')[0],
     })
     if (error) throw error
     setSignUpData(data)
@@ -192,11 +194,7 @@ const handleRegister = async () => {
   try {
     if (!signUpData?.verifyOtp) throw new Error('Please send the code first')
 
-    const { error } = await signUpData.verifyOtp({
-      email,
-      token: code,
-      type: 'signup',
-    })
+    const { error } = await signUpData.verifyOtp({ token: code })
     if (error) throw error
   } catch (error) {
     console.error('Failed to complete sign-up', error)
