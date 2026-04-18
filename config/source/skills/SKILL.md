@@ -31,6 +31,7 @@ alwaysApply: true
 - Web app execution -> `./web-development/SKILL.md`
 - Web auth provider readiness -> `./auth-tool/SKILL.md`
 - Web auth implementation -> `./auth-web/SKILL.md`
+- Cloud Functions, including HTTP Functions and browser-facing endpoints -> `./cloud-functions/SKILL.md`
 - Browser-side document database CRUD -> `./no-sql-web-sdk/SKILL.md`
 - Browser-side file upload -> `./cloud-storage-web/SKILL.md`
 - Platform overview only when capability selection is still unclear -> `./cloudbase-platform/SKILL.md`
@@ -39,6 +40,7 @@ alwaysApply: true
 
 - If the same path fails 2-3 times, stop retrying and reroute. Check platform skill, auth domain, runtime, and permission model before editing more code.
 - Always specify `EnvId` explicitly in code, configuration, and command examples when initializing CloudBase clients or manager operations. Do not rely on the current CLI-selected environment or implicit defaults.
+- For HTTP Functions, keep the public gateway path and the in-function router path as separate layers. Do not write prefixes such as `/api/httpDemo` into the router itself; create gateway access separately when the task actually needs an external path, then verify function permissions before treating the URL as usable.
 
 ### Do NOT use this as
 
