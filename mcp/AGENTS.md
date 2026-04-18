@@ -30,6 +30,7 @@ When a task is triggered by failing evaluations, attribution issues, grader outp
 - Native App / Flutter / React Native request -> route to `{http-api}`, not Web SDK rules.
 - Cloud Function request -> route to `{cloud-functions}`, not `cloudrun-development`, unless the task explicitly needs container service behavior.
 - Generated, mirrored, or IDE-specific artifacts are compatibility outputs, not the primary semantic source.
+- When the task asks you to create a local artifact such as `RESULT.json`, a report, or an export file, write it under the workspace project root instead of the MCP package directory or a temp directory. Resolve the root with `WORKSPACE_FOLDER_PATHS`, then `PROJECT_ROOT`, then `GITHUB_WORKSPACE`, then the current working directory. If the user gives only a filename, place it at that root; if the user gives a relative path, resolve it from that root.
 
 ### High-priority routing table
 
