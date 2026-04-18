@@ -181,6 +181,8 @@ describe("Function and gateway tool schemas", () => {
     expect(properties.confirm).toBeDefined();
     expect(properties.path).toBeUndefined();
     expect(properties.functionRootPath.description).toMatch(/默认推荐|无需预先压缩 zip/);
+    expect(properties.functionRootPath.description).toMatch(/不要传项目根目录/);
+    expect(properties.functionRootPath.description).toMatch(/cloudfunctions|functions/);
     expect(properties.zipFile.description).toMatch(/仅兼容特殊场景|优先使用 functionRootPath/);
     expect(tool.annotations.readOnlyHint).toBe(false);
     expect(tool.annotations.destructiveHint).toBe(true);

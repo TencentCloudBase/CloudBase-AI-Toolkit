@@ -99,6 +99,8 @@ describe("functions tool helpers", () => {
 
     expect(message).toContain("functionRootPath");
     expect(message).toContain("zipFile");
+    expect(message).toContain("不要传项目根目录");
+    expect(message).toContain("/tmp/project/cloudfunctions");
   });
 
   it("adds dependency-install guidance for HTTP function failures", () => {
@@ -111,6 +113,13 @@ describe("functions tool helpers", () => {
 
     expect(message).toContain("原生 Node.js API");
     expect(message).toContain("package.json");
+  });
+
+  it("describes functionRootPath as the direct function source directory instead of project root", () => {
+    const description = tools.manageFunctions.meta.inputSchema.functionRootPath.description;
+
+    expect(description).toContain("不要传项目根目录");
+    expect(description).toMatch(/cloudfunctions|functions/);
   });
 
   it("normalizes supported Event runtimes with whitespace", () => {

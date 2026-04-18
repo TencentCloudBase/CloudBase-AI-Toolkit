@@ -378,8 +378,15 @@ export function buildFunctionOperationErrorMessage(
 
   if (/paths\[0\].*undefined/i.test(baseMessage)) {
     suggestions.push(
-      "HTTP 函数创建时需要提供 functionRootPath（指向 cloudfunctions 父目录）或 zipFile，否则 SDK 无法定位函数目录。",
+      "HTTP 函数创建时需要提供 functionRootPath（指向直接包含函数子目录的 cloudfunctions/functions 目录）或 zipFile，否则 SDK 无法定位函数目录。",
     );
+    if (functionRootPath) {
+      const normalizedRootPath = path.normalize(functionRootPath);
+      const projectRootHint = path.dirname(normalizedRootPath);
+      suggestions.push(
+        `如果你的代码目录是 \`${normalizedRootPath}/${functionName}\`，请继续传这个目录；如果实际结构是 \`${projectRootHint}/cloudfunctions/${functionName}\` 或 \`${projectRootHint}/functions/${functionName}\`，functionRootPath 必须传 \`${projectRootHint}/cloudfunctions\` 或 \`${projectRootHint}/functions\`，不要传项目根目录 \`${projectRootHint}\`。`,
+      );
+    }
   }
 
   if (/依赖安装失败|package\.json/i.test(baseMessage)) {
@@ -1441,9 +1448,9 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           .describe("写操作类型，例如 createFunction、invokeFunction、attachLayer"),
         func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
         functionRootPath: z.string().optional().describe(
-          "创建或更新函数代码时默认推荐的本地目录方式。函数根目录（父目录绝对路径）。" +
-          "本地应按 cloudfunctions/<functionName>/index.js 布局，" +
-          "此参数传 cloudfunctions 目录的绝对路径（如 /abs/path/cloudfunctions），不要传到函数名子目录。" +
+          "创建或更新函数代码时默认推荐的本地目录方式。这里必须传直接包含函数子目录的源码目录绝对路径，而不是项目根目录。" +
+          "本地通常应按 cloudfunctions/<functionName>/index.js 或 functions/<functionName>/index.js 布局；" +
+          "此参数应传 cloudfunctions 或 functions 目录的绝对路径（如 /abs/path/cloudfunctions），不要传项目根目录，也不要传到函数名子目录。" +
           "SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。",
         ),
         force: z.boolean().optional().describe("createFunction 时是否覆盖"),
