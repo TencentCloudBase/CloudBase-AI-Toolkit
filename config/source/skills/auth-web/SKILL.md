@@ -77,6 +77,7 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 - `auth.signInWithOtp({ email })` and `auth.signUp({ email })` use `email`
 - `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })` are the canonical username/password Web auth path
 - Email and phone registration are OTP flows: call `auth.signUp({ email|phone, ... })`, then complete the signup with the returned `data.verifyOtp({ token })`
+- For email signup, the canonical sequence is: `auth.signUp({ email, ... })` to send the code, persist the returned `data` signup handle, then call `signupHandle.verifyOtp({ token })` with only the verification code
 - Do not describe email registration as `auth.signUp({ email, password })`; for email-based password login, use `auth.signInWithPassword({ email, password })` after the account already exists
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
 - `verifyOtp({ token })` expects the SMS or email code in `token`
@@ -151,6 +152,7 @@ const phoneLogin = await auth.signInWithPassword({
 - When the task uses plain usernames such as `admin`, `editor`, or `user01`, the canonical form code is `auth.signUp({ username, password })`
 - Email and phone signup are always two-step OTP flows: first call `auth.signUp({ email|phone, ... })` to send the code, then keep the returned `data` object and call `data.verifyOtp({ token })` to finish registration
 - The `verifyOtp` callback returned from `auth.signUp({ email|phone, ... })` already carries the signup context. In the second step, send only the verification code as `verifyOtp({ token })`; do not rebuild the signup payload
+- In split UI handlers, `auth.signUp({ email, ... })` is the "send code" step and `signupHandle.verifyOtp({ token })` is the "complete registration" step
 - Do not write email registration as `auth.signUp({ email, password })`; email/password is a sign-in flow for an existing account, not the signup payload shown here
 - If the UI splits "send code" and "complete registration" into different handlers, persist the returned sign-up handle from step 1 and reuse it in step 2
 
@@ -168,7 +170,7 @@ const emailSignUp = await auth.signUp({
   email: "new@example.com",
   nickname: "User",
 });
-const emailSignupHandle = emailSignUp.data;
+const emailSignupHandle = emailSignUp.data; // Required for the follow-up verify step.
 const emailVerifyResult = await emailSignupHandle.verifyOtp({
   token: "123456",
 });
