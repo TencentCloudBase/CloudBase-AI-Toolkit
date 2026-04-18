@@ -689,14 +689,21 @@ async function getSqlInstanceInfo({
       throw error;
     }
 
+    const clusterDetailLaggingAfterProvision = createStatus === "READY";
+
     return {
-      exists: createStatus === "PENDING" || createStatus === "RUNNING",
+      // The cluster-detail API can lag behind a successful create result.
+      // Treat that window as an existing instance that is still warming up.
+      exists:
+        clusterDetailLaggingAfterProvision ||
+        createStatus === "PENDING" ||
+        createStatus === "RUNNING",
       envId,
       instanceId: "default",
       schema: envId,
       rawStatus:
         typeof createRawStatus === "string" ? createRawStatus : null,
-      status: createStatus,
+      status: clusterDetailLaggingAfterProvision ? "PENDING" : createStatus,
       createResult: createData ?? createResult,
     };
   }
