@@ -87,16 +87,16 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 ## Quick Start
 
 ```js
-import cloudbase from '@cloudbase/js-sdk'
+import cloudbase from "@cloudbase/js-sdk";
 
 const app = cloudbase.init({
   env: `env`, // CloudBase environment ID
-  region: `region`,  // CloudBase environment Region, default 'ap-shanghai'
-  accessKey: 'publishable key', // required, get from auth-tool-cloudbase
+  region: `region`, // CloudBase environment Region, default 'ap-shanghai'
+  accessKey: "publishable key", // required, get from auth-tool-cloudbase
   auth: { detectSessionInUrl: true }, // required
-})
+});
 
-const auth = app.auth({ persistence: 'local' })
+const auth = app.auth({ persistence: "local" });
 ```
 
 If the current task has not retrieved a real Publishable Key, omit `accessKey` instead of inventing one. A wrong `accessKey` can break auth-state checks and protected-route behavior.
@@ -106,50 +106,80 @@ If the current task has not retrieved a real Publishable Key, omit `accessKey` i
 ## Login Methods
 
 **1. Phone OTP (Recommended)**
+
 - Automatically use `auth-tool-cloudbase` to turn on `SMS Login` through `manageAppAuth`
+
 ```js
-const { data, error } = await auth.signInWithOtp({ phone: '13800138000' })
-const { data: loginData, error: loginError } = await data.verifyOtp({ token:'123456' })
+const { data, error } = await auth.signInWithOtp({ phone: "13800138000" });
+const { data: loginData, error: loginError } = await data.verifyOtp({
+  token: "123456",
+});
 ```
 
 **2. Email OTP**
+
 - Automatically use `auth-tool-cloudbase` to turn on `Email Login` through `manageAppAuth`
+
 ```js
-const { data, error } = await auth.signInWithOtp({ email: 'user@example.com' })
-const { data: loginData, error: loginError } = await data.verifyOtp({ token: '654321' })
+const { data, error } = await auth.signInWithOtp({ email: "user@example.com" });
+const { data: loginData, error: loginError } = await data.verifyOtp({
+  token: "654321",
+});
 ```
 
 **3. Password**
+
 ```js
-const usernameLogin = await auth.signInWithPassword({ username: 'test_user', password: 'pass123' })
-const emailLogin = await auth.signInWithPassword({ email: 'user@example.com', password: 'pass123' })
-const phoneLogin = await auth.signInWithPassword({ phone: '13800138000', password: 'pass123' })
+const usernameLogin = await auth.signInWithPassword({
+  username: "test_user",
+  password: "pass123",
+});
+const emailLogin = await auth.signInWithPassword({
+  email: "user@example.com",
+  password: "pass123",
+});
+const phoneLogin = await auth.signInWithPassword({
+  phone: "13800138000",
+  password: "pass123",
+});
 ```
 
 **4. Registration**
+
 - For username-style account systems, use username/password registration directly
 - Do not switch to email OTP or phone OTP unless the task explicitly says the account identifier is an email address or phone number
 - When the task uses plain usernames such as `admin`, `editor`, or `user01`, the canonical form code is `auth.signUp({ username, password })`
-- Email and phone signup are verification-code flows. Send the code with `auth.signUp(...)`, then call the returned `verifyOtp({ token })` to finish registration
-- The `verifyOtp` callback returned from `auth.signUp({ email|phone, ... })` already carries the signup context. For the follow-up step, send only the verification code as `verifyOtp({ token })`
-- Do not write email registration as `auth.signUp({ email, password })`; email/password is a sign-in flow, not the signup payload shown here
+- Email and phone signup are always two-step OTP flows: first call `auth.signUp({ email|phone, ... })` to send the code, then keep the returned `data` object and call `data.verifyOtp({ token })` to finish registration
+- The `verifyOtp` callback returned from `auth.signUp({ email|phone, ... })` already carries the signup context. In the second step, send only the verification code as `verifyOtp({ token })`; do not rebuild the signup payload
+- Do not write email registration as `auth.signUp({ email, password })`; email/password is a sign-in flow for an existing account, not the signup payload shown here
+- If the UI splits "send code" and "complete registration" into different handlers, persist the returned sign-up handle from step 1 and reuse it in step 2
+
 ```js
 // Username + Password
 const usernameSignUp = await auth.signUp({
-  username: 'newuser',
-  password: 'pass123',
-  nickname: 'User',
-})
+  username: "newuser",
+  password: "pass123",
+  nickname: "User",
+});
 
 // Email OTP signup.
 // Use only when the task explicitly requires email addresses.
-const emailSignUp = await auth.signUp({ email: 'new@example.com', nickname: 'User' })
-const emailVerifyResult = await emailSignUp.data.verifyOtp({ token: '123456' })
+const emailSignUp = await auth.signUp({
+  email: "new@example.com",
+  nickname: "User",
+});
+const emailSignupHandle = emailSignUp.data;
+const emailVerifyResult = await emailSignupHandle.verifyOtp({
+  token: "123456",
+});
 
 // Phone OTP signup.
 // Use only when the task explicitly requires phone numbers.
-const phoneSignUp = await auth.signUp({ phone: '13800138000', nickname: 'User' })
-const phoneVerifyResult = await phoneSignUp.data.verifyOtp({ token: '123456' })
+const phoneSignUp = await auth.signUp({
+  phone: "13800138000",
+  nickname: "User",
+});
+const phoneVerifyResult = await phoneSignUp.data.verifyOtp({ token: "123456" });
 ```
 
 When the project already has `handleSendCode` / `handleRegister` or similar UI handlers, wire the SDK calls there directly instead of leaving them commented out in `App.tsx`.
@@ -162,17 +192,17 @@ const handleRegister = async () => {
     username,
     password,
     nickname: username,
-  })
-  if (error) throw error
-}
+  });
+  if (error) throw error;
+};
 
 const handleLogin = async () => {
   const { error } = await auth.signInWithPassword({
     username,
     password,
-  })
-  if (error) throw error
-}
+  });
+  if (error) throw error;
+};
 ```
 
 Do not use email OTP or email-only helpers for these flows unless the task explicitly says the account identifier is an email address. The corresponding form field should stay `type="text"` rather than `type="email"` for username-style account identifiers.
@@ -182,56 +212,64 @@ const handleSendCode = async () => {
   try {
     const { data, error } = await auth.signUp({
       email,
-      name: username || email.split('@')[0],
-    })
-    if (error) throw error
-    setSignUpData(data)
+      nickname: username || email.split("@")[0],
+    });
+    if (error) throw error;
+
+    // Keep the returned sign-up handle for the follow-up verifyOtp step.
+    setSignUpData(data);
   } catch (error) {
-    console.error('Failed to send sign-up code', error)
+    console.error("Failed to send sign-up code", error);
   }
-}
+};
 
 const handleRegister = async () => {
   try {
-    if (!signUpData?.verifyOtp) throw new Error('Please send the code first')
+    if (!signUpData?.verifyOtp) throw new Error("Please send the code first");
 
-    const { error } = await signUpData.verifyOtp({ token: code })
-    if (error) throw error
+    const { error } = await signUpData.verifyOtp({ token: code });
+    if (error) throw error;
   } catch (error) {
-    console.error('Failed to complete sign-up', error)
+    console.error("Failed to complete sign-up", error);
   }
-}
+};
 ```
 
 **5. Anonymous**
+
 - Automatically use `auth-tool-cloudbase` to turn on `Anonymous Login` through `manageAppAuth`
+
 ```js
-const { data, error } = await auth.signInAnonymously()
+const { data, error } = await auth.signInAnonymously();
 ```
 
 **6. OAuth (Google/WeChat)**
+
 - Automatically use `auth-tool-cloudbase` to turn on `Google Login` or `WeChat Login` through `manageAppAuth`
+
 ```js
-const { data, error } = await auth.signInWithOAuth({ provider: 'google' })
-window.location.href = data.url // Auto-complete after callback
+const { data, error } = await auth.signInWithOAuth({ provider: "google" });
+window.location.href = data.url; // Auto-complete after callback
 ```
 
 **7. Custom Ticket**
+
 ```js
 await auth.signInWithCustomTicket(async () => {
-  const res = await fetch('/api/ticket')
-  return (await res.json()).ticket
-})
+  const res = await fetch("/api/ticket");
+  return (await res.json()).ticket;
+});
 ```
 
 **8. Upgrade Anonymous**
+
 ```js
-const sessionResult = await auth.getSession()
+const sessionResult = await auth.getSession();
 const upgradeResult = await auth.signUp({
-  phone: '13800000000',
+  phone: "13800000000",
   anonymous_token: sessionResult.data.session.access_token,
-})
-await upgradeResult.data.verifyOtp({ token: '123456' })
+});
+await upgradeResult.data.verifyOtp({ token: "123456" });
 ```
 
 ---
@@ -240,68 +278,70 @@ await upgradeResult.data.verifyOtp({ token: '123456' })
 
 ```js
 // Sign out
-const signOutResult = await auth.signOut()
+const signOutResult = await auth.signOut();
 
 // Get user
-const userResult = await auth.getUser()
+const userResult = await auth.getUser();
 console.log(
   userResult.data.user.email,
   userResult.data.user.phone,
   userResult.data.user.user_metadata?.nickName,
-)
+);
 
 // Update user (except email, phone)
 const updateProfileResult = await auth.updateUser({
-  nickname: 'New Name',
-  gender: 'MALE',
-  avatar_url: 'url',
-})
+  nickname: "New Name",
+  gender: "MALE",
+  avatar_url: "url",
+});
 
 // Update user (email or phone)
-const updateEmailResult = await auth.updateUser({ email: 'new@example.com' })
+const updateEmailResult = await auth.updateUser({ email: "new@example.com" });
 const verifyEmailResult = await updateEmailResult.data.verifyOtp({
-  email: 'new@example.com',
-  token: '123456',
-})
+  email: "new@example.com",
+  token: "123456",
+});
 
 // Change password (logged in)
 const resetPasswordResult = await auth.resetPasswordForOld({
-  old_password: 'old',
-  new_password: 'new',
-})
+  old_password: "old",
+  new_password: "new",
+});
 
 // Reset password (forgot)
-const reauthResult = await auth.reauthenticate()
+const reauthResult = await auth.reauthenticate();
 const forgotPasswordResult = await reauthResult.data.updateUser({
-  nonce: '123456',
-  password: 'new',
-})
+  nonce: "123456",
+  password: "new",
+});
 
 // Link third-party
-const linkIdentityResult = await auth.linkIdentity({ provider: 'google' })
+const linkIdentityResult = await auth.linkIdentity({ provider: "google" });
 
 // View/Unlink identities
-const identitiesResult = await auth.getUserIdentities()
+const identitiesResult = await auth.getUserIdentities();
 const unlinkIdentityResult = await auth.unlinkIdentity({
   provider: identitiesResult.data.identities[0].id,
-})
+});
 
 // Delete account
-const deleteMeResult = await auth.deleteMe({ password: 'current' })
+const deleteMeResult = await auth.deleteMe({ password: "current" });
 
 // Listen to state changes
 const authStateSubscription = auth.onAuthStateChange((event, session, info) => {
   // INITIAL_SESSION, SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, USER_UPDATED, PASSWORD_RECOVERY, BIND_IDENTITY
-})
+});
 
 // Get access token
-const sessionResult = await auth.getSession()
-await fetch('/api/protected', {
-  headers: { Authorization: `Bearer ${sessionResult.data.session?.access_token}` },
-})
+const sessionResult = await auth.getSession();
+await fetch("/api/protected", {
+  headers: {
+    Authorization: `Bearer ${sessionResult.data.session?.access_token}`,
+  },
+});
 
 // Refresh user
-const refreshUserResult = await auth.refreshUser()
+const refreshUserResult = await auth.refreshUser();
 ```
 
 ---
@@ -310,36 +350,36 @@ const refreshUserResult = await auth.refreshUser()
 
 ```ts
 declare type User = {
-  id: any
-  aud: string
-  role: string[]
-  email: any
-  email_confirmed_at: string
-  phone: any
-  phone_confirmed_at: string
-  confirmed_at: string
-  last_sign_in_at: string
+  id: any;
+  aud: string;
+  role: string[];
+  email: any;
+  email_confirmed_at: string;
+  phone: any;
+  phone_confirmed_at: string;
+  confirmed_at: string;
+  last_sign_in_at: string;
   app_metadata: {
-    provider: any
-    providers: any[]
-  }
+    provider: any;
+    providers: any[];
+  };
   user_metadata: {
-    name: any
-    picture: any
-    username: any
-    gender: any
-    locale: any
-    uid: any
-    nickName: any
-    avatarUrl: any
-    location: any
-    hasPassword: any
-  }
-  identities: any
-  created_at: string
-  updated_at: string
-  is_anonymous: boolean
-}
+    name: any;
+    picture: any;
+    username: any;
+    gender: any;
+    locale: any;
+    uid: any;
+    nickName: any;
+    avatarUrl: any;
+    location: any;
+    hasPassword: any;
+  };
+  identities: any;
+  created_at: string;
+  updated_at: string;
+  is_anonymous: boolean;
+};
 ```
 
 ---
@@ -349,43 +389,43 @@ declare type User = {
 ```js
 class PhoneLoginPage {
   async sendCode() {
-    const phone = document.getElementById('phone').value
-    if (!/^1[3-9]\d{9}$/.test(phone)) return alert('Invalid phone')
+    const phone = document.getElementById("phone").value;
+    if (!/^1[3-9]\d{9}$/.test(phone)) return alert("Invalid phone");
 
-    const { data, error } = await auth.signInWithOtp({ phone })
-    if (error) return alert('Send failed: ' + error.message)
+    const { data, error } = await auth.signInWithOtp({ phone });
+    if (error) return alert("Send failed: " + error.message);
 
-    this.verifyOtp = data.verifyOtp
-    document.getElementById('codeSection').style.display = 'block'
-    this.startCountdown(60)
+    this.verifyOtp = data.verifyOtp;
+    document.getElementById("codeSection").style.display = "block";
+    this.startCountdown(60);
   }
 
   async verifyCode() {
-    const code = document.getElementById('code').value
-    if (!code) return alert('Enter code')
-    if (!this.verifyOtp) return alert('Send the code first')
+    const code = document.getElementById("code").value;
+    if (!code) return alert("Enter code");
+    if (!this.verifyOtp) return alert("Send the code first");
 
-    const { data, error } = await this.verifyOtp({ token: code })
-    if (error) return alert('Verification failed: ' + error.message)
+    const { data, error } = await this.verifyOtp({ token: code });
+    if (error) return alert("Verification failed: " + error.message);
 
-    console.log('Login successful:', data.user)
-    window.location.href = '/dashboard'
+    console.log("Login successful:", data.user);
+    window.location.href = "/dashboard";
   }
 
   startCountdown(seconds) {
-    let countdown = seconds
-    const btn = document.getElementById('resendBtn')
-    btn.disabled = true
+    let countdown = seconds;
+    const btn = document.getElementById("resendBtn");
+    btn.disabled = true;
 
     const timer = setInterval(() => {
-      countdown--
-      btn.innerText = `Resend in ${countdown}s`
+      countdown--;
+      btn.innerText = `Resend in ${countdown}s`;
       if (countdown <= 0) {
-        clearInterval(timer)
-        btn.disabled = false
-        btn.innerText = 'Resend'
+        clearInterval(timer);
+        btn.disabled = false;
+        btn.innerText = "Resend";
       }
-    }, 1000)
+    }, 1000);
   }
 }
 ```
