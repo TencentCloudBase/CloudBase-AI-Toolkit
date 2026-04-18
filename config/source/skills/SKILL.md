@@ -40,7 +40,10 @@ alwaysApply: true
 
 - If the same path fails 2-3 times, stop retrying and reroute. Check platform skill, auth domain, runtime, and permission model before editing more code.
 - Always specify `EnvId` explicitly in code, configuration, and command examples when initializing CloudBase clients or manager operations. Do not rely on the current CLI-selected environment or implicit defaults.
-- For HTTP Functions, keep the public gateway path and the in-function router path as separate layers. Do not write prefixes such as `/api/httpDemo` into the router itself; create gateway access separately when the task actually needs an external path, then verify function permissions before treating the URL as usable.
+- For HTTP Functions, keep the public gateway path and the in-function router path as separate layers. Do not write prefixes such as `/api/httpDemo` into the router itself; create gateway access separately only when the task actually needs an external path, and verify function permissions before treating the URL as usable.
+- HTTP Function path mapping rule: if the public gateway path is `/api/httpDemo`, the function router should still handle `/`, `/health`, `/users` inside the service. Do not rewrite those handlers to `/api/httpDemo`, `/api/httpDemo/health`, or other gateway-prefixed paths.
+- HTTP Function delivery rule: creating the function does not guarantee a browser/public URL exists. Confirm the actual exposed path with `queryGateway(action="getAccess")` after creating access, and if the task explicitly says no HTTP access service is needed, do not create gateway access just to mirror the function name.
+- HTTP Function permission rule: when the caller may be anonymous, or when external invocation reports `EXCEED_AUTHORITY`, inspect the function rule first and only widen access when the product requirement really needs anonymous callers.
 
 ### Do NOT use this as
 
