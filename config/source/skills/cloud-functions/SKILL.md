@@ -73,6 +73,7 @@ Use this skill when developing, deploying, and operating CloudBase cloud functio
 - If the request is for SDK calls, timers, or event-driven workflows, write an **Event Function** with `exports.main = async (event, context) => {}`.
 - If the request is for REST APIs, browser-facing endpoints, SSE, or WebSocket, write an **HTTP Function** with `req` / `res` on port `9000`.
 - For Node.js HTTP Functions, `req` / `res` does not require Express. When the user asks for native Node.js or does not request a framework, use the built-in `http` module and handle JSON parsing, routes, and status codes yourself.
+- For Node.js HTTP Functions, write a complete server entry file: create the server in `index.js`, route on both method and pathname, return JSON with `Content-Type: application/json`, handle malformed JSON with `400`, use `404` for unknown paths and `405` for unsupported methods on known paths, and keep `server.listen(9000)` in the entry file.
 - If the user mentions HTTP access for an existing Event Function, keep the Event Function code shape and add gateway access separately.
 
 ## Quick decision table
