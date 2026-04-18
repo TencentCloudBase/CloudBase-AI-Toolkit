@@ -26,6 +26,7 @@ When the workspace already contains an existing application with explicit TODO m
 - Identify the scenario first. Do not start implementation before reading the matching rule file.
 - Login or registration request -> read `{auth-tool}` first, then the platform auth rule.
 - Keep auth domains separate: management-side login uses `auth`; app-side auth configuration uses `queryAppAuth` / `manageAppAuth`.
+- When the task asks you to create a local artifact such as `RESULT.json`, a report, or an export file, write it under the workspace project root instead of the MCP package directory or a temp directory. Resolve the root with `WORKSPACE_FOLDER_PATHS`, then `PROJECT_ROOT`, then `GITHUB_WORKSPACE`, then the current working directory. If the user gives only a filename, place it at that root; if the user gives a relative path, resolve it from that root.
 - UI request -> read `rules/ui-design/rule.md` first and output the design specification before code.
 - Native App / Flutter / React Native request -> route to `{http-api}`, not Web SDK rules.
 - Cloud Function request -> route to `{cloud-functions}`, not `cloudrun-development`, unless the task explicitly needs container service behavior.
