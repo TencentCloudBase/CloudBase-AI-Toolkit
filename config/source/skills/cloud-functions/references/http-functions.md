@@ -143,6 +143,29 @@ manageGateway({
 });
 ```
 
+### Path mapping model
+
+Keep the public gateway path and the in-function router path as two different layers.
+
+- `manageGateway(..., path: "/api/hello")` creates the **external** access prefix.
+- Your HTTP Function still matches its own internal routes such as `/`, `/health`, `/users`.
+- Do **not** rewrite the function router to include the gateway prefix.
+
+Example mapping:
+
+| External URL | Route your HTTP Function should handle |
+| --- | --- |
+| `https://{domain}/api/hello` | `/` |
+| `https://{domain}/api/hello/health` | `/health` |
+| `https://{domain}/api/hello/users` | `/users` |
+
+For example, if you expose `path: "/api/httpDemo"`, the function code should normally keep handlers like `app.get("/")` and `app.get("/health")`. Do not change them to `app.get("/api/httpDemo")` or `app.get("/api/httpDemo/health")`.
+
+If the external caller reports a 404, verify these two layers separately:
+
+1. Use `queryGateway(action="getAccess")` to confirm which public path is actually exposed.
+2. Check the HTTP Function router to confirm it handles the internal path after the gateway prefix.
+
 Before enabling anonymous access, confirm both of these:
 
 1. The access path exists.
