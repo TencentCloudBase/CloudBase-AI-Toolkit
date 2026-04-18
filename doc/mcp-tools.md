@@ -426,10 +426,10 @@ classDiagram
 <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
 <tbody>
 <tr><td><code>localPath</code></td><td>string</td><td></td><td>本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。</td></tr>
-<tr><td><code>cloudPath</code></td><td>string</td><td></td><td>静态托管云端文件或文件夹路径，例如 files/data.txt。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。</td></tr>
-<tr><td><code>files</code></td><td>array of object</td><td></td><td>多文件上传配置 默认值: []</td></tr>
+<tr><td><code>cloudPath</code></td><td>string</td><td></td><td>静态托管相对路径，不要带前导 /。文件示例：vite-demo/index.html；目录示例：vite-demo/。如果传入 /vite-demo 且 localPath 是目录，会自动归一化为 vite-demo/。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。</td></tr>
+<tr><td><code>files</code></td><td>array of object</td><td></td><td>多文件上传配置；files[].cloudPath 统一使用静态托管相对路径，不要带前导 /。 默认值: []</td></tr>
 <tr><td><code>files[].localPath</code></td><td>string</td><td>是</td><td></td></tr>
-<tr><td><code>files[].cloudPath</code></td><td>string</td><td>是</td><td></td></tr>
+<tr><td><code>files[].cloudPath</code></td><td>string</td><td>是</td><td>静态托管相对文件路径，不要带前导 /，例如 vite-demo/assets/app.js</td></tr>
 <tr><td><code>ignore</code></td><td>string \| array of string</td><td></td><td>忽略文件模式</td></tr>
 </tbody>
 </table>
@@ -444,7 +444,7 @@ classDiagram
 <table>
 <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td><code>cloudPath</code></td><td>string</td><td>是</td><td>云端文件或文件夹路径</td></tr>
+<tr><td><code>cloudPath</code></td><td>string</td><td>是</td><td>静态托管相对路径，不要带前导 /。文件示例：vite-demo/index.html；目录示例：vite-demo/</td></tr>
 <tr><td><code>isDir</code></td><td>boolean</td><td></td><td>是否为文件夹 默认值: false</td></tr>
 </tbody>
 </table>
