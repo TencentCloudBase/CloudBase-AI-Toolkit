@@ -10,6 +10,7 @@ HTTP Functions are standard web services, not `exports.main(event, context)` han
 - Listen on port `9000`.
 - Ship an executable `scf_bootstrap` file.
 - Include runtime dependencies in the package; HTTP Functions do not auto-install `node_modules` for you.
+- Frameworks such as Express are optional. If the task asks for native Node.js or does not require a framework, prefer the built-in `http` module.
 
 ## Minimal structure
 
@@ -34,7 +35,51 @@ Requirements:
 - Use LF line endings.
 - Make it executable with `chmod +x scf_bootstrap`.
 
-## Minimal Node.js example
+## Minimal Node.js example with native `http`
+
+Use this shape when the user requests the Node.js standard library or when you want the smallest possible deployment package.
+
+```javascript
+const http = require("http");
+
+function sendJson(res, statusCode, payload) {
+  res.writeHead(statusCode, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(payload));
+}
+
+async function readJsonBody(req) {
+  const chunks = [];
+
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+
+  if (chunks.length === 0) {
+    return {};
+  }
+
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url || "/", "http://127.0.0.1");
+
+  if (req.method === "GET" && url.pathname === "/health") {
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (req.method === "POST" && url.pathname === "/echo") {
+    const body = await readJsonBody(req);
+    return sendJson(res, 200, { received: body });
+  }
+
+  return sendJson(res, 404, { error: "Not Found" });
+});
+
+server.listen(9000);
+```
+
+## Minimal Node.js example with Express
 
 ```javascript
 const express = require("express");
@@ -51,12 +96,19 @@ app.listen(9000);
 
 ## Request handling rules
 
-- `req.query` -> query string values.
-- `req.body` -> parsed request body, but only after body-parsing middleware is configured.
-- `req.headers` -> incoming HTTP headers.
-- `req.params` -> path parameters.
-- Always send a response with `res.json()`, `res.send()`, or `res.status(...).json()`.
+- Native Node.js `http` server: use `new URL(req.url, base)` for path and query parsing.
+- Native Node.js `http` server: read the request stream yourself before parsing JSON bodies.
+- Express or similar frameworks: `req.query`, `req.body`, and `req.params` are available only after the relevant middleware or router setup.
+- `req.headers` contains incoming HTTP headers in both native and framework-based implementations.
+- Always send a response and set `Content-Type` to `application/json` for JSON APIs.
 - Return meaningful status codes such as `400`, `401`, `404`, `405`, `500`.
+
+### Native `http` checklist
+
+- Route on both `req.method` and pathname.
+- Wrap `JSON.parse` in error handling when the body might be malformed.
+- Return `405` for unsupported methods when the path exists but the method does not.
+- Return `404` for unknown paths.
 
 ### Example with method checks
 
