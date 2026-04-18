@@ -74,10 +74,10 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 - Treat CloudBase Web Auth as **Supabase-like**, not “every `supabase-js` auth example is valid unchanged”
 - When `queryAppAuth` / `manageAppAuth` returns `sdkStyle: "supabase-like"` and `sdkHints`, follow those method and parameter hints first
 - `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })` use the phone number in a `phone` field, not `phone_number`
-- `auth.signInWithOtp({ email })` and `auth.signUp({ email })` use `email`
+- `auth.signInWithOtp({ email })` and `auth.signUp({ email })` both use the `email` field, but they serve different purposes: `signInWithOtp` starts email login, while `signUp` starts email registration
 - `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })` are the canonical username/password Web auth path
-- Email and phone registration are OTP flows: call `auth.signUp({ email|phone, ... })`, then complete the signup with the returned `data.verifyOtp({ token })`
-- For email signup, the canonical sequence is: `auth.signUp({ email, ... })` to send the code, persist the returned `data` signup handle, then call `signupHandle.verifyOtp({ token })` with only the verification code
+- Email and phone registration are OTP flows: `auth.signUp({ email|phone, ... })` is only the first step that sends the verification code; registration completes only after the returned `data.verifyOtp({ token })` succeeds
+- For email signup, the canonical sequence is: `auth.signUp({ email, ... })` to send the code, persist the returned `data` signup handle, then call `signupHandle.verifyOtp({ token })` with only the verification code to finish account creation
 - Do not describe email registration as `auth.signUp({ email, password })`; for email-based password login, use `auth.signInWithPassword({ email, password })` after the account already exists
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
 - `verifyOtp({ token })` expects the SMS or email code in `token`
@@ -117,7 +117,7 @@ const { data: loginData, error: loginError } = await data.verifyOtp({
 });
 ```
 
-**2. Email OTP**
+**2. Email OTP Login**
 
 - Automatically use `auth-tool-cloudbase` to turn on `Email Login` through `manageAppAuth`
 
@@ -155,6 +155,13 @@ const phoneLogin = await auth.signInWithPassword({
 - In split UI handlers, `auth.signUp({ email, ... })` is the "send code" step and `signupHandle.verifyOtp({ token })` is the "complete registration" step
 - Do not write email registration as `auth.signUp({ email, password })`; email/password is a sign-in flow for an existing account, not the signup payload shown here
 - If the UI splits "send code" and "complete registration" into different handlers, persist the returned sign-up handle from step 1 and reuse it in step 2
+
+Email signup sequence at a glance:
+
+1. Call `auth.signUp({ email, nickname })` to send the email code.
+2. Persist the returned `data` signup handle from step 1.
+3. Call `signupHandle.verifyOtp({ token })` with only the code from the email.
+4. Treat the account as created only after step 3 succeeds.
 
 ```js
 // Username + Password
