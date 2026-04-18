@@ -131,6 +131,7 @@ const phoneLogin = await auth.signInWithPassword({ phone: '13800138000', passwor
 - Do not switch to email OTP or phone OTP unless the task explicitly says the account identifier is an email address or phone number
 - When the task uses plain usernames such as `admin`, `editor`, or `user01`, the canonical form code is `auth.signUp({ username, password })`
 - Email and phone signup are verification-code flows. Send the code with `auth.signUp(...)`, then call the returned `verifyOtp({ token })` to finish registration
+- The `verifyOtp` callback returned from `auth.signUp({ email|phone, ... })` already carries the signup context. For the follow-up step, send only the verification code as `verifyOtp({ token })`
 - Do not write email registration as `auth.signUp({ email, password })`; email/password is a sign-in flow, not the signup payload shown here
 ```js
 // Username + Password
@@ -194,11 +195,7 @@ const handleRegister = async () => {
   try {
     if (!signUpData?.verifyOtp) throw new Error('Please send the code first')
 
-    const { error } = await signUpData.verifyOtp({
-      email,
-      token: code,
-      type: 'signup',
-    })
+    const { error } = await signUpData.verifyOtp({ token: code })
     if (error) throw error
   } catch (error) {
     console.error('Failed to complete sign-up', error)
