@@ -50,7 +50,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 ## Overview
 
-**Prerequisites**: CloudBase environment ID (`env`)
+**Prerequisites**: CloudBase environment ID (`envId`)
 **Prerequisites**: CloudBase environment Region (`region`)
 
 ---
@@ -65,10 +65,18 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 
 ## Prerequisites
 
-- Use `envQuery(action="info")` or `envQuery(action="list")` to confirm the real CloudBase environment ID before any auth setup. Do not leave the placeholder `env` literal in code, console URLs, or tool calls.
-- If the current MCP session is not already bound to that environment, call `auth(action="set_env", envId="<actual-env-id>")` first so `queryAppAuth` / `manageAppAuth` operate on the correct app.
+- Use `envQuery(action="info")` first to read the current CloudBase environment ID before any auth setup.
+- If the MCP session is not bound yet or `envQuery(action="info")` cannot identify the target environment, use `envQuery(action="list")` to choose the real environment ID, then immediately call `auth(action="set_env", envId="<actual-env-id>")` so `queryAppAuth` / `manageAppAuth` operate on the correct app.
 - Automatically use `auth-tool-cloudbase` to check app-side auth readiness: `queryAppAuth(action="getLoginConfig")` for login methods, `manageAppAuth(action="patchLoginStrategy")` when a required method is off, and `queryAppAuth(action="getPublishableKey")` or `manageAppAuth(action="ensurePublishableKey")` for the publishable key.
-- If `auth-tool-cloudbase` failed, let user go to `https://tcb.cloud.tencent.com/dev?envId={env}#/env/apikey` to get `publishable key` and `https://tcb.cloud.tencent.com/dev?envId={env}#/identity/login-manage` to set up login methods
+- If `auth-tool-cloudbase` failed, let user go to `https://tcb.cloud.tencent.com/dev?envId=<actual-env-id>#/env/apikey` to get `publishable key` and `https://tcb.cloud.tencent.com/dev?envId=<actual-env-id>#/identity/login-manage` to set up login methods.
+
+Recommended tool order for Web auth setup:
+
+1. `envQuery(action="info")`
+2. If needed, `envQuery(action="list")` and `auth(action="set_env", envId="<actual-env-id>")`
+3. `queryAppAuth(action="getLoginConfig")`
+4. `manageAppAuth(action="patchLoginStrategy", patch={ ... })` when the required login method is off
+5. `queryAppAuth(action="getPublishableKey")` or `manageAppAuth(action="ensurePublishableKey")`
 
 ### Parameter map
 
@@ -90,9 +98,9 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 import cloudbase from '@cloudbase/js-sdk'
 
 const app = cloudbase.init({
-  env: `env`, // replace with the real CloudBase environment ID from envQuery
+  env: '<actual-env-id>', // use the envId returned by envQuery and already bound via auth(set_env)
   region: `region`,  // CloudBase environment Region, default 'ap-shanghai'
-  accessKey: 'publishable key', // get via queryAppAuth(getPublishableKey) or manageAppAuth(ensurePublishableKey)
+  accessKey: '<publishable-key>', // get via queryAppAuth(getPublishableKey) or manageAppAuth(ensurePublishableKey)
   auth: { detectSessionInUrl: true }, // required
 })
 
