@@ -603,10 +603,22 @@ For query or update operations, the input query conditions **must be a subset** 
 **Critical implication for document-ID writes:**
 
 - `.doc(id).update(...)` and `.doc(id).remove()` only provide `_id` as the write condition
-- A rule that depends on another field such as `doc.authorId` or `doc.status` cannot be validated from that request alone
+- For many owner-only rules, a condition that depends on another field such as `doc.authorId` or `doc.status` is commonly rejected in document-ID writes because that owner/status field is not present in the request condition
 - For document-ID writes, prefer one of these paths:
   - use a simple permission such as `READONLY` when it already matches “public read, creator/admin write”, or
-  - keep `doc.field`-based CUSTOM rules and switch to `where(...)` writes that explicitly include the required owner/status fields in the query
+  - for owner-only CUSTOM rules without admin override, switch to `where(...)` writes that explicitly include the required owner/status fields in the query, such as `where({ _id, authorId })`
+- **Important CMS exception:** for article collections that require app-level admin override, keep the validated CMS pattern instead of rewriting the frontend to `.where({ _id: id }).update(...)` or `.where({ _id: id }).remove()`. A documented working pattern is:
+
+```json
+{
+  "read": "auth.uid != null",
+  "create": "auth.uid != null",
+  "update": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)",
+  "delete": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)"
+}
+```
+
+With that CMS rule shape, `.doc(id).update()` / `.doc(id).remove()` remains the recommended client path, as long as article documents really store `authorId` and the role documents are keyed by `auth.uid`.
 
 **Operation Types Affected:**
 
