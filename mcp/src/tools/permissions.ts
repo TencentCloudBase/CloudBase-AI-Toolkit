@@ -138,6 +138,14 @@ function extractRiskyDocFieldOperations(securityRule: string | undefined): Array
     if (!expression) {
       continue;
     }
+    const usesValidatedCmsAdminOverride =
+      /(doc\.authorId\s*==\s*auth\.uid|auth\.uid\s*==\s*doc\.authorId)/.test(expression) &&
+      /get\('database\.[^']+\.'\s*\+\s*auth\.uid\)\.role\s*==\s*['"]admin['"]/.test(
+        expression,
+      );
+    if (usesValidatedCmsAdminOverride) {
+      continue;
+    }
     const referencesNonIdDocField = /doc\.(?!_id\b)[A-Za-z_][A-Za-z0-9_]*/.test(expression);
     const usesGetByDocId = /get\('database\.[^']+'\s*\+\s*doc\._id\)/.test(expression);
     if (referencesNonIdDocField && !usesGetByDocId) {
