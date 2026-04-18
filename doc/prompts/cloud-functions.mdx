@@ -2,6 +2,38 @@
 
 开发和部署 Node.js 云函数，包括运行时选择、部署、日志查询、HTTP 访问配置
 
+## HTTP 云函数编写规范
+
+如果需求是 REST API、浏览器可访问接口、SSE 或 WebSocket，请明确使用 **HTTP 云函数**，不要写成 `exports.main(event, context)` 形式的事件函数。
+
+Node.js HTTP 云函数的代码约束：
+
+- 使用 `req` / `res` Web 服务模型处理请求
+- 服务必须监听 `9000` 端口
+- 部署包中必须包含可执行的 `scf_bootstrap`
+- 依赖需要随代码一起打包，不能假设平台自动安装 `node_modules`
+- 如果用户没有明确要求框架，优先使用 Node.js 原生 `http` 模块，而不是 Express
+
+最小示例：
+
+```js
+const http = require("http");
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ ok: true }));
+});
+
+server.listen(9000);
+```
+
+```bash
+#!/bin/bash
+/var/lang/node18/bin/node index.js
+```
+
+如果需求只是给**已有事件函数**增加 HTTP 访问路径，那是网关暴露配置，不是 HTTP 云函数运行时本身，代码形态不应切换成 `req` / `res` 服务。
+
 ## 如何使用
 
 查看[如何使用Skill](/ai/cloudbase-ai-toolkit/prompts/how-to-use)了解详细的使用方法。
