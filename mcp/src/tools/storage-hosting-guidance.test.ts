@@ -37,6 +37,7 @@ describe("storage and hosting tool guidance", () => {
     expect(tools.uploadFiles.meta.description).toContain("manageStorage");
     expect(tools.uploadFiles.meta.description).toContain("通常不需要调用此工具");
     expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("云存储对象路径请改用 manageStorage");
+    expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("不带前导 /");
     expect(tools.manageStorage.meta.description).toContain("仅用于 COS/Storage 对象");
     expect(tools.manageStorage.meta.description).toContain("不用于静态网站托管");
   });

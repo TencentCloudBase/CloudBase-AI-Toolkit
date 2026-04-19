@@ -19,7 +19,27 @@ interface ExtendedEnvInfo {
   [key: string]: any;
 }
 
+function normalizeHostingCloudPath(cloudPath?: string): string | undefined {
+  if (typeof cloudPath !== "string") return undefined;
+
+  const trimmed = cloudPath.trim();
+  if (!trimmed) return undefined;
+
+  return trimmed.replace(/^\/+/, '');
+}
+
+function normalizeHostingFiles(
+  files: Array<{ localPath: string; cloudPath: string }> = [],
+): Array<{ localPath: string; cloudPath: string }> {
+  return files.map((file) => ({
+    ...file,
+    cloudPath: normalizeHostingCloudPath(file.cloudPath) ?? '',
+  }));
+}
+
 function isDirectoryUploadTarget(localPath?: string, cloudPath?: string): boolean {
+  const normalizedCloudPath = normalizeHostingCloudPath(cloudPath) ?? '';
+
   if (localPath) {
     try {
       if (fs.statSync(localPath).isDirectory()) {
@@ -30,7 +50,6 @@ function isDirectoryUploadTarget(localPath?: string, cloudPath?: string): boolea
     }
   }
 
-  const normalizedCloudPath = (cloudPath ?? '').trim();
   if (!normalizedCloudPath) return true;
   if (normalizedCloudPath.endsWith('/')) return true;
 
@@ -40,7 +59,7 @@ function isDirectoryUploadTarget(localPath?: string, cloudPath?: string): boolea
 function buildHostingAccessUrl(staticDomain?: string, cloudPath?: string, localPath?: string): string {
   if (!staticDomain) return '';
 
-  const normalizedCloudPath = (cloudPath ?? '').trim().replace(/^\/+|\/+$/g, '');
+  const normalizedCloudPath = (normalizeHostingCloudPath(cloudPath) ?? '').replace(/\/+$/g, '');
   const isDirectory = isDirectoryUploadTarget(localPath, cloudPath);
 
   if (!normalizedCloudPath) {
@@ -261,11 +280,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
       inputSchema: {
         localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
-        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，例如 files/data.txt。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"),
+        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，例如 vite-test 或 vite-test/index.html；应使用不带前导 / 的托管相对路径。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"),
         files: z.array(z.object({
           localPath: z.string(),
-          cloudPath: z.string()
-        })).default([]).describe("多文件上传配置"),
+          cloudPath: z.string().describe("静态托管相对路径，不带前导 /")
+        })).default([]).describe("多文件上传配置，其中每个 cloudPath 都应使用不带前导 / 的托管相对路径"),
         ignore: z.union([z.string(), z.array(z.string())]).optional().describe("忽略文件模式")
       },
       annotations: {
@@ -283,12 +302,14 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       ignore?: string | string[]
     }) => {
       const cloudbase = await getManager()
+      const normalizedCloudPath = normalizeHostingCloudPath(cloudPath);
+      const normalizedFiles = normalizeHostingFiles(files);
       let result: unknown;
       try {
         result = await cloudbase.hosting.uploadFiles({
           localPath,
-          cloudPath,
-          files,
+          cloudPath: normalizedCloudPath,
+          files: normalizedFiles,
           ignore
         });
       } catch (error) {
@@ -301,7 +322,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       const envInfo = await cloudbase.env.getEnvInfo() as ExtendedEnvInfo;
       logCloudBaseResult(server.logger, envInfo);
       const staticDomain = envInfo.EnvInfo?.StaticStorages?.[0]?.StaticDomain;
-      const accessUrl = buildHostingAccessUrl(staticDomain, cloudPath, localPath);
+      const accessUrl = buildHostingAccessUrl(staticDomain, normalizedCloudPath, localPath);
 
       // Send deployment notification to CodeBuddy IDE
       try {
@@ -365,7 +386,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       title: "删除静态文件",
       description: "删除静态网站托管的文件或文件夹",
       inputSchema: {
-        cloudPath: z.string().describe("云端文件或文件夹路径"),
+        cloudPath: z.string().describe("云端文件或文件夹路径，使用不带前导 / 的托管相对路径"),
         isDir: z.boolean().default(false).describe("是否为文件夹")
       },
       annotations: {
@@ -378,8 +399,9 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     },
     async ({ cloudPath, isDir = false }: { cloudPath: string; isDir?: boolean }) => {
       const cloudbase = await getManager()
+      const normalizedCloudPath = normalizeHostingCloudPath(cloudPath) ?? '';
       const result = await cloudbase.hosting.deleteFiles({
-        cloudPath,
+        cloudPath: normalizedCloudPath,
         isDir
       });
       logCloudBaseResult(server.logger, result);
@@ -401,7 +423,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       title: "搜索静态文件",
       description: "搜索静态网站托管的文件",
       inputSchema: {
-        prefix: z.string().describe("匹配前缀"),
+        prefix: z.string().describe("匹配前缀，使用不带前导 / 的托管相对路径前缀"),
         marker: z.string().optional().describe("起始对象键标记"),
         maxKeys: z.number().optional().describe("单次返回最大条目数")
       },
@@ -413,8 +435,9 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     },
     async ({ prefix, marker, maxKeys }: { prefix: string; marker?: string; maxKeys?: number }) => {
       const cloudbase = await getManager()
+      const normalizedPrefix = normalizeHostingCloudPath(prefix) ?? '';
       const result = await cloudbase.hosting.findFiles({
-        prefix,
+        prefix: normalizedPrefix,
         marker,
         maxKeys
       });
