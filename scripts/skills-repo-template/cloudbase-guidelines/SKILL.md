@@ -342,8 +342,12 @@ When users request deployment to CloudBase:
    - Determine if this is a new deployment or update to existing services
 
 1. **Backend Deployment (if applicable)**:
-   - Only for nodejs cloud functions: deploy directly using `createFunction` tools
-     - Criteria: function directory contains `index.js` with cloud function format export: `exports.main = async (event, context) => {}`
+   - For Node.js cloud functions, first distinguish Event Function vs HTTP Function, then deploy directly using `manageFunctions(action="createFunction")` / `manageFunctions(action="updateFunctionCode")`
+     - Legacy compatibility: if older materials mention `createFunction`, `updateFunctionCode`, `getFunctionList`, `readSecurityRule`, or `writeSecurityRule`, map them to `manageFunctions(...)`, `queryFunctions(...)`, `queryPermissions(...)`, and `managePermissions(...)`
+     - Event Function criteria: function directory contains `index.js` with cloud function format export: `exports.main = async (event, context) => {}`
+     - HTTP Function criteria: service code listens on port `9000` and the function directory includes `scf_bootstrap`
+     - If the target is an HTTP Function that must be reachable by URL, follow function deployment with `manageGateway(action="createAccess")` and confirm it with `queryGateway(action="getAccess")`
+     - If external callers need anonymous or broader access, inspect `queryPermissions(action="getResourcePermission", resourceType="function")` first and only then adjust with `managePermissions(action="updateResourcePermission")`
    - For other languages backend server (Java, Go, PHP, Python, Node.js): deploy to Cloud Run
    - Ensure backend code supports CORS by default
    - Prepare Dockerfile for containerized deployment
