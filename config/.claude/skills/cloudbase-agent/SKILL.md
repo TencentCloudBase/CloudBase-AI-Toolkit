@@ -1,6 +1,6 @@
 ---
 name: cloudbase-agent
-description: Build and deploy AI agents with CloudBase Agent SDK (TypeScript & Python). Implements the AG-UI protocol for streaming agent-UI communication. Use when deploying agent servers, using LangGraph/LangChain/CrewAI adapters, building custom adapters, understanding AG-UI protocol events, or building web/mini-program UI clients. Supports both TypeScript (@cloudbase/agent-server) and Python (cloudbase-agent-server via FastAPI).
+description: Build and deploy AI agents with CloudBase Agent SDK (TypeScript & Python). Implements the AG-UI protocol for streaming agent-UI communication. Use when deploying agent servers, using LangGraph/LangChain/CrewAI adapters, building custom adapters, understanding AG-UI protocol events, or building web/mini-program UI clients. Supports both TypeScript (@cloudbase/agent-server) and Python (modular cloudbase-agent-* packages such as cloudbase-agent-langgraph and cloudbase-agent-server via FastAPI).
 version: 2.18.0
 alwaysApply: false
 allowed-tools: 
@@ -32,6 +32,6 @@ This skill supports **TypeScript** and **Python**. Determine the language first,
 ## Step 2: Read the Language-Specific Skill File
 
 - **TypeScript** → Read [ts/skill.md](ts/skill.md) — then follow ALL instructions in that file
-- **Python** → Read [py/skill.md](py/skill.md) — then follow ALL instructions in that file
+- **Python** → Read [py/skill.md](py/skill.md) — Python uses modular `cloudbase-agent-*` packages; for LangGraph flows install `cloudbase-agent-langgraph`, not just `cloudbase-agent-server`
 
 **⚠️ IMPORTANT:** After determining the language, you MUST read the corresponding skill file above. Do NOT proceed with any code generation until you have read it. Each language skill file is self-contained with its own quick start, routing table, deployment instructions, and adapter guides.
