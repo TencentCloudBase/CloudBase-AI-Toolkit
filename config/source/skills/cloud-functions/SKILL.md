@@ -1,7 +1,7 @@
 ---
 name: cloud-functions
 description: CloudBase function runtime guide for building, deploying, and debugging your own Event Functions or HTTP Functions. This skill should be used when users need application runtime code on CloudBase, not when they are merely calling CloudBase official platform APIs.
-version: 2.18.0
+version: 2.18.1
 alwaysApply: false
 ---
 
@@ -50,6 +50,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Confusing official CloudBase API client work with building your own HTTP function.
 - Mixing Event Function code shape (`exports.main(event, context)`) with HTTP Function code shape (`req` / `res` on port `9000`).
 - Treating HTTP Access as the implementation model for HTTP Functions. HTTP Access is a gateway configuration for Event Functions, not the HTTP Function runtime model.
+- Assuming the access path created by `manageGateway(action="createAccess")` is stripped before the request reaches an HTTP Function. It is not rewritten by default, so exposing `/api/http-demo` or the default `/${targetName}` changes the path your handler must match unless you normalize the prefix yourself.
 - Assuming `db.collection("name").add(...)` will create a missing document-database collection automatically. Collection creation is a separate management step.
 - Forgetting that runtime cannot be changed after creation.
 - Using cloud functions as the first answer for Web login.
