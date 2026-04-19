@@ -88,6 +88,40 @@ Create a real-time data listener that returns a `watcher` object.
 - `add`: New document added
 - `delete`: Document deleted
 
+## Initial Readiness Contract
+
+Calling `.watch()` only starts the listener setup. Do not assume the queried data is ready immediately after `watch()` returns.
+
+- Treat the first `onChange` snapshot whose `docChanges` contain `dataType: 'init'` as the canonical "initial data is ready" signal.
+- Until that `init` snapshot arrives, keep loading state explicit.
+- Do not enable turn-based actions, render room state as authoritative, or conclude that the query returned no rows before the `init` snapshot.
+
+Example:
+
+```javascript
+let initialReady = false;
+
+const watcher = db.collection("rooms")
+  .where({ roomId })
+  .watch({
+    onChange(snapshot) {
+      const isInit = snapshot.docChanges?.some(
+        change => change.dataType === 'init'
+      );
+
+      syncRoomState(snapshot.docs);
+
+      if (isInit && !initialReady) {
+        initialReady = true;
+        setLoading(false);
+      }
+    },
+    onError(error) {
+      handleWatchError(error);
+    }
+  });
+```
+
 **Watcher object methods:**
 - `watcher.close()`: Close monitoring and release resources
 
@@ -120,10 +154,18 @@ import { useEffect } from 'react';
 
 function ChatRoom({ roomId }) {
   useEffect(() => {
+    let initialReady = false;
     const watcher = db.collection("messages")
       .where({ chatRoomId: roomId })
       .watch({
-        onChange: handleNewMessages,
+        onChange(snapshot) {
+          handleNewMessages(snapshot);
+
+          if (!initialReady && snapshot.docChanges?.some(change => change.dataType === 'init')) {
+            initialReady = true;
+            setLoading(false);
+          }
+        },
         onError: handleError
       });
     
