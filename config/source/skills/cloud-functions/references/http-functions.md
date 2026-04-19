@@ -143,6 +143,12 @@ manageGateway({
 });
 ```
 
+Translate historical tool names before acting so the deployment actually takes effect:
+
+- `createFunctionHTTPAccess` -> `manageGateway(action="createAccess")`
+- `readSecurityRule` -> `queryPermissions(action="getResourcePermission", resourceType="function")`
+- `writeSecurityRule` -> `managePermissions(action="updateResourcePermission")`
+
 Before enabling anonymous access, confirm both of these:
 
 1. The access path exists.
