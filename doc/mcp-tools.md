@@ -426,10 +426,10 @@ classDiagram
 <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
 <tbody>
 <tr><td><code>localPath</code></td><td>string</td><td></td><td>本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。</td></tr>
-<tr><td><code>cloudPath</code></td><td>string</td><td></td><td>静态托管云端文件或文件夹路径，使用托管路径语义而不是完整 URL。例如 / 表示托管根目录；vite-test、/vite-test 和 /vite-test/ 都表示同一个子目录；/vite-test/index.html 表示具体文件。服务端会自动去掉多余前导 / 并按目录/文件语义规范化。若希望部署到托管根目录，请传 / 或留空。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。</td></tr>
+<tr><td><code>cloudPath</code></td><td>string</td><td></td><td>静态托管云端文件或文件夹路径，使用托管路径语义而不是完整 URL，且路径相对于托管根目录。部署到根目录时请留空；部署到子目录时请传 <code>vite-test</code> 这类不带前导 <code>/</code> 的相对路径，不要传 <code>/vite-test</code>；具体文件可传 <code>vite-test/index.html</code>。如果站点最终访问路径是 <code>/vite-test</code>，构建前请同步把 Vite <code>base</code> 或其他框架的 <code>publicPath</code>、<code>assetPrefix</code> 配置为 <code>./</code> 或与部署路径一致，并上传完整构建目录（通常是 <code>dist/</code>）。云存储对象路径请改用 manageStorage。</td></tr>
 <tr><td><code>files</code></td><td>array of object</td><td></td><td>多文件上传配置 默认值: []</td></tr>
 <tr><td><code>files[].localPath</code></td><td>string</td><td>是</td><td></td></tr>
-<tr><td><code>files[].cloudPath</code></td><td>string</td><td>是</td><td>静态托管路径，使用托管路径语义而不是完整 URL；可带或不带前导 /，服务端会自动规范化</td></tr>
+<tr><td><code>files[].cloudPath</code></td><td>string</td><td>是</td><td>静态托管路径，相对于托管根目录的相对路径，不要以 <code>/</code> 开头，例如 <code>vite-test/assets/app.js</code></td></tr>
 <tr><td><code>ignore</code></td><td>string \| array of string</td><td></td><td>忽略文件模式</td></tr>
 </tbody>
 </table>
@@ -444,7 +444,7 @@ classDiagram
 <table>
 <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td><code>cloudPath</code></td><td>string</td><td>是</td><td>托管云端文件或文件夹路径，使用托管路径语义。例如 / 表示根目录；vite-test、/vite-test 和 /vite-test/ 都表示同一个目录。服务端会自动去掉多余前导 / 并规范化</td></tr>
+<tr><td><code>cloudPath</code></td><td>string</td><td>是</td><td>托管云端文件或文件夹路径，相对于托管根目录的相对路径，不要以 <code>/</code> 开头。例如 <code>vite-test</code>、<code>vite-test/index.html</code>；若要定位根目录，请传空字符串</td></tr>
 <tr><td><code>isDir</code></td><td>boolean</td><td></td><td>是否为文件夹 默认值: false</td></tr>
 </tbody>
 </table>
@@ -459,7 +459,7 @@ classDiagram
 <table>
 <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td><code>prefix</code></td><td>string</td><td>是</td><td>匹配前缀，使用托管路径语义。例如 / 表示根目录前缀；vite-test 和 /vite-test 会查询同一前缀。服务端会自动去掉多余前导 /</td></tr>
+<tr><td><code>prefix</code></td><td>string</td><td>是</td><td>匹配前缀，相对于托管根目录的相对路径，不要以 <code>/</code> 开头。例如空字符串表示根目录前缀，<code>vite-test</code> 表示子目录前缀</td></tr>
 <tr><td><code>marker</code></td><td>string</td><td></td><td>起始对象键标记</td></tr>
 <tr><td><code>maxKeys</code></td><td>number</td><td></td><td>单次返回最大条目数</td></tr>
 </tbody>
