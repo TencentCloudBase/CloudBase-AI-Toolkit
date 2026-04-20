@@ -150,6 +150,52 @@ Before enabling anonymous access, confirm both of these:
 
 If an external caller reports `EXCEED_AUTHORITY`, inspect the function permission first with `queryPermissions(action="getResourcePermission", resourceType="function")` before widening access.
 
+### Gateway path mapping for HTTP Functions
+
+`manageGateway(action="createAccess")` creates a public access path, but it does **not** rewrite that path to `/` before the request reaches your HTTP Function.
+
+- Public access path `/api/http-demo` + request `GET /api/http-demo` -> your server normally receives pathname `/api/http-demo`
+- Public access path `/api/http-demo` + request `GET /api/http-demo/health` -> your server normally receives pathname `/api/http-demo/health`
+- If you omit `path`, `createAccess` defaults to `/${targetName}`, so a handler that only matches `/` will not automatically match the default public URL
+
+When your implementation wants internal routes like `/` and `/health`, use one of these approaches:
+
+1. Match the public path directly in your handler.
+2. Strip a known public base path in code before routing.
+
+Example with Node.js built-in `http` module:
+
+```javascript
+const PUBLIC_BASE_PATH = process.env.PUBLIC_BASE_PATH || "";
+
+function normalizePath(pathname) {
+  if (!PUBLIC_BASE_PATH || PUBLIC_BASE_PATH === "/") {
+    return pathname;
+  }
+
+  if (pathname === PUBLIC_BASE_PATH) {
+    return "/";
+  }
+
+  if (pathname.startsWith(`${PUBLIC_BASE_PATH}/`)) {
+    return pathname.slice(PUBLIC_BASE_PATH.length);
+  }
+
+  return pathname;
+}
+
+const server = http.createServer((req, res) => {
+  const url = new URL(req.url, "http://127.0.0.1");
+  const pathname = normalizePath(url.pathname);
+
+  if (req.method === "GET" && pathname === "/") {
+    // Handle public /api/http-demo as internal /
+  }
+});
+```
+
+Do not assume `createAccess` gives you gateway rewrite behavior. If you need separate route-rewrite semantics, treat that as an explicit gateway-routing requirement and confirm the route capability first instead of guessing.
+
 ## SSE and WebSocket notes
 
 ### SSE
