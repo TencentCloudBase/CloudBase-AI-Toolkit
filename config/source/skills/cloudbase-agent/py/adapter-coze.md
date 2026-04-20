@@ -12,10 +12,10 @@ The Coze adapter allows you to use Coze's hosted AI bots as your backend, while 
 
 ## Installation
 
-Coze adapter is included in the `cloudbase-agent` package:
+Coze adapter currently has no official public package/install contract in the CloudBase docs set available in this repository. Before using it, verify the exact package name and installation steps against the latest official docs or template README for your target adapter.
 
 ```bash
-pip install cloudbase-agent
+# Verify the package name from official docs before running pip install
 ```
 
 ## Basic Usage
@@ -30,7 +30,7 @@ def create_agent():
         api_key="your-api-key"
     )
 
-AgentServiceApp().run(create_agent, port=8000)
+AgentServiceApp().run(create_agent, port=9000)
 ```
 
 ## Configuration
