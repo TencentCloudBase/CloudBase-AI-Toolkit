@@ -1046,7 +1046,7 @@
           },
           "cloudPath": {
             "type": "string",
-            "description": "静态托管云端文件或文件夹路径，例如 /、/vite-test/ 或 /vite-test/index.html。可带或不带前导 /，服务端会自动规范化；/ 表示托管根目录。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"
+            "description": "静态托管云端文件或文件夹路径，使用托管路径语义而不是完整 URL。例如 / 表示托管根目录；vite-test、/vite-test 和 /vite-test/ 都表示同一个子目录；/vite-test/index.html 表示具体文件。服务端会自动去掉多余前导 / 并按目录/文件语义规范化。若希望部署到托管根目录，请传 / 或留空。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"
           },
           "files": {
             "type": "array",
@@ -1058,7 +1058,7 @@
                 },
                 "cloudPath": {
                   "type": "string",
-                  "description": "静态托管路径，可带或不带前导 /；服务端会自动规范化"
+                  "description": "静态托管路径，使用托管路径语义而不是完整 URL；可带或不带前导 /，服务端会自动规范化"
                 }
               },
               "required": [
@@ -1068,7 +1068,7 @@
               "additionalProperties": false
             },
             "default": [],
-            "description": "多文件上传配置，其中每个 cloudPath 都可带或不带前导 /；服务端会自动规范化"
+            "description": "多文件上传配置，其中每个 cloudPath 都使用托管路径语义；可带或不带前导 /，服务端会自动规范化"
           },
           "ignore": {
             "anyOf": [
@@ -1097,7 +1097,7 @@
         "properties": {
           "cloudPath": {
             "type": "string",
-            "description": "云端文件或文件夹路径，可带或不带前导 /；服务端会自动规范化，/ 表示根目录"
+            "description": "托管云端文件或文件夹路径，使用托管路径语义。例如 / 表示根目录；vite-test、/vite-test 和 /vite-test/ 都表示同一个目录。服务端会自动去掉多余前导 / 并规范化"
           },
           "isDir": {
             "type": "boolean",
@@ -1120,7 +1120,7 @@
         "properties": {
           "prefix": {
             "type": "string",
-            "description": "匹配前缀，可带或不带前导 /；服务端会自动规范化，/ 表示根目录前缀"
+            "description": "匹配前缀，使用托管路径语义。例如 / 表示根目录前缀；vite-test 和 /vite-test 会查询同一前缀。服务端会自动去掉多余前导 /"
           },
           "marker": {
             "type": "string",
