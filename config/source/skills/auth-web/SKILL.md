@@ -74,11 +74,11 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 - Treat CloudBase Web Auth as **Supabase-like**, not “every `supabase-js` auth example is valid unchanged”
 - When `queryAppAuth` / `manageAppAuth` returns `sdkStyle: "supabase-like"` and `sdkHints`, follow those method and parameter hints first
 - `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })` use the phone number in a `phone` field, not `phone_number`
-- `auth.signInWithOtp({ email })` and `auth.signUp({ email })` both use the `email` field, but they serve different purposes: `signInWithOtp` starts email login, while `signUp` starts email registration
+- `auth.signInWithOtp({ email })` and `auth.signUp({ email, ... })` both use the `email` field, but they serve different purposes: `signInWithOtp` starts email login, while `signUp` starts email registration
 - `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })` are the canonical username/password Web auth path
 - Email and phone registration are OTP flows: `auth.signUp({ email|phone, ... })` is only the first step that sends the verification code; registration completes only after the returned `data.verifyOtp({ token })` succeeds
-- For email signup, the canonical sequence is: `auth.signUp({ email, ... })` to send the code, persist the returned `data` signup handle, then call `signupHandle.verifyOtp({ token })` with only the verification code to finish account creation
-- Do not describe email registration as `auth.signUp({ email, password })`; for email-based password login, use `auth.signInWithPassword({ email, password })` after the account already exists
+- For email signup, the canonical sequence is: `auth.signUp({ email, password, username? })` to send the code, persist the returned `data` signup handle, then call `signupHandle.verifyOtp({ token })` with only the verification code to finish account creation
+- If the email account should support later password login, include `password` in the initial `auth.signUp(...)` payload before calling `verifyOtp`
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
 - `verifyOtp({ token })` expects the SMS or email code in `token`
 - `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
@@ -151,14 +151,14 @@ const phoneLogin = await auth.signInWithPassword({
 - Do not switch to email OTP or phone OTP unless the task explicitly says the account identifier is an email address or phone number
 - When the task uses plain usernames such as `admin`, `editor`, or `user01`, the canonical form code is `auth.signUp({ username, password })`
 - Email and phone signup are always two-step OTP flows: first call `auth.signUp({ email|phone, ... })` to send the code, then keep the returned `data` object and call `data.verifyOtp({ token })` to finish registration
+- For email signup, put `password` and optional `username` on the initial `auth.signUp(...)` call when the new account should later use password login
 - The `verifyOtp` callback returned from `auth.signUp({ email|phone, ... })` already carries the signup context. In the second step, send only the verification code as `verifyOtp({ token })`; do not rebuild the signup payload
 - In split UI handlers, `auth.signUp({ email, ... })` is the "send code" step and `signupHandle.verifyOtp({ token })` is the "complete registration" step
-- Do not write email registration as `auth.signUp({ email, password })`; email/password is a sign-in flow for an existing account, not the signup payload shown here
 - If the UI splits "send code" and "complete registration" into different handlers, persist the returned sign-up handle from step 1 and reuse it in step 2
 
 Email signup sequence at a glance:
 
-1. Call `auth.signUp({ email, nickname })` to send the email code.
+1. Call `auth.signUp({ email, password, username? })` to send the email code.
 2. Persist the returned `data` signup handle from step 1.
 3. Call `signupHandle.verifyOtp({ token })` with only the code from the email.
 4. Treat the account as created only after step 3 succeeds.
@@ -175,7 +175,8 @@ const usernameSignUp = await auth.signUp({
 // Use only when the task explicitly requires email addresses.
 const emailSignUp = await auth.signUp({
   email: "new@example.com",
-  nickname: "User",
+  password: "pass123",
+  username: "newuser",
 });
 const emailSignupHandle = emailSignUp.data; // Required for the follow-up verify step.
 const emailVerifyResult = await emailSignupHandle.verifyOtp({
@@ -221,7 +222,8 @@ const handleSendCode = async () => {
   try {
     const { data, error } = await auth.signUp({
       email,
-      nickname: username || email.split("@")[0],
+      password,
+      username: username || email.split("@")[0],
     });
     if (error) throw error;
 
