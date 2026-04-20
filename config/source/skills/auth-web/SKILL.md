@@ -43,7 +43,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Skipping publishable key and provider checks.
 - Replacing built-in Web auth with cloud function login logic.
 - Reusing this flow in Flutter, React Native, or native iOS/Android code.
-- Skipping the official Web SDK v2 verification flow for email or phone auth. For `@cloudbase/js-sdk`, registration and verification-code login still use `auth.getVerification()` -> `auth.verify()` -> `auth.signUp()` / `auth.signIn()` with `verification_code` and `verification_token`.
+- Skipping the official Web SDK v2 registration flow for email or phone auth. For `@cloudbase/js-sdk`, registration uses `auth.getVerification()` -> `auth.verify()` -> `auth.signUp()` and passes `email` or `phone_number` together with `verification_code` and `verification_token`.
 - Creating a detached helper file with `auth.getVerification` / `auth.verify` / `auth.signUp` but never wiring it into the existing form handlers, so the actual button clicks still do nothing.
 - Using `signInWithEmailAndPassword` or `signUpWithEmailAndPassword` for username-style accounts such as `admin` and `editor`.
 - Keeping the login or register account input as `type="email"` when the task explicitly says the account identifier is a plain username string.
@@ -67,15 +67,15 @@ Only mention the CDN build for static HTML or no-build demos. If the task explic
 ## Prerequisites
 
 - Use `envQuery(action="info")` first to read the current CloudBase environment ID before any auth setup.
-- If the MCP session is not bound yet or `envQuery(action="info")` cannot identify the target environment, use `envQuery(action="list")` to choose the real environment ID, then immediately call `auth(action="set_env", envId="<real-env-id>")` so `queryAppAuth` / `manageAppAuth` operate on the correct app.
-- When generating frontend code or `.env` examples, fill in the real environment ID returned by `envQuery`; do not leave `your-env-id` or `<real-env-id>` placeholders in runnable code, and do not confuse `envId` with `accessKey` or `clientId`.
+- If the MCP session is not bound yet or `envQuery(action="info")` cannot identify the target environment, use `envQuery(action="list")` to choose the real environment ID, then immediately call `auth(action="set_env")` with that exact `envId` so `queryAppAuth` / `manageAppAuth` operate on the correct app.
+- When generating frontend code or `.env` examples, fill in the exact environment ID returned by `envQuery`; do not leave generic placeholders such as `your-env-id`, and do not confuse `envId` with `accessKey` or `clientId`.
 - Automatically use `auth-tool-cloudbase` to check app-side auth readiness: `queryAppAuth(action="getLoginConfig")` for login methods, `manageAppAuth(action="patchLoginStrategy")` when a required method is off, and `queryAppAuth(action="getPublishableKey")` or `manageAppAuth(action="ensurePublishableKey")` for the publishable key.
-- If `auth-tool-cloudbase` failed, let user go to `https://tcb.cloud.tencent.com/dev?envId=<real-env-id>#/env/apikey` to get `publishable key` and `https://tcb.cloud.tencent.com/dev?envId=<real-env-id>#/identity/login-manage` to set up login methods.
+- If `auth-tool-cloudbase` failed, let user go to `https://tcb.cloud.tencent.com/dev?envId=${resolvedEnvId}#/env/apikey` to get `publishable key` and `https://tcb.cloud.tencent.com/dev?envId=${resolvedEnvId}#/identity/login-manage` to set up login methods.
 
 Recommended tool order for Web auth setup:
 
 1. `envQuery(action="info")`
-2. If needed, `envQuery(action="list")` and `auth(action="set_env", envId="<real-env-id>")`
+2. If needed, `envQuery(action="list")`, keep the selected `envId`, and call `auth(action="set_env")` with it
 3. `queryAppAuth(action="getLoginConfig")`
 4. `manageAppAuth(action="patchLoginStrategy", patch={ ... })` when the required login method is off
 5. `queryAppAuth(action="getPublishableKey")` or `manageAppAuth(action="ensurePublishableKey")`
@@ -101,15 +101,19 @@ Recommended tool order for Web auth setup:
 ```js
 import cloudbase from '@cloudbase/js-sdk'
 
+const envId = resolvedEnvId
+const publishableKey = resolvedPublishableKey
+
 const app = cloudbase.init({
-  env: '<real-env-id>', // replace with the envId returned by envQuery and already bound via auth(set_env)
+  env: envId,
   region: 'ap-shanghai',
-  accessKey: '<publishable-key>', // get via queryAppAuth(getPublishableKey) or manageAppAuth(ensurePublishableKey)
+  accessKey: publishableKey,
 })
 
 const auth = app.auth()
 ```
 
+The `envId` above must be the exact value returned by `envQuery`, not a placeholder string.
 If the current task has not retrieved a real Publishable Key, omit `accessKey` instead of inventing one. A wrong `accessKey` can break auth-state checks and protected-route behavior.
 The `env` field, however, should still be filled with the real environment ID rather than left as a placeholder.
 
