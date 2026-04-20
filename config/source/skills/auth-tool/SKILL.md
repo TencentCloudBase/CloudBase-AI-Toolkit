@@ -133,6 +133,7 @@ Parameter mapping for downstream Web auth code:
 - `UserNameLogin` controls username/password Web auth flows used by `auth-web` `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })`
 - If the account identifier is a plain username string, do not route it through email-only helpers such as `signInWithEmailAndPassword`
 - `UserNameLogin` also enables the broader password-login surface exposed by `auth.signInWithPassword({ username|email|phone, password })`
+- For current Web SDK tasks, keep the `sdkHints` flow above as the default. Do not downgrade to legacy `getVerification` / `verify` / `verification_token` snippets unless the task explicitly targets the older auth surface or raw HTTP auth.
 - `SmsVerificationConfig.Type = "apis"` requires both `Name` and `Method`
 - `EnvId` is always the CloudBase environment ID, not the publishable key
 

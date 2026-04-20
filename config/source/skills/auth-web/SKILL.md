@@ -43,6 +43,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Skipping publishable key and provider checks.
 - Replacing built-in Web auth with cloud function login logic.
 - Reusing this flow in Flutter, React Native, or native iOS/Android code.
+- Swapping a normal `@cloudbase/js-sdk` Web task to legacy `auth.getVerification()` / `auth.verify()` / `auth.signUp({ verification_code, verification_token })` snippets that belong to older docs or raw HTTP flows.
 - Creating a detached helper file with `auth.signUp` / `verifyOtp` but never wiring it into the existing form handlers, so the actual button clicks still do nothing.
 - Using `signInWithEmailAndPassword` or `signUpWithEmailAndPassword` for username-style accounts such as `admin` and `editor`.
 - Keeping the login or register account input as `type="email"` when the task explicitly says the account identifier is a plain username string.
@@ -61,12 +62,13 @@ Keep local `references/...` paths for files that ship with the current skill dir
 **Key Benefits**: Supabase-like Auth API shape, supports phone, email, anonymous, username/password, and third-party login methods
 **Official `@cloudbase/js-sdk` CDN**: `https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js`
 
-Use the same CDN address as `web-development`. Prefer npm installation in modern bundler projects, and use the CDN form for static HTML, no-build demos, or low-friction examples.
+Use the same CDN address as `web-development`. Prefer npm installation in modern bundler projects such as React, Vite, Vue, or Webpack apps, and use the CDN form only for static HTML, no-build demos, or low-friction examples. If the task says not to use CDN, install `@cloudbase/js-sdk` from npm and keep the SDK import in the application source.
 
 ## Prerequisites
 
 - Use `envQuery(action="info")` first to read the current CloudBase environment ID before any auth setup.
 - If the MCP session is not bound yet or `envQuery(action="info")` cannot identify the target environment, use `envQuery(action="list")` to choose the real environment ID, then immediately call `auth(action="set_env", envId="<actual-env-id>")` so `queryAppAuth` / `manageAppAuth` operate on the correct app.
+- When generating frontend code or `.env` examples, substitute the actual environment ID returned by `envQuery`; do not leave placeholders such as `<env-id>` in runnable code, and do not confuse `envId` with `accessKey` or `clientId`.
 - Automatically use `auth-tool-cloudbase` to check app-side auth readiness: `queryAppAuth(action="getLoginConfig")` for login methods, `manageAppAuth(action="patchLoginStrategy")` when a required method is off, and `queryAppAuth(action="getPublishableKey")` or `manageAppAuth(action="ensurePublishableKey")` for the publishable key.
 - If `auth-tool-cloudbase` failed, let user go to `https://tcb.cloud.tencent.com/dev?envId=<actual-env-id>#/env/apikey` to get `publishable key` and `https://tcb.cloud.tencent.com/dev?envId=<actual-env-id>#/identity/login-manage` to set up login methods.
 
@@ -88,6 +90,7 @@ Recommended tool order for Web auth setup:
 - `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })` are the canonical username/password Web auth path
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
 - `verifyOtp({ token })` expects the SMS or email code in `token`
+- Legacy references may show `getVerification`, `verify`, `verification_code`, and `verification_token`; do not switch to that flow for a normal current Web SDK task unless the task explicitly targets the older auth surface or a raw HTTP API client
 - `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
 - Never set `accessKey` to `envId`, a username, or any placeholder string. If you do not have a real Publishable Key yet, do not fabricate one.
 - If the task mentions provider setup, stop and read `auth-tool-cloudbase` before writing frontend code
