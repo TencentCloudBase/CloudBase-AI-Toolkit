@@ -7,10 +7,9 @@ This guide explains how to implement authentication and manage user context in C
 CloudBase Agent uses a standardized approach for passing user context through the request lifecycle:
 
 ```
-HTTP Request (JWT in header)
-  ↓ (middleware extracts)
+HTTP Request (`x-cloudbase-credentials` header)
+  ↓ (middleware extracts uid)
 state["__request_context__"]["user"]["id"]
-state["__request_context__"]["user"]["jwt"]
   ↓ (available to)
 Agent / Adapter / Tools
 ```
@@ -22,64 +21,52 @@ CloudBase Agent reserves specific fields in `state` for user authentication:
 | Field | Type | Description | Access |
 |-------|------|-------------|--------|
 | `state["__request_context__"]["user"]["id"]` | `str` | User identifier | Read-only (set by middleware) |
-| `state["__request_context__"]["user"]["jwt"]` | `dict` | JWT payload | Read-only (set by middleware) |
+| `state["__request_context__"]["user"]["raw_credentials"]` | `dict` | Parsed CloudBase credential payload | Read-only (set by middleware) |
 
 **⚠️ Security Warning**: These fields are set by authentication middleware and should be treated as read-only. Modifying them in your agent logic may lead to security vulnerabilities.
 
 ## Implementation Pattern
 
-### 1. Authentication Middleware (Write)
+### 1. CloudBase User Middleware (Write)
 
-Middleware extracts user information from the request and injects it into `state`:
+For CloudBase-hosted agent requests, parse the `x-cloudbase-credentials` header, extract `uid`, log it for debugging, and inject it into `state`:
 
 ```python
-import jwt
+import json
 from fastapi import Request
 from cloudbase_agent.server.send_message.models import RunAgentInput
 from typing import Generator
 
-def auth_middleware(
+def cloudbase_user_middleware(
     input_data: RunAgentInput, 
     request: Request
 ) -> Generator[None, None, None]:
     """
-    Extract user from JWT and inject into state.
-    
-    This middleware:
-    1. Extracts JWT from Authorization header
-    2. Verifies the token
-    3. Injects user info into framework reserved fields
+    Extract user uid from CloudBase credentials and inject into state.
     """
-    # Extract token
-    auth_header = request.headers.get("Authorization", "")
-    token = auth_header.replace("Bearer ", "")
-    
-    if token:
-        try:
-            # Verify JWT (use your own secret and algorithm)
-            jwt_payload = jwt.decode(
-                token, 
-                "your-secret-key", 
-                algorithms=["HS256"]
-            )
-            
-            # Initialize state if needed
-            if input_data.state is None:
-                input_data.state = {}
-            
-            # ✅ Inject into framework reserved fields
-            input_data.state["__request_context__"] = {
-                "user": {
-                    "id": jwt_payload["sub"],  # User ID from JWT sub claim
-                    "jwt": jwt_payload         # Full JWT payload
-                }
-            }
-            
-        except jwt.InvalidTokenError as e:
-            # Handle invalid token (log but don't block in this example)
-            print(f"Invalid JWT token: {e}")
-            # You could raise an exception here to block the request
-            # raise InvalidRequestError(message="Invalid authentication token")
+    raw_header = request.headers.get("x-cloudbase-credentials", "")
+    if not raw_header:
+        yield
+        return
+
+    try:
+        credentials = json.loads(raw_header)
+    except json.JSONDecodeError as exc:
+        print(f"Invalid x-cloudbase-credentials header: {exc}")
+        yield
+        return
+
+    uid = credentials.get("uid")
+    print(f"Resolved CloudBase user id: {uid}")
+
+    if input_data.state is None:
+        input_data.state = {}
+
+    request_context = input_data.state.setdefault("__request_context__", {})
+    request_context["user"] = {
+        "id": uid,
+        "raw_credentials": credentials,
+    }
     
     yield  # Continue to next middleware or agent
 ```
@@ -90,7 +77,7 @@ def auth_middleware(
 from cloudbase_agent.server import AgentServiceApp
 
 app = AgentServiceApp()
-app.use(auth_middleware)  # Register before run()
+app.use(cloudbase_user_middleware)  # Register before run()
 app.run(create_agent, port=8000)
 ```
 
@@ -123,97 +110,66 @@ def get_user_id_from_state(state: dict) -> str:
 # Usage in agent
 def my_agent_function(state: dict):
     user_id = get_user_id_from_state(state)
-    jwt_payload = state.get("__request_context__", {}).get("user", {}).get("jwt", {})
+    raw_credentials = state.get("__request_context__", {}).get("user", {}).get("raw_credentials", {})
     
-    # Use user_id and jwt_payload for your logic
+    # Use user_id and raw_credentials for your logic
     user_data = fetch_user_data(user_id)
     # ...
 ```
 
-## Example: Complete Authentication Flow
+## Example: Complete CloudBase User Context Flow
+
+### Request Header Shape
+
+CloudBase forwards user information in the `x-cloudbase-credentials` header. The exact payload can contain more fields, but your middleware should at least read `uid` and pass it to `state.__request_context__.user.id`.
+
+```http
+x-cloudbase-credentials: {"uid":"user-123","envId":"env-demo"}
+```
 
 ### Step 1: Define Authentication Middleware
 
 ```python
 # auth.py
-import jwt
-from fastapi import Request, HTTPException
+import json
+import logging
+from fastapi import Request
 from cloudbase_agent.server.send_message.models import RunAgentInput
-from cloudbase_agent.server.errors.exceptions import InvalidRequestError
 from typing import Generator
 
-# Your JWT configuration
-JWT_SECRET = "your-secret-key"
-JWT_ALGORITHM = "HS256"
+logger = logging.getLogger(__name__)
 
-def jwt_auth_middleware(
+def cloudbase_user_middleware(
     input_data: RunAgentInput,
     request: Request
 ) -> Generator[None, None, None]:
     """
-    JWT authentication middleware.
-    
-    Extracts and verifies JWT, then injects user info into state.
-    Raises error if token is invalid or missing for protected routes.
+    Extract CloudBase user credentials and inject uid into reserved fields.
     """
-    # Extract Authorization header
-    auth_header = request.headers.get("Authorization", "")
-    
-    if not auth_header:
-        raise InvalidRequestError(
-            message="Missing Authorization header",
-            details={"header": "Authorization"}
-        )
-    
-    # Parse Bearer token
-    if not auth_header.startswith("Bearer "):
-        raise InvalidRequestError(
-            message="Invalid Authorization header format. Expected 'Bearer <token>'",
-            details={"format": "Bearer <token>"}
-        )
-    
-    token = auth_header[7:]  # Remove "Bearer " prefix
-    
+    raw_header = request.headers.get("x-cloudbase-credentials", "")
+    if not raw_header:
+        logger.info("x-cloudbase-credentials header missing")
+        yield
+        return
+
     try:
-        # Verify and decode JWT
-        jwt_payload = jwt.decode(
-            token,
-            JWT_SECRET,
-            algorithms=[JWT_ALGORITHM]
-        )
-        
-        # Validate required claims
-        if "sub" not in jwt_payload:
-            raise InvalidRequestError(
-                message="JWT missing 'sub' claim",
-                details={"claim": "sub"}
-            )
-        
-        # Initialize state if needed
-        if input_data.state is None:
-            input_data.state = {}
-        
-        # Inject user info into framework reserved fields
-        input_data.state["__request_context__"] = {
-            "user": {
-                "id": jwt_payload["sub"],
-                "jwt": jwt_payload
-            }
-        }
-        
-        # Log successful authentication (optional)
-        print(f"Authenticated user: {jwt_payload['sub']}")
-        
-    except jwt.ExpiredSignatureError:
-        raise InvalidRequestError(
-            message="JWT token has expired",
-            details={"error": "expired"}
-        )
-    except jwt.InvalidTokenError as e:
-        raise InvalidRequestError(
-            message=f"Invalid JWT token: {str(e)}",
-            details={"error": "invalid_token"}
-        )
+        credentials = json.loads(raw_header)
+    except json.JSONDecodeError as exc:
+        logger.warning("Invalid x-cloudbase-credentials header: %s", exc)
+        yield
+        return
+
+    uid = credentials.get("uid")
+    logger.info("Resolved CloudBase user id: %s", uid)
+
+    if input_data.state is None:
+        input_data.state = {}
+
+    request_context = input_data.state.setdefault("__request_context__", {})
+    request_context["user"] = {
+        "id": uid,
+        "raw_credentials": credentials,
+    }
     
     yield  # Continue to agent execution
 ```
@@ -224,7 +180,7 @@ def jwt_auth_middleware(
 # agent.py
 from cloudbase_agent.coze import CozeAgentAdapter
 from cloudbase_agent.server import AgentServiceApp
-from auth import jwt_auth_middleware
+from auth import cloudbase_user_middleware
 
 def create_agent():
     """
@@ -238,7 +194,7 @@ def create_agent():
 
 # Start server with auth middleware
 app = AgentServiceApp()
-app.use(jwt_auth_middleware)  # Register auth middleware
+app.use(cloudbase_user_middleware)  # Register auth middleware
 app.run(create_agent, port=8000)
 ```
 
@@ -273,24 +229,22 @@ class CozeAgentAdapter:
 You can add custom fields alongside framework reserved fields:
 
 ```python
+import json
+
 def auth_middleware(input_data: RunAgentInput, request: Request):
-    """Auth middleware with custom fields."""
-    # Verify JWT
-    jwt_payload = verify_jwt(extract_token(request))
-    
-    # Initialize state
+    """CloudBase auth middleware with custom fields."""
+    credentials = json.loads(request.headers["x-cloudbase-credentials"])
+
     if input_data.state is None:
         input_data.state = {}
-    
-    # Set framework reserved fields + custom fields
+
     input_data.state["__request_context__"] = {
         "user": {
-            "id": jwt_payload["sub"],       # ← Framework reserved
-            "jwt": jwt_payload,             # ← Framework reserved
+            "id": credentials["uid"],              # ← Framework reserved
+            "raw_credentials": credentials,         # ← Framework reserved
         },
         # ✅ Custom fields (allowed)
-        "tenant_id": jwt_payload.get("tenant_id"),
-        "permissions": jwt_payload.get("permissions", []),
+        "env_id": credentials.get("envId"),
         "session_id": request.headers.get("X-Session-ID"),
     }
     
@@ -302,58 +256,30 @@ def my_agent(state: dict):
     user_id = state["__request_context__"]["user"]["id"]
     
     # Read custom fields
-    tenant_id = state["__request_context__"].get("tenant_id")
-    permissions = state["__request_context__"].get("permissions", [])
-    
-    if "admin" not in permissions:
-        raise PermissionError("Admin permission required")
+    env_id = state["__request_context__"].get("env_id")
+    session_id = state["__request_context__"].get("session_id")
 ```
 
 ## Security Best Practices
 
-### 1. Use Strong Secrets
+### 1. Validate Header Shape
 
 ```python
-import os
-
-JWT_SECRET = os.environ.get("JWT_SECRET_KEY")
-if not JWT_SECRET or len(JWT_SECRET) < 32:
-    raise ValueError("JWT_SECRET_KEY must be at least 32 characters")
+def parse_cloudbase_credentials(raw_header: str) -> dict:
+    credentials = json.loads(raw_header)
+    if not credentials.get("uid"):
+        raise ValueError("x-cloudbase-credentials must include uid")
+    return credentials
 ```
 
-### 2. Validate All Claims
+### 2. Log the Resolved User ID
 
 ```python
-def validate_jwt_payload(payload: dict) -> None:
-    """Validate JWT payload structure."""
-    required_claims = ["sub", "exp", "iat"]
-    
-    for claim in required_claims:
-        if claim not in payload:
-            raise ValueError(f"Missing required claim: {claim}")
-    
-    # Validate expiration (PyJWT does this automatically, but double-check)
-    import time
-    if payload["exp"] < time.time():
-        raise ValueError("Token expired")
+uid = credentials.get("uid")
+logger.info("Resolved CloudBase user id: %s", uid)
 ```
 
-### 3. Implement Token Refresh
-
-```python
-def refresh_token_middleware(input_data, request):
-    """Check token expiration and handle refresh."""
-    jwt_payload = input_data.state.get("__request_context__", {}).get("user", {}).get("jwt", {})
-    
-    # Check if token expires soon (e.g., within 5 minutes)
-    if jwt_payload.get("exp", 0) - time.time() < 300:
-        # Add header to response suggesting refresh
-        request.state.should_refresh_token = True
-    
-    yield
-```
-
-### 4. Rate Limit by User
+### 3. Rate Limit by User
 
 ```python
 from collections import defaultdict
@@ -387,17 +313,18 @@ def rate_limit_by_user_middleware(input_data, request):
 
 ```python
 import pytest
+import json
 from fastapi import Request
 from cloudbase_agent.server.send_message.models import RunAgentInput
-from auth import jwt_auth_middleware
+from auth import cloudbase_user_middleware
 
-def test_auth_middleware_with_valid_token():
-    """Test middleware with valid JWT."""
-    # Create mock request with valid token
-    token = create_test_jwt({"sub": "user123"})
+def test_auth_middleware_with_valid_credentials():
+    """Test middleware with valid CloudBase credentials."""
     request = Request(scope={
         "type": "http",
-        "headers": [(b"authorization", f"Bearer {token}".encode())]
+        "headers": [
+            (b"x-cloudbase-credentials", json.dumps({"uid": "user123"}).encode())
+        ]
     })
     
     input_data = RunAgentInput(
@@ -407,20 +334,21 @@ def test_auth_middleware_with_valid_token():
     )
     
     # Execute middleware
-    gen = jwt_auth_middleware(input_data, request)
+    gen = cloudbase_user_middleware(input_data, request)
     next(gen)
     
     # Verify user info was injected
     assert input_data.state["__request_context__"]["user"]["id"] == "user123"
 
-def test_auth_middleware_with_missing_token():
-    """Test middleware rejects missing token."""
+def test_auth_middleware_with_missing_header():
+    """Test middleware no-ops when the credentials header is absent."""
     request = Request(scope={"type": "http", "headers": []})
     input_data = RunAgentInput(messages=[], runId="test", threadId="test")
-    
-    with pytest.raises(InvalidRequestError):
-        gen = jwt_auth_middleware(input_data, request)
-        next(gen)
+
+    gen = cloudbase_user_middleware(input_data, request)
+    next(gen)
+
+    assert input_data.state is None
 ```
 
 ### Integration Test
@@ -431,13 +359,11 @@ from fastapi.testclient import TestClient
 def test_authenticated_request():
     """Test full request with authentication."""
     client = TestClient(app)
-    
-    token = create_test_jwt({"sub": "user123"})
-    
+
     response = client.post(
         "/send-message",
         json={"messages": [{"role": "user", "content": "Hello"}]},
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"x-cloudbase-credentials": json.dumps({"uid": "user123"})}
     )
     
     assert response.status_code == 200
@@ -451,13 +377,13 @@ If you're migrating from the old `forwarded_props` pattern:
 
 ```python
 # ❌ Old: forwarded_props
-def create_jwt_preprocessor():
-    def jwt_preprocessor(request: RunAgentInput, http_context: Request):
+def create_user_preprocessor():
+    def user_preprocessor(request: RunAgentInput, http_context: Request):
         user_id = extract_user_id_from_request(http_context)
         if not request.forwarded_props:
             request.forwarded_props = {}
         request.forwarded_props["user_id"] = user_id
-    return jwt_preprocessor
+    return user_preprocessor
 ```
 
 ### After (New Pattern)
@@ -482,7 +408,7 @@ def auth_middleware(input_data: RunAgentInput, request: Request):
 |--------|---------------|
 | **Write (Middleware)** | `state["__request_context__"]["user"]["id"] = user_id` |
 | **Read (Adapter)** | `state.get("__request_context__", {}).get("user", {}).get("id")` |
-| **Security** | Verify JWT, validate claims, use strong secrets |
+| **Security** | Validate `x-cloudbase-credentials`, require `uid`, log the resolved user ID |
 | **Custom Fields** | Add alongside reserved fields in `__request_context__` |
 | **Testing** | Unit test middleware, integration test full flow |
 
