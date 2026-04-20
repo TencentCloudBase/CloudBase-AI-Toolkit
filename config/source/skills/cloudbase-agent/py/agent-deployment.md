@@ -388,6 +388,7 @@ python-dotenv
 
 # Framework adapter (pick ONE based on your choice)
 cloudbase-agent-langgraph   # For LangGraph-based agents
+ag_ui_langgraph            # Temporary workaround for current PyPI dependency metadata issue
 # cloudbase-agent-crewai    # For CrewAI-based agents
 # cloudbase-agent-coze      # For Coze platform agents
 

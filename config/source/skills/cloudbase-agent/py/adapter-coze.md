@@ -30,7 +30,7 @@ def create_agent():
         api_key="your-api-key"
     )
 
-AgentServiceApp().run(create_agent, port=8000)
+AgentServiceApp().run(create_agent, port=9000)
 ```
 
 ## Configuration
@@ -99,7 +99,7 @@ def create_agent():
 
 app = AgentServiceApp()
 app.use(auth_middleware)
-app.run(create_agent, port=8000)
+app.run(create_agent, port=9000)
 ```
 
 ### User ID Extraction
