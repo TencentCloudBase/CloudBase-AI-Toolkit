@@ -487,10 +487,14 @@ Security rules are expression strings, so use concatenation:
 **Admin-or-owner control:**
 ```json
 {
-  "update": "get('database.users.' + auth.uid).role == 'admin' || doc.authorId == auth.uid",
-  "delete": "get('database.users.' + auth.uid).role == 'admin' || doc.authorId == auth.uid"
+  "read": "auth.uid != null",
+  "create": "auth.uid != null",
+  "update": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)",
+  "delete": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)"
 }
 ```
+
+For this CMS-style pattern, keep frontend article writes on `.doc(id).update()` / `.doc(id).remove()`. Do not rewrite that path to `.where({ _id: id }).update(...)` or `.where({ _id: id }).remove(...)`, because `_id` alone does not expose the owner field required by the rule check.
 
 If this collection only needs simple owner-only writes, `READONLY` may be enough. But if the product requirement is “admin users in the app can edit/delete all articles while editors only own their own articles”, use a `CUSTOM` rule such as:
 
