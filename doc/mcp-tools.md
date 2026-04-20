@@ -426,10 +426,10 @@ classDiagram
 <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
 <tbody>
 <tr><td><code>localPath</code></td><td>string</td><td></td><td>本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。</td></tr>
-<tr><td><code>cloudPath</code></td><td>string</td><td></td><td>静态托管云端文件或文件夹路径，例如 files/data.txt。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。</td></tr>
+<tr><td><code>cloudPath</code></td><td>string</td><td></td><td>静态托管云端文件或文件夹路径，例如 /、/vite-test/ 或 /vite-test/index.html。可带或不带前导 /，服务端会自动规范化；/ 表示托管根目录。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。</td></tr>
 <tr><td><code>files</code></td><td>array of object</td><td></td><td>多文件上传配置 默认值: []</td></tr>
 <tr><td><code>files[].localPath</code></td><td>string</td><td>是</td><td></td></tr>
-<tr><td><code>files[].cloudPath</code></td><td>string</td><td>是</td><td></td></tr>
+<tr><td><code>files[].cloudPath</code></td><td>string</td><td>是</td><td>静态托管路径，可带或不带前导 /；服务端会自动规范化</td></tr>
 <tr><td><code>ignore</code></td><td>string \| array of string</td><td></td><td>忽略文件模式</td></tr>
 </tbody>
 </table>
@@ -444,7 +444,7 @@ classDiagram
 <table>
 <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td><code>cloudPath</code></td><td>string</td><td>是</td><td>云端文件或文件夹路径</td></tr>
+<tr><td><code>cloudPath</code></td><td>string</td><td>是</td><td>云端文件或文件夹路径，可带或不带前导 /；服务端会自动规范化，/ 表示根目录</td></tr>
 <tr><td><code>isDir</code></td><td>boolean</td><td></td><td>是否为文件夹 默认值: false</td></tr>
 </tbody>
 </table>
@@ -459,7 +459,7 @@ classDiagram
 <table>
 <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td><code>prefix</code></td><td>string</td><td>是</td><td>匹配前缀</td></tr>
+<tr><td><code>prefix</code></td><td>string</td><td>是</td><td>匹配前缀，可带或不带前导 /；服务端会自动规范化，/ 表示根目录前缀</td></tr>
 <tr><td><code>marker</code></td><td>string</td><td></td><td>起始对象键标记</td></tr>
 <tr><td><code>maxKeys</code></td><td>number</td><td></td><td>单次返回最大条目数</td></tr>
 </tbody>
