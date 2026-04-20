@@ -946,7 +946,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           tool: "manageGateway",
           action: "createAccess",
           reason:
-            "如果需要通过 URL 访问 HTTP 函数，请按实际路径和鉴权需求显式创建访问入口，不要默认假设 /函数名 已存在",
+            "如果需要通过 URL 访问 HTTP 函数，请按实际路径和鉴权需求显式创建访问入口，不要默认假设 /函数名 已存在，也不要默认假设网关会把该路径重写成 / 再转发给函数",
         });
         nextActions.push({
           tool: "queryGateway",
@@ -969,7 +969,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
       const message =
         func.type === "HTTP"
-          ? `已创建 HTTP 函数 ${functionName}。如果后续需要通过 URL 访问，请显式调用 manageGateway(action="createAccess") 按实际路径和鉴权需求创建访问入口。评测或其他外部调用方可能会以匿名身份访问，而且失败后不一定会把 EXCEED_AUTHORITY 再反馈给 AI；交付前请主动确认访问路径和函数安全规则，若已出现 EXCEED_AUTHORITY，请先调用 queryPermissions(action="getResourcePermission", resourceType="function", resourceId="${functionName}") 查看当前规则，再按需要使用 managePermissions(action="updateResourcePermission") 调整权限。`
+          ? `已创建 HTTP 函数 ${functionName}。如果后续需要通过 URL 访问，请显式调用 manageGateway(action="createAccess") 按实际路径和鉴权需求创建访问入口。注意：createAccess 默认使用 /${functionName}，且不会自动把公网路径重写成 / 再转发给 HTTP 函数；如果你的代码只匹配 / 或 /health，请同步处理该前缀或显式按公网路径设计路由。评测或其他外部调用方可能会以匿名身份访问，而且失败后不一定会把 EXCEED_AUTHORITY 再反馈给 AI；交付前请主动确认访问路径和函数安全规则，若已出现 EXCEED_AUTHORITY，请先调用 queryPermissions(action="getResourcePermission", resourceType="function", resourceId="${functionName}") 查看当前规则，再按需要使用 managePermissions(action="updateResourcePermission") 调整权限。`
           : `已创建函数 ${functionName}`;
 
       return buildEnvelope(

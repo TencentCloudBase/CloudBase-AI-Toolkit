@@ -31,6 +31,7 @@ alwaysApply: true
 - Web app execution -> `./web-development/SKILL.md`
 - Web auth provider readiness -> `./auth-tool/SKILL.md`
 - Web auth implementation -> `./auth-web/SKILL.md`
+- Cloud Functions or HTTP Functions -> `./cloud-functions/SKILL.md`
 - Browser-side document database CRUD -> `./no-sql-web-sdk/SKILL.md`
 - Browser-side file upload -> `./cloud-storage-web/SKILL.md`
 - Platform overview only when capability selection is still unclear -> `./cloudbase-platform/SKILL.md`
@@ -69,3 +70,9 @@ alwaysApply: true
    - Functional closure beats exploration.
    - Avoid broad repo sweeps, UI redesign, and detached demo code.
    - Keep file discovery narrow. Prefer direct reads of the known active files over `Glob` / broad search across the whole project.
+
+5. HTTP Cloud Functions:
+   - Before writing or deploying an HTTP Function, read `./cloud-functions/SKILL.md` and then `./cloud-functions/references/http-functions.md`.
+   - Keep the runtime model straight: HTTP Functions are web servers on port `9000` with `req` / `res`, plus `scf_bootstrap`.
+   - If the function will be exposed through `manageGateway(action="createAccess")`, do not assume the public path is rewritten to `/` before it reaches your server.
+   - The default gateway path is `/${targetName}` when `path` is omitted, so handlers that only match `/` or `/health` may miss external requests unless you either match the public prefix directly or strip a known base path before routing.

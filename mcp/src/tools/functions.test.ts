@@ -151,6 +151,8 @@ describe("functions tool helpers", () => {
     });
     expect(mockCreateAccess).not.toHaveBeenCalled();
     expect(payload.message).toContain("manageGateway(action=\"createAccess\")");
+    expect(payload.message).toContain("默认使用 /httpDemo");
+    expect(payload.message).toContain("不会自动把公网路径重写成 /");
     expect(payload.message).toContain("匿名身份访问");
     expect(payload.message).toContain("EXCEED_AUTHORITY");
     expect(payload.nextActions).toEqual(

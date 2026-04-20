@@ -149,6 +149,7 @@ describe("gateway tools", () => {
     expect(schema.action.description).toContain("默认域名访问入口");
     expect(schema.targetName.description).toContain("填写函数名");
     expect(schema.path.description).toContain("/api/hello");
+    expect(schema.path.description).toContain("不会把 /api/hello 重写成 /");
     expect(schema.type.description).toContain("已创建的 HTTP 云函数时传 HTTP");
     expect(schema.auth.description).toContain("通常设为 false");
   });

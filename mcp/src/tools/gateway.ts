@@ -573,7 +573,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     {
       title: "管理网关域资源",
       description:
-        "网关域统一写入口。通过 action 创建目标访问入口，后续承接更通用的网关配置能力。为已存在的 HTTP 云函数补默认域名访问时，通常使用 createAccess 并提供 targetType=\"function\"、targetName、type=\"HTTP\" 与期望 path。注意 createAccess 只创建网关入口，不会自动修改函数资源权限。",
+        "网关域统一写入口。通过 action 创建目标访问入口，后续承接更通用的网关配置能力。为已存在的 HTTP 云函数补默认域名访问时，通常使用 createAccess 并提供 targetType=\"function\"、targetName、type=\"HTTP\" 与期望 path。注意 createAccess 只创建网关入口，不会自动修改函数资源权限，也不会把访问路径自动重写成 / 后再转发给 HTTP 云函数。",
       inputSchema: {
         action: z
           .enum(MANAGE_GATEWAY_ACTIONS)
@@ -589,7 +589,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         path: z
           .string()
           .optional()
-          .describe("访问路径，默认 /{targetName}。例如为 HTTP 函数暴露 /api/hello 时传 /api/hello。该参数只创建网关入口，不会自动放开函数资源权限。"),
+          .describe("访问路径，默认 /{targetName}。例如为 HTTP 函数暴露 /api/hello 时传 /api/hello。该参数只创建网关入口，不会自动放开函数资源权限，也不会把 /api/hello 重写成 / 再转发给 HTTP 云函数；如果函数内部只匹配 / 或 /health，请在代码里处理该前缀或显式按公网路径设计路由。"),
         type: z
           .enum(["Event", "HTTP"])
           .optional()
