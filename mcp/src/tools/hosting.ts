@@ -280,11 +280,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
       inputSchema: {
         localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
-        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，例如 /、/vite-test/ 或 /vite-test/index.html。可带或不带前导 /，服务端会自动规范化；/ 表示托管根目录。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"),
+        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，使用托管路径语义而不是完整 URL。例如 / 表示托管根目录；vite-test、/vite-test 和 /vite-test/ 都表示同一个子目录；/vite-test/index.html 表示具体文件。服务端会自动去掉多余前导 / 并按目录/文件语义规范化。若希望部署到托管根目录，请传 / 或留空。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"),
         files: z.array(z.object({
           localPath: z.string(),
-          cloudPath: z.string().describe("静态托管路径，可带或不带前导 /；服务端会自动规范化")
-        })).default([]).describe("多文件上传配置，其中每个 cloudPath 都可带或不带前导 /；服务端会自动规范化"),
+          cloudPath: z.string().describe("静态托管路径，使用托管路径语义而不是完整 URL；可带或不带前导 /，服务端会自动规范化")
+        })).default([]).describe("多文件上传配置，其中每个 cloudPath 都使用托管路径语义；可带或不带前导 /，服务端会自动规范化"),
         ignore: z.union([z.string(), z.array(z.string())]).optional().describe("忽略文件模式")
       },
       annotations: {
@@ -386,7 +386,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       title: "删除静态文件",
       description: "删除静态网站托管的文件或文件夹",
       inputSchema: {
-        cloudPath: z.string().describe("云端文件或文件夹路径，可带或不带前导 /；服务端会自动规范化，/ 表示根目录"),
+        cloudPath: z.string().describe("托管云端文件或文件夹路径，使用托管路径语义。例如 / 表示根目录；vite-test、/vite-test 和 /vite-test/ 都表示同一个目录。服务端会自动去掉多余前导 / 并规范化"),
         isDir: z.boolean().default(false).describe("是否为文件夹")
       },
       annotations: {
@@ -423,7 +423,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       title: "搜索静态文件",
       description: "搜索静态网站托管的文件",
       inputSchema: {
-        prefix: z.string().describe("匹配前缀，可带或不带前导 /；服务端会自动规范化，/ 表示根目录前缀"),
+        prefix: z.string().describe("匹配前缀，使用托管路径语义。例如 / 表示根目录前缀；vite-test 和 /vite-test 会查询同一前缀。服务端会自动去掉多余前导 /"),
         marker: z.string().optional().describe("起始对象键标记"),
         maxKeys: z.number().optional().describe("单次返回最大条目数")
       },

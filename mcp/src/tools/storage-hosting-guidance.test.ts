@@ -36,9 +36,13 @@ describe("storage and hosting tool guidance", () => {
     expect(tools.uploadFiles.meta.description).toContain("仅用于 Web 站点部署");
     expect(tools.uploadFiles.meta.description).toContain("manageStorage");
     expect(tools.uploadFiles.meta.description).toContain("通常不需要调用此工具");
+    expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("托管路径语义而不是完整 URL");
+    expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("vite-test、/vite-test 和 /vite-test/");
+    expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("若希望部署到托管根目录，请传 / 或留空");
     expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("云存储对象路径请改用 manageStorage");
-    expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("可带或不带前导 /");
-    expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("/ 表示托管根目录");
+    expect(tools.uploadFiles.meta.inputSchema.files.description).toContain("托管路径语义");
+    expect(tools.deleteFiles.meta.inputSchema.cloudPath.description).toContain("托管路径语义");
+    expect(tools.findFiles.meta.inputSchema.prefix.description).toContain("托管路径语义");
     expect(tools.manageStorage.meta.description).toContain("仅用于 COS/Storage 对象");
     expect(tools.manageStorage.meta.description).toContain("不用于静态网站托管");
   });
