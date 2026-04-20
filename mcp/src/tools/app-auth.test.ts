@@ -64,11 +64,11 @@ describe("app auth tools", () => {
   let tools: ReturnType<typeof createMockServer>["tools"];
 
   const expectedSdkHints = {
-    phoneOtp: "auth.signInWithOtp({ phone })",
-    emailOtp: "auth.signInWithOtp({ email })",
+    phoneVerification: "auth.getVerification({ phone_number }) -> auth.signInWithSms({ verificationInfo, verificationCode, phoneNum })",
+    emailVerification: "auth.getVerification({ email }) -> auth.signInWithEmail({ verificationInfo, verificationCode, email })",
     password: "auth.signInWithPassword({ username|email|phone, password })",
-    signup: "auth.signUp({ phone|email, ... })",
-    verifyOtp: "verifyOtp({ token })",
+    signup: "auth.getVerification(...) -> auth.verify({ verification_id, verification_code }) -> auth.signUp({ phone_number|email, verification_code, verification_token, ... })",
+    verifyCode: "auth.verify({ verification_id, verification_code })",
     anonymous: "auth.signInAnonymously()",
   };
 

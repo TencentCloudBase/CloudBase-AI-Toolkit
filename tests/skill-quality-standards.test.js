@@ -48,8 +48,10 @@ describe('skill quality standards', () => {
     expect(raw).toContain('auth(action="set_env", envId="<actual-env-id>")');
     expect(raw).toContain('queryAppAuth(action="getPublishableKey")');
     expect(raw).toContain('manageAppAuth(action="ensurePublishableKey")');
-    expect(raw).toContain("nickname: username || email.split('@')[0]");
-    expect(raw).toContain("const { error } = await signUpData.verifyOtp({ token: code })");
+    expect(raw).toContain("name: username || email.split('@')[0]");
+    expect(raw).toContain('const verificationInfo = await auth.getVerification({ email })');
+    expect(raw).toContain('const verificationTokenRes = await auth.verify({');
+    expect(raw).toContain('verification_token: verificationTokenRes.verification_token');
     expect(raw).not.toContain("type: 'signup'");
   });
 

@@ -127,13 +127,13 @@ The underlying login strategy contains fields such as:
 
 Parameter mapping for downstream Web auth code:
 
-- `queryAppAuth(action="getLoginConfig")` and `manageAppAuth(action="patchLoginStrategy")` return `sdkStyle: "supabase-like"` plus `sdkHints`; treat that as the preferred frontend-auth calling guide
-- `PhoneNumberLogin` controls phone OTP flows used by `auth-web` `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })`
-- `EmailLogin` controls email OTP flows used by `auth-web` `auth.signInWithOtp({ email })` and `auth.signUp({ email })`
+- `queryAppAuth(action="getLoginConfig")` and `manageAppAuth(action="patchLoginStrategy")` return `sdkHints`; treat those hints as the preferred frontend-auth calling guide
+- `PhoneNumberLogin` controls phone verification flows used by `auth-web` `auth.getVerification({ phone_number })`, `auth.signInWithSms(...)`, and `auth.signUp({ phone_number, verification_code, verification_token })`
+- `EmailLogin` controls email verification flows used by `auth-web` `auth.getVerification({ email })`, `auth.signInWithEmail(...)`, and `auth.signUp({ email, verification_code, verification_token })`
 - `UserNameLogin` controls username/password Web auth flows used by `auth-web` `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })`
 - If the account identifier is a plain username string, do not route it through email-only helpers such as `signInWithEmailAndPassword`
 - `UserNameLogin` also enables the broader password-login surface exposed by `auth.signInWithPassword({ username|email|phone, password })`
-- For current Web SDK tasks, keep the `sdkHints` flow above as the default. Do not downgrade to legacy `getVerification` / `verify` / `verification_token` snippets unless the task explicitly targets the older auth surface or raw HTTP auth.
+- For current Web SDK tasks, keep the `sdkHints` flow above as the default. For email or phone verification, follow the official `auth.getVerification(...)` -> `auth.verify(...)` -> `auth.signUp(...)` / `auth.signIn(...)` flow and pass the returned `verification_token`.
 - `SmsVerificationConfig.Type = "apis"` requires both `Name` and `Method`
 - `EnvId` is always the CloudBase environment ID, not the publishable key
 
@@ -212,7 +212,7 @@ Email has two layers of configuration:
 
 - `ModifyLoginConfig.EmailLogin`: controls whether email/password login is enabled
 - `ModifyProvider(Id="email")`: controls the email sender channel and SMTP configuration
-- In Web auth code, this maps to `auth.signInWithOtp({ email })` and `auth.signUp({ email })`
+- In Web auth code, this maps to `auth.getVerification({ email })`, then `auth.signInWithEmail(...)` for login or `auth.signUp({ email, verification_code, verification_token })` for registration
 
 Preferred MCP tool path:
 
