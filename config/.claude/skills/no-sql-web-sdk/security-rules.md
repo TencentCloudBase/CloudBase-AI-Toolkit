@@ -320,10 +320,12 @@ And update through an explicit owner subset:
 await db.collection('publicPosts')
   .where({
     _id: postId,
-    author_id: '{openid}'
+    author_id: '{uid}'
   })
   .update({ title: 'Updated Title' });
 ```
+
+Use `{uid}` for Web SDK rules that compare against `auth.uid`. Reserve `{openid}` for Mini Program / openid-based rules.
 
 **Example 3: Prevent price modification on update**
 
@@ -485,10 +487,14 @@ Security rules are expression strings, so use concatenation:
 **Admin-or-owner control:**
 ```json
 {
-  "update": "get('database.users.' + auth.uid).role == 'admin' || doc.authorId == auth.uid",
-  "delete": "get('database.users.' + auth.uid).role == 'admin' || doc.authorId == auth.uid"
+  "read": "auth.uid != null",
+  "create": "auth.uid != null",
+  "update": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)",
+  "delete": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)"
 }
 ```
+
+For this CMS-style pattern, keep frontend article writes on `.doc(id).update()` / `.doc(id).remove()`. Do not rewrite that path to `.where({ _id: id }).update(...)` or `.where({ _id: id }).remove(...)`, because `_id` alone does not expose the owner field required by the rule check.
 
 If this collection only needs simple owner-only writes, `READONLY` may be enough. But if the product requirement is “admin users in the app can edit/delete all articles while editors only own their own articles”, use a `CUSTOM` rule such as:
 
@@ -603,10 +609,22 @@ For query or update operations, the input query conditions **must be a subset** 
 **Critical implication for document-ID writes:**
 
 - `.doc(id).update(...)` and `.doc(id).remove()` only provide `_id` as the write condition
-- A rule that depends on another field such as `doc.authorId` or `doc.status` cannot be validated from that request alone
+- For many owner-only rules, a condition that depends on another field such as `doc.authorId` or `doc.status` is commonly rejected in document-ID writes because that owner/status field is not present in the request condition
 - For document-ID writes, prefer one of these paths:
   - use a simple permission such as `READONLY` when it already matches “public read, creator/admin write”, or
-  - keep `doc.field`-based CUSTOM rules and switch to `where(...)` writes that explicitly include the required owner/status fields in the query
+  - for owner-only CUSTOM rules without admin override, switch to `where(...)` writes that explicitly include the required owner/status fields in the query, such as `where({ _id, authorId })`
+- **Important CMS exception:** for article collections that require app-level admin override, keep the validated CMS pattern instead of rewriting the frontend to `.where({ _id: id }).update(...)` or `.where({ _id: id }).remove()`. A documented working pattern is:
+
+```json
+{
+  "read": "auth.uid != null",
+  "create": "auth.uid != null",
+  "update": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)",
+  "delete": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)"
+}
+```
+
+With that CMS rule shape, `.doc(id).update()` / `.doc(id).remove()` remains the recommended client path, as long as article documents really store `authorId` and the role documents are keyed by `auth.uid`.
 
 **Operation Types Affected:**
 
@@ -703,7 +721,18 @@ In query conditions, if the key is `_openid` and the value is `{openid}`, or if 
 
 **Why Transformation is Needed:**
 
-Since `doc()` operations (doc.get, doc.set, etc.) only specify `_id`, their query conditions only include `{_id: "xxx"}`, which in most cases will not satisfy the subset requirement of security rules (unless reading under `"read": true` or writing under `"write": true`). Therefore, they need to be converted to equivalent forms where query conditions include security rules or their subsets.
+Since document-ID operations only specify `_id`, their request conditions only include `{_id: "xxx"}`. That is often insufficient for security rules that depend on other document fields. In those cases, rewrite the operation to an equivalent `where(...)` form whose conditions are a subset of the rule.
+
+Do not treat this as a blanket rewrite rule for every write path. In particular, for the CMS admin-or-owner pattern documented above:
+
+```json
+{
+  "update": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)",
+  "delete": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)"
+}
+```
+
+keep frontend article updates/deletes on `.doc(id).update()` / `.doc(id).remove()`. Rewriting that CMS path to `.where({ _id: id }).update(...)` or `.where({ _id: id }).remove(...)` does not expose the owner field to rule validation and does not fix the permission mismatch.
 
 **Operation Types Affected:**
 - **read, update, delete**: If security rules contain `doc` restrictions, the system will first read the document data from the database once, then judge whether it complies with security rules.
