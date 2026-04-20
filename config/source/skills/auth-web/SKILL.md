@@ -73,14 +73,13 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 - For username-style identifiers, the required precondition is `loginMethods.usernamePassword === true` from `queryAppAuth(action="getLoginConfig")`. If it is false, enable it with `manageAppAuth(action="patchLoginStrategy", patch={ usernamePassword: true })` before wiring frontend auth code.
 - Treat CloudBase Web Auth as **Supabase-like**, not “every `supabase-js` auth example is valid unchanged”
 - When `queryAppAuth` / `manageAppAuth` returns `sdkStyle: "supabase-like"` and `sdkHints`, follow those method and parameter hints first
-- `auth.getVerification({ phone_number })` and `auth.getVerification({ email })` start the documented public verification flow used by signup and verification-token login
-- For the documented signup flow, call `auth.verify({ verification_id, verification_code })` first, then call `auth.signUp({ phone_number|email, verification_code, verification_token, password?, username?, ... })`
+- `auth.signUp({ email|phone, password, username?, ... })` starts the documented public signup flow for email or phone registration and returns a `verifyOtp({ token })` callback in `data`
 - `auth.signInWithPassword({ username, password })` is the canonical username/password login path after the user has already been created and bound to a username during an email or phone verification signup flow
-- Email and phone registration are verification-code flows. When the installed SDK version exposes additional convenience helpers, verify that exact version's docs before replacing the documented `getVerification -> verify -> signUp` sequence.
-- For email signup, collect the address, password, and optional username up front, then pass `email`, `verification_code`, `verification_token`, and optional profile fields to `auth.signUp(...)`.
+- Email and phone registration are verification-code flows. Follow the installed Web SDK docs and complete the flow through the returned `data.verifyOtp({ token })` callback unless that SDK version documents a different surface.
+- For email signup, collect the address, password, and optional username up front, then pass them to `auth.signUp(...)` before asking the user for the verification code.
 - If the email account should support later password login, include `password` in the initial sign-up payload before finishing the verification flow.
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
-- `auth.verify({ verification_id, verification_code })` returns `verification_token`, which is then passed to `auth.signUp(...)` or verification-token login flows
+- The `verifyOtp({ token })` callback returned by `auth.signUp(...)` completes the signup after the user enters the received verification code
 - `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
 - Never set `accessKey` to `envId`, a username, or any placeholder string. If you do not have a real Publishable Key yet, do not fabricate one.
 - If the task mentions provider setup, stop and read `auth-tool-cloudbase` before writing frontend code
@@ -149,53 +148,47 @@ const phoneLogin = await auth.signInWithPassword({
 
 - Username/password is a login method, not a standalone self-service signup shortcut
 - For username-style account systems, first verify how the user record will be created. CloudBase public Web signup still requires an email or phone verification flow, and `username` is bound during that verified signup.
-- Do not promise a browser-only `auth.signUp({ username, password })` registration path. The documented public Web flow is `auth.getVerification(...) -> auth.verify(...) -> auth.signUp(...)`.
+- Do not promise a browser-only `auth.signUp({ username, password })` registration path. The documented public Web flow is `auth.signUp({ email|phone, password, username?, ... }) -> data.verifyOtp({ token })`.
 - When the task uses plain usernames such as `admin`, `editor`, or `user01`, keep the login input as plain text and use `auth.signInWithPassword({ username, password })` for login after the account has been provisioned or bound through the documented signup flow
-- For email signup, put `password` and optional `username` on the final `auth.signUp(...)` call when the new account should later use password login.
-- If the UI splits "send code" and "complete registration" into different handlers, persist the `verification_id` returned by `auth.getVerification(...)`, then call `auth.verify(...)` and `auth.signUp(...)` in the completion handler.
+- Do not switch to email OTP or phone OTP unless the task explicitly requires email addresses or phone numbers for the account identifier.
+- For email signup, put `password` and optional `username` on the initial `auth.signUp(...)` call when the new account should later use password login.
+- If the UI splits "send code" and "complete registration" into different handlers, persist the `verifyOtp` callback returned by `auth.signUp(...)`, then call it from the completion handler with the user-entered code.
 
 Email signup sequence at a glance:
 
-1. Call `auth.getVerification({ email })`.
-2. Call `auth.verify({ verification_id, verification_code })` to obtain `verification_token`.
-3. Call `auth.signUp({ email, verification_code, verification_token, password?, username? })`.
-4. Treat the account as created only after `auth.signUp(...)` succeeds. The documented flow auto-signs the user in on success.
+1. Call `auth.signUp({ email, password, username? })`.
+2. Store the returned `data.verifyOtp` callback.
+3. Call `data.verifyOtp({ token })` after the user receives and enters the verification code.
+4. Treat the account as created only after `verifyOtp(...)` succeeds. The documented flow auto-signs the user in on success.
 
 ```js
 // Email signup.
 // Use only when the task explicitly requires email addresses.
-const emailVerification = await auth.getVerification({
+const { data: emailSignUpData, error: emailSignUpError } = await auth.signUp({
   email: "new@example.com",
-});
-const emailVerificationCode = "123456";
-const emailVerificationTokenRes = await auth.verify({
-  verification_id: emailVerification.verification_id,
-  verification_code: emailVerificationCode,
-});
-await auth.signUp({
-  email: "new@example.com",
-  verification_code: emailVerificationCode,
-  verification_token: emailVerificationTokenRes.verification_token,
   password: "pass123",
   username: "newuser",
 });
+if (emailSignUpError) throw emailSignUpError;
+const emailVerificationCode = "123456";
+const { error: emailVerifyError } = await emailSignUpData.verifyOtp({
+  token: emailVerificationCode,
+});
+if (emailVerifyError) throw emailVerifyError;
 
 // Phone OTP signup.
 // Use only when the task explicitly requires phone numbers.
-const phoneVerification = await auth.getVerification({
-  phone_number: "+86 13800138000",
+const { data: phoneSignUpData, error: phoneSignUpError } = await auth.signUp({
+  phone: "13800138000",
+  password: "pass123",
+  username: "phone_user",
 });
+if (phoneSignUpError) throw phoneSignUpError;
 const phoneVerificationCode = "123456";
-const phoneVerificationTokenRes = await auth.verify({
-  verification_id: phoneVerification.verification_id,
-  verification_code: phoneVerificationCode,
+const { error: phoneVerifyError } = await phoneSignUpData.verifyOtp({
+  token: phoneVerificationCode,
 });
-await auth.signUp({
-  phone_number: "+86 13800138000",
-  verification_code: phoneVerificationCode,
-  verification_token: phoneVerificationTokenRes.verification_token,
-  nickname: "User",
-});
+if (phoneVerifyError) throw phoneVerifyError;
 ```
 
 When the project already has `handleSendCode` / `handleRegister` or similar UI handlers, wire the SDK calls there directly instead of leaving them commented out in `App.tsx`.
@@ -212,9 +205,8 @@ const handleLogin = async () => {
 };
 ```
 
-If the task also requires a self-service registration UI for username-style accounts, do not fabricate a direct `auth.signUp({ username, password })` path. Instead, stop and confirm the actual provisioning approach for this repo, for example:
+If the task also requires a self-service registration UI for username-style accounts, do not fabricate a direct `auth.signUp({ username, password })` path. Instead, confirm that the repo accepts an email or phone signup that binds `username`, then wire the documented `signUp(...)->verifyOtp(...)` flow into the active handlers.
 
-- email or phone verification signup that binds `username` during the verified registration flow
 - admin-side provisioning through documented management capabilities such as environment user creation APIs or existing backend/admin setup
 
 Do not use email OTP or email-only helpers for these flows unless the task explicitly says the account identifier is an email address. The corresponding form field should stay `type="text"` rather than `type="email"` for username-style account identifiers.
@@ -222,12 +214,15 @@ Do not use email OTP or email-only helpers for these flows unless the task expli
 ```tsx
 const handleSendCode = async () => {
   try {
-    const verification = await auth.getVerification({
+    const { data, error } = await auth.signUp({
       email,
+      password,
+      username: username || email.split("@")[0],
     });
+    if (error) throw error;
 
-    // Keep the verification ID for the follow-up completion step.
-    setVerificationId(verification.verification_id);
+    // Keep the callback for the follow-up completion step.
+    setVerifyOtpCallback(() => data.verifyOtp);
   } catch (error) {
     console.error("Failed to send sign-up code", error);
   }
@@ -235,20 +230,9 @@ const handleSendCode = async () => {
 
 const handleRegister = async () => {
   try {
-    if (!verificationId) throw new Error("Please send the code first");
+    if (!verifyOtpCallback) throw new Error("Please send the code first");
 
-    const verificationTokenRes = await auth.verify({
-      verification_id: verificationId,
-      verification_code: code,
-    });
-
-    const { error } = await auth.signUp({
-      email,
-      verification_code: code,
-      verification_token: verificationTokenRes.verification_token,
-      password,
-      username: username || email.split("@")[0],
-    });
+    const { error } = await verifyOtpCallback({ token: code });
     if (error) throw error;
   } catch (error) {
     console.error("Failed to complete sign-up", error);
