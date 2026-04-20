@@ -78,7 +78,9 @@ Use this skill for **AI agent development** when you need to:
 
 ```bash
 # Option A: LangGraph-based agent
-pip install cloudbase-agent-langgraph
+pip install cloudbase-agent-langgraph cloudbase-agent-server
+# Temporary workaround: add missing transitive dependency until the PyPI package metadata is fixed
+pip install ag_ui_langgraph
 
 # Option B: CrewAI-based agent
 pip install cloudbase-agent-crewai
@@ -146,9 +148,12 @@ Client (React / MiniProgram / curl)
 
 CloudBase Agent Python SDK is published to PyPI as separate packages. **Note: PyPI package names use hyphens (`cloudbase-agent-*`), and Python imports use the same namespace (`cloudbase_agent.*`)**.
 
+For LangGraph-based HTTP services, install both `cloudbase-agent-langgraph` and `cloudbase-agent-server`. `cloudbase-agent-langgraph` currently has a known PyPI packaging issue and does not declare `ag_ui_langgraph` correctly, so add `ag_ui_langgraph` explicitly in `requirements.txt` or install it manually until the upstream package metadata is fixed.
+
 ```bash
 # Core + Server + LangGraph (most common)
-pip install cloudbase-agent-langgraph
+pip install cloudbase-agent-langgraph cloudbase-agent-server
+pip install ag_ui_langgraph
 
 # Individual packages
 pip install cloudbase-agent-core        # Core framework
