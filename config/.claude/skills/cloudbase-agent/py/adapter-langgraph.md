@@ -22,11 +22,12 @@ The CloudBase Agent LangGraph adapter (`cloudbase_agent.langgraph`) provides sea
 ### 1. Install Dependencies
 
 ```bash
-pip install cloudbase-agent
+pip install cloudbase-agent-langgraph cloudbase-agent-server langgraph langchain-openai
 ```
 
 This installs:
-- `cloudbase-agent` - CloudBase Agent Python SDK
+- `cloudbase-agent-langgraph` - LangGraph adapter package
+- `cloudbase-agent-server` - HTTP server package for AG-UI endpoints
 - `langgraph` - LangGraph framework
 - `langchain` - LangChain core
 - `langchain-openai` - OpenAI integration
@@ -35,6 +36,8 @@ This installs:
 
 ```python
 # agent.py
+from typing import Any, List
+
 from langgraph.graph import StateGraph, MessagesState, END, START
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_openai import ChatOpenAI
@@ -43,7 +46,7 @@ from cloudbase_agent.langgraph import LangGraphAgent
 
 # Define state
 class State(MessagesState):
-    pass
+    tools: List[Any]
 
 # Define chat node
 def chat_node(state: State, config, writer):
