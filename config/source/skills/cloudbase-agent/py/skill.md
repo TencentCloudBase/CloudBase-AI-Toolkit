@@ -56,10 +56,10 @@ Use this skill for **AI agent development** when you need to:
 
 | Framework | Read | Install |
 |-----------|------|---------|
-| LangGraph (stateful graphs) | [adapter-langgraph](adapter-langgraph.md) | `cloudbase-agent` |
-| CrewAI (multi-agent crews) | [adapter-development](adapter-development.md) | `cloudbase-agent` |
-| Coze platform | [adapter-coze](adapter-coze.md) | `cloudbase-agent` |
-| Custom / raw FastAPI | [server-quickstart](server-quickstart.md) + [adapter-development](adapter-development.md) | `cloudbase-agent` |
+| LangGraph (stateful graphs) | [adapter-langgraph](adapter-langgraph.md) | `cloudbase-agent-langgraph` + `cloudbase-agent-server` |
+| CrewAI (multi-agent crews) | [adapter-development](adapter-development.md) | `cloudbase-agent-crewai` + `cloudbase-agent-server` |
+| Coze platform | [adapter-coze](adapter-coze.md) | See adapter-specific install docs |
+| Custom / raw FastAPI | [server-quickstart](server-quickstart.md) + [adapter-development](adapter-development.md) | `cloudbase-agent-server` |
 
 ### Additional References (read on demand, NOT required for deployment)
 
@@ -74,8 +74,10 @@ Use this skill for **AI agent development** when you need to:
 
 **1. Install dependencies:**
 
+Install the adapter-specific package together with `cloudbase-agent-server`. For example, the official LangGraph Python adapter setup is:
+
 ```bash
-pip install cloudbase-agent
+pip install cloudbase-agent-langgraph cloudbase-agent-server langgraph langchain-openai
 ```
 
 **2. Create server entry point:**
@@ -135,15 +137,19 @@ Client (React / MiniProgram / curl)
 
 ## Installation
 
-CloudBase Agent Python SDK is published to PyPI as **`cloudbase-agent`**. Use that exact package name in `pip install` commands and `requirements.txt`. Python imports stay under the `cloudbase_agent.*` namespace.
+CloudBase Agent Python packages are published to PyPI as **split adapter/server packages**. Install the adapter you need together with **`cloudbase-agent-server`**, while keeping Python imports under the `cloudbase_agent.*` namespace.
+
+- LangGraph: `cloudbase-agent-langgraph` + `cloudbase-agent-server`
+- CrewAI: `cloudbase-agent-crewai` + `cloudbase-agent-server`
+- Raw FastAPI server utilities: `cloudbase-agent-server`
 
 ```bash
-pip install cloudbase-agent
+pip install cloudbase-agent-langgraph cloudbase-agent-server
 ```
 
 **Import Note**: All packages share the `cloudbase_agent` namespace:
 ```python
-# After installing cloudbase-agent, import from cloudbase_agent
+# After installing the required cloudbase-agent-* packages, import from cloudbase_agent
 from cloudbase_agent.langgraph import LangGraphAgent
 from cloudbase_agent.server import AgentServiceApp
 from cloudbase_agent.tools import create_bash_tool
@@ -222,6 +228,6 @@ my-agent-project/
 1. **Agent Creator Pattern**: Every request creates a fresh agent via factory function. Supports cleanup callbacks for resource release.
 2. **Dual Protocol**: Every agent supports both AG-UI native (SSE + rich events) and OpenAI-compatible (`/chat/completions`).
 3. **Middleware = Generator**: Use `yield` — pre-yield = pre-processing, post-yield = post-processing (onion model).
-4. **Package vs Import Name**: Install `cloudbase-agent` from PyPI, but always import from `cloudbase_agent` in Python code.
-5. **Observability Auto-Integration**: After installing `cloudbase-agent`, tracing integrations are available with minimal setup.
+4. **Package Names vs Import Namespace**: Install the required `cloudbase-agent-*` PyPI packages, but always import from `cloudbase_agent` in Python code.
+5. **Observability Auto-Integration**: After installing the required adapter/server packages, tracing integrations are available with minimal setup.
 6. **Deploy with manageAgent**: Always use the `manageAgent` MCP tool for CloudBase deployment. Follow the **4-step blocking pipeline** in [agent-deployment](agent-deployment.md).
