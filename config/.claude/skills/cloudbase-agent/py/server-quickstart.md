@@ -4,11 +4,11 @@ This guide shows you how to create and deploy CloudBase Agent Python agents as H
 
 ---
 
-## Three Deployment Methods
+## Two Deployment Patterns
 
-CloudBase Agent Python SDK provides three flexible deployment methods, each suited for different use cases:
+CloudBase Agent Python SDK provides two supported implementation patterns:
 
-### Method 1: Core Adapters (Maximum Flexibility)
+### Method 1: Core Adapters + Manual FastAPI Routes
 
 Use `create_send_message_adapter()` and `create_openai_adapter()` directly for complete control over routes.
 
@@ -48,9 +48,9 @@ async def openai_endpoint(request: OpenAIChatCompletionRequest):
 - You want fine-grained control
 - You're building complex applications
 
-### Method 2: AgentServiceApp with Custom Routes (Recommended)
+### Method 2: AgentServiceApp (Recommended)
 
-Use `AgentServiceApp.build()` for automatic features with flexibility:
+Use `AgentServiceApp.build()` when you want automatic endpoints plus control over mounting and composition:
 
 ```python
 from fastapi import FastAPI
@@ -77,20 +77,7 @@ agent_fastapi = agent_app.build(
 main_app.mount("/my-agent", agent_fastapi)
 ```
 
-**Advantages:**
-- Automatic health check endpoints
-- Built-in OpenAI compatibility
-- Less boilerplate code
-- Modular agent deployment
-
-**Use when:**
-- You want automatic health checks
-- You're deploying multiple agents
-- You need both CloudBase Agent native and OpenAI endpoints
-
-### Method 3: One-Line Deployment (Simplest)
-
-For single-agent deployments, use the one-line approach:
+`AgentServiceApp.run()` is the simplest variant for a single agent. It already starts uvicorn internally, so do **not** wrap it in another `uvicorn.run(...)` call.
 
 ```python
 from cloudbase_agent.server import AgentServiceApp, HealthzConfig
@@ -107,21 +94,21 @@ AgentServiceApp().run(
 ```
 
 **Advantages:**
-- Extremely simple (one line!)
-- Perfect for prototyping
-- Automatic CORS and health checks
-- No boilerplate needed
+- Automatic health check endpoints
+- Built-in OpenAI compatibility
+- Less boilerplate code
+- Modular agent deployment
 
 **Use when:**
-- You have a single agent
-- You want the fastest way to start
-- You don't need custom routes
+- You want automatic health checks
+- You're deploying multiple agents
+- You need both CloudBase Agent native and OpenAI endpoints
 
 ---
 
 ## Agent Creator Pattern
 
-All three methods use an "agent creator" function that returns an `AgentCreatorResult`:
+Both patterns use an "agent creator" function that returns an `AgentCreatorResult`:
 
 ```python
 from cloudbase_agent.langgraph import LangGraphAgent
@@ -418,7 +405,7 @@ enable_tracing(ConsoleTraceConfig())
 
 ### 3. Add Authentication Middleware
 
-See `authentication.md` for details on implementing JWT-based authentication.
+See `authentication.md` for the CloudBase `x-cloudbase-credentials` header pattern and how to populate `state.__request_context__.user.id`.
 
 ### 4. Configure CORS Properly
 

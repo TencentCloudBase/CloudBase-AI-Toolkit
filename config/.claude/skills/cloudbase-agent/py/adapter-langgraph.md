@@ -22,11 +22,11 @@ The CloudBase Agent LangGraph adapter (`cloudbase_agent.langgraph`) provides sea
 ### 1. Install Dependencies
 
 ```bash
-pip install cloudbase-agent-langgraph
+pip install cloudbase-agent
 ```
 
 This installs:
-- `cloudbase-agent-langgraph` - LangGraph adapter
+- `cloudbase-agent` - CloudBase Agent Python SDK
 - `langgraph` - LangGraph framework
 - `langchain` - LangChain core
 - `langchain-openai` - OpenAI integration

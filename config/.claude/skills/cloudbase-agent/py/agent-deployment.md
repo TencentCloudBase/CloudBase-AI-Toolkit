@@ -294,7 +294,7 @@ manageAgent(action="create", runtime="Python3.10", installDependency=false, targ
 
 **Always select Python 3.10 runtime** (`runtime="Python3.10"`). This is the recommended version for CloudBase Agent Python SDK because:
 
-- Full compatibility with all `cloudbase-agent-*` packages
+- Full compatibility with `cloudbase-agent`
 - Best performance for async/await patterns used by FastAPI
 - Stable and well-tested on the CloudBase platform
 
@@ -382,14 +382,9 @@ export PYTHONPATH="./env:$PYTHONPATH"
 ### requirements.txt (example — varies by framework)
 
 ```
-# Core (always needed)
-cloudbase-agent-server
+# Core SDK (use the published PyPI package name exactly)
+cloudbase-agent
 python-dotenv
-
-# Framework adapter (pick ONE based on your choice)
-cloudbase-agent-langgraph   # For LangGraph-based agents
-# cloudbase-agent-crewai    # For CrewAI-based agents
-# cloudbase-agent-coze      # For Coze platform agents
 
 # LLM provider (example)
 langchain-openai

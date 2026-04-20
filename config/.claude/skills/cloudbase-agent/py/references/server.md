@@ -14,29 +14,9 @@ FastAPI-based HTTP server with dual-protocol support (AG-UI + OpenAI).
 | `AgentCreatorResult` | TypedDict: `{"agent": ..., "cleanup": optional_fn}` |
 | `HealthzConfig` | Health check config (service_name, version, custom_checks) |
 
-## Three Deployment Methods
+## Two Deployment Patterns
 
-### Method 1: One-line (simplest)
-
-```python
-AgentServiceApp().run(create_agent, port=9000)
-```
-
-### Method 2: Build + customize (recommended for multi-agent)
-
-```python
-app = AgentServiceApp()
-fastapi_app = app.build(
-    create_agent,
-    base_path="/api",
-    enable_openai_endpoint=True,
-    enable_healthz=True,
-)
-# Add custom routes to fastapi_app...
-uvicorn.run(fastapi_app, host="0.0.0.0", port=9000)
-```
-
-### Method 3: Core adapters (maximum flexibility)
+### Method 1: Core Adapters + Manual FastAPI Routes
 
 ```python
 from fastapi import FastAPI
@@ -52,6 +32,28 @@ async def send_message(request: RunAgentInput):
 async def chat(request: OpenAIChatCompletionRequest):
     return await create_openai_adapter(create_my_agent, request)
 ```
+
+### Method 2: AgentServiceApp (recommended)
+
+```python
+AgentServiceApp().run(create_agent, port=9000)
+```
+
+For mounting or composition, use `.build(...)`:
+
+```python
+app = AgentServiceApp()
+fastapi_app = app.build(
+    create_agent,
+    base_path="/api",
+    enable_openai_endpoint=True,
+    enable_healthz=True,
+)
+# Add custom routes to fastapi_app...
+uvicorn.run(fastapi_app, host="0.0.0.0", port=9000)
+```
+
+`AgentServiceApp.run(...)` already starts uvicorn internally. Only call `uvicorn.run(...)` yourself when you are using a raw FastAPI app or the `.build(...)` variant.
 
 ## AgentServiceApp Constructor
 
@@ -75,13 +77,18 @@ AgentServiceApp(
 Middlewares use Python's generator pattern with `yield` — code before yield runs pre-processing, code after yield runs post-processing (onion model).
 
 ```python
+import json
+
 def my_middleware(input_data: RunAgentInput, request: Request):
     # Pre-processing (runs before agent)
-    auth = request.headers.get("Authorization")
-    if auth and auth.startswith("Bearer "):
-        if not input_data.forwarded_props:
-            input_data.forwarded_props = {}
-        input_data.forwarded_props["user_id"] = decode_jwt(auth[7:])
+    raw_credentials = request.headers.get("x-cloudbase-credentials")
+    if raw_credentials:
+        credentials = json.loads(raw_credentials)
+        if input_data.state is None:
+            input_data.state = {}
+        input_data.state["__request_context__"] = {
+            "user": {"id": credentials.get("uid")}
+        }
     
     yield  # Control passes to agent
     
