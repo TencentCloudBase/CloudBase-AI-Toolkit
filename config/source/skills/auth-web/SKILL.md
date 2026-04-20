@@ -76,9 +76,9 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 - `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })` use the phone number in a `phone` field, not `phone_number`
 - `auth.signInWithOtp({ email })` and `auth.signUp({ email, ... })` both use the `email` field, but they serve different purposes: `signInWithOtp` starts email login, while `signUp` starts email registration
 - `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })` are the canonical username/password Web auth path
-- Email and phone registration are OTP flows: `auth.signUp({ email|phone, ... })` is only the first step that sends the verification code; registration completes only after the returned `data.verifyOtp({ token })` succeeds
-- For email signup, the canonical sequence is: `auth.signUp({ email, password, username? })` to send the code, persist the returned `data` signup handle, then call `signupHandle.verifyOtp({ token })` with only the verification code to finish account creation
-- If the email account should support later password login, include `password` in the initial `auth.signUp(...)` payload before calling `verifyOtp`
+- Email and phone registration are verification-code flows. The exact request and completion shape varies by SDK surface and version, so always verify the current Web SDK `authentication` docs before hard-coding the handler shape.
+- For email signup, collect the address, password, and optional username up front, then follow the official `auth.signUp(...)` example for the installed SDK version instead of assuming a custom callback contract.
+- If the email account should support later password login, include `password` in the initial sign-up payload before finishing the verification flow.
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
 - `verifyOtp({ token })` expects the SMS or email code in `token`
 - `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
@@ -150,18 +150,16 @@ const phoneLogin = await auth.signInWithPassword({
 - For username-style account systems, use username/password registration directly
 - Do not switch to email OTP or phone OTP unless the task explicitly says the account identifier is an email address or phone number
 - When the task uses plain usernames such as `admin`, `editor`, or `user01`, the canonical form code is `auth.signUp({ username, password })`
-- Email and phone signup are always two-step OTP flows: first call `auth.signUp({ email|phone, ... })` to send the code, then keep the returned `data` object and call `data.verifyOtp({ token })` to finish registration
-- For email signup, put `password` and optional `username` on the initial `auth.signUp(...)` call when the new account should later use password login
-- The `verifyOtp` callback returned from `auth.signUp({ email|phone, ... })` already carries the signup context. In the second step, send only the verification code as `verifyOtp({ token })`; do not rebuild the signup payload
-- In split UI handlers, `auth.signUp({ email, ... })` is the "send code" step and `signupHandle.verifyOtp({ token })` is the "complete registration" step
-- If the UI splits "send code" and "complete registration" into different handlers, persist the returned sign-up handle from step 1 and reuse it in step 2
+- Email and phone signup require a verification-code step, but the completion API depends on the installed Web SDK surface. Follow the current `authentication` docs for your version instead of assuming every project exposes the same `verifyOtp` callback shape.
+- For email signup, put `password` and optional `username` on the initial `auth.signUp(...)` call when the new account should later use password login.
+- If the UI splits "send code" and "complete registration" into different handlers, persist the verification context returned by step 1 exactly as shown in the official example for the installed SDK version.
 
 Email signup sequence at a glance:
 
-1. Call `auth.signUp({ email, password, username? })` to send the email code.
-2. Persist the returned `data` signup handle from step 1.
-3. Call `signupHandle.verifyOtp({ token })` with only the code from the email.
-4. Treat the account as created only after step 3 succeeds.
+1. Call `auth.signUp({ email, password, username? })` using the current Web SDK shape.
+2. Persist the verification context returned by step 1 if the SDK example requires it.
+3. Complete the verification step exactly as documented for that SDK version.
+4. Treat the account as created only after the verification step succeeds.
 
 ```js
 // Username + Password
@@ -171,17 +169,16 @@ const usernameSignUp = await auth.signUp({
   nickname: "User",
 });
 
-// Email OTP signup.
+// Email signup.
 // Use only when the task explicitly requires email addresses.
+// Follow the exact completion flow from the current Web SDK authentication docs.
 const emailSignUp = await auth.signUp({
   email: "new@example.com",
   password: "pass123",
   username: "newuser",
 });
-const emailSignupHandle = emailSignUp.data; // Required for the follow-up verify step.
-const emailVerifyResult = await emailSignupHandle.verifyOtp({
-  token: "123456",
-});
+const emailVerificationContext = emailSignUp.data;
+// Complete the verification step with the official SDK example for your installed version.
 
 // Phone OTP signup.
 // Use only when the task explicitly requires phone numbers.
@@ -227,7 +224,7 @@ const handleSendCode = async () => {
     });
     if (error) throw error;
 
-    // Keep the returned sign-up handle for the follow-up verifyOtp step.
+    // Keep the returned verification context for the follow-up completion step.
     setSignUpData(data);
   } catch (error) {
     console.error("Failed to send sign-up code", error);
@@ -236,8 +233,9 @@ const handleSendCode = async () => {
 
 const handleRegister = async () => {
   try {
-    if (!signUpData?.verifyOtp) throw new Error("Please send the code first");
+    if (!signUpData) throw new Error("Please send the code first");
 
+    // Complete the verification step with the official SDK example for the installed version.
     const { error } = await signUpData.verifyOtp({ token: code });
     if (error) throw error;
   } catch (error) {
