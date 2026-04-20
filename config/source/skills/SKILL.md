@@ -55,7 +55,8 @@ alwaysApply: true
    - If the account identifier is a plain username such as `admin`, `editor`, or another string without `@`, treat `usernamePassword` login as a blocking prerequisite.
    - First call `queryAppAuth(action=\"getLoginConfig\")`.
    - If `loginMethods.usernamePassword !== true`, immediately call `manageAppAuth(action=\"patchLoginStrategy\", patch={ usernamePassword: true })`.
-   - In code, use `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })`.
+   - In code, use `auth.signInWithPassword({ username, password })` for username-style login.
+   - If self-service registration is required, confirm the documented email/phone verification signup flow that binds `username`, or use an explicit admin-side provisioning path.
    - Never use `signUpWithEmailAndPassword` or `signInWithEmailAndPassword` for these username-style account flows.
    - Once readiness is confirmed, return to the active frontend handler and finish the real login/register flow.
 

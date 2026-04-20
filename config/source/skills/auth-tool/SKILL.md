@@ -131,7 +131,8 @@ Parameter mapping for downstream Web auth code:
 - `PhoneNumberLogin` controls phone OTP flows used by `auth-web` `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })`
 - `EmailLogin` controls email OTP flows used by `auth-web` `auth.signInWithOtp({ email })` and `auth.signUp({ email, ... })`
 - Email and phone signup require a verification-code step. The exact completion shape depends on the installed Web SDK surface, so follow the current Web SDK `authentication` docs instead of assuming one callback contract everywhere.
-- `UserNameLogin` controls username/password Web auth flows used by `auth-web` `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })`
+- `UserNameLogin` controls username/password Web auth login used by `auth-web` `auth.signInWithPassword({ username, password })`
+- `UserNameLogin` does not create users by itself. Public Web signup still follows the documented email or phone verification flow, and `username` is bound during that verified signup when needed.
 - If the account identifier is a plain username string, do not route it through email-only helpers such as `signInWithEmailAndPassword`
 - `UserNameLogin` also enables the broader password-login surface exposed by `auth.signInWithPassword({ username|email|phone, password })`
 - `SmsVerificationConfig.Type = "apis"` requires both `Name` and `Method`

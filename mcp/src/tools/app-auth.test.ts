@@ -67,8 +67,8 @@ describe("app auth tools", () => {
     phoneOtp: "auth.signInWithOtp({ phone })",
     emailOtp: "auth.signInWithOtp({ email })",
     password: "auth.signInWithPassword({ username|email|phone, password })",
-    signup: "auth.signUp({ username, password }) or auth.signUp({ phone|email, ... })",
-    verifyOtp: "verifyOtp({ token }) for phone/email OTP signup or login",
+    signup: "auth.signUp({ phone|email, password?, username?, ... })",
+    verifyOtp: "verifyOtp({ token }) to complete phone/email OTP signup or login",
     anonymous: "auth.signInAnonymously()",
   };
 
@@ -205,7 +205,8 @@ describe("app auth tools", () => {
       },
       webSdkHint: {
         blocked: false,
-        register: "auth.signUp({ username, password })",
+        register:
+          "Use the documented email/phone verification signup flow and bind username there if needed",
         login: "auth.signInWithPassword({ username, password })",
         accountInputType: "text",
         avoidEmailHelpers: true,
@@ -260,7 +261,8 @@ describe("app auth tools", () => {
       },
       webSdkHint: {
         blocked: false,
-        register: "auth.signUp({ username, password })",
+        register:
+          "Use the documented email/phone verification signup flow and bind username there if needed",
         login: "auth.signInWithPassword({ username, password })",
         accountInputType: "text",
         avoidEmailHelpers: true,

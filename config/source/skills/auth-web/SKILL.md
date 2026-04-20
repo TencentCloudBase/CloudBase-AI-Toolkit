@@ -75,7 +75,7 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 - When `queryAppAuth` / `manageAppAuth` returns `sdkStyle: "supabase-like"` and `sdkHints`, follow those method and parameter hints first
 - `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })` use the phone number in a `phone` field, not `phone_number`
 - `auth.signInWithOtp({ email })` and `auth.signUp({ email, ... })` both use the `email` field, but they serve different purposes: `signInWithOtp` starts email login, while `signUp` starts email registration
-- `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })` are the canonical username/password Web auth path
+- `auth.signInWithPassword({ username, password })` is the canonical username/password login path after the user has already been created and bound to a username during an email or phone verification signup flow
 - Email and phone registration are verification-code flows. The exact request and completion shape varies by SDK surface and version, so always verify the current Web SDK `authentication` docs before hard-coding the handler shape.
 - For email signup, collect the address, password, and optional username up front, then follow the official `auth.signUp(...)` example for the installed SDK version instead of assuming a custom callback contract.
 - If the email account should support later password login, include `password` in the initial sign-up payload before finishing the verification flow.
@@ -147,9 +147,10 @@ const phoneLogin = await auth.signInWithPassword({
 
 **4. Registration**
 
-- For username-style account systems, use username/password registration directly
-- Do not switch to email OTP or phone OTP unless the task explicitly says the account identifier is an email address or phone number
-- When the task uses plain usernames such as `admin`, `editor`, or `user01`, the canonical form code is `auth.signUp({ username, password })`
+- Username/password is a login method, not a standalone self-service signup shortcut
+- For username-style account systems, first verify how the user record will be created. CloudBase public Web signup still requires an email or phone verification flow, and `username` is bound during that verified signup.
+- Do not promise a browser-only `auth.signUp({ username, password })` registration path unless the installed SDK version and official docs for that exact version explicitly document it
+- When the task uses plain usernames such as `admin`, `editor`, or `user01`, keep the login input as plain text and use `auth.signInWithPassword({ username, password })` for login after the account has been provisioned or bound through the documented signup flow
 - Email and phone signup require a verification-code step, but the completion API depends on the installed Web SDK surface. Follow the current `authentication` docs for your version instead of assuming every project exposes the same `verifyOtp` callback shape.
 - For email signup, put `password` and optional `username` on the initial `auth.signUp(...)` call when the new account should later use password login.
 - If the UI splits "send code" and "complete registration" into different handlers, persist the verification context returned by step 1 exactly as shown in the official example for the installed SDK version.
@@ -162,13 +163,6 @@ Email signup sequence at a glance:
 4. Treat the account as created only after the verification step succeeds.
 
 ```js
-// Username + Password
-const usernameSignUp = await auth.signUp({
-  username: "newuser",
-  password: "pass123",
-  nickname: "User",
-});
-
 // Email signup.
 // Use only when the task explicitly requires email addresses.
 // Follow the exact completion flow from the current Web SDK authentication docs.
@@ -191,18 +185,9 @@ const phoneVerifyResult = await phoneSignUp.data.verifyOtp({ token: "123456" });
 
 When the project already has `handleSendCode` / `handleRegister` or similar UI handlers, wire the SDK calls there directly instead of leaving them commented out in `App.tsx`.
 
-For username-style account tasks:
+For username-style account tasks where the required test users already exist:
 
 ```tsx
-const handleRegister = async () => {
-  const { error } = await auth.signUp({
-    username,
-    password,
-    nickname: username,
-  });
-  if (error) throw error;
-};
-
 const handleLogin = async () => {
   const { error } = await auth.signInWithPassword({
     username,
@@ -211,6 +196,11 @@ const handleLogin = async () => {
   if (error) throw error;
 };
 ```
+
+If the task also requires a self-service registration UI for username-style accounts, do not fabricate a direct `auth.signUp({ username, password })` path. Instead, stop and confirm the actual provisioning approach for this repo, for example:
+
+- email or phone verification signup that binds `username` during the verified registration flow
+- admin-side provisioning through documented management capabilities such as environment user creation APIs or existing backend/admin setup
 
 Do not use email OTP or email-only helpers for these flows unless the task explicitly says the account identifier is an email address. The corresponding form field should stay `type="text"` rather than `type="email"` for username-style account identifiers.
 

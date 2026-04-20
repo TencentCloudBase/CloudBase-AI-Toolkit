@@ -40,7 +40,7 @@
 <tr><td><code>queryAppAuth</code></td><td>应用侧认证配置只读入口。用于查询登录方式、provider、publishable key、API key、client 配置和静态域名等认证准备状态。若业务要接受普通用户名样式标识符，先查询 action=getLoginConfig；若 usernamePassword=false，下一步应立即调用 manageAppAuth(action=patchLoginStrategy, patch=&#123; usernamePassword: true &#125;)，不要直接写 email 登录 API。</td></tr>
 <tr><td><code>manageAppAuth</code></td><td>应用侧认证配置写入口。用于修改登录方式、provider、client 配置，确保 publishable key，以及创建或删除 API key、自定义登录密钥。若前端要接受普通用户名样式标识符，应先执行 action=patchLoginStrategy 并传入 patch=&#123; usernamePassword: true &#125;，再实现对应前端登录逻辑。</td></tr>
 <tr><td><code>queryPermissions</code></td><td>权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。</td></tr>
-<tr><td><code>managePermissions</code></td><td>权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单；前端用户名密码注册应使用 `auth.signUp(&#123; username, password &#125;)`，登录应使用 `auth.signInWithPassword(&#123; username, password &#125;)`。注意：`securityRule` 的详细语义取决于 `resourceType`；`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType="noSqlDatabase"` 的文档数据库安全规则。配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。</td></tr>
+<tr><td><code>managePermissions</code></td><td>权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的公开注册表单；前端用户名样式账号登录应使用 `auth.signInWithPassword(&#123; username, password &#125;)`，自助注册应遵循官方邮箱/手机号验证 `auth.signUp(...)` 流程并在注册时绑定 `username`。注意：`securityRule` 的详细语义取决于 `resourceType`；`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType="noSqlDatabase"` 的文档数据库安全规则。配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。</td></tr>
 <tr><td><code>queryLogs</code></td><td>日志域统一只读入口。支持检查日志服务状态并搜索 CLS 日志。</td></tr>
 <tr><td><code>queryAgents</code></td><td>Agent 域统一只读入口。支持列表、详情与日志查询。</td></tr>
 <tr><td><code>manageAgents</code></td><td>Agent 域统一写入口。支持创建、更新和删除远端 Agent。</td></tr>
@@ -774,7 +774,7 @@ classDiagram
 ---
 
 ### `managePermissions`
-权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单；前端用户名密码注册应使用 `auth.signUp(&#123; username, password &#125;)`，登录应使用 `auth.signInWithPassword(&#123; username, password &#125;)`。注意：`securityRule` 的详细语义取决于 `resourceType`；`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType="noSqlDatabase"` 的文档数据库安全规则。配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。
+权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的公开注册表单；前端用户名样式账号登录应使用 `auth.signInWithPassword(&#123; username, password &#125;)`，自助注册应遵循官方邮箱/手机号验证 `auth.signUp(...)` 流程并在注册时绑定 `username`。注意：`securityRule` 的详细语义取决于 `resourceType`；`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType="noSqlDatabase"` 的文档数据库安全规则。配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。
 
 #### 参数
 
