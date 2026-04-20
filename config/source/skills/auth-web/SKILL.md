@@ -60,22 +60,22 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 **Use Case**: Web frontend projects using `@cloudbase/js-sdk@2.x` for user authentication  
 **Key Benefits**: Official CloudBase Web auth flow with username/password, email verification, phone verification, anonymous login, and third-party login methods
-**Official `@cloudbase/js-sdk` CDN**: `https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js`
+For React, Vite, Vue, Webpack, and other modern bundler projects, install the SDK from npm: `npm install @cloudbase/js-sdk`.
 
-Prefer npm installation in modern bundler projects such as React, Vite, Vue, or Webpack apps. If the task says not to use CDN, run `npm install @cloudbase/js-sdk` and import it from application source. Only mention the CDN form for static HTML or no-build demos.
+Only mention the CDN build for static HTML or no-build demos. If the task explicitly says not to use CDN, do not suggest the CDN path at all.
 
 ## Prerequisites
 
 - Use `envQuery(action="info")` first to read the current CloudBase environment ID before any auth setup.
-- If the MCP session is not bound yet or `envQuery(action="info")` cannot identify the target environment, use `envQuery(action="list")` to choose the real environment ID, then immediately call `auth(action="set_env", envId="<actual-env-id>")` so `queryAppAuth` / `manageAppAuth` operate on the correct app.
-- When generating frontend code or `.env` examples, replace `your-env-id` / `<actual-env-id>` with the real environment ID returned by `envQuery`; do not leave placeholders in runnable code, and do not confuse `envId` with `accessKey` or `clientId`.
+- If the MCP session is not bound yet or `envQuery(action="info")` cannot identify the target environment, use `envQuery(action="list")` to choose the real environment ID, then immediately call `auth(action="set_env", envId="<real-env-id>")` so `queryAppAuth` / `manageAppAuth` operate on the correct app.
+- When generating frontend code or `.env` examples, fill in the real environment ID returned by `envQuery`; do not leave `your-env-id` or `<real-env-id>` placeholders in runnable code, and do not confuse `envId` with `accessKey` or `clientId`.
 - Automatically use `auth-tool-cloudbase` to check app-side auth readiness: `queryAppAuth(action="getLoginConfig")` for login methods, `manageAppAuth(action="patchLoginStrategy")` when a required method is off, and `queryAppAuth(action="getPublishableKey")` or `manageAppAuth(action="ensurePublishableKey")` for the publishable key.
-- If `auth-tool-cloudbase` failed, let user go to `https://tcb.cloud.tencent.com/dev?envId=<actual-env-id>#/env/apikey` to get `publishable key` and `https://tcb.cloud.tencent.com/dev?envId=<actual-env-id>#/identity/login-manage` to set up login methods.
+- If `auth-tool-cloudbase` failed, let user go to `https://tcb.cloud.tencent.com/dev?envId=<real-env-id>#/env/apikey` to get `publishable key` and `https://tcb.cloud.tencent.com/dev?envId=<real-env-id>#/identity/login-manage` to set up login methods.
 
 Recommended tool order for Web auth setup:
 
 1. `envQuery(action="info")`
-2. If needed, `envQuery(action="list")` and `auth(action="set_env", envId="<actual-env-id>")`
+2. If needed, `envQuery(action="list")` and `auth(action="set_env", envId="<real-env-id>")`
 3. `queryAppAuth(action="getLoginConfig")`
 4. `manageAppAuth(action="patchLoginStrategy", patch={ ... })` when the required login method is off
 5. `queryAppAuth(action="getPublishableKey")` or `manageAppAuth(action="ensurePublishableKey")`
@@ -88,7 +88,8 @@ Recommended tool order for Web auth setup:
 - `auth.getVerification({ email })` sends the email verification code.
 - `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })` are the canonical username/password Web auth path
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
-- For email or phone verification flows, call `auth.verify({ verification_id, verification_code })` first, then pass `verification_code` and `verification_token` into `auth.signUp()` or `auth.signIn()`.
+- For email or phone verification sign-up flows, call `auth.getVerification(...)` first, then `auth.verify({ verification_id, verification_code })`, then pass `verification_code` and `verification_token` into `auth.signUp(...)`.
+- For verification-code login flows, use the SDK's login helpers such as `auth.signInWithEmail(...)` or `auth.signInWithSms(...)` with the `verificationInfo` returned by `auth.getVerification(...)`.
 - `verification_code` is the SMS or email code entered by the user.
 - `verification_token` comes from `auth.verify(...)`, not from MCP auth tools and not from a fabricated placeholder.
 - `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
@@ -101,7 +102,7 @@ Recommended tool order for Web auth setup:
 import cloudbase from '@cloudbase/js-sdk'
 
 const app = cloudbase.init({
-  env: '<actual-env-id>', // replace with the envId returned by envQuery and already bound via auth(set_env)
+  env: '<real-env-id>', // replace with the envId returned by envQuery and already bound via auth(set_env)
   region: 'ap-shanghai',
   accessKey: '<publishable-key>', // get via queryAppAuth(getPublishableKey) or manageAppAuth(ensurePublishableKey)
 })
@@ -110,6 +111,7 @@ const auth = app.auth()
 ```
 
 If the current task has not retrieved a real Publishable Key, omit `accessKey` instead of inventing one. A wrong `accessKey` can break auth-state checks and protected-route behavior.
+The `env` field, however, should still be filled with the real environment ID rather than left as a placeholder.
 
 ---
 
@@ -132,6 +134,8 @@ const loginResult = await auth.signInWithSms({
 })
 ```
 
+For login, do not insert an extra `auth.verify(...)` step before `auth.signInWithSms(...)` unless the official SDK/API page for the exact method requires it.
+
 **2. Email verification login**
 - Automatically use `auth-tool-cloudbase` to turn on `Email Login` through `manageAppAuth`
 ```js
@@ -147,6 +151,8 @@ const loginResult = await auth.signInWithEmail({
 })
 ```
 
+For login, do not replace this with a registration-only `auth.verify(...) -> auth.signUp(...)` sequence.
+
 **3. Password**
 ```js
 const usernameLogin = await auth.signInWithPassword({ username: 'test_user', password: 'pass123' })
@@ -158,6 +164,7 @@ const phoneLogin = await auth.signInWithPassword({ phone: '13800138000', passwor
 - For username-style account systems, use username/password registration directly
 - Do not switch to email OTP or phone OTP unless the task explicitly says the account identifier is an email address or phone number
 - When the task uses plain usernames such as `admin`, `editor`, or `user01`, the canonical form code is `auth.signUp({ username, password })`
+- For email or phone registration, the canonical sequence in this skill is `auth.getVerification(...) -> auth.verify(...) -> auth.signUp(...)`
 ```js
 // Username + Password
 const usernameSignUp = await auth.signUp({
