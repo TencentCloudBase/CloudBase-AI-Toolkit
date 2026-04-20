@@ -56,7 +56,7 @@ Use this skill for **AI agent development** when you need to:
 
 | Framework | Read | Install |
 |-----------|------|---------|
-| LangGraph (stateful graphs) | [adapter-langgraph](adapter-langgraph.md) | `cloudbase-agent-langgraph` + `cloudbase-agent-server` |
+| LangGraph (stateful graphs) | [adapter-langgraph](adapter-langgraph.md) | `cloudbase-agent-langgraph` + `cloudbase-agent-server` + `ag_ui_langgraph` |
 | CrewAI (multi-agent crews) | [adapter-development](adapter-development.md) | `cloudbase-agent-crewai` + `cloudbase-agent-server` |
 | Coze platform | [adapter-coze](adapter-coze.md) | See adapter-specific install docs |
 | Custom / raw FastAPI | [server-quickstart](server-quickstart.md) + [adapter-development](adapter-development.md) | `cloudbase-agent-server` |
@@ -74,10 +74,10 @@ Use this skill for **AI agent development** when you need to:
 
 **1. Install dependencies:**
 
-Install the adapter-specific package together with `cloudbase-agent-server`. For example, the official LangGraph Python adapter setup is:
+Install the adapter-specific package together with `cloudbase-agent-server`. For LangGraph projects, also add `ag_ui_langgraph` explicitly because the current `cloudbase-agent-langgraph` PyPI metadata does not declare that dependency correctly.
 
 ```bash
-pip install cloudbase-agent-langgraph cloudbase-agent-server langgraph langchain-openai
+pip install cloudbase-agent-langgraph cloudbase-agent-server ag_ui_langgraph langgraph langchain-openai
 ```
 
 **2. Create server entry point:**
@@ -139,12 +139,12 @@ Client (React / MiniProgram / curl)
 
 CloudBase Agent Python packages are published to PyPI as **split adapter/server packages**. Install the adapter you need together with **`cloudbase-agent-server`**, while keeping Python imports under the `cloudbase_agent.*` namespace.
 
-- LangGraph: `cloudbase-agent-langgraph` + `cloudbase-agent-server`
+- LangGraph: `cloudbase-agent-langgraph` + `cloudbase-agent-server` + `ag_ui_langgraph` (install `ag_ui_langgraph` explicitly until the upstream PyPI metadata is fixed)
 - CrewAI: `cloudbase-agent-crewai` + `cloudbase-agent-server`
 - Raw FastAPI server utilities: `cloudbase-agent-server`
 
 ```bash
-pip install cloudbase-agent-langgraph cloudbase-agent-server
+pip install cloudbase-agent-langgraph cloudbase-agent-server ag_ui_langgraph
 ```
 
 **Import Note**: All packages share the `cloudbase_agent` namespace:

@@ -385,6 +385,7 @@ export PYTHONPATH="./env:$PYTHONPATH"
 # Core SDK packages (install the adapter/server packages you actually use)
 cloudbase-agent-langgraph
 cloudbase-agent-server
+ag_ui_langgraph  # Temporary manual dependency for LangGraph projects
 python-dotenv
 
 # LLM provider (example)

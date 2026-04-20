@@ -21,13 +21,16 @@ The CloudBase Agent LangGraph adapter (`cloudbase_agent.langgraph`) provides sea
 
 ### 1. Install Dependencies
 
+Add `ag_ui_langgraph` explicitly. The current `cloudbase-agent-langgraph` PyPI metadata does not declare it correctly, so omitting it can cause import failures.
+
 ```bash
-pip install cloudbase-agent-langgraph cloudbase-agent-server langgraph langchain-openai
+pip install cloudbase-agent-langgraph cloudbase-agent-server ag_ui_langgraph langgraph langchain-openai
 ```
 
 This installs:
 - `cloudbase-agent-langgraph` - LangGraph adapter package
 - `cloudbase-agent-server` - HTTP server package for AG-UI endpoints
+- `ag_ui_langgraph` - LangGraph AG-UI runtime dependency that currently needs manual installation
 - `langgraph` - LangGraph framework
 - `langchain` - LangChain core
 - `langchain-openai` - OpenAI integration
