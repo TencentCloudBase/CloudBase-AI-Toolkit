@@ -31,4 +31,11 @@ test('build-skills-repo publishes skills and guideline from minimal sources', ()
   const readme = fs.readFileSync(path.join(OUTPUT_DIR, 'README.md'), 'utf8');
   expect(readme).toContain('cloudbase-guidelines');
   expect(readme).toContain('auth-web');
+
+  const guideline = fs.readFileSync(
+    path.join(OUTPUT_DIR, 'skills', 'cloudbase-guidelines', 'SKILL.md'),
+    'utf8',
+  );
+  expect(guideline).toContain('do not create gateway access just to mirror the function name');
+  expect(guideline).toContain('should still map to in-function routes like `/`, `/health`, and `/users`');
 });

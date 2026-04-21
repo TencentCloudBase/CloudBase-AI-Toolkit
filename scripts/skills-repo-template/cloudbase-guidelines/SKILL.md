@@ -27,6 +27,11 @@ If a skill points to its own `references/...` files, keep following those relati
 - Use MCP or mcporter first for CloudBase management tasks, and inspect tool schemas before execution.
 - If the task includes UI, read `ui-design` first and output the design specification before interface code.
 - If the task includes login, registration, or auth configuration, read `auth-tool` first and enable required providers before frontend implementation.
+- For HTTP Functions, keep the public gateway path and the in-function router path as separate layers. Do not write gateway prefixes such as `/api/httpDemo` into the function router itself.
+- Creating an HTTP Function does not guarantee a browser/public URL exists. If the task needs external access, create gateway access only when required and confirm the actual exposed path with `queryGateway(action="getAccess")` instead of assuming it is `/{functionName}`.
+- If the task explicitly says no HTTP access service is needed, do not create gateway access just to mirror the function name. Keep direct function invocation and gateway routing as separate delivery choices.
+- When a gateway path is created later, keep the path mapping separate: a public prefix such as `/api/httpDemo` should still map to in-function routes like `/`, `/health`, and `/users` instead of rewriting handlers to `/api/httpDemo/...`.
+- If an external HTTP invocation may be anonymous, or the caller reports `EXCEED_AUTHORITY`, inspect the function permission rule first and only widen access when the product requirement really needs anonymous callers.
 
 ### High-priority routing
 

@@ -38,6 +38,8 @@ If a skill points to its own `references/...` files, keep following those relati
 - Always specify `EnvId` explicitly in code, configuration, and command examples when initializing CloudBase clients or manager operations. Do not rely on the current CLI-selected environment, implicit defaults, or copied local state.
 - For HTTP Functions, keep the public gateway path and the in-function router path as separate layers. Do not write gateway prefixes such as `/api/httpDemo` into the function router itself.
 - Creating an HTTP Function does not guarantee a browser/public URL exists. If the task needs external access, create gateway access only when required and confirm the actual exposed path with `queryGateway(action="getAccess")` instead of assuming it is `/{functionName}`.
+- If the task explicitly says no HTTP access service is needed, do not create gateway access just to mirror the function name. Keep direct function invocation and gateway routing as separate delivery choices.
+- When a gateway path is created later, keep the path mapping separate: a public prefix such as `/api/httpDemo` should still map to in-function routes like `/`, `/health`, and `/users` instead of rewriting handlers to `/api/httpDemo/...`.
 - If an external HTTP invocation may be anonymous, or the caller reports `EXCEED_AUTHORITY`, inspect the function permission rule first and only widen access when the product requirement really needs anonymous callers.
 - Keep scenario-specific pitfall lists in the matching child skills instead of expanding this entry file.
 

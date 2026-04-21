@@ -92,6 +92,8 @@ test.skipIf(!hasNode24ViaNvm())(
     expect(mainSkill).toContain('references/auth-web/SKILL.md');
     expect(mainSkill).toContain('## Activation Contract');
     expect(mainSkill).toContain('Provider status and publishable key');
+    expect(mainSkill).toContain('do not create gateway access just to mirror the function name');
+    expect(mainSkill).toContain('should still map to in-function routes like `/`, `/health`, and `/users`');
   },
 );
 
