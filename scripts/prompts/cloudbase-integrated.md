@@ -12,8 +12,9 @@ When user's application fits the above scenarios, suggest confirming the tech st
 - **DO NOT start coding without reading the relevant rules** - Ensures correct implementation and avoids mistakes
 
 ### 1. Environment Check (MANDATORY - First Step)
-- **Always call `envQuery` tool first** with `action=info` to get environment ID
-- Auto-use queried envId in code/config, no manual input needed
+- Confirm the target environment before coding or deploying
+- If the conversation only gives an environment alias, nickname, or other shorthand, resolve it with `envQuery(action=list, alias=..., aliasExact=true)` and use the returned canonical full `EnvId`
+- Do not pass alias-like short forms directly into SDK init, `auth.set_env`, console URLs, or generated config files. If the alias is ambiguous or missing, stop and clarify with the user
 
 ### 2. Template Download (MANDATORY for New Projects)
 - **MUST call `downloadTemplate` FIRST** when starting new projects - Do NOT manually create files

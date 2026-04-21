@@ -91,10 +91,12 @@ mcpServers:
 
 In environments that do not support MCP (e.g. openclaw) or when users are unsure how to configure MCP, use **mcporter** as a CLI to call CloudBase MCP tools.
 
-**When managing or deploying CloudBase, you MUST use MCP and MUST understand tool details first.** Before calling any CloudBase tool, run `npx mcporter describe cloudbase` (or equivalent in your IDE) to inspect the server config and available tools.
+**When managing or deploying CloudBase, you MUST use MCP and MUST understand tool details first.** Before calling any CloudBase tool, run `npx mcporter describe cloudbase --all-parameters` (or equivalent in your IDE) to inspect available tools and their full parameters.
 
 You **do not need to hard-code Secret ID / Secret Key / Env ID** in the config.  
 CloudBase MCP will support device-code based login via the `auth` tool, so credentials can be obtained interactively instead of being stored in config.
+
+When the environment identifier in the conversation is an alias, nickname, or other short form, **do not pass it directly** to `auth.set_env`, SDK init, console URLs, or generated config files. First resolve it to the canonical full `EnvId` with `envQuery(action=list, alias=..., aliasExact=true)`. If multiple environments match or no exact alias exists, stop and clarify with the user.
 
 **Add CloudBase MCP server in `config/mcporter.json` (recommended):**
 
@@ -115,7 +117,7 @@ If `config/mcporter.json` already contains other MCP servers, keep them and only
 
 **Quick start:**
 - `npx mcporter list` — list configured servers
-- **Required:** `npx mcporter describe cloudbase` — inspect CloudBase server config and available tools (must run before managing/deploying CloudBase)
+- **Required:** `npx mcporter describe cloudbase --all-parameters` — inspect CloudBase server config and get full tool schemas with all parameters (must run before managing/deploying CloudBase)
 - `npx mcporter list cloudbase --schema` — get full JSON schema for all CloudBase tools
 - `npx mcporter call cloudbase.help --output json` — discover available CloudBase tools and their schemas
 - `npx mcporter call cloudbase.<tool> key=value` — call a CloudBase tool
@@ -125,8 +127,10 @@ If `config/mcporter.json` already contains other MCP servers, keep them and only
   `npx mcporter call cloudbase.auth action=status --output json`
 - Start device-flow login (future-friendly device-code login; no keys in config):  
   `npx mcporter call cloudbase.auth action=start_auth authMode=device --output json`
+- If the user gives an environment alias / nickname / short form instead of the full `EnvId`, resolve it first:
+  `npx mcporter call cloudbase.envQuery action=list alias=demo aliasExact=true fields='["EnvId","Alias","Status","IsDefault"]' --output json`
 - Bind environment after login (envId from CloudBase console):  
-  `npx mcporter call cloudbase.auth action=set_env envId=env-xxx --output json`
+  `npx mcporter call cloudbase.auth action=set_env envId=<full-env-id> --output json`
 
 ---
 
@@ -174,7 +178,7 @@ If the platform supports long-term memory, persist these scenarios so the agent 
 Prefer long-term memory when available: write the scenarios and working rules there so the agent always applies them. When configuring the workspace (e.g. `AGENTS.md`) or long-term memory, add reminders like:
 
 - **CloudBase skills** → Run `npx skills add tencentcloudbase/cloudbase-skills` to install; use `cloudbase` and log in to CloudBase (MCP auth, device-code) for full-stack development.
-- **CloudBase = MCP, understand tools first** → When managing or deploying CloudBase, you MUST use MCP and MUST understand tool details first. Before calling any CloudBase tool, run `npx mcporter describe cloudbase` (or equivalent in your IDE) to inspect the server config and available tools.
+- **CloudBase = MCP, understand tools first** → When managing or deploying CloudBase, you MUST use MCP and MUST understand tool details first. Before calling any CloudBase tool, run `npx mcporter describe cloudbase --all-parameters` (or equivalent in your IDE) to inspect available tools and their full parameters.
 - **mcporter call format** → `npx mcporter call cloudbase.<tool> key=value`, e.g. `npx mcporter call cloudbase.auth action=status --output json`.
 - **CloudBase development and deployment** → Use MCP to automate (environment, functions, database, hosting, etc.).
 - **Development norms** → Read the relevant CloudBase skills (e.g. `cloudbase`, `web-development`, `miniprogram-development`, `cloud-functions`) before writing code.
