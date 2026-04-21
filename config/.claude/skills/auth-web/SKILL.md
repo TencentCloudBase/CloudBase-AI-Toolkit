@@ -89,7 +89,7 @@ Use npm installation for modern Web projects. In React, Vue, Vite, and other bun
 import cloudbase from '@cloudbase/js-sdk'
 
 const app = cloudbase.init({
-  env: `env-xxxxx`, // Canonical full CloudBase environment ID, not an alias or shorthand
+  env: 'your-full-env-id', // Canonical full CloudBase environment ID resolved from envQuery or the console, not an alias or shorthand
   region: `region`,  // CloudBase environment Region, default 'ap-shanghai'
   accessKey: 'publishable key', // required, get from auth-tool-cloudbase
   auth: { detectSessionInUrl: true }, // required

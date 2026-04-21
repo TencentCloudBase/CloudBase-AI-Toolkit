@@ -148,7 +148,7 @@ When your IDE does not support native MCP, use **mcporter** as the CLI to config
 - If the user gives an environment alias / nickname / short form instead of the full `EnvId`, resolve it first:
   `npx mcporter call cloudbase.envQuery action=list alias=demo aliasExact=true fields='["EnvId","Alias","Status","IsDefault"]' --output json`
 - Bind environment after login (envId from CloudBase console):
-  `npx mcporter call cloudbase.auth action=set_env envId=env-xxx --output json`
+  `npx mcporter call cloudbase.auth action=set_env envId=<full-env-id> --output json`
 - Query app-side login config:
   `npx mcporter call cloudbase.queryAppAuth action=getLoginConfig --output json`
 - Patch app-side login strategy:

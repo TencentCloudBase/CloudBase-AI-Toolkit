@@ -94,7 +94,7 @@ Recommended MCP request:
 ```json
 {
   "success": true,
-  "envId": "env-xxx",
+  "envId": "your-full-env-id",
   "loginMethods": {
     "usernamePassword": true,
     "email": true,

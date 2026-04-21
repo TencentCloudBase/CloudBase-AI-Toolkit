@@ -139,7 +139,7 @@ Use this section only when the Web project needs CloudBase platform features.
 import cloudbase from "@cloudbase/js-sdk";
 
 const app = cloudbase.init({
-  env: "env-xxxxx", // Canonical full CloudBase environment ID
+  env: "your-full-env-id", // Canonical full CloudBase environment ID resolved from envQuery or the console
 });
 
 const auth = app.auth();
