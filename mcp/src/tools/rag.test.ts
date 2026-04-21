@@ -109,6 +109,19 @@ describe("rag tools", () => {
     );
   });
 
+  it("searchKnowledgeBase should document skill-mode fallback when CloudBase skills are disabled", async () => {
+    const { server, tools } = createMockServer();
+
+    await registerRagTools(server);
+
+    expect(tools.searchKnowledgeBase.meta.description).toContain("mode=skill");
+    expect(tools.searchKnowledgeBase.meta.description).toContain("CloudBase scattered skills");
+    expect(tools.searchKnowledgeBase.meta.description).toContain("auth-tool");
+    expect(tools.searchKnowledgeBase.meta.description).toContain("auth-web");
+    expect(tools.searchKnowledgeBase.meta.description).toContain("cloudbase-agent");
+    expect(tools.searchKnowledgeBase.meta.description).toContain("cloudbase-agent-py / cloudbase-agent-ts");
+  });
+
   it("searchKnowledgeBase docs mode should use public docs sdk without requiring login", async () => {
     const { server, tools } = createMockServer();
     const searchDocs = vi.fn().mockResolvedValue([

@@ -601,6 +601,10 @@ export async function registerRagTools(server: ExtendedMcpServer) {
 
       强烈推荐始终优先使用固定技能文档 (skill)、OpenAPI 文档 (openapi) 或 CloudBase 官方文档 (docs) 模式进行检索，仅当固定文档无法覆盖你的问题时，再使用向量查询 (vector) 模式。
 
+      如果运行时 capability notice 明确提示 CloudBase scattered skills、CloudBase all-in-one skill 或其他 CloudBase skill 能力被禁用，而任务又要求“先读取某个 CloudBase skill”，不要尝试直接调用被禁用的 skill。应改用当前工具的 mode=skill 读取对应固定技能文档，这就是 MCP-only / skills-disabled 场景下的正确回退路径。
+
+      常见回退示例：Web 登录 / 注册任务先读取 auth-tool，再读取 auth-web；AI Agent 任务读取 cloudbase-agent（即使用户口头提到 cloudbase-agent-py / cloudbase-agent-ts，也先读 cloudbase-agent 这个固定技能文档，再按文档路由到语言子文档）。示例参数：{ mode: "skill", skillName: "auth-tool" }、{ mode: "skill", skillName: "auth-web" }、{ mode: "skill", skillName: "cloudbase-agent" }。
+
       固定技能文档 (skill) 查询当前支持 ${skills.length} 个固定文档，分别是：
       ${skills
           .map(
