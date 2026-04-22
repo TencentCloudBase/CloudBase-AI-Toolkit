@@ -92,7 +92,8 @@ Create a real-time data listener that returns a `watcher` object.
 
 Calling `.watch()` only starts the listener setup. Do not assume the queried data is ready immediately after `watch()` returns.
 
-- Treat the first `onChange` snapshot whose `docChanges` contain `dataType: 'init'` as the canonical "initial data is ready" signal.
+- Treat the first `onChange` snapshot whose `type` is `init` as the canonical "initial data is ready" signal.
+- The initial payload may also include `docChanges` items with `dataType: 'init'`, but the listener is not ready until that first init snapshot arrives.
 - Until that `init` snapshot arrives, keep loading state explicit.
 - Do not enable turn-based actions, render room state as authoritative, or conclude that the query returned no rows before the `init` snapshot.
 
@@ -105,9 +106,7 @@ const watcher = db.collection("rooms")
   .where({ roomId })
   .watch({
     onChange(snapshot) {
-      const isInit = snapshot.docChanges?.some(
-        change => change.dataType === 'init'
-      );
+      const isInit = snapshot.type === 'init';
 
       syncRoomState(snapshot.docs);
 
@@ -161,7 +160,7 @@ function ChatRoom({ roomId }) {
         onChange(snapshot) {
           handleNewMessages(snapshot);
 
-          if (!initialReady && snapshot.docChanges?.some(change => change.dataType === 'init')) {
+          if (!initialReady && snapshot.type === 'init') {
             initialReady = true;
             setLoading(false);
           }
