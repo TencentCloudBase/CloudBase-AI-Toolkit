@@ -679,18 +679,18 @@ classDiagram
 ---
 
 ### `manageGateway`
-网关域统一写入口。通过 action 创建目标访问入口，后续承接更通用的网关配置能力。
+网关域统一写入口。createAccess 为云函数创建访问入口时，必须显式提供 type：HTTP 云函数传 HTTP，Event 函数传 Event；省略会默认按 Event 路由处理，可能让 HTTP 云函数访问后返回 FUNCTION_PARAM_INVALID。
 
 #### 参数
 
 <table>
 <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>是</td><td>写操作类型，例如 createAccess 可填写的值: "createAccess", "createRoute", "updateRoute", "deleteRoute", "bindCustomDomain", "deleteCustomDomain", "deleteAccess", "updatePathAuth"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>是</td><td>写操作类型，例如 createAccess。若 action=createAccess 且 targetType=function，必须显式提供 type。 可填写的值: "createAccess", "createRoute", "updateRoute", "deleteRoute", "bindCustomDomain", "deleteCustomDomain", "deleteAccess", "updatePathAuth"</td></tr>
 <tr><td><code>targetType</code></td><td>string</td><td></td><td>目标资源类型。当前支持 function，后续可扩展 可填写的值: "function"</td></tr>
 <tr><td><code>targetName</code></td><td>string</td><td></td><td>目标资源名称</td></tr>
 <tr><td><code>path</code></td><td>string</td><td></td><td>访问路径，默认 /&#123;targetName&#125;</td></tr>
-<tr><td><code>type</code></td><td>string</td><td></td><td>目标函数的本身类型（非接入形式）。如果被访问的函数是 Event 型（默认），此处必须传 Event；只有当被访问函数在创建时就是 HTTP 函数时才传 HTTP。 可填写的值: "Event", "HTTP"</td></tr>
+<tr><td><code>type</code></td><td>string</td><td></td><td>目标函数的本身类型（非接入形式）。若 action=createAccess 且 targetType=function，此字段必须显式提供：HTTP 云函数传 HTTP，Event 函数传 Event。省略会默认按 Event 路由处理，可能让 HTTP 云函数访问后返回 FUNCTION_PARAM_INVALID。 可填写的值: "Event", "HTTP"</td></tr>
 <tr><td><code>auth</code></td><td>boolean</td><td></td><td>是否开启鉴权</td></tr>
 <tr><td><code>route</code></td><td>object</td><td></td><td>HTTP 路由配置对象</td></tr>
 <tr><td><code>route.routeId</code></td><td>string</td><td></td><td></td></tr>

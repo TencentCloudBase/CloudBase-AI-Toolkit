@@ -328,6 +328,11 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       if (!input.targetName || !input.targetType) {
         throw new Error("action=createAccess 时必须提供 targetType 和 targetName");
       }
+      if (!input.type) {
+        throw new Error(
+          "action=createAccess 且 targetType=function 时必须显式提供 type。HTTP 云函数传 HTTP；Event 函数传 Event。省略会默认按 Event 路由处理，可能让 HTTP 云函数访问后返回 FUNCTION_PARAM_INVALID。",
+        );
+      }
       const cloudbase = await getManager();
       const accessPath = normalizeAccessPath(input.path || `/${input.targetName}`);
       let result;
@@ -335,14 +340,14 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         result = await cloudbase.access.createAccess({
           name: input.targetName,
           path: accessPath,
-          type: ((input.type || "Event") === "HTTP" ? 6 : 1) as 1 | 2,
+          type: (input.type === "HTTP" ? 6 : 1) as 1 | 2,
           auth: input.auth,
         });
       } catch (err: any) {
         if (err.message && err.message.includes("An error has occurred")) {
           let hint = "为目标资源配置访问路由失败（后端内部错误）。请确保：1) 目标云函数已成功创建并处于 Active 状态；2) 环境默认 HTTP 域名已完成初始化；3) 该访问路径未被占用。";
           if (input.type === "HTTP") {
-            hint += "此外注意：如果目标函数最初是作为 Event 函数创建的，这里 type 必须依然传 Event（或省略），传 HTTP 会导致此错误。";
+            hint += "此外注意：如果目标函数最初是作为 Event 函数创建的，这里 type 仍必须传 Event；误传 HTTP 会导致此错误。";
           }
           throw new Error(`${hint} 原始错误：${err.message}`);
         }
@@ -563,16 +568,21 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     {
       title: "管理网关域资源",
       description:
-        "网关域统一写入口。通过 action 创建目标访问入口，后续承接更通用的网关配置能力。",
+        "网关域统一写入口。createAccess 为云函数创建访问入口时，必须显式提供 type：HTTP 云函数传 HTTP，Event 函数传 Event；省略会默认按 Event 路由处理，可能让 HTTP 云函数访问后返回 FUNCTION_PARAM_INVALID。",
       inputSchema: {
-        action: z.enum(MANAGE_GATEWAY_ACTIONS).describe("写操作类型，例如 createAccess"),
+        action: z
+          .enum(MANAGE_GATEWAY_ACTIONS)
+          .describe("写操作类型，例如 createAccess。若 action=createAccess 且 targetType=function，必须显式提供 type。"),
         targetType: z
           .enum(["function"])
           .optional()
           .describe("目标资源类型。当前支持 function，后续可扩展"),
         targetName: z.string().optional().describe("目标资源名称"),
         path: z.string().optional().describe("访问路径，默认 /{targetName}"),
-        type: z.enum(["Event", "HTTP"]).optional().describe("目标函数的本身类型（非接入形式）。如果被访问的函数是 Event 型（默认），此处必须传 Event；只有当被访问函数在创建时就是 HTTP 函数时才传 HTTP。"),
+        type: z
+          .enum(["Event", "HTTP"])
+          .optional()
+          .describe("目标函数的本身类型（非接入形式）。若 action=createAccess 且 targetType=function，此字段必须显式提供：HTTP 云函数传 HTTP，Event 函数传 Event。省略会默认按 Event 路由处理，可能让 HTTP 云函数访问后返回 FUNCTION_PARAM_INVALID。"),
         auth: z.boolean().optional().describe("是否开启鉴权"),
         route: z
           .object({

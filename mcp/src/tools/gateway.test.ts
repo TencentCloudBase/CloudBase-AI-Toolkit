@@ -206,6 +206,31 @@ describe("gateway tools", () => {
     });
   });
 
+  it("manageGateway metadata should warn that createAccess requires explicit type", () => {
+    expect(tools.manageGateway.meta.description).toContain("createAccess");
+    expect(tools.manageGateway.meta.description).toContain("type");
+    expect(tools.manageGateway.meta.inputSchema.action.description).toContain("显式");
+    expect(tools.manageGateway.meta.inputSchema.type.description).toContain("createAccess");
+    expect(tools.manageGateway.meta.inputSchema.type.description).toContain("省略会默认按 Event 路由处理");
+  });
+
+  it("manageGateway(action=createAccess) should reject missing type with a clear message", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "createAccess",
+      targetType: "function",
+      targetName: "helloFn",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCreateAccess).not.toHaveBeenCalled();
+    expect(payload).toMatchObject({
+      success: false,
+      message: expect.stringContaining("必须显式提供 type"),
+    });
+    expect(payload.message).toContain("FUNCTION_PARAM_INVALID");
+  });
+
   it("queryGateway(action=getAccess) should aggregate access urls from domains", async () => {
     const result = await tools.queryGateway.handler({
       action: "getAccess",

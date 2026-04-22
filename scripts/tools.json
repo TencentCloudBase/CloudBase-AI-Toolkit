@@ -1898,7 +1898,7 @@
     },
     {
       "name": "manageGateway",
-      "description": "网关域统一写入口。通过 action 创建目标访问入口，后续承接更通用的网关配置能力。",
+      "description": "网关域统一写入口。createAccess 为云函数创建访问入口时，必须显式提供 type：HTTP 云函数传 HTTP，Event 函数传 Event；省略会默认按 Event 路由处理，可能让 HTTP 云函数访问后返回 FUNCTION_PARAM_INVALID。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1914,7 +1914,7 @@
               "deleteAccess",
               "updatePathAuth"
             ],
-            "description": "写操作类型，例如 createAccess"
+            "description": "写操作类型，例如 createAccess。若 action=createAccess 且 targetType=function，必须显式提供 type。"
           },
           "targetType": {
             "type": "string",
@@ -1937,7 +1937,7 @@
               "Event",
               "HTTP"
             ],
-            "description": "目标函数的本身类型（非接入形式）。如果被访问的函数是 Event 型（默认），此处必须传 Event；只有当被访问函数在创建时就是 HTTP 函数时才传 HTTP。"
+            "description": "目标函数的本身类型（非接入形式）。若 action=createAccess 且 targetType=function，此字段必须显式提供：HTTP 云函数传 HTTP，Event 函数传 Event。省略会默认按 Event 路由处理，可能让 HTTP 云函数访问后返回 FUNCTION_PARAM_INVALID。"
           },
           "auth": {
             "type": "boolean",

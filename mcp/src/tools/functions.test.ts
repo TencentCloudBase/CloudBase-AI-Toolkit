@@ -151,6 +151,7 @@ describe("functions tool helpers", () => {
     });
     expect(mockCreateAccess).not.toHaveBeenCalled();
     expect(payload.message).toContain("manageGateway(action=\"createAccess\")");
+    expect(payload.message).toContain("type=\"HTTP\"");
     expect(payload.message).toContain("匿名身份访问");
     expect(payload.message).toContain("EXCEED_AUTHORITY");
     expect(payload.nextActions).toEqual(
