@@ -58,19 +58,46 @@ async function readJsonBody(req) {
     return {};
   }
 
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    return null;
+  }
 }
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", "http://127.0.0.1");
 
-  if (req.method === "GET" && url.pathname === "/health") {
-    return sendJson(res, 200, { ok: true });
+  if (url.pathname === "/") {
+    if (req.method === "GET") {
+      return sendJson(res, 200, { message: "Hello from httpDemo", status: "ok" });
+    }
+
+    if (req.method === "POST") {
+      const body = await readJsonBody(req);
+
+      if (body === null) {
+        return sendJson(res, 400, { error: "Invalid JSON" });
+      }
+
+      return sendJson(res, 200, {
+        message: `Hello, ${body.name || "Guest"}!`,
+        received: true,
+      });
+    }
+
+    return sendJson(res, 405, { error: "Method Not Allowed" });
   }
 
-  if (req.method === "POST" && url.pathname === "/echo") {
-    const body = await readJsonBody(req);
-    return sendJson(res, 200, { received: body });
+  if (req.method === "GET" && url.pathname === "/health") {
+    return sendJson(res, 200, {
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  if (url.pathname === "/health") {
+    return sendJson(res, 405, { error: "Method Not Allowed" });
   }
 
   return sendJson(res, 404, { error: "Not Found" });
@@ -107,6 +134,8 @@ app.listen(9000);
 
 - Route on both `req.method` and pathname.
 - Wrap `JSON.parse` in error handling when the body might be malformed.
+- For JSON parse failures, return `400` instead of crashing the process.
+- For known routes such as `/` or `/health`, return `405` when the HTTP method is unsupported.
 - Return `405` for unsupported methods when the path exists but the method does not.
 - Return `404` for unknown paths.
 

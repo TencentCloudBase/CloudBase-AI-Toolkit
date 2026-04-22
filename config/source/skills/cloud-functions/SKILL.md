@@ -59,6 +59,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 - Read [Cloud Functions Execution Checklist](checklist.md) before deployment or runtime changes.
 - Decide whether the task is Event Function, HTTP Function, or actually CloudRun.
+- If a Node.js HTTP Function does not require a framework, default to a raw `http.createServer(...)` server and plan explicit URL parsing, JSON body parsing, and `400` / `404` / `405` handling.
 - Pick the detailed reference file in [references.md](references.md) before writing implementation code.
 
 ## Overview
@@ -169,7 +170,7 @@ server.listen(9000);
 
 ```bash
 #!/bin/bash
-/var/lang/node18/bin/node index.js
+node index.js
 ```
 
 `cloudfunctions/hello-http/package.json`
