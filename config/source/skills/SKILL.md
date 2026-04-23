@@ -1,7 +1,7 @@
 ---
 name: cloudbase-all-in-one
 description: Unified CloudBase execution guide for all-in-one skill installs. Use this as the first entry point for CloudBase app tasks, especially existing applications that already contain TODOs, fixed pages, and active handlers.
-version: 2.16.2
+version: 2.16.3
 alwaysApply: true
 ---
 
@@ -57,6 +57,11 @@ alwaysApply: true
    - If `loginMethods.usernamePassword !== true`, immediately call `manageAppAuth(action=\"patchLoginStrategy\", patch={ usernamePassword: true })`.
    - In code, use `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })`.
    - Never use `signUpWithEmailAndPassword` or `signInWithEmailAndPassword` for these username-style account flows.
+   - If the existing Web form already has `email`, `code`, `send code`, and `register` controls, repair those handlers in place. In bundler projects, install `@cloudbase/js-sdk` with npm instead of adding a CDN script.
+   - For email OTP registration, the send-code action must call `auth.getVerification({ email })` and store the returned `verification_id` in component state.
+   - The register action must use that stored `verification_id` plus the current code input to call `auth.verify({ verification_id, verification_code })`, then `auth.signUp({ email, verification_code, verification_token, ... })`.
+   - The register button state should derive from the real form state: `verification_id` present, verification code present, and no in-flight loading.
+   - Do not add a cloud function or detached helper file for this flow unless the task explicitly requires a backend hop.
    - Once readiness is confirmed, return to the active frontend handler and finish the real login/register flow.
 
 3. Database and storage tasks:
