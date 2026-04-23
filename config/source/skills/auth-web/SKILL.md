@@ -62,7 +62,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 **Key Benefits**: Supabase-like Auth API shape, supports phone, email, anonymous, username/password, and third-party login methods
 **Official `@cloudbase/js-sdk` CDN**: `https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js`
 
-Use the same CDN address as `web-development`. Prefer npm installation in modern bundler projects, and use the CDN form for static HTML, no-build demos, or low-friction examples.
+Prefer `npm install @cloudbase/js-sdk` in modern bundler projects. If the workspace already has `package.json`, `src/App.tsx`, Vite, React, or another existing form implementation, treat it as an in-place repair task and do not switch that flow to a CDN script. Use the CDN form only for static HTML, no-build demos, or low-friction examples that do not already have a bundler pipeline.
 
 ## Prerequisites
 
@@ -81,6 +81,7 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
 - `auth.verify({ verification_id, verification_code })` returns the required `verification_token`
 - Email OTP registration is a three-step flow: call `auth.getVerification({ email })` in the send-code action, store the returned `verification_id`, then call `auth.verify(...)` and `auth.signUp(...)` from the register action
+- When the task explicitly forbids CDN usage, or the project already uses React / Vite / another bundler, install `@cloudbase/js-sdk` from npm and keep the existing module-based import path
 - `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
 - Never set `accessKey` to `envId`, a username, or any placeholder string. If you do not have a real Publishable Key yet, do not fabricate one.
 - If the task mentions provider setup, stop and read `auth-tool-cloudbase` before writing frontend code
@@ -181,7 +182,7 @@ const phoneSignUp = await auth.signUp({
 })
 ```
 
-When the project already has `handleSendCode` / `handleRegister` or similar UI handlers, wire the SDK calls there directly instead of leaving them commented out in `App.tsx`.
+When the project already has `handleSendCode` / `handleRegister` or similar UI handlers, wire the SDK calls there directly instead of leaving them commented out in `App.tsx` or moving them into a detached helper that the real buttons never call.
 
 For username-style account tasks:
 
@@ -241,7 +242,7 @@ const handleRegister = async () => {
 }
 ```
 
-For split-button register forms, the register button should derive its enabled state from `!!signUpData?.verification_id`, the current code input, and any loading flag. The register action must verify the code first, then call `auth.signUp({ email, verification_code, verification_token, ... })`. Do not skip `auth.verify`, and do not leave the register button bound to a stale helper that never updates real registration state.
+For split-button register forms, the register button should derive its enabled state from `!!signUpData?.verification_id`, the current code input, and any loading flag. The register action must verify the code first, then call `auth.signUp({ email, verification_code, verification_token, ... })`. Do not skip `auth.verify`, do not substitute `verification_id` where `verification_token` is required, and do not leave the register button bound to a stale helper that never updates real registration state.
 
 **5. Anonymous**
 - Automatically use `auth-tool-cloudbase` to turn on `Anonymous Login` through `manageAppAuth`
