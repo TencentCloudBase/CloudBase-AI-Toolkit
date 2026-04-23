@@ -33,11 +33,11 @@ type ManageAppAuthAction = (typeof MANAGE_APP_AUTH_ACTIONS)[number];
 type AppAuthKeyType = (typeof APP_AUTH_KEY_TYPES)[number];
 
 const SUPABASE_LIKE_SDK_HINTS = {
-  phoneOtp: "auth.signInWithOtp({ phone })",
-  emailOtp: "auth.signInWithOtp({ email })",
+  phoneOtp: "auth.getVerification({ phone_number }) -> auth.verify({ verification_id, verification_code }) -> auth.signIn({ username: phone_number, verification_token })",
+  emailOtp: "auth.getVerification({ email }) -> auth.signInWithEmail({ verificationInfo, verificationCode, email })",
   password: "auth.signInWithPassword({ username|email|phone, password })",
-  signup: "auth.signUp({ phone|email, ... })",
-  verifyOtp: "verifyOtp({ token })",
+  signup: "auth.getVerification(...) -> auth.verify(...) -> auth.signUp({ phone_number|email, verification_code, verification_token, ... })",
+  verifyOtp: "auth.verify({ verification_id, verification_code }) -> verification_token",
   anonymous: "auth.signInAnonymously()",
 } as const;
 
