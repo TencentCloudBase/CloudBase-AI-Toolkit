@@ -53,3 +53,8 @@ updatedAt: 2026-03-27T00:00:00.000Z
 
 **7. 环境检查**
 开始工作前调用 `envQuery` 检查云开发环境状态，确保已知晓当前环境 ID。
+
+**8. 环境 ID 使用规则**
+- 在 SDK 初始化、`auth.set_env`、控制台链接和生成配置文件时，必须使用完整 `EnvId`
+- 如果对话里只有环境别名、昵称或其他简写，先用 `envQuery(action=list, alias=..., aliasExact=true)` 解析出完整 `EnvId`
+- 不要把别名式简写直接传给 `auth.set_env`、SDK 初始化、控制台链接或生成配置；如果别名不唯一或不存在，先向用户确认

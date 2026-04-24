@@ -18,13 +18,13 @@ const result = await db.collection('todos').add({
     createdAt: new Date()
 });
 
-console.log('Added document with ID:', result.id);
+console.log('Added document with ID:', result._id);
 ```
 
 **Return Value:**
 ```javascript
 {
-    id: "generated-doc-id",  // Auto-generated document ID
+    _id: "generated-doc-id",  // Auto-generated document ID
     // ... other metadata
 }
 ```
@@ -414,7 +414,7 @@ class TodoManager {
             createdAt: new Date(),
             updatedAt: new Date()
         });
-        return result.id;
+        return result._id;
     }
     
     // Read (single)
@@ -500,7 +500,7 @@ async function safeCRUD() {
             title: 'New Todo'
         });
         
-        console.log('Created:', result.id);
+        console.log('Created:', result._id);
         
     } catch (error) {
         if (error.code === 'PERMISSION_DENIED') {
@@ -546,4 +546,3 @@ await db.runTransaction(async transaction => {
 8. **Limit updates**: Only update changed fields
 9. **Test permissions**: Ensure database security rules allow operations
 10. **Log operations**: Track important data changes
-

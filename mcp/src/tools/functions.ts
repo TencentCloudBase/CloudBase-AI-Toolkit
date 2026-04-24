@@ -10,7 +10,7 @@ import { jsonContent } from "../utils/json-content.js";
 import { debug } from "../utils/logger.js";
 
 import { IEnvVariable } from "@cloudbase/manager-node/types/function/types.js";
-import { existsSync } from "fs";
+import { existsSync, readFileSync, statSync } from "fs";
 import path from "path";
 
 export const SUPPORTED_RUNTIMES = {
@@ -233,7 +233,12 @@ const TRIGGER_SCHEMA = z.object({
 
 const CREATE_FUNCTION_SCHEMA = z.object({
   name: z.string().describe("函数名称"),
-  type: z.enum(["Event", "HTTP"]).optional().describe("函数类型"),
+  type: z
+    .enum(["Event", "HTTP"])
+    .optional()
+    .describe(
+      "函数类型。Event 函数使用 exports.main(event, context) 这类 handler 模式；HTTP 函数使用 scf_bootstrap 启动 Web 服务并监听 9000 端口，不要把两种模式混用。",
+    ),
   protocolType: z.enum(["HTTP", "WS"]).optional().describe("HTTP 云函数协议类型"),
   protocolParams: z
     .object({
@@ -267,7 +272,12 @@ const CREATE_FUNCTION_SCHEMA = z.object({
         `  Go: ${RECOMMENDED_RUNTIMES.golang}`,
     ),
   triggers: z.array(TRIGGER_SCHEMA).optional().describe("触发器配置数组"),
-  handler: z.string().optional().describe("函数入口"),
+  handler: z
+    .string()
+    .optional()
+    .describe(
+      "函数入口。Event 函数使用 file.export 格式（如 index.main），表示 index.js 文件导出的 main 方法；HTTP 函数默认不要传 handler，运行时由 scf_bootstrap 启动。把 HTTP Web 服务代码和 handler 混用，容易出现部署成功但运行时报 FUNCTION_EXECUTE_FAIL。",
+    ),
   ignore: z.union([z.string(), z.array(z.string())]).optional().describe("忽略文件"),
   isWaitInstall: z.boolean().optional().describe("是否等待依赖安装"),
   layers: z
@@ -325,6 +335,48 @@ function getExpectedFunctionPath(
 ): string | undefined {
   if (!functionRootPath) return undefined;
   return path.join(path.normalize(functionRootPath), functionName);
+}
+
+export function validateHttpFunctionCreateInput(
+  functionName: string,
+  functionRootPath: string | undefined,
+  zipFile: string | undefined,
+  handler: unknown,
+): void {
+  if (typeof handler === "string" && handler.trim()) {
+    throw new Error(
+      `createFunction 创建 HTTP 函数时，默认不要传 func.handler。HTTP 函数由 scf_bootstrap 启动，而不是 Event 函数的 handler 入口。请删除 func.handler，并确保 cloudfunctions/${functionName}/scf_bootstrap 启动你的 HTTP 服务且监听 9000 端口。`,
+    );
+  }
+
+  if (!functionRootPath || zipFile) {
+    return;
+  }
+
+  const expectedFunctionPath = getExpectedFunctionPath(functionRootPath, functionName);
+  if (!expectedFunctionPath) {
+    return;
+  }
+
+  const scfBootstrapPath = path.join(expectedFunctionPath, "scf_bootstrap");
+  if (!existsSync(scfBootstrapPath)) {
+    throw new Error(
+      `createFunction 创建 HTTP 函数时，函数目录 ${expectedFunctionPath} 下必须包含 scf_bootstrap 启动脚本。HTTP 函数由 scf_bootstrap 启动并监听 9000 端口，不能只依赖 handler。`,
+    );
+  }
+
+  const bootstrapContent = readFileSync(scfBootstrapPath, "utf8");
+  if (bootstrapContent.includes("\r")) {
+    throw new Error(
+      `createFunction 创建 HTTP 函数时，${scfBootstrapPath} 不能使用 CRLF 行尾。请改为 LF 后重试，否则部署成功后仍可能因为启动脚本格式不兼容而运行失败。`,
+    );
+  }
+
+  if ((statSync(scfBootstrapPath).mode & 0o111) === 0) {
+    throw new Error(
+      `createFunction 创建 HTTP 函数时，${scfBootstrapPath} 必须有可执行权限。请先执行 chmod +x scf_bootstrap 后重试。`,
+    );
+  }
 }
 
 export function shouldInstallDependencyForFunction(
@@ -388,6 +440,18 @@ export function buildFunctionOperationErrorMessage(
     );
     suggestions.push(
       "如果你确实依赖 npm 包，请在函数目录下补充 package.json 后重试。",
+    );
+  }
+
+  if (/BootstrapFile|Entryfile|scf_bootstrap|exec format error/i.test(baseMessage)) {
+    suggestions.push(
+      "请确认 HTTP 函数目录下存在精确命名的 scf_bootstrap 启动脚本，并且文件使用 LF 行尾。",
+    );
+    suggestions.push(
+      "请确认 scf_bootstrap 已执行 chmod +x，且它真正启动的是监听 9000 端口的 HTTP 服务。",
+    );
+    suggestions.push(
+      "HTTP 函数默认不要再传 handler；运行时由 scf_bootstrap 启动，混入 Event handler 容易导致部署成功但运行失败。",
     );
   }
 
@@ -896,6 +960,15 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         );
       }
 
+      if (functionType === "HTTP") {
+        validateHttpFunctionCreateInput(
+          functionName,
+          processedRootPath,
+          input.zipFile,
+          func.handler,
+        );
+      }
+
       const hasPackageJson =
         expectedFunctionPath !== undefined
           ? existsSync(path.join(expectedFunctionPath, "package.json"))
@@ -943,10 +1016,16 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
       if (func.type === "HTTP") {
         nextActions.push({
+          tool: "queryFunctions",
+          action: "listFunctionLogs",
+          reason:
+            "HTTP 函数创建成功只表示代码已上传；交付前请先检查启动日志，确认没有 FUNCTION_EXECUTE_FAIL、scf_bootstrap 或 Entryfile 相关错误",
+        });
+        nextActions.push({
           tool: "manageGateway",
           action: "createAccess",
           reason:
-            "如果需要通过 URL 访问 HTTP 函数，请按实际路径和鉴权需求显式创建访问入口，不要默认假设 /函数名 已存在",
+            `HTTP 函数需要显式创建网关访问入口，调用时必须传 type="HTTP"、targetType="function"、targetName="${functionName}"，不可省略 type`,
         });
         nextActions.push({
           tool: "queryGateway",
@@ -969,7 +1048,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
       const message =
         func.type === "HTTP"
-          ? `已创建 HTTP 函数 ${functionName}。如果后续需要通过 URL 访问，请显式调用 manageGateway(action="createAccess") 按实际路径和鉴权需求创建访问入口。评测或其他外部调用方可能会以匿名身份访问，而且失败后不一定会把 EXCEED_AUTHORITY 再反馈给 AI；交付前请主动确认访问路径和函数安全规则，若已出现 EXCEED_AUTHORITY，请先调用 queryPermissions(action="getResourcePermission", resourceType="function", resourceId="${functionName}") 查看当前规则，再按需要使用 managePermissions(action="updateResourcePermission") 调整权限。`
+          ? `已创建 HTTP 函数 ${functionName}。注意：创建成功只表示代码包已上传，不代表 HTTP 启动链路已经验证通过。HTTP 函数由 scf_bootstrap 启动，请在交付前至少调用 queryFunctions(action="listFunctionLogs", functionName="${functionName}") 或实际访问入口，确认没有 FUNCTION_EXECUTE_FAIL、scf_bootstrap 或 Entryfile 相关错误。如果后续需要通过 URL 访问，请显式调用 manageGateway(action="createAccess") 按实际路径和鉴权需求创建访问入口。评测或其他外部调用方可能会以匿名身份访问，而且失败后不一定会把 EXCEED_AUTHORITY 再反馈给 AI；交付前请主动确认访问路径和函数安全规则，若已出现 EXCEED_AUTHORITY，请先调用 queryPermissions(action="getResourcePermission", resourceType="function", resourceId="${functionName}") 查看当前规则，再按需要使用 managePermissions(action="updateResourcePermission") 调整权限。`
           : `已创建函数 ${functionName}`;
 
       return buildEnvelope(
@@ -1442,16 +1521,21 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
         functionRootPath: z.string().optional().describe(
           "创建或更新函数代码时默认推荐的本地目录方式。函数根目录（父目录绝对路径）。" +
-          "本地应按 cloudfunctions/<functionName>/index.js 布局，" +
-          "此参数传 cloudfunctions 目录的绝对路径（如 /abs/path/cloudfunctions），不要传到函数名子目录。" +
-          "SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。",
+            "本地应按 cloudfunctions/<functionName>/index.js 布局，" +
+            "此参数传 cloudfunctions 目录的绝对路径（如 /abs/path/cloudfunctions），不要传到函数名子目录。" +
+            "SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。" +
+            "如果 createFunction 的 func.type=HTTP，则对应函数子目录还必须包含 scf_bootstrap，且启动脚本要使用 LF 行尾并具备可执行权限。",
         ),
+
         force: z.boolean().optional().describe("createFunction 时是否覆盖"),
         functionName: z.string().optional().describe("函数名称。大多数 action 使用该字段作为统一目标"),
         zipFile: z.string().optional().describe(
           "仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。",
         ),
-        handler: z.string().optional().describe("函数入口"),
+        handler: z.string().optional().describe(
+          "函数入口。Event 函数使用 file.export 格式（如 index.main）；" +
+            "HTTP 函数不需要 handler，由 scf_bootstrap 决定入口，请不要为 HTTP 函数设置此字段。",
+        ),
         timeout: z.number().optional().describe("配置更新时的超时时间"),
         envVariables: z.record(z.string()).optional().describe("配置更新时要合并的环境变量"),
         vpc: VPC_SCHEMA.optional().describe("配置更新时的 VPC 信息"),

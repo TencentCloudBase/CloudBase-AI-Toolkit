@@ -16,17 +16,19 @@ import AIDevelopmentPrompt from './components/AIDevelopmentPrompt';
 
 AI 负责代码生成和问题修复，CloudBase 提供运行环境。两者结合，让你专注于业务逻辑，而非基础设施配置。
 
-<AIDevelopmentPrompt />
+## 第 1 步：先连接 CloudBase MCP
 
-## CloudBase MCP 
+先选择你正在使用的 AI 开发工具，**点击下方图标进入对应安装文档**，按文档完成 MCP 安装或配置。
 
-以下是 CloudBase MCP 支持的 AI 开发工具，可点击具体的图标来查看具体指引。
+> **注意**：这里的图标列表是安装入口，不是展示列表。请先点进去完成对应工具的接入，再继续下面的 Skills 和提示词。
 
 <IDEIconGrid />
 
-## CloudBase AI Skill
+## 第 2 步：按需安装 CloudBase AI Skill（可选）
 
 将云开发最佳实践打包成「技能包」，与 MCP 搭配使用：MCP 负责连接与权限，Skills 负责规范与直觉，让 AI 既有权又懂规矩。
+
+> **这一步不是安装 MCP。** 如果你还没完成上一步，请先点击上方图标查看对应 IDE 的 MCP 安装指引。
 
 ```bash
 npx skills add tencentcloudbase/cloudbase-skills
@@ -35,6 +37,12 @@ npx skills add tencentcloudbase/cloudbase-skills
 也可以直接对 AI 说“安装 CloudBase Skills”。
 
 详见 [如何使用 Skill](/ai/cloudbase-ai-toolkit/prompts/how-to-use)。
+
+## 第 3 步：开始 AI 原生开发
+
+完成 MCP 连接后，再选择一个提示词开始。
+
+<AIDevelopmentPrompt />
 
 <PromptScenarios />
 

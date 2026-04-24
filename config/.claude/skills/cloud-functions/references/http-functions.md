@@ -10,6 +10,7 @@ HTTP Functions are standard web services, not `exports.main(event, context)` han
 - Listen on port `9000`.
 - Ship an executable `scf_bootstrap` file.
 - Include runtime dependencies in the package; HTTP Functions do not auto-install `node_modules` for you.
+- For simple HTTP APIs, prefer the Node.js native `http` module so the function shape stays explicit and dependency-light. Only introduce Express, Koa, NestJS, or similar frameworks when the user explicitly asks for one or the service complexity justifies it.
 
 ## Minimal structure
 
@@ -25,7 +26,7 @@ my-http-function/
 
 ```bash
 #!/bin/bash
-node index.js
+/var/lang/node18/bin/node index.js
 ```
 
 Requirements:
@@ -34,56 +35,192 @@ Requirements:
 - Use LF line endings.
 - Make it executable with `chmod +x scf_bootstrap`.
 
+The `scf_bootstrap` Node.js binary path must match the function runtime. Use this mapping:
+
+| Runtime value | `scf_bootstrap` binary path |
+| --- | --- |
+| `Nodejs20.19` | `/var/lang/node20/bin/node` |
+| `Nodejs18.15` | `/var/lang/node18/bin/node` |
+| `Nodejs16.13` | `/var/lang/node16/bin/node` |
+
+If the user specifies "Node.js 18", use runtime `Nodejs18.15` and the path `/var/lang/node18/bin/node`.
+
 ## Minimal Node.js example
 
 ```javascript
-const express = require("express");
-const app = express();
+const http = require("http");
+const { URL } = require("url");
 
-app.use(express.json());
+function sendJson(res, statusCode, data) {
+  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(data));
+}
 
-app.get("/health", (req, res) => {
-  res.json({ ok: true });
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let raw = "";
+
+    req.on("data", (chunk) => {
+      raw += chunk;
+    });
+
+    req.on("end", () => {
+      if (!raw) {
+        resolve({});
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(raw));
+      } catch (error) {
+        reject(new Error("Invalid JSON body"));
+      }
+    });
+
+    req.on("error", reject);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url || "/", "http://127.0.0.1");
+
+  if (req.method === "GET" && url.pathname === "/health") {
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/echo") {
+    try {
+      const body = await readJsonBody(req);
+      sendJson(res, 200, { received: body });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+    return;
+  }
+
+  sendJson(res, 404, { error: "Not Found" });
 });
 
-app.listen(9000);
+server.listen(9000);
 ```
+
+## Code-writing rules
+
+- Do not write HTTP Functions as `exports.main = async (event, context) => {}`. That is the Event Function contract.
+- Start an HTTP server explicitly with `http.createServer(...)` or a framework app, and always bind to port `9000`.
+- Choose one Node.js module system and keep it consistent. For simple HTTP Functions, CommonJS is the safest default: use `require(...)` and leave `"type": "module"` out of `package.json`.
+- If you intentionally use ES Modules, use `import ...` consistently and do not rely on CommonJS-only globals such as bare `__dirname`, `require(...)`, or `module.exports`. When you need the current file path in ESM, derive it from `import.meta.url`.
+- Treat routing, method checks, and body parsing as part of the function code. With the native `http` module, parse `req.url` yourself and read the request body from the stream before calling `JSON.parse`.
+- Return JSON responses explicitly and set `Content-Type` yourself, for example `application/json; charset=utf-8`.
+- Keep unsupported routes and methods explicit. Return `404` for unknown paths, and return `405` when the path exists but the HTTP method is not allowed.
+- Keep `scf_bootstrap`, `index.js`, `package.json`, and any bundled dependencies in the function directory that will be uploaded.
+
+### Module system note
+
+The minimal examples in this document use CommonJS:
+
+- `const http = require("http")`
+- no `"type": "module"` in `package.json`
+
+That combination avoids the common ESM pitfall where `__dirname` is not defined. If you switch to ES Modules, switch the whole function to `import` syntax and update any file-path logic accordingly.
 
 ## Request handling rules
 
-- `req.query` -> query string values.
-- `req.body` -> parsed request body, but only after body-parsing middleware is configured.
+- With Node native `http`, use `new URL(req.url, "http://127.0.0.1")` and read `url.searchParams` for query values.
+- With Node native `http`, `req.body` does not exist. Read the body stream manually, then parse JSON yourself.
 - `req.headers` -> incoming HTTP headers.
-- `req.params` -> path parameters.
-- Always send a response with `res.json()`, `res.send()`, or `res.status(...).json()`.
+- Path parameters are framework-level conveniences. With the native `http` module, match `url.pathname` yourself.
+- Always send a response explicitly. With Node native `http`, use `res.writeHead(...)` and `res.end(...)`.
 - Return meaningful status codes such as `400`, `401`, `404`, `405`, `500`.
 
 ### Example with method checks
 
 ```javascript
-const express = require("express");
-const app = express();
+const http = require("http");
+const { URL } = require("url");
 
-app.use(express.json());
+function sendJson(res, statusCode, data) {
+  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(data));
+}
 
-app.post("/users", (req, res) => {
-  const { name, email } = req.body;
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let raw = "";
 
-  if (!name || !email) {
-    return res.status(400).json({ error: "name and email are required" });
+    req.on("data", (chunk) => {
+      raw += chunk;
+    });
+
+    req.on("end", () => {
+      if (!raw) {
+        resolve({});
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(raw));
+      } catch (error) {
+        reject(new Error("Invalid JSON body"));
+      }
+    });
+
+    req.on("error", reject);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url || "/", "http://127.0.0.1");
+
+  if (url.pathname === "/users" && req.method === "POST") {
+    try {
+      const { name, email } = await readJsonBody(req);
+
+      if (!name || !email) {
+        sendJson(res, 400, { error: "name and email are required" });
+        return;
+      }
+
+      sendJson(res, 201, { name, email });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+
+    return;
   }
 
-  return res.status(201).json({ name, email });
+  if (url.pathname === "/users") {
+    sendJson(res, 405, { error: "Method Not Allowed" });
+    return;
+  }
+
+  sendJson(res, 404, { error: "Not Found" });
 });
 
+server.listen(9000);
+```
+
+### Express 5 catch-all note
+
+If the user explicitly asks for Express, keep in mind that Express 5 uses `path-to-regexp` semantics for wildcards. Do not use bare `*` or `/*` as the catch-all route.
+
+```javascript
 app.all("/{*splat}", (req, res) => {
   res.status(405).json({ error: "Method Not Allowed" });
 });
-
-app.listen(9000);
 ```
 
-Express 5 note: do not use bare `*` or `/*` here. Express 5 uses `path-to-regexp` with named wildcards, so `app.all("/{*splat}", ...)` is the safe catch-all form when you also need to match the root path `/`.
+Express 5 note: `app.all("/{*splat}", (req, res) => {` is the safe catch-all form when you also need to match the root path `/`, because the router is based on `path-to-regexp` rather than the older Express 4 wildcard behavior.
+
+## End-to-end deployment lifecycle
+
+Follow these steps in order when creating an HTTP Function:
+
+1. **Write the function code** — create the directory with `index.js`, `scf_bootstrap`, and `package.json`.
+2. **Deploy with `manageFunctions`** — set `type: "HTTP"`, `protocolType: "HTTP"`, and `runtime` explicitly.
+3. **Configure security rules** — HTTP Functions default to a restrictive security rule. If the function should be publicly accessible (anonymous access), call `managePermissions(action="updateResourcePermission")` with `resourceType="function"`.
+4. **Verify** — call the function URL and confirm it returns the expected response. If you get `EXCEED_AUTHORITY`, the security rule needs to be updated (step 3).
 
 ## Deployment flow
 
@@ -96,11 +233,42 @@ manageFunctions({
     name: "myHttpFunction",
     type: "HTTP",
     protocolType: "HTTP",
+    runtime: "Nodejs18.15",
     timeout: 60
   },
   functionRootPath: "/absolute/path/to/cloudfunctions"
 });
 ```
+
+**Important parameters:**
+
+- `type: "HTTP"` — marks the function as an HTTP Function (not an Event Function).
+- `protocolType: "HTTP"` — the wire protocol. Use `"WS"` for WebSocket.
+- `runtime` — the execution runtime. Must match the `scf_bootstrap` binary path. Default is `"Nodejs18.15"` if omitted, but always set it explicitly to avoid ambiguity.
+- `functionRootPath` — the parent directory of the function folder (e.g. `/path/to/cloudfunctions` if the code lives in `/path/to/cloudfunctions/myHttpFunction/`).
+
+### Security rule configuration
+
+After creating an HTTP Function, it will reject anonymous callers with `EXCEED_AUTHORITY` by default. If the function should be publicly accessible:
+
+```javascript
+managePermissions({
+  action: "updateResourcePermission",
+  resourceType: "function",
+  resourceId: "myHttpFunction",
+  permission: {
+    aclTag: "CUSTOM",
+    rule: "true"
+  }
+});
+```
+
+- `aclTag: "CUSTOM"` with `rule: "true"` allows all callers (anonymous access).
+- Do NOT use `readSecurityRule` / `writeSecurityRule` — those are removed. Use `queryPermissions` / `managePermissions` instead.
+- Security rule semantics for `resourceType="function"` differ from NoSQL database rules. Do not reuse `doc._openid` or `auth.openid` expressions from NoSQL security rules.
+- Official reference: `https://docs.cloudbase.net/cloud-function/security-rules`
+
+If an external caller reports `EXCEED_AUTHORITY`, inspect the function permission first with `queryPermissions(action="getResourcePermission", resourceType="function", resourceId="myHttpFunction")` before widening access.
 
 ### WebSocket
 
@@ -146,9 +314,7 @@ manageGateway({
 Before enabling anonymous access, confirm both of these:
 
 1. The access path exists.
-2. The function security rule allows the intended caller identity.
-
-If an external caller reports `EXCEED_AUTHORITY`, inspect the function permission first with `queryPermissions(action="getResourcePermission", resourceType="function")` before widening access.
+2. The function security rule allows the intended caller identity (see Security rule configuration above).
 
 ## SSE and WebSocket notes
 

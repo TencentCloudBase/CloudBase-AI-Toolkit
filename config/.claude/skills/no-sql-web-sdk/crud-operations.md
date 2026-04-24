@@ -20,13 +20,13 @@ const result = await db.collection('todos').add({
     // _openid is automatically populated from authenticated user session
 });
 
-console.log('Added document with ID:', result.id);
+console.log('Added document with ID:', result._id);
 ```
 
 **Return Value:**
 ```javascript
 {
-    id: "generated-doc-id",  // Auto-generated document ID
+    _id: "generated-doc-id",  // Auto-generated document ID
     // ... other metadata
 }
 ```
@@ -493,7 +493,7 @@ class TodoManager {
             createdAt: new Date(),
             updatedAt: new Date()
         });
-        return result.id;
+        return result._id;
     }
     
     // Read (single)
@@ -579,7 +579,7 @@ async function safeCRUD() {
             title: 'New Todo'
         });
         
-        console.log('Created:', result.id);
+        console.log('Created:', result._id);
         
     } catch (error) {
         if (error.code === 'PERMISSION_DENIED') {

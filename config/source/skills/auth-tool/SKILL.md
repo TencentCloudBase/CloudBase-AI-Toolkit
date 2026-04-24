@@ -94,7 +94,7 @@ Recommended MCP request:
 ```json
 {
   "success": true,
-  "envId": "env-xxx",
+  "envId": "your-full-env-id",
   "loginMethods": {
     "usernamePassword": true,
     "email": true,
@@ -135,6 +135,7 @@ Parameter mapping for downstream Web auth code:
 - `UserNameLogin` also enables the broader password-login surface exposed by `auth.signInWithPassword({ username|email|phone, password })`
 - `SmsVerificationConfig.Type = "apis"` requires both `Name` and `Method`
 - `EnvId` is always the CloudBase environment ID, not the publishable key
+- If the conversation only contains an environment alias, nickname, or other shorthand, resolve it to the canonical full `EnvId` first before generating auth config, SDK init examples, or console links
 
 Internal behavior of `manageAppAuth(action="patchLoginStrategy")`:
 

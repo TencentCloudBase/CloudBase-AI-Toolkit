@@ -47,6 +47,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Using `signInWithEmailAndPassword` or `signUpWithEmailAndPassword` for username-style accounts such as `admin` and `editor`.
 - Keeping the login or register account input as `type="email"` when the task explicitly says the account identifier is a plain username string.
 - Starting implementation before calling `queryAppAuth(action="getLoginConfig")` and enabling `usernamePassword` when it is still off.
+- **Treating `auth.getUser()` returning a user as proof of real login.** When the SDK is initialized with a `publishableKey` / `accessKey`, it may silently create an anonymous session. A route guard's `checkAuth()` must verify that the user actually signed in with username/password (e.g. check `session.loginType !== 'ANONYMOUS'` or that `user.user_metadata?.username` exists), not just that `getUser()` returns non-null. Otherwise unauthenticated visitors pass the guard, protected pages render without a real user, and role-based UI (edit / delete buttons gated on `currentUser.role`) breaks because `currentUser` has no role record.
 
 ## Overview
 
@@ -59,9 +60,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 **Use Case**: Web frontend projects using `@cloudbase/js-sdk@2.24.0+` for user authentication  
 **Key Benefits**: Supabase-like Auth API shape, supports phone, email, anonymous, username/password, and third-party login methods
-**Official `@cloudbase/js-sdk` CDN**: `https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js`
 
-Use the same CDN address as `web-development`. Prefer npm installation in modern bundler projects, and use the CDN form for static HTML, no-build demos, or low-friction examples.
+Use npm installation for modern Web projects. In React, Vue, Vite, and other bundler-based apps, install and import `@cloudbase/js-sdk` from the project dependencies instead of using a CDN script.
 
 ## Prerequisites
 
@@ -71,6 +71,7 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 ### Parameter map
 
 - For username-style identifiers, the required precondition is `loginMethods.usernamePassword === true` from `queryAppAuth(action="getLoginConfig")`. If it is false, enable it with `manageAppAuth(action="patchLoginStrategy", patch={ usernamePassword: true })` before wiring frontend auth code.
+- If the conversation only provides an environment alias, nickname, or other shorthand, resolve it with `envQuery(action="list", alias=..., aliasExact=true)` first and use the returned canonical full `EnvId` for SDK init, console links, and generated config. Do not pass alias-like short forms directly into `cloudbase.init({ env })`.
 - Treat CloudBase Web Auth as **Supabase-like**, not “every `supabase-js` auth example is valid unchanged”
 - When `queryAppAuth` / `manageAppAuth` returns `sdkStyle: "supabase-like"` and `sdkHints`, follow those method and parameter hints first
 - `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })` use the phone number in a `phone` field, not `phone_number`
@@ -85,10 +86,11 @@ Use the same CDN address as `web-development`. Prefer npm installation in modern
 ## Quick Start
 
 ```js
+// npm install @cloudbase/js-sdk
 import cloudbase from '@cloudbase/js-sdk'
 
 const app = cloudbase.init({
-  env: `env`, // CloudBase environment ID
+  env: 'your-full-env-id', // Canonical full CloudBase environment ID resolved from envQuery or the console, not an alias or shorthand
   region: `region`,  // CloudBase environment Region, default 'ap-shanghai'
   accessKey: 'publishable key', // required, get from auth-tool-cloudbase
   auth: { detectSessionInUrl: true }, // required
@@ -105,8 +107,9 @@ If the current task has not retrieved a real Publishable Key, omit `accessKey` i
 
 **1. Phone OTP (Recommended)**
 - Automatically use `auth-tool-cloudbase` to turn on `SMS Login` through `manageAppAuth`
+- For phone registration, send the phone number to `auth.signUp({ phone, ... })` first, then call the returned `verifyOtp({ token })`. Do not swap the order.
 ```js
-const { data, error } = await auth.signInWithOtp({ phone: '13800138000' })
+const { data, error } = await auth.signUp({ phone: '13800138000' })
 const { data: loginData, error: loginError } = await data.verifyOtp({ token:'123456' })
 ```
 
@@ -145,7 +148,7 @@ const emailVerifyResult = await emailSignUp.data.verifyOtp({ token: '123456' })
 // Phone Otp
 // Use only when the task explicitly requires phone numbers.
 // Phone Otp
-const phoneSignUp = await auth.signUp({ phone: '13800138000', nickname: 'User' })
+const phoneSignUp = await auth.signUp({ phone: '13800138000', password: 'pass123', nickname: 'User' })
 const phoneVerifyResult = await phoneSignUp.data.verifyOtp({ token: '123456' })
 ```
 
@@ -178,11 +181,11 @@ Do not use email OTP or email-only helpers for these flows unless the task expli
 const handleSendCode = async () => {
   try {
     const { data, error } = await auth.signUp({
-      email,
-      name: username || email.split('@')[0],
+      phone,
+      password: password || undefined,
     })
     if (error) throw error
-    setSignUpData(data)
+    verifyOtpRef.current = data.verifyOtp
   } catch (error) {
     console.error('Failed to send sign-up code', error)
   }
@@ -190,13 +193,9 @@ const handleSendCode = async () => {
 
 const handleRegister = async () => {
   try {
-    if (!signUpData?.verifyOtp) throw new Error('Please send the code first')
+    if (!verifyOtpRef.current) throw new Error('Please send the code first')
 
-    const { error } = await signUpData.verifyOtp({
-      email,
-      token: code,
-      type: 'signup',
-    })
+    const { error } = await verifyOtpRef.current({ token: code })
     if (error) throw error
   } catch (error) {
     console.error('Failed to complete sign-up', error)

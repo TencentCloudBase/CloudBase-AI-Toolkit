@@ -54,6 +54,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Forgetting that runtime cannot be changed after creation.
 - Using cloud functions as the first answer for Web login.
 - Forgetting that HTTP Functions must ship `scf_bootstrap`, listen on port `9000`, and include dependencies.
+- Forgetting to configure function security rules after creating an HTTP Function. Default rules reject anonymous callers with `EXCEED_AUTHORITY`. Use `managePermissions(action="updateResourcePermission", resourceType="function")` to allow public access.
+- Mismatching the `scf_bootstrap` Node.js binary path with the function runtime (e.g. using `/var/lang/node18/bin/node` but setting `runtime: "Nodejs16.13"`).
 
 ### Minimal checklist
 
@@ -72,7 +74,24 @@ Use this skill when developing, deploying, and operating CloudBase cloud functio
 
 - If the request is for SDK calls, timers, or event-driven workflows, write an **Event Function** with `exports.main = async (event, context) => {}`.
 - If the request is for REST APIs, browser-facing endpoints, SSE, or WebSocket, write an **HTTP Function** with `req` / `res` on port `9000`.
+- For Node.js HTTP Functions, default to the native `http` module unless the user explicitly asks for Express, Koa, NestJS, or another framework.
 - If the user mentions HTTP access for an existing Event Function, keep the Event Function code shape and add gateway access separately.
+
+## HTTP Function authoring contract
+
+Use these rules whenever you are writing the function code itself:
+
+- Do not write an HTTP Function as `exports.main(event, context)`. That is the Event Function contract.
+- Treat the function as a standard web server process that must listen on port `9000`.
+- With Node.js, prefer `http.createServer((req, res) => { ... })` by default so the runtime contract stays explicit.
+- With the Node.js native `http` module, do not assume Express-style helpers exist. `req.body`, `req.query`, and `req.params` are not provided for you.
+- For Node.js HTTP Functions, choose one module system up front and keep it consistent. Default to CommonJS for simple functions (`require(...)`, no `"type": "module"` in `package.json`) unless you explicitly want ES Modules.
+- If you do choose ES Modules (`"type": "module"` + `import ...`), do not mix in CommonJS-only globals or APIs such as `require(...)`, `module.exports`, or bare `__dirname`. In ESM, derive file paths from `import.meta.url` with `fileURLToPath(...)` only when needed.
+- With the native `http` module, parse `req.url` yourself with `new URL(...)`, collect the request body from the stream, and only then call `JSON.parse`. Empty bodies should be handled explicitly instead of assuming JSON is always present.
+- Return responses explicitly with `res.writeHead(...)` and `res.end(...)`, including `Content-Type` such as `application/json; charset=utf-8` for JSON APIs.
+- Keep routing and method handling explicit. Unknown paths should return `404`, and known paths with unsupported methods should normally return `405`.
+- Keep gateway setup and security-rule changes separate from the runtime code. They affect access, not the HTTP Function programming model.
+- Do not add HTTP access service configuration when the task is only to create an HTTP Function itself. Gateway paths or custom domains are separate access-layer work; anonymous or public invocation requirements should be handled through the function security rule workflow.
 
 ## Quick decision table
 
@@ -160,10 +179,21 @@ exports.main = async (event, context) => {
 
 ```js
 const http = require("http");
+const { URL } = require("url");
+
+function sendJson(res, statusCode, data) {
+  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(data));
+}
 
 const server = http.createServer((req, res) => {
-  res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ ok: true, message: "hello from http function" }));
+  const url = new URL(req.url || "/", "http://127.0.0.1");
+
+  if (req.method === "GET" && url.pathname === "/") {
+    sendJson(res, 200, { ok: true, message: "hello from http function" });
+  } else {
+    sendJson(res, 404, { error: "Not Found" });
+  }
 });
 
 server.listen(9000);
@@ -175,6 +205,8 @@ server.listen(9000);
 #!/bin/bash
 /var/lang/node18/bin/node index.js
 ```
+
+The `scf_bootstrap` binary path must match the runtime — see the full mapping table in `./references/http-functions.md`.
 
 `cloudfunctions/hello-http/package.json`
 

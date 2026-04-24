@@ -30,7 +30,7 @@ def create_agent():
         api_key="your-api-key"
     )
 
-AgentServiceApp().run(create_agent, port=8000)
+AgentServiceApp().run(create_agent, port=9000)
 ```
 
 ## Configuration
@@ -99,7 +99,7 @@ def create_agent():
 
 app = AgentServiceApp()
 app.use(auth_middleware)
-app.run(create_agent, port=8000)
+app.run(create_agent, port=9000)
 ```
 
 ### User ID Extraction
@@ -278,7 +278,7 @@ app.use(auth_middleware)
 if __name__ == "__main__":
     app.run(
         create_agent,
-        port=int(os.getenv("PORT", "8000")),
+        port=int(os.getenv("PORT", "9000")),
         host="0.0.0.0"
     )
 ```
@@ -307,14 +307,14 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-ENV PORT=8000
+ENV PORT=9000
 
 CMD ["python", "app.py"]
 ```
 
 ```bash
 docker build -t coze-agent .
-docker run -p 8000:8000 \
+docker run -p 9000:9000 \
   -e COZE_BOT_ID=your-bot-id \
   -e COZE_API_KEY=your-api-key \
   -e JWT_SECRET_KEY=your-secret \
@@ -331,7 +331,7 @@ docker run -p 8000:8000 \
     "name": "coze-agent",
     "path": "./",
     "runtime": "Python3.9",
-    "port": 8000,
+    "port": 9000,
     "env": {
       "COZE_BOT_ID": "${COZE_BOT_ID}",
       "COZE_API_KEY": "${COZE_API_KEY}",

@@ -117,6 +117,7 @@ Use this section only when the Web project needs CloudBase platform features.
 - Use the CDN only for static HTML pages, quick demos, embedded snippets, or README examples
 - Only use documented CloudBase Web SDK APIs; do not invent methods or options
 - Keep a shared `app` or `auth` instance instead of re-initializing on every call
+- If the user only provides an environment alias, nickname, or other shorthand, resolve it to the canonical full `EnvId` before writing SDK init code, console links, or config files. Do not pass alias-like short forms directly into `cloudbase.init({ env })`.
 
 ### Authentication boundary
 
@@ -134,10 +135,11 @@ Use this section only when the Web project needs CloudBase platform features.
 ### CloudBase quick start
 
 ```js
+// npm install @cloudbase/js-sdk
 import cloudbase from "@cloudbase/js-sdk";
 
 const app = cloudbase.init({
-  env: "xxxx-yyy",
+  env: "your-full-env-id", // Canonical full CloudBase environment ID resolved from envQuery or the console
 });
 
 const auth = app.auth();

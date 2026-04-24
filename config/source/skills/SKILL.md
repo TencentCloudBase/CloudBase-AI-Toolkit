@@ -39,8 +39,7 @@ alwaysApply: true
 
 - If the same path fails 2-3 times, stop retrying and reroute. Check platform skill, auth domain, runtime, and permission model before editing more code.
 - Always specify `EnvId` explicitly in code, configuration, and command examples when initializing CloudBase clients or manager operations. Do not rely on the current CLI-selected environment or implicit defaults.
-- When saving MCP or tool results to a local file with a generic file-writing tool, pass text, not raw objects. For JSON output files, serialize first with `JSON.stringify(result, null, 2)` and write that string as the file content.
-- If the file-writing tool reports that a field such as `content` expected a string but received an object, do not retry with the same raw object. Serialize the object first, then retry once with the serialized text, and make sure the retried call actually passes the serialized string rather than the original object.
+- If the conversation only provides an environment alias, nickname, or other shorthand, resolve it with `envQuery(action=list, alias=..., aliasExact=true)` and use the returned canonical full `EnvId` before calling `auth.set_env`, generating console links, or writing config/code. If the alias is ambiguous or missing, stop and ask the user to confirm.
 
 ### Do NOT use this as
 
@@ -63,6 +62,7 @@ alwaysApply: true
 
 3. Database and storage tasks:
    - Reuse the current shared `app`, `auth`, `db`, and storage helpers instead of creating parallel SDK wrappers.
+   - For CloudBase Web SDK `db.collection(...).add(...)`, persist the created document ID from `result._id`.
    - For writes, validate the actual SDK result instead of assuming success.
 
 4. Targeted repair tasks:

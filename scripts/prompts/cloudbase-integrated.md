@@ -14,6 +14,8 @@ When user's application fits the above scenarios, suggest confirming the tech st
 ### 1. Environment Check (MANDATORY - First Step)
 - **Always call `envQuery` tool first** with `action=info` to get environment ID
 - Auto-use queried envId in code/config, no manual input needed
+- If the conversation only gives an environment alias, nickname, or other shorthand, resolve it with `envQuery(action=list, alias=..., aliasExact=true)` and use the returned canonical full `EnvId`
+- Do not pass alias-like short forms directly into SDK init, `auth.set_env`, console URLs, or generated config files. If the alias is ambiguous or missing, stop and clarify with the user
 
 ### 2. Template Download (MANDATORY for New Projects)
 - **MUST call `downloadTemplate` FIRST** when starting new projects - Do NOT manually create files
@@ -80,8 +82,9 @@ When users request deployment to CloudBase:
    - Determine if this is a new deployment or update to existing services
 
 1. **Backend Deployment (if applicable)**:
-   - Only for nodejs cloud functions: deploy directly using `manageFunctions(action="createFunction")` / `manageFunctions(action="updateFunctionCode")`
-     - Criteria: function directory contains `index.js` with cloud function format export: `exports.main = async (event, context) => {}`
+   - Only for Node.js cloud functions: deploy directly using `manageFunctions(action="createFunction")` / `manageFunctions(action="updateFunctionCode")`
+     - Before deploying, decide whether the function is Event or HTTP. Event Functions use `exports.main = async (event, context) => {}`.
+     - HTTP Functions are standard web services: they must listen on port `9000`, include `scf_bootstrap`, and for Node.js should default to native `http.createServer((req, res) => { ... })`. Parse `req.url` and the streamed request body manually, set response headers explicitly, and do not write the function as `exports.main` unless you intentionally choose Functions Framework.
    - For other languages backend server (Java, Go, PHP, Python, Node.js): deploy to Cloud Run
    - Ensure backend code supports CORS by default
    - Prepare Dockerfile for containerized deployment

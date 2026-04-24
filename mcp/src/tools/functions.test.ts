@@ -1,3 +1,6 @@
+import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
+import os from "os";
+import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildFunctionOperationErrorMessage,
@@ -127,47 +130,127 @@ describe("functions tool helpers", () => {
     expect(() => resolveEventFunctionRuntime("Ruby3.2")).toThrow(/Python3.9/);
   });
 
-  it("guides HTTP functions through anonymous-access follow-up without auto-creating gateway access", async () => {
+  it("rejects Event-style handler input for HTTP createFunction", async () => {
     const result = await tools.manageFunctions.handler({
       action: "createFunction",
       func: {
         name: "httpDemo",
         type: "HTTP",
         runtime: "Nodejs18.15",
+        handler: "index.main",
       },
       functionRootPath: "/tmp/cloudfunctions",
     });
 
     const payload = JSON.parse(result.content[0].text);
 
-    expect(mockCreateFunction).toHaveBeenCalledWith({
-      func: expect.objectContaining({
-        name: "httpDemo",
-        type: "HTTP",
-        installDependency: false,
-      }),
-      functionRootPath: "/tmp/cloudfunctions",
-      force: false,
-    });
-    expect(mockCreateAccess).not.toHaveBeenCalled();
-    expect(payload.message).toContain("manageGateway(action=\"createAccess\")");
-    expect(payload.message).toContain("匿名身份访问");
-    expect(payload.message).toContain("EXCEED_AUTHORITY");
-    expect(payload.nextActions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          tool: "manageGateway",
-          action: "createAccess",
-        }),
-        expect.objectContaining({
-          tool: "queryPermissions",
-          action: "getResourcePermission",
-        }),
-        expect.objectContaining({
-          tool: "managePermissions",
-          action: "updateResourcePermission",
-        }),
-      ]),
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("默认不要传 func.handler");
+    expect(payload.message).toContain("scf_bootstrap");
+    expect(mockCreateFunction).not.toHaveBeenCalled();
+  });
+
+  it("fails fast when local HTTP function directory lacks scf_bootstrap", async () => {
+    const functionRootPath = mkdtempSync(path.join(os.tmpdir(), "http-fn-"));
+    const functionDir = path.join(functionRootPath, "httpDemo");
+    mkdirSync(functionDir);
+    writeFileSync(
+      path.join(functionDir, "package.json"),
+      JSON.stringify({ name: "httpDemo", version: "1.0.0" }),
     );
+
+    try {
+      const result = await tools.manageFunctions.handler({
+        action: "createFunction",
+        func: {
+          name: "httpDemo",
+          type: "HTTP",
+          runtime: "Nodejs18.15",
+        },
+        functionRootPath,
+      });
+
+      const payload = JSON.parse(result.content[0].text);
+      expect(payload.success).toBe(false);
+      expect(payload.message).toContain("必须包含 scf_bootstrap");
+      expect(mockCreateFunction).not.toHaveBeenCalled();
+    } finally {
+      rmSync(functionRootPath, { recursive: true, force: true });
+    }
+  });
+
+  it("allows Event functions with handler", async () => {
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: {
+        name: "eventDemo",
+        type: "Event",
+        handler: "index.main",
+      },
+      functionRootPath: "/tmp/cloudfunctions",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+  });
+
+  it("guides HTTP functions through runtime verification and anonymous-access follow-up without auto-creating gateway access", async () => {
+    const functionRootPath = mkdtempSync(path.join(os.tmpdir(), "http-fn-"));
+    const functionDir = path.join(functionRootPath, "httpDemo");
+    mkdirSync(functionDir);
+    writeFileSync(path.join(functionDir, "index.js"), "require('node:http').createServer(() => {}).listen(9000);\n");
+    writeFileSync(path.join(functionDir, "scf_bootstrap"), "#!/bin/sh\nnode index.js\n");
+    chmodSync(path.join(functionDir, "scf_bootstrap"), 0o755);
+
+    try {
+      const result = await tools.manageFunctions.handler({
+        action: "createFunction",
+        func: {
+          name: "httpDemo",
+          type: "HTTP",
+          runtime: "Nodejs18.15",
+        },
+        functionRootPath,
+      });
+
+      const payload = JSON.parse(result.content[0].text);
+
+      expect(mockCreateFunction).toHaveBeenCalledWith({
+        func: expect.objectContaining({
+          name: "httpDemo",
+          type: "HTTP",
+          installDependency: false,
+        }),
+        functionRootPath,
+        force: false,
+      });
+      expect(mockCreateAccess).not.toHaveBeenCalled();
+      expect(payload.message).toContain("queryFunctions(action=\"listFunctionLogs\"");
+      expect(payload.message).toContain("FUNCTION_EXECUTE_FAIL");
+      expect(payload.message).toContain("匿名身份访问");
+      expect(payload.message).toContain("EXCEED_AUTHORITY");
+      expect(payload.nextActions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            tool: "queryFunctions",
+            action: "listFunctionLogs",
+          }),
+          expect.objectContaining({
+            tool: "manageGateway",
+            action: "createAccess",
+          }),
+          expect.objectContaining({
+            tool: "queryPermissions",
+            action: "getResourcePermission",
+          }),
+          expect.objectContaining({
+            tool: "managePermissions",
+            action: "updateResourcePermission",
+          }),
+        ]),
+      );
+    } finally {
+      rmSync(functionRootPath, { recursive: true, force: true });
+    }
   });
 });

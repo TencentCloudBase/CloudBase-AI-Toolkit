@@ -328,6 +328,13 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       if (!input.targetName || !input.targetType) {
         throw new Error("action=createAccess 时必须提供 targetType 和 targetName");
       }
+      if (!input.type) {
+        throw new Error(
+          "action=createAccess 时必须提供 type 参数（Event 或 HTTP），不可省略。" +
+            "如果目标云函数是 HTTP 类型，type 必须传 HTTP；如果是 Event 类型，type 传 Event。" +
+            "省略 type 会导致网关默认使用 Event 模式，对 HTTP 函数将产生 FUNCTION_PARAM_INVALID 错误。",
+        );
+      }
       const cloudbase = await getManager();
       const accessPath = normalizeAccessPath(input.path || `/${input.targetName}`);
       let result;
@@ -335,14 +342,14 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         result = await cloudbase.access.createAccess({
           name: input.targetName,
           path: accessPath,
-          type: ((input.type || "Event") === "HTTP" ? 6 : 1) as 1 | 2,
+          type: (input.type === "HTTP" ? 6 : 1) as 1 | 2,
           auth: input.auth,
         });
       } catch (err: any) {
         if (err.message && err.message.includes("An error has occurred")) {
           let hint = "为目标资源配置访问路由失败（后端内部错误）。请确保：1) 目标云函数已成功创建并处于 Active 状态；2) 环境默认 HTTP 域名已完成初始化；3) 该访问路径未被占用。";
           if (input.type === "HTTP") {
-            hint += "此外注意：如果目标函数最初是作为 Event 函数创建的，这里 type 必须依然传 Event（或省略），传 HTTP 会导致此错误。";
+            hint += "此外注意：如果目标函数最初是作为 Event 函数创建的，这里 type 必须传 Event，传 HTTP 会导致此错误。";
           }
           throw new Error(`${hint} 原始错误：${err.message}`);
         }
