@@ -107,6 +107,13 @@ Use this skill for **CloudBase platform knowledge** when you need to:
    - Combine with static hosting file paths to construct final access addresses
    - **Important**: If access address is a directory, it must end with `/`
 
+3. **Static Hosting cloudPath format**:
+   - The `cloudPath` parameter in `uploadFiles`, `deleteFiles`, and the `prefix` in `findFiles` are all relative to the hosting root — do NOT start them with `/`
+   - Deploy to root: leave `cloudPath` empty or omit it
+   - Deploy to sub-directory: pass `my-app` (not `/my-app`)
+   - Deploy a specific file: pass `my-app/index.html` (not `/my-app/index.html`)
+   - The tool will automatically strip a leading `/` if one is provided, but always prefer the correct format to avoid confusion
+
 ## Environment and Authentication
 
 1. **SDK Initialization**:

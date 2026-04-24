@@ -277,7 +277,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     "uploadFiles",
     {
       title: "上传静态文件",
-      description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
+      description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径（如 './'），避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
       inputSchema: {
         localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
         cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，使用托管路径语义而不是完整 URL，且路径相对于托管根目录。部署到根目录时请留空；部署到子目录时请传 `vite-test` 这类不带前导 `/` 的相对路径，不要传 `/vite-test`；具体文件可传 `vite-test/index.html`。如果站点最终访问路径是 `/vite-test`，构建前请同步把 Vite `base` 或其他框架的 `publicPath`、`assetPrefix` 配置为 `./` 或与部署路径一致，并上传完整构建目录（通常是 `dist/`）。云存储对象路径请改用 manageStorage。"),

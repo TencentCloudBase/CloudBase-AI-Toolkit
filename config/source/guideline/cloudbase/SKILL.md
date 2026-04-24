@@ -381,7 +381,11 @@ When users request deployment to CloudBase:
 2. **Frontend Deployment (if applicable)**:
    - After backend deployment completes, update frontend API endpoints using the returned API addresses
    - Build the frontend application
-   - Deploy to CloudBase static hosting using hosting tools
+   - **Before building**: If deploying to a sub-directory, set the framework's base/publicPath/assetPrefix to `./` (relative) or to match the target path (e.g., `/vite-test/`)
+   - Deploy to CloudBase static hosting using hosting tools (`uploadFiles`)
+   - **cloudPath format**: Use a relative path without leading `/` (e.g., `vite-test`, not `/vite-test`). For root deployment, leave `cloudPath` empty
+   - Upload the entire build output directory (e.g., `dist/`), not just `index.html`
+   - After uploading, use `findFiles(prefix="")` to verify the file structure is correct
 
 3. **Display Deployment URLs**:
    - Show backend deployment URL (if applicable)
