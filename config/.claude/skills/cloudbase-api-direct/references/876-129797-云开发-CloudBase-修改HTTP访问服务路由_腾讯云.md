@@ -2,7 +2,7 @@
 
 ## 修改HTTP访问服务路由
 
-最近更新时间：2026-04-03 02:06:37
+最近更新时间：2026-04-24 02:11:16
 
 -   微信扫一扫 
 -   QQ
@@ -124,3 +124,4 @@ X-TC-Action: ModifyHTTPServiceRoute
 | InvalidParameter.CertVerifyFailed | 证书验证失败 |
 | InvalidParameter.EnvId | 环境ID非法。 |
 | LimitExceeded.HTTPServiceRoute | HTTP访问服务路由超过上限 |
+| OperationDenied.HTTPServiceDomainProcessing | 操作失败，http访问服务域名处理中，稍后再试。 |

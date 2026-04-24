@@ -2,7 +2,7 @@
 
 ## 创建HTTP访问服务路由
 
-最近更新时间：2026-04-03 02:06:38
+最近更新时间：2026-04-24 02:11:17
 
 -   微信扫一扫 
 -   QQ
@@ -185,6 +185,7 @@ X-TC-Action: CreateHTTPServiceRoute
 | InvalidParameter.CertVerifyFailed | 证书验证失败 |
 | InvalidParameter.EnvId | 环境ID非法。 |
 | InvalidParameter.HTTPServiceDomainNotICP | HTTP访问服务没有ICP备案 |
+| InvalidParameter.HTTPServiceDomainVerifyFailed | 域名所有权校验失败 |
 | LimitExceeded.HTTPServiceDomain | HTTP访问服务域名超过限制 |
 | LimitExceeded.HTTPServiceRoute | HTTP访问服务路由超过上限 |
 | OperationDenied.HTTPServiceDomainInBlacklist | 域名在黑名单中，无法创建 |
