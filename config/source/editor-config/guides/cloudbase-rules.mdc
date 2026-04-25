@@ -229,6 +229,9 @@ As the most important part of application development, the following four core c
 - Use CloudBase static hosting after build completion
 - Deploy using `uploadFiles` tool
 - `uploadFiles` is for static hosting only; use `manageStorage` / `queryStorage` when the task needs a COS object that must be queried by the storage SDK
+- **cloudPath format**: Use a relative path without leading `/` (e.g., `vite-test`, not `/vite-test`). For root deployment, leave `cloudPath` empty
+- **Before building**: If deploying to a sub-directory, set the framework's base/publicPath/assetPrefix to `./` (relative) or to match the target path (e.g., `/vite-test/`)
+- Upload the entire build output directory (e.g., `dist/`), not just `index.html`
 - Remind users that CDN has a few minutes of cache after deployment
 - Generate markdown format access links with random queryString
 
@@ -357,7 +360,7 @@ If remote links are needed in the application, can continue to call uploadFile t
 
 3. **CloudRun Deployment Process**: For non-cloud function backend services (Java, Go, PHP, Python, Node.js, etc.), use manageCloudRun tool for deployment. Ensure backend code supports CORS, prepare Dockerfile, then call manageCloudRun for containerized deployment. For details, refer to `rules/cloudrun-development/rule.md`
 
-4. **Static Hosting Deployment Process**: Deploy using uploadFiles tool. After deployment, remind users that CDN has a few minutes of cache. Can generate markdown format access links with random queryString. For details, refer to `rules/web-development/rule.md`
+4. **Static Hosting Deployment Process**: Deploy using uploadFiles tool. **cloudPath format**: Use a relative path without leading `/` (e.g., `vite-test`, not `/vite-test`). For root deployment, leave `cloudPath` empty. Before building, if deploying to a sub-directory, set the framework's base/publicPath/assetPrefix to `./` or to match the target path. Upload the entire build output directory (e.g., `dist/`), not just `index.html`. After deployment, remind users that CDN has a few minutes of cache. Can generate markdown format access links with random queryString. For details, refer to `rules/web-development/rule.md`
 
 ### Documentation Generation Rules
 
