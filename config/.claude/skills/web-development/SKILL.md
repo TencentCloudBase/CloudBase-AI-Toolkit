@@ -130,7 +130,37 @@ Use this section only when the Web project needs CloudBase platform features.
 - Build before deployment
 - Prefer relative asset paths for static hosting compatibility
 - Use hash routing by default when the project lacks server-side route rewrites
-- If the user does not specify a root path, avoid deploying directly to the site root by default
+
+### Static hosting deployment with uploadFiles
+
+When deploying a built Web app to CloudBase static hosting using the `uploadFiles` tool:
+
+1. **cloudPath format — no leading slash**: The `cloudPath` parameter is relative to the hosting root. Do NOT include a leading `/`.
+   - Deploy to root: leave `cloudPath` empty or omit it
+   - Deploy to sub-directory: pass `vite-test` (not `/vite-test`)
+   - Deploy a specific file: pass `vite-test/index.html` (not `/vite-test/index.html`)
+
+2. **Align framework base config with cloudPath**: If deploying to a sub-directory, set the framework's base path before building.
+   - Vite: set `base: './'` (relative) or `base: '/vite-test/'` (absolute matching the target path)
+   - Webpack: set `output.publicPath: './'` or `output.publicPath: '/vite-test/'`
+   - Other frameworks: check `assetPrefix` or equivalent config
+
+3. **Upload the entire build output directory**: Point `localPath` to the build output directory (typically `dist/`), not just `index.html`. Missing JS/CSS/assets will cause 404s.
+
+4. **Verify after deployment**: Use `findFiles(prefix="")` to confirm the uploaded files include all expected assets at the correct paths.
+
+Example — deploy a Vite app to `/vite-test`:
+
+```
+# 1. Set base in vite.config.ts before building
+base: './'
+
+# 2. Build
+npm run build
+
+# 3. Upload entire dist/ to cloudPath "vite-test"
+uploadFiles(localPath="/path/to/dist", cloudPath="vite-test")
+```
 
 ### CloudBase quick start
 
