@@ -147,6 +147,7 @@ When deploying a built Web app to CloudBase static hosting using the `uploadFile
      - Other frameworks: set `assetPrefix` or equivalent to a relative or matching path
    - **Step B — Rebuild**: Run `npm run build` (or equivalent) AFTER modifying the base config. Uploading old build output will still produce 404s.
    - **Step C — Verify index.html**: Open the build output `index.html` and confirm that `<script src="...">` and `<link href="...">` use relative paths (e.g., `./assets/app.js`) or paths matching the sub-directory. If they still use absolute root paths (e.g., `/assets/app.js`), return to Step A and fix the config before uploading.
+   - **Step D — Pass publicPathConfigured=true**: When calling `uploadFiles` with a non-empty `cloudPath`, you MUST pass `publicPathConfigured=true`. If you skip this parameter or pass `false`, the tool will reject the call with an error. This is an intentional guard to prevent accidental sub-directory deployments without proper base path configuration.
    - If any step fails, do NOT call `uploadFiles` yet.
 
 3. **Upload the entire build output directory**: Point `localPath` to the build output directory (typically `dist/`), not just `index.html`. Missing JS/CSS/assets will cause 404s.
@@ -164,8 +165,8 @@ npm run build
 
 # 3. Verify index.html has relative paths (e.g., ./assets/app.js)
 
-# 4. Upload entire dist/ to cloudPath "vite-test"
-uploadFiles(localPath="/path/to/dist", cloudPath="vite-test")
+# 4. Upload entire dist/ to cloudPath "vite-test" with mandatory confirmation
+uploadFiles(localPath="/path/to/dist", cloudPath="vite-test", publicPathConfigured=true)
 ```
 
 ### CloudBase quick start

@@ -302,6 +302,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       inputSchema: {
         localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
         cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，使用托管路径语义而不是完整 URL，且路径相对于托管根目录。部署到根目录时请留空；部署到子目录时请传 `vite-test` 这类不带前导 `/` 的相对路径，不要传 `/vite-test`；具体文件可传 `vite-test/index.html`。\n\n**警告**：如果站点最终访问路径是 `/vite-test`，构建前必须同步把 Vite `base` 或其他框架的 `publicPath`、`assetPrefix` 配置为 `./` 或与部署路径一致，并重新构建。未设置将导致 JS/CSS 等资源 404。云存储对象路径请改用 manageStorage。"),
+        publicPathConfigured: z.boolean().optional().default(false).describe("**子目录部署必填声明**。当 cloudPath 非空（即部署到子目录而非根目录）时，必须传入 `true`，表示你已在构建配置中设置 `base` / `publicPath` / `assetPrefix`（使用相对路径 `./` 或与部署路径一致）、已重新构建、并已验证构建产物中的资源引用路径正确。若传入 `false` 或不传，且 cloudPath 非空，工具将直接报错，不会执行上传。部署到根目录（cloudPath 为空）时忽略此字段。"),
         files: z.array(z.object({
           localPath: z.string(),
           cloudPath: z.string().describe("静态托管路径，相对于托管根目录的相对路径，不要以 `/` 开头，例如 `vite-test/assets/app.js`")
@@ -316,15 +317,29 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         category: "hosting"
       }
     },
-    async ({ localPath, cloudPath, files = [], ignore }: {
+    async ({ localPath, cloudPath, publicPathConfigured, files = [], ignore }: {
       localPath?: string;
       cloudPath?: string;
+      publicPathConfigured?: boolean;
       files?: Array<{ localPath: string; cloudPath: string }>;
       ignore?: string | string[]
     }) => {
       const cloudbase = await getManager()
       const normalizedCloudPath = normalizeHostingCloudPath(cloudPath);
       const normalizedFiles = normalizeHostingFiles(files);
+
+      // 子目录部署强制校验：必须声明已设置 publicPath
+      if (normalizedCloudPath && !publicPathConfigured) {
+        throw new Error(
+          `[uploadFiles] 部署到子目录 "${normalizedCloudPath}" 时必须传入 publicPathConfigured=true。\n` +
+          `请先完成以下步骤后再调用本工具：\n` +
+          `1. 在构建配置中设置 base / publicPath / assetPrefix（使用相对路径 "./" 或与部署路径 "${normalizedCloudPath}" 一致）；\n` +
+          `2. 重新运行构建命令（如 npm run build）；\n` +
+          `3. 验证构建产物 index.html 中的 <script src> 和 <link href> 使用相对路径（如 "./assets/app.js"），而非绝对根路径（如 "/assets/app.js"）。\n` +
+          `完成上述步骤后，重新调用 uploadFiles 并传入 publicPathConfigured=true。`
+        );
+      }
+
       let result: unknown;
       try {
         result = await cloudbase.hosting.uploadFiles({
