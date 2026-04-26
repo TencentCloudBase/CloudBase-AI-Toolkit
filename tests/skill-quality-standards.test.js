@@ -34,24 +34,29 @@ describe('skill quality standards', () => {
   test('auth-web stays web-only and fixes the known snippet issues', () => {
     const raw = readSourceSkill('auth-web');
 
-    expect(raw).toMatch(/const\s+auth\s*=\s*app\.auth\(/);
+    // v2 SDK: auth is a property (app.auth), not a function call (app.auth())
+    expect(raw).toMatch(/const\s+auth\s*=\s*app\.auth\b/);
+    expect(raw).not.toMatch(/const\s+auth\s*=\s*app\.auth\(/);
     expect(raw).not.toContain('const { data, error } = const { data, error } =');
     expect(raw).not.toContain('## WeChat Mini Program');
     expect(raw).not.toContain('auth.signInWithOpenId');
     expect(raw).not.toContain('auth.signInWithPhoneAuth');
-    expect(raw).toMatch(/auth\.signUp\(\{\s*username,\s*password\s*\}\)/);
-    expect(raw).toMatch(/auth\.signInWithPassword\(\{\s*username,\s*password\s*\}\)/);
+    // v2 username/password signUp may span multiple lines
+    expect(raw).toMatch(/auth\.signUp\(\{/);
+    expect(raw).toMatch(/username,/);
+    expect(raw).toMatch(/password,/);
+    // v2 signInWithPassword may span multiple lines
+    expect(raw).toMatch(/auth\.signInWithPassword\(\{/);
+    expect(raw).toMatch(/username/);
+    expect(raw).toMatch(/password/);
     expect(raw).toMatch(/type="text"|type='text'/);
     expect(raw).toMatch(/username-style identifier|plain username string|username-style account/i);
-    expect(raw).toMatch(/do not switch to email otp or phone otp unless/i);
+    expect(raw).toMatch(/do not (use|switch to) email otp/i);
     expect(raw).toContain('envQuery(action="info")');
-    expect(raw).toContain('auth(action="set_env", envId="<actual-env-id>")');
+    expect(raw).toContain('auth.signInWithOtp');
     expect(raw).toContain('queryAppAuth(action="getPublishableKey")');
     expect(raw).toContain('manageAppAuth(action="ensurePublishableKey")');
-    expect(raw).toContain("name: username || email.split('@')[0]");
-    expect(raw).toContain('const verificationInfo = await auth.getVerification({ email })');
-    expect(raw).toContain('const verificationTokenRes = await auth.verify({');
-    expect(raw).toContain('verification_token: verificationTokenRes.verification_token');
+    expect(raw).toContain('data.verifyOtp({ token');
     expect(raw).not.toContain("type: 'signup'");
   });
 

@@ -43,12 +43,13 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Skipping publishable key and provider checks.
 - Replacing built-in Web auth with cloud function login logic.
 - Reusing this flow in Flutter, React Native, or native iOS/Android code.
-- Skipping the official Web SDK v2 registration flow for email or phone auth. For `@cloudbase/js-sdk`, registration uses `auth.getVerification()` -> `auth.verify()` -> `auth.signUp()` and passes `email` or `phone_number` together with `verification_code` and `verification_token`.
-- In an existing UI that already has `Send Code` and `Register` buttons, switching that flow to `auth.signUp({ email, password })` / `data.verifyOtp()` instead of wiring the buttons to `auth.getVerification()` -> `auth.verify()` -> `auth.signUp()`.
-- Creating a detached helper file with `auth.getVerification` / `auth.verify` / `auth.signUp` but never wiring it into the existing form handlers, so the actual button clicks still do nothing.
-- Using `signInWithEmailAndPassword` or `signUpWithEmailAndPassword` for username-style accounts such as `admin` and `editor`.
+- Using the v1 API (`auth.getVerification()` -> `auth.verify()` -> `auth.signUp()` with `verification_code` / `verification_token`). The v2 SDK uses `auth.signInWithOtp()` -> `data.verifyOtp({ token })` for login and `auth.signUp()` -> `data.verifyOtp({ token })` for registration. The `token` parameter is the verification code the user enters, not a separate verification token.
+- Calling `auth.getVerification()` / `auth.verify()` / `auth.signInWithSms()` — these are v1 methods that do not exist in the v2 SDK. Use `auth.signInWithOtp({ phone })` -> `data.verifyOtp({ token })` instead.
+- Using `auth.signInWithEmailAndPassword` or `auth.signUpWithEmailAndPassword` for username-style accounts such as `admin` and `editor`. Use `auth.signInWithPassword({ username, password })` instead.
 - Keeping the login or register account input as `type="email"` when the task explicitly says the account identifier is a plain username string.
 - Starting implementation before calling `queryAppAuth(action="getLoginConfig")` and enabling `usernamePassword` when it is still off.
+- Leaving placeholder env IDs like `your-env-id` or `resolvedEnvId` in the final code. Always use the real `envId` from `envQuery`.
+- Using `app.auth()` as a function call — in v2, `auth` is a property: `const auth = app.auth`.
 
 ## Overview
 
@@ -59,8 +60,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 ## Core Capabilities
 
-**Use Case**: Web frontend projects using `@cloudbase/js-sdk@2.x` for user authentication  
-**Key Benefits**: Official CloudBase Web auth flow with username/password, email verification, phone verification, anonymous login, and third-party login methods
+**Use Case**: Web frontend projects using `@cloudbase/js-sdk@2.x` for user authentication
+**Key Benefits**: Compatible with `supabase-js` API, supports phone, email, anonymous, username/password, and third-party login methods
 For React, Vite, Vue, Webpack, and other modern bundler projects, install the SDK from npm: `npm install @cloudbase/js-sdk`.
 
 Only mention the CDN build for static HTML or no-build demos. If the task explicitly says not to use CDN, do not suggest the CDN path at all.
@@ -84,18 +85,15 @@ Recommended tool order for Web auth setup:
 ### Parameter map
 
 - For username-style identifiers, the required precondition is `loginMethods.usernamePassword === true` from `queryAppAuth(action="getLoginConfig")`. If it is false, enable it with `manageAppAuth(action="patchLoginStrategy", patch={ usernamePassword: true })` before wiring frontend auth code.
-- Treat CloudBase Web Auth as CloudBase Web SDK v2 auth, not generic `supabase-js` auth.
-- `auth.getVerification({ phone_number })` sends the SMS verification code.
-- `auth.getVerification({ email })` sends the email verification code.
-- `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })` are the canonical username/password Web auth path
-- If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
-- For email or phone verification sign-up flows, call `auth.getVerification(...)` first, then `auth.verify({ verification_id, verification_code })`, then pass `verification_code` and `verification_token` into `auth.signUp(...)`.
-- For verification-code login flows, use the SDK's login helpers such as `auth.signInWithEmail(...)` or `auth.signInWithSms(...)` with the `verificationInfo` returned by `auth.getVerification(...)`.
-- `verification_code` is the SMS or email code entered by the user.
-- `verification_token` comes from `auth.verify(...)`, not from MCP auth tools and not from a fabricated placeholder.
-- `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
+- All v2 auth methods return `{ data, error }` — always destructure both.
+- **Phone OTP login**: `auth.signInWithOtp({ phone })` sends the SMS code, then `data.verifyOtp({ token })` verifies it. The `token` is the verification code the user enters.
+- **Email OTP login**: `auth.signInWithOtp({ email })` sends the email code, then `data.verifyOtp({ token })` verifies it.
+- **Phone/email registration**: `auth.signUp({ phone })` or `auth.signUp({ email })` sends the verification code, then `data.verifyOtp({ token })` completes registration and auto-logs in.
+- **Username/password login**: `auth.signInWithPassword({ username, password })` is the canonical path. If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address.
+- `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key.
 - Never set `accessKey` to `envId`, a username, or any placeholder string. If you do not have a real Publishable Key yet, do not fabricate one.
-- If the task mentions provider setup, stop and read `auth-tool-cloudbase` before writing frontend code
+- If the task mentions provider setup, stop and read `auth-tool-cloudbase` before writing frontend code.
+- **SMS verification codes only support the Shanghai region** (`ap-shanghai`).
 
 ## Quick Start
 
@@ -109,120 +107,132 @@ const app = cloudbase.init({
   env: envIdFromEnvQuery,
   region: 'ap-shanghai',
   accessKey: publishableKeyFromAuthTool,
+  auth: { detectSessionInUrl: true },
 })
 
-const auth = app.auth()
+const auth = app.auth
 ```
 
 Before returning implementation code to the user, replace both strings above with the real values you already resolved from tools. Do not ship `resolvedEnvId`, `your-env-id`, or any other unresolved placeholder in the final frontend code.
 If the current task has not retrieved a real Publishable Key yet, omit `accessKey` instead of inventing one. A wrong `accessKey` can break auth-state checks and protected-route behavior.
 The `env` field, however, should still be filled with the real environment ID rather than left as a placeholder.
 
+Note: `auth` is a **property** on the app instance (`app.auth`), not a function call. Do not write `app.auth()`.
+
 ---
 
 ## Login Methods
 
-**1. Phone verification login (Recommended where SMS login is enabled)**
+**1. Phone OTP (Recommended where SMS login is enabled)**
 - Automatically use `auth-tool-cloudbase` to turn on `SMS Login` through `manageAppAuth`
 ```js
-const phoneNumber = '+86 13800138000'
-const verificationInfo = await auth.getVerification({
-  phone_number: phoneNumber,
-})
-
-const verificationCode = '123456'
-
-const loginResult = await auth.signInWithSms({
-  verificationInfo,
-  verificationCode,
-  phoneNum: phoneNumber,
-})
+const { data, error } = await auth.signInWithOtp({ phone: '13800138000' })
+if (error) {
+  console.error('Send code failed:', error.message)
+  return
+}
+// User enters the code, then verify
+const { data: loginData, error: loginError } = await data.verifyOtp({ token: '123456' })
+if (loginError) {
+  console.error('Login failed:', loginError.message)
+} else {
+  console.log('Login successful:', loginData.user)
+}
 ```
 
-For login, do not insert an extra `auth.verify(...)` step before `auth.signInWithSms(...)` unless the official SDK/API page for the exact method requires it.
+For phone login, the flow is: `auth.signInWithOtp({ phone })` -> `data.verifyOtp({ token })`. Do not call `auth.getVerification()`, `auth.verify()`, or `auth.signInWithSms()` — these are v1 methods that do not exist in the v2 SDK.
 
-**2. Email verification login**
+**2. Email OTP**
 - Automatically use `auth-tool-cloudbase` to turn on `Email Login` through `manageAppAuth`
 ```js
-const email = 'user@example.com'
-const verificationInfo = await auth.getVerification({ email })
-
-const verificationCode = '654321'
-
-const loginResult = await auth.signInWithEmail({
-  verificationInfo,
-  verificationCode,
-  email,
-})
+const { data, error } = await auth.signInWithOtp({ email: 'user@example.com' })
+if (error) {
+  console.error('Send code failed:', error.message)
+  return
+}
+const { data: loginData, error: loginError } = await data.verifyOtp({ token: '654321' })
+if (loginError) {
+  console.error('Login failed:', loginError.message)
+} else {
+  console.log('Login successful:', loginData.user)
+}
 ```
 
-For login, do not replace this with a registration-only `auth.verify(...) -> auth.signUp(...)` sequence.
+For email login, the flow is: `auth.signInWithOtp({ email })` -> `data.verifyOtp({ token })`. Do not replace this with `auth.getVerification()` -> `auth.signInWithEmail()`.
 
 **3. Password**
 ```js
-const usernameLogin = await auth.signInWithPassword({ username: 'test_user', password: 'pass123' })
-const emailLogin = await auth.signInWithPassword({ email: 'user@example.com', password: 'pass123' })
-const phoneLogin = await auth.signInWithPassword({ phone: '13800138000', password: 'pass123' })
+const { data, error } = await auth.signInWithPassword({ username: 'test_user', password: 'pass123' })
+const { data, error } = await auth.signInWithPassword({ email: 'user@example.com', password: 'pass123' })
+const { data, error } = await auth.signInWithPassword({ phone: '13800138000', password: 'pass123' })
 ```
 
-**4. Registration**
-- For username-style account systems, use username/password registration directly
-- Do not switch to email OTP or phone OTP unless the task explicitly says the account identifier is an email address or phone number
-- When the task uses plain usernames such as `admin`, `editor`, or `user01`, the canonical form code is `auth.signUp({ username, password })`
-- For email or phone registration, the canonical sequence in this skill is `auth.getVerification(...) -> auth.verify(...) -> auth.signUp(...)`
+**4. Registration (Smart: auto-login if user exists)**
+- Only supports email and phone OTP registration
+- Automatically use `auth-tool-cloudbase` to turn on `Email Login` or `SMS Login` through `manageAppAuth`
 ```js
-// Username + Password
-const usernameSignUp = await auth.signUp({
-  username: 'newuser',
-  password: 'pass123',
-  name: 'User',
-})
+// Email OTP sign-up
+const { data, error } = await auth.signUp({ email: 'new@example.com' })
+if (error) {
+  console.error('Send code failed:', error.message)
+  return
+}
+const { data: loginData, error: loginError } = await data.verifyOtp({ token: '123456' })
 
-// Email verification registration
-// Use only when the task explicitly requires email addresses.
-const email = 'new@example.com'
-const emailVerification = await auth.getVerification({ email })
-const emailVerificationCode = '123456'
-const emailVerificationTokenRes = await auth.verify({
-  verification_id: emailVerification.verification_id,
-  verification_code: emailVerificationCode,
-})
-
-const emailSignUp = await auth.signUp({
-  email,
-  verification_code: emailVerificationCode,
-  verification_token: emailVerificationTokenRes.verification_token,
-  name: 'User',
-})
-
-// Phone verification registration
-// Use only when the task explicitly requires phone numbers.
-const phoneNumber = '+86 13800138000'
-const phoneVerification = await auth.getVerification({
-  phone_number: phoneNumber,
-})
-const phoneVerificationCode = '123456'
-const phoneVerificationTokenRes = await auth.verify({
-  verification_id: phoneVerification.verification_id,
-  verification_code: phoneVerificationCode,
-})
-
-const phoneSignUp = await auth.signUp({
-  phone_number: phoneNumber,
-  verification_code: phoneVerificationCode,
-  verification_token: phoneVerificationTokenRes.verification_token,
-  name: 'User',
-})
+// Phone OTP sign-up
+const { data, error } = await auth.signUp({ phone: '13800138000' })
+if (error) {
+  console.error('Send code failed:', error.message)
+  return
+}
+const { data: loginData, error: loginError } = await data.verifyOtp({ token: '123456' })
 ```
 
-When the project already has `handleSendCode` / `handleRegister` or similar UI handlers, wire the SDK calls there directly instead of leaving them commented out in `App.tsx`.
+For registration, the flow is: `auth.signUp({ phone/email })` -> `data.verifyOtp({ token })`. The `signUp` call sends the verification code; `data.verifyOtp({ token })` completes registration and auto-logs in. Do not call `auth.getVerification()` -> `auth.verify()` -> `auth.signUp()` with `verification_code`/`verification_token` — that is the v1 API.
 
-For the common existing UI shape of `email input + code input + Send Code button + Register button`, the handler mapping is:
+When the project already has `handleSendCode` / `handleLogin` or similar UI handlers, wire the SDK calls there directly instead of leaving them commented out.
 
-- `handleSendCode` -> `auth.getVerification({ email })`
-- `handleRegister` -> `auth.verify({ verification_id, verification_code })` -> `auth.signUp({ email, verification_code, verification_token })`
+For the common existing UI shape of `phone input + code input + Send Code button + Login button`, the handler mapping is:
+
+- `handleSendCode` -> `auth.signInWithOtp({ phone })` and store `data.verifyOtp` in a ref
+- `handleLogin` -> call the stored `verifyOtp({ token: code })`
 - Do not introduce a cloud function for this browser-side flow.
-- Do not swap this UI shape to `auth.signUp({ email, password })` / `data.verifyOtp()`.
+- Do not use `auth.getVerification()` / `auth.verify()` / `auth.signInWithSms()`.
+
+Example wiring for an existing React form with `handleSendCode` and `handleLogin`:
+
+```tsx
+const verifyOtpRef = useRef<((params: { token: string }) => Promise<unknown>) | null>(null)
+
+const handleSendCode = async () => {
+  if (!phone) return
+  setLoading(true)
+  try {
+    const { data, error } = await auth.signInWithOtp({ phone })
+    if (error) throw error
+    verifyOtpRef.current = data.verifyOtp
+    setCodeSent(true)
+  } catch (error) {
+    console.error('Send code failed:', error)
+  } finally {
+    setLoading(false)
+  }
+}
+
+const handleLogin = async () => {
+  if (!phone || !code || !verifyOtpRef.current) return
+  setLoading(true)
+  try {
+    const { data, error } = await verifyOtpRef.current({ token: code })
+    if (error) throw error
+    console.log('Login successful:', data.user)
+  } catch (error) {
+    console.error('Login failed:', error)
+  } finally {
+    setLoading(false)
+  }
+}
+```
 
 For username-style account tasks:
 
@@ -231,7 +241,6 @@ const handleRegister = async () => {
   const { error } = await auth.signUp({
     username,
     password,
-    name: username,
   })
   if (error) throw error
 }
@@ -246,41 +255,6 @@ const handleLogin = async () => {
 ```
 
 Do not use email OTP or email-only helpers for these flows unless the task explicitly says the account identifier is an email address. The corresponding form field should stay `type="text"` rather than `type="email"` for username-style account identifiers.
-
-```tsx
-const handleSendCode = async () => {
-  try {
-    const verificationInfo = await auth.getVerification({ email })
-    setVerificationInfo(verificationInfo)
-  } catch (error) {
-    console.error('Failed to send sign-up code', error)
-  }
-}
-
-const handleRegister = async () => {
-  try {
-    if (!verificationInfo?.verification_id) {
-      throw new Error('Please send the code first')
-    }
-
-    const verificationTokenRes = await auth.verify({
-      verification_id: verificationInfo.verification_id,
-      verification_code: code,
-    })
-
-    const signUpResult = await auth.signUp({
-      email,
-      verification_code: code,
-      verification_token: verificationTokenRes.verification_token,
-      name: username || email.split('@')[0],
-    })
-
-    console.log('Sign-up successful', signUpResult)
-  } catch (error) {
-    console.error('Failed to complete sign-up', error)
-  }
-}
-```
 
 **5. Anonymous**
 - Automatically use `auth-tool-cloudbase` to turn on `Anonymous Login` through `manageAppAuth`
@@ -305,13 +279,12 @@ await auth.signInWithCustomTicket(async () => {
 
 **8. Upgrade Anonymous**
 ```js
-const { accessToken } = await auth.getAccessToken()
-const upgradeResult = await auth.signUp({
-  phone_number: '+86 13800000000',
-  anonymous_token: accessToken,
-  verification_code: '123456',
-  verification_token: '<verification_token_from_auth.verify>',
+const { data, error } = await auth.getSession()
+const { data: signUpData, error: signUpError } = await auth.signUp({
+  phone: '13800000000',
+  anonymous_token: data.session.access_token,
 })
+const { data: loginData, error: loginError } = await signUpData.verifyOtp({ token: '123456' })
 ```
 
 ---
@@ -320,66 +293,47 @@ const upgradeResult = await auth.signUp({
 
 ```js
 // Sign out
-await auth.signOut()
+const { data, error } = await auth.signOut()
 
-// Get current user instance
-const currentUser = await auth.getCurrentUser()
+// Get user
+const { data, error } = await auth.getUser()
+console.log(data.user.email, data.user.phone, data.user.user_metadata?.nickName)
 
-// Get user profile data
-const userInfo = await auth.getUserInfo()
-console.log(userInfo.email, userInfo.phone_number)
+// Update user (except email, phone)
+const { data, error } = await auth.updateUser({ nickname: 'New Name', gender: 'MALE', avatar_url: 'url' })
 
-// Update current user profile
-if (auth.currentUser) {
-  await auth.currentUser.update({
-    name: 'New Name',
-    gender: 'MALE',
-  })
+// Update user (email or phone)
+const { data, error } = await auth.updateUser({ email: 'new@example.com' })
+const { data: verifyData, error: verifyError } = await data.verifyOtp({ email: "new@example.com", token: "123456" })
 
-  await auth.currentUser.refresh()
-}
+// Change password (logged in)
+const { data, error } = await auth.resetPasswordForOld({ old_password: 'old', new_password: 'new' })
 
-// Get access token
-const { accessToken } = await auth.getAccessToken()
-await fetch('/api/protected', {
-  headers: { Authorization: `Bearer ${accessToken}` },
-})
+// Reset password (forgot)
+const { data, error } = await auth.reauthenticate()
+const { data: updateData, error: updateError } = await data.updateUser({ nonce: '123456', password: 'new' })
 
-// Listen to login-state changes
-auth.onLoginStateChanged((params) => {
-  const { eventType } = params?.data || {}
-  console.log('auth event:', eventType)
-})
+// Link third-party
+const { data, error } = await auth.linkIdentity({ provider: 'google' })
 
-// Bind a new email with sudo token + verification token
-const sudoToken = '<sudo-token>'
-const emailVerification = await auth.getVerification({ email: 'new@example.com' })
-const emailVerificationTokenRes = await auth.verify({
-  verification_id: emailVerification.verification_id,
-  verification_code: '123456',
-})
-
-await auth.bindEmail({
-  email: 'new@example.com',
-  sudo_token: sudoToken,
-  verification_token: emailVerificationTokenRes.verification_token,
-})
-
-// Reset password with verification token
-const resetVerification = await auth.getVerification({ email: 'new@example.com' })
-const resetVerificationTokenRes = await auth.verify({
-  verification_id: resetVerification.verification_id,
-  verification_code: '123456',
-})
-
-await auth.resetPassword({
-  email: 'new@example.com',
-  new_password: 'new-password',
-  verification_token: resetVerificationTokenRes.verification_token,
-})
+// View/Unlink identities
+const { data, error } = await auth.getUserIdentities()
+const { data: unlinkData, error: unlinkError } = await auth.unlinkIdentity({ provider: data.identities[0].id })
 
 // Delete account
-await auth.deleteMe({ sudo_token: sudoToken })
+const { data, error } = await auth.deleteMe({ password: 'current' })
+
+// Listen to state changes
+const { data, error } = auth.onAuthStateChange((event, session, info) => {
+  // INITIAL_SESSION, SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, USER_UPDATED, PASSWORD_RECOVERY, BIND_IDENTITY
+})
+
+// Get access token
+const { data, error } = await auth.getSession()
+fetch('/api/protected', { headers: { Authorization: `Bearer ${data.session?.access_token}` } })
+
+// Refresh user
+const { data, error } = await auth.refreshUser()
 ```
 
 ---
@@ -388,19 +342,35 @@ await auth.deleteMe({ sudo_token: sudoToken })
 
 ```ts
 declare type User = {
-  uid?: string
-  email?: string
-  emailVerified?: boolean
-  phoneNumber?: string
-  username?: string
-  name?: string
-  picture?: string
-  gender?: string
-  providers?: Array<{
-    id?: string
-    providerUserId?: string
-    name?: string
-  }>
+  id: any
+  aud: string
+  role: string[]
+  email: any
+  email_confirmed_at: string
+  phone: any
+  phone_confirmed_at: string
+  confirmed_at: string
+  last_sign_in_at: string
+  app_metadata: {
+    provider: any
+    providers: any[]
+  }
+  user_metadata: {
+    name: any
+    picture: any
+    username: any
+    gender: any
+    locale: any
+    uid: any
+    nickName: any
+    avatarUrl: any
+    location: any
+    hasPassword: any
+  }
+  identities: any
+  created_at: string
+  updated_at: string
+  is_anonymous: boolean
 }
 ```
 
@@ -409,36 +379,27 @@ declare type User = {
 ## Complete Example
 
 ```js
-class EmailSignUpPage {
+class PhoneLoginPage {
   async sendCode() {
-    const email = document.getElementById('email').value
-    if (!email.includes('@')) return alert('Invalid email')
+    const phone = document.getElementById('phone').value
+    if (!/^1[3-9]\d{9}$/.test(phone)) return alert('Invalid phone')
 
-    this.email = email
-    this.verificationInfo = await auth.getVerification({ email })
+    const { data, error } = await auth.signInWithOtp({ phone })
+    if (error) return alert('Send failed: ' + error.message)
 
+    this.verifyOtp = data.verifyOtp
     document.getElementById('codeSection').style.display = 'block'
     this.startCountdown(60)
   }
 
-  async register() {
+  async verifyCode() {
     const code = document.getElementById('code').value
     if (!code) return alert('Enter code')
-    if (!this.verificationInfo?.verification_id) return alert('Send the code first')
 
-    const verificationTokenRes = await auth.verify({
-      verification_id: this.verificationInfo.verification_id,
-      verification_code: code,
-    })
+    const { data, error } = await this.verifyOtp({ token: code })
+    if (error) return alert('Verification failed: ' + error.message)
 
-    await auth.signUp({
-      email: this.email,
-      verification_code: code,
-      verification_token: verificationTokenRes.verification_token,
-      name: this.email.split('@')[0],
-    })
-
-    console.log('Sign-up successful')
+    console.log('Login successful:', data.user)
     window.location.href = '/dashboard'
   }
 
