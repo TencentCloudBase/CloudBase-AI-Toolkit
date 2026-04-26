@@ -37,6 +37,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 - Initializing SDKs in an MCP management flow.
 - Running write SQL or DDL before checking whether MySQL is provisioned and ready.
+- Calling `runStatement` immediately after `describeCreateResult` returns `READY` without understanding that the data plane may still be warming up — use `initializeSchema` instead, which blocks until the database is actually accepting queries.
+- Manually retrying SQL when receiving `MYSQL_NOT_READY` — the tools automatically poll and wait for the data plane; just call the tool again after a short pause.
 - Treating document database tasks as MySQL management tasks.
 - Skipping `_openid` and permissions review after creating new SQL tables.
 - Destroying MySQL without explicit confirmation or without checking whether the environment still needs the instance.
@@ -121,6 +123,8 @@ Before calling this tool, **confirm**:
 - The target tables and conditions are correct.
 - You have run a corresponding read-only query when appropriate.
 
+**Data-plane warm-up:** After `describeCreateResult` returns `READY`, the SQL endpoint may need a few more seconds before it accepts queries. Both `runStatement` and `initializeSchema` automatically handle this warm-up gap by polling `SELECT 1` internally. If you encounter `MYSQL_NOT_READY`, wait a few seconds and retry — do not loop aggressively.
+
 When destroying MySQL, confirm:
 
 - The current environment really should lose the SQL instance.
@@ -154,15 +158,20 @@ When destroying MySQL, confirm:
 
 ## Recommended lifecycle flow
 
-### Scenario 1: MySQL is not provisioned yet
+### Scenario 1: MySQL is not provisioned yet ("from none to usable" flow)
 
-1. Call `querySqlDatabase(action="getInstanceInfo")`.
+This is the most common end-to-end flow. Follow every step in order — skipping the polling loop causes SQL timeouts.
+
+1. Call `querySqlDatabase(action="getInstanceInfo")` to check if MySQL already exists.
 2. If no instance exists, call `manageSqlDatabase(action="provisionMySQL", confirm=true)`.
-3. Poll provisioning status with:
-   - `querySqlDatabase(action="describeCreateResult")`
-   - `querySqlDatabase(action="describeTaskStatus")`
-4. Only continue when the returned lifecycle status is `READY`.
-5. For MySQL provisioning, prefer `describeCreateResult`; reserve `describeTaskStatus` for destroy flows whose task response carries `TaskName`.
+3. **Poll `querySqlDatabase(action="describeCreateResult")` in a loop** until the returned `status` is `READY`.
+   - Do **not** proceed to SQL execution after a single `describeCreateResult` call that returns `PENDING` or `RUNNING`.
+   - Prefer `describeCreateResult` for provisioning checks; reserve `describeTaskStatus` for destroy flows.
+4. Once `status` is `READY`, the **control plane** reports the instance is ready, but the **data plane** (SQL endpoint) may still be warming up for a short period.
+5. **Prefer `initializeSchema` over `runStatement`** for post-provisioning DDL — `initializeSchema` automatically waits for the data plane to become available before executing statements.
+   - Call `manageSqlDatabase(action="initializeSchema", statements=[...])` with your ordered DDL.
+   - If you must use `runStatement` instead, the tool will automatically retry with a short warm-up wait on transient errors; do **not** manually retry in a tight loop.
+6. If `runStatement` or `runQuery` returns `MYSQL_NOT_READY`, the tool has already exhausted its internal polling. Wait briefly (a few seconds) and try the same call once more — the data plane should be available by then.
 
 ### Scenario 2: Safely inspect data in a table
 
@@ -172,9 +181,9 @@ When destroying MySQL, confirm:
 
 ### Scenario 3: Apply schema initialization after provisioning
 
-1. Confirm MySQL is ready.
-2. Prepare ordered DDL statements.
-3. Run them through `manageSqlDatabase(action="initializeSchema")`.
+1. Confirm MySQL control-plane status is `READY` (via `describeCreateResult` or `getInstanceInfo`).
+2. Prepare ordered DDL statements (each `CREATE TABLE` must include `_openid VARCHAR(64) DEFAULT '' NOT NULL`).
+3. Run them through `manageSqlDatabase(action="initializeSchema", statements=[...])` — this action **blocks until the data plane is confirmed ready** before executing DDL, so it is safe to call immediately after provisioning.
 4. After creating tables, verify permissions with `queryPermissions` or `managePermissions`.
 
 ### Scenario 4: Execute a targeted write or DDL change
