@@ -51,6 +51,17 @@ If the user specifies "Node.js 18", use runtime `Nodejs18.15` and the path `/var
 const http = require("http");
 const { URL } = require("url");
 
+// Strip gateway path prefix — the gateway does NOT rewrite paths.
+// See "Gateway path mapping for HTTP Functions" below for details.
+const PUBLIC_BASE_PATH = process.env.PUBLIC_BASE_PATH || "";
+
+function normalizePath(pathname) {
+  if (!PUBLIC_BASE_PATH || PUBLIC_BASE_PATH === "/") return pathname;
+  if (pathname === PUBLIC_BASE_PATH) return "/";
+  if (pathname.startsWith(PUBLIC_BASE_PATH + "/")) return pathname.slice(PUBLIC_BASE_PATH.length);
+  return pathname;
+}
+
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(data));
@@ -83,13 +94,14 @@ function readJsonBody(req) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", "http://127.0.0.1");
+  const pathname = normalizePath(url.pathname);
 
-  if (req.method === "GET" && url.pathname === "/health") {
+  if (req.method === "GET" && pathname === "/health") {
     sendJson(res, 200, { ok: true });
     return;
   }
 
-  if (req.method === "POST" && url.pathname === "/echo") {
+  if (req.method === "POST" && pathname === "/echo") {
     try {
       const body = await readJsonBody(req);
       sendJson(res, 200, { received: body });
@@ -114,6 +126,7 @@ server.listen(9000);
 - Treat routing, method checks, and body parsing as part of the function code. With the native `http` module, parse `req.url` yourself and read the request body from the stream before calling `JSON.parse`.
 - Return JSON responses explicitly and set `Content-Type` yourself, for example `application/json; charset=utf-8`.
 - Keep unsupported routes and methods explicit. Return `404` for unknown paths, and return `405` when the path exists but the HTTP method is not allowed.
+- Always normalize the gateway path prefix before routing. The gateway forwards the full public path (e.g. `/myFunction` or `/api/demo`) unchanged — it does **not** rewrite it to `/`. Either set `path: "/"` in `manageGateway(action="createAccess")`, or strip a known base path in code. See the **Gateway path mapping** section below for details.
 - Keep `scf_bootstrap`, `index.js`, `package.json`, and any bundled dependencies in the function directory that will be uploaded.
 
 ### Module system note
@@ -140,6 +153,15 @@ That combination avoids the common ESM pitfall where `__dirname` is not defined.
 const http = require("http");
 const { URL } = require("url");
 
+const PUBLIC_BASE_PATH = process.env.PUBLIC_BASE_PATH || "";
+
+function normalizePath(pathname) {
+  if (!PUBLIC_BASE_PATH || PUBLIC_BASE_PATH === "/") return pathname;
+  if (pathname === PUBLIC_BASE_PATH) return "/";
+  if (pathname.startsWith(PUBLIC_BASE_PATH + "/")) return pathname.slice(PUBLIC_BASE_PATH.length);
+  return pathname;
+}
+
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(data));
@@ -172,8 +194,9 @@ function readJsonBody(req) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", "http://127.0.0.1");
+  const pathname = normalizePath(url.pathname);
 
-  if (url.pathname === "/users" && req.method === "POST") {
+  if (pathname === "/users" && req.method === "POST") {
     try {
       const { name, email } = await readJsonBody(req);
 
@@ -190,7 +213,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (url.pathname === "/users") {
+  if (pathname === "/users") {
     sendJson(res, 405, { error: "Method Not Allowed" });
     return;
   }

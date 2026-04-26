@@ -50,7 +50,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Confusing official CloudBase API client work with building your own HTTP function.
 - Mixing Event Function code shape (`exports.main(event, context)`) with HTTP Function code shape (`req` / `res` on port `9000`).
 - Treating HTTP Access as the implementation model for HTTP Functions. HTTP Access is a gateway configuration for Event Functions, not the HTTP Function runtime model.
-- Assuming the access path created by `manageGateway(action="createAccess")` is stripped before the request reaches an HTTP Function. It is not rewritten by default, so exposing `/api/http-demo` or the default `/${targetName}` changes the path your handler must match unless you normalize the prefix yourself.
+- Assuming the access path created by `manageGateway(action="createAccess")` is stripped before the request reaches an HTTP Function. It is not rewritten by default — the full public path reaches your handler unchanged. Exposing `/api/http-demo` or the default `/${targetName}` means your code must match that prefix or normalize it before routing. See the gateway path mapping section in `./references/http-functions.md`.
 - Assuming `db.collection("name").add(...)` will create a missing document-database collection automatically. Collection creation is a separate management step.
 - Forgetting that runtime cannot be changed after creation.
 - Using cloud functions as the first answer for Web login.
@@ -91,6 +91,7 @@ Use these rules whenever you are writing the function code itself:
 - With the native `http` module, parse `req.url` yourself with `new URL(...)`, collect the request body from the stream, and only then call `JSON.parse`. Empty bodies should be handled explicitly instead of assuming JSON is always present.
 - Return responses explicitly with `res.writeHead(...)` and `res.end(...)`, including `Content-Type` such as `application/json; charset=utf-8` for JSON APIs.
 - Keep routing and method handling explicit. Unknown paths should return `404`, and known paths with unsupported methods should normally return `405`.
+- When your HTTP Function is accessed through a gateway path, the full public path (including the prefix) reaches your handler unchanged — the gateway does **not** strip or rewrite it. If you create gateway access with `path: "/api/hello"` or rely on the default `/${targetName}`, a handler that only matches `/` will not match the actual request path. Either set `path: "/"` in `createAccess`, or normalize the base path in your code before routing. See the gateway path mapping section in `./references/http-functions.md` for a complete example.
 - Keep gateway setup and security-rule changes separate from the runtime code. They affect access, not the HTTP Function programming model.
 - Do not add HTTP access service configuration when the task is only to create an HTTP Function itself. Gateway paths or custom domains are separate access-layer work; anonymous or public invocation requirements should be handled through the function security rule workflow.
 
@@ -182,6 +183,19 @@ exports.main = async (event, context) => {
 const http = require("http");
 const { URL } = require("url");
 
+// Gateway path prefix — the gateway does NOT rewrite the path before it reaches
+// your handler. If the public URL is /hello-http, requests arrive with
+// pathname /hello-http, not /.  Strip a known prefix so internal routes
+// (like / and /health) match regardless of the access path.
+const PUBLIC_BASE_PATH = process.env.PUBLIC_BASE_PATH || "";
+
+function normalizePath(pathname) {
+  if (!PUBLIC_BASE_PATH || PUBLIC_BASE_PATH === "/") return pathname;
+  if (pathname === PUBLIC_BASE_PATH) return "/";
+  if (pathname.startsWith(PUBLIC_BASE_PATH + "/")) return pathname.slice(PUBLIC_BASE_PATH.length);
+  return pathname;
+}
+
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(data));
@@ -189,8 +203,9 @@ function sendJson(res, statusCode, data) {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || "/", "http://127.0.0.1");
+  const pathname = normalizePath(url.pathname);
 
-  if (req.method === "GET" && url.pathname === "/") {
+  if (req.method === "GET" && pathname === "/") {
     sendJson(res, 200, { ok: true, message: "hello from http function" });
   } else {
     sendJson(res, 404, { error: "Not Found" });
