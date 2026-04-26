@@ -6,6 +6,27 @@ import { ExtendedMcpServer } from '../server.js';
 import { sendDeployNotification } from '../utils/notification.js';
 import { buildJsonToolResult, toolPayloadErrorToResult } from '../utils/tool-result.js';
 
+/**
+ * 扫描构建产物中的 index.html，检测是否存在绝对根路径引用（如 src="/assets/..."）。
+ * 当站点部署到子目录时，这类引用会导致 404。
+ */
+function detectAbsoluteRootPaths(localPath?: string): string[] {
+  if (!localPath) return [];
+  try {
+    const stats = fs.statSync(localPath);
+    const indexHtmlPath = stats.isDirectory()
+      ? path.join(localPath, 'index.html')
+      : localPath;
+    if (!fs.existsSync(indexHtmlPath)) return [];
+    const content = fs.readFileSync(indexHtmlPath, 'utf-8');
+    // 匹配 src="/xxx" 或 href="/xxx" 中不是协议路径（//）的绝对根路径
+    const matches = content.match(/\s(?:src|href)=["']\/[^/"][^"']*["']/gi) || [];
+    return matches.slice(0, 5); // 最多返回 5 条示例
+  } catch {
+    return [];
+  }
+}
+
 
 // 定义扩展的EnvInfo接口，包含StaticStorages属性
 interface ExtendedEnvInfo {
@@ -277,10 +298,10 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     "uploadFiles",
     {
       title: "上传静态文件",
-      description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径（如 './'），避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
+      description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。\n\n**子目录部署强制确认（重要）**：如果 cloudPath 非空（即部署到子目录而非根目录），调用本工具前必须完成以下检查，否则部署后静态资源会 404：\n1. 已在构建配置中设置 base / publicPath / assetPrefix（使用相对路径 `./` 或与部署路径一致）。\n2. 修改配置后已重新运行构建命令（如 npm run build）。\n3. 已验证构建产物中的 index.html 资源引用路径已更新（无绝对根路径如 `/assets/xxx`）。\n\n部署前请先完成构建；若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
       inputSchema: {
         localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
-        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，使用托管路径语义而不是完整 URL，且路径相对于托管根目录。部署到根目录时请留空；部署到子目录时请传 `vite-test` 这类不带前导 `/` 的相对路径，不要传 `/vite-test`；具体文件可传 `vite-test/index.html`。如果站点最终访问路径是 `/vite-test`，构建前请同步把 Vite `base` 或其他框架的 `publicPath`、`assetPrefix` 配置为 `./` 或与部署路径一致，并上传完整构建目录（通常是 `dist/`）。云存储对象路径请改用 manageStorage。"),
+        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，使用托管路径语义而不是完整 URL，且路径相对于托管根目录。部署到根目录时请留空；部署到子目录时请传 `vite-test` 这类不带前导 `/` 的相对路径，不要传 `/vite-test`；具体文件可传 `vite-test/index.html`。\n\n**警告**：如果站点最终访问路径是 `/vite-test`，构建前必须同步把 Vite `base` 或其他框架的 `publicPath`、`assetPrefix` 配置为 `./` 或与部署路径一致，并重新构建。未设置将导致 JS/CSS 等资源 404。云存储对象路径请改用 manageStorage。"),
         files: z.array(z.object({
           localPath: z.string(),
           cloudPath: z.string().describe("静态托管路径，相对于托管根目录的相对路径，不要以 `/` 开头，例如 `vite-test/assets/app.js`")
@@ -317,6 +338,18 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       }
       logCloudBaseResult(server.logger, result);
       const uploadResult = result as Record<string, unknown>;
+
+      // 子目录部署：检测构建产物中的绝对根路径引用
+      let publicPathWarning: string | undefined;
+      if (normalizedCloudPath && localPath) {
+        const absolutePaths = detectAbsoluteRootPaths(localPath);
+        if (absolutePaths.length > 0) {
+          publicPathWarning =
+            `⚠️ WARNING: 部署到子目录 "${normalizedCloudPath}" 时，检测到构建产物中存在绝对根路径引用，这会导致静态资源 404。\n` +
+            `请确认已在构建配置中设置 base/publicPath/assetPrefix 为相对路径（如 "./"）或与部署路径一致，并已重新构建。\n` +
+            `检测到的问题示例：${absolutePaths.join(', ')}`;
+        }
+      }
 
       // 获取环境信息
       const envInfo = await cloudbase.env.getEnvInfo() as ExtendedEnvInfo;
@@ -361,16 +394,21 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         // Error is already logged in sendDeployNotification
       }
 
+      const responsePayload: Record<string, unknown> = {
+        ...uploadResult,
+        staticDomain,
+        message: "文件上传成功",
+        accessUrl: accessUrl,
+      };
+      if (publicPathWarning) {
+        responsePayload.publicPathWarning = publicPathWarning;
+      }
+
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify({
-              ...uploadResult,
-              staticDomain,
-              message: "文件上传成功",
-              accessUrl: accessUrl
-            }, null, 2)
+            text: JSON.stringify(responsePayload, null, 2)
           }
         ]
       };
