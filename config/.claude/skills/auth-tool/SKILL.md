@@ -127,12 +127,13 @@ The underlying login strategy contains fields such as:
 
 Parameter mapping for downstream Web auth code:
 
-- `queryAppAuth(action="getLoginConfig")` and `manageAppAuth(action="patchLoginStrategy")` return `sdkStyle: "supabase-like"` plus `sdkHints`; treat that as the preferred frontend-auth calling guide
-- `PhoneNumberLogin` controls phone OTP flows used by `auth-web` `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })`
-- `EmailLogin` controls email OTP flows used by `auth-web` `auth.signInWithOtp({ email })` and `auth.signUp({ email })`
+- `queryAppAuth(action="getLoginConfig")` and `manageAppAuth(action="patchLoginStrategy")` return `sdkHints`; treat those hints as the preferred frontend-auth calling guide
+- `PhoneNumberLogin` controls phone verification flows used by `auth-web` `auth.signInWithOtp({ phone })` -> `data.verifyOtp({ token })` for login and `auth.signUp({ phone })` -> `data.verifyOtp({ token })` for registration
+- `EmailLogin` controls email verification flows used by `auth-web` `auth.signInWithOtp({ email })` -> `data.verifyOtp({ token })` for login and `auth.signUp({ email })` -> `data.verifyOtp({ token })` for registration
 - `UserNameLogin` controls username/password Web auth flows used by `auth-web` `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })`
 - If the account identifier is a plain username string, do not route it through email-only helpers such as `signInWithEmailAndPassword`
 - `UserNameLogin` also enables the broader password-login surface exposed by `auth.signInWithPassword({ username|email|phone, password })`
+- For current Web SDK tasks, keep the `sdkHints` flow above as the default. For email or phone login, use `auth.signInWithOtp({ phone/email })` -> `data.verifyOtp({ token })`. For registration, use `auth.signUp({ phone/email })` -> `data.verifyOtp({ token })`. Do not use the v1 API (`auth.getVerification()`, `auth.verify()`, `auth.signInWithSms()`, `auth.signInWithEmail()`).
 - `SmsVerificationConfig.Type = "apis"` requires both `Name` and `Method`
 - `EnvId` is always the CloudBase environment ID, not the publishable key
 
@@ -211,7 +212,7 @@ Email has two layers of configuration:
 
 - `ModifyLoginConfig.EmailLogin`: controls whether email/password login is enabled
 - `ModifyProvider(Id="email")`: controls the email sender channel and SMTP configuration
-- In Web auth code, this maps to `auth.signInWithOtp({ email })` and `auth.signUp({ email })`
+- In Web auth code, this maps to `auth.signInWithOtp({ email })` -> `data.verifyOtp({ token })` for login or `auth.signUp({ email })` -> `data.verifyOtp({ token })` for registration
 
 Preferred MCP tool path:
 

@@ -75,7 +75,7 @@ const app = cloudbase.init({
   env: "your-env-id"
 });
 
-const auth = app.auth();
+const auth = app.auth; // property, not a function call
 // Handle login separately
 
 const db = app.rdb();

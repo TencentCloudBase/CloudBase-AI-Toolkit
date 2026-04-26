@@ -60,7 +60,7 @@ const app = cloudbase.init({
   accessKey: "<YOUR_PUBLISHABLE_KEY>"  // Get from CloudBase console
 });
 
-const auth = app.auth();
+const auth = app.auth; // property, not a function call
 await auth.signInAnonymously();
 
 const ai = app.ai();

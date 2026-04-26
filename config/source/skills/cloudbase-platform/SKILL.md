@@ -115,7 +115,7 @@ Use this skill for **CloudBase platform knowledge** when you need to:
    - If the user only provides an environment alias, nickname, or other short form, resolve it with `envQuery(action="list", alias=..., aliasExact=true)` first and use the returned full `EnvId`
    - Do not pass alias-like short forms directly into SDK init, `auth.set_env`, console URLs, or generated config files
    - For Web, always initialize synchronously:
-     - `import cloudbase from "@cloudbase/js-sdk"; const app = cloudbase.init({ env: "your-full-env-id" });`
+     - `import cloudbase from "@cloudbase/js-sdk"; const app = cloudbase.init({ env: "<exact EnvId from envQuery>" });`
      - Do **not** use dynamic imports like `import("@cloudbase/js-sdk")` or async wrappers such as `initCloudBase()` with internal `initPromise`
    - Then proceed with login, for example using anonymous login
 

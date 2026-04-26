@@ -137,8 +137,11 @@ Use this section only when the Web project needs CloudBase platform features.
 import cloudbase from "@cloudbase/js-sdk";
 
 const app = cloudbase.init({
-  env: "xxxx-yyy",
+  env: "<exact envId from envQuery>", // Use envQuery(action="info") to get the real env ID
+  region: "ap-shanghai",
+  accessKey: "<publishable key from queryAppAuth/ensurePublishableKey>",
+  auth: { detectSessionInUrl: true },
 });
 
-const auth = app.auth();
+const auth = app.auth; // property, not a function call
 ```
