@@ -130,7 +130,8 @@ scenarios:
       - auth-web
     commonMistakes:
       - 把 Web 登录逻辑错误地放进云函数。
-      - HTTP 函数遗漏 `scf_bootstrap` 或 9000 端口要求。
+      - 把 HTTP 函数误写成 `exports.main(event, context)`，或误以为 Node 原生 `http` 请求里自带 `req.body`。
+      - HTTP 函数遗漏 `scf_bootstrap`、9000 端口或显式响应头。
 
   - id: cloudrun-backend
     priority: 85

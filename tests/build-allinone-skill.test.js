@@ -92,6 +92,8 @@ test.skipIf(!hasNode24ViaNvm())(
     expect(mainSkill).toContain('references/auth-web/SKILL.md');
     expect(mainSkill).toContain('## Activation Contract');
     expect(mainSkill).toContain('Provider status and publishable key');
+    expect(mainSkill).toContain('Serialize the object first, then retry once with the serialized text');
+    expect(mainSkill).toContain('actually passes the serialized string rather than the original object');
   },
 );
 

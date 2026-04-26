@@ -112,8 +112,10 @@ Use this skill for **CloudBase platform knowledge** when you need to:
 1. **SDK Initialization**:
    - CloudBase SDK initialization requires environment ID
    - Can query environment ID via `envQuery` tool
+   - If the user only provides an environment alias, nickname, or other short form, resolve it with `envQuery(action="list", alias=..., aliasExact=true)` first and use the returned full `EnvId`
+   - Do not pass alias-like short forms directly into SDK init, `auth.set_env`, console URLs, or generated config files
    - For Web, always initialize synchronously:
-     - `import cloudbase from "@cloudbase/js-sdk"; const app = cloudbase.init({ env: "xxxx-yyy" });`
+     - `import cloudbase from "@cloudbase/js-sdk"; const app = cloudbase.init({ env: "your-full-env-id" });`
      - Do **not** use dynamic imports like `import("@cloudbase/js-sdk")` or async wrappers such as `initCloudBase()` with internal `initPromise`
    - Then proceed with login, for example using anonymous login
 
@@ -305,6 +307,7 @@ The CloudBase console is updated frequently. If a live, logged-in console shows 
 
 - **Base URL Pattern**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/{path}`
 - **Replace Variables**: Always replace `${envId}` with the actual environment ID queried via `envQuery` tool
+- **Alias Handling**: If the conversation only contains an alias or shorthand, first resolve it with `envQuery(action="list", alias=..., aliasExact=true)` and use the returned `EnvId`; if the alias is ambiguous or missing, ask the user to confirm before generating links
 - **Resource-Specific URLs**: For specific resources (collections, functions, models), replace resource name variables with actual values
 - **Usage**: After creating/deploying resources, provide these console links to users for management operations
 

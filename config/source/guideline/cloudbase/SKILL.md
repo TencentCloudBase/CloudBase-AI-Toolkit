@@ -36,6 +36,8 @@ If a skill points to its own `references/...` files, keep following those relati
 
 - If the same implementation path fails 2-3 times, stop retrying and reroute. Re-check the selected platform skill, runtime, auth domain, permission model, and SDK boundary before editing more code.
 - Always specify `EnvId` explicitly in code, configuration, and command examples when initializing CloudBase clients or manager operations. Do not rely on the current CLI-selected environment, implicit defaults, or copied local state.
+- When saving MCP or tool results to a local file with a generic file-writing tool, pass text, not raw objects. For JSON output files, serialize first with `JSON.stringify(result, null, 2)` and write that string as the file content.
+- If the file-writing tool reports that a field such as `content` expected a string but received an object, do not retry with the same raw object. Serialize the object first, then retry once with the serialized text, and make sure the retried call actually passes the serialized string rather than the original object.
 - Keep scenario-specific pitfall lists in the matching child skills instead of expanding this entry file.
 
 ### High-priority routing
@@ -131,6 +133,7 @@ When your IDE does not support native MCP, use **mcporter** as the CLI to config
 
 - **When managing or deploying CloudBase, you MUST use MCP and MUST understand tool details first.** Before calling any CloudBase tool, run `npx mcporter describe cloudbase --all-parameters` (or `ToolSearch` in IDE) to inspect available tools and their parameters.
 - You **do not need to hard-code Secret ID / Secret Key / Env ID** in the config. CloudBase MCP supports device-code based login via the `auth` tool, so credentials can be obtained interactively instead of being stored in config.
+- When the environment identifier in the conversation is an alias, nickname, or other short form, **do not pass it directly** to `auth.set_env`, SDK init, console URLs, or generated config files. First resolve it to the canonical full `EnvId` with `envQuery(action=list, alias=..., aliasExact=true)`. If multiple environments match or no exact alias exists, stop and clarify with the user.
 
 ### Quick Start (mcporter CLI)
 - `npx mcporter list` — list configured servers
@@ -144,8 +147,10 @@ When your IDE does not support native MCP, use **mcporter** as the CLI to config
   `npx mcporter call cloudbase.auth action=status --output json`
 - Start device-flow login (future-friendly device-code login; no keys in config):
   `npx mcporter call cloudbase.auth action=start_auth authMode=device --output json`
+- If the user gives an environment alias / nickname / short form instead of the full `EnvId`, resolve it first:
+  `npx mcporter call cloudbase.envQuery action=list alias=demo aliasExact=true fields='["EnvId","Alias","Status","IsDefault"]' --output json`
 - Bind environment after login (envId from CloudBase console):
-  `npx mcporter call cloudbase.auth action=set_env envId=env-xxx --output json`
+  `npx mcporter call cloudbase.auth action=set_env envId=<full-env-id> --output json`
 - Query app-side login config:
   `npx mcporter call cloudbase.queryAppAuth action=getLoginConfig --output json`
 - Patch app-side login strategy:
@@ -224,6 +229,7 @@ Prefer long-term memory when available: write the scenarios and working rules th
 2. **Authentication**: Read the `auth-web` and `auth-tool` skills - Use Web SDK built-in authentication
 3. **Database**:
    - NoSQL: `no-sql-web-sdk` skill
+   - Web SDK create-result reminder: after `db.collection(...).add(...)`, the new document ID is `result._id`
    - MySQL: `relational-database-web` and `relational-database-tool` skills
 4. **UI Design** (Recommended): Read the `ui-design` skill for better UI/UX design guidelines
 5. **Quick SDK reference**:
@@ -271,6 +277,7 @@ Prefer long-term memory when available: write the scenarios and working rules th
 
 **Web Projects:**
 - NoSQL Database: Refer to the `no-sql-web-sdk` skill
+- For CloudBase Web SDK `db.collection(...).add(...)`, read the created document ID from `result._id`, not `result.id`, `result.data.id`, or `insertedId`
 - MySQL Relational Database: Refer to the `relational-database-web` skill (Web) and `relational-database-tool` skill (Management)
 
 **Mini Program Projects:**
@@ -366,9 +373,10 @@ When users request deployment to CloudBase:
    - Determine if this is a new deployment or update to existing services
 
 1. **Backend Deployment (if applicable)**:
-   - Only for nodejs cloud functions: deploy directly using `manageFunctions(action="createFunction")` / `manageFunctions(action="updateFunctionCode")`
+   - Only for Node.js cloud functions: deploy directly using `manageFunctions(action="createFunction")` / `manageFunctions(action="updateFunctionCode")`
      - Legacy compatibility: if older materials mention `createFunction`, `updateFunctionCode`, or `getFunctionList`, map them to `manageFunctions(...)` and `queryFunctions(...)`
-     - Criteria: function directory contains `index.js` with cloud function format export: `exports.main = async (event, context) => {}`
+     - Before deploying, decide whether the function is Event or HTTP. Event Functions use `exports.main = async (event, context) => {}`.
+     - HTTP Functions are standard web services: they must listen on port `9000`, include `scf_bootstrap`, and for Node.js should default to native `http.createServer((req, res) => { ... })`. Parse `req.url` and the streamed request body manually, set response headers explicitly, and do not write the function as `exports.main` unless you intentionally choose Functions Framework.
    - **Alternative: CLI Deployment** — If MCP is unavailable or the user prefers CLI, read the `cloudbase-cli` skill for `tcb`-based deployment workflows (functions, CloudRun, hosting).
    - For other languages backend server (Java, Go, PHP, Python, Node.js): deploy to Cloud Run
    - Ensure backend code supports CORS by default
