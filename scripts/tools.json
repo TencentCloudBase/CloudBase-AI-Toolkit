@@ -1036,7 +1036,7 @@
     },
     {
       "name": "uploadFiles",
-      "description": "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径（如 './'），避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
+      "description": "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。\n\n**子目录部署强制确认（重要）**：如果 cloudPath 非空（即部署到子目录而非根目录），调用本工具前必须完成以下检查，否则部署后静态资源会 404：\n1. 已在构建配置中设置 base / publicPath / assetPrefix（使用相对路径 `./` 或与部署路径一致）。\n2. 修改配置后已重新运行构建命令（如 npm run build）。\n3. 已验证构建产物中的 index.html 资源引用路径已更新（无绝对根路径如 `/assets/xxx`）。\n\n部署前请先完成构建；若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1046,7 +1046,12 @@
           },
           "cloudPath": {
             "type": "string",
-            "description": "静态托管云端文件或文件夹路径，使用托管路径语义而不是完整 URL，且路径相对于托管根目录。部署到根目录时请留空；部署到子目录时请传 `vite-test` 这类不带前导 `/` 的相对路径，不要传 `/vite-test`；具体文件可传 `vite-test/index.html`。如果站点最终访问路径是 `/vite-test`，构建前请同步把 Vite `base` 或其他框架的 `publicPath`、`assetPrefix` 配置为 `./` 或与部署路径一致，并上传完整构建目录（通常是 `dist/`）。云存储对象路径请改用 manageStorage。"
+            "description": "静态托管云端文件或文件夹路径，使用托管路径语义而不是完整 URL，且路径相对于托管根目录。部署到根目录时请留空；部署到子目录时请传 `vite-test` 这类不带前导 `/` 的相对路径，不要传 `/vite-test`；具体文件可传 `vite-test/index.html`。上传完整构建目录（通常是 `dist/`），不要只上传 index.html。\n\n**警告**：如果站点最终访问路径是 `/vite-test`，构建前必须同步把 Vite `base` 或其他框架的 `publicPath`、`assetPrefix` 配置为 `./` 或与部署路径一致，并重新构建。未设置将导致 JS/CSS 等资源 404。云存储对象路径请改用 manageStorage。"
+          },
+          "publicPathConfigured": {
+            "type": "boolean",
+            "default": false,
+            "description": "**子目录部署必填声明**。当 cloudPath 非空（即部署到子目录而非根目录）时，必须传入 `true`，表示你已在构建配置中设置 `base` / `publicPath` / `assetPrefix`（使用相对路径 `./` 或与部署路径一致）、已重新构建、并已验证构建产物中的资源引用路径正确。若传入 `false` 或不传，且 cloudPath 非空，工具将直接报错，不会执行上传。部署到根目录（cloudPath 为空）时忽略此字段。"
           },
           "files": {
             "type": "array",
