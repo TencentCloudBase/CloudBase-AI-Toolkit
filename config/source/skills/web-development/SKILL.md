@@ -140,10 +140,15 @@ When deploying a built Web app to CloudBase static hosting using the `uploadFile
    - Deploy to sub-directory: pass `vite-test` (not `/vite-test`)
    - Deploy a specific file: pass `vite-test/index.html` (not `/vite-test/index.html`)
 
-2. **Align framework base config with cloudPath**: If deploying to a sub-directory, set the framework's base path before building.
-   - Vite: set `base: './'` (relative) or `base: '/vite-test/'` (absolute matching the target path)
-   - Webpack: set `output.publicPath: './'` or `output.publicPath: '/vite-test/'`
-   - Other frameworks: check `assetPrefix` or equivalent config
+2. **Sub-directory deployment mandatory checklist** (cloudPath non-empty): Before calling `uploadFiles` to a sub-directory, you MUST complete all of the following. Do NOT skip any step.
+   - **Step A — Set base/publicPath/assetPrefix**: Configure the framework's base path BEFORE building.
+     - Vite: `base: './'` (relative) or `base: '/vite-test/'` (absolute matching target)
+     - Webpack: `output.publicPath: './'` or `output.publicPath: '/vite-test/'`
+     - Other frameworks: set `assetPrefix` or equivalent to a relative or matching path
+   - **Step B — Rebuild**: Run `npm run build` (or equivalent) AFTER modifying the base config. Uploading old build output will still produce 404s.
+   - **Step C — Verify index.html**: Open the build output `index.html` and confirm that `<script src="...">` and `<link href="...">` use relative paths (e.g., `./assets/app.js`) or paths matching the sub-directory. If they still use absolute root paths (e.g., `/assets/app.js`), return to Step A and fix the config before uploading.
+   - **Step D — Pass publicPathConfigured=true**: When calling `uploadFiles` with a non-empty `cloudPath`, you MUST pass `publicPathConfigured=true`. If you skip this parameter or pass `false`, the tool will reject the call with an error. This is an intentional guard to prevent accidental sub-directory deployments without proper base path configuration.
+   - If any step fails, do NOT call `uploadFiles` yet.
 
 3. **Upload the entire build output directory**: Point `localPath` to the build output directory (typically `dist/`), not just `index.html`. Missing JS/CSS/assets will cause 404s.
 
@@ -152,14 +157,16 @@ When deploying a built Web app to CloudBase static hosting using the `uploadFile
 Example — deploy a Vite app to `/vite-test`:
 
 ```
-# 1. Set base in vite.config.ts before building
+# 1. Set base in vite.config.ts
 base: './'
 
-# 2. Build
+# 2. Rebuild
 npm run build
 
-# 3. Upload entire dist/ to cloudPath "vite-test"
-uploadFiles(localPath="/path/to/dist", cloudPath="vite-test")
+# 3. Verify index.html has relative paths (e.g., ./assets/app.js)
+
+# 4. Upload entire dist/ to cloudPath "vite-test" with mandatory confirmation
+uploadFiles(localPath="/path/to/dist", cloudPath="vite-test", publicPathConfigured=true)
 ```
 
 ### CloudBase quick start
