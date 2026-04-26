@@ -52,13 +52,17 @@ const http = require("http");
 const { URL } = require("url");
 
 // Strip gateway path prefix — the gateway does NOT rewrite paths.
-// See "Gateway path mapping for HTTP Functions" below for details.
-const PUBLIC_BASE_PATH = process.env.PUBLIC_BASE_PATH || "";
+// The default public path is /<functionName>. Hard-code the function name
+// as BASE_PATH. Do NOT use process.env.PUBLIC_BASE_PATH || "" — that
+// env var is not set by the CloudBase runtime, so it defaults to empty
+// string and normalization becomes a no-op.
+// Change this value to match YOUR function name:
+const BASE_PATH = "/my-http-function";
 
 function normalizePath(pathname) {
-  if (!PUBLIC_BASE_PATH || PUBLIC_BASE_PATH === "/") return pathname;
-  if (pathname === PUBLIC_BASE_PATH) return "/";
-  if (pathname.startsWith(PUBLIC_BASE_PATH + "/")) return pathname.slice(PUBLIC_BASE_PATH.length);
+  if (!BASE_PATH || BASE_PATH === "/") return pathname;
+  if (pathname === BASE_PATH) return "/";
+  if (pathname.startsWith(BASE_PATH + "/")) return pathname.slice(BASE_PATH.length);
   return pathname;
 }
 
@@ -126,7 +130,10 @@ server.listen(9000);
 - Treat routing, method checks, and body parsing as part of the function code. With the native `http` module, parse `req.url` yourself and read the request body from the stream before calling `JSON.parse`.
 - Return JSON responses explicitly and set `Content-Type` yourself, for example `application/json; charset=utf-8`.
 - Keep unsupported routes and methods explicit. Return `404` for unknown paths, and return `405` when the path exists but the HTTP method is not allowed.
-- Always normalize the gateway path prefix before routing. The gateway forwards the full public path (e.g. `/myFunction` or `/api/demo`) unchanged — it does **not** rewrite it to `/`. Either set `path: "/"` in `manageGateway(action="createAccess")`, or strip a known base path in code. See the **Gateway path mapping** section below for details.
+- Always normalize the gateway path prefix before routing. The gateway forwards the full public path (e.g. `/myFunction` or `/api/demo`) unchanged — it does **not** rewrite it to `/`. **You must handle this in one of two ways:**
+  1. Call `manageGateway(action="createAccess", path="/")` to expose the function at `/` — then no path normalization is needed in code.
+  2. Hard-code `const BASE_PATH = "/<functionName>"` in your function code and strip it before routing. **Do NOT use `process.env.PUBLIC_BASE_PATH || ""`** — this env var is not set by the CloudBase runtime, so it defaults to empty string and the normalization becomes a no-op. Always hard-code the actual function name as the base path.
+  See the **Gateway path mapping** section below for details.
 - Keep `scf_bootstrap`, `index.js`, `package.json`, and any bundled dependencies in the function directory that will be uploaded.
 
 ### Module system note
@@ -153,12 +160,12 @@ That combination avoids the common ESM pitfall where `__dirname` is not defined.
 const http = require("http");
 const { URL } = require("url");
 
-const PUBLIC_BASE_PATH = process.env.PUBLIC_BASE_PATH || "";
+const BASE_PATH = "/my-users-function";
 
 function normalizePath(pathname) {
-  if (!PUBLIC_BASE_PATH || PUBLIC_BASE_PATH === "/") return pathname;
-  if (pathname === PUBLIC_BASE_PATH) return "/";
-  if (pathname.startsWith(PUBLIC_BASE_PATH + "/")) return pathname.slice(PUBLIC_BASE_PATH.length);
+  if (!BASE_PATH || BASE_PATH === "/") return pathname;
+  if (pathname === BASE_PATH) return "/";
+  if (pathname.startsWith(BASE_PATH + "/")) return pathname.slice(BASE_PATH.length);
   return pathname;
 }
 
@@ -349,25 +356,38 @@ Before enabling anonymous access, confirm both of these:
 
 When your implementation wants internal routes like `/` and `/health`, use one of these approaches:
 
-1. Match the public path directly in your handler.
-2. Strip a known public base path in code before routing.
+1. **Recommended**: Call `manageGateway(action="createAccess", path="/")` to expose the function at `/` — then no path normalization is needed in code. This is the simplest approach.
+2. Match the public path directly in your handler (e.g. check for `/myFunction` instead of `/`).
+3. Hard-code the function name as `BASE_PATH` in code and strip it before routing.
+
+**Critical**: Do NOT use `process.env.PUBLIC_BASE_PATH || ""` for the base path. This environment variable is **not set** by the CloudBase runtime. Defaulting to empty string means no normalization happens and all routes return 404 when accessed through the gateway. Always hard-code the actual function name:
+
+```javascript
+// Correct — hard-code the function name
+const BASE_PATH = "/myFunction";
+
+// WRONG — env var is never set, defaults to "", normalization is a no-op
+// const BASE_PATH = process.env.PUBLIC_BASE_PATH || "";
+```
 
 Example with Node.js built-in `http` module:
 
 ```javascript
-const PUBLIC_BASE_PATH = process.env.PUBLIC_BASE_PATH || "";
+// Hard-code the function name as BASE_PATH — the default gateway path
+// is /<functionName>. Change this to match YOUR function name.
+const BASE_PATH = "/myFunction";
 
 function normalizePath(pathname) {
-  if (!PUBLIC_BASE_PATH || PUBLIC_BASE_PATH === "/") {
+  if (!BASE_PATH || BASE_PATH === "/") {
     return pathname;
   }
 
-  if (pathname === PUBLIC_BASE_PATH) {
+  if (pathname === BASE_PATH) {
     return "/";
   }
 
-  if (pathname.startsWith(`${PUBLIC_BASE_PATH}/`)) {
-    return pathname.slice(PUBLIC_BASE_PATH.length);
+  if (pathname.startsWith(`${BASE_PATH}/`)) {
+    return pathname.slice(BASE_PATH.length);
   }
 
   return pathname;
@@ -378,7 +398,7 @@ const server = http.createServer((req, res) => {
   const pathname = normalizePath(url.pathname);
 
   if (req.method === "GET" && pathname === "/") {
-    // Handle public /api/http-demo as internal /
+    // Handle public /myFunction as internal /
   }
 });
 ```

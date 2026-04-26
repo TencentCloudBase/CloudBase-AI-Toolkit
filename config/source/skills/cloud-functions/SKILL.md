@@ -50,7 +50,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Confusing official CloudBase API client work with building your own HTTP function.
 - Mixing Event Function code shape (`exports.main(event, context)`) with HTTP Function code shape (`req` / `res` on port `9000`).
 - Treating HTTP Access as the implementation model for HTTP Functions. HTTP Access is a gateway configuration for Event Functions, not the HTTP Function runtime model.
-- Assuming the access path created by `manageGateway(action="createAccess")` is stripped before the request reaches an HTTP Function. It is not rewritten by default — the full public path reaches your handler unchanged. Exposing `/api/http-demo` or the default `/${targetName}` means your code must match that prefix or normalize it before routing. See the gateway path mapping section in `./references/http-functions.md`.
+- Assuming the access path created by `manageGateway(action="createAccess")` is stripped before the request reaches an HTTP Function. It is not rewritten by default — the full public path reaches your handler unchanged. Exposing `/api/http-demo` or the default `/${targetName}` means your code must match that prefix or normalize it before routing. **Never use `process.env.PUBLIC_BASE_PATH || ""`** — this env var is not set by the CloudBase runtime and defaults to empty string, making path normalization a no-op. Hard-code the function name as the base path instead. See the gateway path mapping section in `./references/http-functions.md`.
 - Assuming `db.collection("name").add(...)` will create a missing document-database collection automatically. Collection creation is a separate management step.
 - Forgetting that runtime cannot be changed after creation.
 - Using cloud functions as the first answer for Web login.
@@ -91,9 +91,12 @@ Use these rules whenever you are writing the function code itself:
 - With the native `http` module, parse `req.url` yourself with `new URL(...)`, collect the request body from the stream, and only then call `JSON.parse`. Empty bodies should be handled explicitly instead of assuming JSON is always present.
 - Return responses explicitly with `res.writeHead(...)` and `res.end(...)`, including `Content-Type` such as `application/json; charset=utf-8` for JSON APIs.
 - Keep routing and method handling explicit. Unknown paths should return `404`, and known paths with unsupported methods should normally return `405`.
-- When your HTTP Function is accessed through a gateway path, the full public path (including the prefix) reaches your handler unchanged — the gateway does **not** strip or rewrite it. If you create gateway access with `path: "/api/hello"` or rely on the default `/${targetName}`, a handler that only matches `/` will not match the actual request path. Either set `path: "/"` in `createAccess`, or normalize the base path in your code before routing. See the gateway path mapping section in `./references/http-functions.md` for a complete example.
+- When your HTTP Function is accessed through a gateway path, the full public path (including the prefix) reaches your handler unchanged — the gateway does **not** strip or rewrite it. If you create gateway access with `path: "/api/hello"` or rely on the default `/${targetName}`, a handler that only matches `/` will not match the actual request path. **You must handle this in one of two ways:**
+  1. Call `manageGateway(action="createAccess", path="/")` to expose the function at `/` — then no path normalization is needed in code.
+  2. Hard-code `const BASE_PATH = "/<functionName>"` in your function code and strip it before routing. **Do NOT use `process.env.PUBLIC_BASE_PATH || ""`** — this env var is not set by the CloudBase runtime, so it defaults to empty string and the normalization becomes a no-op. Always hard-code the actual function name as the base path.
+  See the gateway path mapping section in `./references/http-functions.md` for a complete example.
 - Keep gateway setup and security-rule changes separate from the runtime code. They affect access, not the HTTP Function programming model.
-- Do not add HTTP access service configuration when the task is only to create an HTTP Function itself. Gateway paths or custom domains are separate access-layer work; anonymous or public invocation requirements should be handled through the function security rule workflow.
+- Do not add custom HTTP access service configuration when the task is only to create an HTTP Function itself — but note that if the function needs to be reachable from browsers, you should call `manageGateway(action="createAccess", path="/")` to expose it at the root path. Without this, the default gateway path is `/${functionName}`, which means your handler must strip that prefix before routing (see the gateway path mapping section). Anonymous or public invocation requirements should be handled through the function security rule workflow.
 
 ## Quick decision table
 
@@ -184,15 +187,16 @@ const http = require("http");
 const { URL } = require("url");
 
 // Gateway path prefix — the gateway does NOT rewrite the path before it reaches
-// your handler. If the public URL is /hello-http, requests arrive with
-// pathname /hello-http, not /.  Strip a known prefix so internal routes
-// (like / and /health) match regardless of the access path.
-const PUBLIC_BASE_PATH = process.env.PUBLIC_BASE_PATH || "";
+// your handler. The default public path is /<functionName>, so requests to
+// /hello-http arrive with pathname /hello-http, not /.
+// ALWAYS hard-code the function name as BASE_PATH. Do NOT use an env var
+// that defaults to "" — it will be empty and the normalization will be a no-op.
+const BASE_PATH = "/hello-http";
 
 function normalizePath(pathname) {
-  if (!PUBLIC_BASE_PATH || PUBLIC_BASE_PATH === "/") return pathname;
-  if (pathname === PUBLIC_BASE_PATH) return "/";
-  if (pathname.startsWith(PUBLIC_BASE_PATH + "/")) return pathname.slice(PUBLIC_BASE_PATH.length);
+  if (!BASE_PATH || BASE_PATH === "/") return pathname;
+  if (pathname === BASE_PATH) return "/";
+  if (pathname.startsWith(BASE_PATH + "/")) return pathname.slice(BASE_PATH.length);
   return pathname;
 }
 
