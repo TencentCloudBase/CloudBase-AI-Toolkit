@@ -25,6 +25,17 @@ const TERMINAL_ORDER = ['小程序', 'Web', '小游戏', '原生应用'];
 const tutorials: Tutorial[] = [
   // 文章
   {
+    id: 'article-cloudbase-ai-game-development',
+    title: '圆梦：借助云开发 CloudBase实现你的游戏开发梦想',
+    description: '努力的小雨',
+    category: '文章',
+    url: 'https://juejin.cn/post/7441617101999861812',
+    type: 'article',
+    terminalTags: ['Web', '小游戏'],
+    appTypeTags: ['游戏'],
+    devToolTags: ['CodeBuddy'],
+  },
+  {
     id: 'article-qiyi-ai-app-community',
     title: '不会代码，她靠AI开发了APP，要把10万用户的社区运营起来',
     description: '云开发团队',
@@ -388,6 +399,18 @@ const tutorials: Tutorial[] = [
     devToolTags: ['Cursor', 'Figma'],
   },
   // 视频
+  {
+    id: 'video-ios-codebuddy-three-frogs',
+    title: '我帮大家把路铺平了！联合腾讯工程师优化 CodeBuddy 后，零基础做个带后端的 iOS App 竟然这么简单？',
+    description: '经本正一',
+    category: '视频教程',
+    url: 'https://www.bilibili.com/video/BV1iUcszSEUG/',
+    type: 'video',
+    thumbnail: 'http://i0.hdslb.com/bfs/archive/b7a256280c48f357905e753dfce4d39607b1799a.jpg',
+    terminalTags: ['原生应用'],
+    appTypeTags: ['工具/效率'],
+    devToolTags: ['CodeBuddy'],
+  },
   {
     id: 'video-vibecoding-compare-coze-cloudbase',
     title: 'vibecoding托管平台对比 扣子 vs cloudbase',
