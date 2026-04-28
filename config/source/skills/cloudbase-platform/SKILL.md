@@ -109,9 +109,35 @@ Use this skill for **CloudBase platform knowledge** when you need to:
 
 ## Environment and Authentication
 
-1. **SDK Initialization**:
-   - CloudBase SDK initialization requires environment ID
-   - Can query environment ID via `envQuery` tool
+### Getting Environment List
+
+To retrieve all accessible CloudBase environments with their metadata (EnvId, Alias, Status, etc.):
+
+**Using MCP tool:**
+```json
+{
+  "tool": "envQuery",
+  "action": "list",
+  "fields": ["EnvId", "Alias", "Status", "EnvType", "Region", "PackageName", "IsDefault"]
+}
+```
+
+**Resolving an alias to full EnvId:**
+```json
+{
+  "tool": "envQuery",
+  "action": "list",
+  "alias": "your-alias",
+  "aliasExact": true,
+  "fields": ["EnvId", "Alias", "Status"]
+}
+```
+
+### SDK Initialization
+
+1. **Environment ID Required**:
+   - CloudBase SDK initialization requires the full environment ID (EnvId)
+   - Query the environment ID via `envQuery` tool as shown above
    - If the user only provides an environment alias, nickname, or other short form, resolve it with `envQuery(action="list", alias=..., aliasExact=true)` first and use the returned full `EnvId`
    - Do not pass alias-like short forms directly into SDK init, `auth.set_env`, console URLs, or generated config files
    - For Web, always initialize synchronously:

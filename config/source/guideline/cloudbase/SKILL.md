@@ -147,10 +147,49 @@ When your IDE does not support native MCP, use **mcporter** as the CLI to config
   `npx mcporter call cloudbase.auth action=status --output json`
 - Start device-flow login (future-friendly device-code login; no keys in config):
   `npx mcporter call cloudbase.auth action=start_auth authMode=device --output json`
-- If the user gives an environment alias / nickname / short form instead of the full `EnvId`, resolve it first:
-  `npx mcporter call cloudbase.envQuery action=list alias=demo aliasExact=true fields='["EnvId","Alias","Status","IsDefault"]' --output json`
 - Bind environment after login (envId from CloudBase console):
   `npx mcporter call cloudbase.auth action=set_env envId=<full-env-id> --output json`
+
+### Getting Environment List
+
+**Purpose:** Retrieve all CloudBase environments accessible to the current account, including EnvId, Alias, Status, and other metadata.
+
+**When to use:**
+- Before binding an environment to see available options
+- When the user provides an alias/nickname instead of a full EnvId
+- To display environment summary information
+
+**Method 1 - Direct MCP tool call (IDE with MCP):**
+```json
+{
+  "tool": "envQuery",
+  "action": "list",
+  "fields": ["EnvId", "Alias", "Status", "EnvType", "Region", "PackageName", "IsDefault"]
+}
+```
+
+**Method 2 - Using mcporter CLI:**
+```bash
+npx mcporter call cloudbase.envQuery action=list fields='["EnvId","Alias","Status","EnvType","Region","PackageName","IsDefault"]' --output json
+```
+
+**Method 3 - Filter by alias (when resolving a nickname):**
+```json
+{
+  "tool": "envQuery",
+  "action": "list",
+  "alias": "demo",
+  "aliasExact": true,
+  "fields": ["EnvId", "Alias", "Status"]
+}
+```
+
+**Important notes:**
+- `action=list` returns a concise summary with essential fields only
+- Available fields: EnvId, Alias, Status, EnvType, Region, PackageId, PackageName, IsDefault
+- Use `aliasExact=true` to avoid matching prefixes (e.g., "prod" won't match "production")
+- If the user gives an environment alias/nickname/short form instead of the full `EnvId`, always resolve it first with `envQuery(action=list, alias=..., aliasExact=true)` before using it in SDK init, `auth.set_env`, console URLs, or config files
+- For detailed environment information (including billing), use `action=info` instead
 - Query app-side login config:
   `npx mcporter call cloudbase.queryAppAuth action=getLoginConfig --output json`
 - Patch app-side login strategy:
