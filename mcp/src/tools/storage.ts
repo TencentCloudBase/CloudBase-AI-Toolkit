@@ -10,18 +10,18 @@ const STORAGE_READ_TEMP_PREFIX = 'cloudbase-mcp-storage-read-';
 
 // Input schema for queryStorage tool
 const queryStorageInputSchema = {
-  action: z.enum(['list', 'info', 'url', 'read']).describe('查询操作类型：list=列出目录下的所有文件，info=获取指定文件的详细信息，url=获取文件的临时下载链接，read=读取文本文件内容'),
-  cloudPath: z.string().describe('云端文件路径，例如 files/data.txt 或 files/（目录）'),
-  maxAge: z.number().min(1).max(86400).optional().default(3600).describe('临时链接有效期，单位为秒，取值范围：1-86400，默认值：3600（1小时）')
+  action: z.enum(['list', 'info', 'url', 'read']).describe("查询操作类型。可选值：'list'（列出目录文件）, 'info'（获取文件信息）, 'url'（获取临时下载链接）, 'read'（读取文本内容）。示例：action='list'"),
+  cloudPath: z.string().describe("云端文件路径，格式为'目录/文件名'或'目录/'（目录以/结尾）。正确示例：'images/photo.jpg'、'data/'（列出data目录）、'docs/readme.txt'。错误示例：'/images/photo.jpg'（不要以/开头）"),
+  maxAge: z.number().min(1).max(86400).optional().default(3600).describe("临时链接有效期（单位：秒），仅当action='url'时有效。取值范围：1-86400，默认值：3600（1小时）。示例：maxAge=7200（2小时）")
 };
 
 // Input schema for manageStorage tool
 const manageStorageInputSchema = {
-  action: z.enum(['upload', 'download', 'delete']).describe('管理操作类型：upload=上传文件或目录，download=下载文件或目录，delete=删除文件或目录'),
-  localPath: z.string().describe('本地文件路径，建议传入绝对路径，例如 /tmp/files/data.txt'),
-  cloudPath: z.string().describe('云端文件路径，例如 files/data.txt'),
-  force: z.boolean().optional().default(false).describe('强制操作开关，删除操作时建议设置为true以确认删除，默认false'),
-  isDirectory: z.boolean().optional().default(false).describe('是否为目录操作，true=目录操作，false=文件操作，默认false')
+  action: z.enum(['upload', 'download', 'delete']).describe("管理操作类型。可选值：'upload'（上传）, 'download'（下载）, 'delete'（删除）。示例：action='upload'"),
+  localPath: z.string().describe("本地文件绝对路径。示例：'/Users/name/documents/file.txt'（macOS/Linux）、'C:/Users/name/documents/file.txt'（Windows）"),
+  cloudPath: z.string().describe("云端文件路径，格式为'目录/文件名'。正确示例：'images/photo.jpg'、'backup/data.zip'。错误示例：'/images/photo.jpg'（不要以/开头）"),
+  force: z.boolean().optional().default(false).describe("删除操作确认开关。当action='delete'时必须设置为true以确认删除，防止误删。默认值：false。示例：force=true"),
+  isDirectory: z.boolean().optional().default(false).describe("是否为目录操作。true表示操作目录，false表示操作单个文件。默认值：false。示例：isDirectory=true（上传/下载/删除整个目录）")
 };
 
 type QueryStorageInput = {
@@ -69,7 +69,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
     "queryStorage",
     {
       title: "查询存储信息",
-      description: "查询云存储信息，支持列出目录文件、获取文件信息、获取临时下载链接等只读操作。返回的文件信息包括文件名、大小、修改时间、下载链接等。",
+      description: "查询云存储信息，支持列出目录文件、获取文件信息、获取临时下载链接等只读操作。\n\n使用示例：\n- 列出目录文件: { action: 'list', cloudPath: 'images/' }\n- 获取文件信息: { action: 'info', cloudPath: 'images/photo.jpg' }\n- 获取下载链接: { action: 'url', cloudPath: 'docs/file.pdf', maxAge: 3600 }\n- 读取文本内容: { action: 'read', cloudPath: 'config.json' }\n\n注意：cloudPath不要以/开头，应直接使用相对路径如'images/photo.jpg'",
       inputSchema: queryStorageInputSchema,
       annotations: {
         readOnlyHint: true,
@@ -207,7 +207,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
     "manageStorage",
     {
       title: "管理存储文件",
-      description: "管理云存储文件，仅用于 COS/Storage 对象，不用于静态网站托管。支持上传文件/目录、下载文件/目录、删除文件/目录等操作。删除操作需要设置force=true进行确认，防止误删除重要文件。",
+      description: "管理云存储文件，仅用于 COS/Storage 对象，不用于静态网站托管。支持上传文件/目录、下载文件/目录、删除文件/目录等操作。\n\n使用示例：\n- 上传文件: { action: 'upload', localPath: '/Users/name/file.txt', cloudPath: 'docs/file.txt' }\n- 上传目录: { action: 'upload', localPath: '/Users/name/images', cloudPath: 'backup/images', isDirectory: true }\n- 下载文件: { action: 'download', localPath: '/tmp/file.txt', cloudPath: 'docs/file.txt' }\n- 删除文件: { action: 'delete', cloudPath: 'docs/file.txt', force: true }\n- 删除目录: { action: 'delete', cloudPath: 'backup/images', isDirectory: true, force: true }\n\n注意：\n1. cloudPath不要以/开头，应直接使用相对路径如'images/photo.jpg'\n2. 删除操作必须设置force=true进行确认\n3. 操作目录时必须设置isDirectory=true",
       inputSchema: manageStorageInputSchema,
       annotations: {
         readOnlyHint: false,
