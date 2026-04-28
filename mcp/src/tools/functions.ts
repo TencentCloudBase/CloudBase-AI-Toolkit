@@ -1449,14 +1449,23 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
           .describe("写操作类型，例如 createFunction、invokeFunction、attachLayer"),
-        func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
+        func: CREATE_FUNCTION_SCHEMA.optional().describe(
+          "createFunction 操作的函数配置。" +
+          "\n\n创建 HTTP 函数时，至少需要指定：" +
+          "\n- name: 函数名称" +
+          "\n- type: \"HTTP\"" +
+          "\n- protocolType: \"HTTP\" (或 \"WS\" 用于 WebSocket)" +
+          "\n- runtime: 运行时环境（如 \"Nodejs18.15\"）" +
+          "\n\n⚠️ 注意：HTTP 函数创建时必须同时提供 functionRootPath 或 zipFile 参数来定位函数代码。",
+        ),
         functionRootPath: z.string().optional().describe(
           "创建或更新函数代码时默认推荐的本地目录方式。" +
           "必须是直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions 或 /abs/path/functions），" +
           "不要传项目根目录（如 /abs/path），也不要传到函数名子目录（如 /abs/path/cloudfunctions/hello）。" +
           "本地应按 cloudfunctions/<functionName>/index.js 或 functions/<functionName>/index.js 布局，" +
           "此参数传 cloudfunctions 或 functions 目录的绝对路径。" +
-          "SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。",
+          "SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。" +
+          "\n\n⚠️ 创建 HTTP 函数时，此参数或 zipFile 是必需的（HTTP 函数需要通过此参数定位函数代码目录）。",
         ),
         force: z.boolean().optional().describe("createFunction 时是否覆盖"),
         functionName: z.string().optional().describe("函数名称。大多数 action 使用该字段作为统一目标"),
