@@ -1412,11 +1412,14 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "查询云函数域资源",
       description:
-        "函数域统一只读入口。通过更自解释的 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。",
+        "函数域统一只读入口。支持查询函数列表、函数详情、日志、层、触发器和代码下载地址。" +
+        "触发器相关：使用 listFunctionTriggers 查询函数的定时触发器（timer）配置。",
       inputSchema: {
         action: z
           .enum(QUERY_FUNCTION_ACTIONS)
-          .describe("只读操作类型，例如 listFunctions、getFunctionDetail、listFunctionLogs"),
+          .describe(
+            "只读操作类型，例如 listFunctions、getFunctionDetail、listFunctionLogs、listFunctionTriggers"
+          ),
         functionName: z.string().optional().describe("函数名称。函数相关 action 必填"),
         limit: z.number().optional().describe("分页数量。列表类 action 可选"),
         offset: z.number().optional().describe("分页偏移。列表类 action 可选"),
@@ -1444,11 +1447,15 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "管理云函数域资源",
       description:
-        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。",
+        "函数域统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理触发器（timer定时触发器）和层绑定。" +
+        "定时触发器：使用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。" +
+        "危险操作需要显式 confirm=true。",
       inputSchema: {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
-          .describe("写操作类型，例如 createFunction、invokeFunction、attachLayer"),
+          .describe(
+            "写操作类型，例如 createFunction、invokeFunction、createFunctionTrigger、deleteFunctionTrigger、attachLayer"
+          ),
         func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
         functionRootPath: z.string().optional().describe(
           "创建或更新函数代码时默认推荐的本地目录方式。" +
@@ -1468,7 +1475,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         envVariables: z.record(z.string()).optional().describe("配置更新时要合并的环境变量"),
         vpc: VPC_SCHEMA.optional().describe("配置更新时的 VPC 信息"),
         params: z.record(z.any()).optional().describe("invokeFunction 的调用参数"),
-        triggers: z.array(TRIGGER_SCHEMA).optional().describe("createFunctionTrigger 的触发器列表"),
+        triggers: z
+          .array(TRIGGER_SCHEMA)
+          .optional()
+          .describe(
+            "createFunctionTrigger 的触发器列表。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），" +
+            '如 "0 */5 * * * * *" 表示每5分钟执行一次'
+          ),
         triggerName: z.string().optional().describe("deleteFunctionTrigger 的目标触发器名称"),
         layerName: z.string().optional().describe("层名称"),
         layerVersion: z.number().optional().describe("层版本号"),
