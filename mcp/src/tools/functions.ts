@@ -561,7 +561,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "getFunctionDetail": {
       if (!input.functionName) {
-        throw new Error("getFunctionDetail 操作时，functionName 参数是必需的");
+        throw new Error("getFunctionDetail 操作时，functionName 参数是必需的。示例：{ \"action\": \"getFunctionDetail\", \"functionName\": \"hello-world\" }");
       }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.getFunctionDetail(
@@ -601,7 +601,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "listFunctionLogs": {
       if (!input.functionName) {
-        throw new Error("listFunctionLogs 操作时，functionName 参数是必需的");
+        throw new Error("listFunctionLogs 操作时，functionName 参数是必需的。示例：{ \"action\": \"listFunctionLogs\", \"functionName\": \"hello-world\" }");
       }
       validateLogRange(
         input.startTime,
@@ -640,7 +640,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "getFunctionLogDetail": {
       if (!input.requestId) {
-        throw new Error("getFunctionLogDetail 操作时，requestId 参数是必需的");
+        throw new Error("getFunctionLogDetail 操作时，requestId 参数是必需的。示例：{ \"action\": \"getFunctionLogDetail\", \"requestId\": \"abc123-def456\" }");
       }
       validateLogRange(input.startTime, input.endTime);
       const cloudbase = await getManager();
@@ -662,7 +662,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "listFunctionLayers": {
       if (!input.functionName) {
-        throw new Error("listFunctionLayers 操作时，functionName 参数是必需的");
+        throw new Error("listFunctionLayers 操作时，functionName 参数是必需的。示例：{ \"action\": \"listFunctionLayers\", \"functionName\": \"hello-world\" }");
       }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.getFunctionDetail(
@@ -729,7 +729,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "listLayerVersions": {
       if (!input.layerName) {
-        throw new Error("listLayerVersions 操作时，layerName 参数是必需的");
+        throw new Error("listLayerVersions 操作时，layerName 参数是必需的。示例：{ \"action\": \"listLayerVersions\", \"layerName\": \"my-layer\" }");
       }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.listLayerVersions({
@@ -761,10 +761,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "getLayerVersionDetail": {
       if (!input.layerName) {
-        throw new Error("getLayerVersionDetail 操作时，layerName 参数是必需的");
+        throw new Error("getLayerVersionDetail 操作时，layerName 参数是必需的。示例：{ \"action\": \"getLayerVersionDetail\", \"layerName\": \"my-layer\", \"layerVersion\": 1 }");
       }
       if (typeof input.layerVersion !== "number") {
-        throw new Error("getLayerVersionDetail 操作时，layerVersion 参数是必需的");
+        throw new Error("getLayerVersionDetail 操作时，layerVersion 参数是必需的（必须为数字）。示例：{ \"action\": \"getLayerVersionDetail\", \"layerName\": \"my-layer\", \"layerVersion\": 1 }");
       }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.getLayerVersion({
@@ -798,7 +798,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "listFunctionTriggers": {
       if (!input.functionName) {
-        throw new Error("listFunctionTriggers 操作时，functionName 参数是必需的");
+        throw new Error("listFunctionTriggers 操作时，functionName 参数是必需的。示例：{ \"action\": \"listFunctionTriggers\", \"functionName\": \"hello-world\" }");
       }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.getFunctionDetail(
@@ -831,7 +831,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "getFunctionDownloadUrl": {
       if (!input.functionName) {
-        throw new Error("getFunctionDownloadUrl 操作时，functionName 参数是必需的");
+        throw new Error("getFunctionDownloadUrl 操作时，functionName 参数是必需的。示例：{ \"action\": \"getFunctionDownloadUrl\", \"functionName\": \"hello-world\" }");
       }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.getFunctionDownloadUrl(
@@ -864,7 +864,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     switch (input.action) {
     case "createFunction": {
       if (!input.func?.name || typeof input.func.name !== "string") {
-        throw new Error("createFunction 操作时，func.name 参数是必需的");
+        throw new Error("createFunction 操作时，func.name 参数是必需的。示例：{ \"action\": \"createFunction\", \"func\": { \"name\": \"hello-world\", \"type\": \"Event\" } }");
       }
       const cloudbase = await getManager();
 
@@ -994,7 +994,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "updateFunctionCode": {
       if (!input.functionName) {
-        throw new Error("updateFunctionCode 操作时，functionName 参数是必需的");
+        throw new Error("updateFunctionCode 操作时，functionName 参数是必需的。示例：{ \"action\": \"updateFunctionCode\", \"functionName\": \"hello-world\" }");
       }
       const cloudbase = await getManager();
 
@@ -1046,7 +1046,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "updateFunctionConfig": {
       if (!input.functionName) {
-        throw new Error("updateFunctionConfig 操作时，functionName 参数是必需的");
+        throw new Error("updateFunctionConfig 操作时，functionName 参数是必需的。示例：{ \"action\": \"updateFunctionConfig\", \"functionName\": \"hello-world\" }");
       }
       const cloudbase = await getManager();
 
@@ -1108,7 +1108,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "invokeFunction": {
       if (!input.functionName) {
-        throw new Error("invokeFunction 操作时，functionName 参数是必需的");
+        throw new Error("invokeFunction 操作时，functionName 参数是必需的。示例：{ \"action\": \"invokeFunction\", \"functionName\": \"hello-world\" }");
       }
       const cloudbase = await getManager();
       try {
@@ -1149,10 +1149,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "createFunctionTrigger": {
       if (!input.functionName) {
-        throw new Error("createFunctionTrigger 操作时，functionName 参数是必需的");
+        throw new Error("createFunctionTrigger 操作时，functionName 参数是必需的。示例：{ \"action\": \"createFunctionTrigger\", \"functionName\": \"hello-world\", \"triggers\": [{ \"name\": \"my-timer\", \"type\": \"timer\", \"config\": \"0 0 2 1 * * *\" }] }");
       }
       if (!input.triggers?.length) {
-        throw new Error("createFunctionTrigger 操作时，triggers 参数是必需的");
+        throw new Error("createFunctionTrigger 操作时，triggers 参数是必需的（非空数组）。示例：{ \"action\": \"createFunctionTrigger\", \"functionName\": \"hello-world\", \"triggers\": [{ \"name\": \"my-timer\", \"type\": \"timer\", \"config\": \"0 0 2 1 * * *\" }] }");
       }
       // Validate timer cron format before sending to CloudBase
       for (const trigger of input.triggers) {
@@ -1184,10 +1184,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "deleteFunctionTrigger": {
       if (!input.functionName) {
-        throw new Error("deleteFunctionTrigger 操作时，functionName 参数是必需的");
+        throw new Error("deleteFunctionTrigger 操作时，functionName 参数是必需的。示例：{ \"action\": \"deleteFunctionTrigger\", \"functionName\": \"hello-world\", \"triggerName\": \"my-timer\", \"confirm\": true }");
       }
       if (!input.triggerName) {
-        throw new Error("deleteFunctionTrigger 操作时，triggerName 参数是必需的");
+        throw new Error("deleteFunctionTrigger 操作时，triggerName 参数是必需的。示例：{ \"action\": \"deleteFunctionTrigger\", \"functionName\": \"hello-world\", \"triggerName\": \"my-timer\", \"confirm\": true }");
       }
       requireConfirm(input.action, input.confirm);
       const cloudbase = await getManager();
@@ -1214,14 +1214,14 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "createLayerVersion": {
       if (!input.layerName) {
-        throw new Error("createLayerVersion 操作时，layerName 参数是必需的");
+        throw new Error("createLayerVersion 操作时，layerName 参数是必需的。示例：{ \"action\": \"createLayerVersion\", \"layerName\": \"my-layer\", \"runtimes\": [\"Nodejs18.15\"], \"contentPath\": \"/path/to/layer\" }");
       }
       if (!input.runtimes?.length) {
-        throw new Error("createLayerVersion 操作时，runtimes 参数是必需的");
+        throw new Error("createLayerVersion 操作时，runtimes 参数是必需的（非空数组）。示例：{ \"action\": \"createLayerVersion\", \"layerName\": \"my-layer\", \"runtimes\": [\"Nodejs18.15\"], \"contentPath\": \"/path/to/layer\" }");
       }
       if (!input.contentPath && !input.base64Content) {
         throw new Error(
-          "createLayerVersion 操作时，contentPath 和 base64Content 至少需要提供一个",
+          "createLayerVersion 操作时，contentPath 和 base64Content 至少需要提供一个。示例：{ \"action\": \"createLayerVersion\", \"layerName\": \"my-layer\", \"runtimes\": [\"Nodejs18.15\"], \"contentPath\": \"/path/to/layer\" }",
         );
       }
       const cloudbase = await getManager();
@@ -1254,10 +1254,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "deleteLayerVersion": {
       if (!input.layerName) {
-        throw new Error("deleteLayerVersion 操作时，layerName 参数是必需的");
+        throw new Error("deleteLayerVersion 操作时，layerName 参数是必需的。示例：{ \"action\": \"deleteLayerVersion\", \"layerName\": \"my-layer\", \"layerVersion\": 1, \"confirm\": true }");
       }
       if (typeof input.layerVersion !== "number") {
-        throw new Error("deleteLayerVersion 操作时，layerVersion 参数是必需的");
+        throw new Error("deleteLayerVersion 操作时，layerVersion 参数是必需的（必须为数字）。示例：{ \"action\": \"deleteLayerVersion\", \"layerName\": \"my-layer\", \"layerVersion\": 1, \"confirm\": true }");
       }
       requireConfirm(input.action, input.confirm);
       const cloudbase = await getManager();
@@ -1287,17 +1287,17 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     case "detachLayer":
     case "updateFunctionLayers": {
       if (!input.functionName) {
-        throw new Error(`${input.action} 操作时，functionName 参数是必需的`);
+        throw new Error(`${input.action} 操作时，functionName 参数是必需的。示例：{ \"action\": \"attachLayer\", \"functionName\": \"hello-world\", \"layerName\": \"my-layer\", \"layerVersion\": 1 }`);
       }
       const cloudbase = await getManager();
       const envId = await getEnvId(cloudBaseOptions);
 
       if (input.action === "attachLayer") {
         if (!input.layerName) {
-          throw new Error("attachLayer 操作时，layerName 参数是必需的");
+          throw new Error("attachLayer 操作时，layerName 参数是必需的。示例：{ \"action\": \"attachLayer\", \"functionName\": \"hello-world\", \"layerName\": \"my-layer\", \"layerVersion\": 1 }");
         }
         if (typeof input.layerVersion !== "number") {
-          throw new Error("attachLayer 操作时，layerVersion 参数是必需的");
+          throw new Error("attachLayer 操作时，layerVersion 参数是必需的（必须为数字）。示例：{ \"action\": \"attachLayer\", \"functionName\": \"hello-world\", \"layerName\": \"my-layer\", \"layerVersion\": 1 }");
         }
         const result = await cloudbase.functions.attachLayer({
           envId,
@@ -1332,10 +1332,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
       if (input.action === "detachLayer") {
         if (!input.layerName) {
-          throw new Error("detachLayer 操作时，layerName 参数是必需的");
+          throw new Error("detachLayer 操作时，layerName 参数是必需的。示例：{ \"action\": \"detachLayer\", \"functionName\": \"hello-world\", \"layerName\": \"my-layer\", \"layerVersion\": 1, \"confirm\": true }");
         }
         if (typeof input.layerVersion !== "number") {
-          throw new Error("detachLayer 操作时，layerVersion 参数是必需的");
+          throw new Error("detachLayer 操作时，layerVersion 参数是必需的（必须为数字）。示例：{ \"action\": \"detachLayer\", \"functionName\": \"hello-world\", \"layerName\": \"my-layer\", \"layerVersion\": 1, \"confirm\": true }");
         }
         requireConfirm(input.action, input.confirm);
         const result = await cloudbase.functions.unAttachLayer({
@@ -1372,7 +1372,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       const normalizedLayers = normalizeManageLayers(input.layers);
       if (!normalizedLayers.length) {
         throw new Error(
-          "updateFunctionLayers 操作时，layers 参数必须包含有效的 layerName 和 layerVersion",
+          "updateFunctionLayers 操作时，layers 参数必须包含有效的 layerName 和 layerVersion。示例：{ \"action\": \"updateFunctionLayers\", \"functionName\": \"hello-world\", \"layers\": [{ \"layerName\": \"my-layer\", \"layerVersion\": 1 }] }",
         );
       }
       const result = await cloudbase.functions.updateFunctionLayer({

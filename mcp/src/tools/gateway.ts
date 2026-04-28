@@ -267,7 +267,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     }
     case "getAccess": {
       if (!input.targetName) {
-        throw new Error("getAccess 操作时，targetName 参数是必需的");
+        throw new Error("getAccess 操作时，targetName 参数是必需的。示例：{ \"action\": \"getAccess\", \"targetName\": \"hello-world\" }");
       }
 
       const cloudbase = await getManager();
