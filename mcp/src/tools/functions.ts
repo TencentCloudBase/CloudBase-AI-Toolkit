@@ -1412,14 +1412,18 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "查询云函数域资源",
       description:
-        "函数域统一只读入口。通过更自解释的 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。",
+        "函数域统一只读入口。通过更自解释的 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。\n\n" +
+        "【分页说明】列表类操作（listFunctions、listLayers）支持分页参数：\n" +
+        "- limit: 分页数量，默认返回所有\n" +
+        "- offset: 分页偏移，从 0 开始\n" +
+        "示例：先调用 listFunctions 获取总数，如需翻页则传入 offset=10 limit=10",
       inputSchema: {
         action: z
           .enum(QUERY_FUNCTION_ACTIONS)
           .describe("只读操作类型，例如 listFunctions、getFunctionDetail、listFunctionLogs"),
         functionName: z.string().optional().describe("函数名称。函数相关 action 必填"),
-        limit: z.number().optional().describe("分页数量。列表类 action 可选"),
-        offset: z.number().optional().describe("分页偏移。列表类 action 可选"),
+        limit: z.number().optional().describe("分页数量（limit），用于列表类 action 控制返回条数"),
+        offset: z.number().optional().describe("分页偏移（offset），从 0 开始，用于列表类 action 翻页"),
         codeSecret: z.string().optional().describe("代码保护密钥"),
         startTime: z.string().optional().describe("日志查询开始时间"),
         endTime: z.string().optional().describe("日志查询结束时间"),
