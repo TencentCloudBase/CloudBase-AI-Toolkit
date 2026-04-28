@@ -57,6 +57,18 @@ Use when the user wants to manage CloudBase resources via command line:
 - Console UI operations
 - CloudBase Agent SDK development → use `cloudbase-agent-ts`
 
+## When CLI is disabled
+
+If you receive a runtime notice that **CloudBase CLI is DISABLED** but **CloudBase MCP tools are ENABLED**:
+
+1. **Do NOT attempt CLI commands** (`tcb fn ...`, etc.) - they will fail
+2. **Use equivalent MCP tools instead** - see `cloud-functions` skill for CLI-to-MCP capability mapping
+3. **Key equivalencies**:
+   - `tcb fn list` → `queryFunctions(action="listFunctions")`
+   - `tcb fn deploy <name>` → `manageFunctions(action="createFunction"|"updateFunctionCode")`
+   - `tcb fn invoke <name>` → `manageFunctions(action="invokeFunction")`
+   - `tcb fn log <name>` → `queryFunctions(action="listFunctionLogs")` or `queryLogs(action="searchLogs")`
+
 ## How to use this skill (for a coding agent)
 
 1. **Always load `references/core.md` first** — it covers authentication,

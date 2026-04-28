@@ -236,17 +236,41 @@ The `scf_bootstrap` binary path must match the runtime — see the full mapping 
 
 ## Preferred tool map
 
+### When CLI is disabled but MCP is available
+
+If the runtime capability notice shows **CloudBase CLI is DISABLED** but **CloudBase MCP tools are ENABLED**, and the task explicitly asks to "use CLI":
+
+1. **Do NOT attempt to use CLI commands** - they will fail with unavailable errors
+2. **Use the equivalent MCP tools instead** - they provide the same capabilities
+3. **Follow this capability mapping**:
+
+| CLI Task | Equivalent MCP Tool | Action/Parameters |
+|----------|--------------------|--------------------|
+| `tcb fn list` | `queryFunctions` | `action="listFunctions"` |
+| `tcb fn deploy <name>` | `manageFunctions` | `action="createFunction"` or `action="updateFunctionCode"` |
+| `tcb fn get <name>` | `queryFunctions` | `action="getFunctionDetail"` with `functionName` |
+| `tcb fn invoke <name>` | `manageFunctions` | `action="invokeFunction"` with `functionName` |
+| `tcb fn log <name>` | `queryFunctions` | `action="listFunctionLogs"` with `functionName` |
+| `tcb fn log --reqId <id>` | `queryLogs` | `action="searchLogs"` with `queryString` containing `requestId` |
+| `tcb fn delete <name>` | `manageFunctions` | `action="deleteFunction"` with `functionName` |
+| `tcb fn gateway create` | `manageGateway` | `action="createAccess"` |
+| `tcb fn gateway list` | `queryGateway` | `action="getAccess"` |
+
+**Important**: When calling functions via MCP, the `requestId` returned is `FunctionRequestId`. Use this value for log queries.
+
 ### Function management
 
 - `queryFunctions(action="listFunctions"|"getFunctionDetail")`
 - `manageFunctions(action="createFunction")`
 - `manageFunctions(action="updateFunctionCode")`
 - `manageFunctions(action="updateFunctionConfig")`
+- `manageFunctions(action="invokeFunction")` - Call a function directly via MCP
 
 ### Logs
 
 - `queryFunctions(action="listFunctionLogs")`
 - `queryFunctions(action="getFunctionLogDetail")`
+- `queryLogs(action="searchLogs")` - Search CLS logs by requestId or query string
 - If these are unavailable, read `./references/operations-and-config.md` before any `callCloudApi` fallback
 
 ### Gateway exposure
