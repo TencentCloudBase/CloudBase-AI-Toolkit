@@ -539,7 +539,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       return buildEnvelope(
         {
           action: input.action,
-          functions: result.Functions || [],
+          functions: (result.Functions || []).map((fn) => ({
+            name: fn.FunctionName,
+            ...fn,
+          })),
           totalCount: result.TotalCount || 0,
           requestId: result.RequestId,
           raw: result,
