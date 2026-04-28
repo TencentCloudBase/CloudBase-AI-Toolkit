@@ -401,6 +401,30 @@ export function buildFunctionOperationErrorMessage(
     );
   }
 
+  // Handle 400 invalid parameter value errors from CloudBase API
+  if (/400.*invalid.*parameter|invalid.*parameter.*value/i.test(baseMessage)) {
+    suggestions.push(
+      "云 API 返回参数错误，请检查以下常见问题：",
+    );
+    suggestions.push(
+      "1. 函数名只能包含字母、数字、下划线和连字符，且不能以数字开头，长度不超过60个字符",
+    );
+    suggestions.push(
+      "2. Runtime 必须为支持的版本（如 Nodejs20.19、Nodejs18.15、Python3.9 等）",
+    );
+    suggestions.push(
+      "3. Handler 格式必须正确（对于 Node.js，格式为 文件名.导出函数名，如 index.main）",
+    );
+    suggestions.push(
+      "4. Timeout 值必须在 1-300 秒之间",
+    );
+    if (operation === "createFunction") {
+      suggestions.push(
+        `当前传入的参数：函数名=${functionName}，请核对以上格式要求后重试。`,
+      );
+    }
+  }
+
   if (suggestions.length === 0) {
     suggestions.push("请检查函数名、目录结构和环境中的函数状态后重试。");
   }
