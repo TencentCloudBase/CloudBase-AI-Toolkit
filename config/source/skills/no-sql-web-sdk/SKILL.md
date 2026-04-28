@@ -51,6 +51,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Misreading the return shape of `db.collection(...).add(...)`. In the CloudBase Web SDK, the created document ID is exposed at top-level `result._id`, not `result.id`, `result.data.id`, or `result.insertedId`.
 - For CMS-style collections that need **app-level admin users** to edit/delete all records while editors can only edit/delete their own records, do not oversimplify the rule to `READONLY`. A validated pattern is a `CUSTOM` rule that reads role from `user_roles` by `auth.uid` and combines it with `doc.authorId == auth.uid`, while frontend writes can stay on `.doc(id).update()` / `.doc(id).remove()`.
 - Forgetting pagination or indexes for larger collections.
+- **Not handling the `init` event in `.watch()`.** When you call `.watch()`, the first `onChange` callback has `snapshot.type === "init"` and delivers all existing matching documents in `snapshot.docs`. If you only process `dataType === "update"` or later change events, your UI will never display existing data. Always handle `init` (or simply always read `snapshot.docs`) to populate initial state. See `realtime.md` for details.
 
 ### Minimal checklist
 
