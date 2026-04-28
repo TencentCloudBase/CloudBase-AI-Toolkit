@@ -590,11 +590,16 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
         description: z.string().optional(),
         memberUids: z.array(z.string()).optional(),
         policies: z.array(z.record(z.any())).optional(),
-        uid: z.string().optional(),
-        uids: z.array(z.string()).optional(),
-        username: z.string().optional(),
-        password: z.string().optional(),
-        userStatus: z.enum(["ACTIVE", "BLOCKED"]).optional(),
+        uid: z.string().optional().describe("用户唯一标识（uid），updateUser 时必需"),
+        uids: z.array(z.string()).optional().describe("用户 UID 列表，deleteUsers 时必需"),
+        username: z.string().optional().describe("用户名，createUser 时必需"),
+        password: z.string().optional().describe("用户密码，createUser / updateUser 时可用"),
+        userStatus: z.enum(["ACTIVE", "BLOCKED"]).optional().describe("用户状态：ACTIVE 启用，BLOCKED 禁用"),
+        userType: z.enum(["internalUser", "externalUser"]).optional().describe("用户类型：internalUser 内部用户，externalUser 外部用户"),
+        nickName: z.string().optional().describe("用户昵称"),
+        phone: z.string().optional().describe("用户手机号"),
+        email: z.string().optional().describe("用户邮箱"),
+        avatarUrl: z.string().optional().describe("用户头像 URL"),
       },
       annotations: {
         readOnlyHint: false,
@@ -622,6 +627,11 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
       username,
       password,
       userStatus,
+      userType,
+      nickName,
+      phone,
+      email,
+      avatarUrl,
     }: {
       action: ManagePermissionAction;
       resourceType?: LegacyResourceType;
@@ -640,6 +650,11 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
       username?: string;
       password?: string;
       userStatus?: "ACTIVE" | "BLOCKED";
+      userType?: "internalUser" | "externalUser";
+      nickName?: string;
+      phone?: string;
+      email?: string;
+      avatarUrl?: string;
     }) =>
       withEnvelope(async () => {
         const envId = await getEnvId(cloudBaseOptions);
@@ -763,8 +778,13 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
             const result = await cloudbase.user.createUser({
               name: username,
               password,
+              type: userType,
               userStatus,
               description,
+              nickName,
+              phone,
+              email,
+              avatarUrl,
             });
             logCloudBaseResult(server.logger, result);
             return buildEnvelope(
@@ -784,9 +804,14 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
             const result = await cloudbase.user.modifyUser({
               uid,
               name: username,
+              type: userType,
               password,
               userStatus,
               description,
+              nickName,
+              phone,
+              email,
+              avatarUrl,
             });
             logCloudBaseResult(server.logger, result);
             return buildEnvelope(

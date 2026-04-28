@@ -327,14 +327,13 @@ describe("permission tools", () => {
     expect(mockCreateUser).toHaveBeenCalledWith({
       name: "bob",
       password: "secret123",
+      type: undefined,
       userStatus: undefined,
       description: undefined,
-      type: undefined,
       nickName: undefined,
       phone: undefined,
       email: undefined,
       avatarUrl: undefined,
-      uid: undefined,
     });
     expect(payload).toMatchObject({
       success: true,
