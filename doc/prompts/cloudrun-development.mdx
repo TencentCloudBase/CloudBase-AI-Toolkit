@@ -74,8 +74,9 @@ Keep local `references/...` paths for files that ship with the current skill dir
 ### Do NOT use for
 
 - Simple Event Function or HTTP Function workflows that fit the function model better.
-- Frontend-only projects with no backend service.
 - Database-schema design tasks.
+
+> **Note**: CloudRun **does** support deploying frontend projects (React/Vue/Vite etc.) as container services. The system can auto-detect the framework and build configuration — see the **Zero-config deployment** section below.
 
 ### Common mistakes / gotchas
 
@@ -84,6 +85,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Treating CloudRun as stateful app hosting and storing important state on local disk.
 - Assuming local run is available for Container mode.
 - Opening public access by default when the scenario only needs private or mini-program internal access.
+- Over-specifying `serverConfig` when zero-config deployment would work — the system auto-detects framework type and applies sensible defaults; only override when the user explicitly requests custom CPU/memory/replicas.
+- Forgetting to call `queryCloudRun(action="detail")` after deploy to verify the deployment status and catch build failures early.
 
 ### Minimal checklist
 
@@ -159,7 +162,41 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 - `manageCloudRun(action="delete")` -> delete service
 - `manageCloudRun(action="createAgent")` -> create Agent service
 
-## Access guidance
+## Zero-config deployment
+
+CloudRun supports **zero-config deployment** — the system auto-detects the project framework (React, Vue, Vite, etc.) and generates a build configuration automatically. This is the recommended approach for most frontend and Node.js projects.
+
+### When to use zero-config
+
+- The project has a `package.json` with a `build` script (e.g. Vite, Create React App, Next.js)
+- The user says "deploy without manual configuration" or "auto-detect"
+- You are unsure about the correct build parameters — let the system figure it out
+
+### When you still need serverConfig
+
+- The user explicitly requests specific CPU, memory, or replica counts
+- The service needs a non-default access type (e.g. VPC-only, mini-program internal)
+- The deployment fails with zero-config and you need to override auto-detected values
+
+### How zero-config deploy works
+
+1. Call `manageCloudRun(action="deploy")` with only `serverName` and `targetPath` — omit `serverConfig` entirely.
+2. The system auto-detects `serverType` (function vs container) based on the project structure:
+   - Has Dockerfile → container
+   - Has `@cloudbase/aiagent-framework` dependency → function
+   - Otherwise → container (suitable for frontend projects)
+3. After deploy, call `queryCloudRun(action="detail")` to check the deployment status.
+4. If the build fails, call `queryCloudRun(action="getDeployLog")` to read the build log and diagnose the issue.
+
+### Frontend project deployment flow
+
+For deploying a React/Vue/Vite frontend project:
+
+1. Ensure the project has `package.json` with a `build` script that outputs to `dist/`.
+2. Call `manageCloudRun(action="deploy", serverName="my-app", targetPath="/abs/path/to/project")`.
+3. Wait for deployment, then check status with `queryCloudRun(action="detail", detailServerName="my-app")`.
+4. The deployed service URL follows the pattern `https://<domain>/<serviceName>`.
+5. A `cloudbaserc.json` file is auto-generated in the project directory after deployment.
 
 - **Web/public scenarios** -> enable WEB access intentionally and pair it with the right auth flow.
 - **Mini Program** -> prefer internal direct connection and avoid unnecessary public exposure.
@@ -179,7 +216,19 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 { "action": "run", "serverName": "my-svc", "targetPath": "/abs/ws/my-svc", "runOptions": { "port": 3000 } }
 ```
 
-### Deploy
+### Deploy (zero-config — recommended default)
+
+Omit `serverConfig` to let the system auto-detect framework type and apply defaults. This is the simplest and most reliable way to deploy.
+
+```json
+{
+  "action": "deploy",
+  "serverName": "my-svc",
+  "targetPath": "/abs/ws/my-svc"
+}
+```
+
+### Deploy (with custom config — only when user requests specific resources)
 
 ```json
 {
@@ -198,6 +247,20 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 
 `MinNum: 1` is the recommended default when you want to reduce cold-start latency. If the user explicitly prefers lower cost and accepts more cold starts, explain the tradeoff and let them reduce `MinNum` to `0`.
 
+### Verify deployment after deploy
+
+Always check the deployment result after triggering a deploy:
+
+```json
+{ "action": "detail", "detailServerName": "my-svc" }
+```
+
+If the deploy status shows `failed`, retrieve the build log:
+
+```json
+{ "action": "getDeployLog", "detailServerName": "my-svc" }
+```
+
 ## Best practices
 
 1. Prefer PRIVATE/VPC or mini-program internal access when possible.
@@ -209,9 +272,19 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 ## Troubleshooting hints
 
 - **Access failure** -> check access type, domain setup, and whether the instance scaled to zero.
-- **Deployment failure** -> inspect Dockerfile, build logs, and CPU/memory ratio.
+- **Deployment failure** -> inspect build logs with `queryCloudRun(action="getDeployLog")`. Common causes:
+  - Missing `build` script in `package.json` — add a script that outputs to `dist/`.
+  - Build command exits non-zero — run `npm run build` locally first to verify.
+  - Dockerfile syntax error (container mode) — validate locally with `docker build`.
+  - CPU/memory ratio invalid — ensure `Mem = 2 × CPU` (e.g. 0.5 CPU / 1 GB Mem).
+  - Port mismatch — the app must listen on the port specified in `serverConfig.Port` (default: auto-detected).
+  - "已有部署发布任务运行中" -> wait for the existing deploy to finish or retry with `force: true`.
 - **Local run failure** -> remember only Function mode is supported by local-run tools.
 - **Performance issues** -> reduce dependencies, optimize initialization, and tune minimum instances.
+- **Deploy triggered but service unreachable** -> call `queryCloudRun(action="detail")` to check:
+  1. Deploy status — is it still `creating`? Wait a few minutes.
+  2. Access type — if `OpenAccessTypes` does not include `WEB`, the service has no public URL.
+  3. Instance count — if `MinNum: 0` and there is no traffic, instances may have scaled down.
 ````
 
 </details>

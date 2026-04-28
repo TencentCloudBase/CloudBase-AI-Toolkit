@@ -176,8 +176,28 @@ function buildManageCloudRunErrorMessage(action: ManageCloudRunInput["action"], 
     suggestions.push("如果你确认要覆盖当前流程，可在合适时机使用 `force=true` 再次发起。");
   }
 
+  if (/Dockerfile|docker/i.test(baseMessage) && action === 'deploy') {
+    suggestions.push("部署容器型服务需要 Dockerfile。如果是前端项目，确认 package.json 中有 build 脚本，系统会自动检测框架并生成构建配置（零配置部署）。");
+  }
+
+  if (/build|构建/i.test(baseMessage) && action === 'deploy') {
+    suggestions.push("构建失败时，建议：(1) 本地运行 `npm run build` 确认构建成功；(2) 使用 `queryCloudRun(action=\"getDeployLog\", detailServerName=\"" + serverName + "\")` 查看构建日志定位具体错误。");
+  }
+
+  if (/port|端口/i.test(baseMessage)) {
+    suggestions.push("确保应用监听正确的端口。函数型服务端口固定为 3000，容器型服务需监听 serverConfig.Port 指定的端口（默认自动检测）。");
+  }
+
+  if (/CPU|内存|Mem|Cpu|资源/i.test(baseMessage)) {
+    suggestions.push("资源规格需满足 Mem = 2 × CPU（如 Cpu=0.5, Mem=1）。如果未指定 serverConfig，系统会使用默认配置。");
+  }
+
   if (suggestions.length === 0) {
     suggestions.push("请检查服务状态、部署参数和目标目录后重试。");
+    if (action === 'deploy') {
+      suggestions.push("如果未提供 serverConfig，系统会自动检测框架类型并使用默认配置（零配置部署）。");
+      suggestions.push(`使用 queryCloudRun(action="getDeployLog", detailServerName="${serverName}") 查看构建日志。`);
+    }
   }
 
   return `[manageCloudRun/${action}] ${baseMessage}\n建议：${suggestions.join(" ")}`;
