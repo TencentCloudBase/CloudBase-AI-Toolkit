@@ -401,6 +401,31 @@ export function buildFunctionOperationErrorMessage(
     );
   }
 
+  // Handle invalid parameter value errors from CloudBase API
+  if (/invalid parameter value/i.test(baseMessage)) {
+    suggestions.push(
+      "检测到参数值格式错误。请重点检查以下配置项：",
+    );
+    suggestions.push(
+      "1. runtime: 请使用支持的运行时版本，如 Nodejs18.15、Nodejs16.13、Nodejs20.19 等（区分大小写，不要加空格）",
+    );
+    suggestions.push(
+      "2. handler: Event 函数默认使用 index.main，HTTP 函数默认使用 app.handler 或 scf_bootstrap 启动",
+    );
+    suggestions.push(
+      "3. functionName: 函数名称只能包含字母、数字、下划线、连字符，不能以数字开头",
+    );
+    suggestions.push(
+      "4. timeout: 超时时间需为整数，单位为秒，范围 1-900",
+    );
+    suggestions.push(
+      "5. envVariables: 环境变量键值对不能为空字符串",
+    );
+    suggestions.push(
+      "6. type: 函数类型只能是 Event 或 HTTP（区分大小写）",
+    );
+  }
+
   if (suggestions.length === 0) {
     suggestions.push("请检查函数名、目录结构和环境中的函数状态后重试。");
   }
