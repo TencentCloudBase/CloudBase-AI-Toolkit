@@ -416,7 +416,7 @@ jobs:
               build_bug_prompt
 
               set +e
-              raw_output=$(timeout 1200s codebuddy -p "$(cat /tmp/codebuddy-prompt.txt)" -y --output-format json --permission-mode acceptEdits 2>&1)
+              raw_output=$(timeout 1200s codebuddy -p "$(cat /tmp/codebuddy-prompt.txt)" -y --output-format json --permission-mode acceptEdits --model hy3-preview-ioa 2>&1)
               exit_code=$?
               set -e
 
@@ -516,7 +516,7 @@ jobs:
             build_analysis_prompt
 
             set +e
-            raw_output=$(timeout 1200s codebuddy -p "$(cat /tmp/codebuddy-prompt.txt)" -y --output-format json --permission-mode acceptEdits </dev/null 2>&1)
+            raw_output=$(timeout 1200s codebuddy -p "$(cat /tmp/codebuddy-prompt.txt)" -y --output-format json --permission-mode acceptEdits --model hy3-preview-ioa </dev/null 2>&1)
             exit_code=$?
             set -e
 
