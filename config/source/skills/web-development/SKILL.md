@@ -128,9 +128,23 @@ Use this section only when the Web project needs CloudBase platform features.
 ### Static hosting defaults
 
 - Build before deployment
-- Prefer relative asset paths for static hosting compatibility
+- Deploy the entire `dist/` directory contents, not just `index.html`
 - Use hash routing by default when the project lacks server-side route rewrites
 - If the user does not specify a root path, avoid deploying directly to the site root by default
+
+### Subdirectory deployment checklist
+
+When deploying to a subdirectory (e.g., `/vite-test`), the following must be verified **before calling `uploadFiles`**. If any item fails, stop and fix it first:
+
+1. **Build config `base`/`publicPath`/`assetPrefix` must be set to the absolute subdirectory path** (e.g., deploy target `/vite-test` → Vite `base: '/vite-test/'`, Webpack `publicPath: '/vite-test/'`). **Forbidden**: `'./'`, empty string, or `'/'` — these cause 404 for assets when the access URL lacks a trailing slash.
+2. **Rebuild after changing build config** — modifying `base`/`publicPath` without rebuilding leaves stale references in `dist/`.
+3. **Verify build output** — check that asset references in `dist/index.html` use the subdirectory prefix (e.g., `src="/vite-test/assets/..."`), not root-relative paths (`src="/assets/..."`).
+
+`uploadFiles` `cloudPath` format: relative to hosting root, **no leading `/`**. Example: `'vite-test'` (not `'/vite-test'`). The `localPath` should point to the `dist/` directory.
+
+### Root deployment
+
+When deploying to the site root (`/`), `cloudPath` can be omitted or left empty. For Vite projects, `base: '/'` (the default) works correctly.
 
 ### CloudBase quick start
 

@@ -164,7 +164,7 @@ Use this section only when the Web project needs CloudBase platform features.
 ### Static hosting defaults
 
 - Build before deployment
-- Prefer relative asset paths for static hosting compatibility
+- Deploy the entire `dist/` directory contents, not just `index.html`
 - Use hash routing by default when the project lacks server-side route rewrites
 - If the user does not specify a root path, avoid deploying directly to the site root by default
 
