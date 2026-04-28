@@ -195,29 +195,56 @@ function buildEnvDomainManagementResult(params: {
   action: "create" | "delete";
   domains: string[];
   result: unknown;
+  domainVerifiedStatus?: { enabled: boolean; details?: Array<{ domain: string; status: string }> };
 }) {
-  const { action, domains, result } = params;
+  const { action, domains, result, domainVerifiedStatus } = params;
   const rawResult =
     result && typeof result === "object" && !Array.isArray(result)
       ? (result as Record<string, unknown>)
       : { result };
 
   if (action === "create") {
-    return {
+    const allEnabled = domainVerifiedStatus?.enabled === true;
+    const asyncState = allEnabled ? "COMPLETED" as const : "PENDING" as const;
+    const code = allEnabled ? "DOMAIN_UPDATE_COMPLETED" : "DOMAIN_UPDATE_PENDING";
+
+    const base: Record<string, unknown> = {
       ...rawResult,
       ok: true,
-      code: "DOMAIN_UPDATE_PENDING",
+      code,
       operation: action,
       targetDomains: domains,
-      asyncState: "PENDING",
+      asyncState,
+    };
+
+    if (allEnabled) {
+      return {
+        ...base,
+        message:
+          '安全域名已添加并立即生效。目标域名状态已确认为 ENABLE，无需轮询。',
+        verifiedStatus: domainVerifiedStatus?.details,
+        next_step: {
+          tool: "envQuery",
+          action: "domains",
+          suggested_args: {
+            action: "domains",
+          },
+          note: "域名已生效，如需再次确认可随时查询。",
+        },
+      };
+    }
+
+    return {
+      ...base,
       message:
-        '安全域名已提交添加请求。该变更通常需要约 10 分钟传播，请继续轮询 envQuery(action="domains")，直到目标域名状态为 ENABLE。',
+        '安全域名已提交添加请求。该变更可能需要数分钟传播，请继续轮询 envQuery(action="domains")，直到目标域名状态为 ENABLE。',
+      verifiedStatus: domainVerifiedStatus?.details,
       propagation: {
         requiresPolling: true,
         pollTool: "envQuery",
         pollAction: "domains",
         pollIntervalSuggestionSeconds: 10,
-        timeoutSuggestionSeconds: 600,
+        timeoutSuggestionSeconds: 300,
         successCondition:
           '目标域名出现在 envQuery(action="domains") 返回中，且 Status 为 ENABLE。',
       },
@@ -245,7 +272,7 @@ function buildEnvDomainManagementResult(params: {
       pollTool: "envQuery",
       pollAction: "domains",
       pollIntervalSuggestionSeconds: 10,
-      timeoutSuggestionSeconds: 600,
+      timeoutSuggestionSeconds: 300,
       successCondition:
         '目标域名不再出现在 envQuery(action="domains") 返回中。',
     },
@@ -1482,7 +1509,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     {
       title: "环境域名管理",
       description:
-        "管理云开发环境的安全域名，支持添加和删除操作。（原工具名：createEnvDomain/deleteEnvDomain，为兼容旧AI规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 或自定义域名直接访问 CloudBase 资源时，应先用 envQuery(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。新增或删除后通常需要继续轮询 envQuery(action=domains) 确认状态收敛；安全域名一般约 10 分钟生效。",
+        "管理云开发环境的安全域名，支持添加和删除操作。（原工具名：createEnvDomain/deleteEnvDomain，为兼容旧AI规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 或自定义域名直接访问 CloudBase 资源时，应先用 envQuery(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。创建后会自动验证域名状态：若已生效则返回 asyncState=COMPLETED，否则返回 asyncState=PENDING 并附带轮询指引，请按指引轮询 envQuery(action=domains) 直到域名状态为 ENABLE。",
       inputSchema: {
         action: z
           .enum(["create", "delete"])
@@ -1507,11 +1534,31 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       try {
         const cloudbase = await getManager();
         let result;
+        let domainVerifiedStatus: { enabled: boolean; details?: Array<{ domain: string; status: string }> } | undefined;
 
         switch (action) {
           case "create":
             result = await cloudbase.env.createEnvDomain(domains);
             logCloudBaseResult(server.logger, result);
+            // Immediately verify domain status after creation
+            try {
+              const verifyResult = await cloudbase.env.getEnvAuthDomains();
+              logCloudBaseResult(server.logger, verifyResult);
+              const allDomains = Array.isArray(verifyResult?.Domains) ? verifyResult.Domains : [];
+              const details = domains.map((d) => {
+                const match = allDomains.find(
+                  (entry: any) => String(entry?.Domain ?? "").toLowerCase() === d.toLowerCase(),
+                );
+                return { domain: d, status: match?.Status ?? "UNKNOWN" };
+              });
+              const allEnabled = details.every((d) => d.status === "ENABLE");
+              domainVerifiedStatus = { enabled: allEnabled, details };
+            } catch (verifyError) {
+              debug("Domain verification after create failed, returning PENDING", {
+                error: verifyError,
+              });
+              domainVerifiedStatus = undefined;
+            }
             break;
 
           case "delete":
@@ -1528,6 +1575,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             action,
             domains,
             result,
+            domainVerifiedStatus,
           }),
         );
       } catch (error) {

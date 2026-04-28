@@ -1181,13 +1181,17 @@ describe("env tools - envQuery", () => {
     });
   });
 
-  it("envDomainManagement(create) should return structured polling guidance", async () => {
+  it("envDomainManagement(create) should return PENDING with polling guidance when domain not yet ENABLE", async () => {
     const createEnvDomain = vi.fn().mockResolvedValue({
       RequestId: "req-create-domain",
+    });
+    const getEnvAuthDomains = vi.fn().mockResolvedValue({
+      Domains: [],
     });
     mockGetCloudBaseManager.mockResolvedValue({
       env: {
         createEnvDomain,
+        getEnvAuthDomains,
       },
     });
 
@@ -1202,6 +1206,7 @@ describe("env tools - envQuery", () => {
     );
 
     expect(createEnvDomain).toHaveBeenCalledWith(["integration.example.com"]);
+    expect(getEnvAuthDomains).toHaveBeenCalled();
     expect(payload).toMatchObject({
       ok: true,
       code: "DOMAIN_UPDATE_PENDING",
@@ -1213,7 +1218,7 @@ describe("env tools - envQuery", () => {
         pollTool: "envQuery",
         pollAction: "domains",
         pollIntervalSuggestionSeconds: 10,
-        timeoutSuggestionSeconds: 600,
+        timeoutSuggestionSeconds: 300,
       },
       next_step: {
         tool: "envQuery",
@@ -1226,6 +1231,76 @@ describe("env tools - envQuery", () => {
     expect(payload.message).toContain("继续轮询 envQuery(action=\"domains\")");
   });
 
+  it("envDomainManagement(create) should return COMPLETED when domain is already ENABLE", async () => {
+    const createEnvDomain = vi.fn().mockResolvedValue({
+      RequestId: "req-create-domain",
+    });
+    const getEnvAuthDomains = vi.fn().mockResolvedValue({
+      Domains: [
+        { Domain: "integration.example.com", Status: "ENABLE", Type: "USER" },
+      ],
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        createEnvDomain,
+        getEnvAuthDomains,
+      },
+    });
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.envDomainManagement.handler({
+          action: "create",
+          domains: ["integration.example.com"],
+        })
+      ).content[0].text,
+    );
+
+    expect(createEnvDomain).toHaveBeenCalledWith(["integration.example.com"]);
+    expect(getEnvAuthDomains).toHaveBeenCalled();
+    expect(payload).toMatchObject({
+      ok: true,
+      code: "DOMAIN_UPDATE_COMPLETED",
+      operation: "create",
+      targetDomains: ["integration.example.com"],
+      asyncState: "COMPLETED",
+    });
+    expect(payload.message).toContain("立即生效");
+    expect(payload.propagation).toBeUndefined();
+  });
+
+  it("envDomainManagement(create) should return PENDING when verification fails", async () => {
+    const createEnvDomain = vi.fn().mockResolvedValue({
+      RequestId: "req-create-domain",
+    });
+    const getEnvAuthDomains = vi.fn().mockRejectedValue(new Error("verify failed"));
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        createEnvDomain,
+        getEnvAuthDomains,
+      },
+    });
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.envDomainManagement.handler({
+          action: "create",
+          domains: ["integration.example.com"],
+        })
+      ).content[0].text,
+    );
+
+    expect(payload).toMatchObject({
+      ok: true,
+      code: "DOMAIN_UPDATE_PENDING",
+      asyncState: "PENDING",
+    });
+    expect(payload.propagation).toBeDefined();
+    expect(payload.message).toContain("继续轮询");
+  });
+
   it("envDomainManagement(delete) should return structured polling guidance", async () => {
     const deleteEnvDomain = vi.fn().mockResolvedValue({
       RequestId: "req-delete-domain",
@@ -1233,6 +1308,7 @@ describe("env tools - envQuery", () => {
     mockGetCloudBaseManager.mockResolvedValue({
       env: {
         deleteEnvDomain,
+        getEnvAuthDomains: vi.fn().mockResolvedValue({ Domains: [] }),
       },
     });
 
@@ -1257,6 +1333,7 @@ describe("env tools - envQuery", () => {
         requiresPolling: true,
         pollTool: "envQuery",
         pollAction: "domains",
+        timeoutSuggestionSeconds: 300,
       },
       next_step: {
         tool: "envQuery",
