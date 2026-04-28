@@ -125,12 +125,31 @@ Use this section only when the Web project needs CloudBase platform features.
 - Do not move Web login logic into cloud functions
 - For provider readiness, login method setup, or publishable key issues, route to `auth-tool` and `auth-web`
 
-### Static hosting defaults
+### Static hosting deployment
 
-- Build before deployment
-- Prefer relative asset paths for static hosting compatibility
-- Use hash routing by default when the project lacks server-side route rewrites
-- If the user does not specify a root path, avoid deploying directly to the site root by default
+**⚠️ Before calling uploadFiles, verify the deployment target:**
+
+1. **Root deployment** (cloudPath empty or "/"): No special build config needed
+2. **Subdirectory deployment** (cloudPath like "vite-test"): **MUST configure build base path first**
+
+**Subdirectory deployment checklist (MANDATORY before uploadFiles):**
+- ✅ Build config `base` (Vite) / `publicPath` (Webpack) / `assetPrefix` (Next.js) is set to the exact subdirectory path with leading AND trailing slash
+  - Example: deploying to `/vite-test` → Vite `base: '/vite-test/'`
+  - ❌ WRONG: `base: './'` or `base: ''` — causes 404 when accessing without trailing slash
+- ✅ Rebuild after changing build config
+- ✅ Verify `dist/index.html` contains correct path prefixes in script/src, link/href attributes
+
+**Why absolute paths matter:**
+- URL `https://domain.com/vite-test` (no trailing slash) resolves relative paths like `./assets/index.js` to `/assets/index.js` (404)
+- Absolute path `/vite-test/assets/index.js` correctly resolves regardless of trailing slash
+
+**uploadFiles cloudPath format:**
+- Relative to hosting root, **without leading slash**
+- Example: `'vite-test'` not `'/vite-test'`
+
+**After deployment:**
+- CDN cache takes a few minutes to refresh
+- Add query string to URL to bypass cache: `https://domain.com/vite-test/?v=1`
 
 ### CloudBase quick start
 

@@ -258,10 +258,25 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     "uploadFiles",
     {
       title: "上传静态文件",
-      description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
+      description: `上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。
+
+⚠️ 部署前必须完成以下检查：
+1. 已完成构建（npm run build / pnpm build 等）
+2. 构建产物目录完整（通常是 dist/ 或 build/）
+
+⚠️ 子目录部署强制二次确认（部署到非根路径时必须验证）：
+- 如果 cloudPath 不是空字符串或 "/"，则表示部署到子目录
+- 此时必须确认：构建配置中的 base（Vite）、publicPath（Webpack）、assetPrefix（Next.js）已设置为与 cloudPath 一致的绝对路径
+- 例如：部署到 /vite-test 时，Vite 的 base 必须设为 '/vite-test/'（带前导和尾部斜杠）
+- 禁止使用 './' 或空字符串作为 base，否则访问 URL 不带尾部斜杠时会导致静态资源 404
+- 修改构建配置后必须重新构建，并验证产物中的资源引用路径已更新
+
+验证方法：检查 dist/index.html 中的 script/src、link/href 等引用是否使用了正确的路径前缀。
+
+若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。`,
       inputSchema: {
         localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
-        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，例如 files/data.txt。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"),
+        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，相对于托管根目录，不要前导 '/'。例如 'vite-test' 而非 '/vite-test'。若部署到子目录，必须先确认构建配置中的 base/publicPath/assetPrefix 已设为匹配的绝对路径。云存储对象路径请改用 manageStorage。"),
         files: z.array(z.object({
           localPath: z.string(),
           cloudPath: z.string()
