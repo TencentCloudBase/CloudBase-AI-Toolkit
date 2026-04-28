@@ -161,6 +161,14 @@ Use CLI only when MCP tools are unavailable.
 - `tcb fn deploy <name>` -> Event Function
 - `tcb fn deploy <name> --httpFn` -> HTTP Function
 - `tcb fn deploy <name> --httpFn --ws` -> HTTP Function with WebSocket
-- `tcb fn deploy --all` -> Deploy all functions
+- `tcb fn deploy --all` -> Deploy all functions (⚠️ only for deploy, NOT for config update)
+
+> **Important**: `--all` flag only works for `tcb fn deploy`. It does NOT work for `tcb fn config update`. If you need to batch update function configurations (timeout, memorySize, etc.), you must update each function individually:
+> ```bash
+> tcb fn config update batch-func-1
+> tcb fn config update batch-func-2
+> tcb fn config update batch-func-3
+> ```
+> Or use MCP tool `manageFunctions(action="updateFunctionConfig")` with each function name.
 
 In non-interactive agent runs, do not default to CLI login or interactive setup flows.

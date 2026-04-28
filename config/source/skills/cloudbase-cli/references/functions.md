@@ -24,7 +24,7 @@ Covers both Event Functions (普通云函数) and HTTP Functions (HTTP 云函数
 |------|---------|
 | List all functions (列出函数) | `tcb fn list` |
 | Function detail (查看详情) | `tcb fn detail <name>` |
-| Deploy all functions | `tcb fn deploy --all` |
+| Deploy all functions | `tcb fn deploy --all` (⚠️ only for deploy, NOT for config update) |
 | Deploy single Event Function | `tcb fn deploy <name>` |
 | Deploy HTTP Function | `tcb fn deploy <name> --httpFn` |
 | Deploy HTTP + WebSocket | `tcb fn deploy <name> --httpFn --ws` |
@@ -54,6 +54,12 @@ Covers both Event Functions (普通云函数) and HTTP Functions (HTTP 云函数
 ```bash
 # Reads cloudbaserc.json → deploys every function listed
 tcb fn deploy --all
+
+# ⚠️ NOTE: --all only works for deploy, NOT for config update
+# To batch update config, you must update each function individually:
+# tcb fn config update func-a
+# tcb fn config update func-b
+
 # Verify
 tcb fn list
 ```
