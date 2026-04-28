@@ -17,6 +17,11 @@
 
 - Treat Vite as the default choice for new Web app setup unless the repo already standardizes on another bundler.
 - Keep environment-specific values in `.env` or the project's existing config pattern instead of hardcoding them into UI files.
+- **Subdirectory deployment base config (most common Vite 404 cause):**
+  - When deploying to a subdirectory like `/vite-test`, set `base: '/vite-test/'` in `vite.config.ts` — absolute path with leading AND trailing slash.
+  - **NEVER use `base: './'` or `base: ''`** for subdirectory deployments. When the browser accesses `https://domain.com/vite-test` (no trailing slash), relative paths resolve to `/` instead of `/vite-test/`, causing all JS/CSS assets to 404.
+  - After changing `base`, you MUST rebuild (`vite build`) before uploading — the built `dist/` files must reference assets with the subdirectory prefix.
+  - When uploading with `uploadFiles`, set `cloudPath` to the subdirectory without a leading slash (e.g. `vite-test`, not `/vite-test`).
 - Check route base paths, asset paths, and build output behavior before deployment.
 
 ## Routing and build defaults

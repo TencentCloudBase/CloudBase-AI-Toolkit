@@ -102,6 +102,16 @@ Use this skill for **CloudBase platform knowledge** when you need to:
    - Cloud storage is suitable for files with privacy requirements, can get temporary access addresses via temporary file URLs
    - If the task needs COS SDK polling, file metadata lookup, or temporary URLs for an uploaded object, use cloud storage tools (`manageStorage` / `queryStorage`), not `uploadFiles`
 
+2. **Static Hosting Subdirectory Deployment (most common 404 cause)**:
+   - When deploying to a subdirectory (e.g. `/vite-test`), the build config `base`/`publicPath`/`assetPrefix` MUST be set to the absolute path matching the target with both leading and trailing slashes (e.g. `/vite-test/`)
+   - **NEVER use `'./'` or empty string** for subdirectory deployments — relative paths break when the access URL lacks a trailing slash, causing all JS/CSS assets to 404
+   - Before calling `uploadFiles` for a subdirectory deploy, confirm ALL of the following (any failure = deployment will break):
+     1. Build config `base`/`publicPath`/`assetPrefix` is set to the absolute subdirectory path (e.g. `/vite-test/`)
+     2. Project has been rebuilt after the config change
+     3. Built files in `dist/` reference assets with the subdirectory absolute path, not root `/`
+     4. The entire `dist/` directory is uploaded, not just `index.html`
+   - `uploadFiles` `cloudPath` format: relative to hosting root, do NOT include a leading `/` (e.g. `vite-test`, not `/vite-test`)
+
 2. **Static Hosting Domain**:
    - CloudBase static hosting domain can be obtained via `getWebsiteConfig` tool
    - Combine with static hosting file paths to construct final access addresses

@@ -60,7 +60,7 @@ function buildUploadFilesErrorMessage(error: unknown, localPath?: string): strin
       suggestions.push(`请先确认本地路径 \`${localPath}\` 存在且当前进程有读取权限。`);
     }
     suggestions.push("如果报错的是构建产物中的某个静态资源文件，请检查构建后的资源引用路径是否正确。");
-    suggestions.push("若站点部署到子路径，请确认 `publicPath`、`base`、`assetPrefix` 等配置没有把资源指向不存在的位置。");
+    suggestions.push("若站点部署到子路径，请确认 `base`/`publicPath`/`assetPrefix` 已设为与部署路径一致的绝对路径（如 `/vite-test/`），禁止使用 `./` 等相对路径。");
   }
 
   if (suggestions.length === 0) {
@@ -258,10 +258,10 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     "uploadFiles",
     {
       title: "上传静态文件",
-      description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
+      description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。\n\n⚠️ 子目录部署强制前置检查（部署到非根路径时必须逐项确认，任何一项未通过禁止调用此工具）：\n1. 已在构建配置中设置 base/publicPath/assetPrefix，值必须与部署目标子目录一致（如部署到 /vite-test 则设为 '/vite-test/'；必须使用绝对路径带前导和尾部斜杠，禁止使用 './' 等相对路径，因为访问 URL 不带尾部斜杠时会导致资源 404）\n2. 修改构建配置后已重新执行构建\n3. 已验证构建产物（dist/）中的资源引用路径已更新为子目录绝对路径（非 '/' 根路径）\n4. 上传整个构建产物目录（通常是 dist/），不能只上传 index.html\n\ncloudPath 格式：相对于托管根目录，不要带前导 '/'，例如 'vite-test' 而非 '/vite-test'。",
       inputSchema: {
         localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
-        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，例如 files/data.txt。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"),
+        cloudPath: z.string().optional().describe("静态托管云端路径，相对于托管根目录，不要带前导 '/'，例如 'vite-test' 而非 '/vite-test'。若部署到子路径，请确保已将构建配置的 base/publicPath/assetPrefix 设为与部署路径一致的绝对路径（如 '/vite-test/'），禁止使用 './'。云存储对象路径请改用 manageStorage。"),
         files: z.array(z.object({
           localPath: z.string(),
           cloudPath: z.string()

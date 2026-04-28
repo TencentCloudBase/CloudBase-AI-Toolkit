@@ -128,9 +128,14 @@ Use this section only when the Web project needs CloudBase platform features.
 ### Static hosting defaults
 
 - Build before deployment
-- Prefer relative asset paths for static hosting compatibility
+- **Subdirectory deployment is the most common source of 404 errors.** When deploying to a subdirectory (e.g. `/vite-test`), the build config `base`/`publicPath`/`assetPrefix` MUST be set to an absolute path matching the target subdirectory with both leading and trailing slashes (e.g. `/vite-test/`). **NEVER use `'./'` or empty string** for subdirectory deployments — when the access URL lacks a trailing slash, relative paths resolve incorrectly and all JS/CSS assets will 404.
+- Before calling `uploadFiles`, verify all of the following (any item failing means deployment will break):
+  1. `base`/`publicPath`/`assetPrefix` is set to the absolute subdirectory path (e.g. `/vite-test/`)
+  2. The project has been rebuilt after changing build config
+  3. The built files in `dist/` reference assets with the subdirectory absolute path, not root `/`
+  4. The entire `dist/` directory is uploaded, not just `index.html`
+- `cloudPath` for `uploadFiles` is relative to the hosting root — do NOT include a leading `/` (e.g. `vite-test`, not `/vite-test`)
 - Use hash routing by default when the project lacks server-side route rewrites
-- If the user does not specify a root path, avoid deploying directly to the site root by default
 
 ### CloudBase quick start
 

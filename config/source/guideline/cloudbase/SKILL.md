@@ -290,6 +290,8 @@ Prefer long-term memory when available: write the scenarios and working rules th
 - Use CloudBase static hosting after build completion
 - Refer to the `web-development` skill for deployment process
 - `uploadFiles` is for static hosting only; if the task needs a COS object that must be queried or polled with the storage SDK, use `manageStorage` / `queryStorage`
+- **Subdirectory deployment pre-check (most common 404 cause):** Before calling `uploadFiles` for a subdirectory deploy, confirm: (1) `base`/`publicPath`/`assetPrefix` is set to the absolute subdirectory path with leading and trailing slashes (e.g. `/vite-test/`), NOT `'./'`; (2) project rebuilt after config change; (3) built files reference assets with the subdirectory prefix; (4) entire `dist/` uploaded, not just `index.html`
+- `cloudPath` for `uploadFiles` is relative to hosting root — no leading `/` (e.g. `vite-test`, not `/vite-test`)
 - Remind users that CDN has a few minutes of cache after deployment
 
 **Backend Deployment:**
