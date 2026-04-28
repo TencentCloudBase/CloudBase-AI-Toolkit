@@ -588,6 +588,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       title: "管理网关域资源",
       description:
         "网关域统一写入口。通过 action 创建目标访问入口，后续承接更通用的网关配置能力。" +
+        "常用于为 HTTP 云函数补默认域名访问入口。" +
         "\n\n各 action 所需参数：\n" +
         "- createAccess: targetType + targetName + type（均必填）。path, auth 可选\n" +
         "- createRoute: route（必填，含 path, serviceType, serviceName）\n" +
@@ -602,7 +603,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z
           .enum(MANAGE_GATEWAY_ACTIONS)
-          .describe('写操作类型。各 action 所需参数详见工具描述。createAccess 时必须显式提供 type（HTTP 函数传 HTTP，Event 函数传 Event 或省略）。'),
+          .describe('写操作类型。各 action 所需参数详见工具描述。createAccess 用于创建默认域名访问入口，必须显式提供 type（HTTP 函数传 HTTP，Event 函数传 Event 或省略）。'),
         targetType: z
           .enum(["function"])
           .optional()
