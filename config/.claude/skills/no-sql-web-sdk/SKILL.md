@@ -32,6 +32,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 - Web login and caller identity -> `../auth-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-web/SKILL.md`)
 - General Web app structure -> `../web-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/web-development/SKILL.md`)
+- Browser-side file upload / file URL flows -> `../cloud-storage-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloud-storage-web/SKILL.md`)
 - Mini Program database code -> `../no-sql-wx-mp-sdk/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/no-sql-wx-mp-sdk/SKILL.md`)
 
 ### Do NOT use for
@@ -44,9 +45,11 @@ Keep local `references/...` paths for files that ship with the current skill dir
 ### Common mistakes / gotchas
 
 - Querying before the user is signed in when the collection rules require identity.
+- Starting the first protected query before auth state has finished syncing in the browser, so a refresh or direct route hit behaves like an anonymous request.
 - Using `wx.cloud.database()` or Node SDK patterns in browser code.
 - Initializing CloudBase lazily with dynamic imports instead of a shared synchronous app instance.
 - Treating security rules as result filters rather than request validators.
+- Storing browser `File` objects or handcrafted storage URLs directly in database records instead of uploading with storage APIs first and then persisting the returned `fileID` or resolved temp URL.
 - **Expecting a `CUSTOM` security rule to take effect immediately after you call `managePermissions(updateResourcePermission)`.** The backend caches rule evaluators for **2–5 minutes**; first writes after a rule change may silently fail or be rejected with `DATABASE_PERMISSION_DENIED` even when the expression is correct. Either (a) wait a few minutes and retry the same write before assuming the rule is wrong, or (b) verify the rule is live by reading `result.code` / `result.message` on every write and by doing a `get()` round-trip on the just-written `_id`; do not treat a resolved promise as success. See `security-rules.md` → "Propagation And Verification" for the full pattern.
 - Misreading the return shape of `db.collection(...).add(...)`. In the CloudBase Web SDK, the created document ID is exposed at top-level `result._id`, not `result.id`, `result.data.id`, or `result.insertedId`.
 - For CMS-style collections that need **app-level admin users** to edit/delete all records while editors can only edit/delete their own records, do not oversimplify the rule to `READONLY`. A validated pattern is a `CUSTOM` rule that reads role from `user_roles` by `auth.uid` and combines it with `doc.authorId == auth.uid`, while frontend writes can stay on `.doc(id).update()` / `.doc(id).remove()`.
@@ -56,7 +59,9 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 - Confirm this is browser-side document database work.
 - Initialize CloudBase once and reuse the same `app` / `db` instance.
+- Wait for auth state/session readiness before the first protected read or write.
 - Verify auth expectations before CRUD.
+- If records contain files such as cover images or attachments, route the upload/download part to Cloud Storage APIs instead of the database API.
 - Read the right companion reference file for the specific operation.
 
 ## Overview
@@ -89,6 +94,78 @@ Important rules:
 - Sign in before querying if the collection rules require identity.
 - Keep a single shared app/database instance.
 - Do not hide initialization inside ad-hoc async loaders unless the framework truly requires it.
+
+## Auth state synchronization before CRUD
+
+For collections protected by login-based rules, do not treat page mount as proof that auth is already ready. In browser apps, wait until the SDK has restored the session or emitted the initial auth state before issuing the first protected query.
+
+Recommended pattern:
+
+```javascript
+import cloudbase from "@cloudbase/js-sdk";
+
+const app = cloudbase.init({
+  env: "your-env-id"
+});
+
+const auth = app.auth({ persistence: "local" });
+const db = app.database();
+
+export function waitForAuthReady() {
+  return new Promise((resolve) => {
+    const unsubscribe = auth.onAuthStateChange((_event, session) => {
+      unsubscribe();
+      resolve(session);
+    });
+  });
+}
+
+await waitForAuthReady();
+const result = await db.collection("posts").get();
+```
+
+Working rules:
+
+- If the page or route requires login, gate the first `db.collection(...).get()` / `.add()` / `.update()` / `.remove()` call on auth readiness instead of firing it immediately on component mount.
+- If you already have a shared auth context or route guard, reuse that readiness signal rather than creating parallel polling logic.
+- On a hard refresh, a protected query that runs before auth restoration can fail even when the user has a valid persisted session.
+- If the task explicitly needs current user identity for owner-based writes, fetch the session or user from the same shared auth instance that produced the database client.
+
+Detailed login wiring, provider setup, and route-guard behavior belong to `auth-web`.
+
+## Storage API boundary for document fields
+
+When a document contains browser-uploaded assets such as `coverImage`, `avatar`, or attachment metadata, use the CloudBase storage APIs first and store the database-ready reference after upload. Do not place raw `File` objects in documents.
+
+Typical browser flow:
+
+```javascript
+const uploadResult = await app.uploadFile({
+  cloudPath: `articles/${articleId}/cover-${Date.now()}.jpg`,
+  filePath: selectedFile
+});
+
+const tempUrlResult = await app.getTempFileURL({
+  fileList: [{ fileID: uploadResult.fileID, maxAge: 3600 }]
+});
+
+const coverImage = tempUrlResult.fileList?.[0]?.tempFileURL;
+
+await db.collection("articles").doc(articleId).update({
+  coverImage,
+  coverFileId: uploadResult.fileID
+});
+```
+
+Storage/database split:
+
+- Upload file bytes with `app.uploadFile()`.
+- Resolve browser preview or download links with `app.getTempFileURL()`.
+- Persist the returned `fileID` if the app may need to refresh or re-resolve the file URL later.
+- Use `app.deleteFile()` when replacing or cleaning up obsolete files.
+- Keep document fields focused on metadata and references, not binary payloads.
+
+For the full browser storage API surface and local security-domain requirements, read `cloud-storage-web`.
 
 ## Quick routing
 

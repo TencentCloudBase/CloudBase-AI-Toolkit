@@ -101,6 +101,44 @@ const auth = app.auth({ persistence: 'local' })
 
 If the current task has not retrieved a real Publishable Key, omit `accessKey` instead of inventing one. A wrong `accessKey` can break auth-state checks and protected-route behavior.
 
+## Auth readiness and state synchronization
+
+For protected pages, do not treat component mount or route entry as proof that the SDK has already restored the persisted session. On a hard refresh, the first protected query can race ahead of auth restoration unless you wait for the initial auth event from the same shared `auth` instance.
+
+Recommended pattern:
+
+```js
+const app = cloudbase.init({
+  env: 'your-full-env-id',
+  region: 'ap-shanghai',
+  accessKey: 'publishable key',
+  auth: { detectSessionInUrl: true },
+})
+
+const auth = app.auth({ persistence: 'local' })
+
+export function waitForAuthReady() {
+  return new Promise((resolve) => {
+    const unsubscribe = auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        unsubscribe()
+        resolve(session)
+      }
+    })
+  })
+}
+
+await waitForAuthReady()
+const sessionResult = await auth.getSession()
+```
+
+Working rules:
+
+- Gate the first protected query, write, or route-guard decision on auth readiness instead of firing it immediately on page mount.
+- If the project already has a shared auth context, route guard, or bootstrap loader, reuse that readiness signal instead of creating parallel polling logic.
+- Read the current session or user from the same shared `auth` instance that raised the auth-state event.
+- Keep `persistence: 'local'` for browser login flows that must survive refreshes.
+
 ---
 
 ## Login Methods
