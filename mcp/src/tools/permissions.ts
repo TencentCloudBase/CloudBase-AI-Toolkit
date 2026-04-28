@@ -595,6 +595,11 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
         username: z.string().optional(),
         password: z.string().optional(),
         userStatus: z.enum(["ACTIVE", "BLOCKED"]).optional(),
+        userType: z.enum(["internalUser", "externalUser"]).optional().describe("用户类型：internalUser（内部用户）或 externalUser（外部用户）"),
+        nickname: z.string().optional().describe("用户昵称"),
+        phone: z.string().optional().describe("手机号（11位中国大陆号码）"),
+        email: z.string().optional().describe("邮箱地址"),
+        avatarUrl: z.string().optional().describe("头像图片URL"),
       },
       annotations: {
         readOnlyHint: false,
@@ -622,6 +627,11 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
       username,
       password,
       userStatus,
+      userType,
+      nickname,
+      phone,
+      email,
+      avatarUrl,
     }: {
       action: ManagePermissionAction;
       resourceType?: LegacyResourceType;
@@ -640,6 +650,11 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
       username?: string;
       password?: string;
       userStatus?: "ACTIVE" | "BLOCKED";
+      userType?: "internalUser" | "externalUser";
+      nickname?: string;
+      phone?: string;
+      email?: string;
+      avatarUrl?: string;
     }) =>
       withEnvelope(async () => {
         const envId = await getEnvId(cloudBaseOptions);
@@ -763,7 +778,12 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
             const result = await cloudbase.user.createUser({
               name: username,
               password,
+              type: userType,
               userStatus,
+              nickName: nickname,
+              phone,
+              email,
+              avatarUrl,
               description,
             });
             logCloudBaseResult(server.logger, result);
@@ -784,8 +804,13 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
             const result = await cloudbase.user.modifyUser({
               uid,
               name: username,
+              type: userType,
               password,
               userStatus,
+              nickName: nickname,
+              phone,
+              email,
+              avatarUrl,
               description,
             });
             logCloudBaseResult(server.logger, result);
