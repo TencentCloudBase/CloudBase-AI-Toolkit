@@ -14,6 +14,7 @@ const {
   mockDeleteCustomDomain,
   mockGetCloudBaseManager,
   mockLogCloudBaseResult,
+  mockGetEnvId,
 } = vi.hoisted(() => ({
   mockGetAccessList: vi.fn(),
   mockGetDomainList: vi.fn(),
@@ -26,10 +27,12 @@ const {
   mockDeleteCustomDomain: vi.fn(),
   mockGetCloudBaseManager: vi.fn(),
   mockLogCloudBaseResult: vi.fn(),
+  mockGetEnvId: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
   getCloudBaseManager: mockGetCloudBaseManager,
+  getEnvId: mockGetEnvId,
   logCloudBaseResult: mockLogCloudBaseResult,
 }));
 
@@ -65,6 +68,11 @@ describe("gateway tools", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Mock getEnvId to return the envId from cloudBaseOptions
+    mockGetEnvId.mockImplementation(async (options?: { envId?: string }) => {
+      return options?.envId || "env-test";
+    });
 
     mockGetAccessList.mockResolvedValue({
       Total: 1,

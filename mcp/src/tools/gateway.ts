@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getCloudBaseManager, logCloudBaseResult } from "../cloudbase-manager.js";
+import { getCloudBaseManager, getEnvId, logCloudBaseResult } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
 import { jsonContent } from "../utils/json-content.js";
 
@@ -82,7 +82,8 @@ function ensureGatewayEnvId(cloudBaseOptions?: { envId?: string }) {
 export function registerGatewayTools(server: ExtendedMcpServer) {
   const cloudBaseOptions = server.cloudBaseOptions;
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
-  const getGatewayEnvId = () => ensureGatewayEnvId(cloudBaseOptions);
+  // Use getEnvId to resolve envId from multiple sources: cloudBaseOptions, cache, login state, or default env manager
+  const getGatewayEnvId = () => getEnvId(cloudBaseOptions);
 
   const buildEnvelope = (
     data: Record<string, unknown>,
@@ -129,7 +130,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
   const listHttpServiceRoutes = async (domain?: string) => {
     const cloudbase = await getManager();
     const result = await cloudbase.env.describeHttpServiceRoute({
-      EnvId: getGatewayEnvId(),
+      EnvId: await getGatewayEnvId(),
       ...(domain
         ? {
             Filters: [
@@ -177,7 +178,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     }
 
     return {
-      EnvId: getGatewayEnvId(),
+      EnvId: await getGatewayEnvId(),
       Domain: {
         Domain: await resolveRouteDomain(domain),
         Routes: [
@@ -423,7 +424,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       const cloudbase = await getManager();
       const domain = await resolveRouteDomain(input.domain);
       const result = await cloudbase.env.deleteHttpServiceRoute({
-        EnvId: getGatewayEnvId(),
+        EnvId: await getGatewayEnvId(),
         Domain: domain,
         Paths: [normalizeAccessPath(routePath)],
       } as any);
@@ -445,7 +446,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       }
       const cloudbase = await getManager();
       const result = await cloudbase.env.bindCustomDomain({
-        EnvId: getGatewayEnvId(),
+        EnvId: await getGatewayEnvId(),
         Domain: {
           Domain: input.domain,
           CertId: input.certificateId,
@@ -469,7 +470,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       }
       const cloudbase = await getManager();
       const result = await cloudbase.env.deleteCustomDomain({
-        EnvId: getGatewayEnvId(),
+        EnvId: await getGatewayEnvId(),
         Domain: input.domain,
       });
       logCloudBaseResult(server.logger, result);
