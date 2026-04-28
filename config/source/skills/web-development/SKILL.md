@@ -128,7 +128,8 @@ Use this section only when the Web project needs CloudBase platform features.
 ### Static hosting defaults
 
 - Build before deployment
-- Prefer relative asset paths for static hosting compatibility
+- For root path deployment: prefer relative asset paths (e.g., `./` or empty) for static hosting compatibility
+- For subdirectory deployment: base/publicPath/assetPrefix must be set to the absolute path matching the deployment target (e.g., deploy to `/app` → set base to `/app/` with leading and trailing slashes; do NOT use `./` or empty string)
 - Use hash routing by default when the project lacks server-side route rewrites
 - If the user does not specify a root path, avoid deploying directly to the site root by default
 
