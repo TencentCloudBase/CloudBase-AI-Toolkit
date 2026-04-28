@@ -19,6 +19,27 @@
 - Keep environment-specific values in `.env` or the project's existing config pattern instead of hardcoding them into UI files.
 - Check route base paths, asset paths, and build output behavior before deployment.
 
+### Subdirectory deployment (CRITICAL)
+
+When deploying to a CloudBase static hosting subdirectory (e.g., `cloudPath: 'my-app'`), the `base` config in `vite.config.ts` MUST be set correctly:
+
+```typescript
+// vite.config.ts
+export default defineConfig({
+  base: '/my-app/', // MUST match deployment path: absolute path with leading and trailing slashes
+  // ... other config
+})
+```
+
+**Key rules:**
+- `base` MUST be an absolute path like `/my-app/` (with leading and trailing slashes)
+- **FORBIDDEN**: `base: './'` or `base: ''` - these cause 404 errors when URL is accessed without trailing slash
+- After changing `base`, ALWAYS rebuild: `npm run build`
+- Verify `dist/index.html` has correct asset paths: `<script src="/my-app/assets/...">`
+
+**Why absolute paths are required:**
+When accessing `https://domain.com/my-app` (without trailing slash), relative paths like `./assets/index.js` resolve to `https://domain.com/assets/index.js` (missing `/my-app/`), causing 404. Absolute paths like `/my-app/assets/index.js` always resolve correctly.
+
 ## Routing and build defaults
 
 - Use the existing router if present; do not switch routing libraries without an explicit requirement.
