@@ -113,6 +113,7 @@ Use this skill for **CloudBase platform knowledge** when you need to:
    - CloudBase SDK initialization requires environment ID
    - Can query environment ID via `envQuery` tool
    - If the user only provides an environment alias, nickname, or other short form, resolve it with `envQuery(action="list", alias=..., aliasExact=true)` first and use the returned full `EnvId`
+   - If you already have an EnvId and need detailed environment information (e.g., billing info, resource quotas), use `envQuery(action="info", envId="your-env-id")` - **do not use action="list" for this purpose as it only returns summary fields**
    - Do not pass alias-like short forms directly into SDK init, `auth.set_env`, console URLs, or generated config files
    - For Web, always initialize synchronously:
      - `import cloudbase from "@cloudbase/js-sdk"; const app = cloudbase.init({ env: "your-full-env-id" });`
