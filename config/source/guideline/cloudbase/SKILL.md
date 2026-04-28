@@ -39,6 +39,7 @@ If a skill points to its own `references/...` files, keep following those relati
 - When saving MCP or tool results to a local file with a generic file-writing tool, pass text, not raw objects. For JSON output files, serialize first with `JSON.stringify(result, null, 2)` and write that string as the file content.
 - If the file-writing tool reports that a field such as `content` expected a string but received an object, do not retry with the same raw object. Serialize the object first, then retry once with the serialized text, and make sure the retried call actually passes the serialized string rather than the original object.
 - Keep scenario-specific pitfall lists in the matching child skills instead of expanding this entry file.
+- **Task-Environment Capability Check**: When the user task explicitly mentions "CLI", "tcb", "cloudbase CLI", "命令行", or similar CLI-specific terms, check the runtime capability notice (the first message in conversation) for enabled/disabled capabilities. If the task requires CLI but "CloudBase CLI" is listed under "Disabled capabilities", do NOT attempt CLI commands. Instead, inform the user that CLI is not available in the current environment and suggest using MCP tools (e.g., `manageGateway`, `queryGateway`) or the CloudBase console for the task. Do not silently fail or proceed with wrong tools.
 
 ### High-priority routing
 
