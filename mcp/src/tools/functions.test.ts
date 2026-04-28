@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildFunctionOperationErrorMessage,
+  buildFunctionQueryErrorMessage,
   DEFAULT_RUNTIME,
   registerFunctionTools,
   resolveEventFunctionRuntime,
@@ -151,6 +152,40 @@ describe("functions tool helpers", () => {
   it("rejects unsupported Event runtimes with a helpful message", () => {
     expect(() => resolveEventFunctionRuntime("Ruby3.2")).toThrow(/不支持的运行时环境/);
     expect(() => resolveEventFunctionRuntime("Ruby3.2")).toThrow(/Python3.9/);
+  });
+
+  it("provides specific parameter guidance for invalid parameter errors", () => {
+    const message = buildFunctionQueryErrorMessage(
+      "getFunctionDetail",
+      { action: "getFunctionDetail" },
+      new Error("400 invalid parameter value"),
+    );
+
+    expect(message).toContain("getFunctionDetail");
+    expect(message).toContain("functionName");
+    expect(message).toContain("必填");
+  });
+
+  it("shows current input parameters when reporting errors", () => {
+    const message = buildFunctionQueryErrorMessage(
+      "getFunctionDetail",
+      { action: "getFunctionDetail", functionName: "testFunc" },
+      new Error("invalid parameter"),
+    );
+
+    expect(message).toContain("testFunc");
+    expect(message).toContain("当前传入的参数");
+  });
+
+  it("suggests listFunctions when function is not found", () => {
+    const message = buildFunctionQueryErrorMessage(
+      "getFunctionDetail",
+      { action: "getFunctionDetail", functionName: "nonExistentFunc" },
+      new Error("Function not found"),
+    );
+
+    expect(message).toContain("listFunctions");
+    expect(message).toContain("nonExistentFunc");
   });
 
   it("guides HTTP functions through anonymous-access follow-up without auto-creating gateway access", async () => {

@@ -436,6 +436,80 @@ function wrapFunctionOperationError(
   return wrappedError;
 }
 
+/**
+ * Build a helpful error message for function query operations
+ * when the API returns generic errors like "invalid parameter value"
+ */
+export function buildFunctionQueryErrorMessage(
+  action: string,
+  input: QueryFunctionsInput,
+  error: unknown,
+): string {
+  const baseMessage = error instanceof Error ? error.message : String(error);
+  const suggestions: string[] = [];
+
+  // Check for generic parameter errors from CloudBase API
+  if (/invalid parameter|invalid param|参数错误|参数无效|400/i.test(baseMessage)) {
+    suggestions.push(`API 返回参数错误，请检查以下${action}必需的参数：`);
+
+    // Add specific parameter guidance based on action
+    switch (action) {
+    case "getFunctionDetail":
+      suggestions.push("- functionName: 函数名称（必填，例如 'getUserInfo'）");
+      suggestions.push("- codeSecret: 代码保护密钥（可选，如果函数设置了代码保护则需要）");
+      break;
+    case "listFunctionLogs":
+      suggestions.push("- functionName: 函数名称（必填）");
+      suggestions.push("- startTime/endTime: 日志查询时间范围（可选，格式如 '2024-01-01 00:00:00'）");
+      suggestions.push("- offset/limit: 分页参数（可选）");
+      break;
+    case "listFunctionLayers":
+    case "listFunctionTriggers":
+      suggestions.push("- functionName: 函数名称（必填）");
+      break;
+    case "getFunctionLogDetail":
+      suggestions.push("- requestId: 日志请求 ID（必填）");
+      suggestions.push("- startTime/endTime: 查询时间范围（可选）");
+      break;
+    case "listLayerVersions":
+      suggestions.push("- layerName: 层名称（必填）");
+      break;
+    case "getLayerVersionDetail":
+      suggestions.push("- layerName: 层名称（必填）");
+      suggestions.push("- layerVersion: 层版本号（必填，数字类型）");
+      break;
+    default:
+      suggestions.push("- functionName: 函数名称（函数相关操作必填）");
+    }
+
+    // Add the actual input received for debugging
+    const relevantParams = Object.entries(input)
+      .filter(([key, value]) => value !== undefined && key !== "action")
+      .map(([key, value]) => `${key}=${JSON.stringify(value)}`);
+
+    if (relevantParams.length > 0) {
+      suggestions.push(`\n当前传入的参数：${relevantParams.join(", ")}`);
+    } else {
+      suggestions.push("\n当前没有传入任何参数。");
+    }
+  }
+
+  // Check for function not found errors
+  if (/function.*not found|未找到.*函数|函数不存在/i.test(baseMessage)) {
+    suggestions.push("\n提示：函数可能不存在或名称拼写错误。");
+    suggestions.push("请先使用 listFunctions 查看环境中所有函数。");
+    if (input.functionName) {
+      suggestions.push(`当前查询的函数名：'${input.functionName}'`);
+    }
+  }
+
+  if (suggestions.length === 0) {
+    return `[${action}] ${baseMessage}`;
+  }
+
+  return `[${action}] ${baseMessage}\n\n${suggestions.join("\n")}`;
+}
+
 export function registerFunctionTools(server: ExtendedMcpServer) {
   const cloudBaseOptions = server.cloudBaseOptions;
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
@@ -451,15 +525,28 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     ...(nextActions?.length ? { nextActions } : {}),
   });
 
-  const buildErrorEnvelope = (
-    error: unknown,
-    errorCode?: string,
-  ): Record<string, unknown> => ({
-    success: false,
-    data: {},
-    message: error instanceof Error ? error.message : String(error),
-    ...(errorCode ? { errorCode } : {}),
-  });
+const buildErrorEnvelope = (
+  error: unknown,
+  errorCode?: string,
+): Record<string, unknown> => ({
+  success: false,
+  data: {},
+  message: error instanceof Error ? error.message : String(error),
+  ...(errorCode ? { errorCode } : {}),
+});
+
+const withQueryEnvelope = async (
+  action: string,
+  input: QueryFunctionsInput,
+  handler: () => Promise<FunctionToolEnvelope>,
+) => {
+  try {
+    return jsonContent(await handler());
+  } catch (error) {
+    const enhancedMessage = buildFunctionQueryErrorMessage(action, input, error);
+    return jsonContent(buildErrorEnvelope(new Error(enhancedMessage)));
+  }
+};
 
   const withEnvelope = async (handler: () => Promise<FunctionToolEnvelope>) => {
     try {
@@ -561,43 +648,51 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "getFunctionDetail": {
       if (!input.functionName) {
-        throw new Error("getFunctionDetail 操作时，functionName 参数是必需的");
+        throw new Error(
+          "getFunctionDetail 操作时，functionName 参数是必需的\n\n" +
+          "正确示例：{ action: 'getFunctionDetail', functionName: 'getUserInfo' }\n" +
+          "请提供环境中已存在的函数名称，可使用 listFunctions 查看所有函数。"
+        );
       }
       const cloudbase = await getManager();
-      const result = await cloudbase.functions.getFunctionDetail(
-        input.functionName,
-        input.codeSecret,
-      );
-      logCloudBaseResult(server.logger, result);
-      return buildEnvelope(
-        {
-          action: input.action,
-          functionName: input.functionName,
-          functionDetail: result,
-          layers: normalizeFunctionLayers(result.Layers),
-          triggers: result.Triggers || [],
-          requestId: result.RequestId,
-          raw: result,
-        },
-        `已获取函数 ${input.functionName} 的详情`,
-        [
+      try {
+        const result = await cloudbase.functions.getFunctionDetail(
+          input.functionName,
+          input.codeSecret,
+        );
+        logCloudBaseResult(server.logger, result);
+        return buildEnvelope(
           {
-            tool: "queryFunctions",
-            action: "listFunctionLogs",
-            reason: "查看该函数的执行日志",
+            action: input.action,
+            functionName: input.functionName,
+            functionDetail: result,
+            layers: normalizeFunctionLayers(result.Layers),
+            triggers: result.Triggers || [],
+            requestId: result.RequestId,
+            raw: result,
           },
-          {
-            tool: "manageFunctions",
-            action: "updateFunctionConfig",
-            reason: "更新该函数配置",
-          },
-          {
-            tool: "queryGateway",
-            action: "getAccess",
-            reason: "查看该函数是否已暴露网关访问入口",
-          },
-        ],
-      );
+          `已获取函数 ${input.functionName} 的详情`,
+          [
+            {
+              tool: "queryFunctions",
+              action: "listFunctionLogs",
+              reason: "查看该函数的执行日志",
+            },
+            {
+              tool: "manageFunctions",
+              action: "updateFunctionConfig",
+              reason: "更新该函数配置",
+            },
+            {
+              tool: "queryGateway",
+              action: "getAccess",
+              reason: "查看该函数是否已暴露网关访问入口",
+            },
+          ],
+        );
+      } catch (apiError) {
+        throw new Error(buildFunctionQueryErrorMessage(input.action, input, apiError));
+      }
     }
     case "listFunctionLogs": {
       if (!input.functionName) {
@@ -1416,19 +1511,33 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z
           .enum(QUERY_FUNCTION_ACTIONS)
-          .describe("只读操作类型，例如 listFunctions、getFunctionDetail、listFunctionLogs"),
-        functionName: z.string().optional().describe("函数名称。函数相关 action 必填"),
-        limit: z.number().optional().describe("分页数量。列表类 action 可选"),
-        offset: z.number().optional().describe("分页偏移。列表类 action 可选"),
-        codeSecret: z.string().optional().describe("代码保护密钥"),
-        startTime: z.string().optional().describe("日志查询开始时间"),
-        endTime: z.string().optional().describe("日志查询结束时间"),
-        requestId: z.string().optional().describe("日志 requestId。获取日志详情时必填"),
-        qualifier: z.string().optional().describe("函数版本，日志查询时可选"),
-        runtime: z.string().optional().describe("层查询的运行时筛选"),
-        searchKey: z.string().optional().describe("层名称搜索关键字"),
-        layerName: z.string().optional().describe("层名称。层相关 action 必填"),
-        layerVersion: z.number().optional().describe("层版本号。获取层版本详情时必填"),
+          .describe(
+            "只读操作类型。\n" +
+            "- listFunctions: 列出所有函数（无需 functionName）\n" +
+            "- getFunctionDetail: 获取函数详情（必须提供 functionName）\n" +
+            "- listFunctionLogs: 获取函数日志（必须提供 functionName）\n" +
+            "- getFunctionLogDetail: 获取单条日志详情（必须提供 requestId）\n" +
+            "- listFunctionLayers: 获取函数绑定的层（必须提供 functionName）\n" +
+            "- listFunctionTriggers: 获取函数触发器（必须提供 functionName）\n" +
+            "- listLayers: 列出所有层（无需额外参数）\n" +
+            "- listLayerVersions: 获取层版本列表（必须提供 layerName）\n" +
+            "- getLayerVersionDetail: 获取层版本详情（必须提供 layerName 和 layerVersion）\n" +
+            "- getFunctionDownloadUrl: 获取函数代码下载链接（必须提供 functionName）"
+          ),
+        functionName: z.string().optional().describe(
+          "函数名称。getFunctionDetail、listFunctionLogs、listFunctionLayers、listFunctionTriggers、getFunctionDownloadUrl 时必填"
+        ),
+        limit: z.number().optional().describe("分页数量。listFunctions、listLayers 等列表类 action 可选，默认返回全部"),
+        offset: z.number().optional().describe("分页偏移。listFunctions、listLayers 等列表类 action 可选"),
+        codeSecret: z.string().optional().describe("代码保护密钥。如果函数设置了代码保护，获取详情或下载代码时需要提供"),
+        startTime: z.string().optional().describe("日志查询开始时间。格式如 '2024-01-15 10:00:00'，listFunctionLogs/getFunctionLogDetail 可选"),
+        endTime: z.string().optional().describe("日志查询结束时间。格式如 '2024-01-15 11:00:00'，与 startTime 间隔不能超过一天"),
+        requestId: z.string().optional().describe("日志请求 ID。getFunctionLogDetail 时必填，可从 listFunctionLogs 返回的日志中获取"),
+        qualifier: z.string().optional().describe("函数版本，如 $LATEST。listFunctionLogs 时可选"),
+        runtime: z.string().optional().describe("层查询的运行时筛选。listLayers 时可选，例如 Nodejs18.15、Python3.9"),
+        searchKey: z.string().optional().describe("层名称搜索关键字。listLayers 时可选，用于模糊搜索层名称"),
+        layerName: z.string().optional().describe("层名称。listLayerVersions、getLayerVersionDetail 时必填"),
+        layerVersion: z.number().optional().describe("层版本号。getLayerVersionDetail 时必填，正整数如 1、2、3"),
       },
       annotations: {
         readOnlyHint: true,
