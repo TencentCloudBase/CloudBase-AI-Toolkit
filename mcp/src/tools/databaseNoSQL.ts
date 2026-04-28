@@ -900,6 +900,80 @@ deleteCollection: 删除集合`),
       throw new Error(`不支持的操作类型: ${action}`);
     },
   );
+
+  // queryNoSqlDatabaseBackupTime - 查询 NoSQL 数据库可回档时间范围
+  server.registerTool?.(
+    "queryNoSqlDatabaseBackupTime",
+    {
+      title: "查询 NoSQL 数据库可回档时间范围",
+      description:
+        "查询 NoSQL 数据库（文档型数据库）的可回档时间范围，返回最早可回档时间和最晚可回档时间。适用于需要了解数据库备份恢复时间范围的场景。",
+      inputSchema: {
+        collectionName: z
+          .string()
+          .optional()
+          .describe("集合名称（可选），如需查询特定集合的回档时间范围可传入"),
+        instanceId: z
+          .string()
+          .optional()
+          .describe("可选：显式指定数据库实例ID；未传时会自动解析并缓存"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        openWorldHint: true,
+        category: CATEGORY,
+      },
+    },
+    async ({ collectionName, instanceId }) => {
+      const cloudbase = await getManager();
+
+      const resolvedInstance = await resolveNoSqlInstanceId({
+        toolName: "queryNoSqlDatabaseBackupTime",
+        cloudbase,
+        cloudBaseOptions,
+        instanceIdOverride: instanceId,
+        collectionName: collectionName || "default",
+      });
+
+      const result = await cloudbase
+        .commonService("tcb", "2018-06-08")
+        .call({
+          Action: "DescribeBackupTime",
+          Param: {
+            EnvId: cloudBaseOptions?.envId,
+            TableName: collectionName,
+            Tag: resolvedInstance.instanceId,
+          },
+        });
+
+      logCloudBaseResult(server.logger, result);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                success: true,
+                requestId: result?.RequestId,
+                backupTimeRange: {
+                  earliestTime: result?.EarliestTime,
+                  latestTime: result?.LatestTime,
+                  startTime: result?.StartTime,
+                  endTime: result?.EndTime,
+                },
+                instanceId: resolvedInstance.instanceId,
+                collectionName: collectionName || null,
+                message: "获取 NoSQL 数据库可回档时间范围成功",
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    },
+  );
 }
 
 async function insertDocuments({
