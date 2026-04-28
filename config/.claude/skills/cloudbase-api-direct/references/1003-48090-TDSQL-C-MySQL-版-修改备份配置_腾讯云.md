@@ -1,6 +1,6 @@
 ## 修改备份配置
 
-最近更新时间：2026-01-28 01:37:01
+最近更新时间：2026-04-28 01:23:53
 
 -   微信扫一扫 
 -   QQ
@@ -35,22 +35,62 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 | Action | 是 | String | [公共参数](/document/api/1003/48100) ，本接口取值：ModifyBackupConfig。 |
 | Version | 是 | String | [公共参数](/document/api/1003/48100) ，本接口取值：2019-01-07。 |
 | Region | 是 | String | [公共参数](/document/api/1003/48100) ，详见产品支持的 [地域列表](/document/api/1003/48100#.E5.9C.B0.E5.9F.9F.E5.88.97.E8.A1.A8) ，本接口仅支持其中的: ap-bangkok, ap-beijing, ap-chengdu, ap-chongqing, ap-guangzhou, ap-hongkong, ap-jakarta, ap-nanjing, ap-seoul, ap-shanghai, ap-shenzhen-fsi, ap-singapore, ap-tokyo, eu-frankfurt, na-ashburn, na-siliconvalley, sa-saopaulo 。 |
-| ClusterId | 是 | String | 集群ID  
+| ClusterId | 是 | String | 
+集群ID
+
+  
 示例值：cynosdbmysql-45knmnra |
-| BackupTimeBeg | 否 | Integer | 表示全备开始时间，\[0-24\*3600\]， 如0:00, 1:00, 2:00 分别为 0，3600， 7200  
+| BackupTimeBeg | 否 | Integer | 
+
+表示全备开始时间，\[0-24\*3600\]， 如0:00, 1:00, 2:00 分别为 0，3600， 7200
+
+  
 示例值：7200 |
-| BackupTimeEnd | 否 | Integer | 表示全备结束时间，\[0-24\*3600\]， 如0:00, 1:00, 2:00 分别为 0，3600， 7200  
+| BackupTimeEnd | 否 | Integer | 
+
+表示全备结束时间，\[0-24\*3600\]， 如0:00, 1:00, 2:00 分别为 0，3600， 7200
+
+  
 示例值：21600 |
-| ReserveDuration | 否 | Integer | 表示保留备份时长, 单位秒，超过该时间将被清理, 七天表示为3600 _24_ 7=604800，最大为158112000  
+| ReserveDuration | 否 | Integer | 
+
+表示保留备份时长, 单位秒，超过该时间将被清理, 七天表示为3600 _24_ 7=604800，最大为158112000
+
+  
 示例值：604800 |
-| BackupFreq.N | 否 | Array of String | 该参数目前不支持修改，无需填写。备份频率，长度为7的数组，分别对应周一到周日的备份方式，full-全量备份，increment-增量备份  
+| BackupFreq.N | 否 | Array of String | 
+
+该参数目前不支持修改，无需填写。备份频率，长度为7的数组，分别对应周一到周日的备份方式，full-全量备份，increment-增量备份
+
+  
 示例值：\["full","full","full","full","full","full","full"\] |
-| BackupType | 否 | String | 该参数目前不支持修改，无需填写。  
+| BackupType | 否 | String | 
+
+该参数目前不支持修改，无需填写。
+
+  
 示例值：logic |
-| LogicBackupConfig | 否 | [LogicBackupConfigInfo](/document/api/1003/48097#LogicBackupConfigInfo) | 逻辑备份配置 |
-| DeleteAutoLogicBackup | 否 | Boolean | 是否删除自动逻辑备份  
+| LogicBackupConfig | 否 | [LogicBackupConfigInfo](/document/api/1003/48097#LogicBackupConfigInfo) | 
+
+逻辑备份配置
+
+ |
+| DeleteAutoLogicBackup | 否 | Boolean | 
+
+是否删除自动逻辑备份
+
+  
 示例值：false |
-| SnapshotSecondaryBackupConfig | 否 | [SnapshotBackupConfig](/document/api/1003/48097#SnapshotBackupConfig) | 二级快照备份参数 |
+| SnapshotSecondaryBackupConfig | 否 | [SnapshotBackupConfig](/document/api/1003/48097#SnapshotBackupConfig) | 
+
+二级快照备份参数
+
+ |
+| SparseBackupConfig | 否 | [SparseBackupConfig](/document/api/1003/48097#SparseBackupConfig) | 
+
+稀疏备份配置
+
+ |
 
 ## 3\. 输出参数
 
