@@ -57,6 +57,61 @@ Use when the user wants to manage CloudBase resources via command line:
 - Console UI operations
 - CloudBase Agent SDK development → use `cloudbase-agent-ts`
 
+## CLI → MCP Tool Mapping (when CLI is disabled)
+
+When the runtime environment disables CLI (e.g., MCP-only mode), use these MCP tool equivalents instead of `tcb` commands:
+
+### Permission & Role Management
+
+| CLI Command | MCP Tool Equivalent |
+|-------------|---------------------|
+| `tcb role list` | `queryPermissions(action="listRoles")` |
+| `tcb role get --id <roleId>` | `queryPermissions(action="getRole", roleId="<roleId>")` |
+| `tcb role get --identity <identity>` | `queryPermissions(action="getRole", roleIdentity="<identity>")` |
+| `tcb role get --name <name>` | `queryPermissions(action="getRole", roleName="<name>")` |
+| `tcb role create --name <n> --identity <i>` | `managePermissions(action="createRole", roleName="<n>", roleIdentity="<i>", policies=[...], memberUids=[...])` |
+| `tcb role update --id <id> --add-users` | `managePermissions(action="updateRole", roleId="<id>", memberUids=[...])` or `managePermissions(action="addRoleMembers", ...)` |
+| `tcb role update --id <id> --add-policies` | `managePermissions(action="addRolePolicies", roleId="<id>", policies=[...])` |
+| `tcb role delete <ids...>` | `managePermissions(action="deleteRoles", roleIds=[...])` |
+| `tcb permission get table:users` | `queryPermissions(action="getResourcePermission", resourceType="sqlDatabase", resourceId="users")` |
+| `tcb permission get collection:posts` | `queryPermissions(action="getResourcePermission", resourceType="noSqlDatabase", resourceId="posts")` |
+| `tcb permission set table:users --level readonly` | `managePermissions(action="updateResourcePermission", resourceType="sqlDatabase", resourceId="users", permission="READONLY")` |
+
+### User Management
+
+| CLI Command | MCP Tool Equivalent |
+|-------------|---------------------|
+| `tcb user list` | `queryPermissions(action="listUsers")` |
+| `tcb user list --name <name>` | `queryPermissions(action="listUsers", username="<name>")` |
+| `tcb user update <uid> --status BLOCKED` | `managePermissions(action="updateUser", uid="<uid>", userStatus="BLOCKED")` |
+
+### Function Management
+
+| CLI Command | MCP Tool Equivalent |
+|-------------|---------------------|
+| `tcb fn list` | `queryFunctions(action="listFunctions")` |
+| `tcb fn detail <name>` | `queryFunctions(action="getFunction", functionName="<name>")` |
+| `tcb fn logs <name>` | `queryFunctions(action="getFunctionLogs", functionName="<name>")` |
+| `tcb fn deploy` | `manageFunctions(action="updateFunctionCode", functionRootPath="...", functionName="...")` |
+| `tcb fn create` | `manageFunctions(action="createFunction", ...)` |
+
+### Database Operations
+
+| CLI Command | MCP Tool Equivalent |
+|-------------|---------------------|
+| `tcb db list` | `readNoSqlDatabaseStructure(action="listCollections")` |
+| `tcb db query <collection>` | `readNoSqlDatabaseContent(collection="<collection>", ...)` |
+| `tcb mysql query "SELECT..."` | `querySqlDatabase(action="executeReadSQL", statement="SELECT...")` |
+
+### Storage & Hosting
+
+| CLI Command | MCP Tool Equivalent |
+|-------------|---------------------|
+| `tcb hosting deploy ./dist` | `uploadFiles(localPath="./dist", cloudPath="/")` |
+| `tcb storage upload ./file.txt /path` | `manageStorage(action="uploadFile", localPath="./file.txt", cloudPath="/path")` |
+
+> ⚠️ **Important**: When CLI is disabled, do NOT attempt to run `tcb` commands via shell. Use the MCP tool equivalents listed above. Check the runtime capability notice at the start of the conversation to determine which capabilities are enabled.
+
 ## How to use this skill (for a coding agent)
 
 1. **Always load `references/core.md` first** — it covers authentication,

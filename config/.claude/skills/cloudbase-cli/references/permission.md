@@ -10,6 +10,27 @@ CloudBase access control has **three independent layers** — know which one to 
 
 > ⚠️ Role policies and resource permissions are **two parallel systems with NO automatic sync**. Changing a role policy does NOT affect `permission get` results, and vice versa. Audit both separately.
 
+## MCP Tool Equivalents (when CLI is disabled)
+
+If the runtime environment shows CLI is disabled, use these MCP tools instead:
+
+| CLI Command | MCP Tool Call |
+|-------------|---------------|
+| `tcb role list` | `queryPermissions(action="listRoles")` |
+| `tcb role get --id <id>` | `queryPermissions(action="getRole", roleId="<id>")` |
+| `tcb role get --identity <i>` | `queryPermissions(action="getRole", roleIdentity="<i>")` |
+| `tcb role get --name <n>` | `queryPermissions(action="getRole", roleName="<n>")` |
+| `tcb role create` | `managePermissions(action="createRole", roleName, roleIdentity, policies, memberUids)` |
+| `tcb role update --add-users` | `managePermissions(action="addRoleMembers", roleId, memberUids)` |
+| `tcb role update --add-policies` | `managePermissions(action="addRolePolicies", roleId, policies)` |
+| `tcb role delete` | `managePermissions(action="deleteRoles", roleIds)` |
+| `tcb permission get table:users` | `queryPermissions(action="getResourcePermission", resourceType="sqlDatabase", resourceId="users")` |
+| `tcb permission set table:users --level readonly` | `managePermissions(action="updateResourcePermission", resourceType="sqlDatabase", resourceId="users", permission="READONLY")` |
+| `tcb user list` | `queryPermissions(action="listUsers")` |
+| `tcb user update <uid> --status BLOCKED` | `managePermissions(action="updateUser", uid="<uid>", userStatus="BLOCKED")` |
+
+> ⚠️ Do NOT attempt `tcb` commands when CLI is disabled. Check the runtime capability notice to determine available interfaces.
+
 ---
 
 ## When to Use
