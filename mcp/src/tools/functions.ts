@@ -401,6 +401,32 @@ export function buildFunctionOperationErrorMessage(
     );
   }
 
+  if (/invalid parameter|参数值非法|InvalidParameter/i.test(baseMessage)) {
+    suggestions.push(
+      "请检查以下常见参数问题：",
+    );
+    suggestions.push(
+      "1. 函数名格式：只能包含字母、数字、下划线和中划线，不能以数字开头，长度 2-60 字符",
+    );
+    suggestions.push(
+      "2. 运行时版本：确认使用有效的运行时（如 Nodejs18.15、Nodejs20.19 等）",
+    );
+    suggestions.push(
+      "3. 函数类型：Event 函数使用 exports.main 入口，HTTP 函数需要 scf_bootstrap 启动文件",
+    );
+    suggestions.push(
+      "4. 环境变量：确认 envVariables 中的值为字符串类型（而非数字或布尔值）",
+    );
+    suggestions.push(
+      "5. 函数路径：确认 functionRootPath 指向包含函数子目录的父目录（如 cloudfunctions/），而非函数目录本身",
+    );
+    if (operation === "createFunction") {
+      suggestions.push(
+        "6. 创建 HTTP 函数时，必须提供 functionRootPath（指向 cloudfunctions 或 functions 目录）或 zipFile 参数",
+      );
+    }
+  }
+
   if (suggestions.length === 0) {
     suggestions.push("请检查函数名、目录结构和环境中的函数状态后重试。");
   }

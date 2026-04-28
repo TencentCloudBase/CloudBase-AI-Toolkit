@@ -234,6 +234,74 @@ The `scf_bootstrap` binary path must match the runtime — see the full mapping 
 }
 ```
 
+## Using npm dependencies
+
+Both Event Functions and HTTP Functions support npm packages. Dependencies are automatically installed from `package.json` during deployment.
+
+### Example: Using lodash for data processing
+
+`cloudfunctions/npm-demo/package.json`
+
+```json
+{
+  "name": "npm-demo",
+  "version": "1.0.0",
+  "dependencies": {
+    "lodash": "^4.17.21"
+  }
+}
+```
+
+`cloudfunctions/npm-demo/index.js` (Event Function)
+
+```js
+const _ = require("lodash");
+
+exports.main = async (event, context) => {
+  const orders = event.orders || [];
+
+  const paidOrders = _.filter(orders, { status: "paid" });
+  const totalPaid = _.sumBy(paidOrders, "price");
+  const paidCount = paidOrders.length;
+
+  return {
+    totalPaid,
+    paidCount,
+    usedLodash: true,
+  };
+};
+```
+
+Deploy this function:
+
+```
+manageFunctions(action="createFunction", func={
+  name: "npm-demo",
+  runtime: "Nodejs18.15"
+}, functionRootPath="/path/to/cloudfunctions")
+```
+
+Invoke with test data:
+
+```
+manageFunctions(action="invokeFunction", functionName="npm-demo", params={
+  orders: [
+    { id: 1, price: 100, status: "paid" },
+    { id: 2, price: 200, status: "paid" },
+    { id: 3, price: 300, status: "pending" }
+  ]
+})
+```
+
+### Key points for npm dependencies
+
+- **Event Functions**: Add dependencies to `package.json`, deploy with `manageFunctions(action="createFunction")`, platform auto-installs dependencies
+- **HTTP Functions**: Must include `node_modules` or use `scf_bootstrap` with a package manager; for simple cases, pre-bundling dependencies is recommended
+- **Common issues**:
+  - If deployment fails with "依赖安装失败", check that `package.json` is valid JSON and dependency versions exist
+  - Some native modules may not be supported in the serverless environment
+  - Keep dependencies minimal for faster cold starts
+
 ## Preferred tool map
 
 ### Function management
