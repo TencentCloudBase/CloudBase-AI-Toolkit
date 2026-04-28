@@ -75,6 +75,21 @@ const SINGLE_INSTALL_REPO = 'https://github.com/tencentcloudbase/skills';
 const SKILL_VIEW_BASE_URL = 'https://skills.sh/tencentcloudbase/skills';
 
 /**
+ * Extract the `name` field from SKILL.md frontmatter
+ */
+function getSkillNameFromFiles(files) {
+  const skillFile = files.find(f => f.filename === 'SKILL.md');
+  if (!skillFile) return null;
+  
+  // Use already-parsed frontmatter
+  if (skillFile.frontmatter && skillFile.frontmatter.name) {
+    return skillFile.frontmatter.name;
+  }
+  
+  return null;
+}
+
+/**
  * Count the max consecutive backticks in text to determine fence length
  */
 function maxBacktickRun(text) {
@@ -93,7 +108,8 @@ function generateMDX(ruleConfig, files) {
   const { id, title, description, prompts = [], ruleDir } = ruleConfig;
   const skillId = ruleDir || id;
   const singleInstallCommand = `npx skills add ${SINGLE_INSTALL_REPO} --skill ${skillId}`;
-  const skillViewUrl = `${SKILL_VIEW_BASE_URL}/${skillId}`;
+  const skillName = getSkillNameFromFiles(files) || skillId;
+  const skillViewUrl = `${SKILL_VIEW_BASE_URL}/${skillName}`;
   
   let mdx = `# ${title}\n\n${description}\n\n`;
   
