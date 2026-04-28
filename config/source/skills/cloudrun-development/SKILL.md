@@ -125,9 +125,46 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 
 ## Access guidance
 
-- **Web/public scenarios** -> enable WEB access intentionally and pair it with the right auth flow.
+- **Web/public scenarios** -> enable PUBLIC access intentionally and pair it with the right auth flow.
 - **Mini Program** -> prefer internal direct connection and avoid unnecessary public exposure.
 - **Private/VPC scenarios** -> keep public access off unless the product requirement clearly needs it.
+
+## Zero-config deployment
+
+CloudBase Run supports **zero-config deployment** - you can deploy without specifying `serverConfig`. The platform automatically detects and applies sensible defaults.
+
+### When to use zero-config
+
+- **Simple frontend or static sites** - HTML/CSS/JS projects without complex runtime requirements
+- **Quick prototyping** - When you need to get something running fast
+- **Standard Node.js apps** - When your project has a standard structure (package.json with start script)
+
+### How zero-config works
+
+When you omit `serverConfig`:
+- **Service type**: Auto-detected (Dockerfile present → container, otherwise checks for Node.js patterns)
+- **CPU/Memory**: Default values (0.25 CPU, 0.5 GB memory)
+- **Access**: Default access type applied
+- **Port**: Container mode uses platform default, Function mode uses 3000
+
+### Zero-config deploy example
+
+```json
+{
+  "action": "deploy",
+  "serverName": "my-frontend-app",
+  "targetPath": "/abs/ws/my-project"
+}
+```
+
+### When explicit config is needed
+
+Use explicit `serverConfig` when:
+- You need specific CPU/memory resources
+- You need public web access (`OpenAccessTypes: ["PUBLIC"]`)
+- You need specific scaling behavior (MinNum/MaxNum)
+- You need custom environment variables
+- You have specific port or Dockerfile requirements
 
 ## Quick examples
 
@@ -143,7 +180,17 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 { "action": "run", "serverName": "my-svc", "targetPath": "/abs/ws/my-svc", "runOptions": { "port": 3000 } }
 ```
 
-### Deploy
+### Deploy with zero-config (recommended for simple projects)
+
+```json
+{
+  "action": "deploy",
+  "serverName": "my-frontend-app",
+  "targetPath": "/abs/ws/my-project"
+}
+```
+
+### Deploy with explicit config (when you need control)
 
 ```json
 {
@@ -151,7 +198,7 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
   "serverName": "my-svc",
   "targetPath": "/abs/ws/my-svc",
   "serverConfig": {
-    "OpenAccessTypes": ["WEB"],
+    "OpenAccessTypes": ["PUBLIC"],
     "Cpu": 0.5,
     "Mem": 1,
     "MinNum": 1,
@@ -176,3 +223,16 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 - **Deployment failure** -> inspect Dockerfile, build logs, and CPU/memory ratio.
 - **Local run failure** -> remember only Function mode is supported by local-run tools.
 - **Performance issues** -> reduce dependencies, optimize initialization, and tune minimum instances.
+
+## Deployment failure recovery
+
+When deployment fails, follow these steps:
+
+1. **Check deployment log**: Use `queryCloudRun(action="getDeployLog", detailServerName="<serviceName>")` to get detailed error messages
+2. **Common failure causes**:
+   - Missing Dockerfile for container mode
+   - Invalid package.json or missing dependencies
+   - Port mismatch (app not listening on expected port)
+   - Resource constraints (CPU/memory ratio must be 1:2)
+3. **Retry after fix**: Use `manageCloudRun(action="deploy", ...)` again after fixing the issue
+4. **Monitor status**: Use `queryCloudRun(action="detail", detailServerName="<serviceName>")` to check deployment status
