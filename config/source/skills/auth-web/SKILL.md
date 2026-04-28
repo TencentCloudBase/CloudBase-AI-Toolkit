@@ -48,6 +48,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Keeping the login or register account input as `type="email"` when the task explicitly says the account identifier is a plain username string.
 - Starting implementation before calling `queryAppAuth(action="getLoginConfig")` and enabling `usernamePassword` when it is still off.
 - **Treating `auth.getUser()` returning a user as proof of real login.** When the SDK is initialized with a `publishableKey` / `accessKey`, it may silently create an anonymous session. A route guard's `checkAuth()` must verify that the user actually signed in with username/password (e.g. check `session.loginType !== 'ANONYMOUS'` or that `user.user_metadata?.username` exists), not just that `getUser()` returns non-null. Otherwise unauthenticated visitors pass the guard, protected pages render without a real user, and role-based UI (edit / delete buttons gated on `currentUser.role`) breaks because `currentUser` has no role record.
+- **For email/phone OTP signup, the register button must be disabled until the verification code has been sent.** After calling `auth.signUp({ email })`, store the returned `data.verifyOtp` in a ref. The register button's `onClick` must call that stored `verifyOtp({ token })`, and it must be disabled when the ref is still null. If you skip this wiring, the register button either stays disabled forever or does nothing when clicked.
+- **Do NOT call cloud functions for registration.** Use the Web SDK `auth.signUp` → `data.verifyOtp` flow directly.
 
 ## Overview
 
@@ -107,7 +109,7 @@ If the current task has not retrieved a real Publishable Key, omit `accessKey` i
 
 **1. Phone OTP (Recommended)**
 - Automatically use `auth-tool-cloudbase` to turn on `SMS Login` through `manageAppAuth`
-- For phone registration, send the phone number to `auth.signUp({ phone, ... })` first, then call the returned `verifyOtp({ token })`. Do not swap the order.
+- For phone registration, call `auth.signUp({ phone })` first, then call the returned `data.verifyOtp({ token })`. Do not swap the order.
 ```js
 const { data, error } = await auth.signUp({ phone: '13800138000' })
 const { data: loginData, error: loginError } = await data.verifyOtp({ token:'123456' })
@@ -115,7 +117,14 @@ const { data: loginData, error: loginError } = await data.verifyOtp({ token:'123
 
 **2. Email OTP**
 - Automatically use `auth-tool-cloudbase` to turn on `Email Login` through `manageAppAuth`
+- For **registration**, use `auth.signUp({ email })` → `data.verifyOtp({ token })` (same pattern as phone signup)
+- For **login**, use `auth.signInWithOtp({ email })` → `data.verifyOtp({ token })`
 ```js
+// Registration
+const { data: regData, error: regErr } = await auth.signUp({ email: 'user@example.com' })
+const { data: regResult, error: regVerifyErr } = await regData.verifyOtp({ token: '654321' })
+
+// Login
 const { data, error } = await auth.signInWithOtp({ email: 'user@example.com' })
 const { data: loginData, error: loginError } = await data.verifyOtp({ token: '654321' })
 ```
@@ -164,17 +173,18 @@ const usernameSignUp = await auth.signUp({
   nickname: 'User',
 })
 
-// Email Otp
+// Email OTP
 // Use only when the task explicitly requires email addresses.
-// Email Otp
-const emailSignUp = await auth.signUp({ email: 'new@example.com', nickname: 'User' })
-const emailVerifyResult = await emailSignUp.data.verifyOtp({ token: '123456' })
+// The flow is identical to phone OTP: signUp sends the code, verifyOtp completes registration.
+const { data: emailData, error: emailErr } = await auth.signUp({ email: 'new@example.com' })
+if (emailErr) { /* handle error */ }
+const emailVerifyResult = await emailData.verifyOtp({ token: '123456' })
 
-// Phone Otp
+// Phone OTP
 // Use only when the task explicitly requires phone numbers.
-// Phone Otp
-const phoneSignUp = await auth.signUp({ phone: '13800138000', password: 'pass123', nickname: 'User' })
-const phoneVerifyResult = await phoneSignUp.data.verifyOtp({ token: '123456' })
+const { data: phoneData, error: phoneErr } = await auth.signUp({ phone: '13800138000', password: 'pass123' })
+if (phoneErr) { /* handle error */ }
+const phoneVerifyResult = await phoneData.verifyOtp({ token: '123456' })
 ```
 
 When the project already has `handleSendCode` / `handleRegister` or similar UI handlers, wire the SDK calls there directly instead of leaving them commented out in `App.tsx`.
@@ -205,10 +215,16 @@ const handleLogin = async () => {
 Do not use email OTP or email-only helpers for these flows unless the task explicitly says the account identifier is an email address. The corresponding form field should stay `type="text"` rather than `type="email"` for username-style account identifiers.
 
 ```tsx
+// Works for both email and phone OTP signup.
+// The "send code" button calls auth.signUp, which sends the verification code
+// and returns a verifyOtp callback. The "register" button calls that callback.
+const verifyOtpRef = useRef(null)
+
 const handleSendCode = async () => {
   try {
+    // For email signup, pass { email }. For phone signup, pass { phone }.
     const { data, error } = await auth.signUp({
-      phone,
+      email,  // or phone, depending on the form
       password: password || undefined,
     })
     if (error) throw error
@@ -229,6 +245,12 @@ const handleRegister = async () => {
   }
 }
 ```
+
+**Key wiring rules for email/phone OTP forms:**
+- The "send code" button handler MUST store `data.verifyOtp` in a ref or state variable after calling `auth.signUp({ email })` / `auth.signUp({ phone })`.
+- The "register" / "submit" button handler MUST call the stored `verifyOtpRef.current({ token })` — not `auth.signUp` again.
+- The register button should be disabled until `verifyOtpRef.current` is set (i.e. the verification code has been sent).
+- `auth.signUp({ email })` internally calls `getVerification → verify → signUp` in sequence. The two-step `signUp → verifyOtp` API is the correct Web SDK pattern; do NOT call `getVerification`, `verify`, or `authApi.signUp` directly.
 
 **5. Anonymous**
 - Automatically use `auth-tool-cloudbase` to turn on `Anonymous Login` through `manageAppAuth`

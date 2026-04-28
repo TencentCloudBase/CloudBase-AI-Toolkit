@@ -125,7 +125,7 @@ Use this skill for **CloudBase platform knowledge** when you need to:
 
 ### Web Authentication
 - **Must use SDK built-in authentication**: CloudBase Web SDK provides complete authentication features
-- **Recommended method**: SMS login with `auth.getVerification()`, for detailed, refer to web auth related docs
+- **Recommended method**: OTP login (phone or email) with `auth.signInWithOtp({ phone/email })` or registration with `auth.signUp({ phone/email })`, for detailed, refer to web auth related docs
 - **Forbidden behavior**: Do not use cloud functions to implement login authentication logic
 - **User management**: After login, get user information via `auth.getCurrentUser()`
 - **Provider and login-method setup**: Use `queryAppAuth` / `manageAppAuth`, not the MCP `auth` tool
