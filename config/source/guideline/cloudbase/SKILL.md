@@ -23,9 +23,35 @@ When a skill body references stable sibling ids such as `auth-tool`, `auth-web`,
 
 If a skill points to its own `references/...` files, keep following those relative paths from the current skill directory. If the environment does not support MCP directly, read `cloudbase` first and follow its mcporter / MCP setup guidance before using any platform-specific skill.
 
+### ⚠️ MANDATORY: Read sub-skill before implementation
+
+**You MUST read the corresponding `references/<skill-id>/SKILL.md` file before writing any CloudBase capability code.** Do NOT implement CloudBase features based solely on this overview file — the sub-skill files contain essential API signatures, parameter maps, return-value destructuring, and pitfall lists that prevent common integration errors.
+
+When this skill is deployed as an all-in-one bundle, sub-skills live under `references/`. Use the High-priority routing table below to determine which sub-skill to read first:
+
+| Capability area | MUST read before coding | Also read |
+|-----------------|------------------------|-----------|
+| Web login / registration / auth | `references/auth-tool/SKILL.md` | `references/auth-web/SKILL.md` |
+| Web SDK integration / hosting | `references/web-development/SKILL.md` | — |
+| Mini program development | `references/miniprogram-development/SKILL.md` | `references/auth-wechat/SKILL.md` |
+| Cloud functions | `references/cloud-functions/SKILL.md` | — |
+| CloudRun backend | `references/cloudrun-development/SKILL.md` | — |
+| NoSQL database (Web) | `references/no-sql-web-sdk/SKILL.md` | — |
+| NoSQL database (Mini Program) | `references/no-sql-wx-mp-sdk/SKILL.md` | — |
+| MySQL database | `references/relational-database-tool/SKILL.md` | `references/relational-database-web/SKILL.md` |
+| AI text/chat (Web) | `references/ai-model-web/SKILL.md` | — |
+| AI text/chat/image (Node.js) | `references/ai-model-nodejs/SKILL.md` | — |
+| AI text/chat (WeChat) | `references/ai-model-wechat/SKILL.md` | — |
+| Cloud storage (Web) | `references/cloud-storage-web/SKILL.md` | — |
+| UI design | `references/ui-design/SKILL.md` | — |
+| AI Agent | `references/cloudbase-agent/SKILL.md` | — |
+| Spec workflow | `references/spec-workflow/SKILL.md` | — |
+
+**If you skip reading the sub-skill and implement based on this file alone, you will likely use wrong API signatures, incorrect parameter names, or miss required setup steps (e.g. enabling auth providers before writing login code).**
+
 ### Global rules before action
 
-- Identify the scenario first, then read the matching source skill before writing code or calling CloudBase APIs.
+- You MUST identify the scenario first, then read the matching source skill before writing code or calling CloudBase APIs. This is not optional.
 - Prefer semantic sources when maintaining the toolkit, but express runtime routing in stable skill identifiers rather than repo-only paths. Do not treat generated, mirrored, or IDE-specific artifacts as the primary knowledge source.
 - Use MCP or mcporter first for CloudBase management tasks, and inspect tool schemas before execution.
 - If the task includes UI, read `ui-design` first and output the design specification before interface code.

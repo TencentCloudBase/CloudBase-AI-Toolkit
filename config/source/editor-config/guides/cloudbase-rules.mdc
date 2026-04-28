@@ -23,7 +23,7 @@ When the workspace already contains an existing application with explicit TODO m
 
 ### Global must-read rules
 
-- Identify the scenario first. Do not start implementation before reading the matching rule file.
+- **You MUST identify the scenario first. Do NOT start implementation before reading the matching rule file.** The rule files contain essential API signatures, parameter maps, return-value destructuring, and pitfall lists that prevent common integration errors.
 - Login or registration request -> read `{auth-tool}` first, then the platform auth rule.
 - Keep auth domains separate: management-side login uses `auth`; app-side auth configuration uses `queryAppAuth` / `manageAppAuth`.
 - When writing MCP or tool results to a local file with a generic file-writing tool, pass text rather than raw objects. For JSON files, serialize first with `JSON.stringify(result, null, 2)` and write that string.
