@@ -248,6 +248,10 @@ Prefer long-term memory when available: write the scenarios and working rules th
 1. **CLI Operations**: Read the `cloudbase-cli` skill for managing CloudBase via `tcb` commands
 2. Covers: function deployment, CloudRun, hosting, storage, databases, permissions, access config
 3. **Best for**: CI/CD pipelines, scripting, batch operations, or when users prefer CLI over SDK/MCP
+4. **⚠️ When CLI is unavailable or disabled**: Use MCP tools as alternatives. Read `cloudbase-platform` skill for the full CLI → MCP mapping. Key mappings:
+   - `tcb role list/get` → `queryPermissions(action="listRoles"/"getRole")`
+   - `tcb permission get/set` → `queryPermissions(action="getResourcePermission"/"listResourcePermissions")` / `managePermissions(action="updateResourcePermission")`
+   - `tcb user list/create/update/delete` → `queryPermissions(action="listUsers"/"getUser")` / `managePermissions(action="createUser"/"updateUser"/"deleteUsers")`
 
 ### When Developing a Native App Project (iOS/Android/Flutter/React Native/etc.):
 1. **⚠️ Platform Limitation**: Native apps do NOT support CloudBase SDK - Must use HTTP API

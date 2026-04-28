@@ -195,6 +195,48 @@ Compatibility note:
    - If involving cloud functions, while ensuring security, can minimize the number of cloud functions as much as possible
    - For example: implement one cloud function for client-side requests, implement one cloud function for data initialization
 
+## CLI → MCP Alternative Mapping
+
+**When CloudBase CLI (`tcb`) is unavailable or disabled, use MCP tools instead.** The `queryPermissions` and `managePermissions` tools cover all CLI `tcb role`, `tcb permission`, and `tcb user` operations:
+
+### Role operations
+
+| CLI command | MCP alternative |
+|------------|-----------------|
+| `tcb role list` | `queryPermissions(action="listRoles")` |
+| `tcb role get --id <roleId>` | `queryPermissions(action="getRole", roleId="<roleId>")` |
+| `tcb role get --identity <roleIdentity>` | `queryPermissions(action="getRole", roleIdentity="<roleIdentity>")` |
+| `tcb role get --name <roleName>` | `queryPermissions(action="getRole", roleName="<roleName>")` |
+| `tcb role create` | `managePermissions(action="createRole", roleName=..., roleIdentity=..., policies=..., memberUids=...)` |
+| `tcb role update --add-users` | `managePermissions(action="addRoleMembers", roleId=..., memberUids=...)` |
+| `tcb role update --remove-users` | `managePermissions(action="removeRoleMembers", roleId=..., memberUids=...)` |
+| `tcb role update --add-policies` | `managePermissions(action="addRolePolicies", roleId=..., policies=...)` |
+| `tcb role update --remove-policies` | `managePermissions(action="removeRolePolicies", roleId=..., policies=...)` |
+| `tcb role delete` | `managePermissions(action="deleteRoles", roleIds=...)` |
+
+### Permission operations
+
+| CLI command | MCP alternative |
+|------------|-----------------|
+| `tcb permission get` | `queryPermissions(action="listResourcePermissions", resourceType=...)` |
+| `tcb permission get table:users` | `queryPermissions(action="getResourcePermission", resourceType="sqlDatabase", resourceId="users")` |
+| `tcb permission get collection:posts` | `queryPermissions(action="getResourcePermission", resourceType="noSqlDatabase", resourceId="posts")` |
+| `tcb permission get function` | `queryPermissions(action="listResourcePermissions", resourceType="function")` |
+| `tcb permission set table:users --level readonly` | `managePermissions(action="updateResourcePermission", resourceType="sqlDatabase", resourceId="users", permission="READONLY")` |
+| `tcb permission set collection:posts --level custom --rule '...'` | `managePermissions(action="updateResourcePermission", resourceType="noSqlDatabase", resourceId="posts", permission="CUSTOM", securityRule="...")` |
+
+### User operations
+
+| CLI command | MCP alternative |
+|------------|-----------------|
+| `tcb user list` | `queryPermissions(action="listUsers")` |
+| `tcb user list --name alice` | `queryPermissions(action="listUsers", username="alice")` |
+| `tcb user create` | `managePermissions(action="createUser", username=..., password=...)` |
+| `tcb user update <uid> --status BLOCKED` | `managePermissions(action="updateUser", uid=..., userStatus="BLOCKED")` |
+| `tcb user delete` | `managePermissions(action="deleteUsers", uids=...)` |
+
+**Important**: `role get` query conditions (`roleId` / `roleIdentity` / `roleName`) are mutually exclusive — pass exactly one, just like the CLI `--id` / `--identity` / `--name` flags.
+
 ## Data Models
 
 1. **Get Data Model Operation Object**:
