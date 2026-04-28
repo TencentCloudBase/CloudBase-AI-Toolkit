@@ -51,7 +51,7 @@ function buildHostingAccessUrl(staticDomain?: string, cloudPath?: string, localP
   return `https://${staticDomain}/${pathname}`;
 }
 
-function buildUploadFilesErrorMessage(error: unknown, localPath?: string): string {
+function buildUploadFilesErrorMessage(error: unknown, localPath?: string, cloudPath?: string): string {
   const baseMessage = error instanceof Error ? error.message : String(error);
   const suggestions: string[] = [];
 
@@ -61,6 +61,15 @@ function buildUploadFilesErrorMessage(error: unknown, localPath?: string): strin
     }
     suggestions.push("如果报错的是构建产物中的某个静态资源文件，请检查构建后的资源引用路径是否正确。");
     suggestions.push("若站点部署到子路径，请确认 `publicPath`、`base`、`assetPrefix` 等配置没有把资源指向不存在的位置。");
+  }
+
+  // 子目录部署配置错误提示
+  if (cloudPath && cloudPath !== '/' && !cloudPath.match(/^\s*$/)) {
+    suggestions.push(`\n【子目录部署检查】当前部署到子路径 "${cloudPath}"，请确认：`);
+    suggestions.push(`1. 构建配置中 base/publicPath/assetPrefix 已设为绝对路径 "/${cloudPath.replace(/^\/+|\/+$/g, '')}/"（带前导斜杠）`);
+    suggestions.push(`2. 修改配置后已重新执行构建（npm run build）`);
+    suggestions.push(`3. 构建产物中资源引用路径已更新为子目录路径，而非根路径 "/"`);
+    suggestions.push(`4. 禁止将 base 设为 "./" 或空字符串，这会导致子目录部署后资源 404`);
   }
 
   if (suggestions.length === 0) {
@@ -258,10 +267,10 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     "uploadFiles",
     {
       title: "上传静态文件",
-      description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
+      description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。若需要上传 COS 云存储文件，请使用 manageStorage。\n\n【部署前强制检查清单】\n1. 必须先完成构建（npm run build）\n2. 检查构建产物目录（通常是 dist/）内容完整，不能只有 index.html\n3. 根据部署目标路径配置 base/publicPath/assetPrefix：\n   - 部署到根目录（/）：使用相对路径 './' 或 '/'\n   - 部署到子目录（如 /vite-test/）：必须设置为绝对路径 '/vite-test/'（带前导和尾部斜杠），禁止设为 './' 或相对路径\n4. 修改配置后必须重新构建\n5. 验证构建产物中的资源引用路径已正确更新\n\n任何一项未通过时，禁止调用 uploadFiles。",
       inputSchema: {
-        localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
-        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，例如 files/data.txt。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"),
+        localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。对于目录上传，必须上传构建产物目录（如 dist/）的完整内容。"),
+        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，相对于托管根目录，不要前导 '/'，例如 'vite-test' 或 'app/v1'。若部署到子目录，必须确保构建配置中的 base/publicPath/assetPrefix 已设为对应的绝对路径（如 '/vite-test/'），禁止设为 './'。云存储对象路径请改用 manageStorage。"),
         files: z.array(z.object({
           localPath: z.string(),
           cloudPath: z.string()
@@ -292,7 +301,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
           ignore
         });
       } catch (error) {
-        throw new Error(buildUploadFilesErrorMessage(error, localPath));
+        throw new Error(buildUploadFilesErrorMessage(error, localPath, cloudPath));
       }
       logCloudBaseResult(server.logger, result);
       const uploadResult = result as Record<string, unknown>;
