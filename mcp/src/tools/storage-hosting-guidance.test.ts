@@ -40,4 +40,13 @@ describe("storage and hosting tool guidance", () => {
     expect(tools.manageStorage.meta.description).toContain("仅用于 COS/Storage 对象");
     expect(tools.manageStorage.meta.description).toContain("不用于静态网站托管");
   });
+
+  it("should warn against relative paths for subdirectory deployment", () => {
+    const tools = createMockServer();
+
+    // The tool description must explicitly warn about using './' or empty base for subdirectory deploys
+    expect(tools.uploadFiles.meta.description).toContain("禁止使用 './'");
+    // cloudPath must not start with '/'
+    expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("不要带前导 '/'");
+  });
 });

@@ -164,9 +164,18 @@ Use this section only when the Web project needs CloudBase platform features.
 ### Static hosting defaults
 
 - Build before deployment
-- Prefer relative asset paths for static hosting compatibility
 - Use hash routing by default when the project lacks server-side route rewrites
 - If the user does not specify a root path, avoid deploying directly to the site root by default
+
+### ⚠️ Subdirectory deployment checklist (MANDATORY before calling uploadFiles)
+
+When deploying to a subdirectory (e.g., `/vite-test`), the agent MUST verify ALL of the following before calling `uploadFiles`. If any check fails, fix it first — do NOT proceed with upload.
+
+1. **Build config matches deploy path**: The framework's base/publicPath/assetPrefix must be set to the **absolute path** matching the target subdirectory, with both leading and trailing slashes. For example, deploying to `/vite-test` requires `base: '/vite-test/'` in Vite, `publicPath: '/vite-test/'` in webpack. **Forbidden values**: `'./'`, `''`, or any relative path — these cause 404 when the access URL lacks a trailing slash.
+2. **Rebuild after config change**: After modifying the build config, a fresh build is mandatory. The old `dist/` does not reflect the new paths.
+3. **Verify build output**: Check that the built `index.html` references assets with the configured subdirectory prefix (e.g., `src="/vite-test/assets/main.js"`), not root-relative (`src="/assets/main.js"`) or relative (`src="./assets/main.js"`) paths.
+4. **cloudPath format**: The `cloudPath` parameter in `uploadFiles` is relative to the hosting root — do NOT add a leading `/`. For example, use `'vite-test'` not `'/vite-test'`.
+5. **Upload the entire dist directory**: Deploy the full `dist/` folder contents, not just `index.html`.
 
 ### CloudBase quick start
 

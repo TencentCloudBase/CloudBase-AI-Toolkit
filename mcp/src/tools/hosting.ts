@@ -258,10 +258,10 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     "uploadFiles",
     {
       title: "上传静态文件",
-      description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
+      description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建。⚠️ 子目录部署必检项：若站点部署到子路径（如 /vite-test），则构建配置中的 base/publicPath/assetPrefix 必须设为与部署路径一致的绝对路径（如 '/vite-test/'，带前导和尾部斜杠），禁止使用 './' 或空字符串，否则访问 URL 不带尾部斜杠时静态资源会 404。设置后必须重新构建，并验证产物中的资源引用路径已更新为非根路径 '/xxx/' 格式。cloudPath 不要带前导 '/'，例如 'vite-test' 而非 '/vite-test'。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
       inputSchema: {
         localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
-        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，例如 files/data.txt。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"),
+        cloudPath: z.string().optional().describe("静态托管云端路径，相对于托管根目录，不要带前导 '/'，例如 'vite-test' 或 'vite-test/assets/main.js'。若部署到子路径，必须确保构建配置中的 base/publicPath/assetPrefix 已设为对应的绝对路径（如 '/vite-test/'）。云存储对象路径请改用 manageStorage。"),
         files: z.array(z.object({
           localPath: z.string(),
           cloudPath: z.string()
