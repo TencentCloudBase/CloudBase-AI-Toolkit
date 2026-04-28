@@ -245,9 +245,28 @@ The `scf_bootstrap` binary path must match the runtime — see the full mapping 
 
 ### Logs
 
-- `queryFunctions(action="listFunctionLogs")`
-- `queryFunctions(action="getFunctionLogDetail")`
-- If these are unavailable, read `./references/operations-and-config.md` before any `callCloudApi` fallback
+**查询云函数日志**：使用 `queryFunctions` 工具
+
+- `queryFunctions(action="listFunctionLogs", functionName="xxx")` — 查询特定函数的执行日志
+- `queryFunctions(action="getFunctionLogDetail", requestId="xxx")` — 查看单条日志详情
+
+**区分 `queryLogs` 工具**：
+- `queryFunctions` 用于查询特定云函数的执行日志，需要提供 `functionName`
+- `queryLogs` 用于搜索 CLS 日志服务（跨服务日志聚合），使用 CLS 查询语法
+
+**示例**：
+```javascript
+// 查询云函数 my-function 的最近日志
+queryFunctions(action="listFunctionLogs", functionName="my-function", limit=10)
+
+// 查看特定请求的日志详情
+queryFunctions(action="getFunctionLogDetail", requestId="abc-123")
+
+// 使用 CLS 搜索所有服务的错误日志（跨服务）
+queryLogs(action="searchLogs", queryString="ERROR", service="tcb")
+```
+
+If these are unavailable, read `./references/operations-and-config.md` before any `callCloudApi` fallback
 
 ### Gateway exposure
 
@@ -260,3 +279,4 @@ The `scf_bootstrap` binary path must match the runtime — see the full mapping 
 - `cloudrun-development` -> container services, long-lived runtimes, Agent hosting
 - `http-api` -> raw CloudBase HTTP API invocation patterns
 - `cloudbase-platform` -> general CloudBase platform decisions
+- `ops-inspector` -> AIOps-style inspection and log search across services
