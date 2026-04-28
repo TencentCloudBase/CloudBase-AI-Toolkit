@@ -1,5 +1,22 @@
 # Permission — CloudBase CLI
 
+## ⚠️ CLI Availability Check
+
+**Before proceeding, verify that CloudBase CLI (`tcb`) is available.** Run `tcb --version` to check.
+
+**If CLI is unavailable** (command not found or disabled), use MCP tools instead:
+
+| CLI Command | MCP Tool Equivalent |
+|-------------|---------------------|
+| `tcb permission get [resource]` | `queryPermissions(action="getResourcePermission", resourceType="...", resourceName="...")` |
+| `tcb permission set <resource>` | `managePermissions(action="updateResourcePermission", resourceType="...", resourceName="...", aclTag="...", rule="...")` |
+| `tcb role list/get/create/update/delete` | `queryPermissions(action="listRoles"/"getRole")` / `managePermissions(action="createRole"/"updateRole"/"deleteRole")` |
+| `tcb user list/create/update/delete` | `queryPermissions(action="listUsers"/"getUser")` / `managePermissions(action="createUser"/"updateUser"/"deleteUser")` |
+
+To discover available MCP tools, use `ToolSearch` with keyword "cloudbase" or run `npx mcporter describe cloudbase --all-parameters`.
+
+---
+
 CloudBase access control has **three independent layers** — know which one to use before running any command:
 
 | Layer | Command | Controls |

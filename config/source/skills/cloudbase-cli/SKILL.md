@@ -10,6 +10,42 @@ alwaysApply: false
 Manage CloudBase resources via `tcb` CLI — deterministic, scriptable, auditable.
 The preferred interface for AI agents in CI/CD, batch operations, and resource management.
 
+## ⚠️ Capability Check: CLI vs MCP
+
+**Before using this skill, verify that CloudBase CLI (`tcb`) is available in the current environment.**
+
+### Check Runtime Capabilities
+
+If the environment provides a capability notice, check which are enabled/disabled:
+
+| Capability | If Enabled | If Disabled |
+|------------|------------|-------------|
+| CloudBase CLI (`tcb`) | Use this skill (CLI commands) | **Use MCP tools instead** (see Alternative below) |
+| CloudBase MCP tools | MCP tools available | Use CLI or SDK |
+
+### Quick Check
+
+Run `tcb --version` to verify CLI availability:
+- If it returns a version (e.g., `3.x.x`), CLI is available — proceed with this skill
+- If it returns "command not found" or similar, CLI is **not available** — use MCP tools instead
+
+### Alternative: Use MCP Tools When CLI Is Unavailable
+
+If CLI is disabled but MCP tools are enabled, use the equivalent MCP tools:
+
+| CLI Command | MCP Tool Equivalent |
+|-------------|---------------------|
+| `tcb permission get` | `queryPermissions(action="getResourcePermission")` |
+| `tcb permission set` | `managePermissions(action="updateResourcePermission")` |
+| `tcb role list/get/create/update/delete` | `queryPermissions(action="listRoles")` / `managePermissions(action="createRole"/"updateRole"/"deleteRole")` |
+| `tcb user list/create/update/delete` | `queryPermissions(action="listUsers")` / `managePermissions(action="createUser"/"updateUser"/"deleteUser")` |
+| `tcb function list/deploy/delete` | `queryFunctions(action="list")` / `manageFunctions(action="createFunction"/"updateFunctionCode"/"deleteFunction")` |
+| `tcb env list/info` | `envQuery(action="list")` / `envQuery(action="info")` |
+| `tcb storage list/upload/download/delete` | `queryStorage(action="list")` / `manageStorage(action="upload"/"download"/"delete")` |
+| `tcb hosting list/deploy/delete` | `uploadFiles` / `findFiles` / `deleteFiles` |
+
+**To use MCP tools**: Search for CloudBase tools in your IDE (e.g., `ToolSearch` with keyword "cloudbase") or use `npx mcporter call cloudbase.<tool>`.
+
 ## Standalone Install Note
 
 If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
