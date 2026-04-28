@@ -67,7 +67,7 @@ vi.mock("./utils/cloud-mode.js", () => ({
   isCloudMode: vi.fn(() => false),
 }));
 vi.mock("./utils/tencent-cloud.js", () => ({ isInternationalRegion: vi.fn(() => false) }));
-vi.mock("@modelcontextprotocol/sdk/types.js", () => ({ SetLevelRequestSchema: {} }));
+vi.mock("@modelcontextprotocol/sdk/types.js", () => ({ SetLevelRequestSchema: {}, ListToolsRequestSchema: { shape: { method: { value: "tools/list" } } } }));
 
 describe("server plugin registration", () => {
   beforeEach(() => {

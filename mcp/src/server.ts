@@ -9,7 +9,7 @@ import { registerRagTools } from "./tools/rag.js";
 import { registerSetupTools } from "./tools/setup.js";
 import { registerStorageTools } from "./tools/storage.js";
 // import { registerMiniprogramTools } from "./tools/miniprogram.js";
-import { SetLevelRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { ListToolsRequestSchema, SetLevelRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { registerCapiTools } from "./tools/capi.js";
 import { registerCloudRunTools } from "./tools/cloudrun.js";
 import { registerDataModelTools } from "./tools/dataModel.js";
@@ -26,6 +26,7 @@ import { enableCloudMode } from "./utils/cloud-mode.js";
 import { info } from './utils/logger.js';
 import { isInternationalRegion } from "./utils/tencent-cloud.js";
 import { buildJsonToolResult, isToolPayloadError } from "./utils/tool-result.js";
+import { sanitizeToolSchema } from "./utils/schema-sanitize.js";
 import { wrapServerWithTelemetry } from "./utils/tool-wrapper.js";
 
 // 插件定义
@@ -282,6 +283,38 @@ export async function createCloudBaseMcpServer(options?: {
       await plugin.register(server);
     }
   }
+
+  // Override the tools/list handler to sanitize JSON Schema output for
+  // maximum model API compatibility.  Some providers (e.g. Kimi/Moonshot)
+  // reject `additionalProperties: {}` and `anyOf: [{"not": {}}, X]` patterns
+  // that zod-to-json-schema produces from `z.any()` / `z.union()`.
+  const registeredTools = (server as any)._registeredTools as Record<
+    string,
+    { enabled: boolean; title?: string; description?: string; inputSchema?: any; annotations?: any }
+  >;
+  server.server.setRequestHandler(ListToolsRequestSchema, () => ({
+    tools: Object.entries(registeredTools)
+      .filter(([, tool]) => tool.enabled)
+      .map(([name, tool]) => {
+        // Use the same zodToJsonSchema conversion the SDK normally does
+        // but apply our sanitization on top.
+        let inputSchema: Record<string, unknown>;
+        if (tool.inputSchema) {
+          const { zodToJsonSchema } = require("zod-to-json-schema");
+          const raw = zodToJsonSchema(tool.inputSchema, { strictUnions: true });
+          inputSchema = sanitizeToolSchema(raw as Record<string, unknown>);
+        } else {
+          inputSchema = { type: "object", properties: {} };
+        }
+        return {
+          name,
+          title: tool.title,
+          description: tool.description,
+          inputSchema,
+          annotations: tool.annotations,
+        };
+      }),
+  }));
 
   return server;
 }

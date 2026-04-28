@@ -1412,7 +1412,9 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "查询云函数域资源",
       description:
-        "函数域统一只读入口。通过更自解释的 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。",
+        "函数域统一只读入口。通过 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。" +
+        "列出所有函数用 action=listFunctions；查看单个函数详情用 action=getFunctionDetail（需传 functionName）；" +
+        "查看函数日志用 action=listFunctionLogs（需传 functionName）。",
       inputSchema: {
         action: z
           .enum(QUERY_FUNCTION_ACTIONS)
@@ -1444,7 +1446,9 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "管理云函数域资源",
       description:
-        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。",
+        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。" +
+        "创建函数用 action=createFunction 并传 func 配置；更新代码用 action=updateFunctionCode；" +
+        "调用函数用 action=invokeFunction 并传 functionName 和 params。",
       inputSchema: {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
