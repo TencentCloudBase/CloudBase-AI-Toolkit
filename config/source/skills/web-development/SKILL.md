@@ -132,6 +132,27 @@ Use this section only when the Web project needs CloudBase platform features.
 - Use hash routing by default when the project lacks server-side route rewrites
 - If the user does not specify a root path, avoid deploying directly to the site root by default
 
+### Subdirectory deployment requirements
+
+When deploying to a subdirectory (e.g., `/vite-test`), the `uploadFiles` tool requires specific pre-deployment checks:
+
+1. **cloudPath format**: Relative to hosting root, no leading `/`
+   - Correct: `cloudPath: 'vite-test'`
+   - Wrong: `cloudPath: '/vite-test'` or `cloudPath: './vite-test'`
+
+2. **Build configuration**: Must set `base`/`publicPath`/`assetPrefix` to match the deployment path
+   - For Vite: `base: '/vite-test/'` (absolute path with leading and trailing slashes)
+   - Forbidden: `base: './'` (causes 404 when URL lacks trailing slash)
+   - See `frameworks.md` for detailed Vite base configuration guidance
+
+3. **Mandatory pre-deployment checklist**:
+   - [ ] Build config (`base`/`publicPath`/`assetPrefix`) matches deployment path
+   - [ ] Build has been re-run after config change
+   - [ ] Built `index.html` references assets with correct paths (not absolute root `/`)
+   - [ ] `cloudPath` has no leading `/`
+
+4. **Common 404 cause**: Using `./` relative paths in build config. When accessing `https://env.tcloudbase.com/vite-test` (no trailing slash), relative paths resolve incorrectly.
+
 ### CloudBase quick start
 
 ```js
