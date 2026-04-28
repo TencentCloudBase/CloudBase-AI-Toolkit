@@ -225,6 +225,17 @@ The `scf_bootstrap` binary path must match the runtime — see the full mapping 
 - `manageFunctions(action="createFunction")`
 - `manageFunctions(action="updateFunctionCode")`
 - `manageFunctions(action="updateFunctionConfig")`
+- `manageFunctions(action="invokeFunction")`
+
+### Function invocation and verification
+
+After deploying or updating a function, always verify it works by invoking it and checking the result:
+
+1. **Invoke the function** — `manageFunctions(action="invokeFunction", functionName="...", params={...})` to call the function with test parameters and inspect the `invokeResult`.
+2. **Check logs on failure** — if the invocation returns an error or unexpected result, use `queryFunctions(action="listFunctionLogs", functionName="...")` to view recent execution logs, then `queryFunctions(action="getFunctionLogDetail", requestId="...")` for details.
+3. **Fix and redeploy** — update the function code and repeat verification.
+
+This deploy → invoke → check-logs loop is the primary way to confirm a function works correctly after deployment. Do not skip it.
 
 ### Logs
 

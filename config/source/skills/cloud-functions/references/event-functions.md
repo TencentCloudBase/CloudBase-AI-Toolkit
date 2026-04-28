@@ -65,9 +65,43 @@ manageFunctions({
 - If runtime must change, recreate the function.
 - Prefer MCP management tools over CLI in agent flows.
 
-## Invocation patterns
+## Invocation and verification
 
-### Web
+### MCP-side invocation (for testing)
+
+After deploying an Event Function, use `manageFunctions(action="invokeFunction")` to call it directly and verify it works:
+
+```javascript
+manageFunctions({
+  action: "invokeFunction",
+  functionName: "myFunction",
+  params: { userId: "123" }
+});
+```
+
+The response contains `invokeResult` with the function's return value. If it errors or returns unexpected data, check the logs:
+
+```javascript
+queryFunctions({
+  action: "listFunctionLogs",
+  functionName: "myFunction"
+});
+```
+
+### Deployment verification loop
+
+After every `createFunction` or `updateFunctionCode`, follow this loop:
+
+1. **Invoke** — `manageFunctions(action="invokeFunction", functionName="myFunction", params={...})` with representative test parameters.
+2. **Inspect result** — check `invokeResult` for expected output or error messages.
+3. **Check logs on failure** — `queryFunctions(action="listFunctionLogs", functionName="myFunction")` then `queryFunctions(action="getFunctionLogDetail", requestId="...")` to diagnose.
+4. **Fix and redeploy** — update code and repeat.
+
+Do not assume deployment succeeded without invoking the function.
+
+### Client-side invocation (for production)
+
+#### Web
 
 ```javascript
 import cloudbase from "@cloudbase/js-sdk";
@@ -79,7 +113,7 @@ const result = await app.callFunction({
 });
 ```
 
-### Mini Program
+#### Mini Program
 
 ```javascript
 const result = await wx.cloud.callFunction({
@@ -88,7 +122,7 @@ const result = await wx.cloud.callFunction({
 });
 ```
 
-### Node.js backend
+#### Node.js backend
 
 ```javascript
 const tcb = require("@cloudbase/node-sdk");
@@ -100,7 +134,7 @@ const result = await app.callFunction({
 });
 ```
 
-### Raw HTTP API
+#### Raw HTTP API
 
 Use the CloudBase HTTP API only when the task is explicitly about raw API invocation.
 

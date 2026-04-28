@@ -21,9 +21,12 @@ Use this checklist before creating or updating a CloudBase function.
 - Mismatching the `scf_bootstrap` Node.js binary path with the function runtime.
 - Forgetting to configure function security rules for HTTP Functions that need anonymous access.
 - Treating Cloud Functions as the default answer for Web authentication.
+- Deploying a function without invoking it to verify it works.
 
 ## Done criteria
 
 - Function type and runtime are explicit.
 - Packaging constraints are checked.
 - The task is confirmed to be a function workflow rather than CloudRun.
+- The deployed function has been invoked with test parameters via `manageFunctions(action="invokeFunction")` and returns the expected result.
+- If invocation failed, logs were checked via `queryFunctions(action="listFunctionLogs")` and the issue was resolved.
