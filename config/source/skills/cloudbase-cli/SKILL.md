@@ -57,6 +57,44 @@ Use when the user wants to manage CloudBase resources via command line:
 - Console UI operations
 - CloudBase Agent SDK development → use `cloudbase-agent-ts`
 
+## When CLI is not available
+
+If the runtime environment has CloudBase CLI disabled (e.g., `tcbCliEnabled: false`), use the following MCP tools as alternatives:
+
+| Task | MCP Tool | Action |
+|------|----------|--------|
+| CORS (安全域名) | `envDomainManagement` | `list` / `create` / `delete` |
+| Custom domains | `domainManagement` | `list` / `create` / `delete` |
+| Static hosting config | `envQuery` | `action="website"` |
+
+Example — List security domains:
+```json
+{
+  "tool": "envDomainManagement",
+  "action": "list"
+}
+```
+
+Example — Add a security domain:
+```json
+{
+  "tool": "envDomainManagement",
+  "action": "create",
+  "domain": "example.com"
+}
+```
+
+Example — Delete a security domain:
+```json
+{
+  "tool": "envDomainManagement",
+  "action": "delete",
+  "domain": "example.com"
+}
+```
+
+> Note: MCP tool availability depends on the runtime configuration. If MCP tools are also unavailable, inform the user that the requested operation cannot be performed in the current environment.
+
 ## How to use this skill (for a coding agent)
 
 1. **Always load `references/core.md` first** — it covers authentication,

@@ -26,6 +26,47 @@ Three independent modules for configuring external access to CloudBase environme
 - Static file hosting deployment (use `tcb-hosting`)
 - Web app deployment (use `tcb-app`)
 
+## When CLI is not available
+
+If the runtime environment has CloudBase CLI disabled, use the following MCP tools as alternatives:
+
+### CORS (安全域名)
+
+| Operation | MCP Tool | Action |
+|-----------|----------|--------|
+| List domains | `envDomainManagement` | `list` |
+| Add domain | `envDomainManagement` | `create` |
+| Delete domain | `envDomainManagement` | `delete` |
+
+Example — List security domains:
+```json
+{
+  "tool": "envDomainManagement",
+  "action": "list"
+}
+```
+
+Example — Add a security domain:
+```json
+{
+  "tool": "envDomainManagement",
+  "action": "create",
+  "domain": "example.com"
+}
+```
+
+### Custom Domains
+
+| Operation | MCP Tool | Action |
+|-----------|----------|--------|
+| List domains | `domainManagement` | `list` |
+| Add domain | `domainManagement` | `create` |
+| Delete domain | `domainManagement` | `delete` |
+
+### Routing
+
+Routing configuration via MCP is not directly supported. If CLI is unavailable, inform the user that routing operations require CLI access.
+
 ---
 
 ## Workflow 1: CORS Configuration
