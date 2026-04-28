@@ -213,12 +213,12 @@ export function validateTimerCron(config: string): string {
 }
 
 const TRIGGER_SCHEMA = z.object({
-  name: z.string().describe("触发器名称"),
-  type: z.enum(SUPPORTED_TRIGGER_TYPES).describe("触发器类型"),
+  name: z.string().describe("触发器名称（必填）。如 'timerHelloTrigger'"),
+  type: z.enum(SUPPORTED_TRIGGER_TYPES).describe("触发器类型（必填）。目前仅支持 'timer'"),
   config: z
     .string()
     .describe(
-      "触发器配置。timer 必须使用 CloudBase 7 段 cron 格式：秒 分 时 日 月 星期 年。" +
+      "触发器配置（必填）。timer 触发器必须使用 CloudBase 7 段 cron 格式：秒 分 时 日 月 星期 年。" +
         "⚠️ 不支持标准 5 段 cron（如 */5 * * * * 是错误的）。" +
         "正确示例：0 */5 * * * * *（每5分钟）、0 0 2 1 * * *（每月1号2点）、0 30 9 * * * *（每天9:30）",
     )
@@ -232,8 +232,8 @@ const TRIGGER_SCHEMA = z.object({
 });
 
 const CREATE_FUNCTION_SCHEMA = z.object({
-  name: z.string().describe("函数名称"),
-  type: z.enum(["Event", "HTTP"]).optional().describe("函数类型"),
+  name: z.string().describe("函数名称（必填）"),
+  type: z.enum(["Event", "HTTP"]).optional().describe("函数类型：Event（事件函数，默认）或 HTTP（HTTP函数）"),
   protocolType: z.enum(["HTTP", "WS"]).optional().describe("HTTP 云函数协议类型"),
   protocolParams: z
     .object({
@@ -362,6 +362,18 @@ export function buildFunctionOperationErrorMessage(
   const baseMessage = error instanceof Error ? error.message : String(error);
   const suggestions: string[] = [];
   const expectedFunctionPath = getExpectedFunctionPath(functionRootPath, functionName);
+
+  // Handle generic "invalid parameter value" errors with more specific guidance
+  if (/invalid parameter value|参数值无效|InvalidParameterValue/i.test(baseMessage)) {
+    suggestions.push(
+      `参数值无效。请检查以下常见原因：\n` +
+      `1. func.name 是否提供且为有效字符串（当前函数名: "${functionName}"）\n` +
+      `2. func.type 是否为 "Event" 或 "HTTP"\n` +
+      `3. func.runtime 是否为支持的运行时（如 "Nodejs18.15"）\n` +
+      `4. triggers 数组中的 trigger 对象是否包含 name、type、config 字段\n` +
+      `5. timer 触发器的 cron 表达式是否为 7 段格式（秒 分 时 日 月 星期 年）`
+    );
+  }
 
   if (/GetFunction.*未找到指定的Function|未找到指定的Function/i.test(baseMessage)) {
     suggestions.push(
@@ -1444,12 +1456,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "管理云函数域资源",
       description:
-        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。",
+        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。" +
+        "【重要】action=createFunction 时，func 对象（含 name 字段）是必填的。示例: { action: 'createFunction', func: { name: 'myFunc', type: 'Event', runtime: 'Nodejs18.15' } }.",
       inputSchema: {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
           .describe("写操作类型，例如 createFunction、invokeFunction、attachLayer"),
-        func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
+        func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置（action=createFunction 时必填）。必须包含 name 字段，可选 type、runtime、triggers 等"),
         functionRootPath: z.string().optional().describe(
           "创建或更新函数代码时默认推荐的本地目录方式。" +
           "必须是直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions 或 /abs/path/functions），" +
@@ -1468,7 +1481,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         envVariables: z.record(z.string()).optional().describe("配置更新时要合并的环境变量"),
         vpc: VPC_SCHEMA.optional().describe("配置更新时的 VPC 信息"),
         params: z.record(z.any()).optional().describe("invokeFunction 的调用参数"),
-        triggers: z.array(TRIGGER_SCHEMA).optional().describe("createFunctionTrigger 的触发器列表"),
+        triggers: z.array(TRIGGER_SCHEMA).optional().describe("createFunction 或 createFunctionTrigger 的触发器列表。每个触发器需包含 name、type（如 'timer'）、config（如 '0 */5 * * * * *'）"),
         triggerName: z.string().optional().describe("deleteFunctionTrigger 的目标触发器名称"),
         layerName: z.string().optional().describe("层名称"),
         layerVersion: z.number().optional().describe("层版本号"),
