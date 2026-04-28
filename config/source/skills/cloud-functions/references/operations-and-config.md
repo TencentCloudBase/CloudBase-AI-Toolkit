@@ -125,6 +125,29 @@ Examples:
 
 - `0 0 2 1 * * *` -> 2:00 AM on the first day of every month
 - `0 30 9 * * * *` -> 9:30 AM every day
+- `0 */5 * * * * *` -> every 5 minutes
+
+#### Create function with timer trigger
+
+```javascript
+manageFunctions({
+  action: "createFunction",
+  func: {
+    name: "timerHello",
+    type: "Event",
+    runtime: "Nodejs18.15",
+    timeout: 30,
+    triggers: [
+      {
+        name: "myTimer",
+        type: "timer",
+        config: "0 */5 * * * * *"  // every 5 minutes
+      }
+    ]
+  },
+  functionRootPath: "/absolute/path/to/cloudfunctions"
+});
+```
 
 ### VPC access
 

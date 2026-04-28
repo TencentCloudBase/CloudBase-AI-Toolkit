@@ -266,7 +266,10 @@ const CREATE_FUNCTION_SCHEMA = z.object({
         `  Java: ${RECOMMENDED_RUNTIMES.java}\n` +
         `  Go: ${RECOMMENDED_RUNTIMES.golang}`,
     ),
-  triggers: z.array(TRIGGER_SCHEMA).optional().describe("触发器配置数组"),
+  triggers: z.array(TRIGGER_SCHEMA).optional().describe(
+    "触发器配置数组。支持定时触发器(timer)，使用 7 段 cron 格式：秒 分 时 日 月 星期 年。" +
+    "示例：[{ name: 'myTimer', type: 'timer', config: '0 */5 * * * * *' }] 创建每5分钟执行一次的定时触发器"
+  ),
   handler: z.string().optional().describe("函数入口"),
   ignore: z.union([z.string(), z.array(z.string())]).optional().describe("忽略文件"),
   isWaitInstall: z.boolean().optional().describe("是否等待依赖安装"),
@@ -1444,7 +1447,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "管理云函数域资源",
       description:
-        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。",
+        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、定时触发器和层绑定。危险操作需要显式 confirm=true。定时触发器示例：func.triggers = [{ name: 'myTimer', type: 'timer', config: '0 */5 * * * * *' }]，其中 config 使用 7 段 cron 格式（秒 分 时 日 月 星期 年），例如 '0 */5 * * * * *' 表示每5分钟执行一次。",
       inputSchema: {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
