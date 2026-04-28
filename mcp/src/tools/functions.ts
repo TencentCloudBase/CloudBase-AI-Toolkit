@@ -1470,11 +1470,17 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         params: z.record(z.any()).optional().describe("invokeFunction 的调用参数"),
         triggers: z.array(TRIGGER_SCHEMA).optional().describe("createFunctionTrigger 的触发器列表"),
         triggerName: z.string().optional().describe("deleteFunctionTrigger 的目标触发器名称"),
-        layerName: z.string().optional().describe("层名称"),
-        layerVersion: z.number().optional().describe("层版本号"),
-        contentPath: z.string().optional().describe("层内容路径，可为目录或 ZIP 文件"),
-        base64Content: z.string().optional().describe("层内容的 base64 编码"),
-        runtimes: z.array(z.string()).optional().describe("层适用的运行时列表"),
+        layerName: z.string().optional().describe("层名称。createLayerVersion 操作必需"),
+        layerVersion: z.number().optional().describe("层版本号。getLayerVersionDetail/deleteLayerVersion/attachLayer/detachLayer 操作必需"),
+        contentPath: z.string().optional().describe("层内容路径，可为包含依赖的目录或 ZIP 文件。createLayerVersion 操作必需（与 base64Content 二选一）"),
+        base64Content: z.string().optional().describe("层内容的 base64 编码。createLayerVersion 操作可用，与 contentPath 二选一"),
+        runtimes: z.array(z.string()).optional().describe(
+          "层适用的运行时列表。createLayerVersion 操作必需。" +
+          "有效值: Nodejs20.19, Nodejs18.15, Nodejs16.13, Nodejs14.18, Nodejs12.16, Nodejs10.15, Nodejs8.9, " +
+          "Python3.10, Python3.9, Python3.7, Python3.6, Python2.7, " +
+          "Php8.0, Php7.4, Php7.2, Java8, Java11, Golang1。" +
+          "示例: [\"Nodejs18.15\", \"Nodejs20.19\", \"Python3.11\"]"
+        ),
         description: z.string().optional().describe("层版本描述"),
         licenseInfo: z.string().optional().describe("层许可证信息"),
         layers: z
