@@ -1412,23 +1412,38 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "查询云函数域资源",
       description:
-        "函数域统一只读入口。通过更自解释的 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。",
+        "函数域统一只读入口。通过 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。" +
+        "\n\n各 action 所需参数：\n" +
+        "- listFunctions: 无必填参数（可选 limit, offset）\n" +
+        "- getFunctionDetail: functionName（必填）\n" +
+        "- listFunctionLogs: functionName（必填）, startTime/endTime（可选）\n" +
+        "- getFunctionLogDetail: requestId（必填）\n" +
+        "- listFunctionLayers: functionName（必填）\n" +
+        "- listLayers: 无必填参数（可选 runtime, searchKey, limit, offset）\n" +
+        "- listLayerVersions: layerName（必填）\n" +
+        "- getLayerVersionDetail: layerName + layerVersion（均必填）\n" +
+        "- listFunctionTriggers: functionName（必填）\n" +
+        "- getFunctionDownloadUrl: functionName（必填）" +
+        "\n\n调用示例：\n" +
+        "- 列出所有函数: { action: \"listFunctions\" }\n" +
+        "- 查看函数详情: { action: \"getFunctionDetail\", functionName: \"my-function\" }\n" +
+        "- 查看函数日志: { action: \"listFunctionLogs\", functionName: \"my-function\" }",
       inputSchema: {
         action: z
           .enum(QUERY_FUNCTION_ACTIONS)
-          .describe("只读操作类型，例如 listFunctions、getFunctionDetail、listFunctionLogs"),
-        functionName: z.string().optional().describe("函数名称。函数相关 action 必填"),
+          .describe("只读操作类型。各 action 所需参数详见工具描述。常用: listFunctions, getFunctionDetail, listFunctionLogs"),
+        functionName: z.string().optional().describe("函数名称。getFunctionDetail/listFunctionLogs/listFunctionLayers/listFunctionTriggers/getFunctionDownloadUrl 时必填"),
         limit: z.number().optional().describe("分页数量。列表类 action 可选"),
         offset: z.number().optional().describe("分页偏移。列表类 action 可选"),
         codeSecret: z.string().optional().describe("代码保护密钥"),
         startTime: z.string().optional().describe("日志查询开始时间"),
         endTime: z.string().optional().describe("日志查询结束时间"),
-        requestId: z.string().optional().describe("日志 requestId。获取日志详情时必填"),
+        requestId: z.string().optional().describe("日志 requestId。getFunctionLogDetail 时必填"),
         qualifier: z.string().optional().describe("函数版本，日志查询时可选"),
         runtime: z.string().optional().describe("层查询的运行时筛选"),
         searchKey: z.string().optional().describe("层名称搜索关键字"),
-        layerName: z.string().optional().describe("层名称。层相关 action 必填"),
-        layerVersion: z.number().optional().describe("层版本号。获取层版本详情时必填"),
+        layerName: z.string().optional().describe("层名称。listLayerVersions/getLayerVersionDetail 时必填"),
+        layerVersion: z.number().optional().describe("层版本号。getLayerVersionDetail 时必填"),
       },
       annotations: {
         readOnlyHint: true,
@@ -1444,11 +1459,27 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "管理云函数域资源",
       description:
-        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。",
+        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。" +
+        "\n\n各 action 所需参数：\n" +
+        "- createFunction: func（必填，包含 name），functionRootPath 或 zipFile（HTTP 函数必填其一）\n" +
+        "- updateFunctionCode: functionName（必填），functionRootPath 或 zipFile\n" +
+        "- updateFunctionConfig: functionName（必填），timeout/envVariables/vpc（可选）\n" +
+        "- invokeFunction: functionName（必填），params（可选调用参数）\n" +
+        "- createFunctionTrigger: functionName + triggers（均必填）\n" +
+        "- deleteFunctionTrigger: functionName + triggerName（均必填），confirm=true\n" +
+        "- createLayerVersion: layerName + runtimes（均必填），contentPath 或 base64Content（必填其一）\n" +
+        "- deleteLayerVersion: layerName + layerVersion（均必填），confirm=true\n" +
+        "- attachLayer: functionName + layerName + layerVersion（均必填）\n" +
+        "- detachLayer: functionName + layerName + layerVersion（均必填），confirm=true\n" +
+        "- updateFunctionLayers: functionName + layers（均必填）" +
+        "\n\n调用示例：\n" +
+        "- 创建函数: { action: \"createFunction\", func: { name: \"hello\", type: \"Event\" }, functionRootPath: \"/path/to/cloudfunctions\" }\n" +
+        "- 更新代码: { action: \"updateFunctionCode\", functionName: \"hello\", functionRootPath: \"/path/to/cloudfunctions\" }\n" +
+        "- 调用函数: { action: \"invokeFunction\", functionName: \"hello\", params: { key: \"value\" } }",
       inputSchema: {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
-          .describe("写操作类型，例如 createFunction、invokeFunction、attachLayer"),
+          .describe("写操作类型。各 action 所需参数详见工具描述。常用: createFunction, updateFunctionCode, invokeFunction"),
         func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
         functionRootPath: z.string().optional().describe(
           "创建或更新函数代码时默认推荐的本地目录方式。" +
@@ -1459,7 +1490,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           "SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。",
         ),
         force: z.boolean().optional().describe("createFunction 时是否覆盖"),
-        functionName: z.string().optional().describe("函数名称。大多数 action 使用该字段作为统一目标"),
+        functionName: z.string().optional().describe("函数名称。updateFunctionCode/updateFunctionConfig/invokeFunction/createFunctionTrigger/deleteFunctionTrigger/attachLayer/detachLayer/updateFunctionLayers 时必填"),
         zipFile: z.string().optional().describe(
           "仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。",
         ),
@@ -1467,8 +1498,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         timeout: z.number().optional().describe("配置更新时的超时时间"),
         envVariables: z.record(z.string()).optional().describe("配置更新时要合并的环境变量"),
         vpc: VPC_SCHEMA.optional().describe("配置更新时的 VPC 信息"),
-        params: z.record(z.any()).optional().describe("invokeFunction 的调用参数"),
-        triggers: z.array(TRIGGER_SCHEMA).optional().describe("createFunctionTrigger 的触发器列表"),
+        params: z.record(z.any()).optional().describe("invokeFunction 的调用参数，例如 { key: \"value\" }"),
+        triggers: z.array(TRIGGER_SCHEMA).optional().describe("createFunctionTrigger 的触发器列表。例如 [{ name: \"my-timer\", type: \"timer\", config: \"0 */5 * * * * *\" }]"),
         triggerName: z.string().optional().describe("deleteFunctionTrigger 的目标触发器名称"),
         layerName: z.string().optional().describe("层名称"),
         layerVersion: z.number().optional().describe("层版本号"),

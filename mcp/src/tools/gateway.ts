@@ -549,11 +549,20 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     {
       title: "查询网关域资源",
       description:
-        "网关域统一只读入口。通过 action 查询网关域名、访问入口和目标暴露情况。",
+        "网关域统一只读入口。通过 action 查询网关域名、访问入口和目标暴露情况。" +
+        "\n\n各 action 所需参数：\n" +
+        "- listDomains: 无必填参数\n" +
+        "- listRoutes: 无必填参数\n" +
+        "- getAccess: targetName（必填）\n" +
+        "- getRoute: routeId 或 targetName（可选，用于筛选）\n" +
+        "- listCustomDomains: 无必填参数" +
+        "\n\n调用示例：\n" +
+        "- 列出域名: { action: \"listDomains\" }\n" +
+        "- 查看访问入口: { action: \"getAccess\", targetName: \"my-function\" }",
       inputSchema: {
         action: z
           .enum(QUERY_GATEWAY_ACTIONS)
-          .describe("只读操作类型，例如 getAccess、listDomains"),
+          .describe("只读操作类型。各 action 所需参数详见工具描述。常用: listDomains, getAccess"),
         targetType: z
           .enum(["function"])
           .optional()
@@ -578,11 +587,22 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     {
       title: "管理网关域资源",
       description:
-        "网关域统一写入口。通过 action 创建目标访问入口，后续承接更通用的网关配置能力。为已存在的 HTTP 云函数补默认域名访问时，通常使用 createAccess 并提供 targetType=\"function\"、targetName、type=\"HTTP\" 与期望 path。注意 createAccess 只创建网关入口，不会自动修改函数资源权限。",
+        "网关域统一写入口。通过 action 创建目标访问入口，后续承接更通用的网关配置能力。" +
+        "\n\n各 action 所需参数：\n" +
+        "- createAccess: targetType + targetName + type（均必填）。path, auth 可选\n" +
+        "- createRoute: route（必填，含 path, serviceType, serviceName）\n" +
+        "- updateRoute: route（必填，含 path, serviceType, serviceName）\n" +
+        "- deleteRoute: route.path 或 path（必填）\n" +
+        "- bindCustomDomain: domain + certificateId（均必填）\n" +
+        "- deleteCustomDomain: domain（必填）\n" +
+        "- deleteAccess: targetName 或 path（至少一个）\n" +
+        "- updatePathAuth: targetName 或 path（至少一个）+ auth（必填）" +
+        "\n\n调用示例：\n" +
+        "- 为 HTTP 函数创建访问入口: { action: \"createAccess\", targetType: \"function\", targetName: \"my-http-func\", type: \"HTTP\", path: \"/api/hello\", auth: false }",
       inputSchema: {
         action: z
           .enum(MANAGE_GATEWAY_ACTIONS)
-          .describe('写操作类型，例如 createAccess。为已有函数补默认域名访问入口时使用 createAccess；若 action=createAccess 且 targetType=function，必须显式提供 type。'),
+          .describe('写操作类型。各 action 所需参数详见工具描述。createAccess 时必须显式提供 type（HTTP 函数传 HTTP，Event 函数传 Event 或省略）。'),
         targetType: z
           .enum(["function"])
           .optional()
