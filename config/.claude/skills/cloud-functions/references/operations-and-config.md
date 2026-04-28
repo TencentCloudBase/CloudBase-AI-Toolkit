@@ -86,31 +86,59 @@ Key parameters:
 
 ## Environment variable updates
 
-Do not overwrite function environment variables blindly.
+### Important: Automatic merge behavior
 
-### Safe pattern
+The `manageFunctions(action="updateFunctionConfig")` tool automatically merges environment variables internally. You only need to provide the new or updated variables - existing variables will be preserved.
 
-1. Read current config with `queryFunctions(action="getFunctionDetail")`.
-2. Merge existing variables with the new variables.
-3. Update with `manageFunctions(action="updateFunctionConfig")`.
+### Correct usage pattern
 
 ```javascript
-const current = await queryFunctions({
-  action: "getFunctionDetail",
-  functionName: "functionName"
-});
-
-const mergedEnvVariables = {
-  ...current.EnvVariables,
-  ...newEnvVariables
-};
-
+// Only pass the variables you want to add or update
+// Existing variables will be preserved automatically
 await manageFunctions({
   action: "updateFunctionConfig",
-  functionName: "functionName",
-  envVariables: mergedEnvVariables
+  functionName: "my-function",
+  envVariables: {
+    NEW_VAR: "new-value",
+    EXISTING_VAR: "updated-value"  // This will update the existing variable
+  }
 });
 ```
+
+### Complete example: Read, modify, and update
+
+If you need to read existing variables first, access them through `Environment.Variables` (array format) and then update:
+
+```javascript
+// Step 1: Get current configuration
+const result = await queryFunctions({
+  action: "getFunctionDetail",
+  functionName: "my-function"
+});
+
+// Step 2: Current env variables are in Environment.Variables as an array
+// [{ Key: "EXISTING_VAR", Value: "old-value" }, ...]
+const currentVars = result.functionDetail.Environment?.Variables || [];
+console.log("Current variables:", currentVars);
+
+// Step 3: Update with new/modified variables (tool handles merging)
+await manageFunctions({
+  action: "updateFunctionConfig",
+  functionName: "my-function",
+  envVariables: {
+    NEW_VAR: "new-value",          // Will be added
+    EXISTING_VAR: "updated-value"  // Will be updated
+    // Other existing variables are preserved automatically
+  }
+});
+```
+
+### Key points
+
+- **Field location**: Environment variables are in `functionDetail.Environment.Variables` (array of `{Key, Value}` objects), not `functionDetail.EnvVariables`
+- **Merge behavior**: The tool automatically merges new variables with existing ones - you don't need to manually merge
+- **Value type**: All values must be strings; numbers and booleans should be converted to strings
+- **Preservation**: Variables not included in the update are preserved automatically
 
 ## Trigger and VPC notes
 

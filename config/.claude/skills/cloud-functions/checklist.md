@@ -21,6 +21,8 @@ Use this checklist before creating or updating a CloudBase function.
 - Mismatching the `scf_bootstrap` Node.js binary path with the function runtime.
 - Forgetting to configure function security rules for HTTP Functions that need anonymous access.
 - Treating Cloud Functions as the default answer for Web authentication.
+- When updating environment variables, accessing the wrong field path. Use `functionDetail.Environment.Variables` (array format), not `functionDetail.EnvVariables`.
+- Manually merging environment variables when using `manageFunctions(action="updateFunctionConfig")`. The tool already handles merging internally - just pass the new/modified variables.
 
 ## Done criteria
 

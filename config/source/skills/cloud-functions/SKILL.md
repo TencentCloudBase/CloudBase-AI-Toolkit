@@ -56,6 +56,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Forgetting that HTTP Functions must ship `scf_bootstrap`, listen on port `9000`, and include dependencies.
 - Forgetting to configure function security rules after creating an HTTP Function. Default rules reject anonymous callers with `EXCEED_AUTHORITY`. Use `managePermissions(action="updateResourcePermission", resourceType="function")` to allow public access.
 - Mismatching the `scf_bootstrap` Node.js binary path with the function runtime (e.g. using `/var/lang/node18/bin/node` but setting `runtime: "Nodejs16.13"`).
+- Accessing the wrong field path for environment variables. Current variables are in `functionDetail.Environment.Variables` (array of `{Key, Value}` objects), not `functionDetail.EnvVariables`. See `./references/operations-and-config.md` for the correct update pattern.
 
 ### Minimal checklist
 
