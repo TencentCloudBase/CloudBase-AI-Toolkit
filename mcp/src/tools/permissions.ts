@@ -593,7 +593,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
         uid: z.string().optional(),
         uids: z.array(z.string()).optional(),
         username: z.string().optional(),
-        password: z.string().optional(),
+        password: z.string().optional().describe("当 action='createUser' 时，password 为必填参数"),
         userStatus: z.enum(["ACTIVE", "BLOCKED"]).optional(),
       },
       annotations: {
