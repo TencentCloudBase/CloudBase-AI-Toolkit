@@ -51,6 +51,54 @@ function cloneExample(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+/**
+ * Normalize example values to match their schema types.
+ * This fixes issues where the OpenAPI YAML has string values for boolean fields
+ * (e.g., 'false' instead of false), which can cause 400 errors when agents use them.
+ */
+function normalizeExampleValue(value, schema) {
+  if (value === null || value === undefined) {
+    return value;
+  }
+
+  // Handle boolean type normalization
+  if (schema?.type === "boolean" && typeof value === "string") {
+    const lowerValue = value.toLowerCase();
+    if (lowerValue === "true") {
+      return true;
+    }
+    if (lowerValue === "false") {
+      return false;
+    }
+  }
+
+  // Handle integer/number type normalization
+  if ((schema?.type === "integer" || schema?.type === "number") && typeof value === "string") {
+    const parsed = Number(value);
+    if (!Number.isNaN(parsed)) {
+      return schema.type === "integer" ? Math.floor(parsed) : parsed;
+    }
+  }
+
+  // Handle array type normalization
+  if (schema?.type === "array" && Array.isArray(value)) {
+    return value.map((item) => normalizeExampleValue(item, schema.items));
+  }
+
+  // Handle object type normalization
+  if ((schema?.type === "object" || schema?.properties) && typeof value === "object" && value !== null) {
+    const properties = schema.properties ?? {};
+    const normalized = {};
+    for (const [key, val] of Object.entries(value)) {
+      const propSchema = properties[key];
+      normalized[key] = normalizeExampleValue(val, propSchema);
+    }
+    return normalized;
+  }
+
+  return value;
+}
+
 function mergeSchemaNodes(base, incoming) {
   if (!incoming || typeof incoming !== "object") {
     return base;
@@ -185,7 +233,7 @@ function buildSchemaResolver(components) {
       required: Array.isArray(schema.required)
         ? [...schema.required].sort()
         : undefined,
-      example: cloneExample(schema.example),
+      example: normalizeExampleValue(cloneExample(schema.example), schema),
     };
 
     if (schema.properties && typeof schema.properties === "object") {

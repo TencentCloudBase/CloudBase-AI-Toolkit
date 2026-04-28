@@ -50,11 +50,11 @@ export const TCB_ACTION_INDEX_MAP: Record<string, TcbActionIndexEntry> = {
     ],
     "exampleParams": {
       "Alias": "cloudbase",
-      "AutoVoucher": "true",
+      "AutoVoucher": true,
       "Channel": "qc_console",
       "EnvId": "my-env-i3jkguiejls",
       "PackageId": "baas_personal",
-      "Period": "1",
+      "Period": 1,
       "RenewFlag": "NOTIFY_AND_MANUAL_RENEW",
       "Resources": "[\"flexdb\"]",
       "Source": "qcloud",
@@ -220,7 +220,7 @@ export const TCB_ACTION_INDEX_MAP: Record<string, TcbActionIndexEntry> = {
     "requiredKeys": [],
     "exampleParams": {
       "EnvId": "env-xxyyzzaa",
-      "NeedOrderInfo": "true",
+      "NeedOrderInfo": true,
       "ResourceId": "weda.xxxxdad",
       "WxAppId": "wxasdkfjdkjfk"
     },
@@ -299,7 +299,7 @@ export const TCB_ACTION_INDEX_MAP: Record<string, TcbActionIndexEntry> = {
       "EndTime": "2019-04-04 19:00:00",
       "EnvId": "lotestapi100004",
       "MetricName": "DbSizepkg",
-      "Period": "300",
+      "Period": 300,
       "ResourceID": "ibot-agent1",
       "StartTime": "2019-04-02 09:00:00",
       "SubresourceID": "deepseek",
@@ -430,8 +430,8 @@ export const TCB_ACTION_INDEX_MAP: Record<string, TcbActionIndexEntry> = {
     ],
     "exampleParams": {
       "EnvId": "lowcode-abc",
-      "MgoLimit": "10",
-      "MgoOffset": "0",
+      "MgoLimit": 10,
+      "MgoOffset": 0,
       "MongoConnector": "无",
       "TableNames": "[\"table_name\"]",
       "Tag": "tnt-abc"
@@ -460,8 +460,8 @@ export const TCB_ACTION_INDEX_MAP: Record<string, TcbActionIndexEntry> = {
       "EnvId": "test_envId",
       "Name": "zhang",
       "NickName": "张",
-      "PageNo": "1",
-      "PageSize": "10",
+      "PageNo": 1,
+      "PageSize": 10,
       "Phone": "13900139000"
     },
     "paramsType": "/**\n * 查询tcb用户列表\n */\ntype DescribeUserListParams = {\n  /**\n   * 邮箱，模糊查询\n   */\n  \"Email\"?: string;\n  /**\n   * 环境id\n   */\n  \"EnvId\": string;\n  /**\n   * 用户名，模糊查询\n   */\n  \"Name\"?: string;\n  /**\n   * 用户昵称，模糊查询\n   */\n  \"NickName\"?: string;\n  /**\n   * 页码，从1开始，默认1\n   */\n  \"PageNo\"?: number;\n  /**\n   * 每页数量，默认20，最大100\n   */\n  \"PageSize\"?: number;\n  /**\n   * 手机号，模糊查询\n   */\n  \"Phone\"?: string;\n};"
@@ -482,11 +482,11 @@ export const TCB_ACTION_INDEX_MAP: Record<string, TcbActionIndexEntry> = {
       "EnvId"
     ],
     "exampleParams": {
-      "BypassCheck": "false",
-      "BypassLimit": "false",
-      "DeleteDirectly": "false",
+      "BypassCheck": false,
+      "BypassLimit": false,
+      "DeleteDirectly": false,
       "EnvId": "yourenvid-2fb346",
-      "IsForce": "false"
+      "IsForce": false
     },
     "paramsType": "/**\n * 销毁环境\n */\ntype DestroyEnvParams = {\n  /**\n   * 是否绕过资源检查，资源包等额外资源，默认为false，如果为true，则不检查资源是否有数据，直接删除。\n   */\n  \"BypassCheck\"?: boolean;\n  /**\n   * 销毁消耗用户删除配额 默认为false-占用配额 true-不占用配额\n   */\n  \"BypassLimit\"?: boolean;\n  /**\n   * 是否自动删除环境。（仅在IsForce=false时，且仅对预付费环境有效）\n   */\n  \"DeleteDirectly\"?: boolean;\n  /**\n   * 环境Id\n   */\n  \"EnvId\": string;\n  /**\n   * 针对预付费 删除隔离中的环境时要传true 正常环境直接跳过隔离期删除\n   */\n  \"IsForce\"?: boolean;\n};"
   },
@@ -557,11 +557,11 @@ export const TCB_ACTION_INDEX_MAP: Record<string, TcbActionIndexEntry> = {
     "exampleParams": {
       "EnvId": "lowcode-abc",
       "Filters": "[\"HIDDEN\"]",
-      "MgoLimit": "10",
-      "MgoOffset": "0",
+      "MgoLimit": 10,
+      "MgoOffset": 0,
       "MongoConnector": "无",
       "SearchValue": "prefix",
-      "ShowHidden": "false",
+      "ShowHidden": false,
       "Tag": "tag-123"
     },
     "paramsType": "/**\n * 查询文档型数据库所有表\n */\ntype ListTablesParams = {\n  /**\n   * 云开发环境ID\n   */\n  \"EnvId\"?: string;\n  /**\n   * 过滤标签数组，用于过滤表名，可选值如：HIDDEN、WEDA、WEDA_SYSTEM\n   */\n  \"Filters\"?: (string)[];\n  /**\n   * 每页返回数量（0-1000)\n   */\n  \"MgoLimit\": number;\n  /**\n   * 分页偏移量\n   */\n  \"MgoOffset\"?: number;\n  /**\n   * MongoDB连接器配置\n   */\n  \"MongoConnector\"?: {\n    /**\n     * MongoDB数据库名\n     */\n    \"DatabaseName\"?: string;\n    /**\n     * 连接器实例ID\n     */\n    \"InstanceId\"?: string;\n  };\n  /**\n   * 模糊搜索查询值\n   */\n  \"SearchValue\"?: string;\n  /**\n   * 是否展示隐藏表\n   */\n  \"ShowHidden\"?: boolean;\n  /**\n   * FlexDB实例ID\n   */\n  \"Tag\"?: string;\n};"
@@ -580,7 +580,7 @@ export const TCB_ACTION_INDEX_MAP: Record<string, TcbActionIndexEntry> = {
     ],
     "exampleParams": {
       "EnvId": "env-xxxxxx",
-      "Period": "10"
+      "Period": 10
     },
     "paramsType": "/**\n * 修改日志主题\n */\ntype ModifyClsTopicParams = {\n  /**\n   * 环境ID\n   */\n  \"EnvId\": string;\n  /**\n   * 日志生命周期，单位天，可取值范围1~3600，取值为3640时代表永久保存\n   */\n  \"Period\"?: number;\n};"
   },
@@ -651,7 +651,7 @@ export const TCB_ACTION_INDEX_MAP: Record<string, TcbActionIndexEntry> = {
       "PackageId"
     ],
     "exampleParams": {
-      "AutoVoucher": "true",
+      "AutoVoucher": true,
       "EnvId": "cloudbase-8grqda2hfc2f62bb",
       "PackageId": "baas_pf_standard"
     },
@@ -680,7 +680,7 @@ export const TCB_ACTION_INDEX_MAP: Record<string, TcbActionIndexEntry> = {
       "CollectionName": "my-table",
       "EnvId": "myenv-c849jgkdldcmsd",
       "Rule": "{   \"read\": true,   \"write\": \"doc._openid == auth.openid\" }",
-      "SyncModel": "false",
+      "SyncModel": false,
       "WxAppId": "wxg89jkjdkf034kgjlsdk"
     },
     "paramsType": "/**\n * 设置数据库安全规则\n */\ntype ModifySafeRuleParams = {\n  /**\n   * 权限标签。包含以下取值：\n   * - READONLY：所有用户可读，仅创建者和管理员可写\n   * - PRIVATE：仅创建者及管理员可读写\n   * - ADMINWRITE：所有用户可读，仅管理员可写\n   * - ADMINONLY：仅管理员可读写\n   * - CUSTOM：自定义安全规则\n   */\n  \"AclTag\": string;\n  /**\n   * 集合名称\n   */\n  \"CollectionName\": string;\n  /**\n   * 环境ID\n   */\n  \"EnvId\": string;\n  /**\n   * 安全规则内容。\n   * 当 AclTag=CUSTOM 时，此参数必填。\n   * 详情参考：[文档型数据库安全规则](https://docs.cloudbase.net/database/security-rules)\n   */\n  \"Rule\"?: string;\n  /**\n   * 是否同步数据模型，默认同步\n   */\n  \"SyncModel\"?: boolean;\n  /**\n   * 微信 AppId，微信必传\n   */\n  \"WxAppId\"?: string;\n};"
@@ -760,9 +760,9 @@ export const TCB_ACTION_INDEX_MAP: Record<string, TcbActionIndexEntry> = {
       "EnvId"
     ],
     "exampleParams": {
-      "AutoVoucher": "true",
+      "AutoVoucher": true,
       "EnvId": "cloudbase-8grqda2hfc2f62bb",
-      "Period": "1"
+      "Period": 1
     },
     "paramsType": "/**\n * 续费云开发环境\n */\ntype RenewEnvParams = {\n  /**\n   * 是否自动选择代金券支付。\n   */\n  \"AutoVoucher\"?: boolean;\n  /**\n   * 环境ID\n   */\n  \"EnvId\": string;\n  /**\n   * 续费周期，单位：月。\n   * 默认值为 1，即续费1个月。\n   */\n  \"Period\"?: number;\n};"
   },
