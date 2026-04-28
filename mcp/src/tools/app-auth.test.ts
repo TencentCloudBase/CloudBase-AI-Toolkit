@@ -67,7 +67,8 @@ describe("app auth tools", () => {
     phoneOtp: "auth.signInWithOtp({ phone })",
     emailOtp: "auth.signInWithOtp({ email })",
     password: "auth.signInWithPassword({ username|email|phone, password })",
-    signup: "auth.signUp({ phone|email, ... })",
+    signup: "auth.signUp({ username, password }) or auth.signUp({ phone|email, ... })",
+    usernamePasswordSignup: "auth.signUp({ username, password })",
     verifyOtp: "verifyOtp({ token })",
     anonymous: "auth.signInAnonymously()",
   };
