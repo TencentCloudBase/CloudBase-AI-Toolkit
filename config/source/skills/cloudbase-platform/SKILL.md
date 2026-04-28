@@ -195,6 +195,82 @@ Compatibility note:
    - If involving cloud functions, while ensuring security, can minimize the number of cloud functions as much as possible
    - For example: implement one cloud function for client-side requests, implement one cloud function for data initialization
 
+## NoSQL Database MCP Tool Operations
+
+When using CloudBase MCP tools directly (not writing browser/mini-program SDK code), use these 4 tools for NoSQL database operations:
+
+### Tool Overview
+
+| Tool | Purpose | Key actions |
+|------|---------|-------------|
+| `readNoSqlDatabaseStructure` | Read collection and index structure | `listCollections`, `describeCollection`, `checkCollection`, `listIndexes`, `checkIndex` |
+| `writeNoSqlDatabaseStructure` | Create, update, or delete collections and indexes | `createCollection`, `updateCollection`, `deleteCollection` |
+| `readNoSqlDatabaseContent` | Query documents from a collection | Query with filters, projection, sort, pagination |
+| `writeNoSqlDatabaseContent` | Insert, update, or delete documents | `insert`, `update`, `delete` |
+
+### Typical Multi-Step Workflow
+
+For common NoSQL operations that require chaining multiple tool calls, follow this sequence:
+
+```
+1. Check collection exists → readNoSqlDatabaseStructure(action="checkCollection", collectionName="...")
+2. If not exists, create collection → writeNoSqlDatabaseStructure(action="createCollection", collectionName="...")
+3. Verify/describe collection → readNoSqlDatabaseStructure(action="describeCollection", collectionName="...")
+4. Insert documents → writeNoSqlDatabaseContent(action="insert", collectionName="...", documents=[{...}])
+5. Query documents → readNoSqlDatabaseContent(collectionName="...", query={...})
+```
+
+**Important**: After `createCollection`, the tool internally waits for the collection to become ready before returning. You do NOT need to add a separate delay or retry loop.
+
+### Call Examples
+
+**Check if a collection exists:**
+```
+readNoSqlDatabaseStructure(action="checkCollection", collectionName="my_collection")
+```
+
+**Create a collection:**
+```
+writeNoSqlDatabaseStructure(action="createCollection", collectionName="my_collection")
+```
+
+**Describe a collection (includes index info):**
+```
+readNoSqlDatabaseStructure(action="describeCollection", collectionName="my_collection")
+```
+
+**List all collections:**
+```
+readNoSqlDatabaseStructure(action="listCollections")
+```
+
+**Insert a document:**
+```
+writeNoSqlDatabaseContent(action="insert", collectionName="my_collection", documents=[{"name":"test","status":"active"}])
+```
+
+**Query documents with a filter:**
+```
+readNoSqlDatabaseContent(collectionName="my_collection", query={"name":"test"})
+```
+
+**Update documents (use `$set` for partial updates):**
+```
+writeNoSqlDatabaseContent(action="update", collectionName="my_collection", query={"name":"test"}, update={"$set":{"status":"completed"}})
+```
+
+**Delete documents:**
+```
+writeNoSqlDatabaseContent(action="delete", collectionName="my_collection", query={"name":"test"})
+```
+
+### Common Mistakes
+
+- **Forgetting to create the collection first**: All content operations (`readNoSqlDatabaseContent`, `writeNoSqlDatabaseContent`) require the collection to already exist. Always check with `checkCollection` and create with `createCollection` if needed before doing data operations.
+- **Using `update` without `$set`**: When updating documents, passing a plain object like `{"status":"completed"}` will **replace the entire document**. Use `{"$set":{"status":"completed"}}` for partial updates.
+- **Mixing SDK code patterns with MCP tool calls**: When in pure MCP mode, do NOT generate JavaScript code using `db.collection(...)`. Call the MCP tools directly instead.
+- **Not chaining operations sequentially**: Multi-step operations (check → create → insert → query) must be done in order; each step may depend on the previous step's result.
+
 ## Data Models
 
 1. **Get Data Model Operation Object**:

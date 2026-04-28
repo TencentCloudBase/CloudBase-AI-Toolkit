@@ -52,6 +52,7 @@ If a skill points to its own `references/...` files, keep following those relati
 | AI Agent (智能体开发) | `cloudbase-agent` |  domain skill as needed | `cloud-functions`,`cloudrun-development`, | AG-UI protocol, scf_bootstrap, SSE streaming |
 | UI generation | `ui-design` | platform skill | backend-only skills | Design specification first |
 | Spec workflow / architecture design | `spec-workflow` | `cloudbase` and platform skill | direct implementation skills | Requirements, design, tasks confirmed |
+| NoSQL direct MCP operations (check / create / insert / query without writing SDK code) | `cloudbase-platform` | `no-sql-web-sdk` or `no-sql-wx-mp-sdk` (for SDK code only) | `auth-web`, `http-api` | Collection must exist before data operations; use `checkCollection` → `createCollection` → insert → query sequence |
 | Resource health inspection / troubleshooting / 巡检 / 诊断 | `ops-inspector` | `cloud-functions`, `cloudrun-development` | `ui-design`, `spec-workflow` | CLS enabled, time range for logs |
 
 ### Routing reminders
@@ -59,6 +60,7 @@ If a skill points to its own `references/...` files, keep following those relati
 - Web auth failures are usually caused by skipping provider configuration, not by missing frontend code snippets.
 - Native App failures are usually caused by reading Web SDK paths, not by missing HTTP API knowledge.
 - Mini program failures are usually caused by treating `wx.cloud` like Web auth or Web SDK.
+- NoSQL MCP operation failures are usually caused by the model generating SDK code (`db.collection(...)`) instead of calling the MCP tools (`readNoSqlDatabaseStructure`, `writeNoSqlDatabaseStructure`, `readNoSqlDatabaseContent`, `writeNoSqlDatabaseContent`) directly. When the task says to operate on a collection via MCP, call the tools — do not write JavaScript.
 
 ### Web SDK quick reminder
 
@@ -283,6 +285,15 @@ Prefer long-term memory when available: write the scenarios and working rules th
 **Mini Program Projects:**
 - NoSQL Database: Refer to the `no-sql-wx-mp-sdk` skill
 - MySQL Relational Database: Refer to the `relational-database-tool` skill (via tools)
+
+**Direct MCP Tool Operations (no SDK code):**
+- When the task requires operating NoSQL collections directly via MCP tools (not writing browser/mini-program code), use these 4 tools:
+  - `readNoSqlDatabaseStructure` — check/list/describe collections and indexes
+  - `writeNoSqlDatabaseStructure` — create/update/delete collections and indexes
+  - `readNoSqlDatabaseContent` — query documents from a collection
+  - `writeNoSqlDatabaseContent` — insert/update/delete documents
+- Read the `cloudbase-platform` skill for the full multi-step workflow and call examples
+- **Do NOT** generate `db.collection(...)` SDK code when the task expects direct MCP tool calls
 
 ### 3. Deployment
 
