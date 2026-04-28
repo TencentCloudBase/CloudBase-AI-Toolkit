@@ -41,6 +41,16 @@ alwaysApply: true
 - Always specify `EnvId` explicitly in code, configuration, and command examples when initializing CloudBase clients or manager operations. Do not rely on the current CLI-selected environment or implicit defaults.
 - If the conversation only provides an environment alias, nickname, or other shorthand, resolve it with `envQuery(action=list, alias=..., aliasExact=true)` and use the returned canonical full `EnvId` before calling `auth.set_env`, generating console links, or writing config/code. If the alias is ambiguous or missing, stop and ask the user to confirm.
 
+### Handling disabled capabilities
+
+- When the user explicitly requests to use CLI commands (e.g., "使用 CloudBase CLI", "tcb", "命令行", "CLI"), but the current run mode has CLI disabled (indicated by "CloudBase CLI" in the disabled capabilities list), inform the user that CLI is not available in this mode and guide them to use the equivalent MCP tools instead.
+- Common replacements:
+  - Log query: Use `queryFunctions(action="listFunctionLogs", functionName="<name>", startTime="<time>", endTime="<time>")` instead of `tcb fn log`
+  - Function deployment: Use `manageFunctions(action="createFunction"|"updateFunctionCode")` instead of `tcb fn deploy`
+  - Storage operations: Use `manageStorage` tools instead of `tcb storage`
+  - Environment query: Use `envQuery(action=list|info)` instead of `tcb env list`
+- If unsure which MCP tool maps to a CLI command, route to the appropriate domain skill (e.g., `cloud-functions`, `cloud-storage-web`, or `ops-inspector`) for the specific capability.
+
 ### Do NOT use this as
 
 - A reason to read every CloudBase skill before touching code.
