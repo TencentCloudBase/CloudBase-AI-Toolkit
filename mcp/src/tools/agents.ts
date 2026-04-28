@@ -81,9 +81,11 @@ export function registerAgentTools(server: ExtendedMcpServer) {
     "queryAgents",
     {
       title: "查询 Agent",
-      description: "Agent 域统一只读入口。支持列表、详情与日志查询。",
+      description: "查询 Agent 相关资源。通过 action 参数指定操作类型。要获取所有 Agent 列表，请使用 action=\"listAgents\"。",
       inputSchema: {
-        action: z.enum(QUERY_AGENT_ACTIONS),
+        action: z
+          .enum(QUERY_AGENT_ACTIONS)
+          .describe("操作类型：listAgents=获取 Agent 列表，getAgent=获取 Agent 详情，getAgentLogs=获取 Agent 日志"),
         agentId: z.string().optional(),
         pageNumber: z.number().optional(),
         pageSize: z.number().optional(),
@@ -178,9 +180,11 @@ export function registerAgentTools(server: ExtendedMcpServer) {
     "manageAgents",
     {
       title: "管理 Agent",
-      description: "Agent 域统一写入口。支持创建、更新和删除远端 Agent。",
+      description: "管理 Agent 相关资源。通过 action 参数指定操作类型。",
       inputSchema: {
-        action: z.enum(MANAGE_AGENT_ACTIONS),
+        action: z
+          .enum(MANAGE_AGENT_ACTIONS)
+          .describe("操作类型：createAgent=创建 Agent，updateAgent=更新 Agent，deleteAgent=删除 Agent"),
         agentId: z.string().optional(),
         params: z.record(z.any()).optional(),
       },

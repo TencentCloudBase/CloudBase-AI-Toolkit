@@ -1412,11 +1412,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "查询云函数域资源",
       description:
-        "函数域统一只读入口。通过更自解释的 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。",
+        "查询云函数相关资源。通过 action 参数指定操作类型。要获取所有云函数列表，请使用 action=\"listFunctions\"。",
       inputSchema: {
         action: z
           .enum(QUERY_FUNCTION_ACTIONS)
-          .describe("只读操作类型，例如 listFunctions、getFunctionDetail、listFunctionLogs"),
+          .describe(
+            "操作类型：listFunctions=获取云函数列表，getFunctionDetail=获取函数详情，listFunctionLogs=获取函数日志，getFunctionLogDetail=获取日志详情，listFunctionLayers=获取函数绑定的层，listLayers=获取层列表，listLayerVersions=获取层版本列表，getLayerVersionDetail=获取层版本详情，listFunctionTriggers=获取函数触发器列表，getFunctionDownloadUrl=获取函数代码下载地址",
+          ),
         functionName: z.string().optional().describe("函数名称。函数相关 action 必填"),
         limit: z.number().optional().describe("分页数量。列表类 action 可选"),
         offset: z.number().optional().describe("分页偏移。列表类 action 可选"),
@@ -1444,11 +1446,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "管理云函数域资源",
       description:
-        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。",
+        "管理云函数相关资源。通过 action 参数指定操作类型。危险操作需要显式 confirm=true。",
       inputSchema: {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
-          .describe("写操作类型，例如 createFunction、invokeFunction、attachLayer"),
+          .describe(
+            "操作类型：createFunction=创建云函数，updateFunctionCode=更新函数代码，updateFunctionConfig=更新函数配置，invokeFunction=调用函数，createFunctionTrigger=创建触发器，deleteFunctionTrigger=删除触发器，createLayerVersion=创建层版本，deleteLayerVersion=删除层版本，attachLayer=绑定层，detachLayer=解绑层，updateFunctionLayers=更新函数层绑定列表",
+          ),
         func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
         functionRootPath: z.string().optional().describe(
           "创建或更新函数代码时默认推荐的本地目录方式。" +
