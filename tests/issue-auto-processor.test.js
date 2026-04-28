@@ -182,6 +182,6 @@ test('workflow isolates batch iteration from CLI stdin consumption', () => {
 
   expect(raw).toContain('mapfile -t issues < <(jq -c ".[]" .issue-auto-processor-issues.json)');
   expect(raw).toContain('for issue in "${issues[@]}"; do');
-  expect(raw).toContain('codebuddy -p "$(cat /tmp/codebuddy-prompt.txt)" -y --output-format json --permission-mode acceptEdits </dev/null 2>&1');
+  expect(raw).toContain('codebuddy -p "$(cat /tmp/codebuddy-prompt.txt)" -y --output-format json --permission-mode acceptEdits --model hy3-preview-ioa </dev/null 2>&1');
   expect(raw).not.toContain('done < <(jq -c ".[]" .issue-auto-processor-issues.json)');
 });
