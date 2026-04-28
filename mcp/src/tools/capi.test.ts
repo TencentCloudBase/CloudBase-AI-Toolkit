@@ -36,4 +36,39 @@ describe("buildCapiErrorMessage", () => {
 
     expect(message).not.toContain("可能的 tcb Action");
   });
+
+  it("provides helpful guidance for 400 invalid parameter value errors", () => {
+    const message = buildCapiErrorMessage(
+      "tcb",
+      "CreateEnv",
+      new Error("400 invalid parameter value (abc123/def456)"),
+    );
+
+    expect(message).toContain("参数值无效或不符合 API 要求");
+    expect(message).toContain("逐个检查传入的参数值");
+    expect(message).toContain("参数值类型是否正确");
+    expect(message).toContain("searchKnowledgeBase");
+  });
+
+  it("shows param hints for 400 errors on known tcb actions", () => {
+    const message = buildCapiErrorMessage(
+      "tcb",
+      "DestroyEnv",
+      new Error("400 invalid parameter value"),
+    );
+
+    expect(message).toContain("参数值无效或不符合 API 要求");
+    expect(message).toContain("`EnvId`");
+  });
+
+  it("provides guidance for 400 errors on non-tcb services", () => {
+    const message = buildCapiErrorMessage(
+      "scf",
+      "CreateFunction",
+      new Error("400 invalid parameter value"),
+    );
+
+    expect(message).toContain("参数值无效或不符合 API 要求");
+    expect(message).toContain("逐个检查传入的参数值");
+  });
 });

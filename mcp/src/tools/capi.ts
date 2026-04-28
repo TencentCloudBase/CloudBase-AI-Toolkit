@@ -113,6 +113,8 @@ export function buildCapiErrorMessage(service: AllowedService, action: string, e
     const tcbEntry = service === "tcb" ? findTcbActionEntry(action) : undefined;
     const hasInvalidActionError = /invalid or not found|does not exist|not recognized/i.test(baseMessage);
     const hasParameterError = /parameter\s+`?.+?`?\s+is not recognized|MissingParameter|missing parameter|missing required/i.test(baseMessage);
+    // Detect generic "400 invalid parameter" errors that don't specify which parameter
+    const hasInvalidParameterValueError = /400\s+invalid\s+parameter/i.test(baseMessage);
 
     if (hasInvalidActionError) {
         suggestions.push(
@@ -146,6 +148,33 @@ export function buildCapiErrorMessage(service: AllowedService, action: string, e
                 suggestions.push(paramsTypeHint);
             }
         }
+    }
+
+    // Handle generic "400 invalid parameter value" errors
+    if (hasInvalidParameterValueError) {
+        suggestions.push("参数值无效或不符合 API 要求。请逐个检查传入的参数值：");
+        suggestions.push("1. 确认参数值类型是否正确（字符串/数字/布尔值/数组/对象）");
+        suggestions.push("2. 确认字符串参数是否符合格式要求（如时间格式、ID格式等）");
+        suggestions.push("3. 确认枚举值是否在允许范围内");
+        suggestions.push("4. 确认必填参数是否已提供且非空");
+        if (service === "tcb" && tcbEntry) {
+            const paramHint = [
+                tcbEntry.paramKeys.length > 0
+                    ? `当前 Action 的参数键：${formatTcbParamKeys(tcbEntry.paramKeys)}`
+                    : "",
+                tcbEntry.requiredKeys.length > 0
+                    ? `必填参数：${formatTcbParamKeys(tcbEntry.requiredKeys)}`
+                    : "",
+            ].filter(Boolean);
+            if (paramHint.length > 0) {
+                suggestions.push(`\`${tcbEntry.action}\` ${paramHint.join("；")}。`);
+            }
+            const paramsTypeHint = formatTcbParamsTypeHint(tcbEntry.action);
+            if (paramsTypeHint) {
+                suggestions.push(paramsTypeHint);
+            }
+        }
+        suggestions.push(`建议使用 searchKnowledgeBase(mode="openapi", query="${action}") 查询该 API 的详细参数说明。`);
     }
 
     if (/ECONNRESET|socket hang up|ETIMEDOUT|ENOTFOUND/i.test(baseMessage)) {
