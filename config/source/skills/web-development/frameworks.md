@@ -24,3 +24,18 @@
 - Use the existing router if present; do not switch routing libraries without an explicit requirement.
 - For purely static hosting environments, prefer hash routing when server rewrite support is absent or unknown.
 - Make build and preview commands explicit before handing off deployment steps.
+
+## Vite base config for subdirectory deployment
+
+When deploying a Vite app to a CloudBase static hosting subdirectory (e.g. `/vite-test/`):
+
+1. Set `base` in `vite.config.ts` to the **absolute** subdirectory path with leading and trailing slashes:
+   ```js
+   // vite.config.ts — deploying to /vite-test/
+   export default defineConfig({
+     base: '/vite-test/',  // MUST be absolute, NOT './' or ''
+   })
+   ```
+2. **NEVER** use `base: './'` or `base: ''` for subdirectory deployment. Relative paths break when the access URL does not end with `/`, causing all JS/CSS assets to 404.
+3. After changing `base`, you MUST run `npm run build` again and verify that `dist/index.html` contains asset paths like `/vite-test/assets/xxx.js` rather than `/assets/xxx.js` or `./assets/xxx.js`.
+4. When calling `uploadFiles`, use `cloudPath: 'vite-test'` (no leading `/`) and `localPath` pointing to the `dist/` directory.

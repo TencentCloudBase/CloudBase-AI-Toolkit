@@ -291,6 +291,7 @@ Prefer long-term memory when available: write the scenarios and working rules th
 - Refer to the `web-development` skill for deployment process
 - `uploadFiles` is for static hosting only; if the task needs a COS object that must be queried or polled with the storage SDK, use `manageStorage` / `queryStorage`
 - Remind users that CDN has a few minutes of cache after deployment
+- **Subdirectory deployment 404 prevention**: When deploying to a subdirectory, the build config `base` / `publicPath` / `assetPrefix` MUST be set to the matching absolute path (e.g. `'/vite-test/'` with leading and trailing slashes). NEVER use `'./'` or empty string. After changing build config, MUST rebuild and verify asset paths in the build output before calling `uploadFiles`. Upload the entire `dist/` directory, not just `index.html`.
 
 **Backend Deployment:**
 - **Cloud Functions**: Refer to the `cloud-functions` skill - Runtime cannot be changed after creation, must select correct runtime initially
