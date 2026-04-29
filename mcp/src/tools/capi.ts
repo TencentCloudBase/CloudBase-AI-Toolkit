@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getCloudBaseManager, logCloudBaseResult } from "../cloudbase-manager.js";
+import { getCloudBaseManager, getEnvId, logCloudBaseResult } from "../cloudbase-manager.js";
 import { TCB_ACTION_INDEX_MAP } from "../generated/tcb-action-index.js";
 import { ExtendedMcpServer } from "../server.js";
 
@@ -189,6 +189,11 @@ export function registerCapiTools(server: ExtendedMcpServer) {
 **云函数**: \`DescribeFunctions\`、\`CreateFunction\`、\`UpdateFunctionCode\`、\`DeleteFunction\`
 **数据库**: \`CreateMySQLInstance\`、\`DescribeMySQLInstances\`、\`DestroyMySQLInstance\`
 
+重要参数约定：
+1. **EnvId 自动注入**：tcb 的绝大多数 Action 都要求 \`EnvId\` 作为必填参数。如果调用时 params 中未传 \`EnvId\`，工具会自动从当前环境注入，无需手动填写。
+2. **参数必须扁平传递**：params 中的字段必须是 API 定义的顶层参数，不要嵌套在子对象中。例如 CreateUser 的参数应直接放在 params 里：\`{ "Name": "zhangsan", "NickName": "张三", "Type": "internalUser", "UserStatus": "ACTIVE" }\`，而不是 \`{ "User": { ... } }\`。
+3. **参数名严格区分大小写**：必须使用 API 官方定义的参数名，例如用户名用 \`Name\`（不是 \`UserName\`），用户类型用 \`Type\`（不是 \`UserType\`），用户状态用 \`UserStatus\`（不是 \`Status\`）。如不确定参数名，请先查官方文档。
+
 销毁环境时，常见做法是至少带上 \`EnvId\` 和 \`BypassCheck: true\`，如果环境已经处于隔离期再按文档补 \`IsForce: true\`。`,
             inputSchema: {
                 service: z
@@ -204,7 +209,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                     .record(z.any())
                     .optional()
                     .describe(
-                        "Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：`{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }`，如果环境已经处于隔离期，可再补 `IsForce: true`；更新环境别名则可用 `{ \"service\": \"tcb\", \"action\": \"ModifyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"Alias\": \"demo\" } }`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
+                        "Action 对应的参数对象，键名需与官方 API 定义一致（区分大小写）。参数必须扁平传递，不要嵌套在子对象中。tcb 的绝大多数 Action 都要求 EnvId，如未传则自动从当前环境注入。tcb 示例：`{ \"service\": \"tcb\", \"action\": \"CreateUser\", \"params\": { \"Name\": \"zhangsan\", \"NickName\": \"张三\", \"Type\": \"internalUser\", \"Phone\": \"13800138000\", \"Email\": \"zhangsan@example.com\", \"UserStatus\": \"ACTIVE\" } }`（注意：用户名用 Name 不是 UserName，类型用 Type 不是 UserType，状态用 UserStatus 不是 Status，且不要嵌套在 User 对象中）；销毁环境：`{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
                     ),
             },
             annotations: {
@@ -231,6 +236,24 @@ export function registerCapiTools(server: ExtendedMcpServer) {
             }
 
             const cloudbase = await getManager();
+
+            // Auto-inject EnvId for tcb actions that require it but caller omitted it.
+            // Most tcb actions require EnvId; models frequently forget to include it,
+            // causing a wasted round-trip. We resolve the current environment ID from
+            // the auth context and inject it automatically.
+            let finalParams = params ?? {};
+            if (service === 'tcb' && !finalParams.EnvId) {
+                const tcbEntry = findTcbActionEntry(action);
+                if (!tcbEntry || tcbEntry.requiredKeys.includes('EnvId')) {
+                    try {
+                        const resolvedEnvId = await getEnvId(cloudBaseOptions);
+                        finalParams = { ...finalParams, EnvId: resolvedEnvId };
+                    } catch {
+                        // If env resolution fails, let the API call proceed and
+                        // produce its own "missing EnvId" error with guidance.
+                    }
+                }
+            }
             if (['1', 'true'].includes(process.env.CLOUDBASE_EVALUATE_MODE ?? '')) {
                 if (service === 'lowcode') {
                     throw new Error(`${service}/${action} Cloud API is not exposed or does not exist. Please use another API.`);
@@ -263,7 +286,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
             try {
                 result = await cloudbase.commonService(service).call({
                     Action: action,
-                    Param: params ?? {},
+                    Param: finalParams,
                 });
             } catch (error) {
                 throw new Error(buildCapiErrorMessage(service, action, error));
