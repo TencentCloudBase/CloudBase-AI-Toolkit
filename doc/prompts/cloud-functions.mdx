@@ -272,6 +272,91 @@ The `scf_bootstrap` binary path must match the runtime — see the full mapping 
 }
 ```
 
+## MCP tool response format
+
+All CloudBase MCP tools return a consistent JSON envelope:
+
+```json
+{
+  "success": true,
+  "data": {
+    "action": "listFunctions",
+    "functions": [...],
+    "totalCount": 10
+  },
+  "message": "已获取 10 个云函数"
+}
+```
+
+### How to parse responses
+
+When you receive a tool result:
+
+1. The tool returns `{ content: [{ type: "text", text: "..." }] }`
+2. Access `result.content[0].text` to get the JSON string
+3. Parse it as JSON: `const response = JSON.parse(result.content[0].text)`
+4. Check `response.success` to verify the operation succeeded
+5. Access `response.data` for the actual payload
+
+Example:
+
+```javascript
+// After calling queryFunctions(action="listFunctions")
+const response = JSON.parse(toolResult.content[0].text);
+if (response.success) {
+  const functions = response.data.functions;
+  const totalCount = response.data.totalCount;
+  // Process functions array
+}
+```
+
+### Pagination handling
+
+For `listFunctions`, `listFunctionLogs`, and other list operations:
+
+- Use `limit` and `offset` parameters for pagination
+- The response includes `totalCount` indicating total available records
+- When `functions.length < totalCount`, there are more records to fetch
+- Always check `totalCount` to determine if pagination is needed
+
+Example:
+
+```javascript
+let allFunctions = [];
+let offset = 0;
+const limit = 100;
+
+while (true) {
+  const response = await queryFunctions({
+    action: "listFunctions",
+    limit,
+    offset
+  });
+  const parsed = JSON.parse(response.content[0].text);
+  
+  if (!parsed.success) break;
+  
+  allFunctions.push(...parsed.data.functions);
+  
+  if (allFunctions.length >= parsed.data.totalCount) break;
+  offset += limit;
+}
+
+// allFunctions now contains all functions
+```
+
+### Error handling
+
+When `success` is `false`:
+
+```javascript
+const response = JSON.parse(result.content[0].text);
+if (!response.success) {
+  console.error(response.message); // Error message
+  // Check response.errorCode if available
+}
+```
+
 ## Preferred tool map
 
 ### Function management
