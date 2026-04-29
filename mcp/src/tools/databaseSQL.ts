@@ -279,6 +279,39 @@ function extractErrorCode(error: unknown) {
   return typeof maybeCode === "string" ? maybeCode : undefined;
 }
 
+function isMySQLNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const errorCode = extractErrorCode(error);
+  const errorMessage = (error as Error).message?.toLowerCase() ?? "";
+
+  // Known error codes that indicate MySQL is not provisioned
+  const notFoundErrorCodes = [
+    "FailedOperation.DataSourceNotExist",
+    "ResourceNotFound.InstanceNotFound",
+  ];
+
+  // Known error message patterns that indicate MySQL is not provisioned
+  const notFoundMessagePatterns = [
+    "database instance not found",
+    "pg instance not found",
+    "mysql instance not found",
+    "instance not found",
+  ];
+
+  if (errorCode && notFoundErrorCodes.includes(errorCode)) {
+    return true;
+  }
+
+  if (notFoundMessagePatterns.some((pattern) => errorMessage.includes(pattern))) {
+    return true;
+  }
+
+  return false;
+}
+
 function normalizeCreateResultStatus(rawStatus: unknown): SqlLifecycleStatus {
   if (typeof rawStatus !== "string" || rawStatus.trim().length === 0) {
     return "PENDING";
@@ -505,7 +538,14 @@ function buildProvisionNextActions(
   }
 
   if (status === "FAILED") {
-    return [];
+    return [
+      buildNextAction(
+        MANAGE_SQL_DATABASE,
+        "provisionMySQL",
+        "MySQL provisioning failed. Retry provisioning with a new request.",
+        { action: "provisionMySQL", confirm: true },
+      ),
+    ];
   }
 
   return [
@@ -534,7 +574,20 @@ function buildTaskStatusNextActions(
   request?: Record<string, unknown>,
 ) {
   if (status === "FAILED") {
-    return [];
+    const taskKind = inferTaskKind(request);
+    if (taskKind === "destroy") {
+      // For failed destroy tasks, the caller should decide what to do
+      return [];
+    }
+    // For failed provision tasks, suggest retrying provisioning
+    return [
+      buildNextAction(
+        MANAGE_SQL_DATABASE,
+        "provisionMySQL",
+        "MySQL task failed. Retry provisioning with a new request.",
+        { action: "provisionMySQL", confirm: true },
+      ),
+    ];
   }
 
   if (status === "READY") {
@@ -621,8 +674,7 @@ async function handleRunQuery(
     });
     logCloudBaseResult(context.server.logger, result);
   } catch (error: any) {
-    const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
-    if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
+    if (isMySQLNotFoundError(error)) {
       return buildSqlToolResult({
         success: false,
         errorCode: "MYSQL_NOT_CREATED",
@@ -668,12 +720,27 @@ async function handleDescribeCreateResult(
   const createData = pickDataPayload(result);
   const rawStatus = createData?.Status ?? pickLifecycleSource(result);
   const status = normalizeCreateResultStatus(rawStatus);
+  const failReason = createData?.FailReason ?? null;
+
+  // Build a more informative message when provisioning fails
+  let message: string;
+  if (status === "READY") {
+    message = "MySQL provisioning result indicates the instance is ready.";
+  } else if (status === "FAILED") {
+    message = failReason
+      ? `MySQL provisioning failed. Reason: ${failReason}. Retry provisioning or check the environment status in the CloudBase console.`
+      : "MySQL provisioning failed. The FailReason was not provided. Retry provisioning or check the environment status in the CloudBase console at: https://tcb.cloud.tencent.com/dev?envId=" + envId + "#/db/mysql";
+  } else {
+    message = "MySQL provisioning has not completed yet.";
+  }
+
   return buildSqlToolResult({
     success: status !== "FAILED",
     errorCode: status === "FAILED" ? "MYSQL_PROVISION_FAILED" : undefined,
     data: {
       status,
       rawStatus,
+      failReason,
       createResult: createData ?? result,
       instance: {
         envId,
@@ -689,12 +756,7 @@ async function handleDescribeCreateResult(
       },
       progress: pickProgress(result),
     },
-    message:
-      status === "READY"
-        ? "MySQL provisioning result indicates the instance is ready."
-        : status === "FAILED"
-          ? "MySQL provisioning failed. Review the returned status and task details before retrying."
-          : "MySQL provisioning has not completed yet.",
+    message,
     nextActions: buildProvisionNextActions(status, buildTaskRequest(request, result)),
   });
 }
@@ -990,8 +1052,7 @@ async function handleRunStatement(
     });
     logCloudBaseResult(context.server.logger, result);
   } catch (error: any) {
-    const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
-    if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
+    if (isMySQLNotFoundError(error)) {
       return buildSqlToolResult({
         success: false,
         errorCode: "MYSQL_NOT_CREATED",
@@ -1155,8 +1216,7 @@ async function handleInitializeSchema(
         });
         logCloudBaseResult(context.server.logger, result);
       } catch (error: any) {
-        const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
-        if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
+        if (isMySQLNotFoundError(error)) {
           return buildSqlToolResult({
             success: false,
             errorCode: "MYSQL_NOT_CREATED",
