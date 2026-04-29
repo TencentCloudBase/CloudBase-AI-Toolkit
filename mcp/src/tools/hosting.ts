@@ -261,7 +261,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
       inputSchema: {
         localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
-        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，例如 files/data.txt。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"),
+        cloudPath: z.string().optional().describe("静态托管云端文件或文件夹路径，例如 files/data.txt。不要以斜杠开头（如 /files），除非确实需要绝对路径；上传到根目录时可传空字符串或省略此参数。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。"),
         files: z.array(z.object({
           localPath: z.string(),
           cloudPath: z.string()
@@ -276,19 +276,24 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         category: "hosting"
       }
     },
-    async ({ localPath, cloudPath, files = [], ignore }: {
+    async ({ localPath, cloudPath: rawCloudPath, files = [], ignore }: {
       localPath?: string;
       cloudPath?: string;
       files?: Array<{ localPath: string; cloudPath: string }>;
       ignore?: string | string[]
     }) => {
       const cloudbase = await getManager()
+      // Normalize cloudPath: remove leading/trailing slashes to avoid double slashes in uploaded file keys
+      const cloudPath = rawCloudPath ? rawCloudPath.trim().replace(/^\/+|\/+$/g, '') : '';
       let result: unknown;
       try {
         result = await cloudbase.hosting.uploadFiles({
           localPath,
-          cloudPath,
-          files,
+          cloudPath: cloudPath || undefined,
+          files: files.map(f => ({
+            localPath: f.localPath,
+            cloudPath: f.cloudPath.trim().replace(/^\/+|\/+$/g, '')
+          })),
           ignore
         });
       } catch (error) {
@@ -340,6 +345,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         // Error is already logged in sendDeployNotification
       }
 
+      // Build deployment status summary
+      const uploadedFiles = (uploadResult.files as Array<{ options?: { Key?: string } }>) || [];
+      const fileCount = uploadedFiles.length;
+      const deploymentTarget = cloudPath ? `/${cloudPath}/` : '根目录';
+
       return {
         content: [
           {
@@ -347,8 +357,15 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             text: JSON.stringify({
               ...uploadResult,
               staticDomain,
-              message: "文件上传成功",
-              accessUrl: accessUrl
+              message: `部署成功：已上传 ${fileCount} 个文件到 ${deploymentTarget}`,
+              accessUrl: accessUrl,
+              deploymentStatus: {
+                filesUploaded: fileCount,
+                targetPath: cloudPath || '/',
+                staticDomain: staticDomain,
+                isReady: true,
+                note: "CDN 缓存可能需要 1-3 分钟生效，如无法立即访问请稍后再试"
+              }
             }, null, 2)
           }
         ]
