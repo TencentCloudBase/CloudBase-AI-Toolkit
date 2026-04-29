@@ -342,14 +342,14 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
     {
       title: "查询权限与用户配置",
       description:
-        "权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。",
+        "权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。查询存储权限时（resourceType=\"storage\"），如果不提供 resourceId/resourceIds，会自动发现当前环境的存储 Bucket 并返回其权限（aclTag），无需先查 Bucket 名称。",
       inputSchema: {
         action: z.enum(QUERY_PERMISSION_ACTIONS),
         resourceType: z
           .enum(["noSqlDatabase", "sqlDatabase", "function", "storage"])
           .optional(),
-        resourceId: z.string().optional(),
-        resourceIds: z.array(z.string()).optional(),
+        resourceId: z.string().optional().describe("资源标识。当 resourceType=\"storage\" 时可不提供，将自动使用默认 Bucket。"),
+        resourceIds: z.array(z.string()).optional().describe("资源标识列表。当 resourceType=\"storage\" 时可不提供，将自动发现所有 Bucket。"),
         roleId: z.string().optional(),
         roleIdentity: z.string().optional(),
         roleName: z.string().optional(),
@@ -395,29 +395,42 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
 
         switch (action) {
           case "getResourcePermission": {
-            if (!resourceType || !resourceId) {
-              throw new Error("action=getResourcePermission 时必须提供 resourceType 和 resourceId");
+            if (!resourceType) {
+              throw new Error("action=getResourcePermission 时必须提供 resourceType");
             }
-            if (resourceType === "storage") {
-              await ensureStorageBucketsExist(cloudbase, [resourceId]);
+            // Auto-discover default storage bucket when resourceId is not provided for storage type
+            let resolvedResourceId = resourceId;
+            if (resourceType === "storage" && !resolvedResourceId) {
+              const envInfo = await cloudbase.env.getEnvInfo();
+              const defaultBucket = (envInfo?.EnvInfo?.Storages ?? [])
+                .map((item: { Bucket?: string }) => item?.Bucket)
+                .find((bucket: string | undefined): bucket is string => Boolean(bucket));
+              if (defaultBucket) {
+                resolvedResourceId = defaultBucket;
+              } else {
+                throw new Error("当前环境没有存储 Bucket，无法查询存储权限");
+              }
+            }
+            if (resourceType === "storage" && resolvedResourceId) {
+              await ensureStorageBucketsExist(cloudbase, [resolvedResourceId]);
             }
             const result = await cloudbase.permission.describeResourcePermission({
               resourceType: mapResourceType(resourceType),
-              resources: [resourceId],
+              resources: [resolvedResourceId],
             });
             logCloudBaseResult(server.logger, result);
             const permissions = result.Data.PermissionList ?? [];
             const matchedPermission =
-              permissions.find((item) => item.Resource === resourceId) ?? permissions[0];
+              permissions.find((item) => item.Resource === resolvedResourceId) ?? permissions[0];
             const securityRule =
               matchedPermission?.SecurityRule;
-            const hints = buildPermissionHints(securityRule, resourceId);
+            const hints = buildPermissionHints(securityRule, resolvedResourceId);
             return buildEnvelope(
               {
                 action,
                 envId,
                 resourceType,
-                resourceId,
+                resourceId: resolvedResourceId,
                 aclTag: matchedPermission?.Permission,
                 permissions,
                 hints,
@@ -430,12 +443,23 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
             if (!resourceType) {
               throw new Error("action=listResourcePermissions 时必须提供 resourceType");
             }
-            if (resourceType === "storage" && resourceIds?.length) {
-              await ensureStorageBucketsExist(cloudbase, resourceIds);
+            // Auto-discover storage bucket names when resourceIds is not provided for storage type
+            let resolvedResourceIds = resourceIds;
+            if (resourceType === "storage" && !resolvedResourceIds?.length) {
+              const envInfo = await cloudbase.env.getEnvInfo();
+              const bucketNames = (envInfo?.EnvInfo?.Storages ?? [])
+                .map((item: { Bucket?: string }) => item?.Bucket)
+                .filter((bucket: string | undefined): bucket is string => Boolean(bucket));
+              if (bucketNames.length > 0) {
+                resolvedResourceIds = bucketNames;
+              }
+            }
+            if (resourceType === "storage" && resolvedResourceIds?.length) {
+              await ensureStorageBucketsExist(cloudbase, resolvedResourceIds);
             }
             const result = await cloudbase.permission.describeResourcePermission({
               resourceType: mapResourceType(resourceType),
-              resources: resourceIds,
+              resources: resolvedResourceIds,
             });
             logCloudBaseResult(server.logger, result);
             const permissions = result.Data.PermissionList ?? [];
