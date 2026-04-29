@@ -531,20 +531,28 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     switch (input.action) {
     case "listFunctions": {
       const cloudbase = await getManager();
+      const limit = input.limit ?? 20;
+      const offset = input.offset ?? 0;
       const result = await cloudbase.functions.getFunctionList(
-        input.limit,
-        input.offset,
+        limit,
+        offset,
       );
       logCloudBaseResult(server.logger, result);
+      const functions = result.Functions || [];
+      const totalCount = result.TotalCount || 0;
+      const hasMore = offset + functions.length < totalCount;
       return buildEnvelope(
         {
           action: input.action,
-          functions: result.Functions || [],
-          totalCount: result.TotalCount || 0,
+          functions,
+          totalCount,
+          limit,
+          offset,
+          hasMore,
           requestId: result.RequestId,
           raw: result,
         },
-        `已获取 ${result.Functions?.length || 0} 个云函数`,
+        `已获取 ${functions.length} 个云函数，总计 ${totalCount} 个${hasMore ? "，还有更多数据" : ""}`,
         [
           {
             tool: "queryFunctions",
@@ -603,32 +611,40 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       if (!input.functionName) {
         throw new Error("listFunctionLogs 操作时，functionName 参数是必需的");
       }
+      const limit = input.limit ?? 20;
+      const offset = input.offset ?? 0;
       validateLogRange(
         input.startTime,
         input.endTime,
-        input.offset,
-        input.limit,
+        offset,
+        limit,
       );
       const cloudbase = await getManager();
       const result = await cloudbase.functions.getFunctionLogsV2({
         name: input.functionName,
-        offset: input.offset,
-        limit: input.limit,
+        offset,
+        limit,
         startTime: input.startTime,
         endTime: input.endTime,
         requestId: input.requestId,
         qualifier: input.qualifier,
       });
       logCloudBaseResult(server.logger, result);
+      const logs = result.LogList || [];
+      // For logs, we infer hasMore based on whether we got a full page
+      const hasMore = logs.length >= limit;
       return buildEnvelope(
         {
           action: input.action,
           functionName: input.functionName,
-          logs: result.LogList || [],
+          logs,
+          limit,
+          offset,
+          hasMore,
           requestId: result.RequestId,
           raw: result,
         },
-        `已获取函数 ${input.functionName} 的日志列表`,
+        `已获取函数 ${input.functionName} 的 ${logs.length} 条日志${hasMore ? "，可能还有更多数据" : ""}`,
         [
           {
             tool: "queryFunctions",
@@ -697,22 +713,30 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "listLayers": {
       const cloudbase = await getManager();
+      const limit = input.limit ?? 20;
+      const offset = input.offset ?? 0;
       const result = await cloudbase.functions.listLayers({
-        offset: input.offset,
-        limit: input.limit,
+        offset,
+        limit,
         runtime: input.runtime,
         searchKey: input.searchKey,
       });
       logCloudBaseResult(server.logger, result);
+      const layers = result.Layers || [];
+      const totalCount = result.TotalCount || 0;
+      const hasMore = offset + layers.length < totalCount;
       return buildEnvelope(
         {
           action: input.action,
-          layers: result.Layers || [],
-          totalCount: result.TotalCount || 0,
+          layers,
+          totalCount,
+          limit,
+          offset,
+          hasMore,
           requestId: result.RequestId,
           raw: result,
         },
-        `已获取 ${result.Layers?.length || 0} 条层记录`,
+        `已获取 ${layers.length} 条层记录，总计 ${totalCount} 个${hasMore ? "，还有更多数据" : ""}`,
         [
           {
             tool: "queryFunctions",
