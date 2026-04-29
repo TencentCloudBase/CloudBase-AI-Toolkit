@@ -67,7 +67,7 @@ function buildUploadFilesErrorMessage(error: unknown, localPath?: string): strin
     suggestions.push("请检查上传目录、文件权限和构建产物完整性后重试。");
   }
 
-  return `[uploadFiles] ${baseMessage}\n建议：${suggestions.join(" ")}`;
+  return `[静态托管部署] ${baseMessage}\n建议：${suggestions.join(" ")}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -257,7 +257,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
   server.registerTool(
     "uploadFiles",
     {
-      title: "上传静态文件",
+      title: "部署静态网站",
       description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。",
       inputSchema: {
         localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
