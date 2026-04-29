@@ -270,15 +270,18 @@ export function registerCapiTools(server: ExtendedMcpServer) {
             }
             logCloudBaseResult(logger, result);
 
+            // Normalize result to a consistent envelope structure for easier parsing
+            const normalizedResult = {
+                success: true,
+                data: result ?? {},
+                message: `${service}/${action} 调用成功`,
+            };
+
             return {
                 content: [
                     {
                         type: "text",
-                        text: JSON.stringify(
-                            result,
-                            null,
-                            2,
-                        ),
+                        text: JSON.stringify(normalizedResult, null, 2),
                     },
                 ],
             };
