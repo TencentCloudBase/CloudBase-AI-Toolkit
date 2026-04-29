@@ -189,7 +189,11 @@ export function registerCapiTools(server: ExtendedMcpServer) {
 **云函数**: \`DescribeFunctions\`、\`CreateFunction\`、\`UpdateFunctionCode\`、\`DeleteFunction\`
 **数据库**: \`CreateMySQLInstance\`、\`DescribeMySQLInstances\`、\`DestroyMySQLInstance\`
 
-销毁环境时，常见做法是至少带上 \`EnvId\` 和 \`BypassCheck: true\`，如果环境已经处于隔离期再按文档补 \`IsForce: true\`。`,
+销毁环境时，常见做法是至少带上 \`EnvId\` 和 \`BypassCheck: true\`，如果环境已经处于隔离期再按文档补 \`IsForce: true\`。
+
+**重要提示**：
+1. tcb 绝大多数 Action 都要求传 \`EnvId\`（环境 ID）作为必填参数，只有 CreateEnv、CheckTcbService 等少数 Action 例外。调用时若未传 EnvId 将直接报错。
+2. params 必须是**扁平的键值对**，键名与官方 API 定义完全一致（区分大小写），**不要**将参数嵌套在子对象中。例如 \`CreateUser\` 的正确参数是 \`{ "EnvId": "env-xxx", "Name": "zhangsan", "Type": "internalUser" }\`，而非 \`{ "User": { "UserName": "zhangsan" } }\`。`,
             inputSchema: {
                 service: z
                     .enum(ALLOWED_SERVICES)
@@ -204,7 +208,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                     .record(z.any())
                     .optional()
                     .describe(
-                        "Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：`{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }`，如果环境已经处于隔离期，可再补 `IsForce: true`；更新环境别名则可用 `{ \"service\": \"tcb\", \"action\": \"ModifyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"Alias\": \"demo\" } }`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
+                        "Action 对应的参数对象，必须是扁平的键值对结构（不要嵌套子对象），键名需与官方 API 定义一致（区分大小写）。tcb 绝大多数 Action 都要求 \`EnvId\` 作为必填参数（仅 CreateEnv、CheckTcbService 等少数例外）。如不确定参数结构，请先查官方文档。tcb 示例：\n- 销毁环境：\`{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }\`\n- 创建用户：\`{ \"service\": \"tcb\", \"action\": \"CreateUser\", \"params\": { \"EnvId\": \"env-xxx\", \"Name\": \"zhangsan\", \"NickName\": \"张三\", \"Phone\": \"13800138000\", \"Email\": \"zhangsan@example.com\", \"Type\": \"internalUser\", \"UserStatus\": \"ACTIVE\" } }\`\n- 修改环境别名：\`{ \"service\": \"tcb\", \"action\": \"ModifyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"Alias\": \"demo\" } }\`\n\n注意：CreateUser 的用户名字段是 \`Name\`（不是 UserName），用户类型字段是 \`Type\`（不是 UserType），用户状态字段是 \`UserStatus\`（不是 Status）。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
                     ),
             },
             annotations: {
@@ -259,11 +263,23 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                 }
             }
 
+            // Auto-inject EnvId for tcb actions that require it but the caller didn't provide it
+            let finalParams = params ?? {};
+            if (service === "tcb" && !finalParams.EnvId) {
+                const tcbEntry = findTcbActionEntry(action);
+                if (tcbEntry?.requiredKeys.includes("EnvId")) {
+                    const envId = cloudBaseOptions?.envId || process.env.CLOUDBASE_ENV_ID;
+                    if (envId) {
+                        finalParams = { ...finalParams, EnvId: envId };
+                    }
+                }
+            }
+
             let result: unknown;
             try {
                 result = await cloudbase.commonService(service).call({
                     Action: action,
-                    Param: params ?? {},
+                    Param: finalParams,
                 });
             } catch (error) {
                 throw new Error(buildCapiErrorMessage(service, action, error));
