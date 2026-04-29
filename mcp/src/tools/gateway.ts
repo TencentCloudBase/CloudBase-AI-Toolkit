@@ -207,6 +207,8 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         {
           action: input.action,
           domains: result.domains,
+          defaultDomain: result.raw.DefaultDomain,
+          customDomains: result.raw.ServiceSet?.map((item) => item.Domain) ?? [],
           enableService: result.enableService,
           raw: result.raw,
         },
@@ -226,6 +228,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         {
           action: input.action,
           domains: result.raw.ServiceSet ?? [],
+          defaultDomain: result.raw.DefaultDomain,
           total: (result.raw.ServiceSet ?? []).length,
           raw: result.raw,
         },
@@ -241,6 +244,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           action: input.action,
           routes,
           total: result.TotalCount ?? routes.length,
+          defaultDomain: result.OriginDomain,
           raw: result,
         },
         `已获取 ${result.TotalCount ?? routes.length} 条 HTTP 路由`,
@@ -260,6 +264,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           action: input.action,
           routeId: input.routeId ?? null,
           route,
+          defaultDomain: result.OriginDomain,
           raw: result,
         },
         route ? "已获取路由详情" : "未找到对应路由",
@@ -289,6 +294,12 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         ),
       );
 
+      // 使用默认域名生成外部调用 URL，避免使用自定义域名导致 SSL 证书不匹配
+      const defaultDomain = domainInfo.raw.DefaultDomain;
+      const defaultUrl = (accessList.APISet || []).length > 0
+        ? `https://${defaultDomain}${normalizeAccessPath(accessList.APISet[0].Path)}`
+        : null;
+
       return buildEnvelope(
         {
           action: input.action,
@@ -297,7 +308,10 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           apis: accessList.APISet || [],
           total: accessList.Total || 0,
           domains: domainInfo.domains,
+          defaultDomain,
+          customDomains: domainInfo.raw.ServiceSet?.map((item) => item.Domain) ?? [],
           urls,
+          defaultUrl,
           enableService:
             accessList.EnableService ?? domainInfo.enableService ?? false,
           raw: {

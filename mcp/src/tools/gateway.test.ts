@@ -272,10 +272,13 @@ describe("gateway tools", () => {
         targetName: "helloFn",
         total: 1,
         domains: ["env-test.app.tcloudbase.com", "api.example.com"],
+        defaultDomain: "env-test.app.tcloudbase.com",
+        customDomains: ["api.example.com"],
         urls: [
           "https://env-test.app.tcloudbase.com/api/hello",
           "https://api.example.com/api/hello",
         ],
+        defaultUrl: "https://env-test.app.tcloudbase.com/api/hello",
         enableService: true,
       },
       nextActions: [
