@@ -9,7 +9,37 @@ Use this reference when the task is clearly about an Event Function (`exports.ma
 - Event Functions auto-install dependencies from `package.json` during deployment, so you normally do not ship `node_modules`.
 - The function root path must point to the parent directory that contains the function folder.
 
-## Minimal structure
+## Module system: CommonJS only
+
+Event Functions run in a **CommonJS** Node.js environment. This has important implications for how you write function code:
+
+- **Use `require()` to import dependencies** — not `import`. The Event Function runtime does not support ES Module syntax.
+- **Use `exports.main` or `module.exports` to export the handler** — the `exports.main = async (event, context) => {}` pattern is CommonJS.
+- **Do not add `"type": "module"` to `package.json`** — this will cause the function to fail at runtime with `require is not defined` or `Cannot use import statement outside a module`.
+- **Do not use `import ... from ...` syntax** in Event Function code. If you need the `wx-server-sdk` or `@cloudbase/node-sdk`, load it with `require()`.
+
+```javascript
+// ✅ Correct: CommonJS in Event Function
+const cloud = require("wx-server-sdk");
+cloud.init();
+
+exports.main = async (event, context) => {
+  const wxContext = cloud.getWXContext();
+  return {
+    OPENID: wxContext.OPENID,
+    APPID: wxContext.APPID,
+  };
+};
+```
+
+```javascript
+// ❌ Wrong: ESM in Event Function — will fail at runtime
+import cloud from "wx-server-sdk"; // SyntaxError: Cannot use import statement
+
+export const main = async (event, context) => { ... }; // Also wrong
+```
+
+### Minimal structure
 
 ```text
 cloudfunctions/

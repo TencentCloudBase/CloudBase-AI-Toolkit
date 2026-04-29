@@ -49,6 +49,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Picking the wrong function type and trying to compensate later.
 - Confusing official CloudBase API client work with building your own HTTP function.
 - Mixing Event Function code shape (`exports.main(event, context)`) with HTTP Function code shape (`req` / `res` on port `9000`).
+- Using ES Module syntax (`import ...`, `export ...`) in Event Functions. Event Functions run in a CommonJS environment — always use `require()` and `exports.main`. Using `import` will cause a `require is not defined` or `Cannot use import statement outside a module` runtime error.
 - Treating HTTP Access as the implementation model for HTTP Functions. HTTP Access is a gateway configuration for Event Functions, not the HTTP Function runtime model.
 - Assuming `db.collection("name").add(...)` will create a missing document-database collection automatically. Collection creation is a separate management step.
 - Forgetting that runtime cannot be changed after creation.
