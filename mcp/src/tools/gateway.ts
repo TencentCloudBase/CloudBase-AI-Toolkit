@@ -109,18 +109,29 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     }
   };
 
+  /**
+   * Internal domains (e.g. *.tcbaccess-in.tencentcloudbase.com) do not have
+   * public TLS certificates and cannot be accessed over HTTPS from external
+   * clients.  Only *.tcloudbase.com domains are externally reachable.
+   */
+  const isExternalDomain = (domain: string) =>
+    domain.endsWith(".tcloudbase.com") || domain === "tcloudbase.com";
+
   const listGatewayDomains = async () => {
     const cloudbase = await getManager();
     const result = await cloudbase.access.getDomainList();
     logCloudBaseResult(server.logger, result);
 
-    const domains = [
+    const allDomains = [
       result.DefaultDomain,
       ...(result.ServiceSet || []).map((item) => item.Domain),
-    ].filter(Boolean);
+    ].filter(Boolean) as string[];
+
+    const domains = allDomains.filter(isExternalDomain);
 
     return {
       domains,
+      allDomains,
       enableService: result.EnableService,
       raw: result,
     };
@@ -207,10 +218,11 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         {
           action: input.action,
           domains: result.domains,
+          allDomains: result.allDomains,
           enableService: result.enableService,
           raw: result.raw,
         },
-        `已获取 ${result.domains.length} 个网关域名`,
+        `已获取 ${result.domains.length} 个外部可访问网关域名（共 ${result.allDomains.length} 个，已过滤内部域名）`,
         [
           {
             tool: "queryGateway",
@@ -297,6 +309,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           apis: accessList.APISet || [],
           total: accessList.Total || 0,
           domains: domainInfo.domains,
+          allDomains: domainInfo.allDomains,
           urls,
           enableService:
             accessList.EnableService ?? domainInfo.enableService ?? false,
@@ -305,7 +318,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             domainList: domainInfo.raw,
           },
         },
-        `已获取目标 ${input.targetName} 的网关访问配置`,
+        `已获取目标 ${input.targetName} 的网关访问配置（urls 仅包含外部可访问域名）`,
         [
           {
             tool: "manageGateway",
@@ -355,15 +368,37 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       }
       logCloudBaseResult(server.logger, result);
 
+      // Fetch domain list so we can return the accessible URL immediately
+      let domainInfo: Awaited<ReturnType<typeof listGatewayDomains>> | undefined;
+      try {
+        domainInfo = await listGatewayDomains();
+      } catch {
+        // Non-fatal: domain lookup failure should not block the createAccess response
+      }
+
+      const urls =
+        domainInfo && domainInfo.domains.length > 0
+          ? domainInfo.domains.map(
+              (domain) => `https://${domain}${accessPath}`,
+            )
+          : [];
+
+      const primaryUrl = urls[0] || null;
+
       return buildEnvelope(
         {
           action: input.action,
           targetType: input.targetType,
           targetName: input.targetName,
           path: accessPath,
+          urls,
+          primaryUrl,
+          domains: domainInfo?.domains ?? [],
           raw: result,
         },
-        `已为目标 ${input.targetName} 创建网关访问路径。注意：路由配置传播通常需要等待 30 秒到 3 分钟，请勿立即访问。该操作只创建网关入口，不会自动放开函数安全规则；若需要匿名或浏览器直接访问，请继续检查函数资源权限。`,
+        primaryUrl
+          ? `已为目标 ${input.targetName} 创建网关访问路径。可访问 URL: ${primaryUrl}。注意：路由配置传播通常需要等待 30 秒到 3 分钟，请勿立即访问。该操作只创建网关入口，不会自动放开函数安全规则；若需要匿名或浏览器直接访问，请继续检查函数资源权限。`
+          : `已为目标 ${input.targetName} 创建网关访问路径。注意：路由配置传播通常需要等待 30 秒到 3 分钟，请勿立即访问。该操作只创建网关入口，不会自动放开函数安全规则；若需要匿名或浏览器直接访问，请继续检查函数资源权限。`,
         [
           {
             tool: "queryGateway",

@@ -76,11 +76,11 @@ describe("gateway tools", () => {
       ],
     });
     mockGetDomainList.mockResolvedValue({
-      DefaultDomain: "env-test.app.tcloudbase.com",
+      DefaultDomain: "env-test.tcbaccess-in.tencentcloudbase.com",
       EnableService: true,
       ServiceSet: [
         {
-          Domain: "api.example.com",
+          Domain: "env-test.app.tcloudbase.com",
         },
       ],
     });
@@ -174,12 +174,15 @@ describe("gateway tools", () => {
     expect(payload).toMatchObject({
       success: true,
       message:
-        "已为目标 helloFn 创建网关访问路径。注意：路由配置传播通常需要等待 30 秒到 3 分钟，请勿立即访问。该操作只创建网关入口，不会自动放开函数安全规则；若需要匿名或浏览器直接访问，请继续检查函数资源权限。",
+        "已为目标 helloFn 创建网关访问路径。可访问 URL: https://env-test.app.tcloudbase.com/api/hello。注意：路由配置传播通常需要等待 30 秒到 3 分钟，请勿立即访问。该操作只创建网关入口，不会自动放开函数安全规则；若需要匿名或浏览器直接访问，请继续检查函数资源权限。",
       data: {
         action: "createAccess",
         targetType: "function",
         targetName: "helloFn",
         path: "/api/hello",
+        urls: ["https://env-test.app.tcloudbase.com/api/hello"],
+        primaryUrl: "https://env-test.app.tcloudbase.com/api/hello",
+        domains: ["env-test.app.tcloudbase.com"],
       },
       nextActions: [
         expect.objectContaining({
@@ -225,6 +228,8 @@ describe("gateway tools", () => {
         targetType: "function",
         targetName: "helloFn",
         path: "/helloFn",
+        urls: ["https://env-test.app.tcloudbase.com/helloFn"],
+        primaryUrl: "https://env-test.app.tcloudbase.com/helloFn",
       },
     });
   });
@@ -271,10 +276,10 @@ describe("gateway tools", () => {
         targetType: "function",
         targetName: "helloFn",
         total: 1,
-        domains: ["env-test.app.tcloudbase.com", "api.example.com"],
+        domains: ["env-test.app.tcloudbase.com"],
+        allDomains: ["env-test.tcbaccess-in.tencentcloudbase.com", "env-test.app.tcloudbase.com"],
         urls: [
           "https://env-test.app.tcloudbase.com/api/hello",
-          "https://api.example.com/api/hello",
         ],
         enableService: true,
       },
@@ -285,6 +290,34 @@ describe("gateway tools", () => {
         }),
       ],
     });
+  });
+
+  it("queryGateway(action=getAccess) should exclude internal domains from urls", async () => {
+    // Verify that internal domains (tencentcloudbase.com) are filtered out of urls
+    // but still available in allDomains
+    const result = await tools.queryGateway.handler({
+      action: "getAccess",
+      targetType: "function",
+      targetName: "helloFn",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    // urls should NOT contain the internal domain
+    expect(payload.data.urls).not.toContain(
+      "https://env-test.tcbaccess-in.tencentcloudbase.com/api/hello",
+    );
+    // domains should NOT contain the internal domain
+    expect(payload.data.domains).not.toContain(
+      "env-test.tcbaccess-in.tencentcloudbase.com",
+    );
+    // allDomains should still contain both
+    expect(payload.data.allDomains).toContain(
+      "env-test.tcbaccess-in.tencentcloudbase.com",
+    );
+    expect(payload.data.allDomains).toContain(
+      "env-test.app.tcloudbase.com",
+    );
   });
 
   it("queryGateway(action=listRoutes) should list gateway routes", async () => {
