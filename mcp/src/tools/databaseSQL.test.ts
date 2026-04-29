@@ -575,4 +575,101 @@ describe("SQL database tools", () => {
       },
     });
   });
+
+  it("manageSqlDatabase(provisionMySQL) proceeds when DescribeCreateMySQLResult throws ResourceNotFound", async () => {
+    mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+      if (Action === "DescribeCreateMySQLResult") {
+        throw Object.assign(new Error("ResourceNotFound"), {
+          code: "ResourceNotFound",
+        });
+      }
+      if (Action === "CreateMySQL") {
+        return {
+          RequestId: "req-provision",
+          Data: {
+            TaskId: "38662",
+          },
+        };
+      }
+      throw new Error(`unexpected action: ${Action}`);
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.manageSqlDatabase.handler({
+      action: "provisionMySQL",
+      confirm: true,
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCommonServiceCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Action: "CreateMySQL",
+        Param: expect.objectContaining({
+          EnvId: "env-test",
+          DbInstanceType: "MYSQL",
+        }),
+      }),
+    );
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        task: {
+          request: {
+            TaskId: "38662",
+          },
+        },
+      },
+    });
+  });
+
+  it("manageSqlDatabase(provisionMySQL) proceeds when DescribeMySQLClusterDetail throws unexpected not-found error", async () => {
+    mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+      if (Action === "DescribeCreateMySQLResult") {
+        return {
+          RequestId: "req-create",
+        };
+      }
+      if (Action === "DescribeMySQLClusterDetail") {
+        throw Object.assign(new Error("cluster not found"), {
+          code: "ClusterNotFound",
+        });
+      }
+      if (Action === "CreateMySQL") {
+        return {
+          RequestId: "req-provision",
+          Data: {
+            TaskId: "38663",
+          },
+        };
+      }
+      throw new Error(`unexpected action: ${Action}`);
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.manageSqlDatabase.handler({
+      action: "provisionMySQL",
+      confirm: true,
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCommonServiceCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Action: "CreateMySQL",
+        Param: expect.objectContaining({
+          EnvId: "env-test",
+          DbInstanceType: "MYSQL",
+        }),
+      }),
+    );
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        task: {
+          request: {
+            TaskId: "38663",
+          },
+        },
+      },
+    });
+  });
 });

@@ -390,6 +390,35 @@ async function callSqlControlPlane(
   }) as Promise<TcbServiceResult>;
 }
 
+function isNotFoundErrorCode(errorCode: string | undefined): boolean {
+  if (!errorCode) return false;
+  const upper = errorCode.toUpperCase();
+  return (
+    upper.includes("DATASOURCENOTEXIST") ||
+    upper.includes("RESOURCENOTFOUND") ||
+    upper.includes("NOTFOUND") ||
+    upper.includes("NOT_EXIST") ||
+    upper.includes("NOTEXIST") ||
+    upper.includes("DOESNOTEXIST") ||
+    upper.includes("CLUSTERNOTFOUND") ||
+    upper.includes("INSTANCENOTFOUND")
+  );
+}
+
+function isNotFoundErrorMessage(message: string | undefined): boolean {
+  if (!message) return false;
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("database instance not found") ||
+    lower.includes("not found") ||
+    lower.includes("not exist") ||
+    lower.includes("does not exist") ||
+    lower.includes("no such") ||
+    lower.includes("cluster not found") ||
+    lower.includes("instance not found")
+  );
+}
+
 async function getSqlInstanceInfo({
   getManager,
   cloudBaseOptions,
@@ -397,14 +426,36 @@ async function getSqlInstanceInfo({
 }: QueryManageContext): Promise<InstanceInfoResult> {
   const cloudbase = await getManager();
   const envId = await getEnvId(cloudBaseOptions);
-  const createResult = await callSqlControlPlane(cloudbase, "DescribeCreateMySQLResult", {
-    EnvId: envId,
-  });
-  logCloudBaseResult(server.logger, createResult);
 
-  const createData = pickDataPayload(createResult);
-  const createRawStatus = createData?.Status ?? pickLifecycleSource(createResult);
-  const createStatus = normalizeCreateResultStatus(createRawStatus);
+  let createResult: TcbServiceResult;
+  let createData: Record<string, unknown> | undefined;
+  let createRawStatus: unknown;
+  let createStatus: SqlLifecycleStatus;
+
+  try {
+    createResult = await callSqlControlPlane(cloudbase, "DescribeCreateMySQLResult", {
+      EnvId: envId,
+    });
+    logCloudBaseResult(server.logger, createResult);
+
+    createData = pickDataPayload(createResult);
+    createRawStatus = createData?.Status ?? pickLifecycleSource(createResult);
+    createStatus = normalizeCreateResultStatus(createRawStatus);
+  } catch (error) {
+    const errorCode = extractErrorCode(error);
+    if (isNotFoundErrorCode(errorCode) || isNotFoundErrorMessage((error as Error)?.message)) {
+      return {
+        exists: false,
+        envId,
+        instanceId: "default",
+        schema: envId,
+        rawStatus: null,
+        status: "NOT_CREATED",
+        createResult: undefined,
+      };
+    }
+    throw error;
+  }
 
   if (createStatus === "NOT_CREATED") {
     return {
@@ -471,20 +522,27 @@ async function getSqlInstanceInfo({
     };
   } catch (error) {
     const errorCode = extractErrorCode(error);
-    const isNotFound = errorCode === "FailedOperation.DataSourceNotExist";
+    const isNotFound =
+      isNotFoundErrorCode(errorCode) ||
+      isNotFoundErrorMessage((error as Error)?.message);
 
     if (!isNotFound) {
       throw error;
     }
 
+    const hasExplicitPendingStatus =
+      typeof createRawStatus === "string" &&
+      createRawStatus.trim().length > 0 &&
+      createStatus === "PENDING";
+
     return {
-      exists: createStatus === "PENDING" || createStatus === "RUNNING",
+      exists: hasExplicitPendingStatus || createStatus === "RUNNING",
       envId,
       instanceId: "default",
       schema: envId,
       rawStatus:
         typeof createRawStatus === "string" ? createRawStatus : null,
-      status: createStatus,
+      status: hasExplicitPendingStatus ? createStatus : "NOT_CREATED",
       createResult: createData ?? createResult,
     };
   }
@@ -622,7 +680,7 @@ async function handleRunQuery(
     logCloudBaseResult(context.server.logger, result);
   } catch (error: any) {
     const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
-    if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
+    if (isNotFoundErrorCode(errorCode) || isNotFoundErrorMessage(error.message)) {
       return buildSqlToolResult({
         success: false,
         errorCode: "MYSQL_NOT_CREATED",
@@ -784,9 +842,11 @@ async function handleProvisionMySQL(
 
   const existing = await getSqlInstanceInfo(context);
   if (
-    existing.status === "READY" ||
-    existing.status === "PENDING" ||
-    existing.status === "RUNNING"
+    existing.exists && (
+      existing.status === "READY" ||
+      existing.status === "PENDING" ||
+      existing.status === "RUNNING"
+    )
   ) {
     return buildSqlToolResult({
       success: true,
@@ -991,7 +1051,7 @@ async function handleRunStatement(
     logCloudBaseResult(context.server.logger, result);
   } catch (error: any) {
     const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
-    if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
+    if (isNotFoundErrorCode(errorCode) || isNotFoundErrorMessage(error.message)) {
       return buildSqlToolResult({
         success: false,
         errorCode: "MYSQL_NOT_CREATED",
@@ -1156,7 +1216,7 @@ async function handleInitializeSchema(
         logCloudBaseResult(context.server.logger, result);
       } catch (error: any) {
         const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
-        if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
+        if (isNotFoundErrorCode(errorCode) || isNotFoundErrorMessage(error.message)) {
           return buildSqlToolResult({
             success: false,
             errorCode: "MYSQL_NOT_CREATED",
