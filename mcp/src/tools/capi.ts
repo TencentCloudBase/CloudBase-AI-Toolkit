@@ -189,7 +189,12 @@ export function registerCapiTools(server: ExtendedMcpServer) {
 **云函数**: \`DescribeFunctions\`、\`CreateFunction\`、\`UpdateFunctionCode\`、\`DeleteFunction\`
 **数据库**: \`CreateMySQLInstance\`、\`DescribeMySQLInstances\`、\`DestroyMySQLInstance\`
 
-销毁环境时，常见做法是至少带上 \`EnvId\` 和 \`BypassCheck: true\`，如果环境已经处于隔离期再按文档补 \`IsForce: true\`。`,
+销毁环境时，常见做法是至少带上 \`EnvId\` 和 \`BypassCheck: true\`，如果环境已经处于隔离期再按文档补 \`IsForce: true\`。
+
+**重要参数约定**：
+- 大多数 tcb Action 需要 \`EnvId\` 作为必填参数（如 CreateUser、ModifyUser、DescribeUserList、DeleteUsers、DestroyEnv 等），请始终在 params 顶层传入 \`EnvId\`。
+- params 必须是扁平键值对，不要嵌套包装（如不要把用户字段包在 \`"User": {...}\` 里）。例如 CreateUser 的 params 应为 \`{ "EnvId": "env-xxx", "Name": "zhangsan", "Phone": "13800138000" }\`，而不是 \`{ "User": { "Name": "zhangsan" } }\`。
+- 参数名必须与 API 定义完全一致，区分大小写。常见易混淆的参数名：用户名是 \`Name\`（非 UserName）、用户类型是 \`Type\`（非 UserType，值为 internalUser/externalUser）、用户状态是 \`UserStatus\`（非 Status，值为 ACTIVE/BLOCKED）。`,
             inputSchema: {
                 service: z
                     .enum(ALLOWED_SERVICES)
@@ -204,7 +209,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                     .record(z.any())
                     .optional()
                     .describe(
-                        "Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：`{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }`，如果环境已经处于隔离期，可再补 `IsForce: true`；更新环境别名则可用 `{ \"service\": \"tcb\", \"action\": \"ModifyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"Alias\": \"demo\" } }`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
+                        "Action 对应的参数对象，键名需与官方 API 定义一致（区分大小写）。params 必须是扁平键值对，不要嵌套包装。大多数 tcb Action 需要携带 EnvId。如不确定参数结构，请先查官方文档。tcb 示例：`{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }`；创建用户：`{ \"service\": \"tcb\", \"action\": \"CreateUser\", \"params\": { \"EnvId\": \"env-xxx\", \"Name\": \"zhangsan\", \"Phone\": \"13800138000\", \"Email\": \"zhangsan@example.com\", \"Type\": \"internalUser\", \"UserStatus\": \"ACTIVE\" } }`；更新环境别名：`{ \"service\": \"tcb\", \"action\": \"ModifyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"Alias\": \"demo\" } }`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
                     ),
             },
             annotations: {
