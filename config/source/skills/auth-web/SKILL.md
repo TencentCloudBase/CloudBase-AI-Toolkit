@@ -47,6 +47,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Using `signInWithEmailAndPassword` or `signUpWithEmailAndPassword` for username-style accounts such as `admin` and `editor`.
 - Keeping the login or register account input as `type="email"` when the task explicitly says the account identifier is a plain username string.
 - Starting implementation before calling `queryAppAuth(action="getLoginConfig")` and enabling `usernamePassword` when it is still off.
+- **MISFIELD: `signInWithPassword` and `register` return `data.user.id` as the uid; `getLoginState` exposes the uid via `loginState.uid`. Do NOT write `user.uid` — it does not exist on the user object.**
 - **Treating `auth.getUser()` returning a user as proof of real login.** When the SDK is initialized with a `publishableKey` / `accessKey`, it may silently create an anonymous session. A route guard's `checkAuth()` must verify that the user actually signed in with username/password (e.g. check `session.loginType !== 'ANONYMOUS'` or that `user.user_metadata?.username` exists), not just that `getUser()` returns non-null. Otherwise unauthenticated visitors pass the guard, protected pages render without a real user, and role-based UI (edit / delete buttons gated on `currentUser.role`) breaks because `currentUser` has no role record.
 
 ## Overview
