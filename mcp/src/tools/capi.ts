@@ -189,7 +189,9 @@ export function registerCapiTools(server: ExtendedMcpServer) {
 **云函数**: \`DescribeFunctions\`、\`CreateFunction\`、\`UpdateFunctionCode\`、\`DeleteFunction\`
 **数据库**: \`CreateMySQLInstance\`、\`DescribeMySQLInstances\`、\`DestroyMySQLInstance\`
 
-销毁环境时，常见做法是至少带上 \`EnvId\` 和 \`BypassCheck: true\`，如果环境已经处于隔离期再按文档补 \`IsForce: true\`。`,
+销毁环境时，常见做法是至少带上 \`EnvId\` 和 \`BypassCheck: true\`，如果环境已经处于隔离期再按文档补 \`IsForce: true\`。
+
+**重要提示：** 几乎所有 tcb Action 都要求 \`EnvId\` 为顶层必填参数（如 \`CreateUser\`、\`ModifyUser\`、\`DescribeUserList\` 等）。调用前须先通过 auth 工具获取 \`current_env_id\`，并在 params 顶层传入 \`"EnvId": "<envId>"\`。参数须为扁平键值对，与官方 API 定义一致，不要嵌套包裹。例如创建用户：\`{ "EnvId": "env-xxx", "Name": "zhangsan", "Phone": "13800138000", "Type": "internalUser", "UserStatus": "ACTIVE" }\`（注意字段名为 \`Name\` 而非 \`UserName\`，\`Type\` 而非 \`UserType\`，\`UserStatus\` 而非 \`Status\`）。`,
             inputSchema: {
                 service: z
                     .enum(ALLOWED_SERVICES)
@@ -204,7 +206,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                     .record(z.any())
                     .optional()
                     .describe(
-                        "Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：`{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }`，如果环境已经处于隔离期，可再补 `IsForce: true`；更新环境别名则可用 `{ \"service\": \"tcb\", \"action\": \"ModifyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"Alias\": \"demo\" } }`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
+                        "Action 对应的参数对象，键名为扁平键值对（与官方 API 定义一致，不要嵌套包裹）。几乎所有 tcb Action 都要求顶层传入 `EnvId`（可通过 auth 工具获取 `current_env_id`）；如不确定参数结构，请先查官方文档。tcb 示例：`{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }`，如果环境已经处于隔离期，可再补 `IsForce: true`；创建用户：`{ \"service\": \"tcb\", \"action\": \"CreateUser\", \"params\": { \"EnvId\": \"env-xxx\", \"Name\": \"zhangsan\", \"Phone\": \"13800138000\", \"Type\": \"internalUser\", \"UserStatus\": \"ACTIVE\" } }`。注意 CreateUser 的必填字段是 `EnvId` 和 `Name`（不是 `UserName`），用户类型字段是 `Type`（不是 `UserType`），状态字段是 `UserStatus`（不是 `Status`）。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
                     ),
             },
             annotations: {
