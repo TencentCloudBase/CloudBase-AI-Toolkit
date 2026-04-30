@@ -176,15 +176,17 @@ The `provider` argument of `wx.cloud.extend.AI.createModel(provider)` equals the
 
 | createModel provider | Default model | Other available models | Notes |
 |----------------------|---------------|------------------------|-------|
-| `"hunyuan-exp"` | `hunyuan-2.0-instruct-20251111` | `hunyuan-turbos-latest`, `hunyuan-t1-latest`, `hunyuan-2.0-thinking-20251109` | Legacy `Type=builtin` GroupName; billed via `pkg_hunyuan_token_la_inspire_100m`; do NOT use without 成长计划 enrollment |
+| `"hunyuan-exp"` | `hunyuan-2.0-instruct-20251111` | Additional hunyuan SKUs (e.g. instruct / thinking / turbos / role variants) — **query at runtime** via `DescribeAIModels({ GroupName: "hunyuan-exp" }).Models[]`, do NOT hard-code | Legacy `Type=builtin` GroupName; billed via `pkg_hunyuan_token_la_inspire_100m`; do NOT use without 成长计划 enrollment |
 
 ### B. Main managed group (Token Credits pack scenario, recommended default)
 
+The `"cloudbase"` GroupName is backed by **Tencent Cloud TokenHub**, a unified managed pool that covers multiple first-party and third-party vendors — including the **Hunyuan** family (HY 2.0 Instruct, HY 2.0 Think, Hunyuan-role, Hy3 preview, …), **DeepSeek** family (DeepSeek-V4-Pro, DeepSeek-V4-Flash, Deepseek-v3.2, Deepseek-v3.1, Deepseek-r1-0528, Deepseek-v3-0324, …), **Zhipu GLM** (GLM-5, GLM-5-Turbo, GLM-5.1, GLM-5V-Turbo), **Kimi** (K2.5, K2.6), **MiniMax** (M2.5, M2.7) and more. The roster evolves over time, so **do not hard-code the list in application code** — always discover it at runtime.
+
 | createModel provider | Default model | How to enable more models | Notes |
 |----------------------|---------------|---------------------------|-------|
-| `"cloudbase"` | `deepseek-v4-flash` (the only one enabled by default per env) | Call `DescribeManagedAIModelList` for the catalog + pricing, then `UpdateAIModel` to add the target Model to `Models[]` with `Status: 1` | Unified managed group (`Type=builtin`), Remark `"腾讯云开发"`, depends on a `pkg_tcb_tokencredits_*` resource pack |
+| `"cloudbase"` | `deepseek-v4-flash` (the only one enabled by default per env) | Call `DescribeManagedAIModelList` to get the **current** TokenHub catalog + pricing, then `UpdateAIModel` to append the target Model to `Models[]` with `Status: 1` | Unified managed group (`Type=builtin`), Remark `"腾讯云开发"`, depends on a `pkg_tcb_tokencredits_*` resource pack |
 
-> ⚠️ Common Mini Program mistake: writing `createModel("deepseek")` / `createModel("hunyuan")` / `createModel("custom")`. All wrong — `deepseek` and `hunyuan` are **model names**, not provider / GroupName. The provider must be one of the `GroupName` values returned by `DescribeAIModels`. If a legacy project genuinely has a builtin group named `deepseek` in `DescribeAIModels`, then `createModel("deepseek")` is fine — but new projects always use the unified `"cloudbase"` managed group.
+> ⚠️ Common Mini Program mistake: writing `createModel("deepseek")` / `createModel("hunyuan")` / `createModel("glm")` / `createModel("kimi")` / `createModel("minimax")` / `createModel("custom")`. All wrong — those are **vendor / model names**, not provider / GroupName. The provider must be one of the `GroupName` values returned by `DescribeAIModels`. New projects always use the unified `"cloudbase"` managed group and select the concrete vendor model via the `model` field.
 
 ### C. Not in the managed catalog → Custom onboarding
 

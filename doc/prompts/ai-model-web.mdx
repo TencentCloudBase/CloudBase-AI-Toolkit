@@ -119,7 +119,7 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
 
 2. **User did not specify a model** → default to `createModel("cloudbase")` + `model: "deepseek-v4-flash"` (the only model the managed group has enabled out of the box). If the `cloudbase` group is missing or has `Status=2`, jump to step 4.
 
-3. **User asked for a model that belongs to the managed catalog** (e.g. `deepseek-v3.2`, `hunyuan-turbos-latest`): check whether that `Model` is already in the `cloudbase` group's `Models[]`. If not, jump to step 4.
+3. **User asked for a model that belongs to the managed catalog** (e.g. `deepseek-v3.2`, `hunyuan-2.0-instruct-20251111`, `glm-5`, `kimi-k2.6`, …): check whether that `Model` is already in the `cloudbase` group's `Models[]`. If not, jump to step 4.
 
 4. **Enable / add a managed model** (optionally inspect pricing first):
 
@@ -156,15 +156,16 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
 ### 1. `"cloudbase"` — the main managed group (recommended)
 
 - `GroupName: "cloudbase"`, `Type: "builtin"`, `Remark: "腾讯云开发"` (Tencent CloudBase)
-- Hosts models from multiple vendors (DeepSeek, Hunyuan, …). **Only `deepseek-v4-flash` is enabled by default**; others must be enabled through `UpdateAIModel` first
+- Backed by **Tencent Cloud TokenHub**, a unified managed pool covering multiple vendors — **Hunyuan** (HY 2.0 Instruct, HY 2.0 Think, Hunyuan-role, Hy3 preview, …), **DeepSeek** (DeepSeek-V4-Pro, DeepSeek-V4-Flash, Deepseek-v3.2, Deepseek-v3.1, Deepseek-r1-0528, Deepseek-v3-0324, …), **Zhipu GLM** (GLM-5, GLM-5-Turbo, GLM-5.1, GLM-5V-Turbo), **Kimi** (K2.5, K2.6), **MiniMax** (M2.5, M2.7), and more. The roster evolves — **do not hard-code specific SKUs** in application code; discover at runtime.
+- **Only `deepseek-v4-flash` is enabled by default**; other models must be appended via `UpdateAIModel` (Status:1) first
 - When the user did not specify anything, default to `createModel("cloudbase")` + `model: "deepseek-v4-flash"`
-- Catalog and pricing: `DescribeManagedAIModelList`
+- Current catalog + pricing: `DescribeManagedAIModelList`
 - Env-enabled set: `DescribeAIModels`
 
 ### 2. `"hunyuan-exp"` — legacy builtin group (kept for compatibility)
 
 - Primarily relevant to the Mini Program Growth Plan scenario; do not use from Web unless the env explicitly still has it (switch to the `ai-model-wechat` skill for that flow)
-- Common models: `hunyuan-2.0-instruct-20251111`, `hunyuan-turbos-latest`, `hunyuan-t1-latest`
+- Default model: `hunyuan-2.0-instruct-20251111`; additional hunyuan SKUs must be discovered at runtime via `DescribeAIModels({ GroupName: "hunyuan-exp" }).Models[]` — do not hard-code other IDs
 
 ### 3. User-defined GroupName
 

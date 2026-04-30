@@ -1,6 +1,6 @@
 ---
 name: ai-model-web
-description: Use this skill when developing browser/Web applications (React/Vue/Angular, static sites, SPAs) that need to call AI models via `@cloudbase/js-sdk`. The skill covers text generation (`generateText`) and streaming (`streamText`) from the browser. Managed models are invoked via `ai.createModel("<GroupName>")` — the only legal GroupName values are `"cloudbase"` (the main managed group; the only model enabled by default is `deepseek-v4-flash`; any other model must first be enabled through `UpdateAIModel`), `"hunyuan-exp"` (a legacy builtin group kept for backward compatibility), or a user-defined GroupName created through `CreateAIModel`. Before emitting any SDK code the agent MUST run the two-step preflight: (1) eligibility — call `DescribeEnvPostpayPackage` to confirm a Token Credits resource pack is active; (2) group readiness — call `DescribeAIModels` for env-configured groups, `DescribeManagedAIModelList` for platform-supported models and pricing, and `UpdateAIModel` with `Status: 1` to enable additional models. Non-managed or self-hosted OpenAI-compatible models must be onboarded through `CreateAIModel` as a custom group. Keywords: call large language model, AI model, generateText, streamText, createModel, cloudbase group, hunyuan-exp, eligibility check, group readiness, Token Credits resource pack, deepseek-v4-flash, UpdateAIModel, DescribeAIModels, DescribeManagedAIModelList, CreateAIModel, custom model onboarding, callCloudApi, DescribeEnvPostpayPackage. Do NOT use for Node.js backend work (use `ai-model-nodejs`), WeChat Mini Program (use `ai-model-wechat`), or image generation (Node SDK only).
+description: Use this skill when developing browser/Web applications (React/Vue/Angular, static sites, SPAs) that need to call AI models via `@cloudbase/js-sdk`. The skill covers text generation (`generateText`) and streaming (`streamText`) from the browser. Managed models are invoked via `ai.createModel("<GroupName>")` — the only legal GroupName values are `"cloudbase"` (the main managed group; the only model enabled by default is `deepseek-v4-flash`; any other model must first be enabled through `UpdateAIModel`), `"hunyuan-exp"` (a legacy builtin group kept for backward compatibility), or a user-defined GroupName created through `CreateAIModel`. Before emitting any SDK code the agent MUST run the two-step preflight: (1) eligibility — call `DescribeEnvPostpayPackage` to confirm a Token Credits resource pack is active; (2) group readiness — call `DescribeAIModels` for env-configured groups, `DescribeManagedAIModelList` for platform-supported models and pricing, and `UpdateAIModel` with `Status: 1` to enable additional models. Non-managed or self-hosted OpenAI-compatible models must be onboarded through `CreateAIModel` as a custom group. Keywords: call large language model, AI model, generateText, streamText, createModel, cloudbase group, hunyuan-exp, eligibility check, group readiness, Token Credits resource pack, deepseek-v4-flash, UpdateAIModel, DescribeAIModels, DescribeManagedAIModelList, CreateAIModel, custom model onboarding, callCloudApi, DescribeEnvPostpayPackage, TokenHub, Hunyuan, DeepSeek, GLM, Zhipu GLM, Kimi, MiniMax, third-party managed model. Do NOT use for Node.js backend work (use `ai-model-nodejs`), WeChat Mini Program (use `ai-model-wechat`), or image generation (Node SDK only).
 version: 2.18.0
 alwaysApply: false
 ---
@@ -82,7 +82,7 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
 
 2. **User did not specify a model** → default to `createModel("cloudbase")` + `model: "deepseek-v4-flash"` (the only model the managed group has enabled out of the box). If the `cloudbase` group is missing or has `Status=2`, jump to step 4.
 
-3. **User asked for a model that belongs to the managed catalog** (e.g. `deepseek-v3.2`, `hunyuan-turbos-latest`): check whether that `Model` is already in the `cloudbase` group's `Models[]`. If not, jump to step 4.
+3. **User asked for a model that belongs to the managed catalog** (e.g. `deepseek-v3.2`, `hunyuan-2.0-instruct-20251111`, `glm-5`, `kimi-k2.6`, …): check whether that `Model` is already in the `cloudbase` group's `Models[]`. If not, jump to step 4.
 
 4. **Enable / add a managed model** (optionally inspect pricing first):
 
@@ -119,15 +119,16 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
 ### 1. `"cloudbase"` — the main managed group (recommended)
 
 - `GroupName: "cloudbase"`, `Type: "builtin"`, `Remark: "腾讯云开发"` (Tencent CloudBase)
-- Hosts models from multiple vendors (DeepSeek, Hunyuan, …). **Only `deepseek-v4-flash` is enabled by default**; others must be enabled through `UpdateAIModel` first
+- Backed by **Tencent Cloud TokenHub**, a unified managed pool covering multiple vendors — **Hunyuan** (HY 2.0 Instruct, HY 2.0 Think, Hunyuan-role, Hy3 preview, …), **DeepSeek** (DeepSeek-V4-Pro, DeepSeek-V4-Flash, Deepseek-v3.2, Deepseek-v3.1, Deepseek-r1-0528, Deepseek-v3-0324, …), **Zhipu GLM** (GLM-5, GLM-5-Turbo, GLM-5.1, GLM-5V-Turbo), **Kimi** (K2.5, K2.6), **MiniMax** (M2.5, M2.7), and more. The roster evolves — **do not hard-code specific SKUs** in application code; discover at runtime.
+- **Only `deepseek-v4-flash` is enabled by default**; other models must be appended via `UpdateAIModel` (Status:1) first
 - When the user did not specify anything, default to `createModel("cloudbase")` + `model: "deepseek-v4-flash"`
-- Catalog and pricing: `DescribeManagedAIModelList`
+- Current catalog + pricing: `DescribeManagedAIModelList`
 - Env-enabled set: `DescribeAIModels`
 
 ### 2. `"hunyuan-exp"` — legacy builtin group (kept for compatibility)
 
 - Primarily relevant to the Mini Program Growth Plan scenario; do not use from Web unless the env explicitly still has it (switch to the `ai-model-wechat` skill for that flow)
-- Common models: `hunyuan-2.0-instruct-20251111`, `hunyuan-turbos-latest`, `hunyuan-t1-latest`
+- Default model: `hunyuan-2.0-instruct-20251111`; additional hunyuan SKUs must be discovered at runtime via `DescribeAIModels({ GroupName: "hunyuan-exp" }).Models[]` — do not hard-code other IDs
 
 ### 3. User-defined GroupName
 
