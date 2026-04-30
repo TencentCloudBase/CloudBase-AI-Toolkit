@@ -1,6 +1,6 @@
 ---
 name: ai-model-wechat
-description: Use this skill when developing WeChat Mini Programs (小程序, 企业微信小程序, wx.cloud-based apps) that need AI capabilities. Features text generation (generateText) and streaming (streamText) with callback support (onText, onEvent, onFinish) via wx.cloud.extend.AI. Managed AI models are called via wx.cloud.extend.AI.createModel("<GroupName>") — the only legal GroupName values are "hunyuan-exp" (小程序成长计划 exclusive builtin group; default model hunyuan-2.0-instruct-20251111), "cloudbase" (main managed group used as Token Credits fallback; default-only model deepseek-v4-flash; other models must be enabled via UpdateAIModel), or a user-defined GroupName created via CreateAIModel. Before generating any code you MUST run the two-step preflight — eligibility (first DescribeActivityInfo for 小程序成长计划 ai_miniprogram_inspire_plan; enrolled users go hunyuan-exp with hunyuan-2.0-instruct-20251111 billed via pkg_hunyuan_token_la_inspire_100m; else DescribeEnvPostpayPackage for Token Credits → "cloudbase" + deepseek-v4-flash) and group readiness (DescribeAIModels for env config, DescribeManagedAIModelList for platform-supported models + pricing, UpdateAIModel with Status:1 to enable a new model). Non-managed / self-hosted OpenAI-compatible models go through CreateAIModel custom-group integration. API differs from JS/Node SDK — streamText requires data wrapper, generateText returns raw response; image generation is NOT available here. 关键词：小程序 AI、wx.cloud.extend.AI、generateText、streamText、createModel、cloudbase 分组、hunyuan-exp、资格检查、分组就绪、小程序成长计划、ai_miniprogram_inspire_plan、hunyuan-2.0-instruct-20251111、Token Credits 资源包、deepseek-v4-flash、UpdateAIModel、DescribeAIModels、DescribeManagedAIModelList、CreateAIModel、自定义模型接入、callCloudApi、DescribeActivityInfo、DescribeEnvPostpayPackage。NOT for browser/Web apps (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs).
+description: Use this skill when developing WeChat Mini Programs (小程序, 企业微信小程序, wx.cloud-based apps) that need AI capabilities. Features text generation (generateText) and streaming (streamText) with callback support (onText, onEvent, onFinish) via wx.cloud.extend.AI. Managed AI models are called via wx.cloud.extend.AI.createModel("<GroupName>") — the only legal GroupName values are "hunyuan-exp" (小程序成长计划 exclusive builtin group; default model hunyuan-2.0-instruct-20251111), "cloudbase" (main managed group used as Token Credits fallback; default-only model deepseek-v4-flash; other models must be enabled via UpdateAIModel), or a user-defined GroupName created via CreateAIModel. Before generating any code you MUST run the two-step preflight — eligibility (first DescribeActivityInfo for 小程序成长计划 ai_miniprogram_inspire_plan; enrolled users go hunyuan-exp with hunyuan-2.0-instruct-20251111 billed via pkg_hunyuan_token_la_inspire_100m; else DescribeEnvPostpayPackage for Token Credits → "cloudbase" + deepseek-v4-flash) and group readiness (DescribeAIModels for env config, DescribeManagedAIModelList for platform-supported models + pricing, UpdateAIModel with Status:1 to enable a new model). Non-managed / self-hosted OpenAI-compatible models go through CreateAIModel custom-group integration. API differs from JS/Node SDK — streamText requires data wrapper, generateText returns raw response; image generation is NOT available here. Keywords: Mini Program AI, wx.cloud.extend.AI, generateText, streamText, createModel, cloudbase group, hunyuan-exp, eligibility check, group readiness, 小程序成长计划, ai_miniprogram_inspire_plan, hunyuan-2.0-instruct-20251111, Token Credits 资源包, deepseek-v4-flash, UpdateAIModel, DescribeAIModels, DescribeManagedAIModelList, CreateAIModel, custom model onboarding, callCloudApi, DescribeActivityInfo, DescribeEnvPostpayPackage. NOT for browser/Web apps (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs).
 version: 2.18.0
 alwaysApply: false
 ---
@@ -22,7 +22,7 @@ Use this skill for **calling AI models in WeChat Mini Program** using `wx.cloud.
 
 - Integrate AI text generation in a Mini Program
 - Stream AI responses with callback support
-- Call Hunyuan models from WeChat environment
+- Call Hunyuan models from the WeChat environment
 
 **Do NOT use for:**
 
@@ -33,66 +33,66 @@ Use this skill for **calling AI models in WeChat Mini Program** using `wx.cloud.
 
 ---
 
-## 调用前必须的两步预检（Pre-flight）
+## Mandatory Two-Step Preflight
 
-小程序侧 AI 调用不能只写 `wx.cloud.extend.AI.createModel(...)` 就上；必须先把 **计费资格** 和 **分组就绪** 两件事都确认清楚，再决定 `createModel` 里填什么、`model` 字段填什么。顺序一定是 **① 资格 → ② 分组就绪**，不要反过来。
+You MUST NOT jump straight into `wx.cloud.extend.AI.createModel(...)`. Before writing any business code, confirm **billing eligibility** and **group readiness** in this fixed order: **① eligibility → ② group readiness**. Do not swap the two.
 
-### 预检 ① · 计费资格（两条并存的小程序计费路径）
+### Preflight ① · Billing Eligibility (two parallel billing paths)
 
-小程序侧有两条计费路径：**小程序成长计划**（优先判断，命中走 `hunyuan-exp`）与 **Token Credits 资源包**（通用兜底，命中走 `cloudbase` 主托管分组）。
+The Mini Program side has two billing paths: **小程序成长计划** (checked first; if enrolled, use `hunyuan-exp`) and **Token Credits 资源包** (generic fallback; if available, use the `cloudbase` main managed group).
 
-1. 取 `envId`：通过 MCP 工具 `envQuery action=info` 拿到当前环境 ID。
+1. Fetch `envId` via the MCP tool `envQuery action=info`.
 
-2. 按决策分支选动作：
+2. Pick the branch by user intent:
 
-| 用户意图 | 第一优先要查的资格 | 命中后 createModel 的 provider | 默认 model | 未命中时的引导动作 |
-|----------|--------------------|---------------------------------|------------|----------------------|
-| 未指定模型 / 默认调用 | 先查 **小程序成长计划** 报名状态；未命中再退回 Token Credits 资源包 | 计划内：`"hunyuan-exp"`；计划外：`"cloudbase"` | 计划内：`hunyuan-2.0-instruct-20251111`；计划外：`deepseek-v4-flash` | 计划未报名 → 引导 `https://docs.cloudbase.net/ai/ai-inspire-plan`；资源包未开通 → 购买链接 |
-| 指定 `hunyuan-*` 系列 | **小程序成长计划** 报名状态 | `"hunyuan-exp"`（计划专属 Token 包扣费） | `hunyuan-2.0-instruct-20251111` | 未报名 → 先报名，或切回 `"cloudbase"` + 非 hunyuan 模型 |
-| 指定 `deepseek-*` 等非 hunyuan 托管模型 | **Token Credits 资源包** 开通状态 | `"cloudbase"` | 用户指定型号，或兜底 `deepseek-v4-flash` | 资源包未开通 → 购买链接 |
-| 指定第三方 / 自建私有模型（非托管） | 跳过计费资格，走「自定义接入」 | 自建 GroupName（不以 `cloudbase` 开头） | 由 `CreateAIModel.Models[]` 登记 | 给出控制台与 `CreateAIModel` 双方案 |
+| User intent | Eligibility to check first | `createModel` provider on hit | Default model | Guidance on miss |
+|-------------|----------------------------|-------------------------------|---------------|------------------|
+| No model specified / default call | Check **小程序成长计划** enrollment first; if not enrolled, fall back to Token Credits resource pack | Enrolled: `"hunyuan-exp"`; otherwise: `"cloudbase"` | Enrolled: `hunyuan-2.0-instruct-20251111`; otherwise: `deepseek-v4-flash` | Plan not enrolled → point to `https://docs.cloudbase.net/ai/ai-inspire-plan`; resource pack missing → purchase link |
+| User requests a `hunyuan-*` model | **小程序成长计划** enrollment | `"hunyuan-exp"` (plan-exclusive Token pack billing) | `hunyuan-2.0-instruct-20251111` | Not enrolled → enroll first, or switch to `"cloudbase"` + a non-hunyuan model |
+| User requests `deepseek-*` or other non-hunyuan managed models | **Token Credits 资源包** activation | `"cloudbase"` | User-specified model, or fallback `deepseek-v4-flash` | Resource pack not activated → purchase link |
+| User requests a third-party / self-hosted (non-managed) model | Skip billing eligibility and go to "Custom onboarding" | Custom GroupName (must NOT start with `cloudbase`) | Registered via `CreateAIModel.Models[]` | Offer both console + `CreateAIModel` paths |
 
-3. 查小程序成长计划：
+3. Check 小程序成长计划 enrollment:
 
 ```ts
 callCloudApi({
   service: "tcb",
   action: "DescribeActivityInfo",
   params: {
-    ActivityNames: ["ai_miniprogram_inspire_plan"], // PascalCase 优先；若报 InvalidParameter 切 camelCase
+    ActivityNames: ["ai_miniprogram_inspire_plan"], // PascalCase preferred; switch to camelCase if InvalidParameter is returned
   },
 })
 ```
 
-**命中判定**：响应中 `attendRecords` 至少有一条 `activityName === "ai_miniprogram_inspire_plan"` 且 `envId` 与当前环境一致。命中后默认用 `createModel("hunyuan-exp")` + `hunyuan-2.0-instruct-20251111`，计费走计划专属 Token 包 `pkg_hunyuan_token_la_inspire_100m`。
+**Hit criterion:** the response's `attendRecords` contains at least one entry where `activityName === "ai_miniprogram_inspire_plan"` and `envId` matches the current environment. On hit, default to `createModel("hunyuan-exp")` + `hunyuan-2.0-instruct-20251111`; billing uses the plan-exclusive Token pack `pkg_hunyuan_token_la_inspire_100m`.
 
-**未命中处理**：不要自己偷偷 fallback，直接提示「当前环境未报名小程序成长计划」，给报名入口 `https://docs.cloudbase.net/ai/ai-inspire-plan`，询问是否报名后再试，或切到 Token Credits 资源包路径 + 非 hunyuan 模型。
+**On miss:** do NOT silently fall back. Tell the user "the current environment is not enrolled in 小程序成长计划", surface the enrollment entry `https://docs.cloudbase.net/ai/ai-inspire-plan`, and ask whether to enroll and retry, or to switch to the Token Credits resource pack path with a non-hunyuan model.
 
-4. 查 Token Credits 资源包（当需要走 `"cloudbase"` 主托管分组时）：
+4. Check the Token Credits resource pack (when the path leads to the `"cloudbase"` main managed group):
 
 ```ts
 callCloudApi({
   service: "tcb",
   action: "DescribeEnvPostpayPackage",
   params: {
-    EnvId: "<当前 envId>",
+    EnvId: "<current envId>",
   },
 })
 ```
 
-**命中判定**：`envPostpayPackageInfoList` 中存在 `postpayPackageId` 以 `pkg_tcb_tokencredits_` 开头，且 `status ∉ [3, 4]`（未过期未禁用），`versionSwitchStatus` 非阻塞态。
+**Hit criterion:** `envPostpayPackageInfoList` contains an entry whose `postpayPackageId` starts with `pkg_tcb_tokencredits_`, has `status ∉ [3, 4]` (not expired, not disabled), and `versionSwitchStatus` is not in a blocking state.
 
-**未命中处理**：返回购买链接（`{envId}` 必须替换成真实 ID，不要留占位符）：
+**On miss:** surface the purchase link (replace `{envId}` with the real ID — never leave the placeholder):
 
 ```
 https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token
 ```
 
-### 预检 ② · 分组就绪（新项目、或要用非默认模型时必须跑）
+### Preflight ② · Group Readiness (mandatory for new projects or when a non-default model is requested)
 
-资格通过，不代表想用的模型就能直接 `createModel` 调用。`"cloudbase"` 主托管分组**默认只开启 `deepseek-v4-flash`**，其他模型必须先通过 `UpdateAIModel` 把 `Status` 置 `1` 开启。`"hunyuan-exp"` 分组则受成长计划报名驱动。
+Passing eligibility does not mean the target model is callable. The `"cloudbase"` main managed group has **only `deepseek-v4-flash` enabled by default**; other models must be enabled by calling `UpdateAIModel` with `Status: 1`. The `"hunyuan-exp"` group is driven by 成长计划 enrollment.
 
-1. 先查当前环境已配置的分组与开关状态（`tcb` Action `DescribeAIModels`，Version `2018-06-08`）：
+1. Query the groups and switches currently configured in the environment (`tcb` Action `DescribeAIModels`, Version `2018-06-08`):
 
 ```ts
 callCloudApi({
@@ -102,9 +102,9 @@ callCloudApi({
 })
 ```
 
-返回 `AIModelGroups: AIModelGroup[]`，每条 `AIModelGroup` 有 `GroupName`（如 `cloudbase` / `hunyuan-exp` / 你的自定义组）、`Type`（`builtin` / `custom`）、`Models: [{ Model, EnableMCP, Tags }]`、`Status`（1 开 / 2 关）。命中「该 `GroupName` 存在 + `Status === 1` + 目标 `Model` 在 `Models[]` 中」三条才算分组就绪。
+Returns `AIModelGroups: AIModelGroup[]`. Each `AIModelGroup` has `GroupName` (e.g. `cloudbase` / `hunyuan-exp` / your custom group), `Type` (`builtin` / `custom`), `Models: [{ Model, EnableMCP, Tags }]`, and `Status` (1=on / 2=off). Group readiness = all three of: the `GroupName` exists + `Status === 1` + the target `Model` is present in `Models[]`.
 
-2. 若目标模型不在 `DescribeAIModels` 返回里，再查平台当前支持的托管模型目录与价格（`DescribeManagedAIModelList`，返回 `ManagedAIModelGroup[]`，含 `ModelSpec`（上下文长度等）+ `ModelChargingInfo`（`Uniform` / `Tiered` 定价）），挑选用户要的模型后调用 `UpdateAIModel` 开启：
+2. If the target model is not in the `DescribeAIModels` response, query the platform catalog + pricing via `DescribeManagedAIModelList` — it returns `ManagedAIModelGroup[]` including `ModelSpec` (context length, etc.) and `ModelChargingInfo` (`Uniform` / `Tiered` pricing). Pick the target model, then enable it via `UpdateAIModel`:
 
 ```ts
 callCloudApi({
@@ -113,96 +113,95 @@ callCloudApi({
   params: {
     EnvId: "<envId>",
     GroupName: "cloudbase",
-    Status: 1, // 1=开启，2=关闭
+    Status: 1, // 1=on, 2=off
     Models: [
       { Model: "deepseek-v4-flash", EnableMCP: false },
-      { Model: "deepseek-v3.2", EnableMCP: false },   // 追加要开启的模型
+      { Model: "deepseek-v3.2", EnableMCP: false },   // append the new model to enable
     ],
-    // ⚠️ Models 是全量替换，不是增量；调用前必须把旧列表 + 新增项合并后再传
+    // ⚠️ `Models` is a FULL REPLACEMENT, not incremental; merge the old list + new entries before passing.
   },
 })
 ```
 
-3. 就绪之后，小程序代码里才写 `wx.cloud.extend.AI.createModel("<GroupName>")` 发调用，`model` 字段传该分组 `Models[]` 里的 `Model` 名。
+3. Once both steps pass, only THEN write `wx.cloud.extend.AI.createModel("<GroupName>")` in the Mini Program code, and pass a `model` value that exists in that group's `Models[]`.
 
-> **两步顺序不可颠倒**：资格不过，开再多模型也没法扣费；模型没开，资格过了也会收到 `ModelNotEnabled` 类错误。两步都要在写业务代码之前完成。
+> **Order is fixed.** Without eligibility, no enabled model will bill; without group readiness, even with eligibility you will receive `ModelNotEnabled`-class errors. Both must be done before business code.
 >
-> **API 大小写提示**：`tcb` 公共服务 Action 官方契约默认 PascalCase（`EnvId`、`GroupName`、`ActivityNames`），业务文档里偶尔写 camelCase。首次调用若收到 `InvalidParameter` 就切换大小写再试，并把结论固化到工程调用封装里。
+> **API casing tip:** `tcb` public-service Actions officially use PascalCase (`EnvId`, `GroupName`, `ActivityNames`); some docs show camelCase. On the first call, if you hit `InvalidParameter`, switch casing and retry, then freeze the working form in your project's wrapper.
 
 ---
 
 ## Available Providers and Models
 
-`wx.cloud.extend.AI.createModel(provider)` 里的 `provider` 参数 = `DescribeAIModels` 返回里的 `GroupName`。合法值只有三种，决策树走完再决定用哪一类：
+The `provider` argument of `wx.cloud.extend.AI.createModel(provider)` equals the `GroupName` returned by `DescribeAIModels`. Only three kinds of values are legal. Run the decision tree before choosing.
 
-### A. 小程序成长计划专属（计划内默认）
+### A. 小程序成长计划 exclusive (default when enrolled)
 
-| createModel provider | 默认 model | 其他可用 model | 说明 |
-|----------------------|-----------|----------------|------|
-| `"hunyuan-exp"` | `hunyuan-2.0-instruct-20251111` | `hunyuan-turbos-latest`、`hunyuan-t1-latest`、`hunyuan-2.0-thinking-20251109` | `Type=builtin` 的老 GroupName；由 `pkg_hunyuan_token_la_inspire_100m` 扣费；未报名成长计划不要直接用 |
+| createModel provider | Default model | Other available models | Notes |
+|----------------------|---------------|------------------------|-------|
+| `"hunyuan-exp"` | `hunyuan-2.0-instruct-20251111` | `hunyuan-turbos-latest`, `hunyuan-t1-latest`, `hunyuan-2.0-thinking-20251109` | Legacy `Type=builtin` GroupName; billed via `pkg_hunyuan_token_la_inspire_100m`; do NOT use without 成长计划 enrollment |
 
-### B. 主托管分组（Token Credits 资源包场景、推荐默认）
+### B. Main managed group (Token Credits pack scenario, recommended default)
 
-| createModel provider | 默认 model | 开启更多模型的方式 | 说明 |
-|----------------------|-----------|---------------------|------|
-| `"cloudbase"` | `deepseek-v4-flash`（环境默认唯一启用） | 先 `DescribeManagedAIModelList` 看平台目录 + 价格，再 `UpdateAIModel` 把目标 Model 加到 `Models[]` 并保持 `Status: 1` | `Type=builtin` 的统一托管分组，Remark `"腾讯云开发"`，依赖 `pkg_tcb_tokencredits_*` 资源包 |
+| createModel provider | Default model | How to enable more models | Notes |
+|----------------------|---------------|---------------------------|-------|
+| `"cloudbase"` | `deepseek-v4-flash` (the only one enabled by default per env) | Call `DescribeManagedAIModelList` for the catalog + pricing, then `UpdateAIModel` to add the target Model to `Models[]` with `Status: 1` | Unified managed group (`Type=builtin`), Remark `"腾讯云开发"`, depends on a `pkg_tcb_tokencredits_*` resource pack |
 
-> ⚠️ 小程序端常见错误：直接写 `createModel("deepseek")` / `createModel("hunyuan")` / `createModel("custom")`。这些都是错的——`deepseek`、`hunyuan` 是 **model 名**，不是 provider / GroupName；provider 必须是 `DescribeAIModels` 返回的 `GroupName` 之一。老项目里如果 `DescribeAIModels` 真的返回了 `deepseek` 这种历史 builtin 分组，也能写 `createModel("deepseek")`，但新项目一律走 `"cloudbase"` 统一托管分组。
+> ⚠️ Common Mini Program mistake: writing `createModel("deepseek")` / `createModel("hunyuan")` / `createModel("custom")`. All wrong — `deepseek` and `hunyuan` are **model names**, not provider / GroupName. The provider must be one of the `GroupName` values returned by `DescribeAIModels`. If a legacy project genuinely has a builtin group named `deepseek` in `DescribeAIModels`, then `createModel("deepseek")` is fine — but new projects always use the unified `"cloudbase"` managed group.
 
-### C. 不在托管列表时 → 自定义接入
+### C. Not in the managed catalog → Custom onboarding
 
-涉及第三方 / 自建 / OpenAI 兼容端点的模型（未出现在 A/B 列表中的所有模型）不走上面两种计费，必须通过「自定义模型接入」登记一个 `Type=custom` 的自建 GroupName 后再调用。详见下一节。
+Models involving third-party / self-hosted / OpenAI-compatible endpoints (anything not appearing in A/B) do NOT go through the billing paths above. You must register a `Type=custom` GroupName via "Custom onboarding" first. See the next section.
 
 ---
 
-## 不在托管列表时的自定义接入
+## Custom Onboarding (when not in the managed catalog)
 
-当用户指定的模型既不在成长计划（`hunyuan-exp`）也不在主托管分组（`cloudbase`）支持列表（例如企业自建 OpenAI 兼容端点、第三方模型服务）时，走以下双方案任选其一，**描述上不要点名具体竞品品牌**，用「第三方 / 自建 / OpenAI 兼容端点」这类中性措辞。
+When the user specifies a model that is neither in 成长计划 (`hunyuan-exp`) nor in the main managed group (`cloudbase`) catalog (e.g. enterprise-hosted OpenAI-compatible endpoints, third-party model services), pick one of the two paths below. Use neutral phrasing such as "third-party / self-hosted / OpenAI-compatible endpoint" — **do not name specific competitor brands**.
 
-**方案 1 · 控制台登记**
+**Path 1 · Register in the console**
 
-指引用户去 CloudBase 控制台 AI 模型页登记：
+Point the user to the CloudBase console AI model page:
 
 ```
 https://tcb.cloud.tencent.com/dev?envId={envId}#/ai
 ```
 
-把 `{envId}` 替换成真实环境 ID，让用户手工填入模型名、访问地址、密钥等字段。
+Replace `{envId}` with the real environment ID and let the user fill in model name, endpoint, API key, etc.
 
-**方案 2 · 通过 `callCloudApi` 调用 `CreateAIModel` 登记**
+**Path 2 · Register via `callCloudApi` + `CreateAIModel`**
 
-`tcb` Action `CreateAIModel`（Version `2018-06-08`）会在当前环境创建一个 `Type=custom` 的自建 AI 模型分组：
+The `tcb` Action `CreateAIModel` (Version `2018-06-08`) creates a `Type=custom` AI model group in the current environment:
 
 ```ts
 callCloudApi({
   service: "tcb",
   action: "CreateAIModel",
   params: {
-    EnvId: "<当前 envId>",
-    GroupName: "my-openai-compat",     // ⚠️ 不允许以 "cloudbase" 开头；这是后续 createModel(provider) 用的名字
+    EnvId: "<current envId>",
+    GroupName: "my-openai-compat",     // ⚠️ MUST NOT start with "cloudbase"; this becomes the value passed to createModel(provider)
     BaseUrl: "https://api.example.com/v1",
     Models: [
       { Model: "gpt-4o-mini", EnableMCP: false },
       { Model: "gpt-4o",       EnableMCP: false },
     ],
     Remark: "Internal OpenAI-compatible endpoint",
-    Status: 1,                         // 1=开启 2=关闭
+    Status: 1,                         // 1=on, 2=off
     Secret: {
-      // Key/ApiKey 二选一；对 OpenAI 兼容端点通常用 ApiKey
+      // Key / ApiKey: pick one; OpenAI-compatible endpoints usually use ApiKey
       ApiKey: "<vendor-api-key>",
     },
   },
 })
 ```
 
-登记完成后：
-- 用 `DescribeAIModels` 确认该 `GroupName` 已出现且 `Status=1`、目标 `Model` 在 `Models[]` 里；
-- 小程序端写 `wx.cloud.extend.AI.createModel("my-openai-compat")`，`model` 字段填 `"gpt-4o-mini"` 等登记过的 Model 名；
-- 后续要追加 / 修改模型，走 `UpdateAIModel`（注意 `Models` 是**全量替换**，Status 用 1/2 开关）；要删除整个自建分组，走 `DeleteAIModel`（仅支持 `Type=custom`，批量用 `GroupNames.N`）。
-- 所有调用仍会走当前环境的计费入口，若此类自定义模型也需要 Token 结算，同样要先完成资格检查。
+After registration:
+- Run `DescribeAIModels` to confirm the `GroupName` exists with `Status=1` and the target `Model` appears in `Models[]`.
+- In the Mini Program, call `wx.cloud.extend.AI.createModel("my-openai-compat")` and pass a registered model name (e.g. `"gpt-4o-mini"`) as the `model` field.
+- To add or modify models later, use `UpdateAIModel` (remember `Models` is a **full replacement**; `Status` uses 1/2 as on/off). To delete an entire custom group, use `DeleteAIModel` (custom groups only; batch via `GroupNames.N`).
+- All calls still hit the environment's billing path. If such custom models also need Token settlement, eligibility must be verified first.
 
 ---
-
 
 ## Prerequisites
 
@@ -226,38 +225,38 @@ App({
 
 ## generateText() - Non-streaming
 
-⚠️ **Different from JS/Node SDK:** Return value is raw model response.
+⚠️ **Different from JS/Node SDK:** the return value is the raw model response.
 
-> **前提**：已完成「调用前必须的两步预检」。下面示例默认当前环境已报名小程序成长计划，因此用 `createModel("hunyuan-exp")` + `hunyuan-2.0-instruct-20251111`；若资格分支落到资源包，把 provider 换成 `"cloudbase"`、model 换成 `deepseek-v4-flash` 即可。
+> **Prerequisite:** the "Mandatory Two-Step Preflight" has been completed. The example below assumes the current environment is enrolled in 小程序成长计划, so it uses `createModel("hunyuan-exp")` + `hunyuan-2.0-instruct-20251111`. If the eligibility branch landed on the resource pack, swap the provider to `"cloudbase"` and the model to `deepseek-v4-flash`.
 
 ```js
 const model = wx.cloud.extend.AI.createModel("hunyuan-exp");
 
 const res = await model.generateText({
-  model: "hunyuan-2.0-instruct-20251111",  // 计划内默认
-  messages: [{ role: "user", content: "你好" }],
+  model: "hunyuan-2.0-instruct-20251111",  // plan-enrolled default
+  messages: [{ role: "user", content: "hi" }],
 });
 
-// ⚠️ Return value is RAW model response, NOT wrapped like JS/Node SDK
-console.log(res.choices[0].message.content);  // Access via choices array
-console.log(res.usage);                        // Token usage
+// ⚠️ Return value is the RAW model response, NOT wrapped like JS/Node SDK
+console.log(res.choices[0].message.content);  // access via choices array
+console.log(res.usage);                        // token usage
 ```
 
 ---
 
 ## streamText() - Streaming
 
-⚠️ **Different from JS/Node SDK:** Must wrap parameters in `data` object, supports callbacks.
+⚠️ **Different from JS/Node SDK:** parameters MUST be wrapped in a `data` object; callbacks are supported.
 
-> **前提**：已完成「调用前必须的两步预检」。下列示例按成长计划分支写；走资源包分支时把 `createModel("hunyuan-exp")` 换成 `createModel("cloudbase")`，`model` 换成 `deepseek-v4-flash`（或其他已通过 `UpdateAIModel` 开启的 Model）。
+> **Prerequisite:** the "Mandatory Two-Step Preflight" has been completed. The example below uses the 成长计划 branch; for the resource pack branch, swap `createModel("hunyuan-exp")` to `createModel("cloudbase")` and the `model` to `deepseek-v4-flash` (or another model already enabled via `UpdateAIModel`).
 
 ```js
 const model = wx.cloud.extend.AI.createModel("hunyuan-exp");
 
-// ⚠️ Parameters MUST be wrapped in `data` object
+// ⚠️ Parameters MUST be wrapped in a `data` object
 const res = await model.streamText({
   data: {                              // ⚠️ Required wrapper
-    model: "hunyuan-2.0-instruct-20251111",  // 计划内默认
+    model: "hunyuan-2.0-instruct-20251111",  // plan-enrolled default
     messages: [{ role: "user", content: "hi" }]
   },
   onText: (text) => {                  // Optional: incremental text callback
@@ -271,12 +270,12 @@ const res = await model.streamText({
   }
 });
 
-// Async iteration also available
+// Async iteration is also available
 for await (let str of res.textStream) {
   console.log(str);
 }
 
-// Check for completion with eventStream
+// Check for completion via eventStream
 for await (let event of res.eventStream) {
   console.log(event);
   if (event.data === "[DONE]") {       // ⚠️ Check for [DONE] to stop
@@ -289,7 +288,7 @@ for await (let event of res.eventStream) {
 
 ## Error Handling Pattern
 
-> **前提**：已完成「调用前必须的两步预检」。资源包分支用 `"cloudbase"` + `deepseek-v4-flash` 兜底。
+> **Prerequisite:** the "Mandatory Two-Step Preflight" has been completed. The resource pack branch uses `"cloudbase"` + `deepseek-v4-flash` as fallback.
 
 ```js
 const model = wx.cloud.extend.AI.createModel("cloudbase");
@@ -297,7 +296,7 @@ const model = wx.cloud.extend.AI.createModel("cloudbase");
 try {
   const res = await model.generateText({
     model: "deepseek-v4-flash",
-    messages: [{ role: "user", content: "生成一段欢迎文案" }],
+    messages: [{ role: "user", content: "Write a welcome message" }],
   });
 
   console.log(res.choices[0].message.content);
@@ -335,9 +334,9 @@ interface WxStreamTextInput {
       content: string;
     }>;
   };
-  onText?: (text: string) => void;     // Incremental text callback
-  onEvent?: (prop: { data: string }) => void;  // Raw event callback
-  onFinish?: (text: string) => void;   // Completion callback
+  onText?: (text: string) => void;     // incremental text callback
+  onEvent?: (prop: { data: string }) => void;  // raw event callback
+  onFinish?: (text: string) => void;   // completion callback
 }
 ```
 
@@ -345,8 +344,8 @@ interface WxStreamTextInput {
 
 ```ts
 interface WxStreamTextResult {
-  textStream: AsyncIterable<string>;   // Incremental text stream
-  eventStream: AsyncIterable<{         // Raw event stream
+  textStream: AsyncIterable<string>;   // incremental text stream
+  eventStream: AsyncIterable<{         // raw event stream
     event?: unknown;
     id?: unknown;
     data: string;                      // "[DONE]" when complete
@@ -383,14 +382,14 @@ interface WxGenerateTextResponse {
 
 ## Best Practices
 
-1. **先跑「两步预检」再写业务代码** —— 顺序固定：① `DescribeActivityInfo` / `DescribeEnvPostpayPackage` 判计费资格 → ② `DescribeAIModels` 判分组就绪（必要时 `DescribeManagedAIModelList` 看目录 + 价格，再 `UpdateAIModel` 开启目标 Model）。两步全通过再下笔写 `wx.cloud.extend.AI.createModel(...)`。
-2. **`createModel(provider)` 只接受三种合法值** —— `"hunyuan-exp"`（成长计划专属老分组）、`"cloudbase"`（主托管分组，新项目默认）、或自定义接入时的 `GroupName`（不以 `cloudbase` 开头）。**严禁** 写 `createModel("deepseek")`（除非 `DescribeAIModels` 真的返回了老 builtin 分组 `deepseek`）、`createModel("hunyuan")`、`createModel("custom")` —— 这些都是 model 名或占位符，不是 GroupName。
-3. **`model` 字段必须来自 `DescribeAIModels`** —— 传 provider 对应 `GroupName` 下 `Models[].Model` 里真实存在的那个。主托管分组默认只开 `deepseek-v4-flash`，用别的要先 `UpdateAIModel` 开启。
-4. **Hunyuan 系列强绑定成长计划** —— 想走 `hunyuan-*` 模型，成长计划必须已报名；未报名时先引导 `https://docs.cloudbase.net/ai/ai-inspire-plan`，或切到 `"cloudbase"` + `deepseek-v4-flash`，不要绕开校验硬调。
-5. **开启更多模型前先看价格** —— `DescribeManagedAIModelList` 返回 `ModelChargingInfo`（`Uniform` 统一价 / `Tiered` 阶梯价）+ `ModelSpec.ContextLength`，确认再 `UpdateAIModel`；`Models` 是**全量替换**，老列表 + 新增项要自己合并后再传。
-6. **Check base library version** —— 必须 3.7.1+；低版本 `wx.cloud.extend.AI` 直接 undefined，不要当成模型问题排查。
-7. **Use callbacks for UI updates** —— `onText` 适合逐段刷新聊天气泡；用 `eventStream` 手工拼串容易漏分隔符。
-8. **Check for `[DONE]`** —— 使用 `eventStream` 必须判 `event.data === "[DONE]"` 才停，否则会一直挂着等下一帧。
-9. **Remember the `data` wrapper** —— `streamText` 参数必须裹在 `data: { ... }`，跟 JS/Node SDK 不一样，漏写直接报参数错误。
-10. **错误处理要区分「资格 / 分组未就绪」与「调用失败」** —— 前者把用户带去报名 / 购买 / `UpdateAIModel` 开启流程；后者才是排查 prompt、参数或网络。两者提示文案与动作完全不同。
-11. **不要在小程序里硬编码第三方模型密钥** —— 托管列表外的模型走 `CreateAIModel`（`Secret.ApiKey`）由 CloudBase 侧代管；小程序端只保留 `GroupName`。
+1. **Run the two-step preflight before writing business code.** Fixed order: ① `DescribeActivityInfo` / `DescribeEnvPostpayPackage` for billing eligibility → ② `DescribeAIModels` for group readiness (if needed, `DescribeManagedAIModelList` for catalog + pricing, then `UpdateAIModel` to enable the target model). Only after both pass should you write `wx.cloud.extend.AI.createModel(...)`.
+2. **`createModel(provider)` accepts only three kinds of values** — `"hunyuan-exp"` (成长计划 exclusive legacy group), `"cloudbase"` (main managed group, default for new projects), or the custom-onboarding `GroupName` (must NOT start with `cloudbase`). **Never** write `createModel("deepseek")` (unless `DescribeAIModels` truly returns a legacy builtin group named `deepseek`), `createModel("hunyuan")`, or `createModel("custom")` — these are model names or placeholders, not GroupNames.
+3. **The `model` field must come from `DescribeAIModels`.** Pass a value that actually exists in the `Models[].Model` list of the chosen group. The main managed group only has `deepseek-v4-flash` enabled by default; to use others, call `UpdateAIModel` first.
+4. **Hunyuan models are strictly bound to 成长计划.** To use a `hunyuan-*` model, the 成长计划 must be enrolled. When not enrolled, guide the user to `https://docs.cloudbase.net/ai/ai-inspire-plan`, or switch to `"cloudbase"` + `deepseek-v4-flash`. Do not bypass the check and call anyway.
+5. **Check pricing before enabling more models.** `DescribeManagedAIModelList` returns `ModelChargingInfo` (`Uniform` flat price / `Tiered` tiered pricing) + `ModelSpec.ContextLength`. Confirm before calling `UpdateAIModel`. `Models` is a **full replacement** — merge the old list + the new entry before passing.
+6. **Check base library version.** 3.7.1+ is required; on older versions `wx.cloud.extend.AI` is `undefined` — do not debug it as a model issue.
+7. **Use callbacks for UI updates.** `onText` is well-suited for progressively refreshing chat bubbles; manually concatenating from `eventStream` tends to drop separators.
+8. **Check for `[DONE]`.** When iterating `eventStream`, stop only when `event.data === "[DONE]"`, otherwise the stream waits forever for the next frame.
+9. **Remember the `data` wrapper.** `streamText` parameters MUST be wrapped in `data: { ... }` — unlike JS/Node SDK. Forgetting it yields a parameter error.
+10. **Distinguish "not-eligible / group-not-ready" from "call failure".** The former should guide the user into enrollment / purchase / `UpdateAIModel` flows; the latter is about debugging prompts, parameters, or the network. The error messages and next actions are completely different.
+11. **Do not hardcode third-party model API keys in the Mini Program.** For models outside the managed catalog, use `CreateAIModel` (`Secret.ApiKey`) so the key is stored on the CloudBase side; keep only the `GroupName` in the Mini Program.

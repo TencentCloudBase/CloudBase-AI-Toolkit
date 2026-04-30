@@ -53,83 +53,83 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 ## When to use this skill
 
-Use this skill for **calling AI models in browser/Web applications** using `@cloudbase/js-sdk`.
+Use this skill for **calling AI models in browser/Web applications** via `@cloudbase/js-sdk`.
 
 **Use it when you need to:**
 
-- Integrate AI text generation in a frontend Web app
-- Stream AI responses for better user experience
-- Call Hunyuan or DeepSeek models from browser
+- Integrate AI text generation into a frontend Web app
+- Stream AI responses for a better UX
+- Call Hunyuan or DeepSeek models from the browser
 
 **Do NOT use for:**
 
-- Node.js backend or cloud functions → use `ai-model-nodejs` skill
-- WeChat Mini Program → use `ai-model-wechat` skill
-- Image generation → use `ai-model-nodejs` skill (Node SDK only)
-- HTTP API integration → use `http-api` skill
+- Node.js backend or cloud functions → use the `ai-model-nodejs` skill
+- WeChat Mini Program → use the `ai-model-wechat` skill
+- Image generation → use the `ai-model-nodejs` skill (Node SDK only)
+- HTTP API integration → use the `http-api` skill
 
 ---
 
-## 调用前必须的两步预检（Pre-flight）
+## Mandatory Two-Step Preflight (before any SDK code)
 
-在生成任何 AI 调用代码之前，**先跑两步预检**：① 资格 ② 分组就绪。直接写代码再解释错误会显著增加调试成本。
+Before generating any AI-related SDK code, **run the two-step preflight**: ① eligibility, ② group readiness. Emitting `createModel(...)` straight away and letting the user debug runtime errors is significantly more costly.
 
-### 步骤 0：获取环境 ID
+### Step 0: obtain the environment ID
 
-调用 MCP 工具 `envQuery`（`action=info`），从返回值中取出 `EnvId`。后续所有检查与购买链接都使用该 `EnvId`。
+Call the MCP tool `envQuery` with `action=info` and read `EnvId` from the response. Every subsequent check and purchase link uses this `EnvId`.
 
 ---
 
-### 预检 ① 资格检查（Token Credits 资源包）
+### Preflight ① — Eligibility (Token Credits resource pack)
 
-调用 MCP 工具：
+Call the MCP tool:
 
 ```
 callCloudApi(service="tcb", action="DescribeEnvPostpayPackage", params={ EnvId })
 ```
 
-**命中条件**（均需满足）：
-- `envPostpayPackageInfoList` 中存在至少一项
-- 该项 `postpayPackageId` 前缀为 `pkg_tcb_tokencredits_`
-- 该项 `status ∉ [3, 4]`（3 / 4 通常代表已过期 / 已停用；以实际响应为准）
+**Pass conditions (all required):**
+- `envPostpayPackageInfoList` contains at least one entry
+- That entry's `postpayPackageId` starts with `pkg_tcb_tokencredits_`
+- That entry's `status` is NOT in `[3, 4]` (3 / 4 typically mean expired / disabled; trust the live response)
 
-- ❌ **未命中** → **停止写代码**，向用户输出（把 `{envId}` 替换为真实值）：
-  > 当前环境未开通 Token Credits 资源包，请先购买后再调用：
+- ❌ **Not satisfied** → **stop writing code** and surface this to the user (replacing `{envId}` with the real id):
+  > The current environment has no active Token Credits resource pack. Please purchase one before calling any AI API:
   > https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token
   >
-  > 完成后告诉我一声，我重新检查资源包状态。
+  > Let me know once it's done and I'll re-check the resource pack status.
 
-- ✅ **命中** → 进入预检 ②。
+- ✅ **Satisfied** → proceed to preflight ②.
 
-> 参数 / 返回字段大小写以实测为准。若报 `InvalidParameter`，回退 camelCase（如 `envId` / `envPostpayPackageInfoList`）。小程序场景另有成长计划分支，请切到 `ai-model-wechat` skill。
+> Parameter casing is PascalCase by contract. If the call returns `InvalidParameter`, fall back to camelCase (`envId` / `envPostpayPackageInfoList`) and trust the live response. For the Mini Program scenario there is an additional growth-plan branch — switch to the `ai-model-wechat` skill.
 
 ---
 
-### 预检 ② 分组就绪检查（DescribeAIModels → 必要时 UpdateAIModel）
+### Preflight ② — Group readiness (`DescribeAIModels` → `UpdateAIModel` if needed)
 
-资格通过后，**不要直接写 `createModel("cloudbase")`**。先确认目标 `GroupName` 在当前环境存在、`Status=1`、且目标 `Model` 已经在 `Models[]` 里。
+Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.** First confirm that the target `GroupName` exists in the env with `Status=1`, and that the target `Model` is present in its `Models[]`.
 
-1. **查当前环境已配置的分组**：
+1. **List groups configured in the current env:**
 
    ```
    callCloudApi(service="tcb", action="DescribeAIModels", params={ EnvId })
    ```
 
-   返回 `AIModels[]`，每项含 `GroupName`、`Type`（`builtin`/`custom`）、`Models[{Model, EnableMCP, Tags}]`、`Status`（1=开启/2=关闭）、`BaseUrl`、`Secret`、`Remark`。主打托管分组的 `GroupName` 为 `cloudbase`。
+   Returns `AIModelGroups: AIModelGroup[]`, where each `AIModelGroup` includes `GroupName`, `Type` (`builtin` / `custom`), `Models: [{ Model, EnableMCP, Tags }]`, `Status` (1 = on / 2 = off), `BaseUrl`, `Secret`, `Remark`. The main managed `GroupName` is `cloudbase`.
 
-2. **用户没指定模型时**：默认用 `createModel("cloudbase")` + `model: "deepseek-v4-flash"`（托管分组默认就开着这个模型）。若 `cloudbase` 分组缺失或 `Status=2` → 跳到步骤 4 开启。
+2. **User did not specify a model** → default to `createModel("cloudbase")` + `model: "deepseek-v4-flash"` (the only model the managed group has enabled out of the box). If the `cloudbase` group is missing or has `Status=2`, jump to step 4.
 
-3. **用户指定了托管列表内的模型**（如 `deepseek-v3.2`、`hunyuan-turbos-latest`）：检查该 `Model` 是否已在 `cloudbase` 分组的 `Models[]` 里；不在 → 跳到步骤 4 开启。
+3. **User asked for a model that belongs to the managed catalog** (e.g. `deepseek-v3.2`, `hunyuan-turbos-latest`): check whether that `Model` is already in the `cloudbase` group's `Models[]`. If not, jump to step 4.
 
-4. **启用/新增托管模型**（可选：先看平台支持和价格）：
+4. **Enable / add a managed model** (optionally inspect pricing first):
 
    ```
    callCloudApi(service="tcb", action="DescribeManagedAIModelList", params={ EnvId })
    ```
 
-   返回 `ManagedAIModelList[]`，每项含 `GroupName`（例：`cloudbase`）、`Remark`、`Models[{Model, EnableMCP, ModelSpec{ContextLength, MaxInputToken, MaxOutputToken}, ModelChargingInfo[{Type, InputPrice, OutputPrice, InputOutputUnit, CachePrice}]}]`。**开通前可用这个接口给用户展示价格**。
+   Returns `ManagedAIModelGroup[]`, where each group lists `GroupName` (e.g. `cloudbase`), `Remark`, and `Models: [{ Model, EnableMCP, ModelSpec{ContextLength, MaxInputToken, MaxOutputToken}, ModelChargingInfo[{Type, InputPrice, OutputPrice, InputOutputUnit, CachePrice}] }]`. **Use this response to show pricing to the user before enabling.**
 
-   然后发起启用（`Models` 是**全量替换**，所以必须把已开模型连同目标模型一起传）：
+   Then enable (note: `Models` is a **full replacement** — always resend the already-enabled models together with the new one):
 
    ```
    callCloudApi(service="tcb", action="UpdateAIModel", params={
@@ -137,71 +137,71 @@ callCloudApi(service="tcb", action="DescribeEnvPostpayPackage", params={ EnvId }
      GroupName: "cloudbase",
      Models: [
        { Model: "deepseek-v4-flash" },
-       { Model: "<目标模型>" }
+       { Model: "<target model>" }
      ],
      Status: 1
    })
    ```
 
-5. **用户要的模型不在托管列表里**（`DescribeManagedAIModelList` 都搜不到）→ 走下一章「不在托管列表时的自定义接入」。
+5. **The requested model is not in the managed catalog** (not found by `DescribeManagedAIModelList`) → jump to the next section, **Custom onboarding (models outside the managed catalog)**.
 
-> 参数 / 返回字段采用 PascalCase（`EnvId`/`GroupName`/`Models`/`Status`）。若报 `InvalidParameter` 则以实测为准回退 camelCase。所有 Action 均走 `service=tcb`，`Version=2018-06-08`。
+> All Actions use `service=tcb`, `Version=2018-06-08`. Parameters are PascalCase (`EnvId` / `GroupName` / `Models` / `Status`). Fall back to camelCase only if the call returns `InvalidParameter`.
 
 ---
 
 ## Available Providers and Models
 
-`ai.createModel(<GroupName>)` 的参数只有以下三类合法取值：
+`ai.createModel(<GroupName>)` accepts exactly three kinds of legal values:
 
-### 1. `"cloudbase"` —— 主打托管分组（推荐）
+### 1. `"cloudbase"` — the main managed group (recommended)
 
-- GroupName：`cloudbase`，Type：`builtin`，Remark：`腾讯云开发`
-- 内含 DeepSeek、Hunyuan 等多家厂商模型。**默认只开 `deepseek-v4-flash`**；其他模型需要先 `UpdateAIModel` 启用
-- 未指定模型时用 `createModel("cloudbase")` + `model: "deepseek-v4-flash"`
-- 查平台支持哪些 + 价格：`DescribeManagedAIModelList`
-- 查当前环境已开哪些：`DescribeAIModels`
+- `GroupName: "cloudbase"`, `Type: "builtin"`, `Remark: "腾讯云开发"` (Tencent CloudBase)
+- Hosts models from multiple vendors (DeepSeek, Hunyuan, …). **Only `deepseek-v4-flash` is enabled by default**; others must be enabled through `UpdateAIModel` first
+- When the user did not specify anything, default to `createModel("cloudbase")` + `model: "deepseek-v4-flash"`
+- Catalog and pricing: `DescribeManagedAIModelList`
+- Env-enabled set: `DescribeAIModels`
 
-### 2. `"hunyuan-exp"` —— 老 builtin 分组（兼容保留）
+### 2. `"hunyuan-exp"` — legacy builtin group (kept for compatibility)
 
-- 小程序成长计划专属场景下有效；Web 端一般不走（请切到 `ai-model-wechat` skill）
-- 常见模型：`hunyuan-2.0-instruct-20251111`、`hunyuan-turbos-latest`、`hunyuan-t1-latest`
+- Primarily relevant to the Mini Program Growth Plan scenario; do not use from Web unless the env explicitly still has it (switch to the `ai-model-wechat` skill for that flow)
+- Common models: `hunyuan-2.0-instruct-20251111`, `hunyuan-turbos-latest`, `hunyuan-t1-latest`
 
-### 3. 用户自定义 GroupName
+### 3. User-defined GroupName
 
-- 通过 `CreateAIModel` 登记（见下一章）；GroupName **不允许以 `cloudbase` 为前缀**
-- 例如 `createModel("my-kimi")`、`createModel("my-openai")`
+- Onboarded via `CreateAIModel` (see the next section). The `GroupName` **must not start with `cloudbase`**
+- Examples: `createModel("my-kimi")`, `createModel("my-openai")`
 
-> **严禁** `createModel("deepseek")` / `createModel("custom")` 这类猜测写法，除非 `DescribeAIModels` 明确返回过对应 `GroupName`（老环境可能存在 `deepseek` / `hunyuan-exp` builtin 分组，兼容可用但新项目建议一律走 `cloudbase`）。
+> **Never** write guesses like `createModel("deepseek")` or `createModel("custom")` unless `DescribeAIModels` explicitly returned that exact `GroupName` (old envs may still carry historical `deepseek` / `hunyuan-exp` builtin groups — that stays legal for compatibility, but new projects should always go through `cloudbase`).
 
 ---
 
-## 不在托管列表时的自定义接入
+## Custom onboarding (models outside the managed catalog)
 
-当用户要调用**非托管**的模型（企业自建、第三方 OpenAI 兼容端点等），**不要阻塞**，给出接入指引：
+When the user wants to call a **non-managed** model (self-hosted, enterprise-internal, third-party OpenAI-compatible endpoint, …), **do not block**. Guide them through onboarding:
 
-### 方式 1：控制台入口（推荐引导用户自己操作）
+### Option 1: console flow (recommended, user handles it)
 
 `https://tcb.cloud.tencent.com/dev?envId={envId}#/ai`
 
-### 方式 2：程序化接入（`CreateAIModel`）
+### Option 2: programmatic onboarding (`CreateAIModel`)
 
 ```
 callCloudApi(service="tcb", action="CreateAIModel", params={
   EnvId: "<envId>",
-  GroupName: "<用户自定义名，不能以 cloudbase 为前缀>",
-  BaseUrl: "<OpenAI 兼容端点，例如 https://api.moonshot.cn/v1>",
+  GroupName: "<user-chosen name, must not start with cloudbase>",
+  BaseUrl: "<OpenAI-compatible endpoint, e.g. https://api.moonshot.cn/v1>",
   Models: [
-    { Model: "<模型名，例如 kimi-k2.5>", EnableMCP: true }
+    { Model: "<model name, e.g. kimi-k2.5>", EnableMCP: true }
   ],
-  Remark: "<备注>",
+  Remark: "<optional remark>",
   Status: 1,
-  Secret: { ApiKey: "<用户持有的 key>" }
+  Secret: { ApiKey: "<vendor api key supplied by the user>" }
 })
 ```
 
-登记完成后，用 `DescribeAIModels` 确认分组已就绪，再在代码里 `ai.createModel("<登记的 GroupName>")` 发起调用。后续若要增删模型、换密钥、改 BaseUrl，使用 `UpdateAIModel`（注意 `Models` 是**全量替换**）；若要移除分组，使用 `DeleteAIModel`（只能删 custom，内置分组无法删）。
+Once onboarded, confirm with `DescribeAIModels` that the group is ready, then call `ai.createModel("<the GroupName you just registered>")` from your code. Use `UpdateAIModel` to add/remove models, rotate keys, or change `BaseUrl` (remember `Models` is a **full replacement**). Use `DeleteAIModel` to remove a custom group (builtin groups cannot be deleted).
 
-> 自定义模型的调用计费由第三方承担，不走 Token Credits 资源包。所有字段大小写以实测为准，报 `InvalidParameter` 则回退 camelCase。
+> Custom-model billing is covered by the third-party provider and does not draw from the Token Credits resource pack. Field casing follows the live contract — fall back to camelCase on `InvalidParameter`.
 
 ---
 
@@ -213,73 +213,83 @@ npm install @cloudbase/js-sdk
 
 ## Initialization
 
+> ⚠️ **Do not use anonymous sign-in as the default.** Anonymous accounts are easy to abuse and weaken downstream permission rules. Prefer `auth.toDefaultLoginPage()` (the managed login page, which supports phone SMS, email, WeChat Open Platform, custom providers, …, all toggled on via the `auth-tool` skill), or integrate a specific verified provider. Only fall back to `signInAnonymously()` if the user explicitly requests a read-only anonymous demo and accepts the trade-off.
+
 ```js
 import cloudbase from "@cloudbase/js-sdk";
 
 const app = cloudbase.init({
   env: "<YOUR_ENV_ID>",
-  accessKey: "<YOUR_PUBLISHABLE_KEY>"  // Get from CloudBase console
+  accessKey: "<YOUR_PUBLISHABLE_KEY>"  // Get it from the CloudBase console
 });
 
 const auth = app.auth();
-await auth.signInAnonymously();
+
+// Ensure the user is signed in before calling any AI API.
+// Preferred: redirect to the managed login page, which honours the providers
+// the project owner enabled via the auth-tool skill (phone / email / WeChat / …).
+if (!auth.hasLoginState()) {
+  await auth.toDefaultLoginPage();
+  // The page will navigate back here after a successful login; the code below
+  // will only execute once `auth.hasLoginState()` resolves truthy.
+}
 
 const ai = app.ai();
 ```
 
 **Important notes:**
 
-- Always use synchronous initialization with top-level import
-- User must be authenticated before using AI features
-- Get `accessKey` from CloudBase console
+- Use synchronous initialization with a top-level import
+- The user MUST be authenticated before using AI features — use a verified login (default login page, phone, email, WeChat, custom), never anonymous, as the default
+- Get `accessKey` from the CloudBase console
 
 ---
 
-## generateText() - Non-streaming
+## generateText() — non-streaming
 
-> **前提**：已完成「两步预检」（资格 + 分组就绪）。下例默认用户没指定模型，走 `cloudbase` 托管分组 + `deepseek-v4-flash`。
+> **Prerequisite:** the two-step preflight (eligibility + group readiness) has passed. The example below assumes the user did not specify a model, so it uses the `cloudbase` managed group + `deepseek-v4-flash`.
 
 ```js
 const model = ai.createModel("cloudbase");
 
 const result = await model.generateText({
-  model: "deepseek-v4-flash",  // 默认就开着；其他模型需 UpdateAIModel 启用
-  messages: [{ role: "user", content: "你好，请你介绍一下李白" }],
+  model: "deepseek-v4-flash",  // on by default; other models require UpdateAIModel
+  messages: [{ role: "user", content: "Give me a one-paragraph intro to Li Bai." }],
 });
 
-console.log(result.text);           // Generated text string
+console.log(result.text);           // generated text string
 console.log(result.usage);          // { prompt_tokens, completion_tokens, total_tokens }
-console.log(result.messages);       // Full message history
-console.log(result.rawResponses);   // Raw model responses
+console.log(result.messages);       // full message history
+console.log(result.rawResponses);   // raw model responses
 ```
 
 ---
 
-## streamText() - Streaming
+## streamText() — streaming
 
-> **前提**：已完成「两步预检」。
+> **Prerequisite:** the two-step preflight has passed.
 
 ```js
 const model = ai.createModel("cloudbase");
 
 const res = await model.streamText({
   model: "deepseek-v4-flash",
-  messages: [{ role: "user", content: "你好，请你介绍一下李白" }],
+  messages: [{ role: "user", content: "Give me a one-paragraph intro to Li Bai." }],
 });
 
-// Option 1: Iterate text stream (recommended)
+// Option 1: iterate the text stream (recommended)
 for await (let text of res.textStream) {
-  console.log(text);  // Incremental text chunks
+  console.log(text);  // incremental text chunks
 }
 
-// Option 2: Iterate data stream for full response data
+// Option 2: iterate the data stream for full response chunks
 for await (let data of res.dataStream) {
-  console.log(data);  // Full response chunk with metadata
+  console.log(data);  // full response chunk with metadata
 }
 
-// Option 3: Get final results
-const messages = await res.messages;  // Full message history
-const usage = await res.usage;        // Token usage
+// Option 3: access final results
+const messages = await res.messages;  // full message history
+const usage = await res.usage;        // token usage
 ```
 
 ---
@@ -292,7 +302,7 @@ const model = ai.createModel("cloudbase");
 try {
   const result = await model.generateText({
     model: "deepseek-v4-flash",
-    messages: [{ role: "user", content: "Generate a concise onboarding checklist" }],
+    messages: [{ role: "user", content: "Generate a concise onboarding checklist." }],
   });
 
   console.log(result.text);
@@ -307,10 +317,10 @@ try {
 
 ```ts
 interface BaseChatModelInput {
-  model: string;                        // Required: model name
-  messages: Array<ChatModelMessage>;    // Required: message array
-  temperature?: number;                 // Optional: sampling temperature
-  topP?: number;                        // Optional: nucleus sampling
+  model: string;                        // required: model name
+  messages: Array<ChatModelMessage>;    // required: message array
+  temperature?: number;                 // optional: sampling temperature
+  topP?: number;                        // optional: nucleus sampling
 }
 
 type ChatModelMessage =
@@ -319,19 +329,19 @@ type ChatModelMessage =
   | { role: "assistant"; content: string };
 
 interface GenerateTextResult {
-  text: string;                         // Generated text
-  messages: Array<ChatModelMessage>;    // Full message history
-  usage: Usage;                         // Token usage
-  rawResponses: Array<unknown>;         // Raw model responses
-  error?: unknown;                      // Error if any
+  text: string;                         // generated text
+  messages: Array<ChatModelMessage>;    // full message history
+  usage: Usage;                         // token usage
+  rawResponses: Array<unknown>;         // raw model responses
+  error?: unknown;                      // error if any
 }
 
 interface StreamTextResult {
-  textStream: AsyncIterable<string>;    // Incremental text stream
-  dataStream: AsyncIterable<DataChunk>; // Full data stream
-  messages: Promise<ChatModelMessage[]>;// Final message history
-  usage: Promise<Usage>;                // Final token usage
-  error?: unknown;                      // Error if any
+  textStream: AsyncIterable<string>;    // incremental text stream
+  dataStream: AsyncIterable<DataChunk>; // full data stream
+  messages: Promise<ChatModelMessage[]>;// final message history
+  usage: Promise<Usage>;                // final token usage
+  error?: unknown;                      // error if any
 }
 
 interface Usage {
@@ -345,14 +355,15 @@ interface Usage {
 
 ## Best Practices
 
-1. **Run the two-step preflight first** — ① 资格检查（Token Credits 资源包） + ② 分组就绪检查（`DescribeAIModels` 看已开、必要时 `UpdateAIModel` 全量替换 `Models[]` + `Status:1`）。跳过会直接报模型不存在或未开通。
-2. **`createModel` 的参数只有三种合法取值** — `"cloudbase"`（主打托管）/ `"hunyuan-exp"`（老 builtin，成长计划场景用）/ 用户自定义 GroupName（走 `CreateAIModel`）。**严禁** `createModel("deepseek")` / `createModel("custom")` 这种猜测写法。
-3. **开启新托管模型前先查价格** — `DescribeManagedAIModelList` 返回 `ModelSpec`（上下文长度、最大输入输出 token）+ `ModelChargingInfo`（输入输出价格、缓存价、计费单位）；把价格告知用户再 `UpdateAIModel`。
-4. **Use streaming for long responses** - 更好的交互体验。
-5. **Handle errors gracefully** - Wrap AI calls in try/catch。
-6. **Keep accessKey secure** - Use publishable key, not secret key。
-7. **Initialize early** - 在 app 入口初始化 SDK。
-8. **Ensure authentication** - User must be signed in before AI calls。
+1. **Run the two-step preflight first** — ① eligibility (Token Credits resource pack via `DescribeEnvPostpayPackage`) + ② group readiness (`DescribeAIModels` to inspect what is enabled, `UpdateAIModel` with a full-replacement `Models[]` and `Status: 1` when needed). Skipping preflight leads straight to "model not found" / "model not enabled" errors at runtime.
+2. **`createModel` accepts exactly three kinds of values** — `"cloudbase"` (the main managed group), `"hunyuan-exp"` (legacy builtin, Growth Plan scenarios), or a user-defined GroupName registered via `CreateAIModel`. **Never** guess with `createModel("deepseek")` / `createModel("custom")`.
+3. **Show pricing before enabling a new managed model** — `DescribeManagedAIModelList` returns `ModelSpec` (context length, max input/output tokens) + `ModelChargingInfo` (input / output / cache prices, billing unit). Surface the prices to the user before calling `UpdateAIModel`.
+4. **Use streaming for long responses** — better perceived latency and interactivity.
+5. **Handle errors gracefully** — wrap AI calls in try/catch.
+6. **Keep `accessKey` safe** — use a publishable key, never a secret key.
+7. **Initialize early** — set up the SDK at app entry so auth and AI are both ready before routing.
+8. **Do NOT default to anonymous auth** — use a verified login (`auth.toDefaultLoginPage()` preferred). Anonymous accounts are easy to abuse and weaken permission rules.
+9. **Distinguish "preflight failure" from "model call failure"** — the former means the user needs to buy a resource pack or call `UpdateAIModel`; the latter is a prompt / parameter / network issue. Give the user different guidance for each.
 ````
 
 </details>
