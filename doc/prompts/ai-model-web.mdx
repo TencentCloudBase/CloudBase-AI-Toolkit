@@ -169,8 +169,8 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
 
 ### 3. User-defined GroupName
 
-- Onboarded via `CreateAIModel` (see the next section). The `GroupName` **must not start with `cloudbase`**
-- Examples: `createModel("my-kimi")`, `createModel("my-openai")`
+- Onboarded via `CreateAIModel` (see the next section). The custom `GroupName` **MUST start with `custom-`** (e.g. `custom-kimi`, `custom-moonshot`, `custom-openai-compat`). This naming convention prevents future collisions with built-in / vendor GroupNames (`cloudbase`, `hunyuan-exp`, `deepseek`, `glm`, `kimi`, `minimax`, …) that the platform may introduce over time
+- Examples: `createModel("custom-kimi")`, `createModel("custom-openai-compat")`
 
 > **Never** write guesses like `createModel("deepseek")` or `createModel("custom")` unless `DescribeAIModels` explicitly returned that exact `GroupName` (old envs may still carry historical `deepseek` / `hunyuan-exp` builtin groups — that stays legal for compatibility, but new projects should always go through `cloudbase`).
 
@@ -189,7 +189,7 @@ When the user wants to call a **non-managed** model (self-hosted, enterprise-int
 ```
 callCloudApi(service="tcb", action="CreateAIModel", params={
   EnvId: "<envId>",
-  GroupName: "<user-chosen name, must not start with cloudbase>",
+  GroupName: "custom-<your-name>",  // MUST start with "custom-" (e.g. custom-kimi, custom-openai-compat); never start with "cloudbase"
   BaseUrl: "<OpenAI-compatible endpoint, e.g. https://api.moonshot.cn/v1>",
   Models: [
     { Model: "<model name, e.g. kimi-k2.5>", EnableMCP: true }
@@ -357,7 +357,7 @@ interface Usage {
 ## Best Practices
 
 1. **Run the two-step preflight first** — ① eligibility (Token Credits resource pack via `DescribeEnvPostpayPackage`) + ② group readiness (`DescribeAIModels` to inspect what is enabled, `UpdateAIModel` with a full-replacement `Models[]` and `Status: 1` when needed). Skipping preflight leads straight to "model not found" / "model not enabled" errors at runtime.
-2. **`createModel` accepts exactly three kinds of values** — `"cloudbase"` (the main managed group), `"hunyuan-exp"` (legacy builtin, Growth Plan scenarios), or a user-defined GroupName registered via `CreateAIModel`. **Never** guess with `createModel("deepseek")` / `createModel("custom")`.
+2. **`createModel` accepts exactly three kinds of values** — `"cloudbase"` (the main managed group), `"hunyuan-exp"` (legacy builtin, Growth Plan scenarios), or a user-defined GroupName registered via `CreateAIModel` (**MUST start with `custom-`**, e.g. `custom-kimi`, `custom-openai-compat`). **Never** guess with `createModel("deepseek")` / `createModel("kimi")` / `createModel("custom")`.
 3. **Show pricing before enabling a new managed model** — `DescribeManagedAIModelList` returns `ModelSpec` (context length, max input/output tokens) + `ModelChargingInfo` (input / output / cache prices, billing unit). Surface the prices to the user before calling `UpdateAIModel`.
 4. **Use streaming for long responses** — better perceived latency and interactivity.
 5. **Handle errors gracefully** — wrap AI calls in try/catch.

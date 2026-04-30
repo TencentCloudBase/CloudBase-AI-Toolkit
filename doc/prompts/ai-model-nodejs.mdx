@@ -168,8 +168,8 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
 
 ### 3. User-defined GroupName
 
-- Onboarded via `CreateAIModel` (see the next section). The `GroupName` **must not start with `cloudbase`**
-- Examples: `createModel("my-kimi")`, `createModel("my-openai")`
+- Onboarded via `CreateAIModel` (see the next section). The custom `GroupName` **MUST start with `custom-`** (e.g. `custom-kimi`, `custom-moonshot`, `custom-openai-compat`). This naming convention prevents future collisions with built-in / vendor GroupNames (like `cloudbase`, `hunyuan-exp`, `deepseek`, `glm`, `kimi`, `minimax`) that the platform may introduce over time
+- Examples: `createModel("custom-kimi")`, `createModel("custom-openai-compat")`
 
 ### Image generation (independent API)
 
@@ -192,7 +192,7 @@ When the user wants a **non-managed** text model (self-hosted, enterprise-intern
 ```
 callCloudApi(service="tcb", action="CreateAIModel", params={
   EnvId: "<envId>",
-  GroupName: "<user-chosen name, must not start with cloudbase>",
+  GroupName: "custom-<your-name>",  // MUST start with "custom-" (e.g. custom-kimi, custom-openai-compat); never start with "cloudbase"
   BaseUrl: "<OpenAI-compatible endpoint, e.g. https://api.moonshot.cn/v1>",
   Models: [
     { Model: "<model name, e.g. kimi-k2.5>", EnableMCP: true }
@@ -428,7 +428,7 @@ interface Usage {
 ## Best Practices
 
 1. **Run the two-step preflight before writing business code** — ① eligibility: `envQuery` → `callCloudApi(tcb, DescribeEnvPostpayPackage)` to confirm the Token Credits resource pack (text + image share the same pack); ② group readiness: `DescribeAIModels` for the `cloudbase` group and its `Models[]`, and `UpdateAIModel` with a full-replacement `Models[]` + `Status: 1` when needed. If the pack is missing, return the purchase link `https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token` instead of emitting SDK code and letting the user debug runtime errors.
-2. **`createModel` accepts exactly three kinds of values** — `"cloudbase"` (the main managed group), `"hunyuan-exp"` (legacy builtin), or a user-defined GroupName registered via `CreateAIModel` (**must not start with `cloudbase`**). **Never** guess with `createModel("deepseek")` / `createModel("custom")`. `createImageModel("hunyuan-image")` is a separate image API — keep it as-is.
+2. **`createModel` accepts exactly three kinds of values** — `"cloudbase"` (the main managed group), `"hunyuan-exp"` (legacy builtin), or a user-defined GroupName registered via `CreateAIModel` (**MUST start with `custom-`**, e.g. `custom-kimi`, `custom-openai-compat`). **Never** guess with `createModel("deepseek")` / `createModel("kimi")` / `createModel("custom")` — the first two are vendor/model names, the last is a placeholder. `createImageModel("hunyuan-image")` is a separate image API — keep it as-is.
 3. **Show pricing before enabling a new managed model** — `DescribeManagedAIModelList` returns `ModelSpec` (context length, max input/output tokens) + `ModelChargingInfo` (input / output / cache prices, billing unit). Show the prices to the user before calling `UpdateAIModel`.
 4. **Plan timeout and quota separately for image generation** — `generateImage` costs more per call than text and takes longer. For cloud functions, set `timeout` to `900s`. HTTP-function gateways cap at 60s, so use an async-task + polling pattern. Throttle per-user concurrency and frequency to avoid burning an entire Token pack on one failure.
 5. **Prefer streaming for long-form interactions** — in HTTP-function or cloud-function SSE scenarios, use `streamText` + `for await (const chunk of result.textStream)` to flush chunks back to the client incrementally. Handle stream interruption in `catch` and close the underlying response.

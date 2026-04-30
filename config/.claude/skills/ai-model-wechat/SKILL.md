@@ -181,7 +181,7 @@ callCloudApi({
   action: "CreateAIModel",
   params: {
     EnvId: "<current envId>",
-    GroupName: "my-openai-compat",     // ⚠️ MUST NOT start with "cloudbase"; this becomes the value passed to createModel(provider)
+    GroupName: "custom-openai-compat",  // ⚠️ MUST start with "custom-" (e.g. custom-kimi, custom-moonshot) to avoid colliding with built-in / vendor GroupNames; this becomes the value passed to createModel(provider)
     BaseUrl: "https://api.example.com/v1",
     Models: [
       { Model: "gpt-4o-mini", EnableMCP: false },
@@ -199,7 +199,7 @@ callCloudApi({
 
 After registration:
 - Run `DescribeAIModels` to confirm the `GroupName` exists with `Status=1` and the target `Model` appears in `Models[]`.
-- In the Mini Program, call `wx.cloud.extend.AI.createModel("my-openai-compat")` and pass a registered model name (e.g. `"gpt-4o-mini"`) as the `model` field.
+- In the Mini Program, call `wx.cloud.extend.AI.createModel("custom-openai-compat")` and pass a registered model name (e.g. `"gpt-4o-mini"`) as the `model` field.
 - To add or modify models later, use `UpdateAIModel` (remember `Models` is a **full replacement**; `Status` uses 1/2 as on/off). To delete an entire custom group, use `DeleteAIModel` (custom groups only; batch via `GroupNames.N`).
 - All calls still hit the environment's billing path. If such custom models also need Token settlement, eligibility must be verified first.
 
@@ -385,7 +385,7 @@ interface WxGenerateTextResponse {
 ## Best Practices
 
 1. **Run the two-step preflight before writing business code.** Fixed order: ① `DescribeActivityInfo` / `DescribeEnvPostpayPackage` for billing eligibility → ② `DescribeAIModels` for group readiness (if needed, `DescribeManagedAIModelList` for catalog + pricing, then `UpdateAIModel` to enable the target model). Only after both pass should you write `wx.cloud.extend.AI.createModel(...)`.
-2. **`createModel(provider)` accepts only three kinds of values** — `"hunyuan-exp"` (成长计划 exclusive legacy group), `"cloudbase"` (main managed group, default for new projects), or the custom-onboarding `GroupName` (must NOT start with `cloudbase`). **Never** write `createModel("deepseek")` (unless `DescribeAIModels` truly returns a legacy builtin group named `deepseek`), `createModel("hunyuan")`, or `createModel("custom")` — these are model names or placeholders, not GroupNames.
+2. **`createModel(provider)` accepts only three kinds of values** — `"hunyuan-exp"` (成长计划 exclusive legacy group), `"cloudbase"` (main managed group, default for new projects), or the custom-onboarding `GroupName` (**MUST start with `custom-`**, e.g. `custom-kimi`, `custom-openai-compat`, to avoid colliding with built-in / vendor names). **Never** write `createModel("deepseek")` (unless `DescribeAIModels` truly returns a legacy builtin group named `deepseek`), `createModel("hunyuan")`, `createModel("kimi")`, or `createModel("custom")` — these are model/vendor names or placeholders, not GroupNames.
 3. **The `model` field must come from `DescribeAIModels`.** Pass a value that actually exists in the `Models[].Model` list of the chosen group. The main managed group only has `deepseek-v4-flash` enabled by default; to use others, call `UpdateAIModel` first.
 4. **Hunyuan models are strictly bound to 成长计划.** To use a `hunyuan-*` model, the 成长计划 must be enrolled. When not enrolled, guide the user to `https://docs.cloudbase.net/ai/ai-inspire-plan`, or switch to `"cloudbase"` + `deepseek-v4-flash`. Do not bypass the check and call anyway.
 5. **Check pricing before enabling more models.** `DescribeManagedAIModelList` returns `ModelChargingInfo` (`Uniform` flat price / `Tiered` tiered pricing) + `ModelSpec.ContextLength`. Confirm before calling `UpdateAIModel`. `Models` is a **full replacement** — merge the old list + the new entry before passing.
