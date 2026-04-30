@@ -1,6 +1,6 @@
 ---
 name: ai-model-nodejs
-description: Use this skill when developing Node.js backend services or CloudBase cloud functions (Express/Koa/NestJS, serverless, backend APIs) that need AI capabilities. Features text generation (generateText), streaming (streamText), AND image generation (generateImage) via @cloudbase/node-sdk ≥3.16.0. Built-in models include Hunyuan (hunyuan-2.0-instruct-20251111 recommended), DeepSeek (deepseek-v3.2 recommended), and hunyuan-image for images. This is the ONLY SDK that supports image generation. NOT for browser/Web apps (use ai-model-web) or WeChat Mini Program (use ai-model-wechat).
+description: Use this skill when developing Node.js backend services or CloudBase cloud functions (Express/Koa/NestJS, serverless, backend APIs) that need AI capabilities. Features text generation (generateText), streaming (streamText), AND image generation (generateImage) via @cloudbase/node-sdk ≥3.16.0. Default managed model for text is deepseek-v4-flash; hunyuan-2.0-instruct-20251111 available as alternative; hunyuan-image for images. This is the ONLY SDK that supports image generation. Before calling ANY model (text or image) you MUST run a pre-flight eligibility check via callCloudApi (DescribeEnvPostpayPackage for Token Credits resource package). Handles non-managed / self-hosted OpenAI-compatible models via custom model integration. 关键词：大模型调用、AI 模型、generateText、streamText、generateImage、资格检查、Token Credits 资源包、deepseek-v4-flash、hunyuan-exp、hunyuan-image、自定义模型接入、callCloudApi、DescribeEnvPostpayPackage。NOT for browser/Web apps (use ai-model-web) or WeChat Mini Program (use ai-model-wechat).
 version: 2.18.0
 alwaysApply: false
 ---
@@ -33,14 +33,88 @@ Use this skill for **calling AI models in Node.js backend or CloudBase cloud fun
 
 ---
 
+## 调用前必须的资格检查（Pre-flight Eligibility Check）
+
+在后端调用 AI 模型前，**先确认当前环境具备调用条件**。**文本生成和图像生成都会消耗 Token Credits 资源包**，都必须先通过此检查。
+
+### 步骤 1：获取环境 ID
+
+调用 MCP 工具 `envQuery`（`action=info`），从返回值中取出 `EnvId`。
+
+### 步骤 2：按场景判定分支
+
+| 用户输入特征 | 进入哪个分支 |
+|-------------|-------------|
+| 未指定模型 / 只说「调用大模型 / 生成文本 / 生成图片」 | 分支 A：托管 + Token Credits 资源包 |
+| 指定托管列表内模型（如 `deepseek-v4-flash`、`hunyuan-2.0-instruct-20251111`、`hunyuan-image`） | 分支 A |
+| 指定第三方 / 自建私有模型（非托管） | 分支 C：自定义接入（跳到下一章节） |
+
+### 步骤 3：分支 A — Token Credits 资源包检查
+
+调用 MCP 工具：
+
+```
+callCloudApi(service="tcb", action="DescribeEnvPostpayPackage", params={ EnvId })
+```
+
+**命中条件**（均需满足）：
+- `envPostpayPackageInfoList` 中存在至少一项
+- 该项 `postpayPackageId` 前缀为 `pkg_tcb_tokencredits_`
+- 该项 `status ∉ [3, 4]`（3 / 4 通常代表已过期 / 已停用；以实际响应为准）
+
+> 参数 / 返回字段大小写以首次实测返回为准。若调用报 `InvalidParameter`，尝试 camelCase（如 `envId`）。
+
+### 步骤 4：结果处理
+
+- ✅ **命中** → 可以继续写代码，未指定模型时文本用 `deepseek-v4-flash`、图像用 `hunyuan-image`
+- ❌ **未命中** → **停止写代码**，向用户输出（把 `{envId}` 替换为真实值）：
+  > 当前环境未开通 Token Credits 资源包，请先购买后再调用：
+  > https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token
+  >
+  > 完成后告诉我一声，我重新检查资源包状态。
+
+---
+
 ## Available Providers and Models
 
-CloudBase provides these built-in providers and models:
+CloudBase 托管以下 provider；**未指定文本模型时默认使用 `deepseek-v4-flash`，图像模型用 `hunyuan-image`**。
 
-| Provider | Models | Recommended |
-|----------|--------|-------------|
-| `hunyuan-exp` | `hunyuan-turbos-latest`, `hunyuan-t1-latest`, `hunyuan-2.0-thinking-20251109`, `hunyuan-2.0-instruct-20251111` | ✅ `hunyuan-2.0-instruct-20251111` |
-| `deepseek` | `deepseek-r1-0528`, `deepseek-v3-0324`, `deepseek-v3.2` | ✅ `deepseek-v3.2` |
+### 默认 / 推荐（托管 + Token Credits）
+
+| Provider | 模型 | 适用 |
+|----------|------|------|
+| `deepseek` | ✅ **`deepseek-v4-flash`**（文本默认） | 通用对话、文本生成 |
+| `hunyuan-exp` | `hunyuan-2.0-instruct-20251111` | 中文语境备选 |
+| `hunyuan-image` | ✅ **`hunyuan-image`**（图像默认） | 文生图（仅 Node SDK 支持） |
+
+### 兼容可用（不推荐新项目）
+
+`deepseek-r1-0528`、`deepseek-v3-0324`、`deepseek-v3.2`、`hunyuan-turbos-latest`、`hunyuan-t1-latest`、`hunyuan-2.0-thinking-20251109`
+
+### 不在托管列表的模型
+
+第三方 / 自建私有模型 → 见下一章节「不在托管列表时的自定义接入」。
+
+---
+
+## 不在托管列表时的自定义接入
+
+当用户要调用**非托管**的模型（企业自建、第三方 OpenAI 兼容端点等），**不要阻塞**，给出接入指引：
+
+1. 控制台入口：`https://tcb.cloud.tencent.com/dev?envId={envId}#/ai`
+2. 程序化方式（参数名以官方文档及实测为准；若 Action 不可用，回退控制台入口）：
+   ```
+   callCloudApi(service="tcb", action="CreateAIModel", params={
+     EnvId: "<envId>",
+     Provider: "custom",
+     BaseUrl: "<OpenAI 兼容端点>",
+     ApiKey: "<用户持有的 key>",
+     ModelName: "<模型名>"
+   })
+   ```
+3. 配置完成后用 `callCloudApi(tcb, DescribeAIModels, { EnvId })` 查看已接入的模型列表，再按本 skill 普通 SDK 流程调用。
+
+> 自定义模型的计费由第三方承担，不走 Token Credits 资源包。
 
 ---
 
@@ -106,11 +180,13 @@ const ai = app.ai();
 
 ## generateText() - Non-streaming
 
+> **前提**：已完成「调用前必须的资格检查」。
+
 ```js
-const model = ai.createModel("hunyuan-exp");
+const model = ai.createModel("deepseek");
 
 const result = await model.generateText({
-  model: "hunyuan-2.0-instruct-20251111",  // Recommended model
+  model: "deepseek-v4-flash",  // 默认推荐（托管 + Token Credits）
   messages: [{ role: "user", content: "你好，请你介绍一下李白" }],
 });
 
@@ -129,7 +205,7 @@ const model = ai.createModel("deepseek");
 
 try {
   const result = await model.generateText({
-    model: "deepseek-v3.2",
+    model: "deepseek-v4-flash",
     messages: [{ role: "user", content: "Summarize today's deployment logs" }],
   });
 
@@ -143,11 +219,13 @@ try {
 
 ## streamText() - Streaming
 
+> **前提**：已完成「调用前必须的资格检查」。
+
 ```js
-const model = ai.createModel("hunyuan-exp");
+const model = ai.createModel("deepseek");
 
 const res = await model.streamText({
-  model: "hunyuan-2.0-instruct-20251111",  // Recommended model
+  model: "deepseek-v4-flash",  // 默认推荐
   messages: [{ role: "user", content: "你好，请你介绍一下李白" }],
 });
 
@@ -171,6 +249,8 @@ const usage = await res.usage;        // Token usage
 ## generateImage() - Image Generation
 
 ⚠️ **Image generation is only available in Node SDK**, not in JS SDK (Web) or WeChat Mini Program.
+
+⚠️ **图像生成同样消耗 Token Credits 资源包**，调用前也需要先完成「调用前必须的资格检查」；相比文本生成单次扣费更高，且耗时更长（建议云函数 timeout 设 900s）。
 
 ```js
 const imageModel = ai.createImageModel("hunyuan-image");
@@ -251,3 +331,15 @@ interface Usage {
   total_tokens: number;
 }
 ```
+
+---
+
+## Best Practices
+
+1. **先跑「调用前必须的资格检查」再写业务代码** —— 通过 `envQuery` 拿到 `EnvId`，再用 `callCloudApi(service="tcb", action="DescribeEnvPostpayPackage", params={ EnvId })` 确认 Token Credits 资源包状态。**文本与图像调用共用同一个资源包，都必须先检查**；未开通时直接返回购买链接 `https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token`，不要先写 SDK 调用再等运行时报错。
+2. **图像生成的超时与配额要单独规划** —— `generateImage` 单次扣费高于文本、耗时更长（通常十几秒到数十秒）。在云函数场景下把 `timeout` 放到 `900s`；在 HTTP 函数场景里注意网关 60s 上限，必要时走异步任务 + 轮询；对用户侧做并发与频次限制，避免一次失败烧掉整包 Token。
+3. **流式返回优先用于长文本交互** —— 在 HTTP 函数或云函数 SSE 场景，用 `streamText` + `for await (const chunk of result.textStream)` 逐段写回客户端，降低首字延迟；注意在 catch 中处理流中断并关闭底层响应。
+4. **Server 侧 SDK 版本锁定 `@cloudbase/node-sdk` ≥ 3.16.0** —— 图像生成能力只在此版本及以上可用。升级前通过 `npm ls @cloudbase/node-sdk` 核对云函数/云托管实际加载的版本，避免本地 OK 但线上旧版本。
+5. **模型名不要写死字符串散落各处** —— 统一在配置或常量里维护 `DEFAULT_TEXT_MODEL = "deepseek-v4-flash"`、`DEFAULT_IMAGE_MODEL = "hunyuan-image"`；托管模型列表 / 定价会演进，集中维护便于切换。遇到不在托管列表的模型，走「不在托管列表时的自定义接入」那一节，不要在业务代码里硬编码第三方密钥。
+6. **错误处理要区分「资格未就绪」与「调用失败」** —— 前者是资源包 / 成长计划未开通（需要引导用户去买 / 报名），后者才是参数错或模型侧异常。两类错误给用户的提示与动作完全不同，不要都归到同一个 `try/catch` 后统一 toast。
+7. **日志里不要回写完整 prompt / 生成文本** —— 生产环境只打印 `usage.total_tokens` 与截断后的前若干字符，避免敏感内容和成本敏感的 token 数据外泄到日志服务。

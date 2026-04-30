@@ -46,6 +46,8 @@ If a skill points to its own `references/...` files, keep following those relati
 
 | Scenario | Read first | Then read | Do NOT route to first | Must check before action |
 |----------|------------|-----------|------------------------|--------------------------|
+| Scenario | Read first | Then read | Do NOT route to first | Must check before action |
+|----------|------------|-----------|------------------------|--------------------------|
 | Web login / registration / auth UI | `auth-tool` | auth-web, web-development | cloud-functions, http-api | Provider status and publishable key |
 | WeChat mini program + CloudBase | `miniprogram-development` | auth-wechat, no-sql-wx-mp-sdk | auth-web, web-development | Whether the project really uses CloudBase / `wx.cloud` |
 | Native App / Flutter / React Native | `http-api` | auth-tool, relational-database-tool | auth-web, no-sql-web-sdk, web-development | SDK boundary, OpenAPI, auth method |
@@ -54,17 +56,18 @@ If a skill points to its own `references/...` files, keep following those relati
 | Cloud Functions | `cloud-functions` | auth-tool, ai-model-nodejs | cloudrun-development, auth-web | Event vs HTTP function, runtime, `scf_bootstrap` |
 | CloudRun backend | `cloudrun-development` | auth-tool, relational-database-tool | cloud-functions | Container boundary, Dockerfile, CORS |
 | AI Agent (智能体开发) | `cloudbase-agent` | cloud-functions, cloudrun-development | cloud-functions, cloudrun-development | AG-UI protocol, scf_bootstrap, SSE streaming |
+| AI model call (大模型调用 / 文本生成 / 图片生成 / 流式对话) | `ai-model-web` | ai-model-nodejs, ai-model-wechat | cloudbase-agent, cloud-functions, cloudrun-development | 先跑「调用前必须的资格检查」：`DescribeActivityInfo`（小程序成长计划） + `DescribeEnvPostpayPackage`（Token Credits 资源包） |
 | UI generation | `ui-design` | web-development, miniprogram-development | cloud-functions | Design specification first |
 | AI Model (Web) | `web-development` | ai-model-web, ui-design | ai-model-wechat, http-api | Platform and streaming interaction mode |
 | Resource health inspection / troubleshooting | `ops-inspector` | cloud-functions, cloudrun-development | ui-design, spec-workflow | CLS enabled, time range for logs |
 | Spec workflow / architecture design | `spec-workflow` | cloudbase | web-development, cloud-functions | Requirements, design, tasks confirmed |
-
 
 ### Routing reminders
 
 - Web auth failures are usually caused by skipping provider configuration, not by missing frontend code snippets.
 - Native App failures are usually caused by reading Web SDK paths, not by missing HTTP API knowledge.
 - Mini program failures are usually caused by treating `wx.cloud` like Web auth or Web SDK.
+- AI 大模型调用失败通常是资源包未开通或小程序成长计划未报名，不是 SDK 用错；先跑 `DescribeEnvPostpayPackage` / `DescribeActivityInfo` 资格检查，再去改代码。小程序端优先判成长计划，Web / Node.js 端优先判 Token Credits 资源包。
 
 ### Web SDK quick reminder
 
