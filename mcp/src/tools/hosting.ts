@@ -285,17 +285,38 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       const cloudbase = await getManager()
       // Normalize cloudPath: remove leading/trailing slashes to avoid double slashes in uploaded file keys
       const cloudPath = rawCloudPath ? rawCloudPath.trim().replace(/^\/+|\/+$/g, '') : '';
+      // localPath and files are alternative upload modes in the underlying SDK; only forward
+      // `files` when it actually contains entries, otherwise an empty array can shadow the
+      // localPath-based folder upload and result in 0 files being uploaded.
+      const normalizedFiles = files.map(f => ({
+        localPath: f.localPath,
+        cloudPath: f.cloudPath.trim().replace(/^\/+|\/+$/g, '')
+      }));
+      if (!localPath && normalizedFiles.length === 0) {
+        throw new Error(
+          "[uploadFiles] 缺少上传目标：请提供 localPath（单文件或目录的绝对路径），或提供非空的 files 列表。"
+        );
+      }
       let result: unknown;
       try {
-        result = await cloudbase.hosting.uploadFiles({
-          localPath,
-          cloudPath: cloudPath || undefined,
-          files: files.map(f => ({
-            localPath: f.localPath,
-            cloudPath: f.cloudPath.trim().replace(/^\/+|\/+$/g, '')
-          })),
-          ignore
-        });
+        if (normalizedFiles.length > 0) {
+          result = await cloudbase.hosting.uploadFiles({
+            localPath,
+            cloudPath: cloudPath || undefined,
+            files: normalizedFiles,
+            ignore,
+          });
+        } else {
+          // Use single-file/folder upload mode. The underlying SDK treats `files`
+          // and `localPath` as alternative upload modes; passing an empty `files`
+          // array silently short-circuits the localPath-based folder walk and
+          // results in 0 files being uploaded, leaving static hosting empty.
+          result = await cloudbase.hosting.uploadFiles({
+            localPath,
+            cloudPath: cloudPath || undefined,
+            ignore,
+          } as Parameters<typeof cloudbase.hosting.uploadFiles>[0]);
+        }
       } catch (error) {
         throw new Error(buildUploadFilesErrorMessage(error, localPath));
       }
@@ -349,6 +370,10 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       const uploadedFiles = (uploadResult.files as Array<{ options?: { Key?: string } }>) || [];
       const fileCount = uploadedFiles.length;
       const deploymentTarget = cloudPath ? `/${cloudPath}/` : '根目录';
+      const deploymentSucceeded = fileCount > 0;
+      const message = deploymentSucceeded
+        ? `部署成功：已上传 ${fileCount} 个文件到 ${deploymentTarget}`
+        : `未上传任何文件到 ${deploymentTarget}。请确认 localPath 指向存在的非空目录或文件，或传入非空的 files 列表，然后重试。`;
 
       return {
         content: [
@@ -357,14 +382,16 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             text: JSON.stringify({
               ...uploadResult,
               staticDomain,
-              message: `部署成功：已上传 ${fileCount} 个文件到 ${deploymentTarget}`,
+              message,
               accessUrl: accessUrl,
               deploymentStatus: {
                 filesUploaded: fileCount,
                 targetPath: cloudPath || '/',
                 staticDomain: staticDomain,
-                isReady: true,
-                note: "CDN 缓存可能需要 1-3 分钟生效，如无法立即访问请稍后再试"
+                isReady: deploymentSucceeded,
+                note: deploymentSucceeded
+                  ? "CDN 缓存可能需要 1-3 分钟生效，如无法立即访问请稍后再试"
+                  : "没有文件被上传，静态托管上不会出现新资源；请修复 localPath/files 后重新调用 uploadFiles。"
               }
             }, null, 2)
           }
