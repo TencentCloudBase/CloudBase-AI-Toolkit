@@ -563,7 +563,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
     {
       title: "管理权限与用户配置",
       description:
-        "权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单；前端用户名密码注册应使用 `auth.signUp({ username, password })`，登录应使用 `auth.signInWithPassword({ username, password })`。注意：`securityRule` 的详细语义取决于 `resourceType`；`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType=\"noSqlDatabase\"` 的文档数据库安全规则。配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。",
+        "权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单；前端用户名密码注册应使用 `auth.signUp({ username, password })`，登录应使用 `auth.signInWithPassword({ username, password })`。**必填参数提示：`action=\"createUser\"` 时必须同时提供 `username` 和 `password` 两个参数；如果用户没有显式给出密码，请在调用工具之前先与用户确认密码或自行生成一个安全的随机密码，不要省略 `password` 字段。** 注意：`securityRule` 的详细语义取决于 `resourceType`；`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType=\"noSqlDatabase\"` 的文档数据库安全规则。配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。",
       inputSchema: {
         action: z.enum(MANAGE_PERMISSION_ACTIONS),
         resourceType: z
@@ -592,8 +592,8 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
         policies: z.array(z.record(z.any())).optional(),
         uid: z.string().optional(),
         uids: z.array(z.string()).optional(),
-        username: z.string().optional().describe("用户名。action=createUser 时必填。"),
-        password: z.string().optional().describe("密码。action=createUser 时必填。"),
+        username: z.string().optional().describe("用户名。**`action=\"createUser\"` 时必填**，需与 `password` 一起提供。"),
+        password: z.string().optional().describe("密码。**`action=\"createUser\"` 时必填**，缺失会导致创建用户失败；如果用户未指定密码，请先和用户确认或生成一个安全的随机密码再调用工具，不要遗漏该参数。`action=\"updateUser\"` 时可选，仅在需要重置密码时提供。"),
         userStatus: z.enum(["ACTIVE", "BLOCKED"]).optional(),
       },
       annotations: {
