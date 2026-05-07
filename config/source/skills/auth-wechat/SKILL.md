@@ -85,6 +85,7 @@ Use it when you need to:
 
 4. **Follow CloudBase API shapes exactly**
    - Use `wx-server-sdk` in cloud functions
+   - Treat cloud-function examples in this file as Node.js Event Functions that must stay in CommonJS: use `require()` and `exports.main`, keep the entry file as `index.js`, and do not add `"type": "module"` to `package.json`
    - Use `wx.cloud` in Mini Program client code
    - Treat method names and parameter shapes in this file as canonical
 
@@ -151,7 +152,9 @@ App({
 
 ### Scenario 2: Get user identity in a cloud function
 
-Use this when you need to know **who is calling** your cloud function:
+Use this when you need to know **who is calling** your cloud function.
+
+This example is a **Node.js Event Function**. Keep the entry file as `index.js`, use CommonJS (`require()`, `exports.main`), and do not set `"type": "module"` in `package.json`, or the function can fail with `require is not defined` / `Cannot use import statement outside a module`.
 
 ```js
 // Cloud function: cloudfunctions/getUserInfo/index.js

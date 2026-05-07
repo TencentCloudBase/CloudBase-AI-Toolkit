@@ -47,7 +47,7 @@ If a skill points to its own `references/...` files, keep following those relati
 | Web login / registration / auth UI | `auth-tool` | `auth-web`, `web-development` | `cloud-functions`, `http-api` | Provider status and publishable key |
 | WeChat mini program + CloudBase | `miniprogram-development` | `auth-wechat`, `no-sql-wx-mp-sdk` | `auth-web`, `web-development` | Whether the project really uses CloudBase / `wx.cloud` |
 | Native App / Flutter / React Native | `http-api` | `auth-tool`, `relational-database-tool` | `auth-web`, `web-development`, `no-sql-web-sdk` | SDK boundary, OpenAPI, auth method |
-| Cloud Functions | `cloud-functions` | domain skill as needed | `cloudrun-development` | Event vs HTTP function, runtime, `scf_bootstrap` |
+| Cloud Functions | `cloud-functions` | domain skill as needed | `cloudrun-development` | Event vs HTTP function, CommonJS vs ESM, runtime, `scf_bootstrap` |
 | CloudRun backend | `cloudrun-development` | domain skill as needed | `cloud-functions` | Container boundary, Dockerfile, CORS |
 | AI Agent (智能体开发) | `cloudbase-agent` |  domain skill as needed | `cloud-functions`,`cloudrun-development`, | AG-UI protocol, scf_bootstrap, SSE streaming |
 | UI generation | `ui-design` | platform skill | backend-only skills | Design specification first |

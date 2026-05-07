@@ -78,6 +78,8 @@ Mini program CloudBase is **naturally login-free**.
 - Do **not** generate login pages or login flows.
 - Do **not** port Web authentication patterns into mini programs.
 - In cloud functions, retrieve user identity with `cloud.getWXContext().OPENID`.
+- This cloud-function pattern is a Node.js Event Function, so keep it in CommonJS: use `require()` + `exports.main`, keep the entry file as `index.js`, and do not set `"type": "module"` in `package.json`.
+- If you want ES Modules for shared business logic, keep the CloudBase entrypoint as CommonJS and delegate with dynamic `import()` from `index.js` rather than changing the handler itself to ESM.
 
 ```js
 const cloud = require("wx-server-sdk");
