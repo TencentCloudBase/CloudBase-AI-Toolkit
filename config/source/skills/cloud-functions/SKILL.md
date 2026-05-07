@@ -266,14 +266,19 @@ queryFunctions(action="getFunctionLogDetail", requestId="abc-123")
 queryLogs(action="searchLogs", queryString='(src:app OR src:system) AND log:"ERROR"', service="tcb")
 ```
 
-`queryLogs` `queryString` follows CLS syntax (see https://cloud.tencent.com/document/api/876/128127). Common patterns:
+`queryLogs` `queryString` follows CLS syntax (see https://cloud.tencent.com/document/api/876/128127). The examples below are starting points; adapt them to the concrete log content of your query:
 - Function logs: `(src:app OR src:system) AND log:"START RequestId"`
-- Aggregated function status: `| select request_id, max(status_code) as status where retry_num=0 group by request_id`
+- Aggregated function request status: `| select request_id, max(status_code) as status where ((request_id='xxxx' AND retry_num=0) AND retry_num=0) AND status_code!=202 group by request_id, retry_num`
 - Document database (NoSQL): `module:database`
-- Document database slow-query events: `module:database AND eventType:(MongoSlowQuery)`
+- Document database slow-query events: `module:database AND eventType:(MongoSlowQuery)` — `MongoSlowQuery` is the document-database slow-query event
 - Relational database (MySQL): `module:rdb`
-- Gateway access logs: `logType:accesslog`
+- Relational database (MySQL) events: `module:rdb AND eventType:(MysqlFreeze OR MysqlRecover OR MysqlSlowQuery)` — `MysqlFreeze` = freeze, `MysqlRecover` = recover, `MysqlSlowQuery` = slow query
+- Workflow (approval flow): `module:workflow`
+- Data model: `module:model`
+- User permissions: `module:auth`
 - LLM trace logs: `module:llm AND logType:llm-tracelog`
+- Gateway access logs: `logType:accesslog`
+- App publish / delete events: `module:app AND eventType:(AppProdPub OR AppProdDel)` — `AppProdPub` = app publish, `AppProdDel` = app delete
 
 If these are unavailable, read `./references/operations-and-config.md` before any `callCloudApi` fallback
 
