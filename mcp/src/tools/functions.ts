@@ -1487,6 +1487,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         "\n- 本工具用于查询特定云函数的执行日志" +
         "\n- `queryLogs` 工具用于搜索 CLS 日志服务（跨服务日志聚合）",
       inputSchema: {
+        action: z
+          .enum(QUERY_FUNCTION_ACTIONS)
           .describe(
             "只读操作类型：" +
             "\n- `listFunctions`: 列出所有云函数" +
