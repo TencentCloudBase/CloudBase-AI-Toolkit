@@ -76,7 +76,7 @@ When you see "Read `{auth-web}` rule file" in this document:
 3. **⚠️ UI Design (CRITICAL)**: **MUST read `rules/ui-design/rule.md` FIRST before generating any page, interface, component, or style** - This is NOT optional. You MUST explicitly read this file and output the design specification before writing any UI code.
 4. **Core Capabilities**: Read Core Capabilities section below (especially UI Design and Database + Authentication for Mini Program)
 5. **Platform Rules**: Read `rules/miniprogram-development/rule.md` for platform-specific rules (project structure, WeChat Developer Tools, wx.cloud usage)
-6. **Authentication**: Read `rules/auth-wechat/rule.md` - **Naturally login-free, get OPENID in cloud functions**
+6. **Authentication**: Read `rules/auth-wechat/rule.md` - **Naturally login-free; get OPENID in cloud functions, which are Node.js Event Functions that must stay in CommonJS (`require()`, `exports.main`, no `"type": "module"`)**
 7. **Database**: 
    - NoSQL: `rules/no-sql-wx-mp-sdk/rule.md`
    - MySQL: `rules/relational-database-tool/rule.md` (via tools)
@@ -353,7 +353,7 @@ For example, many interfaces require a confirm parameter, which is a boolean typ
 
 ### Authentication Skills
 - **Web**: `rules/auth-web/rule.md` - **MUST use Web SDK built-in authentication**
-- **Mini Program**: `rules/auth-wechat/rule.md` - **Naturally login-free, get OPENID in cloud functions**
+- **Mini Program**: `rules/auth-wechat/rule.md` - **Naturally login-free; get OPENID in cloud functions, which are Node.js Event Functions that must stay in CommonJS (`require()`, `exports.main`, no `"type": "module"`)**
 - **Node.js**: `rules/auth-nodejs/rule.md`
 - **HTTP API**: `rules/auth-http-api/rule.md`
 - **Auth Tool (MCP)**: `rules/auth-tool/rule.md` - Configure and manage authentication providers (enable/disable login methods, setup provider settings) via MCP tools

@@ -113,7 +113,7 @@ When you see "Read `{auth-web}` rule file" in this document:
 3. **⚠️ UI Design (CRITICAL)**: **MUST read `rules/ui-design/rule.md` FIRST before generating any page, interface, component, or style** - This is NOT optional. You MUST explicitly read this file and output the design specification before writing any UI code.
 4. **Core Capabilities**: Read Core Capabilities section below (especially UI Design and Database + Authentication for Mini Program)
 5. **Platform Rules**: Read `rules/miniprogram-development/rule.md` for platform-specific rules (project structure, WeChat Developer Tools, wx.cloud usage)
-6. **Authentication**: Read `rules/auth-wechat/rule.md` - **Naturally login-free, get OPENID in cloud functions**
+6. **Authentication**: Read `rules/auth-wechat/rule.md` - **Naturally login-free; get OPENID in cloud functions, which are Node.js Event Functions that must stay in CommonJS (`require()`, `exports.main`, no `"type": "module"`)**
 7. **Database**:
    - NoSQL: `rules/no-sql-wx-mp-sdk/rule.md`
    - MySQL: `rules/relational-database-tool/rule.md` (via tools)
@@ -397,7 +397,7 @@ For example, many interfaces require a confirm parameter, which is a boolean typ
 
 ### Authentication Skills
 - **Web**: `rules/auth-web/rule.md` - **MUST use Web SDK built-in authentication**
-- **Mini Program**: `rules/auth-wechat/rule.md` - **Naturally login-free, get OPENID in cloud functions**
+- **Mini Program**: `rules/auth-wechat/rule.md` - **Naturally login-free; get OPENID in cloud functions, which are Node.js Event Functions that must stay in CommonJS (`require()`, `exports.main`, no `"type": "module"`)**
 - **Node.js**: `rules/auth-nodejs/rule.md`
 - **Auth Tool (MCP)**: `rules/auth-tool/rule.md` - Configure and manage authentication providers (enable/disable login methods, setup provider settings) via MCP tools
 
@@ -476,7 +476,7 @@ When users request deployment to CloudBase:
 1. **Backend Deployment (if applicable)**:
    - Only for Node.js cloud functions: deploy directly using `manageFunctions(action="createFunction")` / `manageFunctions(action="updateFunctionCode")`
      - Legacy compatibility: if older materials mention `createFunction`, `updateFunctionCode`, or `getFunctionList`, map them to the converged tools first
-     - Before deploying, decide whether the function is Event or HTTP. Event Functions use `exports.main = async (event, context) => {}`.
+     - Before deploying, decide whether the function is Event or HTTP. Event Functions use `exports.main = async (event, context) => {}` and must stay in CommonJS: use `require()`, keep the entry file as `index.js`, and do not set `"type": "module"` in `package.json`.
      - HTTP Functions are standard web services: they must listen on port `9000`, include `scf_bootstrap`, and for Node.js should default to native `http.createServer((req, res) => { ... })`. Parse `req.url` and the streamed request body manually, set response headers explicitly, and do not write the function as `exports.main` unless you intentionally choose Functions Framework.
    - For other languages backend server (Java, Go, PHP, Python, Node.js): deploy to Cloud Run
    - Ensure backend code supports CORS by default

@@ -31,7 +31,7 @@ When user mentions login/auth requirements:
 - **MUST enable** required auth methods before implementing frontend code
 - **Platform differences**:
   - **Web**: MUST use Web SDK built-in auth (`.codebuddy/rules/tcb/rules/auth-web/rule.md`)
-  - **Mini Program**: Naturally login-free, get OPENID in cloud functions (`.codebuddy/rules/tcb/rules/auth-wechat/rule.md`)
+  - **Mini Program**: Naturally login-free; get OPENID in cloud functions, which are Node.js Event Functions that must stay in CommonJS (`require()`, `exports.main`, no `"type": "module"`) (`.codebuddy/rules/tcb/rules/auth-wechat/rule.md`)
   - **Native Apps**: MUST use HTTP API (`.codebuddy/rules/tcb/rules/http-api/rule.md`)
 
 ### 4. Platform-Specific Rules
@@ -83,7 +83,7 @@ When users request deployment to CloudBase:
 
 1. **Backend Deployment (if applicable)**:
    - Only for Node.js cloud functions: deploy directly using `manageFunctions(action="createFunction")` / `manageFunctions(action="updateFunctionCode")`
-     - Before deploying, decide whether the function is Event or HTTP. Event Functions use `exports.main = async (event, context) => {}`.
+     - Before deploying, decide whether the function is Event or HTTP. Event Functions use `exports.main = async (event, context) => {}` and must stay in CommonJS: use `require()`, keep the entry file as `index.js`, and do not set `"type": "module"` in `package.json`.
      - HTTP Functions are standard web services: they must listen on port `9000`, include `scf_bootstrap`, and for Node.js should default to native `http.createServer((req, res) => { ... })`. Parse `req.url` and the streamed request body manually, set response headers explicitly, and do not write the function as `exports.main` unless you intentionally choose Functions Framework.
    - For other languages backend server (Java, Go, PHP, Python, Node.js): deploy to Cloud Run
    - Ensure backend code supports CORS by default

@@ -198,7 +198,7 @@ Prefer long-term memory when available: write the scenarios and working rules th
 
 ### When Developing a Mini Program Project:
 1. **Platform**: Read the `miniprogram-development` skill for project structure, WeChat Developer Tools, and wx.cloud usage
-2. **Authentication**: Read the `auth-wechat` skill - Naturally login-free, get OPENID in cloud functions
+2. **Authentication**: Read the `auth-wechat` skill - Naturally login-free; get OPENID in cloud functions, which are Node.js Event Functions that must stay in CommonJS (`require()`, `exports.main`, no `"type": "module"`)
 3. **Database**:
    - NoSQL: `no-sql-wx-mp-sdk` skill
    - MySQL: `relational-database-tool` skill (via tools)
@@ -298,7 +298,7 @@ For better UI/UX design, consider reading the `ui-design` skill which provides:
 
 ### Authentication Skills
 - **Web**: `auth-web` - Use Web SDK built-in authentication
-- **Mini Program**: `auth-wechat` - Naturally login-free, get OPENID in cloud functions
+- **Mini Program**: `auth-wechat` - Naturally login-free; get OPENID in cloud functions, which are Node.js Event Functions that must stay in CommonJS (`require()`, `exports.main`, no `"type": "module"`)
 - **Node.js**: `auth-nodejs`
 - **Auth Tool**: `auth-tool` - Configure and manage authentication providers
 
@@ -332,7 +332,7 @@ For better UI/UX design, consider reading the `ui-design` skill which provides:
 4. **Deployment Order**: When there are backend dependencies, prioritize deploying backend before previewing frontend
 5. **Authentication Rules**: Use built-in authentication functions, distinguish authentication methods by platform
    - **Web Projects**: Use CloudBase Web SDK built-in authentication (refer to `auth-web`)
-   - **Mini Program Projects**: Naturally login-free, get OPENID in cloud functions (refer to `auth-wechat`)
+   - **Mini Program Projects**: Naturally login-free; get OPENID in cloud functions, which are Node.js Event Functions that must stay in CommonJS (`require()`, `exports.main`, no `"type": "module"`) (refer to `auth-wechat`)
    - **Native Apps**: Use HTTP API for authentication (refer to `http-api`)
 6. **Native App Development**: CloudBase SDK is NOT available for native apps, MUST use HTTP API. Only MySQL database is supported.
 
@@ -347,7 +347,7 @@ When users request deployment to CloudBase:
 
 1. **Backend Deployment (if applicable)**:
    - Only for Node.js cloud functions: deploy directly using `createFunction` tools
-     - Before deploying, decide whether the function is Event or HTTP. Event Functions use `exports.main = async (event, context) => {}`.
+     - Before deploying, decide whether the function is Event or HTTP. Event Functions use `exports.main = async (event, context) => {}` and must stay in CommonJS: use `require()`, keep the entry file as `index.js`, and do not set `"type": "module"` in `package.json`.
      - HTTP Functions are standard web services: they must listen on port `9000`, include `scf_bootstrap`, and for Node.js should default to native `http.createServer((req, res) => { ... })`. Parse `req.url` and the streamed request body manually, set response headers explicitly, and do not write the function as `exports.main` unless you intentionally choose Functions Framework.
    - For other languages backend server (Java, Go, PHP, Python, Node.js): deploy to Cloud Run
    - Ensure backend code supports CORS by default
