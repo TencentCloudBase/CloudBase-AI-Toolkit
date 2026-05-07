@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExtendedMcpServer } from "../server.js";
 import { registerDatabaseTools } from "./databaseNoSQL.js";
@@ -251,10 +252,36 @@ describe("NoSQL database tools", () => {
     expect(meta.description).toContain("`$set`、`$inc`、`$push`");
     expect(meta.description).toContain("`_id` 就是该 `uid`");
     expect(meta.description).toContain("`address.city`");
+    expect(meta.description).toContain("把 shipping 更新为 {city: \"guangzhou\"}");
+    expect(meta.description).toContain('"shipping.city": "guangzhou"');
     expect(meta.inputSchema.update.description).toContain("MgoUpdate");
     expect(meta.inputSchema.update.description).toContain("`$set`");
     expect(meta.inputSchema.update.description).toContain("`status`");
     expect(meta.inputSchema.update.description).toContain("`address.city`");
+  });
+
+  it("generated NoSQL tool docs should include the nested shipping-field warning", () => {
+    const toolsSpec = JSON.parse(
+      readFileSync(
+        new URL("../../../scripts/tools.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const toolsDoc = readFileSync(
+      new URL("../../../doc/mcp-tools.md", import.meta.url),
+      "utf8",
+    );
+    const writeTool = toolsSpec.tools.find(
+      (tool: { name: string }) => tool.name === "writeNoSqlDatabaseContent",
+    );
+
+    expect(writeTool).toBeTruthy();
+    expect(writeTool.description).toContain('"shipping.city": "guangzhou"');
+    expect(writeTool.description).toContain(
+      '把 shipping 更新为 {city: "guangzhou"}',
+    );
+    expect(toolsDoc).toContain('"shipping.city": "guangzhou"');
+    expect(toolsDoc).toContain('把 shipping 更新为 {city: "guangzhou"}');
   });
 
   it("writeNoSqlDatabaseContent should warn when auth-linked role docs are upserted by uid query", async () => {
