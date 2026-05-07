@@ -149,6 +149,15 @@ Example structure for operation recording:
    - Combine with static hosting file paths to construct final access addresses
    - **Important**: If access address is a directory, it must end with `/`
 
+3. **Cloud Storage Public URL**:
+   - **CRITICAL**: `manageStorage(action=upload)` and `queryStorage(action=url)` return `temporaryUrl` which is a temporary signed URL that expires (default 1 hour). Do NOT use this as a permanent public URL.
+   - To get the permanent public access URL for a cloud storage object:
+     1. Call `envQuery(action=info)` to get environment details
+     2. Extract the storage CDN domain from `EnvInfo.Storages[0].CdnDomain` (e.g., `your-env-id.tcb.qcloud.la`)
+     3. Construct the public URL: `https://{CdnDomain}/{cloudPath}`
+   - Example: If `CdnDomain` is `env-xxx.tcb.qcloud.la` and `cloudPath` is `uploads/avatar.jpg`, the public URL is `https://env-xxx.tcb.qcloud.la/uploads/avatar.jpg`
+   - Note: The public URL is accessible only if the storage bucket ACL allows public read (default is `PRIVATE` which requires signed URLs)
+
 ## Environment and Authentication
 
 1. **SDK Initialization**:
