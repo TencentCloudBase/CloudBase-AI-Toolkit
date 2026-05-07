@@ -8,7 +8,8 @@
 <h1>CloudBase MCP</h1>
 
 **🪐 AI 编程，一键上线**<br/>
-连接 AI IDE 与腾讯云 CloudBase 的部署桥梁，让你的 AI 应用即刻上线
+连接 AI IDE 与腾讯云 CloudBase 的部署桥梁，让你的 AI 应用即刻上线<br/>
+<sup>💡 像 Vercel + Supabase，但全程 AI 驱动——从提示词直达生产环境</sup>
 
 [English](./README-EN.md) · **简体中文** · [文档][docs] · [更新日志][changelog] · [反馈问题][github-issues-link]
 
@@ -24,7 +25,6 @@
 ![][github-contributors-shield]
 [![][cnb-shield]][cnb-link]
 [![][deepwiki-shield]][deepwiki-link]
-[![MCP Badge](https://lobehub.com/badge/mcp/tencentcloudbase-cloudbase-ai-toolkit)](https://lobehub.com/mcp/tencentcloudbase-cloudbase-ai-toolkit)
 
 ⭐ 喜欢这个项目？点个 Star，新版本发布时你会收到通知～
 
@@ -38,7 +38,7 @@
 
 <img width="1148" height="389" alt="Clipboard_Screenshot_1764660604" src="https://github.com/user-attachments/assets/86294f88-632e-46b5-958f-94d8c8b85070" />
 
-[![][github-trending-shield]](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)
+[![][github-trending-shield]](https://github.com/TencentCloudBase/CloudBase-MCP)
 
 [<img width="791" height="592" alt="Clipboard_Screenshot_1763724670" src="https://github.com/user-attachments/assets/f769beb7-5710-4397-8854-af2b7e452f70" />](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/tutorials)
 
@@ -424,6 +424,53 @@ CodeBuddy 已内置 CloudBase MCP，无需配置即可使用。
 - [Agent Skills实战分享：AI编程最后一公里，别让代码死在localhost里](https://mp.weixin.qq.com/s/soIEU5DG01xfrKMaCetGAA)
 - [查看更多视频与教程](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/tutorials)
 
+## ❓ 常见问题
+
+<details>
+<summary><b>跟 Vercel / Railway / Netlify 有什么不同？</b></summary>
+
+这些平台解决的是"部署"，CloudBase MCP 解决的是"从 AI 生成代码到部署上线"的完整链路。你不需要离开 IDE，不需要写配置文件，AI 自动帮你搞定云函数、数据库、CDN、域名等所有云资源。一句话：它们是部署工具，我们是 AI 原生的全栈开发+部署平台。
+
+</details>
+
+<details>
+<summary><b>不用 Cursor / Copilot 这些 AI IDE 也能用吗？</b></summary>
+
+CloudBase MCP 基于标准 MCP 协议，支持所有兼容 MCP 的工具——包括 Claude Code、Gemini CLI、OpenCode 等命令行工具。只要你的工具能配置 MCP Server，就能用。[查看完整支持列表](#支持的-ai-ide)。
+
+</details>
+
+<details>
+<summary><b>我的代码会被上传到哪里？安全吗？</b></summary>
+
+代码只会部署到**你自己的**腾讯云开发环境，不经过任何第三方。本地模式下 MCP 服务运行在你本机，代码不会离开你的电脑直到你主动部署。所有云端通信均走 HTTPS 加密。
+
+</details>
+
+
+<details>
+<summary><b>支持哪些类型的项目？</b></summary>
+
+几乎所有主流场景：React/Vue/Next.js 等 Web 应用、微信小程序、Node.js/Python/Go/Java 后端服务。AI 会自动检测项目类型并选择合适的部署策略（静态托管、云函数、云托管容器）。
+
+</details>
+
+<details>
+<summary><b>免费吗？需要付费吗？</b></summary>
+
+CloudBase MCP 工具本身完全开源免费（MIT）。云开发环境有免费额度，个人开发和小项目通常够用。超出免费额度后按量计费，详见 [计费说明](https://cloud.tencent.com/document/product/876/39095)。
+
+</details>
+
+<details>
+<summary><b>登录提示"环境不存在"怎么办？</b></summary>
+
+1. 确认已在 [云开发控制台](https://tcb.cloud.tencent.com/) 开通环境
+2. 检查环境是否处于正常运行状态（非欠费/隔离）
+3. 重新执行"登录云开发"让 AI 引导选择正确的环境
+
+</details>
+
 ## 💬 社区
 
 ### 微信交流群
@@ -439,7 +486,7 @@ CodeBuddy 已内置 CloudBase MCP，无需配置即可使用。
 | 平台 | 链接 | 说明 |
 |------|------|------|
 | **官方文档** | [查看文档](https://docs.cloudbase.net/) | 完整的云开发文档 |
-| **Issue 反馈** | [提交问题](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues) | Bug 反馈和功能请求 |
+| **Issue 反馈** | [提交问题](https://github.com/TencentCloudBase/CloudBase-MCP/issues) | Bug 反馈和功能请求 |
 
 ## 项目活跃度
 
@@ -449,7 +496,7 @@ CodeBuddy 已内置 CloudBase MCP，无需配置即可使用。
 
 感谢所有为 CloudBase MCP 做出贡献的开发者！
 
-[![Contributors](https://contrib.rocks/image?repo=TencentCloudBase/CloudBase-AI-ToolKit)](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=TencentCloudBase/CloudBase-MCP)](https://github.com/TencentCloudBase/CloudBase-MCP/graphs/contributors)
 
 ---
 
@@ -506,31 +553,31 @@ CodeBuddy 已内置 CloudBase MCP，无需配置即可使用。
 <!-- Links -->
 [docs]: https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/
 [changelog]: https://github.com/TencentCloudBase/CloudBase-MCP/releases
-[github-issues-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues
-[github-stars-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/stargazers
-[github-forks-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/network/members
+[github-issues-link]: https://github.com/TencentCloudBase/CloudBase-MCP/issues
+[github-stars-link]: https://github.com/TencentCloudBase/CloudBase-MCP/stargazers
+[github-forks-link]: https://github.com/TencentCloudBase/CloudBase-MCP/network/members
 [github-trending-url]: https://github.com/trending
 [npm-link]: https://www.npmjs.com/package/@cloudbase/cloudbase-mcp
-[cnb-link]: https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-ToolKit
-[deepwiki-link]: https://deepwiki.com/TencentCloudBase/CloudBase-AI-ToolKit
+[cnb-link]: https://cnb.cool/tencent/cloud/cloudbase/CloudBase-MCP
+[deepwiki-link]: https://deepwiki.com/TencentCloudBase/CloudBase-MCP
 
 <!-- Shields -->
 [npm-version-shield]: https://img.shields.io/npm/v/@cloudbase/cloudbase-mcp?color=3B82F6&label=npm&logo=npm&style=flat-square
 [npm-downloads-shield]: https://img.shields.io/npm/dw/@cloudbase/cloudbase-mcp?color=10B981&label=downloads&logo=npm&style=flat-square
-[github-stars-shield]: https://img.shields.io/github/stars/TencentCloudBase/CloudBase-AI-ToolKit?color=F59E0B&label=stars&logo=github&style=flat-square
-[github-forks-shield]: https://img.shields.io/github/forks/TencentCloudBase/CloudBase-AI-ToolKit?color=8B5CF6&label=forks&logo=github&style=flat-square
-[github-issues-shield]: https://img.shields.io/github/issues/TencentCloudBase/CloudBase-AI-ToolKit?color=EC4899&label=issues&logo=github&style=flat-square
+[github-stars-shield]: https://img.shields.io/github/stars/TencentCloudBase/CloudBase-MCP?color=F59E0B&label=stars&logo=github&style=flat-square
+[github-forks-shield]: https://img.shields.io/github/forks/TencentCloudBase/CloudBase-MCP?color=8B5CF6&label=forks&logo=github&style=flat-square
+[github-issues-shield]: https://img.shields.io/github/issues/TencentCloudBase/CloudBase-MCP?color=EC4899&label=issues&logo=github&style=flat-square
 [github-license-shield]: https://img.shields.io/badge/license-MIT-6366F1?logo=github&style=flat-square
-[github-contributors-shield]: https://img.shields.io/github/contributors/TencentCloudBase/CloudBase-AI-ToolKit?color=06B6D4&label=contributors&logo=github&style=flat-square
-[github-contributors-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/graphs/contributors
+[github-contributors-shield]: https://img.shields.io/github/contributors/TencentCloudBase/CloudBase-MCP?color=06B6D4&label=contributors&logo=github&style=flat-square
+[github-contributors-link]: https://github.com/TencentCloudBase/CloudBase-MCP/graphs/contributors
 [cnb-shield]: https://img.shields.io/badge/CNB-CloudBase--AI--ToolKit-3B82F6?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAxMiAxMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHJ4PSIyIiBmaWxsPSIjM0I4MkY2Ii8+PHBhdGggZD0iTTUgM0g3VjVINSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48cGF0aCBkPSJNNSA3SDdWOUg1IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjEuNSIvPjwvc3ZnPg==&style=flat-square
 [deepwiki-shield]: https://deepwiki.com/badge.svg
-[github-trending-shield]: https://img.shields.io/github/stars/TencentCloudBase/CloudBase-AI-ToolKit?style=social
+[github-trending-shield]: https://img.shields.io/github/stars/TencentCloudBase/CloudBase-MCP?style=social
 
 <!-- Share Links -->
-[share-x-link]: https://x.com/intent/tweet?hashtags=cloudbase,ai,devtools&text=AI%20编程%2C%20一键上线！告别繁琐的%20DevOps%20配置%2C%20从提示词到应用上线的最短路径%20🚀&url=https://github.com/TencentCloudBase/CloudBase-AI-ToolKit
+[share-x-link]: https://x.com/intent/tweet?hashtags=cloudbase,ai,devtools&text=AI%20编程%2C%20一键上线！告别繁琐的%20DevOps%20配置%2C%20从提示词到应用上线的最短路径%20🚀&url=https://github.com/TencentCloudBase/CloudBase-MCP
 [share-x-shield]: https://img.shields.io/badge/-share%20on%20x-black?labelColor=black&logo=x&logoColor=white&style=flat-square
 [share-telegram-shield]: https://img.shields.io/badge/-share%20on%20telegram-black?labelColor=black&logo=telegram&logoColor=white&style=flat-square
-[share-telegram-link]: https://t.me/share/url?url=https://github.com/TencentCloudBase/CloudBase-AI-ToolKit&text=AI%20编程%2C%20一键上线！告别繁琐的%20DevOps%20配置%2C%20从提示词到应用上线的最短路径%20🚀
-[share-weibo-link]: http://service.weibo.com/share/share.php?sharesource=weibo&title=AI%20编程%2C%20一键上线！告别繁琐的%20DevOps%20配置%2C%20从提示词到应用上线的最短路径%20🚀&url=https://github.com/TencentCloudBase/CloudBase-AI-ToolKit
+[share-telegram-link]: https://t.me/share/url?url=https://github.com/TencentCloudBase/CloudBase-MCP&text=AI%20编程%2C%20一键上线！告别繁琐的%20DevOps%20配置%2C%20从提示词到应用上线的最短路径%20🚀
+[share-weibo-link]: http://service.weibo.com/share/share.php?sharesource=weibo&title=AI%20编程%2C%20一键上线！告别繁琐的%20DevOps%20配置%2C%20从提示词到应用上线的最短路径%20🚀&url=https://github.com/TencentCloudBase/CloudBase-MCP
 [share-weibo-shield]: https://img.shields.io/badge/-share%20on%20weibo-black?labelColor=black&logo=sinaweibo&logoColor=white&style=flat-square
