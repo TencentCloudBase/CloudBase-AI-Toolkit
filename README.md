@@ -26,6 +26,8 @@
 [![][deepwiki-shield]][deepwiki-link]
 [![MCP Badge](https://lobehub.com/badge/mcp/tencentcloudbase-cloudbase-ai-toolkit)](https://lobehub.com/mcp/tencentcloudbase-cloudbase-ai-toolkit)
 
+⭐ 喜欢这个项目？点个 Star，新版本发布时你会收到通知～
+
 **发现了一个让 AI 编程一键上线的神器，推荐给正在用 AI 编程的朋友**
 
 [![][share-x-shield]][share-x-link]

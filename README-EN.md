@@ -21,6 +21,8 @@ The bridge that connects your AI IDE (Cursor, Copilot, etc.) directly to Tencent
 [![][cnb-shield]][cnb-link]
 [![][deepwiki-shield]][deepwiki-link]
 
+⭐ Like this project? Star it to get notified when new versions are released!
+
 **Found a game-changer for AI coding: one-click deploy from prompt to production**
 
 [![][share-x-shield]][share-x-link]

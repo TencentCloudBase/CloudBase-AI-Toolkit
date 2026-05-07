@@ -104,6 +104,7 @@ export const MANAGE_FUNCTION_ACTIONS = [
   "updateFunctionCode",
   "updateFunctionConfig",
   "invokeFunction",
+  "deleteFunction",
   "createFunctionTrigger",
   "deleteFunctionTrigger",
   "createLayerVersion",
@@ -493,6 +494,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
   };
 
+  const TIME_FORMAT_REGEX = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/;
+
   const validateLogRange = (
     startTime?: string,
     endTime?: string,
@@ -501,6 +504,17 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
   ) => {
     if ((offset || 0) + (limit || 0) > 10000) {
       throw new Error("offset+limit 不能大于 10000");
+    }
+
+    if (startTime && !TIME_FORMAT_REGEX.test(startTime)) {
+      throw new Error(
+        `startTime 格式错误: "${startTime}"。必须使用 YYYY-MM-DD HH:mm:ss 格式（如 2024-01-01 00:00:00）`,
+      );
+    }
+    if (endTime && !TIME_FORMAT_REGEX.test(endTime)) {
+      throw new Error(
+        `endTime 格式错误: "${endTime}"。必须使用 YYYY-MM-DD HH:mm:ss 格式（如 2024-01-01 23:59:59）`,
+      );
     }
 
     if (startTime && endTime) {
@@ -610,15 +624,30 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         input.limit,
       );
       const cloudbase = await getManager();
-      const result = await cloudbase.functions.getFunctionLogsV2({
-        name: input.functionName,
-        offset: input.offset,
-        limit: input.limit,
-        startTime: input.startTime,
-        endTime: input.endTime,
-        requestId: input.requestId,
-        qualifier: input.qualifier,
-      });
+      let result;
+      try {
+        result = await cloudbase.functions.getFunctionLogsV2({
+          name: input.functionName,
+          offset: input.offset,
+          limit: input.limit,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          requestId: input.requestId,
+          qualifier: input.qualifier,
+        });
+      } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        if (/invalid parameter/i.test(errMsg)) {
+          throw new Error(
+            `${errMsg}\n\n常见原因：\n` +
+            `1. startTime/endTime 格式错误，必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 00:00:00），不支持 ISO 8601 或时间戳\n` +
+            `2. startTime 和 endTime 间隔超过一天\n` +
+            `3. functionName 不存在或格式不正确\n` +
+            `建议：不传 startTime/endTime 时默认查询最近一天的日志。`,
+          );
+        }
+        throw error;
+      }
       logCloudBaseResult(server.logger, result);
       return buildEnvelope(
         {
@@ -644,11 +673,25 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       }
       validateLogRange(input.startTime, input.endTime);
       const cloudbase = await getManager();
-      const result = await cloudbase.functions.getFunctionLogDetail({
-        startTime: input.startTime,
-        endTime: input.endTime,
-        logRequestId: input.requestId,
-      });
+      let result;
+      try {
+        result = await cloudbase.functions.getFunctionLogDetail({
+          startTime: input.startTime,
+          endTime: input.endTime,
+          logRequestId: input.requestId,
+        });
+      } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        if (/invalid parameter/i.test(errMsg)) {
+          throw new Error(
+            `${errMsg}\n\n常见原因：\n` +
+            `1. startTime/endTime 格式错误，必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 00:00:00），不支持 ISO 8601 或时间戳\n` +
+            `2. startTime 和 endTime 间隔超过一天\n` +
+            `建议：不传 startTime/endTime 时默认查询最近一天的日志。`,
+          );
+        }
+        throw error;
+      }
       logCloudBaseResult(server.logger, result);
       return buildEnvelope(
         {
@@ -1147,6 +1190,30 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         throw error;
       }
     }
+    case "deleteFunction": {
+      if (!input.functionName) {
+        throw new Error("deleteFunction 操作时，functionName 参数是必需的");
+      }
+      requireConfirm(input.action, input.confirm);
+      const cloudbase = await getManager();
+      const result = await cloudbase.functions.deleteFunction(input.functionName);
+      logCloudBaseResult(server.logger, result);
+      return buildEnvelope(
+        {
+          action: input.action,
+          functionName: input.functionName,
+          raw: result,
+        },
+        `已删除函数 ${input.functionName}`,
+        [
+          {
+            tool: "queryFunctions",
+            action: "listFunctions",
+            reason: "确认函数已被删除",
+          },
+        ],
+      );
+    }
     case "createFunctionTrigger": {
       if (!input.functionName) {
         throw new Error("createFunctionTrigger 操作时，functionName 参数是必需的");
@@ -1417,12 +1484,20 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         action: z
           .enum(QUERY_FUNCTION_ACTIONS)
           .describe("只读操作类型，例如 listFunctions、getFunctionDetail、listFunctionLogs"),
-        functionName: z.string().optional().describe("函数名称。函数相关 action 必填"),
+        functionName: z.string().optional().describe(
+          "函数名称。listFunctionLogs、getFunctionDetail、listFunctionLayers、listFunctionTriggers、getFunctionDownloadUrl 时必填",
+        ),
         limit: z.number().optional().describe("分页数量。列表类 action 可选"),
         offset: z.number().optional().describe("分页偏移。列表类 action 可选"),
         codeSecret: z.string().optional().describe("代码保护密钥"),
-        startTime: z.string().optional().describe("日志查询开始时间"),
-        endTime: z.string().optional().describe("日志查询结束时间"),
+        startTime: z.string().optional().describe(
+          "日志查询开始时间，格式必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 00:00:00）。" +
+          "与 endTime 间隔不能超过一天。不传时默认查询最近一天",
+        ),
+        endTime: z.string().optional().describe(
+          "日志查询结束时间，格式必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 23:59:59）。" +
+          "与 startTime 间隔不能超过一天。不传时默认为当前时间",
+        ),
         requestId: z.string().optional().describe("日志 requestId。获取日志详情时必填"),
         qualifier: z.string().optional().describe("函数版本，日志查询时可选"),
         runtime: z.string().optional().describe("层查询的运行时筛选"),
@@ -1448,7 +1523,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
-          .describe("写操作类型，例如 createFunction、invokeFunction、attachLayer"),
+          .describe("写操作类型，例如 createFunction、updateFunctionCode、invokeFunction、deleteFunction、attachLayer"),
         func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
         functionRootPath: z.string().optional().describe(
           "创建或更新函数代码时默认推荐的本地目录方式。" +
@@ -1482,7 +1557,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           .optional()
           .describe("updateFunctionLayers 的目标层列表，顺序即最终顺序"),
         codeSecret: z.string().optional().describe("层绑定时的代码保护密钥"),
-        confirm: z.boolean().optional().describe("危险操作确认开关"),
+        confirm: z.boolean().optional().describe("危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作需要显式传入 confirm=true"),
       },
       annotations: {
         readOnlyHint: false,
