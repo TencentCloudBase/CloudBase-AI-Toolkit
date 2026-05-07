@@ -24,7 +24,7 @@
 <tr><td><code>modifyDataModel</code></td><td>基于Mermaid classDiagram创建数据模型。为保持兼容性，工具名仍为 modifyDataModel；当前仅支持创建新模型，不支持更新现有模型结构。内置异步任务监控，自动轮询直至完成或超时。</td></tr>
 <tr><td><code>queryFunctions</code></td><td>函数域统一只读入口。通过更自解释的 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。</td></tr>
 <tr><td><code>manageFunctions</code></td><td>函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。</td></tr>
-<tr><td><code>uploadFiles</code></td><td>上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。</td></tr>
+<tr><td><code>uploadFiles</code></td><td>上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；上传成功后会返回 accessUrl、message 和 deploymentStatus，如需继续核验已上传文件可配合 findFiles。若站点部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。</td></tr>
 <tr><td><code>deleteFiles</code></td><td>删除静态网站托管的文件或文件夹</td></tr>
 <tr><td><code>findFiles</code></td><td>搜索静态网站托管的文件</td></tr>
 <tr><td><code>domainManagement</code></td><td>统一的域名管理工具，支持绑定、解绑、查询和修改域名配置</td></tr>
@@ -418,7 +418,7 @@ classDiagram
 ---
 
 ### `uploadFiles`
-上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。
+上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；上传成功后会返回 accessUrl、message 和 deploymentStatus，如需继续核验已上传文件可配合 findFiles。若站点部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。
 
 #### 参数
 
@@ -426,7 +426,7 @@ classDiagram
 <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
 <tbody>
 <tr><td><code>localPath</code></td><td>string</td><td></td><td>本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。</td></tr>
-<tr><td><code>cloudPath</code></td><td>string</td><td></td><td>静态托管云端文件或文件夹路径，例如 files/data.txt。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。</td></tr>
+<tr><td><code>cloudPath</code></td><td>string</td><td></td><td>静态托管云端文件或文件夹路径，例如 files/data.txt。不要以斜杠开头；部署到站点根目录（/）时请传空字符串或省略此参数。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。</td></tr>
 <tr><td><code>files</code></td><td>array of object</td><td></td><td>多文件上传配置 默认值: []</td></tr>
 <tr><td><code>files[].localPath</code></td><td>string</td><td>是</td><td></td></tr>
 <tr><td><code>files[].cloudPath</code></td><td>string</td><td>是</td><td></td></tr>
