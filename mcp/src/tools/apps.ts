@@ -5,6 +5,7 @@ import { jsonContent } from "../utils/json-content.js";
 
 const QUERY_APP_ACTIONS = ["listApps", "getApp", "listAppVersions", "getAppVersion"] as const;
 const MANAGE_APP_ACTIONS = ["deployApp", "deleteApp", "deleteAppVersion"] as const;
+const APP_FRAMEWORKS = ["vue", "react", "next", "nuxt", "vite", "angular", "static"] as const;
 
 type QueryAppAction = (typeof QUERY_APP_ACTIONS)[number];
 type ManageAppAction = (typeof MANAGE_APP_ACTIONS)[number];
@@ -43,15 +44,25 @@ export function registerAppTools(server: ExtendedMcpServer) {
     "queryApps",
     {
       title: "查询 CloudApp",
-      description: "CloudApp 域统一只读入口。支持应用、版本列表与版本详情查询。",
+      description:
+        "CloudApp 域统一只读入口。可先查应用/版本，再在重新部署后用 listAppVersions 或 getAppVersion 按 serviceName 验证是否生成了新版本与最新构建状态。",
       inputSchema: {
         action: z.enum(QUERY_APP_ACTIONS),
-        serviceName: z.string().optional(),
-        searchKey: z.string().optional(),
-        pageNo: z.number().optional(),
-        pageSize: z.number().optional(),
-        versionName: z.string().optional(),
-        buildId: z.string().optional(),
+        serviceName: z
+          .string()
+          .optional()
+          .describe("CloudApp 服务名。getApp / listAppVersions / getAppVersion 时必填；重新部署后复用同一个 serviceName 查询版本历史。"),
+        searchKey: z.string().optional().describe("按应用服务名模糊搜索关键词，仅 action=listApps 时使用。"),
+        pageNo: z.number().optional().describe("分页页码，从 1 开始。"),
+        pageSize: z.number().optional().describe("分页大小。"),
+        versionName: z
+          .string()
+          .optional()
+          .describe("版本名称。getAppVersion 时可与 buildId 二选一；已知版本号时优先传该值。"),
+        buildId: z
+          .string()
+          .optional()
+          .describe("构建 ID。getAppVersion 时可与 versionName 二选一；部署返回 BuildId 后可直接用它轮询状态。"),
       },
       annotations: {
         readOnlyHint: true,
@@ -175,20 +186,50 @@ export function registerAppTools(server: ExtendedMcpServer) {
     "manageApps",
     {
       title: "管理 CloudApp",
-      description: "CloudApp 域统一写入口。首轮仅支持静态部署、删除应用和删除版本。",
+      description:
+        "CloudApp 域统一写入口。action=deployApp 会先 uploadCode 再 createApp；首次调用创建应用，后续复用同一个 serviceName 会直接触发重新部署并生成新版本，无需先删除旧应用。",
       inputSchema: {
         action: z.enum(MANAGE_APP_ACTIONS),
-        serviceName: z.string(),
-        filePath: z.string().optional().describe("要上传并部署的本地文件或目录绝对路径。该字段会直接传给 cloudAppService.uploadCode(filePath)，用于触发 CloudApp 的首次部署或同名应用的重新部署。"),
-        appPath: z.string().optional(),
-        buildPath: z.string().optional(),
-        framework: z.string().optional(),
-        nodeJsVersion: z.string().optional(),
-        installCmd: z.string().optional(),
-        buildCmd: z.string().optional(),
-        deployCmd: z.string().optional(),
-        ignore: z.array(z.string()).optional(),
-        versionName: z.string().optional(),
+        serviceName: z
+          .string()
+          .describe("CloudApp 服务名。deployApp 时复用现有 serviceName 会新增一个部署版本并触发重新部署，而不是删除重建。"),
+        filePath: z
+          .string()
+          .optional()
+          .describe("要上传并部署的本地项目根目录或 zip 文件绝对路径。deployApp 时必填；通常传源码所在目录而不是 build 产物目录，构建产物目录请用 buildPath 指定。"),
+        appPath: z
+          .string()
+          .optional()
+          .describe("应用线上访问路径（hosting mount path），例如 /my-web-app。不是本地目录路径；省略时默认为 /serviceName。"),
+        buildPath: z
+          .string()
+          .optional()
+          .describe("构建产物目录，相对于 filePath，例如 dist 或 build。纯静态 HTML 如果入口文件直接在项目根目录，可省略。"),
+        framework: z
+          .enum(APP_FRAMEWORKS)
+          .optional()
+          .describe("前端框架类型。可选值：vue、react、next、nuxt、vite、angular、static；纯 HTML/静态站点请传 static。"),
+        nodeJsVersion: z
+          .string()
+          .optional()
+          .describe("构建时使用的 Node.js 版本；不传时由 CloudApp 使用默认值。"),
+        installCmd: z
+          .string()
+          .optional()
+          .describe("依赖安装命令，例如 npm install；静态资源无需安装依赖时可省略。"),
+        buildCmd: z
+          .string()
+          .optional()
+          .describe("构建命令，例如 npm run build；纯静态 HTML 无构建步骤时可省略。"),
+        deployCmd: z
+          .string()
+          .optional()
+          .describe("自定义部署命令。通常无需填写，只有在默认部署步骤不满足要求时才传。"),
+        ignore: z.array(z.string()).optional().describe("上传时忽略的文件/目录 glob 模式，例如 **/node_modules/**。"),
+        versionName: z
+          .string()
+          .optional()
+          .describe("要删除的历史版本名，仅 action=deleteAppVersion 时必填。"),
       },
       annotations: {
         readOnlyHint: false,

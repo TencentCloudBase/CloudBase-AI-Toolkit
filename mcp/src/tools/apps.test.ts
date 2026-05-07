@@ -133,6 +133,13 @@ describe("app tools", () => {
     });
   });
 
+  it("manageApps schema should clarify redeploy flow and framework values", () => {
+    expect(tools.manageApps.meta.description).toContain("复用同一个 serviceName");
+    expect(tools.manageApps.meta.inputSchema.serviceName.description).toContain("重新部署");
+    expect(tools.manageApps.meta.inputSchema.framework.safeParse("static").success).toBe(true);
+    expect(tools.manageApps.meta.inputSchema.framework.safeParse("html").success).toBe(false);
+  });
+
   it("manageApps(action=deployApp) should require filePath", async () => {
     const result = await tools.manageApps.handler({
       action: "deployApp",
