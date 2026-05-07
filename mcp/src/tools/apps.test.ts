@@ -106,16 +106,15 @@ describe("app tools", () => {
     const result = await tools.manageApps.handler({
       action: "deployApp",
       serviceName: "demo-app",
-      localPath: "/tmp/demo-app",
+      filePath: "/tmp/demo-app",
       appPath: "/demo-app",
       buildPath: "dist",
     });
     const payload = JSON.parse(result.content[0].text);
 
     expect(mockUploadCode).toHaveBeenCalledWith({
-      deployType: "static-hosting",
       serviceName: "demo-app",
-      localPath: "/tmp/demo-app",
+      filePath: "/tmp/demo-app",
       ignore: undefined,
     });
     expect(mockCreateApp).toHaveBeenCalledWith(
@@ -131,6 +130,19 @@ describe("app tools", () => {
         action: "deployApp",
         serviceName: "demo-app",
       },
+    });
+  });
+
+  it("manageApps(action=deployApp) should require filePath", async () => {
+    const result = await tools.manageApps.handler({
+      action: "deployApp",
+      serviceName: "demo-app",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: false,
+      message: "action=deployApp 时必须提供 filePath",
     });
   });
 });

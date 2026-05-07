@@ -179,7 +179,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z.enum(MANAGE_APP_ACTIONS),
         serviceName: z.string(),
-        localPath: z.string().optional(),
+        filePath: z.string().optional().describe("要上传并部署的本地文件或目录绝对路径。该字段会直接传给 cloudAppService.uploadCode(filePath)，用于触发 CloudApp 的首次部署或同名应用的重新部署。"),
         appPath: z.string().optional(),
         buildPath: z.string().optional(),
         framework: z.string().optional(),
@@ -201,7 +201,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
     async ({
       action,
       serviceName,
-      localPath,
+      filePath,
       appPath,
       buildPath,
       framework,
@@ -214,7 +214,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
     }: {
       action: ManageAppAction;
       serviceName: string;
-      localPath?: string;
+      filePath?: string;
       appPath?: string;
       buildPath?: string;
       framework?: string;
@@ -233,13 +233,12 @@ export function registerAppTools(server: ExtendedMcpServer) {
         }
 
         if (action === "deployApp") {
-          if (!localPath) {
-            throw new Error("action=deployApp 时必须提供 localPath");
+          if (!filePath) {
+            throw new Error("action=deployApp 时必须提供 filePath");
           }
           const uploadResult = await appService.uploadCode({
-            deployType: "static-hosting",
             serviceName,
-            localPath,
+            filePath,
             ignore,
           });
           logCloudBaseResult(server.logger, uploadResult);
