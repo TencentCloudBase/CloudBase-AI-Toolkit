@@ -52,9 +52,12 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Treating HTTP Access as the implementation model for HTTP Functions. HTTP Access is a gateway configuration for Event Functions, not the HTTP Function runtime model.
 - Assuming an HTTP Function automatically gets a browser/public URL path, or assuming that path is always `/{functionName}`.
 - Writing gateway prefixes such as `/api/httpDemo` into the function router itself. Public gateway path and in-function route path are different layers.
+- Assuming `db.collection("name").add(...)` will create a missing document-database collection automatically. Collection creation is a separate management step.
 - Forgetting that runtime cannot be changed after creation.
 - Using cloud functions as the first answer for Web login.
 - Forgetting that HTTP Functions must ship `scf_bootstrap`, listen on port `9000`, and include dependencies.
+- Forgetting to configure function security rules after creating an HTTP Function. Default rules reject anonymous callers with `EXCEED_AUTHORITY`. Use `managePermissions(action="updateResourcePermission", resourceType="function")` to allow public access.
+- Mismatching the `scf_bootstrap` Node.js binary path with the function runtime (e.g. using `/var/lang/node18/bin/node` but setting `runtime: "Nodejs16.13"`).
 
 ### Minimal checklist
 
@@ -73,7 +76,25 @@ Use this skill when developing, deploying, and operating CloudBase cloud functio
 
 - If the request is for SDK calls, timers, or event-driven workflows, write an **Event Function** with `exports.main = async (event, context) => {}`.
 - If the request is for REST APIs, browser-facing endpoints, SSE, or WebSocket, write an **HTTP Function** with `req` / `res` on port `9000`.
+- For Node.js HTTP Functions, default to the native `http` module unless the user explicitly asks for Express, Koa, NestJS, or another framework.
 - If the user mentions HTTP access for an existing Event Function, keep the Event Function code shape and add gateway access separately.
+
+## HTTP Function authoring contract
+
+Use these rules whenever you are writing the function code itself:
+
+- Do not write an HTTP Function as `exports.main(event, context)`. That is the Event Function contract.
+- Treat the function as a standard web server process that must listen on port `9000`.
+- With Node.js, prefer `http.createServer((req, res) => { ... })` by default so the runtime contract stays explicit.
+- With the Node.js native `http` module, do not assume Express-style helpers exist. `req.body`, `req.query`, and `req.params` are not provided for you.
+- For Node.js HTTP Functions, choose one module system up front and keep it consistent. Default to CommonJS for simple functions (`require(...)`, no `"type": "module"` in `package.json`) unless you explicitly want ES Modules.
+- If you do choose ES Modules (`"type": "module"` + `import ...`), do not mix in CommonJS-only globals or APIs such as `require(...)`, `module.exports`, or bare `__dirname`. In ESM, derive file paths from `import.meta.url` with `fileURLToPath(...)` only when needed.
+- With the native `http` module, parse `req.url` yourself with `new URL(...)`, collect the request body from the stream, and only then call `JSON.parse`. Empty bodies should be handled explicitly instead of assuming JSON is always present.
+- Return responses explicitly with `res.writeHead(...)` and `res.end(...)`, including `Content-Type` such as `application/json; charset=utf-8` for JSON APIs.
+- Keep routing and method handling explicit. Unknown paths should return `404`, and known paths with unsupported methods should normally return `405`.
+- Keep gateway setup and security-rule changes separate from the runtime code. They affect access, not the HTTP Function programming model.
+- Keep the public gateway path and the in-function router path as separate layers. If the public path is `/api/httpDemo`, the function should usually still handle internal routes like `/` and `/health` rather than `/api/httpDemo` and `/api/httpDemo/health`.
+- Do not add HTTP access service configuration when the task is only to create an HTTP Function itself. Gateway paths or custom domains are separate access-layer work; anonymous or public invocation requirements should be handled through the function security rule workflow.
 
 ## Quick decision table
 
@@ -100,7 +121,7 @@ Use this skill when developing, deploying, and operating CloudBase cloud functio
 3. **Write code and deploy, do not stop at local files**
    - Use `manageFunctions(action="createFunction")` for creation
    - Use `manageFunctions(action="updateFunctionCode")` for code updates
-   - Keep `functionRootPath` as the parent directory of the function folder
+   - Keep `functionRootPath` as the directory that directly contains function folders (e.g., `cloudfunctions/` or `functions/`), NOT the project root and NOT the function subdirectory itself
    - Use CLI only as a fallback when MCP tools are unavailable
 
 4. **Prefer doc-first fallbacks**
@@ -112,6 +133,12 @@ Use this skill when developing, deploying, and operating CloudBase cloud functio
    - Event Function details -> `./references/event-functions.md`
    - HTTP Function details -> `./references/http-functions.md`
    - Logs, gateway, env vars, and legacy mappings -> `./references/operations-and-config.md`
+
+## Database write reminder
+
+- If a function will write to CloudBase document database, create the target collection first through console or management tooling.
+- `db.collection("feedback").add(...)` only inserts into an existing collection; it does not auto-create `feedback` when absent.
+- If the product requirement says "create when missing", implement that as an explicit collection-management step before the first write instead of assuming the runtime write call will provision it.
 
 ## Function types comparison
 
@@ -155,14 +182,42 @@ exports.main = async (event, context) => {
 
 ```js
 const http = require("http");
+const { URL } = require("url");
 
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ ok: true, message: "hello from http function" }));
+function sendJson(res, statusCode, data) {
+  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(data));
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let raw = "";
+    req.on("data", (chunk) => { raw += chunk; });
+    req.on("end", () => {
+      if (!raw) { resolve({}); return; }
+      try { resolve(JSON.parse(raw)); } catch { resolve({}); }
+    });
+    req.on("error", reject);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url || "/", "http://127.0.0.1");
+
+  if (req.method === "GET" && url.pathname === "/") {
+    sendJson(res, 200, { ok: true, message: "hello from http function" });
+  } else if (req.method === "POST" && url.pathname === "/") {
+    const body = await readJsonBody(req);
+    sendJson(res, 200, { received: body });
+  } else {
+    sendJson(res, 404, { error: "Not Found" });
+  }
 });
 
 server.listen(9000);
 ```
+
+For a more complete example with routing, method checks, and error handling, see `./references/http-functions.md`.
 
 `cloudfunctions/hello-http/scf_bootstrap`
 
@@ -170,6 +225,8 @@ server.listen(9000);
 #!/bin/bash
 /var/lang/node18/bin/node index.js
 ```
+
+The `scf_bootstrap` binary path must match the runtime — see the full mapping table in `./references/http-functions.md`.
 
 `cloudfunctions/hello-http/package.json`
 
@@ -191,9 +248,42 @@ server.listen(9000);
 
 ### Logs
 
-- `queryFunctions(action="listFunctionLogs")`
-- `queryFunctions(action="getFunctionLogDetail")`
-- If these are unavailable, read `./references/operations-and-config.md` before any `callCloudApi` fallback
+**Query function logs** — use the `queryFunctions` tool:
+
+- `queryFunctions(action="listFunctionLogs", functionName="xxx")` — list execution logs of a specific function
+- `queryFunctions(action="getFunctionLogDetail", requestId="xxx")` — fetch the detail of one log entry
+
+**`queryFunctions` vs `queryLogs`**:
+- `queryFunctions` queries execution logs of a single cloud function and requires `functionName`
+- `queryLogs` searches CLS (cross-service log aggregation) using CLS query syntax
+
+**Examples**:
+```javascript
+// List recent logs for cloud function "my-function"
+queryFunctions(action="listFunctionLogs", functionName="my-function", limit=10)
+
+// Inspect the log detail for a specific request id
+queryFunctions(action="getFunctionLogDetail", requestId="abc-123")
+
+// Cross-service error search via CLS
+queryLogs(action="searchLogs", queryString='(src:app OR src:system) AND log:"ERROR"', service="tcb")
+```
+
+`queryLogs` `queryString` follows CLS syntax (see https://cloud.tencent.com/document/api/876/128127). The examples below are starting points; adapt them to the concrete log content of your query:
+- Function logs: `(src:app OR src:system) AND log:"START RequestId"`
+- Aggregated function request status: `| select request_id, max(status_code) as status where ((request_id='xxxx' AND retry_num=0) AND retry_num=0) AND status_code!=202 group by request_id, retry_num`
+- Document database (NoSQL): `module:database`
+- Document database slow-query events: `module:database AND eventType:(MongoSlowQuery)` — `MongoSlowQuery` is the document-database slow-query event
+- Relational database (MySQL): `module:rdb`
+- Relational database (MySQL) events: `module:rdb AND eventType:(MysqlFreeze OR MysqlRecover OR MysqlSlowQuery)` — `MysqlFreeze` = freeze, `MysqlRecover` = recover, `MysqlSlowQuery` = slow query
+- Workflow (approval flow): `module:workflow`
+- Data model: `module:model`
+- User permissions: `module:auth`
+- LLM trace logs: `module:llm AND logType:llm-tracelog`
+- Gateway access logs: `logType:accesslog`
+- App publish / delete events: `module:app AND eventType:(AppProdPub OR AppProdDel)` — `AppProdPub` = app publish, `AppProdDel` = app delete
+
+If these are unavailable, read `./references/operations-and-config.md` before any `callCloudApi` fallback
 
 ### Gateway exposure
 
@@ -208,3 +298,4 @@ When a user says they need browser/public access, do not assume creation already
 - `cloudrun-development` -> container services, long-lived runtimes, Agent hosting
 - `http-api` -> raw CloudBase HTTP API invocation patterns
 - `cloudbase-platform` -> general CloudBase platform decisions
+- `ops-inspector` -> AIOps-style inspection and log search across services
