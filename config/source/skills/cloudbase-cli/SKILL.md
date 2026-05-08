@@ -35,8 +35,8 @@ If CLI is disabled but MCP tools are enabled, use the equivalent MCP tools:
 
 | CLI Command | MCP Tool Equivalent |
 |-------------|---------------------|
-| `tcb permission get` | `queryPermissions(action="getResourcePermission")` |
-| `tcb permission set` | `managePermissions(action="updateResourcePermission")` |
+| `tcb permission get` | `queryPermissions(action="listResourcePermissions", resourceType="...")` or `queryPermissions(action="getResourcePermission", resourceType="...", resourceId="...")` |
+| `tcb permission set` | `managePermissions(action="updateResourcePermission", resourceType="...", resourceId="...", permission="...", securityRule="...")` |
 | `tcb role list/get/create/update/delete` | `queryPermissions(action="listRoles")` / `managePermissions(action="createRole"/"updateRole"/"deleteRole")` |
 | `tcb user list/create/update/delete` | `queryPermissions(action="listUsers")` / `managePermissions(action="createUser"/"updateUser"/"deleteUser")` |
 | `tcb function list/deploy/delete` | `queryFunctions(action="list")` / `manageFunctions(action="createFunction"/"updateFunctionCode"/"deleteFunction")` |

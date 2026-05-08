@@ -40,6 +40,16 @@ If a skill points to its own `references/...` files, keep following those relati
 - If the file-writing tool reports that a field such as `content` expected a string but received an object, do not retry with the same raw object. Serialize the object first, then retry once with the serialized text, and make sure the retried call actually passes the serialized string rather than the original object.
 - Keep scenario-specific pitfall lists in the matching child skills instead of expanding this entry file.
 
+### Capability-boundary reroute: CLI wording vs MCP execution
+
+- Read the runtime capability notice before choosing an interface. If CloudBase CLI is disabled but MCP tools are enabled, do **not** keep following CLI-shaped wording such as `tcb permission get`, `tcb env list`, or `tcb function deploy`.
+- In that situation, translate the user's intent to the MCP tool that exposes the same product capability, then inspect the schema with `ToolSearch` or `npx mcporter describe cloudbase --all-parameters` before execution.
+- For resource-permission queries, use MCP directly:
+  - "query all resource permissions" / CLI-style `tcb permission get` -> run `queryPermissions(action="listResourcePermissions", resourceType=...)` for each supported resource type and aggregate the results, because MCP lists one resource type at a time.
+  - "query by resource type" / CLI-style `tcb permission get function` -> run `queryPermissions(action="listResourcePermissions", resourceType="function")`.
+  - "query by resource type + resource name" / CLI-style `tcb permission get collection:posts` -> run `queryPermissions(action="getResourcePermission", resourceType="noSqlDatabase", resourceId="posts")`.
+- Keep the semantic mapping explicit when translating CLI mental models: collection -> `noSqlDatabase`, table -> `sqlDatabase`, function -> `function`, storage bucket -> `storage`.
+
 ### Engineering constitution (applies to every scenario)
 
 These rules override convenience. They are a gate before saying "done". Full rationale + replacements live in `web-development` (Engineering constitution section).

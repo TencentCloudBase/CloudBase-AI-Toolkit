@@ -200,6 +200,18 @@ Example structure for operation recording:
 
 **⚠️ CRITICAL: Always configure permissions BEFORE writing database operation code!**
 
+### Resource permission queries when CLI is unavailable
+
+If the task is phrased with CLI wording such as `tcb permission get`, but the runtime only exposes MCP tools, do **not** keep trying the CLI path. Use `queryPermissions` instead and map the CLI intent to the MCP action shape.
+
+| User intent / CLI mental model | MCP call shape | Notes |
+|---|---|---|
+| Query all resource permissions | `queryPermissions(action="listResourcePermissions", resourceType="...")` | MCP lists one resource type at a time, so query each needed type (`noSqlDatabase`, `sqlDatabase`, `function`, `storage`) and then summarize the combined result. |
+| Query one resource type | `queryPermissions(action="listResourcePermissions", resourceType="function")` | Replace `function` with the requested resource type. |
+| Query one named resource | `queryPermissions(action="getResourcePermission", resourceType="noSqlDatabase", resourceId="posts")` | Use `resourceId`, not a CLI-style `collection:posts` string. |
+
+Resource-type mapping for CLI-style requests: collection -> `noSqlDatabase`, table -> `sqlDatabase`, function -> `function`, storage bucket -> `storage`.
+
 1. **Permission Model**:
    - CloudBase database access has permissions
    - Default basic permissions include:

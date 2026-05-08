@@ -8,10 +8,13 @@
 
 | CLI Command | MCP Tool Equivalent |
 |-------------|---------------------|
-| `tcb permission get [resource]` | `queryPermissions(action="getResourcePermission", resourceType="...", resourceName="...")` |
-| `tcb permission set <resource>` | `managePermissions(action="updateResourcePermission", resourceType="...", resourceName="...", aclTag="...", rule="...")` |
+| `tcb permission get` (all resources / one resource type) | `queryPermissions(action="listResourcePermissions", resourceType="...")` |
+| `tcb permission get collection:posts` (one named resource) | `queryPermissions(action="getResourcePermission", resourceType="noSqlDatabase", resourceId="posts")` |
+| `tcb permission set <resource>` | `managePermissions(action="updateResourcePermission", resourceType="...", resourceId="...", permission="...", securityRule="...")` |
 | `tcb role list/get/create/update/delete` | `queryPermissions(action="listRoles"/"getRole")` / `managePermissions(action="createRole"/"updateRole"/"deleteRole")` |
 | `tcb user list/create/update/delete` | `queryPermissions(action="listUsers"/"getUser")` / `managePermissions(action="createUser"/"updateUser"/"deleteUser")` |
+
+Because MCP lists resource permissions one resource type at a time, a CLI-style "all resources" query requires one `listResourcePermissions` call per resource type and then an aggregated summary.
 
 To discover available MCP tools, use `ToolSearch` with keyword "cloudbase" or run `npx mcporter describe cloudbase --all-parameters`.
 
