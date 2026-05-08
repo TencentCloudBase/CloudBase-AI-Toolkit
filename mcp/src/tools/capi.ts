@@ -112,7 +112,7 @@ export function buildCapiErrorMessage(service: AllowedService, action: string, e
     const suggestions: string[] = [];
     const tcbEntry = service === "tcb" ? findTcbActionEntry(action) : undefined;
     const hasInvalidActionError = /invalid or not found|does not exist|not recognized/i.test(baseMessage);
-    const hasParameterError = /parameter\s+`?.+?`?\s+is not recognized|MissingParameter|missing parameter|missing required/i.test(baseMessage);
+    const hasParameterError = /parameter\s+`?.+?`?\s+is not recognized|MissingParameter|missing parameter|missing the required parameter|missing required/i.test(baseMessage);
     const hasInvalidParameterValueError = /invalid parameter value/i.test(baseMessage);
 
     if (hasInvalidActionError) {
@@ -209,6 +209,8 @@ export function registerCapiTools(server: ExtendedMcpServer) {
 **云函数**: \`DescribeFunctions\`、\`CreateFunction\`、\`UpdateFunctionCode\`、\`DeleteFunction\`
 **数据库**: \`CreateMySQLInstance\`、\`DescribeMySQLInstances\`、\`DestroyMySQLInstance\`
 
+**CreateUser 快速提醒**：首次调用 \`tcb/CreateUser\` 时，\`params\` 至少带上 \`EnvId\` 与 \`Name\`；参数键名使用官方 PascalCase：\`Name\` / \`Type\` / \`UserStatus\`，不要写成 \`UserName\` / \`UserType\` / \`Status\`。如果手头只有环境别名或当前会话环境，请先解析出真实 \`EnvId\` 再调用。
+
 销毁环境时，常见做法是至少带上 \`EnvId\` 和 \`BypassCheck: true\`，如果环境已经处于隔离期再按文档补 \`IsForce: true\`。`,
             inputSchema: {
                 service: z
@@ -219,12 +221,12 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                 action: z
                     .string()
                     .min(1)
-                    .describe("具体 Action 名称，需符合对应服务的官方 API 定义。若不确定正确 Action，请先查官方文档；不要用近义词或历史命名进行猜测。tcb 常用 Action：环境管理 CreateEnv/ModifyEnv/DescribeEnvs/DestroyEnv、用户管理 CreateUser/ModifyUser/DescribeUserList/DeleteUsers、认证配置 EditAuthConfig、云函数 DescribeFunctions/CreateFunction、数据库 CreateMySQLInstance 等。"),
+                    .describe("具体 Action 名称，需符合对应服务的官方 API 定义。若不确定正确 Action，请先查官方文档；不要用近义词或历史命名进行猜测。tcb 常用 Action：环境管理 CreateEnv/ModifyEnv/DescribeEnvs/DestroyEnv、用户管理 CreateUser/ModifyUser/DescribeUserList/DeleteUsers、认证配置 EditAuthConfig、云函数 DescribeFunctions/CreateFunction、数据库 CreateMySQLInstance 等。特别是创建用户时，Action 固定为 `CreateUser`，不要自行改写名称。"),
                 params: z
                     .record(z.any())
                     .optional()
                     .describe(
-                        "Action 对应的参数对象，键名需与官方 API 定义完全一致（区分大小写）。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：销毁环境 `{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }`，如果环境已经处于隔离期，可再补 `IsForce: true`；更新环境别名 `{ \"service\": \"tcb\", \"action\": \"ModifyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"Alias\": \"demo\" } }`；创建用户 `{ \"service\": \"tcb\", \"action\": \"CreateUser\", \"params\": { \"EnvId\": \"env-xxx\", \"Name\": \"username\", \"NickName\": \"昵称\", \"Phone\": \"13800138000\", \"Email\": \"user@example.com\", \"Type\": \"internalUser\", \"UserStatus\": \"ACTIVE\" } }`（注意：使用 `Name` 而不是 `UserName`，`Type` 而不是 `UserType`，`UserStatus` 而不是 `Status`）。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
+                        "Action 对应的参数对象，键名需与官方 API 定义完全一致（区分大小写）。如果是 `tcb/CreateUser`，请先记住两个高频约束：`params` 必填 `EnvId` 与 `Name`，并且参数键名必须使用官方 PascalCase（`Name` / `Type` / `UserStatus`），不要写成 `UserName` / `UserType` / `Status`。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：销毁环境 `{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }`，如果环境已经处于隔离期，可再补 `IsForce: true`；更新环境别名 `{ \"service\": \"tcb\", \"action\": \"ModifyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"Alias\": \"demo\" } }`；创建用户 `{ \"service\": \"tcb\", \"action\": \"CreateUser\", \"params\": { \"EnvId\": \"env-xxx\", \"Name\": \"username\", \"NickName\": \"昵称\", \"Phone\": \"13800138000\", \"Email\": \"user@example.com\", \"Type\": \"internalUser\", \"UserStatus\": \"ACTIVE\" } }`（注意：使用 `Name` 而不是 `UserName`，`Type` 而不是 `UserType`，`UserStatus` 而不是 `Status`）。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
                     ),
             },
             annotations: {
