@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { existsSync } from "fs";
+import { summarizeFunctionListItem } from "../mcp/src/tools/functions.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -160,6 +161,36 @@ describe("Function and gateway tool schemas", () => {
     expect(properties.layerVersion).toBeDefined();
     expect(tool.annotations.readOnlyHint).toBe(true);
     expect(tool.annotations.category).toBe("functions");
+  });
+
+  test("summarizeFunctionListItem returns compact AI-friendly fields", () => {
+    expect(
+      summarizeFunctionListItem({
+        Namespace: "env-demo",
+        FunctionName: "hello-world",
+        FunctionId: "lam-123",
+        Description: "demo function",
+        Runtime: "Nodejs18.15",
+        Type: "Event",
+        ProtocolType: "",
+        DeployMode: "code",
+        Status: "Active",
+        AddTime: "2026-04-28 21:27:57",
+        ModTime: "2026-04-28 21:30:09",
+      }),
+    ).toEqual({
+      name: "hello-world",
+      namespace: "env-demo",
+      functionId: "lam-123",
+      description: "demo function",
+      runtime: "Nodejs18.15",
+      type: "Event",
+      protocolType: "",
+      deployMode: "code",
+      status: "Active",
+      createdAt: "2026-04-28 21:27:57",
+      updatedAt: "2026-04-28 21:30:09",
+    });
   });
 
   test.skipIf(!testClient)("manageFunctions schema excludes gateway write actions", async () => {

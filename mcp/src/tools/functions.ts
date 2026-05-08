@@ -301,6 +301,36 @@ function normalizeFunctionLayers(layers: unknown): FunctionLayerInput[] {
     .filter((layer) => Boolean(layer.LayerName) && Number.isFinite(layer.LayerVersion));
 }
 
+type CloudBaseFunctionListItem = {
+  Namespace?: string;
+  FunctionName?: string;
+  FunctionId?: string;
+  Description?: string;
+  Runtime?: string;
+  Type?: string;
+  ProtocolType?: string;
+  DeployMode?: string;
+  Status?: string;
+  AddTime?: string;
+  ModTime?: string;
+};
+
+export function summarizeFunctionListItem(fn: CloudBaseFunctionListItem) {
+  return {
+    name: fn.FunctionName ?? "",
+    namespace: fn.Namespace ?? "",
+    functionId: fn.FunctionId ?? "",
+    description: fn.Description ?? "",
+    runtime: fn.Runtime ?? "",
+    type: fn.Type ?? "",
+    protocolType: fn.ProtocolType ?? "",
+    deployMode: fn.DeployMode ?? "",
+    status: fn.Status ?? "",
+    createdAt: fn.AddTime ?? "",
+    updatedAt: fn.ModTime ?? "",
+  };
+}
+
 function processFunctionRootPath(
   functionRootPath: string | undefined,
   functionName: string,
@@ -578,13 +608,9 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       return buildEnvelope(
         {
           action: input.action,
-          functions: (result.Functions || []).map((fn) => ({
-            name: fn.FunctionName,
-            ...fn,
-          })),
+          functions: (result.Functions || []).map((fn) => summarizeFunctionListItem(fn)),
           totalCount: result.TotalCount || 0,
           requestId: result.RequestId,
-          raw: result,
         },
         `已获取 ${result.Functions?.length || 0} 个云函数`,
         [
