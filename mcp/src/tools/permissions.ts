@@ -561,9 +561,9 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "managePermissions",
     {
-      title: "管理权限与用户配置",
+      title: "管理权限、角色与应用用户",
       description:
-        "权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单；前端用户名密码注册应使用 `auth.signUp({ username, password })`，登录应使用 `auth.signInWithPassword({ username, password })`。注意：`securityRule` 的详细语义取决于 `resourceType`；`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType=\"noSqlDatabase\"` 的文档数据库安全规则。配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。",
+        "权限与应用用户统一写入口。可直接创建、更新、删除环境侧应用用户（含 `internalUser` 内部用户与 `externalUser` 外部用户），也支持修改资源权限、角色管理、成员与策略增删。`createUser` / `updateUser` 适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单；前端用户名密码注册应使用 `auth.signUp({ username, password })`，登录应使用 `auth.signInWithPassword({ username, password })`。注意：`securityRule` 的详细语义取决于 `resourceType`；`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType=\"noSqlDatabase\"` 的文档数据库安全规则。配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。"
       inputSchema: {
         action: z.enum(MANAGE_PERMISSION_ACTIONS),
         resourceType: z
