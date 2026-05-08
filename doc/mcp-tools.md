@@ -1012,7 +1012,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
 ---
 
 ### `uploadFiles`
-上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。
+上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；若部署到子路径，调用前必须显式确认：base/publicPath/assetPrefix 已设置为与部署目录一致的绝对路径（如 '/vite-test/'，不要用 './' 或空字符串）、修改后已重新构建、构建产物中的资源引用路径已更新且不再指向根路径 '/'. 任一项未确认时不要调用此工具。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。
 
 #### 参数
 
@@ -1021,12 +1021,12 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
     {
       name: "localPath",
       type: "string",
-      description: `本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。`,
+      description: `本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。构建产物目录（通常是 dist/）的内容要完整上传，不能只上传 index.html。`,
     },
     {
       name: "cloudPath",
       type: "string",
-      description: `静态托管云端文件或文件夹路径，例如 files/data.txt。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。`,
+      description: `静态托管云端文件或文件夹路径，相对托管根目录，不要前导 '/'，例如 'vite-test' 而非 '/vite-test'。若部署到子路径，cloudPath 应与构建配置中的 base/publicPath/assetPrefix 指向同一目录。云存储对象路径请改用 manageStorage。`,
     },
     {
       name: "files",
