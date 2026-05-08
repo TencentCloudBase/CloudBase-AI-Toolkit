@@ -155,6 +155,11 @@ export function buildCapiErrorMessage(service: AllowedService, action: string, e
         suggestions.push("2. 数值参数是否在允许范围内");
         suggestions.push("3. 枚举值是否使用了正确的取值（区分大小写）");
         suggestions.push("4. 必填参数是否有值");
+        if (service === "tcb" && tcbEntry?.action === "DestroyEnv") {
+            suggestions.push("`DestroyEnv` 的 `EnvId` 必须是环境的 canonical full `EnvId`，不要传环境别名、昵称、当前登录态标识，或带 `/` 的复合值。");
+            suggestions.push("如果对话里只有环境别名，先用 `envQuery(action=\"list\", alias=..., aliasExact=true)` 解析出准确 `EnvId`。");
+            suggestions.push("按官方接口，普通销毁可先只传 `{ \"EnvId\": \"env-xxx\" }`；仅在确实需要绕过资源检查时再补 `BypassCheck: true`，仅在隔离期环境彻底删除时再补 `IsForce: true`。");
+        }
         if (service === "tcb" && tcbEntry) {
             const paramsTypeHint = formatTcbParamsTypeHint(tcbEntry.action);
             if (paramsTypeHint) {
@@ -205,7 +210,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
 **云函数**: \`DescribeFunctions\`、\`CreateFunction\`、\`UpdateFunctionCode\`、\`DeleteFunction\`
 **数据库**: \`CreateMySQLInstance\`、\`DescribeMySQLInstances\`、\`DestroyMySQLInstance\`
 
-销毁环境时，常见做法是至少带上 \`EnvId\` 和 \`BypassCheck: true\`，如果环境已经处于隔离期再按文档补 \`IsForce: true\`。`,
+销毁环境时，\`EnvId\` 必须传环境的 canonical full \`EnvId\`，不要传别名或其他简写；如果对话里只有别名，先用 \`envQuery(action=list, alias=..., aliasExact=true)\` 解析。按官方接口，普通销毁可先只传 \`EnvId\`；仅在需要绕过资源检查时再补 \`BypassCheck: true\`，环境已处于隔离期且要彻底删除时再补 \`IsForce: true\`。`,
             inputSchema: {
                 service: z
                     .enum(ALLOWED_SERVICES)
@@ -220,7 +225,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                     .record(z.any())
                     .optional()
                     .describe(
-                        "Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：`{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }`，如果环境已经处于隔离期，可再补 `IsForce: true`；更新环境别名则可用 `{ \"service\": \"tcb\", \"action\": \"ModifyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"Alias\": \"demo\" } }`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
+                        "Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：`{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\" } }`。`DestroyEnv` 的 `EnvId` 必须是 canonical full `EnvId`，不要传环境别名或其他简写；如果对话里只有别名，先用 `envQuery(action=list, alias=..., aliasExact=true)` 解析。仅在需要绕过资源检查时再补 `BypassCheck: true`，仅在隔离期环境彻底删除时再补 `IsForce: true`；更新环境别名则可用 `{ \"service\": \"tcb\", \"action\": \"ModifyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"Alias\": \"demo\" } }`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
                     ),
             },
             annotations: {

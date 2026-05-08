@@ -27,6 +27,19 @@ describe("buildCapiErrorMessage", () => {
     expect(message).toContain("/**");
   });
 
+  it("adds destroy env specific guidance for invalid parameter values", () => {
+    const message = buildCapiErrorMessage(
+      "tcb",
+      "DestroyEnv",
+      new Error("400 invalid parameter value"),
+    );
+
+    expect(message).toContain("canonical full `EnvId`");
+    expect(message).toContain("aliasExact=true");
+    expect(message).toContain("{ \"EnvId\": \"env-xxx\" }");
+    expect(message).toContain("`IsForce: true`");
+  });
+
   it("does not inject tcb action suggestions for non-tcb services", () => {
     const message = buildCapiErrorMessage(
       "scf",
