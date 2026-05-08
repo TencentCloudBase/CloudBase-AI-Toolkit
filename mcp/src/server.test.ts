@@ -75,7 +75,7 @@ describe("server plugin registration", () => {
     vi.clearAllMocks();
   });
 
-  it("should register new default plugins but keep apps disabled by default", async () => {
+  it("should register app tools in the default plugin set", async () => {
     const { createCloudBaseMcpServer } = await import("./server.js");
 
     await createCloudBaseMcpServer({ enableTelemetry: false });
@@ -84,7 +84,7 @@ describe("server plugin registration", () => {
     expect(mockRegisterPermissionTools).toHaveBeenCalledTimes(1);
     expect(mockRegisterLogTools).toHaveBeenCalledTimes(1);
     expect(mockRegisterAgentTools).toHaveBeenCalledTimes(1);
-    expect(mockRegisterAppTools).not.toHaveBeenCalled();
+    expect(mockRegisterAppTools).toHaveBeenCalledTimes(1);
   });
 
   it("should support legacy plugin aliases", async () => {

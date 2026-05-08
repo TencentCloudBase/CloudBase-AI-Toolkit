@@ -151,7 +151,7 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
   "serverName": "my-svc",
   "targetPath": "/abs/ws/my-svc",
   "serverConfig": {
-    "OpenAccessTypes": ["WEB"],
+    "OpenAccessTypes": ["PUBLIC"],
     "Cpu": 0.5,
     "Mem": 1,
     "MinNum": 1,
@@ -159,6 +159,8 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
   }
 }
 ```
+
+**Valid `OpenAccessTypes` values**: `OA` (办公网访问), `PUBLIC` (公网访问), `MINIAPP` (小程序访问), `VPC` (VPC访问). Use `PUBLIC` for web applications that need public HTTPS access.
 
 `MinNum: 1` is the recommended default when you want to reduce cold-start latency. If the user explicitly prefers lower cost and accepts more cold starts, explain the tradeoff and let them reduce `MinNum` to `0`.
 
