@@ -37,6 +37,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install root dependencies (for build-allinone-skill scripts)
+        run: npm ci --ignore-scripts
+
       - name: Build all-in-one skill
         run: npx tsx scripts/build-allinone-skill.ts --dir config/allinone
 
@@ -73,6 +76,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Install root dependencies (for build-allinone-skill scripts)
+        run: npm ci --ignore-scripts
 
       - name: Sync codebuddy plugin
         run: npx tsx scripts/sync-codebuddy-plugin.ts
