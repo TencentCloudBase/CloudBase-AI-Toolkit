@@ -172,4 +172,92 @@ describe("rag tools", () => {
       message: expect.stringContaining("docPath"),
     });
   });
+
+  it("searchKnowledgeBase should avoid empty enums when dynamic catalogs are unavailable", async () => {
+    const originalFetch = globalThis.fetch;
+    const realFs = await vi.importActual<typeof import("fs/promises")>(
+      "fs/promises",
+    );
+    const missingSkillRoots = [
+      `${path.sep}.generated${path.sep}compat-config${path.sep}.codebuddy${path.sep}skills`,
+      `${path.sep}config${path.sep}source${path.sep}skills`,
+      `${path.sep}.cloudbase-mcp${path.sep}web-template${path.sep}.claude${path.sep}skills`,
+    ];
+
+    vi.resetModules();
+    vi.doMock("lockfile", () => {
+      const lock = vi.fn((lockPath: string, optionsOrCallback: unknown, maybeCallback?: (error: Error | null) => void) => {
+        const callback =
+          typeof optionsOrCallback === "function"
+            ? optionsOrCallback as (error: Error | null) => void
+            : maybeCallback;
+        callback?.(null);
+      });
+      const unlock = vi.fn((lockPath: string, callback?: (error: Error | null) => void) => {
+        callback?.(null);
+      });
+
+      return {
+        default: { lock, unlock },
+        lock,
+        unlock,
+      };
+    });
+    vi.doMock("fs/promises", () => ({
+      ...realFs,
+      readFile: vi.fn(
+        async (
+          filePath: Parameters<typeof realFs.readFile>[0],
+          options?: Parameters<typeof realFs.readFile>[1],
+        ) => {
+          if (String(filePath).endsWith("cache-meta.json")) {
+            throw new Error("cache miss");
+          }
+          return realFs.readFile(filePath, options);
+        },
+      ),
+      stat: vi.fn(async (filePath: Parameters<typeof realFs.stat>[0]) => {
+        const targetPath = String(filePath);
+        if (missingSkillRoots.some((segment) => targetPath.includes(segment))) {
+          throw new Error("missing skill root");
+        }
+        return realFs.stat(filePath);
+      }),
+      mkdir: vi.fn(
+        async (
+          filePath: Parameters<typeof realFs.mkdir>[0],
+          options?: Parameters<typeof realFs.mkdir>[1],
+        ) => {
+          if (String(filePath).includes(`${path.sep}.cloudbase-mcp`)) {
+            return undefined;
+          }
+          return realFs.mkdir(filePath, options);
+        },
+      ),
+    }));
+
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("offline")) as typeof fetch;
+
+    try {
+      const { registerRagTools: isolatedRegisterRagTools } = await import("./rag.js");
+      const { server, tools } = createMockServer();
+
+      await isolatedRegisterRagTools(server);
+
+      expect(
+        tools.searchKnowledgeBase.meta.inputSchema.skillName.unwrap().safeParse("auth-tool").success,
+      ).toBe(true);
+      expect(
+        tools.searchKnowledgeBase.meta.inputSchema.apiName.unwrap().safeParse("functions").success,
+      ).toBe(true);
+      expect(tools.searchKnowledgeBase.meta.inputSchema.skillName.description).toContain(
+        "当前暂时无法枚举可选值",
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+      vi.doUnmock("fs/promises");
+      vi.doUnmock("lockfile");
+      vi.resetModules();
+    }
+  });
 });

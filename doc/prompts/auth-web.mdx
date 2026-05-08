@@ -147,7 +147,7 @@ If the current task has not retrieved a real Publishable Key, omit `accessKey` i
 - `signInWithOtp` can automatically create a new user if the user does not exist; control this via `shouldCreateUser` parameter (default `true`).
 ```js
 const { data, error } = await auth.signInWithOtp({ phone: '13800138000' })
-const { data: loginData, error: loginError } = await data.verifyOtp({ token:'123456' })
+const { data: loginData, error: loginError } = await data.verifyOtp({ token: '123456' })
 ```
 
 **2. Email OTP**
