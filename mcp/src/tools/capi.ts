@@ -113,6 +113,7 @@ export function buildCapiErrorMessage(service: AllowedService, action: string, e
     const tcbEntry = service === "tcb" ? findTcbActionEntry(action) : undefined;
     const hasInvalidActionError = /invalid or not found|does not exist|not recognized/i.test(baseMessage);
     const hasParameterError = /parameter\s+`?.+?`?\s+is not recognized|MissingParameter|missing parameter|missing required/i.test(baseMessage);
+    const hasInvalidParameterValueError = /invalid parameter value/i.test(baseMessage);
 
     if (hasInvalidActionError) {
         suggestions.push(
@@ -143,6 +144,21 @@ export function buildCapiErrorMessage(service: AllowedService, action: string, e
             }
             const paramsTypeHint = formatTcbParamsTypeHint(tcbEntry.action);
             if (paramsTypeHint) {
+                suggestions.push(paramsTypeHint);
+            }
+        }
+    }
+
+    if (hasInvalidParameterValueError) {
+        suggestions.push("请求参数值格式不正确或超出有效范围。请检查：");
+        suggestions.push("1. 字符串参数是否为空或包含非法字符");
+        suggestions.push("2. 数值参数是否在允许范围内");
+        suggestions.push("3. 枚举值是否使用了正确的取值（区分大小写）");
+        suggestions.push("4. 必填参数是否有值");
+        if (service === "tcb" && tcbEntry) {
+            const paramsTypeHint = formatTcbParamsTypeHint(tcbEntry.action);
+            if (paramsTypeHint) {
+                suggestions.push("参数类型参考：");
                 suggestions.push(paramsTypeHint);
             }
         }
