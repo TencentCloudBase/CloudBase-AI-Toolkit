@@ -9,6 +9,11 @@ const {
   mockGetTemporaryUrl,
   mockDescribeEnvsCall,
   mockCommonService,
+  mockHostingUploadFiles,
+  mockHostingFindFiles,
+  mockGetEnvInfo,
+  mockSendDeployNotification,
+  mockFetch,
 } = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
   mockGetEnvId: vi.fn(),
@@ -17,11 +22,21 @@ const {
   mockGetTemporaryUrl: vi.fn(),
   mockDescribeEnvsCall: vi.fn(),
   mockCommonService: vi.fn(),
+  mockHostingUploadFiles: vi.fn(),
+  mockHostingFindFiles: vi.fn(),
+  mockGetEnvInfo: vi.fn(),
+  mockSendDeployNotification: vi.fn(),
+  mockFetch: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
   getCloudBaseManager: mockGetCloudBaseManager,
   getEnvId: mockGetEnvId,
+  logCloudBaseResult: vi.fn(),
+}));
+
+vi.mock("../utils/notification.js", () => ({
+  sendDeployNotification: mockSendDeployNotification,
 }));
 
 import { registerHostingTools } from "./hosting.js";
@@ -55,10 +70,43 @@ function createMockServer() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal("fetch", mockFetch);
 
   mockGetEnvId.mockResolvedValue("env-test");
   mockUploadDirectory.mockResolvedValue(undefined);
   mockUploadFile.mockResolvedValue(undefined);
+  mockHostingUploadFiles.mockResolvedValue({ RequestId: "req-upload" });
+  mockHostingFindFiles.mockResolvedValue({
+    files: [
+      { Key: "vite-test/index.html" },
+      { Key: "vite-test/assets/index.js" },
+    ],
+  });
+  mockGetEnvInfo.mockResolvedValue({
+    EnvInfo: {
+      StaticStorages: [{ StaticDomain: "env-test.tcloudbaseapp.com" }],
+    },
+  });
+  mockSendDeployNotification.mockResolvedValue(undefined);
+  mockFetch
+    .mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      url: "https://env-test.tcloudbaseapp.com/vite-test",
+      headers: {
+        get: (name: string) => (name === "content-type" ? "text/html; charset=utf-8" : null),
+      },
+      text: async () => '<!doctype html><html><body><script src="/vite-test/assets/index.js"></script></body></html>',
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      url: "https://env-test.tcloudbaseapp.com/vite-test/assets/index.js",
+      headers: {
+        get: (name: string) => (name === "content-type" ? "application/javascript" : null),
+      },
+      text: async () => "console.log('ok')",
+    });
   mockGetTemporaryUrl.mockResolvedValue([
     {
       url: "https://signed.example.com/tmp-url",
@@ -94,6 +142,14 @@ beforeEach(() => {
       deleteFile: vi.fn(),
       listDirectoryFiles: vi.fn(),
       getFileInfo: vi.fn(),
+    },
+    hosting: {
+      uploadFiles: mockHostingUploadFiles,
+      findFiles: mockHostingFindFiles,
+      deleteFiles: vi.fn(),
+    },
+    env: {
+      getEnvInfo: mockGetEnvInfo,
     },
     commonService: mockCommonService,
   });
@@ -153,5 +209,37 @@ describe("storage and hosting tool guidance", () => {
     expect(payload.data.publicUrl).toBe("https://env-test-1250000000.tcb.qcloud.la/aicoding/helloworld.txt");
     expect(payload.data.note).toContain("temporaryUrl 是临时签名链接");
     expect(payload.data.note).toContain("公有读");
+  });
+
+  it("uploadFiles should return structured access verification for subdirectory deploys", async () => {
+    const tools = createMockServer();
+
+    const result = await tools.uploadFiles.handler({
+      localPath: "/tmp/dist",
+      cloudPath: "vite-test",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    expect(payload.data.accessUrl).toBe("https://env-test.tcloudbaseapp.com/vite-test/");
+    expect(payload.data.deploymentPath).toBe("/vite-test/");
+    expect(payload.verification.hostedFiles.checked).toBe(true);
+    expect(payload.verification.hostedFiles.entryFound).toBe(true);
+    expect(payload.verification.hostedFiles.expectedEntryPath).toBe("vite-test/index.html");
+    expect(payload.verification.access.pageAccessible).toBe(true);
+    expect(payload.verification.access.scriptAccessible).toBe(true);
+    expect(payload.verification.access.checks[0].url).toBe("https://env-test.tcloudbaseapp.com/vite-test");
+    expect(payload.verification.access.checks[1].url).toBe("https://env-test.tcloudbaseapp.com/vite-test/assets/index.js");
+    expect(payload.message).toContain("首个 script 资源可访问");
+    expect(mockHostingUploadFiles).toHaveBeenCalledWith({
+      localPath: "/tmp/dist",
+      cloudPath: "vite-test",
+      files: [],
+      ignore: undefined,
+    });
+    expect(mockHostingFindFiles).toHaveBeenCalledWith({
+      prefix: "vite-test/",
+      maxKeys: 20,
+    });
   });
 });

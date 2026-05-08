@@ -70,6 +70,249 @@ function buildUploadFilesErrorMessage(error: unknown, localPath?: string): strin
   return `[uploadFiles] ${baseMessage}\n建议：${suggestions.join(" ")}`;
 }
 
+function normalizeHostingCloudPath(cloudPath?: string): string {
+  return (cloudPath ?? '').trim().replace(/^\/+|\/+$/g, '');
+}
+
+function buildHostingCheckUrls(staticDomain?: string, cloudPath?: string, localPath?: string): string[] {
+  if (!staticDomain) {
+    return [];
+  }
+
+  const normalizedCloudPath = normalizeHostingCloudPath(cloudPath);
+  if (!normalizedCloudPath) {
+    return [`https://${staticDomain}/`];
+  }
+
+  if (isDirectoryUploadTarget(localPath, cloudPath)) {
+    return [
+      `https://${staticDomain}/${normalizedCloudPath}`,
+      `https://${staticDomain}/${normalizedCloudPath}/`,
+    ];
+  }
+
+  return [`https://${staticDomain}/${normalizedCloudPath}`];
+}
+
+function buildHostingFileCheckPrefix(localPath?: string, cloudPath?: string): string {
+  const normalizedCloudPath = normalizeHostingCloudPath(cloudPath);
+  if (!normalizedCloudPath) {
+    return '';
+  }
+
+  if (isDirectoryUploadTarget(localPath, cloudPath)) {
+    return `${normalizedCloudPath}/`;
+  }
+
+  const directory = path.posix.dirname(normalizedCloudPath);
+  return directory === '.' ? '' : `${directory}/`;
+}
+
+function buildExpectedHostingEntryPath(localPath?: string, cloudPath?: string): string | undefined {
+  const normalizedCloudPath = normalizeHostingCloudPath(cloudPath);
+
+  if (isDirectoryUploadTarget(localPath, cloudPath)) {
+    return normalizedCloudPath ? `${normalizedCloudPath}/index.html` : 'index.html';
+  }
+
+  if (normalizedCloudPath.endsWith('/index.html') || normalizedCloudPath === 'index.html') {
+    return normalizedCloudPath;
+  }
+
+  return undefined;
+}
+
+function collectHostingFilePaths(
+  value: unknown,
+  seen = new Set<unknown>(),
+  depth = 0,
+): string[] {
+  if (depth > 5 || value == null || seen.has(value)) {
+    return [];
+  }
+
+  if (typeof value === 'string') {
+    return [];
+  }
+
+  if (typeof value !== 'object') {
+    return [];
+  }
+
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectHostingFilePaths(item, seen, depth + 1));
+  }
+
+  const record = value as Record<string, unknown>;
+  const current = [record.Key, record.key, record.Path, record.path, record.CloudPath, record.cloudPath]
+    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    .map((item) => item.replace(/^\/+/, ''));
+
+  return current.concat(
+    Object.values(record).flatMap((item) => collectHostingFilePaths(item, seen, depth + 1)),
+  );
+}
+
+async function verifyHostedFiles(cloudbase: any, localPath?: string, cloudPath?: string) {
+  const prefix = buildHostingFileCheckPrefix(localPath, cloudPath);
+  const expectedEntryPath = buildExpectedHostingEntryPath(localPath, cloudPath);
+
+  if (!cloudbase?.hosting?.findFiles) {
+    return {
+      checked: false,
+      prefix,
+      expectedEntryPath,
+      reason: 'hosting.findFiles unavailable',
+    };
+  }
+
+  try {
+    const result = await cloudbase.hosting.findFiles({
+      prefix,
+      maxKeys: 20,
+    });
+    const matchedPaths = Array.from(new Set(collectHostingFilePaths(result)));
+
+    return {
+      checked: true,
+      prefix,
+      expectedEntryPath,
+      matchedPathCount: matchedPaths.length,
+      matchedPathsSample: matchedPaths.slice(0, 5),
+      entryFound: expectedEntryPath ? matchedPaths.includes(expectedEntryPath) : matchedPaths.some((item) => /(^|\/)index\.html$/i.test(item)),
+    };
+  } catch (error) {
+    return {
+      checked: false,
+      prefix,
+      expectedEntryPath,
+      reason: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function fetchWithTimeout(url: string, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      signal: controller.signal,
+      redirect: 'follow',
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function extractFirstScriptSrc(html: string): string | undefined {
+  const match = html.match(/<script\b[^>]*\bsrc=["']([^"']+)["']/i);
+  return match?.[1];
+}
+
+async function verifyHostingAccess(urls: string[]) {
+  const checks: Array<Record<string, unknown>> = [];
+  const candidates = Array.from(new Set(urls.filter(Boolean)));
+
+  if (candidates.length === 0) {
+    return {
+      checked: false,
+      pageAccessible: false,
+      scriptAccessible: null,
+      checks,
+      reason: 'no access URL available',
+    };
+  }
+
+  let pageHtml: string | undefined;
+  let pageUrl: string | undefined;
+
+  for (const url of candidates) {
+    try {
+      const response = await fetchWithTimeout(url);
+      const contentType = response.headers.get('content-type') ?? '';
+      checks.push({
+        type: 'page',
+        url,
+        ok: response.ok,
+        status: response.status,
+        contentType,
+      });
+
+      if (response.ok && /text\/html|application\/xhtml\+xml/i.test(contentType)) {
+        pageHtml = await response.text();
+        pageUrl = response.url || url;
+        break;
+      }
+    } catch (error) {
+      checks.push({
+        type: 'page',
+        url,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  if (!pageHtml || !pageUrl) {
+    return {
+      checked: true,
+      pageAccessible: false,
+      scriptAccessible: null,
+      checks,
+    };
+  }
+
+  const scriptSrc = extractFirstScriptSrc(pageHtml);
+  if (!scriptSrc) {
+    checks.push({
+      type: 'script',
+      ok: false,
+      error: 'No script src found in HTML',
+    });
+    return {
+      checked: true,
+      pageAccessible: true,
+      scriptAccessible: false,
+      checks,
+    };
+  }
+
+  const scriptUrl = new URL(scriptSrc, pageUrl).toString();
+  try {
+    const response = await fetchWithTimeout(scriptUrl);
+    const contentType = response.headers.get('content-type') ?? '';
+    checks.push({
+      type: 'script',
+      url: scriptUrl,
+      ok: response.ok,
+      status: response.status,
+      contentType,
+    });
+    return {
+      checked: true,
+      pageAccessible: true,
+      scriptAccessible: response.ok,
+      checks,
+    };
+  } catch (error) {
+    checks.push({
+      type: 'script',
+      url: scriptUrl,
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      checked: true,
+      pageAccessible: true,
+      scriptAccessible: false,
+      checks,
+    };
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -310,13 +553,15 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         throw new Error(buildUploadFilesErrorMessage(error, localPath));
       }
       logCloudBaseResult(server.logger, result);
-      const uploadResult = result as Record<string, unknown>;
 
       // 获取环境信息
       const envInfo = await cloudbase.env.getEnvInfo() as ExtendedEnvInfo;
       logCloudBaseResult(server.logger, envInfo);
       const staticDomain = envInfo.EnvInfo?.StaticStorages?.[0]?.StaticDomain;
       const accessUrl = buildHostingAccessUrl(staticDomain, cloudPath, localPath);
+      const hostedFileVerification = await verifyHostedFiles(cloudbase, localPath, cloudPath);
+      const accessVerification = await verifyHostingAccess(buildHostingCheckUrls(staticDomain, cloudPath, localPath));
+      const normalizedCloudPath = normalizeHostingCloudPath(cloudPath);
 
       // Send deployment notification to CodeBuddy IDE
       try {
@@ -355,19 +600,29 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         // Error is already logged in sendDeployNotification
       }
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              ...uploadResult,
-              staticDomain,
-              message: "文件上传成功",
-              accessUrl: accessUrl
-            }, null, 2)
-          }
-        ]
-      };
+      const message = accessVerification.pageAccessible
+        ? accessVerification.scriptAccessible === false
+          ? "文件上传成功，页面已可访问，但检测到首个 script 资源不可访问。"
+          : "文件上传成功，并已验证页面与首个 script 资源可访问。"
+        : "文件上传成功，但静态访问检查未通过；请根据 verification 字段继续排查构建路径、cloudPath 与 CDN 传播。";
+
+      return buildJsonToolResult({
+        success: true,
+        data: {
+          action: 'upload',
+          localPath,
+          cloudPath: cloudPath ?? '',
+          deploymentPath: normalizedCloudPath ? `/${normalizedCloudPath}/` : '/',
+          isDirectory: isDirectoryUploadTarget(localPath, cloudPath),
+          staticDomain,
+          accessUrl,
+        },
+        verification: {
+          hostedFiles: hostedFileVerification,
+          access: accessVerification,
+        },
+        message,
+      });
     }
   );
 
