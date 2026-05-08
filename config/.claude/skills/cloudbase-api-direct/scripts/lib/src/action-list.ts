@@ -4,12 +4,13 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 71
+ * Action 数量: 76
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
   'AddProvider',
   'CheckTcbService',
+  'CreateAIModel',
   'CreateApiKey',
   'CreateAuthDomain',
   'CreateBillDeal',
@@ -23,6 +24,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'CreateTable',
   'CreateUser',
   'CreateVmInstance',
+  'DeleteAIModel',
   'DeleteApiKey',
   'DeleteAuthDomain',
   'DeleteHTTPServiceRoute',
@@ -30,6 +32,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DeleteTable',
   'DeleteUsers',
   'DeleteVmInstance',
+  'DescribeAIModels',
   'DescribeApiKeyList',
   'DescribeAuthDomains',
   'DescribeBaasPackageList',
@@ -47,6 +50,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DescribeHTTPServiceRoute',
   'DescribeHostingDomainTask',
   'DescribeLoginConfig',
+  'DescribeManagedAIModelList',
   'DescribeMySQLClusterDetail',
   'DescribeMySQLTaskStatus',
   'DescribeQuotaData',
@@ -78,6 +82,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'RunCommands',
   'RunSql',
   'SearchClsLog',
+  'UpdateAIModel',
   'UpdateTable',
 ];
 
