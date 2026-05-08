@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { getCloudBaseManager, logCloudBaseResult } from "../cloudbase-manager.js";
+import {
+  getCloudBaseManager,
+  getEnvId,
+  logCloudBaseResult,
+} from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
 import { jsonContent } from "../utils/json-content.js";
 
@@ -71,18 +75,10 @@ function normalizeAccessPath(path: string | undefined): string {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
-function ensureGatewayEnvId(cloudBaseOptions?: { envId?: string }) {
-  const envId = cloudBaseOptions?.envId;
-  if (!envId) {
-    throw new Error("当前网关操作需要已绑定 envId");
-  }
-  return envId;
-}
-
 export function registerGatewayTools(server: ExtendedMcpServer) {
   const cloudBaseOptions = server.cloudBaseOptions;
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
-  const getGatewayEnvId = () => ensureGatewayEnvId(cloudBaseOptions);
+  const resolveEnvId = () => getEnvId(cloudBaseOptions);
 
   const buildEnvelope = (
     data: Record<string, unknown>,
@@ -129,7 +125,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
   const listHttpServiceRoutes = async (domain?: string) => {
     const cloudbase = await getManager();
     const result = await cloudbase.env.describeHttpServiceRoute({
-      EnvId: getGatewayEnvId(),
+      EnvId: await resolveEnvId(),
       ...(domain
         ? {
             Filters: [
@@ -177,7 +173,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     }
 
     return {
-      EnvId: getGatewayEnvId(),
+      EnvId: await resolveEnvId(),
       Domain: {
         Domain: await resolveRouteDomain(domain),
         Routes: [
@@ -423,7 +419,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       const cloudbase = await getManager();
       const domain = await resolveRouteDomain(input.domain);
       const result = await cloudbase.env.deleteHttpServiceRoute({
-        EnvId: getGatewayEnvId(),
+        EnvId: await resolveEnvId(),
         Domain: domain,
         Paths: [normalizeAccessPath(routePath)],
       } as any);
@@ -445,7 +441,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       }
       const cloudbase = await getManager();
       const result = await cloudbase.env.bindCustomDomain({
-        EnvId: getGatewayEnvId(),
+        EnvId: await resolveEnvId(),
         Domain: {
           Domain: input.domain,
           CertId: input.certificateId,
@@ -469,7 +465,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       }
       const cloudbase = await getManager();
       const result = await cloudbase.env.deleteCustomDomain({
-        EnvId: getGatewayEnvId(),
+        EnvId: await resolveEnvId(),
         Domain: input.domain,
       });
       logCloudBaseResult(server.logger, result);
@@ -576,9 +572,9 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "manageGateway",
     {
-      title: "管理网关域资源",
+      title: "管理网关域资源（含自定义域名绑定）",
       description:
-        "网关域统一写入口。通过 action 创建目标访问入口，后续承接更通用的网关配置能力。为已存在的 HTTP 云函数补默认域名访问时，通常使用 createAccess 并提供 targetType=\"function\"、targetName、type=\"HTTP\" 与期望 path。注意 createAccess 只创建网关入口，不会自动修改函数资源权限。",
+        "网关域统一写入口。通过 action 创建目标访问入口，后续承接更通用的网关配置能力。为已存在的 HTTP 云函数补默认域名访问时，通常使用 createAccess 并提供 targetType=\"function\"、targetName、type=\"HTTP\" 与期望 path。注意 createAccess 只创建网关入口，不会自动修改函数资源权限。⚠️ 如需绑定带 SSL 证书的自定义域名供公网 HTTPS 访问，使用 action=\"bindCustomDomain\"（需要 domain 和 certificateId 参数）；如需配置 CORS/安全域名（无证书），请使用 envDomainManagement 工具。",
       inputSchema: {
         action: z
           .enum(MANAGE_GATEWAY_ACTIONS)
