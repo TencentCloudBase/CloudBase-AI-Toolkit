@@ -389,7 +389,7 @@ export function buildFunctionOperationErrorMessage(
 
   if (/paths\[0\].*undefined/i.test(baseMessage)) {
     suggestions.push(
-      "HTTP 函数创建时需要提供 functionRootPath（指向 cloudfunctions 或 functions 目录的绝对路径，不是项目根目录）或 zipFile，否则 SDK 无法定位函数目录。",
+      "HTTP 函数创建时默认应提供 functionRootPath（指向 cloudfunctions 或 functions 目录的绝对路径，不是项目根目录）；只有在你已经准备好代码包的 base64 内容时才改用 zipFile，否则 SDK 无法定位函数目录。",
     );
   }
 
@@ -970,7 +970,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
       if (functionType === "HTTP" && !processedRootPath && !input.zipFile) {
         throw new Error(
-          "createFunction 创建 HTTP 函数时，需要提供 functionRootPath（指向 cloudfunctions 或 functions 目录的绝对路径，不是项目根目录）或 zipFile。",
+          "createFunction 创建 HTTP 函数时，默认需要提供 functionRootPath（指向 cloudfunctions 或 functions 目录的绝对路径，不是项目根目录）；只有在你已经准备好代码包的 base64 内容时才使用 zipFile。",
         );
       }
 
@@ -1588,7 +1588,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           "\n- type: \"HTTP\"" +
           "\n- protocolType: \"HTTP\" (或 \"WS\" 用于 WebSocket)" +
           "\n- runtime: 运行时环境，推荐 \"Nodejs18.15\"。" +
-          "\n\n对于 HTTP 函数，还必须提供 functionRootPath 或 zipFile 参数来指定代码位置。",
+          "\n\n对于 HTTP 函数，默认应提供 functionRootPath 来指定代码目录；zipFile 仅用于已经准备好 base64 代码包的特殊场景，两者至少提供一个。",
         ),
         functionRootPath: z.string().optional().describe(
           "创建或更新函数代码时默认推荐的本地目录方式。" +
@@ -1597,12 +1597,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           "本地应按 cloudfunctions/<functionName>/index.js 或 functions/<functionName>/index.js 布局，" +
           "此参数传 cloudfunctions 或 functions 目录的绝对路径。" +
           "SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。" +
-          "\n\n在创建 HTTP 函数时，如果没有 zipFile 参数，必须提供此参数（HTTP 函数需要有代码位置）。",
+          "\n\n创建 HTTP 函数时默认就传这个参数；只有在你明确改走预先打包的 base64 zip 特殊流程时，才不传此参数。",
         ),
         force: z.boolean().optional().describe("createFunction 时是否覆盖"),
         functionName: z.string().optional().describe("函数名称。大多数 action 使用该字段作为统一目标"),
         zipFile: z.string().optional().describe(
-          "仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。",
+          "仅兼容特殊场景：预先准备好的代码包 base64 编码。只有在无法提供 functionRootPath、且你已经有可直接使用的代码包时才使用。普通 createFunction/updateFunctionCode，尤其 HTTP 函数创建，默认都应优先使用 functionRootPath。",
         ),
         handler: z.string().optional().describe("函数入口"),
         timeout: z.number().optional().describe("配置更新时的超时时间"),
