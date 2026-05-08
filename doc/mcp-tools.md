@@ -2313,7 +2313,7 @@ Agent 域统一写入口。支持创建、更新和删除远端 Agent。
     {
       name: "params",
       type: "object",
-      description: `Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：\`{ "service": "tcb", "action": "DestroyEnv", "params": { "EnvId": "env-xxx", "BypassCheck": true } }\`，如果环境已经处于隔离期，可再补 \`IsForce: true\`；更新环境别名则可用 \`{ "service": "tcb", "action": "ModifyEnv", "params": { "EnvId": "env-xxx", "Alias": "demo" } }\`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode="openapi")，而不是优先使用 callCloudApi。`,
+      description: `Action 对应的参数对象，键名需与官方 API 定义完全一致（区分大小写）。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：销毁环境 \`{ "service": "tcb", "action": "DestroyEnv", "params": { "EnvId": "env-xxx", "BypassCheck": true } }\`，如果环境已经处于隔离期，可再补 \`IsForce: true\`；更新环境别名 \`{ "service": "tcb", "action": "ModifyEnv", "params": { "EnvId": "env-xxx", "Alias": "demo" } }\`；创建用户 \`{ "service": "tcb", "action": "CreateUser", "params": { "EnvId": "env-xxx", "Name": "username", "NickName": "昵称", "Phone": "13800138000", "Email": "user@example.com", "Type": "internalUser", "UserStatus": "ACTIVE" } }\`（注意：使用 \`Name\` 而不是 \`UserName\`，\`Type\` 而不是 \`UserType\`，\`UserStatus\` 而不是 \`Status\`）。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode="openapi")，而不是优先使用 callCloudApi。`,
     }
   ]}
 />
