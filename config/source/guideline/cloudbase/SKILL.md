@@ -36,6 +36,13 @@ If a skill points to its own `references/...` files, keep following those relati
 
 - If the same implementation path fails 2-3 times, stop retrying and reroute. Re-check the selected platform skill, runtime, auth domain, permission model, and SDK boundary before editing more code.
 - Always specify `EnvId` explicitly in code, configuration, and command examples when initializing CloudBase clients or manager operations. Do not rely on the current CLI-selected environment, implicit defaults, or copied local state.
+- If the runtime capability notice says an interface is disabled, do not call it anyway and do not stop with an opaque error. Explicitly tell the user that the requested interface is unavailable in the current run, then continue with the equivalent enabled CloudBase capability.
+- When the user explicitly asks for CloudBase CLI / `tcb`, but the current run has "CloudBase CLI" in the disabled capabilities list, switch to MCP equivalents instead of blocking on CLI:
+  - Function log query: use `queryFunctions(action="listFunctionLogs", functionName="<name>", startTime="<time>", endTime="<time>", limit=20)`
+  - Function deployment or update: use `manageFunctions(action="createFunction"|"updateFunctionCode")`
+  - Storage operations: use `manageStorage`
+  - Environment lookup: use `envQuery(action=list|info)`
+- For troubleshooting or log analysis after switching away from CLI, route to `ops-inspector` or `cloud-functions` and keep the response task-focused instead of debating interface availability.
 - When saving MCP or tool results to a local file with a generic file-writing tool, pass text, not raw objects. For JSON output files, serialize first with `JSON.stringify(result, null, 2)` and write that string as the file content.
 - If the file-writing tool reports that a field such as `content` expected a string but received an object, do not retry with the same raw object. Serialize the object first, then retry once with the serialized text, and make sure the retried call actually passes the serialized string rather than the original object.
 - Keep scenario-specific pitfall lists in the matching child skills instead of expanding this entry file.

@@ -54,6 +54,7 @@ Use when the user wants to manage CloudBase resources via command line:
 - SDK-based in-app integration (web/miniprogram/node) → use `cloud-functions`,
   `no-sql-web-sdk`, `auth-web`, etc.
 - MCP tool calls for IDE-integrated workflows → use CloudBase MCP directly
+- Any run where the capability notice says CloudBase CLI is disabled. In that case, explicitly tell the user CLI is unavailable in the current mode and continue with MCP equivalents such as `queryFunctions(action="listFunctionLogs")`, `manageFunctions(...)`, `manageStorage`, or `envQuery(...)` instead of failing on the interface choice.
 - Console UI operations
 - CloudBase Agent SDK development → use `cloudbase-agent-ts`
 
