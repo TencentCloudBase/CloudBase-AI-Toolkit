@@ -101,7 +101,7 @@
     },
     {
       "name": "uploadFiles",
-      "description": "Upload files to static hosting with CDN acceleration"
+      "description": "Deploy built Web assets to static hosting; use manageStorage for COS object uploads"
     },
     {
       "name": "getWebsiteConfig",
