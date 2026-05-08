@@ -106,6 +106,11 @@ describe("storage and hosting tool guidance", () => {
     expect(tools.uploadFiles.meta.description).toContain("仅用于 Web 站点部署");
     expect(tools.uploadFiles.meta.description).toContain("manageStorage");
     expect(tools.uploadFiles.meta.description).toContain("通常不需要调用此工具");
+    expect(tools.uploadFiles.meta.description).toContain("调用前必须显式确认");
+    expect(tools.uploadFiles.meta.description).toContain("不要用 './' 或空字符串");
+    expect(tools.uploadFiles.meta.inputSchema.localPath.description).toContain("不能只上传 index.html");
+    expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("不要前导 '/'");
+    expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("base/publicPath/assetPrefix");
     expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("云存储对象路径请改用 manageStorage");
     expect(tools.manageStorage.meta.description).toContain("仅用于 COS/Storage 对象");
     expect(tools.manageStorage.meta.description).toContain("不用于静态网站托管");

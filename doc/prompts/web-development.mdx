@@ -206,7 +206,12 @@ Use this section only when the Web project needs CloudBase platform features.
 ### Static hosting defaults
 
 - Build before deployment
-- Prefer relative asset paths for static hosting compatibility
+- For root path deployment: prefer relative asset paths (e.g., `./` or empty) for static hosting compatibility
+- For subdirectory deployment: base/publicPath/assetPrefix must be set to the absolute path matching the deployment target (e.g., deploy to `/app` → set base to `/app/` with leading and trailing slashes; do NOT use `./` or empty string)
+- Before calling `uploadFiles` for subdirectory deployment, explicitly confirm all of the following: the build config has been updated to that exact absolute path, the project has been rebuilt after the config change, and the built asset references no longer point to the site root `/`
+- If any of those checks fail or are still unknown, do not call `uploadFiles` yet; fix the build config and rebuild first
+- `cloudPath` is relative to the hosting root and must not start with `/` (use `vite-test`, not `/vite-test`)
+- Upload the full build output directory contents (usually `dist/`), not just `index.html`
 - Use hash routing by default when the project lacks server-side route rewrites
 - If the user does not specify a root path, avoid deploying directly to the site root by default
 

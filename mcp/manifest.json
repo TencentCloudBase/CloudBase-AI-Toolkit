@@ -101,7 +101,7 @@
     },
     {
       "name": "uploadFiles",
-      "description": "Upload files to static hosting with CDN acceleration"
+      "description": "Upload built web assets to static hosting, not cloud storage"
     },
     {
       "name": "getWebsiteConfig",
