@@ -168,7 +168,7 @@ Example structure for operation recording:
    - For Web, always initialize synchronously:
      - `import cloudbase from "@cloudbase/js-sdk"; const app = cloudbase.init({ env: "your-full-env-id" });`
      - Do **not** use dynamic imports like `import("@cloudbase/js-sdk")` or async wrappers such as `initCloudBase()` with internal `initPromise`
-   - Then proceed with login, for example using anonymous login
+   - Then proceed with login using a verified method (username/password, phone, email, or WeChat)
 
 ## Authentication Best Practices
 

@@ -47,7 +47,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Using `signInWithEmailAndPassword` or `signUpWithEmailAndPassword` for username-style accounts such as `admin` and `editor`.
 - Keeping the login or register account input as `type="email"` when the task explicitly says the account identifier is a plain username string.
 - Starting implementation before calling `queryAppAuth(action="getLoginConfig")` and enabling `usernamePassword` when it is still off.
-- **Treating `auth.getUser()` returning a user as proof of real login.** When the SDK is initialized with a `publishableKey` / `accessKey`, it may silently create an anonymous session. A route guard's `checkAuth()` must verify that the user actually signed in with username/password (e.g. check `session.loginType !== 'ANONYMOUS'` or that `user.user_metadata?.username` exists), not just that `getUser()` returns non-null. Otherwise unauthenticated visitors pass the guard, protected pages render without a real user, and role-based UI (edit / delete buttons gated on `currentUser.role`) breaks because `currentUser` has no role record.
+- **Treating `auth.getUser()` returning a user as proof of real login.** In environments where anonymous login is still enabled, the SDK initialized with a `publishableKey` / `accessKey` may create an anonymous session. A route guard's `checkAuth()` must verify that the user actually signed in with username/password (e.g. check `session.loginType !== 'ANONYMOUS'` or that `user.user_metadata?.username` exists), not just that `getUser()` returns non-null. Note: anonymous login is now **disabled by default** for new environments and inactive existing environments, so this scenario is less common but still must be guarded against.
 
 ## Overview
 
@@ -59,7 +59,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 ## Core Capabilities
 
 **Use Case**: Web frontend projects using `@cloudbase/js-sdk@2.24.0+` for user authentication  
-**Key Benefits**: Supabase-like Auth API shape, supports phone, email, anonymous, username/password, and third-party login methods
+**Key Benefits**: Supabase-like Auth API shape, supports phone, email, anonymous (disabled by default), username/password, and third-party login methods
 
 Use npm installation for modern Web projects. In React, Vue, Vite, and other bundler-based apps, install and import `@cloudbase/js-sdk` from the project dependencies instead of using a CDN script.
 

@@ -98,7 +98,7 @@ Recommended MCP request:
   "loginMethods": {
     "usernamePassword": true,
     "email": true,
-    "anonymous": true,
+    "anonymous": false,
     "phone": false
   }
 }
@@ -149,9 +149,11 @@ Internal behavior of `manageAppAuth(action="patchLoginStrategy")`:
 
 ### 2. Anonymous Login
 
+> ⚠️ **Anonymous login is disabled by default for new environments.** Inactive existing environments (no anonymous login usage within the past month) have also been automatically disabled. Additionally, anonymous users are denied AI model invocation permissions by default. Only enable anonymous login when the application explicitly requires unauthenticated access and you accept the associated security trade-offs.
+
 Preferred MCP tool path: `manageAppAuth(action="patchLoginStrategy")`
 
-Recommended MCP request:
+To explicitly enable anonymous login (only when required):
 
 ```json
 {
@@ -163,6 +165,8 @@ Recommended MCP request:
 ```
 
 The tool handles read-merge-write internally. The model does not need to build a full `ModifyLoginConfig` payload.
+
+**Important**: Even after enabling anonymous login, anonymous users cannot call AI models by default. This permission must be explicitly granted separately if needed.
 
 ---
 
