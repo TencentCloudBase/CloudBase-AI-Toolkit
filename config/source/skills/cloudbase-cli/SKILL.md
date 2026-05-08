@@ -59,19 +59,21 @@ Use when the user wants to manage CloudBase resources via command line:
 
 ## When CLI is not available
 
-If the runtime environment has CloudBase CLI disabled (e.g., `tcbCliEnabled: false`), use the following MCP tools as alternatives:
+If the runtime environment has CloudBase CLI disabled (e.g., `tcbCliEnabled: false`), use the following MCP tools as alternatives instead of failing on the CLI wording:
 
 | Task | MCP Tool | Action |
 |------|----------|--------|
-| CORS (安全域名) | `envDomainManagement` | `list` / `create` / `delete` |
-| Custom domains | `domainManagement` | `list` / `create` / `delete` |
-| Static hosting config | `envQuery` | `action="website"` |
+| List CORS security domains (安全域名) | `envQuery` | `action="domains"` |
+| Add or delete CORS security domains | `envDomainManagement` | `action="create"` / `action="delete"`, `domains=[...]` |
+| Check custom domains | `domainManagement` | `action="check"`, `domains=[...]` |
+| Bind or unbind custom domains | `domainManagement` | `action="create"` / `action="delete"` |
+| Static hosting config | `envQuery` | `action="hosting"` |
 
 Example — List security domains:
 ```json
 {
-  "tool": "envDomainManagement",
-  "action": "list"
+  "tool": "envQuery",
+  "action": "domains"
 }
 ```
 
@@ -80,7 +82,7 @@ Example — Add a security domain:
 {
   "tool": "envDomainManagement",
   "action": "create",
-  "domain": "example.com"
+  "domains": ["example.com"]
 }
 ```
 
@@ -89,11 +91,11 @@ Example — Delete a security domain:
 {
   "tool": "envDomainManagement",
   "action": "delete",
-  "domain": "example.com"
+  "domains": ["example.com"]
 }
 ```
 
-> Note: MCP tool availability depends on the runtime configuration. If MCP tools are also unavailable, inform the user that the requested operation cannot be performed in the current environment.
+> Note: MCP tool availability depends on the runtime configuration. If MCP tools are also unavailable, inform the user that the requested operation cannot be performed in the current environment. If the task also requires an output artifact such as `RESULT.json`, complete the real MCP operations first and then write the file from the observed results.
 
 ## How to use this skill (for a coding agent)
 

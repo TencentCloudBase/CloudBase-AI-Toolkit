@@ -28,21 +28,21 @@ Three independent modules for configuring external access to CloudBase environme
 
 ## When CLI is not available
 
-If the runtime environment has CloudBase CLI disabled, use the following MCP tools as alternatives:
+If the runtime environment has CloudBase CLI disabled, use the following MCP tools as alternatives.
 
 ### CORS (安全域名)
 
 | Operation | MCP Tool | Action |
 |-----------|----------|--------|
-| List domains | `envDomainManagement` | `list` |
-| Add domain | `envDomainManagement` | `create` |
-| Delete domain | `envDomainManagement` | `delete` |
+| List domains | `envQuery` | `action="domains"` |
+| Add domain | `envDomainManagement` | `action="create"`, `domains=[...]` |
+| Delete domain | `envDomainManagement` | `action="delete"`, `domains=[...]` |
 
 Example — List security domains:
 ```json
 {
-  "tool": "envDomainManagement",
-  "action": "list"
+  "tool": "envQuery",
+  "action": "domains"
 }
 ```
 
@@ -51,7 +51,7 @@ Example — Add a security domain:
 {
   "tool": "envDomainManagement",
   "action": "create",
-  "domain": "example.com"
+  "domains": ["example.com"]
 }
 ```
 
@@ -59,9 +59,9 @@ Example — Add a security domain:
 
 | Operation | MCP Tool | Action |
 |-----------|----------|--------|
-| List domains | `domainManagement` | `list` |
-| Add domain | `domainManagement` | `create` |
-| Delete domain | `domainManagement` | `delete` |
+| Check domains | `domainManagement` | `action="check"`, `domains=[...]` |
+| Add domain | `domainManagement` | `action="create"` |
+| Delete domain | `domainManagement` | `action="delete"` |
 
 ### Routing
 

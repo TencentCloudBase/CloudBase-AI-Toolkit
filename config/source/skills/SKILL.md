@@ -40,6 +40,7 @@ alwaysApply: true
 - If the same path fails 2-3 times, stop retrying and reroute. Check platform skill, auth domain, runtime, and permission model before editing more code.
 - Always specify `EnvId` explicitly in code, configuration, and command examples when initializing CloudBase clients or manager operations. Do not rely on the current CLI-selected environment or implicit defaults.
 - If the conversation only provides an environment alias, nickname, or other shorthand, resolve it with `envQuery(action=list, alias=..., aliasExact=true)` and use the returned canonical full `EnvId` before calling `auth.set_env`, generating console links, or writing config/code. If the alias is ambiguous or missing, stop and ask the user to confirm.
+- If the runtime capability notice says CloudBase CLI is disabled, do not stop on CLI-only wording. Use the enabled MCP path instead. For security-domain / CORS tasks, list the current entries with `envQuery(action="domains")`, then add or remove entries with `envDomainManagement(action="create"|"delete", domains=[...])`. If the task also asks for a record file such as `RESULT.json`, finish the real tool calls first and then write the file from the observed results.
 
 ### Do NOT use this as
 
