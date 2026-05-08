@@ -653,7 +653,7 @@
     },
     {
       "name": "queryFunctions",
-      "description": "函数域统一只读入口。通过更自解释的 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。",
+      "description": "函数域统一只读入口。支持查询函数列表、函数详情、日志、层、触发器和代码下载地址。如果要检查定时跑、定时任务、scheduled job 或 cron 配置，请使用 listFunctionTriggers 查询函数的 timer 触发器。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -671,7 +671,7 @@
               "listFunctionTriggers",
               "getFunctionDownloadUrl"
             ],
-            "description": "只读操作类型，例如 listFunctions、getFunctionDetail、listFunctionLogs"
+            "description": "只读操作类型，例如 listFunctions、getFunctionDetail、listFunctionLogs、listFunctionTriggers（用于查看定时任务 / cron / timer 配置）"
           },
           "functionName": {
             "type": "string",
@@ -731,7 +731,7 @@
     },
     {
       "name": "manageFunctions",
-      "description": "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。",
+      "description": "函数域统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。危险操作需要显式 confirm=true。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -750,7 +750,7 @@
               "detachLayer",
               "updateFunctionLayers"
             ],
-            "description": "写操作类型，例如 createFunction、invokeFunction、attachLayer"
+            "description": "写操作类型，例如 createFunction、invokeFunction、createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、attachLayer"
           },
           "func": {
             "type": "object",
@@ -959,7 +959,7 @@
             "items": {
               "$ref": "#/properties/func/properties/triggers/items"
             },
-            "description": "createFunctionTrigger 的触发器列表"
+            "description": "createFunctionTrigger 的触发器列表，用于定时跑 / 定时任务 / scheduled job。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），如 \"0 */5 * * * * *\" 表示每5分钟执行一次"
           },
           "triggerName": {
             "type": "string",

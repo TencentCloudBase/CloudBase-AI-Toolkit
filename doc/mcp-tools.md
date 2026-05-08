@@ -22,8 +22,8 @@
 <tr><td><code>manageSqlDatabase</code></td><td>Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, write SQL/DDL execution, and schema initialization. IMPORTANT: MySQL must be provisioned first (action=provisionMySQL with confirm=true) before any runStatement or initializeSchema call. If MySQL is not yet provisioned, the tool will return MYSQL_NOT_CREATED with a nextAction to provision first.</td></tr>
 <tr><td><code>manageDataModel</code></td><td>数据模型查询工具，支持查询和列表数据模型（只读操作）。通过 action 参数区分操作类型：list=获取模型列表（不含Schema，可选 names 参数过滤），get=查询单个模型详情（含Schema字段列表、格式、关联关系等，需要提供 name 参数），docs=生成SDK使用文档（需要提供 name 参数）</td></tr>
 <tr><td><code>modifyDataModel</code></td><td>基于Mermaid classDiagram创建数据模型。为保持兼容性，工具名仍为 modifyDataModel；当前仅支持创建新模型，不支持更新现有模型结构。内置异步任务监控，自动轮询直至完成或超时。</td></tr>
-<tr><td><code>queryFunctions</code></td><td>函数域统一只读入口。通过更自解释的 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。</td></tr>
-<tr><td><code>manageFunctions</code></td><td>函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。</td></tr>
+<tr><td><code>queryFunctions</code></td><td>函数域统一只读入口。支持查询函数列表、函数详情、日志、层、触发器和代码下载地址。如果要检查定时跑、定时任务、scheduled job 或 cron 配置，请使用 listFunctionTriggers 查询函数的 timer 触发器。</td></tr>
+<tr><td><code>manageFunctions</code></td><td>函数域统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。危险操作需要显式 confirm=true。</td></tr>
 <tr><td><code>uploadFiles</code></td><td>上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。</td></tr>
 <tr><td><code>deleteFiles</code></td><td>删除静态网站托管的文件或文件夹</td></tr>
 <tr><td><code>findFiles</code></td><td>搜索静态网站托管的文件</td></tr>
@@ -329,14 +329,14 @@ classDiagram
 ---
 
 ### `queryFunctions`
-函数域统一只读入口。通过更自解释的 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。
+函数域统一只读入口。支持查询函数列表、函数详情、日志、层、触发器和代码下载地址。如果要检查定时跑、定时任务、scheduled job 或 cron 配置，请使用 listFunctionTriggers 查询函数的 timer 触发器。
 
 #### 参数
 
 <table>
 <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>是</td><td>只读操作类型，例如 listFunctions、getFunctionDetail、listFunctionLogs 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>是</td><td>只读操作类型，例如 listFunctions、getFunctionDetail、listFunctionLogs、listFunctionTriggers（用于查看定时任务 / cron / timer 配置） 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl"</td></tr>
 <tr><td><code>functionName</code></td><td>string</td><td></td><td>函数名称。函数相关 action 必填</td></tr>
 <tr><td><code>limit</code></td><td>number</td><td></td><td>分页数量。列表类 action 可选</td></tr>
 <tr><td><code>offset</code></td><td>number</td><td></td><td>分页偏移。列表类 action 可选</td></tr>
@@ -355,14 +355,14 @@ classDiagram
 ---
 
 ### `manageFunctions`
-函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。
+函数域统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。危险操作需要显式 confirm=true。
 
 #### 参数
 
 <table>
 <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>是</td><td>写操作类型，例如 createFunction、invokeFunction、attachLayer 可填写的值: "createFunction", "updateFunctionCode", "updateFunctionConfig", "invokeFunction", "createFunctionTrigger", "deleteFunctionTrigger", "createLayerVersion", "deleteLayerVersion", "attachLayer", "detachLayer", "updateFunctionLayers"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>是</td><td>写操作类型，例如 createFunction、invokeFunction、createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、attachLayer 可填写的值: "createFunction", "updateFunctionCode", "updateFunctionConfig", "invokeFunction", "createFunctionTrigger", "deleteFunctionTrigger", "createLayerVersion", "deleteLayerVersion", "attachLayer", "detachLayer", "updateFunctionLayers"</td></tr>
 <tr><td><code>func</code></td><td>object</td><td></td><td>createFunction 操作的函数配置</td></tr>
 <tr><td><code>func.name</code></td><td>string</td><td>是</td><td>函数名称</td></tr>
 <tr><td><code>func.type</code></td><td>string</td><td></td><td>函数类型 可填写的值: "Event", "HTTP"</td></tr>
@@ -398,7 +398,7 @@ classDiagram
 <tr><td><code>envVariables</code></td><td>object</td><td></td><td>配置更新时要合并的环境变量</td></tr>
 <tr><td><code>vpc</code></td><td>unknown</td><td></td><td>配置更新时的 VPC 信息</td></tr>
 <tr><td><code>params</code></td><td>object</td><td></td><td>invokeFunction 的调用参数</td></tr>
-<tr><td><code>triggers</code></td><td>array of unknown</td><td></td><td>createFunctionTrigger 的触发器列表</td></tr>
+<tr><td><code>triggers</code></td><td>array of unknown</td><td></td><td>createFunctionTrigger 的触发器列表，用于定时跑 / 定时任务 / scheduled job。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），如 "0 */5 * * * * *" 表示每5分钟执行一次</td></tr>
 <tr><td><code>triggerName</code></td><td>string</td><td></td><td>deleteFunctionTrigger 的目标触发器名称</td></tr>
 <tr><td><code>layerName</code></td><td>string</td><td></td><td>层名称</td></tr>
 <tr><td><code>layerVersion</code></td><td>number</td><td></td><td>层版本号</td></tr>
