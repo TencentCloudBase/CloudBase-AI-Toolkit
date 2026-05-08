@@ -127,6 +127,19 @@ describe("permission tools", () => {
     ({ tools } = createMockServer());
   });
 
+  it("queryPermissions metadata should explain CLI role mapping", () => {
+    const meta = tools.queryPermissions.meta;
+
+    expect(meta.description).toContain("tcb role list");
+    expect(meta.description).toContain("tcb role get --id|--identity|--name");
+    expect(meta.description).toContain("成员列表");
+    expect(meta.inputSchema.action.description).toContain("listRoles");
+    expect(meta.inputSchema.action.description).toContain("tcb role get --id|--identity|--name");
+    expect(meta.inputSchema.roleId.description).toContain("tcb role get --id <roleId>");
+    expect(meta.inputSchema.roleIdentity.description).toContain("tcb role get --identity <roleIdentity>");
+    expect(meta.inputSchema.roleName.description).toContain("tcb role get --name <roleName>");
+  });
+
   it("queryPermissions(action=listUsers) should use user service", async () => {
     const result = await tools.queryPermissions.handler({ action: "listUsers" });
     const payload = JSON.parse(result.content[0].text);

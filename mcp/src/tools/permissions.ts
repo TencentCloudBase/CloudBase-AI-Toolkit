@@ -342,17 +342,30 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
     {
       title: "查询权限与用户配置",
       description:
-        "权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。",
+        '权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。角色查询等价于 CLI `tcb role list` / `tcb role get --id|--identity|--name [--detail]`：`listRoles` 用于列出角色，`getRole` 用于按角色 ID、标识或名称读取单个角色，并返回成员列表与策略列表等详情。',
       inputSchema: {
-        action: z.enum(QUERY_PERMISSION_ACTIONS),
+        action: z
+          .enum(QUERY_PERMISSION_ACTIONS)
+          .describe(
+            '可填写的值: `getResourcePermission`, `listResourcePermissions`, `listRoles`, `getRole`, `listUsers`, `getUser`。角色查询时：`listRoles` 等价于 `tcb role list`，`getRole` 等价于 `tcb role get --id|--identity|--name [--detail]`。',
+          ),
         resourceType: z
           .enum(["noSqlDatabase", "sqlDatabase", "function", "storage"])
           .optional(),
         resourceId: z.string().optional(),
         resourceIds: z.array(z.string()).optional(),
-        roleId: z.string().optional(),
-        roleIdentity: z.string().optional(),
-        roleName: z.string().optional(),
+        roleId: z
+          .string()
+          .optional()
+          .describe('action=`getRole` 时按角色 ID 查询，等价于 `tcb role get --id <roleId>`。与 `roleIdentity` / `roleName` 三选一。'),
+        roleIdentity: z
+          .string()
+          .optional()
+          .describe('action=`getRole` 时按角色标识查询，等价于 `tcb role get --identity <roleIdentity>`。与 `roleId` / `roleName` 三选一。'),
+        roleName: z
+          .string()
+          .optional()
+          .describe('action=`getRole` 时按角色名称查询，等价于 `tcb role get --name <roleName>`。与 `roleId` / `roleIdentity` 三选一。'),
         uid: z.string().optional(),
         username: z.string().optional(),
         pageNo: z.number().optional(),
@@ -563,9 +576,13 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
     {
       title: "管理权限与用户配置",
       description:
-        "权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单；前端用户名密码注册应使用 `auth.signUp({ username, password })`，登录应使用 `auth.signInWithPassword({ username, password })`。注意：`securityRule` 的详细语义取决于 `resourceType`；`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType=\"noSqlDatabase\"` 的文档数据库安全规则。配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。",
+        '权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。角色写操作等价于 CLI `tcb role create` / `tcb role update` / `tcb role delete` 以及成员、策略增删。`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单；前端用户名密码注册应使用 `auth.signUp({ username, password })`，登录应使用 `auth.signInWithPassword({ username, password })`。注意：`securityRule` 的详细语义取决于 `resourceType`；`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType="noSqlDatabase"` 的文档数据库安全规则。配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。',
       inputSchema: {
-        action: z.enum(MANAGE_PERMISSION_ACTIONS),
+        action: z
+          .enum(MANAGE_PERMISSION_ACTIONS)
+          .describe(
+            '可填写的值: `updateResourcePermission`, `createRole`, `updateRole`, `deleteRoles`, `addRoleMembers`, `removeRoleMembers`, `addRolePolicies`, `removeRolePolicies`, `createUser`, `updateUser`, `deleteUsers`。角色写操作可对应 CLI `tcb role create/update/delete`。',
+          ),
         resourceType: z
           .enum(["noSqlDatabase", "sqlDatabase", "function", "storage"])
           .optional()
