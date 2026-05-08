@@ -236,9 +236,12 @@ The `scf_bootstrap` binary path must match the runtime — see the full mapping 
 
 ## Using npm dependencies
 
-Both Event Functions and HTTP Functions support npm packages. Dependencies are automatically installed from `package.json` during deployment.
+Both Event Functions and HTTP Functions support npm packages, but the packaging model is different:
 
-### Example: Using lodash for data processing
+- **Event Functions**: declare dependencies in `package.json`; CloudBase installs them during deployment.
+- **HTTP Functions**: package runtime dependencies together with the function code; do not assume CloudBase will auto-install `node_modules` from `package.json` for you.
+
+### Example: Using lodash for data processing in an Event Function
 
 `cloudfunctions/npm-demo/package.json`
 
@@ -296,7 +299,7 @@ manageFunctions(action="invokeFunction", functionName="npm-demo", params={
 ### Key points for npm dependencies
 
 - **Event Functions**: Add dependencies to `package.json`, deploy with `manageFunctions(action="createFunction")`, platform auto-installs dependencies
-- **HTTP Functions**: Must include `node_modules` or use `scf_bootstrap` with a package manager; for simple cases, pre-bundling dependencies is recommended
+- **HTTP Functions**: Bundle runtime dependencies with the function package; for simple cases, pre-bundling `node_modules` is the safest default. Only use a custom `scf_bootstrap` install flow when you intentionally own that startup behavior.
 - **Common issues**:
   - If deployment fails with "依赖安装失败", check that `package.json` is valid JSON and dependency versions exist
   - Some native modules may not be supported in the serverless environment
