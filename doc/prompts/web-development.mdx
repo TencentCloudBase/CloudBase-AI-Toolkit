@@ -86,6 +86,47 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Skipping browser-level validation after a UI or routing change.
 - In an existing application, detouring into UI redesign or broad repo sweeps before patching the current handlers and services.
 
+## Engineering constitution (non-negotiable)
+
+These rules override convenience. Treat them as a gate before saying "done".
+
+### 1. TypeScript — do not silence the type system
+
+- **Do NOT use `any` to bypass type errors.** Not `: any`, not `as any`, not `@ts-ignore`, not `@ts-nocheck`, not `@ts-expect-error` without a written justification. `any` propagates silently and defeats the only compile-time safety net this project has.
+- When a type error appears, fix the root cause:
+  - Missing / wrong library types → install `@types/...`, or narrow the import, or write a precise `interface` / `type` for the shape you actually use.
+  - Shape is genuinely unknown at the boundary (JSON from an API, `postMessage` payload, `window.*` injection) → type it as `unknown` and narrow with a type guard (`typeof`, `in`, a discriminator field, or `zod` / equivalent).
+  - Third-party type is wrong → augment via `declare module` in a local `.d.ts`, not `any`.
+  - Truly dynamic case (e.g. generic event bus) → use a generic `<T>` with a constraint, not `any`.
+- `unknown` + narrowing is the acceptable escape hatch. `any` is not.
+- If you genuinely cannot avoid `any` for a specific line (extremely rare), leave a one-line comment with **why** and **what would remove it**, so reviewers can audit.
+- The same spirit applies to ESLint: do not sprinkle `// eslint-disable` to mute the real signal. Fix the rule violation, or discuss before disabling.
+
+### 2. Self-verify before claiming done
+
+Saying "I've implemented it" / "fixed it" / "it should work" without evidence is not acceptable. Before declaring completion, you must actually run the checks and report the result.
+
+**Static / build layer (always, when applicable):**
+
+- `tsc --noEmit` (or `vue-tsc --noEmit`) passes cleanly — zero errors, zero suppressed diagnostics you added.
+- `eslint` / project linter passes on changed files.
+- The project's build command (`npm run build` / `pnpm build` / `vite build`) completes without new warnings that you introduced.
+- The project's unit tests pass if they exist and cover the touched area.
+
+**Runtime / browser layer (whenever the change affects rendering, routing, forms, auth, or async flows):**
+
+- Use the **`agent-browser`** tool to actually open the page and reproduce the user-visible flow. Follow `browser-testing.md` for the concrete workflow.
+- Confirm: the target route loads, the interaction you claim to have fixed behaves the way you claim, no new console errors are introduced, and no regression in the adjacent routes you touched.
+- Record what you checked (route, action, expected result, actual result).
+
+**Only after both layers pass** may you say the task is done. If either layer cannot be executed locally (e.g. blocked by credentials, missing backend, paid API), say so explicitly and list exactly which step is still unverified — do not gloss over it.
+
+### 3. Do not paper over failures
+
+- Do not wrap broken logic in `try { ... } catch {}` to make the error go away.
+- Do not delete or skip a failing test to make CI green — fix it, or explain why the test is actually wrong and change the test with justification.
+- Do not mark a task complete because "the code compiles". Compilation is the bare minimum, not the goal.
+
 ## When to use this skill
 
 Use this skill for Web engineering work such as:
@@ -140,9 +181,9 @@ Use this skill for Web engineering work such as:
 
 ### 3. Validate changed flows explicitly
 
-- Run the relevant local build or test command when available
-- Open the affected page or flow in a browser when behavior depends on rendering, interaction, or navigation
-- Record what was checked: route, action, expected result, and any remaining gap
+- Run the relevant local build / lint / typecheck / test command when available. A clean `tsc --noEmit` and a clean project build are the minimum bar — not proof of correctness.
+- For anything user-visible (routing, forms, rendering, auth, async flows), open the affected page or flow in a browser with **`agent-browser`**. Code reading alone is not sufficient evidence — see the Engineering constitution above.
+- Record what was checked: route, action, expected result, actual result, and any remaining gap.
 
 ## CloudBase Web integration
 
