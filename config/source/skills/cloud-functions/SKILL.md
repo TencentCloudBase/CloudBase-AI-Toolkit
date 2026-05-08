@@ -54,7 +54,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Forgetting that runtime cannot be changed after creation.
 - Using cloud functions as the first answer for Web login.
 - Forgetting that HTTP Functions must ship `scf_bootstrap`, listen on port `9000`, and include dependencies.
-- Forgetting to configure function security rules after creating an HTTP Function. Default rules reject anonymous callers with `EXCEED_AUTHORITY`. Use `managePermissions(action="updateResourcePermission", resourceType="function")` to allow public access.
+- Forgetting to configure function security rules after creating an HTTP Function. Default rules reject anonymous callers with `EXCEED_AUTHORITY`. Note: anonymous login is disabled by default for new environments — if the function needs public access without authentication, configure the security rule to allow all callers rather than relying on anonymous login.
 - Mismatching the `scf_bootstrap` Node.js binary path with the function runtime (e.g. using `/var/lang/node18/bin/node` but setting `runtime: "Nodejs16.13"`).
 
 ### Minimal checklist
@@ -91,7 +91,7 @@ Use these rules whenever you are writing the function code itself:
 - Return responses explicitly with `res.writeHead(...)` and `res.end(...)`, including `Content-Type` such as `application/json; charset=utf-8` for JSON APIs.
 - Keep routing and method handling explicit. Unknown paths should return `404`, and known paths with unsupported methods should normally return `405`.
 - Keep gateway setup and security-rule changes separate from the runtime code. They affect access, not the HTTP Function programming model.
-- Do not add HTTP access service configuration when the task is only to create an HTTP Function itself. Gateway paths or custom domains are separate access-layer work; anonymous or public invocation requirements should be handled through the function security rule workflow.
+- Do not add HTTP access service configuration when the task is only to create an HTTP Function itself. Gateway paths or custom domains are separate access-layer work; public invocation requirements should be handled through the function security rule workflow (note: anonymous login is disabled by default).
 
 ## Quick decision table
 
