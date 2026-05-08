@@ -1099,7 +1099,7 @@ describe("env tools - envQuery", () => {
     const payload = JSON.parse((await tools.envQuery.handler({ action: "domains" })).content[0].text);
 
     expect(payload).toMatchObject({
-      Domains: [{ Domain: "localhost:5173", Status: "ENABLE", Type: "USER" }],
+      Domains: [{ Id: "domain-1", Domain: "localhost:5173", CreateTime: "2026-04-08 10:00:00", Status: "ENABLE", Type: "USER" }],
       localDevHint: {
         format: "host:port",
         useActualOrigin: true,
@@ -1121,8 +1121,8 @@ describe("env tools - envQuery", () => {
         domains: ["<actual-browser-host>:<actual-browser-port>"],
       },
     });
-    expect(payload.Domains[0]).not.toHaveProperty("Id");
-    expect(payload.Domains[0]).not.toHaveProperty("CreateTime");
+    expect(payload.Domains[0]).toHaveProperty("Id");
+    expect(payload.Domains[0]).toHaveProperty("CreateTime");
   });
 
   it("envQuery(domains) should report configured local entries without inferring completeness", async () => {
