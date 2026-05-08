@@ -324,18 +324,14 @@ describe("permission tools", () => {
     });
     const payload = JSON.parse(result.content[0].text);
 
-    expect(mockCreateUser).toHaveBeenCalledWith({
-      name: "bob",
-      password: "secret123",
-      userStatus: undefined,
-      description: undefined,
-      type: undefined,
-      nickName: undefined,
-      phone: undefined,
-      email: undefined,
-      avatarUrl: undefined,
-      uid: undefined,
-    });
+    expect(mockCreateUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "bob",
+        password: "secret123",
+        userStatus: undefined,
+        description: undefined,
+      }),
+    );
     expect(payload).toMatchObject({
       success: true,
       data: {

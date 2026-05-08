@@ -1,4 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import { registerDatabaseTools } from "./tools/databaseNoSQL.js";
 import { registerSQLDatabaseTools } from "./tools/databaseSQL.js";
 import { registerDownloadTools } from "./tools/download.js";
@@ -9,7 +11,7 @@ import { registerRagTools } from "./tools/rag.js";
 import { registerSetupTools } from "./tools/setup.js";
 import { registerStorageTools } from "./tools/storage.js";
 // import { registerMiniprogramTools } from "./tools/miniprogram.js";
-import { SetLevelRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { ListToolsRequestSchema, SetLevelRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { registerCapiTools } from "./tools/capi.js";
 import { registerCloudRunTools } from "./tools/cloudrun.js";
 import { registerDataModelTools } from "./tools/dataModel.js";
@@ -32,6 +34,84 @@ import { wrapServerWithTelemetry } from "./utils/tool-wrapper.js";
 interface PluginDefinition {
   name: string;
   register: (server: ExtendedMcpServer) => void | Promise<void>;
+}
+
+type JsonSchemaObject = {
+  type?: string;
+  properties?: Record<string, unknown>;
+  required?: string[];
+  allOf?: unknown[];
+  [key: string]: unknown;
+};
+
+const EMPTY_OBJECT_JSON_SCHEMA: JsonSchemaObject = {
+  type: "object",
+  properties: {},
+};
+
+export function applyManagePermissionsCreateUserRequirements(inputSchema: JsonSchemaObject): JsonSchemaObject {
+  if (
+    inputSchema?.type !== "object" ||
+    !inputSchema.properties?.action ||
+    !inputSchema.properties?.username ||
+    !inputSchema.properties?.password
+  ) {
+    return inputSchema;
+  }
+
+  const existingAllOf = Array.isArray(inputSchema.allOf) ? inputSchema.allOf : [];
+
+  return {
+    ...inputSchema,
+    allOf: [
+      ...existingAllOf,
+      {
+        if: {
+          properties: {
+            action: { const: "createUser" },
+          },
+          required: ["action"],
+        },
+        then: {
+          required: ["username", "password"],
+        },
+      },
+    ],
+  };
+}
+
+function overrideListToolsHandler(server: ExtendedMcpServer) {
+  const registeredTools = (server as unknown as { _registeredTools: Record<string, RegisteredTool> })
+    ._registeredTools;
+
+  server.server.setRequestHandler(ListToolsRequestSchema, () => ({
+    tools: Object.entries(registeredTools)
+      .filter(([, tool]: [string, RegisteredTool]) => tool.enabled)
+      .map(([name, tool]: [string, RegisteredTool]) => {
+        const inputSchema = tool.inputSchema
+          ? (zodToJsonSchema(tool.inputSchema, { strictUnions: true }) as JsonSchemaObject)
+          : EMPTY_OBJECT_JSON_SCHEMA;
+
+        const toolDefinition: Record<string, unknown> = {
+          name,
+          title: tool.title,
+          description: tool.description,
+          inputSchema:
+            name === "managePermissions"
+              ? applyManagePermissionsCreateUserRequirements(inputSchema)
+              : inputSchema,
+          annotations: tool.annotations,
+        };
+
+        if (tool.outputSchema) {
+          toolDefinition.outputSchema = zodToJsonSchema(tool.outputSchema, {
+            strictUnions: true,
+          });
+        }
+
+        return toolDefinition;
+      }),
+  }));
 }
 
 // 默认插件列表
@@ -283,6 +363,8 @@ export async function createCloudBaseMcpServer(options?: {
       await plugin.register(server);
     }
   }
+
+  overrideListToolsHandler(server);
 
   return server;
 }

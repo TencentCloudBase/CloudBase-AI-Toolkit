@@ -30,6 +30,17 @@ type QueryPermissionAction = (typeof QUERY_PERMISSION_ACTIONS)[number];
 type ManagePermissionAction = (typeof MANAGE_PERMISSION_ACTIONS)[number];
 type LegacyResourceType = "noSqlDatabase" | "sqlDatabase" | "function" | "storage";
 
+const SECURITY_RULE_DESCRIPTION =
+  "资源类型特定的规则内容，详细语义依赖 `resourceType`。当 `resourceType=\"noSqlDatabase\"` 且 `permission=\"CUSTOM\"` 时，应传文档数据库安全规则 JSON（文档型数据库规则：`https://docs.cloudbase.net/database/security-rules`）；键通常为 `read` / `create` / `update` / `delete`，值为表达式。" +
+  "重要：`create` 规则验证写入数据，此时文档尚不存在，不能使用 `doc.*`；`read` / `update` / `delete` 规则可使用 `doc.*` 引用已有文档字段。" +
+  "不要把 `doc._openid`、`auth.openid`、查询条件子集校验或 `create` / `update` / `delete` 模板误用于 `function`、`storage` 或 `sqlDatabase`。" +
+  '如需配置 `function` 或 `storage`，请改查官方安全规则文档：云函数 `https://docs.cloudbase.net/cloud-function/security-rules`，云存储 `https://docs.cloudbase.net/storage/security-rules`。示例：{"read":"auth.uid != null","create":"auth.uid != null && auth.loginType != "ANONYMOUS"","update":"auth.uid != null && doc._openid == auth.openid","delete":"auth.uid != null && doc._openid == auth.openid"}';
+
+const USERNAME_DESCRIPTION =
+  '用户名。**`action="createUser"` 时必填**，需与 `password` 一起提供。';
+const PASSWORD_DESCRIPTION =
+  '密码。**`action="createUser"` 时必填**，缺失会导致创建用户失败；如果用户未指定密码，请先和用户确认或生成一个安全的随机密码再调用工具，不要遗漏该参数。`action="updateUser"` 时可选，仅在需要重置密码时提供。';
+
 type ToolEnvelope = {
   success: boolean;
   data: Record<string, unknown>;
@@ -574,15 +585,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
         permission: z
           .enum(["READONLY", "PRIVATE", "ADMINWRITE", "ADMINONLY", "CUSTOM"])
           .optional(),
-        securityRule: z
-          .string()
-          .optional()
-          .describe(
-            "资源类型特定的规则内容，详细语义依赖 `resourceType`。当 `resourceType=\"noSqlDatabase\"` 且 `permission=\"CUSTOM\"` 时，应传文档数据库安全规则 JSON（文档型数据库规则：`https://docs.cloudbase.net/database/security-rules`）；键通常为 `read` / `create` / `update` / `delete`，值为表达式。" +
-              "重要：`create` 规则验证写入数据，此时文档尚不存在，不能使用 `doc.*`；`read` / `update` / `delete` 规则可使用 `doc.*` 引用已有文档字段。" +
-              "不要把 `doc._openid`、`auth.openid`、查询条件子集校验或 `create` / `update` / `delete` 模板误用于 `function`、`storage` 或 `sqlDatabase`。" +
-              '如需配置 `function` 或 `storage`，请改查官方安全规则文档：云函数 `https://docs.cloudbase.net/cloud-function/security-rules`，云存储 `https://docs.cloudbase.net/storage/security-rules`。示例：{"read":"auth.uid != null","create":"auth.uid != null && auth.loginType != "ANONYMOUS"","update":"auth.uid != null && doc._openid == auth.openid","delete":"auth.uid != null && doc._openid == auth.openid"}',
-          ),
+        securityRule: z.string().optional().describe(SECURITY_RULE_DESCRIPTION),
         roleId: z.string().optional(),
         roleIds: z.array(z.string()).optional(),
         roleName: z.string().optional(),
@@ -592,8 +595,8 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
         policies: z.array(z.record(z.any())).optional(),
         uid: z.string().optional(),
         uids: z.array(z.string()).optional(),
-        username: z.string().optional().describe("用户名。**`action=\"createUser\"` 时必填**，需与 `password` 一起提供。"),
-        password: z.string().optional().describe("密码。**`action=\"createUser\"` 时必填**，缺失会导致创建用户失败；如果用户未指定密码，请先和用户确认或生成一个安全的随机密码再调用工具，不要遗漏该参数。`action=\"updateUser\"` 时可选，仅在需要重置密码时提供。"),
+        username: z.string().optional().describe(USERNAME_DESCRIPTION),
+        password: z.string().optional().describe(PASSWORD_DESCRIPTION),
         userStatus: z.enum(["ACTIVE", "BLOCKED"]).optional(),
       },
       annotations: {

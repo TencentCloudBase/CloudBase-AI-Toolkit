@@ -67,7 +67,48 @@ vi.mock("./utils/cloud-mode.js", () => ({
   isCloudMode: vi.fn(() => false),
 }));
 vi.mock("./utils/tencent-cloud.js", () => ({ isInternationalRegion: vi.fn(() => false) }));
-vi.mock("@modelcontextprotocol/sdk/types.js", () => ({ SetLevelRequestSchema: {} }));
+vi.mock("@modelcontextprotocol/sdk/types.js", () => ({
+  ListToolsRequestSchema: { shape: { method: { value: "tools/list" } } },
+  SetLevelRequestSchema: { shape: { method: { value: "logging/setLevel" } } },
+}));
+
+describe("server tool schema overrides", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it("should require username and password in listTools schema when action=createUser", async () => {
+    const { applyManagePermissionsCreateUserRequirements } = await import("./server.js");
+
+    const result = applyManagePermissionsCreateUserRequirements({
+      type: "object",
+      properties: {
+        action: { type: "string" },
+        username: { type: "string" },
+        password: { type: "string" },
+      },
+      required: ["action"],
+    });
+
+    expect(result).toMatchObject({
+      required: ["action"],
+      allOf: [
+        {
+          if: {
+            properties: {
+              action: { const: "createUser" },
+            },
+            required: ["action"],
+          },
+          then: {
+            required: ["username", "password"],
+          },
+        },
+      ],
+    });
+  });
+});
 
 describe("server plugin registration", () => {
   beforeEach(() => {
