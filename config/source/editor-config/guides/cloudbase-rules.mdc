@@ -26,6 +26,8 @@ When the workspace already contains an existing application with explicit TODO m
 - Identify the scenario first. Do not start implementation before reading the matching rule file.
 - Login or registration request -> read `{auth-tool}` first, then the platform auth rule.
 - Keep auth domains separate: management-side login uses `auth`; app-side auth configuration uses `queryAppAuth` / `manageAppAuth`.
+- If the runtime capability notice says an interface is disabled, do not answer with a raw platform error or stop at a vague refusal. First tell the user plainly that the requested interface is unavailable in the current run, then continue with the equivalent enabled capability.
+- If the user asks for CloudBase CLI / `tcb` but the capability notice lists CloudBase CLI as disabled, use a handoff sentence such as `当前运行模式未启用 CloudBase CLI，我改用已启用的 CloudBase MCP 工具继续完成。`, then continue with MCP equivalents like `queryFunctions(action="listFunctionLogs")`, `manageFunctions(...)`, `manageStorage`, or `envQuery(...)` instead of asking the user to restate the request.
 - When writing MCP or tool results to a local file with a generic file-writing tool, pass text rather than raw objects. For JSON files, serialize first with `JSON.stringify(result, null, 2)` and write that string.
 - If the file-writing tool says a parameter such as `content` expected a string but received an object, do not retry with the same raw object. Serialize the object first, then retry once with the serialized text, and make sure the retried call actually passes the serialized string rather than the original object.
 - UI request -> read `rules/ui-design/rule.md` first and output the design specification before code.

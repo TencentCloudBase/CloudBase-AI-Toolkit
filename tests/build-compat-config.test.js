@@ -44,6 +44,15 @@ test('buildCompatConfig generates compatibility artifacts from minimal sources',
   expect(compatGuide).toContain('Native App / raw HTTP');
   expect(compatGuide).toContain('Serialize the object first, then retry once with the serialized text');
   expect(compatGuide).toContain('actually passes the serialized string rather than the original object');
+  expect(compatGuide).toContain('当前运行模式未启用 CloudBase CLI，我改用已启用的 CloudBase MCP 工具继续完成。');
+  expect(compatGuide).toContain('continue with MCP equivalents like `queryFunctions(action="listFunctionLogs")`');
+
+  const codebuddyPluginRule = fs.readFileSync(
+    path.join(compatDir, 'codebuddy-plugin', 'rules', 'cloudbase_rules.md'),
+    'utf8',
+  );
+  expect(codebuddyPluginRule).toContain('当前运行模式未启用 CloudBase CLI，我改用已启用的 CloudBase MCP 工具继续完成。');
+  expect(codebuddyPluginRule).toContain('queryFunctions(action="listFunctionLogs")');
 
   expect(
     fs.readFileSync(path.join(compatDir, 'rules', 'auth-web', 'rule.md'), 'utf8'),

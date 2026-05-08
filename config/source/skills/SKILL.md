@@ -43,13 +43,14 @@ alwaysApply: true
 
 ### Handling disabled capabilities
 
-- If the runtime capability notice says an interface is disabled, do not call it anyway and do not stop with an opaque error. Explicitly tell the user that the requested interface is unavailable in the current run, then continue with the equivalent enabled CloudBase capability.
-- When the user explicitly requests to use CLI commands (e.g., "使用 CloudBase CLI", "tcb", "命令行", "CLI"), but the current run mode has CLI disabled (indicated by "CloudBase CLI" in the disabled capabilities list), inform the user that CLI is not available in this mode and guide them to use the equivalent MCP tools instead.
+- If the runtime capability notice says an interface is disabled, do not call it anyway and do not stop with an opaque error or raw platform text such as `400 invalid parameter value`. First tell the user in plain language that the requested interface is unavailable in the current run, then continue with the equivalent enabled CloudBase capability.
+- When the user explicitly requests to use CLI commands (e.g., "使用 CloudBase CLI", "tcb", "命令行", "CLI"), but the current run mode has CLI disabled (indicated by "CloudBase CLI" in the disabled capabilities list), inform the user that CLI is not available in this mode and immediately continue with the equivalent MCP tools. Use a handoff sentence such as `当前运行模式未启用 CloudBase CLI，我改用已启用的 CloudBase MCP 工具继续完成。`
 - Common replacements:
   - Log query: Use `queryFunctions(action="listFunctionLogs", functionName="<name>", startTime="<time>", endTime="<time>", limit=20)` instead of `tcb fn log`
   - Function deployment: Use `manageFunctions(action="createFunction"|"updateFunctionCode")` instead of `tcb fn deploy`
   - Storage operations: Use `manageStorage` tools instead of `tcb storage`
   - Environment query: Use `envQuery(action=list|info)` instead of `tcb env list`
+- After switching away from a disabled interface, continue the requested task in the same answer instead of debating interface availability or asking the user to restate the request, unless the equivalent capability is also unavailable.
 - For troubleshooting or log analysis after switching away from CLI, route to `ops-inspector` or `cloud-functions` and keep the response task-focused instead of debating interface availability.
 - If unsure which MCP tool maps to a CLI command, route to the appropriate domain skill (e.g., `cloud-functions`, `cloud-storage-web`, or `ops-inspector`) for the specific capability.
 

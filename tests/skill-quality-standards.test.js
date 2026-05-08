@@ -88,6 +88,35 @@ describe('skill quality standards', () => {
     expect(editorGuide).toMatch(/Do not pass alias-like short forms directly/i);
   });
 
+  test('cloudbase guidance keeps the disabled-capability fallback across source and plugin surfaces', () => {
+    const guideline = readFile('config', 'source', 'guideline', 'cloudbase', 'SKILL.md');
+    const allInOne = readFile('config', 'source', 'skills', 'SKILL.md');
+    const cliSkill = readSourceSkill('cloudbase-cli');
+    const editorGuide = readFile(
+      'config',
+      'source',
+      'editor-config',
+      'guides',
+      'cloudbase-rules.mdc',
+    );
+    const pluginRule = readFile(
+      'config',
+      'codebuddy-plugin',
+      'rules',
+      'cloudbase_rules.md',
+    );
+
+    expect(guideline).toContain('当前运行模式未启用 CloudBase CLI，我改用已启用的 CloudBase MCP 工具继续完成。');
+    expect(guideline).toContain('400 invalid parameter value');
+    expect(allInOne).toContain('当前运行模式未启用 CloudBase CLI，我改用已启用的 CloudBase MCP 工具继续完成。');
+    expect(allInOne).toContain('same answer');
+    expect(cliSkill).toContain('当前运行模式未启用 CloudBase CLI，我改用已启用的 CloudBase MCP 工具继续完成。');
+    expect(editorGuide).toContain('当前运行模式未启用 CloudBase CLI，我改用已启用的 CloudBase MCP 工具继续完成。');
+    expect(editorGuide).toContain('instead of asking the user to restate the request');
+    expect(pluginRule).toContain('当前运行模式未启用 CloudBase CLI，我改用已启用的 CloudBase MCP 工具继续完成。');
+    expect(pluginRule).toContain('queryFunctions(action="listFunctionLogs")');
+  });
+
   test('cloud-functions http reference stays compatible with Express 5 wildcard syntax', () => {
     const raw = readFile(
       'config',

@@ -25,6 +25,12 @@ updatedAt: 2026-03-27T00:00:00.000Z
 **1. MCP 工具优先原则**
 使用 CloudBase 管理功能时，优先通过 MCP 工具（如 `envQuery`、`uploadFiles`、`createFunction`、`manageCloudRun`、`executeWriteSQL` 等）而非 CLI 命令或控制台操作。
 
+**1.1 未启用能力的兜底规则**
+- 如果运行时能力提示里明确某个接口未启用，不要继续调用该接口，也不要只返回原始平台报错或一句含糊的“不可用”。
+- 如果用户明确要求使用 CloudBase CLI / `tcb`，但能力提示里显示 CloudBase CLI 未启用，先直接告诉用户：`当前运行模式未启用 CloudBase CLI，我改用已启用的 CloudBase MCP 工具继续完成。`
+- 然后立刻继续完成原任务，改用等价 MCP 能力，例如：函数日志查询用 `queryFunctions(action="listFunctionLogs")`，函数部署用 `manageFunctions(...)`，存储操作用 `manageStorage`，环境查询用 `envQuery(...)`。
+- 除非等价能力也未启用，否则不要要求用户改写请求，也不要停在接口选择争论上。
+
 **2. 场景识别优先**
 开发前首先识别当前场景类型（Web/小程序/云函数/CloudRun/AI Agent），然后阅读对应的 skill 指南。
 

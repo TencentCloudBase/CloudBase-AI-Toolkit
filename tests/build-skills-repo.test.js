@@ -34,6 +34,8 @@ test('build-skills-repo publishes skills and guideline from minimal sources', ()
   );
   expect(guideline).toContain('Serialize the object first, then retry once with the serialized text');
   expect(guideline).toContain('actually passes the serialized string rather than the original object');
+  expect(guideline).toContain('当前运行模式未启用 CloudBase CLI，我改用已启用的 CloudBase MCP 工具继续完成。');
+  expect(guideline).toContain('raw platform text such as `400 invalid parameter value`');
 
   const readme = fs.readFileSync(path.join(OUTPUT_DIR, 'README.md'), 'utf8');
   expect(readme).toContain('cloudbase-guidelines');
