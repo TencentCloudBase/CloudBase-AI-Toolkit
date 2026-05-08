@@ -33,6 +33,15 @@ When the workspace already contains an existing application with explicit TODO m
 - Cloud Function request -> route to `{cloud-functions}`, not `cloudrun-development`, unless the task explicitly needs container service behavior.
 - Generated, mirrored, or IDE-specific artifacts are compatibility outputs, not the primary semantic source.
 
+### Engineering constitution (applies to every scenario)
+
+These rules override convenience. They are a gate before saying "done". Full rationale lives in `{web-development}` (Engineering constitution section).
+
+- **Do NOT use `any` to bypass type errors.** Not `: any`, not `as any`, not `@ts-ignore`, not `@ts-nocheck`. Use `unknown` + a type guard, a precise `interface`, or `declare module` augmentation instead. `any` propagates silently and defeats the compile-time safety net.
+- **Self-verify before claiming done.** Static layer (`tsc --noEmit` / lint / project build / unit tests) **and** runtime layer (use `agent-browser` to exercise user-visible flows when the change touches routing, rendering, forms, auth, or async UI). "It should work" without evidence is not acceptable. If a layer cannot be run locally, name the gap explicitly.
+- **Do not paper over failures.** No empty `try/catch` to silence bugs, no skipping / deleting failing tests to make CI green, "it compiles" is not "it works".
+- **`ai.createModel(...)` / `wx.cloud.extend.AI.createModel(provider)` argument is a GroupName, not a vendor / model id.** Only three legal shapes: `"cloudbase"` (default, TokenHub-backed managed pool), `"hunyuan-exp"` (only if `DescribeAIModels` returns it, mainly Mini Program Growth Plan), or `"custom-<your-name>"` (user-defined via `CreateAIModel`, must start with `custom-`). The concrete model id (`deepseek-v4-flash`, `hunyuan-2.0-instruct-20251111`, `kimi-k2.6`, …) goes into the **`model` field** of `generateText` / `streamText`, never into `createModel(...)`. See `{ai-model-web}` / `{ai-model-nodejs}` / `{ai-model-wechat}` for the full STOP card.
+
 ### High-priority routing table
 
 | Scenario | Read first | Then read | Do NOT route to first | Must check before action |
@@ -309,7 +318,7 @@ Before starting work, suggest confirming with user:
 9. **Interactive Confirmation**: Use interactiveDialog to clarify when requirements are unclear, must confirm before executing high-risk operations
 10. **Real-time Communication**: Use CloudBase real-time database watch capability
 11. **⚠️ Authentication Rules**: When users develop projects, if user login authentication is needed, must use built-in authentication functions, must strictly distinguish authentication methods by platform
-   - **Web Projects**: **MUST use CloudBase Web SDK built-in authentication** (e.g., `auth.toDefaultLoginPage()`), refer to `rules/auth-web/rule.md`
+   - **Web Projects**: **MUST use CloudBase Web SDK built-in authentication** — delegate provider configuration to `{auth-tool}` and the browser sign-in flow (`signInWithPassword` / `signInWithPhone` / `onLoginStateChanged` / `getLoginState`) to `{auth-web}`. Do NOT default to `signInAnonymously()`, and do NOT recommend `auth.toDefaultLoginPage()` — the hosted login page is no longer the preferred path. Route the user to your own `/login` page and call the `auth-web` APIs there.
    - **Mini Program Projects**: **Naturally login-free**, get `wxContext.OPENID` in cloud functions, refer to `rules/auth-wechat/rule.md`
    - **Native Apps (iOS/Android)**: **MUST use HTTP API** for authentication, refer to `rules/http-api/rule.md` and Authentication API swagger
 12. **⚠️ Authentication Configuration Mandatory Check**: When user mentions any authentication-related requirements:

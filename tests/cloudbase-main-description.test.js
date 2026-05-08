@@ -90,6 +90,28 @@ describe('cloudbase main skill activation description', async () => {
       minHits: 3,
     },
     {
+      name: 'AI model call APIs',
+      terms: [
+        'generateText',
+        'streamText',
+        'createModel',
+        'generateImage',
+        'deepseek',
+        'hunyuan-exp',
+        'Token Credits',
+        '资源包',
+        '小程序成长计划',
+        '图片生成',
+        '图像生成',
+      ],
+      minHits: 5,
+    },
+    {
+      name: 'TokenHub managed model vendors',
+      terms: ['TokenHub', 'Hunyuan', 'DeepSeek', 'GLM', 'Kimi', 'MiniMax'],
+      minHits: 4,
+    },
+    {
       name: 'Third-party LLM integration',
       terms: ['大模型', 'LLM', '第三方大模型', '大模型接入', '大模型调用', '接入外部大模型', 'LLM API', 'chatbot', 'AI 助手', 'AI agent'],
       minHits: 5,

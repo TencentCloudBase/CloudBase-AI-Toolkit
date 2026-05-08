@@ -238,6 +238,45 @@ scenarios:
   label: AI Model (Web)
   mustCheckBeforeAction:
   - Platform and streaming interaction mode
+- id: ai-model-call
+  priority: 86
+  signals:
+  - 大模型调用
+  - AI 模型调用
+  - generateText
+  - streamText
+  - generateImage
+  - 文本生成
+  - 图片生成
+  - 流式对话
+  - hunyuan-exp
+  - deepseek-v4-flash
+  - Token Credits 资源包
+  - 小程序成长计划
+  - ai_miniprogram_inspire_plan
+  - callCloudApi AI 模型
+  - CreateAIModel
+  firstRead: ai-model-web
+  thenRead:
+  - ai-model-nodejs
+  - ai-model-wechat
+  beforeAction:
+  - 先跑「调用前必须的资格检查」：用 `envQuery` 拿到 `EnvId`，再按端别优先级查资格。
+  - Web / Node.js 端优先 `callCloudApi(tcb, DescribeEnvPostpayPackage)` 确认 Token Credits 资源包开通；未命中返回 `https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token` 引导购买。
+  - 小程序端优先调用 `callCloudApi` 的 `DescribeActivityInfo`（参数 activityNames 为 ai_miniprogram_inspire_plan）判断成长计划是否报名；命中用 `hunyuan-exp` / `hunyuan-2.0-instruct-20251111`；未命中引导 `https://docs.cloudbase.net/ai/ai-inspire-plan` 或退回资源包 + 非 hunyuan 模型。
+  - 指定的模型不在托管列表时走自定义接入（CloudBase 控制台 `#/ai` 或 `callCloudApi(tcb, CreateAIModel)`），不要点名任何第三方品牌。
+  doNotUse:
+  - cloudbase-agent
+  - cloud-functions
+  - cloudrun-development
+  commonMistakes:
+  - 跳过资格检查直接写 SDK 调用，运行时才发现资源包未开通或计划未报名。
+  - 把小程序场景错误地退化成 Web SDK 调用。
+  - 图像生成忽略超时与单次 Token 费用，云函数 timeout 仍保留默认值。
+  - 在业务代码里硬编码第三方模型密钥，而非走「不在托管列表时的自定义接入」。
+  label: AI model call (大模型调用 / 文本生成 / 图片生成 / 流式对话)
+  mustCheckBeforeAction:
+  - 先跑「调用前必须的资格检查」：`DescribeActivityInfo`（小程序成长计划） + `DescribeEnvPostpayPackage`（Token Credits 资源包）
 - id: ops-inspector
   priority: 82
   signals:

@@ -1,6 +1,6 @@
 ---
 name: cloudbase
-description: Use this skill whenever users ask to develop, design, build, deploy, debug, migrate, or troubleshoot anything on CloudBase (腾讯云开发 / 云开发 / TCB / 微信云开发) — across (a) full-stack Web apps, 网站, landing pages, dashboards, admin systems, 管理后台, e-commerce sites, React / Vue / Vite / Next / Nuxt projects; (b) 微信小程序 / 小程序 / WeChat Mini Programs and uni-app; (c) native / mobile / 移动端 / iOS / Android / Flutter / React Native apps via HTTP API; (d) UI / UX / 页面 / 界面 / 登录页 / 注册页 / 表单 / 仪表盘 / login page / signup page / form / dashboard / screen / prototype / mockup / 原型 / 高保真 / visual design specs before writing interface code; (e) authentication — 登录 / 注册 / signin / signup / OAuth / SSO / SMS / 短信验证码 / email / 微信登录 / anonymous login / publishable key / provider configuration; (f) databases — NoSQL 文档数据库, MySQL 关系型数据库, CRUD, 查询, pagination, security rules, data modeling; (g) cloud functions / 云函数 / serverless API / 接口 / HTTP Functions / Event Functions / scf_bootstrap / SCF; (h) CloudRun / 云托管 / container backend / Dockerfile / long-running services; (i) 云存储 / cloud storage / object storage / 文件上传 / file upload / hosting / 静态托管; (j) built-in AI models, 内置大模型, AI 能力, AI 对话, streaming, 流式输出, image generation, hunyuan via @cloudbase/js-sdk / node-sdk / wx.cloud.extend.AI; (k) integrating third-party LLMs / 第三方大模型 / 大模型接入 / 大模型调用 / 接入外部大模型 / LLM API — chatbot, AI 助手, AI agent backends, API key 管理, streaming responses, tool calling; (l) AI Agent / 智能体 / 智能体开发 / AG-UI protocol / LangGraph / LangChain / CrewAI / streaming agent UI; (m) CloudBase CLI (tcb) operations, CI/CD deploys, 批量部署; (n) ops — 巡检 / 诊断 / health check / 日志排查 / error inspection / troubleshooting / 故障排查 / CLS 日志; (o) spec workflow / 需求文档 / 技术方案 / 架构设计 / requirements / design doc / tasks.md; (p) comparing CloudBase with Supabase or 从 Supabase 迁移到 CloudBase. Covers backend, database, hosting, cloud functions, CloudRun, storage, AI, Agent, UI design, and ops inspection in one bundled skill with reference sub-skills.
+description: Use this skill whenever users ask to develop, design, build, deploy, debug, migrate, or troubleshoot anything on CloudBase (腾讯云开发 / 云开发 / TCB / 微信云开发) — across (a) full-stack Web apps, 网站, landing pages, dashboards, admin systems, 管理后台, e-commerce sites, React / Vue / Vite / Next / Nuxt projects; (b) 微信小程序 / 小程序 / WeChat Mini Programs and uni-app; (c) native / mobile / 移动端 / iOS / Android / Flutter / React Native apps via HTTP API; (d) UI / UX / 页面 / 界面 / 登录页 / 注册页 / 表单 / 仪表盘 / login page / signup page / form / dashboard / screen / prototype / mockup / 原型 / 高保真 / visual design specs before writing interface code; (e) authentication — 登录 / 注册 / signin / signup / OAuth / SSO / SMS / 短信验证码 / email / 微信登录 / anonymous login / publishable key / provider configuration; (f) databases — NoSQL 文档数据库, MySQL 关系型数据库, CRUD, 查询, pagination, security rules, data modeling; (g) cloud functions / 云函数 / serverless API / 接口 / HTTP Functions / Event Functions / scf_bootstrap / SCF; (h) CloudRun / 云托管 / container backend / Dockerfile / long-running services; (i) 云存储 / cloud storage / object storage / 文件上传 / file upload / hosting / 静态托管; (j) built-in AI models, 内置大模型, AI 能力, AI 对话, streaming, 流式输出, image generation, 图片生成, 图像生成, TokenHub 托管模型池, Hunyuan, hunyuan-exp, DeepSeek, deepseek-v4-flash, Zhipu GLM, Kimi, MiniMax via @cloudbase/js-sdk / @cloudbase/node-sdk / wx.cloud.extend.AI — generateText, streamText, createModel, generateImage, managed AI model groups, Token Credits 资源包, 小程序成长计划, ai_miniprogram_inspire_plan, 资源包购买, pre-flight eligibility check via envQuery / callCloudApi (DescribeActivityInfo, DescribeEnvPostpayPackage, DescribeAIModels, DescribeManagedAIModelList, UpdateAIModel, CreateAIModel); (k) integrating third-party LLMs / 第三方大模型 / 大模型接入 / 大模型调用 / 接入外部大模型 / LLM API — chatbot, AI 助手, AI agent backends, API key 管理, streaming responses, tool calling; (l) AI Agent / 智能体 / 智能体开发 / AG-UI protocol / LangGraph / LangChain / CrewAI / streaming agent UI; (m) CloudBase CLI (tcb) operations, CI/CD deploys, 批量部署; (n) ops — 巡检 / 诊断 / health check / 日志排查 / error inspection / troubleshooting / 故障排查 / CLS 日志; (o) spec workflow / 需求文档 / 技术方案 / 架构设计 / requirements / design doc / tasks.md; (p) comparing CloudBase with Supabase or 从 Supabase 迁移到 CloudBase. Covers backend, database, hosting, cloud functions, CloudRun, storage, AI, Agent, UI design, and ops inspection in one bundled skill with reference sub-skills.
 description_zh: 为你的小程序和 Web/H5 提供一体化运行与部署环境，包括数据库、云函数、云存储、身份权限和静态托管
 description_en: An all-in-one runtime and deployment environment for WeChat Mini Programs and Web/H5 apps, including database, cloud functions, cloud storage, identity and access control, and static hosting.
 version: 2.18.0
@@ -40,10 +40,21 @@ If a skill points to its own `references/...` files, keep following those relati
 - If the file-writing tool reports that a field such as `content` expected a string but received an object, do not retry with the same raw object. Serialize the object first, then retry once with the serialized text, and make sure the retried call actually passes the serialized string rather than the original object.
 - Keep scenario-specific pitfall lists in the matching child skills instead of expanding this entry file.
 
+### Engineering constitution (applies to every scenario)
+
+These rules override convenience. They are a gate before saying "done". Full rationale + replacements live in `web-development` (Engineering constitution section).
+
+- **Do NOT use `any` to bypass type errors.** Not `: any`, not `as any`, not `@ts-ignore`, not `@ts-nocheck`. Use `unknown` + a type guard, a precise `interface`, or `declare module` augmentation instead. `any` propagates silently and defeats the compile-time safety net.
+- **Self-verify before claiming done.** Static layer (`tsc --noEmit` / lint / project build / unit tests) **and** runtime layer (use `agent-browser` to exercise user-visible flows when the change touches routing, rendering, forms, auth, or async UI). "It should work" without evidence is not acceptable. If a layer cannot be run locally, name the gap explicitly.
+- **Do not paper over failures.** No empty `try/catch` to silence bugs, no skipping / deleting failing tests to make CI green, "it compiles" is not "it works".
+- **`ai.createModel(...)` / `wx.cloud.extend.AI.createModel(provider)` argument is a GroupName, not a vendor / model id.** Only three legal shapes: `"cloudbase"` (default, TokenHub-backed managed pool), `"hunyuan-exp"` (only if `DescribeAIModels` returns it, mainly Mini Program Growth Plan), or `"custom-<your-name>"` (user-defined via `CreateAIModel`, must start with `custom-`). The concrete model id (`deepseek-v4-flash`, `hunyuan-2.0-instruct-20251111`, `kimi-k2.6`, …) goes into the **`model` field** of `generateText` / `streamText`, never into `createModel(...)`. See `ai-model-web` / `ai-model-nodejs` / `ai-model-wechat` for the full STOP card.
+
 ### High-priority routing
 
 <!-- DO NOT EDIT: auto-generated from references/activation-map.yaml -->
 
+| Scenario | Read first | Then read | Do NOT route to first | Must check before action |
+|----------|------------|-----------|------------------------|--------------------------|
 | Scenario | Read first | Then read | Do NOT route to first | Must check before action |
 |----------|------------|-----------|------------------------|--------------------------|
 | Web login / registration / auth UI | `auth-tool` | auth-web, web-development | cloud-functions, http-api | Provider status and publishable key |
@@ -54,17 +65,18 @@ If a skill points to its own `references/...` files, keep following those relati
 | Cloud Functions | `cloud-functions` | auth-tool, ai-model-nodejs | cloudrun-development, auth-web | Event vs HTTP function, runtime, `scf_bootstrap` |
 | CloudRun backend | `cloudrun-development` | auth-tool, relational-database-tool | cloud-functions | Container boundary, Dockerfile, CORS |
 | AI Agent (智能体开发) | `cloudbase-agent` | cloud-functions, cloudrun-development | cloud-functions, cloudrun-development | AG-UI protocol, scf_bootstrap, SSE streaming |
+| AI model call (大模型调用 / 文本生成 / 图片生成 / 流式对话) | `ai-model-web` | ai-model-nodejs, ai-model-wechat | cloudbase-agent, cloud-functions, cloudrun-development | 先跑「调用前必须的资格检查」：`DescribeActivityInfo`（小程序成长计划） + `DescribeEnvPostpayPackage`（Token Credits 资源包） |
 | UI generation | `ui-design` | web-development, miniprogram-development | cloud-functions | Design specification first |
 | AI Model (Web) | `web-development` | ai-model-web, ui-design | ai-model-wechat, http-api | Platform and streaming interaction mode |
 | Resource health inspection / troubleshooting | `ops-inspector` | cloud-functions, cloudrun-development | ui-design, spec-workflow | CLS enabled, time range for logs |
 | Spec workflow / architecture design | `spec-workflow` | cloudbase | web-development, cloud-functions | Requirements, design, tasks confirmed |
-
 
 ### Routing reminders
 
 - Web auth failures are usually caused by skipping provider configuration, not by missing frontend code snippets.
 - Native App failures are usually caused by reading Web SDK paths, not by missing HTTP API knowledge.
 - Mini program failures are usually caused by treating `wx.cloud` like Web auth or Web SDK.
+- AI 大模型调用失败通常是资源包未开通或小程序成长计划未报名，不是 SDK 用错；先跑 `DescribeEnvPostpayPackage` / `DescribeActivityInfo` 资格检查，再去改代码。小程序端优先判成长计划，Web / Node.js 端优先判 Token Credits 资源包。
 
 ### Web SDK quick reminder
 
