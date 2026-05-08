@@ -169,7 +169,7 @@ Use this section only when the Web project needs CloudBase platform features.
 ### Static hosting defaults
 
 - Build before deployment
-- Prefer relative asset paths for static hosting compatibility
+- For root deployment, keep root-compatible asset paths; for subdirectory deployment, set `base` / `publicPath` / `assetPrefix` to the exact absolute deploy path and do not use `./`.
 - Use hash routing by default when the project lacks server-side route rewrites
 - If the user does not specify a root path, avoid deploying directly to the site root by default
 
@@ -190,9 +190,14 @@ When deploying to a subdirectory (e.g., `/vite-test`), the `uploadFiles` tool re
    - [ ] Build config (`base`/`publicPath`/`assetPrefix`) matches deployment path
    - [ ] Build has been re-run after config change
    - [ ] Built `index.html` references assets with correct paths (not absolute root `/`)
+   - [ ] Upload target is the full build output directory contents (usually `dist/`), not only `index.html`
    - [ ] `cloudPath` has no leading `/`
 
-4. **Common 404 cause**: Using `./` relative paths in build config. When accessing `https://env.tcloudbase.com/vite-test` (no trailing slash), relative paths resolve incorrectly.
+4. **Mandatory post-upload verification**:
+   - Call `findFiles` with the deployment prefix and confirm uploaded files include `index.html` plus emitted JS/CSS/assets under that prefix
+   - Do not treat deployment as complete if only `index.html` exists or emitted assets are missing
+
+5. **Common 404 cause**: Using `./` relative paths in build config. When accessing `https://env.tcloudbase.com/vite-test` (no trailing slash), relative paths resolve incorrectly.
 
 ### CloudBase quick start
 
