@@ -1314,7 +1314,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
 支持的模板:
 - react: React + CloudBase 全栈应用模板
 - vue: Vue + CloudBase 全栈应用模板
-- miniprogram: 微信小程序 + 云开发模板  
+- miniprogram: 微信小程序 + 云开发模板
 - uniapp: UniApp + CloudBase 跨端应用模板
 - rules: 只包含AI编辑器配置文件（包含Cursor、WindSurf、CodeBuddy等所有主流编辑器配置），适合在已有项目中补充AI编辑器配置
 

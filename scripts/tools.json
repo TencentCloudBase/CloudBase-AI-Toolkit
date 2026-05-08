@@ -194,7 +194,7 @@
     },
     {
       "name": "writeNoSqlDatabaseStructure",
-      "description": "修改 NoSQL 数据库结构，支持创建/删除集合，以及通过 updateCollection 的 updateOptions.CreateIndexes / updateOptions.DropIndexes 添加索引和删除索引。本工具为服务端管理工具，用于管理端操作集合和索引结构，不用于编写客户端代码。",
+      "description": "创建、删除和管理 NoSQL 数据库集合（collection）。支持创建新集合、删除现有集合，以及通过 updateCollection 的 updateOptions.CreateIndexes / updateOptions.DropIndexes 添加索引和删除索引。当需要新建集合时，使用 action=createCollection。本工具为服务端管理工具，用于管理端操作集合和索引结构，不用于编写客户端代码。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -386,7 +386,7 @@
     },
     {
       "name": "writeNoSqlDatabaseContent",
-      "description": "修改 NoSQL 数据库数据记录。⚠️ 本工具为服务端管理工具，用于管理端/运维端操作（如后台脚本、数据迁移、批量修改）。当任务要求编写客户端应用代码时（例如「用 JS SDK 登录并插入数据」、「在前端读写数据库」），不应使用本工具，而应在项目代码中编写 @cloudbase/js-sdk 客户端代码（如 app.database().collection().add()、db.collection().where().get() 等）。可按 MongoDB updateOne/updateMany 的心智模型理解：部分更新必须使用 `$set`、`$inc`、`$push` 等更新操作符；如果直接传「字段到值的普通对象」这类内容，底层会把它当作替换内容，存在覆盖整条文档的风险。更新嵌套对象中的某个字段时必须使用点号路径，例如把 `address.city` 设为 `shenzhen`；如果把整个 `address` 对象作为 `$set` 的值传入，则整个 `address` 对象会被替换，同级其他字段将丢失。若集合中的角色/档案文档会在前端通过 `db.collection(...).doc(uid)` 读取，请确保文档 `_id` 就是该 `uid`；不要用按 `uid` 条件查询再配合 `upsert=true` 的方式去更新 `users` / `profiles`，否则经常会生成一个不同的 `_id`，导致后续 `doc(uid)` 读取命中不到。",
+      "description": "修改 NoSQL 数据库数据记录。⚠️ 本工具为服务端管理工具，用于管理端/运维端操作（如后台脚本、数据迁移、批量修改）。当任务要求编写客户端应用代码时（例如「用 JS SDK 登录并插入数据」、「在前端读写数据库」），不应使用本工具，而应在项目代码中编写 @cloudbase/js-sdk 客户端代码（如 app.database().collection().add()、db.collection().where().get() 等）。可按 MongoDB updateOne/updateMany 的心智模型理解：部分更新必须使用 `$set`、`$inc`、`$push` 等更新操作符；如果直接传「字段到值的普通对象」这类内容，底层会把它当作替换内容，存在覆盖整条文档的风险。⚠️ 嵌套对象部分更新务必使用点号路径：要更新 `shipping.city`，应传 `$set: {\"shipping.city\": \"guangzhou\"}`，绝不能传 `$set: {\"shipping\": {\"city\": \"guangzhou\"}}`（后者会丢失 shipping 下的其他字段）。若集合中的角色/档案文档会在前端通过 `db.collection(...).doc(uid)` 读取，请确保文档 `_id` 就是该 `uid`；不要用按 `uid` 条件查询再配合 `upsert=true` 的方式去更新 `users` / `profiles`，否则经常会生成一个不同的 `_id`，导致后续 `doc(uid)` 读取命中不到。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -440,7 +440,7 @@
                 "type": "string"
               }
             ],
-            "description": "更新内容(对象或字符串,推荐对象)(update 操作必填)。按 MongoDB 更新语义传入 MgoUpdate：部分更新请使用 `$set`、`$inc`、`$unset`、`$push` 等操作符，例如使用 `$set` 更新 `status`；不要直接传“字段到值的普通对象”，否则可能替换整条文档。更新嵌套字段时必须使用点号路径，例如通过 `$set` 更新 `address.city`；不要把整个 `address` 对象作为 `$set` 的值传入，否则会替换整个 `address` 对象。"
+            "description": "更新内容(对象或字符串,推荐对象)(update 操作必填)。按 MongoDB 更新语义传入 MgoUpdate：部分更新请使用 `$set`、`$inc`、`$unset`、`$push` 等操作符，例如使用 `$set` 更新 `status`；不要直接传\"字段到值的普通对象\"，否则可能替换整条文档。\n\n⚠️ 嵌套字段必须用点号路径（如 `shipping.city`），禁止整对象替换：\n- ❌ 错误：{ \"$set\": { \"shipping\": { \"city\": \"guangzhou\" } } } — shipping 被整块替换，原有 address/province 等字段全部丢失\n- ✅ 正确：{ \"$set\": { \"shipping.city\": \"guangzhou\" } } — 仅更新 city，shipping 下其他字段保留"
           },
           "isMulti": {
             "type": "boolean",
@@ -653,7 +653,7 @@
     },
     {
       "name": "queryFunctions",
-      "description": "函数域统一只读入口。通过更自解释的 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。",
+      "description": "函数域统一只读入口。通过更自解释的 action 查询 CloudBase 云函数列表、函数详情、执行日志、层、触发器和代码下载地址。\n\n**分页说明**：`listFunctions`、`listLayers` 支持 `limit` 和 `offset` 参数。\n- `limit`: 分页数量，默认值由后端决定\n- `offset`: 分页偏移，从 0 开始\n- 示例：`queryFunctions(action=\"listFunctions\", offset=10, limit=10)`\n\n**查询 CloudBase 云函数日志**：使用 `action=\"listFunctionLogs\"`，需要提供 `functionName` 参数。\n- 示例：`queryFunctions(action=\"listFunctionLogs\", functionName=\"my-function\")`\n- 如需查看日志详情：`queryFunctions(action=\"getFunctionLogDetail\", requestId=\"xxx\")`\n\n**区分 `queryLogs` 工具**：\n- 本工具用于查询特定 CloudBase 云函数的执行日志\n- `queryLogs` 工具用于搜索 CLS 日志服务（跨服务日志聚合）",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -671,23 +671,23 @@
               "listFunctionTriggers",
               "getFunctionDownloadUrl"
             ],
-            "description": "只读操作类型，例如 listFunctions、getFunctionDetail、listFunctionLogs"
+            "description": "只读操作类型：\n- `listFunctions`: 列出所有 CloudBase 云函数\n- `getFunctionDetail`: 获取 CloudBase 云函数详情（需要 functionName）\n- `listFunctionLogs`: 查询 CloudBase 云函数执行日志（需要 functionName）\n- `getFunctionLogDetail`: 获取日志详情（需要 requestId）\n- `listFunctionLayers`: 列出函数绑定的层\n- `listLayers`: 列出所有层\n- `listLayerVersions`: 列出层的版本\n- `getLayerVersionDetail`: 获取层版本详情\n- `listFunctionTriggers`: 列出函数触发器\n- `getFunctionDownloadUrl`: 获取函数代码下载地址"
           },
           "functionName": {
             "type": "string",
-            "description": "函数名称。listFunctionLogs、getFunctionDetail、listFunctionLayers、listFunctionTriggers、getFunctionDownloadUrl 时必填"
+            "description": "CloudBase 云函数名称。`getFunctionDetail`、`listFunctionLogs`、`listFunctionLayers`、`listFunctionTriggers`、`getFunctionDownloadUrl` 时必填"
           },
           "limit": {
             "type": "number",
-            "description": "分页数量。列表类 action 可选"
+            "description": "分页数量（limit）。列表类 action 可选，默认值由后端决定"
           },
           "offset": {
             "type": "number",
-            "description": "分页偏移。列表类 action 可选"
+            "description": "分页偏移（offset）。列表类 action 可选，默认 0"
           },
           "codeSecret": {
             "type": "string",
-            "description": "代码保护密钥"
+            "description": "代码保护密钥，用于解密函数代码"
           },
           "startTime": {
             "type": "string",
@@ -699,15 +699,15 @@
           },
           "requestId": {
             "type": "string",
-            "description": "日志 requestId。获取日志详情时必填"
+            "description": "日志请求 ID。`getFunctionLogDetail` 操作必填，可从 `listFunctionLogs` 结果中获取"
           },
           "qualifier": {
             "type": "string",
-            "description": "函数版本，日志查询时可选"
+            "description": "函数版本别名，如 $LATEST、$DEFAULT。日志查询时可选"
           },
           "runtime": {
             "type": "string",
-            "description": "层查询的运行时筛选"
+            "description": "层查询的运行时筛选，如 Nodejs18.15"
           },
           "searchKey": {
             "type": "string",
@@ -715,11 +715,11 @@
           },
           "layerName": {
             "type": "string",
-            "description": "层名称。层相关 action 必填"
+            "description": "层名称。`listLayerVersions`、`getLayerVersionDetail` 操作必填"
           },
           "layerVersion": {
             "type": "number",
-            "description": "层版本号。获取层版本详情时必填"
+            "description": "层版本号。`getLayerVersionDetail` 操作必填"
           }
         },
         "required": [
@@ -1287,7 +1287,7 @@
     },
     {
       "name": "queryStorage",
-      "description": "查询云存储信息，支持列出目录文件、获取文件信息、获取临时下载链接等只读操作。返回的文件信息包括文件名、大小、修改时间、下载链接等。",
+      "description": "查询云存储信息，支持列出目录文件、获取文件信息、获取临时下载链接等只读操作。返回的文件信息包括文件名、大小、修改时间、下载链接等。注意：action=url 返回的 temporaryUrl 是临时签名链接，有效期由 maxAge 参数决定（默认1小时），不要当作永久公网地址使用。工具还会基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导出 publicUrl，⚠️ 警告：publicUrl 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先通过控制台/SDK 将目标路径设置为公有读。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1323,7 +1323,7 @@
     },
     {
       "name": "manageStorage",
-      "description": "管理云存储文件，仅用于 COS/Storage 对象，不用于静态网站托管。支持上传文件/目录、下载文件/目录、删除文件/目录等操作。删除操作需要设置force=true进行确认，防止误删除重要文件。",
+      "description": "管理云存储文件，仅用于 COS/Storage 对象，不用于静态网站托管。支持上传文件/目录、下载文件/目录、删除文件/目录等操作。删除操作需要设置force=true进行确认，防止误删除重要文件。注意：上传后返回的 temporaryUrl 是临时签名链接，1小时后过期，不要当作永久公网地址写入配置或持久化存储。工具还会基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导 publicUrl，⚠️ 警告：publicUrl 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先通过控制台/SDK 将目标路径设置为公有读。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1442,7 +1442,7 @@
     },
     {
       "name": "searchKnowledgeBase",
-      "description": "云开发知识库智能检索工具，支持向量查询 (vector)、固定技能文档 (skill)、OpenAPI 文档 (openapi) 和 CloudBase 官方文档 (docs) 查询。\n\n      强烈推荐始终优先使用固定技能文档 (skill)、OpenAPI 文档 (openapi) 或 CloudBase 官方文档 (docs) 模式进行检索，仅当固定文档无法覆盖你的问题时，再使用向量查询 (vector) 模式。\n\n      ⚠️ 重要：当 CloudBase skills 处于禁用状态或当前 IDE 不支持 skill 文件读取时，必须使用 searchKnowledgeBase(mode=skill, skillName=...) 来获取 CloudBase 技能文档内容，而不是尝试直接读取 skill 文件。直接读取可能返回 400 错误。示例：\n      - 需要 auth-tool 指南时：searchKnowledgeBase(mode=skill, skillName=auth-tool)\n      - 需要 auth-web 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web)\n      - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)\n\n      固定技能文档 (skill) 查询当前支持 23 个固定文档，分别是：\n      文档名：ai-model-nodejs 文档介绍：Use this skill when developing Node.js backend services or CloudBase cloud functions (Express/Koa/NestJS, serverless, backend APIs) that need CloudBase AI managed model capabilities via @cloudbase/node-sdk ≥3.16.0. It covers generateText, streamText, and CloudBase-managed generateImage(); within the CloudBase SDK family, Node SDK is the only SDK that exposes managed image generation. Do NOT use this skill when the user explicitly wants to call Tencent Cloud / Hunyuan model APIs directly, use separate cloud-side quotas or billing, or avoid the CloudBase AI managed access layer. Not for browser/Web apps (use ai-model-web) or WeChat Mini Program (use ai-model-wechat).\n文档名：ai-model-web 文档介绍：Use this skill when developing browser/Web applications (React/Vue/Angular, static websites, SPAs) that need AI capabilities. Features text generation (generateText) and streaming (streamText) via @cloudbase/js-sdk. Built-in models include Hunyuan (hunyuan-2.0-instruct-20251111 recommended) and DeepSeek (deepseek-v3.2 recommended). NOT for Node.js backend (use ai-model-nodejs), WeChat Mini Program (use ai-model-wechat), or image generation (Node SDK only).\n文档名：ai-model-wechat 文档介绍：Use this skill when developing WeChat Mini Programs (小程序, 企业微信小程序, wx.cloud-based apps) that need AI capabilities. Features text generation (generateText) and streaming (streamText) with callback support (onText, onEvent, onFinish) via wx.cloud.extend.AI. Built-in models include Hunyuan (hunyuan-2.0-instruct-20251111 recommended) and DeepSeek (deepseek-v3.2 recommended). API differs from JS/Node SDK - streamText requires data wrapper, generateText returns raw response. NOT for browser/Web apps (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (not supported).\n文档名：auth-nodejs 文档介绍：CloudBase Node SDK auth guide for server-side identity, user lookup, and custom login tickets. This skill should be used when Node.js code must read caller identity, inspect end users, or bridge an existing user system into CloudBase; not when configuring providers or building client login UI.\n文档名：auth-tool 文档介绍：CloudBase auth provider configuration and login-readiness guide. This skill should be used when users need to inspect, enable, disable, or configure auth providers, publishable-key prerequisites, login methods, SMS/email sender setup, or other provider-side readiness before implementing a client or backend auth flow.\n文档名：auth-web 文档介绍：CloudBase Web Authentication Quick Guide for frontend integration after auth-tool has already been checked. Provides concise and practical Web authentication solutions with multiple login methods and complete user management.\n文档名：auth-wechat 文档介绍：CloudBase WeChat Mini Program native authentication guide. This skill should be used when users need mini program identity handling, OPENID/UNIONID access, or `wx.cloud` auth behavior in projects where login is native and automatic.\n文档名：cloud-functions 文档介绍：CloudBase function runtime guide for building, deploying, and debugging your own Event Functions or HTTP Functions. This skill should be used when users need application runtime code on CloudBase, not when they are merely calling CloudBase official platform APIs.\n文档名：cloud-storage-web 文档介绍：Complete guide for CloudBase cloud storage using Web SDK (@cloudbase/js-sdk) - upload, download, temporary URLs, file management, and best practices.\n文档名：cloudbase-agent 文档介绍：Build and deploy AI agents with CloudBase Agent SDK (TypeScript & Python). Implements the AG-UI protocol for streaming agent-UI communication. Use when deploying agent servers, using LangGraph/LangChain/CrewAI adapters, building custom adapters, understanding AG-UI protocol events, or building web/mini-program UI clients. Supports both TypeScript (@cloudbase/agent-server) and Python (cloudbase-agent-server via FastAPI).\n文档名：cloudbase-platform 文档介绍：CloudBase platform overview and routing guide. This skill should be used when users need high-level capability selection, platform concepts, console navigation, or cross-platform best practices before choosing a more specific implementation skill.\n文档名：cloudrun-development 文档介绍：CloudBase Run backend development rules (Function mode/Container mode). Use this skill when deploying backend services that require long connections, multi-language support, custom environments, or AI agent development.\n文档名：data-model-creation 文档介绍：Optional advanced tool for complex data modeling. For simple table creation, use relational-database-tool directly with SQL statements.\n文档名：http-api 文档介绍：CloudBase official HTTP API client guide. This skill should be used when backends, scripts, or non-SDK clients must call CloudBase platform APIs over raw HTTP instead of using a platform SDK or MCP management tool.\n文档名：miniprogram-development 文档介绍：WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, and optimizing mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, or optimize WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools workflows, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, or 云开发 in a mini program project.\n文档名：no-sql-web-sdk 文档介绍：Use CloudBase document database Web SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, realtime, and geolocation queries.\n文档名：no-sql-wx-mp-sdk 文档介绍：Use CloudBase document database WeChat MiniProgram SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, and geolocation queries.\n文档名：ops-inspector 文档介绍：AIOps-style one-click inspection skill for CloudBase resources. Use this skill when users need to diagnose errors, check resource health, inspect logs, or run a comprehensive health check across cloud functions, CloudRun services, databases, and other CloudBase resources.\n文档名：relational-database-tool 文档介绍：This is the required documentation for agents operating on the CloudBase Relational Database through MCP. It defines the canonical SQL management flow with `querySqlDatabase`, `manageSqlDatabase`, `queryPermissions`, and `managePermissions`, including MySQL provisioning, destroy flow, async status checks, safe query execution, schema initialization, and permission updates.\n文档名：relational-database-web 文档介绍：Use when building frontend Web apps that talk to CloudBase Relational Database via @cloudbase/js-sdk – provides the canonical init pattern so you can then use Supabase-style queries from the browser.\n文档名：spec-workflow 文档介绍：Use when medium-to-large changes need explicit requirements, technical design, and task planning before implementation, especially for multi-module work, unclear acceptance criteria, or architecture-heavy requests.\n文档名：ui-design 文档介绍：Use when users need visual direction, interface hierarchy, layout decisions, design specifications, or prototypes before implementing a Web or mini program UI.\n文档名：web-development 文档介绍：Use when users need to implement, integrate, debug, build, deploy, or validate a Web frontend after the product direction is already clear, especially for React, Vue, Vite, browser flows, or CloudBase Web integration.\n\n      OpenAPI 文档 (openapi) 查询当前支持 5 个 API 文档，分别是：\n      API名：functions API介绍：Cloud Functions API - 云函数 HTTP API\nAPI名：storage API介绍：Storage API - 云存储 HTTP API\nAPI名：mysqldb API介绍：MySQL RESTful API - 云开发 MySQL 数据库 HTTP API\nAPI名：auth API介绍：Authentication API - 身份认证 HTTP API\nAPI名：cloudrun API介绍：CloudRun API - 云托管服务 HTTP API",
+      "description": "云开发知识库智能检索工具，支持向量查询 (vector)、固定技能文档 (skill)、OpenAPI 文档 (openapi) 和 CloudBase 官方文档 (docs) 查询。\n\n      强烈推荐始终优先使用固定技能文档 (skill)、OpenAPI 文档 (openapi) 或 CloudBase 官方文档 (docs) 模式进行检索，仅当固定文档无法覆盖你的问题时，再使用向量查询 (vector) 模式。\n\n      ⚠️ 重要：当 CloudBase skills 处于禁用状态或当前 IDE 不支持 skill 文件读取时，必须使用 searchKnowledgeBase(mode=skill, skillName=...) 来获取 CloudBase 技能文档内容，而不是尝试直接读取 skill 文件。直接读取可能返回 400 错误。示例：\n      - 需要 auth-tool 指南时：searchKnowledgeBase(mode=skill, skillName=auth-tool)\n      - 需要 auth-web 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web)\n      - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)\n\n      固定技能文档 (skill) 查询当前支持 25 个固定文档，分别是：\n      文档名：skills 文档介绍：Unified CloudBase execution guide for all-in-one skill installs. Use this as the first entry point for CloudBase app tasks, especially existing applications that already contain TODOs, fixed pages, and active handlers.\n文档名：ai-model-nodejs 文档介绍：Use this skill when developing Node.js backend services or CloudBase cloud functions (Express/Koa/NestJS, serverless, backend APIs) that need AI capabilities. Features text generation (generateText), streaming (streamText), AND image generation (generateImage) via @cloudbase/node-sdk ≥3.16.0. Built-in models include Hunyuan (hunyuan-2.0-instruct-20251111 recommended), DeepSeek (deepseek-v3.2 recommended), and hunyuan-image for images. This is the ONLY SDK that supports image generation. NOT for browser/Web apps (use ai-model-web) or WeChat Mini Program (use ai-model-wechat).\n文档名：ai-model-web 文档介绍：Use this skill when developing browser/Web applications (React/Vue/Angular, static websites, SPAs) that need AI capabilities. Features text generation (generateText) and streaming (streamText) via @cloudbase/js-sdk. Built-in models include Hunyuan (hunyuan-2.0-instruct-20251111 recommended) and DeepSeek (deepseek-v3.2 recommended). NOT for Node.js backend (use ai-model-nodejs), WeChat Mini Program (use ai-model-wechat), or image generation (Node SDK only).\n文档名：ai-model-wechat 文档介绍：Use this skill when developing WeChat Mini Programs (小程序, 企业微信小程序, wx.cloud-based apps) that need AI capabilities. Features text generation (generateText) and streaming (streamText) with callback support (onText, onEvent, onFinish) via wx.cloud.extend.AI. Built-in models include Hunyuan (hunyuan-2.0-instruct-20251111 recommended) and DeepSeek (deepseek-v3.2 recommended). API differs from JS/Node SDK - streamText requires data wrapper, generateText returns raw response. NOT for browser/Web apps (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (not supported).\n文档名：auth-nodejs 文档介绍：CloudBase Node SDK auth guide for server-side identity, user lookup, and custom login tickets. This skill should be used when Node.js code must read caller identity, inspect end users, or bridge an existing user system into CloudBase; not when configuring providers or building client login UI.\n文档名：auth-tool 文档介绍：CloudBase auth provider configuration and login-readiness guide. This skill should be used when users need to inspect, enable, disable, or configure auth providers, publishable-key prerequisites, login methods, SMS/email sender setup, or other provider-side readiness before implementing a client or backend auth flow.\n文档名：auth-web 文档介绍：CloudBase Web Authentication Quick Guide for frontend integration after auth-tool has already been checked. Provides concise and practical Web authentication solutions with multiple login methods and complete user management.\n文档名：auth-wechat 文档介绍：CloudBase WeChat Mini Program native authentication guide. This skill should be used when users need mini program identity handling, OPENID/UNIONID access, or `wx.cloud` auth behavior in projects where login is native and automatic.\n文档名：cloud-functions 文档介绍：CloudBase function runtime guide for building, deploying, and debugging your own Event Functions or HTTP Functions. This skill should be used when users need application runtime code on CloudBase, not when they are merely calling CloudBase official platform APIs.\n文档名：cloud-storage-web 文档介绍：Complete guide for CloudBase cloud storage using Web SDK (@cloudbase/js-sdk) - upload, download, temporary URLs, file management, and best practices.\n文档名：cloudbase-agent 文档介绍：Build and deploy AI agents with CloudBase Agent SDK (TypeScript & Python). Implements the AG-UI protocol for streaming agent-UI communication. Use when deploying agent servers, using LangGraph/LangChain/CrewAI adapters, building custom adapters, understanding AG-UI protocol events, or building web/mini-program UI clients. Supports both TypeScript (@cloudbase/agent-server) and Python (cloudbase-agent-server via FastAPI).\n文档名：cloudbase-cli 文档介绍：CloudBase CLI (tcb, 云开发CLI, Tencent CloudBase命令行) resource management skill. This skill should be used when users need to deploy cloud functions, manage CloudRun apps, upload files to storage, query NoSQL/MySQL databases, deploy static hosting, set access permissions, or configure CORS/domains/routing via tcb commands. Also use for CI/CD pipeline scripting, batch operations, terminal-based CloudBase management, or when the user prefers CLI over SDK/MCP.\n文档名：cloudbase-platform 文档介绍：CloudBase platform overview and routing guide. This skill should be used when users need high-level capability selection, platform concepts, console navigation, or cross-platform best practices before choosing a more specific implementation skill.\n文档名：cloudrun-development 文档介绍：CloudBase Run backend development rules (Function mode/Container mode). Use this skill when deploying backend services that require long connections, multi-language support, custom environments, or AI agent development.\n文档名：data-model-creation 文档介绍：Optional advanced tool for complex data modeling. For simple table creation, use relational-database-tool directly with SQL statements.\n文档名：http-api 文档介绍：CloudBase official HTTP API client guide. This skill should be used when backends, scripts, or non-SDK clients must call CloudBase platform APIs over raw HTTP instead of using a platform SDK or MCP management tool.\n文档名：miniprogram-development 文档介绍：WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, and optimizing mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, or optimize WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools workflows, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, or 云开发 in a mini program project.\n文档名：no-sql-web-sdk 文档介绍：Use CloudBase document database Web SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, realtime, and geolocation queries.\n文档名：no-sql-wx-mp-sdk 文档介绍：Use CloudBase document database WeChat MiniProgram SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, and geolocation queries.\n文档名：ops-inspector 文档介绍：AIOps-style one-click inspection skill for CloudBase resources. Use this skill when users need to diagnose errors, check resource health, inspect logs, or run a comprehensive health check across cloud functions, CloudRun services, databases, and other CloudBase resources.\n文档名：relational-database-tool 文档介绍：This is the required documentation for agents operating on the CloudBase Relational Database through MCP. It defines the canonical SQL management flow with `querySqlDatabase`, `manageSqlDatabase`, `queryPermissions`, and `managePermissions`, including MySQL provisioning, destroy flow, async status checks, safe query execution, schema initialization, and permission updates.\n文档名：relational-database-web 文档介绍：Use when building frontend Web apps that talk to CloudBase Relational Database via @cloudbase/js-sdk – provides the canonical init pattern so you can then use Supabase-style queries from the browser.\n文档名：spec-workflow 文档介绍：Use when medium-to-large changes need explicit requirements, technical design, and task planning before implementation, especially for multi-module work, unclear acceptance criteria, or architecture-heavy requests.\n文档名：ui-design 文档介绍：Use when users need visual direction, interface hierarchy, layout decisions, design specifications, or prototypes before implementing a Web or mini program UI.\n文档名：web-development 文档介绍：Use when users need to implement, integrate, debug, build, deploy, or validate a Web frontend after the product direction is already clear, especially for React, Vue, Vite, browser flows, or CloudBase Web integration.\n\n      OpenAPI 文档 (openapi) 查询当前支持 5 个 API 文档，分别是：\n      API名：mysqldb API介绍：MySQL RESTful API - 云开发 MySQL 数据库 HTTP API\nAPI名：functions API介绍：Cloud Functions API - 云函数 HTTP API\nAPI名：auth API介绍：Authentication API - 身份认证 HTTP API\nAPI名：cloudrun API介绍：CloudRun API - 云托管服务 HTTP API\nAPI名：storage API介绍：Storage API - 云存储 HTTP API",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1458,6 +1458,7 @@
           "skillName": {
             "type": "string",
             "enum": [
+              "skills",
               "ai-model-nodejs",
               "ai-model-web",
               "ai-model-wechat",
@@ -1468,6 +1469,7 @@
               "cloud-functions",
               "cloud-storage-web",
               "cloudbase-agent",
+              "cloudbase-cli",
               "cloudbase-platform",
               "cloudrun-development",
               "data-model-creation",
@@ -1487,11 +1489,11 @@
           "apiName": {
             "type": "string",
             "enum": [
-              "functions",
-              "storage",
               "mysqldb",
+              "functions",
               "auth",
-              "cloudrun"
+              "cloudrun",
+              "storage"
             ],
             "description": "mode=openapi 时指定。API 名称。"
           },
@@ -2298,7 +2300,7 @@
     },
     {
       "name": "queryLogs",
-      "description": "日志域统一只读入口。支持检查日志服务状态并搜索 CLS 日志。",
+      "description": "日志域统一只读入口。支持检查日志服务状态并搜索 CLS 日志。\n\n**重要区分**：\n- 查询云函数日志：使用 `queryFunctions(action=\"listFunctionLogs\", functionName=\"xxx\")`\n- 查询 CLS 日志（跨服务日志聚合）：使用本工具 `queryLogs(action=\"searchLogs\")`\n\n**适用场景**：\n- 检查 CLS 日志服务是否开通：`action=\"checkLogService\"`\n- 跨服务日志搜索（如搜索所有 ERROR 日志）：`action=\"searchLogs\"`\n- 按 CLS 语法检索特定服务的日志：`action=\"searchLogs\", service=\"tcb|tcbr\"`",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2307,36 +2309,44 @@
             "enum": [
               "checkLogService",
               "searchLogs"
-            ]
+            ],
+            "description": "操作类型：\n- `checkLogService`: 检查 CLS 日志服务是否开通\n- `searchLogs`: 搜索 CLS 日志（需要提供 queryString）"
           },
           "queryString": {
-            "type": "string"
+            "type": "string",
+            "description": "CLS 查询语句，**action=\"searchLogs\" 时必填**，需严格遵循 CLS（Cloud Log Service）语法规范，详见 https://cloud.tencent.com/document/api/876/128127\n\n**云函数相关查询**：\n- 云函数日志：`(src:app OR src:system) AND log:\"START RequestId\"`\n- 聚合云函数请求状态：`| select request_id, max(status_code) as status where ((request_id='44738f94-16dd-11f1-****' AND retry_num=0) AND retry_num=0) AND status_code!=202 group by request_id, retry_num`\n\n**云数据库 / 文档型**：\n- 云数据库（文档型）：`module:database`\n- 云数据库（文档型）事件：`module:database AND eventType:(MongoSlowQuery)`（MongoSlowQuery 为文档型数据库慢查询事件）\n\n**云数据库 / SQL 型**：\n- 云数据库（SQL 型）：`module:rdb`\n- 云数据库（SQL 型）事件：`module:rdb AND eventType:(MysqlFreeze OR MysqlRecover OR MysqlSlowQuery)`（MysqlFreeze 冻结、MysqlRecover 恢复、MysqlSlowQuery 慢查询）\n\n**其它服务**：\n- 审批流：`module:workflow`\n- 模型：`module:model`\n- 用户权限：`module:auth`\n- 大模型：`module:llm AND logType:llm-tracelog`\n- 网关服务调用：`logType:accesslog`\n- 应用发布/删除事件：`module:app AND eventType:(AppProdPub OR AppProdDel)`（AppProdPub 发布事件、AppProdDel 删除事件）\n\n以上仅为示例，实际使用时请根据具体日志内容调整。\n\n**注意**：查询特定云函数的执行日志时，优先使用 `queryFunctions(action=\"listFunctionLogs\", functionName=\"xxx\")`。"
           },
           "service": {
             "type": "string",
             "enum": [
               "tcb",
               "tcbr"
-            ]
+            ],
+            "description": "日志来源服务：\n- `tcb`: 云函数、数据库、存储等基础服务日志\n- `tcbr`: CloudRun 容器服务日志"
           },
           "startTime": {
-            "type": "string"
+            "type": "string",
+            "description": "查询开始时间，格式：`YYYY-MM-DD HH:mm:ss`，如 `2024-01-01 00:00:00`"
           },
           "endTime": {
-            "type": "string"
+            "type": "string",
+            "description": "查询结束时间，格式：`YYYY-MM-DD HH:mm:ss`，如 `2024-01-01 23:59:59`"
           },
           "limit": {
-            "type": "number"
+            "type": "number",
+            "description": "返回日志条数限制，默认 20"
           },
           "context": {
-            "type": "string"
+            "type": "string",
+            "description": "翻页上下文，用于继续上一次查询"
           },
           "sort": {
             "type": "string",
             "enum": [
               "asc",
               "desc"
-            ]
+            ],
+            "description": "按时间排序：`asc` 升序，`desc` 降序"
           }
         },
         "required": [

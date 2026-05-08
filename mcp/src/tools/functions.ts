@@ -1504,21 +1504,25 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "查询云函数域资源",
       description:
-        "函数域统一只读入口。通过更自解释的 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。" +
-        "\n\n**查询云函数日志**：使用 `action=\"listFunctionLogs\"`，需要提供 `functionName` 参数。" +
+        "函数域统一只读入口。通过更自解释的 action 查询 CloudBase 云函数列表、函数详情、执行日志、层、触发器和代码下载地址。" +
+        "\n\n**分页说明**：`listFunctions`、`listLayers` 支持 `limit` 和 `offset` 参数。" +
+        "\n- `limit`: 分页数量，默认值由后端决定" +
+        "\n- `offset`: 分页偏移，从 0 开始" +
+        "\n- 示例：`queryFunctions(action=\"listFunctions\", offset=10, limit=10)`" +
+        "\n\n**查询 CloudBase 云函数日志**：使用 `action=\"listFunctionLogs\"`，需要提供 `functionName` 参数。" +
         "\n- 示例：`queryFunctions(action=\"listFunctionLogs\", functionName=\"my-function\")`" +
         "\n- 如需查看日志详情：`queryFunctions(action=\"getFunctionLogDetail\", requestId=\"xxx\")`" +
         "\n\n**区分 `queryLogs` 工具**：" +
-        "\n- 本工具用于查询特定云函数的执行日志" +
+        "\n- 本工具用于查询特定 CloudBase 云函数的执行日志" +
         "\n- `queryLogs` 工具用于搜索 CLS 日志服务（跨服务日志聚合）",
       inputSchema: {
         action: z
           .enum(QUERY_FUNCTION_ACTIONS)
           .describe(
             "只读操作类型：" +
-            "\n- `listFunctions`: 列出所有云函数" +
-            "\n- `getFunctionDetail`: 获取函数详情（需要 functionName）" +
-            "\n- `listFunctionLogs`: 查询函数执行日志（需要 functionName）" +
+            "\n- `listFunctions`: 列出所有 CloudBase 云函数" +
+            "\n- `getFunctionDetail`: 获取 CloudBase 云函数详情（需要 functionName）" +
+            "\n- `listFunctionLogs`: 查询 CloudBase 云函数执行日志（需要 functionName）" +
             "\n- `getFunctionLogDetail`: 获取日志详情（需要 requestId）" +
             "\n- `listFunctionLayers`: 列出函数绑定的层" +
             "\n- `listLayers`: 列出所有层" +
@@ -1530,9 +1534,9 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         functionName: z
           .string()
           .optional()
-          .describe("函数名称。`getFunctionDetail`、`listFunctionLogs`、`listFunctionLayers`、`listFunctionTriggers`、`getFunctionDownloadUrl` 时必填"),
-        limit: z.number().optional().describe("分页数量。列表类 action 可选，默认值由后端决定"),
-        offset: z.number().optional().describe("分页偏移。列表类 action 可选，默认 0"),
+          .describe("CloudBase 云函数名称。`getFunctionDetail`、`listFunctionLogs`、`listFunctionLayers`、`listFunctionTriggers`、`getFunctionDownloadUrl` 时必填"),
+        limit: z.number().optional().describe("分页数量（limit）。列表类 action 可选，默认值由后端决定"),
+        offset: z.number().optional().describe("分页偏移（offset）。列表类 action 可选，默认 0"),
         codeSecret: z.string().optional().describe("代码保护密钥，用于解密函数代码"),
         startTime: z
           .string()
