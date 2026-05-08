@@ -121,7 +121,7 @@ Use these rules whenever you are writing the function code itself:
    - Use `manageFunctions(action="updateFunctionConfig")` for config updates (timeout, memorySize, envVariables)
    - Keep `functionRootPath` as the directory that directly contains function folders (e.g., `cloudfunctions/` or `functions/`), NOT the project root and NOT the function subdirectory itself
    - **Prefer MCP tools over CLI** — when MCP tools are available, use `manageFunctions` and `queryFunctions` instead of CLI commands
-   - **Do NOT use CLI when it is explicitly disabled** — if the runtime indicates CLI is unavailable, use MCP tools exclusively
+   - **Do NOT assume CLI is available from task wording alone** — if the available capabilities only include MCP tools, use MCP tools exclusively
    - For batch updates (multiple functions), call `manageFunctions(action="updateFunctionConfig")` individually for each function — MCP does not have a `--all` batch parameter like CLI
 
 4. **Prefer doc-first fallbacks**
