@@ -57,6 +57,23 @@ describe('skill quality standards', () => {
     expect(raw).toContain('Browser origin `http://127.0.0.1:4173` -> whitelist entry `127.0.0.1:4173`');
   });
 
+  test('web-development documents subdirectory hosting checks before uploadFiles', () => {
+    const raw = readSourceSkill('web-development');
+    const frameworks = readFile('config', 'source', 'skills', 'web-development', 'frameworks.md');
+
+    expect(raw).toContain("cloudPath: 'vite-test'");
+    expect(raw).toContain("cloudPath: '/vite-test'");
+    expect(raw).toContain("Forbidden: `base: './'`");
+    expect(raw).toContain('Build has been re-run after config change');
+    expect(raw).toContain('Call `findFiles` with the deployment prefix');
+    expect(raw).toContain('not only `index.html`');
+
+    expect(frameworks).toContain("base: '/vite-test/'");
+    expect(frameworks).toContain("base: './',      // WRONG");
+    expect(frameworks).toContain('Build command has been re-run after config change');
+    expect(frameworks).toContain('without trailing slash');
+  });
+
   test('cloudrun-development explains the MinNum cold-start tradeoff with a default of 1', () => {
     const raw = readSourceSkill('cloudrun-development');
 
