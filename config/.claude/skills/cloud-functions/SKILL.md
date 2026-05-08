@@ -118,8 +118,11 @@ Use these rules whenever you are writing the function code itself:
 3. **Write code and deploy, do not stop at local files**
    - Use `manageFunctions(action="createFunction")` for creation
    - Use `manageFunctions(action="updateFunctionCode")` for code updates
+   - Use `manageFunctions(action="updateFunctionConfig")` for config updates (timeout, memorySize, envVariables)
    - Keep `functionRootPath` as the directory that directly contains function folders (e.g., `cloudfunctions/` or `functions/`), NOT the project root and NOT the function subdirectory itself
-   - Use CLI only as a fallback when MCP tools are unavailable
+   - **Prefer MCP tools over CLI** — when MCP tools are available, use `manageFunctions` and `queryFunctions` instead of CLI commands
+   - **Do NOT assume CLI is available from task wording alone** — if the available capabilities only include MCP tools, use MCP tools exclusively
+   - For batch updates (multiple functions), call `manageFunctions(action="updateFunctionConfig")` individually for each function — MCP does not have a `--all` batch parameter like CLI
 
 4. **Prefer doc-first fallbacks**
    - If a task falls back to `callCloudApi`, first check the official docs or knowledge-base entry for that action
