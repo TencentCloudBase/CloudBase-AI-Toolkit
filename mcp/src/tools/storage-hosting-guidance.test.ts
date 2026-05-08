@@ -104,8 +104,11 @@ describe("storage and hosting tool guidance", () => {
     const tools = createMockServer();
 
     expect(tools.uploadFiles.meta.description).toContain("仅用于 Web 站点部署");
+    expect(tools.uploadFiles.meta.description).toContain("cloudPath");
+    expect(tools.uploadFiles.meta.description).toContain("设为 `/`");
     expect(tools.uploadFiles.meta.description).toContain("manageStorage");
     expect(tools.uploadFiles.meta.description).toContain("通常不需要调用此工具");
+    expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("`/`（部署到根域名）");
     expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("云存储对象路径请改用 manageStorage");
     expect(tools.manageStorage.meta.description).toContain("仅用于 COS/Storage 对象");
     expect(tools.manageStorage.meta.description).toContain("不用于静态网站托管");

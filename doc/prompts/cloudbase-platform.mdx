@@ -181,6 +181,7 @@ Example structure for operation recording:
    - Static hosting supports custom domain configuration (requires console operation)
    - Cloud storage is suitable for files with privacy requirements, can get temporary access addresses via temporary file URLs
    - If the task needs COS SDK polling, file metadata lookup, or temporary URLs for an uploaded object, use cloud storage tools (`manageStorage` / `queryStorage`), not `uploadFiles`
+   - When deploying a site with `uploadFiles`, set `cloudPath` to `/` if the site should open from the hosting root domain; use the exact subpath (for example `/app`) only when the site should live under that subdirectory, and keep asset URLs relative
 
 2. **Static Hosting Domain**:
    - CloudBase static hosting domain can be obtained via `getWebsiteConfig` tool

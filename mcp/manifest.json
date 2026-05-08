@@ -101,7 +101,7 @@
     },
     {
       "name": "uploadFiles",
-      "description": "Deploy built Web assets to static hosting; use manageStorage for COS object uploads"
+      "description": "Deploy built Web assets to static hosting at / or a subpath; use manageStorage for COS object uploads"
     },
     {
       "name": "getWebsiteConfig",

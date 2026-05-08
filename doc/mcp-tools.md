@@ -1012,7 +1012,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
 ---
 
 ### `uploadFiles`
-上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；如果站点会部署到子路径，请检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。
+上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。若希望站点直接通过静态托管根域名访问，请将 `cloudPath` 设为 `/`；若部署到 `/app` 等子路径，请同步检查构建配置中的 publicPath、base、assetPrefix 等是否使用相对路径，避免静态资源加载失败。若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。
 
 #### 参数
 
@@ -1026,7 +1026,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
     {
       name: "cloudPath",
       type: "string",
-      description: `静态托管云端文件或文件夹路径，例如 files/data.txt。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。`,
+      description: `静态托管云端文件或文件夹路径，例如 `/`（部署到根域名）、`/app`（部署到子路径）或 `files/data.txt`（上传单文件）。若部署到子路径，请同时检查构建配置中的 publicPath、base、assetPrefix 等是否为相对路径。云存储对象路径请改用 manageStorage。`,
     },
     {
       name: "files",
