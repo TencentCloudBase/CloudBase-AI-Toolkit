@@ -245,7 +245,7 @@ manageFunctions({
 - `type: "HTTP"` — marks the function as an HTTP Function (not an Event Function).
 - `protocolType: "HTTP"` — the wire protocol. Use `"WS"` for WebSocket.
 - `runtime` — the execution runtime. Must match the `scf_bootstrap` binary path. Default is `"Nodejs18.15"` if omitted, but always set it explicitly to avoid ambiguity.
-- `functionRootPath` — the parent directory of the function folder (e.g. `/path/to/cloudfunctions` if the code lives in `/path/to/cloudfunctions/myHttpFunction/`).
+- `functionRootPath` — 创建或更新函数代码时默认推荐的本地目录方式。必须是直接包含函数文件夹的目录绝对路径（如 `/abs/path/cloudfunctions`），不要传项目根目录或函数名子目录。SDK 会自动拼接函数名子目录。**在创建 HTTP 函数时必须提供此参数**。
 
 ### Security rule configuration
 
