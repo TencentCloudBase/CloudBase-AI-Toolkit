@@ -7,14 +7,16 @@ import { loadYamlModule } from '../scripts/lib/load-yaml-module.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const ACTIVATION_MAP_FILE = path.join(
+const GUIDELINE_DIR = path.join(
   ROOT_DIR,
   'config',
   'source',
   'guideline',
   'cloudbase',
-  'activation-map.yaml',
 );
+const GUIDELINE_FILE = path.join(GUIDELINE_DIR, 'SKILL.md');
+const ACTIVATION_MAP_FILE = path.join(GUIDELINE_DIR, 'references', 'activation-map.yaml');
+const MCP_SETUP_FILE = path.join(GUIDELINE_DIR, 'references', 'mcp-setup.md');
 
 const SKILL_SOURCE_DIR = path.join(ROOT_DIR, 'config', 'source', 'skills');
 
@@ -75,5 +77,24 @@ describe('skill activation routing contract', async () => {
     expect(byId.get('native-http-api').doNotUse).toContain('auth-web');
     expect(byId.get('cloud-functions').doNotUse).toContain('cloudrun-development');
     expect(byId.get('ui-first').firstRead).toBe('ui-design');
+  });
+
+  test('keeps the source guideline routing table aligned with activation checks', () => {
+    const source = fs.readFileSync(GUIDELINE_FILE, 'utf8');
+
+    expect(source).toContain('| Scenario | Read first | Then read | Do NOT route to first | Must check before action |');
+    expect(source).toContain('| Web login / registration / auth UI | `auth-tool` | auth-web, web-development | cloud-functions, http-api | Provider status and publishable key |');
+    expect(source).toContain('| AI Agent (智能体开发) | `cloudbase-agent` | cloud-functions, cloudrun-development |');
+    expect(source).not.toContain('| web-auth | `auth-tool` |');
+  });
+
+  test('keeps moved mcporter patch examples copy-pasteable', () => {
+    const setup = fs.readFileSync(MCP_SETUP_FILE, 'utf8');
+    const patchExamples = Array.from(setup.matchAll(/patch='([^']+)'/g));
+
+    expect(patchExamples.length).toBeGreaterThan(0);
+    for (const [, patch] of patchExamples) {
+      expect(() => JSON.parse(patch)).not.toThrow();
+    }
   });
 });

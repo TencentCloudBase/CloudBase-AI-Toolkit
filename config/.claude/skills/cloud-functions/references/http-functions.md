@@ -219,7 +219,7 @@ Follow these steps in order when creating an HTTP Function:
 
 1. **Write the function code** — create the directory with `index.js`, `scf_bootstrap`, and `package.json`.
 2. **Deploy with `manageFunctions`** — set `type: "HTTP"`, `protocolType: "HTTP"`, and `runtime` explicitly.
-3. **Configure security rules** — HTTP Functions default to a restrictive security rule. If the function should be publicly accessible (anonymous access), call `managePermissions(action="updateResourcePermission")` with `resourceType="function"`.
+3. **Configure security rules** — HTTP Functions default to a restrictive security rule. If the function should be publicly accessible, call `managePermissions(action="updateResourcePermission")` with `resourceType="function"`. Note: anonymous login is disabled by default for new environments; use `permission: "CUSTOM"` with `securityRule: '{"invoke":"true"}'` for truly public endpoints rather than relying on anonymous auth.
 4. **Verify** — call the function URL and confirm it returns the expected response. If you get `EXCEED_AUTHORITY`, the security rule needs to be updated (step 3).
 
 ## Deployment flow
@@ -249,7 +249,9 @@ manageFunctions({
 
 ### Security rule configuration
 
-After creating an HTTP Function, it will reject anonymous callers with `EXCEED_AUTHORITY` by default. If the function should be publicly accessible:
+After creating an HTTP Function, it will reject unauthenticated callers with `EXCEED_AUTHORITY` by default. If the function should be publicly accessible:
+
+> ⚠️ **Note:** Anonymous login is disabled by default for new environments. For public endpoints, use `rule: "true"` to allow all callers regardless of auth state, rather than relying on anonymous login being enabled.
 
 ```javascript
 managePermissions({
@@ -263,7 +265,7 @@ managePermissions({
 });
 ```
 
-- `aclTag: "CUSTOM"` with `rule: "true"` allows all callers (anonymous access).
+- `aclTag: "CUSTOM"` with `rule: "true"` allows all callers (public access without requiring any login).
 - Do NOT use `readSecurityRule` / `writeSecurityRule` — those are removed. Use `queryPermissions` / `managePermissions` instead.
 - Security rule semantics for `resourceType="function"` differ from NoSQL database rules. Do not reuse `doc._openid` or `auth.openid` expressions from NoSQL security rules.
 - Official reference: `https://docs.cloudbase.net/cloud-function/security-rules`
@@ -311,10 +313,10 @@ manageGateway({
 });
 ```
 
-Before enabling anonymous access, confirm both of these:
+Before enabling public access, confirm both of these:
 
 1. The access path exists.
-2. The function security rule allows the intended caller identity (see Security rule configuration above).
+2. The function security rule allows the intended caller identity (see Security rule configuration above). Note: anonymous login is disabled by default — for public endpoints, use `rule: "true"` instead of requiring anonymous auth.
 
 ## SSE and WebSocket notes
 

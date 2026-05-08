@@ -70,9 +70,8 @@ test('buildClawhubPublishArtifacts builds all-in-one artifact', () => {
 
   expect(manifest.targets).toHaveLength(1);
   expect(manifest.targets[0].registrySlug).toBe('cloudbase');
-  expect(
-    fs.existsSync(path.join(outputDir, 'all-in-one', 'skills', 'cloudbase', 'SKILL.md')),
-  ).toBe(true);
+  const mainSkillPath = path.join(outputDir, 'all-in-one', 'skills', 'cloudbase', 'SKILL.md');
+  expect(fs.existsSync(mainSkillPath)).toBe(true);
   expect(
     fs.existsSync(
       path.join(
@@ -86,6 +85,17 @@ test('buildClawhubPublishArtifacts builds all-in-one artifact', () => {
       ),
     ),
   ).toBe(true);
+
+  // Generated routing table must wrap every skill id in backticks so the
+  // downstream agent sees a strong identifier signal, and must preserve
+  // the activation trigger vocabulary block from activation-map.yaml.
+  const mainSkillContent = fs.readFileSync(mainSkillPath, 'utf8');
+  expect(mainSkillContent).toContain('<!-- DO NOT EDIT: auto-generated from references/activation-map.yaml -->');
+  expect(mainSkillContent).toContain('| `auth-tool` | `auth-web`, `web-development` |');
+  expect(mainSkillContent).toContain('#### Activation triggers (derived from `references/activation-map.yaml`)');
+  expect(mainSkillContent).toContain('CloudBase Web 登录');
+  expect(mainSkillContent).toContain('wx.cloud');
+  expect(mainSkillContent).toContain('巡检');
 });
 
 test.each([

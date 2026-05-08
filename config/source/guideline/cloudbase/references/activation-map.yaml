@@ -1,0 +1,328 @@
+scenarios:
+- id: web-auth
+  label: Web login / registration / auth UI
+  priority: 100
+  signals:
+  - CloudBase Web 登录
+  - Web 注册
+  - auth login page
+  - publishable key
+  - 短信登录
+  - 邮箱登录
+  firstRead: auth-tool
+  thenRead:
+  - auth-web
+  - web-development
+  beforeAction:
+  - 先检查并开启所需登录方式，再写前端代码。
+  - 优先通过 `queryAppAuth` / `manageAppAuth` 获取 publishable key 并确认使用 Web SDK。
+  doNotUse:
+  - cloud-functions
+  - http-api
+  mustCheckBeforeAction:
+  - Provider status and publishable key
+  commonMistakes:
+  - 把 Web 登录实现成云函数认证逻辑。
+  - 未开启 provider 就直接生成登录 UI。
+- id: miniapp-cloudbase
+  priority: 95
+  signals:
+  - 小程序 云开发
+  - wx.cloud
+  - mini program cloudbase
+  - OPENID
+  - 小程序数据库
+  firstRead: miniprogram-development
+  thenRead:
+  - auth-wechat
+  - no-sql-wx-mp-sdk
+  beforeAction:
+  - 先确认项目是否真的使用 CloudBase。
+  - 使用 wx.cloud 和 OPENID 路径，不要先套 Web 认证模型。
+  doNotUse:
+  - auth-web
+  - web-development
+  commonMistakes:
+  - 给小程序生成多余的 Web 登录页。
+  - 混用 Web SDK 和小程序 SDK。
+  label: WeChat mini program + CloudBase
+  mustCheckBeforeAction:
+  - Whether the project really uses CloudBase / `wx.cloud`
+- id: native-http-api
+  priority: 100
+  signals:
+  - Android CloudBase
+  - iOS CloudBase
+  - Flutter CloudBase
+  - React Native CloudBase
+  - 原生 App 接入
+  firstRead: http-api
+  thenRead:
+  - auth-tool
+  - relational-database-tool
+  beforeAction:
+  - 先确认当前平台不支持 CloudBase SDK。
+  - 确认 HTTP API 鉴权方式、Base URL 和数据库能力边界；应用侧登录配置仍走 `queryAppAuth` / `manageAppAuth`。
+  doNotUse:
+  - auth-web
+  - no-sql-web-sdk
+  - web-development
+  commonMistakes:
+  - 在原生 App 中误用 Web SDK。
+  - 未核对 OpenAPI 就猜接口。
+  label: Native App / Flutter / React Native
+  mustCheckBeforeAction:
+  - SDK boundary, OpenAPI, auth method
+- id: web-nosql
+  priority: 90
+  signals:
+  - Web 文档数据库
+  - CloudBase collection
+  - 前端查库
+  - NoSQL Web SDK
+  firstRead: web-development
+  thenRead:
+  - no-sql-web-sdk
+  - auth-web
+  beforeAction:
+  - 先确认是 Web SDK 场景。
+  - 确认登录态与数据库访问权限模型。
+  doNotUse:
+  - relational-database-tool
+  - http-api
+  commonMistakes:
+  - 把前端查文档库误导到 MySQL 管理工具。
+  - 未确认登录态就直接写数据库代码。
+  label: Web projects + NoSQL Database
+  mustCheckBeforeAction:
+  - Login state and database access permission model
+- id: mysql-mcp
+  priority: 88
+  signals:
+  - MySQL 建表
+  - executeWriteSQL
+  - security rule
+  - CloudBase 关系型数据库管理
+  firstRead: relational-database-tool
+  thenRead:
+  - relational-database-web
+  - http-api
+  beforeAction:
+  - 先区分当前是 MCP 运维管理还是应用代码接入。
+  - 写操作前先跑 SELECT 或先读安全规则。
+  doNotUse:
+  - no-sql-web-sdk
+  - web-development
+  commonMistakes:
+  - 在 MCP 管理场景里初始化 SDK。
+  - 未验证条件就直接执行写 SQL。
+  label: MySQL Database (relational)
+  mustCheckBeforeAction:
+  - Distinguish MCP management vs app code access
+- id: cloud-functions
+  priority: 92
+  signals:
+  - 创建云函数
+  - HTTP 云函数
+  - getFunctionLogs
+  - scf_bootstrap
+  - runtime
+  firstRead: cloud-functions
+  thenRead:
+  - auth-tool
+  - ai-model-nodejs
+  beforeAction:
+  - 先区分 Event Function 与 HTTP Function。
+  - 创建前确定 runtime，避免后续不可变限制。
+  doNotUse:
+  - cloudrun-development
+  - auth-web
+  commonMistakes:
+  - 把 Web 登录逻辑错误地放进云函数。
+  - 把 HTTP 函数误写成 `exports.main(event, context)`，或误以为 Node 原生 `http` 请求里自带 `req.body`。
+  - HTTP 函数遗漏 `scf_bootstrap`、9000 端口或显式响应头。
+  label: Cloud Functions
+  mustCheckBeforeAction:
+  - Event vs HTTP function, runtime, `scf_bootstrap`
+- id: cloudrun-backend
+  priority: 85
+  signals:
+  - CloudRun 部署
+  - 云托管
+  - container backend
+  - Dockerfile
+  firstRead: cloudrun-development
+  thenRead:
+  - auth-tool
+  - relational-database-tool
+  beforeAction:
+  - 先确认这是容器服务而不是云函数。
+  - 检查 CORS、镜像入口和环境变量策略。
+  doNotUse:
+  - cloud-functions
+  commonMistakes:
+  - 把 CloudRun 需求收敛成云函数模板。
+  label: CloudRun backend
+  mustCheckBeforeAction:
+  - Container boundary, Dockerfile, CORS
+- id: ai-agent
+  priority: 85
+  signals:
+  - AI Agent
+  - 智能体
+  - 智能体开发
+  - AG-UI protocol
+  - LangGraph
+  - LangChain
+  - CrewAI
+  - streaming agent
+  - agent UI
+  firstRead: cloudbase-agent
+  thenRead:
+  - cloud-functions
+  - cloudrun-development
+  beforeAction:
+  - 先确认是 Agent 开发而不是普通云函数。
+  - 确认 AG-UI 协议、SSE streaming、部署目标（云函数或 CloudRun）。
+  doNotUse:
+  - cloud-functions
+  - cloudrun-development
+  commonMistakes:
+  - 把 Agent 开发误当成普通云函数开发。
+  - 未确认 AG-UI 协议就直接写代码。
+  - 遗漏 SSE streaming 处理或前端事件解析。
+  label: AI Agent (智能体开发)
+  mustCheckBeforeAction:
+  - AG-UI protocol, scf_bootstrap, SSE streaming
+- id: ui-first
+  priority: 98
+  signals:
+  - 设计页面
+  - 登录页 UI
+  - frontend interface
+  - 组件样式
+  - prototype
+  firstRead: ui-design
+  thenRead:
+  - web-development
+  - miniprogram-development
+  beforeAction:
+  - 写任何 UI 代码前先输出设计规格。
+  - 再根据平台补读 Web 或小程序实现规则。
+  doNotUse:
+  - cloud-functions
+  commonMistakes:
+  - 没有设计规格就直接开始写 JSX 或 CSS。
+  - 生成 generic UI 而没结合平台约束。
+  label: UI generation
+  mustCheckBeforeAction:
+  - Design specification first
+- id: ai-web
+  priority: 80
+  signals:
+  - Web AI 对话
+  - CloudBase AI 流式输出
+  - Web 集成模型
+  firstRead: web-development
+  thenRead:
+  - ai-model-web
+  - ui-design
+  beforeAction:
+  - 先确认前端平台和流式输出交互方式。
+  - UI 场景先读设计规范再实现聊天界面。
+  doNotUse:
+  - ai-model-wechat
+  - http-api
+  commonMistakes:
+  - Web 场景读成小程序或原生 App 路径。
+  label: AI Model (Web)
+  mustCheckBeforeAction:
+  - Platform and streaming interaction mode
+- id: ai-model-call
+  priority: 86
+  signals:
+  - 大模型调用
+  - AI 模型调用
+  - generateText
+  - streamText
+  - generateImage
+  - 文本生成
+  - 图片生成
+  - 流式对话
+  - hunyuan-exp
+  - deepseek-v4-flash
+  - Token Credits 资源包
+  - 小程序成长计划
+  - ai_miniprogram_inspire_plan
+  - callCloudApi AI 模型
+  - CreateAIModel
+  firstRead: ai-model-web
+  thenRead:
+  - ai-model-nodejs
+  - ai-model-wechat
+  beforeAction:
+  - 先跑「调用前必须的资格检查」：用 `envQuery` 拿到 `EnvId`，再按端别优先级查资格。
+  - Web / Node.js 端优先 `callCloudApi(tcb, DescribeEnvPostpayPackage)` 确认 Token Credits 资源包开通；未命中返回 `https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token` 引导购买。
+  - 小程序端优先调用 `callCloudApi` 的 `DescribeActivityInfo`（参数 activityNames 为 ai_miniprogram_inspire_plan）判断成长计划是否报名；命中用 `hunyuan-exp` / `hunyuan-2.0-instruct-20251111`；未命中引导 `https://docs.cloudbase.net/ai/ai-inspire-plan` 或退回资源包 + 非 hunyuan 模型。
+  - 指定的模型不在托管列表时走自定义接入（CloudBase 控制台 `#/ai` 或 `callCloudApi(tcb, CreateAIModel)`），不要点名任何第三方品牌。
+  doNotUse:
+  - cloudbase-agent
+  - cloud-functions
+  - cloudrun-development
+  commonMistakes:
+  - 跳过资格检查直接写 SDK 调用，运行时才发现资源包未开通或计划未报名。
+  - 把小程序场景错误地退化成 Web SDK 调用。
+  - 图像生成忽略超时与单次 Token 费用，云函数 timeout 仍保留默认值。
+  - 在业务代码里硬编码第三方模型密钥，而非走「不在托管列表时的自定义接入」。
+  label: AI model call (大模型调用 / 文本生成 / 图片生成 / 流式对话)
+  mustCheckBeforeAction:
+  - 先跑「调用前必须的资格检查」：`DescribeActivityInfo`（小程序成长计划） + `DescribeEnvPostpayPackage`（Token Credits 资源包）
+- id: ops-inspector
+  priority: 82
+  signals:
+  - 巡检
+  - 诊断
+  - health check
+  - 资源健康
+  - 异常日志
+  - error inspection
+  - troubleshooting
+  - 错误排查
+  firstRead: ops-inspector
+  thenRead:
+  - cloud-functions
+  - cloudrun-development
+  beforeAction:
+  - 先确认环境已绑定且 CLS 日志服务已开通。
+  - 收集所有资源状态后再下结论，避免孤立分析单一日志。
+  doNotUse:
+  - ui-design
+  - spec-workflow
+  commonMistakes:
+  - CLS 未开通就尝试搜索日志。
+  - 不指定时间范围就搜索日志，导致返回大量无关结果。
+  - 只看单条错误日志，不做跨资源关联分析。
+  label: Resource health inspection / troubleshooting
+  mustCheckBeforeAction:
+  - CLS enabled, time range for logs
+- id: spec-workflow
+  priority: 75
+  signals:
+  - 需求文档
+  - 技术方案
+  - tasks.md
+  - Spec 工作流
+  firstRead: spec-workflow
+  thenRead:
+  - cloudbase
+  beforeAction:
+  - 先完成 requirements、design、tasks 并获得确认。
+  - 再进入代码实现阶段。
+  doNotUse:
+  - web-development
+  - cloud-functions
+  commonMistakes:
+  - 跳过需求和设计直接开始实现。
+  label: Spec workflow / architecture design
+  mustCheckBeforeAction:
+  - Requirements, design, tasks confirmed
