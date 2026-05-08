@@ -245,9 +245,42 @@ The `scf_bootstrap` binary path must match the runtime — see the full mapping 
 
 ### Logs
 
-- `queryFunctions(action="listFunctionLogs")`
-- `queryFunctions(action="getFunctionLogDetail")`
-- If these are unavailable, read `./references/operations-and-config.md` before any `callCloudApi` fallback
+**Query function logs** — use the `queryFunctions` tool:
+
+- `queryFunctions(action="listFunctionLogs", functionName="xxx")` — list execution logs of a specific function
+- `queryFunctions(action="getFunctionLogDetail", requestId="xxx")` — fetch the detail of one log entry
+
+**`queryFunctions` vs `queryLogs`**:
+- `queryFunctions` queries execution logs of a single cloud function and requires `functionName`
+- `queryLogs` searches CLS (cross-service log aggregation) using CLS query syntax
+
+**Examples**:
+```javascript
+// List recent logs for cloud function "my-function"
+queryFunctions(action="listFunctionLogs", functionName="my-function", limit=10)
+
+// Inspect the log detail for a specific request id
+queryFunctions(action="getFunctionLogDetail", requestId="abc-123")
+
+// Cross-service error search via CLS
+queryLogs(action="searchLogs", queryString='(src:app OR src:system) AND log:"ERROR"', service="tcb")
+```
+
+`queryLogs` `queryString` follows CLS syntax (see https://cloud.tencent.com/document/api/876/128127). The examples below are starting points; adapt them to the concrete log content of your query:
+- Function logs: `(src:app OR src:system) AND log:"START RequestId"`
+- Aggregated function request status: `| select request_id, max(status_code) as status where ((request_id='xxxx' AND retry_num=0) AND retry_num=0) AND status_code!=202 group by request_id, retry_num`
+- Document database (NoSQL): `module:database`
+- Document database slow-query events: `module:database AND eventType:(MongoSlowQuery)` — `MongoSlowQuery` is the document-database slow-query event
+- Relational database (MySQL): `module:rdb`
+- Relational database (MySQL) events: `module:rdb AND eventType:(MysqlFreeze OR MysqlRecover OR MysqlSlowQuery)` — `MysqlFreeze` = freeze, `MysqlRecover` = recover, `MysqlSlowQuery` = slow query
+- Workflow (approval flow): `module:workflow`
+- Data model: `module:model`
+- User permissions: `module:auth`
+- LLM trace logs: `module:llm AND logType:llm-tracelog`
+- Gateway access logs: `logType:accesslog`
+- App publish / delete events: `module:app AND eventType:(AppProdPub OR AppProdDel)` — `AppProdPub` = app publish, `AppProdDel` = app delete
+
+If these are unavailable, read `./references/operations-and-config.md` before any `callCloudApi` fallback
 
 ### Gateway exposure
 
@@ -260,3 +293,4 @@ The `scf_bootstrap` binary path must match the runtime — see the full mapping 
 - `cloudrun-development` -> container services, long-lived runtimes, Agent hosting
 - `http-api` -> raw CloudBase HTTP API invocation patterns
 - `cloudbase-platform` -> general CloudBase platform decisions
+- `ops-inspector` -> AIOps-style inspection and log search across services
