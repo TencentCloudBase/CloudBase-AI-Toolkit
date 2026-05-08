@@ -219,7 +219,7 @@ Custom rules can use these predefined variables:
 **LoginType Values:**
 - `WECHAT_PUBLIC`: WeChat Official Account
 - `WECHAT_OPEN`: WeChat Open Platform
-- `ANONYMOUS`: Anonymous login
+- `ANONYMOUS`: Anonymous login (disabled by default for new environments)
 - `EMAIL`: Email login
 - `CUSTOM`: Custom login
 
@@ -562,7 +562,7 @@ For that CMS pattern, `.doc(id).update()` / `.doc(id).remove()` is a validated p
 **Key Understanding**:
 - `ADMINWRITE` = Cloud functions have write access, Frontend SDK **can only read**
 - `CUSTOM` = Configurable read/write permissions for Frontend SDK
-- `READONLY` = All users (including anonymous) can read, creator and admin can write
+- `READONLY` = All users (including anonymous) can read, creator and admin can write. Note: although `READONLY` permits anonymous reads at the ACL level, anonymous login is disabled by default for new environments — callers still need an active login method to obtain a session.
 
 ### Role-Based Access Limitations
 
