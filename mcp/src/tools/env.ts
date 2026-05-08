@@ -184,7 +184,10 @@ function simplifyEnvDomains(domains: unknown) {
 
     const source = domain as Record<string, unknown>;
     return {
+      ...(source.Id !== undefined ? { Id: source.Id } : {}),
       ...(source.Domain !== undefined ? { Domain: source.Domain } : {}),
+      ...(source.CreateTime !== undefined ? { CreateTime: source.CreateTime } : {}),
+      ...(source.UpdateTime !== undefined ? { UpdateTime: source.UpdateTime } : {}),
       ...(source.Status !== undefined ? { Status: source.Status } : {}),
       ...(source.Type !== undefined ? { Type: source.Type } : {}),
     };
@@ -707,6 +710,59 @@ function normalizeOptionalToolString(value: unknown) {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : undefined;
+}
+
+/**
+ * Build enhanced error message for envQuery tool errors
+ * Provides actionable guidance based on error patterns
+ */
+function buildEnvQueryErrorMessage(error: unknown, action: string): string {
+  const baseMessage = error instanceof Error ? error.message : String(error);
+
+  // Check for common error patterns and provide specific guidance
+  const hasInvalidParameterError = /400|invalid parameter|invalid argument|parameter value/i.test(baseMessage);
+  const hasAuthError = /未登录|auth required|unauthorized|authentication|credential|token|secret/i.test(baseMessage);
+  const hasNetworkError = /ECONNRESET|socket hang up|ETIMEDOUT|ENOTFOUND|timeout/i.test(baseMessage);
+  const hasPermissionError = /permission|denied|forbidden|无权|拒绝/i.test(baseMessage);
+  const hasEnvNotFoundError = /env|environment|环境.*不存在|not found/i.test(baseMessage);
+
+  const suggestions: string[] = [];
+
+  if (hasInvalidParameterError) {
+    suggestions.push("参数错误：可能是认证信息无效或已过期，请尝试以下步骤：");
+    suggestions.push("1. 先调用 auth(action=\"status\") 检查当前登录状态");
+    suggestions.push("2. 如果未登录，调用 auth(action=\"start_auth\", authMode=\"device\") 完成登录");
+    suggestions.push("3. 登录完成后再次调用 envQuery(action=\"list\")");
+  }
+
+  if (hasAuthError) {
+    suggestions.push("认证错误：当前未登录或认证已过期。");
+    suggestions.push("建议先执行 auth(action=\"status\") 查看状态，然后按提示完成登录。");
+  }
+
+  if (hasPermissionError) {
+    suggestions.push("权限错误：当前账号可能没有访问该资源的权限。");
+    suggestions.push("请确认：1) 已选择正确的环境 2) 账号有对应权限");
+  }
+
+  if (hasEnvNotFoundError) {
+    suggestions.push("环境错误：指定的环境不存在或无法访问。");
+    suggestions.push("请使用 envQuery(action=\"list\") 查看可用的环境列表。");
+  }
+
+  if (hasNetworkError) {
+    suggestions.push("网络错误：请检查网络连接，稍后重试。");
+  }
+
+  // If no specific pattern matched, provide general guidance
+  if (suggestions.length === 0) {
+    suggestions.push("查询环境信息时出错，建议：");
+    suggestions.push("1. 先调用 auth(action=\"status\") 确认登录状态");
+    suggestions.push("2. 如未登录，执行 auth(action=\"start_auth\") 完成认证");
+    suggestions.push("3. 确认环境 ID 正确且可访问");
+  }
+
+  return `[envQuery/${action}] 调用失败: ${baseMessage}\n\n解决建议：\n${suggestions.join("\n")}`;
 }
 
 function normalizeOptionalToolBoolean(value: unknown) {
@@ -1335,15 +1391,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                   return toolPayloadResult;
                 }
                 debug("降级到 listEnvs() 也失败:", fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError)));
+                const enhancedMessage = buildEnvQueryErrorMessage(fallbackError, "list");
                 return {
                   content: [
                     {
                       type: "text",
-                      text:
-                        "获取环境列表时出错: " +
-                        (fallbackError instanceof Error
-                          ? fallbackError.message
-                          : String(fallbackError)),
+                      text: enhancedMessage,
                     },
                   ],
                 };
@@ -1464,11 +1517,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         if (toolPayloadResult) {
           return toolPayloadResult;
         }
+        const enhancedMessage = buildEnvQueryErrorMessage(error, action);
         return {
           content: [
             {
               type: "text",
-              text: `环境查询失败: ${error instanceof Error ? error.message : String(error)}`,
+              text: enhancedMessage,
             },
           ],
         };
@@ -1480,14 +1534,14 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "envDomainManagement",
     {
-      title: "环境域名管理",
+      title: "环境域名管理（安全域名 / CORS 白名单）",
       description:
-        "管理云开发环境的安全域名，支持添加和删除操作。（原工具名：createEnvDomain/deleteEnvDomain，为兼容旧AI规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 或自定义域名直接访问 CloudBase 资源时，应先用 envQuery(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。新增或删除后通常需要继续轮询 envQuery(action=domains) 确认状态收敛；安全域名一般约 10 分钟生效。",
+        "管理云开发环境的安全域名（安全域名 / CORS 白名单），支持添加和删除操作。（原工具名：createEnvDomain/deleteEnvDomain，为兼容旧AI规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 直接访问 CloudBase 资源时，应先用 envQuery(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。新增或删除后通常需要继续轮询 envQuery(action=domains) 确认状态收敛；安全域名一般约 10 分钟生效。⚠️ 重要：此工具仅用于 CORS/请求来源验证，不涉及 SSL 证书。如需绑定自定义域名供公网 HTTPS 访问，请使用 manageGateway(action=\"bindCustomDomain\")。",
       inputSchema: {
         action: z
           .enum(["create", "delete"])
-          .describe("操作类型：create=添加域名，delete=删除域名"),
-        domains: z.array(z.string()).describe("安全域名数组"),
+          .describe("操作类型：create=添加安全域名，delete=删除安全域名"),
+        domains: z.array(z.string()).describe("安全域名数组（格式：host:port，例如 localhost:5173 或 127.0.0.1:4173）。注意：不是自定义域名，不需要证书。"),
       },
       annotations: {
         readOnlyHint: false,

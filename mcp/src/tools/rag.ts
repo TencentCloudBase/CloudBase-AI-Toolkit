@@ -237,6 +237,24 @@ function requireStringParam(
   return value.trim();
 }
 
+function buildOptionalStringEnum(values: string[], description: string) {
+  const uniqueValues = [...new Set(values.filter((value) => value.trim()))];
+
+  if (uniqueValues.length > 0) {
+    return z
+      .enum(uniqueValues as [string, ...string[]])
+      .optional()
+      .describe(description);
+  }
+
+  return z
+    .string()
+    .optional()
+    .describe(
+      `${description} 当前暂时无法枚举可选值；如需查看当前可用项，可直接传入字符串，工具会在执行时返回可用列表。`,
+    );
+}
+
 // OpenAPI 文档 URL 列表
 const OPENAPI_SOURCES: Array<{
   name: string;
@@ -589,6 +607,11 @@ export async function registerRagTools(server: ExtendedMcpServer) {
     });
   }
 
+  const skillNames = skills.map((skill) =>
+    path.basename(path.dirname(skill.absolutePath)),
+  );
+  const openapiNames = openapis.map((api) => api.name);
+
   const getDocsManager = () =>
     (createCloudBaseManagerWithOptions(server.cloudBaseOptions ?? {}) as any)
       ?.docs;
@@ -621,20 +644,14 @@ export async function registerRagTools(server: ExtendedMcpServer) {
           .join("\n")}`,
       inputSchema: {
         mode: SearchKnowledgeModeEnum,
-        skillName: z
-          .enum(
-            skills.map((skill) =>
-              path.basename(path.dirname(skill.absolutePath)),
-            ) as unknown as [string, ...string[]],
-          )
-          .optional()
-          .describe("mode=skill 时指定。技能名称。"),
-        apiName: z
-          .enum(
-            openapis.map((api) => api.name) as unknown as [string, ...string[]],
-          )
-          .optional()
-          .describe("mode=openapi 时指定。API 名称。"),
+        skillName: buildOptionalStringEnum(
+          skillNames,
+          "mode=skill 时指定。技能名称。",
+        ),
+        apiName: buildOptionalStringEnum(
+          openapiNames,
+          "mode=openapi 时指定。API 名称。",
+        ),
         action: CloudBaseDocsActionEnum.optional().describe(
           "mode=docs 时指定。CloudBase 文档操作类型：listModules=列出所有文档模块，listModuleDocs=获取指定模块的目录结构，findByName=按名称/路径/URL 智能查找，readDoc=读取指定文档 Markdown，searchDocs=全文搜索官方文档。",
         ),
@@ -806,7 +823,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
             content: [
               {
                 type: "text",
-                text: `Skill document "${skillName}" not found. Available skill docs: ${skills.map((item) => path.basename(path.dirname(item.absolutePath))).join(", ") || "none"}`,
+                text: `Skill document "${skillName}" not found. Available skill docs: ${skillNames.join(", ") || "none"}`,
               },
             ],
           };
@@ -829,7 +846,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
             content: [
               {
                 type: "text",
-                text: `OpenAPI document "${apiName}" not found. Available APIs: ${openapis.map((a) => a.name).join(", ") || "none"}`,
+                text: `OpenAPI document "${apiName}" not found. Available APIs: ${openapiNames.join(", ") || "none"}`,
               },
             ],
           };

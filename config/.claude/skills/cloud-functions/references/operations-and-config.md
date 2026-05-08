@@ -156,11 +156,16 @@ Prefer the converged entrances below, but translate historical names when they a
 
 ## CLI fallback
 
-Use CLI only when MCP tools are unavailable.
+Use CLI **only** when MCP tools are unavailable AND CLI is explicitly enabled in the runtime environment.
 
 - `tcb fn deploy <name>` -> Event Function
 - `tcb fn deploy <name> --httpFn` -> HTTP Function
 - `tcb fn deploy <name> --httpFn --ws` -> HTTP Function with WebSocket
 - `tcb fn deploy --all` -> Deploy all functions
+- `tcb fn config update <name>` -> Update function config (timeout, memorySize, envVariables)
+
+**Important:** When the available capabilities include MCP tools but not CLI access, use MCP tools exclusively. Do not attempt CLI commands in such environments.
+
+**Batch updates via MCP:** MCP does not have a `--all` batch parameter. To update multiple functions, call `manageFunctions(action="updateFunctionConfig")` individually for each function.
 
 In non-interactive agent runs, do not default to CLI login or interactive setup flows.
