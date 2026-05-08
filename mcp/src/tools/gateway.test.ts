@@ -14,6 +14,7 @@ const {
   mockDeleteCustomDomain,
   mockGetCloudBaseManager,
   mockLogCloudBaseResult,
+  mockGetEnvId,
 } = vi.hoisted(() => ({
   mockGetAccessList: vi.fn(),
   mockGetDomainList: vi.fn(),
@@ -26,11 +27,13 @@ const {
   mockDeleteCustomDomain: vi.fn(),
   mockGetCloudBaseManager: vi.fn(),
   mockLogCloudBaseResult: vi.fn(),
+  mockGetEnvId: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
   getCloudBaseManager: mockGetCloudBaseManager,
   logCloudBaseResult: mockLogCloudBaseResult,
+  getEnvId: mockGetEnvId,
 }));
 
 function createMockServer() {
@@ -66,6 +69,7 @@ describe("gateway tools", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    mockGetEnvId.mockResolvedValue("env-test");
     mockGetAccessList.mockResolvedValue({
       Total: 1,
       EnableService: true,
