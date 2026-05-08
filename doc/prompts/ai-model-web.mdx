@@ -53,31 +53,200 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 ## When to use this skill
 
-Use this skill for **calling AI models in browser/Web applications** using `@cloudbase/js-sdk`.
+Use this skill for **calling AI models in browser/Web applications** via `@cloudbase/js-sdk`.
 
 **Use it when you need to:**
 
-- Integrate AI text generation in a frontend Web app
-- Stream AI responses for better user experience
-- Call Hunyuan or DeepSeek models from browser
+- Integrate AI text generation into a frontend Web app
+- Stream AI responses for a better UX
+- Call Hunyuan or DeepSeek models from the browser
 
 **Do NOT use for:**
 
-- Node.js backend or cloud functions → use `ai-model-nodejs` skill
-- WeChat Mini Program → use `ai-model-wechat` skill
-- Image generation → use `ai-model-nodejs` skill (Node SDK only)
-- HTTP API integration → use `http-api` skill
+- Node.js backend or cloud functions → use the `ai-model-nodejs` skill
+- WeChat Mini Program → use the `ai-model-wechat` skill
+- Image generation → use the `ai-model-nodejs` skill (Node SDK only)
+- HTTP API integration → use the `http-api` skill
+
+---
+
+## ⛔ STOP — `ai.createModel(...)` argument is **not** a vendor / model name
+
+Read this before writing any `createModel(...)` line. The single most common mistake when agents generate code for this SDK is hallucinating the argument. There are **exactly three** legal shapes. Anything else is a bug.
+
+| ✅ Legal `ai.createModel(...)` argument | When to use it |
+|----------------------------------------|----------------|
+| `"cloudbase"` | **Default for new projects.** The main managed group (TokenHub-backed, multi-vendor pool). Vendor + concrete model go into the **`model` field** of `generateText` / `streamText`, e.g. `{ model: "deepseek-v4-flash" }`. |
+| `"hunyuan-exp"` | Only if `DescribeAIModels` explicitly returns this legacy builtin group for the current env (mainly the Mini Program Growth Plan — see `ai-model-wechat`). |
+| `"custom-<your-name>"` | A user-defined GroupName you onboarded via `CreateAIModel`. **Must** start with `custom-` (e.g. `custom-kimi`, `custom-openai-compat`). |
+
+### ❌ Do NOT write any of these — they are all wrong
+
+```js
+ai.createModel("deepseek")                 // wrong — that's a vendor, not a GroupName
+ai.createModel("deepseek-v4-flash")        // wrong — that's a model name, goes in the `model` field
+ai.createModel("hunyuan")                  // wrong — vendor family, not a GroupName
+ai.createModel("hunyuan-2.0-instruct-20251111")  // wrong — model name
+ai.createModel("glm") / ai.createModel("kimi") / ai.createModel("minimax")  // wrong — vendor names
+ai.createModel("openai") / ai.createModel("moonshot")  // wrong — vendor names
+ai.createModel("custom")                   // wrong — placeholder; use your real custom-<name>
+ai.createModel(modelName)                  // wrong — do not reuse the variable that holds the model id
+```
+
+### ✅ Correct pattern — GroupName vs Model are two different fields
+
+```js
+const model = ai.createModel("cloudbase");          // ← GroupName
+await model.generateText({
+  model: "deepseek-v4-flash",                       // ← concrete model id
+  messages: [...]
+});
+```
+
+### Decision procedure (when the user names a specific model)
+
+1. The user says "use DeepSeek v3.2" / "use hunyuan instruct" / "use Kimi k2.6" / "use GLM-5" / …
+2. `createModel("cloudbase")` stays the same.
+3. Put the model id into the **`model` field**: `{ model: "deepseek-v3.2" }`, `{ model: "hunyuan-2.0-instruct-20251111" }`, `{ model: "kimi-k2.6" }`, `{ model: "glm-5" }`, …
+4. Before using the model id, make sure it is present in `DescribeAIModels({ GroupName: "cloudbase" }).Models[]`. If not, enable it via `UpdateAIModel` (see preflight ② below).
+
+> If you are about to type `ai.createModel(` and the thing inside the parentheses is a vendor name, a model name, or a guess — **stop**. It is almost certainly one of the three legal values above.
+
+---
+
+## Mandatory Two-Step Preflight (before any SDK code)
+
+Before generating any AI-related SDK code, **run the two-step preflight**: ① eligibility, ② group readiness. Emitting `createModel(...)` straight away and letting the user debug runtime errors is significantly more costly.
+
+### Step 0: obtain the environment ID
+
+Call the MCP tool `envQuery` with `action=info` and read `EnvId` from the response. Every subsequent check and purchase link uses this `EnvId`.
+
+---
+
+### Preflight ① — Eligibility (Token Credits resource pack)
+
+Call the MCP tool:
+
+```
+callCloudApi(service="tcb", action="DescribeEnvPostpayPackage", params={ EnvId })
+```
+
+**Pass conditions (all required):**
+- `envPostpayPackageInfoList` contains at least one entry
+- That entry's `postpayPackageId` starts with `pkg_tcb_tokencredits_`
+- That entry's `status` is NOT in `[3, 4]` (3 / 4 typically mean expired / disabled; trust the live response)
+
+- ❌ **Not satisfied** → **stop writing code** and surface this to the user (replacing `{envId}` with the real id):
+  > The current environment has no active Token Credits resource pack. Please purchase one before calling any AI API:
+  > https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token
+  >
+  > Let me know once it's done and I'll re-check the resource pack status.
+
+- ✅ **Satisfied** → proceed to preflight ②.
+
+> Parameter casing is PascalCase by contract. If the call returns `InvalidParameter`, fall back to camelCase (`envId` / `envPostpayPackageInfoList`) and trust the live response. For the Mini Program scenario there is an additional growth-plan branch — switch to the `ai-model-wechat` skill.
+
+---
+
+### Preflight ② — Group readiness (`DescribeAIModels` → `UpdateAIModel` if needed)
+
+Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.** First confirm that the target `GroupName` exists in the env with `Status=1`, and that the target `Model` is present in its `Models[]`.
+
+1. **List groups configured in the current env:**
+
+   ```
+   callCloudApi(service="tcb", action="DescribeAIModels", params={ EnvId })
+   ```
+
+   Returns `AIModelGroups: AIModelGroup[]`, where each `AIModelGroup` includes `GroupName`, `Type` (`builtin` / `custom`), `Models: [{ Model, EnableMCP, Tags }]`, `Status` (1 = on / 2 = off), `BaseUrl`, `Secret`, `Remark`. The main managed `GroupName` is `cloudbase`.
+
+2. **User did not specify a model** → default to `createModel("cloudbase")` + `model: "deepseek-v4-flash"` (the only model the managed group has enabled out of the box). If the `cloudbase` group is missing or has `Status=2`, jump to step 4.
+
+3. **User asked for a model that belongs to the managed catalog** (e.g. `deepseek-v3.2`, `hunyuan-2.0-instruct-20251111`, `glm-5`, `kimi-k2.6`, …): check whether that `Model` is already in the `cloudbase` group's `Models[]`. If not, jump to step 4.
+
+4. **Enable / add a managed model** (optionally inspect pricing first):
+
+   ```
+   callCloudApi(service="tcb", action="DescribeManagedAIModelList", params={ EnvId })
+   ```
+
+   Returns `ManagedAIModelGroup[]`, where each group lists `GroupName` (e.g. `cloudbase`), `Remark`, and `Models: [{ Model, EnableMCP, ModelSpec{ContextLength, MaxInputToken, MaxOutputToken}, ModelChargingInfo[{Type, InputPrice, OutputPrice, InputOutputUnit, CachePrice}] }]`. **Use this response to show pricing to the user before enabling.**
+
+   Then enable (note: `Models` is a **full replacement** — always resend the already-enabled models together with the new one):
+
+   ```
+   callCloudApi(service="tcb", action="UpdateAIModel", params={
+     EnvId,
+     GroupName: "cloudbase",
+     Models: [
+       { Model: "deepseek-v4-flash" },
+       { Model: "<target model>" }
+     ],
+     Status: 1
+   })
+   ```
+
+5. **The requested model is not in the managed catalog** (not found by `DescribeManagedAIModelList`) → jump to the next section, **Custom onboarding (models outside the managed catalog)**.
+
+> All Actions use `service=tcb`, `Version=2018-06-08`. Parameters are PascalCase (`EnvId` / `GroupName` / `Models` / `Status`). Fall back to camelCase only if the call returns `InvalidParameter`.
 
 ---
 
 ## Available Providers and Models
 
-CloudBase provides these built-in providers and models:
+`ai.createModel(<GroupName>)` accepts exactly three kinds of legal values:
 
-| Provider | Models | Recommended |
-|----------|--------|-------------|
-| `hunyuan-exp` | `hunyuan-turbos-latest`, `hunyuan-t1-latest`, `hunyuan-2.0-thinking-20251109`, `hunyuan-2.0-instruct-20251111` | ✅ `hunyuan-2.0-instruct-20251111` |
-| `deepseek` | `deepseek-r1-0528`, `deepseek-v3-0324`, `deepseek-v3.2` | ✅ `deepseek-v3.2` |
+### 1. `"cloudbase"` — the main managed group (recommended)
+
+- `GroupName: "cloudbase"`, `Type: "builtin"`, `Remark: "腾讯云开发"` (Tencent CloudBase)
+- Backed by **Tencent Cloud TokenHub**, a unified managed pool covering multiple vendors — **Hunyuan** (HY 2.0 Instruct, HY 2.0 Think, Hunyuan-role, Hy3 preview, …), **DeepSeek** (DeepSeek-V4-Pro, DeepSeek-V4-Flash, Deepseek-v3.2, Deepseek-v3.1, Deepseek-r1-0528, Deepseek-v3-0324, …), **Zhipu GLM** (GLM-5, GLM-5-Turbo, GLM-5.1, GLM-5V-Turbo), **Kimi** (K2.5, K2.6), **MiniMax** (M2.5, M2.7), and more. The roster evolves — **do not hard-code specific SKUs** in application code; discover at runtime.
+- **Only `deepseek-v4-flash` is enabled by default**; other models must be appended via `UpdateAIModel` (Status:1) first
+- When the user did not specify anything, default to `createModel("cloudbase")` + `model: "deepseek-v4-flash"`
+- Current catalog + pricing: `DescribeManagedAIModelList`
+- Env-enabled set: `DescribeAIModels`
+
+### 2. `"hunyuan-exp"` — legacy builtin group (kept for compatibility)
+
+- Primarily relevant to the Mini Program Growth Plan scenario; do not use from Web unless the env explicitly still has it (switch to the `ai-model-wechat` skill for that flow)
+- Default model: `hunyuan-2.0-instruct-20251111`; additional hunyuan SKUs must be discovered at runtime via `DescribeAIModels({ GroupName: "hunyuan-exp" }).Models[]` — do not hard-code other IDs
+
+### 3. User-defined GroupName
+
+- Onboarded via `CreateAIModel` (see the next section). The custom `GroupName` **MUST start with `custom-`** (e.g. `custom-kimi`, `custom-moonshot`, `custom-openai-compat`). This naming convention prevents future collisions with built-in / vendor GroupNames (`cloudbase`, `hunyuan-exp`, `deepseek`, `glm`, `kimi`, `minimax`, …) that the platform may introduce over time
+- Examples: `createModel("custom-kimi")`, `createModel("custom-openai-compat")`
+
+> **Never** write guesses like `createModel("deepseek")` or `createModel("custom")` unless `DescribeAIModels` explicitly returned that exact `GroupName` (old envs may still carry historical `deepseek` / `hunyuan-exp` builtin groups — that stays legal for compatibility, but new projects should always go through `cloudbase`).
+
+---
+
+## Custom onboarding (models outside the managed catalog)
+
+When the user wants to call a **non-managed** model (self-hosted, enterprise-internal, third-party OpenAI-compatible endpoint, …), **do not block**. Guide them through onboarding:
+
+### Option 1: console flow (recommended, user handles it)
+
+`https://tcb.cloud.tencent.com/dev?envId={envId}#/ai`
+
+### Option 2: programmatic onboarding (`CreateAIModel`)
+
+```
+callCloudApi(service="tcb", action="CreateAIModel", params={
+  EnvId: "<envId>",
+  GroupName: "custom-<your-name>",  // MUST start with "custom-" (e.g. custom-kimi, custom-openai-compat); never start with "cloudbase"
+  BaseUrl: "<OpenAI-compatible endpoint, e.g. https://api.moonshot.cn/v1>",
+  Models: [
+    { Model: "<model name, e.g. kimi-k2.5>", EnableMCP: true }
+  ],
+  Remark: "<optional remark>",
+  Status: 1,
+  Secret: { ApiKey: "<vendor api key supplied by the user>" }
+})
+```
+
+Once onboarded, confirm with `DescribeAIModels` that the group is ready, then call `ai.createModel("<the GroupName you just registered>")` from your code. Use `UpdateAIModel` to add/remove models, rotate keys, or change `BaseUrl` (remember `Models` is a **full replacement**). Use `DeleteAIModel` to remove a custom group (builtin groups cannot be deleted).
+
+> Custom-model billing is covered by the third-party provider and does not draw from the Token Credits resource pack. Field casing follows the live contract — fall back to camelCase on `InvalidParameter`.
 
 ---
 
@@ -89,69 +258,90 @@ npm install @cloudbase/js-sdk
 
 ## Initialization
 
+> ⚠️ **Do not use anonymous sign-in as the default.** Anonymous accounts are easy to abuse and weaken downstream permission rules. The AI-model skill does **not** prescribe a specific login UI — delegate that concern:
+>
+> - **Enabling / configuring login providers** (phone SMS, email, WeChat Open Platform, username+password, OAuth, …) → follow the **`auth-tool`** skill (backend config via `callCloudApi`).
+> - **Building the actual sign-in flow in the browser** (login form, callbacks, session guarding) → follow the **`auth-web`** skill (`@cloudbase/js-sdk` auth API, e.g. `signInWithPassword`, `signInWithPhone`, `getLoginState`).
+>
+> Only fall back to `signInAnonymously()` if the user explicitly requests a read-only anonymous demo and accepts the trade-off.
+
 ```js
 import cloudbase from "@cloudbase/js-sdk";
 
 const app = cloudbase.init({
   env: "<YOUR_ENV_ID>",
-  accessKey: "<YOUR_PUBLISHABLE_KEY>"  // Get from CloudBase console
+  accessKey: "<YOUR_PUBLISHABLE_KEY>"  // Get it from the CloudBase console
 });
 
 const auth = app.auth();
-await auth.signInAnonymously();
+
+// Ensure the user is signed in before calling any AI API.
+// The concrete sign-in flow lives in your app (see the `auth-web` skill),
+// e.g. a login page that calls auth.signInWithPassword / signInWithPhone / …
+// and uses auth.onLoginStateChanged() to observe session changes.
+const loginState = await auth.getLoginState();
+if (!loginState) {
+  // Route to your own sign-in page — do NOT block here with a blind redirect.
+  window.location.href = "/login";
+  return;
+}
 
 const ai = app.ai();
 ```
 
 **Important notes:**
 
-- Always use synchronous initialization with top-level import
-- User must be authenticated before using AI features
-- Get `accessKey` from CloudBase console
+- Use synchronous initialization with a top-level import
+- The user MUST be authenticated before using AI features — use a verified login (phone, email, WeChat, username+password, custom), never anonymous, as the default. The exact flow is the responsibility of the `auth-web` skill.
+- Get `accessKey` from the CloudBase console
 
 ---
 
-## generateText() - Non-streaming
+## generateText() — non-streaming
+
+> **Prerequisite:** the two-step preflight (eligibility + group readiness) has passed. The example below assumes the user did not specify a model, so it uses the `cloudbase` managed group + `deepseek-v4-flash`.
 
 ```js
-const model = ai.createModel("hunyuan-exp");
+const model = ai.createModel("cloudbase");
 
 const result = await model.generateText({
-  model: "hunyuan-2.0-instruct-20251111",  // Recommended model
-  messages: [{ role: "user", content: "你好，请你介绍一下李白" }],
+  model: "deepseek-v4-flash",  // on by default; other models require UpdateAIModel
+  messages: [{ role: "user", content: "Give me a one-paragraph intro to Li Bai." }],
 });
 
-console.log(result.text);           // Generated text string
+console.log(result.text);           // generated text string
 console.log(result.usage);          // { prompt_tokens, completion_tokens, total_tokens }
-console.log(result.messages);       // Full message history
-console.log(result.rawResponses);   // Raw model responses
+console.log(result.messages);       // full message history
+console.log(result.rawResponses);   // raw model responses
 ```
 
 ---
 
-## streamText() - Streaming
+## streamText() — streaming
+
+> **Prerequisite:** the two-step preflight has passed.
 
 ```js
-const model = ai.createModel("hunyuan-exp");
+const model = ai.createModel("cloudbase");
 
 const res = await model.streamText({
-  model: "hunyuan-2.0-instruct-20251111",  // Recommended model
-  messages: [{ role: "user", content: "你好，请你介绍一下李白" }],
+  model: "deepseek-v4-flash",
+  messages: [{ role: "user", content: "Give me a one-paragraph intro to Li Bai." }],
 });
 
-// Option 1: Iterate text stream (recommended)
+// Option 1: iterate the text stream (recommended)
 for await (let text of res.textStream) {
-  console.log(text);  // Incremental text chunks
+  console.log(text);  // incremental text chunks
 }
 
-// Option 2: Iterate data stream for full response data
+// Option 2: iterate the data stream for full response chunks
 for await (let data of res.dataStream) {
-  console.log(data);  // Full response chunk with metadata
+  console.log(data);  // full response chunk with metadata
 }
 
-// Option 3: Get final results
-const messages = await res.messages;  // Full message history
-const usage = await res.usage;        // Token usage
+// Option 3: access final results
+const messages = await res.messages;  // full message history
+const usage = await res.usage;        // token usage
 ```
 
 ---
@@ -159,12 +349,12 @@ const usage = await res.usage;        // Token usage
 ## Error Handling Pattern
 
 ```js
-const model = ai.createModel("deepseek");
+const model = ai.createModel("cloudbase");
 
 try {
   const result = await model.generateText({
-    model: "deepseek-v3.2",
-    messages: [{ role: "user", content: "Generate a concise onboarding checklist" }],
+    model: "deepseek-v4-flash",
+    messages: [{ role: "user", content: "Generate a concise onboarding checklist." }],
   });
 
   console.log(result.text);
@@ -179,10 +369,10 @@ try {
 
 ```ts
 interface BaseChatModelInput {
-  model: string;                        // Required: model name
-  messages: Array<ChatModelMessage>;    // Required: message array
-  temperature?: number;                 // Optional: sampling temperature
-  topP?: number;                        // Optional: nucleus sampling
+  model: string;                        // required: model name
+  messages: Array<ChatModelMessage>;    // required: message array
+  temperature?: number;                 // optional: sampling temperature
+  topP?: number;                        // optional: nucleus sampling
 }
 
 type ChatModelMessage =
@@ -191,19 +381,19 @@ type ChatModelMessage =
   | { role: "assistant"; content: string };
 
 interface GenerateTextResult {
-  text: string;                         // Generated text
-  messages: Array<ChatModelMessage>;    // Full message history
-  usage: Usage;                         // Token usage
-  rawResponses: Array<unknown>;         // Raw model responses
-  error?: unknown;                      // Error if any
+  text: string;                         // generated text
+  messages: Array<ChatModelMessage>;    // full message history
+  usage: Usage;                         // token usage
+  rawResponses: Array<unknown>;         // raw model responses
+  error?: unknown;                      // error if any
 }
 
 interface StreamTextResult {
-  textStream: AsyncIterable<string>;    // Incremental text stream
-  dataStream: AsyncIterable<DataChunk>; // Full data stream
-  messages: Promise<ChatModelMessage[]>;// Final message history
-  usage: Promise<Usage>;                // Final token usage
-  error?: unknown;                      // Error if any
+  textStream: AsyncIterable<string>;    // incremental text stream
+  dataStream: AsyncIterable<DataChunk>; // full data stream
+  messages: Promise<ChatModelMessage[]>;// final message history
+  usage: Promise<Usage>;                // final token usage
+  error?: unknown;                      // error if any
 }
 
 interface Usage {
@@ -217,11 +407,17 @@ interface Usage {
 
 ## Best Practices
 
-1. **Use streaming for long responses** - Better user experience
-2. **Handle errors gracefully** - Wrap AI calls in try/catch
-3. **Keep accessKey secure** - Use publishable key, not secret key
-4. **Initialize early** - Initialize SDK in app entry point
-5. **Ensure authentication** - User must be signed in before AI calls
+1. **Run the two-step preflight first** — ① eligibility (Token Credits resource pack via `DescribeEnvPostpayPackage`) + ② group readiness (`DescribeAIModels` to inspect what is enabled, `UpdateAIModel` with a full-replacement `Models[]` and `Status: 1` when needed). Skipping preflight leads straight to "model not found" / "model not enabled" errors at runtime.
+2. **`createModel` accepts exactly three kinds of values** — `"cloudbase"` (the main managed group), `"hunyuan-exp"` (legacy builtin, Growth Plan scenarios), or a user-defined GroupName registered via `CreateAIModel` (**MUST start with `custom-`**, e.g. `custom-kimi`, `custom-openai-compat`). **Never** guess with `createModel("deepseek")` / `createModel("kimi")` / `createModel("custom")`.
+3. **Show pricing before enabling a new managed model** — `DescribeManagedAIModelList` returns `ModelSpec` (context length, max input/output tokens) + `ModelChargingInfo` (input / output / cache prices, billing unit). Surface the prices to the user before calling `UpdateAIModel`.
+4. **Use streaming for long responses** — better perceived latency and interactivity.
+5. **Handle errors gracefully** — wrap AI calls in try/catch.
+6. **Keep `accessKey` safe** — use a publishable key, never a secret key.
+7. **Initialize early** — set up the SDK at app entry so auth and AI are both ready before routing.
+8. **Do NOT default to anonymous auth** — require a verified sign-in before calling any AI API. Delegate provider configuration to the `auth-tool` skill and the browser sign-in flow to the `auth-web` skill; the AI-model skill only checks `auth.getLoginState()` and gates the call.
+9. **Distinguish "preflight failure" from "model call failure"** — the former means the user needs to buy a resource pack or call `UpdateAIModel`; the latter is a prompt / parameter / network issue. Give the user different guidance for each.
+10. **TypeScript: do NOT use `any` to silence type errors from the SDK.** The SDK ships its own types; if an error shows up, narrow with `unknown` + a type guard, write a precise `interface` for the shape you actually consume, or augment types in a local `.d.ts`. Never `: any`, `as any`, `@ts-ignore`, or `@ts-nocheck`. See the Engineering constitution in the `web-development` skill.
+11. **Self-verify before claiming done.** Run `tsc --noEmit` + the project build + open the page with `agent-browser` and actually trigger the AI call. Confirm: (a) the text stream reaches the UI, (b) no new console errors, (c) `result.usage` is non-zero. Saying "it should work" without evidence is not acceptable — follow `web-development/browser-testing.md`.
 ````
 
 </details>

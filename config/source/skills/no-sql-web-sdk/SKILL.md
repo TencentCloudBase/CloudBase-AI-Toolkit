@@ -41,6 +41,21 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - SQL / MySQL database operations.
 - Pure resource-permission administration with no browser SDK code.
 
+### SDK Code vs MCP Tools
+
+**When to write SDK code (use this skill):**
+- The task explicitly asks to "modify code" or "use SDK"
+- The task asks to implement app/frontend logic
+- The task mentions specific SDK methods like `db.collection().add()`, `.get()`, `.update()`
+- The context shows an existing Web project with SDK initialization (e.g., `index.js` already has `cloudbase.init()`)
+
+**When to use MCP tools instead:**
+- The task asks to manage CloudBase resources (create collection, set permissions, etc.)
+- The task involves admin/management operations without writing app code
+- The task mentions tools like `writeNoSqlDatabaseContent`, `managePermissions`, etc.
+
+**Key distinction:** If the user says "使用 JS SDK 执行 XX 操作" (use JS SDK to perform XX operation) or "修改代码" (modify code), write SDK code in the project files. Do not use MCP database write tools for app-level data operations.
+
 ### Common mistakes / gotchas
 
 - Querying before the user is signed in when the collection rules require identity.
