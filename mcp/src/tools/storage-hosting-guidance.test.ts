@@ -125,9 +125,21 @@ describe("storage and hosting tool guidance", () => {
 
     const payload = JSON.parse(result.content[0].text);
     expect(payload.success).toBe(true);
+    expect(payload.data.cloudPath).toBe("aicoding/helloworld.txt");
     expect(payload.data.temporaryUrl).toBe("https://signed.example.com/tmp-url");
     expect(payload.data.storageCdnDomain).toBe("env-test-1250000000.tcb.qcloud.la");
     expect(payload.data.publicUrl).toBe("https://env-test-1250000000.tcb.qcloud.la/aicoding/helloworld.txt");
+    expect(mockUploadFile).toHaveBeenCalledWith({
+      localPath: "/tmp/helloworld.txt",
+      cloudPath: "aicoding/helloworld.txt",
+      onProgress: expect.any(Function),
+    });
+    expect(mockGetTemporaryUrl).toHaveBeenCalledWith([
+      expect.objectContaining({
+        cloudPath: "aicoding/helloworld.txt",
+        maxAge: 3600,
+      }),
+    ]);
     expect(mockCommonService).toHaveBeenCalledWith("tcb", "2018-06-08");
     expect(mockDescribeEnvsCall).toHaveBeenCalledWith({
       Action: "DescribeEnvs",
@@ -148,9 +160,16 @@ describe("storage and hosting tool guidance", () => {
 
     const payload = JSON.parse(result.content[0].text);
     expect(payload.success).toBe(true);
+    expect(payload.data.cloudPath).toBe("aicoding/helloworld.txt");
     expect(payload.data.temporaryUrl).toBe("https://signed.example.com/tmp-url");
     expect(payload.data.storageCdnDomain).toBe("env-test-1250000000.tcb.qcloud.la");
     expect(payload.data.publicUrl).toBe("https://env-test-1250000000.tcb.qcloud.la/aicoding/helloworld.txt");
+    expect(mockGetTemporaryUrl).toHaveBeenCalledWith([
+      expect.objectContaining({
+        cloudPath: "aicoding/helloworld.txt",
+        maxAge: 3600,
+      }),
+    ]);
     expect(payload.data.note).toContain("temporaryUrl 是临时签名链接");
     expect(payload.data.note).toContain("公有读");
   });

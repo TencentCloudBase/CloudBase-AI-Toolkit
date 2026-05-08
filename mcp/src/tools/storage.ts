@@ -66,12 +66,16 @@ function getNonEmptyString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function normalizeStorageCloudPath(cloudPath: string) {
+  return cloudPath.replace(/^\/+/, '');
+}
+
 function buildStoragePublicUrl(cdnDomain: string | null, cloudPath: string): string | null {
   if (!cdnDomain) {
     return null;
   }
 
-  const normalizedCloudPath = cloudPath.replace(/^\/+/, '');
+  const normalizedCloudPath = normalizeStorageCloudPath(cloudPath);
   if (!normalizedCloudPath) {
     return `https://${cdnDomain}`;
   }
@@ -147,6 +151,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
     },
     async (args: QueryStorageInput) => {
       const input = args;
+      const normalizedCloudPath = normalizeStorageCloudPath(input.cloudPath);
       const manager = await getManager();
 
       if (!manager) {
@@ -157,7 +162,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
 
       switch (input.action) {
         case 'list': {
-          const result = await storageService.listDirectoryFiles(input.cloudPath);
+          const result = await storageService.listDirectoryFiles(normalizedCloudPath);
 
           return {
             content: [
@@ -167,11 +172,11 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                   success: true,
                   data: {
                     action: 'list',
-                    cloudPath: input.cloudPath,
+                    cloudPath: normalizedCloudPath,
                     files: result || [],
                     totalCount: result?.length || 0
                   },
-                  message: `Successfully listed ${result?.length || 0} files in directory '${input.cloudPath}'`
+                  message: `Successfully listed ${result?.length || 0} files in directory '${normalizedCloudPath}'`
                 }, null, 2)
               }
             ]
@@ -179,7 +184,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         }
 
         case 'info': {
-          const result = await storageService.getFileInfo(input.cloudPath);
+          const result = await storageService.getFileInfo(normalizedCloudPath);
 
           return {
             content: [
@@ -189,10 +194,10 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                   success: true,
                   data: {
                     action: 'info',
-                    cloudPath: input.cloudPath,
+                    cloudPath: normalizedCloudPath,
                     fileInfo: result
                   },
-                  message: `Successfully retrieved file info for '${input.cloudPath}'`
+                  message: `Successfully retrieved file info for '${normalizedCloudPath}'`
                 }, null, 2)
               }
             ]
@@ -201,11 +206,11 @@ export function registerStorageTools(server: ExtendedMcpServer) {
 
         case 'url': {
           const result = await storageService.getTemporaryUrl([{
-            cloudPath: input.cloudPath,
+            cloudPath: normalizedCloudPath,
             maxAge: input.maxAge || 3600
           }]);
           const publicAccess = await resolveStoragePublicAccess({
-            cloudPath: input.cloudPath,
+            cloudPath: normalizedCloudPath,
             cloudBaseOptions,
             manager,
           });
@@ -218,7 +223,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                   success: true,
                   data: {
                     action: 'url',
-                    cloudPath: input.cloudPath,
+                    cloudPath: normalizedCloudPath,
                     temporaryUrl: result[0]?.url || "",
                     expireTime: `${input.maxAge || 3600}秒`,
                     fileId: result[0]?.fileId || "",
@@ -226,7 +231,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                     publicUrl: publicAccess.publicUrl,
                     note: "temporaryUrl 是临时签名链接，会按 expireTime 过期。publicUrl 基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导，⚠️ 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先将目标路径设置为公有读。"
                   },
-                  message: `Successfully generated temporary URL for '${input.cloudPath}'`
+                  message: `Successfully generated temporary URL for '${normalizedCloudPath}'`
                 }, null, 2)
               }
             ]
@@ -235,11 +240,11 @@ export function registerStorageTools(server: ExtendedMcpServer) {
 
         case 'read': {
           const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), STORAGE_READ_TEMP_PREFIX));
-          const localPath = path.join(tempDir, getStorageTempFileName(input.cloudPath));
+          const localPath = path.join(tempDir, getStorageTempFileName(normalizedCloudPath));
 
           try {
             await storageService.downloadFile({
-              cloudPath: input.cloudPath,
+              cloudPath: normalizedCloudPath,
               localPath
             });
 
@@ -254,15 +259,15 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                     success: true,
                     data: {
                       action: 'read',
-                      cloudPath: input.cloudPath,
+                      cloudPath: normalizedCloudPath,
                       content: decoded.content,
                       encoding: decoded.encoding,
                       sizeBytes: decoded.sizeBytes,
                       truncated: decoded.truncated
                     },
                     message: decoded.truncated
-                      ? `Successfully read text content for '${input.cloudPath}' (truncated to ${MAX_INLINE_TEXT_BYTES} bytes)`
-                      : `Successfully read text content for '${input.cloudPath}'`
+                      ? `Successfully read text content for '${normalizedCloudPath}' (truncated to ${MAX_INLINE_TEXT_BYTES} bytes)`
+                      : `Successfully read text content for '${normalizedCloudPath}'`
                   }, null, 2)
                 }
               ]
@@ -295,6 +300,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
     },
     async (args: ManageStorageInput) => {
       const input = args;
+      const normalizedCloudPath = normalizeStorageCloudPath(input.cloudPath);
       const manager = await getManager();
 
       if (!manager) {
@@ -308,7 +314,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
           if (input.isDirectory) {
             await storageService.uploadDirectory({
               localPath: input.localPath,
-              cloudPath: input.cloudPath,
+              cloudPath: normalizedCloudPath,
               onProgress: (progressData: any) => {
                 console.log("Upload directory progress:", progressData);
               }
@@ -316,7 +322,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
           } else {
             await storageService.uploadFile({
               localPath: input.localPath,
-              cloudPath: input.cloudPath,
+              cloudPath: normalizedCloudPath,
               onProgress: (progressData: any) => {
                 console.log("Upload file progress:", progressData);
               }
@@ -324,11 +330,11 @@ export function registerStorageTools(server: ExtendedMcpServer) {
           }
 
           const fileUrls = await storageService.getTemporaryUrl([{
-            cloudPath: input.cloudPath,
+            cloudPath: normalizedCloudPath,
             maxAge: 3600
           }]);
           const publicAccess = await resolveStoragePublicAccess({
-            cloudPath: input.cloudPath,
+            cloudPath: normalizedCloudPath,
             cloudBaseOptions,
             manager,
           });
@@ -342,7 +348,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                   data: {
                     action: 'upload',
                     localPath: input.localPath,
-                    cloudPath: input.cloudPath,
+                    cloudPath: normalizedCloudPath,
                     isDirectory: input.isDirectory,
                     temporaryUrl: fileUrls[0]?.url || "",
                     expireTime: "1小时",
@@ -350,7 +356,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                     publicUrl: publicAccess.publicUrl,
                     note: "temporaryUrl 是临时签名链接，1小时后过期，不要当作永久公网地址写入配置或持久化存储。publicUrl 基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导，⚠️ 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先将目标路径设置为公有读。"
                   },
-                  message: `Successfully uploaded ${input.isDirectory ? 'directory' : 'file'} from '${input.localPath}' to '${input.cloudPath}'`
+                  message: `Successfully uploaded ${input.isDirectory ? 'directory' : 'file'} from '${input.localPath}' to '${normalizedCloudPath}'`
                 }, null, 2)
               }
             ]
@@ -360,12 +366,12 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         case 'download': {
           if (input.isDirectory) {
             await storageService.downloadDirectory({
-              cloudPath: input.cloudPath,
+              cloudPath: normalizedCloudPath,
               localPath: input.localPath
             });
           } else {
             await storageService.downloadFile({
-              cloudPath: input.cloudPath,
+              cloudPath: normalizedCloudPath,
               localPath: input.localPath
             });
           }
@@ -378,11 +384,11 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                   success: true,
                   data: {
                     action: 'download',
-                    cloudPath: input.cloudPath,
+                    cloudPath: normalizedCloudPath,
                     localPath: input.localPath,
                     isDirectory: input.isDirectory
                   },
-                  message: `Successfully downloaded ${input.isDirectory ? 'directory' : 'file'} from '${input.cloudPath}' to '${input.localPath}'`
+                  message: `Successfully downloaded ${input.isDirectory ? 'directory' : 'file'} from '${normalizedCloudPath}' to '${input.localPath}'`
                 }, null, 2)
               }
             ]
@@ -406,9 +412,9 @@ export function registerStorageTools(server: ExtendedMcpServer) {
           }
 
           if (input.isDirectory) {
-            await storageService.deleteDirectory(input.cloudPath);
+            await storageService.deleteDirectory(normalizedCloudPath);
           } else {
-            await storageService.deleteFile([input.cloudPath]);
+            await storageService.deleteFile([normalizedCloudPath]);
           }
 
           return {
@@ -419,11 +425,11 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                   success: true,
                   data: {
                     action: 'delete',
-                    cloudPath: input.cloudPath,
+                    cloudPath: normalizedCloudPath,
                     isDirectory: input.isDirectory,
                     deleted: true
                   },
-                  message: `Successfully deleted ${input.isDirectory ? 'directory' : 'file'} '${input.cloudPath}'`
+                  message: `Successfully deleted ${input.isDirectory ? 'directory' : 'file'} '${normalizedCloudPath}'`
                 }, null, 2)
               }
             ]
