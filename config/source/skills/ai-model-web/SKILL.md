@@ -241,13 +241,13 @@ const app = cloudbase.init({
 
 const auth = app.auth();
 
-// Ensure the user is signed in before calling any AI API.
-// The concrete sign-in flow lives in your app (see the `auth-web` skill),
-// e.g. a login page that calls auth.signInWithPassword / signInWithPhone / …
-// and uses auth.onLoginStateChanged() to observe session changes.
+// CRITICAL: accessKey automatically creates an anonymous session with a valid uid.
+// You MUST verify the user completed a REAL sign-in (phone/email/username/WeChat).
+// Anonymous users are DENIED AI model permissions — calling AI without real login will fail.
 const loginState = await auth.getLoginState();
-if (!loginState) {
-  // Route to your own sign-in page — do NOT block here with a blind redirect.
+const VERIFIED_LOGIN_TYPES = ['USERNAME', 'PHONE', 'EMAIL', 'WECHAT', 'CUSTOM', 'WECHAT_PUBLIC', 'WECHAT_OPEN'];
+if (!loginState || !VERIFIED_LOGIN_TYPES.includes(loginState.loginType)) {
+  // Not a real login — route to sign-in page
   window.location.href = "/login";
   return;
 }
@@ -258,7 +258,8 @@ const ai = app.ai();
 **Important notes:**
 
 - Use synchronous initialization with a top-level import
-- The user MUST be authenticated before using AI features — use a verified login (phone, email, WeChat, username+password, custom), never anonymous. Anonymous users are denied AI model permissions by default. The exact flow is the responsibility of the `auth-web` skill.
+- **`accessKey` automatically creates an anonymous session** — do NOT check `!!loginState` alone. Verify `loginState.loginType` is a verified type (USERNAME/PHONE/EMAIL/WECHAT/CUSTOM). Anonymous users are denied AI model permissions and API calls will fail.
+- The user MUST be authenticated with a verified login (phone, email, WeChat, username+password, custom) before using AI features. The exact flow is the responsibility of the `auth-web` skill.
 - Get `accessKey` from the CloudBase console
 
 ---
