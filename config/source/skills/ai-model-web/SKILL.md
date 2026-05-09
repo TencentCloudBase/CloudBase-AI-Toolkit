@@ -241,13 +241,13 @@ const app = cloudbase.init({
 
 const auth = app.auth();
 
-// CRITICAL: accessKey automatically creates an anonymous session with a valid uid.
-// You MUST verify the user completed a REAL sign-in (phone/email/username/WeChat).
+// CRITICAL: Use auth.getSession() to check login — NOT the deprecated getLoginState().
+// getLoginState() returns uid even without real login (just accessKey), causing false positives.
+// getSession() returns data.session === undefined when no real login exists.
 // Anonymous users are DENIED AI model permissions — calling AI without real login will fail.
 const { data: sessionData } = await auth.getSession();
-const VERIFIED_LOGIN_TYPES = ['USERNAME', 'PHONE', 'EMAIL', 'WECHAT', 'CUSTOM', 'WECHAT_PUBLIC', 'WECHAT_OPEN'];
-if (!sessionData?.session || !VERIFIED_LOGIN_TYPES.includes(sessionData.session.loginType)) {
-  // Not a real login — route to sign-in page
+if (!sessionData?.session) {
+  // No real login — route to sign-in page
   window.location.href = "/login";
   return;
 }
@@ -258,8 +258,8 @@ const ai = app.ai();
 **Important notes:**
 
 - Use synchronous initialization with a top-level import
-- **`accessKey` automatically creates an anonymous session** — do NOT check `!!loginState` alone. Verify `loginState.loginType` is a verified type (USERNAME/PHONE/EMAIL/WECHAT/CUSTOM). Anonymous users are denied AI model permissions and API calls will fail.
-- The user MUST be authenticated with a verified login (phone, email, WeChat, username+password, custom) before using AI features. The exact flow is the responsibility of the `auth-web` skill.
+- **`accessKey` causes `getLoginState()` to return misleading auth data** — the deprecated `getLoginState()` returns an object with `uid` even without real login, which breaks naive `!!loginState` checks. Use `auth.getSession()` instead: it returns `data.session === undefined` when no real login exists, so `!!data.session` is a reliable auth gate.
+- The user MUST be authenticated with a verified login (phone, email, WeChat, username+password, custom) before using AI features. Anonymous users are denied AI model permissions. The exact flow is the responsibility of the `auth-web` skill.
 - Get `accessKey` from the CloudBase console
 
 ---

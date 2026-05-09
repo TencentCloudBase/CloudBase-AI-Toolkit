@@ -47,12 +47,9 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Using `signInWithEmailAndPassword` or `signUpWithEmailAndPassword` for username-style accounts such as `admin` and `editor`.
 - Keeping the login or register account input as `type="email"` when the task explicitly says the account identifier is a plain username string.
 - Starting implementation before calling `queryAppAuth(action="getLoginConfig")` and enabling `usernamePassword` when it is still off.
-- **Treating `auth.getUser()` returning a user as proof of real login.** When the SDK is initialized with a `publishableKey` / `accessKey`, it **automatically creates an anonymous session** — even if anonymous login is disabled at the environment level. This anonymous session has a valid `uid`, `loginState`, and `access_token`, so checking `!!loginState` or `!!uid` alone is **never sufficient**. A route guard's `checkAuth()` must positively verify that the user completed a real sign-in flow:
-  - Check `loginState.loginType` is one of the verified types (`'USERNAME'`, `'PHONE'`, `'EMAIL'`, `'WECHAT'`, `'CUSTOM'`, etc.) — not just "not ANONYMOUS"
-  - Or verify `user.is_anonymous === false`
-  - Or confirm a verified identity exists (e.g. `user.user_metadata?.username`, `user.phone_confirmed_at`, `user.email_confirmed_at`)
+- **Treating `auth.getUser()` or deprecated `auth.getLoginState()` as proof of real login.** When the SDK is initialized with `accessKey`, the deprecated `getLoginState()` returns an object with a valid `uid` even without any login — causing route guards that check `!!loginState` or `!!uid` to incorrectly pass. The fix is to use `auth.getSession()` instead: it returns `data.session === undefined` when no real login has occurred. Only `!!data.session` from `getSession()` is a reliable authentication check.
   
-  Note: anonymous login is now **disabled by default** for new environments and inactive existing environments, but the SDK may still create ephemeral anonymous-like sessions via `accessKey`. Always guard against this at the application level.
+  Note: anonymous login is now **disabled by default** for new environments and inactive existing environments. Always use `auth.getSession()` for auth guards.
 
 ## Overview
 
@@ -85,7 +82,7 @@ Use npm installation for modern Web projects. In React, Vue, Vite, and other bun
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
 - `verifyOtp({ token })` expects the SMS or email code in `token`
 - `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
-- **`accessKey` triggers automatic anonymous session creation** — the SDK creates an anonymous session (with valid `uid`) as soon as it initializes with an `accessKey`. This means `auth.getSession()` will return a session object even without explicit login. Applications MUST use verified login type checks (see route guard section) rather than simple `!!session` checks.
+- **`accessKey` triggers automatic anonymous session creation** — the deprecated `auth.getLoginState()` returns an object with a valid `uid` even without explicit login, which misleads route guards into thinking the user is authenticated. Use `auth.getSession()` instead — it returns `data.session === undefined` when no real login has occurred, making auth checks straightforward and reliable.
 - Never set `accessKey` to `envId`, a username, or any placeholder string. If you do not have a real Publishable Key yet, do not fabricate one.
 - If the task mentions provider setup, stop and read `auth-tool-cloudbase` before writing frontend code
 
@@ -99,8 +96,8 @@ const app = cloudbase.init({
   env: 'your-full-env-id', // Canonical full CloudBase environment ID resolved from envQuery or the console, not an alias or shorthand
   region: `region`,  // CloudBase environment Region, default 'ap-shanghai'
   accessKey: 'publishable key', // required, get from auth-tool-cloudbase
-  // ⚠️ accessKey causes the SDK to auto-create an anonymous session (with valid uid).
-  // Always verify loginType before granting access — see route guard section below.
+  // ⚠️ With accessKey, the deprecated getLoginState() returns misleading auth data (uid)
+  // even without login. Always use auth.getSession() — returns undefined when not logged in.
   auth: { detectSessionInUrl: true }, // required
 })
 
@@ -150,32 +147,35 @@ const uid = data.user.id
 
 **Checking login state (for route guards / auth checks):**
 ```js
-// CRITICAL: accessKey (publishableKey) automatically creates an anonymous session
-// with a valid uid — checking !!session alone is NEVER sufficient.
-// You MUST verify the user completed a real sign-in flow.
-// Use auth.getSession() (NOT the deprecated getLoginState()).
-const { data: sessionData } = await auth.getSession()
+// Use auth.getSession() — NOT the deprecated getLoginState().
+//
+// Why: getLoginState() returns an object with uid even when only accessKey is
+// present (no real login), causing route guards to incorrectly pass anonymous users.
+// getSession() returns data.session === undefined when no real login exists,
+// making the check reliable and simple.
+const { data, error } = await auth.getSession()
 
-// Option 1: Positive verification of verified login types (RECOMMENDED)
-const VERIFIED_LOGIN_TYPES = ['USERNAME', 'PHONE', 'EMAIL', 'WECHAT', 'CUSTOM', 'WECHAT_PUBLIC', 'WECHAT_OPEN']
-const isRealLogin = !!sessionData?.session
-  && VERIFIED_LOGIN_TYPES.includes(sessionData.session.loginType)
+if (!data?.session) {
+  // No real login — redirect to sign-in page
+  window.location.href = '/login'
+  return
+}
 
-// Option 2: Check user.is_anonymous flag
+// data.session contains: access_token, refresh_token, expires_in, user
+// data.session.user contains the authenticated user info
+const currentUser = data.session.user
+
+// Optional: further verify identity type if needed
 const { data: userData } = await auth.getUser()
-const isRealUser = userData && userData.is_anonymous === false
-
-// Option 3: Check for confirmed identity fields
 const hasVerifiedIdentity = userData && (
   userData.phone_confirmed_at ||
   userData.email_confirmed_at ||
   userData.user_metadata?.username
 )
 
-// Use any of the above (Option 1 recommended) to gate protected routes.
-// Do NOT use: !!sessionData?.session (anonymous sessions pass this)
-// Do NOT use: !!session.user.id (anonymous sessions also have uid)
-// Do NOT use: the deprecated auth.getLoginState() — use auth.getSession() instead
+// ❌ Do NOT use auth.getLoginState() — it's deprecated and returns
+//    misleading data (uid/loginState) even without real login
+// ❌ Do NOT use !!loginState or !!loginState.uid as auth checks
 ```
 
 **4. Registration**
