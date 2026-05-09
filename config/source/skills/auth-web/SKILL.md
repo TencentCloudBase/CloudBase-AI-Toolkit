@@ -47,7 +47,12 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Using `signInWithEmailAndPassword` or `signUpWithEmailAndPassword` for username-style accounts such as `admin` and `editor`.
 - Keeping the login or register account input as `type="email"` when the task explicitly says the account identifier is a plain username string.
 - Starting implementation before calling `queryAppAuth(action="getLoginConfig")` and enabling `usernamePassword` when it is still off.
-- **Treating `auth.getUser()` returning a user as proof of real login.** In environments where anonymous login is still enabled, the SDK initialized with a `publishableKey` / `accessKey` may create an anonymous session. A route guard's `checkAuth()` must verify that the user actually signed in with username/password (e.g. check `session.loginType !== 'ANONYMOUS'` or that `user.user_metadata?.username` exists), not just that `getUser()` returns non-null. Note: anonymous login is now **disabled by default** for new environments and inactive existing environments, so this scenario is less common but still must be guarded against.
+- **Treating `auth.getUser()` returning a user as proof of real login.** When the SDK is initialized with a `publishableKey` / `accessKey`, it **automatically creates an anonymous session** — even if anonymous login is disabled at the environment level. This anonymous session has a valid `uid`, `loginState`, and `access_token`, so checking `!!loginState` or `!!uid` alone is **never sufficient**. A route guard's `checkAuth()` must positively verify that the user completed a real sign-in flow:
+  - Check `loginState.loginType` is one of the verified types (`'USERNAME'`, `'PHONE'`, `'EMAIL'`, `'WECHAT'`, `'CUSTOM'`, etc.) — not just "not ANONYMOUS"
+  - Or verify `user.is_anonymous === false`
+  - Or confirm a verified identity exists (e.g. `user.user_metadata?.username`, `user.phone_confirmed_at`, `user.email_confirmed_at`)
+  
+  Note: anonymous login is now **disabled by default** for new environments and inactive existing environments, but the SDK may still create ephemeral anonymous-like sessions via `accessKey`. Always guard against this at the application level.
 
 ## Overview
 
@@ -80,6 +85,7 @@ Use npm installation for modern Web projects. In React, Vue, Vite, and other bun
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
 - `verifyOtp({ token })` expects the SMS or email code in `token`
 - `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
+- **`accessKey` triggers automatic anonymous session creation** — the SDK creates an anonymous session (with valid `uid`) as soon as it initializes with an `accessKey`. This means `auth.getLoginState()` will return a truthy value even without explicit login. Applications MUST use verified login type checks (see route guard section) rather than simple `!!loginState` checks.
 - Never set `accessKey` to `envId`, a username, or any placeholder string. If you do not have a real Publishable Key yet, do not fabricate one.
 - If the task mentions provider setup, stop and read `auth-tool-cloudbase` before writing frontend code
 
@@ -93,6 +99,8 @@ const app = cloudbase.init({
   env: 'your-full-env-id', // Canonical full CloudBase environment ID resolved from envQuery or the console, not an alias or shorthand
   region: `region`,  // CloudBase environment Region, default 'ap-shanghai'
   accessKey: 'publishable key', // required, get from auth-tool-cloudbase
+  // ⚠️ accessKey causes the SDK to auto-create an anonymous session (with valid uid).
+  // Always verify loginType before granting access — see route guard section below.
   auth: { detectSessionInUrl: true }, // required
 })
 
@@ -142,15 +150,31 @@ const uid = data.user.id
 
 **Checking login state (for route guards / auth checks):**
 ```js
-// Use auth.getLoginState() to get the current session.
-// IMPORTANT: uid alone is NOT enough — when the SDK is initialized with a
-// publishableKey it may create an anonymous session that also has a uid.
-// Route guards must reject anonymous sessions explicitly.
+// CRITICAL: accessKey (publishableKey) automatically creates an anonymous session
+// with a valid uid — checking !!loginState or !!uid is NEVER sufficient.
+// You MUST verify the user completed a real sign-in flow.
 const loginState = await auth.getLoginState()
+
+// Option 1: Positive verification of verified login types
+const VERIFIED_LOGIN_TYPES = ['USERNAME', 'PHONE', 'EMAIL', 'WECHAT', 'CUSTOM', 'WECHAT_PUBLIC', 'WECHAT_OPEN']
 const isRealLogin = !!loginState
   && !!loginState.uid
-  && loginState.loginType !== 'ANONYMOUS'
-// Use isRealLogin (not just !!uid) to gate protected routes.
+  && VERIFIED_LOGIN_TYPES.includes(loginState.loginType)
+
+// Option 2: Check user.is_anonymous flag
+const user = await auth.getUser()
+const isRealUser = user?.data && user.data.is_anonymous === false
+
+// Option 3: Check for confirmed identity fields
+const hasVerifiedIdentity = user?.data && (
+  user.data.phone_confirmed_at ||
+  user.data.email_confirmed_at ||
+  user.data.user_metadata?.username
+)
+
+// Use any of the above (Option 1 recommended) to gate protected routes.
+// Do NOT use: !!loginState (anonymous sessions pass this)
+// Do NOT use: !!loginState.uid (anonymous sessions also have uid)
 ```
 
 **4. Registration**
@@ -232,8 +256,13 @@ const handleRegister = async () => {
 ```
 
 **5. Anonymous**
-- Automatically use `auth-tool-cloudbase` to turn on `Anonymous Login` through `manageAppAuth`
+
+> ⚠️ **Anonymous login is disabled by default for new environments.** The SDK initialized with `accessKey` will automatically create an anonymous session regardless of this setting. Do not rely on `signInAnonymously()` for production flows — use verified login methods instead.
+
+- Only use when explicitly required for read-only demos
+- Automatically use `auth-tool-cloudbase` to turn on `Anonymous Login` through `manageAppAuth` (must be explicitly enabled first)
 ```js
+// Anonymous login is disabled by default — must be explicitly enabled via auth-tool
 const { data, error } = await auth.signInAnonymously()
 ```
 
