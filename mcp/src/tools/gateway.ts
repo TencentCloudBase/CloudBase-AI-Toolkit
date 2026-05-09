@@ -5,7 +5,7 @@ import {
   logCloudBaseResult,
 } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
-import { jsonContent } from "../utils/json-content.js";
+
 
 const QUERY_GATEWAY_ACTIONS = [
   "getAccess",
@@ -99,9 +99,9 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
 
   const withEnvelope = async (handler: () => Promise<GatewayToolEnvelope>) => {
     try {
-      return jsonContent(await handler());
+      return await handler();
     } catch (error) {
-      return jsonContent(buildErrorEnvelope(error));
+      return buildErrorEnvelope(error);
     }
   };
 

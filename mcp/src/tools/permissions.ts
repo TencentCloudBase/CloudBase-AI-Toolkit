@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getCloudBaseManager, getEnvId, logCloudBaseResult } from "../cloudbase-manager.js";
 import type { ExtendedMcpServer } from "../server.js";
-import { jsonContent } from "../utils/json-content.js";
+
 
 const QUERY_PERMISSION_ACTIONS = [
   "getResourcePermission",
@@ -331,9 +331,9 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
 
   const withEnvelope = async (handler: () => Promise<ToolEnvelope>) => {
     try {
-      return jsonContent(await handler());
+      return await handler();
     } catch (error) {
-      return jsonContent(buildErrorEnvelope(error));
+      return buildErrorEnvelope(error);
     }
   };
 

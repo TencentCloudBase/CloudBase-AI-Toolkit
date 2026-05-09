@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getCloudBaseManager, getEnvId, logCloudBaseResult } from "../cloudbase-manager.js";
 import type { ExtendedMcpServer } from "../server.js";
-import { jsonContent } from "../utils/json-content.js";
+
 import { isToolPayloadError } from "../utils/tool-result.js";
 
 const QUERY_APP_AUTH_ACTIONS = [
@@ -324,16 +324,16 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
 
   const withEnvelope = async (handler: () => Promise<Record<string, unknown>>) => {
     try {
-      return jsonContent(await handler());
+      return await handler();
     } catch (error) {
       if (error instanceof Error && (error.message === "no active environment selected" || error.message === "authentication required")) {
         const code = (error as Error & { code?: string }).code;
         if (code) {
-          return jsonContent(buildShortErrorWithCode(error.message, code));
+          return buildShortErrorWithCode(error.message, code);
         }
-        return jsonContent(buildShortError(error.message));
+        return buildShortError(error.message);
       }
-      return jsonContent(buildErrorEnvelope(error));
+      return buildErrorEnvelope(error);
     }
   };
 
