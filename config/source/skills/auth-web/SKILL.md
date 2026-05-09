@@ -61,7 +61,15 @@ Keep local `references/...` paths for files that ship with the current skill dir
 ## Core Capabilities
 
 **Use Case**: Web frontend projects using `@cloudbase/js-sdk@2.24.0+` for user authentication  
-**Key Benefits**: Supabase-like Auth API shape, supports phone, email, anonymous (disabled by default), username/password, and third-party login methods
+**Key Benefits**: **Supabase-compatible Auth API** — all methods return `{ data, error }`, supports phone, email, anonymous (disabled by default), username/password, OAuth, and third-party login methods
+
+> 📌 **Supabase API Compatibility**: CloudBase Web SDK v2 auth module is designed with Supabase-like API ergonomics. If you are familiar with `supabase-js` auth patterns, the same mental model applies:
+> - All methods return `Promise<{ data, error }>` — always check `error` first
+> - `signInWithPassword`, `signInWithOtp`, `signUp`, `signOut`, `getSession`, `getUser` follow the same naming and semantics as Supabase
+> - `onAuthStateChange(callback)` provides reactive auth state observation (events: `INITIAL_SESSION`, `SIGNED_IN`, `SIGNED_OUT`, `TOKEN_REFRESHED`, `USER_UPDATED`, `PASSWORD_RECOVERY`, `BIND_IDENTITY`)
+> - Session management via `getSession()` / `refreshSession()` / `setSession()` mirrors Supabase patterns
+> 
+> **Key differences from Supabase**: `signInWithOtp` returns a `verifyOtp` callback (two-step); `signUp` with phone/email also returns `verifyOtp` for verification; `accessKey` replaces Supabase's `anonKey`; environment uses `env` + `region` instead of Supabase's `url`.
 
 Use npm installation for modern Web projects. In React, Vue, Vite, and other bundler-based apps, install and import `@cloudbase/js-sdk` from the project dependencies instead of using a CDN script.
 
@@ -180,6 +188,7 @@ const hasVerifiedIdentity = userData && (
 
 **4. Registration**
 - For username-style account systems, use username/password registration directly
+- Username must be 5-24 characters (letters, digits, underscores)
 - Do not switch to email OTP or phone OTP unless the task explicitly says the account identifier is an email address or phone number
 - When the task uses plain usernames such as `admin`, `editor`, or `user01`, the canonical form code is `auth.signUp({ username, password })`
 ```js
@@ -282,7 +291,16 @@ await auth.signInWithCustomTicket(async () => {
 })
 ```
 
-**8. Upgrade Anonymous**
+**8. ID Token (Third-party token validation)**
+```js
+// Direct login with a third-party JWT/OAuth token (e.g. from native SDK)
+const { data, error } = await auth.signInWithIdToken({
+  provider: 'wechat', // or 'google', 'github', etc.
+  token: '<jwt-or-oauth-token>',
+})
+```
+
+**9. Upgrade Anonymous**
 ```js
 const sessionResult = await auth.getSession()
 const upgradeResult = await auth.signUp({
@@ -358,7 +376,14 @@ await fetch('/api/protected', {
   headers: { Authorization: `Bearer ${sessionResult.data.session?.access_token}` },
 })
 
-// Refresh user
+// Refresh session (extend token validity)
+const refreshResult = await auth.refreshSession() // uses current refresh_token
+// or with explicit token: await auth.refreshSession(refresh_token)
+
+// Set session manually (e.g. from external auth flow or SSR hydration)
+const setResult = await auth.setSession({ refresh_token: '<token-from-server>' })
+
+// Refresh user (sync latest user data from server)
 const refreshUserResult = await auth.refreshUser()
 ```
 
