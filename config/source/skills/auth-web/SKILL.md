@@ -65,11 +65,14 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 > 📌 **Supabase API Compatibility**: CloudBase Web SDK v2 auth module is designed with Supabase-like API ergonomics. If you are familiar with `supabase-js` auth patterns, the same mental model applies:
 > - All methods return `Promise<{ data, error }>` — always check `error` first
-> - `signInWithPassword`, `signInWithOtp`, `signUp`, `signOut`, `getSession`, `getUser` follow the same naming and semantics as Supabase
+> - `signInWithPassword`, `signInWithOtp`, `signUp`, `signOut`, `getSession`, `getUser` follow the same naming as Supabase
 > - `onAuthStateChange(callback)` provides reactive auth state observation (events: `INITIAL_SESSION`, `SIGNED_IN`, `SIGNED_OUT`, `TOKEN_REFRESHED`, `USER_UPDATED`, `PASSWORD_RECOVERY`, `BIND_IDENTITY`)
 > - Session management via `getSession()` / `refreshSession()` / `setSession()` mirrors Supabase patterns
 > 
-> **Key differences from Supabase**: `signInWithOtp` returns a `verifyOtp` callback (two-step); `signUp` with phone/email also returns `verifyOtp` for verification; `accessKey` replaces Supabase's `anonKey`; environment uses `env` + `region` instead of Supabase's `url`.
+> **Key differences from Supabase**:
+> - **OTP verification**: Supabase uses a standalone `auth.verifyOtp({ phone, token, type })` call; CloudBase returns `verifyOtp` as a callback on `data` — call `data.verifyOtp({ token })` from the `signInWithOtp` / `signUp` result
+> - **`accessKey`** replaces Supabase's `anonKey`; environment uses `env` + `region` instead of Supabase's `url`
+> - **`signInWithIdToken`** for direct third-party token login (similar to Supabase's same-named method)
 
 Use npm installation for modern Web projects. In React, Vue, Vite, and other bundler-based apps, install and import `@cloudbase/js-sdk` from the project dependencies instead of using a CDN script.
 
