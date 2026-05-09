@@ -85,7 +85,7 @@ Use npm installation for modern Web projects. In React, Vue, Vite, and other bun
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
 - `verifyOtp({ token })` expects the SMS or email code in `token`
 - `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
-- **`accessKey` triggers automatic anonymous session creation** — the SDK creates an anonymous session (with valid `uid`) as soon as it initializes with an `accessKey`. This means `auth.getLoginState()` will return a truthy value even without explicit login. Applications MUST use verified login type checks (see route guard section) rather than simple `!!loginState` checks.
+- **`accessKey` triggers automatic anonymous session creation** — the SDK creates an anonymous session (with valid `uid`) as soon as it initializes with an `accessKey`. This means `auth.getSession()` will return a session object even without explicit login. Applications MUST use verified login type checks (see route guard section) rather than simple `!!session` checks.
 - Never set `accessKey` to `envId`, a username, or any placeholder string. If you do not have a real Publishable Key yet, do not fabricate one.
 - If the task mentions provider setup, stop and read `auth-tool-cloudbase` before writing frontend code
 
@@ -151,30 +151,31 @@ const uid = data.user.id
 **Checking login state (for route guards / auth checks):**
 ```js
 // CRITICAL: accessKey (publishableKey) automatically creates an anonymous session
-// with a valid uid — checking !!loginState or !!uid is NEVER sufficient.
+// with a valid uid — checking !!session alone is NEVER sufficient.
 // You MUST verify the user completed a real sign-in flow.
-const loginState = await auth.getLoginState()
+// Use auth.getSession() (NOT the deprecated getLoginState()).
+const { data: sessionData } = await auth.getSession()
 
-// Option 1: Positive verification of verified login types
+// Option 1: Positive verification of verified login types (RECOMMENDED)
 const VERIFIED_LOGIN_TYPES = ['USERNAME', 'PHONE', 'EMAIL', 'WECHAT', 'CUSTOM', 'WECHAT_PUBLIC', 'WECHAT_OPEN']
-const isRealLogin = !!loginState
-  && !!loginState.uid
-  && VERIFIED_LOGIN_TYPES.includes(loginState.loginType)
+const isRealLogin = !!sessionData?.session
+  && VERIFIED_LOGIN_TYPES.includes(sessionData.session.loginType)
 
 // Option 2: Check user.is_anonymous flag
-const user = await auth.getUser()
-const isRealUser = user?.data && user.data.is_anonymous === false
+const { data: userData } = await auth.getUser()
+const isRealUser = userData && userData.is_anonymous === false
 
 // Option 3: Check for confirmed identity fields
-const hasVerifiedIdentity = user?.data && (
-  user.data.phone_confirmed_at ||
-  user.data.email_confirmed_at ||
-  user.data.user_metadata?.username
+const hasVerifiedIdentity = userData && (
+  userData.phone_confirmed_at ||
+  userData.email_confirmed_at ||
+  userData.user_metadata?.username
 )
 
 // Use any of the above (Option 1 recommended) to gate protected routes.
-// Do NOT use: !!loginState (anonymous sessions pass this)
-// Do NOT use: !!loginState.uid (anonymous sessions also have uid)
+// Do NOT use: !!sessionData?.session (anonymous sessions pass this)
+// Do NOT use: !!session.user.id (anonymous sessions also have uid)
+// Do NOT use: the deprecated auth.getLoginState() — use auth.getSession() instead
 ```
 
 **4. Registration**
