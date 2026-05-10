@@ -282,6 +282,16 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       files?: Array<{ localPath: string; cloudPath: string }>;
       ignore?: string | string[]
     }) => {
+      // Validate cloudPath format: reject leading '/'
+      if (cloudPath && cloudPath.startsWith('/')) {
+        throw new Error(
+          `[uploadFiles] cloudPath 格式错误：不要前导 '/'。\n` +
+          `你传入的是: "${cloudPath}"\n` +
+          `正确格式: "${cloudPath.replace(/^\/+/, '')}"\n` +
+          `说明：cloudPath 是相对于托管根目录的路径，不要前导 '/'。例如部署到 /vite-test 子目录时，cloudPath 应为 "vite-test" 而非 "/vite-test"。`
+        );
+      }
+
       const cloudbase = await getManager()
       let result: unknown;
       try {
@@ -302,6 +312,43 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       logCloudBaseResult(server.logger, envInfo);
       const staticDomain = envInfo.EnvInfo?.StaticStorages?.[0]?.StaticDomain;
       const accessUrl = buildHostingAccessUrl(staticDomain, cloudPath, localPath);
+
+      // 自动部署验证：上传完成后，使用 findFiles 验证文件已存在
+      let verificationResult = null;
+      let verificationPassed = false;
+      const normalizedCloudPath = (cloudPath ?? '').trim().replace(/^\/+|\/+$/g, '');
+      const verifyPrefix = normalizedCloudPath ? `${normalizedCloudPath}/` : '';
+      
+      try {
+        verificationResult = await cloudbase.hosting.findFiles({
+          prefix: verifyPrefix,
+          maxKeys: 50
+        });
+        
+        const filesResult = verificationResult as Record<string, unknown>;
+        const filesList = (filesResult.Contents as Array<Record<string, unknown>>) || [];
+        
+        // 检查 index.html 是否存在
+        const indexFile = filesList.find((f: Record<string, unknown>) => {
+          const key = f.Key as string || '';
+          return key.endsWith('/index.html') || key === 'index.html' || key === `${normalizedCloudPath}/index.html`;
+        });
+        
+        verificationPassed = filesList.length > 0;
+        
+        logCloudBaseResult(server.logger, {
+          message: 'Deployment verification complete',
+          verifyPrefix,
+          fileCount: filesList.length,
+          indexHtmlFound: !!indexFile,
+          passed: verificationPassed
+        });
+      } catch (verifyErr) {
+        logCloudBaseResult(server.logger, {
+          message: 'Deployment verification failed',
+          error: verifyErr instanceof Error ? verifyErr.message : String(verifyErr)
+        });
+      }
 
       // Send deployment notification to CodeBuddy IDE
       try {
@@ -340,6 +387,16 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         // Error is already logged in sendDeployNotification
       }
 
+      // Build next_step based on verification result
+      const nextStep = !verificationPassed ? {
+        tool: "findFiles",
+        action: "verify",
+        suggested_args: {
+          prefix: verifyPrefix || '/'
+        },
+        message: "部署验证未通过：未能在云端找到上传的文件。请使用 findFiles 工具检查文件是否已正确上传，并确认 cloudPath 格式是否正确（不要前导 '/'）。"
+      } : undefined;
+
       return {
         content: [
           {
@@ -347,8 +404,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             text: JSON.stringify({
               ...uploadResult,
               staticDomain,
-              message: "文件上传成功",
-              accessUrl: accessUrl
+              message: verificationPassed ? "文件上传成功，部署验证通过" : "文件上传成功，但部署验证未通过，请使用 findFiles 检查文件是否已正确上传",
+              accessUrl: accessUrl,
+              deploymentVerified: verificationPassed,
+              ...(verificationResult ? { verificationDetails: verificationResult } : {}),
+              ...(nextStep ? { next_step: nextStep } : {})
             }, null, 2)
           }
         ]
