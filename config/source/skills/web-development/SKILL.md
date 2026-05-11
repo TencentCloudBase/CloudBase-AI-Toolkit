@@ -126,6 +126,9 @@ Use this skill for Web engineering work such as:
    - Use CloudBase Web SDK and static hosting guidance only when the project actually needs CloudBase platform features.
    - Reuse `auth-tool` and `auth-web` for login or provider readiness instead of re-describing those flows here.
 
+**⚠️ CRITICAL: Subdirectory deployment (≠ root deployment)**
+When deploying to a subdirectory (e.g., `/vite-test`), you MUST follow the mandatory checklist in `references/deployment-checklist.md` BEFORE calling `uploadFiles`. Skipping any step causes 404 errors. Read that file first if the task involves subdirectory deployment.
+
 ## Core workflow
 
 ### 1. Choose the right engineering path
@@ -173,31 +176,17 @@ Use this section only when the Web project needs CloudBase platform features.
 - Use hash routing by default when the project lacks server-side route rewrites
 - If the user does not specify a root path, avoid deploying directly to the site root by default
 
-### Subdirectory deployment requirements
+### Subdirectory deployment (⚠️ MANDATORY checklist)
 
-When deploying to a subdirectory (e.g., `/vite-test`), the `uploadFiles` tool requires specific pre-deployment checks:
+**⚠️ CRITICAL: You MUST follow the complete checklist in `references/deployment-checklist.md` before calling `uploadFiles` for subdirectory deployment.**
 
-1. **cloudPath format**: Relative to hosting root, no leading `/`
-   - Correct: `cloudPath: 'vite-test'`
-   - Wrong: `cloudPath: '/vite-test'` or `cloudPath: './vite-test'`
+Quick reference:
+- `cloudPath` format: no leading `/` (e.g., `'vite-test'`, NOT `'/vite-test'`)
+- Build config: `base: '/vite-test/'` (absolute path, leading AND trailing slashes)
+- Upload scope: entire `dist/` directory, not only `index.html`
+- Post-upload: call `findFiles` to verify all files exist
 
-2. **Build configuration**: Must set `base`/`publicPath`/`assetPrefix` to match the deployment path
-   - For Vite: `base: '/vite-test/'` (absolute path with leading and trailing slashes)
-   - Forbidden: `base: './'` (causes 404 when URL lacks trailing slash)
-   - See `frameworks.md` for detailed Vite base configuration guidance
-
-3. **Mandatory pre-deployment checklist**:
-   - [ ] Build config (`base`/`publicPath`/`assetPrefix`) matches deployment path
-   - [ ] Build has been re-run after config change
-   - [ ] Built `index.html` references assets with correct paths (not absolute root `/`)
-   - [ ] Upload target is the full build output directory contents (usually `dist/`), not only `index.html`
-   - [ ] `cloudPath` has no leading `/`
-
-4. **Mandatory post-upload verification**:
-   - Call `findFiles` with the deployment prefix and confirm uploaded files include `index.html` plus emitted JS/CSS/assets under that prefix
-   - Do not treat deployment as complete if only `index.html` exists or emitted assets are missing
-
-5. **Common 404 cause**: Using `./` relative paths in build config. When accessing `https://env.tcloudbase.com/vite-test` (no trailing slash), relative paths resolve incorrectly.
+**READ THIS FILE FIRST**: `references/deployment-checklist.md` (contains mandatory step-by-step workflow with confirmation requirements)
 
 ### CloudBase quick start
 

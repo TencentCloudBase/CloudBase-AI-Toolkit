@@ -60,17 +60,24 @@ describe('skill quality standards', () => {
   test('web-development documents subdirectory hosting checks before uploadFiles', () => {
     const raw = readSourceSkill('web-development');
     const frameworks = readFile('config', 'source', 'skills', 'web-development', 'frameworks.md');
+    const checklist = readFile('config', 'source', 'skills', 'web-development', 'references', 'deployment-checklist.md');
 
-    expect(raw).toContain("cloudPath: 'vite-test'");
-    expect(raw).toContain("cloudPath: '/vite-test'");
-    expect(raw).toContain("Forbidden: `base: './'`");
-    expect(raw).toContain('Build has been re-run after config change');
-    expect(raw).toContain('Call `findFiles` with the deployment prefix');
-    expect(raw).toContain('not only `index.html`');
+    // Main SKILL.md must reference the checklist file
+    expect(raw).toContain("references/deployment-checklist.md");
+    expect(raw).toContain("MUST follow the complete checklist");
+    expect(raw).toContain("READ THIS FILE FIRST");
 
+    // Checklist file must exist and contain mandatory steps
+    expect(checklist).toContain('Step 1: Read and confirm build configuration');
+    expect(checklist).toContain('Step 2: Rebuild after config change');
+    expect(checklist).toContain('Step 3: Verify build output paths');
+    expect(checklist).toContain('Step 4: Confirm upload scope');
+    expect(checklist).toContain('Step 5: Output pre-deployment confirmation');
+    expect(checklist).toContain('YOU MUST OUTPUT');
+
+    // frameworks.md still has Vite base configuration examples
     expect(frameworks).toContain("base: '/vite-test/'");
     expect(frameworks).toContain("base: './',      // WRONG");
-    expect(frameworks).toContain('Build command has been re-run after config change');
     expect(frameworks).toContain('without trailing slash');
   });
 
