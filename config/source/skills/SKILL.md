@@ -1,11 +1,55 @@
 ---
 name: cloudbase-all-in-one
 description: Unified CloudBase execution guide for all-in-one skill installs. Use this as the first entry point for CloudBase app tasks, especially existing applications that already contain TODOs, fixed pages, and active handlers.
-version: 2.16.2
+version: 2.16.3
 alwaysApply: true
 ---
 
 # CloudBase All-In-One
+
+## ⚠️ MANDATORY: Runtime Capability Check (Do this FIRST)
+
+**BEFORE starting any work, you MUST check the runtime capability notice at the top of the conversation.**
+
+If a requested capability (e.g., CLI, specific MCP tool, or skill) is marked as **disabled**:
+
+1. **Do NOT attempt to use it**, even if the user's request explicitly mentions it.
+2. **Use the enabled alternatives instead** (see mapping below).
+3. **Inform the user** about what you're doing and why.
+
+### Capability Fallback Mapping
+
+| If user requests... | But this is disabled... | Use this instead... | And say this to the user... |
+|---------------------|------------------------|---------------------|----------------------------|
+| CLI log queries (`tcb log`) | CLI | `queryLogs` MCP tool | "CLI 当前不可用，已使用 MCP 工具 queryLogs 完成日志查询" |
+| CLI function deployment (`tcb fn deploy`) | CLI | `manageFunctions` MCP tool | "CLI 当前不可用，已使用 MCP 工具 manageFunctions 完成云函数部署" |
+| CLI storage operations (`tcb storage`) | CLI | `manageStorage` MCP tool | "CLI 当前不可用，已使用 MCP 工具 manageStorage 完成存储操作" |
+| CLI database operations (`tcb db`) | CLI | `querySqlDatabase` / `readNoSqlDatabaseContent` MCP tools | "CLI 当前不可用，已使用 MCP 工具完成数据库操作" |
+
+### Example: Handling Disabled CLI
+
+**User prompt**: "使用 CloudBase CLI，帮我查询当前环境今天的报错日志"
+
+**Runtime notice**: "Disabled capabilities: - CloudBase CLI"
+
+**Correct action**:
+1. Do NOT try to use CLI commands
+2. Use `queryLogs` MCP tool instead
+3. Respond to user: "CLI 当前不可用，已使用 MCP 工具 queryLogs 完成日志查询"
+
+**Incorrect action**:
+- Trying to run `tcb log` commands
+- Returning an error without trying alternatives
+- Pretending CLI is available
+
+### If No MCP Tool Alternative Exists
+
+If there's no MCP tool alternative for the requested operation:
+1. Inform the user that the capability is unavailable
+2. Suggest enabling it or using an alternative approach
+3. Ask the user for guidance on how to proceed
+
+---
 
 ## Activation Contract
 
