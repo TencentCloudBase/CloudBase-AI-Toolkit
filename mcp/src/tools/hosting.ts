@@ -258,10 +258,10 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     "uploadFiles",
     {
       title: "上传静态文件",
-      description: "上传文件到静态网站托管，仅用于 Web 站点部署。云存储对象上传请使用 manageStorage。\n\n⚠️ 部署到子目录（如 /vite-test）前必须完成：\n1. 【修改配置】在 vite.config.ts 中设置 base: '/vite-test/'（必须带前后斜杠，禁止 './' 或 ''）\n2. 【重新构建】运行 npm run build（修改配置后必须重新 build）\n3. 【验证产物】检查 dist/index.html 中资源引用路径是 /vite-test/... 而非 /... 或 ./...\n4. 【完整上传】上传整个 dist/ 目录内容，不要只上传 index.html\n5. 【cloudPath 格式】填 'vite-test'（不要前导 '/'）\n未完成上述步骤前，禁止调用此工具。上传后必须用 findFiles 验证 index.html 和资源文件已存在。",
+      description: "上传文件到静态网站托管，仅用于 Web 站点部署。云存储对象上传请使用 manageStorage。\n\n⚠️ 必须上传整个构建目录（如 dist/），不能只上传 index.html。\n\n⚠️ 【子目录部署强制二次确认】部署到子目录（如 /vite-test）前必须完成：\n1. 【修改配置】在 vite.config.ts 中设置 base: '/vite-test/'（必须带前后斜杠，禁止 './' 或 ''）\n2. 【重新构建】运行 npm run build（修改配置后必须重新 build）\n3. 【验证产物】检查 dist/index.html 中资源引用路径是 /vite-test/... 而非 /... 或 ./...\n4. 【完整上传】上传整个 dist/ 目录内容，不要只上传 index.html\n5. 【cloudPath 格式】填 'vite-test'（不要前导 '/'）\n未完成上述步骤前，禁止调用此工具。上传后必须用 findFiles 验证 index.html 和资源文件已存在。",
       inputSchema: {
-        localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
-        cloudPath: z.string().optional().describe("静态托管云端路径，相对于托管根目录，不要前导 '/'。例: 部署到 /vite-test 则填 'vite-test'（不是 '/vite-test'）。必须先完成: 1) vite.config.ts 中 base 设为 '/vite-test/' 2) 重新 build 3) 验证 dist/index.html 资源路径正确 4) 上传整个 dist/ 内容。未完成前禁止调用。"),
+        localPath: z.string().optional().describe("本地构建输出目录的绝对路径（如 /path/to/project/dist）。⚠️ 必须上传整个构建目录，不能只上传 index.html。例如 Vite 项目：localPath='/path/to/dist'，cloudPath='vite-test'，这样会上传 dist/ 下所有文件到 /vite-test/ 前缀下。如果只传 index.html，JS/CSS 资源会缺失导致 404。"),
+        cloudPath: z.string().optional().describe("静态托管云端路径前缀，相对于托管根目录，不要前导 '/'。例: 部署到 /vite-test 则填 'vite-test'（不是 '/vite-test'）。必须先完成: 1) vite.config.ts 中 base 设为 '/vite-test/' 2) 重新 build 3) 验证 dist/index.html 资源路径正确。未完成前禁止调用。上传后必须用 findFiles 验证文件已存在。云存储对象路径请改用 manageStorage。"),
         files: z.array(z.object({
           localPath: z.string(),
           cloudPath: z.string()

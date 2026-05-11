@@ -187,7 +187,29 @@ Example structure for operation recording:
    - Combine with static hosting file paths to construct final access addresses
    - **Important**: If access address is a directory, it must end with `/`
 
-3. **Cloud Storage Public URL**:
+3. **Static Hosting Deployment (`uploadFiles`)**:
+   - Use `uploadFiles` tool to deploy Web sites to static hosting (not for cloud storage uploads)
+   - **`cloudPath` format**: Relative to hosting root, NO leading `/`
+     - Correct: `cloudPath: 'vite-test'` (deploys to `https://domain/vite-test/`)
+     - Wrong: `cloudPath: '/vite-test'` or `cloudPath: './vite-test'`
+   - **Subdirectory deployment requirements** (CRITICAL to avoid 404):
+     - Must set `base`/`publicPath`/`assetPrefix` in build config to match deployment path
+     - For Vite: `base: '/vite-test/'` (absolute path with leading AND trailing slashes)
+     - **Forbidden**: `base: './'` (causes 404 when URL lacks trailing slash)
+     - Must rebuild after changing config
+     - Must verify built `index.html` references assets with correct paths (not absolute root `/`)
+   - **Pre-deployment checklist** (must complete before calling `uploadFiles`):
+     - [ ] Build config (`base`/`publicPath`/`assetPrefix`) matches deployment path
+     - [ ] Project has been rebuilt after config change
+     - [ ] Built assets reference correct paths (not root `/`)
+     - [ ] `cloudPath` has no leading `/`
+   - **Post-upload verification** (mandatory):
+     - Call `findFiles` with prefix matching `cloudPath`
+     - Confirm `index.html` AND emitted JS/CSS/assets all exist under target prefix
+     - Do NOT treat deployment as complete if only `index.html` exists
+   - **Common 404 cause**: Using `./` relative paths in build config → when accessing `https://domain/vite-test` (no trailing slash), relative paths resolve incorrectly
+
+4. **Cloud Storage Public URL**:
    - **CRITICAL**: `manageStorage(action=upload)` and `queryStorage(action=url)` return `temporaryUrl` which is a temporary signed URL that expires (default 1 hour). Do NOT use this as a permanent public URL.
    - To get the permanent public access URL for a cloud storage object:
      1. Call `envQuery(action=info)` to get environment details

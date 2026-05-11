@@ -105,7 +105,7 @@ describe("storage and hosting tool guidance", () => {
 
     expect(tools.uploadFiles.meta.description).toContain("仅用于 Web 站点部署");
     expect(tools.uploadFiles.meta.description).toContain("manageStorage");
-    expect(tools.uploadFiles.meta.description).toContain("通常不需要调用此工具");
+    expect(tools.uploadFiles.meta.description).toContain("必须上传整个构建目录");
     expect(tools.uploadFiles.meta.description).toContain("子目录部署强制二次确认");
     expect(tools.uploadFiles.meta.description).toContain("不要只上传 index.html");
     expect(tools.uploadFiles.meta.description).toContain("findFiles");
