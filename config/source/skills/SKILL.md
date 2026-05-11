@@ -14,6 +14,19 @@ alwaysApply: true
 - The task is a CloudBase app build, integration, or repair and the workspace already contains an application implementation.
 - The request mixes auth, database, storage, and frontend work in one CloudBase application task.
 
+### Runtime capability check (IMPORTANT)
+
+Before starting work, check the runtime capability notice at the top of the conversation. If a requested capability (e.g., CLI, specific MCP tool, or skill) is marked as **disabled**:
+
+- **Do NOT attempt to use it**, even if the user's request mentions it.
+- **Use the enabled alternatives instead**:
+  - CLI log queries → `queryLogs` MCP tool
+  - CLI function deployment → `manageFunctions` MCP tool
+  - CLI storage operations → `manageStorage` MCP tool
+  - CLI database operations → `querySqlDatabase` / `readNoSqlDatabaseContent` MCP tools
+- **If no MCP tool is available** for the requested operation, inform the user that the capability is unavailable and suggest enabling it or using an alternative approach.
+- **Example**: If the task says "使用 CloudBase CLI 查询日志" but CLI is disabled, use `queryLogs` MCP tool instead and explain to the user: "CLI 当前不可用，已使用 MCP 工具 queryLogs 完成日志查询".
+
 ### Do this before broad exploration
 
 - Inspect the existing implementation surfaces first:
@@ -40,13 +53,6 @@ alwaysApply: true
 - If the same path fails 2-3 times, stop retrying and reroute. Check platform skill, auth domain, runtime, and permission model before editing more code.
 - Always specify `EnvId` explicitly in code, configuration, and command examples when initializing CloudBase clients or manager operations. Do not rely on the current CLI-selected environment or implicit defaults.
 - If the conversation only provides an environment alias, nickname, or other shorthand, resolve it with `envQuery(action=list, alias=..., aliasExact=true)` and use the returned canonical full `EnvId` before calling `auth.set_env`, generating console links, or writing config/code. If the alias is ambiguous or missing, stop and ask the user to confirm.
-- When a requested capability (e.g., CLI, specific MCP tool, or skill) is marked as disabled in the runtime capability notice, do not attempt to use it. Instead, use the enabled alternatives:
-  - For CLI operations (e.g., log queries, deployment), use the corresponding MCP tool instead:
-    - Log queries → `queryLogs` MCP tool
-    - Function deployment → `manageFunctions` MCP tool
-    - Storage operations → `manageStorage` MCP tool
-    - Database operations → `querySqlDatabase` / `readNoSqlDatabaseContent` MCP tools
-  - If no MCP tool is available for the requested operation, inform the user that the capability is unavailable and suggest enabling it or using an alternative approach.
 
 ### Do NOT use this as
 

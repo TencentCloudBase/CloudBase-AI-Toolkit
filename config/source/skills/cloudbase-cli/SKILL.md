@@ -7,6 +7,20 @@ alwaysApply: false
 
 # CloudBase CLI
 
+## Important: Check Runtime Capability First
+
+Before using this skill, check the runtime capability notice at the top of the conversation.
+
+**If CLI is marked as disabled:**
+- Do NOT attempt to use CLI commands
+- Use the corresponding MCP tools instead:
+  - Log queries → `queryLogs` MCP tool
+  - Function deployment → `manageFunctions` MCP tool
+  - Storage operations → `manageStorage` MCP tool
+  - Database operations → `querySqlDatabase` / `readNoSqlDatabaseContent` MCP tools
+- If no MCP tool is available, inform the user that CLI is unavailable and suggest enabling it or using an alternative approach.
+- **Example**: If the task says "使用 CloudBase CLI 查询日志" but CLI is disabled, use `queryLogs` MCP tool instead and explain: "CLI 当前不可用，已使用 MCP 工具 queryLogs 完成日志查询"
+
 Manage CloudBase resources via `tcb` CLI — deterministic, scriptable, auditable.
 The preferred interface for AI agents in CI/CD, batch operations, and resource management.
 
