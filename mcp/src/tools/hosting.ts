@@ -258,10 +258,10 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     "uploadFiles",
     {
       title: "上传静态文件",
-      description: "上传文件到静态网站托管，仅用于 Web 站点部署，不用于云存储对象上传。部署前请先完成构建；若需要上传 COS 云存储文件，请使用 manageStorage。对于本地评测、现有脚手架补全或仅需本地开发服务器验证的任务，通常不需要调用此工具，除非用户明确要求部署站点。\n\n⚠️ 子目录部署强制二次确认：若部署到子路径（如 /vite-test），调用前必须确认：\n1. 已在构建配置中设置 base/publicPath/assetPrefix（值必须与部署子目录一致，如部署到 /vite-test 则设为 '/vite-test/'；禁止使用 './' 等相对路径，否则访问 URL 不带尾部斜杠时会导致资源 404）\n2. 已重新构建（修改配置后必须重新 build）\n3. 已验证构建产物中的资源引用路径已更新（非绝对根路径 '/'）\n4. 将完整构建产物目录内容上传到目标子目录（通常是 dist/ 的全部内容），不要只上传 index.html\n任何一项未通过时，禁止调用此工具。上传完成后，必须使用 findFiles 按目标前缀检查 index.html 和构建生成的资源文件是否都已存在。",
+      description: "上传文件到静态网站托管，仅用于 Web 站点部署。云存储对象上传请使用 manageStorage。\n\n⚠️ 部署到子目录（如 /vite-test）前必须完成：\n1. 【修改配置】在 vite.config.ts 中设置 base: '/vite-test/'（必须带前后斜杠，禁止 './' 或 ''）\n2. 【重新构建】运行 npm run build（修改配置后必须重新 build）\n3. 【验证产物】检查 dist/index.html 中资源引用路径是 /vite-test/... 而非 /... 或 ./...\n4. 【完整上传】上传整个 dist/ 目录内容，不要只上传 index.html\n5. 【cloudPath 格式】填 'vite-test'（不要前导 '/'）\n未完成上述步骤前，禁止调用此工具。上传后必须用 findFiles 验证 index.html 和资源文件已存在。",
       inputSchema: {
         localPath: z.string().optional().describe("本地文件或文件夹路径，需要是绝对路径，例如 /tmp/files/data.txt。"),
-        cloudPath: z.string().optional().describe("静态托管云端路径，相对于托管根目录，不要前导 '/'，例如 'vite-test' 而非 '/vite-test'。部署到子路径时请先完成上方强制二次确认，上传后再用 findFiles 验证 index.html 与构建资源文件已存在。云存储对象路径请改用 manageStorage。"),
+        cloudPath: z.string().optional().describe("静态托管云端路径，相对于托管根目录，不要前导 '/'。例: 部署到 /vite-test 则填 'vite-test'（不是 '/vite-test'）。必须先完成: 1) vite.config.ts 中 base 设为 '/vite-test/' 2) 重新 build 3) 验证 dist/index.html 资源路径正确 4) 上传整个 dist/ 内容。未完成前禁止调用。"),
         files: z.array(z.object({
           localPath: z.string(),
           cloudPath: z.string()
