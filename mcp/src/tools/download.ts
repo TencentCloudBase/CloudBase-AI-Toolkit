@@ -220,37 +220,64 @@ async function isUrlAndContentTypeSafe(url: string, contentType: string): Promis
   }
 }
 
-// 下载文件到指定路径
-function downloadFileToPath(url: string, targetPath: string): Promise<{
+// 检查是否为可重试的网络错误
+function isRetryableError(error: NodeJS.ErrnoException): boolean {
+  const retryableCodes = [
+    'ECONNRESET',
+    'ECONNREFUSED',
+    'ETIMEDOUT',
+    'ESOCKETTIMEDOUT',
+    'ENOTFOUND',
+    'EHOSTUNREACH',
+    'ENETUNREACH',
+    'ECONNABORTED'
+  ];
+  return retryableCodes.includes(error.code || '');
+}
+
+// 下载文件到指定路径（带重试逻辑）
+function downloadFileToPath(url: string, targetPath: string, retryCount = 0): Promise<{
   filePath: string;
   contentType: string;
   fileSize: number;
 }> {
+  const MAX_RETRIES = 3;
+  const BASE_DELAY_MS = 1000; // 1秒基础延迟
+
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https:') ? https : http;
-    
-    client.get(url, async (res) => {
+
+    const request = client.get(url, async (res) => {
+      // 处理重定向
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        try {
+          return resolve(await downloadFileToPath(res.headers.location, targetPath, retryCount));
+        } catch (error) {
+          return reject(error);
+        }
+      }
+
       if (res.statusCode !== 200) {
         reject(new Error(`HTTP Error: ${res.statusCode}`));
         return;
       }
-      
+
       const contentType = res.headers['content-type'] || '';
       const contentLength = parseInt(res.headers['content-length'] || '0', 10);
       const contentDisposition = res.headers['content-disposition'];
-      
+
       // 安全检查
       if (!await isUrlAndContentTypeSafe(url, contentType)) {
         reject(new Error('不安全的 URL 或内容类型，或者目标为内网地址'));
         return;
       }
-      
+
       // 文件大小检查
       if (contentLength > MAX_FILE_SIZE) {
         reject(new Error(`文件大小 ${contentLength} 字节超过 ${MAX_FILE_SIZE} 字节限制`));
         return;
       }
-      
+
       // 确保目标目录存在
       const targetDir = path.dirname(targetPath);
       try {
@@ -259,11 +286,11 @@ function downloadFileToPath(url: string, targetPath: string): Promise<{
         reject(new Error(`无法创建目标目录: ${error instanceof Error ? error.message : '未知错误'}`));
         return;
       }
-      
+
       // 创建写入流
       const fileStream = fs.createWriteStream(targetPath);
       let downloadedSize = 0;
-      
+
       res.on('data', (chunk) => {
         downloadedSize += chunk.length;
         if (downloadedSize > MAX_FILE_SIZE) {
@@ -272,9 +299,9 @@ function downloadFileToPath(url: string, targetPath: string): Promise<{
           reject(new Error(`文件大小超过 ${MAX_FILE_SIZE} 字节限制`));
         }
       });
-      
+
       res.pipe(fileStream);
-      
+
       fileStream.on('finish', () => {
         resolve({
           filePath: targetPath,
@@ -282,57 +309,82 @@ function downloadFileToPath(url: string, targetPath: string): Promise<{
           fileSize: downloadedSize
         });
       });
-      
+
       fileStream.on('error', (error: NodeJS.ErrnoException) => {
         fsPromises.unlink(targetPath).catch(() => {});
         reject(error);
       });
-    }).on('error', (error: NodeJS.ErrnoException) => {
+    });
+
+    request.on('error', async (error: NodeJS.ErrnoException) => {
+      // 检查是否可重试
+      if (isRetryableError(error) && retryCount < MAX_RETRIES) {
+        const delay = BASE_DELAY_MS * Math.pow(2, retryCount); // 指数退避
+        console.warn(`下载失败 (${error.code})，${delay}ms 后重试 (${retryCount + 1}/${MAX_RETRIES})...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        try {
+          return resolve(await downloadFileToPath(url, targetPath, retryCount + 1));
+        } catch (retryError) {
+          return reject(retryError);
+        }
+      }
       reject(error);
     });
   });
 }
 
-// 下载文件到临时目录（保持向后兼容）
-function downloadFile(url: string): Promise<{
+// 下载文件到临时目录（保持向后兼容，带重试逻辑）
+function downloadFile(url: string, retryCount = 0): Promise<{
   filePath: string;
   contentType: string;
   fileSize: number;
 }> {
+  const MAX_RETRIES = 3;
+  const BASE_DELAY_MS = 1000; // 1秒基础延迟
+
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https:') ? https : http;
-    
-    client.get(url, async (res) => {
+
+    const request = client.get(url, async (res) => {
+      // 处理重定向
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        try {
+          return resolve(await downloadFile(res.headers.location, retryCount));
+        } catch (error) {
+          return reject(error);
+        }
+      }
+
       if (res.statusCode !== 200) {
         reject(new Error(`HTTP Error: ${res.statusCode}`));
         return;
       }
-      
+
       const contentType = res.headers['content-type'] || '';
       const contentLength = parseInt(res.headers['content-length'] || '0', 10);
       const contentDisposition = res.headers['content-disposition'];
-      
+
       // 安全检查
       if (!await isUrlAndContentTypeSafe(url, contentType)) {
         reject(new Error('不安全的 URL 或内容类型，或者目标为内网地址'));
         return;
       }
-      
+
       // 文件大小检查
       if (contentLength > MAX_FILE_SIZE) {
         reject(new Error(`文件大小 ${contentLength} 字节超过 ${MAX_FILE_SIZE} 字节限制`));
         return;
       }
-      
+
       // 生成临时文件路径
       const extension = getFileExtension(url, contentType, contentDisposition);
       const fileName = generateRandomFileName(extension);
       const filePath = getSafeTempFilePath(fileName);
-      
+
       // 创建写入流
       const fileStream = fs.createWriteStream(filePath);
       let downloadedSize = 0;
-      
+
       res.on('data', (chunk) => {
         downloadedSize += chunk.length;
         if (downloadedSize > MAX_FILE_SIZE) {
@@ -341,9 +393,9 @@ function downloadFile(url: string): Promise<{
           reject(new Error(`文件大小超过 ${MAX_FILE_SIZE} 字节限制`));
         }
       });
-      
+
       res.pipe(fileStream);
-      
+
       fileStream.on('finish', () => {
         resolve({
           filePath,
@@ -351,12 +403,25 @@ function downloadFile(url: string): Promise<{
           fileSize: downloadedSize
         });
       });
-      
+
       fileStream.on('error', (error: NodeJS.ErrnoException) => {
         fsPromises.unlink(filePath).catch(() => {});
         reject(error);
       });
-    }).on('error', (error: NodeJS.ErrnoException) => {
+    });
+
+    request.on('error', async (error: NodeJS.ErrnoException) => {
+      // 检查是否可重试
+      if (isRetryableError(error) && retryCount < MAX_RETRIES) {
+        const delay = BASE_DELAY_MS * Math.pow(2, retryCount); // 指数退避
+        console.warn(`下载失败 (${error.code})，${delay}ms 后重试 (${retryCount + 1}/${MAX_RETRIES})...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        try {
+          return resolve(await downloadFile(url, retryCount + 1));
+        } catch (retryError) {
+          return reject(retryError);
+        }
+      }
       reject(error);
     });
   });
@@ -372,7 +437,8 @@ function buildDownloadRemoteFileErrorMessage(url: string, error: unknown): strin
   }
 
   if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|socket hang up/i.test(baseMessage)) {
-    suggestions.push("下载过程中出现网络异常，建议检查本地网络或代理后重试。");
+    suggestions.push("下载过程中出现网络异常，系统已自动重试 3 次但均失败。");
+    suggestions.push("建议：1) 检查本地网络或代理设置；2) 该网站可能限频，请尝试更换其他图片源（如 Unsplash、Pexels）；3) 稍后重试。");
   }
 
   if (suggestions.length === 0) {
