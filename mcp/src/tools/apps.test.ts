@@ -106,7 +106,7 @@ describe("app tools", () => {
     const result = await tools.manageApps.handler({
       action: "deployApp",
       serviceName: "demo-app",
-      localPath: "/tmp/demo-app",
+      filePath: "/tmp/demo-app",
       appPath: "/demo-app",
       buildPath: "dist",
     });
@@ -131,6 +131,26 @@ describe("app tools", () => {
         action: "deployApp",
         serviceName: "demo-app",
       },
+    });
+  });
+
+  it("manageApps schema should clarify redeploy flow and framework values", () => {
+    expect(tools.manageApps.meta.description).toContain("复用同一个 serviceName");
+    expect(tools.manageApps.meta.inputSchema.serviceName.description).toContain("重新部署");
+    expect(tools.manageApps.meta.inputSchema.framework.safeParse("static").success).toBe(true);
+    expect(tools.manageApps.meta.inputSchema.framework.safeParse("html").success).toBe(false);
+  });
+
+  it("manageApps(action=deployApp) should require filePath", async () => {
+    const result = await tools.manageApps.handler({
+      action: "deployApp",
+      serviceName: "demo-app",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: false,
+      message: "action=deployApp 时必须提供 filePath",
     });
   });
 });

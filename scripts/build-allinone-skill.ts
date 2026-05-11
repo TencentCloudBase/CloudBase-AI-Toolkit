@@ -27,6 +27,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import yaml from "js-yaml";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,6 +37,7 @@ const TOOLKIT_ROOT = path.resolve(__dirname, "..");
 const SOURCES = {
   mainRules: 'config/source/guideline/cloudbase/SKILL.md',
   skillsDir: 'config/source/skills',
+  guidelineReferences: 'config/source/guideline/cloudbase/references',
 };
 
 // Skills to exclude from the bundle
@@ -123,6 +125,82 @@ function convertMdcToSkill(skillContent: string, noSubSkill: boolean): string {
   return content;
 }
 
+// Escape a literal string for safe use inside a RegExp.
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Generate routing table markdown from activation-map.yaml
+function generateRoutingTableFromYaml(): string {
+  const yamlPath = path.join(TOOLKIT_ROOT, SOURCES.guidelineReferences, 'activation-map.yaml');
+  if (!fs.existsSync(yamlPath)) return '';
+  const yamlContent = fs.readFileSync(yamlPath, 'utf-8');
+  const data = yaml.load(yamlContent) as { scenarios?: Record<string, any>[] };
+  const scenarios = data.scenarios || [];
+
+  const tick = (x: string) => `\`${x}\``;
+  const joinSkills = (arr: string[] | undefined) =>
+    (arr && arr.length > 0) ? arr.map(tick).join(', ') : '-';
+
+  let table = '| Scenario | Read first | Then read | Do NOT route to first | Must check before action |\n';
+  table += '|----------|------------|-----------|------------------------|--------------------------|\n';
+
+  for (const s of scenarios) {
+    const scenario = s.label || s.id || '';
+    const first = s.firstRead ? tick(s.firstRead) : '';
+    const then = joinSkills(s.thenRead);
+    const donot = joinSkills(s.doNotUse);
+    const mustCheck = (s.mustCheckBeforeAction || []).join(', ') || '-';
+    table += `| ${scenario} | ${first} | ${then} | ${donot} | ${mustCheck} |\n`;
+  }
+
+  // Emit a trigger vocabulary block so activation-critical keywords
+  // (Chinese + English phrases from activation-map.yaml `signals`) stay
+  // visible in the published SKILL.md — not just in the YAML reference.
+  const triggerLines: string[] = [];
+  for (const s of scenarios) {
+    const label = s.label || s.id || '';
+    const signals: string[] = Array.isArray(s.signals) ? s.signals : [];
+    if (!label || signals.length === 0) continue;
+    triggerLines.push(`- **${label}** — ${signals.join(', ')}`);
+  }
+
+  if (triggerLines.length > 0) {
+    table += '\n#### Activation triggers (derived from `references/activation-map.yaml`)\n\n';
+    table += triggerLines.join('\n') + '\n';
+  }
+
+  return table;
+}
+
+
+// Inject auto-generated routing table into SKILL.md content
+function injectRoutingTable(skillContent: string): string {
+  const table = generateRoutingTableFromYaml();
+  if (!table) return skillContent;
+
+  const marker = '<!-- DO NOT EDIT: auto-generated from references/activation-map.yaml -->';
+  const fallbackMarker = 'See `references/activation-map.yaml` for the canonical routing contract';
+
+  if (skillContent.includes(marker)) {
+    // Replace from marker up to the next ### heading
+    return skillContent.replace(
+      new RegExp(`${escapeRegExp(marker)}\\n(?:.*\\n)*?(?=\\n### )`),
+      `${marker}\n\n${table}\n`
+    );
+  } else if (skillContent.includes(fallbackMarker)) {
+    // Fallback: replace the "See references/..." paragraph with the
+    // marker + generated table. Use a properly-constructed RegExp with
+    // the dotall flag so `.` crosses newlines.
+    return skillContent.replace(
+      new RegExp(`${escapeRegExp(fallbackMarker)}.*?(?=\\n### )`, 's'),
+      `${marker}\n\n${table}\n`
+    );
+  }
+
+  return skillContent;
+}
+
 // Recursively copy directory with optional SKILL.md rename
 function copyDir(src: string, dest: string, renameSkillMd: boolean): void {
   fs.mkdirSync(dest, { recursive: true });
@@ -181,7 +259,10 @@ export function buildAllInOneSkill(
   // 3. Generate and write main SKILL.md
   const sourcePath = path.join(TOOLKIT_ROOT, SOURCES.mainRules);
   const mdcContent = fs.readFileSync(sourcePath, "utf-8");
-  const skillContent = convertMdcToSkill(mdcContent, noSubSkill);
+  let skillContent = convertMdcToSkill(mdcContent, noSubSkill);
+
+  // Auto-inject routing table from activation-map.yaml
+  skillContent = injectRoutingTable(skillContent);
 
   fs.writeFileSync(path.join(outputDir, "SKILL.md"), skillContent);
   console.log("✅ Created: cloudbase/SKILL.md");
@@ -195,6 +276,21 @@ export function buildAllInOneSkill(
     const destPath = path.join(referencesDir, skillName);
     copyDir(srcPath, destPath, noSubSkill);
     console.log(`📋 Copied: references/${skillName}/ (entry: ${subSkillFile})`);
+  }
+
+  // 5. Copy guideline references (e.g. activation-map.yaml) to references/
+  const guidelineRefsSource = path.join(TOOLKIT_ROOT, SOURCES.guidelineReferences);
+  if (fs.existsSync(guidelineRefsSource)) {
+    for (const entry of fs.readdirSync(guidelineRefsSource, { withFileTypes: true })) {
+      const srcPath = path.join(guidelineRefsSource, entry.name);
+      const destPath = path.join(referencesDir, entry.name);
+      if (entry.isDirectory()) {
+        copyDir(srcPath, destPath, noSubSkill);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
+      console.log(`📋 Copied: references/${entry.name}`);
+    }
   }
 
   console.log(`\n✨ Done! All-in-One skill created at: ${outputDir}`);

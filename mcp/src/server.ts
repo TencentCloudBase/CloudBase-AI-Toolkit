@@ -46,6 +46,7 @@ const DEFAULT_PLUGINS = [
   "cloudrun",
   "gateway",
   "app-auth",
+  "apps",
   "permissions",
   "logs",
   "agents",
