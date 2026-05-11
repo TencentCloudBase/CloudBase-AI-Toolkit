@@ -500,9 +500,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     data: Record<string, unknown>,
     message: string,
     nextActions?: FunctionToolEnvelope["nextActions"],
-  ): FunctionToolEnvelope => ({
-    success: true,
-    data,
+  ): Record<string, unknown> => ({
+    ...data,
     message,
     ...(nextActions?.length ? { nextActions } : {}),
   });
@@ -512,8 +511,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     errorCode?: string,
   ): Record<string, unknown> => ({
     success: false,
-    data: {},
-    message: error instanceof Error ? error.message : String(error),
+    error: error instanceof Error ? error.message : String(error),
     ...(errorCode ? { errorCode } : {}),
   });
 
