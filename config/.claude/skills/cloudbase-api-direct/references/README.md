@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-05-10T05:34:47.197Z
+爬取时间: 2026-05-11T05:56:19.323Z
 
 ## 文档列表
 
@@ -52,7 +52,6 @@
 - [云开发 CloudBase 删除HTTP访问服务路由_腾讯云](./876-129799-云开发-CloudBase-删除HTTP访问服务路由_腾讯云.md)
 - [云开发 CloudBase 查询HTTP访问服务路由信息_腾讯云](./876-129798-云开发-CloudBase-查询HTTP访问服务路由信息_腾讯云.md)
 - [云开发 CloudBase 修改HTTP访问服务路由_腾讯云](./876-129797-云开发-CloudBase-修改HTTP访问服务路由_腾讯云.md)
-- [云开发 CloudBase 自定义登录密钥生成_腾讯云](./876-130046-云开发-CloudBase-自定义登录密钥生成_腾讯云.md)
 - [云开发 CloudBase 创建AI模型_腾讯云](./876-131320-云开发-CloudBase-创建AI模型_腾讯云.md)
 - [云开发 CloudBase 删除AI模型_腾讯云](./876-131319-云开发-CloudBase-删除AI模型_腾讯云.md)
 - [云开发 CloudBase 查询AI模型列表_腾讯云](./876-131318-云开发-CloudBase-查询AI模型列表_腾讯云.md)
@@ -71,6 +70,7 @@
 - [云开发 CloudBase 销毁MySql_腾讯云](./876-128182-云开发-CloudBase-销毁MySql_腾讯云.md)
 - [云开发 CloudBase 执行MySQL语句_腾讯云](./876-127880-云开发-CloudBase-执行MySQL语句_腾讯云.md)
 - [云开发 CloudBase 在PostgreSQL数据库上执行S](./876-130469-云开发-CloudBase-在PostgreSQL数据库上执行S.md)
+- [云开发 CloudBase 自定义登录密钥生成_腾讯云](./876-130046-云开发-CloudBase-自定义登录密钥生成_腾讯云.md)
 - [云开发 CloudBase 查询应用客户端详情_腾讯云](./876-129355-云开发-CloudBase-查询应用客户端详情_腾讯云.md)
 - [云开发 CloudBase 修改登录策略_腾讯云](./876-129351-云开发-CloudBase-修改登录策略_腾讯云.md)
 - [云开发 CloudBase 获取登录策略_腾讯云](./876-129354-云开发-CloudBase-获取登录策略_腾讯云.md)
