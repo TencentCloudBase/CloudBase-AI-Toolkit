@@ -90,7 +90,7 @@ Use this skill whenever you need to call **CloudBase platform features** via **r
 
 - Non-Node backends (Go, Python, Java, PHP, etc.)
 - Integration tests or admin scripts that use curl or language HTTP clients
-- Direct database operations via MySQL RESTful API
+- Direct database operations via 关系型数据库 RESTful API (MySQL/PostgreSQL)
 - Cloud function invocation via HTTP
 - Any scenario where SDKs are not available or not preferred
 
@@ -148,11 +148,13 @@ Before implementing any HTTP API calls, you should:
    ```
 
 2. **Available API names**:
-   - `mysqldb` - MySQL RESTful API
+   - `mysqldb` - 关系型数据库 RESTful API (MySQL/PostgreSQL)
+   - `nosql` - NoSQL RESTful API (文档型数据库)
    - `functions` - Cloud Functions API
    - `auth` - Authentication API
    - `cloudrun` - CloudRun API
    - `storage` - Storage API
+   - `ai_model` - AI 大模型接入 API
 
 3. **Parse and use the swagger documentation**:
    - Extract exact endpoint paths and HTTP methods
@@ -264,9 +266,11 @@ curl -X POST "https://your-env-id.api.tcloudbasegateway.com/v1/functions/YOUR_FU
 
 For detailed API specifications, always download and reference the OpenAPI Swagger files mentioned above.
 
-## MySQL RESTful API
+## 关系型数据库 RESTful API (PostgREST 风格)
 
-The MySQL RESTful API provides all MySQL database operations via HTTP endpoints.
+> **适用于 MySQL 和 PostgreSQL**：两者均基于 PostgREST 风格暴露 REST API，端点格式和请求语义一致。
+
+提供关系型数据库（MySQL / PostgreSQL）的 HTTP 操作接口。
 
 ### Base URL Patterns
 
@@ -425,10 +429,12 @@ CloudBase platform provides an [online debugging tool](/http-api/basic/online-ap
 
 Use `searchKnowledgeBase({ mode: "openapi", apiName: "<api-name>" })` with these API names:
 - `auth` - Authentication API
-- `mysqldb` - MySQL RESTful API
+- `mysqldb` - 关系型数据库 RESTful API (MySQL/PostgreSQL)
+- `nosql` - NoSQL RESTful API (文档型数据库)
 - `functions` - Cloud Functions API
 - `cloudrun` - CloudRun API
 - `storage` - Storage API
+- `ai_model` - AI 大模型接入 API
 
 **How to use the OpenAPI documentation:**
 1. Call `searchKnowledgeBase` tool with the appropriate `apiName`

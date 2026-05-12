@@ -1427,12 +1427,14 @@ rameterTable
 文档名：ui-design 文档介绍：Use when users need visual direction, interface hierarchy, layout decisions, design specifications, or prototypes before implementing a Web or mini program UI.
 文档名：web-development 文档介绍：Use when users need to implement, integrate, debug, build, deploy, or validate a Web frontend after the product direction is already clear, especially for React, Vue, Vite, browser flows, or CloudBase Web integration.
 
-      OpenAPI 文档 (openapi) 查询当前支持 5 个 API 文档，分别是：
+      OpenAPI 文档 (openapi) 查询当前支持 7 个 API 文档，分别是：
       API名：functions API介绍：Cloud Functions API - 云函数 HTTP API
 API名：storage API介绍：Storage API - 云存储 HTTP API
-API名：mysqldb API介绍：MySQL RESTful API - 云开发 MySQL 数据库 HTTP API
+API名：mysqldb API介绍：关系型数据库 RESTful API (MySQL/PostgreSQL) - 云开发关系型数据库 HTTP API
+API名：nosql API介绍：NoSQL RESTful API - 文档型数据库 HTTP API
 API名：auth API介绍：Authentication API - 身份认证 HTTP API
 API名：cloudrun API介绍：CloudRun API - 云托管服务 HTTP API
+API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
 
 #### 参数
 

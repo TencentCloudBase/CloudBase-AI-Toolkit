@@ -91,7 +91,7 @@ Use this skill whenever you need to call **CloudBase platform features** via **r
 
 - Non-Node backends (Go, Python, Java, PHP, etc.)
 - Integration tests or admin scripts that use curl or language HTTP clients
-- Direct database operations via MySQL RESTful API
+- Direct database operations via 关系型数据库 RESTful API (MySQL/PostgreSQL)
 - Cloud function invocation via HTTP
 - Any scenario where SDKs are not available or not preferred
 
@@ -122,11 +122,13 @@ Do **not** use this skill for:
 4. **Reference OpenAPI Swagger documentation**
    - **MUST use `searchKnowledgeBase` tool** to get OpenAPI specifications
    - Use the tool with `mode=openapi` and specify the `apiName`:
-     - `mysqldb` - MySQL RESTful API
+     - `mysqldb` - 关系型数据库 RESTful API (MySQL/PostgreSQL)
+     - `nosql` - NoSQL RESTful API (文档型数据库)
      - `functions` - Cloud Functions API
      - `auth` - Authentication API
      - `cloudrun` - CloudRun API
      - `storage` - Storage API
+     - `ai_model` - AI 大模型接入 API
    - Example: `searchKnowledgeBase({ mode: "openapi", apiName: "mysqldb" })`
    - Parse the returned YAML content to understand exact endpoint paths, parameters, request/response schemas
    - Never invent endpoints or parameters - always reference the swagger documentation
@@ -149,11 +151,13 @@ Before implementing any HTTP API calls, you should:
    ```
 
 2. **Available API names**:
-   - `mysqldb` - MySQL RESTful API
+   - `mysqldb` - 关系型数据库 RESTful API (MySQL/PostgreSQL)
+   - `nosql` - NoSQL RESTful API (文档型数据库)
    - `functions` - Cloud Functions API
    - `auth` - Authentication API
    - `cloudrun` - CloudRun API
    - `storage` - Storage API
+   - `ai_model` - AI 大模型接入 API
 
 3. **Parse and use the swagger documentation**:
    - Extract exact endpoint paths and HTTP methods
@@ -265,9 +269,11 @@ curl -X POST "https://your-env-id.api.tcloudbasegateway.com/v1/functions/YOUR_FU
 
 For detailed API specifications, always download and reference the OpenAPI Swagger files mentioned above.
 
-## MySQL RESTful API
+## 关系型数据库 RESTful API (PostgREST 风格)
 
-The MySQL RESTful API provides all MySQL database operations via HTTP endpoints.
+> **适用于 MySQL 和 PostgreSQL**：两者均基于 PostgREST 风格暴露 REST API，端点格式和请求语义一致。
+
+提供关系型数据库（MySQL / PostgreSQL）的 HTTP 操作接口。
 
 ### Base URL Patterns
 
