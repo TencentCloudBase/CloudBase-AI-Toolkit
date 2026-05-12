@@ -1512,6 +1512,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         "\n\n**查询 CloudBase 云函数日志**：使用 `action=\"listFunctionLogs\"`，需要提供 `functionName` 参数。" +
         "\n- 示例：`queryFunctions(action=\"listFunctionLogs\", functionName=\"my-function\")`" +
         "\n- 如需查看日志详情：`queryFunctions(action=\"getFunctionLogDetail\", requestId=\"xxx\")`" +
+        "\n\n**定时任务 / cron / 定时跑**：使用 `listFunctionTriggers` 查询函数的 timer 触发器配置。" +
         "\n\n**区分 `queryLogs` 工具**：" +
         "\n- 本工具用于查询特定 CloudBase 云函数的执行日志" +
         "\n- `queryLogs` 工具用于搜索 CLS 日志服务（跨服务日志聚合）",
@@ -1526,9 +1527,9 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             "\n- `getFunctionLogDetail`: 获取日志详情（需要 requestId）" +
             "\n- `listFunctionLayers`: 列出函数绑定的层" +
             "\n- `listLayers`: 列出所有层" +
-            "\n- `listLayerVersions`: 列出层的版本" +
+            "\n- `listLayerVersions`: 列出层的版本（注意：是 Versions 不是 Version）" +
             "\n- `getLayerVersionDetail`: 获取层版本详情" +
-            "\n- `listFunctionTriggers`: 列出函数触发器" +
+            "\n- `listFunctionTriggers`: 列出函数触发器（用于查看定时任务 / cron / timer 配置）" +
             "\n- `getFunctionDownloadUrl`: 获取函数代码下载地址"
           ),
         functionName: z
@@ -1576,11 +1577,16 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "管理云函数域资源",
       description:
-        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。",
+        "函数域统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。" +
+        "如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。" +
+        "危险操作需要显式 confirm=true。",
       inputSchema: {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
-          .describe("写操作类型，例如 createFunction、updateFunctionCode、invokeFunction、deleteFunction、attachLayer"),
+          .describe(
+            "写操作类型，例如 createFunction、updateFunctionCode、invokeFunction、deleteFunction、" +
+            "createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、attachLayer、detachLayer"
+          ),
         func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
         functionRootPath: z.string().optional().describe(
           "创建或更新函数代码时默认推荐的本地目录方式。" +
@@ -1600,7 +1606,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         envVariables: z.record(z.string()).optional().describe("配置更新时要合并的环境变量"),
         vpc: VPC_SCHEMA.optional().describe("配置更新时的 VPC 信息"),
         params: z.record(z.any()).optional().describe("invokeFunction 的调用参数"),
-        triggers: z.array(TRIGGER_SCHEMA).optional().describe("createFunctionTrigger 的触发器列表"),
+        triggers: z
+          .array(TRIGGER_SCHEMA)
+          .optional()
+          .describe(
+            "createFunctionTrigger 的触发器列表，用于定时跑 / 定时任务 / scheduled job。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），" +
+            '如 "0 */5 * * * * *" 表示每5分钟执行一次'
+          ),
         triggerName: z.string().optional().describe("deleteFunctionTrigger 的目标触发器名称"),
         layerName: z.string().optional().describe("层名称"),
         layerVersion: z.number().optional().describe("层版本号"),

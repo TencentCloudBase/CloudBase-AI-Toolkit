@@ -745,7 +745,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
 ---
 
 ### `manageFunctions`
-函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、调用函数、触发器和层绑定。危险操作需要显式 confirm=true。
+函数域统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。危险操作需要显式 confirm=true。
 
 #### 参数
 
@@ -948,7 +948,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
     {
       name: "triggers",
       type: "array of unknown",
-      description: `createFunctionTrigger 的触发器列表`,
+      description: `createFunctionTrigger 的触发器列表，用于定时跑 / 定时任务 / scheduled job。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），如 "0 */5 * * * * *" 表示每5分钟执行一次`,
     },
     {
       name: "triggerName",
@@ -1363,7 +1363,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
 支持的模板:
 - react: React + CloudBase 全栈应用模板
 - vue: Vue + CloudBase 全栈应用模板
-- miniprogram: 微信小程序 + 云开发模板
+- miniprogram: 微信小程序 + 云开发模板  
 - uniapp: UniApp + CloudBase 跨端应用模板
 - rules: 只包含AI编辑器配置文件（包含Cursor、WindSurf、CodeBuddy等所有主流编辑器配置），适合在已有项目中补充AI编辑器配置
 

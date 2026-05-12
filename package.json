@@ -14,10 +14,12 @@
     "build:prompts-data": "node scripts/generate-prompts-data.mjs && node scripts/generate-prompts.mjs",
     "build:rules-sync": "node scripts/build-compat-config.mjs",
     "generate:tcb-action-index": "node scripts/generate-tcb-action-index.mjs",
-    "sync:config": "node scripts/sync-config.mjs"
+    "sync:config": "node scripts/sync-config.mjs",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.16.0",
+    "husky": "^9.1.7",
     "js-yaml": "^4.1.1"
   },
   "dependencies": {
