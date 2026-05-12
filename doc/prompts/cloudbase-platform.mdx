@@ -180,10 +180,10 @@ Example structure for operation recording:
    - Generally, publicly accessible files can be stored in static hosting, which provides a public web address
    - Static hosting supports custom domain configuration (requires console operation)
    - Cloud storage is suitable for files with privacy requirements, can get temporary access addresses via temporary file URLs
-   - If the task needs COS SDK polling, file metadata lookup, or temporary URLs for an uploaded object, use cloud storage tools (`manageStorage` / `queryStorage`), not `uploadFiles`
+   - If the task needs COS SDK polling, file metadata lookup, or temporary URLs for an uploaded object, use cloud storage tools (`manageStorage` / `queryStorage`), not `manageHosting(action="upload")`
 
 2. **Static Hosting Domain**:
-   - CloudBase static hosting domain can be obtained via `getWebsiteConfig` tool
+   - CloudBase static hosting domain and website document config can be obtained via `queryHosting(action="websiteConfig")`
    - Combine with static hosting file paths to construct final access addresses
    - **Important**: If access address is a directory, it must end with `/`
 

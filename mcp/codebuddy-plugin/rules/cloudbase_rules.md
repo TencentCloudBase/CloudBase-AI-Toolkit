@@ -23,7 +23,7 @@ updatedAt: 2026-03-27T00:00:00.000Z
 ## Core Rules
 
 **1. MCP 工具优先原则**
-使用 CloudBase 管理功能时，优先通过 MCP 工具（如 `envQuery`、`uploadFiles`、`createFunction`、`manageCloudRun`、`executeWriteSQL` 等）而非 CLI 命令或控制台操作。
+使用 CloudBase 管理功能时，优先通过 MCP 工具（如 `envQuery`、`manageHosting`、`createFunction`、`manageCloudRun`、`executeWriteSQL` 等）而非 CLI 命令或控制台操作。
 
 **2. 场景识别优先**
 开发前首先识别当前场景类型（Web/小程序/云函数/CloudRun/AI Agent），然后阅读对应的 skill 指南。

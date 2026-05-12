@@ -16,7 +16,8 @@
 	"manageGateway",
 	"readSecurityRule",
 	"writeSecurityRule",
-	"uploadFiles",
+	"queryHosting",
+	"manageHosting",
 	"downloadTemplate",
 	"queryCloudRun",
 	"manageCloudRun"

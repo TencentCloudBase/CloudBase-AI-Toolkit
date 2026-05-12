@@ -38,7 +38,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 - Mini Program file APIs.
 - Backend or agent-side direct storage management through MCP.
-- Static website hosting deployment via `uploadFiles`.
+- Static website hosting deployment via `manageHosting(action="upload")`.
 - Database operations.
 
 ### Common mistakes / gotchas

@@ -100,12 +100,12 @@
       "description": "Create gateway access entries for supported targets"
     },
     {
-      "name": "uploadFiles",
-      "description": "Upload files to static hosting with CDN acceleration"
+      "name": "queryHosting",
+      "description": "Query static hosting website config, service status, hosted files, and custom domain status"
     },
     {
-      "name": "getWebsiteConfig",
-      "description": "Get static hosting configuration and domain information"
+      "name": "manageHosting",
+      "description": "Manage static hosting uploads, website documents, domains, service enablement, and downloads"
     },
     {
       "name": "downloadRemoteFile",

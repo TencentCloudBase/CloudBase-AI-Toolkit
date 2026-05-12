@@ -275,9 +275,11 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
 
       // 清理静态托管
       console.log("🧹 删除静态托管测试文件...");
-      await safeTool(client, "deleteFiles", {
+      await safeTool(client, "manageHosting", {
+        action: "delete",
         cloudPath: `${TEST_PREFIX}`,
         isDir: true,
+        confirm: true,
       });
 
       // 清理 NoSQL 集合
@@ -512,13 +514,14 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
   // ═══ 3.5 静态网站托管 ═══════════════════════════════════════════════════
   test.skipIf(!hasCredentials())("3.5 静态网站托管 - 部署验证", async () => {
     // 查询托管配置
-    const hostingRes = await safeTool(client, "envQuery", {
-      action: "hosting",
+    const hostingRes = await safeTool(client, "queryHosting", {
+      action: "websiteConfig",
     });
     recordResult("静态托管", "查询配置", hostingRes.success, "");
 
     // 上传测试页面
-    const uploadRes = await safeTool(client, "uploadFiles", {
+    const uploadRes = await safeTool(client, "manageHosting", {
+      action: "upload",
       localPath: tmpHtmlFile,
       cloudPath: `${TEST_PREFIX}index.html`,
     });
@@ -526,7 +529,8 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
 
     if (uploadRes.success) {
       // 查找文件
-      const findRes = await safeTool(client, "findFiles", {
+      const findRes = await safeTool(client, "queryHosting", {
+        action: "findFiles",
         prefix: TEST_PREFIX,
       });
       recordResult("静态托管", "查找文件", findRes.success, "");

@@ -75,8 +75,7 @@ export function shouldRegisterTool(toolName: string): boolean {
     // Storage tools - local file uploads
     'uploadFile',
     
-    // Hosting tools - local file uploads  
-    'uploadFiles',
+    // Hosting tools - action-level cloud gating is handled inside manageHosting
     
     // Function tools - local code uploads
     'updateFunctionCode',

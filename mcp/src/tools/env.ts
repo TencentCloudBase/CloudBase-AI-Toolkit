@@ -1295,18 +1295,18 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     },
   );
 
-  // envQuery - 环境查询（合并 listEnvs + getEnvInfo + getEnvAuthDomains + getWebsiteConfig）
+  // envQuery - 环境查询（合并 listEnvs + getEnvInfo + getEnvAuthDomains）
   server.registerTool?.(
     "envQuery",
     {
       title: "环境查询",
       description:
-        "查询云开发环境相关信息，支持查询环境列表、当前环境信息、安全域名和静态网站托管配置。（原工具名：listEnvs/getEnvInfo/getEnvAuthDomains/getWebsiteConfig，为兼容旧AI规则可继续使用这些名称）当 action=list 时，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知环境的详细信息，请使用 action=info。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。",
+        "查询云开发环境相关信息，支持查询环境列表、当前环境信息和安全域名。（原工具名：listEnvs/getEnvInfo/getEnvAuthDomains，为兼容旧AI规则可继续使用这些名称）当 action=list 时，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知环境的详细信息，请使用 action=info。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。",
       inputSchema: {
         action: z
-          .enum(["list", "info", "domains", "hosting"])
+          .enum(["list", "info", "domains"])
           .describe(
-            "查询类型：list=环境列表/摘要筛选（即使传 envId 也只返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=当前环境详细信息（详情中可查看更完整资源字段），domains=安全域名列表，hosting=静态网站托管配置",
+            "查询类型：list=环境列表/摘要筛选（即使传 envId 也只返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=当前环境详细信息（详情中可查看更完整资源字段），domains=安全域名列表",
           ),
         alias: z.string().optional().describe("按环境别名筛选。action=list 时可选"),
         aliasExact: z.boolean().optional().describe("按环境别名精确筛选。action=list 时可选；与 alias 配合使用"),
@@ -1333,7 +1333,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       offset,
       fields,
     }: {
-      action: "list" | "info" | "domains" | "hosting";
+      action: "list" | "info" | "domains";
       alias?: string;
       aliasExact?: boolean;
       envId?: string;
@@ -1468,35 +1468,6 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             }
             break;
 
-          case "hosting": {
-            const cloudbaseHosting = await getManager();
-            const websiteConfig = await cloudbaseHosting.hosting.getWebsiteConfig();
-            logCloudBaseResult(server.logger, websiteConfig);
-            const hostingResult = {
-              ...(websiteConfig as Record<string, unknown>),
-              CdnDomain: (websiteConfig as Record<string, unknown>).CdnDomain ?? null,
-              Bucket: (websiteConfig as Record<string, unknown>).Bucket ?? null,
-            };
-
-            try {
-              const envInfo = await cloudbaseHosting.env.getEnvInfo() as {
-                EnvInfo?: {
-                  StaticStorages?: Array<{ StaticDomain?: string; Bucket?: string }>;
-                };
-              };
-              logCloudBaseResult(server.logger, envInfo);
-
-              hostingResult.CdnDomain = envInfo.EnvInfo?.StaticStorages?.[0]?.StaticDomain ?? hostingResult.CdnDomain;
-              hostingResult.Bucket = envInfo.EnvInfo?.StaticStorages?.[0]?.Bucket ?? hostingResult.Bucket;
-            } catch (hostingInfoError) {
-              debug("Failed to enrich hosting envQuery result with env info", {
-                error: hostingInfoError,
-              });
-            }
-
-            result = hostingResult;
-            break;
-          }
 
           default:
             throw new Error(`不支持的查询类型: ${action}`);

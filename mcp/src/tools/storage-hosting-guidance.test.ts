@@ -103,10 +103,10 @@ describe("storage and hosting tool guidance", () => {
   it("should clearly separate static hosting uploads from cloud storage uploads", () => {
     const tools = createMockServer();
 
-    expect(tools.uploadFiles.meta.description).toContain("仅用于 Web 站点部署");
-    expect(tools.uploadFiles.meta.description).toContain("manageStorage");
-    expect(tools.uploadFiles.meta.description).toContain("通常不需要调用此工具");
-    expect(tools.uploadFiles.meta.inputSchema.cloudPath.description).toContain("云存储对象路径请改用 manageStorage");
+    expect(tools.manageHosting.meta.description).toContain("action=upload");
+    expect(tools.manageHosting.meta.description).toContain("queryHosting");
+    expect(tools.manageHosting.meta.inputSchema.cloudPath.description).toContain("静态托管中的目标路径");
+    expect(tools.manageHosting.meta.inputSchema.action.description).toContain("upload=上传本地构建产物到静态托管");
     expect(tools.manageStorage.meta.description).toContain("仅用于 COS/Storage 对象");
     expect(tools.manageStorage.meta.description).toContain("不用于静态网站托管");
     expect(tools.manageStorage.meta.description).toContain("公有读");
