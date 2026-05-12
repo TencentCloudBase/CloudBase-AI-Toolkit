@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExtendedMcpServer } from '../server.js';
 
 const {
@@ -21,7 +21,6 @@ const {
   mockDownloadFile,
   mockDownloadDirectory,
   mockGetEnvInfo,
-  mockIsCloudMode,
 } = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
   mockGetEnvId: vi.fn(),
@@ -42,7 +41,6 @@ const {
   mockDownloadFile: vi.fn(),
   mockDownloadDirectory: vi.fn(),
   mockGetEnvInfo: vi.fn(),
-  mockIsCloudMode: vi.fn(() => false),
 }));
 
 vi.mock('../cloudbase-manager.js', () => ({
@@ -56,7 +54,19 @@ vi.mock('../utils/notification.js', () => ({
 }));
 
 vi.mock('../utils/cloud-mode.js', () => ({
-  isCloudMode: mockIsCloudMode,
+  isCloudMode: () => process.env.CLOUDBASE_MCP_CLOUD_MODE === 'true' || process.env.MCP_CLOUD_MODE === 'true',
+  enableCloudMode: () => {
+    process.env.CLOUDBASE_MCP_CLOUD_MODE = 'true';
+  },
+  getCloudModeStatus: () => ({
+    enabled: process.env.CLOUDBASE_MCP_CLOUD_MODE === 'true' || process.env.MCP_CLOUD_MODE === 'true',
+    source: process.env.CLOUDBASE_MCP_CLOUD_MODE === 'true'
+      ? 'CLOUDBASE_MCP_CLOUD_MODE'
+      : process.env.MCP_CLOUD_MODE === 'true'
+        ? 'MCP_CLOUD_MODE'
+        : null,
+  }),
+  shouldRegisterTool: () => true,
 }));
 
 import { registerHostingTools } from './hosting.js';
@@ -88,7 +98,8 @@ function createMockServer() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockIsCloudMode.mockReturnValue(false);
+  delete process.env.CLOUDBASE_MCP_CLOUD_MODE;
+  delete process.env.MCP_CLOUD_MODE;
 
   mockGetEnvId.mockResolvedValue('env-test');
   mockGetWebsiteConfig.mockResolvedValue({
@@ -157,6 +168,11 @@ beforeEach(() => {
       call: mockDescribeHostingDomainTask,
     })),
   });
+});
+
+afterEach(() => {
+  delete process.env.CLOUDBASE_MCP_CLOUD_MODE;
+  delete process.env.MCP_CLOUD_MODE;
 });
 
 describe('hosting tools', () => {
@@ -296,7 +312,7 @@ describe('hosting tools', () => {
   });
 
   it('manageHosting should block local-file actions in cloud mode', async () => {
-    mockIsCloudMode.mockReturnValue(true);
+    process.env.CLOUDBASE_MCP_CLOUD_MODE = 'true';
     const tools = createMockServer();
 
     const uploadPayload = JSON.parse((await tools.manageHosting.handler({
@@ -319,7 +335,7 @@ describe('hosting tools', () => {
   });
 
   it('manageHosting should keep remote-only actions available in cloud mode', async () => {
-    mockIsCloudMode.mockReturnValue(true);
+    process.env.CLOUDBASE_MCP_CLOUD_MODE = 'true';
     const tools = createMockServer();
 
     const payload = JSON.parse((await tools.manageHosting.handler({

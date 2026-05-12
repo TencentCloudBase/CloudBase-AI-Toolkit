@@ -24,6 +24,22 @@ vi.mock("../cloudbase-manager.js", () => ({
   getEnvId: mockGetEnvId,
 }));
 
+vi.mock("../utils/cloud-mode.js", () => ({
+  isCloudMode: () => process.env.CLOUDBASE_MCP_CLOUD_MODE === 'true' || process.env.MCP_CLOUD_MODE === 'true',
+  enableCloudMode: () => {
+    process.env.CLOUDBASE_MCP_CLOUD_MODE = 'true';
+  },
+  getCloudModeStatus: () => ({
+    enabled: process.env.CLOUDBASE_MCP_CLOUD_MODE === 'true' || process.env.MCP_CLOUD_MODE === 'true',
+    source: process.env.CLOUDBASE_MCP_CLOUD_MODE === 'true'
+      ? 'CLOUDBASE_MCP_CLOUD_MODE'
+      : process.env.MCP_CLOUD_MODE === 'true'
+        ? 'MCP_CLOUD_MODE'
+        : null,
+  }),
+  shouldRegisterTool: () => true,
+}));
+
 import { registerHostingTools } from "./hosting.js";
 import { registerStorageTools } from "./storage.js";
 
