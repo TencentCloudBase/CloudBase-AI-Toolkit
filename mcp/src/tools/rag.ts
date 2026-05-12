@@ -263,7 +263,7 @@ const OPENAPI_SOURCES: Array<{
 }> = [
     {
       name: "mysqldb",
-      description: "MySQL RESTful API - 云开发 MySQL 数据库 HTTP API",
+      description: "关系型数据库 RESTful API (MySQL/PostgreSQL) - 云开发关系型数据库 HTTP API",
       url: "https://docs.cloudbase.net/openapi/mysqldb.v1.openapi.yaml",
     },
     {
@@ -285,6 +285,16 @@ const OPENAPI_SOURCES: Array<{
       name: "storage",
       description: "Storage API - 云存储 HTTP API",
       url: "https://docs.cloudbase.net/openapi/storage.v1.openapi.yaml",
+    },
+    {
+      name: "nosql",
+      description: "NoSQL RESTful API - 文档型数据库 HTTP API",
+      url: "https://docs.cloudbase.net/openapi/nosql.v1.openapi.yaml",
+    },
+    {
+      name: "ai_model",
+      description: "AI 大模型接入 API - 统一 AI 模型 HTTP API",
+      url: "https://docs.cloudbase.net/openapi/ai_model.v1.openapi.yaml",
     },
   ];
 

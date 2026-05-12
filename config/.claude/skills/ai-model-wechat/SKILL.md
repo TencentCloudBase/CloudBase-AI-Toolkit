@@ -29,7 +29,7 @@ Use this skill for **calling AI models in WeChat Mini Program** using `wx.cloud.
 - Browser/Web apps → use `ai-model-web` skill
 - Node.js backend or cloud functions → use `ai-model-nodejs` skill
 - Image generation → use `ai-model-nodejs` skill (not available in Mini Program)
-- HTTP API integration → use `http-api` skill
+- Runtimes without a CloudBase SDK (native apps, Python, etc.) → use `http-api` skill (it now includes the `ai_model` OpenAPI spec for direct HTTP calls)
 
 ---
 

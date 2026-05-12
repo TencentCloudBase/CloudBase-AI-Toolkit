@@ -54,7 +54,7 @@ Use this skill whenever you need to call **CloudBase platform features** via **r
 
 - Non-Node backends (Go, Python, Java, PHP, etc.)
 - Integration tests or admin scripts that use curl or language HTTP clients
-- Direct database operations via MySQL RESTful API
+- Direct database operations via 关系型数据库 RESTful API (MySQL/PostgreSQL)
 - Cloud function invocation via HTTP
 - Any scenario where SDKs are not available or not preferred
 
@@ -85,11 +85,13 @@ Do **not** use this skill for:
 4. **Reference OpenAPI Swagger documentation**
    - **MUST use `searchKnowledgeBase` tool** to get OpenAPI specifications
    - Use the tool with `mode=openapi` and specify the `apiName`:
-     - `mysqldb` - MySQL RESTful API
+     - `mysqldb` - 关系型数据库 RESTful API (MySQL/PostgreSQL)
+     - `nosql` - NoSQL RESTful API (文档型数据库)
      - `functions` - Cloud Functions API
      - `auth` - Authentication API
      - `cloudrun` - CloudRun API
      - `storage` - Storage API
+     - `ai_model` - AI 大模型接入 API
    - Example: `searchKnowledgeBase({ mode: "openapi", apiName: "mysqldb" })`
    - Parse the returned YAML content to understand exact endpoint paths, parameters, request/response schemas
    - Never invent endpoints or parameters - always reference the swagger documentation
@@ -112,11 +114,13 @@ Before implementing any HTTP API calls, you should:
    ```
 
 2. **Available API names**:
-   - `mysqldb` - MySQL RESTful API
+   - `mysqldb` - 关系型数据库 RESTful API (MySQL/PostgreSQL)
+   - `nosql` - NoSQL RESTful API (文档型数据库)
    - `functions` - Cloud Functions API
    - `auth` - Authentication API
    - `cloudrun` - CloudRun API
    - `storage` - Storage API
+   - `ai_model` - AI 大模型接入 API
 
 3. **Parse and use the swagger documentation**:
    - Extract exact endpoint paths and HTTP methods
@@ -228,9 +232,11 @@ curl -X POST "https://your-env-id.api.tcloudbasegateway.com/v1/functions/YOUR_FU
 
 For detailed API specifications, always download and reference the OpenAPI Swagger files mentioned above.
 
-## MySQL RESTful API
+## 关系型数据库 RESTful API (PostgREST 风格)
 
-The MySQL RESTful API provides all MySQL database operations via HTTP endpoints.
+> **适用于 MySQL 和 PostgreSQL**：两者均基于 PostgREST 风格暴露 REST API，端点格式和请求语义一致。
+
+提供关系型数据库（MySQL / PostgreSQL）的 HTTP 操作接口。
 
 ### Base URL Patterns
 
@@ -374,6 +380,87 @@ curl -i -X GET 'https://{{host}}/v1/rdb/rest/course?select=name,position&name=li
 curl -i -X GET 'https://{{host}}/v1/rdb/rest/course?select=name,position&name=like.%%E5%BC%A0%E4%B8%89%&title=eq.%E6%96%87%E7%AB%A0%E6%A0%87%E9%A2%98'
 ```
 
+## NoSQL RESTful API
+
+NoSQL RESTful API 提供文档型数据库（NoSQL）的 HTTP 操作接口，支持集合管理、文档 CRUD、聚合查询、事务操作和数据库命令。
+
+### Base URL
+
+```
+https://{envId}.api.tcloudbasegateway.com/v1/database/instances/{instance}/databases/{database}/
+```
+
+| 参数 | 说明 |
+|------|------|
+| `envId` | 环境 ID |
+| `instance` | 数据库实例 ID，默认实例使用 `(default)` |
+| `database` | 数据库名称，默认数据库使用 `(default)` |
+
+示例：
+- 默认实例 + 默认数据库：`/v1/database/instances/(default)/databases/(default)/`
+- 指定实例 + 默认数据库：`/v1/database/instances/test_instance/databases/(default)/`
+
+### 请求与响应格式
+
+- 请求支持 Relaxed 和 Strict EJSON 格式
+- 响应均为 Strict EJSON 格式
+- EJSON 支持的特殊类型：`ObjectId`、`Date`、`Int`、`Long`、`Decimal128`、`Binary`、`RegExp`
+
+### 错误码与 HTTP 状态码
+
+| 错误码 | HTTP 状态码 | 说明 |
+|--------|-------------|------|
+| `INVALID_PARAM` | 400 | 参数错误 |
+| `DATABASE_PERMISSION_DENIED` | 401 | 权限不足 |
+| `DATABASE_INVALID_OPERRATOR` | 403 | 不支持的操作 |
+| `DATABASE_COLLECTION_NOT_EXIST` | 404 | 集合不存在 |
+| `DOCUMENT_NOT_FOUND` | 404 | 文档不存在 |
+| `DATABASE_COLLECTION_ALREADY_EXIST` | 409 | 集合已存在 |
+| `DATABASE_DUPLICATE_WRITE` | 409 | 唯一索引冲突 |
+| `EXCEED_REQUEST_LIMIT` | 422 | 请求次数超限 |
+| `EXCEED_CONCURRENT_REQUEST_LIMIT` | 422 | 并发请求超限 |
+| `DATABASE_REQUEST_FAILED` | 500 | 数据库请求失败 |
+| `SYS_ERR` | 500 | 内部错误 |
+| `DATABASE_TRANSACTION_CONFLICT` | 503 | 事务冲突 |
+| `DATABASE_TRANSACTION_FAIL` | 503 | 事务执行失败 |
+| `DATABASE_TIMEOUT` | 504 | 数据库操作超时 |
+
+详细端点使用和请求示例，请参考官方文档：https://docs.cloudbase.net/http-api/nosql/nosql-restful-api
+
+---
+
+## AI 大模型接入 API
+
+统一的大模型接入 API，支持通过 HTTP 调用已配置的 AI 大模型（支持 SSE 流式响应）。
+
+### 认证方式
+
+| 方式 | 说明 |
+|------|------|
+| `Authorization: Bearer <token>` | AccessToken 认证（推荐） |
+| TC3-HMAC-SHA256 签名 | 腾讯云 API v3 签名方式 |
+| `Authorization: <apikey>` | APIKey 认证 |
+
+> AccessToken 获取方式：参考 Auth OpenAPI (`searchKnowledgeBase({ mode: "openapi", apiName: "auth" })`)
+
+### 错误码
+
+| 错误码 | 说明 |
+|--------|------|
+| `AI_MODEL_CONFIG_MISSING` | 缺少模型 API Key 或配置 |
+| `AI_MODEL_PARAM_INVALID` | 输入参数无效 |
+| `AI_MODEL_DISABLED` | 模型已禁用，请在控制台检查或等待约 2 分钟 |
+| `AI_MODEL_NOT_SUPPORTED` | 请求模型不支持或未启用 |
+| `AI_MODEL_PARAM_REQUIRED` | 缺少必需参数 `model` |
+| `AI_MODEL_NOT_FOUND` | 指定的模型组不存在 |
+| `EXCEED_CONCURRENT_REQUEST_LIMIT` | 并发请求超限，请稍后重试或申请更高配额 |
+| `EXCEED_TOKEN_QUOTA_LIMIT` | 模型 Token 配额超限，请购买资源或调整模型组 |
+
+详细端点和请求格式，请参考官方文档：https://docs.cloudbase.net/http-api/ai-model/ai-%E5%A4%A7%E6%A8%A1%E5%9E%8B%E6%8E%A5%E5%85%A5
+以及 OpenAPI 规范：`https://docs.cloudbase.net/openapi/ai_model.v1.openapi.yaml`
+
+---
+
 ## Online Debugging Tool
 
 CloudBase platform provides an [online debugging tool](/http-api/basic/online-api-call) where you can test API interfaces without writing code:
@@ -389,10 +476,12 @@ CloudBase platform provides an [online debugging tool](/http-api/basic/online-ap
 
 Use `searchKnowledgeBase({ mode: "openapi", apiName: "<api-name>" })` with these API names:
 - `auth` - Authentication API
-- `mysqldb` - MySQL RESTful API
+- `mysqldb` - 关系型数据库 RESTful API (MySQL/PostgreSQL)
+- `nosql` - NoSQL RESTful API (文档型数据库)
 - `functions` - Cloud Functions API
 - `cloudrun` - CloudRun API
 - `storage` - Storage API
+- `ai_model` - AI 大模型接入 API
 
 **How to use the OpenAPI documentation:**
 1. Call `searchKnowledgeBase` tool with the appropriate `apiName`

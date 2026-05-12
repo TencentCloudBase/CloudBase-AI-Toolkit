@@ -31,7 +31,7 @@ Use this skill for **calling AI models from Node.js backends, cloud functions, o
 
 - Browser/Web apps → use the `ai-model-web` skill
 - WeChat Mini Program → use the `ai-model-wechat` skill
-- HTTP API integration → use the `http-api` skill
+- Runtimes without a CloudBase SDK (Python, Go, PHP, curl, etc.) → use the `http-api` skill (it now includes the `ai_model` OpenAPI spec for direct HTTP calls to the AI model endpoint; do NOT wrap this SDK behind an HTTP proxy)
 
 ---
 
