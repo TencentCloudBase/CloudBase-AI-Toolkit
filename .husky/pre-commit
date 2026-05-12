@@ -1,0 +1,53 @@
+#!/usr/bin/env sh
+# husky pre-commit hook for CloudBase-MCP
+set -e
+
+echo "[husky] Running pre-commit checks..."
+
+# Ensure dependencies are installed (webpack etc.)
+if [ ! -d "mcp/node_modules" ]; then
+  echo "[husky] Installing mcp/ dependencies (webpack, typescript, etc.)..."
+  (cd mcp && npm install --no-audit --no-fund)
+fi
+
+# --- Step 1: Sync mirrors if config/source/** was modified ---
+if git diff --cached --name-only | grep -q "^config/source/"; then
+  echo "[husky] config/source/ modified, running sync:config..."
+  node scripts/sync-config.mjs
+
+  # Stage any mirror files updated by the sync
+  for dir in \
+    config/.claude/skills/ config/.cursor/rules/ config/.github-copilot/rules/ \
+    config/.windsurf/rules/ config/.codebuddy/rules/ config/.augment/rules/ \
+    config/.aider/rules/ config/.opensumi/rules/ config/.kiro/steering/ \
+    config/.qoder/rules/ config/.trae/rules/; do
+    if [ -d "$dir" ]; then
+      git add "$dir" 2>/dev/null || true
+    fi
+  done
+
+  for dir in \
+    .agent/rules/ .cline/rules/ .cursor/rules/ .github-copilot/rules/ \
+    .windsurf/rules/ .codebuddy/skills/ .augment/guidelines/ \
+    .opensumi/rules/ .kiro/steering/ .qoder/rules/ .trae/rules/; do
+    if [ -d "$dir" ]; then
+      git add "$dir" 2>/dev/null || true
+    fi
+  done
+
+  if ! git diff --cached --quiet; then
+    echo "[husky] Mirror files updated and staged."
+  fi
+else
+  echo "[husky] Skipping sync:config (config/source/ not modified)."
+fi
+
+# --- Step 2: Build check (MUST pass) ---
+echo "[husky] Running npm run build..."
+npm run build
+if [ $? -ne 0 ]; then
+  echo "[husky] ERROR: npm run build failed. Fix errors before committing."
+  exit 1
+fi
+
+echo "[husky] All checks passed."

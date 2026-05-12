@@ -11,6 +11,7 @@ const {
   mockCreateCollection,
   mockCommonServiceCall,
   mockGetEnvInfo,
+  mockGetEnvId,
 } = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
   mockLogCloudBaseResult: vi.fn(),
@@ -19,6 +20,7 @@ const {
   mockCreateCollection: vi.fn(),
   mockCommonServiceCall: vi.fn(),
   mockGetEnvInfo: vi.fn(),
+  mockGetEnvId: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", async (importOriginal) => {
@@ -27,6 +29,7 @@ vi.mock("../cloudbase-manager.js", async (importOriginal) => {
   return {
     ...actual,
     getCloudBaseManager: mockGetCloudBaseManager,
+    getEnvId: mockGetEnvId,
     logCloudBaseResult: mockLogCloudBaseResult,
   };
 });
@@ -62,6 +65,8 @@ describe("NoSQL database tools", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetDatabaseInstanceIdCache();
+
+    mockGetEnvId.mockResolvedValue("env-test");
 
     mockCheckCollectionExists.mockResolvedValue({
       RequestId: "req-check",
@@ -112,6 +117,30 @@ describe("NoSQL database tools", () => {
           ModifiedNum: 1,
           MatchedNum: 1,
           UpsertedId: "doc-users-1",
+        };
+      }
+
+      if (Action === "CreateTable") {
+        return { RequestId: "req-create" };
+      }
+
+      if (Action === "DeleteTable") {
+        return { RequestId: "req-delete" };
+      }
+
+      if (Action === "DescribeTable") {
+        return {
+          RequestId: "req-describe",
+          IndexNum: 2,
+          Indexes: [],
+        };
+      }
+
+      if (Action === "ListTables") {
+        return {
+          RequestId: "req-list",
+          Tables: [{ TableName: "t_nosql_products" }],
+          Pager: { Total: 1, Limit: 100, Offset: 0 },
         };
       }
 
@@ -314,15 +343,19 @@ describe("NoSQL database tools", () => {
     expect(describePayload.collectionName).toBe("t_nosql_products");
     expect(describePayload.message).toBe("获取云开发数据库集合信息成功");
 
-    mockCheckCollectionExists
-      .mockResolvedValueOnce({
-        RequestId: "req-check-pre",
-        Exists: false,
-      })
-      .mockResolvedValueOnce({
-        RequestId: "req-check-ready",
-        Exists: true,
-      });
+    // For createCollection: DescribeTable fails (not exist) → CreateTable → DescribeTable succeeds (ready)
+    let describeTableCallCount = 0;
+    mockCommonServiceCall.mockImplementation(async ({ Action }) => {
+      if (Action === "DescribeTable") {
+        describeTableCallCount++;
+        if (describeTableCallCount === 1) throw new Error("not exist");
+        return { RequestId: "req-check-ready", IndexNum: 0, Indexes: [] };
+      }
+      if (Action === "CreateTable") return { RequestId: "req-create" };
+      if (Action === "PutItem") return { RequestId: "req-insert", InsertedIds: ["doc-1"] };
+      throw new Error(`Unexpected: ${Action}`);
+    });
+
     const createResult = await tools.writeNoSqlDatabaseStructure.handler({
       action: "createCollection",
       collectionName: "t_nosql_products",
@@ -350,9 +383,12 @@ describe("NoSQL database tools", () => {
   it("createCollection should return friendly message when collection already exists", async () => {
     const { tools } = createMockServer();
 
-    mockCheckCollectionExists.mockResolvedValue({
-      RequestId: "req-check-exists",
-      Exists: true,
+    // DescribeTable 成功 = 集合存在
+    mockCommonServiceCall.mockImplementation(async ({ Action }) => {
+      if (Action === "DescribeTable") {
+        return { RequestId: "req-check-exists", IndexNum: 0, Indexes: [] };
+      }
+      throw new Error(`Unexpected action: ${Action}`);
     });
 
     const result = await tools.writeNoSqlDatabaseStructure.handler({
@@ -361,7 +397,6 @@ describe("NoSQL database tools", () => {
     });
     const payload = JSON.parse(result.content[0].text);
 
-    expect(mockCreateCollection).not.toHaveBeenCalled();
     expect(payload).toMatchObject({
       success: true,
       action: "createCollection",
@@ -393,26 +428,32 @@ describe("NoSQL database tools", () => {
     expect(payload.data).toEqual(["raw-value"]);
   });
 
-  it("readNoSqlDatabaseContent should reuse cached instanceId across calls", async () => {
+  it("readNoSqlDatabaseContent should pass EnvId instead of Tag", async () => {
     const { tools } = createMockServer();
 
     await tools.readNoSqlDatabaseContent.handler({
       collectionName: "t_nosql_products",
     });
-    await tools.readNoSqlDatabaseContent.handler({
-      collectionName: "t_nosql_products",
-    });
 
-    expect(mockGetEnvInfo).toHaveBeenCalledTimes(1);
+    expect(mockCommonServiceCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Action: "QueryRecords",
+        Param: expect.objectContaining({
+          EnvId: "env-test",
+          TableName: "t_nosql_products",
+        }),
+      }),
+    );
+    // Should NOT call getEnvInfo (no longer needed for instanceId)
+    expect(mockGetEnvInfo).not.toHaveBeenCalled();
   });
 
-  it("writeNoSqlDatabaseContent should prefer explicit instanceId over getEnvInfo", async () => {
+  it("writeNoSqlDatabaseContent should pass EnvId in Param", async () => {
     const { tools } = createMockServer();
 
     await tools.writeNoSqlDatabaseContent.handler({
       action: "insert",
       collectionName: "t_nosql_products",
-      instanceId: "instance-override",
       documents: [{ name: "chain_nosql_probe_001", status: "active" }],
     });
 
@@ -421,28 +462,13 @@ describe("NoSQL database tools", () => {
       expect.objectContaining({
         Action: "PutItem",
         Param: expect.objectContaining({
-          Tag: "instance-override",
+          EnvId: "env-test",
         }),
       }),
     );
   });
 
-  it("readNoSqlDatabaseContent should dedupe concurrent instanceId fetches", async () => {
-    mockGetEnvInfo.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          setTimeout(
-            () =>
-              resolve({
-                EnvInfo: {
-                  Databases: [{ InstanceId: "instance-test" }],
-                },
-              }),
-            10,
-          );
-        }),
-    );
-
+  it("readNoSqlDatabaseContent should not call getEnvInfo for concurrent calls", async () => {
     const { tools } = createMockServer();
 
     await Promise.all([
@@ -454,6 +480,6 @@ describe("NoSQL database tools", () => {
       }),
     ]);
 
-    expect(mockGetEnvInfo).toHaveBeenCalledTimes(1);
+    expect(mockGetEnvInfo).not.toHaveBeenCalled();
   });
 });

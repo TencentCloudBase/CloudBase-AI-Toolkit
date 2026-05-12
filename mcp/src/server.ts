@@ -232,7 +232,9 @@ export async function createCloudBaseMcpServer(options?: {
         return await handler(args);
       } catch (error) {
         if (isToolPayloadError(error)) {
-          return buildJsonToolResult(error.payload);
+          // 在结构化错误返回中注入 MCP 版本号
+          const payload = { ...error.payload, mcpVersion: version };
+          return buildJsonToolResult(payload);
         }
         throw error;
       }

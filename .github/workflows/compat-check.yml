@@ -36,5 +36,15 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Verify compatibility contract and advisory text surface drift
-        run: npm run check:compat-diff
+      - name: Sync mirrors and check for drift
+        run: |
+          # Sync mirrors first (generates files from config/source/)
+          node scripts/sync-config.mjs
+          # Check for diff (blocking)
+          npm run check:compat-diff
+          # If sync produced changes, fail the build with a clear message
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "ERROR: config/source/ was modified but mirrors were not synced."
+            echo "Run 'node scripts/sync-config.mjs' locally and commit the updated mirrors."
+            exit 1
+          fi

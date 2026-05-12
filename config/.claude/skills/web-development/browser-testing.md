@@ -10,7 +10,7 @@ Trigger browser validation for changes that touch any of:
 
 - **Routing / navigation** — new routes, redirects, route guards, 404s, hash vs history mode, nested layouts
 - **Forms** — submit handlers, controlled inputs, validation errors, disabled states, file uploads
-- **Auth flows** — sign in, sign up, logout, session guards, token refresh, `getLoginState`
+- **Auth flows** — sign in, sign up, logout, session guards, token refresh, `getSession`
 - **Async UI** — loading spinners, skeletons, error banners, retry buttons, streaming responses
 - **Conditional rendering** — empty states, permission-gated sections, feature flags
 - **Third-party SDK calls from the browser** — CloudBase Web SDK (auth, database, AI model, storage), analytics, payment

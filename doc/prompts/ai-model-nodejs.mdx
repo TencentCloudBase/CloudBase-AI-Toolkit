@@ -53,14 +53,16 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 ## When to use this skill
 
-Use this skill for **calling AI models from Node.js backends or CloudBase cloud functions** via `@cloudbase/node-sdk`.
+Use this skill for **calling AI models from Node.js backends, cloud functions, or CloudRun services** via `@cloudbase/node-sdk`.
+
+> 🧭 **Runtime-plane fit.** This is the right skill when the AI call truly belongs on the server: image generation (the only SDK that supports it), long-running agent jobs, orchestration across multiple tools, scheduled tasks, or flows that must keep secrets server-side. **If the user is building a Web page / frontend AI chat UI, do NOT wrap this SDK behind a backend proxy** — route to `ai-model-web` and call the model directly from the browser. For WeChat Mini Programs use `ai-model-wechat`. Routing is decided by runtime plane first; the concrete model (`deepseek-*`, `glm-*`, `hunyuan-*`, `kimi-*`, …) only affects the `model` field.
 
 **Use it when you need to:**
 
 - Integrate AI text generation into a backend service
 - Generate images with the Hunyuan Image model
-- Call AI models from CloudBase cloud functions
-- Do server-side AI processing
+- Call AI models from CloudBase cloud functions or CloudRun
+- Do server-side AI processing (agent orchestration, batch jobs, scheduled tasks)
 
 **Do NOT use for:**
 
@@ -76,7 +78,7 @@ Read this before writing any `createModel(...)` line. Agents frequently hallucin
 
 | ✅ Legal `ai.createModel(...)` argument | When to use it |
 |----------------------------------------|----------------|
-| `"cloudbase"` | **Default for new projects.** The main managed group (TokenHub-backed, multi-vendor pool). Vendor + concrete model go into the **`model` field** of `generateText` / `streamText`, e.g. `{ model: "deepseek-v4-flash" }`. |
+| `"cloudbase"` | **The main managed group for server-side projects** (TokenHub-backed, multi-vendor pool). Vendor + concrete model go into the **`model` field** of `generateText` / `streamText`, e.g. `{ model: "deepseek-v4-flash" }`. **No model is enabled by default — always check `DescribeAIModels` first and, if the target model is missing, enable it with `UpdateAIModel` before calling the SDK.** |
 | `"hunyuan-exp"` | Only if `DescribeAIModels` explicitly returns this legacy builtin group for the current env. |
 | `"custom-<your-name>"` | A user-defined GroupName you onboarded via `CreateAIModel`. **Must** start with `custom-` (e.g. `custom-kimi`, `custom-openai-compat`). |
 
@@ -109,7 +111,7 @@ await model.generateText({
 1. The user says "use DeepSeek v3.2" / "use hunyuan instruct" / "use Kimi k2.6" / "use GLM-5" / …
 2. `createModel("cloudbase")` stays the same.
 3. Put the model id into the **`model` field**: `{ model: "deepseek-v3.2" }`, `{ model: "hunyuan-2.0-instruct-20251111" }`, `{ model: "kimi-k2.6" }`, `{ model: "glm-5" }`, …
-4. Before using the model id, make sure it is present in `DescribeAIModels({ GroupName: "cloudbase" }).Models[]`. If not, enable it via `UpdateAIModel` (see preflight ② below).
+4. **Never assume the model is already enabled.** Before calling the SDK, verify it is present in `DescribeAIModels({ GroupName: "cloudbase" }).Models[]`. If missing, call `DescribeManagedAIModelList` to confirm the exact `Model` name the platform supports (case-sensitive — do **not** guess the spelling) and then enable it via `UpdateAIModel` with `Status: 1` (remember `Models` is a full replacement).
 
 > If you are about to type `ai.createModel(` and the thing inside the parentheses is a vendor name, a model name, or a guess — **stop**. It is almost certainly one of the three legal values above.
 
@@ -162,17 +164,17 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
 
    Returns `AIModelGroups: AIModelGroup[]` with `GroupName`, `Type` (`builtin` / `custom`), `Models: [{ Model, EnableMCP, Tags }]`, `Status` (1 / 2), `BaseUrl`, `Secret`, `Remark`. The main managed `GroupName` is `cloudbase`.
 
-2. **Default scenarios:** for text, default to `createModel("cloudbase")` + `model: "deepseek-v4-flash"`; for images, default to `createImageModel("hunyuan-image")` + `model: "hunyuan-image"`. Both are enabled out of the box. If `DescribeAIModels` shows the `cloudbase` group with `Status=2`, or the target `Model` is missing from `Models[]`, jump to step 4.
+2. **Never assume a model is already enabled.** Inspect `AIModelGroups[?].Models[].Model` for the target group. If the text model you plan to use (e.g. `deepseek-v4-flash`, or whatever the user asked for) is missing from the `cloudbase` group's `Models[]`, jump to step 4 and enable it — do not call `createModel("cloudbase")` yet. Image generation uses `createImageModel("hunyuan-image")` + `model: "hunyuan-image"`; verify it is likewise enabled before the call.
 
-3. **User asked for a model from the managed catalog** (e.g. `deepseek-v3.2`, `hunyuan-2.0-instruct-20251111`): check whether that `Model` is already in the `cloudbase` group's `Models[]`. If not, jump to step 4.
+3. **User asked for a model from the managed catalog** (e.g. `deepseek-v3.2`, `hunyuan-2.0-instruct-20251111`): check whether that `Model` is already in the `cloudbase` group's `Models[]`. If not, jump to step 4. **Do not guess the exact model id** — confirm the canonical spelling in `DescribeManagedAIModelList` first.
 
-4. **Enable / add a managed model** (optionally inspect pricing first):
+4. **Enable / add a managed model** (always inspect the authoritative catalog + pricing first):
 
    ```
    callCloudApi(service="tcb", action="DescribeManagedAIModelList", params={ EnvId })
    ```
 
-   Returns `ManagedAIModelGroup[]` with `GroupName`, `Remark`, and `Models: [{ Model, EnableMCP, ModelSpec, ModelChargingInfo }]`. `ModelChargingInfo` includes input / output prices and billing unit. Surface the prices to the user before enabling.
+   Returns `ManagedAIModelGroup[]` with `GroupName`, `Remark`, and `Models: [{ Model, EnableMCP, ModelSpec, ModelChargingInfo }]`. **This is the single source of truth for supported model names and pricing — do not infer them from memory. Use the exact `Model` string from here when calling `UpdateAIModel`.** `ModelChargingInfo` includes input / output prices and billing unit. Surface the prices to the user before enabling.
 
    Then enable (note: `Models` is a **full replacement** — always resend the already-enabled models together with the new one):
 
@@ -181,7 +183,9 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
      EnvId,
      GroupName: "cloudbase",
      Models: [
-       { Model: "deepseek-v4-flash" },
+       // resend every model that DescribeAIModels already showed as enabled
+       { Model: "<already-enabled model>" },
+       // append the newly-requested one, using the exact spelling from DescribeManagedAIModelList
        { Model: "<target model>" }
      ],
      Status: 1
@@ -202,8 +206,8 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
 
 - `GroupName: "cloudbase"`, `Type: "builtin"`, `Remark: "腾讯云开发"` (Tencent CloudBase)
 - Backed by **Tencent Cloud TokenHub**, a unified managed pool covering multiple vendors — **Hunyuan** (HY 2.0 Instruct, HY 2.0 Think, Hunyuan-role, Hy3 preview, …), **DeepSeek** (DeepSeek-V4-Pro, DeepSeek-V4-Flash, Deepseek-v3.2, Deepseek-v3.1, Deepseek-r1-0528, Deepseek-v3-0324, …), **Zhipu GLM** (GLM-5, GLM-5-Turbo, GLM-5.1, GLM-5V-Turbo), **Kimi** (K2.5, K2.6), **MiniMax** (M2.5, M2.7), and more. The roster evolves — **do not hard-code specific SKUs**; discover at runtime
-- **Only `deepseek-v4-flash` is enabled by default**; other models must be appended via `UpdateAIModel` (Status:1) first
-- Current catalog + pricing: `DescribeManagedAIModelList`
+- **No model is enabled by default.** Always call `DescribeAIModels` first to see what the env has actually enabled; if your target model is missing, call `DescribeManagedAIModelList` for the authoritative catalog + pricing and then `UpdateAIModel` (`Status: 1`, `Models` full-replacement) to enable it before making the SDK call.
+- Authoritative catalog + pricing: `DescribeManagedAIModelList`
 - Env-enabled set: `DescribeAIModels`
 
 ### 2. `"hunyuan-exp"` — legacy builtin group (kept for compatibility)
@@ -322,7 +326,7 @@ const ai = app.ai();
 const model = ai.createModel("cloudbase");
 
 const result = await model.generateText({
-  model: "deepseek-v4-flash",  // on by default; other models require UpdateAIModel
+  model: "deepseek-v4-flash",  // must already be enabled in this env (DescribeAIModels → UpdateAIModel)
   messages: [{ role: "user", content: "Give me a one-paragraph intro to Li Bai." }],
 });
 
@@ -472,17 +476,19 @@ interface Usage {
 
 ## Best Practices
 
-1. **Run the two-step preflight before writing business code** — ① eligibility: `envQuery` → `callCloudApi(tcb, DescribeEnvPostpayPackage)` to confirm the Token Credits resource pack (text + image share the same pack); ② group readiness: `DescribeAIModels` for the `cloudbase` group and its `Models[]`, and `UpdateAIModel` with a full-replacement `Models[]` + `Status: 1` when needed. If the pack is missing, return the purchase link `https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token` instead of emitting SDK code and letting the user debug runtime errors.
-2. **`createModel` accepts exactly three kinds of values** — `"cloudbase"` (the main managed group), `"hunyuan-exp"` (legacy builtin), or a user-defined GroupName registered via `CreateAIModel` (**MUST start with `custom-`**, e.g. `custom-kimi`, `custom-openai-compat`). **Never** guess with `createModel("deepseek")` / `createModel("kimi")` / `createModel("custom")` — the first two are vendor/model names, the last is a placeholder. `createImageModel("hunyuan-image")` is a separate image API — keep it as-is.
-3. **Show pricing before enabling a new managed model** — `DescribeManagedAIModelList` returns `ModelSpec` (context length, max input/output tokens) + `ModelChargingInfo` (input / output / cache prices, billing unit). Show the prices to the user before calling `UpdateAIModel`.
-4. **Plan timeout and quota separately for image generation** — `generateImage` costs more per call than text and takes longer. For cloud functions, set `timeout` to `900s`. HTTP-function gateways cap at 60s, so use an async-task + polling pattern. Throttle per-user concurrency and frequency to avoid burning an entire Token pack on one failure.
-5. **Prefer streaming for long-form interactions** — in HTTP-function or cloud-function SSE scenarios, use `streamText` + `for await (const chunk of result.textStream)` to flush chunks back to the client incrementally. Handle stream interruption in `catch` and close the underlying response.
-6. **Pin `@cloudbase/node-sdk` >= 3.16.0** on the server — image generation is only available from this version. Verify with `npm ls @cloudbase/node-sdk` to confirm the version actually loaded by the cloud function / cloud run runtime — local and production can drift.
-7. **Do not scatter hard-coded model names through the codebase** — centralize `DEFAULT_TEXT_MODEL = "deepseek-v4-flash"`, `DEFAULT_IMAGE_MODEL = "hunyuan-image"` in config. The managed catalog and pricing evolve; a single source of truth makes upgrades cheap. For models outside the managed catalog, follow the Custom Onboarding section — never hard-code third-party API keys in business code (let `CreateAIModel.Secret.ApiKey` hold them via CloudBase).
-8. **Distinguish "preflight failure" from "model call failure"** — the former means the resource pack is not active or the target model has not been enabled via `UpdateAIModel` (guide the user to purchase / enable). The latter is a parameter issue or upstream error. Do not wrap both in one generic toast.
-9. **Do not log full prompts or generated text in production** — log only `usage.total_tokens` and a short prefix. Prompts can leak sensitive content; token counts can leak cost signals.
-10. **TypeScript: do NOT use `any` to silence SDK type errors.** The Node SDK ships its own types; narrow with `unknown` + a type guard, write a precise `interface` for the shape you consume, or augment types in a local `.d.ts`. Never `: any`, `as any`, `@ts-ignore`, `@ts-nocheck`. See the Engineering constitution in the `web-development` skill — it applies to backend TS too.
-11. **Self-verify before claiming done.** `tsc --noEmit` + project build + actually invoke the function (local invoke / `manageFunctions(action="invokeFunction")` / direct HTTP hit) and confirm `usage.total_tokens > 0` and the returned text is not an error envelope. "It should work" without a real round-trip is not acceptable evidence.
+1. **Run the two-step preflight before writing business code** — ① eligibility: `envQuery` → `callCloudApi(tcb, DescribeEnvPostpayPackage)` to confirm the Token Credits resource pack (text + image share the same pack); ② group readiness: `DescribeAIModels` for the `cloudbase` group and its `Models[]`, `DescribeManagedAIModelList` for the authoritative supported-model catalog, `UpdateAIModel` with a full-replacement `Models[]` + `Status: 1` when the target model is missing. If the pack is missing, return the purchase link `https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token` instead of emitting SDK code and letting the user debug runtime errors.
+2. **Never assume any model is already enabled** — not `deepseek-v4-flash`, not `hunyuan-image`, not anything. Always verify with `DescribeAIModels` first; if the target is missing, look up the exact `Model` string in `DescribeManagedAIModelList` (do **not** guess the spelling) and then `UpdateAIModel` to enable it.
+3. **`createModel` accepts exactly three kinds of values** — `"cloudbase"` (the main managed group), `"hunyuan-exp"` (legacy builtin), or a user-defined GroupName registered via `CreateAIModel` (**MUST start with `custom-`**, e.g. `custom-kimi`, `custom-openai-compat`). **Never** guess with `createModel("deepseek")` / `createModel("kimi")` / `createModel("custom")` — the first two are vendor/model names, the last is a placeholder. `createImageModel("hunyuan-image")` is a separate image API — keep it as-is.
+4. **Do not invent SDK method names or parameters.** This SKILL.md is the authoritative reference for `@cloudbase/node-sdk`'s AI surface — look up the method signature here (or in the Type Definitions section) before writing code. If a method or field is not documented here, stop and ask, or check the live contract via the MCP tools. No guessing.
+5. **Show pricing before enabling a new managed model** — `DescribeManagedAIModelList` returns `ModelSpec` (context length, max input/output tokens) + `ModelChargingInfo` (input / output / cache prices, billing unit). Show the prices to the user before calling `UpdateAIModel`.
+6. **Plan timeout and quota separately for image generation** — `generateImage` costs more per call than text and takes longer. For cloud functions, set `timeout` to `900s`. HTTP-function gateways cap at 60s, so use an async-task + polling pattern. Throttle per-user concurrency and frequency to avoid burning an entire Token pack on one failure.
+7. **Prefer streaming for long-form interactions** — in HTTP-function or cloud-function SSE scenarios, use `streamText` + `for await (const chunk of result.textStream)` to flush chunks back to the client incrementally. Handle stream interruption in `catch` and close the underlying response.
+8. **Pin `@cloudbase/node-sdk` >= 3.16.0** on the server — image generation is only available from this version. Verify with `npm ls @cloudbase/node-sdk` to confirm the version actually loaded by the cloud function / cloud run runtime — local and production can drift.
+9. **Centralize model names in config, not scattered literals.** Keep the chosen text / image model in a single constant and source from `DescribeAIModels` / `DescribeManagedAIModelList`. The managed catalog evolves; a single source of truth makes upgrades cheap. For models outside the managed catalog, follow the Custom Onboarding section — never hard-code third-party API keys in business code (let `CreateAIModel.Secret.ApiKey` hold them via CloudBase).
+10. **Distinguish "preflight failure" from "model call failure"** — the former means the resource pack is not active or the target model has not been enabled via `UpdateAIModel` (guide the user to purchase / enable). The latter is a parameter issue or upstream error. Do not wrap both in one generic toast.
+11. **Do not log full prompts or generated text in production** — log only `usage.total_tokens` and a short prefix. Prompts can leak sensitive content; token counts can leak cost signals.
+12. **TypeScript: do NOT use `any` to silence SDK type errors.** The Node SDK ships its own types; narrow with `unknown` + a type guard, write a precise `interface` for the shape you consume, or augment types in a local `.d.ts`. Never `: any`, `as any`, `@ts-ignore`, `@ts-nocheck`. See the Engineering constitution in the `web-development` skill — it applies to backend TS too.
+13. **Self-verify before claiming done.** `tsc --noEmit` + project build + actually invoke the function (local invoke / `manageFunctions(action="invokeFunction")` / direct HTTP hit) and confirm `usage.total_tokens > 0` and the returned text is not an error envelope. "It should work" without a real round-trip is not acceptable evidence.
 ````
 
 </details>

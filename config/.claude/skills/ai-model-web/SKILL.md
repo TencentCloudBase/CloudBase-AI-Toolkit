@@ -227,7 +227,7 @@ npm install @cloudbase/js-sdk
 > ⚠️ **Do not use anonymous sign-in as the default.** Anonymous login is **disabled by default** for new environments, and inactive existing environments have also been automatically disabled. Even when anonymous login is manually enabled, **anonymous users are denied AI model invocation permissions by default**. The AI-model skill does **not** prescribe a specific login UI — delegate that concern:
 >
 > - **Enabling / configuring login providers** (phone SMS, email, WeChat Open Platform, username+password, OAuth, …) → follow the **`auth-tool`** skill (backend config via `callCloudApi`).
-> - **Building the actual sign-in flow in the browser** (login form, callbacks, session guarding) → follow the **`auth-web`** skill (`@cloudbase/js-sdk` auth API, e.g. `signInWithPassword`, `signInWithPhone`, `getLoginState`).
+> - **Building the actual sign-in flow in the browser** (login form, callbacks, session guarding) → follow the **`auth-web`** skill (`@cloudbase/js-sdk` auth API, e.g. `signInWithPassword`, `signInWithPhone`, `getSession`).
 >
 > Do **not** fall back to `signInAnonymously()` for AI features — anonymous users cannot call AI models. Only use anonymous login for non-AI read-only demos where the user explicitly requests it and accepts the trade-off.
 
@@ -241,13 +241,13 @@ const app = cloudbase.init({
 
 const auth = app.auth();
 
-// Ensure the user is signed in before calling any AI API.
-// The concrete sign-in flow lives in your app (see the `auth-web` skill),
-// e.g. a login page that calls auth.signInWithPassword / signInWithPhone / …
-// and uses auth.onLoginStateChanged() to observe session changes.
-const loginState = await auth.getLoginState();
-if (!loginState) {
-  // Route to your own sign-in page — do NOT block here with a blind redirect.
+// CRITICAL: Use auth.getSession() to check login — NOT the deprecated getLoginState().
+// getLoginState() returns uid even without real login (just accessKey), causing false positives.
+// getSession() returns data.session === undefined when no real login exists.
+// Anonymous users are DENIED AI model permissions — calling AI without real login will fail.
+const { data: sessionData } = await auth.getSession();
+if (!sessionData?.session || sessionData.session.user?.is_anonymous) {
+  // No real login or anonymous session — route to sign-in page
   window.location.href = "/login";
   return;
 }
@@ -258,7 +258,8 @@ const ai = app.ai();
 **Important notes:**
 
 - Use synchronous initialization with a top-level import
-- The user MUST be authenticated before using AI features — use a verified login (phone, email, WeChat, username+password, custom), never anonymous. Anonymous users are denied AI model permissions by default. The exact flow is the responsibility of the `auth-web` skill.
+- **`accessKey` causes `getLoginState()` to return misleading auth data** — the deprecated `getLoginState()` returns an object with `uid` even without real login, which breaks naive `!!loginState` checks. Use `auth.getSession()` instead: it returns `data.session === undefined` when no real login exists, so `!!data.session` is a reliable auth gate.
+- The user MUST be authenticated with a verified login (phone, email, WeChat, username+password, custom) before using AI features. Anonymous users are denied AI model permissions. The exact flow is the responsibility of the `auth-web` skill.
 - Get `accessKey` from the CloudBase console
 
 ---
@@ -382,7 +383,7 @@ interface Usage {
 7. **Handle errors gracefully** — wrap AI calls in try/catch.
 8. **Keep `accessKey` safe** — use a publishable key, never a secret key.
 9. **Initialize early** — set up the SDK at app entry so auth and AI are both ready before routing.
-10. **Do NOT use anonymous auth for AI features** — anonymous login is disabled by default for new environments, and anonymous users are denied AI model permissions. Require a verified sign-in (phone, email, username+password, WeChat, custom) before calling any AI API. Delegate provider configuration to the `auth-tool` skill and the browser sign-in flow to the `auth-web` skill; the AI-model skill only checks `auth.getLoginState()` and gates the call.
+10. **Do NOT use anonymous auth for AI features** — anonymous login is disabled by default for new environments, and anonymous users are denied AI model permissions. Require a verified sign-in (phone, email, username+password, WeChat, custom) before calling any AI API. Delegate provider configuration to the `auth-tool` skill and the browser sign-in flow to the `auth-web` skill; the AI-model skill checks `auth.getSession()` and verifies `loginType` before gating the call.
 11. **Distinguish "preflight failure" from "model call failure"** — the former means the user needs to buy a resource pack or call `UpdateAIModel`; the latter is a prompt / parameter / network issue. Give the user different guidance for each.
 12. **TypeScript: do NOT use `any` to silence type errors from the SDK.** The SDK ships its own types; if an error shows up, narrow with `unknown` + a type guard, write a precise `interface` for the shape you actually consume, or augment types in a local `.d.ts`. Never `: any`, `as any`, `@ts-ignore`, or `@ts-nocheck`. See the Engineering constitution in the `web-development` skill.
 13. **Self-verify before claiming done.** Run `tsc --noEmit` + the project build + open the page with `agent-browser` and actually trigger the AI call. Confirm: (a) the text stream reaches the UI, (b) no new console errors, (c) `result.usage` is non-zero. Saying "it should work" without evidence is not acceptable — follow `web-development/browser-testing.md`.

@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   getDatabaseInstanceId,
   getCloudBaseManager,
+  getEnvId,
   invalidateDatabaseInstanceIdCache,
   logCloudBaseResult,
 } from "../cloudbase-manager.js";
@@ -172,13 +173,8 @@ async function callNoSqlContentApi(options: {
   instanceIdOverride?: string;
   param: Record<string, unknown>;
 }) {
-  const resolvedInstance = await resolveNoSqlInstanceId({
-    toolName: options.toolName,
-    cloudbase: options.cloudbase,
-    cloudBaseOptions: options.cloudBaseOptions,
-    instanceIdOverride: options.instanceIdOverride,
-    collectionName: options.collectionName,
-  });
+  // 直接使用 EnvId 替代 Tag，无需通过 DescribeEnvs 获取 instanceId
+  const envId = await getEnvId(options.cloudBaseOptions);
 
   const startedAt = Date.now();
 
@@ -190,7 +186,7 @@ async function callNoSqlContentApi(options: {
         Param: {
           ...options.param,
           TableName: options.collectionName,
-          Tag: resolvedInstance.instanceId,
+          EnvId: envId,
         },
       });
 
@@ -198,7 +194,7 @@ async function callNoSqlContentApi(options: {
       collectionName: options.collectionName,
       action: options.action,
       durationMs: Date.now() - startedAt,
-      instanceIdSource: resolvedInstance.source,
+      instanceIdSource: "envId",
       requestId: result?.RequestId,
     });
 
@@ -208,23 +204,9 @@ async function callNoSqlContentApi(options: {
       collectionName: options.collectionName,
       action: options.action,
       durationMs: Date.now() - startedAt,
-      instanceIdSource: resolvedInstance.source,
+      instanceIdSource: "envId",
       message: error instanceof Error ? error.message : String(error),
     });
-
-    if (
-      !options.instanceIdOverride &&
-      resolvedInstance.cacheKey &&
-      isInvalidInstanceIdError(error)
-    ) {
-      invalidateDatabaseInstanceIdCache({
-        cacheKey: resolvedInstance.cacheKey,
-      });
-      logNoSqlLatency(options.toolName, "invalidateInstanceIdCache", {
-        collectionName: options.collectionName,
-        cacheKey: resolvedInstance.cacheKey,
-      });
-    }
 
     throw error;
   }
@@ -258,19 +240,25 @@ async function waitForCollectionReady({
 
   while (Date.now() <= deadline) {
     try {
-      const result =
-        await cloudbase.database.checkCollectionExists(collectionName);
+      // 直接用 commonService 调用 DescribeTable 检查集合是否存在，避免 SDK lazyInit → DescribeEnvs
+      const envId = await getEnvId();
+      const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+        Action: "DescribeTable",
+        Param: {
+          EnvId: envId,
+          TableName: collectionName,
+        },
+      });
       logCloudBaseResult(logger, result);
-      if (result.Exists) {
-        logger?.({
-          type: "toolInfo",
-          toolName: "writeNoSqlDatabaseStructure",
-          message: "NoSQL collection is ready for subsequent operations",
-          collectionName,
-          waitedMs: Date.now() - startedAt,
-        });
-        return;
-      }
+      // DescribeTable 成功返回即表示集合存在
+      logger?.({
+        type: "toolInfo",
+        toolName: "writeNoSqlDatabaseStructure",
+        message: "NoSQL collection is ready for subsequent operations",
+        collectionName,
+        waitedMs: Date.now() - startedAt,
+      });
+      return;
     } catch (error) {
       lastError = error;
     }
@@ -354,9 +342,14 @@ checkIndex: 检查指定索引是否存在`),
       const cloudbase = await getManager();
 
       if (action === "listCollections") {
-        const result = await cloudbase.database.listCollections({
-          MgoOffset: offset,
-          MgoLimit: limit,
+        const envId = await getEnvId(server.cloudBaseOptions);
+        const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+          Action: "ListTables",
+          Param: {
+            EnvId: envId,
+            MgoOffset: offset ?? 0,
+            MgoLimit: limit ?? 100,
+          },
         });
         logCloudBaseResult(server.logger, result);
         return {
@@ -383,9 +376,20 @@ checkIndex: 检查指定索引是否存在`),
         if (!collectionName) {
           throw new Error("检查集合时必须提供 collectionName");
         }
-        const result =
-          await cloudbase.database.checkCollectionExists(collectionName);
-        logCloudBaseResult(server.logger, result);
+        const envId = await getEnvId(server.cloudBaseOptions);
+        let exists = false;
+        let requestId = "";
+        try {
+          const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+            Action: "DescribeTable",
+            Param: { EnvId: envId, TableName: collectionName },
+          });
+          exists = true;
+          requestId = result?.RequestId ?? "";
+        } catch (e: any) {
+          // DescribeTable 失败即集合不存在
+          requestId = e?.requestId ?? "";
+        }
         return {
           content: [
             {
@@ -393,9 +397,9 @@ checkIndex: 检查指定索引是否存在`),
               text: JSON.stringify(
                 withCollectionName(collectionName, {
                   success: true,
-                  exists: result.Exists,
-                  requestId: result.RequestId,
-                  message: result.Exists
+                  exists,
+                  requestId,
+                  message: exists
                     ? "云开发数据库集合已存在"
                     : "云开发数据库集合不存在",
                 }),
@@ -411,8 +415,11 @@ checkIndex: 检查指定索引是否存在`),
         if (!collectionName) {
           throw new Error("查看集合详情时必须提供 collectionName");
         }
-        const result =
-          await cloudbase.database.describeCollection(collectionName);
+        const envId = await getEnvId(server.cloudBaseOptions);
+        const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+          Action: "DescribeTable",
+          Param: { EnvId: envId, TableName: collectionName },
+        });
         logCloudBaseResult(server.logger, result);
         return {
           content: [
@@ -438,8 +445,11 @@ checkIndex: 检查指定索引是否存在`),
         if (!collectionName) {
           throw new Error("获取索引列表时必须提供 collectionName");
         }
-        const result =
-          await cloudbase.database.describeCollection(collectionName);
+        const envId = await getEnvId(server.cloudBaseOptions);
+        const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+          Action: "DescribeTable",
+          Param: { EnvId: envId, TableName: collectionName },
+        });
         logCloudBaseResult(server.logger, result);
         return {
           content: [
@@ -465,11 +475,21 @@ checkIndex: 检查指定索引是否存在`),
         if (!collectionName || !indexName) {
           throw new Error("检查索引时必须提供 collectionName 和 indexName");
         }
-        const result = await cloudbase.database.checkIndexExists(
-          collectionName,
-          indexName,
-        );
-        logCloudBaseResult(server.logger, result);
+        const envId = await getEnvId(server.cloudBaseOptions);
+        let exists = false;
+        let requestId = "";
+        try {
+          const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+            Action: "DescribeTable",
+            Param: { EnvId: envId, TableName: collectionName },
+          });
+          requestId = result?.RequestId ?? "";
+          const indexes = result?.Indexes ?? result?.IndexNum ? result?.Indexes : [];
+          exists = Array.isArray(indexes) && indexes.some((idx: any) => idx.IndexName === indexName);
+        } catch (e: any) {
+          requestId = e?.requestId ?? "";
+        }
+        logCloudBaseResult(server.logger, { RequestId: requestId });
         return {
           content: [
             {
@@ -478,9 +498,9 @@ checkIndex: 检查指定索引是否存在`),
                 withCollectionName(collectionName, {
                   success: true,
                   indexName,
-                  exists: result.Exists,
-                  requestId: result.RequestId,
-                  message: result.Exists ? "索引已存在" : "索引不存在",
+                  exists,
+                  requestId,
+                  message: exists ? "索引已存在" : "索引不存在",
                 }),
                 null,
                 2,
@@ -556,10 +576,21 @@ deleteCollection: 删除集合`),
     async ({ action, collectionName, updateOptions }) => {
       const cloudbase = await getManager();
       if (action === "createCollection") {
-        const existsResult =
-          await cloudbase.database.checkCollectionExists(collectionName);
-        logCloudBaseResult(server.logger, existsResult);
-        if (existsResult.Exists) {
+        // 检查集合是否存在 - 使用 commonService 避免 SDK lazyInit → DescribeEnvs
+        const envId = await getEnvId(server.cloudBaseOptions);
+        let collectionExists = false;
+        let existsRequestId = "";
+        try {
+          const descResult = await cloudbase.commonService("tcb", "2018-06-08").call({
+            Action: "DescribeTable",
+            Param: { EnvId: envId, TableName: collectionName },
+          });
+          collectionExists = true;
+          existsRequestId = descResult?.RequestId ?? "";
+        } catch (e: any) {
+          existsRequestId = e?.requestId ?? "";
+        }
+        if (collectionExists) {
           return {
             content: [
               {
@@ -568,7 +599,7 @@ deleteCollection: 删除集合`),
                   withCollectionName(collectionName, {
                     success: true,
                     action,
-                    requestId: existsResult.RequestId,
+                    requestId: existsRequestId,
                     message: "集合已存在，无需重复创建",
                     exists: true,
                   }),
@@ -580,7 +611,13 @@ deleteCollection: 删除集合`),
           };
         }
         const result =
-          await cloudbase.database.createCollection(collectionName);
+          await cloudbase.commonService("tcb", "2018-06-08").call({
+            Action: "CreateTable",
+            Param: {
+              EnvId: await getEnvId(server.cloudBaseOptions),
+              TableName: collectionName,
+            },
+          });
         logCloudBaseResult(server.logger, result);
         await waitForCollectionReady({
           cloudbase,
@@ -610,10 +647,14 @@ deleteCollection: 删除集合`),
         if (!updateOptions) {
           throw new Error("更新集合时必须提供 options");
         }
-        const result = await cloudbase.database.updateCollection(
-          collectionName,
-          updateOptions,
-        );
+        const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+          Action: "UpdateTable",
+          Param: {
+            EnvId: await getEnvId(server.cloudBaseOptions),
+            TableName: collectionName,
+            ...updateOptions,
+          },
+        });
         logCloudBaseResult(server.logger, result);
         return {
           content: [
@@ -636,7 +677,13 @@ deleteCollection: 删除集合`),
 
       if (action === "deleteCollection") {
         const result =
-          await cloudbase.database.deleteCollection(collectionName);
+          await cloudbase.commonService("tcb", "2018-06-08").call({
+            Action: "DeleteTable",
+            Param: {
+              EnvId: await getEnvId(server.cloudBaseOptions),
+              TableName: collectionName,
+            },
+          });
         logCloudBaseResult(server.logger, result);
         const body: Record<string, unknown> = withCollectionName(
           collectionName,

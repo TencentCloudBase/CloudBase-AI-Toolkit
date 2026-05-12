@@ -65,7 +65,7 @@
   "dependencies": {
     "@cloudbase/cals": "^1.2.23",
     "@cloudbase/functions-framework": "^1.14.0",
-    "@cloudbase/manager-node": "^5.1.0",
+    "@cloudbase/manager-node": "^5.3.1",
     "@cloudbase/mcp": "^1.0.0-beta.25",
     "@cloudbase/toolbox": "^0.7.20",
     "@modelcontextprotocol/sdk": "1.13.1",
