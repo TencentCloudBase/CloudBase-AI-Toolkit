@@ -1301,16 +1301,16 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     {
       title: "环境查询",
       description:
-        "查询云开发环境相关信息，支持查询环境列表、当前环境信息、安全域名和静态网站托管配置。（原工具名：listEnvs/getEnvInfo/getEnvAuthDomains/getWebsiteConfig，为兼容旧AI规则可继续使用这些名称）当 action=list 时，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知环境的详细信息，请使用 action=info。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。",
+        "查询云开发环境相关信息，支持查询环境列表、指定环境详情、安全域名和静态网站托管配置。（原工具名：listEnvs/getEnvInfo/getEnvAuthDomains/getWebsiteConfig，为兼容旧AI规则可继续使用这些名称）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。",
       inputSchema: {
         action: z
           .enum(["list", "info", "domains", "hosting"])
           .describe(
-            "查询类型：list=环境列表/摘要筛选（即使传 envId 也只返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=当前环境详细信息（详情中可查看更完整资源字段），domains=安全域名列表，hosting=静态网站托管配置",
+            "查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId 筛选，返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表，hosting=静态网站托管配置",
           ),
         alias: z.string().optional().describe("按环境别名筛选。action=list 时可选"),
         aliasExact: z.boolean().optional().describe("按环境别名精确筛选。action=list 时可选；与 alias 配合使用"),
-        envId: z.string().optional().describe("按环境 ID 精确筛选。action=list 时可选；注意 list + envId 仍只返回摘要，如需该环境详情请改用 action=info"),
+        envId: z.string().optional().describe("按环境 ID 筛选。action=list 时可选（仅按 DescribeEnvs 语义做筛选，仍返回摘要）；action=info 时必填（返回该环境的详细信息，包含资源字段和计费信息）。如果任务已经给出了明确的 EnvId 并要求查询详情，请直接使用 action=info + envId，而不是 action=list"),
         limit: z.number().int().positive().optional().describe("返回数量上限。action=list 时可选"),
         offset: z.number().int().min(0).optional().describe("分页偏移。action=list 时可选"),
         fields: z
