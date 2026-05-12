@@ -85,11 +85,11 @@
     },
     {
       "name": "queryFunctions",
-      "description": "Query cloud function details, logs, layers, triggers, and download URLs"
+      "description": "Query cloud function details, logs, layers, triggers, download URLs, and timer/cron schedule configuration"
     },
     {
       "name": "manageFunctions",
-      "description": "Create, update, invoke, and configure cloud functions and layers"
+      "description": "Create, update, invoke, and configure cloud functions, timer/cron scheduled triggers, and layers"
     },
     {
       "name": "queryGateway",
