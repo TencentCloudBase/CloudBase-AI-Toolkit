@@ -284,6 +284,36 @@ function buildFindFilesNextStep(prefix: string) {
   };
 }
 
+async function callTcbHostingAction(
+  cloudbase: any,
+  action: string,
+  param: Record<string, unknown>,
+  logger?: ExtendedMcpServer['logger'],
+) {
+  const service = cloudbase.commonService?.('tcb', '2018-06-08');
+
+  if (!service?.call) {
+    throw new Error(`当前 CloudBase Manager 实例不支持 commonService.call，无法执行 ${action}。`);
+  }
+
+  const result = await service.call({
+    Action: action,
+    Param: param,
+  });
+  logCloudBaseResult(logger, result);
+  return result;
+}
+
+function extractStaticStores(value: unknown): Array<Record<string, unknown>> {
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+
+  const payload = value as Record<string, unknown>;
+  const stores = payload.Data;
+  return Array.isArray(stores) ? stores.filter(isRecord) : [];
+}
+
 async function describeHostingDomainTask(
   cloudbase: any,
   cloudBaseOptions?: { envId?: string },
@@ -291,17 +321,12 @@ async function describeHostingDomainTask(
 ) {
   try {
     const envId = await getEnvId(cloudBaseOptions);
-    const service = cloudbase.commonService?.('tcb', '2018-06-08');
-
-    if (!service?.call) {
-      return undefined;
-    }
-
-    const result = await service.call({
-      Action: 'DescribeHostingDomainTask',
-      Param: { EnvId: envId },
-    });
-    logCloudBaseResult(logger, result);
+    const result = await callTcbHostingAction(
+      cloudbase,
+      'DescribeHostingDomainTask',
+      { EnvId: envId },
+      logger,
+    );
 
     return {
       rawStatus: extractTaskStatus(result),
@@ -449,18 +474,25 @@ export function registerHostingTools(server: ExtendedMcpServer) {
           }
 
           case 'status': {
-            const hostingInfo = await cloudbase.hosting.getInfo();
-            logCloudBaseResult(server.logger, hostingInfo);
-            const current = Array.isArray(hostingInfo) ? hostingInfo[0] ?? null : hostingInfo;
+            const envId = await getEnvId(cloudBaseOptions);
+            const result = await callTcbHostingAction(
+              cloudbase,
+              'DescribeStaticStore',
+              { EnvId: envId },
+              server.logger,
+            );
+            const hostingInfo = extractStaticStores(result);
+            const current = hostingInfo[0] ?? null;
             return buildJsonToolResult({
               success: true,
               data: {
                 action: 'status',
-                enabled: Array.isArray(hostingInfo) ? hostingInfo.length > 0 : Boolean(hostingInfo),
+                enabled: hostingInfo.length > 0,
                 current,
                 hostingInfo,
+                result,
               },
-              message: Array.isArray(hostingInfo) && hostingInfo.length > 0
+              message: hostingInfo.length > 0
                 ? '已获取静态托管服务状态。'
                 : '静态托管服务当前未返回可用实例信息，可能尚未开通。',
             });
@@ -686,8 +718,13 @@ export function registerHostingTools(server: ExtendedMcpServer) {
           }
 
           case 'enableService': {
-            const result = await cloudbase.hosting.enableService();
-            logCloudBaseResult(server.logger, result);
+            const envId = await getEnvId(cloudBaseOptions);
+            const result = await callTcbHostingAction(
+              cloudbase,
+              'CreateStaticStore',
+              { EnvId: envId },
+              server.logger,
+            );
             return buildJsonToolResult({
               success: true,
               data: {

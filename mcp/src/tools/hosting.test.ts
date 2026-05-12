@@ -6,15 +6,15 @@ const {
   mockGetEnvId,
   mockSendDeployNotification,
   mockDescribeHostingDomainTask,
+  mockDescribeStaticStore,
+  mockCreateStaticStore,
   mockGetWebsiteConfig,
-  mockGetHostingInfo,
   mockFindFiles,
   mockListFiles,
   mockCheckResource,
   mockUploadFiles,
   mockDeleteFiles,
   mockSetWebsiteDocument,
-  mockEnableService,
   mockCreateHostingDomain,
   mockDeleteHostingDomain,
   mockModifyHostingDomain,
@@ -26,15 +26,15 @@ const {
   mockGetEnvId: vi.fn(),
   mockSendDeployNotification: vi.fn(),
   mockDescribeHostingDomainTask: vi.fn(),
+  mockDescribeStaticStore: vi.fn(),
+  mockCreateStaticStore: vi.fn(),
   mockGetWebsiteConfig: vi.fn(),
-  mockGetHostingInfo: vi.fn(),
   mockFindFiles: vi.fn(),
   mockListFiles: vi.fn(),
   mockCheckResource: vi.fn(),
   mockUploadFiles: vi.fn(),
   mockDeleteFiles: vi.fn(),
   mockSetWebsiteDocument: vi.fn(),
-  mockEnableService: vi.fn(),
   mockCreateHostingDomain: vi.fn(),
   mockDeleteHostingDomain: vi.fn(),
   mockModifyHostingDomain: vi.fn(),
@@ -107,14 +107,17 @@ beforeEach(() => {
     ErrorDocument: '404.html',
     RoutingRules: [],
   });
-  mockGetHostingInfo.mockResolvedValue([
-    {
-      Status: 'online',
-      CdnDomain: 'static.example.com',
-      Bucket: 'hosting-bucket',
-      Id: 1,
-    },
-  ]);
+  mockDescribeStaticStore.mockResolvedValue({
+    Data: [
+      {
+        Status: 'online',
+        CdnDomain: 'static.example.com',
+        Bucket: 'hosting-bucket',
+        Id: 1,
+      },
+    ],
+    RequestId: 'req-status',
+  });
   mockFindFiles.mockResolvedValue({ Files: [{ Key: 'site/index.html' }] });
   mockListFiles.mockResolvedValue([{ Key: 'site/index.html' }, { Key: 'site/app.js' }]);
   mockCheckResource.mockResolvedValue({
@@ -124,7 +127,7 @@ beforeEach(() => {
   mockUploadFiles.mockResolvedValue({ RequestId: 'req-upload' });
   mockDeleteFiles.mockResolvedValue({ Deleted: [{ Key: 'site/index.html' }], Error: [] });
   mockSetWebsiteDocument.mockResolvedValue({ RequestId: 'req-set-website' });
-  mockEnableService.mockResolvedValue({ code: 0, requestId: 'req-enable-hosting' });
+  mockCreateStaticStore.mockResolvedValue({ Result: 'succ', RequestId: 'req-enable-hosting' });
   mockCreateHostingDomain.mockResolvedValue({ RequestId: 'req-bind-domain' });
   mockDeleteHostingDomain.mockResolvedValue({ RequestId: 'req-unbind-domain' });
   mockModifyHostingDomain.mockResolvedValue({ RequestId: 'req-update-domain' });
@@ -147,14 +150,12 @@ beforeEach(() => {
   mockGetCloudBaseManager.mockResolvedValue({
     hosting: {
       getWebsiteConfig: mockGetWebsiteConfig,
-      getInfo: mockGetHostingInfo,
       findFiles: mockFindFiles,
       listFiles: mockListFiles,
       tcbCheckResource: mockCheckResource,
       uploadFiles: mockUploadFiles,
       deleteFiles: mockDeleteFiles,
       setWebsiteDocument: mockSetWebsiteDocument,
-      enableService: mockEnableService,
       CreateHostingDomain: mockCreateHostingDomain,
       deleteHostingDomain: mockDeleteHostingDomain,
       tcbModifyAttribute: mockModifyHostingDomain,
@@ -165,7 +166,18 @@ beforeEach(() => {
       getEnvInfo: mockGetEnvInfo,
     },
     commonService: vi.fn(() => ({
-      call: mockDescribeHostingDomainTask,
+      call: vi.fn(({ Action }: { Action: string }) => {
+        if (Action === 'DescribeStaticStore') {
+          return mockDescribeStaticStore();
+        }
+        if (Action === 'CreateStaticStore') {
+          return mockCreateStaticStore();
+        }
+        if (Action === 'DescribeHostingDomainTask') {
+          return mockDescribeHostingDomainTask();
+        }
+        throw new Error(`Unexpected Action: ${Action}`);
+      }),
     })),
   });
 });
@@ -202,6 +214,19 @@ describe('hosting tools', () => {
       CdnDomain: 'static.example.com',
       Bucket: 'hosting-bucket',
     });
+  });
+
+  it('queryHosting(action=status) should call DescribeStaticStore and return hosting state', async () => {
+    const tools = createMockServer();
+    const payload = JSON.parse((await tools.queryHosting.handler({ action: 'status' })).content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(payload.data.enabled).toBe(true);
+    expect(payload.data.current).toMatchObject({
+      Status: 'online',
+      CdnDomain: 'static.example.com',
+    });
+    expect(mockDescribeStaticStore).toHaveBeenCalled();
   });
 
   it('queryHosting(action=domainStatus) should return polling guidance for missing domains', async () => {
@@ -279,7 +304,7 @@ describe('hosting tools', () => {
     expect(payload.data.nextActions[0]).toMatchObject({ action: 'websiteConfig' });
   });
 
-  it('manageHosting(action=enableService) should return status follow-up guidance', async () => {
+  it('manageHosting(action=enableService) should call CreateStaticStore and return status follow-up guidance', async () => {
     const tools = createMockServer();
     const payload = JSON.parse((await tools.manageHosting.handler({
       action: 'enableService',
@@ -287,10 +312,12 @@ describe('hosting tools', () => {
 
     expect(payload.success).toBe(true);
     expect(payload.data.asyncState).toBe('PENDING');
+    expect(payload.data.result).toMatchObject({ RequestId: 'req-enable-hosting' });
     expect(payload.data.nextActions[0]).toMatchObject({
       tool: 'queryHosting',
       action: 'status',
     });
+    expect(mockCreateStaticStore).toHaveBeenCalled();
   });
 
   it('manageHosting(action=bindDomain) should return structured polling guidance', async () => {
@@ -343,7 +370,7 @@ describe('hosting tools', () => {
     })).content[0].text);
 
     expect(payload.success).toBe(true);
-    expect(mockEnableService).toHaveBeenCalled();
+    expect(mockCreateStaticStore).toHaveBeenCalled();
   });
 
   it('manageHosting(action=downloadFile/downloadDirectory) should call the hosting SDK with local paths', async () => {
