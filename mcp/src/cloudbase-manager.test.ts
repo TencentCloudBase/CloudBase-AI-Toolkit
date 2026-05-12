@@ -135,21 +135,12 @@ describe("cloudbase manager auth gate", () => {
     await expect(getEnvId()).resolves.toBe("env-1");
   });
 
-  it("should resolve actual env region when envId is provided without region", async () => {
+  it("should use fallback region when envId is provided without explicit region", async () => {
     process.env.TCB_REGION = "ap-shanghai";
     mockPeekLoginState.mockResolvedValue({
       secretId: "sid",
       secretKey: "skey",
       token: "token",
-    });
-    mockCommonServiceCall.mockResolvedValue({
-      EnvList: [
-        {
-          EnvId: "env-explicit",
-          Alias: "prod",
-          Region: "ap-guangzhou",
-        },
-      ],
     });
 
     const { getCloudBaseManager } = await import("./cloudbase-manager.js");
@@ -171,14 +162,11 @@ describe("cloudbase manager auth gate", () => {
         secretKey: "skey",
         token: "token",
         envId: "env-explicit",
-        region: "ap-guangzhou",
+        region: "ap-shanghai",
       }),
     );
-    expect(mockCommonServiceCall).toHaveBeenCalledWith(
-      expect.objectContaining({
-        Action: "DescribeEnvs",
-      }),
-    );
+    // Should NOT call DescribeEnvs for region detection (STS compatibility)
+    expect(mockCommonServiceCall).not.toHaveBeenCalled();
   });
 
   it("should honor explicit region without resolving env candidates", async () => {
@@ -214,22 +202,13 @@ describe("cloudbase manager auth gate", () => {
     expect(mockCommonServiceCall).not.toHaveBeenCalled();
   });
 
-  it("should prefer actual env region over fallback region when login envId is already known", async () => {
+  it("should use fallback region even when login envId is already known", async () => {
     process.env.TCB_REGION = "ap-shanghai";
     mockPeekLoginState.mockResolvedValue({
       secretId: "sid",
       secretKey: "skey",
       token: "token",
       envId: "env-guangzhou",
-    });
-    mockCommonServiceCall.mockResolvedValue({
-      EnvList: [
-        {
-          EnvId: "env-guangzhou",
-          Alias: "prod",
-          Region: "ap-guangzhou",
-        },
-      ],
     });
 
     const { getCloudBaseManager } = await import("./cloudbase-manager.js");
@@ -245,7 +224,7 @@ describe("cloudbase manager auth gate", () => {
         secretKey: "skey",
         token: "token",
         envId: "env-guangzhou",
-        region: "ap-guangzhou",
+        region: "ap-shanghai",
       }),
     );
   });

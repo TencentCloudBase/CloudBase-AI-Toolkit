@@ -502,19 +502,9 @@ export async function getCloudBaseManager(options: GetManagerOptions = {}): Prom
 
         // envId priority: explicit option > envManager cache > loginState.envId
         const resolvedEnvId = finalEnvId || loginEnvId;
-        let region = fallbackRegion;
-        if (resolvedEnvId && !cloudBaseOptions?.region) {
-            try {
-                const envCandidates = await listAvailableEnvCandidates({ loginState });
-                const matchedEnv = envCandidates.find((candidate) => candidate.envId === resolvedEnvId);
-                if (matchedEnv?.region) {
-                    region = matchedEnv.region;
-                    debug('使用环境实际 region:', { envId: resolvedEnvId, region });
-                }
-            } catch {
-                debug('无法获取环境列表，使用 fallback region');
-            }
-        }
+        // region 直接使用 fallbackRegion（来自 cloudBaseOptions?.region ?? TCB_REGION ?? 'ap-shanghai'）
+        // 不再通过 DescribeEnvs 查询 region，以兼容 STS 临时密钥场景
+        const region = fallbackRegion;
 
         const manager = new CloudBase({
             secretId,

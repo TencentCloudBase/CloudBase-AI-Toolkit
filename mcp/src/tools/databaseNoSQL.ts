@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   getDatabaseInstanceId,
   getCloudBaseManager,
+  getEnvId,
   invalidateDatabaseInstanceIdCache,
   logCloudBaseResult,
 } from "../cloudbase-manager.js";
@@ -172,13 +173,8 @@ async function callNoSqlContentApi(options: {
   instanceIdOverride?: string;
   param: Record<string, unknown>;
 }) {
-  const resolvedInstance = await resolveNoSqlInstanceId({
-    toolName: options.toolName,
-    cloudbase: options.cloudbase,
-    cloudBaseOptions: options.cloudBaseOptions,
-    instanceIdOverride: options.instanceIdOverride,
-    collectionName: options.collectionName,
-  });
+  // 直接使用 EnvId 替代 Tag，无需通过 DescribeEnvs 获取 instanceId
+  const envId = await getEnvId(options.cloudBaseOptions);
 
   const startedAt = Date.now();
 
@@ -190,7 +186,7 @@ async function callNoSqlContentApi(options: {
         Param: {
           ...options.param,
           TableName: options.collectionName,
-          Tag: resolvedInstance.instanceId,
+          EnvId: envId,
         },
       });
 
@@ -198,7 +194,7 @@ async function callNoSqlContentApi(options: {
       collectionName: options.collectionName,
       action: options.action,
       durationMs: Date.now() - startedAt,
-      instanceIdSource: resolvedInstance.source,
+      instanceIdSource: "envId",
       requestId: result?.RequestId,
     });
 
@@ -208,23 +204,9 @@ async function callNoSqlContentApi(options: {
       collectionName: options.collectionName,
       action: options.action,
       durationMs: Date.now() - startedAt,
-      instanceIdSource: resolvedInstance.source,
+      instanceIdSource: "envId",
       message: error instanceof Error ? error.message : String(error),
     });
-
-    if (
-      !options.instanceIdOverride &&
-      resolvedInstance.cacheKey &&
-      isInvalidInstanceIdError(error)
-    ) {
-      invalidateDatabaseInstanceIdCache({
-        cacheKey: resolvedInstance.cacheKey,
-      });
-      logNoSqlLatency(options.toolName, "invalidateInstanceIdCache", {
-        collectionName: options.collectionName,
-        cacheKey: resolvedInstance.cacheKey,
-      });
-    }
 
     throw error;
   }
@@ -258,19 +240,25 @@ async function waitForCollectionReady({
 
   while (Date.now() <= deadline) {
     try {
-      const result =
-        await cloudbase.database.checkCollectionExists(collectionName);
+      // 直接用 commonService 调用 DescribeTable 检查集合是否存在，避免 SDK lazyInit → DescribeEnvs
+      const envId = await getEnvId();
+      const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+        Action: "DescribeTable",
+        Param: {
+          EnvId: envId,
+          TableName: collectionName,
+        },
+      });
       logCloudBaseResult(logger, result);
-      if (result.Exists) {
-        logger?.({
-          type: "toolInfo",
-          toolName: "writeNoSqlDatabaseStructure",
-          message: "NoSQL collection is ready for subsequent operations",
-          collectionName,
-          waitedMs: Date.now() - startedAt,
-        });
-        return;
-      }
+      // DescribeTable 成功返回即表示集合存在
+      logger?.({
+        type: "toolInfo",
+        toolName: "writeNoSqlDatabaseStructure",
+        message: "NoSQL collection is ready for subsequent operations",
+        collectionName,
+        waitedMs: Date.now() - startedAt,
+      });
+      return;
     } catch (error) {
       lastError = error;
     }
@@ -312,7 +300,7 @@ export function registerDatabaseTools(server: ExtendedMcpServer) {
     {
       title: "读取 NoSQL 数据库结构",
       description:
-        "读取 NoSQL 数据库集合与索引结构，支持列出集合、查看集合详情、列出索引以及检查索引是否存在。",
+        "读取 NoSQL 数据库集合与索引结构，支持列出集合、查看集合详情、列出索引以及检查索引是否存在。本工具为服务端管理工具，用于管理端查询数据库结构，不用于编写客户端代码。",
       inputSchema: {
         action: z.enum([
           "listCollections",
@@ -354,9 +342,14 @@ checkIndex: 检查指定索引是否存在`),
       const cloudbase = await getManager();
 
       if (action === "listCollections") {
-        const result = await cloudbase.database.listCollections({
-          MgoOffset: offset,
-          MgoLimit: limit,
+        const envId = await getEnvId(server.cloudBaseOptions);
+        const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+          Action: "ListTables",
+          Param: {
+            EnvId: envId,
+            MgoOffset: offset ?? 0,
+            MgoLimit: limit ?? 100,
+          },
         });
         logCloudBaseResult(server.logger, result);
         return {
@@ -383,9 +376,20 @@ checkIndex: 检查指定索引是否存在`),
         if (!collectionName) {
           throw new Error("检查集合时必须提供 collectionName");
         }
-        const result =
-          await cloudbase.database.checkCollectionExists(collectionName);
-        logCloudBaseResult(server.logger, result);
+        const envId = await getEnvId(server.cloudBaseOptions);
+        let exists = false;
+        let requestId = "";
+        try {
+          const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+            Action: "DescribeTable",
+            Param: { EnvId: envId, TableName: collectionName },
+          });
+          exists = true;
+          requestId = result?.RequestId ?? "";
+        } catch (e: any) {
+          // DescribeTable 失败即集合不存在
+          requestId = e?.requestId ?? "";
+        }
         return {
           content: [
             {
@@ -393,9 +397,9 @@ checkIndex: 检查指定索引是否存在`),
               text: JSON.stringify(
                 withCollectionName(collectionName, {
                   success: true,
-                  exists: result.Exists,
-                  requestId: result.RequestId,
-                  message: result.Exists
+                  exists,
+                  requestId,
+                  message: exists
                     ? "云开发数据库集合已存在"
                     : "云开发数据库集合不存在",
                 }),
@@ -411,8 +415,11 @@ checkIndex: 检查指定索引是否存在`),
         if (!collectionName) {
           throw new Error("查看集合详情时必须提供 collectionName");
         }
-        const result =
-          await cloudbase.database.describeCollection(collectionName);
+        const envId = await getEnvId(server.cloudBaseOptions);
+        const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+          Action: "DescribeTable",
+          Param: { EnvId: envId, TableName: collectionName },
+        });
         logCloudBaseResult(server.logger, result);
         return {
           content: [
@@ -438,8 +445,11 @@ checkIndex: 检查指定索引是否存在`),
         if (!collectionName) {
           throw new Error("获取索引列表时必须提供 collectionName");
         }
-        const result =
-          await cloudbase.database.describeCollection(collectionName);
+        const envId = await getEnvId(server.cloudBaseOptions);
+        const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+          Action: "DescribeTable",
+          Param: { EnvId: envId, TableName: collectionName },
+        });
         logCloudBaseResult(server.logger, result);
         return {
           content: [
@@ -465,11 +475,21 @@ checkIndex: 检查指定索引是否存在`),
         if (!collectionName || !indexName) {
           throw new Error("检查索引时必须提供 collectionName 和 indexName");
         }
-        const result = await cloudbase.database.checkIndexExists(
-          collectionName,
-          indexName,
-        );
-        logCloudBaseResult(server.logger, result);
+        const envId = await getEnvId(server.cloudBaseOptions);
+        let exists = false;
+        let requestId = "";
+        try {
+          const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+            Action: "DescribeTable",
+            Param: { EnvId: envId, TableName: collectionName },
+          });
+          requestId = result?.RequestId ?? "";
+          const indexes = result?.Indexes ?? result?.IndexNum ? result?.Indexes : [];
+          exists = Array.isArray(indexes) && indexes.some((idx: any) => idx.IndexName === indexName);
+        } catch (e: any) {
+          requestId = e?.requestId ?? "";
+        }
+        logCloudBaseResult(server.logger, { RequestId: requestId });
         return {
           content: [
             {
@@ -478,9 +498,9 @@ checkIndex: 检查指定索引是否存在`),
                 withCollectionName(collectionName, {
                   success: true,
                   indexName,
-                  exists: result.Exists,
-                  requestId: result.RequestId,
-                  message: result.Exists ? "索引已存在" : "索引不存在",
+                  exists,
+                  requestId,
+                  message: exists ? "索引已存在" : "索引不存在",
                 }),
                 null,
                 2,
@@ -498,9 +518,9 @@ checkIndex: 检查指定索引是否存在`),
   server.registerTool?.(
     "writeNoSqlDatabaseStructure",
     {
-      title: "修改 NoSQL 数据库结构",
+      title: "创建并管理 NoSQL 数据库集合",
       description:
-        "修改 NoSQL 数据库结构，支持创建/删除集合，以及通过 updateCollection 的 updateOptions.CreateIndexes / updateOptions.DropIndexes 添加索引和删除索引。",
+        "创建、删除和管理 NoSQL 数据库集合（collection）。支持创建新集合、删除现有集合，以及通过 updateCollection 的 updateOptions.CreateIndexes / updateOptions.DropIndexes 添加索引和删除索引。当需要新建集合时，使用 action=createCollection。本工具为服务端管理工具，用于管理端操作集合和索引结构，不用于编写客户端代码。",
       inputSchema: {
         action: z.enum([
           "createCollection",
@@ -556,10 +576,21 @@ deleteCollection: 删除集合`),
     async ({ action, collectionName, updateOptions }) => {
       const cloudbase = await getManager();
       if (action === "createCollection") {
-        const existsResult =
-          await cloudbase.database.checkCollectionExists(collectionName);
-        logCloudBaseResult(server.logger, existsResult);
-        if (existsResult.Exists) {
+        // 检查集合是否存在 - 使用 commonService 避免 SDK lazyInit → DescribeEnvs
+        const envId = await getEnvId(server.cloudBaseOptions);
+        let collectionExists = false;
+        let existsRequestId = "";
+        try {
+          const descResult = await cloudbase.commonService("tcb", "2018-06-08").call({
+            Action: "DescribeTable",
+            Param: { EnvId: envId, TableName: collectionName },
+          });
+          collectionExists = true;
+          existsRequestId = descResult?.RequestId ?? "";
+        } catch (e: any) {
+          existsRequestId = e?.requestId ?? "";
+        }
+        if (collectionExists) {
           return {
             content: [
               {
@@ -568,7 +599,7 @@ deleteCollection: 删除集合`),
                   withCollectionName(collectionName, {
                     success: true,
                     action,
-                    requestId: existsResult.RequestId,
+                    requestId: existsRequestId,
                     message: "集合已存在，无需重复创建",
                     exists: true,
                   }),
@@ -580,7 +611,13 @@ deleteCollection: 删除集合`),
           };
         }
         const result =
-          await cloudbase.database.createCollection(collectionName);
+          await cloudbase.commonService("tcb", "2018-06-08").call({
+            Action: "CreateTable",
+            Param: {
+              EnvId: await getEnvId(server.cloudBaseOptions),
+              TableName: collectionName,
+            },
+          });
         logCloudBaseResult(server.logger, result);
         await waitForCollectionReady({
           cloudbase,
@@ -610,10 +647,14 @@ deleteCollection: 删除集合`),
         if (!updateOptions) {
           throw new Error("更新集合时必须提供 options");
         }
-        const result = await cloudbase.database.updateCollection(
-          collectionName,
-          updateOptions,
-        );
+        const result = await cloudbase.commonService("tcb", "2018-06-08").call({
+          Action: "UpdateTable",
+          Param: {
+            EnvId: await getEnvId(server.cloudBaseOptions),
+            TableName: collectionName,
+            ...updateOptions,
+          },
+        });
         logCloudBaseResult(server.logger, result);
         return {
           content: [
@@ -636,7 +677,13 @@ deleteCollection: 删除集合`),
 
       if (action === "deleteCollection") {
         const result =
-          await cloudbase.database.deleteCollection(collectionName);
+          await cloudbase.commonService("tcb", "2018-06-08").call({
+            Action: "DeleteTable",
+            Param: {
+              EnvId: await getEnvId(server.cloudBaseOptions),
+              TableName: collectionName,
+            },
+          });
         logCloudBaseResult(server.logger, result);
         const body: Record<string, unknown> = withCollectionName(
           collectionName,
@@ -670,7 +717,7 @@ deleteCollection: 删除集合`),
     "readNoSqlDatabaseContent",
     {
       title: "查询并获取 NoSQL 数据库数据记录",
-      description: "查询并获取 NoSQL 数据库数据记录",
+      description: "查询并获取 NoSQL 数据库数据记录。⚠️ 本工具为服务端管理工具，用于管理端/运维端查询。当任务要求编写客户端应用代码时（例如「用 JS SDK 读取数据」），不应使用本工具，而应在项目代码中编写 @cloudbase/js-sdk 客户端代码（如 db.collection().where().get()）。",
       inputSchema: {
         collectionName: z.string().describe("集合名称"),
         instanceId: z
@@ -773,7 +820,7 @@ deleteCollection: 删除集合`),
     {
       title: "修改 NoSQL 数据库数据记录",
       description:
-        "修改 NoSQL 数据库数据记录。可按 MongoDB updateOne/updateMany 的心智模型理解：部分更新必须使用 `$set`、`$inc`、`$push` 等更新操作符；如果直接传“字段到值的普通对象”这类内容，底层会把它当作替换内容，存在覆盖整条文档的风险。更新嵌套对象中的某个字段时必须使用点号路径，例如把 `address.city` 设为 `shenzhen`；如果把整个 `address` 对象作为 `$set` 的值传入，则整个 `address` 对象会被替换，同级其他字段将丢失。若集合中的角色/档案文档会在前端通过 `db.collection(...).doc(uid)` 读取，请确保文档 `_id` 就是该 `uid`；不要用按 `uid` 条件查询再配合 `upsert=true` 的方式去更新 `users` / `profiles`，否则经常会生成一个不同的 `_id`，导致后续 `doc(uid)` 读取命中不到。",
+        "修改 NoSQL 数据库数据记录。⚠️ 本工具为服务端管理工具，用于管理端/运维端操作（如后台脚本、数据迁移、批量修改）。当任务要求编写客户端应用代码时（例如「用 JS SDK 登录并插入数据」、「在前端读写数据库」），不应使用本工具，而应在项目代码中编写 @cloudbase/js-sdk 客户端代码（如 app.database().collection().add()、db.collection().where().get() 等）。可按 MongoDB updateOne/updateMany 的心智模型理解：部分更新必须使用 `$set`、`$inc`、`$push` 等更新操作符；如果直接传「字段到值的普通对象」这类内容，底层会把它当作替换内容，存在覆盖整条文档的风险。⚠️ 嵌套对象部分更新务必使用点号路径：要更新 `shipping.city`，应传 `$set: {\"shipping.city\": \"guangzhou\"}`，绝不能传 `$set: {\"shipping\": {\"city\": \"guangzhou\"}}`（后者会丢失 shipping 下的其他字段）。若集合中的角色/档案文档会在前端通过 `db.collection(...).doc(uid)` 读取，请确保文档 `_id` 就是该 `uid`；不要用按 `uid` 条件查询再配合 `upsert=true` 的方式去更新 `users` / `profiles`，否则经常会生成一个不同的 `_id`，导致后续 `doc(uid)` 读取命中不到。",
       inputSchema: {
         action: z
           .enum(["insert", "update", "delete"])
@@ -797,7 +844,11 @@ deleteCollection: 删除集合`),
           .union([z.object({}).passthrough(), z.string()])
           .optional()
           .describe(
-            "更新内容(对象或字符串,推荐对象)(update 操作必填)。按 MongoDB 更新语义传入 MgoUpdate：部分更新请使用 `$set`、`$inc`、`$unset`、`$push` 等操作符，例如使用 `$set` 更新 `status`；不要直接传“字段到值的普通对象”，否则可能替换整条文档。更新嵌套字段时必须使用点号路径，例如通过 `$set` 更新 `address.city`；不要把整个 `address` 对象作为 `$set` 的值传入，否则会替换整个 `address` 对象。",
+            `更新内容(对象或字符串,推荐对象)(update 操作必填)。按 MongoDB 更新语义传入 MgoUpdate：部分更新请使用 \`$set\`、\`$inc\`、\`$unset\`、\`$push\` 等操作符，例如使用 \`$set\` 更新 \`status\`；不要直接传"字段到值的普通对象"，否则可能替换整条文档。
+
+⚠️ 嵌套字段必须用点号路径（如 \`shipping.city\`），禁止整对象替换：
+- ❌ 错误：{ "$set": { "shipping": { "city": "guangzhou" } } } — shipping 被整块替换，原有 address/province 等字段全部丢失
+- ✅ 正确：{ "$set": { "shipping.city": "guangzhou" } } — 仅更新 city，shipping 下其他字段保留`,
           ),
         isMulti: z
           .boolean()
