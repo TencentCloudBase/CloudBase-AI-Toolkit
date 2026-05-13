@@ -1,7 +1,7 @@
 ---
 name: relational-database-mcp-cloudbase
 description: This is the required documentation for agents operating on the CloudBase Relational Database through MCP. It defines the canonical SQL management flow with `querySqlDatabase`, `manageSqlDatabase`, `queryPermissions`, and `managePermissions`, including MySQL provisioning, destroy flow, async status checks, safe query execution, schema initialization, and permission updates.
-version: 2.18.0
+version: 2.18.1
 alwaysApply: false
 ---
 

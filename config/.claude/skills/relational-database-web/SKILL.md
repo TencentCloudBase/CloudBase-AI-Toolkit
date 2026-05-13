@@ -1,7 +1,7 @@
 ---
 name: relational-database-web-cloudbase
 description: Use when building frontend Web apps that talk to CloudBase Relational Database via @cloudbase/js-sdk – provides the canonical init pattern so you can then use Supabase-style queries from the browser.
-version: 2.18.0
+version: 2.18.1
 alwaysApply: false
 ---
 
