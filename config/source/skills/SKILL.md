@@ -1,7 +1,7 @@
 ---
 name: cloudbase-all-in-one
 description: Unified CloudBase execution guide for all-in-one skill installs. Use this as the first entry point for CloudBase app tasks, especially existing applications that already contain TODOs, fixed pages, and active handlers.
-version: 2.16.2
+version: 2.19.0
 alwaysApply: true
 ---
 
