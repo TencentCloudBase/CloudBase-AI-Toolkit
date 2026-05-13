@@ -1396,7 +1396,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
 - aider: Aider AI编辑器
 
 特别说明：
-- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.18.0），便于后续维护和版本追踪
+- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.19.0），便于后续维护和版本追踪
 - 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）
 
 #### 参数
