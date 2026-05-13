@@ -53,11 +53,10 @@ describe('cloudbase main skill activation description', async () => {
   });
 
   test('description stays within practical length bounds', () => {
-    // Below ~800 chars we almost certainly lack trigger coverage.
-    // Above ~3000 chars some host implementations truncate or down-weight
-    // the tail — keep room to grow but fail loudly if we overshoot.
-    expect(description.length).toBeGreaterThan(800);
-    expect(description.length).toBeLessThan(3000);
+    // Below ~600 chars we almost certainly lack trigger coverage.
+    // Above 1024 chars Codex hard-fails, so we enforce that as the ceiling.
+    expect(description.length).toBeGreaterThan(600);
+    expect(description.length).toBeLessThanOrEqual(1024);
   });
 
   // Triggering vocabulary matrix: each group must have at least one hit.
