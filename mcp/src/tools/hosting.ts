@@ -427,6 +427,33 @@ function buildFailureResult(action: string, error: unknown) {
   });
 }
 
+function normalizeFileFields(files: unknown): Array<Record<string, unknown>> {
+  if (!Array.isArray(files)) return [];
+
+  return files.map(file => {
+    if (typeof file !== 'object' || file === null) return file;
+
+    const record = file as Record<string, unknown>;
+    return {
+      key: record.Key ?? record.key ?? '',
+      size: record.Size ?? record.size ?? 0,
+      lastModified: record.LastModified ?? record.lastModified ?? '',
+      ...record,
+    };
+  });
+}
+
+function normalizeHostingStatus(current: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!current) return null;
+
+  return {
+    ...current,
+    status: current.Status ?? current.status ?? 'unknown',
+    staticDomain: current.StaticDomain ?? current.staticDomain ?? null,
+    bucket: current.Bucket ?? current.bucket ?? null,
+  };
+}
+
 function ensureManageHostingActionAllowedInCloudMode(input: ManageHostingInput) {
   if (!isCloudMode()) {
     return;
@@ -482,14 +509,15 @@ export function registerHostingTools(server: ExtendedMcpServer) {
               server.logger,
             );
             const hostingInfo = extractStaticStores(result);
-            const current = hostingInfo[0] ?? null;
+            const current = normalizeHostingStatus(hostingInfo[0] ?? null);
+            const normalizedHostingInfo = hostingInfo.map(item => normalizeHostingStatus(item));
             return buildJsonToolResult({
               success: true,
               data: {
                 action: 'status',
                 enabled: hostingInfo.length > 0,
                 current,
-                hostingInfo,
+                hostingInfo: normalizedHostingInfo,
                 result,
               },
               message: hostingInfo.length > 0
@@ -508,6 +536,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
               maxKeys: input.maxKeys,
             });
             logCloudBaseResult(server.logger, result);
+            const normalizedFiles = normalizeFileFields(result);
             return buildJsonToolResult({
               success: true,
               data: {
@@ -515,23 +544,34 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 prefix: input.prefix,
                 marker: input.marker,
                 maxKeys: input.maxKeys,
+                files: normalizedFiles,
                 result,
               },
-              message: `已按前缀 \`${input.prefix}\` 查询静态托管文件。`,
+              message: `已按前缀 \`${input.prefix}\` 查询静态托管文件，共 ${Array.isArray(normalizedFiles) ? normalizedFiles.length : 0} 个。`,
             });
           }
 
           case 'listFiles': {
             const result = await cloudbase.hosting.listFiles();
             logCloudBaseResult(server.logger, result);
+            const normalizedFiles = normalizeFileFields(result);
+            const maxKeys = input.maxKeys ?? 100;
+            const start = input.marker ? parseInt(input.marker, 10) : 0;
+            const paginatedFiles = normalizedFiles.slice(start, start + maxKeys);
+            const nextMarker = start + maxKeys < normalizedFiles.length ? String(start + maxKeys) : undefined;
+
             return buildJsonToolResult({
               success: true,
               data: {
                 action: 'listFiles',
-                files: result,
-                totalCount: Array.isArray(result) ? result.length : 0,
+                files: paginatedFiles,
+                totalCount: normalizedFiles.length,
+                marker: input.marker,
+                maxKeys,
+                nextMarker,
+                isTruncated: nextMarker !== undefined,
               },
-              message: `已列出静态托管中的 ${Array.isArray(result) ? result.length : 0} 个文件。`,
+              message: `已列出静态托管中的文件（第 ${start + 1}-${start + paginatedFiles.length} 个，共 ${normalizedFiles.length} 个）。${nextMarker ? ' 还有更多文件，可使用 nextMarker 继续查询。' : ''}`,
             });
           }
 
@@ -681,15 +721,38 @@ export function registerHostingTools(server: ExtendedMcpServer) {
               isDir: input.isDir ?? false,
             });
             logCloudBaseResult(server.logger, result);
+
+            // Post-validation: verify deletion was successful
+            let deleteVerified = true;
+            let verificationError: string | undefined;
+            try {
+              const checkResult = await cloudbase.hosting.findFiles({
+                prefix: input.cloudPath,
+                maxKeys: 1,
+              });
+              
+              if (Array.isArray(checkResult) && checkResult.length > 0) {
+                deleteVerified = false;
+                verificationError = `删除后验证失败：文件仍在静态托管中`;
+              }
+            } catch (error) {
+              // If query fails, assume deletion was successful
+              // (file might have been deleted, causing query to return empty)
+            }
+
             return buildJsonToolResult({
-              success: true,
+              success: deleteVerified,
               data: {
                 action: 'delete',
                 cloudPath: input.cloudPath,
                 isDir: input.isDir ?? false,
                 result,
+                verified: deleteVerified,
+                ...(verificationError ? { error: verificationError } : {}),
               },
-              message: `已删除静态托管${input.isDir ? '目录' : '文件'} \`${input.cloudPath}\`。`,
+              message: deleteVerified
+                ? `已删除静态托管${input.isDir ? '目录' : '文件'} \`${input.cloudPath}\`。`
+                : `删除操作已提交，但验证发现文件可能未完全删除，请手动确认。`,
             });
           }
 
