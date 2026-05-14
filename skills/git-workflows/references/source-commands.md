@@ -13,7 +13,9 @@ When user inputs `/git_commit`
 
 ## Behavior
 1. Commit code using conventional-changelog style
-2. Execute `git push origin <branch-name>`
+2. After each commit, run `git status --short`.
+3. If hooks/build steps modified tracked files (for example generated docs or JSON), review them and create follow-up commit(s) until the working tree is clean.
+4. Execute `git push origin <branch-name>`
 
 ## Commit Message Format
 Follow conventional-changelog style:
