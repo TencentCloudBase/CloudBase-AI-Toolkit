@@ -152,9 +152,10 @@ function buildAllInOneTarget(target, destinationDir) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "clawhub-allinone-"));
 
   try {
+    const tsxPath = path.join(projectRoot, "node_modules/.bin/tsx");
     execFileSync(
-      "npx",
-      ["tsx", "scripts/build-allinone-skill.ts", "--dir", tempRoot],
+      tsxPath,
+      ["scripts/build-allinone-skill.ts", "--dir", tempRoot],
       {
         cwd: projectRoot,
         stdio: "pipe",
