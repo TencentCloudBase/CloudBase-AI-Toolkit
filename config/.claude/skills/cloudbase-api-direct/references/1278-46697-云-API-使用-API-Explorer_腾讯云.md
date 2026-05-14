@@ -2,7 +2,7 @@
 
 ## 使用 API Explorer
 
-最近更新时间：2025-07-17 17:26:51
+最近更新时间：2026-05-13 18:29:00
 
 -   微信扫一扫 
 -   QQ
@@ -14,7 +14,7 @@
 
 _我的收藏_
 
-[腾讯云 API Explorer](https://console.cloud.tencent.com/api/explorer) 是一款自动化在线调试工具，目前已支持云服务器 CVM、私有网络 VPC、云硬盘 CBS 等 [腾讯云产品](https://cloud.tencent.com/product "https://cloud.tencent.com/product") 的 API 接口调用自动化。可实现自动生成 Java、Python、Node.js、PHP、Go 及.NET 语言的 SDK 代码、在线调用、发送真实请求及签名串自动生成等功能，降低了 SDK 的使用难度。
+[腾讯云 API Explorer](https://console.cloud.tencent.com/api/explorer) 是一款自动化在线调试工具，目前已支持云服务器 CVM、私有网络 VPC、云硬盘 CBS 等 [腾讯云产品](https://cloud.tencent.com/product) 的 API 接口调用自动化。可实现自动生成 Java、Python、Node.js、PHP、Go 及.NET 语言的 SDK 代码、在线调用、发送真实请求及签名串自动生成等功能，降低了 SDK 的使用难度。
 
 ## API Explorer 工具详细介绍
 
@@ -76,7 +76,7 @@ _我的收藏_
 
 ## 调用接口
 
-本文以 [查询可用区列表](https://cloud.tencent.com/document/product/213/15707 "https://cloud.tencent.com/document/product/213/15707") 接口为例，使用 API Explorer 工具进行调用：
+本文以 [查询可用区列表](https://cloud.tencent.com/document/product/213/15707) 接口为例，使用 API Explorer 工具进行调用：
 
 1.填写所需参数，可选择右侧功能区中的 **参数说明** 查看接口具体参数信息。
 
@@ -90,7 +90,7 @@ _我的收藏_
 
 您可通过历史调用查看接口曾经的调用情况，查看发起调用的时间、调用的参数、本次调用的状态。您还可收藏历史调用，以便后续直接发起调用。
 
-进入 [API Explorer 工具](https://console.cloud.tencent.com/api/explorer "https://console.cloud.tencent.com/api/explorer") 页面，单击 **输入参数** 下方的 **调用历史** ，即可查看接口历史调用信息。如下图所示：
+进入 [API Explorer 工具](https://console.cloud.tencent.com/api/explorer) 页面，单击 **输入参数** 下方的 **调用历史** ，即可查看接口历史调用信息。如下图所示：
 
 ![](https://qcloudimg.tencent-cloud.cn/image/document/154c94b0d45303503cad2e28c0035336.png)
 
@@ -110,7 +110,7 @@ _我的收藏_
 
 ## 签名示例
 
-本文以 [查询可用区列表](https://cloud.tencent.com/document/product/213/15707 "https://cloud.tencent.com/document/product/213/15707") 接口为例，使用 API Explorer 工具进行签名串生成：
+本文以 [查询可用区列表](https://cloud.tencent.com/document/product/213/15707) 接口为例，使用 API Explorer 工具进行签名串生成：
 
 1.获取个人密钥（SecretId、SecretKey），并填入对应位置。
 

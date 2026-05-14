@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-05-11 02:12:30
+最近更新时间：2026-05-14 03:05:02
 
 -   微信扫一扫 
 -   QQ
@@ -55,6 +55,9 @@ _我的收藏_
 | [DescribeHostingDomainTask](/document/api/876/57514) | 查询静态托管域名任务状态 | 20 |
 | [DescribeQuotaData](/document/api/876/42145) | 查询环境的配额使用量 | 2000 |
 | [CreateEnvResource](/document/api/876/129358) | 创建环境相关资源 | 20 |
+| [AllocateEnv](/document/api/876/131594) | 从环境池分配环境 | 1000 |
+| [ReleaseEnv](/document/api/876/131592) | 释放从环境池里分配的环境 | 1000 |
+| [AssumeRoleForAllocatedEnv](/document/api/876/131593) | 为环境池里的环境申请角色临时凭证 | 20 |
 
 ## 用户权限相关接口
 
