@@ -13,7 +13,9 @@ When user inputs `/git_commit`
 
 ## Behavior
 1. Commit code using conventional-changelog style
-2. Execute `git push origin <branch-name>`
+2. After each commit, run `git status --short`.
+3. If hooks/build steps modified tracked files (for example generated docs or JSON), review them and create follow-up commit(s) until the working tree is clean.
+4. Execute `git push origin <branch-name>`
 
 ## Commit Message Format
 Follow conventional-changelog style:
@@ -274,12 +276,17 @@ When user inputs `/version_publish_main`
 
 ### Step 2: Bump version in `mcp/`
 1. `cd mcp`
-2. Run `npx bumpp` and use the interactive prompts to select the target version
-3. Return to repo root and sync all repo-managed CloudBase skill versions to the same release version:
+2. Determine the exact target version (preferred) or release type before running `bumpp`.
+3. Run `bumpp` non-interactively instead of relying on prompts:
+   - Exact version: `/Users/bookerzhao/.nvm/versions/node/v22.18.0/bin/npx bumpp --release X.Y.Z --yes --no-commit --no-tag --no-push --ignore-scripts`
+   - Release type: `/Users/bookerzhao/.nvm/versions/node/v22.18.0/bin/npx bumpp --release patch --yes --no-commit --no-tag --no-push --ignore-scripts`
+   - Supported `--release` values include explicit versions and release types such as `major`, `minor`, `patch`, `premajor`, `preminor`, `prepatch`, and `prerelease`.
+   - Use Node 22+ for this command. In this workspace, bare `npx bumpp` may fall back to Node 18 and fail before prompting.
+4. Return to repo root and sync all repo-managed CloudBase skill versions to the same release version:
    - `cd ..`
    - `node scripts/sync-skill-versions.mjs --version X.Y.Z`
    - This updates `config/source/skills/*/SKILL.md` and `config/source/guideline/cloudbase/SKILL.md`
-4. After bump, commit the version change on `main` and push:
+5. After bump, commit the version change on `main` and push:
    - Example: `chore(release): bump version to vX.Y.Z`
    - `git push origin main`
 
