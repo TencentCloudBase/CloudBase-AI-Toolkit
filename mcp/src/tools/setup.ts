@@ -5,8 +5,10 @@ import * as http from "http";
 import * as https from "https";
 import * as os from "os";
 import * as path from "path";
+import { URL } from "url";
 import { z } from "zod";
 import { ExtendedMcpServer } from "../server.js";
+import { prepareSafeRemoteRequest } from "../utils/remote-url-safety.js";
 
 // 构建时注入的版本号
 // @ts-ignore
@@ -247,14 +249,21 @@ export function resolveDownloadTemplateIDE(
   };
 }
 
+const MAX_REDIRECT_HOPS = 5;
+
 // 根据 INTEGRATION_IDE 环境变量获取默认 IDE 类型
 // 下载文件到临时目录
-async function downloadFile(url: string, filePath: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith("https:") ? https : http;
+async function downloadFile(url: string, filePath: string, redirectCount = 0): Promise<void> {
+  if (redirectCount > MAX_REDIRECT_HOPS) {
+    throw new Error(`重定向次数超过 ${MAX_REDIRECT_HOPS} 次限制`);
+  }
 
+  const { requestUrl, requestOptions } = await prepareSafeRemoteRequest(url);
+  const client = requestUrl.protocol === "https:" ? https : http;
+
+  return new Promise((resolve, reject) => {
     client
-      .get(url, (res) => {
+      .get(requestUrl, requestOptions ?? {}, (res) => {
         if (res.statusCode === 200) {
           const file = fs.createWriteStream(filePath);
           res.pipe(file);
@@ -263,10 +272,11 @@ async function downloadFile(url: string, filePath: string): Promise<void> {
             resolve();
           });
           file.on("error", reject);
-        } else if (res.statusCode === 302 || res.statusCode === 301) {
+        } else if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400) {
           // 处理重定向
           if (res.headers.location) {
-            downloadFile(res.headers.location, filePath)
+            const redirectUrl = new URL(res.headers.location, requestUrl).toString();
+            downloadFile(redirectUrl, filePath, redirectCount + 1)
               .then(resolve)
               .catch(reject);
           } else {
