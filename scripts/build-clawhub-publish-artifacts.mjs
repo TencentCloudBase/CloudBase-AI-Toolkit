@@ -152,10 +152,15 @@ function buildAllInOneTarget(target, destinationDir) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "clawhub-allinone-"));
 
   try {
-    const tsxPath = path.join(projectRoot, "node_modules/.bin/tsx");
+    // Resolve tsx CLI entry from the locally-installed package
+    const tsxPkg = path.resolve(projectRoot, "node_modules/tsx/package.json");
+    const tsxBinRaw = JSON.parse(fs.readFileSync(tsxPkg, "utf8")).bin;
+    // tsxBinRaw may be "./dist/cli.mjs" - strip leading "./"
+    const tsxBin = tsxBinRaw.replace(/^\.\//, "");
+    const tsxCli = path.join(projectRoot, "node_modules/tsx", tsxBin);
     execFileSync(
-      tsxPath,
-      ["scripts/build-allinone-skill.ts", "--dir", tempRoot],
+      "node",
+      [tsxCli, "scripts/build-allinone-skill.ts", "--dir", tempRoot],
       {
         cwd: projectRoot,
         stdio: "pipe",
