@@ -1,7 +1,6 @@
 import AdmZip from "adm-zip";
 import * as dns from "dns";
 import * as fs from "fs/promises";
-import * as https from "https";
 import type { ClientRequest, IncomingHttpHeaders, IncomingMessage, RequestOptions } from "http";
 import { EventEmitter } from "node:events";
 import * as os from "os";
