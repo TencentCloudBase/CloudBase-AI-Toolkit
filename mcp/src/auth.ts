@@ -164,13 +164,32 @@ function updateAuthProgressState(
 function normalizeLoginStateFromEnvVars(options?: {
   ignoreEnvVars?: boolean;
 }) {
+  if (options?.ignoreEnvVars) {
+    return null;
+  }
+
+  // 优先检查 CloudBase API Key（优先级高于 TENCENTCLOUD_*）
+  const {
+    CLOUDBASE_API_KEY,
+    CLOUDBASE_ENV_ID: CLOUDBASE_ENV,
+  } = process.env;
+
+  if (CLOUDBASE_API_KEY && CLOUDBASE_ENV) {
+    return {
+      _type: 'api_key' as const,
+      apiKey: CLOUDBASE_API_KEY,
+      envId: CLOUDBASE_ENV,
+    };
+  }
+
+  // 然后检查腾讯云密钥环境变量
   const {
     TENCENTCLOUD_SECRETID,
     TENCENTCLOUD_SECRETKEY,
     TENCENTCLOUD_SESSIONTOKEN,
   } = process.env;
 
-  if (!options?.ignoreEnvVars && TENCENTCLOUD_SECRETID && TENCENTCLOUD_SECRETKEY) {
+  if (TENCENTCLOUD_SECRETID && TENCENTCLOUD_SECRETKEY) {
     return {
       secretId: TENCENTCLOUD_SECRETID,
       secretKey: TENCENTCLOUD_SECRETKEY,
@@ -344,20 +363,47 @@ export function resetAuthProgressState() {
   });
 }
 
+export interface LoginState {
+  secretId: string;
+  secretKey: string;
+  token?: string;
+  envId?: string;
+}
+
 export async function peekLoginState(options?: {
   ignoreEnvVars?: boolean;
-}) {
+}): Promise<LoginState | null> {
   const envVarLoginState = normalizeLoginStateFromEnvVars(options);
+
   if (envVarLoginState) {
+    // API Key 模式：需要先用 API Key 换取临时密钥
+    if ('_type' in envVarLoginState && envVarLoginState._type === 'api_key') {
+      debug("peekLoginState: detected CLOUDBASE_API_KEY env var");
+      try {
+        const credential = await auth.loginByApiKey(
+          envVarLoginState.apiKey,
+          envVarLoginState.envId,
+          { cwd: process.cwd() }
+        );
+        return credential;
+      } catch (e) {
+        debug("peekLoginState: API Key login failed", { error: e instanceof Error ? e.message : String(e) });
+        return null;
+      }
+    }
+
+    // 腾讯云密钥模式：直接返回
     debug("loginByApiSecret");
-    return envVarLoginState;
+    return envVarLoginState as LoginState;
   }
 
+  // 尝试从 toolbox 本地存储读取（包括项目级 API Key 凭证）
   return auth.getLoginState();
 }
 
 export async function ensureLogin(options?: EnsureLoginOptions) {
   debug("TENCENTCLOUD_SECRETID", { hasSecretId: !!process.env.TENCENTCLOUD_SECRETID });
+  debug("CLOUDBASE_API_KEY", { hasApiKey: !!process.env.CLOUDBASE_API_KEY });
 
   const loginState = await peekLoginState({
     ignoreEnvVars: options?.ignoreEnvVars,

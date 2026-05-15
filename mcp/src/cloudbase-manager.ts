@@ -459,6 +459,7 @@ export async function getCloudBaseManager(options: GetManagerOptions = {}): Prom
                 await throwPendingAuthError();
             }
             throwAuthRequiredError();
+            return undefined as never; // unreachable, helps TypeScript narrow
         }
         const {
             envId: loginEnvId,
