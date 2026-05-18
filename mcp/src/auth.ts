@@ -380,10 +380,12 @@ export async function peekLoginState(options?: {
     if ('_type' in envVarLoginState && envVarLoginState._type === 'api_key') {
       debug("peekLoginState: detected CLOUDBASE_API_KEY env var");
       try {
+        // 优先使用 IDE 注入的工作目录，其次 process.cwd()
+        const projectCwd = process.env.WORKSPACE_FOLDER_PATHS || process.cwd();
         const credential = await auth.loginByApiKey(
           envVarLoginState.apiKey,
           envVarLoginState.envId,
-          { cwd: process.cwd() }
+          { cwd: projectCwd }
         );
         return credential;
       } catch (e) {
