@@ -2,7 +2,7 @@
 
 ## 更新AI模型
 
-最近更新时间：2026-05-08 03:01:45
+最近更新时间：2026-05-18 03:01:54
 
 -   微信扫一扫 
 -   QQ
@@ -31,9 +31,9 @@ _我的收藏_
 
 (2) custom → builtin（自定义恢复内置托管）  
 仅当分组的原始类型（OriginType）为 builtin 时，支持将分组恢复为内置托管类型。将 BaseUrl 传入固定值 http://default.tcb，且不传入 Secret，系统将自动将该分组转换回内置托管类型（Type = builtin），平台重新接管其服务地址和访问密钥。  
-若 OriginType 为 CUSTOM（即用户通过 CreateAIModel 接口自行创建的自定义分组），不支持恢复为内置托管类型。
+若 OriginType 为 CUSTOM（即用户通过 [CreateAIModel](https://cloud.tencent.com/document/product/876/131320) 接口自行创建的自定义分组），不支持恢复为内置托管类型。
 
-更新成功后，可通过 DescribeAIModelList 接口查询最新分组配置。
+更新成功后，可通过 [DescribeAIModels](https://cloud.tencent.com/document/product/876/131318) 接口查询最新分组配置。
 
 默认接口请求频率限制：20次/秒。
 
