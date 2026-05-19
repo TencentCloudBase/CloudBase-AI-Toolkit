@@ -323,6 +323,31 @@ describe("NoSQL database tools", () => {
     );
   });
 
+  it("listCollections should return Tables from ListTables API as collections", async () => {
+    const { tools } = createMockServer();
+
+    const result = await tools.readNoSqlDatabaseStructure.handler({
+      action: "listCollections",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(payload.requestId).toBe("req-list");
+    expect(payload.collections).toEqual([{ TableName: "t_nosql_products" }]);
+    expect(payload.pager).toEqual({ Total: 1, Limit: 100, Offset: 0 });
+    expect(payload.message).toBe("获取 NoSQL 数据库集合列表成功");
+
+    expect(mockCommonServiceCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Action: "ListTables",
+        Param: expect.objectContaining({
+          MgoOffset: 0,
+          MgoLimit: 100,
+        }),
+      }),
+    );
+  });
+
   it("collection-scoped responses should echo the requested collection name", async () => {
     const { tools } = createMockServer();
 

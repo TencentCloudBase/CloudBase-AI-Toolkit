@@ -360,7 +360,7 @@ checkIndex: 检查指定索引是否存在`),
                 {
                   success: true,
                   requestId: result.RequestId,
-                  collections: result.Collections,
+                  collections: result.Tables,
                   pager: result.Pager,
                   message: "获取 NoSQL 数据库集合列表成功",
                 },
