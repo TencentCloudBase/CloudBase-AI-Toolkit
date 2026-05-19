@@ -129,7 +129,7 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             success = true;
             requestId = extractRequestIdFromToolResult(result);
             const duration = Date.now() - startTime;
-            debug(`工具执行成功: ${name}`, { duration });
+            debug(`工具执行成功: ${name}`, { duration, requestId: requestId || undefined });
             if (!isTestEnvironment) {
                 server.logger?.({ type: 'afterToolCall', toolName: name, args: sanitizeArgs(args), result: result, duration });
             }
@@ -140,6 +140,7 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             requestId = (typeof error === 'object' && error && 'requestId' in error) ? (error as any).requestId : '';
             debug(`工具执行失败: ${name}`, {
                 error: errorMessage,
+                requestId: requestId || undefined,
                 duration: Date.now() - startTime
             });
             const isTestEnvironment =
@@ -165,7 +166,8 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
                 ide: server.ide || process.env.INTEGRATION_IDE || ''
             });
             const mcpVersion = typeof __MCP_VERSION__ !== 'undefined' ? __MCP_VERSION__ : 'unknown';
-            const enhancedErrorMessage = `${errorMessage}\n\n📦 CloudBase MCP v${mcpVersion}\n🔗 遇到问题？请复制以下链接到浏览器打开\n即可自动携带错误详情快速创建 GitHub Issue：\n${issueLink}`;
+            const requestIdSuffix = requestId ? `\n🆔 RequestId: ${requestId}` : '';
+            const enhancedErrorMessage = `${errorMessage}${requestIdSuffix}\n\n📦 CloudBase MCP v${mcpVersion}\n🔗 遇到问题？请复制以下链接到浏览器打开\n即可自动携带错误详情快速创建 GitHub Issue：\n${issueLink}`;
 
             // 创建新的错误对象，保持原有的错误类型但更新消息
             const enhancedError = error instanceof Error
