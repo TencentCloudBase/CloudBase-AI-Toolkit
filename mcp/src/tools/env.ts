@@ -970,6 +970,28 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         }
 
         if (action === "start_auth") {
+          // API Key 模式下不允许 start_auth，直接返回当前认证状态
+          if (process.env.CLOUDBASE_API_KEY && process.env.CLOUDBASE_ENV_ID) {
+            const existingLoginState = await peekLoginState();
+            if (existingLoginState) {
+              return buildJsonToolResult({
+                ok: true,
+                code: "AUTH_READY",
+                message: "当前使用 API Key 认证模式，已自动完成登录，无需手动授权。",
+                auth_mode: "api_key",
+                envId: process.env.CLOUDBASE_ENV_ID,
+              });
+            } else {
+              return buildJsonToolResult({
+                ok: false,
+                code: "API_KEY_AUTH_FAILED",
+                message: "当前配置了 API Key 认证模式，但换取临时密钥失败。请检查 CLOUDBASE_API_KEY 是否有效。",
+                auth_mode: "api_key",
+                envId: process.env.CLOUDBASE_ENV_ID,
+              });
+            }
+          }
+
           const region = server.cloudBaseOptions?.region || process.env.TCB_REGION;
           const auth = AuthSupervisor.getInstance({});
           const authFlowState = await getAuthProgressState();
@@ -1193,6 +1215,16 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         }
 
         if (action === "logout") {
+          // API Key 模式下不允许 logout
+          if (process.env.CLOUDBASE_API_KEY && process.env.CLOUDBASE_ENV_ID) {
+            return buildJsonToolResult({
+              ok: false,
+              code: "LOGOUT_NOT_ALLOWED",
+              message: "当前使用 API Key 认证模式，不支持退出登录。如需切换认证方式，请移除 CLOUDBASE_API_KEY 环境变量后重启。",
+              auth_mode: "api_key",
+            });
+          }
+
           if (confirm !== "yes") {
             return buildJsonToolResult({
               ok: false,
