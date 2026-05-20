@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-05-14 03:05:02
+最近更新时间：2026-05-20 03:00:38
 
 -   微信扫一扫 
 -   QQ
@@ -57,7 +57,7 @@ _我的收藏_
 | [CreateEnvResource](/document/api/876/129358) | 创建环境相关资源 | 20 |
 | [AllocateEnv](/document/api/876/131594) | 从环境池分配环境 | 1000 |
 | [ReleaseEnv](/document/api/876/131592) | 释放从环境池里分配的环境 | 1000 |
-| [AssumeRoleForAllocatedEnv](/document/api/876/131593) | 为环境池里的环境申请角色临时凭证 | 20 |
+| [AssumeRoleForAllocatedEnv](/document/api/876/131593) | 为环境池里的环境申请角色临时凭证 | 1000 |
 
 ## 用户权限相关接口
 

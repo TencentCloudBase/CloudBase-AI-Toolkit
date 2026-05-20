@@ -2,7 +2,7 @@
 
 ## 在PostgreSQL数据库上执行SQL查询
 
-最近更新时间：2026-04-14 03:01:43
+最近更新时间：2026-05-20 03:00:31
 
 -   微信扫一扫 
 -   QQ
@@ -53,7 +53,7 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 指定 role 执行 SQL
 
   
-示例值：cloudbase\_postgres |
+示例值：cloudbase\_ **\*\*\*\*** |
 
 ## 3\. 输出参数
 
@@ -103,7 +103,8 @@ X-TC-Action: ExecutePGSql
 
 {
     "EnvId": "pg-mikejliu-0g9cqmar358527a9",
-    "Sql": "CREATE TABLE test_products (\n    id SERIAL PRIMARY KEY,                        -- 产品唯一标识\n    sku VARCHAR(20) UNIQUE NOT NULL,             -- 库存单位编码，唯一且必填\n    name TEXT NOT NULL,                          -- 产品名称\n    category VARCHAR(50),                        -- 分类\n    price NUMERIC(12, 2) NOT NULL DEFAULT 0.00,  -- 单价\n    stock_quantity INTEGER DEFAULT 0,            -- 库存数量\n    tags JSONB,                                  -- 标签（使用 JSONB 存储扩展属性）\n    last_updated TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() -- 最后更新时间\n);"
+    "Sql": "CREATE TABLE test_products (\n    id SERIAL PRIMARY KEY,                        -- 产品唯一标识\n    sku VARCHAR(20) UNIQUE NOT NULL,             -- 库存单位编码，唯一且必填\n    name TEXT NOT NULL,                          -- 产品名称\n    category VARCHAR(50),                        -- 分类\n    price NUMERIC(12, 2) NOT NULL DEFAULT 0.00,  -- 单价\n    stock_quantity INTEGER DEFAULT 0,            -- 库存数量\n    tags JSONB,                                  -- 标签（使用 JSONB 存储扩展属性）\n    last_updated TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() -- 最后更新时间\n);",
+    "Role": "cloudbase_********"
 }
 ```
 
