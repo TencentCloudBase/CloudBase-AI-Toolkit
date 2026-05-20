@@ -377,19 +377,34 @@ export async function peekLoginState(options?: {
 
   if (envVarLoginState) {
     // API Key 模式：需要先用 API Key 换取临时密钥
-    if ('_type' in envVarLoginState && envVarLoginState._type === 'api_key') {
+    if ("_type" in envVarLoginState && envVarLoginState._type === "api_key") {
       debug("peekLoginState: detected CLOUDBASE_API_KEY env var");
       try {
+        const authWithApiKey = auth as unknown as {
+          loginByApiKey?: (
+            apiKey: string,
+            envId?: string,
+            options?: { cwd?: string },
+          ) => Promise<LoginState>;
+        };
+
+        if (typeof authWithApiKey.loginByApiKey !== "function") {
+          debug("peekLoginState: loginByApiKey is not available on current AuthSupervisor");
+          return null;
+        }
+
         // 优先使用 IDE 注入的工作目录，其次 process.cwd()
         const projectCwd = process.env.WORKSPACE_FOLDER_PATHS || process.cwd();
-        const credential = await auth.loginByApiKey(
+        const credential = await authWithApiKey.loginByApiKey(
           envVarLoginState.apiKey,
           envVarLoginState.envId,
-          { cwd: projectCwd }
+          { cwd: projectCwd },
         );
         return credential;
       } catch (e) {
-        debug("peekLoginState: API Key login failed", { error: e instanceof Error ? e.message : String(e) });
+        debug("peekLoginState: API Key login failed", {
+          error: e instanceof Error ? e.message : String(e),
+        });
         return null;
       }
     }
