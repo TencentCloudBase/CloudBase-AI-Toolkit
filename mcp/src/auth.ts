@@ -483,7 +483,8 @@ export async function getLoginState(options?: EnsureLoginOptions) {
 }
 
 export async function logout() {
-  const result = await auth.logout();
+  const cwd = process.env.WORKSPACE_FOLDER_PATHS || process.cwd();
+  const result = await auth.logout({ cwd });
   resetAuthProgressState();
   return result;
 }
