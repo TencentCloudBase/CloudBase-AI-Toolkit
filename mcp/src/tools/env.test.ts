@@ -790,8 +790,11 @@ describe("env tools - auth", () => {
 });
 
 describe("env tools - envQuery", () => {
+  const originalCloudbaseEnvId_envQuery = process.env.CLOUDBASE_ENV_ID;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.CLOUDBASE_ENV_ID;
     mockGetCachedEnvId.mockReturnValue(null);
     mockListAvailableEnvCandidates.mockResolvedValue([]);
     mockGetAuthProgressState.mockResolvedValue({
@@ -804,6 +807,14 @@ describe("env tools - envQuery", () => {
       secretKey: "skey",
       envId: "env-test",
     });
+  });
+
+  afterEach(() => {
+    if (originalCloudbaseEnvId_envQuery !== undefined) {
+      process.env.CLOUDBASE_ENV_ID = originalCloudbaseEnvId_envQuery;
+    } else {
+      delete process.env.CLOUDBASE_ENV_ID;
+    }
   });
 
   it("envQuery(list) should support alias filters, pagination and field selection", async () => {
@@ -956,6 +967,35 @@ describe("env tools - envQuery", () => {
       tool: "envQuery",
       action: "info",
     });
+  });
+
+  it("envQuery(list) should use DescribeEnvInfo when CLOUDBASE_ENV_ID is set", async () => {
+    process.env.CLOUDBASE_ENV_ID = "env-test";
+
+    const describeEnvInfo = vi.fn().mockResolvedValue({
+      EnvInfo: {
+        EnvId: "env-test",
+        Alias: "apikey-env",
+        Status: "NORMAL",
+      },
+    });
+
+    mockGetCloudBaseManager.mockResolvedValue({
+      commonService: vi.fn(),
+      env: {
+        listEnvs: vi.fn(),
+        describeEnvInfo,
+      },
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.envQuery.handler({ action: "list" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(describeEnvInfo).toHaveBeenCalledWith({ EnvId: "env-test" });
+    expect(payload.EnvList).toEqual([
+      { EnvId: "env-test", Alias: "apikey-env", Status: "NORMAL" },
+    ]);
   });
 
   it("envQuery(info) should preserve detailed fields such as PackageId", async () => {
