@@ -134,7 +134,7 @@ export CLOUDBASE_MCP_CLOUD_MODE=true
 export MCP_CLOUD_MODE=true
 ```
 
-Cloud Mode 下被禁用的工具包括：`downloadRemoteFile`、`downloadTemplate`、`manageCloudRun`（本地运行）、`manageStorage`（本地文件上传/下载）、`createFunction`（本地代码上传）等涉及本地文件 I/O 的操作。
+Cloud Mode 下被禁用的工具包括：`downloadRemoteFile`、`downloadTemplate`、`manageCloudRun`（本地运行）、`manageApps`（本地代码上传部署）、`manageStorage`（本地文件上传/下载）、`createFunction`（本地代码上传）等涉及本地文件 I/O 的操作。
 
 > [!IMPORTANT]
 > **部署模式选择建议：**

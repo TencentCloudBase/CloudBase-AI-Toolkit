@@ -133,7 +133,7 @@ https://tcb-api.cloud.tencent.com/mcp/v1?env_id=YOUR_ENV_ID&disable_plugins=rag,
 
 - **含义**：在自有服务器上运行 MCP 服务，通过环境变量启用 Cloud Mode，对外提供 Streamable HTTP 接口。
 - **优点**：完全自主可控的部署方式，可集成到已有基础设施中。
-- **安全机制**：启用 Cloud Mode 后，所有涉及本地文件系统读写和本地进程启动的工具**自动禁用**，确保远程调用方无法操作服务器本地资源。
+- **安全机制**：启用 Cloud Mode 后，涉及本地文件系统读写和本地进程启动的工具将被**逐一禁用**（见下方完整列表），确保远程调用方无法通过这些工具操作服务器本地资源。
 
 ### 启用方式
 
@@ -160,6 +160,7 @@ npx @cloudbase/cloudbase-mcp@latest --cloud-mode
 | `downloadTemplate` | 下载项目模板到本地 |
 | `manageCloudRun` | 涉及本地服务启动（`action="run"`） |
 | `manageStorage` | 涉及本地文件上传/下载 |
+| `manageApps` | `deployApp` 读取本地 filePath 上传代码 |
 | `createFunction` | 涉及本地代码上传 |
 | `updateFunctionCode` | 涉及本地代码上传 |
 | `setupEnvironmentId` | 涉及本地配置文件操作 |

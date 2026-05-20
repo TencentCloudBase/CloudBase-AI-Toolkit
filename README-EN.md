@@ -128,7 +128,7 @@ export CLOUDBASE_MCP_CLOUD_MODE=true
 export MCP_CLOUD_MODE=true
 ```
 
-Tools disabled in Cloud Mode include: `downloadRemoteFile`, `downloadTemplate`, `manageCloudRun` (local run), `manageStorage` (local file upload/download), `createFunction` (local code upload), and other local file I/O operations.
+Tools disabled in Cloud Mode include: `downloadRemoteFile`, `downloadTemplate`, `manageCloudRun` (local run), `manageApps` (local code upload for deploy), `manageStorage` (local file upload/download), `createFunction` (local code upload), and other local file I/O operations.
 
 > [!IMPORTANT]
 > **Deployment Mode Recommendations:**

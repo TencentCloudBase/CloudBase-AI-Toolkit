@@ -265,7 +265,7 @@ npm install @cloudbase/cli@latest -g
 - 服务端自动化脚本
 - CI/CD 流水线中的自动化部署
 
-> **安全提示**：如果你需要在远程服务器上部署 MCP 并对外提供 HTTP 接口（而非仅在本机使用），**务必设置 `CLOUDBASE_MCP_CLOUD_MODE=true` 环境变量**。这会自动禁用 `downloadRemoteFile`、`manageCloudRun`（本地运行）等涉及本地文件读写和进程启动的工具，防止远程调用方操作服务器本地资源。详见 [连接方式文档](connection-modes.mdx) 中的"自建服务器部署"章节。
+> **安全提示**：如果你需要在远程服务器上部署 MCP 并对外提供 HTTP 接口（而非仅在本机使用），**务必设置 `CLOUDBASE_MCP_CLOUD_MODE=true` 环境变量**。这会自动禁用 `downloadRemoteFile`、`manageCloudRun`（本地运行）、`manageApps`（本地代码上传）等涉及本地文件读写和进程启动的工具，防止远程调用方操作服务器本地资源。详见 [连接方式文档](connection-modes.mdx) 中的"自建服务器部署"章节。
 
 ---
 
