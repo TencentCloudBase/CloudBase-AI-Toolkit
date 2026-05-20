@@ -529,7 +529,11 @@ checkIndex: 检查指定索引是否存在`),
         ]).describe(`createCollection: 创建集合
 updateCollection: 更新集合配置；添加索引请传 updateOptions.CreateIndexes，删除索引请传 updateOptions.DropIndexes
 deleteCollection: 删除集合`),
-        collectionName: z.string().describe("集合名称"),
+        collectionName: z
+          .string()
+          .trim()
+          .min(1, "collectionName 不能为空")
+          .describe("集合名称"),
         updateOptions: z
           .object({
             CreateIndexes: z
@@ -676,36 +680,46 @@ deleteCollection: 删除集合`),
       }
 
       if (action === "deleteCollection") {
-        const result =
-          await cloudbase.commonService("tcb", "2018-06-08").call({
-            Action: "DeleteTable",
-            Param: {
-              EnvId: await getEnvId(server.cloudBaseOptions),
-              TableName: collectionName,
-            },
-          });
-        logCloudBaseResult(server.logger, result);
-        const body: Record<string, unknown> = withCollectionName(
-          collectionName,
-          {
-            success: true,
-            requestId: result.RequestId,
-            action,
-            message:
-              result.Exists === false ? "集合不存在" : "云开发数据库集合删除成功",
-          },
-        );
-        if (result.Exists === false) {
-          body.exists = false;
-        }
-        return {
-          content: [
+        try {
+          const result =
+            await cloudbase.commonService("tcb", "2018-06-08").call({
+              Action: "DeleteTable",
+              Param: {
+                EnvId: await getEnvId(server.cloudBaseOptions),
+                TableName: collectionName,
+              },
+            });
+          logCloudBaseResult(server.logger, result);
+          const body: Record<string, unknown> = withCollectionName(
+            collectionName,
             {
-              type: "text",
-              text: JSON.stringify(body, null, 2),
+              success: true,
+              requestId: result.RequestId,
+              action,
+              message:
+                result.Exists === false ? "集合不存在" : "云开发数据库集合删除成功",
             },
-          ],
-        };
+          );
+          if (result.Exists === false) {
+            body.exists = false;
+          }
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(body, null, 2),
+              },
+            ],
+          };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (/parameter invalid|invalid parameter|param(eter)?\s+invalid/i.test(message)) {
+            throw new Error(
+              `deleteCollection 参数校验失败，请确认 collectionName 合法且已存在。当前 collectionName=\"${collectionName}\"。原始错误：${message}`,
+            );
+          }
+          throw error;
+        }
       }
 
       throw new Error(`不支持的操作类型: ${action}`);

@@ -470,9 +470,10 @@
               "runQuery",
               "describeCreateResult",
               "describeTaskStatus",
-              "getInstanceInfo"
+              "getInstanceInfo",
+              "describeInstance"
             ],
-            "description": "runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get current SQL instance context"
+            "description": "runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get current SQL instance context; describeInstance=alias of getInstanceInfo"
           },
           "sql": {
             "type": "string",

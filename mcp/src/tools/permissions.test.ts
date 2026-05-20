@@ -316,6 +316,20 @@ describe("permission tools", () => {
     });
   });
 
+  it("managePermissions(action=addRolePolicies) should fail fast when policyIds are provided", async () => {
+    const result = await tools.managePermissions.handler({
+      action: "addRolePolicies",
+      roleId: "role-1",
+      policyIds: ["policy-id-1"],
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: false,
+      message: expect.stringContaining("暂不支持 policyIds"),
+    });
+  });
+
   it("managePermissions(action=createUser) should call user service", async () => {
     const result = await tools.managePermissions.handler({
       action: "createUser",

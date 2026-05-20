@@ -590,6 +590,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
         description: z.string().optional(),
         memberUids: z.array(z.string()).optional(),
         policies: z.array(z.record(z.any())).optional(),
+        policyIds: z.array(z.string()).optional().describe("策略 ID 列表（当前不支持直接按 ID 绑定，请改传 policies 详情对象）"),
         uid: z.string().optional(),
         uids: z.array(z.string()).optional(),
         username: z.string().optional(),
@@ -617,6 +618,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
       description,
       memberUids,
       policies,
+      policyIds,
       uid,
       uids,
       username,
@@ -635,6 +637,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
       description?: string;
       memberUids?: string[];
       policies?: Array<Record<string, unknown>>;
+      policyIds?: string[];
       uid?: string;
       uids?: string[];
       username?: string;
@@ -710,6 +713,20 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
             if (!roleId) {
               throw new Error(`action=${action} 时必须提供 roleId`);
             }
+
+            if (action === "addRolePolicies" || action === "removeRolePolicies") {
+              if (policyIds?.length) {
+                throw new Error(
+                  `action=${action} 暂不支持 policyIds。请改传 policies，且每项至少包含 ResourceType 和 Resource。`,
+                );
+              }
+              if (!normalizedPolicies?.length) {
+                throw new Error(
+                  `action=${action} 时必须提供 policies，且每项至少包含 ResourceType 和 Resource。`,
+                );
+              }
+            }
+
             const result = await cloudbase.permission.modifyRole({
               roleId,
               ...(action === "updateRole"

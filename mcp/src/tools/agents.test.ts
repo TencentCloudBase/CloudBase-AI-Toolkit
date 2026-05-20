@@ -110,4 +110,39 @@ describe("agent tools", () => {
       },
     });
   });
+
+  it("manageAgents(action=createAgent) should support top-level fields", async () => {
+    const result = await tools.manageAgents.handler({
+      action: "createAgent",
+      name: "demo-agent-top-level",
+      description: "test agent",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCreateAgent).toHaveBeenCalledWith({
+      Name: "demo-agent-top-level",
+      Description: "test agent",
+      Runtime: "Nodejs20.19",
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "createAgent",
+      },
+    });
+  });
+
+  it("manageAgents(action=createAgent) should fail when name is missing", async () => {
+    const result = await tools.manageAgents.handler({
+      action: "createAgent",
+      description: "missing name",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCreateAgent).not.toHaveBeenCalled();
+    expect(payload).toMatchObject({
+      success: false,
+      message: expect.stringContaining("必须提供 name"),
+    });
+  });
 });

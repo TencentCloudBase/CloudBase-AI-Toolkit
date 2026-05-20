@@ -487,7 +487,7 @@ Query SQL database information. Supports read-only SQL execution, MySQL provisio
       name: "action",
       type: "string",
       required: true,
-      description: `runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get current SQL instance context 可填写的值: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo"`,
+      description: `runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get current SQL instance context; describeInstance=alias of getInstanceInfo 可填写的值: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo", "describeInstance"`,
     },
     {
       name: "sql",
