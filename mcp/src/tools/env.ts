@@ -1384,27 +1384,43 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 requireEnvId: true,
                 mcpServer: server, // Pass server for IDE detection
               });
-              // Use commonService to call DescribeEnvs with filter parameters
-              // Filter parameters match the reference conditions provided by user
-              result = await cloudbaseList.commonService("tcb", "2018-06-08").call({
-                Action: "DescribeEnvs",
-                Param: {
-                  EnvTypes: ["weda", "baas"], // Include weda and baas (normal) environments
-                  IsVisible: false, // Filter out invisible environments
-                  Channels: ["dcloud", "iotenable", "tem", "scene_module"], // Filter special channels
-                },
-              });
-              logCloudBaseResult(server.logger, result);
-              // Transform response format to match original listEnvs() format
-              if (result && result.EnvList) {
-                result = { EnvList: result.EnvList };
-              } else if (result && result.Data && result.Data.EnvList) {
-                result = { EnvList: result.Data.EnvList };
+
+              // 当环境变量设置了 CLOUDBASE_ENV_ID 时（如 API Key 模式），
+              // 避免调用 DescribeEnvs（临时密钥可能不支持该接口），
+              // 改为通过 DescribeEnvInfo 获取单环境信息
+              const envIdFromEnv = process.env.CLOUDBASE_ENV_ID;
+              if (envIdFromEnv) {
+                try {
+                  const envInfo = await cloudbaseList.env.describeEnvInfo({ EnvId: envIdFromEnv });
+                  logCloudBaseResult(server.logger, envInfo);
+                  result = { EnvList: envInfo?.EnvInfo ? [envInfo.EnvInfo] : [] };
+                } catch (envInfoError) {
+                  debug("DescribeEnvInfo 失败，返回基础环境信息:", envInfoError instanceof Error ? envInfoError : new Error(String(envInfoError)));
+                  result = { EnvList: [{ EnvId: envIdFromEnv }] };
+                }
               } else {
-                // Fallback to original method if format is unexpected
-                debug("Unexpected response format, falling back to listEnvs()");
-                result = await cloudbaseList.env.listEnvs();
+                // Use commonService to call DescribeEnvs with filter parameters
+                // Filter parameters match the reference conditions provided by user
+                result = await cloudbaseList.commonService("tcb", "2018-06-08").call({
+                  Action: "DescribeEnvs",
+                  Param: {
+                    EnvTypes: ["weda", "baas"], // Include weda and baas (normal) environments
+                    IsVisible: false, // Filter out invisible environments
+                    Channels: ["dcloud", "iotenable", "tem", "scene_module"], // Filter special channels
+                  },
+                });
                 logCloudBaseResult(server.logger, result);
+                // Transform response format to match original listEnvs() format
+                if (result && result.EnvList) {
+                  result = { EnvList: result.EnvList };
+                } else if (result && result.Data && result.Data.EnvList) {
+                  result = { EnvList: result.Data.EnvList };
+                } else {
+                  // Fallback to original method if format is unexpected
+                  debug("Unexpected response format, falling back to listEnvs()");
+                  result = await cloudbaseList.env.listEnvs();
+                  logCloudBaseResult(server.logger, result);
+                }
               }
             } catch (error) {
               debug("获取环境列表时出错，尝试降级到 listEnvs():", error instanceof Error ? error : new Error(String(error)));
