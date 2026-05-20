@@ -115,6 +115,29 @@ Replace `<env_id>`, `<Tencent Cloud Secret ID>`, `<Tencent Cloud Secret Key>` in
 }
 ```
 
+#### Method 3: Self-Hosted Server Deployment (Cloud Mode)
+
+**Meaning**: Run the MCP service on your own server with the `CLOUDBASE_MCP_CLOUD_MODE=true` environment variable to enable cloud mode.
+**Use Case**: When you need to deploy the MCP server on a remote machine and expose it via Streamable HTTP.
+**Security**: When Cloud Mode is enabled, all tools involving local file system read/write and local process execution are **automatically disabled**, ensuring remote callers cannot operate on the server's local resources.
+
+```bash
+# Enable cloud mode via environment variable (either one)
+export CLOUDBASE_MCP_CLOUD_MODE=true
+# or
+export MCP_CLOUD_MODE=true
+```
+
+Tools disabled in Cloud Mode include: `downloadRemoteFile`, `downloadTemplate`, `manageCloudRun` (local run), `manageApps` (local code upload for deploy), `manageStorage` (local file upload/download), `createFunction` (local code upload), and other local file I/O operations.
+
+> [!IMPORTANT]
+> **Deployment Mode Recommendations:**
+> - **Personal development**: Use local mode (`npx`) for full functionality
+> - **Team collaboration / remote services**: Use Tencent Cloud hosted mode (Method 2) for zero maintenance
+> - **Self-hosted server**: Always set `CLOUDBASE_MCP_CLOUD_MODE=true` to disable local file operation tools
+
+---
+
 **Optional for Hosted Mode: Control plugin enablement scope via URL**
 
 In the `url`, you can control the plugin enablement scope through query parameters:
@@ -453,6 +476,18 @@ CloudBase MCP is based on the standard MCP protocol, supporting all MCP-compatib
 <summary><b>Where will my code be uploaded? Is it secure?</b></summary>
 
 Code will only be deployed to **your own** Tencent CloudBase environment, and won't pass through any third party. In local mode, MCP service runs on your local machine, code won't leave your computer until you actively deploy. All cloud communications use HTTPS encryption.
+
+</details>
+
+<details>
+<summary><b>Is it safe to deploy MCP service on a remote server?</b></summary>
+
+CloudBase MCP provides comprehensive deployment mode security isolation:
+
+- **Local Mode** (started via `npx`): MCP service runs on the developer's local machine, communicating with the AI IDE via stdio. The caller is the developer themselves, who already has full control of the machine. Tools like `downloadRemoteFile` and `manageCloudRun(action="run")` are essentially equivalent to the developer running `curl` or `node app.js` in a terminal — this is normal product functionality.
+- **Cloud/Server Mode** (set `CLOUDBASE_MCP_CLOUD_MODE=true`): Enables a three-layer security filtering mechanism that **disables all tools involving local file read/write and local process execution**, preventing remote callers from operating on the server's local file system or launching local processes via MCP.
+
+If you need to deploy the MCP service on a remote server, **you must set the `CLOUDBASE_MCP_CLOUD_MODE=true` environment variable**. The Tencent Cloud hosted mode (Streamable HTTP) has this protection enabled automatically.
 
 </details>
 
