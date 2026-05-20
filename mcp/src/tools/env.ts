@@ -970,26 +970,46 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         }
 
         if (action === "start_auth") {
-          // API Key 模式下不允许 start_auth，直接返回当前认证状态
+          // API Key 模式：尝试换取临时密钥
           if (process.env.CLOUDBASE_API_KEY && process.env.CLOUDBASE_ENV_ID) {
-            const existingLoginState = await peekLoginState();
-            if (existingLoginState) {
-              return buildJsonToolResult({
-                ok: true,
-                code: "AUTH_READY",
-                message: "当前使用 API Key 认证模式，已自动完成登录，无需手动授权。",
-                auth_mode: "api_key",
-                envId: process.env.CLOUDBASE_ENV_ID,
-              });
-            } else {
-              return buildJsonToolResult({
-                ok: false,
-                code: "API_KEY_AUTH_FAILED",
-                message: "当前配置了 API Key 认证模式，但换取临时密钥失败。请检查 CLOUDBASE_API_KEY 是否有效。",
-                auth_mode: "api_key",
-                envId: process.env.CLOUDBASE_ENV_ID,
-              });
+            try {
+              const existingLoginState = await peekLoginState();
+              if (existingLoginState) {
+                return buildJsonToolResult({
+                  ok: true,
+                  code: "AUTH_READY",
+                  message: "当前使用 API Key 认证模式，已自动完成登录，无需手动授权。",
+                  auth_mode: "api_key",
+                  envId: process.env.CLOUDBASE_ENV_ID,
+                });
+              }
+            } catch (e) {
+              // peekLoginState 内部异常，记录后 fall through
+              debug("start_auth: peekLoginState threw", { error: e instanceof Error ? e.message : String(e) });
             }
+
+            // API Key 换取失败：返回详细诊断信息
+            // 尝试获取更详细的错误信息
+            let diagMessage = "当前配置了 API Key 认证模式，但换取临时密钥失败。";
+            const endpoint = process.env.CLOUDBASE_API_ENDPOINT || `https://${process.env.CLOUDBASE_ENV_ID}.ap-shanghai.tcb-api.tencentcloudapi.com`;
+            diagMessage += `\n\n诊断信息：`;
+            diagMessage += `\n- CLOUDBASE_ENV_ID: ${process.env.CLOUDBASE_ENV_ID}`;
+            diagMessage += `\n- CLOUDBASE_API_KEY: ${process.env.CLOUDBASE_API_KEY.slice(0, 20)}...（已截断）`;
+            diagMessage += `\n- Endpoint: ${endpoint}`;
+            diagMessage += `\n\n可能原因：`;
+            diagMessage += `\n1. API Key 已过期或被删除`;
+            diagMessage += `\n2. Endpoint 不可达（网络/DNS 问题）`;
+            diagMessage += `\n3. CLOUDBASE_ENV_ID 与 API Key 所属环境不匹配`;
+            diagMessage += `\n\n建议：检查 MCP 配置中的 CLOUDBASE_API_KEY 和 CLOUDBASE_ENV_ID 环境变量是否正确。`;
+
+            return buildJsonToolResult({
+              ok: false,
+              code: "API_KEY_AUTH_FAILED",
+              message: diagMessage,
+              auth_mode: "api_key",
+              envId: process.env.CLOUDBASE_ENV_ID,
+              endpoint,
+            });
           }
 
           const region = server.cloudBaseOptions?.region || process.env.TCB_REGION;
