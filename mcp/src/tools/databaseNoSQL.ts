@@ -681,21 +681,11 @@ deleteCollection: 删除集合`),
 
       if (action === "deleteCollection") {
         try {
-          const envId = await getEnvId(server.cloudBaseOptions);
-          // DeleteTable 需要 Tag (InstanceId)，通过 resolveNoSqlInstanceId 获取
-          const resolved = await resolveNoSqlInstanceId({
-            toolName: "writeNoSqlDatabaseStructure",
-            cloudbase,
-            cloudBaseOptions: server.cloudBaseOptions,
-            instanceIdOverride: undefined,
-            collectionName,
-          });
           const result =
             await cloudbase.commonService("tcb", "2018-06-08").call({
               Action: "DeleteTable",
               Param: {
-                EnvId: envId,
-                Tag: resolved.instanceId,
+                EnvId: await getEnvId(server.cloudBaseOptions),
                 TableName: collectionName,
               },
             });
