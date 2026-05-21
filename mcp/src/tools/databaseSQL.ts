@@ -472,7 +472,9 @@ async function getSqlInstanceInfo({
     };
   } catch (error) {
     const errorCode = extractErrorCode(error);
-    const isNotFound = errorCode === "FailedOperation.DataSourceNotExist";
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isNotFound = errorCode === "FailedOperation.DataSourceNotExist"
+      || /envLink not exist|not exist|not found/i.test(errorMessage);
 
     if (!isNotFound) {
       throw error;
@@ -485,7 +487,7 @@ async function getSqlInstanceInfo({
       schema: envId,
       rawStatus:
         typeof createRawStatus === "string" ? createRawStatus : null,
-      status: createStatus,
+      status: createStatus === "PENDING" || createStatus === "RUNNING" ? createStatus : "NOT_CREATED",
       createResult: createData ?? createResult,
     };
   }

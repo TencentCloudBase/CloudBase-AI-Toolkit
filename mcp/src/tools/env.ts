@@ -916,6 +916,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           const loginState = await peekLoginState();
           const authFlowState = await getAuthProgressState();
 
+          // 判断是否为 API Key 模式
+          const isApiKeyMode = !!(process.env.CLOUDBASE_API_KEY && process.env.CLOUDBASE_ENV_ID);
+
           const authStatus = loginState
             ? "READY"
             : authFlowState.status === "PENDING"
@@ -945,6 +948,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             ok: true,
             code: "STATUS",
             auth_status: authStatus,
+            ...(isApiKeyMode ? { auth_mode: "api_key" } : {}),
             auth_config: authConfigSummary,
             ...(envPreparation
               ? buildAuthEnvSetupPayload(envPreparation)
