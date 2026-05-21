@@ -1413,7 +1413,17 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 try {
                   const envInfo = await cloudbaseList.env.describeEnvInfo({ EnvId: envIdFromEnv });
                   logCloudBaseResult(server.logger, envInfo);
-                  result = { EnvList: envInfo?.EnvInfo ? [envInfo.EnvInfo] : [] };
+                  // DescribeEnvInfo 返回结构: { EnvInfo: { EnvBaseInfo: { EnvId, Alias, ... }, BillingInfo, ... } }
+                  // 需要提取 EnvBaseInfo 作为扁平 env 对象以匹配 DescribeEnvs 返回格式
+                  const baseInfo = envInfo?.EnvInfo?.EnvBaseInfo;
+                  if (baseInfo) {
+                    result = { EnvList: [baseInfo] };
+                  } else if (envInfo?.EnvInfo) {
+                    // 兼容: 如果没有 EnvBaseInfo 但有 EnvInfo，尝试直接使用
+                    result = { EnvList: [{ EnvId: envIdFromEnv, ...envInfo.EnvInfo }] };
+                  } else {
+                    result = { EnvList: [{ EnvId: envIdFromEnv }] };
+                  }
                 } catch (envInfoError) {
                   debug("DescribeEnvInfo 失败，返回基础环境信息:", envInfoError instanceof Error ? envInfoError : new Error(String(envInfoError)));
                   result = { EnvList: [{ EnvId: envIdFromEnv }] };
