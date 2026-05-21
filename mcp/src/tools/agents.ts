@@ -50,17 +50,23 @@ function normalizeAgentPayload(params?: Record<string, unknown>) {
 
   const {
     name,
+    description,
     agentId,
     runtime,
     timeout,
     memorySize,
     installDependency,
+    zipFile,
+    cosBucketRegion,
+    tempCosObjectName,
+    sessionConfig,
     ...rest
   } = params;
 
   return {
     ...rest,
     ...(normalizeString(name) ? { Name: normalizeString(name) } : {}),
+    ...(normalizeString(description) ? { Description: normalizeString(description) } : {}),
     ...(normalizeString(agentId) ? { AgentId: normalizeString(agentId) } : {}),
     ...(normalizeString(runtime) ? { Runtime: normalizeString(runtime) } : {}),
     ...(normalizeNumber(timeout) !== undefined ? { Timeout: normalizeNumber(timeout) } : {}),
@@ -70,6 +76,14 @@ function normalizeAgentPayload(params?: Record<string, unknown>) {
     ...(normalizeBoolean(installDependency) !== undefined
       ? { InstallDependency: normalizeBoolean(installDependency) }
       : {}),
+    ...(normalizeString(zipFile) ? { ZipFile: normalizeString(zipFile) } : {}),
+    ...(normalizeString(cosBucketRegion)
+      ? { CosBucketRegion: normalizeString(cosBucketRegion) }
+      : {}),
+    ...(normalizeString(tempCosObjectName)
+      ? { TempCosObjectName: normalizeString(tempCosObjectName) }
+      : {}),
+    ...(sessionConfig && typeof sessionConfig === "object" ? { SessionConfig: sessionConfig } : {}),
   };
 }
 
@@ -182,6 +196,17 @@ export function registerAgentTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z.enum(MANAGE_AGENT_ACTIONS),
         agentId: z.string().optional(),
+        name: z.string().optional(),
+        description: z.string().optional(),
+        runtime: z.string().optional(),
+        timeout: z.number().optional(),
+        memorySize: z.number().optional(),
+        installDependency: z.boolean().optional(),
+        zipFile: z.string().optional(),
+        cosBucketRegion: z.string().optional(),
+        tempCosObjectName: z.string().optional(),
+        sessionConfig: z.record(z.any()).optional(),
+        cwd: z.string().optional(),
         params: z.record(z.any()).optional(),
       },
       annotations: {
@@ -195,20 +220,60 @@ export function registerAgentTools(server: ExtendedMcpServer) {
     async ({
       action,
       agentId,
+      name,
+      description,
+      runtime,
+      timeout,
+      memorySize,
+      installDependency,
+      zipFile,
+      cosBucketRegion,
+      tempCosObjectName,
+      sessionConfig,
+      cwd,
       params,
     }: {
       action: ManageAgentAction;
       agentId?: string;
+      name?: string;
+      description?: string;
+      runtime?: string;
+      timeout?: number;
+      memorySize?: number;
+      installDependency?: boolean;
+      zipFile?: string;
+      cosBucketRegion?: string;
+      tempCosObjectName?: string;
+      sessionConfig?: Record<string, unknown>;
+      cwd?: string;
       params?: Record<string, unknown>;
     }) => {
       try {
         const cloudbase = await getManager();
-        const payload = normalizeAgentPayload(params);
+        const payload = normalizeAgentPayload({
+          name,
+          description,
+          runtime,
+          timeout,
+          memorySize,
+          installDependency,
+          zipFile,
+          cosBucketRegion,
+          tempCosObjectName,
+          sessionConfig,
+          cwd,
+          ...(params ?? {}),
+        });
 
         if (action === "createAgent") {
+          const normalizedName = normalizeString(payload.Name);
+          if (!normalizedName) {
+            throw new Error("action=createAgent 时必须提供 name（可通过顶层 name 或 params.name 传入）");
+          }
+
           const createPayload = {
             ...payload,
-            Name: normalizeString(payload.Name) ?? "",
+            Name: normalizedName,
             Runtime: normalizeString(payload.Runtime) ?? "Nodejs20.19",
           };
           const result = await cloudbase.agent.createAgent(createPayload as any);

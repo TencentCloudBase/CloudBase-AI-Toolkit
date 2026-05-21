@@ -6,6 +6,7 @@ const {
   mockGetAccessList,
   mockGetDomainList,
   mockCreateAccess,
+  mockDeleteAccess,
   mockDescribeHttpServiceRoute,
   mockCreateHttpServiceRoute,
   mockModifyHttpServiceRoute,
@@ -19,6 +20,7 @@ const {
   mockGetAccessList: vi.fn(),
   mockGetDomainList: vi.fn(),
   mockCreateAccess: vi.fn(),
+  mockDeleteAccess: vi.fn(),
   mockDescribeHttpServiceRoute: vi.fn(),
   mockCreateHttpServiceRoute: vi.fn(),
   mockModifyHttpServiceRoute: vi.fn(),
@@ -75,6 +77,7 @@ describe("gateway tools", () => {
       EnableService: true,
       APISet: [
         {
+          APIId: "api-123",
           Path: "api/hello",
         },
       ],
@@ -91,6 +94,9 @@ describe("gateway tools", () => {
     mockCreateAccess.mockResolvedValue({
       RequestId: "req-create-access",
       APIId: "api-123",
+    });
+    mockDeleteAccess.mockResolvedValue({
+      RequestId: "req-delete-access",
     });
     mockDescribeHttpServiceRoute.mockResolvedValue({
       OriginDomain: "env-test.service.tcloudbase.com",
@@ -131,6 +137,7 @@ describe("gateway tools", () => {
         getAccessList: mockGetAccessList,
         getDomainList: mockGetDomainList,
         createAccess: mockCreateAccess,
+        deleteAccess: mockDeleteAccess,
       },
       env: {
         describeHttpServiceRoute: mockDescribeHttpServiceRoute,
@@ -256,6 +263,54 @@ describe("gateway tools", () => {
       message: expect.stringContaining("必须显式提供 type"),
     });
     expect(payload.message).toContain("FUNCTION_PARAM_INVALID");
+  });
+
+  it("manageGateway(action=deleteAccess) should delete by accessId directly", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "deleteAccess",
+      accessId: "api-123",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockDeleteAccess).toHaveBeenCalledWith({
+      apiId: "api-123",
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "deleteAccess",
+        accessId: "api-123",
+      },
+    });
+  });
+
+  it("manageGateway(action=deleteAccess) should resolve accessId by targetName and path", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "deleteAccess",
+      targetName: "helloFn",
+      path: "/api/hello",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockGetAccessList).toHaveBeenCalledWith({
+      name: "helloFn",
+      path: "/api/hello",
+    });
+    expect(mockDeleteAccess).toHaveBeenCalledWith({
+      name: "helloFn",
+      apiId: "api-123",
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "deleteAccess",
+        targetName: "helloFn",
+        path: "/api/hello",
+        accessId: "api-123",
+      },
+    });
   });
 
   it("queryGateway(action=getAccess) should aggregate access urls from domains", async () => {

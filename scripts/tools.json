@@ -208,6 +208,7 @@
           },
           "collectionName": {
             "type": "string",
+            "minLength": 1,
             "description": "集合名称"
           },
           "updateOptions": {
@@ -470,9 +471,10 @@
               "runQuery",
               "describeCreateResult",
               "describeTaskStatus",
-              "getInstanceInfo"
+              "getInstanceInfo",
+              "describeInstance"
             ],
-            "description": "runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get current SQL instance context"
+            "description": "runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get current SQL instance context; describeInstance=alias of getInstanceInfo"
           },
           "sql": {
             "type": "string",
@@ -2026,6 +2028,10 @@
           "accessName": {
             "type": "string",
             "description": "访问入口名称，保留字段"
+          },
+          "accessId": {
+            "type": "string",
+            "description": "访问入口 ID。deleteAccess 时可直接传入，避免参数歧义"
           }
         },
         "required": [
@@ -2440,6 +2446,13 @@
               "additionalProperties": {}
             }
           },
+          "policyIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "策略 ID 列表（当前不支持直接按 ID 绑定，请改传 policies 详情对象）"
+          },
           "uid": {
             "type": "string"
           },
@@ -2578,6 +2591,40 @@
             ]
           },
           "agentId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "runtime": {
+            "type": "string"
+          },
+          "timeout": {
+            "type": "number"
+          },
+          "memorySize": {
+            "type": "number"
+          },
+          "installDependency": {
+            "type": "boolean"
+          },
+          "zipFile": {
+            "type": "string"
+          },
+          "cosBucketRegion": {
+            "type": "string"
+          },
+          "tempCosObjectName": {
+            "type": "string"
+          },
+          "sessionConfig": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "cwd": {
             "type": "string"
           },
           "params": {

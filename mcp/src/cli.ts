@@ -13,15 +13,19 @@ declare const __MCP_VERSION__: string;
 
 /**
  * Parse command line arguments
- * Supports --cloud-mode and --integration-ide flags
+ * Supports --cloud-mode, --integration-ide, --api-key, and --env-id flags
  */
 function parseCommandLineArgs(): {
   cloudMode: boolean;
   ide?: string;
+  apiKey?: string;
+  envId?: string;
 } {
   const args = process.argv.slice(2);
   let cloudMode = false;
   let ide: string | undefined;
+  let apiKey: string | undefined;
+  let envId: string | undefined;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -30,13 +34,23 @@ function parseCommandLineArgs(): {
       cloudMode = true;
     } else if (arg === "--integration-ide" && i + 1 < args.length) {
       ide = args[i + 1];
-      i++; // Skip the next argument since we consumed it
+      i++;
     } else if (arg.startsWith("--integration-ide=")) {
       ide = arg.split("=")[1];
+    } else if (arg === "--api-key" && i + 1 < args.length) {
+      apiKey = args[i + 1];
+      i++;
+    } else if (arg.startsWith("--api-key=")) {
+      apiKey = arg.split("=")[1];
+    } else if (arg === "--env-id" && i + 1 < args.length) {
+      envId = args[i + 1];
+      i++;
+    } else if (arg.startsWith("--env-id=")) {
+      envId = arg.split("=")[1];
     }
   }
 
-  return { cloudMode, ide };
+  return { cloudMode, ide, apiKey, envId };
 }
 
 // 劫持 console.log/info/warn，防止污染 stdout 协议流
@@ -71,7 +85,15 @@ const isTestEnvironment =
 const enableTelemetry = !isTestEnvironment;
 
 // Parse command line arguments
-let { cloudMode, ide } = parseCommandLineArgs();
+let { cloudMode, ide, apiKey, envId } = parseCommandLineArgs();
+
+// Set API Key env vars from CLI flags (if provided)
+if (apiKey) {
+  process.env.CLOUDBASE_API_KEY = apiKey;
+}
+if (envId) {
+  process.env.CLOUDBASE_ENV_ID = envId;
+}
 
 // Log startup information
 if (cloudMode) {

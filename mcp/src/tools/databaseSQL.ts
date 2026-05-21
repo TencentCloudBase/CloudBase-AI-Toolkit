@@ -19,6 +19,7 @@ const QUERY_ACTIONS = [
   "describeCreateResult",
   "describeTaskStatus",
   "getInstanceInfo",
+  "describeInstance",
 ] as const;
 
 const MANAGE_ACTIONS = [
@@ -1227,7 +1228,7 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
         action: z
           .enum(QUERY_ACTIONS)
           .describe(
-            "runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get current SQL instance context",
+            "runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get current SQL instance context; describeInstance=alias of getInstanceInfo",
           ),
         sql: z
           .string()
@@ -1260,6 +1261,7 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
         case "describeTaskStatus":
           return handleDescribeTaskStatus(args, context);
         case "getInstanceInfo":
+        case "describeInstance":
           return handleGetInstanceInfo(context);
         default:
           throw new Error(`Unsupported SQL query action: ${args.action}`);

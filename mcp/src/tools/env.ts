@@ -970,6 +970,48 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         }
 
         if (action === "start_auth") {
+          // API Key 模式：尝试换取临时密钥
+          if (process.env.CLOUDBASE_API_KEY && process.env.CLOUDBASE_ENV_ID) {
+            try {
+              const existingLoginState = await peekLoginState();
+              if (existingLoginState) {
+                return buildJsonToolResult({
+                  ok: true,
+                  code: "AUTH_READY",
+                  message: "当前使用 API Key 认证模式，已自动完成登录，无需手动授权。",
+                  auth_mode: "api_key",
+                  envId: process.env.CLOUDBASE_ENV_ID,
+                });
+              }
+            } catch (e) {
+              // peekLoginState 内部异常，记录后 fall through
+              debug("start_auth: peekLoginState threw", { error: e instanceof Error ? e.message : String(e) });
+            }
+
+            // API Key 换取失败：返回详细诊断信息
+            // 尝试获取更详细的错误信息
+            let diagMessage = "当前配置了 API Key 认证模式，但换取临时密钥失败。";
+            const endpoint = process.env.CLOUDBASE_API_ENDPOINT || `https://${process.env.CLOUDBASE_ENV_ID}.ap-shanghai.tcb-api.tencentcloudapi.com`;
+            diagMessage += `\n\n诊断信息：`;
+            diagMessage += `\n- CLOUDBASE_ENV_ID: ${process.env.CLOUDBASE_ENV_ID}`;
+            diagMessage += `\n- CLOUDBASE_API_KEY: ${process.env.CLOUDBASE_API_KEY.slice(0, 20)}...（已截断）`;
+            diagMessage += `\n- Endpoint: ${endpoint}`;
+            diagMessage += `\n\n可能原因：`;
+            diagMessage += `\n1. API Key 已过期或被删除`;
+            diagMessage += `\n2. Endpoint 不可达（网络/DNS 问题）`;
+            diagMessage += `\n3. CLOUDBASE_ENV_ID 与 API Key 所属环境不匹配`;
+            diagMessage += `\n\n建议：检查 MCP 配置中的 CLOUDBASE_API_KEY 和 CLOUDBASE_ENV_ID 环境变量是否正确。`;
+
+            return buildJsonToolResult({
+              ok: false,
+              code: "API_KEY_AUTH_FAILED",
+              message: diagMessage,
+              auth_mode: "api_key",
+              envId: process.env.CLOUDBASE_ENV_ID,
+              endpoint,
+            });
+          }
+
           const region = server.cloudBaseOptions?.region || process.env.TCB_REGION;
           const auth = AuthSupervisor.getInstance({});
           const authFlowState = await getAuthProgressState();
@@ -1193,6 +1235,16 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         }
 
         if (action === "logout") {
+          // API Key 模式下不允许 logout
+          if (process.env.CLOUDBASE_API_KEY && process.env.CLOUDBASE_ENV_ID) {
+            return buildJsonToolResult({
+              ok: false,
+              code: "LOGOUT_NOT_ALLOWED",
+              message: "当前使用 API Key 认证模式，不支持退出登录。如需切换认证方式，请移除 CLOUDBASE_API_KEY 环境变量后重启。",
+              auth_mode: "api_key",
+            });
+          }
+
           if (confirm !== "yes") {
             return buildJsonToolResult({
               ok: false,
@@ -1352,27 +1404,43 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 requireEnvId: true,
                 mcpServer: server, // Pass server for IDE detection
               });
-              // Use commonService to call DescribeEnvs with filter parameters
-              // Filter parameters match the reference conditions provided by user
-              result = await cloudbaseList.commonService("tcb", "2018-06-08").call({
-                Action: "DescribeEnvs",
-                Param: {
-                  EnvTypes: ["weda", "baas"], // Include weda and baas (normal) environments
-                  IsVisible: false, // Filter out invisible environments
-                  Channels: ["dcloud", "iotenable", "tem", "scene_module"], // Filter special channels
-                },
-              });
-              logCloudBaseResult(server.logger, result);
-              // Transform response format to match original listEnvs() format
-              if (result && result.EnvList) {
-                result = { EnvList: result.EnvList };
-              } else if (result && result.Data && result.Data.EnvList) {
-                result = { EnvList: result.Data.EnvList };
+
+              // 当环境变量设置了 CLOUDBASE_ENV_ID 时（如 API Key 模式），
+              // 避免调用 DescribeEnvs（临时密钥可能不支持该接口），
+              // 改为通过 DescribeEnvInfo 获取单环境信息
+              const envIdFromEnv = process.env.CLOUDBASE_ENV_ID;
+              if (envIdFromEnv) {
+                try {
+                  const envInfo = await cloudbaseList.env.describeEnvInfo({ EnvId: envIdFromEnv });
+                  logCloudBaseResult(server.logger, envInfo);
+                  result = { EnvList: envInfo?.EnvInfo ? [envInfo.EnvInfo] : [] };
+                } catch (envInfoError) {
+                  debug("DescribeEnvInfo 失败，返回基础环境信息:", envInfoError instanceof Error ? envInfoError : new Error(String(envInfoError)));
+                  result = { EnvList: [{ EnvId: envIdFromEnv }] };
+                }
               } else {
-                // Fallback to original method if format is unexpected
-                debug("Unexpected response format, falling back to listEnvs()");
-                result = await cloudbaseList.env.listEnvs();
+                // Use commonService to call DescribeEnvs with filter parameters
+                // Filter parameters match the reference conditions provided by user
+                result = await cloudbaseList.commonService("tcb", "2018-06-08").call({
+                  Action: "DescribeEnvs",
+                  Param: {
+                    EnvTypes: ["weda", "baas"], // Include weda and baas (normal) environments
+                    IsVisible: false, // Filter out invisible environments
+                    Channels: ["dcloud", "iotenable", "tem", "scene_module"], // Filter special channels
+                  },
+                });
                 logCloudBaseResult(server.logger, result);
+                // Transform response format to match original listEnvs() format
+                if (result && result.EnvList) {
+                  result = { EnvList: result.EnvList };
+                } else if (result && result.Data && result.Data.EnvList) {
+                  result = { EnvList: result.Data.EnvList };
+                } else {
+                  // Fallback to original method if format is unexpected
+                  debug("Unexpected response format, falling back to listEnvs()");
+                  result = await cloudbaseList.env.listEnvs();
+                  logCloudBaseResult(server.logger, result);
+                }
               }
             } catch (error) {
               debug("获取环境列表时出错，尝试降级到 listEnvs():", error instanceof Error ? error : new Error(String(error)));

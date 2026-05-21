@@ -54,9 +54,19 @@ export async function listAvailableEnvCandidates(options?: {
 }): Promise<EnvCandidate[]> {
     const { cloudBaseOptions, loginState: providedLoginState } = options ?? {};
 
+    // 优先使用显式传入的 envId
     if (cloudBaseOptions?.envId) {
         return [{
             envId: cloudBaseOptions.envId,
+        }];
+    }
+
+    // 当环境变量设置了 CLOUDBASE_ENV_ID 且没有显式 credentials 时，直接返回（避免调 DescribeEnvs）
+    // 有显式 credentials 时需要重新查询，因为可能是不同账号
+    const hasExplicitCredentials = !!(cloudBaseOptions?.secretId && cloudBaseOptions?.secretKey);
+    if (process.env.CLOUDBASE_ENV_ID && !hasExplicitCredentials) {
+        return [{
+            envId: process.env.CLOUDBASE_ENV_ID,
         }];
     }
 
@@ -459,6 +469,7 @@ export async function getCloudBaseManager(options: GetManagerOptions = {}): Prom
                 await throwPendingAuthError();
             }
             throwAuthRequiredError();
+            return undefined as never; // unreachable, helps TypeScript narrow
         }
         const {
             envId: loginEnvId,

@@ -487,7 +487,7 @@ Query SQL database information. Supports read-only SQL execution, MySQL provisio
       name: "action",
       type: "string",
       required: true,
-      description: `runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get current SQL instance context 可填写的值: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo"`,
+      description: `runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get current SQL instance context; describeInstance=alias of getInstanceInfo 可填写的值: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo", "describeInstance"`,
     },
     {
       name: "sql",
@@ -1925,6 +1925,11 @@ API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
       name: "accessName",
       type: "string",
       description: `访问入口名称，保留字段`,
+    },
+    {
+      name: "accessId",
+      type: "string",
+      description: `访问入口 ID。deleteAccess 时可直接传入，避免参数歧义`,
     }
   ]}
 />
@@ -2284,6 +2289,11 @@ CloudApp 域统一写入口。action=deployApp 会先 uploadCode 再 createApp�
       type: "array of object",
     },
     {
+      name: "policyIds",
+      type: "array of string",
+      description: `策略 ID 列表（当前不支持直接按 ID 绑定，请改传 policies 详情对象）`,
+    },
+    {
       name: "uid",
       type: "string",
     },
@@ -2420,6 +2430,50 @@ Agent 域统一写入口。支持创建、更新和删除远端 Agent。
     },
     {
       name: "agentId",
+      type: "string",
+    },
+    {
+      name: "name",
+      type: "string",
+    },
+    {
+      name: "description",
+      type: "string",
+    },
+    {
+      name: "runtime",
+      type: "string",
+    },
+    {
+      name: "timeout",
+      type: "number",
+    },
+    {
+      name: "memorySize",
+      type: "number",
+    },
+    {
+      name: "installDependency",
+      type: "boolean",
+    },
+    {
+      name: "zipFile",
+      type: "string",
+    },
+    {
+      name: "cosBucketRegion",
+      type: "string",
+    },
+    {
+      name: "tempCosObjectName",
+      type: "string",
+    },
+    {
+      name: "sessionConfig",
+      type: "object",
+    },
+    {
+      name: "cwd",
       type: "string",
     },
     {

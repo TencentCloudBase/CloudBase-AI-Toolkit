@@ -433,6 +433,23 @@ describe("NoSQL database tools", () => {
     });
   });
 
+  it("writeNoSqlDatabaseStructure(deleteCollection) should provide clear message for parameter invalid", async () => {
+    mockCommonServiceCall.mockImplementationOnce(async ({ Action }) => {
+      if (Action === "DeleteTable") {
+        throw new Error("parameter invalid");
+      }
+      throw new Error(`Unexpected action: ${Action}`);
+    });
+
+    const { tools } = createMockServer();
+    await expect(
+      tools.writeNoSqlDatabaseStructure.handler({
+        action: "deleteCollection",
+        collectionName: "test-collection",
+      }),
+    ).rejects.toThrow("deleteCollection 参数校验失败");
+  });
+
   it("readNoSqlDatabaseContent should keep non-document strings untouched", async () => {
     mockCommonServiceCall.mockImplementationOnce(async () => ({
       RequestId: "req-query-raw",

@@ -65,6 +65,7 @@ type ManageGatewayInput = {
   domain?: string;
   certificateId?: string;
   accessName?: string;
+  accessId?: string;
 };
 
 function normalizeAccessPath(path: string | undefined): string {
@@ -482,9 +483,42 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     case "deleteAccess": {
       const cloudbase = await getManager();
       const accessPath = input.path ? normalizeAccessPath(input.path) : undefined;
+      let resolvedAccessId = input.accessId;
+
+      if (!resolvedAccessId) {
+        if (!input.targetName && !accessPath) {
+          throw new Error("action=deleteAccess 时至少需要提供 accessId，或提供 targetName/path 用于定位入口");
+        }
+
+        const accessList = await cloudbase.access.getAccessList({
+          ...(input.targetName ? { name: input.targetName } : {}),
+          ...(accessPath ? { path: accessPath } : {}),
+        });
+        const candidates = (accessList.APISet ?? []).filter((item: any) => {
+          if (!accessPath) {
+            return true;
+          }
+          return normalizeAccessPath(item.Path) === accessPath;
+        });
+
+        if (candidates.length === 0) {
+          throw new Error("未找到可删除的访问入口，请确认 targetName/path 或直接传 accessId");
+        }
+
+        if (candidates.length > 1 && !accessPath) {
+          throw new Error("匹配到多个访问入口，请补充 path 或直接传 accessId");
+        }
+
+        resolvedAccessId = candidates[0]?.APIId;
+      }
+
+      if (!resolvedAccessId) {
+        throw new Error("无法解析访问入口 accessId，请改为显式传入 accessId");
+      }
+
       const result = await cloudbase.access.deleteAccess({
         ...(input.targetName ? { name: input.targetName } : {}),
-        ...(accessPath ? { path: accessPath } : {}),
+        apiId: resolvedAccessId,
       });
       logCloudBaseResult(server.logger, result);
 
@@ -493,6 +527,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           action: input.action,
           targetName: input.targetName ?? null,
           path: accessPath ?? null,
+          accessId: resolvedAccessId,
           raw: result,
         },
         "网关访问入口删除成功",
@@ -612,6 +647,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         domain: z.string().optional().describe("自定义域名"),
         certificateId: z.string().optional().describe("证书 ID"),
         accessName: z.string().optional().describe("访问入口名称，保留字段"),
+        accessId: z.string().optional().describe("访问入口 ID。deleteAccess 时可直接传入，避免参数歧义"),
       },
       annotations: {
         readOnlyHint: false,
