@@ -586,7 +586,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
         roleId: z.string().optional(),
         roleIds: z.array(z.string()).optional(),
         roleName: z.string().optional(),
-        roleIdentity: z.string().optional(),
+        roleIdentity: z.string().optional().describe("角色标识符（字母/数字/_-:@.），action=createRole 时必填，用于程序化引用角色"),
         description: z.string().optional(),
         memberUids: z.array(z.string()).optional(),
         policies: z.array(z.record(z.any())).optional(),
