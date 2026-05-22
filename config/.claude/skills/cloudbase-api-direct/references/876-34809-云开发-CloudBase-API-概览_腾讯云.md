@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-05-20 03:00:38
+最近更新时间：2026-05-22 02:39:24
 
 -   微信扫一扫 
 -   QQ
@@ -54,6 +54,9 @@ _我的收藏_
 | [DescribeEnvLimit](/document/api/876/42146) | 查询环境个数上限接口 | 20 |
 | [DescribeHostingDomainTask](/document/api/876/57514) | 查询静态托管域名任务状态 | 20 |
 | [DescribeQuotaData](/document/api/876/42145) | 查询环境的配额使用量 | 2000 |
+| [BindStorageSource](/document/api/876/132025) | 云存储绑定外部存储源 | 20 |
+| [ModifyStorageSource](/document/api/876/132024) | 更新云存储外部数据源 | 20 |
+| [UnbindStorageSource](/document/api/876/132023) | 解绑云存储外部云存储源 | 20 |
 | [CreateEnvResource](/document/api/876/129358) | 创建环境相关资源 | 20 |
 | [AllocateEnv](/document/api/876/131594) | 从环境池分配环境 | 1000 |
 | [ReleaseEnv](/document/api/876/131592) | 释放从环境池里分配的环境 | 1000 |

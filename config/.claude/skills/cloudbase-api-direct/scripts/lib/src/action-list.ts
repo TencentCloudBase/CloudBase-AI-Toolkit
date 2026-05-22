@@ -4,13 +4,14 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 79
+ * Action 数量: 82
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
   'AddProvider',
   'AllocateEnv',
   'AssumeRoleForAllocatedEnv',
+  'BindStorageSource',
   'CheckTcbService',
   'CreateAIModel',
   'CreateApiKey',
@@ -79,12 +80,14 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'ModifyLoginConfig',
   'ModifyProvider',
   'ModifySafeRule',
+  'ModifyStorageSource',
   'ModifyUser',
   'ReleaseEnv',
   'RenewEnv',
   'RunCommands',
   'RunSql',
   'SearchClsLog',
+  'UnbindStorageSource',
   'UpdateAIModel',
   'UpdateTable',
 ];
