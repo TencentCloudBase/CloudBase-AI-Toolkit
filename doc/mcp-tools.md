@@ -646,7 +646,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
     {
       name: "dbInstanceType",
       type: "string",
-      description: `数据库实例类型`,
+      description: `数据库实例类型：MYSQL=MySQL 数据库，FLEXDB=文档型数据库（NoSQL） 可填写的值: "MYSQL", "FLEXDB"`,
     }
   ]}
 />
@@ -1187,7 +1187,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
               name: "Switch",
               type: "string",
               required: true,
-              description: `Referer 防盗链开关，例如 on/off。`,
+              description: `Referer 防盗链开关：on=开启，off=关闭。 可填写的值: "on", "off"`,
             },
             {
               name: "RefererRules",
@@ -1198,7 +1198,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
                   name: "RefererType",
                   type: "string",
                   required: true,
-                  description: `Referer 规则类型。`,
+                  description: `Referer 规则类型：blacklist=黑名单，whitelist=白名单。 可填写的值: "blacklist", "whitelist"`,
                 },
                 {
                   name: "Referers",
@@ -1225,7 +1225,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
               name: "RuleType",
               type: "string",
               required: true,
-              description: `缓存规则类型，例如 fileType/path。`,
+              description: `缓存规则类型：fileType=文件类型，path=路径。 可填写的值: "fileType", "path"`,
             },
             {
               name: "RuleValue",
@@ -1250,12 +1250,12 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
               name: "Switch",
               type: "string",
               required: true,
-              description: `IP 访问控制开关，例如 on/off。`,
+              description: `IP 访问控制开关：on=开启，off=关闭。 可填写的值: "on", "off"`,
             },
             {
               name: "FilterType",
               type: "string",
-              description: `过滤类型，例如 blacklist/whitelist。`,
+              description: `过滤类型：blacklist=黑名单，whitelist=白名单。 可填写的值: "blacklist", "whitelist"`,
             },
             {
               name: "Filters",
@@ -1273,7 +1273,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
               name: "Switch",
               type: "string",
               required: true,
-              description: `IP 频控开关，例如 on/off。`,
+              description: `IP 频控开关：on=开启，off=关闭。 可填写的值: "on", "off"`,
             },
             {
               name: "Qps",
@@ -2005,7 +2005,7 @@ API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
     {
       name: "providerType",
       type: "string",
-      description: `addProvider 时的 provider 协议类型，如 OAUTH、OIDC、EMAIL`,
+      description: `addProvider 时的 provider 协议类型 可填写的值: "OAUTH", "OIDC", "SAML", "WX_MICRO_APP", "WX_QRCODE_MICRO_APP", "WX_CLOUDBASE_MICRO_APP", "WX_MP", "WX_OPEN", "WX_WORK_INTERNAL", "WX_WORK_AGENT", "WX_WORK_THIRD_PARTY", "WX_WORK_THIRD_PARTY_ASSOCIATION", "CUSTOM", "EMAIL"`,
     },
     {
       name: "displayName",
