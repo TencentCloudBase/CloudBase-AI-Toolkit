@@ -42,7 +42,7 @@ jobs:
           node-version: '20'
 
       - name: Install CodeBuddy CLI
-        run: npm install -g @tencent-ai/codebuddy-code
+        run: npm cache clean --force && npm install -g @tencent-ai/codebuddy-code@latest
 
       - name: Validate CodeBuddy credentials
         env:
