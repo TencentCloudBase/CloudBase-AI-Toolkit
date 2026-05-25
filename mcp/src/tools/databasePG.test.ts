@@ -78,7 +78,7 @@ describe("PG database tools", () => {
 
     expect(typeof tools.queryPgDatabase?.handler).toBe("function");
     expect(typeof tools.managePgDatabase?.handler).toBe("function");
-    expect(typeof tools.getPgSchema?.handler).toBe("function");
+    expect(tools.getPgSchema).toBeUndefined();
   });
 
   it("managePgDatabase(init) stores PG context", async () => {
@@ -119,6 +119,43 @@ describe("PG database tools", () => {
       instanceId: "cloudbase-pg-local",
       defaultSchema: "public",
     });
+  });
+
+  it("managePgDatabase(init, bootstrapMode=cloud) stores Manager SDK context without requiring file IO", async () => {
+    delete process.env.CLOUDBASE_PG_CONTEXT_PATH;
+
+    const { server, tools } = createMockServer();
+    const fakeClient = createFakeClient(async (sql: string) => {
+      if (sql === "SELECT 1") {
+        return { rows: [{ "?column?": 1 }], rowCount: 1 };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    registerPGDatabaseTools(server, {
+      createClient: vi.fn(() => fakeClient),
+    });
+
+    const result = await tools.managePgDatabase.handler({
+      action: "init",
+      bootstrapMode: "cloud",
+      role: "postgres",
+    });
+    const payload = buildToolPayload(result);
+
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        context: {
+          envId: "env-test",
+          runtimeMode: "cloudbase-manager",
+          bootstrapMode: "cloud",
+          role: "postgres",
+          connection: null,
+        },
+      },
+    });
+    expect(server.pgRuntimeContext?.runtimeMode).toBe("cloudbase-manager");
   });
 
   it("managePgDatabase(init) retries readiness checks until PostgreSQL accepts connections", async () => {
@@ -312,7 +349,7 @@ describe("PG database tools", () => {
     expect(payload.data.tables[0].rows).toBeUndefined();
   });
 
-  it("getPgSchema rejects non schema-qualified object names", async () => {
+  it("queryPgDatabase(schema) rejects non schema-qualified object names", async () => {
     const { server, tools } = createMockServer();
     const fakeClient = createFakeClient(async (sql: string) => {
       if (sql === "SELECT 1") {
@@ -333,7 +370,8 @@ describe("PG database tools", () => {
       connectionUri: "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
-    const result = await tools.getPgSchema.handler({
+    const result = await tools.queryPgDatabase.handler({
+      action: "schema",
       objectName: "users",
     });
     const payload = buildToolPayload(result);
@@ -344,7 +382,7 @@ describe("PG database tools", () => {
     });
   });
 
-  it("getPgSchema returns columns, keys, indexes, and security summary", async () => {
+  it("queryPgDatabase(schema) returns columns, keys, indexes, and security summary", async () => {
     const { server, tools } = createMockServer();
     const fakeClient = createFakeClient(async (sql: string) => {
       if (sql === "SELECT 1") {
@@ -446,7 +484,8 @@ describe("PG database tools", () => {
       connectionUri: "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
-    const result = await tools.getPgSchema.handler({
+    const result = await tools.queryPgDatabase.handler({
+      action: "schema",
       objectName: "public.users",
     });
     const payload = buildToolPayload(result);
@@ -476,7 +515,7 @@ describe("PG database tools", () => {
     });
   });
 
-  it("managePgDatabase(execute) allows normal DDL/DML", async () => {
+  it("managePgDatabase(execute) requires confirm for normal DDL/DML and then executes", async () => {
     const { server, tools } = createMockServer();
     const fakeClient = createFakeClient(async (sql: string) => {
       if (sql === "SELECT 1") {
@@ -511,9 +550,29 @@ describe("PG database tools", () => {
     const payload = buildToolPayload(result);
 
     expect(payload).toMatchObject({
+      success: false,
+      errorCode: "CONFIRM_REQUIRED",
+      data: {
+        classification: {
+          risk: "schema_change",
+        },
+      },
+    });
+
+    const confirmedResult = await tools.managePgDatabase.handler({
+      action: "execute",
+      sql: "CREATE TABLE public.users(id int)",
+      confirm: true,
+    });
+    const confirmedPayload = buildToolPayload(confirmedResult);
+
+    expect(confirmedPayload).toMatchObject({
       success: true,
       data: {
         command: "CREATE",
+        classification: {
+          risk: "schema_change",
+        },
       },
     });
   });
@@ -570,7 +629,10 @@ describe("PG database tools", () => {
       }),
     );
     const schemaResult = buildToolPayload(
-      await tools.getPgSchema.handler({ objectName: "public.users" }),
+      await tools.queryPgDatabase.handler({
+        action: "schema",
+        objectName: "public.users",
+      }),
     );
 
     for (const payload of [queryResult, executeResult, schemaResult]) {
@@ -583,5 +645,122 @@ describe("PG database tools", () => {
         action: "init",
       });
     }
+  });
+
+  describe("env fallback for connectionUri", () => {
+    afterEach(() => {
+      delete process.env.DATABASE_URI;
+      delete process.env.DATABASE_URL;
+      delete process.env.POSTGRES_URL;
+    });
+
+    it("init uses DATABASE_URI from env when connectionUri is not provided", async () => {
+      process.env.DATABASE_URI =
+        "postgresql://cloudbase_admin:secret@localhost:5432/postgres";
+
+      const { server, tools } = createMockServer();
+      const fakeClient = createFakeClient(async (sql: string) => {
+        if (sql === "SELECT 1") {
+          return { rows: [{ "?column?": 1 }], rowCount: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      });
+
+      const bootstrapSpy = vi.fn(async (req: any) => ({
+        ...createBootstrapResult(),
+        connectionUri: req.connectionUri ?? process.env.DATABASE_URI,
+      }));
+
+      registerPGDatabaseTools(server, {
+        bootstrapProvider: { bootstrap: bootstrapSpy },
+        createClient: vi.fn(() => fakeClient),
+      });
+
+      const result = await tools.managePgDatabase.handler({
+        action: "init",
+        bootstrapMode: "manual",
+        // no connectionUri
+      });
+      const payload = buildToolPayload(result);
+
+      expect(payload).toMatchObject({ success: true });
+      // The bootstrap provider should have been called, and the stored context
+      // should contain the URI from env
+      const saved = JSON.parse(await fs.readFile(contextPath, "utf8"));
+      expect(saved.connectionUri).toBe(process.env.DATABASE_URI);
+    });
+
+    it("explicit connectionUri takes priority over env", async () => {
+      process.env.DATABASE_URI =
+        "postgresql://from_env:secret@envhost:5432/envdb";
+      const explicitUri =
+        "postgresql://explicit:secret@explicithost:5432/explicitdb";
+
+      const { server, tools } = createMockServer();
+      const fakeClient = createFakeClient(async (sql: string) => {
+        if (sql === "SELECT 1") {
+          return { rows: [{ "?column?": 1 }], rowCount: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      });
+
+      registerPGDatabaseTools(server, {
+        bootstrapProvider: {
+          bootstrap: vi.fn(async () => ({
+            ...createBootstrapResult(),
+            connectionUri: explicitUri,
+          })),
+        },
+        createClient: vi.fn(() => fakeClient),
+      });
+
+      const result = await tools.managePgDatabase.handler({
+        action: "init",
+        connectionUri: explicitUri,
+      });
+      const payload = buildToolPayload(result);
+
+      expect(payload).toMatchObject({ success: true });
+      const saved = JSON.parse(await fs.readFile(contextPath, "utf8"));
+      expect(saved.connectionUri).toBe(explicitUri);
+    });
+
+    it("falls back to bootstrap path when no connectionUri and no env", async () => {
+      // Ensure no env vars are set
+      delete process.env.DATABASE_URI;
+      delete process.env.DATABASE_URL;
+      delete process.env.POSTGRES_URL;
+
+      const { server, tools } = createMockServer();
+      const fakeClient = createFakeClient(async (sql: string) => {
+        if (sql === "SELECT 1") {
+          return { rows: [{ "?column?": 1 }], rowCount: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      });
+
+      const bootstrapSpy = vi.fn(async (req: any) => ({
+        ...createBootstrapResult(),
+        connectionUri: req?.connectionUri,
+        bootstrapMode: "podman" as const,
+      }));
+
+      registerPGDatabaseTools(server, {
+        bootstrapProvider: { bootstrap: bootstrapSpy },
+        createClient: vi.fn(() => fakeClient),
+      });
+
+      const result = await tools.managePgDatabase.handler({
+        action: "init",
+        // no connectionUri, no env — should delegate to bootstrap provider
+      });
+      const payload = buildToolPayload(result);
+
+      expect(payload).toMatchObject({ success: true });
+      // bootstrapProvider.bootstrap should have been called once
+      expect(bootstrapSpy).toHaveBeenCalledTimes(1);
+      // The request passed to bootstrap should have no connectionUri
+      expect(bootstrapSpy.mock.calls[0]?.[0]?.connectionUri).toBeUndefined();
+    });
   });
 });

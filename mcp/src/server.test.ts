@@ -4,6 +4,8 @@ const {
   mockRegisterEnvTools,
   mockRegisterDatabaseTools,
   mockRegisterSqlDatabaseTools,
+  mockRegisterPgDatabaseTools,
+  mockRegisterPgStorageTools,
   mockRegisterDataModelTools,
   mockRegisterDownloadTools,
   mockRegisterFunctionTools,
@@ -24,6 +26,8 @@ const {
   mockRegisterEnvTools: vi.fn(),
   mockRegisterDatabaseTools: vi.fn(),
   mockRegisterSqlDatabaseTools: vi.fn(),
+  mockRegisterPgDatabaseTools: vi.fn(),
+  mockRegisterPgStorageTools: vi.fn(),
   mockRegisterDataModelTools: vi.fn(),
   mockRegisterDownloadTools: vi.fn(),
   mockRegisterFunctionTools: vi.fn(),
@@ -45,6 +49,8 @@ const {
 vi.mock("./tools/env.js", () => ({ registerEnvTools: mockRegisterEnvTools }));
 vi.mock("./tools/databaseNoSQL.js", () => ({ registerDatabaseTools: mockRegisterDatabaseTools }));
 vi.mock("./tools/databaseSQL.js", () => ({ registerSQLDatabaseTools: mockRegisterSqlDatabaseTools }));
+vi.mock("./tools/databasePG.js", () => ({ registerPGDatabaseTools: mockRegisterPgDatabaseTools }));
+vi.mock("./tools/storagePG.js", () => ({ registerPGStorageTools: mockRegisterPgStorageTools }));
 vi.mock("./tools/dataModel.js", () => ({ registerDataModelTools: mockRegisterDataModelTools }));
 vi.mock("./tools/download.js", () => ({ registerDownloadTools: mockRegisterDownloadTools }));
 vi.mock("./tools/functions.js", () => ({ registerFunctionTools: mockRegisterFunctionTools }));
@@ -79,6 +85,7 @@ describe("server plugin registration", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    process.env.npm_package_version = "0.0.0-test";
   });
 
   it("should register app tools in the default plugin set", async () => {
@@ -91,6 +98,8 @@ describe("server plugin registration", () => {
     expect(mockRegisterLogTools).toHaveBeenCalledTimes(1);
     expect(mockRegisterAgentTools).toHaveBeenCalledTimes(1);
     expect(mockRegisterAppTools).toHaveBeenCalledTimes(1);
+    expect(mockRegisterPgDatabaseTools).toHaveBeenCalledTimes(1);
+    expect(mockRegisterPgStorageTools).toHaveBeenCalledTimes(1);
   });
 
   it("should support legacy plugin aliases", async () => {

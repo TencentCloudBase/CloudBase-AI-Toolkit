@@ -8,6 +8,7 @@ import { registerFunctionTools } from "./tools/functions.js";
 import { registerHostingTools } from "./tools/hosting.js";
 import { registerRagTools } from "./tools/rag.js";
 import { registerSetupTools } from "./tools/setup.js";
+import { registerPGStorageTools } from "./tools/storagePG.js";
 import { registerStorageTools } from "./tools/storage.js";
 // import { registerMiniprogramTools } from "./tools/miniprogram.js";
 import { SetLevelRequestSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -39,6 +40,8 @@ interface PluginDefinition {
 const DEFAULT_PLUGINS = [
   "env",
   "database",
+  "pg_database",
+  "pg_storage",
   "functions",
   "hosting",
   "storage",
@@ -63,7 +66,6 @@ function registerDatabase(server: ExtendedMcpServer) {
     registerDatabaseTools(server);
   }
   registerSQLDatabaseTools(server);
-  registerPGDatabaseTools(server);
   registerDataModelTools(server);
 }
 
@@ -71,6 +73,8 @@ function registerDatabase(server: ExtendedMcpServer) {
 const AVAILABLE_PLUGINS: Record<string, PluginDefinition> = {
   env: { name: "env", register: registerEnvTools },
   database: { name: "database", register: registerDatabase },
+  pg_database: { name: "pg_database", register: registerPGDatabaseTools },
+  pg_storage: { name: "pg_storage", register: registerPGStorageTools },
   functions: { name: "functions", register: registerFunctionTools },
   hosting: { name: "hosting", register: registerHostingTools },
   storage: { name: "storage", register: registerStorageTools },
@@ -156,10 +160,11 @@ function parseEnabledPlugins(
 export interface PgRuntimeContext {
   envId: string;
   instanceId: string;
-  connectionUri: string;
+  connectionUri?: string;
   defaultSchema: string;
-  runtimeMode: "local";
-  bootstrapMode: "podman" | "local" | "manual";
+  runtimeMode: "local" | "cloudbase-manager";
+  bootstrapMode: "podman" | "local" | "manual" | "cloud";
+  role?: string;
   bootstrapProjectDir?: string;
   createdAt: string;
   updatedAt: string;
