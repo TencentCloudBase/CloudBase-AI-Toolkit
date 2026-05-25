@@ -2,7 +2,7 @@
 
 ## 获取环境列表
 
-最近更新时间：2026-03-02 12:47:51
+最近更新时间：2026-05-25 02:38:06
 
 -   微信扫一扫 
 -   QQ
@@ -37,39 +37,70 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 | Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeEnvs。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| EnvId | 否 | String | 环境ID，如果传了这个参数则只返回该环境的相关信息  
+| EnvId | 否 | String | 
+环境ID，如果传了这个参数则只返回该环境的相关信息
+
+  
 示例值：yourenvid-2fb346 |
-| IsVisible | 否 | Boolean | 指定Channels字段为可见渠道列表或不可见渠道列表  
-如只想获取渠道A的环境 就填写IsVisible= true,Channels = \["A"\], 过滤渠道A拉取其他渠道环境时填写IsVisible= false,Channels = \["A"\]  
+| IsVisible | 否 | Boolean | 
+
+指定Channels字段为可见渠道列表或不可见渠道列表  
+如只想获取渠道A的环境 就填写IsVisible= true,Channels = \["A"\], 过滤渠道A拉取其他渠道环境时填写IsVisible= false,Channels = \["A"\]
+
+  
 示例值：true |
-| Channels.N | 否 | Array of String | 渠道列表，代表可见或不可见渠道由IsVisible参数指定  
-示例值：\[ide,qc\_console\] |
-| Limit | 否 | Integer | 分页参数，单页限制个数  
+| Channels.N | 否 | Array of String | 
+
+渠道列表，代表可见或不可见渠道由IsVisible参数指定
+
+  
+示例值：\["ide","qc\_console"\] |
+| Limit | 否 | Integer | 
+
+分页参数，单页限制个数
+
+  
 示例值：10 |
-| Offset | 否 | Integer | 分页参数，偏移量  
+| Offset | 否 | Integer | 
+
+分页参数，偏移量
+
+  
 示例值：0 |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| EnvList | Array of [EnvInfo](/document/api/876/34822#EnvInfo) | 环境信息列表 |
-| Total | Integer | 环境个数  
+| EnvList | Array of [EnvInfo](/document/api/876/34822#EnvInfo) | 
+环境信息列表
+
+ |
+| Total | Integer | 
+
+环境个数
+
+  
 示例值：1 |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 查询环境信息
-
-查询环境信息
+### 示例1 分批查询环境信息
 
 #### 输入示例
 
 ```
-https://tcb.tencentcloudapi.com/?Action=DescribeEnvs
-&EnvId=yourenvid-2fb346
-&<公共请求参数>
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: DescribeEnvs
+<公共请求参数>
+
+{
+    "Limit": 50,
+    "Offset": 100
+}
 ```
 
 #### 输出示例
@@ -77,61 +108,151 @@ https://tcb.tencentcloudapi.com/?Action=DescribeEnvs
 ```json
 {
     "Response": {
-        "Total": 1,
         "EnvList": [
             {
-                "EnvId": "yourenvid-2fb346",
-                "PackageType": "",
-                "EnvType": "baas",
+                "Alias": "env-alias",
+                "CreateTime": "2026-04-16 10:32:21",
+                "CustomLogServices": [],
+                "Databases": [],
+                "EnvChannel": "wxrun",
+                "EnvId": "env-alias-3gf2x8bcb714facd",
+                "EnvType": "run",
+                "Functions": [],
+                "IsAutoDegrade": false,
                 "IsDauPackage": false,
-                "Source": "miniapp",
-                "Alias": "默认环境",
-                "Status": "NORMAL",
-                "PayMode": "postpaid",
-                "Tags": [],
-                "PackageName": "free",
-                "IsAutoDegrade": true,
-                "EnvChannel": "web",
-                "Region": "ap-shanghai",
-                "IsDefault": true,
-                "PackageId": "free",
-                "CreateTime": "2018-08-13 10:52:09",
-                "UpdateTime": "2018-08-13 10:52:40",
+                "IsDefault": false,
                 "LogServices": [],
+                "Meta": [],
+                "PackageId": "",
+                "PackageName": "",
+                "PackageType": "normal",
+                "PayMode": "postpaid",
+                "PostgreSQL": [],
+                "Region": "ap-shanghai",
+                "Source": "miniapp",
                 "StaticStorages": [],
-                "Databases": [
-                    {
-                        "InstanceId": "default",
-                        "Region": "ap-shanghai",
-                        "Status": "RUNNING",
-                        "UpdateTime": "2023-10-05T14:48:00Z"
-                    }
-                ],
-                "CustomLogServices": [
-                    {
-                        "ClsTopicId": "topicId",
-                        "ClsRegion": "ap-shanghai",
-                        "ClsLogsetId": "logset",
-                        "CreateTime": "2020-09-22 00:00:00"
-                    }
-                ],
+                "Status": "NORMAL",
                 "Storages": [
                     {
-                        "Region": "ap-shanghai",
-                        "Bucket": "yourenvid-2fb346-12532284",
-                        "CdnDomain": "yourenvid-2fb346.tcb.qcloud.la",
-                        "AppId": "1234567890"
-                    }
-                ],
-                "Functions": [
-                    {
-                        "Namespace": "yourenvid-2fb346",
+                        "AppId": "",
+                        "Bucket": "656e-env-alias",
+                        "CdnDomain": "656e-env-alias.tcb.qcloud.la",
+                        "ExternalStorage": {
+                            "BasePath": "",
+                            "BucketName": "",
+                            "Enabled": false,
+                            "Region": ""
+                        },
                         "Region": "ap-shanghai"
                     }
-                ]
+                ],
+                "Tags": [],
+                "UpdateTime": "2026-04-16 10:32:35"
             }
         ],
-        "RequestId": "75ec26f6-b624-40f1-a3f4-e724843f483e"
+        "Total": 10000,
+        "RequestId": "3c628980-0441-48d7-a9ca-850209a646c2"
+    }
+}
+```
+
+### 示例2 查询某个环境的信息
+
+#### 输入示例
+
+```
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: DescribeEnvs
+<公共请求参数>
+
+{
+    "EnvId": "pg-cassieluliu-d5gmvd3id25eb60d6"
+}
+```
+
+#### 输出示例
+
+```json
+{
+    "Response": {
+        "EnvList": [
+            {
+                "Alias": "alias",
+                "CreateTime": "2026-05-08 16:31:20",
+                "CustomLogServices": [],
+                "Databases": [],
+                "EnvChannel": "qc_console",
+                "EnvId": "alis-d5gmvd3id25eb60d6",
+                "EnvType": "baas",
+                "Functions": [
+                    {
+                        "Namespace": "palis-d5gmvd3id25eb60d6",
+                        "Region": "ap-shanghai"
+                    }
+                ],
+                "IsAutoDegrade": false,
+                "IsDauPackage": false,
+                "IsDefault": false,
+                "LogServices": [],
+                "Meta": [
+                    {
+                        "Key": "postgresql",
+                        "Value": "enable"
+                    }
+                ],
+                "PackageId": "baas_personal",
+                "PackageName": "个人版",
+                "PackageType": "baas",
+                "PayMode": "prepayment",
+                "PostgreSQL": [
+                    {
+                        "InstanceName": "postgres-4**0*5*g",
+                        "Name": "postgres",
+                        "Region": "ap-shanghai",
+                        "Status": 1,
+                        "Version": "17.6"
+                    }
+                ],
+                "Region": "ap-shanghai",
+                "Source": "qcloud",
+                "StaticStorages": [
+                    {
+                        "Bucket": "14c1-st*tic-**-***********-d5g*******5**6**6****9***930",
+                        "DefaultDirName": "",
+                        "ExternalStorage": {
+                            "BasePath": "",
+                            "BucketName": "",
+                            "Enabled": false,
+                            "Region": ""
+                        },
+                        "Region": "ap-shanghai",
+                        "StaticDomain": "asdas-1259548930.tcloudbaseapp.com",
+                        "Status": "online"
+                    }
+                ],
+                "Status": "NORMAL",
+                "Storages": [
+                    {
+                        "AppId": "",
+                        "Bucket": "7067-asasff-121412430",
+                        "CdnDomain": "7067-asafsfafasf-id25eb60d6-112131430.tcb.qcloud.la",
+                        "ExternalStorage": {
+                            "BasePath": "",
+                            "BucketName": "",
+                            "Enabled": false,
+                            "Region": ""
+                        },
+                        "Region": "ap-shanghai"
+                    }
+                ],
+                "Tags": [],
+                "UpdateTime": "2026-05-08 16:33:26"
+            }
+        ],
+        "Total": 1,
+        "RequestId": "332159dc-278e-45b9-ba47-1444e3f35002"
     }
 }
 ```
