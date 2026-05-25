@@ -646,7 +646,7 @@ Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, w
     {
       name: "dbInstanceType",
       type: "string",
-      description: `数据库实例类型`,
+      description: `数据库实例类型，可选值：MYSQL=MySQL 数据库，FLEXDB=文档型数据库（NoSQL）`,
     }
   ]}
 />

@@ -1050,7 +1050,7 @@ classDiagram
           .string()
           .optional()
           .default("MYSQL")
-          .describe("数据库实例类型"),
+          .describe("数据库实例类型，可选值：MYSQL=MySQL 数据库，FLEXDB=文档型数据库（NoSQL）"),
       },
       annotations: {
         readOnlyHint: false,
