@@ -16,12 +16,16 @@ import { registerCloudRunTools } from "./tools/cloudrun.js";
 import { registerDataModelTools } from "./tools/dataModel.js";
 import { registerGatewayTools } from "./tools/gateway.js";
 import { registerInviteCodeTools } from "./tools/invite-code.js";
-import { registerSecurityRuleTools } from "./tools/security-rule.js";
+import { registerAgentTools } from "./tools/agents.js";
+import { registerAppAuthTools } from "./tools/app-auth.js";
+import { registerAppTools } from "./tools/apps.js";
+import { registerLogTools } from "./tools/logs.js";
+import { registerPermissionTools } from "./tools/permissions.js";
 import { CloudBaseOptions, Logger } from "./types.js";
 import type { AuthOptions } from "./auth.js";
 import { enableCloudMode } from "./utils/cloud-mode.js";
 import { info } from './utils/logger.js';
-import { isInternationalRegion } from "./utils/tencet-cloud.js";
+import { isInternationalRegion } from "./utils/tencent-cloud.js";
 import { buildJsonToolResult, isToolPayloadError } from "./utils/tool-result.js";
 import { wrapServerWithTelemetry } from "./utils/tool-wrapper.js";
 
@@ -42,8 +46,12 @@ const DEFAULT_PLUGINS = [
   "rag",
   "cloudrun",
   "gateway",
+  "app-auth",
+  "apps",
+  "permissions",
+  "logs",
+  "agents",
   "download",
-  "security-rule",
   "invite-code",
   "capi",
 ];
@@ -70,15 +78,30 @@ const AVAILABLE_PLUGINS: Record<string, PluginDefinition> = {
   rag: { name: "rag", register: registerRagTools },
   download: { name: "download", register: registerDownloadTools },
   gateway: { name: "gateway", register: registerGatewayTools },
-  // miniprogram: { name: 'miniprogram', register: registerMiniprogramTools },
-  "security-rule": {
-    name: "security-rule",
-    register: registerSecurityRuleTools,
-  },
+  "app-auth": { name: "app-auth", register: registerAppAuthTools },
+  permissions: { name: "permissions", register: registerPermissionTools },
+  logs: { name: "logs", register: registerLogTools },
+  agents: { name: "agents", register: registerAgentTools },
+  apps: { name: "apps", register: registerAppTools },
   "invite-code": { name: "invite-code", register: registerInviteCodeTools },
   cloudrun: { name: "cloudrun", register: registerCloudRunTools },
   capi: { name: "capi", register: registerCapiTools },
 };
+
+const PLUGIN_ALIASES: Record<string, string> = {
+  "access-control": "permissions",
+  "auth-config": "app-auth",
+  "security-rule": "permissions",
+  "security-rules": "permissions",
+  "secret-rule": "permissions",
+  "secret-rules": "permissions",
+  users: "permissions",
+};
+
+function normalizePluginName(name: string): string {
+  const normalized = name.trim().toLowerCase().replace(/\s+/g, "-");
+  return PLUGIN_ALIASES[normalized] ?? normalized;
+}
 
 /**
  * Parse enabled plugins list
@@ -107,15 +130,24 @@ function parseEnabledPlugins(
   const allDisabledPlugins = new Set<string>();
 
   if (disabledEnv) {
-    disabledEnv.split(",").map((p) => p.trim()).forEach((p) => allDisabledPlugins.add(p));
+    disabledEnv
+      .split(",")
+      .map((p) => normalizePluginName(p))
+      .forEach((p) => allDisabledPlugins.add(p));
   }
 
   if (pluginsDisabled && pluginsDisabled.length > 0) {
-    pluginsDisabled.forEach((p) => allDisabledPlugins.add(p));
+    pluginsDisabled
+      .map((p) => normalizePluginName(p))
+      .forEach((p) => allDisabledPlugins.add(p));
   }
 
-  enabledPlugins = enabledPlugins.filter(
-    (p) => !allDisabledPlugins.has(p)
+  enabledPlugins = Array.from(
+    new Set(
+      enabledPlugins
+        .map((p) => normalizePluginName(p))
+        .filter((p) => !allDisabledPlugins.has(p)),
+    ),
   );
 
   return enabledPlugins;
@@ -215,7 +247,9 @@ export async function createCloudBaseMcpServer(options?: {
         return await handler(args);
       } catch (error) {
         if (isToolPayloadError(error)) {
-          return buildJsonToolResult(error.payload);
+          // 在结构化错误返回中注入 MCP 版本号
+          const payload = { ...error.payload, mcpVersion: version };
+          return buildJsonToolResult(payload);
         }
         throw error;
       }

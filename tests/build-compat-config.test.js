@@ -42,6 +42,8 @@ test('buildCompatConfig generates compatibility artifacts from minimal sources',
   ).toBe(compatGuide);
   expect(compatGuide).toContain('## Activation Contract');
   expect(compatGuide).toContain('Native App / raw HTTP');
+  expect(compatGuide).toContain('Serialize the object first, then retry once with the serialized text');
+  expect(compatGuide).toContain('actually passes the serialized string rather than the original object');
 
   expect(
     fs.readFileSync(path.join(compatDir, 'rules', 'auth-web', 'rule.md'), 'utf8'),

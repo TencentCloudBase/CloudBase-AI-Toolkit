@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildFunctionOperationErrorMessage,
+  DEFAULT_RUNTIME,
   registerFunctionTools,
+  resolveEventFunctionRuntime,
   shouldInstallDependencyForFunction,
 } from "./functions.js";
 import type { ExtendedMcpServer } from "../server.js";
@@ -111,6 +113,46 @@ describe("functions tool helpers", () => {
     expect(message).toContain("package.json");
   });
 
+  it("warns when functionRootPath looks like project root on path-not-found errors", () => {
+    const message = buildFunctionOperationErrorMessage(
+      "createFunction",
+      "hello",
+      "/home/user/my-project",
+      new Error("路径不存在"),
+    );
+
+    expect(message).toContain("functionRootPath");
+    expect(message).toContain("cloudfunctions");
+    expect(message).toContain("functions");
+    expect(message).toContain("/home/user/my-project/cloudfunctions");
+    expect(message).toContain("/home/user/my-project/functions");
+  });
+
+  it("does not warn about project root when functionRootPath already ends with cloudfunctions", () => {
+    const message = buildFunctionOperationErrorMessage(
+      "createFunction",
+      "hello",
+      "/home/user/my-project/cloudfunctions",
+      new Error("路径不存在"),
+    );
+
+    expect(message).not.toContain("functionRootPath 应该是直接包含函数文件夹的目录");
+  });
+
+  it("normalizes supported Event runtimes with whitespace", () => {
+    expect(resolveEventFunctionRuntime("Python 3.9")).toBe("Python3.9");
+    expect(resolveEventFunctionRuntime("Php 7.4")).toBe("Php7.4");
+  });
+
+  it("falls back to the default runtime when Event runtime is omitted", () => {
+    expect(resolveEventFunctionRuntime(undefined)).toBe(DEFAULT_RUNTIME);
+  });
+
+  it("rejects unsupported Event runtimes with a helpful message", () => {
+    expect(() => resolveEventFunctionRuntime("Ruby3.2")).toThrow(/不支持的运行时环境/);
+    expect(() => resolveEventFunctionRuntime("Ruby3.2")).toThrow(/Python3.9/);
+  });
+
   it("guides HTTP functions through anonymous-access follow-up without auto-creating gateway access", async () => {
     const result = await tools.manageFunctions.handler({
       action: "createFunction",
@@ -135,6 +177,7 @@ describe("functions tool helpers", () => {
     });
     expect(mockCreateAccess).not.toHaveBeenCalled();
     expect(payload.message).toContain("manageGateway(action=\"createAccess\")");
+    expect(payload.message).toContain("type=\"HTTP\"");
     expect(payload.message).toContain("匿名身份访问");
     expect(payload.message).toContain("EXCEED_AUTHORITY");
     expect(payload.nextActions).toEqual(
@@ -144,12 +187,12 @@ describe("functions tool helpers", () => {
           action: "createAccess",
         }),
         expect.objectContaining({
-          tool: "readSecurityRule",
-          action: "读取安全规则",
+          tool: "queryPermissions",
+          action: "getResourcePermission",
         }),
         expect.objectContaining({
-          tool: "writeSecurityRule",
-          action: "写入安全规则",
+          tool: "managePermissions",
+          action: "updateResourcePermission",
         }),
       ]),
     );

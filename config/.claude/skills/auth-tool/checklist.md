@@ -5,7 +5,7 @@ Use this checklist before generating any CloudBase authentication flow.
 ## When this checklist applies
 
 - Web login or registration
-- SMS, email, anonymous, Google, or WeChat provider setup
+- SMS, email, anonymous (disabled by default), Google, or WeChat provider setup
 - HTTP API auth flows for native apps or backend integrations
 
 ## Required checks
@@ -18,6 +18,9 @@ Use this checklist before generating any CloudBase authentication flow.
    - Web -> `auth-web`
    - Mini program -> `auth-wechat`
    - Native app / raw HTTP -> `http-api`
+6. Keep MCP tool routing explicit:
+   - management-side login -> `auth`
+   - application-side auth config -> `queryAppAuth` / `manageAppAuth`
 
 ## Common failure patterns
 

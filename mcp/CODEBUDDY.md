@@ -60,7 +60,7 @@ When you see "Read `{auth-web}` rule file" in this document:
 
 ### When Developing a Web Project:
 1. **Environment Check**: Call `envQuery` tool first (applies to all interactions)
-2. **⚠️ Template Download (MANDATORY for New Projects)**: **MUST call `downloadTemplate` tool FIRST when starting a new project** - Do NOT create files manually. Use `downloadTemplate` with `template="react"` or `template="vue"` to get the complete project structure. Only proceed with manual file creation if template download fails or user explicitly requests it.
+2. **Template Download**: Call `downloadTemplate` tool when the user requests to create a new project using a CloudBase template. Use `downloadTemplate` with `template="react"` or `template="vue"` to get the complete project structure. Only proceed with manual file creation if template download fails or user explicitly requests it.
 3. **⚠️ UI Design (CRITICAL)**: **MUST read `rules/ui-design/rule.md` FIRST before generating any page, interface, component, or style** - This is NOT optional. You MUST explicitly read this file and output the design specification before writing any UI code.
 4. **Core Capabilities**: Read Core Capabilities section below (especially UI Design and Database + Authentication for Web)
 5. **⚠️ Authentication Configuration Check (MANDATORY)**: **When user mentions ANY login/authentication requirement, MUST FIRST read `{auth-tool}` rule file (using path resolution strategy) and check/configure authentication providers BEFORE implementing frontend code**
@@ -72,7 +72,7 @@ When you see "Read `{auth-web}` rule file" in this document:
 
 ### When Developing a Mini Program Project:
 1. **Environment Check**: Call `envQuery` tool first (applies to all interactions)
-2. **⚠️ Template Download (MANDATORY for New Projects)**: **MUST call `downloadTemplate` tool FIRST when starting a new project** - Do NOT create files manually. Use `downloadTemplate` with `template="miniprogram"` to get the complete project structure. Only proceed with manual file creation if template download fails or user explicitly requests it.
+2. **Template Download**: Call `downloadTemplate` tool when the user requests to create a new Mini Program project using a CloudBase template. Use `downloadTemplate` with `template="miniprogram"` to get the complete project structure. Only proceed with manual file creation if template download fails or user explicitly requests it.
 3. **⚠️ UI Design (CRITICAL)**: **MUST read `rules/ui-design/rule.md` FIRST before generating any page, interface, component, or style** - This is NOT optional. You MUST explicitly read this file and output the design specification before writing any UI code.
 4. **Core Capabilities**: Read Core Capabilities section below (especially UI Design and Database + Authentication for Mini Program)
 5. **Platform Rules**: Read `rules/miniprogram-development/rule.md` for platform-specific rules (project structure, WeChat Developer Tools, wx.cloud usage)
@@ -187,7 +187,7 @@ As the most important part of application development, the following four core c
 ### 3. Static Hosting Deployment (Web)
 **Refer to deployment process in `rules/web-development/rule.md`**
 - Use CloudBase static hosting after build completion
-- Deploy using `uploadFiles` tool
+- Deploy using `manageHosting(action="upload")`
 - Remind users that CDN has a few minutes of cache after deployment
 - Generate markdown format access links with random queryString
 
@@ -254,7 +254,7 @@ Before starting work, suggest confirming with user:
 
 ## Core Behavior Rules
 1. **Tool Priority**: For Tencent CloudBase operations, must prioritize using CloudBase tools
-2. **⚠️ Template Download (MANDATORY)**: **When starting a new project or when user requests to develop an application, MUST FIRST call `downloadTemplate` tool** - Do NOT manually create project files. Use `downloadTemplate` with appropriate template type (`react`, `vue`, `miniprogram`, `uniapp`). Only create files manually if template download fails or user explicitly requests manual creation. This ensures proper project structure, configuration files, and best practices.
+2. **Template Download**: When the user requests to create a new project using a CloudBase template, call `downloadTemplate` tool. Use `downloadTemplate` with appropriate template type (`react`, `vue`, `miniprogram`, `uniapp`). Only create files manually if template download fails or user explicitly requests manual creation.
 3. **Project Understanding**: First read current project's README.md, follow project instructions for development
 4. **Directory Standards**: Before outputting project code in current directory, first check current directory files
 5. **Development Order**: When developing, prioritize frontend first, then backend, ensuring frontend interface and interaction logic are completed first, then implement backend business logic
@@ -283,12 +283,12 @@ Before starting work, suggest confirming with user:
 
 ### Development
 
-1. **⚠️ Download CloudBase Templates (MANDATORY for New Projects)**: 
-   - **MUST call `downloadTemplate` tool FIRST when starting a new project** - Do NOT manually create project files
+1. **Download CloudBase Templates**: 
+   - Call `downloadTemplate` tool when the user requests to create a new project using a CloudBase template
    - For Web projects: Use `downloadTemplate` with `template="react"` or `template="vue"`
    - For Mini Program projects: Use `downloadTemplate` with `template="miniprogram"`
    - For UniApp projects: Use `downloadTemplate` with `template="uniapp"`
-   - **Only proceed with manual file creation if template download fails or user explicitly requests manual creation**
+   - Only proceed with manual file creation if template download fails or user explicitly requests manual creation
    - If unable to download to current directory, can use scripts to copy, note that hidden files also need to be copied
 
 2. **⚠️ UI Design Document Reading (MANDATORY)**: 
@@ -319,7 +319,7 @@ If remote links are needed in the application, can continue to call uploadFile t
 
 3. **CloudRun Deployment Process**: For non-cloud function backend services (Java, Go, PHP, Python, Node.js, etc.), use manageCloudRun tool for deployment. Ensure backend code supports CORS, prepare Dockerfile, then call manageCloudRun for containerized deployment. For details, refer to `rules/cloudrun-development/rule.md`
 
-4. **Static Hosting Deployment Process**: Deploy using uploadFiles tool. After deployment, remind users that CDN has a few minutes of cache. Can generate markdown format access links with random queryString. For details, refer to `rules/web-development/rule.md`
+4. **Static Hosting Deployment Process**: Deploy using `manageHosting(action="upload")`. After deployment, remind users that CDN has a few minutes of cache. Can generate markdown format access links with random queryString. For details, refer to `rules/web-development/rule.md`
 
 ### Documentation Generation Rules
 
@@ -382,7 +382,7 @@ To ensure development quality, recommend completing the following checks before 
 
 ### Recommended Steps
 0. **[ ] Environment Check**: Call `envQuery` tool to check CloudBase environment status (applies to all interactions)
-1. **[ ] Template Download Check (MANDATORY for New Projects)**: If starting a new project, have you called `downloadTemplate` tool FIRST? Do NOT manually create project files - use templates.
+1. **[ ] Template Download Check**: If the user requests to create a new project using a CloudBase template, have you considered calling `downloadTemplate` tool?
 2. **[ ] Scenario Identification**: Clearly identify what type of project this is (Web/Mini Program/Database/UI)
 3. **[ ] Core Capability Confirmation**: Confirm all four core capabilities have been considered
    - UI Design: Have you explicitly read the file `rules/ui-design/rule.md` using file reading tools?
@@ -397,7 +397,7 @@ To ensure development quality, recommend completing the following checks before 
 6. **[ ] Rule Execution**: Strictly follow core capability requirements and relevant rule files for development
 
 ### ⚠️ Common Issues to Avoid
-- **❌ DO NOT manually create project files** - Always use `downloadTemplate` tool first for new projects
+- **❌ Avoid manually creating project files when the user requests a CloudBase template** - consider using `downloadTemplate` tool to get proper project structure
 - **❌ DO NOT skip reading UI design document** - Must explicitly read `rules/ui-design/rule.md` file before generating any UI code
 - Avoid skipping core capabilities and starting development directly
 - Avoid mixing APIs and authentication methods from different platforms

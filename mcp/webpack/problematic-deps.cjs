@@ -4,7 +4,6 @@
  */
 module.exports = [
   // 只排除真正有严重问题的依赖
-  'miniprogram-ci', // 有 native 依赖问题
   'electron', // 平台特定，无法在 Node.js 环境运行
   
   // AWS SDK (体积过大，且有兼容性问题)

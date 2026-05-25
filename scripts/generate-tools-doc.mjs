@@ -9,8 +9,7 @@ const __dirname = path.dirname(__filename);
 
 const GITHUB_PAGE_URL = 'https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.json';
 
-function readToolsJson() {
-  const toolsJsonPath = path.join(__dirname, 'tools.json');
+export function readToolsJson(toolsJsonPath = path.join(__dirname, 'tools.json')) {
   if (!fs.existsSync(toolsJsonPath)) {
     throw new Error(`tools.json not found at ${toolsJsonPath}. Please run scripts/generate-tools-json.mjs first.`);
   }
@@ -18,15 +17,15 @@ function readToolsJson() {
   return JSON.parse(raw);
 }
 
-function escapeMd(text = '') {
+export function escapeMd(text = '') {
+  // MDX 中禁止 HTML 标签；只做纯文本处理，换行转空格
   return String(text)
-    .replace(/[\r\n]+/g, '<br/>')
-    .replace(/&/g, '&amp;')
+    .replace(/[\r\n]+/g, ' ')
     .replace(/\|/g, '\\|')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\{/g, '&#123;')
-    .replace(/\}/g, '&#125;');
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+    .replace(/&/g, '&')
+    .trim();
 }
 
 function typeOfSchema(schema) {
@@ -42,6 +41,153 @@ function typeOfSchema(schema) {
   if (schema.oneOf) return 'union';
   if (schema.allOf) return 'intersection';
   return 'unknown';
+}
+
+// Plugin 分组映射（tool name → plugin 中文名）
+const PLUGIN_MAP = {
+  auth:                        '认证与登录',
+  envQuery:                    '环境管理',
+  envDomainManagement:          '环境管理',
+  readNoSqlDatabaseStructure:  'NoSQL 数据库',
+  writeNoSqlDatabaseStructure: 'NoSQL 数据库',
+  readNoSqlDatabaseContent:    'NoSQL 数据库',
+  writeNoSqlDatabaseContent:   'NoSQL 数据库',
+  querySqlDatabase:            'MySQL 数据库',
+  manageSqlDatabase:           'MySQL 数据库',
+  manageDataModel:             '数据模型',
+  modifyDataModel:             '数据模型',
+  queryFunctions:              '云函数',
+  manageFunctions:             '云函数',
+  queryHosting:               '静态托管',
+  manageHosting:              '静态托管',
+  queryStorage:               '云存储',
+  manageStorage:              '云存储',
+  queryCloudRun:              '云托管',
+  manageCloudRun:             '云托管',
+  queryGateway:               '网关',
+  manageGateway:              '网关',
+  queryAppAuth:               '应用认证',
+  manageAppAuth:              '应用认证',
+  queryPermissions:           '权限管理',
+  managePermissions:          '权限管理',
+  queryLogs:                  '日志',
+  queryAgents:               'AI Agent',
+  manageAgents:               'AI Agent',
+  downloadTemplate:           '模板与文件',
+  downloadRemoteFile:         '模板与文件',
+  searchWeb:                  '搜索与知识库',
+  searchKnowledgeBase:        '搜索与知识库',
+  activateInviteCode:         '激励计划',
+  callCloudApi:               '云 API',
+};
+
+function getPlugin(toolName) {
+  return PLUGIN_MAP[toolName] || '其他';
+}
+
+/**
+ * 将 JSON Schema 转为 ParameterTable 的 parameters 数组（JSX 源码字符串）
+ */
+function schemaToParameters(schema) {
+  if (!schema || schema.type !== 'object' || !schema.properties) return '[]';
+  const requiredSet = new Set(schema.required || []);
+  const parts = [];
+  for (const [name, prop] of Object.entries(schema.properties)) {
+    const lines = [];
+    lines.push(`    {`);
+    lines.push(`      name: "${name}",`);
+    lines.push(`      type: "${typeOfSchema(prop)}",`);
+    if (requiredSet.has(name)) {
+      lines.push(`      required: true,`);
+    }
+    // description: 用反引号模板字符串，换行压缩为空格
+    let desc = (prop.description || '').replace(/[\r\n]+/g, ' ');
+    const enumValues = renderEnum(prop);
+    if (enumValues) {
+      desc += ` 可填写的值: ${enumValues}`;
+    }
+    if (desc) {
+      // 反引号字符串：内部 ` 需要转义为 \`，其他字符原样
+      const escaped = desc.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
+      lines.push(`      description: \`${escaped}\`,`);
+    }
+    // children for nested object/array
+    const children = schemaToParametersChildren(prop);
+    if (children) {
+      lines.push(`      children: [`);
+      lines.push(children);
+      lines.push(`      ],`);
+    }
+    lines.push(`    }`);
+    parts.push(lines.join('\n'));
+  }
+  return `${parts.join(',\n')}`;
+}
+
+function schemaToParametersChildren(propSchema, depth = 0) {
+  if (!propSchema) return null;
+  const indent = 8 + depth * 4;
+  const innerIndent = indent + 2;
+  // array of object
+  if (propSchema.type === 'array' && propSchema.items) {
+    const inner = propSchema.items;
+    if (inner.type === 'object' && inner.properties) {
+      const requiredSet = new Set(inner.required || []);
+      const parts = [];
+      for (const [k, v] of Object.entries(inner.properties)) {
+        const lines = [];
+        lines.push(`${' '.repeat(indent)}{`);
+        lines.push(`${' '.repeat(innerIndent)}name: "${k}",`);
+        lines.push(`${' '.repeat(innerIndent)}type: "${typeOfSchema(v)}",`);
+        if (requiredSet.has(k)) lines.push(`${' '.repeat(innerIndent)}required: true,`);
+        let desc = (v.description || '').replace(/[\r\n]+/g, ' ');
+        const enumValues = renderEnum(v);
+        if (enumValues) desc += ` 可填写的值: ${enumValues}`;
+        if (desc) {
+          const escaped = desc.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
+          lines.push(`${' '.repeat(innerIndent)}description: \`${escaped}\`,`);
+        }
+        const nested = schemaToParametersChildren(v, depth + 1);
+        if (nested) {
+          lines.push(`${' '.repeat(innerIndent)}children: [`);
+          lines.push(nested);
+          lines.push(`${' '.repeat(innerIndent)}],`);
+        }
+        lines.push(`${' '.repeat(indent)}}`);
+        parts.push(lines.join('\n'));
+      }
+      return parts.join(',\n');
+    }
+  }
+  // direct object
+  if (propSchema.type === 'object' && propSchema.properties) {
+    const requiredSet = new Set(propSchema.required || []);
+    const parts = [];
+    for (const [k, v] of Object.entries(propSchema.properties)) {
+      const lines = [];
+      lines.push(`${' '.repeat(indent)}{`);
+      lines.push(`${' '.repeat(innerIndent)}name: "${k}",`);
+      lines.push(`${' '.repeat(innerIndent)}type: "${typeOfSchema(v)}",`);
+      if (requiredSet.has(k)) lines.push(`${' '.repeat(innerIndent)}required: true,`);
+      let desc = (v.description || '').replace(/[\r\n]+/g, ' ');
+      const enumValues = renderEnum(v);
+      if (enumValues) desc += ` 可填写的值: ${enumValues}`;
+      if (desc) {
+        const escaped = desc.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
+        lines.push(`${' '.repeat(innerIndent)}description: \`${escaped}\`,`);
+      }
+      const nested = schemaToParametersChildren(v, depth + 1);
+      if (nested) {
+        lines.push(`${' '.repeat(innerIndent)}children: [`);
+        lines.push(nested);
+        lines.push(`${' '.repeat(innerIndent)}],`);
+      }
+      lines.push(`${' '.repeat(indent)}}`);
+      parts.push(lines.join('\n'));
+    }
+    return parts.join(',\n');
+  }
+  return null;
 }
 
 function renderUnion(schema) {
@@ -61,15 +207,6 @@ function renderEnum(schema) {
 
 function renderDefault(schema) {
   return schema && schema.default !== undefined ? JSON.stringify(schema.default) : '';
-}
-
-function hasNestedProps(propSchema) {
-  return propSchema && propSchema.type === 'object' && propSchema.properties && Object.keys(propSchema.properties).length > 0;
-}
-
-function renderSchemaAsHeadings(name, schema, isRequired, depth = 0) {
-  // Not used in table mode; kept for potential future use
-  return [];
 }
 
 function flattenSchemaRows(name, schema, isRequired) {
@@ -113,68 +250,46 @@ function renderToolDetails(tool) {
   const lines = [];
   lines.push(`### \`${tool.name}\``);
   if (tool.description) {
-    lines.push(tool.description.trim());
+    // MDX v2 会把正文中的 { ... } 解析为 JSX 表达式，需反斜杠转义
+    const desc = tool.description.trim()
+      .replace(/\\{/g, '\\\\{')
+      .replace(/\\}/g, '\\\\}')
+      .replace(/\{/g, '\\{')
+      .replace(/\}/g, '\\}');
+    lines.push(desc);
   }
   const schema = tool.inputSchema || {};
   if (schema && schema.type === 'object' && schema.properties && Object.keys(schema.properties).length > 0) {
-    const props = schema.properties;
-    const requiredSet = new Set(schema.required || []);
     lines.push('');
     lines.push('#### 参数');
     lines.push('');
-    lines.push('<table>');
-    lines.push('<thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>');
-    lines.push('<tbody>');
-    const allRows = [];
-    const extrasBlocks = [];
-    for (const [name, propSchema] of Object.entries(props)) {
-      allRows.push(...flattenSchemaRows(name, propSchema, requiredSet.has(name)));
-      // Add long mermaid example block under the table
-      if (name === 'mermaidDiagram' && propSchema.description && propSchema.description.includes('示例：')) {
-        const example = propSchema.description.split('示例：')[1];
-        if (example) {
-          const code = String(example).trim();
-          extrasBlocks.push('<details><summary>示例</summary>');
-          extrasBlocks.push('');
-          extrasBlocks.push('```text');
-          extrasBlocks.push(code);
-          extrasBlocks.push('```');
-          extrasBlocks.push('</details>');
-          extrasBlocks.push('');
-        }
-      }
-    }
-    for (const r of allRows) {
-      lines.push(`<tr><td><code>${r.name}</code></td><td>${escapeMd(r.type)}</td><td>${r.required}</td><td>${r.desc}</td></tr>`);
-    }
-    lines.push('</tbody>');
-    lines.push('</table>');
+    // 使用 ParameterTable 组件
+    lines.push('<ParameterTable');
+    lines.push('  parameters={[');
+    lines.push(schemaToParameters(schema));
+    lines.push('  ]}');
+    lines.push('/>');
     lines.push('');
-    if (extrasBlocks.length > 0) {
-      lines.push(...extrasBlocks);
-    }
   } else {
     lines.push('');
     lines.push('#### 参数');
     lines.push('');
-    lines.push('<table>');
-    lines.push('<thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>');
-    lines.push('<tbody>');
-    lines.push('<tr><td colspan="4">无</td></tr>');
-    lines.push('</tbody>');
-    lines.push('</table>');
+    lines.push('无');
     lines.push('');
   }
   lines.push('---');
   return lines.join('\n');
 }
 
-function renderDoc(toolsJson) {
+export function renderDoc(toolsJson) {
   const { tools = [] } = toolsJson;
   const lines = [];
+  // 文件头：导入 ParameterTable 组件
+  lines.push("import ParameterTable from '../../api-reference/components/ApiContainer';");
+  lines.push('');
   lines.push('# MCP 工具');
   lines.push('');
-  lines.push(`当前包含 ${tools.length} 个工具。`);
+  lines.push(`当前包含 ${tools.length} 个工具，按功能分组如下。`);
   lines.push('');
   lines.push(`源数据: [tools.json](${GITHUB_PAGE_URL})`);
   lines.push('');
@@ -182,15 +297,24 @@ function renderDoc(toolsJson) {
   lines.push('');
   lines.push('## 工具总览');
   lines.push('');
-  lines.push('<table>');
-  lines.push('<thead><tr><th>名称</th><th>描述</th></tr></thead>');
-  lines.push('<tbody>');
+  // 按 plugin 分组
+  const groups = {};
   for (const t of tools) {
-    lines.push(`<tr><td><code>${t.name}</code></td><td>${escapeMd(t.description || '')}</td></tr>`);
+    const plugin = getPlugin(t.name);
+    if (!groups[plugin]) groups[plugin] = [];
+    groups[plugin].push(t);
   }
-  lines.push('</tbody>');
-  lines.push('</table>');
-  lines.push('');
+  // 用英文 key 保证顺序稳定，但按需可自定义
+  const groupOrder = [...new Set(tools.map(t => getPlugin(t.name)))];
+  for (const plugin of groupOrder) {
+    const toolList = groups[plugin] || [];
+    lines.push(`### ${plugin}`);
+    lines.push('');
+    for (const t of toolList) {
+      lines.push(`- [\`${t.name}\`](#${t.name.toLowerCase()})`);
+    }
+    lines.push('');
+  }
   lines.push('---');
   lines.push('');
   lines.push('## 云端 MCP 配置说明');
@@ -216,17 +340,30 @@ function renderDoc(toolsJson) {
   return lines.join('\n');
 }
 
-function main() {
-  const toolsJson = readToolsJson();
+export function generateToolsDoc({
+  toolsJsonPath = path.join(__dirname, 'tools.json'),
+  outputPath = path.join(__dirname, '..', 'doc', 'mcp-tools.md'),
+} = {}) {
+  const toolsJson = readToolsJson(toolsJsonPath);
   const markdown = renderDoc(toolsJson);
-  const outputPath = path.join(__dirname, '..', 'doc', 'mcp-tools.md');
   fs.writeFileSync(outputPath, markdown, 'utf8');
+  return {
+    outputPath,
+    markdown,
+    toolCount: Array.isArray(toolsJson.tools) ? toolsJson.tools.length : 0,
+  };
+}
+
+function main() {
+  const { outputPath } = generateToolsDoc();
   console.log(`✅ 文档已生成: ${outputPath}`);
 }
 
-try {
-  main();
-} catch (e) {
-  console.error('❌ 生成文档失败:', e && e.message ? e.message : e);
-  process.exit(1);
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  try {
+    main();
+  } catch (e) {
+    console.error('❌ 生成文档失败:', e && e.message ? e.message : e);
+    process.exit(1);
+  }
 }

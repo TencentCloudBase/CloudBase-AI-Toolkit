@@ -24,7 +24,7 @@ vi.mock("./utils/logger.js", () => ({
   debug: vi.fn(),
 }));
 
-vi.mock("./utils/tencet-cloud.js", () => ({
+vi.mock("./utils/tencent-cloud.js", () => ({
   isInternationalRegion: vi.fn(() => false),
 }));
 
@@ -170,5 +170,66 @@ describe("auth config resolution", () => {
     expect(loginOptions.getOAuthEndpoint("ignored")).toBe(
       "https://custom.example.com/oauth",
     );
+  });
+});
+
+describe("device auth challenge helpers", () => {
+  it("should append user_code to standard verification_uri", async () => {
+    const { buildVerificationUriComplete } = await import("./auth.js");
+
+    expect(
+      buildVerificationUriComplete({
+        user_code: "WDJB-MJHT",
+        verification_uri: "https://example.com/device",
+      }),
+    ).toBe("https://example.com/device?user_code=WDJB-MJHT");
+  });
+
+  it("should append user_code inside hash route query", async () => {
+    const { buildVerificationUriComplete } = await import("./auth.js");
+
+    expect(
+      buildVerificationUriComplete({
+        user_code: "48NK-MSUK",
+        verification_uri:
+          "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device",
+      }),
+    ).toBe(
+      "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device&user_code=48NK-MSUK",
+    );
+  });
+
+  it("should prefer explicit verification_uri_complete without modification", async () => {
+    const { buildVerificationUriComplete } = await import("./auth.js");
+
+    expect(
+      buildVerificationUriComplete({
+        user_code: "48NK-MSUK",
+        verification_uri:
+          "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device",
+        verification_uri_complete:
+          "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device&user_code=48NK-MSUK",
+      }),
+    ).toBe(
+      "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device&user_code=48NK-MSUK",
+    );
+  });
+
+  it("should build challenge payload with complete URL", async () => {
+    const { buildDeviceAuthChallengePayload } = await import("./auth.js");
+
+    expect(
+      buildDeviceAuthChallengePayload({
+        user_code: "WDJB-MJHT",
+        verification_uri: "https://example.com/device",
+        device_code: "device-code",
+        expires_in: 600,
+      }),
+    ).toEqual({
+      user_code: "WDJB-MJHT",
+      verification_uri: "https://example.com/device",
+      verification_uri_complete: "https://example.com/device?user_code=WDJB-MJHT",
+      expires_in: 600,
+    });
   });
 });

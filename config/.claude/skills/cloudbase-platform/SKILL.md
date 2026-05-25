@@ -1,18 +1,65 @@
 ---
 name: cloudbase-platform
-description: CloudBase platform knowledge and best practices. Use this skill for general CloudBase platform understanding, including storage, hosting, authentication, cloud functions, database permissions, and data models.
+description: CloudBase platform overview and routing guide. This skill should be used when users need high-level capability selection, platform concepts, console navigation, or cross-platform best practices before choosing a more specific implementation skill.
+version: 2.20.0
 alwaysApply: false
 ---
+
+## Standalone Install Note
+
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
+
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/SKILL.md`
+
+Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
+
+## Activation Contract
+
+### Use this first when
+
+- The user asks which CloudBase capability, service, or tool to use, or needs a high-level understanding of hosting, storage, authentication, cloud functions, or database options.
+- The task is about console navigation, cross-platform differences, permission models, or platform-level best practices before implementation.
+
+### Read before writing code if
+
+- It is still unclear whether the task belongs to Web, mini program, cloud functions, storage, MySQL / NoSQL, or auth.
+- The response needs platform selection, conceptual explanation, or control-plane navigation more than direct implementation steps.
+
+### Then also read
+
+- Web app implementation -> `../web-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/web-development/SKILL.md`)
+- Web auth and provider setup -> `../auth-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-tool/SKILL.md`), `../auth-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-web/SKILL.md`)
+- Mini program development -> `../miniprogram-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/miniprogram-development/SKILL.md`)
+- Cloud functions -> `../cloud-functions/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloud-functions/SKILL.md`)
+- Official HTTP API clients -> `../http-api/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/http-api/SKILL.md`)
+- Document database -> `../no-sql-web-sdk/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/no-sql-web-sdk/SKILL.md`) or `../no-sql-wx-mp-sdk/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/no-sql-wx-mp-sdk/SKILL.md`)
+- Relational database / data modeling -> `../relational-database-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/relational-database-tool/SKILL.md`) or `../data-model-creation/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/data-model-creation/SKILL.md`)
+- Cloud storage -> `../cloud-storage-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloud-storage-web/SKILL.md`)
+
+### Do NOT use for
+
+- Direct implementation of web pages, auth flows, functions, or database operations when a more specific skill already fits.
+- Low-level API parameter references or SDK recipes that belong in specialized skills.
+
+### Common mistakes / gotchas
+
+- Treating this general skill as the default entry point for all CloudBase development.
+- Staying here after the correct implementation skill is already clear.
+- Mixing platform overview with platform-specific API shapes or SDK details.
+- Using this overview skill as a detour in an existing application where the active auth, storage, and data files are already obvious.
+- **Confusing security domains with custom domains**: These are two completely different tools for different purposes:
+  - `envDomainManagement` (action: create/delete) = Security domains (安全域名) for CORS/request source validation - used for browser upload whitelisting. Does NOT accept certificateId.
+  - `manageGateway(action="bindCustomDomain")` = Custom domains (自定义域名) for public HTTPS access with SSL certificates - requires domain and certificateId parameters.
 
 ## When to use this skill
 
 Use this skill for **CloudBase platform knowledge** when you need to:
 
 - Understand CloudBase storage and hosting concepts
-- Configure authentication for different platforms (Web vs Mini Program)
-- Deploy and manage cloud functions
+- Compare platform capabilities before implementation
+- Understand cross-platform auth differences (Web vs Mini Program)
 - Understand database permissions and access control
-- Work with data models (MySQL and NoSQL)
 - Access CloudBase console management pages
 
 **This skill provides foundational knowledge** that applies to all CloudBase projects, regardless of whether they are Web, Mini Program, or backend services.
@@ -25,6 +72,7 @@ Use this skill for **CloudBase platform knowledge** when you need to:
    - Web and Mini Program have completely different authentication approaches
    - Must strictly distinguish between platforms
    - Never mix authentication methods across platforms
+   - If the workspace is already an application with TODOs or prebuilt handlers, do not stay in platform overview mode. Move quickly to the concrete implementation skill and the existing files that own the flow.
 
 2. **Follow best practices**
    - Use SDK built-in authentication features (Web)
@@ -36,37 +84,56 @@ Use this skill for **CloudBase platform knowledge** when you need to:
    - Different platforms require different SDKs for data models
    - MySQL data models must use models SDK, not collection API
    - Use `envQuery` tool to get environment ID
+   - In an existing Web application with fixed structure, inspect the existing `src/lib/backend.*`, `src/lib/auth.*`, `src/lib/*service.*`, and bound page handlers before broad concept reading.
 
-4. **Use CloudBase MCP via mcporter (CLI) when IDE MCP is not available**
-   - You do **not** need to hard-code Secret ID / Secret Key / Env ID in config
-   - CloudBase MCP will support device-code login via the `auth` tool, so credentials can be obtained interactively
-   - Add CloudBase MCP server in `config/mcporter.json`:
-     If other MCP servers already exist, keep them and only add the `cloudbase` entry.
-     ```json
-     {
-       "mcpServers": {
-         "cloudbase": {
-           "command": "npx",
-           "args": ["@cloudbase/cloudbase-mcp@latest"],
-           "description": "CloudBase MCP",
-           "lifecycle": "keep-alive"
-         }
-       }
-     }
-     ```
-   - Discover tools and schemas:
-     - `npx mcporter list` — list configured servers
-     - `npx mcporter describe cloudbase --all-parameters` — inspect CloudBase server config and get full tool schemas with all parameters (⚠️ **必须加 `--all-parameters` 才能获取完整参数信息**)
-     - `npx mcporter list cloudbase --schema` — get full JSON schema for all CloudBase tools
-     - `npx mcporter call cloudbase.help --output json` — discover available CloudBase tools and their schemas
-   - Call CloudBase tools (auth flow examples):
-     - `npx mcporter call cloudbase.auth action=status --output json`
-     - `npx mcporter call cloudbase.auth action=start_auth authMode=device --output json`
-     - `npx mcporter call cloudbase.auth action=set_env envId=env-xxx --output json`
+4. **Use the canonical CloudBase MCP setup from the main `cloudbase` guideline**
+   - This platform overview intentionally does **not** duplicate the full MCP / mcporter config block
+   - For the canonical config snippet, CLI commands, and auth examples, read the main `cloudbase` guideline first
+   - Keep the same core rules here: use MCP first, inspect tool schemas before execution, and do not hard-code Secret ID / Secret Key / Env ID in config
+   - Keep the auth split explicit: management-side login uses `auth`, while application-side auth configuration uses `queryAppAuth` / `manageAppAuth`
 
 ---
 
 # CloudBase Platform Knowledge
+
+### Domain Management Tools: Clear Distinction
+
+When working with domain-related tasks, use the correct tool based on the requirement:
+
+| Requirement | Tool | Parameters | Purpose |
+|-------------|------|------------|---------|
+| **Security Domain (安全域名)** | `envDomainManagement` | `action`, `domains` (array of host:port strings) | CORS/request source validation for browser uploads. No certificate involved. |
+| **Custom Domain (自定义域名)** | `manageGateway(action="bindCustomDomain")` | `domain` (string), `certificateId` (string) | Public HTTPS access with SSL certificate. Requires certId from SSL console. |
+| **Delete Custom Domain** | `manageGateway(action="deleteCustomDomain")` | `domain` (string) | Remove custom domain binding. |
+
+**Key indicators for choosing the right tool:**
+- Task mentions "certificate ID" or "SSL" → Use `manageGateway(action="bindCustomDomain")`
+- Task mentions "浏览器上传" or "CORS" or "安全域名" → Use `envDomainManagement`
+- Task mentions "public access" or "HTTPS" with domain → Use `manageGateway`
+
+### Recording Operation Results
+
+When a task explicitly requires recording operation steps or results to a file (e.g., `RESULT.json`):
+
+1. Perform the tool calls first to get actual results
+2. Collect all operation steps with their success/failure status
+3. Write the complete record to the specified file in the required format
+4. Include both successful operations and failed attempts with error messages
+
+Example structure for operation recording:
+```json
+{
+  "steps": [
+    {"action": "listDomains", "success": true, "message": "Found 3 domains"},
+    {"action": "bindDomain", "success": false, "message": "Certificate not found"}
+  ],
+  "summary": {
+    "totalAttempted": 2,
+    "succeeded": 1,
+    "failed": 1
+  }
+}
+```
 
 ## Storage and Hosting
 
@@ -75,22 +142,33 @@ Use this skill for **CloudBase platform knowledge** when you need to:
    - Generally, publicly accessible files can be stored in static hosting, which provides a public web address
    - Static hosting supports custom domain configuration (requires console operation)
    - Cloud storage is suitable for files with privacy requirements, can get temporary access addresses via temporary file URLs
-   - If the task needs COS SDK polling, file metadata lookup, or temporary URLs for an uploaded object, use cloud storage tools (`manageStorage` / `queryStorage`), not `uploadFiles`
+   - If the task needs COS SDK polling, file metadata lookup, or temporary URLs for an uploaded object, use cloud storage tools (`manageStorage` / `queryStorage`), not `manageHosting(action="upload")`
 
 2. **Static Hosting Domain**:
-   - CloudBase static hosting domain can be obtained via `getWebsiteConfig` tool
+   - CloudBase static hosting domain and website document config can be obtained via `queryHosting(action="websiteConfig")`
    - Combine with static hosting file paths to construct final access addresses
    - **Important**: If access address is a directory, it must end with `/`
+
+3. **Cloud Storage Public URL**:
+   - **CRITICAL**: `manageStorage(action=upload)` and `queryStorage(action=url)` return `temporaryUrl` which is a temporary signed URL that expires (default 1 hour). Do NOT use this as a permanent public URL.
+   - To get the permanent public access URL for a cloud storage object:
+     1. Call `envQuery(action=info)` to get environment details
+     2. Extract the storage CDN domain from `EnvInfo.Storages[0].CdnDomain` (e.g., `your-env-id.tcb.qcloud.la`)
+     3. Construct the public URL: `https://{CdnDomain}/{cloudPath}`
+   - Example: If `CdnDomain` is `env-xxx.tcb.qcloud.la` and `cloudPath` is `uploads/avatar.jpg`, the public URL is `https://env-xxx.tcb.qcloud.la/uploads/avatar.jpg`
+   - Note: The public URL is accessible only if the storage bucket ACL allows public read (default is `PRIVATE` which requires signed URLs)
 
 ## Environment and Authentication
 
 1. **SDK Initialization**:
    - CloudBase SDK initialization requires environment ID
    - Can query environment ID via `envQuery` tool
+   - If the user only provides an environment alias, nickname, or other short form, resolve it with `envQuery(action="list", alias=..., aliasExact=true)` first and use the returned full `EnvId`
+   - Do not pass alias-like short forms directly into SDK init, `auth.set_env`, console URLs, or generated config files
    - For Web, always initialize synchronously:
-     - `import cloudbase from "@cloudbase/js-sdk"; const app = cloudbase.init({ env: "xxxx-yyy" });`
+     - `import cloudbase from "@cloudbase/js-sdk"; const app = cloudbase.init({ env: "your-full-env-id" });`
      - Do **not** use dynamic imports like `import("@cloudbase/js-sdk")` or async wrappers such as `initCloudBase()` with internal `initPromise`
-   - Then proceed with login, for example using anonymous login
+   - Then proceed with login using a verified method (username/password, phone, email, or WeChat)
 
 ## Authentication Best Practices
 
@@ -101,6 +179,7 @@ Use this skill for **CloudBase platform knowledge** when you need to:
 - **Recommended method**: SMS login with `auth.getVerification()`, for detailed, refer to web auth related docs
 - **Forbidden behavior**: Do not use cloud functions to implement login authentication logic
 - **User management**: After login, get user information via `auth.getCurrentUser()`
+- **Provider and login-method setup**: Use `queryAppAuth` / `manageAppAuth`, not the MCP `auth` tool
 
 ### Mini Program Authentication
 - **Login-free feature**: Mini program CloudBase is naturally login-free, no login flow needed
@@ -140,9 +219,19 @@ Use this skill for **CloudBase platform knowledge** when you need to:
    ```
    Create collection → Configure security rules → Write code → Test
    ```
-   - Use `writeSecurityRule` MCP tool to configure permissions
-   - Wait 2-5 minutes for cache to clear before testing
-   - See `no-sql-web-sdk/security-rules.md` for detailed examples
+   - Use `managePermissions(action="updateResourcePermission")` to configure resource permissions
+   - If permissions were just changed, allow a short propagation window (typically 2-5 minutes) before retesting, but do not assume every failure is cache. Re-check the actual rule shape and active client write pattern first.
+   - See `no-sql-web-sdk/security-rules.md` for detailed `resourceType="noSqlDatabase"` examples only; do not treat `doc._openid`, `auth.openid`, query-subset validation, or `create` / `update` / `delete` JSON templates as generic rules for functions, storage, or SQL tables
+   - Official references:
+     - General security rules overview: `https://cloud.tencent.com/document/product/876/41802`
+     - NoSQL database security rules: `https://docs.cloudbase.net/database/security-rules`
+     - Cloud function security rules: `https://docs.cloudbase.net/cloud-function/security-rules`
+     - Storage security rules: `https://docs.cloudbase.net/storage/security-rules`
+
+Compatibility note:
+- Canonical plugin name: `permissions`
+- Legacy plugin aliases `security-rule`, `security-rules`, `secret-rule`, `secret-rules`, and `access-control` still resolve to the `permissions` plugin
+- Legacy tools `readSecurityRule` / `writeSecurityRule` are removed; prefer `queryPermissions` / `managePermissions`
 
 4. **Common Scenarios**:
    - **E-commerce products**: `READONLY` (admin manages via cloud functions)
@@ -152,6 +241,69 @@ Use this skill for **CloudBase platform knowledge** when you need to:
 
 5. **Cross-Collection Operations**:
    - If user has no special requirements, operations involving cross-database collections must be implemented via cloud functions
+
+## Role Management (MCP)
+
+CloudBase MCP provides role management capabilities through the `queryPermissions` and `managePermissions` tools. These are equivalent to the CLI `tcb role` commands.
+
+**⚠️ CRITICAL: Role policies and resource permissions are two independent systems with NO automatic synchronization.**
+
+- Resource permissions (security rules) control access to specific resources (tables, collections, functions, storage)
+- Roles (identity dimension) control policy bundles and member assignments
+
+### Available Actions
+
+**Query Operations** (via `queryPermissions`):
+| Action | Description |
+|--------|-------------|
+| `listRoles` | List all roles (system and custom) |
+| `getRole` | Get detailed role information by roleId/roleIdentity/roleName |
+
+**Management Operations** (via `managePermissions`):
+| Action | Description |
+|--------|-------------|
+| `createRole` | Create a new custom role |
+| `updateRole` | Update an existing role (add/remove policies or members) |
+| `deleteRoles` | Delete one or more custom roles |
+| `addRoleMembers` | Add members to a role |
+| `removeRoleMembers` | Remove members from a role |
+| `addRolePolicies` | Add policies to a role |
+| `removeRolePolicies` | Remove policies from a role |
+
+### Usage Examples
+
+**List all roles:**
+```
+queryPermissions(action="listRoles")
+```
+
+**Get specific role details:**
+```
+queryPermissions(action="getRole", roleId="role-xxx")
+# or by identity
+queryPermissions(action="getRole", roleIdentity="dev_role")
+# or by name
+queryPermissions(action="getRole", roleName="Developer")
+```
+
+**Delete a custom role:**
+```
+managePermissions(action="deleteRoles", roleIds=["role-xxx"])
+```
+
+**Create a custom role:**
+```
+managePermissions(action="createRole", roleName="Developer", roleIdentity="developer", policies=["FunctionsAccess"], memberUids=["user-uid-1"])
+```
+
+**Update a role (add policies):**
+```
+managePermissions(action="updateRole", roleId="role-xxx", addPolicies=["StoragesAccess"])
+```
+
+> ⚠️ Note: Only custom roles can be deleted. System roles are read-only.
+
+See also: CLI equivalent commands in `cloudbase-cli/references/permission.md`
 
 3. **Cloud Function Optimization**:
    - If involving cloud functions, while ensuring security, can minimize the number of cloud functions as much as possible
@@ -178,7 +330,9 @@ Use this skill for **CloudBase platform knowledge** when you need to:
 
 ## Console Management
 
-After creating/deploying resources, provide corresponding console management page links. All console URLs follow the pattern: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/{path}`
+After creating/deploying resources, provide corresponding console management page links. All console URLs follow the pattern: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/{path}`.
+
+The CloudBase console is updated frequently. If a live, logged-in console shows a different hash path from this document, prefer the live console path over stale documentation and then update this skill to match.
 
 ### Core Function Entry Points
 
@@ -186,7 +340,7 @@ After creating/deploying resources, provide corresponding console management pag
    - Main dashboard showing environment status, resource usage, and quick access to key features
    - Displays overview of all CloudBase services and their status
 
-2. **Template Center (模板中心)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/template`
+2. **Template Center (模板中心)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/cloud-template/market`
    - Access project templates for React, Vue, Mini Program, UniApp, and backend frameworks
    - AI Builder templates for rapid application generation
    - Framework templates: React, Vue, Miniapp, UniApp, Gin, Django, Flask, SpringBoot, Express, NestJS, FastAPI
@@ -215,7 +369,7 @@ After creating/deploying resources, provide corresponding console management pag
      - Manage function triggers and environment variables
      - Monitor function invocations and performance
 
-6. **CloudRun (云托管)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/cloudrun`
+6. **CloudRun (云托管)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/platform-run`
    - Manage containerized backend services
    - Deploy services using Function mode or Container mode
    - Configure service scaling, access types, and environment variables
@@ -232,7 +386,7 @@ After creating/deploying resources, provide corresponding console management pag
    - AI Builder for generating templates and code
    - AI image recognition and other AI features
 
-9. **Static Website Hosting (静态网站托管)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/hosting`
+9. **Static Website Hosting (静态网站托管)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/static-hosting`
    - Deploy and manage static websites
    - Alternative URL: `https://console.cloud.tencent.com/tcb/hosting`
    - Configure custom domains and CDN settings
@@ -248,16 +402,16 @@ After creating/deploying resources, provide corresponding console management pag
       - Manage API Keys and Publishable Keys
       - View and manage access tokens
 
-11. **Weida Low-Code (微搭低代码)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/weida`
+11. **Weida Low-Code (微搭低代码)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/lowcode/apps`
     - Access Weida low-code development platform
     - Build applications using visual drag-and-drop interface
 
-12. **Logs & Monitoring (日志监控)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/logs`
+12. **Logs & Monitoring (日志监控)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/devops/log`
     - View logs from cloud functions, CloudRun services, and other resources
     - Monitor resource usage, performance metrics, and error rates
     - Set up alerts and notifications
 
-13. **Environment Settings (环境配置)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/settings`
+13. **Environment Settings (环境配置)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/env/http-access`
     - Configure environment-level settings
     - Manage security domains and CORS settings
     - Configure environment variables and secrets
@@ -267,6 +421,7 @@ After creating/deploying resources, provide corresponding console management pag
 
 - **Base URL Pattern**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/{path}`
 - **Replace Variables**: Always replace `${envId}` with the actual environment ID queried via `envQuery` tool
+- **Alias Handling**: If the conversation only contains an alias or shorthand, first resolve it with `envQuery(action="list", alias=..., aliasExact=true)` and use the returned `EnvId`; if the alias is ambiguous or missing, ask the user to confirm before generating links
 - **Resource-Specific URLs**: For specific resources (collections, functions, models), replace resource name variables with actual values
 - **Usage**: After creating/deploying resources, provide these console links to users for management operations
 

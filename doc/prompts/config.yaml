@@ -62,6 +62,16 @@ rules:
     prompts:
       - "在 Android 应用中使用 CloudBase HTTP API 实现用户登录功能"
       - "在 iOS 应用中使用 CloudBase HTTP API 实现用户注册和登录"
+
+  - id: auth-nodejs
+    title: 身份认证：Node.js 服务端
+    description: 使用 CloudBase Node SDK 进行服务端身份认证
+    shortDescription: Node.js 服务端身份认证
+    category: auth
+    order: 5
+    prompts:
+      - "帮我实现一个云函数，验证用户身份并获取用户信息"
+      - "创建一个 Node.js 后端服务，使用 CloudBase Auth 进行用户认证"
   
   - id: no-sql-web-sdk
     title: 文档数据库：Web SDK
@@ -102,6 +112,16 @@ rules:
     prompts:
       - "帮我创建一个使用 CloudBase 关系型数据库的 Web 应用"
       - "在 Web 应用中使用 CloudBase 关系型数据库 SDK 实现数据查询和操作"
+
+  - id: data-model-creation
+    title: 数据库：数据模型创建
+    description: 使用 AI 创建复杂数据模型
+    shortDescription: 复杂数据模型设计
+    category: database
+    order: 5
+    prompts:
+      - "帮我创建一个用户和订单的数据模型"
+      - "设计一个博客系统的数据模型"
   
   - id: database-http-api
     title: 数据库：App 集成
@@ -121,7 +141,7 @@ rules:
     category: backend
     order: 1
     prompts:
-      - "帮我创建一个 CloudBase 云函数并部署"
+      - "在完成 CloudBase MCP 连接后，帮我创建一个云函数并部署"
       - "配置 CloudBase 云函数的 HTTP 访问"
       - "查询 CloudBase 云函数的执行日志"
       - "更新 CloudBase 云函数的环境变量"
@@ -138,27 +158,29 @@ rules:
   
   - id: web-development
     title: 应用集成：Web 应用
-    description: Web 前端项目开发规则和静态托管部署
-    shortDescription: React、Vue、Next.js
+    description: 通用 Web 应用开发、构建调试、浏览器验证与 CloudBase 集成
+    shortDescription: React、Vue、Vite、浏览器验证
     category: frontend
     order: 1
     prompts:
-      - "帮我创建一个 React Web 应用并集成 CloudBase"
-      - "部署前端应用到 CloudBase 静态托管"
+      - "帮我搭一个 React + Vite Web 应用，并规划本地开发和构建流程"
+      - "帮我排查一个 Vue 页面交互问题，并给出浏览器验证步骤"
+      - "把这个 Web 前端接入 CloudBase 并部署到静态托管"
   
   - id: miniprogram-development
     title: 应用集成：微信小程序
-    description: 微信小程序开发规则和 CloudBase 集成
-    shortDescription: 小程序开发与集成
+    description: 微信小程序开发、tabBar 配置与 CloudBase 集成
+    shortDescription: 小程序开发、tabBar、CloudBase
     category: frontend
     order: 2
     prompts:
       - "帮我创建一个微信小程序项目并集成 CloudBase"
       - "实现小程序与 CloudBase 的完整集成"
+      - "我想把微信小程序 tabBar 调整为纯文字样式，怎么去掉图标占位并消除标签上方留白？"
   
   - id: ui-design
     title: 应用集成：UI 设计
-    description: 专业的 UI 设计和前端界面指南
+    description: 界面视觉方向、设计规格与前端原型指导
     shortDescription: 专业界面设计指南
     category: frontend
     order: 3
@@ -179,13 +201,13 @@ rules:
   
   - id: spec-workflow
     title: 开发工具：Spec 工作流
-    description: 标准软件工程工作流（需求分析、技术设计、任务规划）
-    shortDescription: 需求分析、技术设计、任务规划
+    description: 按需求分析、技术设计、任务拆分推进的工程规划工作流
+    shortDescription: 需求分析、技术设计、任务拆分
     category: tools
     order: 1
     prompts:
       - "帮我按照 Spec 工作流开发一个 CloudBase 新功能"
-      - "为 CloudBase 项目创建一个完整的需求文档和技术方案"
+      - "为 CloudBase 项目创建一个完整的需求文档、技术方案和任务拆分"
   
   - id: cloudbase-platform
     title: 开发工具：CloudBase 平台
@@ -231,4 +253,3 @@ rules:
       - "在微信小程序中集成 CloudBase AI 模型，实现智能对话功能"
       - "创建一个使用 CloudBase AI 模型的小程序应用，支持流式响应"
       - "在小程序中使用混元模型生成内容并展示给用户"
-

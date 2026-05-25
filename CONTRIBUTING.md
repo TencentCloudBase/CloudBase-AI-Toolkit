@@ -50,40 +50,22 @@ git commit -m "fix: 修复部署失败的问题"
 git commit -m "docs: 更新 README 文档"
 ```
 
-## 版本管理
+## 版本发布
 
-项目使用 standard-version 进行版本管理，支持以下版本类型：
+仓库不再使用旧版脚本化版本发布链路维护发布流程。
 
-- 正式版本：`npm run release`
-- Alpha 版本：`npm run release:alpha`
-- Beta 版本：`npm run release:beta`
-- RC 版本：`npm run release:rc`
+当前发布流程以仓库内的 git workflow 说明为准，维护者应参考：
 
-版本号规则：
-- 主版本号：不兼容的 API 修改
-- 次版本号：向下兼容的功能性新增
-- 修订号：向下兼容的问题修正
+- `skills/git-workflows/references/source-commands.md` 中的 `version_publish_main`
+- `mcp/package.json` 中由 `bumpp` 驱动的版本号更新
 
-预发布版本号规则：
-- alpha: 内部测试版本
-- beta: 公测版本
-- rc: 候选发布版本
+发布时需要额外执行：
 
-## Changelog 生成
-
-项目使用 conventional-changelog 自动生成 changelog：
-
-1. 首次生成（包含所有历史记录）：
 ```bash
-npm run changelog:first
+node scripts/sync-skill-versions.mjs --version X.Y.Z
 ```
 
-2. 生成新的变更记录：
-```bash
-npm run changelog
-```
-
-生成的 changelog 将保存在 `CHANGELOG.md` 文件中。
+这个脚本会把 `config/source/skills/*/SKILL.md` 与 `config/source/guideline/cloudbase/SKILL.md` 中的 `version` 同步到当前发布版本。
 
 ## Rules 管理流程
 
@@ -141,7 +123,7 @@ node scripts/sync-config.mjs
 
 - `sync-claude-skills-mirror.mjs`：将 `config/source/skills/` 同步到仓库内保留的 `config/.claude/skills/` 兼容镜像
 - `build-compat-config.mjs`：从最小源生成 `.generated/compat-config/`
-- `diff-compat-config.mjs`：检查生成结果是否与兼容基线一致
+- `diff-compat-config.mjs`：校验兼容契约（机器配置与结构为阻断项，文本类 rules / skills 内容漂移仅报告）
 - `sync-config.mjs`：将兼容产物同步到外部 `awsome-cloudbase-examples` 仓库
 
 ### 如何新增模块 Skill
@@ -176,6 +158,8 @@ node scripts/sync-config.mjs
    node scripts/build-compat-config.mjs
    node scripts/diff-compat-config.mjs
    ```
+   - 机器可消费配置或目录结构异常会阻断校验
+   - rules / skills / guideline 等文本镜像的内容变化会输出 advisory 报告，但不再单独阻断 CI
 5. 更新相关文档
 
 ### 重要提示
@@ -231,6 +215,9 @@ CloudBase AI ToolKit 的对外 Skill（例如对外发布的 Skill 仓库、IDE 
    - 生成产物会输出到：
      - `.generated/compat-config/`：IDE / 外部模板使用的兼容配置
      - `.skills-repo-output/`：对外 Skill 仓库发布产物
+   - `diff-compat-config.mjs` 现在采用分层校验：
+     - machine configs：缺失 / 多出 / 内容变化都会阻断
+     - text surfaces：缺失 / 多出会阻断，内容变化仅报告；如需清理后续报告，可再执行 `npm run update:compat-baseline`
 2. 如需将配置同步到外部模板 / 示例仓库，可使用：
    ```bash
    node scripts/sync-config.mjs
@@ -263,7 +250,7 @@ CloudBase AI ToolKit 的对外 Skill（例如对外发布的 Skill 仓库、IDE 
 
 ## GitHub Actions Workflows
 
-项目提供了两个 GitHub Actions workflow 用于自动化配置同步和构建：
+项目提供了多个 GitHub Actions workflow，用于自动化配置同步、构建和 issue 处理：
 
 ### Build Example Zips
 
@@ -290,11 +277,23 @@ CloudBase AI ToolKit 的对外 Skill（例如对外发布的 Skill 仓库、IDE 
 **输出**：
 - 如果 `build_zips` 为 true，会在 Actions 页面生成 artifact `cloudbase-examples-zips`，保留 30 天
 
+### Sync Main to Examples
+
+**Workflow**: `.github/workflows/sync-main-to-examples.yml`
+
+当本仓库 `main` 分支发生 push，且变更命中 examples 相关路径时自动触发。
+
+**行为**：
+- 先执行 `node scripts/diff-compat-config.mjs` 作为兼容面守门
+- 再执行 `node scripts/sync-config.mjs --skip-git`
+- 自动同步到 `TencentCloudBase/awsome-cloudbase-examples` 的 `master` 分支
+- 如果同步结果没有产生 diff，则跳过 commit / push
+
 ### Sync Branch to Examples
 
 **Workflow**: `.github/workflows/sync-branch.yml`
 
-仅用于将本仓库的指定分支同步到 cloudbase-examples 的指定分支，不构建 zip 文件。
+仅用于手动将本仓库的指定分支同步到 cloudbase-examples 的指定分支，不构建 zip 文件，也不替代 `main` 主线的自动同步 workflow。
 
 **使用场景**：
 - 需要将某个分支的配置同步到 cloudbase-examples 的对应分支
@@ -316,6 +315,35 @@ CloudBase AI ToolKit 的对外 Skill（例如对外发布的 Skill 仓库、IDE 
 - 需要配置 `CLOUDBASE_EXAMPLES_TOKEN` secret（Personal Access Token）用于访问 cloudbase-examples 仓库
 - 如果目标分支不存在，workflow 会自动创建
 - 创建 PAT 时需要勾选 `repo` 权限
+
+### Issue Auto Processor
+
+**Workflow**: `.github/workflows/issue-auto-processor-simple.yml`
+
+用于让 AI 基于 CodeBuddy CLI 自动分析或修复 GitHub issue，并在需要时创建修复 PR。
+
+**前置配置**：
+- repository secret：`CODEBUDDY_AUTH_TOKEN` 或 `CODEBUDDY_API_KEY`
+- 如果使用中国版 `CODEBUDDY_API_KEY`，建议额外配置 repository variable：`CODEBUDDY_INTERNET_ENVIRONMENT=internal`
+- 仓库 Actions 需允许 `GITHUB_TOKEN` 具有 `contents` / `issues` / `pull-requests` 写权限，并允许 GitHub Actions 创建 PR
+
+**触发方式**：
+- 定时：每 4 小时扫描一次符合条件的 open issue
+- 手动：在 Actions 页面运行 workflow，并传入 `issue_number`
+- 评论命令：在 issue 下评论 `/cloudbase fix`、`/cloudbase continue`、`/cloudbase skip`
+
+**评论命令说明**：
+- 只有 `OWNER` / `MEMBER` / `COLLABORATOR` 可以触发
+- `issue_comment` 触发依赖 workflow 文件已存在于默认分支；在 PR 分支验证阶段，请先使用 `workflow_dispatch`
+- `/cloudbase fix`：强制按修复路径处理当前 issue
+- `/cloudbase continue`：重新读取当前 issue 的 title、body、labels 和全部 comments 后继续分析或修复
+- `/cloudbase skip`：为当前 issue 打上 `no-ai`，停止自动处理
+
+**处理边界**：
+- 自动任务默认只处理创建满 4 小时、且未标记 `ai-processed` / `ai-processing` / `no-ai` 的 open issue
+- 每次执行都会基于完整 issue 线程重建上下文，不依赖跨 CI run 的隐藏 session 持久化
+- AI 输出为空时会直接标记失败，不会发布空评论
+- 只有实际产生代码 diff 时才会创建修复 PR
 
 ## 行为准则
 

@@ -180,6 +180,25 @@ describe('EnvId Management Tests', () => {
       expect(cloudrunCode).toMatch(/getEnvId\(cloudBaseOptions\)/);
       expect(cloudrunCode).toMatch(/await getEnvId/);
     });
+
+    test('envQuery info should not append legacy guide prompt content', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+      const { fileURLToPath } = await import('url');
+      const { dirname } = await import('path');
+
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+
+      const envToolCode = fs.readFileSync(
+        path.join(__dirname, '../mcp/src/tools/env.ts'),
+        'utf8'
+      );
+
+      expect(envToolCode).not.toMatch(/CLOUDBASE_GUIDE_PROMPT/);
+      expect(envToolCode).not.toMatch(/getClaudePrompt/);
+      expect(envToolCode).not.toContain('⚠️ 重要提示：后续所有云开发相关的开发工作必须严格遵循以下开发规范和最佳实践');
+    });
   });
 
   describe('Environment Switching Scenario', () => {

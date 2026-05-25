@@ -1,5 +1,5 @@
 import Link from '@docusaurus/Link';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import styles from './TutorialsGrid.module.css';
 
 interface Tutorial {
@@ -24,6 +24,35 @@ const TERMINAL_ORDER = ['小程序', 'Web', '小游戏', '原生应用'];
 
 const tutorials: Tutorial[] = [
   // 文章
+  {
+    id: 'article-qiyi-ai-app-community',
+    title: '不会代码，她靠AI开发了APP，要把10万用户的社区运营起来',
+    description: '云开发团队',
+    category: '文章',
+    url: 'https://mp.weixin.qq.com/s/DXQGXX81Q4W8-ZwL3PxAAQ',
+    type: 'article',
+    terminalTags: ['小程序', '原生应用'],
+    appTypeTags: ['社交/社区'],
+  },
+  {
+    id: 'article-openclaw-cloudbase-auto-deploy',
+    title: '一个人就是一支团队：OpenClaw+CloudBase实现全自动开发上线',
+    description: '腾讯云开发CloudBase',
+    category: '文章',
+    url: 'https://mp.weixin.qq.com/s/vKcnro2GrbjI_QyQohpNRw',
+    type: 'article',
+    appTypeTags: ['工具/效率'],
+    devToolTags: ['OpenClaw'],
+  },
+  {
+    id: 'article-agent-skills-last-mile',
+    title: 'Agent Skills实战分享：AI编程最后一公里，别让代码死在localhost里',
+    description: '腾讯云开发CloudBase',
+    category: '文章',
+    url: 'https://mp.weixin.qq.com/s/soIEU5DG01xfrKMaCetGAA',
+    type: 'article',
+    appTypeTags: ['工具/效率'],
+  },
   {
     id: 'article-wechat-miniprogram-ai-growth-plan-tutorial',
     title: '微信小程序AI成长计划：免费云开发资源与混元Token，手把手教你开发一个 AI 小程序',
@@ -1090,4 +1119,3 @@ export default function TutorialsGrid() {
     </div>
   );
 }
-

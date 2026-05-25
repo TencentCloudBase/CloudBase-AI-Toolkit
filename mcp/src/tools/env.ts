@@ -2,6 +2,8 @@ import { AuthSupervisor } from "@cloudbase/toolbox";
 import { z } from "zod";
 import {
   buildAuthConfigSummary,
+  buildDeviceAuthChallengePayload,
+  buildVerificationUriComplete,
   ensureLogin,
   getAuthConfigValidationError,
   getAuthProgressState,
@@ -30,7 +32,6 @@ import {
   buildJsonToolResult,
   toolPayloadErrorToResult,
 } from "../utils/tool-result.js";
-import { getClaudePrompt } from "./rag.js";
 import {
   checkAndCreateFreeEnv,
   checkAndInitTcbService,
@@ -147,11 +148,126 @@ function buildEnvCandidatePayload(
   };
 }
 
+function buildLocalDevDomainHint() {
+  return {
+    format: "host:port",
+    useActualOrigin: true,
+    requiredValue: "当前浏览器实际访问 origin 对应的 host:port",
+    deriveFrom: ["浏览器地址栏中的当前 origin", "本地 dev server 实际启动输出"],
+    note:
+      "如果你的前端运行在自定义域名或本地开发端口上，请把当前浏览器实际访问地址对应的 host:port 加入安全域名。不要依赖一组固定默认端口，也不要假设已有 localhost/127.0.0.1 条目已经覆盖当前运行端口。",
+  };
+}
+
+function summarizeConfiguredLocalDevEntries(
+  domains: Array<{ Domain?: unknown }>,
+) {
+  const localEntries = domains
+    .map((domain) => String(domain?.Domain ?? "").trim())
+    .filter((domain) => domain.startsWith("127.0.0.1:") || domain.startsWith("localhost:"));
+
+  return {
+    hasAnyConfiguredLocalEntry: localEntries.length > 0,
+    configuredEntries: localEntries,
+  };
+}
+
+function simplifyEnvDomains(domains: unknown) {
+  if (!Array.isArray(domains)) {
+    return domains;
+  }
+
+  return domains.map((domain) => {
+    if (!domain || typeof domain !== "object") {
+      return domain;
+    }
+
+    const source = domain as Record<string, unknown>;
+    return {
+      ...(source.Id !== undefined ? { Id: source.Id } : {}),
+      ...(source.Domain !== undefined ? { Domain: source.Domain } : {}),
+      ...(source.CreateTime !== undefined ? { CreateTime: source.CreateTime } : {}),
+      ...(source.UpdateTime !== undefined ? { UpdateTime: source.UpdateTime } : {}),
+      ...(source.Status !== undefined ? { Status: source.Status } : {}),
+      ...(source.Type !== undefined ? { Type: source.Type } : {}),
+    };
+  });
+}
+
+function buildEnvDomainManagementResult(params: {
+  action: "create" | "delete";
+  domains: string[];
+  result: unknown;
+}) {
+  const { action, domains, result } = params;
+  const rawResult =
+    result && typeof result === "object" && !Array.isArray(result)
+      ? (result as Record<string, unknown>)
+      : { result };
+
+  if (action === "create") {
+    return {
+      ...rawResult,
+      ok: true,
+      code: "DOMAIN_UPDATE_PENDING",
+      operation: action,
+      targetDomains: domains,
+      asyncState: "PENDING",
+      message:
+        '安全域名已提交添加请求。该变更通常需要约 10 分钟传播，请继续轮询 envQuery(action="domains")，直到目标域名状态为 ENABLE。',
+      propagation: {
+        requiresPolling: true,
+        pollTool: "envQuery",
+        pollAction: "domains",
+        pollIntervalSuggestionSeconds: 10,
+        timeoutSuggestionSeconds: 600,
+        successCondition:
+          '目标域名出现在 envQuery(action="domains") 返回中，且 Status 为 ENABLE。',
+      },
+      next_step: {
+        tool: "envQuery",
+        action: "domains",
+        suggested_args: {
+          action: "domains",
+        },
+      },
+    };
+  }
+
+  return {
+    ...rawResult,
+    ok: true,
+    code: "DOMAIN_DELETE_PENDING",
+    operation: action,
+    targetDomains: domains,
+    asyncState: "PENDING",
+    message:
+      '安全域名已提交删除请求。该变更可能需要数分钟传播，请继续轮询 envQuery(action="domains")，直到目标域名不再出现。',
+    propagation: {
+      requiresPolling: true,
+      pollTool: "envQuery",
+      pollAction: "domains",
+      pollIntervalSuggestionSeconds: 10,
+      timeoutSuggestionSeconds: 600,
+      successCondition:
+        '目标域名不再出现在 envQuery(action="domains") 返回中。',
+    },
+    next_step: {
+      tool: "envQuery",
+      action: "domains",
+      suggested_args: {
+        action: "domains",
+      },
+    },
+  };
+}
+
 function formatDeviceAuthHint(deviceAuthInfo?: DeviceFlowAuthInfo): string {
   if (!deviceAuthInfo) {
     return "";
   }
 
+  const verificationUriComplete = buildVerificationUriComplete(deviceAuthInfo);
   const lines = [
     "",
     "### Device Flow 授权信息",
@@ -161,10 +277,13 @@ function formatDeviceAuthHint(deviceAuthInfo?: DeviceFlowAuthInfo): string {
   if (deviceAuthInfo.verification_uri) {
     lines.push(`- verification_uri: ${deviceAuthInfo.verification_uri}`);
   }
+  if (verificationUriComplete) {
+    lines.push(`- verification_uri_complete: ${verificationUriComplete}`);
+  }
   lines.push(`- expires_in: ${deviceAuthInfo.expires_in}s`);
   lines.push(
     "",
-    "请在另一台可用浏览器设备打开 `verification_uri` 并输入 `user_code` 完成授权。",
+    "请优先向用户展示完整的 `verification_uri_complete`，不要截断或改写 URL。",
   );
   return lines.join("\n");
 }
@@ -186,7 +305,12 @@ async function fetchAvailableEnvCandidates(
   }
 }
 
-type AuthAction = "status" | "start_auth" | "set_env" | "logout";
+type AuthAction =
+  | "status"
+  | "start_auth"
+  | "set_env"
+  | "logout"
+  | "get_temp_credentials";
 
 const CODEBUDDY_AUTH_ACTIONS = ["status", "set_env"] as const;
 const DEFAULT_AUTH_ACTIONS = [
@@ -194,7 +318,26 @@ const DEFAULT_AUTH_ACTIONS = [
   "start_auth",
   "set_env",
   "logout",
+  "get_temp_credentials",
 ] as const;
+
+function maskSensitiveValue(value: string): string {
+  if (value.length <= 4) {
+    return "*".repeat(value.length);
+  }
+
+  return `${value.slice(0, 2)}******${value.slice(-2)}`;
+}
+
+function isTemporaryCredentialLoginState(loginState: Record<string, unknown>): boolean {
+  const refreshToken = normalizeOptionalToolString(loginState.refreshToken);
+  const token = normalizeOptionalToolString(loginState.token);
+  const accessTokenExpired =
+    typeof loginState.accessTokenExpired === "number" ||
+    typeof loginState.accessTokenExpired === "string";
+
+  return Boolean(token && (refreshToken || accessTokenExpired));
+}
 
 function getCurrentIde(server: ExtendedMcpServer): string {
   return server.ide || process.env.INTEGRATION_IDE || "";
@@ -563,26 +706,63 @@ async function enrichEnvInfoWithBilling(params: {
   }
 }
 
-async function getGuidePrompt(server: ExtendedMcpServer): Promise<string> {
-  if (
-    getCurrentIde(server) === "CodeBuddy" ||
-    process.env.CLOUDBASE_GUIDE_PROMPT === "false"
-  ) {
-    return "";
-  }
-
-  try {
-    return await getClaudePrompt();
-  } catch (promptError) {
-    debug("Failed to get CLAUDE prompt", { error: promptError });
-    return "";
-  }
-}
-
 function normalizeOptionalToolString(value: unknown) {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : undefined;
+}
+
+/**
+ * Build enhanced error message for envQuery tool errors
+ * Provides actionable guidance based on error patterns
+ */
+function buildEnvQueryErrorMessage(error: unknown, action: string): string {
+  const baseMessage = error instanceof Error ? error.message : String(error);
+
+  // Check for common error patterns and provide specific guidance
+  const hasInvalidParameterError = /400|invalid parameter|invalid argument|parameter value/i.test(baseMessage);
+  const hasAuthError = /未登录|auth required|unauthorized|authentication|credential|token|secret/i.test(baseMessage);
+  const hasNetworkError = /ECONNRESET|socket hang up|ETIMEDOUT|ENOTFOUND|timeout/i.test(baseMessage);
+  const hasPermissionError = /permission|denied|forbidden|无权|拒绝/i.test(baseMessage);
+  const hasEnvNotFoundError = /env|environment|环境.*不存在|not found/i.test(baseMessage);
+
+  const suggestions: string[] = [];
+
+  if (hasInvalidParameterError) {
+    suggestions.push("参数错误：可能是认证信息无效或已过期，请尝试以下步骤：");
+    suggestions.push("1. 先调用 auth(action=\"status\") 检查当前登录状态");
+    suggestions.push("2. 如果未登录，调用 auth(action=\"start_auth\", authMode=\"device\") 完成登录");
+    suggestions.push("3. 登录完成后再次调用 envQuery(action=\"list\")");
+  }
+
+  if (hasAuthError) {
+    suggestions.push("认证错误：当前未登录或认证已过期。");
+    suggestions.push("建议先执行 auth(action=\"status\") 查看状态，然后按提示完成登录。");
+  }
+
+  if (hasPermissionError) {
+    suggestions.push("权限错误：当前账号可能没有访问该资源的权限。");
+    suggestions.push("请确认：1) 已选择正确的环境 2) 账号有对应权限");
+  }
+
+  if (hasEnvNotFoundError) {
+    suggestions.push("环境错误：指定的环境不存在或无法访问。");
+    suggestions.push("请使用 envQuery(action=\"list\") 查看可用的环境列表。");
+  }
+
+  if (hasNetworkError) {
+    suggestions.push("网络错误：请检查网络连接，稍后重试。");
+  }
+
+  // If no specific pattern matched, provide general guidance
+  if (suggestions.length === 0) {
+    suggestions.push("查询环境信息时出错，建议：");
+    suggestions.push("1. 先调用 auth(action=\"status\") 确认登录状态");
+    suggestions.push("2. 如未登录，执行 auth(action=\"start_auth\") 完成认证");
+    suggestions.push("3. 确认环境 ID 正确且可访问");
+  }
+
+  return `[envQuery/${action}] 调用失败: ${baseMessage}\n\n解决建议：\n${suggestions.join("\n")}`;
 }
 
 function normalizeOptionalToolBoolean(value: unknown) {
@@ -667,6 +847,14 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 .describe("action=logout 时确认操作，传 yes"),
             }
           : {}),
+        ...(supportedAuthActions.includes("get_temp_credentials")
+          ? {
+              reveal: z
+                .boolean()
+                .optional()
+                .describe("action=get_temp_credentials 时可选。true=返回明文临时密钥；默认 false 仅返回脱敏结果"),
+            }
+          : {}),
       },
       annotations: {
         readOnlyHint: false,
@@ -684,6 +872,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       oauthCustom?: unknown;
       envId?: string;
       confirm?: unknown;
+      reveal?: unknown;
     }) => {
       const action = rawArgs.action ?? "status";
       const authMode =
@@ -695,6 +884,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       const oauthCustom = normalizeOptionalToolBoolean(rawArgs.oauthCustom);
       const envId = rawArgs.envId;
       const confirm = rawArgs.confirm === "yes" ? "yes" : undefined;
+      const reveal = normalizeOptionalToolBoolean(rawArgs.reveal) === true;
       const resolvedAuthOptions = resolveToolAuthOptions(server, {
         authMode,
         oauthEndpoint,
@@ -708,14 +898,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         setPendingAuthProgressState(info, "device");
         // emitDeviceAuthNotice(server, info);
       };
-      const authChallenge = () =>
-        deviceAuthInfo
-          ? {
-            user_code: deviceAuthInfo.user_code,
-            verification_uri: deviceAuthInfo.verification_uri,
-            expires_in: deviceAuthInfo.expires_in,
-          }
-          : undefined;
+      const authChallenge = () => buildDeviceAuthChallengePayload(deviceAuthInfo);
 
       try {
         if (!supportedAuthActions.includes(action)) {
@@ -732,6 +915,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         if (action === "status") {
           const loginState = await peekLoginState();
           const authFlowState = await getAuthProgressState();
+
+          // 判断是否为 API Key 模式
+          const isApiKeyMode = !!(process.env.CLOUDBASE_API_KEY && process.env.CLOUDBASE_ENV_ID);
 
           const authStatus = loginState
             ? "READY"
@@ -762,6 +948,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             ok: true,
             code: "STATUS",
             auth_status: authStatus,
+            ...(isApiKeyMode ? { auth_mode: "api_key" } : {}),
             auth_config: authConfigSummary,
             ...(envPreparation
               ? buildAuthEnvSetupPayload(envPreparation)
@@ -771,12 +958,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                   ...buildEnvCandidatePayload([]),
                 }),
             auth_challenge:
-              authFlowState.status === "PENDING" && authFlowState.authChallenge
-                ? {
-                    user_code: authFlowState.authChallenge.user_code,
-                    verification_uri: authFlowState.authChallenge.verification_uri,
-                    expires_in: authFlowState.authChallenge.expires_in,
-                  }
+              authFlowState.status === "PENDING"
+                ? buildDeviceAuthChallengePayload(authFlowState.authChallenge)
                 : undefined,
             message,
             next_step:
@@ -791,6 +974,48 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         }
 
         if (action === "start_auth") {
+          // API Key 模式：尝试换取临时密钥
+          if (process.env.CLOUDBASE_API_KEY && process.env.CLOUDBASE_ENV_ID) {
+            try {
+              const existingLoginState = await peekLoginState();
+              if (existingLoginState) {
+                return buildJsonToolResult({
+                  ok: true,
+                  code: "AUTH_READY",
+                  message: "当前使用 API Key 认证模式，已自动完成登录，无需手动授权。",
+                  auth_mode: "api_key",
+                  envId: process.env.CLOUDBASE_ENV_ID,
+                });
+              }
+            } catch (e) {
+              // peekLoginState 内部异常，记录后 fall through
+              debug("start_auth: peekLoginState threw", { error: e instanceof Error ? e.message : String(e) });
+            }
+
+            // API Key 换取失败：返回详细诊断信息
+            // 尝试获取更详细的错误信息
+            let diagMessage = "当前配置了 API Key 认证模式，但换取临时密钥失败。";
+            const endpoint = process.env.CLOUDBASE_API_ENDPOINT || `https://${process.env.CLOUDBASE_ENV_ID}.ap-shanghai.tcb-api.tencentcloudapi.com`;
+            diagMessage += `\n\n诊断信息：`;
+            diagMessage += `\n- CLOUDBASE_ENV_ID: ${process.env.CLOUDBASE_ENV_ID}`;
+            diagMessage += `\n- CLOUDBASE_API_KEY: ${process.env.CLOUDBASE_API_KEY.slice(0, 20)}...（已截断）`;
+            diagMessage += `\n- Endpoint: ${endpoint}`;
+            diagMessage += `\n\n可能原因：`;
+            diagMessage += `\n1. API Key 已过期或被删除`;
+            diagMessage += `\n2. Endpoint 不可达（网络/DNS 问题）`;
+            diagMessage += `\n3. CLOUDBASE_ENV_ID 与 API Key 所属环境不匹配`;
+            diagMessage += `\n\n建议：检查 MCP 配置中的 CLOUDBASE_API_KEY 和 CLOUDBASE_ENV_ID 环境变量是否正确。`;
+
+            return buildJsonToolResult({
+              ok: false,
+              code: "API_KEY_AUTH_FAILED",
+              message: diagMessage,
+              auth_mode: "api_key",
+              envId: process.env.CLOUDBASE_ENV_ID,
+              endpoint,
+            });
+          }
+
           const region = server.cloudBaseOptions?.region || process.env.TCB_REGION;
           const auth = AuthSupervisor.getInstance({});
           const authFlowState = await getAuthProgressState();
@@ -801,11 +1026,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               code: "AUTH_PENDING",
               message:
                 "设备码授权进行中，请在浏览器中打开 verification_uri 并输入 user_code 完成授权。",
-              auth_challenge: {
-                user_code: authFlowState.authChallenge.user_code,
-                verification_uri: authFlowState.authChallenge.verification_uri,
-                expires_in: authFlowState.authChallenge.expires_in,
-              },
+              auth_challenge: buildDeviceAuthChallengePayload(
+                authFlowState.authChallenge,
+              ),
               next_step: buildAuthNextStep("status", {
                 suggestedArgs: { action: "status" },
               }),
@@ -1016,6 +1239,16 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         }
 
         if (action === "logout") {
+          // API Key 模式下不允许 logout
+          if (process.env.CLOUDBASE_API_KEY && process.env.CLOUDBASE_ENV_ID) {
+            return buildJsonToolResult({
+              ok: false,
+              code: "LOGOUT_NOT_ALLOWED",
+              message: "当前使用 API Key 认证模式，不支持退出登录。如需切换认证方式，请移除 CLOUDBASE_API_KEY 环境变量后重启。",
+              auth_mode: "api_key",
+            });
+          }
+
           if (confirm !== "yes") {
             return buildJsonToolResult({
               ok: false,
@@ -1033,6 +1266,65 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             ok: true,
             code: "LOGGED_OUT",
             message: "✅ 已退出登录",
+          });
+        }
+
+        if (action === "get_temp_credentials") {
+          const loginState = (await peekLoginState()) as Record<string, unknown> | null;
+          if (!loginState) {
+            return buildJsonToolResult({
+              ok: false,
+              code: "AUTH_REQUIRED",
+              message: "当前未登录，请先完成管理端认证后再获取临时密钥。",
+              next_step: buildAuthRequiredNextStep(server),
+            });
+          }
+
+          if (confirm !== "yes") {
+            return buildJsonToolResult({
+              ok: false,
+              code: "INVALID_ARGS",
+              message:
+                "action=get_temp_credentials 时必须显式传 confirm=\"yes\"，以确认你要导出当前管理端临时密钥。",
+              next_step: buildAuthNextStep("get_temp_credentials", {
+                suggestedArgs: { action: "get_temp_credentials", confirm: "yes" },
+              }),
+            });
+          }
+
+          if (!isTemporaryCredentialLoginState(loginState)) {
+            return buildJsonToolResult({
+              ok: false,
+              code: "UNSUPPORTED_CREDENTIAL_TYPE",
+              message:
+                "当前登录态不是可导出的临时密钥。仅支持通过 Web / device 登录得到的临时密钥，永久密钥登录不允许导出。",
+            });
+          }
+
+          const secretId = normalizeOptionalToolString(loginState.secretId);
+          const secretKey = normalizeOptionalToolString(loginState.secretKey);
+          const token = normalizeOptionalToolString(loginState.token);
+          if (!secretId || !secretKey || !token) {
+            return buildJsonToolResult({
+              ok: false,
+              code: "INTERNAL_ERROR",
+              message: "当前登录态缺少完整的临时密钥字段，请重新登录后再试。",
+            });
+          }
+
+          return buildJsonToolResult({
+            ok: true,
+            code: "TEMP_CREDENTIALS_READY",
+            message: reveal
+              ? "当前管理端临时密钥已准备好，请注意避免泄露。"
+              : "当前管理端临时密钥已准备好，默认仅返回脱敏结果。",
+            env_id: normalizeOptionalToolString(loginState.envId) ?? null,
+            credentials: {
+              secretId: reveal ? secretId : maskSensitiveValue(secretId),
+              secretKey: reveal ? secretKey : maskSensitiveValue(secretKey),
+              token: reveal ? token : maskSensitiveValue(token),
+              masked: !reveal,
+            },
           });
         }
 
@@ -1059,22 +1351,22 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     },
   );
 
-  // envQuery - 环境查询（合并 listEnvs + getEnvInfo + getEnvAuthDomains + getWebsiteConfig）
+  // envQuery - 环境查询（合并 listEnvs + getEnvInfo + getEnvAuthDomains）
   server.registerTool?.(
     "envQuery",
     {
       title: "环境查询",
       description:
-        "查询云开发环境相关信息，支持查询环境列表、当前环境信息、安全域名和静态网站托管配置。（原工具名：listEnvs/getEnvInfo/getEnvAuthDomains/getWebsiteConfig，为兼容旧AI规则可继续使用这些名称）当 action=list 时，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知环境的详细信息，请使用 action=info。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。",
+        "查询云开发环境相关信息，支持查询环境列表、指定环境详情和安全域名。（原工具名：listEnvs/getEnvInfo/getEnvAuthDomains，为兼容旧AI规则可继续使用这些名称）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。",
       inputSchema: {
         action: z
-          .enum(["list", "info", "domains", "hosting"])
+          .enum(["list", "info", "domains"])
           .describe(
-            "查询类型：list=环境列表/摘要筛选（即使传 envId 也只返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=当前环境详细信息（详情中可查看更完整资源字段），domains=安全域名列表，hosting=静态网站托管配置",
+            "查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId 筛选，返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表",
           ),
         alias: z.string().optional().describe("按环境别名筛选。action=list 时可选"),
         aliasExact: z.boolean().optional().describe("按环境别名精确筛选。action=list 时可选；与 alias 配合使用"),
-        envId: z.string().optional().describe("按环境 ID 精确筛选。action=list 时可选；注意 list + envId 仍只返回摘要，如需该环境详情请改用 action=info"),
+        envId: z.string().optional().describe("按环境 ID 筛选。action=list 时可选（仅按 DescribeEnvs 语义做筛选，仍返回摘要）；action=info 时必填（返回该环境的详细信息，包含资源字段和计费信息）。如果任务已经给出了明确的 EnvId 并要求查询详情，请直接使用 action=info + envId，而不是 action=list"),
         limit: z.number().int().positive().optional().describe("返回数量上限。action=list 时可选"),
         offset: z.number().int().min(0).optional().describe("分页偏移。action=list 时可选"),
         fields: z
@@ -1097,7 +1389,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       offset,
       fields,
     }: {
-      action: "list" | "info" | "domains" | "hosting";
+      action: "list" | "info" | "domains";
       alias?: string;
       aliasExact?: boolean;
       envId?: string;
@@ -1116,27 +1408,53 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 requireEnvId: true,
                 mcpServer: server, // Pass server for IDE detection
               });
-              // Use commonService to call DescribeEnvs with filter parameters
-              // Filter parameters match the reference conditions provided by user
-              result = await cloudbaseList.commonService("tcb", "2018-06-08").call({
-                Action: "DescribeEnvs",
-                Param: {
-                  EnvTypes: ["weda", "baas"], // Include weda and baas (normal) environments
-                  IsVisible: false, // Filter out invisible environments
-                  Channels: ["dcloud", "iotenable", "tem", "scene_module"], // Filter special channels
-                },
-              });
-              logCloudBaseResult(server.logger, result);
-              // Transform response format to match original listEnvs() format
-              if (result && result.EnvList) {
-                result = { EnvList: result.EnvList };
-              } else if (result && result.Data && result.Data.EnvList) {
-                result = { EnvList: result.Data.EnvList };
+
+              // 当环境变量设置了 CLOUDBASE_ENV_ID 时（如 API Key 模式），
+              // 避免调用 DescribeEnvs（临时密钥可能不支持该接口），
+              // 改为通过 DescribeEnvInfo 获取单环境信息
+              const envIdFromEnv = process.env.CLOUDBASE_ENV_ID;
+              if (envIdFromEnv) {
+                try {
+                  const envInfo = await cloudbaseList.env.describeEnvInfo({ EnvId: envIdFromEnv });
+                  logCloudBaseResult(server.logger, envInfo);
+                  // DescribeEnvInfo 返回结构: { EnvInfo: { EnvBaseInfo: { EnvId, Alias, ... }, BillingInfo, ... } }
+                  // 需要提取 EnvBaseInfo 作为扁平 env 对象以匹配 DescribeEnvs 返回格式
+                  const baseInfo = envInfo?.EnvInfo?.EnvBaseInfo;
+                  if (baseInfo) {
+                    result = { EnvList: [baseInfo] };
+                  } else if (envInfo?.EnvInfo) {
+                    // 兼容: 如果没有 EnvBaseInfo 但有 EnvInfo，尝试直接使用
+                    result = { EnvList: [{ EnvId: envIdFromEnv, ...envInfo.EnvInfo }] };
+                  } else {
+                    result = { EnvList: [{ EnvId: envIdFromEnv }] };
+                  }
+                } catch (envInfoError) {
+                  debug("DescribeEnvInfo 失败，返回基础环境信息:", envInfoError instanceof Error ? envInfoError : new Error(String(envInfoError)));
+                  result = { EnvList: [{ EnvId: envIdFromEnv }] };
+                }
               } else {
-                // Fallback to original method if format is unexpected
-                debug("Unexpected response format, falling back to listEnvs()");
-                result = await cloudbaseList.env.listEnvs();
+                // Use commonService to call DescribeEnvs with filter parameters
+                // Filter parameters match the reference conditions provided by user
+                result = await cloudbaseList.commonService("tcb", "2018-06-08").call({
+                  Action: "DescribeEnvs",
+                  Param: {
+                    EnvTypes: ["weda", "baas"], // Include weda and baas (normal) environments
+                    IsVisible: false, // Filter out invisible environments
+                    Channels: ["dcloud", "iotenable", "tem", "scene_module"], // Filter special channels
+                  },
+                });
                 logCloudBaseResult(server.logger, result);
+                // Transform response format to match original listEnvs() format
+                if (result && result.EnvList) {
+                  result = { EnvList: result.EnvList };
+                } else if (result && result.Data && result.Data.EnvList) {
+                  result = { EnvList: result.Data.EnvList };
+                } else {
+                  // Fallback to original method if format is unexpected
+                  debug("Unexpected response format, falling back to listEnvs()");
+                  result = await cloudbaseList.env.listEnvs();
+                  logCloudBaseResult(server.logger, result);
+                }
               }
             } catch (error) {
               debug("获取环境列表时出错，尝试降级到 listEnvs():", error instanceof Error ? error : new Error(String(error)));
@@ -1155,15 +1473,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                   return toolPayloadResult;
                 }
                 debug("降级到 listEnvs() 也失败:", fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError)));
+                const enhancedMessage = buildEnvQueryErrorMessage(fallbackError, "list");
                 return {
                   content: [
                     {
                       type: "text",
-                      text:
-                        "获取环境列表时出错: " +
-                        (fallbackError instanceof Error
-                          ? fallbackError.message
-                          : String(fallbackError)),
+                      text: enhancedMessage,
                     },
                   ],
                 };
@@ -1200,59 +1515,47 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             const cloudbaseDomains = await getManager();
             result = await cloudbaseDomains.env.getEnvAuthDomains();
             logCloudBaseResult(server.logger, result);
-            break;
-
-          case "hosting": {
-            const cloudbaseHosting = await getManager();
-            const websiteConfig = await cloudbaseHosting.hosting.getWebsiteConfig();
-            logCloudBaseResult(server.logger, websiteConfig);
-            const hostingResult = {
-              ...(websiteConfig as Record<string, unknown>),
-              CdnDomain: (websiteConfig as Record<string, unknown>).CdnDomain ?? null,
-              Bucket: (websiteConfig as Record<string, unknown>).Bucket ?? null,
-            };
-
-            try {
-              const envInfo = await cloudbaseHosting.env.getEnvInfo() as {
-                EnvInfo?: {
-                  StaticStorages?: Array<{ StaticDomain?: string; Bucket?: string }>;
-                };
+            if (result && typeof result === "object" && !Array.isArray(result)) {
+              const domainsResult = result as unknown as Record<string, unknown>;
+              const localDevHint = buildLocalDevDomainHint();
+              const simplifiedDomains = simplifyEnvDomains(domainsResult.Domains);
+              const localDevSummary = summarizeConfiguredLocalDevEntries(
+                Array.isArray(simplifiedDomains)
+                  ? (simplifiedDomains as Array<{ Domain?: unknown }>)
+                  : [],
+              );
+              result = {
+                ...domainsResult,
+                Domains: simplifiedDomains,
+                localDevHint,
+                localDevStatus: {
+                  requiresExactCurrentOrigin: true,
+                  browserUploadReady: false,
+                  coverageConfirmed: false,
+                  doNotAssumeConfiguredEntriesAreSufficient: true,
+                  canAutoDetermineCurrentOrigin: false,
+                  hasAnyConfiguredLocalEntry: localDevSummary.hasAnyConfiguredLocalEntry,
+                  configuredEntries: localDevSummary.configuredEntries,
+                  note:
+                    "此查询不会自动知道你当前浏览器实际使用的自定义域名或本地端口。即使已经存在一些 localhost/127.0.0.1 条目，也不能据此认定浏览器上传已就绪。若浏览器 Web 应用需要直接上传文件到 CloudBase，请先确认并添加当前访问地址对应的 host:port，再依赖 app.uploadFile()。",
+                },
+                next_step_template: {
+                  tool: "envDomainManagement",
+                  action: "create",
+                  domains: ["<actual-browser-host>:<actual-browser-port>"],
+                  note:
+                    "请把占位符替换为当前浏览器实际访问 origin 对应的 host:port，再执行添加。",
+                },
               };
-              logCloudBaseResult(server.logger, envInfo);
-
-              hostingResult.CdnDomain = envInfo.EnvInfo?.StaticStorages?.[0]?.StaticDomain ?? hostingResult.CdnDomain;
-              hostingResult.Bucket = envInfo.EnvInfo?.StaticStorages?.[0]?.Bucket ?? hostingResult.Bucket;
-            } catch (hostingInfoError) {
-              debug("Failed to enrich hosting envQuery result with env info", {
-                error: hostingInfoError,
-              });
             }
-
-            result = hostingResult;
             break;
-          }
+
 
           default:
             throw new Error(`不支持的查询类型: ${action}`);
         }
 
-        let responseText = JSON.stringify(result, null, 2);
-
-        // For info action, append CLAUDE.md prompt content (skip for CodeBuddy IDE)
-        const currentIde = server.ide || process.env.INTEGRATION_IDE;
-        if (action === "info" && currentIde !== "CodeBuddy" && process.env.CLOUDBASE_GUIDE_PROMPT !== "false") {
-          try {
-            const promptContent = await getClaudePrompt();
-            if (promptContent) {
-              responseText += `\n\n⚠️ 重要提示：后续所有云开发相关的开发工作必须严格遵循以下开发规范和最佳实践：\n\n${promptContent}`;
-            }
-          } catch (promptError) {
-            debug("Failed to get CLAUDE prompt in envQuery", {
-              error: promptError,
-            });
-            // Continue without prompt if fetch fails
-          }
-        }
+        const responseText = JSON.stringify(result, null, 2);
 
         return {
           content: [
@@ -1267,11 +1570,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         if (toolPayloadResult) {
           return toolPayloadResult;
         }
+        const enhancedMessage = buildEnvQueryErrorMessage(error, action);
         return {
           content: [
             {
               type: "text",
-              text: `环境查询失败: ${error instanceof Error ? error.message : String(error)}`,
+              text: enhancedMessage,
             },
           ],
         };
@@ -1283,14 +1587,14 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "envDomainManagement",
     {
-      title: "环境域名管理",
+      title: "环境域名管理（安全域名 / CORS 白名单）",
       description:
-        "管理云开发环境的安全域名，支持添加和删除操作。（原工具名：createEnvDomain/deleteEnvDomain，为兼容旧AI规则可继续使用这些名称）",
+        "管理云开发环境的安全域名（安全域名 / CORS 白名单），支持添加和删除操作。（原工具名：createEnvDomain/deleteEnvDomain，为兼容旧AI规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 直接访问 CloudBase 资源时，应先用 envQuery(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。新增或删除后通常需要继续轮询 envQuery(action=domains) 确认状态收敛；安全域名一般约 10 分钟生效。⚠️ 重要：此工具仅用于 CORS/请求来源验证，不涉及 SSL 证书。如需绑定自定义域名供公网 HTTPS 访问，请使用 manageGateway(action=\"bindCustomDomain\")。",
       inputSchema: {
         action: z
           .enum(["create", "delete"])
-          .describe("操作类型：create=添加域名，delete=删除域名"),
-        domains: z.array(z.string()).describe("安全域名数组"),
+          .describe("操作类型：create=添加安全域名，delete=删除安全域名"),
+        domains: z.array(z.string()).describe("安全域名数组（格式：host:port，例如 localhost:5173 或 127.0.0.1:4173）。注意：不是自定义域名，不需要证书。"),
       },
       annotations: {
         readOnlyHint: false,
@@ -1326,14 +1630,13 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             throw new Error(`不支持的操作类型: ${action}`);
         }
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: `${JSON.stringify(result, null, 2)}\n\n请注意安全域名需要10分钟才能生效，用户也应该了解这一点。`,
-            },
-          ],
-        };
+        return buildJsonToolResult(
+          buildEnvDomainManagementResult({
+            action,
+            domains,
+            result,
+          }),
+        );
       } catch (error) {
         const toolPayloadResult = toolPayloadErrorToResult(error);
         if (toolPayloadResult) {

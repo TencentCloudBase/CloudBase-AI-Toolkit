@@ -27,6 +27,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install root dependencies (for build-allinone-skill scripts)
+        run: npm ci --ignore-scripts
+
       - name: Build allinone skill
         run: npx tsx scripts/build-allinone-skill.ts --dir /tmp/allinone-build
 
@@ -58,6 +61,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "chore: sync allinone skill from CloudBase-AI-ToolKit [skip ci]"
+            git commit -m "chore: sync allinone skill from CloudBase-AI-ToolKit"
             git push https://x-access-token:${{ secrets.CLOUDBASE_SKILLS }}@github.com/TencentCloudBase/cloudbase-skills.git HEAD:main
           fi

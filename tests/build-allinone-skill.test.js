@@ -10,6 +10,23 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const NVM_SH = path.join(os.homedir(), '.nvm', 'nvm.sh');
 const tempDirs = [];
+const GUIDELINE_SOURCE_FILE = path.join(
+  ROOT_DIR,
+  'config',
+  'source',
+  'guideline',
+  'cloudbase',
+  'SKILL.md',
+);
+
+function readSourceGuidelineVersion() {
+  const raw = fs.readFileSync(GUIDELINE_SOURCE_FILE, 'utf8');
+  const match = raw.match(/^version:\s+(.+)$/m);
+  if (!match) {
+    throw new Error('Expected source guideline to declare a version');
+  }
+  return match[1].trim();
+}
 
 function hasNode24ViaNvm() {
   if (!fs.existsSync(NVM_SH)) {
@@ -71,14 +88,17 @@ test.skipIf(!hasNode24ViaNvm())(
     expect(mainSkill).toContain('description_en:');
     expect(mainSkill).toMatch(/^version:\s+\d+\.\d+\.\d+(?:-[^\s]+)?$/m);
     expect(mainSkill).not.toContain('version: v');
+    expect(mainSkill).toContain(`version: ${readSourceGuidelineVersion()}`);
     expect(mainSkill).toContain('references/auth-web/SKILL.md');
     expect(mainSkill).toContain('## Activation Contract');
     expect(mainSkill).toContain('Provider status and publishable key');
+    expect(mainSkill).toContain('Serialize the object first, then retry once with the serialized text');
+    expect(mainSkill).toContain('actually passes the serialized string rather than the original object');
   },
 );
 
 test.skipIf(!hasNode24ViaNvm())(
-  'build-allinone-skill fails fast when git tags are unavailable',
+  'build-allinone-skill uses the source guideline version instead of git tags',
   () => {
     const targetDir = fs.mkdtempSync(
       path.join(os.tmpdir(), 'cloudbase-allinone-build-no-tags-'),
@@ -93,18 +113,20 @@ test.skipIf(!hasNode24ViaNvm())(
       { mode: 0o755 },
     );
 
-    expect(() =>
-      execFileSync(
-        '/bin/zsh',
-        [
-          '-lc',
-          `source "${NVM_SH}" && nvm use 24 >/dev/null && PATH="${binDir}:$PATH" node scripts/build-allinone-skill.ts --dir "${targetDir}"`,
-        ],
-        {
-          cwd: ROOT_DIR,
-          stdio: 'pipe',
-        },
-      ),
-    ).toThrow(/Unable to determine the latest git tag/);
+    execFileSync(
+      '/bin/zsh',
+      [
+        '-lc',
+        `source "${NVM_SH}" && nvm use 24 >/dev/null && PATH="${binDir}:$PATH" node scripts/build-allinone-skill.ts --dir "${targetDir}"`,
+      ],
+      {
+        cwd: ROOT_DIR,
+        stdio: 'pipe',
+      },
+    );
+
+    const outputDir = path.join(targetDir, 'cloudbase');
+    const mainSkill = fs.readFileSync(path.join(outputDir, 'SKILL.md'), 'utf8');
+    expect(mainSkill).toContain(`version: ${readSourceGuidelineVersion()}`);
   },
 );

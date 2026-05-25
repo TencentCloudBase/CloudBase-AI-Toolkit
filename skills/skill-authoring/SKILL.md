@@ -19,6 +19,21 @@ Use this skill when you need to:
 - Split a large skill into `SKILL.md` plus `references/`, `assets/`, or `scripts/`
 - Design evaluation prompts and review whether a skill triggers and behaves correctly
 
+## Repo-managed CloudBase skill review
+
+When the task targets `config/source/skills`, apply these guardrails in addition to the normal skill-authoring workflow:
+
+This section is the repo-managed CloudBase skill review baseline for this repository.
+
+- Keep frontmatter complete and normalized, including `version`
+- Keep examples inside the skill's declared platform and scope
+- Keep shared operational rules in one canonical source instead of copying large blocks across neighboring skills
+- If the skill claims a rule is mandatory, show that rule in at least one example
+- When giving a recommended default, also explain the tradeoff behind it
+- Do not infer public CNB / OpenClaw / ClawHub paths from the source tree; verify the actual published structure before writing fallback links or marketplace-facing URLs
+- If a skill mentions raw URLs, blob URLs, or marketplace-consumed paths, check live reachability before finalizing the text
+- Put standalone-install fallback guidance where the user needs it: keep the top-level note short, and place sibling-skill fallback links next to the actual cross-skill reference
+
 **Do NOT use for:**
 - General documentation writing that is not about skills
 - README polish or marketing copy
@@ -45,6 +60,7 @@ Use this skill when you need to:
 5. **Use collection-level review when the request is about many skills**
    - When reviewing `config/source/skills`, check overlap, duplication, trigger boundaries, and progressive disclosure across neighboring skills
    - Prefer evidence-based findings with concrete file references and rewrite guidance
+   - Treat source layout, published skills-repo layout, and marketplace-consumed layout as different surfaces until you verify they are the same
 
 6. **Evaluate before considering the skill complete**
    - Create should-trigger and should-not-trigger prompts
@@ -58,6 +74,7 @@ Use this skill when you need to:
 | Design skill anatomy and progressive disclosure | `references/structure-patterns.md` |
 | Draft a new skill or review an existing one | `references/templates.md` |
 | Audit `config/source/skills` for quality, redundancy, and overlap | `references/repo-skill-review.md` |
+| Review repo-managed CloudBase source skills | `references/cloudbase-skill-review.md` |
 | Build evaluation prompts and review outcomes | `references/evaluation.md` |
 | Compare good examples, weak examples, and rewrites | `references/examples.md` |
 
@@ -65,10 +82,11 @@ Use this skill when you need to:
 
 1. Identify the skill's job, boundary, and closest neighboring skills.
 2. Draft `name` and `description` with realistic trigger language.
-3. If the task targets `config/source/skills`, read `references/repo-skill-review.md` and review neighboring skills before proposing rewrites.
-4. Write the main `SKILL.md` so it changes agent behavior after trigger.
-5. Move deep detail into `references/`, `assets/`, or `scripts/` as needed.
-6. Run evaluation prompts and revise until trigger quality and behavior are stable.
+3. If the task targets `config/source/skills`, read `references/repo-skill-review.md`, then load `references/cloudbase-skill-review.md` for CloudBase-specific standards before proposing rewrites.
+4. If the skill text will mention published URLs or fallback paths, verify the public structure and at least one real URL before writing.
+5. Write the main `SKILL.md` so it changes agent behavior after trigger.
+6. Move deep detail into `references/`, `assets/`, or `scripts/` as needed.
+7. Run evaluation prompts and revise until trigger quality and behavior are stable.
 
 ## Minimum self-check
 
@@ -77,6 +95,7 @@ Use this skill when you need to:
 - Does the main `SKILL.md` change agent behavior after trigger?
 - Are non-applicable scenarios explicit?
 - Does routing point to the right reference file for each task?
+- If the skill references public URLs or standalone-install fallback paths, were those URLs verified against the actual published surface instead of guessed from local directories?
 - Are evaluation prompts present for both should-trigger and should-not-trigger cases?
 - Can you explain why this skill stays distinct from its nearest neighbors?
 - If reviewing a skill collection, can you point to redundancy, overlap, and missing boundaries with concrete evidence?

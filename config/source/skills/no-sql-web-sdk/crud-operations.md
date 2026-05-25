@@ -20,13 +20,13 @@ const result = await db.collection('todos').add({
     // _openid is automatically populated from authenticated user session
 });
 
-console.log('Added document with ID:', result.id);
+console.log('Added document with ID:', result._id);
 ```
 
 **Return Value:**
 ```javascript
 {
-    id: "generated-doc-id",  // Auto-generated document ID
+    _id: "generated-doc-id",  // Auto-generated document ID
     // ... other metadata
 }
 ```
@@ -134,6 +134,25 @@ console.log('Updated:', result.updated, 'document(s)');
 }
 ```
 
+**Important for permission-sensitive updates:**
+
+- Treat the update as successful only when `result.updated > 0`.
+- If the SDK returns a result object with fields such as `code` or `message`, surface that as an error instead of navigating as if the save succeeded.
+- For simple owner-only collections, be careful with `.doc(id).update()` when your rule depends on non-_id fields. But for CMS-style article collections that use the validated app-role pattern `get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid`, `.doc(id).update()` / `.doc(id).remove()` is an acceptable path.
+
+```javascript
+const result = await db.collection('posts')
+  .doc(postId)
+  .update({
+    title: nextTitle,
+    updatedAt: new Date()
+  });
+
+if (result.code || result.updated !== 1) {
+  throw new Error(result.message || 'Update was rejected by security rules');
+}
+```
+
 ### Update with Conditions
 
 Update documents matching specific conditions:
@@ -153,6 +172,8 @@ const result = await db.collection('todos')
 console.log('Updated', result.updated, 'documents');
 ```
 
+Use this form when your security rule depends on non-ID fields that you can include directly in the query conditions.
+
 ### Partial Updates
 
 Only update specific fields (other fields remain unchanged):
@@ -165,6 +186,84 @@ await db.collection('todos')
     .update({
         title: 'Updated Title'
         // _openid remains unchanged and cannot be modified
+    });
+```
+
+### Owner Rules for `.doc(id).update()` / `.doc(id).remove()`
+
+CloudBase security rules can be tricky around document-ID writes. For many owner-only patterns, `.doc(id)` plus `doc.authorId` is fragile. But in the CMS article pattern validated by this evaluation loop, the collection uses a `CUSTOM` rule with app-role override:
+
+```json
+{
+  "read": "auth.uid != null",
+  "create": "auth.uid != null",
+  "update": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)",
+  "delete": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)"
+}
+```
+
+With that rule shape, `.doc(id).update()` / `.doc(id).remove()` is a validated implementation path for CMS-style article management.
+
+**Problematic rule for document-ID writes:**
+
+```javascript
+{
+  "update": "auth.uid == doc.authorId",
+  "delete": "auth.uid == doc.authorId"
+}
+```
+
+This can work for `where({ authorId: auth.uid }).update(...)`, but it is commonly rejected for `.doc(id).update(...)` and `.doc(id).remove()`.
+
+**Prefer simple permission when it already matches the product requirement:**
+
+If the collection only needs “public read, creator/admin write”, use the simple permission `READONLY` instead of a CUSTOM owner rule.
+
+**If you must keep a CUSTOM owner rule:**
+
+```javascript
+{
+  "update": "doc.authorId == auth.uid",
+  "delete": "doc.authorId == auth.uid"
+}
+```
+
+Then change the client write path to include the owner field in the query condition:
+
+```javascript
+await db.collection('posts')
+  .where({
+    _id: postId,
+    authorId: '{openid}'
+  })
+  .update({ title: 'Updated Title' });
+```
+
+Only use `get('database.user_roles.' + auth.uid)` or `get('database.users.' + auth.uid)` when that role collection's document `_id` is exactly the current `auth.uid`. If your users collection is queried by `where({ uid })`, then `get('database.users.' + auth.uid)` is not equivalent and will not resolve the same document. Do not treat `get('database.posts.' + doc._id)` as the default first-choice fix for owner writes.
+
+### Nested Field Updates (Important)
+
+When updating nested object fields, you **must use dot notation** if you want to preserve sibling fields.
+
+**WRONG: This replaces the entire object and deletes sibling fields:**
+```javascript
+// DANGER: If 'user' had an 'email' field, it is now deleted!
+await db.collection('profiles')
+    .doc('profile-123')
+    .update({
+        user: {
+            name: 'New Name'  // Replaces the ENTIRE 'user' object
+        }
+    });
+```
+
+**CORRECT: This only updates the specific nested field:**
+```javascript
+// SAFE: Only updates 'name', preserves 'email' and other fields in 'user'
+await db.collection('profiles')
+    .doc('profile-123')
+    .update({
+        'user.name': 'New Name'  // Use dot notation for nested fields
     });
 ```
 
@@ -394,7 +493,7 @@ class TodoManager {
             createdAt: new Date(),
             updatedAt: new Date()
         });
-        return result.id;
+        return result._id;
     }
     
     // Read (single)
@@ -480,7 +579,7 @@ async function safeCRUD() {
             title: 'New Todo'
         });
         
-        console.log('Created:', result.id);
+        console.log('Created:', result._id);
         
     } catch (error) {
         if (error.code === 'PERMISSION_DENIED') {
@@ -524,7 +623,7 @@ await db.runTransaction(async transaction => {
 6. **Soft deletes**: Consider soft delete for important data
 7. **Index fields**: Index frequently queried/updated fields
 8. **Limit updates**: Only update changed fields
-9. **Configure security rules**: Use `writeSecurityRule` MCP tool to set database permissions before operations. See `./security-rules.md` for details. **Note:** Security rule changes take effect after a few minutes due to caching.
+9. **Configure security rules**: Use `managePermissions(action="updateResourcePermission")` to set database permissions before operations. See `./security-rules.md` for details. **Note:** Security rule changes take effect after a few minutes due to caching.
 10. **Log operations**: Track important data changes
 
 ## Important: `_openid` Field Management
@@ -555,4 +654,3 @@ await db.collection('todos').add({
 ```
 
 **Note:** The `_openid` field is used internally by CloudBase for user identification and permission control. It is automatically populated from the authenticated user's session and cannot be manually overridden.
-

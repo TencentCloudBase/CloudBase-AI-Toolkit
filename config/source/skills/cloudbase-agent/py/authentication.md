@@ -91,7 +91,7 @@ from cloudbase_agent.server import AgentServiceApp
 
 app = AgentServiceApp()
 app.use(auth_middleware)  # Register before run()
-app.run(create_agent, port=8000)
+app.run(create_agent, port=9000)
 ```
 
 ### 3. Adapter/Agent (Read)
@@ -239,7 +239,7 @@ def create_agent():
 # Start server with auth middleware
 app = AgentServiceApp()
 app.use(jwt_auth_middleware)  # Register auth middleware
-app.run(create_agent, port=8000)
+app.run(create_agent, port=9000)
 ```
 
 ### Step 3: Coze Adapter Internal Logic

@@ -1,176 +1,65 @@
-# 小程序插件
+# 微信小程序支持说明
 
-小程序插件提供了微信小程序开发和部署的完整工具链支持，包括代码上传、预览、构建等功能。
+当前版本的 CloudBase MCP **没有独立的 `miniprogram` 插件**。仓库中与微信小程序相关的能力主要体现在两部分：
 
-## 配置
+- `downloadTemplate(template="miniprogram")`：下载微信小程序 + CloudBase 项目模板
+- `miniprogram-development` Skill：为 AI 提供小程序开发、调试、预览、测试与发布流程指导
 
-### 环境变量
+这意味着：**小程序支持仍然存在，但它不再以 MCP 插件名 `miniprogram` 的形式暴露**。
 
-```bash
-# 设置小程序代码上传密钥（二选一）
-export MINIPROGRAM_PRIVATE_KEY="私钥内容"
-# 或者
-export MINIPROGRAM_PRIVATE_KEY_PATH="/path/to/private.key"
+## 当前推荐用法
 
-# 启用小程序插件
-export CLOUDBASE_MCP_PLUGINS_ENABLED="env,database,functions,hosting,storage,setup,rag,gateway,download,miniprogram"
-```
+### 1. 初始化项目
 
-### MCP 配置
+如果你要从 0 开始创建微信小程序项目，优先使用 `downloadTemplate` 下载小程序模板，而不是依赖某个名为 `miniprogram` 的插件。
 
-```json
-{
-  "mcpServers": {
-    "cloudbase": {
-      "command": "npx",
-      "args": ["npm-global-exec@latest", "@cloudbase/cloudbase-mcp@latest"],
-      "env": {
-        "MINIPROGRAM_PRIVATE_KEY": "你的小程序私钥",
-        "CLOUDBASE_MCP_PLUGINS_ENABLED": "env,database,functions,hosting,storage,setup,rag,gateway,download,miniprogram"
-      }
-    }
-  }
-}
-```
+相关文档：
 
-## 工具
+- [项目模板](../templates.md)
+- [MCP 工具](../mcp-tools.md)
 
-### uploadMiniprogramCode
+### 2. 让 AI 按规范开发小程序
 
-上传小程序代码到微信平台
+如果你希望 AI 继续完成页面开发、调试、预览、上线等流程，推荐使用微信小程序 Skill：
 
-**参数：**
-- `appId`: 小程序 appId
-- `projectPath`: 项目路径
-- `version`: 版本号
-- `desc`: 版本描述（可选）
-- `setting`: 编译设置（可选）
-- `robot`: 机器人编号 1-30（可选）
-- `type`: 项目类型 miniProgram/miniGame（可选）
+- [微信小程序 Skill](../prompts/miniprogram-development.mdx)
+- [如何使用 Skill](../prompts/how-to-use.mdx)
 
-### previewMiniprogramCode
+### 3. 按业务启用 MCP 插件
 
-预览小程序代码并生成二维码
+小程序项目常见会搭配以下 MCP 插件使用：
 
-**参数：**
-- `appId`: 小程序 appId
-- `projectPath`: 项目路径
-- `desc`: 预览描述（可选）
-- `setting`: 编译设置（可选）
-- `robot`: 机器人编号 1-30（可选）
-- `type`: 项目类型 miniProgram/miniGame（可选）
-- `qrcodeFormat`: 二维码格式 image/base64/terminal（可选）
-- `qrcodeOutputDest`: 二维码输出路径（可选）
-- `pagePath`: 预览页面路径（可选）
-- `searchQuery`: 预览页面参数（可选）
+- `env`：环境登录、环境查询
+- `database`：数据库与数据模型
+- `functions`：云函数能力
+- `storage`：云存储文件管理
+- `permissions`：权限与安全规则
 
-### buildMiniprogramNpm
+如果项目还涉及日志排查、远程素材下载或云托管，可以再按需启用：
 
-构建小程序 npm 包
+- `logs`
+- `download`
+- `cloudrun`
+- `gateway`
 
-**参数：**
-- `appId`: 小程序 appId
-- `projectPath`: 项目路径
-- `type`: 项目类型 miniProgram/miniGame（可选）
-- `robot`: 机器人编号 1-30（可选）
+## 为什么不再叫“小程序插件”
 
-### getMiniprogramProjectConfig
+因为当前实现中：
 
-获取小程序项目配置
+- `mcp/src/server.ts` 没有注册 `miniprogram` 为可用插件
+- `mcp/src/tools/` 下也没有 `miniprogram` 对应的 MCP 工具实现文件
 
-**参数：**
-- `appId`: 小程序 appId
-- `projectPath`: 项目路径
-- `type`: 项目类型 miniProgram/miniGame（可选）
+历史文档里把它描述成独立插件，已经不再准确。后续如果提到微信小程序能力，应优先使用以下表述：
 
-### getMiniprogramSourceMap
+- **小程序模板支持**
+- **小程序开发 Skill**
+- **微信小程序开发流程支持**
 
-获取最近上传版本的 SourceMap，用于生产环境错误调试
+而不是继续写成 `miniprogram` 插件。
 
-**参数：**
-- `appId`: 小程序 appId
-- `projectPath`: 项目路径
-- `robot`: 指定使用哪一个 ci 机器人，1-30
-- `sourceMapSavePath`: SourceMap 保存路径
-- `type`: 项目类型 miniProgram/miniGame（可选）
+## 相关文档
 
-### checkMiniprogramCodeQuality
-
-检查小程序代码质量，生成质量报告（需要 miniprogram-ci 1.9.11+）
-
-**参数：**
-- `appId`: 小程序 appId
-- `projectPath`: 项目路径
-- `saveReportPath`: 质量报告保存路径
-- `type`: 项目类型 miniProgram/miniGame（可选）
-
-### packMiniprogramNpmManually
-
-自定义 node_modules 位置的小程序 npm 构建，支持复杂项目结构
-
-**参数：**
-- `packageJsonPath`: 希望被构建的 node_modules 对应的 package.json 的路径
-- `miniprogramNpmDistDir`: 被构建 miniprogram_npm 的目标位置
-- `ignores`: 指定需要排除的规则（可选）
-
-## 使用场景
-
-### 开发流程
-
-1. **构建依赖**
-   ```
-   调用 buildMiniprogramNpm 构建 npm 包
-   调用 packMiniprogramNpmManually 自定义构建复杂项目结构
-   ```
-
-2. **预览测试**
-   ```
-   调用 previewMiniprogramCode 生成预览二维码
-   ```
-
-3. **发布上线**
-   ```
-   调用 uploadMiniprogramCode 上传代码到微信平台
-   ```
-
-4. **调试优化**
-   ```
-   调用 getMiniprogramSourceMap 获取 SourceMap 进行错误调试
-   调用 checkMiniprogramCodeQuality 检查代码质量并生成报告
-   ```
-
-### 密钥配置
-
-使用此插件前，需要在微信公众平台配置：
-
-1. 访问 [微信公众平台](https://mp.weixin.qq.com/)
-2. 进入"管理-开发管理-开发设置-小程序代码上传"
-3. 生成「代码上传密钥」
-4. 配置 IP 白名单（推荐开启）
-
-## 注意事项
-
-- 代码上传密钥拥有预览、上传代码的权限
-- 密钥不会明文存储在微信公众平台上
-- 密钥一旦遗失必须重置，请妥善保管
-- 建议开启 IP 白名单以降低安全风险
-
-## 常见问题
-
-### Q: 如何获取小程序 appId？
-A: 在微信公众平台的小程序管理页面可以查看到 appId。
-
-### Q: 机器人编号有什么作用？
-A: 机器人编号用于区分不同的上传任务，可以设置 1-30 之间的数字。
-
-### Q: 支持哪些编译设置？
-A: 支持 ES6/ES7 转换、代码压缩、WXSS 压缩等常见编译选项。
-
-### Q: SourceMap 有什么作用？
-A: SourceMap 用于生产环境错误调试，可以将压缩后的代码错误映射回原始代码位置，便于问题定位。
-
-### Q: 代码质量检查包含哪些内容？
-A: 包含代码规范、性能问题、潜在 bug、可优化项等多维度的质量分析，生成详细的质量报告。
-
-### Q: 何时需要使用自定义 npm 构建？
-A: 当项目有特殊的目录结构、需要自定义 node_modules 位置或有特殊的构建需求时使用。
+- [插件系统总览](../plugins.md)
+- [项目模板](../templates.md)
+- [微信小程序 Skill](../prompts/miniprogram-development.mdx)
+- [MCP 工具](../mcp-tools.md)

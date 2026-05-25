@@ -28,6 +28,13 @@ test('build-skills-repo publishes skills and guideline from minimal sources', ()
     ),
   ).toBe(true);
 
+  const guideline = fs.readFileSync(
+    path.join(OUTPUT_DIR, 'skills', 'cloudbase-guidelines', 'SKILL.md'),
+    'utf8',
+  );
+  expect(guideline).toContain('Serialize the object first, then retry once with the serialized text');
+  expect(guideline).toContain('actually passes the serialized string rather than the original object');
+
   const readme = fs.readFileSync(path.join(OUTPUT_DIR, 'README.md'), 'utf8');
   expect(readme).toContain('cloudbase-guidelines');
   expect(readme).toContain('auth-web');

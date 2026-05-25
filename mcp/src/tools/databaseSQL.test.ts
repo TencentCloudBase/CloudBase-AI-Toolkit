@@ -189,6 +189,34 @@ describe("SQL database tools", () => {
     });
   });
 
+  it("querySqlDatabase(describeInstance) should behave as getInstanceInfo alias", async () => {
+    mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+      if (Action === "DescribeCreateMySQLResult") {
+        return {
+          RequestId: "req-create",
+          Status: "NOT_FOUND",
+        };
+      }
+      throw Object.assign(new Error("not found"), {
+        code: "FailedOperation.DataSourceNotExist",
+      });
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.querySqlDatabase.handler({
+      action: "describeInstance",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        exists: false,
+        status: "NOT_CREATED",
+      },
+    });
+  });
+
   it("manageSqlDatabase(initializeSchema) blocks when MySQL is not ready", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeCreateMySQLResult") {

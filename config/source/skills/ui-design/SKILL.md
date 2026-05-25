@@ -1,32 +1,47 @@
 ---
 name: ui-design
-description: Professional UI design and frontend interface guidelines. Use this skill when creating web pages, mini-program interfaces, prototypes, or any frontend UI components that require distinctive, production-grade design with exceptional aesthetic quality.
+description: Use when users need visual direction, interface hierarchy, layout decisions, design specifications, or prototypes before implementing a Web or mini program UI.
+version: 2.20.0
 alwaysApply: false
 ---
+
+## Standalone Install Note
+
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
+
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/ui-design/SKILL.md`
+
+Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
 
 ## Activation Contract
 
 ### Use this first when
 
-- The request involves any page, component, screen, visual prototype, or frontend styling work.
+- The request is to decide visual direction, produce a design specification, create a prototype, or make layout, typography, color, and visual hierarchy choices for an interface.
+- The implementation should follow a deliberate aesthetic rather than directly coding an already-approved design.
 
 ### Read before writing code if
 
-- The response will include UI code, layout structure, typography, color decisions, or visual behavior.
+- The response must choose typography, color, spacing, layout strategy, or other visual rules before code exists.
+- The user asks for "design", "prototype", "look and feel", or "style" rather than straight implementation.
 
 ### Then also read
 
-- Web implementation -> `../web-development/SKILL.md`
-- Mini program implementation -> `../miniprogram-development/SKILL.md`
+- Web implementation -> `../web-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/web-development/SKILL.md`)
+- Mini program implementation -> `../miniprogram-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/miniprogram-development/SKILL.md`)
 
 ### Do NOT use for
 
 - Backend-only tasks, database design, or pure API work without interface output.
+- Straight implementation of an already-approved UI without new design decisions.
+- Generic frontend coding requests where the visual direction is already settled.
 
 ### Common mistakes / gotchas
 
 - Writing JSX, WXML, or CSS before outputting the design specification.
 - Falling back to generic AI layouts instead of an explicit aesthetic direction.
+- Jumping into implementation when the design intent is still unclear.
 - Ignoring platform constraints after the visual concept is defined.
 
 ### Minimal checklist
@@ -78,6 +93,11 @@ Use this skill for **frontend UI design and interface creation** in any project 
    - Icon audit (verify no emoji icons, using professional icon libraries)
    - Layout audit (verify asymmetry/creativity)
    - Design specification compliance check
+
+5. **Respect brand or design-system overrides when they are real constraints**
+   - If the project already has approved brand colors, font tokens, or a design system, treat those as higher-priority constraints
+   - Explicitly document which default UI-design prohibitions are being overridden and why
+   - Keep the override narrow: preserve the overall quality bar instead of falling back to generic AI styling
 
 ---
 
@@ -165,6 +185,7 @@ DESIGN SPECIFICATION
 - **Unified Aesthetics**: Use CSS variables for consistency
 - **Dominant Colors with Accents**: Using dominant colors with sharp accents is more effective than evenly-distributed color schemes
 - **Theme Consistency**: Choose dark or light themes based on aesthetic direction, ensure color choices match the overall style
+- **Brand Escape Hatch**: If a product already mandates a brand palette or typography system, you may use those tokens, but call out the override explicitly in the design specification
 
 ### Motion Design
 - **Animation Strategy**: Use animations for effects and micro-interactions
@@ -308,4 +329,3 @@ All interface prototypes must:
 **If any audit fails → Re-design with correct approach**
 
 Remember: You are capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
-

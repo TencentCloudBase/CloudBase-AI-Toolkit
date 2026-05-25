@@ -17,284 +17,203 @@ import AIDevelopmentPrompt from '../components/AIDevelopmentPrompt';
 
 <AIDevelopmentPrompt ruleId="cloudrun-development" />
 
-## Skill 
+## 安装与查看
 
-````markdown title="rule.md"
-## When to use this skill
+如果需要安装全部 CloudBase Skills，可执行：
 
-Use this skill for **CloudBase Run backend service development** when you need:
+```bash
+npx skills add tencentcloudbase/cloudbase-skills
+```
 
-- Long connection capabilities: WebSocket / SSE / server push
-- Long-running or persistent processes: tasks that are not suitable for cloud functions, background jobs
-- Custom runtime environments/system dependencies: custom images, specific system libraries
-- Multi-language/arbitrary frameworks: Java, Go, PHP, .NET, Python, Node.js, etc.
-- Stable external services with elastic scaling: pay-as-you-go, can scale down to 0
-- Private/internal network access: VPC/PRIVATE access, mini-program `callContainer` internal direct connection
-- AI agent development: develop personalized AI applications based on Function mode CloudRun
+如果只安装当前 Skill，可执行：
 
-**Do NOT use for:**
-- Simple cloud functions (use cloud function development instead)
-- Frontend-only applications
-- Database schema design (use data-model-creation skill)
+```bash
+npx skills add https://github.com/tencentcloudbase/skills --skill cloudrun-development
+```
+
+当前 Skill 在线查看： [cloudrun-development](https://skills.sh/tencentcloudbase/skills/cloudrun-development)
 
 ---
+
+## Skill 规则原文
+
+<details>
+<summary>查看 SKILL.md 原文</summary>
+
+````markdown
+## Standalone Install Note
+
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
+
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudrun-development/SKILL.md`
+
+Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
+
+# CloudBase Run Development
+
+## Activation Contract
+
+### Use this first when
+
+- The task is to initialize, run, deploy, inspect, or debug a CloudBase Run service.
+- The request needs a long-lived HTTP service, SSE, WebSocket, custom system dependencies, or container-style deployment.
+- The task is to create or run an Agent service on CloudBase Run.
+
+### Read before writing code if
+
+- You still need to choose between Function mode and Container mode.
+- The prompt mentions `queryCloudRun`, `manageCloudRun`, Dockerfile, service domains, or public/private access.
+
+### Then also read
+
+- Cloud functions instead of CloudRun -> `../cloud-functions/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloud-functions/SKILL.md`)
+- Agent SDK and AG-UI specifics -> `../cloudbase-agent/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-agent/SKILL.md`)
+- Web authentication for browser callers -> `../auth-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-web/SKILL.md`)
+
+### Do NOT use for
+
+- Simple Event Function or HTTP Function workflows that fit the function model better.
+- Frontend-only projects with no backend service.
+- Database-schema design tasks.
+
+### Common mistakes / gotchas
+
+- Choosing CloudRun when the request only needs a normal cloud function.
+- Forgetting to listen on the platform-provided `PORT`.
+- Treating CloudRun as stateful app hosting and storing important state on local disk.
+- Assuming local run is available for Container mode.
+- Opening public access by default when the scenario only needs private or mini-program internal access.
+
+### Minimal checklist
+
+- Choose Function mode or Container mode explicitly.
+- Confirm whether the service should be public, VPC-only, or mini-program internal.
+- Keep the service stateless and externalize durable data.
+- Use absolute paths for every local project path.
+
+## Overview
+
+Use CloudBase Run when the task needs a deployed backend service rather than a short-lived serverless function.
+
+### When CloudRun is a better fit
+
+- Long connections: WebSocket, SSE, server push
+- Long-running request handling or persistent service processes
+- Custom runtime environments or system libraries
+- Arbitrary languages or frameworks
+- Stable external service endpoints with elastic scaling
+- AI Agent deployment on Function mode CloudRun
+
+## Mode selection
+
+| Dimension | Function mode | Container mode |
+| --- | --- | --- |
+| Best for | Fast start, Node.js service patterns, built-in framework, Agent flows | Existing containers, arbitrary runtimes, custom system dependencies |
+| Port model | Framework-managed local mode, deployed service still follows platform rules | App must listen on injected `PORT` |
+| Dockerfile | Not required | Required |
+| Local run through tools | Supported | Not supported |
+| Typical use | Streaming APIs, low-latency backend, Agent service | Custom language stack, migrated container app |
 
 ## How to use this skill (for a coding agent)
 
-1. **Choose the right mode**
-   - **Function mode**: Fastest to get started, built-in HTTP/WebSocket/SSE, fixed port 3000, local running supported
-   - **Container mode**: Any language and runtime, requires Dockerfile, local running not supported by tools
+1. **Choose mode first**
+   - Function mode -> quickest path for HTTP/SSE/WebSocket or Agent scenarios
+   - Container mode -> use when Docker/custom runtime is a real requirement
 
-2. **Follow mandatory requirements**
-   - Must listen on `PORT` environment variable (real port in container)
-   - Stateless service: write data externally (DB/storage/cache)
-   - No background persistent threads/processes outside requests
-   - Minimize dependencies, slim images; reduce cold start and deployment time
-   - Resource constraints: `Mem = 2 × CPU` (e.g., 0.25 vCPU → 0.5 GB)
-   - Access control: Only enable public network for Web scenarios; mini-programs prioritize internal direct connection, recommend closing public network
+2. **Follow mandatory runtime rules**
+   - Listen on `PORT`
+   - Keep the service stateless
+   - Put durable data in DB/storage/cache
+   - Keep dependencies and image size small
+   - Respect resource ratio guidance: `Mem = 2 × CPU`
 
-3. **Use tools correctly**
-   - **Read operations**: `queryCloudRun` (list, detail, templates)
-   - **Write operations**: `manageCloudRun` (init, download, run, deploy, delete, createAgent)
-   - Always use absolute paths for `targetPath`
-   - Use `force: true` for delete operations
+3. **Use the correct tools**
+   - Read operations -> `queryCloudRun`
+   - Write operations -> `manageCloudRun`
+   - Delete requires explicit confirmation and `force: true`
+   - Always use absolute `targetPath`
 
-4. **Follow the workflow**
-   - Initialize project → Check/generate Dockerfile (for container mode) → Local run (function mode only) → Configure access → Deploy → Verify
+4. **Follow the deployment sequence**
+   - Initialize or download code
+   - For Container mode, verify Dockerfile
+   - Local run when available
+   - Configure access model
+   - Deploy and verify detail output
 
----
+## Tool routing
 
-# CloudBase Run AI Development Rules
+### Read operations
 
-A concise guide for AI assistants and engineering collaboration, providing "when to use, how to use" rules and tool workflows.
+- `queryCloudRun(action="list")` -> list services
+- `queryCloudRun(action="detail")` -> inspect one service and its latest deploy status when available
+- `queryCloudRun(action="templates")` -> see available starters
+- `queryCloudRun(action="getDeployLog")` -> retrieve the latest deploy log or a specified `buildId`
 
-## 1. When to use CloudBase Run (Use Cases)
+### Write operations
 
-- Need long connection capabilities: WebSocket / SSE / server push
-- Need long-running or persistent processes: tasks that are not suitable for cloud functions, background jobs
-- Need custom runtime environments/system dependencies: custom images, specific system libraries
-- Use multi-language/arbitrary frameworks: Java, Go, PHP, .NET, Python, Node.js, etc.
-- Need stable external services with elastic scaling: pay-as-you-go, can scale down to 0
-- Need private/internal network access: VPC/PRIVATE access, mini-program `callContainer` internal direct connection
-- Need to develop AI agents: develop personalized AI applications based on Function mode CloudRun
+- `manageCloudRun(action="init")` -> create local project
+- `manageCloudRun(action="download")` -> pull remote code
+- `manageCloudRun(action="run")` -> local run for Function mode
+- `manageCloudRun(action="deploy")` -> deploy local project
+- `manageCloudRun(action="delete")` -> delete service
+- `manageCloudRun(action="createAgent")` -> create Agent service
 
-## 2. Mode Selection (Quick Comparison)
+## Access guidance
 
-- **Function mode**: Fastest to get started, built-in HTTP/WebSocket/SSE, fixed port 3000; local running supported by tools
-- **Container mode**: Any language and runtime, requires Dockerfile; local running not supported by tools
+- **Web/public scenarios** -> enable WEB access intentionally and pair it with the right auth flow.
+- **Mini Program** -> prefer internal direct connection and avoid unnecessary public exposure.
+- **Private/VPC scenarios** -> keep public access off unless the product requirement clearly needs it.
 
-### Mode Comparison Checklist
+## Quick examples
 
-| Dimension | Function Mode | Container Mode |
-| --- | --- | --- |
-| Language/Framework | Node.js (via `@cloudbase/functions-framework`) | Any language/runtime (Java/Go/PHP/.NET/Python/Node.js, etc.) |
-| Runtime | Function framework loads functions (Runtime) | Docker image starts process |
-| Port | Fixed 3000 | Application listens on `PORT` (injected by platform during deployment) |
-| Dockerfile | Not required | Required (and must pass local build) |
-| Local Running | Supported (built-in tools) | Not supported (recommend using Docker for debugging) |
-| Typical Scenarios | WebSocket/SSE/streaming responses, forms/files, low latency, multiple functions per instance, shared memory | Arbitrary system dependencies/languages, migrating existing containerized applications |
+### Initialize
 
-## 3. Development Requirements (Must Meet)
-
-- Must listen on `PORT` environment variable (real port in container)
-- Stateless service: write data externally (DB/storage/cache)
-- No background persistent threads/processes outside requests
-- Minimize dependencies, slim images; reduce cold start and deployment time
-- Resource constraints: `Mem = 2 × CPU` (e.g., 0.25 vCPU → 0.5 GB)
-- Access control: Only enable public network for Web scenarios; mini-programs prioritize internal direct connection, recommend closing public network
-
-## 4. Tools (Plain Language &amp; Read/Write Separation)
-
-- **Read operations** (`queryCloudRun`):
-  - `list`: What services do I have? Can filter by name/type
-  - `detail`: Current configuration, version, access address of a service
-  - `templates`: Ready-to-use starter templates
-- **Write operations** (`manageCloudRun`):
-  - `init`: Create local project (optional template)
-  - `download`: Pull existing service code to local
-  - `run`: Run locally (Function mode only, supports normal function and Agent mode)
-  - `deploy`: Deploy local code to CloudRun
-  - `delete`: Delete service (requires explicit confirmation)
-  - `createAgent`: Create AI agent (based on Function mode CloudRun)
-- **Important parameters** (remember these):
-  - `targetPath`: Local directory (must be absolute path)
-  - `serverConfig`: Deployment parameters (CPU/Mem/instance count/access type/environment variables, etc.)
-  - `runOptions`: Local running port and temporary environment variables (Function mode), supports `runMode: 'normal' | 'agent'`
-  - `agentConfig`: Agent configuration (agentName, botTag, description, template)
-  - Delete must include `force: true`, otherwise it won't execute
-
-## 5. Core Workflow (Understand Steps First, Then Examples)
-
-1) **Choose mode**
-   - Need multi-language/existing container/Docker: choose "Container mode"
-   - Need long connection/streaming/low latency/multiple functions coexisting: prioritize "Function mode"
-
-2) **Initialize local project**
-   - General: Use template `init` (both Function mode and Container mode can start from templates)
-   - Container mode must "check or generate Dockerfile":
-     - Node.js minimal example:
-       ```dockerfile
-       FROM node:18-alpine
-       WORKDIR /app
-       COPY package*.json ./
-       RUN npm ci --omit=dev
-       COPY . .
-       ENV NODE_ENV=production
-       EXPOSE 3000
-       CMD ["node","server.js"]
-       ```
-     - Python minimal example:
-       ```dockerfile
-       FROM python:3.11-slim
-       WORKDIR /app
-       COPY requirements.txt ./
-       RUN pip install -r requirements.txt --no-cache-dir
-       COPY . .
-       ENV PORT=3000
-       EXPOSE 3000
-       CMD ["python","app.py"]
-       ```
-
-3) **Local running** (Function mode only)
-   - Automatically use `npm run dev/start` or entry file via `run`
-
-4) **Configure access**
-   - Set `OpenAccessTypes` (WEB/VPC/PRIVATE) as needed; configure security domain and authentication for Web scenarios
-
-5) **Deploy**
-   - Specify CPU/Mem/instance count/environment variables, etc. during `deploy`
-
-6) **Verify**
-   - Use `detail` to confirm access address and configuration meet expectations
-
-### Example Tool Calls
-
-1) **View templates/services**
 ```json
-{ "name": "queryCloudRun", "arguments": { "action": "templates" } }
+{ "action": "init", "serverName": "my-svc", "targetPath": "/abs/ws/my-svc" }
 ```
+
+### Local run (Function mode)
+
 ```json
-{ "name": "queryCloudRun", "arguments": { "action": "detail", "detailServerName": "my-svc" } }
+{ "action": "run", "serverName": "my-svc", "targetPath": "/abs/ws/my-svc", "runOptions": { "port": 3000 } }
 ```
 
-2) **Initialize project**
+### Deploy
+
 ```json
-{ "name": "manageCloudRun", "arguments": { "action": "init", "serverName": "my-svc", "targetPath": "/abs/ws/my-svc", "template": "helloworld" } }
+{
+  "action": "deploy",
+  "serverName": "my-svc",
+  "targetPath": "/abs/ws/my-svc",
+  "serverConfig": {
+    "OpenAccessTypes": ["PUBLIC"],
+    "Cpu": 0.5,
+    "Mem": 1,
+    "MinNum": 1,
+    "MaxNum": 5
+  }
+}
 ```
 
-3) **Download code** (optional)
-```json
-{ "name": "manageCloudRun", "arguments": { "action": "download", "serverName": "my-svc", "targetPath": "/abs/ws/my-svc" } }
-```
+**Valid `OpenAccessTypes` values**: `OA` (办公网访问), `PUBLIC` (公网访问), `MINIAPP` (小程序访问), `VPC` (VPC访问). Use `PUBLIC` for web applications that need public HTTPS access.
 
-4) **Local running** (Function mode only)
-```json
-{ "name": "manageCloudRun", "arguments": { "action": "run", "serverName": "my-svc", "targetPath": "/abs/ws/my-svc", "runOptions": { "port": 3000 } } }
-```
+`MinNum: 1` is the recommended default when you want to reduce cold-start latency. If the user explicitly prefers lower cost and accepts more cold starts, explain the tradeoff and let them reduce `MinNum` to `0`.
 
-5) **Deploy**
-```json
-{ "name": "manageCloudRun", "arguments": { "action": "deploy", "serverName": "my-svc", "targetPath": "/abs/ws/my-svc", "serverConfig": { "OpenAccessTypes": ["WEB"], "Cpu": 0.5, "Mem": 1, "MinNum": 0, "MaxNum": 5 } } }
-```
+## Best practices
 
-6) **Create AI agent** (optional)
-```json
-{ "name": "manageCloudRun", "arguments": { "action": "createAgent", "serverName": "my-agent", "targetPath": "/abs/ws/agents", "agentConfig": { "agentName": "MyAgent", "botTag": "demo", "description": "My agent", "template": "blank" } } }
-```
+1. Prefer PRIVATE/VPC or mini-program internal access when possible.
+2. Use environment variables for secrets and per-environment configuration.
+3. Verify configuration before and after deployment with `queryCloudRun(action="detail")`.
+4. Keep startup work small to reduce cold-start impact.
+5. For Agent scenarios, use the Agent SDK skill for protocol and adapter details instead of duplicating them here.
 
-7) **Run agent** (optional)
-```json
-{ "name": "manageCloudRun", "arguments": { "action": "run", "serverName": "my-agent", "targetPath": "/abs/ws/agents/my-agent", "runOptions": { "port": 3000, "runMode": "agent" } } }
-```
+## Troubleshooting hints
 
-## 6. Best Practices (Strongly Recommended)
-
-- Prioritize PRIVATE/VPC or mini-program internal `callContainer`, reduce public network exposure
-- Web must use CloudBase Web SDK authentication; mini-programs authenticated by platform
-- Secrets via environment variables; separate configuration for multiple environments (dev/stg/prod)
-- Use `queryCloudRun.detail` to verify configuration and accessibility before and after deployment
-- Image layers reusable, small volume; monitor startup latency and memory usage
-- Agent development: Use `@cloudbase/aiagent-framework`, supports SSE streaming responses, BotId format is `ibot-{name}-{tag}`
-
-## 7. Quick Troubleshooting
-
-- **Access failure**: Check OpenAccessTypes/domain/port, whether instance scaled down to 0
-- **Deployment failure**: Verify Dockerfile/build logs/image volume and CPU/Mem ratio
-- **Local running failure**: Only Function mode supported; requires `package.json` `dev`/`start` or entry `index.js|app.js|server.js`
-- **Performance jitter**: Reduce dependencies and initialization; appropriately increase MinNum; optimize cold start
-- **Agent running failure**: Check `@cloudbase/aiagent-framework` dependency, BotId format, SSE response format
-
-## 8. Function Mode CloudRun (Function Mode) Key Points (Concise)
-
-- **Definition**: CloudRun + function framework (`@cloudbase/functions-framework`) + function code, making container service development as simple as writing cloud functions
-- **When to choose**: Need WebSocket/SSE/file upload/streaming responses; need long tasks or connect to DB/message queue; need multiple functions per instance and shared memory, low latency and better logs/debugging
-- **Agent mode**: Develop AI agents based on Function mode CloudRun, use `@cloudbase/aiagent-framework`, supports SSE streaming responses and personalized AI applications
-- **Tool support**: Local running only supports Function mode (`manageCloudRun` → `run`); deploy using `manageCloudRun` → `deploy`; query using `queryCloudRun`
-- **Migration tips**: Different from cloud function call chain/runtime, migration requires minor modifications (including client calling methods)
-- **Portability**: Based on function framework, can run locally/host/Docker, non-CloudRun requires self-managed build and deployment
-
-## 9. Service Invocation Methods (Concise Examples)
-
-### HTTP Direct Access (when WEB public network enabled)
-```bash
-curl -L "https://&lt;your-service-domain&gt;"
-```
-
-### WeChat Mini Program (internal direct connection, recommend closing public network)
-```js
-// app.js (ensure wx.cloud.init() is called)
-const res = await wx.cloud.callContainer({
-  config: { env: "&lt;envId&gt;" },
-  path: "/",
-  method: "GET",
-  header: { "X-WX-SERVICE": "&lt;serviceName&gt;" }
-});
-```
-
-### Web (JS SDK, need to configure security domain and authentication)
-```js
-import cloudbase from "@cloudbase/js-sdk";
-
-const app = cloudbase.init({ env: "&lt;envId&gt;" });  // Collect user's phone number into variable `phoneNum` by providing a input UI
-
-const auth = app.auth();
-
-// Send SMS code
-const verificationInfo = await auth.getVerification({
-  phone_number: `+86 ${phoneNum}`,
-});
-
-// Collect user's phone number into variable `verificationCode` by providing a input UI 
-
-// Sign in
-await auth.signInWithSms({
-  verificationInfo,
-  verificationCode,
-  phoneNum,
-});
-
-const res = await app.callContainer({
-  name: "&lt;serviceName&gt;", method: "POST", path: "/api",
-  header: { "Content-Type": "application/json" },
-  data: { key: "value" }
-});
-```
-
-// Web JS SDK initialization MUST be synchronous:
-// - Always use top-level `import cloudbase from "@cloudbase/js-sdk";`
-// - Do NOT use dynamic imports like `import("@cloudbase/js-sdk")` or async wrappers such as `initCloudBase()` with internal `initPromise`
-
-### Node.js (server-side/cloud function internal call)
-```js
-import tcb from "@cloudbase/node-sdk";
-const app = tcb.init({});
-const res = await app.callContainer({
-  name: "&lt;serviceName&gt;", method: "GET", path: "/health",
-  timeout: 5000
-});
-```
-
-### Recommendations
-- Mini Program/Server side prioritize internal network (VPC/PRIVATE) calls, reduce exposure surface
-- Web scenarios need to enable WEB, public domain and security domain, and use SDK authentication
+- **Access failure** -> check access type, domain setup, and whether the instance scaled to zero.
+- **Deployment failure** -> inspect Dockerfile, build logs, and CPU/memory ratio.
+- **Local run failure** -> remember only Function mode is supported by local-run tools.
+- **Performance issues** -> reduce dependencies, optimize initialization, and tune minimum instances.
 ````
+
+</details>

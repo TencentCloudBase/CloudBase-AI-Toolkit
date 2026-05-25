@@ -31,7 +31,7 @@
  *   ../cloudbase-examples/{template-path}/ - 各个模板项目的路径
  */
 
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -203,7 +203,7 @@ function createBackup(targetDir) {
   const backupDir = `${targetDir}.backup.${timestamp}`;
   
   try {
-    execSync(`cp -r "${targetDir}" "${backupDir}"`);
+    fs.cpSync(targetDir, backupDir, { recursive: true });
     console.log(`  💾 已创建备份: ${path.basename(backupDir)}`);
     return backupDir;
   } catch (error) {
@@ -440,12 +440,12 @@ async function handleGitOperations() {
     
     // 提交更改
     console.log('💾 提交更改...');
-    executeGitCommand(`git commit -m "${commitMessage}"`, examplesDir);
+    execFileSync('git', ['commit', '-m', commitMessage], { cwd: examplesDir, encoding: 'utf8' });
     
     // 推送到远程仓库
     console.log('🚀 推送到远程仓库...');
-    executeGitCommand(`git pull  --rebase`, examplesDir);
-    executeGitCommand(`git push origin ${currentBranch}`, examplesDir);
+    execFileSync('git', ['pull', '--rebase'], { cwd: examplesDir, encoding: 'utf8' });
+    execFileSync('git', ['push', 'origin', currentBranch], { cwd: examplesDir, encoding: 'utf8' });
     
     console.log('✅ Git操作完成！');
     

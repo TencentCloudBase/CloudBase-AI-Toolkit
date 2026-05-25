@@ -7,17 +7,19 @@ import {
 } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
-import { READ_SECURITY_RULE, WRITE_SECURITY_RULE } from "./security-rule.js";
 
 const CATEGORY = "SQL database";
 const QUERY_SQL_DATABASE = "querySqlDatabase";
 const MANAGE_SQL_DATABASE = "manageSqlDatabase";
+const QUERY_PERMISSIONS = "queryPermissions";
+const MANAGE_PERMISSIONS = "managePermissions";
 
 const QUERY_ACTIONS = [
   "runQuery",
   "describeCreateResult",
   "describeTaskStatus",
   "getInstanceInfo",
+  "describeInstance",
 ] as const;
 
 const MANAGE_ACTIONS = [
@@ -470,7 +472,9 @@ async function getSqlInstanceInfo({
     };
   } catch (error) {
     const errorCode = extractErrorCode(error);
-    const isNotFound = errorCode === "FailedOperation.DataSourceNotExist";
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isNotFound = errorCode === "FailedOperation.DataSourceNotExist"
+      || /envLink not exist|not exist|not found/i.test(errorMessage);
 
     if (!isNotFound) {
       throw error;
@@ -483,7 +487,7 @@ async function getSqlInstanceInfo({
       schema: envId,
       rawStatus:
         typeof createRawStatus === "string" ? createRawStatus : null,
-      status: createStatus,
+      status: createStatus === "PENDING" || createStatus === "RUNNING" ? createStatus : "NOT_CREATED",
       createResult: createData ?? createResult,
     };
   }
@@ -606,17 +610,38 @@ async function handleRunQuery(
     context.cloudBaseOptions,
     args.dbInstance,
   );
-  const result = await callSqlControlPlane(cloudbase, "RunSql", {
-    EnvId: dbContext.envId,
-    Sql: args.sql,
-    ReadOnly: true,
-    DbInstance: {
+  let result;
+  try {
+    result = await callSqlControlPlane(cloudbase, "RunSql", {
       EnvId: dbContext.envId,
-      InstanceId: dbContext.instanceId,
-      Schema: dbContext.schema,
-    },
-  });
-  logCloudBaseResult(context.server.logger, result);
+      Sql: args.sql,
+      ReadOnly: true,
+      DbInstance: {
+        EnvId: dbContext.envId,
+        InstanceId: dbContext.instanceId,
+        Schema: dbContext.schema,
+      },
+    });
+    logCloudBaseResult(context.server.logger, result);
+  } catch (error: any) {
+    const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
+    if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
+      return buildSqlToolResult({
+        success: false,
+        errorCode: "MYSQL_NOT_CREATED",
+        message: "MySQL is not provisioned yet or not found. Please provision MySQL before running queries.",
+        nextActions: [
+          buildNextAction(
+            MANAGE_SQL_DATABASE,
+            "provisionMySQL",
+            "Provision MySQL before querying data.",
+            { action: "provisionMySQL", confirm: true },
+          ),
+        ],
+      });
+    }
+    throw error;
+  }
 
   const normalized = normalizeRunSqlResult(result);
   return buildSqlToolResult({
@@ -955,16 +980,37 @@ async function handleRunStatement(
     context.cloudBaseOptions,
     args.dbInstance,
   );
-  const result = await callSqlControlPlane(cloudbase, "RunSql", {
-    EnvId: dbContext.envId,
-    Sql: args.sql,
-    DbInstance: {
+  let result;
+  try {
+    result = await callSqlControlPlane(cloudbase, "RunSql", {
       EnvId: dbContext.envId,
-      InstanceId: dbContext.instanceId,
-      Schema: dbContext.schema,
-    },
-  });
-  logCloudBaseResult(context.server.logger, result);
+      Sql: args.sql,
+      DbInstance: {
+        EnvId: dbContext.envId,
+        InstanceId: dbContext.instanceId,
+        Schema: dbContext.schema,
+      },
+    });
+    logCloudBaseResult(context.server.logger, result);
+  } catch (error: any) {
+    const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
+    if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
+      return buildSqlToolResult({
+        success: false,
+        errorCode: "MYSQL_NOT_CREATED",
+        message: "MySQL is not provisioned yet or not found. Please provision MySQL before running statements.",
+        nextActions: [
+          buildNextAction(
+            MANAGE_SQL_DATABASE,
+            "provisionMySQL",
+            "Provision MySQL before executing statements.",
+            { action: "provisionMySQL", confirm: true },
+          ),
+        ],
+      });
+    }
+    throw error;
+  }
 
   const statementType = getSqlVerb(args.sql) || "UNKNOWN";
   const normalized = normalizeRunSqlResult(result);
@@ -976,7 +1022,7 @@ async function handleRunStatement(
     },
     message:
       statementType === "CREATE"
-        ? `SQL statement executed successfully. If you created a table, include the required _openid column and verify its security rule with \`${WRITE_SECURITY_RULE}\` and \`${READ_SECURITY_RULE}\`.`
+        ? `SQL statement executed successfully. If you created a table, include the required _openid column and verify its permission configuration with \`${QUERY_PERMISSIONS}(action="getResourcePermission")\` and \`${MANAGE_PERMISSIONS}(action="updateResourcePermission")\`.`
         : "SQL statement executed successfully.",
   });
 }
@@ -1099,16 +1145,37 @@ async function handleInitializeSchema(
 
   for (const statement of args.statements) {
     try {
-      const result = await callSqlControlPlane(cloudbase, "RunSql", {
-        EnvId: dbContext.envId,
-        Sql: statement,
-        DbInstance: {
+      let result;
+      try {
+        result = await callSqlControlPlane(cloudbase, "RunSql", {
           EnvId: dbContext.envId,
-          InstanceId: dbContext.instanceId,
-          Schema: dbContext.schema,
-        },
-      });
-      logCloudBaseResult(context.server.logger, result);
+          Sql: statement,
+          DbInstance: {
+            EnvId: dbContext.envId,
+            InstanceId: dbContext.instanceId,
+            Schema: dbContext.schema,
+          },
+        });
+        logCloudBaseResult(context.server.logger, result);
+      } catch (error: any) {
+        const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
+        if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
+          return buildSqlToolResult({
+            success: false,
+            errorCode: "MYSQL_NOT_CREATED",
+            message: "MySQL is not provisioned yet or not found. Please provision MySQL before initializing schema.",
+            nextActions: [
+              buildNextAction(
+                MANAGE_SQL_DATABASE,
+                "provisionMySQL",
+                "Provision MySQL before executing statements.",
+                { action: "provisionMySQL", confirm: true },
+              ),
+            ],
+          });
+        }
+        throw error;
+      }
       const normalized = normalizeRunSqlResult(result);
       if (typeof normalized.requestId === "string") {
         requestIdList.push(normalized.requestId);
@@ -1139,7 +1206,7 @@ async function handleInitializeSchema(
       requestIdList,
     },
     message: success
-      ? `Schema initialization completed successfully. Remember to verify table security rules with \`${WRITE_SECURITY_RULE}\` and \`${READ_SECURITY_RULE}\`, and include the required _openid column in newly created tables.`
+      ? `Schema initialization completed successfully. Remember to verify table permissions with \`${QUERY_PERMISSIONS}(action="getResourcePermission")\` and \`${MANAGE_PERMISSIONS}(action="updateResourcePermission")\`, and include the required _openid column in newly created tables.`
       : "Schema initialization stopped because one statement failed.",
   });
 }
@@ -1163,7 +1230,7 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
         action: z
           .enum(QUERY_ACTIONS)
           .describe(
-            "runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get current SQL instance context",
+            "runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get current SQL instance context; describeInstance=alias of getInstanceInfo",
           ),
         sql: z
           .string()
@@ -1196,6 +1263,7 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
         case "describeTaskStatus":
           return handleDescribeTaskStatus(args, context);
         case "getInstanceInfo":
+        case "describeInstance":
           return handleGetInstanceInfo(context);
         default:
           throw new Error(`Unsupported SQL query action: ${args.action}`);

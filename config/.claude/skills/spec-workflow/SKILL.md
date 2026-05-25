@@ -1,124 +1,164 @@
 ---
 name: spec-workflow
-description: Standard software engineering workflow for requirement analysis, technical design, and task planning. Use this skill when developing new features, complex architecture designs, multi-module integrations, or projects involving database/UI design.
+description: Use when medium-to-large changes need explicit requirements, technical design, and task planning before implementation, especially for multi-module work, unclear acceptance criteria, or architecture-heavy requests.
+version: 2.20.0
 alwaysApply: false
 ---
 
-## When to use this skill
+## Standalone Install Note
 
-Use this skill for **structured development workflow** when you need to:
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
 
-- Develop new features from scratch
-- Design complex architecture
-- Integrate multiple modules
-- Work on projects involving database design
-- Work on projects involving UI design
-- Ensure high-quality requirement analysis and acceptance criteria
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/spec-workflow/SKILL.md`
 
-**Do NOT use for:**
-- Simple bug fixes
-- Documentation updates
-- Configuration changes
-- Code refactoring (unless explicitly requested)
-
----
-
-## How to use this skill (for a coding agent)
-
-1. **Follow the workflow strictly**
-   - Each phase must be completed and confirmed by user before proceeding to next phase
-   - Never skip phases or proceed without user confirmation
-   - Use `interactiveDialog` tool when clarification is needed
-
-2. **Apply EARS requirement syntax**
-   - Use EARS (Easy Approach to Requirements Syntax) for requirement descriptions
-   - Format: `While <optional precondition>, when <optional trigger>, the <system name> shall <system response>`
-
-3. **Reference UI design rules when needed**
-   - If requirements involve frontend pages, must strictly reference `ui-design` skill
-   - Determine design style and color palette in requirements phase
-   - Confirm design details with user before finalizing requirements
-
-4. **Update task status**
-   - Keep task status updated in `tasks.md` file
-   - Mark tasks as completed when finished
-   - Work independently and efficiently while maintaining quality
-
----
+Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
 
 # Spec Workflow
 
-**Important: You must follow these rules. Each phase must be confirmed by the user before proceeding to the next phase.**
+## Activation Contract
 
-## Workflow Overview
+### Use this first when
 
-1. If you determine that the user's input is a new requirement, you can work independently following standard software engineering practices. Confirm with user when necessary, and can use `interactiveDialog` tool to collect information.
+- The request is a new feature, multi-step product change, cross-module integration, or architecture/design task.
+- Acceptance criteria are unclear and need to be made explicit before implementation.
+- The work involves multiple files, user flows, database design, or UI design that needs staged confirmation.
 
-2. Whenever the user inputs a new requirement, to standardize requirement quality and acceptance criteria, you must first understand the problem and requirements clearly. You must confirm with the user before proceeding to the next phase.
+### Read before writing code if
 
-## Phase 1: Requirements Document and Acceptance Criteria Design
+- You are unsure whether the task should go straight to coding or should first go through requirements, design, and task planning.
+- The request mentions a new page, a new system, a redesign, a workflow, or a multi-module refactor.
 
-First complete the requirements design using EARS (Easy Approach to Requirements Syntax) method. If you determine the requirements involve frontend pages, **you must strictly reference `ui-design` skill**. Determine design style and color palette in the requirements phase. You must confirm requirement details with the user. After final confirmation, the requirements are finalized, then proceed to the next phase.
+### Then also read
 
-Save to `specs/spec_name/requirements.md`. After confirming with the user, proceed to the next phase.
+- Frontend page or visual design work -> `../ui-design/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/ui-design/SKILL.md`)
+- Advanced data-model work -> `../data-model-creation/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/data-model-creation/SKILL.md`)
 
-**Reference format:**
+### Do NOT use for
 
-```markdown
-# Requirements Document
+- Small bug fixes with clear scope.
+- One-file documentation updates.
+- Straightforward config changes.
+- Tiny refactors where the user already gave exact implementation instructions.
 
-## Introduction
+### Common mistakes / gotchas
 
-Requirement description
+- Jumping into coding before acceptance criteria are explicit.
+- Skipping user confirmation between requirements, design, and tasks.
+- Writing vague tasks that do not map back to user-visible outcomes.
+- Treating UI work as purely technical implementation without clarifying design intent.
 
-## Requirements
+### Minimal checklist
 
-### Requirement 1 - Requirement Name
+- Decide whether the change really needs the full spec flow.
+- If yes, stop and produce requirements first.
+- If the change is small, low-risk, and acceptance is already clear, allow direct execution without forcing spec artifacts.
+- Use EARS-style acceptance criteria.
+- Get confirmation before moving to the next phase.
 
-**User Story:** User story content
+## When to use this skill
 
-#### Acceptance Criteria
+Use this workflow for structured development when you need to:
 
-1. Use EARS syntax: While <optional precondition>, when <optional trigger>, the <system name> shall <system response>. For example: When "Mute" is selected, the laptop shall suppress all audio output.
-2. ...
-...
+- Define or refine a new feature
+- Design complex architecture
+- Coordinate changes across modules
+- Plan database or UI-heavy work
+- Improve requirement quality and acceptance boundaries
+
+## Decision rule
+
+### Use the full workflow when
+
+- The task is medium or large
+- The impact spans multiple modules
+- Acceptance boundaries are fuzzy
+- The user wants disciplined planning before implementation
+
+### Skip the full workflow when
+
+- The task is small, low-risk, and already precise
+- Goal, scope, and acceptance are already clear enough to execute directly
+- The user explicitly wants a direct code change with no planning phase
+
+## Core workflow
+
+### Phase 1: Requirements
+
+Create `specs/<spec_name>/requirements.md`.
+
+What to do:
+
+- Restate the problem and scope
+- Write user stories
+- Write acceptance criteria in EARS style
+- Clarify business rules, constraints, and non-goals
+
+EARS pattern:
+
+```text
+While <optional precondition>, when <optional trigger>, the <system name> shall <system response>
 ```
 
-## Phase 2: Technical Solution Design
+Example:
 
-After completing the requirements design, based on the current technical architecture and the confirmed requirements above, design the technical solution. It should be concise but accurately describe the technical architecture (e.g., architecture, tech stack, technology selection, database/interface design, test strategy, security). Use mermaid diagrams when necessary.
+```text
+When the user submits the form, the booking system shall validate required fields before creating the record.
+```
 
-Save to `specs/spec_name/design.md`. You must confirm with the user clearly, then proceed to the next phase.
+### Phase 2: Design
 
-## Phase 3: Task Breakdown
+Create `specs/<spec_name>/design.md`.
 
-After completing the technical solution design, based on the requirements document and technical solution, break down specific tasks. You must confirm with the user clearly, then save to `specs/spec_name/tasks.md`. After confirming with the user, proceed to the next phase and begin formal task execution. You need to update task status in a timely manner. When executing, work as independently and autonomously as possible to ensure efficiency and quality.
+What to do:
 
-**Task reference format:**
+- Describe architecture and module boundaries
+- Explain technology choices and trade-offs
+- Define data model, API, security, and testing strategy as needed
+- Use Mermaid only when a diagram materially improves clarity
+
+### Phase 3: Tasks
+
+Create `specs/<spec_name>/tasks.md`.
+
+What to do:
+
+- Break the design into executable tasks
+- Keep tasks specific and reviewable
+- Link each task back to the relevant requirement
+- Update task status as work progresses
+
+Task format:
 
 ```markdown
 # Implementation Plan
 
-- [ ] 1. Task Information
-  - Specific things to do
-  - ...
-  - _Requirement: Related requirement point number
+- [ ] 1. Task title
+  - Specific work item
+  - Another concrete step
+  - _Requirement: 1
 ```
 
-## Phase 4: Task Execution
+### Phase 4: Execution
 
-- Begin formal task execution
-- Update task status in `tasks.md` file in real-time
-- Work independently and autonomously
-- Ensure efficiency and quality
-- Mark tasks as completed when finished
+Only start implementation after the user confirms the task plan.
 
-## Key Principles
+During execution:
 
-1. **User Confirmation Required**: Each phase must be confirmed by the user before proceeding
-2. **EARS Syntax**: Use EARS method for requirement descriptions
-3. **UI Design Integration**: When requirements involve frontend pages, must reference UI design rules and determine design style in requirements phase
-4. **Technical Accuracy**: Technical solutions should be concise but accurate
-5. **Task Tracking**: Keep task status updated throughout execution
-6. **Independent Execution**: Work autonomously while maintaining quality
+- Keep task status current
+- Finish one meaningful unit at a time
+- Preserve traceability from change -> task -> requirement
 
+## Working rules for the agent
+
+1. Ask follow-up questions when the request is underspecified; do not guess core product behavior.
+2. Require confirmation between requirements, design, and task breakdown.
+3. Pull in `ui-design` early when the change includes end-user pages or visual decisions.
+4. Keep documents concise but testable.
+5. Prefer user-visible outcomes over implementation-detail task names.
+
+## Output expectations
+
+- `requirements.md` -> problem, scope, user stories, EARS acceptance criteria
+- `design.md` -> architecture, technical approach, data/API/security/test notes
+- `tasks.md` -> actionable implementation checklist tied to requirements

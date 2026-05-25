@@ -17,6 +17,7 @@ Recommended pattern:
 ---
 name: skill-name
 description: Short domain or capability introduction. This skill should be used when users ask to ...
+version: 1.2.3
 ---
 ```
 
@@ -49,6 +50,20 @@ Avoid:
 - Generic claims like "a powerful skill"
 - Abstract capability words without specific scenarios
 - Overly broad phrasing that catches unrelated work
+
+### `version`
+
+Recommended:
+
+- Use a normalized SemVer-like value such as `2.15.4`
+- Keep the value machine-readable and stable across the skill collection
+- Use the same release version across sibling source skills when they ship together
+
+Avoid:
+
+- Prefixes like `v2.15.4`
+- Mixing version styles across one skill collection
+- Omitting the field in repo-managed source skills that are expected to ship together
 
 ## Keyword Buckets
 

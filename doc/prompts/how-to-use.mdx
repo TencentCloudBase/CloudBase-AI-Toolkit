@@ -22,6 +22,16 @@ npx skills add tencentcloudbase/cloudbase-skills
 
 如果你希望直接通过自然语言触发安装，也可以先对 AI 说“安装 CloudBase Skills”。
 
+如果只想安装单个 Skill，可以执行：
+
+```bash
+npx skills add https://github.com/tencentcloudbase/skills --skill auth-tool
+```
+
+如果想先在线查看某个 Skill 的内容，可以直接打开：
+
+- [cloudbase-platform](https://skills.sh/tencentcloudbase/skills/cloudbase-platform)
+
 ### 触发 Skills
 
 目前 Skills 不易被稳定激活，与模型和工具有关，但可通过工程化手段提升。Skills 采用**渐进式加载**：AI 先根据 Skill 的名称与描述判断是否相关，再在需要时加载完整指令，避免占满上下文。

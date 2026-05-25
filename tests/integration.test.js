@@ -11,6 +11,14 @@ const __dirname = dirname(__filename);
 // Helper function to wait for delay
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Detect if real CloudBase credentials are available
+function hasCloudBaseCredentials() {
+  const secretId = process.env.TENCENTCLOUD_SECRETID || process.env.CLOUDBASE_SECRET_ID;
+  const secretKey = process.env.TENCENTCLOUD_SECRETKEY || process.env.CLOUDBASE_SECRET_KEY;
+  const envId = process.env.CLOUDBASE_ENV_ID;
+  return Boolean(secretId && secretKey && envId);
+}
+
 test("ESM and CJS module exports consistency", async () => {
   try {
     console.log("Testing ESM and CJS module exports consistency...");
@@ -250,7 +258,7 @@ test("Tool consistency between multiple client connections", async () => {
   }
 }, 120000); // 增加到 120 秒
 
-test("Database tools support object/object[] parameters", async () => {
+test.skipIf(!hasCloudBaseCredentials())("Database tools support object/object[] parameters", async () => {
   let transport = null;
   let client = null;
   const testCollection = `test_collection_${Date.now()}`;
@@ -282,24 +290,6 @@ test("Database tools support object/object[] parameters", async () => {
       : "未设置",
   );
   console.log("CLOUDBASE_ENV_ID 值:", process.env.CLOUDBASE_ENV_ID || "未设置");
-
-  // This integration test requires real credentials and a target environment.
-  const hasCloudBaseCredentials = Boolean(
-    process.env.TENCENTCLOUD_SECRETID &&
-      process.env.TENCENTCLOUD_SECRETKEY &&
-      process.env.CLOUDBASE_ENV_ID,
-  );
-  console.log(
-    "🔐 认证信息状态:",
-    hasCloudBaseCredentials ? "✅ 已设置" : "❌ 未设置",
-  );
-
-  if (!hasCloudBaseCredentials) {
-    console.log(
-      "⏭️ 跳过数据库集成测试：缺少 TENCENTCLOUD_SECRETID/TENCENTCLOUD_SECRETKEY/CLOUDBASE_ENV_ID",
-    );
-    return;
-  }
 
   try {
     // 启动 MCP server
@@ -557,19 +547,19 @@ test("Database tools support object/object[] parameters", async () => {
   }
 }, 180000);
 
-// 修复后的 security rule tools 测试用例
+// permissions tools 测试用例
 
-test("Security rule tools functionality test", async () => {
+test("Permissions tools functionality test", async () => {
   let transport = null;
   let client = null;
 
   try {
-    console.log("Testing security rule tools functionality...");
+    console.log("Testing permissions tools functionality...");
 
     // Create client
     client = new Client(
       {
-        name: "test-client-security-rule",
+        name: "test-client-permissions",
         version: "1.0.0",
       },
       {
@@ -586,35 +576,35 @@ test("Security rule tools functionality test", async () => {
 
     await client.connect(transport);
     await delay(3000);
-    // List tools to verify security rule tools are available
+    // List tools to verify permissions tools are available
     const toolsResult = await client.listTools();
-    const securityTools = toolsResult.tools.filter(
+    const permissionTools = toolsResult.tools.filter(
+      (t) => t.name === "queryPermissions" || t.name === "managePermissions",
+    );
+    const legacySecurityTools = toolsResult.tools.filter(
       (t) => t.name === "readSecurityRule" || t.name === "writeSecurityRule",
     );
 
-    expect(securityTools.length).toBe(2);
-    console.log("✅ Security rule tools are available");
+    expect(permissionTools.length).toBe(2);
+    expect(legacySecurityTools.length).toBe(0);
+    console.log("✅ Permissions tools are available");
 
-    // Test readSecurityRule tool (with mock data)
-    const readSecurityRuleTool = toolsResult.tools.find(
-      (t) => t.name === "readSecurityRule",
+    const queryPermissionsTool = toolsResult.tools.find(
+      (t) => t.name === "queryPermissions",
     );
-    expect(readSecurityRuleTool).toBeDefined();
+    expect(queryPermissionsTool).toBeDefined();
 
-    // Test writeSecurityRule tool (with mock data)
-    const writeSecurityRuleTool = toolsResult.tools.find(
-      (t) => t.name === "writeSecurityRule",
+    const managePermissionsTool = toolsResult.tools.find(
+      (t) => t.name === "managePermissions",
     );
-    expect(writeSecurityRuleTool).toBeDefined();
+    expect(managePermissionsTool).toBeDefined();
 
-    // Verify tool schemas
-    expect(readSecurityRuleTool.inputSchema).toBeDefined();
-    expect(writeSecurityRuleTool.inputSchema).toBeDefined();
-    // 已移除对 inputSchema 结构的详细断言
+    expect(queryPermissionsTool.inputSchema).toBeDefined();
+    expect(managePermissionsTool.inputSchema).toBeDefined();
 
-    console.log("✅ Security rule tools schema validation passed");
+    console.log("✅ Permissions tools schema validation passed");
   } catch (error) {
-    console.error("❌ Security rule tools test failed:", error);
+    console.error("❌ Permissions tools test failed:", error);
     throw error;
   } finally {
     if (client) {

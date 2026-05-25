@@ -4,6 +4,8 @@ import type { ExtendedMcpServer } from "../server.js";
 
 const {
   mockBuildAuthConfigSummary,
+  mockBuildDeviceAuthChallengePayload,
+  mockBuildVerificationUriComplete,
   mockGetAuthConfigValidationError,
   mockSupervisorLoginByWebAuth,
   mockEnsureLogin,
@@ -26,6 +28,27 @@ const {
     oauth_custom: options.oauthCustom ?? false,
     uses_toolbox_defaults: options.usesToolboxDefaults ?? false,
   })),
+  mockBuildVerificationUriComplete: vi.fn((info: any) => {
+    if (info?.verification_uri_complete) {
+      return info.verification_uri_complete;
+    }
+    if (!info?.verification_uri || !info?.user_code) {
+      return undefined;
+    }
+    return `${info.verification_uri}${info.verification_uri.includes("?") ? "&" : "?"}user_code=${encodeURIComponent(info.user_code)}`;
+  }),
+  mockBuildDeviceAuthChallengePayload: vi.fn((info: any) =>
+    info
+      ? {
+          user_code: info.user_code,
+          verification_uri: info.verification_uri,
+          verification_uri_complete:
+            info.verification_uri_complete ??
+            `${info.verification_uri}${info.verification_uri?.includes("?") ? "&" : "?"}user_code=${encodeURIComponent(info.user_code)}`,
+          expires_in: info.expires_in,
+        }
+      : undefined,
+  ),
   mockGetAuthConfigValidationError: vi.fn((options: any) => {
     if (
       options.authMode === "web" &&
@@ -88,6 +111,8 @@ vi.mock("@cloudbase/toolbox", () => ({
 
 vi.mock("../auth.js", () => ({
   buildAuthConfigSummary: mockBuildAuthConfigSummary,
+  buildDeviceAuthChallengePayload: mockBuildDeviceAuthChallengePayload,
+  buildVerificationUriComplete: mockBuildVerificationUriComplete,
   ensureLogin: mockEnsureLogin,
   getAuthConfigValidationError: mockGetAuthConfigValidationError,
   peekLoginState: mockPeekLoginState,
@@ -234,6 +259,74 @@ describe("env tools - auth", () => {
     });
   });
 
+  it("auth(action=get_temp_credentials) should require explicit confirmation", async () => {
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      token: "token",
+      refreshToken: "refresh-token",
+      accessTokenExpired: Date.now() + 60_000,
+      envId: "env-login",
+    });
+
+    const result = await tools.auth.handler({ action: "get_temp_credentials" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      ok: false,
+      code: "INVALID_ARGS",
+    });
+    expect(payload.message).toContain("confirm");
+  });
+
+  it("auth(action=get_temp_credentials) should reject permanent credentials", async () => {
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      envId: "env-login",
+    });
+
+    const result = await tools.auth.handler({
+      action: "get_temp_credentials",
+      confirm: "yes",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      ok: false,
+      code: "UNSUPPORTED_CREDENTIAL_TYPE",
+    });
+  });
+
+  it("auth(action=get_temp_credentials) should return masked credentials by default", async () => {
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid-123456",
+      secretKey: "skey-abcdef",
+      token: "token-xyz",
+      refreshToken: "refresh-token",
+      accessTokenExpired: Date.now() + 60_000,
+      envId: "env-login",
+    });
+
+    const result = await tools.auth.handler({
+      action: "get_temp_credentials",
+      confirm: "yes",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      ok: true,
+      code: "TEMP_CREDENTIALS_READY",
+      env_id: "env-login",
+      credentials: {
+        secretId: "si******56",
+        secretKey: "sk******ef",
+        token: "to******yz",
+        masked: true,
+      },
+    });
+  });
+
   it("auth(action=status) should surface pending auth challenge", async () => {
     mockGetAuthProgressState.mockResolvedValue({
       status: "PENDING",
@@ -253,6 +346,7 @@ describe("env tools - auth", () => {
     expect(payload.auth_challenge).toMatchObject({
       user_code: "WDJB-MJHT",
       verification_uri: "https://example.com/device",
+      verification_uri_complete: "https://example.com/device?user_code=WDJB-MJHT",
       expires_in: 600,
     });
     expect(payload.next_step).toMatchObject({
@@ -464,6 +558,7 @@ describe("env tools - auth", () => {
     expect(payload.auth_challenge).toMatchObject({
       user_code: "WDJB-MJHT",
       verification_uri: "https://example.com/device",
+      verification_uri_complete: "https://example.com/device?user_code=WDJB-MJHT",
       expires_in: 600,
     });
     expect(payload.next_step).toMatchObject({
@@ -505,6 +600,36 @@ describe("env tools - auth", () => {
       "https://custom.example.com/oauth",
     );
     expect(callArgs.custom).toBe(true);
+  });
+
+  it("auth(action=start_auth) should surface complete hash-route verification URL", async () => {
+    mockSupervisorLoginByWebAuth.mockImplementation(
+      async ({ onDeviceCode }: { onDeviceCode: (info: any) => void }) => {
+        onDeviceCode({
+          user_code: "48NK-MSUK",
+          verification_uri:
+            "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device",
+          verification_uri_complete:
+            "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device&user_code=48NK-MSUK",
+          device_code: "device-code",
+          expires_in: 600,
+        });
+        return new Promise(() => {});
+      },
+    );
+
+    const result = await tools.auth.handler({
+      action: "start_auth",
+      authMode: "device",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.auth_challenge).toMatchObject({
+      verification_uri:
+        "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device",
+      verification_uri_complete:
+        "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device&user_code=48NK-MSUK",
+    });
   });
 
   it("auth(action=start_auth) should reject oauthCustom without endpoint", async () => {
@@ -665,8 +790,11 @@ describe("env tools - auth", () => {
 });
 
 describe("env tools - envQuery", () => {
+  const originalCloudbaseEnvId_envQuery = process.env.CLOUDBASE_ENV_ID;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.CLOUDBASE_ENV_ID;
     mockGetCachedEnvId.mockReturnValue(null);
     mockListAvailableEnvCandidates.mockResolvedValue([]);
     mockGetAuthProgressState.mockResolvedValue({
@@ -679,6 +807,14 @@ describe("env tools - envQuery", () => {
       secretKey: "skey",
       envId: "env-test",
     });
+  });
+
+  afterEach(() => {
+    if (originalCloudbaseEnvId_envQuery !== undefined) {
+      process.env.CLOUDBASE_ENV_ID = originalCloudbaseEnvId_envQuery;
+    } else {
+      delete process.env.CLOUDBASE_ENV_ID;
+    }
   });
 
   it("envQuery(list) should support alias filters, pagination and field selection", async () => {
@@ -833,6 +969,35 @@ describe("env tools - envQuery", () => {
     });
   });
 
+  it("envQuery(list) should use DescribeEnvInfo when CLOUDBASE_ENV_ID is set", async () => {
+    process.env.CLOUDBASE_ENV_ID = "env-test";
+
+    const describeEnvInfo = vi.fn().mockResolvedValue({
+      EnvInfo: {
+        EnvId: "env-test",
+        Alias: "apikey-env",
+        Status: "NORMAL",
+      },
+    });
+
+    mockGetCloudBaseManager.mockResolvedValue({
+      commonService: vi.fn(),
+      env: {
+        listEnvs: vi.fn(),
+        describeEnvInfo,
+      },
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.envQuery.handler({ action: "list" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(describeEnvInfo).toHaveBeenCalledWith({ EnvId: "env-test" });
+    expect(payload.EnvList).toEqual([
+      { EnvId: "env-test", Alias: "apikey-env", Status: "NORMAL" },
+    ]);
+  });
+
   it("envQuery(info) should preserve detailed fields such as PackageId", async () => {
     const getEnvInfo = vi.fn().mockResolvedValue({
       EnvInfo: {
@@ -914,66 +1079,167 @@ describe("env tools - envQuery", () => {
     );
   });
 
-  it("envQuery(hosting) should read CdnDomain and Bucket from StaticStorages", async () => {
+  it("envQuery(domains) should include local development host:port guidance", async () => {
     mockGetCloudBaseManager.mockResolvedValue({
-      hosting: {
-        getWebsiteConfig: vi.fn().mockResolvedValue({
-          IndexDocument: "index.html",
-          ErrorDocument: "404.html",
-        }),
-      },
       env: {
-        getEnvInfo: vi.fn().mockResolvedValue({
-          EnvInfo: {
-            StaticStorages: [
-              {
-                StaticDomain: "static.example.com",
-                Bucket: "hosting-bucket",
-              },
-            ],
-            Storages: [
-              {
-                Bucket: "storage-bucket",
-              },
-            ],
-          },
+        getEnvAuthDomains: vi.fn().mockResolvedValue({
+          Domains: [
+            {
+              Id: "domain-1",
+              Domain: "localhost:5173",
+              Status: "ENABLE",
+              Type: "USER",
+              CreateTime: "2026-04-08 10:00:00",
+            },
+          ],
         }),
       },
     });
 
     const { tools } = createMockServer();
-    const payload = JSON.parse((await tools.envQuery.handler({ action: "hosting" })).content[0].text);
+    const payload = JSON.parse((await tools.envQuery.handler({ action: "domains" })).content[0].text);
 
     expect(payload).toMatchObject({
-      IndexDocument: "index.html",
-      ErrorDocument: "404.html",
-      CdnDomain: "static.example.com",
-      Bucket: "hosting-bucket",
+      Domains: [{ Id: "domain-1", Domain: "localhost:5173", CreateTime: "2026-04-08 10:00:00", Status: "ENABLE", Type: "USER" }],
+      localDevHint: {
+        format: "host:port",
+        useActualOrigin: true,
+        requiredValue: "当前浏览器实际访问 origin 对应的 host:port",
+        deriveFrom: ["浏览器地址栏中的当前 origin", "本地 dev server 实际启动输出"],
+      },
+      localDevStatus: {
+        requiresExactCurrentOrigin: true,
+        browserUploadReady: false,
+        coverageConfirmed: false,
+        doNotAssumeConfiguredEntriesAreSufficient: true,
+        canAutoDetermineCurrentOrigin: false,
+        hasAnyConfiguredLocalEntry: true,
+        configuredEntries: ["localhost:5173"],
+      },
+      next_step_template: {
+        tool: "envDomainManagement",
+        action: "create",
+        domains: ["<actual-browser-host>:<actual-browser-port>"],
+      },
     });
-    expect(payload.Bucket).not.toBe("storage-bucket");
+    expect(payload.Domains[0]).toHaveProperty("Id");
+    expect(payload.Domains[0]).toHaveProperty("CreateTime");
   });
 
-  it("envQuery(hosting) should keep website config when env enrichment fails", async () => {
+  it("envQuery(domains) should report configured local entries without inferring completeness", async () => {
     mockGetCloudBaseManager.mockResolvedValue({
-      hosting: {
-        getWebsiteConfig: vi.fn().mockResolvedValue({
-          IndexDocument: "index.html",
-          ErrorDocument: "404.html",
-        }),
-      },
       env: {
-        getEnvInfo: vi.fn().mockRejectedValue(new Error("env info timeout")),
+        getEnvAuthDomains: vi.fn().mockResolvedValue({
+          Domains: [
+            { Domain: "127.0.0.1:4173", Status: "ENABLE" },
+            { Domain: "localhost:4173", Status: "ENABLE" },
+            { Domain: "example.com", Status: "ENABLE" },
+          ],
+        }),
       },
     });
 
     const { tools } = createMockServer();
-    const payload = JSON.parse((await tools.envQuery.handler({ action: "hosting" })).content[0].text);
+    const payload = JSON.parse((await tools.envQuery.handler({ action: "domains" })).content[0].text);
 
-    expect(payload).toMatchObject({
-      IndexDocument: "index.html",
-      ErrorDocument: "404.html",
-      CdnDomain: null,
-      Bucket: null,
+    expect(payload.localDevStatus).toMatchObject({
+      requiresExactCurrentOrigin: true,
+      browserUploadReady: false,
+      coverageConfirmed: false,
+      doNotAssumeConfiguredEntriesAreSufficient: true,
+      canAutoDetermineCurrentOrigin: false,
+      hasAnyConfiguredLocalEntry: true,
+      configuredEntries: ["127.0.0.1:4173", "localhost:4173"],
     });
+    expect(payload.next_step_template).toMatchObject({
+      tool: "envDomainManagement",
+      action: "create",
+      domains: ["<actual-browser-host>:<actual-browser-port>"],
+    });
+  });
+
+  it("envDomainManagement(create) should return structured polling guidance", async () => {
+    const createEnvDomain = vi.fn().mockResolvedValue({
+      RequestId: "req-create-domain",
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        createEnvDomain,
+      },
+    });
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.envDomainManagement.handler({
+          action: "create",
+          domains: ["integration.example.com"],
+        })
+      ).content[0].text,
+    );
+
+    expect(createEnvDomain).toHaveBeenCalledWith(["integration.example.com"]);
+    expect(payload).toMatchObject({
+      ok: true,
+      code: "DOMAIN_UPDATE_PENDING",
+      operation: "create",
+      targetDomains: ["integration.example.com"],
+      asyncState: "PENDING",
+      propagation: {
+        requiresPolling: true,
+        pollTool: "envQuery",
+        pollAction: "domains",
+        pollIntervalSuggestionSeconds: 10,
+        timeoutSuggestionSeconds: 600,
+      },
+      next_step: {
+        tool: "envQuery",
+        action: "domains",
+        suggested_args: {
+          action: "domains",
+        },
+      },
+    });
+    expect(payload.message).toContain("继续轮询 envQuery(action=\"domains\")");
+  });
+
+  it("envDomainManagement(delete) should return structured polling guidance", async () => {
+    const deleteEnvDomain = vi.fn().mockResolvedValue({
+      RequestId: "req-delete-domain",
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        deleteEnvDomain,
+      },
+    });
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.envDomainManagement.handler({
+          action: "delete",
+          domains: ["integration.example.com"],
+        })
+      ).content[0].text,
+    );
+
+    expect(deleteEnvDomain).toHaveBeenCalledWith(["integration.example.com"]);
+    expect(payload).toMatchObject({
+      ok: true,
+      code: "DOMAIN_DELETE_PENDING",
+      operation: "delete",
+      targetDomains: ["integration.example.com"],
+      asyncState: "PENDING",
+      propagation: {
+        requiresPolling: true,
+        pollTool: "envQuery",
+        pollAction: "domains",
+      },
+      next_step: {
+        tool: "envQuery",
+        action: "domains",
+      },
+    });
+    expect(payload.message).toContain("直到目标域名不再出现");
   });
 });

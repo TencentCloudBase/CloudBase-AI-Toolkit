@@ -34,6 +34,9 @@ jobs:
           npm -v
           node -e 'console.log(require("./package.json").version)'
 
+      - name: Install root dependencies
+        run: npm ci
+
       - name: Install dependencies
         working-directory: ./mcp
         run: npm ci
@@ -41,6 +44,10 @@ jobs:
       - name: Build
         working-directory: ./mcp
         run: npm run build
+
+      - name: Run tests
+        working-directory: ./mcp
+        run: npx vitest run
 
       - name: Resolve npm dist-tag
         id: npm_tag

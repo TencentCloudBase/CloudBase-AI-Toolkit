@@ -4,9 +4,17 @@ This document covers how to configure security rules for CloudBase NoSQL databas
 
 ## Overview
 
-**Important:** To control database permissions, you **MUST** use the MCP tool `writeSecurityRule` to configure security rules. Security rule changes take effect after a few minutes due to caching.
+**Important:** To control database permissions, you **MUST** use `managePermissions(action="updateResourcePermission")` to configure security rules. Security rule changes take effect after a few minutes due to caching.
 
 **General Rule:** In most cases, use **simple permissions** (READONLY, PRIVATE, ADMINWRITE, ADMINONLY). Only use CUSTOM rules when you need fine-grained control.
+
+**Scope note:** The detailed semantics in this document apply only to CloudBase **NoSQL database collections** with `resourceType: "noSqlDatabase"`. Examples such as `doc._openid`, `auth.openid`, query-condition subset validation, and `create` / `update` / `delete` JSON rule templates are **not** generic rules for `function`, `storage`, or `sqlDatabase` resources.
+
+**Official references:**
+- General security rules overview: `https://cloud.tencent.com/document/product/876/41802`
+- NoSQL database security rules: `https://docs.cloudbase.net/database/security-rules`
+- Cloud function security rules: `https://docs.cloudbase.net/cloud-function/security-rules`
+- Storage security rules: `https://docs.cloudbase.net/storage/security-rules`
 
 ### Critical Understanding: Query Condition Requirements
 
@@ -87,19 +95,27 @@ Use CUSTOM when you need fine-grained control based on document data, user ident
 
 ## Configuring Security Rules
 
-### Using MCP Tool `writeSecurityRule`
+### Using MCP Tool `managePermissions`
 
-**Important:** When developing applications that need permission control, you **MUST** call the `writeSecurityRule` MCP tool to configure database security rules. Do not assume permissions are already configured.
+**Important:** When developing applications that need permission control, you **MUST** call `managePermissions(action="updateResourcePermission")` to configure database security rules. Do not assume permissions are already configured.
+
+Compatibility note:
+- Canonical plugin name: `permissions`
+- Legacy plugin aliases `security-rule`, `security-rules`, `secret-rule`, `secret-rules`, and `access-control` still resolve to the `permissions` plugin
+- Legacy tools `readSecurityRule` and `writeSecurityRule` are removed; use `queryPermissions` and `managePermissions`
+
+**Scope reminder:** The examples below are for `resourceType: "noSqlDatabase"` only. Do not reuse NoSQL-only expressions such as `doc._openid`, `auth.openid`, query-subset validation, or `create` / `update` / `delete` rule templates as generic guidance for `function`, `storage`, or `sqlDatabase` permissions.
 
 **Basic Usage:**
 
 ```javascript
 // Example: Set simple permission (PRIVATE)
-await writeSecurityRule({
-  resourceType: "database",  // or "noSqlDatabase" depending on tool definition
+await managePermissions({
+  action: "updateResourcePermission",
+  resourceType: "noSqlDatabase",
   resourceId: "collectionName",  // Collection name
-  aclTag: "PRIVATE",  // Simple permission type
-  // rule parameter not needed for simple permissions
+  permission: "PRIVATE",
+  // securityRule parameter not needed for simple permissions
 });
 ```
 
@@ -109,31 +125,35 @@ await writeSecurityRule({
 
 ```javascript
 // Example 1: Public read, creator-only write
-await writeSecurityRule({
-  resourceType: "database",
+await managePermissions({
+  action: "updateResourcePermission",
+  resourceType: "noSqlDatabase",
   resourceId: "posts",
-  aclTag: "READONLY"
+  permission: "READONLY"
 });
 
 // Example 2: Private collection (only creator and admin)
-await writeSecurityRule({
-  resourceType: "database",
+await managePermissions({
+  action: "updateResourcePermission",
+  resourceType: "noSqlDatabase",
   resourceId: "userSettings",
-  aclTag: "PRIVATE"
+  permission: "PRIVATE"
 });
 
 // Example 3: Public read, admin-only write
-await writeSecurityRule({
-  resourceType: "database",
+await managePermissions({
+  action: "updateResourcePermission",
+  resourceType: "noSqlDatabase",
   resourceId: "announcements",
-  aclTag: "ADMINWRITE"
+  permission: "ADMINWRITE"
 });
 
 // Example 4: Admin-only access
-await writeSecurityRule({
-  resourceType: "database",
+await managePermissions({
+  action: "updateResourcePermission",
+  resourceType: "noSqlDatabase",
   resourceId: "adminLogs",
-  aclTag: "ADMINONLY"
+  permission: "ADMINONLY"
 });
 ```
 
@@ -199,7 +219,7 @@ Custom rules can use these predefined variables:
 **LoginType Values:**
 - `WECHAT_PUBLIC`: WeChat Official Account
 - `WECHAT_OPEN`: WeChat Open Platform
-- `ANONYMOUS`: Anonymous login
+- `ANONYMOUS`: Anonymous login (disabled by default for new environments)
 - `EMAIL`: Email login
 - `CUSTOM`: Custom login
 
@@ -246,11 +266,12 @@ await db.collection('todos').add({
 **Example 1: User can only read/write their own documents**
 
 ```javascript
-await writeSecurityRule({
-  resourceType: "database",
+await managePermissions({
+  action: "updateResourcePermission",
+  resourceType: "noSqlDatabase",
   resourceId: "userTodos",
-  aclTag: "CUSTOM",
-  rule: JSON.stringify({
+  permission: "CUSTOM",
+  securityRule: JSON.stringify({
     "read": "auth.uid == doc.user_id",
     "write": "auth.uid == doc.user_id"
   })
@@ -260,11 +281,12 @@ await writeSecurityRule({
 **Example 2: Public read, authenticated users can create, only owner can update/delete**
 
 ```javascript
-await writeSecurityRule({
-  resourceType: "database",
+await managePermissions({
+  action: "updateResourcePermission",
+  resourceType: "noSqlDatabase",
   resourceId: "publicPosts",
-  aclTag: "CUSTOM",
-  rule: JSON.stringify({
+  permission: "CUSTOM",
+  securityRule: JSON.stringify({
     "read": true,
     "create": "auth != null",
     "update": "auth.uid == doc.author_id",
@@ -273,14 +295,45 @@ await writeSecurityRule({
 });
 ```
 
+> Warning: This owner-only pattern is not the best fit for CMS article collections that need app-level admin override. For article collections with admin override, prefer a `CUSTOM` rule that combines `get('database.user_roles.' + auth.uid).role == 'admin'` with `doc.authorId == auth.uid`, and keep frontend writes on `.doc(id).update()` / `.doc(id).remove()`.
+
+**Example 2A: Keep owner-only CUSTOM rule and switch the client write path to `where(...)`**
+
+```javascript
+await managePermissions({
+  action: "updateResourcePermission",
+  resourceType: "noSqlDatabase",
+  resourceId: "publicPosts",
+  permission: "CUSTOM",
+  securityRule: JSON.stringify({
+    "read": true,
+    "create": "auth != null",
+    "update": "doc.author_id == auth.uid",
+    "delete": "doc.author_id == auth.uid"
+  })
+});
+```
+
+And update through an explicit owner subset:
+
+```javascript
+await db.collection('publicPosts')
+  .where({
+    _id: postId,
+    author_id: '{openid}'
+  })
+  .update({ title: 'Updated Title' });
+```
+
 **Example 3: Prevent price modification on update**
 
 ```javascript
-await writeSecurityRule({
-  resourceType: "database",
+await managePermissions({
+  action: "updateResourcePermission",
+  resourceType: "noSqlDatabase",
   resourceId: "orders",
-  aclTag: "CUSTOM",
-  rule: JSON.stringify({
+  permission: "CUSTOM",
+  securityRule: JSON.stringify({
     "read": "auth.uid == doc.user_id",
     "create": "auth != null",
     "update": "auth.uid == doc.user_id && (doc.price == request.data.price || request.data.price == undefined)",
@@ -292,11 +345,12 @@ await writeSecurityRule({
 **Example 4: Admin-only delete, users can read/write their own**
 
 ```javascript
-await writeSecurityRule({
-  resourceType: "database",
+await managePermissions({
+  action: "updateResourcePermission",
+  resourceType: "noSqlDatabase",
   resourceId: "userData",
-  aclTag: "CUSTOM",
-  rule: JSON.stringify({
+  permission: "CUSTOM",
+  securityRule: JSON.stringify({
     "read": "auth.uid == doc.user_id",
     "write": "auth.uid == doc.user_id",
     "delete": false  // Only admin can delete (admin bypasses rules)
@@ -396,6 +450,59 @@ The `get()` function allows accessing other document data during permission veri
 }
 ```
 
+**Important syntax note:** put the field access **after** `get(...)`.
+
+```json
+{
+  "write": "get('database.user_roles.' + auth.uid).role == 'admin'"
+}
+```
+
+Do **not** write:
+
+```json
+{
+  "write": "get('database.user_roles.' + auth.uid + '.role') == 'admin'"
+}
+```
+
+Do **not** use JS template-literal placeholders inside the rule string either:
+
+```json
+{
+  "write": "get('database.user_roles.${auth.uid}').role == 'admin'"
+}
+```
+
+Security rules are expression strings, so use concatenation:
+
+```json
+{
+  "write": "get('database.user_roles.' + auth.uid).role == 'admin'"
+}
+```
+
+**Admin-or-owner control:**
+```json
+{
+  "update": "get('database.users.' + auth.uid).role == 'admin' || doc.authorId == auth.uid",
+  "delete": "get('database.users.' + auth.uid).role == 'admin' || doc.authorId == auth.uid"
+}
+```
+
+If this collection only needs simple owner-only writes, `READONLY` may be enough. But if the product requirement is “admin users in the app can edit/delete all articles while editors only own their own articles”, use a `CUSTOM` rule such as:
+
+```json
+{
+  "read": "auth.uid != null",
+  "create": "auth.uid != null",
+  "update": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)",
+  "delete": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)"
+}
+```
+
+For that CMS pattern, `.doc(id).update()` / `.doc(id).remove()` is a validated path, as long as article documents really store `authorId` and `user_roles` documents are keyed by `uid`.
+
 **Associated Data Permissions:**
 ```json
 {
@@ -450,12 +557,12 @@ The `get()` function allows accessing other document data during permission veri
 | Error Scenario | Symptoms | Root Cause | Correct Approach |
 |---------------|----------|------------|------------------|
 | Using `ADMINWRITE` for cart/order collections | `.add()` or `.update()` fails<br>Keeps loading or permission error | "ADMIN" in `ADMINWRITE` refers to cloud function environment<br>Frontend SDK has no admin privileges | Use `CUSTOM` rules<br>`{"read": "auth.uid != null", "write": "auth.uid != null"}` |
-| Using `PRIVATE` for product collections | Product list disappears after login | `PRIVATE` only allows creator and admin to read<br>Regular users have no permission | Use `READONLY`<br>All users can read, admin can write |
+| Using `PRIVATE` for product collections | Product list disappears after login | `PRIVATE` only allows creator and admin to read<br>Regular users have no permission | Use `READONLY`<br>All users can read, creator and admin can write |
 
 **Key Understanding**:
 - `ADMINWRITE` = Cloud functions have write access, Frontend SDK **can only read**
 - `CUSTOM` = Configurable read/write permissions for Frontend SDK
-- `READONLY` = All users (including anonymous) can read, only admin can write
+- `READONLY` = All users (including anonymous) can read, creator and admin can write. Note: although `READONLY` permits anonymous reads at the ACL level, anonymous login is disabled by default for new environments — callers still need an active login method to obtain a session.
 
 ### Role-Based Access Limitations
 
@@ -492,6 +599,14 @@ For query or update operations, the input query conditions **must be a subset** 
 - Query conditions must match or be more restrictive than the security rule
 - Missing required conditions in queries will result in permission denied errors
 - The system performs **rule matching** before any database access
+
+**Critical implication for document-ID writes:**
+
+- `.doc(id).update(...)` and `.doc(id).remove()` only provide `_id` as the write condition
+- A rule that depends on another field such as `doc.authorId` or `doc.status` cannot be validated from that request alone
+- For document-ID writes, prefer one of these paths:
+  - use a simple permission such as `READONLY` when it already matches “public read, creator/admin write”, or
+  - keep `doc.field`-based CUSTOM rules and switch to `where(...)` writes that explicitly include the required owner/status fields in the query
 
 **Operation Types Affected:**
 
@@ -755,6 +870,17 @@ For non-WeChat login (Web):
 }
 ```
 
+## Propagation And Verification
+
+- Security rule updates may take a short time to propagate through the backend.
+- Right after changing a collection to `CUSTOM`, do not assume the first `DATABASE_PERMISSION_DENIED` means the expression is still wrong.
+- Keep the same login state, wait briefly, and retry the exact same write before changing the rule again.
+- For Web SDK writes, do not treat "no thrown exception" as success.
+- Check the returned payload:
+  - `update()` should have `updated > 0`
+  - `remove()` should have `deleted > 0`
+  - if `result.code` or `result.message` exists, especially `DATABASE_PERMISSION_DENIED`, treat it as a real backend rejection
+
 ### Pattern 8: Status-Based Permissions
 ```json
 {
@@ -889,6 +1015,5 @@ Through reasonable permission configuration, you can build a data access control
 
 - [CloudBase Security Rules Documentation](https://cloud.tencent.com/document/product/876/123478)
 - [Security Rules Introduction](/rule/introduce)
-- MCP Tool: `writeSecurityRule` - Configure security rules
-- MCP Tool: `readSecurityRule` - Read current security rules
-
+- MCP Tool: `managePermissions` - Configure resource permissions
+- MCP Tool: `queryPermissions` - Read current resource permissions

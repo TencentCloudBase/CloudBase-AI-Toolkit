@@ -56,7 +56,8 @@ export {
   RECOMMENDED_RUNTIMES,
   formatRuntimeList,
   SUPPORTED_NODEJS_RUNTIMES,
-  DEFAULT_NODEJS_RUNTIME
+  DEFAULT_NODEJS_RUNTIME,
+  validateTimerCron,
 } from "./tools/functions.js";
 
 /**

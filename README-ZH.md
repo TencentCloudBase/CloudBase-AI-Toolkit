@@ -383,9 +383,9 @@ CodeBuddy 已内置 CloudBase MCP，无需配置即可使用。
 | **官方文档** | [查看文档](https://docs.cloudbase.net/) | 完整的云开发文档 |
 | **Issue 反馈** | [提交问题](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues) | Bug 反馈和功能请求 |
 
-## Star History
+## 项目活跃度
 
-[![Star History Chart](https://api.star-history.com/svg?repos=TencentCloudBase/CloudBase-AI-ToolKit&type=Timeline)](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)
+![Repo Activity](https://repobeats.axiom.co/api/embed/6cd6ed00da4384e43b24805c197f584626946dda.svg "Repobeats analytics image")
 
 ## Contributors
 
@@ -447,7 +447,7 @@ CodeBuddy 已内置 CloudBase MCP，无需配置即可使用。
 
 <!-- Links -->
 [docs]: https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/
-[changelog]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/releases
+[changelog]: https://github.com/TencentCloudBase/CloudBase-MCP/releases
 [github-issues-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues
 [github-stars-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/stargazers
 [github-forks-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/network/members

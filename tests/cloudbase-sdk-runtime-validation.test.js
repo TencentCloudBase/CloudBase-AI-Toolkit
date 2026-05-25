@@ -109,9 +109,9 @@ def main_handler(event, context):
     return functionDir;
   }
 
-  test("Validate Python3.9 runtime support via CloudBase SDK", async () => {
-    if (!manager || !hasCloudBaseCredentials()) {
-      console.log("⚠️ Skipping Python SDK runtime validation");
+  test.skipIf(!hasCloudBaseCredentials())("Validate Python3.9 runtime support via CloudBase SDK", async () => {
+    if (!manager) {
+      console.log("⚠️ CloudBase Manager not initialized, skipping");
       return;
     }
 

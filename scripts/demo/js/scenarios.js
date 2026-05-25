@@ -107,15 +107,15 @@ const SCENARIO_CONFIG = {
     buttonText: '使用 AI 分析并修复错误',
     buttonPosition: '函数详情页，日志标签页内，错误日志条目旁',
     pagePath: '/scf/detail',
-    mcpTools: ['getFunctionLogs', 'getFunctionLogDetail', 'updateFunctionCode'],
+    mcpTools: ['queryFunctions', 'manageFunctions'],
     capabilityDocs: ['cloudbase-platform', 'cloud-functions'],
     promptTemplate: `我的云函数出现了错误，需要你的帮助分析和修复：
 
 1. **获取错误日志**：
    - 函数名称：[系统自动填充或用户填写]
    - 错误时间：[系统自动填充]
-   - 使用 CloudBase MCP 工具 \`getFunctionLogs\` 获取日志列表
-   - 使用 \`getFunctionLogDetail\` 获取详细错误信息
+   - 使用 CloudBase MCP 工具 \`queryFunctions(action="listFunctionLogs")\` 获取日志列表
+   - 使用 \`queryFunctions(action="getFunctionLogDetail")\` 获取详细错误信息
 
 2. **分析错误原因**：
    - 分析错误堆栈和错误消息
@@ -124,7 +124,8 @@ const SCENARIO_CONFIG = {
 
 3. **提供修复方案**：
    - 提供具体的代码修改建议
-   - 使用 \`updateFunctionCode\` 更新函数代码
+   - 使用 \`manageFunctions(action="updateFunctionCode")\` 更新函数代码
+   - 普通代码修复优先传 \`functionRootPath\`，不要默认先压缩 zip
    - 验证修复结果
 
 请帮我分析和修复这个函数错误。`

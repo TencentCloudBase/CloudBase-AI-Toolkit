@@ -4,31 +4,82 @@
 
 ## 如何使用
 
-### 方式 1：复制提示词到项目
+查看[如何使用Skill](/ai/cloudbase-ai-toolkit/prompts/how-to-use)了解详细的使用方法。
 
-将提示词内容复制到项目中的文件（例如 `prompts/auth-nodejs.md`），然后使用 AI 工具的"包含文件"功能在对话中引用该提示词。
-
-不同 AI 工具的使用方式：
-
-- **GitHub Copilot**: 使用 `#<filename>`，例如 `#prompts/auth-nodejs.md`
-- **Cursor**: 使用 `@Files`，然后选择文件
-- **Zed**: 使用 `/file`，然后选择文件
-- **其他工具**: 参考工具的文档了解如何包含文件
-
-### 方式 2：使用项目模板（推荐）
-
-模板已内置 CloudBase MCP 配置和 AI Skill 规则。查看[项目模板](/ai/cloudbase-ai-toolkit/templates)了解更多。
-
-### 测试提示词
+### 测试 Skill
 
 你可以使用以下提示词来测试：
 
 - "帮我实现一个云函数，验证用户身份并获取用户信息"
 - "创建一个 Node.js 后端服务，使用 CloudBase Auth 进行用户认证"
 
-## 提示词
+import AIDevelopmentPrompt from '../components/AIDevelopmentPrompt';
 
-````markdown title="rule.md"
+<AIDevelopmentPrompt ruleId="auth-nodejs" />
+
+## 安装与查看
+
+如果需要安装全部 CloudBase Skills，可执行：
+
+```bash
+npx skills add tencentcloudbase/cloudbase-skills
+```
+
+如果只安装当前 Skill，可执行：
+
+```bash
+npx skills add https://github.com/tencentcloudbase/skills --skill auth-nodejs
+```
+
+当前 Skill 在线查看： [auth-nodejs](https://skills.sh/tencentcloudbase/skills/auth-nodejs-cloudbase)
+
+---
+
+## Skill 规则原文
+
+<details>
+<summary>查看 SKILL.md 原文</summary>
+
+````markdown
+## Standalone Install Note
+
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
+
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-nodejs/SKILL.md`
+
+Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
+
+## Activation Contract
+
+### Use this first when
+
+- Node.js code in cloud functions or backend services must read caller identity, look up users, or issue custom login tickets.
+- The backend responsibility is auth / identity, not provider setup or frontend login UI.
+
+### Read before writing code if
+
+- The task mentions `@cloudbase/node-sdk`, server-side auth, custom login tickets, or "who is calling".
+- The request mixes frontend login with backend identity logic; split the flow and route client-side work elsewhere.
+
+### Then also read
+
+- Provider setup / publishable key -> `../auth-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-tool/SKILL.md`)
+- Web login UI that consumes custom tickets -> `../auth-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-web/SKILL.md`)
+- Raw HTTP auth client -> `../http-api/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/http-api/SKILL.md`)
+
+### Do NOT use for
+
+- Provider enable/disable or login console configuration.
+- Frontend login / sign-up UI.
+- Mini program native auth.
+
+### Common mistakes / gotchas
+
+- Using this skill as the entry point for every auth request.
+- Mixing provider-management work with Node-side identity code.
+- Reaching for raw HTTP examples when Node SDK already covers the job.
+
 ## When to use this skill
 
 Use this skill whenever the task involves **server-side authentication or identity** in a CloudBase project, and the code is running in **Node.js**, for example:
@@ -108,7 +159,7 @@ When you load this skill to work on a task:
 
 CloudBase Auth v2 separates **where users log in** from **where backend code runs**:
 
-- Users log in through the supported auth methods (anonymous, username/password, SMS, email, WeChat, custom login, etc.) using client SDKs or HTTP interfaces, as described in the official CloudBase Auth overview documentation.
+- Users log in through the supported auth methods (username/password, SMS, email, WeChat, custom login, anonymous — disabled by default, etc.) using client SDKs or HTTP interfaces, as described in the official CloudBase Auth overview documentation.
 - Once logged in, CloudBase attaches the user identity and tokens to the environment.
 - Node code then **reads** that identity using the Node SDK, or **bridges** external identities into CloudBase using custom login.
 
@@ -144,10 +195,10 @@ This skill covers the following `auth` methods on the CloudBase Node SDK. Treat 
 - `getUserInfo(): IGetUserInfoResult`
   Returns `{ openId, appId, uid, customUserId }` for the **current caller**.
 
-- `getEndUserInfo(uid?: string, opts?: ICustomReqOpts): Promise&lt;{ userInfo: EndUserInfo; requestId?: string }&gt;`
+- `getEndUserInfo(uid?: string, opts?: ICustomReqOpts): Promise<{ userInfo: EndUserInfo; requestId?: string }>`
   Returns detailed CloudBase end‑user profile for a given `uid` or for the current caller (when `uid` is omitted).
 
-- `queryUserInfo(query: IUserInfoQuery, opts?: ICustomReqOpts): Promise&lt;{ userInfo: EndUserInfo; requestId?: string }&gt;`
+- `queryUserInfo(query: IUserInfoQuery, opts?: ICustomReqOpts): Promise<{ userInfo: EndUserInfo; requestId?: string }>`
   Finds a user by login identifier (`platform` + `platformId`) or `uid`.
 
 - `getClientIP(): string`
@@ -172,7 +223,7 @@ import tcb from "@cloudbase/node-sdk";
 const app = tcb.init({ env: "your-env-id" });
 const auth = app.auth();
 
-exports.main = async (event, context) =&gt; {
+exports.main = async (event, context) => {
   // Your logic here
 };
 ```
@@ -192,7 +243,7 @@ import tcb from "@cloudbase/node-sdk";
 const app = tcb.init({ env: "your-env-id" });
 const auth = app.auth();
 
-exports.main = async (event, context) =&gt; {
+exports.main = async (event, context) => {
   const { openId, appId, uid, customUserId } = auth.getUserInfo();
 
   console.log("Caller identity", { openId, appId, uid, customUserId });
@@ -218,7 +269,7 @@ import tcb from "@cloudbase/node-sdk";
 const app = tcb.init({ env: "your-env-id" });
 const auth = app.auth();
 
-exports.main = async (event, context) =&gt; {
+exports.main = async (event, context) => {
   const uid = "user-uid";
 
   try {
@@ -245,7 +296,7 @@ import tcb from "@cloudbase/node-sdk";
 const app = tcb.init({ env: "your-env-id" });
 const auth = app.auth();
 
-exports.main = async (event, context) =&gt; {
+exports.main = async (event, context) => {
   try {
     const { userInfo } = await auth.getEndUserInfo();
     console.log("Current caller profile", userInfo);
@@ -267,7 +318,7 @@ import tcb from "@cloudbase/node-sdk";
 const app = tcb.init({ env: "your-env-id" });
 const auth = app.auth();
 
-exports.main = async (event, context) =&gt; {
+exports.main = async (event, context) => {
   try {
     // Find by phone number
     const { userInfo: byPhone } = await auth.queryUserInfo({
@@ -309,7 +360,7 @@ import tcb from "@cloudbase/node-sdk";
 const app = tcb.init({ env: "your-env-id" });
 const auth = app.auth();
 
-exports.main = async (event, context) =&gt; {
+exports.main = async (event, context) => {
   const ip = auth.getClientIP();
   console.log("Caller IP", ip);
 
@@ -355,7 +406,7 @@ const app = tcb.init({
 
 const auth = app.auth();
 
-exports.main = async (event, context) =&gt; {
+exports.main = async (event, context) => {
   const customUserId = "your-customUserId";
 
   const ticket = auth.createTicket(customUserId, {
@@ -371,7 +422,7 @@ exports.main = async (event, context) =&gt; {
 Constraints for `customUserId` (from official docs):
 
 - Length 4–32 characters.
-- Allowed characters: letters, digits, and `_-#@(){}[]:.,&lt;&gt;+#~`.
+- Allowed characters: letters, digits, and `_-#@(){}[]:.,<>+#~`.
 
 Best practices:
 
@@ -385,7 +436,7 @@ This skill only covers **Node-side** ticket issuance. For the **client-side** fl
 
 - On the client (Web), use `@cloudbase/js-sdk`'s custom login support:
   - Call your backend endpoint that returns `ticket`.
-  - Configure `auth.setCustomSignFunc(async () =&gt; ticketFromBackend)`.
+  - Configure `auth.setCustomSignFunc(async () => ticketFromBackend)`.
   - Call `auth.signInWithCustomTicket()` to finish login.
 
 Keep the responsibility clear:
@@ -432,3 +483,5 @@ For end‑to‑end experiences, pair this skill with:
 
 Treat the official CloudBase Auth Node SDK documentation as the canonical reference for Node auth APIs, and treat the scenarios in this file as vetted best‑practice building blocks.
 ````
+
+</details>

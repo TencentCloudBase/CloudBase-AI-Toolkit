@@ -1,65 +1,139 @@
 ---
 name: cloudbase-document-database-in-wechat-miniprogram
 description: Use CloudBase document database WeChat MiniProgram SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, and geolocation queries.
+version: 2.20.0
+alwaysApply: false
 ---
 
-# CloudBase Document Database WeChat MiniProgram SDK
+## Standalone Install Note
 
-This skill provides guidance on using the CloudBase document database SDK for data operations in WeChat MiniProgram applications.
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
 
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/no-sql-wx-mp-sdk/SKILL.md`
 
-## Core Concepts
+Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
 
-### Initialization
+# CloudBase Document Database WeChat Mini Program SDK
 
-Before using any database operations, initialize the database reference:
+## Activation Contract
+
+### Use this first when
+
+- A WeChat Mini Program must access CloudBase document database through `wx.cloud.database()`.
+- The request mentions Mini Program collection CRUD, pagination, aggregation, or geolocation queries.
+
+### Read before writing code if
+
+- The task is Mini Program database work but you still need to separate it from Web SDK, cloud functions, or SQL tasks.
+- The request depends on built-in user identity, `_openid`, or Mini Program-side permissions.
+
+### Then also read
+
+- Mini Program project rules and CloudBase integration -> `../miniprogram-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/miniprogram-development/SKILL.md`)
+- Mini Program auth and identity flow -> `../auth-wechat/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-wechat/SKILL.md`)
+- Browser-side document database code -> `../no-sql-web-sdk/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/no-sql-web-sdk/SKILL.md`)
+
+### Do NOT use for
+
+- Browser/Web code using `@cloudbase/js-sdk`.
+- Server-side or cloud-function database access.
+- MySQL / relational database work.
+
+### Common mistakes / gotchas
+
+- Copying Web SDK code into Mini Program pages.
+- Manually writing `_openid` during create or update operations.
+- Assuming built-in Mini Program identity means security rules can be ignored.
+- Mixing collection CRUD and backend-wide admin workflows in the same client path.
+
+### Minimal checklist
+
+- Confirm the caller is a Mini Program page/component or Mini Program-side logic.
+- Initialize `wx.cloud` correctly before database calls.
+- Verify whether the collection rules rely on `auth.openid` / `_openid`.
+- Read the specific companion reference file for the operation you need.
+
+## Overview
+
+This skill covers **Mini Program-side document database access** through `wx.cloud.database()`.
+
+Use it for:
+
+- collection CRUD in Mini Program pages
+- query composition and pagination
+- aggregation
+- geolocation queries
+
+Mini Program CloudBase access comes with built-in identity, but database operations are still constrained by collection permissions and security rules.
+
+## Canonical initialization
 
 ```javascript
-// Get default environment database reference
-const db = wx.cloud.database()
-const _ = db.command // Get query operators
+const db = wx.cloud.database();
+const _ = db.command;
 ```
 
-To access a specific environment (e.g., test environment):
+To target a specific environment:
 
 ```javascript
-// Get specific environment database reference
 const db = wx.cloud.database({
-  env: 'test' // Replace with your environment id
-})
+  env: "test"
+});
 ```
 
-**Important Notes:**
-- WeChat MiniProgram has built-in authentication, no explicit login required
-- Users are automatically authenticated when using cloud capabilities
-- In cloud functions, you can access user info via `wxContext.OPENID`
+Important notes:
 
-## Coding Rules
+- Users are authenticated through the Mini Program CloudBase context.
+- In cloud functions, caller identity is available through `wxContext.OPENID`.
+- In client-side collection rules, ownership checks usually use `auth.openid` / `doc._openid`.
 
-- It is **HIGHLY RECOMMENDED** to have a type definition and model layer for each collection in your document database. This will help you to avoid errors and make your code more robust. That would be the single source of truth for your database schema. Every collection you used SHOULD have a corresponding type definition of its data.
-- Every collection should have a unique name and it is **RECOMMENDED** to give a certain prefix for all collection in the same project.
+## Quick routing
 
+- CRUD -> `./crud-operations.md`
+- Complex queries -> `./complex-queries.md`
+- Pagination -> `./pagination.md`
+- Aggregation -> `./aggregation.md`
+- Geolocation -> `./geolocation.md`
+- Security rules -> `./security-rules.md`
 
-### Collection Reference
+## Working rules for a coding agent
 
-Access collections using:
+1. **Keep Mini Program code Mini Program-native**
+   - Use `wx.cloud.database()`.
+   - Do not substitute browser SDK initialization patterns.
+
+2. **Respect ownership fields**
+   - `_openid` is system-managed for SDK writes.
+   - Never set or override `_openid` manually in `.add()`, `.set()`, or `.update()` payloads.
+
+3. **Remember that security rules validate requests**
+   - If a rule requires ownership conditions, the query shape must match that rule model.
+   - Permission errors usually mean the rule/query relationship is wrong, not only that the user is logged out.
+
+4. **Route admin-style operations to backend flows**
+   - If the task needs privileged global access, use backend tools or functions instead of exposing that path directly in Mini Program client code.
+
+## Quick examples
+
+### Basic collection access
+
 ```javascript
-db.collection('collection-name')
+const todos = db.collection("todos");
+const result = await todos.where({ completed: false }).get();
 ```
 
-Get a specific document reference:
+### Document reference
+
 ```javascript
-const todo = db.collection('todos').doc('todo-identifiant-aleatoire')
+const todo = db.collection("todos").doc("todo-id");
+const result = await todo.get();
 ```
 
-### Query Operators
+## Best practices
 
-The operations are the same as the web SDK. You should look at
-- `./crud-operations.md`
-- `./pagination.md`
-- `./complex-queries.md`
-- `./aggregation.md`
-- `./geolocation.md`
-- `./security-rules.md` 
-
-- **Important:** Configure database security rules using `writeSecurityRule` MCP tool before database operations
+1. Create clear collection naming conventions.
+2. Use typed wrappers or model helpers in app code where possible.
+3. Design rules around real ownership and sharing patterns.
+4. Use pagination instead of large unbounded reads.
+5. Keep admin/operations logic in backend code, not Mini Program direct access.

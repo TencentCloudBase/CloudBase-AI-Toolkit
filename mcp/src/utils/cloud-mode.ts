@@ -71,31 +71,31 @@ export function shouldRegisterTool(toolName: string): boolean {
   const cloudIncompatibleTools = [
     // Auth tools - local file uploads
     'auth',
-    
+
     // Storage tools - local file uploads
     'uploadFile',
-    
-    // Hosting tools - local file uploads  
-    'uploadFiles',
-    
+
+    // Hosting tools - action-level cloud gating is handled inside manageHosting
+
     // Function tools - local code uploads
     'updateFunctionCode',
     'createFunction', // also involves local files
-    
-    // Miniprogram tools - local code uploads
-    'uploadMiniprogramCode',
-    
+
+
     // Download tools - local file downloads
     'downloadTemplate',
     'downloadRemoteFile',
-    
+
     // Setup tools - local config file operations
     'setupEnvironmentId',
-    
+
     // CloudRun tools - local file operations
     'manageCloudRun',
     // Download tools - local file downloads
     'manageStorage',
+
+    // Apps tools - deployApp reads local filePath for code upload
+    'manageApps',
   ];
 
   const shouldRegister = !cloudIncompatibleTools.includes(toolName);

@@ -987,13 +987,13 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
     }
   );
 
-  // modifyDataModel - 数据模型修改工具（创建/更新）
+  // modifyDataModel - 数据模型写工具（兼容名称，当前仅支持创建）
   server.registerTool?.(
     "modifyDataModel",
     {
-      title: "修改数据模型",
+      title: "修改数据模型（当前仅支持创建）",
       description:
-        "基于Mermaid classDiagram创建或更新数据模型。支持创建新模型和更新现有模型结构。内置异步任务监控，自动轮询直至完成或超时。",
+        "基于Mermaid classDiagram创建数据模型。为保持兼容性，工具名仍为 modifyDataModel；当前仅支持创建新模型，不支持更新现有模型结构。内置异步任务监控，自动轮询直至完成或超时。",
       inputSchema: {
         mermaidDiagram: z.string()
           .describe(`Mermaid classDiagram代码，描述数据模型结构。
@@ -1050,7 +1050,7 @@ classDiagram
           .string()
           .optional()
           .default("MYSQL")
-          .describe("数据库实例类型"),
+          .describe("数据库实例类型，可选值：MYSQL=MySQL 数据库，FLEXDB=文档型数据库（NoSQL）"),
       },
       annotations: {
         readOnlyHint: false,
@@ -1067,7 +1067,7 @@ classDiagram
       dbInstanceType = "MYSQL",
     }: {
       mermaidDiagram: string;
-      action?: "create" | "update";
+      action?: "create";
       publish?: boolean;
       dbInstanceType?: string;
     }) => {
@@ -1190,11 +1190,10 @@ classDiagram
                   action: action,
                   message:
                     status === "success"
-                      ? `数据模型${action === "create" ? "创建" : "更新"
-                      }成功，共处理${models.length}个模型`
+                      ? `数据模型创建成功，共处理${models.length}个模型`
                       : status === "init"
                         ? `任务超时，任务ID: ${taskId}，请稍后手动查询状态`
-                        : `数据模型${action === "create" ? "创建" : "更新"}失败`,
+                        : `数据模型创建失败`,
                   taskResult: statusResult?.Data,
                 },
                 null,

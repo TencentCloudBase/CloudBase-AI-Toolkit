@@ -1,38 +1,64 @@
 ---
 name: relational-database-web-cloudbase
 description: Use when building frontend Web apps that talk to CloudBase Relational Database via @cloudbase/js-sdk – provides the canonical init pattern so you can then use Supabase-style queries from the browser.
+version: 2.20.0
 alwaysApply: false
 ---
 
-## When to use this skill
+## Standalone Install Note
 
-Use this skill whenever you need to access **CloudBase Relational Database from a browser app** (React, Vue, vanilla JS) using `@cloudbase/js-sdk`.
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
 
-Use it when you need to:
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/relational-database-web/SKILL.md`
 
-- Initialize CloudBase Relational Database on the frontend
-- Replace an existing Supabase client with CloudBase Relational Database
-- Share a single `db` client across your Web app
+Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
 
-**Do NOT use this skill for:**
+# CloudBase Relational Database Web SDK
 
-- Backend/Node access to CloudBase Relational Database (use `relation-database-skill` → `node-sdk/quickstart.md`)
-- MCP/agent database management (use `relation-database-skill` → `mcp-tools/mcp-guide.md`)
-- Auth flows (use the Web/Node/Auth skills instead)
+## Activation Contract
 
-## How to use this skill (for a coding agent)
+### Use this first when
 
-1. **Confirm environment**
-   - Ask the user for:
-     - `env` – CloudBase environment ID
-2. **Follow the initialization pattern in this file exactly**
-   - Only change values like `env`, never the object shape.
-3. **After initialization, use Supabase knowledge for queries**
-   - Treat `db` as a Supabase client – method names and patterns are identical.
-4. **Avoid re-initializing CloudBase**
-   - Create a single shared `db` client and reuse it across components.
+- A browser or Web app must access CloudBase Relational Database through `@cloudbase/js-sdk`.
+- The task is specifically about frontend initialization and browser-side query usage.
 
----
+### Read before writing code if
+
+- You need to distinguish browser SDK usage from MCP database management or backend Node access.
+- The request mentions Supabase migration, shared frontend DB client, or browser-side table queries.
+
+### Then also read
+
+- SQL management and MCP operations -> `../relational-database-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/relational-database-tool/SKILL.md`)
+- Web auth/login -> `../auth-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-web/SKILL.md`)
+- General Web app setup -> `../web-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/web-development/SKILL.md`)
+
+### Do NOT use for
+
+- MCP-based SQL provisioning, schema changes, or permissions management.
+- Backend/Node service access.
+- Document database operations.
+
+### Common mistakes / gotchas
+
+- Initializing SDKs in an MCP management flow.
+- Treating `app` itself as the relational database client.
+- Re-initializing CloudBase in every component.
+- Mixing frontend browser access with admin-style schema mutations.
+
+### Minimal checklist
+
+- Confirm the caller is a Web frontend.
+- Keep one shared CloudBase app and one shared relational DB client.
+- Route provisioning/schema work to `relational-database-tool`.
+- Handle auth separately before data access.
+
+## Overview
+
+This skill standardizes the **browser-side initialization pattern** for CloudBase Relational Database.
+
+After initialization, use `db` with Supabase-style query patterns.
 
 ## Installation
 
@@ -40,75 +66,57 @@ Use it when you need to:
 npm install @cloudbase/js-sdk
 ```
 
-## Initialization pattern (canonical)
+## Canonical initialization
 
 ```javascript
 import cloudbase from "@cloudbase/js-sdk";
 
 const app = cloudbase.init({
-  env: "your-env-id", // CloudBase environment ID
+  env: "your-env-id"
 });
 
 const auth = app.auth();
-// Handle user authentication separately (Web Auth skill)
+// Handle login separately
 
 const db = app.rdb();
-// Use db exactly like a Supabase client
 ```
 
-**Initialization rules (Web, @cloudbase/js-sdk):**
+## Initialization rules
 
-- Always use **synchronous initialization** with the pattern above
-- Do **not** lazy-load the SDK with `import("@cloudbase/js-sdk")`
-- Do **not** wrap SDK initialization in async helpers such as `initCloudBase()` with internal `initPromise` caches
-- Create a single shared `db` client and reuse it instead of re-initializing
+- Initialize synchronously.
+- Do not lazy-load the SDK with `import("@cloudbase/js-sdk")` unless the framework absolutely requires it.
+- Create one shared `db` client and reuse it.
+- Do not invent unsupported `cloudbase.init()` options.
 
-**Rules:**
+## Quick routing
 
-- Do **not** invent new properties on the `cloudbase.init` options.
-- Always call `app.rdb()` to get the database client; `app` is **not** the DB client.
+### Use this skill when
 
----
+- you are wiring browser components to relational tables
+- you are replacing a Supabase browser client with CloudBase
+- you need a canonical shared frontend `db` client
 
-## Scenario 1: Replace Supabase client in a React app
+### Use `relational-database-tool` instead when
+
+- you need to create/destroy MySQL
+- you need DDL or write-SQL administration
+- you need to inspect or change table security rules through MCP
+
+## Example: shared frontend DB client
 
 ```javascript
-// lib/db.js (shared database client)
 import cloudbase from "@cloudbase/js-sdk";
 
 const app = cloudbase.init({
-  env: "your-env-id",
+  env: "your-env-id"
 });
 
 export const db = app.rdb();
 ```
 
-```javascript
-// hooks/usePosts.js
-import { useEffect, useState } from "react";
-import { db } from "../lib/db";
-
-export function usePosts() {
-  const [posts, setPosts] = useState([]);
-
-  useEffect(() => {
-    async function fetchPosts() {
-      const { data } = await db.from("posts").select("*");
-      setPosts(data || []);
-    }
-    fetchPosts();
-  }, []);
-
-  return { posts };
-}
-```
-
----
-
-## Scenario 2: Basic query pattern (Supabase-style)
+## Example: Supabase-style query
 
 ```javascript
-// Fetch latest posts
 const { data, error } = await db
   .from("posts")
   .select("*")
@@ -119,25 +127,16 @@ if (error) {
 }
 ```
 
----
-
-## Scenario 3: Insert / update / delete rows
+## Example: insert / update / delete
 
 ```javascript
-// Insert
 await db.from("posts").insert({ title: "Hello" });
-
-// Update
 await db.from("posts").update({ title: "Updated" }).eq("id", 1);
-
-// Delete
 await db.from("posts").delete().eq("id", 1);
 ```
 
----
+## Key principle
 
-## Key principle: CloudBase Relational Database = Supabase API
-
-- After you have `db = app.rdb()`, use **Supabase documentation and patterns** for all queries.
-- This skill only standardizes **Web initialization and client sharing**.
-- Do not duplicate Supabase docs into this skill; rely on the model's built-in Supabase knowledge for query shapes and options.
+- `app.rdb()` gives you the relational database client.
+- After that point, use Supabase-style query knowledge for table operations.
+- Keep schema management and privileged administration outside browser code.

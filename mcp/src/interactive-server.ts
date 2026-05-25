@@ -14,6 +14,93 @@ function isVSCodeEnvironment() {
   );
 }
 
+/**
+ * Validates that a URL is safe to open, blocking SSRF targets.
+ * Only allows http/https schemes and rejects private/reserved IP ranges
+ * and sensitive hostnames.
+ */
+function isUrlSafeToOpen(url: string): { safe: boolean; reason?: string } {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { safe: false, reason: "Invalid URL format" };
+  }
+
+  // Only allow http and https schemes
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return { safe: false, reason: `Unsupported scheme: ${parsed.protocol}` };
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+
+  // Block common sensitive / internal hostnames
+  const blockedHostnames = [
+    "localhost",
+    "localhost.localdomain",
+    "ip6-localhost",
+    "ip6-loopback",
+    "metadata.google.internal",
+    "metadata.internal",
+  ];
+  if (blockedHostnames.includes(hostname)) {
+    return { safe: false, reason: `Blocked hostname: ${hostname}` };
+  }
+
+  // Block hostnames ending with .internal or .local
+  if (hostname.endsWith(".internal") || hostname.endsWith(".local")) {
+    return { safe: false, reason: `Blocked internal hostname: ${hostname}` };
+  }
+
+  // Block IP addresses in private/reserved ranges (RFC 1918, loopback, link-local, etc.)
+  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  const match = ipv4Regex.exec(hostname);
+  if (match) {
+    const octets = [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10), parseInt(match[4], 10)];
+
+    // Loopback: 127.0.0.0/8
+    if (octets[0] === 127) {
+      return { safe: false, reason: "Blocked loopback IP address" };
+    }
+    // Link-local: 169.254.0.0/16
+    if (octets[0] === 169 && octets[1] === 254) {
+      return { safe: false, reason: "Blocked link-local IP address" };
+    }
+    // RFC 1918 private: 10.0.0.0/8
+    if (octets[0] === 10) {
+      return { safe: false, reason: "Blocked private IP address (10.x.x.x)" };
+    }
+    // RFC 1918 private: 172.16.0.0/12
+    if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) {
+      return { safe: false, reason: "Blocked private IP address (172.16-31.x.x)" };
+    }
+    // RFC 1918 private: 192.168.0.0/16
+    if (octets[0] === 192 && octets[1] === 168) {
+      return { safe: false, reason: "Blocked private IP address (192.168.x.x)" };
+    }
+    // Broadcast: 0.0.0.0
+    if (octets[0] === 0 && octets[1] === 0 && octets[2] === 0 && octets[3] === 0) {
+      return { safe: false, reason: "Blocked broadcast address" };
+    }
+  }
+
+  // Block IPv6 loopback and link-local
+  if (hostname.startsWith("[") && hostname.endsWith("]")) {
+    const ipv6 = hostname.slice(1, -1).toLowerCase();
+    if (ipv6 === "::1" || ipv6 === "0:0:0:0:0:0:0:1" || ipv6 === "::" || ipv6 === "0:0:0:0:0:0:0:0") {
+      return { safe: false, reason: "Blocked IPv6 loopback/reserved address" };
+    }
+    if (ipv6.startsWith("fe80:")) {
+      return { safe: false, reason: "Blocked IPv6 link-local address" };
+    }
+    if (ipv6.startsWith("fc") || ipv6.startsWith("fd")) {
+      return { safe: false, reason: "Blocked IPv6 unique-local address" };
+    }
+  }
+
+  return { safe: true };
+}
+
 function parseBrowserCommand(browser: string) {
   const parts = browser.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
   return parts.map((item) => item.replace(/^"(.*)"$/, "$1"));
@@ -302,6 +389,19 @@ export class InteractiveServer {
         return;
       }
 
+      if (typeof url !== "string") {
+        res.status(400).json({ success: false, error: "URL must be a string" });
+        return;
+      }
+
+      // Validate URL to prevent SSRF
+      const validation = isUrlSafeToOpen(url);
+      if (!validation.safe) {
+        warn(`Blocked open-url request for unsafe URL: ${url} (${validation.reason})`);
+        res.status(403).json({ success: false, error: `URL not allowed: ${validation.reason}` });
+        return;
+      }
+
       info("Received open URL request", { url });
 
       try {
@@ -498,8 +598,8 @@ export class InteractiveServer {
           }
         };
 
-        // Host: default 0.0.0.0 so Cloud IDE / VSCode Remote port-forward can connect; set INTERACTIVE_SERVER_HOST=127.0.0.1 for local-only
-        const host = process.env.INTERACTIVE_SERVER_HOST ?? "0.0.0.0";
+        // Host: default 127.0.0.1 for security (prevents SSRF from remote access); set INTERACTIVE_SERVER_HOST=0.0.0.0 to allow remote connections
+        const host = process.env.INTERACTIVE_SERVER_HOST ?? "127.0.0.1";
 
         // 设置成功监听处理
         const listeningHandler = () => {

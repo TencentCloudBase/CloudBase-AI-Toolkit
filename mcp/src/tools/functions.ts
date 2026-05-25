@@ -6,6 +6,7 @@ import {
 } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
 import { isCloudMode } from "../utils/cloud-mode.js";
+import { jsonContent } from "../utils/json-content.js";
 import { debug } from "../utils/logger.js";
 
 import { IEnvVariable } from "@cloudbase/manager-node/types/function/types.js";
@@ -103,6 +104,7 @@ export const MANAGE_FUNCTION_ACTIONS = [
   "updateFunctionCode",
   "updateFunctionConfig",
   "invokeFunction",
+  "deleteFunction",
   "createFunctionTrigger",
   "deleteFunctionTrigger",
   "createLayerVersion",
@@ -190,13 +192,43 @@ const VPC_SCHEMA = z.object({
   subnetId: z.string(),
 });
 
+const SEVEN_FIELD_CRON_REGEX = /^\s*\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s*$/;
+
+export function validateTimerCron(config: string): string {
+  const trimmed = config.trim();
+  const fields = trimmed.split(/\s+/);
+  if (fields.length === 5) {
+    throw new Error(
+      `timer 触发器的 cron 表达式必须使用 7 段格式（秒 分 时 日 月 星期 年），不支持标准 5 段格式。` +
+        `\n收到 5 段: "${trimmed}"` +
+        `\n正确示例: "0 */5 * * * * *"（每 5 分钟执行），"0 0 2 1 * * *"（每月 1 号 2 点）`,
+    );
+  }
+  if (fields.length < 7) {
+    throw new Error(
+      `timer 触发器的 cron 表达式必须使用 7 段格式（秒 分 时 日 月 星期 年），当前只有 ${fields.length} 段。` +
+        `\n正确示例: "0 */5 * * * * *"（每 5 分钟执行），"0 0 2 1 * * *"（每月 1 号 2 点）`,
+    );
+  }
+  return trimmed;
+}
+
 const TRIGGER_SCHEMA = z.object({
   name: z.string().describe("触发器名称"),
   type: z.enum(SUPPORTED_TRIGGER_TYPES).describe("触发器类型"),
   config: z
     .string()
     .describe(
-      "触发器配置，timer 使用 7 段 cron：second minute hour day month week year",
+      "触发器配置。timer 必须使用 CloudBase 7 段 cron 格式：秒 分 时 日 月 星期 年。" +
+        "⚠️ 不支持标准 5 段 cron（如 */5 * * * * 是错误的）。" +
+        "正确示例：0 */5 * * * * *（每5分钟）、0 0 2 1 * * *（每月1号2点）、0 30 9 * * * *（每天9:30）",
+    )
+    .refine(
+      (val) => SEVEN_FIELD_CRON_REGEX.test(val),
+      {
+        message:
+          "timer 触发器的 cron 表达式必须使用 7 段格式（秒 分 时 日 月 星期 年），不支持 5 段格式。正确示例：0 */5 * * * * *",
+      },
     ),
 });
 
@@ -255,17 +287,6 @@ const MANAGE_LAYER_SCHEMA = z.object({
   layerVersion: z.number().describe("层版本号"),
 });
 
-function jsonContent(body: unknown) {
-  return {
-    content: [
-      {
-        type: "text" as const,
-        text: JSON.stringify(body, null, 2),
-      },
-    ],
-  };
-}
-
 function normalizeFunctionLayers(layers: unknown): FunctionLayerInput[] {
   if (!Array.isArray(layers)) {
     return [];
@@ -318,6 +339,21 @@ export function shouldInstallDependencyForFunction(
   return true;
 }
 
+export function resolveEventFunctionRuntime(runtime: unknown): string {
+  if (typeof runtime !== "string" || !runtime.trim()) {
+    return DEFAULT_RUNTIME;
+  }
+
+  const normalizedRuntime = runtime.replace(/\s+/g, "");
+  if ((ALL_SUPPORTED_RUNTIMES as readonly string[]).includes(normalizedRuntime)) {
+    return normalizedRuntime;
+  }
+
+  throw new Error(
+    `不支持的运行时环境: "${String(runtime)}"\n\n支持的运行时:\n${formatRuntimeList()}`,
+  );
+}
+
 export function buildFunctionOperationErrorMessage(
   operation: "createFunction" | "updateFunctionCode",
   functionName: string,
@@ -339,11 +375,21 @@ export function buildFunctionOperationErrorMessage(
       `当前工具会从 \`functionRootPath + 函数名\` 查找代码目录，期望目录是 \`${expectedFunctionPath}\`。`,
     );
     suggestions.push("如果你传入的已经是函数目录本身，请改为传它的父目录。");
+    if (functionRootPath) {
+      const lastDir = path.basename(path.normalize(functionRootPath));
+      if (lastDir !== "cloudfunctions" && lastDir !== "functions") {
+        suggestions.push(
+          `functionRootPath 应该是直接包含函数文件夹的目录（如 cloudfunctions 或 functions），而不是项目根目录。` +
+          `请将 functionRootPath 改为 \`${path.join(path.normalize(functionRootPath), "cloudfunctions")}\` ` +
+          `或 \`${path.join(path.normalize(functionRootPath), "functions")}\`。`,
+        );
+      }
+    }
   }
 
   if (/paths\[0\].*undefined/i.test(baseMessage)) {
     suggestions.push(
-      "HTTP 函数创建时需要提供 functionRootPath（指向 cloudfunctions 父目录）或 zipFile，否则 SDK 无法定位函数目录。",
+      "HTTP 函数创建时需要提供 functionRootPath（指向 cloudfunctions 或 functions 目录的绝对路径，不是项目根目录）或 zipFile，否则 SDK 无法定位函数目录。",
     );
   }
 
@@ -353,6 +399,31 @@ export function buildFunctionOperationErrorMessage(
     );
     suggestions.push(
       "如果你确实依赖 npm 包，请在函数目录下补充 package.json 后重试。",
+    );
+  }
+
+  // Handle invalid parameter value errors from CloudBase API
+  if (/invalid parameter value/i.test(baseMessage)) {
+    suggestions.push(
+      "检测到参数值格式错误。请重点检查以下配置项：",
+    );
+    suggestions.push(
+      "1. runtime: 请使用支持的运行时版本，如 Nodejs18.15、Nodejs16.13、Nodejs20.19 等（区分大小写，不要加空格）",
+    );
+    suggestions.push(
+      "2. handler: Event 函数默认使用 index.main，HTTP 函数默认使用 app.handler 或 scf_bootstrap 启动",
+    );
+    suggestions.push(
+      "3. functionName: 函数名称只能包含字母、数字、下划线、连字符，不能以数字开头",
+    );
+    suggestions.push(
+      "4. timeout: 超时时间需为整数，单位为秒，范围 1-900",
+    );
+    suggestions.push(
+      "5. envVariables: 环境变量键值对不能为空字符串",
+    );
+    suggestions.push(
+      "6. type: 函数类型只能是 Event 或 HTTP（区分大小写）",
     );
   }
 
@@ -448,6 +519,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
   };
 
+  const TIME_FORMAT_REGEX = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/;
+
   const validateLogRange = (
     startTime?: string,
     endTime?: string,
@@ -456,6 +529,17 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
   ) => {
     if ((offset || 0) + (limit || 0) > 10000) {
       throw new Error("offset+limit 不能大于 10000");
+    }
+
+    if (startTime && !TIME_FORMAT_REGEX.test(startTime)) {
+      throw new Error(
+        `startTime 格式错误: "${startTime}"。必须使用 YYYY-MM-DD HH:mm:ss 格式（如 2024-01-01 00:00:00）`,
+      );
+    }
+    if (endTime && !TIME_FORMAT_REGEX.test(endTime)) {
+      throw new Error(
+        `endTime 格式错误: "${endTime}"。必须使用 YYYY-MM-DD HH:mm:ss 格式（如 2024-01-01 23:59:59）`,
+      );
     }
 
     if (startTime && endTime) {
@@ -565,15 +649,30 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         input.limit,
       );
       const cloudbase = await getManager();
-      const result = await cloudbase.functions.getFunctionLogsV2({
-        name: input.functionName,
-        offset: input.offset,
-        limit: input.limit,
-        startTime: input.startTime,
-        endTime: input.endTime,
-        requestId: input.requestId,
-        qualifier: input.qualifier,
-      });
+      let result;
+      try {
+        result = await cloudbase.functions.getFunctionLogsV2({
+          name: input.functionName,
+          offset: input.offset,
+          limit: input.limit,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          requestId: input.requestId,
+          qualifier: input.qualifier,
+        });
+      } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        if (/invalid parameter/i.test(errMsg)) {
+          throw new Error(
+            `${errMsg}\n\n常见原因：\n` +
+            `1. startTime/endTime 格式错误，必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 00:00:00），不支持 ISO 8601 或时间戳\n` +
+            `2. startTime 和 endTime 间隔超过一天\n` +
+            `3. functionName 不存在或格式不正确\n` +
+            `建议：不传 startTime/endTime 时默认查询最近一天的日志。`,
+          );
+        }
+        throw error;
+      }
       logCloudBaseResult(server.logger, result);
       return buildEnvelope(
         {
@@ -599,11 +698,25 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       }
       validateLogRange(input.startTime, input.endTime);
       const cloudbase = await getManager();
-      const result = await cloudbase.functions.getFunctionLogDetail({
-        startTime: input.startTime,
-        endTime: input.endTime,
-        logRequestId: input.requestId,
-      });
+      let result;
+      try {
+        result = await cloudbase.functions.getFunctionLogDetail({
+          startTime: input.startTime,
+          endTime: input.endTime,
+          logRequestId: input.requestId,
+        });
+      } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        if (/invalid parameter/i.test(errMsg)) {
+          throw new Error(
+            `${errMsg}\n\n常见原因：\n` +
+            `1. startTime/endTime 格式错误，必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 00:00:00），不支持 ISO 8601 或时间戳\n` +
+            `2. startTime 和 endTime 间隔超过一天\n` +
+            `建议：不传 startTime/endTime 时默认查询最近一天的日志。`,
+          );
+        }
+        throw error;
+      }
       logCloudBaseResult(server.logger, result);
       return buildEnvelope(
         {
@@ -830,26 +943,16 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       );
 
       if (func.type !== "HTTP") {
-        if (!func.runtime || typeof func.runtime !== "string") {
-          func.runtime = DEFAULT_RUNTIME;
-        } else {
-          const normalizedRuntime = func.runtime.replace(/\s+/g, "");
-          if ((ALL_SUPPORTED_RUNTIMES as readonly string[]).includes(normalizedRuntime)) {
-            func.runtime = normalizedRuntime;
-          } else if (func.runtime.includes(" ")) {
-            console.warn(
-              `检测到 runtime 参数包含空格: "${func.runtime}"，已自动移除空格`,
-            );
-            func.runtime = normalizedRuntime;
-          }
-        }
+        const originalRuntime = typeof func.runtime === "string" ? func.runtime : undefined;
+        func.runtime = resolveEventFunctionRuntime(func.runtime);
 
         if (
-          typeof func.runtime !== "string" ||
-          !(ALL_SUPPORTED_RUNTIMES as readonly string[]).includes(func.runtime)
+          typeof originalRuntime === "string" &&
+          originalRuntime.includes(" ") &&
+          originalRuntime.replace(/\s+/g, "") === func.runtime
         ) {
-          throw new Error(
-            `不支持的运行时环境: "${String(func.runtime)}"\n\n支持的运行时:\n${formatRuntimeList()}`,
+          console.warn(
+            `检测到 runtime 参数包含空格: "${originalRuntime}"，已自动移除空格`,
           );
         }
       }
@@ -867,7 +970,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
       if (functionType === "HTTP" && !processedRootPath && !input.zipFile) {
         throw new Error(
-          "createFunction 创建 HTTP 函数时，需要提供 functionRootPath（指向 cloudfunctions 父目录）或 zipFile。",
+          "createFunction 创建 HTTP 函数时，需要提供 functionRootPath（指向 cloudfunctions 或 functions 目录的绝对路径，不是项目根目录）或 zipFile。",
         );
       }
 
@@ -921,7 +1024,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           tool: "manageGateway",
           action: "createAccess",
           reason:
-            "如果需要通过 URL 访问 HTTP 函数，请按实际路径和鉴权需求显式创建访问入口，不要默认假设 /函数名 已存在",
+            "如果需要通过 URL 访问 HTTP 函数，请调用 manageGateway(action=\"createAccess\") 并显式传 type=\"HTTP\"，再按实际路径和鉴权需求创建访问入口，不要默认假设 /函数名 已存在",
         });
         nextActions.push({
           tool: "queryGateway",
@@ -929,14 +1032,14 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           reason: "交付前确认 HTTP 访问路径是否已存在并已生效",
         });
         nextActions.push({
-          tool: "readSecurityRule",
-          action: "读取安全规则",
+          tool: "queryPermissions",
+          action: "getResourcePermission",
           reason:
             "评测、浏览器或其他外部调用方可能以匿名身份访问；若直接报 EXCEED_AUTHORITY，应先读取当前函数安全规则",
         });
         nextActions.push({
-          tool: "writeSecurityRule",
-          action: "写入安全规则",
+          tool: "managePermissions",
+          action: "updateResourcePermission",
           reason:
             "只有在确认需要匿名访问时，才按实际安全要求调整函数安全规则，例如处理 EXCEED_AUTHORITY",
         });
@@ -944,7 +1047,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
       const message =
         func.type === "HTTP"
-          ? `已创建 HTTP 函数 ${functionName}。如果后续需要通过 URL 访问，请显式调用 manageGateway(action="createAccess") 按实际路径和鉴权需求创建访问入口。评测或其他外部调用方可能会以匿名身份访问，而且失败后不一定会把 EXCEED_AUTHORITY 再反馈给 AI；交付前请主动确认访问路径和函数安全规则，若已出现 EXCEED_AUTHORITY，请先调用 readSecurityRule(resourceType="function") 查看当前规则，再按需要使用 writeSecurityRule 调整权限。`
+          ? `已创建 HTTP 函数 ${functionName}。如果后续需要通过 URL 访问，请显式调用 manageGateway(action="createAccess")，并把 type="HTTP" 一起传入，再按实际路径和鉴权需求创建访问入口。评测或其他外部调用方可能会以匿名身份访问，而且失败后不一定会把 EXCEED_AUTHORITY 再反馈给 AI；交付前请主动确认访问路径和函数安全规则，若已出现 EXCEED_AUTHORITY，请先调用 queryPermissions(action="getResourcePermission", resourceType="function", resourceId="${functionName}") 查看当前规则，再按需要使用 managePermissions(action="updateResourcePermission") 调整权限。`
           : `已创建函数 ${functionName}`;
 
       return buildEnvelope(
@@ -1112,12 +1215,42 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         throw error;
       }
     }
+    case "deleteFunction": {
+      if (!input.functionName) {
+        throw new Error("deleteFunction 操作时，functionName 参数是必需的");
+      }
+      requireConfirm(input.action, input.confirm);
+      const cloudbase = await getManager();
+      const result = await cloudbase.functions.deleteFunction(input.functionName);
+      logCloudBaseResult(server.logger, result);
+      return buildEnvelope(
+        {
+          action: input.action,
+          functionName: input.functionName,
+          raw: result,
+        },
+        `已删除函数 ${input.functionName}`,
+        [
+          {
+            tool: "queryFunctions",
+            action: "listFunctions",
+            reason: "确认函数已被删除",
+          },
+        ],
+      );
+    }
     case "createFunctionTrigger": {
       if (!input.functionName) {
         throw new Error("createFunctionTrigger 操作时，functionName 参数是必需的");
       }
       if (!input.triggers?.length) {
         throw new Error("createFunctionTrigger 操作时，triggers 参数是必需的");
+      }
+      // Validate timer cron format before sending to CloudBase
+      for (const trigger of input.triggers) {
+        if (trigger.type === "timer") {
+          validateTimerCron(trigger.config);
+        }
       }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.createFunctionTriggers(
@@ -1371,23 +1504,64 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "查询云函数域资源",
       description:
-        "函数域统一只读入口。通过更自解释的 action 查询函数列表、函数详情、日志、层、触发器和代码下载地址。",
+        "函数域统一只读入口。通过更自解释的 action 查询 CloudBase 云函数列表、函数详情、执行日志、层、触发器和代码下载地址。" +
+        "\n\n**分页说明**：`listFunctions`、`listLayers` 支持 `limit` 和 `offset` 参数。" +
+        "\n- `limit`: 分页数量，默认值由后端决定" +
+        "\n- `offset`: 分页偏移，从 0 开始" +
+        "\n- 示例：`queryFunctions(action=\"listFunctions\", offset=10, limit=10)`" +
+        "\n\n**查询 CloudBase 云函数日志**：使用 `action=\"listFunctionLogs\"`，需要提供 `functionName` 参数。" +
+        "\n- 示例：`queryFunctions(action=\"listFunctionLogs\", functionName=\"my-function\")`" +
+        "\n- 如需查看日志详情：`queryFunctions(action=\"getFunctionLogDetail\", requestId=\"xxx\")`" +
+        "\n\n**定时任务 / cron / 定时跑**：使用 `listFunctionTriggers` 查询函数的 timer 触发器配置。" +
+        "\n\n**区分 `queryLogs` 工具**：" +
+        "\n- 本工具用于查询特定 CloudBase 云函数的执行日志" +
+        "\n- `queryLogs` 工具用于搜索 CLS 日志服务（跨服务日志聚合）",
       inputSchema: {
         action: z
           .enum(QUERY_FUNCTION_ACTIONS)
-          .describe("只读操作类型，例如 listFunctions、getFunctionDetail、listFunctionLogs"),
-        functionName: z.string().optional().describe("函数名称。函数相关 action 必填"),
-        limit: z.number().optional().describe("分页数量。列表类 action 可选"),
-        offset: z.number().optional().describe("分页偏移。列表类 action 可选"),
-        codeSecret: z.string().optional().describe("代码保护密钥"),
-        startTime: z.string().optional().describe("日志查询开始时间"),
-        endTime: z.string().optional().describe("日志查询结束时间"),
-        requestId: z.string().optional().describe("日志 requestId。获取日志详情时必填"),
-        qualifier: z.string().optional().describe("函数版本，日志查询时可选"),
-        runtime: z.string().optional().describe("层查询的运行时筛选"),
+          .describe(
+            "只读操作类型：" +
+            "\n- `listFunctions`: 列出所有 CloudBase 云函数" +
+            "\n- `getFunctionDetail`: 获取 CloudBase 云函数详情（需要 functionName）" +
+            "\n- `listFunctionLogs`: 查询 CloudBase 云函数执行日志（需要 functionName）" +
+            "\n- `getFunctionLogDetail`: 获取日志详情（需要 requestId）" +
+            "\n- `listFunctionLayers`: 列出函数绑定的层" +
+            "\n- `listLayers`: 列出所有层" +
+            "\n- `listLayerVersions`: 列出层的版本（注意：是 Versions 不是 Version）" +
+            "\n- `getLayerVersionDetail`: 获取层版本详情" +
+            "\n- `listFunctionTriggers`: 列出函数触发器（用于查看定时任务 / cron / timer 配置）" +
+            "\n- `getFunctionDownloadUrl`: 获取函数代码下载地址"
+          ),
+        functionName: z
+          .string()
+          .optional()
+          .describe("CloudBase 云函数名称。`getFunctionDetail`、`listFunctionLogs`、`listFunctionLayers`、`listFunctionTriggers`、`getFunctionDownloadUrl` 时必填"),
+        limit: z.number().optional().describe("分页数量（limit）。列表类 action 可选，默认值由后端决定"),
+        offset: z.number().optional().describe("分页偏移（offset）。列表类 action 可选，默认 0"),
+        codeSecret: z.string().optional().describe("代码保护密钥，用于解密函数代码"),
+        startTime: z
+          .string()
+          .optional()
+          .describe(
+            "日志查询开始时间，格式必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 00:00:00）。" +
+            "与 endTime 间隔不能超过一天。不传时默认查询最近一天"
+          ),
+        endTime: z
+          .string()
+          .optional()
+          .describe(
+            "日志查询结束时间，格式必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 23:59:59）。" +
+            "与 startTime 间隔不能超过一天。不传时默认为当前时间"
+          ),
+        requestId: z
+          .string()
+          .optional()
+          .describe("日志请求 ID。`getFunctionLogDetail` 操作必填，可从 `listFunctionLogs` 结果中获取"),
+        qualifier: z.string().optional().describe("函数版本别名，如 $LATEST、$DEFAULT。日志查询时可选"),
+        runtime: z.string().optional().describe("层查询的运行时筛选，如 Nodejs18.15"),
         searchKey: z.string().optional().describe("层名称搜索关键字"),
-        layerName: z.string().optional().describe("层名称。层相关 action 必填"),
-        layerVersion: z.number().optional().describe("层版本号。获取层版本详情时必填"),
+        layerName: z.string().optional().describe("层名称。`listLayerVersions`、`getLayerVersionDetail` 操作必填"),
+        layerVersion: z.number().optional().describe("层版本号。`getLayerVersionDetail` 操作必填"),
       },
       annotations: {
         readOnlyHint: true,
@@ -1403,22 +1577,42 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     {
       title: "管理云函数域资源",
       description:
-        "函数域统一写入口。通过 action 管理函数创建、代码更新、配置更新、触发器和层绑定。危险操作需要显式 confirm=true。",
+        "函数域统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。" +
+        "如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。" +
+        "危险操作需要显式 confirm=true。",
       inputSchema: {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
-          .describe("写操作类型，例如 createFunction、updateFunctionCode、attachLayer"),
+          .describe(
+            "写操作类型，例如 createFunction、updateFunctionCode、invokeFunction、deleteFunction、" +
+            "createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、attachLayer、detachLayer"
+          ),
         func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
-        functionRootPath: z.string().optional().describe("函数根目录（父目录绝对路径）"),
+        functionRootPath: z.string().optional().describe(
+          "创建或更新函数代码时默认推荐的本地目录方式。" +
+          "必须是直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions 或 /abs/path/functions），" +
+          "不要传项目根目录（如 /abs/path），也不要传到函数名子目录（如 /abs/path/cloudfunctions/hello）。" +
+          "本地应按 cloudfunctions/<functionName>/index.js 或 functions/<functionName>/index.js 布局，" +
+          "此参数传 cloudfunctions 或 functions 目录的绝对路径。" +
+          "SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。",
+        ),
         force: z.boolean().optional().describe("createFunction 时是否覆盖"),
         functionName: z.string().optional().describe("函数名称。大多数 action 使用该字段作为统一目标"),
-        zipFile: z.string().optional().describe("代码包的 base64 编码"),
+        zipFile: z.string().optional().describe(
+          "仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。",
+        ),
         handler: z.string().optional().describe("函数入口"),
         timeout: z.number().optional().describe("配置更新时的超时时间"),
         envVariables: z.record(z.string()).optional().describe("配置更新时要合并的环境变量"),
         vpc: VPC_SCHEMA.optional().describe("配置更新时的 VPC 信息"),
         params: z.record(z.any()).optional().describe("invokeFunction 的调用参数"),
-        triggers: z.array(TRIGGER_SCHEMA).optional().describe("createFunctionTrigger 的触发器列表"),
+        triggers: z
+          .array(TRIGGER_SCHEMA)
+          .optional()
+          .describe(
+            "createFunctionTrigger 的触发器列表，用于定时跑 / 定时任务 / scheduled job。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），" +
+            '如 "0 */5 * * * * *" 表示每5分钟执行一次'
+          ),
         triggerName: z.string().optional().describe("deleteFunctionTrigger 的目标触发器名称"),
         layerName: z.string().optional().describe("层名称"),
         layerVersion: z.number().optional().describe("层版本号"),
@@ -1432,7 +1626,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           .optional()
           .describe("updateFunctionLayers 的目标层列表，顺序即最终顺序"),
         codeSecret: z.string().optional().describe("层绑定时的代码保护密钥"),
-        confirm: z.boolean().optional().describe("危险操作确认开关"),
+        confirm: z.boolean().optional().describe("危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作需要显式传入 confirm=true"),
       },
       annotations: {
         readOnlyHint: false,

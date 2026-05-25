@@ -52,6 +52,16 @@ alwaysApply: true
 - tests 自动化测试
 </project_rules>
 
+<attribution_evaluation_guardrails>
+当任务来源于 failing eval、attribution issue、grader、benchmark、trace、result artifact 或其他评测证据时，必须额外遵守以下规则：
+1. 评测证据只用于定位问题，不等于产品公开契约；先判断是否存在真实用户可见的产品缺陷，再决定是否修改产品代码。
+2. 不要为了通过评测而新增 benchmark-only / grader-only 的兼容分支、提示词、注释、文案或行为。
+3. 不要新增同一语义字段的多套命名变体（例如大小写/下划线别名）来“兼容评测”，除非该别名已经是文档化的公开契约。
+4. 不要在代码、注释、文档、提交说明或 PR 描述中泄漏内部评测文件名或上下文路径（例如 `run-result.json`、`run-trace.json`、`evaluation-trace.json`、`.codebuddy/attribution-context`）；如必须提及，统一改写为“internal evaluation evidence”。
+5. 如果证据更像 grader / task contract 问题、仓库路由错误、或外部系统限制，而不是当前仓库里的真实产品缺陷，应停止产品表面改动，并在总结里明确说明原因与后续建议。
+6. 提交前必须自查 staged diff：确认没有评测专用措辞、没有内部 artifact 泄漏、没有为同一字段临时补多个别名。
+</attribution_evaluation_guardrails>
+
 <cloud_api_backend_rules>
 1. 如果需求涉及通过调用腾讯云 API 来实现后端功能，开始设计或编码前必须先查阅相关文档：
    - 云 API 文档：https://cloud.tencent.com/document/product/876/34809
@@ -106,8 +116,10 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 
 
 <git_push>
-提交代码注意 commit 采用 conventional-changelog 风格，在feat(xxx): 后面提加一个 emoji 字符，提交信息使用英文描述
-git push github && git push cnb --force
+提交代码注意 commit 采用 conventional-changelog 风格，在 `feat(xxx):` 后面加一个 emoji，提交信息使用英文描述。
+默认只推送 GitHub 远端，不要执行 `cnb` 推送，也不要使用 `--force`：
+- `git push github HEAD`
+提交 PR 之后不要立刻结束，先等待几分钟，观察 review 评论和 CI 结果；如果有可执行的失败项或反馈，继续在同一分支修复并更新 PR。
 </git_push>
 
 <workflow>
@@ -208,11 +220,12 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 
 
 <git_push>
-1. 提交代码注意 commit 采用 conventional-changelog 风格，在feat(xxx): 后面提加一个 emoji 字符，提交信息使用英文描述
-2. 提交代码不要直接提到 main，可以提一个分支，例如 feature/xxx，然后
-
-git push github && git push cnb --force
-3. 然后自动创建 PR
+1. 提交代码注意 commit 采用 conventional-changelog 风格，在 `feat(xxx):` 后面加一个 emoji，提交信息使用英文描述。
+2. 提交代码不要直接推到 `main`，使用 feature 分支，并且默认只推送 GitHub 远端，不要执行 `cnb` 推送，也不要使用 `--force`：
+   - `git push github HEAD`
+3. 然后自动创建 PR。
+4. 创建 PR 后先等待几分钟，再检查 review 评论和 CI；如果有可执行的问题，继续在同一分支修复并更新 PR。
+5. **每次推送代码到 PR 分支后，必须立即检查 PR 状态**：包括是否有冲突（`This branch has conflicts that must be resolved`）、CI 是否通过、机器人评论是否已解决。不要假设推送后万事大吉，冲突和 CI 失败往往只在远程才暴露。
 </git_push>
 
 <skills_and_rules_maintenance>
@@ -245,3 +258,19 @@ git push github && git push cnb --force
      - `node scripts/diff-compat-config.mjs`
      - `node scripts/sync-config.mjs`
 </skills_and_rules_maintenance>
+
+<doc_freshness_rules>
+插件系统与接入说明相关文档的维护遵循以下规则：
+
+1. 插件清单单一真源
+   - `mcp/src/server.ts` 中的 `DEFAULT_PLUGINS`、`AVAILABLE_PLUGINS`、`PLUGIN_ALIASES` 是插件名、默认启用集合与兼容别名的唯一真源
+   - 修改插件名、默认集合或别名时，必须同步检查 `doc/plugins.md`、`doc/connection-modes.mdx`、`README.md`、`mcp/README.md`
+
+2. URL 参数与环境变量成对校验
+   - 同一能力如果同时暴露环境变量与 URL 参数（例如 `CLOUDBASE_MCP_PLUGINS_ENABLED` / `CLOUDBASE_MCP_PLUGINS_DISABLED` 与 `enable_plugins` / `disable_plugins`），标题、说明、示例和多值格式必须保持一致
+   - 多值默认统一使用逗号分隔，不要再写重复 query key 的示例
+
+3. canonical 名称与文档链接校验
+   - 文档中的插件 canonical 名必须能在 `AVAILABLE_PLUGINS` 中解析；旧名称只允许出现在“兼容别名”说明中，不应继续作为主名称书写
+   - 文档链接必须指向真实存在的仓库文件或站点路由；涉及工具数量时，优先使用不易过期的描述，避免写死数字
+</doc_freshness_rules>

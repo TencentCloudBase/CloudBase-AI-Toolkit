@@ -17,16 +17,75 @@ import AIDevelopmentPrompt from '../components/AIDevelopmentPrompt';
 
 <AIDevelopmentPrompt ruleId="auth-wechat" />
 
-## Skill 
+## 安装与查看
 
-````markdown title="rule.md"
+如果需要安装全部 CloudBase Skills，可执行：
+
+```bash
+npx skills add tencentcloudbase/cloudbase-skills
+```
+
+如果只安装当前 Skill，可执行：
+
+```bash
+npx skills add https://github.com/tencentcloudbase/skills --skill auth-wechat
+```
+
+当前 Skill 在线查看： [auth-wechat](https://skills.sh/tencentcloudbase/skills/auth-wechat-miniprogram)
+
+---
+
+## Skill 规则原文
+
+<details>
+<summary>查看 SKILL.md 原文</summary>
+
+````markdown
+## Standalone Install Note
+
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
+
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-wechat/SKILL.md`
+
+Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
+
+## Activation Contract
+
+### Use this first when
+
+- The task is about WeChat Mini Program auth behavior, `wx.cloud` identity, `OPENID` / `UNIONID`, or how a mini program caller is identified in CloudBase.
+- The project is a CloudBase mini program and the auth question is about native mini program identity rather than provider configuration.
+
+### Read before writing code if
+
+- The request mentions mini program login, user identity in cloud functions, or `wx.cloud` auth assumptions.
+- The user expects a Web-style login page or explicit token exchange in a mini program; route them back to native mini program auth behavior.
+
+### Then also read
+
+- Mini program project implementation -> `../miniprogram-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/miniprogram-development/SKILL.md`)
+- Cloud function implementation -> `../cloud-functions/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloud-functions/SKILL.md`)
+
+### Do NOT use for
+
+- Web-based WeChat login or Web auth UI.
+- Provider enable/disable or auth console setup.
+- Generic Node-side auth flows outside mini program identity handling.
+
+### Common mistakes / gotchas
+
+- Generating a Web-style login page for a `wx.cloud` mini program.
+- Treating mini program auth as a provider-configuration problem.
+- Forgetting that caller identity is injected in cloud functions automatically.
+
 ## When to use this skill
 
 Use this skill for **WeChat Mini Program (小程序) authentication** in a CloudBase project.
 
 Use it when you need to:
 
-- Implement WeChat Mini Program login with CloudBase
+- Implement identity-aware WeChat Mini Program flows with CloudBase
 - Access user identity (openid, unionid) in cloud functions
 - Understand how WeChat authentication integrates with CloudBase
 - Build Mini Program features that require user identification
@@ -139,7 +198,7 @@ cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 })
 
-exports.main = async (event, context) =&gt; {
+exports.main = async (event, context) => {
   // Get user identity - this is automatically injected by WeChat
   const { OPENID, APPID, UNIONID } = cloud.getWXContext()
 
@@ -191,7 +250,7 @@ Page({
     wx.cloud.callFunction({
       name: 'getUserInfo',  // Cloud function name
       data: {},             // Optional parameters
-      success: res =&gt; {
+      success: res => {
         console.log('User info from cloud function:', res.result)
         // res.result contains { openid, appid, unionid }
 
@@ -200,7 +259,7 @@ Page({
           openid: res.result.openid
         })
       },
-      fail: err =&gt; {
+      fail: err => {
         console.error('Failed to get user info:', err)
       }
     })
@@ -228,7 +287,7 @@ cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 })
 
-exports.main = async (event, context) =&gt; {
+exports.main = async (event, context) => {
   // Get verified user identity - automatically injected by WeChat
   const { OPENID, APPID, UNIONID } = cloud.getWXContext()
 
@@ -265,7 +324,7 @@ Page({
 
     wx.cloud.callFunction({
       name: 'test',
-      success: res =&gt; {
+      success: res => {
         console.log('Authentication test result:', res.result)
 
         this.setData({
@@ -277,7 +336,7 @@ Page({
           icon: 'success'
         })
       },
-      fail: err =&gt; {
+      fail: err => {
         console.error('Authentication test failed:', err)
         wx.showToast({
           title: 'Auth failed',
@@ -344,10 +403,10 @@ Always handle errors when calling cloud functions:
 ```js
 wx.cloud.callFunction({
   name: 'myFunction',
-  success: res =&gt; {
+  success: res => {
     // Handle success
   },
-  fail: err =&gt; {
+  fail: err => {
     console.error('Cloud function error:', err)
     // Show user-friendly error message
     wx.showToast({
@@ -383,7 +442,7 @@ App({
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
-exports.main = async (event, context) =&gt; {
+exports.main = async (event, context) => {
   const { OPENID, APPID, UNIONID } = cloud.getWXContext()
 
   return {
@@ -400,7 +459,7 @@ exports.main = async (event, context) =&gt; {
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
-exports.main = async (event, context) =&gt; {
+exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
 
   // Check if user is authorized
@@ -419,7 +478,7 @@ exports.main = async (event, context) =&gt; {
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
-exports.main = async (event, context) =&gt; {
+exports.main = async (event, context) => {
   const { OPENID, UNIONID } = cloud.getWXContext()
 
   if (UNIONID) {
@@ -455,3 +514,5 @@ WeChat Mini Program authentication with CloudBase is **simple and secure**:
 
 For more complex authentication scenarios or integration with other systems, consider using CloudBase custom login in combination with WeChat authentication.
 ````
+
+</details>

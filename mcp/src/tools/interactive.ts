@@ -88,6 +88,7 @@ export async function _promptAndSetEnvironmentId(
     onDeviceCode?: (info: {
       user_code: string;
       verification_uri?: string;
+      verification_uri_complete?: string;
       device_code: string;
       expires_in: number;
     }) => void;

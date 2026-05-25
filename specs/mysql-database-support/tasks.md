@@ -115,7 +115,7 @@
     - `updateCollection` - 更新集合配置，有特殊参数结构（索引配置等）
     - `checkIndexExists` - 检查索引，保留独立工具更直接、更高效
     - `manageDataModel` - 数据模型管理（独立功能）
-    - `modifyDataModel` - 数据模型修改（独立功能）
+    - `modifyDataModel` - 数据模型创建（兼容工具名，当前仅支持 create）
   
   - 更新相关文档，说明工具迁移路径和替代方案
   - 保持向后兼容性（可选：添加废弃提示，建议使用新工具）

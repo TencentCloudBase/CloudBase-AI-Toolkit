@@ -2,12 +2,6 @@
   "name": "cloudbase-ai-toolkit",
   "version": "1.7.3",
   "scripts": {
-    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s --commit-path . --preset-config ./.versionrc.json",
-    "changelog:first": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0 --commit-path . --preset-config ./.versionrc.json",
-    "release": "standard-version",
-    "release:alpha": "standard-version --prerelease alpha",
-    "release:beta": "standard-version --prerelease beta",
-    "release:rc": "standard-version --prerelease rc",
     "check:readme-sync": "node scripts/check-readme-sync.js",
     "update:compat-baseline": "node scripts/update-compat-baseline.mjs",
     "check:compat-diff": "node scripts/diff-compat-config.mjs",
@@ -20,18 +14,16 @@
     "build:prompts-data": "node scripts/generate-prompts-data.mjs && node scripts/generate-prompts.mjs",
     "build:rules-sync": "node scripts/build-compat-config.mjs",
     "generate:tcb-action-index": "node scripts/generate-tcb-action-index.mjs",
-    "sync:config": "node scripts/sync-config.mjs"
+    "sync:config": "node scripts/sync-config.mjs",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.16.0",
-    "conventional-changelog-angular": "^6.0.0",
-    "conventional-changelog-cli": "^4.1.0",
+    "husky": "^9.1.7",
     "js-yaml": "^4.1.1",
-    "standard-version": "^9.5.0"
+    "tsx": "^4.21.0"
   },
-  "changelog": {
-    "commitUrlFormat": "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/{{hash}}",
-    "compareUrlFormat": "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/compare/{{previousTag}}...{{currentTag}}",
-    "issueUrlFormat": "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues/{{id}}"
+  "dependencies": {
+    "@cloudbase/manager-node": "^5.3.1"
   }
 }

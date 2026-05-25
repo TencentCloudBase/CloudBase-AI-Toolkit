@@ -1,0 +1,82 @@
+name: Sync Main to Examples
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "config/source/skills/**"
+      - "config/source/guideline/**"
+      - "config/source/editor-config/**"
+      - "scripts/build-compat-config.mjs"
+      - "scripts/diff-compat-config.mjs"
+      - "scripts/update-compat-baseline.mjs"
+      - "scripts/sync-config.mjs"
+      - "scripts/template-config.json"
+      - ".github/workflows/sync-main-to-examples.yml"
+
+concurrency:
+  group: sync-main-to-examples
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@v4
+
+      - name: Checkout cloudbase-examples
+        uses: actions/checkout@v4
+        with:
+          repository: TencentCloudBase/awsome-cloudbase-examples
+          ref: master
+          path: cloudbase-examples
+          token: ${{ secrets.CLOUDBASE_EXAMPLES_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate compatibility surface
+        run: node scripts/diff-compat-config.mjs
+
+      - name: Check git status before sync
+        working-directory: cloudbase-examples
+        run: |
+          echo "=== Git status before sync ==="
+          git status --short || true
+
+      - name: Sync config to examples
+        run: node scripts/sync-config.mjs --skip-git
+        env:
+          CLOUDBASE_EXAMPLES_PATH: cloudbase-examples
+
+      - name: Check git status after sync
+        working-directory: cloudbase-examples
+        run: |
+          echo "=== Git status after sync ==="
+          git status --short
+          echo "=== Files changed ==="
+          git diff --name-only || echo "No changes detected"
+          echo "=== Staged files ==="
+          git diff --staged --name-only || echo "No staged files"
+
+      - name: Commit and push changes
+        working-directory: cloudbase-examples
+        env:
+          PAT_TOKEN: ${{ secrets.CLOUDBASE_EXAMPLES_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit, skipping commit and push"
+          else
+            git commit -m "chore: sync config from main"
+            git remote set-url origin https://x-access-token:${PAT_TOKEN}@github.com/TencentCloudBase/awsome-cloudbase-examples.git
+            git push origin master
+          fi

@@ -3,12 +3,25 @@ import { ToolPayloadError } from "./utils/tool-result.js";
 
 const mockCloudBaseCtor = vi.fn();
 const mockAuthGetProgressState = vi.fn();
+const mockBuildDeviceAuthChallengePayload = vi.fn((info: any) =>
+  info
+    ? {
+        user_code: info.user_code,
+        verification_uri: info.verification_uri,
+        verification_uri_complete:
+          info.verification_uri_complete ??
+          `${info.verification_uri}${info.verification_uri?.includes("?") ? "&" : "?"}user_code=${encodeURIComponent(info.user_code)}`,
+        expires_in: info.expires_in,
+      }
+    : undefined,
+);
 const mockPeekLoginState = vi.fn();
 const mockEnsureLogin = vi.fn();
 const mockCommonServiceCall = vi.fn();
 const mockListEnvs = vi.fn();
 
 vi.mock("./auth.js", () => ({
+  buildDeviceAuthChallengePayload: mockBuildDeviceAuthChallengePayload,
   getAuthProgressState: mockAuthGetProgressState,
   peekLoginState: mockPeekLoginState,
   getLoginState: mockEnsureLogin,
@@ -79,6 +92,7 @@ describe("cloudbase manager auth gate", () => {
         code: "AUTH_PENDING",
         auth_challenge: expect.objectContaining({
           user_code: "WDJB-MJHT",
+          verification_uri_complete: "https://example.com/device?user_code=WDJB-MJHT",
         }),
         next_step: expect.objectContaining({
           tool: "auth",
@@ -119,6 +133,100 @@ describe("cloudbase manager auth gate", () => {
       }),
     );
     await expect(getEnvId()).resolves.toBe("env-1");
+  });
+
+  it("should use fallback region when envId is provided without explicit region", async () => {
+    process.env.TCB_REGION = "ap-shanghai";
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      token: "token",
+    });
+
+    const { getCloudBaseManager } = await import("./cloudbase-manager.js");
+
+    await expect(
+      getCloudBaseManager({
+        cloudBaseOptions: {
+          envId: "env-explicit",
+        },
+      }),
+    ).resolves.toMatchObject({
+      commonService: expect.any(Function),
+      env: expect.any(Object),
+    });
+
+    expect(mockCloudBaseCtor).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        secretId: "sid",
+        secretKey: "skey",
+        token: "token",
+        envId: "env-explicit",
+        region: "ap-shanghai",
+      }),
+    );
+    // Should NOT call DescribeEnvs for region detection (STS compatibility)
+    expect(mockCommonServiceCall).not.toHaveBeenCalled();
+  });
+
+  it("should honor explicit region without resolving env candidates", async () => {
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      token: "token",
+    });
+
+    const { getCloudBaseManager } = await import("./cloudbase-manager.js");
+
+    await expect(
+      getCloudBaseManager({
+        cloudBaseOptions: {
+          envId: "env-explicit",
+          region: "ap-guangzhou",
+        },
+      }),
+    ).resolves.toMatchObject({
+      commonService: expect.any(Function),
+      env: expect.any(Object),
+    });
+
+    expect(mockCloudBaseCtor).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        secretId: "sid",
+        secretKey: "skey",
+        token: "token",
+        envId: "env-explicit",
+        region: "ap-guangzhou",
+      }),
+    );
+    expect(mockCommonServiceCall).not.toHaveBeenCalled();
+  });
+
+  it("should use fallback region even when login envId is already known", async () => {
+    process.env.TCB_REGION = "ap-shanghai";
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      token: "token",
+      envId: "env-guangzhou",
+    });
+
+    const { getCloudBaseManager } = await import("./cloudbase-manager.js");
+
+    await expect(getCloudBaseManager()).resolves.toMatchObject({
+      commonService: expect.any(Function),
+      env: expect.any(Object),
+    });
+
+    expect(mockCloudBaseCtor).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        secretId: "sid",
+        secretKey: "skey",
+        token: "token",
+        envId: "env-guangzhou",
+        region: "ap-shanghai",
+      }),
+    );
   });
 
   it("should fail fast with ENV_REQUIRED when login exists but multiple envs", async () => {

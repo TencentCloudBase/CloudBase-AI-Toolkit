@@ -4,10 +4,11 @@
 
 <h1>CloudBase MCP</h1>
 
-**🪐 Go from AI prompt to live app in one click**<br/>
-The bridge that connects your AI IDE (Cursor, Copilot, etc.) directly to Tencent CloudBase
+**🪐 AI Coding, One-Click Deploy**<br/>
+The bridge that connects your AI IDE to Tencent CloudBase, getting your AI apps online instantly<br/>
+<sup>💡 Like Vercel + Supabase, but fully AI-driven — from prompt to production</sup>
 
-**Languages:** [中文](README-ZH.md) | **English** · [Documentation][docs] · [Changelog][changelog] · [Report Issues][github-issues-link]
+[简体中文](./README.md) · **English** · [Documentation][docs] · [Changelog][changelog] · [Report Issues][github-issues-link]
 
 <!-- SHIELD GROUP -->
 
@@ -20,6 +21,8 @@ The bridge that connects your AI IDE (Cursor, Copilot, etc.) directly to Tencent
 [![][github-contributors-shield]][github-contributors-link]
 [![][cnb-shield]][cnb-link]
 [![][deepwiki-shield]][deepwiki-link]
+
+⭐ Like this project? Star it to get notified when new versions are released!
 
 **Found a game-changer for AI coding: one-click deploy from prompt to production**
 
@@ -37,7 +40,7 @@ The bridge that connects your AI IDE (Cursor, Copilot, etc.) directly to Tencent
 
 ## Why You Need CloudBase MCP
 
-AI programming tools (like Cursor, Copilot) solve the **code generation** challenge.
+AI coding tools (like OpenClaw, Cursor, CodeBuddy) solve the **code generation** challenge.
 
 However, there's still a gap between "generating code" and "application going live" (deployment, database configuration, CDN, domain setup).
 
@@ -53,20 +56,28 @@ You only need to use natural language in your AI IDE to complete the entire jour
 <details>
 <summary><kbd>Table of Contents</kbd></summary>
 
-- [Quick Start](#quick-start)
-- [Core Features](#core-features)
-- [Installation & Configuration](#installation--configuration)
-- [Use Cases](#use-cases)
-- [MCP Tools](#mcp-tools)
-- [More Resources](#more-resources)
+- [🚀 Quick Start](#-quick-start)
+- [✨ Core Features](#-core-features)
+- [📦 Installation & Configuration](#-installation--configuration)
+- [🎯 Use Cases](#-use-cases)
+- [🧩 MCP Tools](#-mcp-tools)
+- [📚 More Resources](#-more-resources)
 
 </details>
 
-## Quick Start
+## 🚀 Quick Start
 
 ### One-Line Configuration, Start Using Immediately
 
-In AI IDEs that support MCP (Cursor, WindSurf, CodeBuddy, etc.), just add one line of configuration:
+Add the following configuration to AI IDEs that support MCP (Cursor, WindSurf, CodeBuddy, etc.). There are two connection methods:
+
+---
+
+#### Method 1: Local Mode (Recommended)
+
+**Meaning**: MCP service runs on your local machine via `npx`, running on the same machine as the IDE.
+**Advantages**: Full functionality (including upload/download, template installation, and other capabilities that depend on the local file system).
+**Requirements**: Node.js installed on the local machine, and can execute `npx`.
 
 ```json
 {
@@ -78,6 +89,71 @@ In AI IDEs that support MCP (Cursor, WindSurf, CodeBuddy, etc.), just add one li
   }
 }
 ```
+
+---
+
+#### Method 2: Hosted Mode
+
+**Meaning**: MCP service runs on Tencent Cloud, IDE connects to the cloud service via HTTP, no need to install or run Node locally.
+**Advantages**: Does not depend on the local machine environment, can be used after configuring the secret key.
+**Limitations**: Some capabilities that depend on the local file system are unavailable (such as local file upload, template download to local machine, etc.).
+
+Replace `<env_id>`, `<Tencent Cloud Secret ID>`, `<Tencent Cloud Secret Key>` in the configuration below with your environment ID and Tencent Cloud API keys:
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "type": "http",
+      "url": "https://tcb-api.cloud.tencent.com/mcp/v1?env_id=<env_id>",
+      "headers": {
+        "X-TencentCloud-SecretId": "<Tencent Cloud Secret ID>",
+        "X-TencentCloud-SecretKey": "<Tencent Cloud Secret Key>"
+      }
+    }
+  }
+}
+```
+
+#### Method 3: Self-Hosted Server Deployment (Cloud Mode)
+
+**Meaning**: Run the MCP service on your own server with the `CLOUDBASE_MCP_CLOUD_MODE=true` environment variable to enable cloud mode.
+**Use Case**: When you need to deploy the MCP server on a remote machine and expose it via Streamable HTTP.
+**Security**: When Cloud Mode is enabled, all tools involving local file system read/write and local process execution are **automatically disabled**, ensuring remote callers cannot operate on the server's local resources.
+
+```bash
+# Enable cloud mode via environment variable (either one)
+export CLOUDBASE_MCP_CLOUD_MODE=true
+# or
+export MCP_CLOUD_MODE=true
+```
+
+Tools disabled in Cloud Mode include: `downloadRemoteFile`, `downloadTemplate`, `manageCloudRun` (local run), `manageApps` (local code upload for deploy), `manageStorage` (local file upload/download), `createFunction` (local code upload), and other local file I/O operations.
+
+> [!IMPORTANT]
+> **Deployment Mode Recommendations:**
+> - **Personal development**: Use local mode (`npx`) for full functionality
+> - **Team collaboration / remote services**: Use Tencent Cloud hosted mode (Method 2) for zero maintenance
+> - **Self-hosted server**: Always set `CLOUDBASE_MCP_CLOUD_MODE=true` to disable local file operation tools
+
+---
+
+**Optional for Hosted Mode: Control plugin enablement scope via URL**
+
+In the `url`, you can control the plugin enablement scope through query parameters:
+
+- `enable_plugins`: Only enable specified plugins, multiple plugins separated by commas, e.g., only enable `env` and `database`
+- `disable_plugins`: Disable specified plugins from the default plugin set, multiple plugins separated by commas, e.g., disable `rag` and `env`
+
+```
+# Only enable specified plugins
+https://tcb-api.cloud.tencent.com/mcp/v1?env_id=YOUR_ENV_ID&enable_plugins=env,database
+
+# Disable specified plugins
+https://tcb-api.cloud.tencent.com/mcp/v1?env_id=YOUR_ENV_ID&disable_plugins=rag,env
+```
+
+The currently configurable plugin names are subject to `mcp/src/server.ts`. It is recommended to use canonical names: `env`, `database`, `functions`, `hosting`, `storage`, `setup`, `rag`, `download`, `gateway`, `cloudrun`, `app-auth`, `permissions`, `logs`, `agents`, `invite-code`, `capi`, `apps`.
 
 > [!TIP]
 > **Recommended: CloudBase AI CLI**
@@ -362,6 +438,8 @@ When an app has issues, AI automatically views logs, analyzes errors, and genera
 
 #### Articles
 - [Develop a Neighborhood Item Recycling Mini-Program with CloudBase AI CLI](https://docs.cloudbase.net/practices/ai-cli-mini-program)
+- [Build and auto-deploy with OpenClaw + CloudBase](https://mp.weixin.qq.com/s/vKcnro2GrbjI_QyQohpNRw)
+- [Agent Skills in practice: don't let AI-built code die on localhost](https://mp.weixin.qq.com/s/soIEU5DG01xfrKMaCetGAA)
 - [One-stop development of card flip game with CodeBuddy IDE + CloudBase](https://mp.weixin.qq.com/s/2EM3RBzdQUCdfld2CglWgg)
 - [Develop a WeChat mini-game in 1 hour](https://cloud.tencent.com/developer/article/2532595)
 - [More tutorials...](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/tutorials)
@@ -377,6 +455,65 @@ When an app has issues, AI automatically views logs, analyzes errors, and genera
 - [Overcooked Co-op Game](https://github.com/TencentCloudBase/awesome-cloudbase-examples/tree/master/web/overcooked-game)
 - [E-commerce Admin Panel](https://github.com/TencentCloudBase/awesome-cloudbase-examples/tree/master/web/ecommerce-management-backend)
 - [More cases...](https://github.com/TencentCloudBase/awesome-cloudbase-examples)
+
+## ❓ FAQ
+
+<details>
+<summary><b>How is it different from Vercel / Railway / Netlify?</b></summary>
+
+These platforms solve "deployment", CloudBase MCP solves the complete chain from "AI-generated code to deployment". You don't need to leave the IDE, don't need to write configuration files - AI automatically handles all cloud resources including cloud functions, databases, CDN, domains, etc. In one sentence: They are deployment tools, we are an AI-native full-stack development + deployment platform.
+
+</details>
+
+<details>
+<summary><b>Can I use it without Cursor / Copilot or other AI IDEs?</b></summary>
+
+CloudBase MCP is based on the standard MCP protocol, supporting all MCP-compatible tools - including Claude Code, Gemini CLI, OpenCode, and other CLI tools. As long as your tool can configure an MCP Server, you can use it. [View complete support list](#supported-ai-ides).
+
+</details>
+
+<details>
+<summary><b>Where will my code be uploaded? Is it secure?</b></summary>
+
+Code will only be deployed to **your own** Tencent CloudBase environment, and won't pass through any third party. In local mode, MCP service runs on your local machine, code won't leave your computer until you actively deploy. All cloud communications use HTTPS encryption.
+
+</details>
+
+<details>
+<summary><b>Is it safe to deploy MCP service on a remote server?</b></summary>
+
+CloudBase MCP provides comprehensive deployment mode security isolation:
+
+- **Local Mode** (started via `npx`): MCP service runs on the developer's local machine, communicating with the AI IDE via stdio. The caller is the developer themselves, who already has full control of the machine. Tools like `downloadRemoteFile` and `manageCloudRun(action="run")` are essentially equivalent to the developer running `curl` or `node app.js` in a terminal — this is normal product functionality.
+- **Cloud/Server Mode** (set `CLOUDBASE_MCP_CLOUD_MODE=true`): Enables a three-layer security filtering mechanism that **disables all tools involving local file read/write and local process execution**, preventing remote callers from operating on the server's local file system or launching local processes via MCP.
+
+If you need to deploy the MCP service on a remote server, **you must set the `CLOUDBASE_MCP_CLOUD_MODE=true` environment variable**. The Tencent Cloud hosted mode (Streamable HTTP) has this protection enabled automatically.
+
+</details>
+
+
+<details>
+<summary><b>What types of projects are supported?</b></summary>
+
+Almost all mainstream scenarios: Web apps like React/Vue/Next.js, WeChat Mini-Programs, Node.js/Python/Go/Java backend services. AI will automatically detect the project type and choose the appropriate deployment strategy (static hosting, cloud functions, cloud-run containers).
+
+</details>
+
+<details>
+<summary><b>Is it free? Do I need to pay?</b></summary>
+
+The CloudBase MCP tool itself is completely open-source and free (MIT). CloudBase environment has free quotas, usually sufficient for personal development and small projects. After exceeding the free quota, pay-as-you-go billing applies. See [Billing Instructions](https://cloud.tencent.com/document/product/876/39095) for details.
+
+</details>
+
+<details>
+<summary><b>What if login says "environment doesn't exist"?</b></summary>
+
+1. Confirm you've activated an environment in the [CloudBase Console](https://tcb.cloud.tencent.com/)
+2. Check if the environment is in normal running status (not suspended/isolated due to unpaid fees)
+3. Re-execute "Login to CloudBase" to let AI guide you to select the correct environment
+
+</details>
 
 ## Community
 
@@ -395,9 +532,9 @@ When an app has issues, AI automatically views logs, analyzes errors, and genera
 | **Official Documentation** | [View Documentation](https://docs.cloudbase.net/) | Complete CloudBase documentation |
 | **Issue Feedback** | [Submit Issue](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues) | Bug reports and feature requests |
 
-## Star History
+## Project Activity
 
-[![Star History Chart](https://api.star-history.com/svg?repos=TencentCloudBase/CloudBase-AI-ToolKit&type=Timeline)](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)
+![Repo Activity](https://repobeats.axiom.co/api/embed/6cd6ed00da4384e43b24805c197f584626946dda.svg "Repobeats analytics image")
 
 ## Contributors
 
@@ -459,7 +596,7 @@ Prompt templates (all images without text, pure geometric shapes and icons):
 
 <!-- Links -->
 [docs]: https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/
-[changelog]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/releases
+[changelog]: https://github.com/TencentCloudBase/CloudBase-MCP/releases
 [github-issues-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues
 [github-stars-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/stargazers
 [github-forks-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/network/members

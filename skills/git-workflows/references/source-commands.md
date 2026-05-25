@@ -13,7 +13,9 @@ When user inputs `/git_commit`
 
 ## Behavior
 1. Commit code using conventional-changelog style
-2. Execute `git push origin <branch-name>`
+2. After each commit, run `git status --short`.
+3. If hooks/build steps modified tracked files (for example generated docs or JSON), review them and create follow-up commit(s) until the working tree is clean.
+4. Execute `git push origin <branch-name>`
 
 ## Commit Message Format
 Follow conventional-changelog style:
@@ -78,12 +80,15 @@ When user inputs `/git_push`
 - Include detailed description of changes
 - Reference related issues if applicable
 - Add appropriate labels and reviewers
+- After opening the PR, wait a few minutes and then inspect automated review comments and CI results before declaring the work done
+- If review feedback or CI failures are actionable, continue fixing them on the same branch and update the PR
 
 ## Quality Checklist
 - [ ] Working on appropriate feature branch
 - [ ] Commit message follows conventional-changelog format
 - [ ] All changes are committed and pushed
 - [ ] PR is created with proper title and description
+- [ ] Waited a few minutes, checked review comments and CI, and handled any actionable follow-up
 - [ ] Switched back to main branch
 ```
 
@@ -271,8 +276,17 @@ When user inputs `/version_publish_main`
 
 ### Step 2: Bump version in `mcp/`
 1. `cd mcp`
-2. Run `npx bumpp` and use the interactive prompts to select the target version
-3. After bump, commit the version change on `main` and push:
+2. Determine the exact target version (preferred) or release type before running `bumpp`.
+3. Run `bumpp` non-interactively instead of relying on prompts:
+   - Exact version: `npx bumpp --release X.Y.Z --yes --no-commit --no-tag --no-push --ignore-scripts`
+   - Release type: `npx bumpp --release patch --yes --no-commit --no-tag --no-push --ignore-scripts`
+   - Supported `--release` values include explicit versions and release types such as `major`, `minor`, `patch`, `premajor`, `preminor`, `prepatch`, and `prerelease`.
+   - Ensure Node 22+ is active before running (e.g. via `nvm use 22` or the workspace's version manager). Bare `npx bumpp` may fall back to Node 18 and fail.
+4. Return to repo root and sync all repo-managed CloudBase skill versions to the same release version:
+   - `cd ..`
+   - `node scripts/sync-skill-versions.mjs --version X.Y.Z`
+   - This updates `config/source/skills/*/SKILL.md` and `config/source/guideline/cloudbase/SKILL.md`
+5. After bump, commit the version change on `main` and push:
    - Example: `chore(release): bump version to vX.Y.Z`
    - `git push origin main`
 

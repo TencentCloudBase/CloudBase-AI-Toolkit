@@ -249,7 +249,7 @@ const infos = result.Infos.map(info => JSON.parse(info));
     - `updateCollection` - 更新集合配置，有特殊参数结构（索引配置等）
     - `checkIndexExists` - 检查索引，保留独立工具更直接、更高效
     - `manageDataModel` - 数据模型管理（独立功能）
-    - `modifyDataModel` - 数据模型修改（独立功能）
+    - `modifyDataModel` - 数据模型创建（兼容工具名，当前仅支持 create）
   - **移除**（被统一工具替代）：
     - `queryDocuments` → `executeDatabaseQuery` (dbType: 'NO-SQL', query: {...})
     - `collectionQuery` → `queryDatabase` (action: 'listTables', dbType: 'NO-SQL')
@@ -318,7 +318,7 @@ const infos = result.Infos.map(info => JSON.parse(info));
 - `updateCollection` - 更新集合配置，有特殊参数结构（索引配置等）
 - `checkIndexExists` - 检查索引，保留独立工具更直接、更高效
 - `manageDataModel` - 数据模型管理（独立功能）
-- `modifyDataModel` - 数据模型修改（独立功能）
+- `modifyDataModel` - 数据模型创建（兼容工具名，当前仅支持 create）
 
 ## 工具数量控制
 
@@ -365,7 +365,7 @@ const infos = result.Infos.map(info => JSON.parse(info));
   - `updateCollection` - 更新集合配置，有特殊参数结构（索引配置等）
   - `checkIndexExists` - 检查索引，保留独立工具更直接、更高效
   - `manageDataModel` - 数据模型管理（独立功能）
-  - `modifyDataModel` - 数据模型修改（独立功能）
+  - `modifyDataModel` - 数据模型创建（兼容工具名，当前仅支持 create）
 
 - **SQL 写操作统一**：
   - SQL 的 INSERT/UPDATE/DELETE → `manageDatabase` (action: 'insert'|'update'|'delete', dbType: 'SQL', query: 'INSERT/UPDATE/DELETE ...')

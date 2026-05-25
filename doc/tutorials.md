@@ -4,6 +4,11 @@ import TutorialsGrid from './components/TutorialsGrid';
 
 <TutorialsGrid />
 
+## 最近新增文章
+
+- `2026-03-11` [一个人就是一支团队：OpenClaw+CloudBase实现全自动开发上线](https://mp.weixin.qq.com/s/vKcnro2GrbjI_QyQohpNRw)
+- `2026-01-28` [Agent Skills实战分享：AI编程最后一公里，别让代码死在localhost里](https://mp.weixin.qq.com/s/soIEU5DG01xfrKMaCetGAA)
+
 ## 更多资源
 
 ### 官方文档
@@ -37,4 +42,4 @@ import TutorialsGrid from './components/TutorialsGrid';
 - 在微信技术交流群中分享你的项目
 - 提交 Pull Request 添加新的教程内容
 
-让我们一起构建更丰富的 AI + 云开发学习资源！ 
+让我们一起构建更丰富的 AI + 云开发学习资源！

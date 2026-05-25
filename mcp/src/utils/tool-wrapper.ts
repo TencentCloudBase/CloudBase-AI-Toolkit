@@ -127,8 +127,9 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             const result = await handler(args);
 
             success = true;
+            requestId = extractRequestIdFromToolResult(result);
             const duration = Date.now() - startTime;
-            debug(`工具执行成功: ${name}`, { duration });
+            debug(`工具执行成功: ${name}`, { duration, requestId: requestId || undefined });
             if (!isTestEnvironment) {
                 server.logger?.({ type: 'afterToolCall', toolName: name, args: sanitizeArgs(args), result: result, duration });
             }
@@ -139,6 +140,7 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             requestId = (typeof error === 'object' && error && 'requestId' in error) ? (error as any).requestId : '';
             debug(`工具执行失败: ${name}`, {
                 error: errorMessage,
+                requestId: requestId || undefined,
                 duration: Date.now() - startTime
             });
             const isTestEnvironment =
@@ -163,7 +165,9 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
                 requestId: (typeof error === 'object' && error && 'requestId' in error) ? (error as any).requestId : '',
                 ide: server.ide || process.env.INTEGRATION_IDE || ''
             });
-            const enhancedErrorMessage = `${errorMessage}\n\n🔗 遇到问题？请复制以下链接到浏览器打开\n即可自动携带错误详情快速创建 GitHub Issue：\n${issueLink}`;
+            const mcpVersion = typeof __MCP_VERSION__ !== 'undefined' ? __MCP_VERSION__ : 'unknown';
+            const requestIdSuffix = requestId ? `\n🆔 RequestId: ${requestId}` : '';
+            const enhancedErrorMessage = `${errorMessage}${requestIdSuffix}\n\n📦 CloudBase MCP v${mcpVersion}\n🔗 遇到问题？请复制以下链接到浏览器打开\n即可自动携带错误详情快速创建 GitHub Issue：\n${issueLink}`;
 
             // 创建新的错误对象，保持原有的错误类型但更新消息
             const enhancedError = error instanceof Error
@@ -199,6 +203,7 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
                 reportToolCall({
                     toolName: name,
                     success,
+                    requestId,
                     duration,
                     error: errorMessage,
                     inputParams: sanitizeArgs(args), // 添加入参上报
@@ -211,6 +216,43 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             }
         }
     };
+}
+
+function extractRequestIdFromToolResult(result: any): string | undefined {
+    if (!result || typeof result !== 'object') {
+        return undefined;
+    }
+
+    if (typeof result.requestId === 'string' && result.requestId.length > 0) {
+        return result.requestId;
+    }
+
+    if (typeof result.RequestId === 'string' && result.RequestId.length > 0) {
+        return result.RequestId;
+    }
+
+    const content = Array.isArray((result as any).content) ? (result as any).content : [];
+    for (const item of content) {
+        if (!item || item.type !== 'text' || typeof item.text !== 'string') {
+            continue;
+        }
+
+        try {
+            const parsed = JSON.parse(item.text);
+            if (parsed && typeof parsed === 'object') {
+                if (typeof parsed.requestId === 'string' && parsed.requestId.length > 0) {
+                    return parsed.requestId;
+                }
+                if (typeof parsed.RequestId === 'string' && parsed.RequestId.length > 0) {
+                    return parsed.RequestId;
+                }
+            }
+        } catch {
+            // Ignore non-JSON text payloads.
+        }
+    }
+
+    return undefined;
 }
 
 /**

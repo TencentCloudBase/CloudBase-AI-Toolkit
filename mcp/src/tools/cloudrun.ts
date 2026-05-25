@@ -4,6 +4,7 @@ import path from 'path';
 import { z } from "zod";
 import { getCloudBaseManager, getEnvId } from '../cloudbase-manager.js';
 import { ExtendedMcpServer } from '../server.js';
+import { debug } from '../utils/logger.js';
 import { sendDeployNotification } from '../utils/notification.js';
 
 // CloudRun service types
@@ -16,7 +17,7 @@ export type CloudRunAccessType = typeof CLOUDRUN_ACCESS_TYPES[number];
 
 // Input schema for queryCloudRun tool
 const queryCloudRunInputSchema = {
-  action: z.enum(['list', 'detail', 'templates']).describe('查询操作类型：list=获取云托管服务列表（支持分页和筛选），detail=查询指定服务的详细信息（包括配置、版本、访问地址等），templates=获取可用的项目模板列表（用于初始化新项目）'),
+  action: z.enum(['list', 'detail', 'templates', 'getDeployLog']).describe('查询操作类型：list=获取云托管服务列表（支持分页和筛选），detail=查询指定服务的详细信息（包含服务配置和最新部署状态），templates=获取可用的项目模板列表（用于初始化新项目），getDeployLog=获取指定服务最近一次或指定构建的部署日志'),
 
   // List operation parameters
   pageSize: z.number().min(1).max(100).optional().default(10).describe('分页大小，控制每页返回的服务数量。取值范围：1-100，默认值：10。建议根据网络性能和显示需求调整'),
@@ -24,8 +25,9 @@ const queryCloudRunInputSchema = {
   serverName: z.string().optional().describe('服务名称筛选条件，支持模糊匹配。例如：输入"test"可匹配"test-service"、"my-test-app"等服务名称。留空则查询所有服务'),
   serverType: z.enum(CLOUDRUN_SERVICE_TYPES).optional().describe('服务类型筛选条件：function=函数型云托管（仅支持Node.js，有特殊的开发要求和限制，适合简单的API服务），container=容器型服务（推荐使用，支持任意语言和框架如Java/Go/Python/PHP/.NET等，适合大多数应用场景）'),
 
-  // Detail operation parameters
-  detailServerName: z.string().optional().describe('要查询详细信息的服务名称。当action为detail时必需提供，必须是已存在的服务名称。可通过list操作获取可用的服务名称列表'),
+  // Detail and log operation parameters
+  detailServerName: z.string().optional().describe('要查询详细信息或部署日志的服务名称。当action为detail或getDeployLog时建议提供，必须是已存在的服务名称。可通过list操作获取可用的服务名称列表'),
+  buildId: z.number().optional().describe('构建ID，仅在action=getDeployLog时使用。不传时默认返回最近一次部署的构建日志'),
 };
 
 // Input schema for manageCloudRun tool
@@ -81,12 +83,13 @@ const ManageCloudRunInputSchema = {
 };
 
 type queryCloudRunInput = {
-  action: 'list' | 'detail' | 'templates';
+  action: 'list' | 'detail' | 'templates' | 'getDeployLog';
   pageSize?: number;
   pageNum?: number;
   serverName?: string;
   serverType?: CloudRunServiceType;
   detailServerName?: string;
+  buildId?: number;
 };
 
 type ManageCloudRunInput = {
@@ -154,9 +157,10 @@ function checkIfAgentProject(projectPath: string): boolean {
 function validateAndNormalizePath(inputPath: string): string {
   let normalizedPath = path.resolve(inputPath);
 
-  // Basic security check - ensure path is within current working directory or explicit absolute path
+  // Security check - ensure path is within current working directory
   const cwd = process.cwd();
-  if (!normalizedPath.startsWith(cwd) && !path.isAbsolute(inputPath)) {
+  const prefix = cwd.endsWith(path.sep) ? cwd : cwd + path.sep;
+  if (!normalizedPath.startsWith(prefix) && normalizedPath !== cwd) {
     throw new Error(`Path must be within current working directory: ${cwd}`);
   }
 
@@ -179,6 +183,34 @@ function buildManageCloudRunErrorMessage(action: ManageCloudRunInput["action"], 
   return `[manageCloudRun/${action}] ${baseMessage}\n建议：${suggestions.join(" ")}`;
 }
 
+function getCloudRunQueryServerName(input: queryCloudRunInput): string | undefined {
+  return input.detailServerName || input.serverName;
+}
+
+function normalizeProcessLogText(logs: unknown[]): string {
+  return logs
+    .map((log) => {
+      if (typeof log === "string") {
+        return log;
+      }
+
+      if (log && typeof log === "object") {
+        if ("Log" in log && typeof log.Log === "string") {
+          return log.Log;
+        }
+
+        if ("Text" in log && typeof log.Text === "string") {
+          return log.Text;
+        }
+
+        return JSON.stringify(log);
+      }
+
+      return String(log);
+    })
+    .join("\n");
+}
+
 /**
  * Format CloudRun service info for display
  */
@@ -199,7 +231,7 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
     "queryCloudRun",
     {
       title: "查询 CloudRun 服务信息",
-      description: "查询云托管服务信息，支持获取服务列表、查询服务详情和获取可用模板列表。返回的服务信息包括服务名称、状态、访问类型、配置详情等。",
+      description: "查询云托管服务信息，支持获取服务列表、查询服务详情、获取可用模板列表和部署日志。返回的服务信息包括服务名称、状态、访问类型、配置详情以及最近部署上下文。",
       inputSchema: queryCloudRunInputSchema,
       annotations: {
         readOnlyHint: true,
@@ -257,7 +289,23 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
           }
 
           case 'detail': {
-            const serverName = input.detailServerName || input.serverName!;
+            const serverName = getCloudRunQueryServerName(input);
+
+            if (!serverName) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify({
+                      success: false,
+                      error: "detailServerName or serverName is required for detail action",
+                      message: "Please provide detailServerName or serverName."
+                    }, null, 2)
+                  }
+                ]
+              };
+            }
+
             const result = await cloudrunService.detail({ serverName });
 
             if (!result) {
@@ -275,6 +323,29 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
               };
             }
 
+            let latestDeploy: any = null;
+            let deployRecordsWarning: string | undefined;
+            let message: string;
+
+            try {
+              const deployRecords: any = await cloudrunService.getDeployRecords({ serverName });
+              latestDeploy = deployRecords?.DeployRecords?.[0] ?? null;
+
+              if (!latestDeploy) {
+                message = `Retrieved details for service '${serverName}'. No deploy records found yet.`;
+              } else if (typeof latestDeploy.Status === 'string' && latestDeploy.Status.includes('failed')) {
+                message = `Service '${serverName}' latest deploy failed. Please use queryCloudRun(action="getDeployLog") for details.`;
+              } else if (typeof latestDeploy.Status === 'string' && latestDeploy.Status.includes('creating')) {
+                message = `Service '${serverName}' latest deploy is still running. Please check again later or query the deploy log for progress.`;
+              } else {
+                message = `Retrieved details for service '${serverName}'. Latest service status: ${result.BaseInfo?.Status || 'unknown'}, latest deploy status: ${latestDeploy.Status || 'unknown'}.`;
+              }
+            } catch (error) {
+              const baseMessage = error instanceof Error ? error.message : String(error);
+              deployRecordsWarning = `Failed to fetch deploy records: ${baseMessage}`;
+              message = `Retrieved details for service '${serverName}', but deploy records are currently unavailable.`;
+            }
+
             return {
               content: [
                 {
@@ -282,9 +353,11 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
                   text: JSON.stringify({
                     success: true,
                     data: {
-                      service: result
+                      service: result,
+                      latestDeploy,
+                      ...(deployRecordsWarning ? { deployRecordsWarning } : {})
                     },
-                    message: `Retrieved details for service '${serverName}'`
+                    message
                   }, null, 2)
                 }
               ]
@@ -304,6 +377,87 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
                       templates: result || []
                     },
                     message: `Found ${result?.length || 0} available templates`
+                  }, null, 2)
+                }
+              ]
+            };
+          }
+
+          case 'getDeployLog': {
+            const serverName = getCloudRunQueryServerName(input);
+
+            if (!serverName) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify({
+                      success: false,
+                      error: "detailServerName or serverName is required for getDeployLog action",
+                      message: "Please provide detailServerName or serverName."
+                    }, null, 2)
+                  }
+                ]
+              };
+            }
+
+            const deployRecords: any = await cloudrunService.getDeployRecords({ serverName });
+            const latestDeploy = deployRecords?.DeployRecords?.[0];
+
+            if (!latestDeploy) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify({
+                      success: false,
+                      error: `Service '${serverName}' has no deploy records.`,
+                      message: "Please deploy the service first, then query the deploy log again."
+                    }, null, 2)
+                  }
+                ]
+              };
+            }
+
+            const buildId = input.buildId ?? latestDeploy.BuildId;
+            const buildLogResult: any = await cloudrunService.getBuildLog({
+              serverName,
+              buildId,
+            });
+
+            let processLogs: unknown[] = [];
+            let processLogsWarning: string | undefined;
+
+            if (latestDeploy.RunId && typeof cloudrunService.getProcessLog === 'function') {
+              try {
+                const processLogResult: any = await cloudrunService.getProcessLog({
+                  RunId: latestDeploy.RunId,
+                });
+                processLogs = processLogResult?.Logs || [];
+              } catch (error) {
+                processLogsWarning = error instanceof Error ? error.message : String(error);
+              }
+            }
+
+            const buildLogText = typeof buildLogResult?.Log?.Text === 'string' ? buildLogResult.Log.Text : '';
+            const processLogText = Array.isArray(processLogs) && processLogs.length > 0 ? normalizeProcessLogText(processLogs) : '';
+            const combinedLogText = [buildLogText, processLogText].filter(Boolean).join('\n');
+
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    success: true,
+                    data: {
+                      buildId,
+                      deployRecord: latestDeploy,
+                      buildLog: buildLogResult?.Log || null,
+                      processLogs,
+                      combinedLogText,
+                      ...(processLogsWarning ? { processLogsWarning } : {})
+                    },
+                    message: `Retrieved deploy log for service '${serverName}'`
                   }, null, 2)
                 }
               ]
@@ -600,11 +754,12 @@ for await (let x of res.textStream) {
                 name: input.serverName
               }
             };
+            const consoleUrl = `https://tcb.cloud.tencent.com/dev?envId=${currentEnvId}#/platform-run/service/detail?serverName=${input.serverName}&tabId=overview&envId=${currentEnvId}`;
 
             try {
               fs.writeFileSync(cloudbasercPath, JSON.stringify(cloudbasercContent, null, 2));
             } catch (error) {
-              // Ignore cloudbaserc.json creation errors
+              debug('cloudbaserc.json creation skipped:', error instanceof Error ? error : new Error(String(error)));
             }
 
             // Send deployment notification to CodeBuddy IDE
@@ -640,9 +795,6 @@ for await (let x of res.textStream) {
               // Extract project name from targetPath
               const projectName = path.basename(targetPath);
 
-              // Build console URL
-              const consoleUrl = `https://tcb.cloud.tencent.com/dev?envId=${currentEnvId}#/platform-run/service/detail?serverName=${input.serverName}&tabId=overview&envId=${currentEnvId}`;
-
               // Send notification
               await sendDeployNotification(server, {
                 deployType: 'cloudrun',
@@ -664,12 +816,13 @@ for await (let x of res.textStream) {
                     success: true,
                     data: {
                       serviceName: input.serverName,
-                      status: 'deployed',
+                      status: 'deploying',
                       deployPath: targetPath,
                       serverType: serverType,
-                      cloudbasercGenerated: true
+                      cloudbasercGenerated: true,
+                      consoleUrl
                     },
-                    message: `Successfully deployed ${serverType} service '${input.serverName}' from ${targetPath}`
+                    message: `Triggered deployment for ${serverType} service '${input.serverName}' from ${targetPath}. You can follow the progress in ${consoleUrl}`
                   }, null, 2)
                 }
               ]
@@ -735,41 +888,34 @@ for await (let x of res.textStream) {
 
             // Choose execution method based on run mode
             let child;
-            let command;
+            const script = `const { runCLI } = require('@cloudbase/functions-framework'); runCLI();`;
 
             if (runMode === 'agent') {
-              // For Agent mode, use a different approach since functions-framework doesn't support Agent mode
-              // We'll use a custom script that sets up the Agent environment
-              command = `node -e "
-                const { runCLI } = require('@cloudbase/functions-framework');
-                process.env.PORT = '${runPort}';
-                process.env.ENABLE_CORS = 'true';
-                process.env.ALLOWED_ORIGINS = '*';
-                process.env.RUN_MODE = 'agent';
-                ${Object.entries(extraEnv).map(([key, value]) => `process.env.${key} = '${value}';`).join('\n')}
-                runCLI();
-              "`;
-
-              child = spawn(process.execPath, ['-e', command], {
+              const childEnv = {
+                ...env,
+                PORT: String(runPort),
+                ENABLE_CORS: 'true',
+                ALLOWED_ORIGINS: '*',
+                RUN_MODE: 'agent',
+                ...extraEnv,
+              };
+              child = spawn(process.execPath, ['-e', script], {
                 cwd: targetPath,
-                env,
+                env: childEnv,
                 stdio: ['ignore', 'pipe', 'pipe'],
                 detached: true
               });
             } else {
-              // Normal function mode
-              command = `node -e "
-                const { runCLI } = require('@cloudbase/functions-framework');
-                process.env.PORT = '${runPort}';
-                process.env.ENABLE_CORS = 'true';
-                process.env.ALLOWED_ORIGINS = '*';
-                ${Object.entries(extraEnv).map(([key, value]) => `process.env.${key} = '${value}';`).join('\n')}
-                runCLI();
-              "`;
-
-              child = spawn(process.execPath, ['-e', command], {
+              const childEnv = {
+                ...env,
+                PORT: String(runPort),
+                ENABLE_CORS: 'true',
+                ALLOWED_ORIGINS: '*',
+                ...extraEnv,
+              };
+              child = spawn(process.execPath, ['-e', script], {
                 cwd: targetPath,
-                env,
+                env: childEnv,
                 stdio: ['ignore', 'pipe', 'pipe'],
                 detached: true
               });
@@ -803,7 +949,7 @@ for await (let x of res.textStream) {
                       port: runPort,
                       runMode: runMode,
                       isAgent: isAgent,
-                      command: command,
+                      command: script,
                       cwd: targetPath
                     },
                     message: `Started local run for ${runMode} service '${input.serverName}' on port ${runPort} (pid=${child.pid})`
@@ -836,7 +982,7 @@ for await (let x of res.textStream) {
             try {
               fs.writeFileSync(cloudbasercPath, JSON.stringify(cloudbasercContent, null, 2));
             } catch (error) {
-              // Ignore cloudbaserc.json creation errors
+              debug('cloudbaserc.json creation skipped:', error instanceof Error ? error : new Error(String(error)));
             }
 
             return {
@@ -919,7 +1065,7 @@ for await (let x of res.textStream) {
             try {
               fs.writeFileSync(cloudbasercPath, JSON.stringify(cloudbasercContent, null, 2));
             } catch (error) {
-              // Ignore cloudbaserc.json creation errors
+              debug('cloudbaserc.json creation skipped:', error instanceof Error ? error : new Error(String(error)));
             }
 
             return {

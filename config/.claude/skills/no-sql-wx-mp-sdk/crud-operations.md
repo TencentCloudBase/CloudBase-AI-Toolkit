@@ -18,13 +18,13 @@ const result = await db.collection('todos').add({
     createdAt: new Date()
 });
 
-console.log('Added document with ID:', result.id);
+console.log('Added document with ID:', result._id);
 ```
 
 **Return Value:**
 ```javascript
 {
-    id: "generated-doc-id",  // Auto-generated document ID
+    _id: "generated-doc-id",  // Auto-generated document ID
     // ... other metadata
 }
 ```
@@ -159,6 +159,32 @@ await db.collection('todos')
     .doc('todo-id-123')
     .update({
         title: 'Updated Title'
+    });
+```
+
+### Nested Field Updates (Important)
+
+When updating nested object fields, you **must use dot notation** if you want to preserve sibling fields.
+
+**WRONG: This replaces the entire object and deletes sibling fields:**
+```javascript
+// DANGER: If 'user' had an 'email' field, it is now deleted!
+await db.collection('profiles')
+    .doc('profile-123')
+    .update({
+        user: {
+            name: 'New Name'  // Replaces the ENTIRE 'user' object
+        }
+    });
+```
+
+**CORRECT: This only updates the specific nested field:**
+```javascript
+// SAFE: Only updates 'name', preserves 'email' and other fields in 'user'
+await db.collection('profiles')
+    .doc('profile-123')
+    .update({
+        'user.name': 'New Name'  // Use dot notation for nested fields
     });
 ```
 
@@ -388,7 +414,7 @@ class TodoManager {
             createdAt: new Date(),
             updatedAt: new Date()
         });
-        return result.id;
+        return result._id;
     }
     
     // Read (single)
@@ -474,7 +500,7 @@ async function safeCRUD() {
             title: 'New Todo'
         });
         
-        console.log('Created:', result.id);
+        console.log('Created:', result._id);
         
     } catch (error) {
         if (error.code === 'PERMISSION_DENIED') {
@@ -520,4 +546,3 @@ await db.runTransaction(async transaction => {
 8. **Limit updates**: Only update changed fields
 9. **Test permissions**: Ensure database security rules allow operations
 10. **Log operations**: Track important data changes
-

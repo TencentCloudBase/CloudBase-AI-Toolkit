@@ -39,12 +39,12 @@ graph TD
 
 ## 接口设计
 
-### 新增工具：modifyDataModel
+### 写工具：`modifyDataModel`（当前仅支持 create）
 
 ```typescript
 interface ModifyDataModelParams {
   mermaidDiagram: string;      // Mermaid classDiagram代码
-  action?: 'create' | 'update'; // 操作类型，默认create
+  action?: 'create';           // 操作类型，默认create
   publish?: boolean;           // 是否立即发布，默认false  
 }
 
@@ -59,7 +59,7 @@ interface ModifyDataModelResponse {
 }
 ```
 
-**说明：** 该工具内部会自动轮询任务状态直至完成或超时（30秒），避免用户需要手动查询任务状态。
+**说明：** 为保持兼容性，对外工具名继续使用 `modifyDataModel`；但当前写能力仅支持创建新模型，不支持更新现有模型结构。该工具内部会自动轮询任务状态直至完成或超时（30秒），避免用户需要手动查询任务状态。
 
 ### 增强工具：manageDataModel
 

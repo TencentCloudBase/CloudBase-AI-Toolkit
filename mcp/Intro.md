@@ -105,15 +105,8 @@
 
 | 工具标识                  | 功能描述                                  | 核心参数                                                                                     |
 |---------------------------|-----------------------------------------|---------------------------------------------------------------------------------------------|
-| `uploadFiles`             | 上传文件到静态网站托管                    | `localPath`（选填，本地文件或文件夹路径），`cloudPath`（选填，云端文件或文件夹路径），`files`（选填，多文件上传配置），`ignore`（选填，忽略文件模式） |
-| `listFiles`               | 获取静态网站托管的文件列表                | 无                                                                                           |
-| `deleteFiles`             | 删除静态网站托管的文件或文件夹            | `cloudPath`（必填，云端文件或文件夹路径），`isDir`（选填，是否为文件夹，默认为 `false`）     |
-| `findFiles`               | 搜索静态网站托管的文件                    | `prefix`（必填，匹配前缀），`marker`（选填，起始对象键标记），`maxKeys`（选填，单次返回最大条目数） |
-| `createHostingDomain`     | 绑定自定义域名                            | `domain`（必填，自定义域名），`certId`（必填，证书 ID）                                       |
-| `deleteHostingDomain`     | 解绑自定义域名                            | `domain`（必填，自定义域名）                                                                 |
-| `getWebsiteConfig`        | 获取静态网站配置                          | 无                                                                                           |
-| `tcbCheckResource`        | 检查域名配置                              | `domains`（必填，域名列表）                                                                  |
-| `tcbModifyAttribute`      | 修改域名配置                              | `domain`（必填，域名），`domainId`（必填，域名 ID），`domainConfig`（必填，域名配置）         |
+| `queryHosting`            | 查询静态托管配置、状态、文件和域名状态    | `action`（必填，`websiteConfig` / `status` / `findFiles` / `listFiles` / `domainStatus`），`prefix`（查找文件时选填），`domains`（查询域名状态时选填） |
+| `manageHosting`           | 管理静态托管上传、删除、网站文档、域名与下载 | `action`（必填，`upload` / `delete` / `setWebsiteDocument` / `enableService` / `bindDomain` / `unbindDomain` / `updateDomain` / `downloadFile` / `downloadDirectory`），`localPath` / `cloudPath` / `indexDocument` / `domain` 等按 action 提供 |
 
 ---
 

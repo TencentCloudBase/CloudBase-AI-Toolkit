@@ -1,222 +1,203 @@
 ---
 name: cloudbase-document-database-web-sdk
-description: Use CloudBase document database Web SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, and geolocation queries.
+description: Use CloudBase document database Web SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, realtime, and geolocation queries.
+version: 2.20.0
+alwaysApply: false
 ---
+
+## Standalone Install Note
+
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
+
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/no-sql-web-sdk/SKILL.md`
+
+Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
 
 # CloudBase Document Database Web SDK
 
-This skill provides guidance on using the CloudBase document database Web SDK for data operations in web applications.
+## Activation Contract
 
+### Use this first when
 
-## Core Concepts
+- A browser or Web app must read or write CloudBase document database data through `@cloudbase/js-sdk`.
+- The request mentions `app.database()`, `db.collection()`, `.where()`, `.watch()`, pagination, aggregation, or geolocation queries in a Web frontend.
 
-### Initialization
+### Read before writing code if
 
-Before using any database operations, initialize the CloudBase SDK:
+- The task is clearly browser-side, but you still need to decide between Web SDK, Mini Program SDK, or backend access.
+- The request touches login state, collection permissions, or realtime updates.
+
+### Then also read
+
+- Web login and caller identity -> `../auth-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-web/SKILL.md`)
+- General Web app structure -> `../web-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/web-development/SKILL.md`)
+- Mini Program database code -> `../no-sql-wx-mp-sdk/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/no-sql-wx-mp-sdk/SKILL.md`)
+
+### Do NOT use for
+
+- Mini Program code using `wx.cloud.database()`.
+- Server-side or cloud-function database access.
+- SQL / MySQL database operations.
+- Pure resource-permission administration with no browser SDK code.
+
+### SDK Code vs MCP Tools
+
+**When to write SDK code (use this skill):**
+- The task explicitly asks to "modify code" or "use SDK"
+- The task asks to implement app/frontend logic
+- The task mentions specific SDK methods like `db.collection().add()`, `.get()`, `.update()`
+- The context shows an existing Web project with SDK initialization (e.g., `index.js` already has `cloudbase.init()`)
+
+**When to use MCP tools instead:**
+- The task asks to manage CloudBase resources (create collection, set permissions, etc.)
+- The task involves admin/management operations without writing app code
+- The task mentions tools like `writeNoSqlDatabaseContent`, `managePermissions`, etc.
+
+**Key distinction:** If the user says "使用 JS SDK 执行 XX 操作" (use JS SDK to perform XX operation) or "修改代码" (modify code), write SDK code in the project files. Do not use MCP database write tools for app-level data operations.
+
+### Common mistakes / gotchas
+
+- Querying before the user is signed in when the collection rules require identity.
+- Using `wx.cloud.database()` or Node SDK patterns in browser code.
+- Initializing CloudBase lazily with dynamic imports instead of a shared synchronous app instance.
+- Treating security rules as result filters rather than request validators.
+- **Expecting a `CUSTOM` security rule to take effect immediately after you call `managePermissions(updateResourcePermission)`.** The backend caches rule evaluators for **2–5 minutes**; first writes after a rule change may silently fail or be rejected with `DATABASE_PERMISSION_DENIED` even when the expression is correct. Either (a) wait a few minutes and retry the same write before assuming the rule is wrong, or (b) verify the rule is live by reading `result.code` / `result.message` on every write and by doing a `get()` round-trip on the just-written `_id`; do not treat a resolved promise as success. See `security-rules.md` → "Propagation And Verification" for the full pattern.
+- Misreading the return shape of `db.collection(...).add(...)`. In the CloudBase Web SDK, the created document ID is exposed at top-level `result._id`, not `result.id`, `result.data.id`, or `result.insertedId`.
+- For CMS-style collections that need **app-level admin users** to edit/delete all records while editors can only edit/delete their own records, do not oversimplify the rule to `READONLY`. A validated pattern is a `CUSTOM` rule that reads role from `user_roles` by `auth.uid` and combines it with `doc.authorId == auth.uid`, while frontend writes can stay on `.doc(id).update()` / `.doc(id).remove()`.
+- Forgetting pagination or indexes for larger collections.
+
+### Minimal checklist
+
+- Confirm this is browser-side document database work.
+- Initialize CloudBase once and reuse the same `app` / `db` instance.
+- Verify auth expectations before CRUD.
+- Read the right companion reference file for the specific operation.
+
+## Overview
+
+This skill covers **browser-side document database usage** via `@cloudbase/js-sdk`.
+
+Use it for:
+
+- CRUD in a Web app
+- complex queries and pagination
+- aggregation
+- realtime listeners with `watch()`
+- geolocation queries
+
+## Canonical initialization
 
 ```javascript
 import cloudbase from "@cloudbase/js-sdk";
-// UMD version
-// If you are not using npm, And want to use UMD version instead. You should refer to https://docs.cloudbase.net/quick-start/#web-%E5%BF%AB%E9%80%9F%E4%BD%93%E9%AA%8C for latest version of UMD version.
 
 const app = cloudbase.init({
-  env: "your-env-id", // Replace with your environment id
+  env: "your-env-id"
 });
 
-
 const db = app.database();
-const _ = db.command; // Get query operators
-
-// ... login
-```
-Remember to sign in(auth) is ***REQUIRED** before actually querying the database.
-
-### Collection Reference
-
-Access collections using:
-```javascript
-db.collection('collection-name')
+const _ = db.command;
 ```
 
-### Query Operators
+Important rules:
 
-CloudBase provides query operators via `db.command` (aliased as `_`):
-- `_.gt(value)` - Greater than
-- `_.gte(value)` - Greater than or equal
-- `_.lt(value)` - Less than
-- `_.lte(value)` - Less than or equal
-- `_.eq(value)` - Equal to
-- `_.neq(value)` - Not equal to
-- `_.in(array)` - Value in array
-- `_.nin(array)` - Value not in array
+- Sign in before querying if the collection rules require identity.
+- Keep a single shared app/database instance.
+- Do not hide initialization inside ad-hoc async loaders unless the framework truly requires it.
 
-## Basic Operations
+## Quick routing
 
-### Query Single Document
+- CRUD -> `./crud-operations.md`
+- Complex queries -> `./complex-queries.md`
+- Pagination -> `./pagination.md`
+- Aggregation -> `./aggregation.md`
+- Realtime listeners -> `./realtime.md`
+- Geolocation -> `./geolocation.md`
+- Security rules -> `./security-rules.md`
 
-Query by document ID:
-```javascript
-const result = await db.collection('todos')
-    .doc('docId')
-    .get();
-```
+## Working rules for a coding agent
 
-### Query Multiple Documents
+1. **Start from the auth model**
+   - If the page relies on logged-in user identity, read the Web auth skill before writing database code.
 
-Query with conditions:
-```javascript
-const result = await db.collection('todos')
-    .where({
-        completed: false,
-        priority: 'high'
-    })
-    .get();
-```
+2. **Keep browser code browser-native**
+   - Use `app.database()` and collection references.
+   - Do not mix in MCP management flows or SQL mental models.
 
-**Note:** `get()` returns 100 records by default, maximum 1000.
+3. **Respect security rules**
+   - Collection rules can reject requests before data is read.
+   - If the requirement is simple owner-only write access, `READONLY` can be enough.
+   - If the requirement is “app-level admin can edit/delete all, editor only own”, use a `CUSTOM` rule. A validated CMS pattern is `get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid`.
+   - For that CMS pattern, frontend writes can stay on `.doc(id).update()` / `.doc(id).remove()`.
+   - Reuse whichever role collection already exists and can be addressed by `_id == auth.uid`. In this CMS pattern, `user_roles` keyed by uid is acceptable.
+   - If the task fails with permission issues, inspect the rule model rather than assuming the query syntax is wrong.
 
-### Query Methods Chaining
+4. **Return user-friendly errors**
+   - Database errors must become readable UI or application errors, not silent failures.
+   - For writes, do not treat a resolved promise as success by default. Check write result fields such as `updated` / `deleted` or surfaced `code` / `message`.
 
-Combine methods for complex queries:
-- `.where(conditions)` - Filter conditions
-- `.orderBy(field, direction)` - Sort by field ('asc' or 'desc')
-- `.limit(number)` - Limit results (default 100, max 1000)
-- `.skip(number)` - Skip records for pagination
-- `.field(object)` - Specify fields to return (true/false)
+5. **Persist IDs from create operations correctly**
+   - For Web SDK `.add(...)`, the newly created document ID is `result._id`.
+   - Do not look for the ID under `result.id`, `result.data`, or other driver-specific fields.
 
-## Advanced Features
+## Quick examples
 
-For detailed information on specific topics, refer to:
-
-### CRUD Operations
-See `./crud-operations.md` for:
-- Creating documents (add, batch add)
-- Updating documents (partial updates, operators)
-- Deleting documents (conditional delete, soft delete)
-- Complete CRUD manager examples
-
-### Complex Queries
-See `./complex-queries.md` for:
-- Using query operators
-- Combining multiple conditions
-- Field selection
-- Sorting and limiting results
-
-### Pagination
-See `./pagination.md` for:
-- Implementing page-based navigation
-- Calculating skip and limit values
-- Cursor-based pagination
-- Infinite scroll patterns
-
-### Aggregation Queries
-See `./aggregation.md` for:
-- Grouping data
-- Statistical calculations
-- Pipeline operations
-- Time-based aggregations
-
-### Geolocation Queries
-See `./geolocation.md` for:
-- Proximity searches
-- Area-based queries
-- Geographic indexing requirements
-- Distance-based features
-
-### Realtime Database
-See `./realtime.md` for:
-- Real-time data synchronization using watch() method
-- Setting up listeners for document changes
-- Handling real-time updates in chat and collaboration apps
-- Performance optimization and error handling
-- Common patterns for real-time applications
-
-### Security Rules
-See `./security-rules.md` for:
-- Configuring database permissions
-- Simple permissions vs custom rules
-- Permission categories and usage
-- Security rule syntax and examples
-
-## Common Patterns
-
-### Error Handling
-Always wrap database operations in try-catch:
-```javascript
-try {
-    const result = await db.collection('todos').get();
-    console.log(result.data);
-} catch (error) {
-    console.error('Database error:', error);
-}
-```
-
-### Return Value Structure
-Database operations return:
-```javascript
-{
-    data: [...], // Array of documents
-    // Additional metadata
-}
-```
-
-## Important Notes
-
-1. **Environment ID**: Replace `"your-env-id"` with actual CloudBase environment ID
-2. **Default Limits**: `get()` returns 100 records by default
-3. **Collection Names**: Use string literals for collection names
-4. **Geolocation Index**: Geographic queries require proper indexing
-5. **Async/Await**: All database operations are asynchronous
-
-## Best Practices
-
-1. Initialize SDK once at application startup
-2. Reuse database instance across the application
-3. Use query operators for complex conditions
-4. Implement pagination for large datasets
-5. Select only needed fields to reduce data transfer
-6. Handle errors appropriately
-7. Create indexes for frequently queried fields
-
-### Coding Rules
-
-- It is **HIGHLY RECOMMENDED** to have a type definition and model layer for each collection in your document database. This will help you to avoid errors and make your code more robust. That would be the single source of truth for your database schema. Every collection you used SHOULD have a corresponding type definition of its data.
-- Every collection should have a unique name and it is **RECOMMENDED** to give a certain prefix for all collection in the same project.
-- Collections should have well defined and meaningful security rules(policy) for create, read, write and delete permission according to the business logic. Details refer to `./security-rules.md`. When writing expressions in security rules, The type definition of the collection mention above can be used as the type reference.
-
-## Quick Reference
-
-Common query examples:
+### Simple query
 
 ```javascript
-// Simple query
-db.collection('todos').where({ status: 'active' }).get()
-
-// With operators
-db.collection('users').where({ age: _.gt(18) }).get()
-
-// Pagination
-db.collection('posts')
-    .orderBy('createdAt', 'desc')
-    .skip(20)
-    .limit(10)
-    .get()
-
-// Field selection
-db.collection('users')
-    .field({ name: true, email: true, _id: false })
-    .get()
+const result = await db.collection("todos")
+  .where({ completed: false })
+  .get();
 ```
 
-For more detailed examples and advanced usage patterns, refer to the companion reference files in this directory.
+### Create and capture document ID
+
+```javascript
+const result = await db.collection("posts").add({
+  title: "New article",
+  content: "...",
+  createdAt: new Date()
+});
+
+const articleId = result._id;
+```
+
+### Ordered pagination
+
+```javascript
+const result = await db.collection("posts")
+  .orderBy("createdAt", "desc")
+  .skip(20)
+  .limit(10)
+  .get();
+```
+
+### Field selection
+
+```javascript
+const result = await db.collection("users")
+  .field({ name: true, email: true, _id: false })
+  .get();
+```
+
+## Best practices
+
+1. Define collection-level types or model wrappers in the app code.
+2. Use meaningful collection naming conventions.
+3. Select only required fields.
+4. Add indexes for frequent filters or sort keys.
+5. Pair frontend CRUD with explicit permission design.
+6. Use pagination instead of unbounded reads.
 
 ## Error handling
-**EVERY** database operation(including `get()`, `add()`, `update()`, `delete()` etc)should check the return value's code for any errors. For example:
+
 ```javascript
-const result = await db.collection('todos').add(newTodo);
-if(typeof result.code === 'string') {
-    // Handle error ...
+try {
+  const result = await db.collection("todos").get();
+  console.log(result.data);
+} catch (error) {
+  console.error("Database error:", error);
 }
 ```
 
-Error **MUST** be handled with detail and human-readable message and friendly UI.
+When the SDK returns an operation result, check error indicators and translate them into readable application behavior.

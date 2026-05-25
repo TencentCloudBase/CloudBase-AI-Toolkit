@@ -1,294 +1,229 @@
 ---
 name: cloud-storage-web
 description: Complete guide for CloudBase cloud storage using Web SDK (@cloudbase/js-sdk) - upload, download, temporary URLs, file management, and best practices.
+version: 2.20.0
 alwaysApply: false
 ---
 
+## Standalone Install Note
+
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
+
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloud-storage-web/SKILL.md`
+
+Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
+
 # Cloud Storage Web SDK
 
-Use this skill when building web applications that need to upload, download, or manage files using CloudBase cloud storage via the `@cloudbase/js-sdk` (Web SDK).
+## Activation Contract
 
-## When to use this skill
+### Use this first when
 
-Use this skill for **file storage operations** in web applications when you need to:
+- A browser or Web app must upload, download, or manage CloudBase storage objects through `@cloudbase/js-sdk`.
+- The request mentions `uploadFile`, `getTempFileURL`, `deleteFile`, or `downloadFile` in frontend code.
 
-- Upload files from web browsers to CloudBase cloud storage
-- Generate temporary download URLs for stored files
-- Delete files from cloud storage
-- Download files from cloud storage to local browser
+### Read before writing code if
 
-**Do NOT use for:**
-- Mini-program file operations (use mini-program specific skills)
-- Backend file operations (use Node SDK skills)
-- Database operations (use database skills)
+- The task is browser-side storage work but you still need to separate it from Mini Program storage, backend storage management, or static hosting deployment.
+- The request may be blocked by security domains or frontend auth.
 
-## How to use this skill (for a coding agent)
+### Then also read
 
-1. **Initialize CloudBase SDK**
-   - Ask the user for their CloudBase environment ID
-   - Always use the standard initialization pattern shown below
+- Web login and identity -> `../auth-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-web/SKILL.md`)
+- General Web app setup -> `../web-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/web-development/SKILL.md`)
+- Direct storage management through MCP tools -> `../cloudbase-platform/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/SKILL.md`)
 
-2. **Choose the right storage method**
-   - `uploadFile` - For uploading files from browser to cloud storage
-   - `getTempFileURL` - For generating temporary download links
-   - `deleteFile` - For deleting files from storage
-   - `downloadFile` - For downloading files to browser
+### Do NOT use for
 
-3. **Handle CORS requirements**
-   - Remind users to add their domain to CloudBase console security domains
-   - This prevents CORS errors during file operations
+- Mini Program file APIs.
+- Backend or agent-side direct storage management through MCP.
+- Static website hosting deployment via `manageHosting(action="upload")`.
+- Database operations.
 
-4. **Follow file path rules**
-   - Use valid characters: `[0-9a-zA-Z]`, `/`, `!`, `-`, `_`, `.`, ` `, `*`, Chinese characters
-   - Use `/` for folder structure (e.g., `folder/file.jpg`)
+### Common mistakes / gotchas
 
----
+- Uploading from browser code without configuring security domains.
+- Using this skill for static hosting instead of storage objects.
+- Mixing browser SDK upload flows with server-side file-management tasks.
+- Assuming temporary download URLs are permanent links.
+- On local Vite or dev-server tasks, forgetting to whitelist the exact current browser `host:port` before testing `app.uploadFile()`.
 
-## SDK Initialization
+### Minimal checklist
+
+- Confirm the caller is a browser/Web app.
+- Initialize the Web SDK once.
+- Check security-domain/CORS requirements.
+- Pick the right storage method before coding.
+
+### Local dev recipe
+
+When the app runs on a local browser origin and must upload files from the frontend:
+
+1. Use `envQuery` with `action="domains"` to inspect the current security-domain whitelist.
+2. Convert the browser origin into the CloudBase whitelist entry format:
+   - Browser origin `http://127.0.0.1:4173` -> whitelist entry `127.0.0.1:4173`
+   - Browser origin `http://localhost:5173` -> whitelist entry `localhost:5173`
+3. If the exact current host entry is missing, call `envDomainManagement` with `action="create"` and add that host entry before relying on `app.uploadFile()`.
+4. If the runtime port may change between runs, do not assume any fixed default port list is sufficient. Re-check the actual browser origin you are really using for testing or final validation, then add that exact `host:port`.
+5. Tell the user that security-domain changes may take several minutes to propagate.
+6. Only after that should you implement and test browser-side `app.uploadFile()` flows.
+
+If the task uses browser-side file upload, treat this as a prerequisite rather than an optional cleanup.
+
+## Overview
+
+Use this skill for **browser-side cloud storage operations** through the CloudBase Web SDK.
+
+Typical tasks:
+
+- upload files from a browser
+- generate temporary download URLs
+- delete files
+- trigger browser downloads
+
+## SDK initialization
 
 ```javascript
 import cloudbase from "@cloudbase/js-sdk";
 
 const app = cloudbase.init({
-  env: "your-env-id", // Replace with your CloudBase environment ID
+  env: "your-env-id"
 });
 ```
 
-**Initialization rules:**
-- Always use synchronous initialization with the pattern above
-- Do not lazy-load the SDK with dynamic imports
-- Keep a single shared `app` instance across your application
+Initialization rules:
 
-## File Upload (uploadFile)
+- Use synchronous initialization with a shared app instance.
+- Do not re-initialize in every component.
+- If the operation depends on user identity, handle auth before storage operations.
 
-### Basic Usage
+## Method routing
 
-```javascript
-const result = await app.uploadFile({
-  cloudPath: "folder/filename.jpg", // File path in cloud storage
-  filePath: fileInput.files[0],     // HTML file input element
-});
+- Upload from browser -> `app.uploadFile()`
+- Temporary preview/download URL -> `app.getTempFileURL()`
+- Delete existing files -> `app.deleteFile()`
+- Trigger browser download -> `app.downloadFile()`
 
-// Result contains:
-{
-  fileID: "cloud://env-id/folder/filename.jpg", // Unique file identifier
-  // ... other metadata
-}
-```
-
-### Advanced Upload with Progress
+## Upload
 
 ```javascript
 const result = await app.uploadFile({
   cloudPath: "uploads/avatar.jpg",
+  filePath: selectedFile
+});
+```
+
+### Upload rules
+
+- `cloudPath` must include the filename.
+- Use `/` to create folder structure.
+- Validate file type and size before upload.
+- Show upload progress for larger files when UX matters.
+- On local dev origins, confirm the exact frontend origin already exists in environment security domains before assuming the upload path is usable.
+- Match against the whitelist entry format returned by `envQuery(action="domains")`, which is typically `host:port` instead of a full `http://...` URL.
+- After `app.uploadFile()` succeeds, do **not** fabricate a public-looking URL by concatenating `envId`, bucket domain, or `cloudPath`. Use the returned `fileID` with `app.getTempFileURL()` and store or display the SDK-resolved URL instead.
+
+### Progress example
+
+```javascript
+await app.uploadFile({
+  cloudPath: "uploads/avatar.jpg",
   filePath: selectedFile,
-  method: "put", // "post" or "put" (default: "put")
-  onUploadProgress: (progressEvent) => {
-    const percent = Math.round(
-      (progressEvent.loaded * 100) / progressEvent.total
-    );
-    console.log(`Upload progress: ${percent}%`);
-    // Update UI progress bar here
+  onUploadProgress: ({ loaded, total }) => {
+    const percent = Math.round((loaded * 100) / total);
+    console.log(percent);
   }
 });
 ```
 
-### Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `cloudPath` | string | Yes | Absolute path with filename (e.g., "folder/file.jpg") |
-| `filePath` | File | Yes | HTML file input object |
-| `method` | "post" \| "put" | No | Upload method (default: "put") |
-| `onUploadProgress` | function | No | Progress callback function |
-
-### Cloud Path Rules
-
-- **Valid characters**: `[0-9a-zA-Z]`, `/`, `!`, `-`, `_`, `.`, ` `, `*`, Chinese characters
-- **Invalid characters**: Other special characters
-- **Structure**: Use `/` to create folder hierarchy
-- **Examples**:
-  - `"avatar.jpg"`
-  - `"uploads/avatar.jpg"`
-  - `"user/123/avatar.jpg"`
-
-### CORS Configuration
-
-**⚠️ IMPORTANT:** To prevent CORS errors, add your domain to CloudBase console:
-
-1. Go to CloudBase Console → Environment → Security Sources → Security Domains
-2. Add your frontend domain (e.g., `https://your-app.com`, `http://localhost:3000`)
-3. If CORS errors occur, remove and re-add the domain
-
-## Temporary Download URLs (getTempFileURL)
-
-### Basic Usage
+## Temporary URLs
 
 ```javascript
 const result = await app.getTempFileURL({
   fileList: [
     {
-      fileID: "cloud://env-id/folder/filename.jpg",
-      maxAge: 3600 // URL valid for 1 hour (seconds)
-    }
-  ]
-});
-
-// Access the download URL
-result.fileList.forEach(file => {
-  if (file.code === "SUCCESS") {
-    console.log("Download URL:", file.tempFileURL);
-    // Use this URL to download or display the file
-  }
-});
-```
-
-### Multiple Files
-
-```javascript
-const result = await app.getTempFileURL({
-  fileList: [
-    {
-      fileID: "cloud://env-id/image1.jpg",
-      maxAge: 7200 // 2 hours
-    },
-    {
-      fileID: "cloud://env-id/document.pdf",
-      maxAge: 86400 // 24 hours
+      fileID: "cloud://env-id/uploads/avatar.jpg",
+      maxAge: 3600
     }
   ]
 });
 ```
 
-### Parameters
+Use temp URLs when the browser needs to preview or download private files without exposing a permanent public link.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `fileList` | Array | Yes | Array of file objects |
-
-#### fileList Item Structure
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `fileID` | string | Yes | Cloud storage file ID |
-| `maxAge` | number | Yes | URL validity period in seconds |
-
-### Response Structure
+Typical upload + preview flow:
 
 ```javascript
-{
-  code: "SUCCESS",
-  fileList: [
-    {
-      code: "SUCCESS",
-      fileID: "cloud://env-id/folder/filename.jpg",
-      tempFileURL: "https://temporary-download-url"
-    }
-  ]
+const uploadResult = await app.uploadFile({
+  cloudPath: "uploads/avatar.jpg",
+  filePath: selectedFile
+});
+
+const tempUrlResult = await app.getTempFileURL({
+  fileList: [{ fileID: uploadResult.fileID, maxAge: 3600 }]
+});
+
+const previewUrl = tempUrlResult.fileList?.[0]?.tempFileURL || tempUrlResult.fileList?.[0]?.download_url;
+if (!previewUrl) {
+  throw new Error("Failed to resolve temporary file URL after upload");
 }
 ```
 
-### Best Practices
-
-- Set appropriate `maxAge` based on use case (1 hour to 24 hours)
-- Handle `SUCCESS`/`ERROR` codes in response
-- Use temporary URLs for private file access
-- Cache URLs if needed, but respect expiration time
-
-## File Deletion (deleteFile)
-
-### Basic Usage
+## Delete files
 
 ```javascript
-const result = await app.deleteFile({
-  fileList: [
-    "cloud://env-id/folder/filename.jpg"
-  ]
-});
-
-// Check deletion results
-result.fileList.forEach(file => {
-  if (file.code === "SUCCESS") {
-    console.log("File deleted:", file.fileID);
-  } else {
-    console.error("Failed to delete:", file.fileID);
-  }
+await app.deleteFile({
+  fileList: ["cloud://env-id/uploads/old-avatar.jpg"]
 });
 ```
 
-### Multiple Files
+Always inspect per-file results before assuming deletion succeeded.
+
+## Download files
 
 ```javascript
-const result = await app.deleteFile({
-  fileList: [
-    "cloud://env-id/old-avatar.jpg",
-    "cloud://env-id/temp-upload.jpg",
-    "cloud://env-id/cache-file.dat"
-  ]
+await app.downloadFile({
+  fileID: "cloud://env-id/uploads/report.pdf"
 });
 ```
 
-### Parameters
+Use this for browser-initiated downloads. For programmatic rendering or preview, prefer `getTempFileURL()`.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `fileList` | Array<string> | Yes | Array of file IDs to delete |
+## Security-domain reminder
 
-### Response Structure
+To avoid CORS problems, add your frontend domain in CloudBase security domains. In MCP-enabled workflows, prefer checking and updating this through tools before coding browser uploads.
 
-```javascript
+```json
+{ "tool": "envQuery", "action": "domains" }
+```
+
+Use the actual browser origin when deciding what to add. If the page is running on a custom domain or a local dev port, add that exact `host:port` value instead of guessing from a hard-coded list.
+
+```json
 {
-  fileList: [
-    {
-      code: "SUCCESS",
-      fileID: "cloud://env-id/folder/filename.jpg"
-    }
-  ]
+  "tool": "envDomainManagement",
+  "action": "create",
+  "domains": ["<actual-browser-host>:<actual-browser-port>"]
 }
 ```
 
-### Best Practices
+Match the real browser origin to the whitelist entry format returned by `envQuery(action="domains")`. For local Vite and preview servers, the port can vary between runs, so avoid assuming any fixed default port is sufficient.
 
-- Always check response codes before assuming deletion success
-- Use this for cleanup operations (old avatars, temp files, etc.)
-- Consider batching multiple deletions for efficiency
+Typical examples:
 
-## File Download (downloadFile)
+- `<your-local-host>:<actual-port>`
+- `<your-custom-domain>`
 
-### Basic Usage
+## Best practices
 
-```javascript
-const result = await app.downloadFile({
-  fileID: "cloud://env-id/folder/filename.jpg"
-});
+1. Use a clear folder structure such as `uploads/`, `avatars/`, `documents/`.
+2. Validate file size and type in the browser before upload.
+3. Use temporary URLs with reasonable expiration windows.
+4. Clean up obsolete files instead of leaving orphaned storage objects.
+5. Route privileged batch-management tasks to backend or MCP flows instead of browser direct access.
 
-// File is downloaded to browser default download location
-```
-
-### Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `fileID` | string | Yes | Cloud storage file ID |
-
-### Response Structure
-
-```javascript
-{
-  // Success response (no specific data returned)
-  // File is downloaded to browser
-}
-```
-
-### Best Practices
-
-- Use for user-initiated downloads (save file dialogs)
-- For programmatic file access, use `getTempFileURL` instead
-- Handle download errors appropriately
-
-## Error Handling
-
-All storage operations should include proper error handling:
+## Error handling
 
 ```javascript
 try {
@@ -296,48 +231,8 @@ try {
     cloudPath: "uploads/file.jpg",
     filePath: selectedFile
   });
-
-  if (result.code) {
-    // Handle error
-    console.error("Upload failed:", result.message);
-  } else {
-    // Success
-    console.log("File uploaded:", result.fileID);
-  }
+  console.log(result.fileID);
 } catch (error) {
   console.error("Storage operation failed:", error);
 }
 ```
-
-### Common Error Codes
-
-- `INVALID_PARAM` - Invalid parameters
-- `PERMISSION_DENIED` - Insufficient permissions
-- `RESOURCE_NOT_FOUND` - File not found
-- `SYS_ERR` - System error
-
-
-## Best Practices
-
-1. **File Organization**: Use consistent folder structures (`uploads/`, `avatars/`, `documents/`)
-2. **Naming Conventions**: Use descriptive filenames with timestamps if needed
-3. **Progress Feedback**: Show upload progress for better UX
-4. **Cleanup**: Delete temporary/unused files to save storage costs
-5. **Security**: Validate file types and sizes before upload
-6. **Caching**: Cache download URLs appropriately but respect expiration
-7. **Batch Operations**: Use arrays for multiple file operations when possible
-
-## Performance Considerations
-
-1. **File Size Limits**: Be aware of CloudBase file size limits
-2. **Concurrent Uploads**: Limit concurrent uploads to prevent browser overload
-3. **Progress Monitoring**: Use progress callbacks for large file uploads
-4. **Temporary URLs**: Generate URLs only when needed, with appropriate expiration
-
-## Security Considerations
-
-1. **Domain Whitelisting**: Always configure security domains to prevent CORS issues
-2. **Access Control**: Use appropriate file permissions (public vs private)
-3. **URL Expiration**: Set reasonable expiration times for temporary URLs
-4. **User Permissions**: Ensure users can only access their own files when appropriate
-

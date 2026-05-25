@@ -70,11 +70,46 @@ async function readSkillFiles(skillDir) {
   return fileContents;
 }
 
+const FULL_INSTALL_COMMAND = 'npx skills add tencentcloudbase/cloudbase-skills';
+const SINGLE_INSTALL_REPO = 'https://github.com/tencentcloudbase/skills';
+const SKILL_VIEW_BASE_URL = 'https://skills.sh/tencentcloudbase/skills';
+
+/**
+ * Extract the `name` field from SKILL.md frontmatter
+ */
+function getSkillNameFromFiles(files) {
+  const skillFile = files.find(f => f.filename === 'SKILL.md');
+  if (!skillFile) return null;
+  
+  // Use already-parsed frontmatter
+  if (skillFile.frontmatter && skillFile.frontmatter.name) {
+    return skillFile.frontmatter.name;
+  }
+  
+  return null;
+}
+
+/**
+ * Count the max consecutive backticks in text to determine fence length
+ */
+function maxBacktickRun(text) {
+  let max = 0, cur = 0;
+  for (const ch of text) {
+    if (ch === '`') { cur++; max = Math.max(max, cur); }
+    else { cur = 0; }
+  }
+  return max;
+}
+
 /**
  * Generate MDX content for a single rule
  */
 function generateMDX(ruleConfig, files) {
-  const { id, title, description, prompts = [] } = ruleConfig;
+  const { id, title, description, prompts = [], ruleDir } = ruleConfig;
+  const skillId = ruleDir || id;
+  const singleInstallCommand = `npx skills add ${SINGLE_INSTALL_REPO} --skill ${skillId}`;
+  const skillName = getSkillNameFromFiles(files) || skillId;
+  const skillViewUrl = `${SKILL_VIEW_BASE_URL}/${skillName}`;
   
   let mdx = `# ${title}\n\n${description}\n\n`;
   
@@ -96,47 +131,23 @@ function generateMDX(ruleConfig, files) {
   mdx += `import AIDevelopmentPrompt from '../components/AIDevelopmentPrompt';\n\n`;
   mdx += `<AIDevelopmentPrompt ruleId="${id}" />\n\n`;
   
-  // Prompt section
-  mdx += `## Skill \n\n`;
-  
-  if (files.length === 1) {
-    // Single file - show content in code block with filename as title
-    const content = files[0].content;
-    const filename = files[0].filename === 'SKILL.md' ? 'rule.md' : files[0].filename;
-    // In markdown code blocks, content should be protected from JSX parsing
-    // But MDX might still try to parse JSX-like syntax, so we escape < and >
-    // Use 4 backticks instead of 3 to wrap content that contains code blocks (```)
-    // Escape & first to avoid double-escaping
-    const escapedContent = content
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    mdx += `\`\`\`\`markdown title="${filename}"\n${escapedContent}\n\`\`\`\`\n`;
-  } else {
-    // Multiple files - use Tabs component
-    mdx += `import Tabs from '@theme/Tabs';\n`;
-    mdx += `import TabItem from '@theme/TabItem';\n\n`;
-    mdx += `<Tabs>\n`;
-    
-    for (const file of files) {
-      const value = file.filename.replace('.md', '').replace(/[^a-z0-9-]/gi, '-');
-      const label = file.filename.replace('.md', '');
-      const filename = file.filename === 'SKILL.md' ? 'rule.md' : file.filename;
-      // In markdown code blocks, content should be protected from JSX parsing
-      // But MDX might still try to parse JSX-like syntax, so we escape < and >
-      // Use 4 backticks instead of 3 to wrap content that contains code blocks (```)
-      // Escape & first to avoid double-escaping
-      const escapedContent = file.content
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-      mdx += `<TabItem value="${value}" label="${label}">\n\n`;
-      // Show content in code block with filename as title
-      mdx += `\`\`\`\`markdown title="${filename}"\n${escapedContent}\n\`\`\`\`\n\n`;
-      mdx += `</TabItem>\n\n`;
-    }
-    
-    mdx += `</Tabs>\n`;
+  mdx += `## 安装与查看\n\n`;
+  mdx += `如果需要安装全部 CloudBase Skills，可执行：\n\n`;
+  mdx += `\`\`\`bash\n${FULL_INSTALL_COMMAND}\n\`\`\`\n\n`;
+  mdx += `如果只安装当前 Skill，可执行：\n\n`;
+  mdx += `\`\`\`bash\n${singleInstallCommand}\n\`\`\`\n\n`;
+  mdx += `当前 Skill 在线查看： [${skillId}](${skillViewUrl})\n`;
+
+  // Embed SKILL.md original content at the very bottom for SEO
+  const skillFile = files.find(f => f.filename === 'SKILL.md');
+  if (skillFile && skillFile.content) {
+    mdx += `\n---\n\n`;
+    mdx += `## Skill 规则原文\n\n`;
+    mdx += `<details>\n<summary>查看 SKILL.md 原文</summary>\n\n`;
+    const fenceLen = Math.max(4, maxBacktickRun(skillFile.content) + 1);
+    const fence = '`'.repeat(fenceLen);
+    mdx += `${fence}markdown\n${skillFile.content}\n${fence}\n\n`;
+    mdx += `</details>\n`;
   }
   
   return mdx;

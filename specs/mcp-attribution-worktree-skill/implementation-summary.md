@@ -145,17 +145,20 @@ skill 里新增了明确规则：
 - `node skills/manage-local-skills/scripts/validate-skill.mjs --skill-dir skills/manage-local-skills`
 - `npm run build` in `mcp`
 
-### 未完成验证
+### 补充验证与状态更正
 
-这次尝试接入 AI Coding Eval Report API 做真实评测验证，但本地 `127.0.0.1:5174` 在执行时不可达，因此：
+后续复核时，本地 `127.0.0.1:5174` 已可访问，补充确认了两件关键事实：
 
-- 评测接口流程已经写入 skill
-- 但本轮没有拿到可用的真实 run result
-- 所以不能声称“真实评测已通过”
+- live API 实际返回的 attribution 字段已经是 `resolutionStatus`、`owner`、`notes`、`externalUrl` 这一套新契约，不能再机械依赖 OpenAPI 里旧的 `status` schema
+- 对 attribution worker 执行异常的 run result 写入逻辑已经修正，像 `ExecutionError` / `error_during_execution` / provider `429 usage exceeds frequency limit` 这类问题会按 `error` 处理，而不是误记成普通 `fail`
 
-这也是一个很真实的工程结论：
+本次复核还能从真实数据中看到历史记录已被回填修正，例如部分 issue 的 `notes` 已明确写出：
 
-> harness 驱动闭环的关键，不只是写流程规则，还取决于评测基础设施本身是否稳定可达。
+> Affected run attribution status has been backfilled to error.
+
+这说明这次不仅补了 skill 里的流程约束，连同 run attribution 的写入逻辑本身也已经修掉，并对受影响的历史 issue 做了状态更正。
+
+需要注意的是，这个结论针对的是 attribution / run result 写入链路已经修正；它不等于所有 repair issue 都已经完成新一轮真实评测闭环。后续是否 `resolved`，仍然应该继续遵守“以 fresh evaluation 的 final run result 为准”的规则。
 
 ## 这次工作的工程意义
 

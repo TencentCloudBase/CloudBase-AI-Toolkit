@@ -72,7 +72,8 @@
               "ai/cloudbase-ai-toolkit/prompts/auth-tool",
               "ai/cloudbase-ai-toolkit/prompts/auth-web",
               "ai/cloudbase-ai-toolkit/prompts/auth-wechat",
-              "ai/cloudbase-ai-toolkit/prompts/auth-http-api"
+              "ai/cloudbase-ai-toolkit/prompts/auth-http-api",
+              "ai/cloudbase-ai-toolkit/prompts/auth-nodejs"
             ]
           },
           {
@@ -85,6 +86,7 @@
               "ai/cloudbase-ai-toolkit/prompts/no-sql-wx-mp-sdk",
               "ai/cloudbase-ai-toolkit/prompts/relational-database-tool",
               "ai/cloudbase-ai-toolkit/prompts/relational-database-web",
+              "ai/cloudbase-ai-toolkit/prompts/data-model-creation",
               "ai/cloudbase-ai-toolkit/prompts/database-http-api"
             ]
           },
@@ -148,7 +150,12 @@
       {
         "type": "link",
         "label": "更新日志",
-        "href": "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/releases"
+        "href": "https://github.com/TencentCloudBase/CloudBase-MCP/releases"
+      },
+      {
+        "type": "link",
+        "label": "GitHub 仓库",
+        "href": "https://github.com/TencentCloudBase/CloudBase-MCP"
       }
     ]
   }

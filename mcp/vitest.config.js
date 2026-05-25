@@ -2,8 +2,8 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
-    // Help Vitest resolve CommonJS packages correctly
-    conditions: ["node", "import", "module", "require"],
+    // Prefer CommonJS export branches for transitive dependency chains exercised in Vitest.
+    conditions: ["node", "require"],
   },
   test: {
     // Test environment variables
@@ -24,13 +24,27 @@ export default defineConfig({
     include: ["../tests/**/*.test.js", "src/**/*.test.ts"],
     // Verbose reporter output
     reporter: "verbose",
-    // Stop on first failure
-    bail: 1,
     // Setup hooks
     globalSetup: [],
     setupFiles: [],
-    // Externalization settings for CommonJS packages
-    noExternal: [],
-    external: ["@cloudbase/manager-node", "@cloudbase/toolbox"],
+    server: {
+      deps: {
+        fallbackCJS: true,
+        inline: [
+          "@cloudbase/manager-node",
+          "@cloudbase/toolbox",
+          "cos-nodejs-sdk-v5",
+          "request",
+          "tough-cookie",
+          "psl",
+          "mustache",
+          "express",
+          "router",
+          "is-promise",
+          "uuid",
+        ],
+        external: [],
+      },
+    },
   },
 });

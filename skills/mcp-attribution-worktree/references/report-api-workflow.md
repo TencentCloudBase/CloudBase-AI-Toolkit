@@ -17,6 +17,14 @@ Use only these attribution endpoints for attribution state:
 
 Do not mutate attribution state through any other backend path.
 
+## API reality check
+
+Trust the live API responses over the current OpenAPI schema when they disagree.
+
+At the time of writing, the live attribution responses include fields such as `resolutionStatus`, `owner`, `notes`, and `externalUrl`, while the published OpenAPI schema may still show the older `status`-only shape.
+
+Likewise, run-level execution problems such as worker `ExecutionError`, `error_during_execution`, or provider `429 usage exceeds frequency limit` should be treated as run result `error`, not normal assertion `fail`.
+
 ## Baseline query
 
 Start with:
@@ -140,6 +148,13 @@ Check:
 - overall score
 - failed tests or checks
 - timeout or environment-level failures
+- whether the failure is a true task failure or an execution failure that should be normalized to `error`
+
+Normalization rule:
+
+- use `fail` for normal checker or task failures
+- use `error` for worker / provider / execution failures, including rate limiting such as `429 usage exceeds frequency limit`
+- if you confirm a historical attribution was written with the wrong run status, correct the record before treating the issue as product evidence
 
 ### Trace
 

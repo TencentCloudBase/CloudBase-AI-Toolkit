@@ -1,6 +1,6 @@
 # 应用集成：UI 设计
 
-专业的 UI 设计和前端界面指南
+界面视觉方向、设计规格与前端原型指导
 
 ## 如何使用
 
@@ -17,38 +17,67 @@ import AIDevelopmentPrompt from '../components/AIDevelopmentPrompt';
 
 <AIDevelopmentPrompt ruleId="ui-design" />
 
-## Skill 
+## 安装与查看
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
+如果需要安装全部 CloudBase Skills，可执行：
 
-<Tabs>
-<TabItem value="SKILL" label="SKILL">
+```bash
+npx skills add tencentcloudbase/cloudbase-skills
+```
 
-````markdown title="rule.md"
+如果只安装当前 Skill，可执行：
+
+```bash
+npx skills add https://github.com/tencentcloudbase/skills --skill ui-design
+```
+
+当前 Skill 在线查看： [ui-design](https://skills.sh/tencentcloudbase/skills/ui-design)
+
+---
+
+## Skill 规则原文
+
+<details>
+<summary>查看 SKILL.md 原文</summary>
+
+````markdown
+## Standalone Install Note
+
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
+
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/ui-design/SKILL.md`
+
+Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
+
 ## Activation Contract
 
 ### Use this first when
 
-- The request involves any page, component, screen, visual prototype, or frontend styling work.
+- The request is to decide visual direction, produce a design specification, create a prototype, or make layout, typography, color, and visual hierarchy choices for an interface.
+- The implementation should follow a deliberate aesthetic rather than directly coding an already-approved design.
 
 ### Read before writing code if
 
-- The response will include UI code, layout structure, typography, color decisions, or visual behavior.
+- The response must choose typography, color, spacing, layout strategy, or other visual rules before code exists.
+- The user asks for "design", "prototype", "look and feel", or "style" rather than straight implementation.
 
 ### Then also read
 
-- Web implementation -&gt; `../web-development/SKILL.md`
-- Mini program implementation -&gt; `../miniprogram-development/SKILL.md`
+- Web implementation -> `../web-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/web-development/SKILL.md`)
+- Mini program implementation -> `../miniprogram-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/miniprogram-development/SKILL.md`)
 
 ### Do NOT use for
 
 - Backend-only tasks, database design, or pure API work without interface output.
+- Straight implementation of an already-approved UI without new design decisions.
+- Generic frontend coding requests where the visual direction is already settled.
 
 ### Common mistakes / gotchas
 
 - Writing JSX, WXML, or CSS before outputting the design specification.
 - Falling back to generic AI layouts instead of an explicit aesthetic direction.
+- Jumping into implementation when the design intent is still unclear.
 - Ignoring platform constraints after the visual concept is defined.
 
 ### Minimal checklist
@@ -100,6 +129,11 @@ Use this skill for **frontend UI design and interface creation** in any project 
    - Icon audit (verify no emoji icons, using professional icon libraries)
    - Layout audit (verify asymmetry/creativity)
    - Design specification compliance check
+
+5. **Respect brand or design-system overrides when they are real constraints**
+   - If the project already has approved brand colors, font tokens, or a design system, treat those as higher-priority constraints
+   - Explicitly document which default UI-design prohibitions are being overridden and why
+   - Keep the override narrow: preserve the overall quality bar instead of falling back to generic AI styling
 
 ---
 
@@ -183,10 +217,11 @@ DESIGN SPECIFICATION
   - Consider using distinctive font combinations to elevate the interface's aesthetic level
   - Font selection should align with the overall aesthetic direction
 
-### Color &amp; Theme
+### Color & Theme
 - **Unified Aesthetics**: Use CSS variables for consistency
 - **Dominant Colors with Accents**: Using dominant colors with sharp accents is more effective than evenly-distributed color schemes
 - **Theme Consistency**: Choose dark or light themes based on aesthetic direction, ensure color choices match the overall style
+- **Brand Escape Hatch**: If a product already mandates a brand palette or typography system, you may use those tokens, but call out the override explicitly in the design specification
 
 ### Motion Design
 - **Animation Strategy**: Use animations for effects and micro-interactions
@@ -210,7 +245,7 @@ DESIGN SPECIFICATION
 - **Break the Grid**: Use grid-breaking elements
 - **Negative Space Control**: Either use generous negative space or control density
 
-### Backgrounds &amp; Visual Details
+### Backgrounds & Visual Details
 - **Atmosphere Creation**: Create atmosphere and depth rather than defaulting to solid colors
 - **Contextual Effects**: Add contextual effects and textures that match the overall aesthetic
 - **Creative Forms**: Apply creative forms, such as:
@@ -244,12 +279,12 @@ className="bg-gradient-to-tr from-emerald-900 to-teal-700" // Dark organic
 className="bg-[#FF6B35] to-[#F7931E]" // Bold retro-futuristic
 
 // ❌ BAD: Generic centered card layout
-&lt;div className="flex items-center justify-center min-h-screen"&gt;
-  &lt;div className="bg-white rounded-lg shadow-lg p-8"&gt;
+<div className="flex items-center justify-center min-h-screen">
+  <div className="bg-white rounded-lg shadow-lg p-8">
 
 // ✅ GOOD: Asymmetric layout with creative positioning
-&lt;div className="grid grid-cols-12 min-h-screen"&gt;
-  &lt;div className="col-span-7 col-start-2 pt-24"&gt;
+<div className="grid grid-cols-12 min-h-screen">
+  <div className="col-span-7 col-start-2 pt-24">
 
 // ❌ BAD: System fonts
 font-family: 'Inter', system-ui, sans-serif
@@ -261,12 +296,12 @@ font-family: 'Space Mono', monospace // Brutalist
 font-family: 'DM Serif Display', serif // Luxury
 
 // ❌ BAD: Emoji icons
-&lt;span&gt;🚀&lt;/span&gt;
-&lt;button&gt;⭐ Favorite&lt;/button&gt;
+<span>🚀</span>
+<button>⭐ Favorite</button>
 
 // ✅ GOOD: Professional icon libraries
-&lt;i className="fas fa-rocket"&gt;&lt;/i&gt; // FontAwesome
-&lt;svg className="w-5 h-5"&gt;...&lt;/svg&gt; // Heroicons
+<i className="fas fa-rocket"></i> // FontAwesome
+<svg className="w-5 h-5">...</svg> // Heroicons
 ```
 
 ### Creative Implementation Principles
@@ -332,36 +367,4 @@ All interface prototypes must:
 Remember: You are capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
 ````
 
-</TabItem>
-
-<TabItem value="checklist" label="checklist">
-
-````markdown title="checklist.md"
-# UI Design Activation Checklist
-
-Use this checklist before generating any page, component, or visual interface.
-
-## Required checks
-
-1. Output the design specification first.
-2. Choose a concrete aesthetic direction rather than generic adjectives.
-3. Define a color palette and typography before writing markup or styles.
-4. Confirm the target platform: Web or mini program.
-5. Read the platform implementation skill after the design spec is fixed.
-
-## Common failure patterns
-
-- Starting with JSX, WXML, or CSS before design intent is stated.
-- Falling back to generic AI visual patterns.
-- Missing platform-specific layout or asset constraints.
-
-## Done criteria
-
-- The design spec is visible in the response.
-- Aesthetic direction, palette, and typography are explicit.
-- The next implementation skill is known before UI code starts.
-````
-
-</TabItem>
-
-</Tabs>
+</details>

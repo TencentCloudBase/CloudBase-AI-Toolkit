@@ -1,6 +1,6 @@
 import { AuthSupervisor } from "@cloudbase/toolbox";
 import { debug } from "./utils/logger.js";
-import { isInternationalRegion } from "./utils/tencet-cloud.js";
+import { isInternationalRegion } from "./utils/tencent-cloud.js";
 
 const auth = AuthSupervisor.getInstance({});
 
@@ -32,6 +32,7 @@ export interface EnsureLoginOptions extends AuthOptions {
 export interface DeviceFlowAuthInfo {
   user_code: string;
   verification_uri?: string;
+  verification_uri_complete?: string;
   device_code: string;
   expires_in: number;
 }
@@ -64,6 +65,68 @@ function normalizeOptionalString(value?: string | null) {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+export function buildVerificationUriComplete(
+  deviceAuthInfo?: Pick<
+    DeviceFlowAuthInfo,
+    "verification_uri" | "verification_uri_complete" | "user_code"
+  >,
+) {
+  const explicitComplete = normalizeOptionalString(
+    deviceAuthInfo?.verification_uri_complete,
+  );
+  if (explicitComplete) {
+    return explicitComplete;
+  }
+
+  const verificationUri = normalizeOptionalString(deviceAuthInfo?.verification_uri);
+  const userCode = normalizeOptionalString(deviceAuthInfo?.user_code);
+  if (!verificationUri || !userCode) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(verificationUri);
+    const hash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
+
+    if (hash) {
+      const [hashPath, hashQuery = ""] = hash.split("?");
+      const hashParams = new URLSearchParams(hashQuery);
+      if (!hashParams.has("user_code")) {
+        hashParams.set("user_code", userCode);
+      }
+      url.hash = hashParams.toString()
+        ? `#${hashPath}?${hashParams.toString()}`
+        : `#${hashPath}`;
+      return url.toString();
+    }
+
+    if (!url.searchParams.has("user_code")) {
+      url.searchParams.set("user_code", userCode);
+    }
+    return url.toString();
+  } catch {
+    if (verificationUri.includes("user_code=")) {
+      return verificationUri;
+    }
+
+    const separator = verificationUri.includes("?") ? "&" : "?";
+    return `${verificationUri}${separator}user_code=${encodeURIComponent(userCode)}`;
+  }
+}
+
+export function buildDeviceAuthChallengePayload(deviceAuthInfo?: DeviceFlowAuthInfo) {
+  if (!deviceAuthInfo) {
+    return undefined;
+  }
+
+  return {
+    user_code: deviceAuthInfo.user_code,
+    verification_uri: deviceAuthInfo.verification_uri,
+    verification_uri_complete: buildVerificationUriComplete(deviceAuthInfo),
+    expires_in: deviceAuthInfo.expires_in,
+  };
 }
 
 function normalizeAuthMode(value?: string | null): AuthFlowMode | undefined {
@@ -101,13 +164,32 @@ function updateAuthProgressState(
 function normalizeLoginStateFromEnvVars(options?: {
   ignoreEnvVars?: boolean;
 }) {
+  if (options?.ignoreEnvVars) {
+    return null;
+  }
+
+  // 优先检查 CloudBase API Key（优先级高于 TENCENTCLOUD_*）
+  const {
+    CLOUDBASE_API_KEY,
+    CLOUDBASE_ENV_ID: CLOUDBASE_ENV,
+  } = process.env;
+
+  if (CLOUDBASE_API_KEY && CLOUDBASE_ENV) {
+    return {
+      _type: 'api_key' as const,
+      apiKey: CLOUDBASE_API_KEY,
+      envId: CLOUDBASE_ENV,
+    };
+  }
+
+  // 然后检查腾讯云密钥环境变量
   const {
     TENCENTCLOUD_SECRETID,
     TENCENTCLOUD_SECRETKEY,
     TENCENTCLOUD_SESSIONTOKEN,
   } = process.env;
 
-  if (!options?.ignoreEnvVars && TENCENTCLOUD_SECRETID && TENCENTCLOUD_SECRETKEY) {
+  if (TENCENTCLOUD_SECRETID && TENCENTCLOUD_SECRETKEY) {
     return {
       secretId: TENCENTCLOUD_SECRETID,
       secretKey: TENCENTCLOUD_SECRETKEY,
@@ -281,20 +363,49 @@ export function resetAuthProgressState() {
   });
 }
 
+export interface LoginState {
+  secretId: string;
+  secretKey: string;
+  token?: string;
+  envId?: string;
+}
+
 export async function peekLoginState(options?: {
   ignoreEnvVars?: boolean;
-}) {
+}): Promise<LoginState | null> {
   const envVarLoginState = normalizeLoginStateFromEnvVars(options);
+
   if (envVarLoginState) {
+    // API Key 模式：需要先用 API Key 换取临时密钥
+    if ('_type' in envVarLoginState && envVarLoginState._type === 'api_key') {
+      debug("peekLoginState: detected CLOUDBASE_API_KEY env var");
+      try {
+        // 优先使用 IDE 注入的工作目录，其次 process.cwd()
+        const projectCwd = process.env.WORKSPACE_FOLDER_PATHS || process.cwd();
+        const credential = await auth.loginByApiKey(
+          envVarLoginState.apiKey,
+          envVarLoginState.envId,
+          { cwd: projectCwd }
+        );
+        return credential;
+      } catch (e) {
+        debug("peekLoginState: API Key login failed", { error: e instanceof Error ? e.message : String(e) });
+        return null;
+      }
+    }
+
+    // 腾讯云密钥模式：直接返回
     debug("loginByApiSecret");
-    return envVarLoginState;
+    return envVarLoginState as LoginState;
   }
 
+  // 尝试从 toolbox 本地存储读取（包括项目级 API Key 凭证）
   return auth.getLoginState();
 }
 
 export async function ensureLogin(options?: EnsureLoginOptions) {
-  debug("TENCENTCLOUD_SECRETID", { secretId: process.env.TENCENTCLOUD_SECRETID });
+  debug("TENCENTCLOUD_SECRETID", { hasSecretId: !!process.env.TENCENTCLOUD_SECRETID });
+  debug("CLOUDBASE_API_KEY", { hasApiKey: !!process.env.CLOUDBASE_API_KEY });
 
   const loginState = await peekLoginState({
     ignoreEnvVars: options?.ignoreEnvVars,
@@ -372,7 +483,8 @@ export async function getLoginState(options?: EnsureLoginOptions) {
 }
 
 export async function logout() {
-  const result = await auth.logout();
+  const cwd = process.env.WORKSPACE_FOLDER_PATHS || process.cwd();
+  const result = await auth.logout({ cwd });
   resetAuthProgressState();
   return result;
 }

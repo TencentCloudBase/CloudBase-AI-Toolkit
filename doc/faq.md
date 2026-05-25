@@ -235,11 +235,31 @@ npm install @cloudbase/cli@latest -g
 
 安装完成后会自动生成 `cloudbase-mcp` 全局命令。
 
-**配置方法：**
+**方式一：CloudBase API Key（推荐）**
+
+API Key 是环境级长期凭证，MCP 会自动换取临时密钥，过期后自动刷新，无需手动管理：
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "cloudbase-mcp",
+      "env": {
+        "CLOUDBASE_API_KEY": "你的 CloudBase API Key",
+        "CLOUDBASE_ENV_ID": "云开发环境 ID"
+      }
+    }
+  }
+}
+```
+
+> 💡 API Key 可在 [云开发控制台](https://tcb.cloud.tencent.com/dev) 的环境设置中创建和管理。
+
+**方式二：腾讯云 API 密钥**
 
 在 MCP 配置中使用 `env` 环境变量来设置认证信息：
 
-```js
+```json
 {
   "mcpServers": {
     "cloudbase": {
@@ -264,6 +284,8 @@ npm install @cloudbase/cli@latest -g
 - 远程开发环境（如 GitHub Codespaces、云 IDE 等）
 - 服务端自动化脚本
 - CI/CD 流水线中的自动化部署
+
+> **安全提示**：如果你需要在远程服务器上部署 MCP 并对外提供 HTTP 接口（而非仅在本机使用），**务必设置 `CLOUDBASE_MCP_CLOUD_MODE=true` 环境变量**。这会自动禁用 `downloadRemoteFile`、`manageCloudRun`（本地运行）、`manageApps`（本地代码上传）等涉及本地文件读写和进程启动的工具，防止远程调用方操作服务器本地资源。详见 [连接方式文档](connection-modes.mdx) 中的"自建服务器部署"章节。
 
 ---
 

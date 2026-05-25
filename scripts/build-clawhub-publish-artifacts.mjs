@@ -88,6 +88,30 @@ function parseFrontmatter(skillContent) {
   };
 }
 
+function replaceFrontmatterField(skillContent, fieldName, nextValue) {
+  const frontmatterMatch = skillContent.match(/^---\n([\s\S]*?)\n---/);
+
+  if (!frontmatterMatch) {
+    throw new Error("SKILL.md 缺少 frontmatter / SKILL.md is missing frontmatter");
+  }
+
+  const frontmatter = frontmatterMatch[1];
+  const fieldPattern = new RegExp(`^${fieldName}:\\s*.+$`, "m");
+
+  if (!fieldPattern.test(frontmatter)) {
+    throw new Error(
+      `SKILL.md frontmatter 缺少 ${fieldName} / SKILL.md frontmatter is missing ${fieldName}`,
+    );
+  }
+
+  const nextFrontmatter = frontmatter.replace(
+    fieldPattern,
+    `${fieldName}: ${nextValue}`,
+  );
+
+  return skillContent.replace(frontmatterMatch[0], `---\n${nextFrontmatter}\n---`);
+}
+
 function validateArtifactDir(targetKey, artifactDir) {
   const skillFile = path.join(artifactDir, "SKILL.md");
 
@@ -112,6 +136,13 @@ function buildLocalSkillTarget(target, destinationDir) {
 
   copyDirectoryRecursive(target.sourceDir, destinationDir);
 
+  if (target.publishName) {
+    const skillFile = path.join(destinationDir, "SKILL.md");
+    const raw = fs.readFileSync(skillFile, "utf8");
+    const rewritten = replaceFrontmatterField(raw, "name", target.publishName);
+    fs.writeFileSync(skillFile, rewritten, "utf8");
+  }
+
   return {
     sourceDir: target.sourceDir,
   };
@@ -121,9 +152,15 @@ function buildAllInOneTarget(target, destinationDir) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "clawhub-allinone-"));
 
   try {
+    // Resolve tsx CLI entry from the locally-installed package
+    const tsxPkg = path.resolve(projectRoot, "node_modules/tsx/package.json");
+    const tsxBinRaw = JSON.parse(fs.readFileSync(tsxPkg, "utf8")).bin;
+    // tsxBinRaw may be "./dist/cli.mjs" - strip leading "./"
+    const tsxBin = tsxBinRaw.replace(/^\.\//, "");
+    const tsxCli = path.join(projectRoot, "node_modules/tsx", tsxBin);
     execFileSync(
       "node",
-      ["scripts/build-allinone-skill.ts", "--dir", tempRoot],
+      [tsxCli, "scripts/build-allinone-skill.ts", "--dir", tempRoot],
       {
         cwd: projectRoot,
         stdio: "pipe",
