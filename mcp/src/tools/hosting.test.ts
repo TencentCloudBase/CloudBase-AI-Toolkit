@@ -202,6 +202,41 @@ describe('hosting tools', () => {
     expect(tools.manageHosting.meta.inputSchema.localPath.description).toContain('action=upload');
   });
 
+  it('manageHosting domainConfig schema should expose fixed CDN option values as enums', () => {
+    const tools = createMockServer();
+    const domainConfigSchema = tools.manageHosting.meta.inputSchema.domainConfig;
+
+    expect(domainConfigSchema.safeParse({
+      Refer: {
+        Switch: 'on',
+        RefererRules: [
+          {
+            RefererType: 'whitelist',
+            Referers: ['example.com'],
+            AllowEmpty: true,
+          },
+        ],
+      },
+      Cache: [{ RuleType: 'path', RuleValue: '/index.html', CacheTtl: 60 }],
+      IpFilter: { Switch: 'off', FilterType: 'blacklist', Filters: ['127.0.0.1'] },
+      IpFreqLimit: { Switch: 'on', Qps: 10 },
+    }).success).toBe(true);
+
+    expect(domainConfigSchema.safeParse({ Refer: { Switch: 'enabled' } }).success).toBe(false);
+    expect(domainConfigSchema.safeParse({
+      Refer: {
+        Switch: 'on',
+        RefererRules: [{ RefererType: 'allow', Referers: ['example.com'], AllowEmpty: true }],
+      },
+    }).success).toBe(false);
+    expect(domainConfigSchema.safeParse({
+      Cache: [{ RuleType: 'extension', RuleValue: 'js', CacheTtl: 60 }],
+    }).success).toBe(false);
+    expect(domainConfigSchema.safeParse({
+      IpFilter: { Switch: 'on', FilterType: 'denylist' },
+    }).success).toBe(false);
+  });
+
   it('queryHosting(action=websiteConfig) should enrich config with StaticStorages info', async () => {
     const tools = createMockServer();
 

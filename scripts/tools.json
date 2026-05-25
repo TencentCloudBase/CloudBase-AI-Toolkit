@@ -642,7 +642,11 @@
           "dbInstanceType": {
             "type": "string",
             "default": "MYSQL",
-            "description": "数据库实例类型，可选值：MYSQL=MySQL 数据库，FLEXDB=文档型数据库（NoSQL）"
+            "description": "数据库实例类型，可选值：MYSQL=MySQL 数据库，FLEXDB=文档型数据库（NoSQL）",
+            "enum": [
+              "MYSQL",
+              "FLEXDB"
+            ]
           }
         },
         "required": [
@@ -1211,7 +1215,11 @@
                 "properties": {
                   "Switch": {
                     "type": "string",
-                    "description": "Referer 防盗链开关，例如 on/off。"
+                    "enum": [
+                      "on",
+                      "off"
+                    ],
+                    "description": "Referer 防盗链开关：on=开启，off=关闭。"
                   },
                   "RefererRules": {
                     "type": "array",
@@ -1220,7 +1228,11 @@
                       "properties": {
                         "RefererType": {
                           "type": "string",
-                          "description": "Referer 规则类型。"
+                          "enum": [
+                            "blacklist",
+                            "whitelist"
+                          ],
+                          "description": "Referer 规则类型：blacklist=黑名单，whitelist=白名单。"
                         },
                         "Referers": {
                           "type": "array",
@@ -1257,7 +1269,11 @@
                   "properties": {
                     "RuleType": {
                       "type": "string",
-                      "description": "缓存规则类型，例如 fileType/path。"
+                      "enum": [
+                        "fileType",
+                        "path"
+                      ],
+                      "description": "缓存规则类型：fileType=文件类型，path=路径。"
                     },
                     "RuleValue": {
                       "type": "string",
@@ -1282,11 +1298,19 @@
                 "properties": {
                   "Switch": {
                     "type": "string",
-                    "description": "IP 访问控制开关，例如 on/off。"
+                    "enum": [
+                      "on",
+                      "off"
+                    ],
+                    "description": "IP 访问控制开关：on=开启，off=关闭。"
                   },
                   "FilterType": {
                     "type": "string",
-                    "description": "过滤类型，例如 blacklist/whitelist。"
+                    "enum": [
+                      "blacklist",
+                      "whitelist"
+                    ],
+                    "description": "过滤类型：blacklist=黑名单，whitelist=白名单。"
                   },
                   "Filters": {
                     "type": "array",
@@ -1307,7 +1331,11 @@
                 "properties": {
                   "Switch": {
                     "type": "string",
-                    "description": "IP 频控开关，例如 on/off。"
+                    "enum": [
+                      "on",
+                      "off"
+                    ],
+                    "description": "IP 频控开关：on=开启，off=关闭。"
                   },
                   "Qps": {
                     "type": "number",
@@ -2124,7 +2152,23 @@
           },
           "providerType": {
             "type": "string",
-            "description": "addProvider 时的 provider 协议类型，如 OAUTH、OIDC、EMAIL"
+            "enum": [
+              "OAUTH",
+              "OIDC",
+              "SAML",
+              "WX_MICRO_APP",
+              "WX_QRCODE_MICRO_APP",
+              "WX_CLOUDBASE_MICRO_APP",
+              "WX_MP",
+              "WX_OPEN",
+              "WX_WORK_INTERNAL",
+              "WX_WORK_AGENT",
+              "WX_WORK_THIRD_PARTY",
+              "WX_WORK_THIRD_PARTY_ASSOCIATION",
+              "CUSTOM",
+              "EMAIL"
+            ],
+            "description": "addProvider 时的 provider 协议类型"
           },
           "displayName": {
             "anyOf": [

@@ -27,10 +27,27 @@ const MANAGE_APP_AUTH_ACTIONS = [
 ] as const;
 
 const APP_AUTH_KEY_TYPES = ["publish_key", "api_key"] as const;
+const APP_AUTH_PROVIDER_TYPES = [
+  "OAUTH",
+  "OIDC",
+  "SAML",
+  "WX_MICRO_APP",
+  "WX_QRCODE_MICRO_APP",
+  "WX_CLOUDBASE_MICRO_APP",
+  "WX_MP",
+  "WX_OPEN",
+  "WX_WORK_INTERNAL",
+  "WX_WORK_AGENT",
+  "WX_WORK_THIRD_PARTY",
+  "WX_WORK_THIRD_PARTY_ASSOCIATION",
+  "CUSTOM",
+  "EMAIL",
+] as const;
 
 type QueryAppAuthAction = (typeof QUERY_APP_AUTH_ACTIONS)[number];
 type ManageAppAuthAction = (typeof MANAGE_APP_AUTH_ACTIONS)[number];
 type AppAuthKeyType = (typeof APP_AUTH_KEY_TYPES)[number];
+type AppAuthProviderType = (typeof APP_AUTH_PROVIDER_TYPES)[number];
 
 const SUPABASE_LIKE_SDK_HINTS = {
   phoneOtp: "auth.signInWithOtp({ phone })",
@@ -499,7 +516,10 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
           .optional()
           .describe("patchLoginStrategy 使用的简化登录策略 patch，如 { usernamePassword: true }"),
         providerId: z.string().optional().describe("provider 标识，如 email、google；addProvider 时也可作为自定义 provider Id"),
-        providerType: z.string().optional().describe("addProvider 时的 provider 协议类型，如 OAUTH、OIDC、EMAIL"),
+        providerType: z
+          .enum(APP_AUTH_PROVIDER_TYPES)
+          .optional()
+          .describe("addProvider 时的 provider 协议类型"),
         displayName: z
           .union([z.string(), z.record(z.any())])
           .optional()
@@ -541,7 +561,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
       action: ManageAppAuthAction;
       patch?: Record<string, unknown>;
       providerId?: string;
-      providerType?: string;
+      providerType?: AppAuthProviderType;
       displayName?: string | Record<string, unknown>;
       clientId?: string;
       config?: Record<string, unknown>;

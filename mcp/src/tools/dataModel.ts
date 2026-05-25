@@ -1047,7 +1047,7 @@ classDiagram
           .default(false)
           .describe("是否立即发布模型"),
         dbInstanceType: z
-          .string()
+          .enum(["MYSQL", "FLEXDB"])
           .optional()
           .default("MYSQL")
           .describe("数据库实例类型，可选值：MYSQL=MySQL 数据库，FLEXDB=文档型数据库（NoSQL）"),
@@ -1069,7 +1069,7 @@ classDiagram
       mermaidDiagram: string;
       action?: "create";
       publish?: boolean;
-      dbInstanceType?: string;
+      dbInstanceType?: "MYSQL" | "FLEXDB";
     }) => {
       const cloudbase = await getManager();
       let currentEnvId = await getEnvId(cloudBaseOptions);
