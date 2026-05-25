@@ -184,16 +184,16 @@ export function registerPGStorageTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     QUERY_PG_STORAGE,
     {
-      title: "Query PostgreSQL environment storage capability and upload plans",
+      title: "查询 PostgreSQL 环境云存储能力和上传方案",
       description:
-        "Query CloudBase storage capability for PostgreSQL environments. Returns bucket/config metadata and HTTP API or SDK implementation plans without reading files or emitting bulky signed URLs.",
+        "查询 CloudBase PostgreSQL 环境下的云存储能力。返回 bucket/config 能力摘要、对象信息查询方案，以及基于 HTTP API 或 SDK 的上传实现方案；不会读取本地文件，也不会默认输出大量签名 URL。",
       inputSchema: {
         action: z
           .enum(STORAGE_ACTIONS)
-          .describe("buckets/config=capability summary; uploadPlan=HTTP API upload plan; objectInfo=metadata query plan; signUpload/signDownload=explicit one-off signed URL request placeholder"),
-        bucket: z.string().optional().describe("Storage bucket name"),
-        objectKey: z.string().optional().describe("Single object key"),
-        objectKeys: z.array(z.string()).optional().describe("Multiple object keys for metadata planning"),
+          .describe("操作类型：buckets/config=查询存储能力摘要；uploadPlan=生成 HTTP API/SDK 上传方案；objectInfo=生成对象元信息查询方案；signUpload/signDownload=显式的一次性签名 URL 请求占位"),
+        bucket: z.string().optional().describe("云存储 bucket 名称"),
+        objectKey: z.string().optional().describe("单个对象 key"),
+        objectKeys: z.array(z.string()).optional().describe("多个对象 key，用于对象元信息查询规划"),
         objects: z
           .array(
             z.object({
@@ -203,8 +203,8 @@ export function registerPGStorageTools(server: ExtendedMcpServer) {
             }),
           )
           .optional()
-          .describe("Upload object metadata. File bytes are never passed through MCP."),
-        expiresIn: z.number().int().min(60).max(86400).optional(),
+          .describe("待上传对象的元信息。文件字节内容不会通过 MCP 传递。"),
+        expiresIn: z.number().int().min(60).max(86400).optional().describe("签名 URL 有效期，单位秒，范围 60 到 86400。"),
       },
       annotations: {
         readOnlyHint: true,

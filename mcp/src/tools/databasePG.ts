@@ -1551,31 +1551,31 @@ export function registerPGDatabaseTools(
   server.registerTool?.(
     QUERY_PG_DATABASE,
     {
-      title: "Query PostgreSQL context, objects, metadata, or run read-only SQL",
+      title: "查询 PostgreSQL 上下文、对象、元数据或执行只读 SQL",
       description:
-        "Query PostgreSQL local context. Supports context discovery, schema-qualified object listing, lightweight metadata summaries, and read-only SQL execution.",
+        "查询 CloudBase PostgreSQL 数据库。支持获取当前 PG 上下文、列出带 schema 的数据库对象、读取轻量元数据、检查单个对象结构，以及执行只读 SQL。",
       inputSchema: {
         action: z
           .enum(QUERY_ACTIONS)
           .describe(
-            "context=get current PostgreSQL context; objects=list schema-qualified objects; metadata=get lightweight table metadata; schema=inspect one schema-qualified object; sql=execute read-only SQL",
+            "操作类型：context=获取当前 PostgreSQL 上下文；objects=列出带 schema 的数据库对象；metadata=获取轻量表元数据；schema=检查单个带 schema 的对象结构；sql=执行只读 SQL",
           ),
-        sql: z.string().optional().describe("Read-only SQL used by action=sql"),
+        sql: z.string().optional().describe("action=sql 时使用的只读 SQL"),
         objectName: z
           .string()
           .optional()
-          .describe("Schema-qualified PostgreSQL object name used by action=schema, for example public.users"),
+          .describe("action=schema 时使用的带 schema 的 PostgreSQL 对象名，例如 public.users"),
         schema: z
           .string()
           .optional()
-          .describe("Optional schema filter used by action=objects or action=metadata"),
+          .describe("可选的 schema 过滤条件，用于 action=objects 或 action=metadata"),
         limit: z
           .number()
           .int()
           .min(1)
           .max(200)
           .optional()
-          .describe("Optional summary limit for objects, metadata, or SQL rows. Defaults to 20."),
+          .describe("可选的摘要数量上限，用于对象、元数据或 SQL 返回行数，默认 20，最大 200。"),
       },
       annotations: {
         readOnlyHint: true,
@@ -1615,40 +1615,40 @@ export function registerPGDatabaseTools(
   server.registerTool?.(
     MANAGE_PG_DATABASE,
     {
-      title: "Manage PostgreSQL local bootstrap or execute write SQL",
+      title: "管理 PostgreSQL 上下文或执行写入 SQL",
       description:
-        "Manage local PostgreSQL runtime for CloudBase PG MCP. Supports local bootstrap initialization and write SQL execution with explicit confirmation for destructive operations.",
+        "管理 CloudBase PostgreSQL MCP 上下文。支持绑定云端 Manager SDK 执行路径、本地开发环境初始化、SQL 风险预检、迁移规划占位，以及在显式确认后执行写入 SQL。",
       inputSchema: {
         action: z
           .enum(MANAGE_ACTIONS)
-          .describe("init=bootstrap or bind local PostgreSQL context; execute=run confirmed write SQL or DDL; dryRun=classify SQL without executing; planMigration=validate migration SQL; applyMigration=reserved for future Manager SDK migration API"),
+          .describe("操作类型：init=初始化或绑定 PostgreSQL 上下文；execute=执行已确认的写入 SQL 或 DDL；dryRun=只分析 SQL 风险不执行；planMigration=生成迁移规划；applyMigration=预留给后续 Manager SDK migration API"),
         sql: z
           .string()
           .optional()
-          .describe("SQL statement used by action=execute"),
+          .describe("action=execute、dryRun 或 planMigration 使用的 SQL 语句"),
         confirm: z
           .boolean()
           .optional()
-          .describe("Explicit confirmation required for any write SQL."),
-        envId: z.string().optional().describe("Optional environment identifier for the local PG context"),
-        instanceId: z.string().optional().describe("Optional logical instance identifier for the local PG context"),
-        defaultSchema: z.string().optional().describe("Default schema persisted into PG context. Defaults to public."),
+          .describe("执行任何写入 SQL 前都需要显式设置为 true。"),
+        envId: z.string().optional().describe("可选的 CloudBase 环境 ID，不传时使用当前 MCP 环境。"),
+        instanceId: z.string().optional().describe("可选的 PostgreSQL 逻辑实例标识。"),
+        defaultSchema: z.string().optional().describe("默认 schema，会保存到 PG 上下文中，默认 public。"),
         connectionUri: z
           .string()
           .optional()
-          .describe("Optional direct PostgreSQL connection URI. When provided, bootstrapMode becomes manual."),
+          .describe("可选的 PostgreSQL 直连 URI。提供该参数时会进入本地 manual 模式。"),
         bootstrapMode: z
           .enum(BOOTSTRAP_MODES)
           .optional()
-          .describe("Bootstrap mode for action=init. cloud uses CloudBase Manager SDK executePGSql; podman/local/manual are local development paths."),
+          .describe("action=init 的初始化模式。cloud 使用 CloudBase Manager SDK executePGSql；podman/local/manual 用于本地开发路径。"),
         projectDir: z
           .string()
           .optional()
-          .describe("Optional cloudbase-pgsql project directory used by action=init."),
+          .describe("可选的 cloudbase-pgsql 项目目录，用于本地 action=init。"),
         role: z
           .string()
           .optional()
-          .describe("Optional PostgreSQL role passed to Manager SDK executePGSql, for example postgres for policy management."),
+          .describe("可选的 PostgreSQL role，会传给 Manager SDK executePGSql；例如需要管理策略时可传 postgres。"),
       },
       annotations: {
         readOnlyHint: false,
