@@ -641,12 +641,12 @@
           },
           "dbInstanceType": {
             "type": "string",
-            "default": "MYSQL",
-            "description": "数据库实例类型，可选值：MYSQL=MySQL 数据库，FLEXDB=文档型数据库（NoSQL）",
             "enum": [
               "MYSQL",
               "FLEXDB"
-            ]
+            ],
+            "default": "MYSQL",
+            "description": "数据库实例类型，可选值：MYSQL=MySQL 数据库，FLEXDB=文档型数据库（NoSQL）"
           }
         },
         "required": [
