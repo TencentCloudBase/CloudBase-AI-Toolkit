@@ -48,6 +48,16 @@ const IDES: IDE[] = [
     configExample: '',
   },
   {
+    id: 'workbuddy',
+    name: 'WorkBuddy',
+    platform: '独立 IDE',
+    configPath: 'CloudBase Skills',
+    iconSlug: 'workbuddy',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy',
+    configExample: '',
+    showInstallButton: false,
+  },
+  {
     id: 'cursor',
     name: 'Cursor',
     platform: '独立 IDE',

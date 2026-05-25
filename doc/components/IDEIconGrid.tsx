@@ -146,6 +146,13 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/qwen-code',
   },
   {
+    id: 'workbuddy',
+    name: 'WorkBuddy',
+    platform: '独立 IDE',
+    iconSlug: 'workbuddy',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy'
+  },
+  {
     id: 'opencode',
     name: 'OpenCode',
     platform: '命令行工具',
