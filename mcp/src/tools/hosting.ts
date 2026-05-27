@@ -478,7 +478,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
   server.registerTool(
     'queryHosting',
     {
-      title: '查询静态托管',
+      title: '查询 CloudBase 静态托管',
       description: '查询 CloudBase 静态托管的只读信息。适合 AI 先做发现再决定下一步：action=websiteConfig 查询首页/错误页/路由规则与站点域名信息；action=status 查询托管服务状态；action=findFiles 按前缀查找文件；action=listFiles 列出全部托管文件；action=domainStatus 查询自定义域名的当前状态与配置。该工具不会产生任何副作用。',
       inputSchema: queryHostingInputSchema,
       annotations: {
@@ -632,7 +632,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
   server.registerTool(
     'manageHosting',
     {
-      title: '管理静态托管',
+      title: '管理 CloudBase 静态托管',
       description: '管理 CloudBase 静态托管的变更操作。action=upload 上传本地构建产物；action=delete 删除托管文件或目录（必须 confirm=true）；action=setWebsiteDocument 设置首页/错误页/路由规则；action=enableService 开通静态托管；action=bindDomain / unbindDomain / updateDomain 管理自定义域名；action=downloadFile / downloadDirectory 下载托管内容到本地。若任务只是查看配置、文件或域名状态，请改用 queryHosting。',
       inputSchema: manageHostingInputSchema,
       annotations: {
