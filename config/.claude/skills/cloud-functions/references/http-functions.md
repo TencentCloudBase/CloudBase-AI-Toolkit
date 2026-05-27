@@ -51,9 +51,24 @@ If the user specifies "Node.js 18", use runtime `Nodejs18.15` and the path `/var
 const http = require("http");
 const { URL } = require("url");
 
+// CORS headers — default to * for simple cross-origin APIs
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 function sendJson(res, statusCode, data) {
-  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json; charset=utf-8",
+    ...CORS_HEADERS,
+  });
   res.end(JSON.stringify(data));
+}
+
+function sendOptions(res) {
+  res.writeHead(204, CORS_HEADERS);
+  res.end();
 }
 
 function readJsonBody(req) {
@@ -82,6 +97,11 @@ function readJsonBody(req) {
 }
 
 const server = http.createServer(async (req, res) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return sendOptions(res);
+  }
+
   const url = new URL(req.url || "/", "http://127.0.0.1");
 
   if (req.method === "GET" && url.pathname === "/health") {
@@ -113,6 +133,7 @@ server.listen(9000);
 - If you intentionally use ES Modules, use `import ...` consistently and do not rely on CommonJS-only globals such as bare `__dirname`, `require(...)`, or `module.exports`. When you need the current file path in ESM, derive it from `import.meta.url`.
 - Treat routing, method checks, and body parsing as part of the function code. With the native `http` module, parse `req.url` yourself and read the request body from the stream before calling `JSON.parse`.
 - Return JSON responses explicitly and set `Content-Type` yourself, for example `application/json; charset=utf-8`.
+- **Handle CORS headers**. Browsers block cross-origin requests without proper CORS headers. Default to `Access-Control-Allow-Origin: *` for simple APIs, and always respond to `OPTIONS` preflight requests with `200` and CORS headers.
 - Keep unsupported routes and methods explicit. Return `404` for unknown paths, and return `405` when the path exists but the HTTP method is not allowed.
 - Keep `scf_bootstrap`, `index.js`, `package.json`, and any bundled dependencies in the function directory that will be uploaded.
 
@@ -140,9 +161,24 @@ That combination avoids the common ESM pitfall where `__dirname` is not defined.
 const http = require("http");
 const { URL } = require("url");
 
+// CORS headers — default to * for simple cross-origin APIs
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 function sendJson(res, statusCode, data) {
-  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json; charset=utf-8",
+    ...CORS_HEADERS,
+  });
   res.end(JSON.stringify(data));
+}
+
+function sendOptions(res) {
+  res.writeHead(204, CORS_HEADERS);
+  res.end();
 }
 
 function readJsonBody(req) {
@@ -171,6 +207,11 @@ function readJsonBody(req) {
 }
 
 const server = http.createServer(async (req, res) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return sendOptions(res);
+  }
+
   const url = new URL(req.url || "/", "http://127.0.0.1");
 
   if (url.pathname === "/users" && req.method === "POST") {
