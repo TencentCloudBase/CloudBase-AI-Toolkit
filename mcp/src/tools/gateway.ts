@@ -578,9 +578,9 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "queryGateway",
     {
-      title: "查询网关域资源",
+      title: "查询 CloudBase 网关域资源",
       description:
-        "网关域统一只读入口。通过 action 查询网关域名、访问入口和目标暴露情况。",
+        "CloudBase 网关域统一只读入口。通过 action 查询网关域名、访问入口和目标暴露情况。",
       inputSchema: {
         action: z
           .enum(QUERY_GATEWAY_ACTIONS)
@@ -607,9 +607,9 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "manageGateway",
     {
-      title: "管理网关域资源（含自定义域名绑定）",
+      title: "管理 CloudBase 网关域资源（含自定义域名绑定）",
       description:
-        "网关域统一写入口。通过 action 创建目标访问入口，后续承接更通用的网关配置能力。为已存在的 HTTP 云函数补默认域名访问时，通常使用 createAccess 并提供 targetType=\"function\"、targetName、type=\"HTTP\" 与期望 path。注意 createAccess 只创建网关入口，不会自动修改函数资源权限。⚠️ 如需绑定带 SSL 证书的自定义域名供公网 HTTPS 访问，使用 action=\"bindCustomDomain\"（需要 domain 和 certificateId 参数）；如需配置 CORS/安全域名（无证书），请使用 envDomainManagement 工具。",
+        "CloudBase 网关域统一写入口。通过 action 创建目标访问入口，后续承接更通用的网关配置能力。为已存在的 HTTP 云函数补默认域名访问时，通常使用 createAccess 并提供 targetType=\"function\"、targetName、type=\"HTTP\" 与期望 path。注意 createAccess 只创建网关入口，不会自动修改函数资源权限。⚠️ 如需绑定带 SSL 证书的自定义域名供公网 HTTPS 访问，使用 action=\"bindCustomDomain\"（需要 domain 和 certificateId 参数）；如需配置 CORS/安全域名（无证书），请使用 envDomainManagement 工具。",
       inputSchema: {
         action: z
           .enum(MANAGE_GATEWAY_ACTIONS)

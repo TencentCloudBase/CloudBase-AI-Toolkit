@@ -94,8 +94,8 @@ export function registerAgentTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "queryAgents",
     {
-      title: "查询 Agent",
-      description: "Agent 域统一只读入口。支持列表、详情与日志查询。",
+      title: "查询 CloudBase Agent",
+      description: "CloudBase Agent 域统一只读入口。支持列表、详情与日志查询。",
       inputSchema: {
         action: z.enum(QUERY_AGENT_ACTIONS),
         agentId: z.string().optional(),
@@ -191,8 +191,8 @@ export function registerAgentTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "manageAgents",
     {
-      title: "管理 Agent",
-      description: "Agent 域统一写入口。支持创建、更新和删除远端 Agent。",
+      title: "管理 CloudBase Agent",
+      description: "CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent。",
       inputSchema: {
         action: z.enum(MANAGE_AGENT_ACTIONS),
         agentId: z.string().optional(),
