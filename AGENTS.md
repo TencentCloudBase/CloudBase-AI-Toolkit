@@ -179,6 +179,23 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 - tests 自动化测试
 </project_rules>
 
+<supply_chain_security>
+# npm 供应链安全（必须遵守）
+
+本项目因 MCP Server + 大规模 AI IDE 技能分发特性，是 npm 供应链攻击的高价值目标。
+
+**强制规则：**
+- 安全敏感依赖（`@cloudbase/*`、 `@modelcontextprotocol/sdk`、express、ws、zod 等 runtime 核心）**必须使用精确版本**（禁止 `^` / `~`）。
+- 所有 GitHub Actions 引用**必须 pin 到完整 40 字符 commit SHA**（禁止浮动 tag 如 `@v4`、`@beta`）。
+- 修改 `package.json`、`pnpm-workspace.yaml`、`.npmrc` 或 workflow 时，必须参考内部详细指南。
+- 优先使用 `corepack + pnpm` 进行依赖管理（已配置 `packageManager` 字段）。
+
+**详细内部文档（含当前状态、AI Agent 审计 Prompt、防护措施）：**
+`specs/npm-supply-chain-security-hardening/npm-security.md`
+
+任何涉及依赖或 CI 的变更，在开始前都应先阅读该文档。
+</supply_chain_security>
+
 <add_aiide>
 # CloudBase AI Toolkit - 新增 AI IDE 支持工作流
 
