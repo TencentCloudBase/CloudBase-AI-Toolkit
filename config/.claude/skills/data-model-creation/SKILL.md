@@ -1,7 +1,7 @@
 ---
 name: data-model-creation
 description: Optional advanced tool for complex data modeling. For simple table creation, use relational-database-tool directly with SQL statements.
-version: 2.20.1
+version: 2.20.2
 alwaysApply: false
 ---
 
