@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-05-22 02:39:24
+最近更新时间：2026-05-28 02:41:28
 
 -   微信扫一扫 
 -   QQ
@@ -58,7 +58,7 @@ _我的收藏_
 | [ModifyStorageSource](/document/api/876/132024) | 更新云存储外部数据源 | 20 |
 | [UnbindStorageSource](/document/api/876/132023) | 解绑云存储外部云存储源 | 20 |
 | [CreateEnvResource](/document/api/876/129358) | 创建环境相关资源 | 20 |
-| [AllocateEnv](/document/api/876/131594) | 从环境池分配环境 | 1000 |
+| [AllocateEnv](/document/api/876/131594) | 从环境池分配环境 | 3000 |
 | [ReleaseEnv](/document/api/876/131592) | 释放从环境池里分配的环境 | 1000 |
 | [AssumeRoleForAllocatedEnv](/document/api/876/131593) | 为环境池里的环境申请角色临时凭证 | 1000 |
 
