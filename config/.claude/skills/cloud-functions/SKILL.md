@@ -14,6 +14,10 @@ If this environment only installed the current skill, start from the CloudBase m
 
 Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
 
+**Cross-cutting protocols** (required for public exposure and code changes):
+- Change Safety Protocol: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/references/protocols/change-safety-protocol.md`
+- Deployment Gate: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/references/protocols/deployment-gate.md`
+
 # Cloud Functions Development
 
 ## Activation Contract
@@ -43,6 +47,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Web authentication UI implementation.
 - Database-schema design or general data-model work.
 - CloudBase official platform API clients or raw HTTP integrations that only consume platform endpoints.
+- **Tasks that the CloudBase JS SDK can handle directly** — simple data reads/writes, leaderboards, file uploads, real-time queries. Reach for `db.collection(...).get/add/update` before writing a function. Functions add deployment complexity, CORS configuration, and HTTP gateway binding that the SDK eliminates entirely.
 
 ### Common mistakes / gotchas
 
@@ -56,6 +61,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Forgetting that HTTP Functions must ship `scf_bootstrap`, listen on port `9000`, and include dependencies.
 - Forgetting to configure function security rules after creating an HTTP Function. Default rules reject anonymous callers with `EXCEED_AUTHORITY`. Note: anonymous login is disabled by default for new environments — if the function needs public access without authentication, configure the security rule to allow all callers rather than relying on anonymous login.
 - Mismatching the `scf_bootstrap` Node.js binary path with the function runtime (e.g. using `/var/lang/node18/bin/node` but setting `runtime: "Nodejs16.13"`).
+- Making code or configuration changes without first following the Change Safety Protocol (`cloudbase-platform/references/protocols/change-safety-protocol.md`).
+- Exposing functions publicly or deploying without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
 
 ### Minimal checklist
 
