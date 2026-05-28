@@ -541,7 +541,7 @@ async function handleGitOperations() {
   } catch (error) {
     console.error('❌ Git操作失败:', error.message);
     console.log('\n请手动检查并处理Git操作：');
-    console.log('1. cd ../awsome-cloudbase-examples');
+    console.log('1. cd ../awesome-cloudbase-examples');
     console.log('2. git add .');
     console.log('3. git commit -m "sync config and rules"');
     console.log('4. git push');

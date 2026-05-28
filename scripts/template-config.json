@@ -1,5 +1,5 @@
 {
-  "description": "awsome-cloudbase-examples 项目模板路径配置",
+  "description": "awesome-cloudbase-examples 项目模板路径配置",
   "version": "1.0.0",
   "comment": "templates 支持两种格式：1) 字符串格式同步整个config目录，2) 对象格式可配置 includePatterns/type 等选项。type 字段用于 skill 过滤：web 类型过滤小程序专属 skills，miniprogram 类型过滤 web 专属 skills，不填则同步全部。",
   "templates": [
