@@ -97,11 +97,14 @@ function getExcludedSkills(templateType) {
 
 /**
  * 检查给定路径是否对应被排除的 skill
- * skill 目录出现在以下位置：
+ * skill 目录/文件出现在以下位置：
  *   rules/{skill-name}/
  *   .cursor/rules/{skill-name}.mdc
  *   .codebuddy/skills/{skill-name}/
+ *   .claude/skills/{skill-name}/
  *   .{ide}/rules/{skill-name}.md(c)
+ *   .clinerules/{skill-name}/       — 扁平目录，skill 直接在 .clinerules 下
+ *   .kiro/steering/{skill-name}/
  * @param {string} relPath  相对于 configDir 的路径（使用 / 分隔）
  * @param {Set<string>} excludedSkills
  * @returns {boolean}
@@ -113,9 +116,19 @@ function isExcludedSkill(relPath, excludedSkills) {
   if (parts[0] === 'rules' && parts.length >= 2) {
     return excludedSkills.has(parts[1]);
   }
-  // .codebuddy/skills/{skill-name} or .codebuddy/skills/{skill-name}/...
-  if (parts[0] === '.codebuddy' && parts[1] === 'skills' && parts.length >= 3) {
+  // .codebuddy/skills/{skill-name} or .claude/skills/{skill-name}
+  if ((parts[0] === '.codebuddy' || parts[0] === '.claude') && parts[1] === 'skills' && parts.length >= 3) {
     return excludedSkills.has(parts[2]);
+  }
+  // .clinerules/{skill-name} — skill 目录直接在 .clinerules 下
+  if (parts[0] === '.clinerules' && parts.length >= 2) {
+    const name = parts[1].replace(/\.mdx?c?$/, '');
+    return excludedSkills.has(name);
+  }
+  // .kiro/steering/{skill-name}
+  if (parts[0] === '.kiro' && parts[1] === 'steering' && parts.length >= 3) {
+    const name = parts[2].replace(/\.mdx?c?$/, '');
+    return excludedSkills.has(name);
   }
   // .{ide}/rules/{skill-name}.md(c) — flat file under any IDE rules dir
   if (parts.length >= 3 && parts[parts.length - 2] === 'rules') {
