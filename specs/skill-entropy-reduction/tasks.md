@@ -10,7 +10,7 @@
   - 已通过 cloudbase-platform、cloudbase-cli、cloud-functions、web-development、miniprogram-development 等 skill 引用。
   - _需求: 需求 2, 需求 5
 
-- [ ] 3. 在 cloudbase-all-in-one 中落地 Scope Classifier
+- [x] 3. 在 cloudbase-all-in-one 中落地 Scope Classifier
   - 更新 `config/source/skills/SKILL.md` 顶部，增加极短的 CloudBase 任务 Scope Classifier 决策表。
   - 明确列出 5-6 个必须硬拒绝的真实负面模式（基于质量反馈报告中的典型案例匿名化处理）。
   - 增加标准化硬拒绝话术模板。

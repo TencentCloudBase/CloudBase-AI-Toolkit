@@ -1,11 +1,15 @@
 ---
 name: cloudbase-all-in-one
 description: Unified CloudBase execution guide for all-in-one skill installs. Use this as the first entry point for CloudBase app tasks, especially existing applications that already contain TODOs, fixed pages, and active handlers.
-version: 2.19.0
+version: 2.20.0
 alwaysApply: true
 ---
 
 # CloudBase All-In-One
+
+## Scope
+
+Only handle tasks that are part of building, integrating, or maintaining a CloudBase application — including UI design, spec planning, and other development activities when they are in service of a CloudBase app. If the request has no CloudBase application context at all, stop and tell the user this skill only covers CloudBase-based development.
 
 ## Activation Contract
 
@@ -50,7 +54,13 @@ alwaysApply: true
 
 ## Working rules
 
-1. Existing application with TODOs:
+1. **BaaS-first, functions as last resort**:
+   - Before writing any cloud function or CloudRun service, ask: can the JS SDK handle this directly? (`db.collection(...).get()`, `auth`, `storage`)
+   - Use the JS SDK directly for: data reads/writes, file uploads, real-time updates, simple queries including leaderboards, lists, aggregations.
+   - Only drop down to cloud functions when: the logic requires server-side permission enforcement that cannot be expressed in database rules, calling third-party services (payment, SMS, external APIs), or background jobs not triggered by the user.
+   - Only drop down to CloudRun when: persistent connections (WebSocket), long-running compute, or custom runtimes are genuinely required.
+
+2. Existing application with TODOs:
    - Treat it as a targeted repair task, not a greenfield build.
    - Prefer the shortest path from current code to working flow.
 
