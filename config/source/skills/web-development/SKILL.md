@@ -14,6 +14,10 @@ If this environment only installed the current skill, start from the CloudBase m
 
 Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
 
+**Cross-cutting protocols** (required before code changes or static hosting publish):
+- Change Safety Protocol: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/shared/change-safety-protocol.md`
+- Deployment Gate: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/deployment-gate.md`
+
 # Web Development
 
 ## Activation Contract
@@ -66,6 +70,9 @@ These rules override convenience. Treat them as a gate before saying "done".
 - The same spirit applies to ESLint: do not sprinkle `// eslint-disable` to mute the real signal. Fix the rule violation, or discuss before disabling.
 
 ### 2. Self-verify before claiming done
+
+Before making any non-trivial code or configuration change, you must first follow the Change Safety Protocol in `shared/change-safety-protocol.md` (declare impact → user confirmation → post-edit verification).
+Before any static hosting publish or custom domain work, complete the checks in `cloudbase-platform/deployment-gate.md`.
 
 Saying "I've implemented it" / "fixed it" / "it should work" without evidence is not acceptable. Before declaring completion, you must actually run the checks and report the result.
 

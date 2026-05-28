@@ -47,6 +47,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Treating any mention of "auth" as a provider-management task.
 - Implementing Web login in cloud functions.
 - Routing native App auth to Web SDK flows.
+- Making configuration or code changes without first following the Change Safety Protocol (`shared/change-safety-protocol.md`).
 - In an existing application, looping on provider queries after readiness is already known instead of wiring the active login and register handlers.
 
 ### Minimal checklist

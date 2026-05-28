@@ -19,13 +19,20 @@ If this environment only installed the current skill, start from the CloudBase m
 
 Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `cloud-functions` or `cloudrun-development`, use the standalone fallback URL shown next to that reference.
 
+**Cross-cutting protocols** (load for deployment and change operations):
+- Change Safety Protocol: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/shared/change-safety-protocol.md`
+- Deployment Gate: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/deployment-gate.md`
+
 ## Core Principles
 
 1. **`--help` first — never guess commands.**
    tcb CLI changes between versions. Before using any command for the first time,
    run `tcb <command> --help` to check parameters and discover official doc links.
 
-2. **Verify your work.**
+2. **Deployment Gate.**
+   Before any deployment, publish, custom domain, or CloudRun operation, you must first complete the checks in `cloudbase-platform/deployment-gate.md`.
+
+3. **Verify your work.**
    After deploying or modifying any resource, run the corresponding list/detail
    command to confirm the change took effect.
 
