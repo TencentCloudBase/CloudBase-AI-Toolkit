@@ -76,7 +76,7 @@
 
 #### 验收标准
 
-1. When 输出技术方案时, the CloudBase Skill System shall 明确列出所有需要新增或修改的文件路径（例如 `shared/change-safety-protocol.md`、`cloudbase-platform/deployment-gate.md` 等）。
+1. When 输出技术方案时, the CloudBase Skill System shall 明确列出所有需要新增或修改的文件路径（例如 `cloudbase-platform/references/protocols/change-safety-protocol.md`、`cloudbase-platform/references/protocols/deployment-gate.md` 等）。
 2. When 设计跨 skill 协议时, the CloudBase Skill System shall 说明如何在保持单一语义源的前提下，被 `cloudbase-all-in-one`、`cloudbase-platform` 及其他高频子 skill 低成本复用。
 3. While 制定任务计划时, the CloudBase Skill System shall 区分必须先完成的 P0 协议/入口强化，与可后续补充的领域 pitfalls 扩展。
 4. When 本轮需求进入实施前, the CloudBase Skill System shall 完成需求文档、技术方案设计与任务拆分三份产物，并经确认后开始执行。

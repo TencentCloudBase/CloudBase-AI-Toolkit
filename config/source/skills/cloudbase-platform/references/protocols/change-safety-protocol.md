@@ -48,4 +48,4 @@ You must follow this protocol for any of the following:
 This protocol exists to eliminate endless correction loops and repeated trial-and-error. It enforces structured thinking and significantly reduces decision entropy while maintaining very low token cost.
 
 **Usage instruction:**
-> Before any non-trivial code or configuration change, strictly follow the Change Safety Protocol in `shared/change-safety-protocol.md`.
+> Before any non-trivial code or configuration change, strictly follow the Change Safety Protocol in `cloudbase-platform/references/protocols/change-safety-protocol.md`.

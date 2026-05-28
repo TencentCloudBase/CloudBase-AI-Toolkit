@@ -15,8 +15,8 @@ If this environment only installed the current skill, start from the CloudBase m
 Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
 
 **Cross-cutting protocols** (required before code changes or uploads):
-- Change Safety Protocol: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/shared/change-safety-protocol.md`
-- Deployment Gate: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/deployment-gate.md`
+- Change Safety Protocol: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/references/protocols/change-safety-protocol.md`
+- Deployment Gate: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/references/protocols/deployment-gate.md`
 
 ## Activation Contract
 
@@ -43,8 +43,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Generating a Web-style login flow for mini programs.
 - Mixing Web SDK assumptions into `wx.cloud` projects.
 - Applying CloudBase constraints before confirming the project actually uses CloudBase.
-- Making code or configuration changes without first following the Change Safety Protocol (`shared/change-safety-protocol.md`).
-- Performing mini program upload/publish without first completing the checks in `cloudbase-platform/deployment-gate.md`.
+- Making code or configuration changes without first following the Change Safety Protocol (`cloudbase-platform/references/protocols/change-safety-protocol.md`).
+- Performing mini program upload/publish without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
 
 ## When to use this skill
 

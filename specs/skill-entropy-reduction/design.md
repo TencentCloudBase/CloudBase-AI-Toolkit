@@ -55,7 +55,7 @@ graph TD
 
 ### 1. change-safety-protocol.md（最高优先级，解决 #4）
 
-**位置**：`config/source/skills/shared/change-safety-protocol.md`
+**位置**：`config/source/skills/cloudbase-platform/references/protocols/change-safety-protocol.md`
 
 **设计要点（严格控 token）**：
 - 目标体积：120-160 tokens。
@@ -68,7 +68,7 @@ graph TD
 
 ### 2. deployment-gate.md（解决 #2）
 
-**位置**：`config/source/skills/cloudbase-platform/deployment-gate.md`
+**位置**：`config/source/skills/cloudbase-platform/references/protocols/deployment-gate.md`
 
 **设计要点**：
 - 目标体积：200-250 tokens。

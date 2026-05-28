@@ -72,4 +72,4 @@ Before starting any deployment-related work, you must output something like this
 
 When the task involves deployment, publishing, custom domains, CloudRun, or public exposure:
 
-> Before any deployment or publish action, you must first complete the full checks in `cloudbase-platform/deployment-gate.md` and present the declaration template to the user.
+> Before any deployment or publish action, you must first complete the full checks in `cloudbase-platform/references/protocols/deployment-gate.md` and present the declaration template to the user.

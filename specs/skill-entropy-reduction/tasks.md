@@ -1,12 +1,12 @@
 # 实施计划
 
 - [x] 1. 创建共享变更安全协议微文件（最高杠杆）
-  - 在 `config/source/skills/shared/` 目录下新增 `change-safety-protocol.md`（纯英文，~140 tokens）。
+  - 在 `config/source/skills/cloudbase-platform/references/protocols/` 下新增 `change-safety-protocol.md`（纯英文，~140 tokens）。
   - 已通过 `cloudbase-all-in-one`（alwaysApply）和其他高频 skill 植入 guardrail。
   - _需求: 需求 3, 需求 5
 
 - [x] 2. 创建部署前置条件门禁微文件
-  - 在 `config/source/skills/cloudbase-platform/` 下新增 `deployment-gate.md`（纯英文）。
+  - 在 `config/source/skills/cloudbase-platform/references/protocols/` 下新增 `deployment-gate.md`（纯英文）。
   - 已通过 cloudbase-platform、cloudbase-cli、cloud-functions、web-development、miniprogram-development 等 skill 引用。
   - _需求: 需求 2, 需求 5
 
@@ -18,12 +18,12 @@
 
 - [ ] 4. 在 cloudbase-platform 中强化 Activation Contract 并引用新门禁
   - 更新 `config/source/skills/cloudbase-platform/SKILL.md` 的 Activation Contract，采用 5 段式结构（Hard exclusions + 负面案例）。
-  - 在“部署、发布、公网暴露”相关触发条件中增加 1-2 行强制引用 `deployment-gate.md`。
+  - 在“部署、发布、公网暴露”相关触发条件中增加 1-2 行强制引用 `cloudbase-platform/references/protocols/deployment-gate.md`。
   - 同步更新 Common mistakes / gotchas 区块。
   - _需求: 需求 1, 需求 2
 
 - [ ] 5. 在 cloudbase-cli 中增加部署门禁引用
-  - 在 `config/source/skills/cloudbase-cli/SKILL.md` 的 Activation Contract 和 Core Principles 中增加对 `deployment-gate.md` 的强制引用。
+  - 在 `config/source/skills/cloudbase-cli/SKILL.md` 的 Activation Contract 和 Core Principles 中增加对 `cloudbase-platform/references/protocols/deployment-gate.md` 的强制引用。
   - 确保 CLI 路径的部署操作也走统一前置检查。
   - _需求: 需求 2
 

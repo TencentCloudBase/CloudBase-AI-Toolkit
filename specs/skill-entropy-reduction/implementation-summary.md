@@ -4,8 +4,8 @@
 
 ## Core Deliverables
 
-- `config/source/skills/shared/change-safety-protocol.md` — Mandatory 4-step protocol for all non-trivial changes.
-- `config/source/skills/cloudbase-platform/deployment-gate.md` — Scenario-based pre-deployment checklist with mandatory declaration template.
+- `config/source/skills/cloudbase-platform/references/protocols/change-safety-protocol.md` — Mandatory 4-step protocol for all non-trivial changes.
+- `config/source/skills/cloudbase-platform/references/protocols/deployment-gate.md` — Scenario-based pre-deployment checklist with mandatory declaration template.
 
 ## Integration Points
 
