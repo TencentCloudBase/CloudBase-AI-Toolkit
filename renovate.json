@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Renovate config for CloudBase AI Toolkit - focused on supply chain security (Actions SHA + sensitive deps)",
+  "extends": [
+    "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "automerge": false,
+      "reviewers": ["bookerzhao"]
+    },
+    {
+      "matchDepTypes": ["dependencies"],
+      "matchPackagePatterns": ["^@cloudbase/", "@modelcontextprotocol/sdk"],
+      "groupName": "Security-sensitive runtime dependencies",
+      "automerge": false
+    },
+    {
+      "matchPackagePatterns": ["^@cloudbase/"],
+      "rangeStrategy": "pin"
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": false
+  }
+}

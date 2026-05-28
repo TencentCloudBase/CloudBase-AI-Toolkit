@@ -1,6 +1,7 @@
 {
   "name": "cloudbase-ai-toolkit",
   "version": "1.7.3",
+  "packageManager": "pnpm@10.8.0+sha512-DoJxTRtbQ8dGEBk8sgc0iXwdAN6J0OGEIK68WXf6E9eAqcsFc0Yk6B69gcyHbNRkeUhQZBxIuVRDJrViLKKZcQ==",
   "scripts": {
     "check:readme-sync": "node scripts/check-readme-sync.js",
     "update:compat-baseline": "node scripts/update-compat-baseline.mjs",
@@ -18,12 +19,12 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^1.16.0",
+    "@modelcontextprotocol/sdk": "1.16.0",
     "husky": "^9.1.7",
     "js-yaml": "^4.1.1",
     "tsx": "^4.21.0"
   },
   "dependencies": {
-    "@cloudbase/manager-node": "^5.3.1"
+    "@cloudbase/manager-node": "5.3.1"
   }
 }

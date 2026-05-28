@@ -1,6 +1,7 @@
 {
   "name": "@cloudbase/cloudbase-mcp",
   "version": "2.20.1",
+  "packageManager": "pnpm@10.8.0+sha512-DoJxTRtbQ8dGEBk8sgc0iXwdAN6J0OGEIK68WXf6E9eAqcsFc0Yk6B69gcyHbNRkeUhQZBxIuVRDJrViLKKZcQ==",
   "description": "腾讯云开发 MCP Server，通过AI提示词和MCP协议+云开发，让开发更智能、更高效,当你在Cursor/ VSCode GitHub Copilot/WinSurf/CodeBuddy/Augment Code/Claude Code等AI编程工具里写代码时，它能自动帮你生成可直接部署的前后端应用+小程序，并一键发布到腾讯云开发 CloudBase。",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -65,14 +66,14 @@
   "dependencies": {
     "@cloudbase/cals": "^1.2.23",
     "@cloudbase/functions-framework": "^1.14.0",
-    "@cloudbase/manager-node": "^5.5.0",
-    "@cloudbase/mcp": "^1.0.0-beta.25",
+    "@cloudbase/manager-node": "5.5.0",
+    "@cloudbase/mcp": "1.0.0-beta.25",
     "@cloudbase/toolbox": "^0.8.1",
     "@modelcontextprotocol/sdk": "1.13.1",
     "@types/adm-zip": "^0.5.7",
     "adm-zip": "^0.5.16",
     "cors": "^2.8.5",
-    "express": "^5.1.0",
+    "express": "5.1.0",
     "fd-slicer": "^1.1.0",
     "lockfile": "^1.0.4",
     "open": "^10.1.2",
@@ -80,8 +81,8 @@
     "unzipper": "^0.12.3",
     "winston": "^3.15.0",
     "winston-daily-rotate-file": "^5.0.0",
-    "ws": "^8.18.2",
-    "zod": "^3.24.3"
+    "ws": "8.18.2",
+    "zod": "3.24.3"
   },
   "devDependencies": {
     "@microsoft/api-extractor": "^7.57.6",
