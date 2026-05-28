@@ -1,7 +1,7 @@
 ---
 name: cloudbase-document-database-web-sdk
 description: Use CloudBase document database Web SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, realtime, and geolocation queries.
-version: 2.20.1
+version: 2.20.2
 alwaysApply: false
 ---
 

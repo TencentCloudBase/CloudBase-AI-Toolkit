@@ -1,7 +1,7 @@
 ---
 name: ops-inspector
 description: AIOps-style one-click inspection skill for CloudBase resources. Use this skill when users need to diagnose errors, check resource health, inspect logs, or run a comprehensive health check across cloud functions, CloudRun services, databases, and other CloudBase resources.
-version: 2.20.1
+version: 2.20.2
 alwaysApply: false
 ---
 

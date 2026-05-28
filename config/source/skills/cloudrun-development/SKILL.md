@@ -1,7 +1,7 @@
 ---
 name: cloudrun-development
 description: CloudBase Run backend development rules (Function mode/Container mode). Use this skill when deploying backend services that require long connections, multi-language support, custom environments, or AI agent development.
-version: 2.20.1
+version: 2.20.2
 alwaysApply: false
 ---
 
