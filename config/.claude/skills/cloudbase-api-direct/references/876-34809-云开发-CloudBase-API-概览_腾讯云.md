@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-05-28 02:41:28
+最近更新时间：2026-05-29 02:51:02
 
 -   微信扫一扫 
 -   QQ
@@ -70,6 +70,8 @@ _我的收藏_
 | [CreateUser](/document/api/876/127961) | 创建tcb用户 | 20 |
 | [DescribeUserList](/document/api/876/127959) | 查询tcb用户列表 | 20 |
 | [ModifyUser](/document/api/876/127958) | 更新tcb用户 | 20 |
+| [DescribeResourcePermission](/document/api/876/132256) | 查询资源基础权限 | 20 |
+| [ModifyResourcePermission](/document/api/876/132255) | 修改资源基础权限 | 20 |
 
 ## 云托管相关接口
 
@@ -147,6 +149,12 @@ _我的收藏_
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
 | [CreateMySQL](/document/api/876/128186) | 开通 MySql | 20 |
+| [DescribePGUserMigration](/document/api/876/132262) | 查看指定环境单条 migration 详情 | 20 |
+| [ListPGUserMigrations](/document/api/876/132261) | 查询目标环境已应用的 Migration | 20 |
+| [PreviewPGUserMigrations](/document/api/876/132260) | 预览SQL migrations 在远端的执行计划，不实际执行 SQL | 20 |
+| [PushPGUserMigrations](/document/api/876/132259) | 批量应用 Migrations | 20 |
+| [RepairPGUserMigrationHistory](/document/api/876/132258) | 修复Migration History | 20 |
+| [RollbackPGUserMigrations](/document/api/876/132257) | 回滚 Migration | 20 |
 | [DescribeCreateMySQLResult](/document/api/876/128185) | 开通 MySql 结果查询 | 20 |
 | [DescribeMySQLClusterDetail](/document/api/876/128184) | 查询Mysql集群信息 | 20 |
 | [DescribeMySQLTaskStatus](/document/api/876/128183) | 销毁Mysql结果查询 | 20 |

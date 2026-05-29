@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 82
+ * Action 数量: 90
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -56,7 +56,9 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DescribeManagedAIModelList',
   'DescribeMySQLClusterDetail',
   'DescribeMySQLTaskStatus',
+  'DescribePGUserMigration',
   'DescribeQuotaData',
+  'DescribeResourcePermission',
   'DescribeSafeRule',
   'DescribeStaticStore',
   'DescribeTable',
@@ -70,6 +72,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'ExecutePGSql',
   'GetProviders',
   'InquireVmPrice',
+  'ListPGUserMigrations',
   'ListTables',
   'ModifyClient',
   'ModifyClsTopic',
@@ -79,11 +82,16 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'ModifyHTTPServiceRoute',
   'ModifyLoginConfig',
   'ModifyProvider',
+  'ModifyResourcePermission',
   'ModifySafeRule',
   'ModifyStorageSource',
   'ModifyUser',
+  'PreviewPGUserMigrations',
+  'PushPGUserMigrations',
   'ReleaseEnv',
   'RenewEnv',
+  'RepairPGUserMigrationHistory',
+  'RollbackPGUserMigrations',
   'RunCommands',
   'RunSql',
   'SearchClsLog',

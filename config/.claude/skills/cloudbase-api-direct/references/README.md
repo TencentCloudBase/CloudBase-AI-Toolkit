@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-05-28T06:08:33.835Z
+爬取时间: 2026-05-29T06:10:17.779Z
 
 ## 文档列表
 
@@ -38,6 +38,8 @@
 - [云开发 CloudBase 创建tcb用户_腾讯云](./876-127961-云开发-CloudBase-创建tcb用户_腾讯云.md)
 - [云开发 CloudBase 查询tcb用户列表_腾讯云](./876-127959-云开发-CloudBase-查询tcb用户列表_腾讯云.md)
 - [云开发 CloudBase 更新tcb用户_腾讯云](./876-127958-云开发-CloudBase-更新tcb用户_腾讯云.md)
+- [云开发 CloudBase 查询资源基础权限_腾讯云](./876-132256-云开发-CloudBase-查询资源基础权限_腾讯云.md)
+- [云开发 CloudBase 修改资源基础权限_腾讯云](./876-132255-云开发-CloudBase-修改资源基础权限_腾讯云.md)
 - [云开发 CloudBase 查询云托管服务版本的详情_腾讯云](./876-49739-云开发-CloudBase-查询云托管服务版本的详情_腾讯云.md)
 - [云开发 CloudBase 获取云托管代码上传和下载url_腾讯](./876-48345-云开发-CloudBase-获取云托管代码上传和下载url_腾讯.md)
 - [云开发 CloudBase 查询网关版本信息_腾讯云](./876-129795-云开发-CloudBase-查询网关版本信息_腾讯云.md)
@@ -70,6 +72,12 @@
 - [云开发 CloudBase 查询云服务器价格_腾讯云](./876-129759-云开发-CloudBase-查询云服务器价格_腾讯云.md)
 - [云开发 CloudBase 搜索CLS日志_腾讯云](./876-128127-云开发-CloudBase-搜索CLS日志_腾讯云.md)
 - [云开发 CloudBase 开通 MySql_腾讯云](./876-128186-云开发-CloudBase-开通-MySql_腾讯云.md)
+- [云开发 CloudBase 查看指定环境单条 migration](./876-132262-云开发-CloudBase-查看指定环境单条-migration.md)
+- [云开发 CloudBase 查询目标环境已应用的 Migrati](./876-132261-云开发-CloudBase-查询目标环境已应用的-Migrati.md)
+- [云开发 CloudBase 预览SQL migrations 在](./876-132260-云开发-CloudBase-预览SQL-migrations-在.md)
+- [云开发 CloudBase 批量应用 Migrations_腾讯](./876-132259-云开发-CloudBase-批量应用-Migrations_腾讯.md)
+- [云开发 CloudBase 修复Migration Histor](./876-132258-云开发-CloudBase-修复Migration-Histor.md)
+- [云开发 CloudBase 回滚 Migration_腾讯云](./876-132257-云开发-CloudBase-回滚-Migration_腾讯云.md)
 - [云开发 CloudBase 开通 MySql 结果查询_腾讯云](./876-128185-云开发-CloudBase-开通-MySql-结果查询_腾讯云.md)
 - [云开发 CloudBase 查询Mysql集群信息_腾讯云](./876-128184-云开发-CloudBase-查询Mysql集群信息_腾讯云.md)
 - [云开发 CloudBase 销毁Mysql结果查询_腾讯云](./876-128183-云开发-CloudBase-销毁Mysql结果查询_腾讯云.md)
