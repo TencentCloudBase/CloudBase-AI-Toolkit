@@ -342,7 +342,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
     {
       title: "查询权限与用户配置",
       description:
-        "权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。",
+        "权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。\n\n资源权限示例：\n- 查询存储桶 ACL：`action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\"`（返回 permission 字段：READONLY/PRIVATE/ADMINWRITE/ADMINONLY/CUSTOM）",
       inputSchema: {
         action: z.enum(QUERY_PERMISSION_ACTIONS),
         resourceType: z
