@@ -1372,13 +1372,14 @@
               "list",
               "info",
               "url",
-              "read"
+              "read",
+              "getRules"
             ],
-            "description": "查询操作类型：list=列出目录下的所有文件，info=获取指定文件的详细信息，url=获取文件的临时下载链接，read=读取文本文件内容"
+            "description": "查询操作类型：list=列出目录下的所有文件，info=获取指定文件的详细信息，url=获取文件的临时下载链接，read=读取文本文件内容，getRules=获取存储桶 ACL 权限设置"
           },
           "cloudPath": {
             "type": "string",
-            "description": "云端文件路径，例如 files/data.txt 或 files/（目录）"
+            "description": "云端文件路径，例如 files/data.txt 或 files/（目录），getRules 时可为空字符串"
           },
           "maxAge": {
             "type": "number",
@@ -1407,9 +1408,10 @@
             "enum": [
               "upload",
               "download",
-              "delete"
+              "delete",
+              "setRules"
             ],
-            "description": "管理操作类型：upload=上传文件或目录，download=下载文件或目录，delete=删除文件或目录"
+            "description": "管理操作类型：upload=上传文件或目录，download=下载文件或目录，delete=删除文件或目录，setRules=设置存储桶 ACL 权限"
           },
           "localPath": {
             "type": "string",
@@ -1428,6 +1430,14 @@
             "type": "boolean",
             "default": false,
             "description": "是否为目录操作，true=目录操作，false=文件操作，默认false"
+          },
+          "acl": {
+            "type": "string",
+            "description": "setRules 动作时指定 ACL 权限类型。预定义类型：READONLY/PRIVATE/ADMINWRITE/ADMINONLY；自定义策略请使用 CUSTOM 并在 rule 参数中指定策略内容"
+          },
+          "rule": {
+            "type": "string",
+            "description": "setRules 动作且 acl=CUSTOM 时指定自定义策略 JSON 字符串，例如 {\"read\": true, \"write\": \"auth.openid == resource.openid\"}"
           }
         },
         "required": [

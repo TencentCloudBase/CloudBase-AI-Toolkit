@@ -10,22 +10,24 @@ const STORAGE_READ_TEMP_PREFIX = 'cloudbase-mcp-storage-read-';
 
 // Input schema for queryStorage tool
 const queryStorageInputSchema = {
-  action: z.enum(['list', 'info', 'url', 'read']).describe('查询操作类型：list=列出目录下的所有文件，info=获取指定文件的详细信息，url=获取文件的临时下载链接，read=读取文本文件内容'),
-  cloudPath: z.string().describe('云端文件路径，例如 files/data.txt 或 files/（目录）'),
+  action: z.enum(['list', 'info', 'url', 'read', 'getRules']).describe('查询操作类型：list=列出目录下的所有文件，info=获取指定文件的详细信息，url=获取文件的临时下载链接，read=读取文本文件内容，getRules=获取存储桶 ACL 权限设置'),
+  cloudPath: z.string().describe('云端文件路径，例如 files/data.txt 或 files/（目录），getRules 时可为空字符串'),
   maxAge: z.number().min(1).max(86400).optional().default(3600).describe('临时链接有效期，单位为秒，取值范围：1-86400，默认值：3600（1小时）')
 };
 
 // Input schema for manageStorage tool
 const manageStorageInputSchema = {
-  action: z.enum(['upload', 'download', 'delete']).describe('管理操作类型：upload=上传文件或目录，download=下载文件或目录，delete=删除文件或目录'),
+  action: z.enum(['upload', 'download', 'delete', 'setRules']).describe('管理操作类型：upload=上传文件或目录，download=下载文件或目录，delete=删除文件或目录，setRules=设置存储桶 ACL 权限'),
   localPath: z.string().describe('本地文件路径，建议传入绝对路径，例如 /tmp/files/data.txt'),
   cloudPath: z.string().describe('云端文件路径，例如 files/data.txt'),
   force: z.boolean().optional().default(false).describe('强制操作开关，删除操作时建议设置为true以确认删除，默认false'),
-  isDirectory: z.boolean().optional().default(false).describe('是否为目录操作，true=目录操作，false=文件操作，默认false')
+  isDirectory: z.boolean().optional().default(false).describe('是否为目录操作，true=目录操作，false=文件操作，默认false'),
+  acl: z.string().optional().describe('setRules 动作时指定 ACL 权限类型。预定义类型：READONLY/PRIVATE/ADMINWRITE/ADMINONLY；自定义策略请使用 CUSTOM 并在 rule 参数中指定策略内容'),
+  rule: z.string().optional().describe('setRules 动作且 acl=CUSTOM 时指定自定义策略 JSON 字符串，例如 {"read": true, "write": "auth.openid == resource.openid"}')
 };
 
 type QueryStorageInput = {
-  action: 'list' | 'info' | 'url' | 'read';
+  action: 'list' | 'info' | 'url' | 'read' | 'getRules';
   cloudPath: string;
   maxAge?: number;
 };
@@ -50,11 +52,13 @@ function decodeInlineTextContent(buffer: Buffer) {
 }
 
 type ManageStorageInput = {
-  action: 'upload' | 'download' | 'delete';
+  action: 'upload' | 'download' | 'delete' | 'setRules';
   localPath: string;
   cloudPath: string;
   force?: boolean;
   isDirectory?: boolean;
+  acl?: string;
+  rule?: string;
 };
 
 function getNonEmptyString(value: unknown): string | null {
@@ -227,6 +231,58 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                     note: "temporaryUrl 是临时签名链接，会按 expireTime 过期。publicUrl 基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导，⚠️ 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先将目标路径设置为公有读。"
                   },
                   message: `Successfully generated temporary URL for '${input.cloudPath}'`
+                }, null, 2)
+              }
+            ]
+          };
+        }
+
+        case 'getRules': {
+          const acl = await storageService.getStorageAcl();
+
+          const aclDescriptions: Record<string, string> = {
+            'READONLY': '所有用户可读，仅创建者和管理员可写',
+            'PRIVATE': '仅创建者及管理员可读写',
+            'ADMINWRITE': '所有用户可读，仅管理员可写',
+            'ADMINONLY': '仅管理员可读写',
+            'CUSTOM': '自定义策略，通过 rule 参数指定读写规则'
+          };
+
+          // If ACL is CUSTOM, fetch the custom rule
+          let customRule: string | undefined;
+          if (acl === 'CUSTOM') {
+            try {
+                const envId = await getEnvId(cloudBaseOptions);
+                const result = await manager.commonService('tcb', '2018-06-08').call({
+                  Action: 'DescribeStorageACL',
+                  Param: {
+                    EnvId: envId
+                  }
+                });
+                customRule = (result as any)?.Rule || (result as any)?.Data?.Rule;
+              } catch (e) {
+                // Ignore error when fetching custom rule
+                console.log('[storage] Failed to fetch custom rule for CUSTOM ACL:', e);
+              }
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  data: {
+                    action: 'getRules',
+                    acl: acl,
+                    aclDescription: aclDescriptions[acl] || '未知权限类型',
+                    rule: customRule,
+                    availableAcls: ['READONLY', 'PRIVATE', 'ADMINWRITE', 'ADMINONLY', 'CUSTOM'],
+                    note: acl === 'CUSTOM'
+                      ? "存储桶 ACL 为自定义策略。read/write 条件：true=允许所有，false=拒绝所有，或表达式如 auth.openid == resource.openid"
+                      : "存储桶 ACL 权限设置。READONLY=所有用户可读（公开读），PRIVATE=私有读写（默认），ADMINWRITE=所有用户可读，仅管理员可写，ADMINONLY=仅管理员可读写，CUSTOM=自定义策略。"
+                  },
+                  message: `Successfully retrieved storage ACL: ${acl}${customRule ? ' with custom rule' : ''}`
                 }, null, 2)
               }
             ]
@@ -424,6 +480,85 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                     deleted: true
                   },
                   message: `Successfully deleted ${input.isDirectory ? 'directory' : 'file'} '${input.cloudPath}'`
+                }, null, 2)
+              }
+            ]
+          };
+        }
+
+        case 'setRules': {
+          if (!input.acl) {
+            throw new Error('setRules action requires acl parameter. Must be one of: READONLY, PRIVATE, ADMINWRITE, ADMINONLY, CUSTOM');
+          }
+
+          const predefinedAcls = ['READONLY', 'PRIVATE', 'ADMINWRITE', 'ADMINONLY'];
+          let result: any;
+          let aclType = input.acl;
+
+          if (input.acl === 'CUSTOM') {
+            // CUSTOM ACL requires rule parameter
+            if (!input.rule) {
+              throw new Error('setRules with acl=CUSTOM requires rule parameter with custom policy JSON string');
+            }
+
+            // Parse and validate rule JSON
+            let ruleObj: Record<string, any>;
+            try {
+              ruleObj = JSON.parse(input.rule);
+            } catch {
+              throw new Error('rule parameter must be a valid JSON string, e.g. {"read": true, "write": "auth.openid == resource.openid"}');
+            }
+
+            if (typeof ruleObj !== 'object' || Array.isArray(ruleObj)) {
+              throw new Error('rule parameter must be a JSON object with read/write keys');
+            }
+
+            if (!('read' in ruleObj) && !('write' in ruleObj)) {
+              throw new Error('rule parameter must contain at least one of: read, write');
+            }
+
+            // Call TCB API directly for CUSTOM ACL with rule
+            const envId = await getEnvId(cloudBaseOptions);
+            result = await manager.commonService('tcb', '2018-06-08').call({
+              Action: 'SetStorageACL',
+              Param: {
+                EnvId: envId,
+                Acl: 'CUSTOM',
+                Rule: input.rule
+              }
+            });
+          } else if (predefinedAcls.includes(input.acl)) {
+            // Predefined ACL types - cast to AclType
+            result = await storageService.setStorageAcl(input.acl as any);
+          } else {
+            throw new Error(`Invalid acl value: ${input.acl}. Must be one of: READONLY, PRIVATE, ADMINWRITE, ADMINONLY, CUSTOM`);
+          }
+
+          const aclDescriptions: Record<string, string> = {
+            'READONLY': '所有用户可读，仅创建者和管理员可写',
+            'PRIVATE': '仅创建者及管理员可读写',
+            'ADMINWRITE': '所有用户可读，仅管理员可写',
+            'ADMINONLY': '仅管理员可读写',
+            'CUSTOM': '自定义策略，通过 rule 参数指定读写规则'
+          };
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  data: {
+                    action: 'setRules',
+                    acl: input.acl,
+                    aclDescription: aclDescriptions[input.acl] || '未知权限类型',
+                    rule: input.acl === 'CUSTOM' ? input.rule : undefined,
+                    requestId: result?.RequestId || result?.requestId || '',
+                    note: input.acl === 'CUSTOM' 
+                      ? "存储桶 ACL 已设置为自定义策略。read/write 条件：true=允许所有，false=拒绝所有，或表达式如 auth.openid == resource.openid"
+                      : "存储桶 ACL 权限设置完成。READONLY=公开读，PRIVATE=私有读写（默认），ADMINWRITE=公开读仅管理员可写，ADMINONLY=仅管理员可读写。"
+                  },
+                  message: `Successfully set storage ACL to ${input.acl}${input.acl === 'CUSTOM' ? ' with custom rule' : ''}`
                 }, null, 2)
               }
             ]
