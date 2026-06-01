@@ -708,23 +708,37 @@ async function enrichEnvInfoWithBilling(params: {
 
 /**
  * Derive a RuntimeMode hint from the EnvInfo payload so the AI agent can
- * immediately tell whether it is talking to a CloudBase PostgreSQL (PG)
- * environment or a legacy NoSQL one.
+ * immediately tell which CloudBase data backends are actually present in
+ * this environment.
  *
- * The two modes have very different surfaces:
- * - PG mode: business data via `app.rdb()`, RLS via `managePgDatabase`,
- *   storage on `pgstore` (bucket-must-exist, same model as Supabase).
- * - NoSQL mode: business data via `app.database()` collections,
- *   security rules via `managePermissions(resourceType="noSqlDatabase")`,
- *   storage uses the bucket exposed in `Storages[]`.
+ * Reality model (revised after observing a real PG environment): a single
+ * CloudBase environment can have any combination of:
+ * - PostgreSQL (CloudBase PG / pgstore): signaled by `EnvInfo.PostgreSQL[]`
+ *   non-empty and/or `EnvInfo.Meta` containing `postgresql=enable`.
+ * - NoSQL document database + the matching legacy COS-style bucket:
+ *   signaled by `EnvInfo.Databases[]` (with InstanceId / RUNNING) and the
+ *   bucket exposed in `EnvInfo.Storages[]`.
+ * - MySQL: signaled by a non-empty `EnvInfo.MysqlInstances[]` (or similar
+ *   field, name varies). In a pure PG environment this is absent.
  *
- * The signal lives in two parallel places of the DescribeEnvInfo response:
- *   - `EnvInfo.PostgreSQL` is a non-empty array describing the PG instance.
- *   - `EnvInfo.Meta` contains `{ Key: "postgresql", Value: "enable" }` (and
- *     sometimes `postgre_sql=enable`).
+ * In particular: a CloudBase PG environment commonly STILL has the NoSQL
+ * Database + Storage running in parallel. NoSQL is therefore "co-present"
+ * — its collection APIs, NoSQL `securityRule`s, and the legacy
+ * `app.uploadFile()` upload flow remain valid for collections / files
+ * that already live there. The thing that is NOT a substitute for the new
+ * PG surface is using NoSQL collections to model a brand-new business
+ * table that the task explicitly puts in PG.
  *
- * We add a single derived `RuntimeMode` field plus a short `Hints` block
- * for the agent to follow without having to re-read these arrays.
+ * What this enrichment does:
+ * - Adds `EnvInfo.RuntimeMode = "postgresql" | "nosql"` based on whether
+ *   PG is present. This is the recommended primary backend for new
+ *   business data when set to "postgresql".
+ * - Adds `EnvInfo.RuntimeBackends`, a structured snapshot of which
+ *   backends are actually available (postgresql / nosql / mysql), so the
+ *   agent does not have to re-read `Databases`/`Storages`/`PostgreSQL`.
+ * - Adds `EnvInfo.RuntimeModeHints` summarizing which API/tool to prefer
+ *   for new code, including an explicit `MysqlNotAvailable` line when
+ *   MySQL is absent — that one IS a hard "do not use" signal.
  */
 function enrichEnvInfoWithRuntimeMode(result: any) {
   const envInfo = result?.EnvInfo;
@@ -741,29 +755,68 @@ function enrichEnvInfoWithRuntimeMode(result: any) {
       /^postgre[_]?sql$/i.test(item.Key) &&
       String(item.Value).toLowerCase() === "enable",
   );
-  const isPg = pgList.length > 0 || metaPostgresEnabled;
-  const runtimeMode = isPg ? "postgresql" : "nosql";
+  const hasPostgresql = pgList.length > 0 || metaPostgresEnabled;
 
-  const hints = isPg
+  // NoSQL document DB shows up under Databases[]; the matching legacy bucket
+  // shows up under Storages[]. Treat NoSQL as available when either side is
+  // non-empty (an old env may keep one without the other).
+  const databasesList = Array.isArray(envInfo.Databases)
+    ? envInfo.Databases
+    : [];
+  const storagesList = Array.isArray(envInfo.Storages) ? envInfo.Storages : [];
+  const hasNoSql = databasesList.length > 0 || storagesList.length > 0;
+
+  // MySQL field name has been seen as MysqlInstances / MySQLInstances /
+  // MySQL across API versions; check any of them.
+  const mysqlList = (() => {
+    for (const k of ["MysqlInstances", "MySQLInstances", "MySQL"]) {
+      const v = (envInfo as any)[k];
+      if (Array.isArray(v) && v.length > 0) return v;
+    }
+    return [];
+  })();
+  const hasMysql = mysqlList.length > 0;
+
+  // Primary mode: prefer PG when it is provisioned, otherwise fall back to
+  // legacy NoSQL labeling. This drives "what skill to read first / what API
+  // to reach for when starting new business code".
+  const runtimeMode: "postgresql" | "nosql" = hasPostgresql
+    ? "postgresql"
+    : "nosql";
+
+  const hints = hasPostgresql
     ? {
+        PrimaryBackend:
+          "PostgreSQL (CloudBase PG) is provisioned — prefer it for any NEW business data the task introduces.",
         BusinessDataAPI:
-          "Browser business data should go through CloudBase JS SDK v3 `app.rdb()` (Supabase-style). Do NOT use `app.database()` collection APIs for new business data on this env.",
+          "For NEW business data on PG: use CloudBase JS SDK v3 `app.rdb()` (Supabase-style chained query). Existing NoSQL collections in this env keep working through `app.database()`; do not migrate them unless the task asks.",
         Permissions:
-          "Use PostgreSQL Row-Level Security via `managePgDatabase(action=\"execute\", confirm=true)` running CREATE/ALTER POLICY statements. Do NOT use `managePermissions(resourceType=\"noSqlDatabase\", securityRule=...)` — that controls the legacy NoSQL collection rules and does not affect PG tables.",
+          "PG table permissions use Row-Level Security. Run `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and `CREATE POLICY` via `managePgDatabase(action=\"execute\", confirm=true)`. `managePermissions(resourceType=\"noSqlDatabase\", securityRule=...)` only governs NoSQL collection rules and has NO effect on PG tables — keep using it for the NoSQL collections that already exist here.",
         Storage:
-          "Browser uploads go through `app.storage.from().upload(<bucket>/<key>, file)`. The `pgstore` bucket must already exist (same model as Supabase Storage); the v3 SDK does not auto-create one. The `Storages[]` array above is the legacy NoSQL bucket and is NOT a usable pgstore bucket.",
-        RecommendedSkill:
-          "Read `postgresql-development` skill before writing PG-mode code; treat `no-sql-web-sdk` and the NoSQL `managePermissions` flows as not applicable for new business tables here.",
+          "PG-mode browser uploads should use `app.storage.from().upload(<bucket>/<key>, file)` against an explicitly-created `pgstore` bucket (same model as Supabase Storage; the v3 SDK does not auto-create one). `EnvInfo.Storages[]` here is the legacy NoSQL bucket — it is still usable for the legacy `app.uploadFile()` flow but is NOT a valid pgstore target.",
+        CoexistingNoSQL: hasNoSql
+          ? "This env also has the legacy NoSQL Database + Storage running. Existing collections, existing `app.uploadFile()` calls, existing `managePermissions(resourceType=\"noSqlDatabase\")` rules all remain valid for legacy data."
+          : "No legacy NoSQL Database/Storage observed in this env.",
+        MysqlNotAvailable: hasMysql
+          ? "MySQL instance(s) detected — see EnvInfo.MysqlInstances."
+          : "No MySQL instance is provisioned for this env. Do NOT use `manageSqlDatabase` / `querySqlDatabase` (those are MySQL-specific) and do NOT read the `relational-database-tool` skill — that family targets MySQL, not CloudBase PG.",
+        RecommendedSkills:
+          "Read `postgresql-development` first for new PG code. `no-sql-web-sdk` is still applicable for existing NoSQL collections in this env. Skip `relational-database-tool` (MySQL-only) entirely.",
       }
     : {
+        PrimaryBackend:
+          "PostgreSQL is NOT provisioned in this env — this is a legacy NoSQL CloudBase backend.",
         BusinessDataAPI:
-          "This environment runs the legacy NoSQL CloudBase backend. Browser business data uses `app.database()` collections via `@cloudbase/js-sdk`. Do not switch to `app.rdb()` for this env unless you have explicitly enabled PostgreSQL.",
+          "Use `app.database()` collections via `@cloudbase/js-sdk` for browser business data. Do not switch to `app.rdb()` here — PG is not available.",
         Permissions:
           "Use `managePermissions(resourceType=\"noSqlDatabase\", securityRule=...)` for collection rules. PG-only RLS guidance (e.g. `auth.uid()` SQL policies) does not apply here.",
         Storage:
           "Browser uploads use `app.uploadFile()` against the bucket exposed in `EnvInfo.Storages[].Bucket`.",
-        RecommendedSkill:
-          "Read `no-sql-web-sdk` (and `cloud-storage-web` for uploads) before writing code; the `postgresql-development` skill is not applicable here.",
+        MysqlNotAvailable: hasMysql
+          ? "MySQL instance(s) detected — see EnvInfo.MysqlInstances."
+          : "No MySQL instance in this env. `manageSqlDatabase` / `querySqlDatabase` and the `relational-database-tool` skill are not applicable.",
+        RecommendedSkills:
+          "Read `no-sql-web-sdk` (and `cloud-storage-web` for uploads). `postgresql-development` and `relational-database-tool` are not applicable to this env.",
       };
 
   return {
@@ -771,6 +824,11 @@ function enrichEnvInfoWithRuntimeMode(result: any) {
     EnvInfo: {
       ...envInfo,
       RuntimeMode: runtimeMode,
+      RuntimeBackends: {
+        postgresql: hasPostgresql,
+        nosql: hasNoSql,
+        mysql: hasMysql,
+      },
       RuntimeModeHints: hints,
     },
   };
@@ -1427,7 +1485,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     {
       title: "CloudBase 环境查询",
       description:
-        "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情和安全域名。（原工具名：listEnvs/getEnvInfo/getEnvAuthDomains，为兼容旧AI规则可继续使用这些名称）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。\n\n🔍 action=info 还会派生一个 EnvInfo.RuntimeMode 字段（值为 'postgresql' 或 'nosql'）以及 EnvInfo.RuntimeModeHints 摘要。AI 在写任何业务数据 / 权限规则 / 存储上传代码前必须先看这两个字段：postgresql 模式下浏览器走 app.rdb()、RLS 通过 managePgDatabase 跑 CREATE POLICY、存储走 pgstore 且 bucket 必须先创建（与 Supabase 一致）；nosql 模式下走 app.database() 集合 + managePermissions(resourceType=\"noSqlDatabase\")。判定依据是 EnvInfo.PostgreSQL 数组非空或 EnvInfo.Meta 含 postgresql=enable。⚠️ PG 环境的 EnvInfo.Storages[] 仍是旧 NoSQL bucket 信息，不要把它当成 pgstore bucket 直接用。",
+        "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情和安全域名。（原工具名：listEnvs/getEnvInfo/getEnvAuthDomains，为兼容旧AI规则可继续使用这些名称）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。\n\n🔍 action=info 还会派生三个用于后端选型的字段：\n- `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示**新业务建议默认使用的后端**（PG 已开通时为 postgresql，否则为 nosql）。\n- `EnvInfo.RuntimeBackends`：`{postgresql, nosql, mysql}` 三个布尔值，描述当前环境**实际并存的后端**。CloudBase PG 环境一般同时保留 NoSQL Database + Storage（即 postgresql=true 且 nosql=true 是常见组合），它们各自独立运行、互不替代。\n- `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。\n\nAI 在写业务/权限/存储代码前必须先看这三项：PG 模式下**新**业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore（bucket 必须先建，与 Supabase 一致）；**已存在**的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType=\"noSqlDatabase\")` 在 PG 环境下仍然有效，不要为了\"统一\"强行迁移。**真正不适用**的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageSqlDatabase` / `querySqlDatabase` / `relational-database-tool` skill 都不该使用——它们是 MySQL 专属，不是 CloudBase PG。",
       inputSchema: {
         action: z
           .enum(["list", "info", "domains"])

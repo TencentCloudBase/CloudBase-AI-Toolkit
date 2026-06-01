@@ -55,7 +55,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 - Confirm the caller is a browser/Web app.
 - Initialize the Web SDK once.
-- Confirm CloudBase storage exists in the current environment before testing upload. Use available MCP management/query tools to inspect or create/select the storage bucket when the environment has no default bucket. **In a PG / pgstore environment, the legacy NoSQL bucket from `DescribeEnvs` does NOT count as a usable pgstore bucket; create one explicitly before any browser upload.**
+- Confirm CloudBase storage exists in the current environment before testing upload. Use available MCP management/query tools to inspect or create/select the storage bucket when the environment has no default bucket. **In a PG / pgstore environment, the legacy NoSQL bucket from `DescribeEnvs` does NOT count as a usable pgstore bucket; create one explicitly before any browser upload. The legacy NoSQL bucket itself is still fine for legacy `app.uploadFile()` flows that already target it — PG and NoSQL storage coexist; this skill applies to BOTH.**
 - Check security-domain/CORS requirements.
 - Pick the right storage method before coding.
 
