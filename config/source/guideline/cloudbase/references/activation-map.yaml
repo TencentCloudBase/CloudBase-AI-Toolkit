@@ -96,6 +96,43 @@ scenarios:
   label: Web projects + NoSQL Database
   mustCheckBeforeAction:
   - Login state and database access permission model
+- id: postgresql-development
+  priority: 96
+  signals:
+  - CloudBase PG
+  - PostgreSQL
+  - Postgres
+  - PG 模式
+  - JS SDK v3 PostgreSQL
+  - app.rdb()
+  - queryPgDatabase
+  - managePgDatabase
+  - mysqldb OpenAPI
+  - PostgREST
+  - RLS
+  firstRead: postgresql-development
+  thenRead:
+  - auth-tool
+  - auth-web
+  - web-development
+  - cloud-storage-web
+  - http-api
+  beforeAction:
+  - 先用 `queryPgDatabase` / `managePgDatabase` 检查 PG 环境、schema 与权限策略。
+  - 用户名密码登录先用 `queryAppAuth` / `manageAppAuth` 确认或开启。
+  - Web 业务数据优先用 JS SDK v3 `app.rdb()`，HTTP API 只在查过 `mysqldb` OpenAPI 后使用。
+  - 业务数据必须落到 CloudBase PG，不要退回 NoSQL 或 MySQL 管理工具链。
+  doNotUse:
+  - relational-database-tool
+  - no-sql-web-sdk
+  commonMistakes:
+  - 把 CloudBase PG 当 MySQL，调用 `querySqlDatabase` / `manageSqlDatabase`。
+  - 只做前端按钮隐藏，没有后端或数据库层权限。
+  - 猜 `/api/v1/rdb/rest` 这类 HTTP 路径，导致浏览器 404 后继续调试业务逻辑。
+  - 写非法 Vite/TypeScript 动态 import，导致页面 500 后仍继续调试业务逻辑。
+  label: CloudBase PostgreSQL / PG
+  mustCheckBeforeAction:
+  - PG schema, usernamePassword login, backend/RLS permission model
 - id: mysql-mcp
   priority: 88
   signals:

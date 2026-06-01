@@ -79,7 +79,8 @@ function parseArgs(): { targetDir: string; noSubSkill: boolean } {
 }
 
 // Simplified reference guide to replace the "Path Resolution Strategy" section
-const SIMPLIFIED_REFERENCE_GUIDE = `## 📁 Reference Files Location
+function buildSimplifiedReferenceGuide(subSkillFile: string): string {
+  return `## 📁 Reference Files Location
 
 All reference documentation files are located in the \`references/\` directory relative to this file.
 
@@ -88,18 +89,19 @@ All reference documentation files are located in the \`references/\` directory r
 cloudbase/
 ├── SKILL.md              # This file (main entry)
 └── references/           # All reference documentation
-    ├── auth-web/         # Web authentication guide
-    ├── auth-wechat/      # WeChat authentication guide
-    ├── no-sql-web-sdk/   # NoSQL database for Web
+    ├── auth-web/${subSkillFile}       # Web authentication guide
+    ├── auth-wechat/${subSkillFile}    # WeChat authentication guide
+    ├── no-sql-web-sdk/${subSkillFile} # NoSQL database for Web
     ├── ui-design/        # UI design guidelines
     └── ...               # Other reference docs
 \`\`\`
 
-**How to use:** When this document mentions reading a reference file like \`references/auth-web/README.md\`, simply read that file from the \`references/\` subdirectory.
+**How to use:** When this document mentions reading a reference file like \`references/auth-web/${subSkillFile}\`, simply read that file from the \`references/\` subdirectory.
 
 ---
 
 `;
+}
 
 // Convert SKILL.md content to allinone SKILL.md format
 function convertMdcToSkill(skillContent: string, noSubSkill: boolean): string {
@@ -113,7 +115,7 @@ function convertMdcToSkill(skillContent: string, noSubSkill: boolean): string {
   // Insert the reference guide after the first heading
   content = content.replace(
     /(# CloudBase Development Guidelines\n)/,
-    `$1\n${SIMPLIFIED_REFERENCE_GUIDE}`,
+    `$1\n${buildSimplifiedReferenceGuide(subSkillFile)}`,
   );
 
   // Replace inline `skill-name` skill references with references/ paths

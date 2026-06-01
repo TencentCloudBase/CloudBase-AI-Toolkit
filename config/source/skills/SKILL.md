@@ -31,9 +31,11 @@ alwaysApply: true
 - Web app execution -> `./web-development/SKILL.md`
 - Web auth provider readiness -> `./auth-tool/SKILL.md`
 - Web auth implementation -> `./auth-web/SKILL.md`
+- CloudBase PostgreSQL / PG app data -> `./postgresql-development/SKILL.md`
 - Browser-side document database CRUD -> `./no-sql-web-sdk/SKILL.md`
 - Browser-side file upload -> `./cloud-storage-web/SKILL.md`
 - Platform overview only when capability selection is still unclear -> `./cloudbase-platform/SKILL.md`
+- If using `searchKnowledgeBase(mode="skill")`, pass the reference directory id such as `postgresql-development`, not the frontmatter `name` value such as `postgresql-development-cloudbase`.
 
 ### High-yield guardrails
 
@@ -56,12 +58,18 @@ alwaysApply: true
    - If the account identifier is a plain username such as `admin`, `editor`, or another string without `@`, treat `usernamePassword` login as a blocking prerequisite.
    - First call `queryAppAuth(action=\"getLoginConfig\")`.
    - If `loginMethods.usernamePassword !== true`, immediately call `manageAppAuth(action=\"patchLoginStrategy\", patch={ usernamePassword: true })`.
-   - In code, use `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })`.
+   - In Web login code, use `auth.signInWithPassword({ username, password })`.
+   - Do not assume direct Web `auth.signUp({ username, password })` is available for every environment or SDK version; verify `sdkHints` / installed SDK behavior first. If username registration is required and direct signup is unsupported, route registration through a backend or management API path that creates CloudBase Auth users, without exposing secret keys in browser code.
    - Never use `signUpWithEmailAndPassword` or `signInWithEmailAndPassword` for these username-style account flows.
    - Once readiness is confirmed, return to the active frontend handler and finish the real login/register flow.
 
 3. Database and storage tasks:
    - Reuse the current shared `app`, `auth`, `db`, and storage helpers instead of creating parallel SDK wrappers.
+   - If the task mentions CloudBase PG, PostgreSQL, Postgres, PG mode, JS SDK v3 PostgreSQL, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, `mysqldb` OpenAPI, or RLS, read `./postgresql-development/SKILL.md` before touching database code.
+   - For CloudBase PG, use `queryPgDatabase` / `managePgDatabase` for schema and management; do not route PG work to MySQL `querySqlDatabase` / `manageSqlDatabase` or NoSQL collection APIs.
+   - For OpenAPI lookup, call `searchKnowledgeBase({ mode: "openapi", apiName: "mysqldb" })` directly. Do not pass guessed `action` values such as `getApiDocs` or `listEndpoints`; those belong to no supported tool mode.
+   - For CloudBase PG Web CRUD, prefer JS SDK v3 `app.rdb()` and documented storage `app.storage.from()` APIs before raw HTTP.
+   - For browser-side CloudBase storage upload from local Vite/preview, check the actual browser `host:port` in security domains first (`envQuery(action="domains")`, then `envDomainManagement(action="create")` if missing). A failed cover upload must not silently skip the subsequent PG article insert.
    - For CloudBase Web SDK `db.collection(...).add(...)`, persist the created document ID from `result._id`.
    - For writes, validate the actual SDK result instead of assuming success.
 

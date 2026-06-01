@@ -1,0 +1,179 @@
+---
+name: postgresql-development-cloudbase
+description: "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG."
+version: 2.20.0
+alwaysApply: false
+---
+
+## Standalone Install Note
+
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
+
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/postgresql-development/SKILL.md`
+
+# CloudBase PostgreSQL Development
+
+## Activation Contract
+
+### Use this first when
+
+- The task says CloudBase PG, PostgreSQL, Postgres, PG mode, RLS, JS SDK v3 PostgreSQL, `app.rdb()`, `queryPgDatabase`, or `managePgDatabase`.
+- A Web app or CMS must persist business data in CloudBase PostgreSQL instead of NoSQL or MySQL.
+
+### Then also read
+
+- Web auth provider readiness -> `../auth-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-tool/SKILL.md`)
+- Web login implementation -> `../auth-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-web/SKILL.md`)
+- General Web implementation and verification -> `../web-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/web-development/SKILL.md`)
+- Browser storage upload -> `../cloud-storage-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloud-storage-web/SKILL.md`)
+- Raw HTTP API details only when SDK coverage is blocked -> `../http-api/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/http-api/SKILL.md`)
+- End-to-end PG app closure -> `references/app-workflow.md`
+- RLS and backend permission details -> `references/rls-patterns.md`
+
+### Do NOT use first
+
+- `relational-database-tool` / `querySqlDatabase` / `manageSqlDatabase`: those are MySQL-oriented.
+- `no-sql-web-sdk` / collection APIs for business data that must live in CloudBase PG.
+
+## Required Flow
+
+1. Inspect the existing app surfaces first: `src/lib/backend.*`, `src/lib/auth.*`, `src/lib/*service.*`, route guards, and the handlers bound to existing forms.
+2. Check PG state through MCP: use `queryPgDatabase` for schema/read-only inspection and `managePgDatabase` for DDL/DML. Do not switch to MySQL tools.
+3. Check username-password auth before coding login:
+   - Call `queryAppAuth(action="getLoginConfig")`.
+   - If `loginMethods.usernamePassword !== true`, call `manageAppAuth(action="patchLoginStrategy", patch={ usernamePassword: true })`.
+   - In Web code, use `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })` for plain usernames like `admin` or `editor`.
+4. Implement Web auth state with `auth.getSession()` before writing CRUD:
+   - Route guards must check `data.session`, not `auth.getUser()` and not deprecated `getLoginState()`.
+   - Treat login as successful only when `signInWithPassword(...)` returns no `error` and includes `data.session`.
+   - Get the UID for `author_id` / role rows from `data.session.user.id` (fall back to `sub`/`uid` only after inspecting the actual session object).
+   - Do not use `auth.getUser()` as proof of login; it can return a non-null wrapper or anonymous-looking user data when there is no real username/password session.
+5. Implement browser-side business data with the CloudBase JS SDK v3 PostgreSQL API first: `app.rdb().from(table)`. Use `@cloudbase/js-sdk@next` when the installed SDK does not expose the v3 PG surface.
+6. Do not manually fetch a CloudBase Auth bearer token from browser code for PG CRUD. In particular, do not call non-canonical helpers such as `currentUser.getIdToken()` unless you have verified that exact method exists in the installed SDK. Prefer `app.rdb()` so the SDK carries the active session.
+7. Before using RLS helpers such as `auth.uid()`, prove they match the current Web session:
+   - Log in through the real app path.
+   - Insert a test row using `author_id = session.user.id`.
+   - Read it back with `queryPgDatabase`.
+   - If INSERT/SELECT fails, inspect the exact RLS error and fix the policy or switch to a server/RPC boundary. Do not leave browser-facing tables with broken RLS.
+8. Use PG HTTP API only as a fallback after reading OpenAPI docs and verifying the auth model in the installed SDK. Do not guess URLs such as `/api/v1/rdb/rest`; the same CloudBase relational HTTP API family covers MySQL and PostgreSQL and is discoverable through `searchKnowledgeBase(mode="openapi", apiName="mysqldb", query="PostgreSQL ...")`.
+9. Keep cover images in CloudBase Storage. Store only the final file URL or file metadata in PG.
+10. Verify both layers before claiming done: project build/typecheck and browser E2E for login/CRUD, then read back rows with `queryPgDatabase`.
+
+## Exploration Budget
+
+- Optimize for a working user flow before broad research.
+- If the task is a Web app with PG-backed CRUD, read `references/app-workflow.md` and follow that closure path before looking up optional HTTP API details.
+- Do not query the same documentation family more than twice for the same question. If the second lookup does not unblock you, inspect the installed SDK surface or the exact runtime error instead.
+- Once you choose `app.rdb()` for browser CRUD, stop researching raw PG HTTP APIs unless `app.rdb()` is missing or demonstrably fails.
+- After a DDL failure, retry SQL at most twice. Then call `queryPgDatabase(action="schema")`, read the exact error, and simplify the schema or permission plan.
+- Avoid long task-management loops for targeted repairs. Read the active files, execute the minimum platform setup, edit code, and verify.
+
+## Data Model Rules
+
+- Use CloudBase Auth / CloudBase PG built-in auth identity as the user source. Do not copy an extra identity table unless the app needs one.
+- Keep business roles in PG when the app needs admin/editor behavior, e.g. `user_roles` with `uid`, `username`, and `role`. The `uid` value must be the same value the Web session uses as `session.user.id`, and must match any database policy expression you use.
+- Keep content tables in PG, e.g. `articles` or `posts` with owner UID columns.
+- Prefer snake_case physical columns (`author_id`, `author_name`, `cover_image`, `created_at`, `updated_at`) for PG tables. If UI fields are camelCase, map them explicitly at the service boundary.
+- Treat the schema returned by `queryPgDatabase(action="schema")` as the source of truth. If an existing table has `authorid`/`updatedat`, either use those exact column names in code or explicitly migrate/drop-recreate the table before writing code that expects `author_id`/`updated_at`.
+- `CREATE TABLE IF NOT EXISTS` does not change an existing incompatible schema. In evaluation or disposable environments, prefer a deliberate `DROP TABLE IF EXISTS ... CASCADE` followed by `CREATE TABLE ...` when you need a known schema.
+- After DDL, query the table schema again and compare every column used by frontend code, insert/update payloads, filters, ordering, and RLS policies.
+- Backend permission must exist in the database or server/RPC layer. Hiding buttons in the UI is not enough.
+- Do not leave a browser-facing table with RLS enabled and zero policies. PostgreSQL denies user reads/writes by default in that state, so `app.rdb().from("articles").insert(...)` can fail while the UI only shows a generic save failure. If you enable RLS, create and verify SELECT/INSERT/UPDATE/DELETE policies before testing the app.
+- Do not assume Supabase RLS helpers are available or identical in CloudBase PG. In particular, only use `auth.uid()` after you verify that a real `app.rdb()` request from a logged-in Web session sees the same UID as `auth.getSession().data.session.user.id`.
+- If you need detailed RLS rules, read `references/rls-patterns.md` before writing policies.
+- For admin/editor flows, make `admin` able to operate all rows and `editor` only rows where owner UID matches the current user.
+
+## JS SDK v3 PostgreSQL Patterns
+
+Use static imports and one shared `app.rdb()` client:
+
+```ts
+import cloudbase from "@cloudbase/js-sdk";
+
+const env = import.meta.env.VITE_CLOUDBASE_ENV_ID;
+export const app = cloudbase.init({ env });
+export const auth = app.auth();
+export const db = app.rdb();
+```
+
+Canonical auth/session helpers for Web apps:
+
+```ts
+async function getActiveSession() {
+  const { data, error } = await auth.getSession();
+  const session = data?.session;
+  if (error || !session || session.user?.is_anonymous) return null;
+  return session;
+}
+
+export async function checkAuth() {
+  return Boolean(await getActiveSession());
+}
+
+export async function getCurrentUser() {
+  const session = await getActiveSession();
+  if (!session?.user) return null;
+  const user = session.user;
+  const uid = user.id || user.sub || user.uid;
+  if (!uid) return null;
+  return {
+    uid,
+    displayName:
+      user.user_metadata?.username ||
+      user.username ||
+      user.email ||
+      uid,
+  };
+}
+```
+
+Do not write `checkAuth()` as `!!(await auth.getUser()).data`; that only checks a response wrapper and can pass without a real login session.
+
+Canonical CRUD/RPC shapes:
+
+```ts
+const { data, error } = await db.from("articles").select("*");
+const { data: created, error: insertError } = await db.from("articles").insert({
+  title,
+  author_id: uid,
+  status: "draft",
+});
+const { error: updateError } = await db.from("articles").update({ status }).eq("id", id);
+const { error: deleteError } = await db.from("articles").delete().eq("id", id);
+const { data: result, error: rpcError } = await db.rpc("function_name", { id });
+```
+
+Common query helpers are Supabase/PostgREST-style: `.eq()`, `.neq()`, `.gt()`, `.gte()`, `.lt()`, `.lte()`, `.like()`, `.ilike()`, `.in()`, `.is()`, `.order()`, `.limit()`, `.range()`, `.single()`.
+
+For storage in v3, use the storage v3 surface instead of inventing upload endpoints. Check the installed SDK surface before finalizing code; depending on package version, storage may be exposed as `app.storage.from().upload(...)` or as an `app.storage` property with upload helpers.
+
+```ts
+const storage = app.storage.from();
+const { data, error } = await storage.upload(`covers/${file.name}`, file);
+```
+
+## HTTP API Fallback
+
+- PG HTTP API is in the CloudBase relational database HTTP API family, together with MySQL. In MCP docs/search this appears under `mysqldb`.
+- Before writing raw `fetch()` code, query OpenAPI docs: `searchKnowledgeBase(mode="openapi", apiName="mysqldb", query="PostgreSQL fetch insert update rpc")`.
+- Do not construct `/api/v1/rdb/rest` or `/api/v1/rdb/rest/rpc` from memory. A guessed path that returns 404 is a hard blocker; switch back to JS SDK v3 or read the OpenAPI contract.
+- If environment variables expose `TCB_HTTP_API_BASE_URL` / `VITE_TCB_HTTP_API_BASE_URL`, treat them as the base only. The path, method, headers, and auth model must still come from OpenAPI docs or an existing working helper.
+
+## Frontend Guardrails
+
+Avoid dynamic helper traps:
+
+- Do not write `function getAuth() { return (await import("./backend")).auth; }`; either use a top-level static import or make the function `async`.
+- Do not write `typeof import !== "undefined"` in Vite; use `import.meta.env` directly.
+- Do not keep editing after Vite reports a transform error. Fix syntax first, rerun build, then test the browser flow.
+- Do not spend time reverse-engineering unrelated SDK internals when a documented v3 surface exists. Use the documented `app.rdb()` / `app.storage.from()` APIs first.
+
+## Quick Checks
+
+- PG schema exists and matches the service code.
+- Username login is enabled and code uses username APIs, not email APIs.
+- Data writes reach CloudBase PG via JS SDK v3 `app.rdb()` or a documented HTTP API path, not local state, mock arrays, or guessed 404 endpoints.
+- Browser PG code must not depend on `user.getIdToken()` or invented token helpers. If raw HTTP is unavoidable, first inspect the installed CloudBase Web SDK/auth API and prove the request succeeds with the current user session.
+- Editor permission is enforced outside the UI.
+- Storage upload returns a usable URL and that URL is persisted with the article.

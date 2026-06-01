@@ -65,14 +65,24 @@ function registerDatabase(server: ExtendedMcpServer) {
   if (!isInternationalRegion(region)) {
     registerDatabaseTools(server);
   }
-  registerSQLDatabaseTools(server);
+  const pgPluginEnabled = server.enabledPlugins?.some((pluginName) =>
+    pluginName === "pg_database" || pluginName === "pg_storage"
+  );
+  if (!pgPluginEnabled) {
+    registerSQLDatabaseTools(server);
+  }
   registerDataModelTools(server);
+}
+
+function registerMysqlDatabase(server: ExtendedMcpServer) {
+  registerSQLDatabaseTools(server);
 }
 
 // 可用插件映射
 const AVAILABLE_PLUGINS: Record<string, PluginDefinition> = {
   env: { name: "env", register: registerEnvTools },
   database: { name: "database", register: registerDatabase },
+  mysql_database: { name: "mysql_database", register: registerMysqlDatabase },
   pg_database: { name: "pg_database", register: registerPGDatabaseTools },
   pg_storage: { name: "pg_storage", register: registerPGStorageTools },
   functions: { name: "functions", register: registerFunctionTools },
@@ -99,6 +109,9 @@ const PLUGIN_ALIASES: Record<string, string> = {
   "security-rules": "permissions",
   "secret-rule": "permissions",
   "secret-rules": "permissions",
+  mysql: "mysql_database",
+  "mysql-database": "mysql_database",
+  "sql-database": "mysql_database",
   users: "permissions",
 };
 
@@ -177,6 +190,7 @@ export interface ExtendedMcpServer extends McpServer {
   ide?: string;
   logger?: Logger;
   pgRuntimeContext?: PgRuntimeContext;
+  enabledPlugins?: string[];
 
   setLogger(logger: Logger): void;
 }
@@ -298,6 +312,7 @@ export async function createCloudBaseMcpServer(options?: {
 
   // Register plugins based on configuration
   const enabledPlugins = parseEnabledPlugins(pluginsEnabled, pluginsDisabled);
+  server.enabledPlugins = enabledPlugins;
 
   for (const pluginName of enabledPlugins) {
     const plugin = AVAILABLE_PLUGINS[pluginName];

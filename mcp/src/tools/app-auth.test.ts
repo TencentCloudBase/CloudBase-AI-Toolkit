@@ -205,7 +205,8 @@ describe("app auth tools", () => {
       },
       webSdkHint: {
         blocked: false,
-        register: "auth.signUp({ username, password })",
+        register:
+          "direct username/password signUp is SDK/provider dependent; verify before use, otherwise create users through a backend or management API boundary",
         login: "auth.signInWithPassword({ username, password })",
         accountInputType: "text",
         avoidEmailHelpers: true,
@@ -260,7 +261,8 @@ describe("app auth tools", () => {
       },
       webSdkHint: {
         blocked: false,
-        register: "auth.signUp({ username, password })",
+        register:
+          "direct username/password signUp is SDK/provider dependent; verify before use, otherwise create users through a backend or management API boundary",
         login: "auth.signInWithPassword({ username, password })",
         accountInputType: "text",
         avoidEmailHelpers: true,

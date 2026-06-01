@@ -41,7 +41,9 @@ function createMockServer() {
   return { server, tools };
 }
 
-function createFakeClient(queryImpl: (sql: string, values?: unknown[]) => Promise<any>) {
+function createFakeClient(
+  queryImpl: (sql: string, values?: unknown[]) => Promise<any>,
+) {
   return {
     connect: vi.fn(async () => undefined),
     query: vi.fn(queryImpl),
@@ -52,7 +54,8 @@ function createFakeClient(queryImpl: (sql: string, values?: unknown[]) => Promis
 function createBootstrapResult() {
   return {
     instanceId: "cloudbase-pg-local",
-    connectionUri: "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
+    connectionUri:
+      "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     defaultSchema: "public",
     status: "ready" as const,
     bootstrapMode: "manual" as const,
@@ -99,7 +102,8 @@ describe("PG database tools", () => {
 
     const initResult = await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri: "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
+      connectionUri:
+        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
     const payload = buildToolPayload(initResult);
     const saved = JSON.parse(await fs.readFile(contextPath, "utf8"));
@@ -158,6 +162,36 @@ describe("PG database tools", () => {
     expect(server.pgRuntimeContext?.runtimeMode).toBe("cloudbase-manager");
   });
 
+  it("managePgDatabase(init) defaults CloudBase envs to cloud bootstrap with cloudbase_admin role", async () => {
+    delete process.env.CLOUDBASE_PG_CONTEXT_PATH;
+
+    const { server, tools } = createMockServer();
+    const fakeClient = createFakeClient(async (sql: string) => {
+      if (sql === "SELECT 1") {
+        return { rows: [{ "?column?": 1 }], rowCount: 1 };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    registerPGDatabaseTools(server, {
+      createClient: vi.fn(() => fakeClient),
+    });
+
+    const result = await tools.managePgDatabase.handler({ action: "init" });
+    const payload = buildToolPayload(result);
+
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        context: {
+          runtimeMode: "cloudbase-manager",
+          bootstrapMode: "cloud",
+          role: "cloudbase_admin",
+        },
+      },
+    });
+  });
+
   it("managePgDatabase(init) retries readiness checks until PostgreSQL accepts connections", async () => {
     const { server, tools } = createMockServer();
     let readyAttempts = 0;
@@ -178,7 +212,7 @@ describe("PG database tools", () => {
           }
 
           return { rows: [{ "?column?": 1 }], rowCount: 1 };
-        })
+        }),
       ),
       readyCheckOptions: {
         maxAttempts: 3,
@@ -189,7 +223,8 @@ describe("PG database tools", () => {
     const payload = buildToolPayload(
       await tools.managePgDatabase.handler({
         action: "init",
-        connectionUri: "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
+        connectionUri:
+          "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
       }),
     );
 
@@ -217,7 +252,8 @@ describe("PG database tools", () => {
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri: "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
+      connectionUri:
+        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -263,7 +299,8 @@ describe("PG database tools", () => {
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri: "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
+      connectionUri:
+        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -306,7 +343,11 @@ describe("PG database tools", () => {
           rowCount: 1,
         };
       }
-      if (sql.includes('SELECT COUNT(*)::bigint AS row_count FROM "public"."users"')) {
+      if (
+        sql.includes(
+          'SELECT COUNT(*)::bigint AS row_count FROM "public"."users"',
+        )
+      ) {
         return {
           rows: [{ row_count: 9 }],
           rowCount: 1,
@@ -324,7 +365,8 @@ describe("PG database tools", () => {
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri: "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
+      connectionUri:
+        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -367,7 +409,8 @@ describe("PG database tools", () => {
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri: "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
+      connectionUri:
+        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -388,7 +431,10 @@ describe("PG database tools", () => {
       if (sql === "SELECT 1") {
         return { rows: [{ "?column?": 1 }], rowCount: 1 };
       }
-      if (sql.includes("FROM pg_class c") && sql.includes("row_security_enabled")) {
+      if (
+        sql.includes("FROM pg_class c") &&
+        sql.includes("row_security_enabled")
+      ) {
         return {
           rows: [
             {
@@ -442,7 +488,8 @@ describe("PG database tools", () => {
           rows: [
             {
               indexname: "users_pkey",
-              indexdef: "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)",
+              indexdef:
+                "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)",
             },
           ],
           rowCount: 1,
@@ -463,7 +510,11 @@ describe("PG database tools", () => {
           rowCount: 1,
         };
       }
-      if (sql.includes('SELECT COUNT(*)::bigint AS row_count FROM "public"."users"')) {
+      if (
+        sql.includes(
+          'SELECT COUNT(*)::bigint AS row_count FROM "public"."users"',
+        )
+      ) {
         return {
           rows: [{ row_count: 7 }],
           rowCount: 1,
@@ -481,7 +532,8 @@ describe("PG database tools", () => {
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri: "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
+      connectionUri:
+        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -540,7 +592,8 @@ describe("PG database tools", () => {
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri: "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
+      connectionUri:
+        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.managePgDatabase.handler({
@@ -570,10 +623,147 @@ describe("PG database tools", () => {
       success: true,
       data: {
         command: "CREATE",
+        targetTable: "public.users",
         classification: {
           risk: "schema_change",
         },
       },
+      nextActions: [
+        {
+          tool: "queryPgDatabase",
+          action: "schema",
+          suggested_args: {
+            action: "schema",
+            objectName: "public.users",
+          },
+        },
+      ],
+    });
+  });
+
+  it("managePgDatabase(execute) reports the real table for CREATE TABLE IF NOT EXISTS", async () => {
+    const { server, tools } = createMockServer();
+    const fakeClient = createFakeClient(async (sql: string) => {
+      if (sql === "SELECT 1") {
+        return { rows: [{ "?column?": 1 }], rowCount: 1 };
+      }
+      if (sql === "CREATE TABLE IF NOT EXISTS public.articles(id int)") {
+        return {
+          rows: [],
+          rowCount: null,
+          command: "CREATE",
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    registerPGDatabaseTools(server, {
+      bootstrapProvider: {
+        bootstrap: vi.fn(async () => createBootstrapResult()),
+      },
+      createClient: vi.fn(() => fakeClient),
+    });
+
+    await tools.managePgDatabase.handler({
+      action: "init",
+      connectionUri:
+        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
+    });
+
+    const result = await tools.managePgDatabase.handler({
+      action: "execute",
+      sql: "CREATE TABLE IF NOT EXISTS public.articles(id int)",
+      confirm: true,
+    });
+    const payload = buildToolPayload(result);
+
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        command: "CREATE",
+        targetTable: "public.articles",
+      },
+    });
+    expect(JSON.stringify(payload)).not.toContain("public.IF");
+  });
+
+  it("queryPgDatabase(schema) warns when RLS is enabled without policies", async () => {
+    const { server, tools } = createMockServer();
+    const fakeClient = createFakeClient(async (sql: string) => {
+      if (sql === "SELECT 1") {
+        return { rows: [{ "?column?": 1 }], rowCount: 1 };
+      }
+      if (
+        sql.includes("FROM pg_class c") &&
+        sql.includes("row_security_enabled")
+      ) {
+        return {
+          rows: [
+            {
+              kind: "table",
+              row_security_enabled: true,
+              force_row_security: true,
+            },
+          ],
+          rowCount: 1,
+        };
+      }
+      if (sql.includes("FROM information_schema.columns")) {
+        return {
+          rows: [
+            {
+              column_name: "id",
+              data_type: "text",
+              is_nullable: "NO",
+              column_default: null,
+            },
+          ],
+          rowCount: 1,
+        };
+      }
+      if (sql.includes("constraint_type = 'PRIMARY KEY'")) {
+        return { rows: [{ column_name: "id" }], rowCount: 1 };
+      }
+      if (
+        sql.includes("constraint_type = 'FOREIGN KEY'") ||
+        sql.includes("FROM pg_indexes") ||
+        sql.includes("FROM pg_policies")
+      ) {
+        return { rows: [], rowCount: 0 };
+      }
+      if (
+        sql.includes(
+          'SELECT COUNT(*)::bigint AS row_count FROM "public"."articles"',
+        )
+      ) {
+        return { rows: [{ row_count: 0 }], rowCount: 1 };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    registerPGDatabaseTools(server, {
+      bootstrapProvider: {
+        bootstrap: vi.fn(async () => createBootstrapResult()),
+      },
+      createClient: vi.fn(() => fakeClient),
+    });
+
+    await tools.managePgDatabase.handler({
+      action: "init",
+      connectionUri:
+        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
+    });
+
+    const result = await tools.queryPgDatabase.handler({
+      action: "schema",
+      objectName: "public.articles",
+    });
+    const payload = buildToolPayload(result);
+
+    expect(payload.message).toContain("RLS is enabled but no policies");
+    expect(payload.nextActions[0]).toMatchObject({
+      tool: "managePgDatabase",
+      action: "execute",
     });
   });
 
@@ -595,7 +785,8 @@ describe("PG database tools", () => {
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri: "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
+      connectionUri:
+        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.managePgDatabase.handler({

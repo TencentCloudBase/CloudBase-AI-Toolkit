@@ -100,6 +100,20 @@ describe("server plugin registration", () => {
     expect(mockRegisterAppTools).toHaveBeenCalledTimes(1);
     expect(mockRegisterPgDatabaseTools).toHaveBeenCalledTimes(1);
     expect(mockRegisterPgStorageTools).toHaveBeenCalledTimes(1);
+    expect(mockRegisterSqlDatabaseTools).not.toHaveBeenCalled();
+  });
+
+  it("should allow MySQL tools to be explicitly enabled with PG plugins", async () => {
+    const { createCloudBaseMcpServer } = await import("./server.js");
+
+    await createCloudBaseMcpServer({
+      enableTelemetry: false,
+      pluginsEnabled: ["database", "pg_database", "pg_storage", "mysql_database"],
+    });
+
+    expect(mockRegisterPgDatabaseTools).toHaveBeenCalledTimes(1);
+    expect(mockRegisterPgStorageTools).toHaveBeenCalledTimes(1);
+    expect(mockRegisterSqlDatabaseTools).toHaveBeenCalledTimes(1);
   });
 
   it("should support legacy plugin aliases", async () => {

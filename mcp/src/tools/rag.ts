@@ -648,7 +648,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
           )
           .join("\n")}
 
-      OpenAPI 文档 (openapi) 查询当前支持 ${openapis.length} 个 API 文档，分别是：
+      OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。当前支持 ${openapis.length} 个 API 文档，分别是：
       ${openapis
           .map((api) => `API名：${api.name} API介绍：${api.description}`)
           .join("\n")}`,
@@ -663,7 +663,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
           "mode=openapi 时指定。API 名称。",
         ),
         action: CloudBaseDocsActionEnum.optional().describe(
-          "mode=docs 时指定。CloudBase 文档操作类型：listModules=列出所有文档模块，listModuleDocs=获取指定模块的目录结构，findByName=按名称/路径/URL 智能查找，readDoc=读取指定文档 Markdown，searchDocs=全文搜索官方文档。",
+          "仅 mode=docs 时指定；mode=openapi 不要传 action。CloudBase 文档操作类型：listModules=列出所有文档模块，listModuleDocs=获取指定模块的目录结构，findByName=按名称/路径/URL 智能查找，readDoc=读取指定文档 Markdown，searchDocs=全文搜索官方文档。",
         ),
         moduleName: z
           .string()

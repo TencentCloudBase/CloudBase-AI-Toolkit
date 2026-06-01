@@ -47,12 +47,14 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Using this skill for static hosting instead of storage objects.
 - Mixing browser SDK upload flows with server-side file-management tasks.
 - Assuming temporary download URLs are permanent links.
+- Ignoring `STORAGE_NOT_EXIST`; it means the target storage bucket/resource is not ready, not that the browser upload code should fabricate a URL.
 - On local Vite or dev-server tasks, forgetting to whitelist the exact current browser `host:port` before testing `app.uploadFile()`.
 
 ### Minimal checklist
 
 - Confirm the caller is a browser/Web app.
 - Initialize the Web SDK once.
+- Confirm CloudBase storage exists in the current environment before testing upload. Use available MCP management/query tools to inspect or create/select the storage bucket when the environment has no default bucket.
 - Check security-domain/CORS requirements.
 - Pick the right storage method before coding.
 
@@ -68,6 +70,8 @@ When the app runs on a local browser origin and must upload files from the front
 4. If the runtime port may change between runs, do not assume any fixed default port list is sufficient. Re-check the actual browser origin you are really using for testing or final validation, then add that exact `host:port`.
 5. Tell the user that security-domain changes may take several minutes to propagate.
 6. Only after that should you implement and test browser-side `app.uploadFile()` flows.
+
+If `app.uploadFile()` returns `STORAGE_NOT_EXIST`, stop editing frontend code and fix the environment-side storage resource first. Re-check the environment storage list, create or select an available bucket if the task allows it, then retry the same SDK upload flow.
 
 If the task uses browser-side file upload, treat this as a prerequisite rather than an optional cleanup.
 
@@ -122,6 +126,7 @@ const result = await app.uploadFile({
 - Show upload progress for larger files when UX matters.
 - On local dev origins, confirm the exact frontend origin already exists in environment security domains before assuming the upload path is usable.
 - Match against the whitelist entry format returned by `envQuery(action="domains")`, which is typically `host:port` instead of a full `http://...` URL.
+- If the environment has no storage bucket or the SDK returns `STORAGE_NOT_EXIST`, use CloudBase management/MCP storage tools to create or choose a bucket before retrying. Do not treat this as a successful optional upload.
 - After `app.uploadFile()` succeeds, do **not** fabricate a public-looking URL by concatenating `envId`, bucket domain, or `cloudPath`. Use the returned `fileID` with `app.getTempFileURL()` and store or display the SDK-resolved URL instead.
 
 ### Progress example

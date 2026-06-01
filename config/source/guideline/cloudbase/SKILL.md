@@ -61,6 +61,7 @@ These rules override convenience. They are a gate before saying "done". Full rat
 | WeChat mini program + CloudBase | `miniprogram-development` | auth-wechat, no-sql-wx-mp-sdk | auth-web, web-development | Whether the project really uses CloudBase / `wx.cloud` |
 | Native App / Flutter / React Native | `http-api` | auth-tool, relational-database-tool | auth-web, no-sql-web-sdk, web-development | SDK boundary, OpenAPI, auth method |
 | Web projects + NoSQL Database | `web-development` | no-sql-web-sdk, auth-web | relational-database-tool, http-api | Login state and database access permission model |
+| CloudBase PostgreSQL / PG | `postgresql-development` | auth-tool, auth-web, web-development, cloud-storage-web, http-api | relational-database-tool, no-sql-web-sdk | PG schema, usernamePassword login, backend/RLS permission model |
 | MySQL Database (relational) | `relational-database-tool` | relational-database-web, http-api | no-sql-web-sdk, web-development | Distinguish MCP management vs app code access |
 | Cloud Functions | `cloud-functions` | auth-tool, ai-model-nodejs | cloudrun-development, auth-web | Event vs HTTP function, runtime, `scf_bootstrap` |
 | CloudRun backend | `cloudrun-development` | auth-tool, relational-database-tool | cloud-functions | Container boundary, Dockerfile, CORS |
@@ -76,6 +77,7 @@ These rules override convenience. They are a gate before saying "done". Full rat
 - Web auth failures are usually caused by skipping provider configuration, not by missing frontend code snippets.
 - Native App failures are usually caused by reading Web SDK paths, not by missing HTTP API knowledge.
 - Mini program failures are usually caused by treating `wx.cloud` like Web auth or Web SDK.
+- CloudBase PG failures are usually caused by falling back to MySQL/NoSQL routing, skipping username-password auth readiness, guessing raw HTTP paths instead of using JS SDK v3 `app.rdb()` / documented `mysqldb` OpenAPI, or leaving backend/RLS permissions as frontend-only checks.
 - AI 大模型调用失败通常是资源包未开通或小程序成长计划未报名，不是 SDK 用错；先跑 `DescribeEnvPostpayPackage` / `DescribeActivityInfo` 资格检查，再去改代码。小程序端优先判成长计划，Web / Node.js 端优先判 Token Credits 资源包。
 
 ### Web SDK quick reminder
