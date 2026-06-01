@@ -38,6 +38,10 @@ If this environment only installed the current skill, start from the CloudBase m
 
 ## Required Flow
 
+0. **First, confirm this environment is actually in PostgreSQL mode.** Call `envQuery(action="info", envId=...)` and read the derived `EnvInfo.RuntimeMode` field. It is only safe to follow the rest of this skill when `RuntimeMode === "postgresql"`.
+   - Underlying signals (in case `RuntimeMode` is unavailable): `EnvInfo.PostgreSQL` is a non-empty array AND `EnvInfo.Meta` contains `{ Key: "postgresql", Value: "enable" }`.
+   - If `RuntimeMode === "nosql"` (or both signals are absent), STOP and switch to the legacy NoSQL surface: business data via `app.database()` collections, security via `managePermissions(resourceType="noSqlDatabase", securityRule=...)`, uploads via `app.uploadFile()` against `EnvInfo.Storages[0].Bucket`. Do not write `app.rdb()` code, do not enable RLS, and do not create pgstore buckets in that case.
+   - PG environments may still expose a NoSQL bucket in `EnvInfo.Storages[]` from earlier setup. That bucket is for the legacy NoSQL backend and is NOT a usable pgstore bucket — never use it as the upload target for `app.storage.from().upload(...)`.
 1. Inspect the existing app surfaces first: `src/lib/backend.*`, `src/lib/auth.*`, `src/lib/*service.*`, route guards, and the handlers bound to existing forms.
 2. Check PG state through MCP: use `queryPgDatabase` for schema/read-only inspection and `managePgDatabase` for DDL/DML. Do not switch to MySQL tools.
 3. Check username-password auth before coding login:

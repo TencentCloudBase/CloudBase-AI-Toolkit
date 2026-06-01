@@ -341,7 +341,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
     "queryPermissions",
     {
       title: "查询 CloudBase 权限与用户配置",
-      description: "查询 CloudBase 权限与用户配置，支持查询资源权限（数据库/云函数/存储桶等）、角色列表/详情、应用用户列表/详情。\n\n示例：\n- 查询存储桶权限：`action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\"`",
+      description: "查询 CloudBase 权限与用户配置，支持查询资源权限（数据库/云函数/存储桶等）、角色列表/详情、应用用户列表/详情。\n\n示例：\n- 查询存储桶权限：`action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\"`\n\n⚠️ CloudBase PostgreSQL（PG）模式：本工具的 `resourceType=\"noSqlDatabase\"` 查询的是旧版 NoSQL 集合规则，与 PG 表的行级安全（RLS）是两套独立机制。先用 `envQuery(action=\"info\", envId=...)` 查 `EnvInfo.RuntimeMode`：若为 `\"postgresql\"`，PG 表权限请改用 `queryPgDatabase(action=\"sql\", sql=\"SELECT ... FROM pg_policies WHERE tablename=...\")` 查看 RLS 策略，本工具的 noSqlDatabase 查询结果对那些表无效。",
       inputSchema: {
         action: z.enum(QUERY_PERMISSION_ACTIONS),
         resourceType: z
@@ -562,7 +562,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
     {
       title: "管理 CloudBase 权限与用户配置",
       description:
-        "管理 CloudBase 权限与用户配置，支持修改资源权限（数据库/云函数/存储桶等）、角色管理、成员与策略增删、应用用户 CRUD。\n\n示例：\n- 设置存储桶为私有：`action=\"setResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"PRIVATE\"`\n- 创建角色：`action=\"createRole\", roleName=\"admin\", roleIdentity=\"admin\"`\n\n注意：`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单；前端用户名密码注册应使用 `auth.signUp({ username, password })`，登录应使用 `auth.signInWithPassword({ username, password })`。直接在浏览器里用 `auth.signUp` 创建用户名密码用户取决于 SDK/provider 支持，使用前必须验证；不支持时应走后端或管理端边界，不能在浏览器暴露密钥。`securityRule` 的详细语义取决于 `resourceType`：`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType=\"noSqlDatabase\"` 的文档数据库安全规则；配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。",
+        "管理 CloudBase 权限与用户配置，支持修改资源权限（数据库/云函数/存储桶等）、角色管理、成员与策略增删、应用用户 CRUD。\n\n示例：\n- 设置存储桶为私有：`action=\"setResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"PRIVATE\"`\n- 创建角色：`action=\"createRole\", roleName=\"admin\", roleIdentity=\"admin\"`\n\n注意：`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单；前端用户名密码注册应使用 `auth.signUp({ username, password })`，登录应使用 `auth.signInWithPassword({ username, password })`。直接在浏览器里用 `auth.signUp` 创建用户名密码用户取决于 SDK/provider 支持，使用前必须验证；不支持时应走后端或管理端边界，不能在浏览器暴露密钥。`securityRule` 的详细语义取决于 `resourceType`：`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType=\"noSqlDatabase\"` 的文档数据库安全规则；配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。\n\n⚠️ CloudBase PostgreSQL（PG）模式警告：调用本工具前先用 `envQuery(action=\"info\", envId=...)` 看 `EnvInfo.RuntimeMode`。当 `RuntimeMode=\"postgresql\"` 时，业务表的行级权限不能用 `resourceType=\"noSqlDatabase\"` 的 `securityRule` 来配置——那只控制旧版 NoSQL 集合规则，对 PG 表毫无作用。PG 表请改用行级安全（RLS）：在 `managePgDatabase(action=\"execute\", confirm=true)` 里跑 `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` 与 `CREATE POLICY ...`，并用 `auth.uid()` 等 PG 函数表达策略。本工具下属的 `addRolePolicies` / `setResourcePermission` 也只覆盖 NoSQL/storage/function 这三类资源，不会管 PG 表。",
       inputSchema: {
         action: z.enum(MANAGE_PERMISSION_ACTIONS),
         resourceType: z
