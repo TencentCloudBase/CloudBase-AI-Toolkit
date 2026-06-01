@@ -136,6 +136,26 @@ Storage (v3): use `app.storage.from().upload(...)` — check installed SDK surfa
 const { data } = await app.storage.from().upload(`covers/${file.name}`, file);
 ```
 
+### Bucket existence is mandatory (Supabase parity)
+
+CloudBase PG storage uses the `pgstore` backend and follows the same model as Supabase Storage: **every upload must target a bucket that already exists**. The browser SDK cannot create one. Before writing any upload code:
+
+1. Confirm a usable pgstore bucket exists for your target prefix (e.g. `covers`). The legacy NoSQL bucket exposed by `DescribeEnvs.Storages[]` (e.g. `6d63-…-1409864723`) is for the old NoSQL backend and does NOT serve pgstore uploads.
+2. If no usable bucket exists, create one through a CloudBase management surface (`manageStorage` MCP tool, console, or platform API). Adding `covers/` as a path prefix in JS does NOT auto-create a bucket.
+3. The bucket name must be the FIRST segment of the `cloudPath`/`upload(path, ...)` string — `app.storage.from('covers').upload('a.png', file)` does NOT prepend the bucket; the path you pass to `upload()` already needs to start with `covers/`.
+
+Failure-mode cheat sheet (read DevTools network tab on the FAILED `POST .../v1/storages/get-objects-upload-info`):
+
+| `code` returned by `/v1/storages/get-objects-upload-info` | Meaning | Fix |
+| -------------------------------------------------------- | ------- | --- |
+| `STORAGE_BUCKET_NOT_FOUND` | The bucket in the path does not exist in this PG environment. | Create the bucket via management surface, then retry. |
+| `INVALID_PARAM: must contain bucket prefix` | The path you sent has no bucket segment (e.g. `foo.png` instead of `covers/foo.png`). | Prefix the bucket name as the first path segment. |
+| `STORAGE_CONTENT_LENGTH_REQUIRED` | Your code stripped or omitted the `Content-Length` signed header. | Pass `headers: { 'Content-Length': String(file.size) }` to `uploadFile`, or use `app.storage.from().upload(path, file)` with a `Blob`/`File` so the SDK fills it in. |
+
+If you see `PUT https://undefined/` and `net::ERR_NAME_NOT_RESOLVED` in DevTools, that is the symptom of one of the three rows above — the upstream metadata response had no `uploadUrl` field, and the SDK fed `undefined` into a follow-up `PUT`. Always inspect the upstream `get-objects-upload-info` response first; do not chase the `https://undefined/` URL itself.
+
+Hard rule: never let an upload error be silently swallowed. If `uploadCoverImage()` rejects, the surrounding `createArticle()` flow MUST reject too — do not insert into PG with a fabricated cover URL, do not show a success toast, and do not retry with a guessed bucket name.
+
 ## HTTP API Fallback
 
 - PG HTTP API is in the CloudBase relational database HTTP API family, together with MySQL. In MCP docs/search this appears under `mysqldb`.
@@ -159,4 +179,5 @@ Avoid dynamic helper traps:
 - Data writes reach CloudBase PG via JS SDK v3 `app.rdb()` or a documented HTTP API path, not local state, mock arrays, or guessed 404 endpoints.
 - Browser PG code must not depend on `user.getIdToken()` or invented token helpers. If raw HTTP is unavoidable, first inspect the installed CloudBase Web SDK/auth API and prove the request succeeds with the current user session.
 - Editor permission is enforced outside the UI.
-- Storage upload returns a usable URL and that URL is persisted with the article.
+- A pgstore bucket that matches the upload path (e.g. `covers`) exists BEFORE any browser upload runs. If it does not, create it via a management surface; the v3 SDK will not create one for you.
+- Storage upload returns a usable URL and that URL is persisted with the article. Upload errors must propagate — do not insert an article row with a placeholder cover URL.
