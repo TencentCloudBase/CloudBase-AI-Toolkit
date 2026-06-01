@@ -1189,8 +1189,13 @@ async function handleInit(
   deps: PgToolDependencies,
 ) {
   const existing = await getPgContext(server);
+  const resolvedEnvId =
+    args.envId ??
+    server.cloudBaseOptions?.envId ??
+    process.env.CLOUDBASE_ENV_ID ??
+    existing?.envId;
   const bootstrapResult = await deps.bootstrapProvider.bootstrap({
-    envId: args.envId ?? server.cloudBaseOptions?.envId,
+    envId: resolvedEnvId,
     instanceId: args.instanceId,
     defaultSchema: args.defaultSchema,
     connectionUri: args.connectionUri,
@@ -1201,11 +1206,7 @@ async function handleInit(
 
   const now = new Date().toISOString();
   const context: PgRuntimeContext = {
-    envId:
-      args.envId ??
-      server.cloudBaseOptions?.envId ??
-      existing?.envId ??
-      "local",
+    envId: resolvedEnvId ?? "local",
     instanceId: bootstrapResult.instanceId,
     connectionUri: bootstrapResult.connectionUri,
     defaultSchema: bootstrapResult.defaultSchema,
@@ -1370,8 +1371,14 @@ async function handleReadOnlySql(
       success: false,
       errorCode: "READ_ONLY_SQL_REQUIRED",
       message:
-        "queryPgDatabase(action=sql) only accepts read-only SQL. Use managePgDatabase(action=execute) for mutations.",
+        "queryPgDatabase(action=sql) only accepts read-only SQL. For DDL/DML (CREATE/ALTER/INSERT/UPDATE/DELETE/...), call managePgDatabase(action=execute) with confirm=true and the same SQL.",
       nextActions: [
+        buildNextAction(
+          MANAGE_PG_DATABASE,
+          "execute",
+          "Re-issue this statement via managePgDatabase(action=execute) with confirm=true.",
+          { action: "execute", sql: args.sql, confirm: true },
+        ),
         buildSchemaNextAction(
           "Inspect schema first if you are deciding which write operation is needed.",
           `${context.defaultSchema}.your_table`,
@@ -1424,11 +1431,17 @@ async function handleExecuteSql(
     return buildPgToolResult({
       success: false,
       errorCode: "CONFIRM_REQUIRED",
-      message: `This SQL is classified as ${classification.risk}. Re-run managePgDatabase(action=execute) with confirm=true if you really want to proceed.`,
+      message: `This SQL is classified as ${classification.risk}. Re-run managePgDatabase(action=execute) with the same sql and confirm=true to proceed.`,
       data: {
         classification,
       },
       nextActions: [
+        buildNextAction(
+          MANAGE_PG_DATABASE,
+          "execute",
+          "Re-issue with confirm=true to actually run the SQL.",
+          { action: "execute", sql: args.sql, confirm: true },
+        ),
         buildNextAction(
           QUERY_PG_DATABASE,
           "metadata",
