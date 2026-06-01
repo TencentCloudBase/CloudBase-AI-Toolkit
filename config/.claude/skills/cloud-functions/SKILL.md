@@ -1,7 +1,7 @@
 ---
 name: cloud-functions
 description: CloudBase function runtime guide for building, deploying, and debugging your own Event Functions or HTTP Functions. This skill should be used when users need application runtime code on CloudBase, not when they are merely calling CloudBase official platform APIs.
-version: 2.20.0
+version: 2.20.2
 alwaysApply: false
 ---
 
@@ -13,6 +13,10 @@ If this environment only installed the current skill, start from the CloudBase m
 - Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloud-functions/SKILL.md`
 
 Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
+
+**Cross-cutting protocols** (required for public exposure and code changes):
+- Change Safety Protocol: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/references/protocols/change-safety-protocol.md`
+- Deployment Gate: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/references/protocols/deployment-gate.md`
 
 # Cloud Functions Development
 
@@ -43,6 +47,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Web authentication UI implementation.
 - Database-schema design or general data-model work.
 - CloudBase official platform API clients or raw HTTP integrations that only consume platform endpoints.
+- **Tasks that the CloudBase JS SDK can handle directly** — simple data reads/writes, leaderboards, file uploads, real-time queries. Reach for `db.collection(...).get/add/update` before writing a function. Functions add deployment complexity, CORS configuration, and HTTP gateway binding that the SDK eliminates entirely.
 
 ### Common mistakes / gotchas
 
@@ -56,6 +61,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Forgetting that HTTP Functions must ship `scf_bootstrap`, listen on port `9000`, and include dependencies.
 - Forgetting to configure function security rules after creating an HTTP Function. Default rules reject anonymous callers with `EXCEED_AUTHORITY`. Note: anonymous login is disabled by default for new environments — if the function needs public access without authentication, configure the security rule to allow all callers rather than relying on anonymous login.
 - Mismatching the `scf_bootstrap` Node.js binary path with the function runtime (e.g. using `/var/lang/node18/bin/node` but setting `runtime: "Nodejs16.13"`).
+- Making code or configuration changes without first following the Change Safety Protocol (`cloudbase-platform/references/protocols/change-safety-protocol.md`).
+- Exposing functions publicly or deploying without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
 
 ### Minimal checklist
 
@@ -89,6 +96,11 @@ Use these rules whenever you are writing the function code itself:
 - If you do choose ES Modules (`"type": "module"` + `import ...`), do not mix in CommonJS-only globals or APIs such as `require(...)`, `module.exports`, or bare `__dirname`. In ESM, derive file paths from `import.meta.url` with `fileURLToPath(...)` only when needed.
 - With the native `http` module, parse `req.url` yourself with `new URL(...)`, collect the request body from the stream, and only then call `JSON.parse`. Empty bodies should be handled explicitly instead of assuming JSON is always present.
 - Return responses explicitly with `res.writeHead(...)` and `res.end(...)`, including `Content-Type` such as `application/json; charset=utf-8` for JSON APIs.
+- **Handle CORS headers**. Browsers block cross-origin requests without proper CORS headers. Default to allowing all origins for simple APIs:
+  - Respond to `OPTIONS` preflight with `200` and CORS headers
+  - Include `Access-Control-Allow-Origin: *` (or specific origin) on all responses
+  - Include `Access-Control-Allow-Methods: GET, POST, OPTIONS` as needed
+  - Include `Access-Control-Allow-Headers: Content-Type` for JSON requests
 - Keep routing and method handling explicit. Unknown paths should return `404`, and known paths with unsupported methods should normally return `405`.
 - Keep gateway setup and security-rule changes separate from the runtime code. They affect access, not the HTTP Function programming model.
 - Do not add HTTP access service configuration when the task is only to create an HTTP Function itself. Gateway paths or custom domains are separate access-layer work; public invocation requirements should be handled through the function security rule workflow (note: anonymous login is disabled by default).
@@ -184,9 +196,24 @@ exports.main = async (event, context) => {
 const http = require("http");
 const { URL } = require("url");
 
+// CORS headers — default to * for simple cross-origin APIs
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 function sendJson(res, statusCode, data) {
-  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json; charset=utf-8",
+    ...CORS_HEADERS,
+  });
   res.end(JSON.stringify(data));
+}
+
+function sendOptions(res) {
+  res.writeHead(204, CORS_HEADERS);
+  res.end();
 }
 
 function readJsonBody(req) {
@@ -195,13 +222,18 @@ function readJsonBody(req) {
     req.on("data", (chunk) => { raw += chunk; });
     req.on("end", () => {
       if (!raw) { resolve({}); return; }
-      try { resolve(JSON.parse(raw)); } catch { resolve({}); }
+      try { resolve(JSON.parse(raw)); } catch (e) { resolve({}); }
     });
     req.on("error", reject);
   });
 }
 
 const server = http.createServer(async (req, res) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return sendOptions(res);
+  }
+
   const url = new URL(req.url || "/", "http://127.0.0.1");
 
   if (req.method === "GET" && url.pathname === "/") {

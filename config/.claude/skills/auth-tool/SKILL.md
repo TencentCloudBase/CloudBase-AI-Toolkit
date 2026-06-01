@@ -1,7 +1,7 @@
 ---
 name: auth-tool-cloudbase
 description: CloudBase auth provider configuration and login-readiness guide. This skill should be used when users need to inspect, enable, disable, or configure auth providers, publishable-key prerequisites, login methods, SMS/email sender setup, or other provider-side readiness before implementing a client or backend auth flow.
-version: 2.20.0
+version: 2.20.2
 alwaysApply: false
 ---
 
@@ -47,6 +47,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Treating any mention of "auth" as a provider-management task.
 - Implementing Web login in cloud functions.
 - Routing native App auth to Web SDK flows.
+- Making configuration or code changes without first following the Change Safety Protocol (`cloudbase-platform/references/protocols/change-safety-protocol.md`).
 - In an existing application, looping on provider queries after readiness is already known instead of wiring the active login and register handlers.
 
 ### Minimal checklist

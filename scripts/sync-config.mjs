@@ -66,14 +66,87 @@ try {
   process.exit(1);
 }
 
+// Skills 分类：各平台专属 skill 目录名
+const WEB_ONLY_SKILLS = new Set([
+  'web-development',
+  'auth-web',
+  'ai-model-web',
+  'cloud-storage-web',
+  'no-sql-web-sdk',
+  'relational-database-web',
+  'http-api',
+]);
+
+const MINIPROGRAM_ONLY_SKILLS = new Set([
+  'miniprogram-development',
+  'auth-wechat',
+  'ai-model-wechat',
+  'no-sql-wx-mp-sdk',
+]);
+
+/**
+ * 根据模板类型推断需要排除的 skill 集合
+ * @param {string} templateType 'web' | 'miniprogram' | undefined
+ * @returns {Set<string>}
+ */
+function getExcludedSkills(templateType) {
+  if (templateType === 'web') return MINIPROGRAM_ONLY_SKILLS;
+  if (templateType === 'miniprogram') return WEB_ONLY_SKILLS;
+  return new Set();
+}
+
+/**
+ * 检查给定路径是否对应被排除的 skill
+ * skill 目录/文件出现在以下位置：
+ *   rules/{skill-name}/
+ *   .cursor/rules/{skill-name}.mdc
+ *   .codebuddy/skills/{skill-name}/
+ *   .claude/skills/{skill-name}/
+ *   .{ide}/rules/{skill-name}.md(c)
+ *   .clinerules/{skill-name}/       — 扁平目录，skill 直接在 .clinerules 下
+ *   .kiro/steering/{skill-name}/
+ * @param {string} relPath  相对于 configDir 的路径（使用 / 分隔）
+ * @param {Set<string>} excludedSkills
+ * @returns {boolean}
+ */
+function isExcludedSkill(relPath, excludedSkills) {
+  if (excludedSkills.size === 0) return false;
+  const parts = relPath.split('/');
+  // rules/{skill-name} or rules/{skill-name}/...
+  if (parts[0] === 'rules' && parts.length >= 2) {
+    return excludedSkills.has(parts[1]);
+  }
+  // .codebuddy/skills/{skill-name} or .claude/skills/{skill-name}
+  if ((parts[0] === '.codebuddy' || parts[0] === '.claude') && parts[1] === 'skills' && parts.length >= 3) {
+    return excludedSkills.has(parts[2]);
+  }
+  // .clinerules/{skill-name} — skill 目录直接在 .clinerules 下
+  if (parts[0] === '.clinerules' && parts.length >= 2) {
+    const name = parts[1].replace(/\.mdx?c?$/, '');
+    return excludedSkills.has(name);
+  }
+  // .kiro/steering/{skill-name}
+  if (parts[0] === '.kiro' && parts[1] === 'steering' && parts.length >= 3) {
+    const name = parts[2].replace(/\.mdx?c?$/, '');
+    return excludedSkills.has(name);
+  }
+  // .{ide}/rules/{skill-name}.md(c) — flat file under any IDE rules dir
+  if (parts.length >= 3 && parts[parts.length - 2] === 'rules') {
+    const fileName = parts[parts.length - 1].replace(/\.mdx?c?$/, '');
+    return excludedSkills.has(fileName);
+  }
+  return false;
+}
+
 /**
  * 复制目录内容
  * @param {string} srcDir 源目录
  * @param {string} destDir 目标目录
  * @param {Array} excludePatterns 排除模式
  * @param {Array} includePatterns 包含模式（可选）
+ * @param {Set<string>} excludedSkills 需要过滤的 skill 名称集合（可选）
  */
-function copyDirectory(srcDir, destDir, excludePatterns = [], includePatterns = null) {
+function copyDirectory(srcDir, destDir, excludePatterns = [], includePatterns = null, excludedSkills = new Set()) {
   try {
     // 确保目标目录存在
     if (!fs.existsSync(destDir)) {
@@ -98,6 +171,15 @@ function copyDirectory(srcDir, destDir, excludePatterns = [], includePatterns = 
       const srcPath = path.join(srcDir, item);
       const destPath = path.join(destDir, item);
       
+      // 检查是否为被排除的 skill
+      if (excludedSkills.size > 0) {
+        const relPath = path.relative(configDir, srcPath).split(path.sep).join('/');
+        if (isExcludedSkill(relPath, excludedSkills)) {
+          console.log(`  ⏭️  跳过 skill: ${relPath} (平台不匹配)`);
+          continue;
+        }
+      }
+
       const stat = fs.statSync(srcPath);
       
       if (stat.isDirectory()) {
@@ -115,7 +197,7 @@ function copyDirectory(srcDir, destDir, excludePatterns = [], includePatterns = 
           }
         }
         
-        copyDirectory(srcPath, destPath, excludePatterns, includePatterns);
+        copyDirectory(srcPath, destPath, excludePatterns, includePatterns, excludedSkills);
       } else {
         // 如果有包含模式，检查当前文件是否在包含列表中
         if (includePatterns) {
@@ -319,10 +401,17 @@ async function syncConfigs(options = {}) {
     const templateConfig = templateConfigs[i];
     const templatePath = typeof templateConfig === 'string' ? templateConfig : templateConfig.path;
     const includePatterns = typeof templateConfig === 'object' ? templateConfig.includePatterns : null;
+    // 推断模板类型：优先使用显式 type 字段，否则从路径前缀推断
+    const templateType = (typeof templateConfig === 'object' && templateConfig.type)
+      || (templatePath.startsWith('web/') ? 'web' : templatePath.startsWith('miniprogram/') ? 'miniprogram' : null);
+    const excludedSkills = getExcludedSkills(templateType);
     
-    console.log(`\n[${i + 1}/${templateConfigs.length}] 处理模板: ${templatePath}`);
+    console.log(`\n[${i + 1}/${templateConfigs.length}] 处理模板: ${templatePath}${templateType ? ` [${templateType}]` : ''}`);
     if (includePatterns) {
       console.log(`  📁 包含模式: ${includePatterns.join(', ')}`);
+    }
+    if (excludedSkills.size > 0) {
+      console.log(`  🚫 过滤 skill: ${[...excludedSkills].join(', ')}`);
     }
     
     const cloudbaseExamplesPath = getCloudbaseExamplesPath();
@@ -368,7 +457,7 @@ async function syncConfigs(options = {}) {
     if (includePatterns) {
       // 如果有包含模式，只同步指定的目录和文件
       console.log(`  📂 按包含模式同步...`);
-      copyDirectory(configDir, targetDir, templateConfig.excludePatterns, includePatterns);
+      copyDirectory(configDir, targetDir, templateConfig.excludePatterns, includePatterns, excludedSkills);
     } else {
       // 如果没有包含模式，同步所有内容
       const configItems = fs.readdirSync(configDir);
@@ -378,7 +467,7 @@ async function syncConfigs(options = {}) {
         
         if (fs.statSync(srcPath).isDirectory()) {
           console.log(`  📂 同步目录: ${configItem}`);
-          copyDirectory(srcPath, destPath, templateConfig.excludePatterns);
+          copyDirectory(srcPath, destPath, templateConfig.excludePatterns, null, excludedSkills);
         } else {
           console.log(`  📄 同步文件: ${configItem}`);
           fs.copyFileSync(srcPath, destPath);
@@ -452,7 +541,7 @@ async function handleGitOperations() {
   } catch (error) {
     console.error('❌ Git操作失败:', error.message);
     console.log('\n请手动检查并处理Git操作：');
-    console.log('1. cd ../awsome-cloudbase-examples');
+    console.log('1. cd ../awesome-cloudbase-examples');
     console.log('2. git add .');
     console.log('3. git commit -m "sync config and rules"');
     console.log('4. git push');

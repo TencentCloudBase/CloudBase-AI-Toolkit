@@ -19,6 +19,11 @@ interface ExtendedEnvInfo {
   [key: string]: unknown;
 }
 
+const HOSTING_CDN_SWITCH_VALUES = ['on', 'off'] as const;
+const HOSTING_REFERER_TYPES = ['blacklist', 'whitelist'] as const;
+const HOSTING_CACHE_RULE_TYPES = ['fileType', 'path'] as const;
+const HOSTING_IP_FILTER_TYPES = ['blacklist', 'whitelist'] as const;
+
 const routingRuleSchema = z.object({
   keyPrefixEquals: z.string().optional().describe('匹配前缀规则，例如 app/ 或 assets/。与 httpErrorCodeReturnedEquals 二选一或按 CloudBase 规则组合使用。'),
   httpErrorCodeReturnedEquals: z.string().optional().describe('匹配 HTTP 错误码，例如 404。SPA 回退常用 404。'),
@@ -28,25 +33,25 @@ const routingRuleSchema = z.object({
 
 const domainConfigSchema = z.object({
   Refer: z.object({
-    Switch: z.string().describe('Referer 防盗链开关，例如 on/off。'),
+    Switch: z.enum(HOSTING_CDN_SWITCH_VALUES).describe('Referer 防盗链开关：on=开启，off=关闭。'),
     RefererRules: z.array(z.object({
-      RefererType: z.string().describe('Referer 规则类型。'),
+      RefererType: z.enum(HOSTING_REFERER_TYPES).describe('Referer 规则类型：blacklist=黑名单，whitelist=白名单。'),
       Referers: z.array(z.string()).describe('Referer 规则值列表。'),
       AllowEmpty: z.boolean().describe('是否允许空 Referer。'),
     })).optional().describe('Referer 规则列表。'),
   }).optional().describe('Referer 防盗链配置。'),
   Cache: z.array(z.object({
-    RuleType: z.string().describe('缓存规则类型，例如 fileType/path。'),
+    RuleType: z.enum(HOSTING_CACHE_RULE_TYPES).describe('缓存规则类型：fileType=文件类型，path=路径。'),
     RuleValue: z.string().describe('规则匹配值。'),
     CacheTtl: z.number().describe('缓存 TTL，单位秒。'),
   })).optional().describe('CDN 缓存规则列表。'),
   IpFilter: z.object({
-    Switch: z.string().describe('IP 访问控制开关，例如 on/off。'),
-    FilterType: z.string().optional().describe('过滤类型，例如 blacklist/whitelist。'),
+    Switch: z.enum(HOSTING_CDN_SWITCH_VALUES).describe('IP 访问控制开关：on=开启，off=关闭。'),
+    FilterType: z.enum(HOSTING_IP_FILTER_TYPES).optional().describe('过滤类型：blacklist=黑名单，whitelist=白名单。'),
     Filters: z.array(z.string()).optional().describe('IP 规则列表。'),
   }).optional().describe('IP 访问控制配置。'),
   IpFreqLimit: z.object({
-    Switch: z.string().describe('IP 频控开关，例如 on/off。'),
+    Switch: z.enum(HOSTING_CDN_SWITCH_VALUES).describe('IP 频控开关：on=开启，off=关闭。'),
     Qps: z.number().optional().describe('每个 IP 的 QPS 上限。'),
   }).optional().describe('IP 频控配置。'),
 });
@@ -473,7 +478,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
   server.registerTool(
     'queryHosting',
     {
-      title: '查询静态托管',
+      title: '查询 CloudBase 静态托管',
       description: '查询 CloudBase 静态托管的只读信息。适合 AI 先做发现再决定下一步：action=websiteConfig 查询首页/错误页/路由规则与站点域名信息；action=status 查询托管服务状态；action=findFiles 按前缀查找文件；action=listFiles 列出全部托管文件；action=domainStatus 查询自定义域名的当前状态与配置。该工具不会产生任何副作用。',
       inputSchema: queryHostingInputSchema,
       annotations: {
@@ -627,7 +632,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
   server.registerTool(
     'manageHosting',
     {
-      title: '管理静态托管',
+      title: '管理 CloudBase 静态托管',
       description: '管理 CloudBase 静态托管的变更操作。action=upload 上传本地构建产物；action=delete 删除托管文件或目录（必须 confirm=true）；action=setWebsiteDocument 设置首页/错误页/路由规则；action=enableService 开通静态托管；action=bindDomain / unbindDomain / updateDomain 管理自定义域名；action=downloadFile / downloadDirectory 下载托管内容到本地。若任务只是查看配置、文件或域名状态，请改用 queryHosting。',
       inputSchema: manageHostingInputSchema,
       annotations: {

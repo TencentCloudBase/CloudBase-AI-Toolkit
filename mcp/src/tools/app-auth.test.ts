@@ -187,6 +187,32 @@ describe("app auth tools", () => {
     expect(tools.manageAppAuth.meta.inputSchema.loginConfig).toBeUndefined();
   });
 
+  it("manageAppAuth schema should expose providerType as supported enum values", () => {
+    const providerTypeSchema = tools.manageAppAuth.meta.inputSchema.providerType;
+
+    expect(providerTypeSchema.safeParse("OAUTH").success).toBe(true);
+    expect(providerTypeSchema.safeParse("OIDC").success).toBe(true);
+    expect(providerTypeSchema.safeParse("EMAIL").success).toBe(true);
+    expect(providerTypeSchema.safeParse("WX_OPEN").success).toBe(true);
+    expect(providerTypeSchema.safeParse("oauth").success).toBe(false);
+    expect(providerTypeSchema._def.innerType.options).toEqual([
+      "OAUTH",
+      "OIDC",
+      "SAML",
+      "WX_MICRO_APP",
+      "WX_QRCODE_MICRO_APP",
+      "WX_CLOUDBASE_MICRO_APP",
+      "WX_MP",
+      "WX_OPEN",
+      "WX_WORK_INTERNAL",
+      "WX_WORK_AGENT",
+      "WX_WORK_THIRD_PARTY",
+      "WX_WORK_THIRD_PARTY_ASSOCIATION",
+      "CUSTOM",
+      "EMAIL",
+    ]);
+  });
+
   it("queryAppAuth(action=getLoginConfig) should use manager sdk helper", async () => {
     const result = await tools.queryAppAuth.handler({ action: "getLoginConfig" });
     const payload = JSON.parse(result.content[0].text);

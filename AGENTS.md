@@ -71,6 +71,14 @@ alwaysApply: true
 4. 在实现前，需要根据文档确认接口能力、参数、鉴权方式、返回结构和限制条件，避免凭记忆实现。
 </cloud_api_backend_rules>
 
+<mcp_tool_schema_rules>
+1. 当新增或修改 MCP 工具入参 schema 时，如果某个字符串字段在 description 中描述了固定可选值、取值范围、模式枚举或协议类型（例如 `MYSQL/FLEXDB`、`on/off`、`blacklist/whitelist`、`OAUTH/OIDC/EMAIL`），必须在 Zod / JSON Schema 中定义为 `z.enum([...])` 或等价枚举 schema，而不是只用 `z.string()` 加说明文字。
+2. 仅当字段确实是用户自定义标识、路径、命令、搜索关键词、动态模板名或后端返回的开放值时，才保留 `z.string()`；不要把“例如”中的示例值误收窄成枚举。
+3. 枚举值必须来自公开文档、Manager SDK 类型/文档、已有公开契约或当前代码中已稳定使用的常量；如果契约不清楚，先保留开放类型并在总结中说明，不要凭直觉收窄。
+4. 修改枚举入参后必须同步补充或更新 schema 测试，并更新生成产物（如 `scripts/tools.json`、`doc/mcp-tools.md`）。
+5. 提交前应扫描生成后的工具 schema，确认不存在“description 里列固定取值，但 schema 没有 enum”的字段。
+</mcp_tool_schema_rules>
+
 <add_aiide>
 # CloudBase AI Toolkit - 新增 AI IDE 支持工作流
 
@@ -170,6 +178,23 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 - config 用来给 AI IDE提供的规则和 mcp 预设配置
 - tests 自动化测试
 </project_rules>
+
+<supply_chain_security>
+# npm 供应链安全（必须遵守）
+
+本项目因 MCP Server + 大规模 AI IDE 技能分发特性，是 npm 供应链攻击的高价值目标。
+
+**强制规则：**
+- 安全敏感依赖（`@cloudbase/*`、 `@modelcontextprotocol/sdk`、express、ws、zod 等 runtime 核心）**必须使用精确版本**（禁止 `^` / `~`）。
+- 所有 GitHub Actions 引用**必须 pin 到完整 40 字符 commit SHA**（禁止浮动 tag 如 `@v4`、`@beta`）。
+- 修改 `package.json`、`pnpm-workspace.yaml`、`.npmrc` 或 workflow 时，必须参考内部详细指南。
+- 优先使用 `corepack + pnpm` 进行依赖管理（已配置 `packageManager` 字段）。
+
+**详细内部文档（含当前状态、AI Agent 审计 Prompt、防护措施）：**
+`specs/npm-supply-chain-security-hardening/npm-security.md`
+
+任何涉及依赖或 CI 的变更，在开始前都应先阅读该文档。
+</supply_chain_security>
 
 <add_aiide>
 # CloudBase AI Toolkit - 新增 AI IDE 支持工作流

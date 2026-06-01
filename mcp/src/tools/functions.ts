@@ -1502,9 +1502,9 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "queryFunctions",
     {
-      title: "查询云函数域资源",
+      title: "查询 CloudBase 云函数",
       description:
-        "函数域统一只读入口。通过更自解释的 action 查询 CloudBase 云函数列表、函数详情、执行日志、层、触发器和代码下载地址。" +
+        "CloudBase 云函数统一只读入口。通过更自解释的 action 查询 CloudBase 云函数列表、函数详情、执行日志、层、触发器和代码下载地址。" +
         "\n\n**分页说明**：`listFunctions`、`listLayers` 支持 `limit` 和 `offset` 参数。" +
         "\n- `limit`: 分页数量，默认值由后端决定" +
         "\n- `offset`: 分页偏移，从 0 开始" +
@@ -1575,9 +1575,9 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "manageFunctions",
     {
-      title: "管理云函数域资源",
+      title: "管理 CloudBase 云函数",
       description:
-        "函数域统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。" +
+        "CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。" +
         "如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。" +
         "危险操作需要显式 confirm=true。",
       inputSchema: {

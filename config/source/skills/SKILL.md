@@ -1,11 +1,15 @@
 ---
 name: cloudbase-all-in-one
 description: Unified CloudBase execution guide for all-in-one skill installs. Use this as the first entry point for CloudBase app tasks, especially existing applications that already contain TODOs, fixed pages, and active handlers.
-version: 2.19.0
+version: 2.20.0
 alwaysApply: true
 ---
 
 # CloudBase All-In-One
+
+## Scope
+
+Only handle tasks that are part of building, integrating, or maintaining a CloudBase application — including UI design, spec planning, and other development activities when they are in service of a CloudBase app. If the request has no CloudBase application context at all, stop and tell the user this skill only covers CloudBase-based development.
 
 ## Activation Contract
 
@@ -39,6 +43,8 @@ alwaysApply: true
 
 ### High-yield guardrails
 
+- **Change Safety Protocol**: Before any non-trivial code or configuration change, you must strictly follow `cloudbase-platform/references/protocols/change-safety-protocol.md` (declare impact → obtain user confirmation → verify after change → escalate to root cause analysis after 3 occurrences of the same symptom).
+- **Deployment Gate**: Before any deployment, publish, custom domain, CloudRun, or public exposure work, you must complete the checks in `cloudbase-platform/references/protocols/deployment-gate.md` and present the mandatory declaration template.
 - If the same path fails 2-3 times, stop retrying and reroute. Check platform skill, auth domain, runtime, and permission model before editing more code.
 - Always specify `EnvId` explicitly in code, configuration, and command examples when initializing CloudBase clients or manager operations. Do not rely on the current CLI-selected environment or implicit defaults.
 - If the conversation only provides an environment alias, nickname, or other shorthand, resolve it with `envQuery(action=list, alias=..., aliasExact=true)` and use the returned canonical full `EnvId` before calling `auth.set_env`, generating console links, or writing config/code. If the alias is ambiguous or missing, stop and ask the user to confirm.
@@ -50,7 +56,13 @@ alwaysApply: true
 
 ## Working rules
 
-1. Existing application with TODOs:
+1. **BaaS-first, functions as last resort**:
+   - Before writing any cloud function or CloudRun service, ask: can the JS SDK handle this directly? (`db.collection(...).get()`, `auth`, `storage`)
+   - Use the JS SDK directly for: data reads/writes, file uploads, real-time updates, simple queries including leaderboards, lists, aggregations.
+   - Only drop down to cloud functions when: the logic requires server-side permission enforcement that cannot be expressed in database rules, calling third-party services (payment, SMS, external APIs), or background jobs not triggered by the user.
+   - Only drop down to CloudRun when: persistent connections (WebSocket), long-running compute, or custom runtimes are genuinely required.
+
+2. Existing application with TODOs:
    - Treat it as a targeted repair task, not a greenfield build.
    - Prefer the shortest path from current code to working flow.
 

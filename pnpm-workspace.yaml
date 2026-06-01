@@ -1,0 +1,12 @@
+# pnpm workspace configuration for CloudBase AI Toolkit
+# Part of npm supply chain security hardening (Phase 2)
+
+packages:
+  - '.'
+  - 'mcp'
+
+# Supply chain protections (aligned with Supabase recommendations)
+minimumReleaseAge: 4320   # 3 days (4320 minutes). Increase to 10080 (7 days) after validation.
+# blockExoticSubdeps: true  # Enable after full pnpm migration
+
+# Note: .npmrc at root provides ignore-scripts=true as fallback for npm users during transition.

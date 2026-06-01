@@ -29,22 +29,53 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
 
-      - name: Sync mirrors and check for drift
+      - name: Sync mirrors and check for drift (npm path)
         run: |
-          # Sync mirrors first (generates files from config/source/)
+          # Current npm-based path (kept for compatibility during transition)
           node scripts/sync-config.mjs
-          # Check for diff (blocking)
           npm run check:compat-diff
-          # If sync produced changes, fail the build with a clear message
           if [ -n "$(git status --porcelain)" ]; then
             echo "ERROR: config/source/ was modified but mirrors were not synced."
             echo "Run 'node scripts/sync-config.mjs' locally and commit the updated mirrors."
             exit 1
           fi
+
+      - name: pnpm pilot validation (non-blocking)
+        run: |
+          echo "=== pnpm pilot: corepack + frozen install ==="
+          corepack enable
+          # Use pnpm with the new lockfile for validation
+          pnpm install --frozen-lockfile
+          echo "pnpm install succeeded with frozen lockfile."
+
+          echo ""
+          echo "=== pnpm pilot: run one check script ==="
+          pnpm run check:compat-diff || echo "Note: Some scripts may still expect npm context during transition."
+
+      - name: Supply chain security hygiene check (non-blocking)
+        run: |
+          echo "=== Checking for unpinned GitHub Actions (floating @v tags) ==="
+          if grep -rE 'uses: [^ ]+@v[0-9]' .github/workflows/ --include="*.yml" --include="*.yaml" | grep -v node_modules; then
+            echo "WARNING: Found floating @v tags in workflows. All Actions must be pinned to full commit SHA."
+          else
+            echo "OK: No floating @v tags found in workflows."
+          fi
+
+          echo ""
+          echo "=== Checking for ^ ranges in security-sensitive dependencies ==="
+          # Check root and mcp package.json for ^ in critical packages
+          if grep -E '"(@cloudbase/[^"]+|@modelcontextprotocol/sdk|express|ws|zod)":\s*"\^' package.json mcp/package.json 2>/dev/null; then
+            echo "WARNING: Found ^ ranges in security-sensitive dependencies. These should be pinned to exact versions."
+          else
+            echo "OK: No ^ ranges found in key runtime dependencies."
+          fi
+
+          echo ""
+          echo "Supply chain check completed (non-blocking for now)."
