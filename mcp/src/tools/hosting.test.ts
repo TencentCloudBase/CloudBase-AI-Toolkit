@@ -309,6 +309,28 @@ describe('hosting tools', () => {
     expect(mockSendDeployNotification).toHaveBeenCalled();
   });
 
+  it('manageHosting(action=upload) should fail fast when current env lacks static hosting storage config', async () => {
+    mockGetEnvInfo.mockResolvedValueOnce({
+      EnvInfo: {
+        StaticStorages: null,
+      },
+    });
+
+    const tools = createMockServer();
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'upload',
+      localPath: '/tmp/site-dist',
+      cloudPath: '/todo',
+      ignore: ['node_modules', '.DS_Store', '*.map'],
+    })).content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.errorCode).toBe('HOSTING_UPLOAD_FAILED');
+    expect(payload.message).toContain('当前环境 env-test 未发现静态托管资源配置');
+    expect(payload.message).toContain('auth(action="set_env"');
+    expect(mockUploadFiles).not.toHaveBeenCalled();
+  });
+
   it('manageHosting(action=delete) should require explicit confirm=true', async () => {
     const tools = createMockServer();
     const payload = JSON.parse((await tools.manageHosting.handler({
