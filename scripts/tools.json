@@ -2412,7 +2412,7 @@
     },
     {
       "name": "managePermissions",
-      "description": "管理 CloudBase 权限与用户配置，支持修改资源权限（数据库/云函数/存储桶等）、角色管理、成员与策略增删、应用用户 CRUD。\n\n示例：\n- 设置存储桶为私有：`action=\"setResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"PRIVATE\"`\n- 创建角色：`action=\"createRole\", roleName=\"admin\", roleIdentity=\"admin\"`\n\n注意：`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单。前端用户名密码注册应使用 `auth.signUp({ username, password })`，登录应使用 `auth.signInWithPassword({ username, password })`。`securityRule` 的详细语义取决于 `resourceType`，请参考对应官方文档。",
+      "description": "管理 CloudBase 权限与用户配置，支持修改资源权限（数据库/云函数/存储桶等）、角色管理、成员与策略增删、应用用户 CRUD。\n\n示例：\n- 设置存储桶为私有：`action=\"updateResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"PRIVATE\"`\n- 创建角色：`action=\"createRole\", roleName=\"admin\", roleIdentity=\"admin\"`\n\n注意：`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单。前端用户名密码注册应使用 `auth.signUp({ username, password })`，登录应使用 `auth.signInWithPassword({ username, password })`。`securityRule` 的详细语义取决于 `resourceType`，请参考对应官方文档。",
       "inputSchema": {
         "type": "object",
         "properties": {
