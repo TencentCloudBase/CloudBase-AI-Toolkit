@@ -2,7 +2,7 @@
 
 ## 获取计费相关信息
 
-最近更新时间：2026-03-17 02:57:05
+最近更新时间：2026-06-02 02:43:26
 
 -   微信扫一扫 
 -   QQ
@@ -18,7 +18,8 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-获取计费相关信息
+获取云开发环境的计费相关信息。  
+包括环境的 状态、当前套餐、购买时间、到期时间 等。
 
 默认接口请求频率限制：50次/秒。
 
@@ -37,26 +38,63 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 | Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeBillingInfo。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| EnvId | 否 | String | 环境ID  
+| EnvId | 否 | String | 
+环境ID
+
+  
 示例值：env-xxyyzzaa |
+| EnvIds.N | 否 | Array of String | 
+
+环境列表，当环境列表不为空时，查询的环境以该参数为准
+
+  
+示例值：\["stress10new0060000zd-d1a82f617e3"\] |
+| Limit | 否 | Integer | 
+
+每页条数（用于拉取列表时分页）
+
+  
+示例值：1000 |
+| Offset | 否 | Integer | 
+
+偏移
+
+  
+示例值：50 |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| EnvBillingInfoList | Array of [EnvBillingInfoItem](/document/api/876/34822#EnvBillingInfoItem) | 环境计费信息列表 |
+| EnvBillingInfoList | Array of [EnvBillingInfoItem](/document/api/876/34822#EnvBillingInfoItem) | 
+环境计费信息列表
+
+ |
+| Total | Integer | 
+
+总个数
+
+  
+示例值：1000 |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 示例
+### 示例1 分批查询计费信息
 
 #### 输入示例
 
 ```
-https://tcb.tencentcloudapi.com/?Action=DescribeBillingInfo
-&EnvId=tnt-j715s5gda
-&<公共请求参数>
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: DescribeBillingInfo
+<公共请求参数>
+
+{
+    "Limit": 1000,
+    "Offset": 30
+}
 ```
 
 #### 输出示例
@@ -66,18 +104,79 @@ https://tcb.tencentcloudapi.com/?Action=DescribeBillingInfo
     "Response": {
         "EnvBillingInfoList": [
             {
-                "EnvId": "tnt-j715s5gda",
-                "PackageId": "professional",
-                "IsAutoRenew": true,
-                "Status": "NORMAL",
-                "PayMode": "PREPAYMENT",
-                "IsolatedTime": "2011-5-16 12:15:01",
-                "ExpireTime": "2019-5-25 12:15:01",
-                "CreateTime": "2016-5-25 12:15:01",
-                "UpdateTime": "2019-4-25 12:15:01",
-                "FreeQuota": "",
+                "CreateTime": "2021-01-20 21:18:09",
+                "EnableOverrun": false,
+                "EnvActivated": "no",
+                "EnvCharged": "yes",
+                "EnvId": "carol-test-sms-6g7zpok6eb41cdfe",
+                "ExpireTime": "0000-00-00 00:00:00",
+                "ExtPackageType": "",
+                "FreeQuota": "free",
+                "IsAlwaysFree": false,
+                "IsAutoRenew": false,
+                "IsolatedTime": "2022-10-25 15:42:53",
+                "OrderInfo": {
+                    "CreateTime": "2021-01-20 21:17:53",
+                    "ExtensionId": "",
+                    "Flag": "",
+                    "PackageId": "",
+                    "PayMode": "POSTPAID",
+                    "ReqBody": "",
+                    "ResourceReady": "",
+                    "TranId": "20210120789001256921351",
+                    "TranStatus": "4",
+                    "TranType": "5",
+                    "UpdateTime": "2021-01-20 21:19:40"
+                },
+                "PackageId": "",
+                "PayMode": "POSTPAID",
                 "PaymentChannel": "qcloud",
+                "Status": "ISOLATE",
+                "UpdateTime": "2022-10-25 15:42:53"
+            }
+        ],
+        "Total": 10000,
+        "RequestId": "cf7490af-821b-4d33-94a2-0337a67f5910"
+    }
+}
+```
+
+### 示例2 查询环境列表的计费信息
+
+#### 输入示例
+
+```
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: DescribeBillingInfo
+<公共请求参数>
+
+{
+    "EnvIds": [
+        "stress10new0059998or-d3aa7adb44f"
+    ]
+}
+```
+
+#### 输出示例
+
+```json
+{
+    "Response": {
+        "EnvBillingInfoList": [
+            {
+                "CreateTime": "2026-05-15 15:56:43",
+                "EnableOverrun": false,
+                "EnvActivated": "no",
+                "EnvCharged": "yes",
+                "EnvId": "stress10new0059998or-d3aa7adb44f",
+                "ExpireTime": "2026-11-15 23:59:59",
                 "ExtPackageType": "baas",
+                "FreeQuota": "",
+                "IsAlwaysFree": false,
+                "IsAutoRenew": false,
+                "IsolatedTime": "0000-00-00 00:00:00",
                 "OrderInfo": {
                     "CreateTime": "",
                     "ExtensionId": "",
@@ -91,11 +190,15 @@ https://tcb.tencentcloudapi.com/?Action=DescribeBillingInfo
                     "TranType": "",
                     "UpdateTime": ""
                 },
-                "IsAlwaysFree": false,
-                "EnableOverrun": true
+                "PackageId": "baas_trial",
+                "PayMode": "PREPAYMENT",
+                "PaymentChannel": "miniapp",
+                "Status": "NORMAL",
+                "UpdateTime": "2026-05-15 15:56:43"
             }
         ],
-        "RequestId": "ec5dde6a-6c21-4777-bf4a-99e1f910247e"
+        "Total": 10000,
+        "RequestId": "68c26a28-5c00-4730-b701-5a7bc1981eae"
     }
 }
 ```
