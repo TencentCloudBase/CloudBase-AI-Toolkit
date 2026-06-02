@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generatedAt": "2026-06-02T12:38:32.303Z",
+  "generatedAt": "2026-06-02T12:39:33.152Z",
   "groups": {
     "machine": {
       "description": "Machine-consumable configuration files. Missing, extra, or content drift blocks CI.",
