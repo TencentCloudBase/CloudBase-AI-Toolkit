@@ -32,11 +32,13 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 - CloudBase auth -> `../auth-wechat/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-wechat/SKILL.md`)
 - CloudBase document DB -> `../no-sql-wx-mp-sdk/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/no-sql-wx-mp-sdk/SKILL.md`)
+- Mini Program WeChat Pay or Integration Center generated payment functions -> `../cloudbase-wechat-integration/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-wechat-integration/SKILL.md`; official docs: `https://docs.cloudbase.net/integration/wechat-pay-miniprogram/index.md`)
 - UI generation -> `../ui-design/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/ui-design/SKILL.md`) first
 
 ### Do NOT use for
 
 - Web auth flows or Web SDK-specific frontend implementation.
+- WeChat Pay, payment callbacks, refunds, or Official Account OAuth details; use `cloudbase-wechat-integration` for those scenarios.
 
 ### Common mistakes / gotchas
 

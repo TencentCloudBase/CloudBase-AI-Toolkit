@@ -8,9 +8,14 @@ import {
 test('parseTargetInput accepts explicit target list and de-duplicates order-preservingly', () => {
   expect(
     parseTargetInput(
-      'miniprogram-development, web-development, all-in-one, web-development',
+      'miniprogram-development, cloudbase-wechat-integration, web-development, all-in-one, web-development',
     ),
-  ).toEqual(['miniprogram-development', 'web-development', 'all-in-one']);
+  ).toEqual([
+    'miniprogram-development',
+    'cloudbase-wechat-integration',
+    'web-development',
+    'all-in-one',
+  ]);
 });
 
 test('parseTargetInput rejects unknown publish targets', () => {
@@ -19,11 +24,12 @@ test('parseTargetInput rejects unknown publish targets', () => {
 
 test('resolvePublishTargets only returns whitelisted publish units', () => {
   const targets = resolvePublishTargets(
-    'miniprogram-development,all-in-one,ui-design,web-development,spec-workflow',
+    'miniprogram-development,cloudbase-wechat-integration,all-in-one,ui-design,web-development,spec-workflow',
   );
 
   expect(targets.map((target) => target.key)).toEqual([
     'miniprogram-development',
+    'cloudbase-wechat-integration',
     'all-in-one',
     'ui-design',
     'web-development',
@@ -31,11 +37,15 @@ test('resolvePublishTargets only returns whitelisted publish units', () => {
   ]);
   expect(Object.keys(CLAWHUB_PUBLISH_TARGETS)).toEqual([
     'miniprogram-development',
+    'cloudbase-wechat-integration',
     'all-in-one',
     'ui-design',
     'web-development',
     'spec-workflow',
   ]);
+  expect(
+    targets.find((target) => target.key === 'cloudbase-wechat-integration')?.registrySlug,
+  ).toBe('cloudbase-wechat-integration');
   expect(targets.find((target) => target.key === 'ui-design')?.registrySlug).toBe(
     'ui-design-guide',
   );

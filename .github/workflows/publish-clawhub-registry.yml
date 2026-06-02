@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       targets:
-        description: 'Comma-separated publish targets: miniprogram-development, all-in-one, ui-design, web-development, spec-workflow'
+        description: 'Comma-separated publish targets: miniprogram-development, cloudbase-wechat-integration, all-in-one, ui-design, web-development, spec-workflow'
         required: true
         type: string
       bump:
@@ -49,7 +49,7 @@ jobs:
     permissions:
       contents: read
     env:
-      TARGETS: ${{ github.event_name == 'workflow_dispatch' && inputs.targets || 'miniprogram-development,all-in-one,ui-design,web-development,spec-workflow' }}
+      TARGETS: ${{ github.event_name == 'workflow_dispatch' && inputs.targets || 'miniprogram-development,cloudbase-wechat-integration,all-in-one,ui-design,web-development,spec-workflow' }}
       BUMP: ${{ github.event_name == 'workflow_dispatch' && inputs.bump || 'minor' }}
       CHANGELOG: ${{ github.event_name == 'workflow_dispatch' && inputs.changelog || '' }}
       TAGS: ${{ github.event_name == 'workflow_dispatch' && inputs.tags || 'latest' }}

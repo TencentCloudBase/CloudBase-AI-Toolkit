@@ -186,12 +186,26 @@
     ]
   },
   {
+    "id": "cloudbase-wechat-integration",
+    "title": "应用集成：微信生态集成",
+    "description": "使用 CloudBase 集成中心接入小程序微信支付、公众号 JSAPI 支付、Native 扫码支付和公众号 OAuth",
+    "shortDescription": "微信支付、公众号 OAuth",
+    "category": "frontend",
+    "order": 3,
+    "prompts": [
+      "在 CloudBase 小程序中接入微信支付，并处理支付回调",
+      "帮我用 CloudBase 集成中心实现公众号 JSAPI 支付",
+      "在 Web 站点中接入微信 Native 扫码支付并查询订单状态",
+      "通过 CloudBase 集成中心获取公众号 openid 并用于支付"
+    ]
+  },
+  {
     "id": "ui-design",
     "title": "应用集成：UI 设计",
     "description": "界面视觉方向、设计规格与前端原型指导",
     "shortDescription": "专业界面设计指南",
     "category": "frontend",
-    "order": 3,
+    "order": 4,
     "prompts": [
       "帮我设计一个现代化的用户界面，用于 CloudBase 应用",
       "创建一个美观的登录页面，集成 CloudBase Auth"
@@ -203,7 +217,7 @@
     "description": "使用 CloudBase HTTP API 访问平台功能，适用于 Android、iOS 等任意原生语言开发",
     "shortDescription": "Android、iOS 原生应用",
     "category": "frontend",
-    "order": 4,
+    "order": 5,
     "prompts": [
       "帮我通过 HTTP API 调用 CloudBase 服务",
       "在 Android 应用中集成 CloudBase HTTP API",

@@ -37,6 +37,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 - Detailed reference routing -> `./references.md`
 - Auth setup or provider-related backend work -> `../auth-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-tool/SKILL.md`)
+- CloudBase Integration Center generated WeChat Pay or Official Account functions -> `../cloudbase-wechat-integration/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-wechat-integration/SKILL.md`; official docs: `https://docs.cloudbase.net/integration/introduce/index.md`)
 - AI in functions -> `../ai-model-nodejs/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/ai-model-nodejs/SKILL.md`)
 - Long-lived container services or Agent runtimes -> `../cloudrun-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudrun-development/SKILL.md`)
 - Calling CloudBase official platform APIs from a client or script -> `../http-api/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/http-api/SKILL.md`)
@@ -47,6 +48,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Web authentication UI implementation.
 - Database-schema design or general data-model work.
 - CloudBase official platform API clients or raw HTTP integrations that only consume platform endpoints.
+- Creating Integration Center instances through guessed APIs. For WeChat Pay or Official Account generated functions, use `cloudbase-wechat-integration` for the business contract and this skill only for function operations.
 - **Tasks that the CloudBase JS SDK can handle directly** — simple data reads/writes, leaderboards, file uploads, real-time queries. Reach for `db.collection(...).get/add/update` before writing a function. Functions add deployment complexity, CORS configuration, and HTTP gateway binding that the SDK eliminates entirely.
 
 ### Common mistakes / gotchas

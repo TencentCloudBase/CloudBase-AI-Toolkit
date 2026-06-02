@@ -99,6 +99,7 @@ test('buildClawhubPublishArtifacts builds all-in-one artifact', () => {
 });
 
 test.each([
+  'cloudbase-wechat-integration',
   'ui-design',
   'web-development',
   'spec-workflow',
@@ -127,6 +128,21 @@ test.each([
   if (targetKey === 'spec-workflow') {
     expect(readSourceSkillName(targetKey)).toBe('spec-workflow');
     expect(manifest.targets[0].metadata.name).toBe('spec-workflow-guide');
+  }
+  if (targetKey === 'cloudbase-wechat-integration') {
+    expect(manifest.targets[0].metadata.name).toBe('cloudbase-wechat-integration');
+    expect(
+      fs.existsSync(
+        path.join(
+          outputDir,
+          targetKey,
+          'skills',
+          manifest.targets[0].registrySlug,
+          'references',
+          'mini-program-pay.md',
+        ),
+      ),
+    ).toBe(true);
   }
   expect(
     fs.existsSync(

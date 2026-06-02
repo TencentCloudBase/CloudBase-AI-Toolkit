@@ -38,12 +38,14 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - General React / Vue / Vite guidance -> `frameworks.md`
 - Browser flow checks or page validation -> `browser-testing.md`
 - Login flow -> `../auth-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-tool/SKILL.md`), then `../auth-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-web/SKILL.md`)
+- Official Account JSAPI Pay, Native QR-code Pay, or WeChat OAuth on CloudBase -> `../cloudbase-wechat-integration/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-wechat-integration/SKILL.md`; official docs: `https://docs.cloudbase.net/integration/introduce/index.md`)
 - CloudBase database work -> matching database skill
 
 ### Do NOT use for
 
 - Visual direction setting, prototype-first design work, or pure aesthetic exploration.
 - Mini programs, native Apps, or backend-only services.
+- WeChat payment or Official Account OAuth contract details; use `cloudbase-wechat-integration` after identifying the Web surface.
 
 ### Common mistakes / gotchas
 

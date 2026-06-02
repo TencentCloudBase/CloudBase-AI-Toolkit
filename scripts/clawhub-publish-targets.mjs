@@ -22,6 +22,20 @@ export const CLAWHUB_PUBLISH_TARGETS = {
     ),
     sourceDescription: "config/source/skills/miniprogram-development",
   },
+  "cloudbase-wechat-integration": {
+    key: "cloudbase-wechat-integration",
+    type: "local-skill",
+    registrySlug: "cloudbase-wechat-integration",
+    displayName: "CloudBase 微信生态集成 / CloudBase WeChat Integration",
+    sourceDir: path.join(
+      projectRoot,
+      "config",
+      "source",
+      "skills",
+      "cloudbase-wechat-integration",
+    ),
+    sourceDescription: "config/source/skills/cloudbase-wechat-integration",
+  },
   "all-in-one": {
     key: "all-in-one",
     type: "generated-allinone",
