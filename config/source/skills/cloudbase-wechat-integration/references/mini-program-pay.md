@@ -45,7 +45,10 @@ const orderResult = await wx.cloud.callHTTPFunction({
   },
 });
 
-const payment = orderResult.result?.payment;
+// callHTTPFunction returns { data, statusCode, header }
+// The generated function typically returns { code, data, message }
+// Payment params are under orderResult.data.data
+const payment = orderResult.data?.data;
 if (!payment) {
   throw new Error("Missing payment parameters from CloudBase payment function");
 }
