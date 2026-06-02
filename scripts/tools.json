@@ -2349,7 +2349,7 @@
     },
     {
       "name": "queryPermissions",
-      "description": "权限域统一只读入口。支持查询资源权限、角色列表/详情、应用用户列表/详情。\n\n资源权限示例：\n- 查询存储桶 ACL：`action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\"`（返回 permission 字段：READONLY/PRIVATE/ADMINWRITE/ADMINONLY/CUSTOM）",
+      "description": "查询 CloudBase 权限与用户配置，支持查询资源权限（数据库/云函数/存储桶等）、角色列表/详情、应用用户列表/详情。\n\n示例：\n- 查询存储桶权限：`action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\"`",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2413,7 +2413,7 @@
     },
     {
       "name": "managePermissions",
-      "description": "权限域统一写入口。支持修改资源权限、角色管理、成员与策略增删、应用用户 CRUD。`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单；前端用户名密码注册应使用 `auth.signUp({ username, password })`，登录应使用 `auth.signInWithPassword({ username, password })`。注意：`securityRule` 的详细语义取决于 `resourceType`；`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType=\"noSqlDatabase\"` 的文档数据库安全规则。配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。",
+      "description": "管理 CloudBase 权限与用户配置，支持修改资源权限（数据库/云函数/存储桶等）、角色管理、成员与策略增删、应用用户 CRUD。\n\n示例：\n- 设置存储桶为私有：`action=\"setResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"PRIVATE\"`\n- 创建角色：`action=\"createRole\", roleName=\"admin\", roleIdentity=\"admin\"`\n\n注意：`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单。前端用户名密码注册应使用 `auth.signUp({ username, password })`，登录应使用 `auth.signInWithPassword({ username, password })`。`securityRule` 的详细语义取决于 `resourceType`，请参考对应官方文档。",
       "inputSchema": {
         "type": "object",
         "properties": {
