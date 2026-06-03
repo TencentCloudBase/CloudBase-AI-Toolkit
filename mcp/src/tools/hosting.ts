@@ -424,6 +424,25 @@ async function resolveHostingStaticDomain(cloudbase: any, logger?: ExtendedMcpSe
   }
 }
 
+async function assertHostingUploadEnvironmentReady(
+  cloudbase: any,
+  cloudBaseOptions?: { envId?: string },
+  logger?: ExtendedMcpServer['logger'],
+) {
+  const envId = await getEnvId(cloudBaseOptions);
+  const envInfo = await cloudbase.env.getEnvInfo() as ExtendedEnvInfo;
+  logCloudBaseResult(logger, envInfo);
+
+  const staticStorage = envInfo.EnvInfo?.StaticStorages?.[0];
+  if (staticStorage?.Bucket) {
+    return;
+  }
+
+  throw new Error(
+    `当前环境 ${envId} 未发现静态托管资源配置，无法上传文件。请先确认 MCP 已绑定到已开通静态托管的 CloudBase 环境；如需切换环境，请调用 auth(action="set_env", envId="目标环境ID") 后重试。`,
+  );
+}
+
 function buildFailureResult(action: string, error: unknown) {
   return buildJsonToolResult({
     success: false,
@@ -657,6 +676,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
 
             let result: unknown;
             try {
+              await assertHostingUploadEnvironmentReady(cloudbase, cloudBaseOptions, server.logger);
               result = await cloudbase.hosting.uploadFiles({
                 localPath: input.localPath,
                 cloudPath: input.cloudPath,
