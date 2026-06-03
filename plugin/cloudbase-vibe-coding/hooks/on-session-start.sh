@@ -1,0 +1,332 @@
+#!/usr/bin/env bash
+# on-session-start.sh — Claude Code / OpenClaw SessionStart hook
+#
+# Two responsibilities:
+#   1. Decide what to do for the cwd (no-op / start preview / install + start /
+#      auto-init from empty). Heavy work runs in the background.
+#   2. Emit a JSON `additionalContext` payload on stdout so Claude Code injects
+#      hard rules + cwd state directly into the system prompt — bypassing the
+#      "model may or may not Skill() the SKILL.md" gamble.
+#
+# Output schema (Claude Code SessionStart hook):
+#   { "hookSpecificOutput": {
+#       "hookEventName": "SessionStart",
+#       "additionalContext": "...rules + state..."
+#     }
+#   }
+#
+# Hook log: <cwd>/.cloudbase-agent/logs/hook-session-start.log
+
+set -u
+CWD="$(pwd)"
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "$HOOK_DIR/.." && pwd)"
+LOG_FALLBACK="/tmp/cloudbase-vibe-session-start.log"
+
+log() {
+  local target="$CWD/.cloudbase-agent/logs/hook-session-start.log"
+  mkdir -p "$(dirname "$target")" 2>/dev/null || target="$LOG_FALLBACK"
+  printf '[%s] %s\n' "$(date -Iseconds 2>/dev/null || date)" "$*" >> "$target" 2>/dev/null || true
+}
+
+# ---------------------------------------------------------------------------
+# Emit additionalContext as the LAST stdout output. We use Node to do JSON
+# escaping safely (newlines, quotes, etc.) — sed/printf are too error-prone
+# when the body contains backticks and quotes.
+# ---------------------------------------------------------------------------
+emit_context() {
+  local body="$1"
+  if command -v node >/dev/null 2>&1; then
+    node -e '
+      const body = process.argv[1];
+      process.stdout.write(JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "SessionStart",
+          additionalContext: body,
+        },
+      }));
+    ' "$body"
+  fi
+  # If node is missing, we silently skip — the hook still ran its decision tree.
+}
+
+# Build the static rules block used in every active branch. ~370 tokens.
+RULES_BLOCK='## CloudBase Vibe Coding (plugin-injected, MUST follow)
+
+You are in a session managed by the cloudbase-vibe-coding plugin. The dev server
+lifecycle is owned by hooks; you must not bypass them.
+
+### Hard rules
+
+1. **Never guess the preview URL.** It is NOT 5173/5174/5175 — the plugin uses
+   the 17173..17272 range AND each cwd may have its own port. Always run
+   `cloudbase-vibe-status-preview` (or read `<cwd>/.cloudbase-agent/preview.json`)
+   to obtain `internalUrl`. If status reports NO_PREVIEW (exit 5), wait ~5s
+   and retry once — the SessionStart hook may still be installing/starting.
+
+2. **"Make me a X app" = X IS the homepage.** When the user uses whole-house
+   language ("build me a todo app", "make a chat app"), the request means
+   "make `/` show X", not "add a `/x` route while the original homepage stays".
+   - If `src/pages/HomePage.tsx` (or equivalent) exists in the template:
+     **REPLACE its content** with the new feature. Do not create a separate
+     component (e.g. `<TodoApp />`) and leave `HomePage` showing the
+     original template welcome — the user wants `/` to BE the new app.
+   - If no homepage component exists: edit `src/App.tsx` directly so `/`
+     renders the new feature.
+   - Only add a new route when the user explicitly says "add a X page".
+
+3. **UI work for NEW features requires a design specification first.** When
+   the user asks you to build a new app/feature/page from scratch (e.g.
+   "make a todo app", "build a chat UI", "add a dashboard"), you MUST invoke
+   the `ui-design` skill BEFORE writing any `.tsx`/`.css`/`.html` and produce
+   its design spec (Aesthetic Direction, Color Palette, Typography, Layout
+   Strategy). Do NOT improvise generic AI-default styling.
+   Note: the CloudBase template'\''s `CLAUDE.md` "Existing Implementation First"
+   exemption applies only to bug fixes / completing TODO markers in existing
+   code — it does NOT exempt you from `ui-design` when creating a new app
+   on top of the template.
+
+4. **Never spawn `npm run dev` / `vite` / `vite build` yourself.** Dev-server
+   lifecycle is the SessionStart + PostToolUse hooks. Build/deploy is
+   `cloudbase-vibe-deploy`. Bypassing them loses host=0.0.0.0, port allocation,
+   daemonization, snapshot, and deploy history.
+
+5. **Data persistence: BaaS-first via Web SDK + MCP-managed schema.** When
+   the user'\''s feature needs to store / query / update data:
+   - **Schema:** call cloudbase-mcp `writeNoSqlDatabaseStructure(action="createCollection", ...)`
+     to create the collection (and `updateCollection` for indexes). Do NOT
+     ask the user to create collections manually in the console. The
+     `no-sql-web-sdk` skill describes the canonical patterns.
+   - **Reads/writes:** use `@cloudbase/js-sdk` directly from the React/Vue
+     code (`db.collection(...).where(...).get()`, `.add()`, `.update()`,
+     `db.collection(...).watch(...)` for realtime). The template already
+     ships an initialized SDK at `src/utils/cloudbase.ts` — use it.
+   - **Auth:** if the feature needs user accounts, follow the `auth-tool`
+     skill first to verify provider config, then `auth-web` for client code.
+   - **Reach for cloud functions only when ALL of these are true:**
+     (a) the logic absolutely cannot be expressed as database security rules,
+     (b) it needs server-side secrets / third-party API keys, OR
+     (c) it'\''s a scheduled / background job not triggered by user actions.
+     Default answer is no — a Todo app, a Notes app, a Chat app, a Kanban
+     etc. all live entirely in the JS SDK + database rules. Adding a cloud
+     function "just for safety" is over-engineering.
+
+6. **Do not run browser tests / playwright / agent-browser by default.**
+   The user wants to SEE the running app, not read 5 minutes of test
+   reports. After you finish a feature:
+   - Spend zero turns on writing/running automated UI tests unless the user
+     explicitly says "write tests" or "test it for me".
+   - Verify reasonably (preview is healthy, no compile error in `cloudbase-vibe-status-preview`
+     log) — that'\''s enough for the first version.
+   - Then ASK the user (similar to the deploy question): "要不要我用内置浏览器
+     打开 <URL> 帮你点一遍验证一下?" — only run browser-based verification
+     after explicit yes.
+
+### Tool quick-reference (only when user explicitly asks)
+
+- "stop the dev server"        → `cloudbase-vibe-stop-preview`
+- "is it running" / "the URL"  → `cloudbase-vibe-status-preview`
+- "deploy this" / "publish"    → `cloudbase-vibe-deploy` (then call `manageApps`
+                                  per its `nextAction` — it will pass
+                                  `framework=static, installCmd="", buildCmd=""`
+                                  to skip remote build, then
+                                  `cloudbase-vibe-deploy --post-deploy ...`).
+                                  **Uses `manageApps` (CloudApp, independent
+                                  per-session domain), NOT `manageHosting`.**
+                                  After deploy succeeds, ask the user:
+                                  "要我用 UI 设计能力进一步优化样式和体验吗?"
+
+### Deploy contract
+
+- **Each cwd has a stable `serviceName`** like `<dirname>-<6hex>` written to
+  `<cwd>/.cloudbase-agent/app.json` on first invocation. Re-deploying the same
+  cwd reuses this serviceName so the public URL stays stable for the user.
+- **`cloudbase-vibe-deploy` emits `nextAction` with `framework=static, installCmd="", buildCmd=""`**
+  — local build already produces dist/, so remote npm install/build are skipped.
+  Only `tcb hosting deploy` runs. See `skills/cloudbase-agent-runtime/SKILL.md` for full detail.
+- **Pre-flight you may need:** if no envId is bound yet (the deploy may fail
+  with an env error), call MCP `envQuery({ action: "info" })` once. If the
+  user has multiple envs, ask them to pick. After binding, retry the deploy.
+- **Active suggestion (D):** after you finish a user-requested feature
+  (i.e. you just completed "make/build/add a X" and tests / preview look good),
+  ASK the user at the end of your reply: "现在这版要部署看一下吗?" — do NOT
+  deploy unsolicited. Only deploy after explicit user consent. After deploy
+  succeeds, also ask: "要我用 UI 设计能力进一步优化样式和体验吗?"
+
+For full contract see `skills/cloudbase-agent-runtime/SKILL.md`.'
+
+# Read payload (Claude Code passes JSON; OpenClaw should too).
+PAYLOAD="$(cat 2>/dev/null || true)"
+if command -v jq >/dev/null 2>&1 && [ -n "$PAYLOAD" ]; then
+  HOST_CWD="$(printf '%s' "$PAYLOAD" | jq -r '.cwd // empty' 2>/dev/null)"
+  [ -n "$HOST_CWD" ] && CWD="$HOST_CWD"
+fi
+
+log "session_start cwd=$CWD"
+
+# --- 1. Blacklist -------------------------------------------------------------
+HOME_DIR="${HOME:-/Users/$USER}"
+blacklisted=0
+case "$CWD" in
+  /|/tmp|/private/tmp|/var|/private/var|/Users|/Volumes|/System|/usr|/etc|/bin|/sbin) blacklisted=1 ;;
+  "$HOME_DIR"|"$HOME_DIR/Desktop"|"$HOME_DIR/Downloads"|"$HOME_DIR/Documents"|"$HOME_DIR/Library"|"$HOME_DIR/Movies"|"$HOME_DIR/Music"|"$HOME_DIR/Pictures"|"$HOME_DIR/Public") blacklisted=1 ;;
+  "$HOME_DIR/."*) blacklisted=1 ;;
+esac
+if [ "$blacklisted" = "1" ]; then
+  log "skip: cwd is on the danger blacklist"
+  # No active rules — user is just chatting, not vibe-coding. Stay silent.
+  exit 0
+fi
+
+cd "$CWD" 2>/dev/null || { log "skip: cannot cd to $CWD"; exit 0; }
+
+# --- 2. Already a Vite project? -----------------------------------------------
+is_vite_project=0
+if [ -f package.json ] && command -v node >/dev/null 2>&1; then
+  is_vite_project=$(node -e '
+    try {
+      const p = JSON.parse(require("fs").readFileSync("package.json", "utf8"));
+      const d = { ...(p.dependencies||{}), ...(p.devDependencies||{}) };
+      process.stdout.write((!!d.vite && (!!d.react || !!d.vue)) ? "1" : "0");
+    } catch { process.stdout.write("0"); }
+  ' 2>/dev/null)
+fi
+
+# Helper: read internalUrl from preview.json if it exists, else "(starting...)".
+read_url() {
+  if command -v node >/dev/null 2>&1 && [ -f .cloudbase-agent/preview.json ]; then
+    node -e '
+      try {
+        const p = JSON.parse(require("fs").readFileSync(".cloudbase-agent/preview.json","utf8"));
+        process.stdout.write(p.internalUrl || "(starting...)");
+      } catch { process.stdout.write("(starting...)"); }
+    ' 2>/dev/null
+  else
+    printf '(starting...)'
+  fi
+}
+
+# Helper: build a deployment status block from app.json.
+read_deploy_block() {
+  if command -v node >/dev/null 2>&1 && [ -f .cloudbase-agent/app.json ]; then
+    node -e '
+      try {
+        const a = JSON.parse(require("fs").readFileSync(".cloudbase-agent/app.json","utf8"));
+        const serviceName = a.serviceName || "(not generated)";
+        const last = a.lastDeployedAt;
+        const lastUrl = a.lastAccessUrl;
+        const count = (a.deployHistory||[]).length;
+        let s = "- **deploy target:** CloudApp (manageApps) — independent service & domain per cwd\n";
+        s += `- **serviceName:** ${serviceName}` + (last ? "" : " (no deploy yet)") + "\n";
+        if (last) {
+          s += `- **last deploy:** ${last} (#${count})\n`;
+          s += `- **last access URL:** ${lastUrl}\n`;
+        } else {
+          s += "- **last deploy:** never — first deploy will create the CloudApp and assign a domain\n";
+        }
+        process.stdout.write(s);
+      } catch (e) {
+        process.stdout.write("- **deploy target:** CloudApp (manageApps) — first deploy will generate serviceName & domain\n");
+      }
+    ' 2>/dev/null
+  else
+    printf -- '- **deploy target:** CloudApp (manageApps) — first deploy will generate serviceName & domain\n'
+  fi
+}
+
+if [ "$is_vite_project" = "1" ]; then
+  log "vite project detected"
+  STATUS_BIN="$PLUGIN_ROOT/bin/cloudbase-vibe-status-preview"
+  START_BIN="$PLUGIN_ROOT/bin/cloudbase-vibe-start-preview"
+
+  if "$STATUS_BIN" --quiet 2>/dev/null; then
+    log "preview already running and healthy — reuse"
+    URL="$(read_url)"
+    DEPLOY_LINES="$(read_deploy_block)"
+    STATE_BLOCK="### Current cwd state
+
+- **cwd:** $CWD
+- **template:** vite-react/vue (existing)
+- **preview status:** running and healthy
+- **preview URL:** $URL
+- **first action:** confirm the URL with \`cloudbase-vibe-status-preview\` once before showing it to the user.
+$DEPLOY_LINES"
+    emit_context "$RULES_BLOCK
+
+$STATE_BLOCK"
+    exit 0
+  fi
+
+  if [ ! -d node_modules ]; then
+    log "node_modules missing — install + start in background"
+    nohup bash -c "
+      pnpm install >/dev/null 2>&1 || npm install >/dev/null 2>&1
+      '$START_BIN' >/dev/null 2>&1
+    " </dev/null >>"$CWD/.cloudbase-agent/logs/hook-session-start.log" 2>&1 &
+    disown 2>/dev/null || true
+    DEPLOY_LINES="$(read_deploy_block)"
+    STATE_BLOCK="### Current cwd state
+
+- **cwd:** $CWD
+- **template:** vite-react/vue (existing)
+- **preview status:** installing dependencies in background (~30s expected)
+- **preview URL:** (will be available after install — run \`cloudbase-vibe-status-preview\` to fetch it; wait 5–60s if it reports NO_PREVIEW)
+- **first action:** when the user is ready, confirm preview health by running \`cloudbase-vibe-status-preview\`, retrying once after 5s if needed.
+$DEPLOY_LINES"
+    emit_context "$RULES_BLOCK
+
+$STATE_BLOCK"
+    exit 0
+  fi
+
+  log "starting preview in background"
+  nohup "$START_BIN" </dev/null >>"$CWD/.cloudbase-agent/logs/hook-session-start.log" 2>&1 &
+  disown 2>/dev/null || true
+  DEPLOY_LINES="$(read_deploy_block)"
+  STATE_BLOCK="### Current cwd state
+
+- **cwd:** $CWD
+- **template:** vite-react/vue (existing)
+- **preview status:** starting in background (a few seconds)
+- **preview URL:** (run \`cloudbase-vibe-status-preview\` to fetch the URL)
+- **first action:** run \`cloudbase-vibe-status-preview\` before quoting any URL to the user.
+$DEPLOY_LINES"
+  emit_context "$RULES_BLOCK
+
+$STATE_BLOCK"
+  exit 0
+fi
+
+# --- 3. Empty-enough directory? auto-init ------------------------------------
+empty_enough=1
+for entry in $(ls -A 2>/dev/null); do
+  case "$entry" in
+    .git|.gitignore|.DS_Store|.cloudbase-agent|LICENSE|LICENSE.md|LICENSE.txt) ;;
+    README|README.md|README.MD|README.txt|readme.md) ;;
+    *) empty_enough=0; break ;;
+  esac
+done
+
+if [ "$empty_enough" = "1" ]; then
+  log "cwd is empty-enough — auto init react template + start in background"
+  INIT_BIN="$PLUGIN_ROOT/bin/cloudbase-vibe-init"
+  nohup "$INIT_BIN" --start </dev/null >>"$CWD/.cloudbase-agent/logs/hook-session-start.log" 2>&1 &
+  disown 2>/dev/null || true
+  DEPLOY_LINES="$(read_deploy_block)"
+  STATE_BLOCK="### Current cwd state
+
+- **cwd:** $CWD
+- **template:** none yet — auto-initializing CloudBase official React+Vite template in background (~10s expected: download zip + pnpm install + start dev server)
+- **preview URL:** (not ready yet — wait ~10s, then run \`cloudbase-vibe-status-preview\`; retry once after 5s if it reports NO_PREVIEW)
+- **first action:** wait until the user actually requests something, then run \`cloudbase-vibe-status-preview\` to confirm template+preview are ready before editing any files. The template will scaffold \`src/App.tsx\`, \`src/main.tsx\`, etc. — DO NOT create competing files until you have read what the template provides.
+$DEPLOY_LINES"
+  emit_context "$RULES_BLOCK
+
+$STATE_BLOCK"
+  exit 0
+fi
+
+# --- 4. Foreign project — leave it alone --------------------------------------
+log "skip: non-empty cwd without vite — leaving it alone"
+# Stay silent: not our project, no rules to inject.
+exit 0

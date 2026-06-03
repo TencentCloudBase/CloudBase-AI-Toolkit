@@ -233,11 +233,26 @@ As the most important part of application development, the following four core c
   - MySQL Relational Database: Refer to `rules/relational-database-tool/rule.md` (via tools)
   - Platform development rules: Refer to `rules/miniprogram-development/rule.md` for mini program database integration and wx.cloud usage
 
-### 3. Static Hosting Deployment (Web)
+### 3. Web App Deployment (CloudApp / Static Hosting)
 **Refer to deployment process in `rules/web-development/rule.md`**
-- Use CloudBase static hosting after build completion
-- Deploy using `manageHosting(action="upload")`
-- `manageHosting(action="upload")` is for static hosting only; use `manageStorage` / `queryStorage` when the task needs a COS object that must be queried by the storage SDK
+
+**Primary path — CloudApp (independent subdomain):**
+- Use `manageApps(action="deployApp")` with `framework="static"`, `installCmd=""`, `buildCmd=""`
+- This skips the remote npm install/build steps and only deploys the pre-built dist/ via `tcb hosting deploy`
+- **Domain format**: `<serviceName>-<envId>.webapps.tcloudbase.com` (each serviceName gets a unique subdomain)
+- Supports custom domain binding via `manageGateway(action="bindCustomDomain")`
+- From `manageApps` response, get `buildId` and poll with `queryApps(action="getAppVersion", buildId)`; if FAILED, query build logs with `queryApps(action="getBuildLog", buildId)`
+
+**⚠️ Compatibility — don't switch deploy methods on existing projects:**
+- If existing project was previously deployed via **manageHosting** (`<envId>-<appId>.tcloudbaseapp.com/<path>`), switching to manageApps produces a **different URL** — old links break
+- Use `queryHosting` to check if a project already has hosting files
+- For existing projects, continue using whichever method was originally used
+
+**Fallback — Static Hosting (shared domain):**
+- If `manageApps` fails persistently, use `manageHosting(action="upload")` with `cloudPath="/<serviceName>"`
+- **Domain format**: `<envId>-<appId>.tcloudbaseapp.com/<cloudPath>`
+- This uploads dist/ directly without any remote build step
+- `manageHosting` is for static hosting only; use `manageStorage` / `queryStorage` when the task needs a COS object
 - Remind users that CDN has a few minutes of cache after deployment
 - Generate markdown format access links with random queryString
 
@@ -366,7 +381,10 @@ If remote links are needed in the application, can continue to call uploadFile t
 
 3. **CloudRun Deployment Process**: For non-cloud function backend services (Java, Go, PHP, Python, Node.js, etc.), use manageCloudRun tool for deployment. Ensure backend code supports CORS, prepare Dockerfile, then call manageCloudRun for containerized deployment. For details, refer to `rules/cloudrun-development/rule.md`
 
-4. **Static Hosting Deployment Process**: Deploy using `manageHosting(action="upload")`. After deployment, remind users that CDN has a few minutes of cache. Can generate markdown format access links with random queryString. For details, refer to `rules/web-development/rule.md`
+4. **Web App Deployment Process**:
+   - **Preferred**: Deploy via CloudApp using `manageApps(action="deployApp")` with `framework="static"`, `installCmd=""`, `buildCmd=""`. Each CloudApp gets its own `*.webapps.tcloudbase.com` subdomain. Poll deployment status with `queryApps(action="getAppVersion", buildId)`. If FAILED, diagnose with `queryApps(action="getBuildLog", buildId)`.
+   - **Fallback**: If CloudApp fails, use `manageHosting(action="upload")` to upload dist/ directly. Deploy to a subdirectory (e.g. `cloudPath="/<serviceName>"`) to avoid path collisions.
+   - After deployment, remind users that CDN has a few minutes of cache. Can generate markdown format access links with random queryString. For details, refer to `rules/web-development/rule.md`
 
 ### Documentation Generation Rules
 

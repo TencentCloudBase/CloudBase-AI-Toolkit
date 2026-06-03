@@ -2235,8 +2235,7 @@
               "listAppVersions",
               "getAppVersion",
               "getBuildLog"
-            ],
-            "description": "可填写的值: listApps, getApp, listAppVersions, getAppVersion, getBuildLog"
+            ]
           },
           "serviceName": {
             "type": "string",
@@ -2276,7 +2275,7 @@
     },
     {
       "name": "manageApps",
-      "description": "部署 Web 应用到 CloudBase（构建前后端，部署到独立子域名）。\naction=getUploadUrl 获取预签名上传 URL（cloud mode 下使用），返回上传地址和 cosTimestamp。\naction=deployApp 上传源码 ZIP 并触发远端构建部署管道：\n 1. 远端 npm install（可通过 installCmd=\"\" 跳过）\n 2. 远端 npm run build（可通过 buildCmd=\"\" 跳过）\n 3. 远端 tcb hosting deploy\n部署完成后每个 CloudApp 有独立的 `*.webapps.tcloudbase.com` 子域名，也支持绑定自定义域名。\n\n✅ 推荐用法（新项目／需要独立域名的 Web 应用，首选此工具）：\n 新建项目首次部署时，传 framework=static, installCmd=\"\", buildCmd=\"\" 跳过远端构建，\n 只执行 tcb hosting deploy。部署后获得独立子域名，支持版本管理。\n\n⚠️ 兼容性说明：\n- 已有项目若之前用 manageHosting 部署过（域名格式：<envId>-<appId>.tcloudbaseapp.com），\n 切换到 manageApps 会产生全新的 URL，老链接失效。请保持原部署方式不变。\n- 如需判断：调用 queryHosting 检查是否已有托管文件。\n\n与 manageHosting 对比：\n- manageApps（本工具，新项目首选）：域名 <serviceName>-<envId>.webapps.tcloudbase.com，独立子域名，支持版本管理\n- manageHosting（已有项目或 fallback）：域名 <envId>-<appId>.tcloudbaseapp.com/<path>，共享环境域名\n两者均可绑定自定义域名。\n\n如果 manageApps 构建失败，先用 queryApps(action=\"getBuildLog\") 查日志；仍不行再 fallback 到 manageHosting。",
+      "description": "部署 Web 应用到 CloudBase（构建前后端，部署到独立子域名）。\naction=getUploadUrl 获取预签名上传 URL（cloud mode 下使用），返回上传地址和 cosTimestamp。\naction=deployApp 上传源码 ZIP 并触发远端构建部署管道：\n  1. 远端 npm install（可通过 installCmd=\"\" 跳过）\n  2. 远端 npm run build（可通过 buildCmd=\"\" 跳过）\n  3. 远端 tcb hosting deploy\n\n域名格式：`<serviceName>-<envId>.webapps.tcloudbase.com`（每个 serviceName 一个独立子域名）\n\n✅ 推荐用法（新项目／需要独立域名的 Web 应用，首选此工具）：\n  新建项目首次部署时，传 framework=static, installCmd=\"\", buildCmd=\"\" 跳过远端构建，\n  只执行 tcb hosting deploy。部署后获得独立子域名，支持版本管理。\n\n⚠️ 兼容性说明：\n- 已有项目若之前用 manageHosting 部署过（域名格式：`<envId>-<appId>.tcloudbaseapp.com`），\n  切换到 manageApps 会产生全新的 URL，老链接失效。请保持原部署方式不变。\n- 如需判断：调用 queryHosting 检查是否已有托管文件。\n\n与 manageHosting 对比：\n- manageApps（本工具，新项目首选）：域名 `<serviceName>-<envId>.webapps.tcloudbase.com`，独立子域名，支持版本管理\n- manageHosting（已有项目或 fallback）：域名 `<envId>-<appId>.tcloudbaseapp.com/<path>`，共享环境域名\n两者均可绑定自定义域名。\n\n⚠️ 如果 manageApps 构建失败，先用 queryApps(action=\"getBuildLog\") 查日志；仍不行再 fallback 到 manageHosting。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2300,7 +2299,7 @@
           },
           "cosTimestamp": {
             "type": "string",
-            "description": "cloud mode 下使用的 COS 时间戳。必须先调用 getUploadUrl 获取预签名 URL，上传 ZIP 包到该 URL 后，再将此时间戳传给 deployApp 以跳过本地文件上传。本地模式无需传此参数。"
+            "description": "可选 COS 时间戳。传入此值则直接使用已上传的代码创建应用，跳过本地文件上传。需先调用 getUploadUrl 获取预签名 URL，上传 ZIP 包后再传此时间戳。cloud mode 下为必填；本地模式也可传此值代替 filePath。两个路径二选一：filePath（本地打包上传）或 cosTimestamp（预签名 URL 上传）。"
           },
           "appPath": {
             "type": "string",
@@ -2308,7 +2307,7 @@
           },
           "buildPath": {
             "type": "string",
-            "description": "构建产物目录，相对于 filePath，例如 dist 或 build。\n传此值后远端构建系统会 cd 到此目录再执行 tcb hosting deploy，因此 deployCmd 会自动使用 .（当前目录）而非目录名，避免路径重复（如 dist/dist 错误）。\n纯静态 HTML 如果在项目根目录可省略，但注意 deployCmd 默认用 dist。"
+            "description": "构建产物目录，相对于 filePath，例如 dist 或 build。\n⚠️ 传此值后远端构建系统会 cd 到此目录再执行 tcb hosting deploy，因此 deployCmd 会自动使用 .（当前目录）而非目录名，避免路径重复（如 dist/dist 错误）。\n纯静态 HTML 如果在项目根目录可省略，但注意 deployCmd 默认用 dist。"
           },
           "framework": {
             "type": "string",
@@ -2325,7 +2324,7 @@
           },
           "nodeJsVersion": {
             "type": "string",
-            "description": "构建时使用的 Node.js 版本；不传时由 CloudApp 使用默认值。"
+            "description": "构建时使用的 Node.js 版本；不传时由 CloudBase 使用默认值。"
           },
           "installCmd": {
             "type": "string",
