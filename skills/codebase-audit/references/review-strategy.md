@@ -21,17 +21,27 @@ For **every** file, check each category below. Not every category applies to eve
 
 ### 1. Security (Critical priority)
 
-| Check | What to look for |
-|-------|-----------------|
-| Path traversal | User-controlled paths not validated with `path.resolve` + prefix check |
-| Command injection | String interpolation in `exec()`, `execSync()`, shell commands |
-| SQL/NoSQL injection | Unparameterized queries with user input |
-| Hardcoded secrets | API keys, tokens, passwords in source code |
-| Improper error exposure | Stack traces, internal paths, or secrets in error messages returned to clients |
-| Missing input validation | Tool parameters accepted without type/range/format checks |
-| Prototype pollution | Unchecked `Object.assign`, spread of user-controlled objects |
-| SSRF | User-controlled URLs fetched without allowlist validation |
-| Vulnerable dependencies | Known CVEs in direct or transitive dependencies (see `dependency-audit.md`) |
+For severity classification of security findings, reference `security-severity-checklist.md` which maps each vulnerability type to TSRC-style severity tiers (Critical/High/Medium/Low/Ignore) with concrete technical conditions.
+
+| Check | What to look for | Min Severity |
+|-------|-----------------|-------------|
+| Path traversal | User-controlled paths not validated with `path.resolve` + prefix check | HIGH |
+| Command injection | String interpolation in `exec()`, `execSync()`, shell commands | CRITICAL |
+| SQL/NoSQL injection | Unparameterized queries with user input | HIGH (readable data) |
+| Hardcoded secrets | API keys, tokens, passwords in source code | MEDIUM |
+| Improper error exposure | Stack traces, internal paths, or secrets in error messages returned to clients | MEDIUM |
+| Missing input validation | Tool parameters accepted without type/range/format checks | HIGH |
+| Prototype pollution | Unchecked `Object.assign`, spread of user-controlled objects | HIGH |
+| SSRF | User-controlled URLs fetched without allowlist validation | MEDIUM (blind) / HIGH (with response) |
+| Vulnerable dependencies | Known CVEs in direct or transitive dependencies (see `dependency-audit.md`) | Varies |
+| Unauthorized data access | Missing auth/ownership checks on user data APIs | HIGH |
+| Open redirect | Unvalidated redirect parameters | LOW |
+| XSS (stored) | User content rendered without sanitization | HIGH (platform products) / MEDIUM (others) |
+| XSS (reflected/DOM) | Input reflected in response without encoding | LOW / MEDIUM |
+| CSRF | Missing anti-CSRF tokens on state-changing operations | MEDIUM |
+| Arbitrary file read/write | Path traversal in file operations | HIGH (write) / MEDIUM (read) |
+| IDOR / privilege escalation | User-controlled IDs without ownership validation | HIGH (core features) / MEDIUM (single endpoint) |
+| Rate limiting defects | Missing throttling on auth/sms/OTP endpoints | LOW |
 
 ### 2. Error handling (High priority)
 
