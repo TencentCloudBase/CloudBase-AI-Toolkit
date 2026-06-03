@@ -1,0 +1,95 @@
+#!/usr/bin/env node
+/**
+ * cloudbase-vibe-status-preview
+ *
+ * Inspect the preview state in <cwd>/.cloudbase-agent/preview.json. Reports
+ * both recorded state AND live probes (process alive? HTTP healthy?).
+ *
+ * Usage:
+ *   cloudbase-vibe-status-preview           # JSON line on stdout
+ *   cloudbase-vibe-status-preview --quiet   # exit code only (0=healthy)
+ *
+ * Exit codes:
+ *   0 preview is recorded AND alive AND HTTP healthy
+ *   1 generic
+ *   5 no preview recorded, or process gone, or HTTP unhealthy
+ */
+
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const lib = await import(join(__dirname, "..", "lib", "preview-state.mjs"));
+const sup = await import(join(__dirname, "..", "lib", "supervisor-ctl.mjs"));
+const { readPreview, isAlive, healthOk, emitOk, emitErr, ERR } = lib;
+const { ensureSupervisorRunning } = sup;
+
+// Best-effort supervisor ensure on every bin invocation.
+try { ensureSupervisorRunning({ silent: true }); } catch { /* ignore */ }
+
+const args = parseArgs(process.argv.slice(2));
+
+main().catch((err) => {
+  emitErr(err.message || String(err), err.code || ERR.GENERIC);
+  process.exit(err.code || ERR.GENERIC);
+});
+
+async function main() {
+  if (args.help) { printHelp(); process.exit(0); }
+
+  const state = readPreview();
+
+  if (!state) {
+    if (args.quiet) process.exit(ERR.NO_PREVIEW_RUNNING);
+    emitOk({ running: false, reason: "no preview recorded" }, "no preview running");
+    process.exit(ERR.NO_PREVIEW_RUNNING);
+  }
+
+  const alive = state.pid ? isAlive(state.pid) : false;
+  const healthy = alive && state.port ? await healthOk(state.port) : false;
+  const ok = alive && healthy;
+
+  if (args.quiet) process.exit(ok ? 0 : ERR.NO_PREVIEW_RUNNING);
+
+  emitOk(
+    {
+      running: ok,
+      alive,
+      healthy,
+      pid: state.pid,
+      port: state.port,
+      framework: state.framework,
+      base: state.base,
+      internalUrl: state.internalUrl,
+      logPath: state.logPath,
+      startedAt: state.startedAt,
+    },
+    ok
+      ? `preview healthy: ${state.internalUrl}`
+      : `preview unhealthy (alive=${alive}, http=${healthy})`,
+  );
+
+  process.exit(ok ? 0 : ERR.NO_PREVIEW_RUNNING);
+}
+
+function parseArgs(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--quiet" || a === "-q") out.quiet = true;
+    else if (a === "--help" || a === "-h") out.help = true;
+  }
+  return out;
+}
+
+function printHelp() {
+  process.stdout.write([
+    "cloudbase-vibe-status-preview — inspect preview state in cwd",
+    "",
+    "Options:",
+    "  --quiet, -q  no output, exit code only (0=healthy)",
+    "",
+    "State file: <cwd>/.cloudbase-agent/preview.json",
+    "",
+  ].join("\n"));
+}

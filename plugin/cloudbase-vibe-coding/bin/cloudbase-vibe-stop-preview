@@ -1,0 +1,100 @@
+#!/usr/bin/env node
+/**
+ * cloudbase-vibe-stop-preview
+ *
+ * Stop the Vite dev server recorded in <cwd>/.cloudbase-agent/preview.json.
+ * Idempotent: if no preview is recorded or the process is already gone, returns ok.
+ *
+ * Usage:
+ *   cloudbase-vibe-stop-preview          # SIGTERM, escalate to SIGKILL after 3s
+ *   cloudbase-vibe-stop-preview --force  # SIGKILL immediately
+ *
+ * Exit codes:
+ *   0 success (stopped, or nothing was running)
+ *   1 generic
+ *   6 stop failed (process refused to die even after SIGKILL)
+ */
+
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const lib = await import(join(__dirname, "..", "lib", "preview-state.mjs"));
+const reg = await import(join(__dirname, "..", "lib", "registry.mjs"));
+const sup = await import(join(__dirname, "..", "lib", "supervisor-ctl.mjs"));
+const { readPreview, clearPreview, isAlive, stopPid, emitOk, emitErr, ERR } = lib;
+const { unregisterWorkspace } = reg;
+const { ensureSupervisorRunning } = sup;
+
+// Best-effort supervisor ensure (so it picks up the unregister).
+try { ensureSupervisorRunning({ silent: true }); } catch { /* ignore */ }
+
+const args = parseArgs(process.argv.slice(2));
+
+main().catch((err) => {
+  emitErr(err.message || String(err), err.code || ERR.GENERIC);
+  process.exit(err.code || ERR.GENERIC);
+});
+
+async function main() {
+  if (args.help) { printHelp(); process.exit(0); }
+
+  const state = readPreview();
+
+  if (!state) {
+    // Try to unregister cwd anyway in case of stale registry entry.
+    unregisterWorkspace(process.cwd());
+    emitOk({ stopped: false, reason: "no preview recorded" }, "no preview to stop");
+    return;
+  }
+
+  if (!state.pid || !isAlive(state.pid)) {
+    clearPreview();
+    unregisterWorkspace(process.cwd());
+    emitOk({ stopped: false, reason: "process already gone", pid: state.pid }, "stale state cleared");
+    return;
+  }
+
+  const graceMs = args.force ? 0 : 3_000;
+  const result = await stopPid(state.pid, { graceMs });
+
+  if (!result.ok) {
+    throw withCode(ERR.STOP_FAILED, `Failed to stop pid=${state.pid}: ${result.error || "still alive after SIGKILL"}`);
+  }
+
+  clearPreview();
+  // Unregister AFTER successful kill so the supervisor doesn't try to
+  // restart a kill-in-progress process.
+  unregisterWorkspace(process.cwd());
+
+  emitOk(
+    { stopped: true, pid: state.pid, escalated: result.escalated, port: state.port },
+    `preview stopped (pid=${state.pid}${result.escalated ? ", SIGKILL" : ", SIGTERM"})`,
+  );
+}
+
+function parseArgs(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--force" || a === "-f") out.force = true;
+    else if (a === "--help" || a === "-h") out.help = true;
+  }
+  return out;
+}
+
+function printHelp() {
+  process.stdout.write([
+    "cloudbase-vibe-stop-preview — stop Vite dev server in cwd",
+    "",
+    "Options:",
+    "  --force, -f  SIGKILL immediately (skip 3s SIGTERM grace)",
+    "",
+    "State file: <cwd>/.cloudbase-agent/preview.json",
+    "",
+  ].join("\n"));
+}
+
+function withCode(code, message) {
+  const e = new Error(message); e.code = code; return e;
+}
