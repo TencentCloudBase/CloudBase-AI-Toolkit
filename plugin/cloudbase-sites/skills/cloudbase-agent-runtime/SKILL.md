@@ -1,22 +1,27 @@
 ---
 name: cloudbase-agent-runtime
 description: |
-  Use when the user wants to develop, run, preview, or deploy a CloudBase
-  Web app in this conversation as a Lovable-like vibe-coding session — i.e.
-  any request that maps to "spin up a React+Vite project, see it live in
-  the browser, iterate, deploy". Activate ONLY for browser-rendered Web
-  projects based on the CloudBase official React (or Vue) + Vite template.
-  Do NOT activate for: WeChat/Alipay mini-program, React Native / Flutter /
-  Electron, pure cloud functions / CloudRun backends, or Next.js / Nuxt /
-  Astro / Remix / SvelteKit (those frameworks are explicitly out of scope).
+  Use when the user wants to develop, run, preview, save, deploy, or roll back
+  a CloudBase Web app in this conversation as a Lovable/Codex-Sites-like vibe-
+  coding session — i.e. any request that maps to "spin up a React+Vite project,
+  see it live in the browser, iterate, save versions, deploy". Activate ONLY
+  for browser-rendered Web projects based on the CloudBase official React
+  (or Vue) + Vite template. Do NOT activate for: WeChat/Alipay mini-program,
+  React Native / Flutter / Electron, pure cloud functions / CloudRun backends,
+  or Next.js / Nuxt / Astro / Remix / SvelteKit (those frameworks are
+  explicitly out of scope).
 ---
 
-# CloudBase Agent Runtime — Web Vibe Coding
+# CloudBase Sites — Agent Runtime
 
 This skill orchestrates a **single working directory = single project** flow
-for CloudBase Web apps. Every operation in this skill assumes the user's
-current shell `cwd` IS the project root. We do NOT manage cross-cwd state,
-session IDs, or workspaces — the cwd itself is the workspace.
+for CloudBase Web apps. The cwd itself is the workspace; we do not manage
+cross-cwd state or session IDs at the skill level.
+
+Most of what this skill describes is also injected into the system prompt
+on every session start by the plugin's SessionStart hook (the RULES_BLOCK).
+This file is the long-form reference — load it when you need detail beyond
+what the injected rules provide.
 
 ## Activation contract
 
@@ -24,245 +29,256 @@ session IDs, or workspaces — the cwd itself is the workspace.
 
 - The user says "build me a website / app", "I want to make a landing page",
   "create a React app and let me preview", "deploy this to CloudBase",
-  "vibe coding with CloudBase", or similar.
+  "save this version", "roll back to v1", or similar.
 - The current cwd looks like a CloudBase + Vite project (has `package.json`
   with `vite` + `react` or `vue`).
-- The user is running this conversation inside a host (OpenClaw / Claude
-  Code) that has both `cloudbase-mcp` registered AND the `cloudbase-vibe-*`
-  binaries on PATH from this plugin.
+- The user is running this conversation inside Claude Code (or a compatible
+  host) with the `cloudbase-sites` plugin enabled — `cloudbase-mcp` is
+  registered and the `cloudbase-sites` binary is on PATH.
 
 ### Do NOT use this skill when
 
-- It's a mini-program project (`miniprogram-development` skill instead).
-- It's a native app project (`http-api` skill instead).
-- It's a backend-only project (`cloud-functions` or `cloudrun-development`).
+- It's a mini-program project — route to mini-program guidance instead.
+- It's a native app project — route to http-api guidance.
+- It's a backend-only project — route to cloud-functions / cloudrun guidance.
 - The framework is Next/Nuxt/Astro/Remix — politely tell the user this skill
   only covers Vite-based React/Vue apps and stop. Do NOT try to adapt the
   scripts to those frameworks.
 
-## What this skill orchestrates
+## What this skill orchestrates — three layers
 
-Think of it as three layers:
+### 1. CloudBase MCP tools (provided by `cloudbase-mcp`, registered via plugin's `.mcp.json`)
 
-1. **CloudBase MCP tools** (provided by the `cloudbase-mcp` server registered
-   in `.mcp.json`). Use these for:
-   - `downloadTemplate({ template: "react" | "vue", ide: "<host>" })` — pull
-     the official template into cwd.
-   - `envQuery({ action: "info" })` and `auth({ action: "set_env", envId })`
-     — bind a CloudBase environment.
-   - `manageHosting({ action: "upload", localPath: "dist", cloudPath: "/" })`
-     — deploy the build output to static hosting.
-   - `envDomainManagement({ action: "create", domains: [...] })` — whitelist
-     the dev origin if Web SDK calls fail with CORS.
-   - All other CloudBase operations (auth, db, storage) follow the existing
-     `auth-tool` / `auth-web` / `no-sql-web-sdk` skills.
+These are the only tools that produce CloudBase side effects. Highlights:
 
-2. **Plugin shell scripts** (provided by this plugin's `bin/` directory; on
-   PATH automatically when the plugin is enabled). Use these — and ONLY these
-   — for dev-server lifecycle:
-   - `cloudbase-vibe-start-preview` — daemonize Vite on `0.0.0.0:<auto>`.
-   - `cloudbase-vibe-stop-preview` — SIGTERM with SIGKILL fallback.
-   - `cloudbase-vibe-restart-preview` — stop + start in one shot.
-   - `cloudbase-vibe-status-preview` — JSON line of current state.
+- `downloadTemplate({ template: "react" | "vue", ide })` — pull official template
+- `envQuery({ action: "info" })` + `auth({ action: "set_env", envId })` — bind env
+- `manageApps({ action: "deployApp", ... })` — deploy to CloudApp (independent subdomain)
+- `envDomainManagement({ action: "create", domains })` — whitelist dev origin for CORS
+- `searchKnowledgeBase({ mode: "skill", skillName: "<name>" })` — fetch CloudBase domain skills (see below)
 
-   Never invent your own `npm run dev` / `vite` invocation. The shell scripts
-   handle host=0.0.0.0 forcing, port allocation, daemonization, base path
-   injection, and state file management. Reinventing them will break preview
-   on Lighthouse hosts and lose the recorded PID.
+For all CloudBase operations beyond the dev-server lifecycle (auth, db,
+storage, ai), fetch the corresponding CloudBase domain skill via
+`searchKnowledgeBase(mode="skill", skillName=...)`. Common ones:
 
-3. **Standard tools** (Bash, git). Use for editing files, snapshots
-   (`git tag snap/<ts>`), rollback (`git reset --hard`), build (`pnpm build`).
+- `ui-design`               UI design spec (mandatory before new UI work)
+- `web-development`         Web project conventions
+- `auth-tool`               provider config (management-side)
+- `auth-web`                Web SDK auth client code
+- `no-sql-web-sdk`          document database Web SDK
+- `cloud-storage-web`       cloud storage Web SDK
+- `relational-database-web` MySQL Web SDK
+- `cloudbase-platform`      platform overview / console links
 
-## How dev-server lifecycle is handled
+These are **NOT Claude Code native skills** and are NOT bundled with this
+plugin. They live inside cloudbase-mcp and are fetched on demand. When this
+file (or the injected RULES_BLOCK) says "调 ui-design skill" or "follow the
+auth-tool skill", that means: call `searchKnowledgeBase(mode="skill",
+skillName="<that-name>")` and apply the returned content.
 
-**You do NOT manage the dev server yourself.** Two host hooks do it for you:
+### 2. The `cloudbase-sites` CLI (provided by this plugin's `bin/` directory)
 
-- **SessionStart hook** (auto-runs when the conversation begins):
-  - If cwd is on the danger blacklist (`$HOME`, `/`, `/tmp`, `~/Desktop`, ...) → skips silently.
-  - If cwd is a Vite + React/Vue project: starts the daemon (`cloudbase-vibe-start-preview`) if not already running, otherwise reuses the live one.
-  - If cwd is "empty enough" (only `.git` / `.gitignore` / `README*` / `LICENSE` allowed): auto-runs `cloudbase-vibe-init --start` which downloads the official CloudBase React template, runs `pnpm install`, and starts the daemon. **By the time you read the user's first prompt the dev server is usually live or ~10s away.**
-  - If cwd is a non-Vite project: skips silently.
+Single binary, multiple subcommands. Use these — and ONLY these — for the
+dev-server / version / deploy lifecycle:
 
-- **PostToolUse(Edit|Write|MultiEdit) hook**:
-  - If you edited `vite.config.*` / `package.json` / `tsconfig*.json` / `tailwind.config.*` / `postcss.config.*` / `.env*` → triggers `cloudbase-vibe-restart-preview` automatically (1.5s debounced).
-  - Other file edits → does nothing. Vite HMR handles them.
+- `cloudbase-sites init` — scaffold from empty cwd (called by SessionStart hook)
+- `cloudbase-sites preview` — daemonize Vite (called by SessionStart hook)
+- `cloudbase-sites preview --status [--quiet]` — JSON status / exit code
+- `cloudbase-sites preview --restart` / `--stop [--force]`
+- `cloudbase-sites save -m "<label>"` — create a saved version
+- `cloudbase-sites versions` — list saved versions + deploy status
+- `cloudbase-sites deploy [--version <n>]` — deploy a saved version (Phase 1: emit nextAction)
+- `cloudbase-sites deploy --post --version <n> --access-url <url> [--build-id <id>]` — record deploy
+- `cloudbase-sites rollback [--to-version <n>]` — revert to a saved version
+- `cloudbase-sites supervisor status|list|heal|reload|start|stop`
 
-**Implication: you almost never need to call `cloudbase-vibe-*` scripts directly.** The hooks handle init / start / restart. You only invoke a `cloudbase-vibe-*` script when:
+Never invent `npm run dev` / `vite` / `vite build` invocations. The CLI
+handles host=0.0.0.0 forcing, port allocation (17173..17272), daemonization,
+base path injection, version metadata, and deploy history.
 
-- The user explicitly says "stop the dev server" → `cloudbase-vibe-stop-preview`.
-- The user explicitly says "what's the URL" or "is it running" → `cloudbase-vibe-status-preview`.
-- The user wants to deploy → `cloudbase-vibe-deploy` (see deploy section below).
+### 3. Standard tools (Bash, git, Edit, Write)
 
-If `cloudbase-vibe-status-preview` reports the preview is unhealthy and SessionStart didn't fix it (e.g., user-level error in `vite.config.ts`), surface the JSON `logPath` to the user — never try to fix it by editing their config blindly.
+Use for editing files. The plugin's PostToolUse hook handles automatic
+restart on config-file edits — you don't need to manage that.
+
+## Lifecycle is hook-driven; you are mostly a passenger
+
+**Do NOT invoke `cloudbase-sites init` or `cloudbase-sites preview`
+proactively in your first message.** The plugin's SessionStart hook does
+this for you. By the time you read the user's first prompt:
+
+- If the cwd was an existing Vite project: dev server is up (or installing).
+- If the cwd was empty: `init --start` is running in background; preview
+  will be ready in ~10s.
+- If the cwd is a non-Vite / blacklisted project: hook stayed silent.
+
+You only invoke a CLI verb when:
+
+- User explicitly says "stop the dev server" → `cloudbase-sites preview --stop`
+- User asks for the URL or "is it running" → `cloudbase-sites preview --status`
+- User wants to save a version → `cloudbase-sites save -m "<label>"`
+- User wants to deploy → `cloudbase-sites deploy` (then bridge to `manageApps`)
+- User wants to roll back → `cloudbase-sites rollback`
 
 ## When the user just walked into the conversation
 
-1. **Check the preview state** before doing anything else by reading `<cwd>/.cloudbase-agent/preview.json` (or run `cloudbase-vibe-status-preview --quiet`). It is overwhelmingly likely that the preview is already up — courtesy of SessionStart.
+1. **Check preview state first** — read `<cwd>/.cloudbase-agent/preview.json`
+   or run `cloudbase-sites preview --status`. It's overwhelmingly likely the
+   preview is already up — courtesy of the SessionStart hook.
 
-2. **Tell the user the URL**. If the file has `internalUrl`, surface it. If not (rare — SessionStart still running or skipped), inform the user the dev server is starting and ask them to wait ~10s, OR check `<cwd>/.cloudbase-agent/logs/hook-session-start.log` for the reason it skipped.
+2. **Tell the user the URL** — surface `internalUrl` from the JSON. If the
+   file is missing, the hook is still installing/starting; tell the user to
+   wait ~10s and inspect `.cloudbase-agent/logs/hook-session-start.log`.
 
-3. **DO NOT** call `cloudbase-vibe-init` or `cloudbase-vibe-start-preview` proactively in your first message. The hook already does this. Calling it again is redundant and wastes a turn (`start` is idempotent so it's safe, but `init` will fail with code 10 because cwd is no longer empty).
+3. **DO NOT** re-init / re-start. Calling `init` again will fail with code 10
+   (cwd no longer empty). Calling `preview` is idempotent and safe but
+   wastes a turn.
 
-## When the user asks you to deploy
+4. **NEVER guess the port.** It is NOT 5173/5174/5175 — the plugin uses
+   17173..17272. Always read the recorded port from `preview.json`.
 
-The deploy flow uses **two-step bridge**: local build → CloudApp deploy.
+## Two-stage save → deploy workflow
 
-1. `bash> cloudbase-vibe-deploy` — performs `git tag snap/pre-deploy-...` + `pnpm run build`, validates `dist/`, generates a stable `serviceName` (e.g. `cb-test3-9f0d62`) on first run, and emits a JSON line with `nextAction`.
-2. Read `nextAction.tool` and `nextAction.args`. The tool will be `manageApps` with `framework=static` (skips remote npm install/build — only deploys the pre-built dist/):
-   ```
-   manageApps({
-     action: "deployApp",
-     serviceName: "<stable name from app.json>",
-     filePath: "<cwd>",
-     buildPath: "dist",
-     framework: "static",
-     installCmd: "",
-     buildCmd: ""
-   })
-   ```
-3. After `manageApps` succeeds and gives you the access URL, call:
-   `bash> cloudbase-vibe-deploy --post-deploy --access-url <url> [--build-id <id>]`
-   This appends to `<cwd>/.cloudbase-agent/app.json`'s `deployHistory`, tags git with `deploy/<ts>`, and returns a `finalUrl` with cache-busting query.
-4. Show `finalUrl` to the user. Optionally suggest the user can further polish the design by asking you to apply the **CloudBase UI design skill** (`ui-design`) for a more polished look.
-5. After deployment, proactively ask: "要我在部署后的基础上用 UI 设计能力进一步优化样式和体验吗？"
+Inspired by Codex Sites' `saved version` model:
 
-**Why `manageApps(framework=static)` not `manageHosting`?** Each `manageApps` service gets its own independent `*.webapps.tcloudbase.com` subdomain — no path collisions between vibe sessions, and no need to bind a custom domain just for isolation. Since the local build already produced `dist/`, we pass `installCmd=""` and `buildCmd=""` to skip remote build steps; only the `tcb hosting deploy` step runs in the cloud. If that still fails, fall back to `manageHosting` + bind a custom domain.
+- **Save:** label a git checkpoint. `cloudbase-sites save -m "<label>"` runs
+  `git add -A && git commit && git tag version/<n>` and appends to
+  `<cwd>/.cloudbase-agent/app.json.versions[]`. No build, no deploy.
+- **Deploy:** publish a saved version to a CloudApp.
+  `cloudbase-sites deploy [--version <n>]` (default: latest saved) builds
+  `dist/` locally then emits `nextAction` telling you to call
+  `manageApps({ action: "deployApp", serviceName: <stable from app.json>,
+  filePath: cwd, buildPath: "dist", framework: "static",
+  installCmd: "", buildCmd: "" })`. The `framework=static` shape skips
+  remote install/build because we built locally.
+- **Record:** after `manageApps` succeeds and gives you the access URL,
+  call `cloudbase-sites deploy --post --version <n> --access-url <url>
+  [--build-id <id>]`. This appends to `app.json.deployments[]`, tags git
+  `deploy/<n>-<ts>`, and returns `finalUrl` with a cache-busting query.
+- **Rollback:** `cloudbase-sites rollback [--to-version <n>]` (default:
+  current production deploy). Stashes uncommitted edits, `git reset --hard`
+  to the version's commit, marks newer versions as `rolled-back`, and
+  restarts the dev server.
 
-**If `manageApps` fails with "no envId" or env-related error:** call `envQuery({ action: "info" })` once. If multiple envs exist, ask the user to pick. After the env is bound, retry.
+**Why CloudApp (`manageApps`) not static hosting?** Each CloudApp has its
+own subdomain (`*.webapps.tcloudbase.com`); two vibe sessions on the same
+env never collide. The stable `siteName` in `app.json` ensures re-deploys
+preserve the URL.
 
-**If `manageApps` builds FAILED:** call `queryApps({ action: "getBuildLog", serviceName, buildId })` to diagnose. Common cause is the remote `tcb hosting deploy` step failing — fall back to `manageHosting` upload in that case.
+**Pre-flight:** if `manageApps` fails with "no envId" / env-related error,
+call `envQuery({ action: "info" })`. If multiple envs exist, ask the user
+to pick. After binding, retry the deploy.
 
-Never bypass `cloudbase-vibe-deploy` with your own `pnpm build` + manual `manageApps` — you would lose the snapshot, deploy history, and serviceName stability.
+## Proactive prompts (do not act unsolicited)
 
-## Proactive deploy suggestion
+When you finish a user-requested feature (especially "make me a X app",
+"build me a Y", "add Z feature"), end your reply by asking:
 
-When you finish a user-requested feature (especially "make me a X app", "build me a Y", "add Z feature"), end your reply by asking the user **whether to deploy**:
+1. **Save?** "要保存这一版吗?(下次能再调出来)" → if yes, run
+   `cloudbase-sites save -m "<auto-generated label>"`.
+2. **Deploy?** "现在要部署看一下吗?(独立 URL,可分享)" → if yes, run the
+   two-stage deploy described above.
+3. **Verify in browser?** "要不要我用内置浏览器打开 <URL> 帮你点一遍验证一下?"
+   — only run browser-driving tools after explicit yes. Do NOT spawn
+   playwright / agent-browser by default.
+4. **After successful deploy** ask: "要我用 ui-design 能力进一步优化样式和体验吗?"
+   If yes, fetch `searchKnowledgeBase(mode="skill", skillName="ui-design")`
+   and iterate on the design.
 
-> 现在这版要部署看一下吗?(部署到 CloudApp,会得到一个独立的可分享 URL)
+Skip any of these when:
+- The work was a bug fix or trivial refactor.
+- The user already chose this option earlier in the session.
+- The user explicitly said "don't deploy" / "no tests" / "no design changes".
 
-Do NOT deploy unsolicited — only after the user explicitly says yes. The reason for asking is to make sharing as low-friction as possible, similar to Lovable: the user shouldn't have to learn that "deploy" is a separate action they need to ask for.
+## Hard rules (also injected by SessionStart hook)
 
-Skip the suggestion when:
-- The work was a bug fix or small refactor (no new feature).
-- The user already deployed in this conversation and the change since then is trivial.
-- The user explicitly said "don't deploy yet" earlier.
+1. **Never guess the preview URL.** Always read `preview.json` or run
+   `cloudbase-sites preview --status`. Default port range is 17173..17272.
 
-## Proactive verification suggestion
+2. **"Make me a X app" = X IS the homepage.** When the user uses whole-house
+   language, REPLACE the content of `src/pages/HomePage.tsx` (or `App.tsx`
+   if no HomePage exists) with the new feature. Do NOT create a new
+   `<TodoApp />` component and leave the original template welcome at `/`.
+   Only add a new route when the user explicitly says "add a X page".
 
-After finishing a feature, do NOT spend turns on writing or running automated UI tests / playwright / agent-browser by default. Instead end your reply by asking the user **whether to verify in a browser**:
+3. **UI work for NEW features requires a design specification first.** Before
+   writing any `.tsx`/`.css`/`.html`, fetch
+   `searchKnowledgeBase(mode="skill", skillName="ui-design")`, output the
+   4-part spec (Aesthetic / Color / Typography / Layout), THEN write code.
+   The CloudBase template's CLAUDE.md "Existing Implementation First"
+   exemption applies only to bug fixes; new apps still need ui-design.
 
-> 现在这版要不要我用内置浏览器打开 <internalUrl> 帮你点一遍验证一下?
+4. **Never spawn `npm run dev` / `vite` / `vite build` yourself.** Lifecycle
+   is owned by hooks + the `cloudbase-sites` CLI.
 
-Skip when:
-- The user already said "no tests" / "skip tests" earlier.
-- The change was config-only or non-visual.
-- The user is mid-iterating and obviously wants to keep editing.
+5. **BaaS-first data persistence.** Schema via
+   `writeNoSqlDatabaseStructure(action="createCollection")`; reads/writes
+   via `@cloudbase/js-sdk` from React/Vue code. Reach for cloud functions
+   only when (a) the logic cannot be expressed as security rules AND
+   (b) it needs server-side secrets or a third-party API AND (c) it's a
+   scheduled / background job. A Todo / Notes / Chat / Kanban app does NOT
+   need cloud functions.
 
-Only after explicit consent should you spawn a browser-driving tool. The first version of a vibe-coding app is judged by "does the user see the UI working in the dev server", not by passing tests.
+6. **Do not run browser tests by default.** Verify reasonably (preview
+   healthy, no compile error in `cloudbase-sites preview --status`). If
+   the user wants browser verification, ask first.
 
-## Data persistence — BaaS-first
+7. **Two-stage save → deploy.** Don't deploy unsolicited. Don't bypass
+   `cloudbase-sites deploy` with your own `pnpm build` + `manageApps` call —
+   you'd lose version metadata, snapshot, deploy history, and the stable
+   siteName.
 
-When the feature needs to store / query / update data:
+## Hard rules — always parse CLI stdout as JSON
 
-1. **Create the schema via cloudbase-mcp.** Call:
-   ```
-   writeNoSqlDatabaseStructure({
-     action: "createCollection",
-     collectionName: "todos"
-   })
-   ```
-   And add indexes via `updateCollection` with `updateOptions.CreateIndexes`. Do NOT ask the user to create collections in the console.
-2. **Read/write via Web SDK directly from the React/Vue code.** The template ships an initialized `@cloudbase/js-sdk` at `src/utils/cloudbase.ts`. Use it:
-   ```ts
-   import { db } from "@/utils/cloudbase";
-   await db.collection("todos").add({ text, done: false, createdAt: Date.now() });
-   const { data } = await db.collection("todos").orderBy("createdAt", "desc").get();
-   db.collection("todos").watch({ onChange: (snap) => setTodos(snap.docs) });
-   ```
-3. **For auth**: follow `auth-tool` skill first (provider check), then `auth-web` for client code.
+The first stdout line of every `cloudbase-sites <verb>` invocation is a
+single JSON object. The stderr `[cloudbase-agent] ...` line is for humans —
+do not parse it. On error the JSON is `{ ok: false, code: <int>, message,
+hint?, logPath? }`. When a script reports failure, surface `logPath` to the
+user instead of guessing the cause.
 
-**Do NOT add a cloud function** unless ALL of these are true:
-(a) the logic absolutely cannot be expressed as database security rules;
-(b) it needs server-side secrets / third-party APIs (e.g. payment, SMS);
-(c) it's a scheduled / background job, not user-triggered.
-
-A Todo app, Notes app, Chat app, Kanban etc. live ENTIRELY in the JS SDK + database rules. Adding a cloud function "just to be safe" is over-engineering and slows the user.
-
-## When the conversation ends
-
-Do nothing. The dev server is daemonized (PPID=1) and survives. The next SessionStart will detect it's still running and reuse it — the user comes back to a live URL with no startup delay.
-
-## Hard rules
-
-1. **Never** spawn `npm run dev` / `vite` / `vite build` yourself. Dev-server lifecycle is owned by the SessionStart and PostToolUse hooks; build/deploy is owned by `cloudbase-vibe-deploy`. Bypassing them loses host=0.0.0.0 forcing, port allocation, daemonization, snapshot, and deploy history.
-
-2. **Never** edit the user's `vite.config.*` to set `server.host` or `base`.
-   The CLI flags from `start-preview` already override config. If the user's
-   config conflicts (for example `server.host: false`), surface error code 4
-   from start-preview and ask the user to relax that config — do NOT silently
-   patch their file.
-
-3. **Never** touch the `~/.cloudbase-agent/` global directory. State lives
-   in `<cwd>/.cloudbase-agent/preview.json`. Each cwd is independent.
-
-4. **Always** parse stdout of `cloudbase-vibe-*` scripts as a single JSON
-   line. The first line of stdout is the machine-readable result. The
-   stderr `[cloudbase-agent] ...` line is for humans only — do not parse it.
-
-5. **Always** surface `logPath` to the user when a script reports failure.
-   Don't guess the cause from a one-line error — point them at the log file.
-
-## Error codes from the bin scripts
+## Error codes from the CLI
 
 | code | meaning | recovery |
 |---|---|---|
 | 1 | generic failure | check the message |
 | 2 | not a Vite project (or `vite` binary missing) | `pnpm install` then retry |
-| 3 | port pool exhausted in 17173..17272 | `cloudbase-vibe-stop-preview` for stale ones, or pass `--port` |
+| 3 | port pool exhausted in 17173..17272 | `cloudbase-sites preview --stop` for stale ones, or pass `--port` |
 | 4 | dev server failed health check in 30s | read `logPath`; usually a build error in user code |
-| 5 | no preview is running (status / stop) | start one with `cloudbase-vibe-start-preview` |
-| 6 | stop failed (process refused SIGKILL) | check the PID manually with `ps`; very rare |
-| 7 | build failed (`cloudbase-vibe-deploy`) | inspect build output in this terminal; fix code, retry |
+| 5 | no preview is running (status / stop) | start one with `cloudbase-sites preview` |
+| 6 | stop failed (process refused SIGKILL) | inspect the PID manually with `ps`; very rare |
+| 7 | build failed (`cloudbase-sites deploy`) | inspect build output; fix code, retry |
 | 8 | `dist/` missing or empty after build | confirm `scripts.build` runs `vite build`; rerun |
+| 9 | cwd in danger blacklist (`init`) | cd to a real project directory first |
+| 10 | cwd not empty (`init`) | move conflicting files; only `.git`/`.gitignore`/README/LICENSE/.cloudbase-agent are tolerated |
+| 11 | template download failed | check internet; URL is `static.cloudbase.net/cloudbase-examples/...` |
+| 12 | template extract failed | install `unzip` |
+| 13 | dependency install failed | check terminal output |
+| 14 | version not found | run `cloudbase-sites versions` to list |
+| 15 | rollback failed | check git state |
 
-## State files (for debugging)
+## State files
 
-- `<cwd>/.cloudbase-agent/preview.json` — current preview state.
-- `<cwd>/.cloudbase-agent/logs/preview-<timestamp>.log` — Vite stdout/stderr.
-- `<cwd>/.cloudbase-agent/logs/hook-restart.log` — restart trigger trail (PostToolUse hook).
-- `<cwd>/.cloudbase-agent/restart.lock` — debounce lock for the hook (1.5s window).
-
-These are owned by the scripts. If the user asks "show me the dev log",
-open the path from `status-preview`'s JSON output.
-
-## Hook & monitor behavior (auto-driven, model is passive)
-
-This plugin ships two host-driven mechanisms; the model itself does NOT need
-to invoke them, but should be aware they exist:
-
-- **PostToolUse hook** (`hooks/hooks.json`): when the model edits a file via
-  `Edit` / `Write` / `MultiEdit`, the host fires `hooks/on-file-change.sh`.
-  The hook checks the edited file path; if it's a config file (`vite.config.*`,
-  `tailwind.config.*`, `postcss.config.*`, `package.json`, `tsconfig*.json`,
-  `.env*`), it triggers `cloudbase-vibe-restart-preview` in the background
-  with a 1.5s debounce. The model does NOT need to manually restart on
-  config edits — the hook handles it. If the host doesn't support hooks,
-  fall back to manually calling restart per the rule above.
-
-- **Vite log monitor** (`monitors/monitors.json`, EXPERIMENTAL): the host
-  tails the latest `<cwd>/.cloudbase-agent/logs/preview-*.log` and forwards
-  each new line to the model as a notification. The model can use this to
-  proactively report build errors / HMR failures without the user asking.
-  ⚠️ This relies on the host's monitor implementation honoring the project
-  cwd; if monitor lines do not appear in the conversation, treat it as not
-  available and fall back to `cloudbase-vibe-status-preview` on demand.
+| Path | Purpose |
+|---|---|
+| `<cwd>/.cloudbase-agent/preview.json` | dev server PID/port/URL/framework |
+| `<cwd>/.cloudbase-agent/app.json` | siteName + versions[] + deployments[] + currentVersion + currentDeploy |
+| `<cwd>/.cloudbase-agent/logs/preview-<ts>.log` | Vite stdout/stderr |
+| `<cwd>/.cloudbase-agent/logs/hook-session-start.log` | SessionStart hook trace |
+| `<cwd>/.cloudbase-agent/logs/hook-restart.log` | PostToolUse restart trail |
+| `~/.cloudbase-agent/registry.json` | global supervisor's view of all cwds |
+| `~/.cloudbase-agent/supervisor.json` | global supervisor PID + uptime |
+| `~/.cloudbase-agent/supervisor.log` | supervisor stdout/stderr |
 
 ## What this skill is NOT
 
-- It is **not** a session manager. There is no sessionId. There is only cwd.
-- It is **not** a reverse proxy. If the host is on Lighthouse and the user
-  needs `0.0.0.0:8080/s/<sid>/` style routing, that's a separate runtime
-  component (`cloudbase-agent-proxy`, see project README) — out of scope here.
-- It is **not** a CloudBase auth/database guide. For those, route to the
-  existing `auth-web`, `auth-tool`, `no-sql-web-sdk` skills.
-- It is **not** a UI design guide. For visual decisions, route to `ui-design`.
+- It is **not** a session manager. There is no sessionId at the skill level.
+  There is only cwd. (The supervisor's `registry.json` does track cwds
+  globally, but for self-healing — not as a user-facing concept.)
+- It is **not** a reverse proxy. If the host is on a public-facing server
+  and the user needs `<host>:8080/s/<sid>/` style routing, that's a separate
+  optional component (`cloudbase-agent-proxy`, future work) — out of scope here.
+- It is **not** a CloudBase auth/database guide. For those, fetch the
+  corresponding CloudBase domain skill via
+  `searchKnowledgeBase(mode="skill", skillName=...)`.
+- It is **not** a UI design guide. For visual decisions, fetch
+  `searchKnowledgeBase(mode="skill", skillName="ui-design")`.

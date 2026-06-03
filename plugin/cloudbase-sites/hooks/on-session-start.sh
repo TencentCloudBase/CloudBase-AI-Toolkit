@@ -78,13 +78,15 @@ you must not bypass them.
 
 3. **UI work for NEW features requires a design specification first.** When
    the user asks you to build a new app/feature/page from scratch (e.g.
-   "make a todo app", "build a chat UI", "add a dashboard"), you MUST invoke
-   the `ui-design` skill BEFORE writing any `.tsx`/`.css`/`.html` and produce
-   its design spec (Aesthetic Direction, Color Palette, Typography, Layout
-   Strategy). Do NOT improvise generic AI-default styling.
+   "make a todo app", "build a chat UI", "add a dashboard"), you MUST first
+   fetch the CloudBase ui-design skill via
+   `searchKnowledgeBase(mode=skill, skillName="ui-design")`,
+   produce its 4-part design spec (Aesthetic Direction, Color Palette,
+   Typography, Layout Strategy), output the spec to the user, THEN write
+   any `.tsx`/`.css`/`.html`. Do NOT improvise generic AI-default styling.
    Note: the CloudBase template'\''s `CLAUDE.md` "Existing Implementation First"
    exemption applies only to bug fixes / completing TODO markers in existing
-   code — it does NOT exempt you from `ui-design` when creating a new app
+   code — it does NOT exempt you from ui-design when creating a new app
    on top of the template.
 
 4. **Never spawn `npm run dev` / `vite` / `vite build` yourself.** Dev-server
@@ -96,14 +98,17 @@ you must not bypass them.
    the user'\''s feature needs to store / query / update data:
    - **Schema:** call cloudbase-mcp `writeNoSqlDatabaseStructure(action="createCollection", ...)`
      to create the collection (and `updateCollection` for indexes). Do NOT
-     ask the user to create collections manually in the console. The
-     `no-sql-web-sdk` skill describes the canonical patterns.
+     ask the user to create collections manually in the console. For canonical
+     patterns, fetch the no-sql-web-sdk skill via
+     `searchKnowledgeBase(mode=skill, skillName="no-sql-web-sdk")`.
    - **Reads/writes:** use `@cloudbase/js-sdk` directly from the React/Vue
      code (`db.collection(...).where(...).get()`, `.add()`, `.update()`,
      `db.collection(...).watch(...)` for realtime). The template already
      ships an initialized SDK at `src/utils/cloudbase.ts` — use it.
-   - **Auth:** if the feature needs user accounts, follow the `auth-tool`
-     skill first to verify provider config, then `auth-web` for client code.
+   - **Auth:** if the feature needs user accounts, fetch
+     `searchKnowledgeBase(mode=skill, skillName="auth-tool")` first to
+     verify provider config (the management-side configuration), then
+     `searchKnowledgeBase(mode=skill, skillName="auth-web")` for client code.
    - **Reach for cloud functions only when ALL of these are true:**
      (a) the logic absolutely cannot be expressed as database security rules,
      (b) it needs server-side secrets / third-party API keys, OR
@@ -132,7 +137,9 @@ you must not bypass them.
      Phase 1 emits `nextAction.tool="manageApps"` with `framework=static,
      installCmd="", buildCmd=""` (skips remote build — we built locally).
      Phase 2 is `cloudbase-sites deploy --post --version <n> --access-url <url>`.
-   - After deploy succeeds, ask: "要我用 UI 设计能力进一步优化样式和体验吗?"
+   - After deploy succeeds, ask: "要我用 ui-design 能力进一步优化样式和体验吗?"
+     If yes, fetch `searchKnowledgeBase(mode=skill, skillName="ui-design")`
+     and iterate.
    - Rollback: `cloudbase-sites rollback [--to-version <n>]` (defaults to
      current production deploy). Use only when user says "回到上一版" or similar.
 
@@ -145,6 +152,33 @@ you must not bypass them.
 - deploy            → `cloudbase-sites deploy [--version <n>]`  (two-phase, see Rule 7)
 - rollback          → `cloudbase-sites rollback [--to-version <n>]`
 - supervisor info   → `cloudbase-sites supervisor status`
+
+### CloudBase Skill catalog (fetch on demand via cloudbase-mcp)
+
+These CloudBase domain skills are NOT bundled with this plugin and are NOT
+Claude Code native skills — fetch their full content on demand via:
+  `searchKnowledgeBase(mode=skill, skillName="<name>")`
+
+When a Hard rule above (or anywhere in your reasoning) references a skill
+"by name" — e.g. "调 ui-design skill", "follow auth-tool" — that means
+"call the MCP tool with skillName=<that-name> and apply the returned
+content". Do NOT look in `~/.claude/skills/` or `.claude/skills/`; these
+skills only live inside cloudbase-mcp.
+
+Likely-needed in a vibe-coding session:
+
+- `ui-design`               — UI 设计规范(必读,见 Rule 3)
+- `web-development`         — Web 项目开发与部署规范
+- `auth-tool`               — 认证 provider 启用与配置(管理端)
+- `auth-web`                — Web SDK 认证客户端代码
+- `no-sql-web-sdk`          — 文档型数据库 Web SDK CRUD
+- `cloud-storage-web`       — 云存储 Web SDK 上传下载
+- `relational-database-web` — MySQL Web SDK
+- `cloudbase-platform`      — CloudBase 平台总览(资源、链接、控制台路径)
+
+The full list of available skill names is returned by calling
+`searchKnowledgeBase(mode=skill)` with no `skillName` — the response lists
+all skills with their descriptions.
 
 ### Pre-flight you may need
 
