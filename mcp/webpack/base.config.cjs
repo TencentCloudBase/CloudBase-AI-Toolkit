@@ -20,9 +20,6 @@ function createBaseConfig() {
         // 处理 TypeScript ESM 导入中的 .js 扩展名
         '.js': ['.ts', '.js'],
       },
-      alias: {
-        'graceful-fs': path.resolve(__dirname, '../node_modules/graceful-fs')
-      },
       fallback: {
         // 在 Node.js 环境中我们不需要这些 polyfills
         "buffer": false,
@@ -74,4 +71,4 @@ function createBaseConfig() {
   };
 }
 
-module.exports = createBaseConfig; 
+module.exports = createBaseConfig;

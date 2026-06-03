@@ -36,6 +36,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 - Web auth provider readiness -> `./auth-tool/SKILL.md`
 - Web auth implementation -> `./auth-web/SKILL.md`
 - CloudBase PostgreSQL / PG app data -> `./postgresql-development/SKILL.md`
+- WeChat Pay / Official Account OAuth through CloudBase Integration Center -> `./cloudbase-wechat-integration/SKILL.md`
 - Browser-side document database CRUD -> `./no-sql-web-sdk/SKILL.md`
 - Browser-side file upload -> `./cloud-storage-web/SKILL.md`
 - Platform overview only when capability selection is still unclear -> `./cloudbase-platform/SKILL.md`
