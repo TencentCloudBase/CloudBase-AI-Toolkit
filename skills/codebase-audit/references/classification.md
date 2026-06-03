@@ -5,9 +5,23 @@
 | Severity | Criteria | SLA |
 |----------|----------|-----|
 | **Critical** | Security vulnerability exploitable by external input; data loss or corruption risk; authentication/authorization bypass | Must fix immediately |
-| **High** | Runtime errors in normal usage; error handling gaps causing silent failures; resource leaks under load | Fix in current session |
+| **High** | Runtime errors in normal usage; error handling gaps causing silent failures; resource leaks under load | Must fix in current session |
 | **Medium** | Type safety holes; code quality issues affecting maintainability; API inconsistencies | Fix if time allows |
 | **Low** | Style issues; naming; minor cleanup; documentation gaps | Defer or batch with other work |
+
+## Security finding severity mapping
+
+For security-specific findings, use the detailed TSRC-style checklist in `references/security-severity-checklist.md`. It maps each vulnerability type to a severity tier with concrete technical conditions:
+
+| TSRC Grade | Audit Severity | Example Vulnerabilities |
+|------------|---------------|----------------------|
+| 严重 (Critical) | **Critical** | RCE with server access, platform-level info leak, cash drain >¥100K |
+| 高 (High) | **High** | Stored XSS (platform), SQL injection (readable), unauthorized admin, SSRF w/ response |
+| 中 (Medium) | **Medium** | Stored XSS (needs interaction), blind SSRF, local code exec, single-API IDOR |
+| 低 (Low) | **Low** | XSS in obsolete browsers, open redirect, rate limiting gaps |
+| 无 (None) | **Ignore** | Self-XSS, no-impact CSRF, scanner noise |
+
+When classifying a security finding, first assign its TSRC grade using the condition-based checklist in `security-severity-checklist.md`, then map to the audit severity above.
 
 ## Deduplication rules
 

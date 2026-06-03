@@ -290,15 +290,34 @@ async function downloadFile(url: string, filePath: string, redirectCount = 0): P
   });
 }
 
-// 解压ZIP文件
+// 解压ZIP文件（含 zip slip 防护）
 async function extractZip(zipPath: string, extractPath: string): Promise<void> {
   try {
     // 创建解压目录
     await fsPromises.mkdir(extractPath, { recursive: true });
 
-    // 使用 adm-zip 库进行解压
+    // 使用 adm-zip 库逐条目解压，防止 zip slip 路径穿越
     const zip = new AdmZip(zipPath);
-    zip.extractAllTo(extractPath, true);
+    const entries = zip.getEntries();
+    const resolvedExtractPath = path.resolve(extractPath);
+
+    for (const entry of entries) {
+      // 跳过目录条目，后面由 mkdir 自动创建
+      if (entry.isDirectory) continue;
+
+      const entryPath = path.resolve(resolvedExtractPath, entry.entryName);
+      if (!entryPath.startsWith(resolvedExtractPath + path.sep)) {
+        throw new Error(
+          `解压失败: ZIP 文件中包含非法的路径 "${entry.entryName}"，已安全拦截`,
+        );
+      }
+
+      // 确保目标目录存在
+      await fsPromises.mkdir(path.dirname(entryPath), { recursive: true });
+
+      // 写入文件
+      await fsPromises.writeFile(entryPath, entry.getData());
+    }
   } catch (error) {
     throw new Error(
       `解压失败: ${error instanceof Error ? error.message : "未知错误"}`,
