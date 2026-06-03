@@ -11,6 +11,7 @@ const {
   mockUploadCode,
   mockCreateApp,
   mockDescribeBuildLog,
+  mockDescribeCosInfo,
 } = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
   mockLogCloudBaseResult: vi.fn(),
@@ -20,11 +21,16 @@ const {
   mockUploadCode: vi.fn(),
   mockCreateApp: vi.fn(),
   mockDescribeBuildLog: vi.fn(),
+  mockDescribeCosInfo: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
   getCloudBaseManager: mockGetCloudBaseManager,
   logCloudBaseResult: mockLogCloudBaseResult,
+}));
+
+vi.mock("../utils/cloud-mode.js", () => ({
+  isCloudMode: () => false,
 }));
 
 function createMockServer() {
@@ -83,6 +89,12 @@ describe("app tools", () => {
         RequestId: "req-build-log",
       },
     });
+    mockDescribeCosInfo.mockResolvedValue({
+      UploadUrl: "https://example.com/upload",
+      UploadHeaders: [{ Key: "Content-Type", Value: "application/zip" }],
+      UnixTimestamp: "1741234567",
+      RequestId: "req-cos-info",
+    });
     mockGetCloudBaseManager.mockResolvedValue({
       cloudAppService: {
         describeAppList: mockDescribeAppList,
@@ -90,6 +102,7 @@ describe("app tools", () => {
         describeAppVersionList: mockDescribeAppVersionList,
         uploadCode: mockUploadCode,
         createApp: mockCreateApp,
+        describeCosInfo: mockDescribeCosInfo,
       },
       commonService: () => ({
         call: mockDescribeBuildLog,
@@ -149,6 +162,63 @@ describe("app tools", () => {
     });
   });
 
+  it("manageApps(action=deployApp) with cosTimestamp should skip uploadCode", async () => {
+    const result = await tools.manageApps.handler({
+      action: "deployApp",
+      serviceName: "demo-app",
+      cosTimestamp: "1741234567",
+      buildPath: "dist",
+      framework: "static",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    // uploadCode should NOT be called when cosTimestamp is provided
+    expect(mockUploadCode).not.toHaveBeenCalled();
+    expect(mockCreateApp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deployType: "static-hosting",
+        serviceName: "demo-app",
+        buildType: "ZIP",
+        staticConfig: expect.objectContaining({
+          cosTimestamp: "1741234567",
+        }),
+      }),
+    );
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "deployApp",
+        serviceName: "demo-app",
+      },
+    });
+  });
+
+  it("manageApps(action=getUploadUrl) should return pre-signed URL", async () => {
+    const result = await tools.manageApps.handler({
+      action: "getUploadUrl",
+      serviceName: "demo-app",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockDescribeCosInfo).toHaveBeenCalledWith({
+      deployType: "static-hosting",
+      serviceName: "demo-app",
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "getUploadUrl",
+        serviceName: "demo-app",
+        uploadUrl: "https://example.com/upload",
+        cosTimestamp: "1741234567",
+        method: "PUT",
+        nextAction: {
+          action: "上传代码到预签名 URL",
+        },
+      },
+    });
+  });
+
   it("manageApps schema should clarify redeploy flow and framework values", () => {
     expect(tools.manageApps.meta.description).toContain("远端构建");
     expect(tools.manageApps.meta.description).toContain("与 manageHosting 对比");
@@ -157,7 +227,7 @@ describe("app tools", () => {
     expect(tools.manageApps.meta.inputSchema.framework.safeParse("html").success).toBe(false);
   });
 
-  it("manageApps(action=deployApp) should require filePath", async () => {
+  it("manageApps(action=deployApp) should require filePath or cosTimestamp", async () => {
     const result = await tools.manageApps.handler({
       action: "deployApp",
       serviceName: "demo-app",
@@ -166,7 +236,7 @@ describe("app tools", () => {
 
     expect(payload).toMatchObject({
       success: false,
-      message: "action=deployApp 时必须提供 filePath",
+      message: expect.stringContaining("filePath"),
     });
   });
 

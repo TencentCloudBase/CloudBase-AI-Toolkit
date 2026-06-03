@@ -2,9 +2,10 @@ import { z } from "zod";
 import { getCloudBaseManager, logCloudBaseResult } from "../cloudbase-manager.js";
 import type { ExtendedMcpServer } from "../server.js";
 import { jsonContent } from "../utils/json-content.js";
+import { isCloudMode } from "../utils/cloud-mode.js";
 
 const QUERY_APP_ACTIONS = ["listApps", "getApp", "listAppVersions", "getAppVersion", "getBuildLog"] as const;
-const MANAGE_APP_ACTIONS = ["deployApp", "deleteApp", "deleteAppVersion"] as const;
+const MANAGE_APP_ACTIONS = ["deployApp", "getUploadUrl", "deleteApp", "deleteAppVersion"] as const;
 const APP_FRAMEWORKS = ["vue", "react", "next", "nuxt", "vite", "angular", "static"] as const;
 
 type QueryAppAction = (typeof QUERY_APP_ACTIONS)[number];
@@ -247,7 +248,9 @@ export function registerAppTools(server: ExtendedMcpServer) {
     {
       title: "部署应用到 CloudBase（独立子域名）",
       description:
-        "部署 Web 应用到 CloudBase（构建前后端，部署到独立子域名）。action=deployApp 上传源码 ZIP 并触发远端构建部署管道：\n" +
+        "部署 Web 应用到 CloudBase（构建前后端，部署到独立子域名）。\n" +
+        "action=getUploadUrl 获取预签名上传 URL（cloud mode 下使用），返回上传地址和 cosTimestamp。\n" +
+        "action=deployApp 上传源码 ZIP 并触发远端构建部署管道：\n" +
         "  1. 远端 npm install（可通过 installCmd=\"\" 跳过）\n" +
         "  2. 远端 npm run build（可通过 buildCmd=\"\" 跳过）\n" +
         "  3. 远端 tcb hosting deploy\n" +
@@ -277,7 +280,11 @@ export function registerAppTools(server: ExtendedMcpServer) {
         filePath: z
           .string()
           .optional()
-          .describe("要上传并部署的本地项目根目录绝对路径。deployApp 时必填；通常传源码所在目录（含 package.json 和源码），不是 dist 目录。构建产物目录请用 buildPath 指定。"),
+          .describe("要上传并部署的本地项目根目录绝对路径。本地模式下 deployApp 时必填；通常传源码所在目录（含 package.json 和源码），不是 dist 目录。构建产物目录请用 buildPath 指定。cloud mode 下无需传此参数，改用 cosTimestamp。"),
+        cosTimestamp: z
+          .string()
+          .optional()
+          .describe("可选 COS 时间戳。传入此值则直接使用已上传的代码创建应用，跳过本地文件上传。需先调用 getUploadUrl 获取预签名 URL，上传 ZIP 包后再传此时间戳。cloud mode 下为必填；本地模式也可传此值代替 filePath。两个路径二选一：filePath（本地打包上传）或 cosTimestamp（预签名 URL 上传）。"),
         appPath: z
           .string()
           .optional()
@@ -328,6 +335,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
       action,
       serviceName,
       filePath,
+      cosTimestamp,
       appPath,
       buildPath,
       framework,
@@ -341,6 +349,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
       action: ManageAppAction;
       serviceName: string;
       filePath?: string;
+      cosTimestamp?: string;
       appPath?: string;
       buildPath?: string;
       framework?: string;
@@ -358,30 +367,89 @@ export function registerAppTools(server: ExtendedMcpServer) {
           throw new Error("当前 manager 未提供 cloudAppService");
         }
 
-        if (action === "deployApp") {
-          if (!filePath) {
-            throw new Error("action=deployApp 时必须提供 filePath");
+        // getUploadUrl — 获取预签名上传 URL（cloud mode 专用）
+        if (action === "getUploadUrl") {
+          if (!serviceName) {
+            throw new Error("action=getUploadUrl 时必须提供 serviceName");
           }
-
-          // 上传代码到 COS
-          const uploadResult = await appService.uploadCode({
+          const cosInfoResult = await appService.describeCosInfo({
             deployType: "static-hosting",
             serviceName,
-            localPath: filePath,
-            ignore,
           });
-          logCloudBaseResult(server.logger, uploadResult);
+          logCloudBaseResult(server.logger, cosInfoResult);
+
+          const defaultIgnore = ["node_modules/**", ".git/**", ".DS_Store", "**/.DS_Store"];
+          // eslint-disable-next-line max-len
+          const zipCmd = "zip -r upload.zip . -x 'node_modules/**' -x '.git/**' -x '.DS_Store' -x '**/.DS_Store'";
+          const followupArgs: Record<string, unknown> = {
+            action: "deployApp",
+            serviceName,
+            cosTimestamp: cosInfoResult.UnixTimestamp,
+          };
+
+          return jsonContent(
+            buildEnvelope(
+              {
+                action,
+                serviceName,
+                uploadUrl: cosInfoResult.UploadUrl,
+                uploadHeaders: cosInfoResult.UploadHeaders,
+                cosTimestamp: cosInfoResult.UnixTimestamp,
+                method: "PUT",
+                ignore: defaultIgnore,
+                zipCommand: zipCmd,
+                nextAction: {
+                  action: "上传代码到预签名 URL",
+                  hint: "请先在本地打包项目代码（排除 node_modules/.git），再将其上传到预签名 URL，然后调用 deployApp 触发构建",
+                  details: [
+                    `1. 打包: ${zipCmd}`,
+                    `2. 上传: curl -X PUT -T upload.zip '${cosInfoResult.UploadUrl}'`,
+                    `3. 触发构建: manageApps(action="deployApp", serviceName="${serviceName}", cosTimestamp="${cosInfoResult.UnixTimestamp}")`,
+                  ],
+                  followup: {
+                    tool: "manageApps",
+                    args: followupArgs,
+                  },
+                },
+              },
+              "预签名上传 URL 获取成功。请上传代码后调用 deployApp 触发构建。",
+            ),
+          );
+        }
+
+        if (action === "deployApp") {
+          // cloud mode 下必须有 cosTimestamp；本地模式必须有 filePath
+          if (isCloudMode()) {
+            if (!cosTimestamp) {
+              throw new Error(
+                "cloud mode 下 deployApp 需要 cosTimestamp 参数。请先调用 getUploadUrl 获取预签名上传 URL。" +
+                "上传代码后再用 cosTimestamp 调用 deployApp。",
+              );
+            }
+          } else if (!filePath && !cosTimestamp) {
+            throw new Error("action=deployApp 时必须提供 filePath（本地模式）或 cosTimestamp（cloud mode）。");
+          }
+
+          // 上传代码到 COS（仅本地模式需要，cloud mode 用 cosTimestamp 跳过）
+          let cosTs = cosTimestamp;
+          if (filePath && !cosTs) {
+            const uploadResult = await appService.uploadCode({
+              deployType: "static-hosting",
+              serviceName,
+              localPath: filePath,
+              ignore,
+            });
+            logCloudBaseResult(server.logger, uploadResult);
+            cosTs = uploadResult.cosTimestamp;
+          }
 
           // 构建命令智能默认值
           const resolvedInstallCmd = installCmd ?? "npm install";
           const resolvedBuildCmd = buildCmd ?? "npm run build";
           const resolvedDeployPath = appPath || "/";
           const resolvedBuildPath = buildPath || "";
-          // ⚠️ 远端构建系统在有 buildPath 时会先 cd 到此目录再执行部署命令
-          // 所以 deployCmd 的源码路径必须用 "."，避免路径重复（如 dist/dist）
-          // ⚠️ 远端构建系统在有 buildPath 时会先 cd 到此目录再执行部署命令
-          // 所以 deployCmd 源码路径用 "."（避免 dist/dist 路径重复）
-          // framework=static 时无构建步骤，dist/ 不存在，也应部署根目录
+          // ⚠️ 远端构建系统在有 buildPath 时 cd 到此目录再执行 tcb hosting deploy
+          // 部署命令用 "." 避免 dist/dist 重复。framework=static 无构建步骤，用根目录
           const resolvedDeployCmd = deployCmd || (
             resolvedBuildPath || framework === "static"
               ? `tcb hosting deploy . ${resolvedDeployPath}`
@@ -397,7 +465,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
               buildPath: resolvedBuildPath,
               framework,
               nodeJsVersion,
-              cosTimestamp: uploadResult.cosTimestamp,
+              cosTimestamp: cosTs,
               staticCmd: {
                 installCmd: resolvedInstallCmd,
                 buildCmd: resolvedBuildCmd,
@@ -415,7 +483,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
                 serviceName,
                 versionName: VersionName,
                 buildId: BuildId,
-                upload: { cosTimestamp: uploadResult.cosTimestamp },
+                upload: { cosTimestamp: cosTs },
                 deployment: result,
                 buildConfig: {
                   installCmd: resolvedInstallCmd,
