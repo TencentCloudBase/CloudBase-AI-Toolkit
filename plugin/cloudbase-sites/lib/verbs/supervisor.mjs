@@ -1,24 +1,12 @@
-#!/usr/bin/env node
 /**
- * cloudbase-vibe-supervisor — global watchdog for all vibe-coding cwds
+ * `cloudbase-sites supervisor` — global watchdog daemon.
  *
  * Two modes:
- *   1. Subcommand mode (start/stop/status/list/heal/reload). User-facing.
- *   2. Daemon-loop mode (--daemon-loop). Internal — entered by the detached
- *      child spawned by ensureSupervisorRunning. Runs the 15s watchdog loop
- *      until SIGTERM.
+ *   1. Subcommands: start/stop/status/list/heal/reload (called by user).
+ *   2. --daemon-loop: internal entry point for the spawned detached child.
  *
- * Daemon walks the registry every TICK_MS:
- *   - For each cwd: read <cwd>/.cloudbase-agent/preview.json, kill -0 the
- *     PID, HTTP-probe 127.0.0.1:<port>.
- *   - On health, recordSuccess.
- *   - On unhealthy, spawn `cloudbase-vibe-restart-preview` in that cwd;
- *     recordFailure (which marks degraded after 5 strikes).
- *   - Degraded entries are skipped — no restart, no flapping. The user must
- *     `heal <cwd>` to clear it.
- *
- * Tier 3 reverse proxy is intentionally NOT included here; when added it'll
- * be a separate fastify child that reads the same registry.
+ * Walks ~/.cloudbase-agent/registry.json every TICK_MS, probes each cwd's
+ * preview.json, restarts dead vites via the binary's own `preview` verb.
  */
 
 import { spawn } from "node:child_process";
@@ -26,12 +14,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import http from "node:http";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const lib = await import(join(__dirname, "..", "lib", "registry.mjs"));
-const ctl = await import(join(__dirname, "..", "lib", "supervisor-ctl.mjs"));
-
-const {
+import {
   ensureGlobalDir,
   listWorkspaces,
   patchWorkspace,
@@ -39,49 +22,57 @@ const {
   recordSuccess,
   STATUS,
   RESTART_BUDGET,
-} = lib;
-
-const {
+} from "../registry.mjs";
+import {
   clearSupervisorState,
   ensureSupervisorRunning,
   isSupervisorAlive,
   readSupervisorState,
   stopSupervisor,
   writeSupervisorState,
-} = ctl;
+} from "../supervisor-ctl.mjs";
+import { emitOk, emitErr } from "../emit.mjs";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const SITES_BIN = join(__dirname, "..", "..", "bin", "cloudbase-sites");
 
 const TICK_MS = Number(process.env.CLOUDBASE_AGENT_SUPERVISOR_TICK_MS || 15_000);
 const HEALTH_HTTP_TIMEOUT_MS = 1500;
 
-// ---------------------------------------------------------------------------
-// Subcommand router
-// ---------------------------------------------------------------------------
+export const supervisorHelp = `cloudbase-sites supervisor — global watchdog for vibe-coding cwds
 
-const args = process.argv.slice(2);
-const cmd = args[0];
+Subcommands:
+  start                    spawn daemon (no-op if already running)
+  stop                     SIGTERM daemon (with SIGKILL fallback)
+  status                   JSON: alive/pid/uptime/workspaceCount
+  list                     JSON: all registered workspaces with health
+  heal <cwd>               clear DEGRADED state, trigger one restart
+  reload                   send SIGHUP to daemon (re-read registry)
 
-if (!cmd || cmd === "--help" || cmd === "-h") { printHelp(); process.exit(0); }
+Internal:
+  --daemon-loop            entered by the spawned child; do not run manually
 
-const dispatch = {
-  "--daemon-loop": runDaemonLoop,
-  "start":         cmdStart,
-  "stop":          cmdStop,
-  "status":        cmdStatus,
-  "list":          cmdList,
-  "heal":          cmdHeal,
-  "reload":        cmdReload,
-};
+State files:
+  ~/.cloudbase-agent/supervisor.json   daemon PID + startedAt + lastTickAt
+  ~/.cloudbase-agent/registry.json     all registered cwds
+  ~/.cloudbase-agent/supervisor.log    daemon stdout/stderr
 
-const handler = dispatch[cmd];
-if (!handler) {
-  emit({ ok: false, code: 1, message: `Unknown subcommand: ${cmd}` });
-  process.exit(1);
+Tick interval: ${TICK_MS}ms (env CLOUDBASE_AGENT_SUPERVISOR_TICK_MS to override)`;
+
+export async function runSupervisor(subcmd, rest) {
+  switch (subcmd) {
+    case "--daemon-loop": return runDaemonLoop();
+    case "start":         return cmdStart();
+    case "stop":          return cmdStop();
+    case "status":        return cmdStatus();
+    case "list":          return cmdList();
+    case "heal":          return cmdHeal(rest);
+    case "reload":        return cmdReload();
+    default:
+      emitErr(`Unknown supervisor subcommand: ${subcmd}`, 1);
+      process.exit(1);
+  }
 }
-
-handler(args.slice(1)).catch((err) => {
-  emit({ ok: false, code: err.code || 1, message: err.message || String(err) });
-  process.exit(err.code || 1);
-});
 
 // ---------------------------------------------------------------------------
 // Daemon loop
@@ -89,7 +80,6 @@ handler(args.slice(1)).catch((err) => {
 
 async function runDaemonLoop() {
   ensureGlobalDir();
-
   writeSupervisorState({
     pid: process.pid,
     startedAt: new Date().toISOString(),
@@ -104,7 +94,6 @@ async function runDaemonLoop() {
   };
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
-  // SIGHUP no-op for now; reserved for Tier 3 reverse-proxy reload.
   process.on("SIGHUP", () => { /* registry is re-read every tick anyway */ });
 
   log("daemon started");
@@ -129,7 +118,6 @@ async function tickOnce() {
       recordSuccess(entry.cwd, { previewPid: result.observedPid });
       continue;
     }
-
     log(`unhealthy cwd=${entry.cwd} reason=${result.reason}`);
     const { degraded } = recordFailure(entry.cwd, result.reason);
     if (degraded) {
@@ -146,15 +134,12 @@ async function checkHealth(entry) {
   let pj;
   try { pj = JSON.parse(readFileSync(previewJson, "utf8")); }
   catch { return { healthy: false, reason: "preview.json unreadable" }; }
-
   if (!pj.pid) return { healthy: false, reason: "no pid in preview.json" };
   try { process.kill(pj.pid, 0); }
   catch { return { healthy: false, reason: `pid ${pj.pid} dead` }; }
-
   if (!pj.port) return { healthy: false, reason: "no port in preview.json" };
   const httpOk = await httpHealthy("127.0.0.1", pj.port);
   if (!httpOk) return { healthy: false, reason: `http probe ${pj.port} failed` };
-
   return { healthy: true, observedPid: pj.pid };
 }
 
@@ -170,9 +155,8 @@ function httpHealthy(host, port) {
 }
 
 function triggerRestart(cwd) {
-  const restartBin = join(__dirname, "cloudbase-vibe-restart-preview");
   try {
-    const child = spawn(restartBin, [], {
+    const child = spawn(SITES_BIN, ["preview", "--restart"], {
       cwd,
       detached: true,
       stdio: "ignore",
@@ -186,24 +170,24 @@ function triggerRestart(cwd) {
 }
 
 // ---------------------------------------------------------------------------
-// Subcommands
+// User-facing subcommands
 // ---------------------------------------------------------------------------
 
 async function cmdStart() {
   const r = ensureSupervisorRunning({ silent: false });
-  emit({ ok: true, ...r });
+  emitOk(r);
 }
 
 async function cmdStop() {
   const r = await stopSupervisor();
-  emit({ ok: r.stopped || !!r.reason, ...r });
+  if (r.stopped || r.reason) emitOk(r);
+  else emitErr(r.reason || "stop failed", 1);
 }
 
 async function cmdStatus() {
   const s = readSupervisorState();
   const alive = isSupervisorAlive();
-  emit({
-    ok: true,
+  emitOk({
     alive,
     pid: s?.pid ?? null,
     startedAt: s?.startedAt ?? null,
@@ -215,13 +199,13 @@ async function cmdStatus() {
 
 async function cmdList() {
   const entries = listWorkspaces();
-  emit({ ok: true, count: entries.length, entries });
+  emitOk({ count: entries.length, entries });
 }
 
 async function cmdHeal(rest) {
   const cwd = rest[0];
   if (!cwd) {
-    emit({ ok: false, code: 1, message: "usage: cloudbase-vibe-supervisor heal <cwd>" });
+    emitErr("usage: cloudbase-sites supervisor heal <cwd>", 1);
     process.exit(1);
   }
   const r = patchWorkspace(cwd, {
@@ -230,61 +214,29 @@ async function cmdHeal(rest) {
     lastFailureReason: null,
   });
   if (!r) {
-    emit({ ok: false, code: 1, message: `cwd not registered: ${cwd}` });
+    emitErr(`cwd not registered: ${cwd}`, 1);
     process.exit(1);
   }
   triggerRestart(cwd);
-  emit({ ok: true, healed: r });
+  emitOk({ healed: r });
 }
 
 async function cmdReload() {
   const s = readSupervisorState();
-  if (!s?.pid) { emit({ ok: false, code: 1, message: "supervisor not running" }); process.exit(1); }
+  if (!s?.pid) { emitErr("supervisor not running", 1); process.exit(1); }
   try { process.kill(s.pid, "SIGHUP"); } catch (e) {
-    emit({ ok: false, code: 1, message: `kill -HUP ${s.pid} failed: ${e.message}` });
+    emitErr(`kill -HUP ${s.pid} failed: ${e.message}`, 1);
     process.exit(1);
   }
-  emit({ ok: true, signaled: s.pid });
+  emitOk({ signaled: s.pid });
 }
 
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
 
-function emit(obj) {
-  process.stdout.write(JSON.stringify(obj) + "\n");
-}
-
 function log(msg) {
-  // Daemon stdout is redirected to ~/.cloudbase-agent/supervisor.log.
   process.stderr.write(`[supervisor ${new Date().toISOString()}] ${msg}\n`);
 }
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-function printHelp() {
-  process.stdout.write([
-    "cloudbase-vibe-supervisor — global watchdog for vibe-coding cwds",
-    "",
-    "Subcommands:",
-    "  start                    spawn daemon (no-op if already running)",
-    "  stop                     SIGTERM daemon (with SIGKILL fallback)",
-    "  status                   JSON: alive/pid/uptime/workspaceCount",
-    "  list                     JSON: all registered workspaces with health",
-    "  heal <cwd>               clear DEGRADED state, trigger one restart",
-    "  reload                   send SIGHUP to daemon (re-read registry)",
-    "",
-    "Internal:",
-    "  --daemon-loop            entered by the spawned child; do not run manually",
-    "",
-    "State files:",
-    "  ~/.cloudbase-agent/supervisor.json   daemon PID + startedAt + lastTickAt",
-    "  ~/.cloudbase-agent/registry.json     all registered cwds",
-    "  ~/.cloudbase-agent/supervisor.log    daemon stdout/stderr",
-    "",
-    "Tick interval: " + TICK_MS + "ms (env CLOUDBASE_AGENT_SUPERVISOR_TICK_MS to override)",
-    "",
-  ].join("\n"));
-}
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }

@@ -21,7 +21,7 @@ set -u
 CWD="$(pwd)"
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_ROOT="$(cd "$HOOK_DIR/.." && pwd)"
-LOG_FALLBACK="/tmp/cloudbase-vibe-session-start.log"
+LOG_FALLBACK="/tmp/cloudbase-sites-session-start.log"
 
 log() {
   local target="$CWD/.cloudbase-agent/logs/hook-session-start.log"
@@ -50,19 +50,20 @@ emit_context() {
   # If node is missing, we silently skip — the hook still ran its decision tree.
 }
 
-# Build the static rules block used in every active branch. ~370 tokens.
-RULES_BLOCK='## CloudBase Vibe Coding (plugin-injected, MUST follow)
+# Build the static rules block used in every active branch.
+RULES_BLOCK='## CloudBase Sites (plugin-injected, MUST follow)
 
-You are in a session managed by the cloudbase-vibe-coding plugin. The dev server
-lifecycle is owned by hooks; you must not bypass them.
+You are in a session managed by the cloudbase-sites plugin. The dev server
+lifecycle and version control are owned by hooks + the `cloudbase-sites` CLI;
+you must not bypass them.
 
 ### Hard rules
 
 1. **Never guess the preview URL.** It is NOT 5173/5174/5175 — the plugin uses
    the 17173..17272 range AND each cwd may have its own port. Always run
-   `cloudbase-vibe-status-preview` (or read `<cwd>/.cloudbase-agent/preview.json`)
-   to obtain `internalUrl`. If status reports NO_PREVIEW (exit 5), wait ~5s
-   and retry once — the SessionStart hook may still be installing/starting.
+   `cloudbase-sites preview --status` (or read `<cwd>/.cloudbase-agent/preview.json`)
+   to obtain `internalUrl`. If it reports NO_PREVIEW (exit 5), wait ~5s and
+   retry once — the SessionStart hook may still be installing/starting.
 
 2. **"Make me a X app" = X IS the homepage.** When the user uses whole-house
    language ("build me a todo app", "make a chat app"), the request means
@@ -88,8 +89,8 @@ lifecycle is owned by hooks; you must not bypass them.
 
 4. **Never spawn `npm run dev` / `vite` / `vite build` yourself.** Dev-server
    lifecycle is the SessionStart + PostToolUse hooks. Build/deploy is
-   `cloudbase-vibe-deploy`. Bypassing them loses host=0.0.0.0, port allocation,
-   daemonization, snapshot, and deploy history.
+   `cloudbase-sites deploy`. Bypassing them loses host=0.0.0.0, port allocation,
+   daemonization, version metadata, and deploy history.
 
 5. **Data persistence: BaaS-first via Web SDK + MCP-managed schema.** When
    the user'\''s feature needs to store / query / update data:
@@ -112,46 +113,44 @@ lifecycle is owned by hooks; you must not bypass them.
      function "just for safety" is over-engineering.
 
 6. **Do not run browser tests / playwright / agent-browser by default.**
-   The user wants to SEE the running app, not read 5 minutes of test
-   reports. After you finish a feature:
+   The user wants to SEE the running app, not read 5 minutes of test reports.
+   After you finish a feature:
    - Spend zero turns on writing/running automated UI tests unless the user
      explicitly says "write tests" or "test it for me".
-   - Verify reasonably (preview is healthy, no compile error in `cloudbase-vibe-status-preview`
-     log) — that'\''s enough for the first version.
-   - Then ASK the user (similar to the deploy question): "要不要我用内置浏览器
-     打开 <URL> 帮你点一遍验证一下?" — only run browser-based verification
-     after explicit yes.
+   - Verify reasonably (preview is healthy, no compile error in
+     `cloudbase-sites preview --status` log) — that'\''s enough.
+   - Then ASK the user: "要不要我用内置浏览器打开 <URL> 帮你点一遍验证一下?"
+     — only run browser-based verification after explicit yes.
 
-### Tool quick-reference (only when user explicitly asks)
+7. **Two-stage save→deploy workflow (Codex-Sites-style).** Versions are
+   labeled git checkpoints; deploys are publishes of saved versions.
+   - When a user-visible feature is complete and the preview looks good,
+     ASK: "要保存这一版吗?(下次还能再调出来)" then run `cloudbase-sites save -m "<label>"`.
+     Each save creates `version/<n>` git tag + appends to `app.json.versions[]`.
+   - Then ASK: "现在要部署看一下吗?(独立 URL,可分享)". Only deploy after explicit yes.
+   - Deploy is two-phase via `cloudbase-sites deploy [--version <n>]`:
+     Phase 1 emits `nextAction.tool="manageApps"` with `framework=static,
+     installCmd="", buildCmd=""` (skips remote build — we built locally).
+     Phase 2 is `cloudbase-sites deploy --post --version <n> --access-url <url>`.
+   - After deploy succeeds, ask: "要我用 UI 设计能力进一步优化样式和体验吗?"
+   - Rollback: `cloudbase-sites rollback [--to-version <n>]` (defaults to
+     current production deploy). Use only when user says "回到上一版" or similar.
 
-- "stop the dev server"        → `cloudbase-vibe-stop-preview`
-- "is it running" / "the URL"  → `cloudbase-vibe-status-preview`
-- "deploy this" / "publish"    → `cloudbase-vibe-deploy` (then call `manageApps`
-                                  per its `nextAction` — it will pass
-                                  `framework=static, installCmd="", buildCmd=""`
-                                  to skip remote build, then
-                                  `cloudbase-vibe-deploy --post-deploy ...`).
-                                  **Uses `manageApps` (CloudApp, independent
-                                  per-session domain), NOT `manageHosting`.**
-                                  After deploy succeeds, ask the user:
-                                  "要我用 UI 设计能力进一步优化样式和体验吗?"
+### CLI quick-reference
 
-### Deploy contract
+- preview health/URL → `cloudbase-sites preview --status`
+- stop dev server   → `cloudbase-sites preview --stop`
+- list versions     → `cloudbase-sites versions`
+- save a version    → `cloudbase-sites save -m "<label>"`
+- deploy            → `cloudbase-sites deploy [--version <n>]`  (two-phase, see Rule 7)
+- rollback          → `cloudbase-sites rollback [--to-version <n>]`
+- supervisor info   → `cloudbase-sites supervisor status`
 
-- **Each cwd has a stable `serviceName`** like `<dirname>-<6hex>` written to
-  `<cwd>/.cloudbase-agent/app.json` on first invocation. Re-deploying the same
-  cwd reuses this serviceName so the public URL stays stable for the user.
-- **`cloudbase-vibe-deploy` emits `nextAction` with `framework=static, installCmd="", buildCmd=""`**
-  — local build already produces dist/, so remote npm install/build are skipped.
-  Only `tcb hosting deploy` runs. See `skills/cloudbase-agent-runtime/SKILL.md` for full detail.
-- **Pre-flight you may need:** if no envId is bound yet (the deploy may fail
-  with an env error), call MCP `envQuery({ action: "info" })` once. If the
-  user has multiple envs, ask them to pick. After binding, retry the deploy.
-- **Active suggestion (D):** after you finish a user-requested feature
-  (i.e. you just completed "make/build/add a X" and tests / preview look good),
-  ASK the user at the end of your reply: "现在这版要部署看一下吗?" — do NOT
-  deploy unsolicited. Only deploy after explicit user consent. After deploy
-  succeeds, also ask: "要我用 UI 设计能力进一步优化样式和体验吗?"
+### Pre-flight you may need
+
+If `manageApps` deploy fails with "no envId" or env-related error, call MCP
+`envQuery({ action: "info" })` once. If the user has multiple envs, ask them
+to pick. After binding, retry the deploy.
 
 For full contract see `skills/cloudbase-agent-runtime/SKILL.md`.'
 
@@ -212,12 +211,12 @@ read_deploy_block() {
     node -e '
       try {
         const a = JSON.parse(require("fs").readFileSync(".cloudbase-agent/app.json","utf8"));
-        const serviceName = a.serviceName || "(not generated)";
+        const siteName = a.siteName || a.serviceName || "(not generated)";
         const last = a.lastDeployedAt;
         const lastUrl = a.lastAccessUrl;
         const count = (a.deployHistory||[]).length;
         let s = "- **deploy target:** CloudApp (manageApps) — independent service & domain per cwd\n";
-        s += `- **serviceName:** ${serviceName}` + (last ? "" : " (no deploy yet)") + "\n";
+        s += `- **siteName:** ${siteName}` + (last ? "" : " (no deploy yet)") + "\n";
         if (last) {
           s += `- **last deploy:** ${last} (#${count})\n`;
           s += `- **last access URL:** ${lastUrl}\n`;
@@ -226,20 +225,19 @@ read_deploy_block() {
         }
         process.stdout.write(s);
       } catch (e) {
-        process.stdout.write("- **deploy target:** CloudApp (manageApps) — first deploy will generate serviceName & domain\n");
+        process.stdout.write("- **deploy target:** CloudApp (manageApps) — first deploy will generate siteName & domain\n");
       }
     ' 2>/dev/null
   else
-    printf -- '- **deploy target:** CloudApp (manageApps) — first deploy will generate serviceName & domain\n'
+    printf -- '- **deploy target:** CloudApp (manageApps) — first deploy will generate siteName & domain\n'
   fi
 }
 
 if [ "$is_vite_project" = "1" ]; then
   log "vite project detected"
-  STATUS_BIN="$PLUGIN_ROOT/bin/cloudbase-vibe-status-preview"
-  START_BIN="$PLUGIN_ROOT/bin/cloudbase-vibe-start-preview"
+  SITES_BIN="$PLUGIN_ROOT/bin/cloudbase-sites"
 
-  if "$STATUS_BIN" --quiet 2>/dev/null; then
+  if "$SITES_BIN" preview --status --quiet 2>/dev/null; then
     log "preview already running and healthy — reuse"
     URL="$(read_url)"
     DEPLOY_LINES="$(read_deploy_block)"
@@ -249,7 +247,7 @@ if [ "$is_vite_project" = "1" ]; then
 - **template:** vite-react/vue (existing)
 - **preview status:** running and healthy
 - **preview URL:** $URL
-- **first action:** confirm the URL with \`cloudbase-vibe-status-preview\` once before showing it to the user.
+- **first action:** confirm the URL with \`cloudbase-sites preview --status\` once before showing it to the user.
 $DEPLOY_LINES"
     emit_context "$RULES_BLOCK
 
@@ -261,7 +259,7 @@ $STATE_BLOCK"
     log "node_modules missing — install + start in background"
     nohup bash -c "
       pnpm install >/dev/null 2>&1 || npm install >/dev/null 2>&1
-      '$START_BIN' >/dev/null 2>&1
+      '$SITES_BIN' preview >/dev/null 2>&1
     " </dev/null >>"$CWD/.cloudbase-agent/logs/hook-session-start.log" 2>&1 &
     disown 2>/dev/null || true
     DEPLOY_LINES="$(read_deploy_block)"
@@ -270,8 +268,8 @@ $STATE_BLOCK"
 - **cwd:** $CWD
 - **template:** vite-react/vue (existing)
 - **preview status:** installing dependencies in background (~30s expected)
-- **preview URL:** (will be available after install — run \`cloudbase-vibe-status-preview\` to fetch it; wait 5–60s if it reports NO_PREVIEW)
-- **first action:** when the user is ready, confirm preview health by running \`cloudbase-vibe-status-preview\`, retrying once after 5s if needed.
+- **preview URL:** (will be available after install — run \`cloudbase-sites preview --status\` to fetch it; wait 5–60s if it reports NO_PREVIEW)
+- **first action:** when the user is ready, confirm preview health by running \`cloudbase-sites preview --status\`, retrying once after 5s if needed.
 $DEPLOY_LINES"
     emit_context "$RULES_BLOCK
 
@@ -280,7 +278,7 @@ $STATE_BLOCK"
   fi
 
   log "starting preview in background"
-  nohup "$START_BIN" </dev/null >>"$CWD/.cloudbase-agent/logs/hook-session-start.log" 2>&1 &
+  nohup "$SITES_BIN" preview </dev/null >>"$CWD/.cloudbase-agent/logs/hook-session-start.log" 2>&1 &
   disown 2>/dev/null || true
   DEPLOY_LINES="$(read_deploy_block)"
   STATE_BLOCK="### Current cwd state
@@ -288,8 +286,8 @@ $STATE_BLOCK"
 - **cwd:** $CWD
 - **template:** vite-react/vue (existing)
 - **preview status:** starting in background (a few seconds)
-- **preview URL:** (run \`cloudbase-vibe-status-preview\` to fetch the URL)
-- **first action:** run \`cloudbase-vibe-status-preview\` before quoting any URL to the user.
+- **preview URL:** (run \`cloudbase-sites preview --status\` to fetch the URL)
+- **first action:** run \`cloudbase-sites preview --status\` before quoting any URL to the user.
 $DEPLOY_LINES"
   emit_context "$RULES_BLOCK
 
@@ -309,16 +307,16 @@ done
 
 if [ "$empty_enough" = "1" ]; then
   log "cwd is empty-enough — auto init react template + start in background"
-  INIT_BIN="$PLUGIN_ROOT/bin/cloudbase-vibe-init"
-  nohup "$INIT_BIN" --start </dev/null >>"$CWD/.cloudbase-agent/logs/hook-session-start.log" 2>&1 &
+  SITES_BIN="$PLUGIN_ROOT/bin/cloudbase-sites"
+  nohup "$SITES_BIN" init --start </dev/null >>"$CWD/.cloudbase-agent/logs/hook-session-start.log" 2>&1 &
   disown 2>/dev/null || true
   DEPLOY_LINES="$(read_deploy_block)"
   STATE_BLOCK="### Current cwd state
 
 - **cwd:** $CWD
 - **template:** none yet — auto-initializing CloudBase official React+Vite template in background (~10s expected: download zip + pnpm install + start dev server)
-- **preview URL:** (not ready yet — wait ~10s, then run \`cloudbase-vibe-status-preview\`; retry once after 5s if it reports NO_PREVIEW)
-- **first action:** wait until the user actually requests something, then run \`cloudbase-vibe-status-preview\` to confirm template+preview are ready before editing any files. The template will scaffold \`src/App.tsx\`, \`src/main.tsx\`, etc. — DO NOT create competing files until you have read what the template provides.
+- **preview URL:** (not ready yet — wait ~10s, then run \`cloudbase-sites preview --status\`; retry once after 5s if it reports NO_PREVIEW)
+- **first action:** wait until the user actually requests something, then run \`cloudbase-sites preview --status\` to confirm template+preview are ready before editing any files. The template will scaffold \`src/App.tsx\`, \`src/main.tsx\`, etc. — DO NOT create competing files until you have read what the template provides.
 $DEPLOY_LINES"
   emit_context "$RULES_BLOCK
 

@@ -1,36 +1,16 @@
-#!/usr/bin/env node
 /**
- * cloudbase-vibe-start-preview
+ * `cloudbase-sites preview` — daemonize/inspect/stop/restart Vite dev server.
  *
- * Spin up a Vite dev server in the current working directory and DAEMONIZE it
- * so the dev server keeps running after this script (and its parent shell) exit.
+ * One verb, multiple modes via flags:
+ *   cloudbase-sites preview              # ensure running (start if not)
+ *   cloudbase-sites preview --status     # JSON status
+ *   cloudbase-sites preview --status -q  # exit code only
+ *   cloudbase-sites preview --restart    # stop + start
+ *   cloudbase-sites preview --stop       # stop the dev server
+ *   cloudbase-sites preview --port 17180
+ *   cloudbase-sites preview --base /s/sid/
  *
- * Verified behavior: spawned vite ends up with PPID=1 (init/launchd reaped),
- * STAT=Ss (own session leader). Closing the parent shell does NOT kill it.
- *
- * Key design:
- *   - We spawn `node node_modules/vite/bin/vite.js` directly — NO pnpm/npm
- *     wrapper — so the recorded PID IS the vite process; SIGTERM goes to vite,
- *     not a wrapper that won't propagate.
- *   - {detached: true, stdio: ['ignore', logFd, logFd]} + child.unref()
- *     fully detaches from this process group.
- *   - Default port range is 17173..17272, NOT Vite's default 5173 (the 5173
- *     area is densely occupied; 17173 is empty in practice).
- *   - --strictPort prevents Vite from silently falling back to port+1 when
- *     occupied, so the recorded port equals the actual listening port.
- *
- * Usage:
- *   cloudbase-vibe-start-preview              # auto, start
- *   cloudbase-vibe-start-preview --port 17180 # request a specific port
- *   cloudbase-vibe-start-preview --base /s/sid/ # path-mount base
- *   cloudbase-vibe-start-preview --force      # kill any existing preview first
- *
- * Exit codes (canonical, see lib/preview-state.mjs ERR):
- *   0 success (URL printed to stdout as JSON line)
- *   1 generic
- *   2 not a Vite project (or local vite binary missing)
- *   3 port pool exhausted
- *   4 dev server failed health check
+ * Always daemonizes (PPID=1, detached). Uses 17173..17272 port range by default.
  */
 
 import { spawn } from "node:child_process";
@@ -39,73 +19,146 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import net from "node:net";
 import http from "node:http";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const lib = await import(join(__dirname, "..", "lib", "preview-state.mjs"));
-const reg = await import(join(__dirname, "..", "lib", "registry.mjs"));
-const sup = await import(join(__dirname, "..", "lib", "supervisor-ctl.mjs"));
-const {
+import {
   STATE_DIR, LOG_DIR,
   readPreview, writePreview, clearPreview,
-  isAlive, healthOk,
-  ensureDir, emitOk, emitErr, ERR,
-} = lib;
-const { registerWorkspace } = reg;
-const { ensureSupervisorRunning } = sup;
+  isAlive, healthOk, stopPid,
+  ensureDir, ERR,
+} from "../preview-state.mjs";
+import { emitOk, withCode } from "../emit.mjs";
+import { registerWorkspace, unregisterWorkspace } from "../registry.mjs";
 
-// Best-effort supervisor ensure on every bin invocation. Doesn't block.
-try { ensureSupervisorRunning({ silent: true }); } catch { /* ignore */ }
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const CWD = process.cwd();
 const DEFAULT_PORT_RANGE_START = Number(process.env.CLOUDBASE_AGENT_PORT_START || 17173);
 const DEFAULT_PORT_RANGE_END = Number(process.env.CLOUDBASE_AGENT_PORT_END || 17272);
 const HEALTH_TIMEOUT_MS = Number(process.env.CLOUDBASE_AGENT_HEALTH_TIMEOUT_MS || 30_000);
 
-const args = parseArgs(process.argv.slice(2));
+export const previewHelp = `cloudbase-sites preview — daemonize/inspect/stop/restart Vite dev server in cwd
 
-main().catch((err) => {
-  emitErr(err.message || String(err), err.code || ERR.GENERIC);
-  process.exit(err.code || ERR.GENERIC);
-});
+Modes (default = ensure running):
+  --status             JSON status; exit code 0=healthy, 5=not running
+  --quiet, -q          (with --status) no output, exit code only
+  --restart            stop + start in one shot
+  --stop               stop the dev server
+  --force, -f          (with --stop) SIGKILL immediately
 
-async function main() {
-  if (args.help) { printHelp(); process.exit(0); }
+Options for start/restart:
+  --port <N>           request specific port (default: auto from 17173..17272)
+  --base <P>           path-mount base, e.g. /s/<sid>/ (default: /)
 
+State file: <cwd>/.cloudbase-agent/preview.json
+Logs dir:   <cwd>/.cloudbase-agent/logs/`;
+
+export async function runPreview(args) {
+  if (args.stop) return runStop(args);
+  if (args.restart) {
+    await runStop({ ...args, force: true });
+    return runStart({ ...args, force: false });
+  }
+  if (args.status) return runStatus(args);
+  return runStart(args);
+}
+
+// ---------------------------------------------------------------------------
+// status
+// ---------------------------------------------------------------------------
+
+async function runStatus(args) {
+  const state = readPreview();
+  if (!state) {
+    if (args.quiet) process.exit(ERR.NO_PREVIEW_RUNNING);
+    emitOk({ running: false, reason: "no preview recorded" }, "no preview running");
+    process.exit(ERR.NO_PREVIEW_RUNNING);
+  }
+  const alive = state.pid ? isAlive(state.pid) : false;
+  const healthy = alive && state.port ? await healthOk(state.port) : false;
+  const ok = alive && healthy;
+  if (args.quiet) process.exit(ok ? 0 : ERR.NO_PREVIEW_RUNNING);
+  emitOk(
+    {
+      running: ok,
+      alive,
+      healthy,
+      pid: state.pid,
+      port: state.port,
+      framework: state.framework,
+      base: state.base,
+      internalUrl: state.internalUrl,
+      logPath: state.logPath,
+      startedAt: state.startedAt,
+    },
+    ok
+      ? `preview healthy: ${state.internalUrl}`
+      : `preview unhealthy (alive=${alive}, http=${healthy})`,
+  );
+  process.exit(ok ? 0 : ERR.NO_PREVIEW_RUNNING);
+}
+
+// ---------------------------------------------------------------------------
+// stop
+// ---------------------------------------------------------------------------
+
+async function runStop(args) {
+  const state = readPreview();
+  if (!state) {
+    unregisterWorkspace(process.cwd());
+    emitOk({ stopped: false, reason: "no preview recorded" }, "no preview to stop");
+    return;
+  }
+  if (!state.pid || !isAlive(state.pid)) {
+    clearPreview();
+    unregisterWorkspace(process.cwd());
+    emitOk({ stopped: false, reason: "process already gone", pid: state.pid }, "stale state cleared");
+    return;
+  }
+  const graceMs = args.force ? 0 : 3_000;
+  const result = await stopPid(state.pid, { graceMs });
+  if (!result.ok) {
+    throw withCode(ERR.STOP_FAILED, `Failed to stop pid=${state.pid}: ${result.error || "still alive after SIGKILL"}`);
+  }
+  clearPreview();
+  unregisterWorkspace(process.cwd());
+  emitOk(
+    { stopped: true, pid: state.pid, escalated: result.escalated, port: state.port },
+    `preview stopped (pid=${state.pid}${result.escalated ? ", SIGKILL" : ", SIGTERM"})`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// start
+// ---------------------------------------------------------------------------
+
+async function runStart(args) {
+  const CWD = process.cwd();
   ensureDir(STATE_DIR);
   ensureDir(LOG_DIR);
 
-  // 1. Validate this is a Vite-based project AND a local vite binary exists.
   const fingerprint = checkViteProject(CWD);
   if (!fingerprint.ok) {
     throw withCode(ERR.NOT_VITE_PROJECT, `Not a Vite project: ${fingerprint.reason}`);
   }
 
-  // 2. If a preview is already running and healthy, return it (idempotent).
+  // Idempotent reuse.
   const existing = readPreview();
   if (existing && existing.pid && isAlive(existing.pid) && (await healthOk(existing.port))) {
     if (args.force) {
       try { process.kill(existing.pid, "SIGTERM"); } catch {}
       clearPreview();
     } else {
-      registerInRegistry(existing);
+      registerInRegistry(existing, CWD);
       emitOk({ ...existing, reused: true }, `preview ready: ${existing.internalUrl}`);
       return;
     }
   }
-  // Stale PID file (process gone or unhealthy): clean up.
   if (existing) {
     try { if (existing.pid) process.kill(existing.pid, "SIGTERM"); } catch {}
     clearPreview();
   }
 
-  // 3. Allocate a port.
-  const requested = args.port ? Number(args.port) : null;
-  const port = await allocPort(requested, DEFAULT_PORT_RANGE_START, DEFAULT_PORT_RANGE_END);
-
-  // 4. Resolve base path.
+  const port = await allocPort(args.port ? Number(args.port) : null, DEFAULT_PORT_RANGE_START, DEFAULT_PORT_RANGE_END);
   const base = args.base || process.env.CLOUDBASE_AGENT_BASE || "/";
 
-  // 5. Daemonize vite.
   const ts = Date.now();
   const logPath = join(LOG_DIR, `preview-${ts}.log`);
   const logFd = openSync(logPath, "a");
@@ -132,15 +185,12 @@ async function main() {
     detached: true,
     windowsHide: true,
   });
-
   child.unref();
 
-  // 6. Health check by HTTP only. Race against early exit.
   const outcome = await Promise.race([
     waitForHealth(port, HEALTH_TIMEOUT_MS),
     waitForExit(child).then((code) => ({ exited: true, code })),
   ]);
-
   if (outcome && outcome.exited) {
     throw withCode(ERR.HEALTH_CHECK_FAILED, `Dev server exited early with code=${outcome.code}. See log: ${logPath}`);
   }
@@ -149,7 +199,6 @@ async function main() {
     throw withCode(ERR.HEALTH_CHECK_FAILED, `Dev server failed health check within ${HEALTH_TIMEOUT_MS}ms. See log: ${logPath}`);
   }
 
-  // 7. Persist state.
   const internalUrl = `http://127.0.0.1:${port}${base.endsWith("/") ? base : base + "/"}`;
   const state = {
     pid: child.pid,
@@ -164,13 +213,12 @@ async function main() {
     startedAt: new Date().toISOString(),
   };
   writePreview(state);
-  registerInRegistry(state);
-
+  registerInRegistry(state, CWD);
   emitOk({ ...state, reused: false }, `preview ready: ${internalUrl}`);
 }
 
 // ---------------------------------------------------------------------------
-// Project fingerprint
+// helpers
 // ---------------------------------------------------------------------------
 
 function checkViteProject(dir) {
@@ -179,14 +227,12 @@ function checkViteProject(dir) {
   let pkg;
   try { pkg = JSON.parse(readFileSync(pkgPath, "utf8")); }
   catch (e) { return { ok: false, reason: `invalid package.json: ${e.message}` }; }
-
   const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
   if (!deps.vite) return { ok: false, reason: "vite not in dependencies/devDependencies" };
   const hasReact = !!deps.react;
   const hasVue = !!deps.vue;
   if (!hasReact && !hasVue) return { ok: false, reason: "neither react nor vue is a dependency" };
 
-  // Resolve a concrete vite binary path, no wrapper.
   const candidatePosixJs = join(dir, "node_modules", "vite", "bin", "vite.js");
   const candidateBinPosix = join(dir, "node_modules", ".bin", "vite");
   const candidateWin = join(dir, "node_modules", ".bin", "vite.cmd");
@@ -197,7 +243,6 @@ function checkViteProject(dir) {
     }
   } else {
     if (existsSync(candidatePosixJs)) {
-      // Spawn `node /path/to/vite.js ...` — recorded PID = vite itself.
       return { ok: true, framework: hasReact ? "vite-react" : "vite-vue", viteBin: process.execPath, _viteEntry: candidatePosixJs };
     }
     if (existsSync(candidateBinPosix)) {
@@ -206,10 +251,6 @@ function checkViteProject(dir) {
   }
   return { ok: false, reason: "local vite binary missing — run `pnpm install` (or `npm install`) first" };
 }
-
-// ---------------------------------------------------------------------------
-// Port allocation
-// ---------------------------------------------------------------------------
 
 async function allocPort(requested, start, end) {
   if (requested) {
@@ -230,10 +271,6 @@ function portFree(port) {
       .listen(port, "0.0.0.0");
   });
 }
-
-// ---------------------------------------------------------------------------
-// Long-poll health check
-// ---------------------------------------------------------------------------
 
 function waitForHealth(port, timeoutMs) {
   return new Promise((resolve) => {
@@ -259,70 +296,19 @@ function waitForExit(child) {
   return new Promise((resolve) => { child.once("exit", (code) => resolve(code)); });
 }
 
-// ---------------------------------------------------------------------------
-// Registry registration
-// ---------------------------------------------------------------------------
-
-function registerInRegistry(state) {
-  // Read serviceName from app.json if it exists (deploy script writes it).
+function registerInRegistry(state, cwd) {
   let sessionId = null;
   const appJsonPath = join(STATE_DIR, "app.json");
   if (existsSync(appJsonPath)) {
     try {
       const app = JSON.parse(readFileSync(appJsonPath, "utf8"));
-      sessionId = app.serviceName || null;
+      sessionId = app.siteName || app.serviceName || null;
     } catch { /* ignore */ }
   }
-  // Fallback: cwd basename. deploy will overwrite once it generates the
-  // official serviceName.
-  if (!sessionId) sessionId = CWD.split("/").filter(Boolean).pop() || "vibe";
-
+  if (!sessionId) sessionId = cwd.split("/").filter(Boolean).pop() || "vibe";
   try {
-    registerWorkspace({
-      cwd: CWD,
-      sessionId,
-      port: state.port,
-      previewPid: state.pid,
-    });
+    registerWorkspace({ cwd, sessionId, port: state.port, previewPid: state.pid });
   } catch (e) {
     process.stderr.write(`[cloudbase-agent] registry write failed: ${e.message}\n`);
   }
-}
-
-// ---------------------------------------------------------------------------
-// CLI helpers
-// ---------------------------------------------------------------------------
-
-function parseArgs(argv) {
-  const out = {};
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === "--port") out.port = argv[++i];
-    else if (a === "--base") out.base = argv[++i];
-    else if (a === "--force") out.force = true;
-    else if (a === "--help" || a === "-h") out.help = true;
-  }
-  return out;
-}
-
-function printHelp() {
-  process.stdout.write([
-    "cloudbase-vibe-start-preview — daemonize Vite dev server in cwd",
-    "",
-    "Options:",
-    "  --port <N>   request specific port (default: auto from 17173..17272)",
-    "  --base <P>   path-mount base, e.g. /s/<sid>/ (default: /)",
-    "  --force      kill any existing preview before starting",
-    "",
-    "Note: default port range is 17173..17272 (NOT Vite's 5173) to avoid",
-    "      collisions with other Vite/dev servers running on the host.",
-    "",
-    "State file: <cwd>/.cloudbase-agent/preview.json",
-    "Logs dir:   <cwd>/.cloudbase-agent/logs/",
-    "",
-  ].join("\n"));
-}
-
-function withCode(code, message) {
-  const e = new Error(message); e.code = code; return e;
 }

@@ -1,34 +1,13 @@
-#!/usr/bin/env node
 /**
- * cloudbase-vibe-init
- *
- * Bootstrap a CloudBase + React + Vite project in cwd from zero.
+ * `cloudbase-sites init` — bootstrap CloudBase + React/Vue + Vite project from zero.
  *
  * Steps:
- *   1. Sanity: cwd is not in the danger blacklist ($HOME, /, /tmp, ~/Desktop, ...).
- *   2. Sanity: cwd is "empty enough" — only `.git`, `.gitignore`, `README*`,
- *      `LICENSE`, `.DS_Store`, `.cloudbase-agent` allowed. Refuse otherwise
- *      to avoid overwriting user's working files.
- *   3. Download CloudBase official React+Vite template zip via HTTPS.
- *      URL is the same one cloudbase-mcp's downloadTemplate tool uses.
- *   4. Extract zip into cwd (template is a flat zip, no top-level folder).
- *   5. Run `pnpm install` (or `npm install` fallback).
- *   6. Optionally call `cloudbase-vibe-start-preview` if --start passed.
- *
- * Usage:
- *   cloudbase-vibe-init                  # download + extract + install
- *   cloudbase-vibe-init --template vue   # use Vue template instead of React
- *   cloudbase-vibe-init --start          # also start dev server after install
- *   cloudbase-vibe-init --skip-install   # download + extract only (CI-style)
- *
- * Exit codes:
- *   0  success
- *   1  generic
- *   9  cwd in danger blacklist
- *  10  cwd not empty enough
- *  11  template download failed
- *  12  template extract failed
- *  13  install failed
+ *   1. Sanity: cwd is not in the danger blacklist.
+ *   2. Sanity: cwd is "empty enough" (only .git/.gitignore/README/LICENSE/.cloudbase-agent allowed).
+ *   3. Download CloudBase official template zip via HTTPS.
+ *   4. Extract zip into cwd (template is a flat zip).
+ *   5. Run pnpm/npm install.
+ *   6. Optionally `cloudbase-sites preview` if --start passed.
  */
 
 import { spawn, spawnSync } from "node:child_process";
@@ -44,10 +23,9 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import https from "node:https";
+import { emitOk, emitErr, withCode } from "../emit.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const lib = await import(join(__dirname, "..", "lib", "preview-state.mjs"));
-const { emitOk, emitErr } = lib;
 
 const ERR = {
   GENERIC: 1,
@@ -63,17 +41,21 @@ const TEMPLATE_URLS = {
   vue: "https://static.cloudbase.net/cloudbase-examples/web-cloudbase-vue-template.zip",
 };
 
-const CWD = process.cwd();
+export const initHelp = `cloudbase-sites init — bootstrap CloudBase + React/Vue + Vite project in cwd
 
-const args = parseArgs(process.argv.slice(2));
+Options:
+  --template <name>   react (default) | vue
+  --start             also start dev server after install (call cloudbase-sites preview)
+  --skip-install      download + extract only, no npm/pnpm install
 
-main().catch((err) => {
-  emitErr(err.message || String(err), err.code || ERR.GENERIC);
-  process.exit(err.code || ERR.GENERIC);
-});
+Refuses to run in danger blacklist dirs ($HOME, /, /tmp, ~/Desktop, ...).
+Refuses to run if cwd has files other than .git/.gitignore/README/LICENSE/.cloudbase-agent.
 
-async function main() {
-  if (args.help) { printHelp(); process.exit(0); }
+Exit codes:  9=cwd blacklisted  10=cwd not empty  11=download failed
+             12=extract failed  13=install failed`;
+
+export async function runInit(args) {
+  const CWD = process.cwd();
 
   // 1. Blacklist check.
   const blackReason = checkBlacklist(CWD);
@@ -102,16 +84,15 @@ async function main() {
   process.stderr.write(`[cloudbase-agent] downloading ${template} template…\n`);
   await downloadFile(url, zipPath);
 
-  // 4. Extract (use unzip CLI; preinstalled on macOS/Linux/Git-Bash).
+  // 4. Extract.
   process.stderr.write(`[cloudbase-agent] extracting…\n`);
   const unzipR = spawnSync("unzip", ["-q", "-o", zipPath, "-d", CWD], { stdio: "inherit" });
   if (unzipR.status !== 0) {
     throw withCode(ERR.EXTRACT_FAILED, `unzip exited with code ${unzipR.status}. Is 'unzip' installed?`);
   }
-  // Clean the staged zip immediately.
   try { rmSync(zipPath); } catch {}
 
-  // 5. Install (unless --skip-install).
+  // 5. Install.
   if (!args.skipInstall) {
     process.stderr.write(`[cloudbase-agent] installing dependencies (this may take ~30s)…\n`);
     const ok = runInstall(CWD);
@@ -122,7 +103,7 @@ async function main() {
   let preview = null;
   if (args.start) {
     process.stderr.write(`[cloudbase-agent] starting preview…\n`);
-    preview = await runStart();
+    preview = await runPreviewSubprocess();
   }
 
   emitOk(
@@ -137,7 +118,7 @@ async function main() {
 }
 
 // ---------------------------------------------------------------------------
-// cwd safety
+// helpers
 // ---------------------------------------------------------------------------
 
 function checkBlacklist(cwd) {
@@ -145,10 +126,8 @@ function checkBlacklist(cwd) {
   let real = cwd;
   try { real = realpathSync(cwd); } catch {}
   const candidates = [cwd, real];
-
   const exact = [
-    "/",
-    "/tmp", "/var", "/private/tmp", "/private/var",
+    "/", "/tmp", "/var", "/private/tmp", "/private/var",
     "/Users", "/Volumes", "/System", "/usr", "/etc", "/bin", "/sbin",
     home,
     join(home, "Desktop"), join(home, "Downloads"), join(home, "Documents"),
@@ -159,7 +138,6 @@ function checkBlacklist(cwd) {
     const cn = c.replace(/\/$/, "") || "/";
     if (exact.includes(cn)) return `cwd '${cn}' is on the danger blacklist`;
   }
-  // Hidden dirs under $HOME (e.g. ~/.config) — too risky.
   for (const c of candidates) {
     const cn = c.replace(/\/$/, "");
     if (cn.startsWith(home + "/.")) return `cwd '${cn}' looks like a hidden config dir under $HOME`;
@@ -173,17 +151,12 @@ function listMeaningfulFiles(dir) {
     "LICENSE", "LICENSE.md", "LICENSE.txt",
   ]);
   const ignoredPatterns = [/^README(\.[a-z]+)?$/i];
-  const entries = readdirSync(dir);
-  return entries.filter((name) => {
+  return readdirSync(dir).filter((name) => {
     if (ignored.has(name)) return false;
     if (ignoredPatterns.some((re) => re.test(name))) return false;
     return true;
   });
 }
-
-// ---------------------------------------------------------------------------
-// Download (follows 3xx redirects, no external deps)
-// ---------------------------------------------------------------------------
 
 function downloadFile(url, dest, redirects = 0) {
   return new Promise((resolve, reject) => {
@@ -207,10 +180,6 @@ function downloadFile(url, dest, redirects = 0) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Install
-// ---------------------------------------------------------------------------
-
 function runInstall(cwd) {
   const which = (b) => spawnSync(process.platform === "win32" ? "where" : "which", [b], { stdio: "ignore" }).status === 0;
   let cmd, argv;
@@ -222,61 +191,25 @@ function runInstall(cwd) {
   return r.status === 0;
 }
 
-// ---------------------------------------------------------------------------
-// Start preview (call sibling bin)
-// ---------------------------------------------------------------------------
-
-async function runStart() {
-  const startBin = join(__dirname, "cloudbase-vibe-start-preview");
+async function runPreviewSubprocess() {
+  // Re-invoke own binary to call the preview verb. We use the binary path
+  // via PATH (since the plugin host adds bin/ to PATH); fall back to absolute.
+  const sitesBin = which("cloudbase-sites") || join(__dirname, "..", "..", "bin", "cloudbase-sites");
   return new Promise((resolve) => {
-    const c = spawn(startBin, [], { cwd: CWD, stdio: ["ignore", "pipe", "inherit"] });
+    const c = spawn(sitesBin, ["preview"], { stdio: ["ignore", "pipe", "inherit"] });
     let buf = "";
     c.stdout.on("data", (b) => { buf += b.toString(); });
     c.on("exit", () => {
       try {
         const line = buf.split("\n").find((l) => l.trim().startsWith("{"));
         resolve(line ? JSON.parse(line) : null);
-      } catch {
-        resolve(null);
-      }
+      } catch { resolve(null); }
     });
   });
 }
 
-// ---------------------------------------------------------------------------
-// CLI
-// ---------------------------------------------------------------------------
-
-function parseArgs(argv) {
-  const out = { template: null, start: false, skipInstall: false, help: false };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === "--template") out.template = argv[++i];
-    else if (a === "--start") out.start = true;
-    else if (a === "--skip-install") out.skipInstall = true;
-    else if (a === "--help" || a === "-h") out.help = true;
-  }
-  return out;
-}
-
-function printHelp() {
-  process.stdout.write([
-    "cloudbase-vibe-init — bootstrap CloudBase + React/Vue + Vite project in cwd",
-    "",
-    "Options:",
-    "  --template <name>   react (default) | vue",
-    "  --start             also start dev server after install (call start-preview)",
-    "  --skip-install      download + extract only, no npm/pnpm install",
-    "",
-    "Refuses to run in danger blacklist dirs ($HOME, /, /tmp, ~/Desktop, ...).",
-    "Refuses to run if cwd has files other than .git/.gitignore/README/LICENSE/.cloudbase-agent.",
-    "",
-    "Exit codes:  9=cwd blacklisted  10=cwd not empty  11=download failed",
-    "             12=extract failed  13=install failed",
-    "",
-  ].join("\n"));
-}
-
-function withCode(code, message) {
-  const e = new Error(message); e.code = code; return e;
+function which(bin) {
+  const r = spawnSync(process.platform === "win32" ? "where" : "which", [bin], { stdio: ["ignore", "pipe", "ignore"] });
+  if (r.status !== 0) return null;
+  return r.stdout.toString().split("\n")[0].trim() || null;
 }

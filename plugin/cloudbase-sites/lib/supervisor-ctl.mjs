@@ -1,6 +1,6 @@
 /**
  * Supervisor control plane: shared helpers used by both the supervisor daemon
- * (cloudbase-vibe-supervisor) and every other bin script.
+ * (cloudbase-sites supervisor) and every other bin script.
  *
  * The exported `ensureSupervisorRunning()` is the contract every bin command
  * calls at startup. It is:
@@ -31,7 +31,7 @@ import {
 } from "./registry.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SUPERVISOR_BIN = join(__dirname, "..", "bin", "cloudbase-vibe-supervisor");
+const SITES_BIN = join(__dirname, "..", "bin", "cloudbase-sites");
 
 // ---------------------------------------------------------------------------
 // Supervisor PID file
@@ -105,7 +105,7 @@ export function ensureSupervisorRunning({ silent = true } = {}) {
       return { spawned: false, alive: true, pid: readSupervisorState()?.pid ?? null };
     }
     const logFd = openSync(SUPERVISOR_LOG, "a");
-    const child = spawn(process.execPath, [SUPERVISOR_BIN, "--daemon-loop"], {
+    const child = spawn(process.execPath, [SITES_BIN, "supervisor", "--daemon-loop"], {
       detached: true,
       stdio: ["ignore", logFd, logFd],
       windowsHide: true,

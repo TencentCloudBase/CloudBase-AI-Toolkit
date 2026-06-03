@@ -77,11 +77,11 @@ mkdir -p "$(dirname "$LOCK")"
 printf '%s' "$NOW" > "$LOCK"
 
 # --- Async restart -----------------------------------------------------------
-RESTART_BIN="$(command -v cloudbase-vibe-restart-preview || true)"
-if [ -z "$RESTART_BIN" ]; then
+SITES_BIN="$(command -v cloudbase-sites || true)"
+if [ -z "$SITES_BIN" ]; then
   HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
-  RESTART_BIN="$HOOK_DIR/../bin/cloudbase-vibe-restart-preview"
-  [ -x "$RESTART_BIN" ] || exit 0  # give up silently — never block the user
+  SITES_BIN="$HOOK_DIR/../bin/cloudbase-sites"
+  [ -x "$SITES_BIN" ] || exit 0  # give up silently — never block the user
 fi
 
 HOOK_LOG="$PROJECT_ROOT/.cloudbase-agent/logs/hook-restart.log"
@@ -89,7 +89,7 @@ mkdir -p "$(dirname "$HOOK_LOG")"
 (
   cd "$PROJECT_ROOT" || exit 0
   printf '\n[%s] restart trigger: %s\n' "$(date -Iseconds 2>/dev/null || date)" "$FILE_PATH" >> "$HOOK_LOG"
-  "$RESTART_BIN" >> "$HOOK_LOG" 2>&1 || true
+  "$SITES_BIN" preview --restart >> "$HOOK_LOG" 2>&1 || true
 ) </dev/null >/dev/null 2>&1 &
 disown 2>/dev/null || true
 
