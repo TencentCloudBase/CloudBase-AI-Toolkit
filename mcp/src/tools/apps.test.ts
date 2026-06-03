@@ -10,6 +10,7 @@ const {
   mockDescribeAppVersionList,
   mockUploadCode,
   mockCreateApp,
+  mockDescribeBuildLog,
 } = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
   mockLogCloudBaseResult: vi.fn(),
@@ -18,6 +19,7 @@ const {
   mockDescribeAppVersionList: vi.fn(),
   mockUploadCode: vi.fn(),
   mockCreateApp: vi.fn(),
+  mockDescribeBuildLog: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
@@ -71,6 +73,16 @@ describe("app tools", () => {
       VersionName: "v1",
       RequestId: "req-app-create",
     });
+    mockDescribeBuildLog.mockResolvedValue({
+      Response: {
+        Total: 2,
+        LogList: [
+          { Message: "开始构建", Time: "2026-06-03 12:00:00", Level: "INFO" },
+          { Message: "部署完成", Time: "2026-06-03 12:01:00", Level: "INFO" },
+        ],
+        RequestId: "req-build-log",
+      },
+    });
     mockGetCloudBaseManager.mockResolvedValue({
       cloudAppService: {
         describeAppList: mockDescribeAppList,
@@ -79,6 +91,9 @@ describe("app tools", () => {
         uploadCode: mockUploadCode,
         createApp: mockCreateApp,
       },
+      commonService: () => ({
+        call: mockDescribeBuildLog,
+      }),
     });
     ({ tools } = createMockServer());
   });
@@ -135,7 +150,8 @@ describe("app tools", () => {
   });
 
   it("manageApps schema should clarify redeploy flow and framework values", () => {
-    expect(tools.manageApps.meta.description).toContain("复用同一个 serviceName");
+    expect(tools.manageApps.meta.description).toContain("远端构建");
+    expect(tools.manageApps.meta.description).toContain("与 manageHosting 对比");
     expect(tools.manageApps.meta.inputSchema.serviceName.description).toContain("重新部署");
     expect(tools.manageApps.meta.inputSchema.framework.safeParse("static").success).toBe(true);
     expect(tools.manageApps.meta.inputSchema.framework.safeParse("html").success).toBe(false);
@@ -151,6 +167,36 @@ describe("app tools", () => {
     expect(payload).toMatchObject({
       success: false,
       message: "action=deployApp 时必须提供 filePath",
+    });
+  });
+
+  it("queryApps(action=getBuildLog) should return build logs", async () => {
+    const result = await tools.queryApps.handler({
+      action: "getBuildLog",
+      serviceName: "demo-app",
+      buildId: "build-1",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockDescribeBuildLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Action: "DescribeCloudBaseRunBuildLog",
+        Param: expect.objectContaining({
+          ServiceName: "demo-app",
+          BuildId: "build-1",
+        }),
+      }),
+    );
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "getBuildLog",
+        serviceName: "demo-app",
+        buildId: "build-1",
+        logs: expect.arrayContaining([
+          expect.objectContaining({ Message: expect.any(String) }),
+        ]),
+      },
     });
   });
 });
