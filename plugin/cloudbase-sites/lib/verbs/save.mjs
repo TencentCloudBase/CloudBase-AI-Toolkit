@@ -13,10 +13,10 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { emitOk, withCode } from "../emit.mjs";
+import { emitErrPayload, emitOk, withCode } from "../emit.mjs";
 import { ERR } from "../preview-state.mjs";
 import { appendVersion, getOrCreateSiteName, readApp } from "../app-store.mjs";
-import { ensureGitignoreEntry, gitAddCommitTag, gitHead, isGitRepo } from "../git-utils.mjs";
+import { ensureGitRepo, ensureGitignoreEntry, gitAddCommitTag, gitHead, isGitRepo } from "../git-utils.mjs";
 
 export const saveHelp = `cloudbase-sites save — create a new saved version (a labeled git checkpoint)
 
@@ -44,7 +44,19 @@ export async function runSave(args) {
   // Ensure siteName + git repo.
   const siteName = getOrCreateSiteName();
   if (!isGitRepo(CWD)) {
-    throw withCode(ERR.GENERIC, "not a git repository — run `git init` first");
+    const initialized = ensureGitRepo(CWD);
+    if (!initialized) {
+      emitErrPayload("not a git repository and automatic `git init` failed", ERR.GENERIC, {
+        nextActions: [
+          {
+            tool: "shell",
+            action: "git init",
+            reason: "CloudBase Sites saves are git checkpoints; initialize the repository, inspect files, then retry save.",
+          },
+        ],
+      });
+      return;
+    }
   }
   ensureGitignoreEntry(CWD, ".cloudbase-sites/");
 

@@ -10,6 +10,11 @@ export function isGitRepo(cwd) {
   return spawnSync("git", ["rev-parse", "--is-inside-work-tree"], { cwd, stdio: "ignore" }).status === 0;
 }
 
+export function ensureGitRepo(cwd) {
+  if (isGitRepo(cwd)) return true;
+  return spawnSync("git", ["init"], { cwd, stdio: "ignore" }).status === 0;
+}
+
 export function gitHead(cwd) {
   const r = spawnSync("git", ["rev-parse", "--short", "HEAD"], { cwd, stdio: ["ignore", "pipe", "ignore"] });
   if (r.status !== 0) return null;

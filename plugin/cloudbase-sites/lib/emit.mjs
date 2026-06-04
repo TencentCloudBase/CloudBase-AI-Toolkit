@@ -18,6 +18,11 @@ export function emitErr(message, code = 1, hint) {
   process.stderr.write(`[cloudbase-sites] error (code=${code}): ${message}\n`);
 }
 
+export function emitErrPayload(message, code = 1, extra = {}) {
+  process.stdout.write(JSON.stringify({ ok: false, code, message, ...extra }) + "\n");
+  process.stderr.write(`[cloudbase-sites] error (code=${code}): ${message}\n`);
+}
+
 export function withCode(code, message) {
   const e = new Error(message);
   e.code = code;

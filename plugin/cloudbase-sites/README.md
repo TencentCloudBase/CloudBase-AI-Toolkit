@@ -87,23 +87,27 @@ After installing, test the complete save/deploy/rollback flow:
 
 ```bash
 # Bootstrap a new project
-cloudbase-sites init
+plugin/cloudbase-sites/bin/cloudbase-sites init
 
 # Start the preview server
-cloudbase-sites preview
+plugin/cloudbase-sites/bin/cloudbase-sites preview
 
 # Save a version checkpoint
-cloudbase-sites save
+plugin/cloudbase-sites/bin/cloudbase-sites save
 
 # Deploy the saved version to CloudBase
-cloudbase-sites deploy
+plugin/cloudbase-sites/bin/cloudbase-sites deploy
 
 # Roll back to a previous version
-cloudbase-sites rollback
+plugin/cloudbase-sites/bin/cloudbase-sites rollback
 
 # List version history
-cloudbase-sites versions
+plugin/cloudbase-sites/bin/cloudbase-sites versions
 ```
+
+Installed hosts may expose `cloudbase-sites` directly on PATH. When they do
+not, use the plugin binary path shown above or the absolute path injected by
+the SessionStart hook.
 
 Run the focused regression tests:
 

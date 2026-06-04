@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PLUGIN_DIR = path.join(ROOT_DIR, 'plugin', 'cloudbase-sites');
 const BIN = path.join(PLUGIN_DIR, 'bin', 'cloudbase-sites');
+const SESSION_HOOK = path.join(PLUGIN_DIR, 'hooks', 'on-session-start.sh');
 
 const tempDirs = [];
 
@@ -56,6 +57,17 @@ describe('CloudBase Sites Codex plugin packaging', () => {
     expect(manifest.interface.displayName).toBe('CloudBase Sites');
     expect(manifest.interface.defaultPrompt.length).toBeLessThanOrEqual(3);
   });
+
+  test('post-tool hook matcher includes Codex apply_patch edits', () => {
+    const hooksPath = path.join(PLUGIN_DIR, 'hooks', 'hooks.json');
+    const hooks = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
+    const matcher = hooks.hooks.PostToolUse[0].matcher;
+
+    expect(matcher).toContain('Edit');
+    expect(matcher).toContain('Write');
+    expect(matcher).toContain('MultiEdit');
+    expect(matcher).toContain('apply_patch');
+  });
 });
 
 describe('CloudBase Sites runtime state paths', () => {
@@ -93,6 +105,85 @@ describe('CloudBase Sites CLI behavior', () => {
     expect(payload.ok).toBe(true);
     expect(payload.running).toBe(false);
     expect(result.stderr).toContain('no preview');
+  });
+});
+
+describe('CloudBase Sites SessionStart hook guidance', () => {
+  test('injects absolute CLI fallback when cwd is a Vite project', () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({
+      dependencies: {
+        react: '1.0.0',
+        vite: '1.0.0',
+      },
+    }, null, 2));
+    fs.mkdirSync(path.join(cwd, 'node_modules'), { recursive: true });
+
+    const result = spawnSync('bash', [SESSION_HOOK], {
+      cwd,
+      encoding: 'utf8',
+      timeout: 5000,
+      env: { ...process.env },
+      input: '',
+    });
+
+    expect(result.status).toBe(0);
+    const payload = JSON.parse(result.stdout);
+    const context = payload.hookSpecificOutput.additionalContext;
+    expect(context).toContain('CLI availability fallback');
+    expect(context).toContain(BIN);
+    expect(context).toContain(`${BIN} preview --status`);
+  });
+
+  test('explains non-Vite skip and gives next action for later template downloads', () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'notes.txt'), 'not a Vite project yet');
+
+    const result = spawnSync('bash', [SESSION_HOOK], {
+      cwd,
+      encoding: 'utf8',
+      timeout: 5000,
+      input: '',
+    });
+
+    expect(result.status).toBe(0);
+    const payload = JSON.parse(result.stdout);
+    const context = payload.hookSpecificOutput.additionalContext;
+    expect(context).toContain('hook result:** skipped');
+    expect(context).toContain('SessionStart runs only once');
+    expect(context).toContain(`${BIN} preview --status`);
+    expect(context).toContain(`${BIN} preview`);
+  });
+});
+
+describe('CloudBase Sites save git setup', () => {
+  test('save initializes git automatically for CloudBase Sites projects', () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({
+      scripts: {
+        build: 'echo build',
+      },
+      dependencies: {
+        react: '1.0.0',
+        vite: '1.0.0',
+      },
+    }, null, 2));
+    fs.writeFileSync(path.join(cwd, 'src.txt'), 'first version');
+
+    const result = spawnSync(process.execPath, [BIN, 'save', '-m', 'first'], {
+      cwd,
+      encoding: 'utf8',
+      timeout: 5000,
+    });
+
+    expect(result.status).toBe(0);
+    const payload = JSON.parse(result.stdout.trim().split('\n')[0]);
+    expect(payload.ok).toBe(true);
+    expect(payload.version.n).toBe(1);
+    expect(fs.existsSync(path.join(cwd, '.git'))).toBe(true);
+    const gitStatus = spawnSync('git', ['status', '--short'], { cwd, encoding: 'utf8' });
+    expect(gitStatus.status).toBe(0);
+    expect(fs.readFileSync(path.join(cwd, '.gitignore'), 'utf8')).toContain('.cloudbase-sites/');
   });
 });
 

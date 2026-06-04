@@ -35,7 +35,8 @@ use the explicit CLI commands in this skill.
   with `vite` + `react` or `vue`).
 - The user is running this conversation inside Codex, Claude Code, CodeBuddy,
   or a compatible host with the `cloudbase-sites` plugin enabled —
-  `cloudbase-mcp` is registered and the `cloudbase-sites` binary is on PATH.
+  `cloudbase-mcp` is registered and the `cloudbase-sites` binary is either on
+  PATH or available from the plugin root's `bin/cloudbase-sites`.
 
 ### Do NOT use this skill when
 
@@ -79,6 +80,17 @@ skillName="<that-name>")` and apply the returned content.
 
 ### 2. The `cloudbase-sites` CLI (provided by this plugin's `bin/` directory)
 
+First resolve the CLI path:
+
+1. Try `command -v cloudbase-sites`.
+2. If that fails and the host exposes `CODEX_PLUGIN_ROOT`, use
+   `$CODEX_PLUGIN_ROOT/bin/cloudbase-sites`.
+3. If that fails and the host exposes `CLAUDE_PLUGIN_ROOT`, use
+   `$CLAUDE_PLUGIN_ROOT/bin/cloudbase-sites`.
+4. If SessionStart injected an absolute CLI path, use that path.
+
+Do not assume Codex has injected the plugin `bin/` directory into PATH.
+
 Single binary, multiple subcommands. Use these — and ONLY these — for the
 dev-server / version / deploy lifecycle:
 
@@ -116,8 +128,14 @@ time you read the user's first prompt:
 
 Codex supports bundled plugin hooks, but non-managed command hooks may require
 the user to review and trust them before they run. If Codex hooks have not run,
-fall back to `cloudbase-sites preview --status`, `cloudbase-sites init`, and
-the other explicit commands below instead of assuming automatic startup.
+resolve the CLI path as described above, then fall back to
+`<cloudbase-sites-cli> preview --status`, `<cloudbase-sites-cli> init`, and the
+other explicit commands below instead of assuming automatic startup.
+
+If SessionStart reports that it skipped a non-empty non-Vite cwd, do not assume
+the runtime is active. If a template is downloaded later through MCP
+`downloadTemplate`, run `<cloudbase-sites-cli> preview --status` and then
+`<cloudbase-sites-cli> preview` if no preview is running.
 
 You only invoke a CLI verb when:
 
@@ -149,8 +167,9 @@ You only invoke a CLI verb when:
 Inspired by Codex Sites' `saved version` model:
 
 - **Save:** label a git checkpoint. `cloudbase-sites save -m "<label>"` runs
-  `git add -A && git commit && git tag version/<n>` and appends to
-  `<cwd>/.cloudbase-sites/app.json.versions[]`. No build, no deploy.
+  `git init` when needed, then `git add -A && git commit && git tag
+  version/<n>` and appends to `<cwd>/.cloudbase-sites/app.json.versions[]`.
+  No build, no deploy.
 - **Deploy:** publish a saved version to a CloudApp.
   `cloudbase-sites deploy [--version <n>]` (default: latest saved) builds
   `dist/` locally then emits `nextAction` telling you to call
@@ -251,7 +270,7 @@ user instead of guessing the cause.
 
 | code | meaning | recovery |
 |---|---|---|
-| 1 | generic failure | check the message |
+| 1 | generic failure | check the message and `nextActions` if present |
 | 2 | not a Vite project (or `vite` binary missing) | `pnpm install` then retry |
 | 3 | port pool exhausted in 17173..17272 | `cloudbase-sites preview --stop` for stale ones, or pass `--port` |
 | 4 | dev server failed health check in 30s | read `logPath`; usually a build error in user code |
