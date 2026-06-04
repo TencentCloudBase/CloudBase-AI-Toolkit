@@ -177,6 +177,20 @@ function copySkills(sourceSkillsDir, targetDir) {
 }
 
 /**
+ * Read existing sync metadata if present.
+ */
+function readExistingMetadata(metadataPath) {
+  if (!fs.existsSync(metadataPath)) {
+    return null;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(metadataPath, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Write sync metadata file.
  */
 function writeMetadata(metadataPath, { repo, ref, commit, syncedAt, skillCount }) {
@@ -193,6 +207,9 @@ function writeMetadata(metadataPath, { repo, ref, commit, syncedAt, skillCount }
 
 /**
  * Sync: clone upstream, validate, copy skills, write metadata.
+ *
+ * When upstream commit matches the existing metadata commit, skips the sync
+ * (no-op) unless `force` is true.
  */
 export function syncCloudbasePluginSkills(options = {}) {
   const repo = options.repo || DEFAULT_REPO;
@@ -200,10 +217,28 @@ export function syncCloudbasePluginSkills(options = {}) {
   const targetDir = options.targetDir || DEFAULT_TARGET_DIR;
   const metadataPath = options.metadataPath || DEFAULT_METADATA_PATH;
 
+  const existing = options.force ? null : readExistingMetadata(metadataPath);
+
   let tmpDir;
   try {
     tmpDir = cloneUpstream(repo, ref);
     const commit = getCommitSha(tmpDir);
+
+    // Skip if upstream commit unchanged
+    if (existing && existing.commit === commit && existing.repo === repo) {
+      return {
+        repo,
+        ref,
+        commit,
+        targetDir,
+        metadataPath,
+        skipped: true,
+        skillNames: [],
+        fileCount: collectFiles(targetDir).length,
+        metadata: existing,
+      };
+    }
+
     const upstreamSkillsDir = path.join(tmpDir, "skills");
     const skillNames = validateSkillDirs(upstreamSkillsDir);
 
@@ -225,6 +260,7 @@ export function syncCloudbasePluginSkills(options = {}) {
       commit,
       targetDir,
       metadataPath,
+      skipped: false,
       skillNames,
       fileCount,
       metadata,
@@ -322,12 +358,15 @@ function printCheck(result) {
 
 function parseArgs(argv) {
   const args = process.argv.slice(2);
-  const options = { checkOnly: false };
+  const options = { checkOnly: false, force: false };
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
       case "--check":
         options.checkOnly = true;
+        break;
+      case "--force":
+        options.force = true;
         break;
       case "--repo":
         options.repo = args[++i];
@@ -341,6 +380,7 @@ function parseArgs(argv) {
 
 Options:
   --check          Check for drift between upstream and local skills
+  --force          Force re-sync even if upstream commit is unchanged
   --repo <url>     Git repository URL (default: ${DEFAULT_REPO})
   --ref <branch>   Git branch or tag (default: ${DEFAULT_REF})
   --help, -h       Show this help message
@@ -371,7 +411,18 @@ function main() {
   const result = syncCloudbasePluginSkills({
     repo: options.repo,
     ref: options.ref,
+    force: options.force,
   });
+
+  if (result.skipped) {
+    console.log("CloudBase plugin skills sync skipped (upstream commit unchanged)");
+    console.log("==============================================================");
+    console.log(`Upstream: ${result.repo}#${result.ref} (${result.commit})`);
+    console.log(`Target: ${result.targetDir}`);
+    console.log(`Files: ${result.fileCount} (unchanged)`);
+    console.log("Use --force to force re-sync.");
+    return;
+  }
 
   console.log("CloudBase plugin skills sync complete");
   console.log("======================================");
