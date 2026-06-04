@@ -21,6 +21,7 @@ set -u
 CWD="$(pwd)"
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_ROOT="$(cd "$HOOK_DIR/.." && pwd)"
+SITES_BIN="$PLUGIN_ROOT/bin/cloudbase-sites"
 LOG_FALLBACK="/tmp/cloudbase-sites-session-start.log"
 
 log() {
@@ -124,8 +125,10 @@ you must not bypass them.
      explicitly says "write tests" or "test it for me".
    - Verify reasonably (preview is healthy, no compile error in
      `cloudbase-sites preview --status` log) — that'\''s enough.
-   - Then ASK the user: "要不要我用内置浏览器打开 <URL> 帮你点一遍验证一下?"
-     — only run browser-based verification after explicit yes.
+   - Then ASK the user: "要不要我用内置浏览器打开 <URL> 预览一下?"
+     If yes, use the host Browser / in-app browser tool to open `internalUrl`.
+     Do not use macOS `open`, and do not run browser-based verification unless
+     the user explicitly asks you to test interactions.
 
 7. **Two-stage save→deploy workflow (Codex-Sites-style).** Versions are
    labeled git checkpoints; deploys are publishes of saved versions.
@@ -189,6 +192,21 @@ If `manageApps` deploy fails with "no envId" or env-related error, call MCP
 to pick. After binding, retry the deploy.
 
 For full contract see `skills/cloudbase-sites-runtime/SKILL.md`.'
+
+RULES_BLOCK="$RULES_BLOCK
+
+### CLI availability fallback
+
+The host may not inject this plugin's bin directory into PATH. If a bare
+\`cloudbase-sites\` command returns \`command not found\`, use this absolute
+plugin CLI path instead:
+
+\`$SITES_BIN\`
+
+Examples:
+- \`$SITES_BIN preview --status\`
+- \`$SITES_BIN preview\`
+- \`$SITES_BIN save -m \"<label>\"\`"
 
 # Read payload (Claude Code passes JSON; OpenClaw should too).
 PAYLOAD="$(cat 2>/dev/null || true)"
@@ -275,7 +293,6 @@ read_deploy_block() {
 
 if [ "$is_vite_project" = "1" ]; then
   log "vite project detected"
-  SITES_BIN="$PLUGIN_ROOT/bin/cloudbase-sites"
 
   if "$SITES_BIN" preview --status --quiet 2>/dev/null; then
     log "preview already running and healthy — reuse"
@@ -287,7 +304,7 @@ if [ "$is_vite_project" = "1" ]; then
 - **template:** vite-react/vue (existing)
 - **preview status:** running and healthy
 - **preview URL:** $URL
-- **first action:** confirm the URL with \`cloudbase-sites preview --status\` once before showing it to the user.
+- **first action:** confirm the URL with \`$SITES_BIN preview --status\` once before showing it to the user, then offer to open it in the host Browser / in-app browser.
 $DEPLOY_LINES"
     emit_context "$RULES_BLOCK
 
@@ -308,8 +325,8 @@ $STATE_BLOCK"
 - **cwd:** $CWD
 - **template:** vite-react/vue (existing)
 - **preview status:** installing dependencies in background (~30s expected)
-- **preview URL:** (will be available after install — run \`cloudbase-sites preview --status\` to fetch it; wait 5–60s if it reports NO_PREVIEW)
-- **first action:** when the user is ready, confirm preview health by running \`cloudbase-sites preview --status\`, retrying once after 5s if needed.
+- **preview URL:** (will be available after install — run \`$SITES_BIN preview --status\` to fetch it; wait 5–60s if it reports NO_PREVIEW)
+- **first action:** when the user is ready, confirm preview health by running \`$SITES_BIN preview --status\`, retrying once after 5s if needed, then offer to open the URL in the host Browser / in-app browser.
 $DEPLOY_LINES"
     emit_context "$RULES_BLOCK
 
@@ -326,8 +343,8 @@ $STATE_BLOCK"
 - **cwd:** $CWD
 - **template:** vite-react/vue (existing)
 - **preview status:** starting in background (a few seconds)
-- **preview URL:** (run \`cloudbase-sites preview --status\` to fetch the URL)
-- **first action:** run \`cloudbase-sites preview --status\` before quoting any URL to the user.
+- **preview URL:** (run \`$SITES_BIN preview --status\` to fetch the URL)
+- **first action:** run \`$SITES_BIN preview --status\` before quoting any URL to the user, then offer to open it in the host Browser / in-app browser.
 $DEPLOY_LINES"
   emit_context "$RULES_BLOCK
 
@@ -346,17 +363,34 @@ for entry in $(ls -A 2>/dev/null); do
 done
 
 if [ "$empty_enough" = "1" ]; then
-  log "cwd is empty-enough — auto init react template + start in background"
-  SITES_BIN="$PLUGIN_ROOT/bin/cloudbase-sites"
-  nohup "$SITES_BIN" init --start </dev/null >>"$CWD/.cloudbase-sites/logs/hook-session-start.log" 2>&1 &
-  disown 2>/dev/null || true
   DEPLOY_LINES="$(read_deploy_block)"
+  if [ "${CLOUDBASE_SITES_AUTO_INIT:-0}" = "1" ]; then
+    log "cwd is empty-enough — auto init enabled by CLOUDBASE_SITES_AUTO_INIT"
+    nohup "$SITES_BIN" init --start </dev/null >>"$CWD/.cloudbase-sites/logs/hook-session-start.log" 2>&1 &
+    disown 2>/dev/null || true
+    STATE_BLOCK="### Current cwd state
+
+- **cwd:** $CWD
+- **hook result:** auto-initializing because \`CLOUDBASE_SITES_AUTO_INIT=1\`
+- **template:** none yet — initializing CloudBase official React+Vite template in background (~10s expected: download zip + pnpm install + start dev server)
+- **preview URL:** (not ready yet — wait ~10s, then run \`$SITES_BIN preview --status\`; retry once after 5s if it reports NO_PREVIEW)
+- **first action:** wait until the user actually requests something, then run \`$SITES_BIN preview --status\` to confirm template+preview are ready before editing any files. The template will scaffold \`src/App.tsx\`, \`src/main.tsx\`, etc. — DO NOT create competing files until you have read what the template provides.
+$DEPLOY_LINES"
+    emit_context "$RULES_BLOCK
+
+$STATE_BLOCK"
+    exit 0
+  fi
+
+  log "cwd is empty-enough — passive by default, not auto-initializing"
   STATE_BLOCK="### Current cwd state
 
 - **cwd:** $CWD
-- **template:** none yet — auto-initializing CloudBase official React+Vite template in background (~10s expected: download zip + pnpm install + start dev server)
-- **preview URL:** (not ready yet — wait ~10s, then run \`cloudbase-sites preview --status\`; retry once after 5s if it reports NO_PREVIEW)
-- **first action:** wait until the user actually requests something, then run \`cloudbase-sites preview --status\` to confirm template+preview are ready before editing any files. The template will scaffold \`src/App.tsx\`, \`src/main.tsx\`, etc. — DO NOT create competing files until you have read what the template provides.
+- **hook result:** passive — this directory is empty enough for a CloudBase Sites project, but the hook did not download or modify files.
+- **why it matters:** installing the plugin must not interfere with unrelated empty-directory sessions.
+- **CLI path:** \`$SITES_BIN\`
+- **next action when the user asks to build a Sites app:** run \`$SITES_BIN init --start\`, then \`$SITES_BIN preview --status\` to fetch the URL.
+- **opt-in auto init:** set \`CLOUDBASE_SITES_AUTO_INIT=1\` before starting the session to restore automatic empty-directory scaffold behavior.
 $DEPLOY_LINES"
   emit_context "$RULES_BLOCK
 
@@ -366,5 +400,13 @@ fi
 
 # --- 4. Foreign project — leave it alone --------------------------------------
 log "skip: non-empty cwd without vite — leaving it alone"
-# Stay silent: not our project, no rules to inject.
+STATE_BLOCK="### CloudBase Sites hook status
+
+- **cwd:** $CWD
+- **hook result:** skipped — this directory is non-empty and is not currently a Vite React/Vue project.
+- **why it matters:** SessionStart runs only once; if a template is downloaded later, the hook will not automatically run again.
+- **CLI path:** \`$SITES_BIN\`
+- **next action after template download:** if \`package.json\` now contains Vite + React/Vue, run \`$SITES_BIN preview --status\`; if it reports NO_PREVIEW, run \`$SITES_BIN preview\`.
+- **save prerequisite:** \`$SITES_BIN save\` can initialize Git automatically for CloudBase Sites projects, but check the generated files before saving."
+emit_context "$STATE_BLOCK"
 exit 0

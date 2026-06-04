@@ -87,23 +87,33 @@ After installing, test the complete save/deploy/rollback flow:
 
 ```bash
 # Bootstrap a new project
-cloudbase-sites init
-
-# Start the preview server
-cloudbase-sites preview
+plugin/cloudbase-sites/bin/cloudbase-sites init --start
 
 # Save a version checkpoint
-cloudbase-sites save
+plugin/cloudbase-sites/bin/cloudbase-sites save
 
 # Deploy the saved version to CloudBase
-cloudbase-sites deploy
+plugin/cloudbase-sites/bin/cloudbase-sites deploy
 
 # Roll back to a previous version
-cloudbase-sites rollback
+plugin/cloudbase-sites/bin/cloudbase-sites rollback
 
 # List version history
-cloudbase-sites versions
+plugin/cloudbase-sites/bin/cloudbase-sites versions
 ```
+
+Installed hosts may expose `cloudbase-sites` directly on PATH. When they do
+not, use the plugin binary path shown above or the absolute path injected by
+the SessionStart hook.
+
+The SessionStart hook is passive in empty directories by default: it injects
+the right command but does not download a template or start a dev server. A
+UserPromptSubmit hook then watches for explicit site-building intent in Chinese
+or English (for example "帮我做个官网" or "build a React dashboard website") and
+starts `init --start` only for empty-enough directories. Set
+`CLOUDBASE_SITES_AUTO_INIT=1` before starting the host session only if you
+intentionally want automatic empty-folder scaffolding without waiting for the
+first prompt.
 
 Run the focused regression tests:
 

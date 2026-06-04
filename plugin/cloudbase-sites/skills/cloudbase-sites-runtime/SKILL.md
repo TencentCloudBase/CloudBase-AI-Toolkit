@@ -35,7 +35,8 @@ use the explicit CLI commands in this skill.
   with `vite` + `react` or `vue`).
 - The user is running this conversation inside Codex, Claude Code, CodeBuddy,
   or a compatible host with the `cloudbase-sites` plugin enabled —
-  `cloudbase-mcp` is registered and the `cloudbase-sites` binary is on PATH.
+  `cloudbase-mcp` is registered and the `cloudbase-sites` binary is either on
+  PATH or available from the plugin root's `bin/cloudbase-sites`.
 
 ### Do NOT use this skill when
 
@@ -79,11 +80,22 @@ skillName="<that-name>")` and apply the returned content.
 
 ### 2. The `cloudbase-sites` CLI (provided by this plugin's `bin/` directory)
 
+First resolve the CLI path:
+
+1. Try `command -v cloudbase-sites`.
+2. If that fails and the host exposes `CODEX_PLUGIN_ROOT`, use
+   `$CODEX_PLUGIN_ROOT/bin/cloudbase-sites`.
+3. If that fails and the host exposes `CLAUDE_PLUGIN_ROOT`, use
+   `$CLAUDE_PLUGIN_ROOT/bin/cloudbase-sites`.
+4. If SessionStart injected an absolute CLI path, use that path.
+
+Do not assume Codex has injected the plugin `bin/` directory into PATH.
+
 Single binary, multiple subcommands. Use these — and ONLY these — for the
 dev-server / version / deploy lifecycle:
 
-- `cloudbase-sites init` — scaffold from empty cwd (called by SessionStart hook)
-- `cloudbase-sites preview` — daemonize Vite (called by SessionStart hook)
+- `cloudbase-sites init --start` — scaffold from empty cwd and start preview when the user explicitly wants a Sites app
+- `cloudbase-sites preview` — daemonize Vite for an existing Vite project
 - `cloudbase-sites preview --status [--quiet]` — JSON status / exit code
 - `cloudbase-sites preview --restart` / `--stop [--force]`
 - `cloudbase-sites save -m "<label>"` — create a saved version
@@ -105,22 +117,33 @@ restart on config-file edits — you don't need to manage that.
 ## Lifecycle hooks and fallback
 
 **Do NOT invoke `cloudbase-sites init` or `cloudbase-sites preview`
-proactively in your first message when the host reports that CloudBase Sites
-hooks are active.** The plugin's SessionStart hook does this for you. By the
-time you read the user's first prompt:
+proactively in your first message just because the plugin is installed.**
+SessionStart is intentionally passive for empty directories so the plugin does
+not interfere with unrelated sessions. A UserPromptSubmit hook may initialize
+after the first user message, but only when deterministic Chinese/English
+intent rules detect an explicit Sites/Web-app creation request. By the time you
+read the user's first prompt:
 
 - If the cwd was an existing Vite project: dev server is up (or installing).
-- If the cwd was empty: `init --start` is running in background; preview
-  will be ready in ~10s.
+- If the cwd was empty: no files were downloaded by SessionStart. If the first
+  prompt clearly asked to build/create a Sites app, UserPromptSubmit may have
+  started `init --start`; otherwise initialize only after the user asks.
 - If the cwd is a non-Vite / blacklisted project: hook stayed silent.
 
 Codex supports bundled plugin hooks, but non-managed command hooks may require
 the user to review and trust them before they run. If Codex hooks have not run,
-fall back to `cloudbase-sites preview --status`, `cloudbase-sites init`, and
-the other explicit commands below instead of assuming automatic startup.
+resolve the CLI path as described above, then fall back to
+`<cloudbase-sites-cli> preview --status`, `<cloudbase-sites-cli> init`, and the
+other explicit commands below instead of assuming automatic startup.
+
+If SessionStart reports that it skipped a non-empty non-Vite cwd, do not assume
+the runtime is active. If a template is downloaded later through MCP
+`downloadTemplate`, run `<cloudbase-sites-cli> preview --status` and then
+`<cloudbase-sites-cli> preview` if no preview is running.
 
 You only invoke a CLI verb when:
 
+- User asks to create/build a new Sites app in an empty cwd → `cloudbase-sites init --start`
 - User explicitly says "stop the dev server" → `cloudbase-sites preview --stop`
 - User asks for the URL or "is it running" → `cloudbase-sites preview --status`
 - User wants to save a version → `cloudbase-sites save -m "<label>"`
@@ -129,19 +152,28 @@ You only invoke a CLI verb when:
 
 ## When the user just walked into the conversation
 
-1. **Check preview state first** — read `<cwd>/.cloudbase-sites/preview.json`
-   or run `cloudbase-sites preview --status`. It's overwhelmingly likely the
-   preview is already up — courtesy of the SessionStart hook.
+1. **Read the SessionStart status first.** If it says the cwd is passive/empty,
+   do not assume a project exists. Wait for the user's first concrete Sites app
+   request, then run `cloudbase-sites init --start`.
 
-2. **Tell the user the URL** — surface `internalUrl` from the JSON. If the
-   file is missing, the hook is still installing/starting; tell the user to
-   wait ~10s and inspect `.cloudbase-sites/logs/hook-session-start.log`.
+2. **For existing Vite projects, check preview state** — read
+   `<cwd>/.cloudbase-sites/preview.json` or run
+   `cloudbase-sites preview --status`. If no preview is running, start it with
+   `cloudbase-sites preview`.
 
-3. **DO NOT** re-init / re-start. Calling `init` again will fail with code 10
+3. **Tell the user the URL** — surface `internalUrl` from the JSON. If the file
+   is missing after init/preview, inspect `.cloudbase-sites/logs/`.
+
+4. **Offer to open the preview.** Ask: "要不要我用内置浏览器打开 <URL>
+   预览一下?" If yes, use the host Browser / in-app browser tool to open
+   `internalUrl`. Do not use macOS `open`, and do not run browser interaction
+   tests unless the user explicitly asks you to test the UI.
+
+5. **DO NOT** re-init / re-start. Calling `init` again will fail with code 10
    (cwd no longer empty). Calling `preview` is idempotent and safe but
    wastes a turn.
 
-4. **NEVER guess the port.** It is NOT 5173/5174/5175 — the plugin uses
+6. **NEVER guess the port.** It is NOT 5173/5174/5175 — the plugin uses
    17173..17272. Always read the recorded port from `preview.json`.
 
 ## Two-stage save → deploy workflow
@@ -149,8 +181,9 @@ You only invoke a CLI verb when:
 Inspired by Codex Sites' `saved version` model:
 
 - **Save:** label a git checkpoint. `cloudbase-sites save -m "<label>"` runs
-  `git add -A && git commit && git tag version/<n>` and appends to
-  `<cwd>/.cloudbase-sites/app.json.versions[]`. No build, no deploy.
+  `git init` when needed, then `git add -A && git commit && git tag
+  version/<n>` and appends to `<cwd>/.cloudbase-sites/app.json.versions[]`.
+  No build, no deploy.
 - **Deploy:** publish a saved version to a CloudApp.
   `cloudbase-sites deploy [--version <n>]` (default: latest saved) builds
   `dist/` locally then emits `nextAction` telling you to call
@@ -189,9 +222,11 @@ When you finish a user-requested feature (especially "make me a X app",
    `cloudbase-sites save -m "<auto-generated label>"`.
 2. **Deploy?** "现在要部署看一下吗?(独立 URL,可分享)" → if yes, run the
    two-stage deploy described above.
-3. **Verify in browser?** "要不要我用内置浏览器打开 <URL> 帮你点一遍验证一下?"
-   — only run browser-driving tools after explicit yes. Do NOT spawn
-   playwright / agent-browser by default.
+3. **Open preview?** "要不要我用内置浏览器打开 <URL> 预览一下?" — if yes,
+   use the host Browser / in-app browser tool to open `internalUrl`. Only
+   click through interactions or run browser-driving verification after the
+   user explicitly asks for testing. Do NOT spawn playwright / agent-browser
+   by default.
 4. **After successful deploy** ask: "要我用 ui-design 能力进一步优化样式和体验吗?"
    If yes, fetch `searchKnowledgeBase(mode="skill", skillName="ui-design")`
    and iterate on the design.
@@ -231,8 +266,9 @@ Skip any of these when:
    need cloud functions.
 
 6. **Do not run browser tests by default.** Verify reasonably (preview
-   healthy, no compile error in `cloudbase-sites preview --status`). If
-   the user wants browser verification, ask first.
+   healthy, no compile error in `cloudbase-sites preview --status`). Offer
+   to open the preview URL in the host Browser / in-app browser; ask again
+   before interaction testing.
 
 7. **Two-stage save → deploy.** Don't deploy unsolicited. Don't bypass
    `cloudbase-sites deploy` with your own `pnpm build` + `manageApps` call —
@@ -251,7 +287,7 @@ user instead of guessing the cause.
 
 | code | meaning | recovery |
 |---|---|---|
-| 1 | generic failure | check the message |
+| 1 | generic failure | check the message and `nextActions` if present |
 | 2 | not a Vite project (or `vite` binary missing) | `pnpm install` then retry |
 | 3 | port pool exhausted in 17173..17272 | `cloudbase-sites preview --stop` for stale ones, or pass `--port` |
 | 4 | dev server failed health check in 30s | read `logPath`; usually a build error in user code |
