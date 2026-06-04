@@ -40,7 +40,27 @@ To update the plugin, upgrade the marketplace:
 codex plugin marketplace upgrade cloudbase-plugins
 ```
 
-### Claude Code / OpenClaw
+### Claude Code
+
+Claude Code also supports plugin marketplaces. Add this repository as a
+marketplace, then install the Sites plugin:
+
+```bash
+# Interactive command inside Claude Code
+/plugin marketplace add TencentCloudBase/cloudbase-mcp
+/plugin install cloudbase-sites@tencent-cloudbase
+```
+
+For non-interactive setup:
+
+```bash
+claude plugin marketplace add TencentCloudBase/cloudbase-mcp
+claude plugin install cloudbase-sites@tencent-cloudbase
+```
+
+Claude Code reads the marketplace from `.claude-plugin/marketplace.json`.
+
+### OpenClaw
 
 Add the MCP server to your project's `.mcp.json`:
 

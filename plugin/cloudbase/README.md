@@ -44,7 +44,27 @@ To update the plugin when new skills are released, upgrade the marketplace:
 codex plugin marketplace upgrade cloudbase-plugins
 ```
 
-### Claude Code / OpenClaw
+### Claude Code
+
+Claude Code also supports plugin marketplaces. Add this repository as a
+marketplace, then install the plugin:
+
+```bash
+# Interactive command inside Claude Code
+/plugin marketplace add TencentCloudBase/cloudbase-mcp
+/plugin install cloudbase@tencent-cloudbase
+```
+
+For non-interactive setup:
+
+```bash
+claude plugin marketplace add TencentCloudBase/cloudbase-mcp
+claude plugin install cloudbase@tencent-cloudbase
+```
+
+Claude Code reads the marketplace from `.claude-plugin/marketplace.json`.
+
+### OpenClaw
 
 Add the cloudbase MCP server to your project:
 
