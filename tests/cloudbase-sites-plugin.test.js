@@ -185,6 +185,34 @@ describe('CloudBase Sites save git setup', () => {
     expect(gitStatus.status).toBe(0);
     expect(fs.readFileSync(path.join(cwd, '.gitignore'), 'utf8')).toContain('.cloudbase-sites/');
   });
+
+  test('save preserves a failing exit code when automatic git init fails', () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({
+      dependencies: {
+        react: '1.0.0',
+        vite: '1.0.0',
+      },
+    }, null, 2));
+    const emptyPathDir = path.join(cwd, 'empty-path');
+    fs.mkdirSync(emptyPathDir);
+
+    const result = spawnSync(process.execPath, [BIN, 'save', '-m', 'first'], {
+      cwd,
+      encoding: 'utf8',
+      timeout: 5000,
+      env: { ...process.env, PATH: emptyPathDir },
+    });
+
+    expect(result.status).toBe(1);
+    const payload = JSON.parse(result.stdout.trim().split('\n')[0]);
+    expect(payload.ok).toBe(false);
+    expect(payload.message).toContain('automatic `git init` failed');
+    expect(payload.nextActions[0]).toMatchObject({
+      tool: 'shell',
+      action: 'git init',
+    });
+  });
 });
 
 describe('CloudBase Sites deploy version isolation', () => {

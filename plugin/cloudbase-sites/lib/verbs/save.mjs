@@ -55,6 +55,7 @@ export async function runSave(args) {
           },
         ],
       });
+      process.exitCode = ERR.GENERIC;
       return;
     }
   }
