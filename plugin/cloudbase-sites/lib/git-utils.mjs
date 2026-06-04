@@ -45,7 +45,11 @@ export function gitAddCommitTag(cwd, tag, message) {
     ":!.env",
     ":!.env.*",
   ], { cwd, stdio: "ignore" });
-  spawnSync("git", ["commit", "--allow-empty", "-m", message], { cwd, stdio: "ignore" });
+  spawnSync("git", ["commit", "--allow-empty", "-m", message], {
+    cwd,
+    stdio: "ignore",
+    env: withFallbackGitIdentity(cwd),
+  });
   const tagR = spawnSync("git", ["tag", "-f", tag], { cwd, stdio: "ignore" });
   return tagR.status === 0;
 }
@@ -74,4 +78,30 @@ export function ensureGitignoreEntry(cwd, entry) {
   }
   const prefix = current && !current.endsWith("\n") ? "\n" : "";
   writeFileSync(gitignorePath, `${current}${prefix}${normalized}\n`);
+}
+
+function withFallbackGitIdentity(cwd) {
+  const env = { ...process.env };
+  const hasUserName = gitConfigExists(cwd, "user.name");
+  const hasUserEmail = gitConfigExists(cwd, "user.email");
+  if (!hasUserName && !env.GIT_AUTHOR_NAME) {
+    env.GIT_AUTHOR_NAME = "CloudBase Sites";
+  }
+  if (!hasUserEmail && !env.GIT_AUTHOR_EMAIL) {
+    env.GIT_AUTHOR_EMAIL = "cloudbase-sites@cloudbase.invalid";
+  }
+  if (!hasUserName && !env.GIT_COMMITTER_NAME) {
+    env.GIT_COMMITTER_NAME = env.GIT_AUTHOR_NAME;
+  }
+  if (!hasUserEmail && !env.GIT_COMMITTER_EMAIL) {
+    env.GIT_COMMITTER_EMAIL = env.GIT_AUTHOR_EMAIL;
+  }
+  return env;
+}
+
+function gitConfigExists(cwd, key) {
+  return spawnSync("git", ["config", "--get", key], {
+    cwd,
+    stdio: "ignore",
+  }).status === 0;
 }
