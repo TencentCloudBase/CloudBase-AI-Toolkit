@@ -125,8 +125,10 @@ you must not bypass them.
      explicitly says "write tests" or "test it for me".
    - Verify reasonably (preview is healthy, no compile error in
      `cloudbase-sites preview --status` log) — that'\''s enough.
-   - Then ASK the user: "要不要我用内置浏览器打开 <URL> 帮你点一遍验证一下?"
-     — only run browser-based verification after explicit yes.
+   - Then ASK the user: "要不要我用内置浏览器打开 <URL> 预览一下?"
+     If yes, use the host Browser / in-app browser tool to open `internalUrl`.
+     Do not use macOS `open`, and do not run browser-based verification unless
+     the user explicitly asks you to test interactions.
 
 7. **Two-stage save→deploy workflow (Codex-Sites-style).** Versions are
    labeled git checkpoints; deploys are publishes of saved versions.
@@ -302,7 +304,7 @@ if [ "$is_vite_project" = "1" ]; then
 - **template:** vite-react/vue (existing)
 - **preview status:** running and healthy
 - **preview URL:** $URL
-- **first action:** confirm the URL with \`$SITES_BIN preview --status\` once before showing it to the user.
+- **first action:** confirm the URL with \`$SITES_BIN preview --status\` once before showing it to the user, then offer to open it in the host Browser / in-app browser.
 $DEPLOY_LINES"
     emit_context "$RULES_BLOCK
 
@@ -324,7 +326,7 @@ $STATE_BLOCK"
 - **template:** vite-react/vue (existing)
 - **preview status:** installing dependencies in background (~30s expected)
 - **preview URL:** (will be available after install — run \`$SITES_BIN preview --status\` to fetch it; wait 5–60s if it reports NO_PREVIEW)
-- **first action:** when the user is ready, confirm preview health by running \`$SITES_BIN preview --status\`, retrying once after 5s if needed.
+- **first action:** when the user is ready, confirm preview health by running \`$SITES_BIN preview --status\`, retrying once after 5s if needed, then offer to open the URL in the host Browser / in-app browser.
 $DEPLOY_LINES"
     emit_context "$RULES_BLOCK
 
@@ -342,7 +344,7 @@ $STATE_BLOCK"
 - **template:** vite-react/vue (existing)
 - **preview status:** starting in background (a few seconds)
 - **preview URL:** (run \`$SITES_BIN preview --status\` to fetch the URL)
-- **first action:** run \`$SITES_BIN preview --status\` before quoting any URL to the user.
+- **first action:** run \`$SITES_BIN preview --status\` before quoting any URL to the user, then offer to open it in the host Browser / in-app browser.
 $DEPLOY_LINES"
   emit_context "$RULES_BLOCK
 
