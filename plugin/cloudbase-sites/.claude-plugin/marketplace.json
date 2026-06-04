@@ -1,0 +1,16 @@
+{
+  "name": "tencent-cloudbase-sites",
+  "owner": {
+    "name": "Tencent CloudBase"
+  },
+  "description": "CloudBase Sites plugin.",
+  "plugins": [
+    {
+      "name": "cloudbase-sites",
+      "displayName": "CloudBase Sites",
+      "source": "./",
+      "description": "Create, preview, save, deploy, inspect, and roll back Vite web apps hosted on Tencent CloudBase.",
+      "category": "Developer Tools"
+    }
+  ]
+}
