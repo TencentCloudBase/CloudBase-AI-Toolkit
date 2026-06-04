@@ -37,6 +37,24 @@ function getCloudAppService(cloudbase: any) {
   return cloudbase.cloudAppService ?? cloudbase.getCloudAppService?.();
 }
 
+function normalizeAccessUrlFromDomain(domain: unknown): { domain?: string; accessUrl?: string } {
+  if (typeof domain !== "string" || !domain.trim()) return {};
+  const trimmed = domain.trim();
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(withProtocol);
+    url.hash = "";
+    url.search = "";
+    url.pathname = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "");
+    return {
+      domain: url.host,
+      accessUrl: url.toString().replace(/\/$/, ""),
+    };
+  } catch {
+    return {};
+  }
+}
+
 export function registerAppTools(server: ExtendedMcpServer) {
   const cloudBaseOptions = server.cloudBaseOptions;
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
@@ -288,7 +306,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
         appPath: z
           .string()
           .optional()
-          .describe("应用线上访问路径（hosting mount path），例如 /my-web-app。不是本地目录路径；省略时默认为 /serviceName。"),
+          .describe("应用线上访问路径（hosting mount path），例如 /my-web-app。不是本地目录路径；CloudApp 已有独立子域名，省略时默认为 /（根路径）。"),
         buildPath: z
           .string()
           .optional()
@@ -476,6 +494,21 @@ export function registerAppTools(server: ExtendedMcpServer) {
           logCloudBaseResult(server.logger, result);
 
           const { BuildId, VersionName } = result;
+          let appInfo: Record<string, unknown> | undefined;
+          let domain: string | undefined;
+          let accessUrl: string | undefined;
+          let accessUrlLookupWarning: string | undefined;
+          try {
+            appInfo = await appService.describeAppInfo({
+              deployType: "static-hosting",
+              serviceName,
+            });
+            logCloudBaseResult(server.logger, appInfo);
+            ({ domain, accessUrl } = normalizeAccessUrlFromDomain(appInfo?.Domain));
+          } catch (error) {
+            accessUrlLookupWarning = error instanceof Error ? error.message : String(error);
+          }
+
           return jsonContent(
             buildEnvelope(
               {
@@ -483,6 +516,11 @@ export function registerAppTools(server: ExtendedMcpServer) {
                 serviceName,
                 versionName: VersionName,
                 buildId: BuildId,
+                domain,
+                accessUrl,
+                accessUrlSource: accessUrl ? "describeAppInfo.Domain" : undefined,
+                accessUrlLookupWarning,
+                app: appInfo,
                 upload: { cosTimestamp: cosTs },
                 deployment: result,
                 buildConfig: {
@@ -498,10 +536,14 @@ export function registerAppTools(server: ExtendedMcpServer) {
                     serviceName,
                     buildId: BuildId,
                   },
-                  hint: `调用 queryApps(action="getAppVersion", serviceName="${serviceName}", buildId="${BuildId}") 轮询构建状态，直到 status 变为 SUCCESS 或 FAILED。构建通常需要 3~5 分钟。若状态为 FAILED，可继续调用 queryApps(action="getBuildLog", serviceName="${serviceName}", buildId="${BuildId}") 查看构建日志诊断失败原因。`,
+                  hint: accessUrl
+                    ? `调用 queryApps(action="getAppVersion", serviceName="${serviceName}", buildId="${BuildId}") 轮询构建状态，直到 status 变为 SUCCESS 或 FAILED。构建成功后，后续记录部署时必须使用本结果的 accessUrl=${accessUrl}，不要自行拼接域名。若状态为 FAILED，可继续调用 queryApps(action="getBuildLog", serviceName="${serviceName}", buildId="${BuildId}") 查看构建日志诊断失败原因。`
+                    : `调用 queryApps(action="getAppVersion", serviceName="${serviceName}", buildId="${BuildId}") 轮询构建状态，直到 status 变为 SUCCESS 或 FAILED；再调用 queryApps(action="getApp", serviceName="${serviceName}") 读取 app.Domain 作为 accessUrl，不能自行拼接域名。若状态为 FAILED，可继续调用 queryApps(action="getBuildLog", serviceName="${serviceName}", buildId="${BuildId}") 查看构建日志诊断失败原因。`,
                 },
               },
-              "CloudBase 应用构建已触发，请通过 queryApps 轮询构建状态。",
+              accessUrl
+                ? "CloudBase 应用构建已触发，已返回真实 accessUrl；请通过 queryApps 轮询构建状态。"
+                : "CloudBase 应用构建已触发，请通过 queryApps 轮询构建状态，并用 getApp 读取真实域名。",
             ),
           );
         }
