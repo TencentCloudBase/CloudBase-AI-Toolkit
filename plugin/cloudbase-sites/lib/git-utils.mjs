@@ -22,6 +22,15 @@ export function gitHeadFull(cwd) {
   return r.stdout.toString().trim();
 }
 
+export function gitWorkingTreeDirty(cwd) {
+  const r = spawnSync("git", ["status", "--porcelain", "--untracked-files=all"], {
+    cwd,
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  if (r.status !== 0) return false;
+  return r.stdout.toString().trim().length > 0;
+}
+
 export function gitAddCommitTag(cwd, tag, message) {
   spawnSync("git", [
     "add", "-A", "--", ".",

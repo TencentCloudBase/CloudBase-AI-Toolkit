@@ -2160,7 +2160,7 @@ action=deployApp 上传源码 ZIP 并触发远端构建部署管道：
     {
       name: "appPath",
       type: "string",
-      description: `应用线上访问路径（hosting mount path），例如 /my-web-app。不是本地目录路径；省略时默认为 /serviceName。`,
+      description: `应用线上访问路径（hosting mount path），例如 /my-web-app。不是本地目录路径；CloudApp 已有独立子域名，省略时默认为 /（根路径）。`,
     },
     {
       name: "buildPath",

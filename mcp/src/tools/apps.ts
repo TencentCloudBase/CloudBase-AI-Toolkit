@@ -306,7 +306,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
         appPath: z
           .string()
           .optional()
-          .describe("应用线上访问路径（hosting mount path），例如 /my-web-app。不是本地目录路径；省略时默认为 /serviceName。"),
+          .describe("应用线上访问路径（hosting mount path），例如 /my-web-app。不是本地目录路径；CloudApp 已有独立子域名，省略时默认为 /（根路径）。"),
         buildPath: z
           .string()
           .optional()

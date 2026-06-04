@@ -37,7 +37,14 @@ import {
   latestSavedVersion,
   readApp,
 } from "../app-store.mjs";
-import { gitHeadFull, gitResetHard, gitStashIncludeUntracked, gitTagOnly, isGitRepo } from "../git-utils.mjs";
+import {
+  gitHeadFull,
+  gitResetHard,
+  gitStashIncludeUntracked,
+  gitTagOnly,
+  gitWorkingTreeDirty,
+  isGitRepo,
+} from "../git-utils.mjs";
 
 export const deployHelp = `cloudbase-sites deploy — deploy a saved version to CloudApp (manageApps).
 
@@ -143,14 +150,25 @@ export async function runDeploy(args) {
 function ensureSavedVersionCheckedOut(cwd, version) {
   if (!isGitRepo(cwd)) return { checked: false, reason: "not a git repository" };
   const head = gitHeadFull(cwd);
-  if (head && (head === version.commitSha || head.startsWith(version.commitSha) || version.commitSha.startsWith(head))) {
+  const headMatches = head && (head === version.commitSha || head.startsWith(version.commitSha) || version.commitSha.startsWith(head));
+  const dirty = gitWorkingTreeDirty(cwd);
+  if (headMatches && !dirty) {
     return { checked: true, changed: false, commitSha: version.commitSha };
   }
-  gitStashIncludeUntracked(cwd, `cloudbase-sites pre-deploy version ${version.n}`);
+  const stashed = gitStashIncludeUntracked(cwd, `cloudbase-sites pre-deploy version ${version.n}`);
+  if (dirty && !stashed) {
+    throw withCode(ERR.GENERIC, "git stash failed before deploy; aborting to avoid publishing or discarding unsaved edits");
+  }
   if (!gitResetHard(cwd, version.commitSha)) {
     throw withCode(ERR.GENERIC, `git reset --hard ${version.commitSha} failed before deploy`);
   }
-  return { checked: true, changed: true, commitSha: version.commitSha };
+  return {
+    checked: true,
+    changed: !headMatches,
+    dirty,
+    stashed,
+    commitSha: version.commitSha,
+  };
 }
 
 async function runPostDeploy(args) {

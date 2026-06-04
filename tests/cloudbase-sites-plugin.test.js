@@ -96,6 +96,59 @@ describe('CloudBase Sites CLI behavior', () => {
   });
 });
 
+describe('CloudBase Sites deploy version isolation', () => {
+  test('deploy stashes dirty edits even when HEAD already matches the saved version', () => {
+    const cwd = makeTempDir();
+    spawnSync('git', ['init'], { cwd, encoding: 'utf8' });
+    spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd, encoding: 'utf8' });
+    spawnSync('git', ['config', 'user.name', 'CloudBase Sites Test'], { cwd, encoding: 'utf8' });
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({
+      scripts: {
+        build: 'node -e "require(\'fs\').mkdirSync(\'dist\', { recursive: true }); require(\'fs\').copyFileSync(\'src.txt\', \'dist/index.html\')"',
+      },
+      dependencies: {
+        react: '1.0.0',
+        vite: '1.0.0',
+      },
+    }, null, 2));
+    fs.writeFileSync(path.join(cwd, 'src.txt'), 'saved version');
+    fs.writeFileSync(path.join(cwd, '.gitignore'), '.cloudbase-sites/\ndist/\n');
+    spawnSync('git', ['add', '.'], { cwd, encoding: 'utf8' });
+    spawnSync('git', ['commit', '-m', 'initial'], { cwd, encoding: 'utf8' });
+    const commitSha = spawnSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).stdout.trim();
+    writeAppJson(cwd, {
+      siteName: 'demo-site',
+      cwd,
+      versions: [{ n: 1, commitSha, label: 'saved', savedAt: 'now', status: 'saved' }],
+      deployments: [],
+      currentVersion: 1,
+      currentDeploy: null,
+    });
+
+    fs.writeFileSync(path.join(cwd, 'src.txt'), 'unsaved edit');
+    fs.mkdirSync(path.join(cwd, 'dist'), { recursive: true });
+    fs.writeFileSync(path.join(cwd, 'dist', 'index.html'), 'previous build');
+    const result = spawnSync(
+      process.execPath,
+      [BIN, 'deploy', '--version', '1', '--skip-build'],
+      { cwd, encoding: 'utf8', timeout: 5000 },
+    );
+
+    expect(result.status).toBe(0);
+    const payload = JSON.parse(result.stdout.trim().split('\n')[0]);
+    expect(payload.ok).toBe(true);
+    expect(payload.checkout).toMatchObject({
+      checked: true,
+      dirty: true,
+      stashed: true,
+      commitSha,
+    });
+    expect(fs.readFileSync(path.join(cwd, 'src.txt'), 'utf8')).toBe('saved version');
+    const stashList = spawnSync('git', ['stash', 'list'], { cwd, encoding: 'utf8' }).stdout;
+    expect(stashList).toContain('cloudbase-sites pre-deploy version 1');
+  });
+});
+
 describe('CloudBase Sites deployment metadata', () => {
   test('deploy --post rejects guessed CloudBase service domains', async () => {
     const cwd = makeTempDir();
