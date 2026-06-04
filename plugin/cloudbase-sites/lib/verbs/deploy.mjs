@@ -5,19 +5,15 @@
  *   Phase 1 — `cloudbase-sites deploy [--version <n>]`:
  *     - Resolve version (default: latest saved). Refuse if no version saved
  *       — user must `save` first.
- *     - If currently checked out commit != version's commit, do a soft check
- *       (warn but proceed; user might be deploying an older version on top
- *       of new uncommitted edits — that's fine because we use git stash).
- *       Actually we DO NOT git checkout here — we deploy what's in the
- *       working tree. The version metadata is for record-keeping and rollback.
- *       (Codex Sites' "save" is more like "tag the current state"; deploy
- *       deploys whatever the version pointed to. We follow that pattern.)
+ *     - If currently checked out commit != version's commit, stash local edits
+ *       and reset to the saved version before building. Deploying a saved
+ *       version means building that saved commit, not the current working tree.
  *     - pnpm/npm run build → validate dist/
  *     - emit nextAction { tool:"manageApps", args:{ action:"deployApp",
  *         serviceName:siteName, filePath:cwd, buildPath:"dist",
  *         framework:"static", installCmd:"", buildCmd:"" } }
  *
- *   Phase 2 — `cloudbase-sites deploy --post --version <n> --access-url <url> [--build-id <id>]`:
+ *   Phase 2 — `cloudbase-sites deploy --post --version <n> --access-url <url> [--build-id <id>] [--version-name <name>]`:
  *     - Append to app.json.deployments[]
  *     - Mark version as "deployed"
  *     - git tag deploy/<n>-<ts>
@@ -41,7 +37,7 @@ import {
   latestSavedVersion,
   readApp,
 } from "../app-store.mjs";
-import { gitTagOnly, isGitRepo } from "../git-utils.mjs";
+import { gitHeadFull, gitResetHard, gitStashIncludeUntracked, gitTagOnly, isGitRepo } from "../git-utils.mjs";
 
 export const deployHelp = `cloudbase-sites deploy — deploy a saved version to CloudApp (manageApps).
 
@@ -50,10 +46,10 @@ Phase 1 (build + emit nextAction):
   cloudbase-sites deploy --skip-build      # already built; just emit nextAction
 
 Phase 2 (record after manageApps succeeds):
-  cloudbase-sites deploy --post --version <n> --access-url <url> [--build-id <id>]
+  cloudbase-sites deploy --post --version <n> --access-url <url> [--build-id <id>] [--version-name <name>]
 
 Behavior:
-  - Reads stable siteName from <cwd>/.cloudbase-agent/app.json.
+  - Reads stable siteName from <cwd>/.cloudbase-sites/app.json.
   - Phase 1 builds dist/ and emits a JSON whose nextAction tells the model to
     call cloudbase-mcp manageApps with framework=static (skip remote install/build).
   - Phase 2 appends to deployments[], tags git deploy/<n>-<ts>, returns finalUrl.
@@ -88,6 +84,7 @@ export async function runDeploy(args) {
   }
 
   const siteName = getOrCreateSiteName();
+  const checkout = ensureSavedVersionCheckedOut(CWD, version);
 
   // Build.
   if (!args.skipBuild) {
@@ -114,6 +111,7 @@ export async function runDeploy(args) {
       version: version.n,
       versionLabel: version.label,
       versionCommit: version.commitSha,
+      checkout,
       distPath,
       distEntries: entries.length,
       previouslyDeployed,
@@ -133,8 +131,8 @@ export async function runDeploy(args) {
           : `First-time deploy creates CloudApp '${siteName}' with its own subdomain.`,
         followup: {
           tool: "cloudbase-sites",
-          args: ["deploy", "--post", "--version", String(version.n), "--access-url", "<accessUrl>", "--build-id", "<optional>"],
-          purpose: "record this deploy in app.json and tag git",
+          args: ["deploy", "--post", "--version", String(version.n), "--access-url", "<manageApps data.accessUrl; do not infer>", "--build-id", "<manageApps data.buildId>", "--version-name", "<manageApps data.versionName optional>"],
+          purpose: "record this deploy and CloudBase build metadata in app.json, then tag git",
         },
       },
     },
@@ -142,8 +140,22 @@ export async function runDeploy(args) {
   );
 }
 
+function ensureSavedVersionCheckedOut(cwd, version) {
+  if (!isGitRepo(cwd)) return { checked: false, reason: "not a git repository" };
+  const head = gitHeadFull(cwd);
+  if (head && (head === version.commitSha || head.startsWith(version.commitSha) || version.commitSha.startsWith(head))) {
+    return { checked: true, changed: false, commitSha: version.commitSha };
+  }
+  gitStashIncludeUntracked(cwd, `cloudbase-sites pre-deploy version ${version.n}`);
+  if (!gitResetHard(cwd, version.commitSha)) {
+    throw withCode(ERR.GENERIC, `git reset --hard ${version.commitSha} failed before deploy`);
+  }
+  return { checked: true, changed: true, commitSha: version.commitSha };
+}
+
 async function runPostDeploy(args) {
   if (!args.accessUrl) throw withCode(ERR.GENERIC, "--post requires --access-url");
+  const accessUrl = normalizeAccessUrl(args.accessUrl);
   const versionN = args.version ? Number(args.version) : null;
   if (!versionN) throw withCode(ERR.GENERIC, "--post requires --version <n>");
   if (!findVersion(versionN)) {
@@ -151,14 +163,20 @@ async function runPostDeploy(args) {
   }
 
   const cacheBust = randomBytes(3).toString("hex");
-  const finalUrl = appendQuery(args.accessUrl, `v=${cacheBust}`);
+  const finalUrl = appendQuery(accessUrl, `v=${cacheBust}`);
 
   const entry = appendDeployment({
     version: versionN,
-    accessUrl: args.accessUrl,
+    accessUrl,
     buildId: args.buildId,
+    versionName: args.versionName,
+    buildStatus: args.buildStatus || "SUCCESS",
     finalUrl,
   });
+  const warnings = [];
+  if (!args.buildId) {
+    warnings.push("No buildId was provided; this deployment cannot directly query CloudBase build status or logs.");
+  }
 
   // Tag git: deploy/<n>-<ts>.
   const tag = `deploy/${versionN}-${Date.now()}`;
@@ -173,6 +191,7 @@ async function runPostDeploy(args) {
       ...entry,
       gitTag: tag,
       deployCount: app?.deployments?.length ?? 0,
+      warnings,
     },
     `deploy recorded for '${app?.siteName}' v${versionN} — open: ${finalUrl}`,
   );
@@ -207,4 +226,36 @@ function runBuild(cwd) {
 function appendQuery(url, qs) {
   if (!url || !qs) return url;
   return url + (url.includes("?") ? "&" : "?") + qs;
+}
+
+function normalizeAccessUrl(rawUrl) {
+  let url;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw withCode(ERR.GENERIC, "--access-url must be a valid http(s) URL returned by manageApps data.accessUrl");
+  }
+
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw withCode(ERR.GENERIC, "--access-url must use http or https");
+  }
+
+  const host = url.hostname.toLowerCase();
+  if (host.endsWith(".service.tcloudbase.com")) {
+    throw withCode(
+      ERR.GENERIC,
+      '--access-url looks like a guessed CloudBase service domain. Use manageApps data.accessUrl, or queryApps(action="getApp") and pass app.Domain; CloudBase Sites default domains end with .webapps.tcloudbase.com.',
+    );
+  }
+
+  if (host.endsWith(".tcloudbase.com") && !host.endsWith(".webapps.tcloudbase.com")) {
+    throw withCode(
+      ERR.GENERIC,
+      '--access-url is not a CloudBase Sites app domain. Use manageApps data.accessUrl, or queryApps(action="getApp") and pass app.Domain; expected .webapps.tcloudbase.com for default CloudBase Sites domains.',
+    );
+  }
+
+  url.hash = "";
+  url.pathname = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/, "");
+  return url.toString().replace(/\/$/, "");
 }

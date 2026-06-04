@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { emitOk, withCode } from "../emit.mjs";
 import { ERR } from "../preview-state.mjs";
 import { appendVersion, getOrCreateSiteName, readApp } from "../app-store.mjs";
-import { gitAddCommitTag, gitHead, isGitRepo } from "../git-utils.mjs";
+import { ensureGitignoreEntry, gitAddCommitTag, gitHead, isGitRepo } from "../git-utils.mjs";
 
 export const saveHelp = `cloudbase-sites save — create a new saved version (a labeled git checkpoint)
 
@@ -26,7 +26,7 @@ Options:
 
 Behavior:
   - Creates a git commit (--allow-empty) and a tag version/<n>.
-  - Appends to <cwd>/.cloudbase-agent/app.json.versions[].
+  - Appends to <cwd>/.cloudbase-sites/app.json.versions[].
   - Does NOT build or deploy. Use \`cloudbase-sites deploy\` for that.
 
 Output: JSON with the new version entry.`;
@@ -46,6 +46,7 @@ export async function runSave(args) {
   if (!isGitRepo(CWD)) {
     throw withCode(ERR.GENERIC, "not a git repository — run `git init` first");
   }
+  ensureGitignoreEntry(CWD, ".cloudbase-sites/");
 
   // Compute next version number.
   const app = readApp();

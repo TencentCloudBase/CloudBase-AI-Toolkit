@@ -113,7 +113,7 @@ export function ensureSupervisorRunning({ silent = true } = {}) {
     });
     child.unref();
     if (!silent) {
-      process.stderr.write(`[cloudbase-agent] supervisor started (pid ${child.pid})\n`);
+      process.stderr.write(`[cloudbase-sites] supervisor started (pid ${child.pid})\n`);
     }
     // The daemon writes supervisor.json itself once running; we don't pre-write
     // here because a race could leave a stale file if the daemon crashes early.

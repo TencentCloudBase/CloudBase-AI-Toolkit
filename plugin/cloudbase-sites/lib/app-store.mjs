@@ -1,5 +1,5 @@
 /**
- * <cwd>/.cloudbase-agent/app.json — site identity + version history.
+ * <cwd>/.cloudbase-sites/app.json — site identity + version history.
  *
  * V2 schema:
  *   {
@@ -10,14 +10,11 @@
  *       { n, commitSha, label, savedAt, status }   // status: saved|deployed|rolled-back
  *     ],
  *     deployments: [
- *       { version, deployedAt, accessUrl, buildId, finalUrl }
+ *       { version, deployedAt, accessUrl, buildId, versionName, buildStatus, finalUrl }
  *     ],
  *     currentVersion,           // highest n in versions
  *     currentDeploy             // version n of last successful deploy
  *   }
- *
- * Backward compat: if app.json has the old V1 fields (serviceName / lastAccessUrl
- * / deployHistory), readApp() upgrades them in-memory; first write persists V2.
  */
 
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
@@ -33,39 +30,8 @@ export const APP_JSON_PATH = join(STATE_DIR, "app.json");
 
 export function readApp() {
   if (!existsSync(APP_JSON_PATH)) return null;
-  let app;
-  try { app = JSON.parse(readFileSync(APP_JSON_PATH, "utf8")); }
+  try { return JSON.parse(readFileSync(APP_JSON_PATH, "utf8")); }
   catch { return null; }
-  return upgradeIfNeeded(app);
-}
-
-function upgradeIfNeeded(app) {
-  if (!app) return null;
-  // Already V2-shaped.
-  if (Array.isArray(app.versions) && Array.isArray(app.deployments)) return app;
-
-  // V1 → V2: the old shape had serviceName + deployHistory[].
-  const upgraded = {
-    siteName: app.siteName || app.serviceName || null,
-    cwd: app.cwd || null,
-    firstSeenAt: app.firstSeenAt || null,
-    versions: [],
-    deployments: [],
-    currentVersion: null,
-    currentDeploy: null,
-    firstDeployedAt: app.firstDeployedAt || null,
-  };
-  if (Array.isArray(app.deployHistory)) {
-    // Each historical deploy gets reconstructed without git tag info — best effort.
-    upgraded.deployments = app.deployHistory.map((d, i) => ({
-      version: i + 1,                  // synthetic version number
-      deployedAt: d.deployedAt,
-      accessUrl: d.accessUrl,
-      buildId: d.buildId || null,
-      finalUrl: d.accessUrl,
-    }));
-  }
-  return upgraded;
 }
 
 export function writeApp(app) {
@@ -137,7 +103,7 @@ export function latestSavedVersion() {
   return null;
 }
 
-export function appendDeployment({ version, accessUrl, buildId, finalUrl }) {
+export function appendDeployment({ version, accessUrl, buildId, versionName, buildStatus, finalUrl }) {
   const app = readApp();
   if (!app) throw new Error("no app.json — run save first");
   const ts = new Date().toISOString();
@@ -146,6 +112,8 @@ export function appendDeployment({ version, accessUrl, buildId, finalUrl }) {
     deployedAt: ts,
     accessUrl,
     buildId: buildId || null,
+    versionName: versionName || null,
+    buildStatus: buildStatus || null,
     finalUrl: finalUrl || accessUrl,
   });
   app.currentDeploy = version;

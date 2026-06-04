@@ -62,6 +62,7 @@ describe("app tools", () => {
     mockDescribeAppInfo.mockResolvedValue({
       ServiceName: "demo-app",
       DeployType: "static-hosting",
+      Domain: "demo-app-env-test.webapps.tcloudbase.com",
       RequestId: "req-app-info",
     });
     mockDescribeAppVersionList.mockResolvedValue({
@@ -153,13 +154,41 @@ describe("app tools", () => {
         buildType: "ZIP",
       }),
     );
+    expect(mockDescribeAppInfo).toHaveBeenCalledWith({
+      deployType: "static-hosting",
+      serviceName: "demo-app",
+    });
     expect(payload).toMatchObject({
       success: true,
       data: {
         action: "deployApp",
         serviceName: "demo-app",
+        domain: "demo-app-env-test.webapps.tcloudbase.com",
+        accessUrl: "https://demo-app-env-test.webapps.tcloudbase.com",
       },
     });
+  });
+
+  it("manageApps(action=deployApp) should normalize access URL from app details", async () => {
+    mockDescribeAppInfo.mockResolvedValueOnce({
+      ServiceName: "demo-app",
+      DeployType: "static-hosting",
+      Domain: "https://demo-app-env-test.webapps.tcloudbase.com/",
+      RequestId: "req-app-info",
+    });
+
+    const result = await tools.manageApps.handler({
+      action: "deployApp",
+      serviceName: "demo-app",
+      filePath: "/tmp/demo-app",
+      buildPath: "dist",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.data.domain).toBe("demo-app-env-test.webapps.tcloudbase.com");
+    expect(payload.data.accessUrl).toBe("https://demo-app-env-test.webapps.tcloudbase.com");
+    expect(payload.data.accessUrlSource).toBe("describeAppInfo.Domain");
+    expect(payload.data.nextStep.hint).toContain("accessUrl");
   });
 
   it("manageApps(action=deployApp) with cosTimestamp should skip uploadCode", async () => {

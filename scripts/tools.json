@@ -1087,7 +1087,7 @@
     },
     {
       "name": "manageHosting",
-      "description": "管理 CloudBase 静态托管的变更操作。action=upload 上传本地构建产物；action=delete 删除托管文件或目录（必须 confirm=true）；action=setWebsiteDocument 设置首页/错误页/路由规则；action=enableService 开通静态托管；action=bindDomain / unbindDomain / updateDomain 管理自定义域名；action=downloadFile / downloadDirectory 下载托管内容到本地。若任务只是查看配置、文件或域名状态，请改用 queryHosting。",
+      "description": "管理 CloudBase 静态托管的变更操作。action=upload 上传本地构建产物到共享域名（域名格式：<envId>-<appId>.tcloudbaseapp.com/<cloudPath>）；action=delete 删除托管文件或目录（必须 confirm=true）；action=setWebsiteDocument 设置首页/错误页/路由规则；action=enableService 开通静态托管；action=bindDomain / unbindDomain / updateDomain 管理自定义域名；action=downloadFile / downloadDirectory 下载托管内容到本地。⚠️ 新项目部署优先使用 manageApps（部署到独立子域名），本工具适合已有老项目继续使用或作为 manageApps 的 fallback。manageApps 与 manageHosting 域名不同，切换会导致老链接失效。若任务只是查看配置、文件或域名状态，请改用 queryHosting。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2286,8 +2286,7 @@
               "getUploadUrl",
               "deleteApp",
               "deleteAppVersion"
-            ],
-            "description": "可填写的值: deployApp, getUploadUrl, deleteApp, deleteAppVersion"
+            ]
           },
           "serviceName": {
             "type": "string",
@@ -2303,7 +2302,7 @@
           },
           "appPath": {
             "type": "string",
-            "description": "应用线上访问路径（hosting mount path），例如 /my-web-app。不是本地目录路径；CloudApp 已有独立子域名，省略时默认为 /（根路径）。"
+            "description": "应用线上访问路径（hosting mount path），例如 /my-web-app。不是本地目录路径；省略时默认为 /serviceName。"
           },
           "buildPath": {
             "type": "string",

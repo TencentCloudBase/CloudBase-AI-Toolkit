@@ -1,7 +1,7 @@
 /**
  * Preview state helpers (per-cwd).
  *
- * State at <cwd>/.cloudbase-agent/preview.json. Each cwd is its own world;
+ * State at <cwd>/.cloudbase-sites/preview.json. Each cwd is its own world;
  * cross-cwd coordination lives in lib/registry.mjs.
  */
 
@@ -16,7 +16,7 @@ import {
 import { join } from "node:path";
 import http from "node:http";
 
-export const STATE_DIR = join(process.cwd(), ".cloudbase-agent");
+export const STATE_DIR = join(process.cwd(), ".cloudbase-sites");
 export const LOG_DIR = join(STATE_DIR, "logs");
 export const PREVIEW_JSON = join(STATE_DIR, "preview.json");
 

@@ -1,5 +1,5 @@
 ---
-name: cloudbase-agent-runtime
+name: cloudbase-sites-runtime
 description: |
   Use when the user wants to develop, run, preview, save, deploy, or roll back
   a CloudBase Web app in this conversation as a Lovable/Codex-Sites-like vibe-
@@ -12,16 +12,17 @@ description: |
   explicitly out of scope).
 ---
 
-# CloudBase Sites — Agent Runtime
+# CloudBase Sites Runtime
 
 This skill orchestrates a **single working directory = single project** flow
 for CloudBase Web apps. The cwd itself is the workspace; we do not manage
 cross-cwd state or session IDs at the skill level.
 
-Most of what this skill describes is also injected into the system prompt
-on every session start by the plugin's SessionStart hook (the RULES_BLOCK).
-This file is the long-form reference — load it when you need detail beyond
-what the injected rules provide.
+This runtime is shared by the Codex, Claude Code, and CodeBuddy plugin
+surfaces. The CLI and CloudBase MCP workflows are the source of truth. Some
+hosts also run bundled lifecycle hooks that start previews or inject compact
+rules at session start; if hooks are unavailable, disabled, or not yet trusted,
+use the explicit CLI commands in this skill.
 
 ## Activation contract
 
@@ -32,9 +33,9 @@ what the injected rules provide.
   "save this version", "roll back to v1", or similar.
 - The current cwd looks like a CloudBase + Vite project (has `package.json`
   with `vite` + `react` or `vue`).
-- The user is running this conversation inside Claude Code (or a compatible
-  host) with the `cloudbase-sites` plugin enabled — `cloudbase-mcp` is
-  registered and the `cloudbase-sites` binary is on PATH.
+- The user is running this conversation inside Codex, Claude Code, CodeBuddy,
+  or a compatible host with the `cloudbase-sites` plugin enabled —
+  `cloudbase-mcp` is registered and the `cloudbase-sites` binary is on PATH.
 
 ### Do NOT use this skill when
 
@@ -88,7 +89,7 @@ dev-server / version / deploy lifecycle:
 - `cloudbase-sites save -m "<label>"` — create a saved version
 - `cloudbase-sites versions` — list saved versions + deploy status
 - `cloudbase-sites deploy [--version <n>]` — deploy a saved version (Phase 1: emit nextAction)
-- `cloudbase-sites deploy --post --version <n> --access-url <url> [--build-id <id>]` — record deploy
+- `cloudbase-sites deploy --post --version <n> --access-url <url> [--build-id <BuildId>] [--version-name <VersionName>]` — record deploy
 - `cloudbase-sites rollback [--to-version <n>]` — revert to a saved version
 - `cloudbase-sites supervisor status|list|heal|reload|start|stop`
 
@@ -101,16 +102,22 @@ base path injection, version metadata, and deploy history.
 Use for editing files. The plugin's PostToolUse hook handles automatic
 restart on config-file edits — you don't need to manage that.
 
-## Lifecycle is hook-driven; you are mostly a passenger
+## Lifecycle hooks and fallback
 
 **Do NOT invoke `cloudbase-sites init` or `cloudbase-sites preview`
-proactively in your first message.** The plugin's SessionStart hook does
-this for you. By the time you read the user's first prompt:
+proactively in your first message when the host reports that CloudBase Sites
+hooks are active.** The plugin's SessionStart hook does this for you. By the
+time you read the user's first prompt:
 
 - If the cwd was an existing Vite project: dev server is up (or installing).
 - If the cwd was empty: `init --start` is running in background; preview
   will be ready in ~10s.
 - If the cwd is a non-Vite / blacklisted project: hook stayed silent.
+
+Codex supports bundled plugin hooks, but non-managed command hooks may require
+the user to review and trust them before they run. If Codex hooks have not run,
+fall back to `cloudbase-sites preview --status`, `cloudbase-sites init`, and
+the other explicit commands below instead of assuming automatic startup.
 
 You only invoke a CLI verb when:
 
@@ -122,13 +129,13 @@ You only invoke a CLI verb when:
 
 ## When the user just walked into the conversation
 
-1. **Check preview state first** — read `<cwd>/.cloudbase-agent/preview.json`
+1. **Check preview state first** — read `<cwd>/.cloudbase-sites/preview.json`
    or run `cloudbase-sites preview --status`. It's overwhelmingly likely the
    preview is already up — courtesy of the SessionStart hook.
 
 2. **Tell the user the URL** — surface `internalUrl` from the JSON. If the
    file is missing, the hook is still installing/starting; tell the user to
-   wait ~10s and inspect `.cloudbase-agent/logs/hook-session-start.log`.
+   wait ~10s and inspect `.cloudbase-sites/logs/hook-session-start.log`.
 
 3. **DO NOT** re-init / re-start. Calling `init` again will fail with code 10
    (cwd no longer empty). Calling `preview` is idempotent and safe but
@@ -143,7 +150,7 @@ Inspired by Codex Sites' `saved version` model:
 
 - **Save:** label a git checkpoint. `cloudbase-sites save -m "<label>"` runs
   `git add -A && git commit && git tag version/<n>` and appends to
-  `<cwd>/.cloudbase-agent/app.json.versions[]`. No build, no deploy.
+  `<cwd>/.cloudbase-sites/app.json.versions[]`. No build, no deploy.
 - **Deploy:** publish a saved version to a CloudApp.
   `cloudbase-sites deploy [--version <n>]` (default: latest saved) builds
   `dist/` locally then emits `nextAction` telling you to call
@@ -153,8 +160,12 @@ Inspired by Codex Sites' `saved version` model:
   remote install/build because we built locally.
 - **Record:** after `manageApps` succeeds and gives you the access URL,
   call `cloudbase-sites deploy --post --version <n> --access-url <url>
-  [--build-id <id>]`. This appends to `app.json.deployments[]`, tags git
+  --build-id <BuildId> [--version-name <VersionName>]`. This appends to
+  `app.json.deployments[]`, records CloudBase build metadata, tags git
   `deploy/<n>-<ts>`, and returns `finalUrl` with a cache-busting query.
+  If the `manageApps` result includes `BuildId`, you MUST pass it to
+  `--build-id`; otherwise future build status and log queries cannot be
+  traced directly from the saved deployment.
 - **Rollback:** `cloudbase-sites rollback [--to-version <n>]` (default:
   current production deploy). Stashes uncommitted edits, `git reset --hard`
   to the version's commit, marks newer versions as `rolled-back`, and
@@ -231,7 +242,7 @@ Skip any of these when:
 ## Hard rules — always parse CLI stdout as JSON
 
 The first stdout line of every `cloudbase-sites <verb>` invocation is a
-single JSON object. The stderr `[cloudbase-agent] ...` line is for humans —
+single JSON object. The stderr `[cloudbase-sites] ...` line is for humans —
 do not parse it. On error the JSON is `{ ok: false, code: <int>, message,
 hint?, logPath? }`. When a script reports failure, surface `logPath` to the
 user instead of guessing the cause.
@@ -249,7 +260,7 @@ user instead of guessing the cause.
 | 7 | build failed (`cloudbase-sites deploy`) | inspect build output; fix code, retry |
 | 8 | `dist/` missing or empty after build | confirm `scripts.build` runs `vite build`; rerun |
 | 9 | cwd in danger blacklist (`init`) | cd to a real project directory first |
-| 10 | cwd not empty (`init`) | move conflicting files; only `.git`/`.gitignore`/README/LICENSE/.cloudbase-agent are tolerated |
+| 10 | cwd not empty (`init`) | move conflicting files; only `.git`/`.gitignore`/README/LICENSE/.cloudbase-sites are tolerated |
 | 11 | template download failed | check internet; URL is `static.cloudbase.net/cloudbase-examples/...` |
 | 12 | template extract failed | install `unzip` |
 | 13 | dependency install failed | check terminal output |
@@ -260,14 +271,14 @@ user instead of guessing the cause.
 
 | Path | Purpose |
 |---|---|
-| `<cwd>/.cloudbase-agent/preview.json` | dev server PID/port/URL/framework |
-| `<cwd>/.cloudbase-agent/app.json` | siteName + versions[] + deployments[] + currentVersion + currentDeploy |
-| `<cwd>/.cloudbase-agent/logs/preview-<ts>.log` | Vite stdout/stderr |
-| `<cwd>/.cloudbase-agent/logs/hook-session-start.log` | SessionStart hook trace |
-| `<cwd>/.cloudbase-agent/logs/hook-restart.log` | PostToolUse restart trail |
-| `~/.cloudbase-agent/registry.json` | global supervisor's view of all cwds |
-| `~/.cloudbase-agent/supervisor.json` | global supervisor PID + uptime |
-| `~/.cloudbase-agent/supervisor.log` | supervisor stdout/stderr |
+| `<cwd>/.cloudbase-sites/preview.json` | dev server PID/port/URL/framework |
+| `<cwd>/.cloudbase-sites/app.json` | siteName + versions[] + deployments[] + currentVersion + currentDeploy |
+| `<cwd>/.cloudbase-sites/logs/preview-<ts>.log` | Vite stdout/stderr |
+| `<cwd>/.cloudbase-sites/logs/hook-session-start.log` | SessionStart hook trace |
+| `<cwd>/.cloudbase-sites/logs/hook-restart.log` | PostToolUse restart trail |
+| `~/.cloudbase-sites/registry.json` | global supervisor's view of all cwds |
+| `~/.cloudbase-sites/supervisor.json` | global supervisor PID + uptime |
+| `~/.cloudbase-sites/supervisor.log` | supervisor stdout/stderr |
 
 ## What this skill is NOT
 
@@ -276,7 +287,7 @@ user instead of guessing the cause.
   globally, but for self-healing — not as a user-facing concept.)
 - It is **not** a reverse proxy. If the host is on a public-facing server
   and the user needs `<host>:8080/s/<sid>/` style routing, that's a separate
-  optional component (`cloudbase-agent-proxy`, future work) — out of scope here.
+  optional component (`cloudbase-sites-proxy`, future work) — out of scope here.
 - It is **not** a CloudBase auth/database guide. For those, fetch the
   corresponding CloudBase domain skill via
   `searchKnowledgeBase(mode="skill", skillName=...)`.

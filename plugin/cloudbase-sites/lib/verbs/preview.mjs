@@ -30,9 +30,9 @@ import { registerWorkspace, unregisterWorkspace } from "../registry.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const DEFAULT_PORT_RANGE_START = Number(process.env.CLOUDBASE_AGENT_PORT_START || 17173);
-const DEFAULT_PORT_RANGE_END = Number(process.env.CLOUDBASE_AGENT_PORT_END || 17272);
-const HEALTH_TIMEOUT_MS = Number(process.env.CLOUDBASE_AGENT_HEALTH_TIMEOUT_MS || 30_000);
+const DEFAULT_PORT_RANGE_START = Number(process.env.CLOUDBASE_SITES_PORT_START || 17173);
+const DEFAULT_PORT_RANGE_END = Number(process.env.CLOUDBASE_SITES_PORT_END || 17272);
+const HEALTH_TIMEOUT_MS = Number(process.env.CLOUDBASE_SITES_HEALTH_TIMEOUT_MS || 30_000);
 
 export const previewHelp = `cloudbase-sites preview — daemonize/inspect/stop/restart Vite dev server in cwd
 
@@ -47,8 +47,8 @@ Options for start/restart:
   --port <N>           request specific port (default: auto from 17173..17272)
   --base <P>           path-mount base, e.g. /s/<sid>/ (default: /)
 
-State file: <cwd>/.cloudbase-agent/preview.json
-Logs dir:   <cwd>/.cloudbase-agent/logs/`;
+State file: <cwd>/.cloudbase-sites/preview.json
+Logs dir:   <cwd>/.cloudbase-sites/logs/`;
 
 export async function runPreview(args) {
   if (args.stop) return runStop(args);
@@ -157,7 +157,7 @@ async function runStart(args) {
   }
 
   const port = await allocPort(args.port ? Number(args.port) : null, DEFAULT_PORT_RANGE_START, DEFAULT_PORT_RANGE_END);
-  const base = args.base || process.env.CLOUDBASE_AGENT_BASE || "/";
+  const base = args.base || process.env.CLOUDBASE_SITES_BASE || "/";
 
   const ts = Date.now();
   const logPath = join(LOG_DIR, `preview-${ts}.log`);
@@ -309,6 +309,6 @@ function registerInRegistry(state, cwd) {
   try {
     registerWorkspace({ cwd, sessionId, port: state.port, previewPid: state.pid });
   } catch (e) {
-    process.stderr.write(`[cloudbase-agent] registry write failed: ${e.message}\n`);
+    process.stderr.write(`[cloudbase-sites] registry write failed: ${e.message}\n`);
   }
 }

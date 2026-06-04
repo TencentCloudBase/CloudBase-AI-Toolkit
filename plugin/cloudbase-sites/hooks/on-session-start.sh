@@ -15,7 +15,7 @@
 #     }
 #   }
 #
-# Hook log: <cwd>/.cloudbase-agent/logs/hook-session-start.log
+# Hook log: <cwd>/.cloudbase-sites/logs/hook-session-start.log
 
 set -u
 CWD="$(pwd)"
@@ -24,7 +24,7 @@ PLUGIN_ROOT="$(cd "$HOOK_DIR/.." && pwd)"
 LOG_FALLBACK="/tmp/cloudbase-sites-session-start.log"
 
 log() {
-  local target="$CWD/.cloudbase-agent/logs/hook-session-start.log"
+  local target="$CWD/.cloudbase-sites/logs/hook-session-start.log"
   mkdir -p "$(dirname "$target")" 2>/dev/null || target="$LOG_FALLBACK"
   printf '[%s] %s\n' "$(date -Iseconds 2>/dev/null || date)" "$*" >> "$target" 2>/dev/null || true
 }
@@ -61,7 +61,7 @@ you must not bypass them.
 
 1. **Never guess the preview URL.** It is NOT 5173/5174/5175 — the plugin uses
    the 17173..17272 range AND each cwd may have its own port. Always run
-   `cloudbase-sites preview --status` (or read `<cwd>/.cloudbase-agent/preview.json`)
+   `cloudbase-sites preview --status` (or read `<cwd>/.cloudbase-sites/preview.json`)
    to obtain `internalUrl`. If it reports NO_PREVIEW (exit 5), wait ~5s and
    retry once — the SessionStart hook may still be installing/starting.
 
@@ -136,7 +136,9 @@ you must not bypass them.
    - Deploy is two-phase via `cloudbase-sites deploy [--version <n>]`:
      Phase 1 emits `nextAction.tool="manageApps"` with `framework=static,
      installCmd="", buildCmd=""` (skips remote build — we built locally).
-     Phase 2 is `cloudbase-sites deploy --post --version <n> --access-url <url>`.
+     Phase 2 is `cloudbase-sites deploy --post --version <n> --access-url <url>
+     --build-id <BuildId> [--version-name <VersionName>]`. If `manageApps`
+     returns `BuildId`, you MUST pass it so build logs remain traceable.
    - After deploy succeeds, ask: "要我用 ui-design 能力进一步优化样式和体验吗?"
      If yes, fetch `searchKnowledgeBase(mode=skill, skillName="ui-design")`
      and iterate.
@@ -186,7 +188,7 @@ If `manageApps` deploy fails with "no envId" or env-related error, call MCP
 `envQuery({ action: "info" })` once. If the user has multiple envs, ask them
 to pick. After binding, retry the deploy.
 
-For full contract see `skills/cloudbase-agent-runtime/SKILL.md`.'
+For full contract see `skills/cloudbase-sites-runtime/SKILL.md`.'
 
 # Read payload (Claude Code passes JSON; OpenClaw should too).
 PAYLOAD="$(cat 2>/dev/null || true)"
@@ -227,10 +229,10 @@ fi
 
 # Helper: read internalUrl from preview.json if it exists, else "(starting...)".
 read_url() {
-  if command -v node >/dev/null 2>&1 && [ -f .cloudbase-agent/preview.json ]; then
+  if command -v node >/dev/null 2>&1 && [ -f .cloudbase-sites/preview.json ]; then
     node -e '
       try {
-        const p = JSON.parse(require("fs").readFileSync(".cloudbase-agent/preview.json","utf8"));
+        const p = JSON.parse(require("fs").readFileSync(".cloudbase-sites/preview.json","utf8"));
         process.stdout.write(p.internalUrl || "(starting...)");
       } catch { process.stdout.write("(starting...)"); }
     ' 2>/dev/null
@@ -241,19 +243,23 @@ read_url() {
 
 # Helper: build a deployment status block from app.json.
 read_deploy_block() {
-  if command -v node >/dev/null 2>&1 && [ -f .cloudbase-agent/app.json ]; then
+  if command -v node >/dev/null 2>&1 && [ -f .cloudbase-sites/app.json ]; then
     node -e '
       try {
-        const a = JSON.parse(require("fs").readFileSync(".cloudbase-agent/app.json","utf8"));
-        const siteName = a.siteName || a.serviceName || "(not generated)";
-        const last = a.lastDeployedAt;
-        const lastUrl = a.lastAccessUrl;
-        const count = (a.deployHistory||[]).length;
+        const a = JSON.parse(require("fs").readFileSync(".cloudbase-sites/app.json","utf8"));
+        const siteName = a.siteName || "(not generated)";
+        const versions = Array.isArray(a.versions) ? a.versions : [];
+        const deployments = Array.isArray(a.deployments) ? a.deployments : [];
+        const last = deployments[deployments.length - 1] || null;
+        const currentVersion = a.currentVersion || versions[versions.length - 1]?.n || null;
+        const currentDeploy = a.currentDeploy || last?.version || null;
         let s = "- **deploy target:** CloudApp (manageApps) — independent service & domain per cwd\n";
         s += `- **siteName:** ${siteName}` + (last ? "" : " (no deploy yet)") + "\n";
+        s += `- **saved versions:** ${versions.length}` + (currentVersion ? ` (current v${currentVersion})` : "") + "\n";
         if (last) {
-          s += `- **last deploy:** ${last} (#${count})\n`;
-          s += `- **last access URL:** ${lastUrl}\n`;
+          s += `- **last deploy:** v${currentDeploy} at ${last.deployedAt}\n`;
+          s += `- **last access URL:** ${last.finalUrl || last.accessUrl}\n`;
+          if (last.buildId) s += `- **last buildId:** ${last.buildId}\n`;
         } else {
           s += "- **last deploy:** never — first deploy will create the CloudApp and assign a domain\n";
         }
@@ -294,7 +300,7 @@ $STATE_BLOCK"
     nohup bash -c "
       pnpm install >/dev/null 2>&1 || npm install >/dev/null 2>&1
       '$SITES_BIN' preview >/dev/null 2>&1
-    " </dev/null >>"$CWD/.cloudbase-agent/logs/hook-session-start.log" 2>&1 &
+    " </dev/null >>"$CWD/.cloudbase-sites/logs/hook-session-start.log" 2>&1 &
     disown 2>/dev/null || true
     DEPLOY_LINES="$(read_deploy_block)"
     STATE_BLOCK="### Current cwd state
@@ -312,7 +318,7 @@ $STATE_BLOCK"
   fi
 
   log "starting preview in background"
-  nohup "$SITES_BIN" preview </dev/null >>"$CWD/.cloudbase-agent/logs/hook-session-start.log" 2>&1 &
+  nohup "$SITES_BIN" preview </dev/null >>"$CWD/.cloudbase-sites/logs/hook-session-start.log" 2>&1 &
   disown 2>/dev/null || true
   DEPLOY_LINES="$(read_deploy_block)"
   STATE_BLOCK="### Current cwd state
@@ -333,7 +339,7 @@ fi
 empty_enough=1
 for entry in $(ls -A 2>/dev/null); do
   case "$entry" in
-    .git|.gitignore|.DS_Store|.cloudbase-agent|LICENSE|LICENSE.md|LICENSE.txt) ;;
+    .git|.gitignore|.DS_Store|.cloudbase-sites|LICENSE|LICENSE.md|LICENSE.txt) ;;
     README|README.md|README.MD|README.txt|readme.md) ;;
     *) empty_enough=0; break ;;
   esac
@@ -342,7 +348,7 @@ done
 if [ "$empty_enough" = "1" ]; then
   log "cwd is empty-enough — auto init react template + start in background"
   SITES_BIN="$PLUGIN_ROOT/bin/cloudbase-sites"
-  nohup "$SITES_BIN" init --start </dev/null >>"$CWD/.cloudbase-agent/logs/hook-session-start.log" 2>&1 &
+  nohup "$SITES_BIN" init --start </dev/null >>"$CWD/.cloudbase-sites/logs/hook-session-start.log" 2>&1 &
   disown 2>/dev/null || true
   DEPLOY_LINES="$(read_deploy_block)"
   STATE_BLOCK="### Current cwd state

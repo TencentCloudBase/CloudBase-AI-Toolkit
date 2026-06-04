@@ -3,7 +3,7 @@
  *
  * Steps:
  *   1. Sanity: cwd is not in the danger blacklist.
- *   2. Sanity: cwd is "empty enough" (only .git/.gitignore/README/LICENSE/.cloudbase-agent allowed).
+ *   2. Sanity: cwd is "empty enough" (only .git/.gitignore/README/LICENSE/.cloudbase-sites allowed).
  *   3. Download CloudBase official template zip via HTTPS.
  *   4. Extract zip into cwd (template is a flat zip).
  *   5. Run pnpm/npm install.
@@ -24,6 +24,7 @@ import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import https from "node:https";
 import { emitOk, emitErr, withCode } from "../emit.mjs";
+import { ensureGitignoreEntry } from "../git-utils.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -49,7 +50,7 @@ Options:
   --skip-install      download + extract only, no npm/pnpm install
 
 Refuses to run in danger blacklist dirs ($HOME, /, /tmp, ~/Desktop, ...).
-Refuses to run if cwd has files other than .git/.gitignore/README/LICENSE/.cloudbase-agent.
+Refuses to run if cwd has files other than .git/.gitignore/README/LICENSE/.cloudbase-sites.
 
 Exit codes:  9=cwd blacklisted  10=cwd not empty  11=download failed
              12=extract failed  13=install failed`;
@@ -76,16 +77,17 @@ export async function runInit(args) {
   if (!TEMPLATE_URLS[template]) {
     throw withCode(ERR.GENERIC, `unsupported template '${template}', expected react|vue`);
   }
+  ensureGitignoreEntry(CWD, ".cloudbase-sites/");
   const url = TEMPLATE_URLS[template];
 
   // 3. Download.
-  const zipPath = join(CWD, ".cloudbase-agent", "template.zip");
+  const zipPath = join(CWD, ".cloudbase-sites", "template.zip");
   mkdirSync(dirname(zipPath), { recursive: true });
-  process.stderr.write(`[cloudbase-agent] downloading ${template} template…\n`);
+  process.stderr.write(`[cloudbase-sites] downloading ${template} template…\n`);
   await downloadFile(url, zipPath);
 
   // 4. Extract.
-  process.stderr.write(`[cloudbase-agent] extracting…\n`);
+  process.stderr.write(`[cloudbase-sites] extracting…\n`);
   const unzipR = spawnSync("unzip", ["-q", "-o", zipPath, "-d", CWD], { stdio: "inherit" });
   if (unzipR.status !== 0) {
     throw withCode(ERR.EXTRACT_FAILED, `unzip exited with code ${unzipR.status}. Is 'unzip' installed?`);
@@ -94,7 +96,7 @@ export async function runInit(args) {
 
   // 5. Install.
   if (!args.skipInstall) {
-    process.stderr.write(`[cloudbase-agent] installing dependencies (this may take ~30s)…\n`);
+    process.stderr.write(`[cloudbase-sites] installing dependencies (this may take ~30s)…\n`);
     const ok = runInstall(CWD);
     if (!ok) throw withCode(ERR.INSTALL_FAILED, "dependency install failed; see terminal output above");
   }
@@ -102,7 +104,7 @@ export async function runInit(args) {
   // 6. Optionally start preview.
   let preview = null;
   if (args.start) {
-    process.stderr.write(`[cloudbase-agent] starting preview…\n`);
+    process.stderr.write(`[cloudbase-sites] starting preview…\n`);
     preview = await runPreviewSubprocess();
   }
 
@@ -147,7 +149,7 @@ function checkBlacklist(cwd) {
 
 function listMeaningfulFiles(dir) {
   const ignored = new Set([
-    ".git", ".gitignore", ".DS_Store", "Thumbs.db", ".cloudbase-agent",
+    ".git", ".gitignore", ".DS_Store", "Thumbs.db", ".cloudbase-sites",
     "LICENSE", "LICENSE.md", "LICENSE.txt",
   ]);
   const ignoredPatterns = [/^README(\.[a-z]+)?$/i];

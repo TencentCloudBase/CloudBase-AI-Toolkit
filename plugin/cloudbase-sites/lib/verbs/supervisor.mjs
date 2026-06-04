@@ -5,7 +5,7 @@
  *   1. Subcommands: start/stop/status/list/heal/reload (called by user).
  *   2. --daemon-loop: internal entry point for the spawned detached child.
  *
- * Walks ~/.cloudbase-agent/registry.json every TICK_MS, probes each cwd's
+ * Walks ~/.cloudbase-sites/registry.json every TICK_MS, probes each cwd's
  * preview.json, restarts dead vites via the binary's own `preview` verb.
  */
 
@@ -36,7 +36,7 @@ import { emitOk, emitErr } from "../emit.mjs";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SITES_BIN = join(__dirname, "..", "..", "bin", "cloudbase-sites");
 
-const TICK_MS = Number(process.env.CLOUDBASE_AGENT_SUPERVISOR_TICK_MS || 15_000);
+const TICK_MS = Number(process.env.CLOUDBASE_SITES_SUPERVISOR_TICK_MS || 15_000);
 const HEALTH_HTTP_TIMEOUT_MS = 1500;
 
 export const supervisorHelp = `cloudbase-sites supervisor — global watchdog for vibe-coding cwds
@@ -53,11 +53,11 @@ Internal:
   --daemon-loop            entered by the spawned child; do not run manually
 
 State files:
-  ~/.cloudbase-agent/supervisor.json   daemon PID + startedAt + lastTickAt
-  ~/.cloudbase-agent/registry.json     all registered cwds
-  ~/.cloudbase-agent/supervisor.log    daemon stdout/stderr
+  ~/.cloudbase-sites/supervisor.json   daemon PID + startedAt + lastTickAt
+  ~/.cloudbase-sites/registry.json     all registered cwds
+  ~/.cloudbase-sites/supervisor.log    daemon stdout/stderr
 
-Tick interval: ${TICK_MS}ms (env CLOUDBASE_AGENT_SUPERVISOR_TICK_MS to override)`;
+Tick interval: ${TICK_MS}ms (env CLOUDBASE_SITES_SUPERVISOR_TICK_MS to override)`;
 
 export async function runSupervisor(subcmd, rest) {
   switch (subcmd) {
@@ -129,7 +129,7 @@ async function tickOnce() {
 }
 
 async function checkHealth(entry) {
-  const previewJson = join(entry.cwd, ".cloudbase-agent", "preview.json");
+  const previewJson = join(entry.cwd, ".cloudbase-sites", "preview.json");
   if (!existsSync(previewJson)) return { healthy: false, reason: "preview.json missing" };
   let pj;
   try { pj = JSON.parse(readFileSync(previewJson, "utf8")); }

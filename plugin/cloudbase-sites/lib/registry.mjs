@@ -2,7 +2,7 @@
  * Global registry for vibe-coding workspaces.
  *
  * The supervisor and the bin scripts share state through:
- *   ~/.cloudbase-agent/registry.json
+ *   ~/.cloudbase-sites/registry.json
  *
  * Schema:
  *   { version, updatedAt,
@@ -28,7 +28,7 @@ import {
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-export const GLOBAL_DIR = join(homedir(), ".cloudbase-agent");
+export const GLOBAL_DIR = join(homedir(), ".cloudbase-sites");
 export const REGISTRY_PATH = join(GLOBAL_DIR, "registry.json");
 export const SUPERVISOR_STATE_PATH = join(GLOBAL_DIR, "supervisor.json");
 export const SUPERVISOR_LOCK_DIR = join(GLOBAL_DIR, "supervisor.lock");

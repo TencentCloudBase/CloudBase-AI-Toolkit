@@ -49,7 +49,7 @@ TARGET_CWD="${CWD:-$(dirname "$FILE_PATH")}"
 find_preview_root() {
   local d="$1"
   while [ "$d" != "/" ] && [ -n "$d" ]; do
-    if [ -f "$d/.cloudbase-agent/preview.json" ]; then
+    if [ -f "$d/.cloudbase-sites/preview.json" ]; then
       printf '%s' "$d"
       return 0
     fi
@@ -62,7 +62,7 @@ PROJECT_ROOT="$(find_preview_root "$TARGET_CWD" || true)"
 [ -z "$PROJECT_ROOT" ] && exit 0
 
 # --- Debounce: 1.5s lockfile (Node.js Date.now() — cross-platform) ----------
-LOCK="$PROJECT_ROOT/.cloudbase-agent/restart.lock"
+LOCK="$PROJECT_ROOT/.cloudbase-sites/restart.lock"
 NOW="$(node -e 'console.log(Date.now())' 2>/dev/null || python3 -c 'import time;print(int(time.time()*1000))' 2>/dev/null || echo 0)"
 if [ -f "$LOCK" ]; then
   LAST="$(cat "$LOCK" 2>/dev/null || echo 0)"
@@ -84,7 +84,7 @@ if [ -z "$SITES_BIN" ]; then
   [ -x "$SITES_BIN" ] || exit 0  # give up silently — never block the user
 fi
 
-HOOK_LOG="$PROJECT_ROOT/.cloudbase-agent/logs/hook-restart.log"
+HOOK_LOG="$PROJECT_ROOT/.cloudbase-sites/logs/hook-restart.log"
 mkdir -p "$(dirname "$HOOK_LOG")"
 (
   cd "$PROJECT_ROOT" || exit 0
