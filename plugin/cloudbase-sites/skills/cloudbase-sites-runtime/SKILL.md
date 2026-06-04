@@ -119,12 +119,15 @@ restart on config-file edits — you don't need to manage that.
 **Do NOT invoke `cloudbase-sites init` or `cloudbase-sites preview`
 proactively in your first message just because the plugin is installed.**
 SessionStart is intentionally passive for empty directories so the plugin does
-not interfere with unrelated sessions. By the time you read the user's first
-prompt:
+not interfere with unrelated sessions. A UserPromptSubmit hook may initialize
+after the first user message, but only when deterministic Chinese/English
+intent rules detect an explicit Sites/Web-app creation request. By the time you
+read the user's first prompt:
 
 - If the cwd was an existing Vite project: dev server is up (or installing).
-- If the cwd was empty: no files were downloaded by default; initialize only
-  after the user asks to build/create a Sites app.
+- If the cwd was empty: no files were downloaded by SessionStart. If the first
+  prompt clearly asked to build/create a Sites app, UserPromptSubmit may have
+  started `init --start`; otherwise initialize only after the user asks.
 - If the cwd is a non-Vite / blacklisted project: hook stayed silent.
 
 Codex supports bundled plugin hooks, but non-managed command hooks may require

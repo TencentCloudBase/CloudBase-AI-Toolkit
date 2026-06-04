@@ -107,10 +107,13 @@ not, use the plugin binary path shown above or the absolute path injected by
 the SessionStart hook.
 
 The SessionStart hook is passive in empty directories by default: it injects
-the right command but does not download a template or start a dev server until
-the user asks to create a Sites app. Set `CLOUDBASE_SITES_AUTO_INIT=1` before
-starting the host session only if you intentionally want automatic empty-folder
-scaffolding.
+the right command but does not download a template or start a dev server. A
+UserPromptSubmit hook then watches for explicit site-building intent in Chinese
+or English (for example "帮我做个官网" or "build a React dashboard website") and
+starts `init --start` only for empty-enough directories. Set
+`CLOUDBASE_SITES_AUTO_INIT=1` before starting the host session only if you
+intentionally want automatic empty-folder scaffolding without waiting for the
+first prompt.
 
 Run the focused regression tests:
 

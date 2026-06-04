@@ -11,6 +11,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const PLUGIN_DIR = path.join(ROOT_DIR, 'plugin', 'cloudbase-sites');
 const BIN = path.join(PLUGIN_DIR, 'bin', 'cloudbase-sites');
 const SESSION_HOOK = path.join(PLUGIN_DIR, 'hooks', 'on-session-start.sh');
+const USER_PROMPT_HOOK = path.join(PLUGIN_DIR, 'hooks', 'on-user-prompt-submit.mjs');
 
 const tempDirs = [];
 
@@ -67,6 +68,14 @@ describe('CloudBase Sites Codex plugin packaging', () => {
     expect(matcher).toContain('Write');
     expect(matcher).toContain('MultiEdit');
     expect(matcher).toContain('apply_patch');
+  });
+
+  test('registers a prompt intent hook for user-submitted Sites requests', () => {
+    const hooksPath = path.join(PLUGIN_DIR, 'hooks', 'hooks.json');
+    const hooks = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
+    const command = hooks.hooks.UserPromptSubmit[0].hooks[0].command;
+
+    expect(command).toContain('on-user-prompt-submit.mjs');
   });
 });
 
@@ -173,6 +182,84 @@ describe('CloudBase Sites SessionStart hook guidance', () => {
     expect(context).toContain('hook result:** skipped');
     expect(context).toContain('SessionStart runs only once');
     expect(context).toContain(`${BIN} preview --status`);
+    expect(context).toContain(`${BIN} preview`);
+  });
+});
+
+describe('CloudBase Sites UserPromptSubmit intent hook', () => {
+  function runPromptHook(cwd, prompt, extraEnv = {}) {
+    return spawnSync(process.execPath, [USER_PROMPT_HOOK], {
+      cwd,
+      encoding: 'utf8',
+      timeout: 5000,
+      env: {
+        ...process.env,
+        CLOUDBASE_SITES_INTENT_DRY_RUN: '1',
+        ...extraEnv,
+      },
+      input: JSON.stringify({ cwd, prompt }),
+    });
+  }
+
+  test('detects Chinese create-site intent in an empty directory', () => {
+    const cwd = makeTempDir();
+    const result = runPromptHook(cwd, '帮我做个 todo 网站看看');
+
+    expect(result.status).toBe(0);
+    const payload = JSON.parse(result.stdout);
+    const context = payload.hookSpecificOutput.additionalContext;
+    expect(context).toContain('detected intent:** create a Sites web app');
+    expect(context).toContain(`${BIN} init --start`);
+    expect(fs.existsSync(path.join(cwd, 'package.json'))).toBe(false);
+    expect(fs.existsSync(path.join(cwd, 'src'))).toBe(false);
+  });
+
+  test('detects English create-site intent in an empty directory', () => {
+    const cwd = makeTempDir();
+    const result = runPromptHook(cwd, 'Build a React dashboard website for my sales team');
+
+    expect(result.status).toBe(0);
+    const payload = JSON.parse(result.stdout);
+    expect(payload.hookSpecificOutput.additionalContext).toContain(`${BIN} init --start`);
+  });
+
+  test('does not touch the project for analysis or review prompts', () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'README.md'), '# Notes\n');
+    const result = runPromptHook(cwd, '分析这个 README，看看有什么问题');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(fs.existsSync(path.join(cwd, '.cloudbase-sites'))).toBe(false);
+  });
+
+  test('does not initialize non-empty non-Vite projects without user confirmation', () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'notes.txt'), 'existing work');
+    const result = runPromptHook(cwd, '帮我创建一个官网');
+
+    expect(result.status).toBe(0);
+    const payload = JSON.parse(result.stdout);
+    const context = payload.hookSpecificOutput.additionalContext;
+    expect(context).toContain('non-empty and not a Vite React/Vue project');
+    expect(context).toContain('no files changed');
+    expect(fs.existsSync(path.join(cwd, '.cloudbase-sites'))).toBe(false);
+  });
+
+  test('starts preview for matching existing Vite project prompts', () => {
+    const cwd = makeTempDir();
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({
+      dependencies: {
+        react: '1.0.0',
+        vite: '1.0.0',
+      },
+    }, null, 2));
+    const result = runPromptHook(cwd, 'Please preview this React app');
+
+    expect(result.status).toBe(0);
+    const payload = JSON.parse(result.stdout);
+    const context = payload.hookSpecificOutput.additionalContext;
+    expect(context).toContain('cwd state:** Vite React/Vue project');
     expect(context).toContain(`${BIN} preview`);
   });
 });
