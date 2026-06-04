@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import https from "node:https";
-import { emitOk, emitErr, withCode } from "../emit.mjs";
+import { emitOk, withCode } from "../emit.mjs";
 import { ensureGitignoreEntry } from "../git-utils.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
