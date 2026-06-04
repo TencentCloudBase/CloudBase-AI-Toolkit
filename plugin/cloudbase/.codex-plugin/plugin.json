@@ -1,0 +1,48 @@
+{
+  "name": "cloudbase",
+  "version": "0.1.0",
+  "description": "Tencent CloudBase provides AI models, database, cloud functions, authentication, cloud storage, and CloudRun backend capabilities — giving Codex direct access to the full CloudBase platform.",
+  "author": {
+    "name": "Tencent CloudBase",
+    "url": "https://cloudbase.net"
+  },
+  "homepage": "https://github.com/TencentCloudBase/cloudbase-mcp",
+  "repository": "https://github.com/TencentCloudBase/cloudbase-mcp",
+  "license": "MIT",
+  "keywords": [
+    "cloudbase",
+    "tencent-cloud",
+    "baas",
+    "codex",
+    "ai-model",
+    "database",
+    "cloud-function",
+    "authentication",
+    "storage",
+    "cloudrun"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Tencent CloudBase",
+    "shortDescription": "AI models, auth, database, cloud functions, storage, and CloudRun for Tencent CloudBase.",
+    "longDescription": "Use Tencent CloudBase to add AI models (DeepSeek, Hunyuan), authentication (email, OAuth, OIDC), NoSQL/MySQL databases, cloud functions, cloud storage, CloudRun backend services, and WeChat Mini Program integration to your applications. The cloudbase-mcp server provides tools for environment management, data operations, function deployment, and platform configuration.",
+    "developerName": "Tencent CloudBase",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Write",
+      "Read"
+    ],
+    "websiteURL": "https://cloudbase.net",
+    "privacyPolicyURL": "https://cloud.tencent.com/document/product/301/11470",
+    "termsOfServiceURL": "https://cloud.tencent.com/document/product/301/1967",
+    "defaultPrompt": [
+      "Set up CloudBase authentication for this web app.",
+      "Add a CloudBase NoSQL database to this project.",
+      "Deploy this API as a CloudBase cloud function.",
+      "Generate a WeChat Mini Program with CloudBase integration."
+    ],
+    "brandColor": "#006EFF"
+  }
+}

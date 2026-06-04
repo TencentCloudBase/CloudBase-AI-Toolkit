@@ -3,12 +3,86 @@
 CloudBase Sites packages the shared CloudBase site runtime for Claude Code,
 CodeBuddy, and Codex.
 
-## Codex local validation
+> Powered by [Tencent CloudBase](https://cloudbase.net).
 
-Validate the Codex plugin manifest from the repository root:
+## What this plugin provides
+
+- **CLI (`cloudbase-sites`)** — Bootstrap, preview, save, deploy, rollback, and
+  inspect Vite-based React or Vue web apps.
+- **Runtime hooks** — Auto-start dev server on session start; restart on
+  config file changes.
+- **Skills** — The `cloudbase-sites-runtime` skill orchestrates the full
+  vibe-coding session.
+
+## Quick start per host
+
+### Codex
+
+Add the CloudBase marketplace, then install the plugin:
 
 ```bash
-python3 /Users/bookerzhao/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py plugin/cloudbase-sites
+# Add the marketplace (do this once)
+codex plugin marketplace add TencentCloudBase/cloudbase-mcp --ref main --name cloudbase-plugins
+
+# Install the sites plugin
+codex plugin add cloudbase-sites@cloudbase-plugins
+```
+
+Verify the marketplace is active:
+
+```bash
+codex plugin list --marketplace cloudbase-plugins
+```
+
+To update the plugin, upgrade the marketplace:
+
+```bash
+codex plugin marketplace upgrade cloudbase-plugins
+```
+
+### Claude Code / OpenClaw
+
+Add the MCP server to your project's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "cloudbase-mcp": {
+      "command": "npx",
+      "args": ["-y", "@cloudbase/cloudbase-mcp@latest"],
+      "env": {}
+    }
+  }
+}
+```
+
+### CodeBuddy
+
+CodeBuddy picks up the `.claude-plugin/plugin.json` manifest. See
+[`doc/ide-setup/`](../../doc/ide-setup/) for installation.
+
+## Testing the full lifecycle
+
+After installing, test the complete save/deploy/rollback flow:
+
+```bash
+# Bootstrap a new project
+cloudbase-sites init
+
+# Start the preview server
+cloudbase-sites preview
+
+# Save a version checkpoint
+cloudbase-sites save
+
+# Deploy the saved version to CloudBase
+cloudbase-sites deploy
+
+# Roll back to a previous version
+cloudbase-sites rollback
+
+# List version history
+cloudbase-sites versions
 ```
 
 Run the focused regression tests:
@@ -17,6 +91,19 @@ Run the focused regression tests:
 cd mcp
 node_modules/.bin/vitest run --config vitest.config.js ../tests/cloudbase-sites-plugin.test.js
 ```
+
+## Relationship with Tencent CloudBase (`plugin/cloudbase`)
+
+| | **CloudBase Sites** (this plugin) | **Tencent CloudBase** (`plugin/cloudbase`) |
+|---|---|---|
+| Purpose | Vite-based site creation, preview, versioning, deploy | Platform capabilities: AI, auth, DB, functions, storage |
+| Skills | Single runtime orchestration skill | 26+ granular skills from `TencentCloudBase/skills` |
+| CLI | `cloudbase-sites` binary for preview/save/deploy | None (uses `cloudbase-mcp` tools) |
+| Use case | Bootstrap, preview, and ship Vite web apps | Add CloudBase to any project |
+
+Use both plugins together: **CloudBase Sites** handles the site lifecycle
+(create, preview, deploy, rollback) while **Tencent CloudBase** provides
+platform services (auth, database, functions, AI models, storage).
 
 ## Runtime state
 
