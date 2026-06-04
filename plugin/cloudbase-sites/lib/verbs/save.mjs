@@ -55,8 +55,7 @@ export async function runSave(args) {
           },
         ],
       });
-      process.exitCode = ERR.GENERIC;
-      return;
+      process.exit(ERR.GENERIC);
     }
   }
   ensureGitignoreEntry(CWD, ".cloudbase-sites/");
