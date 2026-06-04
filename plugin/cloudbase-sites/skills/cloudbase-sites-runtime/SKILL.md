@@ -94,8 +94,8 @@ Do not assume Codex has injected the plugin `bin/` directory into PATH.
 Single binary, multiple subcommands. Use these — and ONLY these — for the
 dev-server / version / deploy lifecycle:
 
-- `cloudbase-sites init` — scaffold from empty cwd (called by SessionStart hook)
-- `cloudbase-sites preview` — daemonize Vite (called by SessionStart hook)
+- `cloudbase-sites init --start` — scaffold from empty cwd and start preview when the user explicitly wants a Sites app
+- `cloudbase-sites preview` — daemonize Vite for an existing Vite project
 - `cloudbase-sites preview --status [--quiet]` — JSON status / exit code
 - `cloudbase-sites preview --restart` / `--stop [--force]`
 - `cloudbase-sites save -m "<label>"` — create a saved version
@@ -117,13 +117,14 @@ restart on config-file edits — you don't need to manage that.
 ## Lifecycle hooks and fallback
 
 **Do NOT invoke `cloudbase-sites init` or `cloudbase-sites preview`
-proactively in your first message when the host reports that CloudBase Sites
-hooks are active.** The plugin's SessionStart hook does this for you. By the
-time you read the user's first prompt:
+proactively in your first message just because the plugin is installed.**
+SessionStart is intentionally passive for empty directories so the plugin does
+not interfere with unrelated sessions. By the time you read the user's first
+prompt:
 
 - If the cwd was an existing Vite project: dev server is up (or installing).
-- If the cwd was empty: `init --start` is running in background; preview
-  will be ready in ~10s.
+- If the cwd was empty: no files were downloaded by default; initialize only
+  after the user asks to build/create a Sites app.
 - If the cwd is a non-Vite / blacklisted project: hook stayed silent.
 
 Codex supports bundled plugin hooks, but non-managed command hooks may require
@@ -139,6 +140,7 @@ the runtime is active. If a template is downloaded later through MCP
 
 You only invoke a CLI verb when:
 
+- User asks to create/build a new Sites app in an empty cwd → `cloudbase-sites init --start`
 - User explicitly says "stop the dev server" → `cloudbase-sites preview --stop`
 - User asks for the URL or "is it running" → `cloudbase-sites preview --status`
 - User wants to save a version → `cloudbase-sites save -m "<label>"`
@@ -147,24 +149,28 @@ You only invoke a CLI verb when:
 
 ## When the user just walked into the conversation
 
-1. **Check preview state first** — read `<cwd>/.cloudbase-sites/preview.json`
-   or run `cloudbase-sites preview --status`. It's overwhelmingly likely the
-   preview is already up — courtesy of the SessionStart hook.
+1. **Read the SessionStart status first.** If it says the cwd is passive/empty,
+   do not assume a project exists. Wait for the user's first concrete Sites app
+   request, then run `cloudbase-sites init --start`.
 
-2. **Tell the user the URL** — surface `internalUrl` from the JSON. If the
-   file is missing, the hook is still installing/starting; tell the user to
-   wait ~10s and inspect `.cloudbase-sites/logs/hook-session-start.log`.
+2. **For existing Vite projects, check preview state** — read
+   `<cwd>/.cloudbase-sites/preview.json` or run
+   `cloudbase-sites preview --status`. If no preview is running, start it with
+   `cloudbase-sites preview`.
 
-3. **Offer to open the preview.** Ask: "要不要我用内置浏览器打开 <URL>
+3. **Tell the user the URL** — surface `internalUrl` from the JSON. If the file
+   is missing after init/preview, inspect `.cloudbase-sites/logs/`.
+
+4. **Offer to open the preview.** Ask: "要不要我用内置浏览器打开 <URL>
    预览一下?" If yes, use the host Browser / in-app browser tool to open
    `internalUrl`. Do not use macOS `open`, and do not run browser interaction
    tests unless the user explicitly asks you to test the UI.
 
-4. **DO NOT** re-init / re-start. Calling `init` again will fail with code 10
+5. **DO NOT** re-init / re-start. Calling `init` again will fail with code 10
    (cwd no longer empty). Calling `preview` is idempotent and safe but
    wastes a turn.
 
-5. **NEVER guess the port.** It is NOT 5173/5174/5175 — the plugin uses
+6. **NEVER guess the port.** It is NOT 5173/5174/5175 — the plugin uses
    17173..17272. Always read the recorded port from `preview.json`.
 
 ## Two-stage save → deploy workflow

@@ -363,16 +363,34 @@ for entry in $(ls -A 2>/dev/null); do
 done
 
 if [ "$empty_enough" = "1" ]; then
-  log "cwd is empty-enough — auto init react template + start in background"
-  nohup "$SITES_BIN" init --start </dev/null >>"$CWD/.cloudbase-sites/logs/hook-session-start.log" 2>&1 &
-  disown 2>/dev/null || true
   DEPLOY_LINES="$(read_deploy_block)"
+  if [ "${CLOUDBASE_SITES_AUTO_INIT:-0}" = "1" ]; then
+    log "cwd is empty-enough — auto init enabled by CLOUDBASE_SITES_AUTO_INIT"
+    nohup "$SITES_BIN" init --start </dev/null >>"$CWD/.cloudbase-sites/logs/hook-session-start.log" 2>&1 &
+    disown 2>/dev/null || true
+    STATE_BLOCK="### Current cwd state
+
+- **cwd:** $CWD
+- **hook result:** auto-initializing because \`CLOUDBASE_SITES_AUTO_INIT=1\`
+- **template:** none yet — initializing CloudBase official React+Vite template in background (~10s expected: download zip + pnpm install + start dev server)
+- **preview URL:** (not ready yet — wait ~10s, then run \`$SITES_BIN preview --status\`; retry once after 5s if it reports NO_PREVIEW)
+- **first action:** wait until the user actually requests something, then run \`$SITES_BIN preview --status\` to confirm template+preview are ready before editing any files. The template will scaffold \`src/App.tsx\`, \`src/main.tsx\`, etc. — DO NOT create competing files until you have read what the template provides.
+$DEPLOY_LINES"
+    emit_context "$RULES_BLOCK
+
+$STATE_BLOCK"
+    exit 0
+  fi
+
+  log "cwd is empty-enough — passive by default, not auto-initializing"
   STATE_BLOCK="### Current cwd state
 
 - **cwd:** $CWD
-- **template:** none yet — auto-initializing CloudBase official React+Vite template in background (~10s expected: download zip + pnpm install + start dev server)
-- **preview URL:** (not ready yet — wait ~10s, then run \`$SITES_BIN preview --status\`; retry once after 5s if it reports NO_PREVIEW)
-- **first action:** wait until the user actually requests something, then run \`$SITES_BIN preview --status\` to confirm template+preview are ready before editing any files. The template will scaffold \`src/App.tsx\`, \`src/main.tsx\`, etc. — DO NOT create competing files until you have read what the template provides.
+- **hook result:** passive — this directory is empty enough for a CloudBase Sites project, but the hook did not download or modify files.
+- **why it matters:** installing the plugin must not interfere with unrelated empty-directory sessions.
+- **CLI path:** \`$SITES_BIN\`
+- **next action when the user asks to build a Sites app:** run \`$SITES_BIN init --start\`, then \`$SITES_BIN preview --status\` to fetch the URL.
+- **opt-in auto init:** set \`CLOUDBASE_SITES_AUTO_INIT=1\` before starting the session to restore automatic empty-directory scaffold behavior.
 $DEPLOY_LINES"
   emit_context "$RULES_BLOCK
 

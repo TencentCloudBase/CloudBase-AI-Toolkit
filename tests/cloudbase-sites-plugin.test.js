@@ -109,6 +109,27 @@ describe('CloudBase Sites CLI behavior', () => {
 });
 
 describe('CloudBase Sites SessionStart hook guidance', () => {
+  test('stays passive in empty directories by default', () => {
+    const cwd = makeTempDir();
+
+    const result = spawnSync('bash', [SESSION_HOOK], {
+      cwd,
+      encoding: 'utf8',
+      timeout: 5000,
+      env: { ...process.env, CLOUDBASE_SITES_AUTO_INIT: '' },
+      input: '',
+    });
+
+    expect(result.status).toBe(0);
+    const payload = JSON.parse(result.stdout);
+    const context = payload.hookSpecificOutput.additionalContext;
+    expect(context).toContain('hook result:** passive');
+    expect(context).toContain(`${BIN} init --start`);
+    expect(context).toContain('CLOUDBASE_SITES_AUTO_INIT=1');
+    expect(fs.existsSync(path.join(cwd, 'package.json'))).toBe(false);
+    expect(fs.existsSync(path.join(cwd, 'src'))).toBe(false);
+  });
+
   test('injects absolute CLI fallback when cwd is a Vite project', () => {
     const cwd = makeTempDir();
     fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({
