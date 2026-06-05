@@ -128,6 +128,7 @@ async function resolveStoragePublicAccess(params: {
 export function registerStorageTools(server: ExtendedMcpServer) {
   // 获取 cloudBaseOptions，如果没有则为 undefined
   const cloudBaseOptions = server.cloudBaseOptions;
+  const storageOverrides = server.pluginOptions?.storage;
 
   // 创建闭包函数来获取 CloudBase Manager
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
@@ -157,7 +158,13 @@ export function registerStorageTools(server: ExtendedMcpServer) {
 
       switch (input.action) {
         case 'list': {
-          const result = await storageService.listDirectoryFiles(input.cloudPath);
+          let files: any[];
+          if (storageOverrides?.listFiles) {
+            files = await storageOverrides.listFiles({ cloudPath: input.cloudPath });
+          } else {
+            const result = await storageService.listDirectoryFiles(input.cloudPath);
+            files = result || [];
+          }
 
           return {
             content: [
@@ -168,10 +175,10 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                   data: {
                     action: 'list',
                     cloudPath: input.cloudPath,
-                    files: result || [],
-                    totalCount: result?.length || 0
+                    files,
+                    totalCount: files.length
                   },
-                  message: `Successfully listed ${result?.length || 0} files in directory '${input.cloudPath}'`
+                  message: `Successfully listed ${files.length} files in directory '${input.cloudPath}'`
                 }, null, 2)
               }
             ]
@@ -179,7 +186,12 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         }
 
         case 'info': {
-          const result = await storageService.getFileInfo(input.cloudPath);
+          let fileInfo: any;
+          if (storageOverrides?.getFileInfo) {
+            fileInfo = await storageOverrides.getFileInfo({ cloudPath: input.cloudPath });
+          } else {
+            fileInfo = await storageService.getFileInfo(input.cloudPath);
+          }
 
           return {
             content: [
@@ -190,7 +202,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                   data: {
                     action: 'info',
                     cloudPath: input.cloudPath,
-                    fileInfo: result
+                    fileInfo
                   },
                   message: `Successfully retrieved file info for '${input.cloudPath}'`
                 }, null, 2)
@@ -238,10 +250,14 @@ export function registerStorageTools(server: ExtendedMcpServer) {
           const localPath = path.join(tempDir, getStorageTempFileName(input.cloudPath));
 
           try {
-            await storageService.downloadFile({
-              cloudPath: input.cloudPath,
-              localPath
-            });
+            if (storageOverrides?.downloadFile) {
+              await storageOverrides.downloadFile({ cloudPath: input.cloudPath, localPath });
+            } else {
+              await storageService.downloadFile({
+                cloudPath: input.cloudPath,
+                localPath
+              });
+            }
 
             const buffer = await fs.readFile(localPath);
             const decoded = decodeInlineTextContent(buffer);
@@ -306,21 +322,29 @@ export function registerStorageTools(server: ExtendedMcpServer) {
       switch (input.action) {
         case 'upload': {
           if (input.isDirectory) {
-            await storageService.uploadDirectory({
-              localPath: input.localPath,
-              cloudPath: input.cloudPath,
-              onProgress: (progressData: any) => {
-                console.log("Upload directory progress:", progressData);
-              }
-            });
+            if (storageOverrides?.uploadDirectory) {
+              await storageOverrides.uploadDirectory({ localPath: input.localPath, cloudPath: input.cloudPath });
+            } else {
+              await storageService.uploadDirectory({
+                localPath: input.localPath,
+                cloudPath: input.cloudPath,
+                onProgress: (progressData: any) => {
+                  console.log("Upload directory progress:", progressData);
+                }
+              });
+            }
           } else {
-            await storageService.uploadFile({
-              localPath: input.localPath,
-              cloudPath: input.cloudPath,
-              onProgress: (progressData: any) => {
-                console.log("Upload file progress:", progressData);
-              }
-            });
+            if (storageOverrides?.uploadFile) {
+              await storageOverrides.uploadFile({ localPath: input.localPath, cloudPath: input.cloudPath });
+            } else {
+              await storageService.uploadFile({
+                localPath: input.localPath,
+                cloudPath: input.cloudPath,
+                onProgress: (progressData: any) => {
+                  console.log("Upload file progress:", progressData);
+                }
+              });
+            }
           }
 
           const fileUrls = await storageService.getTemporaryUrl([{
@@ -359,15 +383,23 @@ export function registerStorageTools(server: ExtendedMcpServer) {
 
         case 'download': {
           if (input.isDirectory) {
-            await storageService.downloadDirectory({
-              cloudPath: input.cloudPath,
-              localPath: input.localPath
-            });
+            if (storageOverrides?.downloadDirectory) {
+              await storageOverrides.downloadDirectory({ cloudPath: input.cloudPath, localPath: input.localPath });
+            } else {
+              await storageService.downloadDirectory({
+                cloudPath: input.cloudPath,
+                localPath: input.localPath
+              });
+            }
           } else {
-            await storageService.downloadFile({
-              cloudPath: input.cloudPath,
-              localPath: input.localPath
-            });
+            if (storageOverrides?.downloadFile) {
+              await storageOverrides.downloadFile({ cloudPath: input.cloudPath, localPath: input.localPath });
+            } else {
+              await storageService.downloadFile({
+                cloudPath: input.cloudPath,
+                localPath: input.localPath
+              });
+            }
           }
 
           return {
@@ -406,9 +438,17 @@ export function registerStorageTools(server: ExtendedMcpServer) {
           }
 
           if (input.isDirectory) {
-            await storageService.deleteDirectory(input.cloudPath);
+            if (storageOverrides?.deleteDirectory) {
+              await storageOverrides.deleteDirectory({ cloudPath: input.cloudPath });
+            } else {
+              await storageService.deleteDirectory(input.cloudPath);
+            }
           } else {
-            await storageService.deleteFile([input.cloudPath]);
+            if (storageOverrides?.deleteFiles) {
+              await storageOverrides.deleteFiles({ cloudPaths: [input.cloudPath] });
+            } else {
+              await storageService.deleteFile([input.cloudPath]);
+            }
           }
 
           return {

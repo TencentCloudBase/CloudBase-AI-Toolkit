@@ -33,3 +33,8 @@ mcp/.vscode/
 mcp/.windsurf/
 mcp/rules/
 .workbuddy/
+
+# 本地测试脚本（含票据参数示例，不入库）
+mcp/scripts/test-with-ticket.cjs
+# 本地 e2e 测试（集成测试，走单独 CI）
+mcp/src/wxide-mcp-e2e.test.js

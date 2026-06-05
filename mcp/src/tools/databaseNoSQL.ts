@@ -198,6 +198,14 @@ async function callNoSqlContentApi(options: {
       requestId: result?.RequestId,
     });
 
+    // 检查 API 层返回的业务错误（如集合不存在）并抛出
+    if (result?.Error) {
+      const err = new Error(`${result.Error.Code}: ${result.Error.Message}`);
+      (err as any).code = result.Error.Code;
+      (err as any).requestId = result.RequestId;
+      throw err;
+    }
+
     return result;
   } catch (error) {
     logNoSqlLatency(options.toolName, "cloudApiError", {
@@ -216,12 +224,14 @@ async function waitForCollectionReady({
   cloudbase,
   collectionName,
   logger,
+  cloudBaseOptions,
   timeoutMs = COLLECTION_READY_TIMEOUT_MS,
   pollIntervalMs = COLLECTION_READY_POLL_INTERVAL_MS,
 }: {
   cloudbase: CloudBase;
   collectionName: string;
   logger?: Logger;
+  cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"];
   timeoutMs?: number;
   pollIntervalMs?: number;
 }) {
@@ -240,17 +250,39 @@ async function waitForCollectionReady({
 
   while (Date.now() <= deadline) {
     try {
-      // 直接用 commonService 调用 DescribeTable 检查集合是否存在，避免 SDK lazyInit → DescribeEnvs
-      const envId = await getEnvId();
-      const result = await cloudbase.commonService("tcb", "2018-06-08").call({
-        Action: "DescribeTable",
+      // 用 PutItem 探测集合是否真正就绪（DescribeTable 可能误报），插入一个空占位文档
+      // 如果成功，立即删除该文档；如果仍 ResourceNotFound，继续等待
+      const envId = await getEnvId(cloudBaseOptions);
+      const probeDoc = JSON.stringify({ _readyProbe: true, _ts: Date.now() });
+      const probeResult = await cloudbase.commonService("tcb", "2018-06-08").call({
+        Action: "PutItem",
         Param: {
           EnvId: envId,
           TableName: collectionName,
+          MgoDocs: [probeDoc],
         },
       });
-      logCloudBaseResult(logger, result);
-      // DescribeTable 成功返回即表示集合存在
+      logCloudBaseResult(logger, probeResult);
+      if (probeResult?.Error) {
+        // 集合还未就绪，继续轮询
+        throw new Error(probeResult.Error.Message);
+      }
+      // 集合就绪，清理探测文档
+      if (Array.isArray(probeResult?.InsertedIds) && probeResult.InsertedIds.length > 0) {
+        try {
+          await cloudbase.commonService("tcb", "2018-06-08").call({
+            Action: "DeleteItem",
+            Param: {
+              EnvId: envId,
+              TableName: collectionName,
+              MgoQuery: JSON.stringify({ _readyProbe: true }),
+              MgoIsMulti: true,
+            },
+          });
+        } catch {
+          // 清理失败不影响主流程
+        }
+      }
       logger?.({
         type: "toolInfo",
         toolName: "writeNoSqlDatabaseStructure",
@@ -298,9 +330,9 @@ export function registerDatabaseTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "readNoSqlDatabaseStructure",
     {
-      title: "读取 NoSQL 数据库结构",
+      title: "读取 CloudBase NoSQL 数据库结构",
       description:
-        "读取 NoSQL 数据库集合与索引结构，支持列出集合、查看集合详情、列出索引以及检查索引是否存在。本工具为服务端管理工具，用于管理端查询数据库结构，不用于编写客户端代码。",
+        "读取 CloudBase NoSQL 数据库集合与索引结构，支持列出集合、查看集合详情、列出索引以及检查索引是否存在。本工具为服务端管理工具，用于管理端查询数据库结构，不用于编写客户端代码。",
       inputSchema: {
         action: z.enum([
           "listCollections",
@@ -518,9 +550,9 @@ checkIndex: 检查指定索引是否存在`),
   server.registerTool?.(
     "writeNoSqlDatabaseStructure",
     {
-      title: "创建并管理 NoSQL 数据库集合",
+      title: "创建并管理 CloudBase NoSQL 数据库集合",
       description:
-        "创建、删除和管理 NoSQL 数据库集合（collection）。支持创建新集合、删除现有集合，以及通过 updateCollection 的 updateOptions.CreateIndexes / updateOptions.DropIndexes 添加索引和删除索引。当需要新建集合时，使用 action=createCollection。本工具为服务端管理工具，用于管理端操作集合和索引结构，不用于编写客户端代码。",
+        "创建、删除和管理 CloudBase NoSQL 数据库集合（collection）。支持创建新集合、删除现有集合，以及通过 updateCollection 的 updateOptions.CreateIndexes / updateOptions.DropIndexes 添加索引和删除索引。当需要新建集合时，使用 action=createCollection。本工具为服务端管理工具，用于管理端操作集合和索引结构，不用于编写客户端代码。",
       inputSchema: {
         action: z.enum([
           "createCollection",
@@ -589,8 +621,13 @@ deleteCollection: 删除集合`),
             Action: "DescribeTable",
             Param: { EnvId: envId, TableName: collectionName },
           });
-          collectionExists = true;
-          existsRequestId = descResult?.RequestId ?? "";
+          if (descResult?.Error) {
+            // 集合不存在（ResourceNotFound）或其他错误，继续创建
+            existsRequestId = descResult.RequestId ?? "";
+          } else {
+            collectionExists = true;
+            existsRequestId = descResult?.RequestId ?? "";
+          }
         } catch (e: any) {
           existsRequestId = e?.requestId ?? "";
         }
@@ -627,6 +664,7 @@ deleteCollection: 删除集合`),
           cloudbase,
           collectionName,
           logger: server.logger,
+          cloudBaseOptions: server.cloudBaseOptions,
         });
         return {
           content: [
@@ -730,8 +768,8 @@ deleteCollection: 删除集合`),
   server.registerTool?.(
     "readNoSqlDatabaseContent",
     {
-      title: "查询并获取 NoSQL 数据库数据记录",
-      description: "查询并获取 NoSQL 数据库数据记录。⚠️ 本工具为服务端管理工具，用于管理端/运维端查询。当任务要求编写客户端应用代码时（例如「用 JS SDK 读取数据」），不应使用本工具，而应在项目代码中编写 @cloudbase/js-sdk 客户端代码（如 db.collection().where().get()）。",
+      title: "查询并获取 CloudBase NoSQL 数据库数据记录",
+      description: "查询 CloudBase NoSQL 数据库中的数据记录。支持按条件筛选、分页、排序，适用于管理端数据查询与运维。",
       inputSchema: {
         collectionName: z.string().describe("集合名称"),
         instanceId: z
@@ -832,9 +870,11 @@ deleteCollection: 删除集合`),
   server.registerTool?.(
     "writeNoSqlDatabaseContent",
     {
-      title: "修改 NoSQL 数据库数据记录",
+      title: "修改 CloudBase NoSQL 数据库数据记录",
       description:
-        "修改 NoSQL 数据库数据记录。⚠️ 本工具为服务端管理工具，用于管理端/运维端操作（如后台脚本、数据迁移、批量修改）。当任务要求编写客户端应用代码时（例如「用 JS SDK 登录并插入数据」、「在前端读写数据库」），不应使用本工具，而应在项目代码中编写 @cloudbase/js-sdk 客户端代码（如 app.database().collection().add()、db.collection().where().get() 等）。可按 MongoDB updateOne/updateMany 的心智模型理解：部分更新必须使用 `$set`、`$inc`、`$push` 等更新操作符；如果直接传「字段到值的普通对象」这类内容，底层会把它当作替换内容，存在覆盖整条文档的风险。⚠️ 嵌套对象部分更新务必使用点号路径：要更新 `shipping.city`，应传 `$set: {\"shipping.city\": \"guangzhou\"}`，绝不能传 `$set: {\"shipping\": {\"city\": \"guangzhou\"}}`（后者会丢失 shipping 下的其他字段）。若集合中的角色/档案文档会在前端通过 `db.collection(...).doc(uid)` 读取，请确保文档 `_id` 就是该 `uid`；不要用按 `uid` 条件查询再配合 `upsert=true` 的方式去更新 `users` / `profiles`，否则经常会生成一个不同的 `_id`，导致后续 `doc(uid)` 读取命中不到。",
+        "修改 CloudBase NoSQL 数据库中的数据记录。支持插入、更新（含 $set/$inc/$push 等操作符）、删除、upsert 等操作，适用于管理端数据写入与运维。" +
+        "⚠️ 服务端写入不含 _openid：若集合依赖客户端 SDK（@cloudbase/js-sdk 或微信小程序 wx.cloud.database()）的行级安全规则（如 doc._openid == auth.openid），服务端写入时需手动补充 _openid 字段，否则客户端将无法读取到该数据。" +
+        "⚠️ 部分更新嵌套字段须使用点号路径，如 `$set: {\"shipping.city\": \"guangzhou\"}`，直接传嵌套对象会覆盖整个字段。",
       inputSchema: {
         action: z
           .enum(["insert", "update", "delete"])

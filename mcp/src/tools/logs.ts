@@ -36,9 +36,9 @@ export function registerLogTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "queryLogs",
     {
-      title: "查询日志服务",
+      title: "查询 CloudBase 日志服务",
       description:
-        "日志域统一只读入口。支持检查日志服务状态并搜索 CLS 日志。" +
+        "CloudBase 日志域统一只读入口。支持检查日志服务状态并搜索 CLS 日志。" +
         "\n\n**重要区分**：" +
         "\n- 查询云函数日志：使用 `queryFunctions(action=\"listFunctionLogs\", functionName=\"xxx\")`" +
         "\n- 查询 CLS 日志（跨服务日志聚合）：使用本工具 `queryLogs(action=\"searchLogs\")`" +

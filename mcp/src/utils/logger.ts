@@ -71,7 +71,7 @@ if (shouldUseConsole()) {
   );
 }
 
-if (!isCloudMode()) {
+if (!isCloudMode() && process.env.CLOUDBASE_MCP_DISABLE_LOG_FILE !== 'true') {
   // File transport with daily rotation
   transports.push(
     new DailyRotateFile({

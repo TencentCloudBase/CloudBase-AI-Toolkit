@@ -422,9 +422,10 @@ export async function getCloudBaseManager(options: GetManagerOptions = {}): Prom
     } = options;
 
     const hasDirectCredentials = !!(cloudBaseOptions?.secretId && cloudBaseOptions?.secretKey);
+    const hasRequestFn = !!(cloudBaseOptions?.requestFn);
 
-    // 如果传入了完整凭据，优先使用显式 CloudBase 配置
-    if (cloudBaseOptions && hasDirectCredentials) {
+    // 如果传入了完整凭据或 requestFn，优先使用显式 CloudBase 配置
+    if (cloudBaseOptions && (hasDirectCredentials || hasRequestFn)) {
         let resolvedEnvId = cloudBaseOptions.envId;
         if (requireEnvId && !resolvedEnvId) {
             const envCandidates = await listAvailableEnvCandidates({ cloudBaseOptions });

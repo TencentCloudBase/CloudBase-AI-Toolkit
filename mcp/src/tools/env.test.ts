@@ -858,7 +858,7 @@ describe("env tools - envQuery", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.envQuery.handler({
+    const result = await tools.queryEnv.handler({
       action: "list",
       alias: "alpha",
       offset: 1,
@@ -914,7 +914,7 @@ describe("env tools - envQuery", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.envQuery.handler({
+    const result = await tools.queryEnv.handler({
       action: "list",
       alias: "alpha",
       aliasExact: true,
@@ -954,9 +954,9 @@ describe("env tools - envQuery", () => {
     });
 
     const { tools } = createMockServer();
-    const unfiltered = JSON.parse((await tools.envQuery.handler({ action: "list" })).content[0].text);
+    const unfiltered = JSON.parse((await tools.queryEnv.handler({ action: "list" })).content[0].text);
     const filtered = JSON.parse(
-      (await tools.envQuery.handler({ action: "list", envId: "env-other" })).content[0].text,
+      (await tools.queryEnv.handler({ action: "list", envId: "env-other" })).content[0].text,
     );
 
     expect(unfiltered.EnvList).toEqual([{ EnvId: "env-test", Alias: "bound", PackageId: "baas_personal" }]);
@@ -964,7 +964,7 @@ describe("env tools - envQuery", () => {
     expect(filtered.EnvList).toEqual([{ EnvId: "env-other", Alias: "other", PackageId: "baas_free" }]);
     expect(filtered.AppliedFilters.currentEnvOnly).toBe(false);
     expect(filtered.RecommendedNextAction).toMatchObject({
-      tool: "envQuery",
+      tool: "queryEnv",
       action: "info",
     });
   });
@@ -989,7 +989,7 @@ describe("env tools - envQuery", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.envQuery.handler({ action: "list" });
+    const result = await tools.queryEnv.handler({ action: "list" });
     const payload = JSON.parse(result.content[0].text);
 
     expect(describeEnvInfo).toHaveBeenCalledWith({ EnvId: "env-test" });
@@ -1028,7 +1028,7 @@ describe("env tools - envQuery", () => {
     });
 
     const { tools } = createMockServer();
-    const payload = JSON.parse((await tools.envQuery.handler({ action: "info" })).content[0].text);
+    const payload = JSON.parse((await tools.queryEnv.handler({ action: "info" })).content[0].text);
 
     expect(payload).toMatchObject({
       EnvInfo: {
@@ -1068,7 +1068,7 @@ describe("env tools - envQuery", () => {
     });
 
     const { tools } = createMockServer();
-    await tools.envQuery.handler({ action: "info", envId: "env-override" });
+    await tools.queryEnv.handler({ action: "info", envId: "env-override" });
 
     expect(mockGetCloudBaseManager).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1097,7 +1097,7 @@ describe("env tools - envQuery", () => {
     });
 
     const { tools } = createMockServer();
-    const payload = JSON.parse((await tools.envQuery.handler({ action: "domains" })).content[0].text);
+    const payload = JSON.parse((await tools.queryEnv.handler({ action: "domains" })).content[0].text);
 
     expect(payload).toMatchObject({
       Domains: [{ Id: "domain-1", Domain: "localhost:5173", CreateTime: "2026-04-08 10:00:00", Status: "ENABLE", Type: "USER" }],
@@ -1140,7 +1140,7 @@ describe("env tools - envQuery", () => {
     });
 
     const { tools } = createMockServer();
-    const payload = JSON.parse((await tools.envQuery.handler({ action: "domains" })).content[0].text);
+    const payload = JSON.parse((await tools.queryEnv.handler({ action: "domains" })).content[0].text);
 
     expect(payload.localDevStatus).toMatchObject({
       requiresExactCurrentOrigin: true,
@@ -1187,20 +1187,20 @@ describe("env tools - envQuery", () => {
       asyncState: "PENDING",
       propagation: {
         requiresPolling: true,
-        pollTool: "envQuery",
+        pollTool: "queryEnv",
         pollAction: "domains",
         pollIntervalSuggestionSeconds: 10,
         timeoutSuggestionSeconds: 600,
       },
       next_step: {
-        tool: "envQuery",
+        tool: "queryEnv",
         action: "domains",
         suggested_args: {
           action: "domains",
         },
       },
     });
-    expect(payload.message).toContain("继续轮询 envQuery(action=\"domains\")");
+    expect(payload.message).toContain("继续轮询 queryEnv(action=\"domains\")");
   });
 
   it("envDomainManagement(delete) should return structured polling guidance", async () => {
@@ -1232,11 +1232,11 @@ describe("env tools - envQuery", () => {
       asyncState: "PENDING",
       propagation: {
         requiresPolling: true,
-        pollTool: "envQuery",
+        pollTool: "queryEnv",
         pollAction: "domains",
       },
       next_step: {
-        tool: "envQuery",
+        tool: "queryEnv",
         action: "domains",
       },
     });
