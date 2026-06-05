@@ -186,6 +186,7 @@ type ManageFunctionsInput = {
   }>;
   codeSecret?: string;
   confirm?: boolean;
+  incrementalFile?: string;
 };
 
 const VPC_SCHEMA = z.object({
@@ -1527,7 +1528,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         const result = await fn({
           functionName: input.functionName ?? '',
           functionRootPath: input.functionRootPath ?? '',
-          incrementalFile: (input as any).incrementalFile ?? '',
+          incrementalFile: input.incrementalFile ?? '',
         });
         return buildEnvelope({ action: input.action, result }, '云函数增量部署成功');
       }
@@ -1620,7 +1621,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
           .describe(
-            "写操作类型，例如 createFunction、updateFunctionCode、invokeFunction、deleteFunction、" +
+            "写操作类型，例如 createFunction、updateFunctionCode、incrementalDeployFunction、invokeFunction、deleteFunction、" +
             "createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、attachLayer、detachLayer"
           ),
         func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
@@ -1663,6 +1664,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           .describe("updateFunctionLayers 的目标层列表，顺序即最终顺序"),
         codeSecret: z.string().optional().describe("层绑定时的代码保护密钥"),
         confirm: z.boolean().optional().describe("危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作需要显式传入 confirm=true"),
+        incrementalFile: z.string().optional().describe("incrementalDeployFunction 增量部署时的变更文件路径"),
       },
       annotations: {
         readOnlyHint: false,
