@@ -329,9 +329,9 @@ describe('hosting tools', () => {
     expect(mockUploadFiles).not.toHaveBeenCalled();
   });
 
-  it('manageHosting(action=upload) should succeed for Mini Program env where getEnvInfo StaticStorages is empty but DescribeStaticStore has Bucket', async () => {
+  it('manageHosting(action=upload) should succeed and return CdnDomain-based accessUrl for Mini Program env where getEnvInfo StaticStorages is empty', async () => {
     // Mini Program-sourced environments don't populate StaticStorages in
-    // DescribeEnvs, but DescribeStaticStore returns the real bucket config.
+    // DescribeEnvs, but DescribeStaticStore returns the real bucket + CdnDomain.
     mockDescribeStaticStore.mockResolvedValueOnce({
       Data: [
         {
@@ -340,6 +340,12 @@ describe('hosting tools', () => {
           Bucket: 'hosting-bucket-mp',
         },
       ],
+    });
+    // getEnvInfo returns no StaticStorages (simulates Mini Program env)
+    mockGetEnvInfo.mockResolvedValueOnce({
+      EnvInfo: {
+        StaticStorages: undefined,
+      },
     });
 
     const tools = createMockServer();
@@ -351,6 +357,8 @@ describe('hosting tools', () => {
 
     expect(payload.success).toBe(true);
     expect(mockUploadFiles).toHaveBeenCalled();
+    expect(payload.data.accessUrl).toBe('https://miniprogram-static.example.com/site/');
+    expect(payload.data.staticDomain).toBe('miniprogram-static.example.com');
   });
 
   it('manageHosting(action=delete) should require explicit confirm=true', async () => {

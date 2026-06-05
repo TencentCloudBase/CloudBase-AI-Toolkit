@@ -424,23 +424,21 @@ async function resolveHostingStaticDomain(cloudbase: any, logger?: ExtendedMcpSe
   }
 }
 
-async function assertHostingUploadEnvironmentReady(
+// Returns the first hosting store record from DescribeStaticStore, which is
+// the authoritative source for Mini Program-sourced environments (those envs
+// do not populate StaticStorages in DescribeEnvs / getEnvInfo).
+// Throws when no valid store is found so upload can fail fast with a clear msg.
+async function getHostingStoreOrThrow(
   cloudbase: any,
   cloudBaseOptions?: { envId?: string },
   logger?: ExtendedMcpServer['logger'],
-) {
+): Promise<Record<string, unknown>> {
   const envId = await getEnvId(cloudBaseOptions);
-
-  // Use DescribeStaticStore (same API as queryHosting status) instead of
-  // getEnvInfo(). Mini Program-sourced environments do not populate
-  // EnvInfo.StaticStorages[0].Bucket in DescribeEnvs, causing a false
-  // "no hosting config" error even when the store is online and the tcb
-  // CLI can upload successfully.
   const result = await callTcbHostingAction(cloudbase, 'DescribeStaticStore', { EnvId: envId }, logger);
   const hostingInfo = extractStaticStores(result);
 
   if (hostingInfo.length > 0 && hostingInfo[0].Bucket) {
-    return;
+    return hostingInfo[0];
   }
 
   throw new Error(
@@ -680,8 +678,9 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             }
 
             let result: unknown;
+            let store: Record<string, unknown>;
             try {
-              await assertHostingUploadEnvironmentReady(cloudbase, cloudBaseOptions, server.logger);
+              store = await getHostingStoreOrThrow(cloudbase, cloudBaseOptions, server.logger);
               result = await cloudbase.hosting.uploadFiles({
                 localPath: input.localPath,
                 cloudPath: input.cloudPath,
@@ -693,7 +692,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             }
 
             logCloudBaseResult(server.logger, result);
-            const staticDomain = await resolveHostingStaticDomain(cloudbase, server.logger);
+            // Prefer CdnDomain from the DescribeStaticStore result we already
+            // fetched; fall back to getEnvInfo for environments that populate
+            // StaticDomain there but not in DescribeStaticStore.
+            const cdnFromStore = (store.CdnDomain ?? store.StaticDomain) as string | undefined;
+            const staticDomain = cdnFromStore || await resolveHostingStaticDomain(cloudbase, server.logger);
             const accessUrl = buildHostingAccessUrl(staticDomain, input.cloudPath, input.localPath);
 
             try {
