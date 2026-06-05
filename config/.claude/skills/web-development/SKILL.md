@@ -53,6 +53,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Mixing framework setup, deployment, and CloudBase integration concerns into one vague change.
 - Treating cloud functions as the default solution for Web authentication.
 - Skipping browser-level validation after a UI or routing change.
+- **History mode SPA with CloudBase static hosting**: deploying a single-page app using History mode (React Router / Vue Router) without configuring the static hosting "404 error document" to `index.html`. This causes `NoSuchKey` / 404 errors when users refresh or directly visit any sub-route.
 - In an existing application, detouring into UI redesign or broad repo sweeps before patching the current handlers and services.
 
 ## Engineering constitution (non-negotiable)
@@ -181,6 +182,17 @@ Use this section only when the Web project needs CloudBase platform features.
 - Prefer relative asset paths for static hosting compatibility
 - Use hash routing by default when the project lacks server-side route rewrites
 - If the user does not specify a root path, avoid deploying directly to the site root by default
+- **SPA routing (History mode)**: when using React Router / Vue Router in History mode (not hash mode), configure the CloudBase static hosting **"404 error document"** to `index.html`. Otherwise refreshing or directly visiting any sub-route returns `NoSuchKey` / 404 error, because the static hosting looks for a file at that path instead of falling through to `index.html` for the SPA to handle routing.
+
+  Use the MCP tool to apply this:
+  ```json
+  manageHosting({ action: "setWebsiteDocument", indexDocument: "index.html", errorDocument: "index.html" })
+  ```
+
+  Then verify with:
+  ```json
+  queryHosting({ action: "websiteConfig" })
+  ```
 
 ### CloudBase quick start
 
