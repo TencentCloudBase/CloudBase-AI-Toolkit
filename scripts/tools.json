@@ -59,8 +59,8 @@
       }
     },
     {
-      "name": "envQuery",
-      "description": "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情和安全域名。（原工具名：listEnvs/getEnvInfo/getEnvAuthDomains，为兼容旧AI规则可继续使用这些名称）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。",
+      "name": "queryEnv",
+      "description": "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情和安全域名。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -122,7 +122,7 @@
     },
     {
       "name": "envDomainManagement",
-      "description": "管理 CloudBase 环境的安全域名（安全域名 / CORS 白名单），支持添加和删除操作。（原工具名：createEnvDomain/deleteEnvDomain，为兼容旧AI规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 直接访问 CloudBase 资源时，应先用 envQuery(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。新增或删除后通常需要继续轮询 envQuery(action=domains) 确认状态收敛；安全域名一般约 10 分钟生效。⚠️ 重要：此工具仅用于 CORS/请求来源验证，不涉及 SSL 证书。如需绑定自定义域名供公网 HTTPS 访问，请使用 manageGateway(action=\"bindCustomDomain\")。",
+      "description": "管理 CloudBase 环境的安全域名（安全域名 / CORS 白名单），支持添加和删除操作。（原工具名：createEnvDomain/deleteEnvDomain，为兼容旧AI规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 直接访问 CloudBase 资源时，应先用 queryEnv(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。新增或删除后通常需要继续轮询 queryEnv(action=domains) 确认状态收敛；安全域名一般约 10 分钟生效。⚠️ 重要：此工具仅用于 CORS/请求来源验证，不涉及 SSL 证书。如需绑定自定义域名供公网 HTTPS 访问，请使用 manageGateway(action=\"bindCustomDomain\")。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -152,7 +152,7 @@
     },
     {
       "name": "readNoSqlDatabaseStructure",
-      "description": "读取 NoSQL 数据库集合与索引结构，支持列出集合、查看集合详情、列出索引以及检查索引是否存在。本工具为服务端管理工具，用于管理端查询数据库结构，不用于编写客户端代码。",
+      "description": "读取 CloudBase NoSQL 数据库集合与索引结构，支持列出集合、查看集合详情、列出索引以及检查索引是否存在。本工具为服务端管理工具，用于管理端查询数据库结构，不用于编写客户端代码。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -193,7 +193,7 @@
     },
     {
       "name": "writeNoSqlDatabaseStructure",
-      "description": "创建、删除和管理 NoSQL 数据库集合（collection）。支持创建新集合、删除现有集合，以及通过 updateCollection 的 updateOptions.CreateIndexes / updateOptions.DropIndexes 添加索引和删除索引。当需要新建集合时，使用 action=createCollection。本工具为服务端管理工具，用于管理端操作集合和索引结构，不用于编写客户端代码。",
+      "description": "创建、删除和管理 CloudBase NoSQL 数据库集合（collection）。支持创建新集合、删除现有集合，以及通过 updateCollection 的 updateOptions.CreateIndexes / updateOptions.DropIndexes 添加索引和删除索引。当需要新建集合时，使用 action=createCollection。本工具为服务端管理工具，用于管理端操作集合和索引结构，不用于编写客户端代码。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -301,7 +301,7 @@
     },
     {
       "name": "readNoSqlDatabaseContent",
-      "description": "查询并获取 NoSQL 数据库数据记录。⚠️ 本工具为服务端管理工具，用于管理端/运维端查询。当任务要求编写客户端应用代码时（例如「用 JS SDK 读取数据」），不应使用本工具，而应在项目代码中编写 @cloudbase/js-sdk 客户端代码（如 db.collection().where().get()）。",
+      "description": "查询 CloudBase NoSQL 数据库中的数据记录。支持按条件筛选、分页、排序，适用于管理端数据查询与运维。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -386,7 +386,7 @@
     },
     {
       "name": "writeNoSqlDatabaseContent",
-      "description": "修改 NoSQL 数据库数据记录。⚠️ 本工具为服务端管理工具，用于管理端/运维端操作（如后台脚本、数据迁移、批量修改）。当任务要求编写客户端应用代码时（例如「用 JS SDK 登录并插入数据」、「在前端读写数据库」），不应使用本工具，而应在项目代码中编写 @cloudbase/js-sdk 客户端代码（如 app.database().collection().add()、db.collection().where().get() 等）。可按 MongoDB updateOne/updateMany 的心智模型理解：部分更新必须使用 `$set`、`$inc`、`$push` 等更新操作符；如果直接传「字段到值的普通对象」这类内容，底层会把它当作替换内容，存在覆盖整条文档的风险。⚠️ 嵌套对象部分更新务必使用点号路径：要更新 `shipping.city`，应传 `$set: {\"shipping.city\": \"guangzhou\"}`，绝不能传 `$set: {\"shipping\": {\"city\": \"guangzhou\"}}`（后者会丢失 shipping 下的其他字段）。若集合中的角色/档案文档会在前端通过 `db.collection(...).doc(uid)` 读取，请确保文档 `_id` 就是该 `uid`；不要用按 `uid` 条件查询再配合 `upsert=true` 的方式去更新 `users` / `profiles`，否则经常会生成一个不同的 `_id`，导致后续 `doc(uid)` 读取命中不到。",
+      "description": "修改 CloudBase NoSQL 数据库中的数据记录。支持插入、更新（含 $set/$inc/$push 等操作符）、删除、upsert 等操作，适用于管理端数据写入与运维。⚠️ 服务端写入不含 _openid：若集合依赖客户端 SDK（@cloudbase/js-sdk 或微信小程序 wx.cloud.database()）的行级安全规则（如 doc._openid == auth.openid），服务端写入时需手动补充 _openid 字段，否则客户端将无法读取到该数据。⚠️ 部分更新嵌套字段须使用点号路径，如 `$set: {\"shipping.city\": \"guangzhou\"}`，直接传嵌套对象会覆盖整个字段。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -461,7 +461,7 @@
     },
     {
       "name": "querySqlDatabase",
-      "description": "Query SQL database information. Supports read-only SQL execution, MySQL provisioning result lookup, MySQL task status lookup, and current instance context discovery.",
+      "description": "查询 CloudBase MySQL 数据库信息。支持执行只读 SQL、查询 MySQL 开通结果、查询 MySQL 任务状态，以及获取当前实例上下文信息。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -508,7 +508,7 @@
     },
     {
       "name": "manageSqlDatabase",
-      "description": "Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, write SQL/DDL execution, and schema initialization. IMPORTANT: MySQL must be provisioned first (action=provisionMySQL with confirm=true) before any runStatement or initializeSchema call. If MySQL is not yet provisioned, the tool will return MYSQL_NOT_CREATED with a nextAction to provision first.",
+      "description": "管理 CloudBase MySQL 数据库资源。支持开通 MySQL、销毁 MySQL、执行写入 SQL/DDL，以及初始化数据库 Schema。注意：必须先开通 MySQL（action=provisionMySQL，confirm=true）才能执行 runStatement 或 initializeSchema。若 MySQL 尚未开通，工具会返回 MYSQL_NOT_CREATED 并给出开通的 nextAction 提示。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -754,7 +754,8 @@
               "deleteLayerVersion",
               "attachLayer",
               "detachLayer",
-              "updateFunctionLayers"
+              "updateFunctionLayers",
+              "incrementalDeployFunction"
             ],
             "description": "写操作类型，例如 createFunction、updateFunctionCode、invokeFunction、deleteFunction、createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、attachLayer、detachLayer"
           },
@@ -1492,24 +1493,6 @@
         "required": [
           "template",
           "ide"
-        ],
-        "additionalProperties": false,
-        "$schema": "http://json-schema.org/draft-07/schema#"
-      }
-    },
-    {
-      "name": "searchWeb",
-      "description": "使用联网来进行信息检索，如查询最新的新闻、文章、股价、天气等。支持自然语言查询，也可以直接输入网址获取网页内容",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "query": {
-            "type": "string",
-            "description": "搜索关键词、问题或网址，支持自然语言"
-          }
-        },
-        "required": [
-          "query"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
@@ -2541,7 +2524,7 @@
     },
     {
       "name": "queryLogs",
-      "description": "日志域统一只读入口。支持检查日志服务状态并搜索 CLS 日志。\n\n**重要区分**：\n- 查询云函数日志：使用 `queryFunctions(action=\"listFunctionLogs\", functionName=\"xxx\")`\n- 查询 CLS 日志（跨服务日志聚合）：使用本工具 `queryLogs(action=\"searchLogs\")`\n\n**适用场景**：\n- 检查 CLS 日志服务是否开通：`action=\"checkLogService\"`\n- 跨服务日志搜索（如搜索所有 ERROR 日志）：`action=\"searchLogs\"`\n- 按 CLS 语法检索特定服务的日志：`action=\"searchLogs\", service=\"tcb|tcbr\"`",
+      "description": "CloudBase 日志域统一只读入口。支持检查日志服务状态并搜索 CLS 日志。\n\n**重要区分**：\n- 查询云函数日志：使用 `queryFunctions(action=\"listFunctionLogs\", functionName=\"xxx\")`\n- 查询 CLS 日志（跨服务日志聚合）：使用本工具 `queryLogs(action=\"searchLogs\")`\n\n**适用场景**：\n- 检查 CLS 日志服务是否开通：`action=\"checkLogService\"`\n- 跨服务日志搜索（如搜索所有 ERROR 日志）：`action=\"searchLogs\"`\n- 按 CLS 语法检索特定服务的日志：`action=\"searchLogs\", service=\"tcb|tcbr\"`",
       "inputSchema": {
         "type": "object",
         "properties": {
