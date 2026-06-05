@@ -1556,8 +1556,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           ],
         };
       }
-    },
-  );
+    };
 
   // Register primary tool name (queryEnv)
   const queryEnvToolSchema = {
