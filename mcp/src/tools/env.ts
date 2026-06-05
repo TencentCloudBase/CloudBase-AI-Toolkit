@@ -1355,7 +1355,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   } // end: wxide guard for auth tool
 
   // queryEnv - 环境查询（合并 listEnvs + getEnvInfo + getEnvAuthDomains）
-  const queryEnvHandler = async ({
+  const queryEnvHandler: (args: any) => Promise<any> = async ({
     action,
     alias,
     aliasExact,
