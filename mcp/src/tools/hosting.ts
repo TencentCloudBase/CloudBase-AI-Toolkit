@@ -430,11 +430,16 @@ async function assertHostingUploadEnvironmentReady(
   logger?: ExtendedMcpServer['logger'],
 ) {
   const envId = await getEnvId(cloudBaseOptions);
-  const envInfo = await cloudbase.env.getEnvInfo() as ExtendedEnvInfo;
-  logCloudBaseResult(logger, envInfo);
 
-  const staticStorage = envInfo.EnvInfo?.StaticStorages?.[0];
-  if (staticStorage?.Bucket) {
+  // Use DescribeStaticStore (same API as queryHosting status) instead of
+  // getEnvInfo(). Mini Program-sourced environments do not populate
+  // EnvInfo.StaticStorages[0].Bucket in DescribeEnvs, causing a false
+  // "no hosting config" error even when the store is online and the tcb
+  // CLI can upload successfully.
+  const result = await callTcbHostingAction(cloudbase, 'DescribeStaticStore', { EnvId: envId }, logger);
+  const hostingInfo = extractStaticStores(result);
+
+  if (hostingInfo.length > 0 && hostingInfo[0].Bucket) {
     return;
   }
 
