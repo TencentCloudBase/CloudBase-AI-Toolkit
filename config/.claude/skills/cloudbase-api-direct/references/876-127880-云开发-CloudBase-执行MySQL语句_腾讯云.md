@@ -2,7 +2,7 @@
 
 ## 执行MySQL语句
 
-最近更新时间：2026-04-17 02:07:55
+最近更新时间：2026-06-05 02:42:07
 
 -   微信扫一扫 
 -   QQ
@@ -296,10 +296,12 @@ X-TC-Action: RunSql
 | FailedOperation.DatabaseConnectError | 数据库建立链接失败。 |
 | FailedOperation.DatabaseExecSqlError | 执行SQL出错。 |
 | FailedOperation.DatabaseSchemaError | 数据库元信息异常。 |
+| FailedOperation.DatabaseSqlSyntaxError | 数据库sql解析异常 |
 | FailedOperation.EmptyDatabaseEndpoint | 数据库链接点为空。 |
 | FailedOperation.TdsqlPaused | Instance is resuming, please try connecting again. |
 | InternalError.SYS\_ERR | 系统内部异常。 |
 | InvalidParameter.INVALID\_PARAM | 请求参数错误。 |
 | ResourceNotFound.InstanceNotFound | 数据库实例不存在。 |
+| ResourceNotFound.SchemaNotFound | 数据库Schema名不存在 |
 | ResourceNotFound.TableNotFound | 表不存在。 |
 | UnsupportedOperation.TooManyTables | 表数量超过限制。 |
