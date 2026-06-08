@@ -2,7 +2,7 @@
 
 ## 查询tcb用户列表
 
-最近更新时间：2026-04-14 03:00:42
+最近更新时间：2026-06-08 01:52:46
 
 -   微信扫一扫 
 -   QQ
@@ -37,26 +37,62 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 | Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeUserList。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，此参数为可选参数。 |
-| EnvId | 是 | String | 环境id  
+| EnvId | 是 | String | 
+环境id
+
+  
 示例值：test\_envId |
-| PageNo | 否 | Integer | 页码，从1开始，默认1  
+| PageNo | 否 | Integer | 
+
+页码，从1开始，默认1
+
+  
 示例值：1 |
-| PageSize | 否 | Integer | 每页数量，默认20，最大100  
+| PageSize | 否 | Integer | 
+
+每页数量，默认20，最大100
+
+  
 示例值：10 |
-| Name | 否 | String | 用户名，模糊查询  
+| Name | 否 | String | 
+
+用户名，模糊查询
+
+  
 示例值：zhang |
-| NickName | 否 | String | 用户昵称，模糊查询  
+| NickName | 否 | String | 
+
+用户昵称，模糊查询
+
+  
 示例值：张 |
-| Phone | 否 | String | 手机号，模糊查询  
+| Phone | 否 | String | 
+
+手机号，模糊查询
+
+  
 示例值：13900139000 |
-| Email | 否 | String | 邮箱，模糊查询  
+| Email | 否 | String | 
+
+邮箱，模糊查询
+
+  
 示例值：zhangsan@example.com |
+| UidList.N | 否 | Array of String | 
+
+用户id列表，根据id过滤用户
+
+  
+示例值：\["1001"\] |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| Data | [DescribeUserListResp](/document/api/876/34822#DescribeUserListResp) | 结果返回 |
+| Data | [DescribeUserListResp](/document/api/876/34822#DescribeUserListResp) | 
+结果返回
+
+ |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
