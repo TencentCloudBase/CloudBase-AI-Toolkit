@@ -118,7 +118,7 @@ export interface FunctionDeployOverrides {
  *
  * - listFiles / getFileInfo / downloadFile：queryStorage 只读操作
  * - uploadFile / deleteFiles / deleteDirectory：manageStorage 写操作
- * 无需 override 的：getTemporaryUrl（通过 CAPI DescribeEnvs 推导，已可走 requestFn）
+ * - getFileUrl：获取文件临时下载链接（可选，未提供时使用 CAPI 默认实现）
  */
 export interface StorageOverrides {
   /** 列出目录下的文件，替代 storageService.listDirectoryFiles() */
@@ -154,6 +154,15 @@ export interface StorageOverrides {
     localPath: string;
     cloudPath: string;
   }) => Promise<void>;
+
+  /**
+   * 获取文件临时下载链接，替代 storageService.getTemporaryUrl()
+   * 可通过 COS getObjectUrl 实现；未提供时走 manager-node 默认路径
+   */
+  getFileUrl?: (params: {
+    cloudPath: string;
+    maxAge?: number;
+  }) => Promise<{ url: string; fileId?: string }>;
 
   /** 删除文件（支持批量），替代 storageService.deleteFile() */
   deleteFiles?: (params: {

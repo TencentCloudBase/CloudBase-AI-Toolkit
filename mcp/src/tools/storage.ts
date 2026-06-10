@@ -212,10 +212,23 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         }
 
         case 'url': {
-          const result = await storageService.getTemporaryUrl([{
-            cloudPath: input.cloudPath,
-            maxAge: input.maxAge || 3600
-          }]);
+          let temporaryUrl = "";
+          let fileId = "";
+          if (storageOverrides?.getFileUrl) {
+            const urlResult = await storageOverrides.getFileUrl({
+              cloudPath: input.cloudPath,
+              maxAge: input.maxAge || 3600,
+            });
+            temporaryUrl = urlResult.url;
+            fileId = urlResult.fileId || "";
+          } else {
+            const result = await storageService.getTemporaryUrl([{
+              cloudPath: input.cloudPath,
+              maxAge: input.maxAge || 3600
+            }]);
+            temporaryUrl = result[0]?.url || "";
+            fileId = result[0]?.fileId || "";
+          }
           const publicAccess = await resolveStoragePublicAccess({
             cloudPath: input.cloudPath,
             cloudBaseOptions,
@@ -231,9 +244,9 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                   data: {
                     action: 'url',
                     cloudPath: input.cloudPath,
-                    temporaryUrl: result[0]?.url || "",
+                    temporaryUrl,
                     expireTime: `${input.maxAge || 3600}秒`,
-                    fileId: result[0]?.fileId || "",
+                    fileId,
                     storageCdnDomain: publicAccess.storageCdnDomain,
                     publicUrl: publicAccess.publicUrl,
                     note: "temporaryUrl 是临时签名链接，会按 expireTime 过期。publicUrl 基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导，⚠️ 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先将目标路径设置为公有读。"
@@ -347,15 +360,39 @@ export function registerStorageTools(server: ExtendedMcpServer) {
             }
           }
 
-          const fileUrls = await storageService.getTemporaryUrl([{
-            cloudPath: input.cloudPath,
-            maxAge: 3600
-          }]);
-          const publicAccess = await resolveStoragePublicAccess({
-            cloudPath: input.cloudPath,
-            cloudBaseOptions,
-            manager,
-          });
+          // 上传成功后获取临时 URL 和公网访问信息
+          let temporaryUrl = "";
+          let fileId = "";
+          if (storageOverrides?.getFileUrl) {
+            const urlResult = await storageOverrides.getFileUrl({
+              cloudPath: input.cloudPath,
+              maxAge: 3600,
+            });
+            temporaryUrl = urlResult.url;
+            fileId = urlResult.fileId || "";
+          } else {
+            try {
+              const fileUrls = await storageService.getTemporaryUrl([{
+                cloudPath: input.cloudPath,
+                maxAge: 3600
+              }]);
+              temporaryUrl = fileUrls[0]?.url || "";
+              fileId = fileUrls[0]?.fileId || "";
+            } catch {
+              // StorageOverrides 下 getTemporaryUrl 可能不可用
+            }
+          }
+          let publicAccess: any = {};
+          try {
+            publicAccess = await resolveStoragePublicAccess({
+              cloudPath: input.cloudPath,
+              cloudBaseOptions,
+              manager,
+            });
+          } catch {
+            // DescribeEnvs 可能不支持（IDE 模式下会绕过）
+            publicAccess = {};
+          }
 
           return {
             content: [
@@ -368,7 +405,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                     localPath: input.localPath,
                     cloudPath: input.cloudPath,
                     isDirectory: input.isDirectory,
-                    temporaryUrl: fileUrls[0]?.url || "",
+                    temporaryUrl,
                     expireTime: "1小时",
                     storageCdnDomain: publicAccess.storageCdnDomain,
                     publicUrl: publicAccess.publicUrl,

@@ -17,6 +17,22 @@ const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio
 const { createCloudBaseMcpServer } = require("../dist/index.cjs");
 const https = require("https");
 
+// 修复 webpack 打包的 source-map-support 在 Node v22 上的崩溃问题
+// source-map-support 的 _createParsedCallSite 被 tree-shake 掉了，
+// 但 ExceptionHandler 在 Error.prepareStackTrace 里调用它时会 crash。
+// 用一个安全包装替代原始的 prepareStackTrace。
+const origPrepareStackTrace = Error.prepareStackTrace;
+Error.prepareStackTrace = function(err, structuredStack) {
+  try {
+    return origPrepareStackTrace ? origPrepareStackTrace(err, structuredStack) : err.stack;
+  } catch {
+    // source-map-support 的 ExceptionHandler 崩溃时使用 V8 默认格式
+    return structuredStack.map(site => {
+      try { return String(site); } catch { return '<unknown>'; }
+    }).join('\n');
+  }
+};
+
 // ─── 参数解析 ────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
 const get = (flag) => {
@@ -36,21 +52,67 @@ if (!appid || !envId || !ticket) {
   process.exit(1);
 }
 
+// ─── 代理支持 ────────────────────────────────────────────────────────────────
+const HTTP_PROXY = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
+
+// Node 内置 http 模块实现 HTTP CONNECT 隧道代理
+function createProxyAgent() {
+  if (!HTTP_PROXY) return null;
+  const pu = new URL(HTTP_PROXY);
+  const HttpAgent = require('http');
+  const HttpsAgent = require('https');
+
+  // 自定义 Agent：对 HTTPS 请求走 HTTP CONNECT 隧道
+  class TunnelAgent extends HttpsAgent.Agent {
+    constructor() {
+      super({ keepAlive: false });
+    }
+    createConnection(options, cb) {
+      const net = require('net');
+      const socket = net.connect(pu.port, pu.hostname, () => {
+        const buf = `CONNECT ${options.host}:${options.port} HTTP/1.1\r\nHost: ${options.host}:${options.port}\r\n`;
+        if (pu.username || pu.password) {
+          const auth = Buffer.from(`${pu.username}:${pu.password}`).toString('base64');
+          socket.write(`${buf}Proxy-Authorization: Basic ${auth}\r\n\r\n`);
+        } else {
+          socket.write(`${buf}\r\n`);
+        }
+        socket.once('data', (chunk) => {
+          const resp = chunk.toString();
+          if (!resp.startsWith('HTTP/1.1 200')) {
+            cb(new Error(`Proxy CONNECT failed: ${resp.split('\r\n')[0]}`));
+            return;
+          }
+          cb(null, socket);
+        });
+      });
+      socket.on('error', cb);
+    }
+  }
+
+  return new TunnelAgent();
+}
+const PROXY_AGENT = createProxyAgent();
+
 // ─── 通用的带 ticket 的 HTTPS POST 请求 ─────────────────────────────────────
 // 模拟 IDE 的 requestService.requestWithAppId({ url, method, needToken, body })
 function httpsPost(urlStr, bodyStr) {
   return new Promise((resolve, reject) => {
     const u = new URL(urlStr);
-    const req = https.request(
-      { hostname: u.hostname, path: u.pathname + u.search, method: "POST",
-        headers: { "content-type": "application/json", "content-length": Buffer.byteLength(bodyStr) } },
-      (res) => {
-        let d = ""; res.on("data", c => d += c);
-        res.on("end", () => {
-          try { resolve(JSON.parse(d)); }
-          catch (e) { reject(new Error(`JSON parse error: ${d.slice(0, 200)}`)); }
-        });
+    const options = {
+      hostname: u.hostname, path: u.pathname + u.search, method: "POST",
+      headers: { "content-type": "application/json", "content-length": Buffer.byteLength(bodyStr) },
+    };
+    if (PROXY_AGENT) {
+      options.agent = PROXY_AGENT;
+    }
+    const req = require('https').request(options, (res) => {
+      let d = ""; res.on("data", c => d += c);
+      res.on("end", () => {
+        try { resolve(JSON.parse(d)); }
+        catch (e) { reject(new Error(`JSON parse error: ${d.slice(0, 200)}`)); }
       });
+    });
     req.on("error", reject); req.write(bodyStr); req.end();
   });
 }
@@ -74,8 +136,10 @@ function createTicketRequestFn() {
 
 // ─── COS 认证（模拟 IDE wx-ide-storage-overrides.ts 的 getCosAuth）──────────
 async function getCosAuth({ region, bucket, method, path: cosPath }) {
+  // 模拟 IDE requestWithAppId：appid 同时在 URL query 和 body 中
+  // IDE 的 wx-ide-storage-overrides.ts 也是此格式
   const bodyStr = JSON.stringify({
-    appid, region, bucket,
+    region, bucket,
     requestmethod: method,
     path: cosPath,
     params: "",
@@ -104,14 +168,20 @@ function createStorageOverrides(bucket, region) {
     return null;
   }
 
-  /** 创建带动态签名的 COS 实例（与 IDE createCosClient 一致） */
+  /** 创建带动态签名的 COS 实例（与 IDE createCosClient 一致，增加错误处理和代理支持） */
   function createCosClient() {
     return new COS({
+      Agent: PROXY_AGENT,
       getAuthorization: async (options, callback) => {
-        const method = (options.Method || "get").toLowerCase();
-        const cosPath = "/" + (options.Key || "");
-        const auth = await getCosAuth({ bucket, region, method, path: cosPath });
-        callback({ Authorization: auth.signature, XCosSecurityToken: auth.token });
+        try {
+          const method = (options.Method || "get").toLowerCase();
+          const cosPath = "/" + (options.Key || "");
+          const auth = await getCosAuth({ bucket, region, method, path: cosPath });
+          callback({ Authorization: auth.signature, XCosSecurityToken: auth.token });
+        } catch (err) {
+          process.stderr.write(`[test-with-ticket] COS auth 失败: ${err.message}\n`);
+          callback(err);
+        }
       },
     });
   }
@@ -129,6 +199,13 @@ function createStorageOverrides(bucket, region) {
       return new Promise((resolve, reject) => {
         cos.headObject({ Bucket: bucket, Region: region, Key: cloudPath },
           (err, data) => err ? reject(err) : resolve(data ?? {}));
+      });
+    },
+    async getFileUrl({ cloudPath, maxAge }) {
+      const cos = createCosClient();
+      return new Promise((resolve, reject) => {
+        cos.getObjectUrl({ Bucket: bucket, Region: region, Key: cloudPath, Sign: true, Expires: maxAge ?? 3600 },
+          (err, data) => err ? reject(err) : resolve({ url: data?.Url ?? '', fileId: cloudPath }));
       });
     },
     async downloadFile({ cloudPath, localPath }) {
