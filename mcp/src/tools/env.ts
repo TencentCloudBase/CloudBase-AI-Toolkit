@@ -214,18 +214,18 @@ function buildEnvDomainManagementResult(params: {
       targetDomains: domains,
       asyncState: "PENDING",
       message:
-        '安全域名已提交添加请求。该变更通常需要约 10 分钟传播，请继续轮询 envQuery(action="domains")，直到目标域名状态为 ENABLE。',
+        '安全域名已提交添加请求。该变更通常需要约 10 分钟传播，请继续轮询 queryEnv(action="domains")，直到目标域名状态为 ENABLE。',
       propagation: {
         requiresPolling: true,
-        pollTool: "envQuery",
+        pollTool: "queryEnv",
         pollAction: "domains",
         pollIntervalSuggestionSeconds: 10,
         timeoutSuggestionSeconds: 600,
         successCondition:
-          '目标域名出现在 envQuery(action="domains") 返回中，且 Status 为 ENABLE。',
+          '目标域名出现在 queryEnv(action="domains") 返回中，且 Status 为 ENABLE。',
       },
       next_step: {
-        tool: "envQuery",
+        tool: "queryEnv",
         action: "domains",
         suggested_args: {
           action: "domains",
@@ -242,18 +242,18 @@ function buildEnvDomainManagementResult(params: {
     targetDomains: domains,
     asyncState: "PENDING",
     message:
-      '安全域名已提交删除请求。该变更可能需要数分钟传播，请继续轮询 envQuery(action="domains")，直到目标域名不再出现。',
+      '安全域名已提交删除请求。该变更可能需要数分钟传播，请继续轮询 queryEnv(action="domains")，直到目标域名不再出现。',
     propagation: {
       requiresPolling: true,
-      pollTool: "envQuery",
+      pollTool: "queryEnv",
       pollAction: "domains",
       pollIntervalSuggestionSeconds: 10,
       timeoutSuggestionSeconds: 600,
       successCondition:
-        '目标域名不再出现在 envQuery(action="domains") 返回中。',
+        '目标域名不再出现在 queryEnv(action="domains") 返回中。',
     },
     next_step: {
-      tool: "envQuery",
+      tool: "queryEnv",
       action: "domains",
       suggested_args: {
         action: "domains",
@@ -625,7 +625,7 @@ function buildEnvQueryListResult(params: {
   const paginated = paginateEnvList(filteredList, params.filters.offset, params.filters.limit);
   const exactEnvIdSummaryHint = params.filters.envId
     ? {
-        tool: "envQuery",
+        tool: "queryEnv",
         action: "info",
         reason:
           "action=list with envId only returns a concise summary. Use action=info to fetch detailed environment information such as full resource metadata and additional environment details.",
@@ -713,7 +713,7 @@ function normalizeOptionalToolString(value: unknown) {
 }
 
 /**
- * Build enhanced error message for envQuery tool errors
+ * Build enhanced error message for queryEnv tool errors
  * Provides actionable guidance based on error patterns
  */
 function buildEnvQueryErrorMessage(error: unknown, action: string): string {
@@ -732,7 +732,7 @@ function buildEnvQueryErrorMessage(error: unknown, action: string): string {
     suggestions.push("参数错误：可能是认证信息无效或已过期，请尝试以下步骤：");
     suggestions.push("1. 先调用 auth(action=\"status\") 检查当前登录状态");
     suggestions.push("2. 如果未登录，调用 auth(action=\"start_auth\", authMode=\"device\") 完成登录");
-    suggestions.push("3. 登录完成后再次调用 envQuery(action=\"list\")");
+    suggestions.push("3. 登录完成后再次调用 queryEnv(action=\"list\")");
   }
 
   if (hasAuthError) {
@@ -747,7 +747,7 @@ function buildEnvQueryErrorMessage(error: unknown, action: string): string {
 
   if (hasEnvNotFoundError) {
     suggestions.push("环境错误：指定的环境不存在或无法访问。");
-    suggestions.push("请使用 envQuery(action=\"list\") 查看可用的环境列表。");
+    suggestions.push("请使用 queryEnv(action=\"list\") 查看可用的环境列表。");
   }
 
   if (hasNetworkError) {
@@ -762,7 +762,7 @@ function buildEnvQueryErrorMessage(error: unknown, action: string): string {
     suggestions.push("3. 确认环境 ID 正确且可访问");
   }
 
-  return `[envQuery/${action}] 调用失败: ${baseMessage}\n\n解决建议：\n${suggestions.join("\n")}`;
+  return `[queryEnv/${action}] 调用失败: ${baseMessage}\n\n解决建议：\n${suggestions.join("\n")}`;
 }
 
 function normalizeOptionalToolBoolean(value: unknown) {
@@ -802,6 +802,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   const authActionEnum = [...supportedAuthActions] as [AuthAction, ...AuthAction[]];
 
   // auth - CloudBase (云开发) 开发阶段登录与环境绑定
+  // 微信 IDE 使用票据认证，不需要登录工具
+  if (server.ide !== 'wxide') {
   server.registerTool?.(
     "auth",
     {
@@ -1350,45 +1352,18 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       }
     },
   );
+  } // end: wxide guard for auth tool
 
-  // envQuery - 环境查询（合并 listEnvs + getEnvInfo + getEnvAuthDomains）
-  server.registerTool?.(
-    "envQuery",
-    {
-      title: "CloudBase 环境查询",
-      description:
-        "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情和安全域名。（原工具名：listEnvs/getEnvInfo/getEnvAuthDomains，为兼容旧AI规则可继续使用这些名称）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。",
-      inputSchema: {
-        action: z
-          .enum(["list", "info", "domains"])
-          .describe(
-            "查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId 筛选，返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表",
-          ),
-        alias: z.string().optional().describe("按环境别名筛选。action=list 时可选"),
-        aliasExact: z.boolean().optional().describe("按环境别名精确筛选。action=list 时可选；与 alias 配合使用"),
-        envId: z.string().optional().describe("按环境 ID 筛选。action=list 时可选（仅按 DescribeEnvs 语义做筛选，仍返回摘要）；action=info 时必填（返回该环境的详细信息，包含资源字段和计费信息）。如果任务已经给出了明确的 EnvId 并要求查询详情，请直接使用 action=info + envId，而不是 action=list"),
-        limit: z.number().int().positive().optional().describe("返回数量上限。action=list 时可选"),
-        offset: z.number().int().min(0).optional().describe("分页偏移。action=list 时可选"),
-        fields: z
-          .array(z.enum(DEFAULT_ENV_FIELDS))
-          .optional()
-          .describe("返回字段白名单。仅支持 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault。action=list 时可选"),
-      },
-      annotations: {
-        readOnlyHint: true,
-        openWorldHint: true,
-        category: "env",
-      },
-    },
-    async ({
-      action,
-      alias,
-      aliasExact,
-      envId,
-      limit,
-      offset,
-      fields,
-    }: {
+  // queryEnv - 环境查询（合并 listEnvs + getEnvInfo + getEnvAuthDomains）
+  const queryEnvHandler: (args: any) => Promise<any> = async ({
+    action,
+    alias,
+    aliasExact,
+    envId,
+    limit,
+    offset,
+    fields,
+  }: {
       action: "list" | "info" | "domains";
       alias?: string;
       aliasExact?: boolean;
@@ -1412,7 +1387,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               // 当环境变量设置了 CLOUDBASE_ENV_ID 时（如 API Key 模式），
               // 避免调用 DescribeEnvs（临时密钥可能不支持该接口），
               // 改为通过 DescribeEnvInfo 获取单环境信息
-              const envIdFromEnv = process.env.CLOUDBASE_ENV_ID;
+              // 注意：requestFn 模式（如微信 IDE）使用 DescribeEnvs，不走此分支
+              const envIdFromEnv = !cloudBaseOptions?.requestFn && process.env.CLOUDBASE_ENV_ID;
               if (envIdFromEnv) {
                 try {
                   const envInfo = await cloudbaseList.env.describeEnvInfo({ EnvId: envIdFromEnv });
@@ -1580,16 +1556,48 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           ],
         };
       }
+    };
+
+  // Register primary tool name (queryEnv)
+  const queryEnvToolSchema = {
+    title: "CloudBase 环境查询",
+    description:
+      "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情和安全域名。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。",
+    inputSchema: {
+      action: z
+        .enum(["list", "info", "domains"])
+        .describe(
+          "查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId 筛选，返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表",
+        ),
+      alias: z.string().optional().describe("按环境别名筛选。action=list 时可选"),
+      aliasExact: z.boolean().optional().describe("按环境别名精确筛选。action=list 时可选；与 alias 配合使用"),
+      envId: z.string().optional().describe("按环境 ID 筛选。action=list 时可选（仅按 DescribeEnvs 语义做筛选，仍返回摘要）；action=info 时必填（返回该环境的详细信息，包含资源字段和计费信息）。如果任务已经给出了明确的 EnvId 并要求查询详情，请直接使用 action=info + envId，而不是 action=list"),
+      limit: z.number().int().positive().optional().describe("返回数量上限。action=list 时可选"),
+      offset: z.number().int().min(0).optional().describe("分页偏移。action=list 时可选"),
+      fields: z
+        .array(z.enum(DEFAULT_ENV_FIELDS))
+        .optional()
+        .describe("返回字段白名单。仅支持 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault。action=list 时可选"),
     },
-  );
+    annotations: {
+      readOnlyHint: true,
+      openWorldHint: true,
+      category: "env",
+    },
+  };
+  server.registerTool?.("queryEnv", queryEnvToolSchema, queryEnvHandler);
+  // 向后兼容：envQuery 作为 queryEnv 的别名注册
+  server.registerTool?.("envQuery", queryEnvToolSchema, queryEnvHandler);
 
   // envDomainManagement - 环境域名管理（合并 createEnvDomain + deleteEnvDomain）
+  // 微信 IDE 场景不需要域名管理
+  if (server.ide !== 'wxide') {
   server.registerTool?.(
     "envDomainManagement",
     {
       title: "CloudBase 环境域名管理（安全域名 / CORS 白名单）",
       description:
-        "管理 CloudBase 环境的安全域名（安全域名 / CORS 白名单），支持添加和删除操作。（原工具名：createEnvDomain/deleteEnvDomain，为兼容旧AI规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 直接访问 CloudBase 资源时，应先用 envQuery(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。新增或删除后通常需要继续轮询 envQuery(action=domains) 确认状态收敛；安全域名一般约 10 分钟生效。⚠️ 重要：此工具仅用于 CORS/请求来源验证，不涉及 SSL 证书。如需绑定自定义域名供公网 HTTPS 访问，请使用 manageGateway(action=\"bindCustomDomain\")。",
+        "管理 CloudBase 环境的安全域名（安全域名 / CORS 白名单），支持添加和删除操作。（原工具名：createEnvDomain/deleteEnvDomain，为兼容旧AI规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 直接访问 CloudBase 资源时，应先用 queryEnv(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。新增或删除后通常需要继续轮询 queryEnv(action=domains) 确认状态收敛；安全域名一般约 10 分钟生效。⚠️ 重要：此工具仅用于 CORS/请求来源验证，不涉及 SSL 证书。如需绑定自定义域名供公网 HTTPS 访问，请使用 manageGateway(action=\"bindCustomDomain\")。",
       inputSchema: {
         action: z
           .enum(["create", "delete"])
@@ -1653,4 +1661,5 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       }
     },
   );
+  } // end: wxide guard for envDomainManagement
 }

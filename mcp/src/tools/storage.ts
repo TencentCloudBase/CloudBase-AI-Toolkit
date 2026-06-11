@@ -128,6 +128,7 @@ async function resolveStoragePublicAccess(params: {
 export function registerStorageTools(server: ExtendedMcpServer) {
   // 获取 cloudBaseOptions，如果没有则为 undefined
   const cloudBaseOptions = server.cloudBaseOptions;
+  const storageOverrides = server.pluginOptions?.storage;
 
   // 创建闭包函数来获取 CloudBase Manager
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
@@ -157,7 +158,13 @@ export function registerStorageTools(server: ExtendedMcpServer) {
 
       switch (input.action) {
         case 'list': {
-          const result = await storageService.listDirectoryFiles(input.cloudPath);
+          let files: any[];
+          if (storageOverrides?.listFiles) {
+            files = await storageOverrides.listFiles({ cloudPath: input.cloudPath });
+          } else {
+            const result = await storageService.listDirectoryFiles(input.cloudPath);
+            files = result || [];
+          }
 
           return {
             content: [
@@ -168,10 +175,10 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                   data: {
                     action: 'list',
                     cloudPath: input.cloudPath,
-                    files: result || [],
-                    totalCount: result?.length || 0
+                    files,
+                    totalCount: files.length
                   },
-                  message: `Successfully listed ${result?.length || 0} files in directory '${input.cloudPath}'`
+                  message: `Successfully listed ${files.length} files in directory '${input.cloudPath}'`
                 }, null, 2)
               }
             ]
@@ -179,7 +186,12 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         }
 
         case 'info': {
-          const result = await storageService.getFileInfo(input.cloudPath);
+          let fileInfo: any;
+          if (storageOverrides?.getFileInfo) {
+            fileInfo = await storageOverrides.getFileInfo({ cloudPath: input.cloudPath });
+          } else {
+            fileInfo = await storageService.getFileInfo(input.cloudPath);
+          }
 
           return {
             content: [
@@ -190,7 +202,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                   data: {
                     action: 'info',
                     cloudPath: input.cloudPath,
-                    fileInfo: result
+                    fileInfo
                   },
                   message: `Successfully retrieved file info for '${input.cloudPath}'`
                 }, null, 2)
@@ -200,10 +212,23 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         }
 
         case 'url': {
-          const result = await storageService.getTemporaryUrl([{
-            cloudPath: input.cloudPath,
-            maxAge: input.maxAge || 3600
-          }]);
+          let temporaryUrl = "";
+          let fileId = "";
+          if (storageOverrides?.getFileUrl) {
+            const urlResult = await storageOverrides.getFileUrl({
+              cloudPath: input.cloudPath,
+              maxAge: input.maxAge || 3600,
+            });
+            temporaryUrl = urlResult.url;
+            fileId = urlResult.fileId || "";
+          } else {
+            const result = await storageService.getTemporaryUrl([{
+              cloudPath: input.cloudPath,
+              maxAge: input.maxAge || 3600
+            }]);
+            temporaryUrl = result[0]?.url || "";
+            fileId = result[0]?.fileId || "";
+          }
           const publicAccess = await resolveStoragePublicAccess({
             cloudPath: input.cloudPath,
             cloudBaseOptions,
@@ -219,9 +244,9 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                   data: {
                     action: 'url',
                     cloudPath: input.cloudPath,
-                    temporaryUrl: result[0]?.url || "",
+                    temporaryUrl,
                     expireTime: `${input.maxAge || 3600}秒`,
-                    fileId: result[0]?.fileId || "",
+                    fileId,
                     storageCdnDomain: publicAccess.storageCdnDomain,
                     publicUrl: publicAccess.publicUrl,
                     note: "temporaryUrl 是临时签名链接，会按 expireTime 过期。publicUrl 基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导，⚠️ 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先将目标路径设置为公有读。"
@@ -238,10 +263,14 @@ export function registerStorageTools(server: ExtendedMcpServer) {
           const localPath = path.join(tempDir, getStorageTempFileName(input.cloudPath));
 
           try {
-            await storageService.downloadFile({
-              cloudPath: input.cloudPath,
-              localPath
-            });
+            if (storageOverrides?.downloadFile) {
+              await storageOverrides.downloadFile({ cloudPath: input.cloudPath, localPath });
+            } else {
+              await storageService.downloadFile({
+                cloudPath: input.cloudPath,
+                localPath
+              });
+            }
 
             const buffer = await fs.readFile(localPath);
             const decoded = decodeInlineTextContent(buffer);
@@ -306,32 +335,64 @@ export function registerStorageTools(server: ExtendedMcpServer) {
       switch (input.action) {
         case 'upload': {
           if (input.isDirectory) {
-            await storageService.uploadDirectory({
-              localPath: input.localPath,
-              cloudPath: input.cloudPath,
-              onProgress: (progressData: any) => {
-                console.log("Upload directory progress:", progressData);
-              }
-            });
+            if (storageOverrides?.uploadDirectory) {
+              await storageOverrides.uploadDirectory({ localPath: input.localPath, cloudPath: input.cloudPath });
+            } else {
+              await storageService.uploadDirectory({
+                localPath: input.localPath,
+                cloudPath: input.cloudPath,
+                onProgress: (progressData: any) => {
+                  console.log("Upload directory progress:", progressData);
+                }
+              });
+            }
           } else {
-            await storageService.uploadFile({
-              localPath: input.localPath,
-              cloudPath: input.cloudPath,
-              onProgress: (progressData: any) => {
-                console.log("Upload file progress:", progressData);
-              }
-            });
+            if (storageOverrides?.uploadFile) {
+              await storageOverrides.uploadFile({ localPath: input.localPath, cloudPath: input.cloudPath });
+            } else {
+              await storageService.uploadFile({
+                localPath: input.localPath,
+                cloudPath: input.cloudPath,
+                onProgress: (progressData: any) => {
+                  console.log("Upload file progress:", progressData);
+                }
+              });
+            }
           }
 
-          const fileUrls = await storageService.getTemporaryUrl([{
-            cloudPath: input.cloudPath,
-            maxAge: 3600
-          }]);
-          const publicAccess = await resolveStoragePublicAccess({
-            cloudPath: input.cloudPath,
-            cloudBaseOptions,
-            manager,
-          });
+          // 上传成功后获取临时 URL 和公网访问信息
+          let temporaryUrl = "";
+          let fileId = "";
+          if (storageOverrides?.getFileUrl) {
+            const urlResult = await storageOverrides.getFileUrl({
+              cloudPath: input.cloudPath,
+              maxAge: 3600,
+            });
+            temporaryUrl = urlResult.url;
+            fileId = urlResult.fileId || "";
+          } else {
+            try {
+              const fileUrls = await storageService.getTemporaryUrl([{
+                cloudPath: input.cloudPath,
+                maxAge: 3600
+              }]);
+              temporaryUrl = fileUrls[0]?.url || "";
+              fileId = fileUrls[0]?.fileId || "";
+            } catch {
+              // StorageOverrides 下 getTemporaryUrl 可能不可用
+            }
+          }
+          let publicAccess: any = {};
+          try {
+            publicAccess = await resolveStoragePublicAccess({
+              cloudPath: input.cloudPath,
+              cloudBaseOptions,
+              manager,
+            });
+          } catch {
+            // DescribeEnvs 可能不支持（IDE 模式下会绕过）
+            publicAccess = {};
+          }
 
           return {
             content: [
@@ -344,7 +405,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                     localPath: input.localPath,
                     cloudPath: input.cloudPath,
                     isDirectory: input.isDirectory,
-                    temporaryUrl: fileUrls[0]?.url || "",
+                    temporaryUrl,
                     expireTime: "1小时",
                     storageCdnDomain: publicAccess.storageCdnDomain,
                     publicUrl: publicAccess.publicUrl,
@@ -359,15 +420,23 @@ export function registerStorageTools(server: ExtendedMcpServer) {
 
         case 'download': {
           if (input.isDirectory) {
-            await storageService.downloadDirectory({
-              cloudPath: input.cloudPath,
-              localPath: input.localPath
-            });
+            if (storageOverrides?.downloadDirectory) {
+              await storageOverrides.downloadDirectory({ cloudPath: input.cloudPath, localPath: input.localPath });
+            } else {
+              await storageService.downloadDirectory({
+                cloudPath: input.cloudPath,
+                localPath: input.localPath
+              });
+            }
           } else {
-            await storageService.downloadFile({
-              cloudPath: input.cloudPath,
-              localPath: input.localPath
-            });
+            if (storageOverrides?.downloadFile) {
+              await storageOverrides.downloadFile({ cloudPath: input.cloudPath, localPath: input.localPath });
+            } else {
+              await storageService.downloadFile({
+                cloudPath: input.cloudPath,
+                localPath: input.localPath
+              });
+            }
           }
 
           return {
@@ -406,9 +475,17 @@ export function registerStorageTools(server: ExtendedMcpServer) {
           }
 
           if (input.isDirectory) {
-            await storageService.deleteDirectory(input.cloudPath);
+            if (storageOverrides?.deleteDirectory) {
+              await storageOverrides.deleteDirectory({ cloudPath: input.cloudPath });
+            } else {
+              await storageService.deleteDirectory(input.cloudPath);
+            }
           } else {
-            await storageService.deleteFile([input.cloudPath]);
+            if (storageOverrides?.deleteFiles) {
+              await storageOverrides.deleteFiles({ cloudPaths: [input.cloudPath] });
+            } else {
+              await storageService.deleteFile([input.cloudPath]);
+            }
           }
 
           return {

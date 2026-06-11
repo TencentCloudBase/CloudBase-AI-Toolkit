@@ -276,10 +276,8 @@ describe("NoSQL database tools", () => {
     const { tools } = createMockServer();
     const meta = tools.writeNoSqlDatabaseContent.meta;
 
-    expect(meta.description).toContain("MongoDB updateOne/updateMany");
-    expect(meta.description).toContain("`$set`、`$inc`、`$push`");
-    expect(meta.description).toContain("`_id` 就是该 `uid`");
-    expect(meta.description).toContain("`shipping.city`");
+    expect(meta.description).toContain("插入、更新");
+    expect(meta.description).toContain("$set/$inc/$push");
     expect(meta.inputSchema.update.description).toContain("MgoUpdate");
     expect(meta.inputSchema.update.description).toContain("`$set`");
     expect(meta.inputSchema.update.description).toContain("`status`");

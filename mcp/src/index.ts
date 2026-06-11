@@ -22,7 +22,10 @@ export type {
   DataModelField,
   DataModelSchema,
   DataModel,
-  CloudBaseOptions
+  CloudBaseOptions,
+  FunctionDeployOverrides,
+  PluginOptions,
+  CloudApiRequestFn,
 } from "./types.js";
 
 export { getLoginState, logout } from "./auth.js";

@@ -18,5 +18,9 @@ module.exports = [
   'terminal-kit',
   
   // 其他有问题的依赖
-  'fsevents', /^@swc\/core.*$/
+  'fsevents', /^@swc\/core.*$/,
+
+  // source-map-support: webpack 打包时会 tree-shake 掉
+  // exports._createParsedCallSite，导致 Node.js v22 运行时崩溃
+  'source-map-support',
 ]; 
