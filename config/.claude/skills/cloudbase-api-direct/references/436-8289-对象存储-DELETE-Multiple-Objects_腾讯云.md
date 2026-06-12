@@ -2,7 +2,7 @@
 
 ## DELETE Multiple Objects
 
-最近更新时间：2025-09-01 17:29:31
+最近更新时间：2026-06-11 16:51:03
 
 -   微信扫一扫 
 -   QQ
@@ -34,7 +34,7 @@ Verbose 模式在响应中包含每个对象的删除结果信息。
 
 ## 授权说明
 
-匿名访问场景下，需要将授权策略中 action 设置为 `["name/cos:DeleteObject","name/cos:DeleteMultipleObjects"]` ；非匿名场景下，会对每个删除的对象逐个检查当前账号是否有 cos:DeleteObject 的权限。查看所有 [action](https://cloud.tencent.com/document/product/598/69901 "https://cloud.tencent.com/document/product/598/69901") 。
+匿名访问场景下，需要将授权策略中 action 设置为 `["name/cos:DeleteObject","name/cos:DeleteMultipleObjects"]` ；非匿名场景下，会对每个删除的对象逐个检查当前账号是否有 cos:DeleteObject 的权限。查看所有 [action](https://cloud.tencent.com/document/product/598/69901) 。
 
 #### 版本控制
 
@@ -55,9 +55,9 @@ POST /?delete HTTP/1.1Host: <BucketName-APPID>.cos.<Region>.myqcloud.comDate: GM
 
 **说明：**
 
-Host: <BucketName-APPID>.cos.<Region>.myqcloud.com，其中 <BucketName-APPID> 为带 APPID 后缀的存储桶名字，例如 examplebucket-1250000000，详情请参见 [存储桶概览 > 基本信息](https://cloud.tencent.com/document/product/436/48921#.E5.9F.BA.E6.9C.AC.E4.BF.A1.E6.81.AF "https://cloud.tencent.com/document/product/436/48921#.E5.9F.BA.E6.9C.AC.E4.BF.A1.E6.81.AF") 和 [存储桶概述 > 存储桶命名规范](https://cloud.tencent.com/document/product/436/13312#.E5.AD.98.E5.82.A8.E6.A1.B6.E5.91.BD.E5.90.8D.E8.A7.84.E8.8C.83 "https://cloud.tencent.com/document/product/436/13312#.E5.AD.98.E5.82.A8.E6.A1.B6.E5.91.BD.E5.90.8D.E8.A7.84.E8.8C.83") 文档；<Region> 为 COS 的可用地域，详情请参见 [地域和访问域名](http://cloud.tencent.com/document/product/436/6224 "http://cloud.tencent.com/document/product/436/6224") 文档。
+Host: <BucketName-APPID>.cos.<Region>.myqcloud.com，其中 <BucketName-APPID> 为带 APPID 后缀的存储桶名字，例如 examplebucket-1250000000，详情请参见 [存储桶概览 > 基本信息](https://cloud.tencent.com/document/product/436/48921#.E5.9F.BA.E6.9C.AC.E4.BF.A1.E6.81.AF) 和 [存储桶概述 > 存储桶命名规范](https://cloud.tencent.com/document/product/436/13312#.E5.AD.98.E5.82.A8.E6.A1.B6.E5.91.BD.E5.90.8D.E8.A7.84.E8.8C.83) 文档；<Region> 为 COS 的可用地域，详情请参见 [地域和访问域名](http://cloud.tencent.com/document/product/436/6224) 文档。
 
-Authorization: Auth String（详情请参见 [请求签名](https://cloud.tencent.com/document/product/436/7778 "https://cloud.tencent.com/document/product/436/7778") 文档）。
+Authorization: Auth String（详情请参见 [请求签名](https://cloud.tencent.com/document/product/436/7778) 文档）。
 
 #### 请求参数
 
@@ -65,7 +65,7 @@ Authorization: Auth String（详情请参见 [请求签名](https://cloud.tencen
 
 #### 请求头
 
-此接口仅使用公共请求头部，详情请参见 [公共请求头部](https://cloud.tencent.com/document/product/436/7728 "https://cloud.tencent.com/document/product/436/7728") 文档。
+此接口仅使用公共请求头部，详情请参见 [公共请求头部](https://cloud.tencent.com/document/product/436/7728) 文档。
 
 #### 请求体
 
@@ -91,7 +91,7 @@ Authorization: Auth String（详情请参见 [请求签名](https://cloud.tencen
 
 #### 响应头
 
-此接口仅返回公共响应头部，详情请参见 [公共响应头部](https://cloud.tencent.com/document/product/436/7729 "https://cloud.tencent.com/document/product/436/7729") 文档。
+此接口仅返回公共响应头部，详情请参见 [公共响应头部](https://cloud.tencent.com/document/product/436/7729) 文档。
 
 #### 响应体
 
@@ -119,7 +119,7 @@ Authorization: Auth String（详情请参见 [请求签名](https://cloud.tencen
 
 #### 错误码
 
-此接口遵循统一的错误响应和错误码，详情请参见 [错误码](https://cloud.tencent.com/document/product/436/7730 "https://cloud.tencent.com/document/product/436/7730") 文档。
+此接口遵循统一的错误响应和错误码，详情请参见 [错误码](https://cloud.tencent.com/document/product/436/7730) 文档。
 
 ## 实际案例
 
