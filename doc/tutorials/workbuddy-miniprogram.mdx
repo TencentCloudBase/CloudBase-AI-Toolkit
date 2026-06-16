@@ -1,6 +1,6 @@
 # 教程：使用 WorkBuddy 开发微信小程序并部署
 
-本教程将引导你使用 WorkBuddy 配合 CloudBase MCP，从零开发一个"每日名言"微信小程序并部署上线。
+本教程将引导你使用 WorkBuddy 配合 CloudBase，从零开发一个"每日名言"微信小程序并部署上线。
 
 ## 预估时间
 
@@ -8,11 +8,15 @@
 
 ## 前置条件
 
-- 已安装 [WorkBuddy](https://www.codebuddy.cn/docs/workbuddy) 并完成 [CloudBase MCP 配置](../ide-setup/workbuddy)
+- 已安装 [WorkBuddy](https://www.codebuddy.cn/docs/workbuddy)，并在对话中通过**连应用**或输入 `/cloudbase` 启用 CloudBase（参阅[配置指南](../ide-setup/workbuddy)）
 - 已开通 [云开发环境](https://docs.cloudbase.net/quick-start/create-env)
 - 已安装[微信开发者工具](https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html)并登录
 
-## 步骤 1：创建小程序项目
+## 步骤 1：启用 CloudBase
+
+在 WorkBuddy 对话中输入 `/cloudbase`，选择 CloudBase Skill，即可开始使用。
+
+## 步骤 2：创建小程序项目
 
 在 WorkBuddy 中创建一个新目录，向 AI 输入：
 
@@ -68,9 +72,9 @@ miniprogram-quotes/
 部署 getQuote 云函数到云开发环境
 ```
 
-CloudBase MCP 会自动完成云函数的上传和部署。
+CloudBase 会自动完成云函数的上传和部署。
 
-## 步骤 5：在页面中调用云函数
+## 步骤 6：在页面中调用云函数
 
 继续输入：
 

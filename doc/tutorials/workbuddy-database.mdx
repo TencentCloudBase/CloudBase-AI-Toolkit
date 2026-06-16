@@ -1,6 +1,6 @@
 # 教程：WorkBuddy + CloudBase 云数据库实战
 
-本教程演示如何在 WorkBuddy 中使用 CloudBase MCP 操作云数据库，包括集合管理、数据读写和权限配置。
+本教程演示如何在 WorkBuddy 中使用 CloudBase 操作云数据库，包括集合管理、数据读写和权限配置。
 
 ## 预估时间
 
@@ -8,7 +8,7 @@
 
 ## 前置条件
 
-- 已安装 [WorkBuddy](https://www.codebuddy.cn/docs/workbuddy) 并完成 [CloudBase MCP 配置](../ide-setup/workbuddy)
+- 已安装 [WorkBuddy](https://www.codebuddy.cn/docs/workbuddy)，并在对话中通过**连应用**或输入 `/cloudbase` 启用 CloudBase（参阅[配置指南](../ide-setup/workbuddy)）
 - 已开通 [云开发环境](https://docs.cloudbase.net/quick-start/create-env)
 
 ## 场景：搭建一个文章管理系统
@@ -17,7 +17,11 @@
 
 ---
 
-### 1. 创建数据库集合
+### 1. 启用 CloudBase
+
+在 WorkBuddy 对话中输入 `/cloudbase`，选择 CloudBase Skill，即可开始使用。
+
+### 2. 创建数据库集合
 
 在 WorkBuddy 的 AI 对话中输入：
 
@@ -25,9 +29,7 @@
 在我的云开发环境中，创建一个名为 "articles" 的集合，用于存储文章数据
 ```
 
-CloudBase MCP 会执行集合创建操作。
-
-### 2. 写入测试数据
+### 3. 写入测试数据
 
 继续输入：
 
@@ -38,7 +40,7 @@ CloudBase MCP 会执行集合创建操作。
 3. 标题: "AI 编程实践", 作者: "王五", 分类: "AI", 阅读数: 200
 ```
 
-### 3. 查询数据
+### 4. 查询数据
 
 接下来，尝试查询数据：
 
@@ -48,7 +50,7 @@ CloudBase MCP 会执行集合创建操作。
 
 AI 会返回查询结果。
 
-### 4. 更新数据
+### 5. 更新数据
 
 输入：
 
@@ -56,7 +58,7 @@ AI 会返回查询结果。
 将 articles 集合中标题为 "WorkBuddy 入门指南" 的文章阅读数更新为 150
 ```
 
-### 5. 删除数据
+### 6. 删除数据
 
 输入：
 
@@ -64,7 +66,7 @@ AI 会返回查询结果。
 删除 articles 集合中阅读数小于 100 的文章
 ```
 
-### 6. 创建数据模型（可选）
+### 7. 创建数据模型（可选）
 
 如果是结构化数据，可以创建数据模型：
 
