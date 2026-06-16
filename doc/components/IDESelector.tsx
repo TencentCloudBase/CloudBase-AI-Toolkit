@@ -52,7 +52,7 @@ const IDES: IDE[] = [
     name: 'WorkBuddy',
     platform: '独立 IDE',
     configPath: 'CloudBase Skills',
-    iconUrl: 'https://raw.githubusercontent.com/TencentCloudBase/CloudBase-MCP/refs/heads/main/doc/assets/logos/workbuddy.svg',
+    iconUrl: 'https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/assets/workbuddy-logo.svg',
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy',
     configExample: '',
     showInstallButton: false,
