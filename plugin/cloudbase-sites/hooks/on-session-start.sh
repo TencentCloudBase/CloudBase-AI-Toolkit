@@ -15,19 +15,20 @@
 #     }
 #   }
 #
-# Hook log: <cwd>/.cloudbase-sites/logs/hook-session-start.log
+# Hook log: ~/.cloudbase-sites/logs/hook-session-start.log
 
 set -u
 CWD="$(pwd)"
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_ROOT="$(cd "$HOOK_DIR/.." && pwd)"
 SITES_BIN="$PLUGIN_ROOT/bin/cloudbase-sites"
+LOG_DIR="$HOME/.cloudbase-sites/logs"
+LOG_TARGET="$LOG_DIR/hook-session-start.log"
 LOG_FALLBACK="/tmp/cloudbase-sites-session-start.log"
 
 log() {
-  local target="$CWD/.cloudbase-sites/logs/hook-session-start.log"
-  mkdir -p "$(dirname "$target")" 2>/dev/null || target="$LOG_FALLBACK"
-  printf '[%s] %s\n' "$(date -Iseconds 2>/dev/null || date)" "$*" >> "$target" 2>/dev/null || true
+  mkdir -p "$LOG_DIR" 2>/dev/null || local target="$LOG_FALLBACK"
+  printf '[%s] [cwd=%s] %s\n' "$(date -Iseconds 2>/dev/null || date)" "$CWD" "$*" >> "${target:-$LOG_TARGET}" 2>/dev/null || true
 }
 
 # ---------------------------------------------------------------------------
@@ -317,7 +318,7 @@ $STATE_BLOCK"
     nohup bash -c "
       pnpm install >/dev/null 2>&1 || npm install >/dev/null 2>&1
       '$SITES_BIN' preview >/dev/null 2>&1
-    " </dev/null >>"$CWD/.cloudbase-sites/logs/hook-session-start.log" 2>&1 &
+    " </dev/null >>"$LOG_TARGET" 2>&1 &
     disown 2>/dev/null || true
     DEPLOY_LINES="$(read_deploy_block)"
     STATE_BLOCK="### Current cwd state
@@ -335,7 +336,7 @@ $STATE_BLOCK"
   fi
 
   log "starting preview in background"
-  nohup "$SITES_BIN" preview </dev/null >>"$CWD/.cloudbase-sites/logs/hook-session-start.log" 2>&1 &
+  nohup "$SITES_BIN" preview </dev/null >>"$LOG_TARGET" 2>&1 &
   disown 2>/dev/null || true
   DEPLOY_LINES="$(read_deploy_block)"
   STATE_BLOCK="### Current cwd state
@@ -366,7 +367,7 @@ if [ "$empty_enough" = "1" ]; then
   DEPLOY_LINES="$(read_deploy_block)"
   if [ "${CLOUDBASE_SITES_AUTO_INIT:-0}" = "1" ]; then
     log "cwd is empty-enough — auto init enabled by CLOUDBASE_SITES_AUTO_INIT"
-    nohup "$SITES_BIN" init --start </dev/null >>"$CWD/.cloudbase-sites/logs/hook-session-start.log" 2>&1 &
+    nohup "$SITES_BIN" init --start </dev/null >>"$LOG_TARGET" 2>&1 &
     disown 2>/dev/null || true
     STATE_BLOCK="### Current cwd state
 

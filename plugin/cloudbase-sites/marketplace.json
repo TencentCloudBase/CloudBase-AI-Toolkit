@@ -1,7 +1,7 @@
 {
   "name": "tencent-cloudbase-sites",
   "interface": {
-    "displayName": "Tencent CloudBase Sites"
+    "displayName": "Tencent CloudBase Sites (beta)"
   },
   "plugins": [
     {

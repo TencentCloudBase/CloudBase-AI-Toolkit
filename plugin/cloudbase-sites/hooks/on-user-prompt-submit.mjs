@@ -247,10 +247,11 @@ function emitContext(additionalContext) {
 
 function log(cwd, message) {
   try {
-    mkdirSync(join(cwd, ".cloudbase-sites", "logs"), { recursive: true });
+    const logDir = join(HOME_DIR || cwd, ".cloudbase-sites", "logs");
+    mkdirSync(logDir, { recursive: true });
     appendFileSync(
-      join(cwd, ".cloudbase-sites", "logs", "hook-user-prompt-submit.log"),
-      `[${new Date().toISOString()}] ${message}\n`,
+      join(logDir, "hook-user-prompt-submit.log"),
+      `[${new Date().toISOString()}] [cwd=${cwd}] ${message}\n`,
     );
   } catch {
     // Logging is best-effort; never block the prompt.

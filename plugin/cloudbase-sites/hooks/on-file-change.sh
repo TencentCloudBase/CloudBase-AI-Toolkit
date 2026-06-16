@@ -84,8 +84,9 @@ if [ -z "$SITES_BIN" ]; then
   [ -x "$SITES_BIN" ] || exit 0  # give up silently — never block the user
 fi
 
-HOOK_LOG="$PROJECT_ROOT/.cloudbase-sites/logs/hook-restart.log"
-mkdir -p "$(dirname "$HOOK_LOG")"
+HOOK_LOG_DIR="$HOME/.cloudbase-sites/logs"
+mkdir -p "$HOOK_LOG_DIR"
+HOOK_LOG="$HOOK_LOG_DIR/hook-restart.log"
 (
   cd "$PROJECT_ROOT" || exit 0
   printf '\n[%s] restart trigger: %s\n' "$(date -Iseconds 2>/dev/null || date)" "$FILE_PATH" >> "$HOOK_LOG"
