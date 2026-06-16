@@ -24,6 +24,11 @@
             "className": "sh-sidebar-item"
           },
           {
+            "type": "doc",
+            "id": "ai/cloudbase-ai-toolkit/ai-agent-plugins",
+            "label": "AI 编程插件"
+          },
+          {
             "type": "category",
             "label": "IDE 配置",
             "collapsible": true,
@@ -43,6 +48,7 @@
               "ai/cloudbase-ai-toolkit/ide-setup/baidu-comate",
               "ai/cloudbase-ai-toolkit/ide-setup/augment-code",
               "ai/cloudbase-ai-toolkit/ide-setup/claude-code",
+              "ai/cloudbase-ai-toolkit/ide-setup/codex",
               "ai/cloudbase-ai-toolkit/ide-setup/gemini-cli",
               "ai/cloudbase-ai-toolkit/ide-setup/openai-codex-cli",
               "ai/cloudbase-ai-toolkit/ide-setup/opencode",

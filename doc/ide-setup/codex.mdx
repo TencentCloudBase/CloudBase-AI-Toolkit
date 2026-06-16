@@ -1,10 +1,10 @@
-import IDESelector from '../components/IDESelector';
 import CodexInstallSelector from '../components/CodexInstallSelector';
+import IDESelector from '../components/IDESelector';
 import RelatedResources from '../components/RelatedResources';
 
-# OpenAI Codex CLI 配置指南
+# Codex 配置指南
 
-配置后，你可以在 OpenAI Codex CLI 的对话中直接操作 CloudBase 服务。
+Codex 可以通过 **插件市场** 安装 CloudBase 插件，一次性获得 MCP 工具连接和 AI Skills；也可以通过 **MCP 配置** 手工连接。推荐使用插件市场方式。
 
 **例如：**
 
@@ -12,14 +12,14 @@ import RelatedResources from '../components/RelatedResources';
 - "部署这个函数" - AI 自动上传并配置云函数
 - "部署前端到 CDN" - AI 自动上传文件并配置托管
 
-无需切换到云控制台，所有操作都可以在命令行中用自然语言完成。
+无需切换到云控制台，所有操作都可以在 Codex 中用自然语言完成。
 
 ## 前置条件
 
 在开始配置之前，请确保满足以下条件：
 
 <details>
-<summary><strong>已准备好Node.js 环境和云开发环境</strong></summary>
+<summary><strong>已准备好 Node.js 环境和云开发环境</strong></summary>
 
 **Node.js 环境：** 确保已安装 Node.js v18.15.0 或更高版本：
 
@@ -33,11 +33,9 @@ node --version
 
 </details>
 
----
-
 ## 方式一：通过插件市场安装（推荐）
 
-插件市场方式会同时安装 MCP 工具和 AI Skills。你也可以选择在 Codex App 中通过图形界面安装。
+插件市场方式会同时安装 MCP 工具和 AI Skills，一次安装即可获得完整能力。
 
 <CodexInstallSelector />
 
@@ -50,11 +48,11 @@ node --version
 ## 常见问题
 
 **Q: MCP 连接失败？**
-A: 检查命令是否正确执行，重启 OpenAI Codex CLI，确认网络连接正常。
+A: 检查命令是否正确执行，重启 Codex，确认网络连接正常。
 
 **Q: 工具数量显示为 0？**
 A: 请参考[常见问题](../faq#mcp-显示工具数量为-0-怎么办)。
 
 更多问题请查看：[完整 FAQ](../faq)
 
-<RelatedResources ideName="OpenAI Codex CLI" ideDocUrl="https://help.openai.com/en/articles/11096431-openai-codex-ci-getting-started" />
+<RelatedResources ideName="Codex" ideDocUrl="https://developers.openai.com/codex/plugins" />
