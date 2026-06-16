@@ -77,10 +77,17 @@ app.post('/auth/device/code', (req, res) => {
 // 浏览器端完成 OAuth 后调用此接口完成设备码授权
 // ─────────────────────────────────────────────
 app.post('/auth/verify-cloudbase', async (req, res) => {
-  const { user_code: userCode, cloudbase_uid: cloudbaseUid } = req.body;
+  const {
+    user_code: userCode,
+    cloudbase_uid: cloudbaseUid,
+    cloudbase_access_token: cloudbaseAccessToken,
+  } = req.body;
 
-  if (!userCode || !cloudbaseUid) {
-    return res.status(400).json({ error: 'invalid_request', error_description: 'user_code and cloudbase_uid are required' });
+  if (!userCode || !cloudbaseUid || !cloudbaseAccessToken) {
+    return res.status(400).json({
+      error: 'invalid_request',
+      error_description: 'user_code, cloudbase_uid and cloudbase_access_token are required',
+    });
   }
 
   const deviceCode = userCodeIndex.get(userCode);
@@ -153,7 +160,7 @@ app.post('/auth/token', async (req, res) => {
   // ── device_code（轮询） ──
   if (grant_type === 'device_code') {
     const record = deviceStore.get(deviceCode);
-    if (!record) return res.status(400).json(INVALID_GRANT_ERROR);
+    if (!record || Date.now() > record.expiresAt) return res.status(400).json(INVALID_GRANT_ERROR);
 
     if (record.status === 'pending') {
       return res.json(AUTHORIZATION_PENDING_ERROR);
@@ -175,6 +182,7 @@ app.post('/auth/token', async (req, res) => {
       cloudbaseUid: record.cloudbaseUid,
       envId: record.envId,
       apiKey: record.apiKey,
+      apiKeyId: record.apiKeyId,
     };
     refreshTokenStore.set(newRefreshToken, refreshRecord);
 
@@ -195,6 +203,10 @@ app.post('/auth/token', async (req, res) => {
   if (grant_type === 'refresh_token') {
     const record = refreshTokenStore.get(refreshToken);
     if (!record) return res.status(400).json(INVALID_GRANT_ERROR);
+    if (Date.now() > record.expiresAt) {
+      refreshTokenStore.delete(refreshToken);
+      return res.status(400).json(INVALID_GRANT_ERROR);
+    }
 
     // Token Rotation: 颁发新 refresh_token，使旧 token 失效
     const newRefreshToken = randomBytes(32).toString('hex');
@@ -203,11 +215,13 @@ app.post('/auth/token', async (req, res) => {
     refreshTokenStore.delete(refreshToken);
 
     return res.json({
-      access_token: record.envId || '',
+      access_token: record.apiKey || '',
       refresh_token: newRefreshToken,
       expires_in: 7 * 24 * 3600,
       token_type: 'Bearer',
       env_id: record.envId,
+      api_key_id: record.apiKeyId,
+      cloudbase_uid: record.cloudbaseUid,
     });
   }
 

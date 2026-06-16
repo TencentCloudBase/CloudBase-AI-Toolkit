@@ -27,6 +27,7 @@ export interface RefreshTokenRecord {
   cloudbaseUid?: string;
   envId?: string;
   apiKey?: string;
+  apiKeyId?: string;
 }
 
 export interface DeviceCodeRequest {
@@ -56,4 +57,5 @@ export interface TokenRequest {
 export interface CloudBaseVerifyRequest {
   user_code: string;
   cloudbase_uid: string;
+  cloudbase_access_token: string;
 }

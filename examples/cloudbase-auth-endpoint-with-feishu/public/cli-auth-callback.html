@@ -112,6 +112,8 @@
         const sessionResult = await pollSession(30_000);
         const cloudbaseUid = sessionResult.user?.id;
         if (!cloudbaseUid) throw new Error('无法获取用户身份');
+        const cloudbaseAccessToken = sessionResult.access_token;
+        if (!cloudbaseAccessToken) throw new Error('无法获取用户访问凭证');
 
         // 从 sessionStorage 读取设备码
         const userCode = sessionStorage.getItem('pending_user_code');
@@ -125,7 +127,11 @@
         const verifyRes = await fetch('/auth/verify-cloudbase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_code: userCode, cloudbase_uid: cloudbaseUid }),
+          body: JSON.stringify({
+            user_code: userCode,
+            cloudbase_uid: cloudbaseUid,
+            cloudbase_access_token: cloudbaseAccessToken,
+          }),
         });
 
         const verifyResult = await verifyRes.json();
