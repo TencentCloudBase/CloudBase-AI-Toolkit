@@ -1,4 +1,4 @@
-# CloudBase Sites Plugin
+# CloudBase Sites Plugin (beta)
 
 CloudBase Sites packages the shared CloudBase site runtime for Claude Code,
 CodeBuddy, and Codex.

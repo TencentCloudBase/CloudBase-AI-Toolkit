@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "cloudbase-sites",
-      "displayName": "CloudBase Sites",
+      "displayName": "CloudBase Sites (beta)",
       "source": "./",
       "description": "Create, preview, save, deploy, inspect, and roll back Vite web apps hosted on Tencent CloudBase.",
       "category": "Developer Tools"
