@@ -1,0 +1,114 @@
+# 教程：WorkBuddy + CloudBase 云数据库实战
+
+本教程演示如何在 WorkBuddy 中使用 CloudBase MCP 操作云数据库，包括集合管理、数据读写和权限配置。
+
+## 预估时间
+
+约 10 分钟
+
+## 前置条件
+
+- 已安装 [WorkBuddy](https://www.codebuddy.cn/docs/workbuddy) 并完成 [CloudBase MCP 配置](../ide-setup/workbuddy)
+- 已开通 [云开发环境](https://docs.cloudbase.net/quick-start/create-env)
+
+## 场景：搭建一个文章管理系统
+
+我们将创建一个简单的文章管理系统，包含文章的增删改查功能。
+
+---
+
+### 1. 创建数据库集合
+
+在 WorkBuddy 的 AI 对话中输入：
+
+```
+在我的云开发环境中，创建一个名为 "articles" 的集合，用于存储文章数据
+```
+
+CloudBase MCP 会执行集合创建操作。
+
+### 2. 写入测试数据
+
+继续输入：
+
+```
+在 articles 集合中插入三条测试文章数据：
+1. 标题: "WorkBuddy 入门指南", 作者: "张三", 分类: "技术", 阅读数: 120
+2. 标题: "CloudBase 使用技巧", 作者: "李四", 分类: "技术", 阅读数: 85
+3. 标题: "AI 编程实践", 作者: "王五", 分类: "AI", 阅读数: 200
+```
+
+### 3. 查询数据
+
+接下来，尝试查询数据：
+
+```
+查询 articles 集合中阅读数超过 100 的文章，按阅读数降序排列
+```
+
+AI 会返回查询结果。
+
+### 4. 更新数据
+
+输入：
+
+```
+将 articles 集合中标题为 "WorkBuddy 入门指南" 的文章阅读数更新为 150
+```
+
+### 5. 删除数据
+
+输入：
+
+```
+删除 articles 集合中阅读数小于 100 的文章
+```
+
+### 6. 创建数据模型（可选）
+
+如果是结构化数据，可以创建数据模型：
+
+```
+为 articles 集合创建数据模型，包含以下字段：
+- title: 字符串，必填
+- author: 字符串，必填
+- category: 字符串
+- readCount: 数字，默认值 0
+- createdAt: 日期
+```
+
+## 云存储操作
+
+除了数据库，CloudBase 还提供云存储服务。
+
+### 上传文件
+
+在 WorkBuddy 中输入：
+
+```
+将我本地项目中的 public/logo.png 上传到云存储的 images/ 目录
+```
+
+### 获取文件链接
+
+```
+获取 images/logo.png 的临时访问链接
+```
+
+## 常见数据库操作速查
+
+| 操作 | 示例提示词 |
+|------|-----------|
+| 创建集合 | `创建名为 "users" 的集合` |
+| 插入数据 | `在 users 集合中插入一条记录：{name: "测试用户", age: 25}` |
+| 查询数据 | `查询 users 集合中 age 大于 18 的用户` |
+| 更新数据 | `将 users 集合中 name 为 "测试用户" 的记录 age 更新为 26` |
+| 删除数据 | `删除 users 集合中 name 为 "测试用户" 的记录` |
+| 上传文件 | `将文件 uploads/report.pdf 上传到云存储` |
+| 获取文件链接 | `获取 reports/report.pdf 的临时链接` |
+
+## 下一步
+
+- 了解 [NoSQL 数据库 Skill](../prompts/no-sql-web-sdk) 的详细用法
+- 了解 [MySQL 数据库操作](../prompts/relational-database-tool)
+- 探索更多 [MCP 工具](../mcp-tools)

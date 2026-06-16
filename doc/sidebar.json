@@ -37,6 +37,7 @@
               "ai/cloudbase-ai-toolkit/ide-setup/cline",
               "ai/cloudbase-ai-toolkit/ide-setup/github-copilot",
               "ai/cloudbase-ai-toolkit/ide-setup/windsurf",
+              "ai/cloudbase-ai-toolkit/ide-setup/workbuddy",
               "ai/cloudbase-ai-toolkit/ide-setup/trae",
               "ai/cloudbase-ai-toolkit/ide-setup/tongyi-lingma",
               "ai/cloudbase-ai-toolkit/ide-setup/roocode",
@@ -143,6 +144,9 @@
         "collapsed": false,
         "items": [
           "ai/cloudbase-ai-toolkit/tutorials",
+          "ai/cloudbase-ai-toolkit/tutorials/workbuddy-quickstart",
+          "ai/cloudbase-ai-toolkit/tutorials/workbuddy-database",
+          "ai/cloudbase-ai-toolkit/tutorials/workbuddy-miniprogram",
           "ai/cloudbase-ai-toolkit/templates",
           "ai/cloudbase-ai-toolkit/examples"
         ]
