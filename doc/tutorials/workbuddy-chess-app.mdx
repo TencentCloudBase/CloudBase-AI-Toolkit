@@ -1,0 +1,323 @@
+# WorkBuddy × CloudBase 实战：从零构建中国象棋双人对战应用
+
+> 一篇真正"跑通了"的教程，记录了我们用 WorkBuddy + CloudBase 从零搭建一个完整应用的全过程 —— 包括那些踩过的坑和总结的规则。
+
+---
+
+## 一、背景
+
+### 我们做了什么？
+
+用 WorkBuddy 配合 CloudBase（腾讯云开发），半小时内从零搭建了一个**中国象棋双人对战 Web 应用**，包含：
+
+- 手机号验证码登录
+- 房间创建/加入/分享
+- 完整象棋规则引擎
+- 实时对局同步（NoSQL watch）
+- 部署到独立子域名
+
+### 技术栈
+
+| 层 | 选型 |
+|---|---|
+| 前端 | Vite + React + TypeScript |
+| 认证 | CloudBase 手机号验证码登录 |
+| 数据库 | CloudBase NoSQL 文档数据库 |
+| 部署 | CloudBase manageApps → 独立子域名 |
+| AI 工具链 | WorkBuddy + CloudBase（28 个工具） |
+
+---
+
+## 二、基建：启用 CloudBase
+
+在 WorkBuddy 对话中输入 `/cloudbase` 选择 CloudBase Skill，或在对话界面点击左下角 **连应用** 按钮启用 CloudBase 连接器（参阅[配置指南](../ide-setup/workbuddy)）。
+
+启用后，WorkBuddy 会自动完成以下流程：
+
+1. 通过 `auth` 工具完成设备码登录
+2. 绑定目标环境
+3. 环境中后续所有操作通过 CloudBase 工具执行
+
+---
+
+## 三、应用架构
+
+### 3.1 数据模型
+
+```
+rooms 集合（NoSQL）
+├── roomId        // 6 位房间码（大写字母+数字）
+├── creatorId     // 创建者 uid
+├── player1Id     // 红方 uid
+├── player2Id     // 黑方 uid（加入后填充）
+├── status        // waiting → playing → finished
+├── boardState    // 序列化棋盘
+├── currentTurn   // red | black
+└── winner        // red | black | null
+```
+
+棋盘序列化格式：
+
+```
+RK-AK-EK-HK-CK-AK-EK-HK-RK|--|--B--P-B--|S--S--S--S--S|...
+```
+
+每格 2 字符：`RK`=红帅, `BK`=黑将, `RA`=红仕, `B--`=空位。
+
+### 3.2 组件结构
+
+```
+App
+├── LoginPage      → 手机号输入 → 验证码 → 登录
+├── HomePage       → 创建房间 / 加入房间
+└── GamePage
+    ├── PlayerInfo → 红方/黑方身份标识
+    ├── ChessBoard → SVG 网格 + CSS 棋子
+    └── ShareBtn   → 分享房间给好友
+```
+
+### 3.3 对局同步机制
+
+关键：不用 WebSocket，直接利用 CloudBase NoSQL 的 `watch()` API 做实时同步。
+
+```
+Player A 走棋:
+  1. 本地 GameEngine.makeMove()
+  2. updateGameState() → 写入数据库
+
+Player B 同步:
+  1. watchRoom() 收到 snapshot
+  2. boardState 变化 → deserializeBoard()
+  3. engine.loadState() → UI 更新
+```
+
+---
+
+## 四、象棋引擎核心
+
+### 4.1 棋盘坐标系
+
+```
+列 0  1  2  3  4  5  6  7  8
++------------------------------+
+|  车 马 象 士 将 士 象 马 车  | row 0 (黑方底线)
+|                              |
+|     炮              炮       | row 2
+|  卒    卒    卒    卒    卒   | row 3
+|------------------------------| ← 楚河汉界
+|  兵    兵    兵    兵    兵   | row 6
+|     炮              炮       | row 7
+|                              |
+|  车 马 相 仕 帅 仕 相 马 车  | row 9 (红方底线)
++------------------------------+
+     0  1  2  3  4  5  6  7  8
+```
+
+### 4.2 走法规则实现
+
+| 棋子 | 规则 | 关键约束 |
+|---|---|---|
+| 帅/将 | 九宫内上下左右一格 | 将帅对面（飞将） |
+| 仕/士 | 九宫内斜走一格 | 不能出宫 |
+| 相/象 | 田字对角，堵象眼不能走 | 不过河 |
+| 马 | 日字，蹩马腿不能走 | 先直后斜 |
+| 车 | 直线任意格 | 遇子停 |
+| 炮 | 直线走，翻山吃 | 中间有一子才能吃 |
+| 兵/卒 | 未过河只能前进，过河可横走 | 不能后退 |
+
+核心逻辑：**先算 rawMoves（不考虑是否被将军），再滤掉会导致被将军的走法**。
+
+```typescript
+private getValidMoves(board, pos): Position[] {
+  const rawMoves = this.getRawMoves(board, pos);
+  return rawMoves.filter(move => {
+    const testBoard = cloneBoard(board);
+    testBoard[move.row][move.col] = testBoard[pos.row][pos.col];
+    testBoard[pos.row][pos.col] = null;
+    return !this.isInCheck(testBoard, piece.side);
+  });
+}
+```
+
+---
+
+## 五、CloudBase 集成
+
+### 5.1 初始化
+
+```typescript
+import cloudbase from '@cloudbase/js-sdk';
+
+const app = cloudbase.init({
+  env: 'app-xxx',
+  region: 'ap-shanghai',
+  accessKey: PUBLISHABLE_KEY,  // 通过 MCP 的 ensurePublishableKey 获取
+});
+
+const auth = app.auth({ persistence: 'local' });
+const db = app.database();
+```
+
+### 5.2 手机号登录
+
+```
+在 WorkBuddy 中：帮我配置手机号验证码登录
+```
+
+AI 会自动完成：
+1. 调用 `manageAppAuth(action="ensurePublishableKey")` 获取 publishable key
+2. 生成登录页面代码
+3. 调用 `manageAppAuth(action="getLoginConfig")` 验证登录配置
+
+**前提条件**：CloudBase 控制台需配置短信签名+模板。
+
+### 5.3 数据库实时同步
+
+```typescript
+export function watchRoom(docId, callback) {
+  return db.collection('rooms')
+    .doc(docId)
+    .watch({
+      onChange: snapshot => callback(snapshot.data),
+      onError: err => console.error(err),
+    });
+}
+```
+
+---
+
+## 六、部署：manageApps vs manageHosting
+
+### 6.1 两个路径
+
+| | manageHosting | manageApps |
+|---|---|---|
+| 域名 | `<envId>-<appId>.tcloudbaseapp.com` | `<serviceName>-<envId>.webapps.tcloudbase.com` |
+| 适用场景 | 已有项目维护 | **新项目首选** |
+| 版本管理 | 无 | 支持版本管理 |
+
+**新项目首次部署必须用 `manageApps`，禁止用 `manageHosting`。`manageHosting` 仅用于已有老项目的增量更新。**
+
+### 6.2 部署命令
+
+在 WorkBuddy 中输入：
+
+```
+将当前项目部署到 CloudBase，使用独立子域名
+```
+
+AI 会自动执行：
+1. 构建前端项目
+2. 调用 `manageApps(action="deployApp", ...)` 部署到独立子域名
+3. 配置 SPA 路由
+4. 返回可公开访问的部署链接
+
+### 6.3 部署后轮询
+
+AI 会自动轮询部署状态：
+
+```
+queryApps(action="getAppVersion", serviceName="chinese-chess", buildId="...")
+```
+
+状态从 BUILDING → SUCCESS 即完成。
+
+---
+
+## 七、踩坑记录
+
+### 坑 1：用了 manageHosting 而不是 manageApps
+
+**表现**：首次部署时用了 manageHosting，后续才发现 manageApps 才是新项目的推荐路径。
+
+**根因**：skill 文档里写的是 "Deploy to CloudBase static hosting using hosting tools" —— 模糊，没指明路径。
+
+**修复**：修改 skill 的 Deployment Workflow，明确区分新项目/老项目。
+
+**教训**：AI 读文档只看"有没有"，不判断"哪个更优先"。规则必须写死。
+
+### 坑 2：没有持久化部署方式，后续会话不知道用哪个路径
+
+**表现**：第二次部署时，AI 需要重新判断新/老项目，但不知道第一次用的是哪个方法。
+
+**修复**：写 `cloudbaserc.json`，记录 `deployment.method`、`serviceName`、`url` 等元信息。
+
+```json
+{
+  "envId": "app-xxx",
+  "deployment": {
+    "method": "manageApps",
+    "serviceName": "chinese-chess",
+    "url": "https://..."
+  }
+}
+```
+
+**教训**：AI 会话无记忆，跨会话状态必须靠文件。
+
+### 坑 3：没有先连应用再开发
+
+**表现**：直接在对话中开发，没有启用 CloudBase 连接器，导致 AI 缺少 CloudBase 工具。
+
+**修复**：先在 WorkBuddy 中用 `/cloudbase` 或点"连应用"启用 CloudBase。
+
+**教训**：**必须先启用连接器**，然后 AI 才能调用 CloudBase 的各种能力。
+
+---
+
+## 八、WorkBuddy 使用技巧
+
+### 8.1 Skill 是 AI 的行为规范
+
+Skill 文件是 AI 的操作手册。写得越精确，AI 犯错越少。
+
+写 skill 的要点：
+- **用"禁止"代替"谨慎"**。说"禁止用 manageHosting"比"优先考虑 manageApps"有效得多。
+- **给判断标准**。不说"看情况"，说"查 queryApps 列表，有记录则老项目，没有则新项目"。
+- **犯错后立即修**。发现 skill 不精确，当场改，不要等。
+
+### 8.2 用 cloudbaserc.json 做跨会话记忆
+
+CloudBase 项目的标准配置文件，天然适合存部署元信息。WorkBuddy 在每次部署后更新它，下次会话直接读。
+
+---
+
+## 九、完整流程回顾
+
+```
+1. 环境准备
+   ├── 打开 WorkBuddy → 输入 /cloudbase 或点"连应用"
+   ├── 设备码登录
+   └── 绑定环境
+
+2. 资源配置
+   ├── 启用认证 → manageAppAuth(ensurePublishableKey)
+   ├── 创建集合 → writeNoSqlDatabaseStructure(createCollection, "rooms")
+   └── 配置 SPA 路由
+
+3. 应用开发
+   ├── Vite 脚手架
+   ├── 引入 CloudBase SDK
+   ├── 象棋引擎 → GameEngine.ts（~200 行规则逻辑）
+   ├── 认证页面 → LoginPage.tsx
+   ├── 大厅页面 → HomePage.tsx
+   ├── 棋盘组件 → ChessBoard.tsx
+   └── 对局页面 → GamePage.tsx
+
+4. 部署
+   ├── 构建 → npm run build
+   ├── 部署 → manageApps(deployApp)
+   ├── 轮询 → queryApps(getAppVersion) → SUCCESS
+   └── 记录 → cloudbaserc.json
+```
+
+---
+
+## 十、源码与访问
+
+- 应用地址：<https://chinese-chess-app-0g00z1dr85125ec3.webapps.tcloudbase.com>
+- 部署方式：CloudBase manageApps → 独立子域名
+
+---
+
+*这篇教程不是 "Hello World" —— 它是一篇真正从零走到上线、并且总结了教训的实战记录。*

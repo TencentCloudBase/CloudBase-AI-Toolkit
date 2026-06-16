@@ -39,6 +39,7 @@ If a skill points to its own `references/...` files, keep following those relati
 - When saving MCP or tool results to a local file with a generic file-writing tool, pass text, not raw objects. For JSON output files, serialize first with `JSON.stringify(result, null, 2)` and write that string as the file content.
 - If the file-writing tool reports that a field such as `content` expected a string but received an object, do not retry with the same raw object. Serialize the object first, then retry once with the serialized text, and make sure the retried call actually passes the serialized string rather than the original object.
 - Keep scenario-specific pitfall lists in the matching child skills instead of expanding this entry file.
+- **For new frontend projects, the first deployment must use `manageApps(action="createApp", ...)` to deploy to an independent subdomain. `manageHosting` is prohibited for first-time deployments — it is only allowed for incremental updates to existing projects that were originally deployed via `manageHosting`.**
 
 ### Engineering constitution (applies to every scenario)
 
@@ -193,7 +194,11 @@ When users request deployment to CloudBase:
 2. **Frontend Deployment (if applicable)**:
    - After backend deployment completes, update frontend API endpoints using the returned API addresses
    - Build the frontend application
-   - Deploy to CloudBase static hosting using hosting tools
+   - **Determine whether this is a new or existing project**:
+     - **New project (first-time deployment)**: Use `manageApps(action="createApp", ...)` to deploy to an independent subdomain. Each app gets its own `*.webapps.tcloudbase.com` subdomain — no path collisions between projects.
+     - **Existing project (re-deployment)**: Use `manageApps(action="updateApp", ...)` to update the existing app. If the original project was deployed via `manageHosting` (shared domain path), continue using `manageHosting` for consistency.
+   - After uploading, call `setWebsiteDocument` to configure SPA routing — set both `indexDocument` and `errorDocument` to `"index.html"`.
+   - If `manageApps` fails persistently, fall back to `manageHosting`. Remind the user the URL will share the env domain path and CDN has a few minutes of cache.
 
 3. **Display Deployment URLs**:
    - Show backend deployment URL (if applicable)

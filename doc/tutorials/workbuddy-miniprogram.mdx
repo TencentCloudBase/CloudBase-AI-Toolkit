@@ -1,0 +1,126 @@
+# 教程：使用 WorkBuddy 开发微信小程序并部署
+
+本教程将引导你使用 WorkBuddy 配合 CloudBase，从零开发一个"每日名言"微信小程序并部署上线。
+
+## 预估时间
+
+约 20 分钟
+
+## 前置条件
+
+- 已安装 [WorkBuddy](https://www.codebuddy.cn/docs/workbuddy)，并在对话中通过**连应用**或输入 `/cloudbase` 启用 CloudBase（参阅[配置指南](../ide-setup/workbuddy)）
+- 已开通 [云开发环境](https://docs.cloudbase.net/quick-start/create-env)
+- 已安装[微信开发者工具](https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html)并登录
+
+## 步骤 1：启用 CloudBase
+
+在 WorkBuddy 对话中输入 `/cloudbase`，选择 CloudBase Skill，即可开始使用。
+
+## 步骤 2：创建小程序项目
+
+在 WorkBuddy 中创建一个新目录，向 AI 输入：
+
+```
+创建一个微信小程序项目，使用云开发，可以显示每日名言
+```
+
+AI 会生成小程序项目结构：
+
+```
+miniprogram-quotes/
+├── app.js
+├── app.json
+├── app.wxss
+├── pages/
+│   └── index/
+│       ├── index.js
+│       ├── index.json
+│       ├── index.wxml
+│       └── index.wxss
+├── cloudfunctions/
+│   └── getQuote/
+│       ├── index.js
+│       └── package.json
+├── project.config.json
+└── README.md
+```
+
+## 步骤 2：创建数据库集合
+
+在 WorkBuddy 中继续输入：
+
+```
+在云开发环境中创建一个名为 "quotes" 的集合，用于存储每日名言
+```
+
+## 步骤 3：编写云函数
+
+向 AI 输入：
+
+```
+在 getQuote 云函数中实现以下逻辑：
+1. 从 quotes 集合中随机获取一条名言
+2. 如果集合为空，返回一条默认名言
+3. 返回名言内容、作者信息
+```
+
+## 步骤 4：部署云函数
+
+在 WorkBuddy 中输入：
+
+```
+部署 getQuote 云函数到云开发环境
+```
+
+CloudBase 会自动完成云函数的上传和部署。
+
+## 步骤 6：在页面中调用云函数
+
+继续输入：
+
+```
+在 index 页面中，通过 wx.cloud.callFunction 调用 getQuote 云函数，并将返回的名言显示在页面上
+```
+
+## 步骤 6：用微信开发者工具预览
+
+使用微信开发者工具打开项目根目录：
+
+```bash
+# macOS
+/Applications/wechatwebdevtools.app/Contents/MacOS/cli open --project "/path/to/miniprogram-quotes"
+
+# Windows
+"C:\Program Files (x86)\Tencent\微信web开发者工具\cli.bat" open --project "/path/to/miniprogram-quotes"
+```
+
+在开发者工具中预览小程序，确认名言可以正常显示和刷新。
+
+## 步骤 7：添加管理功能（进阶）
+
+如果想进一步丰富功能，可以继续在 WorkBuddy 中提出需求：
+
+```
+1. 添加名言管理页面，可以新增、编辑、删除名言
+2. 添加分类标签功能
+3. 实现每日名言自动换
+```
+
+## 完整流程回顾
+
+```mermaid
+graph LR
+    A[WorkBuddy] -->|AI 对话| B[创建项目]
+    B --> C[创建数据库]
+    C --> D[编写云函数]
+    D --> E[部署云函数]
+    E --> F[开发小程序页面]
+    F --> G[微信开发者工具预览]
+    G --> H[上线发布]
+```
+
+## 下一步
+
+- 了解[微信小程序开发 Skill](../prompts/miniprogram-development)
+- 了解[云函数开发 Skill](../prompts/cloud-functions)
+- 查看其他[视频教程](../tutorials)
