@@ -106,27 +106,10 @@
         await initCloudBase();
         updateStep(1);
 
-        // 步骤 2：获取 CloudBase Session（等待 SDK 完成 code → session 交换）
-        // auth.onAuthStateChange 可监听认证状态变化
-        const sessionResult = await new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => reject(new Error('认证超时，请重试')), 30000);
-
-          authInstance.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-              clearTimeout(timeout);
-              resolve(session);
-            }
-          });
-
-          // 如果 session 已就绪，直接获取
-          setTimeout(async () => {
-            const { data, error } = await authInstance.getSession();
-            clearTimeout(timeout);
-            if (data?.session) resolve(data.session);
-            else reject(new Error(error?.message || '无法获取登录状态'));
-          }, 2000);
-        });
-
+        // 步骤 2：等待 CloudBase Session 就绪
+        // SDK 初始化后，detectSessionInUrl 自动将 URL 中的 code 交换为 session
+        // 通过轮询 getSession() 来等待 session 就绪，避免 onAuthStateChange 事件竞态
+        const sessionResult = await pollSession(30_000);
         const cloudbaseUid = sessionResult.user?.id;
         if (!cloudbaseUid) throw new Error('无法获取用户身份');
 
@@ -181,6 +164,23 @@
           <div class="footer">企业 AI 开发平台 &middot; 云开发 CloudBase</div>
         `;
       }
+    }
+
+    /**
+     * 轮询 getSession() 直到 session 就绪
+     * 避免 onAuthStateChange 事件竞态问题
+     */
+    async function pollSession(timeoutMs) {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        const { data, error } = await authInstance.getSession();
+        if (data?.session?.user?.id) {
+          return data.session;
+        }
+        // 等待 800ms 后重试
+        await new Promise(r => setTimeout(r, 800));
+      }
+      throw new Error('认证超时，请重试');
     }
 
     document.addEventListener('DOMContentLoaded', handleCallback);

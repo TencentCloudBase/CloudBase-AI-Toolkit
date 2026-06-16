@@ -11,8 +11,10 @@ export interface AuthorizationRecord {
   cloudbaseUid?: string;
   /** 为该用户创建的环境 ID */
   envId?: string;
-  /** 为该环境签发的 API Key */
+  /** 为该环境签发的 API Key Token（jwt 格式） */
   apiKey?: string;
+  /** API Key 的 ID */
+  apiKeyId?: string;
 }
 
 export interface RefreshTokenRecord {
@@ -24,6 +26,7 @@ export interface RefreshTokenRecord {
   expiresAt: number;
   cloudbaseUid?: string;
   envId?: string;
+  apiKey?: string;
 }
 
 export interface DeviceCodeRequest {

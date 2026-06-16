@@ -14,42 +14,48 @@
 
 ## 完整流程
 
-```
-CLI/IDE (MCP)         企业授权服务          用户浏览器          CloudBase 托管登录页
-     │                      │                  │                      │
-     │  POST /device/code   │                  │                      │
-     │─────────────────────►│                  │                      │
-     │◄──── device_code     │                  │                      │
-     │       user_code      │                  │                      │
-     │       verification_uri│                  │                      │
-     │                      │                  │                      │
-     │            用户打开 verification_uri ───►│                      │
-     │                      │                  │                      │
-     │                      │       输入 user_code                    │
-     │                      │◄─────────────────│                      │
-     │                      │                  │                      │
-     │                      │   toDefaultLoginPage()                  │
-     │                      │────────────────────────────────────────►│
-     │                      │                  │                      │
-     │                      │                  │    飞书/企微/其他 IdP │
-     │                      │                  │◄────────────────────►│
-     │                      │                  │                      │
-     │                      │   redirect (带 code)                    │
-     │                      │◄────────────────────────────────────────│
-     │                      │                  │                      │
-     │                      │   Session 就绪                           │
-     │                      │   POST /verify-cloudbase                │
-     │                      │◄─────────────────│                      │
-     │                      │   CreateEnv (若首次)                     │
-     │                      │   CreateApiKey                          │
-     │                      │── ok ───────────►│                      │
-     │                      │                  │                      │
-     │  轮询 POST /token     │                  │                      │
-     │  (grant_type=device)  │                  │                      │
-     │─────────────────────►│                  │                      │
-     │◄── refreshToken      │                  │                      │
-     │     apiKey           │                  │                      │
-     │     envId            │                  │                      │
+```mermaid
+sequenceDiagram
+    participant MCP as MCP / CLI
+    participant Auth as 企业授权服务
+    participant Browser as 用户浏览器
+    participant CloudBase as CloudBase 托管登录页
+
+    MCP->>Auth: POST /auth/device/code
+    Auth-->>MCP: device_code, user_code, verification_uri
+
+    note over MCP,Browser: 用户看到设备码，打开浏览器
+
+    Browser->>Browser: 打开 verification_uri (cli-auth.html)
+    Browser->>Browser: 输入 user_code
+    Browser->>Browser: sessionStorage 保存 user_code
+    
+    Browser->>CloudBase: auth.toDefaultLoginPage({ redirect_uri })
+
+    note over CloudBase: 用户选择飞书/企微/其他身份源
+    note over CloudBase: CloudBase 自动完成 OAuth 回调
+
+    CloudBase-->>Browser: redirect 到 cli-auth-callback.html（带 session）
+
+    Browser->>Browser: auth.getSession() → 获取 cloudbase_uid
+    Browser->>Browser: 从 sessionStorage 读取 user_code
+
+    Browser->>Auth: POST /auth/verify-cloudbase { user_code, cloudbase_uid }
+
+    alt 首次登录
+        Auth->>Auth: CreateEnv(cloudbaseUid)
+        Auth->>Auth: CreateApiKey(envId, api_key, 7天)
+    else 已创建环境
+        Auth->>Auth: 查找已有环境
+        Auth->>Auth: CreateApiKey(envId, api_key, 7天)
+    end
+
+    Auth-->>Browser: { status: ok, env_id }
+
+    MCP->>Auth: 轮询 POST /auth/token (grant_type=device_code)
+    Auth-->>MCP: refresh_token, access_token (JWT API Key), env_id
+
+    note over MCP,Browser: 授权完成，MCP 可操作用户环境
 ```
 
 ## 环境变量

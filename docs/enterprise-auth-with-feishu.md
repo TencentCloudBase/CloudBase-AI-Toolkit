@@ -82,7 +82,7 @@ flowchart TB
 |------|------|
 | 管理中心环境 | 1 个 CloudBase 环境，用于部署授权服务 |
 | Publishable Key | 控制台「身份认证 → 应用管理」获取 |
-| 腾讯云 API 密钥 | 控制台「访问管理 → API 密钥管理」获取，需具备 `tcb:CreateEnv` 等权限 |
+| **腾讯云 API 密钥** | 控制台「访问管理 → API 密钥管理」获取（需具备 `tcb:CreateEnv` + `tcb:CreateApiKey` 权限） |
 
 ### 3.2 企业身份源
 
@@ -143,7 +143,7 @@ CLOUDBASE_ENV_ID=your-management-env-id
 CLOUDBASE_PUBLISHABLE_KEY=your-publishable-key
 CLOUDBASE_REGION=ap-shanghai
 
-# 腾讯云 API 密钥（用于创建用户环境）
+# 腾讯云 API 密钥（用于创建用户环境 + 签发 API Key）
 TENCENTCLOUD_SECRET_ID=your-secret-id
 TENCENTCLOUD_SECRET_KEY=your-secret-key
 ```
@@ -275,7 +275,7 @@ sequenceDiagram
     Browser-->>User: ✅ 授权成功
     
     Codex->>Auth: 轮询 POST /auth/token (grant_type=device_code)
-    Auth-->>Codex: refresh_token, access_token (API Key), env_id
+    Auth-->>Codex: refresh_token, access_token (JWT API Key), env_id
     
     Note over Codex,User: 授权完成，可以开始开发
 ```
@@ -347,7 +347,7 @@ flowchart LR
 | 扩展项 | 说明 |
 |--------|------|
 | **持久化存储** | 将内存 deviceStore / refreshTokenStore 替换为 Redis 或数据库 |
-| **权限收敛** | STS 策略从 `tcb:*` 收敛为最小权限，按用户/环境隔离 |
+| **权限收敛** | API Key 以 `api_key` 类型签发（完整管理员权限），可结合 `publish_key`（前端只读）使用 |
 | **审计日志** | 记录每次设备码申请、授权、续期操作 |
 | **限流** | 对设备码申请、Token 轮询等接口增加频率限制 |
 | **多源同时启用** | 在控制台同时启用飞书 + 企业微信 + LDAP，用户自由选择 |
@@ -371,4 +371,4 @@ A: CreateEnv 操作通常需要 10-30 秒。在环境创建期间，MCP 轮询 `
 A: 在飞书/身份源侧禁用账号后，下次尝试获取新 Token 时认证失败。已有 Session 在过期后失效。可以扩展授权服务增加主动注销 API。
 
 **Q: 这个方案支持现有的 API Key 对接方式吗？**
-A: 支持。上述方案返回的是 API Key（绑定到用户环境）。也可以改用 STS 临时密钥方式（通过 `src/utils/sts.ts`）。
+A: 支持。上述方案通过 `CreateApiKey` API（详见 [文档](https://cloud.tencent.com/document/api/876/129835)）为每个用户环境签发 `api_key` 类型凭证。也可以改用 `publish_key` 类型（前端只读）。

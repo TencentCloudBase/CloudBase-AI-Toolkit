@@ -97,22 +97,30 @@ app.post('/auth/verify-cloudbase', async (req, res) => {
     // 1. 查找用户是否已有环境（通过 cloudbaseUid 作为别名标识）
     let envId = await findEnvByAlias(cloudbaseUid);
 
-    // 2. 首次登录：自动创建环境 + 签发 API Key
+    // 2. 首次登录：自动创建环境 + 签发管理员 API Key
     if (!envId) {
       envId = await createEnv(cloudbaseUid);
-      const { apiKey, apiKeyId } = await createApiKey(envId, `user-${cloudbaseUid}`);
-      record.envId = envId;
-      record.apiKey = apiKey;
     }
 
-    // 3. 标记为已授权
+    // 3. 为该环境创建 API Key（api_key 类型，管理员权限）
+    // 设置 7 天有效期，到期需续期或重新创建
+    const { apiKey, apiKeyId } = await createApiKey(
+      envId,
+      `user-${cloudbaseUid}`,
+      7 * 24 * 3600, // 7 天有效期
+    );
+
+    // 4. 标记为已授权
     record.status = 'authorized';
     record.cloudbaseUid = cloudbaseUid;
+    record.envId = envId;
+    record.apiKey = apiKey;
+    record.apiKeyId = apiKeyId;
 
     res.json({ status: 'ok', env_id: envId });
   } catch (err) {
     console.error('verify-cloudbase error:', err);
-    record.status = 'pending'; // 失败则恢复待授权状态
+    record.status = 'pending';
     res.status(500).json({ error: 'server_error', error_description: 'Failed to create environment or API key' });
   }
 });
@@ -166,17 +174,19 @@ app.post('/auth/token', async (req, res) => {
       expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 天
       cloudbaseUid: record.cloudbaseUid,
       envId: record.envId,
+      apiKey: record.apiKey,
     };
     refreshTokenStore.set(newRefreshToken, refreshRecord);
 
     record.status = 'consumed';
 
     return res.json({
-      access_token: record.apiKey || record.envId,
+      access_token: record.apiKey || '',
       refresh_token: newRefreshToken,
       expires_in: 7 * 24 * 3600,
       token_type: 'Bearer',
       env_id: record.envId,
+      api_key_id: record.apiKeyId,
       cloudbase_uid: record.cloudbaseUid,
     });
   }

@@ -38,17 +38,31 @@ export async function createEnv(alias: string): Promise<string> {
 }
 
 /**
- * 为指定环境创建一个 API Key
+ * 为指定环境创建 API Key（服务端管理员凭证）
+ * 该 key 以管理员身份签发，拥有该环境完整数据流权限（数据库/云函数/存储/托管等）
+ * 支持设置有效期，不设置则永不过期；单环境最多创建 5 个 api_key
+ *
+ * @see https://cloud.tencent.com/document/api/876/129835
+ *
  * @param envId 目标环境 ID
- * @param desc API Key 描述
+ * @param keyName 密钥名称（可选）
+ * @param expireIn 有效期（秒），不传则永不过期。最短 7200 秒
  */
-export async function createApiKey(envId: string, desc: string): Promise<{ apiKeyId: string; apiKey: string }> {
+export async function createApiKey(
+  envId: string,
+  keyName?: string,
+  expireIn?: number,
+): Promise<{ apiKeyId: string; apiKey: string }> {
   const client = getClient();
-  const result = await client.CreateApiKey({
+  const params: Record<string, unknown> = {
     EnvId: envId,
-    Remark: desc,
-  });
-  return { apiKeyId: result.ApiKeyId!, apiKey: result.ApiKey! };
+    KeyType: 'api_key',
+  };
+  if (keyName) params.KeyName = keyName;
+  if (expireIn) params.ExpireIn = expireIn;
+
+  const result = await client.CreateApiKey(params);
+  return { apiKeyId: result.KeyId!, apiKey: result.ApiKey! };
 }
 
 /**

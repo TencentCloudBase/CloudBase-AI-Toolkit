@@ -12,4 +12,3 @@ export const CLOUDBASE_REGION = process.env.CLOUDBASE_REGION || 'ap-shanghai';
 
 export const TENCENTCLOUD_SECRET_ID = process.env.TENCENTCLOUD_SECRET_ID || '';
 export const TENCENTCLOUD_SECRET_KEY = process.env.TENCENTCLOUD_SECRET_KEY || '';
-export const STS_TOKEN_DURATION = Number(process.env.STS_TOKEN_DURATION) || 1800;
