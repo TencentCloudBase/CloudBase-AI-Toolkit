@@ -144,6 +144,7 @@
         "collapsed": false,
         "items": [
           "ai/cloudbase-ai-toolkit/tutorials",
+          "ai/cloudbase-ai-toolkit/tutorials/workbuddy-chess-app",
           "ai/cloudbase-ai-toolkit/tutorials/workbuddy-quickstart",
           "ai/cloudbase-ai-toolkit/tutorials/workbuddy-database",
           "ai/cloudbase-ai-toolkit/tutorials/workbuddy-miniprogram",
