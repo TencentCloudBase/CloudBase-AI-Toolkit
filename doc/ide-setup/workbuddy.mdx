@@ -36,6 +36,36 @@ node --version
 
 <IDESelector defaultIDE="workbuddy" showInstallButton={false} />
 
+## 使用内置连接器（推荐）
+
+WorkBuddy 已内置 CloudBase MCP 连接器，可以通过对话界面一键启用：
+
+1. 在 WorkBuddy 对话界面中，点击左下角的 **连接器** 按钮
+2. 在连接器列表中找到 **腾讯云 CloudBase**
+3. 打开右侧的开关即可启用
+
+![WorkBuddy 内置 CloudBase 连接器](https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/assets/workbuddy-connector.png)
+
+启用后，即可在对话中直接使用 CloudBase 的各项能力。
+
+## 手动配置 MCP（备选）
+
+如果需要在项目级别或自定义配置中使用，也可以在项目根目录创建 `workbuddy.mcp.json` 文件：
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "INTEGRATION_IDE": "WorkBuddy"
+      }
+    }
+  }
+}
+```
+
 ## 常见问题
 
 **Q: MCP 连接失败？**
