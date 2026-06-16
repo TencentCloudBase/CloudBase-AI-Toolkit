@@ -179,7 +179,7 @@
     async function pollSession(timeoutMs) {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
-        const { data, error } = await authInstance.getSession();
+        const { data } = await authInstance.getSession();
         if (data?.session?.user?.id) {
           return data.session;
         }
