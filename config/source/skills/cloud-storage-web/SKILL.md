@@ -97,6 +97,37 @@ Required pre-upload steps in any task that needs browser uploads:
 
 Do not silently swallow upload failures. If `uploadCoverImage()` rejects, the parent `createArticle()` MUST also reject — never proceed to `db.from(...).insert(...)` with a fabricated URL or a placeholder, and never let the UI show a success toast.
 
+### Post-bucket: storage RLS (mandatory in PG / pgstore environments)
+
+In **PG / pgstore** environments, storage access control is enforced through **PostgreSQL Row Level Security (RLS) on the `storage.objects` table** — exactly like Supabase Storage. The default RLS policy is deny all, so even if the bucket exists, `app.uploadFile()` from a browser will fail with `STORAGE_PERMISSION_DENIED` unless you configure permissive policies.
+
+Use `managePgDatabase(action="execute", confirm=true)` to run the following SQL after creating the bucket:
+
+```sql
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Allow authenticated users to upload files
+CREATE POLICY "authenticated_upload" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.role() = 'authenticated');
+
+-- Allow authenticated users to read/download files
+CREATE POLICY "authenticated_read" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (auth.role() = 'authenticated');
+
+-- Optional: allow users to update/delete their own files
+CREATE POLICY "users_manage_own" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = owner_id)
+  WITH CHECK (auth.uid() = owner_id);
+```
+
+Key points:
+- `storage.objects` RLS is **separate** from CloudBase legacy NoSQL storage security rules (`managePermissions` / `ModifyStorageSafeRule`). In PG mode, always configure storage RLS via PG SQL, not the legacy security rule API.
+- Without these policies, the browser receives `STORAGE_PERMISSION_DENIED` when calling `app.uploadFile()` or `app.storage.from().upload()`.
+- Use `IF NOT EXISTS` in a `DO $$` block when re-applying to avoid "policy already exists" errors on re-run.
+
 ## Overview
 
 Use this skill for **browser-side cloud storage operations** through the CloudBase Web SDK.

@@ -45,26 +45,32 @@ If this environment only installed the current skill, start from the CloudBase m
    - Note: in a PG env, `EnvInfo.Storages[]` is the legacy NoSQL bucket. It still works for legacy `app.uploadFile()` flows but is NOT a usable pgstore bucket — never reuse it as the `<bucket>` segment in `app.storage.from().upload(<bucket>/<key>, file)`.
 1. Inspect the existing app surfaces first: `src/lib/backend.*`, `src/lib/auth.*`, `src/lib/*service.*`, route guards, and the handlers bound to existing forms.
 2. Check PG state through MCP: use `queryPgDatabase` for schema/read-only inspection and `managePgDatabase` for DDL/DML. Do not switch to MySQL tools.
-3. Check username-password auth before coding login:
+3. **Use schema management (`managePgDatabase`) before writing CRUD code:** Create tables via `managePgDatabase(action=execute, confirm=true)` with CREATE TABLE SQL. For structured schema changes, use the migration workflow:
+   - `managePgDatabase(action=planMigration, sql=...)` — preview migration plan via `PreviewPGUserMigrations`
+   - `managePgDatabase(action=applyMigration, sql=..., confirm=true)` — batch-apply migrations via `PushPGUserMigrations`
+   - `managePgDatabase(action=listMigrations)` — list all applied migrations
+   - `managePgDatabase(action=migrationDetail, objectName=...)` — inspect a single migration
+   - `managePgDatabase(action=rollbackMigration, objectName=..., confirm=true)` — roll back a migration
+4. Check username-password auth before coding login:
    - Call `queryAppAuth(action="getLoginConfig")`.
    - If `loginMethods.usernamePassword !== true`, call `manageAppAuth(action="patchLoginStrategy", patch={ usernamePassword: true })`.
    - In Web login code, use `auth.signInWithPassword({ username, password })` for plain usernames like `admin` or `editor`.
    - Do not assume `auth.signUp({ username, password })` can directly create username/password users. Confirm `queryAppAuth` `sdkHints` and the installed `@cloudbase/js-sdk` behavior first; if direct username signup is unsupported, implement registration through a backend/management boundary instead of exposing secret keys in the browser.
-4. Implement Web auth state with `auth.getSession()` before writing CRUD:
+5. Implement Web auth state with `auth.getSession()` before writing CRUD:
    - Route guards must check `data.session`, not `auth.getUser()` and not deprecated `getLoginState()`.
    - Treat login as successful only when `signInWithPassword(...)` returns no `error` and includes `data.session`.
    - Get the UID for `author_id` / role rows from `data.session.user.id` (fall back to `sub`/`uid` only after inspecting the actual session object).
    - Do not use `auth.getUser()` as proof of login; it can return a non-null wrapper or anonymous-looking user data when there is no real username/password session.
-5. Implement browser-side business data with the CloudBase JS SDK v3 PostgreSQL API first: `app.rdb().from(table)`. Use `@cloudbase/js-sdk@next` when the installed SDK does not expose the v3 PG surface.
-6. Do not manually fetch a CloudBase Auth bearer token from browser code for PG CRUD. In particular, do not call non-canonical helpers such as `currentUser.getIdToken()` unless you have verified that exact method exists in the installed SDK. Prefer `app.rdb()` so the SDK carries the active session.
-7. Before using RLS helpers such as `auth.uid()`, prove they match the current Web session:
+6. Implement browser-side business data with the CloudBase JS SDK v3 PostgreSQL API first: `app.rdb().from(table)`. Use `@cloudbase/js-sdk@next` when the installed SDK does not expose the v3 PG surface.
+7. Do not manually fetch a CloudBase Auth bearer token from browser code for PG CRUD. In particular, do not call non-canonical helpers such as `currentUser.getIdToken()` unless you have verified that exact method exists in the installed SDK. Prefer `app.rdb()` so the SDK carries the active session.
+8. Before using RLS helpers such as `auth.uid()`, prove they match the current Web session:
    - Log in through the real app path.
    - Insert a test row using `author_id = session.user.id`.
    - Read it back with `queryPgDatabase`.
    - If INSERT/SELECT fails, inspect the exact RLS error and fix the policy or switch to a server/RPC boundary. Do not leave browser-facing tables with broken RLS.
-8. Use PG HTTP API only as a fallback after reading OpenAPI docs and verifying the auth model in the installed SDK. Do not guess URLs such as `/api/v1/rdb/rest`; the same CloudBase relational HTTP API family covers MySQL and PostgreSQL and is discoverable through `searchKnowledgeBase(mode="openapi", apiName="mysqldb", query="PostgreSQL ...")`.
-9. Keep cover images in CloudBase Storage. Store only the final file URL or file metadata in PG.
-10. Verify both layers before claiming done: project build/typecheck and browser E2E for login/CRUD, then read back rows with `queryPgDatabase`.
+9. Use PG HTTP API only as a fallback after reading OpenAPI docs and verifying the auth model in the installed SDK. Do not guess URLs such as `/api/v1/rdb/rest`; the same CloudBase relational HTTP API family covers MySQL and PostgreSQL and is discoverable through `searchKnowledgeBase(mode="openapi", apiName="mysqldb", query="PostgreSQL ...")`.
+10. Keep cover images in CloudBase Storage. Store only the final file URL or file metadata in PG.
+11. Verify both layers before claiming done: project build/typecheck and browser E2E for login/CRUD, then read back rows with `queryPgDatabase`.
 
 ## Exploration Budget
 
@@ -148,12 +154,14 @@ CloudBase PG storage uses the `pgstore` backend and follows the same model as Su
 1. Confirm a usable pgstore bucket exists for your target prefix (e.g. `covers`). The legacy NoSQL bucket exposed by `DescribeEnvs.Storages[]` (e.g. `6d63-…-1409864723`) is for the old NoSQL backend and does NOT serve pgstore uploads.
 2. If no usable bucket exists, create one through a CloudBase management surface (`manageStorage` MCP tool, console, or platform API). Adding `covers/` as a path prefix in JS does NOT auto-create a bucket.
 3. The bucket name must be the FIRST segment of the `cloudPath`/`upload(path, ...)` string — `app.storage.from('covers').upload('a.png', file)` does NOT prepend the bucket; the path you pass to `upload()` already needs to start with `covers/`.
+4. **After creating the bucket, configure RLS on `storage.objects`** via `managePgDatabase(action="execute", confirm=true)`. The default RLS is deny all; without permissive policies the browser receives `STORAGE_PERMISSION_DENIED`. See `cloud-storage-web/SKILL.md` "Post-bucket: storage RLS" section for the exact SQL policies.
 
 Failure-mode cheat sheet (read DevTools network tab on the FAILED `POST .../v1/storages/get-objects-upload-info`):
 
 | `code` returned by `/v1/storages/get-objects-upload-info` | Meaning | Fix |
 | -------------------------------------------------------- | ------- | --- |
 | `STORAGE_BUCKET_NOT_FOUND` | The bucket in the path does not exist in this PG environment. | Create the bucket via management surface, then retry. |
+| `STORAGE_PERMISSION_DENIED` | The bucket exists but RLS on `storage.objects` blocks the upload. | Run `managePgDatabase(action="execute", confirm=true)` to configure storage RLS. See `cloud-storage-web/SKILL.md` "Post-bucket: storage RLS". |
 | `INVALID_PARAM: must contain bucket prefix` | The path you sent has no bucket segment (e.g. `foo.png` instead of `covers/foo.png`). | Prefix the bucket name as the first path segment. |
 | `STORAGE_CONTENT_LENGTH_REQUIRED` | Your code stripped or omitted the `Content-Length` signed header. | Pass `headers: { 'Content-Length': String(file.size) }` to `uploadFile`, or use `app.storage.from().upload(path, file)` with a `Blob`/`File` so the SDK fills it in. |
 
