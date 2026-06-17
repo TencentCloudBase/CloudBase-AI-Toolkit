@@ -62,6 +62,7 @@ export const IDE_TYPES = [
   "kiro", // Kiro AI编辑器
   "aider", // Aider AI编辑器
   "iflow-cli", // iFlow CLI
+  "workbuddy", // WorkBuddy AI IDE
 ] as const;
 
 // IDE映射关系表
@@ -141,6 +142,9 @@ export const RAW_IDE_FILE_MAPPINGS: Record<string, IdeFileDescriptor[]> = {
     { path: "IFLOW.md" },
     { path: ".iflow/settings.json", isMcpConfig: true },
   ],
+  workbuddy: [
+    { path: ".workbuddy/mcp.json", isMcpConfig: true },
+  ],
 };
 
 const IDE_FILE_MAPPINGS = structuredClone(RAW_IDE_FILE_MAPPINGS)
@@ -182,6 +186,7 @@ const IDE_DESCRIPTIONS: Record<string, string> = {
   kiro: "Kiro AI编辑器",
   aider: "Aider AI编辑器",
   "iflow-cli": "iFlow CLI",
+  workbuddy: "WorkBuddy AI IDE",
 };
 
 // INTEGRATION_IDE 环境变量值到 IDE 类型的映射
@@ -209,6 +214,7 @@ const INTEGRATION_IDE_MAPPING: Record<string, string> = {
   VSCode: "vscode",
   Kiro: "kiro",
   iFlow: "iflow-cli",
+  WorkBuddy: "workbuddy",
 };
 
 export type DownloadTemplateIdeResolution =
@@ -547,7 +553,7 @@ export function registerSetupTools(server: ExtendedMcpServer) {
     {
       title: "下载项目模板",
       description: `自动下载并部署CloudBase项目模板。
-**Note**: Call this tool when the user requests to create a new project using a CloudBase template.\n\n支持的模板:\n- react: React + CloudBase 全栈应用模板\n- vue: Vue + CloudBase 全栈应用模板\n- miniprogram: 微信小程序 + 云开发模板  \n- uniapp: UniApp + CloudBase 跨端应用模板\n- rules: 只包含AI编辑器配置文件（包含Cursor、WindSurf、CodeBuddy等所有主流编辑器配置），适合在已有项目中补充AI编辑器配置\n\n支持的IDE类型:\n- all: 下载所有IDE配置\n- cursor: Cursor AI编辑器\n- 其他IDE类型见下方列表\n\n注意：如果未传入 ide 参数且无法从环境变量检测到 IDE，将提示错误并要求传入 ide 参数\n- windsurf: WindSurf AI编辑器\n- codebuddy: CodeBuddy AI编辑器\n- claude-code: Claude Code AI编辑器\n- cline: Cline AI编辑器\n- gemini-cli: Gemini CLI\n- opencode: OpenCode AI编辑器\n- qwen-code: 通义灵码\n- baidu-comate: 百度Comate\n- openai-codex-cli: OpenAI Codex CLI\n- augment-code: Augment Code\n- github-copilot: GitHub Copilot\n- roocode: RooCode AI编辑器\n- tongyi-lingma: 通义灵码\n- trae: Trae AI编辑器\n- qoder: Qoder AI编辑器\n- antigravity: Google Antigravity AI编辑器\n- vscode: Visual Studio Code\n- kiro: Kiro AI编辑器\n- aider: Aider AI编辑器\n\n特别说明：\n- rules 模板会自动包含当前 mcp 版本号信息（版本号：${typeof __MCP_VERSION__ !== "undefined" ? __MCP_VERSION__ : "unknown"}），便于后续维护和版本追踪\n- 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）`,
+**Note**: Call this tool when the user requests to create a new project using a CloudBase template.\n\n支持的模板:\n- react: React + CloudBase 全栈应用模板\n- vue: Vue + CloudBase 全栈应用模板\n- miniprogram: 微信小程序 + 云开发模板  \n- uniapp: UniApp + CloudBase 跨端应用模板\n- rules: 只包含AI编辑器配置文件（包含Cursor、WindSurf、CodeBuddy等所有主流编辑器配置），适合在已有项目中补充AI编辑器配置\n\n支持的IDE类型:\n- all: 下载所有IDE配置\n- cursor: Cursor AI编辑器\n- 其他IDE类型见下方列表\n\n注意：如果未传入 ide 参数且无法从环境变量检测到 IDE，将提示错误并要求传入 ide 参数\n- windsurf: WindSurf AI编辑器\n- codebuddy: CodeBuddy AI编辑器\n- claude-code: Claude Code AI编辑器\n- cline: Cline AI编辑器\n- gemini-cli: Gemini CLI\n- opencode: OpenCode AI编辑器\n- qwen-code: 通义灵码\n- baidu-comate: 百度Comate\n- openai-codex-cli: OpenAI Codex CLI\n- augment-code: Augment Code\n- github-copilot: GitHub Copilot\n- roocode: RooCode AI编辑器\n- tongyi-lingma: 通义灵码\n- trae: Trae AI编辑器\n- qoder: Qoder AI编辑器\n- antigravity: Google Antigravity AI编辑器\n- vscode: Visual Studio Code\n- kiro: Kiro AI编辑器\n- aider: Aider AI编辑器\n- vscode: Visual Studio Code\n- workbuddy: WorkBuddy AI IDE\n- iflow-cli: iFlow CLI\n\n特别说明：\n- rules 模板会自动包含当前 mcp 版本号信息（版本号：${typeof __MCP_VERSION__ !== "undefined" ? __MCP_VERSION__ : "unknown"}），便于后续维护和版本追踪\n- 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）`,
       inputSchema: {
         template: z
           .enum(["react", "vue", "miniprogram", "uniapp", "rules"])
