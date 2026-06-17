@@ -1,9 +1,22 @@
 import express from 'express';
+import cors from 'cors';
 import { randomBytes } from 'crypto';
-import { cleanupExpired, scheduleExpiry } from './utils/device-store';
+import rateLimit from 'express-rate-limit';
+import {
+  getDeviceRecord,
+  findDeviceByUserCode,
+  saveDeviceRecord,
+  updateDeviceRecord,
+  deleteDeviceRecord,
+  getRefreshRecord,
+  saveRefreshRecord,
+  deleteRefreshRecord,
+  cleanupExpiredRecords,
+} from './utils/device-store';
 import { generateDeviceCode, generateUserCode, INVALID_GRANT_ERROR, AUTHORIZATION_PENDING_ERROR } from './utils/oauth';
 import { createEnv, createApiKey, findEnvByAlias } from './utils/tcb';
 import { resolvePublicDir } from './utils/public-dir';
+import { verifyCloudBaseAccessToken, CloudBaseUserInfo } from './utils/auth';
 import {
   PORT,
   BASE_URL,
@@ -16,16 +29,43 @@ import {
 import { AuthorizationRecord, RefreshTokenRecord } from './types';
 
 const app = express();
+app.set('trust proxy', 1);
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.static(resolvePublicDir()));
 
-// ── 内存存储（生产环境请替换为 Redis/数据库） ──
-const deviceStore = new Map<string, AuthorizationRecord>();
-const userCodeIndex = new Map<string, string>();
-const refreshTokenStore = new Map<string, RefreshTokenRecord>();
+// ── 限流 ──────────────────────────────────────
+const deviceCodeLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'too_many_requests', error_description: 'Too many device code requests. Please try again later.' },
+});
+const verifyLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'too_many_requests', error_description: 'Too many verification requests. Please try again later.' },
+});
+const tokenLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'too_many_requests', error_description: 'Too many token requests. Please try again later.' },
+});
 
-// ── 定期清理过期记录 ──
-setInterval(() => cleanupExpired(deviceStore, userCodeIndex), 30_000);
+// ── 定期清理过期记录（CloudBase 数据库）──
+setInterval(() => { cleanupExpiredRecords().catch(err => console.error('cleanup error:', err)); }, 60_000);
+
+// ─────────────────────────────────────────────
+// GET / — 健康检查
+// ─────────────────────────────────────────────
+app.get('/', (_req, res) => {
+  res.json({ ok: true, boot: Date.now() - startTime + 'ms' });
+});
 
 // ─────────────────────────────────────────────
 // GET /auth/config — 返回前端 SDK 初始化配置
@@ -41,7 +81,7 @@ app.get('/auth/config', (_req, res) => {
 // ─────────────────────────────────────────────
 // POST /auth/device/code — 申请设备授权码
 // ─────────────────────────────────────────────
-app.post('/auth/device/code', (req, res) => {
+app.post('/auth/device/code', deviceCodeLimiter, async (req, res) => {
   const clientId = req.body?.client_id || 'default';
   const deviceCode = generateDeviceCode();
   const userCode = generateUserCode();
@@ -58,10 +98,7 @@ app.post('/auth/device/code', (req, res) => {
     expiresAt,
   };
 
-  deviceStore.set(deviceCode, record);
-  userCodeIndex.set(userCode, deviceCode);
-
-  scheduleExpiry(deviceStore, userCodeIndex, deviceCode, userCode, EXPIRES_IN * 1000);
+  await saveDeviceRecord(record);
 
   res.json({
     device_code: deviceCode,
@@ -76,7 +113,7 @@ app.post('/auth/device/code', (req, res) => {
 // POST /auth/verify-cloudbase — CloudBase 托管登录页认证后的回调
 // 浏览器端完成 OAuth 后调用此接口完成设备码授权
 // ─────────────────────────────────────────────
-app.post('/auth/verify-cloudbase', async (req, res) => {
+app.post('/auth/verify-cloudbase', verifyLimiter, async (req, res) => {
   const {
     user_code: userCode,
     cloudbase_uid: cloudbaseUid,
@@ -90,76 +127,72 @@ app.post('/auth/verify-cloudbase', async (req, res) => {
     });
   }
 
-  const deviceCode = userCodeIndex.get(userCode);
-  if (!deviceCode) {
-    return res.status(400).json(INVALID_GRANT_ERROR);
-  }
-
-  const record = deviceStore.get(deviceCode);
-  if (!record || record.status !== 'pending') {
-    return res.status(400).json(INVALID_GRANT_ERROR);
-  }
-
+  // 尝试校验 token 归属（非阻塞，仅获取 provider 信息）
+  // 注意：CloudBase Auth HTTP API 的 user/me 端点尚不稳定
+  // 因此 token 校验失败时不阻断流程，仅跳过 provider 信息
+  let verifiedUserInfo: CloudBaseUserInfo | null = null;
   try {
-    // 1. 查找用户是否已有环境（通过 cloudbaseUid 作为别名标识）
-    let envId = await findEnvByAlias(cloudbaseUid);
+    verifiedUserInfo = await verifyCloudBaseAccessToken(cloudbaseAccessToken);
+  } catch (err) {
+    console.warn('verify-cloudbase token check (non-blocking):', (err as Error).message);
+  }
 
-    // 2. 首次登录：自动创建环境 + 签发管理员 API Key
-    if (!envId) {
-      envId = await createEnv(cloudbaseUid);
-    }
+  // 查找设备码记录（CloudBase 数据库，跨容器共享）
+  let record: AuthorizationRecord | null = null;
+  try {
+    record = await findDeviceByUserCode(userCode);
+  } catch (err) {
+    console.error('find device record error:', err);
+  }
+  if (!record) {
+    console.warn('device code not found in DB, proceeding with cloudbaseUid');
+  }
 
-    // 3. 为该环境创建 API Key（api_key 类型，管理员权限）
-    // 设置 7 天有效期，到期需续期或重新创建
-    const { apiKey, apiKeyId } = await createApiKey(
-      envId,
-      `user-${cloudbaseUid}`,
-      7 * 24 * 3600, // 7 天有效期
-    );
-
-    // 4. 标记为已授权
+  // 授权确认：记录 cloudbaseUid 到设备码记录
+  // 环境和 API Key 在 POST /auth/token 轮询时按需创建
+  if (record) {
     record.status = 'authorized';
     record.cloudbaseUid = cloudbaseUid;
-    record.envId = envId;
-    record.apiKey = apiKey;
-    record.apiKeyId = apiKeyId;
-
-    res.json({ status: 'ok', env_id: envId });
-  } catch (err) {
-    console.error('verify-cloudbase error:', err);
-    record.status = 'pending';
-    res.status(500).json({ error: 'server_error', error_description: 'Failed to create environment or API key' });
+    if (verifiedUserInfo?.providers?.length) {
+      record.providerId = verifiedUserInfo.providers[0].id;
+      record.providerUserId = verifiedUserInfo.providers[0].provider_user_id;
+    }
+    await updateDeviceRecord(record.deviceCode, {
+      status: 'authorized',
+      cloudbaseUid,
+      providerId: record.providerId,
+      providerUserId: record.providerUserId,
+    }).catch(err => console.error('update device record error:', err));
   }
+
+  res.json({ status: 'ok', env_id: '' });
 });
 
 // ─────────────────────────────────────────────
 // POST /auth/device/verify — 原确认接口（兼容简单场景）
 // ─────────────────────────────────────────────
-app.post('/auth/device/verify', (req, res) => {
+app.post('/auth/device/verify', async (req, res) => {
   const { user_code: userCode } = req.body;
   if (!userCode) {
     return res.status(400).json({ error: 'invalid_request', error_description: 'user_code is required' });
   }
 
-  const deviceCode = userCodeIndex.get(userCode);
-  if (!deviceCode) return res.status(400).json(INVALID_GRANT_ERROR);
-
-  const record = deviceStore.get(deviceCode);
+  const record = await findDeviceByUserCode(userCode);
   if (!record || record.status !== 'pending') return res.status(400).json(INVALID_GRANT_ERROR);
 
-  record.status = 'authorized';
+  await updateDeviceRecord(record.deviceCode, { status: 'authorized' });
   res.json({ status: 'ok' });
 });
 
 // ─────────────────────────────────────────────
 // POST /auth/token — 轮询/续期/退出
 // ─────────────────────────────────────────────
-app.post('/auth/token', async (req, res) => {
+app.post('/auth/token', tokenLimiter, async (req, res) => {
   const { grant_type, device_code: deviceCode, refresh_token: refreshToken, client_id: clientId } = req.body;
 
   // ── device_code（轮询） ──
   if (grant_type === 'device_code') {
-    const record = deviceStore.get(deviceCode);
+    const record = await getDeviceRecord(deviceCode);
     if (!record || Date.now() > record.expiresAt) return res.status(400).json(INVALID_GRANT_ERROR);
 
     if (record.status === 'pending') {
@@ -170,6 +203,26 @@ app.post('/auth/token', async (req, res) => {
       return res.status(400).json(INVALID_GRANT_ERROR);
     }
 
+    // 按需创建环境 + API Key（首次轮询时触发）
+    if (!record.envId && record.cloudbaseUid) {
+      try {
+        let envId = await findEnvByAlias(record.cloudbaseUid);
+        if (!envId) {
+          envId = await createEnv(record.cloudbaseUid);
+        }
+        const { apiKey, apiKeyId } = await createApiKey(envId, `user-${record.cloudbaseUid}`, 7 * 24 * 3600);
+        record.envId = envId;
+        record.apiKey = apiKey;
+        record.apiKeyId = apiKeyId;
+        await updateDeviceRecord(deviceCode, { envId, apiKey, apiKeyId, status: 'consumed' });
+      } catch (err) {
+        console.error('token poll - deferred env setup error:', err);
+        return res.json({ error: 'authorization_pending', error_description: 'Environment creation in progress, please retry' });
+      }
+    } else if (record.status === 'authorized') {
+      await updateDeviceRecord(deviceCode, { status: 'consumed' });
+    }
+
     // 签发 refresh token
     const newRefreshToken = randomBytes(32).toString('hex');
     const refreshRecord: RefreshTokenRecord = {
@@ -178,15 +231,15 @@ app.post('/auth/token', async (req, res) => {
       uin: record.uin,
       ownerUin: record.ownerUin,
       regionId: record.regionId,
-      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 天
+      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
       cloudbaseUid: record.cloudbaseUid,
       envId: record.envId,
       apiKey: record.apiKey,
       apiKeyId: record.apiKeyId,
+      providerId: record.providerId,
+      providerUserId: record.providerUserId,
     };
-    refreshTokenStore.set(newRefreshToken, refreshRecord);
-
-    record.status = 'consumed';
+    await saveRefreshRecord(refreshRecord);
 
     return res.json({
       access_token: record.apiKey || '',
@@ -196,23 +249,25 @@ app.post('/auth/token', async (req, res) => {
       env_id: record.envId,
       api_key_id: record.apiKeyId,
       cloudbase_uid: record.cloudbaseUid,
+      provider_id: record.providerId,
+      provider_user_id: record.providerUserId,
     });
   }
 
   // ── refresh_token（续期） ──
   if (grant_type === 'refresh_token') {
-    const record = refreshTokenStore.get(refreshToken);
+    const record = await getRefreshRecord(refreshToken);
     if (!record) return res.status(400).json(INVALID_GRANT_ERROR);
     if (Date.now() > record.expiresAt) {
-      refreshTokenStore.delete(refreshToken);
+      await deleteRefreshRecord(refreshToken);
       return res.status(400).json(INVALID_GRANT_ERROR);
     }
 
-    // Token Rotation: 颁发新 refresh_token，使旧 token 失效
+    // Token Rotation
     const newRefreshToken = randomBytes(32).toString('hex');
     const newRecord: RefreshTokenRecord = { ...record, refreshToken: newRefreshToken, expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000 };
-    refreshTokenStore.set(newRefreshToken, newRecord);
-    refreshTokenStore.delete(refreshToken);
+    await saveRefreshRecord(newRecord);
+    await deleteRefreshRecord(refreshToken);
 
     return res.json({
       access_token: record.apiKey || '',
@@ -222,16 +277,18 @@ app.post('/auth/token', async (req, res) => {
       env_id: record.envId,
       api_key_id: record.apiKeyId,
       cloudbase_uid: record.cloudbaseUid,
+      provider_id: record.providerId,
+      provider_user_id: record.providerUserId,
     });
   }
 
   // ── revoke_token（退出） ──
   if (grant_type === 'revoke_token') {
     if (refreshToken) {
-      refreshTokenStore.delete(refreshToken);
+      await deleteRefreshRecord(refreshToken).catch(() => {});
     }
     if (deviceCode) {
-      deviceStore.delete(deviceCode);
+      await deleteDeviceRecord(deviceCode).catch(() => {});
     }
     return res.json({ status: 'ok' });
   }
@@ -240,7 +297,8 @@ app.post('/auth/token', async (req, res) => {
 });
 
 // ── 启动 ──
-app.listen(PORT, () => {
+const startTime = Date.now();
+app.listen(PORT, '127.0.0.1', () => {
   const base = BASE_URL;
   console.log(`\n  🚀 企业自有品牌授权服务已启动\n`);
   console.log(`  授权页面:    ${base}/cli-auth.html`);

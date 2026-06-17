@@ -70,3 +70,12 @@ sequenceDiagram
 | `user_code` | POST /device/code | 用户浏览器确认 | EXPIRES_IN 秒 |
 | `refresh_token` | POST /token (grant=device) | 客户端续期凭证 | 7 天（可配） |
 | `access_token` | POST /token (grant=device) | 本次返回 API Key 值 | 7 天（与 refresh 对齐） |
+
+## 响应字段补充说明
+
+| 字段 | 来源 | 说明 |
+|------|------|------|
+| `provider_id` | CloudBase UserInfo API | 用户使用的身份源 ID（如 `custom_oauth_feishu`、`email`），可通过此字段判断用户的登录方式 |
+| `provider_user_id` | CloudBase UserInfo API | 用户在身份源侧的原始 ID（如飞书 `open_id`），可用于关联企业身份系统 |
+
+> 注：`provider_id` 和 `provider_user_id` 在 `POST /auth/token` 响应中返回。当前 CloudBase 暂不返回身份源扩展属性（如飞书 `tenant_key`、部门等），如需获取可在回调页直接调身份源 API。

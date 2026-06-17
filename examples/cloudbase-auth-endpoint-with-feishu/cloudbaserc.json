@@ -1,0 +1,37 @@
+{
+  "envId": "your-env-id",
+  "functionRoot": "./",
+  "functions": [
+    {
+      "name": "auth-service",
+      "type": "HTTP",
+      "dir": "./",
+      "installDependency": false,
+      "ignore": [
+        "src/**/*",
+        "*.ts",
+        ".git/**/*",
+        ".env",
+        ".env.example",
+        "*.md",
+        "docs/**/*",
+        "tsconfig.json",
+        "package-lock.json"
+      ],
+      "runtime": "Nodejs18.15",
+      "timeout": 120,
+      "memory": 1024,
+      "envVariables": {
+        "BASE_URL": "https://your-domain.com",
+        "CLOUDBASE_REGION": "ap-shanghai",
+        "CLOUDBASE_USER_ENV_PACKAGE_ID": "baas_personal",
+        "CLOUDBASE_USER_ENV_RESOURCES": "flexdb,storage,function",
+        "CLOUDBASE_USER_ENV_PERIOD": "1",
+        "CLOUDBASE_USER_ENV_AUTO_VOUCHER": "true",
+        "CLOUDBASE_USER_ENV_READY_TIMEOUT_MS": "120000",
+        "EXPIRES_IN": "600",
+        "INTERVAL": "3"
+      }
+    }
+  ]
+}

@@ -15,6 +15,10 @@ export interface AuthorizationRecord {
   apiKey?: string;
   /** API Key 的 ID */
   apiKeyId?: string;
+  /** 用户使用的身份源 ID（如 custom_oauth_feishu、email 等） */
+  providerId?: string;
+  /** 用户在身份源侧的原始 ID（如飞书 open_id） */
+  providerUserId?: string;
 }
 
 export interface RefreshTokenRecord {
@@ -28,6 +32,8 @@ export interface RefreshTokenRecord {
   envId?: string;
   apiKey?: string;
   apiKeyId?: string;
+  providerId?: string;
+  providerUserId?: string;
 }
 
 export interface DeviceCodeRequest {

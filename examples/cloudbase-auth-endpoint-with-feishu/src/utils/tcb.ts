@@ -70,20 +70,31 @@ async function waitForEnvReady(envId: string): Promise<void> {
  */
 export async function createEnv(subject: string): Promise<string> {
   const client = getClient();
-  const result = await client.CreateEnv({
-    Alias: getUserEnvAlias(subject),
+  const alias = getUserEnvAlias(subject);
+  const params = {
+    Alias: alias,
     PackageId: CLOUDBASE_USER_ENV_PACKAGE_ID,
     Resources: CLOUDBASE_USER_ENV_RESOURCES,
     Period: CLOUDBASE_USER_ENV_PERIOD,
     AutoVoucher: CLOUDBASE_USER_ENV_AUTO_VOUCHER,
-  });
+  };
+  await client.CreateEnv(params);
 
-  if (!result.EnvId) {
-    throw new Error('CreateEnv did not return EnvId');
+  // CreateEnv 是异步发货，通过轮询 DescribeEnvs 按 Alias 查找
+  const deadline = Date.now() + CLOUDBASE_USER_ENV_READY_TIMEOUT_MS; // 默认 120 秒
+  while (Date.now() < deadline) {
+    const result = await client.DescribeEnvs({});
+    const env = (result.EnvList || []).find(e => e.Alias === alias);
+    if (env?.EnvId) {
+      if (env.Status === 'NORMAL') return env.EnvId;
+      // 等待环境就绪（创建中状态）
+      await sleep(ENV_READY_POLL_INTERVAL_MS);
+      continue;
+    }
+    await sleep(ENV_READY_POLL_INTERVAL_MS);
   }
 
-  await waitForEnvReady(result.EnvId);
-  return result.EnvId;
+  throw new Error(`CreateEnv timed out waiting for env with alias: ${alias}`);
 }
 
 /**
