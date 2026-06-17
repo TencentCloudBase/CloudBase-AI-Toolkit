@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 90
+ * Action 数量: 93
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -41,9 +41,12 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DescribeBaasPackageList',
   'DescribeBillingInfo',
   'DescribeClient',
+  'DescribeCloudAppList',
   'DescribeCloudBaseBuildService',
   'DescribeCloudBaseRunServerVersion',
   'DescribeCreateMySQLResult',
+  'DescribeCreditsUsage',
+  'DescribeCreditsUsageDetail',
   'DescribeCurveData',
   'DescribeDatabaseACL',
   'DescribeEnvAccountCircle',
