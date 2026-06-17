@@ -9,6 +9,45 @@ import { ExtendedMcpServer } from "../server.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
 
 const CATEGORY = "SQL database";
+const MYSQL_GATE_CACHE = new Map<string, boolean>();
+
+/**
+ * Check whether MySQL tools should be blocked because the env is in PG-only mode.
+ * Returns an error result if blocked, or null if MySQL is available/can't be determined.
+ */
+async function checkMysqlGate(server: ExtendedMcpServer): Promise<any> {
+  const { envId } = server.cloudBaseOptions ?? {};
+  if (!envId) return null;
+  
+  if (MYSQL_GATE_CACHE.has(envId)) {
+    if (MYSQL_GATE_CACHE.get(envId)) return null; // cached as available
+    // cached as blocked — return the gate error
+    return buildJsonToolResult({
+      success: false,
+      errorCode: "MYSQL_NOT_AVAILABLE",
+      message: `This environment (${envId}) does not have MySQL. Use managePgDatabase / queryPgDatabase instead.`,
+      nextActions: [{ tool: "managePgDatabase", params: { action: "execute" }, description: "Use managePgDatabase" }],
+    });
+  }
+
+  try {
+    const manager = await getCloudBaseManager({ cloudBaseOptions: { envId } });
+    const envInfo: any = await manager.env.getEnvInfo?.();
+    const backends = envInfo?.EnvInfo?.RuntimeBackends;
+    if (backends?.postgresql === true && backends?.mysql !== true) {
+      MYSQL_GATE_CACHE.set(envId, false);
+      return buildJsonToolResult({
+        success: false,
+        errorCode: "MYSQL_NOT_AVAILABLE",
+        message: `This environment (${envId}) has PostgreSQL enabled but MySQL is NOT available. Use managePgDatabase / queryPgDatabase instead of manageSqlDatabase / querySqlDatabase.`,
+        nextActions: [{ tool: "managePgDatabase", params: { action: "execute" }, description: "Use managePgDatabase for PostgreSQL operations" }],
+      });
+    }
+  } catch { /* probe failure — allow through */ }
+  
+  MYSQL_GATE_CACHE.set(envId, true);
+  return null;
+}
 const QUERY_SQL_DATABASE = "querySqlDatabase";
 const MANAGE_SQL_DATABASE = "manageSqlDatabase";
 const QUERY_PERMISSIONS = "queryPermissions";
@@ -1255,6 +1294,8 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
       },
     },
     async (args: QuerySqlDatabaseArgs) => {
+      const gate = await checkMysqlGate(server);
+      if (gate) return gate;
       switch (args.action) {
         case "runQuery":
           return handleRunQuery(args, context);
@@ -1327,6 +1368,8 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
       },
     },
     async (args: ManageSqlDatabaseArgs) => {
+      const gate = await checkMysqlGate(server);
+      if (gate) return gate;
       switch (args.action) {
         case "provisionMySQL":
           return handleProvisionMySQL(args, context);

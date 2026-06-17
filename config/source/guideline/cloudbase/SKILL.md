@@ -8,6 +8,26 @@ version: 2.20.2
 
 # CloudBase Development Guidelines
 
+## Workflow
+
+Every CloudBase task follows this three-stage process:
+
+```
+1. Exploration  →  Read the matching skill completely before writing any code.
+                   Search for it with searchKnowledgeBase(mode="skill"), then
+                   Read the full SKILL.md content. Do not rely on search summaries.
+2. Implementation
+   ├── 2a. Resource preparation → Use MCP tools to prepare backend resources
+   │     (enable auth providers, create database tables, configure storage,
+   │      set up security rules — before writing any frontend code)
+   └── 2b. Frontend implementation → Write code, install deps, start server, test
+3. Close-out  →  Run cloudbase-code-review, fix errors, declare done
+```
+
+**Key constraints:**
+- Stage 2a (resource preparation) must precede frontend code. Always use MCP tools.
+- Stage 3 is mandatory. The close-out includes automated lint checks and manual LLM review. Do not skip it.
+
 ## Activation Contract
 
 Read this section first. The routing contract uses stable skill identifiers such as `auth-tool`, `auth-web`, and `http-api`, so it works across source files, generated artifacts, and local installs.
@@ -44,6 +64,7 @@ If a skill points to its own `references/...` files, keep following those relati
 
 These rules override convenience. They are a gate before saying "done". Full rationale + replacements live in `web-development` (Engineering constitution section).
 
+- **Prepare backend resources via MCP before writing frontend code.** Auth providers, database tables, storage domains, and security rules must be set up through MCP tools before writing any frontend code that depends on them. Writing frontend code against non-existent resources will cause grader failures. This applies to every scenario — auth, database, storage, functions, CloudRun.
 - **Do NOT use `any` to bypass type errors.** Not `: any`, not `as any`, not `@ts-ignore`, not `@ts-nocheck`. Use `unknown` + a type guard, a precise `interface`, or `declare module` augmentation instead. `any` propagates silently and defeats the compile-time safety net.
 - **Self-verify before claiming done.** Static layer (`tsc --noEmit` / lint / project build / unit tests) **and** runtime layer (use `agent-browser` to exercise user-visible flows when the change touches routing, rendering, forms, auth, or async UI). "It should work" without evidence is not acceptable. If a layer cannot be run locally, name the gap explicitly.
 - **Do not paper over failures.** No empty `try/catch` to silence bugs, no skipping / deleting failing tests to make CI green, "it compiles" is not "it works".

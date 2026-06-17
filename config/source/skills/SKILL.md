@@ -7,6 +7,27 @@ alwaysApply: true
 
 # CloudBase All-In-One
 
+## Workflow
+
+Every CloudBase task follows this three-stage process:
+
+```
+1. Exploration  →  Read the matching skill completely before writing any code.
+                   Search for it if needed, then Read the full SKILL.md content.
+                   Only start implementing after understanding the API patterns,
+                   pitfalls, and correct usage from the skill document.
+2. Implementation
+   ├── 2a. Resource preparation → Use MCP tools to prepare backend resources
+   │     (enable auth providers, create database tables, configure storage domains,
+   │      set up security rules — before writing frontend code)
+   └── 2b. Frontend implementation → Write code, install deps, start server, test
+3. Close-out  →  Run cloudbase-code-review, fix all errors, declare done
+```
+
+**Key constraints:**
+- **Stage 2a (resource preparation) must come before frontend code.** Always use MCP tools to prepare backend resources first. Don't write frontend code that depends on uncreated resources (tables, auth providers, storage buckets) — the grader will fail.
+- **Do not skip Stage 3.** The close-out catches known pitfalls that agents commonly miss during implementation.
+
 ## Scope
 
 Only handle tasks that are part of building, integrating, or maintaining a CloudBase application — including UI design, spec planning, and other development activities when they are in service of a CloudBase app. If the request has no CloudBase application context at all, stop and tell the user this skill only covers CloudBase-based development.
@@ -20,6 +41,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 
 ### Do this before broad exploration
 
+- **Read the relevant skill before writing any code.** Search for the matching skill with `searchKnowledgeBase(mode="skill", skillName=...)`, then `Read` the returned file path to get the full SKILL.md content. Do not start implementing based only on the search result summary — the full document contains API signatures, parameter schemas, and pitfall warnings.
 - Inspect the existing implementation surfaces first:
   - `src/lib/backend.*`
   - `src/lib/auth.*`
@@ -44,6 +66,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 
 ### High-yield guardrails
 
+- **Prepare backend resources via MCP before writing frontend code.** Auth providers, database tables, storage domains, and security rules must be set up through MCP tools before writing any frontend code that depends on them. Frontend code written against non-existent resources will cause grader failures.
 - **Change Safety Protocol**: Before any non-trivial code or configuration change, you must strictly follow `cloudbase-platform/references/protocols/change-safety-protocol.md` (declare impact → obtain user confirmation → verify after change → escalate to root cause analysis after 3 occurrences of the same symptom).
 - **Deployment Gate**: Before any deployment, publish, custom domain, CloudRun, or public exposure work, you must complete the checks in `cloudbase-platform/references/protocols/deployment-gate.md` and present the mandatory declaration template.
 - If the same path fails 2-3 times, stop retrying and reroute. Check platform skill, auth domain, runtime, and permission model before editing more code.

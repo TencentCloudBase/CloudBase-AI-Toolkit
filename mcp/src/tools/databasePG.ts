@@ -27,6 +27,9 @@ const MANAGE_ACTIONS = [
   "dryRun",
   "planMigration",
   "applyMigration",
+  "listMigrations",
+  "migrationDetail",
+  "rollbackMigration",
 ] as const;
 const BOOTSTRAP_MODES = ["podman", "local", "manual", "cloud"] as const;
 
@@ -61,6 +64,7 @@ type ManagePgDatabaseArgs = {
   bootstrapMode?: BootstrapMode;
   projectDir?: string;
   role?: string;
+  objectName?: string;
 };
 
 type PgBootstrapRequest = {
@@ -1068,6 +1072,34 @@ async function executeManagerPGSql(
   );
 }
 
+/** Call a CloudBase PG migration API via commonService fallback */
+async function callPgMigrationApi(
+  context: PgRuntimeContext,
+  action: string,
+  params: Record<string, unknown>,
+  cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
+): Promise<Record<string, unknown>> {
+  const manager = await getCloudBaseManager({
+    cloudBaseOptions: cloudBaseOptions
+      ? { ...cloudBaseOptions, envId: context.envId }
+      : { envId: context.envId },
+  });
+
+  if (!isCloudBaseWithCommonService(manager)) {
+    throw new Error(
+      "Current @cloudbase/manager-node runtime does not support migration APIs. Upgrade to @cloudbase/manager-node >= 5.4.0.",
+    );
+  }
+
+  const result = await manager.commonService("tcb", "2018-06-08").call({
+    Action: action,
+    Param: { EnvId: context.envId, ...params },
+  });
+  return "Response" in result && result.Response
+    ? (result.Response as Record<string, unknown>)
+    : (result as Record<string, unknown>);
+}
+
 function parseManagerRows(result: ExecutePGSqlResult) {
   const columns = result.Columns ?? [];
   return (result.Rows ?? []).map((rowText) => {
@@ -1534,7 +1566,7 @@ async function handleDryRun(args: ManagePgDatabaseArgs) {
   });
 }
 
-async function handlePlanMigration(args: ManagePgDatabaseArgs) {
+async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgRuntimeContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
   if (!args.sql?.trim()) {
     return buildPgToolResult({
       success: false,
@@ -1543,43 +1575,144 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs) {
     });
   }
 
-  const statements = args.sql
-    .split(";")
-    .map((statement) => statement.trim())
-    .filter(Boolean);
-  const classifications = statements.map((statement) => ({
-    sqlPreview: statement.slice(0, 200),
-    ...classifySqlRisk(statement),
-  }));
-
-  return buildPgToolResult({
-    success: true,
-    data: {
-      statementCount: statements.length,
-      classifications,
-      migrationApiAvailable: false,
-      wouldExecute: false,
-    },
-    message:
-      "Migration plan generated locally. CloudBase PG migration API is not available in this MCP build yet.",
-    nextActions: [
-      buildNextAction(
-        MANAGE_PG_DATABASE,
-        "applyMigration",
-        "Use applyMigration once the CloudBase Manager SDK migration API is available.",
-        { action: "applyMigration", confirm: true },
-      ),
-    ],
-  });
+  try {
+    const result = await callPgMigrationApi(context, "PreviewPGUserMigrations", {
+      Sql: args.sql,
+    }, cloudBaseOptions);
+    return buildPgToolResult({
+      success: true,
+      data: result as Record<string, unknown>,
+      message: "Migration plan generated via PreviewPGUserMigrations.",
+      nextActions: [
+        buildNextAction(
+          MANAGE_PG_DATABASE,
+          "applyMigration",
+          "Review the plan above. If it looks correct, call applyMigration to execute.",
+          { action: "applyMigration", sql: args.sql, confirm: true },
+        ),
+      ],
+    });
+  } catch (error) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "MIGRATION_API_ERROR",
+      message: `PreviewPGUserMigrations failed: ${error instanceof Error ? error.message : String(error)}`,
+    });
+  }
 }
 
-async function handleApplyMigration() {
-  return buildPgToolResult({
-    success: false,
-    errorCode: "API_NOT_AVAILABLE",
-    message:
-      "CloudBase PG migration API has not been exposed by the Manager SDK yet. Use planMigration for validation and execute confirmed SQL statements when appropriate.",
-  });
+async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgRuntimeContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
+  if (!args.sql?.trim()) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "SQL_REQUIRED",
+      message: "Provide migration SQL when action=applyMigration.",
+    });
+  }
+
+  if (args.confirm !== true) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "CONFIRM_REQUIRED",
+      message: "PushPGUserMigrations requires confirm=true. Run with confirm=true to proceed.",
+    });
+  }
+
+  try {
+    const result = await callPgMigrationApi(context, "PushPGUserMigrations", {
+      Sql: args.sql,
+    }, cloudBaseOptions);
+    return buildPgToolResult({
+      success: true,
+      data: result as Record<string, unknown>,
+      message: "Migrations applied via PushPGUserMigrations.",
+    });
+  } catch (error) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "MIGRATION_API_ERROR",
+      message: `PushPGUserMigrations failed: ${error instanceof Error ? error.message : String(error)}`,
+    });
+  }
+}
+
+async function handleListMigrations(args: ManagePgDatabaseArgs, context: PgRuntimeContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
+  try {
+    const result = await callPgMigrationApi(context, "ListPGUserMigrations", {}, cloudBaseOptions);
+    return buildPgToolResult({
+      success: true,
+      data: result as Record<string, unknown>,
+      message: "Migration list retrieved via ListPGUserMigrations.",
+    });
+  } catch (error) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "MIGRATION_API_ERROR",
+      message: `ListPGUserMigrations failed: ${error instanceof Error ? error.message : String(error)}`,
+    });
+  }
+}
+
+async function handleMigrationDetail(args: ManagePgDatabaseArgs, context: PgRuntimeContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
+  if (!args.objectName?.trim()) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "OBJECT_NAME_REQUIRED",
+      message: "Provide objectName (migration ID) when action=migrationDetail.",
+    });
+  }
+
+  try {
+    const result = await callPgMigrationApi(context, "DescribePGUserMigration", {
+      ObjectId: args.objectName,
+    }, cloudBaseOptions);
+    return buildPgToolResult({
+      success: true,
+      data: result as Record<string, unknown>,
+      message: "Migration detail retrieved via DescribePGUserMigration.",
+    });
+  } catch (error) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "MIGRATION_API_ERROR",
+      message: `DescribePGUserMigration failed: ${error instanceof Error ? error.message : String(error)}`,
+    });
+  }
+}
+
+async function handleRollbackMigration(args: ManagePgDatabaseArgs, context: PgRuntimeContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
+  if (!args.objectName?.trim()) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "OBJECT_NAME_REQUIRED",
+      message: "Provide objectName (migration ID) when action=rollbackMigration.",
+    });
+  }
+
+  if (args.confirm !== true) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "CONFIRM_REQUIRED",
+      message: "RollbackPGUserMigrations requires confirm=true. Run with confirm=true to proceed.",
+    });
+  }
+
+  try {
+    const result = await callPgMigrationApi(context, "RollbackPGUserMigrations", {
+      ObjectId: args.objectName,
+    }, cloudBaseOptions);
+    return buildPgToolResult({
+      success: true,
+      data: result as Record<string, unknown>,
+      message: "Migration rolled back via RollbackPGUserMigrations.",
+    });
+  } catch (error) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "MIGRATION_API_ERROR",
+      message: `RollbackPGUserMigrations failed: ${error instanceof Error ? error.message : String(error)}`,
+    });
+  }
 }
 
 async function handleGetPgSchema(
@@ -1752,7 +1885,7 @@ export function registerPGDatabaseTools(
         action: z
           .enum(MANAGE_ACTIONS)
           .describe(
-            "操作类型：init=初始化或绑定 PostgreSQL 上下文；execute=执行已确认的写入 SQL 或 DDL；dryRun=只分析 SQL 风险不执行；planMigration=生成迁移规划；applyMigration=预留给后续 Manager SDK migration API",
+            "操作类型：init=初始化或绑定 PostgreSQL 上下文；execute=执行已确认的写入 SQL 或 DDL；dryRun=只分析 SQL 风险不执行；planMigration=通过 PreviewPGUserMigrations 预览迁移计划；applyMigration=通过 PushPGUserMigrations 应用迁移；listMigrations=查询已应用的 Migration 列表；migrationDetail=查看单条 Migration 详情；rollbackMigration=回滚指定 Migration",
           ),
         sql: z
           .string()
@@ -1820,9 +1953,24 @@ export function registerPGDatabaseTools(
         case "dryRun":
           return handleDryRun(args);
         case "planMigration":
-          return handlePlanMigration(args);
         case "applyMigration":
-          return handleApplyMigration();
+        case "listMigrations":
+        case "migrationDetail":
+        case "rollbackMigration": {
+          const migrationCtx = await getPgContext(server);
+          if (!migrationCtx) {
+            return buildMissingContextResult();
+          }
+          const cbOpts = server.cloudBaseOptions;
+          switch (args.action) {
+            case "planMigration": return handlePlanMigration(args, migrationCtx, deps, cbOpts);
+            case "applyMigration": return handleApplyMigration(args, migrationCtx, deps, cbOpts);
+            case "listMigrations": return handleListMigrations(args, migrationCtx, deps, cbOpts);
+            case "migrationDetail": return handleMigrationDetail(args, migrationCtx, deps, cbOpts);
+            case "rollbackMigration": return handleRollbackMigration(args, migrationCtx, deps, cbOpts);
+            default: return buildPgToolResult({ success: false, errorCode: "UNSUPPORTED_ACTION", message: `Unsupported action: ${args.action}` });
+          }
+        }
         default:
           return buildPgToolResult({
             success: false,
