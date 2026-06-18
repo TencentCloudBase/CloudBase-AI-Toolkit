@@ -19,16 +19,12 @@ function parseToolPayload(result) {
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const packageDir = path.resolve(scriptDir, "..");
-const workspaceRoot = path.resolve(packageDir, "../../..");
-const projectDir = process.env.CLOUDBASE_PGSQL_DIR ?? path.join(workspaceRoot, "external", "cloudbase-pgsql");
 const contextPath = process.env.CLOUDBASE_PG_CONTEXT_PATH ?? path.join(
   os.tmpdir(),
   `cloudbase-pg-mcp-smoke-${Date.now()}.json`,
 );
 
 async function main() {
-  await fs.stat(path.join(projectDir, "Makefile"));
-
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [path.join(packageDir, "dist", "cli.cjs")],
@@ -41,7 +37,7 @@ async function main() {
   });
   const client = new Client(
     {
-      name: "cloudbase-pg-local-smoke",
+      name: "cloudbase-pg-cloud-smoke",
       version: "1.0.0",
     },
     {
@@ -56,7 +52,7 @@ async function main() {
 
     const toolList = await client.listTools();
     const toolNames = toolList.tools.map((tool) => tool.name);
-    for (const toolName of ["queryPgDatabase", "managePgDatabase", "getPgSchema"]) {
+    for (const toolName of ["queryPgDatabase", "managePgDatabase"]) {
       assert(toolNames.includes(toolName), `Missing expected tool: ${toolName}`);
     }
 
@@ -65,8 +61,6 @@ async function main() {
         name: "managePgDatabase",
         arguments: {
           action: "init",
-          bootstrapMode: "podman",
-          projectDir,
         },
       }),
     );
@@ -79,7 +73,7 @@ async function main() {
       }),
     );
     assert(context.success === true, `queryPgDatabase(context) failed: ${context.message}`);
-    assert(context.data?.context?.bootstrapMode === "podman", "PG context did not persist podman bootstrap mode");
+    assert(context.data?.context?.bootstrapMode === "cloud", "PG context did not persist cloud bootstrap mode");
 
     const objects = parseToolPayload(
       await client.callTool({
@@ -115,11 +109,11 @@ async function main() {
 
     const schema = parseToolPayload(
       await client.callTool({
-        name: "getPgSchema",
-        arguments: { objectName: "storage.buckets" },
+        name: "queryPgDatabase",
+        arguments: { action: "schema", objectName: "storage.buckets" },
       }),
     );
-    assert(schema.success === true, `getPgSchema(storage.buckets) failed: ${schema.message}`);
+    assert(schema.success === true, `queryPgDatabase(schema, storage.buckets) failed: ${schema.message}`);
     assert(Array.isArray(schema.data?.columns) && schema.data.columns.length > 0, "storage.buckets schema did not return columns");
 
     const createTable = parseToolPayload(
@@ -128,6 +122,7 @@ async function main() {
         arguments: {
           action: "execute",
           sql: `CREATE TABLE ${smokeTable}(id serial PRIMARY KEY, note text NOT NULL)`,
+          confirm: true,
         },
       }),
     );
@@ -139,6 +134,7 @@ async function main() {
         arguments: {
           action: "execute",
           sql: `INSERT INTO ${smokeTable}(note) VALUES ('integration-smoke') RETURNING id, note`,
+          confirm: true,
         },
       }),
     );
@@ -172,14 +168,13 @@ async function main() {
 
     console.log(JSON.stringify({
       success: true,
-      projectDir,
       contextPath,
       verifiedFlow: [
         "managePgDatabase:init",
         "queryPgDatabase:context",
         "queryPgDatabase:objects",
         "queryPgDatabase:metadata",
-        "getPgSchema",
+        "queryPgDatabase:schema",
         "managePgDatabase:execute:create",
         "managePgDatabase:execute:insert",
         "queryPgDatabase:sql:verify",

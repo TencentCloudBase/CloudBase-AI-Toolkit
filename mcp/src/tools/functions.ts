@@ -112,6 +112,7 @@ export const MANAGE_FUNCTION_ACTIONS = [
   "attachLayer",
   "detachLayer",
   "updateFunctionLayers",
+  "incrementalDeployFunction",  // 增量部署，需通过 pluginOptions.functions 注入实现
 ] as const;
 
 type QueryFunctionsAction = (typeof QUERY_FUNCTION_ACTIONS)[number];
@@ -185,6 +186,7 @@ type ManageFunctionsInput = {
   }>;
   codeSecret?: string;
   confirm?: boolean;
+  incrementalFile?: string;
 };
 
 const VPC_SCHEMA = z.object({
@@ -464,6 +466,7 @@ function wrapFunctionOperationError(
 
 export function registerFunctionTools(server: ExtendedMcpServer) {
   const cloudBaseOptions = server.cloudBaseOptions;
+  const deployOverrides = server.pluginOptions?.functions;
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
 
   const buildEnvelope = (
@@ -931,6 +934,16 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
     switch (input.action) {
     case "createFunction": {
+      if (deployOverrides?.createFunction) {
+        const result = await deployOverrides.createFunction({
+          functionName: String(input.func?.name ?? input.functionName ?? ''),
+          functionRootPath: input.functionRootPath ?? '',
+          runtime: input.func?.runtime as string | undefined,
+          force: input.force,
+          installDependency: input.func?.installDependency as boolean | undefined,
+        });
+        return buildEnvelope({ action: input.action, result }, '云函数部署成功（override）');
+      }
       if (!input.func?.name || typeof input.func.name !== "string") {
         throw new Error("createFunction 操作时，func.name 参数是必需的");
       }
@@ -1061,6 +1074,15 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       );
     }
     case "updateFunctionCode": {
+      if (deployOverrides?.updateFunctionCode) {
+        const result = await deployOverrides.updateFunctionCode({
+          functionName: input.functionName ?? '',
+          functionRootPath: input.functionRootPath ?? '',
+          force: input.force,
+          installDependency: input.func?.installDependency as boolean | undefined,
+        });
+        return buildEnvelope({ action: input.action, result }, '云函数代码更新成功（override）');
+      }
       if (!input.functionName) {
         throw new Error("updateFunctionCode 操作时，functionName 参数是必需的");
       }
@@ -1495,6 +1517,21 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       );
     }
     default:
+      // incrementalDeployFunction：无默认实现，必须通过 pluginOptions 注入
+      if (input.action === 'incrementalDeployFunction') {
+        const fn = deployOverrides?.incrementalDeployFunction;
+        if (!fn) {
+          throw new Error(
+            'incrementalDeployFunction 需要通过 pluginOptions.functions.incrementalDeployFunction 注入实现（仅在支持的 IDE 环境中可用）'
+          );
+        }
+        const result = await fn({
+          functionName: input.functionName ?? '',
+          functionRootPath: input.functionRootPath ?? '',
+          incrementalFile: input.incrementalFile ?? '',
+        });
+        return buildEnvelope({ action: input.action, result }, '云函数增量部署成功');
+      }
       throw new Error(`不支持的操作类型: ${input.action}`);
     }
   };
@@ -1584,7 +1621,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
           .describe(
-            "写操作类型，例如 createFunction、updateFunctionCode、invokeFunction、deleteFunction、" +
+            "写操作类型，例如 createFunction、updateFunctionCode、incrementalDeployFunction、invokeFunction、deleteFunction、" +
             "createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、attachLayer、detachLayer"
           ),
         func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
@@ -1627,6 +1664,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           .describe("updateFunctionLayers 的目标层列表，顺序即最终顺序"),
         codeSecret: z.string().optional().describe("层绑定时的代码保护密钥"),
         confirm: z.boolean().optional().describe("危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作需要显式传入 confirm=true"),
+        incrementalFile: z.string().optional().describe("incrementalDeployFunction 增量部署时的变更文件路径"),
       },
       annotations: {
         readOnlyHint: false,

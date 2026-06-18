@@ -1262,9 +1262,9 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     QUERY_SQL_DATABASE,
     {
-      title: "Query SQL database state or execute read-only SQL",
+      title: "查询 CloudBase MySQL 数据库状态或执行只读 SQL",
       description:
-        "Query SQL database information. Supports read-only SQL execution, MySQL provisioning result lookup, MySQL task status lookup, and current instance context discovery.",
+        "查询 CloudBase MySQL 数据库信息。支持执行只读 SQL、查询 MySQL 开通结果、查询 MySQL 任务状态，以及获取当前实例上下文信息。",
       inputSchema: {
         action: z
           .enum(QUERY_ACTIONS)
@@ -1315,9 +1315,9 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     MANAGE_SQL_DATABASE,
     {
-      title: "Manage SQL database lifecycle or execute write SQL",
+      title: "管理 CloudBase MySQL 数据库生命周期或执行写入 SQL",
       description:
-        "Manage SQL database resources. Supports MySQL provisioning, MySQL destruction, write SQL/DDL execution, and schema initialization. IMPORTANT: MySQL must be provisioned first (action=provisionMySQL with confirm=true) before any runStatement or initializeSchema call. If MySQL is not yet provisioned, the tool will return MYSQL_NOT_CREATED with a nextAction to provision first.",
+        "管理 CloudBase MySQL 数据库资源。支持开通 MySQL、销毁 MySQL、执行写入 SQL/DDL，以及初始化数据库 Schema。注意：必须先开通 MySQL（action=provisionMySQL，confirm=true）才能执行 runStatement 或 initializeSchema。若 MySQL 尚未开通，工具会返回 MYSQL_NOT_CREATED 并给出开通的 nextAction 提示。",
       inputSchema: {
         action: z
           .enum(MANAGE_ACTIONS)

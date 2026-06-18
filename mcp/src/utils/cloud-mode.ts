@@ -93,9 +93,6 @@ export function shouldRegisterTool(toolName: string): boolean {
     'manageCloudRun',
     // Download tools - local file downloads
     'manageStorage',
-
-    // Apps tools - deployApp reads local filePath for code upload
-    'manageApps',
   ];
 
   const shouldRegister = !cloudIncompatibleTools.includes(toolName);

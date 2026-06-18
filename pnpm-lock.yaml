@@ -34,8 +34,8 @@ importers:
         specifier: ^1.14.0
         version: 1.18.2
       '@cloudbase/manager-node':
-        specifier: 5.5.0
-        version: 5.5.0
+        specifier: 5.5.1-beta.0
+        version: 5.5.1-beta.0
       '@cloudbase/mcp':
         specifier: 1.0.0-beta.25
         version: 1.0.0-beta.25
@@ -210,8 +210,8 @@ packages:
   '@cloudbase/manager-node@5.3.1':
     resolution: {integrity: sha512-q1bjPaP91vmdp0Jq0zVMTjat1Z19RQz1f00IQZSEgPE+L0Q99DMNniG64Px4Zv8OyBak6YHAdyYIH///9Y3/lg==}
 
-  '@cloudbase/manager-node@5.5.0':
-    resolution: {integrity: sha512-Sbk6XYkNC08s7T9vq7ckAaVt7w0A1O8aq+N9OAEo5Q1sT2JITdORU2rlsm+DUgjNpjx6LMDgh3U8xJyBjJzXDw==}
+  '@cloudbase/manager-node@5.5.1-beta.0':
+    resolution: {integrity: sha512-Uy6ZhcU3q3pJUu6Z340tqjeF6PBAr6MrVEZsRd1nontm5ZbbCYqiNJur1qGkNSqbAaLV6k1mftxCaMzzMzzFTg==}
 
   '@cloudbase/mcp@1.0.0-beta.25':
     resolution: {integrity: sha512-IZw5MGTin3/SHlJVL6aoMLocAIlqsm8Oif0Xlb4OeznlAFuSIGwMV8ZJ5Dn9ftzyN/kwKjysa6x+Rmfw6MG51A==}
@@ -4144,7 +4144,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@cloudbase/manager-node@5.5.0':
+  '@cloudbase/manager-node@5.5.1-beta.0':
     dependencies:
       '@cloudbase/database': 0.6.2
       archiver: 3.1.1

@@ -2,25 +2,25 @@ const nodeExternals = require('webpack-node-externals');
 const nodeModules = require('./node-modules.cjs');
 const problematicDeps = require('./problematic-deps.cjs');
 
-/**
- * 最大化依赖打包配置
- * 尝试打包所有可能的依赖
- */
-function createMinimalExternals(importType = 'commonjs') {
-  return [
-    // 暂时注释掉 nodeExternals，让 webpack 打包所有依赖
-    // nodeExternals({
-    //   allowlist: [
-    //     // 所有依赖都尝试打包
-    //     /.*/
-    //   ],
-    //   importType: importType
-    // }),
-    
-    // 只排除 Node.js 内置模块和真正有问题的依赖
+function createMinimalExternals(importType) {
+  importType = importType || 'commonjs';
+
+  var externals = [
     ...nodeModules,
-    ...problematicDeps
+    ...problematicDeps,
   ];
+
+  // source-map-support 在 webpack bundle 中 tree-shake 有问题，
+  // 必须用函数形式确保匹配
+  externals.push(function(_ref, callback) {
+    var request = _ref.request;
+    if (/^source-map-support/.test(request)) {
+      return callback(null, 'commonjs ' + request);
+    }
+    callback();
+  });
+
+  return externals;
 }
 
-module.exports = createMinimalExternals; 
+module.exports = createMinimalExternals;

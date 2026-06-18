@@ -424,18 +424,21 @@ async function resolveHostingStaticDomain(cloudbase: any, logger?: ExtendedMcpSe
   }
 }
 
-async function assertHostingUploadEnvironmentReady(
+// Returns the first hosting store record from DescribeStaticStore, which is
+// the authoritative source for Mini Program-sourced environments (those envs
+// do not populate StaticStorages in DescribeEnvs / getEnvInfo).
+// Throws when no valid store is found so upload can fail fast with a clear msg.
+async function getHostingStoreOrThrow(
   cloudbase: any,
   cloudBaseOptions?: { envId?: string },
   logger?: ExtendedMcpServer['logger'],
-) {
+): Promise<Record<string, unknown>> {
   const envId = await getEnvId(cloudBaseOptions);
-  const envInfo = await cloudbase.env.getEnvInfo() as ExtendedEnvInfo;
-  logCloudBaseResult(logger, envInfo);
+  const result = await callTcbHostingAction(cloudbase, 'DescribeStaticStore', { EnvId: envId }, logger);
+  const hostingInfo = extractStaticStores(result);
 
-  const staticStorage = envInfo.EnvInfo?.StaticStorages?.[0];
-  if (staticStorage?.Bucket) {
-    return;
+  if (hostingInfo.length > 0 && hostingInfo[0].Bucket) {
+    return hostingInfo[0];
   }
 
   throw new Error(
@@ -652,7 +655,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     'manageHosting',
     {
       title: '管理 CloudBase 静态托管',
-      description: '管理 CloudBase 静态托管的变更操作。action=upload 上传本地构建产物；action=delete 删除托管文件或目录（必须 confirm=true）；action=setWebsiteDocument 设置首页/错误页/路由规则；action=enableService 开通静态托管；action=bindDomain / unbindDomain / updateDomain 管理自定义域名；action=downloadFile / downloadDirectory 下载托管内容到本地。若任务只是查看配置、文件或域名状态，请改用 queryHosting。',
+      description: '管理 CloudBase 静态托管的变更操作。action=upload 上传本地构建产物到共享域名（域名格式：<envId>-<appId>.tcloudbaseapp.com/<cloudPath>）；action=delete 删除托管文件或目录（必须 confirm=true）；action=setWebsiteDocument 设置首页/错误页/路由规则；action=enableService 开通静态托管；action=bindDomain / unbindDomain / updateDomain 管理自定义域名；action=downloadFile / downloadDirectory 下载托管内容到本地。⚠️ 新项目部署优先使用 manageApps（部署到独立子域名），本工具适合已有老项目继续使用或作为 manageApps 的 fallback。manageApps 与 manageHosting 域名不同，切换会导致老链接失效。若任务只是查看配置、文件或域名状态，请改用 queryHosting。',
       inputSchema: manageHostingInputSchema,
       annotations: {
         readOnlyHint: false,
@@ -675,8 +678,9 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             }
 
             let result: unknown;
+            let store: Record<string, unknown>;
             try {
-              await assertHostingUploadEnvironmentReady(cloudbase, cloudBaseOptions, server.logger);
+              store = await getHostingStoreOrThrow(cloudbase, cloudBaseOptions, server.logger);
               result = await cloudbase.hosting.uploadFiles({
                 localPath: input.localPath,
                 cloudPath: input.cloudPath,
@@ -688,7 +692,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             }
 
             logCloudBaseResult(server.logger, result);
-            const staticDomain = await resolveHostingStaticDomain(cloudbase, server.logger);
+            // Prefer CdnDomain from the DescribeStaticStore result we already
+            // fetched; fall back to getEnvInfo for environments that populate
+            // StaticDomain there but not in DescribeStaticStore.
+            const cdnFromStore = (store.CdnDomain ?? store.StaticDomain) as string | undefined;
+            const staticDomain = cdnFromStore || await resolveHostingStaticDomain(cloudbase, server.logger);
             const accessUrl = buildHostingAccessUrl(staticDomain, input.cloudPath, input.localPath);
 
             try {

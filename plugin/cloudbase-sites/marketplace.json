@@ -1,0 +1,20 @@
+{
+  "name": "tencent-cloudbase-sites",
+  "interface": {
+    "displayName": "Tencent CloudBase Sites (beta)"
+  },
+  "plugins": [
+    {
+      "name": "cloudbase-sites",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

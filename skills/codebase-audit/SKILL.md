@@ -115,6 +115,7 @@ Use this skill when you need to:
 | Task | Read |
 | --- | --- |
 | What to review and how to check each category | `references/review-strategy.md` |
+| Security severity classification (TSRC-style) | `references/security-severity-checklist.md` |
 | How to classify, deduplicate, and batch findings | `references/classification.md` |
 | How to create well-structured GitHub issues | `references/issue-workflow.md` |
 | How to create worktrees and fix issues in isolation | `references/worktree-fix.md` |

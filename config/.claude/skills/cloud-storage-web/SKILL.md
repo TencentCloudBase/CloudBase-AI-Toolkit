@@ -1,7 +1,7 @@
 ---
 name: cloud-storage-web
 description: Complete guide for CloudBase cloud storage using Web SDK (@cloudbase/js-sdk) - upload, download, temporary URLs, file management, and best practices.
-version: 2.20.2
+version: 2.21.0
 alwaysApply: false
 ---
 
@@ -49,12 +49,13 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Assuming temporary download URLs are permanent links.
 - Ignoring `STORAGE_NOT_EXIST`; it means the target storage bucket/resource is not ready, not that the browser upload code should fabricate a URL.
 - On local Vite or dev-server tasks, forgetting to whitelist the exact current browser `host:port` before testing `app.uploadFile()`.
+- Treating CloudBase PG / `pgstore` like the legacy NoSQL CloudBase storage. PG environments use a separate `pgstore` backend whose buckets are NOT auto-created from your old NoSQL bucket. If `pgstore` has no bucket, every upload returns `STORAGE_BUCKET_NOT_FOUND` and the SDK then issues `PUT https://undefined/` (visible in DevTools as `net::ERR_NAME_NOT_RESOLVED`). Treat bucket existence as a hard prerequisite, just like Supabase: in Supabase Storage every upload must target an already-created bucket; CloudBase PG follows the same model.
 
 ### Minimal checklist
 
 - Confirm the caller is a browser/Web app.
 - Initialize the Web SDK once.
-- Confirm CloudBase storage exists in the current environment before testing upload. Use available MCP management/query tools to inspect or create/select the storage bucket when the environment has no default bucket.
+- Confirm CloudBase storage exists in the current environment before testing upload. Use available MCP management/query tools to inspect or create/select the storage bucket when the environment has no default bucket. **In a PG / pgstore environment, the legacy NoSQL bucket from `DescribeEnvs` does NOT count as a usable pgstore bucket; create one explicitly before any browser upload. The legacy NoSQL bucket itself is still fine for legacy `app.uploadFile()` flows that already target it — PG and NoSQL storage coexist; this skill applies to BOTH.**
 - Check security-domain/CORS requirements.
 - Pick the right storage method before coding.
 
@@ -74,6 +75,58 @@ When the app runs on a local browser origin and must upload files from the front
 If `app.uploadFile()` returns `STORAGE_NOT_EXIST`, stop editing frontend code and fix the environment-side storage resource first. Re-check the environment storage list, create or select an available bucket if the task allows it, then retry the same SDK upload flow.
 
 If the task uses browser-side file upload, treat this as a prerequisite rather than an optional cleanup.
+
+### Bucket existence prerequisite (mandatory before any upload code)
+
+Just like Supabase Storage, CloudBase Storage requires the target bucket to exist before any client-side upload. This is true for both legacy CloudBase NoSQL storage (`STORAGE_NOT_EXIST`) and the newer PG / `pgstore` backend (`STORAGE_BUCKET_NOT_FOUND`).
+
+Mental model parity with Supabase:
+
+| Step | Supabase | CloudBase |
+| ---- | -------- | --------- |
+| Create bucket | `supabase.storage.createBucket('covers', { public: true })` (admin-side, with service role) | Use a CloudBase management surface (MCP `manageStorage` / console / management API) to create the bucket. The browser SDK cannot create one. |
+| Upload | `supabase.storage.from('covers').upload('a.png', file)` | `app.storage.from().upload('covers/a.png', file)` — note the bucket prefix lives inside the path string, NOT in `from()` (the v3 SDK currently ignores the `from(bucket)` argument when computing `cloudPath`; the bucket must be the first path segment). |
+| Bucket missing error | `Bucket not found` | Browser sees `STORAGE_BUCKET_NOT_FOUND` (PG) or `STORAGE_NOT_EXIST` (NoSQL), then a follow-up `PUT https://undefined/` because the SDK still tries to PUT a missing `metadata.url`. |
+
+Required pre-upload steps in any task that needs browser uploads:
+
+1. List existing buckets first. For PG / pgstore, the legacy NoSQL bucket (the `6d63-…-1409864723` shape returned by `DescribeEnvs.Storages[]`) is NOT a valid pgstore bucket — do not assume it works.
+2. If no usable bucket exists for the upload target (e.g. `covers`), create one through the CloudBase management surface BEFORE editing frontend upload code. Adding `covers` as a path prefix in code does not auto-create a bucket.
+3. After creating the bucket, the upload code passes the bucket as the FIRST segment of the path: `app.storage.from().upload('covers/<file>', file)`.
+4. If you see `net::ERR_NAME_NOT_RESOLVED` going to `https://undefined/` in DevTools, that is the SDK reacting to a missing `metadata.url` field — almost always because the bucket does not exist or the SDK request was rejected upstream. Inspect the failed `POST .../v1/storages/get-objects-upload-info` response in DevTools first; the `code` field (e.g. `STORAGE_BUCKET_NOT_FOUND`, `STORAGE_CONTENT_LENGTH_REQUIRED`, `INVALID_PARAM`) tells you exactly what to fix.
+
+Do not silently swallow upload failures. If `uploadCoverImage()` rejects, the parent `createArticle()` MUST also reject — never proceed to `db.from(...).insert(...)` with a fabricated URL or a placeholder, and never let the UI show a success toast.
+
+### Post-bucket: storage RLS (mandatory in PG / pgstore environments)
+
+In **PG / pgstore** environments, storage access control is enforced through **PostgreSQL Row Level Security (RLS) on the `storage.objects` table** — exactly like Supabase Storage. The default RLS policy is deny all, so even if the bucket exists, `app.uploadFile()` from a browser will fail with `STORAGE_PERMISSION_DENIED` unless you configure permissive policies.
+
+Use `managePgDatabase(action="execute", confirm=true)` to run the following SQL after creating the bucket:
+
+```sql
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Allow authenticated users to upload files
+CREATE POLICY "authenticated_upload" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.role() = 'authenticated');
+
+-- Allow authenticated users to read/download files
+CREATE POLICY "authenticated_read" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (auth.role() = 'authenticated');
+
+-- Optional: allow users to update/delete their own files
+CREATE POLICY "users_manage_own" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = owner_id)
+  WITH CHECK (auth.uid() = owner_id);
+```
+
+Key points:
+- `storage.objects` RLS is **separate** from CloudBase legacy NoSQL storage security rules (`managePermissions` / `ModifyStorageSafeRule`). In PG mode, always configure storage RLS via PG SQL, not the legacy security rule API.
+- Without these policies, the browser receives `STORAGE_PERMISSION_DENIED` when calling `app.uploadFile()` or `app.storage.from().upload()`.
+- Use `IF NOT EXISTS` in a `DO $$` block when re-applying to avoid "policy already exists" errors on re-run.
 
 ## Overview
 
@@ -122,11 +175,12 @@ const result = await app.uploadFile({
 
 - `cloudPath` must include the filename.
 - Use `/` to create folder structure.
+- **In a CloudBase PG / pgstore environment, the FIRST path segment of `cloudPath` is interpreted as the bucket name (e.g. `covers/foo.png` means bucket=`covers`, key=`foo.png`). The bucket must already exist; the v3 SDK does not auto-create one and `from(bucketName)` does NOT prepend the bucket to `cloudPath` for you. Same model as Supabase Storage — never upload into a not-yet-created bucket.**
 - Validate file type and size before upload.
 - Show upload progress for larger files when UX matters.
 - On local dev origins, confirm the exact frontend origin already exists in environment security domains before assuming the upload path is usable.
 - Match against the whitelist entry format returned by `envQuery(action="domains")`, which is typically `host:port` instead of a full `http://...` URL.
-- If the environment has no storage bucket or the SDK returns `STORAGE_NOT_EXIST`, use CloudBase management/MCP storage tools to create or choose a bucket before retrying. Do not treat this as a successful optional upload.
+- If the environment has no storage bucket or the SDK returns `STORAGE_NOT_EXIST` / `STORAGE_BUCKET_NOT_FOUND`, use CloudBase management/MCP storage tools to create or choose a bucket before retrying. Do not treat this as a successful optional upload.
 - After `app.uploadFile()` succeeds, do **not** fabricate a public-looking URL by concatenating `envId`, bucket domain, or `cloudPath`. Use the returned `fileID` with `app.getTempFileURL()` and store or display the SDK-resolved URL instead.
 
 ### Progress example

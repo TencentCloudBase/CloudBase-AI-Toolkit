@@ -3,7 +3,7 @@ name: cloudbase
 description: "Use this skill when you develop, design, build, deploy, debug, migrate, or troubleshoot CloudBase (腾讯云开发, 云开发, TCB, 微信云开发) projects. Covers Web apps (React, Vue, Vite, Next, Nuxt, 网站, dashboards, 管理后台), 微信小程序, 小程序, uni-app, native/mobile (iOS, Android, Flutter, React Native) via HTTP API. Includes UI (页面, 界面, 登录页, 表单, form, dashboard, 仪表盘, prototype, 原型), auth (登录, 注册, OAuth, 微信登录, publishable key), databases (NoSQL 文档数据库, MySQL 关系型数据库, CRUD, security rules), 云函数 (serverless, scf_bootstrap, HTTP Functions), CloudRun (云托管, Dockerfile), 云存储 (file upload, hosting, 静态托管). Built-in AI (内置大模型, streaming, 流式输出, image generation, 图片生成, 图像生成, generateText, streamText, createModel, generateImage, TokenHub, Hunyuan, hunyuan-exp, DeepSeek, deepseek, GLM, Kimi, MiniMax, Token Credits 资源包, 小程序成长计划), 第三方大模型, 大模型接入, 大模型调用, LLM API, chatbot, AI 助手, AI agent, 智能体, AG-UI, LangGraph, LangChain. Ops (巡检, 诊断, health check, 日志, troubleshooting, 排查). Spec workflow (需求文档, 技术方案, 架构设计, requirements, tasks.md)."
 description_zh: 为你的小程序和 Web/H5 提供一体化运行与部署环境，包括数据库、云函数、云存储、身份权限和静态托管
 description_en: An all-in-one runtime and deployment environment for WeChat Mini Programs and Web/H5 apps, including database, cloud functions, cloud storage, identity and access control, and static hosting.
-version: 2.20.2
+version: 2.21.1
 ---
 
 # CloudBase Development Guidelines
@@ -59,6 +59,7 @@ If a skill points to its own `references/...` files, keep following those relati
 - When saving MCP or tool results to a local file with a generic file-writing tool, pass text, not raw objects. For JSON output files, serialize first with `JSON.stringify(result, null, 2)` and write that string as the file content.
 - If the file-writing tool reports that a field such as `content` expected a string but received an object, do not retry with the same raw object. Serialize the object first, then retry once with the serialized text, and make sure the retried call actually passes the serialized string rather than the original object.
 - Keep scenario-specific pitfall lists in the matching child skills instead of expanding this entry file.
+- **For new frontend projects, the first deployment must use `manageApps(action="createApp", ...)` to deploy to an independent subdomain. `manageHosting` is prohibited for first-time deployments — it is only allowed for incremental updates to existing projects that were originally deployed via `manageHosting`.**
 
 ### Engineering constitution (applies to every scenario)
 
@@ -216,7 +217,11 @@ When users request deployment to CloudBase:
 2. **Frontend Deployment (if applicable)**:
    - After backend deployment completes, update frontend API endpoints using the returned API addresses
    - Build the frontend application
-   - Deploy to CloudBase static hosting using hosting tools
+   - **Determine whether this is a new or existing project**:
+     - **New project (first-time deployment)**: Use `manageApps(action="createApp", ...)` to deploy to an independent subdomain. Each app gets its own `*.webapps.tcloudbase.com` subdomain — no path collisions between projects.
+     - **Existing project (re-deployment)**: Use `manageApps(action="updateApp", ...)` to update the existing app. If the original project was deployed via `manageHosting` (shared domain path), continue using `manageHosting` for consistency.
+   - After uploading, call `setWebsiteDocument` to configure SPA routing — set both `indexDocument` and `errorDocument` to `"index.html"`.
+   - If `manageApps` fails persistently, fall back to `manageHosting`. Remind the user the URL will share the env domain path and CDN has a few minutes of cache.
 
 3. **Display Deployment URLs**:
    - Show backend deployment URL (if applicable)

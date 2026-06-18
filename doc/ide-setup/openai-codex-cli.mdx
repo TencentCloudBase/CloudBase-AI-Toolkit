@@ -1,4 +1,5 @@
 import IDESelector from '../components/IDESelector';
+import CodexInstallSelector from '../components/CodexInstallSelector';
 import RelatedResources from '../components/RelatedResources';
 
 # OpenAI Codex CLI 配置指南
@@ -33,6 +34,16 @@ node --version
 </details>
 
 ---
+
+## 方式一：通过插件市场安装（推荐）
+
+插件市场方式会同时安装 MCP 工具和 AI Skills。你也可以选择在 Codex App 中通过图形界面安装。
+
+<CodexInstallSelector />
+
+## 方式二：通过 MCP 配置连接
+
+如果只需 MCP 工具连接，也可以手工配置：
 
 <IDESelector defaultIDE="openai-codex-cli" showInstallButton={false} />
 

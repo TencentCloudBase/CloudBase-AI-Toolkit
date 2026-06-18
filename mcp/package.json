@@ -1,6 +1,6 @@
 {
   "name": "@cloudbase/cloudbase-mcp",
-  "version": "2.20.2",
+"version": "2.21.1-beta.2",
   "packageManager": "pnpm@10.8.0",
   "description": "腾讯云开发 MCP Server，通过AI提示词和MCP协议+云开发，让开发更智能、更高效,当你在Cursor/ VSCode GitHub Copilot/WinSurf/CodeBuddy/Augment Code/Claude Code等AI编程工具里写代码时，它能自动帮你生成可直接部署的前后端应用+小程序，并一键发布到腾讯云开发 CloudBase。",
   "main": "./dist/index.cjs",
@@ -47,7 +47,7 @@
     "test:watch": "npm run build && vitest",
     "test:ui": "npm run build && vitest --ui",
     "test:coverage": "npm run build && vitest run --coverage",
-    "test:pg:local": "npm run build && node ./scripts/verify-pg-local-smoke.mjs",
+    "test:pg:cloud": "npm run build && node ./scripts/verify-pg-cloud-smoke.mjs",
     "test:inspector": "npm run build && npx @modelcontextprotocol/inspector node ./dist/cli.js",
     "prepublishOnly": "npm run build && node scripts/prepare-publish.cjs",
     "postpublish": "node scripts/restore-deps.cjs"
@@ -67,7 +67,7 @@
   "dependencies": {
     "@cloudbase/cals": "^1.2.23",
     "@cloudbase/functions-framework": "^1.14.0",
-    "@cloudbase/manager-node": "5.5.0",
+    "@cloudbase/manager-node": "5.5.1-beta.0",
     "@cloudbase/mcp": "1.0.0-beta.25",
     "@cloudbase/toolbox": "^0.8.1",
     "@modelcontextprotocol/sdk": "1.13.1",
@@ -78,7 +78,6 @@
     "fd-slicer": "^1.1.0",
     "lockfile": "^1.0.4",
     "open": "^10.1.2",
-    "pg": "^8.16.3",
     "punycode": "^2.3.1",
     "unzipper": "^0.12.3",
     "winston": "^3.15.0",
@@ -100,7 +99,6 @@
     "@types/jest": "^30.0.0",
     "@types/lockfile": "^1.0.4",
     "@types/node": "^22.10.2",
-    "@types/pg": "^8.15.5",
     "@types/ws": "^8.5.12",
     "buffer": "^6.0.3",
     "copy-webpack-plugin": "^13.0.0",

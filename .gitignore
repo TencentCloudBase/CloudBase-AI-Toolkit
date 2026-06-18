@@ -1,6 +1,7 @@
 **/dist
 **/node_modules
 **/.env
+**/.cloudbase-sites/
 **/*.dxt
 # Environment variables
 .env.local
@@ -9,6 +10,7 @@
 .skills-repo-output
 .generated
 .DS_Store
+.codebuddy/
 
 # MCP local IDE / rules artifacts
 mcp/.agent/
@@ -31,3 +33,6 @@ mcp/.vscode/
 mcp/.windsurf/
 mcp/rules/
 .workbuddy/
+
+# 本地 e2e 测试（集成测试，走单独 CI）
+mcp/src/wxide-mcp-e2e.test.js

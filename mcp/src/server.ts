@@ -22,7 +22,7 @@ import { registerAppAuthTools } from "./tools/app-auth.js";
 import { registerAppTools } from "./tools/apps.js";
 import { registerLogTools } from "./tools/logs.js";
 import { registerPermissionTools } from "./tools/permissions.js";
-import { CloudBaseOptions, Logger } from "./types.js";
+import { CloudBaseOptions, Logger, PluginOptions } from "./types.js";
 import type { AuthOptions } from "./auth.js";
 import { enableCloudMode } from "./utils/cloud-mode.js";
 import { info } from './utils/logger.js';
@@ -78,6 +78,13 @@ function registerMysqlDatabase(server: ExtendedMcpServer) {
   registerSQLDatabaseTools(server);
 }
 
+function registerNoSQLDatabase(server: ExtendedMcpServer) {
+  const region = server.cloudBaseOptions?.region || process.env.TCB_REGION;
+  if (!isInternationalRegion(region)) {
+    registerDatabaseTools(server);
+  }
+}
+
 // 可用插件映射
 const AVAILABLE_PLUGINS: Record<string, PluginDefinition> = {
   env: { name: "env", register: registerEnvTools },
@@ -85,6 +92,9 @@ const AVAILABLE_PLUGINS: Record<string, PluginDefinition> = {
   mysql_database: { name: "mysql_database", register: registerMysqlDatabase },
   pg_database: { name: "pg_database", register: registerPGDatabaseTools },
   pg_storage: { name: "pg_storage", register: registerPGStorageTools },
+  "database-nosql": { name: "database-nosql", register: registerNoSQLDatabase },
+  "database-sql": { name: "database-sql", register: registerSQLDatabaseTools },
+  "data-model": { name: "data-model", register: registerDataModelTools },
   functions: { name: "functions", register: registerFunctionTools },
   hosting: { name: "hosting", register: registerHostingTools },
   storage: { name: "storage", register: registerStorageTools },
@@ -173,12 +183,10 @@ function parseEnabledPlugins(
 export interface PgRuntimeContext {
   envId: string;
   instanceId: string;
-  connectionUri?: string;
   defaultSchema: string;
-  runtimeMode: "local" | "cloudbase-manager";
-  bootstrapMode: "podman" | "local" | "manual" | "cloud";
+  runtimeMode: "cloudbase-manager";
+  bootstrapMode: "cloud";
   role?: string;
-  bootstrapProjectDir?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -191,6 +199,9 @@ export interface ExtendedMcpServer extends McpServer {
   logger?: Logger;
   pgRuntimeContext?: PgRuntimeContext;
   enabledPlugins?: string[];
+  pluginOptions?: PluginOptions;
+  /** 已注册工具的列表，供外部（如微信 IDE）提取并注册到自己的 MCP server */
+  toolDefs: Array<{ name: string; description: string; inputSchema: any; handler: (input: any) => Promise<any> }>;
 
   setLogger(logger: Logger): void;
 }
@@ -226,6 +237,7 @@ export async function createCloudBaseMcpServer(options?: {
   logger?: Logger;
   pluginsEnabled?: string[];
   pluginsDisabled?: string[];
+  pluginOptions?: PluginOptions;
 }): Promise<ExtendedMcpServer> {
   const {
     name = "cloudbase-mcp",
@@ -238,6 +250,7 @@ export async function createCloudBaseMcpServer(options?: {
     logger,
     pluginsEnabled,
     pluginsDisabled,
+    pluginOptions,
   } = options ?? {};
 
   // Enable cloud mode if specified
@@ -259,9 +272,19 @@ export async function createCloudBaseMcpServer(options?: {
     },
   ) as ExtendedMcpServer;
 
+  // 初始化 toolDefs，用于外部提取工具列表（如微信 IDE）
+  server.toolDefs = [];
+
   const originalRegisterTool = server.registerTool.bind(server);
-  server.registerTool = ((name: string, meta: any, handler: (args: any) => Promise<any>) =>
-    originalRegisterTool(name, meta, async (args: any) => {
+  server.registerTool = ((name: string, meta: any, handler: (args: any) => Promise<any>) => {
+    // 同步记录到 toolDefs
+    server.toolDefs.push({
+      name,
+      description: meta?.description ?? meta?.title ?? '',
+      inputSchema: meta?.inputSchema ?? {},
+      handler,
+    });
+    return originalRegisterTool(name, meta, async (args: any) => {
       try {
         return await handler(args);
       } catch (error) {
@@ -272,7 +295,8 @@ export async function createCloudBaseMcpServer(options?: {
         }
         throw error;
       }
-    })) as typeof server.registerTool;
+    });
+  }) as typeof server.registerTool;
 
   // Only set logging handler if logging capability is declared
   if (ide === "CodeBuddy") {
@@ -289,6 +313,11 @@ export async function createCloudBaseMcpServer(options?: {
 
   if (authOptions) {
     server.authOptions = authOptions;
+  }
+
+  // Store pluginOptions in server instance for plugins to access
+  if (pluginOptions) {
+    server.pluginOptions = pluginOptions;
   }
 
   // Store ide in server instance for telemetry

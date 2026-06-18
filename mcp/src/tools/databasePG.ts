@@ -1,14 +1,9 @@
-import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { promisify } from "node:util";
 import { z } from "zod";
 import { getCloudBaseManager } from "../cloudbase-manager.js";
 import type { ExtendedMcpServer, PgRuntimeContext } from "../server.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
-
-const execFileAsync = promisify(execFile);
 
 const CATEGORY = "PostgreSQL database";
 const QUERY_PG_DATABASE = "queryPgDatabase";
@@ -31,12 +26,8 @@ const MANAGE_ACTIONS = [
   "migrationDetail",
   "rollbackMigration",
 ] as const;
-const BOOTSTRAP_MODES = ["podman", "local", "manual", "cloud"] as const;
-
 type QueryPgAction = (typeof QUERY_ACTIONS)[number];
 type ManagePgAction = (typeof MANAGE_ACTIONS)[number];
-type BootstrapMode = (typeof BOOTSTRAP_MODES)[number];
-
 type PgToolPayload = {
   success: boolean;
   data?: Record<string, unknown>;
@@ -60,36 +51,16 @@ type ManagePgDatabaseArgs = {
   envId?: string;
   instanceId?: string;
   defaultSchema?: string;
-  connectionUri?: string;
-  bootstrapMode?: BootstrapMode;
-  projectDir?: string;
   role?: string;
   objectName?: string;
 };
 
-type PgBootstrapRequest = {
-  envId?: string;
-  instanceId?: string;
-  defaultSchema?: string;
-  connectionUri?: string;
-  bootstrapMode?: BootstrapMode;
-  projectDir?: string;
-  role?: string;
-};
-
 type PgBootstrapResult = {
   instanceId: string;
-  connectionUri?: string;
   defaultSchema: string;
   status: "ready";
-  bootstrapMode: BootstrapMode;
   runtimeMode?: PgRuntimeContext["runtimeMode"];
   role?: string;
-  bootstrapProjectDir?: string;
-};
-
-type PgBootstrapProvider = {
-  bootstrap(request: PgBootstrapRequest): Promise<PgBootstrapResult>;
 };
 
 type PgQueryField = {
@@ -115,7 +86,6 @@ type PgReadyCheckOptions = {
 };
 
 type PgToolDependencies = {
-  bootstrapProvider: PgBootstrapProvider;
   createClient: (
     context: PgRuntimeContext,
   ) => Promise<PgClientLike> | PgClientLike;
@@ -163,7 +133,7 @@ function buildNextAction(
 function getPgContextStorePath() {
   return (
     process.env.CLOUDBASE_PG_CONTEXT_PATH ??
-    path.join(os.homedir(), ".cloudbase-mcp", "pg-context.json")
+    path.join(process.env.HOME ?? ".", ".cloudbase-mcp", "pg-context.json")
   );
 }
 
@@ -192,7 +162,11 @@ async function savePgContext(
 
   const storePath = getPgContextStorePath();
   await fs.mkdir(path.dirname(storePath), { recursive: true });
-  await fs.writeFile(storePath, JSON.stringify(context, null, 2), "utf8");
+  await fs.writeFile(storePath, JSON.stringify(context, null, 2), {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  await fs.chmod(storePath, 0o600).catch(() => undefined);
 }
 
 async function getPgContext(server: ExtendedMcpServer) {
@@ -212,33 +186,16 @@ function buildMissingContextResult() {
     success: false,
     errorCode: "PG_CONTEXT_NOT_INITIALIZED",
     message:
-      "PostgreSQL context is not initialized yet. Call managePgDatabase(action=init). CloudBase 环境会默认走云端 Manager SDK；只有本地调试才需要 connectionUri。",
+      "PostgreSQL context is not initialized yet. Call managePgDatabase(action=init) to bind the current CloudBase environment's built-in PostgreSQL runtime.",
     nextActions: [
       buildNextAction(
         MANAGE_PG_DATABASE,
         "init",
         "初始化 CloudBase PG 云端执行上下文，然后再查询 schema 或执行 SQL。",
-        { action: "init", bootstrapMode: "cloud" },
+        { action: "init" },
       ),
     ],
   });
-}
-
-function sanitizeConnectionUri(connectionUri: string) {
-  try {
-    const url = new URL(connectionUri);
-    return {
-      host: url.hostname,
-      port: url.port || "5432",
-      database: url.pathname.replace(/^\//, "") || "postgres",
-      username: decodeURIComponent(url.username || ""),
-      sslmode: url.searchParams.get("sslmode") ?? undefined,
-    };
-  } catch {
-    return {
-      connectionUri: "[invalid-connection-uri]",
-    };
-  }
 }
 
 function sanitizePgContext(context: PgRuntimeContext) {
@@ -249,66 +206,7 @@ function sanitizePgContext(context: PgRuntimeContext) {
     runtimeMode: context.runtimeMode,
     bootstrapMode: context.bootstrapMode,
     role: context.role,
-    bootstrapProjectDir: context.bootstrapProjectDir,
-    connection: context.connectionUri
-      ? sanitizeConnectionUri(context.connectionUri)
-      : null,
   };
-}
-
-async function discoverCloudbasePgsqlProjectDir(explicitProjectDir?: string) {
-  const candidates: string[] = [];
-
-  if (explicitProjectDir) {
-    candidates.push(explicitProjectDir);
-  }
-  if (process.env.CLOUDBASE_PG_BOOTSTRAP_DIR) {
-    candidates.push(process.env.CLOUDBASE_PG_BOOTSTRAP_DIR);
-  }
-
-  let currentDir = process.cwd();
-  for (;;) {
-    candidates.push(path.join(currentDir, "external", "cloudbase-pgsql"));
-    const parent = path.dirname(currentDir);
-    if (parent === currentDir) {
-      break;
-    }
-    currentDir = parent;
-  }
-
-  for (const candidate of candidates) {
-    try {
-      const stat = await fs.stat(path.join(candidate, "Makefile"));
-      if (stat.isFile()) {
-        return candidate;
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return undefined;
-}
-
-async function resolveProjectPassword(projectDir: string) {
-  const envCandidates = [
-    path.join(projectDir, ".env"),
-    path.join(projectDir, ".env.example"),
-  ];
-
-  for (const filePath of envCandidates) {
-    try {
-      const content = await fs.readFile(filePath, "utf8");
-      const match = content.match(/^POSTGRES_PASSWORD\s*[:?]?=\s*(.+)$/m);
-      if (match?.[1]) {
-        return match[1].trim().replace(/^['"]|['"]$/g, "");
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return "cloudbase_secret_2024";
 }
 
 function normalizeLimit(limit?: number, fallback = 20, max = 200) {
@@ -365,9 +263,18 @@ function isReadOnlySql(sql: string) {
     return false;
   }
 
-  return !/\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE|REPLACE|RENAME|GRANT|REVOKE|COMMENT|VACUUM|ANALYZE)\b/i.test(
+  return !/\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE|REPLACE|RENAME|GRANT|REVOKE|COMMENT|VACUUM|ANALYZE|FOR\s+UPDATE|FOR\s+SHARE)\b/i.test(
     normalized,
   );
+}
+
+function buildLimitedReadOnlySql(sql: string, limit: number) {
+  const normalized = stripLeadingSqlComments(sql).replace(/;\s*$/, "");
+  const verb = getSqlVerb(normalized);
+  if (!["SELECT", "WITH", "VALUES"].includes(verb)) {
+    return sql;
+  }
+  return `SELECT * FROM (${normalized}) AS cloudbase_mcp_readonly_limit LIMIT ${limit}`;
 }
 
 function isDestructiveSql(sql: string) {
@@ -687,17 +594,8 @@ async function summarizeMetadata(
     };
 
     if (summary.kind === "table" || summary.kind === "partitioned_table") {
-      try {
-        summary.rowCount = await getTableRowCount(
-          client,
-          summary.schema,
-          summary.name,
-        );
-        summary.rowCountSource = "actual";
-      } catch {
-        summary.rowCount = summary.estimatedRows ?? null;
-        summary.rowCountSource = "estimated";
-      }
+      summary.rowCount = summary.estimatedRows ?? null;
+      summary.rowCountSource = "estimated";
     } else {
       summary.rowCount = null;
       summary.rowCountSource = "not_applicable";
@@ -872,118 +770,12 @@ async function readSchemaInfo(
   };
 }
 
-const CONNECTION_URI_ENV_NAMES = [
-  "DATABASE_URI",
-  "DATABASE_URL",
-  "POSTGRES_URL",
-] as const;
-
-function resolveConnectionUriFromEnv(): string | undefined {
-  for (const envName of CONNECTION_URI_ENV_NAMES) {
-    const value = process.env[envName];
-    if (value) {
-      return value;
-    }
-  }
-  return undefined;
-}
-
-class LocalPgBootstrapProvider implements PgBootstrapProvider {
-  async bootstrap(request: PgBootstrapRequest): Promise<PgBootstrapResult> {
-    const shouldUseCloud =
-      request.bootstrapMode === "cloud" ||
-      (!request.bootstrapMode &&
-        !request.connectionUri &&
-        Boolean(request.envId));
-
-    if (shouldUseCloud) {
-      return {
-        instanceId: request.instanceId ?? "cloudbase-pg",
-        defaultSchema: request.defaultSchema ?? "public",
-        status: "ready",
-        bootstrapMode: "cloud",
-        runtimeMode: "cloudbase-manager",
-        role: request.role ?? "cloudbase_admin",
-      };
-    }
-
-    const resolvedUri = request.connectionUri ?? resolveConnectionUriFromEnv();
-    const bootstrapMode = resolvedUri
-      ? "manual"
-      : (request.bootstrapMode ?? "podman");
-
-    if (resolvedUri) {
-      return {
-        instanceId: request.instanceId ?? "cloudbase-pg-local",
-        connectionUri: resolvedUri,
-        defaultSchema: request.defaultSchema ?? "public",
-        status: "ready",
-        bootstrapMode,
-      };
-    }
-
-    const projectDir = await discoverCloudbasePgsqlProjectDir(
-      request.projectDir,
-    );
-    if (!projectDir) {
-      throw new Error(
-        "Unable to locate cloudbase-pgsql project. Provide projectDir or set CLOUDBASE_PG_BOOTSTRAP_DIR.",
-      );
-    }
-
-    const makeTarget = bootstrapMode === "local" ? "init-local" : "up";
-    await execFileAsync("make", [makeTarget], {
-      cwd: projectDir,
-      env: process.env,
-      maxBuffer: 1024 * 1024 * 4,
-    });
-
-    const password = await resolveProjectPassword(projectDir);
-    return {
-      instanceId: request.instanceId ?? "cloudbase-pg-local",
-      connectionUri:
-        request.connectionUri ??
-        `postgresql://cloudbase_admin:${encodeURIComponent(password)}@localhost:5432/postgres`,
-      defaultSchema: request.defaultSchema ?? "public",
-      status: "ready",
-      bootstrapMode,
-      bootstrapProjectDir: projectDir,
-    };
-  }
-}
-
 function createDefaultDependencies(
   server?: ExtendedMcpServer,
 ): PgToolDependencies {
   return {
-    bootstrapProvider: new LocalPgBootstrapProvider(),
-    createClient: async (context: PgRuntimeContext) => {
-      if (context.runtimeMode === "cloudbase-manager") {
-        return createManagerPgClient(context, server?.cloudBaseOptions);
-      }
-
-      if (!context.connectionUri) {
-        throw new Error("Local PostgreSQL context requires connectionUri.");
-      }
-
-      const pgModule = await import("pg");
-      const ClientCtor =
-        typeof pgModule.Client === "function"
-          ? pgModule.Client
-          : typeof pgModule.default?.Client === "function"
-            ? pgModule.default.Client
-            : null;
-
-      if (!ClientCtor) {
-        throw new Error(
-          "Unable to resolve PostgreSQL Client constructor from pg module",
-        );
-      }
-
-      return new ClientCtor({
-        connectionString: context.connectionUri,
-      });
-    },
+    createClient: async (context: PgRuntimeContext) =>
+      createManagerPgClient(context, server?.cloudBaseOptions),
   };
 }
 
@@ -1226,26 +1018,32 @@ async function handleInit(
     server.cloudBaseOptions?.envId ??
     process.env.CLOUDBASE_ENV_ID ??
     existing?.envId;
-  const bootstrapResult = await deps.bootstrapProvider.bootstrap({
-    envId: resolvedEnvId,
-    instanceId: args.instanceId,
-    defaultSchema: args.defaultSchema,
-    connectionUri: args.connectionUri,
-    bootstrapMode: args.bootstrapMode,
-    projectDir: args.projectDir,
-    role: args.role,
-  });
+
+  if (!resolvedEnvId) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "ENV_ID_REQUIRED",
+      message:
+        "CloudBase PostgreSQL only supports the built-in cloud runtime. Provide envId or bind a CloudBase environment before calling managePgDatabase(action=init).",
+    });
+  }
+
+  const bootstrapResult: PgBootstrapResult = {
+    instanceId: args.instanceId ?? "cloudbase-pg",
+    defaultSchema: args.defaultSchema ?? "public",
+    status: "ready",
+    runtimeMode: "cloudbase-manager",
+    role: args.role ?? "cloudbase_admin",
+  };
 
   const now = new Date().toISOString();
   const context: PgRuntimeContext = {
-    envId: resolvedEnvId ?? "local",
+    envId: resolvedEnvId,
     instanceId: bootstrapResult.instanceId,
-    connectionUri: bootstrapResult.connectionUri,
     defaultSchema: bootstrapResult.defaultSchema,
-    runtimeMode: bootstrapResult.runtimeMode ?? "local",
-    bootstrapMode: bootstrapResult.bootstrapMode,
-    role: bootstrapResult.role ?? args.role,
-    bootstrapProjectDir: bootstrapResult.bootstrapProjectDir,
+    runtimeMode: "cloudbase-manager",
+    bootstrapMode: "cloud",
+    role: bootstrapResult.role,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
@@ -1262,9 +1060,7 @@ async function handleInit(
       status: bootstrapResult.status,
     },
     message:
-      context.runtimeMode === "cloudbase-manager"
-        ? "CloudBase PG 云端执行上下文已就绪。先查询对象或 schema，再执行写入 SQL。"
-        : "Local PostgreSQL context is ready. Query objects first, then inspect schema before writing SQL.",
+      "CloudBase PG 云端执行上下文已就绪。先查询对象或 schema，再执行写入 SQL。",
     nextActions: [
       buildNextAction(
         QUERY_PG_DATABASE,
@@ -1293,7 +1089,7 @@ async function handleQueryContext(server: ExtendedMcpServer) {
         ...sanitizePgContext(context),
       },
     },
-    message: "Resolved current local PostgreSQL context.",
+    message: "Resolved current CloudBase PostgreSQL context.",
     nextActions: [
       buildNextAction(
         QUERY_PG_DATABASE,
@@ -1420,8 +1216,9 @@ async function handleReadOnlySql(
   }
 
   const limit = normalizeLimit(args.limit);
+  const limitedSql = buildLimitedReadOnlySql(args.sql, limit);
   const result = await withPgClient(context, deps, (client) =>
-    client.query(args.sql!),
+    client.query(limitedSql),
   );
   const summary = summarizeQueryResult(result, limit);
 
@@ -1739,7 +1536,7 @@ async function handleGetPgSchema(
     return buildPgToolResult({
       success: false,
       errorCode: "OBJECT_NOT_FOUND",
-      message: `PostgreSQL object ${objectName} was not found in the current local context.`,
+      message: `PostgreSQL object ${objectName} was not found in the current CloudBase PG context.`,
       nextActions: [
         buildNextAction(
           QUERY_PG_DATABASE,
@@ -1880,7 +1677,7 @@ export function registerPGDatabaseTools(
     {
       title: "管理 PostgreSQL 上下文或执行写入 SQL",
       description:
-        "管理 CloudBase PostgreSQL MCP 上下文。支持绑定云端 Manager SDK 执行路径、本地开发环境初始化、SQL 风险预检、迁移规划占位，以及在显式确认后执行写入 SQL。",
+        "管理 CloudBase PostgreSQL MCP 上下文。仅支持 CloudBase 内置 PostgreSQL 云端 Manager SDK 执行路径、SQL 风险预检、迁移规划，以及在显式确认后执行写入 SQL。",
       inputSchema: {
         action: z
           .enum(MANAGE_ACTIONS)
@@ -1890,7 +1687,7 @@ export function registerPGDatabaseTools(
         sql: z
           .string()
           .optional()
-          .describe("action=execute、dryRun 或 planMigration 使用的 SQL 语句"),
+          .describe("action=execute、dryRun、planMigration 或 applyMigration 使用的 SQL 语句"),
         confirm: z
           .boolean()
           .optional()
@@ -1907,27 +1704,17 @@ export function registerPGDatabaseTools(
           .string()
           .optional()
           .describe("默认 schema，会保存到 PG 上下文中，默认 public。"),
-        connectionUri: z
-          .string()
-          .optional()
-          .describe(
-            "可选的 PostgreSQL 直连 URI。提供该参数时会进入本地 manual 模式。",
-          ),
-        bootstrapMode: z
-          .enum(BOOTSTRAP_MODES)
-          .optional()
-          .describe(
-            "action=init 的初始化模式。cloud 使用 CloudBase Manager SDK executePGSql；podman/local/manual 用于本地开发路径。",
-          ),
-        projectDir: z
-          .string()
-          .optional()
-          .describe("可选的 cloudbase-pgsql 项目目录，用于本地 action=init。"),
         role: z
           .string()
           .optional()
           .describe(
             "可选的 PostgreSQL role，会传给 Manager SDK executePGSql；例如需要管理策略时可传 postgres。",
+          ),
+        objectName: z
+          .string()
+          .optional()
+          .describe(
+            "action=migrationDetail 或 rollbackMigration 时使用的 migration ID。",
           ),
       },
       annotations: {

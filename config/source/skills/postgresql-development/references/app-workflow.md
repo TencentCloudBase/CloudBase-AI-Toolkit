@@ -15,7 +15,7 @@ Use this reference when building or repairing a real user-facing Web app backed 
 3. Confirm the environment has the required capabilities:
    - username/password auth if the app logs in with plain usernames
    - PostgreSQL resource
-   - Cloud Storage if the app uploads files. In CloudBase PG, "having storage" means having an explicitly-created `pgstore` bucket — same model as Supabase Storage. Check existing buckets with `queryPgStorage(action="buckets")`. If the upload target (e.g. `covers`) is missing, generate the bucket-creation SQL via `queryPgStorage(action="createBucketSql", bucket="covers")` and execute it through `managePgDatabase(action="execute", confirm=true)`. Browser SDKs cannot create a pgstore bucket; the legacy NoSQL bucket reported in `EnvInfo.Storages[]` is NOT a valid pgstore target.
+   - Cloud Storage if the app uploads files. In CloudBase PG, "having storage" means having an explicitly-created `pgstore` bucket — same model as Supabase Storage. Check existing buckets with `queryPgStorage(action="buckets")`. If the upload target (e.g. `covers`) is missing, create/select the bucket through the documented CloudBase management surface or console before writing browser upload code. Browser SDKs cannot create a pgstore bucket; the legacy NoSQL bucket reported in `EnvInfo.Storages[]` is NOT a valid pgstore target.
 4. Create or repair the minimal PG schema with `managePgDatabase(action="execute")`.
 5. Immediately call `queryPgDatabase(action="schema")` for every table touched by the app.
 6. Implement browser CRUD with one shared CloudBase Web SDK app instance and `app.rdb()`.

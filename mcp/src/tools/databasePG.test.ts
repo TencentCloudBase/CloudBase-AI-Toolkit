@@ -51,17 +51,6 @@ function createFakeClient(
   };
 }
 
-function createBootstrapResult() {
-  return {
-    instanceId: "cloudbase-pg-local",
-    connectionUri:
-      "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
-    defaultSchema: "public",
-    status: "ready" as const,
-    bootstrapMode: "manual" as const,
-  };
-}
-
 describe("PG database tools", () => {
   let contextPath: string;
 
@@ -94,16 +83,11 @@ describe("PG database tools", () => {
     });
 
     registerPGDatabaseTools(server, {
-      bootstrapProvider: {
-        bootstrap: vi.fn(async () => createBootstrapResult()),
-      },
       createClient: vi.fn(() => fakeClient),
     });
 
     const initResult = await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri:
-        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
     const payload = buildToolPayload(initResult);
     const saved = JSON.parse(await fs.readFile(contextPath, "utf8"));
@@ -112,20 +96,20 @@ describe("PG database tools", () => {
       success: true,
       data: {
         context: {
-          instanceId: "cloudbase-pg-local",
+          instanceId: "cloudbase-pg",
           defaultSchema: "public",
-          runtimeMode: "local",
+          runtimeMode: "cloudbase-manager",
         },
       },
     });
     expect(saved).toMatchObject({
       envId: "env-test",
-      instanceId: "cloudbase-pg-local",
+      instanceId: "cloudbase-pg",
       defaultSchema: "public",
     });
   });
 
-  it("managePgDatabase(init, bootstrapMode=cloud) stores Manager SDK context without requiring file IO", async () => {
+  it("managePgDatabase(init) stores Manager SDK context without requiring file IO", async () => {
     delete process.env.CLOUDBASE_PG_CONTEXT_PATH;
 
     const { server, tools } = createMockServer();
@@ -142,7 +126,6 @@ describe("PG database tools", () => {
 
     const result = await tools.managePgDatabase.handler({
       action: "init",
-      bootstrapMode: "cloud",
       role: "postgres",
     });
     const payload = buildToolPayload(result);
@@ -155,7 +138,6 @@ describe("PG database tools", () => {
           runtimeMode: "cloudbase-manager",
           bootstrapMode: "cloud",
           role: "postgres",
-          connection: null,
         },
       },
     });
@@ -197,9 +179,6 @@ describe("PG database tools", () => {
     let readyAttempts = 0;
 
     registerPGDatabaseTools(server, {
-      bootstrapProvider: {
-        bootstrap: vi.fn(async () => createBootstrapResult()),
-      },
       createClient: vi.fn(() =>
         createFakeClient(async (sql: string) => {
           if (sql !== "SELECT 1") {
@@ -223,8 +202,6 @@ describe("PG database tools", () => {
     const payload = buildToolPayload(
       await tools.managePgDatabase.handler({
         action: "init",
-        connectionUri:
-          "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
       }),
     );
 
@@ -244,16 +221,11 @@ describe("PG database tools", () => {
     });
 
     registerPGDatabaseTools(server, {
-      bootstrapProvider: {
-        bootstrap: vi.fn(async () => createBootstrapResult()),
-      },
       createClient: vi.fn(() => fakeClient),
     });
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri:
-        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -291,16 +263,11 @@ describe("PG database tools", () => {
     });
 
     registerPGDatabaseTools(server, {
-      bootstrapProvider: {
-        bootstrap: vi.fn(async () => createBootstrapResult()),
-      },
       createClient: vi.fn(() => fakeClient),
     });
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri:
-        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -357,16 +324,11 @@ describe("PG database tools", () => {
     });
 
     registerPGDatabaseTools(server, {
-      bootstrapProvider: {
-        bootstrap: vi.fn(async () => createBootstrapResult()),
-      },
       createClient: vi.fn(() => fakeClient),
     });
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri:
-        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -381,8 +343,8 @@ describe("PG database tools", () => {
         tables: [
           {
             schemaTable: "public.users",
-            rowCount: 9,
-            rowCountSource: "actual",
+            rowCount: 12,
+            rowCountSource: "estimated",
             rlsEnabled: true,
           },
         ],
@@ -401,16 +363,11 @@ describe("PG database tools", () => {
     });
 
     registerPGDatabaseTools(server, {
-      bootstrapProvider: {
-        bootstrap: vi.fn(async () => createBootstrapResult()),
-      },
       createClient: vi.fn(() => fakeClient),
     });
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri:
-        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -524,16 +481,11 @@ describe("PG database tools", () => {
     });
 
     registerPGDatabaseTools(server, {
-      bootstrapProvider: {
-        bootstrap: vi.fn(async () => createBootstrapResult()),
-      },
       createClient: vi.fn(() => fakeClient),
     });
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri:
-        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -584,16 +536,11 @@ describe("PG database tools", () => {
     });
 
     registerPGDatabaseTools(server, {
-      bootstrapProvider: {
-        bootstrap: vi.fn(async () => createBootstrapResult()),
-      },
       createClient: vi.fn(() => fakeClient),
     });
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri:
-        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.managePgDatabase.handler({
@@ -658,16 +605,11 @@ describe("PG database tools", () => {
     });
 
     registerPGDatabaseTools(server, {
-      bootstrapProvider: {
-        bootstrap: vi.fn(async () => createBootstrapResult()),
-      },
       createClient: vi.fn(() => fakeClient),
     });
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri:
-        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.managePgDatabase.handler({
@@ -742,16 +684,11 @@ describe("PG database tools", () => {
     });
 
     registerPGDatabaseTools(server, {
-      bootstrapProvider: {
-        bootstrap: vi.fn(async () => createBootstrapResult()),
-      },
       createClient: vi.fn(() => fakeClient),
     });
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri:
-        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -777,16 +714,11 @@ describe("PG database tools", () => {
     });
 
     registerPGDatabaseTools(server, {
-      bootstrapProvider: {
-        bootstrap: vi.fn(async () => createBootstrapResult()),
-      },
       createClient: vi.fn(() => fakeClient),
     });
 
     await tools.managePgDatabase.handler({
       action: "init",
-      connectionUri:
-        "postgresql://cloudbase_admin:secret@localhost:5432/postgres",
     });
 
     const result = await tools.managePgDatabase.handler({
@@ -804,9 +736,6 @@ describe("PG database tools", () => {
   it("all PG tools return actionable error before init", async () => {
     const { server, tools } = createMockServer();
     registerPGDatabaseTools(server, {
-      bootstrapProvider: {
-        bootstrap: vi.fn(),
-      },
       createClient: vi.fn(),
     });
 
@@ -838,120 +767,4 @@ describe("PG database tools", () => {
     }
   });
 
-  describe("env fallback for connectionUri", () => {
-    afterEach(() => {
-      delete process.env.DATABASE_URI;
-      delete process.env.DATABASE_URL;
-      delete process.env.POSTGRES_URL;
-    });
-
-    it("init uses DATABASE_URI from env when connectionUri is not provided", async () => {
-      process.env.DATABASE_URI =
-        "postgresql://cloudbase_admin:secret@localhost:5432/postgres";
-
-      const { server, tools } = createMockServer();
-      const fakeClient = createFakeClient(async (sql: string) => {
-        if (sql === "SELECT 1") {
-          return { rows: [{ "?column?": 1 }], rowCount: 1 };
-        }
-        throw new Error(`Unexpected SQL: ${sql}`);
-      });
-
-      const bootstrapSpy = vi.fn(async (req: any) => ({
-        ...createBootstrapResult(),
-        connectionUri: req.connectionUri ?? process.env.DATABASE_URI,
-      }));
-
-      registerPGDatabaseTools(server, {
-        bootstrapProvider: { bootstrap: bootstrapSpy },
-        createClient: vi.fn(() => fakeClient),
-      });
-
-      const result = await tools.managePgDatabase.handler({
-        action: "init",
-        bootstrapMode: "manual",
-        // no connectionUri
-      });
-      const payload = buildToolPayload(result);
-
-      expect(payload).toMatchObject({ success: true });
-      // The bootstrap provider should have been called, and the stored context
-      // should contain the URI from env
-      const saved = JSON.parse(await fs.readFile(contextPath, "utf8"));
-      expect(saved.connectionUri).toBe(process.env.DATABASE_URI);
-    });
-
-    it("explicit connectionUri takes priority over env", async () => {
-      process.env.DATABASE_URI =
-        "postgresql://from_env:secret@envhost:5432/envdb";
-      const explicitUri =
-        "postgresql://explicit:secret@explicithost:5432/explicitdb";
-
-      const { server, tools } = createMockServer();
-      const fakeClient = createFakeClient(async (sql: string) => {
-        if (sql === "SELECT 1") {
-          return { rows: [{ "?column?": 1 }], rowCount: 1 };
-        }
-        throw new Error(`Unexpected SQL: ${sql}`);
-      });
-
-      registerPGDatabaseTools(server, {
-        bootstrapProvider: {
-          bootstrap: vi.fn(async () => ({
-            ...createBootstrapResult(),
-            connectionUri: explicitUri,
-          })),
-        },
-        createClient: vi.fn(() => fakeClient),
-      });
-
-      const result = await tools.managePgDatabase.handler({
-        action: "init",
-        connectionUri: explicitUri,
-      });
-      const payload = buildToolPayload(result);
-
-      expect(payload).toMatchObject({ success: true });
-      const saved = JSON.parse(await fs.readFile(contextPath, "utf8"));
-      expect(saved.connectionUri).toBe(explicitUri);
-    });
-
-    it("falls back to bootstrap path when no connectionUri and no env", async () => {
-      // Ensure no env vars are set
-      delete process.env.DATABASE_URI;
-      delete process.env.DATABASE_URL;
-      delete process.env.POSTGRES_URL;
-
-      const { server, tools } = createMockServer();
-      const fakeClient = createFakeClient(async (sql: string) => {
-        if (sql === "SELECT 1") {
-          return { rows: [{ "?column?": 1 }], rowCount: 1 };
-        }
-        throw new Error(`Unexpected SQL: ${sql}`);
-      });
-
-      const bootstrapSpy = vi.fn(async (req: any) => ({
-        ...createBootstrapResult(),
-        connectionUri: req?.connectionUri,
-        bootstrapMode: "podman" as const,
-      }));
-
-      registerPGDatabaseTools(server, {
-        bootstrapProvider: { bootstrap: bootstrapSpy },
-        createClient: vi.fn(() => fakeClient),
-      });
-
-      const result = await tools.managePgDatabase.handler({
-        action: "init",
-        // no connectionUri, no env — should delegate to bootstrap provider
-      });
-      const payload = buildToolPayload(result);
-
-      expect(payload).toMatchObject({ success: true });
-      // bootstrapProvider.bootstrap should have been called once
-      expect(bootstrapSpy).toHaveBeenCalledTimes(1);
-      // The request passed to bootstrap should have no connectionUri
-      expect(bootstrapSpy.mock.calls[0]?.[0]?.connectionUri).toBeUndefined();
-    });
-  });
 });

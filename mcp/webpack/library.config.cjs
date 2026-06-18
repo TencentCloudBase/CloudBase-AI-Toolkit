@@ -45,6 +45,11 @@ function createLibraryConfigs() {
         type: 'commonjs2'
       }
     },
+    optimization: {
+      usedExports: false,  // 防止 webpack tree-shake 误删动态引用的导出
+                           // 如 source-map-support 的 _createParsedCallSite
+                           //（通过 self._createParsedCallSite 动态引用）
+    },
     plugins: [
       new webpack.DefinePlugin({ 
         // 修复 import.meta.url 在编译时被替换成绝对路径的问题
