@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerDatabaseTools } from "./tools/databaseNoSQL.js";
+import { registerPGDatabaseTools } from "./tools/databasePG.js";
 import { registerSQLDatabaseTools } from "./tools/databaseSQL.js";
 import { registerDownloadTools } from "./tools/download.js";
 import { registerEnvTools } from "./tools/env.js";
@@ -7,6 +8,7 @@ import { registerFunctionTools } from "./tools/functions.js";
 import { registerHostingTools } from "./tools/hosting.js";
 import { registerRagTools } from "./tools/rag.js";
 import { registerSetupTools } from "./tools/setup.js";
+import { registerPGStorageTools } from "./tools/storagePG.js";
 import { registerStorageTools } from "./tools/storage.js";
 // import { registerMiniprogramTools } from "./tools/miniprogram.js";
 import { SetLevelRequestSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -38,6 +40,8 @@ interface PluginDefinition {
 const DEFAULT_PLUGINS = [
   "env",
   "database",
+  "pg_database",
+  "pg_storage",
   "functions",
   "hosting",
   "storage",
@@ -61,8 +65,17 @@ function registerDatabase(server: ExtendedMcpServer) {
   if (!isInternationalRegion(region)) {
     registerDatabaseTools(server);
   }
-  registerSQLDatabaseTools(server);
+  const pgPluginEnabled = server.enabledPlugins?.some((pluginName) =>
+    pluginName === "pg_database" || pluginName === "pg_storage"
+  );
+  if (!pgPluginEnabled) {
+    registerSQLDatabaseTools(server);
+  }
   registerDataModelTools(server);
+}
+
+function registerMysqlDatabase(server: ExtendedMcpServer) {
+  registerSQLDatabaseTools(server);
 }
 
 function registerNoSQLDatabase(server: ExtendedMcpServer) {
@@ -76,6 +89,9 @@ function registerNoSQLDatabase(server: ExtendedMcpServer) {
 const AVAILABLE_PLUGINS: Record<string, PluginDefinition> = {
   env: { name: "env", register: registerEnvTools },
   database: { name: "database", register: registerDatabase },
+  mysql_database: { name: "mysql_database", register: registerMysqlDatabase },
+  pg_database: { name: "pg_database", register: registerPGDatabaseTools },
+  pg_storage: { name: "pg_storage", register: registerPGStorageTools },
   "database-nosql": { name: "database-nosql", register: registerNoSQLDatabase },
   "database-sql": { name: "database-sql", register: registerSQLDatabaseTools },
   "data-model": { name: "data-model", register: registerDataModelTools },
@@ -103,6 +119,9 @@ const PLUGIN_ALIASES: Record<string, string> = {
   "security-rules": "permissions",
   "secret-rule": "permissions",
   "secret-rules": "permissions",
+  mysql: "mysql_database",
+  "mysql-database": "mysql_database",
+  "sql-database": "mysql_database",
   users: "permissions",
 };
 
@@ -161,12 +180,25 @@ function parseEnabledPlugins(
   return enabledPlugins;
 }
 
+export interface PgRuntimeContext {
+  envId: string;
+  instanceId: string;
+  defaultSchema: string;
+  runtimeMode: "cloudbase-manager";
+  bootstrapMode: "cloud";
+  role?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // 扩展 McpServer 类型以包含 cloudBaseOptions 和新的registerTool方法
 export interface ExtendedMcpServer extends McpServer {
   cloudBaseOptions?: CloudBaseOptions;
   authOptions?: AuthOptions;
   ide?: string;
   logger?: Logger;
+  pgRuntimeContext?: PgRuntimeContext;
+  enabledPlugins?: string[];
   pluginOptions?: PluginOptions;
   /** 已注册工具的列表，供外部（如微信 IDE）提取并注册到自己的 MCP server */
   toolDefs: Array<{ name: string; description: string; inputSchema: any; handler: (input: any) => Promise<any> }>;
@@ -309,6 +341,7 @@ export async function createCloudBaseMcpServer(options?: {
 
   // Register plugins based on configuration
   const enabledPlugins = parseEnabledPlugins(pluginsEnabled, pluginsDisabled);
+  server.enabledPlugins = enabledPlugins;
 
   for (const pluginName of enabledPlugins) {
     const plugin = AVAILABLE_PLUGINS[pluginName];

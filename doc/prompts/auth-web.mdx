@@ -125,7 +125,8 @@ Use npm installation for modern Web projects. In React, Vue, Vite, and other bun
 - When `queryAppAuth` / `manageAppAuth` returns `sdkStyle: "supabase-like"` and `sdkHints`, follow those method and parameter hints first
 - `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })` use the phone number in a `phone` field, not `phone_number`
 - `auth.signInWithOtp({ email })` and `auth.signUp({ email })` use `email`
-- `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })` are the canonical username/password Web auth path
+- `auth.signInWithPassword({ username, password })` is the canonical Web login path for username/password accounts
+- Treat direct Web `auth.signUp({ username, password })` as conditional. Verify `sdkHints` and the installed SDK first; some versions only support `signUp` for OTP/provider-token flows and will not create username/password users.
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
 - `verifyOtp({ token })` expects the SMS or email code in `token`
 - `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
@@ -233,16 +234,15 @@ const hasVerifiedIdentity = userData?.user && (
 ```
 
 **4. Registration**
-- For username-style account systems, use username/password registration directly
-- Username must be 5-24 characters (letters, digits, underscores)
+- For username-style account systems, verify whether direct username/password signup is supported before wiring the form
+- Username/password login can use plain identifiers such as `admin` or `editor`, but raw signup APIs may enforce stricter username patterns or be disabled
 - Do not switch to email OTP or phone OTP unless the task explicitly says the account identifier is an email address or phone number
-- When the task uses plain usernames such as `admin`, `editor`, or `user01`, the canonical form code is `auth.signUp({ username, password })`
+- If direct username signup is unsupported, create users through a backend or management API boundary; never put secret keys in browser code
 ```js
-// Username + Password
-const usernameSignUp = await auth.signUp({
-  username: 'newuser',
-  password: 'pass123',
-  nickname: 'User',
+// Username + Password login
+const login = await auth.signInWithPassword({
+  username: 'editor',
+  password: 'editor123',
 })
 
 // Email Otp

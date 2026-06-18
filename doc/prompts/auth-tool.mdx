@@ -169,7 +169,7 @@ Parameter mapping for downstream Web auth code:
 - `queryAppAuth(action="getLoginConfig")` and `manageAppAuth(action="patchLoginStrategy")` return `sdkStyle: "supabase-like"` plus `sdkHints`; treat that as the preferred frontend-auth calling guide
 - `PhoneNumberLogin` controls phone OTP flows used by `auth-web` `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })`
 - `EmailLogin` controls email OTP flows used by `auth-web` `auth.signInWithOtp({ email })` and `auth.signUp({ email })`
-- `UserNameLogin` controls username/password Web auth flows used by `auth-web` `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })`
+- `UserNameLogin` controls username/password Web login flows used by `auth-web` `auth.signInWithPassword({ username, password })`; direct username/password `signUp` support is SDK/provider dependent and must be verified before use
 - If the account identifier is a plain username string, do not route it through email-only helpers such as `signInWithEmailAndPassword`
 - `UserNameLogin` also enables the broader password-login surface exposed by `auth.signInWithPassword({ username|email|phone, password })`
 - `SmsVerificationConfig.Type = "apis"` requires both `Name` and `Method`

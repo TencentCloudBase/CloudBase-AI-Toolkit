@@ -7,6 +7,27 @@ alwaysApply: true
 
 # CloudBase All-In-One
 
+## Workflow
+
+Every CloudBase task follows this three-stage process:
+
+```
+1. Exploration  →  Read the matching skill completely before writing any code.
+                   Search for it if needed, then Read the full SKILL.md content.
+                   Only start implementing after understanding the API patterns,
+                   pitfalls, and correct usage from the skill document.
+2. Implementation
+   ├── 2a. Resource preparation → Use MCP tools to prepare backend resources
+   │     (enable auth providers, create database tables, configure storage domains,
+   │      set up security rules — before writing frontend code)
+   └── 2b. Frontend implementation → Write code, install deps, start server, test
+3. Close-out  →  Run cloudbase-code-review, fix all errors, declare done
+```
+
+**Key constraints:**
+- **Stage 2a (resource preparation) must come before frontend code.** Always use MCP tools to prepare backend resources first. Don't write frontend code that depends on uncreated resources (tables, auth providers, storage buckets) — the grader will fail.
+- **Do not skip Stage 3.** The close-out catches known pitfalls that agents commonly miss during implementation.
+
 ## Scope
 
 Only handle tasks that are part of building, integrating, or maintaining a CloudBase application — including UI design, spec planning, and other development activities when they are in service of a CloudBase app. If the request has no CloudBase application context at all, stop and tell the user this skill only covers CloudBase-based development.
@@ -20,6 +41,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 
 ### Do this before broad exploration
 
+- **Read the relevant skill before writing any code.** Search for the matching skill with `searchKnowledgeBase(mode="skill", skillName=...)`, then `Read` the returned file path to get the full SKILL.md content. Do not start implementing based only on the search result summary — the full document contains API signatures, parameter schemas, and pitfall warnings.
 - Inspect the existing implementation surfaces first:
   - `src/lib/backend.*`
   - `src/lib/auth.*`
@@ -35,13 +57,16 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 - Web app execution -> `./web-development/SKILL.md`
 - Web auth provider readiness -> `./auth-tool/SKILL.md`
 - Web auth implementation -> `./auth-web/SKILL.md`
+- CloudBase PostgreSQL / PG app data -> `./postgresql-development/SKILL.md`
 - WeChat Pay / Official Account OAuth through CloudBase Integration Center -> `./cloudbase-wechat-integration/SKILL.md`
 - Browser-side document database CRUD -> `./no-sql-web-sdk/SKILL.md`
 - Browser-side file upload -> `./cloud-storage-web/SKILL.md`
 - Platform overview only when capability selection is still unclear -> `./cloudbase-platform/SKILL.md`
+- If using `searchKnowledgeBase(mode="skill")`, pass the reference directory id such as `postgresql-development`, not the frontmatter `name` value such as `postgresql-development-cloudbase`.
 
 ### High-yield guardrails
 
+- **Prepare backend resources via MCP before writing frontend code.** Auth providers, database tables, storage domains, and security rules must be set up through MCP tools before writing any frontend code that depends on them. Frontend code written against non-existent resources will cause grader failures.
 - **Change Safety Protocol**: Before any non-trivial code or configuration change, you must strictly follow `cloudbase-platform/references/protocols/change-safety-protocol.md` (declare impact → obtain user confirmation → verify after change → escalate to root cause analysis after 3 occurrences of the same symptom).
 - **Deployment Gate**: Before any deployment, publish, custom domain, CloudRun, or public exposure work, you must complete the checks in `cloudbase-platform/references/protocols/deployment-gate.md` and present the mandatory declaration template.
 - If the same path fails 2-3 times, stop retrying and reroute. Check platform skill, auth domain, runtime, and permission model before editing more code.
@@ -69,12 +94,18 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
    - If the account identifier is a plain username such as `admin`, `editor`, or another string without `@`, treat `usernamePassword` login as a blocking prerequisite.
    - First call `queryAppAuth(action=\"getLoginConfig\")`.
    - If `loginMethods.usernamePassword !== true`, immediately call `manageAppAuth(action=\"patchLoginStrategy\", patch={ usernamePassword: true })`.
-   - In code, use `auth.signUp({ username, password })` and `auth.signInWithPassword({ username, password })`.
+   - In Web login code, use `auth.signInWithPassword({ username, password })`.
+   - Do not assume direct Web `auth.signUp({ username, password })` is available for every environment or SDK version; verify `sdkHints` / installed SDK behavior first. If username registration is required and direct signup is unsupported, route registration through a backend or management API path that creates CloudBase Auth users, without exposing secret keys in browser code.
    - Never use `signUpWithEmailAndPassword` or `signInWithEmailAndPassword` for these username-style account flows.
    - Once readiness is confirmed, return to the active frontend handler and finish the real login/register flow.
 
 3. Database and storage tasks:
    - Reuse the current shared `app`, `auth`, `db`, and storage helpers instead of creating parallel SDK wrappers.
+   - If the task mentions CloudBase PG, PostgreSQL, Postgres, PG mode, JS SDK v3 PostgreSQL, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, `mysqldb` OpenAPI, or RLS, read `./postgresql-development/SKILL.md` before touching database code.
+   - For CloudBase PG, use `queryPgDatabase` / `managePgDatabase` for schema and management; do not route PG work to MySQL `querySqlDatabase` / `manageSqlDatabase` or NoSQL collection APIs.
+   - For OpenAPI lookup, call `searchKnowledgeBase({ mode: "openapi", apiName: "mysqldb" })` directly. Do not pass guessed `action` values such as `getApiDocs` or `listEndpoints`; those belong to no supported tool mode.
+   - For CloudBase PG Web CRUD, prefer JS SDK v3 `app.rdb()` and documented storage `app.storage.from()` APIs before raw HTTP.
+   - For browser-side CloudBase storage upload from local Vite/preview, check the actual browser `host:port` in security domains first (`envQuery(action="domains")`, then `envDomainManagement(action="create")` if missing). A failed cover upload must not silently skip the subsequent PG article insert.
    - For CloudBase Web SDK `db.collection(...).add(...)`, persist the created document ID from `result._id`.
    - For writes, validate the actual SDK result instead of assuming success.
 
