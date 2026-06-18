@@ -257,7 +257,10 @@ function renderToolDetails(tool) {
       .replace(/\\{/g, '\\\\{')
       .replace(/\\}/g, '\\\\}')
       .replace(/\{/g, '\\{')
-      .replace(/\}/g, '\\}');
+      .replace(/\}/g, '\\}')
+      // MDX 会把 <tag> 解析为 JSX 标签，将裸的 <xxx> 转义
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
     lines.push(desc);
   }
   const schema = tool.inputSchema || {};
