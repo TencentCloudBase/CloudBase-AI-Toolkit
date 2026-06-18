@@ -1,7 +1,7 @@
 ---
 name: cloudbase-all-in-one
-description: Unified CloudBase execution guide for all-in-one skill installs. Use this as the first entry point for CloudBase app tasks, especially existing applications that already contain TODOs, fixed pages, and active handlers.
-version: 2.20.0
+description: Unified CloudBase execution guide for all-in-one skill installs. Use this first for CloudBase app tasks, especially existing apps with TODOs, fixed pages, or active handlers. Routes PostgreSQL / CloudBase PG / app.rdb() / queryPgDatabase / managePgDatabase work away from legacy NoSQL and old auth patterns.
+version: 2.21.1
 alwaysApply: true
 ---
 
@@ -81,9 +81,9 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 ## Working rules
 
 1. **BaaS-first, functions as last resort**:
-   - Before writing any cloud function or CloudRun service, ask: can the JS SDK handle this directly? (`db.collection(...).get()`, `auth`, `storage`)
-   - Use the JS SDK directly for: data reads/writes, file uploads, real-time updates, simple queries including leaderboards, lists, aggregations.
-   - Only drop down to cloud functions when: the logic requires server-side permission enforcement that cannot be expressed in database rules, calling third-party services (payment, SMS, external APIs), or background jobs not triggered by the user.
+   - Before writing any cloud function or CloudRun service, ask: can the correct JS SDK surface handle this directly? Use `db.collection(...).get()` only for confirmed NoSQL collections; use `app.rdb().from(...)` for CloudBase PG tables; use `auth` / `storage` from the matching skill.
+   - Use the matching JS SDK surface directly for: data reads/writes, file uploads, real-time updates, simple queries including leaderboards, lists, aggregations.
+   - Only drop down to cloud functions when: the logic requires server-side permission enforcement that cannot be expressed in database rules/RLS, calling third-party services (payment, SMS, external APIs), or background jobs not triggered by the user.
    - Only drop down to CloudRun when: persistent connections (WebSocket), long-running compute, or custom runtimes are genuinely required.
 
 2. Existing application with TODOs:
@@ -106,8 +106,9 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
    - For OpenAPI lookup, call `searchKnowledgeBase({ mode: "openapi", apiName: "mysqldb" })` directly. Do not pass guessed `action` values such as `getApiDocs` or `listEndpoints`; those belong to no supported tool mode.
    - For CloudBase PG Web CRUD, prefer JS SDK v3 `app.rdb()` and documented storage `app.storage.from()` APIs before raw HTTP.
    - For browser-side CloudBase storage upload from local Vite/preview, check the actual browser `host:port` in security domains first (`envQuery(action="domains")`, then `envDomainManagement(action="create")` if missing). A failed cover upload must not silently skip the subsequent PG article insert.
-   - For CloudBase Web SDK `db.collection(...).add(...)`, persist the created document ID from `result._id`.
-   - For writes, validate the actual SDK result instead of assuming success.
+- For CloudBase Web SDK `db.collection(...).add(...)`, persist the created document ID from `result._id`.
+- For writes, validate the actual SDK result instead of assuming success.
+- **Legacy API STOP card:** If the task says `PostgreSQL`, `CloudBase PG`, `PG mode`, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, `PostgREST`, or `RLS`, do not write NoSQL examples from memory. Use `app.rdb().from(...)` for Web CRUD, `queryPgDatabase` / `managePgDatabase` for management, and `auth.getSession()` for Web auth guards. Do not use `app.database()`, `db.collection(...)`, `.where()`, `.orderBy()`, `app.uploadFile()`, `getLoginState()`, or `auth.getUser()` as the PG/auth default.
 
 4. Targeted repair tasks:
    - Functional closure beats exploration.

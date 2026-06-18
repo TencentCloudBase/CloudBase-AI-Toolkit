@@ -17,11 +17,11 @@ Use this reference when building or repairing a real user-facing Web app backed 
    - PostgreSQL resource
    - Cloud Storage if the app uploads files. In CloudBase PG, "having storage" means having an explicitly-created `pgstore` bucket — same model as Supabase Storage. Check existing buckets with `queryPgStorage(action="buckets")`. If the upload target (e.g. `covers`) is missing, create/select the bucket through the documented CloudBase management surface or console before writing browser upload code. Browser SDKs cannot create a pgstore bucket; the legacy NoSQL bucket reported in `EnvInfo.Storages[]` is NOT a valid pgstore target.
 4. Create or repair the minimal PG schema with `managePgDatabase(action="execute")`.
-5. Immediately call `queryPgDatabase(action="schema")` for every table touched by the app.
+5. Immediately call `queryPgDatabase(action="objects")`, then `queryPgDatabase(action="schema", objectName="public.<table>")` for every table touched by the app.
 6. Implement browser CRUD with one shared CloudBase Web SDK app instance and `app.rdb()`.
 7. Implement auth guards and owner UID lookup with `auth.getSession()`, not `auth.getUser()`.
 8. If direct browser `app.rdb()` uses RLS, verify the policy identity through the real browser session before depending on it.
-9. Implement browser uploads with the documented CloudBase Storage Web SDK surface. The bucket from step 3 must exist BEFORE this step runs; pass it as the first segment of the upload path (e.g. `app.storage.from().upload("covers/<file>", file)`), since the v3 SDK does not propagate a `from(bucket)` argument into the cloudPath.
+9. Implement browser uploads with the documented CloudBase Storage Web SDK surface. The bucket from step 3 must exist BEFORE this step runs; pass the bucket to `from(bucket)` and pass only the object key to `upload(key, file)` (e.g. `app.storage.from("covers").upload("<file>", file)`). Do not repeat the bucket prefix inside the key.
 10. Run the local build/typecheck.
 11. Exercise the actual browser flow: login, create, list, edit/delete if required.
 12. Read back persisted rows with `queryPgDatabase` before claiming done.

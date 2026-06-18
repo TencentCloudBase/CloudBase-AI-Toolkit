@@ -1,7 +1,7 @@
 ---
 name: postgresql-development-cloudbase
-description: "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG."
-version: 2.20.0
+description: "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG."
+version: 2.21.1
 alwaysApply: false
 ---
 
@@ -37,6 +37,23 @@ If this environment only installed the current skill, start from the CloudBase m
 - `no-sql-web-sdk` / collection APIs for business data that must live in CloudBase PG.
 
 ## Required Flow
+
+### 🚨 CRITICAL: PG mode API is NOT the same as NoSQL
+
+CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API method names** than CloudBase NoSQL (`app.database()`, `app.uploadFile()`). Low-capability models often paste legacy NoSQL/auth snippets from training; reject that path immediately. If this task is PG-backed, **do not** write `app.database()`, `db.collection(...)`, `app.uploadFile()`, `getLoginState()`, or route guards based on `auth.getUser()`. Use `app.rdb()`, PG storage v3, and `auth.getSession()` instead. If you are used to writing `.where()`, `.orderBy()`, `.count()` from other ORMs or NoSQL — **stop and read the table below**.
+
+| ❌ Do NOT use these (NoSQL / ORM habits) | ✅ Use these in PG mode |
+|------------------------------------------|------------------------|
+| `.where({ field: value })` | `.match({ field: value })` or `.eq("field", value)` |
+| `.where("field", "ilike", "%v%")` | `.ilike("field", "%v%")` |
+| `.orderBy("field", { ascending: false })` | `.order("field", { ascending: false })` |
+| `.count()` | `.select("*", { count: "exact" })` — count is in response |
+| `.offset(n)` | `.range(from, to)` |
+| `app.uploadFile()` (legacy NoSQL upload) | `app.storage.from('bucket').upload(key, file)` |
+| `app.getTempFileURL()` (legacy NoSQL URL) | `app.storage.from('bucket').createSignedUrl(key, expiresIn)` |
+| `app.storage.from()` (no bucket name) | `app.storage.from('bucket')` — **must** pass bucket name |
+
+**If you find yourself typing `.where()` or `.orderBy()` or `.count()` — stop and use the correct method from the right column.**
 
 0. **First, confirm this environment actually has PostgreSQL provisioned.** Call `envQuery(action="info", envId=...)` and read the derived `EnvInfo.RuntimeBackends` block (`{ postgresql, nosql, mysql }`) along with `EnvInfo.RuntimeMode`. It is only safe to apply this skill's PG-specific guidance when `RuntimeBackends.postgresql === true` (equivalently, `EnvInfo.PostgreSQL` is non-empty AND/OR `EnvInfo.Meta` contains `postgresql=enable`).
    - If `RuntimeBackends.postgresql === false`, STOP — this is a legacy NoSQL-only env: switch to `no-sql-web-sdk` for browser data and `cloud-storage-web` (with `app.uploadFile()`) for uploads. Do not write `app.rdb()` code, do not enable RLS, do not create a pgstore bucket here.
@@ -78,7 +95,7 @@ If this environment only installed the current skill, start from the CloudBase m
 - If the task is a Web app with PG-backed CRUD, read `references/app-workflow.md` and follow that closure path before looking up optional HTTP API details.
 - Do not query the same documentation family more than twice for the same question. If the second lookup does not unblock you, inspect the installed SDK surface or the exact runtime error instead.
 - Once you choose `app.rdb()` for browser CRUD, stop researching raw PG HTTP APIs unless `app.rdb()` is missing or demonstrably fails.
-- After a DDL failure, retry SQL at most twice. Then call `queryPgDatabase(action="schema")`, read the exact error, and simplify the schema or permission plan.
+- After a DDL failure, retry SQL at most twice. Then call `queryPgDatabase(action="objects")` to find the schema-qualified table name, then `queryPgDatabase(action="schema", objectName="public.your_table")`, read the exact error, and simplify the schema or permission plan.
 - Avoid long task-management loops for targeted repairs. Read the active files, execute the minimum platform setup, edit code, and verify.
 - **File read budget**: Do NOT read the same file more than **2 times**. If you need to re-read a file after 2 reads, use `Grep` for targeted search or `Read` with explicit `offset`/`limit` to target specific line ranges. Move on to editing or verifying instead of re-reading.
 
@@ -88,7 +105,7 @@ If this environment only installed the current skill, start from the CloudBase m
 - Keep business roles in PG when the app needs admin/editor behavior, e.g. `user_roles` with `uid`, `username`, and `role`. The `uid` value must be the same value the Web session uses as `session.user.id`, and must match any database policy expression you use.
 - Keep content tables in PG, e.g. `articles` or `posts` with owner UID columns.
 - Prefer snake_case physical columns (`author_id`, `author_name`, `cover_image`, `created_at`, `updated_at`) for PG tables. If UI fields are camelCase, map them explicitly at the service boundary.
-- Treat the schema returned by `queryPgDatabase(action="schema")` as the source of truth. If an existing table has `authorid`/`updatedat`, either use those exact column names in code or explicitly migrate/drop-recreate the table before writing code that expects `author_id`/`updated_at`.
+- Treat the schema returned by `queryPgDatabase(action="schema", objectName="public.your_table")` as the source of truth. `objectName` is required and must be schema-qualified; if you do not know it yet, call `queryPgDatabase(action="objects")` first. If an existing table has `authorid`/`updatedat`, either use those exact column names in code or explicitly migrate/drop-recreate the table before writing code that expects `author_id`/`updated_at`.
 - `CREATE TABLE IF NOT EXISTS` does not change an existing incompatible schema. In evaluation or disposable environments, prefer a deliberate `DROP TABLE IF EXISTS ... CASCADE` followed by `CREATE TABLE ...` when you need a known schema.
 - After DDL, query the table schema again and compare every column used by frontend code, insert/update payloads, filters, ordering, and RLS policies.
 - Backend permission must exist in the database or server/RPC layer. Hiding buttons in the UI is not enough.
@@ -141,6 +158,20 @@ const { data } = await db.rpc("function_name", { id });
 
 Common query helpers: `.eq()`, `.neq()`, `.gt()`, `.gte()`, `.lt()`, `.lte()`, `.like()`, `.ilike()`, `.in()`, `.is()`, `.order()`, `.limit()`, `.range()`, `.single()`.
 
+### ⚠️ Critical: PG API is NOT the same as CloudBase NoSQL or other ORMs
+
+CloudBase PG (`app.rdb()`) uses **postgREST-style** query helpers, **NOT** CloudBase NoSQL (`app.database()`) API and **NOT** common ORM conventions. Do NOT use:
+
+| ❌ Wrong (NoSQL / ORM habit) | ✅ Correct (postgREST / PG) |
+|-----------------------------|---------------------------|
+| `.where({ field: value })` | `.match({ field: value })` 或 `.eq("field", value)` |
+| `.where("field", "ilike", "%v%")` | `.ilike("field", "%v%")` |
+| `.orderBy("field", { ascending: false })` | `.order("field", { ascending: false })` |
+| `.count()` | `.select("*", { count: "exact" })` — 通过 `select` 的 `count` 参数获取总数，返回结果中有 `count` 字段 |
+| `.offset(n)` | `.range(from, to)` — 注意 range 是包含两端的分页 |
+
+**Golden rule**: `app.rdb()` 的查询链只使用上方 "Common query helpers" 列出的 helper 方法。如果你习惯写 `.where()` / `.orderBy()` / `.count()`，请立即改用对应的 postgREST 方法。Supabase 的 `@supabase/postgrest-js` 同样不使用这些方法名。
+
 Storage (v3): use `app.storage.from('<bucket>').upload('<key>', file)` — check installed SDK surface before copying:
 
 ```ts
@@ -153,7 +184,7 @@ CloudBase PG storage uses the `pgstore` backend and follows the same model as Su
 
 1. Confirm a usable pgstore bucket exists for your target prefix (e.g. `covers`). The legacy NoSQL bucket exposed by `DescribeEnvs.Storages[]` (e.g. `6d63-…-1409864723`) is for the old NoSQL backend and does NOT serve pgstore uploads.
 2. If no usable bucket exists, create one through a CloudBase management surface (`manageStorage` MCP tool, console, or platform API). Adding `covers/` as a path prefix in JS does NOT auto-create a bucket.
-3. The bucket name must be the FIRST segment of the `cloudPath`/`upload(path, ...)` string — `app.storage.from('covers').upload('a.png', file)` does NOT prepend the bucket; the path you pass to `upload()` already needs to start with `covers/`.
+3. The bucket name belongs in `from('<bucket>')`; the key passed to `upload(key, file)` is inside that bucket and must **not** repeat the bucket prefix. Correct: `app.storage.from('covers').upload('a.png', file)`. Wrong: `app.storage.from('covers').upload('covers/a.png', file)`.
 4. **After creating the bucket, configure RLS on `storage.objects`** via `managePgDatabase(action="execute", confirm=true)`. The default RLS is deny all; without permissive policies the browser receives `STORAGE_PERMISSION_DENIED`. See `cloud-storage-web/SKILL.md` "Post-bucket: storage RLS" section for the exact SQL policies.
 
 Failure-mode cheat sheet (read DevTools network tab on the FAILED `POST .../v1/storages/get-objects-upload-info`):

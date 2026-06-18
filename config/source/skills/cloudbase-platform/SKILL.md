@@ -91,6 +91,7 @@ Use this skill for **CloudBase platform knowledge** when you need to:
 3. **Use correct SDKs and APIs**
    - Different platforms require different SDKs for data models
    - MySQL data models must use models SDK, not collection API
+   - PostgreSQL / CloudBase PG work must route to `postgresql-development`; do not reuse NoSQL `app.database()` / `db.collection(...)` snippets or MySQL `querySqlDatabase` / `manageSqlDatabase` for PG data paths
    - Use `envQuery` tool to get environment ID
    - In an existing Web application with fixed structure, inspect the existing `src/lib/backend.*`, `src/lib/auth.*`, `src/lib/*service.*`, and bound page handlers before broad concept reading.
 
@@ -186,7 +187,7 @@ Example structure for operation recording:
 - **Must use SDK built-in authentication**: CloudBase Web SDK provides complete authentication features
 - **Recommended method**: SMS login with `auth.getVerification()`, for detailed, refer to web auth related docs
 - **Forbidden behavior**: Do not use cloud functions to implement login authentication logic
-- **User management**: After login, get user information via `auth.getCurrentUser()`
+- **Session management**: For route guards and login proof, use `auth.getSession()` and require `data.session`; do not use deprecated `getLoginState()` or `auth.getUser()` / `auth.getCurrentUser()` as proof of real login.
 - **Provider and login-method setup**: Use `queryAppAuth` / `manageAppAuth`, not the MCP `auth` tool
 
 ### Mini Program Authentication

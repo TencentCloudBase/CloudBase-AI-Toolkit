@@ -99,6 +99,19 @@ Required pre-upload steps in any task that needs browser uploads:
 
 Do not silently swallow upload failures. If `uploadCoverImage()` rejects, the parent `createArticle()` MUST also reject — never proceed to `db.from(...).insert(...)` with a fabricated URL or a placeholder, and never let the UI show a success toast.
 
+### ⚠️ PG mode upload: use `app.storage.from('bucket')`, NOT `app.uploadFile()`
+
+In PG / pgstore environments, use `app.storage.from('covers').upload(key, file)` for uploads and `app.storage.from('covers').createSignedUrl(path, expiresIn)` for getting access URLs.
+
+Do NOT use the legacy NoSQL APIs in PG mode:
+- ❌ `app.uploadFile()` — 这是旧 NoSQL 的上传 API
+- ❌ `app.getTempFileURL()` — 这是旧 NoSQL 的获取 URL 方式
+- ❌ `app.storage.from().upload('covers/file', file)` — 没有传 bucket 名
+
+Use instead:
+- ✅ `app.storage.from('covers').upload('file', file)` — PG 模式上传
+- ✅ `app.storage.from('covers').createSignedUrl('file', 3600)` — 获取签名 URL（返回 `fullSignedURL` 字段）
+
 ### Post-bucket: storage RLS (mandatory in PG / pgstore environments)
 
 In **PG / pgstore** environments, storage access control is enforced through **PostgreSQL Row Level Security (RLS) on the `storage.objects` table** — exactly like Supabase Storage. The default RLS policy is deny all, so even if the bucket exists, `app.uploadFile()` from a browser will fail with `STORAGE_PERMISSION_DENIED` unless you configure permissive policies.

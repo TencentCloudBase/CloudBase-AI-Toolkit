@@ -36,6 +36,7 @@ Only add rules that are backed by stable SDK/API documentation, repeated evaluat
 | AUTH-WEB-010 | error | lint | 禁止把 accessKey 设为 envId 或占位符字符串 |
 | AUTH-WEB-011 | error | lint | auth 方法返回 { data, error }，必须先检查 error |
 | AUTH-WEB-012 | error | lint | 禁止使用已废弃的 auth.getLoginState() |
+| AUTH-WEB-013 | error | lint | 禁止使用旧 Web Auth API（hasLoginState/getCurrentUser/toDefaultLoginPage） |
 | AUTH-WEB-013 | warning | LLM | 用户名注册必须 5-24 字符（字母/数字/下划线） |
 | AUTH-WEB-014 | error | LLM | 用户名字符串禁止使用邮箱 OTP 或手机 OTP |
 | AUTH-WEB-015 | warning | lint | OTP 验证是 signInWithOtp 返回的 data 上的回调，非独立调用 |
@@ -154,7 +155,7 @@ Only add rules that are backed by stable SDK/API documentation, repeated evaluat
 | PG-CR001 | error | lint | PG 表必须显式创建（CREATE TABLE）|
 | PG-CR002 | error | LLM | RLS 策略不能只开启不配置 |
 | PG-CR003 | warning | lint | PG Web 文件/图片上传需要 CloudBase 存储配置 |
-| PG-CR004 | mixed | lint/LLM | PG Web 文件/图片上传推荐 app.storage.from().upload("bucket/path", file)；app.storage() 为错误 |
+| PG-CR004 | mixed | lint/LLM | PG Web 文件/图片上传推荐 app.storage.from("bucket").upload("key", file)；app.storage() 为错误 |
 | PG-CR005 | error | lint/LLM | PG 模式下存储上传必须配置 storage.objects RLS |
 
 ### All (RDB-TOOL-, 管理端)
