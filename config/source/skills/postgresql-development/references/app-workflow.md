@@ -16,7 +16,7 @@ Use this reference when building or repairing a real user-facing Web app backed 
    - username/password auth if the app logs in with plain usernames
    - PostgreSQL resource
    - Cloud Storage if the app uploads files. In CloudBase PG, "having storage" means having an explicitly-created `pgstore` bucket — same model as Supabase Storage. Check existing buckets with `queryPgStorage(action="buckets")`. If the upload target (e.g. `covers`) is missing, create/select the bucket through the documented CloudBase management surface or console before writing browser upload code. Browser SDKs cannot create a pgstore bucket; the legacy NoSQL bucket reported in `EnvInfo.Storages[]` is NOT a valid pgstore target.
-4. Create or repair the minimal PG schema with `managePgDatabase(action="execute")`.
+4. Create or repair the minimal PG schema with `managePgDatabase(action="execute")`: table DDL, required `GRANT` statements, sequence grants for `serial`/`bigserial`, `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, and RLS policies.
 5. Immediately call `queryPgDatabase(action="objects")`, then `queryPgDatabase(action="schema", objectName="public.<table>")` for every table touched by the app.
 6. Implement browser CRUD with one shared CloudBase Web SDK app instance and `app.rdb()`.
 7. Implement auth guards and owner UID lookup with `auth.getSession()`, not `auth.getUser()`.
@@ -46,12 +46,26 @@ create table if not exists public.articles (
   cover_image text,
   content text,
   status text not null default 'draft' check (status in ('draft', 'published')),
-  author_id text not null,
+  author_id varchar(64) not null default auth.uid(),
   author_name text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 ```
+
+Then grant the user-facing role and create policies before browser CRUD:
+
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.articles TO authenticated;
+GRANT SELECT ON public.user_roles TO authenticated;
+ALTER TABLE public.articles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY articles_owner_all ON public.articles
+  FOR ALL TO authenticated
+  USING (author_id = auth.uid())
+  WITH CHECK (author_id = auth.uid());
+```
+
+If a table uses `serial` / `bigserial`, also grant its sequence: `GRANT USAGE, SELECT ON SEQUENCE public.<table>_<column>_seq TO authenticated;`.
 
 If the environment is disposable or the task requires a known schema, prefer an explicit `drop table if exists ... cascade` followed by `create table`. Do not rely on `create table if not exists` to fix incompatible old columns.
 
@@ -111,7 +125,6 @@ if (!uid) throw new Error("Please log in first");
 
 const { data, error } = await db.from("articles").insert({
   title,
-  author_id: uid,
   author_name: username,
   status: "draft",
 });
@@ -125,11 +138,11 @@ When using direct browser `app.rdb()` with RLS, the database policy identity mus
 
 1. Log in through the actual app with username/password.
 2. Read the active session and record `session.user.id`.
-3. Insert a test article through `app.rdb()` with `author_id = session.user.id`.
-4. Read the inserted row through `queryPgDatabase`.
+3. Insert a test article through `app.rdb()` without passing `author_id` if the column uses `DEFAULT auth.uid()`.
+4. Read the inserted row through `queryPgDatabase` and confirm `author_id` equals `session.user.id`.
 5. If the browser insert fails, do not continue by hiding the error in the UI. Inspect the exact error and either fix the RLS policy identity expression or move authorization to a server/RPC boundary.
 
-Do not copy Supabase-only helpers such as `auth.uid()` into CloudBase PG policies until this browser-session verification passes.
+`auth.uid()` is the official CloudBase PG helper for JWT `sub`; still verify it through the real browser session before trusting the policy.
 
 ## Verification
 

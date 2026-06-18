@@ -28,8 +28,13 @@ If this environment only installed the current skill, start from the CloudBase m
 - General Web implementation and verification -> `../web-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/web-development/SKILL.md`)
 - Browser storage upload -> `../cloud-storage-web/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloud-storage-web/SKILL.md`)
 - Raw HTTP API details only when SDK coverage is blocked -> `../http-api/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/http-api/SKILL.md`)
+- PG reference index -> `references/index.md`
+- PG mode overview -> `references/pg-mode-overview.md`
+- Auth / GRANT / RLS details -> `references/auth-and-rls.md`
 - End-to-end PG app closure -> `references/app-workflow.md`
-- RLS and backend permission details -> `references/rls-patterns.md`
+- PG storage details -> `references/storage-pg.md`
+- HTTP API fallback -> `references/http-api.md`
+- Troubleshooting -> `references/troubleshooting.md`
 
 ### Do NOT use first
 
@@ -56,38 +61,40 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
 **If you find yourself typing `.where()` or `.orderBy()` or `.count()` — stop and use the correct method from the right column.**
 
 0. **First, confirm this environment actually has PostgreSQL provisioned.** Call `envQuery(action="info", envId=...)` and read the derived `EnvInfo.RuntimeBackends` block (`{ postgresql, nosql, mysql }`) along with `EnvInfo.RuntimeMode`. It is only safe to apply this skill's PG-specific guidance when `RuntimeBackends.postgresql === true` (equivalently, `EnvInfo.PostgreSQL` is non-empty AND/OR `EnvInfo.Meta` contains `postgresql=enable`).
+   - PG mode is a **new-environment mode** selected when creating a CloudBase environment with PostgreSQL. Do not try to "upgrade" a legacy environment in place; create/select a PG-mode environment instead.
    - If `RuntimeBackends.postgresql === false`, STOP — this is a legacy NoSQL-only env: switch to `no-sql-web-sdk` for browser data and `cloud-storage-web` (with `app.uploadFile()`) for uploads. Do not write `app.rdb()` code, do not enable RLS, do not create a pgstore bucket here.
    - If both `postgresql` and `nosql` are `true` (the common case in a PG environment), they coexist. Apply this skill to NEW business data the task asks you to put in PG (e.g. articles / role tables explicitly described as PG). Existing NoSQL collections, the bucket reported in `EnvInfo.Storages[]`, and any `managePermissions(resourceType="noSqlDatabase")` rules continue to govern the legacy NoSQL data — do NOT migrate or rewrite them unless the task explicitly asks.
    - `RuntimeBackends.mysql === false` is the only hard "do not use" signal: when MySQL is absent, do not use `manageSqlDatabase` / `querySqlDatabase` and do not consult the `relational-database-tool` skill; those are MySQL-specific and have nothing to do with CloudBase PG.
    - Note: in a PG env, `EnvInfo.Storages[]` is the legacy NoSQL bucket. It still works for legacy `app.uploadFile()` flows but is NOT a usable pgstore bucket — never reuse it as the `<bucket>` segment in `app.storage.from('<bucket>').upload('<key>', file)`.
 1. Inspect the existing app surfaces first: `src/lib/backend.*`, `src/lib/auth.*`, `src/lib/*service.*`, route guards, and the handlers bound to existing forms.
-2. Check PG state through MCP: use `queryPgDatabase` for schema/read-only inspection and `managePgDatabase` for DDL/DML. Do not switch to MySQL tools.
-3. **Use schema management (`managePgDatabase`) before writing CRUD code:** Create tables via `managePgDatabase(action=execute, confirm=true)` with CREATE TABLE SQL. For structured schema changes, use the migration workflow:
+2. Check PG state through MCP: use `queryPgDatabase` for schema/read-only inspection and `managePgDatabase` for DDL/DML. Do not switch to MySQL tools. For the complete route map, read `references/index.md`.
+3. **Understand PG roles before writing code:** Publishable Key maps to `anon`; a logged-in user's access token maps to `authenticated`; API Key maps to `service_role` and bypasses RLS. Never expose API Key / `service_role` credentials in frontend code. See `references/auth-and-rls.md`.
+4. **Use schema management (`managePgDatabase`) before writing CRUD code:** Create tables via `managePgDatabase(action=execute, confirm=true)` with CREATE TABLE SQL, then apply GRANT + RLS before browser access. The minimum SQL bundle is: `CREATE TABLE`, `GRANT SELECT/INSERT/UPDATE/DELETE TO authenticated`, `GRANT USAGE, SELECT ON SEQUENCE ... TO authenticated` when using `serial`/`bigserial`, `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, and `CREATE POLICY ... USING / WITH CHECK`. See `references/auth-and-rls.md` for the full template. For structured schema changes, use the migration workflow:
    - `managePgDatabase(action=planMigration, sql=...)` — preview migration plan via `PreviewPGUserMigrations`
    - `managePgDatabase(action=applyMigration, sql=..., confirm=true)` — batch-apply migrations via `PushPGUserMigrations`
    - `managePgDatabase(action=listMigrations)` — list all applied migrations
    - `managePgDatabase(action=migrationDetail, objectName=...)` — inspect a single migration
    - `managePgDatabase(action=rollbackMigration, objectName=..., confirm=true)` — roll back a migration
-4. Check username-password auth before coding login:
+5. Check username-password auth before coding login:
    - Call `queryAppAuth(action="getLoginConfig")`.
    - If `loginMethods.usernamePassword !== true`, call `manageAppAuth(action="patchLoginStrategy", patch={ usernamePassword: true })`.
    - In Web login code, use `auth.signInWithPassword({ username, password })` for plain usernames like `admin` or `editor`.
    - Do not assume `auth.signUp({ username, password })` can directly create username/password users. Confirm `queryAppAuth` `sdkHints` and the installed `@cloudbase/js-sdk` behavior first; if direct username signup is unsupported, implement registration through a backend/management boundary instead of exposing secret keys in the browser.
-5. Implement Web auth state with `auth.getSession()` before writing CRUD:
+6. Implement Web auth state with `auth.getSession()` before writing CRUD:
    - Route guards must check `data.session`, not `auth.getUser()` and not deprecated `getLoginState()`.
    - Treat login as successful only when `signInWithPassword(...)` returns no `error` and includes `data.session`.
    - Get the UID for `author_id` / role rows from `data.session.user.id` (fall back to `sub`/`uid` only after inspecting the actual session object).
    - Do not use `auth.getUser()` as proof of login; it can return a non-null wrapper or anonymous-looking user data when there is no real username/password session.
-6. Implement browser-side business data with the CloudBase JS SDK v3 PostgreSQL API first: `app.rdb().from(table)`. Use `@cloudbase/js-sdk@next` when the installed SDK does not expose the v3 PG surface.
-7. Do not manually fetch a CloudBase Auth bearer token from browser code for PG CRUD. In particular, do not call non-canonical helpers such as `currentUser.getIdToken()` unless you have verified that exact method exists in the installed SDK. Prefer `app.rdb()` so the SDK carries the active session.
-8. Before using RLS helpers such as `auth.uid()`, prove they match the current Web session:
+7. Implement browser-side business data with the CloudBase JS SDK v3 PostgreSQL API first: `app.rdb().from(table)`. Use the latest `@cloudbase/js-sdk` when `app.rdb` is missing (`xxx.rdb is not a function` means the SDK is too old).
+8. Do not manually fetch a CloudBase Auth bearer token from browser code for PG CRUD. In particular, do not call non-canonical helpers such as `currentUser.getIdToken()` unless you have verified that exact method exists in the installed SDK. Prefer `app.rdb()` so the SDK carries the active session.
+9. Use the official CloudBase PG SQL auth helpers in policies: `auth.uid()` for JWT `sub`, `auth.role()` for `anon` / `authenticated` / `service_role`, `auth.jwt()` for full claims, and `auth.email()` when email is needed. Still verify the policy through the real app session before claiming it works:
    - Log in through the real app path.
    - Insert a test row using `author_id = session.user.id`.
    - Read it back with `queryPgDatabase`.
    - If INSERT/SELECT fails, inspect the exact RLS error and fix the policy or switch to a server/RPC boundary. Do not leave browser-facing tables with broken RLS.
-9. Use PG HTTP API only as a fallback after reading OpenAPI docs and verifying the auth model in the installed SDK. Do not guess URLs such as `/api/v1/rdb/rest`; the same CloudBase relational HTTP API family covers MySQL and PostgreSQL and is discoverable through `searchKnowledgeBase(mode="openapi", apiName="mysqldb", query="PostgreSQL ...")`.
-10. Keep cover images in CloudBase Storage. Store only the final file URL or file metadata in PG.
-11. Verify both layers before claiming done: project build/typecheck and browser E2E for login/CRUD, then read back rows with `queryPgDatabase`.
+10. Use PG HTTP API only as a fallback after reading OpenAPI docs and verifying the auth model in the installed SDK. Do not guess URLs such as `/api/v1/rdb/rest`; the documented base is `https://<envId>.api.tcloudbasegateway.com/v1/rdb/rest/<table>` and auth is `Authorization: Bearer <Publishable Key | access_token | API Key>`.
+11. Keep cover images in CloudBase Storage. Store only the final file URL or file metadata in PG.
+12. Verify both layers before claiming done: project build/typecheck and browser E2E for login/CRUD, then read back rows with `queryPgDatabase`. When debugging RLS, run SQL as `authenticated` / `anon` if the tool supports role simulation; admin/default execution can bypass the user-facing failure.
 
 ## Exploration Budget
 
@@ -110,8 +117,8 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
 - After DDL, query the table schema again and compare every column used by frontend code, insert/update payloads, filters, ordering, and RLS policies.
 - Backend permission must exist in the database or server/RPC layer. Hiding buttons in the UI is not enough.
 - Do not leave a browser-facing table with RLS enabled and zero policies. PostgreSQL denies user reads/writes by default in that state, so `app.rdb().from("articles").insert(...)` can fail while the UI only shows a generic save failure. If you enable RLS, create and verify SELECT/INSERT/UPDATE/DELETE policies before testing the app.
-- Do not assume Supabase RLS helpers are available or identical in CloudBase PG. In particular, only use `auth.uid()` after you verify that a real `app.rdb()` request from a logged-in Web session sees the same UID as `auth.getSession().data.session.user.id`.
-- If you need detailed RLS rules, read `references/rls-patterns.md` before writing policies.
+- Use CloudBase PG's official SQL auth helpers in policies: `auth.uid()` (JWT `sub`), `auth.role()` (`anon` / `authenticated` / `service_role`), `auth.jwt()` (full claims), and `auth.email()` when relevant. Prefer owner columns such as `owner_id varchar(64) DEFAULT auth.uid()` so the database, not the browser, assigns ownership.
+- If you need detailed GRANT/RLS rules, read `references/rls-patterns.md` before writing policies.
 - For admin/editor flows, make `admin` able to operate all rows and `editor` only rows where owner UID matches the current user.
 
 ## JS SDK v3 PostgreSQL Patterns
@@ -146,8 +153,8 @@ Canonical CRUD shapes (copy these exactly):
 ```ts
 // READ
 const { data, error } = await db.from("articles").select("*");
-// CREATE
-const { data, error } = await db.from("articles").insert({ title, author_id: uid, status: "draft" });
+// CREATE — omit owner_id/author_id when the table defines DEFAULT auth.uid()
+const { data, error } = await db.from("articles").insert({ title, status: "draft" });
 // UPDATE
 await db.from("articles").update({ status }).eq("id", id);
 // DELETE
@@ -183,7 +190,7 @@ const { data } = await app.storage.from('covers').upload(`${file.name}`, file);
 CloudBase PG storage uses the `pgstore` backend and follows the same model as Supabase Storage: **every upload must target a bucket that already exists**. The browser SDK cannot create one. Before writing any upload code:
 
 1. Confirm a usable pgstore bucket exists for your target prefix (e.g. `covers`). The legacy NoSQL bucket exposed by `DescribeEnvs.Storages[]` (e.g. `6d63-…-1409864723`) is for the old NoSQL backend and does NOT serve pgstore uploads.
-2. If no usable bucket exists, create one through a CloudBase management surface (`manageStorage` MCP tool, console, or platform API). Adding `covers/` as a path prefix in JS does NOT auto-create a bucket.
+2. If no usable bucket exists, create one through the PG storage management surface (PG storage HTTP API / CLI / console / SQL on `storage.buckets` when appropriate). Do not assume traditional-mode storage tools or adding `covers/` as a JS path prefix will create a PG bucket.
 3. The bucket name belongs in `from('<bucket>')`; the key passed to `upload(key, file)` is inside that bucket and must **not** repeat the bucket prefix. Correct: `app.storage.from('covers').upload('a.png', file)`. Wrong: `app.storage.from('covers').upload('covers/a.png', file)`.
 4. **After creating the bucket, configure RLS on `storage.objects`** via `managePgDatabase(action="execute", confirm=true)`. The default RLS is deny all; without permissive policies the browser receives `STORAGE_PERMISSION_DENIED`. See `cloud-storage-web/SKILL.md` "Post-bucket: storage RLS" section for the exact SQL policies.
 
@@ -193,12 +200,19 @@ Failure-mode cheat sheet (read DevTools network tab on the FAILED `POST .../v1/s
 | -------------------------------------------------------- | ------- | --- |
 | `STORAGE_BUCKET_NOT_FOUND` | The bucket in the path does not exist in this PG environment. | Create the bucket via management surface, then retry. |
 | `STORAGE_PERMISSION_DENIED` | The bucket exists but RLS on `storage.objects` blocks the upload. | Run `managePgDatabase(action="execute", confirm=true)` to configure storage RLS. See `cloud-storage-web/SKILL.md` "Post-bucket: storage RLS". |
-| `INVALID_PARAM: must contain bucket prefix` | The path you sent has no bucket segment (e.g. `foo.png` instead of `covers/foo.png`). | Prefix the bucket name as the first path segment. |
+| `INVALID_PARAM` for bucket/key | The SDK/API did not receive a valid bucket/key pair (for example `from()` missing the bucket, or key is empty). | Use `app.storage.from('covers').upload('a.png', file)`; bucket goes in `from()`, key goes in `upload()`. |
 | `STORAGE_CONTENT_LENGTH_REQUIRED` | Your code stripped or omitted the `Content-Length` signed header. | Pass `headers: { 'Content-Length': String(file.size) }` to `uploadFile`, or use `app.storage.from('<bucket>').upload('<key>', file)` with a `Blob`/`File` so the SDK fills it in. |
 
 If you see `PUT https://undefined/` and `net::ERR_NAME_NOT_RESOLVED` in DevTools, that is the symptom of one of the three rows above — the upstream metadata response had no `uploadUrl` field, and the SDK fed `undefined` into a follow-up `PUT`. Always inspect the upstream `get-objects-upload-info` response first; do not chase the `https://undefined/` URL itself.
 
 Hard rule: never let an upload error be silently swallowed. If `uploadCoverImage()` rejects, the surrounding `createArticle()` flow MUST reject too — do not insert into PG with a fabricated cover URL, do not show a success toast, and do not retry with a guessed bucket name.
+
+## ExecutePGSql / DDL Troubleshooting
+
+- `ExecutePGSql` / `managePgDatabase(action="execute")` is an admin/control-plane path. Do not expose Tencent Cloud SecretKey or CloudBase API Key in frontend code.
+- Execute one SQL statement per call. Split batches explicitly instead of sending semicolon-joined multi-statements.
+- Some DDL (`CREATE` / `ALTER` / `DROP` / `GRANT` / `REVOKE` / `TRUNCATE` / `COMMENT`) can fail directly with transient `InternalError`. If that happens, retry once by wrapping the DDL in `DO $$ BEGIN EXECUTE '...'; END $$` and escaping single quotes inside the string.
+- When validating permissions, use the user-facing role (`anon` or `authenticated`) when the tool/API supports a role parameter. Default admin execution can hide missing GRANT/RLS policies.
 
 ## HTTP API Fallback
 

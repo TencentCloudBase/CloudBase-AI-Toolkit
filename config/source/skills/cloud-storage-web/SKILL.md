@@ -84,14 +84,14 @@ Mental model parity with Supabase:
 
 | Step | Supabase | CloudBase |
 | ---- | -------- | --------- |
-| Create bucket | `supabase.storage.createBucket('covers', { public: true })` (admin-side, with service role) | Use a CloudBase management surface (MCP `manageStorage` / console / management API) to create the bucket. The browser SDK cannot create one. |
+| Create bucket | `supabase.storage.createBucket('covers', { public: true })` (admin-side, with service role) | In PG mode, create a `storage.buckets` bucket through PG storage HTTP API / CLI / console / SQL on `storage.buckets` when appropriate. The browser SDK cannot create one. |
 | Upload | `supabase.storage.from('covers').upload('a.png', file)` | **PG 模式**: `app.storage.from('covers').upload('a.png', file)` — `from(bucketName)` 指定 pgstore 存储桶。<br>**非 PG 模式**: `app.storage.from().upload('covers/a.png', file)` — bucket 名作为路径第一段。|
 | Bucket missing error | `Bucket not found` | Browser sees `STORAGE_BUCKET_NOT_FOUND` (PG) or `STORAGE_NOT_EXIST` (NoSQL), then a follow-up `PUT https://undefined/` because the SDK still tries to PUT a missing `metadata.url`. |
 
 Required pre-upload steps in any task that needs browser uploads:
 
 1. List existing buckets first. For PG / pgstore, the legacy NoSQL bucket (the `6d63-…-1409864723` shape returned by `DescribeEnvs.Storages[]`) is NOT a valid pgstore bucket — do not assume it works.
-2. If no usable bucket exists for the upload target (e.g. `covers`), create one through the CloudBase management surface BEFORE editing frontend upload code. Adding `covers` as a path prefix in code does not auto-create a bucket.
+2. If no usable bucket exists for the upload target (e.g. `covers`), create one through the PG storage management surface BEFORE editing frontend upload code. Adding `covers` as a path prefix in code does not auto-create a bucket.
 3. After creating the bucket, the upload pattern depends on environment:
    - **PG / pgstore**: `app.storage.from('covers').upload('<file>', file)` — bucket 名传入 `from()`
    - **Non-PG (NoSQL)**: `app.storage.from().upload('covers/<file>', file)` — bucket 名作为路径第一段
@@ -114,7 +114,7 @@ Use instead:
 
 ### Post-bucket: storage RLS (mandatory in PG / pgstore environments)
 
-In **PG / pgstore** environments, storage access control is enforced through **PostgreSQL Row Level Security (RLS) on the `storage.objects` table** — exactly like Supabase Storage. The default RLS policy is deny all, so even if the bucket exists, `app.uploadFile()` from a browser will fail with `STORAGE_PERMISSION_DENIED` unless you configure permissive policies.
+In **PG / pgstore** environments, storage access control is enforced through **PostgreSQL Row Level Security (RLS) on `storage.buckets` / `storage.objects`** — exactly like Supabase Storage. These tables are already granted to `anon`, `authenticated`, and `service_role`; RLS is the permission gate. Traditional storage permission labels (`READONLY` / `PRIVATE` / `CUSTOM`) and JSON storage safe rules do not apply. The default RLS policy is deny all, so even if the bucket exists, `app.storage.from('covers').upload()` from a browser will fail with `STORAGE_PERMISSION_DENIED` unless you configure policies.
 
 Use `managePgDatabase(action="execute", confirm=true)` to run the following SQL after creating the bucket:
 
@@ -140,7 +140,7 @@ CREATE POLICY "users_manage_own" ON storage.objects
 
 Key points:
 - `storage.objects` RLS is **separate** from CloudBase legacy NoSQL storage security rules (`managePermissions` / `ModifyStorageSafeRule`). In PG mode, always configure storage RLS via PG SQL, not the legacy security rule API.
-- Without these policies, the browser receives `STORAGE_PERMISSION_DENIED` when calling `app.uploadFile()` or `app.storage.from('covers').upload()`.
+- Without these policies, the browser receives `STORAGE_PERMISSION_DENIED` when calling `app.storage.from('covers').upload()` in PG mode.
 - Use `IF NOT EXISTS` in a `DO $$` block when re-applying to avoid "policy already exists" errors on re-run.
 
 ## Overview

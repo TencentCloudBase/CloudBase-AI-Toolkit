@@ -82,7 +82,7 @@ These rules override convenience. They are a gate before saying "done". Full rat
 | WeChat mini program + CloudBase | `miniprogram-development` | auth-wechat, no-sql-wx-mp-sdk | auth-web, web-development | Whether the project really uses CloudBase / `wx.cloud` |
 | Native App / Flutter / React Native | `http-api` | auth-tool, relational-database-tool | auth-web, no-sql-web-sdk, web-development | SDK boundary, OpenAPI, auth method |
 | Web projects + NoSQL Database | `web-development` | no-sql-web-sdk, auth-web | relational-database-tool, http-api | Login state and database access permission model |
-| CloudBase PostgreSQL / PG | `postgresql-development` | auth-tool, auth-web, web-development, cloud-storage-web, http-api | relational-database-tool, no-sql-web-sdk | PG schema, usernamePassword login, backend/RLS permission model |
+| CloudBase PostgreSQL / PG | `postgresql-development` | auth-tool, auth-web, web-development, miniprogram-development, cloud-storage-web, http-api | relational-database-tool, no-sql-web-sdk | PG schema, usernamePassword login, backend/RLS permission model |
 | MySQL Database (relational) | `relational-database-tool` | relational-database-web, http-api | no-sql-web-sdk, web-development | Distinguish MCP management vs app code access |
 | Cloud Functions | `cloud-functions` | auth-tool, ai-model-nodejs | cloudrun-development, auth-web | Event vs HTTP function, runtime, `scf_bootstrap` |
 | CloudRun backend | `cloudrun-development` | auth-tool, relational-database-tool | cloud-functions | Container boundary, Dockerfile, CORS |
