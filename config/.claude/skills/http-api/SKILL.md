@@ -294,7 +294,7 @@ curl -X GET 'https://your-env.api.tcloudbasegateway.com/v1/rdb/rest/course?selec
 
 **Request Body**: JSON object or array of objects
 
-> 💡 **Note about `_openid`**: When a user is logged in (using AccessToken authentication), the `_openid` field is **automatically populated by the server** with the current user's identity. You do NOT need to manually set this field in INSERT operations - the server will fill it automatically based on the authenticated user's session.
+> 💡 **Identity fields differ by database mode**: In PostgreSQL / CloudBase PG, do **not** use `_openid`. Prefer owner columns with `DEFAULT auth.uid()` (JWT `sub`) and omit the owner field from INSERT bodies. In legacy MySQL/NoSQL-oriented examples, `_openid` may be populated by the platform; do not copy that pattern into PG tables.
 
 **Example**:
 
