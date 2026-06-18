@@ -42,7 +42,7 @@ If this environment only installed the current skill, start from the CloudBase m
    - If `RuntimeBackends.postgresql === false`, STOP — this is a legacy NoSQL-only env: switch to `no-sql-web-sdk` for browser data and `cloud-storage-web` (with `app.uploadFile()`) for uploads. Do not write `app.rdb()` code, do not enable RLS, do not create a pgstore bucket here.
    - If both `postgresql` and `nosql` are `true` (the common case in a PG environment), they coexist. Apply this skill to NEW business data the task asks you to put in PG (e.g. articles / role tables explicitly described as PG). Existing NoSQL collections, the bucket reported in `EnvInfo.Storages[]`, and any `managePermissions(resourceType="noSqlDatabase")` rules continue to govern the legacy NoSQL data — do NOT migrate or rewrite them unless the task explicitly asks.
    - `RuntimeBackends.mysql === false` is the only hard "do not use" signal: when MySQL is absent, do not use `manageSqlDatabase` / `querySqlDatabase` and do not consult the `relational-database-tool` skill; those are MySQL-specific and have nothing to do with CloudBase PG.
-   - Note: in a PG env, `EnvInfo.Storages[]` is the legacy NoSQL bucket. It still works for legacy `app.uploadFile()` flows but is NOT a usable pgstore bucket — never reuse it as the `<bucket>` segment in `app.storage.from().upload(<bucket>/<key>, file)`.
+   - Note: in a PG env, `EnvInfo.Storages[]` is the legacy NoSQL bucket. It still works for legacy `app.uploadFile()` flows but is NOT a usable pgstore bucket — never reuse it as the `<bucket>` segment in `app.storage.from('<bucket>').upload('<key>', file)`.
 1. Inspect the existing app surfaces first: `src/lib/backend.*`, `src/lib/auth.*`, `src/lib/*service.*`, route guards, and the handlers bound to existing forms.
 2. Check PG state through MCP: use `queryPgDatabase` for schema/read-only inspection and `managePgDatabase` for DDL/DML. Do not switch to MySQL tools.
 3. **Use schema management (`managePgDatabase`) before writing CRUD code:** Create tables via `managePgDatabase(action=execute, confirm=true)` with CREATE TABLE SQL. For structured schema changes, use the migration workflow:
@@ -141,10 +141,10 @@ const { data } = await db.rpc("function_name", { id });
 
 Common query helpers: `.eq()`, `.neq()`, `.gt()`, `.gte()`, `.lt()`, `.lte()`, `.like()`, `.ilike()`, `.in()`, `.is()`, `.order()`, `.limit()`, `.range()`, `.single()`.
 
-Storage (v3): use `app.storage.from().upload(...)` — check installed SDK surface before copying:
+Storage (v3): use `app.storage.from('<bucket>').upload('<key>', file)` — check installed SDK surface before copying:
 
 ```ts
-const { data } = await app.storage.from().upload(`covers/${file.name}`, file);
+const { data } = await app.storage.from('covers').upload(`${file.name}`, file);
 ```
 
 ### Bucket existence is mandatory (Supabase parity)
@@ -163,7 +163,7 @@ Failure-mode cheat sheet (read DevTools network tab on the FAILED `POST .../v1/s
 | `STORAGE_BUCKET_NOT_FOUND` | The bucket in the path does not exist in this PG environment. | Create the bucket via management surface, then retry. |
 | `STORAGE_PERMISSION_DENIED` | The bucket exists but RLS on `storage.objects` blocks the upload. | Run `managePgDatabase(action="execute", confirm=true)` to configure storage RLS. See `cloud-storage-web/SKILL.md` "Post-bucket: storage RLS". |
 | `INVALID_PARAM: must contain bucket prefix` | The path you sent has no bucket segment (e.g. `foo.png` instead of `covers/foo.png`). | Prefix the bucket name as the first path segment. |
-| `STORAGE_CONTENT_LENGTH_REQUIRED` | Your code stripped or omitted the `Content-Length` signed header. | Pass `headers: { 'Content-Length': String(file.size) }` to `uploadFile`, or use `app.storage.from().upload(path, file)` with a `Blob`/`File` so the SDK fills it in. |
+| `STORAGE_CONTENT_LENGTH_REQUIRED` | Your code stripped or omitted the `Content-Length` signed header. | Pass `headers: { 'Content-Length': String(file.size) }` to `uploadFile`, or use `app.storage.from('<bucket>').upload('<key>', file)` with a `Blob`/`File` so the SDK fills it in. |
 
 If you see `PUT https://undefined/` and `net::ERR_NAME_NOT_RESOLVED` in DevTools, that is the symptom of one of the three rows above — the upstream metadata response had no `uploadUrl` field, and the SDK fed `undefined` into a follow-up `PUT`. Always inspect the upstream `get-objects-upload-info` response first; do not chase the `https://undefined/` URL itself.
 
