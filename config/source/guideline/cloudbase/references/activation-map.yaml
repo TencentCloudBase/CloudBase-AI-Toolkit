@@ -110,11 +110,16 @@ scenarios:
   - mysqldb OpenAPI
   - PostgREST
   - RLS
+  - service_role
+  - auth schema
+  - storage schema
+  - pgvector
   firstRead: postgresql-development
   thenRead:
   - auth-tool
   - auth-web
   - web-development
+  - miniprogram-development
   - cloud-storage-web
   - http-api
   beforeAction:

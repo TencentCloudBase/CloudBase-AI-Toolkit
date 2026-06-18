@@ -24,6 +24,9 @@ importers:
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.19.19)(terser@5.48.0)
 
   mcp:
     dependencies:

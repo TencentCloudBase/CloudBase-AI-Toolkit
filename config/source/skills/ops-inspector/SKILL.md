@@ -32,7 +32,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 - Cloud function issues -> `../cloud-functions/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloud-functions/SKILL.md`)
 - CloudRun issues -> `../cloudrun-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudrun-development/SKILL.md`)
-- Database issues -> `../relational-database-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/relational-database-tool/SKILL.md`) or `../no-sql-web-sdk/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/no-sql-web-sdk/SKILL.md`)
+- Database issues -> `../postgresql-development/SKILL.md` for CloudBase PG / PostgreSQL (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/postgresql-development/SKILL.md`), `../relational-database-tool/SKILL.md` for MySQL (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/relational-database-tool/SKILL.md`), or `../no-sql-web-sdk/SKILL.md` for NoSQL (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/no-sql-web-sdk/SKILL.md`)
 - Platform overview -> `../cloudbase-platform/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/SKILL.md`)
 
 ### Do NOT use for
@@ -173,7 +173,7 @@ When the user specifies a resource type or a specific resource:
 
 1. **Cloud function errors**: `queryFunctions(action="listFunctionLogs", functionName="<name>")` then `queryLogs(action="searchLogs", queryString="* AND functionName:<name> AND level:ERROR", ...)`
 2. **CloudRun errors**: `queryCloudRun(action="detail", detailServerName="<name>")` then `queryLogs(action="searchLogs", queryString="ERROR", service="tcbr", ...)`
-3. **Database issues**: Check `querySqlDatabase` or `readNoSqlDatabaseStructure` depending on type
+3. **Database issues**: Check `queryPgDatabase(action="context"|"metadata"|"objects")` for CloudBase PG, `querySqlDatabase` for MySQL, or `readNoSqlDatabaseStructure` for NoSQL depending on type
 4. **General error search**: `queryLogs(action="searchLogs", queryString="<error-keyword>", ...)`
 
 ### AIOps Methodology
@@ -208,6 +208,8 @@ This skill follows AIOps principles for intelligent inspection:
 | Get CloudRun detail | `queryCloudRun(action="detail", detailServerName="<name>")` |
 | Search CLS logs | `queryLogs(action="searchLogs", queryString="<query>", service="tcb\|tcbr", startTime="<time>", endTime="<time>")` |
 | Check NoSQL structure | `readNoSqlDatabaseStructure(action="listCollections")` |
+| Check PostgreSQL context | `queryPgDatabase(action="context")` |
+| Check PostgreSQL metadata | `queryPgDatabase(action="metadata", limit=20)` |
 | Check MySQL status | `querySqlDatabase(action="getContext")` |
 
 ### Common CLS Query Patterns
@@ -236,4 +238,5 @@ Always use ISO 8601 format for `startTime`/`endTime`, e.g., `"2025-01-15 00:00:0
 - `cloud-functions` — Cloud function development, deployment, and debugging
 - `cloudrun-development` — CloudRun backend deployment and management
 - `cloudbase-platform` — General platform knowledge and console navigation
+- `postgresql-development` — CloudBase PostgreSQL / PG diagnostics and schema/RLS checks
 - `relational-database-tool` — MySQL database management and diagnostics

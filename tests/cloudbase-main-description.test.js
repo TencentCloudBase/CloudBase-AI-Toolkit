@@ -79,6 +79,11 @@ describe('cloudbase main skill activation description', async () => {
       minHits: 4,
     },
     {
+      name: 'PostgreSQL / PG routing',
+      terms: ['PostgreSQL', 'CloudBase PG', 'app.rdb()', 'queryPgDatabase', 'managePgDatabase'],
+      minHits: 3,
+    },
+    {
       name: 'Backend runtimes',
       terms: ['cloud functions', '云函数', 'CloudRun', '云托管', 'scf_bootstrap', 'serverless', 'Dockerfile'],
       minHits: 4,
