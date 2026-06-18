@@ -23,7 +23,7 @@
     "husky": "^9.1.7",
     "js-yaml": "^4.1.1",
     "tsx": "^4.21.0",
-    "vitest": "^4.1.9"
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "@cloudbase/manager-node": "5.3.1"
