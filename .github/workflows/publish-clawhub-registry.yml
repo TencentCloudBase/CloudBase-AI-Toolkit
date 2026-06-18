@@ -1,4 +1,4 @@
-name: Publish ClawHub Registry
+name: Publish ClawHub & SkillHub Registry
 
 on:
   push:
@@ -11,6 +11,7 @@ on:
       - 'scripts/build-clawhub-publish-artifacts.mjs'
       - 'scripts/clawhub-publish-targets.mjs'
       - 'scripts/publish-to-clawhub.mjs'
+      - 'scripts/publish-to-skillhub.mjs'
       - '.github/workflows/publish-clawhub-registry.yml'
   workflow_dispatch:
     inputs:
@@ -93,12 +94,23 @@ jobs:
             node scripts/publish-to-clawhub.mjs --manifest .clawhub-publish-output/manifest.json --bump "$BUMP" --changelog "$CHANGELOG" --tags "$TAGS"
           fi
 
+      - name: Publish to SkillHub
+        if: ${{ !inputs.dry_run }}
+        env:
+          SKILLHUB_API_TOKEN: ${{ secrets.SKILLHUB_API_TOKEN }}
+          SKILLHUB_ORG_ID: ${{ secrets.SKILLHUB_ORG_ID }}
+        run: |
+          node scripts/publish-to-skillhub.mjs \
+            --manifest .clawhub-publish-output/manifest.json \
+            --bump "$BUMP" \
+            --changelog "$CHANGELOG"
+
       - name: Append job summary
         run: |
-          echo "## ClawHub Publish Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "## ClawHub & SkillHub Publish Summary" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Targets: $TARGETS" >> "$GITHUB_STEP_SUMMARY"
           echo "- Bump: $BUMP" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Tags: $TAGS" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ClawHub Tags: $TAGS" >> "$GITHUB_STEP_SUMMARY"
           echo "- Dry run: $DRY_RUN" >> "$GITHUB_STEP_SUMMARY"
           echo "- Manifest: .clawhub-publish-output/manifest.json" >> "$GITHUB_STEP_SUMMARY"
