@@ -56,6 +56,7 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy',
     configExample: '',
     showInstallButton: false,
+    useCommandInsteadOfConfig: true,
   },
   {
     id: 'cursor',
