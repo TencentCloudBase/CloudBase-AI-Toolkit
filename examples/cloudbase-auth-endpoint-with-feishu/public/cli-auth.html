@@ -79,14 +79,13 @@
   </div>
 
   <!-- CloudBase Web SDK -->
-  <script src="https://imgcache.qq.com/qcloud/tcb/js-sdk/2.x.x/cloudbase.js"></script>
+  <script src="https://static.cloudbase.net/cloudbase-js-sdk/3.4.8/cloudbase.full.js"></script>
   <script>
     let authApp = null;
     let authInstance = null;
 
     async function initCloudBase() {
       try {
-        // 从服务端获取 CloudBase 配置
         const configRes = await fetch('/auth/config');
         const config = await configRes.json();
 
@@ -125,15 +124,12 @@
       document.getElementById('loginBtn').disabled = true;
       document.getElementById('loginBtn').textContent = '跳转中...';
 
-      // 保存设备码到 sessionStorage（回调页面读取）
       sessionStorage.setItem('pending_user_code', userCode);
 
-      // 跳转到 CloudBase 托管登录页
-      // 托管登录页会展示所有已配置的企业身份源（飞书、企业微信、Google 等）
+      // 使用托管登录页（支持飞书等所有企业身份源）
       authInstance.toDefaultLoginPage({
         redirect_uri: window.location.origin + '/cli-auth-callback.html',
       });
-      // 注意：执行后页面将跳转，以下代码不再执行
     }
 
     function showError(msg) {
@@ -147,10 +143,8 @@
       document.getElementById('errorMsg').style.display = 'none';
     }
 
-    // 页面加载时等待 DOM 就绪
     document.addEventListener('DOMContentLoaded', () => {
       initCloudBase();
-      // 自动聚焦输入框
       document.getElementById('userCode').focus();
     });
   </script>

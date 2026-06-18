@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-export const PORT = Number(process.env.PORT) || 3000;
+export const PORT = Number(process.env.PORT) || 9000;
 export const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 export const EXPIRES_IN = Number(process.env.EXPIRES_IN) || 600;
 export const INTERVAL = Number(process.env.INTERVAL) || 3;
@@ -19,5 +19,5 @@ export const CLOUDBASE_USER_ENV_PERIOD = Number(process.env.CLOUDBASE_USER_ENV_P
 export const CLOUDBASE_USER_ENV_AUTO_VOUCHER = process.env.CLOUDBASE_USER_ENV_AUTO_VOUCHER !== 'false';
 export const CLOUDBASE_USER_ENV_READY_TIMEOUT_MS = Number(process.env.CLOUDBASE_USER_ENV_READY_TIMEOUT_MS) || 120_000;
 
-export const TENCENTCLOUD_SECRET_ID = process.env.TENCENTCLOUD_SECRET_ID || '';
-export const TENCENTCLOUD_SECRET_KEY = process.env.TENCENTCLOUD_SECRET_KEY || '';
+export const TENCENTCLOUD_SECRET_ID = process.env.TENCENTCLOUD_SECRET_ID || process.env.CB_SECRET_ID || '';
+export const TENCENTCLOUD_SECRET_KEY = process.env.TENCENTCLOUD_SECRET_KEY || process.env.CB_SECRET_KEY || '';

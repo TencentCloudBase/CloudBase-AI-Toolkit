@@ -65,14 +65,15 @@
     <p class="desc">请稍候，正在完成授权流程</p>
     <div class="status-step" id="steps">
       <div class="step active"><span class="dot"></span> 验证企业身份</div>
-      <div class="step"><span class="dot"></span> 配置开发环境</div>
+      <div class="step"><span class="dot"></span> 确认设备授权</div>
       <div class="step"><span class="dot"></span> 授权完成</div>
     </div>
   </div>
 
   <!-- CloudBase Web SDK -->
-  <script src="https://imgcache.qq.com/qcloud/tcb/js-sdk/2.x.x/cloudbase.js"></script>
+  <script src="https://static.cloudbase.net/cloudbase-js-sdk/3.4.8/cloudbase.full.js"></script>
   <script>
+
     let authApp = null;
     let authInstance = null;
 
@@ -102,20 +103,19 @@
 
     async function handleCallback() {
       try {
-        // 步骤 1：初始化 SDK（detectSessionInUrl: true 会自动处理 URL 中的 code 参数）
+        // 步骤 1：初始化 SDK
+        updateStepText('正在初始化...');
         await initCloudBase();
         updateStep(1);
 
         // 步骤 2：等待 CloudBase Session 就绪
-        // SDK 初始化后，detectSessionInUrl 自动将 URL 中的 code 交换为 session
-        // 通过轮询 getSession() 来等待 session 就绪，避免 onAuthStateChange 事件竞态
-        const sessionResult = await pollSession(30_000);
+        updateStepText('正在验证企业身份...');
+        const sessionResult = await pollSession(180_000);
         const cloudbaseUid = sessionResult.user?.id;
         if (!cloudbaseUid) throw new Error('无法获取用户身份');
-        const cloudbaseAccessToken = sessionResult.access_token;
+        const cloudbaseAccessToken = sessionResult.accessToken || sessionResult.access_token;
         if (!cloudbaseAccessToken) throw new Error('无法获取用户访问凭证');
 
-        // 从 sessionStorage 读取设备码
         const userCode = sessionStorage.getItem('pending_user_code');
         if (!userCode) {
           throw new Error('缺少设备码信息，请重新在授权页面操作');
@@ -123,7 +123,8 @@
 
         updateStep(2);
 
-        // 步骤 3：通知服务端完成设备码授权
+        // 步骤 3：通知服务端完成授权（环境创建由终端轮询阶段执行）
+        updateStepText('正在确认设备授权...');
         const verifyRes = await fetch('/auth/verify-cloudbase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -137,24 +138,22 @@
         const verifyResult = await verifyRes.json();
         if (!verifyRes.ok) throw new Error(verifyResult.error_description || '授权失败');
 
-        // 清理 sessionStorage
         sessionStorage.removeItem('pending_user_code');
 
         updateStep(3);
 
-        // 显示成功页面
         document.getElementById('root').innerHTML = `
           <div class="success-icon">✅</div>
           <h1>授权成功</h1>
           <p class="desc">您的设备已成功绑定企业账号</p>
           <div class="status-step">
             <div class="step done"><span class="dot"></span> 企业身份已验证</div>
-            <div class="step done"><span class="dot"></span> 开发环境已就绪</div>
+            <div class="step done"><span class="dot"></span> 设备授权已确认</div>
             <div class="step done"><span class="dot"></span> 授权已完成</div>
           </div>
           ${verifyResult.env_id ? `<p class="success-detail">环境 ID: ${verifyResult.env_id}</p>` : ''}
           <p class="desc" style="margin-top:16px;font-size:13px;color:#888;">
-            现在可以返回终端/IDE 继续操作
+            现在可以返回终端/IDE，等待环境创建完成
           </p>
           <button class="btn-close" onclick="window.close()">关闭页面</button>
           <div class="footer">企业 AI 开发平台 &middot; 云开发 CloudBase</div>
@@ -170,6 +169,11 @@
           <div class="footer">企业 AI 开发平台 &middot; 云开发 CloudBase</div>
         `;
       }
+    }
+
+    function updateStepText(text) {
+      const titleEl = document.querySelector('#root h1');
+      if (titleEl) titleEl.textContent = text;
     }
 
     /**
