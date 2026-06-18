@@ -200,7 +200,6 @@ async function uploadVersionToSkillhub({
   // 构建 multipart/form-data
   const boundary = `----SkillHubBoundary${Date.now()}`;
 
-  const encoder = new TextEncoder();
 
   // 构建 payload 部分
   const payload = JSON.stringify({
