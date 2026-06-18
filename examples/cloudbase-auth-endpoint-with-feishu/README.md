@@ -24,9 +24,10 @@ sequenceDiagram
     IdP-->>Browser: OAuth callback → __auth/
 
     Browser->>Auth: POST /auth/verify-cloudbase
-    Auth-->>Browser: { env_id, api_key_id }
+    Auth-->>Browser: { status: ok }
 
     MCP->>Auth: POST /auth/token (grant_type=device_code)
+    Auth->>Auth: CreateEnv + CreateApiKey（按需）
     Auth-->>MCP: refresh_token, access_token (JWT API Key)
 ```
 

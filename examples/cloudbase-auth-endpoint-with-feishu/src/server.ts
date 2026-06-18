@@ -127,42 +127,58 @@ app.post('/auth/verify-cloudbase', verifyLimiter, async (req, res) => {
     });
   }
 
-  // 尝试校验 token 归属（非阻塞，仅获取 provider 信息）
-  // 注意：CloudBase Auth HTTP API 的 user/me 端点尚不稳定
-  // 因此 token 校验失败时不阻断流程，仅跳过 provider 信息
-  let verifiedUserInfo: CloudBaseUserInfo | null = null;
+  // 校验 access token 归属，并只信任已验证的用户身份。
+  let verifiedUserInfo: CloudBaseUserInfo;
   try {
     verifiedUserInfo = await verifyCloudBaseAccessToken(cloudbaseAccessToken);
   } catch (err) {
-    console.warn('verify-cloudbase token check (non-blocking):', (err as Error).message);
+    console.warn('verify-cloudbase token check failed:', (err as Error).message);
+    return res.status(401).json({
+      error: 'invalid_token',
+      error_description: 'cloudbase_access_token is invalid or expired',
+    });
+  }
+
+  const verifiedUid = verifiedUserInfo.user_id || verifiedUserInfo.sub;
+  if (!verifiedUid || verifiedUid !== cloudbaseUid) {
+    return res.status(401).json({
+      error: 'invalid_token',
+      error_description: 'cloudbase_uid does not match cloudbase_access_token',
+    });
   }
 
   // 查找设备码记录（CloudBase 数据库，跨容器共享）
-  let record: AuthorizationRecord | null = null;
+  let record: AuthorizationRecord | null;
   try {
     record = await findDeviceByUserCode(userCode);
   } catch (err) {
     console.error('find device record error:', err);
+    return res.status(500).json({
+      error: 'server_error',
+      error_description: 'Failed to query device authorization record',
+    });
   }
-  if (!record) {
-    console.warn('device code not found in DB, proceeding with cloudbaseUid');
+  if (!record || record.status !== 'pending' || Date.now() > record.expiresAt) {
+    return res.status(400).json(INVALID_GRANT_ERROR);
   }
+
+  const provider = verifiedUserInfo.providers?.[0];
 
   // 授权确认：记录 cloudbaseUid 到设备码记录
   // 环境和 API Key 在 POST /auth/token 轮询时按需创建
-  if (record) {
-    record.status = 'authorized';
-    record.cloudbaseUid = cloudbaseUid;
-    if (verifiedUserInfo?.providers?.length) {
-      record.providerId = verifiedUserInfo.providers[0].id;
-      record.providerUserId = verifiedUserInfo.providers[0].provider_user_id;
-    }
+  try {
     await updateDeviceRecord(record.deviceCode, {
       status: 'authorized',
-      cloudbaseUid,
-      providerId: record.providerId,
-      providerUserId: record.providerUserId,
-    }).catch(err => console.error('update device record error:', err));
+      cloudbaseUid: verifiedUid,
+      providerId: provider?.id,
+      providerUserId: provider?.provider_user_id,
+    });
+  } catch (err) {
+    console.error('update device record error:', err);
+    return res.status(500).json({
+      error: 'server_error',
+      error_description: 'Failed to update device authorization record',
+    });
   }
 
   res.json({ status: 'ok', env_id: '' });

@@ -40,8 +40,12 @@ sequenceDiagram
     Browser->>Browser: auth.getSession() → 获取 cloudbase_uid
     Browser->>Browser: 从 sessionStorage 读取 user_code
 
-    Browser->>Auth: POST /auth/verify-cloudbase { user_code, cloudbase_uid }
+    Browser->>Auth: POST /auth/verify-cloudbase { user_code, cloudbase_uid, cloudbase_access_token }
+    Auth->>Auth: 校验 access_token 与 cloudbase_uid 归属
+    Auth->>Auth: 标记设备码已授权
+    Auth-->>Browser: { status: ok }
 
+    MCP->>Auth: 轮询 POST /auth/token (grant_type=device_code)
     alt 首次登录
         Auth->>Auth: CreateEnv(cloudbaseUid)
         Auth->>Auth: CreateApiKey(envId, api_key, 7天)
@@ -49,10 +53,6 @@ sequenceDiagram
         Auth->>Auth: 查找已有环境
         Auth->>Auth: CreateApiKey(envId, api_key, 7天)
     end
-
-    Auth-->>Browser: { status: ok, env_id }
-
-    MCP->>Auth: 轮询 POST /auth/token (grant_type=device_code)
     Auth-->>MCP: refresh_token, access_token (JWT API Key), env_id
 
     note over MCP,Browser: 授权完成，MCP 可操作用户环境

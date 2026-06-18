@@ -1,9 +1,9 @@
 import cloudbase from '@cloudbase/node-sdk';
 import { AuthorizationRecord, RefreshTokenRecord } from '../types';
-import { CLOUDBASE_ENV_ID, CLOUDBASE_REGION, CONSUMED_TTL_MS } from '../config';
+import { CLOUDBASE_ENV_ID, CLOUDBASE_REGION, TENCENTCLOUD_SECRET_ID, TENCENTCLOUD_SECRET_KEY } from '../config';
 
-const CB_SECRET_ID = process.env.CB_SECRET_ID || '';
-const CB_SECRET_KEY = process.env.CB_SECRET_KEY || '';
+const CB_SECRET_ID = process.env.CB_SECRET_ID || TENCENTCLOUD_SECRET_ID;
+const CB_SECRET_KEY = process.env.CB_SECRET_KEY || TENCENTCLOUD_SECRET_KEY;
 
 const app = cloudbase.init({
   env: CLOUDBASE_ENV_ID,

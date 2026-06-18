@@ -23,6 +23,8 @@
       "memory": 1024,
       "envVariables": {
         "BASE_URL": "https://your-domain.com",
+        "CLOUDBASE_ENV_ID": "your-env-id",
+        "CLOUDBASE_PUBLISHABLE_KEY": "your-publishable-key",
         "CLOUDBASE_REGION": "ap-shanghai",
         "CLOUDBASE_USER_ENV_PACKAGE_ID": "baas_personal",
         "CLOUDBASE_USER_ENV_RESOURCES": "flexdb,storage,function",
