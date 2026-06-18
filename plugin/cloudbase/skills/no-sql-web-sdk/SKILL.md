@@ -40,6 +40,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Server-side or cloud-function database access.
 - SQL / MySQL database operations.
 - Pure resource-permission administration with no browser SDK code.
+- **NEW business tables that the task explicitly asks to put in CloudBase PostgreSQL (CloudBase PG).** Before applying this skill, call `envQuery(action="info", envId=...)` and read `EnvInfo.RuntimeBackends`. If `postgresql === true` AND the task asks for a new business table to live in PG, switch to the `postgresql-development` skill for that table: it goes through `app.rdb()`, uses PG row-level security (`CREATE POLICY`), and uploads via `app.storage.from().upload(<bucket>/<key>, file)` against an explicitly-created pgstore bucket.
+  - Existing NoSQL collections in the same env keep using THIS skill — PG and NoSQL coexist in CloudBase PG environments. The rule is "follow the task / existing surface", not "PG env forbids NoSQL".
 
 ### SDK Code vs MCP Tools
 
