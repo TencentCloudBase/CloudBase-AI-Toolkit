@@ -193,6 +193,7 @@ async function uploadVersionToSkillhub({
   changelog,
   displayName,
   summary,
+  iconUrl,
   files,
 }) {
   const url = `${apiBase}/api/v1/orgs/${orgId}/skills/${slug}/versions`;
@@ -206,6 +207,7 @@ async function uploadVersionToSkillhub({
     changelog: changelog || "",
     displayName: displayName || undefined,
     summary: summary || undefined,
+    iconUrl: iconUrl || undefined,
     securityScan: false,
   });
   formData.append("payload", payload);
@@ -330,6 +332,7 @@ export async function publishToSkillhub({
         changelog: resolvedChangelog,
         displayName: metadata.name,
         summary: metadata.description,
+        iconUrl: target.iconUrl,
         files,
       });
 

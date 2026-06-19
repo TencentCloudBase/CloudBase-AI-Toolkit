@@ -7,12 +7,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 
+const CLOUDBASE_ICON_URL = "https://docs.cloudbase.net/en/img/favicon.png";
+
 export const CLAWHUB_PUBLISH_TARGETS = {
   "miniprogram-development": {
     key: "miniprogram-development",
     type: "local-skill",
     registrySlug: "miniprogram-development",
     displayName: "微信小程序开发 / WeChat Mini Program Development",
+    iconUrl: CLOUDBASE_ICON_URL,
     sourceDir: path.join(
       projectRoot,
       "config",
@@ -27,6 +30,7 @@ export const CLAWHUB_PUBLISH_TARGETS = {
     type: "local-skill",
     registrySlug: "cloudbase-wechat-integration",
     displayName: "CloudBase 微信生态集成 / CloudBase WeChat Integration",
+    iconUrl: CLOUDBASE_ICON_URL,
     sourceDir: path.join(
       projectRoot,
       "config",
@@ -41,6 +45,7 @@ export const CLAWHUB_PUBLISH_TARGETS = {
     type: "generated-allinone",
     registrySlug: "cloudbase",
     displayName: "CloudBase 云开发 / CloudBase",
+    iconUrl: CLOUDBASE_ICON_URL,
     sourceDescription: "generated via scripts/build-allinone-skill.ts",
   },
   "ui-design": {
@@ -49,6 +54,7 @@ export const CLAWHUB_PUBLISH_TARGETS = {
     registrySlug: "ui-design-guide",
     publishName: "ui-design-guide",
     displayName: "UI 设计 / UI Design",
+    iconUrl: CLOUDBASE_ICON_URL,
     sourceDir: path.join(projectRoot, "config", "source", "skills", "ui-design"),
     sourceDescription: "config/source/skills/ui-design",
   },
@@ -57,6 +63,7 @@ export const CLAWHUB_PUBLISH_TARGETS = {
     type: "local-skill",
     registrySlug: "web-development",
     displayName: "Web 开发 / Web Development",
+    iconUrl: CLOUDBASE_ICON_URL,
     sourceDir: path.join(
       projectRoot,
       "config",
@@ -72,6 +79,7 @@ export const CLAWHUB_PUBLISH_TARGETS = {
     registrySlug: "spec-workflow-guide",
     publishName: "spec-workflow-guide",
     displayName: "Spec 流程 / Spec Workflow",
+    iconUrl: CLOUDBASE_ICON_URL,
     sourceDir: path.join(
       projectRoot,
       "config",

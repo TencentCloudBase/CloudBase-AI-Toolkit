@@ -46,6 +46,7 @@ function createTempManifest(targets) {
     return {
       targetKey: t.key,
       registrySlug: t.slug,
+      iconUrl: t.iconUrl,
       artifactRootDir,
       artifactDir,
     };
@@ -193,7 +194,7 @@ describe("publishToSkillhub", () => {
 
   it("should call SkillHub API and return published result", async () => {
     const { manifestPath, tmpDir } = createTempManifest([
-      { key: "test-skill", slug: "test-skill", version: "1.0.0" },
+      { key: "test-skill", slug: "test-skill", version: "1.0.0", iconUrl: "https://docs.cloudbase.net/en/img/favicon.png" },
     ]);
 
     mockFetch.mockResolvedValueOnce({
@@ -225,6 +226,12 @@ describe("publishToSkillhub", () => {
     // FormData 会自动设置 Content-Type（含 boundary），不通过 headers 传入
     expect(options.body).toBeInstanceOf(FormData);
     expect([...options.body.keys()]).toEqual(expect.arrayContaining(["payload", "files"]));
+
+    // 验证 payload 中包含 iconUrl
+    const payloadEntry = [...options.body.entries()].find(([key]) => key === "payload");
+    expect(payloadEntry).toBeDefined();
+    const payloadJson = JSON.parse(payloadEntry[1]);
+    expect(payloadJson.iconUrl).toBe("https://docs.cloudbase.net/en/img/favicon.png");
 
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
