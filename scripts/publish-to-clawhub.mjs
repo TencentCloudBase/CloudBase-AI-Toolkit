@@ -102,7 +102,7 @@ function getRecentCommitLines(gitRoot) {
   }
 }
 
-function buildChangelogText(manualChangelog, gitRoot) {
+export function buildChangelogText(manualChangelog, gitRoot) {
   const normalizedManual = (manualChangelog || "").trim();
   const recentCommits = getRecentCommitLines(gitRoot);
 
@@ -121,20 +121,25 @@ function buildChangelogText(manualChangelog, gitRoot) {
   return "";
 }
 
-function buildSyncCommand(target, options) {
+export function normalizeClawhubChangelog(changelog) {
+  return String(changelog || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(" | ");
+}
+
+export function buildPublishCommand(target, options) {
   return {
     command: "clawhub",
     args: [
-      "sync",
-      "--workdir",
-      target.artifactRootDir,
-      "--dir",
-      "skills",
-      "--all",
-      "--bump",
-      options.bump,
+      "skill",
+      "publish",
+      target.artifactDir,
+      "--slug",
+      target.registrySlug,
       "--changelog",
-      options.changelog,
+      normalizeClawhubChangelog(options.changelog),
       "--tags",
       options.tags,
     ],
@@ -159,7 +164,7 @@ export function publishToClawhub({
   }
 
   for (const target of manifest.targets || []) {
-    const publishCommand = buildSyncCommand(target, {
+    const publishCommand = buildPublishCommand(target, {
       changelog: resolvedChangelog,
       tags,
       bump,
