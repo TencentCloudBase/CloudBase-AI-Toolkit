@@ -1,0 +1,16 @@
+{
+  "name": "cloudbase",
+  "version": "1.0.0",
+  "description": "CloudBase AI 开发工具包 - 支持 Web、小程序、CloudRun、NoSQL/MySQL 数据库、AI Agent 等全栈开发场景",
+  "author": {
+    "name": "CloudBase Team"
+  },
+  "homepage": {
+    "url": "https://github.com/TencentCloudBase/cloudbase-ai-toolkit",
+    "type": "github"
+  },
+  "license": "MIT",
+  "skills": [
+    "./skills/cloudbase"
+  ]
+}

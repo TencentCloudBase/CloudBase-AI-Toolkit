@@ -1,0 +1,188 @@
+---
+name: data-model-creation
+description: Optional advanced tool for complex data modeling. For simple MySQL table creation, use relational-database-tool directly; for PostgreSQL / CloudBase PG schema work, use postgresql-development.
+version: 2.23.0
+alwaysApply: false
+---
+
+## Standalone Install Note
+
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
+
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/data-model-creation/SKILL.md`
+
+Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
+
+# Data Model Creation
+
+## Activation Contract
+
+### Use this first when
+
+- The user explicitly wants Mermaid `classDiagram` modeling.
+- The task needs complex multi-entity relational design, visual ER-style output, or generated data-model structure rather than direct SQL.
+- You need to create CloudBase data models through the dedicated modeling tools, or you need to inspect an existing model before planning follow-up changes.
+
+### Read before writing code if
+
+- The request mentions data model, ER diagram, Mermaid, relationship graph, or enterprise schema design.
+- The user wants to reuse or update an existing published model.
+
+### Then also read
+
+- Direct MySQL SQL creation or schema change -> `../relational-database-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/relational-database-tool/SKILL.md`)
+- PostgreSQL / CloudBase PG schema work -> `../postgresql-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/postgresql-development/SKILL.md`)
+- Broader feature planning before schema work -> `../spec-workflow/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/spec-workflow/SKILL.md`)
+
+### Do NOT use for
+
+- Simple `CREATE TABLE`, `ALTER TABLE`, or CRUD tasks.
+- Document-database collection design.
+- Frontend-only data-shape discussions with no modeling requirement.
+
+### Common mistakes / gotchas
+
+- Using Mermaid modeling for a task that only needs one or two SQL statements.
+- Mixing SQL-table design and NoSQL collection design in the same model.
+- Generating diagrams without first deciding entity boundaries and ownership relations.
+- Publishing a new model before validating the generated fields and relationships.
+
+### Minimal checklist
+
+- Confirm Mermaid modeling is actually needed.
+- List the core entities and relationships first.
+- Decide whether this is a new model or an update.
+- Keep the initial model small unless the user explicitly wants a large enterprise schema.
+
+## Overview
+
+This skill is an **advanced modeling path**, not the default path for database work.
+
+- For most MySQL database tasks, use `relational-database-tool` and write SQL directly. If the task says PostgreSQL, CloudBase PG, PG mode, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, or RLS, use `postgresql-development` instead.
+- Use this skill only when diagram-driven modeling adds value.
+
+## Quick routing
+
+### Use `relational-database-tool` instead when
+
+- You need MySQL `CREATE TABLE`, `ALTER TABLE`, `INSERT`, `UPDATE`, `DELETE`, or `SELECT`
+- The schema is small and already clear
+- The user never asked for a visual model
+- The task does **not** mention PostgreSQL / CloudBase PG / PG mode / `app.rdb()` / `queryPgDatabase` / `managePgDatabase` / RLS
+
+### Use this skill when
+
+- You need multi-entity relationship modeling
+- You need Mermaid `classDiagram` output
+- You want generated model structure and documentation
+- You need a clean modeling pass before SQL implementation
+
+## How to use this skill (for a coding agent)
+
+1. **Clarify the entity set**
+   - Extract business entities, ownership, and relationship cardinality from the request.
+   - Prefer 3-5 core entities unless the user clearly asks for more.
+
+2. **Model first, then generate**
+   - Draft Mermaid `classDiagram` content.
+   - Validate names, field types, and relationships before calling modeling tools.
+
+3. **Use the right tools**
+   - Read/list existing models -> `manageDataModel(action="list"|"get"|"docs")`
+   - Create a new model -> `modifyDataModel` (compatibility name; create-only)
+
+4. **Publish carefully**
+   - Prefer creating with unpublished or draft-like intent first.
+   - Publish only after checking field names, required constraints, and relationship directions.
+
+## Mermaid generation rules
+
+### Naming
+
+- Class names -> PascalCase
+- Field names -> camelCase
+- Convert Chinese business descriptions into clear English identifiers
+- Keep enum values human-readable when needed
+
+### Type mapping
+
+| Business meaning | Mermaid type |
+| --- | --- |
+| text | `string` |
+| number | `number` |
+| boolean | `boolean` |
+| enum | `x-enum` |
+| email | `email` |
+| phone | `phone` |
+| URL | `url` |
+| image | `x-image` |
+| file | `x-file` |
+| rich text | `x-rtf` |
+| date | `date` |
+| datetime | `datetime` |
+| region | `x-area-code` |
+| location | `x-location` |
+| array | `string[]` or another explicit array type |
+
+### Required structure conventions
+
+- Use `required()` only for fields the user explicitly marks as required.
+- Use `unique()` only for explicit uniqueness needs.
+- Use `display_field()` for the human-facing label field.
+- Add concise `<<description>>` notes to important fields.
+- Keep relationship labels tied to actual field names rather than vague business prose.
+
+## Minimal example
+
+```mermaid
+classDiagram
+    class User {
+        username: string <<Username>>
+        email: email <<Email>>
+        display_field() "username"
+        required() ["username", "email"]
+        unique() ["username", "email"]
+    }
+
+    class Order {
+        orderNo: string <<Order Number>>
+        totalAmount: number <<Total Amount>>
+        userId: string <<User ID>>
+        display_field() "orderNo"
+        unique() ["orderNo"]
+    }
+
+    Order "n" --> "1" User : userId
+
+    %% Class naming
+    note for User "用户"
+    note for Order "订单"
+```
+
+## Tool usage guidance
+
+### Read existing models
+
+Use this before creating related models, checking naming consistency, or assessing how an existing model is defined:
+
+- `manageDataModel(action="list")`
+- `manageDataModel(action="get", name="ModelName")`
+- `manageDataModel(action="docs", name="ModelName")`
+
+### Create model
+
+Use `modifyDataModel` with:
+
+- a complete `mermaidDiagram`
+- `action="create"` when you want to create new models
+- a deliberate publish decision
+- clear awareness that updating existing model structures is not currently supported by this tool
+
+## Best practices
+
+1. Prefer direct SQL unless the user clearly benefits from model-first design.
+2. Keep the first model iteration small and reviewable.
+3. Separate business entities from implementation-only helper fields.
+4. Validate relationship direction and ownership before publishing.
+5. After modeling, hand off actual MySQL SQL/table work to `relational-database-tool` when needed. For PostgreSQL / CloudBase PG tables, hand off to `postgresql-development` instead.
