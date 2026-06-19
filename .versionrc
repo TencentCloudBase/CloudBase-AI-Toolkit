@@ -1,0 +1,15 @@
+{
+  "types": [
+    {"type": "feat", "section": "新功能"},
+    {"type": "fix", "section": "修复"},
+    {"type": "docs", "section": "文档"},
+    {"type": "style", "section": "样式"},
+    {"type": "refactor", "section": "重构"},
+    {"type": "perf", "section": "性能"},
+    {"type": "test", "section": "测试"},
+    {"type": "chore", "section": "其他"}
+  ],
+  "commitUrlFormat": "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/{{hash}}",
+  "compareUrlFormat": "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/compare/{{previousTag}}...{{currentTag}}",
+  "issueUrlFormat": "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues/{{id}}"
+} 

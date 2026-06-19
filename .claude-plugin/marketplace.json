@@ -1,0 +1,23 @@
+{
+  "name": "tencent-cloudbase",
+  "owner": {
+    "name": "Tencent CloudBase"
+  },
+  "description": "Tencent CloudBase plugins for CloudBase platform development and CloudBase Sites workflows.",
+  "plugins": [
+    {
+      "name": "cloudbase",
+      "displayName": "Tencent CloudBase",
+      "source": "./plugin/cloudbase",
+      "description": "CloudBase platform capabilities: AI, auth, databases, cloud functions, storage, CloudRun, and Mini Program integration.",
+      "category": "Developer Tools"
+    },
+    {
+      "name": "cloudbase-sites",
+      "displayName": "CloudBase Sites",
+      "source": "./plugin/cloudbase-sites",
+      "description": "Create, preview, save, deploy, inspect, and roll back Vite web apps hosted on Tencent CloudBase.",
+      "category": "Developer Tools"
+    }
+  ]
+}

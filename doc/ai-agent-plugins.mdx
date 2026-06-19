@@ -1,0 +1,106 @@
+import IDESelector from './components/IDESelector';
+import CodexInstallSelector from './components/CodexInstallSelector';
+
+# CloudBase Plugin for AI Coding Agents
+
+将 CloudBase 能力一键接入 AI 编程助手。
+
+<hr />
+
+CloudBase Plugin for AI Coding Agents 是一个一键安装包，让你的 AI 编程助手获得完整的 CloudBase 平台能力。它同时捆绑了 [CloudBase MCP Server](/ai/cloudbase-ai-toolkit/getting-started) 和 [Agent Skills](/ai/cloudbase-ai-toolkit/prompts/how-to-use)，安装后 AI 可以直接查询数据库、管理云函数、部署静态托管、操作云存储 — 无需手动配置。
+
+## 为什么使用插件？
+
+AI 编程助手的插件是一组 AI 扩展的打包集合。一个插件可以同时捆绑：
+
+- **MCP 服务** — 外部工具集成，让 AI 能与 CloudBase 平台交互
+- **Skills** — 按需加载的专业知识与上下文，让 AI 工作更准确
+- **Hooks** — 事件处理器，在 AI 生命周期节点自动运行
+- **Agents** — 具有特定角色和工具配置的专门子智能体
+- **Slash 命令** — 可在对话中直接调用的自定义命令
+
+将 [MCP Server](/ai/cloudbase-ai-toolkit/getting-started) 和 [Agent Skills](/ai/cloudbase-ai-toolkit/prompts/how-to-use) 打包到一个插件中，意味着**一次安装就能同时获得工具连接和专业知识**。你也可以单独安装它们。插件可以全局安装（跨项目使用），也可以按项目安装（保持隔离）。
+
+## 安装指南
+
+### Codex（推荐）
+
+Codex 支持从插件市场（marketplace）安装插件。你可以选择使用 Codex App 的图形界面，或者使用命令行。
+
+<CodexInstallSelector />
+
+### Claude Code
+
+Claude Code 也支持从 marketplace 安装插件，安装后自动获得 MCP 连接和 Skills：
+
+```bash
+# 添加 CloudBase 插件市场
+claude plugin marketplace add TencentCloudBase/cloudbase-mcp
+
+# 安装 CloudBase 插件
+claude plugin install cloudbase@tencent-cloudbase
+```
+
+安装完成后在 Claude Code 内运行 `/reload-plugins` 激活插件。默认 `--scope user` 全局可用，使用 `--scope project` 可在团队中共享。
+
+### 其他 IDE
+
+对于不直接支持 marketplace 的 IDE，可以通过配置 MCP 连接并使用 Skills。选择你使用的工具查看具体步骤：
+
+<IDESelector defaultIDE="cursor" showInstallButton={false} />
+
+## 包含内容
+
+### CloudBase MCP Server
+
+[CloudBase MCP Server](getting-started.mdx) 让你的 AI 编程助手与 CloudBase 平台直接连接。登录后，AI 可以：
+
+| 能力 | 说明 |
+|------|------|
+| **环境管理** | 登录、环境查询、安全域名配置 |
+| **NoSQL 数据库** | 读写数据库内容、管理集合结构 |
+| **MySQL 数据库** | 查询和管理关系型数据库 |
+| **数据模型** | 创建和管理数据模型 |
+| **云函数** | 查询、创建、更新、部署函数 |
+| **静态托管** | 文件上传、域名管理、部署 |
+| **云存储** | 文件管理和操作 |
+| **云托管** | CloudBase Run 服务部署与管理 |
+| **API 网关** | 云函数访问入口与路由管理 |
+| **应用认证** | 认证配置管理 |
+| **权限管理** | 角色、权限与安全规则 |
+| **日志服务** | 日志检索与状态查询 |
+| **AI Agent** | Agent 列表、详情与管理 |
+| **知识库** | 云开发知识库智能检索 |
+| **云 API** | 通用腾讯云 API 调用 |
+
+查看完整的 [MCP 工具文档](mcp-tools.md) 了解每个工具的详细参数。
+
+### Agent Skills
+
+Skills 为 AI 提供 CloudBase 特定领域的专业知识：
+
+| Skill | 说明 |
+|-------|------|
+| [`cloudbase-platform`](prompts/cloudbase-platform.mdx) | 云开发平台核心知识：环境配置、认证机制、资源管理 |
+| [`web-development`](prompts/web-development.mdx) | Web 项目开发最佳实践（React/Vue/原生 JS） |
+| [`miniprogram-development`](prompts/miniprogram-development.mdx) | 微信小程序云开发全流程指导 |
+| [`cloud-functions`](prompts/cloud-functions.mdx) | 云函数开发、调试、部署 |
+| [`cloudrun-development`](prompts/cloudrun-development.mdx) | 云托管服务后端开发 |
+| [`auth-*`](prompts/auth-web.mdx) | 身份认证（Web/小程序/Node.js/HTTP API） |
+| [`no-sql-*`](prompts/no-sql-web-sdk.mdx) | NoSQL 数据库开发（Web SDK/小程序 SDK） |
+| [`relational-database-*`](prompts/relational-database-tool.mdx) | 关系型数据库开发 |
+| [`data-model-creation`](prompts/data-model-creation.mdx) | 数据模型设计与建模指导 |
+| [`ai-model-*`](prompts/ai-model-web.mdx) | AI 模型集成（Web/Node.js/微信） |
+| [`ui-design`](prompts/ui-design.mdx) | UI/UX 设计规则与规范 |
+| [`http-api`](prompts/http-api.mdx) | HTTP API 云开发 |
+| [`spec-workflow`](prompts/spec-workflow.mdx) | AI 辅助的规格化开发工作流 |
+
+查看完整的 [Skill 文档](prompts/how-to-use.mdx) 了解如何安装和使用。
+
+## 相关文档
+
+- [快速开始](getting-started.mdx) — 首次使用指南
+- [MCP 工具详细说明](mcp-tools.md) — 每个工具的完整参数
+- [如何使用 Skill](prompts/how-to-use.mdx) — Skill 安装与使用
+- [连接方式](connection-modes.mdx) — 本地模式与托管模式
+- [常见问题](faq.md) — 插件配置与排查

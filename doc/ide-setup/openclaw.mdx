@@ -1,0 +1,49 @@
+import IDESelector from '../components/IDESelector';
+import RelatedResources from '../components/RelatedResources';
+
+# OpenClaw 配置指南
+
+在 OpenClaw 中不需要手动维护项目级 MCP 配置文件；如果需要补充 CloudBase 规则和工作流，可以直接通过对话安装 CloudBase Skills。
+
+你可以直接在对话中让 AI 执行：
+
+```text
+安装 CloudBase Skills：命令 npx skills add tencentcloudbase/cloudbase-skills -y
+```
+
+如果暂时不需要额外的 CloudBase 规则和工作流，也可以直接输入你的业务需求开始开发。
+
+## 前置条件
+
+在开始配置之前，请确保满足以下条件：
+
+<details>
+<summary><strong>已准备好 Node.js 环境和云开发环境</strong></summary>
+
+**Node.js 环境：** 确保已安装 Node.js v18.15.0 或更高版本：
+
+```bash
+node --version
+```
+
+如果未安装，请从 [Node.js 官网](https://nodejs.org/en/download) 下载安装。
+
+**云开发环境：** 请参考文档 [开通云开发环境](https://docs.cloudbase.net/quick-start/create-env)。新用户可以免费开通体验。
+
+</details>
+
+---
+
+<IDESelector defaultIDE="openclaw" showInstallButton={false} />
+
+## 常见问题
+
+**Q: OpenClaw 需要单独创建 `.mcp.json` 吗？**  
+A: 不需要。OpenClaw 章节默认走 CloudBase Skills 工作流，不要求你手动维护项目级 MCP 配置文件。
+
+**Q: 是否需要先安装 CloudBase Skills？**  
+A: 不需要手动安装。你可以直接在 OpenClaw 对话中让 AI 安装；如果暂时不需要额外规则，也可以直接开始开发。
+
+更多问题请查看：[完整 FAQ](../faq)
+
+<RelatedResources />

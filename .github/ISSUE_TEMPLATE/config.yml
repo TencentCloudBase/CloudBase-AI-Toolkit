@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📚 Documentation | 文档
+    url: https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/
+    about: Check the documentation for guides and examples | 查看文档获取指南和示例
+  - name: 💬 Discussions | 讨论
+    url: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/discussions
+    about: Ask questions and discuss ideas | 提问和讨论想法
+  - name: 📺 Tutorial Videos | 教程视频
+    url: https://www.bilibili.com/video/BV1hpjvzGESg/
+    about: Watch tutorial videos | 观看教程视频

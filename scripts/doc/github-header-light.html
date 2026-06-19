@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudBase AI-Deploy MCP - GitHub Header</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        body::before {
+            display: none;
+        }
+
+        .github-header {
+            width: 1200px;
+            height: 600px;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(59, 130, 246, 0.08), 0 1.5px 4px rgba(0,0,0,0.04);
+            display: flex;
+            align-items: flex-start;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #e5e7eb;
+        }
+
+        .github-header::before {
+            display: none;
+        }
+
+        .left-section {
+            flex: 0 0 220px;
+            padding: 40px 0 0 40px;
+            z-index: 2;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            height: 100%;
+        }
+
+        .project-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #222;
+            line-height: 1.1;
+            background: linear-gradient(135deg, #3b82f6 0%, #10b981 50%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.08);
+            margin-bottom: 0;
+        }
+
+        .project-subtitle {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #10b981;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .ai-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #10b981 0%, #06d6a0 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.18);
+        }
+
+        .slogan {
+            font-size: 1.3rem;
+            color: #333;
+            font-weight: 600;
+            padding: 20px 28px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%);
+            border-radius: 16px;
+            border: 2px solid #e0e7ef;
+            background-clip: padding-box;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .right-section {
+            flex: 1 1 0%;
+            padding: 40px 60px 40px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            z-index: 2;
+            position: relative;
+            height: 100%;
+        }
+
+        .workflow-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #222;
+            text-align: center;
+            margin-bottom: 25px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .workflow-container {
+            position: relative;
+            height: 380px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .workflow-step {
+            position: relative;
+            display: flex;
+            align-items: center;
+            z-index: 3;
+        }
+
+        .workflow-step.core-product {
+            padding: 12px 16px;
+            background: rgba(59, 130, 246, 0.04);
+            border-radius: 16px;
+            border: 2px solid rgba(59, 130, 246, 0.12);
+            margin: 8px 0;
+            position: relative;
+        }
+
+        .workflow-step.core-product::before {
+            content: '核心';
+            position: absolute;
+            top: -8px;
+            right: 10px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);
+        }
+
+        .workflow-step.core-product .step-node {
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.12);
+            border: 2px solid #e0e7ef;
+        }
+
+        .workflow-step.core-product .step-title {
+            color: #3b82f6;
+        }
+
+        .step-node {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.10);
+        }
+
+        .step-node.cursor { 
+            background: linear-gradient(135deg, #e5e7eb 0%, #cbd5e1 100%);
+            color: #3b82f6;
+        }
+        .step-node.ai { 
+            background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+        }
+        .step-node.mcp { 
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+        }
+        .step-node.platform { 
+            background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+        }
+
+        .step-content {
+            margin-left: 15px;
+            flex: 1;
+        }
+
+        .step-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .step-desc {
+            font-size: 0.8rem;
+            color: #64748b;
+            line-height: 1.3;
+        }
+
+        .step-tools {
+            font-size: 0.7rem;
+            color: #10b981;
+            font-weight: 600;
+            margin-top: 3px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* 静态箭头连接 */
+        .workflow-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 30px;
+            bottom: -20px;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 12px solid #3b82f6;
+            z-index: 2;
+        }
+
+        .workflow-step:first-child::after {
+            border-top-color: #cbd5e1;
+        }
+
+        /* 连接线 */
+        .workflow-step:not(:last-child) {
+            position: relative;
+        }
+
+        .workflow-step:not(:last-child) .step-content::after {
+            content: '';
+            position: absolute;
+            left: -45px;
+            bottom: -28px;
+            width: 2px;
+            height: 16px;
+            background: linear-gradient(to bottom, transparent, #3b82f6);
+            z-index: 1;
+        }
+
+        .workflow-step:first-child .step-content::after {
+            background: linear-gradient(to bottom, transparent, #cbd5e1);
+        }
+
+        .final-apps {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 25px;
+            padding: 15px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.04) 0%, rgba(16, 185, 129, 0.04) 100%);
+            border-radius: 12px;
+            border: 1px solid #e0e7ef;
+        }
+
+        .app-item {
+            text-align: center;
+            padding: 12px;
+            background: rgba(59, 130, 246, 0.03);
+            border-radius: 10px;
+            backdrop-filter: blur(2px);
+            border: 1px solid #e0e7ef;
+            transition: all 0.3s ease;
+            min-width: 70px;
+        }
+
+        .app-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.10);
+        }
+
+        .app-icon {
+            font-size: 20px;
+            margin-bottom: 6px;
+        }
+
+        .app-icon.web { color: #3b82f6; }
+        .app-icon.mini { color: #10b981; }
+        .app-icon.api { color: #8b5cf6; }
+
+        .app-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #222;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .time-badge {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e42 100%);
+            color: #fff;
+            padding: 14px 28px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 16px rgba(245, 158, 11, 0.10);
+            z-index: 3;
+            border: 2px solid #fde68a;
+        }
+    </style>
+</head>
+<body>
+    <div class="github-header">
+        <div class="left-section">
+            <h1 class="project-title" style="margin-bottom:0;">CloudBase<br>AI ToolKit</h1>
+        </div>
+        <div class="right-section">
+            <h3 class="workflow-title">
+                <i class="fas fa-project-diagram"></i> 架构流程图
+            </h3>
+            <div class="workflow-container">
+                <div class="workflow-step">
+                    <div class="step-node cursor">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-title">AI编程环境</div>
+                        <div class="step-desc">开发者使用的IDE工具</div>
+                        <div class="step-tools">Cursor • VScode • CodeBuddy</div>
+                    </div>
+                </div>
+                <div class="workflow-step core-product">
+                    <div class="step-node ai">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-title">CloudBase AI 提示词规则</div>
+                        <div class="step-desc">专门适配AI IDE的云开发规则</div>
+                        <div class="step-tools">智能代码生成 • 架构设计 • 最佳实践</div>
+                    </div>
+                </div>
+                <div class="workflow-step core-product">
+                    <div class="step-node mcp">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-title">CloudBase MCP</div>
+                        <div class="step-desc">AI自动化部署管理</div>
+                        <div class="step-tools">自动部署 • 日志监控 • 资源管理</div>
+                    </div>
+                </div>
+                <div class="workflow-step core-product">
+                    <div class="step-node platform">
+                        <i class="fas fa-cloud"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-title">CloudBase 云开发平台</div>
+                        <div class="step-desc">已有330万开发者选择的 Serverless平台</div>
+                        <div class="step-tools">云函数 • 云数据库 • 静态托管 • CDN</div>
+                    </div>
+                </div>
+            </div>
+            <div class="final-apps">
+                <div class="app-item">
+                    <div class="app-icon web">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <div class="app-label">Web应用</div>
+                </div>
+                <div class="app-item">
+                    <div class="app-icon mini">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <div class="app-label">小程序</div>
+                </div>
+                <div class="app-item">
+                    <div class="app-icon api">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <div class="app-label">数据库+后端服务</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

@@ -1,0 +1,134 @@
+import IDESelector from '../components/IDESelector';
+import RelatedResources from '../components/RelatedResources';
+
+# CloudBase CLI 配置指南
+
+CloudBase CLI 是一个集成多种主流 AI 编程工具的统一命令行工具，支持项目级配置，同时内置了 CloudBase MCP 和 AI 开发规则。
+
+**核心优势：**
+
+- **统一管理**：一个命令管理多种 AI 编程 CLI 工具，无需在多个工具间切换
+- **内置 MCP 和规则**：开箱即用，无需手动配置 MCP 服务器和 AI 规则
+- **项目级配置**：支持项目级别的配置，团队协作更方便
+- **多模型支持**：支持内置和自定义各种大模型，包括 Kimi K2、智谱 GLM-4.5 等
+
+**例如：**
+
+- "创建用户表" - AI 自动创建数据库集合
+- "部署这个函数" - AI 自动上传并配置云函数
+- "部署前端到 CDN" - AI 自动上传文件并配置托管
+
+无需切换到云控制台，所有操作都可以在命令行中用自然语言完成。
+
+## 前置条件
+
+在开始配置之前，请确保满足以下条件：
+
+<details>
+<summary><strong>已准备好Node.js 环境和云开发环境</strong></summary>
+
+**Node.js 环境：** 确保已安装 Node.js v18.15.0 或更高版本：
+
+```bash
+node --version
+```
+
+如果未安装，请从 [Node.js 官网](https://nodejs.org/en/download) 下载安装。
+
+**云开发环境：** 请参考文档 [开通云开发环境](https://docs.cloudbase.net/quick-start/create-env)。新用户可以免费开通体验。
+
+</details>
+
+## 安装 CloudBase CLI
+
+使用 npm/yarn/pnpm 全局安装：
+
+```bash
+npm i -g @cloudbase/cli
+```
+
+或者使用 Yarn 1.x：
+
+```bash
+yarn global add @cloudbase/cli
+```
+
+或者 Pnpm:
+
+```bash
+pnpm add -g @cloudbase/cli
+```
+
+如果访问官方 npm 源有问题，可以使用国内镜像源：
+
+```bash
+npm i -g @cloudbase/cli --registry=http://mirrors.cloud.tencent.com/npm/
+```
+
+## 初始化 AI 配置
+
+使用终端运行 CloudBase AI CLI：
+
+```bash
+# 启动配置向导
+tcb ai
+```
+
+首次启动，配置向导会引导你完成：
+
+- 选择 AI 工具（CodeBuddy Code、Claude Code、OpenAI Codex、aider、Qwen Code）
+- 完成 AI 工具的配置（支持自定义 LLM 或使用云开发环境中的 LLM）
+
+完成配置后，即可开始使用 AI 工具进行辅助开发。后续可以运行 `tcb ai --setup` 来切换工具和模型。
+
+---
+
+<IDESelector defaultIDE="cloudbase-cli" showInstallButton={false} />
+
+## 开始使用
+
+```bash
+# 启动 AI 工具
+tcb ai
+
+# 或预设提示词
+tcb ai -- "帮我创建一个订单管理系统"
+
+# 或使用非交互式模式
+tcb ai -- -p "你好"
+
+# 查看所有可用命令
+tcb ai --help
+```
+
+## 支持的 AI 工具
+
+CloudBase CLI 支持以下 AI 编程工具：
+
+| AI 工具 | 命令参数 |
+| ------- | -------- |
+| CodeBuddy Code | `-a codebuddy` |
+| Claude Code | `-a claude` |
+| OpenAI Codex | `-a codex` |
+| aider | `-a aider` |
+| Qwen Code | `-a qwen` |
+
+## 项目级配置
+
+CloudBase CLI 支持项目级配置，配置文件会自动保存在项目根目录。这样可以让团队成员共享相同的配置，提升协作效率。
+
+## 常见问题
+
+**Q: 如何切换 AI 工具？**
+A: 运行 `tcb ai --setup` 重新运行配置向导，选择不同的 AI 工具。
+
+**Q: 如何查看当前配置？**
+A: 运行 `tcb ai --config` 查看当前配置信息。
+
+**Q: 如何重置配置？**
+A: 运行 `tcb ai --reset` 重置所有配置。
+
+更多问题请查看：[完整 FAQ](../faq)
+
+<RelatedResources ideName="CloudBase CLI" ideDocUrl="https://docs.cloudbase.net/cli-v1/ai/introduce" />
+

@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudBase AI ToolKit - Premium Banner</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        .banner {
+            width: 1600px;
+            height: 900px;
+            background: linear-gradient(135deg, #0a0f1c 0%, #1a1b2e 30%, #16213e 70%, #1a1b2e 100%);
+            position: relative;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: center;
+            padding: 0 80px;
+            box-shadow: 0 50px 100px rgba(0, 0, 0, 0.8);
+        }
+        
+        /* 精美背景装饰 */
+        .banner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        .banner::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(59,130,246,0.05)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>') repeat;
+            pointer-events: none;
+        }
+        
+        /* 左侧内容区域 */
+        .content-left {
+            z-index: 10;
+            position: relative;
+        }
+        
+        .brand-title {
+            font-size: 5.2rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #60a5fa 0%, #34d399 35%, #a78bfa 70%, #60a5fa 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 0.95;
+            margin-bottom: 32px;
+            letter-spacing: -0.02em;
+            text-shadow: 0 0 40px rgba(96, 165, 250, 0.3);
+        }
+        
+        .brand-subtitle {
+            font-size: 1.8rem;
+            color: #e2e8f0;
+            font-weight: 500;
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            opacity: 0.9;
+        }
+        
+        .ai-badge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
+            padding: 12px 24px;
+            border-radius: 50px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            box-shadow: 
+                0 10px 30px rgba(16, 185, 129, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            position: relative;
+        }
+        
+        .ai-badge::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+            border-radius: 50px;
+            pointer-events: none;
+        }
+        
+        .slogan {
+            font-size: 2.6rem;
+            color: #ffffff;
+            font-weight: 800;
+            line-height: 1.2;
+            padding: 40px 50px;
+            background: 
+                linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(51, 65, 85, 0.6) 100%),
+                linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+            border-radius: 28px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+            position: relative;
+            backdrop-filter: blur(20px);
+            box-shadow: 
+                0 25px 60px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .slogan::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(135deg, #3b82f6, #10b981, #8b5cf6);
+            border-radius: 30px;
+            z-index: -1;
+            opacity: 0.8;
+        }
+        
+        .highlight {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 900;
+            position: relative;
+        }
+        
+        .magic-icon {
+            color: #fbbf24;
+            margin-right: 16px;
+            filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.6));
+        }
+        
+        /* 右侧可视化区域 */
+        .visual-right {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .tech-ecosystem {
+            position: relative;
+            width: 500px;
+            height: 500px;
+        }
+        
+        /* 中央核心 */
+        .core-platform {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 180px;
+            height: 180px;
+            background: 
+                linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 
+                0 0 100px rgba(59, 130, 246, 0.6),
+                0 0 0 8px rgba(59, 130, 246, 0.2),
+                0 0 0 16px rgba(59, 130, 246, 0.1),
+                inset 0 4px 20px rgba(255, 255, 255, 0.2);
+            position: relative;
+        }
+        
+        .core-platform::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            bottom: -4px;
+            background: linear-gradient(45deg, #3b82f6, #10b981, #8b5cf6, #3b82f6);
+            border-radius: 50%;
+            z-index: -1;
+            opacity: 0.8;
+        }
+        
+        .core-icon {
+            font-size: 48px;
+            margin-bottom: 8px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+        }
+        
+        .core-text {
+            font-size: 14px;
+            font-weight: 700;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.5px;
+        }
+        
+        /* 环绕的服务节点 */
+        .service-node {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .service-node:hover {
+            transform: translateY(-8px) scale(1.05);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        .node-ai {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.9) 0%, rgba(5, 150, 105, 0.9) 100%);
+            box-shadow: 0 20px 40px rgba(16, 185, 129, 0.4);
+        }
+        
+        .node-functions {
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.9) 0%, rgba(124, 58, 237, 0.9) 100%);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+        
+        .node-database {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.9) 0%, rgba(217, 119, 6, 0.9) 100%);
+            box-shadow: 0 20px 40px rgba(245, 158, 11, 0.4);
+        }
+        
+        .node-hosting {
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.9) 0%, rgba(220, 38, 38, 0.9) 100%);
+            box-shadow: 0 20px 40px rgba(239, 68, 68, 0.4);
+        }
+        
+        .node-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+        
+        .node-text {
+            font-size: 11px;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.3px;
+            line-height: 1.2;
+        }
+        
+        /* 连接线 */
+        .connection-line {
+            position: absolute;
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.3), rgba(16, 185, 129, 0.3));
+            height: 2px;
+            border-radius: 1px;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        
+        .line-1 {
+            top: 140px;
+            left: 210px;
+            width: 80px;
+            transform: rotate(-45deg);
+        }
+        
+        .line-2 {
+            top: 250px;
+            right: 140px;
+            width: 80px;
+        }
+        
+        .line-3 {
+            bottom: 140px;
+            left: 210px;
+            width: 80px;
+            transform: rotate(45deg);
+        }
+        
+        .line-4 {
+            top: 250px;
+            left: 140px;
+            width: 80px;
+        }
+        
+        /* 浮动装饰元素 */
+        .floating-element {
+            position: absolute;
+            opacity: 0.6;
+            color: rgba(59, 130, 246, 0.4);
+        }
+        
+        .element-1 {
+            top: 10%;
+            left: 10%;
+            font-size: 24px;
+            transform: rotate(-15deg);
+        }
+        
+        .element-2 {
+            top: 15%;
+            right: 15%;
+            font-size: 20px;
+            transform: rotate(20deg);
+        }
+        
+        .element-3 {
+            bottom: 10%;
+            left: 15%;
+            font-size: 22px;
+            transform: rotate(10deg);
+        }
+        
+        .element-4 {
+            bottom: 15%;
+            right: 10%;
+            font-size: 18px;
+            transform: rotate(-20deg);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 1600px) {
+            .banner {
+                width: 100vw;
+                height: 56.25vw;
+                max-height: 100vh;
+                padding: 0 5vw;
+                grid-template-columns: 1.2fr 1fr;
+            }
+            
+            .brand-title { 
+                font-size: calc(3rem + 2vw);
+            }
+            
+            .slogan { 
+                font-size: calc(1.4rem + 1vw);
+                padding: calc(20px + 2vw) calc(30px + 2vw);
+            }
+            
+            .tech-ecosystem {
+                width: calc(300px + 15vw);
+                height: calc(300px + 15vw);
+            }
+            
+            .core-platform {
+                width: calc(120px + 5vw);
+                height: calc(120px + 5vw);
+            }
+            
+            .service-node {
+                width: calc(80px + 3vw);
+                height: calc(80px + 3vw);
+            }
+        }
+        
+        @media (max-width: 1200px) {
+            .banner {
+                grid-template-columns: 1fr;
+                text-align: center;
+                padding: 5vh 5vw;
+            }
+            
+            .visual-right {
+                margin-top: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="banner">
+        <!-- 左侧内容 -->
+        <div class="content-left">
+            <h1 class="brand-title">CloudBase<br>AI ToolKit</h1>
+            <div class="brand-subtitle">
+                <span class="ai-badge">
+                    <i class="fas fa-robot"></i> AI-Powered
+                </span>
+                Cloud Development Platform
+            </div>
+            <div class="slogan">
+                <i class="fas fa-magic magic-icon"></i>
+                <span class="highlight">Prompt</span> to Production:<br>
+                Ship full-stack apps in <span class="highlight">10 minutes</span>!
+            </div>
+        </div>
+        
+        <!-- 右侧可视化 -->
+        <div class="visual-right">
+            <div class="tech-ecosystem">
+                <!-- 连接线 -->
+                <div class="connection-line line-1"></div>
+                <div class="connection-line line-2"></div>
+                <div class="connection-line line-3"></div>
+                <div class="connection-line line-4"></div>
+                
+                <!-- 中央核心平台 -->
+                <div class="core-platform">
+                    <div class="core-icon">
+                        <i class="fas fa-cloud"></i>
+                    </div>
+                    <div class="core-text">
+                        CloudBase<br>Platform
+                    </div>
+                </div>
+                
+                <!-- 环绕服务节点 -->
+                <div class="service-node node-ai">
+                    <div class="node-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <div class="node-text">
+                        AI<br>Assistant
+                    </div>
+                </div>
+                
+                <div class="service-node node-functions">
+                    <div class="node-icon">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <div class="node-text">
+                        Cloud<br>Functions
+                    </div>
+                </div>
+                
+                <div class="service-node node-database">
+                    <div class="node-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <div class="node-text">
+                        Database<br>Service
+                    </div>
+                </div>
+                
+                <div class="service-node node-hosting">
+                    <div class="node-icon">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <div class="node-text">
+                        Static<br>Hosting
+                    </div>
+                </div>
+                
+                <!-- 浮动装饰元素 -->
+                <div class="floating-element element-1">
+                    <i class="fas fa-code"></i>
+                </div>
+                <div class="floating-element element-2">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <div class="floating-element element-3">
+                    <i class="fas fa-mobile-alt"></i>
+                </div>
+                <div class="floating-element element-4">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

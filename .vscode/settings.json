@@ -1,0 +1,33 @@
+{
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.suggest.autoImports": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "files.associations": {
+    "*.test.js": "javascript",
+    "*.test.ts": "typescript",
+    "*.spec.js": "javascript",
+    "*.spec.ts": "typescript"
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/coverage": true
+  },
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/coverage": true
+  },
+  "testing.automaticallyOpenPeekView": "never",
+  "testing.gutterEnabled": true,
+  "testing.openTesting": "openExplorer",
+  "testing.followRunningTest": true,
+  "testing.autoRun.delay": 1000,
+  "testing.autoRun.mode": "rerun",
+  "testing.automaticallyOpenTestResults": "openExplorer"
+}
+

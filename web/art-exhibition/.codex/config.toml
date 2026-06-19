@@ -1,7 +1,0 @@
-# OpenAI Codex CLI Configuration for CloudBase AI ToolKit
-# This configuration enables MCP (Model Context Protocol) support for CloudBase tools
-
-[mcp_servers.cloudbase]
-command = "npx"
-args = ["npm-global-exec@latest", "@cloudbase/cloudbase-mcp@latest"]
-env = { INTEGRATION_IDE = "CodeX" }

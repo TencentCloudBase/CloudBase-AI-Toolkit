@@ -1,0 +1,31 @@
+{
+  "name": "mcp-tcb",
+  "title": "云开发基础能力",
+  "description": "支持通过 MCP 协议来管理云开发基础能力，包括云开发环境管理、静态网站部署，数据库集合管理、数据库文档操作等。",
+  "author": {
+    "name": "云开发",
+    "avatar": "cloud://tcb-advanced-a656fc.7463-tcb-advanced-a656fc-1257967285/weda-uploader/ea7adbf26fbfed25b2f79b118628b73b-logo.svg"
+  },
+  "container_image": "crunbuild-az-new.tencentcloudcr.com/cloudbase/cloudrun-mcp-tcb:0.0.1",
+  "tags": [
+    "云开发",
+    "环境管理",
+    "数据库管理",
+    "静态托管"
+  ],
+  "port": 3000,
+  "logo": [
+    "cloud://tcb-advanced-a656fc.7463-tcb-advanced-a656fc-1257967285/weda-uploader/ea7adbf26fbfed25b2f79b118628b73b-logo.svg"
+  ],
+  "memory": 0.5,
+  "cpu": 0.25,
+  "min_instances": 1,
+  "max_instances": 1,
+  "env_params": {
+    "TENCENTCLOUD_SECRETID": "腾讯云 SecretId",
+    "TENCENTCLOUD_SECRETKEY": "腾讯云 SecretKey",
+    "CLOUDBASE_ENV_ID": "云开发环境 ID",
+    "NODE_INSTANCE": "1"
+  },
+  "transport": "sse"
+}

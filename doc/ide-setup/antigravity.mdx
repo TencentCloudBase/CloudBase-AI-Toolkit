@@ -1,0 +1,118 @@
+import IDESelector from '../components/IDESelector';
+import RelatedResources from '../components/RelatedResources';
+
+# Google Antigravity 配置指南
+
+配置后，你可以在 Google Antigravity 的 AI 对话中直接操作 CloudBase 服务。
+
+**例如：**
+
+- "创建用户表" - AI 自动创建数据库集合
+- "部署这个函数" - AI 自动上传并配置云函数
+- "部署前端到 CDN" - AI 自动上传文件并配置托管
+
+无需切换到云控制台，所有操作都可以在 Google Antigravity 中用自然语言完成。
+
+## 前置条件
+
+在开始配置之前，请确保满足以下条件：
+
+<details>
+<summary><strong>已准备好Node.js 环境和云开发环境</strong></summary>
+
+**Node.js 环境：** 确保已安装 Node.js v18.15.0 或更高版本：
+
+```bash
+node --version
+```
+
+如果未安装，请从 [Node.js 官网](https://nodejs.org/en/download) 下载安装。
+
+**云开发环境：** 请参考文档 [开通云开发环境](https://docs.cloudbase.net/quick-start/create-env)。新用户可以免费开通体验。
+
+</details>
+
+---
+
+<IDESelector defaultIDE="antigravity" showInstallButton={false} />
+
+## 配置步骤
+
+### 方法一：使用项目模板（推荐）
+
+使用项目模板可以自动配置 MCP 和规则文件：
+
+```bash
+npx @cloudbase/cloudbase-mcp downloadTemplate --template rules --ide antigravity
+```
+
+### 方法二：手动配置
+
+1. **创建规则目录**
+
+   在项目根目录创建 `.agent/rules/` 目录：
+
+   ```bash
+   mkdir -p .agent/rules
+   ```
+
+2. **配置 MCP 服务器**
+
+   在项目根目录创建 `.mcp.json` 文件，添加以下配置：
+
+   ```json
+   {
+     "mcpServers": {
+       "cloudbase": {
+         "command": "npx",
+         "args": ["@cloudbase/cloudbase-mcp@latest"],
+         "env": {
+           "INTEGRATION_IDE": "Antigravity"
+         }
+       }
+     }
+   }
+   ```
+
+3. **添加规则文件**
+
+   将 CloudBase 规则文件复制到 `.agent/rules/` 目录。规则文件支持以下激活方式：
+
+   - **Manual**: 通过 @ 提及手动激活
+   - **Always On**: 始终应用
+   - **Model Decision**: 基于自然语言描述，模型决定是否应用
+   - **Glob**: 基于 glob 模式（如 `.js`, `src/**/.ts`），匹配的文件会自动应用规则
+
+## 验证连接
+
+配置完成后，在 Google Antigravity 的 AI 对话中输入：
+
+```
+检查 CloudBase 工具是否可用
+```
+
+如果配置成功，AI 应该能够识别并使用 CloudBase 工具。
+
+## 常见问题
+
+**Q: MCP 连接失败？**
+A: 检查配置文件格式是否正确，重启 Google Antigravity，确认网络连接正常。
+
+**Q: 规则文件不生效？**
+A: 检查规则文件的激活方式设置是否正确，确保文件位于 `.agent/rules/` 目录下。
+
+**Q: 工具数量显示为 0？**
+A: 请参考[常见问题](../faq#mcp-显示工具数量为-0-怎么办)。
+
+更多问题请查看：[完整 FAQ](../faq)
+
+<RelatedResources ideName="Google Antigravity" ideDocUrl="https://antigravity.google/docs" />
+
+
+
+
+
+
+
+
+

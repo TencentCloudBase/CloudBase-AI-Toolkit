@@ -1,0 +1,125 @@
+{
+  "name": "@cloudbase/cloudbase-mcp",
+"version": "2.22.0-beta.0",
+  "packageManager": "pnpm@10.8.0",
+  "description": "腾讯云开发 MCP Server，通过AI提示词和MCP协议+云开发，让开发更智能、更高效,当你在Cursor/ VSCode GitHub Copilot/WinSurf/CodeBuddy/Augment Code/Claude Code等AI编程工具里写代码时，它能自动帮你生成可直接部署的前后端应用+小程序，并一键发布到腾讯云开发 CloudBase。",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "bin": {
+    "cloudbase-mcp": "dist/cli.cjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      },
+      "default": "./dist/index.js"
+    }
+  },
+  "homepage": "https://github.com/TencentCloudBase/CloudBase-MCP",
+  "bugs": {
+    "url": "https://github.com/TencentCloudBase/CloudBase-MCP/issues",
+    "email": "bookerzhao@tencent.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TencentCloudBase/CloudBase-MCP.git"
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
+    "build": "npm run build:webpack && npm run build:types && npm run build:permissions",
+    "build:webpack": "webpack --config webpack/index.cjs --mode=production",
+    "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist/types && api-extractor run --local --verbose && cp dist/types/cli.d.ts dist/cli.d.ts && rm -rf dist/types",
+    "build:permissions": "chmod 755 dist/cli.cjs",
+    "test": "npm run build && vitest run",
+    "test:watch": "npm run build && vitest",
+    "test:ui": "npm run build && vitest --ui",
+    "test:coverage": "npm run build && vitest run --coverage",
+    "test:pg:cloud": "npm run build && node ./scripts/verify-pg-cloud-smoke.mjs",
+    "test:inspector": "npm run build && npx @modelcontextprotocol/inspector node ./dist/cli.js",
+    "prepublishOnly": "npm run build && node scripts/prepare-publish.cjs",
+    "postpublish": "node scripts/restore-deps.cjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "cloudbase",
+    "tencent-cloud"
+  ],
+  "author": "TencentCloudBase",
+  "license": "MIT",
+  "dependencies": {
+    "@cloudbase/cals": "^1.2.23",
+    "@cloudbase/functions-framework": "^1.14.0",
+    "@cloudbase/manager-node": "5.5.1-beta.0",
+    "@cloudbase/mcp": "1.0.0-beta.25",
+    "@cloudbase/toolbox": "^0.8.1",
+    "@modelcontextprotocol/sdk": "1.13.1",
+    "@types/adm-zip": "^0.5.7",
+    "adm-zip": "^0.5.16",
+    "cors": "^2.8.5",
+    "express": "5.1.0",
+    "fd-slicer": "^1.1.0",
+    "lockfile": "^1.0.4",
+    "open": "^10.1.2",
+    "punycode": "^2.3.1",
+    "unzipper": "^0.12.3",
+    "winston": "^3.15.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "ws": "8.18.3",
+    "zod": "3.24.3"
+  },
+  "devDependencies": {
+    "@microsoft/api-extractor": "^7.57.6",
+    "@modelcontextprotocol/sdk": "^1.13.3",
+    "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-inject": "^5.0.5",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-replace": "^6.0.2",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
+    "@types/lockfile": "^1.0.4",
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.12",
+    "buffer": "^6.0.3",
+    "copy-webpack-plugin": "^13.0.0",
+    "dotenv": "^16.4.5",
+    "fork-ts-checker-webpack-plugin": "^9.1.0",
+    "process": "^0.11.10",
+    "rollup": "^4.27.4",
+    "rollup-plugin-dts": "^6.1.1",
+    "rollup-plugin-ignore": "^1.0.10",
+    "rollup-plugin-node-polyfills": "^0.2.1",
+    "ts-loader": "^9.5.2",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.8",
+    "webpack": "^5.100.0",
+    "webpack-cli": "^6.0.1",
+    "webpack-merge": "^6.0.1",
+    "webpack-node-externals": "^3.0.0",
+    "webpack-obfuscator": "^3.6.0"
+  },
+  "overrides": {
+    "tough-cookie": "^4.1.3"
+  }
+}

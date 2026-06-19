@@ -1,0 +1,98 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run All Tests",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/mcp/node_modules/.bin/vitest",
+      "args": ["run"],
+      "cwd": "${workspaceFolder}/mcp",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "preLaunchTask": "npm: build"
+    },
+    {
+      "name": "Run Current Test File",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/mcp/node_modules/.bin/vitest",
+      "args": ["run", "${relativeFile}"],
+      "cwd": "${workspaceFolder}/mcp",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "preLaunchTask": "npm: build"
+    },
+    {
+      "name": "Run Tests with Pattern",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/mcp/node_modules/.bin/vitest",
+      "args": ["run", "--reporter=verbose"],
+      "cwd": "${workspaceFolder}/mcp",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "preLaunchTask": "npm: build"
+    },
+    {
+      "name": "Debug Current Test",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/mcp/node_modules/.bin/vitest",
+      "args": ["run", "--reporter=verbose", "${relativeFile}"],
+      "cwd": "${workspaceFolder}/mcp",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "preLaunchTask": "npm: build",
+      "stopOnEntry": false,
+      "restart": true
+    },
+    {
+      "name": "Watch Tests",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/mcp/node_modules/.bin/vitest",
+      "args": ["--watch"],
+      "cwd": "${workspaceFolder}/mcp",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "preLaunchTask": "npm: build"
+    },
+    {
+      "name": "Run Tests with Coverage",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/mcp/node_modules/.bin/vitest",
+      "args": ["run", "--coverage"],
+      "cwd": "${workspaceFolder}/mcp",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "preLaunchTask": "npm: build"
+    }
+  ]
+}
+

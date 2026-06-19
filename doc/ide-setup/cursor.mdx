@@ -1,0 +1,49 @@
+import IDESelector from '../components/IDESelector';
+import RelatedResources from '../components/RelatedResources';
+
+# Cursor 配置指南
+
+配置后，你可以在 Cursor 的 AI 对话中直接操作 CloudBase 服务。
+
+**例如：**
+
+- "创建用户表" - AI 自动创建数据库集合
+- "部署这个函数" - AI 自动上传并配置云函数
+- "部署前端到 CDN" - AI 自动上传文件并配置托管
+
+无需切换到云控制台，所有操作都可以在 Cursor 中用自然语言完成。
+
+## 前置条件
+
+在开始配置之前，请确保满足以下条件：
+
+<details>
+<summary><strong>已准备好Node.js 环境和云开发环境</strong></summary>
+
+**Node.js 环境：** 确保已安装 Node.js v18.15.0 或更高版本：
+
+```bash
+node --version
+```
+
+如果未安装，请从 [Node.js 官网](https://nodejs.org/en/download) 下载安装。
+
+**云开发环境：** 请参考文档 [开通云开发环境](https://docs.cloudbase.net/quick-start/create-env)。新用户可以免费开通体验。
+
+</details>
+
+---
+
+<IDESelector defaultIDE="cursor" showInstallButton={false} />
+
+## 常见问题
+
+**Q: MCP 连接失败？**
+A: 检查配置文件格式是否正确，重启 Cursor，确认网络连接正常。
+
+**Q: 工具数量显示为 0？**
+A: 请参考[常见问题](../faq#mcp-显示工具数量为-0-怎么办)。
+
+更多问题请查看：[完整 FAQ](../faq)
+
+<RelatedResources ideName="Cursor" ideDocUrl="https://docs.cursor.com/context/model-context-protocol#configuration-locations" />

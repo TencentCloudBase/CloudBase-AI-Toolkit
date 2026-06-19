@@ -1,0 +1,147 @@
+/* Wrapper */
+.wrapper {
+  margin: 2rem 0;
+}
+
+/* Container */
+.container {
+  padding: 1.25rem;
+  background: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 6px;
+}
+
+/* Content */
+.content {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header Content */
+.headerContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Description */
+.description {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--ifm-font-color-base);
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+/* Button - Minimalist design */
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 6px;
+  color: var(--ifm-font-color-base);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  font-family: var(--ifm-font-family-base);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.button:hover {
+  background: var(--ifm-color-emphasis-100);
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.button:active {
+  transform: scale(0.98);
+}
+
+.button:focus {
+  outline: none;
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 3px var(--ifm-color-primary-lightest);
+}
+
+.buttonText {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.buttonArrow {
+  flex-shrink: 0;
+  color: var(--ifm-color-emphasis-600);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.buttonArrowExpanded {
+  transform: rotate(180deg);
+}
+
+.button:hover .buttonArrow {
+  color: var(--ifm-color-primary);
+}
+
+.buttonExpanded {
+  background: var(--ifm-color-emphasis-100);
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.buttonExpanded .buttonArrow {
+  color: var(--ifm-color-primary);
+}
+
+/* Expanded Content */
+.expandedContent {
+  margin-top: 1rem;
+  padding: 0;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* IDE Selector Section */
+.ideSelectorSection {
+  /* No additional styling needed, IDESelector has its own styles */
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .wrapper {
+    margin: 1.5rem 0;
+  }
+
+  .container {
+    padding: 1rem;
+  }
+
+  .description {
+    font-size: 0.875rem;
+  }
+
+  .button {
+    font-size: 0.875rem;
+    padding: 0.625rem 0.875rem;
+  }
+
+  .headerContent {
+    gap: 0.875rem;
+  }
+}
+

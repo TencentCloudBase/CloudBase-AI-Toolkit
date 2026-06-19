@@ -1,0 +1,228 @@
+/* Container */
+.container {
+  margin: 1.5rem 0;
+}
+
+/* Tab Bar */
+.tabBar {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0;
+  border-bottom: 2px solid var(--ifm-color-emphasis-200);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--ifm-color-emphasis-600);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: var(--ifm-color-emphasis-900);
+  background: var(--ifm-color-emphasis-100);
+}
+
+.tabActive {
+  color: var(--ifm-color-primary);
+  border-bottom-color: var(--ifm-color-primary);
+}
+
+/* Card */
+.card {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+
+.cardContent {
+  padding: 1.25rem;
+}
+
+/* Description */
+.description {
+  margin: 0 0 1.25rem 0;
+  font-size: 0.9375rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.6;
+}
+
+/* Step */
+.step {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.step:last-child {
+  margin-bottom: 0;
+}
+
+.stepNumber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ifm-color-primary);
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.stepBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.stepBody strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.9375rem;
+  color: var(--ifm-heading-color);
+}
+
+.stepBody p {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.6;
+}
+
+.stepBody p:last-child {
+  margin-bottom: 0;
+}
+
+.stepBody code {
+  padding: 0.15rem 0.35rem;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 3px;
+  font-size: 0.8125rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+/* Field Row (for marketplace form fields) */
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.fieldRow:last-child {
+  margin-bottom: 0;
+}
+
+.fieldLabel {
+  flex-shrink: 0;
+  font-weight: 500;
+  color: var(--ifm-color-emphasis-700);
+  min-width: 80px;
+}
+
+.fieldValue {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8125rem;
+  color: var(--ifm-font-color-base);
+  word-break: break-all;
+  padding: 0.15rem 0.35rem;
+  background: var(--ifm-background-color);
+  border-radius: 3px;
+}
+
+.fieldHint {
+  color: var(--ifm-color-emphasis-500);
+  font-style: italic;
+}
+
+/* Command Block */
+.commandBlock {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+
+[data-theme='light'] .commandBlock {
+  background: #fafafa;
+  border-color: var(--ifm-color-emphasis-200);
+}
+
+.commandBlock:last-child {
+  margin-bottom: 0;
+}
+
+.commandText {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8125rem;
+  color: #d4d4d4;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+[data-theme='light'] .commandText {
+  color: #383a42;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .tabBar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .cardContent {
+    padding: 1rem;
+  }
+
+  .step {
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .stepNumber {
+    width: 24px;
+    height: 24px;
+    font-size: 0.75rem;
+  }
+
+  .fieldRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .fieldLabel {
+    min-width: auto;
+  }
+
+  .commandBlock {
+    padding: 0.625rem 0.75rem;
+  }
+}

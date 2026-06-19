@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudBase AI Toolkit - 黑色Header设计</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-color: #4896FF;
+            --primary-hover: #0052D9;
+            --secondary-color: #67E9E9;
+            --secondary-hover: #2BCCCC;
+            --text-primary: #1F2937;
+            --text-secondary: #6B7280;
+            --border-color: rgba(255, 255, 255, 0.15);
+            --bg-secondary: rgba(248, 250, 252, 0.8);
+            --bg-glass: rgba(255, 255, 255, 0.95);
+            --shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 10px 20px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 32px 64px rgba(0, 0, 0, 0.2), 0 16px 32px rgba(0, 0, 0, 0.15);
+            --font-mono: 'JetBrains Mono', 'SF Mono', 'Monaco', monospace;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --header-bg: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0d1117 100%);
+        }
+        
+        body {
+            font-family: var(--font-sans);
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.98) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(72,150,255,0.1)" stroke-width="1"/></pattern></defs><rect width="200" height="200" fill="url(%23grid)"/></svg>') repeat;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .modal {
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            box-shadow: var(--shadow-lg);
+            border: 2px solid var(--border-color);
+            width: 100%;
+            max-width: 520px;
+            overflow: hidden;
+            animation: modalIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        /* ========== 黑色 Header 设计 ========== */
+        .header {
+            background: var(--header-bg);
+            color: white;
+            padding: 24px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.03) 50%, transparent 70%);
+            animation: shimmer 4s infinite;
+            pointer-events: none;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            z-index: 1;
+        }
+        
+        .logo {
+            width: 32px;
+            height: 32px;
+            animation: pulse 2s infinite;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .title {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .github-link {
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0.9;
+            transition: all 0.3s ease;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            z-index: 1;
+        }
+        
+        .github-link:hover {
+            opacity: 1;
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .content {
+            padding: 36px 32px;
+        }
+        
+        .content-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .content-subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            line-height: 1.6;
+            font-size: 16px;
+        }
+        
+        .comparison {
+            margin-bottom: 32px;
+        }
+        
+        .comparison h3 {
+            color: var(--text-primary);
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        .comparison-item {
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .comparison-item.before {
+            background: linear-gradient(135deg, #4896FF 0%, #0052D9 100%);
+            color: white;
+        }
+        
+        .comparison-item.after {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0d1117 100%);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .comparison-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        
+        .comparison-desc {
+            font-size: 14px;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        
+        .feature-item {
+            padding: 20px;
+            background: rgba(248, 250, 252, 0.5);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+        
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 12px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .icon-black {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: white;
+        }
+        
+        .icon-shimmer {
+            background: linear-gradient(45deg, #4896FF, #67E9E9, #4896FF);
+            background-size: 200% 200%;
+            animation: gradient 3s ease infinite;
+            color: white;
+        }
+        
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .icon-glass {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: var(--primary-color);
+        }
+        
+        .icon-shadow {
+            background: linear-gradient(135deg, #1F2937 0%, #374151 100%);
+            color: #67E9E9;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        
+        .feature-item h4 {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .feature-item p {
+            color: var(--text-secondary);
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .powered-by {
+            text-align: center;
+            opacity: 0.9;
+            transform: scale(0.9);
+            transition: all 0.3s ease;
+        }
+        
+        .powered-by:hover {
+            opacity: 1;
+            transform: scale(1);
+        }
+    </style>
+</head>
+<body>
+    <div class="modal">
+        <div class="header">
+            <div class="header-left">
+                <svg class="logo" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M-0.00195272 13.364C-0.0021879 13.0869 0.100481 12.8097 0.306053 12.5947L8.64438 4.25689C8.74869 4.15259 8.89015 4.09399 9.03766 4.09399H19.6942C20.1894 4.09399 20.4377 4.69236 20.088 5.04296L11.7889 13.364H-0.00195272Z" fill="#67E9E9"/>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M-0.00195272 13.366C-0.00218796 13.6431 0.100474 13.9203 0.306033 14.1353L8.64438 22.4731C8.74869 22.5774 8.89015 22.636 9.03766 22.636H19.6942C20.1894 22.636 20.4377 22.0376 20.088 21.687L11.7889 13.366H-0.00195272Z" fill="#2BCCCC"/>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M35.999 22.2539C35.9993 21.9781 35.8977 21.7023 35.6942 21.4877L27.3527 13.1468C27.2484 13.0425 27.1069 12.9839 26.9594 12.9839H16.3029C15.8077 12.9839 15.5594 13.5823 15.9091 13.9328L24.2081 22.2539H35.999Z" fill="#4896FF"/>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M35.999 22.2534C35.9994 22.526 35.9002 22.7987 35.7015 23.0123L27.3527 31.3605C27.2484 31.4648 27.1069 31.5234 26.9594 31.5234H16.3029C15.8077 31.5234 15.5594 30.9251 15.9091 30.5745L24.2081 22.2534H35.999Z" fill="#0052D9"/>
+                </svg>
+                <span class="title">CloudBase AI Toolkit</span>
+            </div>
+            <a href="https://github.com/TencentCloudBase/CloudBase-AI-ToolKit" target="_blank" class="github-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                GitHub
+            </a>
+        </div>
+        
+        <div class="content">
+            <h1 class="content-title">黑色 Header 设计</h1>
+            <p class="content-subtitle">现代化的黑色渐变背景，提升品牌专业感与视觉层次</p>
+            
+            <div class="comparison">
+                <h3>设计对比</h3>
+                <div class="comparison-grid">
+                    <div class="comparison-item before">
+                        <div class="comparison-title">🔵 原版蓝色 Header</div>
+                        <div class="comparison-desc">使用品牌主色调，相对明亮</div>
+                    </div>
+                    <div class="comparison-item after">
+                        <div class="comparison-title">⚫ 黑色渐变 Header</div>
+                        <div class="comparison-desc">深色专业风格，更现代化</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="features">
+                <div class="feature-item">
+                    <div class="feature-icon icon-black">⚫</div>
+                    <h4>深色渐变</h4>
+                    <p>营造专业高端的视觉体验，符合现代设计趋势</p>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-icon icon-shimmer">✨</div>
+                    <h4>微光动效</h4>
+                    <p>subtle 的光影动画，增加视觉层次和交互感</p>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-icon icon-glass">🔮</div>
+                    <h4>玻璃拟态</h4>
+                    <p>GitHub 链接采用毛玻璃效果，现代化设计</p>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-icon icon-shadow">🌟</div>
+                    <h4>阴影增强</h4>
+                    <p>增强的阴影和层次，提升品牌logo的突出度</p>
+                </div>
+            </div>
+            
+            <div class="powered-by">
+                <svg width="160" height="32" viewBox="0 0 160 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#1a1a1a;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#2d2d2d;stop-opacity:1" />
+                        </linearGradient>
+                        <linearGradient id="logoGradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#67E9E9;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#2BCCCC;stop-opacity:1" />
+                        </linearGradient>
+                        <linearGradient id="logoGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#4896FF;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#0052D9;stop-opacity:1" />
+                        </linearGradient>
+                        <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.9" />
+                            <stop offset="100%" style="stop-color:#e2e8f0;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <rect width="160" height="32" rx="6" fill="url(#bgGradient)" stroke="#333" stroke-width="0.5"/>
+                    <rect x="0.5" y="0.5" width="159" height="31" rx="5.5" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+                    <g transform="translate(8, 8) scale(0.44)">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M-0.00195272 13.364C-0.0021879 13.0869 0.100481 12.8097 0.306053 12.5947L8.64438 4.25689C8.74869 4.15259 8.89015 4.09399 9.03766 4.09399H19.6942C20.1894 4.09399 20.4377 4.69236 20.088 5.04296L11.7889 13.364H-0.00195272Z" fill="url(#logoGradient1)"/>
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M-0.00195272 13.366C-0.00218796 13.6431 0.100474 13.9203 0.306033 14.1353L8.64438 22.4731C8.74869 22.5774 8.89015 22.636 9.03766 22.636H19.6942C20.1894 22.636 20.4377 22.0376 20.088 21.687L11.7889 13.366H-0.00195272Z" fill="url(#logoGradient1)"/>
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M35.999 22.2539C35.9993 21.9781 35.8977 21.7023 35.6942 21.4877L27.3527 13.1468C27.2484 13.0425 27.1069 12.9839 26.9594 12.9839H16.3029C15.8077 12.9839 15.5594 13.5823 15.9091 13.9328L24.2081 22.2539H35.999Z" fill="url(#logoGradient2)"/>
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M35.999 22.2534C35.9994 22.526 35.9002 22.7987 35.7015 23.0123L27.3527 31.3605C27.2484 31.4648 27.1069 31.5234 26.9594 31.5234H16.3029C15.8077 31.5234 15.5594 30.9251 15.9091 30.5745L24.2081 22.2534H35.999Z" fill="url(#logoGradient2)"/>
+                    </g>
+                    <text x="32" y="12" font-family="system-ui, -apple-system, sans-serif" font-size="8" font-weight="400" fill="rgba(255,255,255,0.7)">Powered by</text>
+                    <text x="32" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="url(#textGradient)">CloudBase</text>
+                    <circle cx="148" cy="16" r="1.5" fill="#67E9E9" opacity="0.6"/>
+                    <circle cx="152" cy="16" r="1" fill="#4896FF" opacity="0.8"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

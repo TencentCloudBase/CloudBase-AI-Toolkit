@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudBase AI Toolkit 2.0 - 三大核心能力</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Serif+Display&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-green: #00FF88;
+            --neon-orange: #FF6B35;
+            --neon-cyan: #00D4FF;
+            --dark-bg: #0A0E27;
+            --dark-surface: #141B2D;
+            --text-primary: #E8EAED;
+            --text-secondary: #9AA0A6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Mono', monospace;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated Grid Background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            padding: 6rem 4rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            background: radial-gradient(ellipse at center, rgba(0, 255, 136, 0.05) 0%, transparent 70%);
+        }
+
+        .hero h1 {
+            font-family: 'DM Serif Display', serif;
+            font-size: 5rem;
+            font-weight: 400;
+            line-height: 1.1;
+            margin-bottom: 2rem;
+            color: var(--text-primary);
+            text-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+        }
+
+        .hero-subtitle {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            max-width: 800px;
+            line-height: 1.8;
+        }
+
+        .version-badge {
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            background: var(--dark-surface);
+            border: 2px solid var(--neon-green);
+            color: var(--neon-green);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 2rem;
+        }
+
+        /* Core Features - 3 Main Points */
+        .core-section {
+            padding: 8rem 4rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .core-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 4rem;
+            font-weight: 400;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .section-subtitle {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 5rem;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .core-feature {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6rem;
+            align-items: center;
+            margin-bottom: 10rem;
+            position: relative;
+        }
+
+        .core-feature:nth-child(even) {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .core-feature:nth-child(even) .core-visual {
+            order: 2;
+        }
+
+        .core-feature:nth-child(even) .core-content {
+            order: 1;
+        }
+
+        .core-content {
+            position: relative;
+        }
+
+        .core-number {
+            position: absolute;
+            top: -3rem;
+            left: -2rem;
+            font-size: 12rem;
+            font-weight: 700;
+            color: rgba(0, 255, 136, 0.1);
+            font-family: 'DM Serif Display', serif;
+            z-index: -1;
+        }
+
+        .core-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 3.5rem;
+            color: var(--neon-green);
+            margin-bottom: 2rem;
+            line-height: 1.2;
+        }
+
+        .core-description {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 2rem;
+        }
+
+        .core-benefits {
+            background: var(--dark-surface);
+            border-left: 4px solid var(--neon-green);
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+
+        .benefit-item {
+            display: flex;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .benefit-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .benefit-icon {
+            color: var(--neon-green);
+            font-size: 1.5rem;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+
+        .benefit-text {
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .core-visual {
+            background: var(--dark-surface);
+            border: 2px solid rgba(0, 255, 136, 0.2);
+            padding: 3rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            line-height: 1.8;
+            position: relative;
+        }
+
+        .core-visual::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--neon-green);
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+
+        .code-keyword { color: var(--neon-cyan); }
+        .code-string { color: var(--neon-green); }
+        .code-comment { color: var(--text-secondary); }
+        .code-function { color: var(--neon-orange); }
+
+        /* Skill System Section */
+        .skill-section {
+            padding: 8rem 4rem;
+            background: var(--dark-surface);
+            position: relative;
+            z-index: 1;
+        }
+
+        .skill-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .skill-explanation {
+            background: var(--dark-bg);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            padding: 4rem;
+            border-radius: 8px;
+            margin-top: 4rem;
+        }
+
+        .skill-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 2.5rem;
+            color: var(--neon-green);
+            margin-bottom: 2rem;
+        }
+
+        .skill-description {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 2rem;
+        }
+
+        .skill-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            margin-top: 3rem;
+        }
+
+        .comparison-item {
+            padding: 2rem;
+            background: var(--dark-surface);
+            border-radius: 8px;
+        }
+
+        .comparison-before {
+            border-left: 4px solid var(--neon-orange);
+        }
+
+        .comparison-after {
+            border-left: 4px solid var(--neon-green);
+        }
+
+        .comparison-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .comparison-before .comparison-title {
+            color: var(--neon-orange);
+        }
+
+        .comparison-after .comparison-title {
+            color: var(--neon-green);
+        }
+
+        .comparison-list {
+            list-style: none;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        .comparison-list li {
+            margin-bottom: 0.75rem;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .comparison-list li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--neon-green);
+        }
+
+        /* Stats Section */
+        .stats-section {
+            padding: 6rem 4rem;
+            background: linear-gradient(135deg, var(--dark-bg) 0%, var(--dark-surface) 100%);
+            position: relative;
+            z-index: 1;
+        }
+
+        .stats-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4rem;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-family: 'DM Serif Display', serif;
+            font-size: 5rem;
+            font-weight: 400;
+            display: block;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--neon-green), var(--neon-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--text-secondary);
+        }
+
+        /* CTA Section */
+        .cta-section {
+            padding: 8rem 4rem;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .cta-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 3.5rem;
+            color: var(--text-primary);
+            margin-bottom: 2rem;
+        }
+
+        .cta-description {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 1rem 2.5rem;
+            text-decoration: none;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.3s ease;
+            margin: 0 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--neon-green);
+            color: var(--dark-bg);
+            border: 2px solid var(--neon-green);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--neon-green);
+            border: 2px solid var(--neon-green);
+        }
+
+        .btn-secondary:hover {
+            background: var(--neon-green);
+            color: var(--dark-bg);
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+        }
+
+        /* Footer */
+        .footer {
+            padding: 4rem;
+            background: var(--dark-bg);
+            border-top: 1px solid rgba(0, 255, 136, 0.2);
+            text-align: center;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .footer-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 400;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .footer-link::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--neon-green);
+            transition: width 0.3s ease;
+        }
+
+        .footer-link:hover {
+            color: var(--neon-green);
+        }
+
+        .footer-link:hover::after {
+            width: 100%;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .core-feature {
+                grid-template-columns: 1fr !important;
+                gap: 4rem;
+            }
+
+            .core-visual {
+                order: -1 !important;
+            }
+
+            .skill-comparison {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 3rem;
+            }
+
+            .section-title {
+                font-size: 2.5rem;
+            }
+
+            .core-title {
+                font-size: 2.5rem;
+            }
+
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <span class="version-badge">Version 2.0</span>
+        <h1>三大核心能力</h1>
+        <p class="hero-subtitle">
+            UI 设计 · 登录认证 · 数据库<br/>
+            让 AI 生成专业级应用，告别千篇一律
+        </p>
+        <div style="margin-top: 3rem;">
+            <a href="https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/" class="btn btn-primary">立即开始</a>
+            <a href="https://github.com/TencentCloudBase/CloudBase-AI-ToolKit" class="btn btn-secondary">查看代码</a>
+        </div>
+    </section>
+
+    <!-- Core Features - 3 Main Points -->
+    <section class="core-section">
+        <div class="core-container">
+            <h2 class="section-title">三大核心能力</h2>
+            <p class="section-subtitle">解决 AI 编程中最关键的三个问题</p>
+
+            <!-- Feature 1: UI Design -->
+            <div class="core-feature">
+                <div class="core-content">
+                    <div class="core-number">01</div>
+                    <h3 class="core-title">专业级 UI 设计</h3>
+                    <p class="core-description">
+                        告别千篇一律的 AI 风格。AI 现在能够生成具有独特美学风格的界面，每个设计都有专业设计师的水准。
+                    </p>
+                    <div class="core-benefits">
+                        <div class="benefit-item">
+                            <span class="benefit-icon">✓</span>
+                            <span class="benefit-text">强制设计规范输出，确保每个界面都有独特风格</span>
+                        </div>
+                        <div class="benefit-item">
+                            <span class="benefit-icon">✓</span>
+                            <span class="benefit-text">禁止通用 AI 美学（紫色渐变、系统字体、居中布局）</span>
+                        </div>
+                        <div class="benefit-item">
+                            <span class="benefit-icon">✓</span>
+                            <span class="benefit-text">提供完整的设计思维框架和最佳实践</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="core-visual">
+                    <div style="color: var(--text-secondary);">// AI 生成 UI 时的设计规范</div>
+                    <div style="margin-top: 1.5rem;">
+                        <div style="color: var(--code-keyword);">DESIGN</div>
+                        <div style="color: var(--code-keyword); margin-top: 1rem;">SPECIFICATION</div>
+                        <div style="margin-top: 1rem;">
+                            <div style="color: var(--code-string);">1. Purpose: 五子棋游戏界面</div>
+                            <div style="color: var(--code-string);">2. Aesthetic: Industrial/utilitarian</div>
+                            <div style="color: var(--code-string);">3. Colors: #1A1A2E, #00D4FF, #FF6B35</div>
+                            <div style="color: var(--code-string);">4. Typography: Space Mono, DM Serif</div>
+                            <div style="color: var(--code-string);">5. Layout: Asymmetric grid</div>
+                        </div>
+                        <div style="color: var(--code-comment); margin-top: 1rem;">// ❌ 禁止：紫色渐变、Inter 字体、居中布局</div>
+                        <div style="color: var(--code-comment);">// ✅ 必须：独特风格、专业设计、视觉层次</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature 2: Authentication -->
+            <div class="core-feature">
+                <div class="core-content">
+                    <div class="core-number">02</div>
+                    <h3 class="core-title">智能登录认证</h3>
+                    <p class="core-description">
+                        AI 自动识别项目类型，Web 和小程序使用不同的认证方式。你不需要了解技术细节，AI 帮你搞定一切。
+                    </p>
+                    <div class="core-benefits">
+                        <div class="benefit-item">
+                            <span class="benefit-icon">✓</span>
+                            <span class="benefit-text">Web 项目：自动使用 CloudBase Web SDK 内置认证</span>
+                        </div>
+                        <div class="benefit-item">
+                            <span class="benefit-icon">✓</span>
+                            <span class="benefit-text">小程序项目：自然免登录，在云函数中获取 OPENID</span>
+                        </div>
+                        <div class="benefit-item">
+                            <span class="benefit-icon">✓</span>
+                            <span class="benefit-text">减少配置错误，开箱即用</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="core-visual">
+                    <div style="color: var(--text-secondary);">// AI 自动选择认证方式</div>
+                    <div style="margin-top: 1.5rem;">
+                        <div style="color: var(--code-function);">if (projectType === 'web') {</div>
+                        <div style="padding-left: 1.5rem; color: var(--code-string);">
+                            // 使用 Web SDK 内置认证<br/>
+                            <span style="color: var(--code-keyword);">const</span> auth = app.auth();<br/>
+                            auth.signInAnonymously();
+                        </div>
+                        <div style="color: var(--code-function);">} else if (projectType === 'miniprogram') {</div>
+                        <div style="padding-left: 1.5rem; color: var(--code-string);">
+                            // 小程序自然免登录<br/>
+                            <span style="color: var(--code-keyword);">const</span> openid = cloud.getWXContext().OPENID;
+                        </div>
+                        <div style="color: var(--code-function);">}</div>
+                    </div>
+                    <div style="color: var(--code-comment); margin-top: 1rem;">// AI 自动识别，无需手动配置</div>
+                </div>
+            </div>
+
+            <!-- Feature 3: Database -->
+            <div class="core-feature">
+                <div class="core-content">
+                    <div class="core-number">03</div>
+                    <h3 class="core-title">完整数据库能力</h3>
+                    <p class="core-description">
+                        支持 MySQL 和 NoSQL 两种数据库，AI 可以帮你完成从数据建模到数据库操作的全流程。
+                    </p>
+                    <div class="core-benefits">
+                        <div class="benefit-item">
+                            <span class="benefit-icon">✓</span>
+                            <span class="benefit-text">MySQL：查询、SQL 执行、表管理、数据建模</span>
+                        </div>
+                        <div class="benefit-item">
+                            <span class="benefit-icon">✓</span>
+                            <span class="benefit-text">NoSQL：Web 和小程序端完整支持</span>
+                        </div>
+                        <div class="benefit-item">
+                            <span class="benefit-icon">✓</span>
+                            <span class="benefit-text">智能数据建模，通过 Mermaid ER 图创建数据模型</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="core-visual">
+                    <div style="color: var(--text-secondary);">// AI 处理数据库操作</div>
+                    <div style="margin-top: 1.5rem;">
+                        <div style="color: var(--code-comment);">// MySQL 查询</div>
+                        <div style="color: var(--code-keyword);">SELECT</div> * <div style="color: var(--code-keyword);">FROM</div> users<br/>
+                        <div style="color: var(--code-keyword);">WHERE</div> status = 'active';
+                        <div style="margin-top: 1.5rem; color: var(--code-comment);">// NoSQL 操作</div>
+                        <div>
+                            db.collection('users')<br/>
+                            &nbsp;&nbsp;.where({ status: 'active' })<br/>
+                            &nbsp;&nbsp;.get();
+                        </div>
+                        <div style="margin-top: 1.5rem; color: var(--code-comment);">// 数据建模</div>
+                        <div style="color: var(--code-string);">通过 Mermaid ER 图智能创建数据模型</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Skill System Section -->
+    <section class="skill-section">
+        <div class="skill-container">
+            <h2 class="section-title">技术突破：Skill 体系</h2>
+            <p class="section-subtitle">从规则到技能，让 AI 更专业</p>
+
+            <div class="skill-explanation">
+                <h3 class="skill-title">为什么 Skill 体系如此重要？</h3>
+                <p class="skill-description">
+                    在 1.x 版本中，我们使用规则（Rules）来指导 AI。但规则是分散的、缺乏结构的。2.0 版本引入 Skill 体系，将规则重构为结构化的技能模块，让 AI 能够像专业开发者一样思考和工作。
+                </p>
+
+                <div class="skill-comparison">
+                    <div class="comparison-item comparison-before">
+                        <div class="comparison-title">1.x 规则体系</div>
+                        <ul class="comparison-list">
+                            <li>分散的规则文件</li>
+                            <li>缺乏结构化组织</li>
+                            <li>难以组合和复用</li>
+                            <li>AI 理解困难</li>
+                            <li>代码质量不稳定</li>
+                        </ul>
+                    </div>
+
+                    <div class="comparison-item comparison-after">
+                        <div class="comparison-title">2.0 Skill 体系</div>
+                        <ul class="comparison-list">
+                            <li>结构化的技能模块</li>
+                            <li>完整的知识体系</li>
+                            <li>支持技能组合和复用</li>
+                            <li>AI 理解更准确</li>
+                            <li>代码质量显著提升</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div style="margin-top: 3rem; padding: 2rem; background: var(--dark-surface); border-radius: 8px;">
+                    <div style="color: var(--neon-green); font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;">实际效果</div>
+                    <div style="color: var(--text-primary); line-height: 1.8;">
+                        <div style="margin-bottom: 1rem;">✓ <strong>UI 设计</strong>：从千篇一律到专业级设计，每个界面都有独特风格</div>
+                        <div style="margin-bottom: 1rem;">✓ <strong>登录认证</strong>：从配置错误到自动识别，减少 90% 的认证问题</div>
+                        <div style="margin-bottom: 1rem;">✓ <strong>数据库</strong>：从基础操作到完整能力，支持 MySQL 和 NoSQL</div>
+                        <div>✓ <strong>代码质量</strong>：从需要修改到直接可用，生成代码符合最佳实践</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats-section">
+        <div class="stats-container">
+            <div class="stat-item">
+                <span class="stat-number">3</span>
+                <span class="stat-label">核心能力</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">39</span>
+                <span class="stat-label">MCP 工具</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">15+</span>
+                <span class="stat-label">AI IDE 支持</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">2.0</span>
+                <span class="stat-label">最新版本</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <h2 class="cta-title">准备好开始了吗？</h2>
+        <p class="cta-description">
+            一行配置，立即使用。让 AI 帮你生成专业级 UI、处理登录认证、操作数据库。
+        </p>
+        <div style="margin-top: 3rem;">
+            <a href="https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/" class="btn btn-primary">查看文档</a>
+            <a href="https://github.com/TencentCloudBase/CloudBase-AI-ToolKit" class="btn btn-secondary">GitHub</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-links">
+            <a href="https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/" class="footer-link">文档</a>
+            <a href="https://github.com/TencentCloudBase/CloudBase-AI-ToolKit" class="footer-link">GitHub</a>
+            <a href="https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues" class="footer-link">问题反馈</a>
+            <a href="https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/releases" class="footer-link">更新日志</a>
+        </div>
+        <p style="opacity: 0.7; font-size: 0.875rem; color: var(--text-secondary);">
+            © 2025 TencentCloudBase. MIT License.
+        </p>
+    </footer>
+</body>
+</html>

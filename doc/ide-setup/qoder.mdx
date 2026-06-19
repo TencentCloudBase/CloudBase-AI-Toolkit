@@ -1,0 +1,106 @@
+import IDESelector from '../components/IDESelector';
+import RelatedResources from '../components/RelatedResources';
+
+# Qoder 配置指南
+
+配置后，你可以在 Qoder 的 AI 对话中直接操作 CloudBase 服务。
+
+**例如：**
+
+- "创建用户表" - AI 自动创建数据库集合
+- "部署这个函数" - AI 自动上传并配置云函数
+- "部署前端到 CDN" - AI 自动上传文件并配置托管
+
+无需切换到云控制台，所有操作都可以在 Qoder 中用自然语言完成。
+
+## 前置条件
+
+在开始配置之前，请确保满足以下条件：
+
+<details>
+<summary><strong>已准备好Node.js 环境和云开发环境</strong></summary>
+
+**Node.js 环境：** 确保已安装 Node.js v18.15.0 或更高版本：
+
+```bash
+node --version
+```
+
+如果未安装，请从 [Node.js 官网](https://nodejs.org/en/download) 下载安装。
+
+**云开发环境：** 请参考文档 [开通云开发环境](https://docs.cloudbase.net/quick-start/create-env)。新用户可以免费开通体验。
+
+</details>
+
+---
+
+<IDESelector defaultIDE="qoder" showInstallButton={false} />
+
+## 配置步骤
+
+### 方法一：手动配置 MCP 服务
+
+1. 在 Qoder IDE 的右上角，点击用户图标，或使用键盘快捷键（`⌘` `⇧` `,`（macOS）或 `Ctrl` `Shift` `,`（Windows）），然后选择 **Qoder Settings**。
+
+2. 在左侧导航窗格中，点击 **MCP**。
+
+3. 在 **My Servers** 选项卡中，点击右上角的 **+ Add**。
+
+4. 在弹出的 JSON 文件中，添加以下配置：
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "INTEGRATION_IDE": "Qoder"
+      }
+    }
+  }
+}
+```
+
+5. 关闭文件，并在提示时点击 **Save**。
+
+保存后，新服务会出现在你的列表中。链接图标表示连接成功。展开该条目以查看可用工具。
+
+> **注意：** 如果服务因缺少依赖而启动失败，点击 **Quick Fix**。若问题仍然存在，请手动安装依赖。有关故障排查，请参阅 [MCP 常见问题](https://docs.qoder.com/zh/troubleshooting/mcp-common-issue)。
+
+### 方法二：使用 MCP Square（可选）
+
+你也可以通过 MCP Square 安装预配置的 MCP 服务：
+
+1. 在 **MCP** 页面，点击 **MCP Square** 选项卡。
+2. 浏览可用服务列表，找到 CloudBase MCP 服务并点击 **Install**。
+3. 前往 **My Servers** 选项卡确认安装，展开详情以查看工具列表。
+
+## 验证连接
+
+配置完成后，在 Qoder 的智能体模式中输入：
+
+```
+检查 CloudBase 工具是否可用
+```
+
+> **重要提示：** MCP 服务仅在 **Agent 模式**（智能体模式）下受支持。在 AI Chat 面板中，请确保已切换到 Agent 模式。
+
+## 常见问题
+
+**Q: MCP 连接失败？**
+A: 检查配置文件格式是否正确，重启 Qoder，确认网络连接正常。如果服务因缺少依赖而启动失败，点击一键修复。若问题仍然存在，请手动安装依赖。
+
+**Q: 工具数量显示为 0？**
+A: 请参考[常见问题](../faq#mcp-显示工具数量为-0-怎么办)。
+
+**Q: MCP 服务在哪里使用？**
+A: MCP（Model Context Protocol）服务仅在 **Agent 模式**（智能体模式）下受支持。在 AI Chat 面板中，切换到 Agent 模式即可使用。最多可同时使用 10 个 MCP 服务。
+
+**Q: 如何调用 MCP 工具？**
+A: Qoder 会根据你的输入提示和工具名称自动选择合适的 MCP 工具。在调用工具前，Qoder 会先请求确认。按 `⌘` `⏎`（macOS）或 `Ctrl` `Enter`（Windows）执行。若要自动运行后续的所有 MCP 服务，请勾选确认选项。
+
+更多问题请查看：[完整 FAQ](../faq)
+
+<RelatedResources ideName="Qoder" ideDocUrl="https://docs.qoder.com/zh/user-guide/chat/model-context-protocol" />
+

@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudBase AI-Deploy MCP - GitHub Header (EN)</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: transparent;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+        body::before { display: none; }
+        .github-header {
+            width: 1280px;
+            height: 640px;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0d1117 100%);
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(103, 233, 233, 0.2);
+        }
+        .github-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(103, 233, 233, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(72, 150, 255, 0.06) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(43, 204, 204, 0.04) 0%, transparent 70%);
+            pointer-events: none;
+            animation: pulse 8s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { 
+                opacity: 0.3; 
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 0.6; 
+                transform: scale(1.05);
+            }
+        }
+        
+        /* 场景容器 */
+        .scene {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            z-index: 1;
+        }
+        
+        .scene.active {
+            opacity: 1;
+            z-index: 2;
+        }
+        
+        .scene.prev {
+            transform: translateX(-100px);
+            z-index: 1;
+        }
+        
+        /* 第一幕：左边内容 */
+        .scene-1 {
+            padding: 60px;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .scene-1 .left-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+        }
+        
+        .scene-1 .brand-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #67E9E9 0%, #4896FF 50%, #2BCCCC 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .scene-1 .project-title {
+            font-size: 4.2rem;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.1;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #67E9E9 0%, #4896FF 50%, #2BCCCC 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(103, 233, 233, 0.3);
+            position: relative;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .scene-1 .project-title::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, #67E9E9, #4896FF, #2BCCCC);
+            border-radius: 1px;
+            opacity: 0.6;
+        }
+        
+        .scene-1 .project-subtitle {
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #67E9E9;
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .scene-1 .ai-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #67E9E9 0%, #4896FF 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 22px;
+            box-shadow: 0 4px 20px rgba(103, 233, 233, 0.4);
+            position: relative;
+        }
+        
+        .scene-1 .ai-icon::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(135deg, #67E9E9, #4896FF, #2BCCCC);
+            border-radius: 14px;
+            z-index: -1;
+            opacity: 0.3;
+            animation: iconGlow 3s ease-in-out infinite;
+        }
+        
+        .scene-1 .slogan {
+            font-size: 1.5rem;
+            color: #ffffff;
+            font-weight: 600;
+            padding: 24px 32px;
+            background: linear-gradient(135deg, rgba(103, 233, 233, 0.15) 0%, rgba(72, 150, 255, 0.1) 50%, rgba(43, 204, 204, 0.15) 100%);
+            border: 2px solid rgba(103, 233, 233, 0.3);
+            position: relative;
+            overflow: hidden;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .scene-1 .slogan::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: shimmer 3s infinite;
+        }
+        
+        .scene-1 .right-graphic {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .scene-1 .abstract-shape {
+            width: 400px;
+            height: 400px;
+            position: relative;
+        }
+        
+        .scene-1 .abstract-shape::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 280px;
+            height: 280px;
+            background: radial-gradient(circle at 30% 30%, rgba(103, 233, 233, 0.3), rgba(72, 150, 255, 0.2));
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: rotate 15s linear infinite;
+            box-shadow: 
+                inset 0 0 50px rgba(103, 233, 233, 0.2),
+                0 0 60px rgba(103, 233, 233, 0.1);
+        }
+        
+        .scene-1 .abstract-shape::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle at 70% 70%, rgba(43, 204, 204, 0.4), rgba(103, 233, 233, 0.3));
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: rotate 12s linear infinite reverse;
+            box-shadow: 
+                inset 0 0 40px rgba(43, 204, 204, 0.3),
+                0 0 50px rgba(43, 204, 204, 0.1);
+        }
+        
+        .scene-1 .floating-dots {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .scene-1 .floating-dots::before,
+        .scene-1 .floating-dots::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: radial-gradient(circle, #67E9E9, #2BCCCC);
+            border-radius: 50%;
+            animation: float 4s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(103, 233, 233, 0.6);
+        }
+        
+        .scene-1 .floating-dots::before {
+            top: 20%;
+            left: 30%;
+            animation-delay: 0s;
+        }
+        
+        .scene-1 .floating-dots::after {
+            top: 70%;
+            right: 25%;
+            animation-delay: 2s;
+        }
+        
+        .scene-1 .floating-ide-icons {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
+        
+        .scene-1 .ide-icon {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(103, 233, 233, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 
+                0 8px 25px rgba(103, 233, 233, 0.3),
+                inset 0 0 20px rgba(255, 255, 255, 0.1);
+            animation: floatIcon 6s ease-in-out infinite;
+            overflow: hidden;
+        }
+        
+        .scene-1 .ide-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        
+        .scene-1 .ide-icon:nth-child(1) {
+            top: 10%;
+            left: 15%;
+            animation-delay: 0s;
+        }
+        
+        .scene-1 .ide-icon:nth-child(2) {
+            top: 20%;
+            right: 10%;
+            animation-delay: 0.8s;
+        }
+        
+        .scene-1 .ide-icon:nth-child(3) {
+            top: 40%;
+            left: 8%;
+            animation-delay: 1.6s;
+        }
+        
+        .scene-1 .ide-icon:nth-child(4) {
+            top: 50%;
+            right: 20%;
+            animation-delay: 2.4s;
+        }
+        
+        .scene-1 .ide-icon:nth-child(5) {
+            top: 70%;
+            left: 25%;
+            animation-delay: 3.2s;
+        }
+        
+        .scene-1 .ide-icon:nth-child(6) {
+            top: 80%;
+            right: 8%;
+            animation-delay: 4s;
+        }
+        
+        .scene-1 .ide-icon:nth-child(7) {
+            top: 30%;
+            left: 55%;
+            animation-delay: 4.8s;
+        }
+        
+        .scene-1 .ide-icon:nth-child(8) {
+            top: 60%;
+            left: 55%;
+            animation-delay: 5.6s;
+        }
+        
+        .scene-1 .ide-icon:nth-child(9) {
+            top: 45%;
+            right: 55%;
+            animation-delay: 6.4s;
+        }
+        
+        @keyframes rotate {
+            from { 
+                transform: translate(-50%, -50%) rotate(0deg); 
+            }
+            to { 
+                transform: translate(-50%, -50%) rotate(360deg); 
+            }
+        }
+        
+        @keyframes float {
+            0%, 100% { 
+                transform: translateY(0px) scale(1); 
+                opacity: 0.8;
+            }
+            50% { 
+                transform: translateY(-30px) scale(1.2); 
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        /* 第二幕：CLI AI 开发 */
+        .scene-2 {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 60px;
+        }
+        
+        .scene-2 .cli-title {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #67E9E9 0%, #4896FF 50%, #2BCCCC 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 0.8s ease-out 0.6s forwards;
+        }
+        
+        .scene-2 .cli-subtitle {
+            font-size: 2rem;
+            color: #a0a0a0;
+            margin-bottom: 40px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 0.8s ease-out 0.8s forwards;
+        }
+        
+        .scene-2 .terminal-container {
+            width: 800px;
+            max-width: 90%;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            border: 1px solid rgba(103, 233, 233, 0.2);
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 0.8s ease-out 1s forwards;
+        }
+        
+        .scene-2 .terminal-header {
+            background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(103, 233, 233, 0.1);
+        }
+        
+        .scene-2 .terminal-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .scene-2 .terminal-button {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .scene-2 .terminal-button.close {
+            background: #ff5f57;
+        }
+        
+        .scene-2 .terminal-button.minimize {
+            background: #ffbd2e;
+        }
+        
+        .scene-2 .terminal-button.maximize {
+            background: #28ca42;
+        }
+        
+        .scene-2 .terminal-title {
+            color: #a0a0a0;
+            font-size: 0.9rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .scene-2 .terminal-body {
+            padding: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            min-height: 300px;
+            position: relative;
+            text-align: left;
+        }
+        
+        .scene-2 .terminal-line {
+            margin-bottom: 8px;
+            opacity: 0;
+            animation: typeIn 0.5s ease-out forwards;
+        }
+        
+        .scene-2 .terminal-line:nth-child(1) { animation-delay: 1.5s; }
+        .scene-2 .terminal-line:nth-child(2) { animation-delay: 2s; }
+        .scene-2 .terminal-line:nth-child(3) { animation-delay: 2.5s; }
+        .scene-2 .terminal-line:nth-child(4) { animation-delay: 3s; }
+        .scene-2 .terminal-line:nth-child(5) { animation-delay: 3.5s; }
+        .scene-2 .terminal-line:nth-child(6) { animation-delay: 4s; }
+        
+        .scene-2 .terminal-prompt {
+            color: #67E9E9;
+            font-weight: bold;
+        }
+        
+        .scene-2 .terminal-command {
+            color: #ffffff;
+        }
+        
+        .scene-2 .terminal-output {
+            color: #a0a0a0;
+        }
+        
+        .scene-2 .terminal-output.success {
+            color: #28ca42;
+        }
+        
+        .scene-2 .terminal-output.highlight {
+            color: #67E9E9;
+            font-weight: 600;
+        }
+        
+        .scene-2 .terminal-cursor {
+            color: #67E9E9;
+            font-weight: bold;
+            animation: blink 1s infinite;
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+        }
+        
+        @keyframes typeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        .scene-2 .brand-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #67E9E9 0%, #4896FF 50%, #2BCCCC 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 0.8s ease-out 0.3s forwards;
+        }
+        
+        /* 第三幕：工作流 */
+        .scene-3 {
+            padding: 60px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .scene-3 .brand-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 60px;
+            background: linear-gradient(135deg, #67E9E9 0%, #4896FF 50%, #2BCCCC 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 0.8s ease-out 0.3s forwards;
+        }
+        
+        .scene-3 .workflow-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ffffff;
+            text-align: center;
+            margin-bottom: 50px;
+            font-family: 'JetBrains Mono', monospace;
+            position: relative;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 0.8s ease-out 0.6s forwards;
+        }
+        
+        .scene-3 .workflow-title::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #67E9E9, #4896FF);
+            border-radius: 1px;
+            animation: expandWidth 1s ease-out 1s forwards;
+        }
+        
+        .scene-3 .workflow-container {
+            display: flex;
+            flex-direction: row;
+            gap: 60px;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 0.8s ease-out 0.9s forwards;
+            flex-wrap: wrap;
+            max-width: 100%;
+        }
+        
+        .scene-3 .workflow-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(30px);
+            min-width: 220px;
+        }
+        
+        .scene-3 .workflow-step:nth-child(1) { animation: slideInUp 0.8s ease-out 1.2s forwards; }
+        .scene-3 .workflow-step:nth-child(3) { animation: slideInUp 0.8s ease-out 1.4s forwards; }
+        .scene-3 .workflow-step:nth-child(5) { animation: slideInUp 0.8s ease-out 1.6s forwards; }
+        
+        .scene-3 .step-node {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 28px;
+            position: relative;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+            margin-bottom: 30px;
+        }
+        
+        .scene-3 .step-node.cursor { 
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+        }
+        .scene-3 .step-node.ai { 
+            background: linear-gradient(135deg, #67E9E9 0%, #4896FF 100%);
+        }
+        .scene-3 .step-node.mcp { 
+            background: linear-gradient(135deg, #4896FF 0%, #0052D9 100%);
+        }
+        .scene-3 .step-node.platform { 
+            background: linear-gradient(135deg, #2BCCCC 0%, #0052D9 100%);
+        }
+        
+        .scene-3 .step-content {
+            text-align: center;
+        }
+        
+        .scene-3 .step-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .scene-3 .step-desc {
+            font-size: 1rem;
+            color: #a0a0a0;
+            line-height: 1.5;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .scene-3 .step-tools {
+            font-size: 0.9rem;
+            color: #67E9E9;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .scene-3 .workflow-arrow {
+            font-size: 2.5rem;
+            color: #67E9E9;
+            opacity: 0.6;
+            animation: arrowPulse 2s ease-in-out infinite;
+            margin: 0 20px;
+        }
+        
+        @keyframes arrowPulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+        
+        
+        /* 第四幕：成功上线口号 */
+        .scene-4 {
+            padding: 60px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        
+        .scene-4 .brand-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 50px;
+            background: linear-gradient(135deg, #67E9E9 0%, #4896FF 50%, #2BCCCC 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 0.8s ease-out 0.3s forwards;
+        }
+        
+        .scene-4 .success-icon {
+            font-size: 4rem;
+            color: #67E9E9;
+            margin-bottom: 30px;
+            opacity: 0;
+            transform: scale(0.5);
+            animation: scaleIn 0.8s ease-out 0.6s forwards;
+        }
+        
+        .scene-4 .success-title {
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 20px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 0.8s ease-out 0.9s forwards;
+        }
+        
+        .scene-4 .success-slogan {
+            font-size: 1.4rem;
+            color: #67E9E9;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 0.8s ease-out 1.2s forwards;
+        }
+        
+        .scene-4 .final-apps {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 50px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideInUp 0.8s ease-out 1.5s forwards;
+        }
+        
+        .scene-4 .app-item {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(103, 233, 233, 0.2);
+            transition: all 0.3s ease;
+            min-width: 100px;
+        }
+        
+        .scene-4 .app-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(103, 233, 233, 0.2);
+            border-color: rgba(103, 233, 233, 0.4);
+        }
+        
+        .scene-4 .app-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        
+        .scene-4 .app-icon.web { color: #67E9E9; }
+        .scene-4 .app-icon.mini { color: #4896FF; }
+        .scene-4 .app-icon.api { color: #2BCCCC; }
+        
+        .scene-4 .app-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #ffffff;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* 进度指示器 */
+        .progress-indicator {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+        }
+        
+        .progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .progress-dot.active {
+            background: #67E9E9;
+            transform: scale(1.2);
+        }
+        
+        .progress-dot:hover {
+            background: rgba(103, 233, 233, 0.6);
+        }
+        
+        /* 动画关键帧 */
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        @keyframes expandWidth {
+            from {
+                width: 0;
+            }
+            to {
+                width: 100%;
+            }
+        }
+        
+        @keyframes iconGlow {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.1); }
+        }
+        
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        @keyframes floatIcon {
+            0%, 100% { 
+                transform: translateY(0px) rotate(0deg) scale(1); 
+                opacity: 0.9;
+            }
+            25% { 
+                transform: translateY(-25px) rotate(8deg) scale(1.05); 
+                opacity: 1;
+            }
+            50% { 
+                transform: translateY(-40px) rotate(0deg) scale(1.1); 
+                opacity: 0.95;
+            }
+            75% { 
+                transform: translateY(-25px) rotate(-8deg) scale(1.05); 
+                opacity: 1;
+            }
+        }
+        
+        /* 自动播放控制 */
+        .auto-play-controls {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+        
+        .control-btn {
+            padding: 8px 12px;
+            background: rgba(103, 233, 233, 0.1);
+            border: 1px solid rgba(103, 233, 233, 0.3);
+            color: #67E9E9;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .control-btn:hover {
+            background: rgba(103, 233, 233, 0.2);
+            transform: translateY(-1px);
+        }
+        
+        .control-btn.active {
+            background: rgba(103, 233, 233, 0.3);
+            border-color: rgba(103, 233, 233, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <div class="github-header">
+        <!-- 第一幕：左边内容 -->
+        <div class="scene scene-1 active">
+            <div class="left-content">
+                <h1 class="project-title">CloudBase<br>AI Toolkit</h1>
+            <div class="project-subtitle">
+                <div class="ai-icon">
+                    <i class="fas fa-robot"></i>
+                    </div>
+                    AI Coding Full-Stack Solution
+                </div>
+                <div class="slogan">
+                    <i class="fas fa-magic"></i> From Prompt to Production in Minutes!
+                </div>
+            </div>
+            <div class="right-graphic">
+                <div class="abstract-shape">
+                    <div class="floating-dots"></div>
+                    <div class="floating-ide-icons">
+                        <div class="ide-icon"><img src="assets/icon.png-1.png" alt="IDE Icon 1"></div>
+                        <div class="ide-icon"><img src="assets/icon.png-2.png" alt="IDE Icon 2"></div>
+                        <div class="ide-icon"><img src="assets/icon.png-3.png" alt="IDE Icon 3"></div>
+                        <div class="ide-icon"><img src="assets/icon.png-4.png" alt="IDE Icon 4"></div>
+                        <div class="ide-icon"><img src="assets/icon.png-5.png" alt="IDE Icon 5"></div>
+                        <div class="ide-icon"><img src="assets/icon.png-6.png" alt="IDE Icon 6"></div>
+                        <div class="ide-icon"><img src="assets/icon.png-7.png" alt="IDE Icon 7"></div>
+                        <div class="ide-icon"><img src="assets/icon.png-8.png" alt="IDE Icon 8"></div>
+                        <div class="ide-icon"><img src="assets/icon.png-9.png" alt="IDE Icon 9"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第二幕：CLI AI 开发 -->
+        <div class="scene scene-2">
+            <div class="brand-title">CloudBase AI Toolkit</div>
+            <h2 class="cli-title">Universal AI CLI</h2>
+            <div class="cli-subtitle">Run AI Anywhere</div>
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <div class="terminal-buttons">
+                        <span class="terminal-button close"></span>
+                        <span class="terminal-button minimize"></span>
+                        <span class="terminal-button maximize"></span>
+                    </div>
+                    <div class="terminal-title">Terminal</div>
+                </div>
+                <div class="terminal-body">
+                    <div class="terminal-line">
+                        <span class="terminal-prompt">$ </span>
+                        <span class="terminal-command">tcb ai</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="terminal-output">⛰︎  CloudBase AI ToolKit CLI</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="terminal-output">🚀 统一集成各种 AI CLI 工具，内置云开发全栈能力</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="terminal-output">? 选择默认使用的 AI CLI 工具:</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="terminal-output highlight">❯ Claude Code</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="terminal-output success">✅ 配置完成，开始 AI 开发！</span>
+                    </div>
+                    <div class="terminal-cursor">_</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第三幕：工作流 -->
+        <div class="scene scene-3">
+            <div class="brand-title">CloudBase AI Toolkit</div>
+            <h3 class="workflow-title">
+                <i class="fas fa-project-diagram"></i> AI-Powered Workflow
+            </h3>
+            <div class="workflow-container">
+                <div class="workflow-step">
+                    <div class="step-node ai">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-title">AI Rules & Commands</div>
+                        <div class="step-desc">IDE + Cloud-native AI guidance</div>
+                        <div class="step-tools">Cursor • VSCode • Smart Codegen</div>
+                    </div>
+                </div>
+                
+                <div class="workflow-arrow">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                
+                <div class="workflow-step">
+                    <div class="step-node mcp">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-title">MCP</div>
+                        <div class="step-desc">Automated deployment</div>
+                        <div class="step-tools">Auto deploy • Resource mgmt</div>
+                    </div>
+                </div>
+                
+                <div class="workflow-arrow">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                
+                <div class="workflow-step">
+                    <div class="step-node platform">
+                        <i class="fas fa-cloud"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-title">CloudBase Platform</div>
+                        <div class="step-desc">3.3M+ developers trust</div>
+                        <div class="step-tools">Functions • DB • Hosting</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第四幕：成功上线口号 -->
+        <div class="scene scene-4">
+            <div class="brand-title">CloudBase AI Toolkit</div>
+            <div class="success-icon">
+                <i class="fas fa-rocket"></i>
+            </div>
+            <h2 class="success-title">Deploy Success!</h2>
+            <div class="success-slogan">Your AI-powered app is live in the cloud</div>
+            <div class="final-apps">
+                <div class="app-item">
+                    <div class="app-icon web">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <div class="app-label">Web App</div>
+                </div>
+                <div class="app-item">
+                    <div class="app-icon mini">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <div class="app-label">MiniProgram</div>
+                </div>
+                <div class="app-item">
+                    <div class="app-icon api">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <div class="app-label">Backend API</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 进度指示器 -->
+        <div class="progress-indicator">
+            <div class="progress-dot active" data-scene="0"></div>
+            <div class="progress-dot" data-scene="1"></div>
+            <div class="progress-dot" data-scene="2"></div>
+            <div class="progress-dot" data-scene="3"></div>
+        </div>
+    </div>
+
+    <script>
+        class SceneManager {
+            constructor() {
+                this.currentScene = 0;
+                this.scenes = document.querySelectorAll('.scene');
+                this.progressDots = document.querySelectorAll('.progress-dot');
+                this.autoPlayInterval = null;
+                this.sceneDuration = 5000; // 5秒每幕
+                
+                this.init();
+            }
+            
+            init() {
+                this.bindEvents();
+                this.startAutoPlay();
+            }
+            
+            bindEvents() {
+                this.progressDots.forEach((dot, index) => {
+                    dot.addEventListener('click', () => this.goToScene(index));
+                });
+            }
+            
+            startAutoPlay() {
+                this.autoPlayInterval = setInterval(() => {
+                    this.nextScene();
+                }, this.sceneDuration);
+            }
+            
+            nextScene() {
+                const nextSceneIndex = (this.currentScene + 1) % this.scenes.length;
+                this.goToScene(nextSceneIndex);
+            }
+            
+            goToScene(sceneIndex) {
+                // 移除当前场景的活跃状态
+                this.scenes[this.currentScene].classList.remove('active');
+                this.progressDots[this.currentScene].classList.remove('active');
+                
+                // 更新当前场景索引
+                this.currentScene = sceneIndex;
+                
+                // 激活新场景
+                this.scenes[this.currentScene].classList.add('active');
+                this.progressDots[this.currentScene].classList.add('active');
+            }
+        }
+        
+        // 初始化场景管理器
+        document.addEventListener('DOMContentLoaded', () => {
+            new SceneManager();
+        });
+    </script>
+</body>
+</html> 
+

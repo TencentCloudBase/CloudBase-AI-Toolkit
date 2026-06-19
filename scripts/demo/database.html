@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MySQL 数据库 - 云开发控制台</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="console-container">
+    <!-- Top Header -->
+    <header class="console-header">
+      <div class="console-header-left">
+        <div class="console-logo">腾讯云 CloudBase DEV</div>
+        <div class="console-env-selector">
+          <span>tcb-advanced</span>
+          <span style="color: #999;">个人版</span>
+          <span>▼</span>
+        </div>
+        <a href="#" style="color: #666; text-decoration: none; font-size: 14px;">接入指引</a>
+      </div>
+      <div class="console-header-right">
+        <input type="text" class="console-search" placeholder="请输入关键词快捷搜索产品功能">
+        <div class="console-header-icons">
+          <div class="console-icon-button"><i class="fas fa-bell"></i></div>
+          <div class="console-icon-button"><i class="fas fa-bookmark"></i></div>
+          <div class="console-icon-button"><i class="fas fa-palette"></i></div>
+          <div class="console-icon-button" style="width: 32px; height: 32px; border-radius: 50%; background: #52c41a; color: #fff; font-weight: 600; display: flex; align-items: center; justify-content: center;">B</div>
+        </div>
+      </div>
+    </header>
+    
+    <!-- Left Sidebar -->
+    <aside class="console-sidebar">
+      <ul class="console-sidebar-nav">
+        <li class="console-sidebar-item">
+          <a href="index.html" class="console-sidebar-link disabled">
+            <span class="console-sidebar-icon"><i class="fas fa-chart-line"></i></span>
+            <span>概览</span>
+          </a>
+        </li>
+        <li class="console-sidebar-item">
+          <a href="#" class="console-sidebar-link disabled">
+            <span class="console-sidebar-icon"><i class="fas fa-cube"></i></span>
+            <span>模板中心</span>
+          </a>
+        </li>
+        <li class="console-sidebar-item">
+          <a href="#" class="console-sidebar-link disabled">
+            <span class="console-sidebar-icon"><i class="fas fa-file-alt"></i></span>
+            <span>文档型数据库</span>
+          </a>
+        </li>
+        <li class="console-sidebar-item">
+          <a href="database.html" class="console-sidebar-link active">
+            <span class="console-sidebar-icon"><i class="fas fa-database"></i></span>
+            <span>MySQL 数据库</span>
+          </a>
+        </li>
+        <li class="console-sidebar-item">
+          <a href="function.html" class="console-sidebar-link">
+            <span class="console-sidebar-icon"><i class="fas fa-bolt"></i></span>
+            <span>云函数</span>
+          </a>
+        </li>
+        <li class="console-sidebar-item">
+          <a href="#" class="console-sidebar-link disabled">
+            <span class="console-sidebar-icon"><i class="fas fa-rocket"></i></span>
+            <span>云托管</span>
+          </a>
+        </li>
+        <li class="console-sidebar-item">
+          <a href="#" class="console-sidebar-link disabled">
+            <span class="console-sidebar-icon"><i class="fas fa-folder"></i></span>
+            <span>云存储</span>
+          </a>
+        </li>
+        <li class="console-sidebar-item">
+          <a href="#" class="console-sidebar-link disabled">
+            <span class="console-sidebar-icon"><i class="fas fa-robot"></i></span>
+            <span>AI+</span>
+          </a>
+        </li>
+        <li class="console-sidebar-item">
+          <a href="#" class="console-sidebar-link disabled">
+            <span class="console-sidebar-icon"><i class="fas fa-globe"></i></span>
+            <span>静态网站托管</span>
+          </a>
+        </li>
+        <li class="console-sidebar-item">
+          <a href="auth.html" class="console-sidebar-link">
+            <span class="console-sidebar-icon"><i class="fas fa-lock"></i></span>
+            <span>身份认证</span>
+          </a>
+        </li>
+        <li class="console-sidebar-item">
+          <a href="#" class="console-sidebar-link disabled">
+            <span class="console-sidebar-icon"><i class="fas fa-tools"></i></span>
+            <span>微搭低代码</span>
+          </a>
+        </li>
+        <li class="console-sidebar-item">
+          <a href="#" class="console-sidebar-link disabled">
+            <span class="console-sidebar-icon"><i class="fas fa-clipboard-list"></i></span>
+            <span>日志监控</span>
+          </a>
+        </li>
+        <li class="console-sidebar-item">
+          <a href="#" class="console-sidebar-link disabled">
+            <span class="console-sidebar-icon"><i class="fas fa-cog"></i></span>
+            <span>扩展功能</span>
+          </a>
+        </li>
+        <li class="console-sidebar-item" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e5e5;">
+          <a href="#" class="console-sidebar-link disabled">
+            <span class="console-sidebar-icon"><i class="fas fa-globe-americas"></i></span>
+            <span>环境管理</span>
+          </a>
+        </li>
+      </ul>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="console-content">
+      <div style="background: #fff; padding: 16px; border-radius: 4px; margin-bottom: 16px;">
+        <div style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">MySQL 数据库</div>
+        <div style="color: #666; font-size: 14px;">云开发默认实例</div>
+      </div>
+      
+      <div style="background: #fff; padding: 16px; border-radius: 4px; margin-bottom: 16px;">
+        <div style="display: flex; gap: 24px; border-bottom: 1px solid #e5e5e5; margin-bottom: 16px;">
+          <div style="padding: 8px 0; border-bottom: 2px solid #1890ff; color: #1890ff; font-weight: 500; cursor: pointer;">数据库表</div>
+          <div style="padding: 8px 0; color: #666; cursor: pointer;">数据模型</div>
+          <div style="padding: 8px 0; color: #666; cursor: pointer;">数据库设置</div>
+          <div style="padding: 8px 0; color: #666; cursor: pointer;">连接管理</div>
+        </div>
+        
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+          <div>
+            <span style="font-size: 14px; color: #666;">tcb-advanced-a656fc</span>
+            <span style="margin: 0 8px; color: #e5e5e5;">/</span>
+            <span style="font-size: 14px; color: #666;">default</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 14px; font-weight: 600;">表管理</span>
+              <span style="color: #999; cursor: pointer;"><i class="fas fa-sync-alt"></i></span>
+              <span style="color: #999; cursor: pointer;"><i class="fas fa-search"></i></span>
+              <button class="ai-dev-button" data-scenario="create-database-table" style="font-size: 13px; padding: 6px 12px;">
+                <div class="ai-dev-button-left">
+                  <span>使用 AI 设计数据库表结构</span>
+                </div>
+                <svg class="ai-dev-button-arrow" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                  <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      
+        <div style="max-height: 600px; overflow-y: auto;">
+          <div style="display: flex; flex-direction: column; gap: 1px; background: #f5f5f5;">
+            <div style="background: #fff; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border-left: 3px solid #1890ff;">
+              <div>
+                <strong style="color: #1890ff;">aa</strong>
+              </div>
+            </div>
+            <div style="background: #fff; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+              <div>
+                <strong>aa-preview</strong>
+              </div>
+            </div>
+            <div style="background: #fff; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+              <div>
+                <strong>activity_registration</strong>
+              </div>
+            </div>
+            <div style="background: #fff; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+              <div>
+                <strong>cards</strong>
+              </div>
+            </div>
+            <div style="background: #fff; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+              <div>
+                <strong>cart</strong>
+              </div>
+            </div>
+            <div style="background: #fff; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+              <div>
+                <strong>categories</strong>
+              </div>
+            </div>
+            <div style="background: #fff; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+              <div>
+                <strong>class</strong>
+              </div>
+            </div>
+            <div style="background: #fff; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+              <div>
+                <strong>comment</strong>
+              </div>
+            </div>
+            <div style="background: #fff; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+              <div>
+                <strong>course</strong>
+              </div>
+            </div>
+            <div style="background: #fff; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+              <div>
+                <strong>favorites</strong>
+              </div>
+            </div>
+            <div style="background: #fff; padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+              <div>
+                <strong>identity</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="show-total">
+          <label for="show-total" style="font-size: 14px; color: #666; cursor: pointer;">显示总数</label>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <script src="js/scenarios.js"></script>
+  <script src="js/panel.js"></script>
+</body>
+</html>
+

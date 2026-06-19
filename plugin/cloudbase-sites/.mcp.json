@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "cloudbase-mcp": {
+      "command": "npx",
+      "args": ["-y", "@cloudbase/cloudbase-mcp@latest"],
+      "env": {}
+    }
+  }
+}

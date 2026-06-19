@@ -1,0 +1,44 @@
+name: Sync Claude Skills Mirror
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'config/source/skills/**'
+      - 'scripts/sync-claude-skills-mirror.mjs'
+      - '.github/workflows/sync-claude-skills-mirror.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-claude-skills:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+
+      - name: Sync Claude skills mirror
+        run: node scripts/sync-claude-skills-mirror.mjs
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add config/.claude/skills
+          if git diff --staged --quiet; then
+            echo "No changes, skipping."
+          else
+            git commit -m "chore: sync claude skills mirror from source"
+            git push
+          fi

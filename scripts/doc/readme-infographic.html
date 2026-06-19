@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudBase MCP</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0a0a0a;
+            --primary: #3b82f6;
+            --white: #ffffff;
+            --gray-400: #9ca3af;
+            --gray-600: #6b7280;
+            --gray-800: #1f2937;
+            --grid-unit: 8px;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg);
+            color: var(--white);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: calc(var(--grid-unit) * 12) calc(var(--grid-unit) * 6);
+        }
+
+        /* Header */
+        .header {
+            margin-bottom: calc(var(--grid-unit) * 16);
+            border-bottom: 1px solid var(--gray-800);
+            padding-bottom: calc(var(--grid-unit) * 8);
+        }
+
+        .logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--gray-600);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: calc(var(--grid-unit) * 4);
+        }
+
+        .title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 300;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            margin-bottom: calc(var(--grid-unit) * 3);
+        }
+
+        .title span {
+            color: var(--primary);
+        }
+
+        .tagline {
+            font-size: 1rem;
+            color: var(--gray-600);
+            font-weight: 300;
+            max-width: 480px;
+        }
+
+        /* Cards Grid */
+        .cards {
+            display: flex;
+            flex-direction: column;
+            gap: calc(var(--grid-unit) * 1);
+        }
+
+        /* Card */
+        .card {
+            display: grid;
+            grid-template-columns: 200px 1fr 400px;
+            gap: calc(var(--grid-unit) * 6);
+            padding: calc(var(--grid-unit) * 6) 0;
+            border-bottom: 1px solid var(--gray-800);
+            align-items: start;
+        }
+
+        .card:last-child {
+            border-bottom: none;
+        }
+
+        .card-index {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--gray-600);
+            letter-spacing: 0.1em;
+        }
+
+        .card-content {
+            display: flex;
+            flex-direction: column;
+            gap: calc(var(--grid-unit) * 3);
+        }
+
+        .card-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 500;
+            letter-spacing: -0.02em;
+            color: var(--white);
+        }
+
+        .card-desc {
+            font-size: 0.875rem;
+            color: var(--gray-400);
+            font-weight: 300;
+            line-height: 1.8;
+            max-width: 400px;
+        }
+
+        .card-visual {
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
+        }
+
+        /* Visual Elements - Minimal Abstract */
+        
+        /* 01 - AI Native: 三个递进的点 */
+        .visual-flow {
+            display: flex;
+            align-items: center;
+            gap: calc(var(--grid-unit) * 4);
+        }
+
+        .flow-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--gray-800);
+            position: relative;
+        }
+
+        .flow-dot:nth-child(2) {
+            width: 16px;
+            height: 16px;
+            background: var(--gray-600);
+        }
+
+        .flow-dot:nth-child(3) {
+            width: 24px;
+            height: 24px;
+            background: var(--primary);
+        }
+
+        .flow-line {
+            width: 40px;
+            height: 1px;
+            background: var(--gray-800);
+        }
+
+        /* 02 - Deploy: 上升的阶梯 */
+        .visual-steps {
+            display: flex;
+            align-items: flex-end;
+            gap: calc(var(--grid-unit) * 2);
+            height: 100%;
+        }
+
+        .step-bar {
+            width: 32px;
+            background: var(--gray-800);
+            border-radius: 2px 2px 0 0;
+        }
+
+        .step-bar:nth-child(1) { height: 40px; }
+        .step-bar:nth-child(2) { height: 80px; }
+        .step-bar:nth-child(3) { 
+            height: 120px; 
+            background: var(--primary);
+        }
+
+        /* 03 - Debug: 闭环圆环 */
+        .visual-loop {
+            width: 120px;
+            height: 120px;
+            border: 1px solid var(--gray-800);
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .visual-loop::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+        }
+
+        .visual-loop::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8px;
+            height: 8px;
+            background: var(--gray-600);
+            border-radius: 50%;
+        }
+
+        /* 04 - Fullstack: 三层堆叠 */
+        .visual-stack {
+            display: flex;
+            flex-direction: column;
+            gap: calc(var(--grid-unit) * 1);
+        }
+
+        .stack-layer {
+            height: 32px;
+            background: var(--gray-800);
+            border-radius: 2px;
+        }
+
+        .stack-layer:nth-child(1) { width: 160px; }
+        .stack-layer:nth-child(2) { 
+            width: 120px; 
+            background: var(--gray-600);
+        }
+        .stack-layer:nth-child(3) { 
+            width: 80px; 
+            background: var(--primary);
+        }
+
+        /* 05 - Knowledge: 网格点阵 */
+        .visual-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: calc(var(--grid-unit) * 2);
+        }
+
+        .grid-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--gray-800);
+        }
+
+        .grid-dot:nth-child(7),
+        .grid-dot:nth-child(13) {
+            background: var(--primary);
+        }
+
+        .grid-dot:nth-child(8),
+        .grid-dot:nth-child(12),
+        .grid-dot:nth-child(14) {
+            background: var(--gray-600);
+        }
+
+        /* 06 - Workflow: 分叉路径 */
+        .visual-branch {
+            position: relative;
+            width: 160px;
+            height: 100px;
+        }
+
+        .branch-main {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 60px;
+            height: 1px;
+            background: var(--gray-800);
+        }
+
+        .branch-a {
+            position: absolute;
+            left: 60px;
+            top: 30%;
+            width: 80px;
+            height: 1px;
+            background: var(--primary);
+            transform-origin: left center;
+            transform: rotate(-20deg);
+        }
+
+        .branch-a::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: -4px;
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+        }
+
+        .branch-b {
+            position: absolute;
+            left: 60px;
+            top: 70%;
+            width: 80px;
+            height: 1px;
+            background: var(--gray-600);
+            transform-origin: left center;
+            transform: rotate(20deg);
+        }
+
+        .branch-b::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: -4px;
+            width: 8px;
+            height: 8px;
+            background: var(--gray-600);
+            border-radius: 50%;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: calc(var(--grid-unit) * 16);
+            padding-top: calc(var(--grid-unit) * 8);
+            border-top: 1px solid var(--gray-800);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-left {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+        }
+
+        .footer-right {
+            display: flex;
+            gap: calc(var(--grid-unit) * 4);
+        }
+
+        .footer-link {
+            font-size: 0.75rem;
+            color: var(--gray-400);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .footer-link:hover {
+            color: var(--primary);
+        }
+
+        /* Export Controls */
+        .export-controls {
+            position: fixed;
+            bottom: calc(var(--grid-unit) * 6);
+            right: calc(var(--grid-unit) * 6);
+            display: flex;
+            flex-direction: column;
+            gap: calc(var(--grid-unit) * 2);
+            z-index: 1000;
+        }
+
+        .export-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 4);
+            background: var(--gray-800);
+            border: 1px solid var(--gray-600);
+            color: var(--white);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+        }
+
+        .export-btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .export-btn:active {
+            opacity: 0.8;
+        }
+
+        .export-status {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+            padding: calc(var(--grid-unit) * 2) 0;
+            min-height: 20px;
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            .card {
+                grid-template-columns: 1fr;
+                gap: calc(var(--grid-unit) * 4);
+            }
+
+            .card-visual {
+                order: -1;
+                height: 120px;
+            }
+
+            .export-controls {
+                bottom: calc(var(--grid-unit) * 4);
+                right: calc(var(--grid-unit) * 4);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">CloudBase</div>
+            <h1 class="title">From <span>prompt</span><br>to production</h1>
+            <p class="tagline">连接 AI IDE 与云端部署的最短路径</p>
+        </header>
+
+        <main class="cards">
+            <!-- 01 -->
+            <article class="card">
+                <div class="card-index">01 — AI Native</div>
+                <div class="card-content">
+                    <h2 class="card-title">原生 AI 规则</h2>
+                    <p class="card-desc">
+                        内置规则库直接生成可部署代码，自动配置数据库与安全规则
+                    </p>
+                </div>
+                <div class="card-visual">
+                    <div class="visual-flow">
+                        <div class="flow-dot"></div>
+                        <div class="flow-line"></div>
+                        <div class="flow-dot"></div>
+                        <div class="flow-line"></div>
+                        <div class="flow-dot"></div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 02 -->
+            <article class="card">
+                <div class="card-index">02 — Deploy</div>
+                <div class="card-content">
+                    <h2 class="card-title">一键部署</h2>
+                    <p class="card-desc">
+                        自动检测项目类型，智能配置参数，实时返回访问链接
+                    </p>
+                </div>
+                <div class="card-visual">
+                    <div class="visual-steps">
+                        <div class="step-bar"></div>
+                        <div class="step-bar"></div>
+                        <div class="step-bar"></div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 03 -->
+            <article class="card">
+                <div class="card-index">03 — Debug</div>
+                <div class="card-content">
+                    <h2 class="card-title">智能调试</h2>
+                    <p class="card-desc">
+                        自动读取日志，分析错误，生成修复代码，形成开发闭环
+                    </p>
+                </div>
+                <div class="card-visual">
+                    <div class="visual-loop"></div>
+                </div>
+            </article>
+
+            <!-- 04 -->
+            <article class="card">
+                <div class="card-index">04 — Full-Stack</div>
+                <div class="card-content">
+                    <h2 class="card-title">全栈支持</h2>
+                    <p class="card-desc">
+                        Web 应用、微信小程序、后端服务，覆盖完整技术栈
+                    </p>
+                </div>
+                <div class="card-visual">
+                    <div class="visual-stack">
+                        <div class="stack-layer"></div>
+                        <div class="stack-layer"></div>
+                        <div class="stack-layer"></div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 05 -->
+            <article class="card">
+                <div class="card-index">05 — Knowledge</div>
+                <div class="card-content">
+                    <h2 class="card-title">知识检索</h2>
+                    <p class="card-desc">
+                        内置云开发知识库，向量检索返回文档与最佳实践
+                    </p>
+                </div>
+                <div class="card-visual">
+                    <div class="visual-grid">
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                        <div class="grid-dot"></div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 06 -->
+            <article class="card">
+                <div class="card-index">06 — Workflow</div>
+                <div class="card-content">
+                    <h2 class="card-title">灵活工作流</h2>
+                    <p class="card-desc">
+                        完整规范流程或快速迭代，根据任务复杂度自动选择
+                    </p>
+                </div>
+                <div class="card-visual">
+                    <div class="visual-branch">
+                        <div class="branch-main"></div>
+                        <div class="branch-a"></div>
+                        <div class="branch-b"></div>
+                    </div>
+                </div>
+            </article>
+        </main>
+
+        <footer class="footer">
+            <div class="footer-left">
+                39 MCP Tools · MIT License
+            </div>
+            <div class="footer-right">
+                <a href="https://github.com/TencentCloudBase/CloudBase-AI-ToolKit" class="footer-link">GitHub</a>
+                <a href="https://docs.cloudbase.net" class="footer-link">Docs</a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Export Controls -->
+    <div class="export-controls">
+        <button class="export-btn" onclick="exportAllCards()">Export All Cards</button>
+        <button class="export-btn" onclick="exportSingleCard(0)">Export Card 01</button>
+        <button class="export-btn" onclick="exportSingleCard(1)">Export Card 02</button>
+        <button class="export-btn" onclick="exportSingleCard(2)">Export Card 03</button>
+        <button class="export-btn" onclick="exportSingleCard(3)">Export Card 04</button>
+        <button class="export-btn" onclick="exportSingleCard(4)">Export Card 05</button>
+        <button class="export-btn" onclick="exportSingleCard(5)">Export Card 06</button>
+        <div class="export-status" id="exportStatus"></div>
+    </div>
+
+    <!-- html2canvas library -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    
+    <script>
+        // Check if html2canvas is loaded
+        function checkLibraryLoaded() {
+            return typeof html2canvas !== 'undefined';
+        }
+
+        // Wait for library to load
+        window.addEventListener('load', function() {
+            if (!checkLibraryLoaded()) {
+                console.warn('html2canvas not loaded, retrying...');
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js';
+                script.onload = function() {
+                    console.log('html2canvas loaded successfully');
+                };
+                document.head.appendChild(script);
+            }
+        });
+
+        // Export single card
+        async function exportSingleCard(index) {
+            if (!checkLibraryLoaded()) {
+                const statusEl = document.getElementById('exportStatus');
+                statusEl.textContent = 'Library loading...';
+                setTimeout(() => {
+                    statusEl.textContent = '';
+                }, 2000);
+                return;
+            }
+
+            const cards = document.querySelectorAll('.card');
+            if (index >= cards.length) return;
+
+            const card = cards[index];
+            const statusEl = document.getElementById('exportStatus');
+            statusEl.textContent = 'Exporting...';
+
+            try {
+                // Temporarily add padding to ensure full content is captured
+                const originalPadding = card.style.padding;
+                const originalMargin = card.style.margin;
+                card.style.padding = '40px';
+                card.style.margin = '0';
+                
+                const canvas = await html2canvas(card, {
+                    backgroundColor: '#0a0a0a',
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    allowTaint: true,
+                    width: card.scrollWidth,
+                    height: card.scrollHeight
+                });
+
+                // Restore original styles
+                card.style.padding = originalPadding;
+                card.style.margin = originalMargin;
+
+                const dataUrl = canvas.toDataURL('image/png', 1.0);
+                downloadImage(dataUrl, `cloudbase-mcp-card-${String(index + 1).padStart(2, '0')}.png`);
+                statusEl.textContent = 'Exported ✓';
+                setTimeout(() => {
+                    statusEl.textContent = '';
+                }, 2000);
+            } catch (error) {
+                console.error('Export error:', error);
+                statusEl.textContent = 'Error: ' + error.message;
+                setTimeout(() => {
+                    statusEl.textContent = '';
+                }, 3000);
+            }
+        }
+
+        // Export all cards
+        async function exportAllCards() {
+            if (!checkLibraryLoaded()) {
+                const statusEl = document.getElementById('exportStatus');
+                statusEl.textContent = 'Library loading...';
+                setTimeout(() => {
+                    statusEl.textContent = '';
+                }, 2000);
+                return;
+            }
+
+            const cards = document.querySelectorAll('.card');
+            const statusEl = document.getElementById('exportStatus');
+            statusEl.textContent = 'Exporting all...';
+
+            try {
+                for (let i = 0; i < cards.length; i++) {
+                    const card = cards[i];
+                    statusEl.textContent = `Exporting ${i + 1}/${cards.length}...`;
+
+                    // Temporarily add padding to ensure full content is captured
+                    const originalPadding = card.style.padding;
+                    const originalMargin = card.style.margin;
+                    card.style.padding = '40px';
+                    card.style.margin = '0';
+                    
+                    const canvas = await html2canvas(card, {
+                        backgroundColor: '#0a0a0a',
+                        scale: 2,
+                        useCORS: true,
+                        logging: false,
+                        allowTaint: true,
+                        width: card.scrollWidth,
+                        height: card.scrollHeight
+                    });
+
+                    // Restore original styles
+                    card.style.padding = originalPadding;
+                    card.style.margin = originalMargin;
+
+                    const dataUrl = canvas.toDataURL('image/png', 1.0);
+
+                    // Add delay between downloads to avoid browser blocking
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    downloadImage(dataUrl, `cloudbase-mcp-card-${String(i + 1).padStart(2, '0')}.png`);
+                }
+
+                statusEl.textContent = 'All exported ✓';
+                setTimeout(() => {
+                    statusEl.textContent = '';
+                }, 2000);
+            } catch (error) {
+                console.error('Export error:', error);
+                statusEl.textContent = 'Error: ' + error.message;
+                setTimeout(() => {
+                    statusEl.textContent = '';
+                }, 3000);
+            }
+        }
+
+        // Download image helper
+        function downloadImage(dataUrl, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = dataUrl;
+            link.click();
+        }
+    </script>
+</body>
+</html>

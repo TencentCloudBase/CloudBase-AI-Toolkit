@@ -1,0 +1,51 @@
+.container {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ifm-heading-color);
+  margin-bottom: 1rem;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.list li {
+  margin-bottom: 0.75rem;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.list li:last-child {
+  margin-bottom: 0;
+}
+
+.description {
+  color: var(--ifm-color-emphasis-600);
+}
+
+.list a {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.list a:hover {
+  text-decoration: underline;
+}
+
+
+
+
+
+
+
+
+

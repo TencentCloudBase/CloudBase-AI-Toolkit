@@ -1,0 +1,164 @@
+---
+name: spec-workflow
+description: Use when medium-to-large changes need explicit requirements, technical design, and task planning before implementation, especially for multi-module work, unclear acceptance criteria, or architecture-heavy requests.
+version: 2.21.1
+alwaysApply: false
+---
+
+## Standalone Install Note
+
+If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
+
+- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
+- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/spec-workflow/SKILL.md`
+
+Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool` or `web-development`, use the standalone fallback URL shown next to that reference.
+
+# Spec Workflow
+
+## Activation Contract
+
+### Use this first when
+
+- The request is a new feature, multi-step product change, cross-module integration, or architecture/design task.
+- Acceptance criteria are unclear and need to be made explicit before implementation.
+- The work involves multiple files, user flows, database design, or UI design that needs staged confirmation.
+
+### Read before writing code if
+
+- You are unsure whether the task should go straight to coding or should first go through requirements, design, and task planning.
+- The request mentions a new page, a new system, a redesign, a workflow, or a multi-module refactor.
+
+### Then also read
+
+- Frontend page or visual design work -> `../ui-design/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/ui-design/SKILL.md`)
+- Advanced data-model work -> `../data-model-creation/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/data-model-creation/SKILL.md`)
+
+### Do NOT use for
+
+- Small bug fixes with clear scope.
+- One-file documentation updates.
+- Straightforward config changes.
+- Tiny refactors where the user already gave exact implementation instructions.
+
+### Common mistakes / gotchas
+
+- Jumping into coding before acceptance criteria are explicit.
+- Skipping user confirmation between requirements, design, and tasks.
+- Writing vague tasks that do not map back to user-visible outcomes.
+- Treating UI work as purely technical implementation without clarifying design intent.
+
+### Minimal checklist
+
+- Decide whether the change really needs the full spec flow.
+- If yes, stop and produce requirements first.
+- If the change is small, low-risk, and acceptance is already clear, allow direct execution without forcing spec artifacts.
+- Use EARS-style acceptance criteria.
+- Get confirmation before moving to the next phase.
+
+## When to use this skill
+
+Use this workflow for structured development when you need to:
+
+- Define or refine a new feature
+- Design complex architecture
+- Coordinate changes across modules
+- Plan database or UI-heavy work
+- Improve requirement quality and acceptance boundaries
+
+## Decision rule
+
+### Use the full workflow when
+
+- The task is medium or large
+- The impact spans multiple modules
+- Acceptance boundaries are fuzzy
+- The user wants disciplined planning before implementation
+
+### Skip the full workflow when
+
+- The task is small, low-risk, and already precise
+- Goal, scope, and acceptance are already clear enough to execute directly
+- The user explicitly wants a direct code change with no planning phase
+
+## Core workflow
+
+### Phase 1: Requirements
+
+Create `specs/<spec_name>/requirements.md`.
+
+What to do:
+
+- Restate the problem and scope
+- Write user stories
+- Write acceptance criteria in EARS style
+- Clarify business rules, constraints, and non-goals
+
+EARS pattern:
+
+```text
+While <optional precondition>, when <optional trigger>, the <system name> shall <system response>
+```
+
+Example:
+
+```text
+When the user submits the form, the booking system shall validate required fields before creating the record.
+```
+
+### Phase 2: Design
+
+Create `specs/<spec_name>/design.md`.
+
+What to do:
+
+- Describe architecture and module boundaries
+- Explain technology choices and trade-offs
+- Define data model, API, security, and testing strategy as needed
+- Use Mermaid only when a diagram materially improves clarity
+
+### Phase 3: Tasks
+
+Create `specs/<spec_name>/tasks.md`.
+
+What to do:
+
+- Break the design into executable tasks
+- Keep tasks specific and reviewable
+- Link each task back to the relevant requirement
+- Update task status as work progresses
+
+Task format:
+
+```markdown
+# Implementation Plan
+
+- [ ] 1. Task title
+  - Specific work item
+  - Another concrete step
+  - _Requirement: 1
+```
+
+### Phase 4: Execution
+
+Only start implementation after the user confirms the task plan.
+
+During execution:
+
+- Keep task status current
+- Finish one meaningful unit at a time
+- Preserve traceability from change -> task -> requirement
+
+## Working rules for the agent
+
+1. Ask follow-up questions when the request is underspecified; do not guess core product behavior.
+2. Require confirmation between requirements, design, and task breakdown.
+3. Pull in `ui-design` early when the change includes end-user pages or visual decisions.
+4. Keep documents concise but testable.
+5. Prefer user-visible outcomes over implementation-detail task names.
+
+## Output expectations
+
+- `requirements.md` -> problem, scope, user stories, EARS acceptance criteria
+- `design.md` -> architecture, technical approach, data/API/security/test notes
+- `tasks.md` -> actionable implementation checklist tied to requirements

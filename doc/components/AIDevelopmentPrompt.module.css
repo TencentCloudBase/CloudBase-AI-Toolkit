@@ -1,0 +1,303 @@
+/* Container - Minimalist */
+.container {
+  margin: 2rem 0;
+}
+
+/* Hint text */
+.hint {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9375rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.6;
+}
+
+/* Input Wrapper */
+.inputWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+/* Input Container - for input with buttons inside */
+.inputContainer {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+}
+
+/* Input - Clean and simple */
+.input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  padding-right: 0.5rem;
+  font-size: 1rem;
+  font-family: var(--ifm-font-family-base);
+  color: var(--ifm-font-color-base);
+  background: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 6px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+  outline: none;
+  transition: border-color 0.2s ease;
+  min-height: 2.75rem;
+}
+
+.input:focus {
+  border-color: var(--ifm-color-primary);
+  z-index: 1;
+}
+
+.input:focus + .inputActions {
+  border-color: var(--ifm-color-primary);
+  z-index: 1;
+}
+
+/* Input Actions - Container for buttons inside input */
+.inputActions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-left: none;
+  border-radius: 6px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  background: var(--ifm-background-color);
+  transition: border-color 0.2s ease;
+}
+
+/* Change Button - Refresh icon, inside input */
+.changeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  min-height: 2.75rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--ifm-color-emphasis-300);
+  color: var(--ifm-color-emphasis-600);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.changeButton:hover {
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-emphasis-900);
+}
+
+.changeButton:active {
+  transform: scale(0.95);
+}
+
+.changeButton:active svg {
+  animation: rotate 0.3s ease;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.changeButton svg {
+  flex-shrink: 0;
+}
+
+/* Start Button - Inside input, follow IDESelector button style */
+.startButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  min-height: 2.75rem;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: var(--ifm-font-color-base);
+  background: transparent;
+  border: none;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.startButton:hover {
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-primary);
+}
+
+.startButton:active {
+  transform: scale(0.98);
+}
+
+/* Modal Overlay - Clear background, no blur */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 10000;
+  padding: 2rem 1rem;
+  overflow-y: auto;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Modal Content - Theme-aware background */
+.modalContent {
+  background: #ffffff;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  max-width: 900px;
+  width: 100%;
+  max-height: calc(100vh - 4rem);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+[data-theme='dark'] .modalContent {
+  background: #1e1e1e;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Modal Header */
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  background: inherit;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--ifm-heading-color);
+}
+
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--ifm-color-emphasis-600);
+  transition: all 0.15s ease;
+}
+
+.closeButton:hover {
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-emphasis-900);
+}
+
+/* Modal Body */
+.modalBody {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+  background: inherit;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .inputWrapper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inputContainer {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .input {
+    border-right: 1px solid var(--ifm-color-emphasis-300);
+    border-radius: 6px;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+    padding-right: 1rem;
+  }
+
+  .input:focus + .inputActions {
+    border-top-color: var(--ifm-color-primary);
+  }
+
+  .inputActions {
+    border-left: 1px solid var(--ifm-color-emphasis-300);
+    border-top: none;
+    border-radius: 6px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    width: 100%;
+  }
+
+  .startButton {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .modalOverlay {
+    padding: 1rem 0.5rem;
+  }
+
+  .modalContent {
+    max-width: 100%;
+    max-height: calc(100vh - 2rem);
+  }
+
+  .modalHeader {
+    padding: 1rem;
+  }
+
+  .modalTitle {
+    font-size: 1.125rem;
+  }
+
+  .modalBody {
+    padding: 1rem;
+  }
+}

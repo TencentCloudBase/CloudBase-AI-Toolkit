@@ -1,0 +1,116 @@
+name: Publish ClawHub & SkillHub Registry
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'config/source/skills/**'
+      - 'config/source/guideline/**'
+      - 'scripts/build-allinone-skill.ts'
+      - 'scripts/build-clawhub-publish-artifacts.mjs'
+      - 'scripts/clawhub-publish-targets.mjs'
+      - 'scripts/publish-to-clawhub.mjs'
+      - 'scripts/publish-to-skillhub.mjs'
+      - '.github/workflows/publish-clawhub-registry.yml'
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: 'Comma-separated publish targets: miniprogram-development, cloudbase-wechat-integration, all-in-one, ui-design, web-development, spec-workflow'
+        required: true
+        type: string
+      bump:
+        description: 'Version bump type used by clawhub sync: patch, minor, or major'
+        required: false
+        default: 'minor'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      changelog:
+        description: 'Optional changelog text. If empty, recent commits are appended automatically.'
+        required: false
+        default: ''
+        type: string
+      tags:
+        description: 'Comma-separated tags passed to clawhub publish'
+        required: false
+        default: 'latest'
+        type: string
+      dry_run:
+        description: 'Build and validate only, skip registry publish'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      TARGETS: ${{ github.event_name == 'workflow_dispatch' && inputs.targets || 'miniprogram-development,cloudbase-wechat-integration,all-in-one,ui-design,web-development,spec-workflow' }}
+      BUMP: ${{ github.event_name == 'workflow_dispatch' && inputs.bump || 'minor' }}
+      CHANGELOG: ${{ github.event_name == 'workflow_dispatch' && inputs.changelog || '' }}
+      TAGS: ${{ github.event_name == 'workflow_dispatch' && inputs.tags || 'latest' }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+
+    steps:
+      - name: Checkout toolkit repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '24'
+
+      - name: Install root dependencies (for build-allinone-skill scripts)
+        run: npm ci --ignore-scripts
+
+      - name: Build publish artifacts
+        run: node scripts/build-clawhub-publish-artifacts.mjs --targets "$TARGETS"
+
+      - name: Install ClawHub CLI
+        if: ${{ !inputs.dry_run }}
+        # TODO: Pin to specific version once stable versioning is available
+        run: npm install -g clawhub@latest
+
+      - name: Login to ClawHub
+        if: ${{ !inputs.dry_run }}
+        env:
+          CLAWDHUB_TOKEN: ${{ secrets.CLAWDHUB_TOKEN }}
+        run: clawhub login --token "$CLAWDHUB_TOKEN" --no-browser
+
+      - name: Publish selected targets to ClawHub
+        env:
+          CLAWDHUB_TOKEN: ${{ secrets.CLAWDHUB_TOKEN }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            node scripts/publish-to-clawhub.mjs --manifest .clawhub-publish-output/manifest.json --bump "$BUMP" --changelog "$CHANGELOG" --tags "$TAGS" --dry-run
+          else
+            node scripts/publish-to-clawhub.mjs --manifest .clawhub-publish-output/manifest.json --bump "$BUMP" --changelog "$CHANGELOG" --tags "$TAGS"
+          fi
+
+      - name: Publish to SkillHub
+        if: ${{ !inputs.dry_run }}
+        env:
+          SKILLHUB_API_TOKEN: ${{ secrets.SKILLHUB_API_TOKEN }}
+          SKILLHUB_ORG_ID: ${{ secrets.SKILLHUB_ORG_ID }}
+        run: |
+          node scripts/publish-to-skillhub.mjs \
+            --manifest .clawhub-publish-output/manifest.json \
+            --bump "$BUMP" \
+            --changelog "$CHANGELOG"
+
+      - name: Append job summary
+        run: |
+          echo "## ClawHub & SkillHub Publish Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Targets: $TARGETS" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Bump: $BUMP" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ClawHub Tags: $TAGS" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Dry run: $DRY_RUN" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Manifest: .clawhub-publish-output/manifest.json" >> "$GITHUB_STEP_SUMMARY"

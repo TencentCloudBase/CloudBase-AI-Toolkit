@@ -1,0 +1,22 @@
+name: Sync to CNB
+on: [push]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
+        with:
+          fetch-depth: 0
+      
+      - name: Sync to CNB Repository
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:${{ github.workspace }} \
+            -w ${{ github.workspace }} \
+            -e PLUGIN_TARGET_URL="https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-ToolKit.git" \
+            -e PLUGIN_AUTH_TYPE="https" \
+            -e PLUGIN_USERNAME="cnb" \
+            -e PLUGIN_PASSWORD=${{ secrets.CNB_TOKEN }} \
+            -e PLUGIN_FORCE="true" \
+            tencentcom/git-sync

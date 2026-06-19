@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudBase AI ToolKit 扑克牌案例画廊 - Retro-futuristic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 引入 Design Specification 中的字体 */
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@700&family=Josefin+Sans:wght@400;700&display=swap');
+        
+        .font-display { font-family: 'Space Mono', monospace; }
+        .font-body { font-family: 'Josefin Sans', sans-serif; }
+        
+        /* 核心画布和背景 */
+        .poker-canvas {
+            width: 800px;
+            height: 600px;
+            background-color: #1A1A2E; /* 深太空蓝 */
+            overflow: hidden;
+            color: #F0F0FF; /* 亮白文字 */
+            box-shadow: 0 0 50px rgba(233, 69, 96, 0.4); /* 柔和的外部霓虹红光 */
+        }
+
+        /* 扑克牌样式核心 */
+        .poker-card {
+            background-color: #2B2B45; /* 卡片基色 */
+            border: 3px solid #BFFF00; /* 霓虹绿边框 */
+            border-radius: 12px;
+            /* 霓虹发光效果 (Primary Accent) */
+            box-shadow: 0 0 10px #E94560, inset 0 0 5px rgba(255, 255, 255, 0.5);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            
+            /* 扑克牌风格：卡片角落的定制符号 */
+            position: relative;
+        }
+
+        /* 悬停效果：增强霓虹感和位移 */
+        .poker-card:hover {
+            box-shadow: 0 0 25px #E94560, inset 0 0 10px rgba(255, 255, 255, 0.8);
+            transform: scale(1.05) rotate(0deg) !important; /* 取消倾斜，突出显示 */
+            z-index: 10;
+        }
+
+        /* 扑克牌符号 (使用伪元素模拟) */
+        .card-symbol::before {
+            content: attr(data-symbol);
+            position: absolute;
+            font-size: 2.5rem;
+            font-weight: 900;
+            line-height: 1;
+            color: #E94560; /* 红心红 */
+            font-family: 'Space Mono', monospace;
+        }
+        .card-symbol.top-left::before { top: 8px; left: 10px; }
+        .card-symbol.bottom-right::before { bottom: 8px; right: 10px; transform: rotate(180deg); }
+
+        .text-neon-red { color: #E94560; }
+        .text-neon-green { color: #BFFF00; }
+    </style>
+</head>
+<body>
+
+<div class="poker-canvas font-body p-8">
+
+    <header class="mb-10 text-left relative z-10">
+        <h1 class="text-4xl font-display font-bold tracking-widest text-neon-green leading-snug">
+            PROJECT <span class="text-neon-red">CASES</span>
+        </h1>
+        <p class="text-lg font-body uppercase tracking-wider text-[#F0F0FF]/80 -mt-1 ml-1">
+            AI Toolkit High-Impact Prototypes
+        </p>
+    </header>
+
+    <div class="relative h-[420px] w-full">
+        
+        <a href="#" class="poker-card w-[350px] h-[250px] p-6 absolute top-0 left-[20px] transform -rotate-1 translate-x-0 card-symbol top-left" data-symbol="A">
+            <div class="flex flex-col h-full justify-between relative z-10">
+                <div class="text-right">
+                    <span class="text-xs uppercase font-bold text-neon-green border border-neon-green px-2 py-0.5">联机游戏</span>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-display font-bold mb-2 leading-tight text-neon-red">
+                        联机版分手厨房小游戏
+                    </h3>
+                    <p class="text-sm text-[#F0F0FF]/80">两天上线一款可联机的游戏，全栈应用实践案例。</p>
+                </div>
+            </div>
+            <div class="card-symbol bottom-right" data-symbol="A"></div>
+        </a>
+
+        <a href="#" class="poker-card w-[320px] h-[200px] p-5 absolute top-[100px] left-[300px] transform rotate-1 translate-x-1/2 card-symbol top-left" data-symbol="K">
+            <div class="flex flex-col h-full justify-between relative z-10">
+                <div class="text-right">
+                    <span class="text-xs uppercase font-bold text-neon-red">微信小程序</span>
+                </div>
+                <div>
+                    <h3 class="text-xl font-display font-bold mb-1 leading-snug">
+                        AI打造专属“云书房”
+                    </h3>
+                    <p class="text-xs text-[#F0F0FF]/80">我用「CloudBase AI ToolKit」一天做出"网络热词"小程序</p>
+                </div>
+            </div>
+            <div class="card-symbol bottom-right" data-symbol="K"></div>
+        </a>
+
+        <a href="#" class="poker-card w-[300px] h-[180px] p-4 absolute top-[250px] left-[50px] transform -rotate-2 card-symbol top-left" data-symbol="Q">
+            <div class="flex flex-col h-full justify-between relative z-10">
+                <div class="text-left">
+                    <span class="text-xs uppercase font-bold text-neon-green">企业应用</span>
+                </div>
+                <div>
+                    <h3 class="text-lg font-display font-bold mb-1 leading-snug">
+                        医院实习生排班系统
+                    </h3>
+                    <p class="text-xs text-[#F0F0FF]/60">告别痛苦的Excel表格，实现云化部署。</p>
+                </div>
+            </div>
+            <div class="card-symbol bottom-right" data-symbol="Q"></div>
+        </a>
+        
+    </div>
+
+</div>
+
+</body>
+</html>

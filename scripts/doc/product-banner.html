@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudBase MCP - 核心特性信息图</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=Space+Grotesk:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.98) 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.08) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            position: relative;
+        }
+
+        .main-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.1;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #3b82f6 0%, #10b981 50%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.3rem;
+            color: #94a3b8;
+            font-weight: 400;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 32px;
+            margin-top: 60px;
+        }
+
+        /* 4:3 比例卡片 */
+        .knowledge-card {
+            aspect-ratio: 4 / 3;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 32px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .knowledge-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #3b82f6, #10b981, #06b6d4);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .knowledge-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 16px 48px rgba(59, 130, 246, 0.3);
+        }
+
+        .knowledge-card:hover::before {
+            opacity: 1;
+        }
+
+        /* 不对称布局 - 打破网格 */
+        .knowledge-card:nth-child(1) {
+            transform: rotate(-1deg);
+        }
+
+        .knowledge-card:nth-child(2) {
+            transform: rotate(1deg);
+        }
+
+        .knowledge-card:nth-child(3) {
+            transform: rotate(-0.5deg);
+        }
+
+        .knowledge-card:nth-child(4) {
+            transform: rotate(0.5deg);
+        }
+
+        .knowledge-card:nth-child(5) {
+            transform: rotate(-1deg);
+        }
+
+        .knowledge-card:nth-child(6) {
+            transform: rotate(1deg);
+        }
+
+        .knowledge-card:hover {
+            transform: translateY(-8px) scale(1.02) rotate(0deg);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .card-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            flex-shrink: 0;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-icon.icon-ai {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        }
+
+        .card-icon.icon-deploy {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .card-icon.icon-debug {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .card-icon.icon-fullstack {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+        }
+
+        .card-icon.icon-knowledge {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+        }
+
+        .card-icon.icon-workflow {
+            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+        }
+
+        .card-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1.3;
+        }
+
+        .card-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card-description {
+            font-size: 0.95rem;
+            color: #64748b;
+            line-height: 1.6;
+            flex: 1;
+        }
+
+        .card-visual {
+            flex: 1;
+            min-height: 120px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 图形视图样式 */
+        .visual-diagram {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* AI 原生 - 代码流程图 */
+        .visual-ai-native {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 16px;
+        }
+
+        .code-block {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 3px solid #3b82f6;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: #3b82f6;
+        }
+
+        .flow-arrow {
+            text-align: center;
+            color: #10b981;
+            font-size: 1.2rem;
+        }
+
+        /* 一键部署 - 部署流程图 */
+        .visual-deploy {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 20px;
+        }
+
+        .deploy-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .step-label {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        .step-connector {
+            width: 40px;
+            height: 2px;
+            background: linear-gradient(90deg, #10b981, transparent);
+        }
+
+        /* 智能调试 - 诊断流程图 */
+        .visual-debug {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .debug-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px;
+            background: rgba(245, 158, 11, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid #f59e0b;
+        }
+
+        .debug-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #f59e0b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.7rem;
+        }
+
+        .debug-text {
+            font-size: 0.75rem;
+            color: #fbbf24;
+        }
+
+        /* 全栈支持 - 架构图 */
+        .visual-fullstack {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .stack-item {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stack-icon {
+            font-size: 1.5rem;
+            color: #06b6d4;
+            margin-bottom: 8px;
+        }
+
+        .stack-label {
+            font-size: 0.7rem;
+            color: #06b6d4;
+            font-weight: 600;
+        }
+
+        /* 知识检索 - 搜索图 */
+        .visual-knowledge {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 20px;
+        }
+
+        .search-icon-large {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            box-shadow: 0 8px 16px rgba(6, 182, 212, 0.3);
+        }
+
+        .search-rings {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ring {
+            position: absolute;
+            border: 2px solid rgba(6, 182, 212, 0.3);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .ring:nth-child(1) {
+            width: 80px;
+            height: 80px;
+            animation-delay: 0s;
+        }
+
+        .ring:nth-child(2) {
+            width: 100px;
+            height: 100px;
+            animation-delay: 0.3s;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.3;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.1;
+                transform: scale(1.1);
+            }
+        }
+
+        /* 灵活工作流 - 流程图 */
+        .visual-workflow {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 20px;
+        }
+
+        .workflow-mode {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .mode-box {
+            width: 100%;
+            max-width: 120px;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #ec4899, #db2777);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+        }
+
+        .mode-icon {
+            font-size: 1.8rem;
+            color: white;
+        }
+
+        .mode-label {
+            font-size: 0.7rem;
+            color: white;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .workflow-connector {
+            width: 2px;
+            height: 40px;
+            background: linear-gradient(180deg, #ec4899, transparent);
+            margin: 0 8px;
+        }
+
+        @media (max-width: 768px) {
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .main-title {
+                font-size: 2.5rem;
+            }
+
+            .knowledge-card {
+                transform: none !important;
+            }
+
+            .knowledge-card:hover {
+                transform: translateY(-8px) scale(1.02) !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="main-title">CloudBase MCP</h1>
+            <p class="subtitle">AI 编程，一键上线 · 连接 AI IDE 与腾讯云 CloudBase 的部署桥梁</p>
+        </div>
+
+        <div class="cards-grid">
+            <!-- 卡片 1: AI 原生 -->
+            <div class="knowledge-card">
+                <div class="card-header">
+                    <div class="card-icon icon-ai">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h2 class="card-title">AI 原生</h2>
+                </div>
+                <div class="card-content">
+                    <p class="card-description">
+                        内置规则库专为 AI 编程设计，能让 AI 直接生成"可部署"的 CloudBase 最佳实践代码，自动配置数据库、云函数、安全规则。
+                    </p>
+                    <div class="card-visual">
+                        <div class="visual-diagram visual-ai-native">
+                            <div class="code-block">提示词输入</div>
+                            <div class="flow-arrow">↓</div>
+                            <div class="code-block">AI 生成代码</div>
+                            <div class="flow-arrow">↓</div>
+                            <div class="code-block">自动部署</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 卡片 2: 一键部署 -->
+            <div class="knowledge-card">
+                <div class="card-header">
+                    <div class="card-icon icon-deploy">
+                        <i class="fas fa-rocket"></i>
+                    </div>
+                    <h2 class="card-title">一键部署</h2>
+                </div>
+                <div class="card-content">
+                    <p class="card-description">
+                        AI 自动化的 MCP 部署流，自动检测项目类型，智能配置部署参数，实时显示部署进度，自动返回访问链接。
+                    </p>
+                    <div class="card-visual">
+                        <div class="visual-diagram visual-deploy">
+                            <div class="deploy-step">
+                                <div class="step-circle">1</div>
+                                <div class="step-label">检测</div>
+                            </div>
+                            <div class="step-connector"></div>
+                            <div class="deploy-step">
+                                <div class="step-circle">2</div>
+                                <div class="step-label">配置</div>
+                            </div>
+                            <div class="step-connector"></div>
+                            <div class="deploy-step">
+                                <div class="step-circle">3</div>
+                                <div class="step-label">部署</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 卡片 3: 智能调试 -->
+            <div class="knowledge-card">
+                <div class="card-header">
+                    <div class="card-icon icon-debug">
+                        <i class="fas fa-bug"></i>
+                    </div>
+                    <h2 class="card-title">智能调试</h2>
+                </div>
+                <div class="card-content">
+                    <p class="card-description">
+                        AI 自动读取日志，分析错误原因，生成修复代码，自动重新部署，实现开发-部署-调试的完整闭环。
+                    </p>
+                    <div class="card-visual">
+                        <div class="visual-diagram visual-debug">
+                            <div class="debug-item">
+                                <div class="debug-icon"><i class="fas fa-search"></i></div>
+                                <div class="debug-text">查看日志</div>
+                            </div>
+                            <div class="debug-item">
+                                <div class="debug-icon"><i class="fas fa-chart-line"></i></div>
+                                <div class="debug-text">分析错误</div>
+                            </div>
+                            <div class="debug-item">
+                                <div class="debug-icon"><i class="fas fa-wrench"></i></div>
+                                <div class="debug-text">修复代码</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 卡片 4: 全栈支持 -->
+            <div class="knowledge-card">
+                <div class="card-header">
+                    <div class="card-icon icon-fullstack">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <h2 class="card-title">全栈支持</h2>
+                </div>
+                <div class="card-content">
+                    <p class="card-description">
+                        支持 Web 应用、微信小程序、后端服务，覆盖 React/Vue/Next.js、原生小程序、Node.js/Python 等全栈技术栈。
+                    </p>
+                    <div class="card-visual">
+                        <div class="visual-diagram visual-fullstack">
+                            <div class="stack-item">
+                                <div class="stack-icon"><i class="fas fa-globe"></i></div>
+                                <div class="stack-label">Web 应用</div>
+                            </div>
+                            <div class="stack-item">
+                                <div class="stack-icon"><i class="fas fa-mobile-alt"></i></div>
+                                <div class="stack-label">小程序</div>
+                            </div>
+                            <div class="stack-item">
+                                <div class="stack-icon"><i class="fas fa-server"></i></div>
+                                <div class="stack-label">后端服务</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 卡片 5: 知识检索 -->
+            <div class="knowledge-card">
+                <div class="card-header">
+                    <div class="card-icon icon-knowledge">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h2 class="card-title">知识检索</h2>
+                </div>
+                <div class="card-content">
+                    <p class="card-description">
+                        内置云开发、微信小程序等专业知识库的智能向量检索，让 AI 更懂云开发，返回相关文档和最佳实践。
+                    </p>
+                    <div class="card-visual">
+                        <div class="visual-diagram visual-knowledge">
+                            <div class="search-rings">
+                                <div class="ring"></div>
+                                <div class="ring"></div>
+                            </div>
+                            <div class="search-icon-large">
+                                <i class="fas fa-search"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 卡片 6: 灵活工作流 -->
+            <div class="knowledge-card">
+                <div class="card-header">
+                    <div class="card-icon icon-workflow">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                    <h2 class="card-title">灵活工作流</h2>
+                </div>
+                <div class="card-content">
+                    <p class="card-description">
+                        支持 /spec 完整工作流和 /no_spec 快速迭代两种模式，根据任务复杂度智能选择最适合的开发流程。
+                    </p>
+                    <div class="card-visual">
+                        <div class="visual-diagram visual-workflow">
+                            <div class="workflow-mode">
+                                <div class="mode-box">
+                                    <div class="mode-icon"><i class="fas fa-tasks"></i></div>
+                                    <div class="mode-label">完整工作流</div>
+                                </div>
+                            </div>
+                            <div class="workflow-connector"></div>
+                            <div class="workflow-mode">
+                                <div class="mode-box">
+                                    <div class="mode-icon"><i class="fas fa-bolt"></i></div>
+                                    <div class="mode-label">快速迭代</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

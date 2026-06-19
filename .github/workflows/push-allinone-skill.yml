@@ -1,0 +1,66 @@
+name: Push Allinone Skill Repository
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'config/source/skills/**'
+      - 'config/source/guideline/**'
+      - 'scripts/build-allinone-skill.ts'
+  workflow_dispatch:
+
+jobs:
+  push-allinone:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Install root dependencies (for build-allinone-skill scripts)
+        run: npm ci --ignore-scripts
+
+      - name: Build allinone skill
+        run: npx tsx scripts/build-allinone-skill.ts --dir /tmp/allinone-build
+
+      - name: Setup target repository
+        run: |
+          git clone https://x-access-token:${{ secrets.CLOUDBASE_SKILLS }}@github.com/TencentCloudBase/cloudbase-skills.git cloudbase-skills || true
+          if [ ! -d "cloudbase-skills/.git" ]; then
+            mkdir -p cloudbase-skills
+            cd cloudbase-skills
+            git init
+            git remote add origin https://x-access-token:${{ secrets.CLOUDBASE_SKILLS }}@github.com/TencentCloudBase/cloudbase-skills.git
+          else
+            cd cloudbase-skills
+            git remote set-url origin https://x-access-token:${{ secrets.CLOUDBASE_SKILLS }}@github.com/TencentCloudBase/cloudbase-skills.git
+          fi
+
+      - name: Sync to target repository
+        run: |
+          rm -rf cloudbase-skills/skills/cloudbase
+          mkdir -p cloudbase-skills/skills
+          cp -r /tmp/allinone-build/cloudbase cloudbase-skills/skills/cloudbase
+
+      - name: Commit and push
+        run: |
+          cd cloudbase-skills
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: sync allinone skill from CloudBase-AI-ToolKit"
+            git push https://x-access-token:${{ secrets.CLOUDBASE_SKILLS }}@github.com/TencentCloudBase/cloudbase-skills.git HEAD:main
+          fi
