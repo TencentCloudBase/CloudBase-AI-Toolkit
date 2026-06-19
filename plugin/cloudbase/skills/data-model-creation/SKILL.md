@@ -1,6 +1,6 @@
 ---
 name: data-model-creation
-description: Optional advanced tool for complex data modeling. For simple table creation, use relational-database-tool directly with SQL statements.
+description: Optional advanced tool for complex data modeling. For simple MySQL table creation, use relational-database-tool directly; for PostgreSQL / CloudBase PG schema work, use postgresql-development.
 version: 2.21.1
 alwaysApply: false
 ---
@@ -31,7 +31,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 ### Then also read
 
-- Direct SQL creation or schema change -> `../relational-database-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/relational-database-tool/SKILL.md`)
+- Direct MySQL SQL creation or schema change -> `../relational-database-tool/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/relational-database-tool/SKILL.md`)
+- PostgreSQL / CloudBase PG schema work -> `../postgresql-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/postgresql-development/SKILL.md`)
 - Broader feature planning before schema work -> `../spec-workflow/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/spec-workflow/SKILL.md`)
 
 ### Do NOT use for
@@ -58,16 +59,17 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 This skill is an **advanced modeling path**, not the default path for database work.
 
-- For most database tasks, use `relational-database-tool` and write SQL directly.
+- For most MySQL database tasks, use `relational-database-tool` and write SQL directly. If the task says PostgreSQL, CloudBase PG, PG mode, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, or RLS, use `postgresql-development` instead.
 - Use this skill only when diagram-driven modeling adds value.
 
 ## Quick routing
 
 ### Use `relational-database-tool` instead when
 
-- You need `CREATE TABLE`, `ALTER TABLE`, `INSERT`, `UPDATE`, `DELETE`, or `SELECT`
+- You need MySQL `CREATE TABLE`, `ALTER TABLE`, `INSERT`, `UPDATE`, `DELETE`, or `SELECT`
 - The schema is small and already clear
 - The user never asked for a visual model
+- The task does **not** mention PostgreSQL / CloudBase PG / PG mode / `app.rdb()` / `queryPgDatabase` / `managePgDatabase` / RLS
 
 ### Use this skill when
 
@@ -183,4 +185,4 @@ Use `modifyDataModel` with:
 2. Keep the first model iteration small and reviewable.
 3. Separate business entities from implementation-only helper fields.
 4. Validate relationship direction and ownership before publishing.
-5. After modeling, hand off actual SQL/table work to `relational-database-tool` when needed.
+5. After modeling, hand off actual MySQL SQL/table work to `relational-database-tool` when needed. For PostgreSQL / CloudBase PG tables, hand off to `postgresql-development` instead.

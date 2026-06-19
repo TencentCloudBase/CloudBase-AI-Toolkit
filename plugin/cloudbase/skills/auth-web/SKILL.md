@@ -48,6 +48,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Keeping the login or register account input as `type="email"` when the task explicitly says the account identifier is a plain username string.
 - Starting implementation before calling `queryAppAuth(action="getLoginConfig")` and enabling `usernamePassword` when it is still off.
 - **Treating `auth.getUser()` or deprecated `auth.getLoginState()` as proof of real login.** When the SDK is initialized with `accessKey`, the deprecated `getLoginState()` returns an object with a valid `uid` even without any login — causing route guards that check `!!loginState` or `!!uid` to incorrectly pass. The fix is to use `auth.getSession()` instead: it returns `data.session === undefined` when no real login has occurred. Only `!!data.session` from `getSession()` is a reliable authentication check.
+- **Copying old CloudBase auth snippets from training data.** Do not use `auth.getLoginState()`, `auth.hasLoginState()`, `auth.getCurrentUser()`, or `auth.toDefaultLoginPage()` as the default Web flow. Use the Supabase-like Web SDK v2 auth methods in this file and provider readiness from `auth-tool`.
   
   Note: anonymous login is now **disabled by default** for new environments and inactive existing environments. Always use `auth.getSession()` for auth guards.
 
@@ -184,17 +185,16 @@ if (data.session.user?.is_anonymous) {
 // data.session.user contains the authenticated user info
 const currentUser = data.session.user
 
-// Optional: further verify identity type if needed
-const { data: userData } = await auth.getUser()
-const hasVerifiedIdentity = userData?.user && (
-  userData.user.phone_confirmed_at ||
-  userData.user.email_confirmed_at ||
-  userData.user.user_metadata?.username
+// Optional: further verify identity type from the session user if needed
+const hasVerifiedIdentity = Boolean(
+  currentUser.phone_confirmed_at ||
+  currentUser.email_confirmed_at ||
+  currentUser.user_metadata?.username
 )
 
 // ❌ Do NOT use auth.getLoginState() — it's deprecated and returns
 //    misleading data (uid/loginState) even without real login
-// ❌ Do NOT use !!loginState or !!loginState.uid as auth checks
+// ❌ Do NOT use auth.getUser(), !!loginState, or !!loginState.uid as auth checks
 ```
 
 **4. Registration**
@@ -328,7 +328,9 @@ await upgradeResult.data.verifyOtp({ token: '123456' })
 // Sign out
 const signOutResult = await auth.signOut()
 
-// Get user
+// Get user profile only after auth.getSession() has returned a real session
+const sessionResult = await auth.getSession()
+if (!sessionResult.data?.session) throw new Error('Not signed in')
 const userResult = await auth.getUser()
 console.log(
   userResult.data.user.email,
