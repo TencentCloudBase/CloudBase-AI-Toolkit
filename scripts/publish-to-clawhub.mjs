@@ -129,18 +129,15 @@ export function normalizeClawhubChangelog(changelog) {
     .join(" | ");
 }
 
-export function buildSyncCommand(target, options) {
+export function buildPublishCommand(target, options) {
   return {
     command: "clawhub",
     args: [
-      "sync",
-      "--workdir",
-      target.artifactRootDir,
-      "--dir",
-      "skills",
-      "--all",
-      "--bump",
-      options.bump,
+      "skill",
+      "publish",
+      target.artifactDir,
+      "--slug",
+      target.registrySlug,
       "--changelog",
       normalizeClawhubChangelog(options.changelog),
       "--tags",
@@ -167,7 +164,7 @@ export function publishToClawhub({
   }
 
   for (const target of manifest.targets || []) {
-    const publishCommand = buildSyncCommand(target, {
+    const publishCommand = buildPublishCommand(target, {
       changelog: resolvedChangelog,
       tags,
       bump,
