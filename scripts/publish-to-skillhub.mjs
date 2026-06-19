@@ -218,13 +218,23 @@ async function uploadVersionToSkillhub({
   }
 
   // 发起请求（fetch 会自动设置 Content-Type 和 boundary）
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  });
+  // all-in-one 等大 skill 包含大量文件，需设置充足超时时间
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120_000);
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   const responseText = await response.text();
 
