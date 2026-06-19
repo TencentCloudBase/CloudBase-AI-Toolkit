@@ -222,7 +222,9 @@ describe("publishToSkillhub", () => {
     expect(url).toBe("https://api.skillhub.cn/api/v1/orgs/17/skills/test-skill/versions");
     expect(options.method).toBe("POST");
     expect(options.headers.Authorization).toBe("Bearer skt-ent-test-token");
-    expect(options.headers["Content-Type"]).toContain("multipart/form-data");
+    // FormData 会自动设置 Content-Type（含 boundary），不通过 headers 传入
+    expect(options.body).toBeInstanceOf(FormData);
+    expect([...options.body.keys()]).toEqual(expect.arrayContaining(["payload", "files"]));
 
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
