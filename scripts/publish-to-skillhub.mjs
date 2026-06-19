@@ -197,11 +197,10 @@ async function uploadVersionToSkillhub({
 }) {
   const url = `${apiBase}/api/v1/orgs/${orgId}/skills/${slug}/versions`;
 
-  // 构建 multipart/form-data
-  const boundary = `----SkillHubBoundary${Date.now()}`;
+  // 使用原生 FormData 构建 multipart/form-data，避免手动拼接的边界条件问题
+  const formData = new FormData();
 
-
-  // 构建 payload 部分
+  // payload 作为 JSON 字符串字段
   const payload = JSON.stringify({
     version,
     changelog: changelog || "",
@@ -209,64 +208,22 @@ async function uploadVersionToSkillhub({
     summary: summary || undefined,
     securityScan: false,
   });
+  formData.append("payload", payload);
 
-  const payloadPart = [
-    `--${boundary}`,
-    'Content-Disposition: form-data; name="payload"',
-    "Content-Type: application/json",
-    "",
-    payload,
-  ].join("\r\n");
-
-  // 构建文件部分
-  const fileParts = [];
+  // 文件部分
   for (const file of files) {
     const fileContent = fs.readFileSync(file.filePath);
-    fileParts.push({
-      header: [
-        `--${boundary}`,
-        `Content-Disposition: form-data; name="files"; filename="${file.relativePath}"`,
-        "Content-Type: application/octet-stream",
-        "",
-      ].join("\r\n"),
-      content: fileContent,
-    });
+    const blob = new Blob([fileContent], { type: "application/octet-stream" });
+    formData.append("files", blob, file.relativePath);
   }
 
-  // 结束 boundary
-  const closingBoundary = `\r\n--${boundary}--\r\n`;
-
-  // 计算总 body 大小
-  let bodySize = Buffer.byteLength(payloadPart, "utf8");
-  for (const part of fileParts) {
-    bodySize += Buffer.byteLength("\r\n", "utf8") + part.header.length + part.content.length;
-  }
-  bodySize += Buffer.byteLength(closingBoundary, "utf8");
-
-  // 构建完整 body（先写 header 部分，再写文件内容）
-  const headerBuffer = Buffer.from(payloadPart + "\r\n", "utf8");
-  const footerBuffer = Buffer.from(closingBoundary, "utf8");
-
-  // 收集所有 buffer
-  const buffers = [headerBuffer];
-  for (const part of fileParts) {
-    buffers.push(Buffer.from(part.header, "utf8"));
-    buffers.push(part.content);
-    buffers.push(Buffer.from("\r\n", "utf8"));
-  }
-  buffers.push(footerBuffer);
-
-  const body = Buffer.concat(buffers);
-
-  // 发起请求
+  // 发起请求（fetch 会自动设置 Content-Type 和 boundary）
   const response = await fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
-      "Content-Type": `multipart/form-data; boundary=${boundary}`,
-      "Content-Length": String(body.length),
     },
-    body,
+    body: formData,
   });
 
   const responseText = await response.text();
