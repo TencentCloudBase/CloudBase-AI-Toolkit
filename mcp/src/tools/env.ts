@@ -834,6 +834,73 @@ function enrichEnvInfoWithRuntimeMode(result: any) {
   };
 }
 
+/**
+ * 补充 SDK getEnvInfo() 遗漏的字段。
+ *
+ * @cloudbase/manager-node 的 getEnvInfo() 从 DescribeEnvInfo CAPI 响应的
+ * EnvBaseInfo 中手写白名单映射时，漏掉了 PostgreSQL、Meta、StaticStorages 等字段。
+ * 这导致 enrichEnvInfoWithRuntimeMode 无法正确判断环境是否支持 PostgreSQL。
+ *
+ * 此函数通过 commonService 额外调用 DescribeEnvInfo CAPI，从原始响应中提取
+ * 缺失字段补到 EnvInfo 上。
+ */
+async function enrichEnvInfoWithMissingFields(
+  manager: any,
+  result: any,
+  envId: string,
+): Promise<any> {
+  const envInfo = result?.EnvInfo;
+  if (!envInfo || typeof envInfo !== "object") {
+    return result;
+  }
+
+  // 如果 PostgreSQL 字段已存在且非空，说明 SDK 已经透传了，不需要补充
+  if (
+    Array.isArray(envInfo.PostgreSQL) &&
+    envInfo.PostgreSQL.length > 0 &&
+    Array.isArray(envInfo.Meta)
+  ) {
+    return result;
+  }
+
+  try {
+    const capiResult = await manager.commonService("tcb", "2018-06-08").call({
+      Action: "DescribeEnvInfo",
+      Param: { EnvId: envId },
+    });
+
+    const envBaseInfo =
+      capiResult?.EnvInfo?.EnvBaseInfo ||
+      capiResult?.Response?.EnvInfo?.EnvBaseInfo;
+
+    if (!envBaseInfo || typeof envBaseInfo !== "object") {
+      return result;
+    }
+
+    return {
+      ...result,
+      EnvInfo: {
+        ...envInfo,
+        // 补充 PostgreSQL 字段（SDK 白名单映射遗漏）
+        ...(Array.isArray(envBaseInfo.PostgreSQL) && {
+          PostgreSQL: envBaseInfo.PostgreSQL,
+        }),
+        // 补充 Meta 字段（SDK 白名单映射遗漏）
+        ...(Array.isArray(envBaseInfo.Meta) && {
+          Meta: envBaseInfo.Meta,
+        }),
+        // 补充 StaticStorages 字段（SDK 白名单映射遗漏）
+        ...(Array.isArray(envBaseInfo.StaticStorages) && {
+          StaticStorages: envBaseInfo.StaticStorages,
+        }),
+      },
+    };
+  } catch {
+    // CAPI 调用失败不影响已有数据，静默忽略
+    return result;
+  }
+}
+
 function normalizeOptionalToolString(value: unknown) {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
@@ -1613,6 +1680,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               envId,
               logger: server.logger,
             });
+            // 补充 SDK getEnvInfo() 遗漏的字段（PostgreSQL、Meta 等）
+            // @cloudbase/manager-node 的 getEnvInfo() 手写白名单映射时漏掉了这些字段
+            result = await enrichEnvInfoWithMissingFields(cloudbaseInfo, result, envId);
             result = enrichEnvInfoWithRuntimeMode(result);
             break;
 
