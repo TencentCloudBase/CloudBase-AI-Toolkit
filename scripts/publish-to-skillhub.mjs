@@ -321,8 +321,11 @@ export async function publishToSkillhub({
       continue;
     }
 
-    // 拉取 SkillHub 上该技能的所有版本号，检查 SKILL.md 版本是否已存在
-    let versionExists = false;
+    // 拉取 SkillHub 上该技能的所有版本号，确定要发布的版本
+    let version = currentVersion;
+    let retryCount = 0;
+    const maxRetries = 10;
+
     try {
       const versionsUrl = `${apiBase}/api/v1/orgs/${orgId}/skills/${slug}/versions`;
       const versionsResponse = await fetch(versionsUrl, {
@@ -331,17 +334,27 @@ export async function publishToSkillhub({
       if (versionsResponse.ok) {
         const versionsData = await versionsResponse.json();
         const versions = versionsData?.versions || [];
-        versionExists = versions.some((v) => v.version === currentVersion);
+
+        // 检查 SKILL.md 版本是否已存在
+        const baseExists = versions.some((v) => v.version === currentVersion);
+
+        if (baseExists) {
+          // 基础版本已存在，查找当前最大的 beta 版本号
+          const betaPrefix = `${currentVersion}-beta.`;
+          let maxBeta = 0;
+          for (const v of versions) {
+            if (v.version && v.version.startsWith(betaPrefix)) {
+              const num = parseInt(v.version.slice(betaPrefix.length), 10);
+              if (!isNaN(num) && num > maxBeta) maxBeta = num;
+            }
+          }
+          version = `${currentVersion}-beta.${maxBeta + 1}`;
+          retryCount = maxBeta + 1;
+        }
       }
     } catch {
-      // 拉取版本历史失败，先尝试 SKILL.md 版本
+      // 拉取版本历史失败，直接尝试 SKILL.md 版本
     }
-
-    // 如果 SKILL.md 版本在 SkillHub 上已存在，直接使用 beta 后缀
-    // 否则先用正式版本
-    let version = versionExists ? `${currentVersion}-beta.1` : currentVersion;
-    let retryCount = versionExists ? 1 : 0;
-    const maxRetries = 10;
 
     while (retryCount <= maxRetries) {
       try {
@@ -372,7 +385,6 @@ export async function publishToSkillhub({
         });
         break;
       } catch (error) {
-        // 处理 409 冲突：递增 beta 后缀重试
         if (error.message.includes("409")) {
           retryCount++;
           if (retryCount > maxRetries) {
