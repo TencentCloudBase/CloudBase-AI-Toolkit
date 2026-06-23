@@ -365,7 +365,8 @@ export async function publishToSkillhub({
         }
         // 否则直接用 SKILL.md 版本
       }
-    } catch {
+    } catch (fetchError) {
+      console.warn(`  ⚠ 版本历史查询失败 / Failed to query version history: ${fetchError instanceof Error ? fetchError.message : fetchError}`);
       // 拉取版本历史失败，直接尝试 SKILL.md 版本
     }
 
