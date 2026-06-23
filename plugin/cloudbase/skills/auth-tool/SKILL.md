@@ -53,6 +53,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 ### Minimal checklist
 
 - Read [Authentication Activation Checklist](checklist.md) before auth implementation.
+- Anonymous login is disabled by default. The SDK initialized with `accessKey` still creates a lightweight anonymous session for API access. If the app requires authentication (e.g. admin panels, personal dashboards), enforce access control through AuthGuard or RLS policies rather than relying on the login strategy toggle.
 
 ## Overview
 
@@ -150,7 +151,7 @@ Internal behavior of `manageAppAuth(action="patchLoginStrategy")`:
 
 ### 2. Anonymous Login
 
-> ⚠️ **Anonymous login is disabled by default for new environments.** Inactive existing environments (no anonymous login usage within the past month) have also been automatically disabled. Additionally, anonymous users are denied AI model invocation permissions by default. Only enable anonymous login when the application explicitly requires unauthenticated access and you accept the associated security trade-offs.
+> ⚠️ **Anonymous login is disabled by default.** The SDK initialized with `accessKey` still creates a lightweight anonymous session for API access. Only enable anonymous login when the application explicitly requires unauthenticated access and you accept the associated security trade-offs. Anonymous users are also denied AI model invocation permissions by default.
 
 Preferred MCP tool path: `manageAppAuth(action="patchLoginStrategy")`
 
