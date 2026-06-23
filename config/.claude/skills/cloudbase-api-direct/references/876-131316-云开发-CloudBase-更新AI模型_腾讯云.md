@@ -2,7 +2,7 @@
 
 ## 更新AI模型
 
-最近更新时间：2026-05-18 03:01:54
+最近更新时间：2026-06-23 01:51:11
 
 -   微信扫一扫 
 -   QQ
@@ -179,6 +179,7 @@ X-TC-Action: UpdateAIModel
 
 | 错误码 | 描述 |
 | --- | --- |
+| FailedOperation.PackageUnsupported | 套餐包不支持 |
 | InternalError | 内部错误。 |
 | InvalidParameter | 参数错误。 |
 | InvalidParameter.EnvId | 环境ID非法。 |
