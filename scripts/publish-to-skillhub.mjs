@@ -335,22 +335,35 @@ export async function publishToSkillhub({
         const versionsData = await versionsResponse.json();
         const versions = versionsData?.versions || [];
 
-        // 检查 SKILL.md 版本是否已存在
-        const baseExists = versions.some((v) => v.version === currentVersion);
+        // 找到 SkillHub 上最新的正式版本号（不含 beta 后缀）
+        const sortedReleases = versions
+          .map((v) => v.version)
+          .filter((v) => v && !v.includes("-"))
+          .sort()
+          .reverse();
+        const latestRelease = sortedReleases.length > 0 ? sortedReleases[0] : null;
 
-        if (baseExists) {
-          // 基础版本已存在，查找当前最大的 beta 版本号
-          const betaPrefix = `${currentVersion}-beta.`;
-          let maxBeta = 0;
-          for (const v of versions) {
-            if (v.version && v.version.startsWith(betaPrefix)) {
-              const num = parseInt(v.version.slice(betaPrefix.length), 10);
-              if (!isNaN(num) && num > maxBeta) maxBeta = num;
-            }
+        // 找到 SkillHub 上所有以 latestRelease 为基础的 beta 版本
+        const baseVersion = latestRelease || currentVersion;
+        const betaPrefix = `${baseVersion}-beta.`;
+        let maxBeta = 0;
+        for (const v of versions) {
+          if (v.version && v.version.startsWith(betaPrefix)) {
+            const num = parseInt(v.version.slice(betaPrefix.length), 10);
+            if (!isNaN(num) && num > maxBeta) maxBeta = num;
           }
+        }
+
+        if (latestRelease && latestRelease !== currentVersion) {
+          // SkillHub 上有更新的已发布版本，以它为基础 + beta
+          version = `${latestRelease}-beta.${maxBeta + 1}`;
+          retryCount = maxBeta + 1;
+        } else if (versions.some((v) => v.version === currentVersion)) {
+          // SKILL.md 版本已存在，加 beta
           version = `${currentVersion}-beta.${maxBeta + 1}`;
           retryCount = maxBeta + 1;
         }
+        // 否则直接用 SKILL.md 版本
       }
     } catch {
       // 拉取版本历史失败，直接尝试 SKILL.md 版本
