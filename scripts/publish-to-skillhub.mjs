@@ -359,10 +359,12 @@ export async function publishToSkillhub({
           // SkillHub 上有更新的已发布版本，以它为基础 + beta
           version = `${latestRelease}-beta.${maxBeta + 1}`;
           retryCount = maxBeta + 1;
+          console.log(`  → 使用版本 / Using version: ${version} (latest release: ${latestRelease}, max beta: ${maxBeta})`);
         } else if (versions.some((v) => v.version === currentVersion)) {
           // SKILL.md 版本已存在，加 beta
           version = `${currentVersion}-beta.${maxBeta + 1}`;
           retryCount = maxBeta + 1;
+          console.log(`  → 使用版本 / Using version: ${version} (base exists, max beta: ${maxBeta})`);
         }
         // 否则直接用 SKILL.md 版本
       }
