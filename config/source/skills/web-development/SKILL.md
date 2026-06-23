@@ -32,6 +32,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 - The task includes project structure, framework conventions, build config, deployment, routing, or frontend test and validation flows.
 - The request includes UI implementation but the visual direction is already fixed; otherwise read `ui-design` first.
+- **⚠️ Any task involving interface styling, layout, color scheme, or font selection — before writing the first line of CSS/Tailwind, you MUST load the `ui-design` skill and output a Design Specification.** Skipping this step causes frontend styling to degrade to generic AI template defaults. The `ui-design` skill must be loaded before any visual implementation begins, not retroactively after the user complains about the appearance.
 
 ### Then also read
 

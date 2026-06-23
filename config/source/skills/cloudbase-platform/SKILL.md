@@ -189,6 +189,8 @@ Example structure for operation recording:
 - **Forbidden behavior**: Do not use cloud functions to implement login authentication logic
 - **Session management**: For route guards and login proof, use `auth.getSession()` and require `data.session`; do not use deprecated `getLoginState()` or `auth.getUser()` / `auth.getCurrentUser()` as proof of real login.
 - **Provider and login-method setup**: Use `queryAppAuth` / `manageAppAuth`, not the MCP `auth` tool
+- **Anonymous login is disabled by default.** The SDK initialized with `accessKey` automatically creates an anonymous session. If the app uses AuthGuard or RLS for access control, ensure `is_anonymous` checks are in place when anonymous access is allowed.
+- **⚠️ PG RLS: Use `auth.uid()`, NOT `current_user`.** When writing RLS policies for CloudBase PostgreSQL, the user identity must use `auth.uid()` (returns the JWT `sub` / actual user ID). Do NOT use `current_user` or `current_setting(...)` — these PostgreSQL built-in functions return the database role name (e.g. `authenticated`), not the CloudBase auth user ID. CloudBase PG provides four auth helper functions: `auth.uid()`, `auth.role()`, `auth.email()`, `auth.jwt()`. Verify availability with `SELECT proname FROM pg_proc WHERE pronamespace = 'auth'::regnamespace`.
 
 ### Mini Program Authentication
 - **Login-free feature**: Mini program CloudBase is naturally login-free, no login flow needed

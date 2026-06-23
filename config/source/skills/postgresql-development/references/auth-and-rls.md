@@ -21,6 +21,14 @@ select auth.jwt();   -- full JWT claims as jsonb
 select auth.email(); -- current email if available
 ```
 
+**⚠️ CRITICAL: Always use `auth.uid()` for user identity in RLS policies.** Do NOT use `current_user` or `current_setting(...)` — these are PostgreSQL built-in functions that return the database role name (e.g. `authenticated`), not the CloudBase auth user ID. Using `current_user` in a policy like `USING (author_id = current_user)` will never match any real user ID.
+
+If you are unsure whether the auth helper functions are available in your environment, run:
+```sql
+SELECT proname FROM pg_proc WHERE pronamespace = 'auth'::regnamespace;
+```
+This returns the list of available `auth.*` functions (e.g. `uid`, `role`, `jwt`, `email`).
+
 Prefer database-owned identity fields:
 
 ```sql
@@ -83,3 +91,4 @@ CREATE POLICY todos_delete_own ON public.todos
 - `UPDATE` must normally include both `USING` and `WITH CHECK` to prevent owner-field reassignment.
 - `serial` / `bigserial` requires sequence grants or inserts can fail.
 - Admin/control-plane execution can hide user-facing permission failures; test as `anon` / `authenticated` when possible.
+- **Do NOT use `current_user` in RLS policies.** `current_user` returns the database role name (e.g. `authenticated`), not the actual user ID. Always use `auth.uid()` for user identity checks.

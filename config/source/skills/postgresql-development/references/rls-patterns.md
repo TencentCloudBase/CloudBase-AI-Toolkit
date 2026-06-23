@@ -13,6 +13,8 @@ Use this reference when a CloudBase PostgreSQL app needs backend-side row permis
 - Do not use privileged functions or definer-style bypasses to silence permission errors unless the task explicitly needs a trusted server/RPC boundary.
 - The Web session is the source of truth for the app user. Use `auth.getSession()` in Web code and treat `session.user.id` as the candidate owner UID.
 - In SQL policies, use CloudBase PG's official helpers: `auth.uid()` for JWT `sub`, `auth.role()` for `anon` / `authenticated` / `service_role`, `auth.jwt()` for full claims, and `auth.email()` when needed.
+- **⚠️ Do NOT use `current_user` or `current_setting(...)` in RLS policies.** `current_user` returns the database role name (e.g. `authenticated`), NOT the CloudBase auth user ID. Using `author_id = current_user` will never match any real user row.
+- If unsure whether auth helpers are available, run `SELECT proname FROM pg_proc WHERE pronamespace = 'auth'::regnamespace` to list them.
 - Do not use `auth.getUser()` as a route guard or owner UID source unless you have already confirmed it returns the same logged-in user as `getSession()`.
 
 ## Choose One Permission Boundary
