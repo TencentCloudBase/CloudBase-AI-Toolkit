@@ -1682,7 +1682,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             });
             // 补充 SDK getEnvInfo() 遗漏的字段（PostgreSQL、Meta 等）
             // @cloudbase/manager-node 的 getEnvInfo() 手写白名单映射时漏掉了这些字段
-            result = await enrichEnvInfoWithMissingFields(cloudbaseInfo, result, envId);
+            if (envId) {
+              result = await enrichEnvInfoWithMissingFields(cloudbaseInfo, result, envId);
+            }
             result = enrichEnvInfoWithRuntimeMode(result);
             break;
 
