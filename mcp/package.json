@@ -40,7 +40,7 @@
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
     "build": "npm run build:webpack && npm run build:types && npm run build:permissions",
-    "build:webpack": "webpack --config webpack/index.cjs --mode=production",
+    "build:webpack": "NODE_OPTIONS=\"--max-old-space-size=8192\" webpack --config webpack/index.cjs --mode=production",
     "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist/types && api-extractor run --local --verbose && cp dist/types/cli.d.ts dist/cli.d.ts && rm -rf dist/types",
     "build:permissions": "chmod 755 dist/cli.cjs",
     "test": "npm run build && vitest run",

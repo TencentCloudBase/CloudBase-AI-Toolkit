@@ -47,6 +47,7 @@ function createBaseConfig() {
       new ForkTsCheckerWebpackPlugin({
         typescript: {
           configFile: path.resolve(__dirname, '../tsconfig.json'),
+          memoryLimit: 2048,
         }
       }),
       // 忽略有问题的 native 依赖
