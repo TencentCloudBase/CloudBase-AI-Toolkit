@@ -2,7 +2,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 
 # MCP 工具
 
-当前包含 37 个工具，按功能分组如下。
+当前包含 38 个工具，按功能分组如下。
 
 源数据: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.json)
 
@@ -23,6 +23,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 ### 环境管理
 
 - [`envQuery`](#envquery)
+- [`manageEnv`](#manageenv)
 - [`envDomainManagement`](#envdomainmanagement)
 
 ### NoSQL 数据库
@@ -306,6 +307,66 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       required: true,
       description: `安全域名数组（格式：host:port，例如 localhost:5173 或 127.0.0.1:4173）。注意：不是自定义域名，不需要证书。`,
     }
+  ]}
+/>
+
+---
+
+### `manageEnv`
+管理 CloudBase 环境，支持创建、变更套餐、续费、查询套餐列表等操作。所有涉及费用的操作（create/modifyPlan/renew）均需用户通过 confirm="yes" 确认。
+
+#### 参数
+
+<ParameterTable
+  parameters={[
+    {
+      name: "action",
+      type: "string",
+      required: true,
+      description: `操作类型：listPackages=查询可选套餐列表，create=创建环境，modifyPlan=变更套餐，renew=续费环境 可填写的值: "listPackages", "create", "modifyPlan", "renew"`,
+    },
+    {
+      name: "alias",
+      type: "string",
+      required: false,
+      description: `环境别名（action=create 时必填）。要求：小写字母/数字/减号，不能以减号开头或结尾，最长 20 位`,
+    },
+    {
+      name: "packageId",
+      type: "string",
+      required: false,
+      description: `套餐 ID（action=create/modifyPlan 时必填）。可选值如 baas_personal(个人版)、baas_pf_standard(标准版)、baas_pf_enterprise(企业版)`,
+    },
+    {
+      name: "region",
+      type: "string",
+      required: false,
+      description: `环境地域（action=create 时可选）。默认 ap-shanghai，可选 ap-guangzhou、ap-beijing 等`,
+    },
+    {
+      name: "resources",
+      type: "array of string",
+      required: false,
+      description: `启用的资源类型（action=create 时可选）。默认启用全部三项：flexdb(文档数据库)、storage(存储)、function(云函数)`,
+    },
+    {
+      name: "duration",
+      type: "number",
+      required: false,
+      description: `购买或续费时长（月），action=create/renew 时可选，默认 1`,
+    },
+    {
+      name: "envId",
+      type: "string",
+      required: false,
+      description: `环境 ID（action=modifyPlan/renew 时必填）`,
+    },
+    {
+      name: "confirm",
+      type: "string",
+      required: false,
+      description: `确认操作。所有付费操作（create/modifyPlan/renew）必须传 "yes" 确认`,
+    },
   ]}
 />
 

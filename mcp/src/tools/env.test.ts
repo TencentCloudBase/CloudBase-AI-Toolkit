@@ -1243,3 +1243,244 @@ describe("env tools - envQuery", () => {
     expect(payload.message).toContain("直到目标域名不再出现");
   });
 });
+
+describe("manageEnv", () => {
+  beforeEach(() => {
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      envId: "env-test",
+      token: "token",
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("listPackages should return package list", async () => {
+    const describeBaasPackageList = vi.fn().mockResolvedValue({
+      PackageList: [
+        { PackageId: "baas_personal", PackageName: "个人版", Region: "ap-shanghai" },
+        { PackageId: "baas_pf_standard", PackageName: "标准版", Region: "ap-shanghai" },
+      ],
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { describeBaasPackageList },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (await tools.manageEnv.handler({ action: "listPackages" })).content[0].text,
+    );
+
+    expect(describeBaasPackageList).toHaveBeenCalledWith({ TargetAction: "new" });
+    expect(payload).toMatchObject({
+      ok: true,
+      code: "PACKAGE_LIST",
+      packages: expect.any(Array),
+    });
+  });
+
+  it("create should require confirm before execution", async () => {
+    const createEnv = vi.fn();
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { createEnv },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "create",
+          alias: "my-env",
+          packageId: "baas_personal",
+        })
+      ).content[0].text,
+    );
+
+    expect(createEnv).not.toHaveBeenCalled();
+    expect(payload).toMatchObject({
+      ok: false,
+      code: "CONFIRM_REQUIRED",
+    });
+    expect(payload.message).toContain("请确认");
+  });
+
+  it("create should succeed with confirm=yes", async () => {
+    const createEnv = vi.fn().mockResolvedValue({
+      EnvId: "env-new-123",
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { createEnv },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "create",
+          alias: "my-env",
+          packageId: "baas_personal",
+          region: "ap-shanghai",
+          resources: ["flexdb", "storage", "function"],
+          duration: 1,
+          confirm: "yes",
+        })
+      ).content[0].text,
+    );
+
+    expect(createEnv).toHaveBeenCalledWith({
+      Alias: "my-env",
+      PackageId: "baas_personal",
+      Region: "ap-shanghai",
+      Period: 1,
+      Resources: ["flexdb", "storage", "function"],
+    });
+    expect(payload).toMatchObject({
+      ok: true,
+      code: "ENV_CREATED",
+      envId: "env-new-123",
+    });
+  });
+
+  it("modifyPlan should require confirm before execution", async () => {
+    const modifyEnvPlan = vi.fn();
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { modifyEnvPlan },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "modifyPlan",
+          envId: "env-test",
+          packageId: "baas_pf_standard",
+        })
+      ).content[0].text,
+    );
+
+    expect(modifyEnvPlan).not.toHaveBeenCalled();
+    expect(payload).toMatchObject({
+      ok: false,
+      code: "CONFIRM_REQUIRED",
+    });
+  });
+
+  it("modifyPlan should succeed with confirm=yes", async () => {
+    const modifyEnvPlan = vi.fn().mockResolvedValue({
+      RequestId: "req-modify",
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { modifyEnvPlan },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "modifyPlan",
+          envId: "env-test",
+          packageId: "baas_pf_enterprise",
+          confirm: "yes",
+        })
+      ).content[0].text,
+    );
+
+    expect(modifyEnvPlan).toHaveBeenCalledWith({
+      EnvId: "env-test",
+      PackageId: "baas_pf_enterprise",
+    });
+    expect(payload).toMatchObject({
+      ok: true,
+      code: "PLAN_MODIFIED",
+      envId: "env-test",
+      packageId: "baas_pf_enterprise",
+    });
+  });
+
+  it("renew should require confirm before execution", async () => {
+    const renewEnv = vi.fn();
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { renewEnv },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "renew",
+          envId: "env-test",
+        })
+      ).content[0].text,
+    );
+
+    expect(renewEnv).not.toHaveBeenCalled();
+    expect(payload).toMatchObject({
+      ok: false,
+      code: "CONFIRM_REQUIRED",
+    });
+  });
+
+  it("renew should succeed with confirm=yes", async () => {
+    const renewEnv = vi.fn().mockResolvedValue({
+      RequestId: "req-renew",
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { renewEnv },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "renew",
+          envId: "env-test",
+          duration: 3,
+          confirm: "yes",
+        })
+      ).content[0].text,
+    );
+
+    expect(renewEnv).toHaveBeenCalledWith({ EnvId: "env-test", Period: 3 });
+    expect(payload).toMatchObject({
+      ok: true,
+      code: "ENV_RENEWED",
+      envId: "env-test",
+    });
+  });
+
+  it("should return INVALID_ACTION for unknown action", async () => {
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {},
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (await tools.manageEnv.handler({ action: "unknown" })).content[0].text,
+    );
+
+    expect(payload).toMatchObject({
+      ok: false,
+      code: "INVALID_ACTION",
+    });
+  });
+
+  it("create should fail when alias is missing with confirm=yes", async () => {
+    const createEnv = vi.fn();
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { createEnv },
+    } as any);
+
+    const { tools } = createMockServer();
+    const result = await tools.manageEnv.handler({
+      action: "create",
+      packageId: "baas_personal",
+      confirm: "yes",
+    });
+
+    expect(createEnv).not.toHaveBeenCalled();
+    expect(result.content[0].text).toContain("alias");
+  });
+});
