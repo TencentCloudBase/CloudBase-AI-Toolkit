@@ -15,6 +15,7 @@ Use this skill when the user asks to:
 - push changes with safe branching and open a PR
 - generate release notes from git history / GitHub context
 - analyze the latest failed GitHub Actions workflow, attempt a fix in an isolated worktree, and submit a PR
+- check IDE icon configuration consistency across document components and source files
 
 ## Source of truth
 

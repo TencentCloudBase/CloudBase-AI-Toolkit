@@ -390,3 +390,122 @@ When user inputs requests like:
 - [ ] Any code change is isolated in a dedicated worktree
 - [ ] The PR contains both diagnosis and verification details
 ```
+
+### check_ide_icons.md
+
+```md
+---
+name: check_ide_icons
+description: Check IDE icon configuration consistency across all document components and source files
+---
+
+# IDE Icon Integrity Check
+
+## Function
+Verify that all IDE icons in the documentation are properly configured and consistent across all files: `IDEIconGrid.tsx`, `IDESelector.tsx`, `setup.ts`, and their cloudbase-docs mirror copies (both zh and en).
+
+## Trigger Condition
+When user inputs `/check_ide_icons` or mentions "检查 IDE 图标"、"图标完整性"、"图标检查"
+
+## Behavior
+
+### Step 1: Extract IDE configurations from source files
+
+Run the following commands to extract IDE icon configurations:
+
+1. Extract iconUrl and iconSlug from IDEIconGrid:
+   ```
+   grep -n 'iconUrl\|iconSlug' doc/components/IDEIconGrid.tsx
+   ```
+
+2. Extract iconUrl and iconSlug from IDESelector:
+   ```
+   grep -n 'iconUrl\|iconSlug' doc/components/IDESelector.tsx
+   ```
+
+3. Extract IDE_TYPES from setup.ts:
+   ```
+   grep -A 30 'IDE_TYPES' mcp/src/tools/setup.ts | grep "'" | head -30
+   ```
+
+### Step 2: Check icon URL availability
+
+For each `iconUrl` entry in IDEIconGrid.tsx, check if the URL is reachable:
+
+1. Parse out all `iconUrl` values
+2. For each URL, run: `curl -sI -o /dev/null -w "%{http_code}" <url>`
+3. Report any URLs that return non-200 status codes
+
+For each `iconSlug` entry, construct the lobe-icons CDN URL:
+- Base: `https://img.jsdelivr.com/raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/light`
+- If slug is in the color set (`claude`, `gemini`, `baidu`, `alibaba`, `qwen`, `bytedance`, `tencent`): `{base}/{slug}-color.png`
+- Otherwise: `{base}/{slug}.png`
+- Check each constructed URL with curl
+
+### Step 3: Compare IDE lists across files
+
+Extract the IDE `id` values from each file and compare:
+
+1. Compare IDEIconGrid.tsx vs IDESelector.tsx:
+   - Report IDEs present in IDEIconGrid but missing in IDESelector
+   - Report IDEs present in IDESelector but missing in IDEIconGrid
+
+2. Compare with setup.ts IDE_TYPES:
+   - Report IDEs in documentation but not in setup.ts
+   - Report IDEs in setup.ts but not in documentation
+
+3. For each common IDE, verify iconUrl/iconSlug consistency across files
+
+### Step 4: Check cross-repo sync with cloudbase-docs
+
+If the cloudbase-docs repo exists at `../cloudbase-docs/` (sibling directory):
+
+1. Compare IDEIconGrid:
+   ```
+   diff <(grep -A4 "id:" doc/components/IDEIconGrid.tsx) <(grep -A4 "id:" ../cloudbase-docs/docs/ai/cloudbase-ai-toolkit/components/IDEIconGrid.tsx)
+   ```
+
+2. Compare IDESelector:
+   ```
+   diff <(grep -A4 "id:" doc/components/IDESelector.tsx) <(grep -A4 "id:" ../cloudbase-docs/docs/ai/cloudbase-ai-toolkit/components/IDESelector.tsx)
+   ```
+
+3. Compare with English mirror:
+   ```
+   diff <(grep -A4 "iconUrl\|iconSlug" doc/components/IDEIconGrid.tsx) <(grep -A4 "iconUrl\|iconSlug" ../cloudbase-docs/i18n/en/docusaurus-plugin-content-docs/current/ai/cloudbase-ai-toolkit/components/IDEIconGrid.tsx)
+   ```
+
+4. Report any differences found.
+
+### Step 5: Output structured report
+
+Generate a report with the following sections:
+
+```markdown
+## IDE 图标完整性检查报告
+
+### ✅ 图标 URL 可达性
+- [通过/失败] IDEIconGrid.tsx 中 N 个图标 URL 检查结果
+- [通过/失败] IDESelector.tsx 中 N 个图标 URL 检查结果
+- 列出所有失败的 URL
+
+### 🔄 IDE 列表一致性
+- IDEIconGrid 共 N 个, IDESelector 共 N 个, setup.ts 共 N 个
+- 差异明细（如有）
+
+### 🔗 跨仓库同步
+- 与 cloudbase-docs 中文版一致性
+- 与 cloudbase-docs 英文版一致性
+
+### ⚠️ 需要关注的问题
+- 列出所有不一致、缺失、失效的配置项
+```
+
+## Quality Checklist
+- [ ] All icon URLs have been verified with HTTP HEAD requests
+- [ ] All iconSlug entries have been verified against lobe-icons CDN
+- [ ] IDE lists have been compared across IDEIconGrid.tsx, IDESelector.tsx, and setup.ts
+- [ ] Cross-repo sync with cloudbase-docs has been checked
+- [ ] Chinese and English versions have been compared
+- [ ] A structured report has been generated
+```

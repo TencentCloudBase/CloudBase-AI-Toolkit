@@ -31,3 +31,9 @@ These workflows are derived from former local command templates.
 - **Command**: `/github_workflow_fix`
 - **Source**: `references/source-commands.md`
 - **Intent**: inspect the latest failed GitHub Actions run -> diagnose with logs -> fix in an isolated worktree -> push and open a PR
+
+### IDE icon check
+
+- **Command**: `/check_ide_icons`
+- **Source**: `references/source-commands.md`
+- **Intent**: verify IDE icon configuration consistency across IDEIconGrid.tsx, IDESelector.tsx, setup.ts, and their cloudbase-docs mirror copies
