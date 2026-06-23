@@ -75,6 +75,12 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
    - `managePgDatabase(action=listMigrations)` — list all applied migrations
    - `managePgDatabase(action=migrationDetail, objectName=...)` — inspect a single migration
    - `managePgDatabase(action=rollbackMigration, objectName=..., confirm=true)` — roll back a migration
+
+   **🚨 CRITICAL: Inspect table existence and column names before CREATE TABLE.** `CREATE TABLE IF NOT EXISTS` silently skips when the table already exists, even if the column names are wrong. Always call `queryPgDatabase(action="sql", sql="SELECT column_name, data_type FROM information_schema.columns WHERE table_name='xxx'")` first to check whether the table exists and what exact column names it uses. If the table already exists with mismatched column names (e.g. `user_id` instead of `uid`), you must either:
+   - `ALTER TABLE` to add/rename/drop columns, or
+   - `DROP TABLE IF EXISTS ... CASCADE` and recreate (only when data loss is acceptable, e.g. disposable/evaluation environments).
+   - Do NOT rely on `CREATE TABLE IF NOT EXISTS` silent skip — it will cause all downstream CRUD queries to fail with wrong field names.
+   - After DDL, re-query the schema and compare every column name used by frontend code, insert/update payloads, filters, ordering, and RLS policies.
 5. Check username-password auth before coding login:
    - Call `queryAppAuth(action="getLoginConfig")`.
    - If `loginMethods.usernamePassword !== true`, call `manageAppAuth(action="patchLoginStrategy", patch={ usernamePassword: true })`.
@@ -92,6 +98,7 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
    - Insert a test row using `author_id = session.user.id`.
    - Read it back with `queryPgDatabase`.
    - If INSERT/SELECT fails, inspect the exact RLS error and fix the policy or switch to a server/RPC boundary. Do not leave browser-facing tables with broken RLS.
+   - **⚠️ Do NOT use `current_user` or `current_setting(...)` in RLS policies.** `current_user` in PostgreSQL returns the database role name (e.g. `authenticated`), NOT the CloudBase auth user ID. Always use `auth.uid()` for user identity checks. If you are unsure whether the auth helpers are available, run `SELECT proname FROM pg_proc WHERE pronamespace = 'auth'::regnamespace` to list all available `auth.*` functions.
 10. Use PG HTTP API only as a fallback after reading OpenAPI docs and verifying the auth model in the installed SDK. Do not guess URLs such as `/api/v1/rdb/rest`; the documented base is `https://<envId>.api.tcloudbasegateway.com/v1/rdb/rest/<table>` and auth is `Authorization: Bearer <Publishable Key | access_token | API Key>`.
 11. Keep cover images in CloudBase Storage. Store only the final file URL or file metadata in PG.
 12. Verify both layers before claiming done: project build/typecheck and browser E2E for login/CRUD, then read back rows with `queryPgDatabase`. When debugging RLS, run SQL as `authenticated` / `anon` if the tool supports role simulation; admin/default execution can bypass the user-facing failure.
