@@ -321,7 +321,37 @@ export async function publishToSkillhub({
       continue;
     }
 
-    let version = currentVersion;
+    // 拉取 SkillHub 上该技能的所有版本历史，找到最新版本号
+    let latestPublishedVersion = null;
+    try {
+      const versionsUrl = `${apiBase}/api/v1/orgs/${orgId}/skills/${slug}/versions`;
+      const versionsResponse = await fetch(versionsUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (versionsResponse.ok) {
+        const versionsData = await versionsResponse.json();
+        const versions = versionsData?.versions || [];
+        // 找到最新的正式版本（不含 beta 后缀）
+        const sorted = versions
+          .map((v) => v.version)
+          .filter((v) => v && !v.includes("-"))
+          .sort()
+          .reverse();
+        latestPublishedVersion = sorted.length > 0 ? sorted[0] : null;
+      }
+    } catch {
+      // 拉取版本历史失败不影响后续，用 SKILL.md 版本
+    }
+
+    // 确定基础版本：优先用 SKILL.md 版本，如果已存在则用最新已发布版本递增 patch
+    let baseVersion = currentVersion;
+    if (latestPublishedVersion && latestPublishedVersion !== currentVersion) {
+      // SkillHub 上有更新的已发布版本，用那个作为基础
+      baseVersion = latestPublishedVersion;
+    }
+
+    // 先尝试基础版本
+    let version = baseVersion;
     let retryCount = 0;
     const maxRetries = 10;
 
@@ -354,7 +384,7 @@ export async function publishToSkillhub({
         });
         break;
       } catch (error) {
-        // 处理 409 冲突（有版本审核中）：自动递增 patch 重试
+        // 处理 409 冲突（有版本审核中）：在基础版本上加 beta 后缀重试
         if (error.message.includes("409")) {
           retryCount++;
           if (retryCount > maxRetries) {
@@ -368,7 +398,7 @@ export async function publishToSkillhub({
           }
           // 使用预发布版本号（如 2.23.1-beta.1），避免与正式 tag 冲突
           // 同时保持标准 semver 格式
-          version = `${currentVersion}-beta.${retryCount}`;
+          version = `${baseVersion}-beta.${retryCount}`;
           console.log(`  ↻ 版本冲突 / Version conflict (409), retrying with ${version} (attempt ${retryCount}/${maxRetries})`);
         } else {
           failures.push({
