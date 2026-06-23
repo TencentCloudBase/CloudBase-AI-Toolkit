@@ -334,6 +334,7 @@ export async function publishToSkillhub({
       if (versionsResponse.ok) {
         const versionsData = await versionsResponse.json();
         const versions = versionsData?.versions || [];
+        console.log(`  📋 SkillHub 版本历史 / Version history: [${versions.map((v) => v.version).join(", ")}]`);
 
         // 找到 SkillHub 上最新的正式版本号（不含 beta 后缀）
         const sortedReleases = versions
