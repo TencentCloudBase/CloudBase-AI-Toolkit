@@ -289,7 +289,7 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 
 1. 插件清单单一真源
    - `mcp/src/server.ts` 中的 `DEFAULT_PLUGINS`、`AVAILABLE_PLUGINS`、`PLUGIN_ALIASES` 是插件名、默认启用集合与兼容别名的唯一真源
-   - 修改插件名、默认集合或别名时，必须同步检查 `doc/plugins.md`、`doc/connection-modes.mdx`、`README.md`、`mcp/README.md`
+   - 修改插件名、默认集合或别名时，必须同步检查 `doc/connection-modes.mdx`、`README.md`、`mcp/README.md`
 
 2. URL 参数与环境变量成对校验
    - 同一能力如果同时暴露环境变量与 URL 参数（例如 `CLOUDBASE_MCP_PLUGINS_ENABLED` / `CLOUDBASE_MCP_PLUGINS_DISABLED` 与 `enable_plugins` / `disable_plugins`），标题、说明、示例和多值格式必须保持一致

@@ -24,11 +24,6 @@
             "className": "sh-sidebar-item"
           },
           {
-            "type": "doc",
-            "id": "ai/cloudbase-ai-toolkit/ai-agent-plugins",
-            "label": "AI 编程插件"
-          },
-          {
             "type": "category",
             "label": "IDE 配置",
             "collapsible": true,
@@ -147,7 +142,7 @@
         "type": "category",
         "label": "入门教程",
         "collapsible": true,
-        "collapsed": false,
+        "collapsed": true,
         "items": [
           "ai/cloudbase-ai-toolkit/tutorials",
           "ai/cloudbase-ai-toolkit/tutorials/workbuddy-chess-app",
