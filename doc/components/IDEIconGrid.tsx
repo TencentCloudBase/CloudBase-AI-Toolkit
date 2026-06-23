@@ -149,7 +149,7 @@ const IDES: IDE[] = [
     id: 'workbuddy',
     name: 'WorkBuddy',
     platform: '独立 IDE',
-    iconSlug: 'workbuddy',
+    iconUrl: 'https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/assets/workbuddy-logo.svg',
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy'
   },
   {
