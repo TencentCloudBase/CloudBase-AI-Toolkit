@@ -322,49 +322,62 @@ export async function publishToSkillhub({
       continue;
     }
 
-    try {
-      const result = await uploadVersionToSkillhub({
-        apiBase,
-        orgId,
-        token,
-        slug,
-        version: nextVersion,
-        changelog: resolvedChangelog,
-        displayName: metadata.name,
-        summary: metadata.description,
-        iconUrl: target.iconUrl,
-        files,
-      });
+    let version = nextVersion;
+    let retryCount = 0;
+    const maxRetries = 10;
 
-      console.log(`  ✓ Published version ${nextVersion} (versionId: ${result.versionId})`);
+    while (retryCount <= maxRetries) {
+      try {
+        const result = await uploadVersionToSkillhub({
+          apiBase,
+          orgId,
+          token,
+          slug,
+          version,
+          changelog: resolvedChangelog,
+          displayName: metadata.name,
+          summary: metadata.description,
+          iconUrl: target.iconUrl,
+          files,
+        });
 
-      results.push({
-        targetKey: target.targetKey,
-        slug,
-        version: nextVersion,
-        displayName: metadata.name,
-        summary: metadata.description,
-        fileCount: files.length,
-        versionId: result.versionId,
-        status: "published",
-      });
-    } catch (error) {
-      // 处理 409 冲突（有版本审核中）
-      if (error.message.includes("409")) {
-        console.warn(`  ⚠ 跳过 / Skipped (已有版本审核中): ${target.targetKey}`);
+        console.log(`  ✓ Published version ${version} (versionId: ${result.versionId})`);
+
         results.push({
           targetKey: target.targetKey,
           slug,
-          version: nextVersion,
-          status: "skipped",
-          reason: "版本审核中 / version pending review",
+          version,
+          displayName: metadata.name,
+          summary: metadata.description,
+          fileCount: files.length,
+          versionId: result.versionId,
+          status: "published",
         });
-      } else {
-        failures.push({
-          targetKey: target.targetKey,
-          slug,
-          message: error.message,
-        });
+        break;
+      } catch (error) {
+        // 处理 409 冲突（有版本审核中）：自动递增 patch 重试
+        if (error.message.includes("409")) {
+          retryCount++;
+          if (retryCount > maxRetries) {
+            console.warn(`  ⚠ 重试耗尽 / Max retries reached for ${target.targetKey} (${slug})`);
+            failures.push({
+              targetKey: target.targetKey,
+              slug,
+              message: `版本冲突重试 ${maxRetries} 次后仍失败 / version conflict after ${maxRetries} retries`,
+            });
+            break;
+          }
+          const semver = parseSemver(version);
+          version = `${semver.major}.${semver.minor}.${semver.patch + 1}`;
+          console.log(`  ↻ 版本冲突 / Version conflict (409), retrying with ${version} (attempt ${retryCount}/${maxRetries})`);
+        } else {
+          failures.push({
+            targetKey: target.targetKey,
+            slug,
+            message: error.message,
+          });
+          break;
+        }
       }
     }
   }
