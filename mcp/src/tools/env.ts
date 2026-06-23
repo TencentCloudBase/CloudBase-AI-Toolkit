@@ -1974,7 +1974,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               throw new Error("创建环境时 packageId（套餐 ID）为必填参数");
             }
 
-            const createParams: Record<string, any> = {
+            const createParams: any = {
               Alias: alias,
               PackageId: packageId,
               Region: region,
