@@ -142,7 +142,7 @@
         "type": "category",
         "label": "入门教程",
         "collapsible": true,
-        "collapsed": false,
+        "collapsed": true,
         "items": [
           "ai/cloudbase-ai-toolkit/tutorials",
           "ai/cloudbase-ai-toolkit/tutorials/workbuddy-chess-app",
