@@ -3,7 +3,7 @@ name: cloudbase
 description: "Use this skill when you develop, design, build, deploy, debug, migrate, or troubleshoot CloudBase (腾讯云开发, 云开发, TCB, 微信云开发) projects. Covers Web apps (React, Vue, Vite, Next, Nuxt, dashboards, 管理后台), 微信小程序, 小程序, uni-app, native/mobile (iOS, Android, Flutter, React Native) via HTTP API. Includes UI (页面, 界面, 登录页, 表单, form, dashboard, prototype, 原型), auth (登录, 注册, OAuth, 微信登录, publishable key), databases (NoSQL 文档数据库, MySQL, PostgreSQL/CloudBase PG, app.rdb(), queryPgDatabase/managePgDatabase, CRUD, security rules), 云函数 (serverless, scf_bootstrap, HTTP Functions), CloudRun (云托管, Dockerfile), 云存储 (file upload, hosting, 静态托管). Built-in AI (内置大模型, streaming, 流式输出, image generation, 图片生成, generateText, streamText, createModel, generateImage, TokenHub, Hunyuan, hunyuan-exp, DeepSeek, GLM, Token Credits 资源包, 小程序成长计划), 第三方大模型, 大模型接入, 大模型调用, LLM API, chatbot, AI 助手, AI agent, 智能体, AG-UI, LangGraph, LangChain. Ops (巡检, 诊断, health check, 日志, troubleshooting). Spec workflow (需求文档, 技术方案, requirements, tasks.md)."
 description_zh: 为你的小程序和 Web/H5 提供一体化运行与部署环境，包括数据库、云函数、云存储、身份权限和静态托管
 description_en: An all-in-one runtime and deployment environment for WeChat Mini Programs and Web/H5 apps, including database, cloud functions, cloud storage, identity and access control, and static hosting.
-version: 2.23.0
+version: 2.23.1
 ---
 
 # CloudBase Development Guidelines
