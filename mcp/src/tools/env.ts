@@ -1863,4 +1863,226 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     },
   );
   } // end: wxide guard for envDomainManagement
+
+  // manageEnv - 环境管理（创建、销毁、变更套餐、续费、查询套餐）
+  server.registerTool?.(
+    "manageEnv",
+    {
+      title: "CloudBase 环境管理（创建/变配/续费）",
+      description:
+        "管理 CloudBase 环境，支持：listPackages=查询可选套餐列表，create=创建新环境（需确认），modifyPlan=变更套餐（升降配，需确认），renew=续费环境（需确认）。\n\n⚠️ 所有涉及费用的操作（create/modifyPlan/renew），执行前必须展示配置摘要并等待用户通过 confirm=\"yes\" 确认。",
+      inputSchema: {
+        action: z
+          .enum(["listPackages", "create", "modifyPlan", "renew"])
+          .describe(
+            "操作类型：listPackages=查询可选套餐，create=创建环境，modifyPlan=变更套餐，renew=续费",
+          ),
+        alias: z
+          .string()
+          .optional()
+          .describe("环境别名（action=create 时必填）。要求：小写字母/数字/减号，不能以减号开头或结尾，最长 20 位"),
+        packageId: z
+          .string()
+          .optional()
+          .describe("套餐 ID（action=create/modifyPlan 时必填）。可选值如 baas_personal(个人版)、baas_pf_standard(标准版)、baas_pf_enterprise(企业版)"),
+        region: z
+          .string()
+          .optional()
+          .describe("环境地域（action=create 时可选）。默认 ap-shanghai，可选 ap-guangzhou、ap-beijing 等"),
+        resources: z
+          .array(z.enum(["flexdb", "storage", "function"]))
+          .optional()
+          .describe("启用的资源类型（action=create 时可选）。默认启用全部三项：flexdb(文档数据库)、storage(存储)、function(云函数)"),
+        duration: z
+          .number()
+          .int()
+          .min(1)
+          .max(36)
+          .optional()
+          .describe("购买或续费时长（月），action=create/renew 时可选，默认 1"),
+        envId: z
+          .string()
+          .optional()
+          .describe("环境 ID（action=modifyPlan/renew 时必填）"),
+        confirm: z
+          .literal("yes")
+          .optional()
+          .describe("确认操作。所有付费操作（create/modifyPlan/renew）必须传 \"yes\" 确认"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+        category: "env",
+      },
+    },
+    async (rawArgs: {
+      action?: string;
+      alias?: string;
+      packageId?: string;
+      region?: string;
+      resources?: string[];
+      duration?: number;
+      envId?: string;
+      confirm?: string;
+    }) => {
+      const action = rawArgs.action ?? "";
+      const alias = normalizeOptionalToolString(rawArgs.alias);
+      const packageId = normalizeOptionalToolString(rawArgs.packageId);
+      const region = normalizeOptionalToolString(rawArgs.region) ?? "ap-shanghai";
+      const resources = rawArgs.resources;
+      const duration = rawArgs.duration ?? 1;
+      const envId = normalizeOptionalToolString(rawArgs.envId);
+      const confirmed = rawArgs.confirm === "yes";
+
+      try {
+        const cloudbase = await getManager();
+
+        switch (action) {
+          case "listPackages": {
+            // 查询可选套餐列表（新购场景）
+            const result = await cloudbase.env.describeBaasPackageList({ TargetAction: "new" });
+            logCloudBaseResult(server.logger, result);
+            return buildJsonToolResult({
+              ok: true,
+              code: "PACKAGE_LIST",
+              message: "成功获取可选套餐列表。",
+              packages: result.PackageList || result,
+            });
+          }
+
+          case "create": {
+            // 创建环境需要 confirm
+            if (!confirmed) {
+              return buildJsonToolResult({
+                ok: false,
+                code: "CONFIRM_REQUIRED",
+                message: `创建环境需要您确认。请确认以下配置信息后传入 confirm="yes"：\n别名: ${alias}\n套餐: ${packageId}\n地域: ${region}\n资源类型: ${resources?.join(", ") ?? "flexdb, storage, function"}\n时长: ${duration} 个月`,
+                next_step: {
+                  tool: "manageEnv",
+                  action: "create",
+                  requiredParams: ["alias", "packageId", "confirm"],
+                },
+              });
+            }
+
+            if (!alias) {
+              throw new Error("创建环境时 alias（环境别名）为必填参数");
+            }
+            if (!packageId) {
+              throw new Error("创建环境时 packageId（套餐 ID）为必填参数");
+            }
+
+            const createParams: any = {
+              Alias: alias,
+              PackageId: packageId,
+              Region: region,
+              Period: duration,
+            };
+            if (resources && resources.length > 0) {
+              createParams.Resources = resources;
+            }
+
+            const result = await cloudbase.env.createEnv(createParams);
+            logCloudBaseResult(server.logger, result);
+            return buildJsonToolResult({
+              ok: true,
+              code: "ENV_CREATED",
+              message: `环境创建成功！新环境 ID: ${result.EnvId}。环境初始化可能需要几分钟，请通过 queryEnv(action="info", envId="${result.EnvId}") 轮询直到 Status 为正常。`,
+              envId: result.EnvId,
+            });
+          }
+
+          case "modifyPlan": {
+            // 变更套餐需要 confirm
+            if (!confirmed) {
+              if (!envId || !packageId) {
+                throw new Error("变更套餐时 envId 和 packageId 为必填参数");
+              }
+              return buildJsonToolResult({
+                ok: false,
+                code: "CONFIRM_REQUIRED",
+                message: `变更环境 ${envId} 的套餐为 ${packageId} 可能产生费用变化。请确认后传入 confirm="yes"。`,
+                next_step: {
+                  tool: "manageEnv",
+                  action: "modifyPlan",
+                  requiredParams: ["envId", "packageId", "confirm"],
+                },
+              });
+            }
+
+            if (!envId) {
+              throw new Error("变更套餐时 envId 为必填参数");
+            }
+            if (!packageId) {
+              throw new Error("变更套餐时 packageId 为必填参数");
+            }
+
+            const result = await cloudbase.env.modifyEnvPlan({ EnvId: envId, PackageId: packageId });
+            logCloudBaseResult(server.logger, result);
+            return buildJsonToolResult({
+              ok: true,
+              code: "PLAN_MODIFIED",
+              message: `环境 ${envId} 的套餐已成功变更为 ${packageId}。`,
+              envId,
+              packageId,
+            });
+          }
+
+          case "renew": {
+            // 续费需要 confirm
+            if (!confirmed) {
+              if (!envId) {
+                throw new Error("续费环境时 envId 为必填参数");
+              }
+              return buildJsonToolResult({
+                ok: false,
+                code: "CONFIRM_REQUIRED",
+                message: `续费环境 ${envId}，时长: ${duration} 个月，可能产生费用。请确认后传入 confirm="yes"。`,
+                next_step: {
+                  tool: "manageEnv",
+                  action: "renew",
+                  requiredParams: ["envId", "confirm"],
+                },
+              });
+            }
+
+            if (!envId) {
+              throw new Error("续费环境时 envId 为必填参数");
+            }
+
+            const result = await cloudbase.env.renewEnv({ EnvId: envId, Period: duration });
+            logCloudBaseResult(server.logger, result);
+            return buildJsonToolResult({
+              ok: true,
+              code: "ENV_RENEWED",
+              message: `环境 ${envId} 已成功续费 ${duration} 个月。`,
+              envId,
+            });
+          }
+
+          default:
+            return buildJsonToolResult({
+              ok: false,
+              code: "INVALID_ACTION",
+              message: `不支持的操作: ${action}。支持的操作: listPackages, create, destroy, modifyPlan, renew。`,
+            });
+        }
+      } catch (error) {
+        const toolPayloadResult = toolPayloadErrorToResult(error);
+        if (toolPayloadResult) {
+          return toolPayloadResult;
+        }
+        return {
+          content: [
+            {
+              type: "text",
+              text: `环境管理操作失败: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+        };
+      }
+    },
+  );
 }
