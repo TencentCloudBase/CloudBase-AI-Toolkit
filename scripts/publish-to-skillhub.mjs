@@ -356,10 +356,13 @@ export async function publishToSkillhub({
         }
 
         if (latestRelease && latestRelease !== currentVersion) {
-          // SkillHub 上有更新的已发布版本，以它为基础 + beta
-          version = `${latestRelease}-beta.${maxBeta + 1}`;
+          // SkillHub 上有更新的已发布版本，以它为基础递增 patch + beta
+          // 例如最新版 2.24.1，则使用 2.24.2-beta.1（beta 版本低于正式版）
+          const semver = parseSemver(latestRelease);
+          const nextPatch = semver ? `${semver.major}.${semver.minor}.${semver.patch + 1}` : latestRelease;
+          version = `${nextPatch}-beta.${maxBeta + 1}`;
           retryCount = maxBeta + 1;
-          console.log(`  → 使用版本 / Using version: ${version} (latest release: ${latestRelease}, max beta: ${maxBeta})`);
+          console.log(`  → 使用版本 / Using version: ${version} (latest release: ${latestRelease}, next patch: ${nextPatch}, max beta: ${maxBeta})`);
         } else if (versions.some((v) => v.version === currentVersion)) {
           // SKILL.md 版本已存在，加 beta
           version = `${currentVersion}-beta.${maxBeta + 1}`;
