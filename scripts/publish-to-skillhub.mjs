@@ -300,12 +300,11 @@ export async function publishToSkillhub({
     const skillContent = fs.readFileSync(skillFile, "utf8");
     const metadata = parseFrontmatter(skillContent);
     const currentVersion = readCurrentVersion(skillFile);
-    const nextVersion = bumpSemver(currentVersion, bump);
 
     const files = collectFiles(artifactDir, artifactDir);
 
     console.log(`[SkillHub] 准备发布 / Preparing: ${target.targetKey} (${slug})`);
-    console.log(`  Version: ${currentVersion || "(none)"} -> ${nextVersion}`);
+    console.log(`  Version: ${currentVersion || "(none)"}`);
     console.log(`  DisplayName: ${metadata.name}`);
     console.log(`  Files: ${files.length} file(s)`);
 
@@ -313,7 +312,7 @@ export async function publishToSkillhub({
       results.push({
         targetKey: target.targetKey,
         slug,
-        version: nextVersion,
+        version: currentVersion,
         displayName: metadata.name,
         summary: metadata.description,
         fileCount: files.length,
@@ -322,7 +321,7 @@ export async function publishToSkillhub({
       continue;
     }
 
-    let version = nextVersion;
+    let version = currentVersion;
     let retryCount = 0;
     const maxRetries = 10;
 
@@ -367,8 +366,9 @@ export async function publishToSkillhub({
             });
             break;
           }
-          const semver = parseSemver(version);
-          version = `${semver.major}.${semver.minor}.${semver.patch + 1}`;
+          // 使用预发布版本号（如 2.23.1-beta.1），避免与正式 tag 冲突
+          // 同时保持标准 semver 格式
+          version = `${currentVersion}-beta.${retryCount}`;
           console.log(`  ↻ 版本冲突 / Version conflict (409), retrying with ${version} (attempt ${retryCount}/${maxRetries})`);
         } else {
           failures.push({
