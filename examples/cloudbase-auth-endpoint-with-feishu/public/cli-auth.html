@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>企业 AI 开发平台 - 设备授权</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f7fa;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; color: #333;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      padding: 48px 40px;
+      width: 420px;
+      max-width: 94vw;
+      text-align: center;
+    }
+    h1 { font-size: 22px; margin-bottom: 8px; }
+    .desc { color: #666; font-size: 14px; margin-bottom: 32px; line-height: 1.6; }
+    label { display: block; text-align: left; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: #555; }
+    input {
+      width: 100%; padding: 12px 16px;
+      border: 1px solid #d0d5dd; border-radius: 8px;
+      font-size: 18px; text-align: center; letter-spacing: 4px;
+      outline: none; transition: border-color 0.2s;
+    }
+    input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .hint { font-size: 12px; color: #999; margin-top: 6px; text-align: left; }
+    button {
+      width: 100%; padding: 12px;
+      background: #2563eb; color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 16px; font-weight: 500; cursor: pointer;
+      margin-top: 24px; transition: background 0.2s;
+    }
+    button:hover { background: #1d4ed8; }
+    button:disabled { background: #93a9d6; cursor: not-allowed; }
+    .error { color: #dc2626; font-size: 14px; margin-top: 16px; display: none; }
+    .success { color: #16a34a; font-size: 14px; margin-top: 16px; display: none; }
+    .steps { text-align: left; margin: 24px 0; padding: 16px; background: #f9fafb; border-radius: 8px; }
+    .steps li { font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.5; }
+    .steps li:last-child { margin-bottom: 0; }
+    code { background: #eef2ff; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #2563eb; }
+    .footer { margin-top: 32px; font-size: 12px; color: #aaa; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔐 授权设备</h1>
+    <p class="desc">
+      在终端或 IDE 中输入 <code>tcb login</code> 后，将获得的设备码填入下方
+    </p>
+
+    <div class="steps">
+      <ol>
+        <li>在命令行中执行 <code>tcb login</code> 获取设备码</li>
+        <li>将设备码填入下方输入框</li>
+        <li>点击"授权登录"，使用企业账号完成认证</li>
+      </ol>
+    </div>
+
+    <label for="userCode">设备码</label>
+    <input id="userCode" type="text" placeholder="XXXX-XXXX" maxlength="9"
+           autocomplete="off" autocorrect="off" autocapitalize="off">
+    <div class="hint">格式：4位数字-4位数字，如 1234-5678</div>
+
+    <button id="loginBtn" onclick="startAuth()">授权登录</button>
+
+    <div id="errorMsg" class="error"></div>
+    <div id="successMsg" class="success"></div>
+
+    <div class="footer">企业 AI 开发平台 &middot; 云开发 CloudBase</div>
+  </div>
+
+  <!-- CloudBase Web SDK -->
+  <script src="https://static.cloudbase.net/cloudbase-js-sdk/3.4.8/cloudbase.full.js"></script>
+  <script>
+    let authApp = null;
+    let authInstance = null;
+
+    async function initCloudBase() {
+      try {
+        const configRes = await fetch('/auth/config');
+        const config = await configRes.json();
+
+        if (!config.envId || !config.publishableKey) {
+          showError('授权服务未配置 CloudBase 环境，请联系管理员');
+          return false;
+        }
+
+        authApp = cloudbase.init({
+          env: config.envId,
+          region: config.region || 'ap-shanghai',
+          accessKey: config.publishableKey,
+          auth: { detectSessionInUrl: false },
+        });
+        authInstance = authApp.auth({ persistence: 'local' });
+        return true;
+      } catch (e) {
+        showError('初始化认证服务失败: ' + e.message);
+        return false;
+      }
+    }
+
+    async function startAuth() {
+      const userCode = document.getElementById('userCode').value.trim();
+      if (!userCode || !/^\d{4}-\d{4}$/.test(userCode)) {
+        showError('请输入正确的设备码格式（如 1234-5678）');
+        return;
+      }
+
+      if (!authInstance) {
+        const ok = await initCloudBase();
+        if (!ok) return;
+      }
+
+      hideError();
+      document.getElementById('loginBtn').disabled = true;
+      document.getElementById('loginBtn').textContent = '跳转中...';
+
+      sessionStorage.setItem('pending_user_code', userCode);
+
+      // 使用托管登录页（支持飞书等所有企业身份源）
+      authInstance.toDefaultLoginPage({
+        redirect_uri: window.location.origin + '/cli-auth-callback.html',
+      });
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      el.style.display = 'block';
+      document.getElementById('successMsg').style.display = 'none';
+    }
+
+    function hideError() {
+      document.getElementById('errorMsg').style.display = 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initCloudBase();
+      document.getElementById('userCode').focus();
+    });
+  </script>
+</body>
+</html>
