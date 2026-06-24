@@ -63,7 +63,6 @@ const MACHINE_TARGETS = [
   { source: "files/opencode.json", target: ".opencode.json" },
   { source: "files/codex.toml", target: ".codex/config.toml" },
   { source: "files/vscode.settings.json", target: ".vscode/settings.json" },
-  { source: "files/workbuddy.mcp.json", target: ".workbuddy/mcp.json" },
   { source: "files/aider.mcp.json", target: "mcp.json" },
   { source: "files/iflow.settings.json", target: ".iflow/settings.json" },
 ];
