@@ -66,6 +66,15 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
    - If both `postgresql` and `nosql` are `true` (the common case in a PG environment), they coexist. Apply this skill to NEW business data the task asks you to put in PG (e.g. articles / role tables explicitly described as PG). Existing NoSQL collections, the bucket reported in `EnvInfo.Storages[]`, and any `managePermissions(resourceType="noSqlDatabase")` rules continue to govern the legacy NoSQL data — do NOT migrate or rewrite them unless the task explicitly asks.
    - `RuntimeBackends.mysql === false` is the only hard "do not use" signal: when MySQL is absent, do not use `manageSqlDatabase` / `querySqlDatabase` and do not consult the `relational-database-tool` skill; those are MySQL-specific and have nothing to do with CloudBase PG.
    - Note: in a PG env, `EnvInfo.Storages[]` is the legacy NoSQL bucket. It still works for legacy `app.uploadFile()` flows but is NOT a usable pgstore bucket — never reuse it as the `<bucket>` segment in `app.storage.from('<bucket>').upload('<key>', file)`.
+
+> **Creating a PG-mode environment**
+>
+> If step 0 shows `RuntimeBackends.postgresql === false` and you need PostgreSQL, create a new environment with PG enabled:
+>
+> - **Via MCP**: `manageEnv(action="create", alias="my-env", packageId="baas_personal", resources=["flexdb","storage","function","postgresql"], confirm="yes")`
+> - **Via CLI**: `tcb env create --alias my-env --package baas_personal --postgresql --yes`
+> - **Via Console**: [Create environment](https://console.cloud.tencent.com/tcb/env/create)
+
 1. Inspect the existing app surfaces first: `src/lib/backend.*`, `src/lib/auth.*`, `src/lib/*service.*`, route guards, and the handlers bound to existing forms.
 2. Check PG state through MCP: use `queryPgDatabase` for schema/read-only inspection and `managePgDatabase` for DDL/DML. Do not switch to MySQL tools. For the complete route map, read `references/index.md`.
 3. **Understand PG roles before writing code:** Publishable Key maps to `anon`; a logged-in user's access token maps to `authenticated`; API Key maps to `service_role` and bypasses RLS. Never expose API Key / `service_role` credentials in frontend code. See `references/auth-and-rls.md`.
