@@ -22,14 +22,16 @@
 
 1. 项目代码中使用了哪些 PG 表名（`db.from("xxx")`）？
 2. 这些表是否已在 PG 中被创建？
-3. 建表是通过什么方式完成的？
+3. **建表前是否先检查了表结构？** 在 CREATE TABLE 之前，是否先调用了 `queryPgDatabase(action="sql", sql="SELECT column_name, data_type FROM information_schema.columns WHERE table_name='xxx'")` 确认表是否存在及其精确列名？
+4. **是否依赖了 `CREATE TABLE IF NOT EXISTS` 的静默跳过行为？** 如果表已存在但列名不匹配（例如预期 `uid` 但实际是 `user_id`），`IF NOT EXISTS` 会静默跳过，导致所有 CRUD 查询用错字段名。必须使用 `ALTER TABLE` 或 `DROP TABLE ... CASCADE`（确认数据影响后）重建。
+5. 建表是通过什么方式完成的？
    - MCP 工具 `executePgSql` 或 `manageSqlDatabase`？
    - SQL 脚本？
    - ORM migration？
-4. 表结构是否包含必要字段？
+6. 表结构是否包含必要字段？
    - articles 表：`title`, `content`, `author_id`, `status`, `created_at`, `updated_at`
    - users 表：`id/uid`, `username`, `role`
-5. 建表操作是否在实际 CRUD 调用**之前**执行？顺序对吗？
+7. 建表操作是否在实际 CRUD 调用**之前**执行？顺序对吗？
 
 ## 修复指引
 
