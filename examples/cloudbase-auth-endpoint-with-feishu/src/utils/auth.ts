@@ -1,4 +1,4 @@
-import { CLOUDBASE_ENV_ID, CLOUDBASE_REGION } from '../config';
+import { CLOUDBASE_ENV_ID } from '../config';
 
 /**
  * CloudBase User Info HTTP API 返回结构
