@@ -19,7 +19,6 @@
         ".qwen",
         ".roo",
         ".vscode",
-        ".workbuddy",
         "codebuddy-plugin",
         "mcp.json"
       ],
@@ -37,7 +36,6 @@
         ".roo/mcp.json": "aa673cdd1e9259fc13fb4c2a9f912a1a0c2be2cbe162975a3574b6549544bfba",
         ".vscode/mcp.json": "aa93e4634fe39c87843e9dd5d35f8ec3c3c216c895841b4ceab64820be740a64",
         ".vscode/settings.json": "acc2a030db418f7eaa4dd7a74737c094f66bde05952297520fe255753aae69e4",
-        ".workbuddy/mcp.json": "185310d1941a996a6fcf17dd0c268f333d49bdf853347d241d40fa0798073d44",
         "codebuddy-plugin/.codebuddy-plugin/plugin.json": "011be629a10b4d3272d961d5ef628728e66ad959654b2faf3eeb5036b553ecfd",
         "mcp.json": "ca299ca821ed8ff2b300fd9f4165a046f6f0fe3d885855cc7775e8f4f878db12"
       }
