@@ -67,3 +67,15 @@ export async function cleanupExpiredRecords(): Promise<void> {
   await devices.where({ expiresAt: _.lt(now) }).remove();
   await refreshTokens.where({ expiresAt: _.lt(now) }).remove();
 }
+
+/** 查找指定环境中最近一条已消费的 API Key */
+export async function findApiKeyByEnvId(envId: string): Promise<{ apiKey: string; apiKeyId: string } | null> {
+  const res = await devices
+    .where({ envId, status: 'consumed', apiKey: _.neq('') })
+    .orderBy('expiresAt', 'desc')
+    .limit(1)
+    .get();
+  if (res.data.length === 0) return null;
+  const r = res.data[0] as unknown as AuthorizationRecord;
+  return r.apiKey && r.apiKeyId ? { apiKey: r.apiKey, apiKeyId: r.apiKeyId } : null;
+}

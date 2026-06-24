@@ -29,7 +29,7 @@ export interface CloudBaseUserInfo {
 export async function verifyCloudBaseAccessToken(
   accessToken: string,
 ): Promise<CloudBaseUserInfo> {
-  const url = `https://tcb.cloud.tencent.com/auth/v1/user/me`;
+  const url = `https://${CLOUDBASE_ENV_ID}.api.tcloudbasegateway.com/auth/v1/user/me`;
 
   const response = await fetch(url, {
     headers: {

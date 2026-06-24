@@ -98,7 +98,7 @@ flowchart TB
 
 ### 3.3 CloudBase 控制台配置
 
-1. 登录 [CloudBase 控制台](https://console.cloud.tencent.com/tcb)，进入管理中心环境
+1. 登录 [CloudBase 控制台](https://tcb.cloud.tencent.com/dev)，进入管理中心环境
 2. 左侧菜单 → **身份认证 → 企业身份源**
 3. 添加自定义 OAuth 2.0 身份源：
    - 名称：如 "飞书"
@@ -135,7 +135,8 @@ cp .env.example .env
 ```env
 # 服务端口（SCF HTTP 函数固定为 9000）
 PORT=9000
-BASE_URL=https://auth.your-company.com
+# 授权服务基础地址（替换为实际部署后的网关 URL）
+BASE_URL=https://{your-gateway-domain}/{path-prefix}
 
 # CloudBase 管理中心环境
 CLOUDBASE_ENV_ID=your-management-env-id
@@ -159,6 +160,13 @@ npm run dev
 
 **前提**：确保 AI 开发工具已启用 CloudBase MCP（参见[配置指南](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy)）。
 
+**数据库集合准备**：授权服务使用 CloudBase NoSQL 文档数据库存储设备码和令牌记录，部署前需要在环境中创建以下集合（MCP 工具会自动创建，或手动在控制台创建）：
+
+| 集合名 | 用途 |
+|--------|------|
+| `auth_devices` | 存储设备码记录及用户-环境-API Key 关联关系 |
+| `auth_refresh_tokens` | 存储 refresh token 用于续期和退出 |
+
 在 AI 对话中输入：
 
 > 帮我将 `examples/cloudbase-auth-endpoint-with-feishu` 目录部署为 SCF HTTP 函数，函数名 `auth-service`，runtime Nodejs18.15，超时 120 秒，环境变量从 `.env` 文件中读取。部署后再添加一个网关路由指向该函数。
@@ -171,14 +179,15 @@ AI 会自动使用 MCP 工具完成以下操作：
 
 **注意事项**：
 - 网关路由不要使用 `domain: "*"` 的通配域名，会拦截 CloudBase 内置的 `__auth/` 托管登录页
+- **网关 `path` 参数与 `TCB_AUTH_OAUTH_ENDPOINT` 直接相关**：创建 HTTP 访问入口时指定的 `path` 就是后续配置中的路径前缀。例如 `path=/auth` 时，endpoint 为 `https://{gateway-domain}/auth`；工具箱会自动拼接 `/device/code`、`/token` 等子路径。如果修改了 path，需同步更新 `TCB_AUTH_OAUTH_ENDPOINT` 环境变量
 - 首次部署后可绑定企业自有域名（如 `auth.your-company.com`）
 - 后续更新代码只需让 AI 调用 `updateFunctionCode` 即可
 
 ### 4.5 验证服务
 
 ```bash
-# 测试设备码申请接口
-curl -X POST https://auth.your-company.com/auth/device/code \
+# 测试设备码申请接口（将 {base-url} 替换为实际网关地址）
+curl -X POST https://{base-url}/auth/device/code \
   -H 'Content-Type: application/json' \
   -d '{}'
 
@@ -186,7 +195,7 @@ curl -X POST https://auth.your-company.com/auth/device/code \
 {
   "device_code": "a1b2c3d4...",
   "user_code": "1234-5678",
-  "verification_uri": "https://auth.your-company.com/cli-auth.html",
+  "verification_uri": "https://{base-url}/cli-auth.html",
   "expires_in": 600,
   "interval": 3
 }
@@ -208,12 +217,21 @@ curl -X POST https://auth.your-company.com/auth/device/code \
       "args": ["@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "Codex",
-        "TCB_AUTH_OAUTH_ENDPOINT": "https://auth.your-company.com"
+        "TCB_AUTH_OAUTH_ENDPOINT": "https://{your-gateway-domain}/{path-prefix}"
       }
     }
   }
 }
 ```
+
+> **关于 `TCB_AUTH_OAUTH_ENDPOINT` 的值**：根据网关创建 HTTP 访问入口时的 `path` 参数决定。例如网关 path 设为 `/auth`，则 endpoint 为 `https://{gateway-domain}/auth`。该值与网关 path 前缀一致，工具箱内部会自动拼接 `/device/code`、`/token` 等子路径。
+
+**可选配置项：**
+
+| 环境变量 | 说明 | 默认值 |
+|---------|------|--------|
+| `TCB_AUTH_CLIENT_ID` | 自定义 device-code 登录 client_id（高级可选） | 不设则使用默认 client_id |
+| `TCB_AUTH_OAUTH_CUSTOM` | 自定义 endpoint 返回格式开关（高级可选） | 未配置 endpoint 时默认 `false`；配置 endpoint 后默认 `true` |
 
 ### 5.2 设备码登录
 
@@ -221,7 +239,7 @@ curl -X POST https://auth.your-company.com/auth/device/code \
 
 ```
 Device confirmation requested. Open the following URL in your browser:
-  https://auth.your-company.com/cli-auth.html
+  https://{base-url}/cli-auth.html
 
 Enter the code: 1234-5678
 Waiting for authorization...
@@ -281,18 +299,17 @@ sequenceDiagram
 
 ### 5.4 验证开发能力
 
-登录成功后，Codex 中的 MCP 工具即可操作用户环境：
+登录成功后，Codex 中的 MCP 工具即可通过自然语言操作用户环境：
 
-```bash
-# 查看环境信息
-tcb env list
+> **查看环境信息**：输入"查看当前环境信息"或"列出所有环境"
+>
+> **部署云函数**：输入"帮我部署一个 hello-world 云函数"或"将当前目录下的函数部署到云端"
+>
+> **操作数据库**：输入"查询 users 集合中的所有数据"或"在数据库中创建一个新表"
+>
+> **管理存储**：输入"上传文件到云存储"或"列出存储桶中的文件"
 
-# 部署云函数
-tcb fn deploy hello-world
-
-# 操作数据库
-tcb db query collection
-```
+AI 会自动调用相应的 MCP 工具完成操作，无需手动输入 CLI 命令。
 
 ---
 

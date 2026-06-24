@@ -12,6 +12,7 @@ import {
   saveRefreshRecord,
   deleteRefreshRecord,
   cleanupExpiredRecords,
+  findApiKeyByEnvId,
 } from './utils/device-store';
 import { generateDeviceCode, generateUserCode, INVALID_GRANT_ERROR, AUTHORIZATION_PENDING_ERROR } from './utils/oauth';
 import { createEnv, createApiKey, findEnvByAlias } from './utils/tcb';
@@ -68,9 +69,27 @@ app.get('/', (_req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// GET /auth/config — 返回前端 SDK 初始化配置
+// GET /check-status — 轮询查询设备码对应的环境状态
 // ─────────────────────────────────────────────
-app.get('/auth/config', (_req, res) => {
+app.get('/check-status', async (req, res) => {
+  const userCode = req.query.user_code as string;
+  if (!userCode) {
+    return res.json({ status: 'invalid', message: '缺少 user_code' });
+  }
+  const record = await findDeviceByUserCode(userCode);
+  if (!record) {
+    return res.json({ status: 'not_found' });
+  }
+  if (record.status === 'consumed' && record.envId) {
+    return res.json({ status: 'ready', envId: record.envId });
+  }
+  return res.json({ status: 'pending' });
+});
+
+// ─────────────────────────────────────────────
+// GET /config — 返回前端 SDK 初始化配置
+// ─────────────────────────────────────────────
+app.get('/config', (_req, res) => {
   res.json({
     envId: CLOUDBASE_ENV_ID,
     region: CLOUDBASE_REGION,
@@ -79,9 +98,9 @@ app.get('/auth/config', (_req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// POST /auth/device/code — 申请设备授权码
+// POST /device/code — 申请设备授权码
 // ─────────────────────────────────────────────
-app.post('/auth/device/code', deviceCodeLimiter, async (req, res) => {
+app.post('/device/code', deviceCodeLimiter, async (req, res) => {
   const clientId = req.body?.client_id || 'default';
   const deviceCode = generateDeviceCode();
   const userCode = generateUserCode();
@@ -110,10 +129,10 @@ app.post('/auth/device/code', deviceCodeLimiter, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// POST /auth/verify-cloudbase — CloudBase 托管登录页认证后的回调
+// POST /verify-cloudbase — CloudBase 托管登录页认证后的回调
 // 浏览器端完成 OAuth 后调用此接口完成设备码授权
 // ─────────────────────────────────────────────
-app.post('/auth/verify-cloudbase', verifyLimiter, async (req, res) => {
+app.post('/verify-cloudbase', verifyLimiter, async (req, res) => {
   const {
     user_code: userCode,
     cloudbase_uid: cloudbaseUid,
@@ -185,9 +204,9 @@ app.post('/auth/verify-cloudbase', verifyLimiter, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// POST /auth/device/verify — 原确认接口（兼容简单场景）
+// POST /device/verify — 原确认接口（兼容简单场景）
 // ─────────────────────────────────────────────
-app.post('/auth/device/verify', async (req, res) => {
+app.post('/device/verify', async (req, res) => {
   const { user_code: userCode } = req.body;
   if (!userCode) {
     return res.status(400).json({ error: 'invalid_request', error_description: 'user_code is required' });
@@ -201,9 +220,9 @@ app.post('/auth/device/verify', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// POST /auth/token — 轮询/续期/退出
+// POST /token — 轮询/续期/退出
 // ─────────────────────────────────────────────
-app.post('/auth/token', tokenLimiter, async (req, res) => {
+app.post('/token', tokenLimiter, async (req, res) => {
   const { grant_type, device_code: deviceCode, refresh_token: refreshToken, client_id: clientId } = req.body;
 
   // ── device_code（轮询） ──
@@ -223,10 +242,20 @@ app.post('/auth/token', tokenLimiter, async (req, res) => {
     if (!record.envId && record.cloudbaseUid) {
       try {
         let envId = await findEnvByAlias(record.cloudbaseUid);
-        if (!envId) {
+        let apiKey: string, apiKeyId: string;
+        if (envId) {
+          // 已有环境，复用之前签发的 API Key
+          const existing = await findApiKeyByEnvId(envId);
+          if (existing) {
+            apiKey = existing.apiKey;
+            apiKeyId = existing.apiKeyId;
+          } else {
+            ({ apiKey, apiKeyId } = await createApiKey(envId, `user-${record.cloudbaseUid}`, 7 * 24 * 3600));
+          }
+        } else {
           envId = await createEnv(record.cloudbaseUid);
+          ({ apiKey, apiKeyId } = await createApiKey(envId, `user-${record.cloudbaseUid}`, 7 * 24 * 3600));
         }
-        const { apiKey, apiKeyId } = await createApiKey(envId, `user-${record.cloudbaseUid}`, 7 * 24 * 3600);
         record.envId = envId;
         record.apiKey = apiKey;
         record.apiKeyId = apiKeyId;
