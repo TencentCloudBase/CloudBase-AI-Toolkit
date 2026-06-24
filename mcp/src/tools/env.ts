@@ -1890,9 +1890,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           .optional()
           .describe("环境地域（action=create 时可选）。默认 ap-shanghai，可选 ap-guangzhou、ap-beijing 等"),
         resources: z
-          .array(z.enum(["flexdb", "storage", "function"]))
+          .array(z.enum(["flexdb", "storage", "function", "postgresql"]))
           .optional()
-          .describe("启用的资源类型（action=create 时可选）。默认启用全部三项：flexdb(文档数据库)、storage(存储)、function(云函数)"),
+          .describe("启用的资源类型（action=create 时可选）。默认启用全部四项：flexdb(文档数据库)、storage(存储)、function(云函数)、postgresql(PostgreSQL 数据库)"),
         duration: z
           .number()
           .int()
@@ -1958,7 +1958,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               return buildJsonToolResult({
                 ok: false,
                 code: "CONFIRM_REQUIRED",
-                message: `创建环境需要您确认。请确认以下配置信息后传入 confirm="yes"：\n别名: ${alias}\n套餐: ${packageId}\n地域: ${region}\n资源类型: ${resources?.join(", ") ?? "flexdb, storage, function"}\n时长: ${duration} 个月`,
+                message: `创建环境需要您确认。请确认以下配置信息后传入 confirm="yes"：\n别名: ${alias}\n套餐: ${packageId}\n地域: ${region}\n资源类型: ${resources?.join(", ") ?? "flexdb, storage, function, postgresql"}\n时长: ${duration} 个月`,
                 next_step: {
                   tool: "manageEnv",
                   action: "create",

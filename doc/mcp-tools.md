@@ -345,7 +345,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "resources",
       type: "array of string",
-      description: `启用的资源类型（action=create 时可选）。默认启用全部三项：flexdb(文档数据库)、storage(存储)、function(云函数)`,
+      description: `启用的资源类型（action=create 时可选）。默认启用全部四项：flexdb(文档数据库)、storage(存储)、function(云函数)、postgresql(PostgreSQL 数据库)`,
     },
     {
       name: "duration",
