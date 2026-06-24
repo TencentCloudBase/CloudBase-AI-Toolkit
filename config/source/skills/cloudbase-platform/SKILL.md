@@ -179,6 +179,45 @@ Example structure for operation recording:
      - Do **not** use dynamic imports like `import("@cloudbase/js-sdk")` or async wrappers such as `initCloudBase()` with internal `initPromise`
    - Then proceed with login using a verified method (username/password, phone, email, or WeChat)
 
+2. **Environment Management (via manageEnv)**:
+   The `manageEnv` tool provides full lifecycle management for CloudBase environments.
+
+   | Action | Description | Key Parameters |
+   |--------|-------------|----------------|
+   | `listPackages` | Query available plans | (none) |
+   | `create` | Create new environment (needs confirm) | `alias`, `packageId`, `resources`, `region`, `duration` |
+   | `modifyPlan` | Change plan (upgrade/downgrade, needs confirm) | `envId`, `packageId` |
+   | `renew` | Renew environment (needs confirm) | `envId`, `duration` |
+
+   **Creating an environment with specific resources:**
+   ```
+   manageEnv(action="create", alias="my-env", packageId="baas_personal",
+             resources=["flexdb","storage","function","postgresql"], confirm="yes")
+   ```
+
+   - **`resources`** (optional, create only): controls which CloudBase capabilities to enable:
+     - `flexdb` — Document database (NoSQL)
+     - `storage` — Cloud Storage
+     - `function` — Cloud Functions
+     - `postgresql` — PostgreSQL relational database (PG mode)
+   - Defaults to all enabled if omitted.
+   - ⚠️ **All paid operations** (create / modifyPlan / renew) require `confirm="yes"`.
+
+   **Querying available packages before creating:**
+   ```
+   manageEnv(action="listPackages")
+   ```
+
+   **Changing plan (e.g. personal → standard):**
+   ```
+   manageEnv(action="modifyPlan", envId="your-env-id", packageId="baas_pf_standard", confirm="yes")
+   ```
+
+   **Renewing an environment:**
+   ```
+   manageEnv(action="renew", envId="your-env-id", duration=1, confirm="yes")
+   ```
+
 ## Authentication Best Practices
 
 **Important: Authentication methods for different platforms are completely different, must strictly distinguish!**

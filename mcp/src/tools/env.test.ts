@@ -1323,7 +1323,7 @@ describe("manageEnv", () => {
           alias: "my-env",
           packageId: "baas_personal",
           region: "ap-shanghai",
-          resources: ["flexdb", "storage", "function"],
+          resources: ["flexdb", "storage", "function", "postgresql"],
           duration: 1,
           confirm: "yes",
         })
@@ -1335,7 +1335,7 @@ describe("manageEnv", () => {
       PackageId: "baas_personal",
       Region: "ap-shanghai",
       Period: 1,
-      Resources: ["flexdb", "storage", "function"],
+      Resources: ["flexdb", "storage", "function", "postgresql"],
     });
     expect(payload).toMatchObject({
       ok: true,
