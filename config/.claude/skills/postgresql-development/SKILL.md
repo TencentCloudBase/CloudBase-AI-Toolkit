@@ -1,7 +1,7 @@
 ---
 name: postgresql-development-cloudbase
 description: "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG."
-version: 2.23.1
+version: 2.23.3
 alwaysApply: false
 ---
 
@@ -66,6 +66,15 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
    - If both `postgresql` and `nosql` are `true` (the common case in a PG environment), they coexist. Apply this skill to NEW business data the task asks you to put in PG (e.g. articles / role tables explicitly described as PG). Existing NoSQL collections, the bucket reported in `EnvInfo.Storages[]`, and any `managePermissions(resourceType="noSqlDatabase")` rules continue to govern the legacy NoSQL data — do NOT migrate or rewrite them unless the task explicitly asks.
    - `RuntimeBackends.mysql === false` is the only hard "do not use" signal: when MySQL is absent, do not use `manageSqlDatabase` / `querySqlDatabase` and do not consult the `relational-database-tool` skill; those are MySQL-specific and have nothing to do with CloudBase PG.
    - Note: in a PG env, `EnvInfo.Storages[]` is the legacy NoSQL bucket. It still works for legacy `app.uploadFile()` flows but is NOT a usable pgstore bucket — never reuse it as the `<bucket>` segment in `app.storage.from('<bucket>').upload('<key>', file)`.
+
+> **Creating a PG-mode environment**
+>
+> If step 0 shows `RuntimeBackends.postgresql === false` and you need PostgreSQL, create a new environment with PG enabled:
+>
+> - **Via MCP**: `manageEnv(action="create", alias="my-env", packageId="baas_personal", resources=["flexdb","storage","function","postgresql"], confirm="yes")`
+> - **Via CLI**: `tcb env create --alias my-env --package baas_personal --postgresql --yes`
+> - **Via Console**: [Create environment](https://console.cloud.tencent.com/tcb/env/create)
+
 1. Inspect the existing app surfaces first: `src/lib/backend.*`, `src/lib/auth.*`, `src/lib/*service.*`, route guards, and the handlers bound to existing forms.
 2. Check PG state through MCP: use `queryPgDatabase` for schema/read-only inspection and `managePgDatabase` for DDL/DML. Do not switch to MySQL tools. For the complete route map, read `references/index.md`.
 3. **Understand PG roles before writing code:** Publishable Key maps to `anon`; a logged-in user's access token maps to `authenticated`; API Key maps to `service_role` and bypasses RLS. Never expose API Key / `service_role` credentials in frontend code. See `references/auth-and-rls.md`.
@@ -75,6 +84,12 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
    - `managePgDatabase(action=listMigrations)` — list all applied migrations
    - `managePgDatabase(action=migrationDetail, objectName=...)` — inspect a single migration
    - `managePgDatabase(action=rollbackMigration, objectName=..., confirm=true)` — roll back a migration
+
+   **🚨 CRITICAL: Inspect table existence and column names before CREATE TABLE.** `CREATE TABLE IF NOT EXISTS` silently skips when the table already exists, even if the column names are wrong. Always call `queryPgDatabase(action="sql", sql="SELECT column_name, data_type FROM information_schema.columns WHERE table_name='xxx'")` first to check whether the table exists and what exact column names it uses. If the table already exists with mismatched column names (e.g. `user_id` instead of `uid`), you must either:
+   - `ALTER TABLE` to add/rename/drop columns, or
+   - `DROP TABLE IF EXISTS ... CASCADE` and recreate (only when data loss is acceptable, e.g. disposable/evaluation environments).
+   - Do NOT rely on `CREATE TABLE IF NOT EXISTS` silent skip — it will cause all downstream CRUD queries to fail with wrong field names.
+   - After DDL, re-query the schema and compare every column name used by frontend code, insert/update payloads, filters, ordering, and RLS policies.
 5. Check username-password auth before coding login:
    - Call `queryAppAuth(action="getLoginConfig")`.
    - If `loginMethods.usernamePassword !== true`, call `manageAppAuth(action="patchLoginStrategy", patch={ usernamePassword: true })`.
@@ -92,6 +107,7 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
    - Insert a test row using `author_id = session.user.id`.
    - Read it back with `queryPgDatabase`.
    - If INSERT/SELECT fails, inspect the exact RLS error and fix the policy or switch to a server/RPC boundary. Do not leave browser-facing tables with broken RLS.
+   - **⚠️ Do NOT use `current_user` or `current_setting(...)` in RLS policies.** `current_user` in PostgreSQL returns the database role name (e.g. `authenticated`), NOT the CloudBase auth user ID. Always use `auth.uid()` for user identity checks. If you are unsure whether the auth helpers are available, run `SELECT proname FROM pg_proc WHERE pronamespace = 'auth'::regnamespace` to list all available `auth.*` functions.
 10. Use PG HTTP API only as a fallback after reading OpenAPI docs and verifying the auth model in the installed SDK. Do not guess URLs such as `/api/v1/rdb/rest`; the documented base is `https://<envId>.api.tcloudbasegateway.com/v1/rdb/rest/<table>` and auth is `Authorization: Bearer <Publishable Key | access_token | API Key>`.
 11. Keep cover images in CloudBase Storage. Store only the final file URL or file metadata in PG.
 12. Verify both layers before claiming done: project build/typecheck and browser E2E for login/CRUD, then read back rows with `queryPgDatabase`. When debugging RLS, run SQL as `authenticated` / `anon` if the tool supports role simulation; admin/default execution can bypass the user-facing failure.
