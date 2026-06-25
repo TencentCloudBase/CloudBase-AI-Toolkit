@@ -334,13 +334,15 @@ export function registerStorageTools(server: ExtendedMcpServer) {
 
       switch (input.action) {
         case 'upload': {
+          const localPath = input.localPath!;
+          const cloudPath = input.cloudPath!;
           if (input.isDirectory) {
             if (storageOverrides?.uploadDirectory) {
-              await storageOverrides.uploadDirectory({ localPath: input.localPath, cloudPath: input.cloudPath });
+              await storageOverrides.uploadDirectory({ localPath, cloudPath });
             } else {
               await storageService.uploadDirectory({
-                localPath: input.localPath,
-                cloudPath: input.cloudPath,
+                localPath,
+                cloudPath,
                 onProgress: (progressData: any) => {
                   console.log("Upload directory progress:", progressData);
                 }
@@ -348,11 +350,11 @@ export function registerStorageTools(server: ExtendedMcpServer) {
             }
           } else {
             if (storageOverrides?.uploadFile) {
-              await storageOverrides.uploadFile({ localPath: input.localPath, cloudPath: input.cloudPath });
+              await storageOverrides.uploadFile({ localPath, cloudPath });
             } else {
               await storageService.uploadFile({
-                localPath: input.localPath,
-                cloudPath: input.cloudPath,
+                localPath,
+                cloudPath,
                 onProgress: (progressData: any) => {
                   console.log("Upload file progress:", progressData);
                 }
