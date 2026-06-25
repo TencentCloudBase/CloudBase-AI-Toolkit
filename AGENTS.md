@@ -152,6 +152,7 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 3. 然后自动创建 PR。
 4. 创建 PR 后先等待几分钟，再检查 review 评论和 CI；如果有可执行的问题，继续在同一分支修复并更新 PR。
 5. **每次推送代码到 PR 分支后，必须立即检查 PR 状态**：包括是否有冲突（`This branch has conflicts that must be resolved`）、CI 是否通过、机器人评论是否已解决。不要假设推送后万事大吉，冲突和 CI 失败往往只在远程才暴露。
+6. **CI 主动监控（强制）**：git push 后必须主动监控 CI Pipeline，不能等用户提醒。使用 `gh pr view --json statusCheckRollup` 等待 CI 完成；如果 CI 失败，自动分析日志并修复；CI 全绿后主动告知用户。
 </git_push>
 
 <skills_and_rules_maintenance>
