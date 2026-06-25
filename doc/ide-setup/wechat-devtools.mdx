@@ -3,7 +3,9 @@ import RelatedResources from '../components/RelatedResources';
 
 # 微信开发者工具配置指南
 
-配置后，你可以在微信开发者工具中的 CodeBuddy 扩展里直接操作 CloudBase 服务。
+微信云开发 AI ToolKit 帮助开发者基于微信云开发高效构建、调试和部署小程序。
+
+![](https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/imgs/wechat-ide-extension/ide-extension.png)
 
 **例如：**
 
@@ -11,22 +13,14 @@ import RelatedResources from '../components/RelatedResources';
 - "部署这个函数" - AI 自动上传并配置云函数
 - "部署前端到 CDN" - AI 自动上传文件并配置托管
 
-无需切换到云控制台，所有操作都可以在 CodeBuddy 中用自然语言完成。
+无需切换到云控制台，所有操作都可以用自然语言完成。
 
 ## 前置条件
 
 在开始配置之前，请确保满足以下条件：
 
 <details>
-<summary><strong>已准备好Node.js 环境和云开发环境</strong></summary>
-
-**Node.js 环境：** 确保已安装 Node.js v18.15.0 或更高版本：
-
-```bash
-node --version
-```
-
-如果未安装，请从 [Node.js 官网](https://nodejs.org/en/download) 下载安装。
+<summary><strong>已准备好云开发环境</strong></summary>
 
 **云开发环境：** 请参考文档 [开通云开发环境](https://docs.cloudbase.net/quick-start/create-env)。新用户可以免费开通体验。
 
@@ -36,22 +30,70 @@ node --version
 
 <IDESelector defaultIDE="wechat-devtools" showInstallButton={false} />
 
+## 常用技巧
+
+### 切换权限模式
+
+CodeBuddy 提供多种权限模式用于控制 AI 工具的使用授权，通过快捷键可以快速切换：
+
+| 快捷键 | 说明 |
+| --- | --- |
+| `Shift+Tab` (macOS/Linux) | 切换权限模式 |
+| `Alt+M` (Windows) | 切换权限模式 |
+
+循环顺序：`default` → `bypassPermissions` → `acceptEdits` → `auto`（可用时） → `plan` → `delegate`
+
+| 模式 | 说明 |
+| --- | --- |
+| **default（默认）** | 根据权限规则询问工具使用确认 |
+| **bypassPermissions** | 跳过所有权限检查 |
+| **acceptEdits** | 自动批准文件编辑操作，其他工具仍需确认 |
+| **plan** | AI 制定计划并等待批准后再执行 |
+
+> 参考文档：[交互模式](http://codebuddy.cn/docs/cli/interactive-mode)
+
+### 其他常用快捷键
+
+| 快捷键 | 说明 |
+| --- | --- |
+| `Ctrl+O` | 切换详细输出，显示工具使用和执行信息 |
+| `Ctrl+L` | 清除终端屏幕，保留对话历史 |
+| `Tab` | 切换思考模式（思考开启/关闭） |
+| `Option+P` (macOS) / `Alt+P` (Windows/Linux) | 快速切换模型 |
+
+## 常用示例提示词
+
+以下是你可以直接复制使用的示例提示词，尝试用自然语言描述需求，AI 会自动完成开发任务。
+
+### 页面与功能开发
+
+- "帮我创建一个商品列表页面，包含图片、标题、价格和加入购物车按钮"
+- "帮我完善这个函数，实现商品搜索功能"
+
+### 代码优化与重构
+
+- "优化这个页面的间隔，提升信息密度"
+- "完善云函数调用的错误处理代码"
+
+## 配置云开发 AI 模型
+
+你可以使用云开发提供的 AI 模型来驱动 CodeBuddy，具体配置步骤如下：
+
+1. 在 [AI 控制台](https://tcb.cloud.tencent.com/dev#/ai?tab=text-aiModel) 中开启所需模型，并获取 `Base URL` 和 `API Key`
+2. 打开 CodeBuddy，点击 **打开 Agents**
+3. 在对话面板大模型列表中，选择 **配置自定义模型**
+4. 填写复制的 `Base URL`、`API Key` 和模型名称，保存后即可使用
+
+> 参考文档：[CodeBuddy 配置云开发模型](https://docs.cloudbase.net/ai/ai-tools/codebuddy) | [models.json 配置指南](https://www.codebuddy.cn/docs/cli/models)
+
 ## 常见问题
 
-**Q: MCP 连接失败？**
-A: 检查 CodeBuddy 扩展是否正确安装，重启微信开发者工具，确认网络连接正常。
+**Q: 无法使用 AI ToolKit？**
+A: 请确保已登录微信开发者工具，确认网络连接正常。
 
-**Q: 工具数量显示为 0？**
-A: 请参考[常见问题](../faq#mcp-显示工具数量为-0-怎么办)。
+**Q: 如何切换权限模式？**
+A: 使用 `Shift+Tab`（macOS/Linux）或 `Alt+M`（Windows）在模式之间循环切换。Windows 用户必须使用 `Alt+M`。
 
 更多问题请查看：[完整 FAQ](../faq)
 
 <RelatedResources ideName="CodeBuddy" ideDocUrl="https://www.codebuddy.ai/docs/zh/ide/Config%20MCP" />
-
-
-
-
-
-
-
-
