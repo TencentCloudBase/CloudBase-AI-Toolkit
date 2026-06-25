@@ -271,6 +271,15 @@ export function registerAgentTools(server: ExtendedMcpServer) {
             throw new Error("action=createAgent 时必须提供 name（可通过顶层 name 或 params.name 传入）");
           }
 
+          // CloudBase 后端在创建 Agent 时会同步创建云函数，函数名/别名长度受 SCF 限制（最大 64 字符）。
+          // envId 可能被用作前缀或别名的一部分，因此这里预留足够余量，避免后端 CreateFunction 失败。
+          if (normalizedName.length > 30) {
+            throw new Error(
+              `agent name 过长（当前 ${normalizedName.length} 字符）。CloudBase 创建 Agent 时会同步创建云函数，` +
+              `函数名/别名受 SCF 64 字符限制，且 envId 可能作为前缀拼接。请将 name 控制在 30 字符以内。`
+            );
+          }
+
           const createPayload = {
             ...payload,
             Name: normalizedName,
@@ -326,6 +335,17 @@ export function registerAgentTools(server: ExtendedMcpServer) {
           ),
         );
       } catch (error) {
+        // 对后端 InternalError 提供更有意义的错误信息
+        const errMsg = error instanceof Error ? error.message : String(error);
+        if (errMsg.includes("InternalError") || errMsg.includes("服务处理出错")) {
+          server.logger?.({
+            type: "createAgentError",
+            message: "createAgent 后端返回 InternalError，可能是云函数创建失败",
+            originalError: errMsg,
+            name: payload?.Name,
+            runtime: payload?.Runtime,
+          });
+        }
         return jsonContent(buildErrorEnvelope(error));
       }
     },
