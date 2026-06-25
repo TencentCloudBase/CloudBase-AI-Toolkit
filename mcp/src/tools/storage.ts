@@ -421,22 +421,24 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         }
 
         case 'download': {
+          const dlCloudPath = input.cloudPath!;
+          const dlLocalPath = input.localPath!;
           if (input.isDirectory) {
             if (storageOverrides?.downloadDirectory) {
-              await storageOverrides.downloadDirectory({ cloudPath: input.cloudPath, localPath: input.localPath });
+              await storageOverrides.downloadDirectory({ cloudPath: dlCloudPath, localPath: dlLocalPath });
             } else {
               await storageService.downloadDirectory({
-                cloudPath: input.cloudPath,
-                localPath: input.localPath
+                cloudPath: dlCloudPath,
+                localPath: dlLocalPath
               });
             }
           } else {
             if (storageOverrides?.downloadFile) {
-              await storageOverrides.downloadFile({ cloudPath: input.cloudPath, localPath: input.localPath });
+              await storageOverrides.downloadFile({ cloudPath: dlCloudPath, localPath: dlLocalPath });
             } else {
               await storageService.downloadFile({
-                cloudPath: input.cloudPath,
-                localPath: input.localPath
+                cloudPath: dlCloudPath,
+                localPath: dlLocalPath
               });
             }
           }
