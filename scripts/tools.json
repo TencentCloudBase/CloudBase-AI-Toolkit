@@ -1589,7 +1589,7 @@
           },
           "localPath": {
             "type": "string",
-            "description": "本地文件路径，建议传入绝对路径，例如 /tmp/files/data.txt"
+            "description": "本地文件路径，建议传入绝对路径，例如 /tmp/files/data.txt；upload/download 操作时必填，delete 操作时不需要传该参数"
           },
           "cloudPath": {
             "type": "string",
@@ -1608,7 +1608,6 @@
         },
         "required": [
           "action",
-          "localPath",
           "cloudPath"
         ],
         "additionalProperties": false,
