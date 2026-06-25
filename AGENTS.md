@@ -128,11 +128,6 @@ alwaysApply: true
 cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 </sync_doc>
 
-<update_readme>
-1. 按照中文文档更新英文文档
-2. 英文文档中的 banner 图是英文的，保持不变
-3. 复制 README.md 覆盖 mcp/
-</update_readme>
 
 <fix_config_hardlinks>
 兼容文件不再通过硬链接维护。
