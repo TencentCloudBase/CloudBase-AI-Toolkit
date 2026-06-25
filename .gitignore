@@ -1,18 +1,21 @@
+
+.codebuddy/
+.DS_Store
+.env.local
+.generated
+.skills-repo-output
+.workbuddy/
+.worktrees/
+**/.cloudbase-sites/
+**/.env
+**/*.dxt
 **/dist
 **/node_modules
-**/.env
-**/.cloudbase-sites/
-**/*.dxt
-# Environment variables
-.env.local
-# Package publish backup files
 **/package.json.backup
-.skills-repo-output
-.generated
-.DS_Store
-.codebuddy/
-
+# 本地 e2e 测试（集成测试，走单独 CI）
+# Environment variables
 # MCP local IDE / rules artifacts
+# Package publish backup files
 mcp/.agent/
 mcp/.claude/
 mcp/.clinerules/
@@ -32,7 +35,4 @@ mcp/.trae/
 mcp/.vscode/
 mcp/.windsurf/
 mcp/rules/
-.workbuddy/
-
-# 本地 e2e 测试（集成测试，走单独 CI）
 mcp/src/wxide-mcp-e2e.test.js
