@@ -207,7 +207,7 @@ curl -X POST https://{base-url}/auth/device/code \
 
 ### 5.1 方式一：通过 MCP 插件快速接入（推荐）
 
-在 Codex 中安装 CloudBase MCP 插件后（参见[配置指南](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codex)），直接在对话中输入：
+在 Codex 中安装 CloudBase MCP 插件后（参见[安装指南](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ai-agent-plugins)），直接在对话中输入：
 
 ```
 使用 CloudBase，SSO 授权地址是 https://{your-gateway-domain}/{path-prefix}
@@ -217,7 +217,7 @@ AI 会自动完成 MCP 配置和授权对接，无需手动编写环境变量。
 
 ### 5.2 方式二：手动配置环境变量
 
-如果偏好手动控制，也可以通过配置 MCP 环境变量接入：
+如果偏好手动控制，也可以通过配置 MCP 环境变量接入（参见 [Codex MCP 环境变量配置说明](https://github.com/openai/codex/issues/24401)）：
 
 ```json
 {
