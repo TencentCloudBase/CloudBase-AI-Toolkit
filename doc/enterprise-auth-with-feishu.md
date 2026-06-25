@@ -160,7 +160,7 @@ npm run dev
 
 **前提**：确保 AI 开发工具已启用 CloudBase MCP（参见[配置指南](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy)）。
 
-**数据库集合准备**：授权服务使用 CloudBase NoSQL 文档数据库存储设备码和令牌记录，部署前需要在环境中创建以下集合（MCP 工具会自动创建，或手动在控制台创建）：
+**数据库集合准备**：授权服务使用 CloudBase NoSQL 文档数据库存储设备码和令牌记录，部署时对 AI 说"创建 auth_devices 和 auth_refresh_tokens 集合"，MCP 会自动创建：
 
 | 集合名 | 用途 |
 |--------|------|
@@ -205,9 +205,19 @@ curl -X POST https://{base-url}/auth/device/code \
 
 ## 5. 对接 Codex
 
-### 5.1 安装插件
+### 5.1 方式一：通过 MCP 插件快速接入（推荐）
 
-在 Codex 中安装 `cloudbase-auth` 插件，或手动配置 MCP 环境变量：
+在 Codex 中安装 CloudBase MCP 插件后（参见[配置指南](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codex)），直接在对话中输入：
+
+```
+使用 CloudBase，SSO 授权地址是 https://{your-gateway-domain}/{path-prefix}
+```
+
+AI 会自动完成 MCP 配置和授权对接，无需手动编写环境变量。
+
+### 5.2 方式二：手动配置环境变量
+
+如果偏好手动控制，也可以通过配置 MCP 环境变量接入：
 
 ```json
 {
@@ -233,7 +243,7 @@ curl -X POST https://{base-url}/auth/device/code \
 | `TCB_AUTH_CLIENT_ID` | 自定义 device-code 登录 client_id（高级可选） | 不设则使用默认 client_id |
 | `TCB_AUTH_OAUTH_CUSTOM` | 自定义 endpoint 返回格式开关（高级可选） | 未配置 endpoint 时默认 `false`；配置 endpoint 后默认 `true` |
 
-### 5.2 设备码登录
+### 5.3 设备码登录
 
 配置好 `TCB_AUTH_OAUTH_ENDPOINT` 后，Codex 会在自动执行设备码授权流程，CLI 会输出设备码和授权页地址：
 
@@ -245,7 +255,7 @@ Enter the code: 1234-5678
 Waiting for authorization...
 ```
 
-### 5.3 浏览器授权
+### 5.4 浏览器授权
 
 打开授权页，输入设备码，点击「授权登录」：
 
@@ -297,7 +307,7 @@ sequenceDiagram
     Note over Codex,User: 授权完成，可以开始开发
 ```
 
-### 5.4 验证开发能力
+### 5.5 验证开发能力
 
 登录成功后，Codex 中的 MCP 工具即可通过自然语言操作用户环境：
 
