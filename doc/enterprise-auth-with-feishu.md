@@ -82,7 +82,7 @@ flowchart TB
 |------|------|
 | 管理中心环境 | 1 个 CloudBase 环境，用于部署授权服务 |
 | Publishable Key | 控制台「身份认证 → 应用管理」获取 |
-| **腾讯云 API 密钥** | 控制台「访问管理 → API 密钥管理」获取（需具备 `tcb:CreateEnv` + `tcb:CreateApiKey` 权限） |
+| **腾讯云 API 密钥** | 控制台「访问管理 → API 密钥管理」获取（需具备 `tcb:CreateEnv` + `tcb:DescribeEnvs` + `tcb:CreateApiKey` 权限）。注意 `CreateEnv` 是付费操作，**生产部署建议使用子账号密钥**并限制资源范围，避免滥用导致资损 |
 
 ### 3.2 企业身份源
 
@@ -207,7 +207,7 @@ curl -X POST https://{base-url}/auth/device/code \
 
 ### 5.1 方式一：通过 MCP 插件快速接入（推荐）
 
-在 Codex 中安装 CloudBase MCP 插件后（参见[配置指南](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codex)），直接在对话中输入：
+在 Codex 中安装 CloudBase MCP 插件后（参见[安装指南](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ai-agent-plugins)），直接在对话中输入：
 
 ```
 使用 CloudBase，SSO 授权地址是 https://{your-gateway-domain}/{path-prefix}
@@ -217,7 +217,7 @@ AI 会自动完成 MCP 配置和授权对接，无需手动编写环境变量。
 
 ### 5.2 方式二：手动配置环境变量
 
-如果偏好手动控制，也可以通过配置 MCP 环境变量接入：
+如果偏好手动控制，也可以在 Codex 中手动配置 MCP 环境变量：
 
 ```json
 {
@@ -268,43 +268,57 @@ sequenceDiagram
     participant CloudBase as CloudBase 托管登录页
     participant Feishu as 飞书/企业身份源
 
-    Codex->>Auth: POST /auth/device/code
-    Auth-->>Codex: device_code, user_code, verification_uri
+    rect rgb(240, 248, 255)
+        Note over Codex,Auth: ① 申请设备码
+        Codex->>Auth: POST /auth/device/code
+        Auth-->>Codex: device_code, user_code, verification_uri
+    end
 
-    Note over Codex,User: 用户看到授权页地址
+    rect rgb(255, 250, 230)
+        Note over User,Browser: ② 浏览器完成授权
+        User->>Browser: 打开 verification_uri
+        User->>Browser: 输入 user_code (1234-5678)
+        User->>Browser: 点击"授权登录"
 
-    User->>Browser: 打开 verification_uri
-    User->>Browser: 输入 user_code (1234-5678)
-    User->>Browser: 点击"授权登录"
+        Browser->>Auth: GET /auth/config (获取 SDK 配置)
+        Auth-->>Browser: envId, publishableKey
 
-    Browser->>Auth: GET /auth/config (获取 SDK 配置)
-    Auth-->>Browser: envId, publishableKey
+        Browser->>CloudBase: auth.toDefaultLoginPage()
+        Note over Browser: sessionStorage 保存 user_code
 
-    Browser->>CloudBase: auth.toDefaultLoginPage()
-    Note over Browser: sessionStorage 保存 user_code
+        CloudBase->>Feishu: OAuth 2.0 授权请求
+        Feishu-->>User: 飞书扫码/确认
+        User-->>Feishu: 授权
 
-    CloudBase->>Feishu: OAuth 2.0 授权请求
-    Feishu-->>User: 飞书扫码/确认
-    User-->>Feishu: 授权
+        Feishu-->>CloudBase: 授权码回调
+        CloudBase-->>Browser: redirect 回 cli-auth-callback.html
 
-    Feishu-->>CloudBase: 授权码回调
-    CloudBase-->>Browser: redirect 回 cli-auth-callback.html
+        Browser->>Browser: auth.getSession()
+        Note over Browser: 读取 sessionStorage 中的 user_code
 
-    Browser->>Browser: auth.getSession()
-    Note over Browser: 读取 sessionStorage 中的 user_code
+        Browser->>Auth: POST /auth/verify-cloudbase { user_code, cloudbase_uid }
+        Note right of Auth: 仅标记设备码为"已授权"
+        Auth-->>Browser: { status: "ok" }
 
-    Browser->>Auth: POST /auth/verify-cloudbase { user_code, cloudbase_uid }
+        Browser-->>User: ✅ 授权成功（开始轮询环境创建）
+    end
 
-    Auth->>CloudBase: CreateEnv (首次)/FindEnv
-    Auth->>CloudBase: CreateApiKey
-    Auth-->>Browser: { status: "ok", env_id }
-
-    Browser-->>User: ✅ 授权成功
-
-    Codex->>Auth: 轮询 POST /auth/token (grant_type=device_code)
-    Auth-->>Codex: refresh_token, access_token (JWT API Key), env_id
-
-    Note over Codex,User: 授权完成，可以开始开发
+    rect rgb(230, 255, 230)
+        Note over Codex,Auth: ③ CLI/MCP 轮询 Token（在后台自动执行）
+        Codex->>Auth: POST /auth/token (grant_type=device_code)
+        Note right of Auth: 检查该用户是否有已有环境
+        Auth->>Auth: findEnvByAlias(cloudbaseUid)
+        alt 已有环境
+            Note over Auth: 复用现有环境
+            Auth->>Auth: findApiKeyByEnvId(envId)（复用已有 API Key）
+        else 无环境
+            Note over Auth: 创建新环境
+            Auth->>CloudBase: CreateEnv(userAlias)
+            Auth->>CloudBase: CreateApiKey(envId)
+        end
+        Auth-->>Codex: refresh_token, access_token (JWT API Key), env_id
+        Note over Codex,User: 授权完成，可以开始开发
+    end
 ```
 
 ### 5.5 验证开发能力
