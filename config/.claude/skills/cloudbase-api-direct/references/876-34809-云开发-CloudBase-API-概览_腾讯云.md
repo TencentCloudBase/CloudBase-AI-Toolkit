@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-06-17 01:51:50
+最近更新时间：2026-06-25 02:42:37
 
 -   微信扫一扫 
 -   QQ
@@ -88,6 +88,7 @@ _我的收藏_
 | --- | --- | --- |
 | [DescribeCreditsUsage](/document/api/876/132935) | 获取资源点用量 | 20 |
 | [DescribeCreditsUsageDetail](/document/api/876/132934) | 获取资源点用量明细 | 20 |
+| [DescribeEnvPlans](/document/api/876/133103) | 查询环境套餐信息 | 20 |
 
 ## 其他接口
 
