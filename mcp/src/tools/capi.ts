@@ -45,6 +45,20 @@ function levenshteinDistance(left: string, right: string) {
     return matrix[left.length][right.length];
 }
 
+/**
+ * Remove empty string parameters from the params object.
+ * Tencent Cloud APIs reject empty strings for required parameters like StartTime/EndTime.
+ */
+export function removeEmptyStringParams(params: Record<string, any>): Record<string, any> {
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(params)) {
+        if (value !== "") {
+            cleaned[key] = value;
+        }
+    }
+    return cleaned;
+}
+
 function findTcbActionEntry(action: string) {
     if (TCB_ACTION_INDEX_MAP[action]) {
         return TCB_ACTION_INDEX_MAP[action];
@@ -277,9 +291,10 @@ export function registerCapiTools(server: ExtendedMcpServer) {
 
             let result: unknown;
             try {
+                const cleanedParams = params ? removeEmptyStringParams(params) : {};
                 result = await cloudbase.commonService(service).call({
                     Action: action,
-                    Param: params ?? {},
+                    Param: cleanedParams,
                 });
             } catch (error) {
                 throw new Error(buildCapiErrorMessage(service, action, error));
