@@ -82,16 +82,7 @@ flowchart TB
 |------|------|
 | 管理中心环境 | 1 个 CloudBase 环境，用于部署授权服务 |
 | Publishable Key | 控制台「身份认证 → 应用管理」获取 |
-| **腾讯云 API 密钥** | 控制台「访问管理 → API 密钥管理」获取（需通过自定义策略或预设策略授予 `tcb:CreateEnv` + `tcb:CreateApiKey` 权限） |
-
-> CloudBase 提供以下预设策略，可直接绑定到子账号：
->
-> | 策略名称 | 说明 |
-> |------|------|
-> | `QcloudAccessForTCBRole` | 授予云开发对云资源的访问权限（不含 CreateEnv） |
-> | `QcloudAccessForTCBRoleInAccessCloudBaseRun` | 授予云开发访问 VPC、CVM 等云服务资源的权限（用于云托管） |
->
-> `CreateEnv` 和 `CreateApiKey` 为敏感操作，**建议使用子账号自定义策略**，仅授予最小必要权限：`tcb:CreateEnv`、`tcb:DescribeEnvs`、`tcb:CreateApiKey`，避免主账号密钥泄露导致资损。
+| **腾讯云 API 密钥** | 控制台「访问管理 → API 密钥管理」获取（需具备 `tcb:CreateEnv` + `tcb:DescribeEnvs` + `tcb:CreateApiKey` 权限）。注意 `CreateEnv` 是付费操作，**生产部署建议使用子账号密钥**并限制资源范围，避免滥用导致资损 |
 
 ### 3.2 企业身份源
 
