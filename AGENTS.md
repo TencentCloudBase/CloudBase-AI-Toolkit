@@ -2,7 +2,6 @@
 alwaysApply: true
 ---
 
-
 <workflow>
 1. 每当我输入新的需求的时候，为了规范需求质量和验收标准，你首先会搞清楚问题和需求
 2. 需求评估：先根据需求大小、影响范围、复杂度和风险判断是否需要走完整 spec 流程。对于跨模块、中大型、高风险、涉及较多协作或验收边界不清晰的需求，必须先补齐 spec；对于小型、低风险、边界清晰的改动，不强制要求产出 spec，但仍需先明确目标、范围和验收标准。
@@ -45,19 +44,36 @@ alwaysApply: true
 
 
 <project_rules>
-1.项目结构
-- doc 存放对外的文档
-- mcp 核心的 mcp package
-- config 用来给 AI IDE提供的规则和 mcp 预设配置
-- tests 自动化测试
+1. 项目结构
+   - doc 存放对外的文档
+   - mcp 核心的 mcp package
+   - config 用来给 AI IDE 提供的规则和 mcp 预设配置
+   - tests 自动化测试
+   - skills 项目级 skills 源目录
+   - specs 需求/设计/任务文档
+
+2. AGENTS 文件约定
+   - `AGENTS.md` 为项目及子目录的唯一可信源
+   - `CLAUDE.md`、`CODEBUDDY.md` 均为指向 `AGENTS.md` 的软链
+   - 新增子目录时，只需创建 `AGENTS.md`，用软链补齐 `CLAUDE.md`
+
+3. Skills & Rules 目录约定
+   - `.agents/skills` 为 skills 的唯一可信源，`.codebuddy/skills`、`.claude/skills` 软链至此
+   - `.agents/rules` 为 rules 的唯一可信源（尚未创建时以 `.agents/rules` 为目标）
+   - 新增 skills 请直接添加到 `skills/` 目录，`.agents/skills/` 下的软链会自动关联
+   - 如果使用 `npx skills` 命令添加 skills 时保留 `Universal` 选项，不用重复添加 `claude` 和 `codebuddy` 选项
+   - 某个目录中只要有 `AGENTS.md`、`CLAUDE.md` 和 `.agents/skills`、`.claude/skills` 中的任意一个，就需要自动补齐
+
+4. 项目子目录规则
+   - `mcp/` 子目录同样适用本约定：`mcp/AGENTS.md` 为源，`mcp/CLAUDE.md`、`mcp/CODEBUDDY.md` 为软链
 </project_rules>
 
 <attribution_evaluation_guardrails>
 当任务来源于 failing eval、attribution issue、grader、benchmark、trace、result artifact 或其他评测证据时，必须额外遵守以下规则：
 1. 评测证据只用于定位问题，不等于产品公开契约；先判断是否存在真实用户可见的产品缺陷，再决定是否修改产品代码。
 2. 不要为了通过评测而新增 benchmark-only / grader-only 的兼容分支、提示词、注释、文案或行为。
-3. 不要新增同一语义字段的多套命名变体（例如大小写/下划线别名）来“兼容评测”，除非该别名已经是文档化的公开契约。
-4. 不要在代码、注释、文档、提交说明或 PR 描述中泄漏内部评测文件名或上下文路径（例如 `run-result.json`、`run-trace.json`、`evaluation-trace.json`、`.codebuddy/attribution-context`）；如必须提及，统一改写为“internal evaluation evidence”。
+3. 不要新增同一语义字段的多套命名变体（例如大小写/下划线别名）来"兼容评测"，除非该别名已经是文档化的公开契约。
+4. 不要在代码、注释、文档、提交说明或 PR 描述中泄漏内部评测文件名或上下文路径（例如 `run-result.json`、`run-trace.json`、`evaluation-trace.json`、`.codebuddy/attribution-context`）；如必须提及，统一改写为"internal evaluation evidence"。
 5. 如果证据更像 grader / task contract 问题、仓库路由错误、或外部系统限制，而不是当前仓库里的真实产品缺陷，应停止产品表面改动，并在总结里明确说明原因与后续建议。
 6. 提交前必须自查 staged diff：确认没有评测专用措辞、没有内部 artifact 泄漏、没有为同一字段临时补多个别名。
 </attribution_evaluation_guardrails>
@@ -73,10 +89,10 @@ alwaysApply: true
 
 <mcp_tool_schema_rules>
 1. 当新增或修改 MCP 工具入参 schema 时，如果某个字符串字段在 description 中描述了固定可选值、取值范围、模式枚举或协议类型（例如 `MYSQL/FLEXDB`、`on/off`、`blacklist/whitelist`、`OAUTH/OIDC/EMAIL`），必须在 Zod / JSON Schema 中定义为 `z.enum([...])` 或等价枚举 schema，而不是只用 `z.string()` 加说明文字。
-2. 仅当字段确实是用户自定义标识、路径、命令、搜索关键词、动态模板名或后端返回的开放值时，才保留 `z.string()`；不要把“例如”中的示例值误收窄成枚举。
+2. 仅当字段确实是用户自定义标识、路径、命令、搜索关键词、动态模板名或后端返回的开放值时，才保留 `z.string()`；不要把"例如"中的示例值误收窄成枚举。
 3. 枚举值必须来自公开文档、Manager SDK 类型/文档、已有公开契约或当前代码中已稳定使用的常量；如果契约不清楚，先保留开放类型并在总结中说明，不要凭直觉收窄。
 4. 修改枚举入参后必须同步补充或更新 schema 测试，并更新生成产物（如 `scripts/tools.json`、`doc/mcp-tools.md`）。
-5. 提交前应扫描生成后的工具 schema，确认不存在“description 里列固定取值，但 schema 没有 enum”的字段。
+5. 提交前应扫描生成后的工具 schema，确认不存在"description 里列固定取值，但 schema 没有 enum"的字段。
 </mcp_tool_schema_rules>
 
 <add_aiide>
@@ -87,129 +103,17 @@ alwaysApply: true
 3. 更新 `mcp/src/tools/setup.ts` 中该 IDE 的文件映射和描述
 4. 如新增 skill 级兼容要求，确认是否需要保留到 `config/.claude/skills/` 镜像
 5. 创建 `doc/ide-setup/{ide-name}.md` 配置文档
-6. 更新 `README.md`、`doc/index.md`、`doc/faq.md` 中的 AI IDE 支持列表,README 中注意 detail 中的内容也要填写
+6. 更新 `README.md`、`doc/index.md`、`doc/faq.md` 中的 AI IDE 支持列表，README 中注意 detail 中的内容也要填写
 7. **更新 IDE 文件映射**：
-   - 在 `mcp/src/tools/setup.ts` 的 `ALL_IDE_FILES` 数组中添加新IDE的配置文件路径
-   - 在 `IDE_FILE_MAPPINGS` 对象中添加新IDE的文件映射关系
-   - 在 `IDE_DESCRIPTIONS` 对象中添加新IDE的描述
-   - 在 `IDE_TYPES` 数组中添加新IDE的类型
+   - 在 `mcp/src/tools/setup.ts` 的 `ALL_IDE_FILES` 数组中添加新 IDE 的配置文件路径
+   - 在 `IDE_FILE_MAPPINGS` 对象中添加新 IDE 的文件映射关系
+   - 在 `IDE_DESCRIPTIONS` 对象中添加新 IDE 的描述
+   - 在 `IDE_TYPES` 数组中添加新 IDE 的类型
 8. 执行 `node scripts/build-compat-config.mjs` 验证兼容产物生成
 9. 如需本地检查 Claude skills 镜像，执行 `node scripts/sync-claude-skills-mirror.mjs --check`
 10. 执行 `node scripts/diff-compat-config.mjs` 验证外部兼容面无回退
-11. 测试IDE特定下载功能是否正常工作
+11. 测试 IDE 特定下载功能是否正常工作
 </add_aiide>
-
-<sync_doc>
-cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
-</sync_doc>
-
-
-<update_readme>
- 1. 按照中文文档更新英文文档
- 2. 英文文档中的banner 图是英文的，保持不变
- 3. 复制 README.md 覆盖 mcp/
-</update_readme>
-
-
-<fix-config-hardlinks>
-兼容文件不再通过硬链接维护。
-日常维护时，直接修改 `config/source/skills/`、`config/source/guideline/`、`config/source/editor-config/` 并提交即可。
-`config/.claude/skills/` 是从 `config/source/skills/` 自动同步的兼容镜像，不要手改。
-兼容产物的生成和对外发布主要由 CI / workflow 负责，不需要像以前一样手动跑同步脚本。
-只有在需要本地验证或手动同步外部模板仓库时，才执行：
-1. `node scripts/sync-claude-skills-mirror.mjs`
-2. `node scripts/build-compat-config.mjs`
-3. `node scripts/sync-config.mjs`
-</fix-config-hardlinks>
-
-
-<git_push>
-提交代码注意 commit 采用 conventional-changelog 风格，在 `feat(xxx):` 后面加一个 emoji，提交信息使用英文描述。
-默认只推送 GitHub 远端，不要执行 `cnb` 推送，也不要使用 `--force`：
-- `git push github HEAD`
-提交 PR 之后不要立刻结束，先等待几分钟，观察 review 评论和 CI 结果；如果有可执行的失败项或反馈，继续在同一分支修复并更新 PR。
-</git_push>
-
-<workflow>
-1. 每当我输入新的需求的时候，为了规范需求质量和验收标准，你首先会搞清楚问题和需求
-2. 需求评估：先根据需求大小、影响范围、复杂度和风险判断是否需要走完整 spec 流程。对于跨模块、中大型、高风险、涉及较多协作或验收边界不清晰的需求，必须先补齐 spec；对于小型、低风险、边界清晰的改动，不强制要求产出 spec，但仍需先明确目标、范围和验收标准。
-3. 需求文档和验收标准设计：如果判断需要 spec，则先完成需求设计，按照 EARS 简易需求语法方法来描述，保存在 `specs/spec_name/requirements.md` 中，跟我进行确认，最终确认清楚后，需求定稿，参考格式如下
-
-```markdown
-# 需求文档
-
-## 介绍
-
-需求描述
-
-## 需求
-
-### 需求 1 - 需求名称
-
-**用户故事：** 用户故事内容
-
-#### 验收标准
-
-1. 采用 ERAS 描述的子句 While <可选前置条件>, when <可选触发器>, the <系统名称> shall <系统响应>，例如 When 选择"静音"时，笔记本电脑应当抑制所有音频输出。
-2. ...
-...
-```
-4. 技术方案设计：对于需要 spec 的需求，在完成需求设计之后，你会根据当前的技术架构和前面确认好的需求，进行技术方案设计，保存在 `specs/spec_name/design.md` 中，精简但是能够准确描述技术架构（例如架构、技术栈、技术选型、数据库/接口设计、测试策略、安全性），必要时可以用 mermaid 来绘图，跟我确认清楚后，才进入下阶段。对于不需要 spec 的小需求，可以直接在对话中给出精简方案并继续执行。
-5. 任务拆分：对于需要 spec 的需求，在完成技术方案设计后，你会根据需求文档和技术方案，细化具体要做的事情，保存在 `specs/spec_name/tasks.md` 中，跟我确认清楚后，才开始正式执行任务，同时更新任务状态。对于不需要 spec 的小需求，可以直接给出精简任务说明或直接执行。
-
-格式如下
-
-``` markdown
-# 实施计划
-
-- [ ] 1. 任务信息
-  - 具体要做的事情
-  - ...
-  - _需求: 相关的需求点的编号
-
-```
-</workflow>
-
-
-<project_rules>
-1.项目结构
-- doc 存放对外的文档
-- mcp 核心的 mcp package
-- config 用来给 AI IDE提供的规则和 mcp 预设配置
-- tests 自动化测试
-</project_rules>
-
-<supply_chain_security>
-# npm 供应链安全（必须遵守）
-
-本项目因 MCP Server + 大规模 AI IDE 技能分发特性，是 npm 供应链攻击的高价值目标。
-
-**强制规则：**
-- 安全敏感依赖（`@cloudbase/*`、 `@modelcontextprotocol/sdk`、express、ws、zod 等 runtime 核心）**必须使用精确版本**（禁止 `^` / `~`）。
-- 所有 GitHub Actions 引用**必须 pin 到完整 40 字符 commit SHA**（禁止浮动 tag 如 `@v4`、`@beta`）。
-- 修改 `package.json`、`pnpm-workspace.yaml`、`.npmrc` 或 workflow 时，必须参考内部详细指南。
-- 优先使用 `corepack + pnpm` 进行依赖管理（已配置 `packageManager` 字段）。
-
-**详细内部文档（含当前状态、AI Agent 审计 Prompt、防护措施）：**
-`specs/npm-supply-chain-security-hardening/npm-security.md`
-
-任何涉及依赖或 CI 的变更，在开始前都应先阅读该文档。
-</supply_chain_security>
-
-<add_aiide>
-# CloudBase AI Toolkit - 新增 AI IDE 支持工作流
-
-1. 在 `config/source/editor-config/` 中补充该 IDE 所需的机器配置文件或兼容说明文件
-2. 如需新增 rules / instructions 兼容产物，更新 `scripts/build-compat-config.mjs` 的生成目标
-3. 更新 `mcp/src/tools/setup.ts` 中该 IDE 的文件映射和描述
-4. 如新增 skill 级兼容要求，确认是否需要保留到 `config/.claude/skills/` 镜像
-5. 创建 `doc/ide-setup/{ide-name}.md` 配置文档
-6. 更新 `README.md`、`doc/index.md`、`doc/faq.md` 中的 AI IDE 支持列表,README 中注意 detail 中的内容也要填写
-7. 执行 `node scripts/build-compat-config.mjs` 验证兼容产物生成
-8. 如需本地检查 Claude skills 镜像，执行 `node scripts/sync-claude-skills-mirror.mjs --check`
-9. 执行 `node scripts/diff-compat-config.mjs` 验证外部兼容面无回退
-</add_aiide>
-
 
 <add_example>
 # CloudBase AI Toolkit - 新增用户案例/视频/文章工作流
@@ -217,7 +121,7 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 1. 更新 README.md
 2. 更新 doc/tutorials.md
 
-例如 艺术展览预约系统 - 一个完全通过AI 编程开发的艺术展览预约系统, 包含预约功能、管理后台等功能。
+例如 艺术展览预约系统 - 一个完全通过 AI 编程开发的艺术展览预约系统，包含预约功能、管理后台等功能。
 </add_example>
 
 <sync_doc>
@@ -225,14 +129,7 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 </sync_doc>
 
 
-<update_readme>
- 1. 按照中文文档更新英文文档
- 2. 英文文档中的banner 图是英文的，保持不变
- 3. 复制 README.md 覆盖 mcp/
-</update_readme>
-
-
-<fix-config-hardlinks>
+<fix_config_hardlinks>
 兼容文件不再通过硬链接维护。
 日常维护时，直接修改 `config/source/skills/`、`config/source/guideline/`、`config/source/editor-config/` 并提交即可。
 `config/.claude/skills/` 是从 `config/source/skills/` 自动同步的兼容镜像，不要手改。
@@ -241,16 +138,16 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 1. `node scripts/sync-claude-skills-mirror.mjs`
 2. `node scripts/build-compat-config.mjs`
 3. `node scripts/sync-config.mjs`
-</fix-config-hardlinks>
-
+</fix_config_hardlinks>
 
 <git_push>
 1. 提交代码注意 commit 采用 conventional-changelog 风格，在 `feat(xxx):` 后面加一个 emoji，提交信息使用英文描述。
 2. 提交代码不要直接推到 `main`，使用 feature 分支，并且默认只推送 GitHub 远端，不要执行 `cnb` 推送，也不要使用 `--force`：
-   - `git push github HEAD`
+   - `git push origin HEAD`
 3. 然后自动创建 PR。
 4. 创建 PR 后先等待几分钟，再检查 review 评论和 CI；如果有可执行的问题，继续在同一分支修复并更新 PR。
 5. **每次推送代码到 PR 分支后，必须立即检查 PR 状态**：包括是否有冲突（`This branch has conflicts that must be resolved`）、CI 是否通过、机器人评论是否已解决。不要假设推送后万事大吉，冲突和 CI 失败往往只在远程才暴露。
+6. **CI 主动监控（强制）**：git push 后必须主动监控 CI Pipeline，不能等用户提醒。使用 `gh pr view --json statusCheckRollup` 等待 CI 完成；如果 CI 失败，自动分析日志并修复；CI 全绿后主动告知用户。
 </git_push>
 
 <skills_and_rules_maintenance>
@@ -296,6 +193,23 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
    - 多值默认统一使用逗号分隔，不要再写重复 query key 的示例
 
 3. canonical 名称与文档链接校验
-   - 文档中的插件 canonical 名必须能在 `AVAILABLE_PLUGINS` 中解析；旧名称只允许出现在“兼容别名”说明中，不应继续作为主名称书写
+   - 文档中的插件 canonical 名必须能在 `AVAILABLE_PLUGINS` 中解析；旧名称只允许出现在"兼容别名"说明中，不应继续作为主名称书写
    - 文档链接必须指向真实存在的仓库文件或站点路由；涉及工具数量时，优先使用不易过期的描述，避免写死数字
 </doc_freshness_rules>
+
+<supply_chain_security>
+# npm 供应链安全（必须遵守）
+
+本项目因 MCP Server + 大规模 AI IDE 技能分发特性，是 npm 供应链攻击的高价值目标。
+
+**强制规则：**
+- 安全敏感依赖（`@cloudbase/*`、`@modelcontextprotocol/sdk`、express、ws、zod 等 runtime 核心）**必须使用精确版本**（禁止 `^` / `~`）。
+- 所有 GitHub Actions 引用**必须 pin 到完整 40 字符 commit SHA**（禁止浮动 tag 如 `@v4`、`@beta`）。
+- 修改 `package.json`、`pnpm-workspace.yaml`、`.npmrc` 或 workflow 时，必须参考内部详细指南。
+- 优先使用 `corepack + pnpm` 进行依赖管理（已配置 `packageManager` 字段）。
+
+**详细内部文档（含当前状态、AI Agent 审计 Prompt、防护措施）：**
+`specs/npm-supply-chain-security-hardening/npm-security.md`
+
+任何涉及依赖或 CI 的变更，在开始前都应先阅读该文档。
+</supply_chain_security>
