@@ -11,6 +11,11 @@
         "label": "概述"
       },
       {
+        "type": "doc",
+        "id": "ai/cloudbase-ai-toolkit/ai-agent-plugins",
+        "label": "AI 插件"
+      },
+      {
         "type": "category",
         "label": "MCP",
         "collapsible": true,
