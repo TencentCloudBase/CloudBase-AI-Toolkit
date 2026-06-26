@@ -1,7 +1,7 @@
 ---
 name: cloud-functions
 description: CloudBase function runtime guide for building, deploying, and debugging your own Event Functions or HTTP Functions. This skill should be used when users need application runtime code on CloudBase, not when they are merely calling CloudBase official platform APIs.
-version: 2.23.3
+version: 2.23.4
 alwaysApply: false
 ---
 
@@ -63,6 +63,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Forgetting that HTTP Functions must ship `scf_bootstrap`, listen on port `9000`, and include dependencies.
 - Forgetting to configure function security rules after creating an HTTP Function. Default rules reject anonymous callers with `EXCEED_AUTHORITY`. Note: anonymous login is disabled by default for new environments — if the function needs public access without authentication, configure the security rule to allow all callers rather than relying on anonymous login.
 - Mismatching the `scf_bootstrap` Node.js binary path with the function runtime (e.g. using `/var/lang/node18/bin/node` but setting `runtime: "Nodejs16.13"`).
+- For Custom Image HTTP Functions: forgetting that TCR, the CloudApp build, and SCF must be in the same region; using `:latest` instead of a unique tag; or confusing the request-driven port-`9000` image model with a long-lived CloudRun container that listens on the injected `PORT`.
+- Assuming MCP covers the whole image pipeline. `manageFunctions` covers SCF image deploy (Stage B) via `runtime: "CustomImage"` + `imageConfig`, but the CloudApp custom build → TCR push (Stage A) is a raw Tencent Cloud API path — confirm action names and parameters from official docs before any `callCloudApi` fallback.
 - Making code or configuration changes without first following the Change Safety Protocol (`cloudbase-platform/references/protocols/change-safety-protocol.md`).
 - Exposing functions publicly or deploying without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
 
@@ -77,13 +79,14 @@ Keep local `references/...` paths for files that ship with the current skill dir
 Use this skill when developing, deploying, and operating CloudBase cloud functions. CloudBase has two different programming models:
 
 - **Event Functions**: serverless handlers driven by SDK calls, timers, and other events.
-- **HTTP Functions**: standard web services for HTTP endpoints, SSE, or WebSocket workloads.
+- **HTTP Functions**: standard web services for HTTP endpoints, SSE, or WebSocket workloads. By default they run on a managed runtime (`scf_bootstrap` + zip); when they need custom system libraries or an arbitrary runtime they can instead run from a container image (`Runtime: CustomImage`, deployed from TCR — see `./references/http-functions-custom-image.md`).
 
 ## Writing mode at a glance
 
 - If the request is for SDK calls, timers, or event-driven workflows, write an **Event Function** with `exports.main = async (event, context) => {}`.
 - If the request is for REST APIs, browser-facing endpoints, SSE, or WebSocket, write an **HTTP Function** with `req` / `res` on port `9000`.
 - For Node.js HTTP Functions, default to the native `http` module unless the user explicitly asks for Express, Koa, NestJS, or another framework.
+- If the HTTP Function needs custom system libraries or an arbitrary runtime but should still be SCF request-driven and scale to zero, deploy it as a **Custom Image HTTP Function** (`Runtime: CustomImage`) from a TCR image. The container still listens on the fixed port `9000`. See `./references/http-functions-custom-image.md`. This is distinct from a CloudRun container, which listens on the injected `PORT` and runs long-lived.
 - If the user mentions HTTP access for an existing Event Function, keep the Event Function code shape and add gateway access separately.
 
 ## HTTP Function authoring contract
@@ -114,6 +117,7 @@ Use these rules whenever you are writing the function code itself:
 | Triggered by SDK calls or timers? | Event Function |
 | Needs browser-facing HTTP endpoint? | HTTP Function |
 | Needs SSE or WebSocket service? | HTTP Function |
+| Needs custom system libraries / arbitrary runtime, but still SCF request-driven + scale-to-zero? | HTTP Function with `Runtime: CustomImage` (deploy from a TCR image) |
 | Needs long-lived container runtime or custom system environment? | CloudRun |
 | Only needs HTTP access for an existing Event Function? | Event Function + gateway access |
 
@@ -133,6 +137,7 @@ Use these rules whenever you are writing the function code itself:
    - Use `manageFunctions(action="createFunction")` for creation
    - Use `manageFunctions(action="updateFunctionCode")` for code updates
    - Use `manageFunctions(action="updateFunctionConfig")` for config updates (timeout, memorySize, envVariables)
+   - For a Custom Image HTTP Function, call `manageFunctions(action="createFunction")` with `func.runtime="CustomImage"` and `imageConfig` (`imageUri` with tag; `registryId` for enterprise TCR); iterate later with `manageFunctions(action="updateFunctionCode")` + `imageConfig`. No `functionRootPath` is needed because the code lives in the image. See `./references/http-functions-custom-image.md`.
    - Keep `functionRootPath` as the directory that directly contains function folders (e.g., `cloudfunctions/` or `functions/`), NOT the project root and NOT the function subdirectory itself
    - **Prefer MCP tools over CLI** — when MCP tools are available, use `manageFunctions` and `queryFunctions` instead of CLI commands
    - **Do NOT assume CLI is available from task wording alone** — if the available capabilities only include MCP tools, use MCP tools exclusively
@@ -146,6 +151,7 @@ Use these rules whenever you are writing the function code itself:
 5. **Read the right detailed reference**
    - Event Function details -> `./references/event-functions.md`
    - HTTP Function details -> `./references/http-functions.md`
+   - HTTP Function from a container image (`Runtime: CustomImage`, TCR image pipeline) -> `./references/http-functions-custom-image.md`
    - Logs, gateway, env vars, and legacy mappings -> `./references/operations-and-config.md`
 
 ## Database write reminder

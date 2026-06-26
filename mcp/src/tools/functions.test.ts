@@ -10,12 +10,14 @@ import type { ExtendedMcpServer } from "../server.js";
 
 const {
   mockCreateFunction,
+  mockUpdateFunctionCode,
   mockCreateAccess,
   mockGetCloudBaseManager,
   mockLogCloudBaseResult,
   mockIsCloudMode,
 } = vi.hoisted(() => ({
   mockCreateFunction: vi.fn(),
+  mockUpdateFunctionCode: vi.fn(),
   mockCreateAccess: vi.fn(),
   mockGetCloudBaseManager: vi.fn(),
   mockLogCloudBaseResult: vi.fn(),
@@ -72,9 +74,13 @@ describe("functions tool helpers", () => {
     mockCreateAccess.mockResolvedValue({
       RequestId: "req-create-access",
     });
+    mockUpdateFunctionCode.mockResolvedValue({
+      RequestId: "req-update-code",
+    });
     mockGetCloudBaseManager.mockResolvedValue({
       functions: {
         createFunction: mockCreateFunction,
+        updateFunctionCode: mockUpdateFunctionCode,
       },
       access: {
         createAccess: mockCreateAccess,
@@ -196,5 +202,125 @@ describe("functions tool helpers", () => {
         }),
       ]),
     );
+  });
+
+  it("creates a CustomImage HTTP function via image deploy mode", async () => {
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: {
+        name: "imageDemo",
+        type: "HTTP",
+        runtime: "CustomImage",
+      },
+      imageConfig: {
+        imageType: "enterprise",
+        imageUri: "ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001",
+        registryId: "tcr-xxxxxxxx",
+        command: "python",
+        args: "-u app.py",
+        imagePort: 9000,
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCreateFunction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deployMode: "image",
+        func: expect.objectContaining({
+          name: "imageDemo",
+          runtime: "CustomImage",
+          imageConfig: expect.objectContaining({
+            imageUri: "ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001",
+            registryId: "tcr-xxxxxxxx",
+          }),
+        }),
+      }),
+    );
+    // 镜像部署不得携带本地代码安装依赖标志
+    const createArg = mockCreateFunction.mock.calls[0][0];
+    expect(createArg.func.installDependency).toBeUndefined();
+    expect(createArg.functionRootPath).toBeUndefined();
+    expect(payload.success).toBe(true);
+    expect(payload.data.deployMode).toBe("image");
+    expect(payload.data.imageUri).toBe(
+      "ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001",
+    );
+  });
+
+  it("requires imageUri for image deploy", async () => {
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: { name: "imageDemo", type: "HTTP", runtime: "CustomImage" },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("imageUri");
+    expect(mockCreateFunction).not.toHaveBeenCalled();
+  });
+
+  it("requires registryId for enterprise image type", async () => {
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: { name: "imageDemo", type: "HTTP", runtime: "CustomImage" },
+      imageConfig: {
+        imageType: "enterprise",
+        imageUri: "ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001",
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("registryId");
+    expect(mockCreateFunction).not.toHaveBeenCalled();
+  });
+
+  it("updates a function image via updateFunctionCode image deploy mode", async () => {
+    const result = await tools.manageFunctions.handler({
+      action: "updateFunctionCode",
+      functionName: "imageDemo",
+      imageConfig: {
+        imageType: "enterprise",
+        imageUri: "ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-002",
+        registryId: "tcr-xxxxxxxx",
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockUpdateFunctionCode).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deployMode: "image",
+        func: expect.objectContaining({
+          name: "imageDemo",
+          imageConfig: expect.objectContaining({
+            imageUri: "ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-002",
+          }),
+        }),
+      }),
+    );
+    expect(payload.success).toBe(true);
+    expect(payload.data.deployMode).toBe("image");
+    expect(payload.data.imageUri).toBe(
+      "ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-002",
+    );
+  });
+
+  it("allows image deploy in cloud mode (no local code dependency)", async () => {
+    mockIsCloudMode.mockReturnValue(true);
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: { name: "imageDemo", type: "HTTP", runtime: "CustomImage" },
+      imageConfig: {
+        imageType: "personal",
+        imageUri: "ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001",
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    expect(mockCreateFunction).toHaveBeenCalled();
   });
 });

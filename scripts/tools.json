@@ -930,6 +930,37 @@
             ],
             "description": "写操作类型，例如 createFunction、updateFunctionCode、incrementalDeployFunction、invokeFunction、deleteFunction、createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、attachLayer、detachLayer"
           },
+          "base64Content": {
+            "type": "string",
+            "description": "层内容的 base64 编码"
+          },
+          "codeSecret": {
+            "type": "string",
+            "description": "层绑定时的代码保护密钥"
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作需要显式传入 confirm=true"
+          },
+          "contentPath": {
+            "type": "string",
+            "description": "层内容路径，可为目录或 ZIP 文件"
+          },
+          "description": {
+            "type": "string",
+            "description": "层版本描述"
+          },
+          "envVariables": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "配置更新时要合并的环境变量"
+          },
+          "force": {
+            "type": "boolean",
+            "description": "createFunction 时是否覆盖"
+          },
           "func": {
             "type": "object",
             "properties": {
@@ -1092,56 +1123,63 @@
             "additionalProperties": false,
             "description": "createFunction 操作的函数配置"
           },
-          "functionRootPath": {
-            "type": "string",
-            "description": "创建或更新函数代码时默认推荐的本地目录方式。必须是直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions 或 /abs/path/functions），不要传项目根目录（如 /abs/path），也不要传到函数名子目录（如 /abs/path/cloudfunctions/hello）。本地应按 cloudfunctions/<functionName>/index.js 或 functions/<functionName>/index.js 布局，此参数传 cloudfunctions 或 functions 目录的绝对路径。SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。"
-          },
-          "force": {
-            "type": "boolean",
-            "description": "createFunction 时是否覆盖"
-          },
           "functionName": {
             "type": "string",
             "description": "函数名称。大多数 action 使用该字段作为统一目标"
           },
-          "zipFile": {
+          "functionRootPath": {
             "type": "string",
-            "description": "仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。"
+            "description": "创建或更新函数代码时默认推荐的本地目录方式。必须是直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions 或 /abs/path/functions），不要传项目根目录（如 /abs/path），也不要传到函数名子目录（如 /abs/path/cloudfunctions/hello）。本地应按 cloudfunctions/<functionName>/index.js 或 functions/<functionName>/index.js 布局，此参数传 cloudfunctions 或 functions 目录的绝对路径。SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。"
           },
           "handler": {
             "type": "string",
             "description": "函数入口"
           },
-          "timeout": {
-            "type": "number",
-            "description": "配置更新时的超时时间"
-          },
-          "envVariables": {
+          "imageConfig": {
             "type": "object",
-            "additionalProperties": {
-              "type": "string"
+            "properties": {
+              "imageType": {
+                "type": "string",
+                "enum": [
+                  "enterprise",
+                  "personal"
+                ],
+                "description": "镜像仓库类型：enterprise（企业版 TCR）或 personal（个人版）。省略时默认 enterprise。"
+              },
+              "imageUri": {
+                "type": "string",
+                "description": "完整镜像地址（必须含 tag），格式 {domain}/{namespace}/{image}:{tag}，例如 ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001。不要使用 :latest。"
+              },
+              "registryId": {
+                "type": "string",
+                "description": "TCR 实例 ID，形如 tcr-xxxxxxxx。imageType=enterprise 时必填。"
+              },
+              "command": {
+                "type": "string",
+                "description": "覆盖镜像 ENTRYPOINT。不填则使用 Dockerfile 默认值。"
+              },
+              "args": {
+                "type": "string",
+                "description": "覆盖镜像 CMD，空格分隔。"
+              },
+              "entryPoint": {
+                "type": "string",
+                "description": "镜像入口点，一般不需要单独设置。"
+              },
+              "imagePort": {
+                "type": "number",
+                "description": "容器监听端口。Web Server 函数填 9000（默认），Job 型镜像填 -1。"
+              },
+              "containerImageAccelerate": {
+                "type": "boolean",
+                "description": "是否开启镜像加速。镜像较大时建议开启以缩短冷启动时间。"
+              }
             },
-            "description": "配置更新时要合并的环境变量"
+            "description": "镜像部署配置（Runtime=CustomImage）。createFunction 时基于 TCR 镜像创建 HTTP 函数，updateFunctionCode 时仅更换镜像 tag。需提供 imageUri（含 tag），企业版 TCR 还需 registryId。也可在 func.imageConfig 中提供；两处都传时以顶层 imageConfig 优先。"
           },
-          "vpc": {
-            "$ref": "#/properties/func/properties/vpc",
-            "description": "配置更新时的 VPC 信息"
-          },
-          "params": {
-            "type": "object",
-            "additionalProperties": {},
-            "description": "invokeFunction 的调用参数"
-          },
-          "triggers": {
-            "type": "array",
-            "items": {
-              "$ref": "#/properties/func/properties/triggers/items"
-            },
-            "description": "createFunctionTrigger 的触发器列表，用于定时跑 / 定时任务 / scheduled job。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），如 \"0 */5 * * * * *\" 表示每5分钟执行一次"
-          },
-          "triggerName": {
+          "incrementalFile": {
             "type": "string",
-            "description": "deleteFunctionTrigger 的目标触发器名称"
+            "description": "incrementalDeployFunction 增量部署时的变更文件路径"
           },
           "layerName": {
             "type": "string",
@@ -1150,29 +1188,6 @@
           "layerVersion": {
             "type": "number",
             "description": "层版本号"
-          },
-          "contentPath": {
-            "type": "string",
-            "description": "层内容路径，可为目录或 ZIP 文件"
-          },
-          "base64Content": {
-            "type": "string",
-            "description": "层内容的 base64 编码"
-          },
-          "runtimes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "层适用的运行时列表"
-          },
-          "description": {
-            "type": "string",
-            "description": "层版本描述"
-          },
-          "licenseInfo": {
-            "type": "string",
-            "description": "层许可证信息"
           },
           "layers": {
             "type": "array",
@@ -1196,17 +1211,44 @@
             },
             "description": "updateFunctionLayers 的目标层列表，顺序即最终顺序"
           },
-          "codeSecret": {
+          "licenseInfo": {
             "type": "string",
-            "description": "层绑定时的代码保护密钥"
+            "description": "层许可证信息"
           },
-          "confirm": {
-            "type": "boolean",
-            "description": "危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作需要显式传入 confirm=true"
+          "params": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "invokeFunction 的调用参数"
           },
-          "incrementalFile": {
+          "runtimes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "层适用的运行时列表"
+          },
+          "timeout": {
+            "type": "number",
+            "description": "配置更新时的超时时间"
+          },
+          "triggerName": {
             "type": "string",
-            "description": "incrementalDeployFunction 增量部署时的变更文件路径"
+            "description": "deleteFunctionTrigger 的目标触发器名称"
+          },
+          "triggers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/func/properties/triggers/items"
+            },
+            "description": "createFunctionTrigger 的触发器列表，用于定时跑 / 定时任务 / scheduled job。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），如 \"0 */5 * * * * *\" 表示每5分钟执行一次"
+          },
+          "vpc": {
+            "$ref": "#/properties/func/properties/vpc",
+            "description": "配置更新时的 VPC 信息"
+          },
+          "zipFile": {
+            "type": "string",
+            "description": "仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。"
           }
         },
         "required": [

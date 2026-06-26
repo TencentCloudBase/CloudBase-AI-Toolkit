@@ -256,7 +256,9 @@ Express 5 note: `app.all("/{*splat}", (req, res) => {` is the safe catch-all for
 
 ## End-to-end deployment lifecycle
 
-Follow these steps in order when creating an HTTP Function:
+This document covers the **managed-runtime** HTTP Function (ships `scf_bootstrap`, runs on a language runtime, packaged as zip). If the function instead needs custom system libraries or an arbitrary runtime, deploy it from a container image (`Runtime: CustomImage`) and read `./http-functions-custom-image.md` — the runtime contract (web server on port `9000`, CORS, security rules) is identical, only the packaging and deployment differ.
+
+Follow these steps in order when creating a managed-runtime HTTP Function:
 
 1. **Write the function code** — create the directory with `index.js`, `scf_bootstrap`, and `package.json`.
 2. **Deploy with `manageFunctions`** — set `type: "HTTP"`, `protocolType: "HTTP"`, and `runtime` explicitly.
@@ -382,5 +384,6 @@ wss.on("connection", (ws) => {
 ## When to stop and reroute
 
 - If the task is actually a timer-triggered or SDK-invoked serverless function, reroute to Event Functions.
+- If the HTTP Function needs custom system packages or an arbitrary runtime but should stay SCF request-driven and scale to zero, deploy from a container image — read `./http-functions-custom-image.md`.
 - If the task needs long-lived containers, custom system packages, or broader service architecture, reroute to `cloudrun-development`.
 - If the task is only about HTTP API calling patterns rather than implementation, reroute to `http-api`.
