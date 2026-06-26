@@ -247,10 +247,11 @@
               "enum": [
                 "flexdb",
                 "storage",
-                "function"
+                "function",
+                "postgresql"
               ]
             },
-            "description": "启用的资源类型（action=create 时可选）。默认启用全部三项：flexdb(文档数据库)、storage(存储)、function(云函数)"
+            "description": "启用的资源类型（action=create 时可选）。默认启用全部四项：flexdb(文档数据库)、storage(存储)、function(云函数)、postgresql(PostgreSQL 数据库)"
           },
           "duration": {
             "type": "integer",
@@ -907,7 +908,7 @@
     },
     {
       "name": "manageFunctions",
-      "description": "CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。危险操作需要显式 confirm=true。",
+      "description": "CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。镜像部署（Runtime=CustomImage）：先把代码经 zip→COS→CloudApp custom 构建→TCR 推镜像（这一阶段为裸腾讯云 API，本工具不覆盖），再用 createFunction(func.runtime=\"CustomImage\", imageConfig) 基于 TCR 镜像创建 HTTP 函数；后续迭代用 updateFunctionCode + imageConfig 换镜像 tag。危险操作需要显式 confirm=true。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -929,37 +930,6 @@
               "incrementalDeployFunction"
             ],
             "description": "写操作类型，例如 createFunction、updateFunctionCode、incrementalDeployFunction、invokeFunction、deleteFunction、createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、attachLayer、detachLayer"
-          },
-          "base64Content": {
-            "type": "string",
-            "description": "层内容的 base64 编码"
-          },
-          "codeSecret": {
-            "type": "string",
-            "description": "层绑定时的代码保护密钥"
-          },
-          "confirm": {
-            "type": "boolean",
-            "description": "危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作需要显式传入 confirm=true"
-          },
-          "contentPath": {
-            "type": "string",
-            "description": "层内容路径，可为目录或 ZIP 文件"
-          },
-          "description": {
-            "type": "string",
-            "description": "层版本描述"
-          },
-          "envVariables": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "配置更新时要合并的环境变量"
-          },
-          "force": {
-            "type": "boolean",
-            "description": "createFunction 时是否覆盖"
           },
           "func": {
             "type": "object",
@@ -1042,7 +1012,53 @@
               },
               "runtime": {
                 "type": "string",
-                "description": "运行时环境。Event 函数支持多种运行时:\n  Nodejs: Nodejs20.19, Nodejs18.15, Nodejs16.13, Nodejs14.18, Nodejs12.16, Nodejs10.15, Nodejs8.9\n  Python: Python3.10, Python3.9, Python3.7, Python3.6, Python2.7\n  Php: Php8.0, Php7.4, Php7.2\n  Java: Java8, Java11\n  Golang: Golang1\n\n推荐运行时:\n  Node.js: Nodejs18.15\n  Python: Python3.9\n  PHP: Php7.4\n  Java: Java11\n  Go: Golang1"
+                "description": "运行时环境。Event 函数支持多种运行时:\n  Nodejs: Nodejs20.19, Nodejs18.15, Nodejs16.13, Nodejs14.18, Nodejs12.16, Nodejs10.15, Nodejs8.9\n  Python: Python3.10, Python3.9, Python3.7, Python3.6, Python2.7\n  Php: Php8.0, Php7.4, Php7.2\n  Java: Java8, Java11\n  Golang: Golang1\n\n推荐运行时:\n  Node.js: Nodejs18.15\n  Python: Python3.9\n  PHP: Php7.4\n  Java: Java11\n  Go: Golang1\n\n镜像部署（基于 TCR 镜像创建函数）时填 \"CustomImage\"，并提供 imageConfig；此时无需 functionRootPath/zipFile。"
+              },
+              "imageConfig": {
+                "type": "object",
+                "properties": {
+                  "imageType": {
+                    "type": "string",
+                    "enum": [
+                      "enterprise",
+                      "personal"
+                    ],
+                    "description": "镜像仓库类型：enterprise（企业版 TCR）或 personal（个人版）。省略时默认 enterprise。"
+                  },
+                  "imageUri": {
+                    "type": "string",
+                    "description": "完整镜像地址（必须含 tag），格式 {domain}/{namespace}/{image}:{tag}，例如 ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001。不要使用 :latest。"
+                  },
+                  "registryId": {
+                    "type": "string",
+                    "description": "TCR 实例 ID，形如 tcr-xxxxxxxx。imageType=enterprise 时必填。"
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "覆盖镜像 ENTRYPOINT。不填则使用 Dockerfile 默认值，例如 python。"
+                  },
+                  "args": {
+                    "type": "string",
+                    "description": "覆盖镜像 CMD，空格分隔，例如 -u app.py。"
+                  },
+                  "entryPoint": {
+                    "type": "string",
+                    "description": "镜像入口点，一般不需要单独设置。"
+                  },
+                  "imagePort": {
+                    "type": "number",
+                    "description": "容器监听端口。Web Server 函数填 9000（默认），Job 型镜像填 -1。"
+                  },
+                  "containerImageAccelerate": {
+                    "type": "boolean",
+                    "description": "是否开启镜像加速。镜像较大时建议开启以缩短冷启动时间。"
+                  }
+                },
+                "required": [
+                  "imageUri"
+                ],
+                "additionalProperties": false,
+                "description": "镜像部署配置（仅 runtime=CustomImage 时使用）。用于 zip→COS→CloudApp custom 构建→TCR→SCF 的「阶段 B」：基于已推送到 TCR 的镜像创建 HTTP 函数。传入 imageConfig 后即按镜像部署处理，函数无需打包本地代码、scf_bootstrap 或 Handler。"
               },
               "triggers": {
                 "type": "array",
@@ -1123,63 +1139,56 @@
             "additionalProperties": false,
             "description": "createFunction 操作的函数配置"
           },
+          "functionRootPath": {
+            "type": "string",
+            "description": "创建或更新函数代码时默认推荐的本地目录方式。必须是直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions 或 /abs/path/functions），不要传项目根目录（如 /abs/path），也不要传到函数名子目录（如 /abs/path/cloudfunctions/hello）。本地应按 cloudfunctions/<functionName>/index.js 或 functions/<functionName>/index.js 布局，此参数传 cloudfunctions 或 functions 目录的绝对路径。SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。"
+          },
+          "force": {
+            "type": "boolean",
+            "description": "createFunction 时是否覆盖"
+          },
           "functionName": {
             "type": "string",
             "description": "函数名称。大多数 action 使用该字段作为统一目标"
           },
-          "functionRootPath": {
+          "zipFile": {
             "type": "string",
-            "description": "创建或更新函数代码时默认推荐的本地目录方式。必须是直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions 或 /abs/path/functions），不要传项目根目录（如 /abs/path），也不要传到函数名子目录（如 /abs/path/cloudfunctions/hello）。本地应按 cloudfunctions/<functionName>/index.js 或 functions/<functionName>/index.js 布局，此参数传 cloudfunctions 或 functions 目录的绝对路径。SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。"
+            "description": "仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。"
           },
           "handler": {
             "type": "string",
             "description": "函数入口"
           },
-          "imageConfig": {
-            "type": "object",
-            "properties": {
-              "imageType": {
-                "type": "string",
-                "enum": [
-                  "enterprise",
-                  "personal"
-                ],
-                "description": "镜像仓库类型：enterprise（企业版 TCR）或 personal（个人版）。省略时默认 enterprise。"
-              },
-              "imageUri": {
-                "type": "string",
-                "description": "完整镜像地址（必须含 tag），格式 {domain}/{namespace}/{image}:{tag}，例如 ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001。不要使用 :latest。"
-              },
-              "registryId": {
-                "type": "string",
-                "description": "TCR 实例 ID，形如 tcr-xxxxxxxx。imageType=enterprise 时必填。"
-              },
-              "command": {
-                "type": "string",
-                "description": "覆盖镜像 ENTRYPOINT。不填则使用 Dockerfile 默认值。"
-              },
-              "args": {
-                "type": "string",
-                "description": "覆盖镜像 CMD，空格分隔。"
-              },
-              "entryPoint": {
-                "type": "string",
-                "description": "镜像入口点，一般不需要单独设置。"
-              },
-              "imagePort": {
-                "type": "number",
-                "description": "容器监听端口。Web Server 函数填 9000（默认），Job 型镜像填 -1。"
-              },
-              "containerImageAccelerate": {
-                "type": "boolean",
-                "description": "是否开启镜像加速。镜像较大时建议开启以缩短冷启动时间。"
-              }
-            },
-            "description": "镜像部署配置（Runtime=CustomImage）。createFunction 时基于 TCR 镜像创建 HTTP 函数，updateFunctionCode 时仅更换镜像 tag。需提供 imageUri（含 tag），企业版 TCR 还需 registryId。也可在 func.imageConfig 中提供；两处都传时以顶层 imageConfig 优先。"
+          "timeout": {
+            "type": "number",
+            "description": "配置更新时的超时时间"
           },
-          "incrementalFile": {
+          "envVariables": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "配置更新时要合并的环境变量"
+          },
+          "vpc": {
+            "$ref": "#/properties/func/properties/vpc",
+            "description": "配置更新时的 VPC 信息"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "invokeFunction 的调用参数"
+          },
+          "triggers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/func/properties/triggers/items"
+            },
+            "description": "createFunctionTrigger 的触发器列表，用于定时跑 / 定时任务 / scheduled job。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），如 \"0 */5 * * * * *\" 表示每5分钟执行一次"
+          },
+          "triggerName": {
             "type": "string",
-            "description": "incrementalDeployFunction 增量部署时的变更文件路径"
+            "description": "deleteFunctionTrigger 的目标触发器名称"
           },
           "layerName": {
             "type": "string",
@@ -1188,6 +1197,29 @@
           "layerVersion": {
             "type": "number",
             "description": "层版本号"
+          },
+          "contentPath": {
+            "type": "string",
+            "description": "层内容路径，可为目录或 ZIP 文件"
+          },
+          "base64Content": {
+            "type": "string",
+            "description": "层内容的 base64 编码"
+          },
+          "runtimes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "层适用的运行时列表"
+          },
+          "description": {
+            "type": "string",
+            "description": "层版本描述"
+          },
+          "licenseInfo": {
+            "type": "string",
+            "description": "层许可证信息"
           },
           "layers": {
             "type": "array",
@@ -1211,44 +1243,21 @@
             },
             "description": "updateFunctionLayers 的目标层列表，顺序即最终顺序"
           },
-          "licenseInfo": {
+          "codeSecret": {
             "type": "string",
-            "description": "层许可证信息"
+            "description": "层绑定时的代码保护密钥"
           },
-          "params": {
-            "type": "object",
-            "additionalProperties": {},
-            "description": "invokeFunction 的调用参数"
+          "imageConfig": {
+            "$ref": "#/properties/func/properties/imageConfig",
+            "description": "镜像部署配置（Runtime=CustomImage）。createFunction 时基于 TCR 镜像创建 HTTP 函数，updateFunctionCode 时仅更换镜像 tag。需提供 imageUri（含 tag），企业版 TCR 还需 registryId。也可在 func.imageConfig 中提供；两处都传时以顶层 imageConfig 优先。"
           },
-          "runtimes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "层适用的运行时列表"
+          "confirm": {
+            "type": "boolean",
+            "description": "危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作需要显式传入 confirm=true"
           },
-          "timeout": {
-            "type": "number",
-            "description": "配置更新时的超时时间"
-          },
-          "triggerName": {
+          "incrementalFile": {
             "type": "string",
-            "description": "deleteFunctionTrigger 的目标触发器名称"
-          },
-          "triggers": {
-            "type": "array",
-            "items": {
-              "$ref": "#/properties/func/properties/triggers/items"
-            },
-            "description": "createFunctionTrigger 的触发器列表，用于定时跑 / 定时任务 / scheduled job。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），如 \"0 */5 * * * * *\" 表示每5分钟执行一次"
-          },
-          "vpc": {
-            "$ref": "#/properties/func/properties/vpc",
-            "description": "配置更新时的 VPC 信息"
-          },
-          "zipFile": {
-            "type": "string",
-            "description": "仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。"
+            "description": "incrementalDeployFunction 增量部署时的变更文件路径"
           }
         },
         "required": [
@@ -1658,7 +1667,7 @@
     },
     {
       "name": "downloadTemplate",
-      "description": "自动下载并部署CloudBase项目模板。\n**Note**: Call this tool when the user requests to create a new project using a CloudBase template.\n\n支持的模板:\n- react: React + CloudBase 全栈应用模板\n- vue: Vue + CloudBase 全栈应用模板\n- miniprogram: 微信小程序 + 云开发模板  \n- uniapp: UniApp + CloudBase 跨端应用模板\n- rules: 只包含AI编辑器配置文件（包含Cursor、WindSurf、CodeBuddy等所有主流编辑器配置），适合在已有项目中补充AI编辑器配置\n\n支持的IDE类型:\n- all: 下载所有IDE配置\n- cursor: Cursor AI编辑器\n- 其他IDE类型见下方列表\n\n注意：如果未传入 ide 参数且无法从环境变量检测到 IDE，将提示错误并要求传入 ide 参数\n- windsurf: WindSurf AI编辑器\n- codebuddy: CodeBuddy AI编辑器\n- claude-code: Claude Code AI编辑器\n- cline: Cline AI编辑器\n- gemini-cli: Gemini CLI\n- opencode: OpenCode AI编辑器\n- qwen-code: 通义灵码\n- baidu-comate: 百度Comate\n- openai-codex-cli: OpenAI Codex CLI\n- augment-code: Augment Code\n- github-copilot: GitHub Copilot\n- roocode: RooCode AI编辑器\n- tongyi-lingma: 通义灵码\n- trae: Trae AI编辑器\n- qoder: Qoder AI编辑器\n- antigravity: Google Antigravity AI编辑器\n- vscode: Visual Studio Code\n- kiro: Kiro AI编辑器\n- aider: Aider AI编辑器\n\n特别说明：\n- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.23.1），便于后续维护和版本追踪\n- 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）",
+      "description": "自动下载并部署CloudBase项目模板。\n**Note**: Call this tool when the user requests to create a new project using a CloudBase template.\n\n支持的模板:\n- react: React + CloudBase 全栈应用模板\n- vue: Vue + CloudBase 全栈应用模板\n- miniprogram: 微信小程序 + 云开发模板  \n- uniapp: UniApp + CloudBase 跨端应用模板\n- rules: 只包含AI编辑器配置文件（包含Cursor、WindSurf、CodeBuddy等所有主流编辑器配置），适合在已有项目中补充AI编辑器配置\n\n支持的IDE类型:\n- all: 下载所有IDE配置\n- cursor: Cursor AI编辑器\n- 其他IDE类型见下方列表\n\n注意：如果未传入 ide 参数且无法从环境变量检测到 IDE，将提示错误并要求传入 ide 参数\n- windsurf: WindSurf AI编辑器\n- codebuddy: CodeBuddy AI编辑器\n- claude-code: Claude Code AI编辑器\n- cline: Cline AI编辑器\n- gemini-cli: Gemini CLI\n- opencode: OpenCode AI编辑器\n- qwen-code: 通义灵码\n- baidu-comate: 百度Comate\n- openai-codex-cli: OpenAI Codex CLI\n- augment-code: Augment Code\n- github-copilot: GitHub Copilot\n- roocode: RooCode AI编辑器\n- tongyi-lingma: 通义灵码\n- trae: Trae AI编辑器\n- qoder: Qoder AI编辑器\n- antigravity: Google Antigravity AI编辑器\n- vscode: Visual Studio Code\n- kiro: Kiro AI编辑器\n- aider: Aider AI编辑器\n\n特别说明：\n- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.23.4），便于后续维护和版本追踪\n- 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）",
       "inputSchema": {
         "type": "object",
         "properties": {
