@@ -123,6 +123,17 @@ type FunctionLayerInput = {
   LayerVersion: number;
 };
 
+type FunctionImageConfigInput = {
+  imageType?: "enterprise" | "personal";
+  imageUri: string;
+  registryId?: string;
+  command?: string;
+  args?: string;
+  entryPoint?: string;
+  imagePort?: number;
+  containerImageAccelerate?: boolean;
+};
+
 type FunctionToolEnvelope = {
   success: boolean;
   data: Record<string, unknown>;
@@ -187,11 +198,51 @@ type ManageFunctionsInput = {
   codeSecret?: string;
   confirm?: boolean;
   incrementalFile?: string;
+  imageConfig?: FunctionImageConfigInput;
 };
 
 const VPC_SCHEMA = z.object({
   vpcId: z.string(),
   subnetId: z.string(),
+});
+
+// 镜像部署值，对应 SCF Runtime=CustomImage
+export const CUSTOM_IMAGE_RUNTIME = "CustomImage";
+
+// HTTP 函数镜像部署配置，对应 Manager SDK 的 IFunctionImageConfig（camelCase）。
+// 用于 zip→COS→CloudApp custom 构建→TCR→SCF 镜像部署链路的「阶段 B」：基于已推送到 TCR 的镜像创建/更新函数。
+const IMAGE_CONFIG_SCHEMA = z.object({
+  imageType: z
+    .enum(["enterprise", "personal"])
+    .optional()
+    .describe("镜像仓库类型：enterprise（企业版 TCR）或 personal（个人版）。省略时默认 enterprise。"),
+  imageUri: z
+    .string()
+    .describe(
+      "完整镜像地址（必须含 tag），格式 {domain}/{namespace}/{image}:{tag}，" +
+        "例如 ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001。不要使用 :latest。",
+    ),
+  registryId: z
+    .string()
+    .optional()
+    .describe("TCR 实例 ID，形如 tcr-xxxxxxxx。imageType=enterprise 时必填。"),
+  command: z
+    .string()
+    .optional()
+    .describe("覆盖镜像 ENTRYPOINT。不填则使用 Dockerfile 默认值，例如 python。"),
+  args: z
+    .string()
+    .optional()
+    .describe("覆盖镜像 CMD，空格分隔，例如 -u app.py。"),
+  entryPoint: z.string().optional().describe("镜像入口点，一般不需要单独设置。"),
+  imagePort: z
+    .number()
+    .optional()
+    .describe("容器监听端口。Web Server 函数填 9000（默认），Job 型镜像填 -1。"),
+  containerImageAccelerate: z
+    .boolean()
+    .optional()
+    .describe("是否开启镜像加速。镜像较大时建议开启以缩短冷启动时间。"),
 });
 
 const SEVEN_FIELD_CRON_REGEX = /^\s*\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s*$/;
@@ -267,8 +318,14 @@ const CREATE_FUNCTION_SCHEMA = z.object({
         `  Python: ${RECOMMENDED_RUNTIMES.python}\n` +
         `  PHP: ${RECOMMENDED_RUNTIMES.php}\n` +
         `  Java: ${RECOMMENDED_RUNTIMES.java}\n` +
-        `  Go: ${RECOMMENDED_RUNTIMES.golang}`,
+        `  Go: ${RECOMMENDED_RUNTIMES.golang}\n\n` +
+        `镜像部署（基于 TCR 镜像创建函数）时填 "${CUSTOM_IMAGE_RUNTIME}"，并提供 imageConfig；此时无需 functionRootPath/zipFile。`,
     ),
+  imageConfig: IMAGE_CONFIG_SCHEMA.optional().describe(
+    "镜像部署配置（仅 runtime=CustomImage 时使用）。" +
+      "用于 zip→COS→CloudApp custom 构建→TCR→SCF 的「阶段 B」：基于已推送到 TCR 的镜像创建 HTTP 函数。" +
+      "传入 imageConfig 后即按镜像部署处理，函数无需打包本地代码、scf_bootstrap 或 Handler。",
+  ),
   triggers: z.array(TRIGGER_SCHEMA).optional().describe("触发器配置数组"),
   handler: z.string().optional().describe("函数入口"),
   ignore: z.union([z.string(), z.array(z.string())]).optional().describe("忽略文件"),
@@ -510,8 +567,15 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
 
     if (input.action === "createFunction" || input.action === "updateFunctionCode") {
+      // 镜像部署不依赖本地代码目录（代码已在 TCR），cloud mode 下可用。
+      const hasImageConfig = Boolean(
+        input.imageConfig ?? input.func?.imageConfig,
+      );
+      if (hasImageConfig) {
+        return;
+      }
       throw new Error(
-        `${input.action} 在 cloud mode 下不可用，因为该操作依赖本地函数代码目录。请改用本地模式执行。`,
+        `${input.action} 在 cloud mode 下不可用，因为该操作依赖本地函数代码目录。请改用本地模式执行，或使用镜像部署（runtime=CustomImage + imageConfig）。`,
       );
     }
 
@@ -955,6 +1019,92 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         `[createFunction] name=${functionName}, type=${String(func.type || "Event")}`,
       );
 
+      // 镜像部署分支（Runtime=CustomImage）：基于已推送到 TCR 的镜像创建 HTTP 函数。
+      // 对应 zip→COS→CloudApp custom 构建→TCR→SCF 链路的「阶段 B」。
+      const createImageConfig =
+        input.imageConfig ??
+        (func.imageConfig as FunctionImageConfigInput | undefined);
+      const isImageRuntime =
+        typeof func.runtime === "string" &&
+        func.runtime.replace(/\s+/g, "").toLowerCase() ===
+          CUSTOM_IMAGE_RUNTIME.toLowerCase();
+
+      if (createImageConfig || isImageRuntime) {
+        if (!createImageConfig?.imageUri) {
+          throw new Error(
+            "镜像部署（runtime=CustomImage）时，imageConfig.imageUri 是必需的，" +
+              "格式为 {domain}/{namespace}/{image}:{tag}（含 tag，不要用 :latest）。",
+          );
+        }
+        if (
+          (createImageConfig.imageType ?? "enterprise") === "enterprise" &&
+          !createImageConfig.registryId
+        ) {
+          throw new Error(
+            "imageType=enterprise（企业版 TCR）时，imageConfig.registryId（tcr-xxxxxxxx）是必需的。",
+          );
+        }
+
+        // 镜像函数即 HTTP 函数；Manager SDK 会自动补 ImageType=enterprise、ImagePort=9000，
+        // 并在镜像部署时剥离 Handler / InstallDependency，故此处不需要 functionRootPath。
+        const imageFunc: Record<string, unknown> = {
+          ...func,
+          type: func.type ?? "HTTP",
+          runtime: CUSTOM_IMAGE_RUNTIME,
+          imageConfig: createImageConfig,
+        };
+        delete (imageFunc as { installDependency?: unknown }).installDependency;
+
+        let imageResult: unknown;
+        try {
+          imageResult = await cloudbase.functions.createFunction({
+            func: imageFunc,
+            deployMode: "image",
+            force: Boolean(input.force),
+          } as any);
+        } catch (error) {
+          throw wrapFunctionOperationError(
+            "createFunction",
+            functionName,
+            undefined,
+            error,
+          );
+        }
+
+        logCloudBaseResult(server.logger, imageResult);
+        return buildEnvelope(
+          {
+            action: input.action,
+            functionName,
+            deployMode: "image",
+            imageUri: createImageConfig.imageUri,
+            raw: imageResult as Record<string, unknown>,
+          },
+          `已基于镜像 ${createImageConfig.imageUri} 创建 HTTP 函数 ${functionName}。` +
+            `请确认 TCR、SCF 与构建管道处于同一地域；如需通过 URL 访问，请显式调用 ` +
+            `manageGateway(action="createAccess", type="HTTP") 并按需调整函数安全规则。` +
+            `部署后可用 queryFunctions(action="getFunctionDetail") 确认函数已就绪。`,
+          [
+            {
+              tool: "queryFunctions",
+              action: "getFunctionDetail",
+              reason: "确认镜像函数已就绪（Active）",
+            },
+            {
+              tool: "manageFunctions",
+              action: "updateFunctionCode",
+              reason: "后续迭代只需用新镜像 tag 调用 updateFunctionCode 更新镜像",
+            },
+            {
+              tool: "manageGateway",
+              action: "createAccess",
+              reason:
+                "如需通过 URL 访问镜像 HTTP 函数，显式创建网关访问入口并传 type=\"HTTP\"",
+            },
+          ],
+        );
+      }
+
       if (func.type !== "HTTP") {
         const originalRuntime = typeof func.runtime === "string" ? func.runtime : undefined;
         func.runtime = resolveEventFunctionRuntime(func.runtime);
@@ -1087,6 +1237,54 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         throw new Error("updateFunctionCode 操作时，functionName 参数是必需的");
       }
       const cloudbase = await getManager();
+
+      // 镜像更新分支：后续迭代只需用新镜像 tag 更新函数。
+      const updateImageConfig =
+        input.imageConfig ??
+        (input.func?.imageConfig as FunctionImageConfigInput | undefined);
+      if (updateImageConfig) {
+        if (!updateImageConfig.imageUri) {
+          throw new Error(
+            "镜像更新时，imageConfig.imageUri 是必需的，格式为 {domain}/{namespace}/{image}:{tag}（含 tag，不要用 :latest）。",
+          );
+        }
+        let imageResult: unknown;
+        try {
+          imageResult = await cloudbase.functions.updateFunctionCode({
+            func: {
+              name: input.functionName,
+              imageConfig: updateImageConfig,
+            },
+            deployMode: "image",
+          } as any);
+        } catch (error) {
+          throw wrapFunctionOperationError(
+            "updateFunctionCode",
+            input.functionName,
+            undefined,
+            error,
+          );
+        }
+        logCloudBaseResult(server.logger, imageResult);
+        return buildEnvelope(
+          {
+            action: input.action,
+            functionName: input.functionName,
+            deployMode: "image",
+            imageUri: updateImageConfig.imageUri,
+            raw: imageResult as Record<string, unknown>,
+          },
+          `已将函数 ${input.functionName} 的镜像更新为 ${updateImageConfig.imageUri}。` +
+            `部署后可用 queryFunctions(action="getFunctionDetail") 确认函数已就绪（Active）。`,
+          [
+            {
+              tool: "queryFunctions",
+              action: "getFunctionDetail",
+              reason: "确认镜像更新后函数已就绪（Active）",
+            },
+          ],
+        );
+      }
 
       const processedRootPath = processFunctionRootPath(
         input.functionRootPath,
@@ -1616,6 +1814,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       description:
         "CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。" +
         "如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。" +
+        "镜像部署（Runtime=CustomImage）：先把代码经 zip→COS→CloudApp custom 构建→TCR 推镜像（这一阶段为裸腾讯云 API，本工具不覆盖），" +
+        "再用 createFunction(func.runtime=\"CustomImage\", imageConfig) 基于 TCR 镜像创建 HTTP 函数；后续迭代用 updateFunctionCode + imageConfig 换镜像 tag。" +
         "危险操作需要显式 confirm=true。",
       inputSchema: {
         action: z
@@ -1663,6 +1863,11 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           .optional()
           .describe("updateFunctionLayers 的目标层列表，顺序即最终顺序"),
         codeSecret: z.string().optional().describe("层绑定时的代码保护密钥"),
+        imageConfig: IMAGE_CONFIG_SCHEMA.optional().describe(
+          "镜像部署配置（Runtime=CustomImage）。createFunction 时基于 TCR 镜像创建 HTTP 函数，" +
+            "updateFunctionCode 时仅更换镜像 tag。需提供 imageUri（含 tag），企业版 TCR 还需 registryId。" +
+            "也可在 func.imageConfig 中提供；两处都传时以顶层 imageConfig 优先。",
+        ),
         confirm: z.boolean().optional().describe("危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作需要显式传入 confirm=true"),
         incrementalFile: z.string().optional().describe("incrementalDeployFunction 增量部署时的变更文件路径"),
       },
