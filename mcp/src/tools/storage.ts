@@ -334,13 +334,15 @@ export function registerStorageTools(server: ExtendedMcpServer) {
 
       switch (input.action) {
         case 'upload': {
+          const localPath = input.localPath!;
+          const cloudPath = input.cloudPath!;
           if (input.isDirectory) {
             if (storageOverrides?.uploadDirectory) {
-              await storageOverrides.uploadDirectory({ localPath: input.localPath, cloudPath: input.cloudPath });
+              await storageOverrides.uploadDirectory({ localPath, cloudPath });
             } else {
               await storageService.uploadDirectory({
-                localPath: input.localPath,
-                cloudPath: input.cloudPath,
+                localPath,
+                cloudPath,
                 onProgress: (progressData: any) => {
                   console.log("Upload directory progress:", progressData);
                 }
@@ -348,11 +350,11 @@ export function registerStorageTools(server: ExtendedMcpServer) {
             }
           } else {
             if (storageOverrides?.uploadFile) {
-              await storageOverrides.uploadFile({ localPath: input.localPath, cloudPath: input.cloudPath });
+              await storageOverrides.uploadFile({ localPath, cloudPath });
             } else {
               await storageService.uploadFile({
-                localPath: input.localPath,
-                cloudPath: input.cloudPath,
+                localPath,
+                cloudPath,
                 onProgress: (progressData: any) => {
                   console.log("Upload file progress:", progressData);
                 }
@@ -419,22 +421,24 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         }
 
         case 'download': {
+          const dlCloudPath = input.cloudPath!;
+          const dlLocalPath = input.localPath!;
           if (input.isDirectory) {
             if (storageOverrides?.downloadDirectory) {
-              await storageOverrides.downloadDirectory({ cloudPath: input.cloudPath, localPath: input.localPath });
+              await storageOverrides.downloadDirectory({ cloudPath: dlCloudPath, localPath: dlLocalPath });
             } else {
               await storageService.downloadDirectory({
-                cloudPath: input.cloudPath,
-                localPath: input.localPath
+                cloudPath: dlCloudPath,
+                localPath: dlLocalPath
               });
             }
           } else {
             if (storageOverrides?.downloadFile) {
-              await storageOverrides.downloadFile({ cloudPath: input.cloudPath, localPath: input.localPath });
+              await storageOverrides.downloadFile({ cloudPath: dlCloudPath, localPath: dlLocalPath });
             } else {
               await storageService.downloadFile({
-                cloudPath: input.cloudPath,
-                localPath: input.localPath
+                cloudPath: dlCloudPath,
+                localPath: dlLocalPath
               });
             }
           }

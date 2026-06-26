@@ -248,6 +248,8 @@ export function registerAgentTools(server: ExtendedMcpServer) {
       cwd?: string;
       params?: Record<string, unknown>;
     }) => {
+      let _agentName: string | undefined;
+      let _agentRuntime: string | undefined;
       try {
         const cloudbase = await getManager();
         const payload = normalizeAgentPayload({
@@ -264,6 +266,8 @@ export function registerAgentTools(server: ExtendedMcpServer) {
           cwd,
           ...(params ?? {}),
         });
+        _agentName = payload?.Name;
+        _agentRuntime = payload?.Runtime;
 
         if (action === "createAgent") {
           const normalizedName = normalizeString(payload.Name);
@@ -342,8 +346,8 @@ export function registerAgentTools(server: ExtendedMcpServer) {
             type: "createAgentError",
             message: "createAgent 后端返回 InternalError，可能是云函数创建失败",
             originalError: errMsg,
-            name: payload?.Name,
-            runtime: payload?.Runtime,
+            name: _agentName,
+            runtime: _agentRuntime,
           });
         }
         return jsonContent(buildErrorEnvelope(error));
