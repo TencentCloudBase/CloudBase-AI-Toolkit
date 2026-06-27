@@ -2,7 +2,7 @@
 
 ## 更新环境信息
 
-最近更新时间：2026-03-02 12:47:50
+最近更新时间：2026-06-26 01:50:47
 
 -   微信扫一扫 
 -   QQ
@@ -37,10 +37,23 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 | Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：ModifyEnv。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| EnvId | 是 | String | 环境ID  
+| EnvId | 是 | String | 
+环境ID
+
+  
 示例值：test-23 |
-| Alias | 否 | String | 环境备注名，要以a-z开头，不能包含 a-zA-z0-9- 以外的字符  
+| Alias | 否 | String | 
+
+环境备注名，要以a-z开头，不能包含 a-zA-z0-9- 以外的字符
+
+  
 示例值：iAmNickName |
+| CustomQps | 否 | Integer | 
+
+按量计费QPS上限，大于套餐配额时生效。-1表示关闭QPS按量计费。
+
+  
+示例值：1000 |
 
 ## 3\. 输出参数
 
@@ -50,15 +63,21 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 ## 4\. 示例
 
-### 示例1 修改环境备注名示例
+### 示例1 关闭qps按量计费
 
 #### 输入示例
 
 ```
-https://tcb.tencentcloudapi.com/?Action=ModifyEnv
-&EnvId=test-23
-&Alias=iAmNickName
-&<公共请求参数>
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: ModifyEnv
+<公共请求参数>
+
+{
+    "EnvId": "yn-1ghgrw28fa37efa1",
+    "CustomQps": -1
+}
 ```
 
 #### 输出示例
@@ -66,7 +85,34 @@ https://tcb.tencentcloudapi.com/?Action=ModifyEnv
 ```json
 {
     "Response": {
-        "RequestId": "51a33e48-a808-4fe7-8c02-4e7be5245351"
+        "RequestId": "c0cfa5b8-4496-4e84-8cd0-660e950547e6"
+    }
+}
+```
+
+### 示例2 打开qps按量计费，qps按量计费上限为1200
+
+#### 输入示例
+
+```
+POST / HTTP/1.1
+Host: tcb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: ModifyEnv
+<公共请求参数>
+
+{
+    "EnvId": "yn-1ghgrw28fa37efa1",
+    "CustomQps": 1200
+}
+```
+
+#### 输出示例
+
+```json
+{
+    "Response": {
+        "RequestId": "09d6a0f4-7b89-485e-b02b-4b480613e7b3"
     }
 }
 ```
