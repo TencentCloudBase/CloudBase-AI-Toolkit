@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-06-25 02:42:37
+最近更新时间：2026-06-29 02:45:49
 
 -   微信扫一扫 
 -   QQ
@@ -48,9 +48,6 @@ _我的收藏_
 | [DescribeAuthDomains](/document/api/876/42151) | 获取安全域名列表 | 20 |
 | [CreateAuthDomain](/document/api/876/42764) | 增加安全域名 | 20 |
 | [ModifyEnv](/document/api/876/34818) | 更新环境信息 | 50 |
-| [CreateEnv](/document/api/876/128592) | 创建环境 | 20 |
-| [ModifyEnvPlan](/document/api/876/128591) | 更新云开发环境套餐 | 20 |
-| [RenewEnv](/document/api/876/128590) | 续费云开发环境 | 20 |
 | [CreateHostingDomain](/document/api/876/42153) | 创建托管域名 | 20 |
 | [DestroyStaticStore](/document/api/876/42148) | 销毁静态托管资源 | 20 |
 | [DescribeEnvLimit](/document/api/876/42146) | 查询环境个数上限接口 | 20 |
@@ -86,6 +83,9 @@ _我的收藏_
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
+| [CreateEnv](/document/api/876/128592) | 创建环境 | 20 |
+| [ModifyEnvPlan](/document/api/876/128591) | 更新云开发环境套餐 | 20 |
+| [RenewEnv](/document/api/876/128590) | 续费云开发环境 | 20 |
 | [DescribeCreditsUsage](/document/api/876/132935) | 获取资源点用量 | 20 |
 | [DescribeCreditsUsageDetail](/document/api/876/132934) | 获取资源点用量明细 | 20 |
 | [DescribeEnvPlans](/document/api/876/133103) | 查询环境套餐信息 | 20 |
