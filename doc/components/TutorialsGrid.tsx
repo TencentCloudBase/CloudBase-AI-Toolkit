@@ -389,6 +389,19 @@ const tutorials: Tutorial[] = [
   },
   // 视频
   {
+    id: 'video-loop-miniprogram-membership',
+    title: 'Loop 目标编程 实现商用小程序：Codex 从 0 到 1 开发会员小程序，接入微信支付，完整前后端。',
+    description: 'MakerJackie',
+    category: '视频教程',
+    url: 'https://www.bilibili.com/video/BV1kXEJ6VEn2/?share_source=copy_web&vd_source=068decbd00a3d00ff8662b6a358e5e1e',
+    type: 'video',
+    thumbnail: 'https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/video-thumbnails/BV1kXEJ6VEn2.jpg',
+    terminalTags: ['小程序'],
+    appTypeTags: ['电商/业务系统'],
+    devToolTags: ['Codex'],
+    techStackTags: ['微信支付', '云函数'],
+  },
+  {
     id: 'video-figma-codebuddy-miniprogram',
     title: 'Figma + CodeBuddy + CloudBase 实战：完整开发一个微信小程序',
     description: 'JavaPub',
