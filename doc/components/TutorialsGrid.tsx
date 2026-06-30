@@ -389,6 +389,19 @@ const tutorials: Tutorial[] = [
   },
   // 视频
   {
+    id: 'video-ai-miniprogram-tutorial',
+    title: '如何用AI制作高质量小程序｜保姆级教程',
+    description: '是Skye学姐呀',
+    category: '视频教程',
+    url: 'https://www.bilibili.com/video/BV1ADJ56PEUH/?share_source=copy_web&vd_source=068decbd00a3d00ff8662b6a358e5e1e',
+    type: 'video',
+    thumbnail: 'https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/video-thumbnails/BV1ADJ56PEUH.jpg',
+    terminalTags: ['小程序'],
+    appTypeTags: ['教育/学习'],
+    devToolTags: ['CodeBuddy'],
+    techStackTags: ['CloudBase'],
+  },
+  {
     id: 'video-loop-miniprogram-membership',
     title: 'Loop 目标编程 实现商用小程序：Codex 从 0 到 1 开发会员小程序，接入微信支付，完整前后端。',
     description: 'MakerJackie',
