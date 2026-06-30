@@ -35,6 +35,19 @@ function normalizeString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+/**
+ * Sanitize agent name for CloudBase backend.
+ * The backend creates a cloud function alias from the agent name (e.g. "agent-{name}"),
+ * and SCF aliases only allow alphanumeric characters and hyphens.
+ * This function replaces any character that is not [a-zA-Z0-9] with a hyphen,
+ * then collapses consecutive hyphens into one.
+ */
+function sanitizeAgentName(name: string): string {
+  return name
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function normalizeNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
@@ -277,16 +290,24 @@ export function registerAgentTools(server: ExtendedMcpServer) {
 
           // CloudBase 后端在创建 Agent 时会同步创建云函数，函数名/别名长度受 SCF 限制（最大 64 字符）。
           // envId 可能被用作前缀或别名的一部分，因此这里预留足够余量，避免后端 CreateFunction 失败。
-          if (normalizedName.length > 30) {
+          // 同时，后端会用 name 生成云函数 alias（如 "agent-{name}"），而 SCF alias 只允许字母、数字和连字符，
+          // 因此需要对 name 做 sanitize，将非法字符（如下划线）替换为连字符。
+          const sanitizedName = sanitizeAgentName(normalizedName);
+          if (!sanitizedName) {
             throw new Error(
-              `agent name 过长（当前 ${normalizedName.length} 字符）。CloudBase 创建 Agent 时会同步创建云函数，` +
-              `函数名/别名受 SCF 64 字符限制，且 envId 可能作为前缀拼接。请将 name 控制在 30 字符以内。`
+              `name "${normalizedName}" 经 sanitize 后为空，请使用包含字母或数字的 name`
+            );
+          }
+          if (sanitizedName.length > 30) {
+            throw new Error(
+              `agent name 过长（当前 ${sanitizedName.length} 字符）。CloudBase 创建 Agent 时会同步创建云函数，` +
+              `函数名/别名受 SCF 64 字符长度限制，且 envId 可能作为前缀拼接。请将 name 控制在 30 字符以内。`
             );
           }
 
           const createPayload = {
             ...payload,
-            Name: normalizedName,
+            Name: sanitizedName,
             Runtime: normalizeString(payload.Runtime) ?? "Nodejs20.19",
           };
           const result = await cloudbase.agent.createAgent(createPayload as any);
