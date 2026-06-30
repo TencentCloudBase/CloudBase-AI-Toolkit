@@ -740,7 +740,7 @@ async function enrichEnvInfoWithBilling(params: {
  *   for new code, including an explicit `MysqlNotAvailable` line when
  *   MySQL is absent — that one IS a hard "do not use" signal.
  */
-function enrichEnvInfoWithRuntimeMode(result: any) {
+async function enrichEnvInfoWithRuntimeMode(result: any, manager?: any) {
   const envInfo = result?.EnvInfo;
   if (!envInfo || typeof envInfo !== "object") {
     return result;
@@ -775,7 +775,30 @@ function enrichEnvInfoWithRuntimeMode(result: any) {
     }
     return [];
   })();
-  const hasMysql = mysqlList.length > 0;
+  let hasMysql = mysqlList.length > 0;
+
+  // Fallback: if MySQL not detected from DescribeEnvInfo fields, probe via
+  // DescribeMySQLClusterDetail (dedicated MySQL API). This covers cases where
+  // the SDK strips MySQL fields from the DescribeEnvInfo response.
+  if (!hasMysql && manager?.commonService) {
+    try {
+      const probeResult = await manager
+        .commonService("tcb", "2018-06-08")
+        .call({
+          Action: "DescribeMySQLClusterDetail",
+          Param: { EnvId: envInfo.EnvId },
+        });
+      const clusterId =
+        probeResult?.DbClusterId ||
+        probeResult?.Response?.DbClusterId ||
+        probeResult?.Data?.DbClusterId;
+      if (clusterId) {
+        hasMysql = true;
+      }
+    } catch {
+      // Probe failure means MySQL is not provisioned — keep hasMysql = false
+    }
+  }
 
   // Primary mode: prefer PG when it is provisioned, otherwise fall back to
   // legacy NoSQL labeling. This drives "what skill to read first / what API
@@ -1685,7 +1708,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             if (envId) {
               result = await enrichEnvInfoWithMissingFields(cloudbaseInfo, result, envId);
             }
-            result = enrichEnvInfoWithRuntimeMode(result);
+            result = await enrichEnvInfoWithRuntimeMode(result, cloudbaseInfo);
             break;
 
           case "domains":
