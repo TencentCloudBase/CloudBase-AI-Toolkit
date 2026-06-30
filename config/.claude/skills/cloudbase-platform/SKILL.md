@@ -1,7 +1,7 @@
 ---
 name: cloudbase-platform
 description: CloudBase platform overview and routing guide. This skill should be used when users need high-level capability selection, platform concepts, console navigation, or cross-platform best practices before choosing a more specific implementation skill.
-version: 2.23.4
+version: 2.23.5
 alwaysApply: false
 ---
 
@@ -91,7 +91,7 @@ Use this skill for **CloudBase platform knowledge** when you need to:
 3. **Use correct SDKs and APIs**
    - Different platforms require different SDKs for data models
    - MySQL data models must use models SDK, not collection API
-   - PostgreSQL / CloudBase PG work must route to `postgresql-development`; do not reuse NoSQL `app.database()` / `db.collection(...)` snippets or MySQL `querySqlDatabase` / `manageSqlDatabase` for PG data paths
+   - PostgreSQL / CloudBase PG work must route to `postgresql-development`; do not reuse NoSQL `app.database()` / `db.collection(...)` snippets or MySQL `queryMysqlDatabase` / `manageMysqlDatabase` for PG data paths
    - Use `envQuery` tool to get environment ID
    - In an existing Web application with fixed structure, inspect the existing `src/lib/backend.*`, `src/lib/auth.*`, `src/lib/*service.*`, and bound page handlers before broad concept reading.
 
