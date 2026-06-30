@@ -275,18 +275,31 @@ export function registerAgentTools(server: ExtendedMcpServer) {
             throw new Error("action=createAgent 时必须提供 name（可通过顶层 name 或 params.name 传入）");
           }
 
+          // CloudBase 后端在创建 Agent 时会用 name 生成 alias（格式如 agent-{name}），
+          // alias 只允许字母、数字、连字符，不允许下划线等特殊字符。
+          // 这里提前做兼容转换，避免后端报 invalid Param alias。
+          const sanitizedName = normalizedName
+            .replace(/[^a-zA-Z0-9\-]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+
+          if (!sanitizedName) {
+            throw new Error(
+              `agent name "${normalizedName}" 经兼容转换后为空，请使用包含字母或数字的 name`,
+            );
+          }
+
           // CloudBase 后端在创建 Agent 时会同步创建云函数，函数名/别名长度受 SCF 限制（最大 64 字符）。
           // envId 可能被用作前缀或别名的一部分，因此这里预留足够余量，避免后端 CreateFunction 失败。
-          if (normalizedName.length > 30) {
+          if (sanitizedName.length > 30) {
             throw new Error(
-              `agent name 过长（当前 ${normalizedName.length} 字符）。CloudBase 创建 Agent 时会同步创建云函数，` +
+              `agent name 过长（当前 ${sanitizedName.length} 字符）。CloudBase 创建 Agent 时会同步创建云函数，` +
               `函数名/别名受 SCF 64 字符限制，且 envId 可能作为前缀拼接。请将 name 控制在 30 字符以内。`
             );
           }
 
           const createPayload = {
             ...payload,
-            Name: normalizedName,
+            Name: sanitizedName,
             Runtime: normalizeString(payload.Runtime) ?? "Nodejs20.19",
           };
           const result = await cloudbase.agent.createAgent(createPayload as any);

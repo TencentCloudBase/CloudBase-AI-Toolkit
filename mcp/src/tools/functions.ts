@@ -1441,7 +1441,16 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       }
       requireConfirm(input.action, input.confirm);
       const cloudbase = await getManager();
-      const result = await cloudbase.functions.deleteFunction(input.functionName);
+      // Manager SDK 的 functions.deleteFunction() 可能存在路由问题（会路由到 DeleteCloudBaseGWAPI 而非 SCF DeleteFunction）。
+      // 使用 SCF 直调方式删除函数作为 workaround。
+      const envId = await getEnvId();
+      const result = await cloudbase.commonService("scf", "2018-03-28").call({
+        Action: "DeleteFunction",
+        Param: {
+          FunctionName: input.functionName,
+          Namespace: envId,
+        },
+      });
       logCloudBaseResult(server.logger, result);
       return buildEnvelope(
         {

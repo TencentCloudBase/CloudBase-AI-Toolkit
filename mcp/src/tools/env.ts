@@ -878,11 +878,18 @@ async function enrichEnvInfoWithMissingFields(
   }
 
   // 如果 PostgreSQL 字段已存在且非空，说明 SDK 已经透传了，不需要补充
-  if (
+  // 但 MySQL 字段仍需检查，因为 SDK 可能漏传
+  const hasPostgresqlFields =
     Array.isArray(envInfo.PostgreSQL) &&
     envInfo.PostgreSQL.length > 0 &&
-    Array.isArray(envInfo.Meta)
-  ) {
+    Array.isArray(envInfo.Meta);
+
+  // 检查 MySQL 字段是否已在 SDK 结果中
+  const hasMysqlFields = ["MysqlInstances", "MySQLInstances", "MySQL"].some(
+    (k) => Array.isArray((envInfo as any)[k]) && (envInfo as any)[k].length > 0,
+  );
+
+  if (hasPostgresqlFields && hasMysqlFields) {
     return result;
   }
 
@@ -900,23 +907,45 @@ async function enrichEnvInfoWithMissingFields(
       return result;
     }
 
+    const updatedEnvInfo = { ...envInfo };
+
+    // 补充 PostgreSQL 字段（SDK 白名单映射遗漏）
+    if (
+      !hasPostgresqlFields &&
+      Array.isArray(envBaseInfo.PostgreSQL) &&
+      envBaseInfo.PostgreSQL.length > 0
+    ) {
+      updatedEnvInfo.PostgreSQL = envBaseInfo.PostgreSQL;
+    }
+
+    // 补充 Meta 字段（SDK 白名单映射遗漏）
+    if (
+      !hasPostgresqlFields &&
+      Array.isArray(envBaseInfo.Meta)
+    ) {
+      updatedEnvInfo.Meta = envBaseInfo.Meta;
+    }
+
+    // 补充 StaticStorages 字段（SDK 白名单映射遗漏）
+    if (Array.isArray(envBaseInfo.StaticStorages)) {
+      updatedEnvInfo.StaticStorages = envBaseInfo.StaticStorages;
+    }
+
+    // 补充 MySQL 字段（SDK 白名单映射遗漏）
+    for (const k of ["MysqlInstances", "MySQLInstances", "MySQL"]) {
+      if (
+        !hasMysqlFields &&
+        Array.isArray((envBaseInfo as any)[k]) &&
+        (envBaseInfo as any)[k].length > 0
+      ) {
+        updatedEnvInfo[k] = (envBaseInfo as any)[k];
+        break;
+      }
+    }
+
     return {
       ...result,
-      EnvInfo: {
-        ...envInfo,
-        // 补充 PostgreSQL 字段（SDK 白名单映射遗漏）
-        ...(Array.isArray(envBaseInfo.PostgreSQL) && {
-          PostgreSQL: envBaseInfo.PostgreSQL,
-        }),
-        // 补充 Meta 字段（SDK 白名单映射遗漏）
-        ...(Array.isArray(envBaseInfo.Meta) && {
-          Meta: envBaseInfo.Meta,
-        }),
-        // 补充 StaticStorages 字段（SDK 白名单映射遗漏）
-        ...(Array.isArray(envBaseInfo.StaticStorages) && {
-          StaticStorages: envBaseInfo.StaticStorages,
-        }),
-      },
+      EnvInfo: updatedEnvInfo,
     };
   } catch {
     // CAPI 调用失败不影响已有数据，静默忽略
