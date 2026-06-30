@@ -27,6 +27,15 @@ Read this when the task is about:
 - `scf_bootstrap`
 - browser/public access paths for HTTP Functions
 
+### `./references/http-functions-custom-image.md`
+
+Read this when the task is about:
+
+- deploying an HTTP Function from a **container image** (`Runtime: CustomImage`)
+- `imageConfig` / `ImageUri` / TCR image addresses
+- the zip → COS → CloudApp custom build → TCR → SCF image pipeline
+- choosing between a managed-runtime HTTP Function, a Custom Image HTTP Function, and a CloudRun container
+
 ### `./references/operations-and-config.md`
 
 Read this when the task is about:
@@ -44,3 +53,4 @@ Read this when the task is about:
 - HTTP Function code shape: `req` / `res` web server on port `9000`
 - HTTP Access for Event Functions is a gateway configuration, not the HTTP Function runtime model
 - CloudRun is the right route when the task is actually a long-lived service or broader container workload
+- Custom Image HTTP Function (`Runtime: CustomImage`) still listens on the fixed port `9000` and is request-driven — distinct from a CloudRun container, which listens on the injected `PORT` and runs long-lived
