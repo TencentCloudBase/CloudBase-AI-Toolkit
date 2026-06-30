@@ -799,7 +799,7 @@ function enrichEnvInfoWithRuntimeMode(result: any) {
           : "No legacy NoSQL Database/Storage observed in this env.",
         MysqlNotAvailable: hasMysql
           ? "MySQL instance(s) detected — see EnvInfo.MysqlInstances."
-          : "No MySQL instance is provisioned for this env. Do NOT use `manageSqlDatabase` / `querySqlDatabase` (those are MySQL-specific) and do NOT read the `relational-database-tool` skill — that family targets MySQL, not CloudBase PG.",
+          : "No MySQL instance is provisioned for this env. Do NOT use `manageMysqlDatabase` / `queryMysqlDatabase` (those are MySQL-specific) and do NOT read the `relational-database-tool` skill — that family targets MySQL, not CloudBase PG.",
         RecommendedSkills:
           "Read `postgresql-development` first for new PG code. `no-sql-web-sdk` is still applicable for existing NoSQL collections in this env. Skip `relational-database-tool` (MySQL-only) entirely.",
       }
@@ -814,7 +814,7 @@ function enrichEnvInfoWithRuntimeMode(result: any) {
           "Browser uploads use `app.uploadFile()` against the bucket exposed in `EnvInfo.Storages[].Bucket`.",
         MysqlNotAvailable: hasMysql
           ? "MySQL instance(s) detected — see EnvInfo.MysqlInstances."
-          : "No MySQL instance in this env. `manageSqlDatabase` / `querySqlDatabase` and the `relational-database-tool` skill are not applicable.",
+          : "No MySQL instance in this env. `manageMysqlDatabase` / `queryMysqlDatabase` and the `relational-database-tool` skill are not applicable.",
         RecommendedSkills:
           "Read `no-sql-web-sdk` (and `cloud-storage-web` for uploads). `postgresql-development` and `relational-database-tool` are not applicable to this env.",
       };
@@ -1763,7 +1763,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   const queryEnvToolSchema = {
     title: "CloudBase 环境查询",
     description:
-      "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情和安全域名。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。\n\n🔍 action=info 还会派生三个用于后端选型的字段：\n- `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。\n- `EnvInfo.RuntimeBackends`：`{postgresql, nosql, mysql}` 三个布尔值，描述当前环境实际并存的后端。\n- `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。\n\nAI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType=\"noSqlDatabase\")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageSqlDatabase` / `querySqlDatabase` / `relational-database-tool` skill 都不该使用。",
+      "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情和安全域名。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。\n\n🔍 action=info 还会派生三个用于后端选型的字段：\n- `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。\n- `EnvInfo.RuntimeBackends`：`{postgresql, nosql, mysql}` 三个布尔值，描述当前环境实际并存的后端。\n- `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。\n\nAI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType=\"noSqlDatabase\")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-tool` skill 都不该使用。",
     inputSchema: {
       action: z
         .enum(["list", "info", "domains"])

@@ -14,6 +14,6 @@ Use this index after `postgresql-development/SKILL.md` identifies the task as Cl
 ## Routing reminders
 
 - PG business data uses `app.rdb().from(...)`, `queryPgDatabase`, and `managePgDatabase`.
-- Do not route PG work to NoSQL `app.database()` / `db.collection(...)` or MySQL `querySqlDatabase` / `manageSqlDatabase`.
+- Do not route PG work to NoSQL `app.database()` / `db.collection(...)` or MySQL `queryMysqlDatabase` / `manageMysqlDatabase`.
 - Browser code must never contain API Key / `service_role` credentials.
 - For owner fields, prefer database defaults such as `DEFAULT auth.uid()` and omit the owner field from frontend insert payloads.

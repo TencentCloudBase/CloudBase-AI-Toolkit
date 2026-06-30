@@ -38,7 +38,7 @@ If this environment only installed the current skill, start from the CloudBase m
 
 ### Do NOT use first
 
-- `relational-database-tool` / `querySqlDatabase` / `manageSqlDatabase`: those are MySQL-oriented.
+- `relational-database-tool` / `queryMysqlDatabase` / `manageMysqlDatabase`: those are MySQL-oriented.
 - `no-sql-web-sdk` / collection APIs for business data that must live in CloudBase PG.
 
 ## Required Flow
@@ -64,7 +64,7 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
    - PG mode is a **new-environment mode** selected when creating a CloudBase environment with PostgreSQL. Do not try to "upgrade" a legacy environment in place; create/select a PG-mode environment instead.
    - If `RuntimeBackends.postgresql === false`, STOP — this is a legacy NoSQL-only env: switch to `no-sql-web-sdk` for browser data and `cloud-storage-web` (with `app.uploadFile()`) for uploads. Do not write `app.rdb()` code, do not enable RLS, do not create a pgstore bucket here.
    - If both `postgresql` and `nosql` are `true` (the common case in a PG environment), they coexist. Apply this skill to NEW business data the task asks you to put in PG (e.g. articles / role tables explicitly described as PG). Existing NoSQL collections, the bucket reported in `EnvInfo.Storages[]`, and any `managePermissions(resourceType="noSqlDatabase")` rules continue to govern the legacy NoSQL data — do NOT migrate or rewrite them unless the task explicitly asks.
-   - `RuntimeBackends.mysql === false` is the only hard "do not use" signal: when MySQL is absent, do not use `manageSqlDatabase` / `querySqlDatabase` and do not consult the `relational-database-tool` skill; those are MySQL-specific and have nothing to do with CloudBase PG.
+   - `RuntimeBackends.mysql === false` is the only hard "do not use" signal: when MySQL is absent, do not use `manageMysqlDatabase` / `queryMysqlDatabase` and do not consult the `relational-database-tool` skill; those are MySQL-specific and have nothing to do with CloudBase PG.
    - Note: in a PG env, `EnvInfo.Storages[]` is the legacy NoSQL bucket. It still works for legacy `app.uploadFile()` flows but is NOT a usable pgstore bucket — never reuse it as the `<bucket>` segment in `app.storage.from('<bucket>').upload('<key>', file)`.
 
 > **Creating a PG-mode environment**

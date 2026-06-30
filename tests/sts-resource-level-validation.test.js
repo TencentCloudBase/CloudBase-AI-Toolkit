@@ -386,7 +386,7 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
   // ═══ 3.2 SQL 数据库 ═══════════════════════════════════════════════════════
   test.skipIf(!hasCredentials())("3.2 SQL 数据库 - 读写验证", async () => {
     // 获取实例信息
-    const infoRes = await safeTool(client, "querySqlDatabase", {
+    const infoRes = await safeTool(client, "queryMysqlDatabase", {
       action: "getInstanceInfo",
     });
 
@@ -398,7 +398,7 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
     recordResult("SQL", "获取实例信息", true, "");
 
     // 建表
-    const createTableRes = await safeTool(client, "manageSqlDatabase", {
+    const createTableRes = await safeTool(client, "manageMysqlDatabase", {
       action: "runStatement",
       sql: `CREATE TABLE IF NOT EXISTS ${TEST_PREFIX}table (
         id INT PRIMARY KEY AUTO_INCREMENT,
@@ -409,21 +409,21 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
     recordResult("SQL", "建表", createTableRes.success, createTableRes.text.slice(0, 100));
 
     // 插入
-    const insertSqlRes = await safeTool(client, "manageSqlDatabase", {
+    const insertSqlRes = await safeTool(client, "manageMysqlDatabase", {
       action: "runStatement",
       sql: `INSERT INTO ${TEST_PREFIX}table (name) VALUES ('hello_sts'), ('world_sts')`,
     });
     recordResult("SQL", "插入数据", insertSqlRes.success, insertSqlRes.text.slice(0, 100));
 
     // 查询
-    const querySqlRes = await safeTool(client, "querySqlDatabase", {
+    const querySqlRes = await safeTool(client, "queryMysqlDatabase", {
       action: "runQuery",
       sql: `SELECT * FROM ${TEST_PREFIX}table`,
     });
     recordResult("SQL", "查询数据", querySqlRes.success, querySqlRes.text.slice(0, 100));
 
     // 清理
-    await safeTool(client, "manageSqlDatabase", {
+    await safeTool(client, "manageMysqlDatabase", {
       action: "runStatement",
       sql: `DROP TABLE IF EXISTS ${TEST_PREFIX}table`,
     });

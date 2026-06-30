@@ -131,7 +131,7 @@ scenarios:
   - relational-database-tool
   - no-sql-web-sdk
   commonMistakes:
-  - 把 CloudBase PG 当 MySQL，调用 `querySqlDatabase` / `manageSqlDatabase`。
+  - 把 CloudBase PG 当 MySQL，调用 `queryMysqlDatabase` / `manageMysqlDatabase`。
   - 只做前端按钮隐藏，没有后端或数据库层权限。
   - 猜 `/api/v1/rdb/rest` 这类 HTTP 路径，导致浏览器 404 后继续调试业务逻辑。
   - 写非法 Vite/TypeScript 动态 import，导致页面 500 后仍继续调试业务逻辑。
