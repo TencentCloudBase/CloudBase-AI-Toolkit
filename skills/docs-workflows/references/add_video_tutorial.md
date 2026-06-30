@@ -49,7 +49,9 @@ When user inputs `/add_video_tutorial` or provides a Bilibili video URL with req
   - **Tool**: `mcp_cloudbase_manageStorage` with `action=upload`
   - **Local Path**: `/tmp/bilibili-thumbnails/{BV号}.jpg`
 - Get permanent access URL from upload response
-  - Format: `https://{env-id}-{app-id}.tcb.qcloud.la/video-thumbnails/{BV号}.jpg`
+  - Format: `https://{appId}-{envId}-{uin}.tcb.qcloud.la/video-thumbnails/{BV号}.jpg`
+  - Example: `https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/video-thumbnails/BV1bRBkBFE7x.jpg`
+  - `appId` and the numeric `uin` suffix are visible in the env's `CdnDomain` returned by `envQuery`
 
 ### 4. Determine Tags
 - **Terminal Tags** (终端/平台):
@@ -62,7 +64,8 @@ When user inputs `/add_video_tutorial` or provides a Bilibili video URL with req
   - Determine from video title/content or ask user
 
 - **Dev Tool Tags** (开发工具):
-  - Common values: `['CodeBuddy']`, `['Cursor']`, `['Claude Code']`, `['Figma']`
+  - Known values: `['CodeBuddy']`, `['Cursor']`, `['Claude Code']`, `['Figma']`, `['Codex']`, `['OpenClaw']`
+  - The list is open — when the video uses a tool not in this list, add it (and update the skill doc) rather than force-fitting a wrong tag
   - **Important**: Do NOT include "CloudBase AI Toolkit" or "MCP" - CloudBase MCP is the default backend service for all tutorials and doesn't need to be explicitly tagged
   - Determine from video title/content or ask user
 
@@ -140,9 +143,10 @@ https://www.bilibili.com/video/BV1bRBkBFE7x/?share_source=copy_web&vd_source=068
    - **Never include "CloudBase AI Toolkit" or "MCP" in devToolTags** - CloudBase MCP is the default backend service used by all tutorials
    - **Never include "CloudBase AI Toolkit" or "MCP" in techStackTags** - CloudBase MCP is the default backend service and doesn't need to be explicitly tagged
 
-3. **Thumbnail URL Format**: 
+3. **Thumbnail URL Format**:
    - Use permanent cloud storage URL, not temporary URL
-   - Format: `https://{env-id}-{app-id}.tcb.qcloud.la/video-thumbnails/{BV号}.jpg`
+   - Format: `https://{appId}-{envId}-{uin}.tcb.qcloud.la/video-thumbnails/{BV号}.jpg`
+   - `appId` and the numeric `uin` suffix are visible in the env's `CdnDomain` returned by `envQuery` (e.g. `7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la` → AppId `7463`, envId `tcb-advanced-a656fc`, uin `1257967285`)
 
 4. **ID Generation**: 
    - Use kebab-case format
