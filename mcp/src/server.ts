@@ -42,6 +42,7 @@ const DEFAULT_PLUGINS = [
   "database",
   "pg_database",
   "pg_storage",
+  "mysql_database",
   "functions",
   "hosting",
   "storage",
@@ -64,12 +65,6 @@ function registerDatabase(server: ExtendedMcpServer) {
   const region = server.cloudBaseOptions?.region || process.env.TCB_REGION;
   if (!isInternationalRegion(region)) {
     registerDatabaseTools(server);
-  }
-  const pgPluginEnabled = server.enabledPlugins?.some((pluginName) =>
-    pluginName === "pg_database" || pluginName === "pg_storage"
-  );
-  if (!pgPluginEnabled) {
-    registerSQLDatabaseTools(server);
   }
   registerDataModelTools(server);
 }

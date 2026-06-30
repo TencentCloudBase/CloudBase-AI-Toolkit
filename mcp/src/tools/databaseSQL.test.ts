@@ -82,16 +82,16 @@ describe("SQL database tools", () => {
   it("registers the new SQL tool names only", () => {
     const { tools } = createMockServer();
 
-    expect(typeof tools.querySqlDatabase?.handler).toBe("function");
-    expect(typeof tools.manageSqlDatabase?.handler).toBe("function");
+    expect(typeof tools.queryMysqlDatabase?.handler).toBe("function");
+    expect(typeof tools.manageMysqlDatabase?.handler).toBe("function");
     expect(tools.executeReadOnlySQL).toBeUndefined();
     expect(tools.executeWriteSQL).toBeUndefined();
   });
 
-  it("querySqlDatabase(runQuery) rejects mutating SQL", async () => {
+  it("queryMysqlDatabase(runQuery) rejects mutating SQL", async () => {
     const { tools } = createMockServer();
 
-    const result = await tools.querySqlDatabase.handler({
+    const result = await tools.queryMysqlDatabase.handler({
       action: "runQuery",
       sql: "DELETE FROM users",
     });
@@ -104,10 +104,10 @@ describe("SQL database tools", () => {
     expect(mockCommonServiceCall).not.toHaveBeenCalled();
   });
 
-  it("querySqlDatabase(runQuery) sends ReadOnly to RunSql", async () => {
+  it("queryMysqlDatabase(runQuery) sends ReadOnly to RunSql", async () => {
     const { tools } = createMockServer();
 
-    await tools.querySqlDatabase.handler({
+    await tools.queryMysqlDatabase.handler({
       action: "runQuery",
       sql: "SELECT 1",
     });
@@ -129,10 +129,10 @@ describe("SQL database tools", () => {
     );
   });
 
-  it("manageSqlDatabase(provisionMySQL) requires explicit confirmation", async () => {
+  it("manageMysqlDatabase(provisionMySQL) requires explicit confirmation", async () => {
     const { tools } = createMockServer();
 
-    const result = await tools.manageSqlDatabase.handler({
+    const result = await tools.manageMysqlDatabase.handler({
       action: "provisionMySQL",
     });
     const payload = JSON.parse(result.content[0].text);
@@ -143,10 +143,10 @@ describe("SQL database tools", () => {
     });
   });
 
-  it("manageSqlDatabase(destroyMySQL) requires explicit confirmation", async () => {
+  it("manageMysqlDatabase(destroyMySQL) requires explicit confirmation", async () => {
     const { tools } = createMockServer();
 
-    const result = await tools.manageSqlDatabase.handler({
+    const result = await tools.manageMysqlDatabase.handler({
       action: "destroyMySQL",
     });
     const payload = JSON.parse(result.content[0].text);
@@ -157,7 +157,7 @@ describe("SQL database tools", () => {
     });
   });
 
-  it("querySqlDatabase(getInstanceInfo) suggests provisioning when instance is missing", async () => {
+  it("queryMysqlDatabase(getInstanceInfo) suggests provisioning when instance is missing", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeCreateMySQLResult") {
         return {
@@ -171,7 +171,7 @@ describe("SQL database tools", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.querySqlDatabase.handler({
+    const result = await tools.queryMysqlDatabase.handler({
       action: "getInstanceInfo",
     });
     const payload = JSON.parse(result.content[0].text);
@@ -184,12 +184,12 @@ describe("SQL database tools", () => {
       },
     });
     expect(payload.nextActions?.[0]).toMatchObject({
-      tool: "manageSqlDatabase",
+      tool: "manageMysqlDatabase",
       action: "provisionMySQL",
     });
   });
 
-  it("querySqlDatabase(describeInstance) should behave as getInstanceInfo alias", async () => {
+  it("queryMysqlDatabase(describeInstance) should behave as getInstanceInfo alias", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeCreateMySQLResult") {
         return {
@@ -203,7 +203,7 @@ describe("SQL database tools", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.querySqlDatabase.handler({
+    const result = await tools.queryMysqlDatabase.handler({
       action: "describeInstance",
     });
     const payload = JSON.parse(result.content[0].text);
@@ -217,7 +217,7 @@ describe("SQL database tools", () => {
     });
   });
 
-  it("manageSqlDatabase(initializeSchema) blocks when MySQL is not ready", async () => {
+  it("manageMysqlDatabase(initializeSchema) blocks when MySQL is not ready", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeCreateMySQLResult") {
         return {
@@ -236,7 +236,7 @@ describe("SQL database tools", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.manageSqlDatabase.handler({
+    const result = await tools.manageMysqlDatabase.handler({
       action: "initializeSchema",
       statements: ["CREATE TABLE users(id INT)"],
     });
@@ -248,7 +248,7 @@ describe("SQL database tools", () => {
     });
   });
 
-  it("querySqlDatabase(describeTaskStatus) maps success to READY", async () => {
+  it("queryMysqlDatabase(describeTaskStatus) maps success to READY", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeMySQLTaskStatus") {
         return {
@@ -264,7 +264,7 @@ describe("SQL database tools", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.querySqlDatabase.handler({
+    const result = await tools.queryMysqlDatabase.handler({
       action: "describeTaskStatus",
       request: { TaskId: "38654" },
     });
@@ -278,12 +278,12 @@ describe("SQL database tools", () => {
       },
     });
     expect(payload.nextActions?.[0]).toMatchObject({
-      tool: "manageSqlDatabase",
+      tool: "manageMysqlDatabase",
       action: "initializeSchema",
     });
   });
 
-  it("querySqlDatabase(describeCreateResult) suggests polling the create result again", async () => {
+  it("queryMysqlDatabase(describeCreateResult) suggests polling the create result again", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeCreateMySQLResult") {
         return {
@@ -300,7 +300,7 @@ describe("SQL database tools", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.querySqlDatabase.handler({
+    const result = await tools.queryMysqlDatabase.handler({
       action: "describeCreateResult",
       request: { TaskId: "38661" },
     });
@@ -319,7 +319,7 @@ describe("SQL database tools", () => {
       },
     });
     expect(payload.nextActions?.[0]).toMatchObject({
-      tool: "querySqlDatabase",
+      tool: "queryMysqlDatabase",
       action: "describeCreateResult",
       suggested_args: {
         action: "describeCreateResult",
@@ -330,7 +330,7 @@ describe("SQL database tools", () => {
     });
   });
 
-  it("querySqlDatabase(describeTaskStatus) suggests getInstanceInfo for destroy tasks", async () => {
+  it("queryMysqlDatabase(describeTaskStatus) suggests getInstanceInfo for destroy tasks", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeMySQLTaskStatus") {
         return {
@@ -346,7 +346,7 @@ describe("SQL database tools", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.querySqlDatabase.handler({
+    const result = await tools.queryMysqlDatabase.handler({
       action: "describeTaskStatus",
       request: {
         TaskId: "16710",
@@ -362,12 +362,12 @@ describe("SQL database tools", () => {
       },
     });
     expect(payload.nextActions?.[0]).toMatchObject({
-      tool: "querySqlDatabase",
+      tool: "queryMysqlDatabase",
       action: "getInstanceInfo",
     });
   });
 
-  it("querySqlDatabase(describeTaskStatus) returns failed destroy tasks without next actions", async () => {
+  it("queryMysqlDatabase(describeTaskStatus) returns failed destroy tasks without next actions", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeMySQLTaskStatus") {
         return {
@@ -383,7 +383,7 @@ describe("SQL database tools", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.querySqlDatabase.handler({
+    const result = await tools.queryMysqlDatabase.handler({
       action: "describeTaskStatus",
       request: {
         TaskId: "16710",
@@ -402,7 +402,7 @@ describe("SQL database tools", () => {
     expect(payload.nextActions).toEqual([]);
   });
 
-  it("manageSqlDatabase(provisionMySQL) sends DbInstanceType and carries TaskId forward", async () => {
+  it("manageMysqlDatabase(provisionMySQL) sends DbInstanceType and carries TaskId forward", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeCreateMySQLResult") {
         return {
@@ -424,7 +424,7 @@ describe("SQL database tools", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.manageSqlDatabase.handler({
+    const result = await tools.manageMysqlDatabase.handler({
       action: "provisionMySQL",
       confirm: true,
     });
@@ -450,7 +450,7 @@ describe("SQL database tools", () => {
       },
     });
     expect(payload.nextActions?.[0]).toMatchObject({
-      tool: "querySqlDatabase",
+      tool: "queryMysqlDatabase",
       action: "describeCreateResult",
       suggested_args: {
         action: "describeCreateResult",
@@ -461,7 +461,7 @@ describe("SQL database tools", () => {
     });
   });
 
-  it("manageSqlDatabase(destroyMySQL) blocks when no instance exists", async () => {
+  it("manageMysqlDatabase(destroyMySQL) blocks when no instance exists", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeCreateMySQLResult") {
         return {
@@ -475,7 +475,7 @@ describe("SQL database tools", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.manageSqlDatabase.handler({
+    const result = await tools.manageMysqlDatabase.handler({
       action: "destroyMySQL",
       confirm: true,
     });
@@ -487,7 +487,7 @@ describe("SQL database tools", () => {
     });
   });
 
-  it("manageSqlDatabase(destroyMySQL) sends DestroyMySQL and carries task request forward", async () => {
+  it("manageMysqlDatabase(destroyMySQL) sends DestroyMySQL and carries task request forward", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeCreateMySQLResult") {
         return {
@@ -522,7 +522,7 @@ describe("SQL database tools", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.manageSqlDatabase.handler({
+    const result = await tools.manageMysqlDatabase.handler({
       action: "destroyMySQL",
       confirm: true,
     });
@@ -549,7 +549,7 @@ describe("SQL database tools", () => {
       },
     });
     expect(payload.nextActions?.[0]).toMatchObject({
-      tool: "querySqlDatabase",
+      tool: "queryMysqlDatabase",
       action: "describeTaskStatus",
       suggested_args: {
         action: "describeTaskStatus",
@@ -561,7 +561,7 @@ describe("SQL database tools", () => {
     });
   });
 
-  it("querySqlDatabase(getInstanceInfo) uses cluster detail after create result succeeds", async () => {
+  it("queryMysqlDatabase(getInstanceInfo) uses cluster detail after create result succeeds", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeCreateMySQLResult") {
         return {
@@ -588,7 +588,7 @@ describe("SQL database tools", () => {
     });
 
     const { tools } = createMockServer();
-    const result = await tools.querySqlDatabase.handler({
+    const result = await tools.queryMysqlDatabase.handler({
       action: "getInstanceInfo",
     });
     const payload = JSON.parse(result.content[0].text);

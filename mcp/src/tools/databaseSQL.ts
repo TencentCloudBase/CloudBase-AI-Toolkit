@@ -26,7 +26,7 @@ async function checkMysqlGate(server: ExtendedMcpServer): Promise<any> {
       success: false,
       errorCode: "MYSQL_NOT_AVAILABLE",
       message: `This environment (${envId}) does not have MySQL. Use managePgDatabase / queryPgDatabase instead.`,
-      nextActions: [{ tool: "managePgDatabase", params: { action: "execute" }, description: "Use managePgDatabase" }],
+      nextActions: [{ tool: "managePgDatabase", params: { action: "execute" }, description: "Use managePgDatabase for PostgreSQL operations" }],
     });
   }
 
@@ -39,7 +39,7 @@ async function checkMysqlGate(server: ExtendedMcpServer): Promise<any> {
       return buildJsonToolResult({
         success: false,
         errorCode: "MYSQL_NOT_AVAILABLE",
-        message: `This environment (${envId}) has PostgreSQL enabled but MySQL is NOT available. Use managePgDatabase / queryPgDatabase instead of manageSqlDatabase / querySqlDatabase.`,
+        message: `This environment (${envId}) has PostgreSQL enabled but MySQL is NOT available. Use managePgDatabase / queryPgDatabase instead of manageMysqlDatabase / queryMysqlDatabase.`,
         nextActions: [{ tool: "managePgDatabase", params: { action: "execute" }, description: "Use managePgDatabase for PostgreSQL operations" }],
       });
     }
@@ -48,8 +48,8 @@ async function checkMysqlGate(server: ExtendedMcpServer): Promise<any> {
   MYSQL_GATE_CACHE.set(envId, true);
   return null;
 }
-const QUERY_SQL_DATABASE = "querySqlDatabase";
-const MANAGE_SQL_DATABASE = "manageSqlDatabase";
+const QUERY_MYSQL_DATABASE = "queryMysqlDatabase";
+const MANAGE_MYSQL_DATABASE = "manageMysqlDatabase";
 const QUERY_PERMISSIONS = "queryPermissions";
 const MANAGE_PERMISSIONS = "managePermissions";
 
@@ -539,7 +539,7 @@ function buildProvisionNextActions(
   if (status === "READY") {
     return [
       buildNextAction(
-        MANAGE_SQL_DATABASE,
+        MANAGE_MYSQL_DATABASE,
         "initializeSchema",
         "MySQL is ready. Initialize tables and indexes next.",
       ),
@@ -552,7 +552,7 @@ function buildProvisionNextActions(
 
   return [
     buildNextAction(
-      QUERY_SQL_DATABASE,
+      QUERY_MYSQL_DATABASE,
       "describeCreateResult",
       "MySQL provisioning is still running. Check the create result again before initializing schema.",
       request
@@ -583,7 +583,7 @@ function buildTaskStatusNextActions(
     if (inferTaskKind(request) === "destroy") {
       return [
         buildNextAction(
-          QUERY_SQL_DATABASE,
+          QUERY_MYSQL_DATABASE,
           "getInstanceInfo",
           "The destroy task completed. Confirm whether the MySQL instance no longer exists.",
         ),
@@ -592,7 +592,7 @@ function buildTaskStatusNextActions(
 
     return [
       buildNextAction(
-        MANAGE_SQL_DATABASE,
+        MANAGE_MYSQL_DATABASE,
         "initializeSchema",
         "MySQL is ready. Initialize tables and indexes next.",
       ),
@@ -601,7 +601,7 @@ function buildTaskStatusNextActions(
 
   return [
     buildNextAction(
-      QUERY_SQL_DATABASE,
+      QUERY_MYSQL_DATABASE,
       "describeTaskStatus",
       "MySQL task is still running. Check task status again before continuing.",
       request ? { action: "describeTaskStatus", request } : { action: "describeTaskStatus" },
@@ -620,7 +620,7 @@ async function handleRunQuery(
       message: "`sql` is required when action is `runQuery`.",
       nextActions: [
         buildNextAction(
-          QUERY_SQL_DATABASE,
+          QUERY_MYSQL_DATABASE,
           "runQuery",
           "Provide a read-only SQL statement such as SELECT/SHOW/DESCRIBE.",
         ),
@@ -632,10 +632,10 @@ async function handleRunQuery(
     return buildSqlToolResult({
       success: false,
       errorCode: "READ_ONLY_SQL_REQUIRED",
-      message: "`querySqlDatabase(action=runQuery)` only accepts read-only SQL statements.",
+      message: "`queryMysqlDatabase(action=runQuery)` only accepts read-only SQL statements.",
       nextActions: [
         buildNextAction(
-          MANAGE_SQL_DATABASE,
+          MANAGE_MYSQL_DATABASE,
           "runStatement",
           "Use the manage tool for INSERT/UPDATE/DELETE/DDL statements.",
         ),
@@ -671,7 +671,7 @@ async function handleRunQuery(
         message: "MySQL is not provisioned yet or not found. Please provision MySQL before running queries.",
         nextActions: [
           buildNextAction(
-            MANAGE_SQL_DATABASE,
+            MANAGE_MYSQL_DATABASE,
             "provisionMySQL",
             "Provision MySQL before querying data.",
             { action: "provisionMySQL", confirm: true },
@@ -794,7 +794,7 @@ async function handleGetInstanceInfo(
       ? undefined
       : [
           buildNextAction(
-            MANAGE_SQL_DATABASE,
+            MANAGE_MYSQL_DATABASE,
             "provisionMySQL",
             "Provision MySQL before running SQL statements or schema initialization.",
             { action: "provisionMySQL", confirm: true },
@@ -815,7 +815,7 @@ async function handleProvisionMySQL(
         "Provisioning MySQL creates billable resources. Re-run with `confirm: true` to continue.",
       nextActions: [
         buildNextAction(
-          MANAGE_SQL_DATABASE,
+          MANAGE_MYSQL_DATABASE,
           "provisionMySQL",
           "Explicit confirmation is required before provisioning MySQL.",
           { action: "provisionMySQL", confirm: true },
@@ -838,7 +838,7 @@ async function handleProvisionMySQL(
         existing.status === "READY"
           ? [
               buildNextAction(
-                MANAGE_SQL_DATABASE,
+                MANAGE_MYSQL_DATABASE,
                 "initializeSchema",
                 "The instance already exists. You can initialize schema next if needed.",
               ),
@@ -899,7 +899,7 @@ async function handleDestroyMySQL(
         "Destroying MySQL removes database resources. Re-run with `confirm: true` to continue.",
       nextActions: [
         buildNextAction(
-          MANAGE_SQL_DATABASE,
+          MANAGE_MYSQL_DATABASE,
           "destroyMySQL",
           "Explicit confirmation is required before destroying MySQL.",
           { action: "destroyMySQL", confirm: true },
@@ -956,7 +956,7 @@ async function handleDestroyMySQL(
     nextActions: isSuccess
       ? [
           buildNextAction(
-            QUERY_SQL_DATABASE,
+            QUERY_MYSQL_DATABASE,
             "describeTaskStatus",
             "Check the MySQL destroy task status before assuming the instance is gone.",
             {
@@ -989,7 +989,7 @@ async function handleRunStatement(
       message: "MySQL is not provisioned for the current environment yet.",
       nextActions: [
         buildNextAction(
-          MANAGE_SQL_DATABASE,
+          MANAGE_MYSQL_DATABASE,
           "provisionMySQL",
           "Provision MySQL before executing write statements or DDL.",
           { action: "provisionMySQL", confirm: true },
@@ -1005,7 +1005,7 @@ async function handleRunStatement(
       message: `MySQL is not ready yet (current status: ${instanceInfo.status}).`,
       nextActions: [
         buildNextAction(
-          QUERY_SQL_DATABASE,
+          QUERY_MYSQL_DATABASE,
           "getInstanceInfo",
           "Check current instance status before retrying the statement.",
         ),
@@ -1040,7 +1040,7 @@ async function handleRunStatement(
         message: "MySQL is not provisioned yet or not found. Please provision MySQL before running statements.",
         nextActions: [
           buildNextAction(
-            MANAGE_SQL_DATABASE,
+            MANAGE_MYSQL_DATABASE,
             "provisionMySQL",
             "Provision MySQL before executing statements.",
             { action: "provisionMySQL", confirm: true },
@@ -1080,7 +1080,7 @@ async function resolveInitializationReadiness(
         message: "MySQL is not provisioned yet. Initialize schema only after provisioning completes.",
         nextActions: [
           buildNextAction(
-            MANAGE_SQL_DATABASE,
+            MANAGE_MYSQL_DATABASE,
             "provisionMySQL",
             "Provision MySQL before schema initialization.",
             { action: "provisionMySQL", confirm: true },
@@ -1131,7 +1131,7 @@ async function resolveInitializationReadiness(
         },
         nextActions: [
           buildNextAction(
-            QUERY_SQL_DATABASE,
+            QUERY_MYSQL_DATABASE,
             "describeTaskStatus",
             "Check MySQL task status until the instance becomes ready.",
             args.statusContext?.taskStatusRequest
@@ -1205,7 +1205,7 @@ async function handleInitializeSchema(
             message: "MySQL is not provisioned yet or not found. Please provision MySQL before initializing schema.",
             nextActions: [
               buildNextAction(
-                MANAGE_SQL_DATABASE,
+                MANAGE_MYSQL_DATABASE,
                 "provisionMySQL",
                 "Provision MySQL before executing statements.",
                 { action: "provisionMySQL", confirm: true },
@@ -1260,7 +1260,7 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
   };
 
   server.registerTool?.(
-    QUERY_SQL_DATABASE,
+    QUERY_MYSQL_DATABASE,
     {
       title: "查询 CloudBase MySQL 数据库状态或执行只读 SQL",
       description:
@@ -1313,7 +1313,7 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
   );
 
   server.registerTool?.(
-    MANAGE_SQL_DATABASE,
+    MANAGE_MYSQL_DATABASE,
     {
       title: "管理 CloudBase MySQL 数据库生命周期或执行写入 SQL",
       description:

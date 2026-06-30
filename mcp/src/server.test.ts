@@ -88,7 +88,7 @@ describe("server plugin registration", () => {
     process.env.npm_package_version = "0.0.0-test";
   });
 
-  it("should register app tools in the default plugin set", async () => {
+  it("should register default plugins", async () => {
     const { createCloudBaseMcpServer } = await import("./server.js");
 
     await createCloudBaseMcpServer({ enableTelemetry: false });
@@ -100,7 +100,7 @@ describe("server plugin registration", () => {
     expect(mockRegisterAppTools).toHaveBeenCalledTimes(1);
     expect(mockRegisterPgDatabaseTools).toHaveBeenCalledTimes(1);
     expect(mockRegisterPgStorageTools).toHaveBeenCalledTimes(1);
-    expect(mockRegisterSqlDatabaseTools).not.toHaveBeenCalled();
+    expect(mockRegisterSqlDatabaseTools).toHaveBeenCalledTimes(1);
   });
 
   it("should allow MySQL tools to be explicitly enabled with PG plugins", async () => {

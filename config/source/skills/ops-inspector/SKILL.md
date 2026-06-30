@@ -173,7 +173,7 @@ When the user specifies a resource type or a specific resource:
 
 1. **Cloud function errors**: `queryFunctions(action="listFunctionLogs", functionName="<name>")` then `queryLogs(action="searchLogs", queryString="* AND functionName:<name> AND level:ERROR", ...)`
 2. **CloudRun errors**: `queryCloudRun(action="detail", detailServerName="<name>")` then `queryLogs(action="searchLogs", queryString="ERROR", service="tcbr", ...)`
-3. **Database issues**: Check `queryPgDatabase(action="context"|"metadata"|"objects")` for CloudBase PG, `querySqlDatabase` for MySQL, or `readNoSqlDatabaseStructure` for NoSQL depending on type
+3. **Database issues**: Check `queryPgDatabase(action="context"|"metadata"|"objects")` for CloudBase PG, `queryMysqlDatabase` for MySQL, or `readNoSqlDatabaseStructure` for NoSQL depending on type
 4. **General error search**: `queryLogs(action="searchLogs", queryString="<error-keyword>", ...)`
 
 ### AIOps Methodology
@@ -210,7 +210,7 @@ This skill follows AIOps principles for intelligent inspection:
 | Check NoSQL structure | `readNoSqlDatabaseStructure(action="listCollections")` |
 | Check PostgreSQL context | `queryPgDatabase(action="context")` |
 | Check PostgreSQL metadata | `queryPgDatabase(action="metadata", limit=20)` |
-| Check MySQL status | `querySqlDatabase(action="getContext")` |
+| Check MySQL status | `queryMysqlDatabase(action="getContext")` |
 
 ### Common CLS Query Patterns
 
