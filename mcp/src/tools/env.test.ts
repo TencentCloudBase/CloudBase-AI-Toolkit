@@ -724,11 +724,12 @@ describe("env tools - auth", () => {
     expect(mockResetCloudBaseManagerCache).toHaveBeenCalled();
   });
 
-  it("CodeBuddy should only expose status and set_env actions", () => {
+  it("CodeBuddy should only expose status, set_env, and login_by_api_key actions", () => {
     const { tools: codeBuddyTools } = createMockServer("CodeBuddy");
     expect(codeBuddyTools.auth.meta.inputSchema.action.unwrap().options).toEqual([
       "status",
       "set_env",
+      "login_by_api_key",
     ]);
     expect(codeBuddyTools.auth.meta.inputSchema.authMode).toBeUndefined();
     expect(codeBuddyTools.auth.meta.inputSchema.oauthEndpoint).toBeUndefined();
@@ -736,6 +737,7 @@ describe("env tools - auth", () => {
     expect(codeBuddyTools.auth.meta.inputSchema.oauthCustom).toBeUndefined();
     expect(codeBuddyTools.auth.meta.inputSchema.forceUpdate).toBeUndefined();
     expect(codeBuddyTools.auth.meta.inputSchema.confirm).toBeUndefined();
+    expect(codeBuddyTools.auth.meta.inputSchema.reveal).toBeUndefined();
   });
 
   it("auth(action=status) should reflect explicit server auth config", async () => {
@@ -786,6 +788,76 @@ describe("env tools - auth", () => {
       returned: 20,
       truncated: true,
     });
+  });
+
+  it("auth(action=login_by_api_key) should validate required args", async () => {
+    const result = await tools.auth.handler({ action: "login_by_api_key" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toHaveProperty("ok", false);
+    expect(payload).toHaveProperty("code", "INVALID_ARGS");
+    expect(payload.message).toContain("apiKey 和 envId");
+  });
+
+  it("auth(action=login_by_api_key) should succeed when peekLoginState returns credentials", async () => {
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      token: "token",
+      envId: "env-test",
+    });
+    mockGetCachedEnvId.mockReturnValue("env-test");
+
+    const result = await tools.auth.handler({
+      action: "login_by_api_key",
+      apiKey: "test-api-key",
+      apiKeyEnvId: "env-test",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toHaveProperty("ok", true);
+    expect(payload).toHaveProperty("code", "AUTH_READY");
+    expect(payload).toHaveProperty("auth_mode", "api_key");
+    expect(payload).toHaveProperty("current_env_id", "env-test");
+    expect(process.env.CLOUDBASE_API_KEY).toBe("test-api-key");
+    expect(process.env.CLOUDBASE_ENV_ID).toBe("env-test");
+  });
+
+  it("auth(action=login_by_api_key) should return error when peekLoginState returns null", async () => {
+    mockPeekLoginState.mockResolvedValue(null);
+
+    const result = await tools.auth.handler({
+      action: "login_by_api_key",
+      apiKey: "invalid-api-key",
+      apiKeyEnvId: "env-test",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toHaveProperty("ok", false);
+    expect(payload).toHaveProperty("code", "API_KEY_AUTH_FAILED");
+
+    // env vars should be cleaned up on failure
+    expect(process.env.CLOUDBASE_API_KEY).toBeUndefined();
+    expect(process.env.CLOUDBASE_ENV_ID).toBeUndefined();
+  });
+
+  it("auth(action=login_by_api_key) should return error when peekLoginState throws", async () => {
+    mockPeekLoginState.mockRejectedValue(new Error("network error"));
+
+    const result = await tools.auth.handler({
+      action: "login_by_api_key",
+      apiKey: "test-api-key",
+      apiKeyEnvId: "env-test",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toHaveProperty("ok", false);
+    expect(payload).toHaveProperty("code", "API_KEY_AUTH_FAILED");
+    expect(payload.message).toContain("network error");
+
+    // env vars should be cleaned up on exception
+    expect(process.env.CLOUDBASE_API_KEY).toBeUndefined();
+    expect(process.env.CLOUDBASE_ENV_ID).toBeUndefined();
   });
 });
 
