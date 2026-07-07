@@ -150,7 +150,7 @@ Use static imports and one shared `app.rdb()` client:
 ```ts
 import cloudbase from "@cloudbase/js-sdk";
 const app = cloudbase.init({ env: import.meta.env.VITE_CLOUDBASE_ENV_ID });
-export const auth = app.auth();
+export const auth = app.auth;
 export const db = app.rdb();
 ```
 
