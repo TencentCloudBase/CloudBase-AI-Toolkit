@@ -132,6 +132,28 @@ describe("agent tools", () => {
     });
   });
 
+  it("manageAgents(action=createAgent) should sanitize name with underscores", async () => {
+    const result = await tools.manageAgents.handler({
+      action: "createAgent",
+      params: {
+        name: "test_agent",
+      },
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    // 下划线应被替换为连字符
+    expect(mockCreateAgent).toHaveBeenCalledWith({
+      Name: "test-agent",
+      Runtime: "Nodejs20.19",
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "createAgent",
+      },
+    });
+  });
+
   it("manageAgents(action=createAgent) should fail when name is missing", async () => {
     const result = await tools.manageAgents.handler({
       action: "createAgent",
