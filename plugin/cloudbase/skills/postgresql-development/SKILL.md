@@ -1,7 +1,7 @@
 ---
 name: postgresql-development-cloudbase
 description: "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG."
-version: 2.23.6
+version: 2.23.7
 alwaysApply: false
 ---
 
@@ -150,7 +150,7 @@ Use static imports and one shared `app.rdb()` client:
 ```ts
 import cloudbase from "@cloudbase/js-sdk";
 const app = cloudbase.init({ env: import.meta.env.VITE_CLOUDBASE_ENV_ID });
-export const auth = app.auth();
+export const auth = app.auth;
 export const db = app.rdb();
 ```
 
