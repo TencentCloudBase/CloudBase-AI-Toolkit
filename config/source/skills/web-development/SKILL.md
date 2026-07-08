@@ -205,5 +205,5 @@ const app = cloudbase.init({
   env: "your-full-env-id", // Canonical full CloudBase environment ID resolved from envQuery or the console
 });
 
-const auth = app.auth();
+const auth = app.auth
 ```

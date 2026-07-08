@@ -121,7 +121,7 @@ When you load this skill to work on a task:
 
 ## Node auth architecture – how Node fits into CloudBase Auth
 
-CloudBase Auth v2 separates **where users log in** from **where backend code runs**:
+CloudBase Auth separates **where users log in** from **where backend code runs**:
 
 - Users log in through the supported auth methods (username/password, SMS, email, WeChat, custom login, anonymous — disabled by default, etc.) using client SDKs or HTTP interfaces, as described in the official CloudBase Auth overview documentation.
 - Once logged in, CloudBase attaches the user identity and tokens to the environment.

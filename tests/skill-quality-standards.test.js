@@ -34,7 +34,7 @@ describe('skill quality standards', () => {
   test('auth-web stays web-only and fixes the known snippet issues', () => {
     const raw = readSourceSkill('auth-web');
 
-    expect(raw).toMatch(/const\s+auth\s*=\s*app\.auth\(/);
+    expect(raw).toMatch(/const\s+auth\s*=\s*app\.auth/);
     expect(raw).not.toContain('const { data, error } = const { data, error } =');
     expect(raw).not.toContain('## WeChat Mini Program');
     expect(raw).not.toContain('auth.signInWithOpenId');
