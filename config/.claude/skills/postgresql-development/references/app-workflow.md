@@ -77,7 +77,7 @@ Use one shared app:
 import cloudbase from "@cloudbase/js-sdk";
 
 export const app = cloudbase.init({ env: import.meta.env.VITE_ENV_ID });
-export const auth = app.auth();
+export const auth = app.auth;
 export const db = app.rdb();
 ```
 

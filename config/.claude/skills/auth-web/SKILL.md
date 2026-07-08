@@ -49,7 +49,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Starting implementation before calling `queryAppAuth(action="getLoginConfig")` and enabling `usernamePassword` when it is still off.
 - **Writing `auth.signInWithPassword(...)` or `auth.signUp(...)` code without first confirming the provider is enabled via MCP.** Before writing any sign-in or sign-up code in the browser, call `queryAppAuth(action="listProviders")` to verify the target provider (e.g. `email`, `phone`, `usernamePassword`) has `On: "TRUE"`. For email-based sign-up (`auth.signUp({ email, password })`), additionally confirm SMTP is configured — otherwise the provider may throw `"provider email not found"` or similar errors. For username/password login, use `auth.signInWithPassword({ username, password })`; registration is best done through the management API (`manageAppAuth(action="createUser")`) or by confirming email provider readiness first.
 - **Treating `auth.getUser()` or deprecated `auth.getLoginState()` as proof of real login.** When the SDK is initialized with `accessKey`, the deprecated `getLoginState()` returns an object with a valid `uid` even without any login — causing route guards that check `!!loginState` or `!!uid` to incorrectly pass. The fix is to use `auth.getSession()` instead: it returns `data.session === undefined` when no real login has occurred. Only `!!data.session` from `getSession()` is a reliable authentication check.
-- **Copying old CloudBase auth snippets from training data.** Do not use `auth.getLoginState()`, `auth.hasLoginState()`, `auth.getCurrentUser()`, or `auth.toDefaultLoginPage()` as the default Web flow. Use the Supabase-like Web SDK v2 auth methods in this file and provider readiness from `auth-tool`.
+- **Copying old CloudBase auth snippets from training data.** Do not use `auth.getLoginState()`, `auth.hasLoginState()`, `auth.getCurrentUser()`, or `auth.toDefaultLoginPage()` as the default Web flow. Use the Web SDK v3 auth methods in this file and provider readiness from `auth-tool`.
   
   Note: anonymous login is now **disabled by default** for new environments and inactive existing environments. Always use `auth.getSession()` for auth guards.
 
@@ -62,10 +62,10 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 ## Core Capabilities
 
-**Use Case**: Web frontend projects using `@cloudbase/js-sdk@2.24.0+` for user authentication  
+**Use Case**: Web frontend projects using `@cloudbase/js-sdk@latest` for user authentication  
 **Key Benefits**: **Supabase-compatible Auth API** — all methods return `{ data, error }`, supports phone, email, anonymous (disabled by default), username/password, OAuth, and third-party login methods
 
-> 📌 **Supabase API Compatibility**: CloudBase Web SDK v2 auth module is designed with Supabase-like API ergonomics. If you are familiar with `supabase-js` auth patterns, the same mental model applies:
+> 📌 **Supabase API Compatibility**: CloudBase Web SDK v3 auth module is designed with Supabase-like API ergonomics. If you are familiar with `supabase-js` auth patterns, the same mental model applies:
 > - All methods return `Promise<{ data, error }>` — always check `error` first
 > - `signInWithPassword`, `signInWithOtp`, `signUp`, `signOut`, `getSession`, `getUser` follow the same naming as Supabase
 > - `onAuthStateChange(callback)` provides reactive auth state observation (events: `INITIAL_SESSION`, `SIGNED_IN`, `SIGNED_OUT`, `TOKEN_REFRESHED`, `USER_UPDATED`, `PASSWORD_RECOVERY`, `BIND_IDENTITY`)
@@ -108,14 +108,14 @@ import cloudbase from '@cloudbase/js-sdk'
 
 const app = cloudbase.init({
   env: 'your-full-env-id', // Canonical full CloudBase environment ID resolved from envQuery or the console, not an alias or shorthand
-  region: `region`,  // CloudBase environment Region, default 'ap-shanghai'
+  region: 'ap-shanghai',  // CloudBase environment Region, default 'ap-shanghai'
   accessKey: 'publishable key', // required, get from auth-tool-cloudbase
   // ⚠️ With accessKey, the deprecated getLoginState() returns misleading auth data (uid)
   // even without login. Always use auth.getSession() — returns undefined when not logged in.
   auth: { detectSessionInUrl: true }, // required
 })
 
-const auth = app.auth({ persistence: 'local' })
+const auth = app.auth
 ```
 
 If the current task has not retrieved a real Publishable Key, omit `accessKey` instead of inventing one. A wrong `accessKey` can break auth-state checks and protected-route behavior.
@@ -145,6 +145,7 @@ const { data: loginData, error: loginError } = await data.verifyOtp({ token: '65
 All auth methods return `{ data, error }`. Always check `error` first:
 ```js
 // Login — returns { data: { user, session }, error: null } on success
+// Supports optional is_encrypt for password encryption (default false)
 const { data, error } = await auth.signInWithPassword({ username: 'test_user', password: 'pass123' })
 if (error) {
   // Handle login failure (wrong password, user not found, provider not enabled)
@@ -157,6 +158,8 @@ const uid = data.user.id
 // Also works with email or phone:
 // await auth.signInWithPassword({ email: 'user@example.com', password: 'pass123' })
 // await auth.signInWithPassword({ phone: '13800138000', password: 'pass123' })
+// Optional: encrypt password during transmission
+// await auth.signInWithPassword({ email: 'user@example.com', password: 'pass123', is_encrypt: true })
 ```
 
 **Checking login state (for route guards / auth checks):**
@@ -285,14 +288,39 @@ const handleRegister = async () => {
 ```js
 // Anonymous login is disabled by default — must be explicitly enabled via auth-tool
 const { data, error } = await auth.signInAnonymously()
+// Optional: pass provider_token to associate anonymous session with third-party identity
+// const { data, error } = await auth.signInAnonymously({ provider_token: 'xxx' })
 ```
 
-**6. OAuth (Google/WeChat)**
+**6. OAuth (Google/WeChat/GitHub)**
 - Automatically use `auth-tool-cloudbase` to turn on `Google Login` or `WeChat Login` through `manageAppAuth`
+- Supported providers: `google`, `wechat`, `github`, `facebook`, `apple`
+- By default, OAuth callback is auto-handled when `auth.detectSessionInUrl: true` is set in init
 ```js
 const { data, error } = await auth.signInWithOAuth({ provider: 'google' })
-window.location.href = data.url // Auto-complete after callback
+if (error) throw error
+// Auto-redirect to OAuth provider; after callback SDK auto-completes login
+window.location.href = data.url
+
+// For non-redirect flows (popup / custom UX), use skipBrowserRedirect + type:
+// await auth.signInWithOAuth({
+//   provider: 'github',
+//   options: { skipBrowserRedirect: true, type: 'sign_in' }
+// })
+// Then use data.url manually (e.g. window.open(data.url))
+
+// For binding additional identity to existing user: type: 'bind_identity'
 ```
+
+**Manual OAuth callback handling:**
+- If `detectSessionInUrl` is not set, call `verifyOAuth` manually after redirect:
+```js
+const urlParams = new URLSearchParams(window.location.search)
+const { data, error } = await auth.verifyOAuth({
+  provider: 'google',
+  code: urlParams.get('code'),
+  state: urlParams.get('state'),
+})
 
 **7. Custom Ticket**
 ```js
@@ -376,7 +404,7 @@ const unlinkIdentityResult = await auth.unlinkIdentity({
 })
 
 // Delete account
-const deleteMeResult = await auth.deleteMe({ password: 'current' })
+const deleteResult = await auth.deleteUser({ password: 'current' })
 
 // Listen to state changes
 const authStateSubscription = auth.onAuthStateChange((event, session, info) => {

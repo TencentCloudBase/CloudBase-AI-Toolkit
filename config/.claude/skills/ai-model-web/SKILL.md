@@ -239,7 +239,7 @@ const app = cloudbase.init({
   accessKey: "<YOUR_PUBLISHABLE_KEY>"  // Get it from the CloudBase console
 });
 
-const auth = app.auth();
+const auth = app.auth;
 
 // CRITICAL: Use auth.getSession() to check login — NOT the deprecated getLoginState().
 // getLoginState() returns uid even without real login (just accessKey), causing false positives.

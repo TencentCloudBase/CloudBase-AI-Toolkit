@@ -459,6 +459,62 @@ exports.main = async (event, context) => {
 
 ---
 
+## v3 Web SDK Mini Program methods
+
+If the Mini Program uses `@cloudbase/js-sdk` (Web SDK v3) instead of `wx-server-sdk`, the following auth methods are available:
+
+### signInWithOpenId
+
+WeChat OpenID silent login — automatically uses the current WeChat login state:
+
+```js
+import cloudbase from "@cloudbase/js-sdk"
+
+const app = cloudbase.init({
+  env: "your-env-id",
+  region: "ap-shanghai",
+})
+const auth = app.auth
+
+// OpenID silent login (default: use wx.cloud mode)
+const { data, error } = await auth.signInWithOpenId()
+if (error) {
+  console.error('OpenID login failed:', error.message)
+} else {
+  console.log('Logged in with OpenID:', data.user?.id)
+}
+
+// For non-wx.cloud mode, pass useWxCloud: false
+// const { data, error } = await auth.signInWithOpenId({ useWxCloud: false })
+```
+
+### signInWithPhoneAuth
+
+WeChat phone number authorization login — requires the user to authorize phone number via the Mini Program button:
+
+```js
+// Step 1: In Mini Program page, use <button open-type="getPhoneNumber">
+// to get the encrypted phone code
+
+// Step 2: Pass the phoneCode to signInWithPhoneAuth
+const { data, error } = await auth.signInWithPhoneAuth({
+  phoneCode: '<encrypted-phone-code-from-wechat>',
+})
+if (error) {
+  console.error('Phone auth failed:', error.message)
+} else {
+  console.log('Logged in with phone:', data.user)
+}
+```
+
+**Important:**
+- These methods are from `@cloudbase/js-sdk`, **not** `wx-server-sdk` or `wx.cloud`
+- They provide an alternative auth path for Mini Programs using the v3 Web SDK
+- For the standard `wx.cloud` + cloud function path, use the scenarios above instead
+- `signInWithPhoneAuth` requires the user to tap a `<button open-type="getPhoneNumber">` in the Mini Program
+
+---
+
 ## Summary
 
 WeChat Mini Program authentication with CloudBase is **simple and secure**:
