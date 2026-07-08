@@ -484,6 +484,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       const cloudbase = await getManager();
       const accessPath = input.path ? normalizeAccessPath(input.path) : undefined;
       let resolvedAccessId = input.accessId;
+      let resolvedName: string | undefined;
 
       if (!resolvedAccessId) {
         if (!input.targetName && !accessPath) {
@@ -510,6 +511,20 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         }
 
         resolvedAccessId = candidates[0]?.APIId;
+        resolvedName = candidates[0]?.Name;
+      } else {
+        // 仅传入 accessId 时，先查询获取 name 等信息，确保删除参数完整
+        try {
+          const accessList = await cloudbase.access.getAccessList({});
+          const match = (accessList.APISet ?? []).find(
+            (item: any) => item.APIId === resolvedAccessId,
+          );
+          if (match) {
+            resolvedName = match.Name;
+          }
+        } catch {
+          // 查询失败不影响主流程，继续用 accessId 删除
+        }
       }
 
       if (!resolvedAccessId) {
@@ -517,7 +532,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       }
 
       const result = await cloudbase.access.deleteAccess({
-        ...(input.targetName ? { name: input.targetName } : {}),
+        ...(resolvedName ? { name: resolvedName } : {}),
         apiId: resolvedAccessId,
       });
       logCloudBaseResult(server.logger, result);
@@ -525,7 +540,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       return buildEnvelope(
         {
           action: input.action,
-          targetName: input.targetName ?? null,
+          targetName: resolvedName ?? input.targetName ?? null,
           path: accessPath ?? null,
           accessId: resolvedAccessId,
           raw: result,

@@ -79,6 +79,7 @@ describe("gateway tools", () => {
         {
           APIId: "api-123",
           Path: "api/hello",
+          Name: "helloFn",
         },
       ],
     });
