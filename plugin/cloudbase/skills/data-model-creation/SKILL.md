@@ -1,7 +1,7 @@
 ---
 name: data-model-creation
 description: Optional advanced tool for complex data modeling. For simple MySQL table creation, use relational-database-tool directly; for PostgreSQL / CloudBase PG schema work, use postgresql-development.
-version: 2.23.5
+version: 2.23.6
 alwaysApply: false
 ---
 

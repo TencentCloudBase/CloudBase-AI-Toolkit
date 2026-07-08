@@ -310,15 +310,17 @@ type AuthAction =
   | "start_auth"
   | "set_env"
   | "logout"
-  | "get_temp_credentials";
+  | "get_temp_credentials"
+  | "login_by_api_key";
 
-const CODEBUDDY_AUTH_ACTIONS = ["status", "set_env"] as const;
+const CODEBUDDY_AUTH_ACTIONS = ["status", "set_env", "login_by_api_key"] as const;
 const DEFAULT_AUTH_ACTIONS = [
   "status",
   "start_auth",
   "set_env",
   "logout",
   "get_temp_credentials",
+  "login_by_api_key",
 ] as const;
 
 function maskSensitiveValue(value: string): string {
@@ -878,18 +880,11 @@ async function enrichEnvInfoWithMissingFields(
   }
 
   // 如果 PostgreSQL 字段已存在且非空，说明 SDK 已经透传了，不需要补充
-  // 但 MySQL 字段仍需检查，因为 SDK 可能漏传
-  const hasPostgresqlFields =
+  if (
     Array.isArray(envInfo.PostgreSQL) &&
     envInfo.PostgreSQL.length > 0 &&
-    Array.isArray(envInfo.Meta);
-
-  // 检查 MySQL 字段是否已在 SDK 结果中
-  const hasMysqlFields = ["MysqlInstances", "MySQLInstances", "MySQL"].some(
-    (k) => Array.isArray((envInfo as any)[k]) && (envInfo as any)[k].length > 0,
-  );
-
-  if (hasPostgresqlFields && hasMysqlFields) {
+    Array.isArray(envInfo.Meta)
+  ) {
     return result;
   }
 
@@ -907,45 +902,23 @@ async function enrichEnvInfoWithMissingFields(
       return result;
     }
 
-    const updatedEnvInfo = { ...envInfo };
-
-    // 补充 PostgreSQL 字段（SDK 白名单映射遗漏）
-    if (
-      !hasPostgresqlFields &&
-      Array.isArray(envBaseInfo.PostgreSQL) &&
-      envBaseInfo.PostgreSQL.length > 0
-    ) {
-      updatedEnvInfo.PostgreSQL = envBaseInfo.PostgreSQL;
-    }
-
-    // 补充 Meta 字段（SDK 白名单映射遗漏）
-    if (
-      !hasPostgresqlFields &&
-      Array.isArray(envBaseInfo.Meta)
-    ) {
-      updatedEnvInfo.Meta = envBaseInfo.Meta;
-    }
-
-    // 补充 StaticStorages 字段（SDK 白名单映射遗漏）
-    if (Array.isArray(envBaseInfo.StaticStorages)) {
-      updatedEnvInfo.StaticStorages = envBaseInfo.StaticStorages;
-    }
-
-    // 补充 MySQL 字段（SDK 白名单映射遗漏）
-    for (const k of ["MysqlInstances", "MySQLInstances", "MySQL"]) {
-      if (
-        !hasMysqlFields &&
-        Array.isArray((envBaseInfo as any)[k]) &&
-        (envBaseInfo as any)[k].length > 0
-      ) {
-        updatedEnvInfo[k] = (envBaseInfo as any)[k];
-        break;
-      }
-    }
-
     return {
       ...result,
-      EnvInfo: updatedEnvInfo,
+      EnvInfo: {
+        ...envInfo,
+        // 补充 PostgreSQL 字段（SDK 白名单映射遗漏）
+        ...(Array.isArray(envBaseInfo.PostgreSQL) && {
+          PostgreSQL: envBaseInfo.PostgreSQL,
+        }),
+        // 补充 Meta 字段（SDK 白名单映射遗漏）
+        ...(Array.isArray(envBaseInfo.Meta) && {
+          Meta: envBaseInfo.Meta,
+        }),
+        // 补充 StaticStorages 字段（SDK 白名单映射遗漏）
+        ...(Array.isArray(envBaseInfo.StaticStorages) && {
+          StaticStorages: envBaseInfo.StaticStorages,
+        }),
+      },
     };
   } catch {
     // CAPI 调用失败不影响已有数据，静默忽略
@@ -1056,13 +1029,13 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     {
       title: "CloudBase 开发阶段登录与环境",
       description:
-        "CloudBase（腾讯云开发）开发阶段登录与环境绑定。登录后即可访问云资源；环境(env)是云函数、数据库、静态托管等资源的隔离单元，绑定环境后其他 MCP 工具才能操作该环境。支持：查询状态、发起登录、绑定环境(set_env)、退出登录。",
+        "CloudBase（腾讯云开发）开发阶段登录与环境绑定。登录后即可访问云资源；环境(env)是云函数、数据库、静态托管等资源的隔离单元，绑定环境后其他 MCP 工具才能操作该环境。支持：查询状态、发起登录、API Key登录、绑定环境(set_env)、退出登录。",
       inputSchema: {
         action: z
           .enum(authActionEnum)
           .optional()
           .describe(
-            "动作：status=查询状态，start_auth=发起登录，set_env=绑定环境(传envId)，logout=退出登录",
+            "动作：status=查询状态，start_auth=发起登录，login_by_api_key=API Key登录，set_env=绑定环境(传envId)，logout=退出登录",
           ),
         ...(supportedAuthActions.includes("start_auth")
           ? {
@@ -1088,6 +1061,18 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           .string()
           .optional()
           .describe("环境ID(CloudBase 环境唯一标识)，绑定后工具将操作该环境。action=set_env 时必填"),
+        ...(supportedAuthActions.includes("login_by_api_key")
+          ? {
+              apiKey: z
+                .string()
+                .optional()
+                .describe("CloudBase API Key，action=login_by_api_key 时必填"),
+              apiKeyEnvId: z
+                .string()
+                .optional()
+                .describe("CloudBase 环境ID(EnvId)，action=login_by_api_key 时必填，用于指定 API Key 所属环境"),
+            }
+          : {}),
         ...(supportedAuthActions.includes("logout")
           ? {
               confirm: z
@@ -1122,6 +1107,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       envId?: string;
       confirm?: unknown;
       reveal?: unknown;
+      apiKey?: unknown;
+      apiKeyEnvId?: unknown;
     }) => {
       const action = rawArgs.action ?? "status";
       const authMode =
@@ -1442,6 +1429,85 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             ...buildAuthEnvSetupPayload(envPreparation),
             next_step: envPreparation.nextStep,
           });
+        }
+
+        if (action === "login_by_api_key") {
+          const toolApiKey = normalizeOptionalToolString(rawArgs.apiKey);
+          const toolApiKeyEnvId = normalizeOptionalToolString(rawArgs.apiKeyEnvId);
+
+          if (!toolApiKey || !toolApiKeyEnvId) {
+            return buildJsonToolResult({
+              ok: false,
+              code: "INVALID_ARGS",
+              message: "action=login_by_api_key 时必须同时提供 apiKey 和 envId。",
+              next_step: buildAuthNextStep("login_by_api_key", {
+                suggestedArgs: { action: "login_by_api_key", apiKey: "<your-api-key>", envId: "<your-env-id>" },
+              }),
+            });
+          }
+
+          // 写入 process.env（与 cli.ts 处理 --api-key/--env-id 的逻辑一致）
+          process.env.CLOUDBASE_API_KEY = toolApiKey;
+          process.env.CLOUDBASE_ENV_ID = toolApiKeyEnvId;
+
+          try {
+            const loginState = await peekLoginState();
+            if (loginState) {
+              const envPreparation = await prepareAuthEnvironment({
+                server,
+                cloudBaseOptions,
+                loginState,
+              });
+              return buildJsonToolResult({
+                ok: true,
+                code: "AUTH_READY",
+                message: "API Key 认证成功，已获取临时密钥。",
+                auth_mode: "api_key",
+                ...buildAuthEnvSetupPayload(envPreparation),
+                next_step: envPreparation.nextStep,
+              });
+            }
+
+            // API Key 换取失败：清理 env vars 并返回诊断信息
+            delete process.env.CLOUDBASE_API_KEY;
+            delete process.env.CLOUDBASE_ENV_ID;
+
+            let diagMessage = "API Key 换取临时密钥失败。";
+            diagMessage += `\n\n诊断信息：`;
+            diagMessage += `\n- CLOUDBASE_ENV_ID: ${toolApiKeyEnvId}`;
+            diagMessage += `\n- CLOUDBASE_API_KEY: ${toolApiKey.slice(0, 20)}...（已截断）`;
+            diagMessage += `\n\n可能原因：`;
+            diagMessage += `\n1. API Key 已过期或被删除`;
+            diagMessage += `\n2. CLOUDBASE_ENV_ID 与 API Key 所属环境不匹配`;
+            diagMessage += `\n3. 网络连接问题`;
+            diagMessage += `\n\n建议：请检查 API Key 和环境 ID 是否正确。`;
+
+            return buildJsonToolResult({
+              ok: false,
+              code: "API_KEY_AUTH_FAILED",
+              message: diagMessage,
+              auth_mode: "api_key",
+              envId: toolApiKeyEnvId,
+              next_step: buildAuthNextStep("login_by_api_key", {
+                suggestedArgs: { action: "login_by_api_key", apiKey: "<your-api-key>", envId: "<your-env-id>" },
+              }),
+            });
+          } catch (error) {
+            // 异常时清理 env vars
+            delete process.env.CLOUDBASE_API_KEY;
+            delete process.env.CLOUDBASE_ENV_ID;
+
+            const message = error instanceof Error ? error.message : String(error);
+            return buildJsonToolResult({
+              ok: false,
+              code: "API_KEY_AUTH_FAILED",
+              message: `API Key 认证异常: ${message}`,
+              auth_mode: "api_key",
+              next_step: buildAuthNextStep("login_by_api_key", {
+                suggestedArgs: { action: "login_by_api_key", apiKey: "<your-api-key>", envId: "<your-env-id>" },
+              }),
+            });
+          }
         }
 
         if (action === "set_env") {
