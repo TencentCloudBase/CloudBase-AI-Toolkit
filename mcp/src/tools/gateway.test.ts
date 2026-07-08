@@ -79,6 +79,7 @@ describe("gateway tools", () => {
         {
           APIId: "api-123",
           Path: "api/hello",
+          Name: "helloFn",
         },
       ],
     });
@@ -273,7 +274,10 @@ describe("gateway tools", () => {
 
     const payload = JSON.parse(result.content[0].text);
 
+    // 仅传 accessId 时，代码会先查询补全 name
+    expect(mockGetAccessList).toHaveBeenCalledWith({});
     expect(mockDeleteAccess).toHaveBeenCalledWith({
+      name: "helloFn",
       apiId: "api-123",
     });
     expect(payload).toMatchObject({
