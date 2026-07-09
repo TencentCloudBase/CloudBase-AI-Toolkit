@@ -49,14 +49,43 @@ const ManageCloudRunInputSchema = {
     })).optional().describe('扩缩容配置数组，用于配置服务的自动扩缩容策略。可配置多个扩缩容策略'),
     CustomLogs: z.string().optional().describe('自定义日志配置，用于配置服务的日志收集和存储策略'),
     Port: z.number().min(1).max(65535).optional().describe('服务监听端口配置。函数型服务固定为3000，容器型服务可自定义。服务代码必须监听此端口才能正常接收请求'),
-    EnvParams: z.string().optional().describe('环境变量配置，JSON字符串格式。用于传递配置信息给服务代码，如\'{"DATABASE_URL":"mysql://...","NODE_ENV":"production"}\'。敏感信息建议使用环境变量而非硬编码'),
+    EnvParams: z.string().optional().describe('环境变量配置，JSON字符串格式。用于传递配置信息给服务代码，如\'{"DATABASE_URL":"mysql://...","NODE_ENV":"production"}\'。SDK v5.6.1+ 会自动对传入的环境变量进行 AES-256-CBC 加密传输'),
     Dockerfile: z.string().optional().describe('Dockerfile文件名配置，仅容器型服务需要。指定用于构建容器镜像的Dockerfile文件路径，默认为项目根目录下的Dockerfile'),
     BuildDir: z.string().optional().describe('构建目录配置，指定代码构建的目录路径。当代码结构与标准不同时使用，默认为项目根目录'),
     InternalAccess: z.string().optional().describe('内网访问开关配置，控制是否启用内网访问。true=启用内网访问（可通过云开发SDK直接调用），false=关闭内网访问（仅公网访问）'),
     InternalDomain: z.string().optional().describe('内网域名配置，用于配置服务的内网访问域名。仅在启用内网访问时有效'),
     EntryPoint: z.array(z.string()).optional().describe('Dockerfile EntryPoint参数配置，仅容器型服务需要。指定容器启动时的入口程序数组，如["node","app.js"]'),
     Cmd: z.array(z.string()).optional().describe('Dockerfile Cmd参数配置，仅容器型服务需要。指定容器启动时的默认命令数组，如["npm","start"]'),
-  }).optional().describe('服务配置项，用于部署时设置服务的运行参数。包括资源规格、访问权限、环境变量等配置。不提供时使用默认配置'),
+    InitialDelaySeconds: z.number().min(0).optional().describe('延迟检测时间（秒），用于配置服务启动后的健康检查延迟。在此期间内不会将请求路由到该实例，适用于启动时间较长的服务'),
+    LogType: z.string().optional().describe('日志类型配置，指定服务的日志收集类型。影响日志的采集方式和存储格式'),
+    LogSetId: z.string().optional().describe('CLS日志集ID配置，指定日志服务（CLS）的日志集ID。需要先开通CLS日志服务'),
+    LogTopicId: z.string().optional().describe('CLS日志主题ID配置，指定日志服务（CLS）的日志主题ID。需要先开通CLS日志服务'),
+    LogParseType: z.string().optional().describe('日志解析类型配置，指定日志的解析方式。用于将原始日志解析为结构化数据'),
+    Tag: z.string().optional().describe('服务标签配置，用于标识服务类型。如设置为"function:"表示函数型服务。SDK会自动根据配置生成'),
+    OperationMode: z.string().optional().describe('运行模式配置，指定服务的运行模式。影响服务的调度和资源分配方式'),
+    SessionAffinity: z.string().optional().describe('会话保持配置，用于控制是否启用会话保持功能。启用后会将同一客户端的请求路由到同一实例'),
+    TimerScale: z.array(z.object({
+      CycleType: z.enum(['none', 'daily', 'weekly', 'monthly']).describe('循环类型：none=无循环，daily=每日循环，weekly=每周循环，monthly=每月循环'),
+      StartDate: z.string().optional().describe('循环起始日期，格式：YYYY-MM-DD'),
+      EndDate: z.string().optional().describe('循环结束日期，格式：YYYY-MM-DD'),
+      StartTime: z.string().describe('起始时间，格式：HH:mm:ss'),
+      EndTime: z.string().describe('结束时间，格式：HH:mm:ss'),
+      ReplicaNum: z.number().min(0).describe('定时扩缩容的目标副本数，最小值0（缩容到0）')
+    })).optional().describe('定时扩缩容配置数组，用于配置服务的定时自动扩缩容策略。可配置多个时间段的扩缩容计划，支持每日/每周/每月循环'),
+    VpcConf: z.object({
+      VpcId: z.string().describe('VPC网络ID，指定服务所在的私有网络'),
+      SubnetId: z.string().describe('子网ID，指定服务所在的子网'),
+    }).optional().describe('VPC网络配置，用于将云托管服务部署到指定的私有网络中。需要提前创建好VPC和子网'),
+    VolumesConf: z.array(z.object({
+      VolumeName: z.string().describe('存储卷名称'),
+      VolumeType: z.string().describe('存储卷类型，如CFS表示云文件存储'),
+      VolumePath: z.string().describe('存储卷挂载路径，服务代码中的目标路径')
+    })).optional().describe('存储卷配置数组，用于挂载云存储（如CFS）到服务实例中。可用于持久化数据或共享文件'),
+    PublicNetConf: z.object({
+      PublicAccess: z.boolean().optional().describe('是否开启公网访问，true=开启公网访问，false=关闭公网访问'),
+      PublicAccessPath: z.string().optional().describe('公网访问路径配置')
+    }).optional().describe('公网访问配置，用于控制服务的公网访问策略。可配置是否开启公网访问及访问路径'),
+  }).optional().describe('服务配置项，用于部署时设置服务的运行参数。包括资源规格、访问权限、环境变量、日志、网络等配置。不提供时使用默认配置'),
 
   // Init operation parameters
   template: z.string().optional().default('helloworld').describe('项目模板标识符，用于指定初始化项目时使用的模板。可通过queryCloudRun的templates操作获取可用模板列表。常用模板：helloworld=Hello World示例，nodejs=Node.js项目模板，python=Python项目模板等'),
