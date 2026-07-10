@@ -57,7 +57,7 @@ const IDES: IDE[] = [
     configExample: '',
     showInstallButton: false,
     useCommandInsteadOfConfig: true,
-    installCommandDocs: '**使用内置连接器**\n\n1. 在 WorkBuddy 对话界面中，点击输入框左下角的 **连应用** 按钮\n2. 在弹窗中找到 **腾讯云 CloudBase**，点击进入详情页，点击 **连接** 启用\n\n启用后，即可在对话中直接使用 CloudBase 的各项能力。\n\n**使用快捷命令**\n\n在对话中直接输入 `/cloudbase` 选择 CloudBase Skill，然后输入需求即可。',
+    installCommandDocs: '**使用内置连接器**\n\n1. 在 WorkBuddy 对话界面中，点击输入框左下角的 **连接器** 按钮\n2. 在弹窗中找到 **腾讯云 CloudBase**，点击进入详情页，点击 **连接** 启用\n\n启用后，即可在对话中直接使用 CloudBase 的各项能力。\n\n**使用快捷命令**\n\n在对话中直接输入 `/cloudbase` 选择 CloudBase Skill，然后输入需求即可。',
   },
   {
     id: 'cursor',
