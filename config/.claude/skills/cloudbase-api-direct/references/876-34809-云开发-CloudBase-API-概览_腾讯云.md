@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-06-29 02:45:49
+最近更新时间：2026-07-07 02:41:34
 
 -   微信扫一扫 
 -   QQ
@@ -170,7 +170,6 @@ _我的收藏_
 | [PreviewPGUserMigrations](/document/api/876/132260) | 预览SQL migrations 在远端的执行计划，不实际执行 SQL | 20 |
 | [PushPGUserMigrations](/document/api/876/132259) | 批量应用 Migrations | 20 |
 | [RepairPGUserMigrationHistory](/document/api/876/132258) | 修复Migration History | 20 |
-| [RollbackPGUserMigrations](/document/api/876/132257) | 回滚 Migration | 20 |
 | [DescribeCreateMySQLResult](/document/api/876/128185) | 开通 MySql 结果查询 | 20 |
 | [DescribeMySQLClusterDetail](/document/api/876/128184) | 查询Mysql集群信息 | 20 |
 | [DescribeMySQLTaskStatus](/document/api/876/128183) | 销毁Mysql结果查询 | 20 |

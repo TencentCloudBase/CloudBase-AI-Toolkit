@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-07-06T06:49:41.282Z
+爬取时间: 2026-07-10T06:16:34.619Z
 
 ## 文档列表
 
@@ -81,7 +81,6 @@
 - [云开发 CloudBase 预览SQL migrations 在](./876-132260-云开发-CloudBase-预览SQL-migrations-在.md)
 - [云开发 CloudBase 批量应用 Migrations_腾讯](./876-132259-云开发-CloudBase-批量应用-Migrations_腾讯.md)
 - [云开发 CloudBase 修复Migration Histor](./876-132258-云开发-CloudBase-修复Migration-Histor.md)
-- [云开发 CloudBase 回滚 Migration_腾讯云](./876-132257-云开发-CloudBase-回滚-Migration_腾讯云.md)
 - [云开发 CloudBase 开通 MySql 结果查询_腾讯云](./876-128185-云开发-CloudBase-开通-MySql-结果查询_腾讯云.md)
 - [云开发 CloudBase 查询Mysql集群信息_腾讯云](./876-128184-云开发-CloudBase-查询Mysql集群信息_腾讯云.md)
 - [云开发 CloudBase 销毁Mysql结果查询_腾讯云](./876-128183-云开发-CloudBase-销毁Mysql结果查询_腾讯云.md)

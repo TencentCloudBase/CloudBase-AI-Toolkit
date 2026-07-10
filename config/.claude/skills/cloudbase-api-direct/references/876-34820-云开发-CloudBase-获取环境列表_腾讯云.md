@@ -2,7 +2,7 @@
 
 ## 获取环境列表
 
-最近更新时间：2026-05-25 02:38:06
+最近更新时间：2026-07-08 02:45:21
 
 -   微信扫一扫 
 -   QQ
@@ -211,8 +211,7 @@ X-TC-Action: DescribeEnvs
                         "InstanceName": "postgres-4**0*5*g",
                         "Name": "postgres",
                         "Region": "ap-shanghai",
-                        "Status": 1,
-                        "Version": "17.6"
+                        "Status": 1
                     }
                 ],
                 "Region": "ap-shanghai",

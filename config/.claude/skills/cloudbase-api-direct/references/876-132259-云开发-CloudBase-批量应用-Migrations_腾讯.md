@@ -2,7 +2,7 @@
 
 ## 批量应用 Migrations
 
-最近更新时间：2026-05-29 02:50:58
+最近更新时间：2026-07-09 04:12:53
 
 -   微信扫一扫 
 -   QQ
@@ -71,8 +71,18 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 标记请求来源
 
+deprecated
+
   
 示例值：cloudapi |
+| IncludeAll | 否 | Boolean | 
+
+为true时允许 out-of-order local migrations
+
+默认值：false
+
+  
+示例值：false |
 
 ## 3\. 输出参数
 

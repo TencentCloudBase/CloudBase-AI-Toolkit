@@ -2,7 +2,7 @@
 
 ## 查看指定环境单条 migration 详情
 
-最近更新时间：2026-05-29 02:50:59
+最近更新时间：2026-07-09 04:12:55
 
 -   微信扫一扫 
 -   QQ
@@ -82,13 +82,15 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 回滚的sql 语句
 
+deprecated
+
   
 示例值：DROP TABLE IF EXISTS public.test; |
 | Checksum | String | 
 
-migration query 语句的checksum值
+migration query 语句的checksum值,由服务端自动生成，同版本 checksum 不一致会拒绝执行
 
-由服务端自动生成，同版本 checksum 不一致会拒绝执行
+deprecated
 
   
 示例值：eeaf0dd9391ba7829bd12b47482fab4a0e031a040f00cfb6eafc5c23b9fcf791 |
@@ -96,11 +98,15 @@ migration query 语句的checksum值
 
 用于标记调用来源
 
+deprecated
+
   
 示例值：repair |
 | CreatedBy | String | 
 
 用于标记该条migration由谁创建，目前默认调用的用户uin
+
+deprecated
 
   
 示例值：100019231666 |
@@ -108,11 +114,15 @@ migration query 语句的checksum值
 
 该migration创建时间
 
+deprecated
+
   
 示例值：2026-05-26T11:34:19+08:00 |
 | AppliedAt | String | 
 
 该migration应用时间
+
+deprecated
 
   
 示例值：2026-05-26T11:34:19+08:00 |
@@ -121,6 +131,8 @@ migration query 语句的checksum值
 该migration执行耗时
 
 单位：毫秒
+
+deprecated
 
   
 示例值：153 |
