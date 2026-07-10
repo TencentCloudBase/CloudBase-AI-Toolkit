@@ -18,55 +18,68 @@ Choose sensible defaults immediately.
 Start executing with real tool calls (use downloadTemplate MCP tool first).
 Only ask follow-up questions when blocked by missing credentials or irreversible decisions.`;
 
-// Skill catalog (28 skills, grouped by layer)
-var SKILL_CATALOG = `### Skill Catalog (fetch on demand via cloudbase-mcp)
+// Skill catalog layers (for grouping in additionalContext)
+var SKILL_LAYERS = [
+  { name: "Platform & Guidelines", skills: ["cloudbase-guidelines", "cloudbase-platform", "cloudbase-cli"] },
+  { name: "Frontend", skills: ["web-development", "miniprogram-development", "ui-design"] },
+  { name: "Backend", skills: ["cloudrun-development", "cloud-functions", "cloudbase-agent"] },
+  { name: "Authentication", skills: ["auth-tool", "auth-web", "auth-wechat", "auth-nodejs"] },
+  { name: "Database", skills: ["no-sql-web-sdk", "no-sql-wx-mp-sdk", "relational-database-web", "relational-database-tool", "postgresql-development", "data-model-creation"] },
+  { name: "Storage & API", skills: ["cloud-storage-web", "http-api"] },
+  { name: "AI Models", skills: ["ai-model-web", "ai-model-nodejs", "ai-model-wechat"] },
+  { name: "Integration & Ops", skills: ["cloudbase-wechat-integration", "cloudbase-code-review", "ops-inspector", "spec-workflow"] },
+];
 
-These CloudBase domain skills are NOT auto-loaded — fetch their full content on demand via:
-  \`searchKnowledgeBase(mode=skill, skillName="<name>")\`
+// Short descriptions for skill catalog (fallback if manifest missing)
+var SKILL_SHORT_DESC = {
+  "cloudbase-guidelines": "总入口：项目开发/部署/调试/迁移",
+  "cloudbase-platform": "平台能力、控制台导航、跨平台差异",
+  "cloudbase-cli": "tcb CLI 资源管理",
+  "web-development": "Web 前端（React/Vue/Vite）",
+  "miniprogram-development": "微信小程序云开发",
+  "ui-design": "UI/UX 设计规范、配色、布局",
+  "cloudrun-development": "CloudBase Run 后端服务",
+  "cloud-functions": "云函数（事件/HTTP）",
+  "cloudbase-agent": "AI Agent SDK（AG-UI/LangGraph）",
+  "auth-tool": "管理端认证 provider 配置",
+  "auth-web": "Web SDK 认证客户端",
+  "auth-wechat": "小程序认证（OPENID）",
+  "auth-nodejs": "Node.js 后端认证",
+  "no-sql-web-sdk": "Web 文档数据库",
+  "no-sql-wx-mp-sdk": "小程序文档数据库",
+  "relational-database-web": "Web MySQL",
+  "relational-database-tool": "MCP MySQL 操作",
+  "postgresql-development": "PostgreSQL 开发",
+  "data-model-creation": "数据模型建模",
+  "cloud-storage-web": "云存储上传下载",
+  "http-api": "HTTP API（非 SDK）",
+  "ai-model-web": "Web AI 模型",
+  "ai-model-nodejs": "Node.js AI 模型",
+  "ai-model-wechat": "小程序 AI",
+  "cloudbase-wechat-integration": "微信支付、公众号 OAuth",
+  "cloudbase-code-review": "代码审查",
+  "ops-inspector": "AIOps 巡检",
+  "spec-workflow": "Spec 需求/设计/任务流程",
+};
 
-**Platform & Guidelines**
-- \`cloudbase-guidelines\` (name: cloudbase) — 总入口：项目开发/部署/调试/迁移
-- \`cloudbase-platform\` — 平台能力、控制台导航、跨平台差异
-- \`cloudbase-cli\` — tcb CLI 资源管理
-
-**Frontend**
-- \`web-development\` — Web 前端（React/Vue/Vite）
-- \`miniprogram-development\` — 微信小程序云开发
-- \`ui-design\` — UI/UX 设计规范、配色、布局
-
-**Backend**
-- \`cloudrun-development\` — CloudBase Run 后端服务
-- \`cloud-functions\` — 云函数（事件/HTTP）
-- \`cloudbase-agent\` — AI Agent SDK（AG-UI/LangGraph）
-
-**Authentication**
-- \`auth-tool\` — 管理端认证 provider 配置
-- \`auth-web\` — Web SDK 认证客户端
-- \`auth-wechat\` — 小程序认证（OPENID）
-- \`auth-nodejs\` — Node.js 后端认证
-
-**Database**
-- \`no-sql-web-sdk\` — Web 文档数据库
-- \`no-sql-wx-mp-sdk\` — 小程序文档数据库
-- \`relational-database-web\` — Web MySQL
-- \`relational-database-tool\` — MCP MySQL 操作
-- \`postgresql-development\` — PostgreSQL 开发
-- \`data-model-creation\` — 数据模型建模
-
-**Storage & API**
-- \`cloud-storage-web\` — 云存储上传下载
-- \`http-api\` — HTTP API（非 SDK）
-
-**AI Models**
-- \`ai-model-web\` — Web AI 模型
-- \`ai-model-nodejs\` — Node.js AI 模型
-- \`ai-model-wechat\` — 小程序 AI
-
-**Integration & Ops**
-- \`cloudbase-wechat-integration\` — 微信支付、公众号 OAuth
-- \`cloudbase-code-review\` — 代码审查
-- \`ops-inspector\` — AIOps 巡检
-- \`spec-workflow\` — Spec 需求/设计/任务流程`;
+function buildSkillCatalog() {
+  const lines = [
+    "### Skill Catalog (fetch on demand via cloudbase-mcp)",
+    "",
+    "These CloudBase domain skills are NOT auto-loaded — fetch their full content on demand via:",
+    "  `searchKnowledgeBase(mode=skill, skillName=\"<name>\")`",
+    "",
+  ];
+  for (const layer of SKILL_LAYERS) {
+    lines.push(`**${layer.name}**`);
+    for (const skillName of layer.skills) {
+      const desc = SKILL_SHORT_DESC[skillName] || "";
+      lines.push(`- \`${skillName}\` — ${desc}`);
+    }
+    lines.push("");
+  }
+  return lines.join("\n").trimEnd();
+}
 
 var RULES_BLOCK = `## CloudBase Plugin (plugin-injected, MUST follow)
 
@@ -110,8 +123,8 @@ function buildAdditionalContext({ scenario, likelySkills, isGreenfield, sessionC
   // Hard rules
   parts.push(RULES_BLOCK);
 
-  // Skill catalog
-  parts.push(SKILL_CATALOG);
+  // Skill catalog (dynamically grouped)
+  parts.push(buildSkillCatalog());
 
   // Greenfield mode
   if (isGreenfield) {

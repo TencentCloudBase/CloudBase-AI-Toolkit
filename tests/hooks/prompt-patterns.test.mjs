@@ -230,4 +230,17 @@ describe("globToRegex", () => {
     expect(re.test("vite.config.js")).toBe(true);
     expect(re.test("viteXconfig.ts")).toBe(false);
   });
+
+  it("supports character classes [abc]", () => {
+    const re = globToRegex("file.[jt]s");
+    expect(re.test("file.js")).toBe(true);
+    expect(re.test("file.ts")).toBe(true);
+    expect(re.test("file.xs")).toBe(false);
+  });
+
+  it("supports negated character classes [!abc]", () => {
+    const re = globToRegex("file.[!j]s");
+    expect(re.test("file.js")).toBe(false);
+    expect(re.test("file.ts")).toBe(true);
+  });
 });

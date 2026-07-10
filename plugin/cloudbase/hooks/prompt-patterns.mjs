@@ -134,23 +134,55 @@ export function compileSkillPatterns(skillMap) {
   return compiled;
 }
 
-// --- Glob to regex (simplified) ---
+// --- Glob to regex ---
 
 function globToRegex(glob) {
   // Convert glob pattern to regex
-  // Supports: * (any chars except /), ** (any chars including /), ? (single char), . (literal)
-  let regex = glob;
-  // Escape regex special chars except * and ?
-  regex = regex.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-  // ** → .*
-  regex = regex.replace(/\*\*/g, "::DOUBLESTAR::");
-  // * → [^/]*
-  regex = regex.replace(/\*/g, "[^/]*");
-  // ? → .
-  regex = regex.replace(/\?/g, ".");
-  // ::DOUBLESTAR:: → .*
-  regex = regex.replace(/::DOUBLESTAR::/g, ".*");
-  return new RegExp(`^${regex}$`, "i");
+  // Supports: * (any chars except /), ** (any chars including /), ? (single char),
+  // [abc] character class, [!abc] negated class, . (literal)
+  let result = "";
+  let i = 0;
+  while (i < glob.length) {
+    const c = glob[i];
+    if (c === "*") {
+      if (glob[i + 1] === "*") {
+        result += ".*";
+        i += 2;
+        // Skip trailing / after ** (e.g. src/** → match src/anything)
+        if (glob[i] === "/") i++;
+      } else {
+        result += "[^/]*";
+        i++;
+      }
+    } else if (c === "?") {
+      result += ".";
+      i++;
+    } else if (c === "[") {
+      // Character class — pass through to regex
+      let cls = "[";
+      i++;
+      if (glob[i] === "!") {
+        cls += "^";
+        i++;
+      }
+      while (i < glob.length && glob[i] !== "]") {
+        cls += glob[i];
+        i++;
+      }
+      if (glob[i] === "]") {
+        cls += "]";
+        i++;
+      }
+      result += cls;
+    } else if ("+^${}()|.\\".includes(c)) {
+      result += "\\" + c;
+      i++;
+    } else {
+      result += c;
+      i++;
+    }
+  }
+  return new RegExp(`^${result}$`, "i");
 }
 
 export { globToRegex };

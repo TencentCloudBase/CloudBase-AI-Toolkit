@@ -98,7 +98,7 @@ export function buildSkillInjectionOutput(injectedSkills, skillMap, hookEvent = 
   // Skill call instructions
   lines.push("");
   for (const skillName of injectedSkills) {
-    lines.push(`You must run the Skill(${skillName}) tool.`);
+    lines.push(`You must run the Skill(${skillName}) tool (or fetch via searchKnowledgeBase(mode=skill, skillName="${skillName}") if Skill tool is unavailable).`);
   }
 
   // Meta comment
