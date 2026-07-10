@@ -30,7 +30,7 @@
 
 ## 二、基建：启用 CloudBase
 
-在 WorkBuddy 对话中输入 `/cloudbase` 选择 CloudBase Skill，或在对话界面点击左下角 **连应用** 按钮启用 CloudBase 连接器（参阅[配置指南](../ide-setup/workbuddy)）。
+在 WorkBuddy 对话中输入 `/cloudbase` 选择 CloudBase Skill，或在对话界面点击左下角 **连接器** 按钮启用 CloudBase 连接器（参阅[配置指南](../ide-setup/workbuddy)）。
 
 启用后，WorkBuddy 会自动完成以下流程：
 
@@ -255,11 +255,11 @@ queryApps(action="getAppVersion", serviceName="chinese-chess", buildId="...")
 
 **教训**：AI 会话无记忆，跨会话状态必须靠文件。
 
-### 坑 3：没有先连应用再开发
+### 坑 3：没有先连接器再开发
 
 **表现**：直接在对话中开发，没有启用 CloudBase 连接器，导致 AI 缺少 CloudBase 工具。
 
-**修复**：先在 WorkBuddy 中用 `/cloudbase` 或点"连应用"启用 CloudBase。
+**修复**：先在 WorkBuddy 中用 `/cloudbase` 或点"连接器"启用 CloudBase。
 
 **教训**：**必须先启用连接器**，然后 AI 才能调用 CloudBase 的各种能力。
 
@@ -286,7 +286,7 @@ CloudBase 项目的标准配置文件，天然适合存部署元信息。WorkBud
 
 ```
 1. 环境准备
-   ├── 打开 WorkBuddy → 输入 /cloudbase 或点"连应用"
+   ├── 打开 WorkBuddy → 输入 /cloudbase 或点"连接器"
    ├── 设备码登录
    └── 绑定环境
 
