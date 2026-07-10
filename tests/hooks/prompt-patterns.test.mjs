@@ -10,7 +10,6 @@ import {
   applyDominantTopicSuppression,
   globToRegex,
   compileSkillPatterns,
-  PROJECT_CONTEXT_PROMPT_SCORE_BOOST,
   DOMINANT_TOPIC_SCORE_THRESHOLD,
   DOMINANT_TOPIC_MIN_SCORE,
 } from "../../plugin/cloudbase/hooks/prompt-patterns.mjs";

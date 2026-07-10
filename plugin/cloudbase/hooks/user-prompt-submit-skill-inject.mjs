@@ -109,7 +109,7 @@ function main() {
   }
 
   // Build output
-  const { additionalContext, meta } = buildSkillInjectionOutput(dedupedInjected, skillMap, "UserPromptSubmit");
+  const { additionalContext } = buildSkillInjectionOutput(dedupedInjected, skillMap, "UserPromptSubmit");
 
   // Update seen-skills env var
   const updatedSeen = mergeSeenSkills(seenEnv, dedupedInjected.join(","));
