@@ -28,7 +28,7 @@ You are a CloudBase architecture specialist. Use the decision trees and matrices
 │
 ├─ 微信小程序
 │  ├─ 是否云开发项目 → 小程序场景（原生云开发）
-│  ├<arg_value> 是否需要 H5 同构 → 小程序 + Web 双场景，共享云函数
+│  ├─ 是否需要 H5 同构 → 小程序 + Web 双场景，共享云函数
 │  └─ 用户认证
 │     └─ 天然免登录，云函数中获取 `wxContext.OPENID`
 │        （禁止使用 Web SDK 认证方式）

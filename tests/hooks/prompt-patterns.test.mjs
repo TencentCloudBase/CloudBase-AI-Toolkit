@@ -9,6 +9,7 @@ import {
   applyProjectContextBoost,
   applyDominantTopicSuppression,
   globToRegex,
+  compileSkillPatterns,
   PROJECT_CONTEXT_PROMPT_SCORE_BOOST,
   DOMINANT_TOPIC_SCORE_THRESHOLD,
   DOMINANT_TOPIC_MIN_SCORE,
@@ -242,5 +243,42 @@ describe("globToRegex", () => {
     const re = globToRegex("file.[!j]s");
     expect(re.test("file.js")).toBe(false);
     expect(re.test("file.ts")).toBe(true);
+  });
+});
+
+describe("compileSkillPatterns", () => {
+  it("uses pathRegexSources from manifest (pre-compiled regex sources)", () => {
+    const skillMap = {
+      "web-development": {
+        name: "web-development",
+        pathRegexSources: ["^src/.*$", "^public/.*$"],
+        bashPatterns: ["\\bvite\\s+build\\b"],
+      },
+    };
+    const compiled = compileSkillPatterns(skillMap);
+    expect(compiled["web-development"].pathRegexes).toHaveLength(2);
+    expect(compiled["web-development"].pathRegexes[0].test("src/index.ts")).toBe(true);
+    expect(compiled["web-development"].pathRegexes[0].test("test/index.ts")).toBe(false);
+    expect(compiled["web-development"].bashRegexes).toHaveLength(1);
+    expect(compiled["web-development"].bashRegexes[0].test("vite build")).toBe(true);
+  });
+
+  it("falls back to metadata.pathPatterns (raw globs) when pathRegexSources absent", () => {
+    const skillMap = {
+      "web-development": {
+        name: "web-development",
+        metadata: { pathPatterns: ["src/**"], bashPatterns: ["\\bvite\\b"] },
+      },
+    };
+    const compiled = compileSkillPatterns(skillMap);
+    expect(compiled["web-development"].pathRegexes).toHaveLength(1);
+    expect(compiled["web-development"].pathRegexes[0].test("src/index.ts")).toBe(true);
+    expect(compiled["web-development"].bashRegexes).toHaveLength(1);
+  });
+
+  it("returns empty arrays when no patterns present", () => {
+    const compiled = compileSkillPatterns({ "some-skill": { name: "some-skill" } });
+    expect(compiled["some-skill"].pathRegexes).toHaveLength(0);
+    expect(compiled["some-skill"].bashRegexes).toHaveLength(0);
   });
 });

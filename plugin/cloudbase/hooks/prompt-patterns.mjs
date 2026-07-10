@@ -124,10 +124,16 @@ export function applyDominantTopicSuppression(entry, topScore) {
 export function compileSkillPatterns(skillMap) {
   const compiled = {};
   for (const [skillName, skill] of Object.entries(skillMap)) {
-    const pathPatterns = skill.metadata?.pathPatterns || [];
-    const bashPatterns = skill.metadata?.bashPatterns || [];
+    // Manifest stores pre-compiled pathRegexSources (regex source strings) and
+    // bashPatterns at top level. Fallback SKILL.md frontmatter stores raw globs
+    // under metadata.pathPatterns / metadata.bashPatterns.
+    const pathRegexSources = skill.pathRegexSources;
+    const rawPathPatterns = skill.metadata?.pathPatterns || [];
+    const bashPatterns = skill.bashPatterns || skill.metadata?.bashPatterns || [];
     compiled[skillName] = {
-      pathRegexes: pathPatterns.map((p) => globToRegex(p)),
+      pathRegexes: Array.isArray(pathRegexSources)
+        ? pathRegexSources.map((src) => new RegExp(src, "i"))
+        : rawPathPatterns.map((p) => globToRegex(p)),
       bashRegexes: bashPatterns.map((p) => new RegExp(p, "i")),
     };
   }

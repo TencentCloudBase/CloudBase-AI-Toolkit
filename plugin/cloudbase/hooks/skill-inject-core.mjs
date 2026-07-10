@@ -96,9 +96,14 @@ export function buildSkillInjectionOutput(injectedSkills, skillMap, hookEvent = 
   }
 
   // Skill call instructions
+  // Use skill.name (frontmatter name) for Skill() tool — it expects the
+  // registered skill name, not the directory name. For searchKnowledgeBase
+  // fallback, use the directory name (skillMap key) as the skill identifier.
   lines.push("");
   for (const skillName of injectedSkills) {
-    lines.push(`You must run the Skill(${skillName}) tool (or fetch via searchKnowledgeBase(mode=skill, skillName="${skillName}") if Skill tool is unavailable).`);
+    const skill = skillMap[skillName];
+    const skillToolName = skill?.name || skillName;
+    lines.push(`You must run the Skill(${skillToolName}) tool (or fetch via searchKnowledgeBase(mode=skill, skillName="${skillName}") if Skill tool is unavailable).`);
   }
 
   // Meta comment

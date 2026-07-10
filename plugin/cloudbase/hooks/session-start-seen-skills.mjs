@@ -34,20 +34,23 @@ function main() {
   }
 
   // Claude Code: on clear/compact, remove dedup artifacts
-  const hookEvent = normalized.hookEvent || "";
+  // SessionStart hooks receive the trigger source ("startup"/"resume"/"clear"/
+  // "compact") in the `source` field, not in `hook_event_name` (which is always
+  // "SessionStart").
+  const source = normalized.source || "";
   const sessionId = normalized.sessionId || "";
-  const resetTriggered = CONTEXT_CLEARING_EVENTS.has(hookEvent) && !!sessionId;
+  const resetTriggered = CONTEXT_CLEARING_EVENTS.has(source) && !!sessionId;
 
   if (resetTriggered) {
     const result = removeAllSessionDedupArtifacts(sessionId);
     log.summary("seen-skills:reset", {
       sessionId,
-      hookEvent,
+      source,
       removedFiles: result.removedFiles,
       removedDirs: result.removedDirs,
     });
   } else {
-    log.debug("seen-skills:no-reset", { sessionId, hookEvent });
+    log.debug("seen-skills:no-reset", { sessionId, source });
   }
 
   // Emit empty output (no additionalContext for this hook)

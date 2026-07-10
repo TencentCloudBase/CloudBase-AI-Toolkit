@@ -62,6 +62,7 @@ function normalizeInput(raw) {
     process.env.CLAUDE_PROJECT_DIR ??
     process.cwd();
   const hookEvent = readString(raw.hook_event_name) ?? "";
+  const source = readString(raw.source) ?? "";
   const toolOutput = normalizeToolOutputValue(raw.tool_output ?? raw.tool_response);
   currentHookEventName = hookEvent || void 0;
   return {
@@ -69,6 +70,7 @@ function normalizeInput(raw) {
     sessionId,
     cwd,
     hookEvent,
+    source,
     toolName: readString(raw.tool_name),
     toolInput: readRecord(raw.tool_input),
     toolOutput,
