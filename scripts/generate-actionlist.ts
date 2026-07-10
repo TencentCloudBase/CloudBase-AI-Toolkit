@@ -21,10 +21,10 @@ async function extractActions(): Promise<string[]> {
   // 需要跳过的文件（非具体 API 文档）
   const skipFiles = ['README.md', 'API-概览', '公共参数'];
 
-  // 读取并过滤文件：只处理 TCB (876) 文档，跳过依赖产品文档
+  // 读取并过滤文件：只处理 TCB (876) 和 CloudBase Run (1243) 文档，跳过依赖产品文档
   const files = fs.readdirSync(REFERENCES_DIR)
     .filter(f => f.endsWith('.md'))
-    .filter(f => f.startsWith('876-'))
+    .filter(f => f.startsWith('876-') || f.startsWith('1243-'))
     .filter(f => !skipFiles.some(skip => f.includes(skip)));
 
   // 并行读取文件并提取 action

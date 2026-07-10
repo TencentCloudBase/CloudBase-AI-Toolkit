@@ -1,0 +1,177 @@
+[API 中心](/document/api)
+
+## 查询日志cls日志信息
+
+最近更新时间：2025-12-23 02:46:29
+
+-   微信扫一扫 
+-   QQ
+-   新浪微博
+-   复制链接
+    
+    链接复制成功
+    
+
+_我的收藏_
+
+## 1\. 接口描述
+
+接口请求域名： tcbr.tencentcloudapi.com 。
+
+查询日志信息
+
+默认接口请求频率限制：20次/秒。
+
+推荐使用 API Explorer
+
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcbr&Version=2022-02-17&Action=SearchClsLog)
+
+API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
+
+## 2\. 输入参数
+
+以下请求参数列表仅列出了接口请求参数和部分公共参数，完整公共参数列表见 [公共请求参数](/document/api/1243/75716) 。
+
+| 参数名称 | 必选 | 类型 | 描述 |
+| --- | --- | --- | --- |
+| Action | 是 | String | [公共参数](/document/api/1243/75716) ，本接口取值：SearchClsLog。 |
+| Version | 是 | String | [公共参数](/document/api/1243/75716) ，本接口取值：2022-02-17。 |
+| Region | 否 | String | [公共参数](/document/api/1243/75716) ，本接口不需要传递此参数。 |
+| EnvId | 是 | String | 环境Id  
+示例值：env-id |
+| StartTime | 是 | String | 开始时间  
+示例值：2006-01-02 03:04:05 |
+| EndTime | 是 | String | 结束时间  
+示例值：2006-01-02 03:04:05 |
+| QueryString | 是 | String | 查询语句，详情参考 https://cloud.tencent.com/document/product/614/47044  
+示例值：QueryString |
+| Limit | 是 | Integer | 单次要返回的日志条数，单次返回的最大条数为100  
+示例值：10 |
+| Context | 否 | String | 加载更多使用，透传上次返回的 context 值，获取后续的日志内容，通过游标最多可获取10000条，请尽可能缩小时间范围  
+示例值：Context |
+| Sort | 否 | String | 按时间排序 asc（升序）或者 desc（降序），默认为 desc  
+示例值：desc |
+| UseLucene | 否 | Boolean | 是否使用Lucene语法，默认为false  
+示例值：false |
+| LogType | 否 | Integer | 日志类型  
+示例值：1 |
+
+## 3\. 输出参数
+
+| 参数名称 | 类型 | 描述 |
+| --- | --- | --- |
+| LogResults | [LogResObject](/document/api/1243/75713#LogResObject) | 日志内容结果 |
+| RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
+
+## 4\. 示例
+
+### 示例1 pass
+
+#### 输入示例
+
+```
+POST / HTTP/1.1
+Host: tcbr.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: SearchClsLog
+<公共请求参数>
+
+{
+    "Sort": "字符串",
+    "EnvId": "字符串",
+    "Context": "字符串",
+    "UseLucene": "false",
+    "QueryString": "字符串",
+    "Limit": "1",
+    "StartTime": "字符串",
+    "EndTime": "字符串"
+}
+```
+
+#### 输出示例
+
+```json
+{
+    "Response": {
+        "LogResults": {
+            "Context": "",
+            "ListOver": false,
+            "Results": null
+        },
+        "RequestId": "e5c883fb-ca6a-4481-9f3d-d28ebfee50c3"
+    }
+}
+```
+
+### 示例2 搜索CLS日志
+
+#### 输入示例
+
+```
+POST / HTTP/1.1
+Host: tcbr.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: SearchClsLog
+<公共请求参数>
+
+{
+    "EnvId": "env-id",
+    "StartTime": "2006-01-02 03:04:05",
+    "EndTime": "2006-01-02 03:04:05",
+    "QueryString": "QueryString",
+    "Context": "Context",
+    "Limit": 1,
+    "Sort": "Sort",
+    "UseLucene": true
+}
+```
+
+#### 输出示例
+
+```json
+{
+    "Response": {
+        "RequestId": "3e22b381-93a3-44c4-85b7-456679a7b8cd",
+        "LogResults": {
+            "Context": "",
+            "ListOver": true,
+            "Results": []
+        }
+    }
+}
+```
+
+## 5\. 开发者资源
+
+### 腾讯云 API 平台
+
+[腾讯云 API 平台](https://cloud.tencent.com/api) 是综合 API 文档、错误码、API Explorer 及 SDK 等资源的统一查询平台，方便您从同一入口查询及使用腾讯云提供的所有 API 服务。
+
+### API Inspector
+
+用户可通过 [API Inspector](https://cloud.tencent.com/document/product/1278/49361) 查看控制台每一步操作关联的 API 调用情况，并自动生成各语言版本的 API 代码，也可前往 [API Explorer](https://cloud.tencent.com/document/product/1278/46697) 进行在线调试。
+
+### SDK
+
+云 API 3.0 提供了配套的开发工具集（SDK），支持多种编程语言，能更方便的调用 API。
+
+-   Tencent Cloud SDK 3.0 for Python: [CNB](https://cnb.cool/tencent/cloud/api/sdk/tencentcloud-sdk-python/-/blob/master/tencentcloud/tcbr/v20220217/tcbr_client.py), [GitHub](https://github.com/TencentCloud/tencentcloud-sdk-python/blob/master/tencentcloud/tcbr/v20220217/tcbr_client.py), [Gitee](https://gitee.com/TencentCloud/tencentcloud-sdk-python/blob/master/tencentcloud/tcbr/v20220217/tcbr_client.py)
+-   Tencent Cloud SDK 3.0 for Java: [CNB](https://cnb.cool/tencent/cloud/api/sdk/tencentcloud-sdk-java/-/blob/master/src/main/java/com/tencentcloudapi/tcbr/v20220217/TcbrClient.java), [GitHub](https://github.com/TencentCloud/tencentcloud-sdk-java/blob/master/src/main/java/com/tencentcloudapi/tcbr/v20220217/TcbrClient.java), [Gitee](https://gitee.com/TencentCloud/tencentcloud-sdk-java/blob/master/src/main/java/com/tencentcloudapi/tcbr/v20220217/TcbrClient.java)
+-   Tencent Cloud SDK 3.0 for PHP: [CNB](https://cnb.cool/tencent/cloud/api/sdk/tencentcloud-sdk-php/-/blob/master/src/TencentCloud/Tcbr/V20220217/TcbrClient.php), [GitHub](https://github.com/TencentCloud/tencentcloud-sdk-php/blob/master/src/TencentCloud/Tcbr/V20220217/TcbrClient.php), [Gitee](https://gitee.com/TencentCloud/tencentcloud-sdk-php/blob/master/src/TencentCloud/Tcbr/V20220217/TcbrClient.php)
+-   Tencent Cloud SDK 3.0 for Go: [CNB](https://cnb.cool/tencent/cloud/api/sdk/tencentcloud-sdk-go/-/blob/master/tencentcloud/tcbr/v20220217/client.go), [GitHub](https://github.com/TencentCloud/tencentcloud-sdk-go/blob/master/tencentcloud/tcbr/v20220217/client.go), [Gitee](https://gitee.com/TencentCloud/tencentcloud-sdk-go/blob/master/tencentcloud/tcbr/v20220217/client.go)
+-   Tencent Cloud SDK 3.0 for Node.js: [CNB](https://cnb.cool/tencent/cloud/api/sdk/tencentcloud-sdk-nodejs/-/blob/master/src/services/tcbr/v20220217/tcbr_client.ts), [GitHub](https://github.com/TencentCloud/tencentcloud-sdk-nodejs/blob/master/src/services/tcbr/v20220217/tcbr_client.ts), [Gitee](https://gitee.com/TencentCloud/tencentcloud-sdk-nodejs/blob/master/src/services/tcbr/v20220217/tcbr_client.ts)
+-   Tencent Cloud SDK 3.0 for.NET: [CNB](https://cnb.cool/tencent/cloud/api/sdk/tencentcloud-sdk-dotnet/-/blob/master/TencentCloud/Tcbr/V20220217/TcbrClient.cs), [GitHub](https://github.com/TencentCloud/tencentcloud-sdk-dotnet/blob/master/TencentCloud/Tcbr/V20220217/TcbrClient.cs), [Gitee](https://gitee.com/TencentCloud/tencentcloud-sdk-dotnet/blob/master/TencentCloud/Tcbr/V20220217/TcbrClient.cs)
+-   Tencent Cloud SDK 3.0 for C++: [CNB](https://cnb.cool/tencent/cloud/api/sdk/tencentcloud-sdk-cpp/-/blob/master/tcbr/src/v20220217/TcbrClient.cpp), [GitHub](https://github.com/TencentCloud/tencentcloud-sdk-cpp/blob/master/tcbr/src/v20220217/TcbrClient.cpp), [Gitee](https://gitee.com/TencentCloud/tencentcloud-sdk-cpp/blob/master/tcbr/src/v20220217/TcbrClient.cpp)
+-   Tencent Cloud SDK 3.0 for Ruby: [CNB](https://cnb.cool/tencent/cloud/api/sdk/tencentcloud-sdk-ruby/-/blob/master/tencentcloud-sdk-tcbr/lib/v20220217/client.rb), [GitHub](https://github.com/TencentCloud/tencentcloud-sdk-ruby/blob/master/tencentcloud-sdk-tcbr/lib/v20220217/client.rb), [Gitee](https://gitee.com/TencentCloud/tencentcloud-sdk-ruby/blob/master/tencentcloud-sdk-tcbr/lib/v20220217/client.rb)
+
+### 命令行工具
+
+-   [Tencent Cloud CLI 3.0](https://cloud.tencent.com/document/product/440/6176)
+
+## 6\. 错误码
+
+以下仅列出了接口业务逻辑相关的错误码，其他错误码详见 [公共错误码](/document/api/1243/75720#.E5.85.AC.E5.85.B1.E9.94.99.E8.AF.AF.E7.A0.81) 。
+
+| 错误码 | 描述 |
+| --- | --- |
+| ResourceNotFound | 资源不存在。 |

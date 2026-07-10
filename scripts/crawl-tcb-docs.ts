@@ -34,6 +34,7 @@ const BASE_URL = 'https://cloud.tencent.com';
 const COMMON_PARAMS_URL = 'https://cloud.tencent.com/document/api/876/34812';
 const API_OVERVIEW_URL = 'https://cloud.tencent.com/document/api/876/34809';
 const DEPS_INDEX_URL = 'https://cloud.tencent.com/document/api/876/34808';
+const CLOUDRUN_API_OVERVIEW_URL = 'https://cloud.tencent.com/document/api/1243/75722';
 const CONCURRENCY = 2; // 降低并发数，避免触发限流
 const REQUEST_DELAY_MS = 500; // 请求间隔（毫秒）
 const MAX_RETRIES = 3; // 最大重试次数
@@ -152,13 +153,15 @@ async function fetchMarkdownWithRetry(url: string, retries = MAX_RETRIES): Promi
   throw new Error(`Failed to fetch ${url} after ${retries} attempts`);
 }
 
-function extractApiLinks(content: string): string[] {
+function extractApiLinks(content: string, productId = '876'): string[] {
   const links: string[] = [];
+  // Note: use new RegExp() so productId is interpolated. Regex literals /.../ do NOT expand ${var}.
+  const re = new RegExp(`\\[([^\\]]+)\\]\\(/document/api/${productId}/(\\d+)\\)`);
   for (const line of content.split('\n')) {
     if (line.startsWith('| [')) {
-      const match = line.match(/\[([^\]]+)\]\(\/document\/api\/876\/(\d+)\)/);
-      if (match && !links.includes(`${BASE_URL}/document/api/876/${match[2]}`)) {
-        links.push(`${BASE_URL}/document/api/876/${match[2]}`);
+      const match = line.match(re);
+      if (match && !links.includes(`${BASE_URL}/document/api/${productId}/${match[2]}`)) {
+        links.push(`${BASE_URL}/document/api/${productId}/${match[2]}`);
       }
     }
   }
@@ -276,6 +279,49 @@ async function main() {
 
   results.push(...validResults);
   console.log(`   ⏱️  Fetched in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
+
+  // --- CloudBase Run (product 1243) API docs ---
+  console.log('\n📄 Fetching CloudBase Run API overview...');
+  let cloudRunLinks: string[] = [];
+  try {
+    const cloudRunOverview = await fetchMarkdownWithRetry(CLOUDRUN_API_OVERVIEW_URL);
+    results.push({ url: CLOUDRUN_API_OVERVIEW_URL, title: cloudRunOverview.title, content: cloudRunOverview.content, filename: urlToFilename(CLOUDRUN_API_OVERVIEW_URL, cloudRunOverview.title) });
+    console.log(`   ✅ ${cloudRunOverview.title}`);
+    cloudRunLinks = extractApiLinks(cloudRunOverview.content, '1243');
+    console.log(`   📋 Found ${cloudRunLinks.length} CloudBase Run API links`);
+  } catch (err) {
+    console.error(`   ❌ Failed to fetch CloudBase Run API overview: ${err}`);
+    failedCount++;
+  }
+
+  if (cloudRunLinks.length > 0) {
+    console.log(`\n📄 Fetching ${cloudRunLinks.length} CloudBase Run API docs...`);
+    const cloudRunStartTime = Date.now();
+    let cloudRunCompleted = 0;
+
+    const cloudRunTasks = cloudRunLinks.map((url) =>
+      limit(async () => {
+        try {
+          const doc = await fetchMarkdownWithRetry(url);
+          cloudRunCompleted++;
+          console.log(`   [${cloudRunCompleted}/${cloudRunLinks.length}] ✅ ${doc.title}`);
+          return { success: true, result: { url, title: doc.title, content: doc.content, filename: urlToFilename(url, doc.title) } as CrawlResult };
+        } catch (err) {
+          cloudRunCompleted++;
+          console.error(`   [${cloudRunCompleted}/${cloudRunLinks.length}] ❌ ${url}: ${err}`);
+          return { success: false, result: null };
+        }
+      })
+    );
+
+    const cloudRunResults = await Promise.all(cloudRunTasks);
+    const validCloudRunResults = cloudRunResults.filter((r) => r.success && r.result !== null).map((r) => r.result as CrawlResult);
+    const cloudRunFailed = cloudRunResults.filter((r) => !r.success).length;
+    failedCount += cloudRunFailed;
+
+    results.push(...validCloudRunResults);
+    console.log(`   ⏱️  Fetched in ${((Date.now() - cloudRunStartTime) / 1000).toFixed(1)}s`);
+  }
 
   // --- Deps docs ---
   console.log('\n📄 Fetching deps index page...');
