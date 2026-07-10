@@ -54,8 +54,25 @@ export CLOUDBASE_ENV_ID="your-env-id"
 |------|------|--------|
 | `--action, -a` | API Action 名称 | 必填 |
 | `--params, -p` | API 参数 JSON | `{}` |
-| `--service, -s` | 服务类型 | `tcb` |
+| `--service, -s` | 服务类型：`tcb`（云开发）/ `tcbr`（云托管） | `tcb` |
+| `--version, -v` | API 版本（tcb: `2018-06-08`，tcbr: `2022-02-17`） | 由 SDK 决定 |
 | `--help, -h` | 显示帮助 | - |
+
+### 调用云托管 API 示例
+
+调用云托管（1243）API 时必须传 `--service tcbr --version 2022-02-17`：
+
+```bash
+# 查询云托管服务列表
+{baseDir}/scripts/tcb-api.sh --service tcbr --version 2022-02-17 \
+  --action DescribeCloudRunServers \
+  --params '{"EnvId":"your-env-id"}'
+
+# 创建云托管服务
+{baseDir}/scripts/tcb-api.sh --service tcbr --version 2022-02-17 \
+  --action CreateCloudRunServer \
+  --params '{"EnvId":"your-env-id","ServerName":"my-server","ImageUrl":"xxx"}'
+```
 
 ---
 
@@ -63,19 +80,28 @@ export CLOUDBASE_ENV_ID="your-env-id"
 
 **所有 CloudBase API 的详细文档都在 `references/` 目录中。**
 
+### 支持的产品
+
+| 产品 | 文件前缀 | service | version | 概览文档 |
+|------|---------|---------|---------|---------|
+| 云开发 CloudBase (876) | `876-*` | `tcb` | `2019-08-16` | `references/876-34809-云开发-CloudBase-API-概览_腾讯云.md` |
+| 云托管 CloudBase Run (1243) | `1243-*` | `tcbr` | `2022-02-17` | `references/1243-75722-云托管-CloudBase-Run-API-概览_腾讯云.md` |
+
 ### 查找步骤
 
-1. **查看 API 概览**：阅读 `references/34809-云开发-CloudBase-API-概览_腾讯云.md` 了解所有可用的 API
-2. **按功能搜索**：在 `references/` 目录中搜索关键词（如 "环境"、"数据库"、"MySQL"、"托管" 等）
+1. **查看 API 概览**：先阅读对应产品的概览文档了解可用 API
+   - 云开发：`references/876-34809-云开发-CloudBase-API-概览_腾讯云.md`
+   - 云托管：`references/1243-75722-云托管-CloudBase-Run-API-概览_腾讯云.md`
+2. **按功能搜索**：在 `references/` 目录中搜索关键词（如 "环境"、"数据库"、"MySQL"、"托管"、"云托管"、"CloudRun" 等）
 3. **阅读具体文档**：每个 API 文档包含完整的输入参数、输出参数说明
 
 ### 文档命名规则
 
-文件名格式：`{文档ID}-{API描述}.md`
+文件名格式：`{产品ID}-{文档ID}-{API描述}.md`
 
 例如：
-- `34820-云开发-CloudBase-获取环境列表_腾讯云.md`
-- `127880-云开发-CloudBase-执行SQL语句_腾讯云.md`
+- `876-34820-云开发-CloudBase-获取环境列表_腾讯云.md`（云开发 API）
+- `1243-75712-云托管-CloudBase-Run-创建云托管服务_腾讯云.md`（云托管 API）
 
 ---
 

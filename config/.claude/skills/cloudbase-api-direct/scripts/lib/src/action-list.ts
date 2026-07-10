@@ -1,6 +1,6 @@
 /**
- * 自动生成的 TCB 对外 API Action 列表
- * 从 references/ 目录下的文档中提取
+ * 自动生成的 CloudBase API Action 列表
+ * 从 references/ 目录下的文档中提取（含 TCB 876 和 CloudBase Run 1243）
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
