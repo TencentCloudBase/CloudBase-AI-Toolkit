@@ -110,13 +110,13 @@ export function searchSkills(query, index, options = {}) {
 function normalizeQuery(query) {
   if (typeof query !== "string") return "";
   let q = query.toLowerCase().trim();
-  // Expand synonyms in query
+  // Expand synonyms in query — add all matching synonym groups (not just first)
   for (const [key, synonyms] of Object.entries(SYNONYM_MAP)) {
-    if (q.includes(key.toLowerCase())) continue; // Already in query
+    if (q.includes(key.toLowerCase())) continue; // Key already in query
     for (const syn of synonyms) {
       if (q.includes(syn.toLowerCase())) {
         q = q + " " + key.toLowerCase();
-        break;
+        break; // This synonym group matched, move to next group
       }
     }
   }

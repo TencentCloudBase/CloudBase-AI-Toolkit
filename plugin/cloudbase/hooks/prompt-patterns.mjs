@@ -1,6 +1,5 @@
 // hooks/prompt-patterns.mjs — Prompt matching and scoring algorithm
 // Adapted from Vercel plugin. Supports Chinese + English keywords.
-import { logDecision } from "./logger.mjs";
 
 // --- Text normalization ---
 
@@ -104,8 +103,8 @@ export function matchPromptWithReason(normalizedPrompt, compiled) {
 // --- Score adjustments ---
 
 export var PROJECT_CONTEXT_PROMPT_SCORE_BOOST = 3;
-export var DOMINANT_TOPIC_SCORE_THRESHOLD = 600;
-export var DOMINANT_TOPIC_MIN_SCORE = 50;
+export var DOMINANT_TOPIC_SCORE_THRESHOLD = 15;
+export var DOMINANT_TOPIC_MIN_SCORE = 8;
 
 export function applyProjectContextBoost(entry, likelySkills) {
   if (!likelySkills.has(entry.skill) || entry.score === -Infinity) return entry;

@@ -34,7 +34,8 @@ function normalizeToolOutputValue(value) {
 }
 
 function escapeShellEnvValue(value) {
-  return value.replace(/(["\\$`])/g, "\\$1");
+  // Escape shell special chars and replace newlines (prevent env var injection)
+  return value.replace(/(["\\$`])/g, "\\$1").replace(/\n/g, " ");
 }
 
 function drainCursorSessionEnv() {

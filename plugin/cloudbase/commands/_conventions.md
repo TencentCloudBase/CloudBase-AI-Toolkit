@@ -89,4 +89,4 @@ description: 一句话描述命令功能（中文）。
 
 ## Validation
 
-`scripts/validate.ts` 会强制执行上述约定。每个非下划线前缀的 command 文件都会被检查是否包含：Preflight、Plan、Commands、Verification、Summary、Next Steps。
+每个 command 应包含 Preflight、Plan、Commands、Verification、Summary、Next Steps 六个段落。

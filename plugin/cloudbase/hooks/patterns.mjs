@@ -67,7 +67,8 @@ export function mergeSeenSkillStatesWithCompactionReset(
   const compactionState = mergeSeenSkillStates(envValue, fileValue, claimValue);
   const skillsToClear = new Set();
 
-  for (const skill of parseSeenSkills(compactionState)) {
+  // compactionState is an array (from mergeSeenSkills), iterate directly
+  for (const skill of compactionState) {
     if (isHighPrioritySkill(skill, skillMap)) {
       skillsToClear.add(skill);
     }

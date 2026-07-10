@@ -30,7 +30,8 @@ function resolveAuditLogPath(hookInputCwd) {
   if (typeof configuredPath === "string" && configuredPath.trim() !== "") {
     return resolve(projectRoot, configuredPath);
   }
-  const projectSlug = projectRoot.replaceAll("/", "-");
+  // Normalize path separators for cross-platform slug (Windows uses \)
+  const projectSlug = projectRoot.replace(/[\\/]/g, "-");
   return join(homedir(), ".claude", "projects", projectSlug, "cloudbase-plugin", "skill-injections.jsonl");
 }
 

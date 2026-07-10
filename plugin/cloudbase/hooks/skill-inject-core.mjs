@@ -1,12 +1,12 @@
 // hooks/skill-inject-core.mjs — Skill loading, index building, and injection core
-// Loads skills from generated/skill-manifest.json (preferred) or scans SKILL.md at runtime.
+// Loads skills from generated/skill-manifest.json (pre-compiled by build-skill-manifest.mjs).
+// Manifest is the single source of truth — no runtime YAML parsing to avoid parser drift.
 // Adapted from Vercel plugin.
-import { existsSync, readFileSync, readdirSync } from "fs";
 import { join } from "path";
-import { pluginRoot, safeReadJson, safeReadFile } from "./hook-env.mjs";
-import { compilePromptSignals, compileSkillPatterns } from "./prompt-patterns.mjs";
+import { pluginRoot, safeReadJson } from "./hook-env.mjs";
+import { compilePromptSignals } from "./prompt-patterns.mjs";
 import { buildLexicalIndex } from "./lexical-index.mjs";
-import { createLogger, logCaughtError } from "./logger.mjs";
+import { createLogger } from "./logger.mjs";
 
 var log = createLogger();
 
@@ -15,84 +15,6 @@ var compiledSkills = null;
 var lexicalIndex = null;
 var usedManifest = false;
 
-// --- YAML frontmatter parser (lightweight, no dependency) ---
-
-function parseFrontmatter(content) {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  if (!match) return { frontmatter: {}, body: content };
-  return {
-    frontmatter: parseYaml(match[1]),
-    body: match[2],
-  };
-}
-
-function parseYaml(text) {
-  // Lightweight YAML parser supporting nested objects + arrays
-  const result = {};
-  const lines = text.split("\n");
-  const stack = [{ indent: -1, obj: result }];
-
-  for (const line of lines) {
-    if (!line.trim() || line.trim().startsWith("#")) continue;
-    const indent = line.search(/\S/);
-    const trimmed = line.trim();
-
-    // Pop stack to current indent level
-    while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
-      stack.pop();
-    }
-
-    const current = stack[stack.length - 1].obj;
-
-    // Array item (starts with -)
-    if (trimmed.startsWith("- ")) {
-      const value = trimmed.slice(2).trim();
-      const key = stack[stack.length - 1].currentKey;
-      if (key) {
-        if (!current[key]) current[key] = [];
-        if (!Array.isArray(current[key])) current[key] = [];
-        current[key].push(parseScalar(value));
-      }
-      continue;
-    }
-
-    // Key: value or Key:
-    const colonMatch = trimmed.match(/^([^:]+):\s*(.*)$/);
-    if (colonMatch) {
-      const key = colonMatch[1].trim();
-      const value = colonMatch[2].trim();
-
-      if (value === "") {
-        // Nested object or array
-        current[key] = {};
-        stack.push({ indent, obj: current[key], currentKey: key });
-      } else {
-        current[key] = parseScalar(value);
-      }
-    }
-  }
-
-  return result;
-}
-
-function parseScalar(value) {
-  if (value === "true") return true;
-  if (value === "false") return false;
-  if (value === "null" || value === "~") return null;
-  // Quoted string
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-    return value.slice(1, -1);
-  }
-  // Number
-  if (/^-?\d+$/.test(value)) return parseInt(value, 10);
-  if (/^-?\d+\.\d+$/.test(value)) return parseFloat(value);
-  // Array inline [a, b, c]
-  if (value.startsWith("[") && value.endsWith("]")) {
-    return value.slice(1, -1).split(",").map((s) => s.trim()).filter(Boolean).map(parseScalar);
-  }
-  return value;
-}
-
 // --- Load skills ---
 
 export function loadSkills() {
@@ -100,9 +22,8 @@ export function loadSkills() {
 
   const root = pluginRoot();
   const manifestPath = join(root, "generated", "skill-manifest.json");
-
-  // Prefer pre-compiled manifest
   const manifest = safeReadJson(manifestPath);
+
   if (manifest && manifest.skills) {
     skillMap = manifest.skills;
     usedManifest = true;
@@ -111,13 +32,12 @@ export function loadSkills() {
       skillCount: Object.keys(skillMap).length,
     });
   } else {
-    // Fallback: scan skills/*/SKILL.md at runtime
-    const skillsDir = join(root, "skills");
-    skillMap = buildSkillMapFromDir(skillsDir);
+    // No manifest — skill-inject is disabled (manifest must be pre-compiled via build:skill-manifest)
+    skillMap = {};
     usedManifest = false;
-    log.debug("skill-inject-core:scanned-skills", {
-      skillsDir,
-      skillCount: Object.keys(skillMap).length,
+    log.summary("skill-inject-core:no-manifest", {
+      manifestPath,
+      hint: "Run `npm run build:skill-manifest` to generate manifest",
     });
   }
 
@@ -131,38 +51,6 @@ export function loadSkills() {
   lexicalIndex = buildLexicalIndex(skillMap);
 
   return { skillMap, compiledSkills, lexicalIndex, usedManifest };
-}
-
-function buildSkillMapFromDir(skillsDir) {
-  const map = {};
-  let entries;
-  try {
-    entries = readdirSync(skillsDir, { withFileTypes: true });
-  } catch (error) {
-    logCaughtError(log, "skill-inject-core:scan-dir-failed", error, { skillsDir });
-    return map;
-  }
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const skillPath = join(skillsDir, entry.name, "SKILL.md");
-    if (!existsSync(skillPath)) continue;
-
-    const content = safeReadFile(skillPath);
-    if (!content) continue;
-
-    const { frontmatter } = parseFrontmatter(content);
-    map[entry.name] = {
-      name: frontmatter.name || entry.name,
-      description: frontmatter.description || "",
-      version: frontmatter.version,
-      metadata: frontmatter.metadata || { priority: 5 },
-      promptSignals: frontmatter.promptSignals || { phrases: [], minScore: 6 },
-      retrieval: frontmatter.retrieval || { aliases: [], intents: [], entities: [], examples: [] },
-    };
-  }
-
-  return map;
 }
 
 // --- Inject skills into additionalContext ---

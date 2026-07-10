@@ -1,7 +1,7 @@
 // hooks/session-start-profiler.mjs — CloudBase project type profiler
 // Detects CloudBase projects, identifies scenario (Web/Mini Program/CloudRun/Database),
 // sets env vars for downstream hooks. Adapted from Vercel's session-start-profiler.
-import { existsSync, readFileSync, readdirSync, statSync } from "fs";
+import { existsSync, readFileSync, statSync } from "fs";
 import { join } from "path";
 import { createLogger } from "./logger.mjs";
 import { normalizeInput, setSessionEnv, formatOutput } from "./compat.mjs";
@@ -33,6 +33,8 @@ var PACKAGE_MARKERS = {
   next: { scenario: "web", skills: ["web-development", "auth-web", "no-sql-web-sdk", "cloudbase-platform"] },
   "@cloudbase/js-sdk": { scenario: "web", skills: ["web-development", "auth-web", "no-sql-web-sdk", "cloud-storage-web", "cloudbase-platform"] },
   "@cloudbase/node-sdk": { scenario: "cloudrun", skills: ["cloudrun-development", "cloud-functions", "auth-nodejs", "cloudbase-platform"] },
+  "@cloudbase/manager-node": { scenario: "web", skills: ["cloudbase-cli", "cloudbase-platform"] },
+  "@cloudbase/cloudbase-mcp": { scenario: "web", skills: ["cloudbase-platform"] },
   "wx-server-sdk": { scenario: "miniprogram", skills: ["cloud-functions", "auth-wechat", "no-sql-wx-mp-sdk", "cloudbase-platform"] },
   "@cloudbase/wx-cloud-sdk": { scenario: "miniprogram", skills: ["miniprogram-development", "auth-wechat", "no-sql-wx-mp-sdk", "cloudbase-platform"] },
 };
@@ -69,9 +71,17 @@ function detectScenarioFromPackage(projectRoot) {
 function detectScenario(projectRoot) {
   // Priority 1: File markers (most specific)
   for (const marker of FILE_MARKERS) {
-    if (existsSync(join(projectRoot, marker.file))) {
-      return { scenario: marker.scenario, skills: marker.skills };
+    const fullPath = join(projectRoot, marker.file);
+    if (!existsSync(fullPath)) continue;
+    // cloudfunctions should be a directory, not a file
+    if (marker.file === "cloudfunctions") {
+      try {
+        if (!statSync(fullPath).isDirectory()) continue;
+      } catch {
+        continue;
+      }
     }
+    return { scenario: marker.scenario, skills: marker.skills };
   }
   // Priority 2: Package.json dependency markers
   const pkgMarker = detectScenarioFromPackage(projectRoot);

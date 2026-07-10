@@ -12,7 +12,6 @@ import { mergeSeenSkills } from "./patterns.mjs";
 var log = createLogger();
 
 var MAX_SKILLS = 3;
-var DEFAULT_INJECTION_BUDGET_BYTES = 18000;
 var ENV_SEEN_SKILLS_KEY = "CLOUDBASE_PLUGIN_SEEN_SKILLS";
 
 function main() {

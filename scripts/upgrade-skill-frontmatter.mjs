@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // scripts/upgrade-skill-frontmatter.mjs
-// One-time script: adds metadata/promptSignals/retrieval fields to all 28 SKILL.md frontmatters.
+// [COMPLETED — retained for historical reference only]
+// This one-time script added metadata/promptSignals/retrieval fields to all 28 SKILL.md
+// frontmatters. It has already been run and the changes are committed. Do not re-run unless
+// you are adding a brand-new skill and want to bootstrap its frontmatter.
 // Preserves existing name/description/version/alwaysApply fields and body content.
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "fs";

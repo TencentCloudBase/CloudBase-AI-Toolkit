@@ -1,7 +1,7 @@
 // hooks/unified-ranker.mjs — Unified ranker merging exact + lexical scores
 // Adapted from Vercel plugin
-import { adaptiveBoostTier, LEXICAL_RESULT_MIN_SCORE } from "./lexical-index.mjs";
-import { sortPromptScoreStates } from "./patterns.mjs";
+import { adaptiveBoostTier } from "./lexical-index.mjs";
+import { sortPromptScoreStates, estimateSkillSize } from "./patterns.mjs";
 
 export function rerankPromptAnalysisReport(report, skillMap, maxSkills, budgetBytes) {
   // 1. Filter matched skills
@@ -24,7 +24,7 @@ export function rerankPromptAnalysisReport(report, skillMap, maxSkills, budgetBy
   const finalSkills = [];
 
   for (const entry of selected) {
-    const estimatedSize = estimatePromptSkillSize(skillMap[entry.skill]);
+    const estimatedSize = estimateSkillSize(skillMap[entry.skill]);
     if (usedBytes + estimatedSize > budgetBytes && finalSkills.length > 0) {
       droppedByBudget.push(entry.skill);
       continue;
@@ -40,12 +40,6 @@ export function rerankPromptAnalysisReport(report, skillMap, maxSkills, budgetBy
     droppedByBudget,
     usedBytes,
   };
-}
-
-function estimatePromptSkillSize(skill) {
-  if (!skill) return 500;
-  const summary = skill.description || "";
-  return Math.max(summary.length * 10, 500);
 }
 
 export function mergeExactAndLexical(exactResults, lexicalResults, skillMap) {

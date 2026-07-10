@@ -12,22 +12,16 @@ import {
   applyProjectContextBoost,
   applyDominantTopicSuppression,
 } from "./prompt-patterns.mjs";
-import {
-  parseSeenSkills,
-  mergeSeenSkills,
-  buildDocsBlock,
-} from "./patterns.mjs";
+import { mergeSeenSkills } from "./patterns.mjs";
 import { tryClaimSessionKey, readSessionFile, getDedupScopeId } from "./hook-env.mjs";
 
 var log = createLogger();
 
 var MAX_SKILLS = 2;
 var DEFAULT_INJECTION_BUDGET_BYTES = 8000;
-var DEFAULT_PROMPT_MIN_SCORE = 6;
 var MIN_PROMPT_LENGTH = 5;
 
 var ENV_SEEN_SKILLS_KEY = "CLOUDBASE_PLUGIN_SEEN_SKILLS";
-var ENV_CONTEXT_COMPACTED_KEY = "CLOUDBASE_PLUGIN_CONTEXT_COMPACTED";
 
 function main() {
   const raw = readFileSync(0, "utf-8");
