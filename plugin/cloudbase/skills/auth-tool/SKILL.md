@@ -3,6 +3,36 @@ name: auth-tool-cloudbase
 description: CloudBase auth provider configuration and login-readiness guide. This skill should be used when users need to inspect, enable, disable, or configure auth providers, publishable-key prerequisites, login methods, SMS/email sender setup, or other provider-side readiness before implementing a client or backend auth flow.
 version: 2.23.7
 alwaysApply: false
+metadata:
+  priority: 8
+  docs:
+    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/auth-tool"
+promptSignals:
+  phrases:
+    - "登录"
+    - "认证"
+    - "auth"
+    - "login"
+    - "signin"
+    - "openid"
+    - "unionid"
+    - "jwt"
+    - "token"
+  anyOf:
+    - "配置"
+    - "config"
+    - "provider"
+    - "sms"
+    - "email"
+  noneOf:
+    - "登出"
+    - "logout"
+  minScore: 6
+retrieval:
+  aliases: [authentication, login, 认证配置]
+  intents: [configure auth provider, enable login methods]
+  entities: [SMS, Email, WeChat Auth, Custom Login, Publishable Key]
+  examples: [enable sms login, configure wechat auth, set up custom login]
 ---
 
 ## Standalone Install Note

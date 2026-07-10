@@ -3,6 +3,28 @@ name: cloudrun-development
 description: CloudBase Run backend development rules (Function mode/Container mode). Use this skill when deploying backend services that require long connections, multi-language support, custom environments, or AI agent development.
 version: 2.23.7
 alwaysApply: false
+metadata:
+  priority: 7
+  docs:
+    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloudrun-development"
+  pathPatterns:
+    - 'Dockerfile'
+    - 'docker-compose.yml'
+    - 'cloudbaserc.json'
+promptSignals:
+  phrases:
+    - "云托管"
+    - "cloudrun"
+    - "docker"
+    - "容器"
+    - "websocket"
+    - "长连接"
+  minScore: 6
+retrieval:
+  aliases: [cloudrun, container, docker]
+  intents: [deploy container service, build cloudrun app]
+  entities: [Docker, CloudRun, Container, WebSocket]
+  examples: [deploy docker app, create cloudrun service]
 ---
 
 ## Standalone Install Note

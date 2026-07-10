@@ -3,6 +3,23 @@ name: relational-database-mcp-cloudbase
 description: This is the required documentation for agents operating on the CloudBase Relational Database through MCP. It defines the canonical SQL management flow with `queryMysqlDatabase`, `manageMysqlDatabase`, `queryPermissions`, and `managePermissions`, including MySQL provisioning, destroy flow, async status checks, safe query execution, schema initialization, and permission updates.
 version: 2.23.7
 alwaysApply: false
+metadata:
+  priority: 7
+  docs:
+    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/relational-database-tool"
+promptSignals:
+  phrases:
+    - "mysql"
+    - "关系型数据库"
+    - "sql"
+    - "queryMysqlDatabase"
+    - "manageMysqlDatabase"
+  minScore: 6
+retrieval:
+  aliases: [mysql, relational database, sql]
+  intents: [query mysql database, manage relational database]
+  entities: [MySQL, FlexDB, SQL]
+  examples: [query mysql, create table, run sql]
 ---
 
 ## Standalone Install Note

@@ -3,6 +3,21 @@ name: ai-model-wechat
 description: "Use this skill for WeChat Mini Program AI via wx.cloud.extend.AI (小程序, 企业微信小程序, wx.cloud apps). Features generateText and streamText with callbacks (onText, onEvent, onFinish). Models via wx.cloud.extend.AI.createModel with groups hunyuan-exp (小程序成长计划), cloudbase (main managed), or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the data wrapper model field. API differs from JS/Node SDK — streamText needs data wrapper, generateText returns raw response. MUST run two-step preflight before code — see body. Keywords: Mini Program AI, wx.cloud.extend.AI, 小程序成长计划, ai_miniprogram_inspire_plan, Token Credits 资源包, generateText, streamText, createModel, hunyuan-exp, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs)."
 version: 2.23.7
 alwaysApply: false
+metadata:
+  priority: 6
+  docs:
+    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/ai-model-wechat"
+promptSignals:
+  phrases:
+    - "小程序 ai"
+    - "wx.cloud.extend.ai"
+    - "小程序成长计划"
+  minScore: 6
+retrieval:
+  aliases: [mini program ai, 小程序 ai]
+  intents: [call ai from mini program]
+  entities: [wx.cloud.extend.AI, Mini Program]
+  examples: [ai in mini program, wx cloud ai]
 ---
 
 ## Standalone Install Note
