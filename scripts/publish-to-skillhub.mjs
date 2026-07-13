@@ -360,9 +360,18 @@ export async function publishToSkillhub({
           // 例如最新版 2.24.1，则使用 2.24.2-beta.1（beta 版本低于正式版）
           const semver = parseSemver(latestRelease);
           const nextPatch = semver ? `${semver.major}.${semver.minor}.${semver.patch + 1}` : latestRelease;
-          version = `${nextPatch}-beta.${maxBeta + 1}`;
-          retryCount = maxBeta + 1;
-          console.log(`  → 使用版本 / Using version: ${version} (latest release: ${latestRelease}, next patch: ${nextPatch}, max beta: ${maxBeta})`);
+          // 用 nextPatch 搜索已有 beta 版本（之前可能已发布过 nextPatch-beta.X）
+          const nextBetaPrefix = `${nextPatch}-beta.`;
+          let nextMaxBeta = 0;
+          for (const v of versions) {
+            if (v.version && v.version.startsWith(nextBetaPrefix)) {
+              const num = parseInt(v.version.slice(nextBetaPrefix.length), 10);
+              if (!isNaN(num) && num > nextMaxBeta) nextMaxBeta = num;
+            }
+          }
+          version = `${nextPatch}-beta.${nextMaxBeta + 1}`;
+          retryCount = nextMaxBeta + 1;
+          console.log(`  → 使用版本 / Using version: ${version} (latest release: ${latestRelease}, next patch: ${nextPatch}, next max beta: ${nextMaxBeta})`);
         } else if (versions.some((v) => v.version === currentVersion)) {
           // SKILL.md 版本已存在，加 beta
           version = `${currentVersion}-beta.${maxBeta + 1}`;
@@ -405,7 +414,7 @@ export async function publishToSkillhub({
         });
         break;
       } catch (error) {
-        if (error.message.includes("409")) {
+        if (error.message.includes("409") || error.message.includes("400")) {
           retryCount++;
           if (retryCount > maxRetries) {
             console.warn(`  ⚠ 重试耗尽 / Max retries reached for ${target.targetKey} (${slug})`);
@@ -416,8 +425,16 @@ export async function publishToSkillhub({
             });
             break;
           }
-          version = `${currentVersion}-beta.${retryCount}`;
-          console.log(`  ↻ 版本冲突 / Version conflict (409), retrying with ${version} (attempt ${retryCount}/${maxRetries})`);
+          // 重试时优先基于 nextPatch 递增 beta（如果 latestRelease 可用），
+          // 避免在 currentVersion 远低于 SkillHub 最新版时产生过低版本号
+          if (latestRelease && latestRelease !== currentVersion) {
+            const semver = parseSemver(latestRelease);
+            const nextPatch = semver ? `${semver.major}.${semver.minor}.${semver.patch + 1}` : latestRelease;
+            version = `${nextPatch}-beta.${retryCount}`;
+          } else {
+            version = `${currentVersion}-beta.${retryCount}`;
+          }
+          console.log(`  ↻ 版本冲突 / Version conflict (${error.message.includes("409") ? "409" : "400"}), retrying with ${version} (attempt ${retryCount}/${maxRetries})`);
         } else {
           failures.push({
             targetKey: target.targetKey,
