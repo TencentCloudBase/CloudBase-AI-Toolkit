@@ -175,24 +175,12 @@ function parseEnabledPlugins(
   return enabledPlugins;
 }
 
-export interface PgRuntimeContext {
-  envId: string;
-  instanceId: string;
-  defaultSchema: string;
-  runtimeMode: "cloudbase-manager";
-  bootstrapMode: "cloud";
-  role?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 // 扩展 McpServer 类型以包含 cloudBaseOptions 和新的registerTool方法
 export interface ExtendedMcpServer extends McpServer {
   cloudBaseOptions?: CloudBaseOptions;
   authOptions?: AuthOptions;
   ide?: string;
   logger?: Logger;
-  pgRuntimeContext?: PgRuntimeContext;
   enabledPlugins?: string[];
   pluginOptions?: PluginOptions;
   /** 已注册工具的列表，供外部（如微信 IDE）提取并注册到自己的 MCP server */

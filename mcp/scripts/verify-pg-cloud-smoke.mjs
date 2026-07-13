@@ -1,7 +1,5 @@
-import { promises as fs } from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
@@ -19,10 +17,6 @@ function parseToolPayload(result) {
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const packageDir = path.resolve(scriptDir, "..");
-const contextPath = process.env.CLOUDBASE_PG_CONTEXT_PATH ?? path.join(
-  os.tmpdir(),
-  `cloudbase-pg-mcp-smoke-${Date.now()}.json`,
-);
 
 async function main() {
   const transport = new StdioClientTransport({
@@ -31,7 +25,6 @@ async function main() {
     env: {
       ...process.env,
       NODE_ENV: "test",
-      CLOUDBASE_PG_CONTEXT_PATH: contextPath,
     },
     stderr: "pipe",
   });
@@ -56,16 +49,6 @@ async function main() {
       assert(toolNames.includes(toolName), `Missing expected tool: ${toolName}`);
     }
 
-    const init = parseToolPayload(
-      await client.callTool({
-        name: "managePgDatabase",
-        arguments: {
-          action: "init",
-        },
-      }),
-    );
-    assert(init.success === true, `managePgDatabase(init) failed: ${init.message}`);
-
     const context = parseToolPayload(
       await client.callTool({
         name: "queryPgDatabase",
@@ -73,7 +56,7 @@ async function main() {
       }),
     );
     assert(context.success === true, `queryPgDatabase(context) failed: ${context.message}`);
-    assert(context.data?.context?.bootstrapMode === "cloud", "PG context did not persist cloud bootstrap mode");
+    assert(context.data?.context?.bootstrapMode === "cloud", "PG context did not derive cloud bootstrap mode");
 
     const objects = parseToolPayload(
       await client.callTool({
@@ -168,9 +151,7 @@ async function main() {
 
     console.log(JSON.stringify({
       success: true,
-      contextPath,
       verifiedFlow: [
-        "managePgDatabase:init",
         "queryPgDatabase:context",
         "queryPgDatabase:objects",
         "queryPgDatabase:metadata",
@@ -183,9 +164,6 @@ async function main() {
     }, null, 2));
   } finally {
     await transport.close().catch(() => undefined);
-    if (!process.env.CLOUDBASE_PG_CONTEXT_PATH) {
-      await fs.rm(contextPath, { force: true }).catch(() => undefined);
-    }
   }
 }
 
