@@ -1,25 +1,8 @@
 ---
 name: cloudbase-platform
 description: CloudBase platform overview and routing guide. This skill should be used when users need high-level capability selection, platform concepts, console navigation, or cross-platform best practices before choosing a more specific implementation skill.
-version: 2.23.8
+version: 2.23.9
 alwaysApply: false
-metadata:
-  priority: 8
-  docs:
-    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloudbase-platform"
-promptSignals:
-  phrases:
-    - "cloudbase"
-    - "云开发"
-    - "平台"
-    - "控制台"
-    - "tcb"
-  minScore: 8
-retrieval:
-  aliases: [cloudbase platform, 云开发平台, tcb]
-  intents: [understand cloudbase platform, navigate console]
-  entities: [CloudBase, Console, Environment, TCB]
-  examples: [what is cloudbase, how to use cloudbase console]
 ---
 
 ## Standalone Install Note

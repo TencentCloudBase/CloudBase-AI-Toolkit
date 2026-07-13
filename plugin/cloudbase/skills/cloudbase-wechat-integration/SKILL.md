@@ -1,24 +1,8 @@
 ---
 name: cloudbase-wechat-integration
 description: CloudBase WeChat integration guide for Mini Program WeChat Pay, Official Account JSAPI Pay, Native QR-code Pay, Official Account OAuth, openid handling, payment callbacks, and CloudBase Integration Center generated functions. This skill should be used when users ask to add, debug, or extend WeChat payment or official-account flows on CloudBase.
-version: 2.23.8
+version: 2.23.9
 alwaysApply: false
-metadata:
-  priority: 6
-  docs:
-    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloudbase-wechat-integration"
-promptSignals:
-  phrases:
-    - "微信支付"
-    - "jsapi pay"
-    - "公众号 oauth"
-    - "支付回调"
-  minScore: 6
-retrieval:
-  aliases: [wechat pay, 微信支付, wechat integration]
-  intents: [integrate wechat pay, wechat oauth]
-  entities: [JSAPI Pay, OAuth, WeChat]
-  examples: [add wechat pay, wechat oauth login]
 ---
 
 # CloudBase WeChat Integration

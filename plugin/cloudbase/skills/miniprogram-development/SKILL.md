@@ -1,35 +1,8 @@
 ---
 name: miniprogram-development
 description: WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, and optimizing mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, or optimize WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools workflows, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, or 云开发 in a mini program project.
-version: 2.23.8
+version: 2.23.9
 alwaysApply: false
-metadata:
-  priority: 8
-  docs:
-    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/miniprogram-development"
-  pathPatterns:
-    - 'miniprogram/**'
-    - 'cloudfunctions/**'
-    - 'project.config.json'
-    - 'app.json'
-    - 'app.wxss'
-  bashPatterns:
-    - '\btcb\s+(fn|cloudfunctions)\s+deploy\b'
-promptSignals:
-  phrases:
-    - "小程序"
-    - "miniprogram"
-    - "微信"
-    - "wechat"
-    - "wx.cloud"
-    - "tabbar"
-    - "appid"
-  minScore: 6
-retrieval:
-  aliases: [wechat mini program, wxmp, 小程序]
-  intents: [build a mini program, wechat cloud development]
-  entities: [WeChat, wx.cloud, project.config.json, tabBar]
-  examples: [make a mini program, add tabBar, deploy cloud function]
 ---
 
 ## Standalone Install Note

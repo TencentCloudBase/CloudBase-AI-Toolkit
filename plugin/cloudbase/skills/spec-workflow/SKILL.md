@@ -1,25 +1,8 @@
 ---
 name: spec-workflow
 description: Use when medium-to-large changes need explicit requirements, technical design, and task planning before implementation, especially for multi-module work, unclear acceptance criteria, or architecture-heavy requests.
-version: 2.23.8
+version: 2.23.9
 alwaysApply: false
-metadata:
-  priority: 6
-  docs:
-    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/spec-workflow"
-promptSignals:
-  phrases:
-    - "spec"
-    - "需求文档"
-    - "技术方案"
-    - "tasks.md"
-    - "验收标准"
-  minScore: 6
-retrieval:
-  aliases: [spec, requirements, 需求]
-  intents: [plan with spec workflow]
-  entities: [EARS, Requirements, Design, Tasks]
-  examples: [write spec, plan feature with requirements]
 ---
 
 ## Standalone Install Note

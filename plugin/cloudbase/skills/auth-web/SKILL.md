@@ -1,27 +1,8 @@
 ---
 name: auth-web-cloudbase
 description: CloudBase Web Authentication Quick Guide for frontend integration after auth-tool has already been checked. Provides concise and practical Web authentication solutions with multiple login methods and complete user management.
-version: 2.23.8
+version: 2.23.9
 alwaysApply: false
-metadata:
-  priority: 6
-  docs:
-    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/auth-web"
-promptSignals:
-  phrases:
-    - "web 登录"
-    - "前端认证"
-    - "web sdk auth"
-    - "web auth"
-  noneOf:
-    - "小程序"
-    - "miniprogram"
-  minScore: 6
-retrieval:
-  aliases: [web auth, 前端认证]
-  intents: [implement web authentication]
-  entities: [CloudBase Web SDK, auth.toDefaultLoginPage]
-  examples: [add login to web app, web auth flow]
 ---
 
 ## Standalone Install Note

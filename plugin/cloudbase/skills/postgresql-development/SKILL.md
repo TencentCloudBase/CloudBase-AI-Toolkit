@@ -1,25 +1,8 @@
 ---
 name: postgresql-development-cloudbase
 description: "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG."
-version: 2.23.8
+version: 2.23.9
 alwaysApply: false
-metadata:
-  priority: 6
-  docs:
-    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/postgresql-development"
-promptSignals:
-  phrases:
-    - "postgresql"
-    - "postgres"
-    - "pg"
-    - "rls"
-    - "app.rdb()"
-  minScore: 6
-retrieval:
-  aliases: [postgresql, postgres, pg]
-  intents: [use postgresql on cloudbase]
-  entities: [PostgreSQL, RLS, app.rdb()]
-  examples: [query postgres, setup rls, pg mode]
 ---
 
 ## Standalone Install Note

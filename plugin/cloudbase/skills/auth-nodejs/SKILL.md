@@ -1,24 +1,8 @@
 ---
 name: auth-nodejs-cloudbase
 description: CloudBase Node SDK auth guide for server-side identity, user lookup, and custom login tickets. This skill should be used when Node.js code must read caller identity, inspect end users, or bridge an existing user system into CloudBase; not when configuring providers or building client login UI.
-version: 2.23.8
+version: 2.23.9
 alwaysApply: false
-metadata:
-  priority: 6
-  docs:
-    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/auth-nodejs"
-promptSignals:
-  phrases:
-    - "服务端认证"
-    - "node 认证"
-    - "custom login ticket"
-    - "服务端 auth"
-  minScore: 6
-retrieval:
-  aliases: [node auth, server auth, 服务端认证]
-  intents: [implement server-side auth]
-  entities: [Custom Login, Ticket, Node SDK]
-  examples: [create custom login, server auth]
 ---
 
 ## Standalone Install Note

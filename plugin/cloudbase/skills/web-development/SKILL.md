@@ -1,45 +1,8 @@
 ---
 name: web-development
 description: Use when users need to implement, integrate, debug, build, deploy, or validate a Web frontend after the product direction is already clear, especially for React, Vue, Vite, browser flows, or CloudBase Web integration.
-version: 2.23.8
+version: 2.23.9
 alwaysApply: false
-metadata:
-  priority: 8
-  docs:
-    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/web-development"
-  pathPatterns:
-    - 'src/**'
-    - 'public/**'
-    - 'vite.config.*'
-    - 'webpack.config.*'
-  bashPatterns:
-    - '\b(vite|webpack|npm|pnpm|yarn)\s+(dev|build|serve)\b'
-    - '\bnpx\s+create-(vite|react-app)\b'
-promptSignals:
-  phrases:
-    - "web"
-    - "前端"
-    - "react"
-    - "vue"
-    - "vite"
-    - "浏览器"
-    - "spa"
-    - "ssr"
-    - "静态托管"
-  anyOf:
-    - "部署"
-    - "deploy"
-    - "页面"
-    - "page"
-  noneOf:
-    - "小程序"
-    - "miniprogram"
-  minScore: 6
-retrieval:
-  aliases: [web frontend, react, vue, vite, spa]
-  intents: [build a web app, deploy static hosting]
-  entities: [React, Vue, Vite, Webpack, CloudBase JS SDK]
-  examples: [make a todo app, build a dashboard, deploy to static hosting]
 ---
 
 ## Standalone Install Note

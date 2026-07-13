@@ -1,36 +1,8 @@
 ---
 name: cloud-functions
 description: CloudBase function runtime guide for building, deploying, and debugging your own Event Functions or HTTP Functions. This skill should be used when users need application runtime code on CloudBase, not when they are merely calling CloudBase official platform APIs.
-version: 2.23.8
+version: 2.23.9
 alwaysApply: false
-metadata:
-  priority: 7
-  docs:
-    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloud-functions"
-  pathPatterns:
-    - 'cloudfunctions/**'
-  bashPatterns:
-    - '\btcb\s+fn\s+(deploy|list|invoke)\b'
-    - '\bcloudbase\s+functions?\b'
-promptSignals:
-  phrases:
-    - "云函数"
-    - "cloud function"
-    - "serverless"
-    - "scf"
-    - "http function"
-    - "event function"
-  anyOf:
-    - "部署"
-    - "deploy"
-    - "调试"
-    - "debug"
-  minScore: 6
-retrieval:
-  aliases: [cloud function, serverless, scf, lambda]
-  intents: [deploy a cloud function, debug serverless]
-  entities: [SCF, HTTP Function, Event Function, wx-server-sdk]
-  examples: [deploy cloud function, create http function, debug serverless]
 ---
 
 ## Standalone Install Note
