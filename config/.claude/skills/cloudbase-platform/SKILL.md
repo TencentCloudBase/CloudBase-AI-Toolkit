@@ -1,7 +1,7 @@
 ---
 name: cloudbase-platform
 description: CloudBase platform overview and routing guide. This skill should be used when users need high-level capability selection, platform concepts, console navigation, or cross-platform best practices before choosing a more specific implementation skill.
-version: 2.23.8
+version: 2.23.9
 alwaysApply: false
 ---
 
