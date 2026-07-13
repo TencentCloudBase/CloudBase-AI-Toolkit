@@ -1,8 +1,6 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { z } from "zod";
-import { getCloudBaseManager } from "../cloudbase-manager.js";
-import type { ExtendedMcpServer, PgRuntimeContext } from "../server.js";
+import { getCloudBaseManager, getEnvId } from "../cloudbase-manager.js";
+import type { ExtendedMcpServer } from "../server.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
 
 const CATEGORY = "PostgreSQL database";
@@ -17,7 +15,6 @@ const QUERY_ACTIONS = [
   "sql",
 ] as const;
 const MANAGE_ACTIONS = [
-  "init",
   "execute",
   "dryRun",
   "planMigration",
@@ -55,14 +52,6 @@ type ManagePgDatabaseArgs = {
   objectName?: string;
 };
 
-type PgBootstrapResult = {
-  instanceId: string;
-  defaultSchema: string;
-  status: "ready";
-  runtimeMode?: PgRuntimeContext["runtimeMode"];
-  role?: string;
-};
-
 type PgQueryField = {
   name: string;
 };
@@ -87,7 +76,7 @@ type PgReadyCheckOptions = {
 
 type PgToolDependencies = {
   createClient: (
-    context: PgRuntimeContext,
+    context: PgDbContext,
   ) => Promise<PgClientLike> | PgClientLike;
   readyCheckOptions?: PgReadyCheckOptions;
 };
@@ -130,82 +119,35 @@ function buildNextAction(
   } as ToolNextStep & { reason: string };
 }
 
-function getPgContextStorePath() {
-  return (
-    process.env.CLOUDBASE_PG_CONTEXT_PATH ??
-    path.join(process.env.HOME ?? ".", ".cloudbase-mcp", "pg-context.json")
-  );
+/**
+ * PG 执行上下文（无状态，每次调用推导）
+ * 替代旧的 PgRuntimeContext，不包含 createdAt/updatedAt 等可变状态
+ */
+interface PgDbContext {
+  envId: string;
+  instanceId: string;
+  defaultSchema: string;
+  role: string;
 }
 
-async function loadStoredPgContext() {
-  if (!process.env.CLOUDBASE_PG_CONTEXT_PATH) {
-    return undefined;
-  }
+/**
+ * 从 cloudBaseOptions + args 推导 PG 执行上下文（无状态）
+ * 照搬 MySQL 的 resolveSqlDbContext 模式
+ */
+async function resolvePgDbContext(
+  cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
+  args?: { envId?: string; instanceId?: string; defaultSchema?: string; role?: string },
+): Promise<PgDbContext> {
+  const envId =
+    args?.envId ??
+    cloudBaseOptions?.envId ??
+    (await getEnvId(cloudBaseOptions));
 
-  try {
-    const raw = await fs.readFile(getPgContextStorePath(), "utf8");
-    return JSON.parse(raw) as PgRuntimeContext;
-  } catch {
-    return undefined;
-  }
-}
-
-async function savePgContext(
-  server: ExtendedMcpServer,
-  context: PgRuntimeContext,
-) {
-  server.pgRuntimeContext = context;
-
-  if (!process.env.CLOUDBASE_PG_CONTEXT_PATH) {
-    return;
-  }
-
-  const storePath = getPgContextStorePath();
-  await fs.mkdir(path.dirname(storePath), { recursive: true });
-  await fs.writeFile(storePath, JSON.stringify(context, null, 2), {
-    encoding: "utf8",
-    mode: 0o600,
-  });
-  await fs.chmod(storePath, 0o600).catch(() => undefined);
-}
-
-async function getPgContext(server: ExtendedMcpServer) {
-  if (server.pgRuntimeContext) {
-    return server.pgRuntimeContext;
-  }
-
-  const stored = await loadStoredPgContext();
-  if (stored) {
-    server.pgRuntimeContext = stored;
-  }
-  return stored;
-}
-
-function buildMissingContextResult() {
-  return buildPgToolResult({
-    success: false,
-    errorCode: "PG_CONTEXT_NOT_INITIALIZED",
-    message:
-      "PostgreSQL context is not initialized yet. Call managePgDatabase(action=init) to bind the current CloudBase environment's built-in PostgreSQL runtime.",
-    nextActions: [
-      buildNextAction(
-        MANAGE_PG_DATABASE,
-        "init",
-        "初始化 CloudBase PG 云端执行上下文，然后再查询 schema 或执行 SQL。",
-        { action: "init" },
-      ),
-    ],
-  });
-}
-
-function sanitizePgContext(context: PgRuntimeContext) {
   return {
-    envId: context.envId,
-    instanceId: context.instanceId,
-    defaultSchema: context.defaultSchema,
-    runtimeMode: context.runtimeMode,
-    bootstrapMode: context.bootstrapMode,
-    role: context.role,
+    envId,
+    instanceId: args?.instanceId ?? "cloudbase-pg",
+    defaultSchema: args?.defaultSchema ?? "public",
+    role: args?.role ?? "cloudbase_admin",
   };
 }
 
@@ -463,7 +405,7 @@ function summarizeQueryResult(result: PgQueryResult, limit: number) {
 }
 
 async function withPgClient<T>(
-  context: PgRuntimeContext,
+  context: PgDbContext,
   deps: PgToolDependencies,
   callback: (client: PgClientLike) => Promise<T>,
 ) {
@@ -774,7 +716,7 @@ function createDefaultDependencies(
   server?: ExtendedMcpServer,
 ): PgToolDependencies {
   return {
-    createClient: async (context: PgRuntimeContext) =>
+    createClient: async (context: PgDbContext) =>
       createManagerPgClient(context, server?.cloudBaseOptions),
   };
 }
@@ -827,7 +769,7 @@ function isCloudBaseWithCommonService(
 }
 
 async function executeManagerPGSql(
-  context: PgRuntimeContext,
+  context: PgDbContext,
   sql: string,
   cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
 ): Promise<ExecutePGSqlResult> {
@@ -866,7 +808,7 @@ async function executeManagerPGSql(
 
 /** Call a CloudBase PG migration API via commonService fallback */
 async function callPgMigrationApi(
-  context: PgRuntimeContext,
+  context: PgDbContext,
   action: string,
   params: Record<string, unknown>,
   cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
@@ -944,7 +886,7 @@ function inferCommand(sql: string) {
 }
 
 function createManagerPgClient(
-  context: PgRuntimeContext,
+  context: PgDbContext,
   cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
 ): PgClientLike {
   return {
@@ -976,120 +918,78 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function ensurePgReady(
-  context: PgRuntimeContext,
-  deps: PgToolDependencies,
-  options?: PgReadyCheckOptions,
-) {
-  const maxAttempts = options?.maxAttempts ?? 20;
-  const retryDelayMs = options?.retryDelayMs ?? 1000;
-  let lastError: unknown;
+/**
+ * 模块级 Promise 缓存：同一 server 生命周期内只探测一次 PG 就绪状态
+ * 照搬 MySQL lazy 就绪检查模式，避免每次业务调用都 SELECT 1
+ */
+let pgReadyPromise: Promise<void> | null = null;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    try {
-      await withPgClient(context, deps, async (client) => {
-        await client.query("SELECT 1");
-      });
-      return;
-    } catch (error) {
-      lastError = error;
-      if (attempt === maxAttempts) {
-        break;
-      }
-      await sleep(retryDelayMs);
-    }
-  }
-
-  const reason =
-    lastError instanceof Error ? lastError.message : String(lastError);
-  throw new Error(
-    `PostgreSQL is not ready after ${maxAttempts} attempts. Last error: ${reason}`,
-  );
+/**
+ * @internal 重置就绪探测缓存（仅供测试使用）
+ */
+export function __resetPgReadyCache() {
+  pgReadyPromise = null;
 }
 
-async function handleInit(
-  args: ManagePgDatabaseArgs,
-  server: ExtendedMcpServer,
+/**
+ * 首次 SQL 调用时探测 PG 就绪，Promise 缓存避免重复探测
+ * 探测失败抛错，由调用方捕获返回 PG_NOT_READY 错误码
+ */
+async function ensurePgReadyOnce(
+  cloudBaseOptions: ExtendedMcpServer["cloudBaseOptions"] | undefined,
   deps: PgToolDependencies,
-) {
-  const existing = await getPgContext(server);
-  const resolvedEnvId =
-    args.envId ??
-    server.cloudBaseOptions?.envId ??
-    process.env.CLOUDBASE_ENV_ID ??
-    existing?.envId;
-
-  if (!resolvedEnvId) {
-    return buildPgToolResult({
-      success: false,
-      errorCode: "ENV_ID_REQUIRED",
-      message:
-        "CloudBase PostgreSQL only supports the built-in cloud runtime. Provide envId or bind a CloudBase environment before calling managePgDatabase(action=init).",
-    });
+): Promise<void> {
+  if (pgReadyPromise) {
+    return pgReadyPromise;
   }
 
-  const bootstrapResult: PgBootstrapResult = {
-    instanceId: args.instanceId ?? "cloudbase-pg",
-    defaultSchema: args.defaultSchema ?? "public",
-    status: "ready",
-    runtimeMode: "cloudbase-manager",
-    role: args.role ?? "cloudbase_admin",
-  };
+  pgReadyPromise = (async () => {
+    const context = await resolvePgDbContext(cloudBaseOptions);
+    const maxAttempts = deps.readyCheckOptions?.maxAttempts ?? 20;
+    const retryDelayMs = deps.readyCheckOptions?.retryDelayMs ?? 1000;
+    let lastError: unknown;
 
-  const now = new Date().toISOString();
-  const context: PgRuntimeContext = {
-    envId: resolvedEnvId,
-    instanceId: bootstrapResult.instanceId,
-    defaultSchema: bootstrapResult.defaultSchema,
-    runtimeMode: "cloudbase-manager",
-    bootstrapMode: "cloud",
-    role: bootstrapResult.role,
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
-  };
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        await withPgClient(context, deps, async (client) => {
+          await client.query("SELECT 1");
+        });
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt === maxAttempts) {
+          break;
+        }
+        await sleep(retryDelayMs);
+      }
+    }
 
-  await ensurePgReady(context, deps, deps.readyCheckOptions);
-  await savePgContext(server, context);
+    const reason =
+      lastError instanceof Error ? lastError.message : String(lastError);
+    throw new Error(
+      `PostgreSQL is not ready after ${maxAttempts} attempts. Last error: ${reason}`,
+    );
+  })();
 
-  return buildPgToolResult({
-    success: true,
-    data: {
-      context: {
-        ...sanitizePgContext(context),
-      },
-      status: bootstrapResult.status,
-    },
-    message:
-      "CloudBase PG 云端执行上下文已就绪。先查询对象或 schema，再执行写入 SQL。",
-    nextActions: [
-      buildNextAction(
-        QUERY_PG_DATABASE,
-        "objects",
-        "List schema-qualified database objects before drilling into a specific table.",
-        { action: "objects", limit: 20 },
-      ),
-      buildSchemaNextAction(
-        "Inspect a concrete schema-qualified table after you know which object matters.",
-        `${context.defaultSchema}.your_table`,
-      ),
-    ],
-  });
+  return pgReadyPromise;
 }
 
 async function handleQueryContext(server: ExtendedMcpServer) {
-  const context = await getPgContext(server);
-  if (!context) {
-    return buildMissingContextResult();
-  }
+  const context = await resolvePgDbContext(server.cloudBaseOptions);
 
   return buildPgToolResult({
     success: true,
     data: {
       context: {
-        ...sanitizePgContext(context),
+        envId: context.envId,
+        instanceId: context.instanceId,
+        defaultSchema: context.defaultSchema,
+        runtimeMode: "cloudbase-manager",
+        bootstrapMode: "cloud",
+        role: context.role,
       },
     },
-    message: "Resolved current CloudBase PostgreSQL context.",
+    message: "Resolved current CloudBase PostgreSQL context (auto-derived).",
     nextActions: [
       buildNextAction(
         QUERY_PG_DATABASE,
@@ -1103,7 +1003,7 @@ async function handleQueryContext(server: ExtendedMcpServer) {
 
 async function handleListObjects(
   args: QueryPgDatabaseArgs,
-  context: PgRuntimeContext,
+  context: PgDbContext,
   deps: PgToolDependencies,
 ) {
   const limit = normalizeLimit(args.limit);
@@ -1143,7 +1043,7 @@ async function handleListObjects(
 
 async function handleMetadata(
   args: QueryPgDatabaseArgs,
-  context: PgRuntimeContext,
+  context: PgDbContext,
   deps: PgToolDependencies,
 ) {
   const limit = normalizeLimit(args.limit);
@@ -1183,7 +1083,7 @@ async function handleMetadata(
 
 async function handleReadOnlySql(
   args: QueryPgDatabaseArgs,
-  context: PgRuntimeContext,
+  context: PgDbContext,
   deps: PgToolDependencies,
 ) {
   if (!args.sql?.trim()) {
@@ -1244,7 +1144,7 @@ async function handleReadOnlySql(
 
 async function handleExecuteSql(
   args: ManagePgDatabaseArgs,
-  context: PgRuntimeContext,
+  context: PgDbContext,
   deps: PgToolDependencies,
 ) {
   if (!args.sql?.trim()) {
@@ -1363,7 +1263,7 @@ async function handleDryRun(args: ManagePgDatabaseArgs) {
   });
 }
 
-async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgRuntimeContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
+async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgDbContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
   if (!args.sql?.trim()) {
     return buildPgToolResult({
       success: false,
@@ -1398,7 +1298,7 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgRuntim
   }
 }
 
-async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgRuntimeContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
+async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
   if (!args.sql?.trim()) {
     return buildPgToolResult({
       success: false,
@@ -1433,7 +1333,7 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgRunti
   }
 }
 
-async function handleListMigrations(args: ManagePgDatabaseArgs, context: PgRuntimeContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
+async function handleListMigrations(args: ManagePgDatabaseArgs, context: PgDbContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
   try {
     const result = await callPgMigrationApi(context, "ListPGUserMigrations", {}, cloudBaseOptions);
     return buildPgToolResult({
@@ -1450,7 +1350,7 @@ async function handleListMigrations(args: ManagePgDatabaseArgs, context: PgRunti
   }
 }
 
-async function handleMigrationDetail(args: ManagePgDatabaseArgs, context: PgRuntimeContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
+async function handleMigrationDetail(args: ManagePgDatabaseArgs, context: PgDbContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
   if (!args.objectName?.trim()) {
     return buildPgToolResult({
       success: false,
@@ -1477,7 +1377,7 @@ async function handleMigrationDetail(args: ManagePgDatabaseArgs, context: PgRunt
   }
 }
 
-async function handleRollbackMigration(args: ManagePgDatabaseArgs, context: PgRuntimeContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
+async function handleRollbackMigration(args: ManagePgDatabaseArgs, context: PgDbContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
   if (!args.objectName?.trim()) {
     return buildPgToolResult({
       success: false,
@@ -1514,7 +1414,7 @@ async function handleRollbackMigration(args: ManagePgDatabaseArgs, context: PgRu
 
 async function handleGetPgSchema(
   args: Pick<QueryPgDatabaseArgs, "objectName">,
-  context: PgRuntimeContext,
+  context: PgDbContext,
   deps: PgToolDependencies,
 ) {
   const objectName = args.objectName ?? "";
@@ -1648,9 +1548,25 @@ export function registerPGDatabaseTools(
         return handleQueryContext(server);
       }
 
-      const context = await getPgContext(server);
-      if (!context) {
-        return buildMissingContextResult();
+      const context = await resolvePgDbContext(server.cloudBaseOptions);
+
+      try {
+        await ensurePgReadyOnce(server.cloudBaseOptions, deps);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        return buildPgToolResult({
+          success: false,
+          errorCode: "PG_NOT_READY",
+          message: `CloudBase PostgreSQL is not ready. ${reason}`,
+          nextActions: [
+            buildNextAction(
+              "queryEnv",
+              "info",
+              "检查当前环境 PostgreSQL 实例状态。",
+              { action: "info", envId: context.envId },
+            ),
+          ],
+        });
       }
 
       switch (args.action) {
@@ -1677,12 +1593,12 @@ export function registerPGDatabaseTools(
     {
       title: "管理 PostgreSQL 上下文或执行写入 SQL",
       description:
-        "管理 CloudBase PostgreSQL MCP 上下文。仅支持 CloudBase 内置 PostgreSQL 云端 Manager SDK 执行路径、SQL 风险预检、迁移规划，以及在显式确认后执行写入 SQL。",
+        "管理 CloudBase PostgreSQL：执行已确认的写入 SQL 或 DDL、SQL 风险预检、迁移规划。上下文自动从当前 MCP 环境推导，无需 init。仅支持 CloudBase 内置 PostgreSQL 云端 Manager SDK 执行路径。",
       inputSchema: {
         action: z
           .enum(MANAGE_ACTIONS)
           .describe(
-            "操作类型：init=初始化或绑定 PostgreSQL 上下文；execute=执行已确认的写入 SQL 或 DDL；dryRun=只分析 SQL 风险不执行；planMigration=通过 PreviewPGUserMigrations 预览迁移计划；applyMigration=通过 PushPGUserMigrations 应用迁移；listMigrations=查询已应用的 Migration 列表；migrationDetail=查看单条 Migration 详情；rollbackMigration=回滚指定 Migration",
+            "操作类型：execute=执行已确认的写入 SQL 或 DDL；dryRun=只分析 SQL 风险不执行；planMigration=通过 PreviewPGUserMigrations 预览迁移计划；applyMigration=通过 PushPGUserMigrations 应用迁移；listMigrations=查询已应用的 Migration 列表；migrationDetail=查看单条 Migration 详情；rollbackMigration=回滚指定 Migration",
           ),
         sql: z
           .string()
@@ -1699,11 +1615,11 @@ export function registerPGDatabaseTools(
         instanceId: z
           .string()
           .optional()
-          .describe("可选的 PostgreSQL 逻辑实例标识。"),
+          .describe("可选的 PostgreSQL 逻辑实例标识，默认 cloudbase-pg。"),
         defaultSchema: z
           .string()
           .optional()
-          .describe("默认 schema，会保存到 PG 上下文中，默认 public。"),
+          .describe("可选的默认 schema，默认 public。"),
         role: z
           .string()
           .optional()
@@ -1726,13 +1642,28 @@ export function registerPGDatabaseTools(
       },
     },
     async (args: ManagePgDatabaseArgs) => {
+      const context = await resolvePgDbContext(server.cloudBaseOptions, args);
+      const cbOpts = server.cloudBaseOptions;
+
       switch (args.action) {
-        case "init":
-          return handleInit(args, server, deps);
         case "execute": {
-          const context = await getPgContext(server);
-          if (!context) {
-            return buildMissingContextResult();
+          try {
+            await ensurePgReadyOnce(cbOpts, deps);
+          } catch (error) {
+            const reason = error instanceof Error ? error.message : String(error);
+            return buildPgToolResult({
+              success: false,
+              errorCode: "PG_NOT_READY",
+              message: `CloudBase PostgreSQL is not ready. ${reason}`,
+              nextActions: [
+                buildNextAction(
+                  "queryEnv",
+                  "info",
+                  "检查当前环境 PostgreSQL 实例状态。",
+                  { action: "info", envId: context.envId },
+                ),
+              ],
+            });
           }
 
           return handleExecuteSql(args, context, deps);
@@ -1744,17 +1675,12 @@ export function registerPGDatabaseTools(
         case "listMigrations":
         case "migrationDetail":
         case "rollbackMigration": {
-          const migrationCtx = await getPgContext(server);
-          if (!migrationCtx) {
-            return buildMissingContextResult();
-          }
-          const cbOpts = server.cloudBaseOptions;
           switch (args.action) {
-            case "planMigration": return handlePlanMigration(args, migrationCtx, deps, cbOpts);
-            case "applyMigration": return handleApplyMigration(args, migrationCtx, deps, cbOpts);
-            case "listMigrations": return handleListMigrations(args, migrationCtx, deps, cbOpts);
-            case "migrationDetail": return handleMigrationDetail(args, migrationCtx, deps, cbOpts);
-            case "rollbackMigration": return handleRollbackMigration(args, migrationCtx, deps, cbOpts);
+            case "planMigration": return handlePlanMigration(args, context, deps, cbOpts);
+            case "applyMigration": return handleApplyMigration(args, context, deps, cbOpts);
+            case "listMigrations": return handleListMigrations(args, context, deps, cbOpts);
+            case "migrationDetail": return handleMigrationDetail(args, context, deps, cbOpts);
+            case "rollbackMigration": return handleRollbackMigration(args, context, deps, cbOpts);
             default: return buildPgToolResult({ success: false, errorCode: "UNSUPPORTED_ACTION", message: `Unsupported action: ${args.action}` });
           }
         }

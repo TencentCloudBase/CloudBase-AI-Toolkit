@@ -1,19 +1,10 @@
-import { promises as fs } from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExtendedMcpServer } from "../server.js";
+import { __resetPgReadyCache } from "./databasePG.js";
 import { registerPGDatabaseTools } from "./databasePG.js";
 
 function buildToolPayload(result: any) {
   return JSON.parse(result.content[0].text);
-}
-
-function createTempContextPath() {
-  return path.join(
-    os.tmpdir(),
-    `cloudbase-pg-mcp-test-${Date.now()}-${Math.random().toString(16).slice(2)}.json`,
-  );
 }
 
 function createMockServer() {
@@ -52,16 +43,8 @@ function createFakeClient(
 }
 
 describe("PG database tools", () => {
-  let contextPath: string;
-
   beforeEach(() => {
-    contextPath = createTempContextPath();
-    process.env.CLOUDBASE_PG_CONTEXT_PATH = contextPath;
-  });
-
-  afterEach(async () => {
-    delete process.env.CLOUDBASE_PG_CONTEXT_PATH;
-    await fs.rm(contextPath, { force: true });
+    __resetPgReadyCache();
   });
 
   it("registers PG tool names", () => {
@@ -73,60 +56,31 @@ describe("PG database tools", () => {
     expect(tools.getPgSchema).toBeUndefined();
   });
 
-  it("managePgDatabase(init) stores PG context", async () => {
+  it("managePgDatabase(action=init) is no longer supported", async () => {
     const { server, tools } = createMockServer();
-    const fakeClient = createFakeClient(async (sql: string) => {
-      if (sql === "SELECT 1") {
-        return { rows: [{ "?column?": 1 }], rowCount: 1 };
-      }
-      throw new Error(`Unexpected SQL: ${sql}`);
-    });
-
     registerPGDatabaseTools(server, {
-      createClient: vi.fn(() => fakeClient),
-    });
-
-    const initResult = await tools.managePgDatabase.handler({
-      action: "init",
-    });
-    const payload = buildToolPayload(initResult);
-    const saved = JSON.parse(await fs.readFile(contextPath, "utf8"));
-
-    expect(payload).toMatchObject({
-      success: true,
-      data: {
-        context: {
-          instanceId: "cloudbase-pg",
-          defaultSchema: "public",
-          runtimeMode: "cloudbase-manager",
-        },
-      },
-    });
-    expect(saved).toMatchObject({
-      envId: "env-test",
-      instanceId: "cloudbase-pg",
-      defaultSchema: "public",
-    });
-  });
-
-  it("managePgDatabase(init) stores Manager SDK context without requiring file IO", async () => {
-    delete process.env.CLOUDBASE_PG_CONTEXT_PATH;
-
-    const { server, tools } = createMockServer();
-    const fakeClient = createFakeClient(async (sql: string) => {
-      if (sql === "SELECT 1") {
-        return { rows: [{ "?column?": 1 }], rowCount: 1 };
-      }
-      throw new Error(`Unexpected SQL: ${sql}`);
-    });
-
-    registerPGDatabaseTools(server, {
-      createClient: vi.fn(() => fakeClient),
+      createClient: vi.fn(),
     });
 
     const result = await tools.managePgDatabase.handler({
       action: "init",
-      role: "postgres",
+    });
+    const payload = buildToolPayload(result);
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "UNSUPPORTED_ACTION",
+    });
+  });
+
+  it("queryPgDatabase(context) returns auto-derived context without init", async () => {
+    const { server, tools } = createMockServer();
+    registerPGDatabaseTools(server, {
+      createClient: vi.fn(),
+    });
+
+    const result = await tools.queryPgDatabase.handler({
+      action: "context",
     });
     const payload = buildToolPayload(result);
 
@@ -135,37 +89,8 @@ describe("PG database tools", () => {
       data: {
         context: {
           envId: "env-test",
-          runtimeMode: "cloudbase-manager",
-          bootstrapMode: "cloud",
-          role: "postgres",
-        },
-      },
-    });
-    expect(server.pgRuntimeContext?.runtimeMode).toBe("cloudbase-manager");
-  });
-
-  it("managePgDatabase(init) defaults CloudBase envs to cloud bootstrap with cloudbase_admin role", async () => {
-    delete process.env.CLOUDBASE_PG_CONTEXT_PATH;
-
-    const { server, tools } = createMockServer();
-    const fakeClient = createFakeClient(async (sql: string) => {
-      if (sql === "SELECT 1") {
-        return { rows: [{ "?column?": 1 }], rowCount: 1 };
-      }
-      throw new Error(`Unexpected SQL: ${sql}`);
-    });
-
-    registerPGDatabaseTools(server, {
-      createClient: vi.fn(() => fakeClient),
-    });
-
-    const result = await tools.managePgDatabase.handler({ action: "init" });
-    const payload = buildToolPayload(result);
-
-    expect(payload).toMatchObject({
-      success: true,
-      data: {
-        context: {
+          instanceId: "cloudbase-pg",
+          defaultSchema: "public",
           runtimeMode: "cloudbase-manager",
           bootstrapMode: "cloud",
           role: "cloudbase_admin",
@@ -174,44 +99,7 @@ describe("PG database tools", () => {
     });
   });
 
-  it("managePgDatabase(init) retries readiness checks until PostgreSQL accepts connections", async () => {
-    const { server, tools } = createMockServer();
-    let readyAttempts = 0;
-
-    registerPGDatabaseTools(server, {
-      createClient: vi.fn(() =>
-        createFakeClient(async (sql: string) => {
-          if (sql !== "SELECT 1") {
-            throw new Error(`Unexpected SQL: ${sql}`);
-          }
-
-          readyAttempts += 1;
-          if (readyAttempts < 3) {
-            throw new Error("database is still starting");
-          }
-
-          return { rows: [{ "?column?": 1 }], rowCount: 1 };
-        }),
-      ),
-      readyCheckOptions: {
-        maxAttempts: 3,
-        retryDelayMs: 1,
-      },
-    });
-
-    const payload = buildToolPayload(
-      await tools.managePgDatabase.handler({
-        action: "init",
-      }),
-    );
-
-    expect(payload).toMatchObject({
-      success: true,
-    });
-    expect(readyAttempts).toBe(3);
-  });
-
-  it("queryPgDatabase(sql) rejects mutating SQL", async () => {
+  it("queryPgDatabase(sql) rejects mutating SQL without init", async () => {
     const { server, tools } = createMockServer();
     const fakeClient = createFakeClient(async (sql: string) => {
       if (sql === "SELECT 1") {
@@ -222,10 +110,6 @@ describe("PG database tools", () => {
 
     registerPGDatabaseTools(server, {
       createClient: vi.fn(() => fakeClient),
-    });
-
-    await tools.managePgDatabase.handler({
-      action: "init",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -240,7 +124,7 @@ describe("PG database tools", () => {
     });
   });
 
-  it("queryPgDatabase(objects) returns schema-qualified summaries", async () => {
+  it("queryPgDatabase(objects) returns schema-qualified summaries without init", async () => {
     const { server, tools } = createMockServer();
     const fakeClient = createFakeClient(async (sql: string) => {
       if (sql === "SELECT 1") {
@@ -264,10 +148,6 @@ describe("PG database tools", () => {
 
     registerPGDatabaseTools(server, {
       createClient: vi.fn(() => fakeClient),
-    });
-
-    await tools.managePgDatabase.handler({
-      action: "init",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -327,10 +207,6 @@ describe("PG database tools", () => {
       createClient: vi.fn(() => fakeClient),
     });
 
-    await tools.managePgDatabase.handler({
-      action: "init",
-    });
-
     const result = await tools.queryPgDatabase.handler({
       action: "metadata",
       limit: 10,
@@ -364,10 +240,6 @@ describe("PG database tools", () => {
 
     registerPGDatabaseTools(server, {
       createClient: vi.fn(() => fakeClient),
-    });
-
-    await tools.managePgDatabase.handler({
-      action: "init",
     });
 
     const result = await tools.queryPgDatabase.handler({
@@ -484,10 +356,6 @@ describe("PG database tools", () => {
       createClient: vi.fn(() => fakeClient),
     });
 
-    await tools.managePgDatabase.handler({
-      action: "init",
-    });
-
     const result = await tools.queryPgDatabase.handler({
       action: "schema",
       objectName: "public.users",
@@ -537,10 +405,6 @@ describe("PG database tools", () => {
 
     registerPGDatabaseTools(server, {
       createClient: vi.fn(() => fakeClient),
-    });
-
-    await tools.managePgDatabase.handler({
-      action: "init",
     });
 
     const result = await tools.managePgDatabase.handler({
@@ -606,10 +470,6 @@ describe("PG database tools", () => {
 
     registerPGDatabaseTools(server, {
       createClient: vi.fn(() => fakeClient),
-    });
-
-    await tools.managePgDatabase.handler({
-      action: "init",
     });
 
     const result = await tools.managePgDatabase.handler({
@@ -687,10 +547,6 @@ describe("PG database tools", () => {
       createClient: vi.fn(() => fakeClient),
     });
 
-    await tools.managePgDatabase.handler({
-      action: "init",
-    });
-
     const result = await tools.queryPgDatabase.handler({
       action: "schema",
       objectName: "public.articles",
@@ -717,10 +573,6 @@ describe("PG database tools", () => {
       createClient: vi.fn(() => fakeClient),
     });
 
-    await tools.managePgDatabase.handler({
-      action: "init",
-    });
-
     const result = await tools.managePgDatabase.handler({
       action: "execute",
       sql: "DELETE FROM public.users",
@@ -733,38 +585,124 @@ describe("PG database tools", () => {
     });
   });
 
-  it("all PG tools return actionable error before init", async () => {
+  it("ensurePgReadyOnce caches readiness across calls", async () => {
     const { server, tools } = createMockServer();
-    registerPGDatabaseTools(server, {
-      createClient: vi.fn(),
+    let probeCount = 0;
+    const fakeClient = createFakeClient(async (sql: string) => {
+      if (sql === "SELECT 1") {
+        probeCount += 1;
+        return { rows: [{ "?column?": 1 }], rowCount: 1 };
+      }
+      if (sql.includes("FROM pg_class c")) {
+        return { rows: [], rowCount: 0 };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
     });
 
-    const queryResult = buildToolPayload(
-      await tools.queryPgDatabase.handler({ action: "objects" }),
-    );
-    const executeResult = buildToolPayload(
-      await tools.managePgDatabase.handler({
-        action: "execute",
-        sql: "CREATE TABLE public.users(id int)",
-      }),
-    );
-    const schemaResult = buildToolPayload(
-      await tools.queryPgDatabase.handler({
-        action: "schema",
-        objectName: "public.users",
-      }),
-    );
+    registerPGDatabaseTools(server, {
+      createClient: vi.fn(() => fakeClient),
+    });
 
-    for (const payload of [queryResult, executeResult, schemaResult]) {
-      expect(payload).toMatchObject({
-        success: false,
-        errorCode: "PG_CONTEXT_NOT_INITIALIZED",
-      });
-      expect(payload.nextActions?.[0]).toMatchObject({
-        tool: "managePgDatabase",
-        action: "init",
-      });
-    }
+    // First call triggers readiness probe
+    await tools.queryPgDatabase.handler({ action: "objects", limit: 5 });
+    const probesAfterFirst = probeCount;
+
+    // Second call should reuse cached readiness (no additional SELECT 1)
+    await tools.queryPgDatabase.handler({ action: "objects", limit: 5 });
+
+    // Only 1 SELECT 1 probe expected across both calls
+    expect(probeCount).toBe(probesAfterFirst);
   });
 
+  it("ensurePgReadyOnce retries readiness checks until PostgreSQL accepts connections", async () => {
+    const { server, tools } = createMockServer();
+    let readyAttempts = 0;
+
+    registerPGDatabaseTools(server, {
+      createClient: vi.fn(() =>
+        createFakeClient(async (sql: string) => {
+          if (sql === "SELECT 1") {
+            readyAttempts += 1;
+            if (readyAttempts < 3) {
+              throw new Error("database is still starting");
+            }
+            return { rows: [{ "?column?": 1 }], rowCount: 1 };
+          }
+          if (sql.includes("FROM pg_class c")) {
+            return { rows: [], rowCount: 0 };
+          }
+          throw new Error(`Unexpected SQL: ${sql}`);
+        }),
+      ),
+      readyCheckOptions: {
+        maxAttempts: 3,
+        retryDelayMs: 1,
+      },
+    });
+
+    const payload = buildToolPayload(
+      await tools.queryPgDatabase.handler({
+        action: "objects",
+        limit: 5,
+      }),
+    );
+
+    expect(payload.success).toBe(true);
+    expect(readyAttempts).toBe(3);
+  });
+
+  it("returns PG_NOT_READY when PostgreSQL is not available", async () => {
+    const { server, tools } = createMockServer();
+
+    registerPGDatabaseTools(server, {
+      createClient: vi.fn(() =>
+        createFakeClient(async () => {
+          throw new Error("database is not available");
+        }),
+      ),
+      readyCheckOptions: {
+        maxAttempts: 2,
+        retryDelayMs: 1,
+      },
+    });
+
+    const payload = buildToolPayload(
+      await tools.queryPgDatabase.handler({
+        action: "objects",
+        limit: 5,
+      }),
+    );
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "PG_NOT_READY",
+    });
+  });
+
+  it("managePgDatabase(dryRun) works without readiness probe", async () => {
+    const { server, tools } = createMockServer();
+
+    // createClient 不会被调用，因为 dryRun 不触发就绪探测
+    registerPGDatabaseTools(server, {
+      createClient: vi.fn(() =>
+        createFakeClient(async () => {
+          throw new Error("should not be called");
+        }),
+      ),
+    });
+
+    const payload = buildToolPayload(
+      await tools.managePgDatabase.handler({
+        action: "dryRun",
+        sql: "SELECT 1",
+      }),
+    );
+
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        wouldExecute: false,
+      },
+    });
+  });
 });
