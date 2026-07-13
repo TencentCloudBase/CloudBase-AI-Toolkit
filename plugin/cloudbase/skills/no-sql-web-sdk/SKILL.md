@@ -3,6 +3,29 @@ name: cloudbase-document-database-web-sdk
 description: Use CloudBase document database Web SDK only for confirmed NoSQL collection work. Query, create, update, and delete document data; if the task mentions PostgreSQL / CloudBase PG / app.rdb(), route to postgresql-development instead.
 version: 2.23.8
 alwaysApply: false
+metadata:
+  priority: 7
+  docs:
+    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/no-sql-web-sdk"
+promptSignals:
+  phrases:
+    - "文档数据库"
+    - "nosql"
+    - "collection"
+    - "web sdk"
+  anyOf:
+    - "数据库"
+    - "database"
+    - "db"
+  noneOf:
+    - "小程序"
+    - "miniprogram"
+  minScore: 6
+retrieval:
+  aliases: [nosql, document database, mongodb]
+  intents: [use nosql database from web, crud collection]
+  entities: [NoSQL, Collection, CloudBase JS SDK]
+  examples: [query collection, add document, update nosql]
 ---
 
 ## Standalone Install Note

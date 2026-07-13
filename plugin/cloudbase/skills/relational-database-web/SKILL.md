@@ -3,6 +3,21 @@ name: relational-database-web-cloudbase
 description: Use when building frontend Web apps that talk to CloudBase Relational Database via @cloudbase/js-sdk – provides the canonical init pattern so you can then use Supabase-style queries from the browser.
 version: 2.23.8
 alwaysApply: false
+metadata:
+  priority: 6
+  docs:
+    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/relational-database-web"
+promptSignals:
+  phrases:
+    - "web mysql"
+    - "web 关系型"
+    - "web relational"
+  minScore: 6
+retrieval:
+  aliases: [web mysql, relational web]
+  intents: [use mysql from web]
+  entities: [MySQL, Web SDK, FlexDB]
+  examples: [query mysql from web, web relational db]
 ---
 
 ## Standalone Install Note

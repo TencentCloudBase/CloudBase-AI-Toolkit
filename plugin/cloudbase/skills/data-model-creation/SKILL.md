@@ -3,6 +3,37 @@ name: data-model-creation
 description: Optional advanced tool for complex data modeling. For simple MySQL table creation, use relational-database-tool directly; for PostgreSQL / CloudBase PG schema work, use postgresql-development.
 version: 2.23.8
 alwaysApply: false
+metadata:
+  priority: 7
+  docs:
+    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/data-model-creation"
+  pathPatterns:
+    - '**/schema.prisma'
+    - '**/drizzle.config.*'
+    - '**/migrations/**'
+  bashPatterns:
+    - '\b(db|migrate|schema):'
+promptSignals:
+  phrases:
+    - "数据模型"
+    - "建模"
+    - "model"
+    - "schema"
+    - "er图"
+    - "entity"
+    - "数据库设计"
+    - "data model"
+  anyOf:
+    - "mysql"
+    - "postgresql"
+    - "nosql"
+    - "关系型"
+  minScore: 6
+retrieval:
+  aliases: [data modeling, schema design, er diagram]
+  intents: [design database schema, create er diagram]
+  entities: [Mermaid, ER Diagram, MySQL Types, PostgreSQL]
+  examples: [design database schema, create er diagram, model data]
 ---
 
 ## Standalone Install Note

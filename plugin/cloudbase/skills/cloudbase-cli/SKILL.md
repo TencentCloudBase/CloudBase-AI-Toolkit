@@ -3,6 +3,23 @@ name: cloudbase-cli
 description: CloudBase CLI (tcb, 云开发CLI, Tencent CloudBase命令行) resource management skill. This skill should be used when users need to deploy cloud functions, manage CloudRun apps, upload files to storage, query NoSQL/MySQL databases, deploy static hosting, set access permissions, or configure CORS/domains/routing via tcb commands. Also use for CI/CD pipeline scripting, batch operations, terminal-based CloudBase management, or when the user prefers CLI over SDK/MCP.
 version: 2.23.8
 alwaysApply: false
+metadata:
+  priority: 5
+  docs:
+    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloudbase-cli"
+  bashPatterns:
+    - '\btcb\s+\w+'
+promptSignals:
+  phrases:
+    - "tcb"
+    - "cli"
+    - "命令行"
+  minScore: 6
+retrieval:
+  aliases: [tcb cli, cloudbase cli]
+  intents: [use tcb cli]
+  entities: [tcb, CLI]
+  examples: [tcb deploy, tcb fn list]
 ---
 
 # CloudBase CLI

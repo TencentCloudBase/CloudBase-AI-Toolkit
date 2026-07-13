@@ -3,6 +3,42 @@ name: ui-design
 description: Use when users need visual direction, interface hierarchy, layout decisions, design specifications, or prototypes before implementing a Web or mini program UI.
 version: 2.23.8
 alwaysApply: false
+metadata:
+  priority: 9
+  pathPatterns:
+    - '**/*.tsx'
+    - '**/*.vue'
+    - '**/*.css'
+    - '**/*.scss'
+promptSignals:
+  phrases:
+    - "ui"
+    - "界面"
+    - "设计"
+    - "design"
+    - "页面"
+    - "page"
+    - "组件"
+    - "component"
+    - "样式"
+    - "style"
+    - "配色"
+    - "color"
+    - "原型"
+    - "prototype"
+    - "布局"
+    - "layout"
+  anyOf:
+    - "原型"
+    - "prototype"
+    - "布局"
+    - "layout"
+  minScore: 6
+retrieval:
+  aliases: [ui design, interface design, 原型设计]
+  intents: [design ui, create prototype, define color palette]
+  entities: [Color Palette, Typography, Layout, Design System]
+  examples: [design a dashboard ui, make a prototype, define color scheme]
 ---
 
 ## Standalone Install Note

@@ -3,6 +3,21 @@ name: http-api-cloudbase
 description: CloudBase official HTTP API client guide. This skill should be used when backends, scripts, or non-SDK clients must call CloudBase platform APIs over raw HTTP instead of using a platform SDK or MCP management tool.
 version: 2.23.8
 alwaysApply: false
+metadata:
+  priority: 5
+  docs:
+    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/http-api"
+promptSignals:
+  phrases:
+    - "http api"
+    - "非 sdk"
+    - "原生 app"
+  minScore: 6
+retrieval:
+  aliases: [http api, rest api]
+  intents: [call cloudbase via http]
+  entities: [HTTP, REST, API]
+  examples: [call cloudbase http, native app api]
 ---
 
 ## Standalone Install Note

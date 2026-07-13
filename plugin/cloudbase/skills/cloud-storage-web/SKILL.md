@@ -3,6 +3,24 @@ name: cloud-storage-web
 description: Complete guide for CloudBase cloud storage using Web SDK (@cloudbase/js-sdk) - upload, download, temporary URLs, file management, and best practices.
 version: 2.23.8
 alwaysApply: false
+metadata:
+  priority: 6
+  docs:
+    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloud-storage-web"
+promptSignals:
+  phrases:
+    - "云存储"
+    - "upload"
+    - "上传"
+    - "下载"
+    - "download"
+    - "文件存储"
+  minScore: 6
+retrieval:
+  aliases: [cloud storage, 云存储, file upload]
+  intents: [upload/download files]
+  entities: [Cloud Storage, uploadFile, downloadFile]
+  examples: [upload file, get download url, manage storage]
 ---
 
 ## Standalone Install Note

@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@cloudbase/manager-node':
-        specifier: 5.3.1
-        version: 5.3.1
+        specifier: ^5.6.1
+        version: 5.6.2
     devDependencies:
       '@modelcontextprotocol/sdk':
         specifier: 1.16.0
@@ -210,11 +210,11 @@ packages:
     resolution: {integrity: sha512-IteJl7RjPYjsqQbmSr6Vr0el6I19SzI1ya6Nw1ov4KEHxXdwrjJ2uubBeUK4mc54kmzFmvTwqBuyJdhUQ/YDXA==}
     engines: {node: '>=18.0.0'}
 
-  '@cloudbase/manager-node@5.3.1':
-    resolution: {integrity: sha512-q1bjPaP91vmdp0Jq0zVMTjat1Z19RQz1f00IQZSEgPE+L0Q99DMNniG64Px4Zv8OyBak6YHAdyYIH///9Y3/lg==}
-
   '@cloudbase/manager-node@5.5.6':
     resolution: {integrity: sha512-UacTrT7XxoTonORnnn33+/xfq7aZ5ZJcRpv0NgVbS6y7bjIAmzmJ8DSg7+FfAy5FMEbnsynKeq0IAS7FajEJxw==}
+
+  '@cloudbase/manager-node@5.6.2':
+    resolution: {integrity: sha512-Npzksy4QVbjGejpYZoypQNBcmLEWwEfjKEr2cEWGEDgnhGUpmIt+j7mR8kWQu1hQG8gmd+0aFBygTzBNuEm4FQ==}
 
   '@cloudbase/mcp@1.0.0-beta.25':
     resolution: {integrity: sha512-IZw5MGTin3/SHlJVL6aoMLocAIlqsm8Oif0Xlb4OeznlAFuSIGwMV8ZJ5Dn9ftzyN/kwKjysa6x+Rmfw6MG51A==}
@@ -4144,9 +4144,10 @@ snapshots:
 
   '@cloudbase/functions-typings@1.2.1': {}
 
-  '@cloudbase/manager-node@5.3.1':
+  '@cloudbase/manager-node@5.5.6':
     dependencies:
       '@cloudbase/database': 0.6.2
+      '@cloudbase/signature-nodejs': 1.1.0
       archiver: 3.1.1
       cos-nodejs-sdk-v5: 2.15.4
       del: 5.1.0
@@ -4155,6 +4156,7 @@ snapshots:
       lodash: 4.18.1
       make-dir: 3.1.0
       micromatch: 4.0.8
+      mime-types: 3.0.2
       node-fetch: 2.7.0
       query-string: 6.14.1
       unzipper: 0.12.3
@@ -4166,7 +4168,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@cloudbase/manager-node@5.5.6':
+  '@cloudbase/manager-node@5.6.2':
     dependencies:
       '@cloudbase/database': 0.6.2
       '@cloudbase/signature-nodejs': 1.1.0

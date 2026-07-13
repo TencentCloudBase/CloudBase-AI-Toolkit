@@ -5,6 +5,23 @@ version: 2.23.8
 alwaysApply: false
 allowed-tools: 
 disable: false
+metadata:
+  priority: 6
+  docs:
+    - "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloudbase-agent"
+promptSignals:
+  phrases:
+    - "agent"
+    - "智能体"
+    - "ag-ui"
+    - "langgraph"
+    - "langchain"
+  minScore: 6
+retrieval:
+  aliases: [ai agent, 智能体, ag-ui]
+  intents: [build ai agent]
+  entities: [AG-UI, LangGraph, LangChain, Agent SDK]
+  examples: [build agent, deploy ai agent]
 ---
 
 ## Standalone Install Note
