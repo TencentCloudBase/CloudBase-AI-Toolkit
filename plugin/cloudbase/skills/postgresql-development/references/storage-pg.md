@@ -38,7 +38,38 @@ await app.storage.from().upload('covers/a.png', file);
 
 ## Bucket creation
 
-The browser SDK cannot create buckets. Create/select the PG storage bucket before writing upload code, through PG storage HTTP API / CLI / console / SQL on `storage.buckets` when appropriate.
+The browser SDK cannot create buckets. Create the PG storage bucket **before** writing upload code.
+
+### `storage.buckets` schema
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | `text` | Bucket ID (primary key), e.g. `avatars` |
+| `name` | `text` | Bucket display name (≤ 100 chars) |
+| `public` | `boolean` | Whether public read is allowed (default `false`). Does **not** bypass RLS. |
+| `file_size_limit` | `bigint` | Max file size in bytes |
+| `allowed_mime_types` | `text[]` | Allowed MIME types whitelist |
+| `owner_id` | `text` | Creator user ID |
+
+### Via MCP tool (recommended for AI agents)
+
+```sql
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('avatars', 'avatars', false, 5 * 1024 * 1024, ARRAY['image/png', 'image/jpeg', 'image/webp']);
+```
+
+Call via `managePgDatabase(action="execute", confirm=true, sql="...")`.
+
+### Via CloudBase CLI
+
+```bash
+tcb db execute -e <envId> --sql "INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES ('avatars', 'avatars', false, 5 * 1024 * 1024, ARRAY['image/png', 'image/jpeg', 'image/webp']);"
+```
+
+### Post-creation: configure RLS (mandatory)
+
+After creating the bucket, configure RLS on `storage.objects` — see "Storage RLS" section below.
+The default RLS is deny all; without permissive policies the browser receives `STORAGE_PERMISSION_DENIED`.
 
 The legacy NoSQL bucket returned by `EnvInfo.Storages[]` is not a PG storage bucket.
 
@@ -46,21 +77,41 @@ The legacy NoSQL bucket returned by `EnvInfo.Storages[]` is not a PG storage buc
 
 After bucket creation, configure RLS on `storage.objects` for the intended role and bucket.
 
-Example authenticated upload/read policy:
+The default RLS is deny all. Use `storage.foldername(name)` to extract the first path segment (usually the user ID) and compare with `auth.uid()`.
+
+Example: per-user isolation for bucket `avatars` (object path: `<uid>/filename.png`):
 
 ```sql
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY covers_upload ON storage.objects
-  FOR INSERT TO authenticated
-  WITH CHECK (bucket_id = 'covers' AND auth.role() = 'authenticated');
-
-CREATE POLICY covers_read ON storage.objects
+-- Allow each authenticated user to read their own files
+CREATE POLICY avatars_select_own ON storage.objects
   FOR SELECT TO authenticated
-  USING (bucket_id = 'covers' AND auth.role() = 'authenticated');
+  USING (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid());
+
+-- Allow each authenticated user to upload to their own directory
+CREATE POLICY avatars_insert_own ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid());
+
+-- Allow each authenticated user to update their own files
+CREATE POLICY avatars_update_own ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid())
+  WITH CHECK (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid());
+
+-- Allow each authenticated user to delete their own files
+CREATE POLICY avatars_delete_own ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid());
 ```
 
-For owner-scoped files, use `owner_id = auth.uid()` or join against business tables only after verifying the schema columns.
+Key points:
+- `storage.foldername(name)` is a built-in helper that splits `'<uid>/avatar.png'` into `{'<uid>'}`.
+- `auth.uid()` returns the current JWT `sub`.
+- `storage.objects` does **not** need extra `GRANT` — `anon`/`authenticated`/`service_role` already have `ALL`; RLS is the only gate.
+- Do **not** `DELETE FROM storage.objects` directly — a `protect_delete` trigger blocks it. Use SDK / Storage API.
+- For simpler authenticated-only access (not per-user), replace `(storage.foldername(name))[1] = auth.uid()` with `auth.role() = 'authenticated'`.
 
 ## Failure signals
 

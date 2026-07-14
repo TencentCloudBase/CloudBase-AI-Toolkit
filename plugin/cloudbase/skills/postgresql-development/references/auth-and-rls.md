@@ -8,7 +8,22 @@ Use this reference before writing browser-side PG CRUD or database policies.
 | --- | --- | --- | --- |
 | Publishable Key | `anon` | Frontend-safe | Still constrained by GRANT/RLS. |
 | User access token | `authenticated` | SDK-managed frontend session | Represents a real logged-in user. |
-| API Key | `service_role` | Backend / trusted tooling only | Bypasses RLS; never expose to browser code. |
+| API Key | `service_role` | Backend / trusted tooling only | Bypasses RLS; never expose to browser code. Treat any leak as a serious credential compromise and rotate/revoke it via `manageAppAuth(action="deleteApiKey")` immediately. |
+
+## `auth.users` — the built-in account table
+
+CloudBase PG stores account data in `auth.users` (schema `auth`), not a business-defined table. Query it directly instead of creating a parallel `public.users` table for identity data:
+
+```sql
+select id, email, phone, app_metadata, user_metadata from auth.users;
+
+-- Join business tables against the built-in account table
+select o.*, u.user_metadata->>'name' as buyer_name
+from public.orders o
+join auth.users u on u.id = o.buyer_id;
+```
+
+Only create a separate `public.*` table (e.g. `user_roles`, `profiles`) when the app needs fields that do not belong in `auth.users`, such as an app-specific role or a denormalized display name for fast reads. Do not duplicate `email`/`phone` into a new table just to avoid a join.
 
 ## SQL identity helpers
 
@@ -83,6 +98,31 @@ CREATE POLICY todos_delete_own ON public.todos
   FOR DELETE TO authenticated
   USING (owner_id = auth.uid());
 ```
+
+## Accessing PG from a cloud function
+
+A cloud function has two distinct ways to reach PG, and they are NOT interchangeable. Choose based on whether the function should act as the logged-in caller or as an admin/backend task:
+
+1. **Act as the caller, stay RLS-constrained** — when a function wraps business logic but must still respect row ownership (e.g. an HTTP Function that a logged-in user calls to run a multi-step update). The caller's access token must reach the function and then be forwarded to the PG REST call:
+
+   ```js
+   const res = await fetch(`https://${envId}.api.tcloudbasegateway.com/v1/rdb/rest/orders?select=*`, {
+     headers: { Authorization: `Bearer ${callerAccessToken}` },
+   });
+   ```
+
+   Do not guess the exact field/property that carries `callerAccessToken` from `event`/`context` (or an HTTP Function's `req.headers`). Verify it against the installed `@cloudbase/node-sdk` version and the official cloud-functions docs before writing this code; if you cannot verify the field, treat this pattern as unavailable rather than inventing a shape.
+
+2. **Act as admin, bypass RLS with the API Key (`service_role`)** — use this only for admin/backend tasks such as batch imports, cross-user aggregation, or scheduled jobs, and only inside a cloud function / CloudRun service:
+
+   ```js
+   // Inject the API Key via function environment variables; never return it to the client.
+   const res = await fetch(`https://${envId}.api.tcloudbasegateway.com/v1/rdb/rest/orders?select=*`, {
+     headers: { Authorization: `Bearer ${process.env.CLOUDBASE_API_KEY}` },
+   });
+   ```
+
+Do not default to the API Key path just because it is simpler — if the task only needs "let the logged-in user read/write their own rows," forwarding the caller's access token keeps RLS as the enforcement layer and avoids re-implementing ownership checks in function code. Never let a function response leak the API Key back to the frontend.
 
 ## Pitfalls
 
