@@ -12,6 +12,7 @@ const STORAGE_ACTIONS = [
   "objectInfo",
   "signUpload",
   "signDownload",
+  "createBucket",
 ] as const;
 
 type StorageAction = (typeof STORAGE_ACTIONS)[number];
@@ -102,12 +103,56 @@ async function handleBuckets(server: ExtendedMcpServer) {
     data: {
       capability: "storageManagerSdkOrHttpApi",
       envId: server.cloudBaseOptions?.envId ?? null,
-      supportedActions: ["buckets", "config", "uploadPlan", "objectInfo"],
+      supportedActions: ["buckets", "config", "uploadPlan", "objectInfo", "createBucket"],
       note:
         "PG environment storage is exposed as metadata and implementation plans in MCP. Application data-plane upload/download should use SDK or HTTP API code.",
     },
     message:
       "Resolved PostgreSQL storage capability summary. Use uploadPlan for application-side upload implementation.",
+  });
+}
+
+async function handleCreateBucket(args: QueryPgStorageArgs, server: ExtendedMcpServer) {
+  if (!args.bucket?.trim()) {
+    return buildPgStorageResult({
+      success: false,
+      errorCode: "BUCKET_REQUIRED",
+      message: "Provide bucket name to create a PG storage bucket.",
+    });
+  }
+
+  const bucket = args.bucket.trim();
+  const envId = server.cloudBaseOptions?.envId ?? "${envId}";
+
+  return buildPgStorageResult({
+    success: true,
+    data: {
+      action: "createBucket",
+      bucket,
+      description: `Creates PG storage bucket '${bucket}'`,
+      plans: {
+        sql: `INSERT INTO storage.buckets (id, name, public) VALUES ('${bucket}', '${bucket}', false);`,
+        httpApi: {
+          method: "POST",
+          url: `https://${envId}.api.tcloudbasegateway.com/v1/storages/bucket/`,
+          headers: {
+            "Authorization": "Bearer {service_role_token}",
+            "Content-Type": "application/json",
+          },
+          body: { name: bucket, public: false },
+        },
+        cli: `tcb db execute -e ${envId} --sql "INSERT INTO storage.buckets (id, name, public) VALUES ('${bucket}', '${bucket}', false);"`,
+      },
+      tokenRequired: "service_role",
+      tokenGuide: "Use manageAppAuth(action='createApiKey', name='storage-server-key') to get a service_role level API key token.",
+      nextSteps: [
+        "Option A: Run the SQL via managePgDatabase(action='execute', confirm=true)",
+        "Option B: Call the HTTP API with a service_role token",
+        "Option C: Use CloudBase CLI: tcb db execute",
+      ],
+    },
+    message:
+      `Generated bucket creation plan for '${bucket}'. Execute one of the provided plans to create the bucket, then configure RLS policies.`,
   });
 }
 
@@ -190,7 +235,7 @@ export function registerPGStorageTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z
           .enum(STORAGE_ACTIONS)
-          .describe("操作类型：buckets/config=查询存储能力摘要；uploadPlan=生成 HTTP API/SDK 上传方案；objectInfo=生成对象元信息查询方案；signUpload/signDownload=显式的一次性签名 URL 请求占位"),
+          .describe("操作类型：buckets/config=查询存储能力摘要；createBucket=生成 bucket 创建方案（SQL/HTTP API/CLI）；uploadPlan=生成 HTTP API/SDK 上传方案；objectInfo=生成对象元信息查询方案；signUpload/signDownload=显式的一次性签名 URL 请求占位"),
         bucket: z.string().optional().describe("云存储 bucket 名称"),
         objectKey: z.string().optional().describe("单个对象 key"),
         objectKeys: z.array(z.string()).optional().describe("多个对象 key，用于对象元信息查询规划"),
@@ -217,6 +262,8 @@ export function registerPGStorageTools(server: ExtendedMcpServer) {
         case "buckets":
         case "config":
           return handleBuckets(server);
+        case "createBucket":
+          return handleCreateBucket(args, server);
         case "uploadPlan":
           return handleUploadPlan(args, server);
         case "objectInfo":
