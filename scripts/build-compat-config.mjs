@@ -137,6 +137,24 @@ function buildCodeBuddySkills(outputDir, skillNames) {
   }
 }
 
+function buildClaudeSkills(outputDir, skillNames) {
+  const targetRoot = path.join(outputDir, ".claude", "skills");
+  ensureDir(targetRoot);
+
+  for (const skillName of skillNames) {
+    copyDir(path.join(SKILLS_DIR, skillName), path.join(targetRoot, skillName));
+  }
+}
+
+function buildAgentsSkills(outputDir, skillNames) {
+  const targetRoot = path.join(outputDir, ".agents", "skills");
+  ensureDir(targetRoot);
+
+  for (const skillName of skillNames) {
+    copyDir(path.join(SKILLS_DIR, skillName), path.join(targetRoot, skillName));
+  }
+}
+
 function buildGuidelineTargets(outputDir, guidelineContent) {
   for (const relativeTarget of GUIDELINE_TARGETS) {
     const targetPath = path.join(outputDir, relativeTarget);
@@ -226,6 +244,8 @@ export function buildCompatConfig(options = {}) {
 
   buildRulesDirectory(outputDir, skillNames);
   buildCodeBuddySkills(outputDir, skillNames);
+  buildClaudeSkills(outputDir, skillNames);
+  buildAgentsSkills(outputDir, skillNames);
   buildGuidelineTargets(outputDir, guidelineContent);
   buildIdeRuleTargets(outputDir);
   buildMachineTargets(outputDir);

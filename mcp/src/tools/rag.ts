@@ -129,6 +129,12 @@ export async function resolveSkillSearchRoots(
 
   return filterExistingDirs([
     repoRoot
+      ? path.join(repoRoot, ".generated", "compat-config", ".agents", "skills")
+      : undefined,
+    repoRoot
+      ? path.join(repoRoot, ".generated", "compat-config", ".claude", "skills")
+      : undefined,
+    repoRoot
       ? path.join(repoRoot, ".generated", "compat-config", ".codebuddy", "skills")
       : undefined,
     repoRoot ? path.join(repoRoot, "config", "source", "skills") : undefined,
