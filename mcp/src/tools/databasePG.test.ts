@@ -3,6 +3,19 @@ import type { ExtendedMcpServer } from "../server.js";
 import { __resetPgReadyCache } from "./databasePG.js";
 import { registerPGDatabaseTools } from "./databasePG.js";
 
+const {
+  mockGetCloudBaseManager,
+  mockCommonServiceCall,
+} = vi.hoisted(() => ({
+  mockGetCloudBaseManager: vi.fn(),
+  mockCommonServiceCall: vi.fn(),
+}));
+
+vi.mock("../cloudbase-manager.js", () => ({
+  getCloudBaseManager: mockGetCloudBaseManager,
+  getEnvId: vi.fn(async () => "env-test"),
+}));
+
 function buildToolPayload(result: any) {
   return JSON.parse(result.content[0].text);
 }
@@ -45,6 +58,8 @@ function createFakeClient(
 describe("PG database tools", () => {
   beforeEach(() => {
     __resetPgReadyCache();
+    mockGetCloudBaseManager.mockReset();
+    mockCommonServiceCall.mockReset();
   });
 
   it("registers PG tool names", () => {
@@ -703,6 +718,423 @@ describe("PG database tools", () => {
       data: {
         wouldExecute: false,
       },
+    });
+  });
+
+  describe("migration actions", () => {
+    function setupMigrationMock() {
+      mockGetCloudBaseManager.mockResolvedValue({
+        commonService: vi.fn(() => ({
+          call: mockCommonServiceCall,
+        })),
+      });
+    }
+
+    it("listMigrations returns migration list", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockCommonServiceCall.mockResolvedValue({
+        RequestId: "req-list",
+        Migrations: [],
+        Total: 0,
+        LatestVersion: "",
+      });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({ action: "listMigrations" }),
+      );
+
+      expect(payload).toMatchObject({
+        success: true,
+        data: { Total: 0 },
+      });
+      expect(mockCommonServiceCall).toHaveBeenCalledWith(
+        expect.objectContaining({ Action: "ListPGUserMigrations" }),
+      );
+    });
+
+    it("listMigrations passes limit and offset", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockCommonServiceCall.mockResolvedValue({
+        RequestId: "req-list-2",
+        Migrations: [],
+        Total: 0,
+        LatestVersion: "",
+      });
+
+      await tools.managePgDatabase.handler({
+        action: "listMigrations",
+        limit: 10,
+        offset: 20,
+      });
+
+      expect(mockCommonServiceCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Action: "ListPGUserMigrations",
+          Param: expect.objectContaining({ Limit: 10, Offset: 20 }),
+        }),
+      );
+    });
+
+    it("planMigration requires migrationName", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "planMigration",
+          sql: "CREATE TABLE public.test(id int)",
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "MIGRATION_NAME_REQUIRED",
+      });
+    });
+
+    it("planMigration sends Migrations array with auto-generated Version", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockCommonServiceCall.mockResolvedValue({
+        RequestId: "req-plan",
+        Pending: [],
+        Applied: [],
+        Conflicts: [],
+        Executable: true,
+      });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "planMigration",
+          migrationName: "create_test_table",
+          sql: "CREATE TABLE public.test(id int)",
+          rollbackSql: "DROP TABLE public.test",
+        }),
+      );
+
+      expect(payload).toMatchObject({ success: true });
+      expect(mockCommonServiceCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Action: "PreviewPGUserMigrations",
+          Param: expect.objectContaining({
+            Migrations: [
+              expect.objectContaining({
+                Name: "create_test_table",
+                Query: "CREATE TABLE public.test(id int)",
+                Rollback: "DROP TABLE public.test",
+                Version: expect.stringMatching(/^\d{14}$/),
+              }),
+            ],
+          }),
+        }),
+      );
+    });
+
+    it("applyMigration requires confirm=true", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "create_test_table",
+          sql: "CREATE TABLE public.test(id int)",
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "CONFIRM_REQUIRED",
+      });
+    });
+
+    it("applyMigration sends Migrations array and returns TaskId", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockCommonServiceCall.mockResolvedValue({
+        RequestId: "req-apply",
+        TaskId: "task-1",
+      });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "create_test_table",
+          sql: "CREATE TABLE public.test(id int)",
+          confirm: true,
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: true,
+        data: { TaskId: "task-1" },
+      });
+      expect(mockCommonServiceCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Action: "PushPGUserMigrations",
+          Param: expect.objectContaining({
+            Migrations: [
+              expect.objectContaining({
+                Name: "create_test_table",
+                Query: "CREATE TABLE public.test(id int)",
+                Version: expect.stringMatching(/^\d{14}$/),
+              }),
+            ],
+          }),
+        }),
+      );
+    });
+
+    it("applyMigration passes lockTimeoutMs and statementTimeoutMs", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockCommonServiceCall.mockResolvedValue({
+        RequestId: "req-apply-2",
+        TaskId: "task-2",
+      });
+
+      await tools.managePgDatabase.handler({
+        action: "applyMigration",
+        migrationName: "create_test_table",
+        sql: "CREATE TABLE public.test(id int)",
+        confirm: true,
+        lockTimeoutMs: 10000,
+        statementTimeoutMs: 600000,
+      });
+
+      expect(mockCommonServiceCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Action: "PushPGUserMigrations",
+          Param: expect.objectContaining({
+            LockTimeoutMs: 10000,
+            StatementTimeoutMs: 600000,
+          }),
+        }),
+      );
+    });
+
+    it("migrationDetail requires migrationVersion", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({ action: "migrationDetail" }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "MIGRATION_VERSION_REQUIRED",
+      });
+    });
+
+    it("migrationDetail sends MigrationVersion", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockCommonServiceCall.mockResolvedValue({
+        RequestId: "req-detail",
+        Version: "20260526000000",
+        Name: "create_test_table",
+        Query: "CREATE TABLE public.test(id int)",
+      });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "migrationDetail",
+          migrationVersion: "20260526000000",
+        }),
+      );
+
+      expect(payload).toMatchObject({ success: true });
+      expect(mockCommonServiceCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Action: "DescribePGUserMigration",
+          Param: expect.objectContaining({
+            MigrationVersion: "20260526000000",
+          }),
+        }),
+      );
+    });
+
+    it("rollbackMigration requires lastN", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "rollbackMigration",
+          confirm: true,
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "LAST_N_REQUIRED",
+      });
+    });
+
+    it("rollbackMigration requires confirm=true", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "rollbackMigration",
+          lastN: 1,
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "CONFIRM_REQUIRED",
+      });
+    });
+
+    it("rollbackMigration sends LastN", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockCommonServiceCall.mockResolvedValue({
+        RequestId: "req-rollback",
+      });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "rollbackMigration",
+          lastN: 3,
+          confirm: true,
+        }),
+      );
+
+      expect(payload).toMatchObject({ success: true });
+      expect(mockCommonServiceCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Action: "RollbackPGUserMigrations",
+          Param: expect.objectContaining({ LastN: 3 }),
+        }),
+      );
+    });
+
+    it("repairMigration requires migrationVersion", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "repairMigration",
+          migrationName: "test_init",
+          repairStatus: "applied",
+          repairReason: "manual fix",
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "MIGRATION_VERSION_REQUIRED",
+      });
+    });
+
+    it("repairMigration requires repairStatus", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "repairMigration",
+          migrationVersion: "20260526000000",
+          migrationName: "test_init",
+          repairReason: "manual fix",
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "REPAIR_STATUS_REQUIRED",
+      });
+    });
+
+    it("repairMigration with applied status requires sql", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "repairMigration",
+          migrationVersion: "20260526000000",
+          migrationName: "test_init",
+          repairStatus: "applied",
+          repairReason: "manual fix",
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "SQL_REQUIRED",
+      });
+    });
+
+    it("repairMigration with applied status sends Query when sql provided", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockCommonServiceCall.mockResolvedValue({ RequestId: "req-repair-1" });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "repairMigration",
+          migrationVersion: "20260526000000",
+          migrationName: "test_init",
+          repairStatus: "applied",
+          repairReason: "manual fix",
+          sql: "CREATE TABLE public.test(id int)",
+        }),
+      );
+
+      expect(payload).toMatchObject({ success: true });
+      expect(mockCommonServiceCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Action: "RepairPGUserMigrationHistory",
+          Param: expect.objectContaining({
+            MigrationVersion: "20260526000000",
+            Name: "test_init",
+            Status: "applied",
+            Reason: "manual fix",
+            Query: "CREATE TABLE public.test(id int)",
+          }),
+        }),
+      );
+    });
+
+    it("repairMigration with reverted status does not send Query", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockCommonServiceCall.mockResolvedValue({ RequestId: "req-repair-2" });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "repairMigration",
+          migrationVersion: "20260526000000",
+          migrationName: "test_init",
+          repairStatus: "reverted",
+          repairReason: "remove bad record",
+        }),
+      );
+
+      expect(payload).toMatchObject({ success: true });
+      const callArg = mockCommonServiceCall.mock.calls[0][0];
+      expect(callArg.Param).not.toHaveProperty("Query");
+      expect(callArg.Param).toMatchObject({
+        Status: "reverted",
+        Reason: "remove bad record",
+      });
     });
   });
 });

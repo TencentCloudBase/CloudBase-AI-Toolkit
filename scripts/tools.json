@@ -713,7 +713,7 @@
     },
     {
       "name": "managePgDatabase",
-      "description": "管理 CloudBase PostgreSQL：执行已确认的写入 SQL 或 DDL、SQL 风险预检、迁移规划。上下文自动从当前 MCP 环境推导，无需 init。仅支持 CloudBase 内置 PostgreSQL 云端 Manager SDK 执行路径。",
+      "description": "管理 CloudBase PostgreSQL：执行已确认的写入 SQL 或 DDL、SQL 风险预检、迁移管理。建表、改 schema、数据结构变更优先使用 applyMigration（带版本管理与回滚），而非 execute。上下文自动从当前 MCP 环境推导，无需 init。仅支持 CloudBase 内置 PostgreSQL 云端 Manager SDK 执行路径。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -726,13 +726,14 @@
               "applyMigration",
               "listMigrations",
               "migrationDetail",
-              "rollbackMigration"
+              "rollbackMigration",
+              "repairMigration"
             ],
-            "description": "操作类型：execute=执行已确认的写入 SQL 或 DDL；dryRun=只分析 SQL 风险不执行；planMigration=通过 PreviewPGUserMigrations 预览迁移计划；applyMigration=通过 PushPGUserMigrations 应用迁移；listMigrations=查询已应用的 Migration 列表；migrationDetail=查看单条 Migration 详情；rollbackMigration=回滚指定 Migration"
+            "description": "操作类型：execute=执行已确认的写入 SQL 或 DDL；dryRun=只分析 SQL 风险不执行；planMigration=预览迁移计划（需 migrationName + sql）；applyMigration=应用迁移，建表/改 schema 首选（需 migrationName + sql + confirm=true）；listMigrations=查询已应用的 Migration 列表（可传 limit/offset 分页）；migrationDetail=查看单条 Migration 详情（需 migrationVersion）；rollbackMigration=回滚最近 N 条 Migration（需 lastN + confirm=true）；repairMigration=修复 Migration 历史记录（需 migrationVersion + migrationName + repairStatus + repairReason）"
           },
           "sql": {
             "type": "string",
-            "description": "action=execute、dryRun、planMigration 或 applyMigration 使用的 SQL 语句"
+            "description": "action=execute、dryRun、planMigration、applyMigration 或 repairMigration(applied) 使用的 SQL 语句"
           },
           "confirm": {
             "type": "boolean",
@@ -756,7 +757,57 @@
           },
           "objectName": {
             "type": "string",
-            "description": "action=migrationDetail 或 rollbackMigration 时使用的 migration ID。"
+            "description": "可选的对象名，当前仅用于非 migration 场景。migration 相关操作请使用 migrationName / migrationVersion / lastN。"
+          },
+          "migrationName": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "description": "plan/apply/repair 必填：migration 名称，小写字母开头，仅允许小写字母、数字和下划线。"
+          },
+          "migrationVersion": {
+            "type": "string",
+            "pattern": "^\\d{14}$",
+            "description": "14 位时间戳 YYYYMMDDHHMMSS。detail/repair 必填；plan/apply 不传时自动生成。"
+          },
+          "rollbackSql": {
+            "type": "string",
+            "description": "plan/apply 可选：回滚 SQL 语句。"
+          },
+          "lastN": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "description": "rollback 必填：回滚最近 N 条已应用的 Migration，正整数。"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "description": "list 可选：返回数量上限，1-500，默认 100。"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "list 可选：分页偏移，默认 0。"
+          },
+          "lockTimeoutMs": {
+            "type": "integer",
+            "description": "apply 可选：获取数据库锁的最长时间（毫秒），默认 5000。"
+          },
+          "statementTimeoutMs": {
+            "type": "integer",
+            "description": "apply 可选：单条 SQL 执行最长时间（毫秒），默认 300000。"
+          },
+          "repairStatus": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "reverted"
+            ],
+            "description": "repair 必填：applied=标记为已应用（可补录 Query），reverted=删除 history 记录。"
+          },
+          "repairReason": {
+            "type": "string",
+            "description": "repair 必填：修复原因。"
           }
         },
         "required": [
@@ -780,9 +831,10 @@
               "uploadPlan",
               "objectInfo",
               "signUpload",
-              "signDownload"
+              "signDownload",
+              "createBucket"
             ],
-            "description": "操作类型：buckets/config=查询存储能力摘要；uploadPlan=生成 HTTP API/SDK 上传方案；objectInfo=生成对象元信息查询方案；signUpload/signDownload=显式的一次性签名 URL 请求占位"
+            "description": "操作类型：buckets/config=查询存储能力摘要；createBucket=生成 bucket 创建方案（SQL/HTTP API/CLI）；uploadPlan=生成 HTTP API/SDK 上传方案；objectInfo=生成对象元信息查询方案；signUpload/signDownload=显式的一次性签名 URL 请求占位"
           },
           "bucket": {
             "type": "string",
@@ -1720,7 +1772,7 @@
     },
     {
       "name": "queryStorage",
-      "description": "查询 CloudBase 云存储信息，支持列出目录文件、获取文件信息、获取临时下载链接等只读操作。返回的文件信息包括文件名、大小、修改时间、下载链接等。注意：action=url 返回的 temporaryUrl 是临时签名链接，有效期由 maxAge 参数决定（默认1小时），不要当作永久公网地址使用。工具还会基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导 publicUrl，⚠️ 警告：publicUrl 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先通过控制台/SDK 将目标路径设置为公有读。\n\n💡 存储桶 ACL 权限管理请使用 permissions 工具：queryPermissions(action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\") 查询，managePermissions(action=\"updateResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"READONLY\") 设置。\n\n📦 CloudBase PG / pgstore 环境：`DescribeEnvs.Storages[]` 列出的 bucket 是旧 NoSQL 后端的，不等于 pgstore bucket。本工具用于查看常规存储；为 PG 浏览器上传准备 bucket 时，请确认目标 bucket 是 pgstore 后端可用的，否则浏览器 `app.storage.from().upload(...)` 会得到 `STORAGE_BUCKET_NOT_FOUND` 并出现 `PUT https://undefined/`。",
+      "description": "⚠️ PG 模式环境请使用 queryPgStorage 而非本工具（pgstore 与旧 COS 是两套独立系统）。\n\n查询 CloudBase 云存储信息，支持列出目录文件、获取文件信息、获取临时下载链接等只读操作。返回的文件信息包括文件名、大小、修改时间、下载链接等。注意：action=url 返回的 temporaryUrl 是临时签名链接，有效期由 maxAge 参数决定（默认1小时），不要当作永久公网地址使用。工具还会基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导 publicUrl，⚠️ 警告：publicUrl 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先通过控制台/SDK 将目标路径设置为公有读。\n\n💡 存储桶 ACL 权限管理请使用 permissions 工具：queryPermissions(action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\") 查询，managePermissions(action=\"updateResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"READONLY\") 设置。\n\n📦 CloudBase PG / pgstore 环境：`DescribeEnvs.Storages[]` 列出的 bucket 是旧 NoSQL 后端的，不等于 pgstore bucket。本工具用于查看常规存储；为 PG 浏览器上传准备 bucket 时，请确认目标 bucket 是 pgstore 后端可用的，否则浏览器 `app.storage.from().upload(...)` 会得到 `STORAGE_BUCKET_NOT_FOUND` 并出现 `PUT https://undefined/`。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1756,7 +1808,7 @@
     },
     {
       "name": "manageStorage",
-      "description": "管理 CloudBase 云存储文件，仅用于 COS/Storage 对象，不用于静态网站托管。支持上传文件/目录、下载文件/目录、删除文件/目录等操作。删除操作需要设置force=true进行确认，防止误删除重要文件。注意：上传后返回的 temporaryUrl 是临时签名链接，1小时后过期，不要当作永久公网地址写入配置或持久化存储。工具还会基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导 publicUrl，⚠️ 警告：publicUrl 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先通过控制台/SDK 将目标路径设置为公有读。\n\n💡 存储桶 ACL 权限管理请使用 permissions 工具：queryPermissions(action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\") 查询，managePermissions(action=\"updateResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"READONLY\") 设置。\n\n📦 CloudBase PG / pgstore 桶必须先创建后使用（与 Supabase Storage 一致：upload 前 bucket 必须存在）。浏览器 SDK `app.storage.from().upload(path, file)` 不会自动建桶，且 `path` 的第一段就是 bucket 名（例如 `covers/foo.png` → bucket=`covers`）；`from('covers')` 这个参数当前不会被拼到 path 里。如果上传时浏览器看到 `STORAGE_BUCKET_NOT_FOUND` 或 `PUT https://undefined/`（DevTools 表现为 `net::ERR_NAME_NOT_RESOLVED`），先用本工具或控制台确认 / 创建对应的 pgstore bucket，再让前端重试上传，不要让前端把上传失败静默吞掉。`DescribeEnvs.Storages[]` 返回的旧 NoSQL bucket（形如 `<hash>-<envId>-<appId>`）不是可用的 pgstore bucket，切勿当作默认目标使用。",
+      "description": "⚠️ PG 模式环境请使用 queryPgStorage 而非本工具（pgstore 与旧 COS 是两套独立系统）。\n\n管理 CloudBase 云存储文件，仅用于 COS/Storage 对象，不用于静态网站托管。支持上传文件/目录、下载文件/目录、删除文件/目录等操作。删除操作需要设置force=true进行确认，防止误删除重要文件。注意：上传后返回的 temporaryUrl 是临时签名链接，1小时后过期，不要当作永久公网地址写入配置或持久化存储。工具还会基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导 publicUrl，⚠️ 警告：publicUrl 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先通过控制台/SDK 将目标路径设置为公有读。\n\n💡 存储桶 ACL 权限管理请使用 permissions 工具：queryPermissions(action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\") 查询，managePermissions(action=\"updateResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"READONLY\") 设置。\n\n📦 CloudBase PG / pgstore 桶必须先创建后使用（与 Supabase Storage 一致：upload 前 bucket 必须存在）。浏览器 SDK `app.storage.from().upload(path, file)` 不会自动建桶，且 `path` 的第一段就是 bucket 名（例如 `covers/foo.png` → bucket=`covers`）；`from('covers')` 这个参数当前不会被拼到 path 里。如果上传时浏览器看到 `STORAGE_BUCKET_NOT_FOUND` 或 `PUT https://undefined/`（DevTools 表现为 `net::ERR_NAME_NOT_RESOLVED`），先用本工具或控制台确认 / 创建对应的 pgstore bucket，再让前端重试上传，不要让前端把上传失败静默吞掉。`DescribeEnvs.Storages[]` 返回的旧 NoSQL bucket（形如 `<hash>-<envId>-<appId>`）不是可用的 pgstore bucket，切勿当作默认目标使用。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1798,7 +1850,7 @@
     },
     {
       "name": "downloadTemplate",
-      "description": "自动下载并部署CloudBase项目模板。\n**Note**: Call this tool when the user requests to create a new project using a CloudBase template.\n\n支持的模板:\n- react: React + CloudBase 全栈应用模板\n- vue: Vue + CloudBase 全栈应用模板\n- miniprogram: 微信小程序 + 云开发模板  \n- uniapp: UniApp + CloudBase 跨端应用模板\n- rules: 只包含AI编辑器配置文件（包含Cursor、WindSurf、CodeBuddy等所有主流编辑器配置），适合在已有项目中补充AI编辑器配置\n\n支持的IDE类型:\n- all: 下载所有IDE配置\n- cursor: Cursor AI编辑器\n- 其他IDE类型见下方列表\n\n注意：如果未传入 ide 参数且无法从环境变量检测到 IDE，将提示错误并要求传入 ide 参数\n- windsurf: WindSurf AI编辑器\n- codebuddy: CodeBuddy AI编辑器\n- claude-code: Claude Code AI编辑器\n- cline: Cline AI编辑器\n- gemini-cli: Gemini CLI\n- opencode: OpenCode AI编辑器\n- qwen-code: 通义灵码\n- baidu-comate: 百度Comate\n- openai-codex-cli: OpenAI Codex CLI\n- augment-code: Augment Code\n- github-copilot: GitHub Copilot\n- roocode: RooCode AI编辑器\n- tongyi-lingma: 通义灵码\n- trae: Trae AI编辑器\n- qoder: Qoder AI编辑器\n- antigravity: Google Antigravity AI编辑器\n- vscode: Visual Studio Code\n- kiro: Kiro AI编辑器\n- aider: Aider AI编辑器\n\n特别说明：\n- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.23.9），便于后续维护和版本追踪\n- 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）",
+      "description": "自动下载并部署CloudBase项目模板。\n**Note**: Call this tool when the user requests to create a new project using a CloudBase template.\n\n支持的模板:\n- react: React + CloudBase 全栈应用模板\n- vue: Vue + CloudBase 全栈应用模板\n- miniprogram: 微信小程序 + 云开发模板  \n- uniapp: UniApp + CloudBase 跨端应用模板\n- rules: 只包含AI编辑器配置文件（包含Cursor、WindSurf、CodeBuddy等所有主流编辑器配置），适合在已有项目中补充AI编辑器配置\n\n支持的IDE类型:\n- all: 下载所有IDE配置\n- cursor: Cursor AI编辑器\n- 其他IDE类型见下方列表\n\n注意：如果未传入 ide 参数且无法从环境变量检测到 IDE，将提示错误并要求传入 ide 参数\n- windsurf: WindSurf AI编辑器\n- codebuddy: CodeBuddy AI编辑器\n- claude-code: Claude Code AI编辑器\n- cline: Cline AI编辑器\n- gemini-cli: Gemini CLI\n- opencode: OpenCode AI编辑器\n- qwen-code: 通义灵码\n- baidu-comate: 百度Comate\n- openai-codex-cli: OpenAI Codex CLI\n- augment-code: Augment Code\n- github-copilot: GitHub Copilot\n- roocode: RooCode AI编辑器\n- tongyi-lingma: 通义灵码\n- trae: Trae AI编辑器\n- qoder: Qoder AI编辑器\n- antigravity: Google Antigravity AI编辑器\n- vscode: Visual Studio Code\n- kiro: Kiro AI编辑器\n- aider: Aider AI编辑器\n\n特别说明：\n- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.23.10），便于后续维护和版本追踪\n- 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）",
       "inputSchema": {
         "type": "object",
         "properties": {
