@@ -1,13 +1,8 @@
 // hooks/lexical-index.mjs — Lightweight lexical index for skill retrieval
 // Instead of MiniSearch dependency, uses a simple inverted index with fuzzy matching.
 // Supports Chinese + English synonyms. Adapted from Vercel plugin concept.
-import { readFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { join } from "path";
 import { pluginRoot, safeReadJson } from "./hook-env.mjs";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 // Load synonyms from generated/synonyms.json (external config)
 function loadSynonymMap() {

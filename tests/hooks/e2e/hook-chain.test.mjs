@@ -1,7 +1,6 @@
 // tests/hooks/e2e/hook-chain.test.mjs — End-to-end hook chain tests
 // Simulates the full hook flow: SessionStart → UserPromptSubmit → PreToolUse
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { rmSync, existsSync, readFileSync } from "fs";
+import { describe, it, expect } from "vitest";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { execFileSync } from "child_process";
