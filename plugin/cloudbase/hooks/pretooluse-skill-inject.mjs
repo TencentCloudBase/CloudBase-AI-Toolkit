@@ -6,7 +6,7 @@ import { createLogger } from "./logger.mjs";
 import { normalizeInput, formatOutput } from "./compat.mjs";
 import { loadSkills, buildSkillInjectionOutput } from "./skill-inject-core.mjs";
 import { compileSkillPatterns } from "./prompt-patterns.mjs";
-import { tryClaimSessionKey, readSessionFile, getDedupScopeId } from "./hook-env.mjs";
+import { tryClaimSessionKey, readSessionFile, getDedupScopeId, appendAuditLog } from "./hook-env.mjs";
 import { mergeSeenSkills } from "./patterns.mjs";
 
 var log = createLogger();
@@ -117,6 +117,16 @@ function main() {
   log.summary("pretooluse-skill-inject:complete", {
     toolName,
     filePath,
+    matchedSkills: selected,
+    injectedSkills: dedupedInjected,
+  });
+
+  // Persist to audit log for offline analysis
+  appendAuditLog({
+    event: "pretooluse-skill-inject",
+    toolName,
+    filePath: filePath.slice(0, 500),
+    command: command.slice(0, 500),
     matchedSkills: selected,
     injectedSkills: dedupedInjected,
   });

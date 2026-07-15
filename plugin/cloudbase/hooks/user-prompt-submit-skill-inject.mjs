@@ -13,12 +13,12 @@ import {
   applyDominantTopicSuppression,
 } from "./prompt-patterns.mjs";
 import { mergeSeenSkills } from "./patterns.mjs";
-import { tryClaimSessionKey, readSessionFile, getDedupScopeId } from "./hook-env.mjs";
+import { tryClaimSessionKey, readSessionFile, getDedupScopeId, appendAuditLog } from "./hook-env.mjs";
 
 var log = createLogger();
 
-var MAX_SKILLS = 2;
-var DEFAULT_INJECTION_BUDGET_BYTES = 8000;
+var MAX_SKILLS = 3;
+var DEFAULT_INJECTION_BUDGET_BYTES = 12000;
 var MIN_PROMPT_LENGTH = 5;
 
 var ENV_SEEN_SKILLS_KEY = "CLOUDBASE_PLUGIN_SEEN_SKILLS";
@@ -55,8 +55,34 @@ function main() {
   // Analyze prompt (exact match)
   const report = analyzePrompt(prompt, skillMap, compiledSkills);
 
+  // Apply troubleshooting intent (hardcoded regex classifier from prompt-analysis.mjs)
+  // When classifyTroubleshootingIntent detects a fault pattern (flow-verification /
+  // stuck-investigation / browser-only), mark the suggested skills as matched so
+  // they enter the rerank pipeline alongside phrase/lexical results.
+  if (report.troubleshooting.intent && report.troubleshooting.skills.length > 0) {
+    for (const tsSkill of report.troubleshooting.skills) {
+      const existing = report.results.find((r) => r.skill === tsSkill);
+      if (existing) {
+        if (!existing.matched) {
+          existing.matched = true;
+          existing.score = Math.max(existing.score, 6);
+          existing.reason = `troubleshooting intent: ${report.troubleshooting.intent}`;
+        }
+      } else if (skillMap[tsSkill]) {
+        report.results.push({
+          skill: tsSkill,
+          score: 6,
+          matched: true,
+          reason: `troubleshooting intent: ${report.troubleshooting.intent}`,
+          minScore: 6,
+          skill_metadata: skillMap[tsSkill],
+        });
+      }
+    }
+  }
+
   // Lexical search
-  const lexicalResults = searchSkills(prompt, lexicalIndex, { minScore: 4, maxResults: 10 });
+  const lexicalResults = searchSkills(prompt, lexicalIndex, { minScore: 6, maxResults: 10 });
 
   // Merge exact + lexical
   const mergedResults = mergeExactAndLexical(report.results, lexicalResults, skillMap);
@@ -126,6 +152,17 @@ function main() {
     droppedByCap: reranked.droppedByCap,
     droppedByBudget: reranked.droppedByBudget,
     promptLength: prompt.length,
+  });
+
+  // Persist to audit log for offline analysis (CLOUDBASE_PLUGIN_AUDIT_LOG_FILE=off to disable)
+  appendAuditLog({
+    event: "user-prompt-submit",
+    prompt: prompt.slice(0, 500),
+    injectedSkills: dedupedInjected,
+    matchedSkills: reranked.matchedSkills,
+    droppedByCap: reranked.droppedByCap,
+    droppedByBudget: reranked.droppedByBudget,
+    troubleshootingIntent: report.troubleshooting.intent,
   });
 
   process.stdout.write(

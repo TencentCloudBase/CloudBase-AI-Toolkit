@@ -3,6 +3,50 @@ name: auth-web-cloudbase
 description: CloudBase Web Authentication Quick Guide for frontend integration after auth-tool has already been checked. Provides concise and practical Web authentication solutions with multiple login methods and complete user management.
 version: 2.23.10
 alwaysApply: false
+promptSignals:
+  phrases:
+    - web 登录
+    - 前端登录
+    - web 认证
+    - 浏览器登录
+    - web auth
+    - 邮箱密码登录
+    - 用户登录认证
+    - 前端登录认证
+  allOf:
+    - - 登录
+      - web
+    - - 认证
+      - web
+    - - 登录
+      - 前端
+    - - auth
+      - web
+  anyOf:
+    - toDefaultLoginPage
+    - signIn
+    - signUp
+  minScore: 6
+  noneOf: []
+retrieval:
+  aliases:
+    - web auth
+    - 前端登录
+    - web 登录
+  intents:
+    - web 登录
+    - 前端认证
+    - web 登录实现
+  entities:
+    - '@cloudbase/js-sdk'
+    - toDefaultLoginPage
+    - signInWithPassword
+    - auth-web-cloudbase
+  examples:
+    - react 登录页面
+    - vue 登录组件
+metadata:
+  priority: 6
 ---
 
 ## Standalone Install Note

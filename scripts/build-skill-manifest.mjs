@@ -46,6 +46,7 @@ function buildManifest() {
   }
 
   const skills = {};
+  let skippedDeprecated = 0;
   let entry;
   try {
     entry = readdirSync(skillsDir, { withFileTypes: true });
@@ -63,6 +64,12 @@ function buildManifest() {
     const { frontmatter } = parseFrontmatter(content);
 
     const metadata = frontmatter.metadata || {};
+    // Skip deprecated skills — they remain in the directory for manual reference
+    // but are excluded from the manifest so skill-inject hooks won't auto-inject them.
+    if (metadata.deprecated === true) {
+      skippedDeprecated++;
+      continue;
+    }
     const pathPatterns = Array.isArray(metadata.pathPatterns) ? metadata.pathPatterns : [];
     const bashPatterns = Array.isArray(metadata.bashPatterns) ? metadata.bashPatterns : [];
 
@@ -103,6 +110,9 @@ function buildManifest() {
   console.log(`  With promptSignals: ${withPromptSignals}/${skillCount}`);
   console.log(`  With retrieval: ${withRetrieval}/${skillCount}`);
   console.log(`  With pathPatterns: ${withPathPatterns}/${skillCount}`);
+  if (skippedDeprecated > 0) {
+    console.log(`  Skipped deprecated: ${skippedDeprecated}`);
+  }
 
   if (withPromptSignals < skillCount) {
     console.warn(`⚠ ${skillCount - withPromptSignals} skills missing promptSignals (skill-inject will not match them)`);

@@ -1,8 +1,43 @@
 ---
 name: relational-database-web-cloudbase
-description: Use when building frontend Web apps that talk to CloudBase Relational Database via @cloudbase/js-sdk – provides the canonical init pattern so you can then use Supabase-style queries from the browser.
+description: "[Deprecated] Use when building frontend Web apps that talk to CloudBase Relational Database via @cloudbase/js-sdk – provides the canonical init pattern so you can then use Supabase-style queries from the browser. New environments should use PostgreSQL with app.rdb() — see postgresql-development skill instead."
 version: 2.23.10
 alwaysApply: false
+metadata:
+  priority: 5
+  deprecated: true
+promptSignals:
+  phrases:
+    - mysql web
+    - 关系型数据库 web
+    - 前端 mysql
+    - mysql 存储
+  allOf:
+    - - mysql
+      - web
+    - - mysql
+      - 前端
+    - - 关系型
+      - 前端
+  anyOf:
+    - app.rdb()
+    - supabase
+  minScore: 6
+  noneOf: []
+retrieval:
+  aliases:
+    - web mysql
+    - 前端 mysql
+    - 关系型数据库 web
+  intents:
+    - 前端 mysql 操作
+    - web 关系型数据库
+  entities:
+    - app.rdb()
+    - '@cloudbase/js-sdk'
+  examples:
+    - 前端 mysql 查询
+    - web mysql 操作
 ---
 
 ## Standalone Install Note

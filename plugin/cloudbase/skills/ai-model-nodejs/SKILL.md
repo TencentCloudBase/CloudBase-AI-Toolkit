@@ -1,8 +1,67 @@
 ---
 name: ai-model-nodejs
-description: "Use this skill for Node.js backend AI via @cloudbase/node-sdk (>=3.16.0) — cloud functions, CloudRun, Express, Koa, NestJS, serverless APIs, scheduled jobs, LLM proxies. Only SDK supporting image generation (ai.createImageModel + generateImage). Text models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field of generateText/streamText. MUST run two-step preflight before code — see body. Keywords: backend, 云函数, 云托管, serverless, LLM proxy, agent orchestration, generateText, streamText, generateImage, createModel, hunyuan-image, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat)."
+description: 'Use this skill for Node.js backend AI via @cloudbase/node-sdk (>=3.16.0) — cloud functions, CloudRun, Express, Koa, NestJS, serverless APIs, scheduled jobs, LLM proxies. Only SDK supporting image generation (ai.createImageModel + generateImage). Text models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field of generateText/streamText. MUST run two-step preflight before code — see body. Keywords: backend, 云函数, 云托管, serverless, LLM proxy, agent orchestration, generateText, streamText, generateImage, createModel, hunyuan-image, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat).'
 version: 2.23.10
 alwaysApply: false
+promptSignals:
+  phrases:
+    - ai 模型 node
+    - node 大模型
+    - generatetext
+    - streamtext
+    - generateimage
+    - hunyuan node
+    - deepseek node
+    - node llm
+    - token credits
+    - 资源包查询
+    - node 调用大模型
+  allOf:
+    - - ai
+      - node
+    - - ai
+      - 后端
+    - - ai
+      - 云函数
+    - - 大模型
+      - node
+    - - llm
+      - node
+  anyOf:
+    - createModel
+    - hunyuan
+    - deepseek
+    - glm
+    - kimi
+    - 混元
+  minScore: 6
+  noneOf:
+    - 浏览器
+    - browser
+retrieval:
+  aliases:
+    - 人工智能
+    - hunyuan
+    - deepseek
+    - kimi
+  intents:
+    - 调用 ai 模型
+    - 生成文本
+    - 生成图片
+    - 流式输出
+    - node ai
+  entities:
+    - '@cloudbase/node-sdk'
+    - createModel
+    - generateImage
+    - streamText
+    - ai.createModel
+  examples:
+    - node 调用 hunyuan
+    - 云函数里用 deepseek
+    - 后端 llm 代理
+metadata:
+  priority: 5
 ---
 
 ## Standalone Install Note

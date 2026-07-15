@@ -3,6 +3,42 @@ name: ui-design
 description: Use when users need visual direction, interface hierarchy, layout decisions, design specifications, or prototypes before implementing a Web or mini program UI.
 version: 2.23.10
 alwaysApply: false
+promptSignals:
+  phrases:
+    - ui 设计
+    - 界面设计
+    - 原型设计
+    - 配色方案
+    - 高保真原型
+  allOf:
+    - - ui
+      - 设计
+    - - 设计
+      - 原型
+    - - 设计
+      - 配色
+    - - 界面
+      - 设计
+  anyOf:
+    - prototype
+    - design
+  minScore: 6
+retrieval:
+  aliases:
+    - design
+    - prototype
+  intents:
+    - ui 设计
+    - 界面设计
+    - 原型设计
+    - 配色
+  entities: []
+  examples:
+    - ui 设计原型
+    - 界面配色方案
+    - 高保真原型
+metadata:
+  priority: 9
 ---
 
 ## Standalone Install Note

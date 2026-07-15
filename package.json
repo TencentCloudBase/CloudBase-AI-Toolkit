@@ -17,6 +17,8 @@
     "generate:tcb-action-index": "node scripts/generate-tcb-action-index.mjs",
     "build:skill-manifest": "node scripts/build-skill-manifest.mjs",
     "sync:config": "node scripts/sync-config.mjs",
+    "test:hooks": "vitest run tests/hooks/",
+    "eval:skill-inject": "node scripts/eval-skill-inject.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

@@ -1,8 +1,11 @@
 ---
 name: data-model-creation
-description: Optional advanced tool for complex data modeling. For simple MySQL table creation, use relational-database-tool directly; for PostgreSQL / CloudBase PG schema work, use postgresql-development.
+description: "[Deprecated] Optional advanced tool for complex data modeling. For simple MySQL table creation, use relational-database-tool directly; for PostgreSQL / CloudBase PG schema work, use postgresql-development. New environments should use PostgreSQL DDL via queryPgDatabase/managePgDatabase — see postgresql-development skill instead."
 version: 2.23.10
 alwaysApply: false
+metadata:
+  priority: 5
+  deprecated: true
 ---
 
 ## Standalone Install Note

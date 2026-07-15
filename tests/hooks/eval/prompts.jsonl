@@ -1,0 +1,63 @@
+{"prompt": "创建一个用户表，存储用户信息", "expectedSkills": ["postgresql-development"], "category": "database", "note": "正例：\"表\"是关系型概念，应路由到 PG 而非 NoSQL"}
+{"prompt": "帮我写一个云函数，处理用户注册逻辑", "expectedSkills": ["cloud-functions"], "category": "functions", "note": "正例：云函数开发"}
+{"prompt": "部署这个函数到 CloudBase", "expectedSkills": ["cloud-functions"], "category": "functions", "note": "正例：云函数部署"}
+{"prompt": "实现用户登录认证，支持邮箱密码", "expectedSkills": ["auth-tool", "auth-web"], "category": "auth", "note": "正例：Web 认证"}
+{"prompt": "在小程序里实现微信登录", "expectedSkills": ["auth-wechat"], "category": "auth", "note": "正例：小程序认证（核心需求是微信登录）"}
+{"prompt": "配置 CloudBase 的 OAuth 登录", "expectedSkills": ["auth-tool"], "category": "auth", "note": "正例：OAuth 配置"}
+{"prompt": "用 React 搭建一个 Web 应用，集成 CloudBase", "expectedSkills": ["web-development"], "category": "web", "note": "正例：Web 开发"}
+{"prompt": "我的前端项目用 Vue，怎么接入 CloudBase 数据库", "expectedSkills": ["web-development", "no-sql-web-sdk"], "category": "web", "note": "正例：Web + 数据库"}
+{"prompt": "开发一个微信小程序，使用云开发", "expectedSkills": ["miniprogram-development"], "category": "miniprogram", "note": "正例：小程序开发"}
+{"prompt": "小程序里怎么调用云函数", "expectedSkills": ["cloud-functions"], "category": "miniprogram", "note": "正例：小程序 + 云函数（核心需求是调用云函数）"}
+{"prompt": "部署一个 Node.js 后端服务到 CloudRun", "expectedSkills": ["cloudrun-development"], "category": "cloudrun", "note": "正例：CloudRun 部署"}
+{"prompt": "用 Docker 容器化部署我的后端", "expectedSkills": ["cloudrun-development"], "category": "cloudrun", "note": "正例：容器部署"}
+{"prompt": "集成 DeepSeek 大模型到我的应用", "expectedSkills": ["ai-model-nodejs"], "category": "ai-model", "note": "正例：AI 模型集成（'我的应用'未明确 Web，nodejs 通用）"}
+{"prompt": "调用混元大模型生成文本", "expectedSkills": ["ai-model-nodejs"], "category": "ai-model", "note": "正例：AI 文本生成（未明确平台，nodejs 通用）"}
+{"prompt": "在小程序里用 AI 模型对话", "expectedSkills": ["ai-model-wechat"], "category": "ai-model", "note": "正例：小程序 AI"}
+{"prompt": "上传图片到云存储", "expectedSkills": ["cloud-storage-web"], "category": "storage", "note": "正例：存储上传"}
+{"prompt": "文件上传下载怎么实现", "expectedSkills": ["cloud-storage-web"], "category": "storage", "note": "正例：存储操作"}
+{"prompt": "帮我设计一个高保真的登录页面原型", "expectedSkills": ["ui-design"], "category": "ui", "note": "正例：UI 设计原型"}
+{"prompt": "给我一个仪表盘的配色方案", "expectedSkills": ["ui-design"], "category": "ui", "note": "正例：UI 配色"}
+{"prompt": "CloudBase 平台有哪些核心能力", "expectedSkills": ["cloudbase-platform"], "category": "guidelines", "note": "正例：平台能力查询（核心需求是平台能力）"}
+{"prompt": "云开发的完整指南在哪里", "expectedSkills": ["cloudbase-guidelines"], "category": "guidelines", "note": "正例：指南查询"}
+{"prompt": "用 tcb 命令行部署云函数", "expectedSkills": ["cloudbase-cli"], "category": "cli", "note": "正例：CLI 操作"}
+{"prompt": "怎么用 tcb CLI 管理云开发环境", "expectedSkills": ["cloudbase-cli"], "category": "cli", "note": "正例：CLI 环境"}
+{"prompt": "我的页面加载了但按钮不生效", "expectedSkills": ["ops-inspector"], "category": "ops", "note": "正例：故障排查 flow-verification"}
+{"prompt": "应用卡死了，怎么诊断", "expectedSkills": ["ops-inspector"], "category": "ops", "note": "正例：故障排查 stuck"}
+{"prompt": "白屏了，帮我排查", "expectedSkills": ["ops-inspector"], "category": "ops", "note": "正例：故障排查 browser"}
+{"prompt": "代码审查一下我的项目", "expectedSkills": ["cloudbase-code-review"], "category": "review", "note": "正例：代码审查"}
+{"prompt": "做一个 AI agent 对话机器人", "expectedSkills": ["cloudbase-agent"], "category": "agent", "note": "正例：Agent 开发"}
+{"prompt": "用 MySQL 存储业务数据", "expectedSkills": ["postgresql-development"], "category": "database", "note": "正例：MySQL 已废弃，用户提到 MySQL 应引导迁移到 PG"}
+{"prompt": "设计 PostgreSQL 数据模型", "expectedSkills": ["postgresql-development"], "category": "database", "note": "正例：PG 建模（data-model-creation 已废弃）"}
+{"prompt": "按照 spec 工作流开发新功能", "expectedSkills": ["spec-workflow"], "category": "workflow", "note": "正例：spec 流程"}
+{"prompt": "通过 HTTP API 调用 CloudBase", "expectedSkills": ["http-api"], "category": "api", "note": "正例：HTTP API"}
+{"prompt": "微信支付集成", "expectedSkills": ["cloudbase-wechat-integration"], "category": "wechat", "note": "正例：微信集成"}
+{"prompt": "你好", "expectedSkills": [], "category": "negative", "note": "负例：寒暄"}
+{"prompt": "今天天气怎么样", "expectedSkills": [], "category": "negative", "note": "负例：无关话题"}
+{"prompt": "帮我看看这段代码", "expectedSkills": [], "category": "negative", "note": "负例：无 CloudBase 上下文"}
+{"prompt": "解释一下什么是递归", "expectedSkills": [], "category": "negative", "note": "负例：编程无关"}
+{"prompt": "帮我设计一个 API", "expectedSkills": [], "category": "boundary", "note": "边界：含'设计'但不应触发 ui-design（API 设计不是 UI 设计）"}
+{"prompt": "诊断这个 bug 的根因", "expectedSkills": [], "category": "boundary", "note": "边界：含'诊断'但不应触发 ops-inspector（普通 debug 不是云上巡检）"}
+{"prompt": "这个页面的样式有问题", "expectedSkills": [], "category": "boundary", "note": "边界：含'页面''样式'但不应触发 ui-design（修 bug 不是设计）"}
+{"prompt": "我的组件渲染不出来", "expectedSkills": [], "category": "boundary", "note": "边界：含'组件''渲染'但不应触发 ui-design（debug 不是设计）"}
+{"prompt": "前端怎么调后端接口", "expectedSkills": [], "category": "boundary", "note": "边界：含'前端'但未明确 CloudBase 场景"}
+{"prompt": "登录逻辑写错了", "expectedSkills": [], "category": "boundary", "note": "边界：含'登录'但是 debug 场景，不应触发 auth skill"}
+{"prompt": "我的数据库查询慢", "expectedSkills": ["postgresql-development"], "category": "database", "note": "正例：泛数据库性能问题，新环境默认 PG"}
+{"prompt": "云函数报错了", "expectedSkills": ["cloud-functions"], "category": "functions", "note": "正例：debug 云函数，注入 cloud-functions skill 有帮助"}
+{"prompt": "部署一下", "expectedSkills": [], "category": "boundary", "note": "边界：过于简短，无上下文"}
+{"prompt": "帮我看看", "expectedSkills": [], "category": "negative", "note": "负例：过于简短"}
+{"prompt": "怎么用", "expectedSkills": [], "category": "negative", "note": "负例：过于简短"}
+{"prompt": "构建一个全栈应用，前端 React 后端云函数数据库 NoSQL 都要", "expectedSkills": ["web-development", "cloud-functions", "no-sql-web-sdk"], "category": "fullstack", "note": "正例：多 skill 场景"}
+{"prompt": "我要在小程序里集成 AI 对话和云存储", "expectedSkills": ["ai-model-wechat", "cloud-storage-web", "miniprogram-development"], "category": "fullstack", "note": "正例：多 skill 场景"}
+{"prompt": "Node.js 后端调用 Hunyuan 大模型生成图片", "expectedSkills": ["ai-model-nodejs"], "category": "ai-model", "note": "正例：Node.js AI 图片生成"}
+{"prompt": "浏览器端调用 DeepSeek 流式输出", "expectedSkills": ["ai-model-web"], "category": "ai-model", "note": "正例：Web AI 流式"}
+{"prompt": "企业微信小程序接入云开发", "expectedSkills": ["miniprogram-development"], "category": "miniprogram", "note": "正例：企业微信（核心需求是接入云开发）"}
+{"prompt": "用 PostgreSQL 的 RLS 实现行级权限", "expectedSkills": ["postgresql-development"], "category": "database", "note": "正例：PG RLS"}
+{"prompt": "NoSQL 集合的安全规则怎么写", "expectedSkills": ["no-sql-web-sdk"], "category": "database", "note": "正例：NoSQL 安全规则"}
+{"prompt": "CloudRun 上跑 WebSocket 长连接", "expectedSkills": ["cloudrun-development"], "category": "cloudrun", "note": "正例：CloudRun 长连接"}
+{"prompt": "静态托管部署我的 Vite 项目", "expectedSkills": ["web-development"], "category": "web", "note": "正例：静态托管"}
+{"prompt": "小程序成长计划激活 AI 模型", "expectedSkills": ["ai-model-wechat"], "category": "ai-model", "note": "正例：小程序成长计划"}
+{"prompt": "Token Credits 资源包查询", "expectedSkills": ["ai-model-nodejs"], "category": "ai-model", "note": "正例：Token Credits（未明确平台，nodejs 通用）"}
+{"prompt": "Node.js 后端读取用户 openid 验证身份", "expectedSkills": ["auth-nodejs"], "category": "auth", "note": "正例：Node.js 后端认证"}
+{"prompt": "云函数里获取调用方自定义登录 ticket", "expectedSkills": ["auth-nodejs"], "category": "auth", "note": "正例：Node.js custom login ticket"}
+{"prompt": "小程序里用 wx.cloud.database 查询数据", "expectedSkills": ["no-sql-wx-mp-sdk"], "category": "database", "note": "正例：小程序 NoSQL SDK"}
+{"prompt": "小程序数据库 collection 的权限规则配置", "expectedSkills": ["no-sql-wx-mp-sdk"], "category": "database", "note": "正例：小程序数据库权限"}
