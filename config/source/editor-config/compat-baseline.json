@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generatedAt": "2026-07-15T12:25:08.829Z",
+  "generatedAt": "2026-07-15T12:45:19.284Z",
   "groups": {
     "machine": {
       "description": "Machine-consumable configuration files. Missing, extra, or content drift blocks CI.",
@@ -626,7 +626,6 @@
         ".codebuddy/skills/web-development/SKILL.md": "ff0f6610c352b2f9eaede846c1b4f85dbbad0ec7a6f500b465cf107c5b80d2fa",
         ".codebuddy/skills/web-development/browser-testing.md": "9330e4f6c0ee4f5e8eeb06cc2bb86ed144435562823e3a35f78ebcc1a5e8dfaf",
         ".codebuddy/skills/web-development/frameworks.md": "2e8239bd16e5e0ed5ec22f9ec394cc7919a1cccc3a2d8db7c02454f64a35a4a5",
-        ".comate/rules/cloudbaase-rules.mdr": "bbc49e99e6c02b89f51f6161baa003f97b9056ea52022562880f57db442e6229",
         ".comate/rules/cloudbase-rules.mdr": "bbc49e99e6c02b89f51f6161baa003f97b9056ea52022562880f57db442e6229",
         ".cursor/rules/ai-model-nodejs/rule.mdc": "e8377f484025249c438a71f52974f24e27dc8918ec474ca430589e94fb846da9",
         ".cursor/rules/ai-model-web/rule.mdc": "6822d2232fc96977fcc6977aee79da1071603bb4cba97c72d866b8d3d6532efa",
@@ -851,7 +850,7 @@
         ".kiro/steering/web-development/browser-testing.md": "9330e4f6c0ee4f5e8eeb06cc2bb86ed144435562823e3a35f78ebcc1a5e8dfaf",
         ".kiro/steering/web-development/frameworks.md": "2e8239bd16e5e0ed5ec22f9ec394cc7919a1cccc3a2d8db7c02454f64a35a4a5",
         ".kiro/steering/web-development/rule.md": "ff0f6610c352b2f9eaede846c1b4f85dbbad0ec7a6f500b465cf107c5b80d2fa",
-        ".lingma/rules/cloudbaase-rules.md": "bbc49e99e6c02b89f51f6161baa003f97b9056ea52022562880f57db442e6229",
+        ".lingma/rules/cloudbase-rules.md": "bbc49e99e6c02b89f51f6161baa003f97b9056ea52022562880f57db442e6229",
         ".qoder/rules/ai-model-nodejs/rule.md": "e8377f484025249c438a71f52974f24e27dc8918ec474ca430589e94fb846da9",
         ".qoder/rules/ai-model-web/rule.md": "6822d2232fc96977fcc6977aee79da1071603bb4cba97c72d866b8d3d6532efa",
         ".qoder/rules/ai-model-wechat/rule.md": "95d5ceefcd0bcc78ecc3596917d35bfebcd4bf36d70442cca98c09a87ff611fd",
@@ -964,7 +963,7 @@
         ".qoder/rules/web-development/frameworks.md": "2e8239bd16e5e0ed5ec22f9ec394cc7919a1cccc3a2d8db7c02454f64a35a4a5",
         ".qoder/rules/web-development/rule.md": "ff0f6610c352b2f9eaede846c1b4f85dbbad0ec7a6f500b465cf107c5b80d2fa",
         ".qwen/QWEN.md": "bbc49e99e6c02b89f51f6161baa003f97b9056ea52022562880f57db442e6229",
-        ".roo/rules/cloudbaase-rules.md": "bbc49e99e6c02b89f51f6161baa003f97b9056ea52022562880f57db442e6229",
+        ".roo/rules/cloudbase-rules.md": "bbc49e99e6c02b89f51f6161baa003f97b9056ea52022562880f57db442e6229",
         ".rules/cloudbase-rules.md": "bbc49e99e6c02b89f51f6161baa003f97b9056ea52022562880f57db442e6229",
         ".rules/cloudbase-rules.mdc": "bbc49e99e6c02b89f51f6161baa003f97b9056ea52022562880f57db442e6229",
         ".trae/rules/ai-model-nodejs/rule.md": "e8377f484025249c438a71f52974f24e27dc8918ec474ca430589e94fb846da9",
