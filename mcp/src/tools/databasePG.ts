@@ -22,6 +22,7 @@ const MANAGE_ACTIONS = [
   "listMigrations",
   "migrationDetail",
   "rollbackMigration",
+  "repairMigration",
 ] as const;
 type QueryPgAction = (typeof QUERY_ACTIONS)[number];
 type ManagePgAction = (typeof MANAGE_ACTIONS)[number];
@@ -50,6 +51,16 @@ type ManagePgDatabaseArgs = {
   defaultSchema?: string;
   role?: string;
   objectName?: string;
+  migrationName?: string;
+  migrationVersion?: string;
+  rollbackSql?: string;
+  lastN?: number;
+  limit?: number;
+  offset?: number;
+  lockTimeoutMs?: number;
+  statementTimeoutMs?: number;
+  repairStatus?: "applied" | "reverted";
+  repairReason?: string;
 };
 
 type PgQueryField = {
@@ -806,6 +817,13 @@ async function executeManagerPGSql(
   );
 }
 
+/** Generate a 14-digit migration version (YYYYMMDDHHMMSS) from current time */
+function generateMigrationVersion(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
 /** Call a CloudBase PG migration API via commonService fallback */
 async function callPgMigrationApi(
   context: PgDbContext,
@@ -1272,9 +1290,27 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgDbCont
     });
   }
 
+  if (!args.migrationName?.trim()) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "MIGRATION_NAME_REQUIRED",
+      message: "Provide migrationName (lowercase letters, digits and underscores, starting with a letter) when action=planMigration.",
+    });
+  }
+
+  const version = args.migrationVersion?.trim() || generateMigrationVersion();
+  const migration: Record<string, string> = {
+    Version: version,
+    Name: args.migrationName,
+    Query: args.sql,
+  };
+  if (args.rollbackSql?.trim()) {
+    migration.Rollback = args.rollbackSql;
+  }
+
   try {
     const result = await callPgMigrationApi(context, "PreviewPGUserMigrations", {
-      Sql: args.sql,
+      Migrations: [migration],
     }, cloudBaseOptions);
     return buildPgToolResult({
       success: true,
@@ -1285,7 +1321,7 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgDbCont
           MANAGE_PG_DATABASE,
           "applyMigration",
           "Review the plan above. If it looks correct, call applyMigration to execute.",
-          { action: "applyMigration", sql: args.sql, confirm: true },
+          { action: "applyMigration", migrationName: args.migrationName, sql: args.sql, confirm: true, ...(args.rollbackSql ? { rollbackSql: args.rollbackSql } : {}) },
         ),
       ],
     });
@@ -1307,6 +1343,14 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
     });
   }
 
+  if (!args.migrationName?.trim()) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "MIGRATION_NAME_REQUIRED",
+      message: "Provide migrationName (lowercase letters, digits and underscores, starting with a letter) when action=applyMigration.",
+    });
+  }
+
   if (args.confirm !== true) {
     return buildPgToolResult({
       success: false,
@@ -1315,10 +1359,26 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
     });
   }
 
+  const version = args.migrationVersion?.trim() || generateMigrationVersion();
+  const migration: Record<string, string> = {
+    Version: version,
+    Name: args.migrationName,
+    Query: args.sql,
+  };
+  if (args.rollbackSql?.trim()) {
+    migration.Rollback = args.rollbackSql;
+  }
+
+  const params: Record<string, unknown> = { Migrations: [migration] };
+  if (args.lockTimeoutMs !== undefined) {
+    params.LockTimeoutMs = args.lockTimeoutMs;
+  }
+  if (args.statementTimeoutMs !== undefined) {
+    params.StatementTimeoutMs = args.statementTimeoutMs;
+  }
+
   try {
-    const result = await callPgMigrationApi(context, "PushPGUserMigrations", {
-      Sql: args.sql,
-    }, cloudBaseOptions);
+    const result = await callPgMigrationApi(context, "PushPGUserMigrations", params, cloudBaseOptions);
     return buildPgToolResult({
       success: true,
       data: result as Record<string, unknown>,
@@ -1334,8 +1394,16 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
 }
 
 async function handleListMigrations(args: ManagePgDatabaseArgs, context: PgDbContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
+  const params: Record<string, unknown> = {};
+  if (args.limit !== undefined) {
+    params.Limit = args.limit;
+  }
+  if (args.offset !== undefined) {
+    params.Offset = args.offset;
+  }
+
   try {
-    const result = await callPgMigrationApi(context, "ListPGUserMigrations", {}, cloudBaseOptions);
+    const result = await callPgMigrationApi(context, "ListPGUserMigrations", params, cloudBaseOptions);
     return buildPgToolResult({
       success: true,
       data: result as Record<string, unknown>,
@@ -1351,17 +1419,17 @@ async function handleListMigrations(args: ManagePgDatabaseArgs, context: PgDbCon
 }
 
 async function handleMigrationDetail(args: ManagePgDatabaseArgs, context: PgDbContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
-  if (!args.objectName?.trim()) {
+  if (!args.migrationVersion?.trim()) {
     return buildPgToolResult({
       success: false,
-      errorCode: "OBJECT_NAME_REQUIRED",
-      message: "Provide objectName (migration ID) when action=migrationDetail.",
+      errorCode: "MIGRATION_VERSION_REQUIRED",
+      message: "Provide migrationVersion (14-digit timestamp YYYYMMDDHHMMSS) when action=migrationDetail.",
     });
   }
 
   try {
     const result = await callPgMigrationApi(context, "DescribePGUserMigration", {
-      ObjectId: args.objectName,
+      MigrationVersion: args.migrationVersion,
     }, cloudBaseOptions);
     return buildPgToolResult({
       success: true,
@@ -1378,11 +1446,11 @@ async function handleMigrationDetail(args: ManagePgDatabaseArgs, context: PgDbCo
 }
 
 async function handleRollbackMigration(args: ManagePgDatabaseArgs, context: PgDbContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
-  if (!args.objectName?.trim()) {
+  if (args.lastN === undefined || args.lastN < 1 || !Number.isInteger(args.lastN)) {
     return buildPgToolResult({
       success: false,
-      errorCode: "OBJECT_NAME_REQUIRED",
-      message: "Provide objectName (migration ID) when action=rollbackMigration.",
+      errorCode: "LAST_N_REQUIRED",
+      message: "Provide lastN (positive integer) when action=rollbackMigration.",
     });
   }
 
@@ -1396,7 +1464,7 @@ async function handleRollbackMigration(args: ManagePgDatabaseArgs, context: PgDb
 
   try {
     const result = await callPgMigrationApi(context, "RollbackPGUserMigrations", {
-      ObjectId: args.objectName,
+      LastN: args.lastN,
     }, cloudBaseOptions);
     return buildPgToolResult({
       success: true,
@@ -1408,6 +1476,73 @@ async function handleRollbackMigration(args: ManagePgDatabaseArgs, context: PgDb
       success: false,
       errorCode: "MIGRATION_API_ERROR",
       message: `RollbackPGUserMigrations failed: ${error instanceof Error ? error.message : String(error)}`,
+    });
+  }
+}
+
+async function handleRepairMigration(args: ManagePgDatabaseArgs, context: PgDbContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
+  if (!args.migrationVersion?.trim()) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "MIGRATION_VERSION_REQUIRED",
+      message: "Provide migrationVersion (14-digit timestamp YYYYMMDDHHMMSS) when action=repairMigration.",
+    });
+  }
+
+  if (!args.migrationName?.trim()) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "MIGRATION_NAME_REQUIRED",
+      message: "Provide migrationName when action=repairMigration.",
+    });
+  }
+
+  if (!args.repairStatus) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "REPAIR_STATUS_REQUIRED",
+      message: "Provide repairStatus (applied or reverted) when action=repairMigration.",
+    });
+  }
+
+  if (!args.repairReason?.trim()) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "REPAIR_REASON_REQUIRED",
+      message: "Provide repairReason when action=repairMigration.",
+    });
+  }
+
+  if (args.repairStatus === "applied" && !args.sql?.trim()) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "SQL_REQUIRED",
+      message: "Provide sql (Query) when action=repairMigration with repairStatus=applied.",
+    });
+  }
+
+  const params: Record<string, unknown> = {
+    MigrationVersion: args.migrationVersion,
+    Name: args.migrationName,
+    Status: args.repairStatus,
+    Reason: args.repairReason,
+  };
+  if (args.repairStatus === "applied" && args.sql?.trim()) {
+    params.Query = args.sql;
+  }
+
+  try {
+    const result = await callPgMigrationApi(context, "RepairPGUserMigrationHistory", params, cloudBaseOptions);
+    return buildPgToolResult({
+      success: true,
+      data: result as Record<string, unknown>,
+      message: "Migration history repaired via RepairPGUserMigrationHistory.",
+    });
+  } catch (error) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "MIGRATION_API_ERROR",
+      message: `RepairPGUserMigrationHistory failed: ${error instanceof Error ? error.message : String(error)}`,
     });
   }
 }
@@ -1593,17 +1728,17 @@ export function registerPGDatabaseTools(
     {
       title: "管理 PostgreSQL 上下文或执行写入 SQL",
       description:
-        "管理 CloudBase PostgreSQL：执行已确认的写入 SQL 或 DDL、SQL 风险预检、迁移规划。上下文自动从当前 MCP 环境推导，无需 init。仅支持 CloudBase 内置 PostgreSQL 云端 Manager SDK 执行路径。",
+        "管理 CloudBase PostgreSQL：执行已确认的写入 SQL 或 DDL、SQL 风险预检、迁移管理。建表、改 schema、数据结构变更优先使用 applyMigration（带版本管理与回滚），而非 execute。",
       inputSchema: {
         action: z
           .enum(MANAGE_ACTIONS)
           .describe(
-            "操作类型：execute=执行已确认的写入 SQL 或 DDL；dryRun=只分析 SQL 风险不执行；planMigration=通过 PreviewPGUserMigrations 预览迁移计划；applyMigration=通过 PushPGUserMigrations 应用迁移；listMigrations=查询已应用的 Migration 列表；migrationDetail=查看单条 Migration 详情；rollbackMigration=回滚指定 Migration",
+            "操作类型：execute=执行已确认的写入 SQL 或 DDL；dryRun=只分析 SQL 风险不执行；planMigration=预览迁移计划（需 migrationName + sql）；applyMigration=应用迁移，建表/改 schema 首选（需 migrationName + sql + confirm=true）；listMigrations=查询已应用的 Migration 列表（可传 limit/offset 分页）；migrationDetail=查看单条 Migration 详情（需 migrationVersion）；rollbackMigration=回滚最近 N 条 Migration（需 lastN + confirm=true）；repairMigration=修复 Migration 历史记录（需 migrationVersion + migrationName + repairStatus + repairReason）",
           ),
         sql: z
           .string()
           .optional()
-          .describe("action=execute、dryRun、planMigration 或 applyMigration 使用的 SQL 语句"),
+          .describe("action=execute、dryRun、planMigration、applyMigration 或 repairMigration(applied) 使用的 SQL 语句"),
         confirm: z
           .boolean()
           .optional()
@@ -1630,8 +1765,59 @@ export function registerPGDatabaseTools(
           .string()
           .optional()
           .describe(
-            "action=migrationDetail 或 rollbackMigration 时使用的 migration ID。",
+            "可选的对象名，当前仅用于非 migration 场景。migration 相关操作请使用 migrationName / migrationVersion / lastN。",
           ),
+        migrationName: z
+          .string()
+          .regex(/^[a-z][a-z0-9_]*$/)
+          .optional()
+          .describe("plan/apply/repair 必填：migration 名称，小写字母开头，仅允许小写字母、数字和下划线。"),
+        migrationVersion: z
+          .string()
+          .regex(/^\d{14}$/)
+          .optional()
+          .describe("14 位时间戳 YYYYMMDDHHMMSS。detail/repair 必填；plan/apply 不传时自动生成。"),
+        rollbackSql: z
+          .string()
+          .optional()
+          .describe("plan/apply 可选：回滚 SQL 语句。"),
+        lastN: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("rollback 必填：回滚最近 N 条已应用的 Migration，正整数。"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(500)
+          .optional()
+          .describe("list 可选：返回数量上限，1-500，默认 100。"),
+        offset: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("list 可选：分页偏移，默认 0。"),
+        lockTimeoutMs: z
+          .number()
+          .int()
+          .optional()
+          .describe("apply 可选：获取数据库锁的最长时间（毫秒），默认 5000。"),
+        statementTimeoutMs: z
+          .number()
+          .int()
+          .optional()
+          .describe("apply 可选：单条 SQL 执行最长时间（毫秒），默认 300000。"),
+        repairStatus: z
+          .enum(["applied", "reverted"])
+          .optional()
+          .describe("repair 必填：applied=标记为已应用（可补录 Query），reverted=删除 history 记录。"),
+        repairReason: z
+          .string()
+          .optional()
+          .describe("repair 必填：修复原因。"),
       },
       annotations: {
         readOnlyHint: false,
@@ -1674,13 +1860,15 @@ export function registerPGDatabaseTools(
         case "applyMigration":
         case "listMigrations":
         case "migrationDetail":
-        case "rollbackMigration": {
+        case "rollbackMigration":
+        case "repairMigration": {
           switch (args.action) {
             case "planMigration": return handlePlanMigration(args, context, deps, cbOpts);
             case "applyMigration": return handleApplyMigration(args, context, deps, cbOpts);
             case "listMigrations": return handleListMigrations(args, context, deps, cbOpts);
             case "migrationDetail": return handleMigrationDetail(args, context, deps, cbOpts);
             case "rollbackMigration": return handleRollbackMigration(args, context, deps, cbOpts);
+            case "repairMigration": return handleRepairMigration(args, context, deps, cbOpts);
             default: return buildPgToolResult({ success: false, errorCode: "UNSUPPORTED_ACTION", message: `Unsupported action: ${args.action}` });
           }
         }
