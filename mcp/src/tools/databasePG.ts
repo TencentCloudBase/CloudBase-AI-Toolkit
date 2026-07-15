@@ -1728,7 +1728,7 @@ export function registerPGDatabaseTools(
     {
       title: "管理 PostgreSQL 上下文或执行写入 SQL",
       description:
-        "管理 CloudBase PostgreSQL：执行已确认的写入 SQL 或 DDL、SQL 风险预检、迁移管理。建表、改 schema、数据结构变更优先使用 applyMigration（带版本管理与回滚），而非 execute。上下文自动从当前 MCP 环境推导，无需 init。仅支持 CloudBase 内置 PostgreSQL 云端 Manager SDK 执行路径。",
+        "管理 CloudBase PostgreSQL：执行已确认的写入 SQL 或 DDL、SQL 风险预检、迁移管理。建表、改 schema、数据结构变更优先使用 applyMigration（带版本管理与回滚），而非 execute。",
       inputSchema: {
         action: z
           .enum(MANAGE_ACTIONS)
