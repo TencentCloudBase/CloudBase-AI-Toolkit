@@ -3,47 +3,6 @@ name: miniprogram-development
 description: WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, and optimizing mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, or optimize WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools workflows, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, or 云开发 in a mini program project.
 version: 2.23.10
 alwaysApply: false
-promptSignals:
-  phrases:
-    - 小程序开发
-    - 微信小程序
-    - miniprogram
-    - 小程序预览
-    - 小程序发布
-    - 小程序项目
-    - 小程序里
-    - 企业微信小程序
-  allOf:
-    - - 小程序
-      - 开发
-    - - 小程序
-      - 部署
-    - - 小程序
-      - 预览
-  anyOf:
-    - app.json
-    - project.config.json
-    - tabbar
-  minScore: 6
-retrieval:
-  aliases:
-    - miniprogram
-    - 微信小程序
-  intents:
-    - 开发小程序
-    - 部署小程序
-    - 小程序调试
-    - 小程序项目
-  entities:
-    - project.config.json
-    - app.json
-    - tabBar
-  examples:
-    - 开发微信小程序
-    - 小程序预览
-    - 小程序发布
-metadata:
-  priority: 8
 ---
 
 ## Standalone Install Note

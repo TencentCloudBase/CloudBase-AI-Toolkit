@@ -6,38 +6,6 @@ alwaysApply: false
 metadata:
   priority: 5
   deprecated: true
-promptSignals:
-  phrases:
-    - mysql
-    - 关系型数据库 mcp
-    - sql 管理
-    - mysql mcp
-  allOf:
-    - - mysql
-      - mcp
-    - - mysql
-      - 管理
-    - - sql
-      - mcp
-  anyOf:
-    - querySqlDatabase
-    - manageSqlDatabase
-  minScore: 6
-retrieval:
-  aliases:
-    - mysql
-    - 关系型数据库
-  intents:
-    - mysql 管理
-    - sql 执行
-    - 数据库管理
-  entities:
-    - querySqlDatabase
-    - manageSqlDatabase
-    - queryMysqlDatabase
-  examples:
-    - mysql 管理
-    - sql 执行
 ---
 
 ## Standalone Install Note

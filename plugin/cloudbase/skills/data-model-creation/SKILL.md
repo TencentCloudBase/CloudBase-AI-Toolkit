@@ -6,42 +6,6 @@ alwaysApply: false
 metadata:
   priority: 5
   deprecated: true
-promptSignals:
-  phrases:
-    - 数据模型
-    - er 图
-    - 数据库建模
-    - data model
-    - 数据建模
-  allOf:
-    - - 数据
-      - 模型
-    - - er
-      - 图
-    - - 数据
-      - 建模
-  anyOf:
-    - mermaid
-    - er 图
-  minScore: 6
-  noneOf:
-    - http api
-    - 平台
-    - 核心能力
-retrieval:
-  aliases:
-    - 数据模型
-    - data model
-    - er 图
-  intents:
-    - 数据建模
-    - 设计数据库模型
-  entities:
-    - mermaid
-    - ER 图
-  examples:
-    - 设计数据模型
-    - er 图建模
 ---
 
 ## Standalone Install Note

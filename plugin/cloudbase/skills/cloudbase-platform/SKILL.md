@@ -3,37 +3,6 @@ name: cloudbase-platform
 description: CloudBase platform overview and routing guide. This skill should be used when users need high-level capability selection, platform concepts, console navigation, or cross-platform best practices before choosing a more specific implementation skill.
 version: 2.23.10
 alwaysApply: false
-promptSignals:
-  phrases:
-    - cloudbase 平台
-    - 云开发平台
-    - 平台能力
-    - cloudbase 能力
-  allOf:
-    - - cloudbase
-      - 平台
-    - - 云开发
-      - 平台
-    - - 平台
-      - 能力
-  anyOf:
-    - 控制台
-    - console
-  minScore: 6
-retrieval:
-  aliases:
-    - platform
-    - cloudbase 平台
-  intents:
-    - 平台概览
-    - 能力选择
-    - 控制台导航
-  entities: []
-  examples:
-    - cloudbase 平台能力
-    - 云开发控制台
-metadata:
-  priority: 8
 ---
 
 ## Standalone Install Note

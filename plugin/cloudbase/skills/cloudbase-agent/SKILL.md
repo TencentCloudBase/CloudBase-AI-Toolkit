@@ -3,49 +3,8 @@ name: cloudbase-agent
 description: Build and deploy AI agents with CloudBase Agent SDK (TypeScript & Python). Implements the AG-UI protocol for streaming agent-UI communication. Use when deploying agent servers, using LangGraph/LangChain/CrewAI adapters, building custom adapters, understanding AG-UI protocol events, or building web/mini-program UI clients. Supports both TypeScript (@cloudbase/agent-server) and Python (cloudbase-agent-server via FastAPI).
 version: 2.23.10
 alwaysApply: false
-allowed-tools: null
+allowed-tools: 
 disable: false
-promptSignals:
-  phrases:
-    - ai agent
-    - 智能体
-    - agent sdk
-    - ag-ui
-    - agent 部署
-  allOf:
-    - - agent
-      - sdk
-    - - agent
-      - 部署
-    - - agent
-      - cloudbase
-  anyOf:
-    - langgraph
-    - langchain
-    - fastapi
-    - ag-ui
-  minScore: 6
-  noneOf:
-    - api 设计
-    - 部署一下
-retrieval:
-  aliases:
-    - agent
-    - ag-ui
-    - agent sdk
-  intents:
-    - 构建 agent
-    - 部署 agent
-    - agent 服务器
-  entities:
-    - '@cloudbase/agent-server'
-    - AG-UI
-    - AbstractAgent
-  examples:
-    - 构建 ai agent
-    - 部署 agent 服务
-metadata:
-  priority: 6
 ---
 
 ## Standalone Install Note

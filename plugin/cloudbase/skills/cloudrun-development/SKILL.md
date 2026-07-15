@@ -3,42 +3,6 @@ name: cloudrun-development
 description: CloudBase Run backend development rules (Function mode/Container mode). Use this skill when deploying backend services that require long connections, multi-language support, custom environments, or AI agent development.
 version: 2.23.10
 alwaysApply: false
-promptSignals:
-  phrases:
-    - cloudrun
-    - 云托管
-    - 容器部署
-    - docker 部署
-    - 容器化
-  allOf:
-    - - 容器
-      - 部署
-    - - docker
-      - 部署
-    - - 容器
-      - cloudbase
-  anyOf:
-    - dockerfile
-    - scf_bootstrap
-    - container
-  minScore: 6
-retrieval:
-  aliases:
-    - cloudrun
-    - container
-  intents:
-    - 部署容器
-    - 云托管服务
-    - 容器化部署
-  entities:
-    - Dockerfile
-    - scf_bootstrap
-    - container mode
-  examples:
-    - 部署 docker 到 cloudrun
-    - 云托管容器
-metadata:
-  priority: 7
 ---
 
 ## Standalone Install Note

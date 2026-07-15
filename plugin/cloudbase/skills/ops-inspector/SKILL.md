@@ -3,42 +3,6 @@ name: ops-inspector
 description: AIOps-style one-click inspection skill for CloudBase resources. Use this skill when users need to diagnose errors, check resource health, inspect logs, or run a comprehensive health check across cloud functions, CloudRun services, databases, and other CloudBase resources.
 version: 2.23.10
 alwaysApply: false
-promptSignals:
-  phrases:
-    - 巡检
-    - 健康检查
-    - health check
-    - 资源诊断
-    - cloudbase 诊断
-  allOf:
-    - - 诊断
-      - cloudbase
-    - - 诊断
-      - 资源
-    - - 巡检
-      - cloudbase
-  anyOf:
-    - inspect
-    - diagnose
-  minScore: 6
-  noneOf:
-    - bug
-    - 根因
-    - spec
-retrieval:
-  aliases:
-    - health check
-    - 健康检查
-  intents:
-    - 诊断错误
-    - 健康检查
-    - 资源巡检
-  entities: []
-  examples:
-    - cloudbase 巡检
-    - 资源健康检查
-metadata:
-  priority: 6
 ---
 
 ## Standalone Install Note

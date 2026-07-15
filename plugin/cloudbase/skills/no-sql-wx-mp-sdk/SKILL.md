@@ -3,38 +3,6 @@ name: cloudbase-document-database-in-wechat-miniprogram
 description: Use CloudBase document database WeChat MiniProgram SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, and geolocation queries.
 version: 2.23.10
 alwaysApply: false
-promptSignals:
-  phrases:
-    - 小程序数据库
-    - 小程序 nosql
-    - 小程序 collection
-    - wx.cloud.database
-  allOf:
-    - - nosql
-      - 小程序
-    - - 数据库
-      - 小程序
-    - - collection
-      - 小程序
-  anyOf:
-    - wx.cloud.database
-  minScore: 6
-  noneOf: []
-retrieval:
-  aliases:
-    - 小程序 nosql
-    - 小程序数据库
-    - wx.cloud.database
-  intents:
-    - 小程序数据库操作
-  entities:
-    - wx.cloud.database
-    - collection
-  examples:
-    - 小程序 nosql 查询
-    - 小程序 collection
-metadata:
-  priority: 5
 ---
 
 ## Standalone Install Note

@@ -3,49 +3,6 @@ name: cloudbase-document-database-web-sdk
 description: Use CloudBase document database Web SDK only for confirmed NoSQL collection work. Query, create, update, and delete document data; if the task mentions PostgreSQL / CloudBase PG / app.rdb(), route to postgresql-development instead.
 version: 2.23.10
 alwaysApply: false
-promptSignals:
-  phrases:
-    - nosql
-    - 文档数据库
-    - collection
-    - nosql web
-    - 创建集合
-    - 数据集合
-    - 集合操作
-  allOf:
-    - - nosql
-      - web
-    - - nosql
-      - 前端
-    - - 文档
-      - 数据库
-  anyOf:
-    - collection
-    - doc
-    - aggregate
-  minScore: 6
-retrieval:
-  aliases:
-    - nosql
-    - 文档数据库
-    - collection
-  intents:
-    - nosql 查询
-    - 文档数据库操作
-    - 集合操作
-    - 创建用户表
-    - 数据库集合操作
-    - 查询数据
-  entities:
-    - collection
-    - doc
-    - aggregate
-    - where
-  examples:
-    - web nosql 查询
-    - 前端 collection 操作
-metadata:
-  priority: 7
 ---
 
 ## Standalone Install Note

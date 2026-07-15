@@ -1,49 +1,8 @@
 ---
 name: ai-model-wechat
-description: 'Use this skill for WeChat Mini Program AI via wx.cloud.extend.AI (小程序, 企业微信小程序, wx.cloud apps). Features generateText and streamText with callbacks (onText, onEvent, onFinish). Models via wx.cloud.extend.AI.createModel with groups hunyuan-exp (小程序成长计划), cloudbase (main managed), or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the data wrapper model field. API differs from JS/Node SDK — streamText needs data wrapper, generateText returns raw response. MUST run two-step preflight before code — see body. Keywords: Mini Program AI, wx.cloud.extend.AI, 小程序成长计划, ai_miniprogram_inspire_plan, Token Credits 资源包, generateText, streamText, createModel, hunyuan-exp, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs).'
+description: "Use this skill for WeChat Mini Program AI via wx.cloud.extend.AI (小程序, 企业微信小程序, wx.cloud apps). Features generateText and streamText with callbacks (onText, onEvent, onFinish). Models via wx.cloud.extend.AI.createModel with groups hunyuan-exp (小程序成长计划), cloudbase (main managed), or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the data wrapper model field. API differs from JS/Node SDK — streamText needs data wrapper, generateText returns raw response. MUST run two-step preflight before code — see body. Keywords: Mini Program AI, wx.cloud.extend.AI, 小程序成长计划, ai_miniprogram_inspire_plan, Token Credits 资源包, generateText, streamText, createModel, hunyuan-exp, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs)."
 version: 2.23.10
 alwaysApply: false
-promptSignals:
-  phrases:
-    - 小程序 ai
-    - wx.cloud ai
-    - 小程序成长计划
-    - 企业微信 ai
-    - 小程序 ai 对话
-    - 小程序里用 ai
-    - 小程序 ai 模型
-    - AI 对话
-  allOf:
-    - - ai
-      - 小程序
-    - - ai
-      - 微信
-    - - 大模型
-      - 小程序
-  anyOf:
-    - generateText
-    - streamText
-    - hunyuan
-    - deepseek
-  minScore: 6
-  noneOf: []
-retrieval:
-  aliases:
-    - 小程序 ai
-    - wx.cloud.extend.AI
-    - 微信 ai
-  intents:
-    - 小程序 ai 对话
-    - 小程序成长计划
-  entities:
-    - wx.cloud.extend.AI
-    - generateText
-    - streamText
-  examples:
-    - 小程序调用 hunyuan
-    - 小程序 ai 对话
-metadata:
-  priority: 5
 ---
 
 ## Standalone Install Note

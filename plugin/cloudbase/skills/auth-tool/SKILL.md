@@ -3,50 +3,6 @@ name: auth-tool-cloudbase
 description: CloudBase auth provider configuration and login-readiness guide. This skill should be used when users need to inspect, enable, disable, or configure auth providers, publishable-key prerequisites, login methods, SMS/email sender setup, or other provider-side readiness before implementing a client or backend auth flow.
 version: 2.23.10
 alwaysApply: false
-promptSignals:
-  phrases:
-    - 认证配置
-    - 登录配置
-    - publishable key
-    - auth provider
-    - 登录方式配置
-    - 用户登录认证
-    - 登录认证配置
-    - 邮箱密码登录
-  allOf:
-    - - 认证
-      - 配置
-    - - 登录
-      - 配置
-    - - 登录
-      - 方式
-  anyOf:
-    - oauth
-    - oidc
-    - sms
-    - email
-    - username
-  minScore: 6
-  noneOf: []
-retrieval:
-  aliases:
-    - auth
-    - oauth
-    - oidc
-  intents:
-    - 配置认证
-    - 启用登录
-    - 认证提供商
-  entities:
-    - publishable key
-    - auth provider
-    - EditAuthConfig
-  examples:
-    - 配置 oauth 登录
-    - 启用邮箱登录
-    - 查看登录方式
-metadata:
-  priority: 8
 ---
 
 ## Standalone Install Note
