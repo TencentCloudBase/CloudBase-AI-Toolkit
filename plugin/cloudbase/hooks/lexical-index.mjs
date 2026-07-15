@@ -1,38 +1,27 @@
 // hooks/lexical-index.mjs — Lightweight lexical index for skill retrieval
 // Instead of MiniSearch dependency, uses a simple inverted index with fuzzy matching.
 // Supports Chinese + English synonyms. Adapted from Vercel plugin concept.
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+import { pluginRoot, safeReadJson } from "./hook-env.mjs";
 
-// --- Synonym map (Chinese + English) ---
-var SYNONYM_MAP = {
-  // Scenario
-  web: ["前端", "frontend", "浏览器", "browser", "spa", "ssr"],
-  小程序: ["miniprogram", "wechat", "微信", "wxmp", "wx"],
-  云托管: ["cloudrun", "container", "容器", "docker"],
-  // Deploy
-  部署: ["deploy", "ship", "release", "publish", "上线"],
-  预览: ["preview", "查看"],
-  // Database
-  数据库: ["database", "db", "数据存储"],
-  云函数: ["function", "serverless", "lambda", "scf", "无服务器"],
-  文档数据库: ["nosql", "mongodb", "firestore", "collection"],
-  关系型: ["mysql", "postgresql", "postgres", "sql", "prisma", "drizzle"],
-  // Auth
-  登录: ["login", "signin", "auth", "认证", "身份验证"],
-  认证: ["auth", "authentication", "身份"],
-  // Storage
-  云存储: ["storage", "upload", "上传", "下载", "download", "文件"],
-  // AI
-  ai: ["人工智能", "llm", "gpt", "hunyuan", "混元", "deepseek", "glm", "kimi"],
-  模型: ["model", "llm", "gpt"],
-  // Ops
-  巡检: ["inspect", "diagnose", "诊断", "health", "健康检查"],
-  代码审查: ["review", "lint", "审查", "code review"],
-  // General
-  环境: ["env", "environment", "配置"],
-  模板: ["template", "boilerplate", "脚手架", "scaffold"],
-  // Skills by name
-  ui: ["界面", "interface", "设计", "design", "prototype", "原型"],
-};
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load synonyms from generated/synonyms.json (external config)
+function loadSynonymMap() {
+  const root = pluginRoot();
+  const synonymsPath = join(root, "generated", "synonyms.json");
+  const data = safeReadJson(synonymsPath);
+  if (data && data.synonyms && typeof data.synonyms === "object") {
+    return data.synonyms;
+  }
+  // Fallback: empty synonym map (lexical index will still work, just without synonym expansion)
+  return {};
+}
+
+var SYNONYM_MAP = loadSynonymMap();
 
 // --- Build inverted index ---
 
@@ -75,12 +64,16 @@ function expandTerms(terms) {
 // --- Search ---
 
 export function searchSkills(query, index, options = {}) {
-  const { minScore = 4, maxResults = 10 } = options;
+  const { minScore = 6, maxResults = 10 } = options;
   const normalizedQuery = normalizeQuery(query);
   if (!normalizedQuery) return [];
 
   const queryTerms = normalizedQuery.split(/\s+/).filter(Boolean);
   const expandedQueryTerms = expandQueryTerms(queryTerms);
+
+  // Minimum overlap length to avoid short-term false positives.
+  // Terms shorter than this must match exactly (equality, not substring).
+  const MIN_SUBSTRING_LEN = 4;
 
   const scores = new Map();
   for (const doc of index.documents) {
@@ -89,9 +82,19 @@ export function searchSkills(query, index, options = {}) {
       const fieldTerms = doc[field] || [];
       for (const queryTerm of expandedQueryTerms) {
         for (const fieldTerm of fieldTerms) {
-          if (fieldTerm.includes(queryTerm) || queryTerm.includes(fieldTerm)) {
-            score += FIELD_BOOSTS[field] || 1;
-            break; // Only count once per field
+          // Short terms (<=3 chars) require exact equality to prevent
+          // "ai" matching "design" or "设计" matching "API设计".
+          if (queryTerm.length <= MIN_SUBSTRING_LEN || fieldTerm.length <= MIN_SUBSTRING_LEN) {
+            if (queryTerm === fieldTerm) {
+              score += FIELD_BOOSTS[field] || 1;
+              break;
+            }
+          } else {
+            // Longer terms: substring match is OK
+            if (fieldTerm.includes(queryTerm) || queryTerm.includes(fieldTerm)) {
+              score += FIELD_BOOSTS[field] || 1;
+              break; // Only count once per field
+            }
           }
         }
       }

@@ -3,6 +3,49 @@ name: cloud-functions
 description: CloudBase function runtime guide for building, deploying, and debugging your own Event Functions or HTTP Functions. This skill should be used when users need application runtime code on CloudBase, not when they are merely calling CloudBase official platform APIs.
 version: 2.23.10
 alwaysApply: false
+promptSignals:
+  phrases:
+    - 云函数
+    - cloud function
+    - serverless
+    - 无服务器
+    - 函数部署
+  allOf:
+    - - scf
+      - 部署
+    - - scf
+      - 函数
+    - - 函数
+      - cloud
+  anyOf:
+    - createFunction
+    - updateFunctionCode
+    - http function
+  minScore: 6
+  noneOf:
+    - docker
+    - 容器
+    - cloudrun
+    - tcb 命令
+retrieval:
+  aliases:
+    - function
+    - serverless
+    - 无服务器
+  intents:
+    - 部署云函数
+    - 创建函数
+    - 调试函数
+  entities:
+    - createFunction
+    - updateFunctionCode
+    - functionRootPath
+  examples:
+    - 部署云函数
+    - 创建 http 函数
+    - 更新函数代码
+metadata:
+  priority: 8
 ---
 
 ## Standalone Install Note

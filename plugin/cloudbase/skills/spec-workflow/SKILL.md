@@ -3,6 +3,43 @@ name: spec-workflow
 description: Use when medium-to-large changes need explicit requirements, technical design, and task planning before implementation, especially for multi-module work, unclear acceptance criteria, or architecture-heavy requests.
 version: 2.23.10
 alwaysApply: false
+promptSignals:
+  phrases:
+    - spec 工作流
+    - 需求文档
+    - 技术方案
+    - 任务拆分
+    - spec 流程
+  allOf:
+    - - spec
+      - 工作流
+    - - 需求
+      - 文档
+    - - 技术
+      - 方案
+  anyOf:
+    - ears
+    - spec
+  minScore: 6
+retrieval:
+  aliases:
+    - spec
+    - 需求文档
+    - spec workflow
+  intents:
+    - spec 流程
+    - 需求设计
+    - 任务拆分
+  entities:
+    - EARS
+    - requirements.md
+    - design.md
+    - tasks.md
+  examples:
+    - spec 工作流
+    - 需求文档设计
+metadata:
+  priority: 6
 ---
 
 ## Standalone Install Note

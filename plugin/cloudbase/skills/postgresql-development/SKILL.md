@@ -1,8 +1,60 @@
 ---
 name: postgresql-development-cloudbase
-description: "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG."
+description: Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG. Also use as MySQL replacement — new environments default to PG; existing MySQL users should migrate to PG.
 version: 2.23.10
 alwaysApply: false
+promptSignals:
+  phrases:
+    - postgresql
+    - postgres
+    - cloudbase pg
+    - pg 模式
+    - pg 数据库
+    - mysql 迁移
+    - mysql 替代
+    - 关系型数据库
+    - 用户表
+    - 建表
+    - 创建表
+    - mysql 存储
+    - mysql 数据库
+  allOf:
+    - - pg
+      - 数据库
+    - - postgres
+      - cloudbase
+    - - pg
+      - cloudbase
+    - - mysql
+      - 数据库
+    - - mysql
+      - 存储
+  anyOf:
+    - rls
+    - create policy
+    - queryPgDatabase
+  minScore: 6
+retrieval:
+  aliases:
+    - postgresql
+    - postgres
+    - cloudbase pg
+  intents:
+    - pg 数据库开发
+    - rls 权限
+    - pg 查询
+  entities:
+    - RLS
+    - CREATE POLICY
+    - queryPgDatabase
+    - managePgDatabase
+    - app.rdb()
+  examples:
+    - pg 数据库开发
+    - rls 行级权限
+    - pg 查询
+metadata:
+  priority: 7
 ---
 
 ## Standalone Install Note

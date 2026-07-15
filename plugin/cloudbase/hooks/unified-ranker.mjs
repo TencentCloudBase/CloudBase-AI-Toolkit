@@ -67,6 +67,11 @@ export function mergeExactAndLexical(exactResults, lexicalResults, skillMap) {
 
     if (existing) {
       existing.lexicalScore = boostedLexicalScore;
+      // Update reason to include lexical contribution
+      if (boostedLexicalScore > 0) {
+        const lexPart = `lexical: ${lexicalEntry.score} * ${tier.multiplier} (${tier.tier})`;
+        existing.reason = existing.reason ? `${existing.reason}; ${lexPart}` : lexPart;
+      }
     } else {
       merged.set(lexicalEntry.skill, {
         skill: lexicalEntry.skill,
@@ -81,13 +86,17 @@ export function mergeExactAndLexical(exactResults, lexicalResults, skillMap) {
   }
 
   // Combine scores: exact + lexical (lexical capped)
+  // When only lexical matched (no exact/phrase match), require a higher score
+  // to avoid false positives from broad synonym expansion.
+  const LEXICAL_ONLY_MIN_SCORE = 12;
   const results = [];
   for (const entry of merged.values()) {
     const combinedScore = entry.exactScore + Math.min(entry.lexicalScore, 10);
+    const effectiveMinScore = entry.exactScore === 0 ? LEXICAL_ONLY_MIN_SCORE : entry.minScore;
     results.push({
       ...entry,
       score: combinedScore,
-      matched: combinedScore >= entry.minScore,
+      matched: combinedScore >= effectiveMinScore,
     });
   }
 

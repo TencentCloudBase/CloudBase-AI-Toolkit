@@ -53,7 +53,7 @@ export const IDE_TYPES = [
   "openai-codex-cli", // OpenAI Codex CLI
   "augment-code", // Augment Code
   "github-copilot", // GitHub Copilot
-  "roocode", // RooCode AI编辑器
+  "roocode", // RooCode AI编辑器（已 deprecated 2026-05，可考虑引导转向 Cline/ZooCode）
   "tongyi-lingma", // 通义灵码
   "trae", // Trae AI编辑器
   "qoder", // Qoder AI编辑器
@@ -111,7 +111,6 @@ export const RAW_IDE_FILE_MAPPINGS: Record<string, IdeFileDescriptor[]> = {
   ],
   "baidu-comate": [
     { path: ".comate/rules/cloudbase-rules.mdr" },
-    { path: ".comate/rules/cloudbaase-rules.mdr" },
     { path: ".comate/mcp.json", isMcpConfig: true },
   ],
   "openai-codex-cli": [
@@ -121,10 +120,10 @@ export const RAW_IDE_FILE_MAPPINGS: Record<string, IdeFileDescriptor[]> = {
   "augment-code": [{ path: ".augment-guidelines" }],
   "github-copilot": [{ path: ".github/copilot-instructions.md" }],
   roocode: [
-    { path: ".roo/rules/cloudbaase-rules.md" },
+    { path: ".roo/rules/cloudbase-rules.md" },
     { path: ".roo/mcp.json", isMcpConfig: true },
   ],
-  "tongyi-lingma": [{ path: ".lingma/rules/cloudbaase-rules.md" }],
+  "tongyi-lingma": [{ path: ".lingma/rules/cloudbase-rules.md" }],
   trae: [{ path: ".trae/rules/" }],
   qoder: [{ path: ".qoder/rules/" }],
   antigravity: [{ path: ".agent/rules/" }],
@@ -173,7 +172,7 @@ const IDE_DESCRIPTIONS: Record<string, string> = {
   "openai-codex-cli": "OpenAI Codex CLI",
   "augment-code": "Augment Code",
   "github-copilot": "GitHub Copilot",
-  roocode: "RooCode AI编辑器",
+  roocode: "RooCode AI编辑器（deprecated）",
   "tongyi-lingma": "通义灵码",
   trae: "Trae AI编辑器",
   qoder: "Qoder AI编辑器",

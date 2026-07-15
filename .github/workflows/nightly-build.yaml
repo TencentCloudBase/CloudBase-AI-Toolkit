@@ -52,6 +52,9 @@ jobs:
           TENCENTCLOUD_SECRETID: ${{ secrets.TENCENTCLOUD_SECRETID }}
           TENCENTCLOUD_SECRETKEY: ${{ secrets.TENCENTCLOUD_SECRETKEY }}
           CLOUDBASE_ENV_ID: ${{ secrets.CLOUDBASE_ENV_ID }}
+
+      - name: Test hooks
+        run: npm run test:hooks
           
       - name: Publish to pkg.pr.new
         run: |

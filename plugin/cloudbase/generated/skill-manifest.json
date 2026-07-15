@@ -1,42 +1,89 @@
 {
   "version": 2,
-  "generatedAt": "2026-07-10T09:44:50.401Z",
+  "generatedAt": "2026-07-15T12:04:01.253Z",
   "skills": {
     "ai-model-nodejs": {
       "name": "ai-model-nodejs",
       "description": "Use this skill for Node.js backend AI via @cloudbase/node-sdk (>=3.16.0) — cloud functions, CloudRun, Express, Koa, NestJS, serverless APIs, scheduled jobs, LLM proxies. Only SDK supporting image generation (ai.createImageModel + generateImage). Text models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field of generateText/streamText. MUST run two-step preflight before code — see body. Keywords: backend, 云函数, 云托管, serverless, LLM proxy, agent orchestration, generateText, streamText, generateImage, createModel, hunyuan-image, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat).",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/ai-model-nodejs"
-        ]
+        "priority": 5
       },
       "promptSignals": {
         "phrases": [
-          "云函数 ai",
-          "serverless ai",
+          "ai 模型 node",
+          "node 大模型",
+          "generatetext",
+          "streamtext",
           "generateimage",
-          "llm proxy"
+          "hunyuan node",
+          "deepseek node",
+          "node llm",
+          "token credits",
+          "资源包查询",
+          "node 调用大模型"
         ],
-        "minScore": 6
+        "allOf": [
+          [
+            "ai",
+            "node"
+          ],
+          [
+            "ai",
+            "后端"
+          ],
+          [
+            "ai",
+            "云函数"
+          ],
+          [
+            "大模型",
+            "node"
+          ],
+          [
+            "llm",
+            "node"
+          ]
+        ],
+        "anyOf": [
+          "createModel",
+          "hunyuan",
+          "deepseek",
+          "glm",
+          "kimi",
+          "混元"
+        ],
+        "minScore": 6,
+        "noneOf": [
+          "浏览器",
+          "browser"
+        ]
       },
       "retrieval": {
         "aliases": [
-          "node ai",
-          "serverless ai"
+          "人工智能",
+          "hunyuan",
+          "deepseek",
+          "kimi"
         ],
         "intents": [
-          "call ai from cloud function"
+          "调用 ai 模型",
+          "生成文本",
+          "生成图片",
+          "流式输出",
+          "node ai"
         ],
         "entities": [
+          "@cloudbase/node-sdk",
+          "createModel",
           "generateImage",
-          "LLM Proxy",
-          "Hunyuan"
+          "streamText",
+          "ai.createModel"
         ],
         "examples": [
-          "ai in cloud function",
-          "generate image"
+          "node 调用 hunyuan",
+          "云函数里用 deepseek",
+          "后端 llm 代理"
         ]
       },
       "pathRegexSources": [],
@@ -45,44 +92,74 @@
     "ai-model-web": {
       "name": "ai-model-web",
       "description": "Use this skill when a browser/Web app (React, Vue, Angular, Next, Nuxt, static sites, SPAs, dashboards, AI chat UI) needs AI models via @cloudbase/js-sdk. Default routing for page/页面/Web/前端/frontend/网页/H5 AI — call directly from browser, do NOT propose a Node.js proxy. Covers generateText and streamText. Models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field. MUST run two-step preflight before code — see body. Keywords: 页面, Web, 前端, React, Vue, Next, Nuxt, SPA, AI chat UI, generateText, streamText, createModel, hunyuan-exp, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for Node.js backend (use ai-model-nodejs), Mini Program (use ai-model-wechat), or image generation (Node SDK only).",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/ai-model-web"
-        ]
+        "priority": 5
       },
       "promptSignals": {
         "phrases": [
-          "页面 ai",
-          "generatetext",
-          "streamtext",
-          "hunyuan",
-          "混元",
-          "deepseek",
-          "glm",
-          "kimi"
+          "浏览器 ai",
+          "web ai",
+          "前端 ai",
+          "react ai",
+          "vue ai",
+          "web 大模型",
+          "前端 ai 对话",
+          "deepseek 集成",
+          "大模型集成",
+          "浏览器端",
+          "浏览器调用 ai",
+          "token credits"
         ],
-        "minScore": 6
+        "allOf": [
+          [
+            "ai",
+            "web"
+          ],
+          [
+            "ai",
+            "前端"
+          ],
+          [
+            "ai",
+            "浏览器"
+          ],
+          [
+            "大模型",
+            "前端"
+          ]
+        ],
+        "anyOf": [
+          "createModel",
+          "streamText",
+          "hunyuan",
+          "deepseek"
+        ],
+        "minScore": 6,
+        "noneOf": []
       },
       "retrieval": {
         "aliases": [
           "web ai",
-          "ai model web",
-          "页面 ai"
+          "前端 ai",
+          "浏览器 ai"
         ],
         "intents": [
-          "call ai from web"
+          "浏览器调用 ai",
+          "前端 ai 对话",
+          "web 流式输出",
+          "前端 ai 集成"
         ],
         "entities": [
-          "Hunyuan",
-          "DeepSeek",
-          "GLM",
-          "generateText"
+          "@cloudbase/js-sdk",
+          "ai.createModel",
+          "createModel",
+          "streamText"
         ],
         "examples": [
-          "add ai chat to web",
-          "stream text"
+          "react 调用 deepseek",
+          "vue ai 对话",
+          "浏览器流式输出"
         ]
       },
       "pathRegexSources": [],
@@ -91,36 +168,62 @@
     "ai-model-wechat": {
       "name": "ai-model-wechat",
       "description": "Use this skill for WeChat Mini Program AI via wx.cloud.extend.AI (小程序, 企业微信小程序, wx.cloud apps). Features generateText and streamText with callbacks (onText, onEvent, onFinish). Models via wx.cloud.extend.AI.createModel with groups hunyuan-exp (小程序成长计划), cloudbase (main managed), or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the data wrapper model field. API differs from JS/Node SDK — streamText needs data wrapper, generateText returns raw response. MUST run two-step preflight before code — see body. Keywords: Mini Program AI, wx.cloud.extend.AI, 小程序成长计划, ai_miniprogram_inspire_plan, Token Credits 资源包, generateText, streamText, createModel, hunyuan-exp, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs).",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/ai-model-wechat"
-        ]
+        "priority": 5
       },
       "promptSignals": {
         "phrases": [
           "小程序 ai",
-          "wx.cloud.extend.ai",
-          "小程序成长计划"
+          "wx.cloud ai",
+          "小程序成长计划",
+          "企业微信 ai",
+          "小程序 ai 对话",
+          "小程序里用 ai",
+          "小程序 ai 模型",
+          "AI 对话"
         ],
-        "minScore": 6
+        "allOf": [
+          [
+            "ai",
+            "小程序"
+          ],
+          [
+            "ai",
+            "微信"
+          ],
+          [
+            "大模型",
+            "小程序"
+          ]
+        ],
+        "anyOf": [
+          "generateText",
+          "streamText",
+          "hunyuan",
+          "deepseek"
+        ],
+        "minScore": 6,
+        "noneOf": []
       },
       "retrieval": {
         "aliases": [
-          "mini program ai",
-          "小程序 ai"
+          "小程序 ai",
+          "wx.cloud.extend.AI",
+          "微信 ai"
         ],
         "intents": [
-          "call ai from mini program"
+          "小程序 ai 对话",
+          "小程序成长计划"
         ],
         "entities": [
           "wx.cloud.extend.AI",
-          "Mini Program"
+          "generateText",
+          "streamText"
         ],
         "examples": [
-          "ai in mini program",
-          "wx cloud ai"
+          "小程序调用 hunyuan",
+          "小程序 ai 对话"
         ]
       },
       "pathRegexSources": [],
@@ -129,39 +232,73 @@
     "auth-nodejs": {
       "name": "auth-nodejs-cloudbase",
       "description": "CloudBase Node SDK auth guide for server-side identity, user lookup, and custom login tickets. This skill should be used when Node.js code must read caller identity, inspect end users, or bridge an existing user system into CloudBase; not when configuring providers or building client login UI.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/auth-nodejs"
-        ]
+        "priority": 6
       },
       "promptSignals": {
         "phrases": [
-          "服务端认证",
           "node 认证",
+          "后端认证",
+          "server auth",
+          "身份验证后端",
+          "custom login",
+          "node 读取 openid",
+          "后端验证身份",
           "custom login ticket",
-          "服务端 auth"
+          "node 验证身份"
         ],
-        "minScore": 6
+        "allOf": [
+          [
+            "认证",
+            "node"
+          ],
+          [
+            "认证",
+            "后端"
+          ],
+          [
+            "auth",
+            "node"
+          ],
+          [
+            "登录",
+            "后端"
+          ]
+        ],
+        "anyOf": [
+          "wxContext",
+          "openid",
+          "unionid",
+          "ticket"
+        ],
+        "minScore": 6,
+        "noneOf": [
+          "页面",
+          "原型",
+          "设计"
+        ]
       },
       "retrieval": {
         "aliases": [
-          "node auth",
-          "server auth",
-          "服务端认证"
+          "auth",
+          "身份验证"
         ],
         "intents": [
-          "implement server-side auth"
+          "后端身份验证",
+          "用户身份读取",
+          "自定义登录"
         ],
         "entities": [
-          "Custom Login",
-          "Ticket",
-          "Node SDK"
+          "@cloudbase/node-sdk",
+          "wxContext",
+          "OPENID",
+          "UNIONID",
+          "custom login"
         ],
         "examples": [
-          "create custom login",
-          "server auth"
+          "node 读取用户身份",
+          "后端验证 ticket"
         ]
       },
       "pathRegexSources": [],
@@ -170,59 +307,65 @@
     "auth-tool": {
       "name": "auth-tool-cloudbase",
       "description": "CloudBase auth provider configuration and login-readiness guide. This skill should be used when users need to inspect, enable, disable, or configure auth providers, publishable-key prerequisites, login methods, SMS/email sender setup, or other provider-side readiness before implementing a client or backend auth flow.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 8,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/auth-tool"
-        ]
+        "priority": 8
       },
       "promptSignals": {
         "phrases": [
-          "登录",
-          "认证",
-          "auth",
-          "login",
-          "signin",
-          "openid",
-          "unionid",
-          "jwt",
-          "token"
+          "认证配置",
+          "登录配置",
+          "publishable key",
+          "auth provider",
+          "登录方式配置",
+          "用户登录认证",
+          "登录认证配置",
+          "邮箱密码登录"
+        ],
+        "allOf": [
+          [
+            "认证",
+            "配置"
+          ],
+          [
+            "登录",
+            "配置"
+          ],
+          [
+            "登录",
+            "方式"
+          ]
         ],
         "anyOf": [
-          "配置",
-          "config",
-          "provider",
+          "oauth",
+          "oidc",
           "sms",
-          "email"
+          "email",
+          "username"
         ],
-        "noneOf": [
-          "登出",
-          "logout"
-        ],
-        "minScore": 6
+        "minScore": 6,
+        "noneOf": []
       },
       "retrieval": {
         "aliases": [
-          "authentication",
-          "login",
-          "认证配置"
+          "auth",
+          "oauth",
+          "oidc"
         ],
         "intents": [
-          "configure auth provider",
-          "enable login methods"
+          "配置认证",
+          "启用登录",
+          "认证提供商"
         ],
         "entities": [
-          "SMS",
-          "Email",
-          "WeChat Auth",
-          "Custom Login",
-          "Publishable Key"
+          "publishable key",
+          "auth provider",
+          "EditAuthConfig"
         ],
         "examples": [
-          "enable sms login",
-          "configure wechat auth",
-          "set up custom login"
+          "配置 oauth 登录",
+          "启用邮箱登录",
+          "查看登录方式"
         ]
       },
       "pathRegexSources": [],
@@ -231,41 +374,67 @@
     "auth-web": {
       "name": "auth-web-cloudbase",
       "description": "CloudBase Web Authentication Quick Guide for frontend integration after auth-tool has already been checked. Provides concise and practical Web authentication solutions with multiple login methods and complete user management.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/auth-web"
-        ]
+        "priority": 6
       },
       "promptSignals": {
         "phrases": [
           "web 登录",
-          "前端认证",
-          "web sdk auth",
-          "web auth"
+          "前端登录",
+          "web 认证",
+          "浏览器登录",
+          "web auth",
+          "邮箱密码登录",
+          "用户登录认证",
+          "前端登录认证"
         ],
-        "noneOf": [
-          "小程序",
-          "miniprogram"
+        "allOf": [
+          [
+            "登录",
+            "web"
+          ],
+          [
+            "认证",
+            "web"
+          ],
+          [
+            "登录",
+            "前端"
+          ],
+          [
+            "auth",
+            "web"
+          ]
         ],
-        "minScore": 6
+        "anyOf": [
+          "toDefaultLoginPage",
+          "signIn",
+          "signUp"
+        ],
+        "minScore": 6,
+        "noneOf": []
       },
       "retrieval": {
         "aliases": [
           "web auth",
-          "前端认证"
+          "前端登录",
+          "web 登录"
         ],
         "intents": [
-          "implement web authentication"
+          "web 登录",
+          "前端认证",
+          "web 登录实现"
         ],
         "entities": [
-          "CloudBase Web SDK",
-          "auth.toDefaultLoginPage"
+          "@cloudbase/js-sdk",
+          "toDefaultLoginPage",
+          "signInWithPassword",
+          "auth-web-cloudbase"
         ],
         "examples": [
-          "add login to web app",
-          "web auth flow"
+          "react 登录页面",
+          "vue 登录组件"
         ]
       },
       "pathRegexSources": [],
@@ -274,41 +443,64 @@
     "auth-wechat": {
       "name": "auth-wechat-miniprogram",
       "description": "CloudBase WeChat Mini Program native authentication guide. This skill should be used when users need mini program identity handling, OPENID/UNIONID access, or `wx.cloud` auth behavior in projects where login is native and automatic.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/auth-wechat"
-        ]
+        "priority": 6
       },
       "promptSignals": {
         "phrases": [
-          "小程序认证",
+          "小程序登录",
+          "微信登录",
+          "openid 登录",
+          "unionid",
+          "企业微信小程序登录",
+          "企业微信小程序"
+        ],
+        "allOf": [
+          [
+            "登录",
+            "小程序"
+          ],
+          [
+            "登录",
+            "微信"
+          ],
+          [
+            "auth",
+            "小程序"
+          ]
+        ],
+        "anyOf": [
           "openid",
           "unionid",
-          "wx.cloud auth",
-          "微信登录"
+          "wxContext"
         ],
-        "minScore": 6
+        "minScore": 6,
+        "noneOf": [
+          "node",
+          "后端"
+        ]
       },
       "retrieval": {
         "aliases": [
-          "wechat auth",
-          "小程序认证",
-          "openid"
+          "微信登录",
+          "小程序登录",
+          "openid",
+          "unionid"
         ],
         "intents": [
-          "implement wechat mini program auth"
+          "小程序认证",
+          "微信登录"
         ],
         "entities": [
+          "wxContext",
           "OPENID",
           "UNIONID",
-          "wxContext",
           "wx.cloud"
         ],
         "examples": [
-          "get openid",
-          "mini program login"
+          "小程序获取 openid",
+          "微信登录态"
         ]
       },
       "pathRegexSources": [],
@@ -317,100 +509,124 @@
     "cloud-functions": {
       "name": "cloud-functions",
       "description": "CloudBase function runtime guide for building, deploying, and debugging your own Event Functions or HTTP Functions. This skill should be used when users need application runtime code on CloudBase, not when they are merely calling CloudBase official platform APIs.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 7,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloud-functions"
-        ]
+        "priority": 8
       },
       "promptSignals": {
         "phrases": [
           "云函数",
           "cloud function",
           "serverless",
-          "scf",
-          "http function",
-          "event function"
+          "无服务器",
+          "函数部署"
+        ],
+        "allOf": [
+          [
+            "scf",
+            "部署"
+          ],
+          [
+            "scf",
+            "函数"
+          ],
+          [
+            "函数",
+            "cloud"
+          ]
         ],
         "anyOf": [
-          "部署",
-          "deploy",
-          "调试",
-          "debug"
+          "createFunction",
+          "updateFunctionCode",
+          "http function"
         ],
-        "minScore": 6
+        "minScore": 6,
+        "noneOf": [
+          "docker",
+          "容器",
+          "cloudrun",
+          "tcb 命令"
+        ]
       },
       "retrieval": {
         "aliases": [
-          "cloud function",
+          "function",
           "serverless",
-          "scf",
-          "lambda"
+          "无服务器"
         ],
         "intents": [
-          "deploy a cloud function",
-          "debug serverless"
+          "部署云函数",
+          "创建函数",
+          "调试函数"
         ],
         "entities": [
-          "SCF",
-          "HTTP Function",
-          "Event Function",
-          "wx-server-sdk"
+          "createFunction",
+          "updateFunctionCode",
+          "functionRootPath"
         ],
         "examples": [
-          "deploy cloud function",
-          "create http function",
-          "debug serverless"
+          "部署云函数",
+          "创建 http 函数",
+          "更新函数代码"
         ]
       },
-      "pathRegexSources": [
-        "^cloudfunctions/.*$"
-      ],
-      "bashPatterns": [
-        "\\btcb\\s+fn\\s+(deploy|list|invoke)\\b",
-        "\\bcloudbase\\s+functions?\\b"
-      ]
+      "pathRegexSources": [],
+      "bashPatterns": []
     },
     "cloud-storage-web": {
       "name": "cloud-storage-web",
       "description": "Complete guide for CloudBase cloud storage using Web SDK (@cloudbase/js-sdk) - upload, download, temporary URLs, file management, and best practices.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloud-storage-web"
-        ]
+        "priority": 6
       },
       "promptSignals": {
         "phrases": [
           "云存储",
-          "upload",
-          "上传",
-          "下载",
-          "download",
-          "文件存储"
+          "文件上传",
+          "文件下载",
+          "cloud storage",
+          "上传文件"
+        ],
+        "allOf": [
+          [
+            "上传",
+            "文件"
+          ],
+          [
+            "下载",
+            "文件"
+          ],
+          [
+            "存储",
+            "cloudbase"
+          ]
+        ],
+        "anyOf": [
+          "uploadFile",
+          "getTempFileURL",
+          "deleteFile"
         ],
         "minScore": 6
       },
       "retrieval": {
         "aliases": [
-          "cloud storage",
-          "云存储",
-          "file upload"
+          "storage"
         ],
         "intents": [
-          "upload/download files"
+          "上传文件",
+          "下载文件",
+          "存储管理"
         ],
         "entities": [
-          "Cloud Storage",
           "uploadFile",
-          "downloadFile"
+          "getTempFileURL",
+          "deleteFile",
+          "cloudPath"
         ],
         "examples": [
-          "upload file",
-          "get download url",
-          "manage storage"
+          "上传图片到云存储",
+          "获取临时下载链接"
         ]
       },
       "pathRegexSources": [],
@@ -419,41 +635,63 @@
     "cloudbase-agent": {
       "name": "cloudbase-agent",
       "description": "Build and deploy AI agents with CloudBase Agent SDK (TypeScript & Python). Implements the AG-UI protocol for streaming agent-UI communication. Use when deploying agent servers, using LangGraph/LangChain/CrewAI adapters, building custom adapters, understanding AG-UI protocol events, or building web/mini-program UI clients. Supports both TypeScript (@cloudbase/agent-server) and Python (cloudbase-agent-server via FastAPI).",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloudbase-agent"
-        ]
+        "priority": 6
       },
       "promptSignals": {
         "phrases": [
-          "agent",
+          "ai agent",
           "智能体",
+          "agent sdk",
           "ag-ui",
-          "langgraph",
-          "langchain"
+          "agent 部署"
         ],
-        "minScore": 6
+        "allOf": [
+          [
+            "agent",
+            "sdk"
+          ],
+          [
+            "agent",
+            "部署"
+          ],
+          [
+            "agent",
+            "cloudbase"
+          ]
+        ],
+        "anyOf": [
+          "langgraph",
+          "langchain",
+          "fastapi",
+          "ag-ui"
+        ],
+        "minScore": 6,
+        "noneOf": [
+          "api 设计",
+          "部署一下"
+        ]
       },
       "retrieval": {
         "aliases": [
-          "ai agent",
-          "智能体",
-          "ag-ui"
+          "agent",
+          "ag-ui",
+          "agent sdk"
         ],
         "intents": [
-          "build ai agent"
+          "构建 agent",
+          "部署 agent",
+          "agent 服务器"
         ],
         "entities": [
+          "@cloudbase/agent-server",
           "AG-UI",
-          "LangGraph",
-          "LangChain",
-          "Agent SDK"
+          "AbstractAgent"
         ],
         "examples": [
-          "build agent",
-          "deploy ai agent"
+          "构建 ai agent",
+          "部署 agent 服务"
         ]
       },
       "pathRegexSources": [],
@@ -462,77 +700,110 @@
     "cloudbase-cli": {
       "name": "cloudbase-cli",
       "description": "CloudBase CLI (tcb, 云开发CLI, Tencent CloudBase命令行) resource management skill. This skill should be used when users need to deploy cloud functions, manage CloudRun apps, upload files to storage, query NoSQL/MySQL databases, deploy static hosting, set access permissions, or configure CORS/domains/routing via tcb commands. Also use for CI/CD pipeline scripting, batch operations, terminal-based CloudBase management, or when the user prefers CLI over SDK/MCP.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 5,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloudbase-cli"
-        ]
+        "priority": 6
       },
       "promptSignals": {
         "phrases": [
+          "tcb 命令",
+          "tcb cli",
+          "云开发 cli",
+          "命令行部署",
+          "tcb 部署"
+        ],
+        "allOf": [
+          [
+            "tcb",
+            "命令"
+          ],
+          [
+            "tcb",
+            "cli"
+          ],
+          [
+            "cli",
+            "部署"
+          ]
+        ],
+        "anyOf": [
           "tcb",
-          "cli",
-          "命令行"
+          "cloudbase-cli"
         ],
         "minScore": 6
       },
       "retrieval": {
         "aliases": [
-          "tcb cli",
-          "cloudbase cli"
+          "cloudbase-cli"
         ],
         "intents": [
-          "use tcb cli"
+          "命令行操作",
+          "cli 部署",
+          "命令行管理"
         ],
         "entities": [
           "tcb",
-          "CLI"
+          "cloudbase-cli",
+          "tcb deploy"
         ],
         "examples": [
-          "tcb deploy",
-          "tcb fn list"
+          "tcb 部署函数",
+          "tcb 命令行",
+          "cli 管理环境"
         ]
       },
       "pathRegexSources": [],
-      "bashPatterns": [
-        "\\btcb\\s+\\w+"
-      ]
+      "bashPatterns": []
     },
     "cloudbase-code-review": {
       "name": "cloudbase-code-review",
       "description": "Code review and validation for CloudBase projects. After writing code for Web / miniprogram / CloudRun / cloud-function projects, call this skill to check for known pitfalls — auth guard misuse, missing database tables, RLS misconfiguration, storage domain setup, and SDK API misuse. Supports automated lint scripts (regex-based) + LLM semantic review.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 5,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloudbase-code-review"
-        ]
+        "priority": 5
       },
       "promptSignals": {
         "phrases": [
-          "code review",
           "代码审查",
-          "lint"
+          "code review",
+          "代码检查",
+          "代码质量审查"
+        ],
+        "allOf": [
+          [
+            "审查",
+            "代码"
+          ],
+          [
+            "review",
+            "code"
+          ],
+          [
+            "检查",
+            "代码"
+          ]
+        ],
+        "anyOf": [
+          "lint",
+          "review"
         ],
         "minScore": 6
       },
       "retrieval": {
         "aliases": [
           "code review",
-          "代码审查"
+          "代码审查",
+          "lint",
+          "代码检查"
         ],
         "intents": [
-          "review cloudbase code"
+          "审查代码",
+          "代码质量检查"
         ],
-        "entities": [
-          "Lint",
-          "Review",
-          "Best Practices"
-        ],
+        "entities": [],
         "examples": [
-          "review my code",
-          "code quality check"
+          "代码审查",
+          "review 这个项目"
         ]
       },
       "pathRegexSources": [],
@@ -541,35 +812,55 @@
     "cloudbase-guidelines": {
       "name": "cloudbase",
       "description": "Use this skill when you develop, design, build, deploy, debug, migrate, or troubleshoot CloudBase (腾讯云开发, 云开发, TCB, 微信云开发) projects. Covers Web apps (React, Vue, Vite, Next, Nuxt, dashboards, 管理后台), 微信小程序, 小程序, uni-app, native/mobile (iOS, Android, Flutter, React Native) via HTTP API. Includes UI (页面, 界面, 登录页, 表单, form, dashboard, prototype, 原型), auth (登录, 注册, OAuth, 微信登录, publishable key), databases (NoSQL 文档数据库, MySQL, PostgreSQL/CloudBase PG, app.rdb(), queryPgDatabase/managePgDatabase, CRUD, security rules), 云函数 (serverless, scf_bootstrap, HTTP Functions), CloudRun (云托管, Dockerfile), 云存储 (file upload, hosting, 静态托管). Built-in AI (内置大模型, streaming, 流式输出, image generation, 图片生成, generateText, streamText, createModel, generateImage, TokenHub, Hunyuan, hunyuan-exp, DeepSeek, GLM, Token Credits 资源包, 小程序成长计划), 第三方大模型, 大模型接入, 大模型调用, LLM API, chatbot, AI 助手, AI agent, 智能体, AG-UI, LangGraph, LangChain. Ops (巡检, 诊断, health check, 日志, troubleshooting). Spec workflow (需求文档, 技术方案, requirements, tasks.md).",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 5,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloudbase-platform"
-        ]
+        "priority": 6
       },
       "promptSignals": {
         "phrases": [
+          "cloudbase 指南",
+          "云开发指南",
           "cloudbase 总入口",
-          "云开发指南"
+          "cloudbase 文档",
+          "云开发完整指南",
+          "开发规则",
+          "开发指南",
+          "完整指南",
+          "核心能力"
         ],
-        "minScore": 8
+        "allOf": [
+          [
+            "cloudbase",
+            "指南"
+          ],
+          [
+            "云开发",
+            "指南"
+          ],
+          [
+            "cloudbase",
+            "总入口"
+          ]
+        ],
+        "anyOf": [],
+        "minScore": 6,
+        "noneOf": []
       },
       "retrieval": {
         "aliases": [
-          "cloudbase guidelines",
-          "云开发指南"
+          "cloudbase"
         ],
         "intents": [
-          "understand cloudbase overview"
+          "cloudbase 指南",
+          "平台总览",
+          "开发规则",
+          "查询 cloudbase 指南",
+          "云开发规则"
         ],
-        "entities": [
-          "CloudBase",
-          "Guidelines"
-        ],
+        "entities": [],
         "examples": [
-          "cloudbase overview",
-          "getting started"
+          "cloudbase 开发指南",
+          "云开发规则"
         ]
       },
       "pathRegexSources": [],
@@ -578,42 +869,51 @@
     "cloudbase-platform": {
       "name": "cloudbase-platform",
       "description": "CloudBase platform overview and routing guide. This skill should be used when users need high-level capability selection, platform concepts, console navigation, or cross-platform best practices before choosing a more specific implementation skill.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 8,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloudbase-platform"
-        ]
+        "priority": 8
       },
       "promptSignals": {
         "phrases": [
-          "cloudbase",
-          "云开发",
-          "平台",
-          "控制台",
-          "tcb"
+          "cloudbase 平台",
+          "云开发平台",
+          "平台能力",
+          "cloudbase 能力"
         ],
-        "minScore": 8
+        "allOf": [
+          [
+            "cloudbase",
+            "平台"
+          ],
+          [
+            "云开发",
+            "平台"
+          ],
+          [
+            "平台",
+            "能力"
+          ]
+        ],
+        "anyOf": [
+          "控制台",
+          "console"
+        ],
+        "minScore": 6
       },
       "retrieval": {
         "aliases": [
-          "cloudbase platform",
-          "云开发平台",
-          "tcb"
+          "platform",
+          "cloudbase 平台"
         ],
         "intents": [
-          "understand cloudbase platform",
-          "navigate console"
+          "平台概览",
+          "能力选择",
+          "控制台导航"
         ],
-        "entities": [
-          "CloudBase",
-          "Console",
-          "Environment",
-          "TCB"
-        ],
+        "entities": [],
         "examples": [
-          "what is cloudbase",
-          "how to use cloudbase console"
+          "cloudbase 平台能力",
+          "云开发控制台"
         ]
       },
       "pathRegexSources": [],
@@ -622,40 +922,58 @@
     "cloudbase-wechat-integration": {
       "name": "cloudbase-wechat-integration",
       "description": "CloudBase WeChat integration guide for Mini Program WeChat Pay, Official Account JSAPI Pay, Native QR-code Pay, Official Account OAuth, openid handling, payment callbacks, and CloudBase Integration Center generated functions. This skill should be used when users ask to add, debug, or extend WeChat payment or official-account flows on CloudBase.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloudbase-wechat-integration"
-        ]
+        "priority": 5
       },
       "promptSignals": {
         "phrases": [
           "微信支付",
-          "jsapi pay",
-          "公众号 oauth",
+          "jsapi 支付",
+          "公众号",
+          "微信 oauth",
           "支付回调"
+        ],
+        "allOf": [
+          [
+            "微信",
+            "支付"
+          ],
+          [
+            "公众号",
+            "oauth"
+          ],
+          [
+            "支付",
+            "回调"
+          ]
+        ],
+        "anyOf": [
+          "jsapi",
+          "openid",
+          "prepay"
         ],
         "minScore": 6
       },
       "retrieval": {
         "aliases": [
-          "wechat pay",
           "微信支付",
-          "wechat integration"
+          "wechat pay",
+          "jsapi"
         ],
         "intents": [
-          "integrate wechat pay",
-          "wechat oauth"
+          "微信支付集成",
+          "公众号 oauth"
         ],
         "entities": [
-          "JSAPI Pay",
-          "OAuth",
-          "WeChat"
+          "JSAPI",
+          "openid",
+          "prepay_id",
+          "支付回调"
         ],
         "examples": [
-          "add wechat pay",
-          "wechat oauth login"
+          "小程序微信支付",
+          "公众号 oauth 授权"
         ]
       },
       "pathRegexSources": [],
@@ -664,146 +982,107 @@
     "cloudrun-development": {
       "name": "cloudrun-development",
       "description": "CloudBase Run backend development rules (Function mode/Container mode). Use this skill when deploying backend services that require long connections, multi-language support, custom environments, or AI agent development.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 7,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/cloudrun-development"
-        ]
+        "priority": 7
       },
       "promptSignals": {
         "phrases": [
+          "cloudrun",
           "云托管",
-          "cloudrun",
-          "docker",
-          "容器",
-          "websocket",
-          "长连接"
+          "容器部署",
+          "docker 部署",
+          "容器化"
         ],
-        "minScore": 6
-      },
-      "retrieval": {
-        "aliases": [
-          "cloudrun",
-          "container",
-          "docker"
-        ],
-        "intents": [
-          "deploy container service",
-          "build cloudrun app"
-        ],
-        "entities": [
-          "Docker",
-          "CloudRun",
-          "Container",
-          "WebSocket"
-        ],
-        "examples": [
-          "deploy docker app",
-          "create cloudrun service"
-        ]
-      },
-      "pathRegexSources": [
-        "^Dockerfile$",
-        "^docker-compose\\.yml$",
-        "^cloudbaserc\\.json$"
-      ],
-      "bashPatterns": []
-    },
-    "data-model-creation": {
-      "name": "data-model-creation",
-      "description": "Optional advanced tool for complex data modeling. For simple MySQL table creation, use relational-database-tool directly; for PostgreSQL / CloudBase PG schema work, use postgresql-development.",
-      "version": "2.23.7",
-      "metadata": {
-        "priority": 7,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/data-model-creation"
-        ]
-      },
-      "promptSignals": {
-        "phrases": [
-          "数据模型",
-          "建模",
-          "model",
-          "schema",
-          "er图",
-          "entity",
-          "数据库设计",
-          "data model"
+        "allOf": [
+          [
+            "容器",
+            "部署"
+          ],
+          [
+            "docker",
+            "部署"
+          ],
+          [
+            "容器",
+            "cloudbase"
+          ]
         ],
         "anyOf": [
-          "mysql",
-          "postgresql",
-          "nosql",
-          "关系型"
+          "dockerfile",
+          "scf_bootstrap",
+          "container"
         ],
         "minScore": 6
       },
       "retrieval": {
         "aliases": [
-          "data modeling",
-          "schema design",
-          "er diagram"
+          "cloudrun",
+          "container"
         ],
         "intents": [
-          "design database schema",
-          "create er diagram"
+          "部署容器",
+          "云托管服务",
+          "容器化部署"
         ],
         "entities": [
-          "Mermaid",
-          "ER Diagram",
-          "MySQL Types",
-          "PostgreSQL"
+          "Dockerfile",
+          "scf_bootstrap",
+          "container mode"
         ],
         "examples": [
-          "design database schema",
-          "create er diagram",
-          "model data"
+          "部署 docker 到 cloudrun",
+          "云托管容器"
         ]
       },
-      "pathRegexSources": [
-        "^.*/schema\\.prisma$",
-        "^.*/drizzle\\.config\\.[^/]*$",
-        "^.*/migrations/.*$"
-      ],
-      "bashPatterns": [
-        "\\b(db|migrate|schema):"
-      ]
+      "pathRegexSources": [],
+      "bashPatterns": []
     },
     "http-api": {
       "name": "http-api-cloudbase",
       "description": "CloudBase official HTTP API client guide. This skill should be used when backends, scripts, or non-SDK clients must call CloudBase platform APIs over raw HTTP instead of using a platform SDK or MCP management tool.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 5,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/http-api"
-        ]
+        "priority": 5
       },
       "promptSignals": {
         "phrases": [
           "http api",
-          "非 sdk",
-          "原生 app"
+          "rest api",
+          "http 调用 cloudbase",
+          "原生 http"
         ],
+        "allOf": [
+          [
+            "http",
+            "api"
+          ],
+          [
+            "rest",
+            "api"
+          ],
+          [
+            "http",
+            "cloudbase"
+          ]
+        ],
+        "anyOf": [],
         "minScore": 6
       },
       "retrieval": {
         "aliases": [
           "http api",
-          "rest api"
+          "rest api",
+          "http"
         ],
         "intents": [
-          "call cloudbase via http"
+          "http 调用",
+          "api 请求"
         ],
-        "entities": [
-          "HTTP",
-          "REST",
-          "API"
-        ],
+        "entities": [],
         "examples": [
-          "call cloudbase http",
-          "native app api"
+          "http 调用 cloudbase",
+          "rest api 请求"
         ]
       },
       "pathRegexSources": [],
@@ -812,105 +1091,128 @@
     "miniprogram-development": {
       "name": "miniprogram-development",
       "description": "WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, and optimizing mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, or optimize WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools workflows, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, or 云开发 in a mini program project.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 8,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/miniprogram-development"
-        ]
+        "priority": 8
       },
       "promptSignals": {
         "phrases": [
-          "小程序",
+          "小程序开发",
+          "微信小程序",
           "miniprogram",
-          "微信",
-          "wechat",
-          "wx.cloud",
-          "tabbar",
-          "appid"
+          "小程序预览",
+          "小程序发布",
+          "小程序项目",
+          "小程序里",
+          "企业微信小程序"
+        ],
+        "allOf": [
+          [
+            "小程序",
+            "开发"
+          ],
+          [
+            "小程序",
+            "部署"
+          ],
+          [
+            "小程序",
+            "预览"
+          ]
+        ],
+        "anyOf": [
+          "app.json",
+          "project.config.json",
+          "tabbar"
         ],
         "minScore": 6
       },
       "retrieval": {
         "aliases": [
-          "wechat mini program",
-          "wxmp",
-          "小程序"
+          "miniprogram",
+          "微信小程序"
         ],
         "intents": [
-          "build a mini program",
-          "wechat cloud development"
+          "开发小程序",
+          "部署小程序",
+          "小程序调试",
+          "小程序项目"
         ],
         "entities": [
-          "WeChat",
-          "wx.cloud",
           "project.config.json",
+          "app.json",
           "tabBar"
         ],
         "examples": [
-          "make a mini program",
-          "add tabBar",
-          "deploy cloud function"
+          "开发微信小程序",
+          "小程序预览",
+          "小程序发布"
         ]
       },
-      "pathRegexSources": [
-        "^miniprogram/.*$",
-        "^cloudfunctions/.*$",
-        "^project\\.config\\.json$",
-        "^app\\.json$",
-        "^app\\.wxss$"
-      ],
-      "bashPatterns": [
-        "\\btcb\\s+(fn|cloudfunctions)\\s+deploy\\b"
-      ]
+      "pathRegexSources": [],
+      "bashPatterns": []
     },
     "no-sql-web-sdk": {
       "name": "cloudbase-document-database-web-sdk",
       "description": "Use CloudBase document database Web SDK only for confirmed NoSQL collection work. Query, create, update, and delete document data; if the task mentions PostgreSQL / CloudBase PG / app.rdb(), route to postgresql-development instead.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 7,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/no-sql-web-sdk"
-        ]
+        "priority": 7
       },
       "promptSignals": {
         "phrases": [
-          "文档数据库",
           "nosql",
+          "文档数据库",
           "collection",
-          "web sdk"
+          "nosql web",
+          "创建集合",
+          "数据集合",
+          "集合操作"
+        ],
+        "allOf": [
+          [
+            "nosql",
+            "web"
+          ],
+          [
+            "nosql",
+            "前端"
+          ],
+          [
+            "文档",
+            "数据库"
+          ]
         ],
         "anyOf": [
-          "数据库",
-          "database",
-          "db"
-        ],
-        "noneOf": [
-          "小程序",
-          "miniprogram"
+          "collection",
+          "doc",
+          "aggregate"
         ],
         "minScore": 6
       },
       "retrieval": {
         "aliases": [
           "nosql",
-          "document database",
-          "mongodb"
+          "文档数据库",
+          "collection"
         ],
         "intents": [
-          "use nosql database from web",
-          "crud collection"
+          "nosql 查询",
+          "文档数据库操作",
+          "集合操作",
+          "创建用户表",
+          "数据库集合操作",
+          "查询数据"
         ],
         "entities": [
-          "NoSQL",
-          "Collection",
-          "CloudBase JS SDK"
+          "collection",
+          "doc",
+          "aggregate",
+          "where"
         ],
         "examples": [
-          "query collection",
-          "add document",
-          "update nosql"
+          "web nosql 查询",
+          "前端 collection 操作"
         ]
       },
       "pathRegexSources": [],
@@ -919,37 +1221,53 @@
     "no-sql-wx-mp-sdk": {
       "name": "cloudbase-document-database-in-wechat-miniprogram",
       "description": "Use CloudBase document database WeChat MiniProgram SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, and geolocation queries.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/no-sql-wx-mp-sdk"
-        ]
+        "priority": 5
       },
       "promptSignals": {
         "phrases": [
           "小程序数据库",
-          "wx.cloud database",
-          "小程序 nosql"
+          "小程序 nosql",
+          "小程序 collection",
+          "wx.cloud.database"
         ],
-        "minScore": 6
+        "allOf": [
+          [
+            "nosql",
+            "小程序"
+          ],
+          [
+            "数据库",
+            "小程序"
+          ],
+          [
+            "collection",
+            "小程序"
+          ]
+        ],
+        "anyOf": [
+          "wx.cloud.database"
+        ],
+        "minScore": 6,
+        "noneOf": []
       },
       "retrieval": {
         "aliases": [
-          "miniprogram nosql",
-          "小程序数据库"
+          "小程序 nosql",
+          "小程序数据库",
+          "wx.cloud.database"
         ],
         "intents": [
-          "use nosql from mini program"
+          "小程序数据库操作"
         ],
         "entities": [
           "wx.cloud.database",
-          "NoSQL",
-          "Mini Program"
+          "collection"
         ],
         "examples": [
-          "query mini program database",
-          "wx cloud db"
+          "小程序 nosql 查询",
+          "小程序 collection"
         ]
       },
       "pathRegexSources": [],
@@ -958,42 +1276,57 @@
     "ops-inspector": {
       "name": "ops-inspector",
       "description": "AIOps-style one-click inspection skill for CloudBase resources. Use this skill when users need to diagnose errors, check resource health, inspect logs, or run a comprehensive health check across cloud functions, CloudRun services, databases, and other CloudBase resources.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/ops-inspector"
-        ]
+        "priority": 6
       },
       "promptSignals": {
         "phrases": [
           "巡检",
-          "诊断",
-          "health check",
           "健康检查",
-          "troubleshooting"
+          "health check",
+          "资源诊断",
+          "cloudbase 诊断"
         ],
-        "minScore": 6
+        "allOf": [
+          [
+            "诊断",
+            "cloudbase"
+          ],
+          [
+            "诊断",
+            "资源"
+          ],
+          [
+            "巡检",
+            "cloudbase"
+          ]
+        ],
+        "anyOf": [
+          "inspect",
+          "diagnose"
+        ],
+        "minScore": 6,
+        "noneOf": [
+          "bug",
+          "根因",
+          "spec"
+        ]
       },
       "retrieval": {
         "aliases": [
-          "ops",
-          "inspect",
-          "diagnose",
-          "巡检"
+          "health check",
+          "健康检查"
         ],
         "intents": [
-          "inspect cloudbase health",
-          "diagnose issues"
+          "诊断错误",
+          "健康检查",
+          "资源巡检"
         ],
-        "entities": [
-          "AIOps",
-          "Health Check",
-          "Logs"
-        ],
+        "entities": [],
         "examples": [
-          "run health check",
-          "inspect environment"
+          "cloudbase 巡检",
+          "资源健康检查"
         ]
       },
       "pathRegexSources": [],
@@ -1001,125 +1334,78 @@
     },
     "postgresql-development": {
       "name": "postgresql-development-cloudbase",
-      "description": "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG.",
-      "version": "2.23.7",
+      "description": "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG. Also use as MySQL replacement — new environments default to PG; existing MySQL users should migrate to PG.",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/postgresql-development"
-        ]
+        "priority": 7
       },
       "promptSignals": {
         "phrases": [
           "postgresql",
           "postgres",
-          "pg",
-          "rls",
-          "app.rdb()"
-        ],
-        "minScore": 6
-      },
-      "retrieval": {
-        "aliases": [
-          "postgresql",
-          "postgres",
-          "pg"
-        ],
-        "intents": [
-          "use postgresql on cloudbase"
-        ],
-        "entities": [
-          "PostgreSQL",
-          "RLS",
-          "app.rdb()"
-        ],
-        "examples": [
-          "query postgres",
-          "setup rls",
-          "pg mode"
-        ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
-    },
-    "relational-database-tool": {
-      "name": "relational-database-mcp-cloudbase",
-      "description": "This is the required documentation for agents operating on the CloudBase Relational Database through MCP. It defines the canonical SQL management flow with `queryMysqlDatabase`, `manageMysqlDatabase`, `queryPermissions`, and `managePermissions`, including MySQL provisioning, destroy flow, async status checks, safe query execution, schema initialization, and permission updates.",
-      "version": "2.23.7",
-      "metadata": {
-        "priority": 7,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/relational-database-tool"
-        ]
-      },
-      "promptSignals": {
-        "phrases": [
-          "mysql",
+          "cloudbase pg",
+          "pg 模式",
+          "pg 数据库",
+          "mysql 迁移",
+          "mysql 替代",
           "关系型数据库",
-          "sql",
-          "queryMysqlDatabase",
-          "manageMysqlDatabase"
+          "用户表",
+          "建表",
+          "创建表",
+          "mysql 存储",
+          "mysql 数据库"
+        ],
+        "allOf": [
+          [
+            "pg",
+            "数据库"
+          ],
+          [
+            "postgres",
+            "cloudbase"
+          ],
+          [
+            "pg",
+            "cloudbase"
+          ],
+          [
+            "mysql",
+            "数据库"
+          ],
+          [
+            "mysql",
+            "存储"
+          ]
+        ],
+        "anyOf": [
+          "rls",
+          "create policy",
+          "queryPgDatabase"
         ],
         "minScore": 6
       },
       "retrieval": {
         "aliases": [
-          "mysql",
-          "relational database",
-          "sql"
+          "postgresql",
+          "postgres",
+          "cloudbase pg"
         ],
         "intents": [
-          "query mysql database",
-          "manage relational database"
+          "pg 数据库开发",
+          "rls 权限",
+          "pg 查询"
         ],
         "entities": [
-          "MySQL",
-          "FlexDB",
-          "SQL"
+          "RLS",
+          "CREATE POLICY",
+          "queryPgDatabase",
+          "managePgDatabase",
+          "app.rdb()"
         ],
         "examples": [
-          "query mysql",
-          "create table",
-          "run sql"
-        ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
-    },
-    "relational-database-web": {
-      "name": "relational-database-web-cloudbase",
-      "description": "Use when building frontend Web apps that talk to CloudBase Relational Database via @cloudbase/js-sdk – provides the canonical init pattern so you can then use Supabase-style queries from the browser.",
-      "version": "2.23.7",
-      "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/relational-database-web"
-        ]
-      },
-      "promptSignals": {
-        "phrases": [
-          "web mysql",
-          "web 关系型",
-          "web relational"
-        ],
-        "minScore": 6
-      },
-      "retrieval": {
-        "aliases": [
-          "web mysql",
-          "relational web"
-        ],
-        "intents": [
-          "use mysql from web"
-        ],
-        "entities": [
-          "MySQL",
-          "Web SDK",
-          "FlexDB"
-        ],
-        "examples": [
-          "query mysql from web",
-          "web relational db"
+          "pg 数据库开发",
+          "rls 行级权限",
+          "pg 查询"
         ]
       },
       "pathRegexSources": [],
@@ -1128,41 +1414,58 @@
     "spec-workflow": {
       "name": "spec-workflow",
       "description": "Use when medium-to-large changes need explicit requirements, technical design, and task planning before implementation, especially for multi-module work, unclear acceptance criteria, or architecture-heavy requests.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 6,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/spec-workflow"
-        ]
+        "priority": 6
       },
       "promptSignals": {
         "phrases": [
-          "spec",
+          "spec 工作流",
           "需求文档",
           "技术方案",
-          "tasks.md",
-          "验收标准"
+          "任务拆分",
+          "spec 流程"
+        ],
+        "allOf": [
+          [
+            "spec",
+            "工作流"
+          ],
+          [
+            "需求",
+            "文档"
+          ],
+          [
+            "技术",
+            "方案"
+          ]
+        ],
+        "anyOf": [
+          "ears",
+          "spec"
         ],
         "minScore": 6
       },
       "retrieval": {
         "aliases": [
           "spec",
-          "requirements",
-          "需求"
+          "需求文档",
+          "spec workflow"
         ],
         "intents": [
-          "plan with spec workflow"
+          "spec 流程",
+          "需求设计",
+          "任务拆分"
         ],
         "entities": [
           "EARS",
-          "Requirements",
-          "Design",
-          "Tasks"
+          "requirements.md",
+          "design.md",
+          "tasks.md"
         ],
         "examples": [
-          "write spec",
-          "plan feature with requirements"
+          "spec 工作流",
+          "需求文档设计"
         ]
       },
       "pathRegexSources": [],
@@ -1171,137 +1474,135 @@
     "ui-design": {
       "name": "ui-design",
       "description": "Use when users need visual direction, interface hierarchy, layout decisions, design specifications, or prototypes before implementing a Web or mini program UI.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
         "priority": 9
       },
       "promptSignals": {
         "phrases": [
-          "ui",
-          "界面",
-          "设计",
-          "design",
-          "页面",
-          "page",
-          "组件",
-          "component",
-          "样式",
-          "style",
-          "配色",
-          "color",
-          "原型",
-          "prototype",
-          "布局",
-          "layout"
+          "ui 设计",
+          "界面设计",
+          "原型设计",
+          "配色方案",
+          "高保真原型"
+        ],
+        "allOf": [
+          [
+            "ui",
+            "设计"
+          ],
+          [
+            "设计",
+            "原型"
+          ],
+          [
+            "设计",
+            "配色"
+          ],
+          [
+            "界面",
+            "设计"
+          ]
         ],
         "anyOf": [
-          "原型",
           "prototype",
-          "布局",
-          "layout"
+          "design"
         ],
         "minScore": 6
       },
       "retrieval": {
         "aliases": [
-          "ui design",
-          "interface design",
-          "原型设计"
+          "design",
+          "prototype"
         ],
         "intents": [
-          "design ui",
-          "create prototype",
-          "define color palette"
+          "ui 设计",
+          "界面设计",
+          "原型设计",
+          "配色"
         ],
-        "entities": [
-          "Color Palette",
-          "Typography",
-          "Layout",
-          "Design System"
-        ],
+        "entities": [],
         "examples": [
-          "design a dashboard ui",
-          "make a prototype",
-          "define color scheme"
+          "ui 设计原型",
+          "界面配色方案",
+          "高保真原型"
         ]
       },
-      "pathRegexSources": [
-        "^.*/[^/]*\\.tsx$",
-        "^.*/[^/]*\\.vue$",
-        "^.*/[^/]*\\.css$",
-        "^.*/[^/]*\\.scss$"
-      ],
+      "pathRegexSources": [],
       "bashPatterns": []
     },
     "web-development": {
       "name": "web-development",
       "description": "Use when users need to implement, integrate, debug, build, deploy, or validate a Web frontend after the product direction is already clear, especially for React, Vue, Vite, browser flows, or CloudBase Web integration.",
-      "version": "2.23.7",
+      "version": "2.23.10",
       "metadata": {
-        "priority": 8,
-        "docs": [
-          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/prompts/web-development"
-        ]
+        "priority": 8
       },
       "promptSignals": {
         "phrases": [
-          "web",
-          "前端",
-          "react",
-          "vue",
-          "vite",
-          "浏览器",
-          "spa",
-          "ssr",
-          "静态托管"
+          "web 开发",
+          "前端开发",
+          "react 项目",
+          "vue 项目",
+          "vite 项目",
+          "前端项目",
+          "集成 cloudbase",
+          "web 应用",
+          "前端集成"
+        ],
+        "allOf": [
+          [
+            "web",
+            "开发"
+          ],
+          [
+            "前端",
+            "开发"
+          ],
+          [
+            "react",
+            "项目"
+          ],
+          [
+            "vue",
+            "项目"
+          ]
         ],
         "anyOf": [
-          "部署",
-          "deploy",
-          "页面",
-          "page"
-        ],
-        "noneOf": [
-          "小程序",
-          "miniprogram"
+          "vite",
+          "webpack",
+          "next",
+          "nuxt"
         ],
         "minScore": 6
       },
       "retrieval": {
         "aliases": [
-          "web frontend",
-          "react",
-          "vue",
-          "vite",
-          "spa"
+          "frontend",
+          "web 开发"
         ],
         "intents": [
-          "build a web app",
-          "deploy static hosting"
+          "web 开发",
+          "前端开发",
+          "前端集成",
+          "搭建 web 应用",
+          "前端集成 cloudbase"
         ],
         "entities": [
           "React",
           "Vue",
           "Vite",
           "Webpack",
-          "CloudBase JS SDK"
+          "@cloudbase/js-sdk"
         ],
         "examples": [
-          "make a todo app",
-          "build a dashboard",
-          "deploy to static hosting"
+          "react 开发",
+          "vue 项目",
+          "vite 前端"
         ]
       },
-      "pathRegexSources": [
-        "^src/.*$",
-        "^public/.*$",
-        "^vite\\.config\\.[^/]*$",
-        "^webpack\\.config\\.[^/]*$"
-      ],
-      "bashPatterns": [
-        "\\b(vite|webpack|npm|pnpm|yarn)\\s+(dev|build|serve)\\b",
-        "\\bnpx\\s+create-(vite|react-app)\\b"
-      ]
+      "pathRegexSources": [],
+      "bashPatterns": []
     }
   }
 }

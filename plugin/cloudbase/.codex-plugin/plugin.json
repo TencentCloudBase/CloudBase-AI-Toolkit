@@ -1,6 +1,6 @@
 {
   "name": "cloudbase",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Tencent CloudBase provides AI models, database, cloud functions, authentication, cloud storage, and CloudRun backend capabilities — giving Codex direct access to the full CloudBase platform.",
   "author": {
     "name": "Tencent CloudBase",
@@ -22,6 +22,16 @@
     "cloudrun"
   ],
   "skills": "./skills/",
+  "commands": [
+    "./../commands/cloudbase-env.md",
+    "./../commands/cloudbase-deploy.md",
+    "./../commands/cloudbase-init.md",
+    "./../commands/cloudbase-status.md"
+  ],
+  "agents": [
+    "./../agents/cloudbase-architect.md",
+    "./../agents/cloudbase-deployment-expert.md"
+  ],
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Tencent CloudBase",
@@ -46,3 +56,4 @@
     "brandColor": "#006EFF"
   }
 }
+

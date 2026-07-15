@@ -1,8 +1,59 @@
 ---
 name: ai-model-web
-description: "Use this skill when a browser/Web app (React, Vue, Angular, Next, Nuxt, static sites, SPAs, dashboards, AI chat UI) needs AI models via @cloudbase/js-sdk. Default routing for page/页面/Web/前端/frontend/网页/H5 AI — call directly from browser, do NOT propose a Node.js proxy. Covers generateText and streamText. Models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field. MUST run two-step preflight before code — see body. Keywords: 页面, Web, 前端, React, Vue, Next, Nuxt, SPA, AI chat UI, generateText, streamText, createModel, hunyuan-exp, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for Node.js backend (use ai-model-nodejs), Mini Program (use ai-model-wechat), or image generation (Node SDK only)."
+description: 'Use this skill when a browser/Web app (React, Vue, Angular, Next, Nuxt, static sites, SPAs, dashboards, AI chat UI) needs AI models via @cloudbase/js-sdk. Default routing for page/页面/Web/前端/frontend/网页/H5 AI — call directly from browser, do NOT propose a Node.js proxy. Covers generateText and streamText. Models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field. MUST run two-step preflight before code — see body. Keywords: 页面, Web, 前端, React, Vue, Next, Nuxt, SPA, AI chat UI, generateText, streamText, createModel, hunyuan-exp, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for Node.js backend (use ai-model-nodejs), Mini Program (use ai-model-wechat), or image generation (Node SDK only).'
 version: 2.23.10
 alwaysApply: false
+promptSignals:
+  phrases:
+    - 浏览器 ai
+    - web ai
+    - 前端 ai
+    - react ai
+    - vue ai
+    - web 大模型
+    - 前端 ai 对话
+    - deepseek 集成
+    - 大模型集成
+    - 浏览器端
+    - 浏览器调用 ai
+    - token credits
+  allOf:
+    - - ai
+      - web
+    - - ai
+      - 前端
+    - - ai
+      - 浏览器
+    - - 大模型
+      - 前端
+  anyOf:
+    - createModel
+    - streamText
+    - hunyuan
+    - deepseek
+  minScore: 6
+  noneOf: []
+retrieval:
+  aliases:
+    - web ai
+    - 前端 ai
+    - 浏览器 ai
+  intents:
+    - 浏览器调用 ai
+    - 前端 ai 对话
+    - web 流式输出
+    - 前端 ai 集成
+  entities:
+    - '@cloudbase/js-sdk'
+    - ai.createModel
+    - createModel
+    - streamText
+  examples:
+    - react 调用 deepseek
+    - vue ai 对话
+    - 浏览器流式输出
+metadata:
+  priority: 5
 ---
 
 ## Standalone Install Note

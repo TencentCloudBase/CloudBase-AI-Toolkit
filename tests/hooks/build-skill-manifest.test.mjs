@@ -23,7 +23,9 @@ describe("skill-manifest.json", () => {
 
   it("has 28 skills", () => {
     const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
-    expect(Object.keys(manifest.skills).length).toBe(28);
+    // 3 deprecated skills (relational-database-tool, relational-database-web, data-model-creation)
+    // are excluded from the manifest. Total: 28 - 3 = 25.
+    expect(Object.keys(manifest.skills).length).toBe(25);
   });
 
   it("all skills have promptSignals with phrases", () => {
@@ -72,6 +74,8 @@ describe("skill-manifest.json", () => {
 
   it("core skills have priority >= 7", () => {
     const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
+    // data-model-creation and relational-database-tool are deprecated and excluded from manifest.
+    // postgresql-development replaces relational-database-tool as the core relational DB skill.
     const coreSkills = [
       "web-development",
       "miniprogram-development",
@@ -79,9 +83,8 @@ describe("skill-manifest.json", () => {
       "cloudbase-platform",
       "cloud-functions",
       "cloudrun-development",
-      "data-model-creation",
       "no-sql-web-sdk",
-      "relational-database-tool",
+      "postgresql-development",
     ];
     for (const name of coreSkills) {
       expect(manifest.skills[name].metadata.priority, `${name}`).toBeGreaterThanOrEqual(7);

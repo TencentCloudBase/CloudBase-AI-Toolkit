@@ -3,6 +3,54 @@ name: web-development
 description: Use when users need to implement, integrate, debug, build, deploy, or validate a Web frontend after the product direction is already clear, especially for React, Vue, Vite, browser flows, or CloudBase Web integration.
 version: 2.23.10
 alwaysApply: false
+promptSignals:
+  phrases:
+    - web 开发
+    - 前端开发
+    - react 项目
+    - vue 项目
+    - vite 项目
+    - 前端项目
+    - 集成 cloudbase
+    - web 应用
+    - 前端集成
+  allOf:
+    - - web
+      - 开发
+    - - 前端
+      - 开发
+    - - react
+      - 项目
+    - - vue
+      - 项目
+  anyOf:
+    - vite
+    - webpack
+    - next
+    - nuxt
+  minScore: 6
+retrieval:
+  aliases:
+    - frontend
+    - web 开发
+  intents:
+    - web 开发
+    - 前端开发
+    - 前端集成
+    - 搭建 web 应用
+    - 前端集成 cloudbase
+  entities:
+    - React
+    - Vue
+    - Vite
+    - Webpack
+    - '@cloudbase/js-sdk'
+  examples:
+    - react 开发
+    - vue 项目
+    - vite 前端
+metadata:
+  priority: 8
 ---
 
 ## Standalone Install Note

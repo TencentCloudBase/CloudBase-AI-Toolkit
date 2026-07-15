@@ -1,8 +1,40 @@
 ---
 name: cloudbase-code-review
-description: "Code review and validation for CloudBase projects. After writing code for Web / miniprogram / CloudRun / cloud-function projects, call this skill to check for known pitfalls — auth guard misuse, missing database tables, RLS misconfiguration, storage domain setup, and SDK API misuse. Supports automated lint scripts (regex-based) + LLM semantic review."
+description: Code review and validation for CloudBase projects. After writing code for Web / miniprogram / CloudRun / cloud-function projects, call this skill to check for known pitfalls — auth guard misuse, missing database tables, RLS misconfiguration, storage domain setup, and SDK API misuse. Supports automated lint scripts (regex-based) + LLM semantic review.
 version: 2.23.10
 alwaysApply: false
+promptSignals:
+  phrases:
+    - 代码审查
+    - code review
+    - 代码检查
+    - 代码质量审查
+  allOf:
+    - - 审查
+      - 代码
+    - - review
+      - code
+    - - 检查
+      - 代码
+  anyOf:
+    - lint
+    - review
+  minScore: 6
+retrieval:
+  aliases:
+    - code review
+    - 代码审查
+    - lint
+    - 代码检查
+  intents:
+    - 审查代码
+    - 代码质量检查
+  entities: []
+  examples:
+    - 代码审查
+    - review 这个项目
+metadata:
+  priority: 5
 ---
 
 ## Standalone Install Note
