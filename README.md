@@ -159,7 +159,7 @@ https://tcb-api.cloud.tencent.com/mcp/v1?env_id=YOUR_ENV_ID&enable_plugins=env,d
 https://tcb-api.cloud.tencent.com/mcp/v1?env_id=YOUR_ENV_ID&disable_plugins=rag,env
 ```
 
-当前可配置的插件名以 `mcp/src/server.ts` 为准，建议优先使用 canonical 名称：`env`, `database`, `functions`, `hosting`, `storage`, `setup`, `rag`, `download`, `gateway`, `cloudrun`, `app-auth`, `permissions`, `logs`, `agents`, `invite-code`, `capi`, `apps`。
+当前可配置的插件名以 `mcp/src/server.ts` 为准，建议优先使用 canonical 名称：`env`, `database`, `pg_database`, `pg_storage`, `mysql_database`, `functions`, `hosting`, `storage`, `setup`, `rag`, `download`, `gateway`, `cloudrun`, `app-auth`, `permissions`, `logs`, `agents`, `apps`, `invite-code`, `capi`, `database-nosql`, `database-sql`, `data-model`。
 
 > [!TIP]
 > **推荐使用 CloudBase AI CLI**

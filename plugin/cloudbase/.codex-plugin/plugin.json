@@ -36,7 +36,7 @@
   "interface": {
     "displayName": "Tencent CloudBase",
     "shortDescription": "AI models, auth, database, cloud functions, storage, and CloudRun for Tencent CloudBase.",
-    "longDescription": "Use Tencent CloudBase to add AI models (DeepSeek, Hunyuan), authentication (email, OAuth, OIDC), NoSQL/MySQL databases, cloud functions, cloud storage, CloudRun backend services, and WeChat Mini Program integration to your applications. The cloudbase-mcp server provides tools for environment management, data operations, function deployment, and platform configuration.",
+    "longDescription": "Use Tencent CloudBase to add AI models (DeepSeek, Hunyuan), authentication (email, OAuth, OIDC), NoSQL/PostgreSQL databases, cloud functions, cloud storage, CloudRun backend services, and WeChat Mini Program integration to your applications. The cloudbase-mcp server provides tools for environment management, data operations, function deployment, and platform configuration.",
     "developerName": "Tencent CloudBase",
     "category": "Developer Tools",
     "capabilities": [

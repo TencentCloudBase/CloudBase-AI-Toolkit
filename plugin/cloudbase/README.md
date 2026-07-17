@@ -1,7 +1,7 @@
 # Tencent CloudBase Plugin
 
 The universal Tencent CloudBase plugin — gives AI coding agents direct access to
-CloudBase platform capabilities: AI models, authentication, NoSQL/MySQL
+CloudBase platform capabilities: AI models, authentication, NoSQL/PostgreSQL
 databases, cloud functions, cloud storage, CloudRun backend services, WeChat
 Mini Program integration, and more.
 
