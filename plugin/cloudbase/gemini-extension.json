@@ -1,7 +1,7 @@
 {
   "name": "cloudbase",
   "version": "0.1.0",
-  "description": "Tencent CloudBase — AI models, auth, NoSQL/MySQL databases, cloud functions, storage, CloudRun, and WeChat Mini Program integration.",
+  "description": "Tencent CloudBase — AI models, auth, NoSQL/PostgreSQL databases, cloud functions, storage, CloudRun, and WeChat Mini Program integration.",
   "contextFileName": "GEMINI.md",
   "mcpServers": {
     "cloudbase": {

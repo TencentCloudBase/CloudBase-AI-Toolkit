@@ -1,4 +1,5 @@
 {
+  "$schema": "https://open-plugins.com/schemas/1.0.0/plugin.schema.json",
   "name": "cloudbase",
   "version": "0.2.0",
   "description": "Tencent CloudBase — AI models, authentication, NoSQL/PostgreSQL databases, cloud functions, cloud storage, CloudRun backend services, and WeChat Mini Program integration. Powered by cloudbase-mcp.",
@@ -21,15 +22,5 @@
     "authentication",
     "storage",
     "cloudrun"
-  ],
-  "commands": [
-    "./commands/cloudbase-env.md",
-    "./commands/cloudbase-deploy.md",
-    "./commands/cloudbase-init.md",
-    "./commands/cloudbase-status.md"
-  ],
-  "agents": [
-    "./agents/cloudbase-architect.md",
-    "./agents/cloudbase-deployment-expert.md"
   ]
 }

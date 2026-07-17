@@ -149,7 +149,7 @@ https://tcb-api.cloud.tencent.com/mcp/v1?env_id=YOUR_ENV_ID&enable_plugins=env,d
 https://tcb-api.cloud.tencent.com/mcp/v1?env_id=YOUR_ENV_ID&disable_plugins=rag,env
 ```
 
-当前可配置的插件名以 `mcp/src/server.ts` 为准，建议优先使用 canonical 名称：`env`, `database`, `functions`, `hosting`, `storage`, `setup`, `rag`, `download`, `gateway`, `cloudrun`, `app-auth`, `permissions`, `logs`, `agents`, `invite-code`, `capi`, `apps`。
+当前可配置的插件名以 `mcp/src/server.ts` 为准，建议优先使用 canonical 名称：`env`, `database`, `pg_database`, `pg_storage`, `mysql_database`, `functions`, `hosting`, `storage`, `setup`, `rag`, `download`, `gateway`, `cloudrun`, `app-auth`, `permissions`, `logs`, `agents`, `apps`, `invite-code`, `capi`, `database-nosql`, `database-sql`, `data-model`。
 
 ### 托管模式环境变量说明
 
@@ -232,12 +232,15 @@ CloudBase MCP 针对不同部署场景提供分层安全保护：
 
 ## 支持的插件
 
-当前插件名称、默认启用集合与兼容别名以 `mcp/src/server.ts` 为准。下表列出当前支持的 canonical 名称：
+当前插件名称、默认启用集合与兼容别名以 `mcp/src/server.ts` 为准。下表列出当前支持的全部 canonical 名称：
 
 | 插件名 | 默认启用 | 说明 |
 |--------|----------|------|
 | `env` | 是 | 环境登录、环境查询、安全域名管理 |
-| `database` | 是 | NoSQL / SQL / 数据模型 |
+| `database` | 是 | NoSQL 数据库 + 数据模型（组合注册） |
+| `pg_database` | 是 | PostgreSQL 数据库 |
+| `pg_storage` | 是 | PostgreSQL 存储 |
+| `mysql_database` | 是 | MySQL 数据库 |
 | `functions` | 是 | 云函数查询、创建、更新、调用 |
 | `hosting` | 是 | 静态托管与域名管理 |
 | `storage` | 是 | 云存储文件管理 |
@@ -250,13 +253,26 @@ CloudBase MCP 针对不同部署场景提供分层安全保护：
 | `permissions` | 是 | 权限、角色与安全规则 |
 | `logs` | 是 | 日志服务状态与日志检索 |
 | `agents` | 是 | Agent 查询与管理 |
+| `apps` | 是 | CloudApp 应用与版本管理 |
 | `invite-code` | 是 | AI 编程激励激活 |
 | `capi` | 是 | 通用云 API 调用 |
-| `apps` | 是 | CloudApp 应用与版本管理 |
+| `database-nosql` | 否 | 仅 NoSQL 数据库（`database` 的子集） |
+| `database-sql` | 否 | 仅 SQL 数据库（`mysql_database` 的子集） |
+| `data-model` | 否 | 仅数据模型（`database` 的子集） |
 
-其中 `permissions` 兼容旧别名 `security-rule`、`security-rules`、`access-control`、`secret-rule`、`secret-rules`、`users`；`app-auth` 兼容旧别名 `auth-config`。新文档与新示例请优先使用 canonical 名称。
+兼容别名（建议优先使用 canonical 名称）：
 
-未配置时默认启用上表中“默认启用”为“是”的插件；可通过环境变量或 URL 参数控制插件范围。`enable_plugins` / `disable_plugins` 以及 `CLOUDBASE_MCP_PLUGINS_ENABLED` / `CLOUDBASE_MCP_PLUGINS_DISABLED` 的多值格式均为**逗号分隔**。
+| 别名 | → canonical |
+|------|-------------|
+| `access-control` | `permissions` |
+| `auth-config` | `app-auth` |
+| `security-rule` / `security-rules` | `permissions` |
+| `secret-rule` / `secret-rules` | `permissions` |
+| `users` | `permissions` |
+| `mysql` / `mysql-database` | `mysql_database` |
+| `sql-database` | `mysql_database` |
+
+未配置时默认启用上表中"默认启用"为"是"的插件；可通过环境变量或 URL 参数控制插件范围。`enable_plugins` / `disable_plugins` 以及 `CLOUDBASE_MCP_PLUGINS_ENABLED` / `CLOUDBASE_MCP_PLUGINS_DISABLED` 的多值格式均为**逗号分隔**。
 
 ## 支持的工具
 

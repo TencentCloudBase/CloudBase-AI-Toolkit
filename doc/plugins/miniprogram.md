@@ -59,7 +59,7 @@
 
 ## 相关文档
 
-- [插件系统总览](../plugins.md)
+- [插件系统总览](../connection-modes.mdx#支持的插件)
 - [项目模板](../templates.md)
 - [微信小程序 Skill](../prompts/miniprogram-development.mdx)
 - [MCP 工具](../mcp-tools.md)
