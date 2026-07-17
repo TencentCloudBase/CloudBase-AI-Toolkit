@@ -60,10 +60,10 @@ npx plugins add TencentCloudBase/cloudbase-plugin --yes
 
 ```bash
 # 仅安装到 Cursor
-npx plugins add TencentCloudBase/CloudBase-MCP --target cursor
+npx plugins add TencentCloudBase/cloudbase-plugin --target cursor
 
 # 仅安装到当前项目（不污染全局配置）
-npx plugins add TencentCloudBase/CloudBase-MCP --scope local
+npx plugins add TencentCloudBase/cloudbase-plugin --scope local
 ```
 
 > ⚠️ **避免重复安装**：如果你已经通过方式 2（`claude plugin install`、`codex plugin add` 等）安装过 CloudBase 插件，**请勿**再用 `npx plugins add` 安装到同一 IDE，否则可能产生重复实例。两种方式二选一即可。
