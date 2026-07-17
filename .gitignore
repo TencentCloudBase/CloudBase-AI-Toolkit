@@ -36,3 +36,4 @@ mcp/.vscode/
 mcp/.windsurf/
 mcp/rules/
 mcp/src/wxide-mcp-e2e.test.js
+.plugin-repo-output/

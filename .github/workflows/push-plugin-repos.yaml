@@ -1,0 +1,101 @@
+name: Push Plugin Repos
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'plugin/cloudbase/**'
+      - 'plugin/cloudbase-sites/**'
+      - 'scripts/build-open-plugin-spec.mjs'
+      - 'scripts/push-plugin-repos.mjs'
+  workflow_dispatch:
+
+jobs:
+  push-plugin-repos:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+
+      - name: Build Open Plugin Spec artifacts
+        run: |
+          node scripts/build-open-plugin-spec.mjs
+
+      - name: Build plugin repo output
+        run: |
+          node scripts/push-plugin-repos.mjs
+
+      - name: Sync cloudbase-plugin repo
+        env:
+          PLUGINS_REPO_TOKEN: ${{ secrets.PLUGINS_REPO_TOKEN }}
+        run: |
+          if [ -z "$PLUGINS_REPO_TOKEN" ]; then
+            echo "⚠ PLUGINS_REPO_TOKEN not configured, skipping cloudbase-plugin sync"
+            exit 0
+          fi
+
+          # Checkout target repo
+          git clone --depth 1 https://x-access-token:${PLUGINS_REPO_TOKEN}@github.com/TencentCloudBase/cloudbase-plugin.git /tmp/cloudbase-plugin
+
+          # Clear target (keep .git)
+          cd /tmp/cloudbase-plugin
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+          # Copy output
+          cp -r "${{ github.workspace }}/.plugin-repo-output/cloudbase/"* .
+
+          # Commit and push
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "chore: sync from CloudBase-MCP [skip ci]"
+            git push
+            echo "✓ Pushed to cloudbase-plugin"
+          else
+            echo "No changes to push"
+          fi
+
+      - name: Sync cloudbase-sites-plugin repo
+        env:
+          PLUGINS_REPO_TOKEN: ${{ secrets.PLUGINS_REPO_TOKEN }}
+        run: |
+          if [ -z "$PLUGINS_REPO_TOKEN" ]; then
+            echo "⚠ PLUGINS_REPO_TOKEN not configured, skipping cloudbase-sites-plugin sync"
+            exit 0
+          fi
+
+          # Checkout target repo
+          git clone --depth 1 https://x-access-token:${PLUGINS_REPO_TOKEN}@github.com/TencentCloudBase/cloudbase-sites-plugin.git /tmp/cloudbase-sites-plugin
+
+          # Clear target (keep .git)
+          cd /tmp/cloudbase-sites-plugin
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+          # Copy output
+          cp -r "${{ github.workspace }}/.plugin-repo-output/cloudbase-sites/"* .
+
+          # Commit and push
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "chore: sync from CloudBase-MCP [skip ci]"
+            git push
+            echo "✓ Pushed to cloudbase-sites-plugin"
+          else
+            echo "No changes to push"
+          fi
