@@ -84,17 +84,20 @@ jobs:
 
           git clone --depth 1 "https://x-access-token:${PLUGINS_REPO_TOKEN}@github.com/TencentCloudBase/cloudbase-plugin.git" /tmp/cloudbase-plugin
 
-          # Clear target (keep .git). Use rsync so dotfiles (.plugin, .claude-plugin, …) are included.
+          # Clear target (keep .git). Use rsync so Open Plugin Spec dotdirs (.plugin) are included.
           # `cp -r src/* dest` silently drops hidden paths.
           rsync -a --delete --exclude='.git' \
             "${{ github.workspace }}/.plugin-repo-output/cloudbase/" \
             /tmp/cloudbase-plugin/
 
-          # Guardrail: Open Plugin Spec manifest must exist after sync
+          # Guardrail: OPS-only dedicated repo
           test -f /tmp/cloudbase-plugin/.plugin/plugin.json
+          test -f /tmp/cloudbase-plugin/mcp.json
           test -f /tmp/cloudbase-plugin/generated/skill-manifest.json
           test -f /tmp/cloudbase-plugin/generated/synonyms.json
           test ! -f /tmp/cloudbase-plugin/marketplace.json
+          test ! -d /tmp/cloudbase-plugin/.claude-plugin
+          test ! -d /tmp/cloudbase-plugin/.codex-plugin
 
           cd /tmp/cloudbase-plugin
           git config user.name "github-actions[bot]"
@@ -122,7 +125,10 @@ jobs:
             /tmp/cloudbase-sites-plugin/
 
           test -f /tmp/cloudbase-sites-plugin/.plugin/plugin.json
+          test -f /tmp/cloudbase-sites-plugin/mcp.json
           test ! -f /tmp/cloudbase-sites-plugin/marketplace.json
+          test ! -d /tmp/cloudbase-sites-plugin/.claude-plugin
+          test ! -d /tmp/cloudbase-sites-plugin/.codex-plugin
 
           cd /tmp/cloudbase-sites-plugin
           git config user.name "github-actions[bot]"

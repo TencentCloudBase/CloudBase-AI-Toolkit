@@ -3,9 +3,11 @@
 /**
  * Build plugin repository output for syncing to dedicated plugin repos.
  *
- * For each plugin, copies its contents to .plugin-repo-output/<name>/
- * while EXCLUDING marketplace.json files (which cause `npx plugins` CLI
- * to treat the repo as a marketplace instead of a single plugin).
+ * Dedicated repos are Open Plugin Spec only (`npx plugins add`).
+ * Vendor-native marketplace manifests stay in the main CloudBase-MCP repo:
+ *   - `.claude-plugin/`  → Claude Code marketplace
+ *   - `.codex-plugin/`   → Codex marketplace
+ *   - `marketplace.json` → would make plugins CLI treat the repo as a marketplace
  *
  * Output: .plugin-repo-output/cloudbase/ and .plugin-repo-output/cloudbase-sites/
  *
@@ -44,12 +46,13 @@ const PLUGINS = [
 
 /**
  * Files/dirs to EXCLUDE when copying to dedicated plugin repo.
- * marketplace.json causes `plugins` CLI to treat repo as marketplace, not single plugin.
  * Keep generated/ — hooks need skill-manifest.json and synonyms.json at runtime.
  */
 const EXCLUDE_PATTERNS = [
+  // Marketplace / vendor-native install paths stay in CloudBase-MCP only
   "marketplace.json",
-  ".claude-plugin/marketplace.json",
+  ".claude-plugin",
+  ".codex-plugin",
   ".sync-metadata.json",
   ".DS_Store",
   ".gitkeep",
@@ -90,7 +93,11 @@ function generateReadme(plugin) {
 
 ${plugin.description}
 
-This repository is automatically synced from [${plugin.repoName.split("/")[0]}/CloudBase-MCP](https://github.com/${plugin.repoName.split("/")[0]}/CloudBase-MCP).
+This repository is automatically synced from [${plugin.repoName.split("/")[0]}/CloudBase-MCP](https://github.com/${plugin.repoName.split("/")[0]}/CloudBase-MCP)
+(\`plugin/${plugin.name}/\`, Open Plugin Spec artifacts only).
+
+Claude Code / Codex native marketplace install continues to use the main
+[CloudBase-MCP](https://github.com/${plugin.repoName.split("/")[0]}/CloudBase-MCP) repository.
 
 ## Installation
 
@@ -134,24 +141,27 @@ function checkPlugin(plugin) {
     return false;
   }
 
-  // Verify no marketplace.json in output
+  // Vendor-native / marketplace files must NOT appear in dedicated OPS repos
   const forbidden = [
-    path.join(outDir, "marketplace.json"),
-    path.join(outDir, ".claude-plugin", "marketplace.json"),
+    "marketplace.json",
+    ".claude-plugin",
+    ".codex-plugin",
+    path.join(".claude-plugin", "marketplace.json"),
+    path.join(".claude-plugin", "plugin.json"),
+    path.join(".codex-plugin", "plugin.json"),
   ];
-  for (const p of forbidden) {
+  for (const rel of forbidden) {
+    const p = path.join(outDir, rel);
     if (fs.existsSync(p)) {
-      console.error(`✗ [${plugin.name}] Found forbidden file: ${path.relative(outDir, p)}`);
+      console.error(`✗ [${plugin.name}] Found forbidden path (vendor/marketplace): ${rel}`);
       return false;
     }
   }
 
-  // Required Open Plugin Spec / vendor manifests (dotdirs must survive sync)
+  // Required Open Plugin Spec artifacts
   const required = [
     [".plugin/plugin.json", path.join(outDir, ".plugin", "plugin.json")],
     ["mcp.json", path.join(outDir, "mcp.json")],
-    [".mcp.json", path.join(outDir, ".mcp.json")],
-    [".claude-plugin/plugin.json", path.join(outDir, ".claude-plugin", "plugin.json")],
   ];
   for (const [label, p] of required) {
     if (!fs.existsSync(p)) {

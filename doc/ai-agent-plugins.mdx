@@ -42,7 +42,7 @@ npx plugins add TencentCloudBase/cloudbase-sites-plugin
 npx plugins add TencentCloudBase/cloudbase-plugin --yes
 ```
 
-> 💡 专门插件仓库 `TencentCloudBase/cloudbase-plugin` 由主仓库 CI 自动同步，内容与 `plugin/cloudbase/` 一致，但不含 `marketplace.json`，确保 `plugins` CLI 能将其识别为单插件而非 marketplace。
+> 💡 专门插件仓库 `TencentCloudBase/cloudbase-plugin` 由主仓库 CI 自动同步，只包含 [Open Plugin Specification](https://open-plugins.com/plugin-builders/specification) 标准内容（`.plugin/`、`mcp.json`、skills/hooks 等），不含 `marketplace.json` / `.claude-plugin` / `.codex-plugin`。Claude Code / Codex 原生 marketplace 安装请继续使用主仓库 `TencentCloudBase/CloudBase-MCP`。
 
 **支持的 AI 编程助手**（自动检测，检测到几个就装几个）：
 
