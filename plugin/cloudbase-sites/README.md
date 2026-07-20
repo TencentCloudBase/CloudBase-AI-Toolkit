@@ -22,7 +22,7 @@ Add the CloudBase marketplace, then install the plugin:
 
 ```bash
 # Add the marketplace (do this once)
-codex plugin marketplace add TencentCloudBase/cloudbase-mcp --ref main --name cloudbase-plugins
+codex plugin marketplace add TencentCloudBase/CloudBase-MCP --ref main --name cloudbase-plugins
 
 # Install the sites plugin
 codex plugin add cloudbase-sites@cloudbase-plugins
@@ -47,14 +47,14 @@ marketplace, then install the Sites plugin:
 
 ```bash
 # Interactive command inside Claude Code
-/plugin marketplace add TencentCloudBase/cloudbase-mcp
+/plugin marketplace add TencentCloudBase/CloudBase-MCP
 /plugin install cloudbase-sites@tencent-cloudbase
 ```
 
 For non-interactive setup:
 
 ```bash
-claude plugin marketplace add TencentCloudBase/cloudbase-mcp
+claude plugin marketplace add TencentCloudBase/CloudBase-MCP
 claude plugin install cloudbase-sites@tencent-cloudbase
 ```
 

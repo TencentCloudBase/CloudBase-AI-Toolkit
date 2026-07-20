@@ -26,7 +26,7 @@ Add the CloudBase marketplace, then install the plugin:
 
 ```bash
 # Add the marketplace (do this once)
-codex plugin marketplace add TencentCloudBase/cloudbase-mcp --ref main --name cloudbase-plugins
+codex plugin marketplace add TencentCloudBase/CloudBase-MCP --ref main --name cloudbase-plugins
 
 # Install plugins from the marketplace
 codex plugin add cloudbase@cloudbase-plugins
@@ -51,14 +51,14 @@ marketplace, then install the plugin:
 
 ```bash
 # Interactive command inside Claude Code
-/plugin marketplace add TencentCloudBase/cloudbase-mcp
+/plugin marketplace add TencentCloudBase/CloudBase-MCP
 /plugin install cloudbase@tencent-cloudbase
 ```
 
 For non-interactive setup:
 
 ```bash
-claude plugin marketplace add TencentCloudBase/cloudbase-mcp
+claude plugin marketplace add TencentCloudBase/CloudBase-MCP
 claude plugin install cloudbase@tencent-cloudbase
 ```
 
@@ -83,7 +83,7 @@ Add the cloudbase MCP server to your project:
 
 For granular skill activation, skills are available under
 `plugin/cloudbase/skills/` in the
-[cloudbase-mcp repository](https://github.com/TencentCloudBase/cloudbase-mcp).
+[CloudBase-MCP repository](https://github.com/TencentCloudBase/CloudBase-MCP).
 Copy the ones you need into your project's `.claude/skills/` directory.
 
 ### Gemini CLI
@@ -92,8 +92,8 @@ Install via the CloudBase GitHub repository:
 
 ```bash
 # Clone and link the extension
-git clone https://github.com/TencentCloudBase/cloudbase-mcp
-gemini extensions link "$(pwd)/cloudbase-mcp/plugin/cloudbase"
+git clone https://github.com/TencentCloudBase/CloudBase-MCP
+gemini extensions link "$(pwd)/CloudBase-MCP/plugin/cloudbase"
 ```
 
 The extension auto-discovers skills from `skills/` and registers the `cloudbase`
