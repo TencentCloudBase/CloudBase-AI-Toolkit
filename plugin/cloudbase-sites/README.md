@@ -14,7 +14,22 @@ CodeBuddy, and Codex.
 - **Skills** — The `cloudbase-sites-runtime` skill orchestrates the full
   vibe-coding session.
 
+## One-click install (recommended)
+
+Install via the dedicated plugin repository (Open Plugin Spec):
+
+```bash
+npx plugins add TencentCloudBase/cloudbase-sites-plugin
+```
+
+This works with Claude Code, Cursor, Codex, and other hosts that support the
+[Open Plugin Specification](https://open-plugins.com/plugin-builders/specification).
+The dedicated repo is auto-synced from this directory (without `marketplace.json`).
+
 ## Quick start per host
+
+Use these host-native marketplace flows when you prefer IDE-specific install
+paths instead of `npx plugins add`.
 
 ### Codex
 

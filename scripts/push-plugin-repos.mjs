@@ -171,6 +171,27 @@ function checkPlugin(plugin) {
         return false;
       }
     }
+
+    // promptSignals currently survive only in committed skill-manifest.json.
+    // Refuse to publish an empty matching table (would disable skill-inject).
+    try {
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(outDir, "generated", "skill-manifest.json"), "utf-8"),
+      );
+      const skills = Object.values(manifest.skills || {});
+      const withSignals = skills.filter((s) => (s.promptSignals?.phrases || []).length > 0);
+      if (skills.length === 0 || withSignals.length === 0) {
+        console.error(
+          `✗ [${plugin.name}] generated/skill-manifest.json has empty promptSignals ` +
+            `(${withSignals.length}/${skills.length}). Do not rebuild from SKILL.md until ` +
+            `skill-metadata persistence is implemented.`,
+        );
+        return false;
+      }
+    } catch (err) {
+      console.error(`✗ [${plugin.name}] Failed to parse generated/skill-manifest.json: ${err.message}`);
+      return false;
+    }
   }
 
   console.log(`✓ [${plugin.name}] Output looks good`);
