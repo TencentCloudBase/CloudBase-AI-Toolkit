@@ -8,7 +8,6 @@ on:
       - 'plugin/cloudbase/**'
       - 'plugin/cloudbase-sites/**'
       - 'scripts/build-open-plugin-spec.mjs'
-      - 'scripts/build-skill-manifest.mjs'
       - 'scripts/push-plugin-repos.mjs'
   workflow_dispatch:
 
@@ -38,16 +37,35 @@ jobs:
             exit 1
           fi
 
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-
-      - name: Rebuild skill-inject artifacts
+      - name: Validate skill-inject artifacts
         run: |
-          # Keep generated/skill-manifest.json in sync with skills before
-          # publishing to dedicated plugin repos (hooks load it at runtime).
-          node scripts/build-skill-manifest.mjs
-          test -f plugin/cloudbase/generated/skill-manifest.json
-          test -f plugin/cloudbase/generated/synonyms.json
+          # Do NOT run build-skill-manifest here: promptSignals/retrieval currently
+          # live only in generated/skill-manifest.json (not SKILL.md frontmatter).
+          # Rebuilding from skills would wipe matching data until skill-metadata
+          # persistence lands. Validate the committed artifact instead.
+          node -e "
+            const fs = require('fs');
+            const manifestPath = 'plugin/cloudbase/generated/skill-manifest.json';
+            const synonymsPath = 'plugin/cloudbase/generated/synonyms.json';
+            for (const p of [manifestPath, synonymsPath]) {
+              if (!fs.existsSync(p)) {
+                console.error('Missing required artifact:', p);
+                process.exit(1);
+              }
+            }
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+            const skills = Object.values(manifest.skills || {});
+            if (skills.length === 0) {
+              console.error('skill-manifest.json has no skills');
+              process.exit(1);
+            }
+            const withSignals = skills.filter((s) => (s.promptSignals?.phrases || []).length > 0);
+            if (withSignals.length === 0) {
+              console.error('skill-manifest.json has empty promptSignals — refusing to sync broken hooks data');
+              process.exit(1);
+            }
+            console.log('✓ skill-manifest ok:', skills.length, 'skills,', withSignals.length, 'with promptSignals');
+          "
 
       - name: Build Open Plugin Spec artifacts
         run: |
