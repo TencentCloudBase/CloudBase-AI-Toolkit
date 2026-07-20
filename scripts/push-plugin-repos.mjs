@@ -30,24 +30,27 @@ const PLUGINS = [
     sourceDir: path.join(ROOT_DIR, "plugin", "cloudbase"),
     repoName: "TencentCloudBase/cloudbase-plugin",
     description: "CloudBase AI Plugin — MCP Server + Agent Skills for AI Coding Agents",
+    // Hooks load skill-manifest.json + synonyms.json at runtime.
+    requireGenerated: true,
   },
   {
     name: "cloudbase-sites",
     sourceDir: path.join(ROOT_DIR, "plugin", "cloudbase-sites"),
     repoName: "TencentCloudBase/cloudbase-sites-plugin",
     description: "CloudBase Sites Plugin — create, deploy, and manage Vite web apps on CloudBase",
+    requireGenerated: false,
   },
 ];
 
 /**
  * Files/dirs to EXCLUDE when copying to dedicated plugin repo.
  * marketplace.json causes `plugins` CLI to treat repo as marketplace, not single plugin.
+ * Keep generated/ — hooks need skill-manifest.json and synonyms.json at runtime.
  */
 const EXCLUDE_PATTERNS = [
   "marketplace.json",
   ".claude-plugin/marketplace.json",
   ".sync-metadata.json",
-  "generated",           // build artifacts, not needed in plugin repo
   ".DS_Store",
   ".gitkeep",
 ];
@@ -132,27 +135,42 @@ function checkPlugin(plugin) {
   }
 
   // Verify no marketplace.json in output
-  const checks = [
+  const forbidden = [
     path.join(outDir, "marketplace.json"),
     path.join(outDir, ".claude-plugin", "marketplace.json"),
   ];
-  for (const p of checks) {
+  for (const p of forbidden) {
     if (fs.existsSync(p)) {
       console.error(`✗ [${plugin.name}] Found forbidden file: ${path.relative(outDir, p)}`);
       return false;
     }
   }
 
-  // Verify .plugin/plugin.json exists
-  if (!fs.existsSync(path.join(outDir, ".plugin", "plugin.json"))) {
-    console.error(`✗ [${plugin.name}] Missing .plugin/plugin.json`);
-    return false;
+  // Required Open Plugin Spec / vendor manifests (dotdirs must survive sync)
+  const required = [
+    [".plugin/plugin.json", path.join(outDir, ".plugin", "plugin.json")],
+    ["mcp.json", path.join(outDir, "mcp.json")],
+    [".mcp.json", path.join(outDir, ".mcp.json")],
+    [".claude-plugin/plugin.json", path.join(outDir, ".claude-plugin", "plugin.json")],
+  ];
+  for (const [label, p] of required) {
+    if (!fs.existsSync(p)) {
+      console.error(`✗ [${plugin.name}] Missing required file: ${label}`);
+      return false;
+    }
   }
 
-  // Verify mcp.json exists
-  if (!fs.existsSync(path.join(outDir, "mcp.json"))) {
-    console.error(`✗ [${plugin.name}] Missing mcp.json`);
-    return false;
+  if (plugin.requireGenerated) {
+    const generatedRequired = [
+      "generated/skill-manifest.json",
+      "generated/synonyms.json",
+    ];
+    for (const rel of generatedRequired) {
+      if (!fs.existsSync(path.join(outDir, rel))) {
+        console.error(`✗ [${plugin.name}] Missing required runtime artifact: ${rel}`);
+        return false;
+      }
+    }
   }
 
   console.log(`✓ [${plugin.name}] Output looks good`);
@@ -181,6 +199,13 @@ function main() {
   for (const plugin of PLUGINS) {
     totalFiles += buildPlugin(plugin);
   }
+
+  // Always validate after generate so CI catches incomplete output early
+  let allGood = true;
+  for (const plugin of PLUGINS) {
+    if (!checkPlugin(plugin)) allGood = false;
+  }
+  if (!allGood) process.exit(1);
 
   console.log(`\nDone. ${totalFiles} total files in ${path.relative(ROOT_DIR, OUTPUT_DIR)}/`);
 }

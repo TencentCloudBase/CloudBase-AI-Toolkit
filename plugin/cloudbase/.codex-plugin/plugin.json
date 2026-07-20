@@ -6,8 +6,8 @@
     "name": "Tencent CloudBase",
     "url": "https://cloudbase.net"
   },
-  "homepage": "https://github.com/TencentCloudBase/cloudbase-mcp",
-  "repository": "https://github.com/TencentCloudBase/cloudbase-mcp",
+  "homepage": "https://github.com/TencentCloudBase/cloudbase-plugin",
+  "repository": "https://github.com/TencentCloudBase/CloudBase-MCP",
   "license": "MIT",
   "keywords": [
     "cloudbase",

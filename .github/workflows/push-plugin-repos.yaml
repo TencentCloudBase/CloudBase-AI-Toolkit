@@ -28,6 +28,15 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Require PLUGINS_REPO_TOKEN
+        env:
+          PLUGINS_REPO_TOKEN: ${{ secrets.PLUGINS_REPO_TOKEN }}
+        run: |
+          if [ -z "$PLUGINS_REPO_TOKEN" ]; then
+            echo "::error::PLUGINS_REPO_TOKEN is not configured. Dedicated plugin repos cannot be synced."
+            exit 1
+          fi
+
       - name: Build Open Plugin Spec artifacts
         run: |
           node scripts/build-open-plugin-spec.mjs
@@ -35,32 +44,34 @@ jobs:
       - name: Build plugin repo output
         run: |
           node scripts/push-plugin-repos.mjs
+          node scripts/push-plugin-repos.mjs --check
 
       - name: Sync cloudbase-plugin repo
         env:
           PLUGINS_REPO_TOKEN: ${{ secrets.PLUGINS_REPO_TOKEN }}
         run: |
-          if [ -z "$PLUGINS_REPO_TOKEN" ]; then
-            echo "⚠ PLUGINS_REPO_TOKEN not configured, skipping cloudbase-plugin sync"
-            exit 0
-          fi
+          set -euo pipefail
 
-          # Checkout target repo
-          git clone --depth 1 https://x-access-token:${PLUGINS_REPO_TOKEN}@github.com/TencentCloudBase/cloudbase-plugin.git /tmp/cloudbase-plugin
+          git clone --depth 1 "https://x-access-token:${PLUGINS_REPO_TOKEN}@github.com/TencentCloudBase/cloudbase-plugin.git" /tmp/cloudbase-plugin
 
-          # Clear target (keep .git)
+          # Clear target (keep .git). Use rsync so dotfiles (.plugin, .claude-plugin, …) are included.
+          # `cp -r src/* dest` silently drops hidden paths.
+          rsync -a --delete --exclude='.git' \
+            "${{ github.workspace }}/.plugin-repo-output/cloudbase/" \
+            /tmp/cloudbase-plugin/
+
+          # Guardrail: Open Plugin Spec manifest must exist after sync
+          test -f /tmp/cloudbase-plugin/.plugin/plugin.json
+          test -f /tmp/cloudbase-plugin/generated/skill-manifest.json
+          test -f /tmp/cloudbase-plugin/generated/synonyms.json
+          test ! -f /tmp/cloudbase-plugin/marketplace.json
+
           cd /tmp/cloudbase-plugin
-          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-
-          # Copy output
-          cp -r "${{ github.workspace }}/.plugin-repo-output/cloudbase/"* .
-
-          # Commit and push
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           if [ -n "$(git status --porcelain)" ]; then
-            git add .
+            git add -A
             git commit -m "chore: sync from CloudBase-MCP [skip ci]"
             git push
             echo "✓ Pushed to cloudbase-plugin"
@@ -72,27 +83,23 @@ jobs:
         env:
           PLUGINS_REPO_TOKEN: ${{ secrets.PLUGINS_REPO_TOKEN }}
         run: |
-          if [ -z "$PLUGINS_REPO_TOKEN" ]; then
-            echo "⚠ PLUGINS_REPO_TOKEN not configured, skipping cloudbase-sites-plugin sync"
-            exit 0
-          fi
+          set -euo pipefail
 
-          # Checkout target repo
-          git clone --depth 1 https://x-access-token:${PLUGINS_REPO_TOKEN}@github.com/TencentCloudBase/cloudbase-sites-plugin.git /tmp/cloudbase-sites-plugin
+          git clone --depth 1 "https://x-access-token:${PLUGINS_REPO_TOKEN}@github.com/TencentCloudBase/cloudbase-sites-plugin.git" /tmp/cloudbase-sites-plugin
 
-          # Clear target (keep .git)
+          rsync -a --delete --exclude='.git' \
+            "${{ github.workspace }}/.plugin-repo-output/cloudbase-sites/" \
+            /tmp/cloudbase-sites-plugin/
+
+          test -f /tmp/cloudbase-sites-plugin/.plugin/plugin.json
+          test ! -f /tmp/cloudbase-sites-plugin/marketplace.json
+
           cd /tmp/cloudbase-sites-plugin
-          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-
-          # Copy output
-          cp -r "${{ github.workspace }}/.plugin-repo-output/cloudbase-sites/"* .
-
-          # Commit and push
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           if [ -n "$(git status --porcelain)" ]; then
-            git add .
+            git add -A
             git commit -m "chore: sync from CloudBase-MCP [skip ci]"
             git push
             echo "✓ Pushed to cloudbase-sites-plugin"

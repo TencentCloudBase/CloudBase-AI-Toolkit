@@ -62,8 +62,8 @@ jobs:
             esac
           done
       
-          # 2. 拷贝生成产物覆盖（如果有同名目录，会被上面的删除逻辑释放出来）
-          cp -r ../.skills-repo-output/* .
+          # 2. Copy generated output (rsync includes dotfiles; `cp src/*` drops them)
+          rsync -a ../.skills-repo-output/ .
       
       - name: Commit and push changes
         env:
