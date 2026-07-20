@@ -6,7 +6,7 @@
     "name": "Tencent CloudBase",
     "url": "https://cloudbase.net"
   },
-  "homepage": "https://github.com/TencentCloudBase/cloudbase-mcp",
+  "homepage": "https://github.com/TencentCloudBase/cloudbase-plugin",
   "license": "MIT",
   "keywords": [
     "cloudbase",
