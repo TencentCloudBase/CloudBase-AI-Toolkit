@@ -1,7 +1,7 @@
 ---
 name: postgresql-development-cloudbase
 description: "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG."
-version: 2.23.11
+version: 2.24.0
 alwaysApply: false
 ---
 
@@ -78,16 +78,26 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
 1. Inspect the existing app surfaces first: `src/lib/backend.*`, `src/lib/auth.*`, `src/lib/*service.*`, route guards, and the handlers bound to existing forms.
 2. Check PG state through MCP: use `queryPgDatabase` for schema/read-only inspection and `managePgDatabase` for DDL/DML. Do not switch to MySQL tools. For the complete route map, read `references/index.md`.
 3. **Understand PG roles before writing code:** Publishable Key maps to `anon`; a logged-in user's access token maps to `authenticated`; API Key maps to `service_role` and bypasses RLS. Never expose API Key / `service_role` credentials in frontend code. See `references/auth-and-rls.md`.
-4. **Use schema management (`managePgDatabase`) before writing CRUD code:** Create tables via `managePgDatabase(action=execute, confirm=true)` with CREATE TABLE SQL, then apply GRANT + RLS before browser access. The minimum SQL bundle is: `CREATE TABLE`, `GRANT SELECT/INSERT/UPDATE/DELETE TO authenticated`, `GRANT USAGE, SELECT ON SEQUENCE ... TO authenticated` when using `serial`/`bigserial`, `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, and `CREATE POLICY ... USING / WITH CHECK`. See `references/auth-and-rls.md` for the full template. For structured schema changes, use the migration workflow:
-   - `managePgDatabase(action=planMigration, sql=...)` — preview migration plan via `PreviewPGUserMigrations`
-   - `managePgDatabase(action=applyMigration, sql=..., confirm=true)` — batch-apply migrations via `PushPGUserMigrations`
-   - `managePgDatabase(action=listMigrations)` — list all applied migrations
-   - `managePgDatabase(action=migrationDetail, objectName=...)` — inspect a single migration
-   - `managePgDatabase(action=rollbackMigration, objectName=..., confirm=true)` — roll back a migration
+4. **Use schema management (`managePgDatabase`) before writing CRUD code.** Schema DDL (CREATE / ALTER / DROP / TRUNCATE) **must** go through the versioned migration workflow — never default to `execute` for table creation. Then apply GRANT + RLS (via `execute` or the same migration SQL bundle) before browser access. The minimum SQL bundle is: `CREATE TABLE`, `GRANT SELECT/INSERT/UPDATE/DELETE TO authenticated`, `GRANT USAGE, SELECT ON SEQUENCE ... TO authenticated` when using `serial`/`bigserial`, `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, and `CREATE POLICY ... USING / WITH CHECK`. See `references/auth-and-rls.md` for the full template.
+
+   **Default schema-change workflow (local file first, then remote history):**
+   1. Choose `migrationVersion` = 14-digit UTC timestamp `YYYYMMDDHHMMSS` and `migrationName` = snake_case (e.g. `add_users`).
+   2. Write local file `migrations/<migrationVersion>_<migrationName>.sql` with the DDL (and optional rollback SQL in comments or a paired file).
+   3. Optional preview: `managePgDatabase(action=planMigration, migrationName=..., migrationVersion=..., sql=...)`.
+   4. Apply: `managePgDatabase(action=applyMigration, migrationName=..., migrationVersion=..., sql=..., confirm=true)` — reuse the **same** version/name as the local file.
+   5. Verify: `managePgDatabase(action=listMigrations)` and confirm the remote history records the same `migrationVersion`.
+   6. Then write frontend CRUD / RLS checks.
+
+   Other migration actions:
+   - `managePgDatabase(action=migrationDetail, migrationVersion=...)` — inspect a single migration
+   - `managePgDatabase(action=rollbackMigration, lastN=..., confirm=true)` — roll back the last N applied migrations
+   - `managePgDatabase(action=repairMigration, migrationVersion=..., migrationName=..., repairStatus=..., repairReason=...)` — repair history records
+
+   **`execute` is for DML and ops SQL, not default DDL:** use `managePgDatabase(action=execute, confirm=true)` for `INSERT` / `UPDATE` / `DELETE`, and for `GRANT` / `CREATE POLICY` / storage RLS when those are not part of a migration. If you attempt schema DDL via `execute`, the tool soft-blocks with `DDL_USE_APPLY_MIGRATION` unless you explicitly set `allowDdlViaExecute=true` (escape hatch only).
 
    **🚨 CRITICAL: Inspect table existence and column names before CREATE TABLE.** `CREATE TABLE IF NOT EXISTS` silently skips when the table already exists, even if the column names are wrong. Always call `queryPgDatabase(action="sql", sql="SELECT column_name, data_type FROM information_schema.columns WHERE table_name='xxx'")` first to check whether the table exists and what exact column names it uses. If the table already exists with mismatched column names (e.g. `user_id` instead of `uid`), you must either:
-   - `ALTER TABLE` to add/rename/drop columns, or
-   - `DROP TABLE IF EXISTS ... CASCADE` and recreate (only when data loss is acceptable, e.g. disposable/evaluation environments).
+   - `ALTER TABLE` to add/rename/drop columns (via `applyMigration` with a new version), or
+   - `DROP TABLE IF EXISTS ... CASCADE` and recreate via `applyMigration` (only when data loss is acceptable, e.g. disposable/evaluation environments).
    - Do NOT rely on `CREATE TABLE IF NOT EXISTS` silent skip — it will cause all downstream CRUD queries to fail with wrong field names.
    - After DDL, re-query the schema and compare every column name used by frontend code, insert/update payloads, filters, ordering, and RLS policies.
 5. Check username-password auth before coding login:
