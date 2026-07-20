@@ -61,6 +61,8 @@ type ManagePgDatabaseArgs = {
   statementTimeoutMs?: number;
   repairStatus?: "applied" | "reverted";
   repairReason?: string;
+  /** Escape hatch: allow schema DDL through execute instead of applyMigration. Default false. */
+  allowDdlViaExecute?: boolean;
 };
 
 type PgQueryField = {
@@ -306,6 +308,46 @@ function classifySqlRisk(sql: string) {
     readOnly: false,
     requiresConfirm: true,
   };
+}
+
+/**
+ * Schema DDL that must go through applyMigration by default.
+ * Includes CREATE/ALTER/COMMENT (schema_change) and DROP/TRUNCATE / destructive ALTER.
+ * Excludes DML DELETE and security_change (GRANT/POLICY), which may still use execute.
+ */
+function isSchemaDdlRisk(risk: string, sql: string): boolean {
+  if (risk === "schema_change") {
+    return true;
+  }
+  if (risk !== "destructive") {
+    return false;
+  }
+  const verb = getSqlVerb(stripLeadingSqlComments(sql));
+  return ["DROP", "TRUNCATE", "ALTER"].includes(verb);
+}
+
+function buildLocalMigrationFileHint(version: string, name: string): string {
+  return `migrations/${version}_${name}.sql`;
+}
+
+const MIGRATION_VERSION_REQUIRED_MESSAGE =
+  "migrationVersion is required (14-digit UTC timestamp YYYYMMDDHHMMSS). " +
+  "Decide the version first, write local file migrations/<version>_<migrationName>.sql, " +
+  "then call planMigration/applyMigration with the same migrationVersion and migrationName.";
+
+function requireExplicitMigrationVersion(
+  args: ManagePgDatabaseArgs,
+  actionLabel: string,
+) {
+  const version = args.migrationVersion?.trim();
+  if (!version) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "MIGRATION_VERSION_REQUIRED",
+      message: `Provide migrationVersion when action=${actionLabel}. ${MIGRATION_VERSION_REQUIRED_MESSAGE}`,
+    });
+  }
+  return version;
 }
 
 function quoteIdentifier(identifier: string) {
@@ -817,13 +859,6 @@ async function executeManagerPGSql(
   );
 }
 
-/** Generate a 14-digit migration version (YYYYMMDDHHMMSS) from current time */
-function generateMigrationVersion(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-}
-
 /** Call a CloudBase PG migration API via commonService fallback */
 async function callPgMigrationApi(
   context: PgDbContext,
@@ -1174,6 +1209,47 @@ async function handleExecuteSql(
   }
 
   const classification = classifySqlRisk(args.sql);
+
+  if (isSchemaDdlRisk(classification.risk, args.sql) && args.allowDdlViaExecute !== true) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "DDL_USE_APPLY_MIGRATION",
+      message:
+        "Schema DDL (CREATE/ALTER/DROP/TRUNCATE/...) must use applyMigration with an explicit migrationVersion, " +
+        "not execute. Write local migrations/<version>_<name>.sql first, then call applyMigration. " +
+        "Set allowDdlViaExecute=true only for exceptional one-off ops that intentionally bypass migration history.",
+      data: {
+        classification,
+        localFileHintPattern: "migrations/<migrationVersion>_<migrationName>.sql",
+      },
+      nextActions: [
+        buildNextAction(
+          MANAGE_PG_DATABASE,
+          "planMigration",
+          "Preview the schema change as a versioned migration (provide migrationVersion + migrationName).",
+          {
+            action: "planMigration",
+            migrationName: "describe_your_change",
+            migrationVersion: "YYYYMMDDHHMMSS",
+            sql: args.sql,
+          },
+        ),
+        buildNextAction(
+          MANAGE_PG_DATABASE,
+          "applyMigration",
+          "Apply the schema change via PushPGUserMigrations with the same explicit migrationVersion.",
+          {
+            action: "applyMigration",
+            migrationName: "describe_your_change",
+            migrationVersion: "YYYYMMDDHHMMSS",
+            sql: args.sql,
+            confirm: true,
+          },
+        ),
+      ],
+    });
+  }
+
   if (!classification.readOnly && !args.confirm) {
     return buildPgToolResult({
       success: false,
@@ -1187,7 +1263,12 @@ async function handleExecuteSql(
           MANAGE_PG_DATABASE,
           "execute",
           "Re-issue with confirm=true to actually run the SQL.",
-          { action: "execute", sql: args.sql, confirm: true },
+          {
+            action: "execute",
+            sql: args.sql,
+            confirm: true,
+            ...(args.allowDdlViaExecute === true ? { allowDdlViaExecute: true } : {}),
+          },
         ),
         buildNextAction(
           QUERY_PG_DATABASE,
@@ -1214,8 +1295,17 @@ async function handleExecuteSql(
         .slice(0, 5)
         .map((row) => serializeValue(row) as Record<string, unknown>),
       targetTable: targetTable ?? null,
+      ...(args.allowDdlViaExecute === true && isSchemaDdlRisk(classification.risk, args.sql)
+        ? {
+            warning:
+              "DDL executed via allowDdlViaExecute bypasses migration history. Prefer applyMigration for reproducible schema changes.",
+          }
+        : {}),
     },
-    message: "Write SQL executed successfully.",
+    message:
+      args.allowDdlViaExecute === true && isSchemaDdlRisk(classification.risk, args.sql)
+        ? "Write SQL executed successfully (DDL via allowDdlViaExecute; migration history was bypassed)."
+        : "Write SQL executed successfully.",
     nextActions:
       classification.risk === "schema_change" && targetTable
         ? [
@@ -1256,6 +1346,58 @@ async function handleDryRun(args: ManagePgDatabaseArgs) {
   }
 
   const classification = classifySqlRisk(args.sql);
+  const schemaDdl = isSchemaDdlRisk(classification.risk, args.sql);
+
+  if (classification.readOnly) {
+    return buildPgToolResult({
+      success: true,
+      data: {
+        classification,
+        wouldExecute: false,
+        sqlPreview: args.sql.trim().slice(0, 500),
+      },
+      message:
+        "SQL dry run completed. This statement is read-only; use queryPgDatabase(action=sql) to execute it.",
+      nextActions: [
+        buildNextAction(
+          QUERY_PG_DATABASE,
+          "sql",
+          "Execute the read-only SQL through queryPgDatabase.",
+          { action: "sql", sql: args.sql, limit: 20 },
+        ),
+      ],
+    });
+  }
+
+  if (schemaDdl) {
+    return buildPgToolResult({
+      success: true,
+      data: {
+        classification,
+        wouldExecute: false,
+        sqlPreview: args.sql.trim().slice(0, 500),
+        preferredAction: "applyMigration",
+        localFileHintPattern: "migrations/<migrationVersion>_<migrationName>.sql",
+      },
+      message:
+        "SQL dry run completed. Schema DDL should use applyMigration with an explicit migrationVersion, not execute.",
+      nextActions: [
+        buildNextAction(
+          MANAGE_PG_DATABASE,
+          "applyMigration",
+          "Apply schema DDL via versioned migration (provide migrationVersion + migrationName + confirm=true).",
+          {
+            action: "applyMigration",
+            migrationName: "describe_your_change",
+            migrationVersion: "YYYYMMDDHHMMSS",
+            sql: args.sql,
+            confirm: true,
+          },
+        ),
+      ],
+    });
+  }
+
   return buildPgToolResult({
     success: true,
     data: {
@@ -1263,19 +1405,14 @@ async function handleDryRun(args: ManagePgDatabaseArgs) {
       wouldExecute: false,
       sqlPreview: args.sql.trim().slice(0, 500),
     },
-    message: classification.readOnly
-      ? "SQL dry run completed. This statement is read-only; use queryPgDatabase(action=sql) to execute it."
-      : "SQL dry run completed. Write SQL requires managePgDatabase(action=execute, confirm=true).",
+    message:
+      "SQL dry run completed. Write SQL requires managePgDatabase(action=execute, confirm=true).",
     nextActions: [
       buildNextAction(
-        classification.readOnly ? QUERY_PG_DATABASE : MANAGE_PG_DATABASE,
-        classification.readOnly ? "sql" : "execute",
-        classification.readOnly
-          ? "Execute the read-only SQL through queryPgDatabase."
-          : "Execute the write SQL only after explicit confirmation.",
-        classification.readOnly
-          ? { action: "sql", sql: args.sql, limit: 20 }
-          : { action: "execute", sql: args.sql, confirm: true },
+        MANAGE_PG_DATABASE,
+        "execute",
+        "Execute the write SQL only after explicit confirmation.",
+        { action: "execute", sql: args.sql, confirm: true },
       ),
     ],
   });
@@ -1298,7 +1435,13 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgDbCont
     });
   }
 
-  const version = args.migrationVersion?.trim() || generateMigrationVersion();
+  const versionOrError = requireExplicitMigrationVersion(args, "planMigration");
+  if (typeof versionOrError !== "string") {
+    return versionOrError;
+  }
+  const version = versionOrError;
+  const localFileHint = buildLocalMigrationFileHint(version, args.migrationName);
+
   const migration: Record<string, string> = {
     Version: version,
     Name: args.migrationName,
@@ -1314,14 +1457,26 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgDbCont
     }, cloudBaseOptions);
     return buildPgToolResult({
       success: true,
-      data: result as Record<string, unknown>,
-      message: "Migration plan generated via PreviewPGUserMigrations.",
+      data: {
+        migrationVersion: version,
+        migrationName: args.migrationName,
+        localFileHint,
+        apiResult: result as Record<string, unknown>,
+      },
+      message: `Migration plan generated via PreviewPGUserMigrations. Reuse migrationVersion=${version} on applyMigration. Ensure local file ${localFileHint} exists and matches.`,
       nextActions: [
         buildNextAction(
           MANAGE_PG_DATABASE,
           "applyMigration",
-          "Review the plan above. If it looks correct, call applyMigration to execute.",
-          { action: "applyMigration", migrationName: args.migrationName, sql: args.sql, confirm: true, ...(args.rollbackSql ? { rollbackSql: args.rollbackSql } : {}) },
+          "Review the plan above. If it looks correct, call applyMigration with the same migrationVersion.",
+          {
+            action: "applyMigration",
+            migrationName: args.migrationName,
+            migrationVersion: version,
+            sql: args.sql,
+            confirm: true,
+            ...(args.rollbackSql ? { rollbackSql: args.rollbackSql } : {}),
+          },
         ),
       ],
     });
@@ -1359,7 +1514,13 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
     });
   }
 
-  const version = args.migrationVersion?.trim() || generateMigrationVersion();
+  const versionOrError = requireExplicitMigrationVersion(args, "applyMigration");
+  if (typeof versionOrError !== "string") {
+    return versionOrError;
+  }
+  const version = versionOrError;
+  const localFileHint = buildLocalMigrationFileHint(version, args.migrationName);
+
   const migration: Record<string, string> = {
     Version: version,
     Name: args.migrationName,
@@ -1381,8 +1542,21 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
     const result = await callPgMigrationApi(context, "PushPGUserMigrations", params, cloudBaseOptions);
     return buildPgToolResult({
       success: true,
-      data: result as Record<string, unknown>,
-      message: "Migrations applied via PushPGUserMigrations.",
+      data: {
+        migrationVersion: version,
+        migrationName: args.migrationName,
+        localFileHint,
+        apiResult: result as Record<string, unknown>,
+      },
+      message: `Migrations applied via PushPGUserMigrations. Ensure local file ${localFileHint} exists and matches.`,
+      nextActions: [
+        buildNextAction(
+          MANAGE_PG_DATABASE,
+          "listMigrations",
+          "Verify the remote migration history records the same migrationVersion.",
+          { action: "listMigrations", limit: 20 },
+        ),
+      ],
     });
   } catch (error) {
     return buildPgToolResult({
@@ -1728,12 +1902,12 @@ export function registerPGDatabaseTools(
     {
       title: "管理 PostgreSQL 上下文或执行写入 SQL",
       description:
-        "管理 CloudBase PostgreSQL：执行已确认的写入 SQL 或 DDL、SQL 风险预检、迁移管理。建表、改 schema、数据结构变更优先使用 applyMigration（带版本管理与回滚），而非 execute。",
+        "管理 CloudBase PostgreSQL：执行已确认的写入 SQL、SQL 风险预检、迁移管理。建表/ALTER/DROP 等 schema 变更必须使用 applyMigration（显式 migrationVersion + 本地 migrations/ 留档），不要默认用 execute。execute 主要用于 DML 与 GRANT/RLS 等运维 SQL。",
       inputSchema: {
         action: z
           .enum(MANAGE_ACTIONS)
           .describe(
-            "操作类型：execute=执行已确认的写入 SQL 或 DDL；dryRun=只分析 SQL 风险不执行；planMigration=预览迁移计划（需 migrationName + sql）；applyMigration=应用迁移，建表/改 schema 首选（需 migrationName + sql + confirm=true）；listMigrations=查询已应用的 Migration 列表（可传 limit/offset 分页）；migrationDetail=查看单条 Migration 详情（需 migrationVersion）；rollbackMigration=回滚最近 N 条 Migration（需 lastN + confirm=true）；repairMigration=修复 Migration 历史记录（需 migrationVersion + migrationName + repairStatus + repairReason）",
+            "操作类型：execute=执行已确认的写入 SQL（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）；dryRun=只分析 SQL 风险不执行；planMigration=预览迁移计划（需 migrationName + migrationVersion + sql）；applyMigration=应用迁移，建表/改 schema 首选（需 migrationName + migrationVersion + sql + confirm=true）；listMigrations=查询已应用的 Migration 列表（可传 limit/offset 分页）；migrationDetail=查看单条 Migration 详情（需 migrationVersion）；rollbackMigration=回滚最近 N 条 Migration（需 lastN + confirm=true）；repairMigration=修复 Migration 历史记录（需 migrationVersion + migrationName + repairStatus + repairReason）",
           ),
         sql: z
           .string()
@@ -1776,7 +1950,7 @@ export function registerPGDatabaseTools(
           .string()
           .regex(/^\d{14}$/)
           .optional()
-          .describe("14 位时间戳 YYYYMMDDHHMMSS。detail/repair 必填；plan/apply 不传时自动生成。"),
+          .describe("14 位时间戳 YYYYMMDDHHMMSS。plan/apply/detail/repair 必填；禁止由服务端静默生成，避免与本地 migrations/<version>_<name>.sql 分叉。"),
         rollbackSql: z
           .string()
           .optional()
@@ -1818,6 +1992,12 @@ export function registerPGDatabaseTools(
           .string()
           .optional()
           .describe("repair 必填：修复原因。"),
+        allowDdlViaExecute: z
+          .boolean()
+          .optional()
+          .describe(
+            "可选，默认 false。仅当需要故意绕过 migration history 时设为 true，才允许 schema DDL 走 execute；正常建表/改 schema 必须用 applyMigration。",
+          ),
       },
       annotations: {
         readOnlyHint: false,
@@ -1833,6 +2013,17 @@ export function registerPGDatabaseTools(
 
       switch (args.action) {
         case "execute": {
+          // Soft-block schema DDL before readiness probe so agents get migration guidance immediately.
+          if (args.sql?.trim()) {
+            const classification = classifySqlRisk(args.sql);
+            if (
+              isSchemaDdlRisk(classification.risk, args.sql) &&
+              args.allowDdlViaExecute !== true
+            ) {
+              return handleExecuteSql(args, context, deps);
+            }
+          }
+
           try {
             await ensurePgReadyOnce(cbOpts, deps);
           } catch (error) {

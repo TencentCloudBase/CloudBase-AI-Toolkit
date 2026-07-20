@@ -402,7 +402,46 @@ describe("PG database tools", () => {
     });
   });
 
-  it("managePgDatabase(execute) requires confirm for normal DDL/DML and then executes", async () => {
+  it("managePgDatabase(execute) soft-blocks schema DDL and guides applyMigration", async () => {
+    const { server, tools } = createMockServer();
+    registerPGDatabaseTools(server, {
+      createClient: vi.fn(),
+    });
+
+    const result = await tools.managePgDatabase.handler({
+      action: "execute",
+      sql: "CREATE TABLE public.users(id int)",
+      confirm: true,
+    });
+    const payload = buildToolPayload(result);
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "DDL_USE_APPLY_MIGRATION",
+      data: {
+        classification: {
+          risk: "schema_change",
+        },
+      },
+      nextActions: [
+        {
+          tool: "managePgDatabase",
+          action: "planMigration",
+        },
+        {
+          tool: "managePgDatabase",
+          action: "applyMigration",
+          suggested_args: {
+            action: "applyMigration",
+            sql: "CREATE TABLE public.users(id int)",
+            confirm: true,
+          },
+        },
+      ],
+    });
+  });
+
+  it("managePgDatabase(execute) allows schema DDL only with allowDdlViaExecute=true", async () => {
     const { server, tools } = createMockServer();
     const fakeClient = createFakeClient(async (sql: string) => {
       if (sql === "SELECT 1") {
@@ -422,26 +461,23 @@ describe("PG database tools", () => {
       createClient: vi.fn(() => fakeClient),
     });
 
-    const result = await tools.managePgDatabase.handler({
-      action: "execute",
-      sql: "CREATE TABLE public.users(id int)",
-    });
-    const payload = buildToolPayload(result);
-
-    expect(payload).toMatchObject({
+    const unconfirmed = buildToolPayload(
+      await tools.managePgDatabase.handler({
+        action: "execute",
+        sql: "CREATE TABLE public.users(id int)",
+        allowDdlViaExecute: true,
+      }),
+    );
+    expect(unconfirmed).toMatchObject({
       success: false,
       errorCode: "CONFIRM_REQUIRED",
-      data: {
-        classification: {
-          risk: "schema_change",
-        },
-      },
     });
 
     const confirmedResult = await tools.managePgDatabase.handler({
       action: "execute",
       sql: "CREATE TABLE public.users(id int)",
       confirm: true,
+      allowDdlViaExecute: true,
     });
     const confirmedPayload = buildToolPayload(confirmedResult);
 
@@ -467,7 +503,7 @@ describe("PG database tools", () => {
     });
   });
 
-  it("managePgDatabase(execute) reports the real table for CREATE TABLE IF NOT EXISTS", async () => {
+  it("managePgDatabase(execute) reports the real table for CREATE TABLE IF NOT EXISTS with allowDdlViaExecute", async () => {
     const { server, tools } = createMockServer();
     const fakeClient = createFakeClient(async (sql: string) => {
       if (sql === "SELECT 1") {
@@ -491,6 +527,7 @@ describe("PG database tools", () => {
       action: "execute",
       sql: "CREATE TABLE IF NOT EXISTS public.articles(id int)",
       confirm: true,
+      allowDdlViaExecute: true,
     });
     const payload = buildToolPayload(result);
 
@@ -796,7 +833,25 @@ describe("PG database tools", () => {
       });
     });
 
-    it("planMigration sends Migrations array with auto-generated Version", async () => {
+    it("planMigration requires migrationVersion", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "planMigration",
+          migrationName: "create_test_table",
+          sql: "CREATE TABLE public.test(id int)",
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "MIGRATION_VERSION_REQUIRED",
+      });
+    });
+
+    it("planMigration sends Migrations array and nextAction reuses migrationVersion", async () => {
       const { server, tools } = createMockServer();
       registerPGDatabaseTools(server, { createClient: vi.fn() });
       setupMigrationMock();
@@ -812,12 +867,34 @@ describe("PG database tools", () => {
         await tools.managePgDatabase.handler({
           action: "planMigration",
           migrationName: "create_test_table",
+          migrationVersion: "20260720160000",
           sql: "CREATE TABLE public.test(id int)",
           rollbackSql: "DROP TABLE public.test",
         }),
       );
 
-      expect(payload).toMatchObject({ success: true });
+      expect(payload).toMatchObject({
+        success: true,
+        data: {
+          migrationVersion: "20260720160000",
+          migrationName: "create_test_table",
+          localFileHint: "migrations/20260720160000_create_test_table.sql",
+        },
+        nextActions: [
+          {
+            tool: "managePgDatabase",
+            action: "applyMigration",
+            suggested_args: {
+              action: "applyMigration",
+              migrationName: "create_test_table",
+              migrationVersion: "20260720160000",
+              sql: "CREATE TABLE public.test(id int)",
+              confirm: true,
+              rollbackSql: "DROP TABLE public.test",
+            },
+          },
+        ],
+      });
       expect(mockCommonServiceCall).toHaveBeenCalledWith(
         expect.objectContaining({
           Action: "PreviewPGUserMigrations",
@@ -827,7 +904,7 @@ describe("PG database tools", () => {
                 Name: "create_test_table",
                 Query: "CREATE TABLE public.test(id int)",
                 Rollback: "DROP TABLE public.test",
-                Version: expect.stringMatching(/^\d{14}$/),
+                Version: "20260720160000",
               }),
             ],
           }),
@@ -843,6 +920,7 @@ describe("PG database tools", () => {
         await tools.managePgDatabase.handler({
           action: "applyMigration",
           migrationName: "create_test_table",
+          migrationVersion: "20260720160000",
           sql: "CREATE TABLE public.test(id int)",
         }),
       );
@@ -853,7 +931,26 @@ describe("PG database tools", () => {
       });
     });
 
-    it("applyMigration sends Migrations array and returns TaskId", async () => {
+    it("applyMigration requires migrationVersion", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "create_test_table",
+          sql: "CREATE TABLE public.test(id int)",
+          confirm: true,
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "MIGRATION_VERSION_REQUIRED",
+      });
+    });
+
+    it("applyMigration sends Migrations array and returns localFileHint", async () => {
       const { server, tools } = createMockServer();
       registerPGDatabaseTools(server, { createClient: vi.fn() });
       setupMigrationMock();
@@ -866,6 +963,7 @@ describe("PG database tools", () => {
         await tools.managePgDatabase.handler({
           action: "applyMigration",
           migrationName: "create_test_table",
+          migrationVersion: "20260720160000",
           sql: "CREATE TABLE public.test(id int)",
           confirm: true,
         }),
@@ -873,7 +971,12 @@ describe("PG database tools", () => {
 
       expect(payload).toMatchObject({
         success: true,
-        data: { TaskId: "task-1" },
+        data: {
+          migrationVersion: "20260720160000",
+          migrationName: "create_test_table",
+          localFileHint: "migrations/20260720160000_create_test_table.sql",
+          apiResult: { TaskId: "task-1" },
+        },
       });
       expect(mockCommonServiceCall).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -883,7 +986,7 @@ describe("PG database tools", () => {
               expect.objectContaining({
                 Name: "create_test_table",
                 Query: "CREATE TABLE public.test(id int)",
-                Version: expect.stringMatching(/^\d{14}$/),
+                Version: "20260720160000",
               }),
             ],
           }),
@@ -903,6 +1006,7 @@ describe("PG database tools", () => {
       await tools.managePgDatabase.handler({
         action: "applyMigration",
         migrationName: "create_test_table",
+        migrationVersion: "20260720160000",
         sql: "CREATE TABLE public.test(id int)",
         confirm: true,
         lockTimeoutMs: 10000,

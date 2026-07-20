@@ -16,7 +16,9 @@ Use this reference when building or repairing a real user-facing Web app backed 
    - username/password auth if the app logs in with plain usernames
    - PostgreSQL resource
    - Cloud Storage if the app uploads files. In CloudBase PG, "having storage" means having an explicitly-created `pgstore` bucket — same model as Supabase Storage. Check existing buckets with `queryPgStorage(action="buckets")`. If the upload target (e.g. `covers`) is missing, create/select the bucket through the documented CloudBase management surface or console before writing browser upload code. Browser SDKs cannot create a pgstore bucket; the legacy NoSQL bucket reported in `EnvInfo.Storages[]` is NOT a valid pgstore target.
-4. Create or repair the minimal PG schema with `managePgDatabase(action="execute")`: table DDL, required `GRANT` statements, sequence grants for `serial`/`bigserial`, `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, and RLS policies.
+4. Create or repair the minimal PG schema via the migration workflow (not bare `execute` for DDL):
+   - Choose `migrationVersion` (`YYYYMMDDHHMMSS`) + `migrationName`, write `migrations/<version>_<name>.sql`, then `managePgDatabase(action="applyMigration", migrationName, migrationVersion, sql, confirm=true)`.
+   - Apply required `GRANT` statements, sequence grants for `serial`/`bigserial`, `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, and RLS policies (same migration SQL or follow-up `execute` for ops-only GRANT/POLICY).
 5. Immediately call `queryPgDatabase(action="objects")`, then `queryPgDatabase(action="schema", objectName="public.<table>")` for every table touched by the app.
 6. Implement browser CRUD with one shared CloudBase Web SDK app instance and `app.rdb()`.
 7. Implement auth guards and owner UID lookup with `auth.getSession()`, not `auth.getUser()`.
