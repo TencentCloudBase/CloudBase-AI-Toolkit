@@ -37,6 +37,34 @@ import {
   checkAndInitTcbService,
   type EnvSetupContext,
 } from "./env-setup.js";
+import type { CreateEnvParams } from "@cloudbase/manager-node/types/interfaces/tcb.interface.js";
+
+/**
+ * Resources accepted by CreateEnv. Matches Cloud API / Manager SDK contract.
+ * `postgresql` enables CloudBase PostgreSQL (PG mode) when supported by the package.
+ */
+export const CREATE_ENV_RESOURCE_VALUES = [
+  "flexdb",
+  "storage",
+  "function",
+  "postgresql",
+] as const;
+
+export type CreateEnvResource = (typeof CREATE_ENV_RESOURCE_VALUES)[number];
+
+/** Default Resources when callers omit the field (schema promises "all four"). */
+export const DEFAULT_CREATE_ENV_RESOURCES: CreateEnvResource[] = [
+  ...CREATE_ENV_RESOURCE_VALUES,
+];
+
+export function resolveCreateEnvResources(
+  resources: readonly string[] | undefined,
+): CreateEnvResource[] {
+  if (Array.isArray(resources) && resources.length > 0) {
+    return [...resources] as CreateEnvResource[];
+  }
+  return [...DEFAULT_CREATE_ENV_RESOURCES];
+}
 
 /**
  * Simplify environment list data by keeping only essential fields for AI assistant
@@ -2003,14 +2031,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           .string()
           .optional()
           .describe("套餐 ID（action=create/modifyPlan 时必填）。可选值如 baas_personal(个人版)、baas_pf_standard(标准版)、baas_pf_enterprise(企业版)"),
-        region: z
-          .string()
-          .optional()
-          .describe("环境地域（action=create 时可选）。默认 ap-shanghai，可选 ap-guangzhou、ap-beijing 等"),
         resources: z
-          .array(z.enum(["flexdb", "storage", "function", "postgresql"]))
+          .array(z.enum(CREATE_ENV_RESOURCE_VALUES))
           .optional()
-          .describe("启用的资源类型（action=create 时可选）。默认启用全部四项：flexdb(文档数据库)、storage(存储)、function(云函数)、postgresql(PostgreSQL 数据库)"),
+          .describe(
+            "启用的资源类型（action=create 时可选）。省略时默认全部四项：flexdb(文档数据库)、storage(存储)、function(云函数)、postgresql(PostgreSQL)。CreateEnv 要求 Resources 非空，MCP 会始终下发该字段。",
+          ),
         duration: z
           .number()
           .int()
@@ -2039,7 +2065,6 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       action?: string;
       alias?: string;
       packageId?: string;
-      region?: string;
       resources?: string[];
       duration?: number;
       envId?: string;
@@ -2048,8 +2073,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       const action = rawArgs.action ?? "";
       const alias = normalizeOptionalToolString(rawArgs.alias);
       const packageId = normalizeOptionalToolString(rawArgs.packageId);
-      const region = normalizeOptionalToolString(rawArgs.region) ?? "ap-shanghai";
-      const resources = rawArgs.resources;
+      const resolvedResources = resolveCreateEnvResources(rawArgs.resources);
       const duration = rawArgs.duration ?? 1;
       const envId = normalizeOptionalToolString(rawArgs.envId);
       const confirmed = rawArgs.confirm === "yes";
@@ -2059,8 +2083,11 @@ export function registerEnvTools(server: ExtendedMcpServer) {
 
         switch (action) {
           case "listPackages": {
-            // 查询可选套餐列表（新购场景）
-            const result = await cloudbase.env.describeBaasPackageList({ TargetAction: "new" });
+            // Query packages for new purchase. Source aligns with billing-side Baas package APIs.
+            const result = await cloudbase.env.describeBaasPackageList({
+              TargetAction: "new",
+              Source: "qcloud",
+            });
             logCloudBaseResult(server.logger, result);
             return buildJsonToolResult({
               ok: true,
@@ -2071,12 +2098,13 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           }
 
           case "create": {
-            // 创建环境需要 confirm
+            // CreateEnv (Manager SDK / Cloud API) accepts Alias, PackageId, Resources, Period, etc.
+            // It does NOT accept Region — region is determined by account/package, not this call.
             if (!confirmed) {
               return buildJsonToolResult({
                 ok: false,
                 code: "CONFIRM_REQUIRED",
-                message: `创建环境需要您确认。请确认以下配置信息后传入 confirm="yes"：\n别名: ${alias}\n套餐: ${packageId}\n地域: ${region}\n资源类型: ${resources?.join(", ") ?? "flexdb, storage, function, postgresql"}\n时长: ${duration} 个月`,
+                message: `创建环境需要您确认。请确认以下配置信息后传入 confirm="yes"：\n别名: ${alias}\n套餐: ${packageId}\n资源类型: ${resolvedResources.join(", ")}\n时长: ${duration} 个月\n说明: CreateEnv 不接受 Region；环境地域由账号与套餐侧决定。`,
                 next_step: {
                   tool: "manageEnv",
                   action: "create",
@@ -2092,15 +2120,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               throw new Error("创建环境时 packageId（套餐 ID）为必填参数");
             }
 
-            const createParams: any = {
+            const createParams: CreateEnvParams = {
               Alias: alias,
               PackageId: packageId,
-              Region: region,
+              Resources: resolvedResources,
               Period: duration,
             };
-            if (resources && resources.length > 0) {
-              createParams.Resources = resources;
-            }
 
             const result = await cloudbase.env.createEnv(createParams);
             logCloudBaseResult(server.logger, result);
@@ -2109,6 +2134,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               code: "ENV_CREATED",
               message: `环境创建成功！新环境 ID: ${result.EnvId}。环境初始化可能需要几分钟，请通过 queryEnv(action="info", envId="${result.EnvId}") 轮询直到 Status 为正常。`,
               envId: result.EnvId,
+              resources: resolvedResources,
             });
           }
 
@@ -2192,11 +2218,19 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         if (toolPayloadResult) {
           return toolPayloadResult;
         }
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (action === "listPackages" && /billTags/i.test(errorMessage)) {
+          return buildJsonToolResult({
+            ok: false,
+            code: "PACKAGE_LIST_FAILED",
+            message: `查询套餐列表失败（计费标签 BillTags）：${errorMessage}。可改用控制台查看套餐，或直接使用已知 packageId（如 baas_personal）调用 manageEnv(action="create")。`,
+          });
+        }
         return {
           content: [
             {
               type: "text",
-              text: `环境管理操作失败: ${error instanceof Error ? error.message : String(error)}`,
+              text: `环境管理操作失败: ${errorMessage}`,
             },
           ],
         };

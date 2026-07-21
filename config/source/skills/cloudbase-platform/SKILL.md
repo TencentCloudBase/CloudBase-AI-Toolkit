@@ -1,7 +1,7 @@
 ---
 name: cloudbase-platform
 description: CloudBase platform overview and routing guide. This skill should be used when users need high-level capability selection, platform concepts, console navigation, or cross-platform best practices before choosing a more specific implementation skill.
-version: 2.24.0
+version: 2.24.1
 alwaysApply: false
 ---
 
@@ -185,7 +185,7 @@ Example structure for operation recording:
    | Action | Description | Key Parameters |
    |--------|-------------|----------------|
    | `listPackages` | Query available plans | (none) |
-   | `create` | Create new environment (needs confirm) | `alias`, `packageId`, `resources`, `region`, `duration` |
+   | `create` | Create new environment (needs confirm) | `alias`, `packageId`, `resources`, `duration` |
    | `modifyPlan` | Change plan (upgrade/downgrade, needs confirm) | `envId`, `packageId` |
    | `renew` | Renew environment (needs confirm) | `envId`, `duration` |
 
@@ -200,7 +200,8 @@ Example structure for operation recording:
      - `storage` — Cloud Storage
      - `function` — Cloud Functions
      - `postgresql` — PostgreSQL relational database (PG mode)
-   - Defaults to all enabled if omitted.
+   - Defaults to all four when omitted. MCP always sends non-empty `Resources` to CreateEnv.
+   - Do **not** pass `region`: CreateEnv does not accept Region; environment region is determined by account/package.
    - ⚠️ **All paid operations** (create / modifyPlan / renew) require `confirm="yes"`.
 
    **Querying available packages before creating:**
