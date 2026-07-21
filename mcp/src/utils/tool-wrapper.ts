@@ -5,7 +5,7 @@ import { ExtendedMcpServer } from "../server.js";
 import { CloudBaseOptions } from '../types.js';
 import { shouldRegisterTool } from './cloud-mode.js';
 import { debug } from './logger.js';
-import { reportToolCall } from './telemetry.js';
+import { reportToolCall, readMcpClientInfoFromServer } from './telemetry.js';
 import { isToolPayloadError } from "./tool-result.js";
 
 
@@ -208,7 +208,8 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
                     error: errorMessage,
                     inputParams: sanitizeArgs(args), // 添加入参上报
                     cloudBaseOptions: cloudBaseOptions, // 传递 CloudBase 配置（可能已更新）
-                    ide: server.ide || process.env.INTEGRATION_IDE // 传递集成IDE信息
+                    ide: server.ide || process.env.INTEGRATION_IDE, // 传递集成IDE信息
+                    mcpClientInfo: readMcpClientInfoFromServer(server),
                 }).catch(err => {
                     // 静默处理上报错误，不影响主要功能
                     debug('遥测上报失败', { toolName: name, error: err instanceof Error ? err.message : String(err) });
