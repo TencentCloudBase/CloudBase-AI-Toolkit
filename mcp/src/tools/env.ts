@@ -1031,7 +1031,15 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   // 获取 cloudBaseOptions，如果没有则为 undefined
   const cloudBaseOptions = server.cloudBaseOptions;
 
-  const getManager = () => getCloudBaseManager({ cloudBaseOptions, mcpServer: server });
+  // manageEnv create/listPackages are account-level (CreateEnv / DescribeBaasPackageList).
+  // Do not require a pre-bound envId — that creates a chicken-and-egg for first-env creation.
+  // modifyPlan/renew still take envId as an explicit tool param on the API payload.
+  const getManager = () =>
+    getCloudBaseManager({
+      cloudBaseOptions,
+      requireEnvId: false,
+      mcpServer: server,
+    });
   const getManagerForEnvQuery = (targetEnvId?: string, requireEnvId = true) =>
     getCloudBaseManager({
       cloudBaseOptions:

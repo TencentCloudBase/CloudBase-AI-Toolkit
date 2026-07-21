@@ -1426,6 +1426,9 @@ describe("manageEnv", () => {
       ).content[0].text,
     );
 
+    expect(mockGetCloudBaseManager).toHaveBeenCalledWith(
+      expect.objectContaining({ requireEnvId: false }),
+    );
     expect(createEnv).toHaveBeenCalledWith({
       Alias: "my-env",
       PackageId: "baas_personal",
@@ -1439,6 +1442,20 @@ describe("manageEnv", () => {
       envId: "env-new-123",
       resources: ["flexdb", "storage", "function", "postgresql"],
     });
+  });
+
+  it("listPackages should not require a bound envId", async () => {
+    const describeBaasPackageList = vi.fn().mockResolvedValue({ PackageList: [] });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { describeBaasPackageList },
+    } as any);
+
+    const { tools } = createMockServer();
+    await tools.manageEnv.handler({ action: "listPackages" });
+
+    expect(mockGetCloudBaseManager).toHaveBeenCalledWith(
+      expect.objectContaining({ requireEnvId: false }),
+    );
   });
 
   it("create should default Resources when omitted", async () => {
