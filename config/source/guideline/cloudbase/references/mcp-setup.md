@@ -105,6 +105,7 @@ Query available plans, create environments, change plans, and renew:
   ```
 
   Resources parameter values: `flexdb` (document database), `storage` (cloud storage), `function` (cloud functions), `postgresql` (PostgreSQL database).
+  Do **not** pass `region`: CreateEnv does not accept Region; environment region is determined by account/package.
 
 - **Change plan** (e.g. upgrade to standard):
   `npx mcporter call cloudbase.manageEnv action=modifyPlan envId=<envId> packageId=baas_pf_standard confirm=yes --output json`
