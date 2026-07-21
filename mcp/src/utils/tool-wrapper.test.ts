@@ -13,6 +13,10 @@ vi.mock("./cloud-mode.js", async (importOriginal) => {
 
 vi.mock("./telemetry.js", () => ({
   reportToolCall: vi.fn(() => Promise.resolve()),
+  readMcpClientInfoFromServer: vi.fn(() => ({
+    name: "test-client",
+    version: "0.0.1",
+  })),
 }));
 
 function withTelemetryEnabled<T>(run: () => Promise<T>) {
@@ -105,6 +109,10 @@ describe("wrapServerWithTelemetry", () => {
       expect(reportToolCall).toHaveBeenCalledWith(
         expect.objectContaining({
           requestId: "req-success",
+          mcpClientInfo: {
+            name: "test-client",
+            version: "0.0.1",
+          },
         }),
       );
     });

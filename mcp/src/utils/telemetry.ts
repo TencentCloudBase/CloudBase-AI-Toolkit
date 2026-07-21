@@ -263,6 +263,65 @@ function resolveEnvId(cloudBaseOptions?: CloudBaseOptions): { envId: string; env
     return { envId, envIdSource };
 }
 
+/** MCP initialize clientInfo fields available after handshake via Server.getClientVersion(). */
+export type McpClientInfo = {
+    name?: string;
+    version?: string;
+    title?: string;
+};
+
+/**
+ * Normalize SDK Implementation / clientInfo into telemetry-safe fields.
+ */
+export function extractMcpClientInfo(clientVersion: unknown): McpClientInfo {
+    if (!clientVersion || typeof clientVersion !== "object") {
+        return {};
+    }
+
+    const info = clientVersion as Record<string, unknown>;
+    const name = typeof info.name === "string" ? info.name.trim() : "";
+    const version = typeof info.version === "string" ? info.version.trim() : "";
+    const title = typeof info.title === "string" ? info.title.trim() : "";
+
+    return {
+        ...(name ? { name } : {}),
+        ...(version ? { version } : {}),
+        ...(title ? { title } : {}),
+    };
+}
+
+/**
+ * Read MCP clientInfo from an McpServer after initialize.
+ * Returns empty object when handshake has not completed or the accessor is unavailable.
+ */
+export function readMcpClientInfoFromServer(server: {
+    server?: { getClientVersion?: () => unknown };
+}): McpClientInfo {
+    try {
+        return extractMcpClientInfo(server?.server?.getClientVersion?.());
+    } catch {
+        return {};
+    }
+}
+
+function appendMcpClientInfoFields(
+    eventData: { [key: string]: any },
+    clientInfo?: McpClientInfo,
+) {
+    if (!clientInfo) {
+        return;
+    }
+    if (clientInfo.name) {
+        eventData.mcpClientName = clientInfo.name;
+    }
+    if (clientInfo.version) {
+        eventData.mcpClientVersion = clientInfo.version;
+    }
+    if (clientInfo.title) {
+        eventData.mcpClientTitle = clientInfo.title;
+    }
+}
+
 // 便捷方法
 export const reportToolCall =  async (params: {
     toolName: string;
@@ -273,6 +332,7 @@ export const reportToolCall =  async (params: {
     inputParams?: any; // 入参上报
     cloudBaseOptions?: CloudBaseOptions; // 新增：CloudBase 配置选项
     ide?: string; // 新增：集成IDE信息
+    mcpClientInfo?: McpClientInfo; // MCP initialize clientInfo
 }) => {
     const {
         nodeVersion,
@@ -326,6 +386,8 @@ export const reportToolCall =  async (params: {
         eventData.ide = params.ide;
     }
 
+    appendMcpClientInfoFields(eventData, params.mcpClientInfo);
+
     // Debug: 打印最终上报参数
     debug('[telemetry] 工具调用上报参数', {
         toolName: params.toolName,
@@ -348,6 +410,7 @@ export const reportToolkitLifecycle = async (params: {
     error?: string; // 对于异常退出
     cloudBaseOptions?: CloudBaseOptions; // 新增：CloudBase 配置选项
     ide?: string; // 新增：集成IDE信息
+    mcpClientInfo?: McpClientInfo; // MCP initialize clientInfo (usually unavailable at start)
 }) => {
     const {
         nodeVersion,
@@ -385,6 +448,8 @@ export const reportToolkitLifecycle = async (params: {
     if (params.ide) {
         eventData.ide = params.ide;
     }
+
+    appendMcpClientInfoFields(eventData, params.mcpClientInfo);
 
     // Debug: 打印最终上报参数
     debug('[telemetry] 生命周期事件上报参数', {
