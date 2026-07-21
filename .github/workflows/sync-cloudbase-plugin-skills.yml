@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   sync-plugin-skills:
@@ -33,14 +34,28 @@ jobs:
       - name: Sync CloudBase plugin skills
         run: node scripts/sync-cloudbase-plugin-skills.mjs
 
+      # GITHUB_TOKEN pushes do not retrigger path-filtered workflows (e.g. Push Plugin Repos).
+      # After we land skill changes under plugin/cloudbase/, explicitly dispatch that workflow.
+      # workflow_dispatch is an exception to the GITHUB_TOKEN non-retrigger rule.
       - name: Commit and push changes
+        id: commit_skills
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add plugin/cloudbase/skills plugin/cloudbase/.sync-metadata.json
           if git diff --staged --quiet; then
             echo "No changes, skipping."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "chore: sync cloudbase plugin skills from upstream"
             git push
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Trigger Push Plugin Repos
+        if: steps.commit_skills.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run "Push Plugin Repos" --ref main
+          echo "Dispatched Push Plugin Repos for dedicated plugin repo sync."
