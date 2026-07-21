@@ -157,6 +157,32 @@ for everything else (auth, database, functions, AI models, storage).
 
 ## Updating skills
 
+## Telemetry
+
+Plugin telemetry is on by default and mirrors Vercel's lightweight DAU model,
+uploaded via the same Tencent Beacon (灯塔) endpoint used by `cloudbase-mcp`.
+
+What is collected:
+
+- `toolkit_plugin_dau`: at most once per UTC day when a SessionStart hook runs
+- `toolkit_plugin_first_use`: once per local user profile on first successful report
+- `pluginVersion`: included on each event so usage can be grouped by plugin version
+
+What is **not** collected: prompt text, file paths, project names, account IDs,
+tool-call contents, or skill-injection details.
+
+Disable:
+
+```bash
+export CLOUDBASE_PLUGIN_TELEMETRY=off
+```
+
+`CLOUDBASE_MCP_TELEMETRY_DISABLED=true` also disables plugin telemetry.
+Local throttle files live under `~/.config/cloudbase-plugin/` (`dau-stamp`,
+`first-use-stamp`) and are written only after a successful Beacon upload.
+
+## Skill sync
+
 Skills are auto-synced from `TencentCloudBase/skills@main`. To update
 manually:
 
