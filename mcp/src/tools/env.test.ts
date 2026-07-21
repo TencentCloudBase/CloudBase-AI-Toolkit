@@ -1346,12 +1346,34 @@ describe("manageEnv", () => {
       (await tools.manageEnv.handler({ action: "listPackages" })).content[0].text,
     );
 
-    expect(describeBaasPackageList).toHaveBeenCalledWith({ TargetAction: "new" });
+    expect(describeBaasPackageList).toHaveBeenCalledWith({
+      TargetAction: "new",
+      Source: "qcloud",
+    });
     expect(payload).toMatchObject({
       ok: true,
       code: "PACKAGE_LIST",
       packages: expect.any(Array),
     });
+  });
+
+  it("listPackages should surface BillTags failures clearly", async () => {
+    const describeBaasPackageList = vi.fn().mockRejectedValue(new Error("find billTags error"));
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { describeBaasPackageList },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (await tools.manageEnv.handler({ action: "listPackages" })).content[0].text,
+    );
+
+    expect(payload).toMatchObject({
+      ok: false,
+      code: "PACKAGE_LIST_FAILED",
+    });
+    expect(payload.message).toContain("BillTags");
+    expect(payload.message).toContain("baas_personal");
   });
 
   it("create should require confirm before execution", async () => {
@@ -1377,9 +1399,12 @@ describe("manageEnv", () => {
       code: "CONFIRM_REQUIRED",
     });
     expect(payload.message).toContain("请确认");
+    expect(payload.message).toContain("flexdb, storage, function, postgresql");
+    expect(payload.message).not.toContain("地域:");
+    expect(payload.message).toContain("CreateEnv 不接受 Region");
   });
 
-  it("create should succeed with confirm=yes", async () => {
+  it("create should succeed with confirm=yes and never send Region", async () => {
     const createEnv = vi.fn().mockResolvedValue({
       EnvId: "env-new-123",
     });
@@ -1394,7 +1419,6 @@ describe("manageEnv", () => {
           action: "create",
           alias: "my-env",
           packageId: "baas_personal",
-          region: "ap-shanghai",
           resources: ["flexdb", "storage", "function", "postgresql"],
           duration: 1,
           confirm: "yes",
@@ -1402,17 +1426,68 @@ describe("manageEnv", () => {
       ).content[0].text,
     );
 
+    expect(mockGetCloudBaseManager).toHaveBeenCalledWith(
+      expect.objectContaining({ requireEnvId: false }),
+    );
     expect(createEnv).toHaveBeenCalledWith({
       Alias: "my-env",
       PackageId: "baas_personal",
-      Region: "ap-shanghai",
+      Period: 1,
+      Resources: ["flexdb", "storage", "function", "postgresql"],
+    });
+    expect(createEnv.mock.calls[0][0]).not.toHaveProperty("Region");
+    expect(payload).toMatchObject({
+      ok: true,
+      code: "ENV_CREATED",
+      envId: "env-new-123",
+      resources: ["flexdb", "storage", "function", "postgresql"],
+    });
+  });
+
+  it("listPackages should not require a bound envId", async () => {
+    const describeBaasPackageList = vi.fn().mockResolvedValue({ PackageList: [] });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { describeBaasPackageList },
+    } as any);
+
+    const { tools } = createMockServer();
+    await tools.manageEnv.handler({ action: "listPackages" });
+
+    expect(mockGetCloudBaseManager).toHaveBeenCalledWith(
+      expect.objectContaining({ requireEnvId: false }),
+    );
+  });
+
+  it("create should default Resources when omitted", async () => {
+    const createEnv = vi.fn().mockResolvedValue({
+      EnvId: "env-default-resources",
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { createEnv },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "create",
+          alias: "default-res",
+          packageId: "baas_personal",
+          confirm: "yes",
+        })
+      ).content[0].text,
+    );
+
+    expect(createEnv).toHaveBeenCalledWith({
+      Alias: "default-res",
+      PackageId: "baas_personal",
       Period: 1,
       Resources: ["flexdb", "storage", "function", "postgresql"],
     });
     expect(payload).toMatchObject({
       ok: true,
       code: "ENV_CREATED",
-      envId: "env-new-123",
+      envId: "env-default-resources",
     });
   });
 

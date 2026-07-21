@@ -18,9 +18,10 @@ AI Agent
   │     └── Manager SDK env.describeBaasPackageList()
   │           └── 返回套餐列表（ID、名称、适用场景）
   │
-  ├── manageEnv(action="create", alias, packageId, region?, resources?, duration?)
+  ├── manageEnv(action="create", alias, packageId, resources?, duration?)
   │     ├── 展示配置摘要 → 等待用户 confirm="yes"
-  │     ├── Manager SDK env.createEnv({ Alias, PackageId, Resources, Period, ... })
+  │     ├── Manager SDK env.createEnv({ Alias, PackageId, Resources, Period })
+  │     │     └── 注意：CreateEnv 不接受 Region；Resources 必填（MCP 省略时默认四项）
   │     └── 返回新环境 ID + 提示轮询状态
   │
   ├── manageEnv(action="destroy", envId, force?, bypassCheck?)
@@ -73,9 +74,9 @@ inputSchema: {
   // create 参数
   alias: z.string().optional().describe("环境别名（create 时必填）"),
   packageId: z.string().optional().describe("套餐 ID（create/modifyPlan 时必填）"),
-  region: z.string().optional().describe("地域，默认 ap-shanghai"),
-  resources: z.array(z.enum(["flexdb", "storage", "function"])).optional()
-    .describe("启用的资源类型，默认全部"),
+  // CreateEnv does not accept Region — do not include it in the request body
+  resources: z.array(z.enum(["flexdb", "storage", "function", "postgresql"])).optional()
+    .describe("启用的资源类型，省略时默认全部四项；CreateEnv 要求非空"),
   duration: z.number().int().min(1).max(36).optional()
     .describe("购买/续费时长（月），默认 1"),
   

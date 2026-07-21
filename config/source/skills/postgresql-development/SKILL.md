@@ -1,7 +1,7 @@
 ---
 name: postgresql-development-cloudbase
 description: "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG."
-version: 2.24.0
+version: 2.24.1
 alwaysApply: false
 ---
 
@@ -71,7 +71,7 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
 >
 > If step 0 shows `RuntimeBackends.postgresql === false` and you need PostgreSQL, create a new environment with PG enabled:
 >
-> - **Via MCP**: `manageEnv(action="create", alias="my-env", packageId="baas_personal", resources=["flexdb","storage","function","postgresql"], confirm="yes")`
+> - **Via MCP**: `manageEnv(action="create", alias="my-env", packageId="baas_personal", resources=["flexdb","storage","function","postgresql"], confirm="yes")` — do not pass `region`; CreateEnv does not accept it.
 > - **Via CLI**: `tcb env create --alias my-env --package baas_personal --postgresql --yes`
 > - **Via Console**: [Create environment](https://console.cloud.tencent.com/tcb/env/create)
 
