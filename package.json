@@ -24,11 +24,29 @@
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.16.0",
     "husky": "^9.1.7",
-    "js-yaml": "^4.1.1",
+    "js-yaml": "4.3.0",
     "tsx": "^4.21.0",
     "vitest": "^2.1.9"
   },
   "dependencies": {
     "@cloudbase/manager-node": "^5.6.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "js-yaml": "4.3.0",
+      "brace-expansion@1": "1.1.16",
+      "brace-expansion@2": "2.1.2",
+      "brace-expansion@3": "5.0.7",
+      "brace-expansion@4": "5.0.7",
+      "brace-expansion@5": "5.0.7"
+    }
+  },
+  "overrides": {
+    "js-yaml": "4.3.0",
+    "brace-expansion@1": "1.1.16",
+    "brace-expansion@2": "2.1.2",
+    "brace-expansion@3": "5.0.7",
+    "brace-expansion@4": "5.0.7",
+    "brace-expansion@5": "5.0.7"
   }
 }
