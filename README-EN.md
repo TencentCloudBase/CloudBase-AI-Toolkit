@@ -11,8 +11,12 @@ The CloudBase integration layer for AI coding tools: Plugin installs the stack, 
 [![][npm-version-shield]][npm-link]
 [![][npm-downloads-shield]][npm-link]
 [![][github-stars-shield]][github-stars-link]
-[![][github-license-shield]]
+[![][github-forks-shield]][github-forks-link]
+[![][github-issues-shield]][github-issues-link]
+![][github-license-shield]
+![][github-contributors-shield]
 [![][cnb-shield]][cnb-link]
+[![][deepwiki-shield]][deepwiki-link]
 
 </div>
 
@@ -48,7 +52,7 @@ Publishing and sync repos live under [TencentCloudBase](https://github.com/Tence
 
 | Repository | Contents | Typical entry |
 |------|------|----------|
-| [CloudBase-AI-ToolKit](https://github.com/TencentCloudBase/CloudBase-MCP) (this repo) | MCP Server source; marketplace source for Claude Code / Codex | `npx @cloudbase/cloudbase-mcp@latest` |
+| [CloudBase-AI-Toolkit](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit) (this repo) | MCP Server source; marketplace source for Claude Code / Codex | `npx @cloudbase/cloudbase-mcp@latest` |
 | [cloudbase-plugin](https://github.com/TencentCloudBase/cloudbase-plugin) | Open Plugin Spec publish repo (CI-synced): MCP + Skills + Hooks | `npx plugins add TencentCloudBase/cloudbase-plugin` |
 | [cloudbase-sites-plugin](https://github.com/TencentCloudBase/cloudbase-sites-plugin) | Sites plugin: Vite Web create & deploy | `npx plugins add TencentCloudBase/cloudbase-sites-plugin` |
 | [cloudbase-skills](https://github.com/TencentCloudBase/cloudbase-skills) | Agent Skills collection | `npx skills add TencentCloudBase/cloudbase-skills` |
@@ -302,7 +306,8 @@ Confirm an environment exists and is healthy in the [console](https://tcb.cloud.
 | | |
 |--|--|
 | Docs | [docs.cloudbase.net](https://docs.cloudbase.net/) |
-| Issues | [GitHub Issues](https://github.com/TencentCloudBase/CloudBase-MCP/issues) |
+| Issues | [GitHub Issues](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/issues) |
+| Releases | [Changelog][changelog] |
 
 ## Activity
 
@@ -310,7 +315,7 @@ Confirm an environment exists and is healthy in the [console](https://tcb.cloud.
 
 ## Contributors
 
-[![Contributors](https://contrib.rocks/image?repo=TencentCloudBase/CloudBase-MCP)](https://github.com/TencentCloudBase/CloudBase-MCP/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=TencentCloudBase/CloudBase-AI-Toolkit)](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/graphs/contributors)
 
 ---
 
@@ -318,15 +323,21 @@ Confirm an environment exists and is healthy in the [console](https://tcb.cloud.
 
 <!-- Links -->
 [docs]: https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/
-[changelog]: https://github.com/TencentCloudBase/CloudBase-MCP/releases
-[github-issues-link]: https://github.com/TencentCloudBase/CloudBase-MCP/issues
-[github-stars-link]: https://github.com/TencentCloudBase/CloudBase-MCP/stargazers
+[changelog]: https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/releases
+[github-issues-link]: https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/issues
+[github-stars-link]: https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/stargazers
+[github-forks-link]: https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/network/members
 [npm-link]: https://www.npmjs.com/package/@cloudbase/cloudbase-mcp
-[cnb-link]: https://cnb.cool/tencent/cloud/cloudbase/CloudBase-MCP
+[cnb-link]: https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit
+[deepwiki-link]: https://deepwiki.com/TencentCloudBase/CloudBase-AI-Toolkit
 
 <!-- Shields -->
 [npm-version-shield]: https://img.shields.io/npm/v/@cloudbase/cloudbase-mcp?color=3B82F6&label=npm&logo=npm&style=flat-square
 [npm-downloads-shield]: https://img.shields.io/npm/dw/@cloudbase/cloudbase-mcp?color=10B981&label=downloads&logo=npm&style=flat-square
-[github-stars-shield]: https://img.shields.io/github/stars/TencentCloudBase/CloudBase-MCP?color=F59E0B&label=stars&logo=github&style=flat-square
+[github-stars-shield]: https://img.shields.io/github/stars/TencentCloudBase/CloudBase-AI-Toolkit?color=F59E0B&label=stars&logo=github&style=flat-square
+[github-forks-shield]: https://img.shields.io/github/forks/TencentCloudBase/CloudBase-AI-Toolkit?color=8B5CF6&label=forks&logo=github&style=flat-square
+[github-issues-shield]: https://img.shields.io/github/issues/TencentCloudBase/CloudBase-AI-Toolkit?color=EC4899&label=issues&logo=github&style=flat-square
 [github-license-shield]: https://img.shields.io/badge/license-MIT-6366F1?logo=github&style=flat-square
-[cnb-shield]: https://img.shields.io/badge/CNB-CloudBase--AI--ToolKit-3B82F6?style=flat-square
+[github-contributors-shield]: https://img.shields.io/github/contributors/TencentCloudBase/CloudBase-AI-Toolkit?color=06B6D4&label=contributors&logo=github&style=flat-square
+[cnb-shield]: https://img.shields.io/badge/CNB-CloudBase--AI--ToolKit-3B82F6?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAxMiAxMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHJ4PSIyIiBmaWxsPSIjM0I4MkY2Ii8+PHBhdGggZD0iTTUgM0g3VjVINSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48cGF0aCBkPSJNNSA3SDdWOUg1IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjEuNSIvPjwvc3ZnPg==&style=flat-square
+[deepwiki-shield]: https://deepwiki.com/badge.svg
