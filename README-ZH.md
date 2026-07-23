@@ -1,72 +1,84 @@
 <div align="center"><a name="readme-top"></a>
 
-![](scripts/assets/toolkit-better.gif)
+# CloudBase AI Toolkit
 
-<h1>CloudBase MCP</h1>
+**AI 写代码，CloudBase 管后端。**
 
-**🪐 AI 编程，一键上线**<br/>
-连接 AI IDE 与腾讯云 CloudBase 的部署桥梁，让你的 AI 应用即刻上线
+面向 AI 编程工具的 CloudBase 接入层：用 Plugin 装好工具，用 Skills 约束写法，用 MCP 在对话里操作数据库、云函数、存储与部署。
 
-[English](./README-EN.md) · **简体中文** · [文档][docs] · [更新日志][changelog] · [反馈问题][github-issues-link]
-
-<!-- SHIELD GROUP -->
+[English](./README-EN.md) · [文档][docs] · [更新日志][changelog] · [Issues][github-issues-link]
 
 [![][npm-version-shield]][npm-link]
 [![][npm-downloads-shield]][npm-link]
 [![][github-stars-shield]][github-stars-link]
-[![][github-forks-shield]][github-forks-link]
-[![][github-issues-shield]][github-issues-link]
-![][github-license-shield]
-![][github-contributors-shield]
+[![][github-license-shield]]
 [![][cnb-shield]][cnb-link]
-[![][deepwiki-shield]][deepwiki-link]
-
-**发现了一个让 AI 编程一键上线的神器，推荐给正在用 AI 编程的朋友**
-
-[![][share-x-shield]][share-x-link]
-[![][share-telegram-shield]][share-telegram-link]
-[![][share-weibo-shield]][share-weibo-link]
-
-<sup>从 AI 提示词到应用上线的最短路径</sup>
-
-[![][github-trending-shield]](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit)
-
-[<img width="791" height="592" alt="Clipboard_Screenshot_1763724670" src="https://github.com/user-attachments/assets/f769beb7-5710-4397-8854-af2b7e452f70" />](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/tutorials)
 
 </div>
 
-## 为什么你需要 CloudBase MCP？
+## 最近更新
 
-AI 编程工具（如 Cursor、CodeBuddy）解决了**代码生成**的难题。
+**v2.24.x**（2026-07）
 
-但是，从"生成代码"到"应用上线"（部署、配置数据库、CDN、域名），依然存在一条鸿沟。
+- Plugin：Open Plugin Spec；`npx plugins add` 安装 MCP / Skills / Hooks
+- PostgreSQL：schema 变更默认经 `applyMigration`（显式 `migrationVersion`）
+- 环境与可观测性：`manageEnv` 契约修正；工具调用可关联客户端信息
 
-**CloudBase MCP**（原 CloudBase AI ToolKit）填补了这条鸿沟。
+[Releases][changelog] · [Star][github-stars-link] · Watch → Releases
 
-你不再需要：
-- ❌ 繁琐的 DevOps 配置和 YAML 文件
-- ❌ 手动设置云函数和数据库
-- ❌ 在 IDE 和云控制台之间反复横跳
+## 它是什么
 
-你只需要在 AI IDE 中，用自然语言完成从"想法"到"上线"的全过程。
+AI IDE（Cursor、Claude Code、Codex、CodeBuddy 等）擅长生成代码。真正卡住的往往是后端：库表、权限、函数、存储、环境与发布。
 
-<details>
-<summary><kbd>目录</kbd></summary>
+[CloudBase](https://docs.cloudbase.net/) 是腾讯云的 AI 原生后端一体化平台（数据库、存储、身份认证、云函数、云托管等）。本仓库提供把这套后端接到 AI 工具里的 Toolkit：
 
-- [🚀 快速开始](#-快速开始)
-- [✨ 核心特性](#-核心特性)
-- [📦 安装配置](#-安装配置)
-- [🎯 使用案例](#-使用案例)
-- [🧩 MCP 工具](#-mcp-工具)
-- [📚 更多资源](#-更多资源)
+| 组件 | 作用 |
+|------|------|
+| **Plugin** | 一次安装 MCP Server、Agent Skills 与 Hooks，减少按 IDE 分别配置 |
+| **Agent Skills** | 场景化技能（Web / 小程序 / 数据库 / 认证 / 云函数等），约束可落地的 CloudBase 实践 |
+| **MCP** | 在对话中登录环境、查改数据、管理函数与托管、读日志排障 |
 
-</details>
+本仓库同时发布 npm 包 `@cloudbase/cloudbase-mcp`、Skills 与 AI 插件。
 
-## 🚀 快速开始
+你仍需要：开通自己的云开发环境，并在 IDE 中确认 AI 发起的敏感操作。Toolkit 提供能力与路径，不替代判断。
 
-### 一行配置，立即使用
+### 相关仓库
 
-在支持 MCP 的 AI IDE 中（Cursor、WindSurf、CodeBuddy 等），只需添加一行配置：
+发布与同步仓集中在 [TencentCloudBase](https://github.com/TencentCloudBase) 组织。与本 Toolkit 直接相关的如下：
+
+| 仓库 | 内容 | 常用入口 |
+|------|------|----------|
+| [CloudBase-AI-ToolKit](https://github.com/TencentCloudBase/CloudBase-MCP)（本仓库） | MCP Server 源码；Claude Code / Codex 等原生 marketplace 来源 | `npx @cloudbase/cloudbase-mcp@latest` |
+| [cloudbase-plugin](https://github.com/TencentCloudBase/cloudbase-plugin) | Open Plugin Spec 发布仓（由本仓库 CI 同步）：MCP + Skills + Hooks | `npx plugins add TencentCloudBase/cloudbase-plugin` |
+| [cloudbase-sites-plugin](https://github.com/TencentCloudBase/cloudbase-sites-plugin) | Sites 插件：Vite Web 创建与部署 | `npx plugins add TencentCloudBase/cloudbase-sites-plugin` |
+| [cloudbase-skills](https://github.com/TencentCloudBase/cloudbase-skills) | Agent Skills 合集 | `npx skills add TencentCloudBase/cloudbase-skills` |
+| [skills](https://github.com/TencentCloudBase/skills) | 可按单个 skill 安装的目录（亦用于 [skills.sh](https://skills.sh)） | `npx skills add tencentcloudbase/skills --skill <name>` |
+| [awesome-cloudbase-examples](https://github.com/TencentCloudBase/awesome-cloudbase-examples) | 云开发案例与示例集合 | 浏览 / 克隆示例 |
+| [OpenVibeCoding](https://github.com/TencentCloudBase/OpenVibeCoding) | 基于 CloudBase 的 vibecoding 模板 | 作为项目起点使用 |
+
+优先用 Plugin 拿齐全套；只需知识约束时可只装 Skills。marketplace 类 IDE 请用本仓库，不要与 `npx plugins add` 对同一工具重复安装。
+
+## 快速开始
+
+按你的工具选一条默认路径即可。
+
+| 你的工具 | 建议做法 |
+|----------|----------|
+| Claude Code / Codex（原生 marketplace） | 添加本仓库为 marketplace，再安装 `cloudbase` 插件（见[插件文档](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ai-agent-plugins)） |
+| 支持 Open Plugin Spec 的工具 | `npx plugins add TencentCloudBase/cloudbase-plugin` |
+| 希望 CLI 统一配置多种工具 | [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce)：`npm i -g @cloudbase/cli && tcb ai` |
+| CodeBuddy / WorkBuddy / ZCode（已内置） | 使用 IDE 内置的 CloudBase 插件或连接器 |
+| 其他支持 MCP 的 IDE | 仅配置 MCP（见下方） |
+
+### Plugin
+
+```bash
+npx plugins add TencentCloudBase/cloudbase-plugin
+```
+
+说明与各 IDE 差异见 [AI 插件文档](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ai-agent-plugins)。
+
+### 仅配置 MCP
 
 ```json
 {
@@ -79,168 +91,84 @@ AI 编程工具（如 Cursor、CodeBuddy）解决了**代码生成**的难题。
 }
 ```
 
-> [!TIP]
-> **推荐使用 CloudBase AI CLI**
-> 
-> 一键安装，自动配置，支持多种 AI 编程工具：
-> 
-> ```bash
-> npm install @cloudbase/cli@latest -g
-> ```
-> 
-> 安装后运行 `tcb ai` 即可开始使用
-> 
-> [查看完整文档](https://docs.cloudbase.net/cli-v1/ai/introduce) | [详细案例教程](https://docs.cloudbase.net/practices/ai-cli-mini-program)
+托管 HTTP、自建 Cloud Mode、按插件裁剪工具集见 [安装与连接](#安装与连接)。
 
-### 首次使用
+### 首次对话
 
-1. **登录云开发**
-   ```
-   登录云开发
-   ```
-   AI 会自动打开登录界面并引导环境选择
+```
+登录云开发
+```
 
-2. **开始开发**
-   ```
-   做一个双人在线对战五子棋网站，支持联机对战，最后进行部署
-   ```
-   AI 会自动生成代码、部署到云端并返回访问链接
+```
+使用 CloudBase Skills 开发一个带登录的待办应用，包含数据库与权限，并部署
+```
 
-
+Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能在自己的环境中验证数据与接口，而不只是得到一段本地代码。
 
 ### 支持的 AI IDE
 
+<img width="1200" alt="Supported AI IDEs" src="scripts/assets/ide-support-grid.png" />
 
-| 工具 | 支持平台 | 查看指引 |
-|------|----------|----------|
-| [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce) | 命令行工具 | [查看指引](https://docs.cloudbase.net/cli-v1/ai/introduce) |
-| [Cursor](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cursor) | 独立 IDE| [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cursor) |
-| [WindSurf](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/windsurf) | 独立 IDE, VSCode、JetBrains 插件 | [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/windsurf) |
-| [CodeBuddy](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) | 独立 IDE（已内置 CloudBase），VS Code、JetBrains、微信开发者工具| [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) |
-| [iFlow CLI](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/iflow-cli) | 命令行工具 | [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/iflow-cli) |
-| [CLINE](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cline) | VS Code 插件 | [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cline) |
-| [GitHub Copilot](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/github-copilot) | VS Code 插件 | [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/github-copilot) |
-| [Trae](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/trae) | 独立 IDE | [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/trae) |
-| [通义灵码](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/tongyi-lingma) | 独立 IDE，VS Code、 JetBrains插件 | [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/tongyi-lingma) |
-| [RooCode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/roocode) | VS Code插件 | [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/roocode) |
-| [文心快码](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/baidu-comate) | VS Code、JetBrains插件| [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/baidu-comate) |
-| [Augment Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/augment-code) | VS Code、JetBrains 插件 | [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/augment-code) |
-| [Claude Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude-code) | 命令行工具 | [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude-code) |
-| [Gemini CLI](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/gemini-cli) | 命令行工具 | [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/gemini-cli) |
-| [OpenAI Codex CLI](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openai-codex-cli) | 命令行工具 | [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openai-codex-cli) |
-| [OpenCode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/opencode) | 命令行工具 | [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/opencode) |
-| [Qwen Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/qwen-code) | 命令行工具 | [查看指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/qwen-code) |
+| 工具 | 平台 | 指引 |
+|------|------|------|
+| [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce) | CLI | [指引](https://docs.cloudbase.net/cli-v1/ai/introduce) |
+| [OpenClaw](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) | CLI | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) |
+| [WorkBuddy](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) | 独立 IDE | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) |
+| [ZCode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/zcode) | 独立 IDE（≥ 3.4.1 内置插件） | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/zcode) |
+| [Codex App](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codex) | 独立应用 | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codex) |
+| [Cursor](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cursor) | 独立 IDE | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cursor) |
+| [WindSurf](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/windsurf) | 独立 IDE / 插件 | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/windsurf) |
+| [CodeBuddy](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) | 独立 IDE（已内置） | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) |
+| [CLINE](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cline) | VS Code 插件 | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cline) |
+| [GitHub Copilot](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/github-copilot) | VS Code 插件 | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/github-copilot) |
+| [Trae](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/trae) | 独立 IDE | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/trae) |
+| [通义灵码](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/tongyi-lingma) | IDE / 插件 | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/tongyi-lingma) |
+| [RooCode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/roocode) | VS Code 插件 | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/roocode) |
+| [文心快码](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/baidu-comate) | 插件 | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/baidu-comate) |
+| [Augment Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/augment-code) | 插件 | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/augment-code) |
+| [Claude Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude-code) | CLI | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude-code) |
+| [Gemini CLI](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/gemini-cli) | CLI | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/gemini-cli) |
+| [Codex CLI](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openai-codex-cli) | CLI | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openai-codex-cli) |
+| [OpenCode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/opencode) | CLI | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/opencode) |
+| [Qwen Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/qwen-code) | CLI | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/qwen-code) |
 
+完整配置见 [IDE 配置指南](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/)。
 
+## 能力
 
-## ✨ 如何实现 AI 编程"一键上线"？
+接入后，AI 可以在你的环境中完成典型后端工作（需你确认关键步骤）：
 
-### 1. AI 原生（AI-Native）
+- **数据库**：PostgreSQL 与文档型库、数据模型、CRUD、权限与安全规则
+- **计算**：云函数与云托管的编写、部署、调用与日志
+- **身份与存储**：登录方式、对象存储、与业务数据的权限联动
+- **发布与排障**：静态托管 / 小程序发布；根据日志定位问题并再部署
 
-我们不是简单的"胶水代码"。内置的规则库专为 AI 编程设计，能让 AI 直接生成"可部署"的 CloudBase 最佳实践代码。
+适用形态包括 Web、微信小程序与后端服务。平台能力总览见 [CloudBase 文档](https://docs.cloudbase.net/)。
 
-```markdown
-提示词：生成一个用户登录功能
-- AI 自动生成符合云开发规范的代码
-- 自动配置数据库、云函数、安全规则
-- 一键部署到云端
-```
+### 评测说明
 
-<img width="1200" alt="AI Native" src="scripts/assets/cloudbase-mcp-card-01.png" />
+在受控条件下，以同一待办（Todo）应用需求与同一前端脚手架为输入，比较两类后端实现路径：传统云主机（自行搭建运行时、进程与网络暴露）与 CloudBase（托管数据库、匿名登录等后端能力）。评测由 AI Agent 端到端完成开发与验证；在给定模型与任务设定下，CloudBase 路径在完成时延、Token 用量与工具调用次数上更优。上述结果受模型、Agent 框架与任务定义约束，不宜外推为一般性结论。
 
-### 2. 一键部署（One-Click Deploy）
+方法、数据与边界条件见：[传统云主机与 CloudBase 同任务评测报告](https://docs.cloudbase.net/solutions/vibe-coding-platform/vm-vs-cloudbase-comparison)
 
-AI 自动化的 MCP 部署流，AI 帮你搞定从云函数、数据库到静态网站的**所有**云上资源配置。
-
-```markdown
-提示词：部署当前项目到云开发
-- 自动检测项目类型（Web/小程序/后端）
-- 智能配置部署参数
-- 实时显示部署进度
-- 自动返回访问链接
-```
-
-<img width="1200" alt="One-Click Deploy" src="scripts/assets/cloudbase-mcp-card-02.png" />
-
-### 3. 智能调试（Smart Debugging）
-
-部署出错？不用怕。AI 会自动读取日志，帮你分析并修复问题，真正实现**开发-部署-调试**的闭环。
-
-```markdown
-提示词：报错了，错误是 xxxx
-- AI 自动查看云函数日志
-- 分析错误原因
-- 生成修复代码
-- 自动重新部署
-```
-
-<img width="1200" alt="Smart Debugging" src="scripts/assets/cloudbase-mcp-card-03.png" />
-
-### 4. 全栈支持（Full-Stack Ready）
-
-无论是 Web 应用、小程序还是后端服务，AI 都能为你处理，你只需专注业务逻辑。
-
-| 应用类型 | 技术栈 | 部署方式 |
-|---------|--------|---------|
-| **Web 应用** | React/Vue/Next.js | 静态托管 + CDN |
-| **微信小程序** | 原生/UniApp | 小程序发布 |
-| **后端服务** | Node.js/Python | 云函数/云托管 |
-
-<img width="1200" alt="Full-Stack Ready" src="scripts/assets/cloudbase-mcp-card-04.png" />
-
-### 5. 知识检索（Knowledge Search）
-
-内置云开发、微信小程序等专业知识库的智能向量检索，让 AI 更懂云开发。
-
-```markdown
-提示词：如何使用云数据库实现实时数据同步？
-- 智能检索云开发知识库
-- 返回相关文档和最佳实践
-- 提供代码示例
-```
-
-<img width="1200" alt="Knowledge Search" src="scripts/assets/cloudbase-mcp-card-05.png" />
-
-### 6. 灵活工作流（Flexible Workflow）
-
-支持 /spec 和 /no_spec 命令，根据任务复杂度智能选择。
-
-```markdown
-/spec - 完整工作流（需求→设计→任务→实现）
-/no_spec - 快速迭代（直接实现）
-```
-
-<img width="1200" alt="Flexible Workflow" src="scripts/assets/cloudbase-mcp-card-06.png" />
-
-
-## 📦 安装配置
+## 安装与连接
 
 ### 前置条件
 
-- ✅ Node.js v18.15.0 及以上版本
-- ✅ 已开通 [腾讯云开发环境](https://tcb.cloud.tencent.com/dev)
-- ✅ 安装支持 MCP 的 AI IDE（[查看支持的 IDE](#支持的-ai-ide)）
+- Node.js v18.15.0+
+- 已开通 [云开发环境](https://tcb.cloud.tencent.com/dev)
+- 已安装支持 Plugin / Skills / MCP 的 AI 工具
 
 ### 配置方式
 
-#### 方式一：CloudBase AI CLI（推荐）
-
-```bash
-# 安装
-npm install @cloudbase/cli@latest -g
-
-# 使用
-tcb ai
-```
-
-#### 方式二：手动配置 MCP
-
-根据你使用的 AI IDE，添加 MCP 配置：
+1. **Plugin**（推荐，能装插件时）  
+   `npx plugins add TencentCloudBase/cloudbase-plugin`
+2. **CloudBase AI CLI**  
+   `npm i -g @cloudbase/cli && tcb ai`
+3. **手动 MCP**（按 IDE 写入配置文件）
 
 <details>
-<summary><b>Cursor</b></summary>
-
-在 `.cursor/mcp.json` 中添加：
+<summary>Cursor（.cursor/mcp.json）</summary>
 
 ```json
 {
@@ -256,9 +184,7 @@ tcb ai
 </details>
 
 <details>
-<summary><b>WindSurf</b></summary>
-
-在 `.windsurf/settings.json` 中添加：
+<summary>WindSurf（.windsurf/settings.json）</summary>
 
 ```json
 {
@@ -274,114 +200,115 @@ tcb ai
 </details>
 
 <details>
-<summary><b>CodeBuddy</b></summary>
+<summary>CodeBuddy</summary>
 
-CodeBuddy 已内置 CloudBase MCP，无需配置即可使用。
-
-</details>
-
-<details>
-<summary><b>其他 IDE</b></summary>
-
-查看 [完整配置指南](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/) 了解其他 IDE 的配置方式。
+已内置 CloudBase（含 MCP / Skills），一般无需再手写配置。
 
 </details>
 
+其他 IDE：[完整配置指南](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/)。
 
-## 🎯 使用案例
+### MCP 连接模式
 
-### 案例 1：双人在线对战五子棋
+**本地模式**（默认）：本机 `npx` 启动，功能最全（含依赖本地文件系统的上传、模板等）。
 
-**开发过程：**
-1. 输入需求："做个双人在线对战五子棋网站，支持联机对战"
-2. AI 生成：Web 应用 + 云数据库 + 实时数据推送
-3. 自动部署并获得访问链接
+**托管模式**：IDE 通过 HTTP 连接腾讯云上的 MCP，无需本机 Node；部分本地文件能力不可用。
 
-**体验地址：** [五子棋游戏](https://cloud1-5g39elugeec5ba0f-1300855855.tcloudbaseapp.com/gobang/#/)
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "type": "http",
+      "url": "https://tcb-api.cloud.tencent.com/mcp/v1?env_id=<env_id>",
+      "headers": {
+        "X-TencentCloud-SecretId": "<腾讯云 Secret ID>",
+        "X-TencentCloud-SecretKey": "<腾讯云 Secret Key>"
+      }
+    }
+  }
+}
+```
 
-<details>
-<summary>查看开发截图</summary>
+托管 URL 可用 `enable_plugins` / `disable_plugins` 裁剪工具集。名称以 `mcp/src/server.ts` 为准。
 
-| 开发过程 | 最终效果 |
-|---------|---------|
-| ![][image-case1-dev] | ![][image-case1-result] |
+**自建 Cloud Mode**：在自有服务器部署时设置 `CLOUDBASE_MCP_CLOUD_MODE=true`（或 `MCP_CLOUD_MODE=true`），禁用本地文件与本地进程类工具，避免远程调用方操作宿主机。
 
-</details>
+| 场景 | 建议 |
+|------|------|
+| 个人开发 | 本地 `npx` |
+| 团队 / 免运维 | 腾讯云托管 HTTP |
+| 自建 MCP 服务 | 必须开启 Cloud Mode |
 
-### 案例 2：AI 宠物养成小程序
+## 案例
 
-**开发过程：**
-1. 输入："开发一个宠物小精灵养成小程序，使用 AI 增强互动"
-2. AI 生成：小程序 + 云数据库 + AI 云函数
-3. 导入微信开发者工具即可发布
+**双人在线五子棋**：需求描述后生成 Web + 云数据库与实时能力并部署。  
+体验：[五子棋](https://cloud1-5g39elugeec5ba0f-1300855855.tcloudbaseapp.com/gobang/#/) · 更多：[教程与案例](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/tutorials)
 
-<details>
-<summary>查看开发截图与小程序预览</summary>
+## 文档
 
-![][image-case2]
-
-</details>
-
-### 案例 3：智能问题诊断
-
-当应用出现问题时，AI 自动查看日志、分析错误并生成修复代码。
-
-<details>
-<summary>查看智能诊断过程</summary>
-
-![][image-case3]
-
-</details>
-
-## 🧩 MCP 工具
-
-覆盖环境管理、数据库、云函数、静态托管等核心功能。
-
-| 分类 | 工具 | 核心功能 |
-|------|------|----------|
-| **环境** | 4 个 | 登录认证、环境查询、域名管理 |
-| **数据库** | 11 个 | 集合管理、文档 CRUD、索引、数据模型 |
-| **云函数** | 9 个 | 创建、更新、调用、日志、触发器 |
-| **静态托管** | 5 个 | 文件上传、域名配置、网站部署 |
-| **工具支持** | 3 个 | 模板、知识库搜索、交互对话 |
-
-[查看完整工具文档](doc/mcp-tools.md) | [工具规格 JSON](scripts/tools.json)
-
-## 📚 更多资源
-
-### 文档
-
+- [MCP 工具说明](doc/mcp-tools.md)（[tools.json](scripts/tools.json)）
 - [快速开始](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/getting-started)
-- [IDE 配置指南](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cursor)
-- [项目模板](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/templates)
-- [开发指南](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/development)
-- [插件系统](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/plugins)
-- [常见问题](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/faq)
+- [IDE 配置](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/)
+- [AI 插件](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ai-agent-plugins)
+- [模板](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/templates)
+- [FAQ](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/faq)
 
-### 教程
+## 常见问题
 
-- [查看所有教程和视频...](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/tutorials)
+<details>
+<summary>和 Vercel / Netlify 这类部署平台有何不同？</summary>
 
-### 项目案例
+它们侧重把前端或容器发布出去。CloudBase 提供数据库、认证、函数等后端能力；Toolkit 让 AI 工具在对话里使用这些能力。部署只是链路的一部分。
 
-- [查看所有项目案例...](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/examples)
+</details>
 
-## 💬 社区
+<details>
+<summary>没有图形界面 IDE 也能用吗？</summary>
 
-### 微信交流群
+可以。凡能配置 MCP Server 或安装对应 Plugin / Skills 的工具均可，包括 Claude Code、Gemini CLI、OpenCode 等。[支持列表](#支持的-ai-ide)
+
+</details>
+
+<details>
+<summary>代码会到哪里？</summary>
+
+部署目标是你自己的云开发环境。本地模式下 MCP 跑在本机；主动部署前代码不必离开本机。云端通信使用 HTTPS。
+
+</details>
+
+<details>
+<summary>自建 MCP 服务是否安全？</summary>
+
+本地 `npx` 等同于你在本机执行工具。远程部署务必设置 `CLOUDBASE_MCP_CLOUD_MODE=true`，以禁用本地文件与进程类工具。腾讯云托管 HTTP 模式已带该保护。
+
+</details>
+
+<details>
+<summary>费用？</summary>
+
+Toolkit（含 MCP）开源，MIT。云开发环境有免费额度；超出后按量计费，见 [计费说明](https://cloud.tencent.com/document/product/876/39095)。
+
+</details>
+
+<details>
+<summary>登录提示环境不存在？</summary>
+
+确认已在 [控制台](https://tcb.cloud.tencent.com/) 开通且环境状态正常，然后再次「登录云开发」选择正确环境。
+
+</details>
+
+## 社区
 
 <div align="center">
 <img src="https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/mcp/toolkit-qrcode.png" width="200" alt="微信群二维码">
 <br>
-<i>扫码加入微信技术交流群</i>
+<sub>微信技术交流群</sub>
 </div>
 
-### 其他交流方式
-
-| 平台 | 链接 | 说明 |
-|------|------|------|
-| **官方文档** | [查看文档](https://docs.cloudbase.net/) | 完整的云开发文档 |
-| **Issue 反馈** | [提交问题](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues) | Bug 反馈和功能请求 |
+| | |
+|--|--|
+| 文档 | [docs.cloudbase.net](https://docs.cloudbase.net/) |
+| Issues | [GitHub Issues](https://github.com/TencentCloudBase/CloudBase-MCP/issues) |
 
 ## 项目活跃度
 
@@ -389,90 +316,23 @@ CodeBuddy 已内置 CloudBase MCP，无需配置即可使用。
 
 ## Contributors
 
-感谢所有为 CloudBase MCP 做出贡献的开发者！
-
-[![Contributors](https://contrib.rocks/image?repo=TencentCloudBase/CloudBase-AI-ToolKit)](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=TencentCloudBase/CloudBase-MCP)](https://github.com/TencentCloudBase/CloudBase-MCP/graphs/contributors)
 
 ---
 
-<div align="center">
-
-**如果这个项目对你有帮助，请给我们一个 Star！**
-
-[![][github-stars-shield]][github-stars-link]
-
-[MIT](LICENSE) © TencentCloudBase
-
-</div>
-
-<!-- Image Placeholders - 这些图片需要实际生成或替换 -->
-<!-- 
-设计风格约束（所有图片统一遵循）：
-- 现代扁平化设计，简洁而富有活力
-- 背景色：纯黑色 #000000（统一黑色背景）
-- 主题色渐变：#67E9E9 → #4896FF → #2BCCCC（保持）
-- 活力点缀色：适度使用 #FFD93D（黄）、#6BCF7F（绿）作为点缀
-- 简洁几何形状（圆形、矩形、线条），无文字
-- 使用几何图形和图标表达概念，抽象化 UI 骨架
-- 宣传视频风格，现代 UI 骨架
-- 流畅线条、适度光效、平衡的色彩搭配
-
-提示词模板（所有图片无文字，纯几何形状和图标）：
-- image-overview: "抽象化 UI 骨架图，现代风格，纯黑色背景 #000000，主题色 #67E9E9 #4896FF #2BCCCC 渐变，适度活力点缀色，使用几何形状（圆形、矩形、流畅线条）和图标表达 AI IDE、代码生成、云端部署的流程，无文字，宣传视频风格，现代 UI 骨架"
-- image-ai-native: "抽象化代码生成界面骨架，现代风格，纯黑色背景，主题色青色蓝色渐变，使用矩形代表代码块，圆形代表 AI 图标，流畅线条代表连接关系，无文字，宣传视频风格，简洁几何图形"
-- image-deploy: "抽象化部署界面骨架，现代风格，纯黑色背景，主题色渐变，使用圆形进度指示器，矩形进度条，流畅线条表达部署流程，无文字，宣传视频风格，现代 UI 骨架"
-- image-fullstack: "抽象化全栈架构骨架图，现代风格，纯黑色背景，主题色渐变，使用圆形节点代表不同服务（Web/小程序/后端/数据库），流畅线条连接表达集成关系，几何形状图标化表达，无文字，宣传视频风格"
-- image-agent: "抽象化 AI 智能体界面骨架，现代风格，纯黑色背景，主题色渐变，使用圆形代表 Agent，矩形代表配置卡片，流畅线条表达数据流，几何形状图标化，无文字，宣传视频风格，现代 UI 骨架"
-- image-debug: "抽象化问题诊断界面骨架，现代风格，纯黑色背景，主题色渐变，使用矩形代表日志卡片，圆形代表状态指示，流畅线条表达分析流程，几何形状图标化，无文字，宣传视频风格"
-- image-knowledge: "抽象化知识检索界面骨架，现代风格，纯黑色背景，主题色渐变，使用矩形卡片代表搜索结果，圆形代表搜索图标，流畅线条表达关联关系，几何形状图标化，无文字，宣传视频风格，现代 UI 骨架"
-- image-workflow: "抽象化工作流选择界面骨架，现代风格，纯黑色背景，主题色渐变，使用圆形按钮代表两种模式，矩形面板代表选项，流畅线条表达流程，几何形状图标化，无文字，宣传视频风格"
-- image-case1-dev: "抽象化游戏开发界面骨架，现代风格，纯黑色背景，主题色渐变，使用几何形状代表代码编辑器、游戏界面元素，无文字，宣传视频风格，现代 UI 骨架"
-- image-case1-result: "抽象化游戏界面骨架，现代风格，纯黑色背景，主题色渐变，使用圆形和矩形代表游戏元素，几何形状图标化表达，无文字，宣传视频风格"
-- image-case2: "抽象化小程序开发界面骨架，现代风格，纯黑色背景，主题色渐变，使用矩形代表小程序界面，圆形代表功能模块，几何形状图标化，无文字，宣传视频风格，现代 UI 骨架"
-- image-case3: "抽象化问题诊断界面骨架，现代风格，纯黑色背景，主题色渐变，使用矩形代表日志卡片，圆形代表状态，流畅线条表达诊断流程，几何形状图标化，无文字，宣传视频风格"
--->
-
-[image-overview]: https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/mcp/video-banner.png
-[image-ai-native]: https://via.placeholder.com/800x400/3B82F6/FFFFFF?text=AI+Native+Development
-[image-deploy]: https://via.placeholder.com/800x400/10B981/FFFFFF?text=One-Click+Deploy
-[image-fullstack]: https://via.placeholder.com/800x400/8B5CF6/FFFFFF?text=Full-Stack+Application
-[image-agent]: https://via.placeholder.com/800x400/EC4899/FFFFFF?text=AI+Agent+Development
-[image-debug]: https://via.placeholder.com/800x400/F59E0B/FFFFFF?text=Smart+Debugging
-[image-knowledge]: https://via.placeholder.com/800x400/06B6D4/FFFFFF?text=Knowledge+Search
-[image-workflow]: https://via.placeholder.com/800x400/6366F1/FFFFFF?text=Flexible+Workflow
-[image-case1-dev]: https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/turbo-deploy/turbo-deploy-001.png
-[image-case1-result]: https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/turbo-deploy/turbo-deploy-004.png
-[image-case2]: https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/turbo-deploy/turbo-deploy-005.png
-[image-case3]: https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/turbo-deploy/turbo-deploy-009.png
+[MIT](LICENSE) · [TencentCloudBase](https://github.com/TencentCloudBase)
 
 <!-- Links -->
 [docs]: https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/
 [changelog]: https://github.com/TencentCloudBase/CloudBase-MCP/releases
-[github-issues-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues
-[github-stars-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/stargazers
-[github-forks-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/network/members
-[github-trending-url]: https://github.com/trending
+[github-issues-link]: https://github.com/TencentCloudBase/CloudBase-MCP/issues
+[github-stars-link]: https://github.com/TencentCloudBase/CloudBase-MCP/stargazers
 [npm-link]: https://www.npmjs.com/package/@cloudbase/cloudbase-mcp
-[cnb-link]: https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-ToolKit
-[deepwiki-link]: https://deepwiki.com/TencentCloudBase/CloudBase-AI-ToolKit
+[cnb-link]: https://cnb.cool/tencent/cloud/cloudbase/CloudBase-MCP
 
 <!-- Shields -->
 [npm-version-shield]: https://img.shields.io/npm/v/@cloudbase/cloudbase-mcp?color=3B82F6&label=npm&logo=npm&style=flat-square
 [npm-downloads-shield]: https://img.shields.io/npm/dw/@cloudbase/cloudbase-mcp?color=10B981&label=downloads&logo=npm&style=flat-square
-[github-stars-shield]: https://img.shields.io/github/stars/TencentCloudBase/CloudBase-AI-ToolKit?color=F59E0B&label=stars&logo=github&style=flat-square
-[github-forks-shield]: https://img.shields.io/github/forks/TencentCloudBase/CloudBase-AI-ToolKit?color=8B5CF6&label=forks&logo=github&style=flat-square
-[github-issues-shield]: https://img.shields.io/github/issues/TencentCloudBase/CloudBase-AI-ToolKit?color=EC4899&label=issues&logo=github&style=flat-square
+[github-stars-shield]: https://img.shields.io/github/stars/TencentCloudBase/CloudBase-MCP?color=F59E0B&label=stars&logo=github&style=flat-square
 [github-license-shield]: https://img.shields.io/badge/license-MIT-6366F1?logo=github&style=flat-square
-[github-contributors-shield]: https://img.shields.io/github/contributors/TencentCloudBase/CloudBase-AI-ToolKit?color=06B6D4&label=contributors&logo=github&style=flat-square
-[github-contributors-link]: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/graphs/contributors
-[cnb-shield]: https://img.shields.io/badge/CNB-CloudBase--AI--ToolKit-3B82F6?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAxMiAxMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHJ4PSIyIiBmaWxsPSIjM0I4MkY2Ii8+PHBhdGggZD0iTTUgM0g3VjVINSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48cGF0aCBkPSJNNSA3SDdWOUg1IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjEuNSIvPjwvc3ZnPg==&style=flat-square
-[deepwiki-shield]: https://deepwiki.com/badge.svg
-[github-trending-shield]: https://img.shields.io/github/stars/TencentCloudBase/CloudBase-AI-ToolKit?style=social
-
-<!-- Share Links -->
-[share-x-link]: https://x.com/intent/tweet?hashtags=cloudbase,ai,devtools&text=AI%20编程%2C%20一键上线！告别繁琐的%20DevOps%20配置%2C%20从提示词到应用上线的最短路径%20🚀&url=https://github.com/TencentCloudBase/CloudBase-AI-ToolKit
-[share-x-shield]: https://img.shields.io/badge/-share%20on%20x-black?labelColor=black&logo=x&logoColor=white&style=flat-square
-[share-telegram-shield]: https://img.shields.io/badge/-share%20on%20telegram-black?labelColor=black&logo=telegram&logoColor=white&style=flat-square
-[share-telegram-link]: https://t.me/share/url?url=https://github.com/TencentCloudBase/CloudBase-AI-ToolKit&text=AI%20编程%2C%20一键上线！告别繁琐的%20DevOps%20配置%2C%20从提示词到应用上线的最短路径%20🚀
-[share-weibo-link]: http://service.weibo.com/share/share.php?sharesource=weibo&title=AI%20编程%2C%20一键上线！告别繁琐的%20DevOps%20配置%2C%20从提示词到应用上线的最短路径%20🚀&url=https://github.com/TencentCloudBase/CloudBase-AI-ToolKit
-[share-weibo-shield]: https://img.shields.io/badge/-share%20on%20weibo-black?labelColor=black&logo=sinaweibo&logoColor=white&style=flat-square
+[cnb-shield]: https://img.shields.io/badge/CNB-CloudBase--AI--ToolKit-3B82F6?style=flat-square

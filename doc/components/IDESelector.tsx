@@ -38,26 +38,50 @@ const IDES: IDE[] = [
     configExample: '',
   },
   {
-    id: 'openclaw',
-    name: 'OpenClaw',
-    platform: '命令行工具',
-    configPath: 'CloudBase Skills',
-    iconUrl: 'https://openclaw.ai/favicon.svg',
-    docUrl: 'https://docs.openclaw.ai/getting-started',
-    useCommandInsteadOfConfig: true,
-    configExample: '',
-  },
-  {
     id: 'workbuddy',
     name: 'WorkBuddy',
     platform: '独立 IDE',
-    configPath: '应用连接器',
+    configPath: '连接器',
     iconUrl: 'https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/assets/workbuddy-logo.svg',
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy',
     configExample: '',
     showInstallButton: false,
     useCommandInsteadOfConfig: true,
     installCommandDocs: '**使用内置连接器**\n\n1. 在 WorkBuddy 对话界面中，点击输入框左下角的 **连接器** 按钮\n2. 在弹窗中找到 **腾讯云 CloudBase**，点击进入详情页，点击 **连接** 启用\n\n启用后，即可在对话中直接使用 CloudBase 的各项能力。\n\n**使用快捷命令**\n\n在对话中直接输入 `/cloudbase` 选择 CloudBase Skill，然后输入需求即可。',
+  },
+  {
+    id: 'zcode',
+    name: 'ZCode',
+    platform: '独立 IDE',
+    configPath: '设置 → 插件 / MCP 服务器',
+    iconUrl: 'https://zcode.z.ai/icon.svg?v=3.0.0',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/zcode',
+    supportsProjectMCP: false,
+    useCommandInsteadOfConfig: true,
+    installCommandDocs: '**使用内置插件（推荐，ZCode ≥ 3.4.1）**\n\n1. 打开 ZCode **设置** → **插件**\n2. 在 **开发者工具** 中找到 **cloudbase-skills** 并启用\n\n**手动配置 MCP（可选）**\n\n1. 打开 **设置** → **MCP 服务器** → **添加** → **新建 MCP 服务器**\n2. 填写：名称 `cloudbase`，作用域「用户」，类型 stdio，超时 `30000`，命令 `npx`，参数 `-y @cloudbase/cloudbase-mcp@latest`，环境变量 `INTEGRATION_IDE=ZCode`\n3. 保存后返回列表',
+    configExample: `{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["-y", "@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "INTEGRATION_IDE": "ZCode"
+      }
+    }
+  }
+}`,
+  },
+  {
+    id: 'codex-app',
+    name: 'Codex App',
+    platform: '独立应用',
+    configPath: '插件市场',
+    iconUrl: 'https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@latest/icons/codex.svg',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/codex',
+    supportsProjectMCP: false,
+    useCommandInsteadOfConfig: true,
+    installCommandDocs: '**通过插件市场安装（推荐）**\n\n1. 在 Codex App 中点击右上角的 `+` 按钮\n2. 选择 **添加插件市场**\n3. 填写来源 `TencentCloudBase/CloudBase-MCP`，Git 引用 `main`，稀疏路径留空\n4. 添加成功后，在 **Tencent CloudBase** 市场中安装 `cloudbase` 插件\n5. 新开一个 Codex 线程，让插件、技能和 MCP 工具完整加载\n\n完整步骤见 [Codex 配置指南](/ai/cloudbase-ai-toolkit/ide-setup/codex)。',
+    configExample: '',
   },
   {
     id: 'cursor',
@@ -121,43 +145,29 @@ const IDES: IDE[] = [
 }`,
   },
   {
-    id: 'codebuddy-code',
-    name: 'CodeBuddy Code',
+    id: 'openclaw',
+    name: 'OpenClaw',
     platform: '命令行工具',
-    configPath: '.mcp.json',
-    iconUrl: 'https://codebuddy-1328495429.cos.accelerate.myqcloud.com/web/ide/logo.svg',
-    docUrl: 'https://cnb.cool/codebuddy/codebuddy-code/-/blob/main/docs/mcp.md',
-    supportsProjectMCP: true,
-    cliCommand: 'codebuddy mcp add --scope project cloudbase --env INTEGRATION_IDE=CodeBuddyCode -- npx @cloudbase/cloudbase-mcp@latest',
-    alternativeConfig: '或者将以下配置添加到 .mcp.json:',
+    configPath: 'CloudBase Skills',
+    iconUrl: 'https://openclaw.ai/favicon.svg',
+    docUrl: 'https://docs.openclaw.ai/getting-started',
+    useCommandInsteadOfConfig: true,
+    configExample: '',
+  },
+  {
+    id: 'opencode',
+    name: 'OpenCode',
+    platform: '命令行工具',
+    configPath: '.opencode.json',
+    iconUrl: 'https://opencode.ai/docs/favicon.svg',
+    docUrl: 'https://opencode.ai/docs/config',
     configExample: `{
   "mcpServers": {
     "cloudbase": {
-      "type": "stdio",
       "command": "npx",
       "args": ["@cloudbase/cloudbase-mcp@latest"],
       "env": {
-        "INTEGRATION_IDE": "CodeBuddyCode"
-      }
-    }
-  }
-}`,
-  },
-  {
-    id: 'github-copilot',
-    name: 'VSCode',
-    platform: 'VS Code 插件',
-    configPath: '.vscode/mcp.json',
-    iconUrl: 'https://code.visualstudio.com/favicon.ico',
-    docUrl: 'https://code.visualstudio.com/docs/copilot/chat/mcp-servers',
-    supportsProjectMCP: true,
-    configExample: `{
-  "servers": {
-    "cloudbase": {
-      "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
-      "env": {
-        "INTEGRATION_IDE": "VSCode"
+        "INTEGRATION_IDE": "OpenCode"
       }
     }
   }
@@ -185,6 +195,89 @@ const IDES: IDE[] = [
 }`,
   },
   {
+    id: 'qoder',
+    name: 'Qoder',
+    platform: '独立 IDE',
+    configPath: 'Qoder 设置 > MCP',
+    iconUrl: 'https://g.alicdn.com/qbase/qoder/0.0.183/favIcon.svg',
+    docUrl: 'https://docs.qoder.com/zh/user-guide/chat/model-context-protocol',
+    supportsProjectMCP: false,
+    configExample: `{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "INTEGRATION_IDE": "Qoder"
+      }
+    }
+  }
+}`,
+  },
+  {
+    id: 'windsurf',
+    name: 'WindSurf',
+    platform: '独立 IDE',
+    configPath: '.windsurf/mcp.json',
+    iconSlug: 'windsurf',
+    docUrl: 'https://docs.windsurf.com/windsurf/cascade/memories',
+    supportsProjectMCP: true,
+    configExample: `{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "INTEGRATION_IDE": "WindSurf"
+      }
+    }
+  }
+}`,
+  },
+  {
+    id: 'github-copilot',
+    name: 'VSCode',
+    platform: 'VS Code 插件',
+    configPath: '.vscode/mcp.json',
+    iconUrl: 'https://code.visualstudio.com/favicon.ico',
+    docUrl: 'https://code.visualstudio.com/docs/copilot/chat/mcp-servers',
+    supportsProjectMCP: true,
+    configExample: `{
+  "servers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "INTEGRATION_IDE": "VSCode"
+      }
+    }
+  }
+}`,
+  },
+  {
+    id: 'codebuddy-code',
+    name: 'CodeBuddy Code',
+    platform: '命令行工具',
+    configPath: '.mcp.json',
+    iconUrl: 'https://codebuddy-1328495429.cos.accelerate.myqcloud.com/web/ide/logo.svg',
+    docUrl: 'https://cnb.cool/codebuddy/codebuddy-code/-/blob/main/docs/mcp.md',
+    supportsProjectMCP: true,
+    cliCommand: 'codebuddy mcp add --scope project cloudbase --env INTEGRATION_IDE=CodeBuddyCode -- npx @cloudbase/cloudbase-mcp@latest',
+    alternativeConfig: '或者将以下配置添加到 .mcp.json:',
+    configExample: `{
+  "mcpServers": {
+    "cloudbase": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "INTEGRATION_IDE": "CodeBuddyCode"
+      }
+    }
+  }
+}`,
+  },
+  {
     id: 'tongyi-lingma',
     name: '通义灵码',
     platform: 'VS Code、JetBrains 插件',
@@ -205,19 +298,19 @@ const IDES: IDE[] = [
 }`,
   },
   {
-    id: 'baidu-comate',
-    name: '文心快码',
-    platform: 'VS Code、JetBrains 插件',
-    configPath: '.baidu-comate/mcp.json',
-    iconUrl: 'https://comate.baidu.com/images/favicon.ico',
-    docUrl: 'https://cloud.baidu.com/doc/COMATE/s/km9l4bzwt',
+    id: 'qwen-code',
+    name: 'Qwen Code',
+    platform: '命令行工具',
+    configPath: '.qwen/settings.json',
+    iconSlug: 'qwen',
+    docUrl: 'https://qwenlm.github.io/qwen-code-docs/zh/cli/index',
     configExample: `{
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
       "args": ["@cloudbase/cloudbase-mcp@latest"],
       "env": {
-        "INTEGRATION_IDE": "Comate"
+        "INTEGRATION_IDE": "Qwen"
       }
     }
   }
@@ -243,41 +336,43 @@ const IDES: IDE[] = [
 }`,
   },
   {
-    id: 'openai-codex-cli',
-    name: 'OpenAI Codex CLI',
-    platform: '命令行工具',
-    configPath: '.openai-codex/mcp.json',
-    iconSlug: 'openai',
-    docUrl: 'https://help.openai.com/en/articles/11096431-openai-codex-ci-getting-started',
-    useCommandInsteadOfConfig: true,
-    installCommand: 'codex mcp add cloudbase --env INTEGRATION_IDE=CodeX -- cloudbase-mcp',
-    installCommandDocs: '**前置步骤：** 请先全局安装 CloudBase MCP 工具：\n```bash\nnpm i @cloudbase/cloudbase-mcp -g\n```\n\n根据运行系统在终端中运行指令：\n\n**MacOS, Linux, WSL:**\n```bash\ncodex mcp add cloudbase --env INTEGRATION_IDE=CodeX -- cloudbase-mcp\n```\n\n**Windows Powershell:**\n```bash\ncodex mcp add cloudbase --env INTEGRATION_IDE=CodeX -- cmd /c cloudbase-mcp\n```',
+    id: 'cline',
+    name: 'Cline',
+    platform: 'VS Code 插件',
+    configPath: '.cline/mcp.json',
+    iconSlug: 'cline',
+    docUrl: 'https://docs.cline.bot/mcp/configuring-mcp-servers',
     configExample: `{
   "mcpServers": {
     "cloudbase": {
+      "autoApprove": [],
+      "timeout": 60,
       "command": "npx",
       "args": ["@cloudbase/cloudbase-mcp@latest"],
       "env": {
-        "INTEGRATION_IDE": "OpenAI Codex CLI"
-      }
+        "INTEGRATION_IDE": "Cline"
+      },
+      "transportType": "stdio",
+      "disabled": false
     }
   }
 }`,
   },
   {
-    id: 'qwen-code',
-    name: 'Qwen Code',
-    platform: '命令行工具',
-    configPath: '.qwen/settings.json',
-    iconSlug: 'qwen',
-    docUrl: 'https://qwenlm.github.io/qwen-code-docs/zh/cli/index',
+    id: 'antigravity',
+    name: 'Google Antigravity',
+    platform: '独立 IDE',
+    configPath: '.agent/rules/',
+    iconUrl: 'https://antigravity.google/assets/image/antigravity-logo.png',
+    docUrl: 'https://antigravity.google/docs',
+    supportsProjectMCP: true,
     configExample: `{
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
       "args": ["@cloudbase/cloudbase-mcp@latest"],
       "env": {
-        "INTEGRATION_IDE": "Qwen"
+        "INTEGRATION_IDE": "Antigravity"
       }
     }
   }
@@ -323,25 +418,6 @@ const IDES: IDE[] = [
 }`,
   },
   {
-    id: 'opencode',
-    name: 'OpenCode',
-    platform: '命令行工具',
-    configPath: '.opencode.json',
-    iconUrl: 'https://avatars.githubusercontent.com/u/66570915?s=200&v=4',
-    docUrl: 'https://opencode.ai/docs/config',
-    configExample: `{
-  "mcpServers": {
-    "cloudbase": {
-      "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
-      "env": {
-        "INTEGRATION_IDE": "OpenCode"
-      }
-    }
-  }
-}`,
-  },
-  {
     id: 'kiro',
     name: 'Kiro',
     platform: '独立 IDE',
@@ -360,102 +436,6 @@ const IDES: IDE[] = [
     }
   }
 }`,
-  },
-  {
-    id: 'qoder',
-    name: 'Qoder',
-    platform: '独立 IDE',
-    configPath: 'Qoder 设置 > MCP',
-    iconUrl: 'https://g.alicdn.com/qbase/qoder/0.0.183/favIcon.svg',
-    docUrl: 'https://docs.qoder.com/zh/user-guide/chat/model-context-protocol',
-    supportsProjectMCP: false,
-    configExample: `{
-  "mcpServers": {
-    "cloudbase": {
-      "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
-      "env": {
-        "INTEGRATION_IDE": "Qoder"
-      }
-    }
-  }
-}`,
-  },
-  {
-    id: 'antigravity',
-    name: 'Google Antigravity',
-    platform: '独立 IDE',
-    configPath: '.agent/rules/',
-    iconUrl: 'https://antigravity.google/assets/image/antigravity-logo.png',
-    docUrl: 'https://antigravity.google/docs',
-    supportsProjectMCP: true,
-    configExample: `{
-  "mcpServers": {
-    "cloudbase": {
-      "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
-      "env": {
-        "INTEGRATION_IDE": "Antigravity"
-      }
-    }
-  }
-}`,
-  },
-  {
-    id: 'windsurf',
-    name: 'WindSurf',
-    platform: '独立 IDE',
-    configPath: '.windsurf/mcp.json',
-    iconSlug: 'windsurf',
-    docUrl: 'https://docs.windsurf.com/windsurf/cascade/memories',
-    supportsProjectMCP: true,
-    configExample: `{
-  "mcpServers": {
-    "cloudbase": {
-      "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
-      "env": {
-        "INTEGRATION_IDE": "WindSurf"
-      }
-    }
-  }
-}`,
-  },
-  {
-    id: 'cline',
-    name: 'Cline',
-    platform: 'VS Code 插件',
-    configPath: '.cline/mcp.json',
-    iconSlug: 'cline',
-    docUrl: 'https://docs.cline.bot/mcp/configuring-mcp-servers',
-    configExample: `{
-  "mcpServers": {
-    "cloudbase": {
-      "autoApprove": [],
-      "timeout": 60,
-      "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
-      "env": {
-        "INTEGRATION_IDE": "Cline"
-      },
-      "transportType": "stdio",
-      "disabled": false
-    }
-  }
-}`,
-  },
-  {
-    id: 'cloudbase-cli',
-    name: 'CloudBase CLI',
-    platform: '命令行工具',
-    configPath: '项目级配置',
-    iconUrl: 'https://docs.cloudbase.net/img/favicon.png',
-    docUrl: 'https://docs.cloudbase.net/cli-v1/ai/introduce',
-    supportsProjectMCP: true,
-    useCommandInsteadOfConfig: true,
-    installCommand: 'npm i -g @cloudbase/cli',
-    installCommandDocs: '**安装 CloudBase CLI：**\n\n```bash\nnpm i -g @cloudbase/cli\n```\n\n**初始化配置：**\n\n```bash\ntcb ai\n```\n\n配置向导会引导你完成 AI 工具的配置。CloudBase CLI 内置了 MCP 和 AI 开发规则，无需手动配置。\n\n**开始使用：**\n\n```bash\ntcb ai\n```',
-    configExample: '',
   },
   {
     id: 'iflow-cli',
@@ -479,7 +459,61 @@ const IDES: IDE[] = [
   }
 }`,
   },
-];
+  {
+    id: 'openai-codex-cli',
+    name: 'Codex CLI',
+    platform: '命令行工具',
+    configPath: '.openai-codex/mcp.json',
+    iconUrl: 'https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@latest/icons/codex.svg',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/openai-codex-cli',
+    useCommandInsteadOfConfig: true,
+    installCommand: 'codex mcp add cloudbase --env INTEGRATION_IDE=CodeX -- cloudbase-mcp',
+    installCommandDocs: '**前置步骤：** 请先全局安装 CloudBase MCP 工具：\n```bash\nnpm i @cloudbase/cloudbase-mcp -g\n```\n\n根据运行系统在终端中运行指令：\n\n**MacOS, Linux, WSL:**\n```bash\ncodex mcp add cloudbase --env INTEGRATION_IDE=CodeX -- cloudbase-mcp\n```\n\n**Windows Powershell:**\n```bash\ncodex mcp add cloudbase --env INTEGRATION_IDE=CodeX -- cmd /c cloudbase-mcp\n```',
+    configExample: `{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "INTEGRATION_IDE": "OpenAI Codex CLI"
+      }
+    }
+  }
+}`,
+  },
+  {
+    id: 'baidu-comate',
+    name: '文心快码',
+    platform: 'VS Code、JetBrains 插件',
+    configPath: '.baidu-comate/mcp.json',
+    iconUrl: 'https://comate.baidu.com/images/favicon.ico',
+    docUrl: 'https://cloud.baidu.com/doc/COMATE/s/km9l4bzwt',
+    configExample: `{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "INTEGRATION_IDE": "Comate"
+      }
+    }
+  }
+}`,
+  },
+  {
+    id: 'cloudbase-cli',
+    name: 'CloudBase CLI',
+    platform: '命令行工具',
+    configPath: '项目级配置',
+    iconUrl: 'https://docs.cloudbase.net/img/favicon.png',
+    docUrl: 'https://docs.cloudbase.net/cli-v1/ai/introduce',
+    supportsProjectMCP: true,
+    useCommandInsteadOfConfig: true,
+    installCommand: 'npm i -g @cloudbase/cli',
+    installCommandDocs: '**安装 CloudBase CLI：**\n\n```bash\nnpm i -g @cloudbase/cli\n```\n\n**初始化配置：**\n\n```bash\ntcb ai\n```\n\n配置向导会引导你完成 AI 工具的配置。CloudBase CLI 内置了 MCP 和 AI 开发规则，无需手动配置。\n\n**开始使用：**\n\n```bash\ntcb ai\n```',
+    configExample: '',
+  },
+]
 
 // JSON syntax highlighter
 function highlightJSON(json: string): React.ReactNode[] {

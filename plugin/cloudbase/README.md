@@ -142,6 +142,15 @@ To install in CodeBuddy, follow the setup instructions in
 [`doc/ide-setup/`](../../doc/ide-setup/) or run the MCP Setup tool in
 CodeBuddy Code.
 
+### ZCode
+
+ZCode 3.4.1+ ships a built-in `cloudbase-skills` plugin under
+**Settings → Plugins → Developer Tools**. You can also add CloudBase MCP
+manually under **Settings → MCP Servers**.
+
+See [`doc/ide-setup/zcode.mdx`](../../doc/ide-setup/zcode.mdx) for the full
+guide.
+
 ## Relationship with CloudBase Sites
 
 | | **Tencent CloudBase** (this plugin) | **CloudBase Sites** (`plugin/cloudbase-sites`) |

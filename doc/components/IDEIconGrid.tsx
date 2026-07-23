@@ -11,6 +11,7 @@ interface IDE {
   docUrl?: string;
 }
 
+// Order by current popularity / CloudBase ecosystem traction (hot tools first).
 const IDES: IDE[] = [
   {
     id: 'wechat-devtools',
@@ -20,11 +21,25 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/wechat-devtools',
   },
   {
-    id: 'openclaw',
-    name: 'OpenClaw',
-    platform: '命令行工具',
-    iconUrl: 'https://openclaw.ai/favicon.svg',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/openclaw',
+    id: 'workbuddy',
+    name: 'WorkBuddy',
+    platform: '独立 IDE',
+    iconUrl: 'https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/assets/workbuddy-logo.svg',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy',
+  },
+  {
+    id: 'zcode',
+    name: 'ZCode',
+    platform: '独立 IDE',
+    iconUrl: 'https://zcode.z.ai/icon.svg?v=3.0.0',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/zcode',
+  },
+  {
+    id: 'codex-app',
+    name: 'Codex App',
+    platform: '独立应用',
+    iconUrl: 'https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@latest/icons/codex.svg',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/codex',
   },
   {
     id: 'cursor',
@@ -41,39 +56,25 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/codebuddy',
   },
   {
-    id: 'github-copilot',
-    name: 'VSCode',
-    platform: 'VS Code 插件',
-    iconUrl: 'https://code.visualstudio.com/favicon.ico',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/github-copilot',
+    id: 'claude-code',
+    name: 'Claude Code',
+    platform: '命令行工具',
+    iconSlug: 'claude',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/claude-code',
   },
   {
-    id: 'qoder',
-    name: 'Qoder',
-    platform: '独立 IDE',
-    iconUrl: 'https://g.alicdn.com/qbase/qoder/0.0.183/favIcon.svg',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/qoder',
+    id: 'openclaw',
+    name: 'OpenClaw',
+    platform: '命令行工具',
+    iconUrl: 'https://openclaw.ai/favicon.svg',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/openclaw',
   },
   {
-    id: 'antigravity',
-    name: 'Google Antigravity',
-    platform: '独立 IDE',
-    iconUrl: 'https://antigravity.google/assets/image/antigravity-logo.png',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/antigravity',
-  },
-  {
-    id: 'windsurf',
-    name: 'WindSurf',
-    platform: '独立 IDE',
-    iconSlug: 'windsurf',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/windsurf',
-  },
-  {
-    id: 'cline',
-    name: 'Cline',
-    platform: 'VS Code 插件',
-    iconSlug: 'cline',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/cline',
+    id: 'opencode',
+    name: 'OpenCode',
+    platform: '命令行工具',
+    iconUrl: 'https://opencode.ai/docs/favicon.svg',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/opencode',
   },
   {
     id: 'trae',
@@ -83,6 +84,34 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/trae',
   },
   {
+    id: 'qoder',
+    name: 'Qoder',
+    platform: '独立 IDE',
+    iconUrl: 'https://g.alicdn.com/qbase/qoder/0.0.183/favIcon.svg',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/qoder',
+  },
+  {
+    id: 'windsurf',
+    name: 'WindSurf',
+    platform: '独立 IDE',
+    iconSlug: 'windsurf',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/windsurf',
+  },
+  {
+    id: 'github-copilot',
+    name: 'VSCode',
+    platform: 'VS Code 插件',
+    iconUrl: 'https://code.visualstudio.com/favicon.ico',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/github-copilot',
+  },
+  {
+    id: 'codebuddy-code',
+    name: 'CodeBuddy Code',
+    platform: '命令行工具',
+    iconUrl: 'https://codebuddy-1328495429.cos.accelerate.myqcloud.com/web/ide/logo.svg',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/codebuddy-code',
+  },
+  {
     id: 'tongyi-lingma',
     name: '通义灵码',
     platform: 'VS Code、JetBrains 插件',
@@ -90,11 +119,32 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/tongyi-lingma',
   },
   {
-    id: 'baidu-comate',
-    name: '文心快码',
-    platform: 'VS Code、JetBrains 插件',
-    iconUrl: 'https://comate.baidu.com/images/favicon.ico',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/baidu-comate',
+    id: 'qwen-code',
+    name: 'Qwen Code',
+    platform: '命令行工具',
+    iconSlug: 'qwen',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/qwen-code',
+  },
+  {
+    id: 'gemini-cli',
+    name: 'Gemini CLI',
+    platform: '命令行工具',
+    iconSlug: 'gemini',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/gemini-cli',
+  },
+  {
+    id: 'cline',
+    name: 'Cline',
+    platform: 'VS Code 插件',
+    iconSlug: 'cline',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/cline',
+  },
+  {
+    id: 'antigravity',
+    name: 'Google Antigravity',
+    platform: '独立 IDE',
+    iconUrl: 'https://antigravity.google/assets/image/antigravity-logo.png',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/antigravity',
   },
   {
     id: 'roocode',
@@ -111,55 +161,6 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/augment-code',
   },
   {
-    id: 'claude-code',
-    name: 'Claude Code',
-    platform: '命令行工具',
-    iconSlug: 'claude',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/claude-code',
-  },
-  {
-    id: 'codebuddy-code',
-    name: 'CodeBuddy Code',
-    platform: '命令行工具',
-    iconUrl: 'https://codebuddy-1328495429.cos.accelerate.myqcloud.com/web/ide/logo.svg',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/codebuddy-code',
-  },
-  {
-    id: 'gemini-cli',
-    name: 'Gemini CLI',
-    platform: '命令行工具',
-    iconSlug: 'gemini',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/gemini-cli',
-  },
-  {
-    id: 'openai-codex-cli',
-    name: 'OpenAI Codex CLI',
-    platform: '命令行工具',
-    iconSlug: 'openai',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/openai-codex-cli',
-  },
-  {
-    id: 'qwen-code',
-    name: 'Qwen Code',
-    platform: '命令行工具',
-    iconSlug: 'qwen',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/qwen-code',
-  },
-  {
-    id: 'workbuddy',
-    name: 'WorkBuddy',
-    platform: '独立 IDE',
-    iconUrl: 'https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/assets/workbuddy-logo.svg',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy'
-  },
-  {
-    id: 'opencode',
-    name: 'OpenCode',
-    platform: '命令行工具',
-    iconUrl: 'https://avatars.githubusercontent.com/u/66570915?s=200&v=4',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/opencode',
-  },
-  {
     id: 'kiro',
     name: 'Kiro',
     platform: '独立 IDE',
@@ -174,13 +175,27 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/iflow-cli',
   },
   {
+    id: 'openai-codex-cli',
+    name: 'Codex CLI',
+    platform: '命令行工具',
+    iconUrl: 'https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@latest/icons/codex.svg',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/openai-codex-cli',
+  },
+  {
+    id: 'baidu-comate',
+    name: '文心快码',
+    platform: 'VS Code、JetBrains 插件',
+    iconUrl: 'https://comate.baidu.com/images/favicon.ico',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/baidu-comate',
+  },
+  {
     id: 'cloudbase-cli',
     name: 'CloudBase CLI',
     platform: '命令行工具',
     iconUrl: 'https://docs.cloudbase.net/img/favicon.png',
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/cloudbase-cli',
   },
-];
+]
 
 const iconsWithColor = new Set(['claude', 'gemini', 'baidu', 'alibaba', 'qwen', 'bytedance', 'tencent']);
 

@@ -1,0 +1,105 @@
+import IDESelector from '../components/IDESelector';
+import RelatedResources from '../components/RelatedResources';
+
+# ZCode 配置指南
+
+[ZCode](https://zcode.z.ai/) 是智谱推出的 AI 编程客户端，支持插件、Skills 与 MCP。本页说明如何在 ZCode（≥ 3.4.1）中启用 CloudBase。
+
+配置后，你可以在 ZCode 的 AI 对话中直接操作 CloudBase 服务。
+
+**例如：**
+
+- "用云开发做一个微信小程序点餐系统" - AI 搭页面、建云数据库、写云函数并引导预览
+- "做一个预约管理系统，支持用户下单和后台改状态" - AI 用 CloudBase PostgreSQL 建模、配权限并接好前后端
+- "给 Web 应用加上手机号登录" - AI 启用认证方式并接入 CloudBase SDK
+
+无需切换到云控制台，所有操作都可以在 ZCode 中用自然语言完成。
+
+## 前置条件
+
+在开始配置之前，请确保满足以下条件：
+
+<details>
+<summary><strong>已准备好 Node.js 环境和云开发环境</strong></summary>
+
+**ZCode 版本：** 请使用 ZCode **3.4.1** 及以上版本。
+
+**Node.js 环境：** 确保已安装 Node.js v18.15.0 或更高版本：
+
+```bash
+node --version
+```
+
+如果未安装，请从 [Node.js 官网](https://nodejs.org/en/download) 下载安装。
+
+**云开发环境：** 请参考文档 [开通云开发环境](../../quick-start/create-env)。新用户可以免费开通体验。
+
+</details>
+
+---
+
+<IDESelector defaultIDE="zcode" showInstallButton={false} />
+
+## 使用内置插件（推荐）
+
+ZCode 已内置 CloudBase 插件（`cloudbase-skills`），可在设置页一键启用：
+
+1. 打开 ZCode **设置**
+2. 进入左侧 **插件**
+3. 在 **开发者工具** 分类中找到 **cloudbase-skills**（腾讯云 CloudBase 开发技能与 MCP 集成）
+4. 启用该插件
+
+启用后，即可在对话中直接使用 CloudBase 的各项能力。
+
+## 手动配置 MCP（可选）
+
+若未使用内置插件，也可在 ZCode 中手动添加 CloudBase MCP 服务器：
+
+1. 打开 ZCode **设置** → **MCP 服务器**
+2. 点击 **添加** → **新建 MCP 服务器**
+3. 按下方表单填写配置，保存后返回列表
+
+### 表单填写
+
+| 字段 | 值 |
+|------|-----|
+| 名称 | `cloudbase` |
+| 作用域 | 用户 |
+| 类型 | stdio（本地命令） |
+| 超时时间 MS | `30000` |
+| 命令 | `npx` |
+| 参数（空格分隔） | `-y @cloudbase/cloudbase-mcp@latest` |
+| 环境变量（可选） | `INTEGRATION_IDE=ZCode` |
+
+### JSON 配置参考
+
+也可以在 JSON 模式下使用如下配置：
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["-y", "@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "INTEGRATION_IDE": "ZCode"
+      }
+    }
+  }
+}
+```
+
+## 常见问题
+
+**Q: 插件列表里找不到 cloudbase-skills？**
+A: 请确认 ZCode 版本 ≥ 3.4.1，并在 **插件 → 开发者工具** 分类下查找；也可改用上方「手动配置 MCP」。
+
+**Q: MCP 连接失败？**
+A: 检查命令与参数是否正确，本机 Node.js 是否可用，重启 ZCode，确认网络连接正常。
+
+**Q: 工具数量显示为 0？**
+A: 请参考[常见问题](../faq#mcp-显示工具数量为-0-怎么办)。
+
+更多问题请查看：[完整 FAQ](../faq)
+
+<RelatedResources ideName="ZCode" ideDocUrl="https://zcode.z.ai/" />
