@@ -156,10 +156,9 @@ function compareSemverFull(a, b) {
 function nextVersionAfter(highest) {
   const p = parseSemverFull(highest);
   if (!p) return null;
-  if (p.beta === null) {
-    return `${p.major}.${p.minor}.${p.patch + 1}-beta.1`;
-  }
-  return `${p.major}.${p.minor}.${p.patch}-beta.${p.beta + 1}`;
+  // SkillHub rejects same-patch beta bumps (e.g. 2.24.2-beta.1 → 2.24.2-beta.2 with
+  // "版本号必须高于当前最新版本"). Always advance the patch line.
+  return `${p.major}.${p.minor}.${p.patch + 1}-beta.1`;
 }
 
 function pickHighestVersion(versions) {
@@ -170,24 +169,29 @@ function pickHighestVersion(versions) {
 
 /**
  * Choose SkillHub upload version:
- * - If local SKILL.md version is strictly newer than everything on SkillHub → use local
- * - Otherwise → publish the next version after SkillHub's highest (avoids 400 on stale betas)
+ * - If local SKILL.md version is strictly newer than everything on SkillHub → publish local
+ * - Otherwise → skip (do not invent betas for unchanged skills; SkillHub rejects lower/non-monotonic versions)
  */
 function resolvePublishVersion(currentVersion, skillHubVersionStrings) {
   const highest = pickHighestVersion(skillHubVersionStrings);
   if (!highest) {
-    return { version: currentVersion, reason: "SkillHub empty, use local SKILL.md" };
+    return {
+      action: "publish",
+      version: currentVersion,
+      reason: "SkillHub empty, use local SKILL.md",
+    };
   }
   if (currentVersion && compareSemverFull(currentVersion, highest) > 0) {
     return {
+      action: "publish",
       version: currentVersion,
       reason: `local ${currentVersion} > SkillHub highest ${highest}`,
     };
   }
-  const next = nextVersionAfter(highest);
   return {
-    version: next || `${currentVersion}-beta.1`,
-    reason: `SkillHub highest ${highest}, next ${next}`,
+    action: "skip",
+    version: currentVersion,
+    reason: `local ${currentVersion || "(none)"} <= SkillHub highest ${highest}`,
   };
 }
 
@@ -393,6 +397,7 @@ export async function publishToSkillhub({
     let retryCount = 0;
     const maxRetries = 10;
     let skillHubVersionStrings = [];
+    let shouldPublish = true;
 
     try {
       const versionsUrl = `${apiBase}/api/v1/orgs/${orgId}/skills/${slug}/versions`;
@@ -407,11 +412,30 @@ export async function publishToSkillhub({
 
         const picked = resolvePublishVersion(currentVersion, skillHubVersionStrings);
         version = picked.version;
-        console.log(`  → 使用版本 / Using version: ${version} (${picked.reason})`);
+        if (picked.action === "skip") {
+          shouldPublish = false;
+          console.log(`  ⏭ 跳过发布 / Skip publish: ${picked.reason}`);
+          results.push({
+            targetKey: target.targetKey,
+            slug,
+            version: currentVersion,
+            displayName: metadata.name,
+            summary: metadata.description,
+            fileCount: files.length,
+            status: "skipped",
+            reason: picked.reason,
+          });
+        } else {
+          console.log(`  → 使用版本 / Using version: ${version} (${picked.reason})`);
+        }
       }
     } catch (fetchError) {
       console.warn(`  ⚠ 版本历史查询失败 / Failed to query version history: ${fetchError instanceof Error ? fetchError.message : fetchError}`);
       // 拉取版本历史失败，直接尝试 SKILL.md 版本
+    }
+
+    if (!shouldPublish) {
+      continue;
     }
 
     while (retryCount <= maxRetries) {
@@ -454,10 +478,10 @@ export async function publishToSkillhub({
             });
             break;
           }
-          // 冲突时在当前候选版本之上继续递增，并把它并入历史以免重复选旧号
+          // 冲突：把失败候选并入历史，再取严格更高的下一号（同 patch 的下一 beta，或下一 patch-beta.1）
           skillHubVersionStrings = [...skillHubVersionStrings, version];
-          const picked = resolvePublishVersion(currentVersion, skillHubVersionStrings);
-          version = picked.version;
+          const next = nextVersionAfter(pickHighestVersion(skillHubVersionStrings) || version);
+          version = next || `${currentVersion}-beta.${retryCount}`;
           console.log(
             `  ↻ 版本冲突 / Version conflict (${error.message.includes("409") ? "409" : "400"}), retrying with ${version} (attempt ${retryCount}/${maxRetries}): ${error.message}`,
           );
