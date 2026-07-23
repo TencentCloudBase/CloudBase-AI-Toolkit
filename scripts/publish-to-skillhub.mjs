@@ -124,16 +124,71 @@ function parseSemver(versionStr) {
   };
 }
 
-/** @returns {number} negative if a<b, 0 if equal, positive if a>b */
-function compareSemver(a, b) {
-  const pa = parseSemver(a);
-  const pb = parseSemver(b);
+/** Parse X.Y.Z or X.Y.Z-beta.N */
+function parseSemverFull(versionStr) {
+  const match = (versionStr || "").match(/^(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?$/);
+  if (!match) return null;
+  return {
+    major: parseInt(match[1], 10),
+    minor: parseInt(match[2], 10),
+    patch: parseInt(match[3], 10),
+    beta: match[4] !== undefined ? parseInt(match[4], 10) : null,
+  };
+}
+
+/** @returns {number} negative if a<b, 0 if equal, positive if a>b (release > beta of same X.Y.Z) */
+function compareSemverFull(a, b) {
+  const pa = parseSemverFull(a);
+  const pb = parseSemverFull(b);
   if (!pa && !pb) return 0;
   if (!pa) return -1;
   if (!pb) return 1;
   if (pa.major !== pb.major) return pa.major - pb.major;
   if (pa.minor !== pb.minor) return pa.minor - pb.minor;
-  return pa.patch - pb.patch;
+  if (pa.patch !== pb.patch) return pa.patch - pb.patch;
+  if (pa.beta === null && pb.beta === null) return 0;
+  if (pa.beta === null) return 1;
+  if (pb.beta === null) return -1;
+  return pa.beta - pb.beta;
+}
+
+/** Next publishable version strictly after `highest` on SkillHub */
+function nextVersionAfter(highest) {
+  const p = parseSemverFull(highest);
+  if (!p) return null;
+  if (p.beta === null) {
+    return `${p.major}.${p.minor}.${p.patch + 1}-beta.1`;
+  }
+  return `${p.major}.${p.minor}.${p.patch}-beta.${p.beta + 1}`;
+}
+
+function pickHighestVersion(versions) {
+  const valid = (versions || []).filter((v) => parseSemverFull(v));
+  if (valid.length === 0) return null;
+  return valid.sort(compareSemverFull)[valid.length - 1];
+}
+
+/**
+ * Choose SkillHub upload version:
+ * - If local SKILL.md version is strictly newer than everything on SkillHub → use local
+ * - Otherwise → publish the next version after SkillHub's highest (avoids 400 on stale betas)
+ */
+function resolvePublishVersion(currentVersion, skillHubVersionStrings) {
+  const highest = pickHighestVersion(skillHubVersionStrings);
+  if (!highest) {
+    return { version: currentVersion, reason: "SkillHub empty, use local SKILL.md" };
+  }
+  if (currentVersion && compareSemverFull(currentVersion, highest) > 0) {
+    return {
+      version: currentVersion,
+      reason: `local ${currentVersion} > SkillHub highest ${highest}`,
+    };
+  }
+  const next = nextVersionAfter(highest);
+  return {
+    version: next || `${currentVersion}-beta.1`,
+    reason: `SkillHub highest ${highest}, next ${next}`,
+  };
 }
 
 function bumpSemver(versionStr, bumpType) {
@@ -337,9 +392,7 @@ export async function publishToSkillhub({
     let version = currentVersion;
     let retryCount = 0;
     const maxRetries = 10;
-    // Hoisted so retry path can read it (must not be block-scoped inside versionsResponse.ok)
-    let latestRelease = null;
-    let skillHubVersions = [];
+    let skillHubVersionStrings = [];
 
     try {
       const versionsUrl = `${apiBase}/api/v1/orgs/${orgId}/skills/${slug}/versions`;
@@ -348,52 +401,13 @@ export async function publishToSkillhub({
       });
       if (versionsResponse.ok) {
         const versionsData = await versionsResponse.json();
-        skillHubVersions = versionsData?.versions || [];
-        console.log(`  📋 SkillHub 版本历史 / Version history: [${skillHubVersions.map((v) => v.version).join(", ")}]`);
+        const skillHubVersions = versionsData?.versions || [];
+        skillHubVersionStrings = skillHubVersions.map((v) => v.version).filter(Boolean);
+        console.log(`  📋 SkillHub 版本历史 / Version history: [${skillHubVersionStrings.join(", ")}]`);
 
-        // 找到 SkillHub 上最新的正式版本号（不含 beta 后缀）
-        const sortedReleases = skillHubVersions
-          .map((v) => v.version)
-          .filter((v) => v && !v.includes("-"))
-          .sort(compareSemver)
-          .reverse();
-        latestRelease = sortedReleases.length > 0 ? sortedReleases[0] : null;
-
-        // 找到 SkillHub 上所有以 currentVersion 为基础的 beta 版本
-        const betaPrefix = `${currentVersion}-beta.`;
-        let maxBeta = 0;
-        for (const v of skillHubVersions) {
-          if (v.version && v.version.startsWith(betaPrefix)) {
-            const num = parseInt(v.version.slice(betaPrefix.length), 10);
-            if (!isNaN(num) && num > maxBeta) maxBeta = num;
-          }
-        }
-
-        if (latestRelease && compareSemver(latestRelease, currentVersion) > 0) {
-          // SkillHub 正式版比本地 SKILL.md 更新：以 SkillHub 为基础递增 patch + beta
-          // 例如本地 2.23.0、SkillHub 最新 2.24.1 → 2.24.2-beta.N
-          const semver = parseSemver(latestRelease);
-          const nextPatch = semver ? `${semver.major}.${semver.minor}.${semver.patch + 1}` : latestRelease;
-          const nextBetaPrefix = `${nextPatch}-beta.`;
-          let nextMaxBeta = 0;
-          for (const v of skillHubVersions) {
-            if (v.version && v.version.startsWith(nextBetaPrefix)) {
-              const num = parseInt(v.version.slice(nextBetaPrefix.length), 10);
-              if (!isNaN(num) && num > nextMaxBeta) nextMaxBeta = num;
-            }
-          }
-          version = `${nextPatch}-beta.${nextMaxBeta + 1}`;
-          retryCount = nextMaxBeta + 1;
-          console.log(`  → 使用版本 / Using version: ${version} (SkillHub ahead: ${latestRelease} > local ${currentVersion}, next patch: ${nextPatch}, next max beta: ${nextMaxBeta})`);
-        } else if (skillHubVersions.some((v) => v.version === currentVersion)) {
-          // SKILL.md 版本已存在，加 beta
-          version = `${currentVersion}-beta.${maxBeta + 1}`;
-          retryCount = maxBeta + 1;
-          console.log(`  → 使用版本 / Using version: ${version} (base exists, max beta: ${maxBeta})`);
-        } else {
-          // 本地版本更新或不存在于 SkillHub（如 2.25.0 vs SkillHub 2.24.1）→ 直接发正式版
-          console.log(`  → 使用版本 / Using version: ${version} (local SKILL.md)`);
-        }
+        const picked = resolvePublishVersion(currentVersion, skillHubVersionStrings);
+        version = picked.version;
+        console.log(`  → 使用版本 / Using version: ${version} (${picked.reason})`);
       }
     } catch (fetchError) {
       console.warn(`  ⚠ 版本历史查询失败 / Failed to query version history: ${fetchError instanceof Error ? fetchError.message : fetchError}`);
@@ -436,19 +450,17 @@ export async function publishToSkillhub({
             failures.push({
               targetKey: target.targetKey,
               slug,
-              message: `版本冲突重试 ${maxRetries} 次后仍失败 / version conflict after ${maxRetries} retries`,
+              message: `版本冲突重试 ${maxRetries} 次后仍失败 / version conflict after ${maxRetries} retries: ${error.message}`,
             });
             break;
           }
-          // 重试：仅当 SkillHub 正式版领先本地时，才沿 nextPatch-beta 递增；否则沿本地版本 beta 递增
-          if (latestRelease && compareSemver(latestRelease, currentVersion) > 0) {
-            const semver = parseSemver(latestRelease);
-            const nextPatch = semver ? `${semver.major}.${semver.minor}.${semver.patch + 1}` : latestRelease;
-            version = `${nextPatch}-beta.${retryCount}`;
-          } else {
-            version = `${currentVersion}-beta.${retryCount}`;
-          }
-          console.log(`  ↻ 版本冲突 / Version conflict (${error.message.includes("409") ? "409" : "400"}), retrying with ${version} (attempt ${retryCount}/${maxRetries})`);
+          // 冲突时在当前候选版本之上继续递增，并把它并入历史以免重复选旧号
+          skillHubVersionStrings = [...skillHubVersionStrings, version];
+          const picked = resolvePublishVersion(currentVersion, skillHubVersionStrings);
+          version = picked.version;
+          console.log(
+            `  ↻ 版本冲突 / Version conflict (${error.message.includes("409") ? "409" : "400"}), retrying with ${version} (attempt ${retryCount}/${maxRetries}): ${error.message}`,
+          );
         } else {
           failures.push({
             targetKey: target.targetKey,
