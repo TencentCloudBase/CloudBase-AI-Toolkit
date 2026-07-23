@@ -20,11 +20,50 @@ import RelatedResources from '../components/RelatedResources';
 在开始配置之前，请确保满足以下条件：
 
 <details>
+<summary><strong>已安装微信开发者工具 Nightly（自带 Skills / MCP）</strong></summary>
+
+WeChat IDE Skills 与配套 MCP **随 Nightly（开发版）内置分发**，Stable 正式版不一定包含同等能力。
+
+- 下载与更新日志：[微信开发者工具 Nightly Build](https://developers.weixin.qq.com/miniprogram/dev/devtools/nightly_backup.html)
+- 安装后确认本机有 `wechatide` 命令，以及内置 skill 目录（macOS 示例）：
+  `/Applications/wechatwebdevtools.app/Contents/Resources/app.asar.unpacked/miniprogram-dev-skill`
+- 日常构建用于尽快修复缺陷与敏捷特性，稳定性可能不如正式版；选用 Nightly 是为启用 AI Skills / MCP 工作流。
+
+</details>
+
+<details>
 <summary><strong>已准备好云开发环境</strong></summary>
 
 **云开发环境：** 请参考文档 [开通云开发环境](../../quick-start/create-env)。新用户可以免费开通体验。
 
 </details>
+
+---
+
+## WeChat IDE Skills 与 CloudBase MCP / Skills
+
+**微信云开发 = CloudBase × 微信。** 推荐分工：
+
+| 层 | 作用 | 何时用 |
+| --- | --- | --- |
+| WeChat IDE Skills（Nightly + `wechatide`） | 执行面：调试 / 预览 / 日常云 DB·云函数·云存储 | 默认首选；微信扫码登录即可 |
+| CloudBase Skills | 知识面：规则与最佳实践 | `npx skills add tencentcloudbase/cloudbase-skills -y` |
+| CloudBase MCP | 补全集：权限 / 数据模型 / MySQL 等进阶能力 | IDE Skills 覆盖不到时再用 |
+
+最小上手：
+
+```bash
+# 确认 Nightly CLI
+wechatide
+
+# 会话开始检查登录（clientName 换成你的 AI 客户端名）
+wechatide -c CodeBuddy -t check_devtools_status --skill-version <versionFromSkillYaml>
+
+# 查某个工具参数（不要猜）
+wechatide -c CodeBuddy -t cloud_env_list --help
+```
+
+更完整的路径与上下文说明见 CloudBase skill：`miniprogram-development` → `references/devtools-debug-preview.md`、`references/wxide-vs-cloudbase-mcp.md`。
 
 ---
 
@@ -89,7 +128,10 @@ CodeBuddy 提供多种权限模式用于控制 AI 工具的使用授权，通过
 ## 常见问题
 
 **Q: 无法使用 AI ToolKit？**
-A: 请确保已登录微信开发者工具，确认网络连接正常。
+A: 请确保已安装并登录 [Nightly 版微信开发者工具](https://developers.weixin.qq.com/miniprogram/dev/devtools/nightly_backup.html)，确认网络连接正常，且本机可运行 `wechatide`。
+
+**Q: 装了微信开发者工具，但没有 Skills / `wechatide`？**
+A: Skills/MCP 随 **Nightly** 内置。请从 [Nightly 下载页](https://developers.weixin.qq.com/miniprogram/dev/devtools/nightly_backup.html)安装开发版，不要只依赖 Stable。
 
 **Q: 如何切换权限模式？**
 A: 使用 `Shift+Tab`（macOS/Linux）或 `Alt+M`（Windows）在模式之间循环切换。Windows 用户必须使用 `Alt+M`。

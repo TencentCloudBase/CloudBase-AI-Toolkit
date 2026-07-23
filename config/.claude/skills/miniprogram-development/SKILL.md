@@ -1,7 +1,7 @@
 ---
 name: miniprogram-development
-description: WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, and optimizing mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, or optimize WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools workflows, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, or 云开发 in a mini program project.
-version: 2.24.1
+description: WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, and optimizing mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, or optimize WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools Nightly workflows, `wechatide` CLI, WeChat IDE Skills/MCP, console/network debugging, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, 微信云开发, or 云开发 in a mini program project.
+version: 2.25.0
 alwaysApply: false
 ---
 
@@ -26,7 +26,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 ### Read before writing code if
 
-- The user mentions `wx.cloud`, CloudBase mini programs, OPENID, or mini program deployment/debug workflows.
+- The user mentions `wx.cloud`, CloudBase mini programs, OPENID, mini program deployment/debug workflows, Nightly DevTools, `wechatide`, or WeChat IDE Skills.
 
 ### Then also read
 
@@ -45,6 +45,9 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Generating a Web-style login flow for mini programs.
 - Mixing Web SDK assumptions into `wx.cloud` projects.
 - Applying CloudBase constraints before confirming the project actually uses CloudBase.
+- Assuming Stable WeChat Developer Tools includes Nightly Skills/`wechatide` (it may not).
+- Forcing CloudBase MCP Tencent Cloud login for daily mini program cloud ops when Nightly `wechatide` already works.
+- Inventing `wechatide` tool names or flags instead of using `--help` / Nightly `tools.yaml`.
 - Making code or configuration changes without first following the Change Safety Protocol (`cloudbase-platform/references/protocols/change-safety-protocol.md`).
 - Performing mini program upload/publish without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
 
@@ -78,17 +81,19 @@ Use this skill for **WeChat Mini Program development** when you need to:
    - Check `project.config.json` before suggesting preview or IDE workflows
 
 3. **Route by scenario**
+   - If the task involves debugging, previewing, publishing, opening DevTools, console/network, or `wechatide`, read [debug and preview reference](references/devtools-debug-preview.md) first
+   - If choosing between WeChat IDE Skills and CloudBase MCP, read [WeChat IDE Skills vs CloudBase MCP](references/wxide-vs-cloudbase-mcp.md)
    - If the task involves CloudBase, `wx.cloud`, cloud functions, CloudBase database/storage, or CloudBase identity handling, read [CloudBase integration reference](references/cloudbase-integration.md)
-   - If the task involves debugging, previewing, publishing, WeChat Developer Tools, or no-DevTools workflows, read [debug and preview reference](references/devtools-debug-preview.md)
    - If the task involves `tabBar`, icon assets, or label spacing, prefer the text-only custom `tabBar` default below unless the user explicitly requires icons
 
 4. **Use CloudBase rules only when applicable**
-   - CloudBase is an important mini program integration path, but not a universal requirement
+   - CloudBase / 微信云开发 is an important mini program integration path, but not a universal requirement
    - Only apply CloudBase-specific auth, database, storage, or cloud function constraints when the project is using CloudBase
 
-5. **Recommend the right preview/debug path**
-   - Prefer WeChat Developer Tools for simulator, panel-based debugging, preview, and real-device validation
-   - If WeChat Developer Tools is unavailable, use `miniprogram-ci` for preview, upload, and npm build workflows where appropriate
+5. **Recommend the right preview/debug/cloud-ops path**
+   - Prefer **Nightly** WeChat Developer Tools (built-in Skills/MCP) and execute via `wechatide` when available — see [devtools-debug-preview.md](references/devtools-debug-preview.md)
+   - Nightly download: https://developers.weixin.qq.com/miniprogram/dev/devtools/nightly_backup.html
+   - If Nightly / `wechatide` is unavailable, fall back to `miniprogram-ci` for preview/upload and CloudBase MCP for cloud resources
 
 ---
 
@@ -141,9 +146,10 @@ Keep the custom `tabBar` layout text-only, and use flex centering or matching `h
 
 ## Debugging, Preview, and Publishing
 
-- If WeChat Developer Tools is available, use it as the primary path for simulator debugging, panel inspection, preview, and device validation
-- If WeChat Developer Tools is not available, use `miniprogram-ci` as the fallback path for preview, upload, and npm build-related automation
-- For detailed workflows, read [debug and preview reference](references/devtools-debug-preview.md)
+- Prefer **Nightly** DevTools + `wechatide` for open project, compile, simulator, console/network debug, preview, upload, and daily cloud ops (WeChat login — no separate Tencent Cloud login)
+- Always pass required context: `-c <clientName>`, absolute `--project`, valid `appid`, and cloud `env` when needed
+- If Nightly / `wechatide` is not available, use `miniprogram-ci` as the fallback for preview/upload/npm, and CloudBase MCP for cloud resources; tell the user to install Nightly for full Skills/MCP
+- For detailed workflows, read [debug and preview reference](references/devtools-debug-preview.md) and [WeChat IDE Skills vs CloudBase MCP](references/wxide-vs-cloudbase-mcp.md)
 
 ## Minimal project skeleton
 
@@ -197,5 +203,6 @@ Page({
 ## References
 
 - [CloudBase Mini Program Integration](references/cloudbase-integration.md) — use this when the mini program project explicitly integrates CloudBase
-- [WeChat DevTools Debug and Preview](references/devtools-debug-preview.md) — use this for debugging, preview, publishing, and no-DevTools fallback workflows
+- [WeChat DevTools Debug and Preview](references/devtools-debug-preview.md) — Nightly / `wechatide` paths, required context, and no-Nightly fallbacks
+- [WeChat IDE Skills vs CloudBase MCP](references/wxide-vs-cloudbase-mcp.md) — layering and when to use which execution surface
 - [Common Pitfalls](references/pitfalls.md) — read before generating code for optional chaining, TDesign styling, Canvas + storage, and environment issues

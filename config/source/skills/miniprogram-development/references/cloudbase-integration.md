@@ -21,7 +21,12 @@ This document supplements `SKILL.md` with practical **WeChat Mini Program + Clou
    - Do not use Web SDK authentication patterns in mini programs.
    - Use `envQuery` to get environment ID when available.
 
-4. **Use CloudBase MCP via mcporter (CLI) when IDE MCP is not available**
+4. **Choose the right cloud execution surface**
+   - **微信云开发 = CloudBase × 微信.** For daily mini program cloud ops (env list, NoSQL, cloud functions, cloud storage) when Nightly DevTools Skills are available, prefer `wechatide` / `cloudbase-operator` with WeChat login. See [devtools-debug-preview.md](devtools-debug-preview.md) and [wxide-vs-cloudbase-mcp.md](wxide-vs-cloudbase-mcp.md).
+   - Use **CloudBase MCP** (IDE MCP or mcporter below) for gaps Nightly does not cover (advanced permissions, data models, MySQL/PG, broader env governance), or when Nightly / `wechatide` is unavailable.
+   - Do **not** force a separate Tencent Cloud MCP login for everyday ops that `wechatide` can already do.
+
+5. **Use CloudBase MCP via mcporter (CLI) when IDE MCP is not available / Nightly path is not enough**
    - You do **not** need to hard-code Secret ID / Secret Key / Env ID in config.
    - CloudBase MCP supports device-code login via the `auth` tool, so credentials can be obtained interactively.
    - Add CloudBase MCP server in `config/mcporter.json`:
@@ -128,9 +133,9 @@ Use the right CloudBase capability in the right layer.
 - Keep prompts and model selection explicit.
 - If streaming is used, consume the stream fully and update UI incrementally where appropriate.
 
-## 7. Fallback When IDE MCP Is Unavailable
+## 7. Fallback When IDE MCP / Nightly Skills Are Unavailable
 
-If IDE-native MCP integration is unavailable, use the CloudBase MCP through `mcporter` and complete login with device-code auth instead of embedding secrets in config.
+If Nightly `wechatide` is unavailable and IDE-native MCP integration is also unavailable, use CloudBase MCP through `mcporter` and complete login with device-code auth instead of embedding secrets in config. Prefer installing Nightly for mini program daily ops when possible: https://developers.weixin.qq.com/miniprogram/dev/devtools/nightly_backup.html
 
 ## 8. Console and Operational Links
 
