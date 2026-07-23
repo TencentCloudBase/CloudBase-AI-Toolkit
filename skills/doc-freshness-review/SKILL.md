@@ -1,6 +1,6 @@
 ---
 name: doc-freshness-review
-description: Use when auditing repository documentation for drift, stale statements, broken references, or README mismatches, especially across published docs under `doc/` and key entry surfaces such as `README.md`, `README-EN.md`, `README-ZH.md`, and `mcp/README.md` during periodic maintenance or before preparing corrective PRs.
+description: Use when auditing repository documentation for drift, stale statements, broken references, or README mismatches, especially across published docs under `doc/` and key entry surfaces such as `README.md` (English default), `README.zh-CN.md`, `mcp/README.md`, and `mcp/README.zh-CN.md` during periodic maintenance or before preparing corrective PRs.
 alwaysApply: false
 ---
 
@@ -13,7 +13,7 @@ Review whether repository documentation still matches the current code, generate
 Use this skill when you need to:
 
 - Audit published documentation under `doc/` for stale or wrong statements
-- Check whether `README.md`, `README-EN.md`, `README-ZH.md`, or `mcp/README.md` drifted away from current behavior
+- Check whether `README.md`, `README.zh-CN.md`, `mcp/README.md`, or `mcp/README.zh-CN.md` drifted away from current behavior
 - Verify that linked scripts, files, commands, and workflows still exist and still match the repo
 - Run a periodic docs health check before opening corrective PRs
 - Separate mechanical doc drift from product ambiguity that still needs human confirmation
@@ -32,7 +32,7 @@ Use this skill when you need to:
 1. Read `references/review-scope.md` first.
 2. Build the audit surface in two groups:
    - published documentation under `doc/`
-   - README surfaces such as `README.md`, `README-EN.md`, `README-ZH.md`, and `mcp/README.md`
+   - README surfaces such as `README.md`, `README.zh-CN.md`, and `mcp/README.md`
 3. Note which code, scripts, generated files, or workflows those docs claim to describe.
 
 ### Phase 2 — Evidence-based comparison

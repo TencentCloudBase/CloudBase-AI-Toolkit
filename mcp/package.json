@@ -2,7 +2,7 @@
   "name": "@cloudbase/cloudbase-mcp",
   "version": "2.24.1",
   "packageManager": "pnpm@10.8.0",
-  "description": "腾讯云开发 MCP Server，通过AI提示词和MCP协议+云开发，让开发更智能、更高效,当你在Cursor/ VSCode GitHub Copilot/WinSurf/CodeBuddy/Augment Code/Claude Code等AI编程工具里写代码时，它能自动帮你生成可直接部署的前后端应用+小程序，并一键发布到腾讯云开发 CloudBase。",
+  "description": "CloudBase MCP Server — operate Tencent CloudBase (database, auth, functions, storage, hosting) from AI coding tools via the Model Context Protocol. Part of CloudBase AI Toolkit.",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -27,14 +27,15 @@
       "default": "./dist/index.js"
     }
   },
-  "homepage": "https://github.com/TencentCloudBase/CloudBase-MCP",
+  "homepage": "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit",
   "bugs": {
-    "url": "https://github.com/TencentCloudBase/CloudBase-MCP/issues",
+    "url": "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/issues",
     "email": "bookerzhao@tencent.com"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TencentCloudBase/CloudBase-MCP.git"
+    "url": "git+https://github.com/TencentCloudBase/CloudBase-AI-Toolkit.git",
+    "directory": "mcp"
   },
   "scripts": {
     "clean": "rm -rf dist",

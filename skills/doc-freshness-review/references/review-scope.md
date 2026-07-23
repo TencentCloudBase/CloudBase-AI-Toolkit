@@ -23,10 +23,10 @@ Check whether published documentation still matches:
 
 Primary targets:
 
-- `README.md`
-- `README-EN.md`
-- `README-ZH.md`
-- `mcp/README.md`
+- `README.md` (English default)
+- `README.zh-CN.md`
+- `mcp/README.md` (English default, package-focused)
+- `mcp/README.zh-CN.md`
 
 Check whether these entry surfaces still match:
 
