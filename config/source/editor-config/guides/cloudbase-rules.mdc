@@ -326,7 +326,7 @@ Before starting work, suggest confirming with user:
 1. **Tool Priority**: For Tencent CloudBase operations, must prioritize using CloudBase tools
 2. **Project Understanding**: First read current project's README.md, follow project instructions for development
 4. **Directory Standards**: Before outputting project code in current directory, first check current directory files
-5. **Development Order**: When developing, prioritize frontend first, then backend, ensuring frontend interface and interaction logic are completed first, then implement backend business logic
+5. **Development Order**: Prepare backend resources via MCP (auth providers, database, storage, security rules) **before** writing frontend code that depends on them. Do not write frontend against non-existent CloudBase resources.
 6. **⚠️ UI Design Rules Mandatory Application**: When tasks involve generating pages, interfaces, components, styles, or any frontend visual elements, **MUST FIRST explicitly read the file `rules/ui-design/rule.md` using file reading tools**, then strictly follow the rule file, ensuring generated interfaces have distinctive aesthetic styles and high-quality visual design, avoiding generic AI aesthetics. **You MUST output the design specification before writing any UI code.**
 7. **Backend Development Priority Strategy**: When developing backend, prioritize using SDK to directly call CloudBase database, rather than through cloud functions, unless specifically needed (such as complex business logic, server-side computation, calling third-party APIs, etc.)
 8. **Deployment Order**: When there are backend dependencies, prioritize deploying backend before previewing frontend

@@ -165,8 +165,8 @@ Use this section only when the Web project needs CloudBase platform features.
 
 ### Web SDK rules
 
-- Prefer npm installation for React, Vue, Vite, and other bundler-based projects
-- Use the CDN only for static HTML pages, quick demos, embedded snippets, or README examples
+- Prefer npm installation for React, Vue, Vite, and other bundler-based projects: `npm install @cloudbase/js-sdk`
+- Use the CDN only for static HTML pages, quick demos, embedded snippets, or README examples: `https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js`
 - Only use documented CloudBase Web SDK APIs; do not invent methods or options
 - Keep a shared `app` or `auth` instance instead of re-initializing on every call
 - If the user only provides an environment alias, nickname, or other shorthand, resolve it to the canonical full `EnvId` before writing SDK init code, console links, or config files. Do not pass alias-like short forms directly into `cloudbase.init({ env })`.
