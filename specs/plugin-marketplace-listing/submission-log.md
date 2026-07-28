@@ -80,12 +80,12 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 
 | Field | Value |
 |-------|-------|
-| Status | **Intake re-run requested** — vally fixes synced; awaiting gate recheck |
+| Status | **Intake passed** — `ready-for-review` (awaiting maintainer) |
 | Issue | https://github.com/github/awesome-copilot/issues/2459 |
 | Packet | `specs/plugin-marketplace-listing/awesome-copilot-submission-packet.md` |
-| Source | `TencentCloudBase/cloudbase-plugin` @ `b3835bea5cb8e10f57c1e0a584f645eea2cbc127` |
+| Source | `TencentCloudBase/cloudbase-plugin` @ `b615a7f8bfad6637f2297e1a993d29f6a292a13d` |
 | Submitted at | 2026-07-28 |
-| Re-run at | 2026-07-28 (`/rerun-intake` after skill dir rename for vally) |
+| Re-run at | 2026-07-28 (vally skill-dir rename + orphan ref links; overall pass) |
 
 ### How to check progress (Awesome Copilot)
 
