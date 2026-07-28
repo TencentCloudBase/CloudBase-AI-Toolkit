@@ -366,30 +366,41 @@ markets:
     region: cn
     channel_type: native_connector_or_builtin
     listing_statuses:
-      official_curated: unknown
-      community_directory: unknown
+      official_curated: listed
+      community_directory: not_applicable
       self_marketplace: not_applicable
-      native_connector_or_builtin: unknown
+      native_connector_or_builtin: listed
       open_plugin_spec: not_applicable
       mcp_or_skill_registry: not_applicable
       docs_only: listed
     submit_url_or_process: |
-      CodeBuddy has plugin marketplace / CLI plugins. Confirm whether CloudBase is already listed or needs partner submission.
-    eligibility: partner_outreach_required
+      Built-in IDE integration already exists (needs CodeBuddy product code update separately).
+      Official plugin marketplace entry already present at cnb.cool/codebuddy/marketplace plugins/cloudbase.
+      Status 2026-07-28: content refresh prepared (v2.25.0, keeps rules/). Push blocked (403) without marketplace write access.
+      Automation: node scripts/push-codebuddy-marketplace.mjs
+      Patch: specs/plugin-marketplace-listing/artifacts/codebuddy-marketplace-cloudbase-v2.25.0.patch
+    eligibility: partner_write_access_or_maintainer_apply
     blockers:
-      - Official listing status for CloudBase needs confirmation
+      - No push permission to cnb.cool/codebuddy/marketplace with current CNB token
+      - Built-in integration code update still owned by CodeBuddy
     evidence_links:
+      - https://cnb.cool/codebuddy/marketplace/-/tree/main/plugins/cloudbase
+      - https://www.codebuddy.cn/docs/cli/plugin-marketplaces
       - https://www.codebuddy.cn/docs/cli/plugins
       - doc/ide-setup/codebuddy.mdx
-    local_evidence: []
+    local_evidence:
+      - config/codebuddy-plugin
     submit_checklist:
-      - Confirm CodeBuddy marketplace submission process
-      - Align with config/codebuddy-plugin if applicable
+      - Grant write/MR access OR ask maintainer to apply patch
+      - Run sync-codebuddy-plugin.ts then push-codebuddy-marketplace.mjs
+      - Keep rules/cloudbase_rules.md in marketplace package
     recommended_install_path: doc/ide-setup/codebuddy.mdx
-    priority_hint: needs_partner_outreach
-    last_reviewed_at: "2026-07-27"
+    priority_hint: needs_partner_write_access
+    last_reviewed_at: "2026-07-28"
     owner: cloudbase-ai-toolkit
-
+    notes: |
+      2026-07-28: Compared CNB plugins/cloudbase (44 files, old skill names) vs config/codebuddy-plugin (~126 files, v2.25.0).
+      Rules component must be retained. Automation script ready; landing blocked on CNB write grant.
   - id: codebuddy-code-plugin
     product: CodeBuddy Code
     region: cn

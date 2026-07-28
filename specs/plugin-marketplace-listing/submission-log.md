@@ -111,17 +111,25 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 1. Watch PR #4 merge
 2. Official Trae MCP marketplace still needs partner outreach separately
 
-## Trae community Skills
+## CodeBuddy marketplace (CNB)
 
 | Field | Value |
 |-------|-------|
-| Status | **PR opened** — awaiting community review |
-| PR | https://github.com/trae-community/trae-skills/pull/20 |
-| Skill | `skills/cloudbase/SKILL.md` (Trae MCP-first entry skill) |
-| Submitted at | 2026-07-28 |
-| Note | Community skills catalog (not Trae official in-app marketplace) |
+| Status | **Update prepared** — no write access to `codebuddy/marketplace`; patch + automation ready |
+| Official plugin path | https://cnb.cool/codebuddy/marketplace/-/tree/main/plugins/cloudbase |
+| Source of truth | `config/codebuddy-plugin` (skills via `npx tsx scripts/sync-codebuddy-plugin.ts`; always keep `rules/`) |
+| Automation | `node scripts/push-codebuddy-marketplace.mjs` |
+| Apply-ready patch | `specs/plugin-marketplace-listing/artifacts/codebuddy-marketplace-cloudbase-v2.25.0.patch` |
+| Blocker | Current CNB token can read marketplace but **cannot push** (`403`); needs CodeBuddy write grant or maintainer apply |
+| Prepared at | 2026-07-28 |
+| Target version | `2.25.0` (keeps `rules/cloudbase_rules.md`) |
 
-### How to check progress (Trae community Skills)
+### How to land the update
 
-1. Watch PR #20 merge
-2. After merge, confirm catalog row in https://github.com/trae-community/trae-skills/blob/main/README.md
+1. Preferred: grant CloudBase CNB identity write/MR access on `codebuddy/marketplace`, then run:
+   - `npx tsx scripts/sync-codebuddy-plugin.ts`
+   - `node scripts/push-codebuddy-marketplace.mjs`
+2. Or maintainer applies patch on a clone:
+   - `git am < codebuddy-marketplace-cloudbase-v2.25.0.patch`
+3. Built-in IDE integration remains a separate CodeBuddy product code update.
+
