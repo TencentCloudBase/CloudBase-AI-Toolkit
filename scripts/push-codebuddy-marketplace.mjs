@@ -26,7 +26,9 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const SOURCE = path.join(ROOT, "config", "codebuddy-plugin");
-const MARKETPLACE_URL = "https://cnb.cool/codebuddy/marketplace.git";
+const MARKETPLACE_URL = process.env.CODEBUDDY_MARKETPLACE_URL || "https://cnb.cool/codebuddy/marketplace.git";
+const STAGING_REMOTE = process.env.CODEBUDDY_STAGING_REMOTE || "https://github.com/binggg/codebuddy-marketplace.git";
+const STAGING_MODE = process.env.CODEBUDDY_STAGING_MODE !== "0"; // default: push to personal staging when upstream push 403
 const MARKETPLACE_API_REPO = "codebuddy/marketplace";
 const API_BASE = process.env.CNB_API_BASE_URL || "https://api.cnb.cool";
 const DRY_RUN = process.argv.includes("--dry-run");

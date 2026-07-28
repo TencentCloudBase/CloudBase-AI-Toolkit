@@ -124,6 +124,18 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 | Prepared at | 2026-07-28 |
 | Target version | `2.25.0` (keeps `rules/cloudbase_rules.md`) |
 
+
+### Staging repo (personal)
+
+| Field | Value |
+|-------|-------|
+| GitHub staging | https://github.com/binggg/codebuddy-marketplace |
+| Contents | `plugins/cloudbase/**` (keeps rules) + refreshed marketplace.json entry |
+| Version | 2.25.0 |
+| CNB personal mirror | blocked until empty repo `bookerzhao/codebuddy-marketplace` is created on cnb.cool |
+
+After CNB personal repo exists: push staging, then open PR into `codebuddy/marketplace`.
+
 ### How to land the update
 
 1. Preferred: grant CloudBase CNB identity write/MR access on `codebuddy/marketplace`, then run:
