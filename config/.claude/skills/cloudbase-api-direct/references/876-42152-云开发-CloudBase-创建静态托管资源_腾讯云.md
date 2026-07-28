@@ -2,7 +2,7 @@
 
 ## 创建静态托管资源
 
-最近更新时间：2026-03-26 02:54:51
+最近更新时间：2026-07-28 03:22:30
 
 -   微信扫一扫 
 -   QQ
@@ -141,5 +141,5 @@ X-TC-Action: CreateStaticStore
 | 错误码 | 描述 |
 | --- | --- |
 | InternalError | 内部错误。 |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | UnauthorizedOperation | 未授权操作。 |

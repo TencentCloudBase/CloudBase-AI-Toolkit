@@ -2,7 +2,7 @@
 
 ## 更新tcb用户
 
-最近更新时间：2026-04-14 03:00:41
+最近更新时间：2026-07-28 03:22:20
 
 -   微信扫一扫 
 -   QQ
@@ -147,7 +147,7 @@ X-TC-Action: ModifyUser
 | FailedOperation.DuplicatedData | FailedOperation.DuplicatedData |
 | FailedOperation.FlexdbResourceOverdue | FailedOperation.FlexdbResourceOverdue |
 | InternalError | 内部错误。 |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | InvalidParameter.INVALID\_PARAM | 请求参数错误。 |
 | InvalidParameterValue | 参数取值错误。 |
 | ResourceNotFound | 资源不存在。 |

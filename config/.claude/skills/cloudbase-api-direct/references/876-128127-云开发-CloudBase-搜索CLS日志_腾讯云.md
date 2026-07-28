@@ -2,7 +2,7 @@
 
 ## 搜索CLS日志
 
-最近更新时间：2026-05-11 02:12:15
+最近更新时间：2026-07-28 03:22:38
 
 -   微信扫一扫 
 -   QQ
@@ -247,5 +247,5 @@ X-TC-Action: SearchClsLog
 | FailedOperation.SyntaxError | 查询语句解析错误 |
 | FailedOperation.TopicIsolated | Topic隔离 |
 | InternalError | 内部错误。 |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | ResourceNotFound.TopicNotExist | 主题不存在 |

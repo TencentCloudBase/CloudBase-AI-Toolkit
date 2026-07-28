@@ -2,7 +2,7 @@
 
 ## 查询环境的配额使用量
 
-最近更新时间：2026-05-11 02:12:05
+最近更新时间：2026-07-28 03:22:26
 
 -   微信扫一扫 
 -   QQ
@@ -149,7 +149,7 @@ https://tcb.tencentcloudapi.com/?Action=DescribeQuotaData
 | --- | --- |
 | FailedOperation | 操作失败。 |
 | InternalError | 内部错误。 |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | MissingParameter | 缺少参数错误。 |
 | MissingParameter.Param | 缺少必要参数。 |
 | ResourceNotFound | 资源不存在。 |

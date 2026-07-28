@@ -2,7 +2,7 @@
 
 ## 查询托管类型AI模型列表
 
-最近更新时间：2026-05-18 03:01:55
+最近更新时间：2026-07-28 03:22:49
 
 -   微信扫一扫 
 -   QQ
@@ -149,5 +149,5 @@ X-TC-Action: DescribeManagedAIModelList
 | 错误码 | 描述 |
 | --- | --- |
 | InternalError | 内部错误。 |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | InvalidParameter.EnvId | 环境ID非法。 |

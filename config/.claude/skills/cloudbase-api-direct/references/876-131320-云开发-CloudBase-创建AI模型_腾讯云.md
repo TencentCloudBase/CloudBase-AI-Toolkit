@@ -2,7 +2,7 @@
 
 ## 创建AI模型
 
-最近更新时间：2026-06-23 01:51:11
+最近更新时间：2026-07-28 03:22:50
 
 -   微信扫一扫 
 -   QQ
@@ -173,5 +173,5 @@ X-TC-Action: CreateAIModel
 | --- | --- |
 | FailedOperation.PackageUnsupported | 套餐包不支持 |
 | InternalError | 内部错误。 |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | InvalidParameter.EnvId | 环境ID非法。 |

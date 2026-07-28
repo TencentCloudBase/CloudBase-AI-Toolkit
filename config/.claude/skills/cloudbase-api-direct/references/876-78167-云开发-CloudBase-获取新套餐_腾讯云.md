@@ -2,7 +2,7 @@
 
 ## 获取新套餐
 
-最近更新时间：2026-03-02 12:47:51
+最近更新时间：2026-07-28 03:22:29
 
 -   微信扫一扫 
 -   QQ
@@ -144,7 +144,7 @@ X-TC-Action: DescribeBaasPackageList
 | 错误码 | 描述 |
 | --- | --- |
 | InternalError | 内部错误。 |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | LimitExceeded | 超过配额限制。 |
 | MissingParameter | 缺少参数错误。 |
 | MissingParameter.Param | 缺少必要参数。 |

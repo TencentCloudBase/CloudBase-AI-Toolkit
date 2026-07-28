@@ -2,7 +2,7 @@
 
 ## 创建云开发平台的API Key
 
-最近更新时间：2026-05-21 01:50:00
+最近更新时间：2026-07-28 03:22:19
 
 -   微信扫一扫 
 -   QQ
@@ -173,7 +173,7 @@ X-TC-Action: CreateApiKey
 | AuthFailure | CAM签名/鉴权错误。 |
 | FailedOperation | 操作失败。 |
 | InternalError | 内部错误。 |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | InvalidParameterValue | 参数取值错误。 |
 | LimitExceeded | 超过配额限制。 |
 | ResourceInUse | 资源被占用。 |

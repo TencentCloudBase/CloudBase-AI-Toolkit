@@ -2,7 +2,7 @@
 
 ## 增加安全域名
 
-最近更新时间：2026-03-02 12:47:52
+最近更新时间：2026-07-28 03:22:31
 
 -   微信扫一扫 
 -   QQ
@@ -110,7 +110,7 @@ https://tcb.tencentcloudapi.com/?Action=CreateAuthDomain
 | 错误码 | 描述 |
 | --- | --- |
 | InternalError | 内部错误。 |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | MissingParameter.Param | 缺少必要参数。 |
 | OperationDenied.FreePackageDenied | 免费套餐拒绝此操作 |
 | OperationDenied.ResourceFrozen | 操作失败：资源被冻结。 |

@@ -2,7 +2,7 @@
 
 ## 查询静态托管域名任务状态
 
-最近更新时间：2026-05-11 02:12:05
+最近更新时间：2026-07-28 03:22:26
 
 -   微信扫一扫 
 -   QQ
@@ -113,7 +113,7 @@ X-TC-Action: DescribeHostingDomainTask
 | AuthFailure | CAM签名/鉴权错误。 |
 | AuthFailure.UnauthorizedOperation | 您没有查看该资源的权限。 |
 | FailedOperation | 操作失败。 |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | LimitExceeded | 超过配额限制。 |
 | LimitExceeded.Concurrent | 并发请求超过配额限制。 |
 | MissingParameter.Param | 缺少必要参数。 |

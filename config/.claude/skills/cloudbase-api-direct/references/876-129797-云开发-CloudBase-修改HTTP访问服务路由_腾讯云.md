@@ -2,7 +2,7 @@
 
 ## 修改HTTP访问服务路由
 
-最近更新时间：2026-04-24 02:11:16
+最近更新时间：2026-07-28 03:22:43
 
 -   微信扫一扫 
 -   QQ
@@ -120,8 +120,9 @@ X-TC-Action: ModifyHTTPServiceRoute
 
 | 错误码 | 描述 |
 | --- | --- |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | InvalidParameter.CertVerifyFailed | 证书验证失败 |
 | InvalidParameter.EnvId | 环境ID非法。 |
 | LimitExceeded.HTTPServiceRoute | HTTP访问服务路由超过上限 |
+| OperationDenied.HTTPServiceDomainEOFrozen | 当前环境EO域名功能已经冻结，不允许创建EO加速域名，请查看云开发资源点进行充正后再试 |
 | OperationDenied.HTTPServiceDomainProcessing | 操作失败，http访问服务域名处理中，稍后再试。 |

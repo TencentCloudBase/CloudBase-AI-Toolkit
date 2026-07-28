@@ -2,7 +2,7 @@
 
 ## 查询云托管服务版本的详情
 
-最近更新时间：2026-04-01 02:07:34
+最近更新时间：2026-07-28 03:22:42
 
 -   微信扫一扫 
 -   QQ
@@ -247,7 +247,7 @@ X-TC-Action: DescribeCloudBaseRunServerVersion
 | --- | --- |
 | FailedOperation | 操作失败。 |
 | InternalError | 内部错误。 |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | InvalidParameter.ServiceNotExist | 服务不存在。 |
 | LimitExceeded.ErrNamespaceMaxLimit | 命名空间超过配额。 |
 | LimitExceeded.ErrRepoMaxLimit | 镜像容器超过配额。 |

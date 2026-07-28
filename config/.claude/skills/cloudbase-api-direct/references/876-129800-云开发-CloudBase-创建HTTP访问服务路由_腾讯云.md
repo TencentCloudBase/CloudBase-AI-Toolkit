@@ -2,7 +2,7 @@
 
 ## 创建HTTP访问服务路由
 
-最近更新时间：2026-04-24 02:11:17
+最近更新时间：2026-07-28 03:22:44
 
 -   微信扫一扫 
 -   QQ
@@ -37,14 +37,25 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 | Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：CreateHTTPServiceRoute。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| EnvId | 是 | String | 环境ID  
+| EnvId | 是 | String | 
+环境ID
+
+  
 示例值： ********\********* -7ezncwdd421446 |
-| Domain | 是 | [HTTPServiceDomainParam](/document/api/876/34822#HTTPServiceDomainParam) | 域名路由信息 |
+| Domain | 是 | [HTTPServiceDomainParam](/document/api/876/34822#HTTPServiceDomainParam) | 
+
+域名路由信息
+
+ |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
+| OwnershipVerification | [OwnershipVerificationInfo](/document/api/876/34822#OwnershipVerificationInfo) | 
+归属权校验不通过返回信息，根据校验信息配置dns或者文件验证，可通过VerifyHTTPServiceRoute接口验证归属权是否通过
+
+ |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
@@ -181,13 +192,14 @@ X-TC-Action: CreateHTTPServiceRoute
 
 | 错误码 | 描述 |
 | --- | --- |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | InvalidParameter.CertVerifyFailed | 证书验证失败 |
 | InvalidParameter.EnvId | 环境ID非法。 |
 | InvalidParameter.HTTPServiceDomainNotICP | HTTP访问服务没有ICP备案 |
 | InvalidParameter.HTTPServiceDomainVerifyFailed | 域名所有权校验失败 |
 | LimitExceeded.HTTPServiceDomain | HTTP访问服务域名超过限制 |
 | LimitExceeded.HTTPServiceRoute | HTTP访问服务路由超过上限 |
+| OperationDenied.HTTPServiceDomainEOFrozen | 当前环境EO域名功能已经冻结，不允许创建EO加速域名，请查看云开发资源点进行充正后再试 |
 | OperationDenied.HTTPServiceDomainInBlacklist | 域名在黑名单中，无法创建 |
 | OperationDenied.NonInternalAccount | 非内部账号禁止操作 |
 | ResourceInUse.HTTPServiceDomain | HTTP访问服务域名已经存在 |

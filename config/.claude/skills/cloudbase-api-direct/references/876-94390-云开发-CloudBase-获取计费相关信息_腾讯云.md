@@ -2,7 +2,7 @@
 
 ## 获取计费相关信息
 
-最近更新时间：2026-06-02 02:43:26
+最近更新时间：2026-07-28 03:22:28
 
 -   微信扫一扫 
 -   QQ
@@ -237,7 +237,7 @@ X-TC-Action: DescribeBillingInfo
 | 错误码 | 描述 |
 | --- | --- |
 | InternalError | 内部错误。 |
-| InvalidParameter | 参数错误。 |
+| InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | MissingParameter | 缺少参数错误。 |
 | MissingParameter.Param | 缺少必要参数。 |
 | ResourceUnavailable | 资源不可用。 |
