@@ -1,6 +1,6 @@
 ## 删除用户账号
 
-最近更新时间：2025-09-12 01:52:51
+最近更新时间：2026-07-29 01:50:36
 
 -   微信扫一扫 
 -   QQ
@@ -35,9 +35,16 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 | Action | 是 | String | [公共参数](/document/api/1003/48100) ，本接口取值：DeleteAccounts。 |
 | Version | 是 | String | [公共参数](/document/api/1003/48100) ，本接口取值：2019-01-07。 |
 | Region | 是 | String | [公共参数](/document/api/1003/48100) ，详见产品支持的 [地域列表](/document/api/1003/48100#.E5.9C.B0.E5.9F.9F.E5.88.97.E8.A1.A8) ，本接口仅支持其中的: ap-bangkok, ap-beijing, ap-chengdu, ap-chongqing, ap-guangzhou, ap-hongkong, ap-jakarta, ap-nanjing, ap-seoul, ap-shanghai, ap-shenzhen-fsi, ap-singapore, ap-tokyo, eu-frankfurt, na-ashburn, na-siliconvalley, sa-saopaulo 。 |
-| ClusterId | 是 | String | 集群ID  
-示例值：cynosdbmysql-ixgbd0di |
-| Accounts.N | 否 | Array of [InputAccount](/document/api/1003/48097#InputAccount) | 账号数组，包含account和host |
+| ClusterId | 是 | String | 
+集群ID
+
+  
+示例值：cynosdbmysql-i **\*\*** i |
+| Accounts.N | 否 | Array of [InputAccount](/document/api/1003/48097#InputAccount) | 
+
+账号数组，包含account和host
+
+ |
 
 ## 3\. 输出参数
 
@@ -54,11 +61,15 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 #### 输入示例
 
 ```
-https://cynosdb.tencentcloudapi.com/?Action=DeleteAccounts
-&ClusterId=cynosdbmysql-ixgbd0di
-&Accounts.0.AccountName=admin
-&Accounts.0.Host=myHost
-&<公共请求参数>
+POST / HTTP/1.1
+Host: cynosdb.tencentcloudapi.com
+Content-Type: application/json
+X-TC-Action: DeleteAccounts
+<公共请求参数>
+
+{
+    "ClusterId": "cynosdbmysql-i******i"
+}
 ```
 
 #### 输出示例
