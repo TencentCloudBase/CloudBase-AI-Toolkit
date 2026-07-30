@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 113
+ * Action 数量: 120
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -17,6 +17,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'CreateApiKey',
   'CreateAuthDomain',
   'CreateBillDeal',
+  'CreateCloudApp',
   'CreateCloudRunEnv',
   'CreateCloudRunServer',
   'CreateCustomLoginKey',
@@ -32,6 +33,8 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DeleteAIModel',
   'DeleteApiKey',
   'DeleteAuthDomain',
+  'DeleteCloudApp',
+  'DeleteCloudAppVersion',
   'DeleteCloudRunServer',
   'DeleteCloudRunVersions',
   'DeleteHTTPServiceRoute',
@@ -45,7 +48,11 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DescribeBaasPackageList',
   'DescribeBillingInfo',
   'DescribeClient',
+  'DescribeCloudAppCosInfo',
+  'DescribeCloudAppInfo',
   'DescribeCloudAppList',
+  'DescribeCloudAppVersion',
+  'DescribeCloudAppVersionList',
   'DescribeCloudBaseBuildService',
   'DescribeCloudBaseRunServerVersion',
   'DescribeCloudRunDeployRecord',

@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-07-07 02:41:34
+最近更新时间：2026-07-30 02:45:26
 
 -   微信扫一扫 
 -   QQ
@@ -123,7 +123,14 @@ _我的收藏_
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
+| [DescribeCloudAppCosInfo](/document/api/876/135278) | 获取云应用cos信息 | 20 |
+| [CreateCloudApp](/document/api/876/135281) | 创建云应用 | 20 |
+| [DeleteCloudApp](/document/api/876/135280) | 删除云应用服务 | 20 |
+| [DeleteCloudAppVersion](/document/api/876/135279) | 删除云应用服务版本 | 20 |
+| [DescribeCloudAppInfo](/document/api/876/135277) | 查询云应用服务信息 | 20 |
 | [DescribeCloudAppList](/document/api/876/132936) | 查询云应用服务列表 | 20 |
+| [DescribeCloudAppVersion](/document/api/876/135276) | 查询云应用服务版本信息 | 20 |
+| [DescribeCloudAppVersionList](/document/api/876/135275) | 查询云应用服务版本列表 | 20 |
 
 ## 云开发接入相关接口
 
