@@ -199,7 +199,78 @@ MCP 层**没有自己的 host 映射表**，完全委托给 `@cloudbase/manager-
 
 ---
 
-## 五、共同模式总结
+## 五、从 A 迁到 B 的迁移逻辑（补充调研）
+
+> 本节补充调研 Vercel / Supabase 的"从 A 迁到 B"能力。两家都区分了两种语义：① 切换归属（不动基础设施）② 迁移基础设施（换 region）。
+
+### 5.1 Vercel：只有「切换归属」，无独立 region 迁移
+
+**Project Transfer**（team 之间转移）：
+
+- **范围**：Vercel Team 之间（Hobby→Pro 等），不支持 Account/Region 级别独立迁移
+- **停机**：**零停机**，原项目迁移期间保持活跃
+- **URL/域名**：不变。根域名"移动"到目标 team；子域名/通配符域名"委托"给目标 team，根域名留原 scope
+- **迁移内容**：部署、环境变量、域名、Git 链接、Cron Jobs、Analytics、Function Region 配置
+- **不迁移**：集成（需重装）、日志/监控数据、Log Drains、Vercel Blob、Secure Compute
+- **操作**：**仅 Dashboard UI**（Settings → General → Transfer Project），**无 CLI 命令**
+- **前置条件**：源 team Owner + 目标 team Member + 有效支付方式
+- **耗时**：10 秒 ~ 10 分钟
+- **跨 region**：❌ 没有独立操作；Function Region 只是作为配置项随项目一起带走
+
+### 5.2 Supabase：明确区分「Transfer」和「Migration」
+
+#### A. Project Transfer（组织间转移，不动基础设施）
+
+- **范围**：Organization 之间，**不能跨 region**
+- **region/project ref/API URL**：**不变**（仅归属变更）
+- **停机**：同级计划无缝；付费→Free 时 1-2 分钟停机
+- **操作**：**仅 Dashboard**（无 CLI）
+- **前置条件（5 项）**：源 org Owner + 目标 org Member + 无活跃 GitHub 集成 + 无 project-scoped roles + 无 Log Drains
+- **计费**：转移前费用归源 org，转移后归目标 org
+
+#### B. Project Migration（换 region / 升级主版本）
+
+- **本质**：**新建一个目标 region 的新项目 + dump/restore**
+- **project ref / API URL / keys**：**全部变化**（是新项目），客户端需更新
+- **CLI 流程**：
+
+  ```bash
+  # 备份旧项目
+  supabase db dump --db-url $OLD -f roles.sql --role-only
+  supabase db dump --db-url $OLD -f schema.sql
+  supabase db dump --db-url $OLD -f data.sql --use-copy --data-only
+  # 新建项目后，psql 恢复
+  psql --single-transaction --file roles.sql --file schema.sql --file data.sql --dbname $NEW
+  ```
+
+- **能迁移**：DB roles/schema/data、迁移历史、Edge Functions（`functions download`→`deploy`）、Storage Objects（JS 脚本下载再上传）
+- **不能直接迁移**：**根加密密钥**（必须用 API 在旧项目暂停前转移，否则 Vault/加密列永久无法解密）、项目配置、project ref
+- **停机**：**非零停机**，离线 dump/restore，无 CDC/增量同步
+- **付费计划捷径**：Paid Plan + 物理备份可用 "Restore to another project" 自动复制加密密钥
+- **旧项目**：恢复完成前必须保持活跃（取密钥），验证新项目后再暂停/删除
+
+### 5.3 核心对比
+
+| 维度 | Vercel Transfer | Supabase Transfer | Supabase Migration |
+|---|---|---|---|
+| 迁移什么 | Team 间归属 | Org 间归属 | 换 region/升级版本 |
+| 动基础设施 | 否 | 否（明确定义） | **是**（新建项目） |
+| region 变化 | 否（随配置带走） | 否 | **是** |
+| project ref/URL | 不变 | 不变 | **变**（新项目） |
+| 停机 | 零停机 | 同级无缝/降级 1-2min | 非零停机（离线 dump/restore） |
+| 操作方式 | Dashboard only | Dashboard only | **CLI 为主** + Dashboard 新建项目 |
+| 域名处理 | 移动/委托，URL 不变 | 不涉及 | 不涉及（需客户端改 URL） |
+
+### 5.4 对 CloudBase MCP 的启示
+
+1. **应区分两种语义**：CloudBase 用户"从 A 到 B"也可能有两种诉求——切换账号/site 归属（不动资源）vs 把资源迁到另一个 region。当前耦合点（`region === site`）把这两件事混在一起了
+2. **归属切换应做到零停机、URL/envId 不变**（学 Vercel/Supabase Transfer）：用户从一个 site/账号切到另一个 site/账号操作同一资源，理想是配置层切换，不动资源本身
+3. **跨 region 迁移是重操作**（学 Supabase Migration）：需新建环境 + 数据 dump/restore + 密钥/配置单独处理，且要明确告知用户 envId/URL 会变
+4. **迁移操作 Dashboard 优先，CLI 做数据搬运**：两家归属转移都只在 Dashboard 操作；CLI 主要用于 Migration 的 backup/restore。CloudBase MCP 若要做迁移工具，应聚焦数据搬运（类似 `supabase db dump`），归属切换交给控制台/MCP 管理工具
+
+---
+
+## 六、共同模式总结
 
 Supabase 与 Vercel 虽细节不同，但遵循高度一致的模式：
 
@@ -213,7 +284,7 @@ Supabase 与 Vercel 虽细节不同，但遵循高度一致的模式：
 
 ---
 
-## 六、对 CloudBase MCP 的启示
+## 七、对 CloudBase MCP 的启示
 
 CloudBase 比 Supabase/Vercel 多一层复杂度：**国内站与国际站是两套独立的账号体系/endpoint**，不是同一 OAuth 账户下的不同项目。因此不能照搬，但可借鉴。
 
@@ -250,7 +321,7 @@ CloudBase 比 Supabase/Vercel 多一层复杂度：**国内站与国际站是两
 
 ---
 
-## 七、待决策问题（进入 spec 前需拍板）
+## 八、待决策问题（进入 spec 前需拍板）
 
 1. **MCP endpoint 策略**：走统一入口路由（方案 A）还是启动时绑定 site（方案 B）？
 2. **是否引入项目级配置文件**（如 `.cloudbase/project.json`）建立"目录→site+envId"映射？
@@ -259,18 +330,22 @@ CloudBase 比 Supabase/Vercel 多一层复杂度：**国内站与国际站是两
 
 ---
 
-## 八、参考链接
+## 九、参考链接
 
 ### Supabase
 - CLI Reference: https://supabase.com/docs/reference/cli/start
 - CLI config: https://supabase.com/docs/guides/local-development/cli/config
 - MCP Server: https://supabase.com/docs/guides/ai-tools/mcp
+- Project Transfer: https://supabase.com/docs/guides/platform/project-transfer
+- Migrating within Supabase: https://supabase.com/docs/guides/platform/migrating-within-supabase
+- Backup and Restore (CLI): https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore
 
 ### Vercel
 - CLI Global Options: https://vercel.com/docs/cli/global-options
 - CLI switch: https://vercel.com/docs/cli/switch.md
 - MCP Server: https://vercel.com/docs/agent-resources/vercel-mcp
 - Agent Skills - Project and Team Scope Resolution: https://deepwiki.com/vercel-labs/agent-skills/11.2-project-and-team-scope-resolution
+- Transferring a project: https://vercel.com/docs/projects/transferring-projects
 
 ### 当前代码耦合点
 - `mcp/src/utils/tencent-cloud.ts:1-8`
