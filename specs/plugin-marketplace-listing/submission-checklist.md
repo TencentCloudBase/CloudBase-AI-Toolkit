@@ -110,11 +110,41 @@ Examples of good targets:
 - [x] Fork + sync PR — https://cnb.cool/codebuddy/marketplace/-/pulls/19 (2026-07-29)
 - [ ] Enrich PR description with Summary + Checklist if CNB UI allows edit (API token cannot PATCH target PR)
 - [ ] Await merge; then mark `codebuddy-plugin` curated listed
-- **Future sync to fork:** `npm run sync:codebuddy-marketplace`
-  - Regenerates skills, overlays `config/codebuddy-plugin` onto fork `plugins/cloudbase` (keeps `rules/`), bumps catalog entry, pushes fork `main`
-  - Fork: https://cnb.cool/tencent/cloud/cloudbase/marketplace
-  - Upstream PR still needs CNB UI / `repo-pr:rw` (script does not open upstream PR)
+- **Future sync to fork:** `npm run sync:codebuddy-marketplace` (if available on main)
   - Dry-run: `npm run sync:codebuddy-marketplace -- --dry-run`
+
+### 7. QoderWork marketplace (CN — ready to package)
+
+Self-serve inside QoderWork client. Prefer **Plugin** first (not Connector).
+
+- [ ] Package CloudBase as QoderWork Plugin:
+  - Root `.qoder-plugin/plugin.json`
+  - `skills/` (reuse / adapt CloudBase skills)
+  - optional `.mcp.json` → `npx -y @cloudbase/cloudbase-mcp@latest`
+- [ ] Follow https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines
+- [ ] Submit from QoderWork → marketplace → 我的发布
+- [ ] After live: flip `qoderwork-marketplace.community_directory` → `listed`
+
+### 8. Qoder IDE / CN community
+
+- [ ] Map package to `.qoder-plugin` layout (same family as QoderWork)
+- [ ] Try community submit: https://qoder.com.cn/account/apphub-publications
+- [ ] Verify browse/install on https://qoder.com.cn/marketplace and in-IDE plugin market
+- [ ] Featured placement: partner outreach if needed
+
+### 9. Kimi Code
+
+- [ ] Verify `/plugins install` from `TencentCloudBase/cloudbase-plugin` GitHub URL
+- [ ] Optional: host a Kimi marketplace.json (Custom tab / `KIMI_CODE_PLUGIN_MARKETPLACE_URL`)
+- [ ] Ask Moonshot how to appear under Official or Third-party curated tabs
+- Docs: https://www.kimi.com/code/docs/en/kimi-code-cli/customization/plugins.html
+
+### 10. MiniMax Agent
+
+- [ ] Smoke-test manual MCP add in MiniMax Agent (`npx @cloudbase/cloudbase-mcp@latest`)
+- [ ] Watch https://agent.minimax.io/docs/changelog for public publisher / marketplace docs
+- [ ] Partner outreach if curated MCP marketplace opens
+- [ ] Optional later: add `doc/ide-setup/minimax-agent.mdx` once install path is stable
 
 ## Needs partner outreach (do not fake as ready)
 
@@ -123,9 +153,11 @@ Examples of good targets:
 | Claude Official curated | Wait for / request Anthropic partnership |
 | Trae official MCP marketplace | Contact Trae for curated catalog inclusion (community list PR is separate) |
 | Trae Work skills marketplace | Confirm publisher onboarding |
-| Qoder / QoderWork | Confirm plugin/connector submit path |
-| CodeBuddy / CodeBuddy Code | Confirm whether already listed or need submit |
-| Kimi Code official | Confirm third-party listing path |
+| Qoder Featured / curated | After community submit, ask for Featured if needed |
+| QoderWork Connector | Only if HTTPS+OAuth CloudBase MCP is in scope |
+| CodeBuddy / CodeBuddy Code | Await CNB #19 merge; built-in may still need PM sync |
+| Kimi Code Official / Third-party tabs | Confirm curated listing with Moonshot |
+| MiniMax Agent marketplace | No public submit form yet — monitor + outreach |
 
 ## After each submission
 

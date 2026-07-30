@@ -55,9 +55,11 @@ They accept `.claude-plugin/plugin.json` for Claude-ecosystem plugins; our repo 
 |--------|---------|-------------|
 | Trae MCP | Community list: [trae-community/trae-mcp](https://github.com/trae-community/trae-mcp) — PRs add rows to README MCP table. Official IDE also has in-app MCP marketplace (publisher onboarding unclear). | Open PR to `trae-mcp` listing `@cloudbase/cloudbase-mcp` / docs; separately ask Trae for curated marketplace inclusion. |
 | Trae Skills | Separate from MCP (`README-skills.md` / Trae skills docs). | Confirm whether CloudBase skills map to Trae Agent Skills format; may need a thin adapter + second PR. |
-| Qoder / QoderWork | No public third-party plugin submit docs found in this pass. | Keep `needs_partner_outreach`; monitor Qoder docs / BD. |
-| CodeBuddy | CloudBase already deep-integrated; may already be listed/native. | Confirm with CodeBuddy PM whether catalog entry is needed vs built-in. |
-| Kimi Code | No clear public third-party listing path. | Outreach / watch docs. |
+| Qoder IDE | In-product plugin market + CN community hub https://qoder.com.cn/marketplace ; packaging `.qoder-plugin/plugin.json`. | Package adapter + submit via AppHub publications; Featured may need BD. |
+| QoderWork | **Self-serve** Skill/Plugin/Connector/Workbench marketplace. Guidelines: https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines | **Do next:** submit CloudBase as Plugin (skills + optional MCP). Defer Connector (needs HTTPS+OAuth). |
+| CodeBuddy | CNB marketplace sync PR open; sync script on Toolkit. | Await merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19 ; use `npm run sync:codebuddy-marketplace` for later refreshes. |
+| Kimi Code | `/plugins` Official/Third-party/Custom; GitHub/zip/custom marketplace JSON supported. Curated tab process undocumented. | Verify GitHub install; ask Moonshot for Official/Third-party listing. |
+| MiniMax Agent | Custom MCP + MCP Builder; marketplace reuse mentioned in changelog; no public publisher URL found (2026-07-30). | Manual MCP smoke-test; monitor docs; partner outreach if catalog opens. |
 | Claude Official curated | No application; Anthropic discretion only. | Do not treat as submittable. |
 
 ## 3. Lightweight dedicated marketplace repo (optional)

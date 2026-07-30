@@ -226,26 +226,34 @@ markets:
     listing_statuses:
       official_curated: unknown
       community_directory: unknown
-      self_marketplace: not_applicable
+      self_marketplace: listed
       native_connector_or_builtin: not_applicable
       open_plugin_spec: listed
       mcp_or_skill_registry: not_applicable
-      docs_only: unknown
+      docs_only: listed
     submit_url_or_process: |
-      Official / third-party marketplace tabs plus custom marketplace JSON URL (KIMI_CODE_PLUGIN_MARKETPLACE_URL). Public third-party listing path needs verification.
-    eligibility: unknown_or_partner
+      Kimi Code CLI `/plugins` has Official / Third-party / Custom tabs.
+      Users can already install via GitHub URL or `npx plugins add TencentCloudBase/cloudbase-plugin` (kimi target).
+      Custom catalog: set KIMI_CODE_PLUGIN_MARKETPLACE_URL or `/plugins marketplace <json-url>`.
+      How to land in Official/Third-party curated tabs is not publicly documented (2026-07-30) — needs Moonshot outreach.
+      Docs: https://www.kimi.com/code/docs/en/kimi-code-cli/customization/plugins.html
+    eligibility: marketplace_add_or_catalog_pr
     blockers:
-      - Official third-party listing process not fully documented
+      - Official / Third-party curated listing process not publicly documented
     evidence_links:
       - https://www.kimi.com/code/docs/en/kimi-code-cli/customization/plugins.html
+      - https://www.kimi.com/code/docs/en/kimi-code/whats-new.html
     local_evidence:
       - open_plugin_spec_cloudbase
+      - plugin/cloudbase
     submit_checklist:
-      - Confirm Kimi official vs third-party submission path
-      - Plugin zip or GitHub URL installable via /plugins
+      - Confirm install works via /plugins install GitHub URL (TencentCloudBase/cloudbase-plugin)
+      - Optionally publish a Kimi-compatible marketplace.json pointing at cloudbase-plugin
+      - Ask Moonshot / Kimi Code team how to appear under Official or Third-party tab
+      - Keep docs install path updated
     recommended_install_path: null
     priority_hint: needs_partner_outreach
-    last_reviewed_at: "2026-07-27"
+    last_reviewed_at: "2026-07-30"
     owner: cloudbase-ai-toolkit
 
   - id: vscode-agent-plugins
@@ -434,27 +442,73 @@ markets:
     channel_type: community_plugin_directory
     listing_statuses:
       official_curated: unknown
-      community_directory: unknown
+      community_directory: submittable
       self_marketplace: not_applicable
       native_connector_or_builtin: not_applicable
       open_plugin_spec: not_applicable
       mcp_or_skill_registry: not_applicable
       docs_only: listed
     submit_url_or_process: |
-      Qoder CN plugins use plugin.json packaging (skills/MCP/hooks). Public marketplace listing process needs verification (Aliyun Lingma docs overlap).
-    eligibility: partner_outreach_required
+      Qoder IDE has an in-product plugin marketplace (Featured/Coding/DataBase/…).
+      CN community skill hub: https://qoder.com.cn/marketplace (submit via https://qoder.com.cn/account/apphub-publications).
+      Plugin packaging uses `.qoder-plugin/plugin.json` (+ skills/MCP/hooks). See https://docs.qoder.com/zh/extensions/plugins
+      CloudBase already has ide-setup docs; Featured/curated placement may still need partner outreach.
+    eligibility: marketplace_add_or_catalog_pr
     blockers:
-      - Self-serve listing docs incomplete for third parties
+      - Need to map CloudBase package to `.qoder-plugin` layout and try community submit
+      - Featured / official curated placement process unclear
     evidence_links:
-      - https://help.aliyun.com/zh/lingma/plugin-hidden-release
+      - https://docs.qoder.com/zh/extensions/plugins
+      - https://qoder.com.cn/marketplace
+      - https://qoder.com.cn/account/apphub-publications
       - doc/ide-setup/qoder.mdx
-    local_evidence: []
+    local_evidence:
+      - doc/ide-setup/qoder.mdx
     submit_checklist:
-      - Confirm Qoder CN plugin publish channel
-      - Package plugin.json compatible layout
+      - Adapt plugin/cloudbase (or thin wrapper) to `.qoder-plugin/plugin.json` layout
+      - Submit Skill or Plugin via Qoder CN community / AppHub publications
+      - Verify install from Qoder plugin marketplace UI
+      - Ask Qoder for Featured category if needed
     recommended_install_path: doc/ide-setup/qoder.mdx
-    priority_hint: needs_partner_outreach
-    last_reviewed_at: "2026-07-27"
+    priority_hint: ready_to_submit
+    last_reviewed_at: "2026-07-30"
+    owner: cloudbase-ai-toolkit
+
+  - id: qoderwork-marketplace
+    product: QoderWork
+    region: cn
+    channel_type: community_plugin_directory
+    listing_statuses:
+      official_curated: unknown
+      community_directory: submittable
+      self_marketplace: not_applicable
+      native_connector_or_builtin: not_applicable
+      open_plugin_spec: not_applicable
+      mcp_or_skill_registry: submittable
+      docs_only: listed
+    submit_url_or_process: |
+      QoderWork public marketplace is self-serve inside the client: submit → review → live.
+      Four extension types: Skill / Plugin (专家套件) / Connector / 工作台.
+      Recommended first path for CloudBase: **Plugin** (skills + optional `.mcp.json` for cloudbase-mcp) or a thin **Skill**.
+      Guidelines: https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines
+      Plugin layout requires `.qoder-plugin/plugin.json` under the package root.
+    eligibility: self_serve_submit
+    blockers: []
+    evidence_links:
+      - https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines
+      - https://docs.qoder.com/zh/qoderwork/connectors
+    local_evidence:
+      - plugin/cloudbase
+      - config/source/skills
+    submit_checklist:
+      - Choose Plugin vs Skill packaging (prefer Plugin wrapping CloudBase skills + MCP)
+      - Produce `.qoder-plugin/plugin.json` + skills/ + optional `.mcp.json` (stdio npx @cloudbase/cloudbase-mcp)
+      - Submit from QoderWork client marketplace / 我的发布
+      - Pass structure precheck + automated review
+      - After live: mark community_directory listed
+    recommended_install_path: null
+    priority_hint: ready_to_submit
+    last_reviewed_at: "2026-07-30"
     owner: cloudbase-ai-toolkit
 
   - id: qoderwork-connector
@@ -470,20 +524,60 @@ markets:
       mcp_or_skill_registry: not_applicable
       docs_only: unknown
     submit_url_or_process: |
-      QoderWork has connector / integration marketplace plus custom MCP. CloudBase listing requires partner outreach.
+      Connector is a separate QoderWork extension type: public HTTPS MCP + OAuth, company identity verification, privacy/ToS, self-test report, then human review.
+      Prefer shipping CloudBase first as Plugin/Skill (`qoderwork-marketplace`); treat official Connector as a later partner track.
+      Docs: https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines (Connector section)
     eligibility: partner_outreach_required
     blockers:
-      - No confirmed CloudBase listing
-      - Third-party connector submit path unclear
+      - Requires public HTTPS MCP with OAuth (current CloudBase MCP is primarily npx stdio)
+      - Company identity phone verification + legal docs
     evidence_links:
+      - https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines
       - https://docs.qoder.com/zh/qoderwork/connectors
     local_evidence: []
     submit_checklist:
-      - Confirm connector onboarding with QoderWork
-      - MCP or connector packaging requirements
+      - Decide whether hosted CloudBase MCP HTTPS endpoint is in scope
+      - Prepare OAuth, privacy policy, ToS, connectivity self-test
+      - Submit Connector via QoderWork + complete company verification
     recommended_install_path: null
     priority_hint: needs_partner_outreach
-    last_reviewed_at: "2026-07-27"
+    last_reviewed_at: "2026-07-30"
+    owner: cloudbase-ai-toolkit
+
+  - id: minimax-agent-mcp
+    product: MiniMax Agent
+    region: cn
+    channel_type: mcp_registry_or_aggregator
+    listing_statuses:
+      official_curated: unknown
+      community_directory: unknown
+      self_marketplace: unknown
+      native_connector_or_builtin: not_applicable
+      open_plugin_spec: not_applicable
+      mcp_or_skill_registry: unknown
+      docs_only: listed
+    submit_url_or_process: |
+      MiniMax Agent supports custom MCP and an in-product MCP Builder; changelog mentions adding completed MCPs to a marketplace for reuse.
+      No stable public third-party developer submission URL found (2026-07-30).
+      Near-term path: document manual MCP config (`npx @cloudbase/cloudbase-mcp@latest`) for MiniMax Agent users; watch Agent docs/changelog for publisher onboarding.
+      Refs: https://agent.minimaxi.com/docs/user-guide ; https://agent.minimax.io/docs/changelog
+    eligibility: unknown_or_partner
+    blockers:
+      - No public third-party plugin/MCP submit form found
+      - Marketplace reuse appears product-internal after MCP Builder
+    evidence_links:
+      - https://agent.minimaxi.com/docs/user-guide
+      - https://agent.minimax.io/docs/user-guide
+      - https://agent.minimax.io/docs/changelog
+    local_evidence: []
+    submit_checklist:
+      - Smoke-test CloudBase MCP inside MiniMax Agent (manual add)
+      - Add ide-setup / docs note if product fit is confirmed
+      - Monitor MiniMax for public marketplace publisher docs
+      - Partner outreach if curated catalog is required
+    recommended_install_path: null
+    priority_hint: needs_partner_outreach
+    last_reviewed_at: "2026-07-30"
     owner: cloudbase-ai-toolkit
 
   - id: trae-mcp-marketplace

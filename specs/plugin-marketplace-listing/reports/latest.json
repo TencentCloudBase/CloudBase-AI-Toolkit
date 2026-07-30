@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-07-28T03:32:40.305Z",
+  "generated_at": "2026-07-30T10:38:16.628Z",
   "matrix_version": 1,
   "reviewed_stale_days": 90,
-  "total_markets": 42,
+  "total_markets": 44,
   "summary": {
-    "ready_to_submit": 6,
+    "ready_to_submit": 8,
     "needs_packaging_or_manifest": 0,
     "needs_partner_outreach": 13,
     "listed": 7,
@@ -189,11 +189,12 @@
         "eligibility": "public_github_repo_required",
         "blockers": [],
         "evidence_links": [
+          "https://cursor.directory/plugins/cloudbase",
           "https://cursor.directory",
           "https://cursor.directory/plugins/new",
           "https://cursor.com/docs/plugins"
         ],
-        "submit_url_or_process": "Community listing via cursor.directory (plugin discovery). Prefer official Cursor Marketplace for primary listing.\nStatus 2026-07-28: packet ready — submit https://github.com/TencentCloudBase/cloudbase-plugin at https://cursor.directory/plugins/new\n(Use dedicated OPS repo: has root .mcp.json for auto-detect; monorepo does not.)\n",
+        "submit_url_or_process": "Community listing via cursor.directory (plugin discovery). Prefer official Cursor Marketplace for primary listing.\nStatus 2026-07-28: submitted — https://cursor.directory/plugins/cloudbase (being verified).\nSource repo: https://github.com/TencentCloudBase/cloudbase-plugin (root .mcp.json).\n",
         "recommended_install_path": "doc/ide-setup/cursor.mdx",
         "last_reviewed_at": "2026-07-28",
         "owner": "cloudbase-ai-toolkit",
@@ -436,6 +437,144 @@
         "priority": "ready_to_submit",
         "stale": false,
         "manual_submit_only": true
+      },
+      {
+        "id": "qoder-plugin",
+        "product": "Qoder",
+        "region": "cn",
+        "channel_type": "community_plugin_directory",
+        "listing_statuses": {
+          "official_curated": "unknown",
+          "community_directory": "submittable",
+          "self_marketplace": "not_applicable",
+          "native_connector_or_builtin": "not_applicable",
+          "open_plugin_spec": "not_applicable",
+          "mcp_or_skill_registry": "not_applicable",
+          "docs_only": "listed"
+        },
+        "eligibility": "marketplace_add_or_catalog_pr",
+        "blockers": [
+          "Need to map CloudBase package to `.qoder-plugin` layout and try community submit",
+          "Featured / official curated placement process unclear"
+        ],
+        "evidence_links": [
+          "https://docs.qoder.com/zh/extensions/plugins",
+          "https://qoder.com.cn/marketplace",
+          "https://qoder.com.cn/account/apphub-publications",
+          "doc/ide-setup/qoder.mdx"
+        ],
+        "submit_url_or_process": "Qoder IDE has an in-product plugin marketplace (Featured/Coding/DataBase/…).\nCN community skill hub: https://qoder.com.cn/marketplace (submit via https://qoder.com.cn/account/apphub-publications).\nPlugin packaging uses `.qoder-plugin/plugin.json` (+ skills/MCP/hooks). See https://docs.qoder.com/zh/extensions/plugins\nCloudBase already has ide-setup docs; Featured/curated placement may still need partner outreach.\n",
+        "recommended_install_path": "doc/ide-setup/qoder.mdx",
+        "last_reviewed_at": "2026-07-30",
+        "owner": "cloudbase-ai-toolkit",
+        "local_evidence": [
+          {
+            "id": "doc/ide-setup/qoder.mdx",
+            "status": "invalid",
+            "detail": "Unknown local_evidence id \"doc/ide-setup/qoder.mdx\"",
+            "paths": []
+          }
+        ],
+        "submit_checklist": [
+          "Adapt plugin/cloudbase (or thin wrapper) to `.qoder-plugin/plugin.json` layout",
+          "Submit Skill or Plugin via Qoder CN community / AppHub publications",
+          "Verify install from Qoder plugin marketplace UI",
+          "Ask Qoder for Featured category if needed"
+        ],
+        "materials": [
+          {
+            "item": "Adapt plugin/cloudbase (or thin wrapper) to `.qoder-plugin/plugin.json` layout",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Submit Skill or Plugin via Qoder CN community / AppHub publications",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Verify install from Qoder plugin marketplace UI",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Ask Qoder for Featured category if needed",
+            "status": "manual_or_external"
+          }
+        ],
+        "priority": "ready_to_submit",
+        "stale": false,
+        "manual_submit_only": true
+      },
+      {
+        "id": "qoderwork-marketplace",
+        "product": "QoderWork",
+        "region": "cn",
+        "channel_type": "community_plugin_directory",
+        "listing_statuses": {
+          "official_curated": "unknown",
+          "community_directory": "submittable",
+          "self_marketplace": "not_applicable",
+          "native_connector_or_builtin": "not_applicable",
+          "open_plugin_spec": "not_applicable",
+          "mcp_or_skill_registry": "submittable",
+          "docs_only": "listed"
+        },
+        "eligibility": "self_serve_submit",
+        "blockers": [],
+        "evidence_links": [
+          "https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines",
+          "https://docs.qoder.com/zh/qoderwork/connectors"
+        ],
+        "submit_url_or_process": "QoderWork public marketplace is self-serve inside the client: submit → review → live.\nFour extension types: Skill / Plugin (专家套件) / Connector / 工作台.\nRecommended first path for CloudBase: **Plugin** (skills + optional `.mcp.json` for cloudbase-mcp) or a thin **Skill**.\nGuidelines: https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines\nPlugin layout requires `.qoder-plugin/plugin.json` under the package root.\n",
+        "recommended_install_path": null,
+        "last_reviewed_at": "2026-07-30",
+        "owner": "cloudbase-ai-toolkit",
+        "local_evidence": [
+          {
+            "id": "plugin/cloudbase",
+            "status": "invalid",
+            "detail": "Unknown local_evidence id \"plugin/cloudbase\"",
+            "paths": []
+          },
+          {
+            "id": "config/source/skills",
+            "status": "invalid",
+            "detail": "Unknown local_evidence id \"config/source/skills\"",
+            "paths": []
+          }
+        ],
+        "submit_checklist": [
+          "Choose Plugin vs Skill packaging (prefer Plugin wrapping CloudBase skills + MCP)",
+          "Produce `.qoder-plugin/plugin.json` + skills/ + optional `.mcp.json` (stdio npx @cloudbase/cloudbase-mcp)",
+          "Submit from QoderWork client marketplace / 我的发布",
+          "Pass structure precheck + automated review",
+          {
+            "After live": "mark community_directory listed"
+          }
+        ],
+        "materials": [
+          {
+            "item": "Choose Plugin vs Skill packaging (prefer Plugin wrapping CloudBase skills + MCP)",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Produce `.qoder-plugin/plugin.json` + skills/ + optional `.mcp.json` (stdio npx @cloudbase/cloudbase-mcp)",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Submit from QoderWork client marketplace / 我的发布",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Pass structure precheck + automated review",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "[object Object]",
+            "status": "manual_or_external"
+          }
+        ],
+        "priority": "ready_to_submit",
+        "stale": false,
+        "manual_submit_only": true
       }
     ],
     "needs_packaging_or_manifest": [],
@@ -498,22 +637,23 @@
         "listing_statuses": {
           "official_curated": "unknown",
           "community_directory": "unknown",
-          "self_marketplace": "not_applicable",
+          "self_marketplace": "listed",
           "native_connector_or_builtin": "not_applicable",
           "open_plugin_spec": "listed",
           "mcp_or_skill_registry": "not_applicable",
-          "docs_only": "unknown"
+          "docs_only": "listed"
         },
-        "eligibility": "unknown_or_partner",
+        "eligibility": "marketplace_add_or_catalog_pr",
         "blockers": [
-          "Official third-party listing process not fully documented"
+          "Official / Third-party curated listing process not publicly documented"
         ],
         "evidence_links": [
-          "https://www.kimi.com/code/docs/en/kimi-code-cli/customization/plugins.html"
+          "https://www.kimi.com/code/docs/en/kimi-code-cli/customization/plugins.html",
+          "https://www.kimi.com/code/docs/en/kimi-code/whats-new.html"
         ],
-        "submit_url_or_process": "Official / third-party marketplace tabs plus custom marketplace JSON URL (KIMI_CODE_PLUGIN_MARKETPLACE_URL). Public third-party listing path needs verification.\n",
+        "submit_url_or_process": "Kimi Code CLI `/plugins` has Official / Third-party / Custom tabs.\nUsers can already install via GitHub URL or `npx plugins add TencentCloudBase/cloudbase-plugin` (kimi target).\nCustom catalog: set KIMI_CODE_PLUGIN_MARKETPLACE_URL or `/plugins marketplace <json-url>`.\nHow to land in Official/Third-party curated tabs is not publicly documented (2026-07-30) — needs Moonshot outreach.\nDocs: https://www.kimi.com/code/docs/en/kimi-code-cli/customization/plugins.html\n",
         "recommended_install_path": null,
-        "last_reviewed_at": "2026-07-27",
+        "last_reviewed_at": "2026-07-30",
         "owner": "cloudbase-ai-toolkit",
         "local_evidence": [
           {
@@ -523,20 +663,36 @@
             "paths": [
               "plugin/cloudbase/.plugin/plugin.json"
             ]
+          },
+          {
+            "id": "plugin/cloudbase",
+            "status": "invalid",
+            "detail": "Unknown local_evidence id \"plugin/cloudbase\"",
+            "paths": []
           }
         ],
         "submit_checklist": [
-          "Confirm Kimi official vs third-party submission path",
-          "Plugin zip or GitHub URL installable via /plugins"
+          "Confirm install works via /plugins install GitHub URL (TencentCloudBase/cloudbase-plugin)",
+          "Optionally publish a Kimi-compatible marketplace.json pointing at cloudbase-plugin",
+          "Ask Moonshot / Kimi Code team how to appear under Official or Third-party tab",
+          "Keep docs install path updated"
         ],
         "materials": [
           {
-            "item": "Confirm Kimi official vs third-party submission path",
-            "status": "repo_ready_or_external"
+            "item": "Confirm install works via /plugins install GitHub URL (TencentCloudBase/cloudbase-plugin)",
+            "status": "manual_or_external"
           },
           {
-            "item": "Plugin zip or GitHub URL installable via /plugins",
-            "status": "repo_ready_or_external"
+            "item": "Optionally publish a Kimi-compatible marketplace.json pointing at cloudbase-plugin",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Ask Moonshot / Kimi Code team how to appear under Official or Third-party tab",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Keep docs install path updated",
+            "status": "manual_or_external"
           }
         ],
         "priority": "needs_partner_outreach",
@@ -549,38 +705,59 @@
         "region": "cn",
         "channel_type": "native_connector_or_builtin",
         "listing_statuses": {
-          "official_curated": "unknown",
+          "official_curated": "listed",
           "community_directory": "unknown",
           "self_marketplace": "not_applicable",
-          "native_connector_or_builtin": "unknown",
+          "native_connector_or_builtin": "listed",
           "open_plugin_spec": "not_applicable",
           "mcp_or_skill_registry": "not_applicable",
           "docs_only": "listed"
         },
         "eligibility": "partner_outreach_required",
         "blockers": [
-          "Official listing status for CloudBase needs confirmation"
+          "Awaiting merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19 (refresh to v2.25.0)"
         ],
         "evidence_links": [
+          "https://cnb.cool/codebuddy/marketplace/-/tree/main/plugins/cloudbase",
+          "https://cnb.cool/tencent/cloud/cloudbase/marketplace",
+          "https://cnb.cool/codebuddy/marketplace/-/pulls/19",
           "https://www.codebuddy.cn/docs/cli/plugins",
           "doc/ide-setup/codebuddy.mdx"
         ],
-        "submit_url_or_process": "CodeBuddy has plugin marketplace / CLI plugins. Confirm whether CloudBase is already listed or needs partner submission.\n",
+        "submit_url_or_process": "Official catalog already has plugins/cloudbase on cnb.cool/codebuddy/marketplace (content stale vs v2.25.0).\nFork: https://cnb.cool/tencent/cloud/cloudbase/marketplace\nPR open: https://cnb.cool/codebuddy/marketplace/-/pulls/19 (from fork main).\n",
         "recommended_install_path": "doc/ide-setup/codebuddy.mdx",
-        "last_reviewed_at": "2026-07-27",
+        "last_reviewed_at": "2026-07-29",
         "owner": "cloudbase-ai-toolkit",
-        "local_evidence": [],
+        "local_evidence": [
+          {
+            "id": "config/codebuddy-plugin",
+            "status": "invalid",
+            "detail": "Unknown local_evidence id \"config/codebuddy-plugin\"",
+            "paths": []
+          },
+          {
+            "id": "specs/plugin-marketplace-listing/submission-log.md",
+            "status": "invalid",
+            "detail": "Unknown local_evidence id \"specs/plugin-marketplace-listing/submission-log.md\"",
+            "paths": []
+          }
+        ],
         "submit_checklist": [
-          "Confirm CodeBuddy marketplace submission process",
-          "Align with config/codebuddy-plugin if applicable"
+          "Await merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19",
+          "Confirm keep rules/cloudbase_rules.md in marketplace package",
+          "Ask CodeBuddy product team about built-in IDE sync if needed"
         ],
         "materials": [
           {
-            "item": "Confirm CodeBuddy marketplace submission process",
+            "item": "Await merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19",
             "status": "manual_or_external"
           },
           {
-            "item": "Align with config/codebuddy-plugin if applicable",
+            "item": "Confirm keep rules/cloudbase_rules.md in marketplace package",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Ask CodeBuddy product team about built-in IDE sync if needed",
             "status": "manual_or_external"
           }
         ],
@@ -634,51 +811,6 @@
         "manual_submit_only": true
       },
       {
-        "id": "qoder-plugin",
-        "product": "Qoder",
-        "region": "cn",
-        "channel_type": "community_plugin_directory",
-        "listing_statuses": {
-          "official_curated": "unknown",
-          "community_directory": "unknown",
-          "self_marketplace": "not_applicable",
-          "native_connector_or_builtin": "not_applicable",
-          "open_plugin_spec": "not_applicable",
-          "mcp_or_skill_registry": "not_applicable",
-          "docs_only": "listed"
-        },
-        "eligibility": "partner_outreach_required",
-        "blockers": [
-          "Self-serve listing docs incomplete for third parties"
-        ],
-        "evidence_links": [
-          "https://help.aliyun.com/zh/lingma/plugin-hidden-release",
-          "doc/ide-setup/qoder.mdx"
-        ],
-        "submit_url_or_process": "Qoder CN plugins use plugin.json packaging (skills/MCP/hooks). Public marketplace listing process needs verification (Aliyun Lingma docs overlap).\n",
-        "recommended_install_path": "doc/ide-setup/qoder.mdx",
-        "last_reviewed_at": "2026-07-27",
-        "owner": "cloudbase-ai-toolkit",
-        "local_evidence": [],
-        "submit_checklist": [
-          "Confirm Qoder CN plugin publish channel",
-          "Package plugin.json compatible layout"
-        ],
-        "materials": [
-          {
-            "item": "Confirm Qoder CN plugin publish channel",
-            "status": "manual_or_external"
-          },
-          {
-            "item": "Package plugin.json compatible layout",
-            "status": "manual_or_external"
-          }
-        ],
-        "priority": "needs_partner_outreach",
-        "stale": false,
-        "manual_submit_only": true
-      },
-      {
         "id": "qoderwork-connector",
         "product": "QoderWork",
         "region": "cn",
@@ -694,28 +826,91 @@
         },
         "eligibility": "partner_outreach_required",
         "blockers": [
-          "No confirmed CloudBase listing",
-          "Third-party connector submit path unclear"
+          "Requires public HTTPS MCP with OAuth (current CloudBase MCP is primarily npx stdio)",
+          "Company identity phone verification + legal docs"
         ],
         "evidence_links": [
+          "https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines",
           "https://docs.qoder.com/zh/qoderwork/connectors"
         ],
-        "submit_url_or_process": "QoderWork has connector / integration marketplace plus custom MCP. CloudBase listing requires partner outreach.\n",
+        "submit_url_or_process": "Connector is a separate QoderWork extension type: public HTTPS MCP + OAuth, company identity verification, privacy/ToS, self-test report, then human review.\nPrefer shipping CloudBase first as Plugin/Skill (`qoderwork-marketplace`); treat official Connector as a later partner track.\nDocs: https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines (Connector section)\n",
         "recommended_install_path": null,
-        "last_reviewed_at": "2026-07-27",
+        "last_reviewed_at": "2026-07-30",
         "owner": "cloudbase-ai-toolkit",
         "local_evidence": [],
         "submit_checklist": [
-          "Confirm connector onboarding with QoderWork",
-          "MCP or connector packaging requirements"
+          "Decide whether hosted CloudBase MCP HTTPS endpoint is in scope",
+          "Prepare OAuth, privacy policy, ToS, connectivity self-test",
+          "Submit Connector via QoderWork + complete company verification"
         ],
         "materials": [
           {
-            "item": "Confirm connector onboarding with QoderWork",
+            "item": "Decide whether hosted CloudBase MCP HTTPS endpoint is in scope",
             "status": "manual_or_external"
           },
           {
-            "item": "MCP or connector packaging requirements",
+            "item": "Prepare OAuth, privacy policy, ToS, connectivity self-test",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Submit Connector via QoderWork + complete company verification",
+            "status": "manual_or_external"
+          }
+        ],
+        "priority": "needs_partner_outreach",
+        "stale": false,
+        "manual_submit_only": true
+      },
+      {
+        "id": "minimax-agent-mcp",
+        "product": "MiniMax Agent",
+        "region": "cn",
+        "channel_type": "mcp_registry_or_aggregator",
+        "listing_statuses": {
+          "official_curated": "unknown",
+          "community_directory": "unknown",
+          "self_marketplace": "unknown",
+          "native_connector_or_builtin": "not_applicable",
+          "open_plugin_spec": "not_applicable",
+          "mcp_or_skill_registry": "unknown",
+          "docs_only": "listed"
+        },
+        "eligibility": "unknown_or_partner",
+        "blockers": [
+          "No public third-party plugin/MCP submit form found",
+          "Marketplace reuse appears product-internal after MCP Builder"
+        ],
+        "evidence_links": [
+          "https://agent.minimaxi.com/docs/user-guide",
+          "https://agent.minimax.io/docs/user-guide",
+          "https://agent.minimax.io/docs/changelog"
+        ],
+        "submit_url_or_process": "MiniMax Agent supports custom MCP and an in-product MCP Builder; changelog mentions adding completed MCPs to a marketplace for reuse.\nNo stable public third-party developer submission URL found (2026-07-30).\nNear-term path: document manual MCP config (`npx @cloudbase/cloudbase-mcp@latest`) for MiniMax Agent users; watch Agent docs/changelog for publisher onboarding.\nRefs: https://agent.minimaxi.com/docs/user-guide ; https://agent.minimax.io/docs/changelog\n",
+        "recommended_install_path": null,
+        "last_reviewed_at": "2026-07-30",
+        "owner": "cloudbase-ai-toolkit",
+        "local_evidence": [],
+        "submit_checklist": [
+          "Smoke-test CloudBase MCP inside MiniMax Agent (manual add)",
+          "Add ide-setup / docs note if product fit is confirmed",
+          "Monitor MiniMax for public marketplace publisher docs",
+          "Partner outreach if curated catalog is required"
+        ],
+        "materials": [
+          {
+            "item": "Smoke-test CloudBase MCP inside MiniMax Agent (manual add)",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Add ide-setup / docs note if product fit is confirmed",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Monitor MiniMax for public marketplace publisher docs",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Partner outreach if curated catalog is required",
             "status": "manual_or_external"
           }
         ],
@@ -2045,11 +2240,12 @@
       "eligibility": "public_github_repo_required",
       "blockers": [],
       "evidence_links": [
+        "https://cursor.directory/plugins/cloudbase",
         "https://cursor.directory",
         "https://cursor.directory/plugins/new",
         "https://cursor.com/docs/plugins"
       ],
-      "submit_url_or_process": "Community listing via cursor.directory (plugin discovery). Prefer official Cursor Marketplace for primary listing.\nStatus 2026-07-28: packet ready — submit https://github.com/TencentCloudBase/cloudbase-plugin at https://cursor.directory/plugins/new\n(Use dedicated OPS repo: has root .mcp.json for auto-detect; monorepo does not.)\n",
+      "submit_url_or_process": "Community listing via cursor.directory (plugin discovery). Prefer official Cursor Marketplace for primary listing.\nStatus 2026-07-28: submitted — https://cursor.directory/plugins/cloudbase (being verified).\nSource repo: https://github.com/TencentCloudBase/cloudbase-plugin (root .mcp.json).\n",
       "recommended_install_path": "doc/ide-setup/cursor.mdx",
       "last_reviewed_at": "2026-07-28",
       "owner": "cloudbase-ai-toolkit",
@@ -2239,22 +2435,23 @@
       "listing_statuses": {
         "official_curated": "unknown",
         "community_directory": "unknown",
-        "self_marketplace": "not_applicable",
+        "self_marketplace": "listed",
         "native_connector_or_builtin": "not_applicable",
         "open_plugin_spec": "listed",
         "mcp_or_skill_registry": "not_applicable",
-        "docs_only": "unknown"
+        "docs_only": "listed"
       },
-      "eligibility": "unknown_or_partner",
+      "eligibility": "marketplace_add_or_catalog_pr",
       "blockers": [
-        "Official third-party listing process not fully documented"
+        "Official / Third-party curated listing process not publicly documented"
       ],
       "evidence_links": [
-        "https://www.kimi.com/code/docs/en/kimi-code-cli/customization/plugins.html"
+        "https://www.kimi.com/code/docs/en/kimi-code-cli/customization/plugins.html",
+        "https://www.kimi.com/code/docs/en/kimi-code/whats-new.html"
       ],
-      "submit_url_or_process": "Official / third-party marketplace tabs plus custom marketplace JSON URL (KIMI_CODE_PLUGIN_MARKETPLACE_URL). Public third-party listing path needs verification.\n",
+      "submit_url_or_process": "Kimi Code CLI `/plugins` has Official / Third-party / Custom tabs.\nUsers can already install via GitHub URL or `npx plugins add TencentCloudBase/cloudbase-plugin` (kimi target).\nCustom catalog: set KIMI_CODE_PLUGIN_MARKETPLACE_URL or `/plugins marketplace <json-url>`.\nHow to land in Official/Third-party curated tabs is not publicly documented (2026-07-30) — needs Moonshot outreach.\nDocs: https://www.kimi.com/code/docs/en/kimi-code-cli/customization/plugins.html\n",
       "recommended_install_path": null,
-      "last_reviewed_at": "2026-07-27",
+      "last_reviewed_at": "2026-07-30",
       "owner": "cloudbase-ai-toolkit",
       "local_evidence": [
         {
@@ -2264,20 +2461,36 @@
           "paths": [
             "plugin/cloudbase/.plugin/plugin.json"
           ]
+        },
+        {
+          "id": "plugin/cloudbase",
+          "status": "invalid",
+          "detail": "Unknown local_evidence id \"plugin/cloudbase\"",
+          "paths": []
         }
       ],
       "submit_checklist": [
-        "Confirm Kimi official vs third-party submission path",
-        "Plugin zip or GitHub URL installable via /plugins"
+        "Confirm install works via /plugins install GitHub URL (TencentCloudBase/cloudbase-plugin)",
+        "Optionally publish a Kimi-compatible marketplace.json pointing at cloudbase-plugin",
+        "Ask Moonshot / Kimi Code team how to appear under Official or Third-party tab",
+        "Keep docs install path updated"
       ],
       "materials": [
         {
-          "item": "Confirm Kimi official vs third-party submission path",
-          "status": "repo_ready_or_external"
+          "item": "Confirm install works via /plugins install GitHub URL (TencentCloudBase/cloudbase-plugin)",
+          "status": "manual_or_external"
         },
         {
-          "item": "Plugin zip or GitHub URL installable via /plugins",
-          "status": "repo_ready_or_external"
+          "item": "Optionally publish a Kimi-compatible marketplace.json pointing at cloudbase-plugin",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Ask Moonshot / Kimi Code team how to appear under Official or Third-party tab",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Keep docs install path updated",
+          "status": "manual_or_external"
         }
       ],
       "priority": "needs_partner_outreach",
@@ -2469,38 +2682,59 @@
       "region": "cn",
       "channel_type": "native_connector_or_builtin",
       "listing_statuses": {
-        "official_curated": "unknown",
+        "official_curated": "listed",
         "community_directory": "unknown",
         "self_marketplace": "not_applicable",
-        "native_connector_or_builtin": "unknown",
+        "native_connector_or_builtin": "listed",
         "open_plugin_spec": "not_applicable",
         "mcp_or_skill_registry": "not_applicable",
         "docs_only": "listed"
       },
       "eligibility": "partner_outreach_required",
       "blockers": [
-        "Official listing status for CloudBase needs confirmation"
+        "Awaiting merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19 (refresh to v2.25.0)"
       ],
       "evidence_links": [
+        "https://cnb.cool/codebuddy/marketplace/-/tree/main/plugins/cloudbase",
+        "https://cnb.cool/tencent/cloud/cloudbase/marketplace",
+        "https://cnb.cool/codebuddy/marketplace/-/pulls/19",
         "https://www.codebuddy.cn/docs/cli/plugins",
         "doc/ide-setup/codebuddy.mdx"
       ],
-      "submit_url_or_process": "CodeBuddy has plugin marketplace / CLI plugins. Confirm whether CloudBase is already listed or needs partner submission.\n",
+      "submit_url_or_process": "Official catalog already has plugins/cloudbase on cnb.cool/codebuddy/marketplace (content stale vs v2.25.0).\nFork: https://cnb.cool/tencent/cloud/cloudbase/marketplace\nPR open: https://cnb.cool/codebuddy/marketplace/-/pulls/19 (from fork main).\n",
       "recommended_install_path": "doc/ide-setup/codebuddy.mdx",
-      "last_reviewed_at": "2026-07-27",
+      "last_reviewed_at": "2026-07-29",
       "owner": "cloudbase-ai-toolkit",
-      "local_evidence": [],
+      "local_evidence": [
+        {
+          "id": "config/codebuddy-plugin",
+          "status": "invalid",
+          "detail": "Unknown local_evidence id \"config/codebuddy-plugin\"",
+          "paths": []
+        },
+        {
+          "id": "specs/plugin-marketplace-listing/submission-log.md",
+          "status": "invalid",
+          "detail": "Unknown local_evidence id \"specs/plugin-marketplace-listing/submission-log.md\"",
+          "paths": []
+        }
+      ],
       "submit_checklist": [
-        "Confirm CodeBuddy marketplace submission process",
-        "Align with config/codebuddy-plugin if applicable"
+        "Await merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19",
+        "Confirm keep rules/cloudbase_rules.md in marketplace package",
+        "Ask CodeBuddy product team about built-in IDE sync if needed"
       ],
       "materials": [
         {
-          "item": "Confirm CodeBuddy marketplace submission process",
+          "item": "Await merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19",
           "status": "manual_or_external"
         },
         {
-          "item": "Align with config/codebuddy-plugin if applicable",
+          "item": "Confirm keep rules/cloudbase_rules.md in marketplace package",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Ask CodeBuddy product team about built-in IDE sync if needed",
           "status": "manual_or_external"
         }
       ],
@@ -2560,41 +2794,134 @@
       "channel_type": "community_plugin_directory",
       "listing_statuses": {
         "official_curated": "unknown",
-        "community_directory": "unknown",
+        "community_directory": "submittable",
         "self_marketplace": "not_applicable",
         "native_connector_or_builtin": "not_applicable",
         "open_plugin_spec": "not_applicable",
         "mcp_or_skill_registry": "not_applicable",
         "docs_only": "listed"
       },
-      "eligibility": "partner_outreach_required",
+      "eligibility": "marketplace_add_or_catalog_pr",
       "blockers": [
-        "Self-serve listing docs incomplete for third parties"
+        "Need to map CloudBase package to `.qoder-plugin` layout and try community submit",
+        "Featured / official curated placement process unclear"
       ],
       "evidence_links": [
-        "https://help.aliyun.com/zh/lingma/plugin-hidden-release",
+        "https://docs.qoder.com/zh/extensions/plugins",
+        "https://qoder.com.cn/marketplace",
+        "https://qoder.com.cn/account/apphub-publications",
         "doc/ide-setup/qoder.mdx"
       ],
-      "submit_url_or_process": "Qoder CN plugins use plugin.json packaging (skills/MCP/hooks). Public marketplace listing process needs verification (Aliyun Lingma docs overlap).\n",
+      "submit_url_or_process": "Qoder IDE has an in-product plugin marketplace (Featured/Coding/DataBase/…).\nCN community skill hub: https://qoder.com.cn/marketplace (submit via https://qoder.com.cn/account/apphub-publications).\nPlugin packaging uses `.qoder-plugin/plugin.json` (+ skills/MCP/hooks). See https://docs.qoder.com/zh/extensions/plugins\nCloudBase already has ide-setup docs; Featured/curated placement may still need partner outreach.\n",
       "recommended_install_path": "doc/ide-setup/qoder.mdx",
-      "last_reviewed_at": "2026-07-27",
+      "last_reviewed_at": "2026-07-30",
       "owner": "cloudbase-ai-toolkit",
-      "local_evidence": [],
+      "local_evidence": [
+        {
+          "id": "doc/ide-setup/qoder.mdx",
+          "status": "invalid",
+          "detail": "Unknown local_evidence id \"doc/ide-setup/qoder.mdx\"",
+          "paths": []
+        }
+      ],
       "submit_checklist": [
-        "Confirm Qoder CN plugin publish channel",
-        "Package plugin.json compatible layout"
+        "Adapt plugin/cloudbase (or thin wrapper) to `.qoder-plugin/plugin.json` layout",
+        "Submit Skill or Plugin via Qoder CN community / AppHub publications",
+        "Verify install from Qoder plugin marketplace UI",
+        "Ask Qoder for Featured category if needed"
       ],
       "materials": [
         {
-          "item": "Confirm Qoder CN plugin publish channel",
+          "item": "Adapt plugin/cloudbase (or thin wrapper) to `.qoder-plugin/plugin.json` layout",
           "status": "manual_or_external"
         },
         {
-          "item": "Package plugin.json compatible layout",
+          "item": "Submit Skill or Plugin via Qoder CN community / AppHub publications",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Verify install from Qoder plugin marketplace UI",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Ask Qoder for Featured category if needed",
           "status": "manual_or_external"
         }
       ],
-      "priority": "needs_partner_outreach",
+      "priority": "ready_to_submit",
+      "stale": false,
+      "manual_submit_only": true
+    },
+    {
+      "id": "qoderwork-marketplace",
+      "product": "QoderWork",
+      "region": "cn",
+      "channel_type": "community_plugin_directory",
+      "listing_statuses": {
+        "official_curated": "unknown",
+        "community_directory": "submittable",
+        "self_marketplace": "not_applicable",
+        "native_connector_or_builtin": "not_applicable",
+        "open_plugin_spec": "not_applicable",
+        "mcp_or_skill_registry": "submittable",
+        "docs_only": "listed"
+      },
+      "eligibility": "self_serve_submit",
+      "blockers": [],
+      "evidence_links": [
+        "https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines",
+        "https://docs.qoder.com/zh/qoderwork/connectors"
+      ],
+      "submit_url_or_process": "QoderWork public marketplace is self-serve inside the client: submit → review → live.\nFour extension types: Skill / Plugin (专家套件) / Connector / 工作台.\nRecommended first path for CloudBase: **Plugin** (skills + optional `.mcp.json` for cloudbase-mcp) or a thin **Skill**.\nGuidelines: https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines\nPlugin layout requires `.qoder-plugin/plugin.json` under the package root.\n",
+      "recommended_install_path": null,
+      "last_reviewed_at": "2026-07-30",
+      "owner": "cloudbase-ai-toolkit",
+      "local_evidence": [
+        {
+          "id": "plugin/cloudbase",
+          "status": "invalid",
+          "detail": "Unknown local_evidence id \"plugin/cloudbase\"",
+          "paths": []
+        },
+        {
+          "id": "config/source/skills",
+          "status": "invalid",
+          "detail": "Unknown local_evidence id \"config/source/skills\"",
+          "paths": []
+        }
+      ],
+      "submit_checklist": [
+        "Choose Plugin vs Skill packaging (prefer Plugin wrapping CloudBase skills + MCP)",
+        "Produce `.qoder-plugin/plugin.json` + skills/ + optional `.mcp.json` (stdio npx @cloudbase/cloudbase-mcp)",
+        "Submit from QoderWork client marketplace / 我的发布",
+        "Pass structure precheck + automated review",
+        {
+          "After live": "mark community_directory listed"
+        }
+      ],
+      "materials": [
+        {
+          "item": "Choose Plugin vs Skill packaging (prefer Plugin wrapping CloudBase skills + MCP)",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Produce `.qoder-plugin/plugin.json` + skills/ + optional `.mcp.json` (stdio npx @cloudbase/cloudbase-mcp)",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Submit from QoderWork client marketplace / 我的发布",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Pass structure precheck + automated review",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "[object Object]",
+          "status": "manual_or_external"
+        }
+      ],
+      "priority": "ready_to_submit",
       "stale": false,
       "manual_submit_only": true
     },
@@ -2614,28 +2941,91 @@
       },
       "eligibility": "partner_outreach_required",
       "blockers": [
-        "No confirmed CloudBase listing",
-        "Third-party connector submit path unclear"
+        "Requires public HTTPS MCP with OAuth (current CloudBase MCP is primarily npx stdio)",
+        "Company identity phone verification + legal docs"
       ],
       "evidence_links": [
+        "https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines",
         "https://docs.qoder.com/zh/qoderwork/connectors"
       ],
-      "submit_url_or_process": "QoderWork has connector / integration marketplace plus custom MCP. CloudBase listing requires partner outreach.\n",
+      "submit_url_or_process": "Connector is a separate QoderWork extension type: public HTTPS MCP + OAuth, company identity verification, privacy/ToS, self-test report, then human review.\nPrefer shipping CloudBase first as Plugin/Skill (`qoderwork-marketplace`); treat official Connector as a later partner track.\nDocs: https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines (Connector section)\n",
       "recommended_install_path": null,
-      "last_reviewed_at": "2026-07-27",
+      "last_reviewed_at": "2026-07-30",
       "owner": "cloudbase-ai-toolkit",
       "local_evidence": [],
       "submit_checklist": [
-        "Confirm connector onboarding with QoderWork",
-        "MCP or connector packaging requirements"
+        "Decide whether hosted CloudBase MCP HTTPS endpoint is in scope",
+        "Prepare OAuth, privacy policy, ToS, connectivity self-test",
+        "Submit Connector via QoderWork + complete company verification"
       ],
       "materials": [
         {
-          "item": "Confirm connector onboarding with QoderWork",
+          "item": "Decide whether hosted CloudBase MCP HTTPS endpoint is in scope",
           "status": "manual_or_external"
         },
         {
-          "item": "MCP or connector packaging requirements",
+          "item": "Prepare OAuth, privacy policy, ToS, connectivity self-test",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Submit Connector via QoderWork + complete company verification",
+          "status": "manual_or_external"
+        }
+      ],
+      "priority": "needs_partner_outreach",
+      "stale": false,
+      "manual_submit_only": true
+    },
+    {
+      "id": "minimax-agent-mcp",
+      "product": "MiniMax Agent",
+      "region": "cn",
+      "channel_type": "mcp_registry_or_aggregator",
+      "listing_statuses": {
+        "official_curated": "unknown",
+        "community_directory": "unknown",
+        "self_marketplace": "unknown",
+        "native_connector_or_builtin": "not_applicable",
+        "open_plugin_spec": "not_applicable",
+        "mcp_or_skill_registry": "unknown",
+        "docs_only": "listed"
+      },
+      "eligibility": "unknown_or_partner",
+      "blockers": [
+        "No public third-party plugin/MCP submit form found",
+        "Marketplace reuse appears product-internal after MCP Builder"
+      ],
+      "evidence_links": [
+        "https://agent.minimaxi.com/docs/user-guide",
+        "https://agent.minimax.io/docs/user-guide",
+        "https://agent.minimax.io/docs/changelog"
+      ],
+      "submit_url_or_process": "MiniMax Agent supports custom MCP and an in-product MCP Builder; changelog mentions adding completed MCPs to a marketplace for reuse.\nNo stable public third-party developer submission URL found (2026-07-30).\nNear-term path: document manual MCP config (`npx @cloudbase/cloudbase-mcp@latest`) for MiniMax Agent users; watch Agent docs/changelog for publisher onboarding.\nRefs: https://agent.minimaxi.com/docs/user-guide ; https://agent.minimax.io/docs/changelog\n",
+      "recommended_install_path": null,
+      "last_reviewed_at": "2026-07-30",
+      "owner": "cloudbase-ai-toolkit",
+      "local_evidence": [],
+      "submit_checklist": [
+        "Smoke-test CloudBase MCP inside MiniMax Agent (manual add)",
+        "Add ide-setup / docs note if product fit is confirmed",
+        "Monitor MiniMax for public marketplace publisher docs",
+        "Partner outreach if curated catalog is required"
+      ],
+      "materials": [
+        {
+          "item": "Smoke-test CloudBase MCP inside MiniMax Agent (manual add)",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Add ide-setup / docs note if product fit is confirmed",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Monitor MiniMax for public marketplace publisher docs",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Partner outreach if curated catalog is required",
           "status": "manual_or_external"
         }
       ],

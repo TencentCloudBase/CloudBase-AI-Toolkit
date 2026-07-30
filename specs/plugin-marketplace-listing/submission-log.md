@@ -169,3 +169,13 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 - **Awesome Copilot #2459:** already has Submission checklist (issue form) — OK.
 - **CodeBuddy CNB #19:** body still short (“AI-generated…”); token cannot PATCH upstream PR — edit in CNB UI if needed.
 
+### 2026-07-30 — CN markets refresh (Qoder / Kimi / MiniMax)
+
+- Updated `markets.yaml`:
+  - `qoder-plugin` → community submit + `.qoder-plugin` packaging (ready_to_submit)
+  - new `qoderwork-marketplace` → QoderWork Skill/Plugin self-serve (ready_to_submit)
+  - `qoderwork-connector` → HTTPS+OAuth Connector track (partner, deferred)
+  - `kimi-code-marketplace` → GitHub/custom install listed; curated tabs need outreach
+  - new `minimax-agent-mcp` → manual MCP + monitor publisher docs
+- Checklist / followup-research updated with how-to order: **QoderWork Plugin → Qoder community → Kimi verify → MiniMax watch**
+

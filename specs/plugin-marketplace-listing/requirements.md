@@ -51,8 +51,10 @@ CloudBase AI Toolkit 的插件 / Skills / MCP 已在部分产品（如 WorkBuddy
 | `zcode-plugin` | ZCode | IDE 插件市场（已上架） |
 | `codebuddy-plugin` | CodeBuddy | 插件市场 / CLI plugins |
 | `codebuddy-code-plugin` | CodeBuddy Code | CLI plugin marketplace |
-| `qoder-plugin` | Qoder | 插件分发（plugin.json 等） |
-| `qoderwork-connector` | QoderWork | 连接器 / 集成市场 |
+| `qoder-plugin` | Qoder | 插件市场 / CN 社区 AppHub |
+| `qoderwork-marketplace` | QoderWork | Skill / Plugin 自助公开市场 |
+| `qoderwork-connector` | QoderWork | Connector（HTTPS MCP + OAuth，商务/合规） |
+| `minimax-agent-mcp` | MiniMax Agent | 自定义 MCP / 产品内 marketplace（公开投稿待核实） |
 | `trae-mcp-marketplace` | Trae IDE / Trae Work | **内置 MCP 市场**（设置 → MCP → 从市场添加）；与 Claude/Cursor 的 Agent Plugin 市场不是同一形态 |
 | `trae-work-skills-marketplace` | Trae Work | **技能市场**（安装 `SKILL.md` / `.skill` / zip）；可本地上传，公开上架通道需核实 |
 | `trae-ide-extension` | Trae IDE | VS Code 兼容 **编辑器扩展**市场（`.vsix`）；面向语言/调试类扩展，**不是** CloudBase Agent Plugin 的正确上架通道 |
