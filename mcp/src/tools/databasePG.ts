@@ -1039,6 +1039,77 @@ type CloudBaseWithCommonService = {
   commonService(service: string, version: string): CloudBaseCommonService;
 };
 
+/**
+ * Native PG migration methods on `manager.database`, added in
+ * @cloudbase/manager-node >= 5.6.5. Each method is a typed wrapper over the same
+ * tcb/2018-06-08 platform channel used by the commonService fallback, and returns
+ * the unwrapped API `Response` (same shape as `callPgMigrationApi`).
+ */
+type PgMigrationApiDatabase = {
+  previewPGUserMigrations(options: {
+    EnvId?: string;
+    Migrations: PgMigrationInput[];
+    IncludeAll?: boolean;
+  }): Promise<Record<string, unknown>>;
+  pushPGUserMigrations(options: {
+    EnvId?: string;
+    Migrations: PgMigrationInput[];
+    LockTimeoutMs?: number;
+    StatementTimeoutMs?: number;
+    IncludeAll?: boolean;
+  }): Promise<Record<string, unknown>>;
+  repairPGUserMigrationHistory(options: {
+    EnvId?: string;
+    MigrationVersion: string;
+    Name: string;
+    Status: "applied" | "reverted";
+    Reason: string;
+    Query?: string;
+  }): Promise<Record<string, unknown>>;
+  listPGUserMigrations(options?: {
+    EnvId?: string;
+    Limit?: number;
+    Offset?: number;
+  }): Promise<Record<string, unknown>>;
+  listAllPGUserMigrations(options?: {
+    EnvId?: string;
+    PageSize?: number;
+  }): Promise<Record<string, unknown>>;
+  describePGUserMigration(options: {
+    EnvId?: string;
+    MigrationVersion: string;
+  }): Promise<Record<string, unknown>>;
+  describeTaskResult(options: { EnvId?: string; TaskId: string }): Promise<Record<string, unknown>>;
+};
+
+function isPgMigrationApiDatabase(value: unknown): value is PgMigrationApiDatabase {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    "previewPGUserMigrations" in value &&
+    typeof (value as { previewPGUserMigrations?: unknown }).previewPGUserMigrations === "function" &&
+    "pushPGUserMigrations" in value &&
+    typeof (value as { pushPGUserMigrations?: unknown }).pushPGUserMigrations === "function" &&
+    "listPGUserMigrations" in value &&
+    typeof (value as { listPGUserMigrations?: unknown }).listPGUserMigrations === "function" &&
+    "describeTaskResult" in value &&
+    typeof (value as { describeTaskResult?: unknown }).describeTaskResult === "function",
+  );
+}
+
+/**
+ * Actions without a native wrapper in manager-node (e.g. RollbackPGUserMigrations)
+ * are intentionally absent and keep using the commonService fallback.
+ */
+const PgMigrationNativeActionMethods: Record<string, keyof PgMigrationApiDatabase> = {
+  PreviewPGUserMigrations: "previewPGUserMigrations",
+  PushPGUserMigrations: "pushPGUserMigrations",
+  RepairPGUserMigrationHistory: "repairPGUserMigrationHistory",
+  ListPGUserMigrations: "listPGUserMigrations",
+  DescribePGUserMigration: "describePGUserMigration",
+  DescribeTaskResult: "describeTaskResult",
+};
+
 function isExecutePGSqlDatabase(value: unknown): value is ExecutePGSqlDatabase {
   return Boolean(
     value &&
@@ -1097,7 +1168,11 @@ async function executeManagerPGSql(
   );
 }
 
-/** Call a CloudBase PG migration API via commonService fallback */
+/**
+ * Call a CloudBase PG migration API, preferring native manager-node methods
+ * (>= 5.6.5) and falling back to the commonService channel for older runtimes
+ * and actions without a native wrapper (RollbackPGUserMigrations).
+ */
 async function callPgMigrationApi(
   context: PgDbContext,
   action: string,
@@ -1109,6 +1184,14 @@ async function callPgMigrationApi(
       ? { ...cloudBaseOptions, envId: context.envId }
       : { envId: context.envId },
   });
+
+  const nativeMethod = PgMigrationNativeActionMethods[action];
+  if (nativeMethod && isPgMigrationApiDatabase(manager.database)) {
+    const invoke = manager.database[nativeMethod] as (
+      options: Record<string, unknown>,
+    ) => Promise<Record<string, unknown>>;
+    return invoke.call(manager.database, { EnvId: context.envId, ...params });
+  }
 
   if (!isCloudBaseWithCommonService(manager)) {
     throw new Error(

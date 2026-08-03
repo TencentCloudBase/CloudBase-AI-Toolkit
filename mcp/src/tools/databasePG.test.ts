@@ -1526,5 +1526,281 @@ describe("PG database tools", () => {
         Reason: "remove bad record",
       });
     });
+
+    describe("native manager-node PG migration API (>= 5.6.5)", () => {
+      /**
+       * Mock a manager whose `database` exposes the native migration methods.
+       * The commonService stub throws, proving the native path is preferred and
+       * the fallback is never reached for actions with a native wrapper.
+       */
+      function setupNativeMigrationMock() {
+        const nativeDb = {
+          previewPGUserMigrations: vi.fn(),
+          pushPGUserMigrations: vi.fn(),
+          repairPGUserMigrationHistory: vi.fn(),
+          listPGUserMigrations: vi.fn(),
+          listAllPGUserMigrations: vi.fn(),
+          describePGUserMigration: vi.fn(),
+          describeTaskResult: vi.fn(),
+        };
+        const commonServiceCall = vi.fn(async ({ Action }: { Action: string }) => {
+          throw new Error(`commonService fallback should not be used for ${Action}`);
+        });
+        mockGetCloudBaseManager.mockResolvedValue({
+          commonService: vi.fn(() => ({ call: commonServiceCall })),
+          database: nativeDb,
+        });
+        return { nativeDb, commonServiceCall };
+      }
+
+      it("listMigrations prefers native listPGUserMigrations over commonService", async () => {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        const { nativeDb, commonServiceCall } = setupNativeMigrationMock();
+        nativeDb.listPGUserMigrations.mockResolvedValue({
+          RequestId: "req-list-native",
+          Migrations: [{ Version: "20260701000000", Name: "init" }],
+          Total: 1,
+          LatestVersion: "20260701000000",
+        });
+
+        const payload = buildToolPayload(
+          await tools.managePgDatabase.handler({
+            action: "listMigrations",
+            limit: 10,
+            offset: 0,
+          }),
+        );
+
+        expect(payload).toMatchObject({ success: true, data: { Total: 1 } });
+        expect(nativeDb.listPGUserMigrations).toHaveBeenCalledWith(
+          expect.objectContaining({ EnvId: "env-test", Limit: 10, Offset: 0 }),
+        );
+        expect(commonServiceCall).not.toHaveBeenCalled();
+      });
+
+      it("migrationDetail prefers native describePGUserMigration", async () => {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        const { nativeDb, commonServiceCall } = setupNativeMigrationMock();
+        nativeDb.describePGUserMigration.mockResolvedValue({
+          RequestId: "req-detail-native",
+          Version: "20260701000000",
+          Name: "init",
+          Query: "SELECT 1",
+        });
+
+        const payload = buildToolPayload(
+          await tools.managePgDatabase.handler({
+            action: "migrationDetail",
+            migrationVersion: "20260701000000",
+          }),
+        );
+
+        expect(payload).toMatchObject({ success: true, data: { Name: "init" } });
+        expect(nativeDb.describePGUserMigration).toHaveBeenCalledWith(
+          expect.objectContaining({
+            EnvId: "env-test",
+            MigrationVersion: "20260701000000",
+          }),
+        );
+        expect(commonServiceCall).not.toHaveBeenCalled();
+      });
+
+      it("planMigration prefers native list + preview over commonService", async () => {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        const { nativeDb, commonServiceCall } = setupNativeMigrationMock();
+        nativeDb.listPGUserMigrations.mockResolvedValue({
+          RequestId: "req-list-native",
+          Migrations: [],
+          Total: 0,
+          LatestVersion: "",
+        });
+        nativeDb.previewPGUserMigrations.mockResolvedValue({
+          RequestId: "req-preview-native",
+          Pending: [{ Version: "20260720160000", Name: "create_test_table", Status: "pending" }],
+          Applied: null,
+          Conflicts: [],
+          Executable: true,
+        });
+
+        const payload = buildToolPayload(
+          await tools.managePgDatabase.handler({
+            action: "planMigration",
+            migrationName: "create_test_table",
+            migrationVersion: "20260720160000",
+            sql: "CREATE TABLE public.test(id int)",
+          }),
+        );
+
+        expect(payload).toMatchObject({ success: true, data: { executable: true } });
+        expect(nativeDb.previewPGUserMigrations).toHaveBeenCalledWith(
+          expect.objectContaining({
+            EnvId: "env-test",
+            Migrations: expect.arrayContaining([
+              expect.objectContaining({ Version: "20260720160000" }),
+            ]),
+          }),
+        );
+        expect(commonServiceCall).not.toHaveBeenCalled();
+      });
+
+      it("applyMigration runs the full native chain (list→describe→preview→push→task→verify)", async () => {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        const { nativeDb, commonServiceCall } = setupNativeMigrationMock();
+
+        nativeDb.listPGUserMigrations.mockImplementation(async (options: { Offset?: number }) => {
+          // Hydrate page: one remote migration; verify call after Push returns it plus pending.
+          const remote = [{ Version: "20260701000000", Name: "init" }];
+          const pushed = nativeDb.pushPGUserMigrations.mock.calls.length > 0;
+          return pushed
+            ? {
+                RequestId: "req-list-verify-native",
+                Migrations: [
+                  ...remote,
+                  { Version: "20260720160000", Name: "create_test_table" },
+                ],
+                Total: 2,
+                LatestVersion: "20260720160000",
+              }
+            : {
+                RequestId: "req-list-hydrate-native",
+                Migrations: remote,
+                Total: 1,
+                LatestVersion: "20260701000000",
+              };
+        });
+        nativeDb.describePGUserMigration.mockResolvedValue({
+          RequestId: "req-describe-native",
+          Version: "20260701000000",
+          Name: "init",
+          Query: "SELECT 1",
+        });
+        nativeDb.previewPGUserMigrations.mockResolvedValue({
+          RequestId: "req-preview-native",
+          Pending: [],
+          Applied: [],
+          Conflicts: [],
+          Executable: true,
+        });
+        nativeDb.pushPGUserMigrations.mockResolvedValue({
+          RequestId: "req-apply-native",
+          TaskId: "task-native-1",
+        });
+        nativeDb.describeTaskResult.mockResolvedValue({
+          RequestId: "req-task-native",
+          TaskId: "task-native-1",
+          TaskType: "PGUserMigration",
+          Status: "Succeed",
+          Phase: "RunMigrations",
+          Reason: "",
+        });
+
+        const payload = buildToolPayload(
+          await tools.managePgDatabase.handler({
+            action: "applyMigration",
+            migrationName: "create_test_table",
+            migrationVersion: "20260720160000",
+            sql: "CREATE TABLE public.test(id int)",
+            confirm: true,
+          }),
+        );
+
+        expect(payload).toMatchObject({ success: true, data: { verified: true } });
+        expect(nativeDb.pushPGUserMigrations).toHaveBeenCalledWith(
+          expect.objectContaining({
+            EnvId: "env-test",
+            Migrations: expect.arrayContaining([
+              expect.objectContaining({ Version: "20260701000000", Query: "SELECT 1" }),
+              expect.objectContaining({ Version: "20260720160000" }),
+            ]),
+          }),
+        );
+        expect(nativeDb.describeTaskResult).toHaveBeenCalledWith(
+          expect.objectContaining({ EnvId: "env-test", TaskId: "task-native-1" }),
+        );
+        expect(commonServiceCall).not.toHaveBeenCalled();
+      });
+
+      it("repairMigration prefers native repairPGUserMigrationHistory", async () => {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        const { nativeDb, commonServiceCall } = setupNativeMigrationMock();
+        nativeDb.repairPGUserMigrationHistory.mockResolvedValue({
+          RequestId: "req-repair-native",
+        });
+
+        const payload = buildToolPayload(
+          await tools.managePgDatabase.handler({
+            action: "repairMigration",
+            migrationVersion: "20260526000000",
+            migrationName: "test_init",
+            repairStatus: "applied",
+            repairReason: "recover history",
+            sql: "SELECT 1",
+          }),
+        );
+
+        expect(payload).toMatchObject({ success: true });
+        expect(nativeDb.repairPGUserMigrationHistory).toHaveBeenCalledWith(
+          expect.objectContaining({
+            EnvId: "env-test",
+            MigrationVersion: "20260526000000",
+            Name: "test_init",
+            Status: "applied",
+            Reason: "recover history",
+            Query: "SELECT 1",
+          }),
+        );
+        expect(commonServiceCall).not.toHaveBeenCalled();
+      });
+
+      it("rollbackMigration has no native wrapper and keeps using commonService", async () => {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        setupMigrationMock();
+        mockCommonServiceCall.mockResolvedValue({ RequestId: "req-rollback-native" });
+
+        const payload = buildToolPayload(
+          await tools.managePgDatabase.handler({
+            action: "rollbackMigration",
+            lastN: 2,
+            confirm: true,
+          }),
+        );
+
+        expect(payload).toMatchObject({ success: true });
+        expect(mockCommonServiceCall).toHaveBeenCalledWith(
+          expect.objectContaining({
+            Action: "RollbackPGUserMigrations",
+            Param: expect.objectContaining({ LastN: 2 }),
+          }),
+        );
+      });
+
+      it("falls back to commonService when database lacks native methods", async () => {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        setupMigrationMock();
+        mockCommonServiceCall.mockResolvedValue({
+          RequestId: "req-list-fallback",
+          Migrations: [],
+          Total: 0,
+          LatestVersion: "",
+        });
+
+        // manager has no `database` (older runtime shape) — commonService path is used.
+        const payload = buildToolPayload(
+          await tools.managePgDatabase.handler({ action: "listMigrations" }),
+        );
+
+        expect(payload).toMatchObject({ success: true, data: { Total: 0 } });
+        expect(mockCommonServiceCall).toHaveBeenCalledWith(
+          expect.objectContaining({ Action: "ListPGUserMigrations" }),
+        );
+      });
+    });
   });
 });
