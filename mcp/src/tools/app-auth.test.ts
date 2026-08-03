@@ -665,12 +665,27 @@ describe("app auth tools", () => {
     });
   });
 
-  it("manageAppAuth(action=createApiKey) should call createApiKey", async () => {
+  it("manageAppAuth(action=createApiKey) should call createApiKey and report created=true", async () => {
+    mockDescribeApiKeyList
+      // pre-create inventory: the new key does not exist yet
+      .mockResolvedValueOnce({ ApiKeyList: [], Total: 0 })
+      // post-create inventory: the new key is present with its server-side name
+      .mockResolvedValueOnce({
+        ApiKeyList: [
+          {
+            Name: "server-key",
+            KeyId: "api-key-id",
+            ExpireAt: "2026-03-16T16:48:48+08:00",
+            CreateAt: "2026-03-16T15:48:48+08:00",
+          },
+        ],
+        Total: 1,
+      });
     mockCreateApiKey.mockResolvedValueOnce({
       Name: "server-key",
       KeyId: "api-key-id",
       ApiKey: "secret-api-key",
-      ExpireAt: "2099-03-16T15:48:48+08:00",
+      ExpireAt: "2026-03-16T16:48:48+08:00",
       CreateAt: "2026-03-16T15:48:48+08:00",
     });
 
@@ -694,7 +709,81 @@ describe("app auth tools", () => {
       keyName: "server-key",
       keyType: "api_key",
       apiKey: "secret-api-key",
+      expireAt: "2026-03-16T16:48:48+08:00",
+      created: true,
     });
+    expect(payload.warnings).toBeUndefined();
+  });
+
+  it("manageAppAuth(action=createApiKey) should report created=false and warn when an existing key is reused", async () => {
+    const existing = {
+      Name: "publish_key",
+      KeyId: "publish-key-id",
+      ExpireAt: "2099-03-16T15:48:48+08:00",
+      CreateAt: "2026-03-16T15:48:48+08:00",
+    };
+    mockDescribeApiKeyList
+      .mockResolvedValueOnce({ ApiKeyList: [existing], Total: 1 })
+      .mockResolvedValueOnce({ ApiKeyList: [existing], Total: 1 });
+    mockCreateApiKey.mockResolvedValueOnce({
+      Name: "publish_key",
+      KeyId: "publish-key-id",
+      ApiKey: "publish-key-token",
+      ExpireAt: "2099-03-16T15:48:48+08:00",
+      CreateAt: "2026-03-16T15:48:48+08:00",
+    });
+
+    const result = await tools.manageAppAuth.handler({
+      action: "createApiKey",
+      keyType: "publish_key",
+      keyName: "mcptest0802key",
+      expireIn: 3600,
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: true,
+      keyId: "publish-key-id",
+      // server-side name, never the request echo
+      keyName: "publish_key",
+      expireAt: "2099-03-16T15:48:48+08:00",
+      created: false,
+    });
+    expect(payload.keyName).not.toBe("mcptest0802key");
+    expect(payload.warnings).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("未创建新的 key"),
+        expect.stringContaining('请求的 keyName="mcptest0802key" 未生效'),
+        expect.stringContaining("请求的 expireIn=3600 未生效"),
+      ]),
+    );
+  });
+
+  it("manageAppAuth(action=createApiKey) should still succeed but omit created when the inventory read fails", async () => {
+    mockDescribeApiKeyList.mockRejectedValue(new Error("describe failed"));
+    mockCreateApiKey.mockResolvedValueOnce({
+      Name: "server-key",
+      KeyId: "api-key-id",
+      ApiKey: "secret-api-key",
+      ExpireAt: "2026-03-16T16:48:48+08:00",
+      CreateAt: "2026-03-16T15:48:48+08:00",
+    });
+
+    const result = await tools.manageAppAuth.handler({
+      action: "createApiKey",
+      keyType: "api_key",
+      keyName: "server-key",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: true,
+      keyId: "api-key-id",
+      keyName: "server-key",
+      apiKey: "secret-api-key",
+    });
+    // creation could not be verified, so no misleading created flag is emitted
+    expect(payload.created).toBeUndefined();
   });
 
   it("manageAppAuth(action=deleteApiKey) should call deleteApiKey", async () => {

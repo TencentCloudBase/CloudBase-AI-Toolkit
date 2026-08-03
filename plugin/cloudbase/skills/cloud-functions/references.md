@@ -43,19 +43,24 @@ Read this when the task is about:
 - function logs
 - timeout / environment-variable updates
 - timer cron format
-- VPC field shape only (examples) — for TCP DB policy see `vpc-and-tcp-database.md`
+- VPC field shape only (examples) — for TCP DB policy see `vpc-and-tcp-database.md` (exception-only)
 - gateway exposure for Event Functions
 - legacy tool-name translation
 - `callCloudApi` fallback for Cloud Functions
 
-### `./references/vpc-and-tcp-database.md`
+### `./references/vpc-and-tcp-database.md` (exception-only — do not read by default)
 
-Read this when the task is about:
+Read this **only** when the task is migrating an **existing** app that already uses classic TCP clients:
 
-- non-native TCP clients (`DATABASE_URL`, `mysql2`, `pg`, Prisma, Redis)
-- private MySQL / PostgreSQL / Redis connectivity from Event or HTTP Functions
-- when `vpc.vpcId` / `vpc.subnetId` is mandatory vs when native `app.rdb()` / `app.database()` is enough
-- **never guessing** VPC IDs
+- existing `DATABASE_URL` / Prisma / TypeORM / Sequelize / `mysql2` / `pg` / Redis TCP clients
+- private MySQL / PostgreSQL / Redis connectivity from Event or HTTP Functions that cannot use native SDK
+
+**Do NOT read this for new business CRUD.** Prefer CloudBase native SDK (`app.rdb()` / `app.database()`) or MCP SQL tools. New apps must not introduce TCP DB clients, ask users for DB passwords, or treat VPC binding as the default path.
+
+When this exception applies:
+
+- `vpc.vpcId` / `vpc.subnetId` is mandatory for private TCP access
+- **never guess** VPC IDs
 
 ## Keep these distinctions straight
 

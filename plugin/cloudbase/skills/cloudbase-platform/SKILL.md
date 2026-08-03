@@ -1,7 +1,7 @@
 ---
 name: cloudbase-platform
 description: CloudBase platform overview and routing guide. This skill should be used when users need high-level capability selection, platform concepts, console navigation, or cross-platform best practices before choosing a more specific implementation skill.
-version: 2.25.2
+version: 2.25.1
 alwaysApply: false
 ---
 
@@ -58,7 +58,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Starting any deployment, publish, custom domain, or CloudRun work without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
 - **Confusing security domains with custom domains**: These are two completely different tools for different purposes:
   - `envDomainManagement` (action: create/delete) = Security domains (安全域名) for CORS/request source validation - used for browser upload whitelisting. Does NOT accept certificateId.
-  - `manageGateway(action="bindCustomDomain")` = Custom domains (自定义域名) for public HTTPS access with SSL certificates - requires domain and certificateId parameters.
+  - `manageGateway(action="bindCustomDomain")` = Bind a **new** custom domain (自定义域名) for public HTTPS — requires `domain` + `certificateId`. If `queryGateway(action="listCustomDomains")` already returns a usable custom domain, prefer `manageGateway(action="createRoute", domain="<existing-domain>")` instead; routing does **not** need certificateId.
 
 ## When to use this skill
 
@@ -112,13 +112,15 @@ When working with domain-related tasks, use the correct tool based on the requir
 | Requirement | Tool | Parameters | Purpose |
 |-------------|------|------------|---------|
 | **Security Domain (安全域名)** | `envDomainManagement` | `action`, `domains` (array of host:port strings) | CORS/request source validation for browser uploads. No certificate involved. |
-| **Custom Domain (自定义域名)** | `manageGateway(action="bindCustomDomain")` | `domain` (string), `certificateId` (string) | Public HTTPS access with SSL certificate. Requires certId from SSL console. |
-| **Delete Custom Domain** | `manageGateway(action="deleteCustomDomain")` | `domain` (string) | Remove custom domain binding. |
+| **Reuse existing Custom Domain** | `queryGateway(listCustomDomains)` → `manageGateway(createRoute)` | `domain` = existing custom domain; route fields | Expose a service/path on an already-bound custom domain. **No certificateId.** Prefer this when a custom domain already exists. |
+| **Bind new Custom Domain (自定义域名)** | `manageGateway(action="bindCustomDomain")` | `domain` (string), `certificateId` (string) | First-time bind of a new public HTTPS domain. Requires certId from SSL console. |
+| **Delete Custom Domain** | `manageGateway(action="deleteCustomDomain")` | `domain` (string) | Remove custom domain binding (only after routes on that domain are deleted). |
 
 **Key indicators for choosing the right tool:**
-- Task mentions "certificate ID" or "SSL" → Use `manageGateway(action="bindCustomDomain")`
+- Task mentions "自定义域名访问" but env already has a custom domain → `listCustomDomains` then `createRoute(domain=...)` (no certificateId)
+- Task mentions "certificate ID" or "SSL" **and** needs to bind a **new** domain → `manageGateway(action="bindCustomDomain")`
 - Task mentions "浏览器上传" or "CORS" or "安全域名" → Use `envDomainManagement`
-- Task mentions "public access" or "HTTPS" with domain → Use `manageGateway`
+- Task mentions "public access" or "HTTPS" with domain → Prefer reuse via `createRoute` when possible; only `bindCustomDomain` for first-time domain bind
 
 ### Recording Operation Results
 

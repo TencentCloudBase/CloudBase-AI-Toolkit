@@ -32,12 +32,14 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - You still need to decide between Event Function and HTTP Function.
 - The task mentions `manageFunctions`, `queryFunctions`, `manageGateway`, or legacy function-tool names.
 - The task might require `callCloudApi` as a fallback for logs or gateway setup.
-- The function uses classic TCP DB clients (`DATABASE_URL` / `mysql2` / `pg` / Redis) instead of CloudBase native SDK → also read `references/vpc-and-tcp-database.md`.
+
+### Exception only (do not read by default)
+
+- Migrating an **existing** app that already uses classic TCP DB clients (`DATABASE_URL` / Prisma / `mysql2` / `pg` / Redis) → read `./references/vpc-and-tcp-database.md` via `./references.md`. New business CRUD must prefer CloudBase native SDK (`app.database()` / `app.rdb()`) or MCP SQL tools instead of TCP.
 
 ### Then also read
 
 - Detailed reference routing -> `./references.md`
-- Non-native TCP DB / VPC egress -> `./references/vpc-and-tcp-database.md`
 - Auth setup or provider-related backend work -> `../auth-tool-cloudbase/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-tool-cloudbase/SKILL.md`)
 - CloudBase Integration Center generated WeChat Pay or Official Account functions -> `../cloudbase-wechat-integration/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-wechat-integration/SKILL.md`; official docs: `https://docs.cloudbase.net/integration/introduce/index.md`)
 - AI in functions -> `../ai-model-nodejs/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/ai-model-nodejs/SKILL.md`)
@@ -69,8 +71,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Assuming MCP covers the whole image pipeline. `manageFunctions` covers SCF image deploy (Stage B) via `runtime: "CustomImage"` + `imageConfig`, but the CloudApp custom build → TCR push (Stage A) is a raw Tencent Cloud API path — confirm action names and parameters from official docs before any `callCloudApi` fallback.
 - Making code or configuration changes without first following the Change Safety Protocol (`cloudbase-platform/references/protocols/change-safety-protocol.md`).
 - Exposing functions publicly or deploying without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
-- **Using non-native TCP DB clients (`DATABASE_URL` / `mysql2` / `pg` / Redis) without `vpc.vpcId` + `vpc.subnetId`** — create/update succeeds, then runtime cannot reach the private DB. Native `app.rdb()` / `app.database()` does not need this.
-- **Guessing VPC IDs** (`vpc-xxxxx` placeholders or copied samples). Resolve real IDs from the DB console, an existing resource detail, `callCloudApi`, or the user; stop if still unknown. See `references/vpc-and-tcp-database.md`.
+- **Defaulting new CRUD to TCP DB clients** (`DATABASE_URL` / `mysql2` / `pg` / Redis) instead of native `app.rdb()` / `app.database()` or MCP SQL. TCP is exception-only for existing ORM migrations — see `references/vpc-and-tcp-database.md` only then.
 
 ### Minimal checklist
 

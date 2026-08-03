@@ -20,11 +20,13 @@ You must read and complete this gate before:
 | Check Item                          | Consequence if Missing              | Required Action                              |
 |-------------------------------------|-------------------------------------|----------------------------------------------|
 | Environment plan supports custom domains | Feature unavailable, repeated errors | Verify current plan tier                     |
-| ICP filing completed                | Cannot bind domain                  | Complete ICP filing or choose alternative    |
-| SSL certificate obtained + certificateId available | Binding fails                    | Retrieve certificateId from SSL console      |
+| Existing custom domain reusable?    | Unnecessary re-bind / cert prompts  | `queryGateway(listCustomDomains)` first; if one exists, `createRoute(domain=...)` — no certificateId |
+| ICP filing completed                | Cannot bind **new** domain          | Complete ICP filing or choose alternative    |
+| SSL certificate obtained + certificateId available | **New** domain bind fails        | Only when first-time `bindCustomDomain`; retrieve certificateId from SSL console |
 
 **Critical distinction**:
-- Security Domain (`envDomainManagement`) ≠ Custom Domain (`manageGateway` bindCustomDomain action)
+- Security Domain (`envDomainManagement`) ≠ Custom Domain (`manageGateway` Domain/Route)
+- Reusing an existing custom domain = `createRoute` (no cert). Binding a brand-new custom domain = `bindCustomDomain` (needs certificateId).
 
 ### CloudRun (Container Services)
 

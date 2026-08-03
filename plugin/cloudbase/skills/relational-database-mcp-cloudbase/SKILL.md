@@ -43,6 +43,7 @@ Keep local `references/...` paths for files that ship with the current skill dir
 - Treating document database tasks as MySQL management tasks.
 - Skipping `_openid` and permissions review after creating new SQL tables.
 - Destroying MySQL without explicit confirmation or without checking whether the environment still needs the instance.
+- Using `getConnectionInfo` (or inferred host/password) to build a default TCP client for new apps. Prefer SDK / `runQuery` / `runStatement`; TCP credentials are an explicit migration exception only.
 
 ## When to use this skill
 
@@ -89,8 +90,9 @@ These tools are the supported way to interact with CloudBase Relational Database
 - **Purpose:** Query SQL data and provisioning state.
 - **Use for:**
   - Running `SELECT` and other read-only SQL queries with `action="runQuery"`
-  - Checking whether MySQL already exists with `action="getInstanceInfo"`
+  - Checking whether MySQL already exists with `action="getInstanceInfo"` (lifecycle only — no connection credentials)
   - Inspecting asynchronous provisioning progress with `action="describeCreateResult"` or `action="describeTaskStatus"`
+  - **Exception only:** `action="getConnectionInfo"` returns the raw connection/cluster payload (may include credentials) for migrating existing TCP/ORM clients. Do **not** use this for new business CRUD — prefer Web/Node SDK or `runQuery` / `runStatement`.
 
 **Example flow:**
 
@@ -100,6 +102,8 @@ These tools are the supported way to interact with CloudBase Relational Database
   "sql": "SELECT id, email FROM users ORDER BY created_at DESC LIMIT 50"
 }
 ```
+
+**Do NOT** call `getConnectionInfo` and then wire `pymysql` / `mysql2` / `DATABASE_URL` into a cloud function for greenfield apps. Platform-delegated SQL and SDK access are the default.
 
 ### 2. `manageMysqlDatabase`
 

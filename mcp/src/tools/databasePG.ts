@@ -330,6 +330,79 @@ function buildLocalMigrationFileHint(version: string, name: string): string {
   return `migrations/${version}_${name}.sql`;
 }
 
+/** How many recent migration records to scan when verifying a freshly pushed version. */
+const MIGRATION_VERIFY_LIMIT = 100;
+
+/**
+ * Collect every migration version mentioned anywhere in a migration-list API response.
+ * The response shape is not strongly typed, so walk it generically and pick up any
+ * `Version` / `MigrationVersion` string field instead of guessing a single container key.
+ */
+function collectMigrationVersions(value: unknown, found: Set<string> = new Set()): Set<string> {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectMigrationVersions(item, found);
+    }
+    return found;
+  }
+  if (value && typeof value === "object") {
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if ((key === "Version" || key === "MigrationVersion") && typeof child === "string" && child.trim()) {
+        found.add(child.trim());
+      } else {
+        collectMigrationVersions(child, found);
+      }
+    }
+  }
+  return found;
+}
+
+/** Brief retries before concluding a pushed migration never landed (Push can be async). */
+const MIGRATION_VERIFY_ATTEMPTS = 4;
+const MIGRATION_VERIFY_DELAY_MS = 1500;
+
+/**
+ * Confirm a pushed migration version is present in the remote migration history.
+ *
+ * `PushPGUserMigrations` can return a TaskId without the migration actually being
+ * applied, so the raw API response is not sufficient evidence of success. Retries
+ * briefly to tolerate async application, then returns `true`/`false` when the
+ * history could be read, or `null` when verification itself failed (in which case
+ * the caller must not claim the migration is applied).
+ */
+async function verifyMigrationApplied(
+  context: PgDbContext,
+  version: string,
+  cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
+): Promise<{ applied: boolean | null; error?: string }> {
+  let lastError: string | undefined;
+  let sawSuccessfulList = false;
+  for (let attempt = 1; attempt <= MIGRATION_VERIFY_ATTEMPTS; attempt++) {
+    try {
+      const history = await callPgMigrationApi(
+        context,
+        "ListPGUserMigrations",
+        { Limit: MIGRATION_VERIFY_LIMIT },
+        cloudBaseOptions,
+      );
+      sawSuccessfulList = true;
+      if (collectMigrationVersions(history).has(version)) {
+        return { applied: true };
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+      // Keep retrying: a transient list failure should not immediately fail verification.
+    }
+    if (attempt < MIGRATION_VERIFY_ATTEMPTS) {
+      await sleep(MIGRATION_VERIFY_DELAY_MS);
+    }
+  }
+  if (sawSuccessfulList) {
+    return { applied: false };
+  }
+  return { applied: null, error: lastError };
+}
+
 const MIGRATION_VERSION_REQUIRED_MESSAGE =
   "migrationVersion is required (14-digit UTC timestamp YYYYMMDDHHMMSS). " +
   "Decide the version first, write local file migrations/<version>_<migrationName>.sql, " +
@@ -1540,6 +1613,70 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
 
   try {
     const result = await callPgMigrationApi(context, "PushPGUserMigrations", params, cloudBaseOptions);
+
+    // PushPGUserMigrations may return a TaskId without the migration having taken
+    // effect. Confirm against the remote history before reporting success, so callers
+    // never get a false-positive success for a silently dropped migration.
+    const verification = await verifyMigrationApplied(context, version, cloudBaseOptions);
+
+    if (verification.applied === false) {
+      return buildPgToolResult({
+        success: false,
+        errorCode: "MIGRATION_NOT_APPLIED",
+        data: {
+          migrationVersion: version,
+          migrationName: args.migrationName,
+          localFileHint,
+          apiResult: result as Record<string, unknown>,
+          verified: false,
+        },
+        message:
+          `PushPGUserMigrations returned without error, but migrationVersion=${version} is not present in the remote migration history, ` +
+          "so the migration did NOT take effect. Do not assume the schema change is applied. " +
+          "Re-check the SQL and migrationVersion, inspect the migration with action=migrationDetail, and retry action=applyMigration. " +
+          "If the schema change is urgent you may fall back to action=execute with allowDdlViaExecute=true, but that bypasses migration history.",
+        nextActions: [
+          buildNextAction(
+            MANAGE_PG_DATABASE,
+            "listMigrations",
+            "Inspect the remote migration history to confirm the migration is missing.",
+            { action: "listMigrations", limit: 20 },
+          ),
+          buildNextAction(
+            MANAGE_PG_DATABASE,
+            "migrationDetail",
+            "Inspect the backend record for this migrationVersion to find why it was not applied.",
+            { action: "migrationDetail", migrationVersion: version },
+          ),
+        ],
+      });
+    }
+
+    if (verification.applied === null) {
+      return buildPgToolResult({
+        success: false,
+        errorCode: "MIGRATION_VERIFICATION_FAILED",
+        data: {
+          migrationVersion: version,
+          migrationName: args.migrationName,
+          localFileHint,
+          apiResult: result as Record<string, unknown>,
+          verified: null,
+        },
+        message:
+          `PushPGUserMigrations was submitted, but verifying migrationVersion=${version} against the remote history failed: ${verification.error}. ` +
+          "The migration may or may not have been applied — verify with action=listMigrations before running any dependent SQL.",
+        nextActions: [
+          buildNextAction(
+            MANAGE_PG_DATABASE,
+            "listMigrations",
+            "Manually verify whether the remote migration history records this migrationVersion.",
+            { action: "listMigrations", limit: 20 },
+          ),
+        ],
+      });
+    }
+
     return buildPgToolResult({
       success: true,
       data: {
@@ -1547,16 +1684,9 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
         migrationName: args.migrationName,
         localFileHint,
         apiResult: result as Record<string, unknown>,
+        verified: true,
       },
-      message: `Migrations applied via PushPGUserMigrations. Ensure local file ${localFileHint} exists and matches.`,
-      nextActions: [
-        buildNextAction(
-          MANAGE_PG_DATABASE,
-          "listMigrations",
-          "Verify the remote migration history records the same migrationVersion.",
-          { action: "listMigrations", limit: 20 },
-        ),
-      ],
+      message: `Migrations applied via PushPGUserMigrations and verified present in the remote migration history. Ensure local file ${localFileHint} exists and matches.`,
     });
   } catch (error) {
     return buildPgToolResult({
@@ -1907,7 +2037,7 @@ export function registerPGDatabaseTools(
         action: z
           .enum(MANAGE_ACTIONS)
           .describe(
-            "操作类型：execute=执行已确认的写入 SQL（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）；dryRun=只分析 SQL 风险不执行；planMigration=预览迁移计划（需 migrationName + migrationVersion + sql）；applyMigration=应用迁移，建表/改 schema 首选（需 migrationName + migrationVersion + sql + confirm=true）；listMigrations=查询已应用的 Migration 列表（可传 limit/offset 分页）；migrationDetail=查看单条 Migration 详情（需 migrationVersion）；rollbackMigration=回滚最近 N 条 Migration（需 lastN + confirm=true）；repairMigration=修复 Migration 历史记录（需 migrationVersion + migrationName + repairStatus + repairReason）",
+            "操作类型：execute=执行已确认的写入 SQL（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）；dryRun=只分析 SQL 风险不执行；planMigration=预览迁移计划（需 migrationName + migrationVersion + sql）；applyMigration=应用迁移，建表/改 schema 首选（需 migrationName + migrationVersion + sql + confirm=true；成功返回前会自动校验该 migrationVersion 已落入远端迁移历史，未落库时返回 success=false 且 errorCode=MIGRATION_NOT_APPLIED）；listMigrations=查询已应用的 Migration 列表（可传 limit/offset 分页）；migrationDetail=查看单条 Migration 详情（需 migrationVersion）；rollbackMigration=回滚最近 N 条 Migration（需 lastN + confirm=true）；repairMigration=修复 Migration 历史记录（需 migrationVersion + migrationName + repairStatus + repairReason）",
           ),
         sql: z
           .string()

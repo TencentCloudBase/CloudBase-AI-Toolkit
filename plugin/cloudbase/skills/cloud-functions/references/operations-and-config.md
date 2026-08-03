@@ -118,9 +118,9 @@ Examples:
 - `0 0 2 1 * * *` -> 2:00 AM on the first day of every month
 - `0 30 9 * * * *` -> 9:30 AM every day
 
-### VPC access
+### VPC field shape (example only)
 
-For **non-native TCP** MySQL / PostgreSQL / Redis clients, `vpc` is mandatory and IDs must be real (never placeholders). Full policy: `./vpc-and-tcp-database.md`.
+When a function already needs VPC egress (exception path: existing TCP DB clients), `vpc` IDs must be real (never placeholders). This is a field-shape example — not a recommendation to introduce TCP DB access. Prefer native SDK / MCP SQL for new CRUD. Full exception policy: `./vpc-and-tcp-database.md`.
 
 ```javascript
 {

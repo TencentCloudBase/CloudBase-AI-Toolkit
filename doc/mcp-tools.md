@@ -714,7 +714,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "action",
       type: "string",
       required: true,
-      description: `操作类型：execute=执行已确认的写入 SQL（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）；dryRun=只分析 SQL 风险不执行；planMigration=预览迁移计划（需 migrationName + migrationVersion + sql）；applyMigration=应用迁移，建表/改 schema 首选（需 migrationName + migrationVersion + sql + confirm=true）；listMigrations=查询已应用的 Migration 列表（可传 limit/offset 分页）；migrationDetail=查看单条 Migration 详情（需 migrationVersion）；rollbackMigration=回滚最近 N 条 Migration（需 lastN + confirm=true）；repairMigration=修复 Migration 历史记录（需 migrationVersion + migrationName + repairStatus + repairReason） 可填写的值: "execute", "dryRun", "planMigration", "applyMigration", "listMigrations", "migrationDetail", "rollbackMigration", "repairMigration"`,
+      description: `操作类型：execute=执行已确认的写入 SQL（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）；dryRun=只分析 SQL 风险不执行；planMigration=预览迁移计划（需 migrationName + migrationVersion + sql）；applyMigration=应用迁移，建表/改 schema 首选（需 migrationName + migrationVersion + sql + confirm=true；成功返回前会自动校验该 migrationVersion 已落入远端迁移历史，未落库时返回 success=false 且 errorCode=MIGRATION_NOT_APPLIED）；listMigrations=查询已应用的 Migration 列表（可传 limit/offset 分页）；migrationDetail=查看单条 Migration 详情（需 migrationVersion）；rollbackMigration=回滚最近 N 条 Migration（需 lastN + confirm=true）；repairMigration=修复 Migration 历史记录（需 migrationVersion + migrationName + repairStatus + repairReason） 可填写的值: "execute", "dryRun", "planMigration", "applyMigration", "listMigrations", "migrationDetail", "rollbackMigration", "repairMigration"`,
     },
     {
       name: "sql",
@@ -2513,7 +2513,7 @@ CloudBase 应用侧认证配置只读入口。用于查询登录方式、provide
 ---
 
 ### `manageAppAuth`
-CloudBase 应用侧认证配置写入口。用于修改登录方式、provider、client 配置，确保 publishable key，以及创建或删除 API key、自定义登录密钥。⚠️ 本工具为管理端配置工具，不执行用户登录。当任务要求编写客户端登录代码时（例如「用 JS SDK 登录」），应先通过本工具完成配置（如启用 usernamePassword、获取 publishable key），再在项目代码中编写 @cloudbase/js-sdk 客户端登录代码（如 auth.signInWithPassword()），而非使用本工具完成登录。若前端要接受普通用户名样式标识符，应先执行 action=patchLoginStrategy 并传入 patch=\{ usernamePassword: true \}，再实现对应前端登录逻辑。
+CloudBase 应用侧认证配置写入口。用于修改登录方式、provider、client 配置，确保 publishable key，以及创建或删除 API key、自定义登录密钥。⚠️ 本工具为管理端配置工具，不执行用户登录。当任务要求编写客户端登录代码时（例如「用 JS SDK 登录」），应先通过本工具完成配置（如启用 usernamePassword、获取 publishable key），再在项目代码中编写 @cloudbase/js-sdk 客户端登录代码（如 auth.signInWithPassword()），而非使用本工具完成登录。若前端要接受普通用户名样式标识符，应先执行 action=patchLoginStrategy 并传入 patch=\{ usernamePassword: true \}，再实现对应前端登录逻辑。⚠️ action=createApiKey 返回体中的 created 字段表示是否真正新建：created=false 说明复用了环境中已存在的 key，此时 keyName/expireIn 入参不会生效，返回的 keyName/expireAt 均为服务端真实值，并会附带 warnings，切勿把它当作临时凭证分发。
 
 #### 参数
 
@@ -2563,12 +2563,12 @@ CloudBase 应用侧认证配置写入口。用于修改登录方式、provider�
     {
       name: "keyName",
       type: "string",
-      description: `createApiKey 时的 API key 名称`,
+      description: `createApiKey 时的 API key 名称；服务端可能忽略该值（如 publish_key 每环境唯一时），返回体中的 keyName 一律为服务端实际存储的名称`,
     },
     {
       name: "expireIn",
       type: "integer",
-      description: `createApiKey 时的有效期，单位秒；0 表示不过期`,
+      description: `createApiKey 时的有效期，单位秒；0 表示不过期。复用已有 key 时该值不生效，此时返回体会带 created=false 与 warnings`,
     },
     {
       name: "keyId",

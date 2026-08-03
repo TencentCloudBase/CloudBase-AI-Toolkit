@@ -954,10 +954,14 @@ describe("PG database tools", () => {
       const { server, tools } = createMockServer();
       registerPGDatabaseTools(server, { createClient: vi.fn() });
       setupMigrationMock();
-      mockCommonServiceCall.mockResolvedValue({
-        RequestId: "req-apply",
-        TaskId: "task-1",
-      });
+      mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) =>
+        Action === "PushPGUserMigrations"
+          ? { RequestId: "req-apply", TaskId: "task-1" }
+          : {
+              RequestId: "req-list",
+              Migrations: [{ Version: "20260720160000", Name: "create_test_table" }],
+            },
+      );
 
       const payload = buildToolPayload(
         await tools.managePgDatabase.handler({
@@ -976,6 +980,7 @@ describe("PG database tools", () => {
           migrationName: "create_test_table",
           localFileHint: "migrations/20260720160000_create_test_table.sql",
           apiResult: { TaskId: "task-1" },
+          verified: true,
         },
       });
       expect(mockCommonServiceCall).toHaveBeenCalledWith(
@@ -994,14 +999,90 @@ describe("PG database tools", () => {
       );
     });
 
+    it("applyMigration fails when the version is missing from remote migration history", async () => {
+      vi.useFakeTimers();
+      try {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        setupMigrationMock();
+        // Push reports success with a TaskId, but the history never records the version.
+        mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) =>
+          Action === "PushPGUserMigrations"
+            ? { RequestId: "req-apply", TaskId: "task-f5966fd0" }
+            : {
+                RequestId: "req-list",
+                Migrations: [{ Version: "20260801200000", Name: "older_migration" }],
+              },
+        );
+
+        const pending = tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "mcptest0802_tmp",
+          migrationVersion: "20260802200900",
+          sql: "CREATE TABLE mcptest0802 (id serial primary key, name text)",
+          confirm: true,
+        });
+        await vi.runAllTimersAsync();
+        const payload = buildToolPayload(await pending);
+
+        expect(payload).toMatchObject({
+          success: false,
+          errorCode: "MIGRATION_NOT_APPLIED",
+          data: { migrationVersion: "20260802200900", verified: false },
+        });
+        expect(mockCommonServiceCall).toHaveBeenCalledWith(
+          expect.objectContaining({ Action: "ListPGUserMigrations" }),
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("applyMigration reports verification failure when history cannot be read", async () => {
+      vi.useFakeTimers();
+      try {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        setupMigrationMock();
+        mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+          if (Action === "PushPGUserMigrations") {
+            return { RequestId: "req-apply", TaskId: "task-3" };
+          }
+          throw new Error("ListPGUserMigrations unavailable");
+        });
+
+        const pending = tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "create_test_table",
+          migrationVersion: "20260720160000",
+          sql: "CREATE TABLE public.test(id int)",
+          confirm: true,
+        });
+        await vi.runAllTimersAsync();
+        const payload = buildToolPayload(await pending);
+
+        expect(payload).toMatchObject({
+          success: false,
+          errorCode: "MIGRATION_VERIFICATION_FAILED",
+          data: { verified: null },
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("applyMigration passes lockTimeoutMs and statementTimeoutMs", async () => {
       const { server, tools } = createMockServer();
       registerPGDatabaseTools(server, { createClient: vi.fn() });
       setupMigrationMock();
-      mockCommonServiceCall.mockResolvedValue({
-        RequestId: "req-apply-2",
-        TaskId: "task-2",
-      });
+      mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) =>
+        Action === "PushPGUserMigrations"
+          ? { RequestId: "req-apply-2", TaskId: "task-2" }
+          : {
+              RequestId: "req-list",
+              Migrations: [{ Version: "20260720160000", Name: "create_test_table" }],
+            },
+      );
 
       await tools.managePgDatabase.handler({
         action: "applyMigration",
