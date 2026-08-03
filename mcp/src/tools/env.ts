@@ -1027,6 +1027,378 @@ function normalizeOptionalToolBoolean(value: unknown) {
   return typeof value === "boolean" ? value : undefined;
 }
 
+/**
+ * 解析用于询价的 region。与 cloudbase-manager.ts 一致：
+ * cloudBaseOptions.region → TCB_REGION → 'ap-shanghai'。
+ */
+function resolvePricingRegion(cloudBaseOptions: any): string {
+  return (
+    (typeof cloudBaseOptions?.region === "string" && cloudBaseOptions.region) ||
+    process.env.TCB_REGION ||
+    "ap-shanghai"
+  );
+}
+
+/**
+ * 从 describeBaasPackageList 查询某个 packageId 的人类可读套餐名。
+ * 失败时返回 undefined，调用方降级为只显示 packageId。
+ */
+async function fetchPackageTitle(
+  manager: any,
+  packageId: string,
+): Promise<string | undefined> {
+  try {
+    const result = await manager.env.describeBaasPackageList({
+      TargetAction: "new",
+      Source: "qcloud",
+    });
+    const packageList = result?.PackageList || [];
+    const matched = packageList.find(
+      (item: any) =>
+        item?.BillTags === packageId || item?.PackageName === packageId,
+    );
+    if (matched) {
+      return (
+        matched.PackageTitle || matched.PackageName || matched.BillTags
+      );
+    }
+    return undefined;
+  } catch (error) {
+    debug("fetchPackageTitle failed", { packageId, error });
+    return undefined;
+  }
+}
+
+/**
+ * 查询环境的当前计费/套餐信息（PackageName、PackageId、Region、到期时间、PayMode）。
+ * 失败时返回 undefined。
+ */
+async function fetchEnvBillingSummary(
+  manager: any,
+  envId: string,
+): Promise<{
+  packageName?: string;
+  packageId?: string;
+  region?: string;
+  expireTime?: string;
+  payMode?: string;
+  isAutoRenew?: boolean;
+} | undefined> {
+  try {
+    // describeBillingInfo 返回 EnvBillingInfoList；从中挑出 envId 对应项
+    const billingResult = await manager.env.describeBillingInfo({ EnvId: envId });
+    const billingList =
+      billingResult?.EnvBillingInfoList ||
+      billingResult?.Response?.EnvBillingInfoList ||
+      billingResult?.Data?.EnvBillingInfoList ||
+      [];
+    const matched = Array.isArray(billingList)
+      ? billingList.find((item: any) => item?.EnvId === envId) ?? billingList[0]
+      : undefined;
+    if (!matched) {
+      return undefined;
+    }
+    return {
+      packageName: matched.PackageName,
+      packageId: matched.PackageId,
+      region: matched.Region,
+      expireTime: matched.ExpireTime,
+      payMode: matched.PayMode,
+      isAutoRenew: matched.IsAutoRenew,
+    };
+  } catch (error) {
+    debug("fetchEnvBillingSummary failed", { envId, error });
+    return undefined;
+  }
+}
+
+/**
+ * 询价新购价格。失败时返回 { error }。
+ */
+async function calculateCreatePrice(
+  manager: any,
+  params: { packageId: string; region: string; period: number },
+): Promise<{ priceResult?: any; error?: string }> {
+  try {
+    const priceResult = await manager.env.calculatePackageCreatePrice({
+      packageId: params.packageId,
+      region: params.region,
+      period: params.period,
+    });
+    return { priceResult };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    debug("calculatePackageCreatePrice failed", { params, error });
+    return { error: message };
+  }
+}
+
+/**
+ * 询价续费价格。失败时返回 { error }。
+ */
+async function calculateRenewPrice(
+  manager: any,
+  envId: string,
+  period: number,
+): Promise<{ priceResult?: any; error?: string }> {
+  try {
+    const priceResult = await manager.env.calculatePackageRenewPrice({
+      envId,
+      period,
+    });
+    return { priceResult };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    debug("calculatePackageRenewPrice failed", { envId, period, error });
+    return { error: message };
+  }
+}
+
+/**
+ * 询价变配价格（含退款）。失败时返回 { error }。
+ */
+async function calculateModifyPrice(
+  manager: any,
+  envId: string,
+  newPackageId: string,
+): Promise<{ priceResult?: any; error?: string }> {
+  try {
+    const priceResult = await manager.env.calculatePackageModifyPrice({
+      envId,
+      newPackageId,
+    });
+    return { priceResult };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    debug("calculatePackageModifyPrice failed", { envId, newPackageId, error });
+    return { error: message };
+  }
+}
+
+/**
+ * 把 PriceResult 格式化为人类可读的价格摘要。
+ * 返回 { summary, detail }：summary 是一行短语，detail 是多行明细。
+ */
+function formatPriceSection(priceResult: any): {
+  summary: string;
+  detail: string;
+} {
+  if (!priceResult || typeof priceResult !== "object") {
+    return { summary: "询价返回为空", detail: "" };
+  }
+
+  const currency = priceResult.Currency === "USD" ? "$" : "￥";
+  const realTotalCost = Number(priceResult.RealTotalCost);
+  const totalCost = Number(priceResult.TotalCost);
+  const unitPrice = Number(priceResult.Price);
+  const timeSpan = priceResult.TimeSpan;
+  const TimeUnit = priceResult.TimeUnit || "";
+  const refund = priceResult.Refund ? Number(priceResult.Refund) : undefined;
+
+  const lines: string[] = [];
+  let summary = "";
+
+  if (Number.isFinite(realTotalCost) && realTotalCost > 0) {
+    summary = `预计实付 ${currency}${realTotalCost}`;
+    lines.push(`- 实付总价: ${currency}${realTotalCost}`);
+  } else if (Number.isFinite(totalCost) && totalCost > 0) {
+    summary = `预计费用 ${currency}${totalCost}`;
+    lines.push(`- 总价: ${currency}${totalCost}`);
+  }
+
+  if (Number.isFinite(totalCost) && totalCost > 0 && totalCost !== realTotalCost) {
+    lines.push(`- 原价: ${currency}${totalCost}`);
+  }
+
+  if (Number.isFinite(unitPrice) && unitPrice > 0) {
+    lines.push(`- 单价: ${currency}${unitPrice}`);
+  }
+
+  if (timeSpan !== undefined && TimeUnit) {
+    lines.push(`- 时长: ${timeSpan} ${TimeUnit}`);
+  }
+
+  if (refund !== undefined && Number.isFinite(refund) && refund > 0) {
+    lines.push(`- 退款: ${currency}${refund}（变配降级时退回差价）`);
+    if (summary) {
+      summary += `，退款 ${currency}${refund}`;
+    } else {
+      summary = `退款 ${currency}${refund}`;
+    }
+  }
+
+  if (priceResult.Formula && typeof priceResult.Formula === "string") {
+    lines.push(`- 计价公式: ${priceResult.Formula}`);
+  }
+
+  return {
+    summary: summary || "询价返回缺少总价字段",
+    detail: lines.join("\n"),
+  };
+}
+
+/**
+ * 构建释放方式说明。manageEnv 当前未提供 destroy action，
+ * 指向控制台让用户手动销毁。
+ */
+function buildReleaseMethodHint(): {
+  method: string;
+  consoleUrl: string;
+  note: string;
+} {
+  return {
+    method: "手动销毁",
+    consoleUrl: "https://console.cloud.tencent.com/tcb",
+    note: '环境创建后可随时销毁以停止计费。当前 manageEnv 未提供 destroy action，请前往控制台手动销毁，或调用 manageEnv(action="listPackages") 查看其他套餐。',
+  };
+}
+
+/**
+ * manageEnv 涉及计费的官方文档链接。来源：腾讯云开发 CloudBase 公开文档。
+ * 任何 confirm 消息展示这些链接前不需要再次校验 URL 真实性。
+ */
+const MANAGE_ENV_DOC_LINKS = {
+  // 包年包月套餐说明（个人版 / 标准版 / 企业版 / 企业高级版）
+  package:
+    "https://cloud.tencent.com/document/product/876/39093",
+  // 计费能力项说明
+  billingItems:
+    "https://cloud.tencent.com/document/product/876/120713",
+  // 资源点价格文档
+  resourcePointPrice:
+    "https://cloud.tencent.com/document/product/876/127357",
+  // 预付费计费与到期释放（费用中心通用）
+  prepayExpiry:
+    "https://cloud.tencent.com/document/product/555/9618",
+} as const;
+
+/**
+ * 把文档链接渲染为多行 markdown 列表文本。
+ * filter 不传时全部展示。
+ */
+function renderDocLinksBlock(
+  filter?: ReadonlyArray<keyof typeof MANAGE_ENV_DOC_LINKS>,
+): string {
+  const labels: Record<keyof typeof MANAGE_ENV_DOC_LINKS, string> = {
+    package: "包年包月套餐说明",
+    billingItems: "计费能力项说明",
+    resourcePointPrice: "资源点价格文档",
+    prepayExpiry: "预付费计费与到期释放（费用中心通用）",
+  };
+  const entries = (filter ?? (Object.keys(MANAGE_ENV_DOC_LINKS) as Array<keyof typeof MANAGE_ENV_DOC_LINKS>))
+    .map((k) => `- [${labels[k]}](${MANAGE_ENV_DOC_LINKS[k]})`)
+    .join("\n");
+  return `参考文档：\n${entries}`;
+}
+
+/**
+ * 资源清单详细描述（对应控制台购买页"资源清单"段）。
+ */
+function buildResourceListText(): string {
+  return "资源清单：\n- 云开发环境 ×1（含 云数据库 / 云函数 / 云存储 / 静态托管 / 身份认证 等基础资源）";
+}
+
+/**
+ * 计费项披露（对应控制台购买页"计费项"段）。
+ * 此处为静态披露，调用方在 confirm 消息中拼接即可。
+ */
+function buildBillingItemsText(): string {
+  return "计费项：\n- 数据库容量/调用 · 云函数调用/资源/流量 · 存储读写/CDN · 网关/认证/API 调用 · QPS 超限按量 · 日志";
+}
+
+/**
+ * 计费方式披露（对应控制台购买页"计费方式"段）。
+ * 针对用户传入的 packageId 判断套餐类型：
+ * - 含 free/activity/trial/试用 等关键字视为免费体验版
+ * - 其余视为付费套餐
+ */
+function buildBillingModeText(packageId: string | undefined): string {
+  const id = (packageId || "").toLowerCase();
+  const isFree =
+    id.includes("free") ||
+    id.includes("activity") ||
+    id.includes("trial") ||
+    id.includes("试用") ||
+    id.includes("体验");
+  if (isFree) {
+    return (
+      "计费方式：\n- 免费体验版（每月赠送约 3000 资源点 ≈ 3 元，0 元开通）\n" +
+      "- 付费套餐：个人版 / 标准版 / 企业版 / 企业高级版"
+    );
+  }
+  return (
+    "计费方式：\n- 付费套餐：个人版 / 标准版 / 企业版 / 企业高级版\n" +
+    "- 免费体验版通过 auth 工具自动创建；本次 manageEnv(create) 不会创建免费版"
+  );
+}
+
+/**
+ * 资源释放方式详细说明（对应控制台购买页"资源释放方式"段）。
+ * - 免费版：1 个月有效期 + 免费续期 + 停服(保留数据) + 1~7天回收站 + 释放(数据不可恢复)
+ * - 付费版：到期未续费 → 停服(保留数据) + 1~7天可回收站找回 + 释放(数据不可恢复)
+ * 任何时候都可在控制台主动销毁、关闭按量、退订加购资源。
+ */
+function buildReleaseMethodDetailText(packageId: string | undefined): string {
+  const id = (packageId || "").toLowerCase();
+  const isFree =
+    id.includes("free") ||
+    id.includes("activity") ||
+    id.includes("trial") ||
+    id.includes("试用") ||
+    id.includes("体验");
+  const lines: string[] = ["资源释放方式：\n- 可随时在控制台销毁环境、关闭按量、退订加购资源"];
+  if (isFree) {
+    lines.push(
+      "- 免费体验版：有效期 1 个月，到期可免费续期 1 个月；未续期则停服(保留数据)→1~7天回收站→释放(数据不可恢复)",
+    );
+  } else {
+    lines.push(
+      "- 付费套餐到期未续费：停服(保留数据)→1~7天可回收站找回→释放(数据不可恢复)",
+    );
+    lines.push("- 主动销毁：随时生效；销毁前请确保已迁移或备份数据");
+  }
+  return lines.join("\n");
+}
+
+/**
+ * 预计费用披露段：把询价结果 + 周期说明 + 超额按量说明组合成人类可读文本。
+ */
+function buildPricingDisclosureText(
+  packageId: string | undefined,
+  priceSection: { summary: string; detail: string } | null,
+  priceError: string | undefined,
+  period: number,
+): string {
+  const id = (packageId || "").toLowerCase();
+  const isFree =
+    id.includes("free") ||
+    id.includes("activity") ||
+    id.includes("trial") ||
+    id.includes("试用") ||
+    id.includes("体验");
+  const lines: string[] = ["预计费用："];
+
+  if (isFree) {
+    lines.push(
+      `- 免费体验版：本次开通 0 元；超免费额度后需升级为付费套餐（免费版不支持开按量）`,
+    );
+    lines.push("- 实际单价以资源点价格文档为准（3000 资源点 ≈ 3 元）");
+  } else {
+    lines.push(
+      `- 付费套餐：${priceSection?.summary ?? (priceError ? `⚠️ 询价失败（${priceError}），请前往控制台确认` : "询价返回为空")}`,
+    );
+    if (priceSection?.detail) {
+      lines.push(priceSection.detail);
+    }
+    if (priceError && priceSection) {
+      lines.push(`- ⚠️ 部分明细缺失：${priceError}`);
+    }
+    lines.push(`- 计费周期：约 ${period} 个月（包年包月），到期可续费或变配`);
+    lines.push("- 超额可另开按量（次日结算），详细计费项以官方文档为准");
+  }
+  return lines.join("\n");
+}
+
 function resolveToolAuthOptions(
   server: ExtendedMcpServer,
   overrides?: AuthOptions,
@@ -2118,10 +2490,116 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             // CreateEnv (Manager SDK / Cloud API) accepts Alias, PackageId, Resources, Period, etc.
             // It does NOT accept Region — region is determined by account/package, not this call.
             if (!confirmed) {
+              // 查询套餐名和预计费用（失败降级，不阻塞 confirm 流程）
+              const packageTitle = packageId
+                ? await fetchPackageTitle(cloudbase, packageId)
+                : undefined;
+              const pricingRegion = resolvePricingRegion(cloudBaseOptions);
+              const priceProbe = packageId
+                ? await calculateCreatePrice(cloudbase, {
+                    packageId,
+                    region: pricingRegion,
+                    period: duration,
+                  })
+                : { error: "缺少 packageId，无法询价" };
+              const priceSection = priceProbe.priceResult
+                ? formatPriceSection(priceProbe.priceResult)
+                : null;
+              const releaseMethod = buildReleaseMethodHint();
+
+              // 组合多段披露文案（对照控制台购买页确认对话框）
+              const messageLines: string[] = [];
+              messageLines.push("即将为你开通云开发环境");
+              messageLines.push("本操作会创建腾讯云开发环境资源。");
+              messageLines.push(
+                "为付费套餐后才会产生费用；免费体验版不会立即扣费（每月赠送约 3000 资源点 ≈ 3 元）。",
+              );
+              messageLines.push("请核对以下配置信息后传入 confirm=\"yes\"：");
+              messageLines.push(`- 别名: ${alias ?? "(未提供)"}`);
+              messageLines.push(
+                `- 套餐: ${packageId ?? "(未提供)"}` +
+                  (packageTitle ? `（${packageTitle}）` : ""),
+              );
+              messageLines.push(`- 资源类型: ${resolvedResources.join(", ")}`);
+              messageLines.push(`- 时长: ${duration} 个月`);
+              messageLines.push(
+                "- 说明: CreateEnv 不接受 Region 入参，环境地域由账号与套餐侧决定。",
+              );
+              messageLines.push("");
+
+              // 资源清单 / 计费项 / 计费方式
+              messageLines.push(buildResourceListText());
+              messageLines.push(buildBillingItemsText());
+              messageLines.push(buildBillingModeText(packageId));
+              messageLines.push("");
+
+              // 预计费用
+              messageLines.push(
+                buildPricingDisclosureText(
+                  packageId,
+                  priceSection,
+                  priceProbe.error,
+                  duration,
+                ),
+              );
+              messageLines.push("");
+
+              // 资源释放方式
+              messageLines.push(buildReleaseMethodDetailText(packageId));
+              messageLines.push("");
+
+              // 文档链接
+              messageLines.push(
+                renderDocLinksBlock([
+                  "package",
+                  "billingItems",
+                  "resourcePointPrice",
+                  "prepayExpiry",
+                ]),
+              );
+              messageLines.push("");
+
+              // 已知晓声明
+              messageLines.push("☐ 我已知晓将创建付费资源及计费规则，确认按上述配置开通。");
+              messageLines.push(
+                `（如需取消或修改，请勿传 confirm="yes"，改传其他参数重试）`,
+              );
+
               return buildJsonToolResult({
                 ok: false,
                 code: "CONFIRM_REQUIRED",
-                message: `创建环境需要您确认。请确认以下配置信息后传入 confirm="yes"：\n别名: ${alias}\n套餐: ${packageId}\n资源类型: ${resolvedResources.join(", ")}\n时长: ${duration} 个月\n说明: CreateEnv 不接受 Region；环境地域由账号与套餐侧决定。`,
+                message: messageLines.join("\n"),
+                package_info: packageTitle
+                  ? { packageId, packageTitle }
+                  : packageId
+                    ? { packageId, packageTitle: null }
+                    : undefined,
+                pricing: priceSection
+                  ? {
+                      summary: priceSection.summary,
+                      currency: priceProbe.priceResult?.Currency,
+                      realTotalCost: priceProbe.priceResult?.RealTotalCost,
+                      totalCost: priceProbe.priceResult?.TotalCost,
+                      timeSpan: priceProbe.priceResult?.TimeSpan,
+                      timeUnit: priceProbe.priceResult?.TimeUnit,
+                      inquiryRegion: pricingRegion,
+                    }
+                  : priceProbe.error
+                    ? { inquiryFailed: true, error: priceProbe.error }
+                    : undefined,
+                release_method: {
+                  ...releaseMethod,
+                  detail: buildReleaseMethodDetailText(packageId),
+                  docLinks: [
+                    MANAGE_ENV_DOC_LINKS.package,
+                    MANAGE_ENV_DOC_LINKS.prepayExpiry,
+                  ],
+                },
+                doc_links: MANAGE_ENV_DOC_LINKS,
+                confirmation_acknowledgement: {
+                  text: "我已知晓将创建付费资源及计费规则",
+                  required: true,
+                },
                 next_step: {
                   tool: "manageEnv",
                   action: "create",
@@ -2161,10 +2639,114 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               if (!envId || !packageId) {
                 throw new Error("变更套餐时 envId 和 packageId 为必填参数");
               }
+              // 查询当前套餐名 + 新套餐名 + 询价（失败降级）
+              const [currentBilling, newPackageTitle] = await Promise.all([
+                fetchEnvBillingSummary(cloudbase, envId),
+                fetchPackageTitle(cloudbase, packageId),
+              ]);
+              const priceProbe = await calculateModifyPrice(
+                cloudbase,
+                envId,
+                packageId,
+              );
+              const priceSection = priceProbe.priceResult
+                ? formatPriceSection(priceProbe.priceResult)
+                : null;
+              const releaseMethod = buildReleaseMethodHint();
+
+              const messageLines: string[] = [];
+              messageLines.push(
+                `变更环境 ${envId} 的套餐需要您确认。变配后不会立即重新计费，但会触发差价结算或退款。`,
+              );
+              messageLines.push("请核对后传入 confirm=\"yes\"：");
+              messageLines.push(
+                `- 当前套餐: ${currentBilling?.packageName ?? currentBilling?.packageId ?? "(未知)"}` +
+                  (currentBilling?.packageId && currentBilling.packageName
+                    ? `（${currentBilling.packageId}）`
+                    : ""),
+              );
+              if (currentBilling?.expireTime) {
+                messageLines.push(`- 当前到期时间: ${currentBilling.expireTime}`);
+              }
+              messageLines.push(
+                `- 新套餐: ${packageId}` +
+                  (newPackageTitle ? `（${newPackageTitle}）` : ""),
+              );
+              messageLines.push("");
+              if (priceSection) {
+                messageLines.push(
+                  `预计费用变化：${priceSection.summary}（差价/退款以账单为准）`,
+                );
+                if (priceSection.detail) {
+                  messageLines.push(priceSection.detail);
+                }
+              } else if (priceProbe.error) {
+                messageLines.push(
+                  `预计费用变化：⚠️ 询价失败（${priceProbe.error}），请前往控制台确认价格`,
+                );
+              } else {
+                messageLines.push(
+                  "预计费用变化：询价返回为空，请前往控制台确认价格",
+                );
+              }
+              messageLines.push("");
+
+              // 资源释放方式（变配不影响存续，但与到期/销毁规则相同）
+              messageLines.push(buildReleaseMethodDetailText(packageId));
+              messageLines.push("");
+
+              // 文档链接（变配与套餐/计费/到期都相关）
+              messageLines.push(
+                renderDocLinksBlock(["package", "prepayExpiry"]),
+              );
+              messageLines.push("");
+
+              messageLines.push("☐ 我已知晓变配将触发差价结算或退款，确认按上述配置变更。");
+              messageLines.push(
+                `（如需取消或修改，请勿传 confirm="yes"）`,
+              );
+
               return buildJsonToolResult({
                 ok: false,
                 code: "CONFIRM_REQUIRED",
-                message: `变更环境 ${envId} 的套餐为 ${packageId} 可能产生费用变化。请确认后传入 confirm="yes"。`,
+                message: messageLines.join("\n"),
+                env_id: envId,
+                current_package: currentBilling
+                  ? {
+                      packageId: currentBilling.packageId,
+                      packageName: currentBilling.packageName,
+                      expireTime: currentBilling.expireTime,
+                      payMode: currentBilling.payMode,
+                    }
+                  : undefined,
+                new_package: {
+                  packageId,
+                  packageTitle: newPackageTitle ?? null,
+                },
+                pricing: priceSection
+                  ? {
+                      summary: priceSection.summary,
+                      currency: priceProbe.priceResult?.Currency,
+                      realTotalCost: priceProbe.priceResult?.RealTotalCost,
+                      totalCost: priceProbe.priceResult?.TotalCost,
+                      refund: priceProbe.priceResult?.Refund,
+                    }
+                  : priceProbe.error
+                    ? { inquiryFailed: true, error: priceProbe.error }
+                    : undefined,
+                release_method: {
+                  ...releaseMethod,
+                  detail: buildReleaseMethodDetailText(packageId),
+                  docLinks: [MANAGE_ENV_DOC_LINKS.prepayExpiry],
+                },
+                doc_links: {
+                  package: MANAGE_ENV_DOC_LINKS.package,
+                  prepayExpiry: MANAGE_ENV_DOC_LINKS.prepayExpiry,
+                },
+                confirmation_acknowledgement: {
+                  text: "我已知晓变配将触发差价结算或退款",
+                  required: true,
+                },
                 next_step: {
                   tool: "manageEnv",
                   action: "modifyPlan",
@@ -2197,10 +2779,100 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               if (!envId) {
                 throw new Error("续费环境时 envId 为必填参数");
               }
+              // 查询当前套餐名 + 到期时间 + 询价（失败降级）
+              const [currentBilling, priceProbe] = await Promise.all([
+                fetchEnvBillingSummary(cloudbase, envId),
+                calculateRenewPrice(cloudbase, envId, duration),
+              ]);
+              const priceSection = priceProbe.priceResult
+                ? formatPriceSection(priceProbe.priceResult)
+                : null;
+              const releaseMethod = buildReleaseMethodHint();
+              const currentPackageId = currentBilling?.packageId;
+
+              const messageLines: string[] = [];
+              messageLines.push(
+                `续费环境 ${envId} 需要您确认。续费按当前套餐类型计算，延长到期时间。`,
+              );
+              messageLines.push("请核对后传入 confirm=\"yes\"：");
+              messageLines.push(
+                `- 当前套餐: ${currentBilling?.packageName ?? currentBilling?.packageId ?? "(未知)"}` +
+                  (currentBilling?.packageId && currentBilling.packageName
+                    ? `（${currentBilling.packageId}）`
+                    : ""),
+              );
+              if (currentBilling?.expireTime) {
+                messageLines.push(`- 当前到期时间: ${currentBilling.expireTime}`);
+              }
+              messageLines.push(`- 续费时长: ${duration} 个月`);
+              messageLines.push("");
+              if (priceSection) {
+                messageLines.push(`预计费用：${priceSection.summary}`);
+                if (priceSection.detail) {
+                  messageLines.push(priceSection.detail);
+                }
+              } else if (priceProbe.error) {
+                messageLines.push(
+                  `预计费用：⚠️ 询价失败（${priceProbe.error}），请前往控制台确认价格`,
+                );
+              } else {
+                messageLines.push(
+                  "预计费用：询价返回为空，请前往控制台确认价格",
+                );
+              }
+              messageLines.push("");
+
+              // 资源释放方式
+              messageLines.push(buildReleaseMethodDetailText(currentPackageId));
+              messageLines.push("");
+
+              // 文档链接（续费主要看预付费与到期释放）
+              messageLines.push(renderDocLinksBlock(["prepayExpiry"]));
+              messageLines.push("");
+
+              messageLines.push("☐ 我已知晓续费将延长当前套餐的到期时间，确认按上述配置续费。");
+              messageLines.push(
+                `（如需取消或修改，请勿传 confirm="yes"）`,
+              );
+
               return buildJsonToolResult({
                 ok: false,
                 code: "CONFIRM_REQUIRED",
-                message: `续费环境 ${envId}，时长: ${duration} 个月，可能产生费用。请确认后传入 confirm="yes"。`,
+                message: messageLines.join("\n"),
+                env_id: envId,
+                current_package: currentBilling
+                  ? {
+                      packageId: currentBilling.packageId,
+                      packageName: currentBilling.packageName,
+                      expireTime: currentBilling.expireTime,
+                      payMode: currentBilling.payMode,
+                      isAutoRenew: currentBilling.isAutoRenew,
+                    }
+                  : undefined,
+                pricing: priceSection
+                  ? {
+                      summary: priceSection.summary,
+                      currency: priceProbe.priceResult?.Currency,
+                      realTotalCost: priceProbe.priceResult?.RealTotalCost,
+                      totalCost: priceProbe.priceResult?.TotalCost,
+                      timeSpan: priceProbe.priceResult?.TimeSpan,
+                      timeUnit: priceProbe.priceResult?.TimeUnit,
+                    }
+                  : priceProbe.error
+                    ? { inquiryFailed: true, error: priceProbe.error }
+                    : undefined,
+                release_method: {
+                  ...releaseMethod,
+                  detail: buildReleaseMethodDetailText(currentPackageId),
+                  docLinks: [MANAGE_ENV_DOC_LINKS.prepayExpiry],
+                },
+                doc_links: {
+                  prepayExpiry: MANAGE_ENV_DOC_LINKS.prepayExpiry,
+                },
+                confirmation_acknowledgement: {
+                  text: "我已知晓续费将延长当前套餐的到期时间",
+                  required: true,
+                },
                 next_step: {
                   tool: "manageEnv",
                   action: "renew",

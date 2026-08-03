@@ -70,6 +70,7 @@ describe("gateway tools", () => {
       Domains: [
         {
           Domain: "env-test.service.tcloudbase.com",
+          DomainType: "HTTPSERVICE",
           IsDefault: true,
           Enable: true,
           Status: "SUCCESS",
@@ -85,6 +86,7 @@ describe("gateway tools", () => {
         },
         {
           Domain: "api.example.com",
+          DomainType: "CUSTOM",
           IsDefault: false,
           Enable: true,
           Status: "SUCCESS",
@@ -176,8 +178,14 @@ describe("gateway tools", () => {
     expect(schema.route.description).toContain("staticstore");
     expect(description).toContain("listCustomDomains");
     expect(description).toContain("certificateId");
+    expect(description).toContain("HTTPSERVICE");
+    expect(description).toContain("tcloudbaseapp.com");
+    expect(description).toContain("listRoutes");
+    expect(description).toContain("不是 STATIC_STORE 上游绑定");
     expect(schema.action.description).toContain("已有自定义域名");
     expect(schema.domain.description).toContain("无需证书");
+    expect(schema.domain.description).toContain("HTTPSERVICE");
+    expect(schema.domain.description).toContain("listRoutes");
     expect(schema.certificateId.description).toContain("createRoute");
   });
 
@@ -317,7 +325,7 @@ describe("gateway tools", () => {
   });
 
   it("manageGateway(action=createRoute) should not use OriginDomain as public domain", async () => {
-    mockDescribeHttpServiceRoute.mockResolvedValueOnce({
+    mockDescribeHttpServiceRoute.mockResolvedValue({
       OriginDomain: "origin.service.tcloudbase.com",
       TotalCount: 0,
       Domains: [],
@@ -335,7 +343,112 @@ describe("gateway tools", () => {
     expect(mockCreateHttpServiceRoute).not.toHaveBeenCalled();
     expect(payload.success).toBe(false);
     expect(payload.message).toContain("默认 HTTP 访问域名未就绪");
+    expect(payload.message).toContain("HTTPSERVICE");
     expect(payload.message).not.toContain("origin.service.tcloudbase.com");
+  });
+
+  it("manageGateway(action=createRoute) should prefer the HTTPSERVICE default domain over the static hosting one", async () => {
+    mockDescribeHttpServiceRoute.mockResolvedValue({
+      OriginDomain: "env-test.tcbaccess-in.tencentcloudbase.com",
+      TotalCount: 2,
+      Domains: [
+        {
+          Domain: "env-test-1251119057.tcloudbaseapp.com",
+          DomainType: "STATIC_STORE",
+          IsDefault: true,
+          Enable: true,
+          Status: "SUCCESS",
+          Routes: [
+            {
+              Path: "/",
+              UpstreamResourceType: "STATIC_STORE",
+              UpstreamResourceName: "staticstore",
+            },
+          ],
+        },
+        {
+          Domain: "env-test-1251119057.ap-shanghai.app.tcloudbase.com",
+          DomainType: "HTTPSERVICE",
+          IsDefault: true,
+          Enable: true,
+          Status: "SUCCESS",
+        },
+      ],
+      RequestId: "req-multi-default",
+    });
+
+    const result = await tools.manageGateway.handler({
+      action: "createRoute",
+      targetName: "activity_api",
+      path: "/api",
+      upstreamResourceType: "WEB_SCF",
+      auth: false,
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockDescribeHttpServiceRoute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        EnvId: "env-test",
+        Filters: [
+          {
+            Name: "DomainType",
+            Values: ["HTTPSERVICE"],
+          },
+        ],
+      }),
+    );
+    expect(mockCreateHttpServiceRoute).toHaveBeenCalledWith({
+      EnvId: "env-test",
+      Domain: {
+        Domain: "env-test-1251119057.ap-shanghai.app.tcloudbase.com",
+        Routes: [
+          {
+            Path: "/api",
+            UpstreamResourceType: "WEB_SCF",
+            UpstreamResourceName: "activity_api",
+            EnableAuth: false,
+          },
+        ],
+      },
+    });
+    expect(payload.data.domain).toBe(
+      "env-test-1251119057.ap-shanghai.app.tcloudbase.com",
+    );
+    expect(payload.data.accessUrl).toBe(
+      "https://env-test-1251119057.ap-shanghai.app.tcloudbase.com/api",
+    );
+  });
+
+  it("manageGateway(action=createRoute) should reject static hosting default domain when HTTPSERVICE is missing", async () => {
+    mockDescribeHttpServiceRoute.mockResolvedValue({
+      TotalCount: 1,
+      Domains: [
+        {
+          Domain: "env-test-1251119057.tcloudbaseapp.com",
+          DomainType: "STATIC_STORE",
+          IsDefault: true,
+          Enable: true,
+          Status: "SUCCESS",
+          Routes: [],
+        },
+      ],
+      RequestId: "req-static-only",
+    });
+
+    const result = await tools.manageGateway.handler({
+      action: "createRoute",
+      targetName: "activity_api",
+      path: "/api",
+      upstreamResourceType: "WEB_SCF",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCreateHttpServiceRoute).not.toHaveBeenCalled();
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("HTTPSERVICE");
+    expect(payload.message).toContain("tcloudbaseapp.com");
   });
 
   it("manageGateway(action=updateRoute) should modify route auth", async () => {

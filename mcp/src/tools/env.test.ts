@@ -1398,10 +1398,154 @@ describe("manageEnv", () => {
       ok: false,
       code: "CONFIRM_REQUIRED",
     });
-    expect(payload.message).toContain("请确认");
+    expect(payload.message).toContain("确认");
     expect(payload.message).toContain("flexdb, storage, function, postgresql");
     expect(payload.message).not.toContain("地域:");
     expect(payload.message).toContain("CreateEnv 不接受 Region");
+    // 询价失败时应降级，仍返回 confirm 并暴露 pricing.inquiryFailed
+    expect(payload.pricing?.inquiryFailed).toBe(true);
+    expect(payload.release_method?.method).toBe("手动销毁");
+    // 对照控制台购买页的多段披露
+    expect(payload.message).toContain("资源清单");
+    expect(payload.message).toContain("云数据库 / 云函数 / 云存储 / 静态托管 / 身份认证");
+    expect(payload.message).toContain("计费项");
+    expect(payload.message).toContain("数据库容量/调用");
+    expect(payload.message).toContain("计费方式");
+    expect(payload.message).toContain("资源释放方式");
+    expect(payload.message).toContain("我已知晓");
+    expect(payload.message).toContain(
+      "https://cloud.tencent.com/document/product/876/39093",
+    );
+    expect(payload.message).toContain(
+      "https://cloud.tencent.com/document/product/876/120713",
+    );
+    expect(payload.message).toContain(
+      "https://cloud.tencent.com/document/product/876/127357",
+    );
+    expect(payload.message).toContain(
+      "https://cloud.tencent.com/document/product/555/9618",
+    );
+    expect(payload.doc_links).toMatchObject({
+      package: expect.stringContaining("cloud.tencent.com"),
+      billingItems: expect.stringContaining("cloud.tencent.com"),
+      resourcePointPrice: expect.stringContaining("cloud.tencent.com"),
+      prepayExpiry: expect.stringContaining("cloud.tencent.com"),
+    });
+    expect(payload.confirmation_acknowledgement).toMatchObject({
+      required: true,
+      text: expect.stringContaining("我已知晓"),
+    });
+    expect(payload.release_method?.detail).toContain("资源释放方式");
+  });
+
+  it("create should show free-experience disclosure when packageId hints free tier", async () => {
+    const createEnv = vi.fn();
+    const describeBaasPackageList = vi.fn().mockResolvedValue({
+      PackageList: [
+        {
+          BillTags: "baas_free_trial",
+          PackageName: "baas_free_trial",
+          PackageTitle: "免费体验版",
+        },
+      ],
+    });
+    const calculatePackageCreatePrice = vi.fn().mockResolvedValue({
+      RealTotalCost: 0,
+      TotalCost: 0,
+      TimeSpan: 1,
+      TimeUnit: "mon",
+      Currency: "CNY",
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        createEnv,
+        describeBaasPackageList,
+        calculatePackageCreatePrice,
+      },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "create",
+          alias: "trial-env",
+          packageId: "baas_free_trial",
+        })
+      ).content[0].text,
+    );
+
+    expect(payload.code).toBe("CONFIRM_REQUIRED");
+    // 免费版披露：3000 资源点 + 1 个月有效期 + 免费续期
+    expect(payload.message).toContain("3000 资源点");
+    expect(payload.message).toContain("免费体验版");
+    expect(payload.message).toContain("有效期 1 个月");
+    expect(payload.message).toContain("免费续期");
+    expect(payload.package_info).toEqual({
+      packageId: "baas_free_trial",
+      packageTitle: "免费体验版",
+    });
+  });
+
+  it("create should enrich confirm with package title and price when inquiry succeeds", async () => {
+    const createEnv = vi.fn();
+    const describeBaasPackageList = vi.fn().mockResolvedValue({
+      PackageList: [
+        {
+          BillTags: "baas_personal",
+          PackageName: "baas_personal",
+          PackageTitle: "个人版",
+        },
+      ],
+    });
+    const calculatePackageCreatePrice = vi.fn().mockResolvedValue({
+      RealTotalCost: 19.9,
+      TotalCost: 29.9,
+      Price: 19.9,
+      TimeSpan: 1,
+      TimeUnit: "mon",
+      Currency: "CNY",
+      Formula: "price=19.9",
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        createEnv,
+        describeBaasPackageList,
+        calculatePackageCreatePrice,
+      },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "create",
+          alias: "my-env",
+          packageId: "baas_personal",
+        })
+      ).content[0].text,
+    );
+
+    expect(createEnv).not.toHaveBeenCalled();
+    expect(payload.code).toBe("CONFIRM_REQUIRED");
+    expect(payload.message).toContain("个人版");
+    expect(payload.message).toContain("￥19.9");
+    expect(payload.message).toContain("释放方式");
+    expect(payload.package_info).toEqual({
+      packageId: "baas_personal",
+      packageTitle: "个人版",
+    });
+    expect(payload.pricing).toMatchObject({
+      realTotalCost: 19.9,
+      totalCost: 29.9,
+      inquiryRegion: expect.any(String),
+    });
+    expect(calculatePackageCreatePrice).toHaveBeenCalledWith(
+      expect.objectContaining({
+        packageId: "baas_personal",
+        period: 1,
+      }),
+    );
   });
 
   it("create should succeed with confirm=yes and never send Region", async () => {
@@ -1513,6 +1657,101 @@ describe("manageEnv", () => {
       ok: false,
       code: "CONFIRM_REQUIRED",
     });
+    // 询价失败降级：仍暴露 inquiryFailed + release_method
+    expect(payload.pricing?.inquiryFailed).toBe(true);
+    expect(payload.release_method?.method).toBe("手动销毁");
+    expect(payload.new_package).toEqual({
+      packageId: "baas_pf_standard",
+      packageTitle: null,
+    });
+    // 多段披露：资源释放方式、文档链接、已知晓声明
+    expect(payload.message).toContain("资源释放方式");
+    expect(payload.message).toContain("参考文档");
+    expect(payload.message).toContain(
+      "https://cloud.tencent.com/document/product/876/39093",
+    );
+    expect(payload.message).toContain(
+      "https://cloud.tencent.com/document/product/555/9618",
+    );
+    expect(payload.message).toContain("我已知晓");
+    expect(payload.doc_links).toMatchObject({
+      package: expect.stringContaining("cloud.tencent.com"),
+      prepayExpiry: expect.stringContaining("cloud.tencent.com"),
+    });
+    expect(payload.confirmation_acknowledgement?.required).toBe(true);
+    expect(payload.release_method?.detail).toContain("资源释放方式");
+  });
+
+  it("modifyPlan should enrich confirm with current/new package and price when inquiry succeeds", async () => {
+    const modifyEnvPlan = vi.fn();
+    const describeBaasPackageList = vi.fn().mockResolvedValue({
+      PackageList: [
+        {
+          BillTags: "baas_pf_standard",
+          PackageName: "baas_pf_standard",
+          PackageTitle: "标准版",
+        },
+      ],
+    });
+    const describeBillingInfo = vi.fn().mockResolvedValue({
+      EnvBillingInfoList: [
+        {
+          EnvId: "env-test",
+          PackageName: "个人版",
+          PackageId: "baas_personal",
+          ExpireTime: "2027-01-01 00:00:00",
+          PayMode: "prepay",
+        },
+      ],
+    });
+    const calculatePackageModifyPrice = vi.fn().mockResolvedValue({
+      RealTotalCost: 50,
+      TotalCost: 80,
+      Refund: 0,
+      Currency: "CNY",
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        modifyEnvPlan,
+        describeBaasPackageList,
+        describeBillingInfo,
+        calculatePackageModifyPrice,
+      },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "modifyPlan",
+          envId: "env-test",
+          packageId: "baas_pf_standard",
+        })
+      ).content[0].text,
+    );
+
+    expect(modifyEnvPlan).not.toHaveBeenCalled();
+    expect(payload.code).toBe("CONFIRM_REQUIRED");
+    expect(payload.message).toContain("当前套餐: 个人版");
+    expect(payload.message).toContain("新套餐: baas_pf_standard（标准版）");
+    expect(payload.message).toContain("￥50");
+    expect(payload.message).toContain("释放方式");
+    // 多段披露：资源释放方式详细说明、文档链接、已知晓
+    expect(payload.message).toContain("资源释放方式");
+    expect(payload.message).toContain("参考文档");
+    expect(payload.message).toContain("我已知晓");
+    expect(payload.current_package).toMatchObject({
+      packageName: "个人版",
+      packageId: "baas_personal",
+    });
+    expect(payload.new_package).toEqual({
+      packageId: "baas_pf_standard",
+      packageTitle: "标准版",
+    });
+    expect(payload.pricing).toMatchObject({
+      realTotalCost: 50,
+      totalCost: 80,
+    });
   });
 
   it("modifyPlan should succeed with confirm=yes", async () => {
@@ -1567,6 +1806,85 @@ describe("manageEnv", () => {
     expect(payload).toMatchObject({
       ok: false,
       code: "CONFIRM_REQUIRED",
+    });
+    // 询价失败降级：仍暴露 inquiryFailed + release_method
+    expect(payload.pricing?.inquiryFailed).toBe(true);
+    expect(payload.release_method?.method).toBe("手动销毁");
+    // 多段披露：资源释放方式、文档链接、已知晓声明
+    expect(payload.message).toContain("资源释放方式");
+    expect(payload.message).toContain("参考文档");
+    expect(payload.message).toContain(
+      "https://cloud.tencent.com/document/product/555/9618",
+    );
+    expect(payload.message).toContain("我已知晓");
+    expect(payload.doc_links?.prepayExpiry).toContain("cloud.tencent.com");
+    expect(payload.confirmation_acknowledgement?.required).toBe(true);
+  });
+
+  it("renew should enrich confirm with current package and price when inquiry succeeds", async () => {
+    const renewEnv = vi.fn();
+    const describeBillingInfo = vi.fn().mockResolvedValue({
+      EnvBillingInfoList: [
+        {
+          EnvId: "env-test",
+          PackageName: "个人版",
+          PackageId: "baas_personal",
+          ExpireTime: "2027-01-01 00:00:00",
+          PayMode: "prepay",
+          IsAutoRenew: false,
+        },
+      ],
+    });
+    const calculatePackageRenewPrice = vi.fn().mockResolvedValue({
+      RealTotalCost: 19.9,
+      TotalCost: 29.9,
+      TimeSpan: 3,
+      TimeUnit: "mon",
+      Currency: "CNY",
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        renewEnv,
+        describeBillingInfo,
+        calculatePackageRenewPrice,
+      },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "renew",
+          envId: "env-test",
+          duration: 3,
+        })
+      ).content[0].text,
+    );
+
+    expect(renewEnv).not.toHaveBeenCalled();
+    expect(payload.code).toBe("CONFIRM_REQUIRED");
+    expect(payload.message).toContain("当前套餐: 个人版");
+    expect(payload.message).toContain("当前到期时间: 2027-01-01 00:00:00");
+    expect(payload.message).toContain("续费时长: 3 个月");
+    expect(payload.message).toContain("￥19.9");
+    expect(payload.message).toContain("释放方式");
+    // 多段披露：资源释放方式、文档链接、已知晓
+    expect(payload.message).toContain("资源释放方式");
+    expect(payload.message).toContain("参考文档");
+    expect(payload.message).toContain("我已知晓");
+    expect(payload.current_package).toMatchObject({
+      packageName: "个人版",
+      expireTime: "2027-01-01 00:00:00",
+      isAutoRenew: false,
+    });
+    expect(payload.pricing).toMatchObject({
+      realTotalCost: 19.9,
+      timeSpan: 3,
+      timeUnit: "mon",
+    });
+    expect(calculatePackageRenewPrice).toHaveBeenCalledWith({
+      envId: "env-test",
+      period: 3,
     });
   });
 

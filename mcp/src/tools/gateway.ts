@@ -26,6 +26,9 @@ const MANAGE_GATEWAY_ACTIONS = [
   "deleteCustomDomain",
 ] as const;
 
+/** DomainType of the environment default HTTP service (gateway) domain. */
+const HTTP_SERVICE_DOMAIN_TYPE = "HTTPSERVICE";
+
 const UPSTREAM_RESOURCE_TYPES = [
   "SCF",
   "WEB_SCF",
@@ -126,21 +129,26 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     }
   };
 
-  const listHttpServiceRoutes = async (domain?: string) => {
+  const listHttpServiceRoutes = async (options?: {
+    domain?: string;
+    domainType?: string;
+  }) => {
+    const filters: Array<{
+      Name: "Domain" | "Path" | "DomainType" | "UpstreamResourceType";
+      Values: string[];
+    }> = [];
+    if (options?.domain) {
+      filters.push({ Name: "Domain", Values: [options.domain] });
+    }
+    if (options?.domainType) {
+      filters.push({ Name: "DomainType", Values: [options.domainType] });
+    }
+
     const cloudbase = await getManager();
     const result = await cloudbase.env.describeHttpServiceRoute({
       EnvId: await resolveEnvId(),
       Limit: 1000,
-      ...(domain
-        ? {
-            Filters: [
-              {
-                Name: "Domain",
-                Values: [domain],
-              },
-            ],
-          }
-        : {}),
+      ...(filters.length ? { Filters: filters } : {}),
     });
     logCloudBaseResult(server.logger, result);
     return result;
@@ -194,22 +202,53 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     };
   };
 
-  const resolveDefaultHttpDomain = async () => {
-    const routeInfo = await listHttpServiceRoutes();
-    const domains = routeInfo.Domains ?? [];
-    const defaultCandidates = domains.filter(
+  const pickUsableDefaultDomain = (
+    domains: Array<{
+      Domain?: string;
+      DomainType?: string;
+      IsDefault?: boolean;
+      Enable?: boolean;
+      Status?: string;
+    }>,
+  ) => {
+    const candidates = domains.filter(
       (item) => item.IsDefault === true && item.Domain,
     );
-    const preferred =
-      defaultCandidates.find(
+    return (
+      candidates.find(
         (item) => item.Enable !== false && item.Status === "SUCCESS",
       ) ??
-      defaultCandidates.find((item) => item.Enable !== false) ??
-      defaultCandidates[0];
+      candidates.find((item) => item.Enable !== false) ??
+      candidates[0]
+    );
+  };
+
+  const resolveDefaultHttpDomain = async () => {
+    // Match console DescribeHTTPServiceRoute usage: filter DomainType=HTTPSERVICE.
+    // Envs often also expose an IsDefault STATIC_STORE domain (*.tcloudbaseapp.com);
+    // that is NOT the default HTTP access entry (*.{region}.app.tcloudbase.com).
+    const httpServiceRoutes = await listHttpServiceRoutes({
+      domainType: HTTP_SERVICE_DOMAIN_TYPE,
+    });
+    // Always re-filter client-side: some SDKs/mocks may ignore Filters.
+    let preferred = pickUsableDefaultDomain(
+      (httpServiceRoutes.Domains ?? []).filter(
+        (item) => item.DomainType === HTTP_SERVICE_DOMAIN_TYPE,
+      ),
+    );
+
+    if (!preferred?.Domain) {
+      const allRoutes = await listHttpServiceRoutes();
+      preferred = pickUsableDefaultDomain(
+        (allRoutes.Domains ?? []).filter(
+          (item) => item.DomainType === HTTP_SERVICE_DOMAIN_TYPE,
+        ),
+      );
+    }
 
     if (!preferred?.Domain) {
       throw new Error(
-        "环境默认 HTTP 访问域名未就绪或未开通。请先在控制台开通 HTTP 访问服务，或用 queryGateway(action=\"listRoutes\") 确认 Domains 中是否存在 IsDefault=true 的域名；也可以显式传入 domain 后重试 createRoute/updateRoute/deleteRoute。",
+        "环境默认 HTTP 访问域名未就绪或未开通。请先在控制台开通 HTTP 访问服务，或用 queryGateway(action=\"listRoutes\") 确认 Domains 中是否存在 DomainType=HTTPSERVICE 且 IsDefault=true 的域名（形如 *.{region}.app.tcloudbase.com）；不要使用静态托管域名（*.tcloudbaseapp.com）。也可以显式传入 domain 后重试 createRoute/updateRoute/deleteRoute。",
       );
     }
 
@@ -370,7 +409,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         );
       }
       case "listRoutes": {
-        const result = await listHttpServiceRoutes(input.domain);
+        const result = await listHttpServiceRoutes({ domain: input.domain });
         const routes = flattenRoutes(result);
 
         return buildEnvelope(
@@ -392,7 +431,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           );
         }
 
-        const result = await listHttpServiceRoutes(input.domain);
+        const result = await listHttpServiceRoutes({ domain: input.domain });
         const normalizedPath = input.path
           ? normalizeAccessPath(input.path)
           : undefined;
@@ -677,7 +716,9 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     {
       title: "管理 CloudBase 网关",
       description:
-        "CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute/deleteRoute 把域名下的 path 转到上游；未传 domain 时用 IsDefault 默认域名。" +
+        "CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute/deleteRoute 把域名下的 path 转到上游；未传 domain 时用 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（形如 *.{region}.app.tcloudbase.com），不会使用静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）。" +
+        "这是网关默认域上的路径路由，不是 STATIC_STORE 上游绑定；STATIC_STORE 上游必须显式传 upstreamResourceType=STATIC_STORE。" +
+        "创建后可用 queryGateway(action=\"listRoutes\") 核对 Domain / DomainType / Path / UpstreamResourceType。" +
         "上游类型只用一个参数 upstreamResourceType（也可写在 route.upstreamResourceType，route 优先）：" +
         "WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，LH=轻量应用服务器；" +
         "配合 targetName 或 route.serviceName（云函数名/云托管服务名/静态托管实例名，常见 staticstore）。" +
@@ -766,7 +807,8 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           .string()
           .optional()
           .describe(
-            "域名。省略时自动使用环境 IsDefault 默认 HTTP 域名。" +
+            "域名。省略时自动使用环境 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（*.{region}.app.tcloudbase.com），不会回退到静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）；也不是 STATIC_STORE 上游绑定。" +
+              "可用 queryGateway(action=\"listRoutes\") 核对实际 Domain / DomainType。" +
               "已有自定义域名时请显式传入该域名并 createRoute/updateRoute/deleteRoute，即可实现自定义域名访问且无需证书 ID；" +
               "仅 bindCustomDomain 时表示要新绑定的域名。",
           ),

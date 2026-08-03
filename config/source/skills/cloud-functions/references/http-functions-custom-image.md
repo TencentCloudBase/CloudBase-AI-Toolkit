@@ -17,6 +17,15 @@ Keep Custom Image HTTP Functions distinct from CloudRun containers — both use 
 
 Do not blend the two contracts.
 
+## CloudBase SDK credential gate
+
+Custom Image changes packaging, not the HTTP Function credential boundary. If the image calls CloudBase resources through `@cloudbase/node-sdk` or `@cloudbase/manager-node`, read `./http-function-credentials.md` before deployment.
+
+- Do not rely on the Event Function passwordless/default temporary credential path.
+- For `@cloudbase/node-sdk`, inject `CLOUDBASE_APIKEY` from a server API Key created through `manageAppAuth(action="createApiKey", keyType="api_key")`, or inject a Tencent Cloud key pair.
+- For `@cloudbase/manager-node`, inject a Tencent Cloud `SecretId` / `SecretKey` pair.
+- Keep credentials out of the Dockerfile, image layers, build arguments, source code, logs, and responses.
+
 ## End-to-end pipeline (6 steps)
 
 The link between the two stages is the TCR image address:

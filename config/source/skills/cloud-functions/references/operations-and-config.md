@@ -54,7 +54,7 @@ callCloudApi({
 
 ### Preferred path
 
-Use Domain/Route via `manageGateway(action="createRoute")`. Omit `domain` to attach the route on the environment default HTTP domain (`IsDefault`).
+Use Domain/Route via `manageGateway(action="createRoute")`. Omit `domain` to attach the route on the HTTP gateway IsDefault domain (`DomainType=HTTPSERVICE`, typically `*.{region}.app.tcloudbase.com`).
 
 ```javascript
 manageGateway({
@@ -65,6 +65,8 @@ manageGateway({
   auth: false
 });
 ```
+
+**IsDefault vs static hosting CDN:** many environments also list an IsDefault `STATIC_STORE` domain (`*.tcloudbaseapp.com`). Omitting `domain` does **not** attach to that static-hosting CDN hostname, and it is **not** a `STATIC_STORE` upstream binding. Confirm with `queryGateway(action="listRoutes")` — inspect `Domain`, `DomainType`, `Path`, and `UpstreamResourceType` on the created route.
 
 Upstream type:
 

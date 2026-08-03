@@ -27,6 +27,17 @@ Read this when the task is about:
 - `scf_bootstrap`
 - browser/public access paths for HTTP Functions
 
+### `./references/http-function-credentials.md`
+
+Read this whenever a managed-runtime or Custom Image HTTP Function calls CloudBase resources through:
+
+- `@cloudbase/node-sdk`
+- `@cloudbase/manager-node`
+- `CLOUDBASE_APIKEY`
+- Tencent Cloud `SecretId` / `SecretKey`
+
+HTTP Functions must use an explicit credential path. The Event Function passwordless runtime path does not apply reliably to HTTP Functions.
+
 ### `./references/http-functions-custom-image.md`
 
 Read this when the task is about:
@@ -66,6 +77,7 @@ When this exception applies:
 
 - Event Function code shape: `exports.main(event, context)`
 - HTTP Function code shape: `req` / `res` web server on port `9000`
+- Event Functions can use the platform-provided runtime credential path; HTTP Functions that call CloudBase SDKs must follow `http-function-credentials.md`
 - HTTP Access for Event Functions is a gateway configuration, not the HTTP Function runtime model
 - CloudRun is the right route when the task is actually a long-lived service or broader container workload
 - Custom Image HTTP Function (`Runtime: CustomImage`) still listens on the fixed port `9000` and is request-driven — distinct from a CloudRun container, which listens on the injected `PORT` and runs long-lived

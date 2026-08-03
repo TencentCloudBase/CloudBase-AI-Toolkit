@@ -36,6 +36,15 @@ describe("rag tools", () => {
     mockCreateCloudBaseManagerWithOptions.mockReset();
   });
 
+  it("registerRagTools should not expose the retired searchWeb tool", async () => {
+    const { server, tools } = createMockServer();
+
+    await registerRagTools(server);
+
+    expect(tools).not.toHaveProperty("searchWeb");
+    expect(tools).toHaveProperty("searchKnowledgeBase");
+  });
+
   it("resolveSkillSearchRoots should prefer local generated and source skill roots before cache", async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "rag-skill-roots-"));
     const repoRoot = path.join(tempRoot, "cloudbase-turbo-delploy.feature-test");
