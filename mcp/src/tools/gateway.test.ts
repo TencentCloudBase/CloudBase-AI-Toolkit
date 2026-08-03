@@ -775,6 +775,21 @@ describe("gateway tools", () => {
     ]);
   });
 
+  it("queryGateway(action=getPrivilege) should report unknown status when API returns missing fields", async () => {
+    mockCommonServiceCall.mockResolvedValue({});
+
+    const result = await tools.queryGateway.handler({
+      action: "getPrivilege",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(payload.data.enableService).toBe(false);
+    expect(payload.data.enableAuth).toBe(false);
+    expect(payload.message).toContain("未知");
+  });
+
   it("queryGateway(action=getPrivilege) should not suggest enable when service is on", async () => {
     mockCommonServiceCall.mockResolvedValue({
       EnableService: true,

@@ -250,7 +250,11 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
 
   const buildPrivilegeDescription = (privilege: GatewayPrivilege) => {
     const serviceStatus =
-      privilege.EnableService === true ? "已开启" : "未开启";
+      privilege.EnableService === undefined
+        ? "未知"
+        : privilege.EnableService === true
+          ? "已开启"
+          : "未开启";
     const authStatus =
       privilege.EnableAuth === undefined
         ? "未知"
