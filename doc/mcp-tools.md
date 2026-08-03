@@ -2397,7 +2397,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
       name: "action",
       type: "string",
       required: true,
-      description: `写操作：createRoute/updateRoute/deleteRoute 管理路由；bindCustomDomain/deleteCustomDomain 管理自定义域名；enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权（需配合 enable 参数）。createRoute/updateRoute 必须提供 upstreamResourceType。已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；bindCustomDomain 仅用于首次绑定新域名（需 certificateId；可选 accessType=DIRECT|CDN|CUSTOM，CUSTOM 需 customCname）。 可填写的值: "createRoute", "updateRoute", "deleteRoute", "bindCustomDomain", "deleteCustomDomain", "enableService", "authSwitch"`,
+      description: `写操作：createRoute/updateRoute/deleteRoute 管理路由；bindCustomDomain/deleteCustomDomain 管理自定义域名；enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权（需配合 enable 参数）。createRoute/updateRoute 必须提供 upstreamResourceType。已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；bindCustomDomain 仅用于首次绑定新域名（需 certificateId；可选 accessType=DIRECT|CDN|CUSTOM，CUSTOM 需 customCname；普通场景用默认 DIRECT）。接入说明：https://docs.cloudbase.net/service/custom-domain 可填写的值: "createRoute", "updateRoute", "deleteRoute", "bindCustomDomain", "deleteCustomDomain", "enableService", "authSwitch"`,
     },
     {
       name: "targetName",
@@ -2467,12 +2467,12 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
     {
       name: "accessType",
       type: "string",
-      description: `绑定类型（仅 bindCustomDomain 使用，默认 DIRECT）：DIRECT=直连（默认），CDN=接入云开发 CDN，CUSTOM=自定义接入（需 customCname）。 可填写的值: "DIRECT", "CDN", "CUSTOM"`,
+      description: `绑定类型（仅 bindCustomDomain，默认 DIRECT）。DIRECT=直连（普通绑域名用这个）；CDN=云开发 CDN；CUSTOM=自有 CDN/WAF（需 customCname）。详见 https://docs.cloudbase.net/service/custom-domain 可填写的值: "DIRECT", "CDN", "CUSTOM"`,
     },
     {
       name: "customCname",
       type: "string",
-      description: `自定义 CNAME（仅 bindCustomDomain 且 accessType=CUSTOM 时可用）。accessType 非 CUSTOM 时传此参数会报错。`,
+      description: `自有 CDN/WAF 的回源/回填地址（仅 bindCustomDomain 且 accessType=CUSTOM）。不是 DNS 里用户域名要解析到的那个 CNAME；DIRECT/CDN 不要传。详见 https://docs.cloudbase.net/service/custom-domain`,
     },
     {
       name: "enable",
