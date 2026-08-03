@@ -330,33 +330,6 @@ function buildLocalMigrationFileHint(version: string, name: string): string {
   return `migrations/${version}_${name}.sql`;
 }
 
-/** How many recent migration records to scan when verifying a freshly pushed version. */
-const MIGRATION_VERIFY_LIMIT = 100;
-
-/**
- * Collect every migration version mentioned anywhere in a migration-list API response.
- * The response shape is not strongly typed, so walk it generically and pick up any
- * `Version` / `MigrationVersion` string field instead of guessing a single container key.
- */
-function collectMigrationVersions(value: unknown, found: Set<string> = new Set()): Set<string> {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      collectMigrationVersions(item, found);
-    }
-    return found;
-  }
-  if (value && typeof value === "object") {
-    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-      if ((key === "Version" || key === "MigrationVersion") && typeof child === "string" && child.trim()) {
-        found.add(child.trim());
-      } else {
-        collectMigrationVersions(child, found);
-      }
-    }
-  }
-  return found;
-}
-
 /** Brief retries before concluding a pushed migration never landed (Push can be async). */
 const MIGRATION_VERIFY_ATTEMPTS = 4;
 const MIGRATION_VERIFY_DELAY_MS = 1500;
@@ -407,14 +380,12 @@ async function verifyMigrationApplied(
   let sawSuccessfulList = false;
   for (let attempt = 1; attempt <= MIGRATION_VERIFY_ATTEMPTS; attempt++) {
     try {
-      const history = await callPgMigrationApi(
-        context,
-        "ListPGUserMigrations",
-        { Limit: MIGRATION_VERIFY_LIMIT },
-        cloudBaseOptions,
-      );
+      // Scan the *whole* history, not just the first page: once a project has more
+      // than one page of migrations, a single unpaginated list can omit the version
+      // that was actually applied and produce a false MIGRATION_NOT_APPLIED.
+      const { summaries } = await listAllRemoteMigrationSummaries(context, cloudBaseOptions);
       sawSuccessfulList = true;
-      if (collectMigrationVersions(history).has(version)) {
+      if (summaries.some((summary) => summary.Version === version)) {
         return { applied: true };
       }
     } catch (error) {
@@ -534,6 +505,10 @@ async function buildMigrationsPayloadWithRemoteHistory(
   }
 
   migrations.push(pending);
+  // A migration plan is ordered by version. ListPGUserMigrations does not guarantee
+  // ascending order (LatestVersion-first responses are common), and an out-of-order
+  // plan is rejected as non-executable, so sort before submitting.
+  migrations.sort((a, b) => a.Version.localeCompare(b.Version));
   return { migrations, remoteCount: summaries.length, latestVersion };
 }
 

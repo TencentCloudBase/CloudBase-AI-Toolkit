@@ -1724,6 +1724,92 @@ describe("PG database tools", () => {
         expect(commonServiceCall).not.toHaveBeenCalled();
       });
 
+      it("applyMigration verifies across every history page (no false MIGRATION_NOT_APPLIED)", async () => {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        const { nativeDb } = setupNativeMigrationMock();
+
+        // 100 remote migrations fill page 1 exactly; the applied version only ever
+        // appears on page 2, so a single unpaginated list would miss it.
+        const remote = Array.from({ length: 100 }, (_, i) => ({
+          Version: `202607010000${String(i).padStart(2, "0")}`,
+          Name: `m${i}`,
+        }));
+
+        nativeDb.listPGUserMigrations.mockImplementation(async (options: { Offset?: number }) => {
+          const pushed = nativeDb.pushPGUserMigrations.mock.calls.length > 0;
+          const page2 = pushed ? [{ Version: "20260720160000", Name: "create_test_table" }] : [];
+          return {
+            RequestId: "req-list",
+            Migrations: (options.Offset ?? 0) === 0 ? remote : page2,
+            Total: remote.length + page2.length,
+            LatestVersion: pushed ? "20260720160000" : remote[99].Version,
+          };
+        });
+        nativeDb.describePGUserMigration.mockImplementation(async (o: { MigrationVersion: string }) => ({
+          Version: o.MigrationVersion,
+          Name: "m",
+          Query: "SELECT 1",
+        }));
+        nativeDb.previewPGUserMigrations.mockResolvedValue({ Conflicts: [], Executable: true });
+        nativeDb.pushPGUserMigrations.mockResolvedValue({ TaskId: "task-1" });
+        nativeDb.describeTaskResult.mockResolvedValue({ TaskId: "task-1", Status: "Succeed" });
+
+        const payload = buildToolPayload(
+          await tools.managePgDatabase.handler({
+            action: "applyMigration",
+            migrationName: "create_test_table",
+            migrationVersion: "20260720160000",
+            sql: "CREATE TABLE public.test(id int)",
+            confirm: true,
+          }),
+        );
+
+        expect(payload).toMatchObject({ success: true, data: { verified: true } });
+      });
+
+      it("applyMigration submits the hydrated plan in ascending version order", async () => {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        const { nativeDb } = setupNativeMigrationMock();
+
+        // Newest-first response, as ListPGUserMigrations may legitimately return.
+        nativeDb.listPGUserMigrations.mockResolvedValue({
+          RequestId: "req-list",
+          Migrations: [
+            { Version: "20260710000000", Name: "second" },
+            { Version: "20260701000000", Name: "first" },
+          ],
+          Total: 2,
+          LatestVersion: "20260710000000",
+        });
+        nativeDb.describePGUserMigration.mockImplementation(async (o: { MigrationVersion: string }) => ({
+          Version: o.MigrationVersion,
+          Name: "m",
+          Query: "SELECT 1",
+        }));
+        nativeDb.previewPGUserMigrations.mockResolvedValue({ Conflicts: [], Executable: true });
+        nativeDb.pushPGUserMigrations.mockResolvedValue({ TaskId: "task-1" });
+        nativeDb.describeTaskResult.mockResolvedValue({ TaskId: "task-1", Status: "Succeed" });
+
+        await tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "create_test_table",
+          migrationVersion: "20260720160000",
+          sql: "CREATE TABLE public.test(id int)",
+          confirm: true,
+        });
+
+        const pushed = nativeDb.pushPGUserMigrations.mock.calls[0][0] as {
+          Migrations: Array<{ Version: string }>;
+        };
+        expect(pushed.Migrations.map((m) => m.Version)).toEqual([
+          "20260701000000",
+          "20260710000000",
+          "20260720160000",
+        ]);
+      });
+
       it("repairMigration prefers native repairPGUserMigrationHistory", async () => {
         const { server, tools } = createMockServer();
         registerPGDatabaseTools(server, { createClient: vi.fn() });
