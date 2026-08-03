@@ -361,6 +361,34 @@ function collectMigrationVersions(value: unknown, found: Set<string> = new Set()
 const MIGRATION_VERIFY_ATTEMPTS = 4;
 const MIGRATION_VERIFY_DELAY_MS = 1500;
 
+/** Page size when hydrating remote migration history into a Push/Preview payload. */
+const MIGRATION_LIST_PAGE_SIZE = 100;
+
+/**
+ * PushPGUserMigrations is async: poll DescribeTaskResult until Succeed/Failed.
+ * Aligns with CLI `tcb db pg migration up` and Manager SDK docs.
+ */
+const MIGRATION_TASK_POLL_INTERVAL_MS = 1500;
+const MIGRATION_TASK_MAX_WAIT_MS = 90_000;
+
+type PgMigrationInput = {
+  Version: string;
+  Name: string;
+  Query: string;
+  Rollback?: string;
+};
+
+type PgMigrationTaskResult = {
+  TaskId?: string;
+  TaskType?: string;
+  Status?: string;
+  Phase?: string;
+  Reason?: string;
+  RequestId?: string;
+  CreatedAt?: string;
+  UpdatedAt?: string;
+};
+
 /**
  * Confirm a pushed migration version is present in the remote migration history.
  *
@@ -401,6 +429,143 @@ async function verifyMigrationApplied(
     return { applied: false };
   }
   return { applied: null, error: lastError };
+}
+
+function extractMigrationSummaries(history: Record<string, unknown>): Array<{ Version: string; Name: string }> {
+  const raw = history.Migrations;
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const summaries: Array<{ Version: string; Name: string }> = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const row = item as Record<string, unknown>;
+    const version = typeof row.Version === "string" ? row.Version.trim() : "";
+    const name = typeof row.Name === "string" ? row.Name.trim() : "";
+    if (version) {
+      summaries.push({ Version: version, Name: name || version });
+    }
+  }
+  return summaries;
+}
+
+/**
+ * List every remote migration summary (paginated). Required before Push/Preview:
+ * submitting only the pending migration while remote history exists yields
+ * Executable=false with Conflicts reason remote_history_not_found_locally, and the
+ * async task fails with "migration plan is not executable".
+ */
+async function listAllRemoteMigrationSummaries(
+  context: PgDbContext,
+  cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
+): Promise<{ summaries: Array<{ Version: string; Name: string }>; latestVersion: string; total: number }> {
+  const summaries: Array<{ Version: string; Name: string }> = [];
+  let offset = 0;
+  let latestVersion = "";
+  let total = 0;
+
+  while (true) {
+    const page = await callPgMigrationApi(
+      context,
+      "ListPGUserMigrations",
+      { Limit: MIGRATION_LIST_PAGE_SIZE, Offset: offset },
+      cloudBaseOptions,
+    );
+    const pageItems = extractMigrationSummaries(page);
+    summaries.push(...pageItems);
+    if (typeof page.LatestVersion === "string" && page.LatestVersion.trim()) {
+      latestVersion = page.LatestVersion.trim();
+    }
+    if (typeof page.Total === "number" && Number.isFinite(page.Total)) {
+      total = page.Total;
+    } else {
+      total = summaries.length;
+    }
+    if (pageItems.length < MIGRATION_LIST_PAGE_SIZE) {
+      break;
+    }
+    offset += MIGRATION_LIST_PAGE_SIZE;
+  }
+
+  return { summaries, latestVersion, total };
+}
+
+/**
+ * Build Push/Preview Migrations = remote history Queries + the pending migration.
+ * Matches CLI behavior (submit full set; server skips already-applied versions).
+ */
+async function buildMigrationsPayloadWithRemoteHistory(
+  context: PgDbContext,
+  pending: PgMigrationInput,
+  cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
+): Promise<{
+  migrations: PgMigrationInput[];
+  remoteCount: number;
+  latestVersion: string;
+}> {
+  const { summaries, latestVersion } = await listAllRemoteMigrationSummaries(context, cloudBaseOptions);
+  const migrations: PgMigrationInput[] = [];
+
+  for (const summary of summaries) {
+    if (summary.Version === pending.Version) {
+      // Caller supplies the authoritative SQL for this version.
+      continue;
+    }
+    const detail = await callPgMigrationApi(
+      context,
+      "DescribePGUserMigration",
+      { MigrationVersion: summary.Version },
+      cloudBaseOptions,
+    );
+    const query = typeof detail.Query === "string" ? detail.Query : "";
+    if (!query.trim()) {
+      throw new Error(
+        `DescribePGUserMigration returned empty Query for version=${summary.Version} (${summary.Name}). ` +
+          "Cannot hydrate remote history for PushPGUserMigrations.",
+      );
+    }
+    migrations.push({
+      Version: typeof detail.Version === "string" && detail.Version.trim() ? detail.Version.trim() : summary.Version,
+      Name: typeof detail.Name === "string" && detail.Name.trim() ? detail.Name.trim() : summary.Name,
+      Query: query,
+    });
+  }
+
+  migrations.push(pending);
+  return { migrations, remoteCount: summaries.length, latestVersion };
+}
+
+async function waitPgMigrationTask(
+  context: PgDbContext,
+  taskId: string,
+  cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
+): Promise<PgMigrationTaskResult> {
+  const deadline = Date.now() + MIGRATION_TASK_MAX_WAIT_MS;
+  let last: PgMigrationTaskResult = { TaskId: taskId };
+
+  while (Date.now() <= deadline) {
+    last = (await callPgMigrationApi(
+      context,
+      "DescribeTaskResult",
+      { TaskId: taskId },
+      cloudBaseOptions,
+    )) as PgMigrationTaskResult;
+
+    const status = String(last.Status || "").toLowerCase();
+    if (status === "succeed" || status === "failed") {
+      return last;
+    }
+    await sleep(MIGRATION_TASK_POLL_INTERVAL_MS);
+  }
+
+  const error = new Error(
+    `DescribeTaskResult timed out after ${Math.floor(MIGRATION_TASK_MAX_WAIT_MS / 1000)}s ` +
+      `for TaskId=${taskId} (last Status=${last.Status || "-"}, Phase=${last.Phase || "-"}).`,
+  );
+  (error as Error & { lastTask?: PgMigrationTaskResult }).lastTask = last;
+  throw error;
 }
 
 const MIGRATION_VERSION_REQUIRED_MESSAGE =
@@ -1515,33 +1680,46 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgDbCont
   const version = versionOrError;
   const localFileHint = buildLocalMigrationFileHint(version, args.migrationName);
 
-  const migration: Record<string, string> = {
+  const pending: PgMigrationInput = {
     Version: version,
     Name: args.migrationName,
     Query: args.sql,
   };
   if (args.rollbackSql?.trim()) {
-    migration.Rollback = args.rollbackSql;
+    pending.Rollback = args.rollbackSql;
   }
 
   try {
+    const hydrated = await buildMigrationsPayloadWithRemoteHistory(
+      context,
+      pending,
+      cloudBaseOptions,
+    );
     const result = await callPgMigrationApi(context, "PreviewPGUserMigrations", {
-      Migrations: [migration],
+      Migrations: hydrated.migrations,
     }, cloudBaseOptions);
+    const executable = result.Executable === true;
     return buildPgToolResult({
       success: true,
       data: {
         migrationVersion: version,
         migrationName: args.migrationName,
         localFileHint,
+        hydratedRemoteCount: hydrated.remoteCount,
+        latestRemoteVersion: hydrated.latestVersion || null,
+        executable,
         apiResult: result as Record<string, unknown>,
       },
-      message: `Migration plan generated via PreviewPGUserMigrations. Reuse migrationVersion=${version} on applyMigration. Ensure local file ${localFileHint} exists and matches.`,
+      message: executable
+        ? `Migration plan generated via PreviewPGUserMigrations (hydrated ${hydrated.remoteCount} remote migration(s)). Reuse migrationVersion=${version} on applyMigration. Ensure local file ${localFileHint} exists and matches.`
+        : `Migration plan is NOT executable (PreviewPGUserMigrations.Executable=false after hydrating ${hydrated.remoteCount} remote migration(s)). Inspect apiResult.Conflicts before applyMigration. Common causes: version older than latest remote (${hydrated.latestVersion || "unknown"}), or checksum mismatch.`,
       nextActions: [
         buildNextAction(
           MANAGE_PG_DATABASE,
           "applyMigration",
-          "Review the plan above. If it looks correct, call applyMigration with the same migrationVersion.",
+          executable
+            ? "Review the plan above. If it looks correct, call applyMigration with the same migrationVersion."
+            : "Resolve Conflicts (often pick a migrationVersion newer than LatestVersion), then retry planMigration/applyMigration.",
           {
             action: "applyMigration",
             migrationName: args.migrationName,
@@ -1594,29 +1772,162 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
   const version = versionOrError;
   const localFileHint = buildLocalMigrationFileHint(version, args.migrationName);
 
-  const migration: Record<string, string> = {
+  const pending: PgMigrationInput = {
     Version: version,
     Name: args.migrationName,
     Query: args.sql,
   };
   if (args.rollbackSql?.trim()) {
-    migration.Rollback = args.rollbackSql;
-  }
-
-  const params: Record<string, unknown> = { Migrations: [migration] };
-  if (args.lockTimeoutMs !== undefined) {
-    params.LockTimeoutMs = args.lockTimeoutMs;
-  }
-  if (args.statementTimeoutMs !== undefined) {
-    params.StatementTimeoutMs = args.statementTimeoutMs;
+    pending.Rollback = args.rollbackSql;
   }
 
   try {
-    const result = await callPgMigrationApi(context, "PushPGUserMigrations", params, cloudBaseOptions);
+    // Pushing only the pending migration while remote history exists makes the plan
+    // non-executable (remote_history_not_found_locally). Hydrate remote Queries first,
+    // matching CLI `tcb db pg migration up` (full list; server skips applied).
+    const hydrated = await buildMigrationsPayloadWithRemoteHistory(
+      context,
+      pending,
+      cloudBaseOptions,
+    );
 
-    // PushPGUserMigrations may return a TaskId without the migration having taken
-    // effect. Confirm against the remote history before reporting success, so callers
-    // never get a false-positive success for a silently dropped migration.
+    const preview = await callPgMigrationApi(
+      context,
+      "PreviewPGUserMigrations",
+      { Migrations: hydrated.migrations },
+      cloudBaseOptions,
+    );
+
+    if (preview.Executable !== true) {
+      return buildPgToolResult({
+        success: false,
+        errorCode: "MIGRATION_NOT_EXECUTABLE",
+        data: {
+          migrationVersion: version,
+          migrationName: args.migrationName,
+          localFileHint,
+          hydratedRemoteCount: hydrated.remoteCount,
+          latestRemoteVersion: hydrated.latestVersion || null,
+          previewResult: preview as Record<string, unknown>,
+          verified: false,
+        },
+        message:
+          `PreviewPGUserMigrations reported Executable=false for migrationVersion=${version} ` +
+          `(latest remote=${hydrated.latestVersion || "unknown"}, hydratedRemoteCount=${hydrated.remoteCount}). ` +
+          "Push was NOT submitted. Inspect previewResult.Conflicts — common reasons: " +
+          "local_migration_before_latest_remote (pick a newer 14-digit version) or checksum_mismatch. " +
+          "If the schema change is urgent you may fall back to action=execute with allowDdlViaExecute=true, but that bypasses migration history.",
+        nextActions: [
+          buildNextAction(
+            MANAGE_PG_DATABASE,
+            "listMigrations",
+            "Check LatestVersion and pick a migrationVersion strictly newer than it.",
+            { action: "listMigrations", limit: 20 },
+          ),
+          buildNextAction(
+            MANAGE_PG_DATABASE,
+            "planMigration",
+            "Re-run planMigration after adjusting migrationVersion/SQL.",
+            {
+              action: "planMigration",
+              migrationName: args.migrationName,
+              migrationVersion: version,
+              sql: args.sql,
+              ...(args.rollbackSql ? { rollbackSql: args.rollbackSql } : {}),
+            },
+          ),
+        ],
+      });
+    }
+
+    const params: Record<string, unknown> = { Migrations: hydrated.migrations };
+    if (args.lockTimeoutMs !== undefined) {
+      params.LockTimeoutMs = args.lockTimeoutMs;
+    }
+    if (args.statementTimeoutMs !== undefined) {
+      params.StatementTimeoutMs = args.statementTimeoutMs;
+    }
+
+    const result = await callPgMigrationApi(context, "PushPGUserMigrations", params, cloudBaseOptions);
+    const taskId = typeof result.TaskId === "string" ? result.TaskId.trim() : "";
+
+    let taskResult: PgMigrationTaskResult | null = null;
+    if (taskId) {
+      try {
+        taskResult = await waitPgMigrationTask(context, taskId, cloudBaseOptions);
+      } catch (error) {
+        const lastTask = (error as Error & { lastTask?: PgMigrationTaskResult }).lastTask;
+        return buildPgToolResult({
+          success: false,
+          errorCode: "MIGRATION_TASK_TIMEOUT",
+          data: {
+            migrationVersion: version,
+            migrationName: args.migrationName,
+            localFileHint,
+            hydratedRemoteCount: hydrated.remoteCount,
+            apiResult: result as Record<string, unknown>,
+            taskResult: lastTask ?? { TaskId: taskId },
+            verified: null,
+          },
+          message:
+            `PushPGUserMigrations returned TaskId=${taskId}, but waiting for DescribeTaskResult timed out: ` +
+            `${error instanceof Error ? error.message : String(error)}. ` +
+            "The migration may still be running — check action=listMigrations before retrying or falling back to execute.",
+          nextActions: [
+            buildNextAction(
+              MANAGE_PG_DATABASE,
+              "listMigrations",
+              "Check whether the migrationVersion eventually landed.",
+              { action: "listMigrations", limit: 20 },
+            ),
+          ],
+        });
+      }
+
+      const status = String(taskResult.Status || "").toLowerCase();
+      if (status === "failed") {
+        return buildPgToolResult({
+          success: false,
+          errorCode: "MIGRATION_TASK_FAILED",
+          data: {
+            migrationVersion: version,
+            migrationName: args.migrationName,
+            localFileHint,
+            hydratedRemoteCount: hydrated.remoteCount,
+            apiResult: result as Record<string, unknown>,
+            taskResult: taskResult as Record<string, unknown>,
+            verified: false,
+          },
+          message:
+            `PushPGUserMigrations TaskId=${taskId} failed at phase=${taskResult.Phase || "-"}: ` +
+            `${taskResult.Reason || "unknown reason"}. ` +
+            "The migration did NOT take effect. Fix Conflicts/SQL (or use a newer migrationVersion), then retry applyMigration. " +
+            "Urgent bypass: action=execute with allowDdlViaExecute=true (skips migration history).",
+          nextActions: [
+            buildNextAction(
+              MANAGE_PG_DATABASE,
+              "planMigration",
+              "Preview again to inspect Conflicts before retrying apply.",
+              {
+                action: "planMigration",
+                migrationName: args.migrationName,
+                migrationVersion: version,
+                sql: args.sql,
+                ...(args.rollbackSql ? { rollbackSql: args.rollbackSql } : {}),
+              },
+            ),
+            buildNextAction(
+              MANAGE_PG_DATABASE,
+              "listMigrations",
+              "Confirm the version is still absent from remote history.",
+              { action: "listMigrations", limit: 20 },
+            ),
+          ],
+        });
+      }
+    }
+
+    // Task Succeed (or sync response without TaskId): confirm history records the version.
     const verification = await verifyMigrationApplied(context, version, cloudBaseOptions);
 
     if (verification.applied === false) {
@@ -1627,11 +1938,13 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
           migrationVersion: version,
           migrationName: args.migrationName,
           localFileHint,
+          hydratedRemoteCount: hydrated.remoteCount,
           apiResult: result as Record<string, unknown>,
+          taskResult: taskResult as Record<string, unknown> | null,
           verified: false,
         },
         message:
-          `PushPGUserMigrations returned without error, but migrationVersion=${version} is not present in the remote migration history, ` +
+          `PushPGUserMigrations completed (TaskId=${taskId || "none"}), but migrationVersion=${version} is not present in the remote migration history, ` +
           "so the migration did NOT take effect. Do not assume the schema change is applied. " +
           "Re-check the SQL and migrationVersion, inspect the migration with action=migrationDetail, and retry action=applyMigration. " +
           "If the schema change is urgent you may fall back to action=execute with allowDdlViaExecute=true, but that bypasses migration history.",
@@ -1660,7 +1973,9 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
           migrationVersion: version,
           migrationName: args.migrationName,
           localFileHint,
+          hydratedRemoteCount: hydrated.remoteCount,
           apiResult: result as Record<string, unknown>,
+          taskResult: taskResult as Record<string, unknown> | null,
           verified: null,
         },
         message:
@@ -1683,10 +1998,12 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
         migrationVersion: version,
         migrationName: args.migrationName,
         localFileHint,
+        hydratedRemoteCount: hydrated.remoteCount,
         apiResult: result as Record<string, unknown>,
+        taskResult: taskResult as Record<string, unknown> | null,
         verified: true,
       },
-      message: `Migrations applied via PushPGUserMigrations and verified present in the remote migration history. Ensure local file ${localFileHint} exists and matches.`,
+      message: `Migrations applied via PushPGUserMigrations (hydrated ${hydrated.remoteCount} remote migration(s)), task ${taskId ? `TaskId=${taskId} ` : ""}verified present in the remote migration history. Ensure local file ${localFileHint} exists and matches.`,
     });
   } catch (error) {
     return buildPgToolResult({
