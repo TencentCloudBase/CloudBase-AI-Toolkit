@@ -210,6 +210,25 @@ function buildLoginConfigNextStep(loginMethods: ReturnType<typeof buildLoginMeth
   };
 }
 
+/**
+ * 短信验证码默认通道提示：开启 phone 登录后即可用云开发默认短信通道收发验证码，
+ * 不需要配置短信签名/模板/自定义 Provider。仅当需要自定义模板、签名或更换短信服务商时，
+ * 才需要配置 SmsVerificationConfig / 自定义短信通道。
+ */
+function buildSmsHint(loginMethods: ReturnType<typeof buildLoginMethods>) {
+  if (!loginMethods.phone) {
+    return undefined;
+  }
+
+  return {
+    defaultChannelReady: true,
+    message:
+      "短信验证码登录已开启，可直接使用云开发默认短信通道收发验证码，无需配置短信签名/模板/自定义 Provider。" +
+      "前端调用 auth.getVerification({ phone_number }) 发送验证码、auth.signInWithSms({ verificationInfo, verificationCode, phoneNum }) 登录。" +
+      "仅当需要自定义短信模板/签名或更换短信服务商时，才需要配置 SmsVerificationConfig 或接入自定义短信通道。",
+  };
+}
+
 function extractProviders(value: unknown): Array<Record<string, unknown>> {
   const payload = normalizePlainObject(value, "providersResult");
   const providers = payload?.Providers ?? payload?.ProviderList ?? payload?.Data ?? [];
@@ -450,12 +469,14 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
             const loginMethods = buildLoginMethods(result);
             const nextStep = buildLoginConfigNextStep(loginMethods);
             const webSdkHint = buildWebSdkHint(loginMethods);
+            const smsHint = buildSmsHint(loginMethods);
             return buildSupabaseLikeAuthResponse({
               success: true,
               envId,
               loginMethods,
               ...(nextStep ? { next_step: nextStep } : {}),
               ...(webSdkHint ? { webSdkHint } : {}),
+              ...(smsHint ? { smsHint } : {}),
             });
           }
           case "listProviders": {
@@ -543,7 +564,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
     {
       title: "管理 CloudBase 应用认证配置",
       description:
-        "CloudBase 应用侧认证配置写入口。用于修改登录方式、provider、client 配置，确保 publishable key，以及创建或删除 API key、自定义登录密钥。⚠️ 本工具为管理端配置工具，不执行用户登录。当任务要求编写客户端登录代码时（例如「用 JS SDK 登录」），应先通过本工具完成配置（如启用 usernamePassword、获取 publishable key），再在项目代码中编写 @cloudbase/js-sdk 客户端登录代码（如 auth.signInWithPassword()），而非使用本工具完成登录。若前端要接受普通用户名样式标识符，应先执行 action=patchLoginStrategy 并传入 patch={ usernamePassword: true }，再实现对应前端登录逻辑。⚠️ action=createApiKey 返回体中的 created 字段表示是否真正新建：created=false 说明复用了环境中已存在的 key，此时 keyName/expireIn 入参不会生效，返回的 keyName/expireAt 均为服务端真实值，并会附带 warnings，切勿把它当作临时凭证分发。",
+        "CloudBase 应用侧认证配置写入口。用于修改登录方式、provider、client 配置，确保 publishable key，以及创建或删除 API key、自定义登录密钥。⚠️ 本工具为管理端配置工具，不执行用户登录。当任务要求编写客户端登录代码时（例如「用 JS SDK 登录」），应先通过本工具完成配置（如启用 usernamePassword、获取 publishable key），再在项目代码中编写 @cloudbase/js-sdk 客户端登录代码（如 auth.signInWithPassword()），而非使用本工具完成登录。若前端要接受普通用户名样式标识符，应先执行 action=patchLoginStrategy 并传入 patch={ usernamePassword: true }，再实现对应前端登录逻辑。⚠️ 短信验证码登录（patch={ phone: true }）使用云开发默认短信通道，开启后即可收发验证码，不需要配置短信签名/模板/自定义 Provider；仅当需要自定义模板/签名或更换短信服务商时才需配置 SmsVerificationConfig 或自定义短信通道。⚠️ action=createApiKey 返回体中的 created 字段表示是否真正新建：created=false 说明复用了环境中已存在的 key，此时 keyName/expireIn 入参不会生效，返回的 keyName/expireAt 均为服务端真实值，并会附带 warnings，切勿把它当作临时凭证分发。",
       inputSchema: {
         action: z.enum(MANAGE_APP_AUTH_ACTIONS),
         patch: z
@@ -642,12 +663,14 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
             const loginMethods = buildLoginMethods(confirmed);
             const nextStep = buildLoginConfigNextStep(loginMethods);
             const webSdkHint = buildWebSdkHint(loginMethods);
+            const smsHint = buildSmsHint(loginMethods);
             return buildSupabaseLikeAuthResponse({
               success: true,
               envId,
               loginMethods,
               ...(nextStep ? { next_step: nextStep } : {}),
               ...(webSdkHint ? { webSdkHint } : {}),
+              ...(smsHint ? { smsHint } : {}),
             });
           }
           case "addProvider": {

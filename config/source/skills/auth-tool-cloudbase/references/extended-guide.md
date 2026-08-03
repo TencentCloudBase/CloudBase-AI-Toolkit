@@ -122,7 +122,9 @@ Preferred MCP tool path: `manageAppAuth(action="patchLoginStrategy")`
 
 Use `patch.phone = true/false` for the login method itself.
 
-If SMS provider behavior also needs to change, keep using provider-side or raw API configuration for the extra fields such as `SmsVerificationConfig`.
+**Default SMS channel is ready out of the box.** After `patch.phone = true`, the CloudBase default SMS channel sends and receives verification codes without any extra setup — no SMS signature, template, or custom provider configuration is required. Frontend flow: `auth.getVerification({ phone_number })` to send the code, then `auth.signInWithSms({ verificationInfo, verificationCode, phoneNum })` to sign in. Note: SMS login is only supported in the `ap-shanghai` region, and phone numbers must include a country code (e.g. `+86 13800000000`).
+
+Only when you need custom SMS templates, custom signatures, or a different SMS vendor should you configure a custom SMS channel (or raw API fields such as `SmsVerificationConfig`). Do not block SMS login on provider/signature setup — the default channel already works.
 
 Short MCP example:
 

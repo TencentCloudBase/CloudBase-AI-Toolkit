@@ -336,6 +336,45 @@ describe("app auth tools", () => {
     });
   });
 
+  it("queryAppAuth(action=getLoginConfig) should return smsHint when phone login is on", async () => {
+    mockGetLoginConfig.mockResolvedValueOnce({
+      AnonymousLogin: false,
+      UserNameLogin: true,
+      PhoneNumberLogin: true,
+      EmailLogin: false,
+    });
+
+    const result = await tools.queryAppAuth.handler({ action: "getLoginConfig" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: true,
+      loginMethods: {
+        phone: true,
+      },
+      smsHint: {
+        defaultChannelReady: true,
+      },
+    });
+    expect(payload.smsHint.message).toContain("无需配置短信签名");
+    expect(payload.smsHint.message).toContain("auth.getVerification");
+  });
+
+  it("queryAppAuth(action=getLoginConfig) should omit smsHint when phone login is off", async () => {
+    mockGetLoginConfig.mockResolvedValueOnce({
+      AnonymousLogin: false,
+      UserNameLogin: true,
+      PhoneNumberLogin: false,
+      EmailLogin: false,
+    });
+
+    const result = await tools.queryAppAuth.handler({ action: "getLoginConfig" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(payload.smsHint).toBeUndefined();
+  });
+
   it("queryAppAuth should return a short error when no active environment is selected", async () => {
     mockGetEnvId.mockRejectedValueOnce({
       name: "ToolPayloadError",
