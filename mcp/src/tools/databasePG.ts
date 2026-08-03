@@ -357,33 +357,50 @@ function collectMigrationVersions(value: unknown, found: Set<string> = new Set()
   return found;
 }
 
+/** Brief retries before concluding a pushed migration never landed (Push can be async). */
+const MIGRATION_VERIFY_ATTEMPTS = 4;
+const MIGRATION_VERIFY_DELAY_MS = 1500;
+
 /**
  * Confirm a pushed migration version is present in the remote migration history.
  *
  * `PushPGUserMigrations` can return a TaskId without the migration actually being
- * applied, so the raw API response is not sufficient evidence of success. Returns
- * `true`/`false` when the history could be read, or `null` when verification itself
- * failed (in which case the caller must not claim the migration is applied).
+ * applied, so the raw API response is not sufficient evidence of success. Retries
+ * briefly to tolerate async application, then returns `true`/`false` when the
+ * history could be read, or `null` when verification itself failed (in which case
+ * the caller must not claim the migration is applied).
  */
 async function verifyMigrationApplied(
   context: PgDbContext,
   version: string,
   cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
 ): Promise<{ applied: boolean | null; error?: string }> {
-  try {
-    const history = await callPgMigrationApi(
-      context,
-      "ListPGUserMigrations",
-      { Limit: MIGRATION_VERIFY_LIMIT },
-      cloudBaseOptions,
-    );
-    return { applied: collectMigrationVersions(history).has(version) };
-  } catch (error) {
-    return {
-      applied: null,
-      error: error instanceof Error ? error.message : String(error),
-    };
+  let lastError: string | undefined;
+  let sawSuccessfulList = false;
+  for (let attempt = 1; attempt <= MIGRATION_VERIFY_ATTEMPTS; attempt++) {
+    try {
+      const history = await callPgMigrationApi(
+        context,
+        "ListPGUserMigrations",
+        { Limit: MIGRATION_VERIFY_LIMIT },
+        cloudBaseOptions,
+      );
+      sawSuccessfulList = true;
+      if (collectMigrationVersions(history).has(version)) {
+        return { applied: true };
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+      // Keep retrying: a transient list failure should not immediately fail verification.
+    }
+    if (attempt < MIGRATION_VERIFY_ATTEMPTS) {
+      await sleep(MIGRATION_VERIFY_DELAY_MS);
+    }
   }
+  if (sawSuccessfulList) {
+    return { applied: false };
+  }
+  return { applied: null, error: lastError };
 }
 
 const MIGRATION_VERSION_REQUIRED_MESSAGE =

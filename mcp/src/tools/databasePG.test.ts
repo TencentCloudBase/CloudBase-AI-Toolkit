@@ -1000,65 +1000,75 @@ describe("PG database tools", () => {
     });
 
     it("applyMigration fails when the version is missing from remote migration history", async () => {
-      const { server, tools } = createMockServer();
-      registerPGDatabaseTools(server, { createClient: vi.fn() });
-      setupMigrationMock();
-      // Push reports success with a TaskId, but the history never records the version.
-      mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) =>
-        Action === "PushPGUserMigrations"
-          ? { RequestId: "req-apply", TaskId: "task-f5966fd0" }
-          : {
-              RequestId: "req-list",
-              Migrations: [{ Version: "20260801200000", Name: "older_migration" }],
-            },
-      );
+      vi.useFakeTimers();
+      try {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        setupMigrationMock();
+        // Push reports success with a TaskId, but the history never records the version.
+        mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) =>
+          Action === "PushPGUserMigrations"
+            ? { RequestId: "req-apply", TaskId: "task-f5966fd0" }
+            : {
+                RequestId: "req-list",
+                Migrations: [{ Version: "20260801200000", Name: "older_migration" }],
+              },
+        );
 
-      const payload = buildToolPayload(
-        await tools.managePgDatabase.handler({
+        const pending = tools.managePgDatabase.handler({
           action: "applyMigration",
           migrationName: "mcptest0802_tmp",
           migrationVersion: "20260802200900",
           sql: "CREATE TABLE mcptest0802 (id serial primary key, name text)",
           confirm: true,
-        }),
-      );
+        });
+        await vi.runAllTimersAsync();
+        const payload = buildToolPayload(await pending);
 
-      expect(payload).toMatchObject({
-        success: false,
-        errorCode: "MIGRATION_NOT_APPLIED",
-        data: { migrationVersion: "20260802200900", verified: false },
-      });
-      expect(mockCommonServiceCall).toHaveBeenCalledWith(
-        expect.objectContaining({ Action: "ListPGUserMigrations" }),
-      );
+        expect(payload).toMatchObject({
+          success: false,
+          errorCode: "MIGRATION_NOT_APPLIED",
+          data: { migrationVersion: "20260802200900", verified: false },
+        });
+        expect(mockCommonServiceCall).toHaveBeenCalledWith(
+          expect.objectContaining({ Action: "ListPGUserMigrations" }),
+        );
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("applyMigration reports verification failure when history cannot be read", async () => {
-      const { server, tools } = createMockServer();
-      registerPGDatabaseTools(server, { createClient: vi.fn() });
-      setupMigrationMock();
-      mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
-        if (Action === "PushPGUserMigrations") {
-          return { RequestId: "req-apply", TaskId: "task-3" };
-        }
-        throw new Error("ListPGUserMigrations unavailable");
-      });
+      vi.useFakeTimers();
+      try {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        setupMigrationMock();
+        mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+          if (Action === "PushPGUserMigrations") {
+            return { RequestId: "req-apply", TaskId: "task-3" };
+          }
+          throw new Error("ListPGUserMigrations unavailable");
+        });
 
-      const payload = buildToolPayload(
-        await tools.managePgDatabase.handler({
+        const pending = tools.managePgDatabase.handler({
           action: "applyMigration",
           migrationName: "create_test_table",
           migrationVersion: "20260720160000",
           sql: "CREATE TABLE public.test(id int)",
           confirm: true,
-        }),
-      );
+        });
+        await vi.runAllTimersAsync();
+        const payload = buildToolPayload(await pending);
 
-      expect(payload).toMatchObject({
-        success: false,
-        errorCode: "MIGRATION_VERIFICATION_FAILED",
-        data: { verified: null },
-      });
+        expect(payload).toMatchObject({
+          success: false,
+          errorCode: "MIGRATION_VERIFICATION_FAILED",
+          data: { verified: null },
+        });
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("applyMigration passes lockTimeoutMs and statementTimeoutMs", async () => {
