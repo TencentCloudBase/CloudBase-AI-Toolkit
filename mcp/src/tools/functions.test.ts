@@ -324,4 +324,15 @@ describe("functions tool helpers", () => {
     expect(payload.success).toBe(true);
     expect(mockCreateFunction).toHaveBeenCalled();
   });
+
+  it("protocolType schema should only accept WS (reject HTTP)", async () => {
+    const schema = tools.manageFunctions.meta.inputSchema;
+    const protocolType = schema.func.unwrap().shape.protocolType;
+
+    expect(protocolType.unwrap()._def.values).toEqual(["WS"]);
+    expect(protocolType.safeParse("WS").success).toBe(true);
+    expect(protocolType.safeParse("HTTP").success).toBe(false);
+    expect(protocolType.description).toContain("WS");
+    expect(protocolType.description).toContain("WebSocket");
+  });
 });

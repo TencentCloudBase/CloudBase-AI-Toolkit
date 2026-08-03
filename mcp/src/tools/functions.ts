@@ -297,7 +297,9 @@ const TRIGGER_SCHEMA = z.object({
 const CREATE_FUNCTION_SCHEMA = z.object({
   name: z.string().describe("函数名称"),
   type: z.enum(["Event", "HTTP"]).optional().describe("函数类型"),
-  protocolType: z.enum(["HTTP", "WS"]).optional().describe("HTTP 云函数协议类型"),
+  protocolType: z.enum(["WS"]).optional().describe(
+    "HTTP 函数访问协议，当前仅支持 WebSockets，取值为 WS（配合 protocolParams.wsParams 使用）。普通 HTTP 函数不要传此字段；传其他值（如 HTTP）会报 InvalidParameterValue.ProtocolType。",
+  ),
   protocolParams: z
     .object({
       wsParams: z

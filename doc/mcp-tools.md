@@ -1110,7 +1110,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
         {
           name: "protocolType",
           type: "string",
-          description: `HTTP 云函数协议类型 可填写的值: "HTTP", "WS"`,
+          description: `HTTP 函数访问协议，当前仅支持 WebSockets，取值为 WS（配合 protocolParams.wsParams 使用）。普通 HTTP 函数不要传此字段；传其他值（如 HTTP）会报 InvalidParameterValue.ProtocolType。 可填写的值: "WS"`,
         },
         {
           name: "protocolParams",
@@ -1799,7 +1799,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 - aider: Aider AI编辑器
 
 特别说明：
-- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.25.2），便于后续维护和版本追踪
+- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.25.3），便于后续维护和版本追踪
 - 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）
 
 #### 参数
@@ -2349,7 +2349,7 @@ API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
 ---
 
 ### `queryGateway`
-CloudBase HTTP 网关统一只读入口（Domain/Route）。查询域名下路径路由及其上游：WEB_SCF/SCF=云函数，CBR=云托管，STATIC_STORE=静态托管，LH=轻量应用服务器。主键为 Domain + Path；listRoutes / getRoute / listCustomDomains。实现自定义域名访问前，先 listCustomDomains：若已有自定义域名，优先 createRoute 挂路由（无需证书 ID）；仅在没有可用自定义域名时才 bindCustomDomain。
+CloudBase HTTP 网关统一只读入口（Domain/Route）。查询域名下路径路由及其上游：WEB_SCF/SCF=云函数，CBR=云托管，STATIC_STORE=静态托管，LH=轻量应用服务器。主键为 Domain + Path；listRoutes / getRoute / listCustomDomains / getPrivilege。getPrivilege 查询 HTTP 网关总开关（enableService）与访问鉴权（enableAuth）状态。实现自定义域名访问前，先 listCustomDomains：若已有自定义域名，优先 createRoute 挂路由（无需证书 ID）；仅在没有可用自定义域名时才 bindCustomDomain。
 
 #### 参数
 
@@ -2359,7 +2359,7 @@ CloudBase HTTP 网关统一只读入口（Domain/Route）。查询域名下路�
       name: "action",
       type: "string",
       required: true,
-      description: `只读操作类型：listRoutes、getRoute、listCustomDomains。自定义域名访问场景先 listCustomDomains 确认是否已有域名可复用。 可填写的值: "listRoutes", "getRoute", "listCustomDomains"`,
+      description: `只读操作类型：listRoutes、getRoute、listCustomDomains、getPrivilege。getPrivilege 无需其他参数，直接返回 HTTP 网关总开关与访问鉴权状态。自定义域名访问场景先 listCustomDomains 确认是否已有域名可复用。 可填写的值: "listRoutes", "getRoute", "listCustomDomains", "getPrivilege"`,
     },
     {
       name: "targetName",
@@ -2387,7 +2387,7 @@ CloudBase HTTP 网关统一只读入口（Domain/Route）。查询域名下路�
 ---
 
 ### `manageGateway`
-CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute/deleteRoute 把域名下的 path 转到上游；未传 domain 时用 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（形如 *.\{region\}.app.tcloudbase.com），不会使用静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）。这是网关默认域上的路径路由，不是 STATIC_STORE 上游绑定；STATIC_STORE 上游必须显式传 upstreamResourceType=STATIC_STORE。创建后可用 queryGateway(action="listRoutes") 核对 Domain / DomainType / Path / UpstreamResourceType。上游类型只用一个参数 upstreamResourceType（也可写在 route.upstreamResourceType，route 优先）：WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，LH=轻量应用服务器；配合 targetName 或 route.serviceName（云函数名/云托管服务名/静态托管实例名，常见 staticstore）。createRoute 只建网关入口，不改上游权限。enablePathTransmission：默认 false 剥触发路径前缀；true 透传完整路径（CBR 多路由、WEB_SCF 自管子路径常需 true；STATIC_STORE 自定义触发路径映射站点根通常 false）。⚠️ 自定义域名访问：若环境已有自定义域名（先 queryGateway listCustomDomains），优先 createRoute 并显式传入该 domain，无需 certificateId；仅首次绑定全新自定义域名时用 bindCustomDomain（需 certificateId）。CORS/安全域名用 envDomainManagement。
+CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute/deleteRoute 把域名下的 path 转到上游；未传 domain 时用 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（形如 *.\{region\}.app.tcloudbase.com），不会使用静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）。这是网关默认域上的路径路由，不是 STATIC_STORE 上游绑定；STATIC_STORE 上游必须显式传 upstreamResourceType=STATIC_STORE。创建后可用 queryGateway(action="listRoutes") 核对 Domain / DomainType / Path / UpstreamResourceType。上游类型只用一个参数 upstreamResourceType（也可写在 route.upstreamResourceType，route 优先）：WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，LH=轻量应用服务器；配合 targetName 或 route.serviceName（云函数名/云托管服务名/静态托管实例名，常见 staticstore）。createRoute 只建网关入口，不改上游权限。enablePathTransmission：默认 false 剥触发路径前缀；true 透传完整路径（CBR 多路由、WEB_SCF 自管子路径常需 true；STATIC_STORE 自定义触发路径映射站点根通常 false）。⚠️ 自定义域名访问：若环境已有自定义域名（先 queryGateway listCustomDomains），优先 createRoute 并显式传入该 domain，无需 certificateId；仅首次绑定全新自定义域名时用 bindCustomDomain（需 certificateId）。CORS/安全域名用 envDomainManagement。enableService/authSwitch：HTTP 网关总开关与访问鉴权开关；createRoute 后若访问报 HTTPSERVICE_NONACTIVATED，通常是总开关未开启（用 queryGateway getPrivilege 查询、enableService 开启）。
 
 #### 参数
 
@@ -2397,7 +2397,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
       name: "action",
       type: "string",
       required: true,
-      description: `写操作：createRoute/updateRoute/deleteRoute 管理路由；bindCustomDomain/deleteCustomDomain 管理自定义域名。createRoute/updateRoute 必须提供 upstreamResourceType。已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；bindCustomDomain 仅用于首次绑定新域名。 可填写的值: "createRoute", "updateRoute", "deleteRoute", "bindCustomDomain", "deleteCustomDomain"`,
+      description: `写操作：createRoute/updateRoute/deleteRoute 管理路由；bindCustomDomain/deleteCustomDomain 管理自定义域名；enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权（需配合 enable 参数）。createRoute/updateRoute 必须提供 upstreamResourceType。已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；bindCustomDomain 仅用于首次绑定新域名。 可填写的值: "createRoute", "updateRoute", "deleteRoute", "bindCustomDomain", "deleteCustomDomain", "enableService", "authSwitch"`,
     },
     {
       name: "targetName",
@@ -2463,6 +2463,11 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
       name: "certificateId",
       type: "string",
       description: `证书 ID。仅首次 bindCustomDomain 必填。在已有自定义域名上 createRoute / updateRoute / deleteRoute 不需要 certificateId。`,
+    },
+    {
+      name: "enable",
+      type: "boolean",
+      description: `开关目标状态（仅 enableService / authSwitch 使用，必填）：enable=true 开启，enable=false 关闭。省略或非布尔值会返回参数错误。`,
     }
   ]}
 />
