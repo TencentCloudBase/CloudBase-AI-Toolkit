@@ -11,6 +11,7 @@ HTTP Functions are standard web services, not `exports.main(event, context)` han
 - Ship an executable `scf_bootstrap` file.
 - Include runtime dependencies in the package; HTTP Functions do not auto-install `node_modules` for you.
 - For simple HTTP APIs, prefer the Node.js native `http` module so the function shape stays explicit and dependency-light. Only introduce Express, Koa, NestJS, or similar frameworks when the user explicitly asks for one or the service complexity justifies it.
+- If the service calls CloudBase resources through `@cloudbase/node-sdk` or `@cloudbase/manager-node`, read `./http-function-credentials.md` first. HTTP Functions must use explicit credentials and must not rely on the Event Function passwordless/default temporary credential path.
 
 ## Minimal structure
 
@@ -136,6 +137,7 @@ server.listen(9000);
 - **Handle CORS headers**. Browsers block cross-origin requests without proper CORS headers. Default to `Access-Control-Allow-Origin: *` for simple APIs, and always respond to `OPTIONS` preflight requests with `200` and CORS headers.
 - Keep unsupported routes and methods explicit. Return `404` for unknown paths, and return `405` when the path exists but the HTTP method is not allowed.
 - Keep `scf_bootstrap`, `index.js`, `package.json`, and any bundled dependencies in the function directory that will be uploaded.
+- Keep credentials out of the function package. Inject them through function environment variables and preserve existing variables when updating the configuration.
 
 ### Module system note
 
@@ -261,9 +263,10 @@ This document covers the **managed-runtime** HTTP Function (ships `scf_bootstrap
 Follow these steps in order when creating a managed-runtime HTTP Function:
 
 1. **Write the function code** — create the directory with `index.js`, `scf_bootstrap`, and `package.json`.
-2. **Deploy with `manageFunctions`** — set `type: "HTTP"`, `protocolType: "HTTP"`, and `runtime` explicitly.
-3. **Configure security rules** — HTTP Functions default to a restrictive security rule. If the function should be publicly accessible, call `managePermissions(action="updateResourcePermission")` with `resourceType="function"`. Note: anonymous login is disabled by default for new environments; use `permission: "CUSTOM"` with `securityRule: '{"invoke":"true"}'` for truly public endpoints rather than relying on anonymous auth.
-4. **Verify** — call the function URL and confirm it returns the expected response. If you get `EXCEED_AUTHORITY`, the security rule needs to be updated (step 3).
+2. **Configure SDK credentials when needed** — if the function uses `@cloudbase/node-sdk` or `@cloudbase/manager-node`, follow `./http-function-credentials.md`. For a Node SDK server API Key, use `manageAppAuth(action="createApiKey", keyType="api_key")` and inject `CLOUDBASE_APIKEY`. Manager SDK requires Tencent Cloud `SecretId` / `SecretKey`.
+3. **Deploy with `manageFunctions`** — set `type: "HTTP"`, `protocolType: "HTTP"`, and `runtime` explicitly.
+4. **Configure security rules** — HTTP Functions default to a restrictive security rule. If the function should be publicly accessible, call `managePermissions(action="updateResourcePermission")` with `resourceType="function"`. Note: anonymous login is disabled by default for new environments; use `permission: "CUSTOM"` with `securityRule: '{"invoke":"true"}'` for truly public endpoints rather than relying on anonymous auth.
+5. **Verify** — call the function URL and confirm it returns the expected response. If the function uses a CloudBase SDK, exercise one harmless SDK read and check logs for expired-token or authorization failures. If you get `EXCEED_AUTHORITY` at invocation, the function security rule needs to be updated (step 4).
 
 ## Deployment flow
 
@@ -354,6 +357,8 @@ manageGateway({
   path: "/api/hello"
 });
 ```
+
+Omit `domain` to attach on the HTTP gateway IsDefault domain (`DomainType=HTTPSERVICE`, `*.{region}.app.tcloudbase.com`). That is path routing on the gateway default host — **not** a `STATIC_STORE` binding, even though the env may also show a separate IsDefault static-hosting CDN host (`*.tcloudbaseapp.com`). Verify with `queryGateway(action="listRoutes")`.
 
 Before enabling public access, confirm both of these:
 

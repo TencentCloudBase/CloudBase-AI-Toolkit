@@ -1,5 +1,7 @@
 # VPC and non-native TCP database access (cloud functions)
 
+> **STOP — exception-only path.** Prefer CloudBase native SDK (`app.database()` / `app.rdb()`) or MCP SQL tools (`queryMysqlDatabase` / `manageMysqlDatabase` / `queryPgDatabase` / `managePgDatabase`) for business data. Do **not** read this file for new CRUD, notepads, CMS, or greenfield APIs. Continue only when migrating an **existing** app that already ships classic TCP clients (`DATABASE_URL`, Prisma, `mysql2`, `pg`, Redis). Credentials must come from the user or console env config — do **not** infer passwords from standard MCP instance-status queries (`getInstanceInfo`).
+
 ## When this applies
 
 Use this only when the Event Function or HTTP Function uses a **classic TCP client** to reach MySQL / PostgreSQL / Redis / MongoDB (for example `DATABASE_URL`, `mysql2`, `pg`, Prisma, TypeORM, Sequelize).
@@ -15,7 +17,7 @@ Native SDK access is platform-managed and does **not** require function VPC bind
 
 | Field | Meaning |
 | --- | --- |
-| `envVariables.DATABASE_URL` (or `MYSQL_*` / `PG*` / `REDIS_*`) | Connection string / host for the **private** DB endpoint |
+| `envVariables.DATABASE_URL` (or `MYSQL_*` / `PG*` / `REDIS_*`) | Connection string / host for the **private** DB endpoint. Set from console or user-provided secrets — never invent credentials. |
 | `vpc.vpcId` | Real VPC ID of that database (same region) |
 | `vpc.subnetId` | Real subnet ID in that VPC with free IPs |
 
@@ -49,7 +51,8 @@ await manageFunctions({
     name: "api",
     type: "HTTP", // or Event — same VPC rule
     envVariables: {
-      DATABASE_URL: "postgres://user:pass@10.x.x.x:5432/app"
+      // Replace with user/console-provided secret — do not paste passwords into chat logs
+      DATABASE_URL: "<private-db-url-from-console-or-user>"
     },
     vpc: {
       vpcId: "<real-vpc-id>",
@@ -61,6 +64,8 @@ await manageFunctions({
 ```
 
 After create/update, call `queryFunctions(action="getFunctionDetail")` and verify `VpcConfig.VpcId` / `SubnetId`. Do not treat create/update success alone as proof that private TCP DB access works.
+
+For TCP migration only, connection payloads may be fetched via `queryMysqlDatabase(action="getConnectionInfo")`. Standard `getInstanceInfo` does **not** return credentials.
 
 ## Side effects of enabling VPC
 

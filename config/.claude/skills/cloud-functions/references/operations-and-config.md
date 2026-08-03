@@ -54,7 +54,7 @@ callCloudApi({
 
 ### Preferred path
 
-Use Domain/Route via `manageGateway(action="createRoute")`. Omit `domain` to attach the route on the environment default HTTP domain (`IsDefault`).
+Use Domain/Route via `manageGateway(action="createRoute")`. Omit `domain` to attach the route on the HTTP gateway IsDefault domain (`DomainType=HTTPSERVICE`, typically `*.{region}.app.tcloudbase.com`).
 
 ```javascript
 manageGateway({
@@ -65,6 +65,8 @@ manageGateway({
   auth: false
 });
 ```
+
+**IsDefault vs static hosting CDN:** many environments also list an IsDefault `STATIC_STORE` domain (`*.tcloudbaseapp.com`). Omitting `domain` does **not** attach to that static-hosting CDN hostname, and it is **not** a `STATIC_STORE` upstream binding. Confirm with `queryGateway(action="listRoutes")` — inspect `Domain`, `DomainType`, `Path`, and `UpstreamResourceType` on the created route.
 
 Upstream type:
 
@@ -118,9 +120,9 @@ Examples:
 - `0 0 2 1 * * *` -> 2:00 AM on the first day of every month
 - `0 30 9 * * * *` -> 9:30 AM every day
 
-### VPC access
+### VPC field shape (example only)
 
-For **non-native TCP** MySQL / PostgreSQL / Redis clients, `vpc` is mandatory and IDs must be real (never placeholders). Full policy: `./vpc-and-tcp-database.md`.
+When a function already needs VPC egress (exception path: existing TCP DB clients), `vpc` IDs must be real (never placeholders). This is a field-shape example — not a recommendation to introduce TCP DB access. Prefer native SDK / MCP SQL for new CRUD. Full exception policy: `./vpc-and-tcp-database.md`.
 
 ```javascript
 {
