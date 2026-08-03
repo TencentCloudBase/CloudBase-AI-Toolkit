@@ -731,12 +731,151 @@ describe("gateway tools", () => {
       Domain: {
         Domain: "api.example.com",
         CertId: "cert-1",
+        AccessType: "DIRECT",
       },
     });
     expect(payload).toMatchObject({
       success: true,
       data: {
         action: "bindCustomDomain",
+        domain: "api.example.com",
+        accessType: "DIRECT",
+      },
+    });
+  });
+
+  it("manageGateway(action=bindCustomDomain) should pass accessType and enable", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "bindCustomDomain",
+      domain: "api.example.com",
+      certificateId: "cert-1",
+      accessType: "CDN",
+      enable: false,
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockBindCustomDomain).toHaveBeenCalledWith({
+      EnvId: "env-test",
+      Domain: {
+        Domain: "api.example.com",
+        CertId: "cert-1",
+        AccessType: "CDN",
+        Enable: false,
+      },
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "bindCustomDomain",
+        accessType: "CDN",
+        enable: false,
+      },
+    });
+  });
+
+  it("manageGateway(action=bindCustomDomain) should pass customCname for CUSTOM access", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "bindCustomDomain",
+      domain: "api.example.com",
+      certificateId: "cert-1",
+      accessType: "CUSTOM",
+      customCname: "origin.example.com",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockBindCustomDomain).toHaveBeenCalledWith({
+      EnvId: "env-test",
+      Domain: {
+        Domain: "api.example.com",
+        CertId: "cert-1",
+        AccessType: "CUSTOM",
+        CustomCname: "origin.example.com",
+      },
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "bindCustomDomain",
+        accessType: "CUSTOM",
+        customCname: "origin.example.com",
+      },
+    });
+  });
+
+  it("manageGateway(action=bindCustomDomain) should require customCname for CUSTOM access", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "bindCustomDomain",
+      domain: "api.example.com",
+      certificateId: "cert-1",
+      accessType: "CUSTOM",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("customCname");
+    expect(mockBindCustomDomain).not.toHaveBeenCalled();
+  });
+
+  it("manageGateway(action=bindCustomDomain) should reject customCname without CUSTOM access", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "bindCustomDomain",
+      domain: "api.example.com",
+      certificateId: "cert-1",
+      customCname: "origin.example.com",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("customCname");
+    expect(mockBindCustomDomain).not.toHaveBeenCalled();
+  });
+
+  it("manageGateway(action=deleteCustomDomain) should guide deleting routes first", async () => {
+    mockDeleteCustomDomain.mockRejectedValue(
+      new Error(
+        "Domain api.example.com has 2 route binding(s) (/a, /b). Please delete the routes before deleting the domain.",
+      ),
+    );
+
+    const result = await tools.manageGateway.handler({
+      action: "deleteCustomDomain",
+      domain: "api.example.com",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("先删除路由");
+    expect(payload.nextActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          tool: "manageGateway",
+          action: "deleteRoute",
+        }),
+      ]),
+    );
+  });
+
+  it("manageGateway(action=deleteCustomDomain) should delete custom domain", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "deleteCustomDomain",
+      domain: "api.example.com",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockDeleteCustomDomain).toHaveBeenCalledWith({
+      EnvId: "env-test",
+      Domain: "api.example.com",
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "deleteCustomDomain",
         domain: "api.example.com",
       },
     });

@@ -1799,7 +1799,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 - aider: Aider AI编辑器
 
 特别说明：
-- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.25.3），便于后续维护和版本追踪
+- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.25.4），便于后续维护和版本追踪
 - 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）
 
 #### 参数
@@ -2397,7 +2397,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
       name: "action",
       type: "string",
       required: true,
-      description: `写操作：createRoute/updateRoute/deleteRoute 管理路由；bindCustomDomain/deleteCustomDomain 管理自定义域名；enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权（需配合 enable 参数）。createRoute/updateRoute 必须提供 upstreamResourceType。已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；bindCustomDomain 仅用于首次绑定新域名。 可填写的值: "createRoute", "updateRoute", "deleteRoute", "bindCustomDomain", "deleteCustomDomain", "enableService", "authSwitch"`,
+      description: `写操作：createRoute/updateRoute/deleteRoute 管理路由；bindCustomDomain/deleteCustomDomain 管理自定义域名；enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权（需配合 enable 参数）。createRoute/updateRoute 必须提供 upstreamResourceType。已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；bindCustomDomain 仅用于首次绑定新域名（需 certificateId；可选 accessType=DIRECT|CDN|CUSTOM，CUSTOM 需 customCname）。 可填写的值: "createRoute", "updateRoute", "deleteRoute", "bindCustomDomain", "deleteCustomDomain", "enableService", "authSwitch"`,
     },
     {
       name: "targetName",
@@ -2465,9 +2465,19 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
       description: `证书 ID。仅首次 bindCustomDomain 必填。在已有自定义域名上 createRoute / updateRoute / deleteRoute 不需要 certificateId。`,
     },
     {
+      name: "accessType",
+      type: "string",
+      description: `绑定类型（仅 bindCustomDomain 使用，默认 DIRECT）：DIRECT=直连（默认），CDN=接入云开发 CDN，CUSTOM=自定义接入（需 customCname）。 可填写的值: "DIRECT", "CDN", "CUSTOM"`,
+    },
+    {
+      name: "customCname",
+      type: "string",
+      description: `自定义 CNAME（仅 bindCustomDomain 且 accessType=CUSTOM 时可用）。accessType 非 CUSTOM 时传此参数会报错。`,
+    },
+    {
       name: "enable",
       type: "boolean",
-      description: `开关目标状态（仅 enableService / authSwitch 使用，必填）：enable=true 开启，enable=false 关闭。省略或非布尔值会返回参数错误。`,
+      description: `开关目标状态（enableService / authSwitch 必填）：enable=true 开启，enable=false 关闭。bindCustomDomain 可选：enable=false 表示绑定后禁用域名（默认启用）。省略或非布尔值会返回参数错误。`,
     }
   ]}
 />

@@ -79,6 +79,8 @@ type ManageGatewayInput = {
   };
   domain?: string;
   certificateId?: string;
+  accessType?: "DIRECT" | "CDN" | "CUSTOM";
+  customCname?: string;
   enable?: boolean;
 };
 
@@ -723,12 +725,30 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             "action=bindCustomDomain 时必须提供 domain 和 certificateId",
           );
         }
+        const accessType = input.accessType ?? "DIRECT";
+        if (accessType === "CUSTOM" && !input.customCname) {
+          throw new Error(
+            "action=bindCustomDomain 且 accessType=CUSTOM 时必须提供 customCname（自定义 CNAME）",
+          );
+        }
+        if (accessType !== "CUSTOM" && input.customCname) {
+          throw new Error(
+            "customCname 参数仅在 accessType=CUSTOM 时可用",
+          );
+        }
         const cloudbase = await getManager();
         const result = await cloudbase.env.bindCustomDomain({
           EnvId: await resolveEnvId(),
           Domain: {
             Domain: input.domain,
             CertId: input.certificateId,
+            AccessType: accessType,
+            ...(input.enable !== undefined
+              ? { Enable: input.enable }
+              : {}),
+            ...(input.customCname
+              ? { CustomCname: input.customCname }
+              : {}),
           },
         } as any);
         logCloudBaseResult(server.logger, result);
@@ -738,9 +758,24 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             action: input.action,
             domain: input.domain,
             certificateId: input.certificateId,
+            accessType,
+            ...(input.customCname
+              ? { customCname: input.customCname }
+              : {}),
+            ...(input.enable !== undefined
+              ? { enable: input.enable }
+              : {}),
             raw: result,
           },
-          "自定义域名绑定成功",
+          `自定义域名绑定成功（${accessType}）`,
+          [
+            {
+              tool: "manageGateway",
+              action: "createRoute",
+              reason:
+                "绑定后需 createRoute 添加访问路径，并完成 DNS CNAME 解析后才可访问",
+            },
+          ],
         );
       }
       case "deleteCustomDomain": {
@@ -748,20 +783,49 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           throw new Error("action=deleteCustomDomain 时必须提供 domain");
         }
         const cloudbase = await getManager();
-        const result = await cloudbase.env.deleteCustomDomain({
-          EnvId: await resolveEnvId(),
-          Domain: input.domain,
-        });
-        logCloudBaseResult(server.logger, result);
+        try {
+          const result = await cloudbase.env.deleteCustomDomain({
+            EnvId: await resolveEnvId(),
+            Domain: input.domain,
+          });
+          logCloudBaseResult(server.logger, result);
 
-        return buildEnvelope(
-          {
-            action: input.action,
-            domain: input.domain,
-            raw: result,
-          },
-          "自定义域名删除成功",
-        );
+          return buildEnvelope(
+            {
+              action: input.action,
+              domain: input.domain,
+              raw: result,
+            },
+            "自定义域名删除成功",
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          // SDK 在域名下仍有路由绑定时抛错，需先删路由再删域名
+          if (/route binding/i.test(message)) {
+            return {
+              success: false,
+              data: { action: input.action, domain: input.domain },
+              message:
+                `域名 ${input.domain} 下仍有路由绑定，需先删除路由再删除域名。` +
+                `原始错误：${message}`,
+              nextActions: [
+                {
+                  tool: "queryGateway",
+                  action: "listRoutes",
+                  reason: "查看该域名下的路由，确认需要删除的路径",
+                },
+                {
+                  tool: "manageGateway",
+                  action: "deleteRoute",
+                  reason:
+                    "先删除该域名下的全部路由（逐个 deleteRoute），再重试 deleteCustomDomain",
+                },
+              ],
+            };
+          }
+          throw error;
+        }
       }
       case "enableService": {
         if (typeof input.enable !== "boolean") {
@@ -904,7 +968,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
               "enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权（需配合 enable 参数）。" +
               "createRoute/updateRoute 必须提供 upstreamResourceType。" +
               "已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；" +
-              "bindCustomDomain 仅用于首次绑定新域名。",
+              "bindCustomDomain 仅用于首次绑定新域名（需 certificateId；可选 accessType=DIRECT|CDN|CUSTOM，CUSTOM 需 customCname）。",
           ),
         targetName: z
           .string()
@@ -990,12 +1054,27 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             "证书 ID。仅首次 bindCustomDomain 必填。" +
               "在已有自定义域名上 createRoute / updateRoute / deleteRoute 不需要 certificateId。",
           ),
+        accessType: z
+          .enum(["DIRECT", "CDN", "CUSTOM"])
+          .optional()
+          .describe(
+            "绑定类型（仅 bindCustomDomain 使用，默认 DIRECT）：" +
+              "DIRECT=直连（默认），CDN=接入云开发 CDN，CUSTOM=自定义接入（需 customCname）。",
+          ),
+        customCname: z
+          .string()
+          .optional()
+          .describe(
+            "自定义 CNAME（仅 bindCustomDomain 且 accessType=CUSTOM 时可用）。" +
+              "accessType 非 CUSTOM 时传此参数会报错。",
+          ),
         enable: z
           .boolean()
           .optional()
           .describe(
-            "开关目标状态（仅 enableService / authSwitch 使用，必填）：" +
-              "enable=true 开启，enable=false 关闭。省略或非布尔值会返回参数错误。",
+            "开关目标状态（enableService / authSwitch 必填）：enable=true 开启，enable=false 关闭。" +
+              "bindCustomDomain 可选：enable=false 表示绑定后禁用域名（默认启用）。" +
+              "省略或非布尔值会返回参数错误。",
           ),
       },
       annotations: {
