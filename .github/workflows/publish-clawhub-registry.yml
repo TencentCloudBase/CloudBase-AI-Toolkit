@@ -75,8 +75,10 @@ jobs:
 
       - name: Install ClawHub CLI
         if: ${{ !inputs.dry_run }}
-        # TODO: Pin to specific version once stable versioning is available
-        run: npm install -g clawhub@latest
+        # Pin to 0.23.1: clawhub@0.23.3 (2026-08-04) stages uploads via Convex
+        # and fails every publish with "Uploaded file does not match its skill upload ticket".
+        # Last known-good publish on this repo used 0.23.1 (v2.25.5, 2026-08-03).
+        run: npm install -g clawhub@0.23.1
 
       - name: Login to ClawHub
         if: ${{ !inputs.dry_run }}

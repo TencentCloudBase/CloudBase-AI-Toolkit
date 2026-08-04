@@ -48,7 +48,22 @@ jobs:
             echo "pushed=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "chore: sync cloudbase plugin skills from upstream"
-            git push
+            # Release and other sync workflows often push main in parallel
+            # (e.g. Sync Claude Skills Mirror); rebase and retry like that workflow.
+            pushed=false
+            for i in 1 2 3; do
+              if git push; then
+                pushed=true
+                break
+              fi
+              echo "Push rejected (attempt $i); rebasing onto origin/main..."
+              git pull --rebase origin main
+              sleep $((i * 2))
+            done
+            if [ "$pushed" != "true" ]; then
+              echo "Failed to push after retries"
+              exit 1
+            fi
             echo "pushed=true" >> "$GITHUB_OUTPUT"
           fi
 
