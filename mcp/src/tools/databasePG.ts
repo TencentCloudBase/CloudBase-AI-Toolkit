@@ -761,22 +761,154 @@ async function listAllRemoteMigrationSummaries(
   return { summaries, latestVersion, total };
 }
 
+/** `<version>_<name>.sql` — version is the identity key for completeness checks. */
+const LOCAL_MIGRATION_FILENAME_RE = /^(\d{14})_(.+)\.sql$/;
+
+type LocalMigrationFileEntry = {
+  version: string;
+  name: string;
+  query: string;
+  relativePath: string;
+};
+
+type MigrationsPayloadSource = "local" | "hydrate";
+
+type MigrationsPayloadBuildResult = {
+  migrations: PgMigrationInput[];
+  remoteCount: number;
+  latestVersion: string;
+  /** `local` = CLI-parity from workspace files (no per-version Describe). `hydrate` = N+1 Describe fallback. */
+  payloadSource: MigrationsPayloadSource;
+};
+
+function listLocalMigrationFilesInDir(
+  dirAbsolute: string,
+  dirRelative: string,
+): Map<string, LocalMigrationFileEntry> {
+  const map = new Map<string, LocalMigrationFileEntry>();
+  if (!fs.existsSync(dirAbsolute)) {
+    return map;
+  }
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(dirAbsolute);
+  } catch {
+    return map;
+  }
+  if (!stat.isDirectory()) {
+    return map;
+  }
+
+  let fileNames: string[];
+  try {
+    fileNames = fs.readdirSync(dirAbsolute);
+  } catch {
+    return map;
+  }
+
+  for (const fileName of fileNames) {
+    const match = LOCAL_MIGRATION_FILENAME_RE.exec(fileName);
+    if (!match) {
+      continue;
+    }
+    const version = match[1];
+    const name = match[2];
+    const absolutePath = path.join(dirAbsolute, fileName);
+    let query: string;
+    try {
+      query = fs.readFileSync(absolutePath, "utf8");
+    } catch {
+      continue;
+    }
+    if (!query.trim()) {
+      continue;
+    }
+    map.set(version, {
+      version,
+      name,
+      query,
+      relativePath: `${dirRelative}/${fileName}`,
+    });
+  }
+  return map;
+}
+
 /**
- * Build Push/Preview Migrations = remote history Queries + the pending migration.
- * Matches CLI behavior (submit full set; server skips already-applied versions).
+ * Index local migration SQL by version. Canonical `cloudbase/migrations/` wins over legacy `migrations/`.
+ */
+function listLocalMigrationFilesByVersion(): Map<string, LocalMigrationFileEntry> {
+  const projectRoot = getMigrationProjectRoot();
+  const legacy = listLocalMigrationFilesInDir(
+    path.join(projectRoot, LOCAL_MIGRATIONS_DIR_LEGACY),
+    LOCAL_MIGRATIONS_DIR_LEGACY,
+  );
+  const canonical = listLocalMigrationFilesInDir(
+    path.join(projectRoot, LOCAL_MIGRATIONS_DIR),
+    LOCAL_MIGRATIONS_DIR,
+  );
+  const merged = new Map(legacy);
+  for (const [version, entry] of canonical) {
+    merged.set(version, entry);
+  }
+  return merged;
+}
+
+function remoteHistoryCoveredByLocalFiles(
+  summaries: Array<{ Version: string; Name: string }>,
+  localByVersion: Map<string, LocalMigrationFileEntry>,
+  pendingVersion: string,
+): boolean {
+  for (const summary of summaries) {
+    if (summary.Version === pendingVersion) {
+      // Pending SQL comes from the tool args / ensureLocal write.
+      continue;
+    }
+    const local = localByVersion.get(summary.Version);
+    if (!local || !local.query.trim()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Build Push/Preview Migrations = full candidate set (server skips already-applied).
+ *
+ * Prefer CLI parity when the workspace already has SQL for every remote version:
+ * read local files (no per-version DescribePGUserMigration). Otherwise hydrate
+ * remote Queries via List + N×Describe (agent/remote-first when the local tree is incomplete).
  */
 async function buildMigrationsPayloadWithRemoteHistory(
   context: PgDbContext,
   pending: PgMigrationInput,
   cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
-): Promise<{
-  migrations: PgMigrationInput[];
-  remoteCount: number;
-  latestVersion: string;
-}> {
+): Promise<MigrationsPayloadBuildResult> {
   const { summaries, latestVersion } = await listAllRemoteMigrationSummaries(context, cloudBaseOptions);
-  const migrations: PgMigrationInput[] = [];
+  const localByVersion = listLocalMigrationFilesByVersion();
 
+  if (remoteHistoryCoveredByLocalFiles(summaries, localByVersion, pending.Version)) {
+    const migrations: PgMigrationInput[] = [];
+    for (const summary of summaries) {
+      if (summary.Version === pending.Version) {
+        continue;
+      }
+      const local = localByVersion.get(summary.Version)!;
+      migrations.push({
+        Version: local.version,
+        Name: local.name || summary.Name,
+        Query: local.query,
+      });
+    }
+    migrations.push(pending);
+    return {
+      migrations,
+      remoteCount: summaries.length,
+      latestVersion,
+      payloadSource: "local",
+    };
+  }
+
+  const migrations: PgMigrationInput[] = [];
   for (const summary of summaries) {
     if (summary.Version === pending.Version) {
       // Caller supplies the authoritative SQL for this version.
@@ -803,7 +935,21 @@ async function buildMigrationsPayloadWithRemoteHistory(
   }
 
   migrations.push(pending);
-  return { migrations, remoteCount: summaries.length, latestVersion };
+  return {
+    migrations,
+    remoteCount: summaries.length,
+    latestVersion,
+    payloadSource: "hydrate",
+  };
+}
+
+function formatMigrationsPayloadSourceLabel(source: MigrationsPayloadSource, remoteCount: number): string {
+  if (remoteCount <= 0) {
+    return "no remote history";
+  }
+  return source === "local"
+    ? `local tree covered ${remoteCount} remote migration(s) (CLI parity, skipped Describe hydrate)`
+    : `hydrated ${remoteCount} remote migration(s) via Describe (local tree incomplete)`;
 }
 
 async function waitPgMigrationTask(
@@ -2083,6 +2229,10 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgDbCont
       IncludeAll: includeAll,
     }, cloudBaseOptions);
     const executable = result.Executable === true;
+    const payloadSourceLabel = formatMigrationsPayloadSourceLabel(
+      hydrated.payloadSource,
+      hydrated.remoteCount,
+    );
     return buildPgToolResult({
       success: true,
       data: {
@@ -2091,13 +2241,14 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgDbCont
         localFileHint,
         hydratedRemoteCount: hydrated.remoteCount,
         latestRemoteVersion: hydrated.latestVersion || null,
+        payloadSource: hydrated.payloadSource,
         includeAll,
         executable,
         apiResult: result as Record<string, unknown>,
       },
       message: executable
-        ? `Migration plan generated via PreviewPGUserMigrations (hydrated ${hydrated.remoteCount} remote migration(s)${includeAll ? ", includeAll=true" : ""}). Reuse migrationVersion=${version} on applyMigration. Ensure local file ${localFileHint} exists and matches.`
-        : `Migration plan is NOT executable (PreviewPGUserMigrations.Executable=false after hydrating ${hydrated.remoteCount} remote migration(s)${includeAll ? ", includeAll=true" : ""}). Inspect apiResult.Conflicts before applyMigration. Common causes: version older than latest remote (${hydrated.latestVersion || "unknown"}) — retry with includeAll=true (CLI --include-all) if intentionally out-of-order, or pick a newer version; checksum mismatch.`,
+        ? `Migration plan generated via PreviewPGUserMigrations (${payloadSourceLabel}${includeAll ? ", includeAll=true" : ""}). Reuse migrationVersion=${version} on applyMigration. Ensure local file ${localFileHint} exists and matches.`
+        : `Migration plan is NOT executable (PreviewPGUserMigrations.Executable=false after ${payloadSourceLabel}${includeAll ? ", includeAll=true" : ""}). Inspect apiResult.Conflicts before applyMigration. Common causes: version older than latest remote (${hydrated.latestVersion || "unknown"}) — retry with includeAll=true (CLI --include-all) if intentionally out-of-order, or pick a newer version; checksum mismatch.`,
       nextActions: [
         buildNextAction(
           MANAGE_PG_DATABASE,
@@ -2204,12 +2355,16 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
 
   try {
     // Pushing only the pending migration while remote history exists makes the plan
-    // non-executable (remote_history_not_found_locally). Hydrate remote Queries first,
-    // matching CLI `tcb db pg migration up` (full list; server skips applied).
+    // non-executable (remote_history_not_found_locally). Prefer local tree when complete
+    // (CLI parity); otherwise hydrate remote Queries (List + N×Describe).
     const hydrated = await buildMigrationsPayloadWithRemoteHistory(
       context,
       pending,
       cloudBaseOptions,
+    );
+    const payloadSourceLabel = formatMigrationsPayloadSourceLabel(
+      hydrated.payloadSource,
+      hydrated.remoteCount,
     );
 
     const preview = await callPgMigrationApi(
@@ -2229,13 +2384,14 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
           localFileHint,
           hydratedRemoteCount: hydrated.remoteCount,
           latestRemoteVersion: hydrated.latestVersion || null,
+          payloadSource: hydrated.payloadSource,
           includeAll,
           previewResult: preview as Record<string, unknown>,
           verified: false,
         },
         message:
           `PreviewPGUserMigrations reported Executable=false for migrationVersion=${version} ` +
-          `(latest remote=${hydrated.latestVersion || "unknown"}, hydratedRemoteCount=${hydrated.remoteCount}, includeAll=${includeAll}). ` +
+          `(latest remote=${hydrated.latestVersion || "unknown"}, ${payloadSourceLabel}, includeAll=${includeAll}). ` +
           "Push was NOT submitted. Inspect previewResult.Conflicts — common reasons: " +
           "local_migration_before_latest_remote (pick a newer 14-digit version, or set includeAll=true / CLI --include-all for intentional out-of-order) or checksum_mismatch. " +
           "If the schema change is urgent you may fall back to action=execute with allowDdlViaExecute=true, but that bypasses migration history.",
@@ -2289,6 +2445,7 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
           migrationName: args.migrationName,
           localFileHint,
           hydratedRemoteCount: hydrated.remoteCount,
+          payloadSource: hydrated.payloadSource,
           apiResult: result as Record<string, unknown>,
           taskResult: { TaskId: taskId },
           taskPollTimeoutMs: pollTimeoutMs,
@@ -2453,13 +2610,14 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
         localFileAbsolutePath: localFile.absolutePath,
         localFileAction: localFile.action,
         hydratedRemoteCount: hydrated.remoteCount,
+        payloadSource: hydrated.payloadSource,
         includeAll,
         apiResult: result as Record<string, unknown>,
         taskResult: taskResult as Record<string, unknown> | null,
         verified: true,
       },
       message:
-        `Migrations applied via PushPGUserMigrations (hydrated ${hydrated.remoteCount} remote migration(s)${includeAll ? ", includeAll=true" : ""}), task ${taskId ? `TaskId=${taskId} ` : ""}verified present in the remote migration history. ` +
+        `Migrations applied via PushPGUserMigrations (${payloadSourceLabel}${includeAll ? ", includeAll=true" : ""}), task ${taskId ? `TaskId=${taskId} ` : ""}verified present in the remote migration history. ` +
         `Local SQL ${localFile.action === "created" ? "written" : "matched"} at ${localFile.relativePath}.`,
     });
   } catch (error) {
