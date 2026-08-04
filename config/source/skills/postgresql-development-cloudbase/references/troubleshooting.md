@@ -30,11 +30,32 @@ Cause: `PushPGUserMigrations` is async. MCP polls `DescribeTaskResult` by defaul
 
 Fix:
 
-1. Call `managePgDatabase(action=listMigrations)` **first** and look for your `migrationVersion`.
-2. If the version is present → treat as applied; do not re-push.
-3. If missing, wait and list again. Do **not** immediately re-push the same version (duplicate / conflict risk while the task may still run).
-4. Only after list confirms the version never landed, fix SQL/Conflicts and retry with a **new** version, or use `taskPollTimeoutMs` / CLI `tcb db pg migration up` for longer waits.
-5. Optional: `waitForTask=false` returns `MIGRATION_TASK_PENDING` immediately with TaskId — still must listMigrations before any retry.
+1. Call `managePgDatabase(action=describeMigrationTask, taskId=...)` **first** for `Status` / `Phase` / `Reason`. `listMigrations` alone cannot explain a Failed task (that was the #857 blind spot).
+2. Call `managePgDatabase(action=listMigrations)` and look for your `migrationVersion`.
+3. If the version is present → treat as applied; do not re-push.
+4. If Status is still non-terminal and version missing, wait and poll `describeMigrationTask` again. Do **not** immediately re-push the same version.
+5. Only after the task is terminal (`Succeed`/`Failed`) and list confirms the version never landed, fix SQL/Conflicts and retry with a **new** version, or use `taskPollTimeoutMs` / CLI `tcb db pg migration up` for longer waits.
+6. Optional: `waitForTask=false` returns `MIGRATION_TASK_PENDING` immediately with TaskId — still must `describeMigrationTask` then `listMigrations` before any retry.
+
+## Local file missing / checksum mismatch vs remote history
+
+Cause: Agent applied without Git truth, cloned a repo without `cloudbase/migrations/`, or local SQL drifted from remote `Query` (Executable=false / `checksum_mismatch`).
+
+Fix:
+
+1. Prefer `managePgDatabase(action=fetchMigration)` to pull remote history into `cloudbase/migrations/` (same as CLI `tcb db pg migration fetch`).
+2. If local files already exist but are wrong, re-run with `force=true` to overwrite from remote — do **not** hand-edit an already-applied version and re-push the same `migrationVersion`.
+3. For new schema changes after fetch, always create a **new** `migrationVersion` newer than `LatestVersion`.
+
+## `MIGRATION_NOT_EXECUTABLE` / `local_migration_before_latest_remote`
+
+Cause: pending `migrationVersion` is older than remote `LatestVersion` (out-of-order), or checksum mismatch / other Preview Conflicts. Push is blocked.
+
+Fix:
+
+1. Default: pick a new 14-digit version strictly greater than `LatestVersion` from `listMigrations`.
+2. Only when you intentionally need out-of-order apply (branch merge / backfill): retry `planMigration` / `applyMigration` with `includeAll=true` (CLI `tcb db pg migration up --include-all`).
+3. For `checksum_mismatch`, fetch/realign local SQL — do not force includeAll.
 
 ## Permissions pass in MCP but fail in browser
 

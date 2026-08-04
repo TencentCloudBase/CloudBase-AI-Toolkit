@@ -88,10 +88,11 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
    5. Verify: `managePgDatabase(action=listMigrations)` and confirm the remote history records the same `migrationVersion`.
    6. Then write frontend CRUD / RLS checks.
 
-   **If applyMigration returns `MIGRATION_TASK_TIMEOUT` or `MIGRATION_TASK_PENDING`:** the task may still be running (large DDL / lock waits). Call `listMigrations` **first**. Do **not** re-push the same `migrationVersion`, and do **not** fall back to `execute` until list confirms the version never landed.
+   **If applyMigration returns `MIGRATION_TASK_TIMEOUT` or `MIGRATION_TASK_PENDING`:** the task may still be running (large DDL / lock waits). Call `describeMigrationTask(taskId=...)` **first** for Status/Phase/Reason, then `listMigrations`. Do **not** re-push the same `migrationVersion`, and do **not** fall back to `execute` until the task is terminal and list confirms the version never landed.
 
    Other migration actions:
    - `managePgDatabase(action=migrationDetail, migrationVersion=...)` — inspect a single migration
+   - `managePgDatabase(action=fetchMigration)` — pull remote history SQL into `cloudbase/migrations/` (CLI `tcb db pg migration fetch` parity). Optional `migrationVersion` for one file; omit for full history. Existing local files are skipped unless `force=true` (overwrite / checksum realign). Prefer this over hand-copying SQL from `migrationDetail` to avoid checksum drift.
    - `managePgDatabase(action=rollbackMigration, lastN=..., confirm=true)` — roll back the last N applied migrations
    - `managePgDatabase(action=repairMigration, migrationVersion=..., migrationName=..., repairStatus=..., repairReason=...)` — repair history records
 

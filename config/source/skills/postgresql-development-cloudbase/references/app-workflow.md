@@ -17,7 +17,9 @@ Use this reference when building or repairing a real user-facing Web app backed 
    - PostgreSQL resource
    - Cloud Storage if the app uploads files. In CloudBase PG, "having storage" means having an explicitly-created `pgstore` bucket — same model as Supabase Storage. Check existing buckets with `queryPgStorage(action="buckets")`. If the upload target (e.g. `covers`) is missing, create/select the bucket through the documented CloudBase management surface or console before writing browser upload code. Browser SDKs cannot create a pgstore bucket; the legacy NoSQL bucket reported in `EnvInfo.Storages[]` is NOT a valid pgstore target.
 4. Create or repair the minimal PG schema via the migration workflow (not bare `execute` for DDL):
+   - If the workspace is missing local SQL for versions already in remote history, first run `managePgDatabase(action="fetchMigration")` (add `force=true` only when intentionally overwriting drifted local files).
    - Choose `migrationVersion` (`YYYYMMDDHHMMSS`) + `migrationName`, write `cloudbase/migrations/<version>_<name>.sql` (same dir as CLI `tcb db pg migration`), then `managePgDatabase(action="applyMigration", migrationName, migrationVersion, sql, confirm=true)`.
+   - Prefer `migrationVersion` strictly newer than remote `LatestVersion`. For intentional out-of-order (branch/backfill) only, add `includeAll=true` (CLI `--include-all`).
    - Apply required `GRANT` statements, sequence grants for `serial`/`bigserial`, `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, and RLS policies (same migration SQL or follow-up `execute` for ops-only GRANT/POLICY).
 5. Immediately call `queryPgDatabase(action="objects")`, then `queryPgDatabase(action="schema", objectName="public.<table>")` for every table touched by the app.
 6. Implement browser CRUD with one shared CloudBase Web SDK app instance and `app.rdb()`.
