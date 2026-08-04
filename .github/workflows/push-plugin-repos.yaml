@@ -112,6 +112,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          # Guardrail: surface silent no-op syncs when source skill versions diverge.
+          SOURCE_WEB_VER=$(grep -E '^version:' "${{ github.workspace }}/.plugin-repo-output/cloudbase/skills/web-development/SKILL.md" | head -1 | awk '{print $2}')
+          DEST_WEB_VER=$(grep -E '^version:' skills/web-development/SKILL.md | head -1 | awk '{print $2}')
+          PORCELAIN_COUNT=$(git status --porcelain | wc -l | tr -d ' ')
+          echo "web-development version source=${SOURCE_WEB_VER} dest=${DEST_WEB_VER} porcelain=${PORCELAIN_COUNT}"
+          if [ -n "$SOURCE_WEB_VER" ] && [ -n "$DEST_WEB_VER" ] && [ "$SOURCE_WEB_VER" != "$DEST_WEB_VER" ] && [ "$PORCELAIN_COUNT" = "0" ]; then
+            echo "::error::Plugin sync produced no git changes but web-development version diverges (${DEST_WEB_VER} -> ${SOURCE_WEB_VER})."
+            exit 1
+          fi
+
           if [ -n "$(git status --porcelain)" ]; then
             git add -A
             # No [skip ci]: must trigger Sync to CNB on the dedicated repo (skills pattern).
