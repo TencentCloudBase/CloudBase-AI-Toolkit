@@ -30,11 +30,30 @@ Only create a separate `public.*` table (e.g. `user_roles`, `profiles`) when the
 CloudBase PG provides official SQL helpers:
 
 ```sql
-select auth.uid();   -- JWT sub / user id
+select auth.uid();   -- JWT sub / user id (returns text, NOT uuid)
 select auth.role();  -- anon / authenticated / service_role
 select auth.jwt();   -- full JWT claims as jsonb
 select auth.email(); -- current email if available
 ```
+
+**⚠️ CRITICAL: `auth.uid()` returns `text`, not `uuid`.** Unlike Supabase (where `auth.uid()` is `uuid`), CloudBase returns a string so identity can cover WeChat `openid` and other non-UUID providers. Prefer owner columns as `varchar(64)` / `text` so comparisons stay type-safe:
+
+```sql
+-- Preferred: text/varchar owner column matches auth.uid() directly
+owner_id varchar(64) not null default auth.uid()
+-- ...
+USING (owner_id = auth.uid())
+```
+
+If an existing column is `uuid`, cast explicitly or you will get `ERROR: operator does not exist: uuid = text`:
+
+```sql
+-- Only when the JWT sub is a valid UUID AND the column type is uuid
+USING (author_id = auth.uid()::uuid)
+WITH CHECK (author_id = auth.uid()::uuid)
+```
+
+Do not cast when the identity may be a WeChat `openid` or other non-UUID string — keep the column as `text` / `varchar` instead.
 
 **⚠️ CRITICAL: Always use `auth.uid()` for user identity in RLS policies.** Do NOT use `current_user` or `current_setting(...)` — these are PostgreSQL built-in functions that return the database role name (e.g. `authenticated`), not the CloudBase auth user ID. Using `current_user` in a policy like `USING (author_id = current_user)` will never match any real user ID.
 
@@ -132,3 +151,4 @@ Do not default to the API Key path just because it is simpler — if the task on
 - `serial` / `bigserial` requires sequence grants or inserts can fail.
 - Admin/control-plane execution can hide user-facing permission failures; test as `anon` / `authenticated` when possible.
 - **Do NOT use `current_user` in RLS policies.** `current_user` returns the database role name (e.g. `authenticated`), not the actual user ID. Always use `auth.uid()` for user identity checks.
+- **`auth.uid()` is `text`.** Comparing it to a `uuid` column without `::uuid` fails with `operator does not exist: uuid = text`. Prefer `varchar(64)` / `text` owner columns; cast only when the column is already `uuid` and the JWT `sub` is a valid UUID.

@@ -270,7 +270,7 @@ Example structure for operation recording:
 - **Session management**: For route guards and login proof, use `auth.getSession()` and require `data.session`; do not use deprecated `getLoginState()` or `auth.getUser()` / `auth.getCurrentUser()` as proof of real login.
 - **Provider and login-method setup**: Use `queryAppAuth` / `manageAppAuth`, not the MCP `auth` tool
 - **Anonymous login is disabled by default.** The SDK initialized with `accessKey` automatically creates an anonymous session. If the app uses AuthGuard or RLS for access control, ensure `is_anonymous` checks are in place when anonymous access is allowed.
-- **⚠️ PG RLS: Use `auth.uid()`, NOT `current_user`.** When writing RLS policies for CloudBase PostgreSQL, the user identity must use `auth.uid()` (returns the JWT `sub` / actual user ID). Do NOT use `current_user` or `current_setting(...)` — these PostgreSQL built-in functions return the database role name (e.g. `authenticated`), not the CloudBase auth user ID. CloudBase PG provides four auth helper functions: `auth.uid()`, `auth.role()`, `auth.email()`, `auth.jwt()`. Verify availability with `SELECT proname FROM pg_proc WHERE pronamespace = 'auth'::regnamespace`.
+- **⚠️ PG RLS: Use `auth.uid()`, NOT `current_user`.** When writing RLS policies for CloudBase PostgreSQL, the user identity must use `auth.uid()` (returns the JWT `sub` / actual user ID as **`text`**, not `uuid` — unlike Supabase). Prefer owner columns as `varchar(64)` / `text`; if the column is `uuid`, cast with `auth.uid()::uuid` or you get `operator does not exist: uuid = text`. Do NOT use `current_user` or `current_setting(...)` — these PostgreSQL built-in functions return the database role name (e.g. `authenticated`), not the CloudBase auth user ID. CloudBase PG provides four auth helper functions: `auth.uid()`, `auth.role()`, `auth.email()`, `auth.jwt()`. Verify availability with `SELECT proname FROM pg_proc WHERE pronamespace = 'auth'::regnamespace`.
 
 ### Mini Program Authentication
 - **Login-free feature**: Mini program CloudBase is naturally login-free, no login flow needed
@@ -311,7 +311,7 @@ Example structure for operation recording:
    Create collection → Configure security rules → Write code → Test
    ```
    - Use `managePermissions(action="updateResourcePermission")` to configure resource permissions
-   - If permissions were just changed, allow a short propagation window (typically 2-5 minutes) before retesting, but do not assume every failure is cache. Re-check the actual rule shape and active client write pattern first.
+   - If permissions were just changed, retry after a few seconds (typically within ~30s). Do not blind-wait 2-5 minutes. If it still fails, re-check the actual rule shape and active client write pattern first — most failures are misconfigured rules, not cache.
    - See `no-sql-web-sdk/security-rules.md` for detailed `resourceType="noSqlDatabase"` examples only; do not treat `doc._openid`, `auth.openid`, query-subset validation, or `create` / `update` / `delete` JSON templates as generic rules for functions, storage, or SQL tables
    - Official references:
      - General security rules overview: `https://cloud.tencent.com/document/product/876/41802`

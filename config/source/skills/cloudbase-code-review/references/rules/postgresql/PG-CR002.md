@@ -28,8 +28,9 @@
 
 4. **检查策略中是否使用了 `current_user` 或 `current_setting(...)`？** 这是常见错误！`current_user` 返回的是数据库角色名（如 `authenticated`），不是 CloudBase 认证用户 ID。必须使用 `auth.uid()`。
 5. 检查策略是否使用了 `auth.uid()` 来获取当前用户 ID？
-6. 仅开启了 RLS（`ALTER TABLE ... ENABLE ROW LEVEL SECURITY`）但没有创建策略，等于拒绝所有访问。
-7. 如果选择不放 RLS 而用在应用层（CRUD 代码中）做权限判断，确认后端/数据库层确实限制了 editor 只能操作自己的文章，而 admin 可以操作全部。
+6. **检查 `auth.uid()` 与 owner 列的类型是否匹配。** CloudBase 的 `auth.uid()` 返回 **`text`**（不是 `uuid`，与 Supabase 不同）。owner 列应优先用 `varchar(64)` / `text`；若列类型是 `uuid`，策略中必须写 `auth.uid()::uuid`，否则会报 `operator does not exist: uuid = text`。当身份可能是微信 openid 等非 UUID 字符串时，不要用 `uuid` 列。
+7. 仅开启了 RLS（`ALTER TABLE ... ENABLE ROW LEVEL SECURITY`）但没有创建策略，等于拒绝所有访问。
+8. 如果选择不放 RLS 而用在应用层（CRUD 代码中）做权限判断，确认后端/数据库层确实限制了 editor 只能操作自己的文章，而 admin 可以操作全部。
 
 ## 修复指引
 

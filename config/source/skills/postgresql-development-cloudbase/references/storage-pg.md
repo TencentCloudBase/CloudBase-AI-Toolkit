@@ -276,7 +276,7 @@ CREATE POLICY avatars_delete_own ON storage.objects
 
 Key points:
 - `storage.foldername(name)` is a built-in helper that splits `'<uid>/avatar.png'` into `{'<uid>'}`.
-- `auth.uid()` returns the current JWT `sub`.
+- `auth.uid()` returns the current JWT `sub` as **`text`** (not `uuid`). Path segments are text, so compare directly; do not cast to `uuid` here.
 - `storage.objects` does **not** need extra `GRANT` — `anon`/`authenticated`/`service_role` already have `ALL`; RLS is the only gate.
 - Do **not** `DELETE FROM storage.objects` directly — a `protect_delete` trigger blocks it. Use SDK / Storage API.
 - For simpler authenticated-only access (not per-user), replace `(storage.foldername(name))[1] = auth.uid()` with `auth.role() = 'authenticated'`.

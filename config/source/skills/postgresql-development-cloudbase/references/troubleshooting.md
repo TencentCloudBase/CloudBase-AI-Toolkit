@@ -57,6 +57,25 @@ Fix:
 2. Only when you intentionally need out-of-order apply (branch merge / backfill): retry `planMigration` / `applyMigration` with `includeAll=true` (CLI `tcb db pg migration up --include-all`).
 3. For `checksum_mismatch`, fetch/realign local SQL — do not force includeAll.
 
+## `ERROR: operator does not exist: uuid = text` (or `uid = text`) when creating RLS
+
+Cause: CloudBase `auth.uid()` returns **`text`**, not `uuid` (unlike Supabase). Comparing `auth.uid()` to a `uuid` column has no matching operator.
+
+Fix:
+
+1. **Preferred**: define owner columns as `varchar(64)` or `text` so they match `auth.uid()` directly:
+   ```sql
+   author_id varchar(64) not null default auth.uid()
+   -- ...
+   USING (author_id = auth.uid())
+   ```
+2. **If the column must stay `uuid`**: cast the helper (only when JWT `sub` is a valid UUID):
+   ```sql
+   USING (author_id = auth.uid()::uuid)
+   WITH CHECK (author_id = auth.uid()::uuid)
+   ```
+3. Do **not** use `uuid` owner columns when identity may be WeChat `openid` or another non-UUID string — keep those columns as `text` / `varchar`.
+
 ## Permissions pass in MCP but fail in browser
 
 Likely cause: admin/default execution bypassed user-facing role checks.

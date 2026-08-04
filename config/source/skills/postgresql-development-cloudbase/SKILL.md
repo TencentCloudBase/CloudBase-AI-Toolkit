@@ -122,6 +122,7 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
    - Insert a test row using `author_id = session.user.id`.
    - Read it back with `queryPgDatabase`.
    - If INSERT/SELECT fails, inspect the exact RLS error and fix the policy or switch to a server/RPC boundary. Do not leave browser-facing tables with broken RLS.
+   - **⚠️ `auth.uid()` returns `text`, not `uuid`.** Prefer owner columns as `varchar(64)` / `text`. If comparing to a `uuid` column, use `auth.uid()::uuid` (only when JWT `sub` is a valid UUID) or you will get `operator does not exist: uuid = text`. This differs from Supabase. See `references/auth-and-rls.md`.
    - **⚠️ Do NOT use `current_user` or `current_setting(...)` in RLS policies.** `current_user` in PostgreSQL returns the database role name (e.g. `authenticated`), NOT the CloudBase auth user ID. Always use `auth.uid()` for user identity checks. If you are unsure whether the auth helpers are available, run `SELECT proname FROM pg_proc WHERE pronamespace = 'auth'::regnamespace` to list all available `auth.*` functions.
 10. Use PG HTTP API only as a fallback after reading OpenAPI docs and verifying the auth model in the installed SDK. Do not guess URLs such as `/api/v1/rdb/rest`; the documented base is `https://<envId>.api.tcloudbasegateway.com/v1/rdb/rest/<table>` and auth is `Authorization: Bearer <Publishable Key | access_token | API Key>`.
 11. Keep cover images in CloudBase Storage. Store only the final file URL or file metadata in PG.
@@ -148,7 +149,7 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
 - After DDL, query the table schema again and compare every column used by frontend code, insert/update payloads, filters, ordering, and RLS policies.
 - Backend permission must exist in the database or server/RPC layer. Hiding buttons in the UI is not enough.
 - Do not leave a browser-facing table with RLS enabled and zero policies. PostgreSQL denies user reads/writes by default in that state, so `app.rdb().from("articles").insert(...)` can fail while the UI only shows a generic save failure. If you enable RLS, create and verify SELECT/INSERT/UPDATE/DELETE policies before testing the app.
-- Use CloudBase PG's official SQL auth helpers in policies: `auth.uid()` (JWT `sub`), `auth.role()` (`anon` / `authenticated` / `service_role`), `auth.jwt()` (full claims), and `auth.email()` when relevant. Prefer owner columns such as `owner_id varchar(64) DEFAULT auth.uid()` so the database, not the browser, assigns ownership.
+- Use CloudBase PG's official SQL auth helpers in policies: `auth.uid()` (JWT `sub`, returns **`text`** not `uuid`), `auth.role()` (`anon` / `authenticated` / `service_role`), `auth.jwt()` (full claims), and `auth.email()` when relevant. Prefer owner columns such as `owner_id varchar(64) DEFAULT auth.uid()` so the database, not the browser, assigns ownership. If an owner column is already `uuid`, compare with `auth.uid()::uuid` (only when `sub` is a valid UUID).
 - If you need detailed GRANT/RLS rules, read `references/rls-patterns.md` before writing policies.
 - For admin/editor flows, make `admin` able to operate all rows and `editor` only rows where owner UID matches the current user.
 

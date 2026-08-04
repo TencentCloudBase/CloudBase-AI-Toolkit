@@ -24,7 +24,7 @@ CloudBase PG mode is a Postgres-Native environment mode. It is not simply "addin
 - `anon`: requests backed by Publishable Key / anonymous identity.
 - `authenticated`: requests backed by a logged-in user's access token.
 - `service_role`: API Key / privileged service role; bypasses RLS and must stay server-side only.
-- `auth.uid()`: current JWT `sub`.
+- `auth.uid()`: current JWT `sub` as **`text`** (not `uuid`; cast with `::uuid` only when comparing to a `uuid` column whose values are real UUIDs).
 - `auth.role()`: current database role.
 - `auth.jwt()`: full JWT claims.
 - `auth.email()`: current user email when available.
