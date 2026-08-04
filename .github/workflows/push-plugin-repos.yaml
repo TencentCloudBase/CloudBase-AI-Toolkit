@@ -92,8 +92,11 @@ jobs:
 
           # Clear target (keep .git). Use rsync so Open Plugin Spec dotdirs (.plugin) are included.
           # `cp -r src/* dest` silently drops hidden paths.
+          # --checksum: version-only bumps often keep identical byte length (e.g. 2.25.5→2.25.6).
+          # Default size+mtime quick check can skip those when build output and clone share a
+          # 1s mtime window, yielding porcelain=0 while dedicated HEAD stays behind.
           # Output includes .github/workflows/sync-to-cnb.yml (skills-style CNB mirror).
-          rsync -a --delete --exclude='.git' \
+          rsync -a --checksum --delete --exclude='.git' \
             "${{ github.workspace }}/.plugin-repo-output/cloudbase/" \
             /tmp/cloudbase-plugin/
 
@@ -112,18 +115,20 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Guardrail: surface silent no-op syncs when source skill versions diverge.
+          # Stage first: git add hashes content and defeats racy-git false-clean status.
+          git add -A
+
+          # Guardrail: compare build output vs committed HEAD (not WT after rsync).
           SOURCE_WEB_VER=$(grep -E '^version:' "${{ github.workspace }}/.plugin-repo-output/cloudbase/skills/web-development/SKILL.md" | head -1 | awk '{print $2}')
-          DEST_WEB_VER=$(grep -E '^version:' skills/web-development/SKILL.md | head -1 | awk '{print $2}')
-          PORCELAIN_COUNT=$(git status --porcelain | wc -l | tr -d ' ')
-          echo "web-development version source=${SOURCE_WEB_VER} dest=${DEST_WEB_VER} porcelain=${PORCELAIN_COUNT}"
-          if [ -n "$SOURCE_WEB_VER" ] && [ -n "$DEST_WEB_VER" ] && [ "$SOURCE_WEB_VER" != "$DEST_WEB_VER" ] && [ "$PORCELAIN_COUNT" = "0" ]; then
-            echo "::error::Plugin sync produced no git changes but web-development version diverges (${DEST_WEB_VER} -> ${SOURCE_WEB_VER})."
+          HEAD_WEB_VER=$(git show HEAD:skills/web-development/SKILL.md 2>/dev/null | grep -E '^version:' | head -1 | awk '{print $2}' || true)
+          STAGED_COUNT=$(git diff --cached --name-only | wc -l | tr -d ' ')
+          echo "web-development version source=${SOURCE_WEB_VER} dedicated_HEAD=${HEAD_WEB_VER} staged=${STAGED_COUNT}"
+          if [ -n "$SOURCE_WEB_VER" ] && [ -n "$HEAD_WEB_VER" ] && [ "$SOURCE_WEB_VER" != "$HEAD_WEB_VER" ] && [ "$STAGED_COUNT" = "0" ]; then
+            echo "::error::Plugin sync staged no changes but web-development version diverges (dedicated HEAD ${HEAD_WEB_VER} -> source ${SOURCE_WEB_VER})."
             exit 1
           fi
 
-          if [ -n "$(git status --porcelain)" ]; then
-            git add -A
+          if ! git diff --cached --quiet; then
             # No [skip ci]: must trigger Sync to CNB on the dedicated repo (skills pattern).
             git commit -m "chore: sync from CloudBase-MCP"
             git push
@@ -140,7 +145,8 @@ jobs:
 
           git clone --depth 1 "https://x-access-token:${PLUGINS_REPO_TOKEN}@github.com/TencentCloudBase/cloudbase-sites-plugin.git" /tmp/cloudbase-sites-plugin
 
-          rsync -a --delete --exclude='.git' \
+          # --checksum: same same-size/mtime skip hazard as cloudbase-plugin sync.
+          rsync -a --checksum --delete --exclude='.git' \
             "${{ github.workspace }}/.plugin-repo-output/cloudbase-sites/" \
             /tmp/cloudbase-sites-plugin/
 
@@ -156,8 +162,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if [ -n "$(git status --porcelain)" ]; then
-            git add -A
+          git add -A
+          if ! git diff --cached --quiet; then
             git commit -m "chore: sync from CloudBase-MCP"
             git push
             echo "✓ Pushed to cloudbase-sites-plugin"
