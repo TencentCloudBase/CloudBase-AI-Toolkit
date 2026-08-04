@@ -872,7 +872,7 @@ For non-WeChat login (Web):
 
 ## Propagation And Verification
 
-- Security rule updates may take a short time to propagate through the backend.
+- Security rule updates usually take effect within a few seconds to about 30 seconds. Retry soon; do not blind-wait several minutes before re-checking the rule itself.
 - Right after changing a collection to `CUSTOM`, do not assume the first `DATABASE_PERMISSION_DENIED` means the expression is still wrong.
 - Keep the same login state, wait briefly, and retry the exact same write before changing the rule again.
 - For Web SDK writes, do not treat "no thrown exception" as success.

@@ -69,7 +69,7 @@ When the app runs on a local browser origin and must upload files from the front
    - Browser origin `http://localhost:5173` -> whitelist entry `localhost:5173`
 3. If the exact current host entry is missing, call `envDomainManagement` with `action="create"` and add that host entry before relying on `app.uploadFile()`.
 4. If the runtime port may change between runs, do not assume any fixed default port list is sufficient. Re-check the actual browser origin you are really using for testing or final validation, then add that exact `host:port`.
-5. Tell the user that security-domain changes may take several minutes to propagate.
+5. Tell the user that security-domain changes may take a few minutes to propagate; poll `queryEnv(action="domains")` rather than blind-sleeping for a fixed long interval.
 6. Only after that should you implement and test browser-side `app.uploadFile()` flows.
 
 If `app.uploadFile()` returns `STORAGE_NOT_EXIST`, stop editing frontend code and fix the environment-side storage resource first. Re-check the environment storage list, create or select an available bucket if the task allows it, then retry the same SDK upload flow.

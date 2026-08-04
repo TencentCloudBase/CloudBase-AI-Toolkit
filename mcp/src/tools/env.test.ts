@@ -1262,7 +1262,7 @@ describe("env tools - envQuery", () => {
         pollTool: "queryEnv",
         pollAction: "domains",
         pollIntervalSuggestionSeconds: 10,
-        timeoutSuggestionSeconds: 600,
+        timeoutSuggestionSeconds: 300,
       },
       next_step: {
         tool: "queryEnv",
@@ -1272,7 +1272,8 @@ describe("env tools - envQuery", () => {
         },
       },
     });
-    expect(payload.message).toContain("继续轮询 queryEnv(action=\"domains\")");
+    expect(payload.message).toContain('轮询 queryEnv(action="domains")');
+    expect(payload.message).toContain("勿一次 sleep 满 10 分钟");
   });
 
   it("envDomainManagement(delete) should return structured polling guidance", async () => {

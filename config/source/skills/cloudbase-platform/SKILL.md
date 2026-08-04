@@ -273,7 +273,7 @@ Example structure for operation recording:
    Create collection → Configure security rules → Write code → Test
    ```
    - Use `managePermissions(action="updateResourcePermission")` to configure resource permissions
-   - If permissions were just changed, allow a short propagation window (typically 2-5 minutes) before retesting, but do not assume every failure is cache. Re-check the actual rule shape and active client write pattern first.
+   - If permissions were just changed, retry after a few seconds (typically within ~30s). Do not blind-wait 2-5 minutes. If it still fails, re-check the actual rule shape and active client write pattern first — most failures are misconfigured rules, not cache.
    - See `no-sql-web-sdk/security-rules.md` for detailed `resourceType="noSqlDatabase"` examples only; do not treat `doc._openid`, `auth.openid`, query-subset validation, or `create` / `update` / `delete` JSON templates as generic rules for functions, storage, or SQL tables
    - Official references:
      - General security rules overview: `https://cloud.tencent.com/document/product/876/41802`

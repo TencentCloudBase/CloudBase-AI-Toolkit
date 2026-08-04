@@ -415,7 +415,8 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     {
       tool: "queryGateway",
       action: "getRoute",
-      reason: "等待 30 秒到 3 分钟后再确认访问入口是否已生效",
+      reason:
+        "创建后通常数秒到约 30 秒内生效；请立刻轮询 getRoute 或探测 accessUrl，勿盲等 60 秒以上",
     },
     {
       tool: "queryPermissions",
@@ -605,7 +606,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           const privilege = await getGatewayPrivilege();
           if (privilege.EnableService !== true) {
             privilegeHint =
-              "⚠️ HTTP 网关总开关未开启，路由创建成功后访问仍将返回 HTTPSERVICE_NONACTIVATED（403）；请先调用 manageGateway(action=\"enableService\", enable=true) 开启，再等待 30 秒到 3 分钟访问。";
+              "⚠️ HTTP 网关总开关未开启，路由创建成功后访问仍将返回 HTTPSERVICE_NONACTIVATED（403）；请先调用 manageGateway(action=\"enableService\", enable=true) 开启，再立刻探测 accessUrl（通常数秒到约 30 秒内生效，勿盲等 60 秒以上）。";
             privilegeNextActions = [
               {
                 tool: "manageGateway",
@@ -646,7 +647,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
               : payload.resolved.enablePathTransmission === false
                 ? "；路径透传关闭（网关会剥掉触发路径前缀后再转发给后端）"
                 : "；路径透传未显式设置（平台默认 false，会剥掉触发路径前缀）") +
-            `。注意：路由配置传播通常需要等待 30 秒到 3 分钟，请勿立即访问。该操作只创建网关入口，不会自动放开上游权限；若上游是云函数且需要匿名或浏览器直接访问，请继续检查函数资源权限。` +
+            `。注意：路由配置传播通常数秒到约 30 秒；请立刻用 queryGateway(getRoute) 或探测 accessUrl 确认，勿盲等 60 秒以上。该操作只创建网关入口，不会自动放开上游权限；若上游是云函数且需要匿名或浏览器直接访问，请继续检查函数资源权限。` +
             (privilegeHint ? ` ${privilegeHint}` : ""),
           [
             ...privilegeNextActions,

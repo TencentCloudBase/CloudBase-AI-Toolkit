@@ -65,3 +65,10 @@ Live-verified on PG env via `callCloudApi` `ModifyEnvConfig` / `DescribeEnvConfi
 ### Not the same as ModifySecurityRule
 
 Earlier investigation also proved `ModifySecurityRule` works on PG, but CLI's official migration path is OPA (`tcb policy`), so MCP now follows that.
+
+## Follow-up (2026-08-04 ATO re-check)
+
+- Published npm MCP still returns `ModifyResourcePermission` PG unsupported on `ai-native-*` — fix not released yet.
+- Env Meta confirms `authz_engine=opa`.
+- Related: HTTP gateway route create → first HTTP 200 in **~1s** on the same env; MCP/skill wait copy reduced from “30s–3min” accordingly (same task).
+

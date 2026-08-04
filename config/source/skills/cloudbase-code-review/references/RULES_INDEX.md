@@ -111,7 +111,7 @@ Only add rules that are backed by stable SDK/API documentation, repeated evaluat
 | NOSQL-002 | error | lint | 禁止动态 import 懒加载初始化 CloudBase |
 | NOSQL-003 | error | LLM | 安全规则是验证器，不是过滤器 |
 | NOSQL-004 | error | lint | 禁止手动传入 _openid 到 data 参数 |
-| NOSQL-005 | warning | LLM | CUSTOM 规则变更需要 2-5 分钟传播 |
+| NOSQL-005 | warning | LLM | CUSTOM 规则变更通常数秒到约 30 秒生效；勿盲等数分钟，先核对规则与客户端写入模式 |
 | NOSQL-006 | error | lint | .add() 返回值中文档 ID 在 result._id |
 | NOSQL-007 | error | lint | 写入必须检查 result.updated/result.deleted |
 | NOSQL-008 | error | LLM | CMS 角色区分必须用 CUSTOM 规则 |

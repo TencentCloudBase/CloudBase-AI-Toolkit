@@ -41,7 +41,7 @@ function buildWriteVerificationHint(resourceId: string) {
 }
 
 function buildPermissionPropagationHint(resourceId: string) {
-  return `刚更新完 ${resourceId} 的安全规则时，后端权限可能需要一小段传播时间。若紧接着的真实写操作仍返回 DATABASE_PERMISSION_DENIED，请先等待一小段时间，再用同一登录态重试同一条 .doc(id).update() / .doc(id).remove()；不要立刻连续重写规则，也不要在传播窗口里把旧拒绝直接当成规则表达式仍然错误。`;
+  return `刚更新完 ${resourceId} 的安全规则时，后端权限通常在数秒到约 30 秒内生效。若紧接着的真实写操作仍返回 DATABASE_PERMISSION_DENIED，请先间隔数秒用同一登录态重试同一条 .doc(id).update() / .doc(id).remove()；不要盲等数分钟，也不要立刻连续重写规则，更不要在短暂传播窗口里把旧拒绝直接当成规则表达式仍然错误。`;
 }
 
 type CreateRuleHint = {

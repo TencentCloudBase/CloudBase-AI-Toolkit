@@ -313,7 +313,8 @@ describe("gateway tools", () => {
         }),
       ],
     });
-    expect(payload.message).toContain("30 秒到 3 分钟");
+    expect(payload.message).toContain("数秒到约 30 秒");
+    expect(payload.message).toContain("勿盲等 60 秒以上");
   });
 
   it("manageGateway(action=createRoute) should create SCF route with default path", async () => {

@@ -242,13 +242,13 @@ function buildEnvDomainManagementResult(params: {
       targetDomains: domains,
       asyncState: "PENDING",
       message:
-        '安全域名已提交添加请求。该变更通常需要约 10 分钟传播，请继续轮询 queryEnv(action="domains")，直到目标域名状态为 ENABLE。',
+        '安全域名已提交添加请求。该变更通常需要数分钟传播（平台侧）；请每 10 秒轮询 queryEnv(action="domains") 直到 Status 为 ENABLE，勿一次 sleep 满 10 分钟。',
       propagation: {
         requiresPolling: true,
         pollTool: "queryEnv",
         pollAction: "domains",
         pollIntervalSuggestionSeconds: 10,
-        timeoutSuggestionSeconds: 600,
+        timeoutSuggestionSeconds: 300,
         successCondition:
           '目标域名出现在 queryEnv(action="domains") 返回中，且 Status 为 ENABLE。',
       },
@@ -270,13 +270,13 @@ function buildEnvDomainManagementResult(params: {
     targetDomains: domains,
     asyncState: "PENDING",
     message:
-      '安全域名已提交删除请求。该变更可能需要数分钟传播，请继续轮询 queryEnv(action="domains")，直到目标域名不再出现。',
+      '安全域名已提交删除请求。该变更通常需要数分钟传播；请每 10 秒轮询 queryEnv(action="domains") 直到目标域名不再出现，勿一次 sleep 满数分钟。',
     propagation: {
       requiresPolling: true,
       pollTool: "queryEnv",
       pollAction: "domains",
       pollIntervalSuggestionSeconds: 10,
-      timeoutSuggestionSeconds: 600,
+      timeoutSuggestionSeconds: 300,
       successCondition:
         '目标域名不再出现在 queryEnv(action="domains") 返回中。',
     },
@@ -2333,7 +2333,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     {
       title: "CloudBase 环境域名管理（安全域名 / CORS 白名单）",
       description:
-        "管理 CloudBase 环境的安全域名（安全域名 / CORS 白名单），支持添加和删除操作。（原工具名：createEnvDomain/deleteEnvDomain，为兼容旧AI规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 直接访问 CloudBase 资源时，应先用 queryEnv(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。新增或删除后通常需要继续轮询 queryEnv(action=domains) 确认状态收敛；安全域名一般约 10 分钟生效。⚠️ 重要：此工具仅用于 CORS/请求来源验证，不涉及 SSL 证书。自定义域名公网 HTTPS：先 queryGateway(listCustomDomains)；已有域名则 manageGateway(createRoute) 显式传 domain（无需证书）；仅首次绑定新域名才用 bindCustomDomain（需 certificateId）。",
+        "管理 CloudBase 环境的安全域名（安全域名 / CORS 白名单），支持添加和删除操作。（原工具名：createEnvDomain/deleteEnvDomain，为兼容旧AI规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 直接访问 CloudBase 资源时，应先用 queryEnv(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。新增或删除后请每约 10 秒轮询 queryEnv(action=domains) 确认状态收敛，勿一次 sleep 满 10 分钟；多数环境数分钟内可收敛。⚠️ 重要：此工具仅用于 CORS/请求来源验证，不涉及 SSL 证书。自定义域名公网 HTTPS：先 queryGateway(listCustomDomains)；已有域名则 manageGateway(createRoute) 显式传 domain（无需证书）；仅首次绑定新域名才用 bindCustomDomain（需 certificateId）。",
       inputSchema: {
         action: z
           .enum(["create", "delete"])

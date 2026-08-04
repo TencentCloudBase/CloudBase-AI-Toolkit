@@ -30,7 +30,7 @@ const KnowledgeBaseIdMap: Record<z.infer<typeof KnowledgeBaseEnum>, string> = {
 const CACHE_BASE_DIR = path.join(os.homedir(), ".cloudbase-mcp");
 const CACHE_META_FILE = path.join(CACHE_BASE_DIR, "cache-meta.json");
 const LOCK_FILE = path.join(CACHE_BASE_DIR, ".download.lock");
-const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 默认 24 小时
+const DEFAULT_CACHE_TTL_MS = 60 * 60 * 1000; // default 1 hour (was 24h; templates/docs refresh more often)
 
 // Promise wrapper for lockfile methods
 function acquireLock(

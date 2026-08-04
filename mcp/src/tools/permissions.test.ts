@@ -392,7 +392,8 @@ describe("permission tools", () => {
       }),
     ]);
     expect(payload.data.verificationHint).toContain("updated / deleted 是否大于 0");
-    expect(payload.data.propagationHint).toContain("等待一小段时间");
+    expect(payload.data.propagationHint).toContain("数秒到约 30 秒");
+    expect(payload.data.propagationHint).toContain("不要盲等数分钟");
     expect(payload.data.propagationHint).toContain("DATABASE_PERMISSION_DENIED");
   });
 
