@@ -1331,7 +1331,7 @@ describe("PG database tools", () => {
 
       expect(payload).toMatchObject({
         success: true,
-        data: { hydratedRemoteCount: 1, verified: true },
+        data: { hydratedRemoteCount: 1, payloadSource: "hydrate", verified: true },
       });
       expect(mockCommonServiceCall).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1348,6 +1348,67 @@ describe("PG database tools", () => {
                 Version: "20260701000000",
                 Name: "init_schema",
                 Query: "CREATE TABLE public.init(id int)",
+              }),
+              expect.objectContaining({
+                Version: "20260720160000",
+                Name: "create_test_table",
+                Query: "CREATE TABLE public.test(id int)",
+              }),
+            ],
+          }),
+        }),
+      );
+    });
+
+    it("applyMigration uses local tree when it covers remote history (skips Describe hydrate)", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      const remoteSql = "CREATE TABLE public.init(id int);\n";
+      fs.mkdirSync(path.join(migrationWorkspace, "cloudbase/migrations"), { recursive: true });
+      fs.writeFileSync(
+        path.join(migrationWorkspace, "cloudbase/migrations/20260701000000_init_schema.sql"),
+        remoteSql,
+        "utf8",
+      );
+      mockApplyMigrationCloudApis({
+        remoteMigrations: [
+          {
+            Version: "20260701000000",
+            Name: "init_schema",
+            Query: "CREATE TABLE public.init(id int)",
+          },
+        ],
+        pendingVersion: "20260720160000",
+        pendingName: "create_test_table",
+      });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "create_test_table",
+          migrationVersion: "20260720160000",
+          sql: "CREATE TABLE public.test(id int)",
+          confirm: true,
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: true,
+        data: { hydratedRemoteCount: 1, payloadSource: "local", verified: true },
+      });
+      expect(mockCommonServiceCall).not.toHaveBeenCalledWith(
+        expect.objectContaining({ Action: "DescribePGUserMigration" }),
+      );
+      expect(mockCommonServiceCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Action: "PushPGUserMigrations",
+          Param: expect.objectContaining({
+            Migrations: [
+              expect.objectContaining({
+                Version: "20260701000000",
+                Name: "init_schema",
+                Query: remoteSql,
               }),
               expect.objectContaining({
                 Version: "20260720160000",
