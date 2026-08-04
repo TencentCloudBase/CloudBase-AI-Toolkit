@@ -68,8 +68,10 @@ class TelemetryReporter {
         const nodeVersion = process.version; // Node.js版本
         const arch = os.arch(); // 系统架构
 
-        // 从构建时注入的版本号获取MCP版本信息
-        const mcpVersion = process.env.npm_package_version || __MCP_VERSION__ || 'unknown';
+        // Build-time injected version; guard for vitest / non-webpack runtimes.
+        const mcpVersion =
+          process.env.npm_package_version ||
+          (typeof __MCP_VERSION__ !== "undefined" ? __MCP_VERSION__ : "unknown");
 
         return {
             userAgent: `${osType} ${osRelease} ${arch} ${nodeVersion} CloudBase-MCP/${mcpVersion}`,

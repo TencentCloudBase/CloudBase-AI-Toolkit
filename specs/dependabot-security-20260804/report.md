@@ -43,8 +43,10 @@ Focus: core manifests (`pnpm-lock.yaml`, `package-lock.json`, `mcp/package-lock.
 Notes:
 - Addresses Dependabot high alert requiring SDK `>=1.26.0`.
 - SDK `ToolAnnotations` became a closed/`$strip` schema; CloudBase keeps `annotations.category` via `ToolAnnotations` intersection + `ExtendedMcpServer.registerTool`.
-- Runtime `tools/list` still returns registered annotations without stripping custom keys (covered by `mcp/src/annotations-category.test.ts`).
+- Official SDK Client strips unknown annotation keys on `tools/list` parse; `registerTool` wrappers mirror category into `_meta.category` for Client consumers while the wire payload still includes `annotations.category`.
+- Covered by `mcp/src/annotations-category.test.ts`.
 - Removed duplicate caret SDK entry from `mcp` `devDependencies`.
+- Bumped mcp `zod` to `3.25.76` (exact) to satisfy SDK peer `^3.25 || ^4.0`.
 
 ## Follow-up completed: vitest
 

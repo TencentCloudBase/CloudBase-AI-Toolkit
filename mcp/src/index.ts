@@ -4,6 +4,7 @@ export {
   getDefaultServer,
   type McpServer,
   type ExtendedMcpServer,
+  type CloudBaseRegisterToolConfig,
   StdioServerTransport,
   telemetryReporter,
   reportToolkitLifecycle,
@@ -12,6 +13,8 @@ export {
   error,
   warn
 } from "./server.js";
+
+export type { Tool, ToolAnnotations } from "./utils/tool-wrapper.js";
 
 export type {
   UploadFileParams,

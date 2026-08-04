@@ -159,7 +159,7 @@ describe("Function and gateway tool schemas", () => {
     expect(properties.layerName).toBeDefined();
     expect(properties.layerVersion).toBeDefined();
     expect(tool.annotations.readOnlyHint).toBe(true);
-    expect(tool.annotations.category).toBe("functions");
+    expect(tool._meta?.category ?? tool.annotations.category).toBe("functions");
   });
 
   test.skipIf(!testClient)("manageFunctions schema excludes gateway write actions", async () => {
@@ -184,7 +184,7 @@ describe("Function and gateway tool schemas", () => {
     expect(properties.zipFile.description).toMatch(/仅兼容特殊场景|优先使用 functionRootPath/);
     expect(tool.annotations.readOnlyHint).toBe(false);
     expect(tool.annotations.destructiveHint).toBe(true);
-    expect(tool.annotations.category).toBe("functions");
+    expect(tool._meta?.category ?? tool.annotations.category).toBe("functions");
   });
 
   test.skipIf(!testClient)("gateway tools expose independent query/manage entrypoints", async () => {
@@ -200,7 +200,7 @@ describe("Function and gateway tool schemas", () => {
     expect(queryTool.inputSchema.properties.action.enum).not.toContain("listDomains");
     expect(queryTool.inputSchema.properties.targetType).toBeDefined();
     expect(queryTool.inputSchema.properties.targetName).toBeDefined();
-    expect(queryTool.annotations.category).toBe("gateway");
+    expect(queryTool._meta?.category ?? queryTool.annotations.category).toBe("gateway");
     expect(queryTool.annotations.readOnlyHint).toBe(true);
 
     expect(manageTool).toBeDefined();
@@ -209,7 +209,7 @@ describe("Function and gateway tool schemas", () => {
     expect(manageTool.inputSchema.properties.targetType).toBeDefined();
     expect(manageTool.inputSchema.properties.targetName).toBeDefined();
     expect(manageTool.inputSchema.properties.path).toBeDefined();
-    expect(manageTool.annotations.category).toBe("gateway");
+    expect(manageTool._meta?.category ?? manageTool.annotations.category).toBe("gateway");
     expect(manageTool.annotations.readOnlyHint).toBe(false);
     expect(manageTool.annotations.destructiveHint).toBe(true);
   });

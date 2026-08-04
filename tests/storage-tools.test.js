@@ -213,7 +213,7 @@ describe('Storage Tools Tests', () => {
       if (queryStorageTool) {
         expect(queryStorageTool.annotations).toBeDefined();
         expect(queryStorageTool.annotations.readOnlyHint).toBe(true);
-        expect(queryStorageTool.annotations.category).toBe('storage');
+        expect(queryStorageTool._meta?.category ?? queryStorageTool.annotations.category).toBe('storage');
         console.log('✅ queryStorage tool annotations are correct');
       }
       
@@ -223,7 +223,7 @@ describe('Storage Tools Tests', () => {
         expect(manageStorageTool.annotations).toBeDefined();
         expect(manageStorageTool.annotations.readOnlyHint).toBe(false);
         expect(manageStorageTool.annotations.destructiveHint).toBe(true);
-        expect(manageStorageTool.annotations.category).toBe('storage');
+        expect(manageStorageTool._meta?.category ?? manageStorageTool.annotations.category).toBe('storage');
         console.log('✅ manageStorage tool annotations are correct');
       }
 
