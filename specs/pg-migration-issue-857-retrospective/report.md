@@ -379,4 +379,6 @@ listMigrations → 新 version 可见，表存在
 
 ## Tracking
 
-- Shipped follow-ups land in PR https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/pull/863 (`includeAll`, `fetchMigration`, `describeMigrationTask`, local-file gate, 10min poll).
+- Shipped follow-ups land in PR https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/pull/863 (`includeAll`, `fetchMigration`, `describeMigrationTask`, local-file gate, 10min poll, skills sync-metadata pin `e197199`).
+- Overlapping PR #862 and stale AI auto-fix #861 were **closed as superseded** (2026-08-04 consolidation). Merge #863, then close #857.
+- ATO pending triage: most CloudBase-MCP migration pendings are duplicates of work already on #863 / 2.25.5 — cancel list in `~/.ato/workspace/859f1a9e-ec50-4c40-8e3d-ec2d3460a5cc/artifacts/pg-migration-consolidation.md`.
