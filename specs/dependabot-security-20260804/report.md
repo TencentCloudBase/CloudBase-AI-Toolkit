@@ -31,9 +31,19 @@ Focus: core manifests (`pnpm-lock.yaml`, `package-lock.json`, `mcp/package-lock.
 | Package | Severity | Reason |
 |---------|----------|--------|
 | @modelcontextprotocol/sdk (>=1.26.0) | high | Upgrade strips/conflicts with custom `annotations.category`; needs dedicated type/compat work |
-| vitest (>=3.2.6) | critical | Major bump from 2.x; vulns require Vitest UI server |
 | decompress | critical/medium | No upstream patch; comes via `@cloudbase/toolbox` |
 | examples/* axios/lodash.* | various | Example apps only; out of core package path |
+
+## Follow-up completed: vitest
+
+| Package | Action | Target |
+|---------|--------|--------|
+| vitest | direct pin (root + mcp) | 3.2.7 |
+
+Notes:
+- Addresses GHSA-5xrq-8626-4rwp / CVE-2026-47429 (Vitest UI/API server RCE/file read when UI listening).
+- Removed unused `mcp` `test:ui` script; `@vitest/ui` remains uninstalled.
+- `mcp/vitest.config.js`: replaced deprecated `threads: false` with `pool: "forks"` + `fileParallelism: false`.
 
 ## Verification
 
@@ -44,6 +54,6 @@ Focus: core manifests (`pnpm-lock.yaml`, `package-lock.json`, `mcp/package-lock.
 ## Follow-ups
 
 1. Dedicated PR: MCP SDK 1.26+ with `category` annotation typing preserved
-2. Vitest 3.x migration (or dismiss UI-server advisory if UI unused in CI)
+2. ~~Vitest 3.x migration (or dismiss UI-server advisory if UI unused in CI)~~ → done (pin 3.2.7 + remove `test:ui`)
 3. Upstream/`@cloudbase/toolbox` replacement for `decompress`
 4. Example app dependency refresh (`examples/cloudbase-auth-endpoint-with-feishu`)

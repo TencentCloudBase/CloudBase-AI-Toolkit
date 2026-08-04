@@ -16,8 +16,9 @@ export default defineConfig({
     environment: "node",
     // Increase test timeout
     testTimeout: 120000,
-    // Concurrency settings
-    threads: false, // Disable worker threads to avoid port conflicts
+    // Avoid worker-thread pool to reduce flaky port conflicts in integration tests
+    pool: "forks",
+    fileParallelism: false,
     // Root directory
     root: process.cwd(),
     // Included test files
