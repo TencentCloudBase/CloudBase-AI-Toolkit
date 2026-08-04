@@ -27,11 +27,11 @@ Focus: core manifests (`pnpm-lock.yaml`, `package-lock.json`, `mcp/package-lock.
 | tough-cookie (mcp) | override | 4.1.4 exact |
 | decompress | override alias | `npm:@xhmikosr/decompress@11.1.3` (via `@cloudbase/toolbox`) |
 
-## Intentionally deferred
+## Intentionally deferred / dismissed
 
 | Package | Severity | Reason |
 |---------|----------|--------|
-| lodash.set (via `@cloudbase/database` in example) | high | No patched `lodash.set` release (`first_patched: null`); node-sdk@4 would drop it but adds floating `@cloudbase/js-sdk: latest` + major API risk — left for upstream / Dependabot dismiss |
+| lodash.set (via `@cloudbase/database` in example) | high | No patched `lodash.set` release (`first_patched: null`); node-sdk@4 would drop it but adds floating `@cloudbase/js-sdk: latest` + major API risk. **Dismissed** Dependabot `#210` / `#235` as `tolerable_risk` (2026-08-04); real fix needs upstream `@cloudbase/database` to replace modular `lodash.set` (used in realtime `virtual-websocket-client`) |
 
 ## Follow-up completed: @modelcontextprotocol/sdk
 
@@ -93,4 +93,5 @@ Notes:
 1. ~~Dedicated PR: MCP SDK 1.26+ with `category` annotation typing preserved~~ → done (pin `1.30.0` + category type extension)
 2. ~~Vitest 3.x migration (or dismiss UI-server advisory if UI unused in CI)~~ → done (pin 3.2.7 + remove `test:ui`)
 3. ~~Upstream/`@cloudbase/toolbox` replacement for `decompress`~~ → mitigated via `@xhmikosr/decompress` override; keep watching for toolbox upstream
-4. ~~Example app dependency refresh~~ → done (lodash.set remains; dismiss or wait for `@cloudbase/database` / node-sdk)
+4. ~~Example app dependency refresh~~ → done (patchable alerts cleared; lodash.set Dependabot `#210`/`#235` dismissed `tolerable_risk`)
+5. Upstream: `@cloudbase/database` replace abandoned `lodash.set@4.3.2` (and prefer patched `lodash` / safe path helpers) so example can drop the dismiss
