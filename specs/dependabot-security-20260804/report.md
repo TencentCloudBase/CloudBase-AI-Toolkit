@@ -25,14 +25,26 @@ Focus: core manifests (`pnpm-lock.yaml`, `package-lock.json`, `mcp/package-lock.
 | vite@5 | override | 5.4.21 |
 | adm-zip | direct + override | 0.6.0 |
 | tough-cookie (mcp) | override | 4.1.4 exact |
+| decompress | override alias | `npm:@xhmikosr/decompress@11.1.3` (via `@cloudbase/toolbox`) |
 
 ## Intentionally deferred
 
 | Package | Severity | Reason |
 |---------|----------|--------|
-| @modelcontextprotocol/sdk (>=1.26.0) | high | Upgrade strips/conflicts with custom `annotations.category`; needs dedicated type/compat work |
-| decompress | critical/medium | No upstream patch; comes via `@cloudbase/toolbox` |
 | lodash.set (via `@cloudbase/database` in example) | high | No patched `lodash.set` release (`first_patched: null`); node-sdk@4 would drop it but adds floating `@cloudbase/js-sdk: latest` + major API risk — left for upstream / Dependabot dismiss |
+
+## Follow-up completed: @modelcontextprotocol/sdk
+
+| Package | Action | Target |
+|---------|--------|--------|
+| @modelcontextprotocol/sdk | direct pin (root + mcp) | 1.30.0 |
+| zod (mcp peer for SDK) | direct pin | 3.25.76 |
+
+Notes:
+- Addresses Dependabot high alert requiring SDK `>=1.26.0`.
+- SDK `ToolAnnotations` became a closed/`$strip` schema; CloudBase keeps `annotations.category` via `ToolAnnotations` intersection + `ExtendedMcpServer.registerTool`.
+- Runtime `tools/list` still returns registered annotations without stripping custom keys (covered by `mcp/src/annotations-category.test.ts`).
+- Removed duplicate caret SDK entry from `mcp` `devDependencies`.
 
 ## Follow-up completed: vitest
 
@@ -58,6 +70,18 @@ Both `examples/cloudbase-auth-endpoint-with-feishu/package.json` and `cloudfunct
 
 Verification: `tsc` build OK; `npm audit --registry=https://registry.npmjs.org` leaves only `lodash.set` (deferred above).
 
+## Follow-up completed: decompress Zip Slip (GHSA-h39j-r5qq-r9mm / CVE-2026-10732)
+
+| Package | Action | Target |
+|---------|--------|--------|
+| decompress | override alias (root `pnpm.overrides` + `overrides`, `mcp` `overrides`) | `npm:@xhmikosr/decompress@11.1.3` |
+
+Notes:
+- Upstream `decompress` has no patched release (`<=4.2.1` all vulnerable; `first_patched_version: null`).
+- `@cloudbase/toolbox@0.8.1` pulls `decompress` only via `lib/zip.js`; this repo uses `AuthSupervisor` from the same package.
+- Alias is a drop-in fork used by other ecosystems; verified `AuthSupervisor` loads and toolbox `unzip` works; lockfiles no longer reference `decompress@4.2.1`.
+- Prefer upstream toolbox eventually dropping `decompress` so the override can be removed.
+
 ## Verification
 
 - `pnpm install` refreshed overrides into `pnpm-lock.yaml`
@@ -66,7 +90,7 @@ Verification: `tsc` build OK; `npm audit --registry=https://registry.npmjs.org` 
 
 ## Follow-ups
 
-1. Dedicated PR: MCP SDK 1.26+ with `category` annotation typing preserved
+1. ~~Dedicated PR: MCP SDK 1.26+ with `category` annotation typing preserved~~ → done (pin `1.30.0` + category type extension)
 2. ~~Vitest 3.x migration (or dismiss UI-server advisory if UI unused in CI)~~ → done (pin 3.2.7 + remove `test:ui`)
-3. Upstream/`@cloudbase/toolbox` replacement for `decompress`
+3. ~~Upstream/`@cloudbase/toolbox` replacement for `decompress`~~ → mitigated via `@xhmikosr/decompress` override; keep watching for toolbox upstream
 4. ~~Example app dependency refresh~~ → done (lodash.set remains; dismiss or wait for `@cloudbase/database` / node-sdk)

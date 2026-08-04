@@ -143,6 +143,7 @@
     "minimatch@5": "5.1.9",
     "minimatch@10": "10.2.5",
     "vite@5": "5.4.21",
-    "adm-zip": "0.6.0"
+    "adm-zip": "0.6.0",
+    "decompress": "npm:@xhmikosr/decompress@11.1.3"
   }
 }
