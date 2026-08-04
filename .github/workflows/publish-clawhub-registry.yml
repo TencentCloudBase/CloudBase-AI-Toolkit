@@ -14,12 +14,6 @@ on:
       - 'scripts/publish-to-skillhub.mjs'
       - '.github/workflows/publish-clawhub-registry.yml'
   workflow_dispatch:
-
-# Avoid concurrent publish races that collide on the same next patch version.
-concurrency:
-  group: publish-clawhub-registry
-  cancel-in-progress: false
-
     inputs:
       targets:
         description: 'Comma-separated publish targets: miniprogram-development, cloudbase-wechat-integration, all-in-one, ui-design, web-development, spec-workflow'
@@ -49,6 +43,11 @@ concurrency:
         required: false
         default: true
         type: boolean
+
+# Avoid concurrent publish races that collide on the same next patch version.
+concurrency:
+  group: publish-clawhub-registry
+  cancel-in-progress: false
 
 jobs:
   publish:
