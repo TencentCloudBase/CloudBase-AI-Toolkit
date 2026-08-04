@@ -12,17 +12,26 @@ const {
   mockCreateRole,
   mockDescribeUserList,
   mockCreateUser,
-} = vi.hoisted(() => ({
-  mockGetCloudBaseManager: vi.fn(),
-  mockGetEnvId: vi.fn(),
-  mockLogCloudBaseResult: vi.fn(),
-  mockDescribeResourcePermission: vi.fn(),
-  mockDescribeRoleList: vi.fn(),
-  mockModifyResourcePermission: vi.fn(),
-  mockCreateRole: vi.fn(),
-  mockDescribeUserList: vi.fn(),
-  mockCreateUser: vi.fn(),
-}));
+  mockCommonServiceCall,
+  mockCommonService,
+} = vi.hoisted(() => {
+  const mockCommonServiceCall = vi.fn();
+  return {
+    mockGetCloudBaseManager: vi.fn(),
+    mockGetEnvId: vi.fn(),
+    mockLogCloudBaseResult: vi.fn(),
+    mockDescribeResourcePermission: vi.fn(),
+    mockDescribeRoleList: vi.fn(),
+    mockModifyResourcePermission: vi.fn(),
+    mockCreateRole: vi.fn(),
+    mockDescribeUserList: vi.fn(),
+    mockCreateUser: vi.fn(),
+    mockCommonServiceCall,
+    mockCommonService: vi.fn(() => ({
+      call: mockCommonServiceCall,
+    })),
+  };
+});
 
 vi.mock("../cloudbase-manager.js", () => ({
   getCloudBaseManager: mockGetCloudBaseManager,
@@ -123,6 +132,7 @@ describe("permission tools", () => {
         describeUserList: mockDescribeUserList,
         createUser: mockCreateUser,
       },
+      commonService: mockCommonService,
     });
     ({ tools } = createMockServer());
   });
@@ -453,5 +463,108 @@ describe("permission tools", () => {
         }),
       ]),
     );
+  });
+
+  it("queryPermissions(action=getResourcePermission) falls back to DescribeSecurityRule on PG function API rejection", async () => {
+    mockDescribeResourcePermission.mockRejectedValueOnce(
+      new Error("[DescribeResourcePermission] The current API does not support PostgreSQL type environments."),
+    );
+    mockCommonServiceCall.mockResolvedValueOnce({
+      AclTag: "CUSTOM",
+      Rule: JSON.stringify({
+        "*": { invoke: "auth != null" },
+        atoPgPermProbe: { invoke: true },
+      }),
+      RequestId: "req-describe-security-rule",
+    });
+
+    const result = await tools.queryPermissions.handler({
+      action: "getResourcePermission",
+      resourceType: "function",
+      resourceId: "atoPgPermProbe",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCommonService).toHaveBeenCalledWith("tcb", "2018-06-08");
+    expect(mockCommonServiceCall).toHaveBeenCalledWith({
+      Action: "DescribeSecurityRule",
+      Param: {
+        EnvId: "env-test",
+        ResourceType: "FUNCTION",
+      },
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      message: expect.stringContaining("DescribeSecurityRule"),
+      data: {
+        action: "getResourcePermission",
+        resourceType: "function",
+        resourceId: "atoPgPermProbe",
+        aclTag: "CUSTOM",
+        fallback: "DescribeSecurityRule",
+      },
+    });
+    expect(payload.data.permissions[0]).toMatchObject({
+      Resource: "atoPgPermProbe",
+      Permission: "CUSTOM",
+      SecurityRule: JSON.stringify({ atoPgPermProbe: { invoke: true } }),
+    });
+  });
+
+  it("managePermissions(action=updateResourcePermission) falls back to ModifySecurityRule on PG function API rejection", async () => {
+    mockModifyResourcePermission.mockRejectedValueOnce(
+      new Error("[ModifyResourcePermission] The current API does not support PostgreSQL type environments."),
+    );
+    mockCommonServiceCall
+      .mockResolvedValueOnce({
+        AclTag: "CUSTOM",
+        Rule: JSON.stringify({
+          "*": { invoke: "auth.loginType != 'ANONYMOUS' && auth != null" },
+        }),
+        RequestId: "req-describe-security-rule",
+      })
+      .mockResolvedValueOnce({
+        RequestId: "req-modify-security-rule",
+      });
+
+    const result = await tools.managePermissions.handler({
+      action: "updateResourcePermission",
+      resourceType: "function",
+      resourceId: "atoPgPermProbe",
+      permission: "CUSTOM",
+      securityRule: JSON.stringify({ invoke: true }),
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCommonServiceCall).toHaveBeenNthCalledWith(1, {
+      Action: "DescribeSecurityRule",
+      Param: {
+        EnvId: "env-test",
+        ResourceType: "FUNCTION",
+      },
+    });
+    expect(mockCommonServiceCall).toHaveBeenNthCalledWith(2, {
+      Action: "ModifySecurityRule",
+      Param: {
+        AclTag: "CUSTOM",
+        EnvId: "env-test",
+        ResourceType: "FUNCTION",
+        Rule: JSON.stringify({
+          "*": { invoke: "auth.loginType != 'ANONYMOUS' && auth != null" },
+          atoPgPermProbe: { invoke: true },
+        }),
+      },
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      message: expect.stringContaining("ModifySecurityRule"),
+      data: {
+        action: "updateResourcePermission",
+        resourceType: "function",
+        resourceId: "atoPgPermProbe",
+        permission: "CUSTOM",
+        fallback: "ModifySecurityRule",
+      },
+    });
   });
 });
