@@ -82,11 +82,13 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
 
    **Default schema-change workflow (local file first, then remote history):**
    1. Choose `migrationVersion` = 14-digit UTC timestamp `YYYYMMDDHHMMSS` and `migrationName` = snake_case (e.g. `add_users`).
-   2. Write local file `migrations/<migrationVersion>_<migrationName>.sql` with the DDL (and optional rollback SQL in comments or a paired file).
+   2. Write local file `cloudbase/migrations/<migrationVersion>_<migrationName>.sql` with the DDL (and optional rollback SQL in comments or a paired file). This path **must** match CloudBase CLI `MIGRATIONS_DIR` (`tcb db pg migration *`). If an older workspace still has root `migrations/`, move those files into `cloudbase/migrations/` before mixed MCP+CLI use.
    3. Optional preview: `managePgDatabase(action=planMigration, migrationName=..., migrationVersion=..., sql=...)`.
-   4. Apply: `managePgDatabase(action=applyMigration, migrationName=..., migrationVersion=..., sql=..., confirm=true)` — reuse the **same** version/name as the local file.
+   4. Apply: `managePgDatabase(action=applyMigration, migrationName=..., migrationVersion=..., sql=..., confirm=true)` — reuse the **same** version/name as the local file. MCP waits for the async task by default (up to **10 minutes**, same as CLI); override with `taskPollTimeoutMs` or set `waitForTask=false` if the host tool-call timeout is short.
    5. Verify: `managePgDatabase(action=listMigrations)` and confirm the remote history records the same `migrationVersion`.
    6. Then write frontend CRUD / RLS checks.
+
+   **If applyMigration returns `MIGRATION_TASK_TIMEOUT` or `MIGRATION_TASK_PENDING`:** the task may still be running (large DDL / lock waits). Call `listMigrations` **first**. Do **not** re-push the same `migrationVersion`, and do **not** fall back to `execute` until list confirms the version never landed.
 
    Other migration actions:
    - `managePgDatabase(action=migrationDetail, migrationVersion=...)` — inspect a single migration

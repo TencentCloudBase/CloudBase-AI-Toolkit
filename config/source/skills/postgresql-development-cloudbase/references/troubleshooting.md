@@ -24,6 +24,18 @@ DO $$ BEGIN EXECUTE 'CREATE TABLE public.products (id serial PRIMARY KEY, name t
 
 Do not use this as a way to hide real syntax errors. If the wrapped SQL also fails, inspect the exact error and simplify.
 
+## `MIGRATION_TASK_TIMEOUT` / `MIGRATION_TASK_PENDING` after applyMigration
+
+Cause: `PushPGUserMigrations` is async. MCP polls `DescribeTaskResult` by default for up to **10 minutes** (CLI parity). Large DDL or lock waits can outlive the poll window, or the caller set `waitForTask=false`.
+
+Fix:
+
+1. Call `managePgDatabase(action=listMigrations)` **first** and look for your `migrationVersion`.
+2. If the version is present → treat as applied; do not re-push.
+3. If missing, wait and list again. Do **not** immediately re-push the same version (duplicate / conflict risk while the task may still run).
+4. Only after list confirms the version never landed, fix SQL/Conflicts and retry with a **new** version, or use `taskPollTimeoutMs` / CLI `tcb db pg migration up` for longer waits.
+5. Optional: `waitForTask=false` returns `MIGRATION_TASK_PENDING` immediately with TaskId — still must listMigrations before any retry.
+
 ## Permissions pass in MCP but fail in browser
 
 Likely cause: admin/default execution bypassed user-facing role checks.
