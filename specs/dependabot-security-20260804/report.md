@@ -32,7 +32,7 @@ Focus: core manifests (`pnpm-lock.yaml`, `package-lock.json`, `mcp/package-lock.
 |---------|----------|--------|
 | @modelcontextprotocol/sdk (>=1.26.0) | high | Upgrade strips/conflicts with custom `annotations.category`; needs dedicated type/compat work |
 | decompress | critical/medium | No upstream patch; comes via `@cloudbase/toolbox` |
-| examples/* axios/lodash.* | various | Example apps only; out of core package path |
+| lodash.set (via `@cloudbase/database` in example) | high | No patched `lodash.set` release (`first_patched: null`); node-sdk@4 would drop it but adds floating `@cloudbase/js-sdk: latest` + major API risk — left for upstream / Dependabot dismiss |
 
 ## Follow-up completed: vitest
 
@@ -45,6 +45,19 @@ Notes:
 - Removed unused `mcp` `test:ui` script; `@vitest/ui` remains uninstalled.
 - `mcp/vitest.config.js`: replaced deprecated `threads: false` with `pool: "forks"` + `fileParallelism: false`.
 
+## Follow-up completed: example feishu auth endpoint
+
+Both `examples/cloudbase-auth-endpoint-with-feishu/package.json` and `cloudfunctions/auth-service/package.json` plus lockfiles:
+
+| Package | Override target |
+|---------|-----------------|
+| axios | 0.33.0 |
+| body-parser | 1.20.6 (express@4 line; not root's 2.x) |
+| lodash.unset | 4.18.0 |
+| uuid | 11.1.1 |
+
+Verification: `tsc` build OK; `npm audit --registry=https://registry.npmjs.org` leaves only `lodash.set` (deferred above).
+
 ## Verification
 
 - `pnpm install` refreshed overrides into `pnpm-lock.yaml`
@@ -56,4 +69,4 @@ Notes:
 1. Dedicated PR: MCP SDK 1.26+ with `category` annotation typing preserved
 2. ~~Vitest 3.x migration (or dismiss UI-server advisory if UI unused in CI)~~ → done (pin 3.2.7 + remove `test:ui`)
 3. Upstream/`@cloudbase/toolbox` replacement for `decompress`
-4. Example app dependency refresh (`examples/cloudbase-auth-endpoint-with-feishu`)
+4. ~~Example app dependency refresh~~ → done (lodash.set remains; dismiss or wait for `@cloudbase/database` / node-sdk)
