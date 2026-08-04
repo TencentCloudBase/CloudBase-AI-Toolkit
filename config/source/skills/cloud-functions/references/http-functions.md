@@ -299,7 +299,7 @@ After creating an HTTP Function, it will reject unauthenticated callers with `EX
 
 > ⚠️ **Note:** Anonymous login is disabled by default for new environments. For public endpoints, use `rule: "true"` to allow all callers regardless of auth state, rather than relying on anonymous login being enabled.
 >
-> ⚠️ **PostgreSQL environments:** platform `ModifyResourcePermission` / `DescribeResourcePermission` reject PG envs. Current MCP `managePermissions` / `queryPermissions` for `resourceType="function"` automatically fall back to `ModifySecurityRule` / `DescribeSecurityRule`. If an older MCP build still errors with "does not support PostgreSQL type environments", call `callCloudApi` with `service="tcb"`, `action="ModifySecurityRule"`, `params={AclTag:"CUSTOM", EnvId, ResourceType:"FUNCTION", Rule:'{"*":{"invoke":true}}'}`.
+> ⚠️ **PostgreSQL environments:** platform `ModifyResourcePermission` / `DescribeResourcePermission` reject PG envs. Current MCP aligns with CLI `tcb policy set/get`: `managePermissions` / `queryPermissions` for `resourceType="function"` automatically fall back to Manager SDK `modifyEnvAuthzConfig` / `describeEnvAuthzConfig` (`authz.user.rego`). Passing `securityRule: '{"invoke":true}'` generates a public-functions OPA allow policy; you can also pass a full Rego document starting with `package authz.user`. See https://docs.cloudbase.net/cli-v1/policy/management
 
 ```javascript
 managePermissions({

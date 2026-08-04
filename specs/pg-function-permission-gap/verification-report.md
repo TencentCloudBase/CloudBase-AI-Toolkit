@@ -49,20 +49,19 @@ This is a **platform API gap**, not an MCP-only invent. MCP previously had no fa
 - Function security rules (`ModifySecurityRule`): env-level invoke ACL for client `callFunction` (and related client paths). Docs: not applied to admin invoke / timers.
 - Observed: with `EnableAuth=false`, anonymous HTTP to WEB_SCF still returned 200 after setting `"*":{"invoke":false}` — so "can't call cloud function" in PG is often the **permission-tool blockage** (agent can't finish the documented post-create step), not necessarily HTTP gateway denial.
 
-## Fix shipped in this task
+## Fix shipped
 
-`mcp/src/tools/permissions.ts`:
+`mcp/src/tools/permissions.ts` PG fallback for `resourceType=function`:
 
-- On PG rejection for `resourceType=function`, auto-fallback:
-  - query → `DescribeSecurityRule`
-  - update → merge into env rule doc → `ModifySecurityRule`
-- Accepts `securityRule` forms: full doc, `{"invoke":true}`, or bare invoke expression.
-- Unit tests cover both fallbacks (`permissions.test.ts`).
+1. First attempt (same as before): `ModifyResourcePermission` / `DescribeResourcePermission`
+2. On PG rejection, **align with CLI `tcb policy`**:
+   - write → Manager SDK `permission.modifyEnvAuthzConfig({ key: "authz.user.rego", value })`
+   - read → Manager SDK `permission.describeEnvAuthzConfig({ key: "authz.user.rego" })`
+3. `securityRule='{"invoke":true}'` is translated into a CLI-style public-functions Rego allow for `anonymous` + `unauthenticated`
+4. Raw Rego starting with `package authz.user` is passed through
 
-## Cleanup left in env
+Live-verified on PG env via `callCloudApi` `ModifyEnvConfig` / `DescribeEnvConfig` (same CAPI the SDK wraps).
 
-- Function: `atoPgPermProbe`
-- Route: `/atoPgPermProbe` on default HTTPSERVICE domain
-- Security rule restored to `{"*":{"invoke":true}}`
+### Not the same as ModifySecurityRule
 
-Safe to delete later if unused.
+Earlier investigation also proved `ModifySecurityRule` works on PG, but CLI's official migration path is OPA (`tcb policy`), so MCP now follows that.
