@@ -146,6 +146,18 @@ export function buildPublishCommand(target, options) {
   };
 }
 
+/**
+ * Concurrent publish jobs may race on the same next patch version.
+ * Treat "Version X already exists" as idempotent success so SkillHub and
+ * later steps still run when a peer job already published the target.
+ */
+export function isClawhubVersionExistsError(error) {
+  const message = String(error?.message || error || "");
+  const stderr = String(error?.stderr || "");
+  const combined = `${message}\n${stderr}`;
+  return /Version\s+\S+\s+already exists/i.test(combined);
+}
+
 export function publishToClawhub({
   manifestPath,
   dryRun = false,
@@ -197,9 +209,21 @@ export function publishToClawhub({
       results.push({
         targetKey: target.targetKey,
         registrySlug: target.registrySlug,
-        status: dryRun ? "dry-run" : "published",
+        status: "published",
       });
     } catch (error) {
+      if (isClawhubVersionExistsError(error)) {
+        console.log(
+          `版本已存在，视为已发布 / Version already exists, treating as published: ${target.registrySlug}`,
+        );
+        results.push({
+          targetKey: target.targetKey,
+          registrySlug: target.registrySlug,
+          status: "already-published",
+        });
+        continue;
+      }
+
       failures.push({
         targetKey: target.targetKey,
         registrySlug: target.registrySlug,

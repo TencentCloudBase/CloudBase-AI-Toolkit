@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   buildPublishCommand,
+  isClawhubVersionExistsError,
   normalizeClawhubChangelog,
 } from '../scripts/publish-to-clawhub.mjs';
 
@@ -46,5 +47,16 @@ describe('publish-to-clawhub command construction', () => {
     expect(command.args).not.toContain('--all');
     expect(command.args[changelogIndex]).toBe('Recent commits / 最近提交: | - first | - second');
     expect(command.args[changelogIndex]).not.toMatch(/[\r\n]/);
+  });
+
+  test('detects clawhub version-already-exists errors as idempotent', () => {
+    expect(
+      isClawhubVersionExistsError(
+        new Error('Version 1.92.41 already exists. Increment the version number and try again.'),
+      ),
+    ).toBe(true);
+    expect(isClawhubVersionExistsError(new Error('Uploaded file does not match its skill upload ticket'))).toBe(
+      false,
+    );
   });
 });

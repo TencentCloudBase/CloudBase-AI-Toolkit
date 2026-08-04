@@ -48,16 +48,27 @@ jobs:
             echo "pushed=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "chore: sync cloudbase plugin skills from upstream"
-            # Release and other sync workflows often push main in parallel
-            # (e.g. Sync Claude Skills Mirror); rebase and retry like that workflow.
+            # Release bots often push main in parallel. Rebase can conflict on
+            # generated .sync-metadata.json; recover by resetting to origin/main
+            # and regenerating a clean sync commit.
             pushed=false
             for i in 1 2 3; do
               if git push; then
                 pushed=true
                 break
               fi
-              echo "Push rejected (attempt $i); rebasing onto origin/main..."
-              git pull --rebase origin main
+              echo "Push rejected (attempt $i); resetting onto origin/main and re-syncing..."
+              git rebase --abort 2>/dev/null || true
+              git fetch origin main
+              git reset --hard origin/main
+              node scripts/sync-cloudbase-plugin-skills.mjs --force
+              git add plugin/cloudbase/skills plugin/cloudbase/.sync-metadata.json
+              if git diff --staged --quiet; then
+                echo "Remote already has synced skills after reset."
+                pushed=true
+                break
+              fi
+              git commit -m "chore: sync cloudbase plugin skills from upstream"
               sleep $((i * 2))
             done
             if [ "$pushed" != "true" ]; then
