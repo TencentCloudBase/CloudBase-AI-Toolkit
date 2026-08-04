@@ -376,3 +376,7 @@ listMigrations → 新 version 可见，表存在
 ```
 
 做完这组对比，迁移契约就会从「玄学」变成「可推理的状态机」。
+
+## Tracking
+
+- Shipped follow-ups land in PR https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/pull/863 (`includeAll`, `fetchMigration`, `describeMigrationTask`, local-file gate, 10min poll).
