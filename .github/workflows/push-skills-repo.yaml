@@ -63,22 +63,38 @@ jobs:
           done
       
           # 2. Copy generated output (rsync includes dotfiles; `cp src/*` drops them)
-          rsync -a ../.skills-repo-output/ .
+          # --checksum: version-only bumps often keep identical byte length (e.g. 2.25.5→2.25.6).
+          # Default size+mtime quick check can skip those when build output and checkout share a
+          # 1s mtime window, yielding porcelain=0 while skills HEAD stays behind.
+          rsync -a --checksum ../.skills-repo-output/ .
       
       - name: Commit and push changes
         env:
           SKILLS_REPO_TOKEN: ${{ secrets.SKILLS_REPO_TOKEN }}
         run: |
+          set -euo pipefail
+
           cd skills-repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
           # Configure git to use token for push
           git remote set-url origin https://x-access-token:${SKILLS_REPO_TOKEN}@github.com/TencentCloudBase/skills.git
-          
-          # Check if there are any changes
-          if [ -n "$(git status --porcelain)" ]; then
-            git add .
+
+          # Stage first: git add hashes content and defeats racy-git false-clean status.
+          git add -A
+
+          # Guardrail: compare build output vs committed HEAD (not WT after rsync).
+          SOURCE_WEB_VER=$(grep -E '^version:' "${{ github.workspace }}/.skills-repo-output/skills/web-development/SKILL.md" | head -1 | awk '{print $2}')
+          HEAD_WEB_VER=$(git show HEAD:skills/web-development/SKILL.md 2>/dev/null | grep -E '^version:' | head -1 | awk '{print $2}' || true)
+          STAGED_COUNT=$(git diff --cached --name-only | wc -l | tr -d ' ')
+          echo "web-development version source=${SOURCE_WEB_VER} skills_HEAD=${HEAD_WEB_VER} staged=${STAGED_COUNT}"
+          if [ -n "$SOURCE_WEB_VER" ] && [ -n "$HEAD_WEB_VER" ] && [ "$SOURCE_WEB_VER" != "$HEAD_WEB_VER" ] && [ "$STAGED_COUNT" = "0" ]; then
+            echo "::error::Skills sync staged no changes but web-development version diverges (skills HEAD ${HEAD_WEB_VER} -> source ${SOURCE_WEB_VER})."
+            exit 1
+          fi
+
+          if ! git diff --cached --quiet; then
             git commit -m "chore: sync skills from CloudBase-AI-ToolKit [skip ci]"
             git push
           else
