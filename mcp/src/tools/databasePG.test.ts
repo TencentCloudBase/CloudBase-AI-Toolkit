@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import type { ExtendedMcpServer } from "../server.js";
 import { __resetPgReadyCache } from "./databasePG.js";
 import { registerPGDatabaseTools } from "./databasePG.js";
@@ -759,6 +762,24 @@ describe("PG database tools", () => {
   });
 
   describe("migration actions", () => {
+    let migrationWorkspace: string;
+    let previousWorkspaceFolderPaths: string | undefined;
+
+    beforeEach(() => {
+      migrationWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), "pg-mcp-mig-"));
+      previousWorkspaceFolderPaths = process.env.WORKSPACE_FOLDER_PATHS;
+      process.env.WORKSPACE_FOLDER_PATHS = migrationWorkspace;
+    });
+
+    afterEach(() => {
+      if (previousWorkspaceFolderPaths === undefined) {
+        delete process.env.WORKSPACE_FOLDER_PATHS;
+      } else {
+        process.env.WORKSPACE_FOLDER_PATHS = previousWorkspaceFolderPaths;
+      }
+      fs.rmSync(migrationWorkspace, { recursive: true, force: true });
+    });
+
     function setupMigrationMock() {
       mockGetCloudBaseManager.mockResolvedValue({
         commonService: vi.fn(() => ({
@@ -982,7 +1003,7 @@ describe("PG database tools", () => {
         data: {
           migrationVersion: "20260720160000",
           migrationName: "create_test_table",
-          localFileHint: "migrations/20260720160000_create_test_table.sql",
+          localFileHint: "cloudbase/migrations/20260720160000_create_test_table.sql",
           hydratedRemoteCount: 0,
           executable: true,
         },
@@ -1077,13 +1098,20 @@ describe("PG database tools", () => {
         data: {
           migrationVersion: "20260720160000",
           migrationName: "create_test_table",
-          localFileHint: "migrations/20260720160000_create_test_table.sql",
+          localFileHint: "cloudbase/migrations/20260720160000_create_test_table.sql",
+          localFilePath: "cloudbase/migrations/20260720160000_create_test_table.sql",
+          localFileAction: "created",
           hydratedRemoteCount: 0,
           apiResult: { TaskId: "task-1" },
           taskResult: expect.objectContaining({ Status: "Succeed" }),
           verified: true,
         },
       });
+      const written = fs.readFileSync(
+        path.join(migrationWorkspace, "cloudbase/migrations/20260720160000_create_test_table.sql"),
+        "utf8",
+      );
+      expect(written).toBe("CREATE TABLE public.test(id int)\n");
       expect(mockCommonServiceCall).toHaveBeenCalledWith(
         expect.objectContaining({
           Action: "PushPGUserMigrations",
@@ -1104,6 +1132,106 @@ describe("PG database tools", () => {
           Param: expect.objectContaining({ TaskId: "task-1" }),
         }),
       );
+    });
+
+    it("applyMigration matches existing local file without rewriting", async () => {
+      const relative = "cloudbase/migrations/20260720160000_create_test_table.sql";
+      const absolute = path.join(migrationWorkspace, relative);
+      fs.mkdirSync(path.dirname(absolute), { recursive: true });
+      fs.writeFileSync(absolute, "CREATE TABLE public.test(id int)\n", "utf8");
+      const beforeMtime = fs.statSync(absolute).mtimeMs;
+
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockApplyMigrationCloudApis();
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "create_test_table",
+          migrationVersion: "20260720160000",
+          sql: "CREATE TABLE public.test(id int)",
+          confirm: true,
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: true,
+        data: {
+          localFileAction: "matched",
+          localFilePath: relative,
+        },
+      });
+      expect(fs.statSync(absolute).mtimeMs).toBe(beforeMtime);
+    });
+
+    it("applyMigration fails closed when local file content mismatches", async () => {
+      const relative = "cloudbase/migrations/20260720160000_create_test_table.sql";
+      const absolute = path.join(migrationWorkspace, relative);
+      fs.mkdirSync(path.dirname(absolute), { recursive: true });
+      fs.writeFileSync(absolute, "CREATE TABLE public.other(id int);\n", "utf8");
+
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockApplyMigrationCloudApis();
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "create_test_table",
+          migrationVersion: "20260720160000",
+          sql: "CREATE TABLE public.test(id int)",
+          confirm: true,
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "LOCAL_MIGRATION_FILE_MISMATCH",
+        data: {
+          localFilePath: relative,
+          verified: false,
+        },
+      });
+      expect(mockCommonServiceCall).not.toHaveBeenCalled();
+      expect(fs.readFileSync(absolute, "utf8")).toBe("CREATE TABLE public.other(id int);\n");
+    });
+
+    it("applyMigration accepts matching legacy migrations/ path without duplicating", async () => {
+      const legacyRelative = "migrations/20260720160000_create_test_table.sql";
+      const legacyAbsolute = path.join(migrationWorkspace, legacyRelative);
+      fs.mkdirSync(path.dirname(legacyAbsolute), { recursive: true });
+      fs.writeFileSync(legacyAbsolute, "CREATE TABLE public.test(id int)\n", "utf8");
+
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockApplyMigrationCloudApis();
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "create_test_table",
+          migrationVersion: "20260720160000",
+          sql: "CREATE TABLE public.test(id int)",
+          confirm: true,
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: true,
+        data: {
+          localFileAction: "matched",
+          localFilePath: legacyRelative,
+        },
+      });
+      expect(
+        fs.existsSync(
+          path.join(migrationWorkspace, "cloudbase/migrations/20260720160000_create_test_table.sql"),
+        ),
+      ).toBe(false);
     });
 
     it("applyMigration hydrates remote history into Push payload", async () => {
@@ -1225,6 +1353,83 @@ describe("PG database tools", () => {
         },
       });
       expect(payload.message).toContain("migration plan is not executable");
+    });
+
+    it("applyMigration times out with listMigrations-first guidance when task stays running", async () => {
+      vi.useFakeTimers();
+      try {
+        const { server, tools } = createMockServer();
+        registerPGDatabaseTools(server, { createClient: vi.fn() });
+        setupMigrationMock();
+        mockApplyMigrationCloudApis({ taskStatus: "Running" });
+
+        const pending = tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "create_test_table",
+          migrationVersion: "20260720160000",
+          sql: "CREATE TABLE public.test(id int)",
+          confirm: true,
+          taskPollTimeoutMs: 5000,
+        });
+
+        const payloadPromise = pending.then(buildToolPayload);
+        await vi.advanceTimersByTimeAsync(7000);
+        const payload = await payloadPromise;
+
+        expect(payload).toMatchObject({
+          success: false,
+          errorCode: "MIGRATION_TASK_TIMEOUT",
+          data: {
+            taskPollTimeoutMs: 5000,
+            verified: null,
+            taskResult: { TaskId: "task-1" },
+          },
+        });
+        expect(String(payload.message)).toContain("listMigrations FIRST");
+        expect(String(payload.message)).toContain("Do NOT re-push");
+        expect(payload.nextActions?.[0]).toMatchObject({
+          tool: "managePgDatabase",
+          action: "listMigrations",
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("applyMigration waitForTask=false returns pending without polling DescribeTaskResult", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockApplyMigrationCloudApis();
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "create_test_table",
+          migrationVersion: "20260720160000",
+          sql: "CREATE TABLE public.test(id int)",
+          confirm: true,
+          waitForTask: false,
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "MIGRATION_TASK_PENDING",
+        data: {
+          waitForTask: false,
+          verified: null,
+          taskResult: { TaskId: "task-1" },
+        },
+      });
+      expect(String(payload.message)).toContain("listMigrations FIRST");
+      expect(mockCommonServiceCall).not.toHaveBeenCalledWith(
+        expect.objectContaining({ Action: "DescribeTaskResult" }),
+      );
+      expect(payload.nextActions?.[0]).toMatchObject({
+        tool: "managePgDatabase",
+        action: "listMigrations",
+      });
     });
 
     it("applyMigration fails when the version is missing from remote migration history", async () => {
