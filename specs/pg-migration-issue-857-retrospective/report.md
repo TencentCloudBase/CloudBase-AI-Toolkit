@@ -223,12 +223,12 @@ CloudBase MCP **已经比 Supabase MCP 好一档**：强制显式 `migrationVers
    超时 / pending 后必须先 `describeMigrationTask(taskId)`（看 Status/Phase/Reason）再 `listMigrations`，禁止立刻重推同版本。  
    **`describeMigrationTask` 已补齐（2026-08-04）**：对外暴露 `DescribeTaskResult`，补上「只靠 listMigrations 看不到失败 Reason」的 #857 诊断缺口；默认仍是同步等待，异步不是默认路径。
 
-8. **Hydrate 是 N+1 API**  
+8. **Hydrate 是 N+1 API** — **已缓解（本地齐全时）**  
    每条远端历史一次 `DescribePGUserMigration`。history 变长后变慢、更易中途失败。  
-   CLI 直接读本地文件，无此成本。长期应有「批量拉取 Query」或「服务端接受 pending-only + 内部 hydrate」。
+   **现在**：本地 `cloudbase/migrations/`（或 legacy `migrations/`）覆盖全部远端 version 时，Push/Preview **读本地文件**（CLI 同款，跳过 Describe）；不全才回退 N+1 hydrate。响应 `payloadSource`: `local` | `hydrate`。云端 MCP 无工作区时仍只能 hydrate。长期仍可要批量 Query 或服务端 pending-only。
 
 9. **MCP 不强制写本地文件**  
-   只返回 `localFileHint`。Agent 漏写 → 可复现性丢失（Supabase MCP 同款病根）。  
+   只返回 `localFileHint`。Agent 漏写 → 可复现性丢失（Supabase MCP 同款病根）。
    理想：工具侧写盘，或 fail closed「工作区无对应文件则拒绝 apply」。
 
 10. **无 `fetch` 对称能力** — **已修复（本迭代）**  
