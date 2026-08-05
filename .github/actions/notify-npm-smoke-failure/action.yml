@@ -1,0 +1,192 @@
+name: Notify npm smoke failure
+description: >
+  Open or update a GitHub issue (and optionally Slack) when post-publish or
+  scheduled npm tarball smoke fails, so published regressions are not silent.
+
+inputs:
+  github-token:
+    description: Token with issues:write
+    required: true
+  smoke-name:
+    description: Human-readable smoke job name (e.g. post-publish-smoke)
+    required: true
+  package-version:
+    description: npm version or dist-tag that was smoked
+    required: false
+    default: ""
+  slack-webhook-url:
+    description: Optional Slack incoming webhook URL
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Open or update GitHub issue
+      id: issue
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      env:
+        SMOKE_NAME: ${{ inputs.smoke-name }}
+        PACKAGE_VERSION: ${{ inputs.package-version }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const smokeName = process.env.SMOKE_NAME || 'npm-tarball-smoke';
+          const packageVersion = (process.env.PACKAGE_VERSION || '').trim() || 'unknown';
+          const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+          const marker = `<!-- npm-smoke-failure:${smokeName} -->`;
+          const title = `[ci] npm smoke failed: ${smokeName} (@cloudbase/cloudbase-mcp@${packageVersion})`;
+
+          const labelsToEnsure = [
+            {
+              name: 'ci-npm-smoke-failure',
+              color: 'B60205',
+              description: 'Automated alert: published npm tarball smoke failed'
+            },
+            {
+              name: 'no-ai',
+              color: '666666',
+              description: 'Skip AI automation for this issue'
+            }
+          ];
+
+          for (const label of labelsToEnsure) {
+            try {
+              await github.rest.issues.getLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: label.name
+              });
+            } catch (err) {
+              if (err.status !== 404) throw err;
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: label.name,
+                color: label.color,
+                description: label.description
+              });
+            }
+          }
+
+          // Prefer label listing over search API (search index can lag on new issues).
+          const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: 'ci-npm-smoke-failure',
+            per_page: 50,
+            sort: 'updated',
+            direction: 'desc'
+          });
+          const existing = openIssues.find(
+            (issue) => !issue.pull_request && typeof issue.body === 'string' && issue.body.includes(marker)
+          );
+
+          const bodyLines = [
+            marker,
+            '',
+            '## npm tarball smoke failure',
+            '',
+            'Published package smoke failed. Investigate before the next release.',
+            '',
+            `| Field | Value |`,
+            `| --- | --- |`,
+            `| Smoke | \`${smokeName}\` |`,
+            `| Package | \`@cloudbase/cloudbase-mcp@${packageVersion}\` |`,
+            `| Workflow | \`${context.workflow}\` |`,
+            `| Run | ${runUrl} |`,
+            `| Ref | \`${context.ref}\` |`,
+            `| Actor | @${context.actor} |`,
+            `| Event | \`${context.eventName}\` |`,
+            '',
+            '### Checklist',
+            '',
+            '- [ ] Open the Actions run log and capture the failing assertion',
+            '- [ ] Confirm whether npm metadata / tarball shasum drifted',
+            '- [ ] Confirm `managePermissions` / `queryPermissions` still register',
+            '- [ ] Confirm OPA fallback strings still exist in dist',
+            '- [ ] Close this issue after the smoke is green again',
+            ''
+          ];
+
+          const commentBody = [
+            marker,
+            '',
+            `## Recurrence: ${smokeName}`,
+            '',
+            `- Package: \`@cloudbase/cloudbase-mcp@${packageVersion}\``,
+            `- Run: ${runUrl}`,
+            `- Ref: \`${context.ref}\``,
+            `- Event: \`${context.eventName}\``,
+            ''
+          ].join('\n');
+
+          let issueNumber;
+          let issueUrl;
+          let action;
+
+          if (existing) {
+            issueNumber = existing.number;
+            issueUrl = existing.html_url;
+            action = 'commented';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: commentBody
+            });
+            // Keep title fresh with latest version
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              title,
+              labels: ['ci-npm-smoke-failure', 'no-ai']
+            });
+          } else {
+            const created = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body: bodyLines.join('\n'),
+              labels: ['ci-npm-smoke-failure', 'no-ai']
+            });
+            issueNumber = created.data.number;
+            issueUrl = created.data.html_url;
+            action = 'created';
+          }
+
+          core.setOutput('issue_number', String(issueNumber));
+          core.setOutput('issue_url', issueUrl);
+          core.setOutput('action', action);
+          core.info(`Smoke failure alert ${action} issue #${issueNumber}: ${issueUrl}`);
+
+    - name: Notify Slack (optional)
+      if: inputs.slack-webhook-url != ''
+      shell: bash
+      env:
+        SLACK_WEBHOOK_URL: ${{ inputs.slack-webhook-url }}
+        SMOKE_NAME: ${{ inputs.smoke-name }}
+        PACKAGE_VERSION: ${{ inputs.package-version }}
+        ISSUE_URL: ${{ steps.issue.outputs.issue_url }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        set -euo pipefail
+        VERSION="${PACKAGE_VERSION:-unknown}"
+        TEXT=$(printf '%s\n%s\n%s' \
+          "[CloudBase-MCP] npm smoke failed: ${SMOKE_NAME} (@cloudbase/cloudbase-mcp@${VERSION})" \
+          "Run: ${RUN_URL}" \
+          "Issue: ${ISSUE_URL}")
+        PAYLOAD=$(TEXT="$TEXT" node -e 'process.stdout.write(JSON.stringify({ text: process.env.TEXT }))')
+        HTTP_CODE=$(curl -sS -o /tmp/slack-notify-body.txt -w '%{http_code}' \
+          -X POST \
+          -H 'Content-Type: application/json' \
+          --data "$PAYLOAD" \
+          "$SLACK_WEBHOOK_URL" || true)
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "::warning::Slack notify returned HTTP ${HTTP_CODE}; issue alert still filed."
+          cat /tmp/slack-notify-body.txt || true
+        else
+          echo "Slack notification sent."
+        fi
