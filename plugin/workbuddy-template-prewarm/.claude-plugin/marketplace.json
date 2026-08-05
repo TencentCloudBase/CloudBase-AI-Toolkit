@@ -1,0 +1,19 @@
+{
+  "name": "tencent-cloudbase-workbuddy-prewarm",
+  "owner": {
+    "name": "Tencent CloudBase"
+  },
+  "description": "WorkBuddy template prewarm plugin (standalone marketplace entry).",
+  "plugins": [
+    {
+      "name": "workbuddy-template-prewarm",
+      "displayName": "CloudBase WorkBuddy Template Prewarm",
+      "source": "./",
+      "description": "SessionStart prewarm + Sites-aligned preview during credential wait. Stacks with teamai hooks.",
+      "category": "Developer Tools",
+      "dependencies": [
+        "cloudbase-sites"
+      ]
+    }
+  ]
+}

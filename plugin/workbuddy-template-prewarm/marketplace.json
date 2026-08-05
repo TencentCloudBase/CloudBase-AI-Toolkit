@@ -1,0 +1,20 @@
+{
+  "name": "tencent-cloudbase-workbuddy-prewarm",
+  "interface": {
+    "displayName": "CloudBase WorkBuddy Template Prewarm"
+  },
+  "plugins": [
+    {
+      "name": "workbuddy-template-prewarm",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

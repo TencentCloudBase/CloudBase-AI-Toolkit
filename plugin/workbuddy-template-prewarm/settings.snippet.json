@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"__PREWARM_PLUGIN_ROOT__/hooks/on-session-start.sh\"",
+            "timeout": 20,
+            "description": "CloudBase template prewarm + Sites preview during credential wait"
+          }
+        ]
+      }
+    ]
+  },
+  "_comment": "LEGACY / OFFLINE FALLBACK only. Prefer marketplace plugin install so hooks/hooks.json auto-merges (stacks with teamai). Replace __PREWARM_PLUGIN_ROOT__ via scripts/render-settings.sh, then APPEND this SessionStart entry into ~/.workbuddy/settings.json — never replace existing teamai hooks. Opt out: CLOUDBASE_WORKBUDDY_PREWARM=0. Skip preview: CLOUDBASE_WORKBUDDY_PREVIEW=0. Template: CLOUDBASE_WORKBUDDY_TEMPLATE=react|vue. Vendored Sites CLI is bundled under vendor/cloudbase-sites; optional CLOUDBASE_SITES_BIN override."
+}

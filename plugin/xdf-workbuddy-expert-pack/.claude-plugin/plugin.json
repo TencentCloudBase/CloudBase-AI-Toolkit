@@ -1,0 +1,8 @@
+{
+  "name": "xdf-workbuddy-expert-pack",
+  "version": "0.1.0",
+  "description": "XDF / WorkBuddy expert distribution: BaaS-first agent prompt + pointer to minimal-web-baas-demo. SessionStart prewarm is configured via settings.snippet / sibling workbuddy-template-prewarm plugin — not via agent frontmatter hooks.",
+  "author": {
+    "name": "CloudBase AI Toolkit"
+  }
+}

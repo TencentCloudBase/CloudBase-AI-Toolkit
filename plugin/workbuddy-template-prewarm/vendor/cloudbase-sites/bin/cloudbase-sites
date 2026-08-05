@@ -1,0 +1,202 @@
+#!/usr/bin/env node
+/**
+ * cloudbase-sites — single CLI for the CloudBase Sites plugin.
+ *
+ * Subcommands:
+ *   init          bootstrap CloudBase + React/Vue + Vite project from zero
+ *   preview       daemonize / inspect / stop / restart the Vite dev server
+ *   save          create a saved version (git commit + tag + app.json entry)
+ *   deploy        deploy a saved version to CloudApp via cloudbase-mcp manageApps
+ *   rollback      revert working tree to a saved version
+ *   versions      list saved versions and deployment status
+ *   supervisor    global watchdog daemon (start/stop/status/list/heal/reload)
+ *
+ * Run `cloudbase-sites <verb> --help` for verb-specific options.
+ *
+ * Every invocation also calls ensureSupervisorRunning() so the global
+ * watchdog stays alive across plugin operations (best-effort).
+ */
+
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+const ctl = await import(join(__dirname, "..", "lib", "supervisor-ctl.mjs"));
+const { ensureSupervisorRunning } = ctl;
+
+// Best-effort supervisor ensure on every bin invocation. Skipped for the
+// daemon-loop entry to avoid recursion.
+const argv0 = process.argv[2];
+const argv1 = process.argv[3];
+const isDaemonLoop = argv0 === "supervisor" && argv1 === "--daemon-loop";
+if (!isDaemonLoop) {
+  try { ensureSupervisorRunning({ silent: true }); } catch { /* ignore */ }
+}
+
+const args = process.argv.slice(2);
+const verb = args[0];
+
+if (!verb || verb === "--help" || verb === "-h") {
+  printHelp();
+  process.exit(0);
+}
+
+const verbArgs = args.slice(1);
+
+main().catch(async (err) => {
+  const { emitErr } = await import(join(__dirname, "..", "lib", "emit.mjs"));
+  emitErr(err.message || String(err), err.code || 1);
+  process.exit(err.code || 1);
+});
+
+async function main() {
+  switch (verb) {
+    case "init": {
+      const { runInit, initHelp } = await import(join(__dirname, "..", "lib", "verbs", "init.mjs"));
+      const opts = parseInit(verbArgs);
+      if (opts.help) { console.log(initHelp); return; }
+      return runInit(opts);
+    }
+    case "preview": {
+      const { runPreview, previewHelp } = await import(join(__dirname, "..", "lib", "verbs", "preview.mjs"));
+      const opts = parsePreview(verbArgs);
+      if (opts.help) { console.log(previewHelp); return; }
+      return runPreview(opts);
+    }
+    case "save": {
+      const { runSave, saveHelp } = await import(join(__dirname, "..", "lib", "verbs", "save.mjs"));
+      const opts = parseSave(verbArgs);
+      if (opts.help) { console.log(saveHelp); return; }
+      return runSave(opts);
+    }
+    case "deploy": {
+      const { runDeploy, deployHelp } = await import(join(__dirname, "..", "lib", "verbs", "deploy.mjs"));
+      const opts = parseDeploy(verbArgs);
+      if (opts.help) { console.log(deployHelp); return; }
+      return runDeploy(opts);
+    }
+    case "rollback": {
+      const { runRollback, rollbackHelp } = await import(join(__dirname, "..", "lib", "verbs", "rollback.mjs"));
+      const opts = parseRollback(verbArgs);
+      if (opts.help) { console.log(rollbackHelp); return; }
+      return runRollback(opts);
+    }
+    case "versions": {
+      const { runVersions, versionsHelp } = await import(join(__dirname, "..", "lib", "verbs", "versions.mjs"));
+      if (verbArgs.includes("--help") || verbArgs.includes("-h")) { console.log(versionsHelp); return; }
+      return runVersions({});
+    }
+    case "supervisor": {
+      const { runSupervisor, supervisorHelp } = await import(join(__dirname, "..", "lib", "verbs", "supervisor.mjs"));
+      const sub = verbArgs[0];
+      if (!sub || sub === "--help" || sub === "-h") { console.log(supervisorHelp); return; }
+      return runSupervisor(sub, verbArgs.slice(1));
+    }
+    case "status":
+      // Convenience alias for `preview --status`
+      {
+        const { runPreview } = await import(join(__dirname, "..", "lib", "verbs", "preview.mjs"));
+        const opts = parsePreview(["--status", ...verbArgs]);
+        return runPreview(opts);
+      }
+    default: {
+      const { emitErr } = await import(join(__dirname, "..", "lib", "emit.mjs"));
+      emitErr(`Unknown verb: ${verb}. Run \`cloudbase-sites --help\` for the list.`, 1);
+      process.exit(1);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Per-verb arg parsers
+// ---------------------------------------------------------------------------
+
+function parseInit(argv) {
+  const out = { template: null, start: false, skipInstall: false, help: false };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--template") out.template = argv[++i];
+    else if (a === "--start") out.start = true;
+    else if (a === "--skip-install") out.skipInstall = true;
+    else if (a === "--help" || a === "-h") out.help = true;
+  }
+  return out;
+}
+
+function parsePreview(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--port") out.port = argv[++i];
+    else if (a === "--base") out.base = argv[++i];
+    else if (a === "--force" || a === "-f") out.force = true;
+    else if (a === "--restart") out.restart = true;
+    else if (a === "--stop") out.stop = true;
+    else if (a === "--status") out.status = true;
+    else if (a === "--quiet" || a === "-q") out.quiet = true;
+    else if (a === "--help" || a === "-h") out.help = true;
+  }
+  return out;
+}
+
+function parseSave(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--message" || a === "-m") out.message = argv[++i];
+    else if (a === "--help" || a === "-h") out.help = true;
+  }
+  return out;
+}
+
+function parseDeploy(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--version") out.version = argv[++i];
+    else if (a === "--skip-build") out.skipBuild = true;
+    else if (a === "--post" || a === "--post-deploy") out.post = true;
+    else if (a === "--access-url") out.accessUrl = argv[++i];
+    else if (a === "--build-id") out.buildId = argv[++i];
+    else if (a === "--version-name") out.versionName = argv[++i];
+    else if (a === "--build-status") out.buildStatus = argv[++i];
+    else if (a === "--help" || a === "-h") out.help = true;
+  }
+  return out;
+}
+
+function parseRollback(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--to-version") out.toVersion = argv[++i];
+    else if (a === "--no-restart") out.noRestart = true;
+    else if (a === "--help" || a === "-h") out.help = true;
+  }
+  return out;
+}
+
+function printHelp() {
+  process.stdout.write([
+    "cloudbase-sites — CloudBase Sites plugin CLI",
+    "",
+    "Subcommands:",
+    "  init          scaffold CloudBase + React/Vue + Vite from empty cwd",
+    "  preview       daemonize / inspect / stop / restart Vite dev server",
+    "  save          create a saved version (git checkpoint + app.json entry)",
+    "  deploy        deploy a saved version to CloudApp (manageApps)",
+    "  rollback      revert working tree to a saved version",
+    "  versions      list saved versions + deployment status",
+    "  supervisor    global watchdog daemon",
+    "",
+    "Run `cloudbase-sites <verb> --help` for verb-specific options.",
+    "",
+    "State files:",
+    "  <cwd>/.cloudbase-sites/preview.json    current dev server state",
+    "  <cwd>/.cloudbase-sites/app.json        siteName + versions[] + deployments[]",
+    "  ~/.cloudbase-sites/registry.json       all registered cwds (supervisor)",
+    "  ~/.cloudbase-sites/supervisor.json     global daemon state",
+    "",
+  ].join("\n"));
+}

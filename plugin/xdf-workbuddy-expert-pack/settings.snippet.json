@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"__XDF_PACK_ROOT__/../workbuddy-template-prewarm/hooks/on-session-start.sh\"",
+            "timeout": 20,
+            "description": "[xdf] CloudBase template prewarm + BaaS brief during credential wait"
+          }
+        ]
+      }
+    ]
+  },
+  "_comment": "Replace __XDF_PACK_ROOT__ with the absolute path to plugin/xdf-workbuddy-expert-pack (or run scripts/render-settings.sh). Merge ONLY the SessionStart entry into ~/.workbuddy/settings.json — stack with existing teamai hooks; do not replace the whole hooks object. Do NOT enable allowUntrustedFrontmatterHooks for this path. Opt out: CLOUDBASE_WORKBUDDY_PREWARM=0. Skip preview start: CLOUDBASE_WORKBUDDY_PREVIEW=0. Template: CLOUDBASE_WORKBUDDY_TEMPLATE=react|vue. Keep sibling plugin/cloudbase-sites (or set CLOUDBASE_SITES_BIN) for ports 17173..17272."
+}

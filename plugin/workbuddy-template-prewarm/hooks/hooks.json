@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CODEBUDDY_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-${WORKBUDDY_PLUGIN_ROOT}}}}/hooks/on-session-start.sh\"",
+            "timeout": 20,
+            "description": "CloudBase template prewarm + Sites preview during credential wait"
+          }
+        ]
+      }
+    ]
+  }
+}

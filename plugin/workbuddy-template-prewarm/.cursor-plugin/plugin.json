@@ -1,0 +1,21 @@
+{
+  "name": "workbuddy-template-prewarm",
+  "version": "0.2.0",
+  "description": "WorkBuddy SessionStart prewarm: download CloudBase React/Vue template + Sites-aligned preview (ports 17173..17272) during credential/Trust wait. Stacks with teamai hooks.",
+  "author": {
+    "name": "Tencent CloudBase"
+  },
+  "homepage": "https://github.com/TencentCloudBase/CloudBase-MCP/tree/main/plugin/workbuddy-template-prewarm",
+  "repository": "https://github.com/TencentCloudBase/CloudBase-MCP",
+  "license": "MIT",
+  "keywords": [
+    "cloudbase",
+    "workbuddy",
+    "prewarm",
+    "session-start",
+    "vite",
+    "baas",
+    "cursor"
+  ],
+  "logo": "./assets/logo.png"
+}

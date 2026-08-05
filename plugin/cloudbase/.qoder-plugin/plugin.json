@@ -46,6 +46,7 @@
     "./skills/cloudrun-development/",
     "./skills/data-model-creation/",
     "./skills/http-api-cloudbase/",
+    "./skills/minimal-web-baas-demo/",
     "./skills/miniprogram-development/",
     "./skills/ops-inspector/",
     "./skills/postgresql-development-cloudbase/",
