@@ -7,6 +7,9 @@ The full contract lives in the skill:
 | --- | --- |
 | Source skill | `config/source/skills/minimal-web-baas-demo/SKILL.md` |
 | Skill id | `minimal-web-baas-demo` |
+| Pack (loadable) | `../skills/minimal-web-baas-demo/SKILL.md` |
+| Install | `../scripts/install-skill.sh` → `~/.workbuddy/skills/` |
+| CodeBuddy plugin | `config/codebuddy-plugin` top-level `./skills/minimal-web-baas-demo` |
 | Claude mirror | `config/.claude/skills/minimal-web-baas-demo/SKILL.md` |
 | Expert agent | `../agents/cloudbase-baas-expert.md` |
 
@@ -27,11 +30,13 @@ Reusable beyond XDF: any WorkBuddy / CodeBuddy / ISV partner can point expert pr
 ## Agent routing line (paste into partner system prompt if needed)
 
 ```text
-For 最小前后端 / Lovable-like demos, FIRST call:
+For 最小前后端 / Lovable-like demos, FIRST try Skill("minimal-web-baas-demo")
+(or Read pack skills/minimal-web-baas-demo/SKILL.md). Only if connector is
+Trusted, fall back to:
   searchKnowledgeBase(mode="skill", skillName="minimal-web-baas-demo")
-then Read the returned path. Do not rely only on ad-hoc BaaS brief text in the
-expert prompt. Order: connector → template warmup during credential wait →
-envQuery → lock DB → MCP schema → @cloudbase/js-sdk CRUD → preview.
+Do not wait on MCP when Unauthorized. Order: connector → template warmup
+during credential wait → envQuery → lock DB → MCP schema →
+@cloudbase/js-sdk CRUD → preview.
 Do not dump all CloudBase skills. Do not create cloud functions for CRUD.
 ```
 
@@ -41,6 +46,7 @@ Do not dump all CloudBase skills. Do not create cloud functions for CRUD.
 | --- | --- |
 | WorkBuddy SessionStart | Merge `../settings.snippet.json` (rendered) into `~/.workbuddy/settings.json` |
 | Plugin marketplace | Enable sibling `workbuddy-template-prewarm` (`hooks/hooks.json`) — no frontmatter allowlist |
+| Skill surface (required) | Run `../scripts/install-skill.sh` **or** enable `cloudbase` plugin ≥2.25.8 with top-level `minimal-web-baas-demo` |
 | Expert Agent only | Ship `cloudbase-baas-expert.md` **without** frontmatter hooks; keep portable §1b warmup |
 
 See `../HOOKS.md` for why frontmatter hooks are not used.
