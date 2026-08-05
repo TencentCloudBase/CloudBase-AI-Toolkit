@@ -98,14 +98,14 @@ Examples of good targets:
 
 - [x] Open PR to https://github.com/trae-community/trae-mcp — https://github.com/trae-community/trae-mcp/pull/4 (2026-07-28)
 - [x] PR body aligned to CONTRIBUTING PR Checklist (2026-07-29)
-- [ ] Await merge; then mark community channel listed
+- [x] Merged 2026-08-05 — mark `trae-mcp-marketplace.community_directory` listed
 - [ ] Official Trae in-app MCP marketplace still needs partner outreach
 
 ### 6b. Trae community Skills
 
 - [x] Open PR to https://github.com/trae-community/trae-skills — https://github.com/trae-community/trae-skills/pull/20 (2026-07-28)
 - [x] PR body aligned to CONTRIBUTING Pull request checklist (2026-07-29)
-- [ ] Await merge; then mark community channel listed
+- [x] Merged 2026-08-05 — mark `trae-work-skills-marketplace.community_directory` / `mcp_or_skill_registry` listed
 
 ### 6c. CodeBuddy official marketplace (CNB)
 

@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-07-28T03:32:40.305Z",
+  "generated_at": "2026-08-05T07:36:57.965Z",
   "matrix_version": 1,
   "reviewed_stale_days": 90,
   "total_markets": 42,
   "summary": {
     "ready_to_submit": 6,
-    "needs_packaging_or_manifest": 0,
-    "needs_partner_outreach": 13,
+    "needs_packaging_or_manifest": 1,
+    "needs_partner_outreach": 12,
     "listed": 7,
     "not_applicable": 15,
     "unknown": 1
@@ -189,11 +189,12 @@
         "eligibility": "public_github_repo_required",
         "blockers": [],
         "evidence_links": [
+          "https://cursor.directory/plugins/cloudbase",
           "https://cursor.directory",
           "https://cursor.directory/plugins/new",
           "https://cursor.com/docs/plugins"
         ],
-        "submit_url_or_process": "Community listing via cursor.directory (plugin discovery). Prefer official Cursor Marketplace for primary listing.\nStatus 2026-07-28: packet ready — submit https://github.com/TencentCloudBase/cloudbase-plugin at https://cursor.directory/plugins/new\n(Use dedicated OPS repo: has root .mcp.json for auto-detect; monorepo does not.)\n",
+        "submit_url_or_process": "Community listing via cursor.directory (plugin discovery). Prefer official Cursor Marketplace for primary listing.\nStatus 2026-07-28: submitted — https://cursor.directory/plugins/cloudbase (being verified).\nSource repo: https://github.com/TencentCloudBase/cloudbase-plugin (root .mcp.json).\n",
         "recommended_install_path": "doc/ide-setup/cursor.mdx",
         "last_reviewed_at": "2026-07-28",
         "owner": "cloudbase-ai-toolkit",
@@ -393,11 +394,12 @@
         "blockers": [],
         "evidence_links": [
           "https://code.visualstudio.com/docs/agent-customization/agent-plugins",
-          "https://github.com/github/awesome-copilot/issues/2459"
+          "https://github.com/github/awesome-copilot/issues/2459",
+          "specs/plugin-marketplace-listing/awesome-copilot-rejection-response.md"
         ],
-        "submit_url_or_process": "Users add marketplaces via chat.plugins.marketplaces (default: github/copilot-plugins, awesome-copilot). Can point at this repo; curated default catalog inclusion needs outreach.\nStatus 2026-07-28: Awesome Copilot external plugin issue opened https://github.com/github/awesome-copilot/issues/2459\n",
+        "submit_url_or_process": "Users add marketplaces via chat.plugins.marketplaces (default: github/copilot-plugins, awesome-copilot). Can point at this repo; curated default catalog inclusion needs outreach.\nStatus 2026-08-05: Awesome Copilot #2459 intake re-passed after stripping remote skill-fetch URLs (SHA 4082ba95...). Awaiting maintainer re-review.\nSee specs/plugin-marketplace-listing/awesome-copilot-rejection-response.md\n",
         "recommended_install_path": "doc/ide-setup/vscode.mdx",
-        "last_reviewed_at": "2026-07-28",
+        "last_reviewed_at": "2026-08-05",
         "owner": "cloudbase-ai-toolkit",
         "local_evidence": [
           {
@@ -419,6 +421,7 @@
         ],
         "submit_checklist": [
           "Users can add TencentCloudBase/CloudBase-MCP as marketplace",
+          "Strip remote skill-fetch URLs; sync cloudbase-plugin; /rerun-intake on",
           {
             "Optional": "PR/request inclusion in default curated catalogs"
           }
@@ -426,6 +429,10 @@
         "materials": [
           {
             "item": "Users can add TencentCloudBase/CloudBase-MCP as marketplace",
+            "status": "repo_ready_or_external"
+          },
+          {
+            "item": "Strip remote skill-fetch URLs; sync cloudbase-plugin; /rerun-intake on",
             "status": "repo_ready_or_external"
           },
           {
@@ -438,7 +445,82 @@
         "manual_submit_only": true
       }
     ],
-    "needs_packaging_or_manifest": [],
+    "needs_packaging_or_manifest": [
+      {
+        "id": "qoder-plugin",
+        "product": "Qoder / QoderWork",
+        "region": "cn",
+        "channel_type": "community_plugin_directory",
+        "listing_statuses": {
+          "official_curated": "unknown",
+          "community_directory": "unknown",
+          "self_marketplace": "submittable",
+          "native_connector_or_builtin": "not_applicable",
+          "open_plugin_spec": "listed",
+          "mcp_or_skill_registry": "submittable",
+          "docs_only": "listed"
+        },
+        "eligibility": "public_github_repo_required",
+        "blockers": [
+          "Awaiting QoderWork review / listing confirmation"
+        ],
+        "evidence_links": [
+          "https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines",
+          "https://qoder.com.cn/account/apphub-publications",
+          "doc/ide-setup/qoder.mdx",
+          "plugin/cloudbase/docs/qoder-submit.md"
+        ],
+        "submit_url_or_process": "QoderWork self-serve: Plugin (专家套件) + Skill marketplace.\nPack: npm run pack:qoder-plugin / pack:qoder-skill\nGuide: plugin/cloudbase/docs/qoder-submit.md\nStatus 2026-07-30: Plugin zip + Skill zip both submitted (awaiting review).\nQoder CN AppHub: https://qoder.com.cn/account/apphub-publications (optional follow-up).\n",
+        "recommended_install_path": "doc/ide-setup/qoder.mdx",
+        "last_reviewed_at": "2026-07-30",
+        "owner": "cloudbase-ai-toolkit",
+        "local_evidence": [
+          {
+            "id": "open_plugin_spec_cloudbase",
+            "status": "present",
+            "detail": "plugin/cloudbase/.plugin/plugin.json has $schema",
+            "paths": [
+              "plugin/cloudbase/.plugin/plugin.json"
+            ]
+          },
+          {
+            "id": "qoder_plugin_manifest",
+            "status": "invalid",
+            "detail": "Unknown local_evidence id \"qoder_plugin_manifest\"",
+            "paths": []
+          }
+        ],
+        "submit_checklist": [
+          "Pack Plugin zip (dist/cloudbase-qoder-v*.zip)",
+          "Pack Skill zip (dist/cloudbase-skill-v*.zip)",
+          "Submit Plugin + Skill in QoderWork",
+          {
+            "After live": "flip self_marketplace / mcp_or_skill_registry → listed"
+          }
+        ],
+        "materials": [
+          {
+            "item": "Pack Plugin zip (dist/cloudbase-qoder-v*.zip)",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Pack Skill zip (dist/cloudbase-skill-v*.zip)",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Submit Plugin + Skill in QoderWork",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "[object Object]",
+            "status": "manual_or_external"
+          }
+        ],
+        "priority": "needs_packaging_or_manifest",
+        "stale": false,
+        "manual_submit_only": true
+      }
+    ],
     "needs_partner_outreach": [
       {
         "id": "claude-code-official",
@@ -549,38 +631,59 @@
         "region": "cn",
         "channel_type": "native_connector_or_builtin",
         "listing_statuses": {
-          "official_curated": "unknown",
+          "official_curated": "listed",
           "community_directory": "unknown",
           "self_marketplace": "not_applicable",
-          "native_connector_or_builtin": "unknown",
+          "native_connector_or_builtin": "listed",
           "open_plugin_spec": "not_applicable",
           "mcp_or_skill_registry": "not_applicable",
           "docs_only": "listed"
         },
         "eligibility": "partner_outreach_required",
         "blockers": [
-          "Official listing status for CloudBase needs confirmation"
+          "Awaiting merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19 (refresh to v2.25.0)"
         ],
         "evidence_links": [
+          "https://cnb.cool/codebuddy/marketplace/-/tree/main/plugins/cloudbase",
+          "https://cnb.cool/tencent/cloud/cloudbase/marketplace",
+          "https://cnb.cool/codebuddy/marketplace/-/pulls/19",
           "https://www.codebuddy.cn/docs/cli/plugins",
           "doc/ide-setup/codebuddy.mdx"
         ],
-        "submit_url_or_process": "CodeBuddy has plugin marketplace / CLI plugins. Confirm whether CloudBase is already listed or needs partner submission.\n",
+        "submit_url_or_process": "Official catalog already has plugins/cloudbase on cnb.cool/codebuddy/marketplace (content stale vs v2.25.0).\nFork: https://cnb.cool/tencent/cloud/cloudbase/marketplace\nPR open: https://cnb.cool/codebuddy/marketplace/-/pulls/19 (from fork main).\n",
         "recommended_install_path": "doc/ide-setup/codebuddy.mdx",
-        "last_reviewed_at": "2026-07-27",
+        "last_reviewed_at": "2026-07-29",
         "owner": "cloudbase-ai-toolkit",
-        "local_evidence": [],
+        "local_evidence": [
+          {
+            "id": "config/codebuddy-plugin",
+            "status": "invalid",
+            "detail": "Unknown local_evidence id \"config/codebuddy-plugin\"",
+            "paths": []
+          },
+          {
+            "id": "specs/plugin-marketplace-listing/submission-log.md",
+            "status": "invalid",
+            "detail": "Unknown local_evidence id \"specs/plugin-marketplace-listing/submission-log.md\"",
+            "paths": []
+          }
+        ],
         "submit_checklist": [
-          "Confirm CodeBuddy marketplace submission process",
-          "Align with config/codebuddy-plugin if applicable"
+          "Await merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19",
+          "Confirm keep rules/cloudbase_rules.md in marketplace package",
+          "Ask CodeBuddy product team about built-in IDE sync if needed"
         ],
         "materials": [
           {
-            "item": "Confirm CodeBuddy marketplace submission process",
+            "item": "Await merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19",
             "status": "manual_or_external"
           },
           {
-            "item": "Align with config/codebuddy-plugin if applicable",
+            "item": "Confirm keep rules/cloudbase_rules.md in marketplace package",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Ask CodeBuddy product team about built-in IDE sync if needed",
             "status": "manual_or_external"
           }
         ],
@@ -626,51 +729,6 @@
           },
           {
             "item": "Marketplace listing steps from CodeBuddy docs",
-            "status": "manual_or_external"
-          }
-        ],
-        "priority": "needs_partner_outreach",
-        "stale": false,
-        "manual_submit_only": true
-      },
-      {
-        "id": "qoder-plugin",
-        "product": "Qoder",
-        "region": "cn",
-        "channel_type": "community_plugin_directory",
-        "listing_statuses": {
-          "official_curated": "unknown",
-          "community_directory": "unknown",
-          "self_marketplace": "not_applicable",
-          "native_connector_or_builtin": "not_applicable",
-          "open_plugin_spec": "not_applicable",
-          "mcp_or_skill_registry": "not_applicable",
-          "docs_only": "listed"
-        },
-        "eligibility": "partner_outreach_required",
-        "blockers": [
-          "Self-serve listing docs incomplete for third parties"
-        ],
-        "evidence_links": [
-          "https://help.aliyun.com/zh/lingma/plugin-hidden-release",
-          "doc/ide-setup/qoder.mdx"
-        ],
-        "submit_url_or_process": "Qoder CN plugins use plugin.json packaging (skills/MCP/hooks). Public marketplace listing process needs verification (Aliyun Lingma docs overlap).\n",
-        "recommended_install_path": "doc/ide-setup/qoder.mdx",
-        "last_reviewed_at": "2026-07-27",
-        "owner": "cloudbase-ai-toolkit",
-        "local_evidence": [],
-        "submit_checklist": [
-          "Confirm Qoder CN plugin publish channel",
-          "Package plugin.json compatible layout"
-        ],
-        "materials": [
-          {
-            "item": "Confirm Qoder CN plugin publish channel",
-            "status": "manual_or_external"
-          },
-          {
-            "item": "Package plugin.json compatible layout",
             "status": "manual_or_external"
           }
         ],
@@ -730,7 +788,7 @@
         "channel_type": "mcp_registry_or_aggregator",
         "listing_statuses": {
           "official_curated": "unknown",
-          "community_directory": "unknown",
+          "community_directory": "listed",
           "self_marketplace": "not_applicable",
           "native_connector_or_builtin": "not_applicable",
           "open_plugin_spec": "not_applicable",
@@ -745,11 +803,12 @@
           "https://docs.trae.cn/work_remote-mcp-server",
           "https://docs.trae.cn/ide_model-context-protocol",
           "https://github.com/trae-community/trae-mcp/pull/4",
+          "https://github.com/trae-community/trae-mcp/blob/main/README.md",
           "doc/ide-setup/trae.mdx"
         ],
-        "submit_url_or_process": "Users can add MCP from Trae built-in MCP marketplace or manual config. Third-party submission into Trae MCP marketplace is not publicly documented.\nStatus 2026-07-28: Community list PR opened https://github.com/trae-community/trae-mcp/pull/4 (README catalog; not official Trae store).\n",
+        "submit_url_or_process": "Users can add MCP from Trae built-in MCP marketplace or manual config. Third-party submission into Trae MCP marketplace is not publicly documented.\nStatus 2026-08-05: Community list PR merged https://github.com/trae-community/trae-mcp/pull/4 (README catalog; not official Trae store).\n",
         "recommended_install_path": "doc/ide-setup/trae.mdx",
-        "last_reviewed_at": "2026-07-28",
+        "last_reviewed_at": "2026-08-05",
         "owner": "cloudbase-ai-toolkit",
         "local_evidence": [
           {
@@ -762,21 +821,11 @@
           }
         ],
         "submit_checklist": [
-          "Partner outreach for official MCP marketplace inclusion",
-          "Provide stdio npx config for CloudBase MCP",
-          "Community README PR to trae-community/trae-mcp"
+          "Partner outreach for official MCP marketplace inclusion"
         ],
         "materials": [
           {
             "item": "Partner outreach for official MCP marketplace inclusion",
-            "status": "repo_ready_or_external"
-          },
-          {
-            "item": "Provide stdio npx config for CloudBase MCP",
-            "status": "repo_ready_or_external"
-          },
-          {
-            "item": "Community README PR to trae-community/trae-mcp",
             "status": "repo_ready_or_external"
           }
         ],
@@ -791,36 +840,39 @@
         "channel_type": "skill_registry",
         "listing_statuses": {
           "official_curated": "unknown",
-          "community_directory": "unknown",
+          "community_directory": "listed",
           "self_marketplace": "not_applicable",
           "native_connector_or_builtin": "not_applicable",
           "open_plugin_spec": "not_applicable",
-          "mcp_or_skill_registry": "unknown",
-          "docs_only": "unknown"
+          "mcp_or_skill_registry": "listed",
+          "docs_only": "listed"
         },
         "eligibility": "partner_outreach_required",
         "blockers": [
-          "Public skill publishing path not documented"
+          "Official Trae Work in-app skill market publisher path not documented"
         ],
         "evidence_links": [
-          "https://docs.trae.cn/solo_skills"
+          "https://docs.trae.cn/solo_skills",
+          "https://github.com/trae-community/trae-skills/pull/20",
+          "https://github.com/trae-community/trae-skills/blob/main/README.md",
+          "https://github.com/trae-community/trae-skills/blob/main/skills/cloudbase/SKILL.md"
         ],
-        "submit_url_or_process": "Users can upload local SKILL.md zip/.skill or install from Trae Work skills marketplace. Public publisher onboarding unclear.\n",
-        "recommended_install_path": null,
-        "last_reviewed_at": "2026-07-27",
+        "submit_url_or_process": "Community catalog: trae-community/trae-skills (merged PR #20).\nUsers can also upload local SKILL.md zip/.skill or install from Trae Work skills marketplace.\nOfficial Trae Work publisher onboarding still unclear / partner outreach.\nStatus 2026-08-05: Community skills PR merged https://github.com/trae-community/trae-skills/pull/20\n",
+        "recommended_install_path": "doc/ide-setup/trae.mdx",
+        "last_reviewed_at": "2026-08-05",
         "owner": "cloudbase-ai-toolkit",
         "local_evidence": [],
         "submit_checklist": [
-          "Confirm Trae Work skill market publisher process",
-          "Package SKILL.md zip if allowed"
+          "Confirm Trae Work official skill market publisher process",
+          "Package SKILL.md zip if official market requires it"
         ],
         "materials": [
           {
-            "item": "Confirm Trae Work skill market publisher process",
+            "item": "Confirm Trae Work official skill market publisher process",
             "status": "manual_or_external"
           },
           {
-            "item": "Package SKILL.md zip if allowed",
+            "item": "Package SKILL.md zip if official market requires it",
             "status": "manual_or_external"
           }
         ],
@@ -2045,11 +2097,12 @@
       "eligibility": "public_github_repo_required",
       "blockers": [],
       "evidence_links": [
+        "https://cursor.directory/plugins/cloudbase",
         "https://cursor.directory",
         "https://cursor.directory/plugins/new",
         "https://cursor.com/docs/plugins"
       ],
-      "submit_url_or_process": "Community listing via cursor.directory (plugin discovery). Prefer official Cursor Marketplace for primary listing.\nStatus 2026-07-28: packet ready — submit https://github.com/TencentCloudBase/cloudbase-plugin at https://cursor.directory/plugins/new\n(Use dedicated OPS repo: has root .mcp.json for auto-detect; monorepo does not.)\n",
+      "submit_url_or_process": "Community listing via cursor.directory (plugin discovery). Prefer official Cursor Marketplace for primary listing.\nStatus 2026-07-28: submitted — https://cursor.directory/plugins/cloudbase (being verified).\nSource repo: https://github.com/TencentCloudBase/cloudbase-plugin (root .mcp.json).\n",
       "recommended_install_path": "doc/ide-setup/cursor.mdx",
       "last_reviewed_at": "2026-07-28",
       "owner": "cloudbase-ai-toolkit",
@@ -2302,11 +2355,12 @@
       "blockers": [],
       "evidence_links": [
         "https://code.visualstudio.com/docs/agent-customization/agent-plugins",
-        "https://github.com/github/awesome-copilot/issues/2459"
+        "https://github.com/github/awesome-copilot/issues/2459",
+        "specs/plugin-marketplace-listing/awesome-copilot-rejection-response.md"
       ],
-      "submit_url_or_process": "Users add marketplaces via chat.plugins.marketplaces (default: github/copilot-plugins, awesome-copilot). Can point at this repo; curated default catalog inclusion needs outreach.\nStatus 2026-07-28: Awesome Copilot external plugin issue opened https://github.com/github/awesome-copilot/issues/2459\n",
+      "submit_url_or_process": "Users add marketplaces via chat.plugins.marketplaces (default: github/copilot-plugins, awesome-copilot). Can point at this repo; curated default catalog inclusion needs outreach.\nStatus 2026-08-05: Awesome Copilot #2459 intake re-passed after stripping remote skill-fetch URLs (SHA 4082ba95...). Awaiting maintainer re-review.\nSee specs/plugin-marketplace-listing/awesome-copilot-rejection-response.md\n",
       "recommended_install_path": "doc/ide-setup/vscode.mdx",
-      "last_reviewed_at": "2026-07-28",
+      "last_reviewed_at": "2026-08-05",
       "owner": "cloudbase-ai-toolkit",
       "local_evidence": [
         {
@@ -2328,6 +2382,7 @@
       ],
       "submit_checklist": [
         "Users can add TencentCloudBase/CloudBase-MCP as marketplace",
+        "Strip remote skill-fetch URLs; sync cloudbase-plugin; /rerun-intake on",
         {
           "Optional": "PR/request inclusion in default curated catalogs"
         }
@@ -2335,6 +2390,10 @@
       "materials": [
         {
           "item": "Users can add TencentCloudBase/CloudBase-MCP as marketplace",
+          "status": "repo_ready_or_external"
+        },
+        {
+          "item": "Strip remote skill-fetch URLs; sync cloudbase-plugin; /rerun-intake on",
           "status": "repo_ready_or_external"
         },
         {
@@ -2469,38 +2528,59 @@
       "region": "cn",
       "channel_type": "native_connector_or_builtin",
       "listing_statuses": {
-        "official_curated": "unknown",
+        "official_curated": "listed",
         "community_directory": "unknown",
         "self_marketplace": "not_applicable",
-        "native_connector_or_builtin": "unknown",
+        "native_connector_or_builtin": "listed",
         "open_plugin_spec": "not_applicable",
         "mcp_or_skill_registry": "not_applicable",
         "docs_only": "listed"
       },
       "eligibility": "partner_outreach_required",
       "blockers": [
-        "Official listing status for CloudBase needs confirmation"
+        "Awaiting merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19 (refresh to v2.25.0)"
       ],
       "evidence_links": [
+        "https://cnb.cool/codebuddy/marketplace/-/tree/main/plugins/cloudbase",
+        "https://cnb.cool/tencent/cloud/cloudbase/marketplace",
+        "https://cnb.cool/codebuddy/marketplace/-/pulls/19",
         "https://www.codebuddy.cn/docs/cli/plugins",
         "doc/ide-setup/codebuddy.mdx"
       ],
-      "submit_url_or_process": "CodeBuddy has plugin marketplace / CLI plugins. Confirm whether CloudBase is already listed or needs partner submission.\n",
+      "submit_url_or_process": "Official catalog already has plugins/cloudbase on cnb.cool/codebuddy/marketplace (content stale vs v2.25.0).\nFork: https://cnb.cool/tencent/cloud/cloudbase/marketplace\nPR open: https://cnb.cool/codebuddy/marketplace/-/pulls/19 (from fork main).\n",
       "recommended_install_path": "doc/ide-setup/codebuddy.mdx",
-      "last_reviewed_at": "2026-07-27",
+      "last_reviewed_at": "2026-07-29",
       "owner": "cloudbase-ai-toolkit",
-      "local_evidence": [],
+      "local_evidence": [
+        {
+          "id": "config/codebuddy-plugin",
+          "status": "invalid",
+          "detail": "Unknown local_evidence id \"config/codebuddy-plugin\"",
+          "paths": []
+        },
+        {
+          "id": "specs/plugin-marketplace-listing/submission-log.md",
+          "status": "invalid",
+          "detail": "Unknown local_evidence id \"specs/plugin-marketplace-listing/submission-log.md\"",
+          "paths": []
+        }
+      ],
       "submit_checklist": [
-        "Confirm CodeBuddy marketplace submission process",
-        "Align with config/codebuddy-plugin if applicable"
+        "Await merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19",
+        "Confirm keep rules/cloudbase_rules.md in marketplace package",
+        "Ask CodeBuddy product team about built-in IDE sync if needed"
       ],
       "materials": [
         {
-          "item": "Confirm CodeBuddy marketplace submission process",
+          "item": "Await merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19",
           "status": "manual_or_external"
         },
         {
-          "item": "Align with config/codebuddy-plugin if applicable",
+          "item": "Confirm keep rules/cloudbase_rules.md in marketplace package",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Ask CodeBuddy product team about built-in IDE sync if needed",
           "status": "manual_or_external"
         }
       ],
@@ -2555,46 +2635,75 @@
     },
     {
       "id": "qoder-plugin",
-      "product": "Qoder",
+      "product": "Qoder / QoderWork",
       "region": "cn",
       "channel_type": "community_plugin_directory",
       "listing_statuses": {
         "official_curated": "unknown",
         "community_directory": "unknown",
-        "self_marketplace": "not_applicable",
+        "self_marketplace": "submittable",
         "native_connector_or_builtin": "not_applicable",
-        "open_plugin_spec": "not_applicable",
-        "mcp_or_skill_registry": "not_applicable",
+        "open_plugin_spec": "listed",
+        "mcp_or_skill_registry": "submittable",
         "docs_only": "listed"
       },
-      "eligibility": "partner_outreach_required",
+      "eligibility": "public_github_repo_required",
       "blockers": [
-        "Self-serve listing docs incomplete for third parties"
+        "Awaiting QoderWork review / listing confirmation"
       ],
       "evidence_links": [
-        "https://help.aliyun.com/zh/lingma/plugin-hidden-release",
-        "doc/ide-setup/qoder.mdx"
+        "https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines",
+        "https://qoder.com.cn/account/apphub-publications",
+        "doc/ide-setup/qoder.mdx",
+        "plugin/cloudbase/docs/qoder-submit.md"
       ],
-      "submit_url_or_process": "Qoder CN plugins use plugin.json packaging (skills/MCP/hooks). Public marketplace listing process needs verification (Aliyun Lingma docs overlap).\n",
+      "submit_url_or_process": "QoderWork self-serve: Plugin (专家套件) + Skill marketplace.\nPack: npm run pack:qoder-plugin / pack:qoder-skill\nGuide: plugin/cloudbase/docs/qoder-submit.md\nStatus 2026-07-30: Plugin zip + Skill zip both submitted (awaiting review).\nQoder CN AppHub: https://qoder.com.cn/account/apphub-publications (optional follow-up).\n",
       "recommended_install_path": "doc/ide-setup/qoder.mdx",
-      "last_reviewed_at": "2026-07-27",
+      "last_reviewed_at": "2026-07-30",
       "owner": "cloudbase-ai-toolkit",
-      "local_evidence": [],
+      "local_evidence": [
+        {
+          "id": "open_plugin_spec_cloudbase",
+          "status": "present",
+          "detail": "plugin/cloudbase/.plugin/plugin.json has $schema",
+          "paths": [
+            "plugin/cloudbase/.plugin/plugin.json"
+          ]
+        },
+        {
+          "id": "qoder_plugin_manifest",
+          "status": "invalid",
+          "detail": "Unknown local_evidence id \"qoder_plugin_manifest\"",
+          "paths": []
+        }
+      ],
       "submit_checklist": [
-        "Confirm Qoder CN plugin publish channel",
-        "Package plugin.json compatible layout"
+        "Pack Plugin zip (dist/cloudbase-qoder-v*.zip)",
+        "Pack Skill zip (dist/cloudbase-skill-v*.zip)",
+        "Submit Plugin + Skill in QoderWork",
+        {
+          "After live": "flip self_marketplace / mcp_or_skill_registry → listed"
+        }
       ],
       "materials": [
         {
-          "item": "Confirm Qoder CN plugin publish channel",
+          "item": "Pack Plugin zip (dist/cloudbase-qoder-v*.zip)",
           "status": "manual_or_external"
         },
         {
-          "item": "Package plugin.json compatible layout",
+          "item": "Pack Skill zip (dist/cloudbase-skill-v*.zip)",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Submit Plugin + Skill in QoderWork",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "[object Object]",
           "status": "manual_or_external"
         }
       ],
-      "priority": "needs_partner_outreach",
+      "priority": "needs_packaging_or_manifest",
       "stale": false,
       "manual_submit_only": true
     },
@@ -2650,7 +2759,7 @@
       "channel_type": "mcp_registry_or_aggregator",
       "listing_statuses": {
         "official_curated": "unknown",
-        "community_directory": "unknown",
+        "community_directory": "listed",
         "self_marketplace": "not_applicable",
         "native_connector_or_builtin": "not_applicable",
         "open_plugin_spec": "not_applicable",
@@ -2665,11 +2774,12 @@
         "https://docs.trae.cn/work_remote-mcp-server",
         "https://docs.trae.cn/ide_model-context-protocol",
         "https://github.com/trae-community/trae-mcp/pull/4",
+        "https://github.com/trae-community/trae-mcp/blob/main/README.md",
         "doc/ide-setup/trae.mdx"
       ],
-      "submit_url_or_process": "Users can add MCP from Trae built-in MCP marketplace or manual config. Third-party submission into Trae MCP marketplace is not publicly documented.\nStatus 2026-07-28: Community list PR opened https://github.com/trae-community/trae-mcp/pull/4 (README catalog; not official Trae store).\n",
+      "submit_url_or_process": "Users can add MCP from Trae built-in MCP marketplace or manual config. Third-party submission into Trae MCP marketplace is not publicly documented.\nStatus 2026-08-05: Community list PR merged https://github.com/trae-community/trae-mcp/pull/4 (README catalog; not official Trae store).\n",
       "recommended_install_path": "doc/ide-setup/trae.mdx",
-      "last_reviewed_at": "2026-07-28",
+      "last_reviewed_at": "2026-08-05",
       "owner": "cloudbase-ai-toolkit",
       "local_evidence": [
         {
@@ -2682,21 +2792,11 @@
         }
       ],
       "submit_checklist": [
-        "Partner outreach for official MCP marketplace inclusion",
-        "Provide stdio npx config for CloudBase MCP",
-        "Community README PR to trae-community/trae-mcp"
+        "Partner outreach for official MCP marketplace inclusion"
       ],
       "materials": [
         {
           "item": "Partner outreach for official MCP marketplace inclusion",
-          "status": "repo_ready_or_external"
-        },
-        {
-          "item": "Provide stdio npx config for CloudBase MCP",
-          "status": "repo_ready_or_external"
-        },
-        {
-          "item": "Community README PR to trae-community/trae-mcp",
           "status": "repo_ready_or_external"
         }
       ],
@@ -2711,36 +2811,39 @@
       "channel_type": "skill_registry",
       "listing_statuses": {
         "official_curated": "unknown",
-        "community_directory": "unknown",
+        "community_directory": "listed",
         "self_marketplace": "not_applicable",
         "native_connector_or_builtin": "not_applicable",
         "open_plugin_spec": "not_applicable",
-        "mcp_or_skill_registry": "unknown",
-        "docs_only": "unknown"
+        "mcp_or_skill_registry": "listed",
+        "docs_only": "listed"
       },
       "eligibility": "partner_outreach_required",
       "blockers": [
-        "Public skill publishing path not documented"
+        "Official Trae Work in-app skill market publisher path not documented"
       ],
       "evidence_links": [
-        "https://docs.trae.cn/solo_skills"
+        "https://docs.trae.cn/solo_skills",
+        "https://github.com/trae-community/trae-skills/pull/20",
+        "https://github.com/trae-community/trae-skills/blob/main/README.md",
+        "https://github.com/trae-community/trae-skills/blob/main/skills/cloudbase/SKILL.md"
       ],
-      "submit_url_or_process": "Users can upload local SKILL.md zip/.skill or install from Trae Work skills marketplace. Public publisher onboarding unclear.\n",
-      "recommended_install_path": null,
-      "last_reviewed_at": "2026-07-27",
+      "submit_url_or_process": "Community catalog: trae-community/trae-skills (merged PR #20).\nUsers can also upload local SKILL.md zip/.skill or install from Trae Work skills marketplace.\nOfficial Trae Work publisher onboarding still unclear / partner outreach.\nStatus 2026-08-05: Community skills PR merged https://github.com/trae-community/trae-skills/pull/20\n",
+      "recommended_install_path": "doc/ide-setup/trae.mdx",
+      "last_reviewed_at": "2026-08-05",
       "owner": "cloudbase-ai-toolkit",
       "local_evidence": [],
       "submit_checklist": [
-        "Confirm Trae Work skill market publisher process",
-        "Package SKILL.md zip if allowed"
+        "Confirm Trae Work official skill market publisher process",
+        "Package SKILL.md zip if official market requires it"
       ],
       "materials": [
         {
-          "item": "Confirm Trae Work skill market publisher process",
+          "item": "Confirm Trae Work official skill market publisher process",
           "status": "manual_or_external"
         },
         {
-          "item": "Package SKILL.md zip if allowed",
+          "item": "Package SKILL.md zip if official market requires it",
           "status": "manual_or_external"
         }
       ],

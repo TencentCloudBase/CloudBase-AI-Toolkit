@@ -511,7 +511,7 @@ markets:
     channel_type: mcp_registry_or_aggregator
     listing_statuses:
       official_curated: unknown
-      community_directory: unknown
+      community_directory: listed
       self_marketplace: not_applicable
       native_connector_or_builtin: not_applicable
       open_plugin_spec: not_applicable
@@ -519,7 +519,7 @@ markets:
       docs_only: listed
     submit_url_or_process: |
       Users can add MCP from Trae built-in MCP marketplace or manual config. Third-party submission into Trae MCP marketplace is not publicly documented.
-      Status 2026-07-28: Community list PR opened https://github.com/trae-community/trae-mcp/pull/4 (README catalog; not official Trae store).
+      Status 2026-08-05: Community list PR merged https://github.com/trae-community/trae-mcp/pull/4 (README catalog; not official Trae store).
     eligibility: partner_outreach_required
     blockers:
       - No public developer submit form for Trae official MCP marketplace
@@ -527,19 +527,20 @@ markets:
       - https://docs.trae.cn/work_remote-mcp-server
       - https://docs.trae.cn/ide_model-context-protocol
       - https://github.com/trae-community/trae-mcp/pull/4
+      - https://github.com/trae-community/trae-mcp/blob/main/README.md
       - doc/ide-setup/trae.mdx
     local_evidence:
       - trae_mcp_deeplink_docs
     submit_checklist:
       - Partner outreach for official MCP marketplace inclusion
-      - Provide stdio npx config for CloudBase MCP
-      - Community README PR to trae-community/trae-mcp
     recommended_install_path: doc/ide-setup/trae.mdx
     priority_hint: needs_partner_outreach
-    last_reviewed_at: "2026-07-28"
+    last_reviewed_at: "2026-08-05"
     owner: cloudbase-ai-toolkit
     notes: |
-      2026-07-28: Community MCP list PR #4 opened. Official in-app marketplace still partner-only.
+      2026-07-28: Community MCP list PR #4 opened.
+      2026-08-05: PR #4 merged (YeatsLiao approved). Catalog row live in trae-community/trae-mcp README.
+      Official in-app MCP marketplace still partner-only.
 
   - id: trae-work-skills-marketplace
     product: Trae Work
@@ -547,27 +548,37 @@ markets:
     channel_type: skill_registry
     listing_statuses:
       official_curated: unknown
-      community_directory: unknown
+      community_directory: listed
       self_marketplace: not_applicable
       native_connector_or_builtin: not_applicable
       open_plugin_spec: not_applicable
-      mcp_or_skill_registry: unknown
-      docs_only: unknown
+      mcp_or_skill_registry: listed
+      docs_only: listed
     submit_url_or_process: |
-      Users can upload local SKILL.md zip/.skill or install from Trae Work skills marketplace. Public publisher onboarding unclear.
+      Community catalog: trae-community/trae-skills (merged PR #20).
+      Users can also upload local SKILL.md zip/.skill or install from Trae Work skills marketplace.
+      Official Trae Work publisher onboarding still unclear / partner outreach.
+      Status 2026-08-05: Community skills PR merged https://github.com/trae-community/trae-skills/pull/20
     eligibility: partner_outreach_required
     blockers:
-      - Public skill publishing path not documented
+      - Official Trae Work in-app skill market publisher path not documented
     evidence_links:
       - https://docs.trae.cn/solo_skills
+      - https://github.com/trae-community/trae-skills/pull/20
+      - https://github.com/trae-community/trae-skills/blob/main/README.md
+      - https://github.com/trae-community/trae-skills/blob/main/skills/cloudbase/SKILL.md
     local_evidence: []
     submit_checklist:
-      - Confirm Trae Work skill market publisher process
-      - Package SKILL.md zip if allowed
-    recommended_install_path: null
+      - Confirm Trae Work official skill market publisher process
+      - Package SKILL.md zip if official market requires it
+    recommended_install_path: doc/ide-setup/trae.mdx
     priority_hint: needs_partner_outreach
-    last_reviewed_at: "2026-07-27"
+    last_reviewed_at: "2026-08-05"
     owner: cloudbase-ai-toolkit
+    notes: |
+      2026-07-28: Community skills PR #20 opened.
+      2026-08-05: PR #20 merged (YeatsLiao approved). Catalog row `cloudbase` live in trae-community/trae-skills README.
+      Official Trae Work in-app skills marketplace still partner-only.
 
   - id: trae-ide-extension
     product: Trae IDE

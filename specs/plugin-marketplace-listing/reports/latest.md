@@ -1,6 +1,6 @@
 # CloudBase Plugin Marketplace Analysis
 
-Generated: 2026-07-28T03:32:40.305Z
+Generated: 2026-08-05T07:36:57.965Z
 
 > This report does not auto-submit to any marketplace. All submissions are manual.
 
@@ -11,8 +11,8 @@ Total markets: **42**
 | Priority | Count |
 |----------|------:|
 | ready_to_submit | 6 |
-| needs_packaging_or_manifest | 0 |
-| needs_partner_outreach | 13 |
+| needs_packaging_or_manifest | 1 |
+| needs_partner_outreach | 12 |
 | listed | 7 |
 | not_applicable | 15 |
 | unknown | 1 |
@@ -149,12 +149,13 @@ Process:
 
 ```
 Community listing via cursor.directory (plugin discovery). Prefer official Cursor Marketplace for primary listing.
-Status 2026-07-28: packet ready — submit https://github.com/TencentCloudBase/cloudbase-plugin at https://cursor.directory/plugins/new
-(Use dedicated OPS repo: has root .mcp.json for auto-detect; monorepo does not.)
+Status 2026-07-28: submitted — https://cursor.directory/plugins/cloudbase (being verified).
+Source repo: https://github.com/TencentCloudBase/cloudbase-plugin (root .mcp.json).
 ```
 
 Evidence:
 
+- https://cursor.directory/plugins/cloudbase
 - https://cursor.directory
 - https://cursor.directory/plugins/new
 - https://cursor.com/docs/plugins
@@ -253,7 +254,7 @@ Evidence:
 - Region: global
 - Channel: `self_hosted_marketplace`
 - Eligibility: `marketplace_add_or_catalog_pr`
-- Last reviewed: 2026-07-28
+- Last reviewed: 2026-08-05
 - Manual submit only: yes
 
 Statuses:
@@ -274,25 +275,79 @@ Local evidence:
 Submit checklist:
 
 - [ ] Users can add TencentCloudBase/CloudBase-MCP as marketplace
+- [ ] Strip remote skill-fetch URLs; sync cloudbase-plugin; /rerun-intake on
 - [ ] [object Object]
 
 Process:
 
 ```
 Users add marketplaces via chat.plugins.marketplaces (default: github/copilot-plugins, awesome-copilot). Can point at this repo; curated default catalog inclusion needs outreach.
-Status 2026-07-28: Awesome Copilot external plugin issue opened https://github.com/github/awesome-copilot/issues/2459
+Status 2026-08-05: Awesome Copilot #2459 intake re-passed after stripping remote skill-fetch URLs (SHA 4082ba95...). Awaiting maintainer re-review.
+See specs/plugin-marketplace-listing/awesome-copilot-rejection-response.md
 ```
 
 Evidence:
 
 - https://code.visualstudio.com/docs/agent-customization/agent-plugins
 - https://github.com/github/awesome-copilot/issues/2459
+- specs/plugin-marketplace-listing/awesome-copilot-rejection-response.md
 
 Recommended install docs: `doc/ide-setup/vscode.mdx`
 
 ## needs_packaging_or_manifest
 
-_None_
+### qoder-plugin — Qoder / QoderWork
+
+- Region: cn
+- Channel: `community_plugin_directory`
+- Eligibility: `public_github_repo_required`
+- Last reviewed: 2026-07-30
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: unknown
+- `community_directory`: unknown
+- `self_marketplace`: submittable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: listed
+- `mcp_or_skill_registry`: submittable
+- `docs_only`: listed
+
+Blockers:
+
+- Awaiting QoderWork review / listing confirmation
+
+Local evidence:
+
+- `open_plugin_spec_cloudbase`: **present** — plugin/cloudbase/.plugin/plugin.json has $schema
+- `qoder_plugin_manifest`: **invalid** — Unknown local_evidence id "qoder_plugin_manifest"
+
+Submit checklist:
+
+- [ ] Pack Plugin zip (dist/cloudbase-qoder-v*.zip)
+- [ ] Pack Skill zip (dist/cloudbase-skill-v*.zip)
+- [ ] Submit Plugin + Skill in QoderWork
+- [ ] [object Object]
+
+Process:
+
+```
+QoderWork self-serve: Plugin (专家套件) + Skill marketplace.
+Pack: npm run pack:qoder-plugin / pack:qoder-skill
+Guide: plugin/cloudbase/docs/qoder-submit.md
+Status 2026-07-30: Plugin zip + Skill zip both submitted (awaiting review).
+Qoder CN AppHub: https://qoder.com.cn/account/apphub-publications (optional follow-up).
+```
+
+Evidence:
+
+- https://docs.qoder.com/zh/qoderwork/skill-marketplace-guidelines
+- https://qoder.com.cn/account/apphub-publications
+- doc/ide-setup/qoder.mdx
+- plugin/cloudbase/docs/qoder-submit.md
+
+Recommended install docs: `doc/ide-setup/qoder.mdx`
 
 ## needs_partner_outreach
 
@@ -382,36 +437,47 @@ Evidence:
 - Region: cn
 - Channel: `native_connector_or_builtin`
 - Eligibility: `partner_outreach_required`
-- Last reviewed: 2026-07-27
+- Last reviewed: 2026-07-29
 - Manual submit only: yes
 
 Statuses:
 
-- `official_curated`: unknown
+- `official_curated`: listed
 - `community_directory`: unknown
 - `self_marketplace`: not_applicable
-- `native_connector_or_builtin`: unknown
+- `native_connector_or_builtin`: listed
 - `open_plugin_spec`: not_applicable
 - `mcp_or_skill_registry`: not_applicable
 - `docs_only`: listed
 
 Blockers:
 
-- Official listing status for CloudBase needs confirmation
+- Awaiting merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19 (refresh to v2.25.0)
+
+Local evidence:
+
+- `config/codebuddy-plugin`: **invalid** — Unknown local_evidence id "config/codebuddy-plugin"
+- `specs/plugin-marketplace-listing/submission-log.md`: **invalid** — Unknown local_evidence id "specs/plugin-marketplace-listing/submission-log.md"
 
 Submit checklist:
 
-- [ ] Confirm CodeBuddy marketplace submission process
-- [ ] Align with config/codebuddy-plugin if applicable
+- [ ] Await merge of https://cnb.cool/codebuddy/marketplace/-/pulls/19
+- [ ] Confirm keep rules/cloudbase_rules.md in marketplace package
+- [ ] Ask CodeBuddy product team about built-in IDE sync if needed
 
 Process:
 
 ```
-CodeBuddy has plugin marketplace / CLI plugins. Confirm whether CloudBase is already listed or needs partner submission.
+Official catalog already has plugins/cloudbase on cnb.cool/codebuddy/marketplace (content stale vs v2.25.0).
+Fork: https://cnb.cool/tencent/cloud/cloudbase/marketplace
+PR open: https://cnb.cool/codebuddy/marketplace/-/pulls/19 (from fork main).
 ```
 
 Evidence:
 
+- https://cnb.cool/codebuddy/marketplace/-/tree/main/plugins/cloudbase
+- https://cnb.cool/tencent/cloud/cloudbase/marketplace
+- https://cnb.cool/codebuddy/marketplace/-/pulls/19
 - https://www.codebuddy.cn/docs/cli/plugins
 - doc/ide-setup/codebuddy.mdx
 
@@ -457,46 +523,6 @@ Evidence:
 
 Recommended install docs: `doc/ide-setup/codebuddy-code.mdx`
 
-### qoder-plugin — Qoder
-
-- Region: cn
-- Channel: `community_plugin_directory`
-- Eligibility: `partner_outreach_required`
-- Last reviewed: 2026-07-27
-- Manual submit only: yes
-
-Statuses:
-
-- `official_curated`: unknown
-- `community_directory`: unknown
-- `self_marketplace`: not_applicable
-- `native_connector_or_builtin`: not_applicable
-- `open_plugin_spec`: not_applicable
-- `mcp_or_skill_registry`: not_applicable
-- `docs_only`: listed
-
-Blockers:
-
-- Self-serve listing docs incomplete for third parties
-
-Submit checklist:
-
-- [ ] Confirm Qoder CN plugin publish channel
-- [ ] Package plugin.json compatible layout
-
-Process:
-
-```
-Qoder CN plugins use plugin.json packaging (skills/MCP/hooks). Public marketplace listing process needs verification (Aliyun Lingma docs overlap).
-```
-
-Evidence:
-
-- https://help.aliyun.com/zh/lingma/plugin-hidden-release
-- doc/ide-setup/qoder.mdx
-
-Recommended install docs: `doc/ide-setup/qoder.mdx`
-
 ### qoderwork-connector — QoderWork
 
 - Region: cn
@@ -540,13 +566,13 @@ Evidence:
 - Region: cn
 - Channel: `mcp_registry_or_aggregator`
 - Eligibility: `partner_outreach_required`
-- Last reviewed: 2026-07-28
+- Last reviewed: 2026-08-05
 - Manual submit only: yes
 
 Statuses:
 
 - `official_curated`: unknown
-- `community_directory`: unknown
+- `community_directory`: listed
 - `self_marketplace`: not_applicable
 - `native_connector_or_builtin`: not_applicable
 - `open_plugin_spec`: not_applicable
@@ -564,14 +590,12 @@ Local evidence:
 Submit checklist:
 
 - [ ] Partner outreach for official MCP marketplace inclusion
-- [ ] Provide stdio npx config for CloudBase MCP
-- [ ] Community README PR to trae-community/trae-mcp
 
 Process:
 
 ```
 Users can add MCP from Trae built-in MCP marketplace or manual config. Third-party submission into Trae MCP marketplace is not publicly documented.
-Status 2026-07-28: Community list PR opened https://github.com/trae-community/trae-mcp/pull/4 (README catalog; not official Trae store).
+Status 2026-08-05: Community list PR merged https://github.com/trae-community/trae-mcp/pull/4 (README catalog; not official Trae store).
 ```
 
 Evidence:
@@ -579,6 +603,7 @@ Evidence:
 - https://docs.trae.cn/work_remote-mcp-server
 - https://docs.trae.cn/ide_model-context-protocol
 - https://github.com/trae-community/trae-mcp/pull/4
+- https://github.com/trae-community/trae-mcp/blob/main/README.md
 - doc/ide-setup/trae.mdx
 
 Recommended install docs: `doc/ide-setup/trae.mdx`
@@ -588,37 +613,45 @@ Recommended install docs: `doc/ide-setup/trae.mdx`
 - Region: cn
 - Channel: `skill_registry`
 - Eligibility: `partner_outreach_required`
-- Last reviewed: 2026-07-27
+- Last reviewed: 2026-08-05
 - Manual submit only: yes
 
 Statuses:
 
 - `official_curated`: unknown
-- `community_directory`: unknown
+- `community_directory`: listed
 - `self_marketplace`: not_applicable
 - `native_connector_or_builtin`: not_applicable
 - `open_plugin_spec`: not_applicable
-- `mcp_or_skill_registry`: unknown
-- `docs_only`: unknown
+- `mcp_or_skill_registry`: listed
+- `docs_only`: listed
 
 Blockers:
 
-- Public skill publishing path not documented
+- Official Trae Work in-app skill market publisher path not documented
 
 Submit checklist:
 
-- [ ] Confirm Trae Work skill market publisher process
-- [ ] Package SKILL.md zip if allowed
+- [ ] Confirm Trae Work official skill market publisher process
+- [ ] Package SKILL.md zip if official market requires it
 
 Process:
 
 ```
-Users can upload local SKILL.md zip/.skill or install from Trae Work skills marketplace. Public publisher onboarding unclear.
+Community catalog: trae-community/trae-skills (merged PR #20).
+Users can also upload local SKILL.md zip/.skill or install from Trae Work skills marketplace.
+Official Trae Work publisher onboarding still unclear / partner outreach.
+Status 2026-08-05: Community skills PR merged https://github.com/trae-community/trae-skills/pull/20
 ```
 
 Evidence:
 
 - https://docs.trae.cn/solo_skills
+- https://github.com/trae-community/trae-skills/pull/20
+- https://github.com/trae-community/trae-skills/blob/main/README.md
+- https://github.com/trae-community/trae-skills/blob/main/skills/cloudbase/SKILL.md
+
+Recommended install docs: `doc/ide-setup/trae.mdx`
 
 ### mcp-official-registry — Official MCP Registry
 
