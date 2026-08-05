@@ -65,7 +65,7 @@
       "name": "workbuddy-template-prewarm",
       "source": "plugin/workbuddy-template-prewarm",
       "description": "SessionStart prewarm + Sites-aligned preview during WorkBuddy credential wait. Stacks with teamai hooks.",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "author": {
         "name": "Tencent CloudBase"
       },

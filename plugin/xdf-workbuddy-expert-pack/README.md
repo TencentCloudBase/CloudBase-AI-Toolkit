@@ -12,6 +12,7 @@
 | `briefs/baas-fast-path.md` | `minimal-web-baas-demo` 一页指针 |
 | `settings.snippet.json` | 合并进 `~/.workbuddy/settings.json` 的 SessionStart 片段 |
 | `scripts/render-settings.sh` | 把片段里的路径渲染成绝对路径 |
+| `PARTNER-CHECKLIST.md` | 伙伴侧启用验收清单（merge / preview 端口池 / 零云函数） |
 | `HOOKS.md` | frontmatter allowlist 结论（英文技术备忘） |
 | `.claude-plugin/plugin.json` | 可选插件元数据（Agent 发现用；prewarm 仍走 sibling） |
 
@@ -77,6 +78,10 @@ bash plugin/xdf-workbuddy-expert-pack/scripts/render-settings.sh --merge
 hooks 装不上时仍可改善体验，但弱于 SessionStart 后台任务。Preview 回退：Sites CLI 不可用时才允许 `npm run dev`（并注明端口不确定）。
 
 ## 验收建议
+
+完整可勾选清单见 **[PARTNER-CHECKLIST.md](./PARTNER-CHECKLIST.md)**（merge settings / preview 端口池 / BaaS-first 零云函数）。
+
+摘要：
 
 - [ ] SessionStart 与 teamai hooks **并存**，未互相覆盖
 - [ ] 空目录新会话 → ~20–40s 内 `.cloudbase-prewarm/state.json` 为 `ready`

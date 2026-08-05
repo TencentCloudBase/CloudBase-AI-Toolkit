@@ -5,7 +5,7 @@ template zip, runs `pnpm`/`npm install`, then starts **Sites-aligned preview**
 (`cloudbase-sites preview`, ports **17173..17272**) in the background while the
 user finishes sre-aihub credentials / connector Trust.
 
-> Status: **marketplace-ready** (v0.2.0). Install via the CloudBase marketplace;
+> Status: **marketplace-ready** (v0.2.1). Install via the CloudBase marketplace;
 > do **not** hand-merge absolute-path settings snippets on partner machines.
 
 ## One-click install (recommended)
@@ -96,7 +96,7 @@ plugin/workbuddy-template-prewarm/
 ## Behavior
 
 1. SessionStart (`startup` / `clear`)
-2. If cwd empty-enough → background: cache zip → extract → install → preview
+2. If cwd empty-enough → background: cache zip → extract → **strip oversized rule files (>40 KiB)** → install → preview
 3. If Vite project missing `node_modules` → background install → preview
 4. If Vite already installed → background `--preview-only`
 5. Else skip (do not overwrite foreign trees)
@@ -114,6 +114,7 @@ Log: `~/.cloudbase/logs/workbuddy-prewarm-session-start.log`
 | `CLOUDBASE_WORKBUDDY_PREWARM` | `1` | Set `0` to disable entire hook body |
 | `CLOUDBASE_WORKBUDDY_TEMPLATE` | `react` | `react` \| `vue` |
 | `CLOUDBASE_WORKBUDDY_PREVIEW` | `1` | Set `0` to skip Sites preview start |
+| `CLOUDBASE_WORKBUDDY_STRIP_RULES` | `1` | Set `0` to keep oversized template `AGENTS.md` / `CLAUDE.md` as-is |
 | `CLOUDBASE_SITES_BIN` | auto | Absolute path to `cloudbase-sites` CLI |
 
 Sites bin resolution order: `CLOUDBASE_SITES_BIN` →
@@ -158,7 +159,12 @@ markdown separately. Do **not** put SessionStart in Agent frontmatter.
 
 ## Notes
 
-- Official template ships large `AGENTS.md`/`CLAUDE.md` (~41KB); some WorkBuddy
-  builds reject rule files over 40KB — consider stripping on extract if needed.
+- Official template ships large `AGENTS.md`/`CLAUDE.md`/`CODEBUDDY.md` (~41KB).
+  WorkBuddy rejects rule files over **40 KiB** (`Rule file exceeds maximum size`).
+  After extract, prewarm replaces oversized entrypoints (`AGENTS.md`, `CLAUDE.md`,
+  `CODEBUDDY.md`, `.augment-guidelines`, `cloudbase-rules.mdc`) with a compact
+  stub and records them in `.cloudbase-prewarm/state.json` → `strippedRules`.
+  Opt out with `CLOUDBASE_WORKBUDDY_STRIP_RULES=0`. Compact BaaS rules still come
+  from SessionStart `additionalContext`.
 - Refresh vendored Sites CLI after Sites changes:
   `bash plugin/workbuddy-template-prewarm/scripts/sync-sites-vendor.sh`

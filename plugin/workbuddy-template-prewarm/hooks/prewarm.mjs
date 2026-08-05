@@ -18,17 +18,20 @@ import { spawn, spawnSync } from "node:child_process";
 import {
   createWriteStream,
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
   realpathSync,
   renameSync,
   rmSync,
+  statSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import https from "node:https";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -41,6 +44,37 @@ const TEMPLATE_URLS = {
 
 const CACHE_DIR = join(homedir(), ".cloudbase", "cache", "templates");
 const STATE_DIR_NAME = ".cloudbase-prewarm";
+
+/**
+ * WorkBuddy rejects project rule files over 40 KiB ("Rule file exceeds maximum size").
+ * Official React/Vue zips ship AGENTS.md / CLAUDE.md / CODEBUDDY.md ≈ 41KB.
+ */
+const MAX_RULE_BYTES = 40 * 1024;
+
+const OVERSIZED_RULE_BASENAMES = new Set([
+  "AGENTS.md",
+  "CLAUDE.md",
+  "CODEBUDDY.md",
+  ".augment-guidelines",
+  "cloudbase-rules.mdc",
+]);
+
+const RULE_STUB = `---
+description: CloudBase compact rules (WorkBuddy size-safe stub)
+alwaysApply: true
+---
+
+# CloudBase (size-safe stub)
+
+The official template rule file exceeded WorkBuddy's 40 KiB limit and was
+replaced during \`workbuddy-template-prewarm\` extract.
+
+Follow SessionStart \`additionalContext\` from the prewarm plugin.
+For minimal Web + DB demos, fetch skill \`minimal-web-baas-demo\` via
+\`searchKnowledgeBase(mode="skill", skillName="minimal-web-baas-demo")\`.
+Prefer \`@cloudbase/js-sdk\` browser CRUD; do not scaffold cloud functions for
+Todo / Notes / Chat demos unless secrets, cron, or rules-cannot-express.
+`;
 
 function parseArgs(argv) {
   const previewEnv = process.env.CLOUDBASE_WORKBUDDY_PREVIEW;
@@ -385,6 +419,113 @@ async function ensureCachedZip(template) {
   return cached;
 }
 
+function shouldSkipWalkDir(name) {
+  return (
+    name === "node_modules" ||
+    name === ".git" ||
+    name === STATE_DIR_NAME ||
+    name === ".cloudbase-sites" ||
+    name === "dist" ||
+    name === "build" ||
+    name === ".next"
+  );
+}
+
+/**
+ * Walk project tree for known WorkBuddy/IDE rule entrypoints.
+ * Returns absolute paths only (files + symlinks to files).
+ */
+function collectRuleEntrypointPaths(root) {
+  const out = [];
+  const stack = [root];
+  while (stack.length) {
+    const dir = stack.pop();
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const ent of entries) {
+      const full = join(dir, ent.name);
+      if (ent.isDirectory()) {
+        if (!shouldSkipWalkDir(ent.name)) stack.push(full);
+        continue;
+      }
+      if (!OVERSIZED_RULE_BASENAMES.has(ent.name)) continue;
+      // Follow only plain files / symlinks; skip weird types.
+      try {
+        const st = lstatSync(full);
+        if (st.isFile() || st.isSymbolicLink()) out.push(full);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Replace oversized rule entrypoints with a compact stub so WorkBuddy can load
+ * the project after prewarm (official zip AGENTS.md ≈ 41KB > 40 KiB host cap).
+ *
+ * Opt out: CLOUDBASE_WORKBUDDY_STRIP_RULES=0
+ */
+function stripOversizedRuleFiles(cwd) {
+  if (process.env.CLOUDBASE_WORKBUDDY_STRIP_RULES === "0") {
+    return { skipped: true, reason: "CLOUDBASE_WORKBUDDY_STRIP_RULES=0", replaced: [] };
+  }
+
+  const stubBytes = Buffer.byteLength(RULE_STUB, "utf8");
+  if (stubBytes >= MAX_RULE_BYTES) {
+    // Defensive: never write a stub that still fails the host check.
+    return { skipped: true, reason: "stub itself exceeds MAX_RULE_BYTES", replaced: [] };
+  }
+
+  const replaced = [];
+  for (const abs of collectRuleEntrypointPaths(cwd)) {
+    let size;
+    try {
+      // Use target size for symlinks (WorkBuddy reads the content).
+      size = statSync(abs).size;
+    } catch {
+      continue;
+    }
+    if (size <= MAX_RULE_BYTES) continue;
+
+    const rel = relative(cwd, abs) || basename(abs);
+    try {
+      // Break hardlinks / symlinks so we do not mutate shared inode content.
+      try {
+        const lst = lstatSync(abs);
+        if (lst.isSymbolicLink() || lst.nlink > 1) unlinkSync(abs);
+      } catch {
+        /* fall through to overwrite */
+      }
+      writeFileSync(abs, RULE_STUB, "utf8");
+      replaced.push({
+        path: rel,
+        beforeBytes: size,
+        afterBytes: stubBytes,
+        action: "replaced-with-stub",
+      });
+    } catch (e) {
+      replaced.push({
+        path: rel,
+        beforeBytes: size,
+        action: "error",
+        error: e && e.message ? e.message : String(e),
+      });
+    }
+  }
+
+  return {
+    skipped: false,
+    maxRuleBytes: MAX_RULE_BYTES,
+    replaced,
+  };
+}
+
 async function prewarmEmpty(cwd, template, skipInstall) {
   writeState(cwd, { status: "downloading", template, phase: "download" });
   const cached = await ensureCachedZip(template);
@@ -403,8 +544,17 @@ async function prewarmEmpty(cwd, template, skipInstall) {
     /* ignore */
   }
 
+  // WorkBuddy host rejects >40 KiB rule files; strip before install/preview.
+  writeState(cwd, { status: "extracting", phase: "strip-rules" });
+  const strippedRules = stripOversizedRuleFiles(cwd);
+  if (strippedRules.replaced?.length) {
+    process.stderr.write(
+      `[prewarm] stripped ${strippedRules.replaced.length} oversized rule file(s) (>${MAX_RULE_BYTES} bytes)\n`,
+    );
+  }
+
   if (!skipInstall) {
-    writeState(cwd, { status: "installing", phase: "install" });
+    writeState(cwd, { status: "installing", phase: "install", strippedRules });
     const ok = runInstall(cwd);
     if (!ok) throw Object.assign(new Error("dependency install failed"), { code: 13 });
   }
@@ -416,6 +566,7 @@ async function prewarmEmpty(cwd, template, skipInstall) {
     installed: !skipInstall,
     packageJson: existsSync(join(cwd, "package.json")),
     nodeModules: existsSync(join(cwd, "node_modules")),
+    strippedRules,
   });
 }
 
