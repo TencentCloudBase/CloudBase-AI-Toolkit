@@ -265,7 +265,9 @@ async function runLiveWithFreshServer(pkgRoot) {
   const usedOpaFallback =
     fallbackValue === "describeEnvAuthzConfig" ||
     String(payload.message || "").includes("describeEnvAuthzConfig");
-  const path = usedOpaFallback ? "opa-fallback" : "primary";
+  // Do not name this `path` — it shadows the node:path import and triggers TDZ
+  // on earlier path.join() calls in this function (live smoke ReferenceError).
+  const routePath = usedOpaFallback ? "opa-fallback" : "primary";
 
   if (!usedOpaFallback) {
     log(
@@ -276,14 +278,14 @@ async function runLiveWithFreshServer(pkgRoot) {
 
   log(
     "live-smoke",
-    `PASS env=${envId} function=${SMOKE_PG_FUNCTION_ID} path=${path} fallback=${fallbackValue || "none"}`,
+    `PASS env=${envId} function=${SMOKE_PG_FUNCTION_ID} path=${routePath} fallback=${fallbackValue || "none"}`,
   );
   return {
     skipped: false,
     envId,
     functionId: SMOKE_PG_FUNCTION_ID,
     fallback: fallbackValue || null,
-    path,
+    path: routePath,
   };
 }
 
