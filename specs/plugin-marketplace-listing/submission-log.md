@@ -84,7 +84,7 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 
 | Field | Value |
 |-------|-------|
-| Status | **Resubmitted after security fix** — remote skill-fetch URLs removed; `/rerun-intake` requested 2026-08-05 |
+| Status | **Intake passed after security fix** — label `ready-for-review`; awaiting maintainer review |
 | Issue | https://github.com/github/awesome-copilot/issues/2459 |
 | Packet | `specs/plugin-marketplace-listing/awesome-copilot-submission-packet.md` |
 | Response | `specs/plugin-marketplace-listing/awesome-copilot-rejection-response.md` |
