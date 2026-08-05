@@ -1,6 +1,6 @@
 {
   "name": "cloudbase",
-  "version": "2.25.1",
+  "version": "2.25.8",
   "description": "Tencent CloudBase — AI models, authentication, NoSQL/MySQL/PostgreSQL databases, cloud functions, cloud storage, CloudRun, and WeChat Mini Program integration. Powered by cloudbase-mcp.",
   "author": {
     "name": "Tencent CloudBase",
@@ -24,6 +24,7 @@
     "cloudrun"
   ],
   "skills": [
-    "./skills/cloudbase"
+    "./skills/cloudbase",
+    "./skills/minimal-web-baas-demo"
   ]
 }

@@ -18,13 +18,14 @@ skills:
 **不要**把官方 cloudbase-skills / 全量 SKILL.md 在会话第一步全部读完。  
 **不要**只靠本提示词里的 ad-hoc BaaS 摘要当唯一契约 —— 完整 Fast-path 以技能文档为准。
 
-**第一步（强制）：** 调用 MCP 拉取主技能（WorkBuddy 常无本机 skill 文件，禁止优先 `Read` 本地路径）：
+**第一步（强制，按优先级尝试，Trust 前也要成功）：**
 
-```text
-searchKnowledgeBase(mode="skill", skillName="minimal-web-baas-demo")
-```
+1. `Skill("minimal-web-baas-demo")` — 本机 `~/.workbuddy/skills/` 或已启用插件 skills（`bash …/scripts/install-skill.sh` 安装）
+2. 若 Skill not found：`Read` 本包 `skills/minimal-web-baas-demo/SKILL.md`（相对专家包根）
+3. 若仍不可用且 CloudBase 连接器已 Trust：  
+   `searchKnowledgeBase(mode="skill", skillName="minimal-web-baas-demo")` 后 `Read` 返回路径
 
-拿到返回路径后 `Read` 全文，再动手。本提示词 §1–§7 只是执行清单；与技能冲突时 **以技能为准**。
+**禁止**在 connector Unauthorized / 未 Trust 时死等 MCP。本提示词 §1–§7 只是执行清单；与技能冲突时 **以技能为准**。
 
 按需再拉（仅在真正需要时）：
 
@@ -127,7 +128,7 @@ MCP → 建表/集合、权限、环境查询
 
 ### 7. 自检
 
-- [ ] 已 `searchKnowledgeBase(mode="skill", skillName="minimal-web-baas-demo")`（非仅靠本提示词摘要）
+- [ ] 已加载 `minimal-web-baas-demo`（`Skill` / 本包 `Read` / 或 Trust 后 `searchKnowledgeBase`；非仅靠本提示词摘要）
 - [ ] 未整包加载 cloudbase-skills
 - [ ] 凭据等待期间已有 prewarm 或 `downloadTemplate` + install
 - [ ] 预览 URL 来自 `preview.json` / Sites `preview --status`（未猜 5173）
