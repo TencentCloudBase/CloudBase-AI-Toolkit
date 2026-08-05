@@ -48,6 +48,7 @@
     "test:watch": "npm run build && vitest",
     "test:coverage": "npm run build && vitest run --coverage",
     "test:pg:cloud": "npm run build && node ./scripts/verify-pg-cloud-smoke.mjs",
+    "test:npm:tarball-smoke": "node ./scripts/verify-npm-tarball-smoke.mjs",
     "test:inspector": "npm run build && npx @modelcontextprotocol/inspector node ./dist/cli.js",
     "prepublishOnly": "npm run build && node scripts/prepare-publish.cjs",
     "postpublish": "node scripts/restore-deps.cjs"

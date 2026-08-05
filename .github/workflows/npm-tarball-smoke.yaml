@@ -1,0 +1,61 @@
+name: npm tarball smoke
+
+# Scheduled / manual check of the published package on npm (latest or a chosen tag/version).
+# Post-publish coverage also runs from npm-publish.yaml after a successful publish.
+
+on:
+  schedule:
+    # Daily check that latest still boots and retains OPA permission fallback strings.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "npm version or dist-tag to smoke (default latest)"
+        required: false
+        default: "latest"
+      expected_shasum:
+        description: "Optional expected tarball sha1"
+        required: false
+        default: ""
+      skip_live_smoke:
+        description: "Skip optional live PG queryPermissions probe (true/false)"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+jobs:
+  tarball-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+
+      - name: Resolve smoke version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="latest"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Smoking npm package version/tag: $VERSION"
+
+      - name: Run published tarball smoke
+        working-directory: ./mcp
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+          EXPECTED_SHASUM: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_shasum || '' }}
+          SKIP_LIVE_SMOKE: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_live_smoke == 'true' && '1' || '0' }}
+          TENCENTCLOUD_SECRETID: ${{ secrets.TENCENTCLOUD_SECRETID }}
+          TENCENTCLOUD_SECRETKEY: ${{ secrets.TENCENTCLOUD_SECRETKEY }}
+          CLOUDBASE_ENV_ID: ${{ secrets.CLOUDBASE_ENV_ID }}
+          SMOKE_PG_FUNCTION_ID: atoPgPermProbe
+        run: node ./scripts/verify-npm-tarball-smoke.mjs
