@@ -99,13 +99,18 @@ Examples of good targets:
 - [x] Open PR to https://github.com/trae-community/trae-mcp — https://github.com/trae-community/trae-mcp/pull/4 (2026-07-28)
 - [x] PR body aligned to CONTRIBUTING PR Checklist (2026-07-29)
 - [x] Merged 2026-08-05 — mark `trae-mcp-marketplace.community_directory` listed
-- [ ] Official Trae in-app MCP marketplace still needs partner outreach
+- [x] Official Trae in-app MCP marketplace outreach started — https://github.com/trae-community/trae-mcp/issues/5 + `trae-official-outreach-packet.md` (2026-08-05)
+- [ ] Await Trae reply; then mark `official_curated` listed if accepted
+- [ ] Human: post forum draft (社区伙伴 / 产品建议) from outreach packet
 
 ### 6b. Trae community Skills
 
 - [x] Open PR to https://github.com/trae-community/trae-skills — https://github.com/trae-community/trae-skills/pull/20 (2026-07-28)
 - [x] PR body aligned to CONTRIBUTING Pull request checklist (2026-07-29)
 - [x] Merged 2026-08-05 — mark `trae-work-skills-marketplace.community_directory` / `mcp_or_skill_registry` listed
+- [x] Official Trae Work skills marketplace outreach started — https://github.com/trae-community/trae-skills/issues/21 + packet (2026-08-05)
+- [ ] Await Trae reply; then mark `official_curated` listed if accepted
+- [ ] Human: post forum draft (TraeWork 专区 / 社区伙伴) from outreach packet
 
 ### 6c. CodeBuddy official marketplace (CNB)
 
@@ -134,8 +139,8 @@ Examples of good targets:
 | Market | Action |
 |--------|--------|
 | Claude Official curated | Wait for / request Anthropic partnership |
-| Trae official MCP marketplace | Contact Trae for curated catalog inclusion (community list PR is separate) |
-| Trae Work skills marketplace | Confirm publisher onboarding |
+| Trae official MCP marketplace | Outreach opened: trae-mcp#5 + packet; still need product reply / forum BD post |
+| Trae Work skills marketplace | Outreach opened: trae-skills#21 + packet; forum confirms upload ≠ global publish |
 | Qoder Featured / curated | After community submit, ask for Featured if needed |
 | QoderWork Connector | Only if HTTPS+OAuth CloudBase MCP is in scope |
 | CodeBuddy / CodeBuddy Code | Await CNB #19 merge; built-in may still need PM sync |

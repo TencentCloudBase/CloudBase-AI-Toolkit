@@ -520,19 +520,26 @@ markets:
     submit_url_or_process: |
       Users can add MCP from Trae built-in MCP marketplace or manual config. Third-party submission into Trae MCP marketplace is not publicly documented.
       Status 2026-08-05: Community list PR merged https://github.com/trae-community/trae-mcp/pull/4 (README catalog; not official Trae store).
+      Outreach 2026-08-05: Asked community maintainers for official in-app curation path — https://github.com/trae-community/trae-mcp/issues/5
+      Packet: specs/plugin-marketplace-listing/trae-official-outreach-packet.md
     eligibility: partner_outreach_required
     blockers:
       - No public developer submit form for Trae official MCP marketplace
+      - Awaiting Trae product / community reply on curation sync + partner contact
     evidence_links:
       - https://docs.trae.cn/work_remote-mcp-server
       - https://docs.trae.cn/ide_model-context-protocol
       - https://github.com/trae-community/trae-mcp/pull/4
+      - https://github.com/trae-community/trae-mcp/issues/5
       - https://github.com/trae-community/trae-mcp/blob/main/README.md
       - doc/ide-setup/trae.mdx
+      - specs/plugin-marketplace-listing/trae-official-outreach-packet.md
     local_evidence:
       - trae_mcp_deeplink_docs
     submit_checklist:
       - Partner outreach for official MCP marketplace inclusion
+      - Await reply on trae-community/trae-mcp#5
+      - Human: post forum draft from outreach packet (社区伙伴 / 产品建议)
     recommended_install_path: doc/ide-setup/trae.mdx
     priority_hint: needs_partner_outreach
     last_reviewed_at: "2026-08-05"
@@ -540,7 +547,7 @@ markets:
     notes: |
       2026-07-28: Community MCP list PR #4 opened.
       2026-08-05: PR #4 merged (YeatsLiao approved). Catalog row live in trae-community/trae-mcp README.
-      Official in-app MCP marketplace still partner-only.
+      2026-08-05: Official in-app outreach started (GitHub issue #5 + packet). Still partner-only; do not mark official_curated listed.
 
   - id: trae-work-skills-marketplace
     product: Trae Work
@@ -559,18 +566,27 @@ markets:
       Users can also upload local SKILL.md zip/.skill or install from Trae Work skills marketplace.
       Official Trae Work publisher onboarding still unclear / partner outreach.
       Status 2026-08-05: Community skills PR merged https://github.com/trae-community/trae-skills/pull/20
+      Outreach 2026-08-05: Asked community maintainers for official skills market path — https://github.com/trae-community/trae-skills/issues/21
+      Forum signal (custom skills not globally shareable via upload): https://forum.trae.cn/t/topic/171994
+      Packet: specs/plugin-marketplace-listing/trae-official-outreach-packet.md
     eligibility: partner_outreach_required
     blockers:
       - Official Trae Work in-app skill market publisher path not documented
+      - Awaiting Trae product / community reply on curation sync + partner contact
     evidence_links:
       - https://docs.trae.cn/solo_skills
       - https://github.com/trae-community/trae-skills/pull/20
+      - https://github.com/trae-community/trae-skills/issues/21
       - https://github.com/trae-community/trae-skills/blob/main/README.md
       - https://github.com/trae-community/trae-skills/blob/main/skills/cloudbase/SKILL.md
+      - https://forum.trae.cn/t/topic/171994
+      - specs/plugin-marketplace-listing/trae-official-outreach-packet.md
     local_evidence: []
     submit_checklist:
       - Confirm Trae Work official skill market publisher process
+      - Await reply on trae-community/trae-skills#21
       - Package SKILL.md zip if official market requires it
+      - Human: post forum draft from outreach packet (TraeWork 专区 / 社区伙伴)
     recommended_install_path: doc/ide-setup/trae.mdx
     priority_hint: needs_partner_outreach
     last_reviewed_at: "2026-08-05"
@@ -578,7 +594,7 @@ markets:
     notes: |
       2026-07-28: Community skills PR #20 opened.
       2026-08-05: PR #20 merged (YeatsLiao approved). Catalog row `cloudbase` live in trae-community/trae-skills README.
-      Official Trae Work in-app skills marketplace still partner-only.
+      2026-08-05: Official in-app skills market outreach started (issue #21 + packet). Still partner-only; do not mark official_curated listed.
 
   - id: trae-ide-extension
     product: Trae IDE

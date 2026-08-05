@@ -53,8 +53,8 @@ They accept `.claude-plugin/plugin.json` for Claude-ecosystem plugins; our repo 
 
 | Market | Finding | Next action |
 |--------|---------|-------------|
-| Trae MCP | Community list: [trae-community/trae-mcp](https://github.com/trae-community/trae-mcp) — PRs add rows to README MCP table. Official IDE also has in-app MCP marketplace (publisher onboarding unclear). | Open PR to `trae-mcp` listing `@cloudbase/cloudbase-mcp` / docs; separately ask Trae for curated marketplace inclusion. |
-| Trae Skills | Separate from MCP (`README-skills.md` / Trae skills docs). | Confirm whether CloudBase skills map to Trae Agent Skills format; may need a thin adapter + second PR. |
+| Trae MCP | Community list merged: [trae-community/trae-mcp#4](https://github.com/trae-community/trae-mcp/pull/4). Official IDE in-app MCP marketplace still partner-only. | Watch [trae-mcp#5](https://github.com/trae-community/trae-mcp/issues/5); human posts forum draft from `trae-official-outreach-packet.md`. |
+| Trae Skills | Community skills merged: [trae-community/trae-skills#20](https://github.com/trae-community/trae-skills/pull/20). Forum confirms personal upload ≠ global market publish. | Watch [trae-skills#21](https://github.com/trae-community/trae-skills/issues/21); package zip/`.skill` if Trae requests. |
 | Qoder / QoderWork | No public third-party plugin submit docs found in this pass. | Keep `needs_partner_outreach`; monitor Qoder docs / BD. |
 | CodeBuddy | CloudBase already deep-integrated; may already be listed/native. | Confirm with CodeBuddy PM whether catalog entry is needed vs built-in. |
 | Kimi Code | No clear public third-party listing path. | Outreach / watch docs. |

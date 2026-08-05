@@ -113,7 +113,7 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 ### How to check progress (Trae community MCP)
 
 1. Confirm CloudBase row in https://github.com/trae-community/trae-mcp/blob/main/README.md
-2. Official Trae MCP marketplace still needs partner outreach separately
+2. Watch official marketplace outreach: https://github.com/trae-community/trae-mcp/issues/5
 
 ## Trae community Skills
 
@@ -130,7 +130,7 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 ### How to check progress (Trae community Skills)
 
 1. Confirm catalog row in https://github.com/trae-community/trae-skills/blob/main/README.md
-2. Official Trae Work in-app skills marketplace still needs partner outreach separately
+2. Watch official skills marketplace outreach: https://github.com/trae-community/trae-skills/issues/21
 
 ### 2026-08-05 — Trae community MCP + Skills approved
 
@@ -139,6 +139,24 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 - Skills: https://github.com/trae-community/trae-skills/pull/20 (`good SKILL :)`)
 - Flip `markets.yaml` `community_directory` → `listed` for `trae-mcp-marketplace` and `trae-work-skills-marketplace`.
 - Closed conflicting docs PR #876 as superseded by already-merged #877 (Awesome Copilot intake status).
+
+### 2026-08-05 — Trae official in-app MCP / Skills marketplace outreach
+
+| Field | Value |
+|-------|-------|
+| Status | **Outreach initiated** — awaiting Trae product / community reply |
+| Packet | `specs/plugin-marketplace-listing/trae-official-outreach-packet.md` |
+| MCP GitHub ask | https://github.com/trae-community/trae-mcp/issues/5 |
+| Skills GitHub ask | https://github.com/trae-community/trae-skills/issues/21 |
+| PR follow-ups | [mcp#4 comment](https://github.com/trae-community/trae-mcp/pull/4#issuecomment-5189097225) · [skills#20 comment](https://github.com/trae-community/trae-skills/pull/20#issuecomment-5189097487) |
+| Forum (human) | Draft in packet → 社区伙伴 / 产品建议 / TraeWork 专区 |
+| Note | Community listed ≠ official curated. Forum https://forum.trae.cn/t/topic/171994 indicates personal Skill upload is not global marketplace publish. |
+
+### How to check progress (Trae official in-app markets)
+
+1. Watch replies on trae-mcp#5 and trae-skills#21
+2. After human posts forum draft, record thread URL here
+3. When Trae accepts curation, flip `official_curated` → `listed` in `markets.yaml` and re-run `npm run analyze:plugin-marketplaces`
 
 ### 2026-07-29 — CodeBuddy official marketplace sync (CNB staging)
 
