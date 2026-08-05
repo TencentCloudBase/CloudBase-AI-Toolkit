@@ -60,6 +60,10 @@ jobs:
         working-directory: ./mcp
         run: npx vitest run
 
+      - name: Smoke CLI cloud-mode
+        working-directory: ./mcp
+        run: npm run test:cli:cloud-mode
+
       - name: Resolve npm dist-tag
         id: npm_tag
         working-directory: ./mcp

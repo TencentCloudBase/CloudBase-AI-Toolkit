@@ -41,6 +41,11 @@ jobs:
         run: |
           cd mcp
           npm run build
+
+      - name: Smoke CLI cloud-mode
+        working-directory: ./mcp
+        run: npm run test:cli:cloud-mode
+
       - name: Test package
         # WARNING: Secrets are only available for non-fork PRs due to GitHub's built-in protection.
         # We still add explicit condition for defense in depth.

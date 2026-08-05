@@ -7,7 +7,8 @@
  * 2) verify shasum against npm metadata (and optional EXPECTED_SHASUM)
  * 3) createCloudBaseMcpServer registers managePermissions / queryPermissions
  * 4) OPA fallback strings exist in dist
- * 5) optional live PG queryPermissions smoke when cloud credentials are present
+ * 5) dist/cli.cjs --cloud-mode stays alive (circular-dep / boot smoke)
+ * 6) optional live PG queryPermissions smoke when cloud credentials are present
  *
  * Usage:
  *   node ./scripts/verify-npm-tarball-smoke.mjs [version|latest|dist-tag]
@@ -195,6 +196,25 @@ async function assertToolRegistration(pkgRoot) {
   return { toolNames };
 }
 
+async function assertCliCloudMode(pkgRoot) {
+  const cliPath = path.join(pkgRoot, "dist", "cli.cjs");
+  assert(existsSync(cliPath), `Missing published CLI ${cliPath}`);
+
+  const smokeScript = path.join(packageDir, "scripts", "verify-cli-cloud-mode-smoke.mjs");
+  assert(existsSync(smokeScript), `Missing local smoke script ${smokeScript}`);
+
+  execFileSync(process.execPath, [smokeScript], {
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      CLI_PATH: cliPath,
+      NODE_ENV: "test",
+      VITEST: "true",
+    },
+  });
+  log("cli-cloud-mode", "passed");
+}
+
 function parseToolPayload(result) {
   const text = result?.content?.[0]?.text;
   assert(typeof text === "string" && text.length > 0, "Tool result did not contain JSON text payload");
@@ -294,6 +314,7 @@ async function main() {
 
     assertOpaStrings(pkgRoot);
     const { toolNames } = await assertToolRegistration(pkgRoot);
+    await assertCliCloudMode(pkgRoot);
     const live = await runLiveWithFreshServer(pkgRoot);
 
     const summary = {
@@ -307,6 +328,7 @@ async function main() {
         required: REQUIRED_TOOLS,
       },
       opaStrings: OPA_STRINGS,
+      cliCloudMode: true,
       live,
     };
     const summaryPath = path.join(workRoot, "smoke-summary.json");
