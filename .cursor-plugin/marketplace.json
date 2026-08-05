@@ -58,6 +58,28 @@
         "codebuddy",
         "openclaw"
       ]
+    },
+    {
+      "name": "workbuddy-template-prewarm",
+      "source": "plugin/workbuddy-template-prewarm",
+      "description": "SessionStart prewarm + Sites-aligned preview during WorkBuddy credential wait. Stacks with teamai hooks.",
+      "version": "0.2.0",
+      "author": {
+        "name": "Tencent CloudBase"
+      },
+      "homepage": "https://github.com/TencentCloudBase/CloudBase-MCP/tree/main/plugin/workbuddy-template-prewarm",
+      "repository": "https://github.com/TencentCloudBase/CloudBase-MCP",
+      "license": "MIT",
+      "category": "Developer Tools",
+      "keywords": [
+        "cloudbase",
+        "workbuddy",
+        "prewarm",
+        "session-start",
+        "vite",
+        "baas",
+        "cursor"
+      ]
     }
   ]
 }

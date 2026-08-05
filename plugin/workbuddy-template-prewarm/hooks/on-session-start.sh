@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# on-session-start.sh — WorkBuddy / CodeBuddy SessionStart prewarm (SPIKE)
+# on-session-start.sh — WorkBuddy / CodeBuddy SessionStart prewarm
 #
 # Overlaps CloudBase React template download + npm/pnpm install with the
 # human-gated sre-aihub credential / connector Trust wait (no CloudBase
-# credentials required for HTTPS template fetch).
+# credentials required for HTTPS template fetch). Marketplace plugin hooks
+# auto-merge alongside teamai SessionStart — do not replace user settings hooks.
 #
 # Output: Claude/CodeBuddy/WorkBuddy SessionStart hook JSON with additionalContext.
 # Log: ~/.cloudbase/logs/workbuddy-prewarm-session-start.log
@@ -78,9 +79,12 @@ emit_context() {
   fi
 }
 
-# Prefer sibling Sites CLI for preview port management (17173..17272).
+# Resolve Sites CLI for preview port management (17173..17272).
+# Prefer env → vendored copy (marketplace self-contained) → sibling → PATH.
 SITES_BIN="${CLOUDBASE_SITES_BIN:-}"
-if [ -z "$SITES_BIN" ] && [ -x "$PLUGIN_ROOT/../cloudbase-sites/bin/cloudbase-sites" ]; then
+if [ -z "$SITES_BIN" ] && [ -x "$PLUGIN_ROOT/vendor/cloudbase-sites/bin/cloudbase-sites" ]; then
+  SITES_BIN="$PLUGIN_ROOT/vendor/cloudbase-sites/bin/cloudbase-sites"
+elif [ -z "$SITES_BIN" ] && [ -x "$PLUGIN_ROOT/../cloudbase-sites/bin/cloudbase-sites" ]; then
   SITES_BIN="$PLUGIN_ROOT/../cloudbase-sites/bin/cloudbase-sites"
 elif [ -z "$SITES_BIN" ] && command -v cloudbase-sites >/dev/null 2>&1; then
   SITES_BIN="$(command -v cloudbase-sites)"

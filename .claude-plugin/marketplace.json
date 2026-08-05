@@ -18,6 +18,16 @@
       "source": "./plugin/cloudbase-sites",
       "description": "Create, preview, save, deploy, inspect, and roll back Vite web apps hosted on Tencent CloudBase.",
       "category": "Developer Tools"
+    },
+    {
+      "name": "workbuddy-template-prewarm",
+      "displayName": "CloudBase WorkBuddy Template Prewarm",
+      "source": "./plugin/workbuddy-template-prewarm",
+      "description": "SessionStart prewarm + Sites-aligned preview during WorkBuddy credential wait. Stacks with teamai hooks.",
+      "category": "Developer Tools",
+      "dependencies": [
+        "cloudbase-sites"
+      ]
     }
   ]
 }
