@@ -66,6 +66,12 @@ jobs:
           echo "=== Staged files ==="
           git diff --staged --name-only || echo "No staged files"
       
+      # Deps live in cloudbase-examples/scripts/package.json (archiver, glob); no lockfile.
+      - name: Install zip build dependencies
+        if: github.event.inputs.build_zips == 'true'
+        working-directory: cloudbase-examples/scripts
+        run: npm install --ignore-scripts
+
       - name: Build zips
         if: github.event.inputs.build_zips == 'true'
         working-directory: cloudbase-examples
