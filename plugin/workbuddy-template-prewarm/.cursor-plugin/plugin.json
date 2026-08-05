@@ -17,5 +17,6 @@
     "baas",
     "cursor"
   ],
-  "logo": "./assets/logo.png"
+  "logo": "./assets/logo.png",
+  "mcpServers": "./mcp.json"
 }
