@@ -674,13 +674,13 @@ async function main() {
   }
 
   try {
-    let state;
+    // Install/init writes state to disk; maybeStartPreview merges via writeState.
     if (decision.action === "install-only") {
-      state = await prewarmInstallOnly(args.cwd);
+      await prewarmInstallOnly(args.cwd);
     } else {
-      state = await prewarmEmpty(args.cwd, args.template, args.skipInstall);
+      await prewarmEmpty(args.cwd, args.template, args.skipInstall);
     }
-    state = maybeStartPreview(args.cwd, args.startPreview);
+    const state = maybeStartPreview(args.cwd, args.startPreview);
     process.stdout.write(JSON.stringify({ ok: true, state }, null, 2) + "\n");
     process.exit(0);
   } catch (e) {
