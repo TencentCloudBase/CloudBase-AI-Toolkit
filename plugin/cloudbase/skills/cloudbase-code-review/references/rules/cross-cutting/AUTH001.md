@@ -28,7 +28,7 @@
    const { data } = await auth.getSession()
    if (!data?.session) return <Navigate to="/login" replace />
 
-   // ❌ 错误写法 — accessKey 会自动创建匿名会话，getUser() 在未登录时也返回 user 对象
+   // ❌ 错误写法 — getUser() 不是可靠登录证明；显式 signInAnonymously() 后也会返回匿名 user
    const { data } = await auth.getUser()
    if (!data?.user) return <Navigate to="/login" replace />  // 匿名用户会绕过
    ```
@@ -47,9 +47,11 @@ if (error || !data?.session) {
   // 未登录或会话已过期，重定向到登录页
   return <Navigate to="/login" replace />
 }
-// data.session 存在，用户已通过真实登录
+// data.session 存在；若产品不允许匿名，再检查 is_anonymous
 ```
 
 ## 根因
 
-CloudBase JS SDK 用 `accessKey`（publishable key）初始化时会自动创建一个匿名会话。`auth.getUser()` 在匿名会话下也会返回 `{ data: { user: { ... } } }`，让路由守卫误以为用户已登录。`auth.getSession()` 返回的是真实会话——未登录时 `data.session === undefined`。
+Publishable `accessKey` 仅初始化 SDK，**不会**自动创建可供 gateway 鉴权的匿名会话。`@cloudbase/js-sdk` **3.x** 下 NoSQL `app.database()` CRUD 前必须显式 `await auth.signInAnonymously()`（或等价登录），否则 gateway **401**。
+
+路由守卫侧：不要用 `auth.getUser()` 判断是否已登录——在调用过 `signInAnonymously()` 后它会返回匿名 user，导致「需真实登录」的守卫被绕过；废弃的 `getLoginState()` 甚至可能在未登录时返回误导性 `uid`。应使用 `auth.getSession()`：未登录时 `data.session === undefined`。若产品不允许匿名访问，再检查 `data.session.user?.is_anonymous`。

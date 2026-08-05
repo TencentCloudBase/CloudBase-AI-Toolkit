@@ -76,7 +76,7 @@ Internal behavior of `manageAppAuth(action="patchLoginStrategy")`:
 
 ### 2. Anonymous Login
 
-> ⚠️ **Anonymous login is disabled by default.** The SDK initialized with `accessKey` still creates a lightweight anonymous session for API access. Only enable anonymous login when the application explicitly requires unauthenticated access and you accept the associated security trade-offs. Anonymous users are also denied AI model invocation permissions by default.
+> ⚠️ **Anonymous login is disabled by default.** Publishable `accessKey` alone does **not** create a gateway-authenticated anonymous session. Only enable anonymous login when the application explicitly requires unauthenticated client access (e.g. NoSQL CRUD demos) and you accept the associated security trade-offs. After enabling, Web clients using `@cloudbase/js-sdk` **3.x** must still call `await auth.signInAnonymously()` (or an equivalent authenticated session) **before** NoSQL `app.database()` CRUD — otherwise the gateway returns **401**. `checkLogin()` / `getSession()` alone do **not** create a usable write session. Anonymous users are also denied AI model invocation permissions by default.
 
 Preferred MCP tool path: `manageAppAuth(action="patchLoginStrategy")`
 

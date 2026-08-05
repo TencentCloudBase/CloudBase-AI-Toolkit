@@ -46,8 +46,9 @@ const uid = data.user.id
 ```js
 // Use auth.getSession() — NOT the deprecated getLoginState().
 //
-// Why: getLoginState() returns an object with uid even when only accessKey is
-// present (no real login), causing route guards to incorrectly pass anonymous users.
+// Why: getLoginState() may return an object with uid even when only accessKey is
+// present (no real login), causing route guards to incorrectly treat the caller
+// as authenticated. That misleading uid is NOT a gateway session for NoSQL CRUD.
 // getSession() returns data.session === undefined when no real login exists,
 // making the check reliable and simple.
 const { data, error } = await auth.getSession()
@@ -161,13 +162,16 @@ const handleRegister = async () => {
 
 **5. Anonymous**
 
-> ⚠️ **Anonymous login is disabled by default for new environments.** The SDK initialized with `accessKey` will automatically create an anonymous session regardless of this setting. Do not rely on `signInAnonymously()` for production flows — use verified login methods instead.
+> ⚠️ **Anonymous login is disabled by default for new environments.** Publishable `accessKey` alone does **not** create a gateway-authenticated anonymous session. With `@cloudbase/js-sdk` **3.x**, you **must** call `await auth.signInAnonymously()` (or an equivalent authenticated session) **before** NoSQL `app.database()` CRUD — otherwise the gateway returns **401**. `checkLogin()` / `getSession()` alone do **not** create a usable write session. For production protected apps, prefer verified login methods; use anonymous only when the demo/product explicitly needs unauthenticated client CRUD.
 
-- Only use when explicitly required for read-only demos
+- Required for minimal NoSQL Web demos that skip real login (list/add guestbook, todo, etc.)
 - Automatically use `auth-tool-cloudbase` to turn on `Anonymous Login` through `manageAppAuth` (must be explicitly enabled first)
 ```js
 // Anonymous login is disabled by default — must be explicitly enabled via auth-tool
 const { data, error } = await auth.signInAnonymously()
+if (error) throw error
+// Now NoSQL CRUD is allowed (js-sdk 3.x + publishable key)
+// await app.database().collection('messages').get()
 // Optional: pass provider_token to associate anonymous session with third-party identity
 // const { data, error } = await auth.signInAnonymously({ provider_token: 'xxx' })
 ```

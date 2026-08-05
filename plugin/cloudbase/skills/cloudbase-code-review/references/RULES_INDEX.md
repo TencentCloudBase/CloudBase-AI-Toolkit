@@ -32,7 +32,7 @@ Only add rules that are backed by stable SDK/API documentation, repeated evaluat
 | AUTH-WEB-006 | error | LLM | 必须先 queryAppAuth 确认 provider 已启用，再写登录代码 |
 | AUTH-WEB-007 | error | lint | 禁止用 auth.getUser() / getLoginState() 做路由守卫判断 |
 | AUTH-WEB-008 | error | lint | 必须用 auth.getSession() 做路由守卫（data.session === undefined 判断） |
-| AUTH-WEB-009 | warning | LLM | 匿名登录默认禁用；accessKey 自动创建匿名 session |
+| AUTH-WEB-009 | warning | LLM | 匿名登录默认禁用；accessKey ≠ 匿名会话，NoSQL 前须 signInAnonymously() |
 | AUTH-WEB-010 | error | lint | 禁止把 accessKey 设为 envId 或占位符字符串 |
 | AUTH-WEB-011 | error | lint | auth 方法返回 { data, error }，必须先检查 error |
 | AUTH-WEB-012 | error | lint | 禁止使用已废弃的 auth.getLoginState() |

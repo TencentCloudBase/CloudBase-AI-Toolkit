@@ -82,7 +82,7 @@ function checkAuthGetUser(files) {
     for (let i = 0; i < lines.length; i++) {
       if (/auth\.getUser\s*\(\s*\)/.test(lines[i]) && !content.includes('getSession')) {
         record('AUTH001', 'error',
-          `路由守卫中使用 auth.getUser()。accessKey 自动创建匿名会话，getUser() 在未登录时也返回 user 对象。应使用 auth.getSession() 并检查 data?.session。`,
+          `路由守卫中使用 auth.getUser()。getUser() 不是可靠登录证明（显式 signInAnonymously() 后也会返回匿名 user）。应使用 auth.getSession() 并检查 data?.session；accessKey 不会自动创建 gateway 会话。`,
           file, i + 1);
       }
     }

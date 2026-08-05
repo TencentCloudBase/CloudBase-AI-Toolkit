@@ -1,7 +1,7 @@
 ---
 name: auth-web-cloudbase
 description: CloudBase Web Authentication Quick Guide for frontend integration after auth-tool has already been checked. Provides concise and practical Web authentication solutions with multiple login methods and complete user management.
-version: 2.25.8
+version: 2.25.9
 alwaysApply: false
 ---
 
@@ -45,10 +45,11 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Keeping the login or register account input as `type="email"` when the task explicitly says the account identifier is a plain username string.
 - Starting implementation before calling `queryAppAuth(action="getLoginConfig")` and enabling `usernamePassword` when it is still off.
 - **Writing `auth.signInWithPassword(...)` or `auth.signUp(...)` code without first confirming the provider is enabled via MCP.** Before writing any sign-in or sign-up code in the browser, call `queryAppAuth(action="listProviders")` to verify the target provider (e.g. `email`, `phone`, `usernamePassword`) has `On: "TRUE"`. For email-based sign-up (`auth.signUp({ email, password })`), additionally confirm SMTP is configured — otherwise the provider may throw `"provider email not found"` or similar errors. For username/password login, use `auth.signInWithPassword({ username, password })`; registration is best done through the management API (`manageAppAuth(action="createUser")`) or by confirming email provider readiness first.
-- **Treating `auth.getUser()` or deprecated `auth.getLoginState()` as proof of real login.** When the SDK is initialized with `accessKey`, the deprecated `getLoginState()` returns an object with a valid `uid` even without any login — causing route guards that check `!!loginState` or `!!uid` to incorrectly pass. The fix is to use `auth.getSession()` instead: it returns `data.session === undefined` when no real login has occurred. Only `!!data.session` from `getSession()` is a reliable authentication check.
+- **Treating `auth.getUser()` or deprecated `auth.getLoginState()` as proof of real login.** When the SDK is initialized with `accessKey`, the deprecated `getLoginState()` may still return an object with a valid `uid` even without any login — causing route guards that check `!!loginState` or `!!uid` to incorrectly pass. That misleading `uid` is **not** a gateway-authenticated session. Use `auth.getSession()` instead: it returns `data.session === undefined` when no real login has occurred. Only `!!data.session` from `getSession()` is a reliable authentication check.
+- **Assuming publishable `accessKey` alone is enough for NoSQL CRUD.** With `@cloudbase/js-sdk` **3.x**, call **`await auth.signInAnonymously()`** (or an equivalent authenticated session such as password/OTP/OAuth) **before** any NoSQL `app.database()` `get` / `add` / `update` / `watch`. Skipping this yields **gateway 401**. `checkLogin()` / `getSession()` alone do **not** create a usable write session.
 - **Copying old CloudBase auth snippets from training data.** Do not use `auth.getLoginState()`, `auth.hasLoginState()`, `auth.getCurrentUser()`, or `auth.toDefaultLoginPage()` as the default Web flow. Use the Web SDK v3 auth methods in this file and provider readiness from `auth-tool-cloudbase`.
   
-  Note: anonymous login is now **disabled by default** for new environments and inactive existing environments. Always use `auth.getSession()` for auth guards.
+  Note: anonymous login is **disabled by default** for new environments and inactive existing environments — enable it via `auth-tool-cloudbase` before calling `signInAnonymously()`. Always use `auth.getSession()` for auth guards.
 
 ## Overview
 
@@ -93,7 +94,7 @@ Use npm installation for modern Web projects. In React, Vue, Vite, and other bun
 - If the task gives accounts like `admin`, `editor`, or another plain string without `@`, treat it as a username-style identifier rather than an email address
 - `verifyOtp({ token })` expects the SMS or email code in `token`
 - `accessKey` is the publishable key from `queryAppAuth` / `manageAppAuth` via `auth-tool-cloudbase`, not a secret key
-- **`accessKey` triggers automatic anonymous session creation** — the deprecated `auth.getLoginState()` returns an object with a valid `uid` even without explicit login, which misleads route guards into thinking the user is authenticated. Use `auth.getSession()` instead — it returns `data.session === undefined` when no real login has occurred, making auth checks straightforward and reliable.
+- **`accessKey` alone does not create a gateway-authenticated anonymous session.** Publishable `accessKey` initializes the SDK; it does **not** replace an explicit login for NoSQL CRUD. With `@cloudbase/js-sdk` **3.x**, call `await auth.signInAnonymously()` (or an equivalent authenticated session) **before** `app.database()` `get` / `add` / `update` / `watch` — otherwise the gateway returns **401**. Separately: the deprecated `auth.getLoginState()` may still return a misleading `uid` without login; use `auth.getSession()` for route guards (`data.session === undefined` when not logged in). `checkLogin()` / `getSession()` alone do **not** create a usable write session.
 - Never set `accessKey` to `envId`, a username, or any placeholder string. If you do not have a real Publishable Key yet, do not fabricate one.
 - If the task mentions provider setup, stop and read `auth-tool-cloudbase` before writing frontend code
 
@@ -107,12 +108,17 @@ const app = cloudbase.init({
   env: 'your-full-env-id', // Canonical full CloudBase environment ID resolved from envQuery or the console, not an alias or shorthand
   region: 'ap-shanghai',  // CloudBase environment Region, default 'ap-shanghai'
   accessKey: 'publishable key', // required, get from auth-tool-cloudbase
-  // ⚠️ With accessKey, the deprecated getLoginState() returns misleading auth data (uid)
-  // even without login. Always use auth.getSession() — returns undefined when not logged in.
+  // ⚠️ accessKey alone ≠ anonymous login. For NoSQL CRUD call await auth.signInAnonymously()
+  // (or real login) first — otherwise gateway 401. Use auth.getSession() for route guards;
+  // deprecated getLoginState() may return a misleading uid without a real session.
   auth: { detectSessionInUrl: true }, // required
 })
 
 const auth = app.auth
+
+// Before NoSQL app.database() CRUD (js-sdk 3.x + publishable key):
+// const { error } = await auth.signInAnonymously()
+// if (error) throw error
 ```
 
 If the current task has not retrieved a real Publishable Key, omit `accessKey` instead of inventing one. A wrong `accessKey` can break auth-state checks and protected-route behavior.

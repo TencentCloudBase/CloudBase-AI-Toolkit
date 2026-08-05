@@ -1,7 +1,7 @@
 ---
 name: auth-tool-cloudbase
 description: CloudBase auth provider configuration and login-readiness guide. This skill should be used when users need to inspect, enable, disable, or configure auth providers, publishable-key prerequisites, login methods, SMS/email sender setup, or other provider-side readiness before implementing a client or backend auth flow.
-version: 2.25.8
+version: 2.25.9
 alwaysApply: false
 ---
 
@@ -50,7 +50,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 ### Minimal checklist
 
 - Read [Authentication Activation Checklist](checklist.md) before auth implementation.
-- Anonymous login is disabled by default. The SDK initialized with `accessKey` still creates a lightweight anonymous session for API access. If the app requires authentication (e.g. admin panels, personal dashboards), enforce access control through AuthGuard or RLS policies rather than relying on the login strategy toggle.
+- Anonymous login is disabled by default. Publishable `accessKey` alone does **not** create a gateway-authenticated anonymous session. With `@cloudbase/js-sdk` **3.x**, enable anonymous via this skill when needed, then clients must call `await auth.signInAnonymously()` (or an equivalent authenticated session) **before** NoSQL `app.database()` CRUD — otherwise the gateway returns **401**. For apps that require verified login (e.g. admin panels), enforce AuthGuard / RLS and reject `is_anonymous` rather than relying on the login strategy toggle alone.
 
 ## Overview
 

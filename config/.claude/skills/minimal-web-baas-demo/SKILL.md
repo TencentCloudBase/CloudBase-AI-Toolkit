@@ -1,7 +1,7 @@
 ---
 name: minimal-web-baas-demo
 description: "Fast path for a minimal CloudBase Web + database demo (最小前后端 / 最小可用 fullstack / Lovable-like BaaS). Defaults to @cloudbase/js-sdk client CRUD (NoSQL app.database / PG app.rdb), MCP-only schema, preview-first, and forbids cloud functions unless secrets, cron/background jobs, or logic that security rules/RLS cannot express. Use for 搭一套 demo、留言板、Todo、Notes、Kanban, or when users say 带云函数+云数据库 but only need CRUD. NOT for production multi-service backends, CloudRun, WeChat Mini Programs, or tasks that truly need server secrets."
-version: 2.25.8
+version: 2.25.9
 alwaysApply: false
 ---
 
@@ -61,6 +61,19 @@ This skill is the product equivalent of CloudBase Sites SessionStart **Rule 5** 
    - Reuse the template look. **Do not** load `ui-design` four-part specs for a minimal demo unless the user asks for visual redesign.
    - "Make me a X app" = X **is** the homepage (`HomePage` / `App`), not a nested demo route beside the welcome page.
 
+6. **Anonymous (or real) session before NoSQL CRUD — js-sdk 3.x + publishable key**
+   - With `@cloudbase/js-sdk` **3.x** initialized via publishable `accessKey`, call **`await auth.signInAnonymously()`** (or an equivalent authenticated session) **before** any NoSQL `app.database()` `get` / `add` / `update` / `watch`.
+   - Skipping this yields **gateway 401**. `checkLogin()` / `getSession()` alone does **not** create a usable write session.
+   - Minimal example:
+
+```js
+const auth = app.auth
+const { error } = await auth.signInAnonymously()
+if (error) throw error
+const db = app.database()
+await db.collection('messages').get()
+```
+
 ## Capability sniff order (partners + agents)
 
 Use this order for every minimal Web + DB demo. **Do not reorder.** Cloud functions stay off the critical path.
@@ -83,7 +96,7 @@ Stack priority for this path: **Web SDK CRUD > MCP schema > template warmup > cl
 1. **Warm template in parallel with credentials** (see partner notes below): `downloadTemplate` (`react` default, `vue` if requested) → `npm install` / `pnpm install`.
 2. `envQuery(action="info")` → lock **one** DB plane (NoSQL **or** PG **or** MySQL). Do not thrash between them.
 3. MCP: create the collection/table + minimal permissions.
-4. Frontend: wire list + create with `@cloudbase/js-sdk`.
+4. Frontend: ensure session (`auth.signInAnonymously()` or equivalent), then wire list + create with `@cloudbase/js-sdk` (see Hard rule 6).
 5. Start / report preview URL; ask before deploy.
 6. **Cloud function count for this path = 0.**
 
@@ -120,6 +133,8 @@ For 最小前后端 / Lovable-like demos: FIRST call
 searchKnowledgeBase(mode="skill", skillName="minimal-web-baas-demo"), then Read.
 Do not rely only on ad-hoc expert-prompt brief text.
 Order: connector ready → template warmup during credential wait → envQuery →
-lock one DB → MCP schema → @cloudbase/js-sdk CRUD → preview.
+lock one DB → MCP schema → auth.signInAnonymously() (or session) →
+@cloudbase/js-sdk CRUD → preview.
 Do not dump all CloudBase skills. Do not create cloud functions for CRUD.
+NoSQL without session → gateway 401.
 ```
