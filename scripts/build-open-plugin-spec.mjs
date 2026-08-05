@@ -55,6 +55,14 @@ const PLUGINS = [
     marketplaceDescription:
       "Create, preview, save, deploy, inspect, and roll back Vite web apps hosted on Tencent CloudBase.",
   },
+  // Marketplace listing only (no MCP server / skills pack to regenerate).
+  {
+    name: "workbuddy-template-prewarm",
+    dir: path.join(ROOT_DIR, "plugin", "workbuddy-template-prewarm"),
+    marketplaceDescription:
+      "SessionStart prewarm + Sites-aligned preview during WorkBuddy credential wait. Stacks with teamai hooks.",
+    marketplaceOnly: true,
+  },
 ];
 
 function readJson(p) {
@@ -170,6 +178,10 @@ function buildCursorMarketplace() {
     plugins: PLUGINS.map((plugin) => {
       const claudeManifest = path.join(plugin.dir, ".claude-plugin", "plugin.json");
       const cm = readJson(claudeManifest);
+      const keywords = Array.isArray(cm.keywords) ? [...cm.keywords] : [];
+      if (!keywords.includes("cursor")) {
+        keywords.push("cursor");
+      }
       return {
         name: cm.name,
         source: `plugin/${plugin.name}`,
@@ -180,7 +192,7 @@ function buildCursorMarketplace() {
         repository: REPO_URL,
         license: cm.license || "MIT",
         category: "Developer Tools",
-        keywords: Array.isArray(cm.keywords) ? cm.keywords : [],
+        keywords,
       };
     }),
   };
@@ -211,7 +223,12 @@ function main() {
 
   let allGood = true;
 
-  for (const { name, dir } of PLUGINS) {
+  for (const { name, dir, marketplaceOnly } of PLUGINS) {
+    if (marketplaceOnly) {
+      console.log(`[${name}] Marketplace-only — skip Open Plugin / MCP artifact generation`);
+      continue;
+    }
+
     const claudeManifest = path.join(dir, ".claude-plugin", "plugin.json");
     const specManifest = path.join(dir, ".plugin", "plugin.json");
     const cursorManifest = path.join(dir, ".cursor-plugin", "plugin.json");
