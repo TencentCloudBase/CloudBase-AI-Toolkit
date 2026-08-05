@@ -85,7 +85,9 @@ jobs:
 
       - name: Commit and push
         run: |
-          git add config/codebuddy-plugin/skills config/codebuddy-plugin/rules config/codebuddy-plugin/.codebuddy-plugin
+          # skills/ is gitignored on main (regenerated artifact) but must be
+          # force-added on chore/codebuddy_plugin so the marketplace branch ships it.
+          git add -f config/codebuddy-plugin/skills config/codebuddy-plugin/rules config/codebuddy-plugin/.codebuddy-plugin
           if git diff --staged --quiet; then
             echo "No changes, skipping."
           else
