@@ -166,13 +166,24 @@ rules:
       - "帮我搭一个 React + Vite Web 应用，并规划本地开发和构建流程"
       - "帮我排查一个 Vue 页面交互问题，并给出浏览器验证步骤"
       - "把这个 Web 前端接入 CloudBase 并部署到静态托管"
-  
+
+  - id: minimal-web-baas-demo
+    title: 应用集成：最小 Web BaaS Demo
+    description: BaaS-first 最小前后端快路径——Web SDK 直连数据库 CRUD，默认不创建云函数，凭据等待期间预热模板
+    shortDescription: Lovable-like 最小前后端，Web SDK CRUD 优先
+    category: frontend
+    order: 2
+    prompts:
+      - "用 CloudBase 给我搭一套最小可用前后端 demo 项目"
+      - "做一个留言板 / Todo，用云数据库，不要云函数中转"
+      - "带云函数+云数据库的最小 demo，但只要 CRUD 能预览就行"
+
   - id: miniprogram-development
     title: 应用集成：微信小程序
     description: 微信小程序开发、tabBar 配置与 CloudBase 集成
     shortDescription: 小程序开发、tabBar、CloudBase
     category: frontend
-    order: 2
+    order: 3
     prompts:
       - "帮我创建一个微信小程序项目并集成 CloudBase"
       - "实现小程序与 CloudBase 的完整集成"
@@ -183,7 +194,7 @@ rules:
     description: 使用 CloudBase 集成中心接入小程序微信支付、公众号 JSAPI 支付、Native 扫码支付和公众号 OAuth
     shortDescription: 微信支付、公众号 OAuth
     category: frontend
-    order: 3
+    order: 4
     prompts:
       - "在 CloudBase 小程序中接入微信支付，并处理支付回调"
       - "帮我用 CloudBase 集成中心实现公众号 JSAPI 支付"
@@ -195,7 +206,7 @@ rules:
     description: 界面视觉方向、设计规格与前端原型指导
     shortDescription: 专业界面设计指南
     category: frontend
-    order: 4
+    order: 5
     prompts:
       - "帮我设计一个现代化的用户界面，用于 CloudBase 应用"
       - "创建一个美观的登录页面，集成 CloudBase Auth"
@@ -205,7 +216,7 @@ rules:
     description: 使用 CloudBase HTTP API 访问平台功能，适用于 Android、iOS 等任意原生语言开发
     shortDescription: Android、iOS 原生应用
     category: frontend
-    order: 5
+    order: 6
     prompts:
       - "帮我通过 HTTP API 调用 CloudBase 服务"
       - "在 Android 应用中集成 CloudBase HTTP API"

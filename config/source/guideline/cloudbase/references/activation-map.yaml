@@ -236,6 +236,47 @@ scenarios:
   label: AI Agent (智能体开发)
   mustCheckBeforeAction:
   - AG-UI protocol, scf_bootstrap, SSE streaming
+- id: minimal-web-baas-demo
+  priority: 99
+  signals:
+  - 最小前后端
+  - 最小可用 demo
+  - 最小 fullstack
+  - 搭一套 demo
+  - 带云数据库的 demo
+  - 带云函数+云数据库
+  - 留言板
+  - Todo 应用
+  - todo app
+  - Notes app
+  - Kanban
+  - Lovable
+  - BaaS demo
+  - minimal web baas
+  - 快速 demo
+  firstRead: minimal-web-baas-demo
+  thenRead:
+  - web-development
+  - cloudbase-document-database-web-sdk
+  - postgresql-development-cloudbase
+  beforeAction:
+  - 按 BaaS-first 排序：Web SDK CRUD > MCP schema > 模板预热 > 云函数（默认 0）。
+  - 连接器尽量预启用；凭据/Trust 等待窗口并行 downloadTemplate + 安装依赖。
+  - 能力嗅探顺序：connector ready → envQuery → 锁定一种 DB（NoSQL 或 PG 或 MySQL）→ MCP schema → @cloudbase/js-sdk CRUD → 本地预览；禁止中途横跳。
+  - 先本地预览再部署；自定义域名 / DNS / 回滚非默认范围。
+  doNotUse:
+  - cloud-functions
+  - cloudrun-development
+  - spec-workflow
+  - ui-design
+  commonMistakes:
+  - 把最小 Demo 默认做成云函数中转 CRUD。
+  - 会话开头整包灌入全部 CloudBase skills，而不是 compact fast-path。
+  - 凭据等待期间空转，未并行模板预热。
+  - 未预览就先做自定义域名 / DNS / 回滚手册。
+  label: Minimal Web BaaS demo (fast path)
+  mustCheckBeforeAction:
+  - BaaS-first Web SDK CRUD, MCP schema only, zero cloud functions unless secrets/cron/rules-cannot-express
 - id: ui-first
   priority: 98
   signals:

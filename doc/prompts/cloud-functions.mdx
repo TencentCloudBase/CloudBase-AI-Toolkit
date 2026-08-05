@@ -43,18 +43,15 @@ npx skills add https://github.com/tencentcloudbase/skills --skill cloud-function
 <summary>查看 SKILL.md 原文</summary>
 
 ````markdown
-## Standalone Install Note
+## Sibling skills (local only)
 
-If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
+Sibling CloudBase skills ship beside this skill. Use local relative paths such as `../auth-tool-cloudbase/SKILL.md`.
 
-- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
-- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloud-functions/SKILL.md`
+If a referenced sibling skill file is missing from this environment, ask the user to install the full CloudBase plugin (or the missing skill). Do **not** HTTP-fetch remote skill or protocol markdown into the agent context.
 
-Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool-cloudbase` or `web-development`, use the standalone fallback URL shown next to that reference.
-
-**Cross-cutting protocols** (required for public exposure and code changes):
-- Change Safety Protocol: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/references/protocols/change-safety-protocol.md`
-- Deployment Gate: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/references/protocols/deployment-gate.md`
+**Cross-cutting protocols** (required before code changes or deployments):
+- Change Safety Protocol: `../cloudbase-platform/references/protocols/change-safety-protocol.md`
+- Deployment Gate: `../cloudbase-platform/references/protocols/deployment-gate.md`
 
 # Cloud Functions Development
 
@@ -79,11 +76,11 @@ Keep local `references/...` paths for files that ship with the current skill dir
 ### Then also read
 
 - Detailed reference routing -> `./references.md`
-- Auth setup or provider-related backend work -> `../auth-tool-cloudbase/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-tool-cloudbase/SKILL.md`)
-- CloudBase Integration Center generated WeChat Pay or Official Account functions -> `../cloudbase-wechat-integration/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-wechat-integration/SKILL.md`; official docs: `https://docs.cloudbase.net/integration/introduce/index.md`)
-- AI in functions -> `../ai-model-nodejs/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/ai-model-nodejs/SKILL.md`)
-- Long-lived container services or Agent runtimes -> `../cloudrun-development/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudrun-development/SKILL.md`)
-- Calling CloudBase official platform APIs from a client or script -> `../http-api-cloudbase/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/http-api-cloudbase/SKILL.md`)
+- Auth setup or provider-related backend work -> `../auth-tool-cloudbase/SKILL.md`
+- CloudBase Integration Center generated WeChat Pay or Official Account functions -> `../cloudbase-wechat-integration/SKILL.md` (official docs: `https://docs.cloudbase.net/integration/introduce/index.md`)
+- AI in functions -> `../ai-model-nodejs/SKILL.md`
+- Long-lived container services or Agent runtimes -> `../cloudrun-development/SKILL.md`
+- Calling CloudBase official platform APIs from a client or script -> `../http-api-cloudbase/SKILL.md`
 
 ### Do NOT use for
 

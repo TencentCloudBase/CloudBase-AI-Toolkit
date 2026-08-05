@@ -86,6 +86,10 @@ describe('skill activation routing contract', async () => {
     expect(byId.get('postgresql-development-cloudbase').doNotUse).toContain('cloudbase-document-database-web-sdk');
     expect(byId.get('cloud-functions').doNotUse).toContain('cloudrun-development');
     expect(byId.get('ui-first').firstRead).toBe('ui-design');
+    expect(byId.get('minimal-web-baas-demo').firstRead).toBe('minimal-web-baas-demo');
+    expect(byId.get('minimal-web-baas-demo').doNotUse).toContain('cloud-functions');
+    expect(byId.get('minimal-web-baas-demo').doNotUse).toContain('ui-design');
+    expect(byId.get('minimal-web-baas-demo').priority).toBeGreaterThan(byId.get('cloud-functions').priority);
   });
 
   test('keeps the source guideline routing table aligned with activation checks', () => {
@@ -94,6 +98,7 @@ describe('skill activation routing contract', async () => {
     const header = '| Scenario | Read first | Then read | Do NOT route to first | Must check before action |';
     expect(source).toContain(header);
     expect(source.split(header).length - 1).toBe(1);
+    expect(source).toContain('| Minimal Web BaaS demo (fast path) | `minimal-web-baas-demo` | web-development, no-sql-web-sdk, postgresql-development | cloud-functions, cloudrun, spec-workflow, ui-design | BaaS-first Web SDK CRUD, MCP schema only, zero cloud functions unless secrets/cron/rules-cannot-express |');
     expect(source).toContain('| Web login / registration / auth UI | `auth-tool-cloudbase` | auth-web, web-development | cloud-functions, http-api | Provider status and publishable key |');
     expect(source).toContain('| CloudBase PostgreSQL / PG | `postgresql-development-cloudbase` | auth-tool, auth-web-cloudbase, web-development, miniprogram-development, cloud-storage-web, http-api | relational-database-tool, no-sql-web-sdk | PG schema, usernamePassword login, backend/RLS permission model |');
     expect(source).toContain('| AI Agent (智能体开发) | `cloudbase-agent` | cloud-functions, cloudrun-development |');

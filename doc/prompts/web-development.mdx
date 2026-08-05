@@ -42,18 +42,15 @@ npx skills add https://github.com/tencentcloudbase/skills --skill web-developmen
 <summary>查看 SKILL.md 原文</summary>
 
 ````markdown
-## Standalone Install Note
+## Sibling skills (local only)
 
-If this environment only installed the current skill, start from the CloudBase main entry and use the published `cloudbase/references/...` paths for sibling skills.
+Sibling CloudBase skills ship beside this skill. Use local relative paths such as `../auth-tool-cloudbase/SKILL.md`.
 
-- CloudBase main entry: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/SKILL.md`
-- Current skill raw source: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/web-development/SKILL.md`
+If a referenced sibling skill file is missing from this environment, ask the user to install the full CloudBase plugin (or the missing skill). Do **not** HTTP-fetch remote skill or protocol markdown into the agent context.
 
-Keep local `references/...` paths for files that ship with the current skill directory. When this file points to a sibling skill such as `auth-tool-cloudbase` or `web-development`, use the standalone fallback URL shown next to that reference.
-
-**Cross-cutting protocols** (required before code changes or static hosting publish):
-- Change Safety Protocol: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/references/protocols/change-safety-protocol.md`
-- Deployment Gate: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-platform/references/protocols/deployment-gate.md`
+**Cross-cutting protocols** (required before code changes or deployments):
+- Change Safety Protocol: `../cloudbase-platform/references/protocols/change-safety-protocol.md`
+- Deployment Gate: `../cloudbase-platform/references/protocols/deployment-gate.md`
 
 # Web Development
 
@@ -75,8 +72,8 @@ Keep local `references/...` paths for files that ship with the current skill dir
 
 - General React / Vue / Vite guidance -> `frameworks.md`
 - Browser flow checks or page validation -> `browser-testing.md`
-- Login flow -> `../auth-tool-cloudbase/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-tool-cloudbase/SKILL.md`), then `../auth-web-cloudbase/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/auth-web-cloudbase/SKILL.md`)
-- Official Account JSAPI Pay, Native QR-code Pay, or WeChat OAuth on CloudBase -> `../cloudbase-wechat-integration/SKILL.md` (standalone fallback: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/cloudbase-wechat-integration/SKILL.md`; official docs: `https://docs.cloudbase.net/integration/introduce/index.md`)
+- Login flow -> `../auth-tool-cloudbase/SKILL.md`, then `../auth-web-cloudbase/SKILL.md`
+- Official Account JSAPI Pay, Native QR-code Pay, or WeChat OAuth on CloudBase -> `../cloudbase-wechat-integration/SKILL.md` (official docs: `https://docs.cloudbase.net/integration/introduce/index.md`)
 - CloudBase database work -> matching database skill
 
 ### Do NOT use for

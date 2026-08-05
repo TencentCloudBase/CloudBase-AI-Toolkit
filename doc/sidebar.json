@@ -115,6 +115,7 @@
             "collapsed": true,
             "items": [
               "ai/cloudbase-ai-toolkit/prompts/web-development",
+              "ai/cloudbase-ai-toolkit/prompts/minimal-web-baas-demo",
               "ai/cloudbase-ai-toolkit/prompts/miniprogram-development",
               "ai/cloudbase-ai-toolkit/prompts/cloudbase-wechat-integration",
               "ai/cloudbase-ai-toolkit/prompts/ui-design",

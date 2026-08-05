@@ -54,6 +54,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 
 ### Route quickly to the minimum needed skills
 
+- Minimal Web + database demo / Lovable-like BaaS fast path -> `./minimal-web-baas-demo/SKILL.md` (default for 最小前后端 demo; BaaS-first, no cloud functions)
 - Web app execution -> `./web-development/SKILL.md`
 - Web auth provider readiness -> `./auth-tool/SKILL.md`
 - Web auth implementation -> `./auth-web/SKILL.md`
@@ -62,7 +63,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 - Browser-side document database CRUD -> `./no-sql-web-sdk/SKILL.md`
 - Browser-side file upload -> `./cloud-storage-web/SKILL.md`
 - Platform overview only when capability selection is still unclear -> `./cloudbase-platform/SKILL.md`
-- If using `searchKnowledgeBase(mode="skill")`, pass the reference directory id such as `postgresql-development-cloudbase`, not the frontmatter `name` value such as `postgresql-development-cloudbase`.
+- If using `searchKnowledgeBase(mode="skill")`, pass the reference directory id such as `postgresql-development-cloudbase` or `minimal-web-baas-demo`, not a guessed alias.
 
 ### High-yield guardrails
 
@@ -81,6 +82,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 ## Working rules
 
 1. **BaaS-first, functions as last resort**:
+   - For 最小前后端 / Lovable-like demos, route first to `./minimal-web-baas-demo/SKILL.md`. Order: connector ready → template warmup during credential wait → `envQuery` → lock one DB → MCP schema → `@cloudbase/js-sdk` CRUD → preview. Default cloud function count = 0.
    - Before writing any cloud function or CloudRun service, ask: can the correct JS SDK surface handle this directly? Use `db.collection(...).get()` only for confirmed NoSQL collections; use `app.rdb().from(...)` for CloudBase PG tables; use `auth` / `storage` from the matching skill.
    - Use the matching JS SDK surface directly for: data reads/writes, file uploads, real-time updates, simple queries including leaderboards, lists, aggregations.
    - Only drop down to cloud functions when: the logic requires server-side permission enforcement that cannot be expressed in database rules/RLS, calling third-party services (payment, SMS, external APIs), or background jobs not triggered by the user.

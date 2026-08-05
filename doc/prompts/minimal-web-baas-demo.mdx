@@ -1,0 +1,165 @@
+# 应用集成：最小 Web BaaS Demo
+
+BaaS-first 最小前后端快路径——Web SDK 直连数据库 CRUD，默认不创建云函数，凭据等待期间预热模板
+
+## 如何使用
+
+查看[如何使用Skill](/ai/cloudbase-ai-toolkit/prompts/how-to-use)了解详细的使用方法。
+
+### 测试 Skill
+
+你可以使用以下提示词来测试：
+
+- "用 CloudBase 给我搭一套最小可用前后端 demo 项目"
+- "做一个留言板 / Todo，用云数据库，不要云函数中转"
+- "带云函数+云数据库的最小 demo，但只要 CRUD 能预览就行"
+
+import AIDevelopmentPrompt from '../components/AIDevelopmentPrompt';
+
+<AIDevelopmentPrompt ruleId="minimal-web-baas-demo" />
+
+## 安装与查看
+
+如果需要安装全部 CloudBase Skills，可执行：
+
+```bash
+npx skills add tencentcloudbase/cloudbase-skills
+```
+
+如果只安装当前 Skill，可执行：
+
+```bash
+npx skills add https://github.com/tencentcloudbase/skills --skill minimal-web-baas-demo
+```
+
+当前 Skill 在线查看： [minimal-web-baas-demo](https://skills.sh/tencentcloudbase/skills/minimal-web-baas-demo)
+
+---
+
+## Skill 规则原文
+
+<details>
+<summary>查看 SKILL.md 原文</summary>
+
+````markdown
+## Sibling skills (local only)
+
+Sibling CloudBase skills ship beside this skill. Use local relative paths such as `../web-development/SKILL.md`.
+
+If a referenced sibling skill file is missing from this environment, ask the user to install the full CloudBase plugin (or the missing skill). Do **not** HTTP-fetch remote skill or protocol markdown into the agent context.
+
+# Minimal Web BaaS Demo (fast path)
+
+Goal: **minutes to an interactive Web + database preview**, not a cloud-function middleware stack.
+
+This skill is the product equivalent of CloudBase Sites SessionStart **Rule 5** (BaaS-first data persistence).
+
+## Activation Contract
+
+### Use this first when
+
+- The user asks for a **minimal fullstack / 前后端 demo**, message board, Todo, Notes, Kanban, or Lovable/Supabase-like quick app on CloudBase Web.
+- The user says "带云函数+云数据库" but the real need is CRUD + preview (reinterpret as Web SDK → database).
+
+### Do NOT use for
+
+- WeChat Mini Programs (`wx.cloud`) — use `../miniprogram-development/SKILL.md`.
+- True server workloads: payments callbacks, SMS providers, secret third-party keys, cron/ETL, WebSockets — use `../cloud-functions/SKILL.md` or `../cloudrun-development/SKILL.md`.
+- Large multi-module products that need `../spec-workflow/SKILL.md`.
+
+## Hard rules (align with Sites SessionStart Rule 5)
+
+1. **BaaS-first data path**
+   - **Schema / admin:** MCP only. Do not ask the user to create collections/tables in the console.
+     - NoSQL: `writeNoSqlDatabaseStructure` (create collection / indexes) + permission tools as needed.
+     - PostgreSQL: follow `../postgresql-development-cloudbase/SKILL.md` (`queryPgDatabase` / `managePgDatabase` / migrations).
+   - **Reads / writes:** `@cloudbase/js-sdk` in the browser.
+     - NoSQL: `app.database()` → `db.collection(...).get()/add()/update()/watch(...)`.
+     - PG: `app.rdb().from(...)`.
+   - Prefer the template helper (often `src/utils/cloudbase.ts`). Do not invent a second SDK wrapper.
+
+2. **Cloud functions are forbidden by default**
+   - Todo / Notes / Chat / Kanban / "最小前后端 demo" → **zero** cloud functions.
+   - Even if the user says "带云函数", deliver Web SDK → DB and explain in one sentence that cloud functions are not required for CRUD.
+   - Create a cloud function **only when**:
+     - (a) the logic cannot be expressed as database security rules / RLS, **and**
+     - (b) it needs server-side secrets / third-party API keys, **or** it is a scheduled / background job not triggered by a user click.
+
+3. **Package discipline**
+   - Browser: `@cloudbase/js-sdk` only.
+   - Never install `@cloudbase/node-sdk` (or random stubs) in frontend code.
+
+4. **Preview first, deploy second**
+   - Ship local list + add (or equivalent CRUD) before static hosting / CloudApp deploy.
+   - Custom domains, DNS, rollback runbooks → only if the user explicitly asks.
+   - Skip Playwright / agent-browser unless the user asks to test.
+
+5. **UI ceremony for this path**
+   - Reuse the template look. **Do not** load `ui-design` four-part specs for a minimal demo unless the user asks for visual redesign.
+   - "Make me a X app" = X **is** the homepage (`HomePage` / `App`), not a nested demo route beside the welcome page.
+
+## Capability sniff order (partners + agents)
+
+Use this order for every minimal Web + DB demo. **Do not reorder.** Cloud functions stay off the critical path.
+
+```text
+0. Connector pre-enabled (or shortest Trust path)     ← host / partner packaging
+1. Template warmup // parallel with credential wait   ← downloadTemplate + install
+2. envQuery(action="info")                            ← sniff env + RuntimeBackends
+3. Lock ONE DB plane (NoSQL | PG | MySQL)             ← no mid-flight thrash
+4. MCP schema + minimal permissions                   ← writeNoSql* / PG migrate / MySQL manage
+5. Browser @cloudbase/js-sdk CRUD                     ← app.database() / app.rdb()
+6. Local preview (list + add)                         ← then ask before deploy
+7. Cloud functions                                    ← skip (count = 0) unless secrets/cron/rules-cannot-express
+```
+
+Stack priority for this path: **Web SDK CRUD > MCP schema > template warmup > cloud functions**.
+
+## Standard playbook
+
+1. **Warm template in parallel with credentials** (see partner notes below): `downloadTemplate` (`react` default, `vue` if requested) → `npm install` / `pnpm install`.
+2. `envQuery(action="info")` → lock **one** DB plane (NoSQL **or** PG **or** MySQL). Do not thrash between them.
+3. MCP: create the collection/table + minimal permissions.
+4. Frontend: wire list + create with `@cloudbase/js-sdk`.
+5. Start / report preview URL; ask before deploy.
+6. **Cloud function count for this path = 0.**
+
+### On-demand skills (fetch only when needed)
+
+| Need | Skill |
+| --- | --- |
+| Web scaffold / hosting | `../web-development/SKILL.md` |
+| NoSQL browser CRUD | `../cloudbase-document-database-web-sdk/SKILL.md` |
+| PG browser CRUD + MCP schema | `../postgresql-development-cloudbase/SKILL.md` |
+| Auth provider readiness | `../auth-tool-cloudbase/SKILL.md` then `../auth-web-cloudbase/SKILL.md` |
+
+Prefer `searchKnowledgeBase(mode="skill", skillName="minimal-web-baas-demo")` (or the sibling dir id) when local skill files are unavailable. **Do not** dump every CloudBase skill at session start.
+
+## WorkBuddy / partner packaging notes (XDF and beyond)
+
+Any partner host (WorkBuddy, CodeBuddy connectors, vertical expert prompts, ISV wrappers) should treat this skill as the **compact fast-path brief**. Reuse the sniff order above; do not invent a cloud-function-first demo path.
+
+| Host capability | Recommended packaging |
+| --- | --- |
+| Full CloudBase Sites plugin | Rely on SessionStart Rule 5 injection + this skill on demand for non-Sites cwd demos. |
+| WorkBuddy with SessionStart (supported) | Prefer `plugin/workbuddy-template-prewarm` (or enable Sites with `CLOUDBASE_SITES_AUTO_INIT=1`): background React zip + install overlaps credential/Trust wait; inject this skill pointer via `additionalContext`. |
+| WorkBuddy / connector without hooks | **Pre-enable** the CloudBase MCP connector for the tenant when possible; inject a short system brief that points here; warm `downloadTemplate` + `npm install` **during** credential/Trust wait (do not idle). |
+| Expert / vertical prompts (XDF or other ISVs) | Ship a thin pack: expert Agent markdown (**no** frontmatter hooks) + settings/hooks merge for SessionStart prewarm. Reference example: `plugin/xdf-workbuddy-expert-pack` + sibling prewarm plugin. Replace any "必须云函数中转 / 前端绝不直连库" language with this BaaS-first contract. |
+
+WorkBuddy SessionStart: https://www.workbuddy.ai/docs/cli/hooks (same `additionalContext` schema as CodeBuddy/Claude Code). Empty-dir Sites auto-init stays passive unless opted in — do not assume enabling Sites alone warms templates during credential wait.
+
+**Do not** block first preview on custom domains or org DNS health. DNS issues are a post-preview concern.
+
+### One-screen partner paste (optional)
+
+```text
+For 最小前后端 / Lovable-like demos: FIRST call
+searchKnowledgeBase(mode="skill", skillName="minimal-web-baas-demo"), then Read.
+Do not rely only on ad-hoc expert-prompt brief text.
+Order: connector ready → template warmup during credential wait → envQuery →
+lock one DB → MCP schema → @cloudbase/js-sdk CRUD → preview.
+Do not dump all CloudBase skills. Do not create cloud functions for CRUD.
+```
+````
+
+</details>

@@ -70,6 +70,7 @@ These rules override convenience. Full rationale lives in `web-development`.
 
 | Scenario | Read first | Then read | Do NOT route to first | Must check before action |
 |----------|------------|-----------|------------------------|--------------------------|
+| Minimal Web BaaS demo (fast path) | `minimal-web-baas-demo` | web-development, no-sql-web-sdk, postgresql-development | cloud-functions, cloudrun, spec-workflow, ui-design | BaaS-first Web SDK CRUD, MCP schema only, zero cloud functions unless secrets/cron/rules-cannot-express |
 | Web login / registration / auth UI | `auth-tool-cloudbase` | auth-web, web-development | cloud-functions, http-api | Provider status and publishable key |
 | WeChat mini program + CloudBase | `miniprogram-development` | auth-wechat, no-sql-wx-mp-sdk | auth-web, web-development | Whether the project really uses CloudBase / `wx.cloud` |
 | Native App / Flutter / React Native | `http-api-cloudbase` | auth-tool, relational-database-tool | auth-web, cloudbase-document-database-web-sdk, web-development | SDK boundary, OpenAPI, auth method |
