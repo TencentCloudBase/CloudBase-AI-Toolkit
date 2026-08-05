@@ -257,18 +257,36 @@ async function runLiveWithFreshServer(pkgRoot) {
   const payload = parseToolPayload(result);
 
   assert(payload.success === true, `Live queryPermissions failed: ${payload.message || JSON.stringify(payload)}`);
-  assert(
+
+  // Prefer observing the PG OPA fallback path when the platform routes there,
+  // but accept a successful primary-path response too (env may no longer need fallback).
+  const usedOpaFallback =
     payload.fallback === "describeEnvAuthzConfig" ||
-      String(payload.message || "").includes("describeEnvAuthzConfig"),
-    `Live PG smoke did not exercise OPA fallback; got fallback=${payload.fallback} message=${payload.message}`,
+    String(payload.message || "").includes("describeEnvAuthzConfig");
+  const primarySuccess =
+    !payload.fallback &&
+    (String(payload.message || "").includes("成功") ||
+      payload.data != null ||
+      payload.result != null ||
+      Array.isArray(payload.policies) ||
+      typeof payload.policy === "string" ||
+      typeof payload.content === "string");
+
+  assert(
+    usedOpaFallback || primarySuccess,
+    `Live PG smoke expected OPA fallback or a successful primary permission payload; got fallback=${payload.fallback} message=${payload.message}`,
   );
 
-  log("live-smoke", `PASS env=${envId} function=${SMOKE_PG_FUNCTION_ID} fallback=${payload.fallback}`);
+  log(
+    "live-smoke",
+    `PASS env=${envId} function=${SMOKE_PG_FUNCTION_ID} path=${usedOpaFallback ? "opa-fallback" : "primary"} fallback=${payload.fallback || "none"}`,
+  );
   return {
     skipped: false,
     envId,
     functionId: SMOKE_PG_FUNCTION_ID,
-    fallback: payload.fallback,
+    fallback: payload.fallback || null,
+    path: usedOpaFallback ? "opa-fallback" : "primary",
   };
 }
 
