@@ -15,12 +15,14 @@
   ```text
   plugin/
     workbuddy-template-prewarm/   # SessionStart + Sites preview CLI（含 vendor）
-    xdf-workbuddy-expert-pack/    # 本包：专家提示词 + settings 片段
+    xdf-workbuddy-expert-pack/    # 本包：专家提示词 + settings 片段 + skills/minimal-web-baas-demo
   ```
 - [ ] `workbuddy-template-prewarm/hooks/on-session-start.sh` 可执行
 - [ ] `workbuddy-template-prewarm/vendor/cloudbase-sites/bin/cloudbase-sites` 存在（或已设 `CLOUDBASE_SITES_BIN`）
 - [ ] `xdf-workbuddy-expert-pack/agents/cloudbase-baas-expert.md` 存在且 **无** frontmatter `hooks`
-- [ ] CloudBase 连接器可在 WorkBuddy 中配置 / Trust（skills 侧能解析 `minimal-web-baas-demo`）
+- [ ] 已跑 `bash plugin/xdf-workbuddy-expert-pack/scripts/install-skill.sh`  
+      （`~/.workbuddy/skills/minimal-web-baas-demo/SKILL.md` 存在；Trust 前 `Skill()` 可用）
+- [ ] CloudBase 连接器可在 WorkBuddy 中配置 / Trust（`searchKnowledgeBase` 为可选回退）
 
 ---
 
@@ -28,10 +30,19 @@
 
 ### 路径 A — 推荐产品化：marketplace 插件
 
-- [ ] 添加 marketplace：`TencentCloudBase/CloudBase-MCP`（或伙伴约定源）
-- [ ] 安装并启用 `workbuddy-template-prewarm`
-- [ ] **未**删除 `~/.workbuddy/settings.json` 里已有 **teamai** SessionStart
-- [ ] **未**因本包打开 `allowUntrustedFrontmatterHooks`
+> **验证记录（2026-08-05，WorkBuddy + teamai 机）：PASS**  
+> Demo：`~/WorkBuddy/partner-pathA-verify-20260805-161521`  
+> 证据：`~/.ato/workspace/fd5bacbf-3ada-4512-8660-9bff8a293004/artifacts/`  
+> - `HookManager event=SessionStart matched 2`（teamai settings + plugin `hooks/hooks.json`）  
+> - `state.json` → `ready`（~20s）；`preview.json.port=17177` ∈ 17173..17272  
+> - `sitesBin` = marketplace `vendor/cloudbase-sites`（无 monorepo 绝对路径）  
+> - settings **仅**保留 `[teamai]` SessionStart；`enabledPlugins["workbuddy-template-prewarm@tencent-cloudbase"]=true`  
+> - **注意：** 公开 GitHub `main` 目录暂未列入本插件（PR [#886](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/pull/886) 合入前），伙伴需用含 catalog 的 ref / 已同步 marketplace  checkout；安装器读 `.claude-plugin/marketplace.json`。
+
+- [x] 添加 marketplace：`TencentCloudBase/CloudBase-MCP`（或伙伴约定源）
+- [x] 安装并启用 `workbuddy-template-prewarm`
+- [x] **未**删除 `~/.workbuddy/settings.json` 里已有 **teamai** SessionStart
+- [x] **未**因本包打开 `allowUntrustedFrontmatterHooks`
 
 ### 路径 B — 离线 / 内网：settings 合并（本清单主验路径）
 
@@ -67,6 +78,7 @@ jq 'has("allowUntrustedFrontmatterHooks")' ~/.workbuddy/settings.json
   **或**粘贴进 WorkBuddy 专家 / 系统提示（伙伴既有专家位）
 - [ ] frontmatter **没有** `hooks` 字段
 - [ ] frontmatter / 正文指向 skill id：`minimal-web-baas-demo`
+- [ ] 已安装 skill：`bash plugin/xdf-workbuddy-expert-pack/scripts/install-skill.sh`
 - [ ] （可选）伙伴 brief：`briefs/baas-fast-path.md` 已作为一页指针归档
 
 ```bash
@@ -74,6 +86,9 @@ cp plugin/xdf-workbuddy-expert-pack/agents/cloudbase-baas-expert.md \
    ~/.workbuddy/agents/cloudbase-baas-expert.md
 # 确认无 frontmatter hooks：
 head -20 ~/.workbuddy/agents/cloudbase-baas-expert.md | grep -E '^hooks:' && echo FAIL || echo OK
+# 安装 Skill()-addressable skill（Trust 前必需）：
+bash plugin/xdf-workbuddy-expert-pack/scripts/install-skill.sh
+test -f ~/.workbuddy/skills/minimal-web-baas-demo/SKILL.md && echo SKILL_OK
 ```
 
 ---
@@ -153,10 +168,9 @@ node plugin/workbuddy-template-prewarm/hooks/prewarm.mjs --status --cwd "$DEMO"
 
 勾选：
 
-- [ ] **第一步**调用（或等价拉取）  
-  `searchKnowledgeBase(mode="skill", skillName="minimal-web-baas-demo")`  
-  （WorkBuddy 常无本机 skill 文件时 **禁止**优先瞎读本地路径）
+- [ ] **第一步**按优先级：`Skill("minimal-web-baas-demo")` → 本包 `Read skills/…/SKILL.md` →（仅 Trust 后）`searchKnowledgeBase(mode="skill", skillName="minimal-web-baas-demo")`
 - [ ] **未**在会话开头整包灌入全部 cloudbase-skills
+- [ ] **未**因 Skill/MCP 失败而只靠 prompt 摘要（装机应已 `install-skill.sh`）
 - [ ] 明确架构定案：**云函数数 = 0**（即使用户口头「带云函数」）
 - [ ] CRUD 路径：`@cloudbase/js-sdk` → `app.database()` 或 `app.rdb()`（视 `envQuery` 锁定的 DB）
 - [ ] Schema / 权限只走 MCP（等 Connector Trust 后）
@@ -246,4 +260,4 @@ node plugin/workbuddy-template-prewarm/hooks/prewarm.mjs --status --cwd "$TMP"
 | `HOOKS.md` | 为何不用 Agent frontmatter hooks |
 | `briefs/baas-fast-path.md` | 一页 BaaS 指针 |
 | `../workbuddy-template-prewarm/README.md` | prewarm / Sites preview 细节 |
-| skill `minimal-web-baas-demo` | 完整 Fast-path 契约 |
+| `skills/minimal-web-baas-demo/` + `scripts/install-skill.sh` | 完整 Fast-path 契约（Trust 前 Skill 面） |
