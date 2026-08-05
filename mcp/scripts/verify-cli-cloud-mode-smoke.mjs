@@ -3,7 +3,8 @@
  * Smoke: `node dist/cli.cjs --cloud-mode` must stay alive on stdio.
  *
  * Catches the historical cloud-mode ↔ logger circular-dependency crash
- * (misreported as an ajv SyntaxError because Node dumps the minified line).
+ * (misreported as an ajv SyntaxError because Node dumps the minified line
+ * before printing `TypeError: (0 , *.debug) is not a function`).
  *
  * Usage:
  *   node ./scripts/verify-cli-cloud-mode-smoke.mjs
@@ -15,7 +16,15 @@
  */
 
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -38,8 +47,15 @@ function log(step, detail) {
 
 function runOnce(args, envExtra = {}) {
   return new Promise((resolve) => {
+    // Attach stderr to a real file fd (not a pipe). Node's crash printer can
+    // emit a multi-MB minified line; a pipe silently truncates around 64KB
+    // and hides `TypeError: (0 , *.debug) is not a function` at the end.
+    const workDir = mkdtempSync(path.join(tmpdir(), "cli-cloud-mode-smoke-"));
+    const stderrPath = path.join(workDir, "stderr.txt");
+    const stderrFd = openSync(stderrPath, "w");
+
     const child = spawn(process.execPath, args, {
-      stdio: ["pipe", "pipe", "pipe"],
+      stdio: ["pipe", "ignore", stderrFd],
       env: {
         ...process.env,
         ...envExtra,
@@ -49,24 +65,39 @@ function runOnce(args, envExtra = {}) {
       },
     });
 
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
+    // Parent no longer needs the fd after spawn inherits it.
+    closeSync(stderrFd);
 
     let settled = false;
     let killRequested = false;
     const startedAt = Date.now();
 
+    const cleanup = () => {
+      try {
+        rmSync(workDir, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+    };
+
+    const readStderr = () => {
+      try {
+        return readFileSync(stderrPath, "utf8");
+      } catch {
+        return "";
+      }
+    };
+
     const finish = (result) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve(result);
+      // Give the OS a tick to flush the inherited fd writes.
+      setTimeout(() => {
+        const stderr = readStderr();
+        cleanup();
+        resolve({ ...result, stderr });
+      }, 50);
     };
 
     const timer = setTimeout(() => {
@@ -83,8 +114,6 @@ function runOnce(args, envExtra = {}) {
           status: "alive",
           code: null,
           signal: "SIGTERM",
-          stdout,
-          stderr,
         });
       }, 1000);
     }, SMOKE_ALIVE_MS);
@@ -93,8 +122,6 @@ function runOnce(args, envExtra = {}) {
       finish({
         status: "spawn-error",
         error,
-        stdout,
-        stderr,
       });
     });
 
@@ -106,8 +133,6 @@ function runOnce(args, envExtra = {}) {
           status: "alive",
           code,
           signal,
-          stdout,
-          stderr,
           livedMs,
         });
         return;
@@ -116,8 +141,6 @@ function runOnce(args, envExtra = {}) {
         status: "exited",
         code,
         signal,
-        stdout,
-        stderr,
         livedMs,
       });
     });
@@ -126,16 +149,21 @@ function runOnce(args, envExtra = {}) {
 
 function summarizeStderr(stderr) {
   const text = stderr || "";
+  // Specific to the cloud-mode↔logger circular-dep crash shape after webpack.
+  // Avoid bare "SyntaxError"/"TypeError" — those substrings appear inside the
+  // minified dump itself and cause false positives.
   const markers = [
-    "TypeError: (0 , r.debug) is not a function",
+    "TypeError: (0 , ",
+    ".debug) is not a function",
     "debug is not a function",
-    "SyntaxError",
-    "Fatal error",
-    "Uncaught",
   ];
   const hits = markers.filter((marker) => text.includes(marker));
-  // Prefer the useful tail; the minified dump can be multi-MB.
-  const tail = text.slice(-1200);
+  // Prefer the real error line when present; otherwise the useful tail.
+  // Node dumps a multi-MB minified source line before the TypeError.
+  const typeErrorMatch = text.match(/TypeError: \(0 , [^\n]+/);
+  const tail = typeErrorMatch
+    ? typeErrorMatch[0]
+    : text.slice(-1200);
   return { hits, tail, bytes: Buffer.byteLength(text, "utf8") };
 }
 
@@ -150,7 +178,7 @@ async function assertCloudModeBoot(label, args, envExtra = {}) {
 
   if (result.status === "exited") {
     throw new Error(
-      `${label}: process exited early code=${result.code} signal=${result.signal}; stderrTail=${JSON.stringify(errSummary.tail)}; markers=${errSummary.hits.join("|") || "none"}`,
+      `${label}: process exited early code=${result.code} signal=${result.signal}; stderrBytes=${errSummary.bytes}; error=${JSON.stringify(errSummary.tail)}; markers=${errSummary.hits.join("|") || "none"}`,
     );
   }
 
