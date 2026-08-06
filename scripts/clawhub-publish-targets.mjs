@@ -105,6 +105,23 @@ export const CLAWHUB_PUBLISH_TARGETS = {
     ),
     sourceDescription: "config/source/skills/spec-workflow",
   },
+  "minimal-web-baas-demo": {
+    key: "minimal-web-baas-demo",
+    type: "local-skill",
+    registrySlug: "minimal-web-baas-demo",
+    displayName: "腾讯云 CloudBase 最小 Web BaaS Demo / Tencent CloudBase Minimal Web BaaS Demo",
+    summary:
+      "腾讯云 CloudBase 最小 Web + 数据库 Demo 快路径：浏览器 @cloudbase/js-sdk CRUD、MCP 建表/建集合、默认 0 云函数，面向 WorkBuddy / Lovable 式分钟级预览。",
+    iconUrl: CLOUDBASE_ICON_URL,
+    sourceDir: path.join(
+      projectRoot,
+      "config",
+      "source",
+      "skills",
+      "minimal-web-baas-demo",
+    ),
+    sourceDescription: "config/source/skills/minimal-web-baas-demo",
+  },
 };
 
 export const DEFAULT_CLAWHUB_TARGET_KEYS = Object.freeze(

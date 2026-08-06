@@ -83,6 +83,27 @@
         "codebuddy",
         "cursor"
       ]
+    },
+    {
+      "name": "xdf-workbuddy-expert-pack",
+      "source": "plugin/xdf-workbuddy-expert-pack",
+      "description": "XDF / WorkBuddy expert prompt + loadable minimal-web-baas-demo skill for BaaS-first demos without local repo checkout.",
+      "version": "0.1.1",
+      "author": {
+        "name": "CloudBase AI Toolkit"
+      },
+      "homepage": "https://github.com/TencentCloudBase/CloudBase-MCP/tree/main/plugin/xdf-workbuddy-expert-pack",
+      "repository": "https://github.com/TencentCloudBase/CloudBase-MCP",
+      "license": "MIT",
+      "category": "Developer Tools",
+      "keywords": [
+        "cloudbase",
+        "workbuddy",
+        "xdf",
+        "baas",
+        "minimal-web-baas-demo",
+        "cursor"
+      ]
     }
   ]
 }

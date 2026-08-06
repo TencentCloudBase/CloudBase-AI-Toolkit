@@ -28,6 +28,16 @@
       "dependencies": [
         "cloudbase-sites"
       ]
+    },
+    {
+      "name": "xdf-workbuddy-expert-pack",
+      "displayName": "CloudBase XDF WorkBuddy Expert Pack",
+      "source": "./plugin/xdf-workbuddy-expert-pack",
+      "description": "XDF / WorkBuddy expert prompt + loadable minimal-web-baas-demo skill for BaaS-first demos without local repo checkout.",
+      "category": "Developer Tools",
+      "dependencies": [
+        "workbuddy-template-prewarm"
+      ]
     }
   ]
 }

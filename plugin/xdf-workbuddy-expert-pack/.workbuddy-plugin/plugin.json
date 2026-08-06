@@ -1,0 +1,27 @@
+{
+  "name": "xdf-workbuddy-expert-pack",
+  "version": "0.1.1",
+  "description": "XDF / WorkBuddy expert distribution: BaaS-first agent prompt + loadable minimal-web-baas-demo skill. SessionStart prewarm via settings or sibling workbuddy-template-prewarm — not agent frontmatter hooks.",
+  "author": {
+    "name": "CloudBase AI Toolkit"
+  },
+  "homepage": "https://github.com/TencentCloudBase/CloudBase-MCP/tree/main/plugin/xdf-workbuddy-expert-pack",
+  "repository": "https://github.com/TencentCloudBase/CloudBase-MCP",
+  "license": "MIT",
+  "keywords": [
+    "cloudbase",
+    "workbuddy",
+    "xdf",
+    "baas",
+    "minimal-web-baas-demo"
+  ],
+  "skills": [
+    "./skills/minimal-web-baas-demo"
+  ],
+  "agents": [
+    "./agents/cloudbase-baas-expert.md"
+  ],
+  "dependencies": [
+    "workbuddy-template-prewarm"
+  ]
+}

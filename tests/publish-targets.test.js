@@ -24,7 +24,7 @@ test('parseTargetInput rejects unknown publish targets', () => {
 
 test('resolvePublishTargets only returns whitelisted publish units', () => {
   const targets = resolvePublishTargets(
-    'miniprogram-development,cloudbase-wechat-integration,all-in-one,ui-design,web-development,spec-workflow',
+    'miniprogram-development,cloudbase-wechat-integration,all-in-one,ui-design,web-development,spec-workflow,minimal-web-baas-demo',
   );
 
   expect(targets.map((target) => target.key)).toEqual([
@@ -34,6 +34,7 @@ test('resolvePublishTargets only returns whitelisted publish units', () => {
     'ui-design',
     'web-development',
     'spec-workflow',
+    'minimal-web-baas-demo',
   ]);
   expect(Object.keys(CLAWHUB_PUBLISH_TARGETS)).toEqual([
     'miniprogram-development',
@@ -42,6 +43,7 @@ test('resolvePublishTargets only returns whitelisted publish units', () => {
     'ui-design',
     'web-development',
     'spec-workflow',
+    'minimal-web-baas-demo',
   ]);
   expect(
     targets.find((target) => target.key === 'cloudbase-wechat-integration')?.registrySlug,
@@ -52,6 +54,9 @@ test('resolvePublishTargets only returns whitelisted publish units', () => {
   expect(
     targets.find((target) => target.key === 'spec-workflow')?.registrySlug,
   ).toBe('spec-workflow-guide');
+  expect(
+    targets.find((target) => target.key === 'minimal-web-baas-demo')?.registrySlug,
+  ).toBe('minimal-web-baas-demo');
 });
 
 test('every target exposes SkillHub marketplace metadata (displayName, summary, iconUrl)', () => {

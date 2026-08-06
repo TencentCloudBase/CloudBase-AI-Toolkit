@@ -1,0 +1,66 @@
+{
+  "name": "cloudbase",
+  "version": "0.2.0",
+  "description": "Tencent CloudBase — AI models, authentication, NoSQL/PostgreSQL databases, cloud functions, cloud storage, CloudRun backend services, and WeChat Mini Program integration. Powered by cloudbase-mcp.",
+  "author": {
+    "name": "Tencent CloudBase",
+    "url": "https://cloudbase.net"
+  },
+  "homepage": "https://github.com/TencentCloudBase/cloudbase-plugin",
+  "repository": "https://github.com/TencentCloudBase/CloudBase-MCP",
+  "license": "MIT",
+  "keywords": [
+    "cloudbase",
+    "tencent-cloud",
+    "baas",
+    "codebuddy",
+    "workbuddy",
+    "ai-model",
+    "database",
+    "cloud-function",
+    "authentication",
+    "storage",
+    "cloudrun"
+  ],
+  "skills": [
+    "./skills/ai-model-nodejs/",
+    "./skills/ai-model-web/",
+    "./skills/ai-model-wechat/",
+    "./skills/auth-nodejs-cloudbase/",
+    "./skills/auth-tool-cloudbase/",
+    "./skills/auth-web-cloudbase/",
+    "./skills/auth-wechat-miniprogram/",
+    "./skills/cloud-functions/",
+    "./skills/cloud-storage-web/",
+    "./skills/cloudbase/",
+    "./skills/cloudbase-agent/",
+    "./skills/cloudbase-cli/",
+    "./skills/cloudbase-code-review/",
+    "./skills/cloudbase-document-database-in-wechat-miniprogram/",
+    "./skills/cloudbase-document-database-web-sdk/",
+    "./skills/cloudbase-platform/",
+    "./skills/cloudbase-wechat-integration/",
+    "./skills/cloudrun-development/",
+    "./skills/data-model-creation/",
+    "./skills/http-api-cloudbase/",
+    "./skills/minimal-web-baas-demo/",
+    "./skills/miniprogram-development/",
+    "./skills/ops-inspector/",
+    "./skills/postgresql-development-cloudbase/",
+    "./skills/relational-database-mcp-cloudbase/",
+    "./skills/relational-database-web-cloudbase/",
+    "./skills/spec-workflow/",
+    "./skills/ui-design/",
+    "./skills/web-development/"
+  ],
+  "commands": [
+    "./commands/cloudbase-env.md",
+    "./commands/cloudbase-deploy.md",
+    "./commands/cloudbase-init.md",
+    "./commands/cloudbase-status.md"
+  ],
+  "agents": [
+    "./agents/cloudbase-architect.md",
+    "./agents/cloudbase-deployment-expert.md"
+  ]
+}

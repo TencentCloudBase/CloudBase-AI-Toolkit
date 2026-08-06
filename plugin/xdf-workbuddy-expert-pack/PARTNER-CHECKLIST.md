@@ -37,7 +37,7 @@
 > - `state.json` → `ready`（~20s）；`preview.json.port=17177` ∈ 17173..17272  
 > - `sitesBin` = marketplace `vendor/cloudbase-sites`（无 monorepo 绝对路径）  
 > - settings **仅**保留 `[teamai]` SessionStart；`enabledPlugins["workbuddy-template-prewarm@tencent-cloudbase"]=true`  
-> - **注意：** 公开 GitHub `main` 目录暂未列入本插件（PR [#886](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/pull/886) 合入前），伙伴需用含 catalog 的 ref / 已同步 marketplace  checkout；安装器读 `.claude-plugin/marketplace.json`。
+> - **注意：** `minimal-web-baas-demo` 已合入 GitHub `main`（PR [#886](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/pull/886)）。marketplace 安装 `xdf-workbuddy-expert-pack` 或 `cloudbase@tencent-cloudbase` 后即可 `Skill("minimal-web-baas-demo")`；仍推荐跑一次 `install-skill.sh` 作为 Trust 前兜底。
 
 - [x] 添加 marketplace：`TencentCloudBase/CloudBase-MCP`（或伙伴约定源）
 - [x] 安装并启用 `workbuddy-template-prewarm`
