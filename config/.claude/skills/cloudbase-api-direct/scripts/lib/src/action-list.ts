@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 120
+ * Action 数量: 121
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -128,6 +128,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'UpdateAIModel',
   'UpdateCloudRunServer',
   'UpdateTable',
+  'VerifyHTTPServiceRoute',
 ];
 
 export default TCB_ALLOWED_ACTIONS;

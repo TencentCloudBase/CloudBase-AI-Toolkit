@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-07-30 02:45:26
+最近更新时间：2026-08-06 02:01:11
 
 -   微信扫一扫 
 -   QQ
@@ -137,6 +137,7 @@ _我的收藏_
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
 | [CreateHTTPServiceRoute](/document/api/876/129800) | 创建HTTP访问服务路由 | 20 |
+| [VerifyHTTPServiceRoute](/document/api/876/135630) | 校验HTTP访问服务路由 | 20 |
 | [DeleteHTTPServiceRoute](/document/api/876/129799) | 删除HTTP访问服务路由 | 20 |
 | [DescribeHTTPServiceRoute](/document/api/876/129798) | 查询HTTP访问服务路由信息 | 20 |
 | [ModifyHTTPServiceRoute](/document/api/876/129797) | 修改HTTP访问服务路由 | 20 |
