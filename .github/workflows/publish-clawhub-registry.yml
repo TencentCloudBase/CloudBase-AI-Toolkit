@@ -83,6 +83,8 @@ jobs:
         # Exact version pin for supply-chain reproducibility (do not use bare @latest).
         # 0.23.3 upload-ticket regression was fixed server-side in openclaw/clawhub#3395
         # and verified with a real publish after production backend deploy (2026-08-05).
+        # Client-side: publish-to-clawhub.mjs still retries all-in-one on residual
+        # "upload ticket does not match" races (openclaw/clawhub#3394 / #3397).
         run: npm install -g clawhub@0.23.3
 
       - name: Login to ClawHub
