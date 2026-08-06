@@ -57,7 +57,7 @@ Files already written as `rules/...` work across editors.
 ## Global must-read rules
 
 - Identify the scenario first; read the matching skill **before** implementation.
-- **Environment first:** call `envQuery({ action: "info" })` (or `tcb env list` / `tcb env use` if MCP missing). Use the returned `envId` everywhere; resolve aliases via `envQuery(action=list, alias=..., aliasExact=true)` — never pass nicknames as EnvId.
+- **Environment first:** call `envQuery({ action: "info" })` (or `tcb env list` / `tcb env use` if MCP missing). Use the returned `envId` everywhere. When the identifier is an alias, nickname, or other short form, **do not pass alias-like short forms directly** to `auth.set_env`, SDK init, console URLs, or generated config — first resolve to the canonical full `EnvId` with `envQuery(action=list, alias=..., aliasExact=true)`. If multiple environments match or no exact alias exists, stop and clarify.
 - **Auth:** any login/register mention → read `{auth-tool}` first, configure providers, then platform auth (`{auth-web}` / `{auth-wechat}`). Management login ≠ app auth (`auth` vs `queryAppAuth` / `manageAppAuth`).
 - **UI:** visual generation/redesign → read `{ui-design}` and output the design spec before UI code. Skip when the task is functional completion on existing pages.
 - **Templates:** greenfield projects → `downloadTemplate` (`react` / `vue` / `miniprogram` / `uniapp`) before hand-scaffolding.
