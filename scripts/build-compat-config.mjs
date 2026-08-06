@@ -68,8 +68,24 @@ const MACHINE_TARGETS = [
 
 const PASS_THROUGH_DIRS = ["codebuddy-plugin"];
 
+/**
+ * WorkBuddy (and similar hosts) reject alwaysApply / AGENTS rule files over 40 KiB.
+ * Keep the compat guide projection strictly under this ceiling so downloadTemplate
+ * zips do not rely on host-side strip stubs.
+ */
+const MAX_COMPAT_GUIDE_BYTES = 40 * 1024;
+
 function shouldSkip(name) {
   return name === ".DS_Store";
+}
+
+function assertCompatGuideSize(guidelineContent) {
+  const bytes = Buffer.byteLength(guidelineContent, "utf8");
+  if (bytes >= MAX_COMPAT_GUIDE_BYTES) {
+    throw new Error(
+      `Compat guide exceeds WorkBuddy-safe size: ${bytes} bytes >= ${MAX_COMPAT_GUIDE_BYTES} (${COMPAT_GUIDE_FILE}). Shrink the routing projection before publishing templates.`,
+    );
+  }
 }
 
 function ensureDir(dirPath) {
@@ -240,6 +256,7 @@ export function buildCompatConfig(options = {}) {
 
   const skillNames = getSkillDirectories();
   const guidelineContent = fs.readFileSync(COMPAT_GUIDE_FILE, "utf8");
+  assertCompatGuideSize(guidelineContent);
 
   buildRulesDirectory(outputDir, skillNames);
   buildCodeBuddySkills(outputDir, skillNames);

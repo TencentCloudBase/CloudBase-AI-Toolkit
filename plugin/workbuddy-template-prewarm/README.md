@@ -159,12 +159,16 @@ markdown separately. Do **not** put SessionStart in Agent frontmatter.
 
 ## Notes
 
-- Official template ships large `AGENTS.md`/`CLAUDE.md`/`CODEBUDDY.md` (~41KB).
-  WorkBuddy rejects rule files over **40 KiB** (`Rule file exceeds maximum size`).
-  After extract, prewarm replaces oversized entrypoints (`AGENTS.md`, `CLAUDE.md`,
-  `CODEBUDDY.md`, `.augment-guidelines`, `cloudbase-rules.mdc`) with a compact
-  stub and records them in `.cloudbase-prewarm/state.json` → `strippedRules`.
-  Opt out with `CLOUDBASE_WORKBUDDY_STRIP_RULES=0`. Compact BaaS rules still come
-  from SessionStart `additionalContext`.
+- Official React/Vue template zips historically shipped `AGENTS.md`/`CLAUDE.md`/
+  `CODEBUDDY.md` (~41KB). WorkBuddy rejects rule files over **40 KiB**
+  (`Rule file exceeds maximum size`). Upstream compat guide
+  (`config/source/editor-config/guides/cloudbase-rules.mdc`) is now a compact
+  routing projection (**must stay under 40 KiB**; enforced in
+  `build-compat-config.mjs`). After extract, prewarm still replaces any
+  oversized entrypoints (`AGENTS.md`, `CLAUDE.md`, `CODEBUDDY.md`,
+  `.augment-guidelines`, `cloudbase-rules.mdc`) with a compact stub and records
+  them in `.cloudbase-prewarm/state.json` → `strippedRules` (belt-and-suspenders
+  for stale CDN caches). Opt out with `CLOUDBASE_WORKBUDDY_STRIP_RULES=0`.
+  Compact BaaS rules still come from SessionStart `additionalContext`.
 - Refresh vendored Sites CLI after Sites changes:
   `bash plugin/workbuddy-template-prewarm/scripts/sync-sites-vendor.sh`

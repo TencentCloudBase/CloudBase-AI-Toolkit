@@ -40,10 +40,13 @@ test('buildCompatConfig generates compatibility artifacts from minimal sources',
   expect(
     fs.readFileSync(path.join(compatDir, '.cursor', 'rules', 'cloudbase-rules.mdc'), 'utf8'),
   ).toBe(compatGuide);
+  // WorkBuddy rejects alwaysApply / AGENTS projections over 40 KiB.
+  expect(Buffer.byteLength(compatGuide, 'utf8')).toBeLessThan(40 * 1024);
   expect(compatGuide).toContain('## Activation Contract');
   expect(compatGuide).toContain('Native App / raw HTTP');
   expect(compatGuide).toContain('Serialize the object first, then retry once with the serialized text');
   expect(compatGuide).toContain('actually passes the serialized string rather than the original object');
+  expect(compatGuide).toContain('{minimal-web-baas-demo}');
 
   expect(
     fs.readFileSync(path.join(compatDir, 'rules', 'auth-web-cloudbase', 'rule.md'), 'utf8'),
