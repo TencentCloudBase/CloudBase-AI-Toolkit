@@ -14,7 +14,8 @@ version: 2.25.9
 1. Exploration  →  Read the matching skill completely before writing any code.
                    Search with searchKnowledgeBase(mode="skill"), then Read full SKILL.md.
 2. Implementation
-   ├── 2a. Resource preparation → MCP tools first (auth, DB, storage, security rules)
+   ├── 2a. Resource preparation → Prefer MCP; if MCP tools are missing in THIS session,
+   │     configure MCP for next session and use `tcb` CLI now (see tooling-fallback.md)
    └── 2b. Frontend implementation → Write code, install deps, start server, test
 3. Close-out  →  Run cloudbase-code-review, fix errors, declare done
 ```
@@ -33,16 +34,16 @@ If only one published skill is exposed:
 - Do **not** fetch sibling skill markdown from remote raw URLs into the agent context.
 - If a required sibling skill is missing locally, ask the user to install the full CloudBase skills pack or IDE plugin (`npx skills add tencentcloudbase/cloudbase-skills`), then continue using local files only.
 
-Follow relative `references/...` paths from the current skill. If MCP is unavailable, read the local `cloudbase` entry skill and follow `references/mcp-setup.md` / mcporter setup first.
+Follow relative `references/...` paths from the current skill. If MCP is unavailable in this session, follow `references/tooling-fallback.md`: configure MCP via `references/mcp-setup.md` for the next session, and use `tcb` CLI via the `cloudbase-cli` skill (read `core.md` + the matching domain reference — **not** `tcb deploy`) to finish login/manage now. If `npm`/`npx` are missing, follow the “No npm/npx” section in `tooling-fallback.md`.
 
 ### Global rules before action
 
 - Identify the scenario, then read the matching skill before writing code or calling CloudBase APIs.
 - Prefer semantic sources for toolkit maintenance; express runtime routing in stable skill ids.
-- Use MCP or mcporter first for management tasks; inspect tool schemas before execution.
+- Prefer MCP or mcporter for management tasks when those tools are available in **this** session; inspect tool schemas before execution. If they are not available yet, do not stall — use the CLI fallback in `references/tooling-fallback.md`.
 - UI tasks: read `ui-design` first and output the design spec before interface code.
 - Auth tasks: read `auth-tool-cloudbase` first and enable providers before frontend implementation.
-- Keep auth domains separate: management login uses `auth`; app-side auth uses `queryAppAuth` / `manageAppAuth`.
+- Keep auth domains separate: management login uses `auth` (or `tcb login` when MCP auth is unavailable); app-side auth uses `queryAppAuth` / `manageAppAuth`.
 
 ### Universal guardrails
 
@@ -57,7 +58,7 @@ Follow relative `references/...` paths from the current skill. If MCP is unavail
 
 These rules override convenience. Full rationale lives in `web-development`.
 
-- **Prepare backend resources via MCP before writing frontend code.** Auth providers, tables, storage domains, and security rules first.
+- **Prepare backend resources before writing frontend code.** Prefer MCP for auth providers, tables, storage domains, and security rules; if MCP tools are missing in this session, use `tcb` CLI after configuring MCP for the next session (`references/tooling-fallback.md`).
 - **Do NOT use `any` to bypass type errors.** Prefer `unknown` + type guards / precise interfaces.
 - **Self-verify before claiming done.** Static (`tsc` / lint / build / tests) and runtime (`agent-browser` for user-visible flows). Name gaps explicitly if a layer cannot run.
 - **Do not paper over failures.** No empty `try/catch`, no deleting failing tests to go green.
@@ -94,18 +95,19 @@ These rules override convenience. Full rationale lives in `web-development`.
 - CloudBase PG failures: falling back to MySQL/NoSQL, skipping username-password readiness, or guessing raw HTTP instead of `app.rdb()` / documented OpenAPI.
 - AI model failures: usually missing Token Credits / Growth Plan — run `DescribeEnvPostpayPackage` / `DescribeActivityInfo` before changing code.
 
-## MCP prerequisite
+## MCP + CLI prerequisite
 
-CloudBase MCP is **required** for management/deploy. Setup details: `references/mcp-setup.md`.
+Prefer CloudBase MCP for management/deploy when tools are loaded in the current session. Setup: `references/mcp-setup.md`. First-session / unavailable path: `references/tooling-fallback.md`.
 
 - **Preferred install:** `npx plugins add TencentCloudBase/cloudbase-plugin -y --scope user`. Supported `--target` IDs: `claude-code`, `cursor`, `codex`, `grok`, `kimi`, `github-copilot`, `vscode`. See `references/mcp-setup.md`.
-- Verify with `npx mcporter list | grep cloudbase` or the IDE MCP panel before any CloudBase tool call.
-- Prefer device-code login via `auth`; do not hard-code secrets.
+- Verify with `npx mcporter list | grep cloudbase` or the IDE MCP panel. If `npm`/`npx` are missing, see `references/tooling-fallback.md` (install Node LTS or use IDE marketplace MCP). If MCP is missing or not yet visible after config, **still proceed**: finish install/config, tell the user a restart unlocks MCP next time, and use `tcb` CLI now via `cloudbase-cli` domain skills — **do not** recommend `tcb deploy`.
+- Prefer device-code login via MCP `auth` when available; otherwise `tcb login`. Do not hard-code secrets.
 
 ## On-demand references
 
 Load only when needed (do not expand this entry):
 
+- `references/tooling-fallback.md` — MCP vs `tcb` CLI decision tree for first session / missing tools
 - `references/deployment-workflow.md` — deploy backend/frontend, `manageApps` vs hosting, URL/docs updates
 - `references/console-links.md` — console hash paths after creating resources
 - `references/scenarios.md` — user-need → CloudBase capability mapping
@@ -121,3 +123,4 @@ All packaged reference files (required for skill lint reachability):
 - [deployment-workflow.md](references/deployment-workflow.md)
 - [mcp-setup.md](references/mcp-setup.md)
 - [scenarios.md](references/scenarios.md)
+- [tooling-fallback.md](references/tooling-fallback.md)

@@ -1,7 +1,11 @@
 ---
 name: cloudbase
-description: "Essential CloudBase (TCB, Tencent CloudBase, 云开发, 微信云开发) development guidelines. MUST read for CloudBase Web apps, mini programs, backend services, cloud functions, MySQL/NoSQL/PostgreSQL, auth, storage, CloudRun, or AI/LLM work. Do NOT use for non-Tencent-Cloud / non-CloudBase projects, pure frontend with no CloudBase backend, or self-hosted backends with no CloudBase dependency."
+description: "Use this skill when you develop, design, build, deploy, debug, migrate, or troubleshoot CloudBase (腾讯云开发, 云开发, TCB, 微信云开发) projects. Covers Web, 微信小程序, 小程序, uni-app, mobile (iOS, Android, Flutter, React Native). UI (页面, 界面, 表单, form, dashboard, prototype, 原型); auth (登录, 注册, OAuth, 微信登录, publishable key); databases (NoSQL 文档数据库, MySQL 关系型数据库, PostgreSQL/CloudBase PG, app.rdb(), queryPgDatabase/managePgDatabase, CRUD, 查询, security rules); 云函数/cloud functions (serverless, scf_bootstrap); CloudRun (云托管, Dockerfile); 云存储. Built-in AI (内置大模型, AI 对话, streaming, 流式输出, 图片生成, generateText, streamText, createModel, generateImage, TokenHub, Hunyuan, hunyuan-exp, DeepSeek, deepseek, GLM, Kimi, Token Credits 资源包, 小程序成长计划). 第三方大模型, 大模型接入, 大模型调用, LLM API, AI agent, 智能体, AI Agent, AG-UI, LangGraph. Ops (巡检, 诊断, health check, 日志, troubleshooting). Spec (需求文档, 技术方案, requirements, tasks.md). Do NOT use for non-CloudBase projects, pure frontend without CloudBase, or self-hosted backends without CloudBase."
+description_zh: 为你的小程序和 Web/H5 提供一体化运行与部署环境，包括数据库、云函数、云存储、身份权限和静态托管
+description_en: An all-in-one runtime and deployment environment for WeChat Mini Programs and Web/H5 apps, including database, cloud functions, cloud storage, identity and access control, and static hosting.
+version: 2.25.9
 ---
+
 # CloudBase Development Guidelines
 
 ## Workflow
@@ -10,7 +14,8 @@ description: "Essential CloudBase (TCB, Tencent CloudBase, 云开发, 微信云�
 1. Exploration  →  Read the matching skill completely before writing any code.
                    Search with searchKnowledgeBase(mode="skill"), then Read full SKILL.md.
 2. Implementation
-   ├── 2a. Resource preparation → MCP tools first (auth, DB, storage, security rules)
+   ├── 2a. Resource preparation → Prefer MCP; if MCP tools are missing in THIS session,
+   │     configure MCP for next session and use `tcb` CLI now (see tooling-fallback.md)
    └── 2b. Frontend implementation → Write code, install deps, start server, test
 3. Close-out  →  Run cloudbase-code-review, fix errors, declare done
 ```
@@ -29,16 +34,16 @@ If only one published skill is exposed:
 - Do **not** fetch sibling skill markdown from remote raw URLs into the agent context.
 - If a required sibling skill is missing locally, ask the user to install the full CloudBase skills pack or IDE plugin (`npx skills add tencentcloudbase/cloudbase-skills`), then continue using local files only.
 
-Follow relative `references/...` paths from the current skill. If MCP is unavailable, read the local `cloudbase` entry skill and follow `references/mcp-setup.md` / mcporter setup first.
+Follow relative `references/...` paths from the current skill. If MCP is unavailable in this session, follow `references/tooling-fallback.md`: configure MCP via `references/mcp-setup.md` for the next session, and use `tcb` CLI via the `cloudbase-cli` skill (read `core.md` + the matching domain reference — **not** `tcb deploy`) to finish login/manage now. If `npm`/`npx` are missing, follow the “No npm/npx” section in `tooling-fallback.md`.
 
 ### Global rules before action
 
 - Identify the scenario, then read the matching skill before writing code or calling CloudBase APIs.
 - Prefer semantic sources for toolkit maintenance; express runtime routing in stable skill ids.
-- Use MCP or mcporter first for management tasks; inspect tool schemas before execution.
+- Prefer MCP or mcporter for management tasks when those tools are available in **this** session; inspect tool schemas before execution. If they are not available yet, do not stall — use the CLI fallback in `references/tooling-fallback.md`.
 - UI tasks: read `ui-design` first and output the design spec before interface code.
 - Auth tasks: read `auth-tool-cloudbase` first and enable providers before frontend implementation.
-- Keep auth domains separate: management login uses `auth`; app-side auth uses `queryAppAuth` / `manageAppAuth`.
+- Keep auth domains separate: management login uses `auth` (or `tcb login` when MCP auth is unavailable); app-side auth uses `queryAppAuth` / `manageAppAuth`.
 
 ### Universal guardrails
 
@@ -53,7 +58,7 @@ Follow relative `references/...` paths from the current skill. If MCP is unavail
 
 These rules override convenience. Full rationale lives in `web-development`.
 
-- **Prepare backend resources via MCP before writing frontend code.** Auth providers, tables, storage domains, and security rules first.
+- **Prepare backend resources before writing frontend code.** Prefer MCP for auth providers, tables, storage domains, and security rules; if MCP tools are missing in this session, use `tcb` CLI after configuring MCP for the next session (`references/tooling-fallback.md`).
 - **Do NOT use `any` to bypass type errors.** Prefer `unknown` + type guards / precise interfaces.
 - **Self-verify before claiming done.** Static (`tsc` / lint / build / tests) and runtime (`agent-browser` for user-visible flows). Name gaps explicitly if a layer cannot run.
 - **Do not paper over failures.** No empty `try/catch`, no deleting failing tests to go green.
@@ -66,6 +71,7 @@ These rules override convenience. Full rationale lives in `web-development`.
 
 | Scenario | Read first | Then read | Do NOT route to first | Must check before action |
 |----------|------------|-----------|------------------------|--------------------------|
+| Minimal Web BaaS demo (fast path) | `minimal-web-baas-demo` | web-development, no-sql-web-sdk, postgresql-development | cloud-functions, cloudrun, spec-workflow, ui-design | BaaS-first Web SDK CRUD, MCP schema only, zero cloud functions unless secrets/cron/rules-cannot-express |
 | Web login / registration / auth UI | `auth-tool-cloudbase` | auth-web, web-development | cloud-functions, http-api | Provider status and publishable key |
 | WeChat mini program + CloudBase | `miniprogram-development` | auth-wechat, no-sql-wx-mp-sdk | auth-web, web-development | Whether the project really uses CloudBase / `wx.cloud` |
 | Native App / Flutter / React Native | `http-api-cloudbase` | auth-tool, relational-database-tool | auth-web, cloudbase-document-database-web-sdk, web-development | SDK boundary, OpenAPI, auth method |
@@ -89,16 +95,32 @@ These rules override convenience. Full rationale lives in `web-development`.
 - CloudBase PG failures: falling back to MySQL/NoSQL, skipping username-password readiness, or guessing raw HTTP instead of `app.rdb()` / documented OpenAPI.
 - AI model failures: usually missing Token Credits / Growth Plan — run `DescribeEnvPostpayPackage` / `DescribeActivityInfo` before changing code.
 
-## MCP prerequisite
+## MCP + CLI prerequisite
 
-CloudBase MCP is **required** for management/deploy. Setup details: `references/mcp-setup.md`. Verify with `npx mcporter list | grep cloudbase` or the IDE MCP panel before any CloudBase tool call. Prefer device-code login via `auth`; do not hard-code secrets.
+Prefer CloudBase MCP for management/deploy when tools are loaded in the current session. Setup: `references/mcp-setup.md`. First-session / unavailable path: `references/tooling-fallback.md`.
+
+- **Preferred install:** `npx plugins add TencentCloudBase/cloudbase-plugin -y --scope user`. Supported `--target` IDs: `claude-code`, `cursor`, `codex`, `grok`, `kimi`, `github-copilot`, `vscode`. See `references/mcp-setup.md`.
+- Verify with `npx mcporter list | grep cloudbase` or the IDE MCP panel. If `npm`/`npx` are missing, see `references/tooling-fallback.md` (install Node LTS or use IDE marketplace MCP). If MCP is missing or not yet visible after config, **still proceed**: finish install/config, tell the user a restart unlocks MCP next time, and use `tcb` CLI now via `cloudbase-cli` domain skills — **do not** recommend `tcb deploy`.
+- Prefer device-code login via MCP `auth` when available; otherwise `tcb login`. Do not hard-code secrets.
 
 ## On-demand references
 
 Load only when needed (do not expand this entry):
 
+- `references/tooling-fallback.md` — MCP vs `tcb` CLI decision tree for first session / missing tools
 - `references/deployment-workflow.md` — deploy backend/frontend, `manageApps` vs hosting, URL/docs updates
 - `references/console-links.md` — console hash paths after creating resources
 - `references/scenarios.md` — user-need → CloudBase capability mapping
-- `references/mcp-setup.md` — IDE MCP / mcporter config and auth examples
+- `references/mcp-setup.md` — Plugin install (global default + targets), IDE MCP / mcporter config and auth examples
 - `references/activation-map.yaml` — canonical routing contract source
+
+## Reference index
+
+All packaged reference files (required for skill lint reachability):
+
+- [activation-map.yaml](references/activation-map.yaml)
+- [console-links.md](references/console-links.md)
+- [deployment-workflow.md](references/deployment-workflow.md)
+- [mcp-setup.md](references/mcp-setup.md)
+- [scenarios.md](references/scenarios.md)
+- [tooling-fallback.md](references/tooling-fallback.md)

@@ -97,7 +97,7 @@ Use this skill for **CloudBase platform knowledge** when you need to:
 4. **Use the canonical CloudBase MCP setup from the main `cloudbase` guideline**
    - This platform overview intentionally does **not** duplicate the full MCP / mcporter config block
    - For the canonical config snippet, CLI commands, and auth examples, read the main `cloudbase` guideline first
-   - Keep the same core rules here: use MCP first, inspect tool schemas before execution, and do not hard-code Secret ID / Secret Key / Env ID in config
+   - Keep the same core rules here: prefer MCP when tools are available in this session; if not, configure MCP for next session and use `tcb` CLI now (`../cloudbase-cli/SKILL.md`, `../cloudbase/references/tooling-fallback.md`). Inspect tool schemas before MCP execution. Do not hard-code Secret ID / Secret Key / Env ID in config
    - Keep the auth split explicit: management-side login uses `auth`, while application-side auth configuration uses `queryAppAuth` / `manageAppAuth`
 
 ---

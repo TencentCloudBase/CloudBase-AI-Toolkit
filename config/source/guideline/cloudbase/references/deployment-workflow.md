@@ -14,11 +14,12 @@ When users request deployment to CloudBase:
   - Legacy compatibility: if older materials mention `createFunction`, `updateFunctionCode`, or `getFunctionList`, map them to `manageFunctions(...)` and `queryFunctions(...)`
   - Before deploying, decide whether the function is Event or HTTP. Event Functions use `exports.main = async (event, context) => {}`.
   - HTTP Functions are standard web services: they must listen on port `9000`, include `scf_bootstrap`, and for Node.js should default to native `http.createServer((req, res) => { ... })`. Parse `req.url` and the streamed request body manually, set response headers explicitly, and do not write the function as `exports.main` unless you intentionally choose Functions Framework.
-- **Alternative: CLI Deployment** — If MCP is unavailable or the user prefers CLI, read the `cloudbase-cli` skill for `tcb`-based deployment workflows (functions, CloudRun, hosting).
+- **CLI fallback (first session / MCP missing):** If CloudBase MCP tools are not in this session — including right after plugin install before restart — do **not** stall. Configure MCP for the next session (`mcp-setup.md`), then read `cloudbase-cli` (`core.md` + the matching domain reference such as `functions.md` / `cloudrun.md` / `hosting.md`) and follow those commands after `tcb login` → `tcb env use <envId>`. Do **not** use `tcb deploy`. Full decision tree: `tooling-fallback.md`.
+- **User prefers CLI / CI:** Also use `cloudbase-cli` even when MCP exists.
 - For other languages backend server (Java, Go, PHP, Python, Node.js): deploy to Cloud Run
 - Ensure backend code supports CORS by default
 - Prepare Dockerfile for containerized deployment
-- Use `manageCloudRun` tool for deployment
+- Use `manageCloudRun` tool for deployment when MCP is available; otherwise the CloudRun path in `cloudbase-cli`
 - Set MinNum instances to at least 1 to reduce cold start latency
 - Confirm with the user before destructive or production write operations (delete, overwrite, plan change)
 
@@ -27,10 +28,10 @@ When users request deployment to CloudBase:
 - After backend deployment completes, update frontend API endpoints using the returned API addresses
 - Build the frontend application
 - **Determine whether this is a new or existing project**:
-  - **New project (first-time deployment)**: Use `manageApps(action="createApp", ...)` to deploy to an independent subdomain. Each app gets its own `*.webapps.tcloudbase.com` subdomain — no path collisions between projects.
-  - **Existing project (re-deployment)**: Use `manageApps(action="updateApp", ...)` to update the existing app. If the original project was deployed via `manageHosting` (shared domain path), continue using `manageHosting` for consistency.
-- After uploading, call `setWebsiteDocument` to configure SPA routing — set both `indexDocument` and `errorDocument` to `"index.html"`.
-- If `manageApps` fails persistently, fall back to `manageHosting`. Remind the user the URL will share the env domain path and CDN has a few minutes of cache.
+  - **New project (first-time deployment)**: Use `manageApps(action="createApp", ...)` to deploy to an independent subdomain. Each app gets its own `*.webapps.tcloudbase.com` subdomain — no path collisions between projects. If MCP is unavailable, read `cloudbase-cli` → `hosting.md` (build locally, then hosting deploy). Do **not** use `tcb deploy`.
+  - **Existing project (re-deployment)**: Use `manageApps(action="updateApp", ...)` to update the existing app. If the original project was deployed via `manageHosting` (shared domain path), continue using `manageHosting` for consistency. CLI parity: hosting / app commands in `cloudbase-cli`.
+- After uploading via MCP, call `setWebsiteDocument` to configure SPA routing — set both `indexDocument` and `errorDocument` to `"index.html"`.
+- If `manageApps` fails persistently, fall back to `manageHosting` (or CLI hosting). Remind the user the URL will share the env domain path and CDN has a few minutes of cache.
 
 ## 3. Display deployment URLs
 

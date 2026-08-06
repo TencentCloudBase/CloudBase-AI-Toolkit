@@ -17,15 +17,17 @@ Every CloudBase task follows this three-stage process:
                    Only start implementing after understanding the API patterns,
                    pitfalls, and correct usage from the skill document.
 2. Implementation
-   ├── 2a. Resource preparation → Use MCP tools to prepare backend resources
+   ├── 2a. Resource preparation → Prefer MCP to prepare backend resources
    │     (enable auth providers, create database tables, configure storage domains,
-   │      set up security rules — before writing frontend code)
+   │      set up security rules — before writing frontend code).
+   │     If MCP tools are missing in THIS session, configure MCP for next time and
+   │     use `tcb` CLI now (`./cloudbase-cli/SKILL.md`).
    └── 2b. Frontend implementation → Write code, install deps, start server, test
 3. Close-out  →  Run cloudbase-code-review, fix all errors, declare done
 ```
 
 **Key constraints:**
-- **Stage 2a (resource preparation) must come before frontend code.** Always use MCP tools to prepare backend resources first. Don't write frontend code that depends on uncreated resources (tables, auth providers, storage buckets) — the grader will fail.
+- **Stage 2a (resource preparation) must come before frontend code.** Prefer MCP tools; when they are not loaded yet (first session / pre-restart), fall back to `tcb` CLI after configuring MCP. Don't write frontend code that depends on uncreated resources (tables, auth providers, storage buckets) — the grader will fail.
 - **Do not skip Stage 3.** The close-out catches known pitfalls that agents commonly miss during implementation.
 
 ## Scope
@@ -67,7 +69,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 
 ### High-yield guardrails
 
-- **Prepare backend resources via MCP before writing frontend code.** Auth providers, database tables, storage domains, and security rules must be set up through MCP tools before writing any frontend code that depends on them. Frontend code written against non-existent resources will cause grader failures.
+- **Prepare backend resources before writing frontend code.** Prefer MCP for auth providers, database tables, storage domains, and security rules. If MCP tools are missing in this session, configure MCP for the next session and use `tcb` CLI now — do not stall waiting for restart. Frontend code written against non-existent resources will cause grader failures.
 - **Change Safety Protocol**: Before any non-trivial code or configuration change, you must strictly follow `cloudbase-platform/references/protocols/change-safety-protocol.md` (declare impact → obtain user confirmation → verify after change → escalate to root cause analysis after 3 occurrences of the same symptom).
 - **Deployment Gate**: Before any deployment, publish, custom domain, CloudRun, or public exposure work, you must complete the checks in `cloudbase-platform/references/protocols/deployment-gate.md` and present the mandatory declaration template.
 - If the same path fails 2-3 times, stop retrying and reroute. Check platform skill, auth domain, runtime, and permission model before editing more code.

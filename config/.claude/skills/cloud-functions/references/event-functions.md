@@ -63,7 +63,7 @@ manageFunctions({
 
 - `updateFunctionCode` does not change runtime.
 - If runtime must change, recreate the function.
-- Prefer MCP management tools over CLI in agent flows.
+- Prefer MCP management tools when available; if MCP tools are missing in this session, use `tcb fn deploy` via `cloudbase-cli` (see guideline `tooling-fallback.md`).
 
 ## Invocation patterns
 

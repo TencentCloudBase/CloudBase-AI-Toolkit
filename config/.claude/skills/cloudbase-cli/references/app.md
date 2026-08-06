@@ -1,17 +1,20 @@
 # App — CloudBase CLI
 
+> ⚠️ **Agent default: prefer MCP `manageApps` / `manageHosting`, or CLI `hosting.md` (local build + `tcb hosting deploy`).**
+> `tcb deploy` in this file is an experimental all-in-one shorthand — use only when the user explicitly asks for it.
+
 Deploy web applications with automatic framework detection, cloud build, and CDN hosting.
 App = framework build + deploy; for pre-built static files only, use `hosting` instead.
 
 ## When to Use
 
-- Deploying web apps (React, Vue, Vite, Next.js, Nuxt, Angular) to CloudBase
-- Need zero-config deployment with automatic framework detection
-- Managing web app versions, build status, or redeployment
-- Deploying monorepo sub-projects
+- User **explicitly** asks for `tcb deploy` / zero-config cloud-build web deploy
+- Managing web app versions, build status, or redeployment after that path was already chosen
+- Deploying monorepo sub-projects with that experimental flow
 
 ## Do NOT use for
 
+- Default agent fallback when MCP is missing — use `hosting` (or MCP when available)
 - Pre-built static files without build step — use `hosting`
 - Cloud functions — use `functions`
 - Containerized long-running services — use `cloudrun`

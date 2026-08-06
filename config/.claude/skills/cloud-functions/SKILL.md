@@ -144,8 +144,9 @@ Use these rules whenever you are writing the function code itself:
    - Use `manageFunctions(action="updateFunctionConfig")` for config updates (timeout, memorySize, envVariables)
    - For a Custom Image HTTP Function, call `manageFunctions(action="createFunction")` with `func.runtime="CustomImage"` and `imageConfig` (`imageUri` with tag; `registryId` for enterprise TCR); iterate later with `manageFunctions(action="updateFunctionCode")` + `imageConfig`. No `functionRootPath` is needed because the code lives in the image. See `./references/http-functions-custom-image.md`.
    - Keep `functionRootPath` as the directory that directly contains function folders (e.g., `cloudfunctions/` or `functions/`), NOT the project root and NOT the function subdirectory itself
-   - **Prefer MCP tools over CLI** — when MCP tools are available, use `manageFunctions` and `queryFunctions` instead of CLI commands
-   - **Do NOT assume CLI is available from task wording alone** — if the available capabilities only include MCP tools, use MCP tools exclusively
+   - **Prefer MCP when available** — use `manageFunctions` and `queryFunctions` when those tools are in this session
+   - **CLI fallback when MCP is missing** — if function tools are not loaded (first session / pre-restart), configure MCP for next time, then use `tcb fn deploy` via `../cloudbase-cli/SKILL.md` (see guideline `tooling-fallback.md`). Do not stall waiting for restart.
+   - **Do NOT invent CLI when the runtime has no shell** — if only MCP exists and it works, stay on MCP; if neither works, report the gap
    - For batch updates (multiple functions), call `manageFunctions(action="updateFunctionConfig")` individually for each function — MCP does not have a `--all` batch parameter like CLI
    - If an HTTP Function uses `@cloudbase/node-sdk`, prefer a server API Key created with `manageAppAuth(action="createApiKey", keyType="api_key")` and inject it as `CLOUDBASE_APIKEY`; Tencent Cloud `SecretId` / `SecretKey` is also supported
    - If an HTTP Function uses `@cloudbase/manager-node`, inject Tencent Cloud `SecretId` / `SecretKey`; do not claim that a CloudBase API Key initializes the Manager SDK

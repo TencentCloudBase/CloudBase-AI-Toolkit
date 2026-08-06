@@ -9,12 +9,21 @@
 - Authenticating with `tcb login` or switching environments with `tcb env use`
 - Querying CLI docs with `tcb docs` or checking command help with `--help`
 - Diagnosing CLI errors via exit codes
+- **First-session fallback:** CloudBase MCP tools are not in this conversation yet (not installed, or installed but session not restarted) — use `tcb login` + the matching domain command now while MCP is configured for next time (do **not** use `tcb deploy`; see guideline `tooling-fallback.md` if npm/npx is missing)
 
 ## Do NOT use for
 
-- CloudBase SDK development (use `cloudbase-skills` repo)
-- CloudBase MCP server operations (use MCP server docs)
+- CloudBase SDK development (use matching SDK skills)
+- CloudBase MCP server operations when MCP tools are already available (prefer MCP unless the user asked for CLI)
 - Tencent Cloud console-only operations (this reference is CLI-only)
+
+## First-session + MCP coexistence
+
+1. If MCP is missing: install/configure it (plugin / `mcp.json` / mcporter) so the **next** session gets tools.
+2. Immediately continue with CLI in **this** session: `tcb login` → confirm envId → `tcb env use <envId>` → domain command from the matching reference (`functions` / `hosting` / `cloudrun` / …). Do **not** use `tcb deploy`.
+3. Tell the user briefly that after restart/reload, MCP becomes the preferred path.
+4. Do not hard-code SecretId/SecretKey into MCP config as the default path.
+5. If `npm`/`npx`/`node` are missing, stop and follow guideline `tooling-fallback.md` (“No npm/npx”) before retrying installs.
 
 ---
 
