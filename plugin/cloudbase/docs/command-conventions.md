@@ -8,9 +8,9 @@ Every slash command in this plugin follows a consistent structure so that the AI
 
 Check prerequisites before doing any work:
 
-- **MCP 连接检查** — 确认 `cloudbase-mcp` server 已连接，`envQuery`、`manageFunctions`、`manageHosting` 等工具可用。
-- **登录状态** — 确认 CloudBase 已鉴权（`envQuery({action:"info"})` 可返回环境信息即代表已登录）；未登录时引导用户完成授权流程。
-- **环境选择** — 确认当前操作的 EnvId。若 `CLOUDBASE_ENV_ID` 未设置或会话中未选定环境，先调用 `envQuery({action:"list"})` 让用户选择。
+- **MCP 连接检查** — 探测本会话是否已有可用的 CloudBase MCP 工具（`envQuery`、`manageFunctions`、`manageHosting` 等）。若未配置或尚未加载，先按 `tooling-fallback.md` 配置 MCP（供下一会话），本会话走 CLI 路径，不要阻塞等待重启。
+- **登录状态** — 确认 CloudBase 已鉴权：MCP 可用时以 `envQuery({action:"info"})` 可返回环境信息为准；MCP 不可用时用 `tcb login` / `tcb env list` 确认。未登录时引导用户完成授权流程。
+- **环境选择** — 确认当前操作的 EnvId。若 `CLOUDBASE_ENV_ID` 未设置或会话中未选定环境：MCP 可用时先调用 `envQuery({action:"list"})`；否则用 `tcb env list` / `tcb env use` 让用户选择。
 - **项目类型检测** — 根据目录结构判断项目类型：
   - 存在 `cloudfunctions/` 目录 → 云函数项目
   - 存在 `dist/` 或 `public/` → 静态托管项目
@@ -32,7 +32,7 @@ Preflight 失败时必须给出清晰、可执行的指引，不得静默跳过�
 
 操作核心。遵循以下约定：
 
-- **MCP-first, CLI-fallback** — 优先使用 cloudbase MCP 工具（`envQuery`、`manageFunctions`、`manageHosting`、`manageCloudRun`、`queryFunctions`、`queryHosting`、`queryLogs`、`downloadTemplate`）；仅当 MCP 缺失能力时才回退到 `tcb` CLI。
+- **MCP-first, CLI-fallback** — 本会话已加载 CloudBase MCP 工具时，优先使用 MCP（`envQuery`、`manageFunctions`、`manageHosting`、`manageCloudRun`、`queryFunctions`、`queryHosting`、`queryLogs`、`downloadTemplate`）。若 MCP 未配置、尚未加载进本会话（首会话 / 安装后未重启），或缺少所需能力，则回退到 `tcb` CLI（先配 MCP 供下一会话；禁止默认 `tcb deploy`）。决策树见 `skills/cloudbase/references/tooling-fallback.md`。
 - **结构化输出** — 优先使用 MCP 工具返回的 JSON 结果，解析后以可读的表格或列表呈现。
 - **No secrets in output** — 环境变量值不得出现在任何输出、摘要或对话文本中。只展示变量名称和元数据（类型、创建时间等）。
 - **Confirmation for destructive ops** — 生产部署、环境删除、域名变更、函数删除等操作必须获得用户明确的 "yes" 确认。
@@ -81,8 +81,8 @@ description: 一句话描述命令功能（中文）。
 
 ## Core Rules
 
-- **MCP-first** — 优先使用 cloudbase MCP 工具（`envQuery`、`manageFunctions`、`manageHosting`、`manageCloudRun`），CLI 仅作 fallback。
-- **CLI-fallback** — `tcb` CLI 作为 MCP 能力缺失时的回退方案。
+- **MCP-first** — 本会话 MCP 可用时优先使用 cloudbase MCP 工具（`envQuery`、`manageFunctions`、`manageHosting`、`manageCloudRun`）。
+- **CLI-fallback** — `tcb` CLI 作为首会话 / MCP 未加载 / 能力缺失时的回退方案（配置 MCP 供下一会话；勿默认 `tcb deploy`）。详见 `tooling-fallback.md`。
 - **Never-Echo-Secrets** — 环境变量值不得出现在任何输出中，只显示名称和元数据。
 - **Production 门控** — 生产部署、资源删除等破坏性操作需用户显式确认。
 - **中文描述** — `description` 字段使用中文，命令名和 MCP 工具名保持英文。

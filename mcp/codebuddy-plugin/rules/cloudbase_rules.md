@@ -22,8 +22,8 @@ updatedAt: 2026-03-27T00:00:00.000Z
 
 ## Core Rules
 
-**1. MCP 工具优先原则**
-使用 CloudBase 管理功能时，优先通过 MCP 工具（如 `envQuery`、`manageHosting`、`createFunction`、`manageCloudRun`、`executeWriteSQL` 等）而非 CLI 命令或控制台操作。
+**1. MCP 优先，CLI 可回退**
+使用 CloudBase 管理功能时，本会话已加载 MCP 工具则优先通过 MCP（如 `envQuery`、`manageHosting`、`manageFunctions`、`manageCloudRun` 等）。若 MCP 未配置或尚未进入本会话（首会话 / 安装后需重启），先完成 MCP 配置供下一会话，同时用 `tcb` CLI（`tcb login`、`tcb fn deploy`、`tcb hosting deploy` 等；禁止默认 `tcb deploy`）完成本会话工作，不要阻塞等待重启。决策树见 `cloudbase` skill 的 `tooling-fallback.md`。
 
 **2. 场景识别优先**
 开发前首先识别当前场景类型（Web/小程序/云函数/CloudRun/AI Agent），然后阅读对应的 skill 指南。
@@ -42,4 +42,4 @@ updatedAt: 2026-03-27T00:00:00.000Z
 有后端依赖时，优先部署后端（云函数/CloudRun）再预览前端。
 
 **7. 环境检查**
-开始工作前调用 `envQuery` 检查云开发环境状态，确保已知晓当前环境 ID。
+开始工作前确认云开发环境 ID：MCP 可用时调用 `envQuery`；MCP 不可用时用 `tcb login` / `tcb env list` / `tcb env use`，并先配好 MCP 供下一会话。

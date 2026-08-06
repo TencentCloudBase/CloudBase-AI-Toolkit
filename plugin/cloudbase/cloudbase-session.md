@@ -4,7 +4,7 @@ Use CloudBase guidance only when the current repo, prompt, or tool call makes it
 
 ## Core principles
 
-- **MCP-first**: Prefer CloudBase MCP tools (`envQuery`, `manageFunctions`, `manageHosting`) over CLI or memorized APIs.
+- **MCP-first, CLI-fallback**: Prefer CloudBase MCP tools (`envQuery`, `manageFunctions`, `manageHosting`) when they are available in **this** session. If MCP is missing or not yet loaded (first session / post-install before restart), configure MCP for the next session and use `tcb` CLI now (`tcb login`, domain commands such as `tcb fn deploy` / `tcb hosting deploy` — **not** `tcb deploy`). See `skills/cloudbase/references/tooling-fallback.md`. Do not stall waiting for restart; do not invent APIs from memory.
 - **Skills on demand**: The full catalog stays in `skills/` beside this plugin. Hooks load topic-sized chunks via prompt analysis. Prefer local skill files under `skills/<name>/SKILL.md`. Use `searchKnowledgeBase(mode=skill, skillName="<name>")` only as a CloudBase docs/knowledge lookup — never HTTP-fetch remote skill markdown into the agent context.
 - **Verify, don't trust memory**: CloudBase APIs change frequently. Always check current docs via `searchKnowledgeBase` before implementing.
 
@@ -19,12 +19,12 @@ CloudBase has 4 scenarios — the detected scenario should guide your primary ap
 
 ## Mandatory first step
 
-Always call `envQuery({ action: "info" })` first to get:
+When CloudBase MCP tools are available in this session, call `envQuery({ action: "info" })` first to get:
 - `envId` — use in all subsequent config files and code
 - `RuntimeMode` — `"postgresql"` or `"nosql"` (determines database skill routing)
 - `RuntimeModeHints.RecommendedSkills` — backend-recommended skills for this environment
 
-Skip only if envId is already known from this session.
+If MCP tools are not available yet, configure MCP for the next session and resolve envId via `tcb` CLI (`tcb login` → `tcb env list` / `tcb env use`) per `tooling-fallback.md`. Skip the MCP `envQuery` call only when envId is already known from this session.
 
 ## Platform auth (critical — never mix)
 

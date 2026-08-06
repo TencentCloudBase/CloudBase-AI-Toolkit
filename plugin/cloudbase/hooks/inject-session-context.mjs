@@ -15,7 +15,7 @@ var GREENFIELD_CONTEXT = `<!-- cloudbase-plugin:greenfield-execution -->
 
 This directory is empty. Do not stop in planning mode or spin up a read-only planning subagent.
 Choose sensible defaults immediately.
-Start executing with real tool calls (use downloadTemplate MCP tool first).
+Start executing with real tool calls (prefer \`downloadTemplate\` MCP when available; if MCP is missing in this session, configure MCP for next time and use \`tcb\` / documented CLI init instead of stalling).
 Only ask follow-up questions when blocked by missing credentials or irreversible decisions.`;
 
 // Skill catalog layers (for grouping in additionalContext)
@@ -85,8 +85,11 @@ var RULES_BLOCK = `## CloudBase Plugin (plugin-injected, MUST follow)
 
 ### Hard Rules
 
-1. **Environment Check (FIRST).** Before any CloudBase work, call MCP \`envQuery({ action: "info" })\`
-   to get envId + RuntimeMode + RecommendedSkills. Use the returned envId in all subsequent config.
+1. **Environment Check (FIRST).** Before any CloudBase work, resolve envId + RuntimeMode + RecommendedSkills.
+   When CloudBase MCP tools are available in this session, call \`envQuery({ action: "info" })\`.
+   If MCP is missing or not yet loaded (first session / post-install before restart), configure MCP for
+   the next session and use \`tcb\` CLI now (\`tcb login\` → \`tcb env list\` / \`tcb env use\`; see
+   \`skills/cloudbase/references/tooling-fallback.md\`). Do not stall waiting for restart.
    Skip only if envId is already known from this session.
 
 2. **Scenario Routing.** When user requests overlap multiple scenarios, use the detected scenario
@@ -99,12 +102,14 @@ var RULES_BLOCK = `## CloudBase Plugin (plugin-injected, MUST follow)
 4. **Auth Configuration First.** When user mentions login/auth, fetch
    \`searchKnowledgeBase(mode=skill, skillName="auth-tool-cloudbase")\` BEFORE writing client auth code.
 
-5. **Template First for New Projects.** For greenfield projects, use \`downloadTemplate\` MCP tool
-   before scaffolding manually.
+5. **Template First for New Projects.** For greenfield projects, prefer \`downloadTemplate\` MCP when
+   available; if MCP is missing in this session, configure MCP for next time and use \`tcb\` /
+   documented CLI init paths from \`tooling-fallback.md\` / \`cloudbase-cli\` instead of stalling.
 
 ### CLI Quick Reference
-- tcb CLI: \`tcb fn deploy\`, \`tcb hosting deploy\`, \`tcb env list\`
-- MCP tools preferred: \`manageFunctions\`, \`manageHosting\`, \`envQuery\`, \`manageStorage\``;
+- Prefer MCP when tools are loaded: \`manageFunctions\`, \`manageHosting\`, \`envQuery\`, \`manageStorage\`
+- First-session / MCP-missing fallback: \`tcb login\`, \`tcb env use\`, \`tcb fn deploy\`, \`tcb hosting deploy\` (not \`tcb deploy\`)
+- Decision tree: \`skills/cloudbase/references/tooling-fallback.md\``;
 
 function buildAdditionalContext({ scenario, likelySkills, isGreenfield, sessionContext }) {
   const parts = [];

@@ -96,7 +96,7 @@ When you see "Read `{auth-web}` rule file" in this document:
 **⚠️ CRITICAL: Read this section first based on your project type**
 
 ### When Developing a Web Project:
-1. **Environment Check**: Call `envQuery` tool first (applies to all interactions)
+1. **Environment Check**: Resolve envId first — prefer `envQuery` when MCP is available in this session; otherwise use `tcb` CLI and configure MCP for next time (applies to all interactions)
 2. **⚠️ Template Download (MANDATORY for New Projects)**: **MUST call `downloadTemplate` tool FIRST when starting a new project** - Do NOT create files manually. Use `downloadTemplate` with `template="react"` or `template="vue"` to get the complete project structure. Only proceed with manual file creation if template download fails or user explicitly requests it.
 3. **⚠️ UI Design (CRITICAL)**: **MUST read `rules/ui-design/rule.md` FIRST before generating any page, interface, component, or style** - This is NOT optional. You MUST explicitly read this file and output the design specification before writing any UI code.
 4. **Core Capabilities**: Read Core Capabilities section below (especially UI Design and Database + Authentication for Web)
@@ -108,7 +108,7 @@ When you see "Read `{auth-web}` rule file" in this document:
    - MySQL: `rules/relational-database-web-cloudbase/rule.md` + `rules/relational-database-mcp-cloudbase/rule.md`
 
 ### When Developing a Mini Program Project:
-1. **Environment Check**: Call `envQuery` tool first (applies to all interactions)
+1. **Environment Check**: Resolve envId first — prefer `envQuery` when MCP is available in this session; otherwise use `tcb` CLI and configure MCP for next time (applies to all interactions)
 2. **⚠️ Template Download (MANDATORY for New Projects)**: **MUST call `downloadTemplate` tool FIRST when starting a new project** - Do NOT create files manually. Use `downloadTemplate` with `template="miniprogram"` to get the complete project structure. Only proceed with manual file creation if template download fails or user explicitly requests it.
 3. **⚠️ UI Design (CRITICAL)**: **MUST read `rules/ui-design/rule.md` FIRST before generating any page, interface, component, or style** - This is NOT optional. You MUST explicitly read this file and output the design specification before writing any UI code.
 4. **Core Capabilities**: Read Core Capabilities section below (especially UI Design and Database + Authentication for Mini Program)
@@ -119,7 +119,7 @@ When you see "Read `{auth-web}` rule file" in this document:
    - MySQL: `rules/relational-database-mcp-cloudbase/rule.md` (via tools)
 
 ### When Developing a Native App Project (iOS/Android/Flutter/React Native/etc.):
-1. **Environment Check**: Call `envQuery` tool first (applies to all interactions)
+1. **Environment Check**: Resolve envId first — prefer `envQuery` when MCP is available in this session; otherwise use `tcb` CLI and configure MCP for next time (applies to all interactions)
 2. **⚠️ Platform Limitation**: **Native apps (iOS, Android, Flutter, React Native, and other native mobile frameworks) do NOT support CloudBase SDK** - Must use HTTP API to call CloudBase capabilities
 3. **⚠️ UI Design (CRITICAL)**: **MUST read `rules/ui-design/rule.md` FIRST before generating any page, interface, component, or style** - This is NOT optional. You MUST explicitly read this file and output the design specification before writing any UI code.
 4. **Required Rules**:
@@ -255,7 +255,7 @@ As the most important part of application development, the following four core c
 ### 0. Environment Check (First Step)
 After user inputs any content, first check CloudBase environment status:
 - Ensure current CloudBase environment ID is known
-- If not present in conversation history, must call `envQuery` tool with parameter `action=info` to query current environment information and environment ID
+- If not present in conversation history: when CloudBase MCP tools are available, call `envQuery` with `action=info`; if MCP is missing in this session, configure MCP for the next session and resolve envId via `tcb login` / `tcb env list` / `tcb env use` (see `tooling-fallback.md`)
 - **Important**: When environment ID configuration is involved in code later, automatically use the queried environment ID, no need for manual user input
 
 ### 1. Scenario Identification
@@ -309,7 +309,7 @@ Before starting work, suggest confirming with user:
 3. "Please confirm if my understanding is correct"
 
 ## Core Behavior Rules
-1. **Tool Priority**: For Tencent CloudBase operations, must prioritize using CloudBase tools
+1. **Tool Priority (MCP-first, CLI-fallback)**: For Tencent CloudBase manage/deploy ops, prefer CloudBase MCP tools when they are available in **this** session. If MCP is missing or not yet loaded (first session / post-install before restart), configure MCP for the next session and use `tcb` CLI now (`tcb login`, domain commands — not `tcb deploy`). See `cloudbase` guideline `tooling-fallback.md`. Do not stall waiting for restart.
 2. **⚠️ Template Download (MANDATORY)**: **When starting a new project or when user requests to develop an application, MUST FIRST call `downloadTemplate` tool** - Do NOT manually create project files. Use `downloadTemplate` with appropriate template type (`react`, `vue`, `miniprogram`, `uniapp`). Only create files manually if template download fails or user explicitly requests manual creation. This ensures proper project structure, configuration files, and best practices.
 3. **Project Understanding**: First read current project's README.md, follow project instructions for development
 4. **Directory Standards**: Before outputting project code in current directory, first check current directory files
@@ -445,7 +445,7 @@ For example, many interfaces require a confirm parameter, which is a boolean typ
 To ensure development quality, recommend completing the following checks before starting tasks:
 
 ### Recommended Steps
-0. **[ ] Environment Check**: Call `envQuery` tool to check CloudBase environment status (applies to all interactions)
+0. **[ ] Environment Check**: Resolve CloudBase envId (prefer `envQuery` when MCP is available; otherwise `tcb` CLI + configure MCP for next session)
 1. **[ ] Template Download Check (MANDATORY for New Projects)**: If starting a new project, have you called `downloadTemplate` tool FIRST? Do NOT manually create project files - use templates.
 2. **[ ] Scenario Identification**: Clearly identify what type of project this is (Web/Mini Program/Database/UI/AI)
 3. **[ ] Core Capability Confirmation**: Confirm all four core capabilities have been considered

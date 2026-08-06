@@ -121,7 +121,7 @@ tcb init --envId <env-id> --template <template-name>
 npx @cloudbase/cli init --envId <env-id>
 ```
 
-仅在 MCP 工具明确不可用时使用 CLI fallback，并在 Plan 中说明原因。
+仅在 MCP 工具明确不可用（未配置、本会话未加载、调用失败）时使用 CLI fallback，并在 Plan 中说明原因。若属首会话，同时完成 MCP 配置供下一会话使用（见 `tooling-fallback.md`）。
 
 ## Verification
 

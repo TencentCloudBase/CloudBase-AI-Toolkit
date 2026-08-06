@@ -133,7 +133,7 @@ tcb hosting deploy --envId <env-id> --dir <local-path>
 tcb run deploy --envId <env-id> --name <service-name>
 ```
 
-仅当 MCP 调用明确失败或缺少所需 action 时使用 CLI fallback，并在 Plan 中说明原因。
+仅当 MCP 调用明确失败、缺少所需 action、或本会话尚未加载 MCP 工具时使用 CLI fallback，并在 Plan 中说明原因。首会话应先配 MCP 供下次使用，再用 `tcb` 完成本次部署（见 `tooling-fallback.md`；禁止默认 `tcb deploy`）。
 
 ## Verification
 
