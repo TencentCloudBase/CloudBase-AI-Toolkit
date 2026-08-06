@@ -31,11 +31,13 @@
 ### 路径 A — 推荐产品化：marketplace 插件
 
 > **验证记录（2026-08-05，WorkBuddy + teamai 机）：PASS**  
-> - 早期 Path A（含 catalog 的 checkout）：Demo `~/WorkBuddy/partner-pathA-verify-20260805-161521`；证据 `~/.ato/workspace/fd5bacbf-3ada-4512-8660-9bff8a293004/artifacts/`  
-> - **公开 main 干净机复验（无 rsync）：** Demo `~/WorkBuddy/partner-main-clean-verify-20260805-163341`；证据 `~/.ato/workspace/9d4a2222-8c09-4e22-831b-0075494873ee/artifacts/`（`state=ready`，preview `17179`，SessionStart matched 2）  
+> Demo：`~/WorkBuddy/partner-pathA-verify-20260805-161521`  
+> 证据：`~/.ato/workspace/fd5bacbf-3ada-4512-8660-9bff8a293004/artifacts/`  
+> - `HookManager event=SessionStart matched 2`（teamai settings + plugin `hooks/hooks.json`）  
+> - `state.json` → `ready`（~20s）；`preview.json.port=17177` ∈ 17173..17272  
 > - `sitesBin` = marketplace `vendor/cloudbase-sites`（无 monorepo 绝对路径）  
 > - settings **仅**保留 `[teamai]` SessionStart；`enabledPlugins["workbuddy-template-prewarm@tencent-cloudbase"]=true`  
-> - **公开目录：** PR [#886](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/pull/886) 已合入 `main`；伙伴对 `TencentCloudBase/CloudBase-MCP` 执行 `plugin marketplace update` 后即可看到并安装 `workbuddy-template-prewarm`（安装器读 `.claude-plugin/marketplace.json`）。
+> - **注意：** 公开 GitHub `main` 目录暂未列入本插件（PR [#886](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/pull/886) 合入前），伙伴需用含 catalog 的 ref / 已同步 marketplace  checkout；安装器读 `.claude-plugin/marketplace.json`。
 
 - [x] 添加 marketplace：`TencentCloudBase/CloudBase-MCP`（或伙伴约定源）
 - [x] 安装并启用 `workbuddy-template-prewarm`
@@ -186,18 +188,10 @@ node plugin/workbuddy-template-prewarm/hooks/prewarm.mjs --status --cwd "$DEMO"
 - [ ] CloudBase 连接器已 Trust，MCP 可用
 - [ ] `envQuery(action="info")` 成功并锁定 **一条** DB 平面（NoSQL / PG / MySQL）
 - [ ] MCP 创建业务集合或表 + 最小权限
-- [ ] 浏览器 NoSQL CRUD 前已 `await auth.signInAnonymously()`（或等价登录会话）；js-sdk 3.x + publishable key 下缺会话会 **gateway 401**
 - [ ] 浏览器 CRUD 可交互（列表 + 新增）
 - [ ] 预览 URL 仍来自 `preview.json`（端口池未漂移到 5173）
 
 > 无 Trust 时：§3–4 + 「架构定案云函数=0」仍可判启用面通过；§6 记为阻塞项，不阻塞 SessionStart/preview 验收。
-
-**失败排查：**
-
-| 现象 | 处理 |
-| --- | --- |
-| 浏览器 NoSQL CRUD 返回 gateway **401**（`@cloudbase/js-sdk` 3.x + publishable key） | CRUD 前必须 `await auth.signInAnonymously()`（或等价会话）；仅 `checkLogin()` / `getSession()` 不够。示例：`const { error } = await app.auth.signInAnonymously(); if (error) throw error` |
-| 个人版 `Table overrun` / 集合配额满 | 删空闲测试集合后再 `writeNoSqlDatabaseStructure` 建业务集合（如 `messages`） |
 
 ---
 
