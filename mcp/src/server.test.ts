@@ -64,7 +64,10 @@ vi.mock("./tools/permissions.js", () => ({ registerPermissionTools: mockRegister
 vi.mock("./tools/logs.js", () => ({ registerLogTools: mockRegisterLogTools }));
 vi.mock("./tools/agents.js", () => ({ registerAgentTools: mockRegisterAgentTools }));
 vi.mock("./tools/apps.js", () => ({ registerAppTools: mockRegisterAppTools }));
-vi.mock("./utils/tool-wrapper.js", () => ({ wrapServerWithTelemetry: vi.fn() }));
+vi.mock("./utils/tool-wrapper.js", () => ({
+  wrapServerWithTelemetry: vi.fn(),
+  applyCategoryAnnotationMeta: (config: unknown) => config,
+}));
 vi.mock("./utils/cloud-mode.js", () => ({
   enableCloudMode: vi.fn(),
   isCloudMode: vi.fn(() => false),

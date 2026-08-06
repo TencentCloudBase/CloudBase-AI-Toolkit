@@ -181,9 +181,18 @@ Query available plans, create environments, change plans, and renew:
 
 ---
 
+## No npm / npx
+
+If `npm` / `npx` are missing, do **not** keep retrying `npx plugins` / `npx mcporter`:
+
+1. Ask the user to install **Node.js LTS** (https://nodejs.org, or `brew install node` / `winget install OpenJS.NodeJS.LTS` / nvm / fnm), then re-check `node -v` and `npm -v`.
+2. Meanwhile, prefer **IDE native plugin / marketplace / MCP UI** paths above (no hand-run `npx`), or Approach A hand-written MCP config once Node exists.
+3. For login/deploy in this session without MCP tools, follow `tooling-fallback.md` (CLI via `cloudbase-cli` domain skills). Full decision tree includes the npm-missing branch.
+
 ## Important Rules
 
-- **When managing or deploying CloudBase, you MUST use MCP and MUST understand tool details first.** Before calling any CloudBase tool, run `npx mcporter describe cloudbase --all-parameters` (or `ToolSearch` in IDE) to inspect available tools and their parameters.
-- You **do not need to hard-code Secret ID / Secret Key / Env ID** in the config. CloudBase MCP supports device-code based login via the `auth` tool, so credentials can be obtained interactively instead of being stored in config.
-- When the environment identifier in the conversation is an alias, nickname, or other short form, **do not pass it directly** to `auth.set_env`, SDK init, console URLs, or generated config files. First resolve it to the canonical full `EnvId` with `envQuery(action=list, alias=..., aliasExact=true)`. If multiple environments match or no exact alias exists, stop and clarify with the user.
-- Verify MCP availability first with `npx mcporter list | grep cloudbase` or the IDE's MCP panel before calling any CloudBase tool.
+- **When MCP tools are available in this session**, prefer them for manage/deploy, and understand tool details first. Before calling any CloudBase MCP tool, run `npx mcporter describe cloudbase --all-parameters` (or `ToolSearch` in IDE) to inspect available tools and their parameters.
+- **When MCP is not configured or tools are not yet loaded** (common on first session, or right after install before restart): complete the MCP setup steps above for the **next** session, then use `tcb` CLI for login/manage now. Follow `tooling-fallback.md` and the `cloudbase-cli` skill (domain references — **not** `tcb deploy`). Do not block the user waiting for a restart.
+- You **do not need to hard-code Secret ID / Secret Key / Env ID** in the config. Prefer device-code login via MCP `auth` or `tcb login` instead of storing long-lived secrets in MCP JSON.
+- When the environment identifier in the conversation is an alias, nickname, or other short form, **do not pass it directly** to `auth.set_env`, SDK init, console URLs, or generated config files. First resolve it to the canonical full `EnvId` with `envQuery(action=list, alias=..., aliasExact=true)` when MCP is available; with CLI, confirm the full envId with the user (or `tcb env list` as a fallback) before `tcb env use`. If multiple environments match or no exact alias exists, stop and clarify with the user.
+- Verify MCP availability with `npx mcporter list | grep cloudbase` or the IDE's MCP panel (skip the `npx` check when npm/npx is absent — use the IDE panel / native plugin instead). Missing MCP is a signal to **set up MCP + fall back to CLI**, not to stop the task.

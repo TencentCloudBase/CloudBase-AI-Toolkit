@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { registerEnvTools } from "./env.js";
+import { isUsableNoSqlDatabaseEntry, registerEnvTools } from "./env.js";
 import type { ExtendedMcpServer } from "../server.js";
 
 const {
@@ -1115,12 +1115,168 @@ describe("env tools - envQuery", () => {
       },
     });
     expect(payload.EnvInfo.Storages).toEqual([{ Bucket: "bucket-1" }]);
+    // Storages alone must NOT imply NoSQL (flexdb); CreateEnv treats them separately.
+    expect(payload.EnvInfo.RuntimeBackends).toEqual({
+      postgresql: false,
+      nosql: false,
+      mysql: false,
+    });
     expect(commonServiceCall).toHaveBeenCalledWith({
       Action: "DescribeBillingInfo",
       Param: {
         EnvId: "env-test",
       },
     });
+  });
+
+  it("envQuery(info) RuntimeBackends.nosql should require usable Databases InstanceId", async () => {
+    const cases: Array<{
+      name: string;
+      envInfo: Record<string, unknown>;
+      expected: { postgresql: boolean; nosql: boolean; mysql: boolean };
+      runtimeMode: "postgresql" | "nosql";
+    }> = [
+      {
+        name: "running flexdb",
+        envInfo: {
+          EnvId: "env-test",
+          Databases: [{ InstanceId: "tnt-1", Status: "RUNNING" }],
+        },
+        expected: { postgresql: false, nosql: true, mysql: false },
+        runtimeMode: "nosql",
+      },
+      {
+        name: "storages-only must not set nosql",
+        envInfo: {
+          EnvId: "env-test",
+          Storages: [{ Bucket: "bucket-only" }],
+        },
+        expected: { postgresql: false, nosql: false, mysql: false },
+        runtimeMode: "nosql",
+      },
+      {
+        name: "empty InstanceId ignored",
+        envInfo: {
+          EnvId: "env-test",
+          Databases: [{ InstanceId: "", Status: "RUNNING" }],
+          Storages: [{ Bucket: "bucket-1" }],
+        },
+        expected: { postgresql: false, nosql: false, mysql: false },
+        runtimeMode: "nosql",
+      },
+      {
+        name: "non-RUNNING Databases ignored",
+        envInfo: {
+          EnvId: "env-test",
+          Databases: [{ InstanceId: "tnt-pending", Status: "CREATING" }],
+        },
+        expected: { postgresql: false, nosql: false, mysql: false },
+        runtimeMode: "nosql",
+      },
+      {
+        name: "PG + flexdb coexist",
+        envInfo: {
+          EnvId: "env-test",
+          PostgreSQL: [{ InstanceId: "pg-1" }],
+          Databases: [{ InstanceId: "tnt-1", Status: "RUNNING" }],
+          Storages: [{ Bucket: "legacy-bucket" }],
+        },
+        expected: { postgresql: true, nosql: true, mysql: false },
+        runtimeMode: "postgresql",
+      },
+      {
+        name: "PG + storage without flexdb",
+        envInfo: {
+          EnvId: "env-test",
+          PostgreSQL: [{ InstanceId: "pg-1" }],
+          Storages: [{ Bucket: "legacy-bucket" }],
+        },
+        expected: { postgresql: true, nosql: false, mysql: false },
+        runtimeMode: "postgresql",
+      },
+      {
+        name: "empty Databases array is nosql=false",
+        envInfo: {
+          EnvId: "env-test",
+          Databases: [],
+        },
+        expected: { postgresql: false, nosql: false, mysql: false },
+        runtimeMode: "nosql",
+      },
+    ];
+
+    for (const testCase of cases) {
+      mockGetCloudBaseManager.mockResolvedValue({
+        env: {
+          getEnvInfo: vi.fn().mockResolvedValue({ EnvInfo: testCase.envInfo }),
+        },
+        commonService: vi.fn(() => ({
+          call: vi.fn().mockResolvedValue({}),
+        })),
+      });
+
+      const { tools } = createMockServer();
+      const payload = JSON.parse(
+        (await tools.queryEnv.handler({ action: "info" })).content[0].text,
+      );
+
+      expect(payload.EnvInfo.RuntimeBackends, testCase.name).toEqual(
+        testCase.expected,
+      );
+      expect(payload.EnvInfo.RuntimeMode, testCase.name).toBe(
+        testCase.runtimeMode,
+      );
+    }
+  });
+
+  it("isUsableNoSqlDatabaseEntry accepts live DescribeEnvs flexdb tnt InstanceIds", () => {
+    // Captured 2026-08-05 via tcb DescribeEnvs for this account.
+    // ListTables(Tag=<InstanceId>) succeeded for each of these tnt values.
+    const liveDatabases = [
+      {
+        envId: "ai-9gra12b5b6a3c966",
+        entry: {
+          InstanceId: "tnt-88yexwqcw",
+          Status: "RUNNING",
+          Region: "ap-shanghai",
+        },
+      },
+      {
+        envId: "ai-native-d1ggefhgb8c27e3e8",
+        entry: {
+          InstanceId: "tnt-n8pjn7tiu",
+          Status: "RUNNING",
+          Region: "ap-shanghai",
+        },
+      },
+      {
+        envId: "ai-share-d2guukyxybb63b206",
+        entry: {
+          InstanceId: "tnt-0svnxv8c6",
+          Status: "RUNNING",
+          Region: "ap-shanghai",
+        },
+      },
+    ];
+
+    for (const { envId, entry } of liveDatabases) {
+      expect(isUsableNoSqlDatabaseEntry(entry), envId).toBe(true);
+    }
+
+    // Negative: stripping Databases (CreateEnv without flexdb) must not count
+    // as NoSQL even when Storages remains — storage is unrelated to flexdb.
+    expect(isUsableNoSqlDatabaseEntry(undefined)).toBe(false);
+    expect(isUsableNoSqlDatabaseEntry({ InstanceId: "", Status: "RUNNING" })).toBe(
+      false,
+    );
+    expect(
+      [{}, { Bucket: "6169-ai-native-d1ggefhgb8c27e3e8-1251119057" }].some(
+        isUsableNoSqlDatabaseEntry,
+      ),
+    ).toBe(false);
+    expect(
+      ([] as unknown[]).some(isUsableNoSqlDatabaseEntry),
+    ).toBe(false);
   });
 
   it("envQuery(info) should prefer explicit envId over cached binding", async () => {

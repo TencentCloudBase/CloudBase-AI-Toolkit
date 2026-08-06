@@ -26,6 +26,7 @@
 
 **v2.25.x**（2026-08）
 
+- Skills / RAG：`searchKnowledgeBase` 技能指引补充 `minimal-web-baas-demo`，用于无云函数 CRUD 的最小 Web+数据库 Demo（#886）
 - CLI：修复 `cloudbase-mcp --cloud-mode` 因 cloud-mode↔logger 循环依赖导致的启动崩溃（#879）
 - 权限：PostgreSQL 环境可通过 managePermissions 配置云函数访问权限——平台 ModifyResourcePermission 不支持时自动回退到 OPA / `tcb policy`（`modifyEnvAuthzConfig`）（#865）
 - 云托管 / 网关：接 TCP 数据库时的 VPC 指导；Domain/Route，统一 `upstreamResourceType` 与路径透传

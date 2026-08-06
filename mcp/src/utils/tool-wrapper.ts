@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ToolAnnotations as SdkToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import os from 'os';
 import { getCachedEnvId, getEnvId } from '../cloudbase-manager.js';
 import { ExtendedMcpServer } from "../server.js";
@@ -14,8 +15,53 @@ import { isToolPayloadError } from "./tool-result.js";
  * 自动记录工具调用的成功/失败状态、执行时长等信息
  */
 
-// 重新导出 MCP SDK 的类型，方便其他模块使用
-export type { Tool, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
+// Re-export MCP SDK Tool type for other modules.
+export type { Tool } from "@modelcontextprotocol/sdk/types.js";
+
+/**
+ * CloudBase extends MCP ToolAnnotations with a stable `category` hint used by
+ * IDE UIs for grouping. SDK >=1.26 types annotations as a closed/strip object,
+ * so we keep category via an intersection while still passing it through at
+ * runtime (listTools returns registered annotations without schema stripping).
+ */
+export type ToolAnnotations = SdkToolAnnotations & {
+  category?: string;
+};
+
+type ToolConfigWithCategory = {
+  annotations?: ToolAnnotations;
+  _meta?: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
+/**
+ * Mirror annotations.category into _meta.category.
+ *
+ * MCP SDK Client >=1.26 parses tools/list with a stripping ToolAnnotationsSchema,
+ * which drops unknown annotation keys. `_meta` remains available to clients, while
+ * the server wire payload still includes annotations.category for non-SDK hosts.
+ */
+export function applyCategoryAnnotationMeta<T extends ToolConfigWithCategory>(config: T): T {
+  const category = config?.annotations?.category;
+  if (typeof category !== "string" || category.length === 0) {
+    return config;
+  }
+
+  const existingMeta =
+    config._meta && typeof config._meta === "object" ? config._meta : undefined;
+
+  if (existingMeta && existingMeta.category === category) {
+    return config;
+  }
+
+  return {
+    ...config,
+    _meta: {
+      ...existingMeta,
+      category,
+    },
+  };
+}
 
 // 构建时注入的版本号
 declare const __MCP_VERSION__: string;
@@ -74,7 +120,7 @@ ${envIdSection}
 ## 环境信息
 - 操作系统: ${os.type()} ${os.release()}
 - Node.js版本: ${process.version}
-- MCP 版本：${process.env.npm_package_version || __MCP_VERSION__ || 'unknown'}
+- MCP 版本：${process.env.npm_package_version || (typeof __MCP_VERSION__ !== 'undefined' ? __MCP_VERSION__ : 'unknown')}
 - 系统架构: ${os.arch()}
 - 时间: ${new Date().toISOString()}
 - 请求ID: ${requestId}
@@ -274,10 +320,10 @@ export function wrapServerWithTelemetry(server: McpServer): void {
         }
 
         // Use the wrapped handler, passing the server instance
-        const wrappedHandler = createWrappedHandler(toolName, handler, server as ExtendedMcpServer);
+        const wrappedHandler = createWrappedHandler(toolName, handler, server as unknown as ExtendedMcpServer);
 
         // Call the original registerTool method
-        return originalRegisterTool(toolName, toolConfig, wrappedHandler);
+        return originalRegisterTool(toolName, applyCategoryAnnotationMeta(toolConfig ?? {}), wrappedHandler);
     };
 }
 

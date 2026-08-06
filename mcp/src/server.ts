@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, type RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerDatabaseTools } from "./tools/databaseNoSQL.js";
 import { registerPGDatabaseTools } from "./tools/databasePG.js";
 import { registerSQLDatabaseTools } from "./tools/databaseSQL.js";
@@ -27,7 +27,7 @@ import { enableCloudMode } from "./utils/cloud-mode.js";
 import { info } from './utils/logger.js';
 import { isInternationalRegion } from "./utils/tencent-cloud.js";
 import { buildJsonToolResult, isToolPayloadError } from "./utils/tool-result.js";
-import { wrapServerWithTelemetry } from "./utils/tool-wrapper.js";
+import { wrapServerWithTelemetry, applyCategoryAnnotationMeta, type ToolAnnotations } from "./utils/tool-wrapper.js";
 
 // 插件定义
 interface PluginDefinition {
@@ -172,7 +172,20 @@ function parseEnabledPlugins(
   return enabledPlugins;
 }
 
-// 扩展 McpServer 类型以包含 cloudBaseOptions 和新的registerTool方法
+/**
+ * registerTool config with CloudBase `annotations.category` retained after
+ * MCP SDK >=1.26 closed ToolAnnotations to strip unknown keys at the type level.
+ */
+export type CloudBaseRegisterToolConfig = {
+  title?: string;
+  description?: string;
+  inputSchema?: any;
+  outputSchema?: any;
+  annotations?: ToolAnnotations;
+  _meta?: Record<string, unknown>;
+};
+
+// Extend McpServer with CloudBase options and category-aware registerTool.
 export interface ExtendedMcpServer extends McpServer {
   cloudBaseOptions?: CloudBaseOptions;
   authOptions?: AuthOptions;
@@ -180,10 +193,20 @@ export interface ExtendedMcpServer extends McpServer {
   logger?: Logger;
   enabledPlugins?: string[];
   pluginOptions?: PluginOptions;
-  /** 已注册工具的列表，供外部（如微信 IDE）提取并注册到自己的 MCP server */
+  /** Registered tools for external hosts (e.g. WeChat IDE) to re-register. */
   toolDefs: Array<{ name: string; description: string; inputSchema: any; handler: (input: any) => Promise<any> }>;
 
   setLogger(logger: Logger): void;
+
+  /**
+   * Same as MCP SDK registerTool, but annotations may include CloudBase `category`.
+   * Handler typing stays intentionally loose to match existing tool call sites.
+   */
+  registerTool(
+    name: string,
+    config: CloudBaseRegisterToolConfig,
+    cb: (...args: any[]) => any,
+  ): RegisteredTool;
 }
 
 /**
@@ -257,14 +280,15 @@ export async function createCloudBaseMcpServer(options?: {
 
   const originalRegisterTool = server.registerTool.bind(server);
   server.registerTool = ((name: string, meta: any, handler: (args: any) => Promise<any>) => {
+    const toolMeta = applyCategoryAnnotationMeta(meta ?? {});
     // 同步记录到 toolDefs
     server.toolDefs.push({
       name,
-      description: meta?.description ?? meta?.title ?? '',
-      inputSchema: meta?.inputSchema ?? {},
+      description: toolMeta?.description ?? toolMeta?.title ?? '',
+      inputSchema: toolMeta?.inputSchema ?? {},
       handler,
     });
-    return originalRegisterTool(name, meta, async (args: any) => {
+    return originalRegisterTool(name, toolMeta, async (args: any) => {
       try {
         return await handler(args);
       } catch (error) {

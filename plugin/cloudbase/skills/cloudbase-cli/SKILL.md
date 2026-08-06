@@ -1,14 +1,14 @@
 ---
 name: cloudbase-cli
-description: CloudBase CLI (tcb, 云开发CLI, Tencent CloudBase命令行) resource management skill. This skill should be used when users need to deploy cloud functions, manage CloudRun apps, upload files to storage, query NoSQL/MySQL databases, deploy static hosting, set access permissions, or configure CORS/domains/routing via tcb commands. Also use for CI/CD pipeline scripting, batch operations, terminal-based CloudBase management, or when the user prefers CLI over SDK/MCP.
-version: 2.25.9
+description: CloudBase CLI (tcb, 云开发CLI, Tencent CloudBase命令行) resource management skill. Use when deploying cloud functions, CloudRun, storage, NoSQL/MySQL, static hosting, permissions, CORS/domains via tcb; for CI/CD and batch ops; when the user prefers CLI; or as the first-session fallback when CloudBase MCP tools are not loaded yet (after install/config, before IDE restart). Covers tcb login (device code) and domain commands (fn/hosting/cloudrun/…) as MCP auth/manage parity — do not default to tcb deploy.
+version: 2.25.10
 alwaysApply: false
 ---
 
 # CloudBase CLI
 
 Manage CloudBase resources via `tcb` CLI — deterministic, scriptable, auditable.
-The preferred interface for AI agents in CI/CD, batch operations, and resource management.
+Primary interface for CI/CD and batch ops; **also the first-session fallback** when MCP tools are not yet available in the conversation.
 
 ## Sibling skills (local only)
 
@@ -19,6 +19,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 **Cross-cutting protocols** (required before code changes or deployments):
 - Change Safety Protocol: `../cloudbase-platform/references/protocols/change-safety-protocol.md`
 - Deployment Gate: `../cloudbase-platform/references/protocols/deployment-gate.md`
+- MCP vs CLI fallback: `../cloudbase/references/tooling-fallback.md` (packaged beside this skill as the `cloudbase` entry guideline)
 
 ## Core Principles
 
@@ -45,19 +46,33 @@ If a referenced sibling skill file is missing from this environment, ask the use
    If a command fails after 2-3 attempts, check the exit code (`$?`), read the
    error message, consult `tcb docs search`, and try a different approach.
 
+6. **First-session fallback, not MCP replacement.**
+   If CloudBase MCP tools are missing in this session, use this skill to unblock
+   login/manage. Still configure MCP (plugin / mcp.json) so the **next** session
+   can prefer MCP. When MCP tools are already available, prefer MCP unless the
+   user asked for CLI/CI. Route deploy work through the domain reference table
+   below — **do not** recommend `tcb deploy`.
+
+7. **No npm/npx.**
+   If Node/npm/npx are missing, tell the user to install Node.js LTS (or use the
+   IDE marketplace MCP path) before retrying CLI/plugin install. See guideline
+   `tooling-fallback.md`.
+
 ## When to use this skill
 
-Use when the user wants to manage CloudBase resources via command line:
-- Deploy/debug cloud functions, web apps, CloudRun services
+Use when the user wants to manage CloudBase resources via command line, **or** when MCP is not usable yet:
+- **First session / post-install:** MCP not in the tool list, or just configured and needs restart → `tcb login` + the matching domain command now; leave MCP ready for next session
+- Deploy/debug cloud functions, static hosting, CloudRun services (via domain refs — not `tcb deploy`)
 - Manage storage, hosting, databases (NoSQL/MySQL)
 - Configure permissions, CORS, domains, routing
 - CI/CD scripting, batch operations, terminal-based resource management
+- User explicitly prefers CLI over MCP
 
 ## Do NOT use for
 
 - SDK-based in-app integration (web/miniprogram/node) → use `cloud-functions`,
   `cloudbase-document-database-web-sdk`, `auth-web-cloudbase`, etc.
-- MCP tool calls for IDE-integrated workflows → use CloudBase MCP directly
+- When CloudBase MCP tools are already available in this session and the user did not ask for CLI → prefer MCP
 - Console UI operations
 - CloudBase Agent SDK development → use `cloudbase-agent-ts`
 
@@ -79,9 +94,9 @@ Use when the user wants to manage CloudBase resources via command line:
 |-----------|------|
 | Login, env switching, tcb docs, error diagnosis | `references/core.md` |
 | Deploy/debug cloud functions | `references/functions.md` |
-| Deploy web app (React/Vue/Next.js) | `references/app.md` |
+| Deploy static site / SPA (preferred CLI web path) | `references/hosting.md` |
 | Deploy CloudRun service | `references/cloudrun.md` |
-| Deploy static site | `references/hosting.md` |
+| Experimental all-in-one web shorthand (`tcb deploy`) — avoid unless user explicitly asks | `references/app.md` |
 | Upload/download files, ACL rules | `references/storage.md` |
 | NoSQL (MongoDB) database operations | `references/nosql.md` |
 | MySQL database operations | `references/mysql.md` |

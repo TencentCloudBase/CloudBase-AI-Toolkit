@@ -152,7 +152,9 @@ Prefer the converged entrances below, but translate historical names when they a
 
 ## CLI fallback
 
-Use CLI **only** when MCP tools are unavailable AND CLI is explicitly enabled in the runtime environment.
+Use CLI when MCP function tools are **not available in this session** (first conversation, MCP just installed and needs restart, or mcporter/IDE MCP unreachable), or when the user/CI explicitly asks for CLI.
+
+Before CLI deploy: ensure MCP is configured for the next session when missing (`mcp-setup.md`), then follow `cloudbase-cli` (`core.md` + `functions.md`: `tcb login` → confirm envId → `tcb env use` → `tcb fn deploy`). Do **not** use `tcb deploy`. Decision tree: guideline `tooling-fallback.md` (includes No npm/npx).
 
 - `tcb fn deploy <name>` -> Event Function
 - `tcb fn deploy <name> --httpFn` -> HTTP Function
@@ -160,8 +162,8 @@ Use CLI **only** when MCP tools are unavailable AND CLI is explicitly enabled in
 - `tcb fn deploy --all` -> Deploy all functions
 - `tcb fn config update <name>` -> Update function config (timeout, memorySize, envVariables)
 
-**Important:** When the available capabilities include MCP tools but not CLI access, use MCP tools exclusively. Do not attempt CLI commands in such environments.
+**Important:** When MCP tools are available in this session, prefer them over CLI unless the user asked for CLI. When MCP is missing but a shell can run `tcb`, use CLI — do not block on restart.
 
-**Batch updates via MCP:** MCP does not have a `--all` batch parameter. To update multiple functions, call `manageFunctions(action="updateFunctionConfig")` individually for each function.
+**Batch updates via MCP:** MCP does not have a `--all` batch parameter. To update multiple functions, call `manageFunctions(action="updateFunctionConfig")` individually for each function. CLI may use `--all` when on the CLI path.
 
-In non-interactive agent runs, do not default to CLI login or interactive setup flows.
+In non-interactive CI, prefer `tcb login --apiKeyId / --apiKey` (env-injected) over interactive device-code flows.

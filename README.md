@@ -26,6 +26,7 @@ The CloudBase integration layer for AI coding tools: Plugin installs the stack, 
 
 **v2.25.x** (2026-08)
 
+- Skills / RAG: add `minimal-web-baas-demo` to `searchKnowledgeBase` skill guidance for minimal Web+database demos without cloud-function CRUD (#886)
 - CLI: fix `cloudbase-mcp --cloud-mode` crash from a cloud-mode↔logger circular dependency (#879)
 - Permissions: PG environments can set cloud function access via managePermissions — falls back to OPA / `tcb policy` (`modifyEnvAuthzConfig`) when ModifyResourcePermission is unsupported (#865)
 - CloudRun / Gateway: VPC guidance when using TCP databases; Domain/Route with `upstreamResourceType` and path transmission

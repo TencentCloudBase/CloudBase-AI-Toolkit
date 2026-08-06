@@ -755,19 +755,21 @@ async function enrichEnvInfoWithBilling(params: {
  * CloudBase environment can have any combination of:
  * - PostgreSQL (CloudBase PG / pgstore): signaled by `EnvInfo.PostgreSQL[]`
  *   non-empty and/or `EnvInfo.Meta` containing `postgresql=enable`.
- * - NoSQL document database + the matching legacy COS-style bucket:
- *   signaled by `EnvInfo.Databases[]` (with InstanceId / RUNNING) and the
- *   bucket exposed in `EnvInfo.Storages[]`.
+ * - NoSQL document database (flexdb): signaled ONLY by a usable entry in
+ *   `EnvInfo.Databases[]`. The usable signal is a non-empty `InstanceId`
+ *   (FlexDB Tag, typically `tnt-...` — same value `getDatabaseInstanceId`
+ *   / ListTables `Tag` consume) with `Status` missing or `RUNNING`.
+ *   Cloud storage (`EnvInfo.Storages[]` / CreateEnv `storage`) is unrelated
+ *   and must never flip `RuntimeBackends.nosql`.
  * - MySQL: signaled by a non-empty `EnvInfo.MysqlInstances[]` (or similar
  *   field, name varies). In a pure PG environment this is absent.
  *
- * In particular: a CloudBase PG environment commonly STILL has the NoSQL
- * Database + Storage running in parallel. NoSQL is therefore "co-present"
- * — its collection APIs, NoSQL `securityRule`s, and the legacy
- * `app.uploadFile()` upload flow remain valid for collections / files
- * that already live there. The thing that is NOT a substitute for the new
- * PG surface is using NoSQL collections to model a brand-new business
- * table that the task explicitly puts in PG.
+ * In particular: a CloudBase PG environment commonly STILL has flexdb
+ * provisioned in parallel (`Databases[].InstanceId = tnt-...`). NoSQL is
+ * therefore "co-present" — its collection APIs and NoSQL `securityRule`s
+ * remain valid for collections that already live there. The thing that is
+ * NOT a substitute for the new PG surface is using NoSQL collections to
+ * model a brand-new business table that the task explicitly puts in PG.
  *
  * What this enrichment does:
  * - Adds `EnvInfo.RuntimeMode = "postgresql" | "nosql"` based on whether
@@ -775,11 +777,31 @@ async function enrichEnvInfoWithBilling(params: {
  *   business data when set to "postgresql".
  * - Adds `EnvInfo.RuntimeBackends`, a structured snapshot of which
  *   backends are actually available (postgresql / nosql / mysql), so the
- *   agent does not have to re-read `Databases`/`Storages`/`PostgreSQL`.
+ *   agent does not have to re-read `Databases`/`PostgreSQL`.
  * - Adds `EnvInfo.RuntimeModeHints` summarizing which API/tool to prefer
  *   for new code, including an explicit `MysqlNotAvailable` line when
  *   MySQL is absent — that one IS a hard "do not use" signal.
  */
+/** Exported for unit tests / live-fixture checks against FlexDB InstanceId. */
+export function isUsableNoSqlDatabaseEntry(db: unknown): boolean {
+  if (!db || typeof db !== "object") {
+    return false;
+  }
+  const entry = db as { InstanceId?: unknown; Status?: unknown };
+  const instanceId =
+    typeof entry.InstanceId === "string" ? entry.InstanceId.trim() : "";
+  // Empty InstanceId means no flexdb tenant — same failure mode as
+  // getDatabaseInstanceId() throwing "无法获取数据库实例ID".
+  if (!instanceId) {
+    return false;
+  }
+  // Some API versions omit Status; when present, only RUNNING counts as usable.
+  if (entry.Status != null && String(entry.Status).toUpperCase() !== "RUNNING") {
+    return false;
+  }
+  return true;
+}
+
 async function enrichEnvInfoWithRuntimeMode(result: any, manager?: any) {
   const envInfo = result?.EnvInfo;
   if (!envInfo || typeof envInfo !== "object") {
@@ -797,14 +819,12 @@ async function enrichEnvInfoWithRuntimeMode(result: any, manager?: any) {
   );
   const hasPostgresql = pgList.length > 0 || metaPostgresEnabled;
 
-  // NoSQL document DB shows up under Databases[]; the matching legacy bucket
-  // shows up under Storages[]. Treat NoSQL as available when either side is
-  // non-empty (an old env may keep one without the other).
+  // NoSQL = flexdb tenant id on Databases[].InstanceId (typically tnt-...).
+  // Aligns with getDatabaseInstanceId() / ListTables Tag. Storage is unrelated.
   const databasesList = Array.isArray(envInfo.Databases)
     ? envInfo.Databases
     : [];
-  const storagesList = Array.isArray(envInfo.Storages) ? envInfo.Storages : [];
-  const hasNoSql = databasesList.length > 0 || storagesList.length > 0;
+  const hasNoSql = databasesList.some(isUsableNoSqlDatabaseEntry);
 
   // MySQL field name has been seen as MysqlInstances / MySQLInstances /
   // MySQL across API versions; check any of them.
@@ -858,8 +878,8 @@ async function enrichEnvInfoWithRuntimeMode(result: any, manager?: any) {
         Storage:
           "PG-mode browser uploads should use `app.storage.from().upload(<bucket>/<key>, file)` against an explicitly-created `pgstore` bucket (same model as Supabase Storage; the v3 SDK does not auto-create one). `EnvInfo.Storages[]` here is the legacy NoSQL bucket — it is still usable for the legacy `app.uploadFile()` flow but is NOT a valid pgstore target.",
         CoexistingNoSQL: hasNoSql
-          ? "This env also has the legacy NoSQL Database + Storage running. Existing collections, existing `app.uploadFile()` calls, existing `managePermissions(resourceType=\"noSqlDatabase\")` rules all remain valid for legacy data."
-          : "No legacy NoSQL Database/Storage observed in this env.",
+          ? "This env also has a usable NoSQL (flexdb) InstanceId in EnvInfo.Databases[] (FlexDB Tag, typically tnt-...). Existing collections and `managePermissions(resourceType=\"noSqlDatabase\")` rules remain valid for that data."
+          : "No usable NoSQL (flexdb) InstanceId in EnvInfo.Databases[] — do not assume app.database() / NoSQL MCP tools work. Cloud storage does not imply flexdb.",
         MysqlNotAvailable: hasMysql
           ? "MySQL instance(s) detected — see EnvInfo.MysqlInstances."
           : "No MySQL instance is provisioned for this env. Do NOT use `manageMysqlDatabase` / `queryMysqlDatabase` (those are MySQL-specific) and do NOT read the `relational-database-mcp-cloudbase` skill — that family targets MySQL, not CloudBase PG.",

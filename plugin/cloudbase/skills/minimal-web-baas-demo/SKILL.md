@@ -1,7 +1,7 @@
 ---
 name: minimal-web-baas-demo
 description: "Fast path for a minimal CloudBase Web + database demo (最小前后端 / 最小可用 fullstack / Lovable-like BaaS). Defaults to @cloudbase/js-sdk client CRUD (NoSQL app.database / PG app.rdb), MCP-only schema, preview-first, and forbids cloud functions unless secrets, cron/background jobs, or logic that security rules/RLS cannot express. Use for 搭一套 demo、留言板、Todo、Notes、Kanban, or when users say 带云函数+云数据库 but only need CRUD. NOT for production multi-service backends, CloudRun, WeChat Mini Programs, or tasks that truly need server secrets."
-version: 2.25.9
+version: 2.25.10
 alwaysApply: false
 ---
 
@@ -33,9 +33,9 @@ This skill is the product equivalent of CloudBase Sites SessionStart **Rule 5** 
 ## Hard rules (align with Sites SessionStart Rule 5)
 
 1. **BaaS-first data path**
-   - **Schema / admin:** MCP only. Do not ask the user to create collections/tables in the console.
-     - NoSQL: `writeNoSqlDatabaseStructure` (create collection / indexes) + permission tools as needed.
-     - PostgreSQL: follow `../postgresql-development-cloudbase/SKILL.md` (`queryPgDatabase` / `managePgDatabase` / migrations).
+   - **Schema / admin:** Prefer MCP management tools. Do not ask the user to create collections/tables in the console. If MCP tools are missing in this session, configure MCP for next time and use `tcb` CLI (`../cloudbase-cli/SKILL.md`) for equivalent schema/admin ops.
+     - NoSQL: `writeNoSqlDatabaseStructure` (create collection / indexes) + permission tools as needed; CLI: NoSQL commands in `cloudbase-cli`.
+     - PostgreSQL: follow `../postgresql-development-cloudbase/SKILL.md` (`queryPgDatabase` / `managePgDatabase` / migrations); CLI parity via `tcb db pg …` when MCP is unavailable.
    - **Reads / writes:** `@cloudbase/js-sdk` in the browser.
      - NoSQL: `app.database()` → `db.collection(...).get()/add()/update()/watch(...)`.
      - PG: `app.rdb().from(...)`.

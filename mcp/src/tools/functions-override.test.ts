@@ -24,9 +24,10 @@ vi.mock("../auth.js", () => ({
   logout: vi.fn(),
 }));
 
-// Mock telemetry
+// Mock telemetry (identity stub keeps registerTool category dual-write working)
 vi.mock("../utils/tool-wrapper.js", () => ({
   wrapServerWithTelemetry: vi.fn(),
+  applyCategoryAnnotationMeta: (config: unknown) => config,
 }));
 
 vi.mock("../utils/cloud-mode.js", () => ({

@@ -157,36 +157,35 @@ test("downloadTemplate tool requires IDE parameter when not detected", async () 
 
     console.log("Calling downloadTemplate (missing ide)...");
 
-    // Call downloadTemplate without ide parameter - should fail at schema validation
-    try {
-      await Promise.race([
-        client.callTool({
-          name: "downloadTemplate",
-          arguments: {
-            template: "rules",
-            overwrite: false,
-          },
-        }),
-        new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error("callTool timeout after 10s")),
-            10000
-          )
-        ),
-      ]);
+    // MCP SDK >=1.30 returns input-schema failures as CallToolResult.isError
+    // instead of throwing from client.callTool.
+    const result = await Promise.race([
+      client.callTool({
+        name: "downloadTemplate",
+        arguments: {
+          template: "rules",
+          overwrite: false,
+        },
+      }),
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("callTool timeout after 10s")),
+          10000
+        )
+      ),
+    ]);
 
-      // Should not reach here
-      throw new Error("Expected schema validation error but call succeeded");
-    } catch (error) {
-      // Verify that we got a schema validation error
-      expect(error).toBeDefined();
-      expect(error.message || error.toString()).toContain("ide");
-      expect(error.message || error.toString()).toContain("Required");
-      console.log(
-        "✅ Schema validation error received as expected:",
-        error.message || error.toString()
-      );
-    }
+    expect(result).toBeDefined();
+    expect(result.isError).toBe(true);
+    const errorText = Array.isArray(result.content)
+      ? result.content.map((c) => c?.text || "").join("\n")
+      : String(result);
+    expect(errorText).toContain("ide");
+    expect(errorText).toMatch(/Required|required/i);
+    console.log(
+      "✅ Schema validation error received as expected:",
+      errorText
+    );
   } catch (error) {
     console.error("Test failed:", error.message);
     throw error;
