@@ -150,12 +150,59 @@ export function buildPublishCommand(target, options) {
  * Concurrent publish jobs may race on the same next patch version.
  * Treat "Version X already exists" as idempotent success so SkillHub and
  * later steps still run when a peer job already published the target.
+ *
+ * ClawHub CLI may also return a non-zero exit with this message after a long
+ * upload (especially all-in-one), while smaller skills often exit 0 with
+ * "OK. slug@version is already published". Both must be treated as success.
+ *
+ * IMPORTANT: callers must capture stderr/stdout into the error (do not use
+ * stdio:"inherit" alone), otherwise error.message is only "Command failed: ..."
+ * and this detector never matches.
  */
 export function isClawhubVersionExistsError(error) {
   const message = String(error?.message || error || "");
   const stderr = String(error?.stderr || "");
-  const combined = `${message}\n${stderr}`;
-  return /Version\s+\S+\s+already exists/i.test(combined);
+  const stdout = String(error?.stdout || "");
+  const combined = `${message}\n${stderr}\n${stdout}`;
+  return (
+    /Version\s+\S+\s+already exists/i.test(combined) ||
+    /is already published/i.test(combined)
+  );
+}
+
+/**
+ * Run clawhub with captured stdout/stderr so idempotent-error detection works,
+ * while still streaming output to the console for CI visibility.
+ */
+export function runClawhubPublish(command, args, env = process.env) {
+  try {
+    const output = execFileSync(command, args, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      env,
+    });
+    if (output) {
+      process.stdout.write(output);
+    }
+    return { status: "ok", output: String(output || "") };
+  } catch (error) {
+    const stdout = String(error?.stdout || "");
+    const stderr = String(error?.stderr || "");
+    if (stdout) {
+      process.stdout.write(stdout);
+    }
+    if (stderr) {
+      process.stderr.write(stderr);
+    }
+
+    const enriched = new Error(
+      [error?.message, stderr.trim(), stdout.trim()].filter(Boolean).join("\n"),
+    );
+    enriched.stdout = stdout;
+    enriched.stderr = stderr;
+    enriched.status = error?.status;
+    throw enriched;
+  }
 }
 
 export function publishToClawhub({
@@ -201,10 +248,7 @@ export function publishToClawhub({
     }
 
     try {
-      execFileSync(publishCommand.command, publishCommand.args, {
-        stdio: "inherit",
-        env: process.env,
-      });
+      runClawhubPublish(publishCommand.command, publishCommand.args, process.env);
 
       results.push({
         targetKey: target.targetKey,

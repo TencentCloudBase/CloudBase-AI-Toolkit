@@ -59,4 +59,21 @@ describe('publish-to-clawhub command construction', () => {
       false,
     );
   });
+
+  test('detects version-already-exists when text is only on stderr (CI regression)', () => {
+    // execFileSync with stdio inherit left error.message as "Command failed: ..."
+    // without stderr; production must capture stderr onto the error object.
+    const error = new Error(
+      'Command failed: clawhub skill publish /tmp/artifact/skills/cloudbase --slug cloudbase',
+    );
+    error.stderr =
+      'Error: Version 1.92.48 already exists. Increment the version number and try again. (reset in 44s)\n';
+    expect(isClawhubVersionExistsError(error)).toBe(true);
+  });
+
+  test('detects OK already-published messages as idempotent', () => {
+    const error = new Error('Command failed: clawhub skill publish ...');
+    error.stdout = 'OK. cloudbase@1.92.48 is already published\n';
+    expect(isClawhubVersionExistsError(error)).toBe(true);
+  });
 });
