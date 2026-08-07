@@ -34,7 +34,7 @@ CloudBase MCP 支持两种连接方式：**本地模式**（MCP 服务在本机�
 
 | 环境变量 | 说明 | 默认 / 说明 |
 |----------|------|-------------|
-| `CLOUDBASE_API_KEY` | CloudBase 环境级 API Key（推荐用于 CI/CD、MCP Server） | 与 `CLOUDBASE_ENV_ID` 配合使用，优先级高于 `TENCENTCLOUD_*` 密钥；[在控制台创建](https://tcb.cloud.tencent.com/dev) |
+| `CLOUDBASE_API_KEY` | CloudBase 环境级 API Key（推荐用于 CI/CD、MCP Server） | 与 `CLOUDBASE_ENV_ID` 配合使用，优先级高于 `TENCENTCLOUD_*` 密钥；兼容读取 `CLOUDBASE_APIKEY`（与 `@cloudbase/js-sdk` / `@cloudbase/node-sdk` 对齐，优先使用带下划线的 `CLOUDBASE_API_KEY`）；[在控制台创建](https://tcb.cloud.tencent.com/dev) |
 | `CLOUDBASE_ENV_ID` | 云开发环境 ID（可选） | 未设置时首次调用会引导登录并选择环境 |
 | `CLOUDBASE_API_ENDPOINT` | 自定义 API Key 换取凭证的 Endpoint（高级可选） | 不设则使用默认 `https://<envId>.<region>.tcb-api.tencentcloudapi.com` |
 | `TENCENTCLOUD_SECRETID` | 腾讯云 SecretId（可选） | 不设则通过登录引导获取；[获取腾讯云 API 密钥](https://console.cloud.tencent.com/cam/capi) |
@@ -66,7 +66,7 @@ CloudBase MCP 支持两种连接方式：**本地模式**（MCP 服务在本机�
 
 当多种凭证同时存在时，MCP 按以下优先级选择：
 
-1. `CLOUDBASE_API_KEY` + `CLOUDBASE_ENV_ID` — CloudBase 环境级 API Key
+1. `CLOUDBASE_API_KEY` + `CLOUDBASE_ENV_ID` — CloudBase 环境级 API Key（若未设置 `CLOUDBASE_API_KEY`，兼容读取 `CLOUDBASE_APIKEY`）
 2. `TENCENTCLOUD_SECRETID` + `TENCENTCLOUD_SECRETKEY` — 腾讯云永久/临时密钥
 3. 本地存储的 Device Flow 登录凭证（`~/.config/.cloudbase/auth.json`）
 

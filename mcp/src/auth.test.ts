@@ -3,10 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const {
   mockAuthGetLoginState,
   mockAuthLoginByWebAuth,
+  mockAuthLoginByApiKey,
   mockAuthLogout,
 } = vi.hoisted(() => ({
   mockAuthGetLoginState: vi.fn(),
   mockAuthLoginByWebAuth: vi.fn(),
+  mockAuthLoginByApiKey: vi.fn(),
   mockAuthLogout: vi.fn(),
 }));
 
@@ -15,6 +17,7 @@ vi.mock("@cloudbase/toolbox", () => ({
     getInstance: vi.fn(() => ({
       getLoginState: mockAuthGetLoginState,
       loginByWebAuth: mockAuthLoginByWebAuth,
+      loginByApiKey: mockAuthLoginByApiKey,
       logout: mockAuthLogout,
     })),
   },
@@ -40,10 +43,17 @@ describe("auth config resolution", () => {
     delete process.env.TENCENTCLOUD_SECRETKEY;
     delete process.env.TENCENTCLOUD_SESSIONTOKEN;
     delete process.env.CLOUDBASE_ENV_ID;
+    delete process.env.CLOUDBASE_API_KEY;
+    delete process.env.CLOUDBASE_APIKEY;
     mockAuthGetLoginState.mockResolvedValue(null);
     mockAuthLoginByWebAuth.mockResolvedValue({
       secretId: "sid",
       secretKey: "skey",
+    });
+    mockAuthLoginByApiKey.mockResolvedValue({
+      secretId: "api-sid",
+      secretKey: "api-skey",
+      envId: "env-from-api-key",
     });
     mockAuthLogout.mockResolvedValue(undefined);
   });
@@ -53,6 +63,9 @@ describe("auth config resolution", () => {
     delete process.env.TCB_AUTH_CLIENT_ID;
     delete process.env.TCB_AUTH_OAUTH_ENDPOINT;
     delete process.env.TCB_AUTH_OAUTH_CUSTOM;
+    delete process.env.CLOUDBASE_API_KEY;
+    delete process.env.CLOUDBASE_APIKEY;
+    delete process.env.CLOUDBASE_ENV_ID;
   });
 
   it("should use toolbox defaults when no auth overrides are configured", async () => {
@@ -169,6 +182,80 @@ describe("auth config resolution", () => {
     const loginOptions = mockAuthLoginByWebAuth.mock.calls[0][0];
     expect(loginOptions.getOAuthEndpoint("ignored")).toBe(
       "https://custom.example.com/oauth",
+    );
+  });
+});
+
+describe("CloudBase API Key env resolution", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    delete process.env.CLOUDBASE_API_KEY;
+    delete process.env.CLOUDBASE_APIKEY;
+    delete process.env.CLOUDBASE_ENV_ID;
+    delete process.env.TENCENTCLOUD_SECRETID;
+    delete process.env.TENCENTCLOUD_SECRETKEY;
+    mockAuthGetLoginState.mockResolvedValue(null);
+    mockAuthLoginByApiKey.mockResolvedValue({
+      secretId: "api-sid",
+      secretKey: "api-skey",
+      envId: "env-test",
+    });
+  });
+
+  afterEach(() => {
+    delete process.env.CLOUDBASE_API_KEY;
+    delete process.env.CLOUDBASE_APIKEY;
+    delete process.env.CLOUDBASE_ENV_ID;
+  });
+
+  it("should prefer CLOUDBASE_API_KEY over CLOUDBASE_APIKEY", async () => {
+    process.env.CLOUDBASE_API_KEY = "primary-key";
+    process.env.CLOUDBASE_APIKEY = "fallback-key";
+
+    const { getCloudBaseApiKeyFromEnv } = await import("./auth.js");
+
+    expect(getCloudBaseApiKeyFromEnv()).toBe("primary-key");
+  });
+
+  it("should fall back to CLOUDBASE_APIKEY when CLOUDBASE_API_KEY is unset", async () => {
+    process.env.CLOUDBASE_APIKEY = "fallback-key";
+
+    const { getCloudBaseApiKeyFromEnv } = await import("./auth.js");
+
+    expect(getCloudBaseApiKeyFromEnv()).toBe("fallback-key");
+  });
+
+  it("peekLoginState should use CLOUDBASE_APIKEY fallback for API Key mode", async () => {
+    process.env.CLOUDBASE_APIKEY = "compat-api-key";
+    process.env.CLOUDBASE_ENV_ID = "env-test";
+
+    const { peekLoginState } = await import("./auth.js");
+    const loginState = await peekLoginState();
+
+    expect(mockAuthLoginByApiKey).toHaveBeenCalledWith(
+      "compat-api-key",
+      "env-test",
+      expect.objectContaining({ cwd: expect.any(String) }),
+    );
+    expect(loginState).toMatchObject({
+      secretId: "api-sid",
+      secretKey: "api-skey",
+      envId: "env-test",
+    });
+  });
+
+  it("peekLoginState should prefer CLOUDBASE_API_KEY when both are set", async () => {
+    process.env.CLOUDBASE_API_KEY = "primary-key";
+    process.env.CLOUDBASE_APIKEY = "fallback-key";
+    process.env.CLOUDBASE_ENV_ID = "env-test";
+
+    const { peekLoginState } = await import("./auth.js");
+    await peekLoginState();
+
+    expect(mockAuthLoginByApiKey).toHaveBeenCalledWith(
+      "primary-key",
+      "env-test",
+      expect.objectContaining({ cwd: expect.any(String) }),
     );
   });
 });

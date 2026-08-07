@@ -115,6 +115,8 @@ vi.mock("../auth.js", () => ({
   buildVerificationUriComplete: mockBuildVerificationUriComplete,
   ensureLogin: mockEnsureLogin,
   getAuthConfigValidationError: mockGetAuthConfigValidationError,
+  getCloudBaseApiKeyFromEnv: () =>
+    process.env.CLOUDBASE_API_KEY || process.env.CLOUDBASE_APIKEY || undefined,
   peekLoginState: mockPeekLoginState,
   getAuthProgressState: mockGetAuthProgressState,
   logout: mockLogout,
@@ -858,6 +860,49 @@ describe("env tools - auth", () => {
     // env vars should be cleaned up on exception
     expect(process.env.CLOUDBASE_API_KEY).toBeUndefined();
     expect(process.env.CLOUDBASE_ENV_ID).toBeUndefined();
+  });
+
+  it("auth(action=status) should detect api_key mode from CLOUDBASE_APIKEY fallback", async () => {
+    process.env.CLOUDBASE_APIKEY = "compat-api-key";
+    process.env.CLOUDBASE_ENV_ID = "env-test";
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      envId: "env-test",
+    });
+    mockGetCachedEnvId.mockReturnValue("env-test");
+
+    try {
+      const result = await tools.auth.handler({ action: "status" });
+      const payload = JSON.parse(result.content[0].text);
+
+      expect(payload).toHaveProperty("ok", true);
+      expect(payload).toHaveProperty("auth_mode", "api_key");
+      expect(payload).toHaveProperty("auth_status", "READY");
+    } finally {
+      delete process.env.CLOUDBASE_APIKEY;
+      delete process.env.CLOUDBASE_ENV_ID;
+    }
+  });
+
+  it("auth(action=logout) should block when only CLOUDBASE_APIKEY is set", async () => {
+    process.env.CLOUDBASE_APIKEY = "compat-api-key";
+    process.env.CLOUDBASE_ENV_ID = "env-test";
+
+    try {
+      const result = await tools.auth.handler({
+        action: "logout",
+        confirm: "yes",
+      });
+      const payload = JSON.parse(result.content[0].text);
+
+      expect(payload).toHaveProperty("ok", false);
+      expect(payload).toHaveProperty("code", "LOGOUT_NOT_ALLOWED");
+      expect(payload).toHaveProperty("auth_mode", "api_key");
+    } finally {
+      delete process.env.CLOUDBASE_APIKEY;
+      delete process.env.CLOUDBASE_ENV_ID;
+    }
   });
 });
 

@@ -161,6 +161,14 @@ function updateAuthProgressState(
   return getAuthProgressStateSync();
 }
 
+/**
+ * Resolve CloudBase API Key from env.
+ * Prefer CLOUDBASE_API_KEY; fall back to CLOUDBASE_APIKEY (js-sdk / node-sdk convention).
+ */
+export function getCloudBaseApiKeyFromEnv(): string | undefined {
+  return process.env.CLOUDBASE_API_KEY || process.env.CLOUDBASE_APIKEY || undefined;
+}
+
 function normalizeLoginStateFromEnvVars(options?: {
   ignoreEnvVars?: boolean;
 }) {
@@ -168,16 +176,14 @@ function normalizeLoginStateFromEnvVars(options?: {
     return null;
   }
 
-  // 优先检查 CloudBase API Key（优先级高于 TENCENTCLOUD_*）
-  const {
-    CLOUDBASE_API_KEY,
-    CLOUDBASE_ENV_ID: CLOUDBASE_ENV,
-  } = process.env;
+  // Prefer CloudBase API Key over TENCENTCLOUD_*
+  const apiKey = getCloudBaseApiKeyFromEnv();
+  const CLOUDBASE_ENV = process.env.CLOUDBASE_ENV_ID;
 
-  if (CLOUDBASE_API_KEY && CLOUDBASE_ENV) {
+  if (apiKey && CLOUDBASE_ENV) {
     return {
       _type: 'api_key' as const,
-      apiKey: CLOUDBASE_API_KEY,
+      apiKey,
       envId: CLOUDBASE_ENV,
     };
   }
@@ -405,7 +411,7 @@ export async function peekLoginState(options?: {
 
 export async function ensureLogin(options?: EnsureLoginOptions) {
   debug("TENCENTCLOUD_SECRETID", { hasSecretId: !!process.env.TENCENTCLOUD_SECRETID });
-  debug("CLOUDBASE_API_KEY", { hasApiKey: !!process.env.CLOUDBASE_API_KEY });
+  debug("CLOUDBASE_API_KEY", { hasApiKey: !!getCloudBaseApiKeyFromEnv() });
 
   const loginState = await peekLoginState({
     ignoreEnvVars: options?.ignoreEnvVars,

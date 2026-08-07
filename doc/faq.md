@@ -253,7 +253,7 @@ API Key 是环境级长期凭证，MCP 会自动换取临时密钥，过期后�
 }
 ```
 
-> 💡 API Key 可在 [云开发控制台](https://tcb.cloud.tencent.com/dev) 的环境设置中创建和管理。
+> 💡 API Key 可在 [云开发控制台](https://tcb.cloud.tencent.com/dev) 的环境设置中创建和管理。也兼容 SDK 常用的 `CLOUDBASE_APIKEY`（无下划线）；两者同时存在时优先使用 `CLOUDBASE_API_KEY`。
 
 **方式二：腾讯云 API 密钥**
 

@@ -7,6 +7,7 @@ import {
   ensureLogin,
   getAuthConfigValidationError,
   getAuthProgressState,
+  getCloudBaseApiKeyFromEnv,
   logout,
   peekLoginState,
   rejectAuthProgressState,
@@ -1589,8 +1590,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           const loginState = await peekLoginState();
           const authFlowState = await getAuthProgressState();
 
-          // 判断是否为 API Key 模式
-          const isApiKeyMode = !!(process.env.CLOUDBASE_API_KEY && process.env.CLOUDBASE_ENV_ID);
+          // Detect API Key mode (CLOUDBASE_API_KEY preferred, CLOUDBASE_APIKEY fallback)
+          const apiKeyFromEnv = getCloudBaseApiKeyFromEnv();
+          const isApiKeyMode = !!(apiKeyFromEnv && process.env.CLOUDBASE_ENV_ID);
 
           const authStatus = loginState
             ? "READY"
@@ -1647,8 +1649,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         }
 
         if (action === "start_auth") {
-          // API Key 模式：尝试换取临时密钥
-          if (process.env.CLOUDBASE_API_KEY && process.env.CLOUDBASE_ENV_ID) {
+          // API Key mode: exchange for temporary credentials
+          const apiKeyFromEnv = getCloudBaseApiKeyFromEnv();
+          if (apiKeyFromEnv && process.env.CLOUDBASE_ENV_ID) {
             try {
               const existingLoginState = await peekLoginState();
               if (existingLoginState) {
@@ -1661,23 +1664,22 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 });
               }
             } catch (e) {
-              // peekLoginState 内部异常，记录后 fall through
+              // peekLoginState threw; log and fall through to diagnostic
               debug("start_auth: peekLoginState threw", { error: e instanceof Error ? e.message : String(e) });
             }
 
-            // API Key 换取失败：返回详细诊断信息
-            // 尝试获取更详细的错误信息
+            // API Key exchange failed: return diagnostic details
             let diagMessage = "当前配置了 API Key 认证模式，但换取临时密钥失败。";
             const endpoint = process.env.CLOUDBASE_API_ENDPOINT || `https://${process.env.CLOUDBASE_ENV_ID}.ap-shanghai.tcb-api.tencentcloudapi.com`;
             diagMessage += `\n\n诊断信息：`;
             diagMessage += `\n- CLOUDBASE_ENV_ID: ${process.env.CLOUDBASE_ENV_ID}`;
-            diagMessage += `\n- CLOUDBASE_API_KEY: ${process.env.CLOUDBASE_API_KEY.slice(0, 20)}...（已截断）`;
+            diagMessage += `\n- CLOUDBASE_API_KEY: ${apiKeyFromEnv.slice(0, 20)}...（已截断）`;
             diagMessage += `\n- Endpoint: ${endpoint}`;
             diagMessage += `\n\n可能原因：`;
             diagMessage += `\n1. API Key 已过期或被删除`;
             diagMessage += `\n2. Endpoint 不可达（网络/DNS 问题）`;
             diagMessage += `\n3. CLOUDBASE_ENV_ID 与 API Key 所属环境不匹配`;
-            diagMessage += `\n\n建议：检查 MCP 配置中的 CLOUDBASE_API_KEY 和 CLOUDBASE_ENV_ID 环境变量是否正确。`;
+            diagMessage += `\n\n建议：检查 MCP 配置中的 CLOUDBASE_API_KEY（或兼容的 CLOUDBASE_APIKEY）和 CLOUDBASE_ENV_ID 环境变量是否正确。`;
 
             return buildJsonToolResult({
               ok: false,
@@ -1991,12 +1993,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         }
 
         if (action === "logout") {
-          // API Key 模式下不允许 logout
-          if (process.env.CLOUDBASE_API_KEY && process.env.CLOUDBASE_ENV_ID) {
+          // Disallow logout in API Key mode
+          if (getCloudBaseApiKeyFromEnv() && process.env.CLOUDBASE_ENV_ID) {
             return buildJsonToolResult({
               ok: false,
               code: "LOGOUT_NOT_ALLOWED",
-              message: "当前使用 API Key 认证模式，不支持退出登录。如需切换认证方式，请移除 CLOUDBASE_API_KEY 环境变量后重启。",
+              message: "当前使用 API Key 认证模式，不支持退出登录。如需切换认证方式，请移除 CLOUDBASE_API_KEY（或兼容的 CLOUDBASE_APIKEY）环境变量后重启。",
               auth_mode: "api_key",
             });
           }
