@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-08-06 02:01:11
+最近更新时间：2026-08-07 01:55:16
 
 -   微信扫一扫 
 -   QQ
@@ -98,6 +98,7 @@ _我的收藏_
 | [ModifyClsTopic](/document/api/876/81547) | 修改日志主题 | 20 |
 | [DescribeCurveData](/document/api/876/129258) | 查询环境监控曲线 | 100 |
 | [DeleteAuthDomain](/document/api/876/128960) | 删除合法域名 | 20 |
+| [DescribeCloudBaseRunBuildLog](/document/api/876/135707) | 查询构建日志 | 20 |
 
 ## 服务操作相关接口
 
