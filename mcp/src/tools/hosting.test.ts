@@ -7,6 +7,7 @@ const {
   mockSendDeployNotification,
   mockDescribeHostingDomainTask,
   mockDescribeStaticStore,
+  mockDescribeHttpServiceRoute,
   mockCreateStaticStore,
   mockGetWebsiteConfig,
   mockFindFiles,
@@ -27,6 +28,7 @@ const {
   mockSendDeployNotification: vi.fn(),
   mockDescribeHostingDomainTask: vi.fn(),
   mockDescribeStaticStore: vi.fn(),
+  mockDescribeHttpServiceRoute: vi.fn(),
   mockCreateStaticStore: vi.fn(),
   mockGetWebsiteConfig: vi.fn(),
   mockFindFiles: vi.fn(),
@@ -146,6 +148,22 @@ beforeEach(() => {
   mockDescribeHostingDomainTask.mockResolvedValue({
     Status: 'processing',
   });
+  mockDescribeHttpServiceRoute.mockResolvedValue({
+    Domains: [
+      {
+        Domain: 'static.example.com',
+        IsDefault: true,
+        Routes: [
+          {
+            Path: '/',
+            Enable: true,
+            UpstreamResourceType: 'STATIC_STORE',
+            UpstreamResourceName: 'staticstore',
+          },
+        ],
+      },
+    ],
+  });
 
   mockGetCloudBaseManager.mockResolvedValue({
     hosting: {
@@ -164,6 +182,7 @@ beforeEach(() => {
     },
     env: {
       getEnvInfo: mockGetEnvInfo,
+      describeHttpServiceRoute: mockDescribeHttpServiceRoute,
     },
     commonService: vi.fn(() => ({
       call: vi.fn(({ Action }: { Action: string }) => {
@@ -302,11 +321,96 @@ describe('hosting tools', () => {
       ignore: undefined,
     });
     expect(payload.data.accessUrl).toBe('https://static.example.com/site/');
+    expect(payload.data.accessUrlReachable).toBe(true);
+    expect(payload.data.staticDomainRouteEnabled).toBe(true);
     expect(payload.data.nextActions[0]).toMatchObject({
       tool: 'queryHosting',
       action: 'findFiles',
     });
     expect(mockSendDeployNotification).toHaveBeenCalled();
+  });
+
+  it('manageHosting(action=upload) should omit disabled default-domain accessUrl and prefer enabled Sites domain', async () => {
+    mockDescribeHttpServiceRoute.mockResolvedValue({
+      Domains: [
+        {
+          Domain: 'static.example.com',
+          IsDefault: true,
+          Routes: [
+            {
+              Path: '/',
+              Enable: false,
+              UpstreamResourceType: 'STATIC_STORE',
+              UpstreamResourceName: 'staticstore',
+            },
+          ],
+        },
+        {
+          Domain: 'demo-app.webapps.tcloudbase.com',
+          IsDefault: true,
+          Routes: [
+            {
+              Path: '/',
+              Enable: true,
+              UpstreamResourceType: 'STATIC_STORE',
+              UpstreamResourceName: 'staticstore',
+            },
+          ],
+        },
+      ],
+    });
+
+    const tools = createMockServer();
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'upload',
+      localPath: '/tmp/site-dist',
+      cloudPath: 'site',
+    })).content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(payload.data.accessUrl).toBe('https://demo-app.webapps.tcloudbase.com/');
+    expect(payload.data.accessUrlReachable).toBe(true);
+    expect(payload.data.staticDomainRouteEnabled).toBe(false);
+    expect(payload.data.routeDisabled).toBe(true);
+    expect(payload.data.disabledAccessUrls).toEqual(
+      expect.arrayContaining(['https://static.example.com/site/']),
+    );
+    expect(payload.message).toContain('GATEWAY_ROUTE_DISABLED');
+  });
+
+  it('manageHosting(action=upload) should return no reachable accessUrl when only disabled routes exist', async () => {
+    mockDescribeHttpServiceRoute.mockResolvedValue({
+      Domains: [
+        {
+          Domain: 'static.example.com',
+          IsDefault: true,
+          Routes: [
+            {
+              Path: '/',
+              Enable: false,
+              UpstreamResourceType: 'STATIC_STORE',
+              UpstreamResourceName: 'staticstore',
+            },
+          ],
+        },
+      ],
+    });
+
+    const tools = createMockServer();
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'upload',
+      localPath: '/tmp/site-dist',
+      cloudPath: 'site',
+    })).content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(payload.data.accessUrl).toBeUndefined();
+    expect(payload.data.accessUrls).toEqual([]);
+    expect(payload.data.accessUrlReachable).toBe(false);
+    expect(payload.data.routeDisabled).toBe(true);
+    expect(payload.data.disabledAccessUrls).toContain(
+      'https://static.example.com/site/',
+    );
   });
 
   it('manageHosting(action=upload) should fail fast when current env lacks static hosting storage config', async () => {

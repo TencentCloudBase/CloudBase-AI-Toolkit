@@ -4,7 +4,14 @@ import { z } from 'zod';
 import { getCloudBaseManager, getEnvId, logCloudBaseResult } from '../cloudbase-manager.js';
 import { ExtendedMcpServer } from '../server.js';
 import { isCloudMode } from '../utils/cloud-mode.js';
-import { preferGatewayOrFallback, resolveGatewayAccessUrls } from '../utils/gateway-access-urls.js';
+import {
+  flattenHttpServiceRoutes,
+  isDomainPathReachableViaGateway,
+  preferGatewayOrFallback,
+  resolveAllGatewayRoutes,
+  resolveGatewayAccessUrls,
+  type GatewayRouteUrlCandidate,
+} from '../utils/gateway-access-urls.js';
 import { sendDeployNotification } from '../utils/notification.js';
 import { buildJsonToolResult, toolPayloadErrorToResult } from '../utils/tool-result.js';
 
@@ -133,18 +140,21 @@ function isDirectoryUploadTarget(localPath?: string, cloudPath?: string): boolea
   return path.posix.extname(normalizedCloudPath) === '';
 }
 
-function buildHostingAccessUrl(staticDomain?: string, cloudPath?: string, localPath?: string): string {
-  if (!staticDomain) return '';
-
+function hostingAccessPathname(cloudPath?: string, localPath?: string): string {
   const normalizedCloudPath = (cloudPath ?? '').trim().replace(/^\/+|\/+$/g, '');
   const isDirectory = isDirectoryUploadTarget(localPath, cloudPath);
 
   if (!normalizedCloudPath) {
-    return `https://${staticDomain}/`;
+    return '/';
   }
 
   const pathname = isDirectory ? `${normalizedCloudPath}/` : normalizedCloudPath;
-  return `https://${staticDomain}/${pathname}`;
+  return `/${pathname}`;
+}
+
+function buildHostingAccessUrl(staticDomain?: string, cloudPath?: string, localPath?: string): string {
+  if (!staticDomain) return '';
+  return `https://${staticDomain}${hostingAccessPathname(cloudPath, localPath)}`;
 }
 
 function buildUploadErrorMessage(error: unknown, localPath?: string): string {
@@ -394,7 +404,11 @@ function buildDomainMutationResult(params: {
   };
 }
 
-async function getHostingWebsiteConfig(cloudbase: any, logger?: ExtendedMcpServer['logger']) {
+async function getHostingWebsiteConfig(
+  cloudbase: any,
+  logger?: ExtendedMcpServer['logger'],
+  cloudBaseOptions?: { envId?: string },
+) {
   const websiteConfig = await cloudbase.hosting.getWebsiteConfig();
   logCloudBaseResult(logger, websiteConfig);
   const hostingResult: Record<string, unknown> = {
@@ -410,6 +424,28 @@ async function getHostingWebsiteConfig(cloudbase: any, logger?: ExtendedMcpServe
     hostingResult.Bucket = envInfo.EnvInfo?.StaticStorages?.[0]?.Bucket ?? hostingResult.Bucket;
   } catch {
     // Ignore enrichment failures and return the website config as-is.
+  }
+
+  try {
+    const cdnDomain =
+      typeof hostingResult.CdnDomain === 'string' ? hostingResult.CdnDomain : '';
+    if (cdnDomain && typeof cloudbase.env?.describeHttpServiceRoute === 'function') {
+      const envId = await getEnvId(cloudBaseOptions);
+      const routeResult = await cloudbase.env.describeHttpServiceRoute({
+        EnvId: envId,
+        Limit: 1000,
+      });
+      const routes = flattenHttpServiceRoutes(routeResult);
+      const reachable = isDomainPathReachableViaGateway(routes, cdnDomain, '/');
+      hostingResult.staticDomainRouteEnabled = reachable;
+      hostingResult.accessUrlReachable = reachable !== false;
+      if (reachable === false) {
+        hostingResult.routeDisabled = true;
+        hostingResult.disabledAccessUrls = [`https://${cdnDomain}/`];
+      }
+    }
+  } catch {
+    // Gateway route lookup is best-effort enrichment only.
   }
 
   return hostingResult;
@@ -517,7 +553,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
 
         switch (input.action) {
           case 'websiteConfig': {
-            const websiteConfig = await getHostingWebsiteConfig(cloudbase, server.logger);
+            const websiteConfig = await getHostingWebsiteConfig(
+              cloudbase,
+              server.logger,
+              cloudBaseOptions,
+            );
             return buildJsonToolResult({
               success: true,
               data: {
@@ -699,7 +739,30 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             const cdnFromStore = (store.CdnDomain ?? store.StaticDomain) as string | undefined;
             const staticDomain = cdnFromStore || await resolveHostingStaticDomain(cloudbase, server.logger);
             const fallbackAccessUrl = buildHostingAccessUrl(staticDomain, input.cloudPath, input.localPath);
+            const accessPathname = hostingAccessPathname(input.cloudPath, input.localPath);
             const envId = await getEnvId(cloudBaseOptions);
+            const getGatewayManager = async () => {
+              const manager = await getManager();
+              if (!manager) {
+                throw new Error("cloudbase manager unavailable");
+              }
+              return manager as any;
+            };
+            const allGatewayRoutes: GatewayRouteUrlCandidate[] =
+              await resolveAllGatewayRoutes({
+                envId,
+                getManager: getGatewayManager,
+              });
+            const staticDomainRouteEnabled =
+              staticDomain
+                ? isDomainPathReachableViaGateway(
+                    allGatewayRoutes,
+                    staticDomain,
+                    accessPathname,
+                  )
+                : null;
+            // null = no matching gateway route info → keep legacy fallback.
+            const fallbackReachable = staticDomainRouteEnabled !== false;
             const gatewayCandidates = Array.from(
               new Set(
                 [
@@ -713,34 +776,39 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                   .filter(Boolean),
               ),
             );
-            let accessUrl = fallbackAccessUrl;
+            let accessUrl = fallbackReachable ? fallbackAccessUrl : "";
             let accessUrls = accessUrl ? [accessUrl] : [];
             let accessUrlSource: string | undefined = accessUrl
               ? "hosting.staticDomain"
               : undefined;
+            let accessUrlReachable = Boolean(accessUrl);
+            let disabledAccessUrls: string[] = [];
+            if (fallbackAccessUrl && !fallbackReachable) {
+              disabledAccessUrls.push(fallbackAccessUrl);
+            }
+
             for (const upstreamName of gatewayCandidates) {
               const gateway = await resolveGatewayAccessUrls({
                 envId,
                 upstreamResourceName: upstreamName,
                 upstreamResourceTypes: ["STATIC_STORE"],
-                getManager: async () => {
-                  const manager = await getManager();
-                  if (!manager) {
-                    throw new Error("cloudbase manager unavailable");
-                  }
-                  return manager as any;
-                },
+                getManager: getGatewayManager,
               });
               const preferred = preferGatewayOrFallback({
                 gateway,
                 fallbackUrl: fallbackAccessUrl || undefined,
                 fallbackSource: "hosting.staticDomain",
+                fallbackReachable,
               });
-              if (preferred.accessUrl) {
-                accessUrl = preferred.accessUrl;
+              if (preferred.accessUrl || preferred.disabledAccessUrls.length > 0) {
+                accessUrl = preferred.accessUrl ?? "";
                 accessUrls = preferred.accessUrls;
                 accessUrlSource = preferred.accessUrlSource;
-                break;
+                accessUrlReachable = preferred.accessUrlReachable;
+                disabledAccessUrls = preferred.disabledAccessUrls;
+                if (preferred.accessUrl) {
+                  break;
+                }
               }
             }
 
@@ -759,7 +827,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
 
               await sendDeployNotification(server, {
                 deployType: 'hosting',
-                url: accessUrl,
+                url: accessUrl || undefined,
                 projectId: envId,
                 projectName,
                 consoleUrl: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/static-hosting`,
@@ -769,6 +837,17 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             }
 
             const uploadPrefix = input.cloudPath ?? input.files?.[0]?.cloudPath ?? '';
+            const routeDisabled = staticDomainRouteEnabled === false;
+            let message =
+              '静态托管文件上传成功。若需要校验上传结果，请继续调用 queryHosting(action="findFiles") 或 queryHosting(action="listFiles")。';
+            if (routeDisabled && accessUrlReachable) {
+              message =
+                '静态托管文件上传成功。默认静态托管域名的网关路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），已改用其他可达域名作为 accessUrl。可用 manageGateway(action="updateRoute", route.enable=true) 重新启用默认域路由。';
+            } else if (routeDisabled && !accessUrlReachable) {
+              message =
+                '静态托管文件上传成功，但默认静态托管域名的网关路由已禁用（GATEWAY_ROUTE_DISABLED），当前没有可达的 accessUrl。请用 manageGateway(action="updateRoute", domain="<静态域名>", path="/", upstreamResourceType="STATIC_STORE", targetName="staticstore", route.enable=true) 启用路由，或改用已启用的自定义域名 / CloudBase Sites 域名访问。';
+            }
+
             return buildJsonToolResult({
               success: true,
               data: {
@@ -778,13 +857,19 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 files: input.files ?? [],
                 ignore: input.ignore,
                 staticDomain,
-                accessUrl,
+                staticDomainRouteEnabled,
+                accessUrl: accessUrl || undefined,
                 accessUrls,
                 accessUrlSource,
+                accessUrlReachable,
+                ...(disabledAccessUrls.length > 0
+                  ? { disabledAccessUrls }
+                  : {}),
+                ...(routeDisabled ? { routeDisabled: true } : {}),
                 result,
                 nextActions: uploadPrefix ? [buildFindFilesNextStep(uploadPrefix.replace(/^\/+/, ''))] : undefined,
               },
-              message: '静态托管文件上传成功。若需要校验上传结果，请继续调用 queryHosting(action="findFiles") 或 queryHosting(action="listFiles")。',
+              message,
             });
           }
 

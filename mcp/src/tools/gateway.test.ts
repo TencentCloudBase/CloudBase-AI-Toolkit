@@ -512,6 +512,46 @@ describe("gateway tools", () => {
     });
   });
 
+  it("manageGateway(action=updateRoute) should pass Route.Enable=false and omit reachable accessUrl", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "updateRoute",
+      domain: "static.example.com",
+      targetName: "staticstore",
+      path: "/",
+      upstreamResourceType: "STATIC_STORE",
+      enable: false,
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockModifyHttpServiceRoute).toHaveBeenCalledWith({
+      EnvId: "env-test",
+      Domain: {
+        Domain: "static.example.com",
+        Routes: [
+          {
+            Path: "/",
+            UpstreamResourceType: "STATIC_STORE",
+            UpstreamResourceName: "staticstore",
+            EnableAuth: undefined,
+            Enable: false,
+          },
+        ],
+      },
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "updateRoute",
+        enable: false,
+        accessUrlReachable: false,
+        routeDisabled: true,
+      },
+    });
+    expect(payload.data.accessUrl).toBeUndefined();
+    expect(payload.message).toContain("Enable=false");
+  });
+
   it("manageGateway(action=createRoute) should pass EnablePathTransmission when enabled", async () => {
     const result = await tools.manageGateway.handler({
       action: "createRoute",

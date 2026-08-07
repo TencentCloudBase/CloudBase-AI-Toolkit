@@ -76,6 +76,8 @@ type ManageGatewayInput = {
     upstreamResourceType?: UpstreamResourceType;
     auth?: boolean;
     enablePathTransmission?: boolean;
+    /** Route-level Enable (createRoute / updateRoute). */
+    enable?: boolean;
   };
   domain?: string;
   certificateId?: string;
@@ -96,6 +98,7 @@ type FlatRoute = {
   DomainType?: string;
   AccessType?: string;
   IsDefault?: boolean;
+  Enable?: boolean;
   Path?: string;
   UpstreamResourceType?: string;
   UpstreamResourceName?: string;
@@ -191,6 +194,8 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       Domain: route.Domain,
       Path: route.Path,
       IsDefault: route.IsDefault,
+      Enable:
+        typeof route.Enable === "boolean" ? route.Enable : undefined,
       UpstreamResourceType: route.UpstreamResourceType,
       UpstreamResourceName: route.UpstreamResourceName,
     }));
@@ -202,15 +207,29 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       Domain: route.Domain,
       Path: route.Path,
       IsDefault: route.IsDefault,
+      Enable:
+        typeof route.Enable === "boolean" ? route.Enable : undefined,
       UpstreamResourceType: route.UpstreamResourceType,
       UpstreamResourceName: route.UpstreamResourceName,
     }));
-    const envelope = toAccessUrlEnvelope(rankGatewayAccessUrls(candidates));
+    const disabledAccessUrls = rankGatewayAccessUrls(candidates, {
+      includeDisabled: true,
+    })
+      .filter((item) => !item.enabled)
+      .map((item) => item.url);
+    const envelope = toAccessUrlEnvelope(
+      rankGatewayAccessUrls(candidates),
+      disabledAccessUrls,
+    );
     return {
       ...(envelope.accessUrl ? { accessUrl: envelope.accessUrl } : {}),
       accessUrls: envelope.accessUrls,
       ...(envelope.accessUrlSource
         ? { accessUrlSource: envelope.accessUrlSource }
+        : {}),
+      accessUrlReachable: Boolean(envelope.accessUrl),
+      ...(disabledAccessUrls.length > 0
+        ? { disabledAccessUrls, routeDisabled: true }
         : {}),
     };
   };
@@ -334,6 +353,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         UpstreamResourceName: string;
         EnableAuth?: boolean;
         EnablePathTransmission?: boolean;
+        Enable?: boolean;
       }>;
     };
     resolved: {
@@ -343,6 +363,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       upstreamResourceName: string;
       enableAuth?: boolean;
       enablePathTransmission?: boolean;
+      enable?: boolean;
     };
   }> => {
     const upstreamResourceName =
@@ -375,6 +396,16 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         : input.enablePathTransmission !== undefined
           ? input.enablePathTransmission
           : undefined;
+    // Route enable: prefer route.enable. For updateRoute only, top-level
+    // enable also maps to Route.Enable (enableService/authSwitch use the
+    // same field name but different actions).
+    const routeEnable =
+      input.route?.enable !== undefined
+        ? input.route.enable
+        : input.action === "updateRoute" &&
+            typeof input.enable === "boolean"
+          ? input.enable
+          : undefined;
 
     const route: {
       Path: string;
@@ -382,6 +413,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       UpstreamResourceName: string;
       EnableAuth?: boolean;
       EnablePathTransmission?: boolean;
+      Enable?: boolean;
     } = {
       Path: path,
       UpstreamResourceType: upstreamResourceType,
@@ -390,6 +422,9 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     };
     if (enablePathTransmission !== undefined) {
       route.EnablePathTransmission = enablePathTransmission;
+    }
+    if (routeEnable !== undefined) {
+      route.Enable = routeEnable;
     }
 
     return {
@@ -405,6 +440,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         upstreamResourceName,
         enableAuth,
         enablePathTransmission,
+        enable: routeEnable,
       },
     };
   };
@@ -664,6 +700,10 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           Domain: payload.Domain,
         } as any);
         logCloudBaseResult(server.logger, result);
+        const routeEnabled = payload.resolved.enable !== false;
+        const accessUrl = routeEnabled
+          ? `https://${payload.resolved.domain}${payload.resolved.path}`
+          : undefined;
 
         return buildEnvelope(
           {
@@ -676,8 +716,21 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             auth: payload.resolved.enableAuth ?? null,
             enablePathTransmission:
               payload.resolved.enablePathTransmission ?? null,
-            accessUrl: `https://${payload.resolved.domain}${payload.resolved.path}`,
-            accessUrls: [`https://${payload.resolved.domain}${payload.resolved.path}`],
+            enable: payload.resolved.enable ?? null,
+            ...(accessUrl
+              ? {
+                  accessUrl,
+                  accessUrls: [accessUrl],
+                  accessUrlReachable: true,
+                }
+              : {
+                  accessUrls: [],
+                  accessUrlReachable: false,
+                  routeDisabled: true,
+                  disabledAccessUrls: [
+                    `https://${payload.resolved.domain}${payload.resolved.path}`,
+                  ],
+                }),
             accessUrlSource:
               input.domain && input.domain === payload.resolved.domain
                 ? "gateway.custom"
@@ -685,6 +738,11 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             raw: result,
           },
           `HTTP 路由更新成功（${payload.resolved.domain}${payload.resolved.path}` +
+            (payload.resolved.enable === false
+              ? "，路由已禁用 Enable=false"
+              : payload.resolved.enable === true
+                ? "，路由已启用 Enable=true"
+                : "") +
             (payload.resolved.enablePathTransmission === true
               ? "，路径透传=开启"
               : payload.resolved.enablePathTransmission === false
@@ -1035,6 +1093,14 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
               .describe(
                 "同顶层 enablePathTransmission。route 内设置时优先于顶层。",
               ),
+            enable: z
+              .boolean()
+              .optional()
+              .describe(
+                "路由级开关（Route.Enable）。createRoute/updateRoute 可用：" +
+                  "enable=false 禁用该 Domain+Path（访问返回 GATEWAY_ROUTE_DISABLED）；" +
+                  "enable=true 重新启用。updateRoute 也可用顶层 enable 表达同一语义。",
+              ),
           })
           .optional()
           .describe(
@@ -1078,9 +1144,10 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           .boolean()
           .optional()
           .describe(
-            "开关目标状态（enableService / authSwitch 必填）：enable=true 开启，enable=false 关闭。" +
-              "bindCustomDomain 可选：enable=false 表示绑定后禁用域名（默认启用）。" +
-              "省略或非布尔值会返回参数错误。",
+            "开关目标状态：enableService / authSwitch 必填（true 开启 / false 关闭）；" +
+              "bindCustomDomain 可选：enable=false 表示绑定后禁用域名（默认启用）；" +
+              "updateRoute 可选：映射到 Route.Enable（也可用 route.enable，route 优先）。" +
+              "省略或非布尔值在 enableService/authSwitch 会返回参数错误。",
           ),
       },
       annotations: {
