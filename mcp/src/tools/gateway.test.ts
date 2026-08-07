@@ -157,6 +157,8 @@ describe("gateway tools", () => {
       "createRoute",
       "updateRoute",
       "deleteRoute",
+      "enableRoute",
+      "disableRoute",
       "bindCustomDomain",
       "deleteCustomDomain",
       "enableService",
@@ -510,6 +512,169 @@ describe("gateway tools", () => {
         auth: true,
       },
     });
+  });
+
+  it("manageGateway(action=updateRoute) should pass Routes[].Enable when enable=false", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "updateRoute",
+      domain: "env-test-appid.tcloudbaseapp.com",
+      targetName: "staticstore",
+      path: "/",
+      upstreamResourceType: "STATIC_STORE",
+      enable: false,
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockModifyHttpServiceRoute).toHaveBeenCalledWith({
+      EnvId: "env-test",
+      Domain: {
+        Domain: "env-test-appid.tcloudbaseapp.com",
+        Routes: [
+          {
+            Path: "/",
+            UpstreamResourceType: "STATIC_STORE",
+            UpstreamResourceName: "staticstore",
+            EnableAuth: undefined,
+            Enable: false,
+          },
+        ],
+      },
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "updateRoute",
+        enable: false,
+        path: "/",
+      },
+    });
+    expect(payload.message).toContain("路由=禁用");
+  });
+
+  it("manageGateway(action=disableRoute) should lookup existing route and set Enable=false", async () => {
+    mockDescribeHttpServiceRoute.mockResolvedValueOnce({
+      OriginDomain: "origin.service.tcloudbase.com",
+      TotalCount: 1,
+      Domains: [
+        {
+          Domain: "env-test-appid.tcloudbaseapp.com",
+          DomainType: "STATIC_STORE",
+          IsDefault: true,
+          Enable: true,
+          Status: "SUCCESS",
+          Routes: [
+            {
+              RouteId: "route-static",
+              Path: "/",
+              UpstreamResourceType: "STATIC_STORE",
+              UpstreamResourceName: "staticstore",
+              EnableAuth: false,
+              Enable: true,
+            },
+          ],
+        },
+      ],
+      RequestId: "req-static-list",
+    });
+
+    const result = await tools.manageGateway.handler({
+      action: "disableRoute",
+      domain: "env-test-appid.tcloudbaseapp.com",
+      path: "/",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockDescribeHttpServiceRoute).toHaveBeenCalled();
+    expect(mockModifyHttpServiceRoute).toHaveBeenCalledWith({
+      EnvId: "env-test",
+      Domain: {
+        Domain: "env-test-appid.tcloudbaseapp.com",
+        Routes: [
+          {
+            Path: "/",
+            UpstreamResourceType: "STATIC_STORE",
+            UpstreamResourceName: "staticstore",
+            Enable: false,
+            EnableAuth: false,
+          },
+        ],
+      },
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "disableRoute",
+        enable: false,
+        domain: "env-test-appid.tcloudbaseapp.com",
+        path: "/",
+        upstreamResourceType: "STATIC_STORE",
+      },
+    });
+    expect(payload.message).toContain("禁用");
+    expect(payload.message).toContain("ModifyHTTPServiceRoute");
+  });
+
+  it("manageGateway(action=enableRoute) should set Enable=true on matched route", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "enableRoute",
+      path: "/api/hello",
+      targetName: "helloFn",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockModifyHttpServiceRoute).toHaveBeenCalledWith({
+      EnvId: "env-test",
+      Domain: {
+        Domain: "env-test.service.tcloudbase.com",
+        Routes: [
+          {
+            Path: "/api/hello",
+            UpstreamResourceType: "WEB_SCF",
+            UpstreamResourceName: "helloFn",
+            Enable: true,
+            EnableAuth: false,
+          },
+        ],
+      },
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "enableRoute",
+        enable: true,
+        path: "/api/hello",
+      },
+    });
+  });
+
+  it("manageGateway(action=disableRoute) should fail when path is missing", async () => {
+    const result = await tools.manageGateway.handler({
+      action: "disableRoute",
+      domain: "env-test-appid.tcloudbaseapp.com",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("path");
+    expect(mockModifyHttpServiceRoute).not.toHaveBeenCalled();
+  });
+
+  it("manageGateway schema should document enableRoute/disableRoute", async () => {
+    const schema = tools.manageGateway.meta.inputSchema;
+    const description = tools.manageGateway.meta.description;
+
+    expect(description).toContain("enableRoute");
+    expect(description).toContain("disableRoute");
+    expect(description).toContain("ModifyHTTPServiceRoute");
+    expect(description).toContain("tcloudbaseapp.com");
+    expect(schema.action.description).toContain("disableRoute");
+    expect(schema.route.description).toContain("enable:false");
+    expect(schema.enable.description).toContain("Routes[].Enable");
+    expect(schema.action._def.values).toContain("enableRoute");
+    expect(schema.action._def.values).toContain("disableRoute");
   });
 
   it("manageGateway(action=createRoute) should pass EnablePathTransmission when enabled", async () => {

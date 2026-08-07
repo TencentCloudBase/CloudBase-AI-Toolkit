@@ -23,6 +23,8 @@ const MANAGE_GATEWAY_ACTIONS = [
   "createRoute",
   "updateRoute",
   "deleteRoute",
+  "enableRoute",
+  "disableRoute",
   "bindCustomDomain",
   "deleteCustomDomain",
   "enableService",
@@ -76,6 +78,7 @@ type ManageGatewayInput = {
     upstreamResourceType?: UpstreamResourceType;
     auth?: boolean;
     enablePathTransmission?: boolean;
+    enable?: boolean;
   };
   domain?: string;
   certificateId?: string;
@@ -322,6 +325,16 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     );
   };
 
+  const resolveRouteEnable = (input: ManageGatewayInput): boolean | undefined => {
+    if (input.route?.enable !== undefined) {
+      return input.route.enable;
+    }
+    if (input.enable !== undefined) {
+      return input.enable;
+    }
+    return undefined;
+  };
+
   const normalizeRoutePayload = async (
     input: ManageGatewayInput,
   ): Promise<{
@@ -334,6 +347,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         UpstreamResourceName: string;
         EnableAuth?: boolean;
         EnablePathTransmission?: boolean;
+        Enable?: boolean;
       }>;
     };
     resolved: {
@@ -343,6 +357,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       upstreamResourceName: string;
       enableAuth?: boolean;
       enablePathTransmission?: boolean;
+      enable?: boolean;
     };
   }> => {
     const upstreamResourceName =
@@ -375,6 +390,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         : input.enablePathTransmission !== undefined
           ? input.enablePathTransmission
           : undefined;
+    const enable = resolveRouteEnable(input);
 
     const route: {
       Path: string;
@@ -382,6 +398,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       UpstreamResourceName: string;
       EnableAuth?: boolean;
       EnablePathTransmission?: boolean;
+      Enable?: boolean;
     } = {
       Path: path,
       UpstreamResourceType: upstreamResourceType,
@@ -390,6 +407,9 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     };
     if (enablePathTransmission !== undefined) {
       route.EnablePathTransmission = enablePathTransmission;
+    }
+    if (enable !== undefined) {
+      route.Enable = enable;
     }
 
     return {
@@ -405,8 +425,66 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         upstreamResourceName,
         enableAuth,
         enablePathTransmission,
+        enable,
       },
     };
+  };
+
+  const resolveExistingRouteForToggle = async (input: {
+    path?: string;
+    routePath?: string;
+    domain?: string;
+    targetName?: string;
+    routeServiceName?: string;
+  }): Promise<FlatRoute> => {
+    const routePath = input.routePath ?? input.path;
+    if (!routePath) {
+      throw new Error(
+        "action=enableRoute/disableRoute 时必须提供 path 或 route.path（例如 \"/\" 或 \"/api\"）",
+      );
+    }
+
+    const normalizedPath = normalizeAccessPath(routePath);
+    const preferredDomain = input.domain;
+    const result = await listHttpServiceRoutes(
+      preferredDomain ? { domain: preferredDomain } : undefined,
+    );
+    const upstreamName = input.routeServiceName ?? input.targetName;
+    const matches = flattenRoutes(result).filter((item) => {
+      if (
+        preferredDomain &&
+        item.Domain !== preferredDomain
+      ) {
+        return false;
+      }
+      if (normalizeAccessPath(String(item.Path ?? "")) !== normalizedPath) {
+        return false;
+      }
+      if (upstreamName && item.UpstreamResourceName !== upstreamName) {
+        return false;
+      }
+      return true;
+    });
+
+    if (matches.length === 0) {
+      throw new Error(
+        `未找到路径 ${normalizedPath} 的路由` +
+          (preferredDomain ? `（域名 ${preferredDomain}）` : "") +
+          (upstreamName ? `（上游 ${upstreamName}）` : "") +
+          "。请先用 queryGateway(action=\"listRoutes\") 确认 Domain / Path，再调用 enableRoute/disableRoute。" +
+          "关闭静态托管默认域名（*.tcloudbaseapp.com）时，请显式传 domain=该 STATIC_STORE IsDefault 域名，并通常 path=\"/\"。",
+      );
+    }
+
+    if (matches.length > 1) {
+      const domains = [...new Set(matches.map((item) => item.Domain))];
+      throw new Error(
+        `路径 ${normalizedPath} 匹配到 ${matches.length} 条路由（域名：${domains.join(", ")}）。` +
+          "请补充 domain（必要时再加 targetName/route.serviceName）精确定位后再 enableRoute/disableRoute。",
+      );
+    }
+
+    return matches[0]!;
   };
 
   const routeMutationNextActions = (
@@ -676,6 +754,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             auth: payload.resolved.enableAuth ?? null,
             enablePathTransmission:
               payload.resolved.enablePathTransmission ?? null,
+            enable: payload.resolved.enable ?? null,
             accessUrl: `https://${payload.resolved.domain}${payload.resolved.path}`,
             accessUrls: [`https://${payload.resolved.domain}${payload.resolved.path}`],
             accessUrlSource:
@@ -685,6 +764,11 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             raw: result,
           },
           `HTTP 路由更新成功（${payload.resolved.domain}${payload.resolved.path}` +
+            (payload.resolved.enable === true
+              ? "，路由=启用"
+              : payload.resolved.enable === false
+                ? "，路由=禁用"
+                : "") +
             (payload.resolved.enablePathTransmission === true
               ? "，路径透传=开启"
               : payload.resolved.enablePathTransmission === false
@@ -692,6 +776,113 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
                 : "") +
             `）`,
           routeMutationNextActions(payload.resolved.upstreamResourceName),
+        );
+      }
+      case "enableRoute":
+      case "disableRoute": {
+        const enable = input.action === "enableRoute";
+        const existing = await resolveExistingRouteForToggle({
+          path: input.path,
+          routePath: input.route?.path,
+          domain: input.domain,
+          targetName: input.targetName,
+          routeServiceName: input.route?.serviceName,
+        });
+
+        const upstreamResourceType = resolveUpstreamResourceType({
+          upstreamResourceType:
+            input.upstreamResourceType ??
+            (existing.UpstreamResourceType as UpstreamResourceType | undefined),
+          routeUpstreamResourceType: input.route?.upstreamResourceType,
+        });
+        const upstreamResourceName =
+          input.route?.serviceName ??
+          input.targetName ??
+          String(existing.UpstreamResourceName ?? "");
+        if (!upstreamResourceName) {
+          throw new Error(
+            `action=${input.action} 无法解析上游资源名；请用 queryGateway(listRoutes) 确认后传入 targetName 或 route.serviceName。`,
+          );
+        }
+
+        const normalizedPath = normalizeAccessPath(
+          String(existing.Path ?? input.route?.path ?? input.path ?? "/"),
+        );
+        const domain = existing.Domain;
+        const enableAuth =
+          input.route?.auth !== undefined
+            ? input.route.auth
+            : input.auth !== undefined
+              ? input.auth
+              : (existing.EnableAuth as boolean | undefined);
+        const enablePathTransmission =
+          input.route?.enablePathTransmission !== undefined
+            ? input.route.enablePathTransmission
+            : input.enablePathTransmission !== undefined
+              ? input.enablePathTransmission
+              : (existing.EnablePathTransmission as boolean | undefined);
+
+        const route: {
+          Path: string;
+          UpstreamResourceType: UpstreamResourceType;
+          UpstreamResourceName: string;
+          Enable: boolean;
+          EnableAuth?: boolean;
+          EnablePathTransmission?: boolean;
+        } = {
+          Path: normalizedPath,
+          UpstreamResourceType: upstreamResourceType,
+          UpstreamResourceName: upstreamResourceName,
+          Enable: enable,
+        };
+        if (enableAuth !== undefined) {
+          route.EnableAuth = enableAuth;
+        }
+        if (enablePathTransmission !== undefined) {
+          route.EnablePathTransmission = enablePathTransmission;
+        }
+
+        const cloudbase = await getManager();
+        const result = await cloudbase.env.modifyHttpServiceRoute({
+          EnvId: await resolveEnvId(),
+          Domain: {
+            Domain: domain,
+            Routes: [route],
+          },
+        } as any);
+        logCloudBaseResult(server.logger, result);
+
+        const verb = enable ? "启用" : "禁用";
+        return buildEnvelope(
+          {
+            action: input.action,
+            model: "httpServiceRoute",
+            domain,
+            path: normalizedPath,
+            upstreamResourceType,
+            upstreamResourceName,
+            enable,
+            auth: enableAuth ?? null,
+            enablePathTransmission: enablePathTransmission ?? null,
+            accessUrl: `https://${domain}${normalizedPath}`,
+            accessUrls: [`https://${domain}${normalizedPath}`],
+            accessUrlSource: existing.IsDefault
+              ? "gateway.default"
+              : "gateway.custom",
+            raw: result,
+          },
+          `HTTP 路由已${verb}（${domain}${normalizedPath}）。` +
+            (enable
+              ? "启用后通常数秒到约 30 秒内可访问；请用 queryGateway(getRoute) 或探测 accessUrl 确认。"
+              : "禁用后该路径将不可公网访问；关闭静态托管默认域名（*.tcloudbaseapp.com）时，请确认 DomainType=STATIC_STORE 且 IsDefault=true。") +
+            " 底层对应 tcb ModifyHTTPServiceRoute（不是 ModifyGatewayRoute）。",
+          [
+            {
+              tool: "queryGateway",
+              action: "getRoute",
+              reason: `复核路由 Enable=${enable} 是否已生效`,
+            },
+          ],
         );
       }
       case "deleteRoute": {
@@ -952,8 +1143,11 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     {
       title: "管理 CloudBase 网关",
       description:
-        "CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute/deleteRoute 把域名下的 path 转到上游；未传 domain 时用 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（形如 *.{region}.app.tcloudbase.com），不会使用静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）。" +
+        "CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute/deleteRoute 把域名下的 path 转到上游；" +
+        "enableRoute/disableRoute 启用或禁用已有路由（底层 ModifyHTTPServiceRoute 的 Routes[].Enable，不是 ModifyGatewayRoute）。" +
+        "未传 domain 时用 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（形如 *.{region}.app.tcloudbase.com），不会使用静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）。" +
         "这是网关默认域上的路径路由，不是 STATIC_STORE 上游绑定；STATIC_STORE 上游必须显式传 upstreamResourceType=STATIC_STORE。" +
+        "关闭静态托管默认域名（*.tcloudbaseapp.com）：先 queryGateway(listRoutes) 找到 DomainType=STATIC_STORE 且 IsDefault=true 的 domain，再 manageGateway(action=\"disableRoute\", domain=该域名, path=\"/\")；勿用 manageHosting。" +
         "创建后可用 queryGateway(action=\"listRoutes\") 核对 Domain / DomainType / Path / UpstreamResourceType。" +
         "上游类型只用一个参数 upstreamResourceType（也可写在 route.upstreamResourceType，route 优先）：" +
         "WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，LH=轻量应用服务器；" +
@@ -967,9 +1161,12 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         action: z
           .enum(MANAGE_GATEWAY_ACTIONS)
           .describe(
-            "写操作：createRoute/updateRoute/deleteRoute 管理路由；bindCustomDomain/deleteCustomDomain 管理自定义域名；" +
+            "写操作：createRoute/updateRoute/deleteRoute 管理路由；enableRoute/disableRoute 启用或禁用已有路由（需 path，建议显式传 domain）；" +
+              "bindCustomDomain/deleteCustomDomain 管理自定义域名；" +
               "enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权（需配合 enable 参数）。" +
-              "createRoute/updateRoute 必须提供 upstreamResourceType。" +
+              "createRoute/updateRoute 必须提供 upstreamResourceType；enableRoute/disableRoute 会先 listRoutes 定位已有路由，通常不必重填上游。" +
+              "updateRoute 也可传 enable/route.enable 直接改 Routes[].Enable。" +
+              "关闭 *.tcloudbaseapp.com 默认静态托管域：disableRoute + domain=该 STATIC_STORE IsDefault 域名 + path=\"/\"。" +
               "已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；" +
               "bindCustomDomain 仅用于首次绑定新域名（需 certificateId；可选 accessType=DIRECT|CDN|CUSTOM，CUSTOM 需 customCname；普通场景用默认 DIRECT）。" +
               "接入说明：https://docs.cloudbase.net/service/custom-domain",
@@ -1035,12 +1232,21 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
               .describe(
                 "同顶层 enablePathTransmission。route 内设置时优先于顶层。",
               ),
+            enable: z
+              .boolean()
+              .optional()
+              .describe(
+                "路由是否启用（Routes[].Enable）。true=启用，false=禁用。" +
+                  "updateRoute 可用；也可用专用 action enableRoute/disableRoute。" +
+                  "route.enable 优先于顶层 enable。",
+              ),
           })
           .optional()
           .describe(
             "路由对象（可选写法）。例：云函数 {upstreamResourceType:\"WEB_SCF\",serviceName:\"fn\",path:\"/api\"}；" +
               "云托管 {upstreamResourceType:\"CBR\",serviceName:\"svc\",path:\"/api\"}；" +
-              "静态托管 {upstreamResourceType:\"STATIC_STORE\",serviceName:\"staticstore\",path:\"/\"}。",
+              "静态托管 {upstreamResourceType:\"STATIC_STORE\",serviceName:\"staticstore\",path:\"/\"}；" +
+              "禁用路由 {path:\"/\",enable:false}（配合 updateRoute，或直接用 disableRoute）。",
           ),
         domain: z
           .string()
@@ -1048,6 +1254,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           .describe(
             "域名。省略时自动使用环境 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（*.{region}.app.tcloudbase.com），不会回退到静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）；也不是 STATIC_STORE 上游绑定。" +
               "可用 queryGateway(action=\"listRoutes\") 核对实际 Domain / DomainType。" +
+              "enableRoute/disableRoute 操作 *.tcloudbaseapp.com 时必须显式传入该域名。" +
               "已有自定义域名时请显式传入该域名并 createRoute/updateRoute/deleteRoute，即可实现自定义域名访问且无需证书 ID；" +
               "仅 bindCustomDomain 时表示要新绑定的域名。",
           ),
@@ -1078,9 +1285,11 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           .boolean()
           .optional()
           .describe(
-            "开关目标状态（enableService / authSwitch 必填）：enable=true 开启，enable=false 关闭。" +
+            "开关目标状态。" +
+              "enableService / authSwitch 必填：enable=true 开启，enable=false 关闭。" +
+              "updateRoute 可选：写入 Routes[].Enable（route.enable 优先）；也可用 enableRoute/disableRoute。" +
               "bindCustomDomain 可选：enable=false 表示绑定后禁用域名（默认启用）。" +
-              "省略或非布尔值会返回参数错误。",
+              "省略或非布尔值在 enableService/authSwitch 会返回参数错误。",
           ),
       },
       annotations: {

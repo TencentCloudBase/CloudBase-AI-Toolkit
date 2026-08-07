@@ -68,6 +68,18 @@ manageGateway({
 
 **IsDefault vs static hosting CDN:** many environments also list an IsDefault `STATIC_STORE` domain (`*.tcloudbaseapp.com`). Omitting `domain` does **not** attach to that static-hosting CDN hostname, and it is **not** a `STATIC_STORE` upstream binding. Confirm with `queryGateway(action="listRoutes")` — inspect `Domain`, `DomainType`, `Path`, and `UpstreamResourceType` on the created route.
 
+**Disable / enable routes:** use `manageGateway(action="disableRoute"|"enableRoute")` with `path` (and prefer an explicit `domain`). This sets `Routes[].Enable` through `ModifyHTTPServiceRoute` (there is no `ModifyGatewayRoute` action). To close the static hosting default domain, list routes, take the `STATIC_STORE` IsDefault host, then:
+
+```javascript
+manageGateway({
+  action: "disableRoute",
+  domain: "<envId>-<appId>.tcloudbaseapp.com",
+  path: "/"
+});
+```
+
+Do not expect a `manageHosting` disable-default-domain action. `updateRoute` may also pass `enable=false` / `route.enable=false` when you already have the full route fields.
+
 Upstream type:
 
 - HTTP cloud function -> `upstreamResourceType="WEB_SCF"`
