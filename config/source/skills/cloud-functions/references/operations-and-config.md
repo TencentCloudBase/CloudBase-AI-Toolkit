@@ -120,6 +120,25 @@ Examples:
 - `0 0 2 1 * * *` -> 2:00 AM on the first day of every month
 - `0 30 9 * * * *` -> 9:30 AM every day
 
+#### Recurring heavy jobs belong in a timer-triggered function
+
+When the user asks for a recurring job that aggregates data, iterates over many
+records, and writes results back (daily reports, per-user summaries, data
+backfills), deploy it as a timer-triggered function instead of re-running the
+work through the assistant on every schedule. Long assistant runs stall between
+tool calls and hit stream idle timeouts, so such jobs fail intermittently even
+though every individual tool call succeeds.
+
+When writing the function:
+
+- Push aggregation into SQL / database queries instead of fetching raw rows and
+  looping in code; always paginate with `LIMIT` plus a keyset cursor.
+- Make each run idempotent: derive a deterministic `_id` (for example
+  `daily-{YYYY-MM-DD}`) and upsert, so retries never duplicate output.
+- Persist progress so an interrupted run can resume instead of restarting.
+- Split unrelated outputs (global summary vs. per-entity records) into separate
+  functions or separate triggers to keep each run short.
+
 ### VPC field shape (example only)
 
 When a function already needs VPC egress (exception path: existing TCP DB clients), `vpc` IDs must be real (never placeholders). This is a field-shape example — not a recommendation to introduce TCP DB access. Prefer native SDK / MCP SQL for new CRUD. Full exception policy: `./vpc-and-tcp-database.md`.
