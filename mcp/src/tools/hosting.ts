@@ -825,13 +825,15 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 }
               }
 
-              await sendDeployNotification(server, {
-                deployType: 'hosting',
-                url: accessUrl || undefined,
-                projectId: envId,
-                projectName,
-                consoleUrl: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/static-hosting`,
-              });
+              if (accessUrl) {
+                await sendDeployNotification(server, {
+                  deployType: 'hosting',
+                  url: accessUrl,
+                  projectId: envId,
+                  projectName,
+                  consoleUrl: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/static-hosting`,
+                });
+              }
             } catch {
               // Notification failure should not block uploads.
             }

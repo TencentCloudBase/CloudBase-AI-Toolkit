@@ -197,6 +197,8 @@ CloudBase（腾讯云开发）开发阶段登录与环境绑定。登录后即�
 - `EnvInfo.RuntimeBackends`：`\{postgresql, nosql, mysql\}` 三个布尔值，描述当前环境实际并存的后端。
 - `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。
 
+🌐 action=info 还会在不改写 `StaticStorages[].StaticDomain`（云 API 名义域名）的前提下，投影网关路由 Enable 状态：`StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。
+
 AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType="noSqlDatabase")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用。
 
 #### 参数
@@ -251,6 +253,8 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
 - `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。
 - `EnvInfo.RuntimeBackends`：`\{postgresql, nosql, mysql\}` 三个布尔值，描述当前环境实际并存的后端。
 - `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。
+
+🌐 action=info 还会在不改写 `StaticStorages[].StaticDomain`（云 API 名义域名）的前提下，投影网关路由 Enable 状态：`StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。
 
 AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType="noSqlDatabase")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用。
 
@@ -1875,7 +1879,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 文档名：cloud-functions 文档介绍：CloudBase function runtime guide for building, deploying, and debugging your own Event Functions or HTTP Functions. This skill should be used when users need application runtime code on CloudBase, not when they are merely calling CloudBase official platform APIs.
 文档名：cloud-storage-web 文档介绍：Complete guide for CloudBase cloud storage using Web SDK (@cloudbase/js-sdk) - upload, download, temporary URLs, file management, and best practices.
 文档名：cloudbase-agent 文档介绍：Build and deploy AI agents with CloudBase Agent SDK (TypeScript & Python). Implements the AG-UI protocol for streaming agent-UI communication. Use when deploying agent servers, using LangGraph/LangChain/CrewAI adapters, building custom adapters, understanding AG-UI protocol events, or building web/mini-program UI clients. Supports both TypeScript (@cloudbase/agent-server) and Python (cloudbase-agent-server via FastAPI).
-文档名：cloudbase-cli 文档介绍：CloudBase CLI (tcb, 云开发CLI, Tencent CloudBase命令行) resource management skill. This skill should be used when users need to deploy cloud functions, manage CloudRun apps, upload files to storage, query NoSQL/MySQL databases, deploy static hosting, set access permissions, or configure CORS/domains/routing via tcb commands. Also use for CI/CD pipeline scripting, batch operations, terminal-based CloudBase management, or when the user prefers CLI over SDK/MCP.
+文档名：cloudbase-cli 文档介绍：CloudBase CLI (tcb, 云开发CLI, Tencent CloudBase命令行) resource management skill. Use when deploying cloud functions, CloudRun, storage, NoSQL/MySQL, static hosting, permissions, CORS/domains via tcb; for CI/CD and batch ops; when the user prefers CLI; or as the first-session fallback when CloudBase MCP tools are not loaded yet (after install/config, before IDE restart). Covers tcb login (device code) and domain commands (fn/hosting/cloudrun/…) as MCP auth/manage parity — do not default to tcb deploy.
 文档名：cloudbase-code-review 文档介绍："Code review and validation for CloudBase projects. After writing code for Web / miniprogram / CloudRun / cloud-function projects, call this skill to check for known pitfalls — auth guard misuse, missing database tables, RLS misconfiguration, storage domain setup, and SDK API misuse. Supports automated lint scripts (regex-based) + LLM semantic review."
 文档名：cloudbase-document-database-in-wechat-miniprogram 文档介绍：Use CloudBase document database WeChat MiniProgram SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, and geolocation queries.
 文档名：cloudbase-document-database-web-sdk 文档介绍：Use CloudBase document database Web SDK only for confirmed NoSQL collection work. Query, create, update, and delete document data; if the task mentions PostgreSQL / CloudBase PG / app.rdb(), route to postgresql-development instead.
@@ -2478,6 +2482,11 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
           name: "enablePathTransmission",
           type: "boolean",
           description: `同顶层 enablePathTransmission。route 内设置时优先于顶层。`,
+        },
+        {
+          name: "enable",
+          type: "boolean",
+          description: `路由级开关（Route.Enable）。createRoute/updateRoute 可用：enable=false 禁用该 Domain+Path（访问返回 GATEWAY_ROUTE_DISABLED）；enable=true 重新启用。updateRoute 也可用顶层 enable 表达同一语义。`,
         }
       ],
     },
@@ -2504,7 +2513,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
     {
       name: "enable",
       type: "boolean",
-      description: `开关目标状态（enableService / authSwitch 必填）：enable=true 开启，enable=false 关闭。bindCustomDomain 可选：enable=false 表示绑定后禁用域名（默认启用）。省略或非布尔值会返回参数错误。`,
+      description: `开关目标状态：enableService / authSwitch 必填（true 开启 / false 关闭）；bindCustomDomain 可选：enable=false 表示绑定后禁用域名（默认启用）；updateRoute 可选：映射到 Route.Enable（也可用 route.enable，route 优先）。省略或非布尔值在 enableService/authSwitch 会返回参数错误。`,
     }
   ]}
 />

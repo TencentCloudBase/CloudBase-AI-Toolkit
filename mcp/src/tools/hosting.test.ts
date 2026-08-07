@@ -267,6 +267,39 @@ describe('hosting tools', () => {
       ErrorDocument: '404.html',
       CdnDomain: 'static.example.com',
       Bucket: 'hosting-bucket',
+      staticDomainRouteEnabled: true,
+      accessUrlReachable: true,
+    });
+  });
+
+  it('queryHosting(action=websiteConfig) should flag disabled default static-domain gateway route', async () => {
+    mockDescribeHttpServiceRoute.mockResolvedValueOnce({
+      Domains: [
+        {
+          Domain: 'static.example.com',
+          IsDefault: true,
+          Routes: [
+            {
+              Path: '/',
+              Enable: false,
+              UpstreamResourceType: 'STATIC_STORE',
+              UpstreamResourceName: 'staticstore',
+            },
+          ],
+        },
+      ],
+    });
+
+    const tools = createMockServer();
+    const payload = JSON.parse((await tools.queryHosting.handler({ action: 'websiteConfig' })).content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(payload.data.websiteConfig).toMatchObject({
+      CdnDomain: 'static.example.com',
+      staticDomainRouteEnabled: false,
+      accessUrlReachable: false,
+      routeDisabled: true,
+      disabledAccessUrls: ['https://static.example.com/'],
     });
   });
 

@@ -34,6 +34,10 @@ import {
   toolPayloadErrorToResult,
 } from "../utils/tool-result.js";
 import {
+  flattenHttpServiceRoutes,
+  isDomainPathReachableViaGateway,
+} from "../utils/gateway-access-urls.js";
+import {
   checkAndCreateFreeEnv,
   checkAndInitTcbService,
   type EnvSetupContext,
@@ -981,6 +985,107 @@ async function enrichEnvInfoWithMissingFields(
     };
   } catch {
     // CAPI 调用失败不影响已有数据，静默忽略
+    return result;
+  }
+}
+
+/**
+ * Project gateway Route.Enable onto envQuery(info) without mutating StaticDomain.
+ *
+ * StaticStorages[].StaticDomain stays the cloud-API nominal hostname.
+ * Sibling field staticDomainRouteEnabled (and EnvInfo-level mirrors for the
+ * primary store) tell callers whether the default hosting domain route is
+ * actually reachable (Enable !== false). Matches queryHosting websiteConfig.
+ */
+async function enrichEnvInfoWithStaticDomainRouteEnabled(
+  manager: any,
+  result: any,
+  envId?: string,
+): Promise<any> {
+  const envInfo = result?.EnvInfo;
+  if (!envInfo || typeof envInfo !== "object") {
+    return result;
+  }
+
+  const staticStorages = Array.isArray(envInfo.StaticStorages)
+    ? envInfo.StaticStorages
+    : null;
+  if (!staticStorages || staticStorages.length === 0) {
+    return result;
+  }
+
+  if (typeof manager?.env?.describeHttpServiceRoute !== "function") {
+    return result;
+  }
+
+  const resolvedEnvId =
+    (typeof envId === "string" && envId.trim()) ||
+    (typeof envInfo.EnvId === "string" && envInfo.EnvId.trim()) ||
+    undefined;
+  if (!resolvedEnvId) {
+    return result;
+  }
+
+  try {
+    const routeResult = await manager.env.describeHttpServiceRoute({
+      EnvId: resolvedEnvId,
+      Limit: 1000,
+    });
+    const routes = flattenHttpServiceRoutes(routeResult);
+
+    let primaryRouteEnabled: boolean | null = null;
+    const enrichedStorages = staticStorages.map(
+      (store: unknown, index: number) => {
+        if (!store || typeof store !== "object" || Array.isArray(store)) {
+          return store;
+        }
+        const record = store as Record<string, unknown>;
+        const domain =
+          typeof record.StaticDomain === "string" ? record.StaticDomain : "";
+        if (!domain) {
+          return store;
+        }
+        const reachable = isDomainPathReachableViaGateway(routes, domain, "/");
+        if (index === 0) {
+          primaryRouteEnabled = reachable;
+        }
+        return {
+          ...record,
+          staticDomainRouteEnabled: reachable,
+        };
+      },
+    );
+
+    const enrichment: Record<string, unknown> = {
+      StaticStorages: enrichedStorages,
+    };
+    if (primaryRouteEnabled !== null) {
+      enrichment.staticDomainRouteEnabled = primaryRouteEnabled;
+      enrichment.accessUrlReachable = primaryRouteEnabled !== false;
+      if (primaryRouteEnabled === false) {
+        const primaryDomain =
+          typeof (enrichedStorages[0] as Record<string, unknown> | undefined)
+            ?.StaticDomain === "string"
+            ? String(
+                (enrichedStorages[0] as Record<string, unknown>).StaticDomain,
+              )
+            : "";
+        enrichment.routeDisabled = true;
+        if (primaryDomain) {
+          enrichment.disabledAccessUrls = [`https://${primaryDomain}/`];
+        }
+      }
+    }
+
+    return {
+      ...result,
+      EnvInfo: {
+        ...envInfo,
+        ...enrichment,
+      },
+    };
+  } catch {
+    // Gateway route lookup is best-effort enrichment only.
     return result;
   }
 }
@@ -2242,6 +2347,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             if (envId) {
               result = await enrichEnvInfoWithMissingFields(cloudbaseInfo, result, envId);
             }
+            // Project gateway Route.Enable next to StaticDomain (do not rewrite StaticDomain).
+            result = await enrichEnvInfoWithStaticDomainRouteEnabled(
+              cloudbaseInfo,
+              result,
+              envId,
+            );
             result = await enrichEnvInfoWithRuntimeMode(result, cloudbaseInfo);
             break;
 
@@ -2320,7 +2431,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   const queryEnvToolSchema = {
     title: "CloudBase 环境查询",
     description:
-      "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情和安全域名。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。\n\n🔍 action=info 还会派生三个用于后端选型的字段：\n- `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。\n- `EnvInfo.RuntimeBackends`：`{postgresql, nosql, mysql}` 三个布尔值，描述当前环境实际并存的后端。\n- `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。\n\nAI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType=\"noSqlDatabase\")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用。",
+      "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情和安全域名。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。\n\n🔍 action=info 还会派生三个用于后端选型的字段：\n- `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。\n- `EnvInfo.RuntimeBackends`：`{postgresql, nosql, mysql}` 三个布尔值，描述当前环境实际并存的后端。\n- `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。\n\n🌐 action=info 还会在不改写 `StaticStorages[].StaticDomain`（云 API 名义域名）的前提下，投影网关路由 Enable 状态：`StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。\n\nAI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType=\"noSqlDatabase\")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用。",
     inputSchema: {
       action: z
         .enum(["list", "info", "domains"])
