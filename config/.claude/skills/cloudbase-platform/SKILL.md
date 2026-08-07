@@ -114,12 +114,15 @@ When working with domain-related tasks, use the correct tool based on the requir
 | **Reuse existing Custom Domain** | `queryGateway(listCustomDomains)` → `manageGateway(createRoute)` | `domain` = existing custom domain; route fields | Expose a service/path on an already-bound custom domain. **No certificateId.** Prefer this when a custom domain already exists. |
 | **Bind new Custom Domain (自定义域名)** | `manageGateway(action="bindCustomDomain")` | `domain` (string), `certificateId` (string) | First-time bind of a new public HTTPS domain. Requires certId from SSL console. |
 | **Delete Custom Domain** | `manageGateway(action="deleteCustomDomain")` | `domain` (string) | Remove custom domain binding (only after routes on that domain are deleted). |
+| **Disable / enable gateway route** | `manageGateway(action="disableRoute" \| "enableRoute")` | `path` (required), prefer explicit `domain` | Toggle `Routes[].Enable` via `ModifyHTTPServiceRoute` (not `ModifyGatewayRoute`). |
+| **Disable static hosting default domain** | `queryGateway(listRoutes)` → `manageGateway(disableRoute)` | `domain` = `*.tcloudbaseapp.com` (`DomainType=STATIC_STORE`, `IsDefault=true`), usually `path="/"` | Turns off public access on the shared hosting CDN default host. **Do not use `manageHosting`.** |
 
 **Key indicators for choosing the right tool:**
 - Task mentions "自定义域名访问" but env already has a custom domain → `listCustomDomains` then `createRoute(domain=...)` (no certificateId)
 - Task mentions "certificate ID" or "SSL" **and** needs to bind a **new** domain → `manageGateway(action="bindCustomDomain")`
 - Task mentions "浏览器上传" or "CORS" or "安全域名" → Use `envDomainManagement`
 - Task mentions "public access" or "HTTPS" with domain → Prefer reuse via `createRoute` when possible; only `bindCustomDomain` for first-time domain bind
+- Task mentions "关闭/禁用静态托管默认域名" / `*.tcloudbaseapp.com` → `queryGateway(listRoutes)` then `manageGateway(disableRoute)` with that STATIC_STORE domain; never invent `ModifyGatewayRoute`
 
 ### Recording Operation Results
 
@@ -157,6 +160,8 @@ Example structure for operation recording:
 2. **Static Hosting Domain**:
    - CloudBase static hosting domain and website document config can be obtained via `queryHosting(action="websiteConfig")`
    - Combine with static hosting file paths to construct final access addresses
+   - Default shared host looks like `<envId>-<appId>.tcloudbaseapp.com` (`DomainType=STATIC_STORE`, often `IsDefault=true` in `queryGateway(listRoutes)`)
+   - To **disable** that default public host: `manageGateway(action="disableRoute", domain="<that-host>", path="/")` (or `updateRoute` with `enable=false`). Re-enable with `enableRoute`. Do **not** look for a `manageHosting` disable-default-domain action; do **not** call non-existent `ModifyGatewayRoute` — the API is `ModifyHTTPServiceRoute`
    - **Important**: If access address is a directory, it must end with `/`
 
 3. **Cloud Storage Public URL**:

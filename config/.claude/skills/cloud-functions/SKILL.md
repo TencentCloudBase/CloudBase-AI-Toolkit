@@ -340,7 +340,8 @@ If these are unavailable, read `./references/operations-and-config.md` before an
 - `queryGateway(action="getRoute")` / `listRoutes` / `listCustomDomains`
 - `manageGateway(action="createRoute")` — for HTTP functions pass `upstreamResourceType="WEB_SCF"`; for Event functions pass `upstreamResourceType="SCF"`. Omit `domain` to attach the route on the HTTP gateway IsDefault domain (`DomainType=HTTPSERVICE`, typically `*.{region}.app.tcloudbase.com`)
 - **IsDefault vs static hosting CDN:** environments often also expose a separate IsDefault `STATIC_STORE` domain (`*.tcloudbaseapp.com`). Omitting `domain` does **not** bind that static-hosting CDN entry, and it is **not** a `STATIC_STORE` upstream binding (that requires `upstreamResourceType="STATIC_STORE"`). Verify with `queryGateway(action="listRoutes")` and check `Domain` / `DomainType` / `Path` / `UpstreamResourceType`
-- `manageGateway(action="updateRoute")` / `deleteRoute` / `bindCustomDomain` / `deleteCustomDomain`
+- `manageGateway(action="updateRoute")` / `deleteRoute` / `enableRoute` / `disableRoute` / `bindCustomDomain` / `deleteCustomDomain`
+- **Disable a route or the static hosting default domain:** prefer `manageGateway(action="disableRoute", domain=..., path=...)` (looks up the existing route, sets `Routes[].Enable=false` via `ModifyHTTPServiceRoute`). `updateRoute` may also pass `enable=false` / `route.enable=false`. To close `*.tcloudbaseapp.com`, list routes, take the `STATIC_STORE` IsDefault domain, then `disableRoute` with that `domain` and usually `path="/"` — not `manageHosting`, and not `ModifyGatewayRoute`
 - When tool results include `accessUrl` / `accessUrls`, prefer them directly (gateway custom-domain URLs are ranked before default domains)
 - Do **not** call deprecated GWAPI actions via `callCloudApi` (`CreateCloudBaseGWAPI`, etc.)
 
