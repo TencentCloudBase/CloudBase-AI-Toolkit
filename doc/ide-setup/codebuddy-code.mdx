@@ -3,7 +3,7 @@ import RelatedResources from '../components/RelatedResources';
 
 # CodeBuddy Code 配置指南
 
-配置后，你可以在 CodeBuddy Code 的命令行对话中直接操作 CloudBase 服务。
+CodeBuddy Code 可通过 **插件市场** 安装 CloudBase 插件（MCP + Skills），再配合 CloudBase CLI 完成环境登录。配置后，你可以在命令行对话中直接操作 CloudBase 服务。
 
 **例如：**
 
@@ -18,7 +18,7 @@ import RelatedResources from '../components/RelatedResources';
 在开始配置之前，请确保满足以下条件：
 
 <details>
-<summary><strong>已准备好Node.js 环境和云开发环境</strong></summary>
+<summary><strong>已准备好 Node.js 环境和云开发环境</strong></summary>
 
 **Node.js 环境：** 确保已安装 Node.js v18.15.0 或更高版本：
 
@@ -34,17 +34,69 @@ node --version
 
 ---
 
+## 方式一：通过插件市场安装（推荐）
+
+插件市场方式会同时安装 MCP 工具和 AI Skills，一次安装即可获得完整能力。
+
+```bash
+# 添加 CloudBase 插件市场
+codebuddy plugin marketplace add TencentCloudBase/CloudBase-AI-Toolkit
+
+# 安装 CloudBase 插件
+codebuddy plugin install cloudbase@tencent-cloudbase
+```
+
+市场源完整 URL 为：
+
+```text
+https://github.com/TencentCloudBase/CloudBase-AI-Toolkit
+```
+
+安装后建议新开会话，确保插件完整加载。图形界面版步骤见 [CodeBuddy 配置指南](./codebuddy)。
+
+---
+
+## 登录云开发环境
+
+### 已有腾讯云账号（推荐）
+
+无需预先配置。在 CodeBuddy Code 中直接开始对话，按提示完成 **Device 登录** 即可。
+
+### 没有腾讯云账号（API Key）
+
+```bash
+# 安装 CloudBase CLI
+npm i -g @cloudbase/cli
+
+# 使用环境 API Key 登录（必须同时指定环境 ID）
+tcb login --cloudbase-api-key <cloudbaseApiKey> -e <cloudbaseEnvId>
+```
+
+> 💡 API Key 可在 [云开发控制台](https://tcb.cloud.tencent.com/dev) 的环境设置中创建和管理（有管理权限时）。
+>
+> ⚠️ 不要把 API Key 提交到代码仓库。
+
+---
+
+## 方式二：通过 MCP 配置连接
+
+如果只需 MCP 工具连接，也可以手工配置：
+
 <IDESelector defaultIDE="codebuddy-code" showInstallButton={false} />
+
+---
 
 ## 常见问题
 
-**Q: MCP 连接失败？**
-A: 检查 `.mcp.json` 文件格式是否正确，确认 npx 命令可用，重启 CodeBuddy Code。
+**Q: 有腾讯云账号还需要 API Key 登录吗？**  
+A: 不需要。对话时按提示完成 Device 登录即可。
 
-**Q: 工具数量显示为 0？**
+**Q: MCP 连接失败？**  
+A: 检查 `.mcp.json` 文件格式是否正确，确认 npx 命令可用，重启 CodeBuddy Code，并确认已完成登录。
+
+**Q: 工具数量显示为 0？**  
 A: 请参考[常见问题](../faq#mcp-显示工具数量为-0-怎么办)。
 
 更多问题请查看：[完整 FAQ](../faq)
 
 <RelatedResources ideName="CodeBuddy Code" ideDocUrl="https://cnb.cool/codebuddy/codebuddy-code/-/blob/main/docs/mcp.md" />
-

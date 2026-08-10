@@ -80,7 +80,7 @@ npx plugins add https://cnb.cool/tencent/cloud/cloudbase/cloudbase-sites-plugin.
 
 ### 方式 2：按 IDE 手动安装
 
-适用于 CodeBuddy、WorkBuddy、ZCode，或希望走 IDE 原生插件机制的场景：
+适用于 CodeBuddy（插件市场）、WorkBuddy、ZCode，或希望走 IDE 原生插件机制的场景：
 
 <Tabs>
   <TabItem value="codex-app" label="Codex App">
@@ -118,6 +118,28 @@ claude plugin install cloudbase@tencent-cloudbase
 安装后执行 `/reload-plugins`。默认 `--scope user`；团队共享可用 `--scope project`。
 
   </TabItem>
+  <TabItem value="codebuddy" label="CodeBuddy">
+
+1. 打开 CodeBuddy **插件市场** → **添加市场源**
+2. 填入 `https://github.com/TencentCloudBase/CloudBase-AI-Toolkit`
+3. 安装并启用 `cloudbase` 插件
+
+CLI（CodeBuddy Code）等价命令：
+
+```bash
+codebuddy plugin marketplace add TencentCloudBase/CloudBase-AI-Toolkit
+codebuddy plugin install cloudbase@tencent-cloudbase
+```
+
+**登录：**
+
+- **有腾讯云账号**：直接对话，按提示完成 Device 登录
+- **无腾讯云账号**：先 `npm i -g @cloudbase/cli`，再执行  
+  `tcb login --cloudbase-api-key <cloudbaseApiKey> -e <cloudbaseEnvId>`
+
+详见 [CodeBuddy 配置指南](ide-setup/codebuddy)。
+
+  </TabItem>
   <TabItem value="workbuddy" label="WorkBuddy">
 
 1. 对话输入框左下角点 **连接器**
@@ -139,11 +161,11 @@ ZCode（≥ 3.4.1）设置 → **插件** → **开发者工具** → 启用 **c
 
 ### 其他 IDE
 
-不走 marketplace 的工具（Cursor、WindSurf、CodeBuddy 等）可配置 MCP + Skills。选择你的工具查看步骤：
+不走上述原生插件路径的工具（Cursor、WindSurf 等）可配置 MCP + Skills。选择你的工具查看步骤：
 
 <IDESelector defaultIDE="cursor" showInstallButton={false} />
 
-> CodeBuddy / WorkBuddy / ZCode 尚未实现 Open Plugin Specification，因此暂不支持 `npx plugins` 一键安装，需用各自原生路径。
+> CodeBuddy / WorkBuddy / ZCode 尚未实现 Open Plugin Specification，因此暂不支持 `npx plugins` 一键安装；请用各自原生路径（CodeBuddy 用插件市场，WorkBuddy 用连接器，ZCode 用内置插件）。
 
 ## 插件里有什么
 

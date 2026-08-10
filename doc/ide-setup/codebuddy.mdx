@@ -3,7 +3,7 @@ import RelatedResources from '../components/RelatedResources';
 
 # CodeBuddy 配置指南
 
-配置后，你可以在 CodeBuddy 的 AI 对话中直接操作 CloudBase 服务。
+CodeBuddy 可通过 **插件市场** 安装 CloudBase 插件（MCP + Skills），再配合 CloudBase CLI 完成环境登录。配置后，你可以在 CodeBuddy 的 AI 对话中直接操作 CloudBase 服务。
 
 **例如：**
 
@@ -18,7 +18,7 @@ import RelatedResources from '../components/RelatedResources';
 在开始配置之前，请确保满足以下条件：
 
 <details>
-<summary><strong>已准备好Node.js 环境和云开发环境</strong></summary>
+<summary><strong>已准备好 Node.js 环境和云开发环境</strong></summary>
 
 **Node.js 环境：** 确保已安装 Node.js v18.15.0 或更高版本：
 
@@ -34,26 +34,103 @@ node --version
 
 ---
 
-<IDESelector defaultIDE="codebuddy" showInstallButton={false} />
+## 方式一：通过插件市场安装（推荐）
 
-## CodeBuddy IDE 版
+插件市场方式会同时安装 MCP 工具和 AI Skills，一次安装即可获得完整能力。
 
-**CodeBuddy IDE** 用户请直接在设置页/集成点击"Tencent CloudBase"管理按钮并授权，无需手动配置 MCP。
+### 1. 添加 CloudBase 插件市场
 
-## CodeBuddy 插件版
+1. 打开 CodeBuddy 的 **插件市场** 页面
+2. 选择 **添加市场源**（或等价入口）
+3. 填入市场源地址：
 
-### 通过 MCP 市场安装（推荐）
+```text
+https://github.com/TencentCloudBase/CloudBase-AI-Toolkit
+```
+
+添加成功后，市场列表中会出现 **Tencent CloudBase**。
+
+### 2. 安装 CloudBase 插件
+
+在刚添加的市场中，安装 `cloudbase` 插件并启用。
+
+若你使用的是 **CodeBuddy Code（CLI）**，也可用命令完成同样步骤：
+
+```bash
+# 添加 CloudBase 插件市场
+codebuddy plugin marketplace add TencentCloudBase/CloudBase-AI-Toolkit
+
+# 安装 CloudBase 插件
+codebuddy plugin install cloudbase@tencent-cloudbase
+```
+
+安装后建议新开对话或重启 CodeBuddy，确保插件、Skills 与 MCP 工具完整加载。
+
+命令行版更多说明见 [CodeBuddy Code 配置指南](./codebuddy-code)。
+
+---
+
+## 登录云开发环境
+
+安装插件后，还需要完成 CloudBase 环境鉴权。按你是否有腾讯云账号选择对应方式：
+
+### 已有腾讯云账号（推荐）
+
+无需预先配置 CLI。直接在 CodeBuddy 里开始对话，系统会提示完成 **Device 登录**（设备码授权），按页面提示授权即可。
+
+### 没有腾讯云账号（API Key）
+
+若你只有环境级 API Key（例如由合作方/管理员下发），请先安装 CloudBase CLI，再用 API Key 登录：
+
+```bash
+# 安装 CloudBase CLI
+npm i -g @cloudbase/cli
+
+# 使用环境 API Key 登录（必须同时指定环境 ID）
+tcb login --cloudbase-api-key <cloudbaseApiKey> -e <cloudbaseEnvId>
+```
+
+> 💡 API Key 可在 [云开发控制台](https://tcb.cloud.tencent.com/dev) 的环境设置中创建和管理（有管理权限时）。
+>
+> ⚠️ API Key 具有环境级操作权限，请妥善保管；不要把密钥提交到代码仓库或截图外传。
+
+登录成功后，即可在对话中使用 CloudBase 能力。
+
+---
+
+## CodeBuddy IDE 内置集成
+
+**CodeBuddy IDE** 用户也可以直接在设置页 / 集成中点击 **Tencent CloudBase** 管理按钮并授权，走内置集成，无需手动配置 MCP。
+
+详见 [CodeBuddy BaaS 集成文档](https://www.codebuddy.ai/docs/zh/ide/User-guide/Integration)。
+
+---
+
+## 方式二：通过 MCP 市场或手工配置
+
+如果只需要 MCP 工具连接，也可以：
 
 1. 点击 CodeBuddy 右上角的 MCP 按钮
-2. 在 MCP 市场中搜索 CloudBase
-3. 点击安装即可
+2. 在 MCP 市场中搜索 CloudBase 并安装
+
+或手工写入 MCP 配置：
+
+<IDESelector defaultIDE="codebuddy" showInstallButton={false} />
+
+---
 
 ## 常见问题
 
-**Q: MCP 连接失败？**
-A: 检查配置文件格式是否正确，重启 CodeBuddy，确认网络连接正常。
+**Q: 有腾讯云账号还需要 `tcb login --cloudbase-api-key` 吗？**  
+A: 不需要。直接对话，按提示完成 Device 登录即可。API Key 登录主要用于没有腾讯云账号、仅持有环境 API Key 的场景。
 
-**Q: 工具数量显示为 0？**
+**Q: 插件市场添加失败？**  
+A: 确认市场源为 `https://github.com/TencentCloudBase/CloudBase-AI-Toolkit`，检查网络能否访问 GitHub；必要时重试或改用内置集成 / MCP 市场。
+
+**Q: MCP 连接失败？**  
+A: 检查配置文件格式是否正确，重启 CodeBuddy，确认网络连接正常，并确认已完成 Device 登录或 API Key 登录。
+
+**Q: 工具数量显示为 0？**  
 A: 请参考[常见问题](../faq#mcp-显示工具数量为-0-怎么办)。
 
 更多问题请查看：[完整 FAQ](../faq)

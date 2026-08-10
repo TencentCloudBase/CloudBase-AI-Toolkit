@@ -70,9 +70,9 @@ This skill is the product equivalent of CloudBase Sites SessionStart **Rule 5** 
 ## Hard rules (align with Sites SessionStart Rule 5)
 
 1. **BaaS-first data path**
-   - **Schema / admin:** MCP only. Do not ask the user to create collections/tables in the console.
-     - NoSQL: `writeNoSqlDatabaseStructure` (create collection / indexes) + permission tools as needed.
-     - PostgreSQL: follow `../postgresql-development-cloudbase/SKILL.md` (`queryPgDatabase` / `managePgDatabase` / migrations).
+   - **Schema / admin:** Prefer MCP management tools. Do not ask the user to create collections/tables in the console. If MCP tools are missing in this session, configure MCP for next time and use `tcb` CLI (`../cloudbase-cli/SKILL.md`) for equivalent schema/admin ops.
+     - NoSQL: `writeNoSqlDatabaseStructure` (create collection / indexes) + permission tools as needed; CLI: NoSQL commands in `cloudbase-cli`.
+     - PostgreSQL: follow `../postgresql-development-cloudbase/SKILL.md` (`queryPgDatabase` / `managePgDatabase` / migrations); CLI parity via `tcb db pg …` when MCP is unavailable.
    - **Reads / writes:** `@cloudbase/js-sdk` in the browser.
      - NoSQL: `app.database()` → `db.collection(...).get()/add()/update()/watch(...)`.
      - PG: `app.rdb().from(...)`.

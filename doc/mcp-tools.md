@@ -197,6 +197,8 @@ CloudBase（腾讯云开发）开发阶段登录与环境绑定。登录后即�
 - `EnvInfo.RuntimeBackends`：`\{postgresql, nosql, mysql\}` 三个布尔值，描述当前环境实际并存的后端。
 - `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。
 
+🌐 action=info 还会在不改写 `StaticStorages[].StaticDomain`（云 API 名义域名）的前提下，投影网关路由 Enable 状态：`StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。
+
 AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType="noSqlDatabase")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用。
 
 #### 参数
@@ -251,6 +253,8 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
 - `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。
 - `EnvInfo.RuntimeBackends`：`\{postgresql, nosql, mysql\}` 三个布尔值，描述当前环境实际并存的后端。
 - `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。
+
+🌐 action=info 还会在不改写 `StaticStorages[].StaticDomain`（云 API 名义域名）的前提下，投影网关路由 Enable 状态：`StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。
 
 AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType="noSqlDatabase")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用。
 
@@ -2482,7 +2486,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
         {
           name: "enable",
           type: "boolean",
-          description: `路由是否启用（Routes[].Enable）。true=启用，false=禁用。updateRoute 可用；也可用专用 action enableRoute/disableRoute。route.enable 优先于顶层 enable。`,
+          description: `路由级开关（Routes[].Enable / Route.Enable）。createRoute/updateRoute 可用：enable=false 禁用该 Domain+Path（访问返回 GATEWAY_ROUTE_DISABLED）；enable=true 重新启用。updateRoute 也可用顶层 enable 表达同一语义；也可用专用 action enableRoute/disableRoute。route.enable 优先于顶层 enable。`,
         }
       ],
     },
@@ -2509,7 +2513,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
     {
       name: "enable",
       type: "boolean",
-      description: `开关目标状态。enableService / authSwitch 必填：enable=true 开启，enable=false 关闭。updateRoute 可选：写入 Routes[].Enable（route.enable 优先）；也可用 enableRoute/disableRoute。bindCustomDomain 可选：enable=false 表示绑定后禁用域名（默认启用）。省略或非布尔值在 enableService/authSwitch 会返回参数错误。`,
+      description: `开关目标状态：enableService / authSwitch 必填（true 开启 / false 关闭）；bindCustomDomain 可选：enable=false 表示绑定后禁用域名（默认启用）；updateRoute 可选：映射到 Routes[].Enable（也可用 route.enable，route 优先；也可用专用 action enableRoute/disableRoute）。省略或非布尔值在 enableService/authSwitch 会返回参数错误。`,
     }
   ]}
 />

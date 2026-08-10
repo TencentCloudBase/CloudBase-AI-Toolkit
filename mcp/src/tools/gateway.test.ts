@@ -514,10 +514,10 @@ describe("gateway tools", () => {
     });
   });
 
-  it("manageGateway(action=updateRoute) should pass Routes[].Enable when enable=false", async () => {
+  it("manageGateway(action=updateRoute) should pass Route.Enable=false and omit reachable accessUrl", async () => {
     const result = await tools.manageGateway.handler({
       action: "updateRoute",
-      domain: "env-test-appid.tcloudbaseapp.com",
+      domain: "static.example.com",
       targetName: "staticstore",
       path: "/",
       upstreamResourceType: "STATIC_STORE",
@@ -529,7 +529,7 @@ describe("gateway tools", () => {
     expect(mockModifyHttpServiceRoute).toHaveBeenCalledWith({
       EnvId: "env-test",
       Domain: {
-        Domain: "env-test-appid.tcloudbaseapp.com",
+        Domain: "static.example.com",
         Routes: [
           {
             Path: "/",
@@ -546,10 +546,12 @@ describe("gateway tools", () => {
       data: {
         action: "updateRoute",
         enable: false,
-        path: "/",
+        accessUrlReachable: false,
+        routeDisabled: true,
       },
     });
-    expect(payload.message).toContain("路由=禁用");
+    expect(payload.data.accessUrl).toBeUndefined();
+    expect(payload.message).toContain("Enable=false");
   });
 
   it("manageGateway(action=disableRoute) should lookup existing route and set Enable=false", async () => {

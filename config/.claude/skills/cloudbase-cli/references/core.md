@@ -32,16 +32,30 @@
 ### Quick Commands
 
 ```bash
-tcb login                      # Interactive login (device code, recommended)
+tcb login                      # Interactive login (device code, recommended; has Tencent Cloud account)
 tcb login --flow web           # Web authorization (same-machine only)
-tcb login --apiKeyId <Id> --apiKey <Key>            # CI / non-interactive
+tcb login --cloudbase-api-key <cloudbaseApiKey> -e <envId>  # Env API Key (no Tencent Cloud account)
+tcb login --apiKeyId <Id> --apiKey <Key>            # CI / Tencent Cloud SecretId+SecretKey
 tcb login --apiKeyId <Id> --apiKey <Key> --token <T> # Temp token (CI, more secure)
 tcb logout                     # Clear local credentials
 ```
 
+### Choosing a login method
+
+| Situation | Method |
+|-----------|--------|
+| User has a Tencent Cloud account | Device code (`tcb login`) — default / recommended |
+| Same machine + local browser OK | Web flow (`tcb login --flow web`) |
+| No Tencent Cloud account; only an environment API Key | `--cloudbase-api-key` **with** `-e` / `--env-id` |
+| CI / automation with SecretId + SecretKey | `--apiKeyId` + `--apiKey` (+ optional `--token`) |
+
+> Do **not** confuse `--cloudbase-api-key` (CloudBase **environment** API Key) with `--apiKeyId` / `--apiKey` (Tencent Cloud **account** credentials).
+
 ### Login Methods
 
 **1. Device Code Authorization (default, recommended)**
+
+Use when the user **has a Tencent Cloud account**. Typical IDE path (e.g. CodeBuddy): start chatting and complete Device login when prompted — no pre-login required.
 
 ```bash
 tcb login
@@ -60,7 +74,28 @@ tcb login --flow web
 
 > ⚠️ Requires browser and CLI on the same machine. Falls back to key-based login if browser cannot open.
 
-**3. CI / Non-Interactive Login**
+**3. CloudBase Environment API Key (no Tencent Cloud account)**
+
+Use when the user **does not** have a Tencent Cloud account and only holds an environment-level API Key (e.g. issued by a partner/admin). Must specify the target envId via global `-e` / `--env-id`.
+
+```bash
+# Install CLI if needed
+npm i -g @cloudbase/cli
+
+# Environment API Key login (envId is required)
+tcb login --cloudbase-api-key <cloudbaseApiKey> -e <cloudbaseEnvId>
+# Equivalent long flag:
+# tcb login --cloudbase-api-key <cloudbaseApiKey> --env-id <cloudbaseEnvId>
+```
+
+> 💡 API Keys can be created in the [CloudBase console](https://tcb.cloud.tencent.com/dev) environment settings (when you have admin access).
+>
+> ⚠️ Environment API Keys grant env-scoped privileges. Never commit them to git or paste into screenshots.
+> ⚠️ **Never hardcode credentials.** Prefer env vars / secrets injection when scripting.
+>
+> If the user already has a Tencent Cloud account, prefer Device login instead — do **not** ask them to use `--cloudbase-api-key`.
+
+**4. CI / Non-Interactive Login (Tencent Cloud SecretId / SecretKey)**
 
 ```bash
 # Permanent credentials
@@ -72,6 +107,8 @@ tcb login --apiKeyId $TMP_SECRET_ID --apiKey $TMP_SECRET_KEY --token $SESSION_TO
 
 > ⚠️ **Never hardcode credentials.** Always inject via environment variables.
 > 不要把密钥硬编码在命令里，通过环境变量注入。
+>
+> This is **not** the same as `--cloudbase-api-key`. Use SecretId/SecretKey for CI with a Tencent Cloud account/sub-account.
 
 ### Checking Login Status
 
@@ -100,6 +137,8 @@ Sub-accounts need these CAM policies to use the CLI:
 |-------|----------|
 | `Not logged in` | Run `tcb login` |
 | Cannot open browser / browser loop | Use default device code flow (no `--flow` flag) |
+| No Tencent Cloud account; only env API Key | `tcb login --cloudbase-api-key <key> -e <envId>` |
+| `--cloudbase-api-key` without envId | Always pass `-e` / `--env-id` (required by CLI) |
 | Device code not working in CI | Use `--apiKeyId / --apiKey` credential login |
 | Sub-account web/device login fails | Grant `QcloudCamReadOnlyAccess`, or use key login |
 | Permission denied on resources | Check sub-account CAM policies for the specific TCB resource |
