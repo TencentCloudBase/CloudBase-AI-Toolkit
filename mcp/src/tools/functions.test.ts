@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  buildCreateLayerNameWarning,
   buildFunctionOperationErrorMessage,
   DEFAULT_RUNTIME,
+  LAYER_SOFT_WARN,
+  layerNameIncludesEnvId,
   pickManageFunctionName,
   registerFunctionTools,
   resolveEventFunctionRuntime,
@@ -14,6 +17,7 @@ const {
   mockUpdateFunctionCode,
   mockCreateAccess,
   mockGetCloudBaseManager,
+  mockGetEnvId,
   mockLogCloudBaseResult,
   mockIsCloudMode,
 } = vi.hoisted(() => ({
@@ -21,12 +25,14 @@ const {
   mockUpdateFunctionCode: vi.fn(),
   mockCreateAccess: vi.fn(),
   mockGetCloudBaseManager: vi.fn(),
+  mockGetEnvId: vi.fn(),
   mockLogCloudBaseResult: vi.fn(),
   mockIsCloudMode: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
   getCloudBaseManager: mockGetCloudBaseManager,
+  getEnvId: mockGetEnvId,
   logCloudBaseResult: mockLogCloudBaseResult,
 }));
 
@@ -68,6 +74,7 @@ describe("functions tool helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsCloudMode.mockReturnValue(false);
+    mockGetEnvId.mockResolvedValue("env-test");
     mockCreateFunction.mockResolvedValue({
       RequestId: "req-create-function",
       FunctionName: "httpDemo",
@@ -89,6 +96,23 @@ describe("functions tool helpers", () => {
     });
 
     ({ tools } = createMockServer());
+  });
+
+  it("soft-warns bare layer names and accepts env-suffixed names", () => {
+    const envId = "cloud1-d9ghadgak3edf6b36";
+    expect(layerNameIncludesEnvId("common", envId)).toBe(false);
+    expect(layerNameIncludesEnvId(`common_${envId}`, envId)).toBe(true);
+    expect(buildCreateLayerNameWarning("common", envId)).toBe(
+      LAYER_SOFT_WARN.createNameFormat(envId),
+    );
+    expect(buildCreateLayerNameWarning(`common_${envId}`, envId)).toBeUndefined();
+  });
+
+  it("documents fixed layer naming format in manageFunctions description", () => {
+    const description = tools.manageFunctions.meta.description as string;
+    expect(description).toContain("{layerName}_{当前envId}");
+    expect(description).toContain("common_cloud1-d9ghadgak3edf6b36");
+    expect(description).toContain("SCF 账号级共享命名空间");
   });
 
   it("keeps HTTP functions from forcing dependency install when package.json is absent", () => {

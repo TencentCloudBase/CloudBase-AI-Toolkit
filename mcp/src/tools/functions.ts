@@ -144,7 +144,39 @@ type FunctionToolEnvelope = {
     action: string;
     reason: string;
   }>;
+  /** Soft advisory messages; never blocks the operation. */
+  warnings?: string[];
 };
+
+/** Layer soft-warn copy — account-scoped SCF LayerName guidance (no hard fail). */
+export const LAYER_SOFT_WARN = {
+  createNameFormat: (envId: string) =>
+    `建议使用 {layerName}_${envId} 格式，当前名称可能与其他环境共享版本序列`,
+  deleteVersion:
+    "该层为账号级共享资源，删除版本会影响所有绑定该版本的环境的函数，请确认",
+  bindShared:
+    "层为账号级共享，绑定/解绑影响所有引用该层名的环境",
+  accountLevelView:
+    "返回账号级视图，含其他环境创建的层",
+} as const;
+
+export function layerNameIncludesEnvId(
+  layerName: string,
+  envId: string | undefined,
+): boolean {
+  if (!envId) return true;
+  return layerName.includes(envId);
+}
+
+export function buildCreateLayerNameWarning(
+  layerName: string,
+  envId: string | undefined,
+): string | undefined {
+  if (!envId || layerNameIncludesEnvId(layerName, envId)) {
+    return undefined;
+  }
+  return LAYER_SOFT_WARN.createNameFormat(envId);
+}
 
 type QueryFunctionsInput = {
   action: QueryFunctionsAction;
@@ -565,11 +597,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     data: Record<string, unknown>,
     message: string,
     nextActions?: FunctionToolEnvelope["nextActions"],
+    warnings?: string[],
   ): FunctionToolEnvelope => ({
     success: true,
     data,
     message,
     ...(nextActions?.length ? { nextActions } : {}),
+    ...(warnings?.length ? { warnings } : {}),
   });
 
   const buildErrorEnvelope = (
@@ -895,6 +929,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             reason: "发布新的层版本",
           },
         ],
+        [LAYER_SOFT_WARN.accountLevelView],
       );
     }
     case "listLayerVersions": {
@@ -927,6 +962,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             reason: "将某个层版本绑定到函数",
           },
         ],
+        [LAYER_SOFT_WARN.accountLevelView],
       );
     }
     case "getLayerVersionDetail": {
@@ -964,6 +1000,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             reason: "删除该层版本",
           },
         ],
+        [LAYER_SOFT_WARN.accountLevelView],
       );
     }
     case "listFunctionTriggers": {
@@ -1644,6 +1681,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           "createLayerVersion 操作时，contentPath 和 base64Content 至少需要提供一个",
         );
       }
+      const envId = await getEnvId(cloudBaseOptions);
+      const nameWarning = buildCreateLayerNameWarning(input.layerName, envId);
       const cloudbase = await getManager();
       const result = await cloudbase.functions.createLayer({
         name: input.layerName,
@@ -1670,6 +1709,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             reason: "查看该层的全部版本",
           },
         ],
+        nameWarning ? [nameWarning] : undefined,
       );
     }
     case "deleteLayerVersion": {
@@ -1701,6 +1741,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             reason: "确认剩余层版本",
           },
         ],
+        [LAYER_SOFT_WARN.deleteVersion],
       );
     }
     case "attachLayer":
@@ -1711,6 +1752,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       }
       const cloudbase = await getManager();
       const envId = await getEnvId(cloudBaseOptions);
+      const bindWarnings = [LAYER_SOFT_WARN.bindShared];
 
       if (input.action === "attachLayer") {
         if (!input.layerName) {
@@ -1747,6 +1789,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
               reason: "确认函数当前绑定层列表",
             },
           ],
+          bindWarnings,
         );
       }
 
@@ -1786,6 +1829,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
               reason: "确认解绑后的层列表",
             },
           ],
+          bindWarnings,
         );
       }
 
@@ -1820,6 +1864,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             reason: "确认最新层顺序和绑定结果",
           },
         ],
+        bindWarnings,
       );
     }
     default:
@@ -1856,6 +1901,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         "\n- 示例：`queryFunctions(action=\"listFunctionLogs\", functionName=\"my-function\")`" +
         "\n- 如需查看日志详情：`queryFunctions(action=\"getFunctionLogDetail\", requestId=\"xxx\")`" +
         "\n\n**定时任务 / cron / 定时跑**：使用 `listFunctionTriggers` 查询函数的 timer 触发器配置。" +
+        "\n\n**层（Layer）说明**：" +
+        "\n- 层为 SCF 账号级共享命名空间：不同环境创建同名层会共享同一层的版本序列；删除某版本会影响所有绑定该版本的环境的函数" +
+        "\n- 创建层必须用带环境标识的唯一层名，固定格式：`{layerName}_{当前envId}`（如 `common_cloud1-d9ghadgak3edf6b36`）。不要在不同环境使用相同裸层名，创建前先 `listLayers` 查重" +
+        "\n- `listLayers` / `listLayerVersions` / `getLayerVersionDetail` 返回账号级视图，可能含其他环境创建的层" +
         "\n\n**区分 `queryLogs` 工具**：" +
         "\n- 本工具用于查询特定 CloudBase 云函数的执行日志" +
         "\n- `queryLogs` 工具用于搜索 CLS 日志服务（跨服务日志聚合）",
@@ -1869,9 +1918,9 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             "\n- `listFunctionLogs`: 查询 CloudBase 云函数执行日志（需要 functionName）" +
             "\n- `getFunctionLogDetail`: 获取日志详情（需要 requestId）" +
             "\n- `listFunctionLayers`: 列出函数绑定的层" +
-            "\n- `listLayers`: 列出所有层" +
-            "\n- `listLayerVersions`: 列出层的版本（注意：是 Versions 不是 Version）" +
-            "\n- `getLayerVersionDetail`: 获取层版本详情" +
+            "\n- `listLayers`: 列出所有层（账号级视图，含其他环境创建的层）" +
+            "\n- `listLayerVersions`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图）" +
+            "\n- `getLayerVersionDetail`: 获取层版本详情（账号级视图）" +
             "\n- `listFunctionTriggers`: 列出函数触发器（用于查看定时任务 / cron / timer 配置）" +
             "\n- `getFunctionDownloadUrl`: 获取函数代码下载地址"
           ),
@@ -1903,7 +1952,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         qualifier: z.string().optional().describe("函数版本别名，如 $LATEST、$DEFAULT。日志查询时可选"),
         runtime: z.string().optional().describe("层查询的运行时筛选，如 Nodejs18.15"),
         searchKey: z.string().optional().describe("层名称搜索关键字"),
-        layerName: z.string().optional().describe("层名称。`listLayerVersions`、`getLayerVersionDetail` 操作必填"),
+        layerName: z
+          .string()
+          .optional()
+          .describe(
+            "层名称。`listLayerVersions`、`getLayerVersionDetail` 操作必填。" +
+            "层为账号级共享命名空间；推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）",
+          ),
         layerVersion: z.number().optional().describe("层版本号。`getLayerVersionDetail` 操作必填"),
       },
       annotations: {
@@ -1924,13 +1979,19 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         "如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。" +
         "镜像部署（Runtime=CustomImage）：先把代码经 zip→COS→CloudApp custom 构建→TCR 推镜像（这一阶段为裸腾讯云 API，本工具不覆盖），" +
         "再用 createFunction(func.runtime=\"CustomImage\", imageConfig) 基于 TCR 镜像创建 HTTP 函数；后续迭代用 updateFunctionCode + imageConfig 换镜像 tag。" +
-        "危险操作需要显式 confirm=true。",
+        "危险操作需要显式 confirm=true。" +
+        "\n\n**层（Layer）说明**：" +
+        "\n- 层为 SCF 账号级共享命名空间：不同环境创建同名层会共享同一层的版本序列；删除某版本会影响所有绑定该版本的环境的函数" +
+        "\n- 创建层必须用带环境标识的唯一层名，固定格式：`{layerName}_{当前envId}`（如 `common_cloud1-d9ghadgak3edf6b36`）。不要在不同环境使用相同裸层名，创建前先 `listLayers` 查重" +
+        "\n- 相关 action：`createLayerVersion` / `deleteLayerVersion` / `attachLayer` / `detachLayer` / `updateFunctionLayers`（只读查询见 queryFunctions 的 listLayers / listLayerVersions / getLayerVersionDetail）",
       inputSchema: {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
           .describe(
             "写操作类型，例如 createFunction、updateFunctionCode、incrementalDeployFunction、invokeFunction、deleteFunction、" +
-            "createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、attachLayer、detachLayer"
+            "createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、" +
+            "createLayerVersion、deleteLayerVersion、attachLayer、detachLayer、updateFunctionLayers。" +
+            "层名推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）"
           ),
         func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
         functionRootPath: z.string().optional().describe(
@@ -1973,7 +2034,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             '如 "0 */5 * * * * *" 表示每5分钟执行一次'
           ),
         triggerName: z.string().optional().describe("deleteFunctionTrigger 的目标触发器名称"),
-        layerName: z.string().optional().describe("层名称"),
+        layerName: z
+          .string()
+          .optional()
+          .describe(
+            "层名称。创建层推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）；" +
+            "不要跨环境复用裸层名。层为账号级共享命名空间",
+          ),
         layerVersion: z.number().optional().describe("层版本号"),
         contentPath: z.string().optional().describe("层内容路径，可为目录或 ZIP 文件"),
         base64Content: z.string().optional().describe("层内容的 base64 编码"),
