@@ -70,6 +70,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Assuming MCP covers the whole image pipeline. `manageFunctions` covers SCF image deploy (Stage B) via `runtime: "CustomImage"` + `imageConfig`, but the CloudApp custom build → TCR push (Stage A) is a raw Tencent Cloud API path — confirm action names and parameters from official docs before any `callCloudApi` fallback.
 - Making code or configuration changes without first following the Change Safety Protocol (`cloudbase-platform/references/protocols/change-safety-protocol.md`).
 - Exposing functions publicly or deploying without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
+- **Using a bare layer name (e.g. `common`) across environments.** SCF LayerName is an account-scoped shared namespace: same name → shared version sequence. Create new layers with fixed format `{layerName}_{当前envId}` (e.g. `common_cloud1-d9ghadgak3edf6b36`). Pass the full name as `layerName` — do not invent automatic suffixes. Treat MCP layer `warnings` as soft advisories (operation still succeeds). Details: `./references/operations-and-config.md`.
 - **Defaulting new CRUD to TCP DB clients** (`DATABASE_URL` / `mysql2` / `pg` / Redis) instead of native `app.rdb()` / `app.database()` or MCP SQL. TCP is exception-only for existing ORM migrations — see `references/vpc-and-tcp-database.md` only then.
 
 ### Minimal checklist
@@ -162,7 +163,7 @@ Use these rules whenever you are writing the function code itself:
    - HTTP Function details -> `./references/http-functions.md`
    - HTTP Function CloudBase SDK credentials -> `./references/http-function-credentials.md`
    - HTTP Function from a container image (`Runtime: CustomImage`, TCR image pipeline) -> `./references/http-functions-custom-image.md`
-   - Logs, gateway, env vars, and legacy mappings -> `./references/operations-and-config.md`
+   - Logs, gateway, env vars, layers (`{layerName}_{当前envId}`), and legacy mappings -> `./references/operations-and-config.md`
 
 ## Database write reminder
 
@@ -295,6 +296,17 @@ The `scf_bootstrap` binary path must match the runtime — see the full mapping 
 - `manageFunctions(action="createFunction")`
 - `manageFunctions(action="updateFunctionCode")`
 - `manageFunctions(action="updateFunctionConfig")`
+
+### Layers (SCF Layer)
+
+Layers are **account-scoped**, not env-scoped. Align with MCP `manageFunctions` / `queryFunctions` layer guidance:
+
+- **Naming (required for new layers):** `{layerName}_{当前envId}` — example `common_cloud1-d9ghadgak3edf6b36`. Do not reuse a bare name like `common` in another env.
+- **Create:** `manageFunctions(action="createLayerVersion", layerName="…_{envId}", …)` after `queryFunctions(action="listLayers")` to check duplicates. MCP may return a soft `warnings` entry if the name lacks the current `envId`; it does **not** rewrite the name.
+- **Read:** `queryFunctions(action="listLayers"|"listLayerVersions"|"getLayerVersionDetail"|"listFunctionLayers")` — list results are an account-level view and may include layers created in other envs.
+- **Bind / unbind / replace:** `manageFunctions(action="attachLayer"|"detachLayer"|"updateFunctionLayers")`
+- **Delete version:** `manageFunctions(action="deleteLayerVersion")` — deleting a version can affect every env that binds that version.
+- Full contract and warning semantics → `./references/operations-and-config.md`
 
 ### Logs
 

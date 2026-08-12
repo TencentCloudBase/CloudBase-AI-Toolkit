@@ -56,6 +56,7 @@ Read this when the task is about:
 - timer cron format
 - VPC field shape only (examples) — for TCP DB policy see `vpc-and-tcp-database.md` (exception-only)
 - gateway exposure for Event Functions
+- SCF layers: account-scoped naming `{layerName}_{当前envId}`, soft `warnings`, list/create/bind/delete actions
 - legacy tool-name translation
 - `callCloudApi` fallback for Cloud Functions
 
