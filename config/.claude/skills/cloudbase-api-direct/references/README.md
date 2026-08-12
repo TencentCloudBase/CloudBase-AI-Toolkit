@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-08-11T03:55:58.912Z
+爬取时间: 2026-08-12T04:20:32.961Z
 
 ## 文档列表
 
@@ -125,6 +125,7 @@
 - [云托管 CloudBase Run 操作发布单_腾讯云](./1243-75873-云托管-CloudBase-Run-操作发布单_腾讯云.md)
 - [云托管 CloudBase Run 灰度发布_腾讯云](./1243-75872-云托管-CloudBase-Run-灰度发布_腾讯云.md)
 - [云托管 CloudBase Run 查询日志cls日志信息_腾讯](./1243-126754-云托管-CloudBase-Run-查询日志cls日志信息_腾讯.md)
+- [云托管 CloudBase Run 提交配置差异化更新_腾讯云](./1243-135881-云托管-CloudBase-Run-提交配置差异化更新_腾讯云.md)
 - [云托管 CloudBase Run 回滚版本_腾讯云](./1243-126753-云托管-CloudBase-Run-回滚版本_腾讯云.md)
 - [云托管 CloudBase Run 更新云托管服务_腾讯云](./1243-75709-云托管-CloudBase-Run-更新云托管服务_腾讯云.md)
 - [云托管 CloudBase Run 创建环境_腾讯云](./1243-75707-云托管-CloudBase-Run-创建环境_腾讯云.md)

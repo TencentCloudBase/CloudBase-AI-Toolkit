@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-04-16 02:13:18
+最近更新时间：2026-08-12 03:19:37
 
 -   微信扫一扫 
 -   QQ
@@ -39,6 +39,7 @@ _我的收藏_
 | [OperateServerManage](/document/api/1243/75873) | 操作发布单 | 20 |
 | [ReleaseGray](/document/api/1243/75872) | 灰度发布 | 20 |
 | [SearchClsLog](/document/api/1243/126754) | 查询日志cls日志信息 | 20 |
+| [SubmitServerConfigChangeDiff](/document/api/1243/135881) | 提交配置差异化更新 | 20 |
 | [SubmitServerRollback](/document/api/1243/126753) | 回滚版本 | 20 |
 | [UpdateCloudRunServer](/document/api/1243/75709) | 更新云托管服务 | 20 |
 
