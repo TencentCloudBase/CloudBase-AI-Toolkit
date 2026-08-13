@@ -1,6 +1,6 @@
-<div align="center"><a name="readme-top"></a>
+<div align="center">
 
-<img src="mcp/icon.png" width="96" height="96" alt="CloudBase AI Toolkit" />
+<img src="https://raw.githubusercontent.com/TencentCloudBase/CloudBase-AI-Toolkit/main/mcp/icon.png" width="96" height="96" alt="CloudBase AI Toolkit" />
 
 # CloudBase AI Toolkit
 
@@ -71,7 +71,18 @@ AI IDE（Cursor、Claude Code、Codex、CodeBuddy 等）擅长生成代码。真
 
 ## 快速开始
 
-按你的工具选一条默认路径即可。
+### 最快上手（推荐）
+
+复制下面的 AI Prompt，粘贴到你的 AI IDE。Agent 会读取 skill.md 完成接入：
+
+```
+帮我把 CloudBase 接好，按下面做：
+1. 打开 https://docs.cloudbase.net/skill.md，按说明完成接入。
+2. 接入完成后告诉我，并建议最相关的下一步。
+```
+
+<details>
+<summary>按你的工具选一条默认路径（Plugin / CLI / MCP）</summary>
 
 | 你的工具 | 建议做法 |
 |----------|----------|
@@ -81,7 +92,7 @@ AI IDE（Cursor、Claude Code、Codex、CodeBuddy 等）擅长生成代码。真
 | CodeBuddy / WorkBuddy / ZCode（已内置） | 使用 IDE 内置的 CloudBase 插件或连接器；CodeBuddy 也可通过[插件市场安装](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) |
 | 其他支持 MCP 的 IDE | 仅配置 MCP（见下方） |
 
-### Plugin
+#### Plugin
 
 ```bash
 npx plugins add TencentCloudBase/cloudbase-plugin
@@ -89,7 +100,7 @@ npx plugins add TencentCloudBase/cloudbase-plugin
 
 说明与各 IDE 差异见 [AI 插件文档](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ai-agent-plugins)。
 
-### 仅配置 MCP
+#### 仅配置 MCP
 
 ```json
 {
@@ -103,6 +114,8 @@ npx plugins add TencentCloudBase/cloudbase-plugin
 ```
 
 托管 HTTP、自建 Cloud Mode、按插件裁剪工具集见 [安装与连接](#安装与连接)。
+
+</details>
 
 ### 首次对话
 
@@ -118,7 +131,7 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
 
 ### 支持的 AI IDE
 
-<img width="1200" alt="Supported AI IDEs" src="scripts/assets/ide-support-grid.png" />
+<img width="1200" alt="Supported AI IDEs" src="https://raw.githubusercontent.com/TencentCloudBase/CloudBase-AI-Toolkit/main/scripts/assets/ide-support-grid.png" />
 
 | 工具 | 平台 | 指引 |
 |------|------|------|

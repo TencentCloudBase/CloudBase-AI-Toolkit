@@ -1,6 +1,6 @@
-<div align="center"><a name="readme-top"></a>
+<div align="center">
 
-<img src="mcp/icon.png" width="96" height="96" alt="CloudBase AI Toolkit" />
+<img src="https://raw.githubusercontent.com/TencentCloudBase/CloudBase-AI-Toolkit/main/mcp/icon.png" width="96" height="96" alt="CloudBase AI Toolkit" />
 
 # CloudBase AI Toolkit
 
@@ -71,7 +71,18 @@ Prefer Plugin for the full stack; Skills alone when you only need knowledge cons
 
 ## Quick start
 
-Pick one default path for your tool.
+### Fastest way to get started
+
+Copy this AI prompt into your AI IDE. The agent reads `skill.md` and completes the setup:
+
+```
+Set up CloudBase for me:
+1. Open https://docs.cloudbase.net/skill.md and complete the setup following its instructions.
+2. Tell me when you're done, and suggest the most relevant next step.
+```
+
+<details>
+<summary>Pick one default path for your tool (Plugin / CLI / MCP)</summary>
 
 | Your tool | Suggested path |
 |----------|----------|
@@ -81,7 +92,7 @@ Pick one default path for your tool.
 | CodeBuddy / WorkBuddy / ZCode (built-in) | Use the IDE’s built-in CloudBase plugin or connector; for CodeBuddy you can also [install via plugin marketplace](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) |
 | Other MCP-capable IDEs | MCP config only (below) |
 
-### Plugin
+#### Plugin
 
 ```bash
 npx plugins add TencentCloudBase/cloudbase-plugin
@@ -89,7 +100,7 @@ npx plugins add TencentCloudBase/cloudbase-plugin
 
 Details and IDE differences: [AI plugin docs](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ai-agent-plugins).
 
-### MCP only
+#### MCP only
 
 ```json
 {
@@ -103,6 +114,8 @@ Details and IDE differences: [AI plugin docs](https://docs.cloudbase.net/ai/clou
 ```
 
 Hosted HTTP, self-hosted Cloud Mode, and plugin scoping: [Install & connect](#install--connect).
+
+</details>
 
 ### First prompts
 
@@ -118,7 +131,7 @@ Skills shape structure and practice; MCP handles environment and resources. You 
 
 ### Supported AI IDEs
 
-<img width="1200" alt="Supported AI IDEs" src="scripts/assets/ide-support-grid.png" />
+<img width="1200" alt="Supported AI IDEs" src="https://raw.githubusercontent.com/TencentCloudBase/CloudBase-AI-Toolkit/main/scripts/assets/ide-support-grid.png" />
 
 | Tool | Platform | Guide |
 |------|------|------|
