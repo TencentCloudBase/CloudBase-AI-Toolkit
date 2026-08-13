@@ -188,6 +188,7 @@ rules:
       - "帮我创建一个微信小程序项目并集成 CloudBase"
       - "实现小程序与 CloudBase 的完整集成"
       - "我想把微信小程序 tabBar 调整为纯文字样式，怎么去掉图标占位并消除标签上方留白？"
+      - "帮我做小程序 SEO：优化页面让微信搜索能收录（小程序搜索优化指南）"
 
   - id: cloudbase-wechat-integration
     title: 应用集成：微信生态集成

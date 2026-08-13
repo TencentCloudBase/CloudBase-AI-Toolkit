@@ -61,3 +61,7 @@
 {"prompt": "云函数里获取调用方自定义登录 ticket", "expectedSkills": ["auth-nodejs"], "category": "auth", "note": "正例：Node.js custom login ticket"}
 {"prompt": "小程序里用 wx.cloud.database 查询数据", "expectedSkills": ["no-sql-wx-mp-sdk"], "category": "database", "note": "正例：小程序 NoSQL SDK"}
 {"prompt": "小程序数据库 collection 的权限规则配置", "expectedSkills": ["no-sql-wx-mp-sdk"], "category": "database", "note": "正例：小程序数据库权限"}
+{"prompt": "帮我的小程序做 SEO，让页面能被微信搜索收录", "expectedSkills": ["miniprogram-development"], "category": "miniprogram", "note": "正例：小程序 SEO / 搜索收录"}
+{"prompt": "小程序搜索优化怎么做，怎么提升关键词排名", "expectedSkills": ["miniprogram-development"], "category": "miniprogram", "note": "正例：小程序搜索优化 / 关键词排名"}
+{"prompt": "微信搜索爬虫 mpcrawler 访问我的页面要如何处理", "expectedSkills": ["miniprogram-development"], "category": "miniprogram", "note": "正例：小程序搜索爬虫"}
+{"prompt": "小程序运营推广：怎么让更多用户搜索到我的小程序", "expectedSkills": ["miniprogram-development"], "category": "miniprogram", "note": "正例：小程序运营推广 / 搜索曝光"}

@@ -1,6 +1,6 @@
 ---
 name: miniprogram-development
-description: WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, and optimizing mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, or optimize WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools Nightly workflows, `wechatide` CLI, WeChat IDE Skills/MCP, console/network debugging, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, 微信云开发, or 云开发 in a mini program project.
+description: WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, optimizing, and promoting mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, optimize, or promote WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools Nightly workflows, `wechatide` CLI, WeChat IDE Skills/MCP, console/network debugging, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users ask about mini program SEO / search optimization / search promotion (小程序 SEO、小程序搜索优化、微信搜索收录、搜索推广、页面收录、关键词排名、被搜索到), page indexing by the WeChat search crawler (`mpcrawler`), or the WeChat search optimization guide at developers.weixin.qq.com/miniprogram/dev/framework/search/seo.html. It should also be used when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, 微信云开发, or 云开发 in a mini program project.
 version: 2.26.0
 alwaysApply: false
 ---
@@ -81,6 +81,7 @@ Use this skill for **WeChat Mini Program development** when you need to:
    - If the task involves debugging, previewing, publishing, opening DevTools, console/network, or `wechatide`, read [debug and preview reference](references/devtools-debug-preview.md) first
    - If choosing between WeChat IDE Skills and CloudBase MCP, read [WeChat IDE Skills vs CloudBase MCP](references/wxide-vs-cloudbase-mcp.md)
    - If the task involves CloudBase, `wx.cloud`, cloud functions, CloudBase database/storage, or CloudBase identity handling, read [CloudBase integration reference](references/cloudbase-integration.md)
+   - If the task involves mini program SEO / WeChat search optimization / page indexing / search promotion (小程序搜索优化、页面收录、搜索推广、关键词排名), read [Mini Program SEO & WeChat Search Optimization](references/seo-search-optimization.md) first
    - If the task involves `tabBar`, icon assets, or label spacing, prefer the text-only custom `tabBar` default below unless the user explicitly requires icons
 
 4. **Use CloudBase rules only when applicable**
@@ -202,4 +203,5 @@ Page({
 - [CloudBase Mini Program Integration](references/cloudbase-integration.md) — use this when the mini program project explicitly integrates CloudBase
 - [WeChat DevTools Debug and Preview](references/devtools-debug-preview.md) — Nightly / `wechatide` paths, required context, and no-Nightly fallbacks
 - [WeChat IDE Skills vs CloudBase MCP](references/wxide-vs-cloudbase-mcp.md) — layering and when to use which execution surface
+- [Mini Program SEO & WeChat Search Optimization](references/seo-search-optimization.md) — 小程序搜索优化 / page indexing / search promotion (`mpcrawler`, URL reachability, `navigator` jumps, titles & thumbnails)
 - [Common Pitfalls](references/pitfalls.md) — read before generating code for optional chaining, TDesign styling, Canvas + storage, and environment issues

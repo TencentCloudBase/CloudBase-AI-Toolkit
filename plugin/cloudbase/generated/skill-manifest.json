@@ -1211,8 +1211,8 @@
     },
     "miniprogram-development": {
       "name": "miniprogram-development",
-      "description": "WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, and optimizing mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, or optimize WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools Nightly workflows, `wechatide` CLI, WeChat IDE Skills/MCP, console/network debugging, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, 微信云开发, or 云开发 in a mini program project.",
-      "version": "2.25.0",
+      "description": "WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, optimizing, and promoting mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, optimize, or promote WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools Nightly workflows, `wechatide` CLI, WeChat IDE Skills/MCP, console/network debugging, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users ask about mini program SEO / search optimization / search promotion (小程序 SEO、小程序搜索优化、微信搜索收录、搜索推广、页面收录、关键词排名、被搜索到), page indexing by the WeChat search crawler (`mpcrawler`), or the WeChat search optimization guide at developers.weixin.qq.com/miniprogram/dev/framework/search/seo.html. It should also be used when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, 微信云开发, or 云开发 in a mini program project.",
+      "version": "2.26.0",
       "metadata": {
         "priority": 8
       },
@@ -1225,7 +1225,14 @@
           "小程序发布",
           "小程序项目",
           "小程序里",
-          "企业微信小程序"
+          "企业微信小程序",
+          "小程序搜索优化",
+          "小程序seo",
+          "微信搜索",
+          "小程序运营",
+          "小程序推广",
+          "页面收录",
+          "搜索收录"
         ],
         "allOf": [
           [
@@ -1239,35 +1246,66 @@
           [
             "小程序",
             "预览"
+          ],
+          [
+            "小程序",
+            "seo"
+          ],
+          [
+            "小程序",
+            "搜索"
+          ],
+          [
+            "小程序",
+            "收录"
+          ],
+          [
+            "小程序",
+            "运营"
+          ],
+          [
+            "小程序",
+            "推广"
           ]
         ],
         "anyOf": [
           "app.json",
           "project.config.json",
-          "tabbar"
+          "tabbar",
+          "mpcrawler"
         ],
         "minScore": 6
       },
       "retrieval": {
         "aliases": [
           "miniprogram",
-          "微信小程序"
+          "微信小程序",
+          "小程序搜索优化",
+          "小程序seo"
         ],
         "intents": [
           "开发小程序",
           "部署小程序",
           "小程序调试",
-          "小程序项目"
+          "小程序项目",
+          "小程序搜索优化",
+          "小程序seo",
+          "小程序运营推广",
+          "小程序页面收录"
         ],
         "entities": [
           "project.config.json",
           "app.json",
-          "tabBar"
+          "tabBar",
+          "mpcrawler"
         ],
         "examples": [
           "开发微信小程序",
           "小程序预览",
-          "小程序发布"
+          "小程序发布",
+          "小程序搜索优化",
+          "小程序seo",
+          "小程序运营推广"
         ]
       },
       "pathRegexSources": [],
