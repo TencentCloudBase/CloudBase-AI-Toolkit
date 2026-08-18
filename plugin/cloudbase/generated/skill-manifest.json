@@ -1102,8 +1102,8 @@
     },
     "cloudrun-development": {
       "name": "cloudrun-development",
-      "description": "CloudBase Run backend development rules (Function mode/Container mode). Use this skill when deploying backend services that require long connections, multi-language support, custom environments, AI agent development, or migrating existing/GitHub apps that need VPC access to MySQL/PostgreSQL/Redis.",
-      "version": "2.24.1",
+      "description": "CloudBase Run backend development rules (Function mode/Container mode). Use this skill when deploying backend services that require long connections, multi-language support, custom environments, AI agent development, or migrating existing/GitHub apps that need VPC access to MySQL/PostgreSQL/Redis. Also use when diagnosing CloudRun container deploy failures (deploy_failed, readiness/probe failed, image won't start, docker.io pull loops). For stateless HTTP services, prefer HTTP cloud functions.",
+      "version": "2.28.0",
       "metadata": {
         "priority": 7
       },
@@ -1113,7 +1113,13 @@
           "云托管",
           "容器部署",
           "docker 部署",
-          "容器化"
+          "容器化",
+          "deploy_failed",
+          "云托管部署失败",
+          "镜像部署失败",
+          "容器起不来",
+          "readiness probe",
+          "InitialDelaySeconds"
         ],
         "allOf": [
           [
@@ -1127,12 +1133,22 @@
           [
             "容器",
             "cloudbase"
+          ],
+          [
+            "云托管",
+            "失败"
+          ],
+          [
+            "云托管",
+            "健康检查"
           ]
         ],
         "anyOf": [
           "dockerfile",
           "scf_bootstrap",
-          "container"
+          "container",
+          "getProcessLog",
+          "imageUrl"
         ],
         "minScore": 6
       },
@@ -1144,16 +1160,22 @@
         "intents": [
           "部署容器",
           "云托管服务",
-          "容器化部署"
+          "容器化部署",
+          "排查云托管容器部署失败",
+          "镜像健康检查失败"
         ],
         "entities": [
           "Dockerfile",
           "scf_bootstrap",
-          "container mode"
+          "container mode",
+          "getProcessLog",
+          "InitialDelaySeconds"
         ],
         "examples": [
           "部署 docker 到 cloudrun",
-          "云托管容器"
+          "云托管容器",
+          "云托管镜像部署失败一直 probe failed",
+          "容器起不来 deploy_failed"
         ]
       },
       "pathRegexSources": [],

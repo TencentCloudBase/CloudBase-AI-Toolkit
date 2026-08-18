@@ -1,7 +1,7 @@
 ---
 name: cloudrun-development
-description: CloudBase Run backend development rules (Function mode/Container mode). Use this skill when deploying backend services that require long connections, multi-language support, custom environments, AI agent development, or migrating existing/GitHub apps that need VPC access to MySQL/PostgreSQL/Redis. For stateless HTTP services, prefer HTTP cloud functions.
-version: 2.27.0
+description: CloudBase Run backend development rules (Function mode/Container mode). Use this skill when deploying backend services that require long connections, multi-language support, custom environments, AI agent development, or migrating existing/GitHub apps that need VPC access to MySQL/PostgreSQL/Redis. Also use when diagnosing CloudRun container deploy failures (deploy_failed, readiness/probe failed, image won't start, docker.io pull loops). For stateless HTTP services, prefer HTTP cloud functions.
+version: 2.28.0
 alwaysApply: false
 ---
 
@@ -33,6 +33,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - The prompt mentions `queryCloudRun`, `manageCloudRun`, Dockerfile, service domains, or public/private access.
 - The app depends on MySQL, PostgreSQL, Redis, or other VPC-private resources over TCP → also read `references/vpc-and-database.md`.
 - You are choosing between CloudRun and HTTP cloud functions for a stateless HTTP service.
+- Container deploy fails (`deploy_failed`, Pod not ready, readiness/probe failed, third-party `imageUrl` won't stay up) → also read `references/image-deploy-troubleshooting.md` and follow the **Container deploy failure SOP** below. Do not start by raising `InitialDelaySeconds`.
 
 ### Then also read
 
@@ -40,6 +41,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Agent SDK and AG-UI specifics -> `../cloudbase-agent/SKILL.md`
 - Web authentication for browser callers -> `../auth-web-cloudbase/SKILL.md`
 - Existing app + TCP database networking -> `references/vpc-and-database.md`
+- Container image deploy failure / probe / `deploy_failed` -> `references/image-deploy-troubleshooting.md`
 
 ### Do NOT use for
 
@@ -59,6 +61,10 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - **Deploying to an environment that has not initialized CloudRun** — `CreateCloudRunServer` on an environment with no 大租户 record silently lands in the legacy 小租户 path, creating wrong small-tenant services/versions. Always ensure the environment is initialized first (`manageCloudRun(action="initEnv")`, tcbr) before the first deploy. `manageCloudRun(action="deploy")` now blocks new-service creation on uninitialized environments with guidance.
 - **Using the legacy `tcb` CloudRun API** (`CreateCloudBaseRunResource` / `DescribeCloudBaseRunResource` / `DeleteCloudBaseRunResource`) — these are deprecated 小租户 open APIs and are blocked in `callCloudApi`. CloudRun always goes through `tcbr` (`CreateCloudRunEnv` / `CreateCloudRunServer`). Query a single environment's base info / whether CloudRun is enabled with `DescribeEnvBaseInfo` (`EnvId` required) — use `manageCloudRun(action="initEnv")` to open and `queryCloudRun(action="envStatus")` to poll status; query the environment list / resource info with `DescribeCloudRunEnvs` (`EnvId` optional filter).
 - **Deploying `httpbin` / request-echo images or returning `req.headers` / `process.env`** — CloudBase may inject `x-cloudbase-context` (base64 temporary credentials). Echoing it leaks account cloud access. Follow `../cloudbase-platform/references/protocols/sensitive-runtime-data-protection.md`.
+- **Seeing readiness probe failed / `deploy_failed` and immediately raising `InitialDelaySeconds`** — the probe window is already ~N+150s; crash loops and loopback binds are not slow-start. Follow the Container deploy failure SOP.
+- **Deploying a third-party image without reading its run docs** — missing `Cmd`, bind-address env, or `VolumesConf` looks identical to a probe failure.
+- **Calling `getDeployLog` for `imageUrl` deploys** — that is CODING build log; use `getProcessLog`.
+- **Treating startup banners as proof the service is healthy** — pull `getProcessLog` twice and compare; a repeated boot sequence is a restart loop.
 
 ### Minimal checklist
 
@@ -69,6 +75,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Keep the service stateless and externalize durable data.
 - Use absolute paths for every local project path.
 - Confirm handlers never echo `x-cloudbase-context`, full headers, or credential env vars; do not deploy httpbin-style reflectors.
+- For third-party images, complete the five-item docs checklist (Cmd / port / bind env / volume / health) before deploy.
 
 ## Overview
 
@@ -143,7 +150,9 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
    - If TCP DB access is required, complete the VPC checklist in `references/vpc-and-database.md` **before** deploy
    - Local run when available
    - Configure ingress access model **and** egress `VpcConf` when needed
+   - For `imageUrl` / third-party images, complete the **five-item docs checklist** in the Container deploy failure SOP before deploy
    - Deploy and verify detail output + DB connectivity
+   - If deploy fails, follow the Container deploy failure SOP (`references/image-deploy-troubleshooting.md`) — docs → `getProcessLog` → config; do not start with `InitialDelaySeconds`
 
 ## Tool routing
 
@@ -194,15 +203,15 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 
 **决策路径（直填 vs 本地中转）：**
 
-1. **公网匿名可拉取**（如 `ccr.ccs.tencentyun.com/...`、公开 Docker Hub 镜像）→ **直填 imageUrl**：`manageCloudRun(action="deploy", serverName=..., imageUrl="ccr.ccs.tencentyun.com/ns/img:v1", serverConfig={...})`。CloudBase 会直接拉取该 registry 地址构建部署。
+1. **公网匿名可拉取**（如 `ccr.ccs.tencentyun.com/...`、公开 Docker Hub 镜像）→ **直填 imageUrl**：`manageCloudRun(action="deploy", serverName=..., imageUrl="ccr.ccs.tencentyun.com/ns/img:v1", serverConfig={...})`。CloudBase 会直接拉取该 registry 地址构建部署。**若 `docker.io` / Docker Hub 在节点上反复拉取失败**，不要空转重试：改用 Dockerfile `FROM <public-image>` + `targetPath` 源码构建（CODING 拉公网镜像，产物进 CCR 内网拉取）。见下方 SOP 第 4 步。
 2. **私有 / 需登录的 registry**（`ghcr.io`、私有 ECR/Harbor 等）→ **本地中转到 CCR**：
    ```
-   docker pull ghcr.io/nousresearch/hermes-agent:latest   # 本地先拉取
-   docker tag ghcr.io/nousresearch/hermes-agent:latest ccr.ccs.tencentyun.com/<ns>/hermes-agent:latest
-   docker login ccr.ccs.tencentyun.com                    # 用腾讯云容器镜像服务账号登录
-   docker push ccr.ccs.tencentyun.com/<ns>/hermes-agent:latest
+   docker pull ghcr.io/example/app:latest
+   docker tag ghcr.io/example/app:latest ccr.ccs.tencentyun.com/<ns>/app:latest
+   docker login ccr.ccs.tencentyun.com
+   docker push ccr.ccs.tencentyun.com/<ns>/app:latest
    ```
-   然后把 `ccr.ccs.tencentyun.com/<ns>/hermes-agent:latest` 作为 `imageUrl` 传入。
+   然后把 `ccr.ccs.tencentyun.com/<ns>/app:latest` 作为 `imageUrl` 传入。中转只解决拉取，**不能替代**镜像文档里的启动命令 / 环境变量 / 数据目录。
 
 **与 initEnv 联动：** 镜像部署同样要求环境已开通云托管。新环境首次部署前先 `manageCloudRun(action="initEnv", envId=...)`，并用 `queryCloudRun(action="envStatus")` 轮询到 `Status=normal`；未开通时 `deploy` 会被拦截并引导先 `initEnv`。
 
@@ -211,31 +220,78 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 ```json
 {
   "action": "deploy",
-  "serverName": "hermes-agent",
-  "imageUrl": "ccr.ccs.tencentyun.com/ns/hermes-agent:latest",
+  "serverName": "my-image-svc",
+  "imageUrl": "ccr.ccs.tencentyun.com/ns/app:latest",
   "serverConfig": {
     "OpenAccessTypes": ["PUBLIC"],
     "Cpu": 0.5,
     "Mem": 1,
     "MinNum": 1,
     "MaxNum": 3,
-    "EnvParams": "{\"PORT\":\"3000\"}"
+    "Port": 8080,
+    "Cmd": ["node", "server.js"],
+    "EnvParams": "{\"PORT\":\"8080\",\"BIND_HOST\":\"0.0.0.0\"}"
   }
 }
 ```
 
-部署后：`manageCloudRun(deploy)` 对镜像返回的 `next_step` 默认指向 `getProcessLog`（或先 `getDeployRecords` 取 `RunId`），**不要**改去调 `getDeployLog`。也可用 `queryCloudRun(action="detail")` 查看 `imageInfo`（镜像地址与部署类型）。镜像部署失败排查同样走 `getProcessLog`。
+`Port` / `Cmd` / `EnvParams` 必须来自镜像官方文档的五要素清单，不要套用 `3000` 或省略启动命令。第三方镜像的完整对照见 `references/image-deploy-troubleshooting.md` 附录。
 
-## InitialDelaySeconds（端口健康检查初始延迟）
+部署后：`manageCloudRun(deploy)` 对镜像返回的 `next_step` 默认指向 `getProcessLog`（或先 `getDeployRecords` 取 `RunId`），**不要**改去调 `getDeployLog`。也可用 `queryCloudRun(action="detail")` 查看 `imageInfo`（镜像地址与部署类型）。镜像部署失败排查走下方 SOP。
 
-`serverConfig.InitialDelaySeconds` 的真实语义：
+## Container deploy failure SOP
 
-1. **部署流程完成后**，先等待 **N 秒**，才开始对服务端口做健康检查（readiness）
-2. 之后大约 **每 5 秒检查一次**，连续约 **30 次**
-3. **30 次全部失败** 才判定本次部署失败（探测窗口大约 **150 秒**）
-4. **不是**「等 N 秒后立即失败」——把 N 设小并不会让失败更快判定到「秒级」
+**顺序：先查镜像官方文档 → 再查运行日志 → 最后才动配置。禁止一看到 probe failed / `deploy_failed` 就调 `InitialDelaySeconds`。**
 
-容器启动耗时长的应用（JVM 预热、拉配置、迁移等）应把 `InitialDelaySeconds` 调到 **60–120**，避免还在启动就被判定失败。
+详情与案例：`references/image-deploy-troubleshooting.md`。
+
+### 1. 部署前：从镜像官方文档确认五要素
+
+不要靠 Docker Hub tag 或「常见默认值」猜。部署前必须确认：
+
+1. **启动命令** EntryPoint / Cmd（进程如何前台常驻）→ `serverConfig.EntryPoint` / `Cmd`
+2. **服务端口**（进程真正 bind 的端口；不要假设 80/3000，也不要假设镜像尊重 `PORT`）→ `serverConfig.Port`
+3. **对外监听环境变量**（必须 `0.0.0.0` 而不是 `127.0.0.1`、功能开关默认关闭等）→ `EnvParams`
+4. **数据目录挂载** → `serverConfig.VolumesConf`
+5. **健康端点**（CloudRun readiness 探的是**服务端口**，不是任意 HTTP path）
+
+缺任何一项再部署，失败看起来都会像「健康检查失败」。
+
+### 2. 部署失败：用 `getProcessLog` 定性
+
+镜像部署（`imageUrl`）**跳过** `getDeployLog`（那是云端源码构建的构建日志）。从 `detail` / `getDeployRecords` 取 `RunId`，再 `queryCloudRun(action="getProcessLog")`。
+
+**启动日志存在 ≠ 服务正常运行。** banner、s6/tini 行、sidecar "listening" 都不能证明探针目标已起来。
+
+**两次日志对比判活：** 隔 20–40 秒再拉一次 `getProcessLog`。
+
+| 观察 | 定性 |
+| --- | --- |
+| 只有调度/创建步骤（`create_eks_*`），没有容器 stdout | **Pod 调度中 / 镜像拉取** |
+| 同一段启动 banner / PID 1 行重复出现（时间戳在走、内容几乎一样） | **容器启动即退出 / 重启循环** |
+| 进程还在，但 listen 在 `127.0.0.1` 或端口 ≠ `serverConfig.Port` | **端口 / 绑定地址问题** |
+| 两次拉取是**同一条启动过程**在往后打日志，banner 不重复 | 才可能是启动慢 |
+
+### 3. Readiness probe 真实机制（严禁先调延迟）
+
+部署步骤完成后：先等 **N** 秒（`InitialDelaySeconds`），再大约 **每 5 秒** 探一次服务端口，连续约 **30 次全失败** 才判本次部署失败。窗口 ≈ **N+150s**。**不是**「N 秒后立即失败」。
+
+- **禁止：** 看到 probe failed 就把 N 改成 120。崩溃循环和 loopback 绑定不会因为 N 变大而好。
+- **允许调大 N 仅当：** 两次日志证明**同一个进程还在一次性初始化**（JVM 预热、迁移）且尚未 listen。
+
+### 4. 公网镜像（`docker.io`）反复失败 → Dockerfile 源码构建
+
+节点直连 Docker Hub 反复失败时，不要空转 `imageUrl`。写：
+
+```dockerfile
+FROM docker.io/example/app:latest
+```
+
+用 `targetPath` 走云端源码构建：CODING 构建机拉公网镜像，产物进 CCR，云托管节点内网拉取。这只解决**拉取拓扑**，不替代第 1 步的 Cmd / 环境变量 / 卷。
+
+### 5. Supervisor 镜像（s6 / tini / supervisord）启动即退出
+
+PID 1 往往是监督进程，不是 HTTP 应用。用两次日志找子进程重启风暴。若镜像 issue 记录了 PID 1 / `pgrep -f` 误匹配，按文档 workaround（绝对路径 Cmd、关闭 supervise），不要调探针延迟。示例见 reference 附录。
 
 ## Access guidance
 
@@ -315,7 +371,7 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 
 - **Access failure** -> check ingress access type, domain setup, and whether the instance scaled to zero.
 - **Deployment blocked with "尚未初始化云托管 / not initialized"** -> the environment needs CloudRun enabled first: call `manageCloudRun(action="initEnv", envId=...)` (异步开通) and poll `queryCloudRun(action="envStatus")` until `Status=normal`; or open the console `环境 → 云托管 → 开通`. For stateless HTTP services, consider an HTTP cloud function instead of CloudRun entirely.
-- **Deployment failure** -> follow the **Log query SOP** above: source builds check `getDeployLog` then `getProcessLog`; image deploys skip build log and use `getProcessLog` only. Also inspect Dockerfile (source), CPU/memory ratio, and `InitialDelaySeconds` if readiness fails after slow startup.
+- **Deployment failure** -> follow the **Container deploy failure SOP** above (and `references/image-deploy-troubleshooting.md`): image deploys skip `getDeployLog` and use `getProcessLog` only; classify scheduling vs port vs exit-on-start with two log pulls. Do **not** raise `InitialDelaySeconds` until logs prove a single slow init. Also inspect Dockerfile (source) and CPU/memory ratio.
 - **Local run failure** -> remember only Function mode is supported by local-run tools.
 - **Performance issues** -> reduce dependencies, optimize initialization, and tune minimum instances.
 - **DB / Redis connection failure after a successful deploy** -> almost always missing or wrong `VpcConf`, wrong private host, or security group. Follow `references/vpc-and-database.md` before rewriting application code.
@@ -325,3 +381,4 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 All packaged reference files (required for skill lint reachability):
 
 - [vpc-and-database.md](references/vpc-and-database.md)
+- [image-deploy-troubleshooting.md](references/image-deploy-troubleshooting.md)
