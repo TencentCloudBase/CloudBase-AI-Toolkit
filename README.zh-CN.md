@@ -95,6 +95,7 @@ AI IDE（Cursor、Claude Code、Codex、CodeBuddy 等）擅长生成代码。真
 | 支持 Open Plugin Spec 的工具 | `npx plugins add TencentCloudBase/cloudbase-plugin` |
 | 希望 CLI 统一配置多种工具 | [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce)：`npm i -g @cloudbase/cli && tcb ai` |
 | CodeBuddy / WorkBuddy / ZCode（已内置） | 使用 IDE 内置的 CloudBase 插件或连接器；CodeBuddy 也可通过[插件市场安装](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) |
+| Kimi Code / Kimi Work | 安装 `config/kimi-plugin/` 原生插件（见[配置指南](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi)） |
 | 其他支持 MCP 的 IDE | 仅配置 MCP（见下方） |
 
 #### Plugin
@@ -156,6 +157,7 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
 | [文心快码](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/baidu-comate) | 插件 | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/baidu-comate) |
 | [Augment Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/augment-code) | 插件 | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/augment-code) |
 | [Claude Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude-code) | CLI | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude-code) |
+| [Kimi Code / Kimi Work](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi) | CLI / 桌面端 | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi) |
 | [Gemini CLI](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/gemini-cli) | CLI | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/gemini-cli) |
 | [Codex CLI](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openai-codex-cli) | CLI | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openai-codex-cli) |
 | [OpenCode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/opencode) | CLI | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/opencode) |

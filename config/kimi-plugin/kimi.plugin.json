@@ -1,0 +1,38 @@
+{
+  "$schema": "https://kimi.com/schemas/kimi.plugin.schema.json",
+  "name": "cloudbase",
+  "version": "0.1.0",
+  "description": "Tencent CloudBase for Kimi Code / Kimi Work — databases (PostgreSQL/MySQL/NoSQL), cloud functions, cloud storage, CloudRun, auth, and hosting via cloudbase-mcp. Format pinned to Kimi Code 0.34.0 (2026-08-18); plugin system is Beta.",
+  "keywords": [
+    "cloudbase",
+    "tencent-cloud",
+    "baas",
+    "kimi-code",
+    "database",
+    "cloud-function",
+    "storage",
+    "cloudrun"
+  ],
+  "author": "Tencent CloudBase",
+  "homepage": "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit",
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Tencent CloudBase",
+    "shortDescription": "Operate CloudBase databases, functions, storage, and CloudRun from Kimi",
+    "longDescription": "Installs CloudBase MCP tools and a routing skill so Kimi Code / Kimi Work can query PostgreSQL, MySQL, and NoSQL, list and invoke cloud functions, manage cloud storage, and inspect CloudRun services.\n\nCloudBase credentials come from `tcb login` (or CloudBase API Key), not from Kimi inject mappings. After install, run /reload or start a new session, then say: 登录云开发.\n\nManifest format: Kimi Code 0.34.0 kimi.plugin.json (Open Plugin Spec style). Official kimi-cli plugin.json tools[] live in the sibling plugin.json for the Python CLI Beta path.",
+    "developerName": "Tencent CloudBase",
+    "websiteURL": "https://cloudbase.net",
+    "category": "DEVELOPER_TOOLS",
+    "hostKind": "local"
+  },
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["-y", "@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "INTEGRATION_IDE": "Kimi Code"
+      }
+    }
+  }
+}

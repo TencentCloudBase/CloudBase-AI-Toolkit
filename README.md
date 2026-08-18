@@ -95,6 +95,7 @@ Set up CloudBase for me:
 | Open Plugin Spec tools | `npx plugins add TencentCloudBase/cloudbase-plugin` |
 | Prefer one CLI for many tools | [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce): `npm i -g @cloudbase/cli && tcb ai` |
 | CodeBuddy / WorkBuddy / ZCode (built-in) | Use the IDE’s built-in CloudBase plugin or connector; for CodeBuddy you can also [install via plugin marketplace](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) |
+| Kimi Code / Kimi Work | Install the native plugin in `config/kimi-plugin/` ([setup guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi)) |
 | Other MCP-capable IDEs | MCP config only (below) |
 
 #### Plugin
@@ -156,6 +157,7 @@ Skills shape structure and practice; MCP handles environment and resources. You 
 | [Baidu Comate](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/baidu-comate) | Plugins | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/baidu-comate) |
 | [Augment Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/augment-code) | Plugins | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/augment-code) |
 | [Claude Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude-code) | CLI | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude-code) |
+| [Kimi Code / Kimi Work](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi) | CLI / desktop | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi) |
 | [Gemini CLI](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/gemini-cli) | CLI | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/gemini-cli) |
 | [Codex CLI](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openai-codex-cli) | CLI | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openai-codex-cli) |
 | [OpenCode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/opencode) | CLI | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/opencode) |

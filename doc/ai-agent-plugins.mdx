@@ -150,6 +150,21 @@ codebuddy plugin install cloudbase@tencent-cloudbase
 ![WorkBuddy 内置 CloudBase 连接器](https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/assets/workbuddy-connector-full.png)
 
   </TabItem>
+  <TabItem value="kimi" label="Kimi Code">
+
+Kimi Code 0.34.0 用 **原生插件**（`kimi.plugin.json`），不是 `kimi plugin` CLI：
+
+```text
+/plugins install /absolute/path/to/CloudBase-MCP/config/kimi-plugin
+```
+
+然后 `/reload`。插件会把 CloudBase MCP（`npx @cloudbase/cloudbase-mcp@latest`）和 Skill 装进 `~/.kimi-code/plugins/managed/cloudbase/`。
+
+也可用 Open Plugin Spec：`npx plugins add TencentCloudBase/cloudbase-plugin -y --scope user --target kimi`。不要和原生插件重复装两套 MCP。
+
+详见 [Kimi 配置指南](ide-setup/kimi)。
+
+  </TabItem>
   <TabItem value="zcode" label="ZCode">
 
 ZCode（≥ 3.4.1）设置 → **插件** → **开发者工具** → 启用 **cloudbase-skills**。
