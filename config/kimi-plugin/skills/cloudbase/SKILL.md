@@ -3,18 +3,16 @@ name: cloudbase
 description: >
   Tencent CloudBase routing skill for Kimi Code / Kimi Work. Use when the user
   mentions CloudBase, 云开发, envId, PostgreSQL/MySQL/NoSQL, cloud functions,
-  cloud storage, CloudRun, hosting, or tcb. Prefer CloudBase MCP tools from this
-  plugin's mcpServers; fall back to tcb CLI when MCP is not loaded yet.
+  cloud storage, CloudRun, hosting, Auth, or tcb. Prefer CloudBase MCP tools
+  from this plugin's mcpServers; fall back to tcb CLI when MCP is not loaded yet.
 ---
 
 # CloudBase on Kimi
 
-This plugin exposes CloudBase as a **persistent MCP server** (`cloudbase` in
-`kimi.plugin.json`). That is the path Kimi Code 0.34.0 actually invokes.
-
-A sibling `plugin.json` declares four lightweight `tcb` wrappers
-(`query_database`, `list_functions`, `list_storage`, `list_cloudrun`) for the
-official kimi-cli `tools[]` Beta format. Kimi Code 0.34.0 ignores `tools[]`.
+This plugin is the Kimi equivalent of the Claude Code CloudBase plugin:
+**MCP tools + this routing skill + lifecycle hooks**. Full domain skill
+bodies are not copied into this directory; fetch them on demand with
+`searchKnowledgeBase(mode=skill, skillName="...")`.
 
 ## First step
 
@@ -34,9 +32,12 @@ official kimi-cli `tools[]` Beta format. Kimi Code 0.34.0 ignores `tools[]`.
 | Cloud functions | `queryFunctions`, `manageFunctions` | `tcb fn list` |
 | Cloud storage | `queryStorage`, `manageStorage` | `tcb storage list` |
 | CloudRun | `queryCloudRun`, `manageCloudRun` | `tcb cloudrun list` |
+| Auth | `queryAppAuth`, `manageAppAuth` | console / `tcb` auth commands |
+| Hosting | `queryHosting`, `manageHosting` | `tcb hosting deploy` |
 
 ## Plugin vs MCP
 
-- **Plugin MCP server**: keep using it. CloudBase is a long-lived control plane.
-- **plugin.json tools[]**: only for kimi-cli hosts that load `plugin.json`.
+- **This plugin** wraps the long-lived `cloudbase-mcp` server. That is the
+  path Kimi Code 0.34.0 actually invokes.
 - Do not use Kimi `inject` (`api_key` / `base_url`) as CloudBase credentials.
+- Example prompts: `登录云开发` / `列出当前环境的云函数` / `查一下 PostgreSQL 里有哪些表`.

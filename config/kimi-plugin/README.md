@@ -4,27 +4,50 @@ Native CloudBase plugin for **Kimi Code 0.34.0** and **Kimi Work**. Plugin
 format is Beta (captured 2026-08-18).
 
 This directory is independent of `config/codebuddy-plugin/` and
-`plugin/cloudbase/`. Do not edit those trees for Kimi changes.
+`plugin/cloudbase/`. Do not edit those trees for Kimi-only packaging changes.
 
-## Format decision
+## Shape (Claude Code plugin equivalent)
 
-Two manifests ship side by side on purpose:
+Kimi Code 0.34.0 reads `kimi.plugin.json` and ignores `tools`, `inject`, and
+`configFile`. This plugin therefore wraps:
 
-| File | Host | What it does |
-|------|------|----------------|
-| **`kimi.plugin.json`** (primary) | Kimi Code 0.34.0 / Kimi Work | Open Plugin Spec style. Installs via `/plugins install`. Exposes CloudBase through `mcpServers` (same pattern as official `kimi-cu`). |
-| **`plugin.json`** (compat) | Official kimi-cli (Python, docs at moonshotai.github.io) | `tools[]` with `command` + JSON Schema. Four `tcb` wrappers. |
+| Piece | Where |
+|------|--------|
+| **MCP** | `mcpServers.cloudbase` → `npx -y @cloudbase/cloudbase-mcp@latest` |
+| **Skills** | `./skills/` — one Kimi routing skill (see reuse note below) |
+| **Hooks** | `hooks[]` — PreToolUse Bash safety + UserPromptSubmit CloudBase context |
+| **Session start** | `sessionStart.skill = "cloudbase"` |
 
-Kimi Code 0.34.0 **ignores** `tools`, `inject`, and `configFile` (they show up as
-diagnostics). Putting `tools[]` into `kimi.plugin.json` would not make the AI
-call them. Full CloudBase capability on 0.34.0 comes from MCP.
+There is **no** sibling `plugin.json` / `tools[]` CLI wrapper. Full CloudBase
+capability (databases, functions, storage, CloudRun, Auth, hosting) comes from
+MCP, not from four `tcb` shims.
 
 `inject` is **not** used: it injects Kimi LLM `api_key` / `base_url`, not
 Tencent Cloud credentials. CloudBase auth is `tcb login` or a CloudBase API Key.
 
-Official docs still say plugins suit thin script wrappers and MCP suits
-long-running services. CloudBase is the latter, so this plugin **wraps MCP**
-and only keeps four CLI tools for the kimi-cli Beta contract.
+`interface.iconUrl` is an HTTPS URL (same pattern as official `kimi-cu`).
+Relative logo paths are not documented. The file itself lives at
+`plugin/cloudbase/assets/logo.png` in this repo.
+
+## Skills reuse (do not copy a third catalog)
+
+Kimi requires every `skills` path to stay **inside the plugin root after
+symlink resolution**, and `/plugins install` copies the directory into
+`~/.kimi-code/plugins/managed/`. Therefore:
+
+- **No `../plugin/cloudbase/skills`** — rejected as outside the plugin root.
+- **No symlink to the Claude catalog** — resolves outside the plugin root,
+  and the managed copy would dangle.
+- **No build-time clone of the full Claude / CodeBuddy skill trees** — that
+  would be a third physical copy of the same catalog.
+
+This plugin ships one **host-specific routing skill**. Domain skill bodies stay
+in `plugin/cloudbase/skills/` (Claude) and `config/source/skills/` (semantic
+source). Agents fetch them via MCP
+`searchKnowledgeBase(mode=skill, skillName="...")`.
+
+If Kimi later needs an offline full catalog, add a dedicated sync script then —
+do not copy the tree by hand.
 
 ## Install (Kimi Code 0.34.0 / Kimi Work)
 
@@ -57,46 +80,18 @@ Ask: `检查 CloudBase 工具是否可用` or `登录云开发`.
 
 Pin a branch with the GitHub tree URL form documented by Kimi Code.
 
-## Install (official kimi-cli, if `kimi plugin` exists)
-
-Older kimi-cli builds document:
-
-```bash
-kimi plugin install /absolute/path/to/CloudBase-MCP/config/kimi-plugin
-kimi plugin list
-kimi plugin info cloudbase
-```
-
-That path loads `plugin.json` `tools[]` and runs `scripts/run-tool.mjs`.
-Requires `@cloudbase/cli` (`tcb`) on PATH and `tcb login`.
-
 ## Plugin vs MCP vs OPS
 
 | Path | When to use |
 |------|-------------|
-| **This plugin** (`kimi.plugin.json` + MCP) | Recommended for Kimi Code / Kimi Work. Skills + MCP in one install. |
+| **This plugin** (`kimi.plugin.json` + MCP + skills + hooks) | Recommended for Kimi Code / Kimi Work. One install. |
 | **Manual MCP** `~/.kimi-code/mcp.json` | Fallback. Parent task 91daac76 will add `files/kimi.mcp.json` + template download. |
 | **`npx plugins add --target kimi`** | Open Plugin Spec install into `~/.kimi-code`. Different packaging (`plugin/cloudbase`). Do not mix with this native plugin on the same host without checking for duplicate MCP servers. |
-
-## Tools in `plugin.json`
-
-| Tool | Engine / command |
-|------|------------------|
-| `query_database` | `postgresql` / `mysql` → `tcb db execute`; `nosql` → `tcb db model list` |
-| `list_functions` | `tcb fn list --json` |
-| `list_storage` | `tcb storage list --json` |
-| `list_cloudrun` | `tcb cloudrun list --json` |
-
-Stdin example:
-
-```bash
-printf '{"engine":"postgresql","sql":"SELECT 1"}' | node scripts/run-tool.mjs query_database
-```
 
 ## Prerequisites
 
 - Node.js 18.15+
-- Kimi Code ≥ 0.34.0 (or kimi-cli with `kimi plugin`)
+- Kimi Code ≥ 0.34.0
 - CloudBase environment + `tcb login` (or CloudBase API Key)
 
 ## Out of scope here
