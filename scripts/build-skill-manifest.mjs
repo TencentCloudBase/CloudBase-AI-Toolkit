@@ -128,6 +128,12 @@ function pickPriority(metaEntry, metadata, previous) {
   return Number.isFinite(priority) ? priority : 5;
 }
 
+function pickInjectionCost(metaEntry, metadata, previous) {
+  const raw = metaEntry?.injectionCost ?? metadata.injectionCost ?? previous?.metadata?.injectionCost;
+  const cost = typeof raw === "number" ? raw : Number(raw);
+  return Number.isFinite(cost) && cost > 0 ? cost : undefined;
+}
+
 function isDeprecated(metadata) {
   return (
     metadata.deprecated === true ||
@@ -227,6 +233,7 @@ export function buildManifest(options = {}) {
     const promptSignals = pickPromptSignals(metaEntry, frontmatter, previous);
     const retrieval = pickRetrieval(metaEntry, frontmatter, previous);
     const priority = pickPriority(metaEntry, metadata, previous);
+    const injectionCost = pickInjectionCost(metaEntry, metadata, previous);
 
     skills[dir.name] = {
       name: skillName,
@@ -234,6 +241,7 @@ export function buildManifest(options = {}) {
       version: frontmatter.version,
       metadata: {
         priority,
+        ...(injectionCost !== undefined ? { injectionCost } : {}),
         ...(metadata.docs ? { docs: metadata.docs } : {}),
       },
       promptSignals,

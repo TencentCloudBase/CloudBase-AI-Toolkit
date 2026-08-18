@@ -323,3 +323,39 @@ describe("web-development skill-metadata signals", () => {
     expect(result.matched).toBe(true);
   });
 });
+
+describe("miniprogram-development skill-metadata signals", () => {
+  const metadata = JSON.parse(readFileSync(METADATA_PATH, "utf-8"));
+  const compiled = compilePromptSignals(metadata.skills["miniprogram-development"].promptSignals);
+
+  it("matches mini-program fullstack integration prompts", () => {
+    const result = matchPromptWithReason(
+      normalizePromptText("我要在小程序里集成 AI 对话和云存储"),
+      compiled,
+    );
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+    expect(result.reason).toMatch(/小程序里集成|小程序.*集成/);
+  });
+
+  it("does not exact-match single-capability 小程序里 prompts", () => {
+    const specialistPrompts = [
+      "在小程序里用 AI 模型对话",
+      "小程序里怎么调用云函数",
+      "在小程序里实现微信登录",
+      "小程序里用 wx.cloud.database 查询数据",
+    ];
+    for (const prompt of specialistPrompts) {
+      const result = matchPromptWithReason(normalizePromptText(prompt), compiled);
+      expect(result.matched, prompt).toBe(false);
+    }
+  });
+
+  it("still matches explicit mini-program development prompts", () => {
+    const result = matchPromptWithReason(
+      normalizePromptText("开发一个微信小程序，使用云开发"),
+      compiled,
+    );
+    expect(result.matched).toBe(true);
+  });
+});

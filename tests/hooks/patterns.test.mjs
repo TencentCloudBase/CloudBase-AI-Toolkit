@@ -9,7 +9,11 @@ import {
   isHighPrioritySkill,
   mergeSeenSkillStates,
   mergeSeenSkillStatesWithCompactionReset,
+  estimateSkillSize,
+  sortPromptScoreStates,
+  readPromptScorePriority,
   COMPACTION_REINJECT_MIN_PRIORITY,
+  DEFAULT_SKILL_SIZE_ESTIMATE,
 } from "../../plugin/cloudbase/hooks/patterns.mjs";
 
 describe("parseSeenSkills", () => {
@@ -139,5 +143,59 @@ describe("mergeSeenSkillStates", () => {
   it("merges all inputs", () => {
     const result = mergeSeenSkillStates("web", "auth", "cloud");
     expect(result.sort()).toEqual(["auth", "cloud", "web"]);
+  });
+});
+
+describe("estimateSkillSize", () => {
+  it("uses description length * 10 with a 500 floor", () => {
+    expect(estimateSkillSize(null)).toBe(DEFAULT_SKILL_SIZE_ESTIMATE);
+    expect(estimateSkillSize({ description: "abc" })).toBe(DEFAULT_SKILL_SIZE_ESTIMATE);
+    expect(estimateSkillSize({ description: "x".repeat(80) })).toBe(800);
+  });
+
+  it("honors metadata.injectionCost over the description heuristic", () => {
+    expect(
+      estimateSkillSize({
+        description: "x".repeat(1023),
+        metadata: { injectionCost: 800 },
+      }),
+    ).toBe(800);
+  });
+
+  it("ignores non-positive injectionCost overrides", () => {
+    expect(
+      estimateSkillSize({
+        description: "x".repeat(80),
+        metadata: { injectionCost: 0 },
+      }),
+    ).toBe(800);
+  });
+});
+
+describe("sortPromptScoreStates", () => {
+  it("reads nested metadata.priority from skillMap entries", () => {
+    const ranked = [
+      {
+        skill: "cloud-storage-web",
+        score: 16,
+        skill_metadata: { metadata: { priority: 6 } },
+      },
+      {
+        skill: "miniprogram-development",
+        score: 16,
+        skill_metadata: { metadata: { priority: 8 } },
+      },
+    ];
+    sortPromptScoreStates(ranked);
+    expect(ranked.map((e) => e.skill)).toEqual([
+      "miniprogram-development",
+      "cloud-storage-web",
+    ]);
+  });
+
+  it("readPromptScorePriority accepts flat priority for synthetic states", () => {
+    expect(readPromptScorePriority({ skill_metadata: { priority: 7 } })).toBe(7);
+    expect(readPromptScorePriority({ skill_metadata: { metadata: { priority: 9 } } })).toBe(9);
+    expect(readPromptScorePriority({})).toBe(0);
   });
 });

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generatedAt": "2026-08-18T00:28:41.780Z",
+  "generatedAt": "2026-08-18T01:56:18.477Z",
   "skills": {
     "ai-model-nodejs": {
       "name": "ai-model-nodejs",
@@ -1307,7 +1307,8 @@
       "description": "WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, optimizing, and promoting mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, optimize, or promote WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools Nightly workflows, `wechatide` CLI, WeChat IDE Skills/MCP, console/network debugging, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users ask about mini program SEO / search optimization / search promotion (小程序 SEO、搜索优化、微信搜索收录、搜索推广、页面收录、关键词排名、被搜索到) or page indexing by the WeChat search crawler (`mpcrawler`). Use it when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, 微信云开发, or 云开发 in a mini program project.",
       "version": "2.27.0",
       "metadata": {
-        "priority": 8
+        "priority": 8,
+        "injectionCost": 800
       },
       "promptSignals": {
         "phrases": [
@@ -1317,7 +1318,8 @@
           "小程序预览",
           "小程序发布",
           "小程序项目",
-          "小程序里",
+          "小程序里集成",
+          "小程序集成",
           "企业微信小程序",
           "小程序搜索优化",
           "小程序seo",
@@ -1359,6 +1361,10 @@
           [
             "小程序",
             "推广"
+          ],
+          [
+            "小程序",
+            "集成"
           ]
         ],
         "anyOf": [
@@ -1381,6 +1387,7 @@
           "部署小程序",
           "小程序调试",
           "小程序项目",
+          "在小程序里集成",
           "小程序搜索优化",
           "小程序seo",
           "小程序运营推广",
@@ -1396,6 +1403,7 @@
           "开发微信小程序",
           "小程序预览",
           "小程序发布",
+          "在小程序里集成",
           "小程序搜索优化",
           "小程序seo",
           "小程序运营推广"

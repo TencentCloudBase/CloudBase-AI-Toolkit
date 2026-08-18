@@ -111,21 +111,44 @@ export function mergeSeenSkillStatesWithCompactionReset(
 
 // --- Skill size estimation (for token budget) ---
 
+export var DEFAULT_SKILL_SIZE_ESTIMATE = 500;
+
+function readPositiveCost(value) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
+  return value;
+}
+
 export function estimateSkillSize(skill) {
-  if (!skill) return 500;
+  if (!skill) return DEFAULT_SKILL_SIZE_ESTIMATE;
+  // Optional override: actual UserPromptSubmit injection is a Skill() pointer,
+  // not the SKILL.md body. Long descriptions otherwise over-estimate and starve
+  // complementary skills in the 12KB budget.
+  const override = readPositiveCost(skill.metadata?.injectionCost) ?? readPositiveCost(skill.injectionCost);
+  if (override !== null) return override;
   const summary = skill.description || "";
-  return Math.max(summary.length * 10, 500);
+  return Math.max(summary.length * 10, DEFAULT_SKILL_SIZE_ESTIMATE);
 }
 
 // --- Prompt skill score state ---
+
+export function readPromptScorePriority(entry) {
+  const meta = entry?.skill_metadata;
+  if (!meta || typeof meta !== "object") return 0;
+  // mergeExactAndLexical stores the full skillMap entry (priority lives under
+  // metadata.priority). Also accept a flat priority for synthetic test states.
+  const nested = meta.metadata?.priority;
+  const top = meta.priority;
+  const raw = typeof nested === "number" ? nested : top;
+  return typeof raw === "number" && Number.isFinite(raw) ? raw : 0;
+}
 
 export function sortPromptScoreStates(ranked) {
   return ranked.sort((a, b) => {
     // Higher score first
     if (b.score !== a.score) return b.score - a.score;
     // Higher priority first
-    const aPriority = a.skill_metadata?.priority ?? 0;
-    const bPriority = b.skill_metadata?.priority ?? 0;
+    const aPriority = readPromptScorePriority(a);
+    const bPriority = readPromptScorePriority(b);
     if (bPriority !== aPriority) return bPriority - aPriority;
     // Alphabetical for stability
     return a.skill.localeCompare(b.skill);

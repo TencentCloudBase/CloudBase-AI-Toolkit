@@ -266,6 +266,9 @@ describe("build-skill-manifest.mjs script", () => {
     expect(manifest.skills["minimal-web-baas-demo"].promptSignals.phrases).toContain("最小前后端");
     expect(manifest.skills["web-development"].promptSignals.phrases).toContain("前端 react");
     expect(manifest.skills["web-development"].promptSignals.phrases).toContain("全栈应用");
+    expect(manifest.skills["miniprogram-development"].promptSignals.phrases).toContain("小程序里集成");
+    expect(manifest.skills["miniprogram-development"].promptSignals.phrases).not.toContain("小程序里");
+    expect(manifest.skills["miniprogram-development"].metadata.injectionCost).toBe(800);
     expect(manifest.skills["ui-design"].metadata.priority).toBe(9);
   });
 
@@ -293,6 +296,7 @@ describe("build-skill-manifest.mjs script", () => {
     writeMetadata(metadataPath, {
       "demo-skill": {
         priority: 8,
+        injectionCost: 800,
         promptSignals: { phrases: ["from-metadata"], minScore: 6 },
         retrieval: { aliases: ["from-metadata-alias"], intents: [], entities: [], examples: [] },
       },
@@ -315,6 +319,7 @@ describe("build-skill-manifest.mjs script", () => {
     expect(manifest.skills["demo-skill"].promptSignals.phrases).toEqual(["from-metadata"]);
     expect(manifest.skills["demo-skill"].retrieval.aliases).toEqual(["from-metadata-alias"]);
     expect(manifest.skills["demo-skill"].metadata.priority).toBe(8);
+    expect(manifest.skills["demo-skill"].metadata.injectionCost).toBe(800);
   });
 
   it("falls back to frontmatter then previous when metadata has no phrases", () => {
