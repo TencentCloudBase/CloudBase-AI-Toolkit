@@ -1042,6 +1042,8 @@ markets:
       (attributes author:official, hosting:hybrid).
       Official registry name io.github.TencentCloudBase/cloudbase-mcp is not a Glama
       slug (Glama uses GitHub namespace/slug). No Add Server submit needed.
+      2026-08-18 README: Official Glama listing badge added (listed channels only;
+      Smithery/PulseMCP badges deferred until those pages are official).
 
   - id: mcp-so
     product: mcp.so

@@ -14,6 +14,8 @@ Operate CloudBase from AI coding tools: login, databases, functions, storage, ho
 [![][npm-downloads-shield]][npm-link]
 [![][github-stars-shield]][github-stars-link]
 ![][github-license-shield]
+[![][mcp-registry-shield]][mcp-registry-link]
+[![][glama-shield]][glama-link]
 
 </div>
 
@@ -61,6 +63,7 @@ You need a [CloudBase environment](https://tcb.cloud.tencent.com/dev) and should
 | Path | When |
 |------|------|
 | Official MCP Registry `io.github.TencentCloudBase/cloudbase-mcp` | Discover via [registry search=cloudbase](https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase) |
+| Glama | [glama.ai/mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit](https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit) |
 | `npx plugins add TencentCloudBase/cloudbase-plugin` | Open Plugin Spec tools |
 | `npm i -g @cloudbase/cli && tcb ai` | [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce) configures many IDEs |
 | Marketplace / built-in plugin | Claude Code, Codex, CodeBuddy, WorkBuddy, ZCode, etc. |
@@ -168,15 +171,25 @@ Others: [IDE setup](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup
 
 [MIT](../LICENSE) · [TencentCloudBase](https://github.com/TencentCloudBase)
 
+<div align="center">
+  <a href="https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit">
+    <img width="380" height="200" src="https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit/badge" alt="CloudBase MCP server" />
+  </a>
+</div>
+
 <!-- Links -->
 [docs]: https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/
 [changelog]: https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/releases
 [github-issues-link]: https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/issues
 [github-stars-link]: https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/stargazers
 [npm-link]: https://www.npmjs.com/package/@cloudbase/cloudbase-mcp
+[mcp-registry-link]: https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase
+[glama-link]: https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit
 
 <!-- Shields -->
 [npm-version-shield]: https://img.shields.io/npm/v/@cloudbase/cloudbase-mcp?color=3B82F6&label=npm&logo=npm&style=flat-square
 [npm-downloads-shield]: https://img.shields.io/npm/dw/@cloudbase/cloudbase-mcp?color=10B981&label=downloads&logo=npm&style=flat-square
 [github-stars-shield]: https://img.shields.io/github/stars/TencentCloudBase/CloudBase-AI-Toolkit?color=F59E0B&label=stars&logo=github&style=flat-square
 [github-license-shield]: https://img.shields.io/badge/license-MIT-6366F1?logo=github&style=flat-square
+[mcp-registry-shield]: https://img.shields.io/badge/MCP-Official%20Registry-412991?style=flat-square
+[glama-shield]: https://img.shields.io/badge/Glama-MCP-111827?style=flat-square

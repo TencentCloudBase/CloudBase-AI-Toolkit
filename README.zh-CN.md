@@ -19,6 +19,8 @@
 ![][github-contributors-shield]
 [![][cnb-shield]][cnb-link]
 [![][deepwiki-shield]][deepwiki-link]
+[![][mcp-registry-shield]][mcp-registry-link]
+[![][glama-shield]][glama-link]
 
 </div>
 
@@ -348,6 +350,12 @@ Toolkit（含 MCP）开源，MIT。云开发环境有免费额度；超出后按
 
 ![Repo Activity](https://repobeats.axiom.co/api/embed/6cd6ed00da4384e43b24805c197f584626946dda.svg "Repobeats analytics image")
 
+<div align="center">
+  <a href="https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit">
+    <img width="380" height="200" src="https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit/badge" alt="CloudBase MCP server" />
+  </a>
+</div>
+
 ## Contributors
 
 [![Contributors](https://contrib.rocks/image?repo=TencentCloudBase/CloudBase-AI-Toolkit)](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/graphs/contributors)
@@ -365,6 +373,8 @@ Toolkit（含 MCP）开源，MIT。云开发环境有免费额度；超出后按
 [npm-link]: https://www.npmjs.com/package/@cloudbase/cloudbase-mcp
 [cnb-link]: https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit
 [deepwiki-link]: https://deepwiki.com/TencentCloudBase/CloudBase-AI-Toolkit
+[mcp-registry-link]: https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase
+[glama-link]: https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit
 
 <!-- Shields -->
 [npm-version-shield]: https://img.shields.io/npm/v/@cloudbase/cloudbase-mcp?color=3B82F6&label=npm&logo=npm&style=flat-square
@@ -376,3 +386,5 @@ Toolkit（含 MCP）开源，MIT。云开发环境有免费额度；超出后按
 [github-contributors-shield]: https://img.shields.io/github/contributors/TencentCloudBase/CloudBase-AI-Toolkit?color=06B6D4&label=contributors&logo=github&style=flat-square
 [cnb-shield]: https://img.shields.io/badge/CNB-CloudBase--AI--Toolkit-3B82F6?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAxMiAxMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHJ4PSIyIiBmaWxsPSIjM0I4MkY2Ii8+PHBhdGggZD0iTTUgM0g3VjVINSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48cGF0aCBkPSJNNSA3SDdWOUg1IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjEuNSIvPjwvc3ZnPg==&style=flat-square
 [deepwiki-shield]: https://deepwiki.com/badge.svg
+[mcp-registry-shield]: https://img.shields.io/badge/MCP-Official%20Registry-412991?style=flat-square
+[glama-shield]: https://img.shields.io/badge/Glama-MCP-111827?style=flat-square

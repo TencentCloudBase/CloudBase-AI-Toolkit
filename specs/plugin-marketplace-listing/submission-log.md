@@ -28,6 +28,12 @@ Track manual publisher / listing applications. Update when status changes.
 - Official Registry latest is now `io.github.TencentCloudBase/cloudbase-mcp@2.28.0` with npm `packages[]` (`@cloudbase/cloudbase-mcp`) plus hosted remotes. `2.27.0` remains remotes-only.
 - Aggregators did **not** auto-follow. Smithery MCP still 404; PulseMCP page still unofficial mirror; Glama GitHub index already live (`author:official`). Combined follow-up: Smithery ingest + PulseMCP claim + Glama verify.
 
+### 2026-08-18 — README badges (listed channels only)
+
+- Added Official MCP Registry + Glama shields on root `README.md` / `README.zh-CN.md` and `mcp/README.md` / `mcp/README.zh-CN.md`.
+- Added Glama's official listing image (`.../CloudBase-AI-Toolkit/badge`) on those READMEs.
+- **Did not** add Smithery or PulseMCP badges: Smithery MCP API still 404; PulseMCP page is still `com.pulsemcp.mirror/tencent-cloudbase`. Add those only after live official listings.
+
 ## Smithery
 
 | Field | Value |
