@@ -1,6 +1,6 @@
 # CloudBase Plugin Marketplace Analysis
 
-Generated: 2026-08-18T03:01:04.134Z
+Generated: 2026-08-18T03:16:30.152Z
 
 > This report does not auto-submit to any marketplace. All submissions are manual.
 
@@ -290,16 +290,18 @@ Process:
 ```
 Open a README PR to composio-community/awesome-claude-plugins (Integrations section).
 External plugins are listed as GitHub links (same pattern as kaggle-skill / taisly).
-Status 2026-08-18: PR https://github.com/composio-community/awesome-claude-plugins/pull/424
-still OPEN (MERGEABLE/CLEAN). No CI, no maintainer comments. Upstream README
-Integrations does not yet list CloudBase — do not flip to listed until merge.
+Status 2026-08-18 re-poll: PR https://github.com/composio-community/awesome-claude-plugins/pull/424
+still OPEN (MERGEABLE/CLEAN). No CI, no maintainer comments. Setup URL on the PR
+corrected to https://docs.cloudbase.net/en/ai/cloudbase-ai-toolkit/ide-setup/claude-code
+(head a1f6518). Upstream README Integrations does not yet list CloudBase —
+do not flip to listed until merge.
 ```
 
 Evidence:
 
 - https://github.com/composio-community/awesome-claude-plugins
 - https://github.com/composio-community/awesome-claude-plugins/pull/424
-- https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude
+- https://docs.cloudbase.net/en/ai/cloudbase-ai-toolkit/ide-setup/claude-code
 - https://github.com/TencentCloudBase/CloudBase-AI-Toolkit
 
 Recommended install docs: `doc/ide-setup/claude-code.mdx`

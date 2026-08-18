@@ -214,11 +214,11 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 
 | Field | Value |
 |-------|-------|
-| Status | **PR open** — awaiting maintainer merge (poll 2026-08-18: still not listed) |
+| Status | **PR open** — awaiting maintainer merge (re-poll 2026-08-18: still not listed) |
 | PR | https://github.com/composio-community/awesome-claude-plugins/pull/424 |
 | Upstream | https://github.com/composio-community/awesome-claude-plugins (alias ComposioHQ/…) |
-| Fork / branch | `binggg/awesome-claude-plugins` `add-cloudbase-plugin` @ `5757135` |
-| Listing | README `### Integrations` → CloudBase → CloudBase-AI-Toolkit + [Setup](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude) |
+| Fork / branch | `binggg/awesome-claude-plugins` `add-cloudbase-plugin` @ `a1f6518` |
+| Listing | README `### Integrations` → CloudBase → CloudBase-AI-Toolkit + [Setup](https://docs.cloudbase.net/en/ai/cloudbase-ai-toolkit/ide-setup/claude-code) |
 | Submitted at | 2026-08-17 |
 | Last polled | 2026-08-18 |
 | CI / review | `state: OPEN`, `mergeable: MERGEABLE`, `mergeStateStatus: CLEAN`; no required checks; no reviews/comments |
@@ -245,6 +245,17 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 - No CI/maintainer feedback to act on. Did not ping (PR age ~1 day; peer listings #304/#306 waited ~5 weeks).
 - `markets.yaml` stays `community_directory: submittable`; blocker kept; `last_reviewed_at` bumped to 2026-08-18.
 - Did **not** flip listed. Does not replace Claude Community form / DSH.
+
+### 2026-08-18 — Re-poll #424 (640cae13): still OPEN; setup docs URL corrected
+
+- `gh pr view`: still OPEN, MERGEABLE, CLEAN; `mergedAt` null; checks/reviews/comments still empty.
+- Upstream `master` Integrations still only `connect-apps` + `kaggle-skill` — **not listed**.
+- Did **not** ping (PR ~1 day old; peers #304/#306 ~5 weeks).
+- User-specified canonical setup docs: https://docs.cloudbase.net/en/ai/cloudbase-ai-toolkit/ide-setup/claude-code (HTTP 200, Claude Code Setup Guide).
+- Previous PR link `https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude` HTTP 200 but canonical is `https://docs.cloudbase.net/404.html`.
+- Pushed fork commit `a1f6518` and updated PR body to the `/en/.../claude-code` URL. PR remains MERGEABLE/CLEAN.
+- `markets.yaml` stays `community_directory: submittable`; blocker kept; evidence_links updated.
+- Does **not** replace Claude Community form / DSH. Next poll suggested in 7–14 days.
 
 ## Trae community MCP list
 

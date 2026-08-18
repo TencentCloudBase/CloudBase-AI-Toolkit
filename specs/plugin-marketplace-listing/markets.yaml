@@ -87,16 +87,18 @@ markets:
     submit_url_or_process: |
       Open a README PR to composio-community/awesome-claude-plugins (Integrations section).
       External plugins are listed as GitHub links (same pattern as kaggle-skill / taisly).
-      Status 2026-08-18: PR https://github.com/composio-community/awesome-claude-plugins/pull/424
-      still OPEN (MERGEABLE/CLEAN). No CI, no maintainer comments. Upstream README
-      Integrations does not yet list CloudBase — do not flip to listed until merge.
+      Status 2026-08-18 re-poll: PR https://github.com/composio-community/awesome-claude-plugins/pull/424
+      still OPEN (MERGEABLE/CLEAN). No CI, no maintainer comments. Setup URL on the PR
+      corrected to https://docs.cloudbase.net/en/ai/cloudbase-ai-toolkit/ide-setup/claude-code
+      (head a1f6518). Upstream README Integrations does not yet list CloudBase —
+      do not flip to listed until merge.
     eligibility: public_github_pr_required
     blockers:
       - Awaiting maintainer merge of composio-community/awesome-claude-plugins#424
     evidence_links:
       - https://github.com/composio-community/awesome-claude-plugins
       - https://github.com/composio-community/awesome-claude-plugins/pull/424
-      - https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude
+      - https://docs.cloudbase.net/en/ai/cloudbase-ai-toolkit/ide-setup/claude-code
       - https://github.com/TencentCloudBase/CloudBase-AI-Toolkit
     local_evidence:
       - self_marketplace_claude
@@ -118,6 +120,10 @@ markets:
       2026-08-18 poll: #424 OPEN, mergeable CLEAN, no reviews/comments/CI. Upstream
       master Integrations still only connect-apps + kaggle-skill. Peer PRs #304/#306
       took ~5 weeks to merge; no ping this round.
+      2026-08-18 re-poll (640cae13): still OPEN/CLEAN; no maintainer feedback. Did not
+      flip listed. Pushed fork commit a1f6518 so Setup points at the official English
+      Claude Code docs (previous /claude path canonicalized to 404.html). Next poll
+      in 7–14 days.
 
   - id: cursor-marketplace
     product: Cursor
