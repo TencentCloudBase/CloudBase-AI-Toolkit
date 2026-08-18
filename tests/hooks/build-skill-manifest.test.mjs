@@ -269,6 +269,9 @@ describe("build-skill-manifest.mjs script", () => {
     expect(manifest.skills["miniprogram-development"].promptSignals.phrases).toContain("小程序里集成");
     expect(manifest.skills["miniprogram-development"].promptSignals.phrases).not.toContain("小程序里");
     expect(manifest.skills["miniprogram-development"].metadata.injectionCost).toBe(800);
+    expect(manifest.skills["web-development"].metadata.injectionCost).toBe(800);
+    expect(manifest.skills["cloudrun-development"].metadata.injectionCost).toBe(800);
+    expect(manifest.skills["cloudbase-cli"].metadata.injectionCost).toBe(800);
     expect(manifest.skills["ui-design"].metadata.priority).toBe(9);
   });
 

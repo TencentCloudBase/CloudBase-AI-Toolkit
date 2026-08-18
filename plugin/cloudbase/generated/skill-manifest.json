@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generatedAt": "2026-08-18T01:56:18.477Z",
+  "generatedAt": "2026-08-18T03:06:24.001Z",
   "skills": {
     "ai-model-nodejs": {
       "name": "ai-model-nodejs",
@@ -759,7 +759,8 @@
       "description": "CloudBase CLI (tcb, 云开发CLI, Tencent CloudBase命令行) resource management skill. Use when deploying cloud functions, CloudRun, storage, NoSQL/MySQL, static hosting, permissions, CORS/domains via tcb; for CI/CD and batch ops; when the user prefers CLI; or as the first-session fallback when CloudBase MCP tools are not loaded yet (after install/config, before IDE restart). Covers tcb login (device code for Tencent Cloud accounts; --cloudbase-api-key -e for environment API Key without an account; --apiKeyId/--apiKey for CI) and domain commands (fn/hosting/cloudrun/…) as MCP auth/manage parity — do not default to tcb deploy.",
       "version": "2.27.0",
       "metadata": {
-        "priority": 6
+        "priority": 6,
+        "injectionCost": 800
       },
       "promptSignals": {
         "phrases": [
@@ -1105,7 +1106,8 @@
       "description": "CloudBase Run backend development rules (Function mode/Container mode). Use this skill when deploying backend services that require long connections, multi-language support, custom environments, AI agent development, or migrating existing/GitHub apps that need VPC access to MySQL/PostgreSQL/Redis. Also use when diagnosing CloudRun container deploy failures (deploy_failed, readiness/probe failed, image won't start, docker.io pull loops). For stateless HTTP services, prefer HTTP cloud functions.",
       "version": "2.28.0",
       "metadata": {
-        "priority": 7
+        "priority": 7,
+        "injectionCost": 800
       },
       "promptSignals": {
         "phrases": [
@@ -1701,7 +1703,8 @@
       "description": "Use when users need to implement, integrate, debug, build, deploy, or validate a Web frontend after the product direction is already clear, especially for React, Vue, Vite, browser flows, or CloudBase Web integration.",
       "version": "2.27.0",
       "metadata": {
-        "priority": 8
+        "priority": 8,
+        "injectionCost": 800
       },
       "promptSignals": {
         "phrases": [

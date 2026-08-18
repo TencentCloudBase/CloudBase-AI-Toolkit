@@ -679,6 +679,7 @@
     },
     "cloudbase-cli": {
       "priority": 6,
+      "injectionCost": 800,
       "promptSignals": {
         "phrases": [
           "tcb 命令",
@@ -983,6 +984,7 @@
     },
     "cloudrun-development": {
       "priority": 7,
+      "injectionCost": 800,
       "promptSignals": {
         "phrases": [
           "cloudrun",
@@ -1523,6 +1525,7 @@
     },
     "web-development": {
       "priority": 8,
+      "injectionCost": 800,
       "promptSignals": {
         "phrases": [
           "web 开发",
