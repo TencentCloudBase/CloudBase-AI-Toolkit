@@ -26,6 +26,13 @@ The CloudBase integration layer for AI coding tools: Plugin installs the stack, 
 
 ## Recent updates
 
+**v2.28.x** (2026-08)
+
+- Env: `queryEnv` adds metrics (`DescribeCurveData`) and resource-usage query
+- Cloud Run: `getProcessLog`, traffic/deploy-record query, image-deploy `next_step`, `initEnv` VPC/tcbr fixes, and hide small-tenant create API
+- Registry: `@cloudbase/cloudbase-mcp` published to the Official MCP Registry
+- Skills / ops: ops-inspector v3 alarm playbooks; skill-inject metadata persistence and React fullstack routing
+
 **v2.27.x** (2026-08)
 
 - Tools: `downloadRemoteFile` removed (high error rate) — download remote assets with shell `curl` / `Invoke-WebRequest` instead (#908, #909)
@@ -33,14 +40,6 @@ The CloudBase integration layer for AI coding tools: Plugin installs the stack, 
 - Skills: mini program SEO / search-optimization guidance merged into `miniprogram-development` (#906)
 - Gateway / hosting: route-level enable support with disabled access URL detection; hosting skips deploy notifications when `accessUrl` is empty
 - Docs: simplified quick start with externalized images (#905), `--cloudbase-api-key` CLI login, and CodeBuddy plugin marketplace install guide
-
-**v2.26.x** (2026-08)
-
-- CloudRun: `manageCloudRun(action=deploy)` lightly waits for BuildId registration and returns `buildId` + `next_step` for `getDeployLog` polling (avoids immediate "build not found")
-- Gateway: enable/disable HTTP routes (`enableRoute` / `disableRoute`); hosting/env surfaces detect disabled default-domain routes before returning access URLs (#901, #902, #903)
-- Auth: accept `CLOUDBASE_APIKEY` as an API Key environment-variable fallback (#900)
-- Skills: MCP-to-CLI tooling fallback for first sessions when MCP tools are not loaded yet (#889)
-- Templates / CI: shrink compat AGENTS guide under 40 KiB; harden ClawHub publish idempotency and upload-ticket retries (#895, #893, #894)
 
 [Releases][changelog] · [Star][github-stars-link] · Watch → Releases
 

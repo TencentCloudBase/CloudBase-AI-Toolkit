@@ -7,12 +7,25 @@ All notable changes to this project will be documented in this file. Follow the 
 ### Features
 
 * **kimi**: align the native Kimi plugin with Claude Code packaging — MCP + routing skill + hooks, `interface.iconUrl`, and drop the compat `plugin.json` / `run-tool.mjs` four-tool CLI shims
+
+## [2.28.0](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.27.0...v2.28.0) (2026-08-18)
+
+### Features
+
 * **env**: add `queryEnv` metrics branch via `DescribeCurveData`
+* **env**: add resource-usage query aligned with tcb env usage/info
+* **cloudrun**: add `queryCloudRun(getProcessLog)`, traffic management, and deploy-record query
+* **cloudrun**: image deploy returns `runId`/`next_step` for process-log polling
+* **gateway**: add OPA authorization policy management
+* **registry**: publish `@cloudbase/cloudbase-mcp` to the Official MCP Registry
+* **skills**: ops-inspector v3 alarm interpretation and fault playbooks
 
 ### Bug Fixes
 
 * **cloudrun / apps / gateway**: normalize platform status casing before compare — CloudRun `detail` deploy `FAILED`/`CREATING`, `queryApps(getAppVersion)` `failed`, and gateway default-domain `success` — so uppercase platform responses are not missed
 * **cloudrun**: fix `manageCloudRun(initEnv)` missing `EnvType=tcbr`, add optional `vpcId`/`subnetIds` when an explicit VPC is required, normalize uppercase `NORMAL`/`CREATING` in `envStatus`, auto-fill deploy `vpcInfo` from env VPC, and guide CAM/API Key failures to device-code or SecretKey auth
+* **nosql**: strengthen `readNoSql` projection / `MgoLimit` guidance
+* **skill-inject**: match React fullstack prompts to `web-development`
 
 ## [1.7.0](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/compare/v1.6.0...v1.7.0) (2025-06-10)
 

@@ -3,7 +3,7 @@
   "name": "io.github.TencentCloudBase/cloudbase-mcp",
   "title": "CloudBase",
   "description": "CloudBase MCP: DB, functions, storage, hosting via @cloudbase/cloudbase-mcp",
-  "version": "2.27.0",
+  "version": "2.28.0",
   "websiteUrl": "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit",
   "repository": {
     "url": "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit",
@@ -23,7 +23,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@cloudbase/cloudbase-mcp",
-      "version": "2.27.0",
+      "version": "2.28.0",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

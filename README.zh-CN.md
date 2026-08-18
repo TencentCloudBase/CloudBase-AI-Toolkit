@@ -26,6 +26,13 @@
 
 ## 最近更新
 
+**v2.28.x**（2026-08）
+
+- 环境：`queryEnv` 新增指标查询（`DescribeCurveData`）与资源用量查询
+- 云托管：`getProcessLog`、流量/部署记录查询、镜像部署 `next_step`、`initEnv` VPC/tcbr 修复，并屏蔽小租户创建接口
+- 注册表：`@cloudbase/cloudbase-mcp` 已发布到 Official MCP Registry
+- Skills / 运维：ops-inspector v3 告警剧本；skill-inject 元数据持久化与 React 全栈路由匹配
+
 **v2.27.x**（2026-08）
 
 - 工具：移除 `downloadRemoteFile`（报错率高），远程资源改用 shell `curl` / `Invoke-WebRequest` 下载（#908、#909）
@@ -33,14 +40,6 @@
 - Skills：小程序 SEO / 搜索优化指引并入 `miniprogram-development`（#906）
 - 网关 / 托管：支持路由级启用并识别已禁用访问地址；`accessUrl` 为空时托管跳过部署通知
 - 文档：简化快速开始并外置图片（#905）、`--cloudbase-api-key` CLI 登录、CodeBuddy 插件市场安装指南
-
-**v2.26.x**（2026-08）
-
-- 云托管：`manageCloudRun(action=deploy)` 轻量等待 BuildId 注册并返回 `buildId` + `next_step`，便于立刻用 `getDeployLog` 轮询（避免立即出现 build not found）
-- 网关：支持启用/禁用 HTTP 路由（`enableRoute` / `disableRoute`）；托管与环境查询在返回访问地址前会识别默认域名路由已禁用的情况（#901、#902、#903）
-- 认证：支持 `CLOUDBASE_APIKEY` 作为 API Key 环境变量回退（#900）
-- Skills：首次会话 MCP 工具尚未加载时，提供 MCP→CLI 工具回退指引（#889）
-- 模板 / CI：兼容 AGENTS 指南压缩至 40 KiB 内；加固 ClawHub 发布幂等与 upload-ticket 重试（#895、#893、#894）
 
 [Releases][changelog] · [Star][github-stars-link] · Watch → Releases
 
