@@ -1,6 +1,6 @@
 # CloudBase Plugin Marketplace Analysis
 
-Generated: 2026-08-18T00:16:06.837Z
+Generated: 2026-08-18T03:01:04.134Z
 
 > This report does not auto-submit to any marketplace. All submissions are manual.
 
@@ -11,9 +11,9 @@ Total markets: **43**
 | Priority | Count |
 |----------|------:|
 | ready_to_submit | 5 |
-| needs_packaging_or_manifest | 3 |
-| needs_partner_outreach | 11 |
-| listed | 8 |
+| needs_packaging_or_manifest | 5 |
+| needs_partner_outreach | 8 |
+| listed | 9 |
 | not_applicable | 15 |
 | unknown | 1 |
 
@@ -212,7 +212,7 @@ Recommended install docs: `doc/ide-setup/codex.mdx`
 - Region: global
 - Channel: `community_plugin_directory`
 - Eligibility: `public_github_pr_required`
-- Last reviewed: 2026-08-13
+- Last reviewed: 2026-08-18
 - Manual submit only: yes
 
 Statuses:
@@ -410,6 +410,104 @@ Evidence:
 - plugin/cloudbase/docs/qoder-submit.md
 
 Recommended install docs: `doc/ide-setup/qoder.mdx`
+
+### smithery — Smithery
+
+- Region: global
+- Channel: `mcp_registry_or_aggregator`
+- Eligibility: `hosted_http_mcp_or_registry`
+- Last reviewed: 2026-08-18
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: not_applicable
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: submittable
+- `docs_only`: unknown
+
+Blockers:
+
+- Awaiting Smithery ingest of official registry remotes / Add-server issue clavia-inc/registry#61
+
+Local evidence:
+
+- `mcp_registry_server_json`: **present** — mcp/server.json matches npm mcpName io.github.TencentCloudBase/cloudbase-mcp
+
+Submit checklist:
+
+- [ ] Public MCP URL or registry entry
+- [ ] Complete Smithery publish flow if needed
+- [ ] [object Object]
+
+Process:
+
+```
+Publish hosted HTTPS MCP at smithery.ai/new or CLI `smithery mcp publish <url> -n name`.
+Unattended ingest request filed 2026-08-18 (no SMITHERY_API_KEY / OAuth in this session).
+Status: OPEN — https://github.com/clavia-inc/registry/issues/61
+Do not flip mcp_or_skill_registry → listed until GET api.smithery.ai/servers/TencentCloudBase/cloudbase-mcp is 200.
+```
+
+Evidence:
+
+- https://github.com/clavia-inc/registry/issues/61
+- https://smithery.ai/docs/build/publish.md
+- https://smithery.ai/new
+- https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase
+
+### pulsemcp — PulseMCP
+
+- Region: global
+- Channel: `mcp_registry_or_aggregator`
+- Eligibility: `via_official_registry`
+- Last reviewed: 2026-08-18
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: not_applicable
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: submittable
+- `docs_only`: unknown
+
+Blockers:
+
+- Awaiting PulseMCP to replace unofficial mirror server.json (pulsemcp/mcp-servers#678)
+
+Local evidence:
+
+- `mcp_registry_server_json`: **present** — mcp/server.json matches npm mcpName io.github.TencentCloudBase/cloudbase-mcp
+
+Submit checklist:
+
+- [ ] Official MCP registry listing exists (2026-08-17; v2.28.0 with packages 2026-08-18)
+- [ ] Claim / replace PulseMCP mirror server.json with official registry identity
+- [ ] [object Object]
+
+Process:
+
+```
+Typically ingests from official MCP registry; expedite via hello@pulsemcp.com or
+owner claim on pulsemcp/mcp-servers (established public maintainer channel).
+Status 2026-08-18: claim issue OPEN — https://github.com/pulsemcp/mcp-servers/issues/678
+Page still live as unofficial mirror until they swap server.json.
+Do not flip mcp_or_skill_registry → listed until the page identity is
+io.github.TencentCloudBase/cloudbase-mcp (not com.pulsemcp.mirror/tencent-cloudbase).
+```
+
+Evidence:
+
+- https://github.com/pulsemcp/mcp-servers/issues/678
+- https://www.pulsemcp.com/servers/tencent-cloudbase
+- https://api.pulsemcp.com/v0beta/servers?query=cloudbase
+- https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase
 
 ## needs_partner_outreach
 
@@ -731,103 +829,6 @@ Evidence:
 
 Recommended install docs: `doc/ide-setup/trae.mdx`
 
-### smithery — Smithery
-
-- Region: global
-- Channel: `mcp_registry_or_aggregator`
-- Eligibility: `hosted_http_mcp_or_registry`
-- Last reviewed: 2026-07-27
-- Manual submit only: yes
-
-Statuses:
-
-- `official_curated`: not_applicable
-- `community_directory`: not_applicable
-- `self_marketplace`: not_applicable
-- `native_connector_or_builtin`: not_applicable
-- `open_plugin_spec`: not_applicable
-- `mcp_or_skill_registry`: unknown
-- `docs_only`: unknown
-
-Submit checklist:
-
-- [ ] Public MCP URL or registry entry
-- [ ] Complete Smithery publish flow if needed
-
-Process:
-
-```
-Publish hosted HTTPS MCP or rely on registry ingest; see smithery.ai/new.
-```
-
-Evidence:
-
-- https://smithery.ai/docs/build/publish.md
-
-### pulsemcp — PulseMCP
-
-- Region: global
-- Channel: `mcp_registry_or_aggregator`
-- Eligibility: `via_official_registry`
-- Last reviewed: 2026-07-27
-- Manual submit only: yes
-
-Statuses:
-
-- `official_curated`: not_applicable
-- `community_directory`: not_applicable
-- `self_marketplace`: not_applicable
-- `native_connector_or_builtin`: not_applicable
-- `open_plugin_spec`: not_applicable
-- `mcp_or_skill_registry`: unknown
-- `docs_only`: unknown
-
-Submit checklist:
-
-- [ ] Ensure official MCP registry listing first
-
-Process:
-
-```
-Typically ingests from official MCP registry; expedite via contact after registry publish.
-```
-
-Evidence:
-
-- https://www.pulsemcp.com
-
-### glama — Glama
-
-- Region: global
-- Channel: `mcp_registry_or_aggregator`
-- Eligibility: `public_github_mcp`
-- Last reviewed: 2026-07-27
-- Manual submit only: yes
-
-Statuses:
-
-- `official_curated`: not_applicable
-- `community_directory`: not_applicable
-- `self_marketplace`: not_applicable
-- `native_connector_or_builtin`: not_applicable
-- `open_plugin_spec`: not_applicable
-- `mcp_or_skill_registry`: unknown
-- `docs_only`: unknown
-
-Submit checklist:
-
-- [ ] Public MCP server repo discoverable
-
-Process:
-
-```
-Indexes public GitHub MCP repos / registry.
-```
-
-Evidence:
-
-- https://glama.ai/mcp/servers
-
 ### mcp-so — mcp.so
 
 - Region: global
@@ -1145,6 +1146,44 @@ Evidence:
 - https://github.com/TencentCloudBase/CloudBase-AI-Toolkit
 
 Recommended install docs: `mcp/server.json`
+
+### glama — Glama
+
+- Region: global
+- Channel: `mcp_registry_or_aggregator`
+- Eligibility: `public_github_mcp`
+- Last reviewed: 2026-08-18
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: not_applicable
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: listed
+- `docs_only`: listed
+
+Submit checklist:
+
+- [ ] Public MCP server repo discoverable
+
+Process:
+
+```
+Indexes public GitHub MCP repos / registry. Add Server is the SPA modal on
+glama.ai/mcp/servers when a repo is missing.
+Status 2026-08-18: already indexed from GitHub (author:official). Add Server
+not filed — live page + API search both hit CloudBase MCP.
+```
+
+Evidence:
+
+- https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit
+- https://glama.ai/mcp/servers/bjxivwd225
+- https://glama.ai/api/mcp/v1/servers/TencentCloudBase/CloudBase-AI-Toolkit
+- https://glama.ai/api/mcp/v1/servers?query=cloudbase
 
 ## not_applicable
 

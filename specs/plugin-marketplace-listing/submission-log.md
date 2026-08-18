@@ -23,6 +23,71 @@ Track manual publisher / listing applications. Update when status changes.
 3. After the next npm release, confirm `packages[0].identifier` is `@cloudbase/cloudbase-mcp`
 4. Aggregators: Glama and PulseMCP already had GitHub-indexed CloudBase listings as of 2026-08-17; they should pick up the official registry name after ingest
 
+### 2026-08-18 — Registry v2.28.0 + aggregator follow-up
+
+- Official Registry latest is now `io.github.TencentCloudBase/cloudbase-mcp@2.28.0` with npm `packages[]` (`@cloudbase/cloudbase-mcp`) plus hosted remotes. `2.27.0` remains remotes-only.
+- Aggregators did **not** auto-follow. Smithery MCP still 404; PulseMCP page still unofficial mirror; Glama GitHub index already live (`author:official`). Combined follow-up: Smithery ingest + PulseMCP claim + Glama verify.
+
+## Smithery
+
+| Field | Value |
+|-------|-------|
+| Status | **Submitted / awaiting ingest** (MCP server not in Smithery registry yet) |
+| Issue | https://github.com/clavia-inc/registry/issues/61 |
+| Tracker | `smithery-ai/web` redirects to `clavia-inc/registry` (public Add-server channel; same pattern as #52/#53) |
+| Requested qualified name | `TencentCloudBase/cloudbase-mcp` |
+| Hosted remote | `https://tcb-api.cloud.tencent.com/mcp/v1?env_id={env_id}` (streamable-http) |
+| Official registry | `io.github.TencentCloudBase/cloudbase-mcp` |
+| Submitted at | 2026-08-18 |
+| Listed yet? | No — `GET https://api.smithery.ai/servers/TencentCloudBase/cloudbase-mcp` → 404 |
+| Skills (separate) | Yes — e.g. `TencentCloudBase/cloudbase-guidelines` |
+
+### How to check progress (Smithery)
+
+1. Watch https://github.com/clavia-inc/registry/issues/61
+2. `curl -sS -o /dev/null -w "%{http_code}\n" https://api.smithery.ai/servers/TencentCloudBase/cloudbase-mcp` — expect 200
+3. Search https://registry.smithery.ai/servers?q=cloudbase-mcp for `TencentCloudBase`
+4. When live: flip `markets.yaml` `smithery.mcp_or_skill_registry` → `listed` and re-run `npm run analyze:plugin-marketplaces`
+
+CLI `smithery mcp publish` was **not** run: no `SMITHERY_API_KEY`, and `smithery auth login` is interactive OAuth.
+
+## PulseMCP
+
+| Field | Value |
+|-------|-------|
+| Status | **Claim submitted** — page live as unofficial mirror until they swap `server.json` |
+| Listing URL | https://www.pulsemcp.com/servers/tencent-cloudbase |
+| Current identity | `com.pulsemcp.mirror/tencent-cloudbase` (API: `package_name=@cloudbase/cloudbase-mcp`, `remotes: []`) |
+| Claim issue | https://github.com/pulsemcp/mcp-servers/issues/678 |
+| Target identity | `io.github.TencentCloudBase/cloudbase-mcp` |
+| Email fallback | hello@pulsemcp.com (same payload; not sent from this unattended session) |
+| Submitted at | 2026-08-18 |
+| Listed as official? | No |
+
+### How to check progress (PulseMCP)
+
+1. Watch https://github.com/pulsemcp/mcp-servers/issues/678
+2. Open https://www.pulsemcp.com/servers/tencent-cloudbase — wait until maintainer copy no longer says unofficial mirror / `com.pulsemcp.mirror`
+3. `curl -sS "https://api.pulsemcp.com/v0beta/servers?query=cloudbase"` — confirm remotes / registry name once they expose it
+4. When official: flip `markets.yaml` `pulsemcp.mcp_or_skill_registry` → `listed`
+
+## Glama
+
+| Field | Value |
+|-------|-------|
+| Status | **Listed** (GitHub-indexed, `author:official`) |
+| Canonical page | https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit |
+| Stable id | https://glama.ai/mcp/servers/bjxivwd225 |
+| API | https://glama.ai/api/mcp/v1/servers/TencentCloudBase/CloudBase-AI-Toolkit |
+| Search API | https://glama.ai/api/mcp/v1/servers?query=cloudbase (returns CloudBase MCP) |
+| Add Server | Not filed — already indexed |
+| Verified at | 2026-08-18 |
+
+### How to check progress (Glama)
+
+1. `curl -sS "https://glama.ai/api/mcp/v1/servers/TencentCloudBase/CloudBase-AI-Toolkit"` — expect `attributes` include `author:official`
+2. HTML `?q=cloudbase` on `/mcp/servers` shows Popular, not search hits; use API `?query=` or the canonical page URL
+
 ## Cursor Marketplace
 
 | Field | Value |

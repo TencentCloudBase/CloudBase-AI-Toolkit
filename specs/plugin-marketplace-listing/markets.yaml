@@ -264,12 +264,14 @@ markets:
       - PR to xai-org/plugin-marketplace
     recommended_install_path: null
     priority_hint: null
-    last_reviewed_at: "2026-08-13"
+    last_reviewed_at: "2026-08-18"
     owner: cloudbase-ai-toolkit
     notes: |
       2026-07-28: Catalog PR #151 opened. Awaiting xAI CI + code-owner review.
       2026-08-13: Re-resolved upstream conflict (merge commit d6b9848). PR mergeable,
       mergeStateStatus BLOCKED (needs maintainer approve). All CI green.
+      2026-08-18 GEL: gh pr view still OPEN; mergeable=UNKNOWN. Prior watch task
+      0cd0ed6e is done — do not open another poll unless merge state changes.
   - id: kimi-code-marketplace
     product: Kimi Code
     region: cn
@@ -912,21 +914,41 @@ markets:
       self_marketplace: not_applicable
       native_connector_or_builtin: not_applicable
       open_plugin_spec: not_applicable
-      mcp_or_skill_registry: unknown
+      mcp_or_skill_registry: submittable
       docs_only: unknown
-    submit_url_or_process: Publish hosted HTTPS MCP or rely on registry ingest; see smithery.ai/new.
+    submit_url_or_process: |
+      Publish hosted HTTPS MCP at smithery.ai/new or CLI `smithery mcp publish <url> -n name`.
+      Unattended ingest request filed 2026-08-18 (no SMITHERY_API_KEY / OAuth in this session).
+      Status: OPEN — https://github.com/clavia-inc/registry/issues/61
+      Do not flip mcp_or_skill_registry → listed until GET api.smithery.ai/servers/TencentCloudBase/cloudbase-mcp is 200.
     eligibility: hosted_http_mcp_or_registry
-    blockers: []
+    blockers:
+      - Awaiting Smithery ingest of official registry remotes / Add-server issue clavia-inc/registry#61
     evidence_links:
+      - https://github.com/clavia-inc/registry/issues/61
       - https://smithery.ai/docs/build/publish.md
-    local_evidence: []
+      - https://smithery.ai/new
+      - https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase
+    local_evidence:
+      - mcp_registry_server_json
     submit_checklist:
       - Public MCP URL or registry entry
       - Complete Smithery publish flow if needed
+      - After live: GET api.smithery.ai/servers/TencentCloudBase/cloudbase-mcp → 200; flip listed
     recommended_install_path: null
     priority_hint: null
-    last_reviewed_at: "2026-07-27"
+    last_reviewed_at: "2026-08-18"
     owner: cloudbase-ai-toolkit
+    notes: |
+      2026-08-18 GEL: Official MCP Registry listed io.github.TencentCloudBase/cloudbase-mcp
+      (then remotes-only). registry.smithery.ai/servers?q=cloudbase-mcp and q=tencent do NOT
+      return TencentCloudBase MCP. Skills page exists separately
+      (smithery.ai/skills/TencentCloudBase/cloud-functions).
+      2026-08-18 follow-up: Registry now also has v2.28.0 with npm packages[]. MCP server
+      still 404 on Smithery. Filed Add-server issue on the public tracker
+      (smithery-ai/web → clavia-inc/registry#61) requesting qualified name
+      TencentCloudBase/cloudbase-mcp and hosted remotes ingest. CLI publish skipped
+      (no API key; auth login is interactive OAuth).
 
   - id: pulsemcp
     product: PulseMCP
@@ -938,20 +960,40 @@ markets:
       self_marketplace: not_applicable
       native_connector_or_builtin: not_applicable
       open_plugin_spec: not_applicable
-      mcp_or_skill_registry: unknown
+      mcp_or_skill_registry: submittable
       docs_only: unknown
-    submit_url_or_process: Typically ingests from official MCP registry; expedite via contact after registry publish.
+    submit_url_or_process: |
+      Typically ingests from official MCP registry; expedite via hello@pulsemcp.com or
+      owner claim on pulsemcp/mcp-servers (established public maintainer channel).
+      Status 2026-08-18: claim issue OPEN — https://github.com/pulsemcp/mcp-servers/issues/678
+      Page still live as unofficial mirror until they swap server.json.
+      Do not flip mcp_or_skill_registry → listed until the page identity is
+      io.github.TencentCloudBase/cloudbase-mcp (not com.pulsemcp.mirror/tencent-cloudbase).
     eligibility: via_official_registry
-    blockers: []
+    blockers:
+      - Awaiting PulseMCP to replace unofficial mirror server.json (pulsemcp/mcp-servers#678)
     evidence_links:
-      - https://www.pulsemcp.com
-    local_evidence: []
+      - https://github.com/pulsemcp/mcp-servers/issues/678
+      - https://www.pulsemcp.com/servers/tencent-cloudbase
+      - https://api.pulsemcp.com/v0beta/servers?query=cloudbase
+      - https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase
+    local_evidence:
+      - mcp_registry_server_json
     submit_checklist:
-      - Ensure official MCP registry listing first
+      - Official MCP registry listing exists (2026-08-17; v2.28.0 with packages 2026-08-18)
+      - Claim / replace PulseMCP mirror server.json with official registry identity
+      - After live: confirm page name is io.github.TencentCloudBase/cloudbase-mcp; flip listed
     recommended_install_path: null
     priority_hint: null
-    last_reviewed_at: "2026-07-27"
+    last_reviewed_at: "2026-08-18"
     owner: cloudbase-ai-toolkit
+    notes: |
+      2026-08-18 GEL: Page live at /servers/tencent-cloudbase as unofficial mirror
+      (com.pulsemcp.mirror/tencent-cloudbase; PulseMCP temporarily managing server.json
+      "until the maintainer publishes it to the official registry").
+      2026-08-18 claim: owner issue pulsemcp/mcp-servers#678 (GitHub org admin binggg).
+      API still returns package_name=@cloudbase/cloudbase-mcp and remotes=[]. Human can
+      also email hello@pulsemcp.com with the same payload if they prefer email.
 
   - id: glama
     product: Glama
@@ -963,20 +1005,37 @@ markets:
       self_marketplace: not_applicable
       native_connector_or_builtin: not_applicable
       open_plugin_spec: not_applicable
-      mcp_or_skill_registry: unknown
-      docs_only: unknown
-    submit_url_or_process: Indexes public GitHub MCP repos / registry.
+      mcp_or_skill_registry: listed
+      docs_only: listed
+    submit_url_or_process: |
+      Indexes public GitHub MCP repos / registry. Add Server is the SPA modal on
+      glama.ai/mcp/servers when a repo is missing.
+      Status 2026-08-18: already indexed from GitHub (author:official). Add Server
+      not filed — live page + API search both hit CloudBase MCP.
     eligibility: public_github_mcp
     blockers: []
     evidence_links:
-      - https://glama.ai/mcp/servers
+      - https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit
+      - https://glama.ai/mcp/servers/bjxivwd225
+      - https://glama.ai/api/mcp/v1/servers/TencentCloudBase/CloudBase-AI-Toolkit
+      - https://glama.ai/api/mcp/v1/servers?query=cloudbase
     local_evidence: []
     submit_checklist:
       - Public MCP server repo discoverable
     recommended_install_path: null
-    priority_hint: null
-    last_reviewed_at: "2026-07-27"
+    priority_hint: listed
+    last_reviewed_at: "2026-08-18"
     owner: cloudbase-ai-toolkit
+    notes: |
+      2026-08-18 GEL: glama.ai/mcp/servers?q=cloudbase HTML 首页未露出 TencentCloudBase
+      (that query string renders Popular, not search results).
+      2026-08-18 verify: GitHub-indexed live listing exists.
+      Canonical page: /mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit
+      Stable id: /mcp/servers/bjxivwd225
+      API GET /api/mcp/v1/servers?query=cloudbase returns CloudBase MCP as the hit
+      (attributes author:official, hosting:hybrid).
+      Official registry name io.github.TencentCloudBase/cloudbase-mcp is not a Glama
+      slug (Glama uses GitHub namespace/slug). No Add Server submit needed.
 
   - id: mcp-so
     product: mcp.so

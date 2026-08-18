@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-08-18T00:16:06.837Z",
+  "generated_at": "2026-08-18T03:01:04.134Z",
   "matrix_version": 1,
   "reviewed_stale_days": 90,
   "total_markets": 43,
   "summary": {
     "ready_to_submit": 5,
-    "needs_packaging_or_manifest": 3,
-    "needs_partner_outreach": 11,
-    "listed": 8,
+    "needs_packaging_or_manifest": 5,
+    "needs_partner_outreach": 8,
+    "listed": 9,
     "not_applicable": 15,
     "unknown": 1
   },
@@ -341,7 +341,7 @@
         ],
         "submit_url_or_process": "Open a PR to xai-org/plugin-marketplace adding a remote catalog entry pinned to commit SHA.\nStatus 2026-07-28: PR opened https://github.com/xai-org/plugin-marketplace/pull/151\nSource: TencentCloudBase/cloudbase-plugin @ b615a7f8bfad6637f2297e1a993d29f6a292a13d\n",
         "recommended_install_path": null,
-        "last_reviewed_at": "2026-08-13",
+        "last_reviewed_at": "2026-08-18",
         "owner": "cloudbase-ai-toolkit",
         "local_evidence": [
           {
@@ -598,6 +598,134 @@
           {
             "item": "[object Object]",
             "status": "manual_or_external"
+          }
+        ],
+        "priority": "needs_packaging_or_manifest",
+        "stale": false,
+        "manual_submit_only": true
+      },
+      {
+        "id": "smithery",
+        "product": "Smithery",
+        "region": "global",
+        "channel_type": "mcp_registry_or_aggregator",
+        "listing_statuses": {
+          "official_curated": "not_applicable",
+          "community_directory": "not_applicable",
+          "self_marketplace": "not_applicable",
+          "native_connector_or_builtin": "not_applicable",
+          "open_plugin_spec": "not_applicable",
+          "mcp_or_skill_registry": "submittable",
+          "docs_only": "unknown"
+        },
+        "eligibility": "hosted_http_mcp_or_registry",
+        "blockers": [
+          "Awaiting Smithery ingest of official registry remotes / Add-server issue clavia-inc/registry#61"
+        ],
+        "evidence_links": [
+          "https://github.com/clavia-inc/registry/issues/61",
+          "https://smithery.ai/docs/build/publish.md",
+          "https://smithery.ai/new",
+          "https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase"
+        ],
+        "submit_url_or_process": "Publish hosted HTTPS MCP at smithery.ai/new or CLI `smithery mcp publish <url> -n name`.\nUnattended ingest request filed 2026-08-18 (no SMITHERY_API_KEY / OAuth in this session).\nStatus: OPEN — https://github.com/clavia-inc/registry/issues/61\nDo not flip mcp_or_skill_registry → listed until GET api.smithery.ai/servers/TencentCloudBase/cloudbase-mcp is 200.\n",
+        "recommended_install_path": null,
+        "last_reviewed_at": "2026-08-18",
+        "owner": "cloudbase-ai-toolkit",
+        "local_evidence": [
+          {
+            "id": "mcp_registry_server_json",
+            "status": "present",
+            "detail": "mcp/server.json matches npm mcpName io.github.TencentCloudBase/cloudbase-mcp",
+            "paths": [
+              "mcp/server.json",
+              "mcp/package.json"
+            ]
+          }
+        ],
+        "submit_checklist": [
+          "Public MCP URL or registry entry",
+          "Complete Smithery publish flow if needed",
+          {
+            "After live": "GET api.smithery.ai/servers/TencentCloudBase/cloudbase-mcp → 200; flip listed"
+          }
+        ],
+        "materials": [
+          {
+            "item": "Public MCP URL or registry entry",
+            "status": "repo_ready_or_external"
+          },
+          {
+            "item": "Complete Smithery publish flow if needed",
+            "status": "repo_ready_or_external"
+          },
+          {
+            "item": "[object Object]",
+            "status": "repo_ready_or_external"
+          }
+        ],
+        "priority": "needs_packaging_or_manifest",
+        "stale": false,
+        "manual_submit_only": true
+      },
+      {
+        "id": "pulsemcp",
+        "product": "PulseMCP",
+        "region": "global",
+        "channel_type": "mcp_registry_or_aggregator",
+        "listing_statuses": {
+          "official_curated": "not_applicable",
+          "community_directory": "not_applicable",
+          "self_marketplace": "not_applicable",
+          "native_connector_or_builtin": "not_applicable",
+          "open_plugin_spec": "not_applicable",
+          "mcp_or_skill_registry": "submittable",
+          "docs_only": "unknown"
+        },
+        "eligibility": "via_official_registry",
+        "blockers": [
+          "Awaiting PulseMCP to replace unofficial mirror server.json (pulsemcp/mcp-servers#678)"
+        ],
+        "evidence_links": [
+          "https://github.com/pulsemcp/mcp-servers/issues/678",
+          "https://www.pulsemcp.com/servers/tencent-cloudbase",
+          "https://api.pulsemcp.com/v0beta/servers?query=cloudbase",
+          "https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase"
+        ],
+        "submit_url_or_process": "Typically ingests from official MCP registry; expedite via hello@pulsemcp.com or\nowner claim on pulsemcp/mcp-servers (established public maintainer channel).\nStatus 2026-08-18: claim issue OPEN — https://github.com/pulsemcp/mcp-servers/issues/678\nPage still live as unofficial mirror until they swap server.json.\nDo not flip mcp_or_skill_registry → listed until the page identity is\nio.github.TencentCloudBase/cloudbase-mcp (not com.pulsemcp.mirror/tencent-cloudbase).\n",
+        "recommended_install_path": null,
+        "last_reviewed_at": "2026-08-18",
+        "owner": "cloudbase-ai-toolkit",
+        "local_evidence": [
+          {
+            "id": "mcp_registry_server_json",
+            "status": "present",
+            "detail": "mcp/server.json matches npm mcpName io.github.TencentCloudBase/cloudbase-mcp",
+            "paths": [
+              "mcp/server.json",
+              "mcp/package.json"
+            ]
+          }
+        ],
+        "submit_checklist": [
+          "Official MCP registry listing exists (2026-08-17; v2.28.0 with packages 2026-08-18)",
+          "Claim / replace PulseMCP mirror server.json with official registry identity",
+          {
+            "After live": "confirm page name is io.github.TencentCloudBase/cloudbase-mcp; flip listed"
+          }
+        ],
+        "materials": [
+          {
+            "item": "Official MCP registry listing exists (2026-08-17; v2.28.0 with packages 2026-08-18)",
+            "status": "repo_ready_or_external"
+          },
+          {
+            "item": "Claim / replace PulseMCP mirror server.json with official registry identity",
+            "status": "repo_ready_or_external"
+          },
+          {
+            "item": "[object Object]",
+            "status": "repo_ready_or_external"
           }
         ],
         "priority": "needs_packaging_or_manifest",
@@ -996,122 +1124,6 @@
         "manual_submit_only": true
       },
       {
-        "id": "smithery",
-        "product": "Smithery",
-        "region": "global",
-        "channel_type": "mcp_registry_or_aggregator",
-        "listing_statuses": {
-          "official_curated": "not_applicable",
-          "community_directory": "not_applicable",
-          "self_marketplace": "not_applicable",
-          "native_connector_or_builtin": "not_applicable",
-          "open_plugin_spec": "not_applicable",
-          "mcp_or_skill_registry": "unknown",
-          "docs_only": "unknown"
-        },
-        "eligibility": "hosted_http_mcp_or_registry",
-        "blockers": [],
-        "evidence_links": [
-          "https://smithery.ai/docs/build/publish.md"
-        ],
-        "submit_url_or_process": "Publish hosted HTTPS MCP or rely on registry ingest; see smithery.ai/new.",
-        "recommended_install_path": null,
-        "last_reviewed_at": "2026-07-27",
-        "owner": "cloudbase-ai-toolkit",
-        "local_evidence": [],
-        "submit_checklist": [
-          "Public MCP URL or registry entry",
-          "Complete Smithery publish flow if needed"
-        ],
-        "materials": [
-          {
-            "item": "Public MCP URL or registry entry",
-            "status": "manual_or_external"
-          },
-          {
-            "item": "Complete Smithery publish flow if needed",
-            "status": "manual_or_external"
-          }
-        ],
-        "priority": "needs_partner_outreach",
-        "stale": false,
-        "manual_submit_only": true
-      },
-      {
-        "id": "pulsemcp",
-        "product": "PulseMCP",
-        "region": "global",
-        "channel_type": "mcp_registry_or_aggregator",
-        "listing_statuses": {
-          "official_curated": "not_applicable",
-          "community_directory": "not_applicable",
-          "self_marketplace": "not_applicable",
-          "native_connector_or_builtin": "not_applicable",
-          "open_plugin_spec": "not_applicable",
-          "mcp_or_skill_registry": "unknown",
-          "docs_only": "unknown"
-        },
-        "eligibility": "via_official_registry",
-        "blockers": [],
-        "evidence_links": [
-          "https://www.pulsemcp.com"
-        ],
-        "submit_url_or_process": "Typically ingests from official MCP registry; expedite via contact after registry publish.",
-        "recommended_install_path": null,
-        "last_reviewed_at": "2026-07-27",
-        "owner": "cloudbase-ai-toolkit",
-        "local_evidence": [],
-        "submit_checklist": [
-          "Ensure official MCP registry listing first"
-        ],
-        "materials": [
-          {
-            "item": "Ensure official MCP registry listing first",
-            "status": "manual_or_external"
-          }
-        ],
-        "priority": "needs_partner_outreach",
-        "stale": false,
-        "manual_submit_only": true
-      },
-      {
-        "id": "glama",
-        "product": "Glama",
-        "region": "global",
-        "channel_type": "mcp_registry_or_aggregator",
-        "listing_statuses": {
-          "official_curated": "not_applicable",
-          "community_directory": "not_applicable",
-          "self_marketplace": "not_applicable",
-          "native_connector_or_builtin": "not_applicable",
-          "open_plugin_spec": "not_applicable",
-          "mcp_or_skill_registry": "unknown",
-          "docs_only": "unknown"
-        },
-        "eligibility": "public_github_mcp",
-        "blockers": [],
-        "evidence_links": [
-          "https://glama.ai/mcp/servers"
-        ],
-        "submit_url_or_process": "Indexes public GitHub MCP repos / registry.",
-        "recommended_install_path": null,
-        "last_reviewed_at": "2026-07-27",
-        "owner": "cloudbase-ai-toolkit",
-        "local_evidence": [],
-        "submit_checklist": [
-          "Public MCP server repo discoverable"
-        ],
-        "materials": [
-          {
-            "item": "Public MCP server repo discoverable",
-            "status": "manual_or_external"
-          }
-        ],
-        "priority": "needs_partner_outreach",
-        "stale": false,
-        "manual_submit_only": true
-      },
-      {
         "id": "mcp-so",
         "product": "mcp.so",
         "region": "global",
@@ -1490,6 +1502,46 @@
         ],
         "submit_checklist": [],
         "materials": [],
+        "priority": "listed",
+        "stale": false,
+        "manual_submit_only": true
+      },
+      {
+        "id": "glama",
+        "product": "Glama",
+        "region": "global",
+        "channel_type": "mcp_registry_or_aggregator",
+        "listing_statuses": {
+          "official_curated": "not_applicable",
+          "community_directory": "not_applicable",
+          "self_marketplace": "not_applicable",
+          "native_connector_or_builtin": "not_applicable",
+          "open_plugin_spec": "not_applicable",
+          "mcp_or_skill_registry": "listed",
+          "docs_only": "listed"
+        },
+        "eligibility": "public_github_mcp",
+        "blockers": [],
+        "evidence_links": [
+          "https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit",
+          "https://glama.ai/mcp/servers/bjxivwd225",
+          "https://glama.ai/api/mcp/v1/servers/TencentCloudBase/CloudBase-AI-Toolkit",
+          "https://glama.ai/api/mcp/v1/servers?query=cloudbase"
+        ],
+        "submit_url_or_process": "Indexes public GitHub MCP repos / registry. Add Server is the SPA modal on\nglama.ai/mcp/servers when a repo is missing.\nStatus 2026-08-18: already indexed from GitHub (author:official). Add Server\nnot filed — live page + API search both hit CloudBase MCP.\n",
+        "recommended_install_path": null,
+        "last_reviewed_at": "2026-08-18",
+        "owner": "cloudbase-ai-toolkit",
+        "local_evidence": [],
+        "submit_checklist": [
+          "Public MCP server repo discoverable"
+        ],
+        "materials": [
+          {
+            "item": "Public MCP server repo discoverable",
+            "status": "manual_or_external"
+          }
+        ],
         "priority": "listed",
         "stale": false,
         "manual_submit_only": true
@@ -2437,7 +2489,7 @@
       ],
       "submit_url_or_process": "Open a PR to xai-org/plugin-marketplace adding a remote catalog entry pinned to commit SHA.\nStatus 2026-07-28: PR opened https://github.com/xai-org/plugin-marketplace/pull/151\nSource: TencentCloudBase/cloudbase-plugin @ b615a7f8bfad6637f2297e1a993d29f6a292a13d\n",
       "recommended_install_path": null,
-      "last_reviewed_at": "2026-08-13",
+      "last_reviewed_at": "2026-08-18",
       "owner": "cloudbase-ai-toolkit",
       "local_evidence": [
         {
@@ -3436,34 +3488,56 @@
         "self_marketplace": "not_applicable",
         "native_connector_or_builtin": "not_applicable",
         "open_plugin_spec": "not_applicable",
-        "mcp_or_skill_registry": "unknown",
+        "mcp_or_skill_registry": "submittable",
         "docs_only": "unknown"
       },
       "eligibility": "hosted_http_mcp_or_registry",
-      "blockers": [],
-      "evidence_links": [
-        "https://smithery.ai/docs/build/publish.md"
+      "blockers": [
+        "Awaiting Smithery ingest of official registry remotes / Add-server issue clavia-inc/registry#61"
       ],
-      "submit_url_or_process": "Publish hosted HTTPS MCP or rely on registry ingest; see smithery.ai/new.",
+      "evidence_links": [
+        "https://github.com/clavia-inc/registry/issues/61",
+        "https://smithery.ai/docs/build/publish.md",
+        "https://smithery.ai/new",
+        "https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase"
+      ],
+      "submit_url_or_process": "Publish hosted HTTPS MCP at smithery.ai/new or CLI `smithery mcp publish <url> -n name`.\nUnattended ingest request filed 2026-08-18 (no SMITHERY_API_KEY / OAuth in this session).\nStatus: OPEN — https://github.com/clavia-inc/registry/issues/61\nDo not flip mcp_or_skill_registry → listed until GET api.smithery.ai/servers/TencentCloudBase/cloudbase-mcp is 200.\n",
       "recommended_install_path": null,
-      "last_reviewed_at": "2026-07-27",
+      "last_reviewed_at": "2026-08-18",
       "owner": "cloudbase-ai-toolkit",
-      "local_evidence": [],
+      "local_evidence": [
+        {
+          "id": "mcp_registry_server_json",
+          "status": "present",
+          "detail": "mcp/server.json matches npm mcpName io.github.TencentCloudBase/cloudbase-mcp",
+          "paths": [
+            "mcp/server.json",
+            "mcp/package.json"
+          ]
+        }
+      ],
       "submit_checklist": [
         "Public MCP URL or registry entry",
-        "Complete Smithery publish flow if needed"
+        "Complete Smithery publish flow if needed",
+        {
+          "After live": "GET api.smithery.ai/servers/TencentCloudBase/cloudbase-mcp → 200; flip listed"
+        }
       ],
       "materials": [
         {
           "item": "Public MCP URL or registry entry",
-          "status": "manual_or_external"
+          "status": "repo_ready_or_external"
         },
         {
           "item": "Complete Smithery publish flow if needed",
-          "status": "manual_or_external"
+          "status": "repo_ready_or_external"
+        },
+        {
+          "item": "[object Object]",
+          "status": "repo_ready_or_external"
         }
       ],
-      "priority": "needs_partner_outreach",
+      "priority": "needs_packaging_or_manifest",
       "stale": false,
       "manual_submit_only": true
     },
@@ -3478,29 +3552,56 @@
         "self_marketplace": "not_applicable",
         "native_connector_or_builtin": "not_applicable",
         "open_plugin_spec": "not_applicable",
-        "mcp_or_skill_registry": "unknown",
+        "mcp_or_skill_registry": "submittable",
         "docs_only": "unknown"
       },
       "eligibility": "via_official_registry",
-      "blockers": [],
-      "evidence_links": [
-        "https://www.pulsemcp.com"
+      "blockers": [
+        "Awaiting PulseMCP to replace unofficial mirror server.json (pulsemcp/mcp-servers#678)"
       ],
-      "submit_url_or_process": "Typically ingests from official MCP registry; expedite via contact after registry publish.",
+      "evidence_links": [
+        "https://github.com/pulsemcp/mcp-servers/issues/678",
+        "https://www.pulsemcp.com/servers/tencent-cloudbase",
+        "https://api.pulsemcp.com/v0beta/servers?query=cloudbase",
+        "https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase"
+      ],
+      "submit_url_or_process": "Typically ingests from official MCP registry; expedite via hello@pulsemcp.com or\nowner claim on pulsemcp/mcp-servers (established public maintainer channel).\nStatus 2026-08-18: claim issue OPEN — https://github.com/pulsemcp/mcp-servers/issues/678\nPage still live as unofficial mirror until they swap server.json.\nDo not flip mcp_or_skill_registry → listed until the page identity is\nio.github.TencentCloudBase/cloudbase-mcp (not com.pulsemcp.mirror/tencent-cloudbase).\n",
       "recommended_install_path": null,
-      "last_reviewed_at": "2026-07-27",
+      "last_reviewed_at": "2026-08-18",
       "owner": "cloudbase-ai-toolkit",
-      "local_evidence": [],
+      "local_evidence": [
+        {
+          "id": "mcp_registry_server_json",
+          "status": "present",
+          "detail": "mcp/server.json matches npm mcpName io.github.TencentCloudBase/cloudbase-mcp",
+          "paths": [
+            "mcp/server.json",
+            "mcp/package.json"
+          ]
+        }
+      ],
       "submit_checklist": [
-        "Ensure official MCP registry listing first"
+        "Official MCP registry listing exists (2026-08-17; v2.28.0 with packages 2026-08-18)",
+        "Claim / replace PulseMCP mirror server.json with official registry identity",
+        {
+          "After live": "confirm page name is io.github.TencentCloudBase/cloudbase-mcp; flip listed"
+        }
       ],
       "materials": [
         {
-          "item": "Ensure official MCP registry listing first",
-          "status": "manual_or_external"
+          "item": "Official MCP registry listing exists (2026-08-17; v2.28.0 with packages 2026-08-18)",
+          "status": "repo_ready_or_external"
+        },
+        {
+          "item": "Claim / replace PulseMCP mirror server.json with official registry identity",
+          "status": "repo_ready_or_external"
+        },
+        {
+          "item": "[object Object]",
+          "status": "repo_ready_or_external"
         }
       ],
-      "priority": "needs_partner_outreach",
+      "priority": "needs_packaging_or_manifest",
       "stale": false,
       "manual_submit_only": true
     },
@@ -3515,17 +3616,20 @@
         "self_marketplace": "not_applicable",
         "native_connector_or_builtin": "not_applicable",
         "open_plugin_spec": "not_applicable",
-        "mcp_or_skill_registry": "unknown",
-        "docs_only": "unknown"
+        "mcp_or_skill_registry": "listed",
+        "docs_only": "listed"
       },
       "eligibility": "public_github_mcp",
       "blockers": [],
       "evidence_links": [
-        "https://glama.ai/mcp/servers"
+        "https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-AI-Toolkit",
+        "https://glama.ai/mcp/servers/bjxivwd225",
+        "https://glama.ai/api/mcp/v1/servers/TencentCloudBase/CloudBase-AI-Toolkit",
+        "https://glama.ai/api/mcp/v1/servers?query=cloudbase"
       ],
-      "submit_url_or_process": "Indexes public GitHub MCP repos / registry.",
+      "submit_url_or_process": "Indexes public GitHub MCP repos / registry. Add Server is the SPA modal on\nglama.ai/mcp/servers when a repo is missing.\nStatus 2026-08-18: already indexed from GitHub (author:official). Add Server\nnot filed — live page + API search both hit CloudBase MCP.\n",
       "recommended_install_path": null,
-      "last_reviewed_at": "2026-07-27",
+      "last_reviewed_at": "2026-08-18",
       "owner": "cloudbase-ai-toolkit",
       "local_evidence": [],
       "submit_checklist": [
@@ -3537,7 +3641,7 @@
           "status": "manual_or_external"
         }
       ],
-      "priority": "needs_partner_outreach",
+      "priority": "listed",
       "stale": false,
       "manual_submit_only": true
     },
