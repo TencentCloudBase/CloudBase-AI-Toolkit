@@ -78,7 +78,8 @@ node scripts/sync-skill-versions.mjs --version X.Y.Z
 3. **IDE / MCP 机器配置源**：在 `config/source/editor-config/` 中维护
 4. **Claude skills 兼容镜像**：保留在 `config/.claude/skills/`，由 source 自动同步，不要手改
 5. **CodeBuddy 插件专属源**：在 `config/codebuddy-plugin/` 中维护
-6. **兼容产物**：统一生成到 `.generated/compat-config/`，不要手改
+6. **Kimi 插件专属源**：在 `config/kimi-plugin/` 中维护（`kimi.plugin.json` + 兼容 `plugin.json`）
+7. **兼容产物**：统一生成到 `.generated/compat-config/`，不要手改
 
 ### 当前目录关系
 
@@ -88,6 +89,7 @@ config/source/guideline/   # 总入口 guideline 唯一语义源
 config/source/editor-config/ # IDE / MCP 配置唯一机器源
 config/.claude/skills/     # Claude skills 兼容镜像（生成并提交）
 config/codebuddy-plugin/   # CodeBuddy 插件保留源
+config/kimi-plugin/        # Kimi Code / Kimi Work 插件保留源
 
 .generated/compat-config/  # 兼容产物输出目录（生成）
 .skills-repo-output/       # skills 仓库发布产物（生成）
@@ -99,6 +101,7 @@ config/codebuddy-plugin/   # CodeBuddy 插件保留源
 
 1. 修改 `config/source/skills/`、`config/source/guideline/`、`config/source/editor-config/`
 2. 如果是 CodeBuddy 插件专属内容，修改 `config/codebuddy-plugin/`
+2b. 如果是 Kimi Code / Kimi Work 插件专属内容，修改 `config/kimi-plugin/`
 3. `config/.claude/skills/` 会由 CI 自动从 `config/source/skills/` 同步，不要手改
 3. 如果 skill 内容变更影响 prompts 文档，运行：
    ```bash

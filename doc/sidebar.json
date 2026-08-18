@@ -42,6 +42,7 @@
               "ai/cloudbase-ai-toolkit/ide-setup/cursor",
               "ai/cloudbase-ai-toolkit/ide-setup/codebuddy",
               "ai/cloudbase-ai-toolkit/ide-setup/claude-code",
+              "ai/cloudbase-ai-toolkit/ide-setup/kimi",
               "ai/cloudbase-ai-toolkit/ide-setup/openclaw",
               "ai/cloudbase-ai-toolkit/ide-setup/windsurf",
               "ai/cloudbase-ai-toolkit/ide-setup/trae",
