@@ -80,5 +80,6 @@ export function apply(ctx: PluginContext): void {
 }
 
 export { buildMcpClientConfig, loginHint } from "./mcp-bridge.js";
+export { CloudBaseMcpBridge } from "./mcp-client.js";
 export { createCloudBaseDataService } from "./data-service.js";
 export { mapUsageModule, mapRegion, scrubInternalCodes } from "./term-map.js";

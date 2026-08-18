@@ -19,7 +19,7 @@ export interface McpCallResult {
   isError?: boolean;
 }
 
-export const MCP_REQUEST_TIMEOUT_MS = 45_000;
+export const MCP_REQUEST_TIMEOUT_MS = 90_000;
 
 interface Pending {
   resolve: (value: JsonRpcResponse) => void;
@@ -27,7 +27,7 @@ interface Pending {
 }
 
 function encodeMessage(payload: unknown): Buffer {
-  const json = Buffer.from(JSON.stringify(payload), "utf8");
+  const json = Buffer.from(`${JSON.stringify(payload)}\n`, "utf8");
   const header = Buffer.from(`Content-Length: ${json.length}\r\n\r\n`, "utf8");
   return Buffer.concat([header, json]);
 }
@@ -155,7 +155,11 @@ export class CloudBaseMcpBridge {
     });
     this.child = child;
     child.stdout.on("data", (chunk: Buffer) => this.onData(chunk));
-    child.stderr.on("data", () => undefined);
+    child.stderr.on("data", (chunk: Buffer) => {
+      if (this.env.CLOUDBASE_MCP_DEBUG === "1") {
+        process.stderr.write(`[cloudbase-mcp] ${chunk.toString("utf8")}`);
+      }
+    });
     child.on("exit", () => {
       this.child = null;
       this.ready = null;

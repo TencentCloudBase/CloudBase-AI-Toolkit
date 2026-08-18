@@ -30,6 +30,16 @@ describe("mcp bridge env", () => {
     expect(parsed.messages[0]?.id).toBe(1);
   });
 
+  it("parses Content-Length frames whose JSON body ends with a newline", () => {
+    const body = Buffer.from(`${JSON.stringify({ jsonrpc: "2.0", id: 7, result: { ok: true } })}\n`);
+    const frame = Buffer.concat([
+      Buffer.from(`Content-Length: ${body.length}\r\n\r\n`),
+      body,
+    ]);
+    const parsed = parseMcpFrames(frame);
+    expect(parsed.messages[0]?.id).toBe(7);
+  });
+
   it("guides device-code login when signed out", () => {
     expect(loginHint(false)).toContain("start_auth");
     expect(loginHint(false)).toContain("device");

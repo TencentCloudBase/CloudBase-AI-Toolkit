@@ -33,6 +33,7 @@
     "build": "node build.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "e2e:live": "node scripts/e2e-live.mjs",
     "prepublishOnly": "npm run typecheck && npm run build && npm test"
   },
   "keywords": [

@@ -91,7 +91,7 @@ export CLOUDBASE_ENV_ID=your-env-id
 2. **pnpm v9+ 默认禁止依赖 install 脚本。** `@cloudbase/cloudbase-mcp` 间接依赖 protobufjs，必须 `enable-scripts=true` 后再 `pnpm install`。一键脚本已包含此步。
 3. **UI 插件要重建 web 前端。** 装完后若看不到表格卡片 / 右侧面板，从 DSH 安装目录执行 `pnpm run build:web`，再重启 `dsh --profile web`。Headless 不需要。
 4. **凭据 scrubbing。** DSH stdio 桥会丢掉名字匹配 `KEY|PASSWORD|SECRET|TOKEN` 的环境变量。需要传给 MCP 的变量必须写在 mcp-client 的 `env` 字段。本插件只显式透传 `CLOUDBASE_ENV_ID`。`HOME` 会继承，因此本机 tcb 登录态可用。
-5. **首次 npx 拉包可能 10–30s。** headless 首轮工具列表可能还是空的；重试即可。Web 长驻进程无此问题。
+5. **首次 npx 拉包可能 10–90s。** headless 首轮工具列表可能还是空的；重试即可。Web 长驻进程无此问题。本地验收：`cd dsh-plugin && npm run build && npm run e2e:live`。
 6. **不要塞无效 API Key。** cloudbase-mcp 检测到 Key 会走 Key 模式，device-code 会被挡住。
 
 ## 隐私
@@ -111,6 +111,7 @@ cd dsh-plugin
 npm install
 npm test
 npm run build
+npm run e2e:live   # spawns cloudbase-mcp; needs network + local tcb login for EnvList
 ```
 
 产物：`dist/index.js`（Host）+ `dist/client.js`（Web ModuleLoader factory）。除 peer（cordis / react）外运行时 0 依赖。
@@ -157,7 +158,7 @@ The plugin **does not pass `CLOUDBASE_API_KEY`**. Reuse local `tcb login` state.
 2. pnpm v9+ blocks dependency install scripts. Set `enable-scripts=true` then `pnpm install` (the one-shot script does this).
 3. UI plugins need `pnpm run build:web` on the DSH install. Headless does not.
 4. Credential scrubbing: variables matching `KEY|PASSWORD|SECRET|TOKEN` are stripped unless listed under mcp-client `env`. We only forward `CLOUDBASE_ENV_ID`.
-5. First `npx` fetch can take 10–30s; retry the headless turn if tools are missing.
+5. First `npx` fetch can take 10–90s; retry the headless turn if tools are missing. Local gate: `npm run e2e:live`.
 6. Never inject an invalid API Key — it blocks device-code.
 
 ## Privacy

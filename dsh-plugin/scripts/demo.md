@@ -6,6 +6,7 @@ Target: DSH `>=0.1.0-rc.6 <0.2.0`, local tcb login, plugin built.
 
 ```bash
 cd dsh-plugin && npm install && npm test && npm run build
+node scripts/e2e-live.mjs
 dsh plugin --profile web add .
 dsh --profile web --dump-config | grep -E 'cloudbase|mcp-cloudbase'
 ```
