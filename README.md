@@ -64,6 +64,7 @@ Publishing and sync repos live under [TencentCloudBase](https://github.com/Tence
 | Repository | Contents | Typical entry |
 |------|------|----------|
 | [CloudBase-AI-Toolkit](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit) (this repo) | MCP Server source; marketplace source for Claude Code / Codex | `npx @cloudbase/cloudbase-mcp@latest` |
+| [dsh-plugin](./dsh-plugin) | DeepSeek Harness plugin (`@cloudbase/dsh-plugin`): MCP bridge + DB/Storage/Auth panel | `dsh plugin add @cloudbase/dsh-plugin` |
 | [cloudbase-plugin](https://github.com/TencentCloudBase/cloudbase-plugin) | Open Plugin Spec publish repo (CI-synced): MCP + Skills + Hooks | `npx plugins add TencentCloudBase/cloudbase-plugin` · CNB fallback: `npx plugins add https://cnb.cool/tencent/cloud/cloudbase/cloudbase-plugin.git` |
 | [cloudbase-sites-plugin](https://github.com/TencentCloudBase/cloudbase-sites-plugin) | Sites plugin: Vite Web create & deploy | `npx plugins add TencentCloudBase/cloudbase-sites-plugin` · CNB: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-sites-plugin.git` |
 | [cloudbase-skills](https://github.com/TencentCloudBase/cloudbase-skills) | Agent Skills collection | `npx skills add TencentCloudBase/cloudbase-skills` · CNB: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills.git` |

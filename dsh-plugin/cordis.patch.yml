@@ -1,0 +1,16 @@
+# CloudBase DSH plugin bundle patch.
+# Never forward long-lived cloud credentials: an invalid key blocks device-code login.
+# !!js expressions MUST evaluate to a string (never undefined) or dsh will refuse to boot.
+
+- insert:
+    - id: mcp-cloudbase
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: cloudbase
+        transport: stdio
+        command: npx
+        args: ['-y', '@cloudbase/cloudbase-mcp@latest']
+        env:
+          CLOUDBASE_ENV_ID: !!js (process.env.CLOUDBASE_ENV_ID || 'ai-share-d2guukyxybb63b206')
+    - id: cloudbase-dsh-plugin
+      name: '@cloudbase/dsh-plugin'

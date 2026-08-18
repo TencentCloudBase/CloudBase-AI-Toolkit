@@ -1,0 +1,35 @@
+name: dsh-plugin CI
+
+on:
+  pull_request:
+    paths:
+      - "dsh-plugin/**"
+      - "scripts/e2e/verify-dsh-plugin.mjs"
+      - ".github/workflows/dsh-plugin-ci.yml"
+      - ".github/workflows/npm-publish-dsh-plugin.yaml"
+      - "pnpm-workspace.yaml"
+  push:
+    paths:
+      - "dsh-plugin/**"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+
+      - name: Install, typecheck, test, build
+        working-directory: ./dsh-plugin
+        run: npm install --ignore-scripts
+
+      - name: Verify plugin contract
+        run: node scripts/e2e/verify-dsh-plugin.mjs
