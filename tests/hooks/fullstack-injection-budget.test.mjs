@@ -27,6 +27,8 @@ const PLATFORM_POINTER_SKILLS = [
   "web-development",
   "cloudrun-development",
   "cloudbase-cli",
+  "cloudbase",
+  "cloudbase-platform",
 ];
 const AI_SPECIALISTS = ["ai-model-nodejs", "ai-model-web", "ai-model-wechat"];
 
@@ -101,5 +103,24 @@ describe("fullstack injection budget", () => {
       }
       expect(reranked.droppedByBudget).toEqual([]);
     }
+  });
+
+  it("injects cloudbase-platform without the cloudbase guideline on capability queries", () => {
+    const { skillMap, compiledSkills, lexicalIndex } = loadSkills();
+    const guidelineItems = loadEvalDataset().filter((item) => item.category === "guidelines");
+    expect(guidelineItems.length).toBeGreaterThanOrEqual(3);
+
+    for (const item of guidelineItems) {
+      const reranked = evaluatePrompt(item.prompt, skillMap, compiledSkills, lexicalIndex);
+      const actual = new Set(reranked.injectedSkills);
+      const expected = new Set((item.expectedSkills || []).map(normalizeSkillId));
+      expect(actual, item.prompt).toEqual(expected);
+      expect(reranked.droppedByBudget).toEqual([]);
+    }
+
+    const capabilityPrompt = "CloudBase 平台有哪些核心能力";
+    const capability = evaluatePrompt(capabilityPrompt, skillMap, compiledSkills, lexicalIndex);
+    expect(capability.injectedSkills).toEqual(["cloudbase-platform"]);
+    expect(capability.injectedSkills).not.toContain("cloudbase");
   });
 });

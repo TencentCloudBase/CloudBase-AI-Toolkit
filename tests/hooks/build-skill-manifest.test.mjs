@@ -272,6 +272,10 @@ describe("build-skill-manifest.mjs script", () => {
     expect(manifest.skills["web-development"].metadata.injectionCost).toBe(800);
     expect(manifest.skills["cloudrun-development"].metadata.injectionCost).toBe(800);
     expect(manifest.skills["cloudbase-cli"].metadata.injectionCost).toBe(800);
+    expect(manifest.skills["cloudbase"].metadata.injectionCost).toBe(800);
+    expect(manifest.skills["cloudbase-platform"].metadata.injectionCost).toBe(800);
+    expect(manifest.skills["cloudbase"].promptSignals.phrases).not.toContain("核心能力");
+    expect(manifest.skills["cloudbase"].promptSignals.noneOf).toEqual(["核心能力", "平台能力"]);
     expect(manifest.skills["ui-design"].metadata.priority).toBe(9);
   });
 

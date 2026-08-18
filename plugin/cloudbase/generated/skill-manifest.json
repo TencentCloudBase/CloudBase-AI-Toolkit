@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generatedAt": "2026-08-18T03:06:24.001Z",
+  "generatedAt": "2026-08-18T03:18:58.730Z",
   "skills": {
     "ai-model-nodejs": {
       "name": "ai-model-nodejs",
@@ -637,7 +637,8 @@
       "description": "Use this skill when you develop, design, build, deploy, debug, migrate, or troubleshoot CloudBase (腾讯云开发, 云开发, TCB, 微信云开发) projects. Covers Web, 微信小程序, 小程序, uni-app, mobile (iOS, Android, Flutter, React Native). UI (页面, 界面, 表单, form, dashboard, prototype, 原型); auth (登录, 注册, OAuth, 微信登录, publishable key); databases (NoSQL 文档数据库, MySQL 关系型数据库, PostgreSQL/CloudBase PG, app.rdb(), queryPgDatabase/managePgDatabase, CRUD, 查询, security rules); 云函数/cloud functions (serverless, scf_bootstrap); CloudRun (云托管, Dockerfile); 云存储. Built-in AI (内置大模型, AI 对话, streaming, 流式输出, 图片生成, generateText, streamText, createModel, generateImage, TokenHub, Hunyuan, hunyuan-exp, DeepSeek, deepseek, GLM, Kimi, Token Credits 资源包, 小程序成长计划). 第三方大模型, 大模型接入, 大模型调用, LLM API, AI agent, 智能体, AI Agent, AG-UI, LangGraph. Ops (巡检, 诊断, health check, 日志, troubleshooting). Spec (需求文档, 技术方案, requirements, tasks.md). Do NOT use for non-CloudBase projects, pure frontend without CloudBase, or self-hosted backends without CloudBase.",
       "version": "2.27.0",
       "metadata": {
-        "priority": 6
+        "priority": 6,
+        "injectionCost": 800
       },
       "promptSignals": {
         "phrases": [
@@ -648,8 +649,7 @@
           "云开发完整指南",
           "开发规则",
           "开发指南",
-          "完整指南",
-          "核心能力"
+          "完整指南"
         ],
         "allOf": [
           [
@@ -667,7 +667,10 @@
         ],
         "anyOf": [],
         "minScore": 6,
-        "noneOf": []
+        "noneOf": [
+          "核心能力",
+          "平台能力"
+        ]
       },
       "retrieval": {
         "aliases": [
@@ -675,7 +678,7 @@
         ],
         "intents": [
           "cloudbase 指南",
-          "平台总览",
+          "指南总览",
           "开发规则",
           "查询 cloudbase 指南",
           "云开发规则"
@@ -993,7 +996,8 @@
       "description": "CloudBase platform overview and routing guide. This skill should be used when users need high-level capability selection, platform concepts, console navigation, or cross-platform best practices before choosing a more specific implementation skill.",
       "version": "2.27.0",
       "metadata": {
-        "priority": 8
+        "priority": 8,
+        "injectionCost": 800
       },
       "promptSignals": {
         "phrases": [

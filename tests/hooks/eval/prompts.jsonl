@@ -17,8 +17,9 @@
 {"prompt": "文件上传下载怎么实现", "expectedSkills": ["cloud-storage-web"], "category": "storage", "note": "正例：存储操作"}
 {"prompt": "帮我设计一个高保真的登录页面原型", "expectedSkills": ["ui-design"], "category": "ui", "note": "正例：UI 设计原型"}
 {"prompt": "给我一个仪表盘的配色方案", "expectedSkills": ["ui-design"], "category": "ui", "note": "正例：UI 配色"}
-{"prompt": "CloudBase 平台有哪些核心能力", "expectedSkills": ["cloudbase-platform"], "category": "guidelines", "note": "正例：平台能力查询（核心需求是平台能力）"}
-{"prompt": "云开发的完整指南在哪里", "expectedSkills": ["cloudbase-guidelines"], "category": "guidelines", "note": "正例：指南查询"}
+{"prompt": "CloudBase 平台有哪些核心能力", "expectedSkills": ["cloudbase-platform"], "category": "guidelines", "note": "正例：平台核心能力查询；不得注入 cloudbase 指南（phrase 已从指南收窄，noneOf 硬抑制）"}
+{"prompt": "CloudBase 有哪些平台能力", "expectedSkills": ["cloudbase-platform"], "category": "guidelines", "note": "回归：连续「平台能力」只命中 cloudbase-platform；指南 noneOf 抑制"}
+{"prompt": "云开发的完整指南在哪里", "expectedSkills": ["cloudbase-guidelines"], "category": "guidelines", "note": "正例：指南查询（不含「核心能力」，收窄后仍只注入指南）"}
 {"prompt": "用 tcb 命令行部署云函数", "expectedSkills": ["cloudbase-cli"], "category": "cli", "note": "正例：CLI 操作"}
 {"prompt": "怎么用 tcb CLI 管理云开发环境", "expectedSkills": ["cloudbase-cli"], "category": "cli", "note": "正例：CLI 环境"}
 {"prompt": "我的页面加载了但按钮不生效", "expectedSkills": ["ops-inspector"], "category": "ops", "note": "正例：故障排查 flow-verification"}
