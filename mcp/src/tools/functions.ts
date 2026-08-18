@@ -9,6 +9,13 @@ import { isCloudMode } from "../utils/cloud-mode.js";
 import { resolveGatewayAccessUrls } from "../utils/gateway-access-urls.js";
 import { jsonContent } from "../utils/json-content.js";
 import { debug } from "../utils/logger.js";
+import { isToolPayloadError } from "../utils/tool-result.js";
+import {
+  buildFunctionUpdatingPayload,
+  getErrorMessage,
+  isFunctionUpdatingError,
+  waitUntilFunctionActive,
+} from "./function-updating.js";
 
 import { IEnvVariable } from "@cloudbase/manager-node/types/function/types.js";
 import { existsSync } from "fs";
@@ -139,10 +146,13 @@ type FunctionToolEnvelope = {
   success: boolean;
   data: Record<string, unknown>;
   message: string;
+  errorCode?: string;
+  retryAfterSeconds?: number;
   nextActions?: Array<{
     tool: string;
     action: string;
     reason: string;
+    suggested_args?: Record<string, unknown>;
   }>;
   /** Soft advisory messages; never blocks the operation. */
   warnings?: string[];
@@ -528,6 +538,13 @@ export function buildFunctionOperationErrorMessage(
     );
   }
 
+  if (isFunctionUpdatingError(error)) {
+    suggestions.push(
+      `函数当前处于 Updating/非 Active，不要立即重试 ${operation}。` +
+        `请等待约 10 秒，或先 queryFunctions(action="getFunctionDetail") 确认 Status 为 Active 后再重试。`,
+    );
+  }
+
   // Handle invalid parameter value errors from CloudBase API
   if (/invalid parameter value/i.test(baseMessage)) {
     suggestions.push(
@@ -588,6 +605,38 @@ function wrapFunctionOperationError(
   return wrappedError;
 }
 
+async function waitForManageWriteOrGuide(
+  action: "updateFunctionCode" | "updateFunctionConfig",
+  functionName: string,
+  getFunctionDetail: (
+    name: string,
+  ) => Promise<{ Status?: string } | null | undefined>,
+  initialDetail?: { Status?: string } | null,
+): Promise<ReturnType<typeof buildFunctionUpdatingPayload> | undefined> {
+  const waitResult = await waitUntilFunctionActive(
+    async () => {
+      const latest = await getFunctionDetail(functionName);
+      return typeof latest?.Status === "string" ? latest.Status : undefined;
+    },
+    {
+      initialStatus:
+        typeof initialDetail?.Status === "string" ? initialDetail.Status : undefined,
+    },
+  );
+
+  if (waitResult.ready) {
+    return undefined;
+  }
+
+  return buildFunctionUpdatingPayload({
+    action,
+    functionName,
+    status: waitResult.status,
+    waitedAttempts: waitResult.attempts,
+    timedOut: waitResult.timedOut,
+  });
+}
+
 export function registerFunctionTools(server: ExtendedMcpServer) {
   const cloudBaseOptions = server.cloudBaseOptions;
   const deployOverrides = server.pluginOptions?.functions;
@@ -620,6 +669,17 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     try {
       return jsonContent(await handler());
     } catch (error) {
+      if (isToolPayloadError(error)) {
+        return jsonContent(error.payload);
+      }
+      if (isFunctionUpdatingError(error)) {
+        return jsonContent(
+          buildFunctionUpdatingPayload({
+            action: "manageFunctions",
+            rawMessage: getErrorMessage(error),
+          }),
+        );
+      }
       return jsonContent(buildErrorEnvelope(error));
     }
   };
@@ -1341,6 +1401,31 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       }
       const cloudbase = await getManager();
 
+      if (typeof cloudbase.functions.getFunctionDetail === "function") {
+        try {
+          const currentDetail = await cloudbase.functions.getFunctionDetail(
+            input.functionName,
+          );
+          const waited = await waitForManageWriteOrGuide(
+            "updateFunctionCode",
+            input.functionName,
+            (name) => cloudbase.functions.getFunctionDetail(name),
+            currentDetail,
+          );
+          if (waited) {
+            return waited;
+          }
+        } catch (error) {
+          if (isFunctionUpdatingError(error)) {
+            return buildFunctionUpdatingPayload({
+              action: "updateFunctionCode",
+              functionName: input.functionName,
+              rawMessage: getErrorMessage(error),
+            });
+          }
+        }
+      }
+
       // 镜像更新分支：后续迭代只需用新镜像 tag 更新函数。
       const updateImageConfig =
         input.imageConfig ??
@@ -1361,6 +1446,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             deployMode: "image",
           } as any);
         } catch (error) {
+          if (isFunctionUpdatingError(error)) {
+            return buildFunctionUpdatingPayload({
+              action: "updateFunctionCode",
+              functionName: input.functionName,
+              rawMessage: getErrorMessage(error),
+            });
+          }
           throw wrapFunctionOperationError(
             "updateFunctionCode",
             input.functionName,
@@ -1432,6 +1524,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       try {
         result = await cloudbase.functions.updateFunctionCode(updateParams as any);
       } catch (error) {
+        if (isFunctionUpdatingError(error)) {
+          return buildFunctionUpdatingPayload({
+            action: "updateFunctionCode",
+            functionName: input.functionName,
+            rawMessage: getErrorMessage(error),
+          });
+        }
         throw wrapFunctionOperationError(
           "updateFunctionCode",
           input.functionName,
@@ -1491,6 +1590,16 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         throw new Error(`函数 ${input.functionName} 不存在或无法获取详情`);
       }
 
+      const configBusy = await waitForManageWriteOrGuide(
+        "updateFunctionConfig",
+        input.functionName,
+        (name) => cloudbase.functions.getFunctionDetail(name),
+        functionDetail,
+      );
+      if (configBusy) {
+        return configBusy;
+      }
+
       const currentVpc =
         typeof functionDetail.VpcConfig === "object" &&
         functionDetail.VpcConfig !== null &&
@@ -1502,42 +1611,53 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             }
           : undefined;
 
-      const result = await cloudbase.functions.updateFunctionConfig({
-        name: input.functionName,
-        envVariables: Object.assign(
-          {},
-          (functionDetail.Environment?.Variables || []).reduce(
-            (
-              acc: Record<string, string | number | boolean>,
-              curr: IEnvVariable,
-            ) => {
-              acc[curr.Key] = curr.Value;
-              return acc;
-            },
+      try {
+        const result = await cloudbase.functions.updateFunctionConfig({
+          name: input.functionName,
+          envVariables: Object.assign(
             {},
+            (functionDetail.Environment?.Variables || []).reduce(
+              (
+                acc: Record<string, string | number | boolean>,
+                curr: IEnvVariable,
+              ) => {
+                acc[curr.Key] = curr.Value;
+                return acc;
+              },
+              {},
+            ),
+            input.envVariables ?? {},
           ),
-          input.envVariables ?? {},
-        ),
-        timeout: input.timeout ?? functionDetail.Timeout,
-        vpc: Object.assign({}, currentVpc, input.vpc ?? {}),
-      });
+          timeout: input.timeout ?? functionDetail.Timeout,
+          vpc: Object.assign({}, currentVpc, input.vpc ?? {}),
+        });
 
-      logCloudBaseResult(server.logger, result);
-      return buildEnvelope(
-        {
-          action: input.action,
-          functionName: input.functionName,
-          raw: result,
-        },
-        `已更新函数 ${input.functionName} 的配置`,
-        [
+        logCloudBaseResult(server.logger, result);
+        return buildEnvelope(
           {
-            tool: "queryFunctions",
-            action: "getFunctionDetail",
-            reason: "确认配置变更结果",
+            action: input.action,
+            functionName: input.functionName,
+            raw: result,
           },
-        ],
-      );
+          `已更新函数 ${input.functionName} 的配置`,
+          [
+            {
+              tool: "queryFunctions",
+              action: "getFunctionDetail",
+              reason: "确认配置变更结果",
+            },
+          ],
+        );
+      } catch (error) {
+        if (isFunctionUpdatingError(error)) {
+          return buildFunctionUpdatingPayload({
+            action: "updateFunctionConfig",
+            functionName: input.functionName,
+            rawMessage: getErrorMessage(error),
+          });
+        }
+        throw error;
+      }
     }
     case "invokeFunction": {
       if (!input.functionName) {

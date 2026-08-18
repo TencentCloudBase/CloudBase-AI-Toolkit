@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCreateLayerNameWarning,
   buildFunctionOperationErrorMessage,
@@ -10,11 +10,18 @@ import {
   resolveEventFunctionRuntime,
   shouldInstallDependencyForFunction,
 } from "./functions.js";
+import {
+  FUNCTION_UPDATING_ERROR_CODE,
+  FUNCTION_UPDATING_RETRY_AFTER_SECONDS,
+  functionUpdatingRuntime,
+} from "./function-updating.js";
 import type { ExtendedMcpServer } from "../server.js";
 
 const {
   mockCreateFunction,
   mockUpdateFunctionCode,
+  mockUpdateFunctionConfig,
+  mockGetFunctionDetail,
   mockCreateAccess,
   mockGetCloudBaseManager,
   mockGetEnvId,
@@ -23,6 +30,8 @@ const {
 } = vi.hoisted(() => ({
   mockCreateFunction: vi.fn(),
   mockUpdateFunctionCode: vi.fn(),
+  mockUpdateFunctionConfig: vi.fn(),
+  mockGetFunctionDetail: vi.fn(),
   mockCreateAccess: vi.fn(),
   mockGetCloudBaseManager: vi.fn(),
   mockGetEnvId: vi.fn(),
@@ -70,9 +79,11 @@ function createMockServer() {
 
 describe("functions tool helpers", () => {
   let tools: ReturnType<typeof createMockServer>["tools"];
+  const originalSleep = functionUpdatingRuntime.sleep;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    functionUpdatingRuntime.sleep = async () => undefined;
     mockIsCloudMode.mockReturnValue(false);
     mockGetEnvId.mockResolvedValue("env-test");
     mockCreateFunction.mockResolvedValue({
@@ -85,10 +96,21 @@ describe("functions tool helpers", () => {
     mockUpdateFunctionCode.mockResolvedValue({
       RequestId: "req-update-code",
     });
+    mockUpdateFunctionConfig.mockResolvedValue({
+      RequestId: "req-update-config",
+    });
+    mockGetFunctionDetail.mockResolvedValue({
+      Status: "Active",
+      Timeout: 20,
+      Environment: { Variables: [] },
+      VpcConfig: {},
+    });
     mockGetCloudBaseManager.mockResolvedValue({
       functions: {
         createFunction: mockCreateFunction,
         updateFunctionCode: mockUpdateFunctionCode,
+        updateFunctionConfig: mockUpdateFunctionConfig,
+        getFunctionDetail: mockGetFunctionDetail,
       },
       access: {
         createAccess: mockCreateAccess,
@@ -96,6 +118,10 @@ describe("functions tool helpers", () => {
     });
 
     ({ tools } = createMockServer());
+  });
+
+  afterEach(() => {
+    functionUpdatingRuntime.sleep = originalSleep;
   });
 
   it("soft-warns bare layer names and accepts env-suffixed names", () => {
@@ -387,5 +413,152 @@ describe("functions tool helpers", () => {
         func: expect.objectContaining({ name: "imageDemo" }),
       }),
     );
+  });
+
+  it("guides updateFunctionConfig when Status stays Updating instead of throwing raw SCF copy", async () => {
+    mockGetFunctionDetail.mockResolvedValue({
+      Status: "Updating",
+      Timeout: 20,
+      Environment: { Variables: [] },
+      VpcConfig: {},
+    });
+
+    const result = await tools.manageFunctions.handler({
+      action: "updateFunctionConfig",
+      functionName: "hello",
+      timeout: 30,
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.errorCode).toBe(FUNCTION_UPDATING_ERROR_CODE);
+    expect(payload.retryAfterSeconds).toBe(FUNCTION_UPDATING_RETRY_AFTER_SECONDS);
+    expect(payload.message).toContain("不要立即重试");
+    expect(payload.message).toContain("getFunctionDetail");
+    expect(payload.nextActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          tool: "queryFunctions",
+          action: "getFunctionDetail",
+        }),
+        expect.objectContaining({
+          tool: "manageFunctions",
+          action: "updateFunctionConfig",
+        }),
+      ]),
+    );
+    expect(mockUpdateFunctionConfig).not.toHaveBeenCalled();
+  });
+
+  it("returns nextActions when UpdateFunctionConfiguration reports Updating after Status was Active", async () => {
+    mockUpdateFunctionConfig.mockRejectedValue(
+      new Error("[scf/UpdateFunctionConfiguration] 当前函数处于 Updating"),
+    );
+
+    const result = await tools.manageFunctions.handler({
+      action: "updateFunctionConfig",
+      functionName: "hello",
+      envVariables: { FOO: "bar" },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.errorCode).toBe(FUNCTION_UPDATING_ERROR_CODE);
+    expect(payload.message).toContain("当前函数处于 Updating");
+    expect(payload.message).not.toBe(
+      "[scf/UpdateFunctionConfiguration] 当前函数处于 Updating",
+    );
+    expect(payload.nextActions[0]).toMatchObject({
+      tool: "queryFunctions",
+      action: "getFunctionDetail",
+    });
+    expect(mockUpdateFunctionConfig).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns Updating guidance for updateFunctionCode instead of only wrapping the SCF message", async () => {
+    mockUpdateFunctionCode.mockRejectedValue(
+      new Error("[scf/UpdateFunctionCode] 当前函数处于 Updating"),
+    );
+
+    const result = await tools.manageFunctions.handler({
+      action: "updateFunctionCode",
+      functionName: "imageDemo",
+      imageConfig: {
+        imageType: "personal",
+        imageUri: "ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-004",
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.errorCode).toBe(FUNCTION_UPDATING_ERROR_CODE);
+    expect(payload.message).toContain("不要立即重试");
+    expect(payload.nextActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          tool: "manageFunctions",
+          action: "updateFunctionCode",
+        }),
+      ]),
+    );
+  });
+
+  it("adds Updating wait guidance on wrapped create/update code errors", () => {
+    const message = buildFunctionOperationErrorMessage(
+      "updateFunctionCode",
+      "hello",
+      "/tmp/cloudfunctions",
+      new Error("[scf/UpdateFunctionCode] 当前函数处于 Updating"),
+    );
+
+    expect(message).toContain("Updating");
+    expect(message).toContain("getFunctionDetail");
+    expect(message).toContain("不要立即重试");
+  });
+
+  it("updates function config when Status is Active", async () => {
+    const result = await tools.manageFunctions.handler({
+      action: "updateFunctionConfig",
+      functionName: "hello",
+      timeout: 60,
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    expect(mockUpdateFunctionConfig).toHaveBeenCalledTimes(1);
+    expect(payload.message).toContain("hello");
+  });
+
+  it("retries updateFunctionConfig after Status leaves Updating within the wait budget", async () => {
+    mockGetFunctionDetail
+      .mockResolvedValueOnce({
+        Status: "Updating",
+        Timeout: 20,
+        Environment: { Variables: [] },
+        VpcConfig: {},
+      })
+      .mockResolvedValueOnce({
+        Status: "Updating",
+        Timeout: 20,
+        Environment: { Variables: [] },
+        VpcConfig: {},
+      })
+      .mockResolvedValue({
+        Status: "Active",
+        Timeout: 20,
+        Environment: { Variables: [] },
+        VpcConfig: {},
+      });
+
+    const result = await tools.manageFunctions.handler({
+      action: "updateFunctionConfig",
+      functionName: "hello",
+      timeout: 30,
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    expect(mockUpdateFunctionConfig).toHaveBeenCalledTimes(1);
+    expect(mockGetFunctionDetail.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 });
