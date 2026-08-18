@@ -29,4 +29,4 @@ sync to external repositories.
 `config/` is kept only for:
 
 - the generated `config/.claude/skills/` compatibility mirror
-- sources that have not been migrated yet, such as `codebuddy-plugin` and `kimi-plugin`
+- generated IDE adaptation outputs, such as `codebuddy-plugin` and `kimi-plugin`

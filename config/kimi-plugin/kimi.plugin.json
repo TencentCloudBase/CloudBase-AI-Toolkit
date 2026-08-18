@@ -2,31 +2,35 @@
   "$schema": "https://kimi.com/schemas/kimi.plugin.schema.json",
   "name": "cloudbase",
   "version": "0.2.0",
-  "description": "Tencent CloudBase for Kimi Code / Kimi Work — PostgreSQL/MySQL/NoSQL, cloud functions, cloud storage, CloudRun, Auth, and static hosting via cloudbase-mcp, plus a routing skill and lifecycle hooks. Format pinned to Kimi Code 0.34.0 (2026-08-18); plugin system is Beta.",
+  "description": "Tencent CloudBase for Kimi Code / Kimi Work — generated from plugin/cloudbase shared assets (skills/hooks/mcp/assets/commands/agents) with a Kimi-specific manifest adapter.",
   "keywords": [
     "cloudbase",
     "tencent-cloud",
     "baas",
-    "kimi-code",
+    "claude-code",
+    "codebuddy",
+    "openclaw",
+    "ai-model",
     "database",
     "cloud-function",
+    "authentication",
     "storage",
     "cloudrun",
-    "auth",
-    "hosting"
+    "kimi-code",
+    "kimi-work"
   ],
   "author": "Tencent CloudBase",
-  "homepage": "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit",
+  "homepage": "https://github.com/TencentCloudBase/cloudbase-plugin",
   "license": "MIT",
   "skills": "./skills/",
   "sessionStart": {
     "skill": "cloudbase"
   },
-  "skillInstructions": "CloudBase credentials come from `tcb login` (or a CloudBase API Key), never from Kimi inject mappings. Prefer this plugin's MCP tools. If MCP is missing in this session, run tcb now and configure MCP for the next session. Fetch domain skills on demand with searchKnowledgeBase(mode=skill, skillName=\"...\").",
+  "skillInstructions": "Use CloudBase MCP tools first. Run envQuery(action=info) before CloudBase operations. When login/auth is involved, configure provider capabilities first, then platform-specific auth flows.",
   "interface": {
     "displayName": "Tencent CloudBase",
-    "shortDescription": "CloudBase databases, functions, storage, CloudRun, Auth, and hosting from Kimi",
-    "longDescription": "Installs CloudBase as a native Kimi plugin: MCP tools + a routing skill + lifecycle hooks, the same shape as a Claude Code plugin.\n\nWhat you can do after install:\n- Databases: query and manage PostgreSQL, MySQL, and NoSQL / data models\n- Cloud functions: list, deploy, invoke, and inspect logs\n- Cloud storage: upload, list, and manage objects\n- CloudRun: inspect and manage container / function-mode services\n- Auth: environment login and app auth providers (do not mix Web SDK login with Mini Program OPENID)\n- Hosting: deploy and preview static Web apps\n\nCredentials: run `tcb login` (Tencent Cloud device code) or `tcb login --cloudbase-api-key <key> -e <envId>`. Kimi inject api_key / base_url are LLM keys, not Tencent Cloud credentials.\n\nAfter `/plugins install`, run `/reload` or start a new session. Then try:\n- 登录云开发\n- 列出当前环境的云函数\n- 查一下 PostgreSQL 里有哪些表\n- 列出云存储根目录和 CloudRun 服务\n- 部署静态托管\n\nManifest format: Kimi Code 0.34.0 kimi.plugin.json. Logo uses the GitHub raw URL for plugin/cloudbase/assets/logo.png because official Kimi plugins (kimi-cu) ship interface.iconUrl as an HTTPS URL; relative logo paths are not documented.",
+    "shortDescription": "CloudBase MCP + shared skills/hooks for database, functions, auth, storage, CloudRun, and hosting",
+    "longDescription": "Kimi native plugin generated from the shared CloudBase plugin assets. It reuses the same skills, hooks, MCP config, commands, agents, and logo as Claude/Codex/Cursor packaging, while keeping only the manifest format as Kimi-specific adaptation.",
     "developerName": "Tencent CloudBase",
     "websiteURL": "https://cloudbase.net",
     "category": "DEVELOPER_TOOLS",
@@ -36,7 +40,10 @@
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/cloudbase-mcp@latest"],
+      "args": [
+        "-y",
+        "@cloudbase/cloudbase-mcp@latest"
+      ],
       "env": {
         "INTEGRATION_IDE": "Kimi Code"
       }
@@ -44,15 +51,45 @@
   },
   "hooks": [
     {
-      "event": "PreToolUse",
-      "matcher": "Bash",
-      "command": "node ./hooks/block-dangerous-bash.mjs",
+      "event": "SessionStart",
+      "matcher": "startup|resume|clear|compact",
+      "command": "node ./hooks/kimi-hook-adapter.mjs --script ./hooks/session-start-telemetry.mjs",
+      "timeout": 5
+    },
+    {
+      "event": "SessionStart",
+      "matcher": "startup|resume|clear|compact",
+      "command": "node ./hooks/kimi-hook-adapter.mjs --script ./hooks/session-start-seen-skills.mjs",
+      "timeout": 5
+    },
+    {
+      "event": "SessionStart",
+      "matcher": "startup|resume|clear|compact",
+      "command": "node ./hooks/kimi-hook-adapter.mjs --script ./hooks/session-start-profiler.mjs",
+      "timeout": 5
+    },
+    {
+      "event": "SessionStart",
+      "matcher": "startup|resume|clear|compact",
+      "command": "node ./hooks/kimi-hook-adapter.mjs --script ./hooks/inject-session-context.mjs",
+      "timeout": 5
+    },
+    {
+      "event": "SessionEnd",
+      "matcher": ".*",
+      "command": "node ./hooks/kimi-hook-adapter.mjs --script ./hooks/session-end-cleanup.mjs",
       "timeout": 5
     },
     {
       "event": "UserPromptSubmit",
-      "matcher": "(?i)(cloudbase|tcb\\b|envId|云开发|云函数|云存储|云托管|CloudRun|静态托管)",
-      "command": "node ./hooks/inject-cloudbase-context.mjs",
+      "matcher": ".*",
+      "command": "node ./hooks/kimi-hook-adapter.mjs --script ./hooks/user-prompt-submit-skill-inject.mjs",
+      "timeout": 5
+    },
+    {
+      "event": "PreToolUse",
+      "matcher": "Edit|Write|MultiEdit|apply_patch|Bash",
+      "command": "node ./hooks/kimi-hook-adapter.mjs --script ./hooks/pretooluse-skill-inject.mjs",
       "timeout": 5
     }
   ]

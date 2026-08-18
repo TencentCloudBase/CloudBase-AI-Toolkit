@@ -13,6 +13,8 @@
     "build:tools-json": "cd mcp && npm run build && cd .. && node scripts/generate-tools-json.mjs",
     "build:tools-doc": "node scripts/generate-tools-doc.mjs",
     "build:prompts-data": "node scripts/generate-prompts-data.mjs && node scripts/generate-prompts.mjs",
+    "build:kimi-plugin": "node scripts/build-kimi-plugin.mjs",
+    "check:kimi-plugin": "node scripts/build-kimi-plugin.mjs --check",
     "build:rules-sync": "node scripts/build-compat-config.mjs",
     "generate:tcb-action-index": "node scripts/generate-tcb-action-index.mjs",
     "build:skill-manifest": "node scripts/build-skill-manifest.mjs",
