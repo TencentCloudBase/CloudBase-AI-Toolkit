@@ -31,6 +31,15 @@ function runHook(hookScript, stdinInput) {
   }
 }
 
+function getAdditionalContext(result) {
+  return (
+    result?.additionalContext ||
+    result?.additional_context ||
+    result?.hookSpecificOutput?.additionalContext ||
+    ""
+  );
+}
+
 describe("End-to-end hook chain", () => {
   it("UserPromptSubmit hook returns valid additionalContext for a database prompt", () => {
     const result = runHook("user-prompt-submit-skill-inject.mjs", {
@@ -41,11 +50,12 @@ describe("End-to-end hook chain", () => {
     // Should not error
     expect(result.error).toBeUndefined();
     // Should return either empty (no match) or additionalContext
-    if (result.additionalContext) {
-      expect(typeof result.additionalContext).toBe("string");
+    const ctx = getAdditionalContext(result);
+    if (ctx) {
+      expect(typeof ctx).toBe("string");
       // If injected, should mention skill injection
-      if (result.additionalContext.length > 0) {
-        expect(result.additionalContext).toContain("skillInjection");
+      if (ctx.length > 0) {
+        expect(ctx).toContain("skillInjection");
       }
     }
   });
@@ -57,7 +67,7 @@ describe("End-to-end hook chain", () => {
     });
 
     expect(result.error).toBeUndefined();
-    expect(result.additionalContext).toBeFalsy();
+    expect(getAdditionalContext(result)).toBeFalsy();
   });
 
   it("UserPromptSubmit hook handles troubleshooting intent (ops-inspector)", () => {
@@ -67,10 +77,27 @@ describe("End-to-end hook chain", () => {
     });
 
     expect(result.error).toBeUndefined();
-    if (result.additionalContext) {
-      // Should inject ops-inspector due to troubleshooting intent
-      expect(result.additionalContext.toLowerCase()).toContain("ops-inspector");
-    }
+    const ctx = getAdditionalContext(result);
+    // Should inject ops-inspector due to troubleshooting intent
+    expect(ctx.toLowerCase()).toContain("ops-inspector");
+  });
+
+  it.each([
+    ["昨晚峰值 QPS 多少", "test-e2e-ops-qps"],
+    ["CPU 告警是否正常", "test-e2e-ops-cpu"],
+    ["接口返回 429 被限频了", "test-e2e-ops-429"],
+    ["云函数调用量为 0", "test-e2e-ops-zero"],
+    ["报错 ACCESS_TOKEN_INVALID", "test-e2e-ops-token"],
+  ])("UserPromptSubmit injects ops-inspector for v3 trigger: %s", (prompt, sessionId) => {
+    const result = runHook("user-prompt-submit-skill-inject.mjs", {
+      prompt,
+      sessionId,
+    });
+
+    expect(result.error).toBeUndefined();
+    const ctx = getAdditionalContext(result);
+    expect(ctx).toBeTruthy();
+    expect(ctx.toLowerCase()).toContain("ops-inspector");
   });
 
   it("PreToolUse hook skips non-target tools", () => {
@@ -82,7 +109,7 @@ describe("End-to-end hook chain", () => {
 
     expect(result.error).toBeUndefined();
     // Read tool is not in the target list, should return empty
-    expect(result.additionalContext).toBeFalsy();
+    expect(getAdditionalContext(result)).toBeFalsy();
   });
 
   it("PreToolUse hook handles missing tool input gracefully", () => {
@@ -93,7 +120,7 @@ describe("End-to-end hook chain", () => {
     });
 
     expect(result.error).toBeUndefined();
-    expect(result.additionalContext).toBeFalsy();
+    expect(getAdditionalContext(result)).toBeFalsy();
   });
 
   it("hook chain produces consistent results for the same prompt", () => {
@@ -110,7 +137,7 @@ describe("End-to-end hook chain", () => {
     // Both should have the same result (no dedup on first occurrence per session)
     expect(result1.error).toBeUndefined();
     expect(result2.error).toBeUndefined();
-    expect(result1.additionalContext).toEqual(result2.additionalContext);
+    expect(getAdditionalContext(result1)).toEqual(getAdditionalContext(result2));
   });
 
   it("session-start-profiler detects project type from package.json", () => {

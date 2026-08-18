@@ -10,6 +10,7 @@ import { analyzePrompt } from "../plugin/cloudbase/hooks/prompt-analysis.mjs";
 import { searchSkills } from "../plugin/cloudbase/hooks/lexical-index.mjs";
 import { mergeExactAndLexical, rerankPromptAnalysisReport } from "../plugin/cloudbase/hooks/unified-ranker.mjs";
 import { applyProjectContextBoost, applyDominantTopicSuppression } from "../plugin/cloudbase/hooks/prompt-patterns.mjs";
+import { normalizeSkillId } from "../plugin/cloudbase/hooks/patterns.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, "..");
@@ -24,6 +25,10 @@ function loadDataset(path) {
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
+}
+
+function expectedSkillSet(item) {
+  return new Set((item.expectedSkills || []).map(normalizeSkillId));
 }
 
 function evaluatePrompt(prompt, skillMap, compiledSkills, lexicalIndex) {
@@ -83,7 +88,7 @@ function computeMetrics(dataset, results) {
   for (let i = 0; i < dataset.length; i++) {
     const item = dataset[i];
     const actual = new Set(results[i].injectedSkills);
-    const expected = new Set(item.expectedSkills);
+    const expected = expectedSkillSet(item);
 
     const category = item.category;
     if (!byCategory[category]) {
@@ -177,7 +182,7 @@ function main() {
     skillCoverage[skillName] = { expected: 0, actual: 0 };
   }
   for (let i = 0; i < dataset.length; i++) {
-    for (const skill of dataset[i].expectedSkills) {
+    for (const skill of expectedSkillSet(dataset[i])) {
       if (skillCoverage[skill]) skillCoverage[skill].expected++;
     }
     for (const skill of results[i].injectedSkills) {
@@ -198,10 +203,10 @@ function main() {
   const falsePositivesList = [];
   for (let i = 0; i < dataset.length; i++) {
     const actual = new Set(results[i].injectedSkills);
-    const expected = new Set(dataset[i].expectedSkills);
+    const expected = expectedSkillSet(dataset[i]);
     for (const skill of actual) {
       if (!expected.has(skill)) {
-        falsePositivesList.push({ prompt: dataset[i].prompt, skill, expected: dataset[i].expectedSkills });
+        falsePositivesList.push({ prompt: dataset[i].prompt, skill, expected: [...expected] });
       }
     }
   }
@@ -221,7 +226,7 @@ function main() {
   const falseNegativesList = [];
   for (let i = 0; i < dataset.length; i++) {
     const actual = new Set(results[i].injectedSkills);
-    const expected = new Set(dataset[i].expectedSkills);
+    const expected = expectedSkillSet(dataset[i]);
     for (const skill of expected) {
       if (!actual.has(skill)) {
         falseNegativesList.push({ prompt: dataset[i].prompt, skill, actual: results[i].injectedSkills });

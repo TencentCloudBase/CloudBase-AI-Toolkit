@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-08-17T08:28:07.160Z",
+  "generated_at": "2026-08-18T00:16:06.837Z",
   "matrix_version": 1,
   "reviewed_stale_days": 90,
-  "total_markets": 42,
+  "total_markets": 43,
   "summary": {
     "ready_to_submit": 5,
-    "needs_packaging_or_manifest": 2,
+    "needs_packaging_or_manifest": 3,
     "needs_partner_outreach": 11,
     "listed": 8,
     "not_applicable": 15,
@@ -378,6 +378,82 @@
       }
     ],
     "needs_packaging_or_manifest": [
+      {
+        "id": "composio-awesome-claude-plugins",
+        "product": "Claude Code",
+        "region": "global",
+        "channel_type": "community_plugin_directory",
+        "listing_statuses": {
+          "official_curated": "not_applicable",
+          "community_directory": "submittable",
+          "self_marketplace": "listed",
+          "native_connector_or_builtin": "not_applicable",
+          "open_plugin_spec": "listed",
+          "mcp_or_skill_registry": "not_applicable",
+          "docs_only": "listed"
+        },
+        "eligibility": "public_github_pr_required",
+        "blockers": [
+          "Awaiting maintainer merge of composio-community/awesome-claude-plugins#424"
+        ],
+        "evidence_links": [
+          "https://github.com/composio-community/awesome-claude-plugins",
+          "https://github.com/composio-community/awesome-claude-plugins/pull/424",
+          "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude",
+          "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit"
+        ],
+        "submit_url_or_process": "Open a README PR to composio-community/awesome-claude-plugins (Integrations section).\nExternal plugins are listed as GitHub links (same pattern as kaggle-skill / taisly).\nStatus 2026-08-18: PR https://github.com/composio-community/awesome-claude-plugins/pull/424\nstill OPEN (MERGEABLE/CLEAN). No CI, no maintainer comments. Upstream README\nIntegrations does not yet list CloudBase — do not flip to listed until merge.\n",
+        "recommended_install_path": "doc/ide-setup/claude-code.mdx",
+        "last_reviewed_at": "2026-08-18",
+        "owner": "cloudbase-ai-toolkit",
+        "local_evidence": [
+          {
+            "id": "self_marketplace_claude",
+            "status": "present",
+            "detail": ".claude-plugin/marketplace.json lists cloudbase",
+            "paths": [
+              ".claude-plugin/marketplace.json"
+            ]
+          },
+          {
+            "id": "open_plugin_spec_cloudbase",
+            "status": "present",
+            "detail": "plugin/cloudbase/.plugin/plugin.json has $schema",
+            "paths": [
+              "plugin/cloudbase/.plugin/plugin.json"
+            ]
+          }
+        ],
+        "submit_checklist": [
+          "README Integrations bullet linking CloudBase-AI-Toolkit",
+          "Setup link to official Claude Code ide-setup docs",
+          "PR to composio-community/awesome-claude-plugins",
+          {
+            "After merge": "flip community_directory → listed"
+          }
+        ],
+        "materials": [
+          {
+            "item": "README Integrations bullet linking CloudBase-AI-Toolkit",
+            "status": "repo_ready_or_external"
+          },
+          {
+            "item": "Setup link to official Claude Code ide-setup docs",
+            "status": "repo_ready_or_external"
+          },
+          {
+            "item": "PR to composio-community/awesome-claude-plugins",
+            "status": "repo_ready_or_external"
+          },
+          {
+            "item": "[object Object]",
+            "status": "repo_ready_or_external"
+          }
+        ],
+        "priority": "needs_packaging_or_manifest",
+        "stale": false,
+        "manual_submit_only": true
+      },
       {
         "id": "vscode-agent-plugins",
         "product": "Visual Studio Code",
@@ -1412,20 +1488,8 @@
             ]
           }
         ],
-        "submit_checklist": [
-          "server.json / publisher metadata",
-          "mcp-publisher publish"
-        ],
-        "materials": [
-          {
-            "item": "server.json / publisher metadata",
-            "status": "repo_ready_or_external"
-          },
-          {
-            "item": "mcp-publisher publish",
-            "status": "repo_ready_or_external"
-          }
-        ],
+        "submit_checklist": [],
+        "materials": [],
         "priority": "listed",
         "stale": false,
         "manual_submit_only": true
@@ -2048,6 +2112,82 @@
         }
       ],
       "priority": "ready_to_submit",
+      "stale": false,
+      "manual_submit_only": true
+    },
+    {
+      "id": "composio-awesome-claude-plugins",
+      "product": "Claude Code",
+      "region": "global",
+      "channel_type": "community_plugin_directory",
+      "listing_statuses": {
+        "official_curated": "not_applicable",
+        "community_directory": "submittable",
+        "self_marketplace": "listed",
+        "native_connector_or_builtin": "not_applicable",
+        "open_plugin_spec": "listed",
+        "mcp_or_skill_registry": "not_applicable",
+        "docs_only": "listed"
+      },
+      "eligibility": "public_github_pr_required",
+      "blockers": [
+        "Awaiting maintainer merge of composio-community/awesome-claude-plugins#424"
+      ],
+      "evidence_links": [
+        "https://github.com/composio-community/awesome-claude-plugins",
+        "https://github.com/composio-community/awesome-claude-plugins/pull/424",
+        "https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude",
+        "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit"
+      ],
+      "submit_url_or_process": "Open a README PR to composio-community/awesome-claude-plugins (Integrations section).\nExternal plugins are listed as GitHub links (same pattern as kaggle-skill / taisly).\nStatus 2026-08-18: PR https://github.com/composio-community/awesome-claude-plugins/pull/424\nstill OPEN (MERGEABLE/CLEAN). No CI, no maintainer comments. Upstream README\nIntegrations does not yet list CloudBase — do not flip to listed until merge.\n",
+      "recommended_install_path": "doc/ide-setup/claude-code.mdx",
+      "last_reviewed_at": "2026-08-18",
+      "owner": "cloudbase-ai-toolkit",
+      "local_evidence": [
+        {
+          "id": "self_marketplace_claude",
+          "status": "present",
+          "detail": ".claude-plugin/marketplace.json lists cloudbase",
+          "paths": [
+            ".claude-plugin/marketplace.json"
+          ]
+        },
+        {
+          "id": "open_plugin_spec_cloudbase",
+          "status": "present",
+          "detail": "plugin/cloudbase/.plugin/plugin.json has $schema",
+          "paths": [
+            "plugin/cloudbase/.plugin/plugin.json"
+          ]
+        }
+      ],
+      "submit_checklist": [
+        "README Integrations bullet linking CloudBase-AI-Toolkit",
+        "Setup link to official Claude Code ide-setup docs",
+        "PR to composio-community/awesome-claude-plugins",
+        {
+          "After merge": "flip community_directory → listed"
+        }
+      ],
+      "materials": [
+        {
+          "item": "README Integrations bullet linking CloudBase-AI-Toolkit",
+          "status": "repo_ready_or_external"
+        },
+        {
+          "item": "Setup link to official Claude Code ide-setup docs",
+          "status": "repo_ready_or_external"
+        },
+        {
+          "item": "PR to composio-community/awesome-claude-plugins",
+          "status": "repo_ready_or_external"
+        },
+        {
+          "item": "[object Object]",
+          "status": "repo_ready_or_external"
+        }
+      ],
+      "priority": "needs_packaging_or_manifest",
       "stale": false,
       "manual_submit_only": true
     },
@@ -3279,20 +3419,8 @@
           ]
         }
       ],
-      "submit_checklist": [
-        "server.json / publisher metadata",
-        "mcp-publisher publish"
-      ],
-      "materials": [
-        {
-          "item": "server.json / publisher metadata",
-          "status": "repo_ready_or_external"
-        },
-        {
-          "item": "mcp-publisher publish",
-          "status": "repo_ready_or_external"
-        }
-      ],
+      "submit_checklist": [],
+      "materials": [],
       "priority": "listed",
       "stale": false,
       "manual_submit_only": true

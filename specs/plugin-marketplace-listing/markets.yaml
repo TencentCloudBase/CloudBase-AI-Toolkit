@@ -70,6 +70,55 @@ markets:
     notes: |
       2026-07-28: Submission deferred by maintainer (cannot complete form now). Packet kept ready.
 
+  # Controllable Claude discovery surface (Composio curated awesome list).
+  # Does NOT replace Claude Community form / awesome-claude-code Issue.
+  - id: composio-awesome-claude-plugins
+    product: Claude Code
+    region: global
+    channel_type: community_plugin_directory
+    listing_statuses:
+      official_curated: not_applicable
+      community_directory: submittable
+      self_marketplace: listed
+      native_connector_or_builtin: not_applicable
+      open_plugin_spec: listed
+      mcp_or_skill_registry: not_applicable
+      docs_only: listed
+    submit_url_or_process: |
+      Open a README PR to composio-community/awesome-claude-plugins (Integrations section).
+      External plugins are listed as GitHub links (same pattern as kaggle-skill / taisly).
+      Status 2026-08-18: PR https://github.com/composio-community/awesome-claude-plugins/pull/424
+      still OPEN (MERGEABLE/CLEAN). No CI, no maintainer comments. Upstream README
+      Integrations does not yet list CloudBase — do not flip to listed until merge.
+    eligibility: public_github_pr_required
+    blockers:
+      - Awaiting maintainer merge of composio-community/awesome-claude-plugins#424
+    evidence_links:
+      - https://github.com/composio-community/awesome-claude-plugins
+      - https://github.com/composio-community/awesome-claude-plugins/pull/424
+      - https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude
+      - https://github.com/TencentCloudBase/CloudBase-AI-Toolkit
+    local_evidence:
+      - self_marketplace_claude
+      - open_plugin_spec_cloudbase
+    submit_checklist:
+      - README Integrations bullet linking CloudBase-AI-Toolkit
+      - Setup link to official Claude Code ide-setup docs
+      - PR to composio-community/awesome-claude-plugins
+      - After merge: flip community_directory → listed
+    recommended_install_path: doc/ide-setup/claude-code.mdx
+    priority_hint: null
+    last_reviewed_at: "2026-08-18"
+    owner: cloudbase-ai-toolkit
+    notes: |
+      2026-08-17: README-only external listing (no marketplace.json change; that file
+      only covers in-repo plugins). Description kept restrained; points to official setup.
+      Repo alias: ComposioHQ/awesome-claude-plugins → composio-community/awesome-claude-plugins.
+      Not a substitute for Claude Community form or DSH listing (covered elsewhere).
+      2026-08-18 poll: #424 OPEN, mergeable CLEAN, no reviews/comments/CI. Upstream
+      master Integrations still only connect-apps + kaggle-skill. Peer PRs #304/#306
+      took ~5 weeks to merge; no ping this round.
+
   - id: cursor-marketplace
     product: Cursor
     region: global

@@ -614,7 +614,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
 ---
 
 ### `readNoSqlDatabaseContent`
-查询 CloudBase NoSQL 数据库中的数据记录。支持按条件筛选、分页、排序，适用于管理端数据查询与运维。
+查询 CloudBase NoSQL 数据库中的数据记录。支持按条件筛选、分页、排序，适用于管理端数据查询与运维。limit 默认 100、最大 1000；超出请用 offset 分页。projection 仅支持 \{ field: 1|0 \} 对象（示例 \{"_id":1,"name":1,"createdAt":1\}），不要传字段数组。
 
 #### 参数
 
@@ -639,7 +639,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "projection",
       type: "union",
-      description: `返回字段投影(对象或字符串,推荐对象)`,
+      description: `返回字段投影，仅支持对象或对应 JSON 字符串，值只能是 1/0/true/false。合法示例：\{"_id":1,"name":1,"createdAt":1\}（包含）或 \{"password":0\}（排除）。不要传 ["name","age"] 这类字段数组，也不要混用包含与排除（_id 除外）。`,
     },
     {
       name: "sort",
@@ -649,7 +649,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "limit",
       type: "number",
-      description: `返回数量限制`,
+      description: `返回数量限制，整数，范围 1-1000，默认 100。超过 1000 会被 Cloud API MgoLimit lte 校验拒绝；请用 offset 分页。`,
     },
     {
       name: "offset",

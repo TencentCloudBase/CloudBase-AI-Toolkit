@@ -156,6 +156,7 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 1. skills 源（对外 Skill 能力定义）
    - 修改 / 新增任何对外 Skill 时，只编辑 `config/source/skills/` 目录下的模块化 `SKILL.md`
    - 如果需要拆模块，可以按功能拆分子目录，例如 `config/source/skills/database/`、`config/source/skills/web/`
+   - **Plugin skill-inject 匹配数据**：新增会进入 `plugin/cloudbase/skills/` 的 skill 时，必须同步在 `plugin/cloudbase/skill-metadata.json` 增加同名 key 的 `promptSignals`/`retrieval`（模板见 `plugin/cloudbase/skill-metadata.template.json`），然后运行 `npm run build:skill-manifest`。不要把匹配数据只写在 SKILL.md frontmatter（上游 sync 会覆盖）。漏写会导致 `tests/hooks/build-skill-manifest.test.mjs` 失败，且清空 previous-manifest 后 skill-inject 匹配为空。
 
 2. guideline / rules 总入口
    - 所有对外公开阅读的总入口规则（如 CloudBase 总指南）统一维护在 `config/source/guideline/` 下

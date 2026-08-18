@@ -85,6 +85,17 @@ Use `config/source/skills/auth-nodejs-cloudbase/SKILL.md` as a positive referenc
 - error handling in examples
 - cross-skill routing discipline
 
+### 9. Plugin skill-inject metadata must land with the skill
+
+For any skill that appears under `plugin/cloudbase/skills/<dir>/`:
+
+- Also add `plugin/cloudbase/skill-metadata.json` → `skills.<dir>` with non-empty `promptSignals.phrases` and `retrieval`
+- Use `plugin/cloudbase/skill-metadata.template.json` as the shape reference
+- Run `npm run build:skill-manifest` — CLI fails closed if the entry is missing
+- Sync scripts must **not** overwrite `skill-metadata.json` (it lives outside `skills/`)
+
+Skipping this step makes `tests/hooks/build-skill-manifest.test.mjs` fail, and clearing `generated/skill-manifest.json` leaves skill-inject with empty matches.
+
 ## CloudBase-specific smell checks
 
 - A code block contains repeated `const` declarations that make the snippet invalid JavaScript or TypeScript
@@ -94,6 +105,7 @@ Use `config/source/skills/auth-nodejs-cloudbase/SKILL.md` as a positive referenc
 - Console URL paths disagree between the CloudBase guideline and the platform overview
 - A skill tells the agent to HTTP-fetch remote skill or protocol markdown into context
 - Cross-skill routing uses remote raw URLs instead of local relative `../skill-id/SKILL.md` paths
+- A new `plugin/cloudbase/skills/<dir>` has no matching `skill-metadata.json` entry
 
 ## Review workflow
 

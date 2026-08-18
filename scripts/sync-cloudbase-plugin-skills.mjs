@@ -15,6 +15,9 @@ const DEFAULT_REPO = "https://github.com/TencentCloudBase/skills.git";
 const DEFAULT_REF = "main";
 const DEFAULT_TARGET_DIR = path.join(ROOT_DIR, "plugin", "cloudbase", "skills");
 const DEFAULT_METADATA_PATH = path.join(ROOT_DIR, "plugin", "cloudbase", ".sync-metadata.json");
+// Matching data for skill-inject lives in plugin/cloudbase/skill-metadata.json
+// (sibling of skills/, not inside it). This sync only replaces skills/ and
+// must never read or write skill-metadata.json.
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });

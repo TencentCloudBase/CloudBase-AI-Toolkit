@@ -17,6 +17,8 @@ const DEFAULT_SOURCE_DIR = path.join(
   "skills",
 );
 const DEFAULT_TARGET_DIR = path.join(ROOT_DIR, "config", ".claude", "skills");
+// Plugin skill-inject matching data lives in plugin/cloudbase/skill-metadata.json
+// and is outside this mirror's source/target. This script must not touch it.
 
 function shouldSkip(name) {
   return name === ".DS_Store";

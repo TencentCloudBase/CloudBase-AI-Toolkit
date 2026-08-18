@@ -1,14 +1,9 @@
 {
-  "version": 2,
-  "generatedAt": "2026-08-18T00:28:41.780Z",
+  "version": 1,
+  "comment": "Hand-maintained skill-inject matching data. build-skill-manifest reads this first. Sync scripts must not modify this file. When adding a skill, copy plugin/cloudbase/skill-metadata.template.json into skills below (key = plugin/cloudbase/skills/<dir>).",
   "skills": {
     "ai-model-nodejs": {
-      "name": "ai-model-nodejs",
-      "description": "Use this skill for Node.js backend AI via @cloudbase/node-sdk (>=3.16.0) — cloud functions, CloudRun, Express, Koa, NestJS, serverless APIs, scheduled jobs, LLM proxies. Only SDK supporting image generation (ai.createImageModel + generateImage). Text models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field of generateText/streamText. MUST run two-step preflight before code — see body. Keywords: backend, 云函数, 云托管, serverless, LLM proxy, agent orchestration, generateText, streamText, generateImage, createModel, hunyuan-image, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat).",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 5
-      },
+      "priority": 5,
       "promptSignals": {
         "phrases": [
           "ai 模型 node",
@@ -85,17 +80,10 @@
           "云函数里用 deepseek",
           "后端 llm 代理"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "ai-model-web": {
-      "name": "ai-model-web",
-      "description": "Use this skill when a browser/Web app (React, Vue, Angular, Next, Nuxt, static sites, SPAs, dashboards, AI chat UI) needs AI models via @cloudbase/js-sdk. Default routing for page/页面/Web/前端/frontend/网页/H5 AI — call directly from browser, do NOT propose a Node.js proxy. Covers generateText and streamText. Models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field. MUST run two-step preflight before code — see body. Keywords: 页面, Web, 前端, React, Vue, Next, Nuxt, SPA, AI chat UI, generateText, streamText, createModel, hunyuan-exp, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for Node.js backend (use ai-model-nodejs), Mini Program (use ai-model-wechat), or image generation (Node SDK only).",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 5
-      },
+      "priority": 5,
       "promptSignals": {
         "phrases": [
           "浏览器 ai",
@@ -161,17 +149,10 @@
           "vue ai 对话",
           "浏览器流式输出"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "ai-model-wechat": {
-      "name": "ai-model-wechat",
-      "description": "Use this skill for WeChat Mini Program AI via wx.cloud.extend.AI (小程序, 企业微信小程序, wx.cloud apps). Features generateText and streamText with callbacks (onText, onEvent, onFinish). Models via wx.cloud.extend.AI.createModel with groups hunyuan-exp (小程序成长计划), cloudbase (main managed), or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the data wrapper model field. API differs from JS/Node SDK — streamText needs data wrapper, generateText returns raw response. MUST run two-step preflight before code — see body. Keywords: Mini Program AI, wx.cloud.extend.AI, 小程序成长计划, ai_miniprogram_inspire_plan, Token Credits 资源包, generateText, streamText, createModel, hunyuan-exp, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs).",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 5
-      },
+      "priority": 5,
       "promptSignals": {
         "phrases": [
           "小程序 ai",
@@ -225,17 +206,10 @@
           "小程序调用 hunyuan",
           "小程序 ai 对话"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "auth-nodejs-cloudbase": {
-      "name": "auth-nodejs-cloudbase",
-      "description": "CloudBase Node SDK auth guide for server-side identity, user lookup, and custom login tickets. This skill should be used when Node.js code must read caller identity, inspect end users, or bridge an existing user system into CloudBase; not when configuring providers or building client login UI.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 6
-      },
+      "priority": 6,
       "promptSignals": {
         "phrases": [
           "node 认证",
@@ -300,17 +274,10 @@
           "node 读取用户身份",
           "后端验证 ticket"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "auth-tool-cloudbase": {
-      "name": "auth-tool-cloudbase",
-      "description": "CloudBase auth provider configuration and login-readiness guide. This skill should be used when users need to inspect, enable, disable, or configure auth providers, publishable-key prerequisites, login methods, SMS/email sender setup, or other provider-side readiness before implementing a client or backend auth flow.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 8
-      },
+      "priority": 8,
       "promptSignals": {
         "phrases": [
           "认证配置",
@@ -367,17 +334,10 @@
           "启用邮箱登录",
           "查看登录方式"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "auth-web-cloudbase": {
-      "name": "auth-web-cloudbase",
-      "description": "CloudBase Web Authentication Quick Guide for frontend integration after auth-tool has already been checked. Provides concise and practical Web authentication solutions with multiple login methods and complete user management.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 6
-      },
+      "priority": 6,
       "promptSignals": {
         "phrases": [
           "web 登录",
@@ -436,17 +396,10 @@
           "react 登录页面",
           "vue 登录组件"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "auth-wechat-miniprogram": {
-      "name": "auth-wechat-miniprogram",
-      "description": "CloudBase WeChat Mini Program native authentication guide. This skill should be used when users need mini program identity handling, OPENID/UNIONID access, or `wx.cloud` auth behavior in projects where login is native and automatic.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 6
-      },
+      "priority": 6,
       "promptSignals": {
         "phrases": [
           "小程序登录",
@@ -502,17 +455,10 @@
           "小程序获取 openid",
           "微信登录态"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "cloud-functions": {
-      "name": "cloud-functions",
-      "description": "CloudBase function runtime guide for building, deploying, and debugging your own Event Functions or HTTP Functions. This skill should be used when users need application runtime code on CloudBase, not when they are merely calling CloudBase official platform APIs.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 8
-      },
+      "priority": 8,
       "promptSignals": {
         "phrases": [
           "云函数",
@@ -569,17 +515,10 @@
           "创建 http 函数",
           "更新函数代码"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "cloud-storage-web": {
-      "name": "cloud-storage-web",
-      "description": "Complete guide for CloudBase cloud storage using Web SDK (@cloudbase/js-sdk) - upload, download, temporary URLs, file management, and best practices.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 6
-      },
+      "priority": 6,
       "promptSignals": {
         "phrases": [
           "云存储",
@@ -628,17 +567,10 @@
           "上传图片到云存储",
           "获取临时下载链接"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "cloudbase": {
-      "name": "cloudbase",
-      "description": "Use this skill when you develop, design, build, deploy, debug, migrate, or troubleshoot CloudBase (腾讯云开发, 云开发, TCB, 微信云开发) projects. Covers Web, 微信小程序, 小程序, uni-app, mobile (iOS, Android, Flutter, React Native). UI (页面, 界面, 表单, form, dashboard, prototype, 原型); auth (登录, 注册, OAuth, 微信登录, publishable key); databases (NoSQL 文档数据库, MySQL 关系型数据库, PostgreSQL/CloudBase PG, app.rdb(), queryPgDatabase/managePgDatabase, CRUD, 查询, security rules); 云函数/cloud functions (serverless, scf_bootstrap); CloudRun (云托管, Dockerfile); 云存储. Built-in AI (内置大模型, AI 对话, streaming, 流式输出, 图片生成, generateText, streamText, createModel, generateImage, TokenHub, Hunyuan, hunyuan-exp, DeepSeek, deepseek, GLM, Kimi, Token Credits 资源包, 小程序成长计划). 第三方大模型, 大模型接入, 大模型调用, LLM API, AI agent, 智能体, AI Agent, AG-UI, LangGraph. Ops (巡检, 诊断, health check, 日志, troubleshooting). Spec (需求文档, 技术方案, requirements, tasks.md). Do NOT use for non-CloudBase projects, pure frontend without CloudBase, or self-hosted backends without CloudBase.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 6
-      },
+      "priority": 6,
       "promptSignals": {
         "phrases": [
           "cloudbase 指南",
@@ -685,17 +617,10 @@
           "cloudbase 开发指南",
           "云开发规则"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "cloudbase-agent": {
-      "name": "cloudbase-agent",
-      "description": "Build and deploy AI agents with CloudBase Agent SDK (TypeScript & Python). Implements the AG-UI protocol for streaming agent-UI communication. Use when deploying agent servers, using LangGraph/LangChain/CrewAI adapters, building custom adapters, understanding AG-UI protocol events, or building web/mini-program UI clients. Supports both TypeScript (@cloudbase/agent-server) and Python (cloudbase-agent-server via FastAPI).",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 6
-      },
+      "priority": 6,
       "promptSignals": {
         "phrases": [
           "ai agent",
@@ -750,17 +675,10 @@
           "构建 ai agent",
           "部署 agent 服务"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "cloudbase-cli": {
-      "name": "cloudbase-cli",
-      "description": "CloudBase CLI (tcb, 云开发CLI, Tencent CloudBase命令行) resource management skill. Use when deploying cloud functions, CloudRun, storage, NoSQL/MySQL, static hosting, permissions, CORS/domains via tcb; for CI/CD and batch ops; when the user prefers CLI; or as the first-session fallback when CloudBase MCP tools are not loaded yet (after install/config, before IDE restart). Covers tcb login (device code for Tencent Cloud accounts; --cloudbase-api-key -e for environment API Key without an account; --apiKeyId/--apiKey for CI) and domain commands (fn/hosting/cloudrun/…) as MCP auth/manage parity — do not default to tcb deploy.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 6
-      },
+      "priority": 6,
       "promptSignals": {
         "phrases": [
           "tcb 命令",
@@ -808,17 +726,10 @@
           "tcb 命令行",
           "cli 管理环境"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "cloudbase-code-review": {
-      "name": "cloudbase-code-review",
-      "description": "Code review and validation for CloudBase projects. After writing code for Web / miniprogram / CloudRun / cloud-function projects, call this skill to check for known pitfalls — auth guard misuse, missing database tables, RLS misconfiguration, storage domain setup, and SDK API misuse. Supports automated lint scripts (regex-based) + LLM semantic review.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 5
-      },
+      "priority": 5,
       "promptSignals": {
         "phrases": [
           "代码审查",
@@ -862,17 +773,10 @@
           "代码审查",
           "review 这个项目"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "cloudbase-document-database-in-wechat-miniprogram": {
-      "name": "cloudbase-document-database-in-wechat-miniprogram",
-      "description": "Use CloudBase document database WeChat MiniProgram SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, and geolocation queries.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 5
-      },
+      "priority": 5,
       "promptSignals": {
         "phrases": [
           "小程序数据库",
@@ -917,17 +821,10 @@
           "小程序 nosql 查询",
           "小程序 collection"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "cloudbase-document-database-web-sdk": {
-      "name": "cloudbase-document-database-web-sdk",
-      "description": "Use CloudBase document database Web SDK only for confirmed NoSQL collection work. Query, create, update, and delete document data; if the task mentions PostgreSQL / CloudBase PG / app.rdb(), route to postgresql-development instead.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 7
-      },
+      "priority": 7,
       "promptSignals": {
         "phrases": [
           "nosql",
@@ -983,17 +880,10 @@
           "web nosql 查询",
           "前端 collection 操作"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "cloudbase-platform": {
-      "name": "cloudbase-platform",
-      "description": "CloudBase platform overview and routing guide. This skill should be used when users need high-level capability selection, platform concepts, console navigation, or cross-platform best practices before choosing a more specific implementation skill.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 8
-      },
+      "priority": 8,
       "promptSignals": {
         "phrases": [
           "cloudbase 平台",
@@ -1036,17 +926,10 @@
           "cloudbase 平台能力",
           "云开发控制台"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "cloudbase-wechat-integration": {
-      "name": "cloudbase-wechat-integration",
-      "description": "CloudBase WeChat integration guide for Mini Program WeChat Pay, Official Account JSAPI Pay, Native QR-code Pay, Official Account OAuth, openid handling, payment callbacks, and CloudBase Integration Center generated functions. This skill should be used when users ask to add, debug, or extend WeChat payment or official-account flows on CloudBase.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 5
-      },
+      "priority": 5,
       "promptSignals": {
         "phrases": [
           "微信支付",
@@ -1096,17 +979,10 @@
           "小程序微信支付",
           "公众号 oauth 授权"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "cloudrun-development": {
-      "name": "cloudrun-development",
-      "description": "CloudBase Run backend development rules (Function mode/Container mode). Use this skill when deploying backend services that require long connections, multi-language support, custom environments, AI agent development, or migrating existing/GitHub apps that need VPC access to MySQL/PostgreSQL/Redis. Also use when diagnosing CloudRun container deploy failures (deploy_failed, readiness/probe failed, image won't start, docker.io pull loops). For stateless HTTP services, prefer HTTP cloud functions.",
-      "version": "2.28.0",
-      "metadata": {
-        "priority": 7
-      },
+      "priority": 7,
       "promptSignals": {
         "phrases": [
           "cloudrun",
@@ -1177,17 +1053,10 @@
           "云托管镜像部署失败一直 probe failed",
           "容器起不来 deploy_failed"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "http-api-cloudbase": {
-      "name": "http-api-cloudbase",
-      "description": "CloudBase official HTTP API client guide. This skill should be used when backends, scripts, or non-SDK clients must call CloudBase platform APIs over raw HTTP instead of using a platform SDK or MCP management tool.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 5
-      },
+      "priority": 5,
       "promptSignals": {
         "phrases": [
           "http api",
@@ -1227,17 +1096,10 @@
           "http 调用 cloudbase",
           "rest api 请求"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "minimal-web-baas-demo": {
-      "name": "minimal-web-baas-demo",
-      "description": "Fast path for a minimal CloudBase Web + database demo (最小前后端 / 最小可用 fullstack / Lovable-like BaaS). Defaults to @cloudbase/js-sdk client CRUD (NoSQL app.database / PG app.rdb), MCP-only schema, preview-first, and forbids cloud functions unless secrets, cron/background jobs, or logic that security rules/RLS cannot express. Use for 搭一套 demo、留言板、Todo、Notes、Kanban, or when users say 带云函数+云数据库 but only need CRUD. NOT for production multi-service backends, CloudRun, WeChat Mini Programs, or tasks that truly need server secrets.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 7
-      },
+      "priority": 7,
       "promptSignals": {
         "phrases": [
           "最小前后端",
@@ -1298,17 +1160,10 @@
           "最小前后端",
           "lovable 风格 baas"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "miniprogram-development": {
-      "name": "miniprogram-development",
-      "description": "WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, optimizing, and promoting mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, optimize, or promote WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools Nightly workflows, `wechatide` CLI, WeChat IDE Skills/MCP, console/network debugging, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users ask about mini program SEO / search optimization / search promotion (小程序 SEO、搜索优化、微信搜索收录、搜索推广、页面收录、关键词排名、被搜索到) or page indexing by the WeChat search crawler (`mpcrawler`). Use it when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, 微信云开发, or 云开发 in a mini program project.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 8
-      },
+      "priority": 8,
       "promptSignals": {
         "phrases": [
           "小程序开发",
@@ -1400,17 +1255,10 @@
           "小程序seo",
           "小程序运营推广"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "ops-inspector": {
-      "name": "ops-inspector",
-      "description": "AIOps-style CloudBase inspection skill (v3). Use when users need health checks, log diagnosis, alarm interpretation (CPU alert normal?, peak QPS), metrics via queryEnv(action=metrics), or fault playbooks for 429 / function 404 / ACCESS_TOKEN_INVALID / zero invocations. Triggers on 巡检, 诊断, 告警, 峰值 QPS, 限频, 调用量为 0, troubleshooting.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 6
-      },
+      "priority": 6,
       "promptSignals": {
         "phrases": [
           "巡检",
@@ -1485,17 +1333,10 @@
           "云函数调用量为 0",
           "报错 ACCESS_TOKEN_INVALID"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "postgresql-development-cloudbase": {
-      "name": "postgresql-development-cloudbase",
-      "description": "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 7
-      },
+      "priority": 7,
       "promptSignals": {
         "phrases": [
           "postgresql",
@@ -1564,17 +1405,10 @@
           "rls 行级权限",
           "pg 查询"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "spec-workflow": {
-      "name": "spec-workflow",
-      "description": "Use when medium-to-large changes need explicit requirements, technical design, and task planning before implementation, especially for multi-module work, unclear acceptance criteria, or architecture-heavy requests.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 6
-      },
+      "priority": 6,
       "promptSignals": {
         "phrases": [
           "spec 工作流",
@@ -1624,17 +1458,10 @@
           "spec 工作流",
           "需求文档设计"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "ui-design": {
-      "name": "ui-design",
-      "description": "Use when users need visual direction, interface hierarchy, layout decisions, design specifications, or prototypes before implementing a Web or mini program UI.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 9
-      },
+      "priority": 9,
       "promptSignals": {
         "phrases": [
           "ui 设计",
@@ -1684,17 +1511,10 @@
           "界面配色方案",
           "高保真原型"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     },
     "web-development": {
-      "name": "web-development",
-      "description": "Use when users need to implement, integrate, debug, build, deploy, or validate a Web frontend after the product direction is already clear, especially for React, Vue, Vite, browser flows, or CloudBase Web integration.",
-      "version": "2.27.0",
-      "metadata": {
-        "priority": 8
-      },
+      "priority": 8,
       "promptSignals": {
         "phrases": [
           "web 开发",
@@ -1763,9 +1583,7 @@
           "vite 前端",
           "前端 React 全栈应用"
         ]
-      },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      }
     }
   }
 }

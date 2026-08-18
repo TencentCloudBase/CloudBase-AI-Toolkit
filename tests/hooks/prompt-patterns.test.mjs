@@ -1,6 +1,9 @@
 // tests/hooks/prompt-patterns.test.mjs — Unit tests for prompt-patterns.mjs
 // Covers: normalizePromptText, compilePromptSignals, matchPromptWithReason,
 // applyProjectContextBoost, applyDominantTopicSuppression, globToRegex
+import { readFileSync } from "fs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import { describe, it, expect } from "vitest";
 import {
   normalizePromptText,
@@ -13,6 +16,11 @@ import {
   DOMINANT_TOPIC_SCORE_THRESHOLD,
   DOMINANT_TOPIC_MIN_SCORE,
 } from "../../plugin/cloudbase/hooks/prompt-patterns.mjs";
+
+const METADATA_PATH = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../plugin/cloudbase/skill-metadata.json",
+);
 
 describe("normalizePromptText", () => {
   it("lowercases text", () => {
@@ -279,5 +287,39 @@ describe("compileSkillPatterns", () => {
     const compiled = compileSkillPatterns({ "some-skill": { name: "some-skill" } });
     expect(compiled["some-skill"].pathRegexes).toHaveLength(0);
     expect(compiled["some-skill"].bashRegexes).toHaveLength(0);
+  });
+});
+
+describe("web-development skill-metadata signals", () => {
+  const metadata = JSON.parse(readFileSync(METADATA_PATH, "utf-8"));
+  const compiled = compilePromptSignals(metadata.skills["web-development"].promptSignals);
+
+  it("matches explicit React fullstack apps", () => {
+    const result = matchPromptWithReason(
+      normalizePromptText("构建一个全栈应用，前端 React 后端云函数数据库 NoSQL 都要"),
+      compiled,
+    );
+    expect(result.matched).toBe(true);
+    expect(result.score).toBeGreaterThanOrEqual(6);
+    expect(result.reason).toMatch(/前端 react|全栈应用/);
+  });
+
+  it("does not match minimal-web-baas-demo prompts", () => {
+    const baasPrompts = [
+      "帮我搭一个最小前后端留言板 demo",
+      "做一个 Todo 风格的最小可用 fullstack demo",
+    ];
+    for (const prompt of baasPrompts) {
+      const result = matchPromptWithReason(normalizePromptText(prompt), compiled);
+      expect(result.matched, prompt).toBe(false);
+    }
+  });
+
+  it("still matches existing React web prompts", () => {
+    const result = matchPromptWithReason(
+      normalizePromptText("用 React 搭建一个 Web 应用，集成 CloudBase"),
+      compiled,
+    );
+    expect(result.matched).toBe(true);
   });
 });

@@ -17,7 +17,7 @@ export const BASELINE_FILE = path.join(
 );
 
 const STRICT_HASH_EXTENSIONS = new Set([".json", ".toml"]);
-const TEXT_SURFACE_EXTENSIONS = new Set([".md", ".mdc", ".mdr"]);
+const TEXT_SURFACE_EXTENSIONS = new Set([".md", ".mdc", ".mdr", ".yaml", ".yml"]);
 
 export const COMPAT_SURFACE_GROUPS = {
   machine: {

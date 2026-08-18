@@ -24,6 +24,11 @@
 {"prompt": "我的页面加载了但按钮不生效", "expectedSkills": ["ops-inspector"], "category": "ops", "note": "正例：故障排查 flow-verification"}
 {"prompt": "应用卡死了，怎么诊断", "expectedSkills": ["ops-inspector"], "category": "ops", "note": "正例：故障排查 stuck"}
 {"prompt": "白屏了，帮我排查", "expectedSkills": ["ops-inspector"], "category": "ops", "note": "正例：故障排查 browser"}
+{"prompt": "昨晚峰值 QPS 多少", "expectedSkills": ["ops-inspector"], "category": "ops", "note": "正例：ops-inspector v3 告警解读 — 峰值 QPS"}
+{"prompt": "CPU 告警是否正常", "expectedSkills": ["ops-inspector"], "category": "ops", "note": "正例：ops-inspector v3 告警解读 — CPU 告警"}
+{"prompt": "接口返回 429 被限频了怎么办", "expectedSkills": ["ops-inspector"], "category": "ops", "note": "正例：ops-inspector v3 故障剧本 — 429/限频"}
+{"prompt": "调用量为 0，帮我查一下监控", "expectedSkills": ["ops-inspector"], "category": "ops", "note": "正例：ops-inspector v3 故障剧本 — 调用量为 0"}
+{"prompt": "报错 ACCESS_TOKEN_INVALID 怎么排查", "expectedSkills": ["ops-inspector"], "category": "ops", "note": "正例：ops-inspector v3 故障剧本 — ACCESS_TOKEN_INVALID"}
 {"prompt": "代码审查一下我的项目", "expectedSkills": ["cloudbase-code-review"], "category": "review", "note": "正例：代码审查"}
 {"prompt": "做一个 AI agent 对话机器人", "expectedSkills": ["cloudbase-agent"], "category": "agent", "note": "正例：Agent 开发"}
 {"prompt": "用 MySQL 存储业务数据", "expectedSkills": ["postgresql-development"], "category": "database", "note": "正例：MySQL 已废弃，用户提到 MySQL 应引导迁移到 PG"}
@@ -46,7 +51,7 @@
 {"prompt": "部署一下", "expectedSkills": [], "category": "boundary", "note": "边界：过于简短，无上下文"}
 {"prompt": "帮我看看", "expectedSkills": [], "category": "negative", "note": "负例：过于简短"}
 {"prompt": "怎么用", "expectedSkills": [], "category": "negative", "note": "负例：过于简短"}
-{"prompt": "构建一个全栈应用，前端 React 后端云函数数据库 NoSQL 都要", "expectedSkills": ["web-development", "cloud-functions", "no-sql-web-sdk"], "category": "fullstack", "note": "正例：多 skill 场景"}
+{"prompt": "构建一个全栈应用，前端 React 后端云函数数据库 NoSQL 都要", "expectedSkills": ["web-development", "cloud-functions", "no-sql-web-sdk"], "category": "fullstack", "note": "正例：显式 React 前端 + 云函数 + NoSQL，应注入 web-development；与 minimal-web-baas-demo（最小前后端 / 最小可用 fullstack）区分"}
 {"prompt": "我要在小程序里集成 AI 对话和云存储", "expectedSkills": ["ai-model-wechat", "cloud-storage-web", "miniprogram-development"], "category": "fullstack", "note": "正例：多 skill 场景"}
 {"prompt": "Node.js 后端调用 Hunyuan 大模型生成图片", "expectedSkills": ["ai-model-nodejs"], "category": "ai-model", "note": "正例：Node.js AI 图片生成"}
 {"prompt": "浏览器端调用 DeepSeek 流式输出", "expectedSkills": ["ai-model-web"], "category": "ai-model", "note": "正例：Web AI 流式"}
@@ -65,3 +70,5 @@
 {"prompt": "小程序搜索优化怎么做，怎么提升关键词排名", "expectedSkills": ["miniprogram-development"], "category": "miniprogram", "note": "正例：小程序搜索优化 / 关键词排名"}
 {"prompt": "微信搜索爬虫 mpcrawler 访问我的页面要如何处理", "expectedSkills": ["miniprogram-development"], "category": "miniprogram", "note": "正例：小程序搜索爬虫"}
 {"prompt": "小程序运营推广：怎么让更多用户搜索到我的小程序", "expectedSkills": ["miniprogram-development"], "category": "miniprogram", "note": "正例：小程序运营推广 / 搜索曝光"}
+{"prompt": "帮我搭一个最小前后端留言板 demo", "expectedSkills": ["minimal-web-baas-demo"], "category": "baas-demo", "note": "正例：最小前后端 + 留言板 → minimal-web-baas-demo"}
+{"prompt": "做一个 Todo 风格的最小可用 fullstack demo", "expectedSkills": ["minimal-web-baas-demo"], "category": "baas-demo", "note": "正例：最小可用 fullstack / Todo demo → minimal-web-baas-demo；不应误伤显式云函数全栈题"}

@@ -1,17 +1,17 @@
 # CloudBase Plugin Marketplace Analysis
 
-Generated: 2026-08-17T08:28:07.160Z
+Generated: 2026-08-18T00:16:06.837Z
 
 > This report does not auto-submit to any marketplace. All submissions are manual.
 
 ## Summary
 
-Total markets: **42**
+Total markets: **43**
 
 | Priority | Count |
 |----------|------:|
 | ready_to_submit | 5 |
-| needs_packaging_or_manifest | 2 |
+| needs_packaging_or_manifest | 3 |
 | needs_partner_outreach | 11 |
 | listed | 8 |
 | not_applicable | 15 |
@@ -250,6 +250,59 @@ Evidence:
 - https://x.ai/news/grok-plugin-marketplace
 
 ## needs_packaging_or_manifest
+
+### composio-awesome-claude-plugins — Claude Code
+
+- Region: global
+- Channel: `community_plugin_directory`
+- Eligibility: `public_github_pr_required`
+- Last reviewed: 2026-08-18
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: not_applicable
+- `community_directory`: submittable
+- `self_marketplace`: listed
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: listed
+- `mcp_or_skill_registry`: not_applicable
+- `docs_only`: listed
+
+Blockers:
+
+- Awaiting maintainer merge of composio-community/awesome-claude-plugins#424
+
+Local evidence:
+
+- `self_marketplace_claude`: **present** — .claude-plugin/marketplace.json lists cloudbase
+- `open_plugin_spec_cloudbase`: **present** — plugin/cloudbase/.plugin/plugin.json has $schema
+
+Submit checklist:
+
+- [ ] README Integrations bullet linking CloudBase-AI-Toolkit
+- [ ] Setup link to official Claude Code ide-setup docs
+- [ ] PR to composio-community/awesome-claude-plugins
+- [ ] [object Object]
+
+Process:
+
+```
+Open a README PR to composio-community/awesome-claude-plugins (Integrations section).
+External plugins are listed as GitHub links (same pattern as kaggle-skill / taisly).
+Status 2026-08-18: PR https://github.com/composio-community/awesome-claude-plugins/pull/424
+still OPEN (MERGEABLE/CLEAN). No CI, no maintainer comments. Upstream README
+Integrations does not yet list CloudBase — do not flip to listed until merge.
+```
+
+Evidence:
+
+- https://github.com/composio-community/awesome-claude-plugins
+- https://github.com/composio-community/awesome-claude-plugins/pull/424
+- https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/claude
+- https://github.com/TencentCloudBase/CloudBase-AI-Toolkit
+
+Recommended install docs: `doc/ide-setup/claude-code.mdx`
 
 ### vscode-agent-plugins — Visual Studio Code
 
@@ -1077,11 +1130,6 @@ Statuses:
 Local evidence:
 
 - `mcp_registry_server_json`: **present** — mcp/server.json matches npm mcpName io.github.TencentCloudBase/cloudbase-mcp
-
-Submit checklist:
-
-- [ ] server.json / publisher metadata
-- [ ] mcp-publisher publish
 
 Process:
 

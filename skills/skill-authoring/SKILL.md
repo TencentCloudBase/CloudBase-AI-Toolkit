@@ -87,7 +87,8 @@ This section is the repo-managed CloudBase skill review baseline for this reposi
 4. Keep sibling routing local-only; do not add remote skill-fetch URLs.
 5. Write the main `SKILL.md` so it changes agent behavior after trigger.
 6. Move deep detail into `references/`, `assets/`, or `scripts/` as needed.
-7. Run evaluation prompts and revise until trigger quality and behavior are stable.
+7. If the skill ships in `plugin/cloudbase`, also write `plugin/cloudbase/skill-metadata.json` (see `references/templates.md` landing checklist) and run `npm run build:skill-manifest`.
+8. Run evaluation prompts and revise until trigger quality and behavior are stable.
 
 ## Minimum self-check
 
@@ -100,3 +101,4 @@ This section is the repo-managed CloudBase skill review baseline for this reposi
 - Are evaluation prompts present for both should-trigger and should-not-trigger cases?
 - Can you explain why this skill stays distinct from its nearest neighbors?
 - If reviewing a skill collection, can you point to redundancy, overlap, and missing boundaries with concrete evidence?
+- If this is a plugin skill, does `plugin/cloudbase/skill-metadata.json` include the new dir with non-empty `promptSignals.phrases`?

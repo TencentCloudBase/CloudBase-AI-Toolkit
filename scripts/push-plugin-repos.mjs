@@ -238,7 +238,7 @@ function checkPlugin(plugin) {
       }
     }
 
-    // promptSignals currently survive only in committed skill-manifest.json.
+    // Matching data is sourced from plugin/cloudbase/skill-metadata.json at build time.
     // Refuse to publish an empty matching table (would disable skill-inject).
     try {
       const manifest = JSON.parse(
@@ -249,8 +249,8 @@ function checkPlugin(plugin) {
       if (skills.length === 0 || withSignals.length === 0) {
         console.error(
           `✗ [${plugin.name}] generated/skill-manifest.json has empty promptSignals ` +
-            `(${withSignals.length}/${skills.length}). Do not rebuild from SKILL.md until ` +
-            `skill-metadata persistence is implemented.`,
+            `(${withSignals.length}/${skills.length}). Rebuild with ` +
+            `npm run build:skill-manifest (reads plugin/cloudbase/skill-metadata.json).`,
         );
         return false;
       }

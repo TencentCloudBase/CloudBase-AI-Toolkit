@@ -1,5 +1,20 @@
 # Templates
 
+## New CloudBase plugin skill landing checklist
+
+When adding a skill that ships with `plugin/cloudbase` (for example `cloudbase-perf-review`):
+
+1. Write `config/source/skills/<dir>/SKILL.md` (semantic source).
+2. Ensure the skill also appears under `plugin/cloudbase/skills/<dir>/` (via sync or the same change set).
+3. **Required:** add a matching entry to `plugin/cloudbase/skill-metadata.json`:
+   - Key **must** equal the skills directory name (`plugin/cloudbase/skills/<dir>`).
+   - Copy the object shape from `plugin/cloudbase/skill-metadata.template.json`.
+   - Fill non-empty `promptSignals.phrases` and `retrieval` (`aliases` / `intents` / `entities` / `examples`).
+4. Run `npm run build:skill-manifest` (fails if the metadata entry is missing).
+5. Confirm `tests/hooks/build-skill-manifest.test.mjs` still covers every non-deprecated skill.
+
+Do **not** put `promptSignals` / `retrieval` only in SKILL.md frontmatter — upstream skill sync overwrites those files. Matching data lives in `skill-metadata.json` (outside `skills/`).
+
 ## New Skill Template
 
 This is not just a document template. It is a template for how the agent should act after the skill triggers.

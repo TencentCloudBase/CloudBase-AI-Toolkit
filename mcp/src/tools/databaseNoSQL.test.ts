@@ -259,6 +259,126 @@ describe("NoSQL database tools", () => {
     expect(mockCommonServiceCall).not.toHaveBeenCalled();
   });
 
+  it("readNoSqlDatabaseContent should reject field-name array projection early", async () => {
+    const { tools } = createMockServer();
+
+    await expect(
+      tools.readNoSqlDatabaseContent.handler({
+        collectionName: "t_nosql_orders",
+        projection: ["name", "status"],
+      }),
+    ).rejects.toThrow(/projection 不支持字段名数组/);
+
+    expect(mockCommonServiceCall).not.toHaveBeenCalled();
+  });
+
+  it("readNoSqlDatabaseContent should reject non 0/1 projection values early", async () => {
+    const { tools } = createMockServer();
+
+    await expect(
+      tools.readNoSqlDatabaseContent.handler({
+        collectionName: "t_nosql_orders",
+        projection: { name: "include", status: 1 },
+      }),
+    ).rejects.toThrow(/projection\["name"\] 的值非法/);
+
+    expect(mockCommonServiceCall).not.toHaveBeenCalled();
+  });
+
+  it("readNoSqlDatabaseContent should reject mixed include/exclude projection early", async () => {
+    const { tools } = createMockServer();
+
+    await expect(
+      tools.readNoSqlDatabaseContent.handler({
+        collectionName: "t_nosql_orders",
+        projection: { name: 1, password: 0 },
+      }),
+    ).rejects.toThrow(/不能同时混用包含/);
+
+    expect(mockCommonServiceCall).not.toHaveBeenCalled();
+  });
+
+  it("readNoSqlDatabaseContent should normalize boolean projection flags to 0/1", async () => {
+    const { tools } = createMockServer();
+
+    await tools.readNoSqlDatabaseContent.handler({
+      collectionName: "t_nosql_orders",
+      projection: { _id: true, name: true, status: true },
+    });
+
+    expect(mockCommonServiceCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Action: "QueryRecords",
+        Param: expect.objectContaining({
+          MgoProjection: JSON.stringify({ _id: 1, name: 1, status: 1 }),
+        }),
+      }),
+    );
+  });
+
+  it("readNoSqlDatabaseContent should reject limit above MgoLimit lte ceiling early", async () => {
+    const { tools } = createMockServer();
+
+    await expect(
+      tools.readNoSqlDatabaseContent.handler({
+        collectionName: "t_nosql_orders",
+        limit: 1001,
+      }),
+    ).rejects.toThrow(/limit 超出上限[\s\S]*1000/);
+
+    expect(mockCommonServiceCall).not.toHaveBeenCalled();
+  });
+
+  it("readNoSqlDatabaseContent should accept limit at MgoLimit ceiling", async () => {
+    const { tools } = createMockServer();
+
+    await tools.readNoSqlDatabaseContent.handler({
+      collectionName: "t_nosql_orders",
+      limit: 1000,
+    });
+
+    expect(mockCommonServiceCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Action: "QueryRecords",
+        Param: expect.objectContaining({
+          MgoLimit: 1000,
+        }),
+      }),
+    );
+  });
+
+  it("readNoSqlDatabaseContent should rewrite illegal projection API errors", async () => {
+    const { tools } = createMockServer();
+    mockCommonServiceCall.mockRejectedValueOnce(
+      new Error(
+        "[QueryRecords] Query projection entered in the request is illegal. Please check your request, but if the problem persists, contact us.",
+      ),
+    );
+
+    await expect(
+      tools.readNoSqlDatabaseContent.handler({
+        collectionName: "t_nosql_orders",
+        projection: { name: 1 },
+      }),
+    ).rejects.toThrow(/QueryRecords 投影非法[\s\S]*合法示例/);
+  });
+
+  it("readNoSqlDatabaseContent should rewrite MgoLimit lte API errors", async () => {
+    const { tools } = createMockServer();
+    mockCommonServiceCall.mockRejectedValueOnce(
+      new Error(
+        "[QueryRecords] Key: 'MgoQueryParam.MgoLimit' Error:Field validation for 'MgoLimit' failed on the 'lte' tag",
+      ),
+    );
+
+    await expect(
+      tools.readNoSqlDatabaseContent.handler({
+        collectionName: "t_nosql_orders",
+        limit: 500,
+      }),
+    ).rejects.toThrow(/QueryRecords MgoLimit 超限[\s\S]*1000/);
+  });
+
   it("readNoSqlDatabaseContent should reject non-numeric directions in stringified sort arrays", async () => {
     const { tools } = createMockServer();
 

@@ -63,3 +63,27 @@ test('buildCompatConfig generates compatibility artifacts from minimal sources',
   expect(fs.existsSync(path.join(compatDir, '.claude', 'commands', 'spec.md'))).toBe(true);
   expect(fs.existsSync(path.join(compatDir, '.kiro', 'steering', 'auth-web-cloudbase', 'rule.md'))).toBe(true);
 });
+
+test('pass-through codebuddy-plugin copies only git-tracked files', () => {
+  const compatDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'cloudbase-compat-config-'),
+  );
+  tempDirs.push(compatDir);
+
+  buildCompatConfig({ outputDir: compatDir });
+
+  expect(
+    fs.existsSync(
+      path.join(compatDir, 'codebuddy-plugin', '.codebuddy-plugin', 'plugin.json'),
+    ),
+  ).toBe(true);
+  expect(
+    fs.existsSync(path.join(compatDir, 'codebuddy-plugin', 'rules', 'cloudbase_rules.md')),
+  ).toBe(true);
+
+  // Local workspaces may still have marketplace-generated skills on disk.
+  // They are gitignored on main and must not leak into the CI compat surface.
+  expect(fs.existsSync(path.join(compatDir, 'codebuddy-plugin', 'skills'))).toBe(
+    false,
+  );
+});

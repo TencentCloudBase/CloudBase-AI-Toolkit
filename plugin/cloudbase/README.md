@@ -18,6 +18,12 @@ The `skills/` directory is a **generated artifact** — do not edit files in it
 directly. They are synced from `TencentCloudBase/skills@main` via
 `scripts/sync-cloudbase-plugin-skills.mjs`.
 
+Skill-inject matching data (`promptSignals` / `retrieval` / `priority`) lives in
+`skill-metadata.json` (sibling of `skills/`, not overwritten by sync). When
+landing a new plugin skill, copy `skill-metadata.template.json` into
+`skill-metadata.json` using the skills directory name as the key, then run
+`npm run build:skill-manifest` from the monorepo root.
+
 ## One-click install (recommended)
 
 Install via the dedicated plugin repository (Open Plugin Spec):

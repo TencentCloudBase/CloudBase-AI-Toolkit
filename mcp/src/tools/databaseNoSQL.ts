@@ -14,6 +14,17 @@ import { debug } from "../utils/logger.js";
 const CATEGORY = "NoSQL database";
 const COLLECTION_READY_TIMEOUT_MS = 10000;
 const COLLECTION_READY_POLL_INTERVAL_MS = 500;
+/** Default page size for QueryRecords (unchanged; overrun tuning is a separate track). */
+const QUERY_RECORDS_DEFAULT_LIMIT = 100;
+/** Cloud API MgoLimit `lte` upper bound (aligned with ListTables / SDK limit docs). */
+const QUERY_RECORDS_MAX_LIMIT = 1000;
+
+const PROJECTION_EXAMPLE = '{"_id":1,"name":1,"createdAt":1}';
+const PROJECTION_EXCLUDE_EXAMPLE = '{"password":0}';
+const PROJECTION_GUIDANCE =
+  `projection 必须是字段投影对象（或对应 JSON 字符串），值只能是 1/0/true/false。` +
+  `合法示例：${PROJECTION_EXAMPLE}（只返回这些字段），或 ${PROJECTION_EXCLUDE_EXAMPLE}（排除字段）。` +
+  `不要传字段名数组、逗号分隔字符串、查询条件，也不要在同一投影里混用包含(1/true)与排除(0/false)（_id 除外）。`;
 
 /** Convert object values to JSON strings for API calls */
 const toJSONString = (v: any): any =>
@@ -108,6 +119,138 @@ function normalizeSortInput(sort: unknown) {
   }
 
   return JSON.stringify(parsed.map((item) => normalizeSortItem(item)));
+}
+
+function isProjectionFlag(value: unknown): value is 0 | 1 | boolean {
+  return value === 0 || value === 1 || value === true || value === false;
+}
+
+function normalizeProjectionInput(projection: unknown): string | undefined {
+  if (projection === undefined || projection === null) {
+    return undefined;
+  }
+
+  let parsed = projection;
+  if (typeof parsed === "string") {
+    const trimmed = parsed.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      throw new Error(
+        `projection 必须是合法 JSON 对象字符串。${PROJECTION_GUIDANCE}`,
+      );
+    }
+  }
+
+  if (Array.isArray(parsed)) {
+    throw new Error(
+      `projection 不支持字段名数组。请改为对象，例如 ${PROJECTION_EXAMPLE}。${PROJECTION_GUIDANCE}`,
+    );
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error(
+      `projection 必须是对象。请改为例如 ${PROJECTION_EXAMPLE}。${PROJECTION_GUIDANCE}`,
+    );
+  }
+
+  const entries = Object.entries(parsed as Record<string, unknown>);
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  let hasInclude = false;
+  let hasExclude = false;
+  const normalized: Record<string, 0 | 1> = {};
+
+  for (const [key, value] of entries) {
+    if (typeof key !== "string" || key.trim() === "") {
+      throw new Error(
+        `projection 字段名必须是非空字符串。${PROJECTION_GUIDANCE}`,
+      );
+    }
+
+    if (!isProjectionFlag(value)) {
+      throw new Error(
+        `projection["${key}"] 的值非法（当前为 ${JSON.stringify(value)}），仅支持 1/0/true/false。` +
+          `合法示例：${PROJECTION_EXAMPLE}。${PROJECTION_GUIDANCE}`,
+      );
+    }
+
+    const flag = value === true || value === 1 ? 1 : 0;
+    normalized[key] = flag;
+
+    if (key === "_id") {
+      continue;
+    }
+    if (flag === 1) {
+      hasInclude = true;
+    } else {
+      hasExclude = true;
+    }
+  }
+
+  if (hasInclude && hasExclude) {
+    throw new Error(
+      `projection 不能同时混用包含(1/true)与排除(0/false)（_id 除外）。` +
+        `请只保留一种模式，例如 ${PROJECTION_EXAMPLE} 或 ${PROJECTION_EXCLUDE_EXAMPLE}。`,
+    );
+  }
+
+  return JSON.stringify(normalized);
+}
+
+function normalizeQueryLimit(limit: unknown): number {
+  if (limit === undefined || limit === null) {
+    return QUERY_RECORDS_DEFAULT_LIMIT;
+  }
+
+  if (typeof limit !== "number" || !Number.isFinite(limit)) {
+    throw new Error(
+      `limit 必须是数字，取值范围 1-${QUERY_RECORDS_MAX_LIMIT}（默认 ${QUERY_RECORDS_DEFAULT_LIMIT}）。` +
+        `超出上限时请用 offset 分页，例如 limit=${QUERY_RECORDS_MAX_LIMIT}, offset=0，再 offset+=limit。`,
+    );
+  }
+
+  if (!Number.isInteger(limit)) {
+    throw new Error(
+      `limit 必须是整数，取值范围 1-${QUERY_RECORDS_MAX_LIMIT}。当前值：${limit}`,
+    );
+  }
+
+  if (limit < 1 || limit > QUERY_RECORDS_MAX_LIMIT) {
+    throw new Error(
+      `limit 超出上限：当前 ${limit}，允许范围 1-${QUERY_RECORDS_MAX_LIMIT}（Cloud API MgoLimit lte）。` +
+        `请将 limit 调整为 ≤${QUERY_RECORDS_MAX_LIMIT}，并用 offset 分页拉取更多数据` +
+        `（例如 limit=${QUERY_RECORDS_MAX_LIMIT}, offset=0，下一页 offset=${QUERY_RECORDS_MAX_LIMIT}）。`,
+    );
+  }
+
+  return limit;
+}
+
+function enhanceQueryRecordsError(error: unknown): never {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+
+  if (/Query projection.*illegal|projection entered in the request is illegal/i.test(message)) {
+    throw new Error(
+      `QueryRecords 投影非法：${message}。修正建议：${PROJECTION_GUIDANCE}`,
+    );
+  }
+
+  if (/MgoLimit.*lte|Field validation for 'MgoLimit' failed on the 'lte'/i.test(message)) {
+    throw new Error(
+      `QueryRecords MgoLimit 超限：${message}。` +
+        `limit 最大为 ${QUERY_RECORDS_MAX_LIMIT}，请缩小 limit 并用 offset 分页` +
+        `（例如 limit=${QUERY_RECORDS_MAX_LIMIT}, offset=0）。`,
+    );
+  }
+
+  throw error instanceof Error ? error : new Error(message);
 }
 
 function withCollectionName<T extends Record<string, unknown>>(
@@ -769,7 +912,10 @@ deleteCollection: 删除集合`),
     "readNoSqlDatabaseContent",
     {
       title: "查询并获取 CloudBase NoSQL 数据库数据记录",
-      description: "查询 CloudBase NoSQL 数据库中的数据记录。支持按条件筛选、分页、排序，适用于管理端数据查询与运维。",
+      description:
+        "查询 CloudBase NoSQL 数据库中的数据记录。支持按条件筛选、分页、排序，适用于管理端数据查询与运维。" +
+        `limit 默认 ${QUERY_RECORDS_DEFAULT_LIMIT}、最大 ${QUERY_RECORDS_MAX_LIMIT}；超出请用 offset 分页。` +
+        `projection 仅支持 { field: 1|0 } 对象（示例 ${PROJECTION_EXAMPLE}），不要传字段数组。`,
       inputSchema: {
         collectionName: z.string().describe("集合名称"),
         instanceId: z
@@ -783,7 +929,11 @@ deleteCollection: 删除集合`),
         projection: z
           .union([z.object({}).passthrough(), z.string()])
           .optional()
-          .describe("返回字段投影(对象或字符串,推荐对象)"),
+          .describe(
+            `返回字段投影，仅支持对象或对应 JSON 字符串，值只能是 1/0/true/false。` +
+              `合法示例：${PROJECTION_EXAMPLE}（包含）或 ${PROJECTION_EXCLUDE_EXAMPLE}（排除）。` +
+              `不要传 ["name","age"] 这类字段数组，也不要混用包含与排除（_id 除外）。`,
+          ),
         sort: z
           .union([
             z.array(
@@ -800,7 +950,13 @@ deleteCollection: 删除集合`),
           .describe(
             '排序条件，仅支持数组 [{"key":"createdAt","direction":-1}] 或对应 JSON 字符串。',
           ),
-        limit: z.number().optional().describe("返回数量限制"),
+        limit: z
+          .number()
+          .optional()
+          .describe(
+            `返回数量限制，整数，范围 1-${QUERY_RECORDS_MAX_LIMIT}，默认 ${QUERY_RECORDS_DEFAULT_LIMIT}。` +
+              `超过 ${QUERY_RECORDS_MAX_LIMIT} 会被 Cloud API MgoLimit lte 校验拒绝；请用 offset 分页。`,
+          ),
         offset: z.number().optional().describe("跳过的记录数"),
       },
       annotations: {
@@ -818,51 +974,58 @@ deleteCollection: 删除集合`),
       });
 
       const normalizedSort = normalizeSortInput(sort);
-      const result = await callNoSqlContentApi({
-        toolName: "readNoSqlDatabaseContent",
-        action: "QueryRecords",
-        collectionName,
-        cloudbase,
-        cloudBaseOptions,
-        instanceIdOverride: instanceId,
-        param: {
-          MgoQuery: toJSONString(query),
-          MgoProjection: toJSONString(projection),
-          MgoSort: normalizedSort,
-          MgoLimit: limit ?? 100,
-          MgoOffset: offset,
-        },
-      });
-      logCloudBaseResult(server.logger, result);
-      const parseStartedAt = Date.now();
-      const documents = normalizeNoSqlDocuments(result.Data);
-      logNoSqlLatency("readNoSqlDatabaseContent", "parseResult", {
-        collectionName,
-        durationMs: Date.now() - parseStartedAt,
-        documentCount: documents.length,
-      });
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              withCollectionName(collectionName, {
-                success: true,
-                requestId: result.RequestId,
-                data: documents,
-                total:
-                  typeof result.Pager?.Total === "number"
-                    ? result.Pager.Total
-                    : documents.length,
-                pager: result.Pager,
-                message: "文档查询成功",
-              }),
-              null,
-              2,
-            ),
+      const normalizedProjection = normalizeProjectionInput(projection);
+      const normalizedLimit = normalizeQueryLimit(limit);
+
+      try {
+        const result = await callNoSqlContentApi({
+          toolName: "readNoSqlDatabaseContent",
+          action: "QueryRecords",
+          collectionName,
+          cloudbase,
+          cloudBaseOptions,
+          instanceIdOverride: instanceId,
+          param: {
+            MgoQuery: toJSONString(query),
+            MgoProjection: normalizedProjection,
+            MgoSort: normalizedSort,
+            MgoLimit: normalizedLimit,
+            MgoOffset: offset,
           },
-        ],
-      };
+        });
+        logCloudBaseResult(server.logger, result);
+        const parseStartedAt = Date.now();
+        const documents = normalizeNoSqlDocuments(result.Data);
+        logNoSqlLatency("readNoSqlDatabaseContent", "parseResult", {
+          collectionName,
+          durationMs: Date.now() - parseStartedAt,
+          documentCount: documents.length,
+        });
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                withCollectionName(collectionName, {
+                  success: true,
+                  requestId: result.RequestId,
+                  data: documents,
+                  total:
+                    typeof result.Pager?.Total === "number"
+                      ? result.Pager.Total
+                      : documents.length,
+                  pager: result.Pager,
+                  message: "文档查询成功",
+                }),
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        enhanceQueryRecordsError(error);
+      }
     },
   );
 
