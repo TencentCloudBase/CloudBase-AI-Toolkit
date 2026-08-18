@@ -205,7 +205,7 @@ export async function waitUntilFunctionActive(
 
   const startedAt = now();
   let attempts = 0;
-  let status = options.initialStatus;
+  let status: string | undefined = options.initialStatus;
 
   while (attempts < maxAttempts) {
     if (now() - startedAt >= timeoutMs) {
