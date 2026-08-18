@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+### Features
+
+* **kimi**: align the native Kimi plugin with Claude Code packaging — MCP + routing skill + hooks, `interface.iconUrl`, and drop the compat `plugin.json` / `run-tool.mjs` four-tool CLI shims
+
 ## [2.28.0](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.27.0...v2.28.0) (2026-08-18)
 
 ### Features

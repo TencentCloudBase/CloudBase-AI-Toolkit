@@ -2,9 +2,9 @@ import RelatedResources from '../components/RelatedResources';
 
 # Kimi Code / Kimi Work 配置指南
 
-Kimi Code（终端 Agent）和 Kimi Work（桌面端，内核同 Kimi Code）可以通过 **Kimi 原生插件** 一次获得 CloudBase MCP 工具和 Skill；也可以手工写 MCP 配置。推荐用插件。
+Kimi Code（终端 Agent）和 Kimi Work（桌面端，内核同 Kimi Code）可以通过 **Kimi 原生插件** 一次获得 CloudBase MCP 工具、Skill 和 Hooks（形态对齐 Claude Code 插件）；也可以手工写 MCP 配置。推荐用插件。
 
-配置后，你可以在 Kimi 对话里直接操作 CloudBase：查库、管云函数、列云存储、看 CloudRun。
+配置后，你可以在 Kimi 对话里直接操作 CloudBase：查库、管云函数、列云存储、看 CloudRun、配 Auth、部署静态托管。
 
 **例如：**
 
@@ -35,18 +35,17 @@ kimi --version
 
 ---
 
-## 插件格式说明（官方文档 vs 本机）
+## 插件格式说明
 
-Kimi 目前有两套插件清单，本仓 **两份都提供**，以本机 0.34.0 能装、AI 能调用为准：
+Kimi Code 0.34.0 读取 `kimi.plugin.json`（Open Plugin Spec 风格），**忽略** `tools` / `inject` / `configFile`。本仓只维护这一份清单，形态与 Claude Code 插件一致：
 
-| 清单 | 依据 | 0.34.0 行为 |
-|------|------|-------------|
-| `kimi.plugin.json` | Kimi Code 文档 + 本机 `kimi-cu` / `kimi-webbridge` | **主路径**。`/plugins install` 读取它。用 `mcpServers` 拉起 `@cloudbase/cloudbase-mcp`。 |
-| `plugin.json` | [kimi-cli 官方插件文档](https://moonshotai.github.io/kimi-cli/en/customization/plugins.html)（Beta） | 声明 4 个 `tcb` 包装工具（`command` + JSON Schema）。0.34.0 **忽略** `tools` / `inject`。 |
+| 能力 | `kimi.plugin.json` |
+|------|---------------------|
+| MCP | `mcpServers.cloudbase` 拉起 `@cloudbase/cloudbase-mcp` |
+| Skills | `./skills/` 路由 Skill；领域文档走 MCP `searchKnowledgeBase` |
+| Hooks | `PreToolUse`（Bash 危险命令拦截）+ `UserPromptSubmit`（云开发上下文注入） |
 
-0.34.0 **没有** `kimi plugin` CLI 子命令。文档里的 `kimi plugin install` 属于旧版 kimi-cli。当前安装入口是 TUI 斜杠命令 `/plugins install`。
-
-官方建议：简单脚本用 plugin tools，持续服务用 MCP。CloudBase 属于后者，所以 0.34.0 走 MCP；`plugin.json` 只覆盖 kimi-cli 兼容面。
+0.34.0 **没有** `kimi plugin` CLI 子命令。安装入口是 TUI 斜杠命令 `/plugins install`。
 
 源码目录：仓库 `config/kimi-plugin/`。
 
@@ -89,15 +88,6 @@ Kimi 目前有两套插件清单，本仓 **两份都提供**，以本机 0.34.0
 /plugins install https://github.com/TencentCloudBase/CloudBase-MCP.git/config/kimi-plugin
 ```
 
-若你的 kimi 二进制仍有 `kimi plugin` 子命令（旧 kimi-cli），可以用：
-
-```bash
-kimi plugin install /absolute/path/to/CloudBase-MCP/config/kimi-plugin
-kimi plugin info cloudbase
-```
-
-该路径加载的是 `plugin.json` 里的 4 个 CLI 工具，需要本机已装 `@cloudbase/cli`。
-
 ## 方式二：手工配置 MCP（备用）
 
 0.34.0 也没有 `kimi mcp add`。直接编辑 `~/.kimi-code/mcp.json`（格式与 Claude Code 相同）：
@@ -128,9 +118,8 @@ npx plugins add TencentCloudBase/cloudbase-plugin -y --scope user --target kimi
 
 ## 方式一 vs 方式二怎么选
 
-- **要完整 CloudBase 能力（库 / 函数 / 存储 / CloudRun / 认证 / 托管）：** 方式一，让插件拉起 MCP。
+- **要完整 CloudBase 能力（库 / 函数 / 存储 / CloudRun / 认证 / 托管）：** 方式一，让插件拉起 MCP + Skill + Hooks。
 - **只要 MCP、不要 Kimi Skill：** 方式二。
-- **旧 kimi-cli 且只有 `plugin.json` tools[]：** 安装同一目录，走 4 个 `tcb` 包装工具；复杂编排仍建议配 MCP。
 
 ## 常见问题
 

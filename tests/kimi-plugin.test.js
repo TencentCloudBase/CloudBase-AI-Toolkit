@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -7,19 +6,29 @@ import { describe, expect, test } from "vitest";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_DIR = path.join(__dirname, "..", "config", "kimi-plugin");
-const RUNNER = path.join(PLUGIN_DIR, "scripts", "run-tool.mjs");
-
-const EXPECTED_TOOLS = [
-  "query_database",
-  "list_functions",
-  "list_storage",
-  "list_cloudrun",
-];
+const CLAUDE_SKILLS = path.join(
+  __dirname,
+  "..",
+  "plugin",
+  "cloudbase",
+  "skills",
+);
+const BLOCK_HOOK = path.join(PLUGIN_DIR, "hooks", "block-dangerous-bash.mjs");
+const INJECT_HOOK = path.join(
+  PLUGIN_DIR,
+  "hooks",
+  "inject-cloudbase-context.mjs",
+);
 
 function readJson(fileName) {
-  return JSON.parse(
-    fs.readFileSync(path.join(PLUGIN_DIR, fileName), "utf8"),
-  );
+  return JSON.parse(fs.readFileSync(path.join(PLUGIN_DIR, fileName), "utf8"));
+}
+
+function runHook(script, payload) {
+  return spawnSync(process.execPath, [script], {
+    encoding: "utf8",
+    input: JSON.stringify(payload),
+  });
 }
 
 describe("Kimi CloudBase plugin packaging", () => {
@@ -31,7 +40,18 @@ describe("Kimi CloudBase plugin packaging", () => {
     expect(manifest.name).toBe("cloudbase");
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(manifest.skills).toBe("./skills/");
+    expect(manifest.sessionStart.skill).toBe("cloudbase");
     expect(manifest.interface.displayName).toBe("Tencent CloudBase");
+    expect(manifest.interface.iconUrl).toMatch(/^https:\/\//);
+    expect(manifest.interface.iconUrl).toContain(
+      "plugin/cloudbase/assets/logo.png",
+    );
+    expect(manifest.interface.shortDescription.toLowerCase()).toMatch(/auth/);
+    expect(manifest.interface.shortDescription.toLowerCase()).toMatch(
+      /hosting/,
+    );
+    expect(manifest.interface.longDescription).toMatch(/tcb login/);
+    expect(manifest.interface.longDescription).toMatch(/登录云开发/);
     expect(manifest.mcpServers.cloudbase.command).toBe("npx");
     expect(manifest.mcpServers.cloudbase.args).toEqual([
       "-y",
@@ -39,86 +59,84 @@ describe("Kimi CloudBase plugin packaging", () => {
     ]);
     expect(manifest.tools).toBeUndefined();
     expect(manifest.inject).toBeUndefined();
+    expect(Array.isArray(manifest.hooks)).toBe(true);
+    expect(manifest.hooks.map((hook) => hook.event).sort()).toEqual([
+      "PreToolUse",
+      "UserPromptSubmit",
+    ]);
+    for (const hook of manifest.hooks) {
+      expect(hook.command).toMatch(/^node \.\//);
+      expect(hook.timeout).toBeGreaterThan(0);
+      const rel = hook.command.replace(/^node \.\//, "");
+      expect(fs.existsSync(path.join(PLUGIN_DIR, rel))).toBe(true);
+    }
     expect(
       fs.existsSync(path.join(PLUGIN_DIR, "skills", "cloudbase", "SKILL.md")),
     ).toBe(true);
   });
 
-  test("plugin.json declares four tcb tools with command and JSON Schema", () => {
-    const spec = readJson("plugin.json");
-    expect(spec.name).toBe("cloudbase");
-    expect(Array.isArray(spec.tools)).toBe(true);
-    expect(spec.tools.map((tool) => tool.name)).toEqual(EXPECTED_TOOLS);
-
-    for (const tool of spec.tools) {
-      expect(tool.description.length).toBeGreaterThan(10);
-      expect(tool.command).toEqual([
-        "node",
-        "scripts/run-tool.mjs",
-        tool.name,
-      ]);
-      expect(tool.parameters.type).toBe("object");
-      expect(tool.parameters.properties).toBeTruthy();
-    }
-
-    const db = spec.tools.find((tool) => tool.name === "query_database");
-    expect(db.parameters.properties.engine.enum).toEqual([
-      "postgresql",
-      "mysql",
-      "nosql",
-    ]);
+  test("compat plugin.json and run-tool.mjs are not shipped", () => {
+    expect(fs.existsSync(path.join(PLUGIN_DIR, "plugin.json"))).toBe(false);
+    expect(
+      fs.existsSync(path.join(PLUGIN_DIR, "scripts", "run-tool.mjs")),
+    ).toBe(false);
   });
 
-  test("run-tool.mjs rejects unknown tools with JSON on stdout", () => {
-    const result = spawnSync(process.execPath, [RUNNER, "not_a_tool"], {
-      encoding: "utf8",
-      input: "{}",
-    });
-    expect(result.status).not.toBe(0);
-    const payload = JSON.parse(result.stdout);
-    expect(payload.ok).toBe(false);
-    expect(payload.error).toMatch(/unknown tool/);
-  });
+  test("skills stay a host-specific routing skill, not a third catalog copy", () => {
+    const kimiSkillDirs = fs
+      .readdirSync(path.join(PLUGIN_DIR, "skills"), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+    expect(kimiSkillDirs).toEqual(["cloudbase"]);
 
-  test("run-tool.mjs invokes tcb with JSON stdin when tcb is on PATH", () => {
-    const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "kimi-plugin-tcb-"));
-    const stubName = process.platform === "win32" ? "tcb.cmd" : "tcb";
-    const stubPath = path.join(binDir, stubName);
-    const script = `#!/usr/bin/env node
-const fs = require("fs");
-fs.writeFileSync(process.env.TCB_ARGV_FILE, JSON.stringify(process.argv.slice(2)));
-process.stdout.write(JSON.stringify({ functions: [{ name: "hello" }] }));
-`;
-    fs.writeFileSync(stubPath, script, { mode: 0o755 });
+    const kimiSkill = path.join(PLUGIN_DIR, "skills", "cloudbase");
+    const claudeSkill = path.join(CLAUDE_SKILLS, "cloudbase");
+    expect(fs.lstatSync(kimiSkill).isSymbolicLink()).toBe(false);
+    expect(path.resolve(kimiSkill)).not.toBe(path.resolve(claudeSkill));
 
-    const argvFile = path.join(binDir, "argv.json");
-    const result = spawnSync(
-      process.execPath,
-      [RUNNER, "list_functions"],
-      {
-        encoding: "utf8",
-        input: JSON.stringify({ envId: "env-test", limit: 5 }),
-        env: {
-          ...process.env,
-          PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
-          TCB_ARGV_FILE: argvFile,
-        },
-      },
+    const kimiBody = fs.readFileSync(
+      path.join(kimiSkill, "SKILL.md"),
+      "utf8",
     );
+    expect(kimiBody).toMatch(/searchKnowledgeBase/);
+    expect(kimiBody).not.toMatch(/plugin\.json/);
+  });
 
-    expect(result.status).toBe(0);
-    const payload = JSON.parse(result.stdout);
-    expect(payload.ok).toBe(true);
-    expect(payload.tool).toBe("list_functions");
-    expect(payload.result).toEqual({ functions: [{ name: "hello" }] });
-    expect(JSON.parse(fs.readFileSync(argvFile, "utf8"))).toEqual([
-      "fn",
-      "list",
-      "--json",
-      "-e",
-      "env-test",
-      "--limit",
-      "5",
-    ]);
+  test("block-dangerous-bash.mjs denies rm -rf and allows safe commands", () => {
+    const denied = runHook(BLOCK_HOOK, {
+      hook_event_name: "PreToolUse",
+      tool_input: { command: "rm -rf /tmp/app" },
+    });
+    expect(denied.status).toBe(2);
+    expect(denied.stderr).toMatch(/rm -rf/);
+
+    const envDestroy = runHook(BLOCK_HOOK, {
+      hook_event_name: "PreToolUse",
+      tool_input: { command: "tcb env:destroy prod-env --force" },
+    });
+    expect(envDestroy.status).toBe(2);
+
+    const allowed = runHook(BLOCK_HOOK, {
+      hook_event_name: "PreToolUse",
+      tool_input: { command: "tcb fn list --json" },
+    });
+    expect(allowed.status).toBe(0);
+  });
+
+  test("inject-cloudbase-context.mjs appends routing text for CloudBase prompts", () => {
+    const hit = runHook(INJECT_HOOK, {
+      hook_event_name: "UserPromptSubmit",
+      prompt: "登录云开发，列出当前环境的云函数",
+    });
+    expect(hit.status).toBe(0);
+    expect(hit.stdout).toMatch(/envQuery/);
+    expect(hit.stdout).toMatch(/searchKnowledgeBase/);
+
+    const miss = runHook(INJECT_HOOK, {
+      hook_event_name: "UserPromptSubmit",
+      prompt: "rewrite this README in English",
+    });
+    expect(miss.status).toBe(0);
+    expect(miss.stdout).toBe("");
   });
 });
