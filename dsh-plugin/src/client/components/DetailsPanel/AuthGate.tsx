@@ -1,17 +1,17 @@
 import * as React from "react";
 import type { AuthStatus, CloudBaseData } from "../../../shared/types.js";
 import { IconLock } from "../../lib/icons.js";
-import { EnvSelector } from "./EnvSelector.js";
 
 /**
  * 右侧面板登录门：
  * - 未登录：显示 device-code 登录引导（调用 start_auth 后展示 verification URL + user code），
- *   面板其余 tab 不渲染（避免空/报错状态）。
- * - 已登录：顶部显示环境选择器，下方渲染真实 tab 内容。
+ *   面板其余内容不渲染（避免空/报错状态）。
+ * - 已登录：把 { status, setStatus } 交给 children（render-prop），
+ *   由上层自行布局 header（logo / 环境选择 / 胶囊 / GitHub）。
  */
 export function AuthGate(props: {
   data?: CloudBaseData;
-  children: React.ReactNode;
+  children: (render: { status: AuthStatus; setStatus: (s: AuthStatus) => void }) => React.ReactNode;
 }): React.ReactElement {
   const [status, setStatus] = React.useState<AuthStatus | undefined>(undefined);
   const [loading, setLoading] = React.useState(true);
@@ -121,12 +121,13 @@ export function AuthGate(props: {
 
   return (
     <>
-      <EnvSelector data={props.data} currentEnvId={status.envId} onChanged={setStatus} onError={setError} />
-      {/* key=envId：切换环境后强制 remount 各 tab，重新拉取新环境的数据 */}
-      {props.children && status.envId ? (
-        <React.Fragment key={status.envId}>{props.children}</React.Fragment>
+      {/* key=envId：切换环境后强制 remount 子内容，重新拉取新环境的数据 */}
+      {status.envId ? (
+        <React.Fragment key={status.envId}>
+          {props.children({ status, setStatus })}
+        </React.Fragment>
       ) : (
-        props.children
+        props.children({ status, setStatus })
       )}
     </>
   );

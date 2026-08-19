@@ -109,3 +109,35 @@ export const IconOpen = () =>
       React.createElement("path", { key: "a", d: "M14 3h7v7M10 14L21 3M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5" }),
     ],
   });
+export const IconGithub = () =>
+  Svg({
+    children: [
+      React.createElement("path", {
+        key: "a",
+        d: "M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 00-1.3-3.2 4.2 4.2 0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 00-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 00-.1 3.2A4.6 4.6 0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21",
+      }),
+    ],
+  });
+/** CloudBase 品牌 logo：蓝色圆角底 + 白色云朵（简约版）。 */
+export const IconCloudBase = () =>
+  Svg({
+    children: [
+      React.createElement("path", {
+        key: "a",
+        d: "M7.5 18.5a4 4 0 01-.5-7.97A5.5 5.5 0 0118 9.5a3.8 3.8 0 01.5 7.57",
+        fill: "#4c8dff",
+        stroke: "#4c8dff",
+        strokeWidth: "1.4",
+        strokeLinejoin: "round",
+      }),
+      React.createElement("path", {
+        key: "b",
+        d: "M9.8 15.2l2.4-2.9 1.7 1.5 2.3-2.6",
+        fill: "none",
+        stroke: "#fff",
+        strokeWidth: "1.5",
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+      }),
+    ],
+  });

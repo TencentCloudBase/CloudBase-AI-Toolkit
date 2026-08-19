@@ -62,14 +62,20 @@ export const PANEL_CSS = `
 .cb-deliverable { display: flex; align-items: center; gap: 8px; padding: 9px 12px; font-size: 12px; color: var(--cb-text-2); }
 .cb-deliverable .f { font-family: var(--cb-mono); font-size: 11px; color: var(--cb-text); }
 .cb-details { display: flex; flex-direction: column; height: 100%; min-height: 360px; border-radius: 0; border: none; box-shadow: none; }
-.cb-capsule { display: flex; gap: 3px; padding: 6px 8px; border-bottom: 1px solid var(--cb-border); background: var(--cb-bg); }
+.cb-topbar { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-bottom: 1px solid var(--cb-border); background: var(--cb-bg); }
+.cb-logo { display: flex; align-items: center; color: var(--cb-blue); flex-shrink: 0; }
+.cb-logo svg { width: 19px; height: 19px; }
+.cb-gh { display: flex; align-items: center; color: var(--cb-text-3); text-decoration: none; flex-shrink: 0; }
+.cb-gh:hover { color: var(--cb-text); }
+.cb-gh svg { width: 16px; height: 16px; }
+.cb-capsule { display: flex; gap: 2px; flex-shrink: 0; }
 .cb-capsule-btn {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
-  padding: 5px 8px; font-size: 12px; color: var(--cb-text-2); background: transparent;
-  border: 1px solid transparent; border-radius: 16px; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 3px 9px; font-size: 11px; color: var(--cb-text-2); background: transparent;
+  border: 1px solid var(--cb-border); border-radius: 12px; cursor: pointer; white-space: nowrap;
 }
 .cb-capsule-btn:hover { background: var(--cb-hover); }
-.cb-capsule-btn.active { background: var(--cb-text); color: #fff; font-weight: 600; }
+.cb-capsule-btn.active { background: var(--cb-text); color: #fff; border-color: var(--cb-text); font-weight: 600; }
 .cb-dtabs { display: flex; border-bottom: 1px solid var(--cb-border); padding: 0 8px; }
 .cb-dtab {
   flex: 1; min-width: 0; padding: 10px 4px; font-size: 12px; color: var(--cb-text-3);
@@ -108,8 +114,8 @@ export const PANEL_CSS = `
 .cb-sql-bar { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-top: 1px solid var(--cb-border); }
 .cb-hint { font-size: 11px; color: var(--cb-text-3); flex: 1; }
 .cb-toast { font-size: 11px; color: var(--cb-ok); }
-.cb-env-select { padding: 6px 8px; border-bottom: 1px solid var(--cb-border); display: flex; flex-direction: column; gap: 4px; }
-.cb-select { width: 100%; font: inherit; font-size: 12px; color: var(--cb-text-1); background: var(--cb-panel); border: 1px solid var(--cb-border); border-radius: 6px; padding: 5px 7px; }
+.cb-env-select { display: flex; align-items: center; min-width: 0; flex: 1; }
+.cb-select { width: 100%; font: inherit; font-size: 11.5px; color: var(--cb-text-1); background: var(--cb-panel); border: 1px solid var(--cb-border); border-radius: 6px; padding: 3px 6px; min-width: 0; }
 .cb-select:disabled { opacity: .55; }
 .cb-webview-bar { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--cb-border); }
 .cb-webview-input { flex: 1; min-width: 0; font: inherit; font-size: 12px; color: var(--cb-text); background: var(--cb-bg); border: 1px solid var(--cb-border); border-radius: 6px; padding: 5px 8px; font-family: var(--cb-mono); }

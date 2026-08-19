@@ -1,8 +1,7 @@
 import * as React from "react";
 import type { AuthStatus, CloudBaseData, EnvItem } from "../../../shared/types.js";
-import { IconCheck } from "../../lib/icons.js";
 
-/** 右侧面板顶部：登录后显示环境下拉，选中后调用 auth set_env 切换当前环境。 */
+/** 右侧面板顶部 header：登录后显示环境下拉（单行），选中后调用 auth set_env 切换当前环境。 */
 export function EnvSelector(props: {
   data?: CloudBaseData;
   currentEnvId?: string;
@@ -44,30 +43,30 @@ export function EnvSelector(props: {
 
   const current = envs.find((env) => env.envId === props.currentEnvId);
 
+  // header 单行布局：只渲染 select，错误/空态通过 title 提示，不撑开行高。
   return (
     <div className="cb-env-select">
-      {error ? <div className="cb-error">{error}</div> : null}
-      {envs.length > 0 ? (
-        <select
-          className="cb-select"
-          value={props.currentEnvId ?? ""}
-          disabled={Boolean(props.busy)}
-          onChange={(event) => void selectEnv(event.target.value)}
-          title="当前环境"
-        >
-          <option value="" disabled>
-            {current ? `当前：${current.alias || current.envId}` : "选择环境…"}
+      <select
+        className="cb-select"
+        value={props.currentEnvId ?? ""}
+        disabled={Boolean(props.busy) || envs.length === 0}
+        onChange={(event) => void selectEnv(event.target.value)}
+        title={error ?? (envs.length === 0 ? "未获取到环境列表" : "当前环境")}
+      >
+        <option value="" disabled>
+          {envs.length === 0
+            ? "环境加载中…"
+            : current
+              ? `当前：${current.alias || current.envId}`
+              : "选择环境…"}
+        </option>
+        {envs.map((env) => (
+          <option key={env.envId} value={env.envId}>
+            {env.alias ? `${env.alias} (${env.envId})` : env.envId}
+            {env.region ? ` · ${env.region}` : ""}
           </option>
-          {envs.map((env) => (
-            <option key={env.envId} value={env.envId}>
-              {env.alias ? `${env.alias} (${env.envId})` : env.envId}
-              {env.region ? ` · ${env.region}` : ""}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <div className="cb-hint">未获取到环境列表，请先登录或检查网络。</div>
-      )}
+        ))}
+      </select>
     </div>
   );
 }
