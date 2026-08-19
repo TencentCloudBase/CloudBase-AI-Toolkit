@@ -1,6 +1,6 @@
 ## 集群回档
 
-最近更新时间：2026-03-18 01:38:33
+最近更新时间：2026-08-19 01:46:13
 
 -   微信扫一扫 
 -   QQ
@@ -39,7 +39,7 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 示例值：cynosdbpg-bzxxrmtq |
 | RollbackStrategy | 是 | String | 回档策略 timeRollback-按时间点回档 snapRollback-按备份文件回档  
 示例值：snapRollback |
-| RollbackId | 是 | Integer | 备份文件ID。  
+| RollbackId | 否 | Integer | 备份文件ID。  
 回档策略为按备份文件回档时必填。  
 示例值：1 |
 | ExpectTime | 否 | String | 期望回档时间。  
