@@ -1,6 +1,7 @@
 import * as React from "react";
 import { IconCheck, IconExternal } from "../lib/icons.js";
 import { parseDeploy, type ToolBlock } from "../lib/parse-tool-result.js";
+import { recordDeployUrl } from "../lib/recent-deploys.js";
 import { ensureStyles } from "../styles.js";
 
 export interface DeployPreviewCardProps {
@@ -15,6 +16,11 @@ export function DeployPreviewCard(props: DeployPreviewCardProps): React.ReactEle
   const deploy = parseDeploy(props.block);
   const args = (props.block?.args ?? {}) as Record<string, unknown>;
   const isUpload = args.action === "upload" || Boolean(deploy.url);
+
+  // 上传成功后把 URL 推到全局 recent-deploys 列表，PreviewTab 会自动加载。
+  React.useEffect(() => {
+    if (isUpload && deploy.url) recordDeployUrl(deploy.url);
+  }, [isUpload, deploy.url]);
 
   if (!isUpload && args.action && args.action !== "upload") {
     return (

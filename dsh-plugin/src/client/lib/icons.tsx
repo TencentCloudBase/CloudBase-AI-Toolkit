@@ -85,3 +85,27 @@ export const IconWarn = () =>
   });
 export const IconChevron = ({ dir }: { dir: "left" | "right" }) =>
   Svg({ children: React.createElement("path", { d: dir === "left" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6" }) });
+export const IconBrowser = () =>
+  Svg({
+    children: [
+      React.createElement("rect", { key: "a", x: "3", y: "4", width: "18", height: "16", rx: "2" }),
+      React.createElement("path", { key: "b", d: "M3 9h18" }),
+      React.createElement("circle", { key: "c", cx: "6.5", cy: "6.5", r: "0.5", fill: "currentColor" }),
+      React.createElement("circle", { key: "d", cx: "9", cy: "6.5", r: "0.5", fill: "currentColor" }),
+    ],
+  });
+export const IconRefresh = () =>
+  Svg({
+    children: [
+      React.createElement("path", {
+        key: "a",
+        d: "M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5",
+      }),
+    ],
+  });
+export const IconOpen = () =>
+  Svg({
+    children: [
+      React.createElement("path", { key: "a", d: "M14 3h7v7M10 14L21 3M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5" }),
+    ],
+  });

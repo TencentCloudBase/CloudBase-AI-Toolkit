@@ -1,0 +1,61 @@
+// 跨组件共享"最近部署 URL"：DeployPreviewCard 在 deploy.url 出现时记录，
+// PreviewTab 读取并展示。一条 localStorage 记录 + 一个 storage 事件用于跨 tab 同步。
+const STORAGE_KEY = "cloudbase-dsh:recent-deploys";
+const MAX_ENTRIES = 5;
+
+export interface RecentDeploy {
+  url: string;
+  domain: string;
+  recordedAt: number;
+}
+
+function readStore(): RecentDeploy[] {
+  if (typeof localStorage === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item): RecentDeploy | null => {
+        const rec = item as Record<string, unknown>;
+        if (typeof rec.url !== "string" || rec.url.length === 0) return null;
+        return {
+          url: rec.url,
+          domain: typeof rec.domain === "string" ? rec.domain : rec.url.replace(/^https?:\/\//, ""),
+          recordedAt: typeof rec.recordedAt === "number" ? rec.recordedAt : 0,
+        };
+      })
+      .filter((item): item is RecentDeploy => item !== null);
+  } catch {
+    return [];
+  }
+}
+
+function writeStore(entries: RecentDeploy[]): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("cloudbase-dsh:recent-deploys", { detail: entries }));
+    }
+  } catch {
+    // localStorage 写入失败时静默——PreviewTab 退化到内存列表。
+  }
+}
+
+export function getRecentDeploys(): RecentDeploy[] {
+  return readStore();
+}
+
+export function recordDeployUrl(url: string | undefined): RecentDeploy[] {
+  if (!url || !url.startsWith("http")) return readStore();
+  const domain = url.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const existing = readStore().filter((entry) => entry.url !== url);
+  const next: RecentDeploy[] = [
+    { url, domain, recordedAt: Date.now() },
+    ...existing,
+  ].slice(0, MAX_ENTRIES);
+  writeStore(next);
+  return next;
+}

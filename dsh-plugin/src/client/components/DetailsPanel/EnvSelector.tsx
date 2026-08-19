@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { AuthStatus, CloudBaseData, EnvItem } from "../../../shared/types.js";
-import { IconCheck, IconGear } from "../../lib/icons.js";
+import { IconCheck } from "../../lib/icons.js";
 
 /** 右侧面板顶部：登录后显示环境下拉，选中后调用 auth set_env 切换当前环境。 */
 export function EnvSelector(props: {
@@ -46,17 +46,6 @@ export function EnvSelector(props: {
 
   return (
     <div className="cb-env-select">
-      <div className="cb-auth-head">
-        <IconGear />
-        <span>环境</span>
-        <span className="cb-spacer" />
-        {current ? (
-          <span className="cb-ok">
-            <IconCheck />
-            {current.alias || current.envId}
-          </span>
-        ) : null}
-      </div>
       {error ? <div className="cb-error">{error}</div> : null}
       {envs.length > 0 ? (
         <select
@@ -64,9 +53,10 @@ export function EnvSelector(props: {
           value={props.currentEnvId ?? ""}
           disabled={Boolean(props.busy)}
           onChange={(event) => void selectEnv(event.target.value)}
+          title="当前环境"
         >
           <option value="" disabled>
-            选择环境…
+            {current ? `当前：${current.alias || current.envId}` : "选择环境…"}
           </option>
           {envs.map((env) => (
             <option key={env.envId} value={env.envId}>
