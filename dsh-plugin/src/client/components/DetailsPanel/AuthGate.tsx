@@ -2,6 +2,7 @@ import * as React from "react";
 import type { AuthStatus, CloudBaseData } from "../../../shared/types.js";
 import { IconLock } from "../../lib/icons.js";
 import { friendlyError } from "../../lib/parse-tool-result.js";
+import { Toast } from "../../kit/components/Toast.js";
 
 /**
  * 右侧面板登录门：
@@ -83,7 +84,6 @@ export function AuthGate(props: {
             <IconLock />
             <span>需要登录</span>
           </div>
-          {error ? <div className="cb-error">{error}</div> : null}
           <div className="cb-placeholder" style={{ margin: "8px 0" }}>
             {status?.message ?? "未登录。请通过 device-code 授权访问 CloudBase。"}
           </div>
@@ -105,7 +105,7 @@ export function AuthGate(props: {
             </div>
           ) : (
             <button
-              className="cb-btn"
+              className="cb-btn primary"
               type="button"
               onClick={() => void startLogin()}
             >
@@ -130,6 +130,14 @@ export function AuthGate(props: {
       ) : (
         props.children({ status, setStatus })
       )}
+      {error ? (
+        <Toast
+          message={error}
+          tone="error"
+          autoCloseMs={5000}
+          onClose={() => setError(undefined)}
+        />
+      ) : null}
     </>
   );
 }

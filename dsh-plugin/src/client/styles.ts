@@ -130,6 +130,12 @@ export const PANEL_CSS = `
 .cb-webview-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--cb-text-3); padding: 20px; }
 .cb-webview-empty svg { width: 28px; height: 28px; opacity: .55; }
 .cb-webview-empty p { margin: 0; font-size: 12.5px; text-align: center; max-width: 280px; line-height: 1.6; }
+.cb-toast { position: fixed; bottom: 20px; right: 20px; z-index: 40; display: flex; align-items: center; gap: 10px; max-width: 360px; padding: 10px 14px; background: var(--cb-panel); border: 1px solid var(--cb-border); border-radius: 12px; box-shadow: 0 8px 24px rgba(16,17,20,.12); font-size: 12.5px; color: var(--cb-text); }
+.cb-toast[data-tone="error"] { border-left: 3px solid var(--cb-danger); }
+.cb-toast[data-tone="warn"] { border-left: 3px solid #d4a72c; }
+.cb-toast-msg { flex: 1; min-width: 0; line-height: 1.5; }
+.cb-toast-close { width: 22px; height: 22px; padding: 0; font-size: 16px; line-height: 1; color: var(--cb-text-3); background: transparent; border: none; border-radius: 11px; cursor: pointer; }
+.cb-toast-close:hover { background: var(--cb-hover); color: var(--cb-text); }
 `;
 
 let injected = false;
