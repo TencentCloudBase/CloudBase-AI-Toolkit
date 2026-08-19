@@ -27,9 +27,10 @@ describe("cordis patch contract", () => {
     };
     expect(pkg.name).toBe("@cloudbase/dsh-plugin");
     expect(pkg.dependencies ?? {}).toEqual({});
-    expect(pkg.peerDependencies["@deepseek-ai/cordis"]).toBe(">=0.1.0-rc.6 <0.2.0");
+    // dsh 的 cordis 实际版本为 4.x（typert-protocol peer 亦要求 ^4.0.1）
+    expect(pkg.peerDependencies["@deepseek-ai/cordis"]).toBe("^4.0.1");
     expect(pkg.dsh?.client?.inject).toEqual(
-      expect.arrayContaining(["cloudbaseData", "slots", "layout"]),
+      expect.arrayContaining(["connection", "slots", "layout"]),
     );
     expect(pkg.files).toEqual(expect.arrayContaining(["dist/skill-cli.js"]));
   });

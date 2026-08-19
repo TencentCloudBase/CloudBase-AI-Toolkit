@@ -9,6 +9,11 @@ export interface SlotHost {
     openDetails?: () => void;
     closeDetails?: () => void;
   };
+  /** dsh client runtime 提供的 Typert Remote 命名空间访问。 */
+  remote?: {
+    cloudbaseData?: CloudBaseData;
+  };
+  /** 兼容旧注入路径（服务端 provide 裸对象，跨进程不可见，已废弃）。 */
   cloudbaseData?: CloudBaseData;
 }
 
@@ -39,6 +44,7 @@ export function registerNamedSlot(
   slotName: string,
   id: string,
   component: unknown,
+  options?: { select?: (owner: unknown) => unknown; priority?: number },
 ): void {
   const run = () =>
     ctx.slots?.register?.(
@@ -47,6 +53,8 @@ export function registerNamedSlot(
         id,
         order: 40,
         label: "CloudBase",
+        ...(options?.select ? { select: options.select } : {}),
+        ...(options?.priority !== undefined ? { priority: options.priority } : {}),
       },
       component,
     );

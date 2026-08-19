@@ -3,6 +3,7 @@ import type { CloudBaseData } from "../../../shared/types.js";
 import { IconChart, IconDb, IconFolder, IconGear, IconLock } from "../../lib/icons.js";
 import { ensureStyles } from "../../styles.js";
 import { AnalyticsTab } from "./AnalyticsTab.js";
+import { AuthGate } from "./AuthGate.js";
 import { AuthTab } from "./AuthTab.js";
 import { ConfigTab } from "./ConfigTab.js";
 import { DatabaseTab } from "./DatabaseTab.js";
@@ -29,26 +30,28 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
 
   return (
     <div className="cb-root" style={{ height: "100%" }}>
-      <div className="cb-details">
-        <div className="cb-dtabs">
-          {TABS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`cb-dtab${tab === item.id ? " active" : ""}`}
-              onClick={() => setTab(item.id)}
-            >
-              {item.icon()}
-              {item.label}
-            </button>
-          ))}
+      <AuthGate data={data}>
+        <div className="cb-details">
+          <div className="cb-dtabs">
+            {TABS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`cb-dtab${tab === item.id ? " active" : ""}`}
+                onClick={() => setTab(item.id)}
+              >
+                {item.icon()}
+                {item.label}
+              </button>
+            ))}
+          </div>
+          {tab === "db" ? <DatabaseTab data={data} /> : null}
+          {tab === "storage" ? <StorageTab data={data} /> : null}
+          {tab === "auth" ? <AuthTab data={data} /> : null}
+          {tab === "config" ? <ConfigTab data={data} /> : null}
+          {tab === "analytics" ? <AnalyticsTab data={data} /> : null}
         </div>
-        {tab === "db" ? <DatabaseTab data={data} /> : null}
-        {tab === "storage" ? <StorageTab data={data} /> : null}
-        {tab === "auth" ? <AuthTab data={data} /> : null}
-        {tab === "config" ? <ConfigTab data={data} /> : null}
-        {tab === "analytics" ? <AnalyticsTab data={data} /> : null}
-      </div>
+      </AuthGate>
     </div>
   );
 }

@@ -26,8 +26,8 @@ if (pkg.name !== "@cloudbase/dsh-plugin") fail(`unexpected package name ${pkg.na
 else pass("package name @cloudbase/dsh-plugin");
 
 const inject = pkg.dsh?.client?.inject ?? [];
-if (!inject.includes("cloudbaseData")) fail("dsh.client.inject must include cloudbaseData");
-else pass("client inject includes cloudbaseData");
+if (!inject.includes("connection")) fail("dsh.client.inject must include connection (RPC channel)");
+else pass("client inject includes connection");
 
 if (pkg.dependencies && Object.keys(pkg.dependencies).length > 0) {
   fail(`runtime dependencies must be empty: ${JSON.stringify(pkg.dependencies)}`);

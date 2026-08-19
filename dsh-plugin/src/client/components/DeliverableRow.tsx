@@ -5,13 +5,18 @@ import { ensureStyles } from "../styles.js";
 
 export interface DeliverableRowProps {
   nodes?: Array<{ type?: string; toolName?: string; name?: string; block?: ToolBlock }>;
+  /** chain 槽 select 的返回值注入为 matched。 */
+  matched?: unknown;
   turn?: { nodes?: unknown[] };
   block?: ToolBlock;
 }
 
 export function DeliverableRow(props: DeliverableRowProps): React.ReactElement | null {
   ensureStyles();
-  const nodes = props.nodes ?? [];
+  const matchedNodes = Array.isArray(props.matched)
+    ? (props.matched as Array<{ type?: string; toolName?: string; name?: string; block?: ToolBlock }>)
+    : [];
+  const nodes = props.nodes ?? matchedNodes;
   const hosting = [...nodes]
     .reverse()
     .find((node) => (node.toolName ?? node.name ?? "").includes("manageHosting"));

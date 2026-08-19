@@ -9,7 +9,9 @@ import { getDataService } from "./lib/typert.js";
 import { ensureStyles } from "./styles.js";
 
 export const name = "cloudbase-dsh-plugin-client";
-export const inject = ["slots", "layout", "cloudbaseData"];
+// connection 提供 /api RPC 通道（CloudBase 数据直调 host Remote，不依赖 ctx.remote 的
+// 编译期固定能力集）。不能 inject "remote.cloudbaseData"（第三方贡献不可注入）。
+export const inject = ["slots", "layout", "connection"];
 
 function withData(ctx: SlotHost, Component: React.ComponentType<{ cloudbaseData?: ReturnType<typeof getDataService> }>) {
   return function Bound(props: Record<string, unknown>) {
@@ -29,11 +31,23 @@ export function apply(ctx: SlotHost): void {
     registerKeyedSlot(ctx, "tool.call.toolview", `mcp__cloudbase__${toolName}`, DeployPreviewCard);
   }
 
-  registerNamedSlot(ctx, "conversation.chat.turnTail", "cloudbase-deliverable", DeliverableRow);
+  registerNamedSlot(ctx, "conversation.chat.turnTail", "cloudbase-deliverable", DeliverableRow, {
+    // chain 槽需要 select 选择器：命中 CloudBase 部署相关 turn 才渲染交付物行。
+    select: (owner) => {
+      const turn = (owner as { turn?: Record<string, unknown> })?.turn;
+      if (!turn) return null;
+      const nodes = Array.isArray(turn.nodes) ? (turn.nodes as Array<Record<string, unknown>>) : [];
+      const hasDeploy = nodes.some((node) =>
+        `${node.toolName ?? node.name ?? ""}`.includes("manageHosting"),
+      );
+      return hasDeploy ? nodes : null;
+    },
+  });
 
   const Panel = withData(ctx, DetailsPanel);
   for (const slotName of ["details", "conversation.details", "layout.details"]) {
-    registerNamedSlot(ctx, slotName, "cloudbase-details", Panel);
+    // 用更低 priority shadow 原生 details 面板：登录后右侧栏即 CloudBase 面板。
+    registerNamedSlot(ctx, slotName, "cloudbase-details", Panel, { priority: -10 });
   }
 
   void getDataService(ctx)

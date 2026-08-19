@@ -36,6 +36,10 @@ await esbuild.build({
 chmodSync(join(root, "dist/skill-cli.js"), 0o755);
 
 const clientId = JSON.stringify(pkg.name);
+// dsh ModuleLoader 只向 factory 传 require（参考 @deepseek-ai/dsh-client-runtime
+// 的 client.js：`factory: (require) => { var module = { exports: {} } ... }`）。
+// 必须用单参 factory 并在内部创建 module/exports，否则
+// `Cannot set properties of undefined (setting 'exports')`。
 await esbuild.build({
   absWorkingDir: root,
   entryPoints: [join(root, "src/client/index.ts")],
@@ -50,10 +54,10 @@ await esbuild.build({
   jsxFragment: "React.Fragment",
   external: ["react", "react-dom"],
   banner: {
-    js: `window.__ModuleLoader__.load({id:${clientId},factory:function(require,module,exports){var React=require("react");`,
+    js: `window.__ModuleLoader__.load({id:${clientId},factory:function(require){var module={exports:{}};var exports=module.exports;var React=require("react");`,
   },
   footer: {
-    js: `}});`,
+    js: `return module.exports;}});`,
   },
   logLevel: "info",
 });

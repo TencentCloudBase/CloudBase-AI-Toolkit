@@ -63,7 +63,7 @@
     "node": ">=18"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": ">=0.1.0-rc.6 <0.2.0",
+    "@deepseek-ai/cordis": "^4.0.1",
     "react": ">=18"
   },
   "peerDependenciesMeta": {
@@ -80,11 +80,14 @@
     "@codemirror/language": "6.12.2",
     "@codemirror/state": "6.6.0",
     "@codemirror/view": "6.39.16",
+    "@deepseek-ai/dsh-invariants": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.6",
     "@types/node": "24.3.0",
     "@types/react": "19.1.12",
     "esbuild": "0.25.9",
     "typescript": "5.9.2",
-    "vitest": "3.2.7"
+    "vitest": "3.2.7",
+    "zod": "^4.4.3"
   },
   "dsh": {
     "bundle": {
@@ -94,7 +97,7 @@
       "platform": "web",
       "inject": [
         "@deepseek-ai/dsh-client-runtime",
-        "cloudbaseData",
+        "connection",
         "slots",
         "layout"
       ]

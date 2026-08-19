@@ -100,6 +100,9 @@ export const PANEL_CSS = `
 .cb-sql-bar { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-top: 1px solid var(--cb-border); }
 .cb-hint { font-size: 11px; color: var(--cb-text-3); flex: 1; }
 .cb-toast { font-size: 11px; color: var(--cb-ok); }
+.cb-env-select { padding: 8px 10px; border-bottom: 1px solid var(--cb-border); display: flex; flex-direction: column; gap: 6px; }
+.cb-select { width: 100%; font: inherit; font-size: 12px; color: var(--cb-text-1); background: var(--cb-panel); border: 1px solid var(--cb-border); border-radius: 6px; padding: 5px 7px; }
+.cb-select:disabled { opacity: .55; }
 `;
 
 let injected = false;

@@ -43,6 +43,14 @@ export interface AuthStatus {
   message: string;
 }
 
+export interface EnvItem {
+  envId: string;
+  alias?: string;
+  region?: string;
+  status?: string;
+  envType?: string;
+}
+
 export interface AppAuthProvider {
   name: string;
   enabled: boolean;
@@ -100,6 +108,10 @@ export interface CloudBaseData {
   listStorage(path?: string): Promise<StorageObject[]>;
   storageUrl(cloudPath: string): Promise<{ url: string; expiresInSec: number }>;
   authStatus(): Promise<AuthStatus>;
+  /** 登录后列出账号下可用环境（auth status 的 env_candidates）。未登录返回空数组。 */
+  listEnvironments(): Promise<EnvItem[]>;
+  /** 选中环境：auth set_env envId=xxx。返回设置后的 auth status。 */
+  setEnvironment(envId: string): Promise<AuthStatus>;
   appAuthConfig(): Promise<AppAuthConfig>;
   metrics(): Promise<MetricSeries[]>;
   usage(): Promise<UsageItem[]>;

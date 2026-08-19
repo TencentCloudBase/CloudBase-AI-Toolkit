@@ -4,6 +4,7 @@ import type {
   AuthStatus,
   CloudBaseData,
   EnvInfoView,
+  EnvItem,
   LogEntry,
   MetricSeries,
   RowPage,
@@ -202,6 +203,44 @@ export function createCloudBaseDataService(
         userCode: str(payload.user_code ?? payload.userCode),
         message: scrubInternalCodes(
           str(payload.message) ?? (signedIn ? "已登录" : "未登录，请使用 device-code 授权"),
+        ),
+      } satisfies AuthStatus;
+    },
+
+    async listEnvironments() {
+      const payload = unwrapData(
+        await bridge.callTool("auth", { action: "status" }),
+      );
+      const candidates = arr(payload.env_candidates ?? payload.envCandidates ?? payload.Envs);
+      return candidates.map((item): EnvItem => {
+        const row = rec(item);
+        return {
+          envId: str(row.envId ?? row.EnvId ?? row.env_id) ?? "unknown",
+          alias: str(row.alias ?? row.Alias),
+          region: str(row.region ?? row.Region),
+          status: str(row.status ?? row.Status),
+          envType: str(row.env_type ?? row.envType ?? row.EnvType),
+        };
+      });
+    },
+
+    async setEnvironment(envId) {
+      const payload = unwrapData(
+        await bridge.callTool("auth", { action: "set_env", envId }),
+      );
+      const signedIn = Boolean(
+        payload.signedIn ?? payload.AUTH_READY ?? str(payload.status) === "AUTH_READY",
+      );
+      return {
+        signedIn,
+        envId: str(payload.envId ?? payload.EnvId) ?? envId,
+        authMode: str(payload.authMode ?? payload.mode) ?? (signedIn ? "device-code" : undefined),
+        persisted: Boolean(payload.persisted ?? signedIn),
+        tempCredentialsAvailable: Boolean(payload.tempCredentials ?? payload.hasTempCredentials),
+        verificationUrl: str(payload.verification_uri_complete ?? payload.verificationUrl),
+        userCode: str(payload.user_code ?? payload.userCode),
+        message: scrubInternalCodes(
+          str(payload.message) ?? (signedIn ? `已切换环境 ${envId}` : "未登录"),
         ),
       } satisfies AuthStatus;
     },
