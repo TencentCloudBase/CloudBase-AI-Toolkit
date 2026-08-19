@@ -1,6 +1,13 @@
 import * as React from "react";
-import { DATA_TABLE_TOOLS, DEPLOY_TOOLS, URL_TOOLS, WRITE_OP_TOOLS } from "../shared/constants.js";
+import {
+  ACTION_AWARE_TOOLVIEW_TOOLS,
+  DATA_TABLE_TOOLS,
+  DEPLOY_TOOLS,
+  URL_TOOLS,
+  WRITE_OP_TOOLS,
+} from "../shared/constants.js";
 import { DataTableCard } from "./components/DataTableCard.js";
+import { ToolViewRouter } from "./components/ToolViewRouter.js";
 import { makeWriteOpToolCard } from "./components/WriteOpToolCard.js";
 import { DeliverableRow } from "./components/DeliverableRow.js";
 import { DeployPreviewCard } from "./components/DeployPreviewCard.js";
@@ -35,6 +42,11 @@ export function apply(ctx: SlotHost): void {
   for (const toolName of WRITE_OP_TOOLS) {
     registerKeyedSlot(ctx, "tool.call.toolview", toolName, WriteOpCard);
     registerKeyedSlot(ctx, "tool.call.toolview", `mcp__cloudbase__${toolName}`, WriteOpCard);
+  }
+
+  for (const toolName of ACTION_AWARE_TOOLVIEW_TOOLS) {
+    registerKeyedSlot(ctx, "tool.call.toolview", toolName, ToolViewRouter);
+    registerKeyedSlot(ctx, "tool.call.toolview", `mcp__cloudbase__${toolName}`, ToolViewRouter);
   }
 
   for (const toolName of DATA_TABLE_TOOLS) {

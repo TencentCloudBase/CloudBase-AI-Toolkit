@@ -4,6 +4,7 @@ import { buildRunQueryMessage, extractWriteOp } from "../../shared/write-op.js";
 import { appendUserMessage } from "../lib/typert.js";
 import type { ToolBlock } from "../lib/parse-tool-result.js";
 import { DataTableCard } from "./DataTableCard.js";
+import { ToolViewRouter } from "./ToolViewRouter.js";
 import { WriteOpCard, type WriteOpDecision } from "../kit/components/WriteOpCard.js";
 import { ensureStyles } from "../styles.js";
 
@@ -77,7 +78,7 @@ export function WriteOpToolCard(props: WriteOpToolCardProps): React.ReactElement
         onRun={interactive ? run : undefined}
       />
       {settled && op.confirmed ? (
-        <div className="cb-write-op-result">{React.createElement(DataTableCard, props)}</div>
+        <div className="cb-write-op-result">{React.createElement(ToolViewRouter, props)}</div>
       ) : null}
     </div>
   );

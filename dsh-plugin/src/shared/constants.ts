@@ -1,11 +1,14 @@
 export const PLUGIN_NAME = "cloudbase-dsh-plugin";
 export const PACKAGE_NAME = "@cloudbase/dsh-plugin";
 export const MCP_PACKAGE = "@cloudbase/cloudbase-mcp@latest";
-export const DATA_TABLE_TOOLS = [
+/** Tools registered with ToolViewRouter (managePgDatabase uses WriteOpToolCard → ToolViewRouter). */
+export const ACTION_AWARE_TOOLVIEW_TOOLS = [
   "queryPgDatabase",
-  "queryMysqlDatabase",
-  "readNoSqlDatabaseContent",
+  "readNoSqlDatabaseStructure",
+  "queryStorage",
+  "auth",
 ] as const;
+export const DATA_TABLE_TOOLS = ["queryMysqlDatabase", "readNoSqlDatabaseContent"] as const;
 /** MCP tools that may perform SQL / schema writes — use WriteOpToolCard in toolview. */
 export const WRITE_OP_TOOLS = [
   "managePgDatabase",
