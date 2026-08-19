@@ -4,9 +4,12 @@ export interface ToolBlock {
   status?: string;
   durationMs?: number;
   args?: unknown;
+  argsRaw?: string;
+  call?: { argsRaw?: string; name?: string };
   result?: unknown;
   output?: unknown;
   content?: unknown;
+  kind?: string;
 }
 
 export interface ParsedTable {

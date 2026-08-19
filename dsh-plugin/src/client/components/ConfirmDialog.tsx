@@ -1,6 +1,6 @@
 import * as React from "react";
-import { IconWarn } from "../lib/icons.js";
-import { ensureStyles } from "../styles.js";
+import { WriteOpCard, type WriteOpCardProps } from "../kit/components/WriteOpCard.js";
+import { assessSqlBatchRisk } from "../../shared/sql-ident.js";
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -11,35 +11,17 @@ export interface ConfirmDialogProps {
   onConfirm: () => void;
 }
 
+/** @deprecated Prefer WriteOpCard for SQL write confirmations. */
 export function ConfirmDialog(props: ConfirmDialogProps): React.ReactElement | null {
-  ensureStyles();
   if (!props.open) return null;
-  return (
-    <div className="cb-mask" role="dialog" aria-modal="true">
-      <div className="cb-dialog">
-        <div className="cb-dialog-h">
-          <IconWarn />
-          {props.title}
-        </div>
-        <div className="cb-dialog-b">
-          {props.body}
-          {props.meta && props.meta.length > 0 ? (
-            <div className="cb-hint" style={{ marginTop: 10, display: "flex", gap: 14 }}>
-              {props.meta.map((item) => (
-                <span key={item}>{item}</span>
-              ))}
-            </div>
-          ) : null}
-        </div>
-        <div className="cb-dialog-a">
-          <button className="cb-btn" type="button" onClick={props.onCancel}>
-            取消
-          </button>
-          <button className="cb-btn primary" type="button" onClick={props.onConfirm}>
-            确认执行
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  const cardProps: WriteOpCardProps = {
+    modal: true,
+    title: props.title,
+    subtitle: props.meta?.join(" · "),
+    sql: props.body,
+    risk: assessSqlBatchRisk(props.body),
+    onSkip: props.onCancel,
+    onRun: props.onConfirm,
+  };
+  return React.createElement(WriteOpCard, cardProps);
 }

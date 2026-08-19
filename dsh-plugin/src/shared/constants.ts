@@ -6,6 +6,14 @@ export const DATA_TABLE_TOOLS = [
   "queryMysqlDatabase",
   "readNoSqlDatabaseContent",
 ] as const;
+/** MCP tools that may perform SQL / schema writes — use WriteOpToolCard in toolview. */
+export const WRITE_OP_TOOLS = [
+  "managePgDatabase",
+  "manageMysqlDatabase",
+  "writeNoSqlDatabaseStructure",
+  "writeNoSqlDatabaseContent",
+  "executeWriteSQL",
+] as const;
 /**
  * 返回真实访问 URL 的 CloudBase 工具（统一走 accessUrl / defaultDomain 字段）：
  * 静态托管 / 云托管 / 云函数 HTTP 触发 / 应用 / 网关。

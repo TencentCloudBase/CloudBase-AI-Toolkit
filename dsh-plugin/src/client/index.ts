@@ -1,6 +1,7 @@
 import * as React from "react";
-import { DATA_TABLE_TOOLS, DEPLOY_TOOLS, URL_TOOLS } from "../shared/constants.js";
+import { DATA_TABLE_TOOLS, DEPLOY_TOOLS, URL_TOOLS, WRITE_OP_TOOLS } from "../shared/constants.js";
 import { DataTableCard } from "./components/DataTableCard.js";
+import { makeWriteOpToolCard } from "./components/WriteOpToolCard.js";
 import { DeliverableRow } from "./components/DeliverableRow.js";
 import { DeployPreviewCard } from "./components/DeployPreviewCard.js";
 import { DetailsPanel } from "./components/DetailsPanel/index.js";
@@ -29,6 +30,12 @@ function withData(
 
 export function apply(ctx: SlotHost): void {
   ensureStyles();
+
+  const WriteOpCard = makeWriteOpToolCard(getDataService(ctx));
+  for (const toolName of WRITE_OP_TOOLS) {
+    registerKeyedSlot(ctx, "tool.call.toolview", toolName, WriteOpCard);
+    registerKeyedSlot(ctx, "tool.call.toolview", `mcp__cloudbase__${toolName}`, WriteOpCard);
+  }
 
   for (const toolName of DATA_TABLE_TOOLS) {
     registerKeyedSlot(ctx, "tool.call.toolview", toolName, DataTableCard);

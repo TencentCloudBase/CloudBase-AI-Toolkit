@@ -5,9 +5,11 @@ import { quotePgTable } from "../../../shared/sql-ident.js";
 import { appendUserMessage } from "../../lib/typert.js";
 import { IconPlus, IconPlay, IconSql, IconTable } from "../../lib/icons.js";
 import { cellText, friendlyError } from "../../lib/parse-tool-result.js";
-import { ConfirmDialog } from "../ConfirmDialog.js";
+import { assessSqlBatchRisk } from "../../../shared/sql-ident.js";
+import { buildRunQueryMessage } from "../../../shared/write-op.js";
 import { DynamicForm } from "../../kit/components/DynamicForm.js";
 import { SqlEditor } from "../../kit/components/SqlEditor.js";
+import { WriteOpCard } from "../../kit/components/WriteOpCard.js";
 
 function fallbackColumns(page: RowPage | undefined, extra?: ColumnSummary[]): ColumnSummary[] {
   if (extra && extra.length > 0) return extra;
@@ -72,7 +74,7 @@ export function DatabaseTab(props: { data?: CloudBaseData }): React.ReactElement
   };
 
   const runSql = async () => {
-    const write = /^\s*(insert|update|delete|alter|drop|create|truncate)/i.test(sql);
+    const write = !assessSqlBatchRisk(sql).readOnly;
     if (write) {
       setPendingWrite(sql);
       setConfirm(sql);
@@ -89,10 +91,16 @@ export function DatabaseTab(props: { data?: CloudBaseData }): React.ReactElement
 
   const confirmWrite = async () => {
     if (!pendingWrite) return;
-    await appendUserMessage(
-      props.data,
-      `请在 CloudBase PostgreSQL 中执行以下写操作，先确认权限再调用 managePgDatabase(action=execute, confirm=true):\n${pendingWrite}`,
-    );
+    const op = {
+      toolName: "managePgDatabase",
+      action: "execute",
+      sql: pendingWrite,
+      kind: "sql" as const,
+      risk: assessSqlBatchRisk(pendingWrite),
+      confirmed: false,
+      label: "PostgreSQL · execute",
+    };
+    await appendUserMessage(props.data, buildRunQueryMessage(op));
     setConfirm(undefined);
     setPendingWrite(undefined);
   };
@@ -288,14 +296,20 @@ export function DatabaseTab(props: { data?: CloudBaseData }): React.ReactElement
           }}
         />
       ) : null}
-      <ConfirmDialog
-        open={Boolean(confirm)}
-        title="确认执行写操作"
-        body={confirm ?? ""}
-        meta={["经 CloudBase 权限模型", "写入会话后由模型确认执行"]}
-        onCancel={() => setConfirm(undefined)}
-        onConfirm={() => void confirmWrite()}
-      />
+      {confirm ? (
+        <WriteOpCard
+          modal
+          title="确认执行写操作"
+          subtitle="经 CloudBase 权限模型 · 写入会话后由模型确认执行"
+          sql={confirm}
+          risk={assessSqlBatchRisk(confirm)}
+          onSkip={() => {
+            setConfirm(undefined);
+            setPendingWrite(undefined);
+          }}
+          onRun={() => void confirmWrite()}
+        />
+      ) : null}
     </div>
   );
 }

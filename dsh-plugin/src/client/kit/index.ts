@@ -18,6 +18,8 @@ export { EnvSelect, type EnvSelectProps } from "./components/EnvSelect.js";
 export { Toast, type ToastProps } from "./components/Toast.js";
 export { DynamicForm, type DynamicFormProps } from "./components/DynamicForm.js";
 export { SqlEditor, type SqlEditorProps } from "./components/SqlEditor.js";
+export { SqlCodeBlock, type SqlCodeBlockProps } from "./components/SqlCodeBlock.js";
+export { WriteOpCard, type WriteOpCardProps, type WriteOpDecision } from "./components/WriteOpCard.js";
 export { SparkChart, type SparkChartProps } from "./components/SparkChart.js";
 export { UsersGrowthChart, type UsersGrowthChartProps, bucketUserGrowth } from "./components/UsersGrowthChart.js";
 export { SecretsPanel, type SecretsPanelProps } from "./components/SecretsPanel.js";
