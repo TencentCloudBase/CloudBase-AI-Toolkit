@@ -99,3 +99,4 @@ export function apply(ctx: SlotHost): void {
 }
 
 export { DataTableCard, DeployPreviewCard, DeliverableRow, DetailsPanel };
+export { EnvBadge } from "./kit/components/EnvBadge.js";

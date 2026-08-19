@@ -1,15 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { buildMcpClientConfig, loginHint } from "../src/server/mcp-bridge.js";
+import {
+  SessionEnvCache,
+  buildListBoundEnvsPayload,
+  buildMcpClientConfig,
+  cloudbaseToolNeedsEnv,
+  isCloudbasePublicTool,
+  loginHint,
+  parseToolArguments,
+} from "../src/server/mcp-bridge.js";
 import { parseMcpFrames } from "../src/server/mcp-client.js";
 
 describe("mcp bridge env", () => {
-  it("forwards no CloudBase env and never an API Key", () => {
+  it("routes session MCP through env proxy without API key env", () => {
     const config = buildMcpClientConfig({ CLOUDBASE_API_KEY: "sk-test" });
-    // 登录走 cloudbase-mcp 自身 device-code；不注入 CLOUDBASE_ENV_ID / API Key
-    expect(Object.keys(config.env)).toHaveLength(0);
-    expect("CLOUDBASE_ENV_ID" in config.env).toBe(false);
+    expect(config.command).toBe("node");
+    expect(config.args[0]).toContain("mcp-env-proxy.mjs");
     expect("CLOUDBASE_API_KEY" in config.env).toBe(false);
-    expect(JSON.stringify(config.env).includes("undefined")).toBe(false);
+    expect(config.env.CLOUDBASE_DSH_ENV_HINT_FILE).toBeTruthy();
   });
 
   it("parses Content-Length MCP frames", () => {
@@ -37,5 +44,24 @@ describe("mcp bridge env", () => {
     expect(loginHint(false)).toContain("start_auth");
     expect(loginHint(false)).toContain("device");
     expect(loginHint(true)).toContain("登录态");
+  });
+
+  it("tracks session env bindings in memory", () => {
+    const cache = new SessionEnvCache();
+    cache.set("s1", "env-a");
+    cache.set("s2", "env-b");
+    expect(cache.get("s1")?.envId).toBe("env-a");
+    expect(cache.list()).toHaveLength(2);
+    const payload = buildListBoundEnvsPayload(cache.listForSession("s1"));
+    expect(payload.current_env_id).toBe("env-a");
+    expect(payload.bound_envs).toHaveLength(2);
+  });
+
+  it("detects cloudbase public tools and env requirements", () => {
+    expect(isCloudbasePublicTool("mcp__cloudbase__queryPgDatabase")).toBe(true);
+    expect(cloudbaseToolNeedsEnv("queryPgDatabase", { action: "sql" })).toBe(true);
+    expect(cloudbaseToolNeedsEnv("auth", { action: "set_env" })).toBe(false);
+    expect(cloudbaseToolNeedsEnv("auth", { action: "list_bound_envs" })).toBe(false);
+    expect(parseToolArguments('{"action":"status"}').action).toBe("status");
   });
 });

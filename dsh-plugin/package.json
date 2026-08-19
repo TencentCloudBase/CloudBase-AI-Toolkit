@@ -22,6 +22,7 @@
     "cordis.patch.example.yml",
     "skills",
     "scripts/install.sh",
+    "scripts/mcp-env-proxy.mjs",
     "README.md",
     "LICENSE"
   ],

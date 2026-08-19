@@ -1,7 +1,6 @@
 # CloudBase DSH plugin bundle patch.
-# No env forwarded: login goes through cloudbase-mcp's own device-code flow
-# (auth tool, start_auth device). Long-lived cloud credentials are never passed
-# here — an invalid key blocks device-code login.
+# Session MCP goes through mcp-env-proxy (auto-injects set_env from host cache).
+# Login still uses cloudbase-mcp device-code; no API Key forwarded here.
 
 - insert:
     - id: mcp-cloudbase
@@ -9,7 +8,8 @@
       config:
         serverName: cloudbase
         transport: stdio
-        command: npx
-        args: ['-y', '@cloudbase/cloudbase-mcp@latest']
+        command: node
+        args: ['scripts/mcp-env-proxy.mjs']
+        env: {}
     - id: cloudbase-dsh-plugin
       name: '@cloudbase/dsh-plugin'

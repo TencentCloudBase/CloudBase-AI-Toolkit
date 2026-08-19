@@ -1,5 +1,9 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { MCP_PACKAGE } from "../shared/constants.js";
+import {
+  cloudbaseToolNeedsEnv,
+  type SessionEnvCache,
+} from "./mcp-bridge.js";
 
 interface JsonRpcResponse {
   jsonrpc?: string;
@@ -83,18 +87,35 @@ export function extractToolPayload(result: McpCallResult | undefined): unknown {
   }
 }
 
+export interface CloudBaseMcpBridgeOptions {
+  env?: NodeJS.ProcessEnv;
+  command?: string;
+  args?: string[];
+  sessionEnvCache?: SessionEnvCache;
+  getSessionId?: () => string | undefined;
+}
+
 export class CloudBaseMcpBridge {
   private child: ChildProcessWithoutNullStreams | null = null;
   private buf: Buffer = Buffer.alloc(0);
   private nextId = 1;
   private pending = new Map<number, Pending>();
   private ready: Promise<void> | null = null;
+  private lastInjectedEnvId: string | undefined;
 
-  constructor(
-    private readonly env: NodeJS.ProcessEnv = process.env,
-    private readonly command = "npx",
-    private readonly args: string[] = ["-y", MCP_PACKAGE],
-  ) {}
+  private readonly env: NodeJS.ProcessEnv;
+  private readonly command: string;
+  private readonly args: string[];
+  private readonly sessionEnvCache?: SessionEnvCache;
+  private readonly getSessionId?: () => string | undefined;
+
+  constructor(options: CloudBaseMcpBridgeOptions = {}) {
+    this.env = options.env ?? process.env;
+    this.command = options.command ?? "npx";
+    this.args = options.args ?? ["-y", MCP_PACKAGE];
+    this.sessionEnvCache = options.sessionEnvCache;
+    this.getSessionId = options.getSessionId;
+  }
 
   async listTools(): Promise<string[]> {
     await this.ensureReady();
@@ -108,6 +129,10 @@ export class CloudBaseMcpBridge {
 
   async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
     await this.ensureReady();
+    if (name === "auth" && args.action === "set_env" && typeof args.envId === "string") {
+      this.lastInjectedEnvId = args.envId;
+    }
+    await this.ensureSessionEnv(name, args);
     const response = await this.request("tools/call", { name, arguments: args });
     if (response.error) {
       throw new Error(response.error.message || `MCP ${name} failed`);
@@ -224,6 +249,19 @@ export class CloudBaseMcpBridge {
 
   private notify(method: string, params: Record<string, unknown>): void {
     this.child?.stdin.write(encodeMessage({ jsonrpc: "2.0", method, params }));
+  }
+
+  private async ensureSessionEnv(name: string, args: Record<string, unknown>): Promise<void> {
+    if (!this.sessionEnvCache || !cloudbaseToolNeedsEnv(name, args)) return;
+    const sessionId = this.getSessionId?.();
+    if (!sessionId) return;
+    const bound = this.sessionEnvCache.get(sessionId);
+    if (!bound?.envId || bound.envId === this.lastInjectedEnvId) return;
+    await this.request("tools/call", {
+      name: "auth",
+      arguments: { action: "set_env", envId: bound.envId },
+    });
+    this.lastInjectedEnvId = bound.envId;
   }
 }
 

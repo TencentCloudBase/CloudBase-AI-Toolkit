@@ -15,6 +15,7 @@ export { type PlatformProvider, KIT_EVENTS, type KitEventName } from "./provider
 export { ResourceTable, type ResourceTableProps } from "./components/ResourceTable.js";
 export { UrlPreview, type UrlPreviewProps } from "./components/UrlPreview.js";
 export { EnvSelect, type EnvSelectProps } from "./components/EnvSelect.js";
+export { EnvBadge, type EnvBadgeProps } from "./components/EnvBadge.js";
 export { Toast, type ToastProps } from "./components/Toast.js";
 export { DynamicForm, type DynamicFormProps } from "./components/DynamicForm.js";
 export { SqlEditor, type SqlEditorProps } from "./components/SqlEditor.js";
