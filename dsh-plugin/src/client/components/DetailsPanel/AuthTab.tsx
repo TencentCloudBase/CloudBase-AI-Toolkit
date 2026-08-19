@@ -1,12 +1,14 @@
 import * as React from "react";
-import type { AppAuthConfig, AuthStatus, CloudBaseData } from "../../../shared/types.js";
+import type { AppAuthConfig, AppUser, AuthStatus, CloudBaseData } from "../../../shared/types.js";
 import { appendUserMessage } from "../../lib/typert.js";
 import { IconCheck, IconLock } from "../../lib/icons.js";
 import { friendlyError } from "../../lib/parse-tool-result.js";
+import { UsersGrowthChart } from "../../kit/components/UsersGrowthChart.js";
 
 export function AuthTab(props: { data?: CloudBaseData }): React.ReactElement {
   const [status, setStatus] = React.useState<AuthStatus | undefined>(undefined);
   const [config, setConfig] = React.useState<AppAuthConfig | undefined>(undefined);
+  const [users, setUsers] = React.useState<AppUser[]>([]);
   const [error, setError] = React.useState<string | undefined>(undefined);
 
   React.useEffect(() => {
@@ -14,10 +16,15 @@ export function AuthTab(props: { data?: CloudBaseData }): React.ReactElement {
       setError("cloudbaseData 服务未注入。");
       return;
     }
-    void Promise.all([props.data.authStatus(), props.data.appAuthConfig()])
-      .then(([nextStatus, nextConfig]) => {
+    void Promise.all([
+      props.data.authStatus(),
+      props.data.appAuthConfig(),
+      props.data.listAppUsers({ limit: 50 }).catch(() => []),
+    ])
+      .then(([nextStatus, nextConfig, nextUsers]) => {
         setStatus(nextStatus);
         setConfig(nextConfig);
+        setUsers(nextUsers);
         setError(undefined);
       })
       .catch((err: unknown) => setError(friendlyError(err instanceof Error ? err.message : String(err))));
@@ -84,6 +91,19 @@ export function AuthTab(props: { data?: CloudBaseData }): React.ReactElement {
         {(config?.providers?.length ?? 0) === 0 ? (
           <div className="cb-placeholder">未查询到登录方式配置（当前环境可能未启用应用认证）</div>
         ) : null}
+      </div>
+      <div className="cb-chart-grid" style={{ paddingTop: 8 }}>
+        <UsersGrowthChart users={users} />
+      </div>
+      <div className="cb-tree-sec">用户 · {users.length}</div>
+      <div className="cb-env-list" style={{ paddingTop: 4 }}>
+        {users.map((user) => (
+          <div className="cb-env-row" key={user.uid}>
+            <span className="k">{user.name ?? user.email ?? user.uid}</span>
+            <span className="v">{user.createdAt ?? user.lastLoginAt ?? user.uid}</span>
+          </div>
+        ))}
+        {users.length === 0 ? <div className="cb-placeholder">暂无应用用户（queryPermissions listUsers）</div> : null}
       </div>
       {status && !status.signedIn ? (
         <div className="cb-placeholder">{status.message}</div>

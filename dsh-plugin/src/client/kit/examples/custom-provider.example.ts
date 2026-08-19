@@ -1,12 +1,15 @@
 import type { PlatformProvider } from "../provider.js";
 import type {
   AppAuthConfig,
+  AppUser,
   AuthStatus,
+  ColumnSummary,
   EnvInfoView,
   EnvItem,
   LogEntry,
   MetricSeries,
   RowPage,
+  SecretItem,
   StorageObject,
   TableSummary,
   UsageItem,
@@ -26,9 +29,35 @@ export function createMockProvider(): PlatformProvider {
   return {
     async listTables(): Promise<TableSummary[]> {
       return [
-        { name: "projects", schema: "public", kind: "table", columnCount: 6, rowCount: 42 },
+        {
+          name: "projects",
+          schema: "public",
+          kind: "table",
+          columnCount: 6,
+          rowCount: 42,
+          columns: [
+            { name: "id", type: "int", dataType: "integer", nullable: false, isUpdatable: false, primaryKey: true },
+            { name: "name", type: "text", dataType: "text", nullable: false, isUpdatable: true, primaryKey: false },
+          ],
+        },
         { name: "users", schema: "public", kind: "table", columnCount: 8, rowCount: 128 },
       ];
+    },
+    async listTableColumns(_table: string): Promise<ColumnSummary[]> {
+      return [
+        { name: "id", type: "int", dataType: "integer", nullable: false, isUpdatable: false, primaryKey: true },
+        { name: "name", type: "text", dataType: "text", nullable: true, isUpdatable: true, primaryKey: false },
+        { name: "status", type: "text", dataType: "text", nullable: false, isUpdatable: true, primaryKey: false },
+      ];
+    },
+    async listAppUsers(): Promise<AppUser[]> {
+      return [
+        { uid: "u1", name: "alice", createdAt: new Date().toISOString() },
+        { uid: "u2", name: "bob", createdAt: new Date(Date.now() - 86400000).toISOString() },
+      ];
+    },
+    async listSecrets(): Promise<SecretItem[]> {
+      return [{ source: "api", sourceKind: "function", key: "TOKEN", valueMasked: "ab***" }];
     },
     async readRows(table: string, opts?: { limit?: number; offset?: number }): Promise<RowPage> {
       return {
@@ -114,6 +143,9 @@ export function createMockProvider(): PlatformProvider {
     },
     async capi(_service: string, action: string): Promise<unknown> {
       return { action, mocked: true };
+    },
+    async sessionBoundEnv(): Promise<string | undefined> {
+      return "mock-env-001";
     },
   };
 }

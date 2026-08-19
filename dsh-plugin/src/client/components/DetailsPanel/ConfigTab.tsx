@@ -1,10 +1,13 @@
 import * as React from "react";
-import type { CloudBaseData, EnvInfoView } from "../../../shared/types.js";
+import type { CloudBaseData, EnvInfoView, SecretItem } from "../../../shared/types.js";
 import { IconCheck, IconCopy } from "../../lib/icons.js";
 import { friendlyError } from "../../lib/parse-tool-result.js";
+import { appendUserMessage } from "../../lib/typert.js";
+import { SecretsPanel } from "../../kit/components/SecretsPanel.js";
 
 export function ConfigTab(props: { data?: CloudBaseData }): React.ReactElement {
   const [info, setInfo] = React.useState<EnvInfoView | undefined>(undefined);
+  const [secrets, setSecrets] = React.useState<SecretItem[]>([]);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [copied, setCopied] = React.useState(false);
 
@@ -13,9 +16,15 @@ export function ConfigTab(props: { data?: CloudBaseData }): React.ReactElement {
       setError("cloudbaseData 服务未注入。");
       return;
     }
-    void props.data
-      .envInfo()
-      .then(setInfo)
+    void Promise.all([
+      props.data.envInfo(),
+      props.data.listSecrets().catch(() => []),
+    ])
+      .then(([nextInfo, nextSecrets]) => {
+        setInfo(nextInfo);
+        setSecrets(nextSecrets);
+        setError(undefined);
+      })
       .catch((err: unknown) => setError(friendlyError(err instanceof Error ? err.message : String(err))));
   }, [props.data]);
 
@@ -63,6 +72,12 @@ export function ConfigTab(props: { data?: CloudBaseData }): React.ReactElement {
           </div>
         ) : null}
       </div>
+      <SecretsPanel
+        secrets={secrets}
+        onPropose={(message) => {
+          void appendUserMessage(props.data, message);
+        }}
+      />
     </div>
   );
 }

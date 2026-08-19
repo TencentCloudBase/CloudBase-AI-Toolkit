@@ -17,5 +17,5 @@
     "lib": ["ES2022", "DOM"],
     "types": ["node"]
   },
-  "include": ["src", "tests"]
+  "include": ["src/client", "src/server", "src/shared", "tests"]
 }

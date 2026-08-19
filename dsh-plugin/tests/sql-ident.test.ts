@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { quotePgIdent, quotePgTable } from "../src/shared/sql-ident.js";
+import { quotePgIdent, quotePgTable, sqlLiteral } from "../src/shared/sql-ident.js";
 
 describe("quotePgTable", () => {
   it("quotes schema and table", () => {
@@ -11,5 +11,7 @@ describe("quotePgTable", () => {
     expect(() => quotePgIdent('todos"; DROP TABLE users; --')).toThrow(/Invalid/);
     expect(() => quotePgTable("public.todos;drop")).toThrow(/Invalid/);
     expect(() => quotePgTable("a.b.c")).toThrow(/Invalid table reference/);
+    expect(sqlLiteral(null)).toBe("NULL");
+    expect(sqlLiteral(true)).toBe("TRUE");
   });
 });

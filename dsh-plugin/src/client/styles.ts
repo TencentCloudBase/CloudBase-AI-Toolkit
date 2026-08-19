@@ -36,6 +36,7 @@ export const PANEL_CSS = `
 .cb-table th { text-align: left; font-weight: 500; color: var(--cb-text-2); font-size: 11px; padding: 8px 12px; border-bottom: 1px solid var(--cb-border); background: var(--cb-bg); white-space: nowrap; cursor: pointer; }
 .cb-table td { padding: 7px 12px; border-bottom: 1px solid var(--cb-border); font-family: var(--cb-mono); font-size: 12px; white-space: nowrap; }
 .cb-table tbody tr:hover td { background: var(--cb-hover); }
+.cb-table tbody tr.cb-row-edit { cursor: pointer; }
 .cb-row-id { color: var(--cb-text-3); }
 .cb-tfoot { border-top: 1px solid var(--cb-border); border-bottom: none; color: var(--cb-text-3); font-size: 11.5px; }
 .cb-act, .cb-mini, .cb-btn, .cb-copy {
@@ -105,8 +106,15 @@ export const PANEL_CSS = `
 .cb-chart-card { border: 1px solid var(--cb-border); border-radius: 8px; padding: 10px 12px; }
 .cb-chart-head { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--cb-text-2); }
 .cb-spark { width: 100%; height: 34px; margin-top: 6px; }
+.cb-chart-card .cb-spark { height: 48px; }
 .cb-mask { position: fixed; inset: 0; background: rgba(22,24,29,.32); display: flex; align-items: center; justify-content: center; z-index: 40; }
 .cb-dialog { background: var(--cb-panel); border-radius: 12px; width: min(440px,90vw); box-shadow: 0 20px 60px rgba(16,17,20,.2); border: 1px solid var(--cb-border); }
+.cb-dialog-wide { width: min(520px,92vw); max-height: 86vh; overflow: auto; }
+.cb-form { display: flex; flex-direction: column; gap: 10px; font-family: var(--cb-sans); }
+.cb-field { display: flex; flex-direction: column; gap: 4px; }
+.cb-field-label { font-size: 12px; color: var(--cb-text); display: flex; justify-content: space-between; gap: 8px; }
+.cb-field-type { color: var(--cb-text-3); font-family: var(--cb-mono); font-size: 10.5px; }
+.cb-field-input { width: 100%; }
 .cb-dialog-h { padding: 15px 18px; border-bottom: 1px solid var(--cb-border); font-weight: 650; display: flex; align-items: center; gap: 9px; }
 .cb-dialog-b { padding: 16px 18px; font-size: 12.5px; color: var(--cb-text-2); font-family: var(--cb-mono); }
 .cb-dialog-a { padding: 13px 18px; border-top: 1px solid var(--cb-border); display: flex; justify-content: flex-end; gap: 9px; }

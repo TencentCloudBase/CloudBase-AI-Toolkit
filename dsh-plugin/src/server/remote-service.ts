@@ -1,13 +1,16 @@
 import { Remote, TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
 import type {
   AppAuthConfig,
+  AppUser,
   AuthStatus,
   CloudBaseData,
+  ColumnSummary,
   EnvInfoView,
   EnvItem,
   LogEntry,
   MetricSeries,
   RowPage,
+  SecretItem,
   StorageObject,
   TableSummary,
   UsageItem,
@@ -77,6 +80,9 @@ export function buildCloudBaseTypertContribution(): {
     schemas: [],
     invocations: [
       invoke("listTables"),
+      invoke("listTableColumns", ["table"]),
+      invoke("listAppUsers", ["limit", "offset"]),
+      invoke("listSecrets"),
       invoke("readRows", ["table", "limit", "offset"]),
       invoke("runReadSql", ["sql"]),
       invoke("listStorage", ["path"]),
@@ -118,6 +124,26 @@ export class CloudBaseRemoteService extends TypertRemoteService {
   @Remote("listTables")
   async listTables(): Promise<TableSummary[]> {
     return toJsonSafe(await this.data.listTables());
+  }
+
+  @Remote("listTableColumns")
+  async listTableColumns(table: string): Promise<ColumnSummary[]> {
+    return toJsonSafe(await this.data.listTableColumns(table));
+  }
+
+  @Remote("listAppUsers")
+  async listAppUsers(limit?: number, offset?: number): Promise<AppUser[]> {
+    return toJsonSafe(
+      await this.data.listAppUsers({
+        limit: limit === undefined ? undefined : limit,
+        offset: offset === undefined ? undefined : offset,
+      }),
+    );
+  }
+
+  @Remote("listSecrets")
+  async listSecrets(): Promise<SecretItem[]> {
+    return toJsonSafe(await this.data.listSecrets());
   }
 
   @Remote("readRows")

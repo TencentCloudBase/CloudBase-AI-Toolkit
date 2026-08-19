@@ -1,37 +1,14 @@
 import * as React from "react";
-import type { CloudBaseData, LogEntry, MetricSeries, UsageItem } from "../../../shared/types.js";
+import type { CloudBaseData, LogEntry, MetricSeries, TableSummary, UsageItem } from "../../../shared/types.js";
 import { friendlyError } from "../../lib/parse-tool-result.js";
-
-function Spark(props: { points: number[]; danger?: boolean }): React.ReactElement {
-  const points = props.points.length > 1 ? props.points : [0, 0];
-  const max = Math.max(...points, 1);
-  const min = Math.min(...points, 0);
-  const span = Math.max(max - min, 1);
-  const coords = points
-    .map((value, index) => {
-      const x = (index / (points.length - 1)) * 120;
-      const y = 32 - ((value - min) / span) * 28;
-      return `${x},${y}`;
-    })
-    .join(" ");
-  return (
-    <svg className="cb-spark" viewBox="0 0 120 36" preserveAspectRatio="none">
-      <polyline
-        points={coords}
-        fill="none"
-        stroke={props.danger ? "#cf222e" : "#16181d"}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
+import { SparkChart } from "../../kit/components/SparkChart.js";
+import { SuggestionsPanel } from "../../kit/components/SuggestionsPanel.js";
 
 export function AnalyticsTab(props: { data?: CloudBaseData }): React.ReactElement {
   const [metrics, setMetrics] = React.useState<MetricSeries[]>([]);
   const [usage, setUsage] = React.useState<UsageItem[]>([]);
   const [errors, setErrors] = React.useState<LogEntry[]>([]);
+  const [tables, setTables] = React.useState<TableSummary[]>([]);
   const [error, setError] = React.useState<string | undefined>(undefined);
 
   React.useEffect(() => {
@@ -39,11 +16,17 @@ export function AnalyticsTab(props: { data?: CloudBaseData }): React.ReactElemen
       setError("cloudbaseData 服务未注入。");
       return;
     }
-    void Promise.all([props.data.metrics(), props.data.usage(), props.data.recentErrors()])
-      .then(([nextMetrics, nextUsage, nextErrors]) => {
+    void Promise.all([
+      props.data.metrics(),
+      props.data.usage(),
+      props.data.recentErrors(),
+      props.data.listTables().catch(() => []),
+    ])
+      .then(([nextMetrics, nextUsage, nextErrors, nextTables]) => {
         setMetrics(nextMetrics);
         setUsage(nextUsage);
         setErrors(nextErrors);
+        setTables(nextTables);
         setError(undefined);
       })
       .catch((err: unknown) => setError(friendlyError(err instanceof Error ? err.message : String(err))));
@@ -63,7 +46,7 @@ export function AnalyticsTab(props: { data?: CloudBaseData }): React.ReactElemen
                 {item.valueLabel}
               </span>
             </div>
-            <Spark points={item.points} danger={item.danger} />
+            <SparkChart points={item.points} danger={item.danger} />
           </div>
         ))}
       </div>
@@ -89,6 +72,7 @@ export function AnalyticsTab(props: { data?: CloudBaseData }): React.ReactElemen
         ))}
         {errors.length === 0 ? <div className="cb-placeholder">暂无错误日志（需 CLS 开通）</div> : null}
       </div>
+      <SuggestionsPanel tables={tables} errors={errors} />
     </div>
   );
 }

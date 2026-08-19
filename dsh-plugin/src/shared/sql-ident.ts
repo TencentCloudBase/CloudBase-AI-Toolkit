@@ -7,6 +7,14 @@ export function quotePgIdent(name: string): string {
   return `"${name}"`;
 }
 
+export function sqlLiteral(value: unknown): string {
+  if (value === null || value === undefined) return "NULL";
+  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (Array.isArray(value)) return `ARRAY[${value.map((item) => sqlLiteral(item)).join(", ")}]`;
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
 export function quotePgTable(table: string): string {
   const parts = table.split(".").filter((part) => part.length > 0);
   if (parts.length === 0 || parts.length > 2) {

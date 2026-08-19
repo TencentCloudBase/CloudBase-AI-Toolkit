@@ -1,12 +1,15 @@
 import type {
   AppAuthConfig,
+  AppUser,
   AuthStatus,
   CloudBaseData,
+  ColumnSummary,
   EnvInfoView,
   EnvItem,
   LogEntry,
   MetricSeries,
   RowPage,
+  SecretItem,
   StorageObject,
   TableSummary,
   UsageItem,
@@ -55,6 +58,18 @@ export function createRemoteCloudBaseData(
   return {
     async listTables(): Promise<TableSummary[]> {
       return (await call("listTables")) as TableSummary[];
+    },
+    async listTableColumns(table: string): Promise<ColumnSummary[]> {
+      return (await call("listTableColumns", { table })) as ColumnSummary[];
+    },
+    async listAppUsers(opts?: { limit?: number; offset?: number }): Promise<AppUser[]> {
+      return (await call("listAppUsers", {
+        limit: opts?.limit,
+        offset: opts?.offset,
+      })) as AppUser[];
+    },
+    async listSecrets(): Promise<SecretItem[]> {
+      return (await call("listSecrets")) as SecretItem[];
     },
     async readRows(table: string, opts?: { limit?: number; offset?: number }): Promise<RowPage> {
       return (await call("readRows", {

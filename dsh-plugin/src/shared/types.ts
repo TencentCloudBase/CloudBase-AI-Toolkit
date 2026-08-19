@@ -8,12 +8,17 @@ export interface TableSummary {
   rowCount?: number;
   owner?: string;
   size?: string;
+  columns?: ColumnSummary[];
 }
 
 export interface ColumnSummary {
   name: string;
   type: string;
+  dataType: string;
   nullable: boolean;
+  isUpdatable: boolean;
+  primaryKey: boolean;
+  enums?: string[];
 }
 
 export interface RowPage {
@@ -62,6 +67,21 @@ export interface AppAuthConfig {
   lastLoginAt?: string;
 }
 
+export interface AppUser {
+  uid: string;
+  name?: string;
+  email?: string;
+  createdAt?: string;
+  lastLoginAt?: string;
+}
+
+export interface SecretItem {
+  source: string;
+  sourceKind: "function" | "cloudrun";
+  key: string;
+  valueMasked: string;
+}
+
 export interface MetricSeries {
   name: string;
   label: string;
@@ -103,6 +123,9 @@ export interface DeployPreview {
 /** @typert object */
 export interface CloudBaseData {
   listTables(): Promise<TableSummary[]>;
+  listTableColumns(table: string): Promise<ColumnSummary[]>;
+  listAppUsers(opts?: { limit?: number; offset?: number }): Promise<AppUser[]>;
+  listSecrets(): Promise<SecretItem[]>;
   readRows(table: string, opts?: { limit?: number; offset?: number }): Promise<RowPage>;
   runReadSql(sql: string): Promise<RowPage>;
   listStorage(path?: string): Promise<StorageObject[]>;

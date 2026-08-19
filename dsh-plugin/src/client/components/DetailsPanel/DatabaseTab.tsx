@@ -1,21 +1,37 @@
 import * as React from "react";
-import type { CloudBaseData, RowPage, TableSummary } from "../../../shared/types.js";
+import type { CloudBaseData, ColumnSummary, RowPage, TableSummary } from "../../../shared/types.js";
+import { buildUpdateSql } from "../../../shared/column-form.js";
 import { quotePgTable } from "../../../shared/sql-ident.js";
 import { appendUserMessage } from "../../lib/typert.js";
 import { IconPlus, IconPlay, IconSql, IconTable } from "../../lib/icons.js";
 import { cellText, friendlyError } from "../../lib/parse-tool-result.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
-import { SqlEditor } from "./SqlEditor.js";
+import { DynamicForm } from "../../kit/components/DynamicForm.js";
+import { SqlEditor } from "../../kit/components/SqlEditor.js";
+
+function fallbackColumns(page: RowPage | undefined, extra?: ColumnSummary[]): ColumnSummary[] {
+  if (extra && extra.length > 0) return extra;
+  return (page?.columns ?? []).map((name) => ({
+    name,
+    type: "text",
+    dataType: "text",
+    nullable: true,
+    isUpdatable: name !== "id",
+    primaryKey: name === "id",
+  }));
+}
 
 export function DatabaseTab(props: { data?: CloudBaseData }): React.ReactElement {
   const [tables, setTables] = React.useState<TableSummary[]>([]);
   const [selected, setSelected] = React.useState<TableSummary | undefined>(undefined);
   const [page, setPage] = React.useState<RowPage | undefined>(undefined);
+  const [columns, setColumns] = React.useState<ColumnSummary[]>([]);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [mode, setMode] = React.useState<"data" | "sql">("data");
   const [sql, setSql] = React.useState("SELECT * FROM public.todos LIMIT 20;");
   const [confirm, setConfirm] = React.useState<string | undefined>(undefined);
   const [pendingWrite, setPendingWrite] = React.useState<string | undefined>(undefined);
+  const [editing, setEditing] = React.useState<Record<string, unknown> | undefined>(undefined);
 
   React.useEffect(() => {
     if (!props.data) {
@@ -39,6 +55,14 @@ export function DatabaseTab(props: { data?: CloudBaseData }): React.ReactElement
       .readRows(qualified, { limit: 50 })
       .then(setPage)
       .catch((err: unknown) => setError(friendlyError(err instanceof Error ? err.message : String(err))));
+    if (selected.schema === "document") {
+      setColumns([]);
+      return;
+    }
+    void props.data
+      .listTableColumns(qualified)
+      .then(setColumns)
+      .catch(() => setColumns([]));
   }, [props.data, selected, mode]);
 
   const grouped = {
@@ -80,6 +104,8 @@ export function DatabaseTab(props: { data?: CloudBaseData }): React.ReactElement
     setConfirm(`INSERT INTO ${table} DEFAULT VALUES;`);
   };
 
+  const formColumns = fallbackColumns(page, columns);
+
   return (
     <div className="cb-dpanel">
       {mode === "sql" ? (
@@ -91,13 +117,13 @@ export function DatabaseTab(props: { data?: CloudBaseData }): React.ReactElement
               返回表
             </button>
           </div>
-          <SqlEditor value={sql} onChange={setSql} />
+          <SqlEditor value={sql} onChange={setSql} onRun={() => void runSql()} />
           <div className="cb-sql-bar">
             <button className="cb-btn primary" type="button" onClick={() => void runSql()}>
               <IconPlay />
               运行
             </button>
-            <span className="cb-hint">写操作将发送给模型确认后执行</span>
+            <span className="cb-hint">⌘/Ctrl+Enter 运行 · 写操作将发送给模型确认后执行</span>
           </div>
           {error ? <div className="cb-error">{error}</div> : null}
           {page ? (
@@ -218,7 +244,14 @@ export function DatabaseTab(props: { data?: CloudBaseData }): React.ReactElement
                   </thead>
                   <tbody>
                     {page.rows.map((row, index) => (
-                      <tr key={index}>
+                      <tr
+                        key={index}
+                        className={selected?.schema !== "document" ? "cb-row-edit" : undefined}
+                        onClick={() => {
+                          if (!selected || selected.schema === "document") return;
+                          setEditing(row);
+                        }}
+                      >
                         {page.columns.map((col) => (
                           <td key={col} className={col === "id" ? "cb-row-id" : undefined}>
                             {cellText(row[col])}
@@ -230,11 +263,31 @@ export function DatabaseTab(props: { data?: CloudBaseData }): React.ReactElement
                 </table>
               </div>
             ) : (
-              <div className="cb-placeholder">选择一张表以加载真实行数据。</div>
+              <div className="cb-placeholder">选择一张表以加载真实行数据。点击行可编辑。</div>
             )}
           </div>
         </div>
       )}
+      {editing && selected ? (
+        <DynamicForm
+          columns={formColumns}
+          values={editing}
+          title={`编辑 ${selected.name}`}
+          onCancel={() => setEditing(undefined)}
+          onSubmit={(next) => {
+            const statement = buildUpdateSql({
+              table: `${selected.schema}.${selected.name}`,
+              columns: formColumns,
+              original: editing,
+              next,
+            });
+            setEditing(undefined);
+            if (!statement) return;
+            setPendingWrite(statement);
+            setConfirm(statement);
+          }}
+        />
+      ) : null}
       <ConfirmDialog
         open={Boolean(confirm)}
         title="确认执行写操作"

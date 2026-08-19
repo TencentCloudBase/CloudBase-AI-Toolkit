@@ -1,6 +1,8 @@
 import { quotePgTable } from "../shared/sql-ident.js";
+import { mapSchemaColumns } from "../shared/column-form.js";
 import type {
   AppAuthConfig,
+  AppUser,
   AuthStatus,
   CloudBaseData,
   EnvInfoView,
@@ -8,6 +10,7 @@ import type {
   LogEntry,
   MetricSeries,
   RowPage,
+  SecretItem,
   StorageObject,
   TableSummary,
   UsageItem,
@@ -144,6 +147,116 @@ export function createCloudBaseDataService(
         throw new Error(nosqlError);
       }
       return [];
+    },
+
+    async listTableColumns(table) {
+      const payload = unwrapData(
+        await bridge.callTool("queryPgDatabase", {
+          action: "schema",
+          objectName: table.includes(".") ? table : `public.${table}`,
+        }),
+      );
+      const nested = rec(payload.schema ?? payload);
+      const columns = mapSchemaColumns({
+        columns: nested.columns ?? payload.columns,
+        primaryKey: nested.primaryKey ?? payload.primaryKey,
+        kind: nested.kind ?? payload.kind,
+      });
+      return columns;
+    },
+
+    async listAppUsers(opts) {
+      const payload = unwrapData(
+        await bridge.callTool("queryPermissions", {
+          action: "listUsers",
+          pageNo: Math.floor((opts?.offset ?? 0) / (opts?.limit ?? 20)) + 1,
+          pageSize: opts?.limit ?? 50,
+        }),
+      );
+      const users = arr(payload.users ?? payload.UserList ?? payload.Data);
+      return users.map((item): AppUser => {
+        const row = rec(item);
+        return {
+          uid: str(row.Uid ?? row.uid ?? row.uuid ?? row.id) ?? "unknown",
+          name: str(row.Username ?? row.Name ?? row.name ?? row.NickName),
+          email: str(row.Email ?? row.email),
+          createdAt: str(row.CreateTime ?? row.createdAt ?? row.CreatedAt),
+          lastLoginAt: str(row.LastLoginTime ?? row.lastLoginAt ?? row.UpdateTime),
+        };
+      });
+    },
+
+    async listSecrets() {
+      const secrets: SecretItem[] = [];
+      try {
+        const listed = unwrapData(
+          await bridge.callTool("queryFunctions", { action: "listFunctions" }),
+        );
+        const functions = arr(listed.Functions ?? listed.functions ?? listed.items);
+        for (const item of functions.slice(0, 20)) {
+          const row = rec(item);
+          const name = str(row.FunctionName ?? row.Name ?? row.name);
+          if (!name) continue;
+          const detail = unwrapData(
+            await bridge
+              .callTool("queryFunctions", { action: "getFunctionDetail", functionName: name })
+              .catch(() => ({})),
+          );
+          const env = rec(detail.Environment ?? rec(detail.Function).Environment);
+          const vars = arr(env.Variables ?? env.variables);
+          for (const variable of vars) {
+            const entry = rec(variable);
+            const key = str(entry.Key ?? entry.key ?? entry.Name);
+            if (!key) continue;
+            const value = str(entry.Value ?? entry.value) ?? "";
+            secrets.push({
+              source: name,
+              sourceKind: "function",
+              key,
+              valueMasked: value.length > 4 ? `${value.slice(0, 2)}***` : "***",
+            });
+          }
+        }
+      } catch {
+        // Function env listing is best-effort; panel still renders empty state.
+      }
+      try {
+        const run = unwrapData(
+          await bridge.callTool("queryCloudRun", { action: "list" }).catch(() => ({})),
+        );
+        const services = arr(run.ServerList ?? run.services ?? run.items);
+        for (const item of services.slice(0, 10)) {
+          const row = rec(item);
+          const name = str(row.ServerName ?? row.name);
+          if (!name) continue;
+          const envVars = arr(row.EnvParams ?? row.envVars ?? rec(row.Env).Variables);
+          for (const variable of envVars) {
+            if (typeof variable === "string") {
+              const [key] = variable.split("=");
+              if (!key) continue;
+              secrets.push({
+                source: name,
+                sourceKind: "cloudrun",
+                key,
+                valueMasked: "***",
+              });
+              continue;
+            }
+            const entry = rec(variable);
+            const key = str(entry.Key ?? entry.key ?? entry.Name);
+            if (!key) continue;
+            secrets.push({
+              source: name,
+              sourceKind: "cloudrun",
+              key,
+              valueMasked: "***",
+            });
+          }
+        }
+      } catch {
+        // CloudRun env listing is optional.
+      }
+      return secrets;
     },
 
     async readRows(table, opts) {

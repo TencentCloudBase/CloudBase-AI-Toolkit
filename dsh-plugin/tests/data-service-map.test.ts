@@ -119,4 +119,31 @@ describe("cloudbase-data mapping", () => {
     const data = createCloudBaseDataService(fakeBridge({}));
     await expect(data.runReadSql("DELETE FROM public.todos")).rejects.toThrow(/写 SQL/);
   });
+
+  it("maps queryPgDatabase schema columns and listUsers", async () => {
+    const bridge = fakeBridge({
+      "queryPgDatabase:schema": {
+        columns: [
+          { name: "id", dataType: "integer", isNullable: false },
+          { name: "title", dataType: "text", isNullable: true },
+        ],
+        primaryKey: ["id"],
+        kind: "table",
+      },
+      "queryPermissions:listUsers": {
+        users: [{ Uid: "u1", Username: "alice", CreateTime: "2026-08-01T00:00:00Z" }],
+      },
+      "queryFunctions:listFunctions": { Functions: [] },
+      "queryCloudRun:list": { ServerList: [] },
+    });
+    const data = createCloudBaseDataService(bridge);
+    const columns = await data.listTableColumns("public.todos");
+    expect(columns[0]).toMatchObject({ name: "id", primaryKey: true, dataType: "integer" });
+    expect(columns[1]?.nullable).toBe(true);
+    expect(bridge.calls[0]?.args).toMatchObject({ action: "schema", objectName: "public.todos" });
+    const users = await data.listAppUsers({ limit: 20 });
+    expect(users[0]).toMatchObject({ uid: "u1", name: "alice" });
+    const secrets = await data.listSecrets();
+    expect(secrets).toEqual([]);
+  });
 });
