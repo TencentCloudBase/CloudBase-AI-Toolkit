@@ -17,9 +17,12 @@ export function DeployPreviewCard(props: DeployPreviewCardProps): React.ReactEle
   const args = (props.block?.args ?? {}) as Record<string, unknown>;
   const isUpload = args.action === "upload" || Boolean(deploy.url);
 
-  // 上传成功后把 URL 推到全局 recent-deploys 列表，PreviewTab 会自动加载。
+  // 上传成功后把 URL 推到全局 recent-deploys 列表，PreviewTab 会自动加载；
+  // 若为新 URL（首次部署），额外通知 DetailsPanel 激活右侧预览。
   React.useEffect(() => {
-    if (isUpload && deploy.url) recordDeployUrl(deploy.url);
+    if (isUpload && deploy.url && recordDeployUrl(deploy.url)) {
+      window.dispatchEvent(new CustomEvent("cloudbase-dsh:activate-preview", { detail: deploy.url }));
+    }
   }, [isUpload, deploy.url]);
 
   if (!isUpload && args.action && args.action !== "upload") {

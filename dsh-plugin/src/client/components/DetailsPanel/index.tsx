@@ -35,13 +35,28 @@ const GITHUB_URL = "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/tre
 
 export interface DetailsPanelProps {
   cloudbaseData?: CloudBaseData;
+  /** dsh layout 面板唤起能力（由 withData 注入）。 */
+  openDetails?: () => void;
 }
 
 export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
   ensureStyles();
   const [view, setView] = React.useState<ViewId>("backend");
   const [tab, setTab] = React.useState<TabId>("db");
+  const [previewUrl, setPreviewUrl] = React.useState<string | undefined>(undefined);
   const data = props.cloudbaseData;
+
+  // 部署成功后激活预览：DeployPreviewCard 在首次拿到新 URL 时派发 activate-preview。
+  React.useEffect(() => {
+    const onActivate = (event: Event) => {
+      const url = (event as CustomEvent<string>).detail;
+      setPreviewUrl(url);
+      setView("preview");
+      props.openDetails?.();
+    };
+    window.addEventListener("cloudbase-dsh:activate-preview", onActivate);
+    return () => window.removeEventListener("cloudbase-dsh:activate-preview", onActivate);
+  }, [props.openDetails]);
 
   return (
     <div className="cb-root" style={{ height: "100%" }}>
@@ -89,7 +104,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
             </div>
 
             {view === "preview" ? (
-              <PreviewTab />
+              <PreviewTab seedUrl={previewUrl} />
             ) : (
               <>
                 <div className="cb-dtabs">

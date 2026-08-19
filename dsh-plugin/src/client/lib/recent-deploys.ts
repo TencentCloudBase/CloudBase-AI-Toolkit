@@ -48,14 +48,18 @@ export function getRecentDeploys(): RecentDeploy[] {
   return readStore();
 }
 
-export function recordDeployUrl(url: string | undefined): RecentDeploy[] {
-  if (!url || !url.startsWith("http")) return readStore();
+/**
+ * 记录一次部署 URL。返回 true 表示这是新 URL（首次出现），调用方可用它触发"切换到预览"。
+ */
+export function recordDeployUrl(url: string | undefined): boolean {
+  if (!url || !url.startsWith("http")) return false;
   const domain = url.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
-  const existing = readStore().filter((entry) => entry.url !== url);
+  const existing = readStore();
+  const isNew = !existing.some((entry) => entry.url === url);
   const next: RecentDeploy[] = [
     { url, domain, recordedAt: Date.now() },
-    ...existing,
+    ...existing.filter((entry) => entry.url !== url),
   ].slice(0, MAX_ENTRIES);
   writeStore(next);
-  return next;
+  return isNew;
 }

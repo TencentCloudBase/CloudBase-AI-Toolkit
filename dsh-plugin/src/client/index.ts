@@ -13,9 +13,16 @@ export const name = "cloudbase-dsh-plugin-client";
 // 编译期固定能力集）。不能 inject "remote.cloudbaseData"（第三方贡献不可注入）。
 export const inject = ["slots", "layout", "connection"];
 
-function withData(ctx: SlotHost, Component: React.ComponentType<{ cloudbaseData?: ReturnType<typeof getDataService> }>) {
+function withData(
+  ctx: SlotHost,
+  Component: React.ComponentType<{ cloudbaseData?: ReturnType<typeof getDataService>; openDetails?: () => void }>,
+) {
   return function Bound(props: Record<string, unknown>) {
-    return React.createElement(Component, { ...props, cloudbaseData: getDataService(ctx) });
+    return React.createElement(Component, {
+      ...props,
+      cloudbaseData: getDataService(ctx),
+      openDetails: () => ctx.layout?.openDetails?.(),
+    });
   };
 }
 

@@ -27,8 +27,8 @@ export function PreviewTab(props: PreviewTabProps): React.ReactElement {
   // 同步 props.seedUrl（DeployPreviewCard 推送的部署 URL）→ 自动加载到 iframe。
   React.useEffect(() => {
     if (!props.seedUrl) return;
-    const next = recordDeployUrl(props.seedUrl);
-    setRecent(next);
+    recordDeployUrl(props.seedUrl);
+    setRecent(getRecentDeploys());
     setUrl(props.seedUrl);
     setFrameUrl(props.seedUrl);
   }, [props.seedUrl]);
@@ -53,8 +53,8 @@ export function PreviewTab(props: PreviewTabProps): React.ReactElement {
     const target = safeUrl(url);
     setFrameUrl(target);
     if (target !== EMPTY) {
-      const next = recordDeployUrl(target);
-      setRecent(next);
+      recordDeployUrl(target);
+      setRecent(getRecentDeploys());
     }
   };
 
