@@ -48,4 +48,46 @@ describe("tool result parsing", () => {
     expect(JSON.stringify(deploy).toLowerCase()).not.toContain("rollback");
     expect(deploy.deployedAt).toBeUndefined();
   });
+
+  it("extracts accessUrls arrays from manageCloudRun / manageFunctions results", () => {
+    const block: ToolBlock = {
+      toolName: "manageCloudRun",
+      args: { action: "deploy" },
+      result: {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              accessUrls: ["https://svc-abc-123.tcloudbaseapp.com/"],
+              defaultDomain: "svc-abc-123.tcloudbaseapp.com",
+            }),
+          },
+        ],
+      },
+    };
+    const deploy = parseDeploy(block);
+    expect(deploy.url).toBe("https://svc-abc-123.tcloudbaseapp.com/");
+    expect(deploy.domain).toBe("svc-abc-123.tcloudbaseapp.com");
+  });
+
+  it("falls back to defaultDomain when accessUrl is absent (functions HTTP trigger)", () => {
+    const block: ToolBlock = {
+      toolName: "manageFunctions",
+      args: { action: "create" },
+      result: {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              defaultDomain: "fn-hello-123.tcloudbaseapp.com",
+              trigger: { path: "/hello" },
+            }),
+          },
+        ],
+      },
+    };
+    const deploy = parseDeploy(block);
+    expect(deploy.url).toBe("https://fn-hello-123.tcloudbaseapp.com");
+    expect(deploy.domain).toBe("fn-hello-123.tcloudbaseapp.com");
+  });
 });

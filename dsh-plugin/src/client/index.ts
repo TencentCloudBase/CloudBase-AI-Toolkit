@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DATA_TABLE_TOOLS, DEPLOY_TOOLS } from "../shared/constants.js";
+import { DATA_TABLE_TOOLS, DEPLOY_TOOLS, URL_TOOLS } from "../shared/constants.js";
 import { DataTableCard } from "./components/DataTableCard.js";
 import { DeliverableRow } from "./components/DeliverableRow.js";
 import { DeployPreviewCard } from "./components/DeployPreviewCard.js";
@@ -39,13 +39,13 @@ export function apply(ctx: SlotHost): void {
   }
 
   registerNamedSlot(ctx, "conversation.chat.turnTail", "cloudbase-deliverable", DeliverableRow, {
-    // chain 槽需要 select 选择器：命中 CloudBase 部署相关 turn 才渲染交付物行。
+    // chain 槽需要 select 选择器：命中任意"返回 URL"的 CloudBase 部署工具才渲染交付物行。
     select: (owner) => {
       const turn = (owner as { turn?: Record<string, unknown> })?.turn;
       if (!turn) return null;
       const nodes = Array.isArray(turn.nodes) ? (turn.nodes as Array<Record<string, unknown>>) : [];
       const hasDeploy = nodes.some((node) =>
-        `${node.toolName ?? node.name ?? ""}`.includes("manageHosting"),
+        URL_TOOLS.some((tool) => `${node.toolName ?? node.name ?? ""}`.includes(tool)),
       );
       return hasDeploy ? nodes : null;
     },

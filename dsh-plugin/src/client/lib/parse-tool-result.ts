@@ -85,6 +85,7 @@ export function parseDeploy(block: ToolBlock | undefined): ParsedDeploy {
   const source = Object.keys(nested).length > 0 ? nested : payload;
   const url =
     str(source.accessUrl) ??
+    str(arr(source.accessUrls)[0]) ??
     str(source.url) ??
     str(source.defaultDomain) ??
     str(source.StaticDomain) ??
