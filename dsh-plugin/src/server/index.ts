@@ -22,6 +22,7 @@ interface PluginContext {
   };
   sessions?: {
     current?: () => { append?: (event: Record<string, unknown>) => Promise<unknown> };
+    get?: (sessionId: string) => unknown;
   };
   on?: (event: string, handler: (...args: unknown[]) => unknown) => void;
 }
@@ -42,7 +43,15 @@ function createAppend(ctx: PluginContext): (text: string) => Promise<void> {
 
 export function apply(ctx: PluginContext): void {
   const bridge = new CloudBaseMcpBridge();
-  const data: CloudBaseData = createCloudBaseDataService(bridge, createAppend(ctx));
+  const data: CloudBaseData = createCloudBaseDataService(
+    bridge,
+    createAppend(ctx),
+    (sessionId) => {
+      // 显式 sessionId 优先（RPC 从面板传入）；否则回退当前会话上下文。
+      if (sessionId) return ctx.sessions?.get?.(sessionId);
+      return ctx.sessions?.current?.();
+    },
+  );
   // TypertRemoteService 构造器自动把实例注册为 Cordis service（serviceKey="cloudbaseData"）。
   // 同时把 endpoints 注册进 typert local 注册表：api-gateway 的 claimsEndpoint 优先命中
   // local（不依赖 fiber state；srcClaims 的 strict ctx.get 在 apply 期间收集不到导致 404）。

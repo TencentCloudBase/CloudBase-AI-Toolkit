@@ -105,6 +105,9 @@ export function createRemoteCloudBaseData(
     async capi(service: string, action: string, params: Record<string, unknown> = {}): Promise<unknown> {
       return call("capi", { service, action, params });
     },
+    async sessionBoundEnv(sessionId?: string): Promise<string | undefined> {
+      return (await call("sessionBoundEnv", { sessionId })) as string | undefined;
+    },
   };
 }
 

@@ -37,6 +37,8 @@ export interface DetailsPanelProps {
   cloudbaseData?: CloudBaseData;
   /** dsh layout 面板唤起能力（由 withData 注入）。 */
   openDetails?: () => void;
+  /** details slot 注入的当前会话 ID（用于读取会话工具历史）。 */
+  sessionId?: string;
 }
 
 export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
@@ -71,6 +73,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
               <EnvSelector
                 data={data}
                 currentEnvId={status.envId}
+                sessionId={props.sessionId}
                 onChanged={setStatus}
                 onError={(message) => console.warn("[cloudbase] env switch:", message)}
               />

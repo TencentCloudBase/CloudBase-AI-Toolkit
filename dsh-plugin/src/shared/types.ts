@@ -122,4 +122,6 @@ export interface CloudBaseData {
   appendToSession(text: string): Promise<void>;
   /** 直调腾讯云控制面 API（MCP capi / callCloudApi）。输出为解包后的 JSON。 */
   capi(service: string, action: string, params?: Record<string, unknown>): Promise<unknown>;
+  /** 从指定会话工具历史读取最近一次 auth set_env 的环境 ID（未绑定返回 undefined）。 */
+  sessionBoundEnv(sessionId?: string): Promise<string | undefined>;
 }

@@ -91,6 +91,7 @@ function mapTable(item: unknown): TableSummary {
 export function createCloudBaseDataService(
   bridge: CloudBaseMcpBridge,
   appendUserMessage?: (text: string) => Promise<void>,
+  getSession?: (sessionId?: string) => unknown,
 ): CloudBaseData {
   return {
     async listTables() {
@@ -487,6 +488,34 @@ export function createCloudBaseDataService(
       return unwrapData(
         await bridge.callTool("callCloudApi", { service, action, params }),
       );
+    },
+
+    /**
+     * 从当前会话的工具调用历史中读取最近一次 `auth set_env` 的环境 ID。
+     * 用于让右侧面板与对话侧 MCP 绑定保持一致（旧会话历史不会触发 turnTail）。
+     * 返回 undefined 表示会话里没有显式 set_env 记录。
+     */
+    async sessionBoundEnv(sessionId?: string) {
+      const session = getSession?.(sessionId) as { events?: readonly unknown[] } | undefined;
+      const events = session?.events;
+      if (!events) return undefined;
+      for (let index = events.length - 1; index >= 0; index -= 1) {
+        const event = events[index] as
+          | { type?: string; data?: { name?: string; arguments?: string } }
+          | undefined;
+        if (!event || event.type !== "tool/call") continue;
+        const data = event.data ?? {};
+        if (!str(data.name)?.includes("auth")) continue;
+        try {
+          const args = JSON.parse(data.arguments ?? "{}") as Record<string, unknown>;
+          if (args.action === "set_env" && typeof args.envId === "string") {
+            return args.envId;
+          }
+        } catch {
+          // 参数 JSON 解析失败则跳过该事件
+        }
+      }
+      return undefined;
     },
   };
 }
