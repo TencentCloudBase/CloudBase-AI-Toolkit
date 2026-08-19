@@ -53,6 +53,9 @@ await esbuild.build({
   jsxFactory: "React.createElement",
   jsxFragment: "React.Fragment",
   external: ["react", "react-dom"],
+  alias: {
+    "@cloudbase/platform-kit": join(root, "../platform-kit/src/index.ts"),
+  },
   banner: {
     js: `window.__ModuleLoader__.load({id:${clientId},factory:function(require){var module={exports:{}};var exports=module.exports;var React=require("react");`,
   },

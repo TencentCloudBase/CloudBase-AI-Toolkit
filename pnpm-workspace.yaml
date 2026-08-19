@@ -5,6 +5,7 @@ packages:
   - '.'
   - 'mcp'
   - 'dsh-plugin'
+  - 'platform-kit'
 
 # Supply chain protections (aligned with Supabase recommendations)
 minimumReleaseAge: 4320   # 3 days (4320 minutes). Increase to 10080 (7 days) after validation.

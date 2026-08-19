@@ -1,9 +1,11 @@
 import type {
   AppAuthConfig,
   AppUser,
+  AccessEndpoint,
   AuthStatus,
   CloudBaseData,
   ColumnSummary,
+  DeploymentRecord,
   EnvInfoView,
   EnvItem,
   LogEntry,
@@ -119,6 +121,12 @@ export function createRemoteCloudBaseData(
     },
     async capi(service: string, action: string, params: Record<string, unknown> = {}): Promise<unknown> {
       return call("capi", { service, action, params });
+    },
+    async listAccessEndpoints(): Promise<AccessEndpoint[]> {
+      return (await call("listAccessEndpoints")) as AccessEndpoint[];
+    },
+    async listDeployments(): Promise<DeploymentRecord[]> {
+      return (await call("listDeployments")) as DeploymentRecord[];
     },
     async sessionBoundEnv(sessionId?: string): Promise<string | undefined> {
       return (await call("sessionBoundEnv", { sessionId })) as string | undefined;

@@ -134,6 +134,30 @@ export interface DeployPreview {
   files?: string[];
 }
 
+export type ResourceType = "app" | "hosting" | "function" | "cloudrun" | "gateway";
+
+export interface AccessEndpoint {
+  id: string;
+  label: string;
+  url: string;
+  resourceType: ResourceType;
+  serviceName?: string;
+}
+
+export type DeploymentStatus = "success" | "failed" | "building" | "pending" | "unknown";
+
+export interface DeploymentRecord {
+  id: string;
+  resourceType: ResourceType | string;
+  resourceName: string;
+  status: DeploymentStatus;
+  deployedAt?: string;
+  previewUrl?: string;
+  buildId?: string;
+  versionName?: string;
+  relatedResources?: Array<{ type: string; name: string }>;
+}
+
 /** @typert object */
 export interface CloudBaseData {
   listTables(): Promise<TableSummary[]>;
@@ -159,6 +183,12 @@ export interface CloudBaseData {
   appendToSession(text: string): Promise<void>;
   /** 直调腾讯云控制面 API（MCP capi / callCloudApi）。输出为解包后的 JSON。 */
   capi(service: string, action: string, params?: Record<string, unknown>): Promise<unknown>;
+  /** Live access URLs (v1 = manageApps / queryApps apps). */
+  listAccessEndpoints(): Promise<AccessEndpoint[]>;
+  /** Aggregated deployment records (apps + hosting + cloudrun when available). */
+  listDeployments(): Promise<DeploymentRecord[]>;
+  /** Optional rollback for supported deployment types. */
+  rollbackDeployment?(record: DeploymentRecord): Promise<boolean>;
   /** 从指定会话工具历史读取最近一次 auth set_env 的环境 ID（未绑定返回 undefined）。 */
   sessionBoundEnv(sessionId?: string): Promise<string | undefined>;
 }

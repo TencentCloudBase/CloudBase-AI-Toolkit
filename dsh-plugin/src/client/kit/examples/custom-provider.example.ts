@@ -144,6 +144,19 @@ export function createMockProvider(): PlatformProvider {
     async capi(_service: string, action: string): Promise<unknown> {
       return { action, mocked: true };
     },
+    async listAccessEndpoints(): Promise<import("../../../shared/types.js").AccessEndpoint[]> {
+      return [
+        {
+          id: "app:demo",
+          label: "demo",
+          url: "https://demo.mock.example.com",
+          resourceType: "app",
+        },
+      ];
+    },
+    async listDeployments(): Promise<import("../../../shared/types.js").DeploymentRecord[]> {
+      return [];
+    },
     async sessionBoundEnv(): Promise<string | undefined> {
       return "mock-env-001";
     },

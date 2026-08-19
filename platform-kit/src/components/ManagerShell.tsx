@@ -1,0 +1,95 @@
+import * as React from "react";
+import type { PlatformProvider } from "../core/provider.js";
+import type { Locale } from "../i18n/messages.js";
+import type { EnvFeatureContext } from "../core/types.js";
+import {
+  KitProvider,
+  useMenu,
+  type MenuRouteId,
+} from "../hooks/use-menu.js";
+import { SidebarNav } from "./SidebarNav.js";
+import { OverviewPage } from "./OverviewPage.js";
+import { LogsPage } from "./LogsPage.js";
+import { ensureKitStyles } from "../theme/styles.js";
+import { resolvePostgresEnv } from "../core/features.js";
+
+export interface ManagerShellProps {
+  provider?: PlatformProvider;
+  locale?: Locale;
+  featureCtx?: EnvFeatureContext;
+  route?: MenuRouteId;
+  onRouteChange?: (route: MenuRouteId) => void;
+  header?: React.ReactNode;
+  renderRoute?: (route: MenuRouteId) => React.ReactNode;
+  icons?: Parameters<typeof useMenu>[0]["icons"];
+  onOpenPreview?: (url: string) => void;
+}
+
+function ManagerShellInner(props: ManagerShellProps): React.ReactElement {
+  ensureKitStyles();
+  const [route, setRoute] = React.useState<MenuRouteId>(props.route ?? "overview");
+  const activeRoute = props.route ?? route;
+
+  React.useEffect(() => {
+    if (props.route) setRoute(props.route);
+  }, [props.route]);
+
+  const featureCtx = React.useMemo((): EnvFeatureContext => {
+    const base = props.featureCtx ?? {};
+    return {
+      ...base,
+      isPostgresEnv: base.isPostgresEnv ?? resolvePostgresEnv(base),
+    };
+  }, [props.featureCtx]);
+
+  const menuItems = useMenu({
+    locale: props.locale ?? "zh",
+    route: activeRoute,
+    featureCtx,
+    icons: props.icons,
+  });
+
+  const selectRoute = (id: MenuRouteId) => {
+    setRoute(id);
+    props.onRouteChange?.(id);
+  };
+
+  const defaultBody = (() => {
+    switch (activeRoute) {
+      case "overview":
+        return (
+          <OverviewPage
+            provider={props.provider}
+            onOpenEndpoint={props.onOpenPreview}
+            onPreviewDeployment={props.onOpenPreview}
+          />
+        );
+      case "logs":
+        return <LogsPage provider={props.provider} />;
+      default:
+        return props.renderRoute?.(activeRoute) ?? (
+          <div className="cb-kit-page">
+            <div className="cb-kit-restricted">{activeRoute}</div>
+          </div>
+        );
+    }
+  })();
+
+  return (
+    <div className="cb-kit-root">
+      {props.header}
+      <div className="cb-kit-shell">
+        <SidebarNav items={menuItems} onSelect={selectRoute} />
+        <main className="cb-kit-main">{defaultBody}</main>
+      </div>
+    </div>
+  );
+}
+
+export function ManagerShell(props: ManagerShellProps): React.ReactElement {
+  return (
+    <KitProvider locale={props.locale} provider={props.provider} featureCtx={props.featureCtx}>
+      <ManagerShellInner {...props} />
+    </KitProvider>
+  );
+}

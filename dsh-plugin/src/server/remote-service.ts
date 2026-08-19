@@ -2,9 +2,11 @@ import { Remote, TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
 import type {
   AppAuthConfig,
   AppUser,
+  AccessEndpoint,
   AuthStatus,
   CloudBaseData,
   ColumnSummary,
+  DeploymentRecord,
   EnvInfoView,
   EnvItem,
   LogEntry,
@@ -98,6 +100,9 @@ export function buildCloudBaseTypertContribution(): {
       invoke("envInfo"),
       invoke("appendToSession", ["text"]),
       invoke("capi", ["service", "action", "params"]),
+      invoke("listAccessEndpoints"),
+      invoke("listDeployments"),
+      invoke("rollbackDeployment", ["record"]),
       invoke("sessionBoundEnv", ["sessionId"]),
     ],
   };
@@ -222,6 +227,22 @@ export class CloudBaseRemoteService extends TypertRemoteService {
   @Remote("capi")
   async capi(service: string, action: string, params: Record<string, unknown> = {}): Promise<unknown> {
     return toJsonSafe(await this.data.capi(service, action, params));
+  }
+
+  @Remote("listAccessEndpoints")
+  async listAccessEndpoints(): Promise<AccessEndpoint[]> {
+    return toJsonSafe(await this.data.listAccessEndpoints());
+  }
+
+  @Remote("listDeployments")
+  async listDeployments(): Promise<DeploymentRecord[]> {
+    return toJsonSafe(await this.data.listDeployments());
+  }
+
+  @Remote("rollbackDeployment")
+  async rollbackDeployment(record: DeploymentRecord): Promise<boolean> {
+    if (!this.data.rollbackDeployment) return false;
+    return toJsonSafe(await this.data.rollbackDeployment(record));
   }
 
   @Remote("sessionBoundEnv")

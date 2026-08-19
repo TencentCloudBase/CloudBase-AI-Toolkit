@@ -3,8 +3,10 @@ import { mapSchemaColumns } from "../shared/column-form.js";
 import type {
   AppAuthConfig,
   AppUser,
+  AccessEndpoint,
   AuthStatus,
   CloudBaseData,
+  DeploymentRecord,
   EnvInfoView,
   EnvItem,
   LogEntry,
@@ -18,6 +20,12 @@ import type {
 import { CloudBaseMcpBridge } from "./mcp-client.js";
 import { SessionEnvCache, writeEnvHint } from "./mcp-bridge.js";
 import { formatBytes, formatUsageItem, mapRegion, scrubInternalCodes } from "./term-map.js";
+import {
+  mapAppToEndpoint,
+  mapVersionToDeployment,
+  normalizeUrl,
+  sortDeploymentsNewestFirst,
+} from "../shared/apps-access.js";
 
 type LooseRecord = Record<string, unknown>;
 
@@ -610,6 +618,131 @@ export function createCloudBaseDataService(
       return unwrapData(
         await bridge.callTool("callCloudApi", { service, action, params }),
       );
+    },
+
+    async listAccessEndpoints() {
+      const endpoints: AccessEndpoint[] = [];
+      try {
+        const listPayload = unwrapData(
+          await bridge.callTool("queryApps", { action: "listApps", pageSize: 100 }),
+        );
+        const apps = arr(listPayload.apps ?? listPayload.ServiceList);
+        for (const app of apps) {
+          const row = rec(app);
+          const serviceName = str(row.ServiceName ?? row.serviceName);
+          if (!serviceName) continue;
+          try {
+            const detail = unwrapData(
+              await bridge.callTool("queryApps", { action: "getApp", serviceName }),
+            );
+            const mapped = mapAppToEndpoint(serviceName, detail.app ?? detail);
+            if (mapped) endpoints.push(mapped);
+          } catch {
+            const inlineDomain = str(row.Domain ?? row.domain);
+            if (inlineDomain) {
+              endpoints.push({
+                id: `app:${serviceName}`,
+                label: serviceName,
+                url: normalizeUrl(inlineDomain),
+                resourceType: "app",
+                serviceName,
+              });
+            }
+          }
+        }
+      } catch {
+        // Best-effort when queryApps is unavailable
+      }
+      return endpoints;
+    },
+
+    async listDeployments() {
+      const records: DeploymentRecord[] = [];
+      try {
+        const listPayload = unwrapData(
+          await bridge.callTool("queryApps", { action: "listApps", pageSize: 50 }),
+        );
+        const apps = arr(listPayload.apps ?? listPayload.ServiceList);
+        for (const app of apps) {
+          const row = rec(app);
+          const serviceName = str(row.ServiceName ?? row.serviceName);
+          if (!serviceName) continue;
+          let previewUrl: string | undefined;
+          try {
+            const detail = unwrapData(
+              await bridge.callTool("queryApps", { action: "getApp", serviceName }),
+            );
+            previewUrl = mapAppToEndpoint(serviceName, detail.app ?? detail)?.url;
+          } catch {
+            previewUrl = undefined;
+          }
+          try {
+            const versionsPayload = unwrapData(
+              await bridge.callTool("queryApps", {
+                action: "listAppVersions",
+                serviceName,
+                pageSize: 10,
+              }),
+            );
+            const versions = arr(versionsPayload.versions ?? versionsPayload.VersionList);
+            for (const version of versions) {
+              const mapped = mapVersionToDeployment(serviceName, version, previewUrl);
+              if (mapped) records.push(mapped);
+            }
+          } catch {
+            // skip apps without version history
+          }
+        }
+      } catch {
+        // partial app records only
+      }
+
+      try {
+        const runList = unwrapData(
+          await bridge.callTool("queryCloudRun", { action: "list" }).catch(() => ({})),
+        );
+        const services = arr(runList.services ?? runList.ServerList ?? runList.items);
+        for (const svc of services.slice(0, 20)) {
+          const row = rec(svc);
+          const serverName = str(row.ServerName ?? row.serverName ?? row.name);
+          if (!serverName) continue;
+          try {
+            const recordsPayload = unwrapData(
+              await bridge.callTool("queryCloudRun", {
+                action: "getDeployRecords",
+                detailServerName: serverName,
+              }),
+            );
+            const deployRecords = arr(
+              recordsPayload.DeployRecords ?? recordsPayload.deployRecords ?? recordsPayload.records,
+            );
+            for (const item of deployRecords.slice(0, 5)) {
+              const drow = rec(item);
+              const statusRaw = str(drow.Status ?? drow.status) ?? "unknown";
+              records.push({
+                id: `cloudrun:${serverName}:${str(drow.RunId ?? drow.BuildId) ?? records.length}`,
+                resourceType: "cloudrun",
+                resourceName: serverName,
+                status: mapVersionToDeployment(serverName, { Status: statusRaw })?.status ?? "unknown",
+                deployedAt: str(drow.DeployTime ?? drow.CreateTime ?? drow.UpdateTime),
+                previewUrl: str(drow.AccessUrl ?? row.AccessUrl),
+                relatedResources: [{ type: "cloudrun", name: serverName }],
+              });
+            }
+          } catch {
+            // skip service without deploy records
+          }
+        }
+      } catch {
+        // cloudrun optional
+      }
+
+      return sortDeploymentsNewestFirst(records);
+    },
+
+    async rollbackDeployment(_record) {
+      // Rollback requires manageApps API support (P1); timeline shows confirm UI only.
+      return false;
     },
 
     /**
