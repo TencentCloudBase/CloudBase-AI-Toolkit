@@ -114,8 +114,8 @@ export const PANEL_CSS = `
 .cb-sql-bar { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-top: 1px solid var(--cb-border); }
 .cb-hint { font-size: 11px; color: var(--cb-text-3); flex: 1; }
 .cb-toast { font-size: 11px; color: var(--cb-ok); }
-.cb-env-select { display: flex; align-items: center; min-width: 0; flex: 1; }
-.cb-select { width: 100%; font: inherit; font-size: 11.5px; color: var(--cb-text-1); background: var(--cb-panel); border: 1px solid var(--cb-border); border-radius: 6px; padding: 3px 6px; min-width: 0; }
+.cb-env-select { display: flex; align-items: center; min-width: 0; flex: 0 1 auto; }
+.cb-select { width: auto; max-width: 200px; font: inherit; font-size: 11.5px; color: var(--cb-text-1); background: var(--cb-panel); border: 1px solid var(--cb-border); border-radius: 6px; padding: 3px 6px; min-width: 0; }
 .cb-select:disabled { opacity: .55; }
 .cb-webview-bar { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--cb-border); }
 .cb-webview-input { flex: 1; min-width: 0; font: inherit; font-size: 12px; color: var(--cb-text); background: var(--cb-bg); border: 1px solid var(--cb-border); border-radius: 6px; padding: 5px 8px; font-family: var(--cb-mono); }

@@ -74,6 +74,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
                 onChanged={setStatus}
                 onError={(message) => console.warn("[cloudbase] env switch:", message)}
               />
+              <span className="cb-spacer" />
               <div className="cb-capsule">
                 <button
                   type="button"

@@ -4,6 +4,7 @@ import { DataTableCard } from "./components/DataTableCard.js";
 import { DeliverableRow } from "./components/DeliverableRow.js";
 import { DeployPreviewCard } from "./components/DeployPreviewCard.js";
 import { DetailsPanel } from "./components/DetailsPanel/index.js";
+import { EnvBoundRow } from "./components/EnvBoundRow.js";
 import { openDetails, registerKeyedSlot, registerNamedSlot, type SlotHost } from "./lib/slots.js";
 import { getDataService } from "./lib/typert.js";
 import { ensureStyles } from "./styles.js";
@@ -48,6 +49,26 @@ export function apply(ctx: SlotHost): void {
         URL_TOOLS.some((tool) => `${node.toolName ?? node.name ?? ""}`.includes(tool)),
       );
       return hasDeploy ? nodes : null;
+    },
+  });
+
+  // 环境绑定联动：模型调用 auth set_env 后，EnvBoundRow 渲染"已绑定环境"并
+  // 派发 env-bound 事件，让右侧 EnvSelector 与 MCP 绑定状态保持一致。
+  registerNamedSlot(ctx, "conversation.chat.turnTail", "cloudbase-env-bound", EnvBoundRow, {
+    select: (owner) => {
+      const turn = (owner as { turn?: Record<string, unknown> })?.turn;
+      if (!turn) return null;
+      const nodes = Array.isArray(turn.nodes) ? (turn.nodes as Array<Record<string, unknown>>) : [];
+      const hasSetEnv = nodes.some((node) => {
+        const name = `${node.toolName ?? node.name ?? ""}`;
+        if (!name.includes("auth")) return false;
+        const args = (node.args ?? (node.block as Record<string, unknown> | undefined)?.args ?? {}) as Record<
+          string,
+          unknown
+        >;
+        return args.action === "set_env";
+      });
+      return hasSetEnv ? nodes : null;
     },
   });
 
