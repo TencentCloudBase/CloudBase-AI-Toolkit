@@ -246,28 +246,35 @@ export function createCloudBaseDataService(
     },
 
     async listEnvironments() {
-      // 用 queryEnv(action=list) 列环境。注意：绑定环境后只返回当前环境（1 个），
-      // 未绑定时返回全量（101 个，含 mcp-*）。响应结构是 { EnvList: [...] }。
+      // 用 callCloudApi DescribeEnvs 拿全量候选（不受 set_env 绑定影响，始终返回 101 个；
+      // queryEnv(action=list) 绑定后只返回当前 1 个）。callCloudApi 未绑定时返回
+      // ENV_REQUIRED 但附带完整 env_candidates，直接取它。过滤 status==="NORMAL"：
+      // UNAVAILABLE 多为欠费/不可用，不应出现在切换列表。
       const payload = unwrapData(
-        await bridge.callTool("queryEnv", { action: "list" }),
+        await bridge.callTool("callCloudApi", {
+          service: "tcb",
+          action: "DescribeEnvs",
+          params: {},
+        }),
       );
       const candidates = arr(
-        payload.EnvList ??
-          payload.env_list ??
-          payload.env_candidates ??
+        payload.env_candidates ??
           payload.envCandidates ??
+          payload.EnvList ??
           payload.Envs,
       );
-      return candidates.map((item): EnvItem => {
-        const row = rec(item);
-        return {
-          envId: str(row.envId ?? row.EnvId ?? row.env_id) ?? "unknown",
-          alias: str(row.alias ?? row.Alias),
-          region: str(row.region ?? row.Region),
-          status: str(row.status ?? row.Status),
-          envType: str(row.env_type ?? row.envType ?? row.EnvType),
-        };
-      });
+      return candidates
+        .map((item): EnvItem => {
+          const row = rec(item);
+          return {
+            envId: str(row.envId ?? row.EnvId ?? row.env_id) ?? "unknown",
+            alias: str(row.alias ?? row.Alias),
+            region: str(row.region ?? row.Region),
+            status: str(row.status ?? row.Status),
+            envType: str(row.env_type ?? row.envType ?? row.EnvType),
+          };
+        })
+        .filter((item) => item.status === "NORMAL" || item.status === undefined);
     },
 
     async setEnvironment(envId) {
