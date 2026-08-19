@@ -80,6 +80,9 @@ export function AuthTab(props: { data?: CloudBaseData }): React.ReactElement {
             <span className="v">{provider.enabled ? <span className="cb-ok">已启用</span> : "已停用"}</span>
           </div>
         ))}
+        {(config?.providers?.length ?? 0) === 0 ? (
+          <div className="cb-placeholder">未查询到登录方式配置（当前环境可能未启用应用认证）</div>
+        ) : null}
       </div>
       {status && !status.signedIn ? (
         <div className="cb-placeholder">{status.message}</div>

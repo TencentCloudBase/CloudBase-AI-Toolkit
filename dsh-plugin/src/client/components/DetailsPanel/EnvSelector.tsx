@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { AuthStatus, CloudBaseData, EnvItem } from "../../../shared/types.js";
+import { appendUserMessage } from "../../lib/typert.js";
 
 /** 右侧面板顶部 header：登录后显示环境下拉（单行），选中后调用 auth set_env 切换当前环境。 */
 export function EnvSelector(props: {
@@ -45,9 +46,19 @@ export function EnvSelector(props: {
     setError(undefined);
     try {
       const status = await props.data.setEnvironment(envId);
-      // 手动切换也广播给会话侧（AuthGate remount / 后续模型查询保持一致）。
+      // 手动切换也广播给本面板（保持 select 与绑定一致）。
       window.dispatchEvent(new CustomEvent("cloudbase-dsh:env-bound", { detail: envId }));
       props.onChanged?.(status);
+      // 反向联动：注入 user 消息让模型在会话里执行 set_env，
+      // 使对话侧 MCP 与右侧面板绑定同一环境（用户"右边切了左边对话还是旧的"）。
+      try {
+        await appendUserMessage(
+          props.data,
+          `请调用 mcp__cloudbase__auth action=set_env envId=${envId}，绑定后无需解释，直接回复"已绑定"。`,
+        );
+      } catch (appendErr: unknown) {
+        console.warn("[cloudbase] session append skipped:", appendErr instanceof Error ? appendErr.message : appendErr);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);

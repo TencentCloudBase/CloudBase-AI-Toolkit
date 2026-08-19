@@ -41,7 +41,7 @@ export interface DetailsPanelProps {
 
 export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
   ensureStyles();
-  const [view, setView] = React.useState<ViewId>("preview");
+  const [view, setView] = React.useState<ViewId>("backend");
   const [tab, setTab] = React.useState<TabId>("db");
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>(undefined);
   const data = props.cloudbaseData;
