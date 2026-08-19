@@ -81,6 +81,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
                   onClick={() => setView("backend")}
                   title="CloudBase 数据库 / 存储 / 认证 / 配置 / 分析"
                 >
+                  <IconGear />
                   后端
                 </button>
                 <button
@@ -89,6 +90,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
                   onClick={() => setView("preview")}
                   title="浏览器预览部署的应用或任意 URL"
                 >
+                  <IconBrowser />
                   预览
                 </button>
               </div>
