@@ -90,7 +90,7 @@ export function UrlPreview(props: UrlPreviewProps): React.ReactElement {
           onChange={(e) => setUrl(e.target.value)}
           spellCheck={false}
         />
-        <button type="submit" className="cb-mini" title="加载 URL">
+        <button type="submit" className="cb-btn primary" title="加载 URL">
           <IconOpen />
           预览
         </button>

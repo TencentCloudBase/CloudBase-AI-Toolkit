@@ -44,7 +44,7 @@ export function AuthTab(props: { data?: CloudBaseData }): React.ReactElement {
               已登录
             </span>
           ) : (
-            <button className="cb-mini" type="button" onClick={() => void startLogin()}>
+            <button className="cb-btn primary" type="button" onClick={() => void startLogin()}>
               device-code 登录
             </button>
           )}
