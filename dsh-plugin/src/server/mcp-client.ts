@@ -149,6 +149,15 @@ export class CloudBaseMcpBridge {
       CLOUDBASE_MCP_DISABLE_LOG_FILE: "true",
     };
     delete childEnv.CLOUDBASE_API_KEY;
+    // 清除代理变量：cloudbase-mcp 内部用 process.env.http_proxy 连 CloudBase API 与
+    // PG（TDSQL 内网），继承 IDE/沙箱代理（如 WorkBuddy sandbox-c 57514）会让连接
+    // 卡死/超时（2026-08-19 实测 queryPgDatabase 无响应）。auth 与 API 走公网，
+    // 不依赖本地代理。
+    for (const key of Object.keys(childEnv)) {
+      if (/^https?_proxy$/i.test(key) || key.toLowerCase() === "all_proxy") {
+        delete childEnv[key];
+      }
+    }
 
     const child = spawn(this.command, this.args, {
       env: childEnv,
