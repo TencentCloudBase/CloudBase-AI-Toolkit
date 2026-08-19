@@ -32,6 +32,7 @@ export function EnvSelector(props: {
         if (!envId || cancelled) return;
         // 1. 广播给 EnvSelect 显示
         window.dispatchEvent(new CustomEvent(KIT_EVENTS.envBound, { detail: envId }));
+        window.dispatchEvent(new CustomEvent(KIT_EVENTS.envChanged, { detail: envId }));
         // 2. 同步 bridge 数据通道（若面板当前环境与会话不一致）
         if (envId !== props.currentEnvId) {
           try {

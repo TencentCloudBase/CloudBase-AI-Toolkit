@@ -2,6 +2,7 @@ import * as React from "react";
 import { IconCheck, IconChevron, IconCopy, IconDownload } from "../../lib/icons.js";
 import { cellText, toCsv } from "../../lib/parse-tool-result.js";
 import { ensureStyles } from "../../styles.js";
+import { EnvBadge } from "./EnvBadge.js";
 
 export interface ResourceTableProps {
   columns: string[];
@@ -10,6 +11,8 @@ export interface ResourceTableProps {
   elapsed?: string;
   /** 导出 CSV 文件名（不含扩展名）。 */
   fileName?: string;
+  /** Show live session env pill in the card header. */
+  showEnvBadge?: boolean;
 }
 
 /**
@@ -64,6 +67,7 @@ export function ResourceTable(props: ResourceTableProps): React.ReactElement {
             <IconCheck />
           </span>
           <span className="cb-name">{title}</span>
+          {props.showEnvBadge ? <EnvBadge /> : null}
           <span className="cb-spacer" />
           {elapsed ? <span>{elapsed}</span> : null}
         </div>

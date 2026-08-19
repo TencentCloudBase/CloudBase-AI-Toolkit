@@ -22,6 +22,7 @@ export function DataTableCard(props: DataTableCardProps): React.ReactElement {
       title={table.title}
       elapsed={table.elapsed}
       fileName={toolName}
+      showEnvBadge
     />
   );
 }

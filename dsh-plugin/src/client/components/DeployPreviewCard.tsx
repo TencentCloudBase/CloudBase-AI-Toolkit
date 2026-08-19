@@ -1,5 +1,6 @@
 import * as React from "react";
 import { IconCheck, IconExternal } from "../lib/icons.js";
+import { EnvBadge } from "../kit/components/EnvBadge.js";
 import { parseDeploy, type ToolBlock } from "../lib/parse-tool-result.js";
 import { recordDeployUrl } from "../lib/recent-deploys.js";
 import { ensureStyles } from "../styles.js";
@@ -44,6 +45,8 @@ export function DeployPreviewCard(props: DeployPreviewCardProps): React.ReactEle
             <span className="cb-name">
               {toolName} · {action}
             </span>
+            <EnvBadge />
+            <span className="cb-spacer" />
           </div>
           <div className="cb-placeholder">该管理操作已完成。部署/发布动作返回访问地址后在此预览。</div>
         </div>
@@ -61,6 +64,8 @@ export function DeployPreviewCard(props: DeployPreviewCardProps): React.ReactEle
           <span className="cb-name">
             {toolName} · {action}
           </span>
+          <EnvBadge />
+          <span className="cb-spacer" />
         </div>
         <div className="cb-preview">
           {deploy.url ? (

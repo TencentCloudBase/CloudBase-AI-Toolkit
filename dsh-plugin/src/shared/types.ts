@@ -56,6 +56,20 @@ export interface EnvItem {
   envType?: string;
 }
 
+/** Session-scoped env binding tracked by the host bridge (in-memory only). */
+export interface BoundEnvEntry {
+  sessionId: string;
+  envId: string;
+  alias?: string;
+  updatedAt: number;
+}
+
+/** Result of auth action=list_bound_envs (also exposed via session cache). */
+export interface ListBoundEnvsResult {
+  bound: BoundEnvEntry[];
+  current?: BoundEnvEntry;
+}
+
 export interface AppAuthProvider {
   name: string;
   enabled: boolean;

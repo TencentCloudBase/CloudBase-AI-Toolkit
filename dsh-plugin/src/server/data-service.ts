@@ -16,6 +16,7 @@ import type {
   UsageItem,
 } from "../shared/types.js";
 import { CloudBaseMcpBridge } from "./mcp-client.js";
+import { SessionEnvCache, writeEnvHint } from "./mcp-bridge.js";
 import { formatBytes, formatUsageItem, mapRegion, scrubInternalCodes } from "./term-map.js";
 
 type LooseRecord = Record<string, unknown>;
@@ -95,6 +96,8 @@ export function createCloudBaseDataService(
   bridge: CloudBaseMcpBridge,
   appendUserMessage?: (text: string) => Promise<void>,
   getSession?: (sessionId?: string) => unknown,
+  sessionEnvCache?: SessionEnvCache,
+  getCurrentSessionId?: () => string,
 ): CloudBaseData {
   return {
     async listTables() {
@@ -396,9 +399,15 @@ export function createCloudBaseDataService(
         await bridge.callTool("auth", { action: "set_env", envId }),
       );
       const signedIn = isSignedIn(payload);
+      const resolvedEnvId = str(payload.envId ?? payload.EnvId) ?? currentEnvId(payload) ?? envId;
+      const sessionId = getCurrentSessionId?.();
+      if (sessionEnvCache && sessionId) {
+        sessionEnvCache.set(sessionId, resolvedEnvId);
+        writeEnvHint(sessionEnvCache, sessionId, resolvedEnvId);
+      }
       return {
         signedIn,
-        envId: str(payload.envId ?? payload.EnvId) ?? currentEnvId(payload) ?? envId,
+        envId: resolvedEnvId,
         authMode: str(payload.authMode ?? payload.mode) ?? (signedIn ? "device-code" : undefined),
         persisted: Boolean(payload.persisted ?? signedIn),
         tempCredentialsAvailable: Boolean(payload.tempCredentials ?? payload.hasTempCredentials),

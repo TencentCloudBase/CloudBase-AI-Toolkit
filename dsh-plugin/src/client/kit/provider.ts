@@ -19,6 +19,10 @@ export type PlatformProvider = CloudBaseData;
 export const KIT_EVENTS = {
   /** 当前环境已切换（会话 set_env 或面板下拉选择）。detail = envId */
   envBound: "cloudbase-dsh:env-bound",
+  /** 环境正在切换（面板下拉选中，MCP 绑定完成前）。无 detail */
+  envChanging: "cloudbase-dsh:env-changing",
+  /** 环境已切换并应刷新 toolview 卡片。detail = envId */
+  envChanged: "cloudbase-dsh:env-changed",
   /** 出现新访问地址，应激活预览视图。detail = url */
   activatePreview: "cloudbase-dsh:activate-preview",
   /** 最近访问地址列表变化。detail = RecentDeploy[] */

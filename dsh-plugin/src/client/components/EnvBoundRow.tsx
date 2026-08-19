@@ -30,6 +30,7 @@ export function EnvBoundRow(props: { matched?: unknown; nodes?: EnvBoundNode[] }
   React.useEffect(() => {
     if (envId) {
       window.dispatchEvent(new CustomEvent("cloudbase-dsh:env-bound", { detail: envId }));
+      window.dispatchEvent(new CustomEvent("cloudbase-dsh:env-changed", { detail: envId }));
     }
   }, [envId]);
 

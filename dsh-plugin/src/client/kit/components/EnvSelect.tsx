@@ -51,9 +51,11 @@ export function EnvSelect(props: EnvSelectProps): React.ReactElement {
   const selectEnv = async (envId: string) => {
     if (!props.provider || !envId) return;
     setError(undefined);
+    window.dispatchEvent(new CustomEvent(KIT_EVENTS.envChanging));
     try {
       const status = await props.provider.setEnvironment(envId);
       window.dispatchEvent(new CustomEvent(KIT_EVENTS.envBound, { detail: envId }));
+      window.dispatchEvent(new CustomEvent(KIT_EVENTS.envChanged, { detail: envId }));
       props.onSwitched?.(envId);
       props.onChanged?.(status);
     } catch (err: unknown) {
