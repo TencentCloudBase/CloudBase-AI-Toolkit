@@ -109,6 +109,16 @@ export const IconOpen = () =>
       React.createElement("path", { key: "a", d: "M14 3h7v7M10 14L21 3M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5" }),
     ],
   });
+export const IconGlobe = () =>
+  Svg({
+    children: [
+      React.createElement("circle", { key: "a", cx: "12", cy: "12", r: "9" }),
+      React.createElement("path", {
+        key: "b",
+        d: "M3 12h18M12 3a15.3 15.3 0 014 9 15.3 15.3 0 01-4 9 15.3 15.3 0 01-4-9 15.3 15.3 0 014-9z",
+      }),
+    ],
+  });
 export const IconGithub = () =>
   Svg({
     children: [

@@ -1,13 +1,13 @@
 import * as React from "react";
 import type { AuthStatus, CloudBaseData } from "../../../shared/types.js";
 import {
-  IconBrowser,
   IconChart,
   IconCloudBase,
   IconDb,
   IconFolder,
   IconGear,
   IconGithub,
+  IconGlobe,
   IconLock,
 } from "../../lib/icons.js";
 import { ensureStyles } from "../../styles.js";
@@ -41,7 +41,7 @@ export interface DetailsPanelProps {
 
 export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
   ensureStyles();
-  const [view, setView] = React.useState<ViewId>("backend");
+  const [view, setView] = React.useState<ViewId>("preview");
   const [tab, setTab] = React.useState<TabId>("db");
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>(undefined);
   const data = props.cloudbaseData;
@@ -81,7 +81,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
                   onClick={() => setView("backend")}
                   title="CloudBase 数据库 / 存储 / 认证 / 配置 / 分析"
                 >
-                  <IconGear />
+                  <IconDb />
                   后端
                 </button>
                 <button
@@ -90,7 +90,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
                   onClick={() => setView("preview")}
                   title="浏览器预览部署的应用或任意 URL"
                 >
-                  <IconBrowser />
+                  <IconGlobe />
                   预览
                 </button>
               </div>
