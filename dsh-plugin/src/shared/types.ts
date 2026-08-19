@@ -85,8 +85,10 @@ export interface AppUser {
   uid: string;
   name?: string;
   email?: string;
+  phone?: string;
   createdAt?: string;
   lastLoginAt?: string;
+  status?: "normal" | "disabled";
 }
 
 export interface SecretItem {
@@ -107,12 +109,117 @@ export interface MetricSeries {
 export interface UsageItem {
   productName: string;
   usedLabel: string;
+  quotaLabel?: string;
+  progress?: number;
 }
 
 export interface LogEntry {
-  title: string;
+  id?: string;
   time?: string;
-  level: "error" | "warn" | "info";
+  level: "error" | "warn" | "info" | "debug";
+  service?: string;
+  message: string;
+  title?: string;
+  raw?: Record<string, unknown>;
+}
+
+export interface LogSearchFilters {
+  queryString: string;
+  service?: "tcb" | "tcbr";
+  startTime?: string;
+  endTime?: string;
+  limit?: number;
+  sort?: "asc" | "desc";
+  context?: string;
+}
+
+export interface LogSearchResult {
+  entries: LogEntry[];
+  context?: string;
+}
+
+export interface PolicySummary {
+  name: string;
+  schema?: string;
+  table?: string;
+  permissive?: string;
+  roles: string[];
+  command: string;
+  using?: string;
+  withCheck?: string;
+}
+
+export interface TableSchemaDetail {
+  schemaTable: string;
+  kind: string;
+  rowCount?: number | null;
+  columns: ColumnSummary[];
+  primaryKey: string[];
+  indexes: { name: string; definition: string }[];
+  foreignKeys: {
+    constraintName: string;
+    columnName: string;
+    references: string;
+    referencedColumn: string;
+  }[];
+  security: {
+    rowLevelSecurityEnabled: boolean;
+    forceRowLevelSecurity: boolean;
+    policies: PolicySummary[];
+  };
+}
+
+export interface PgFunctionRow {
+  name: string;
+  schema: string;
+  returnType?: string;
+  language?: string;
+}
+
+export interface PgExtensionRow {
+  name: string;
+  schema?: string;
+  version?: string;
+}
+
+export interface PgRoleRow {
+  name: string;
+  superuser?: boolean;
+  canLogin?: boolean;
+}
+
+export interface PgMigrationRow {
+  version: string;
+  name?: string;
+  appliedAt?: string;
+  sql?: string;
+}
+
+export interface GatewayRoute {
+  routeId?: string;
+  domain: string;
+  path: string;
+  upstreamResourceType: string;
+  upstreamResourceName: string;
+  enableAuth?: boolean;
+  enable?: boolean;
+  domainType?: string;
+}
+
+export interface GatewayRouteInput {
+  routeId?: string;
+  domain: string;
+  path: string;
+  upstreamResourceType: string;
+  upstreamResourceName: string;
+  enableAuth?: boolean;
+  enablePathTransmission?: boolean;
+  enable?: boolean;
+}
+
+export interface GatewayPrivilege {
+  enableService?: boolean;
+  enableAuth?: boolean;
 }
 
 export interface EnvInfoView {
@@ -163,6 +270,33 @@ export interface CloudBaseData {
   listTables(): Promise<TableSummary[]>;
   listTableColumns(table: string): Promise<ColumnSummary[]>;
   listAppUsers(opts?: { limit?: number; offset?: number }): Promise<AppUser[]>;
+  searchAppUsers(opts?: {
+    keyword?: string;
+    pageNo?: number;
+    pageSize?: number;
+  }): Promise<{ users: AppUser[]; total?: number }>;
+  setAppUserStatus(uid: string, enabled: boolean): Promise<void>;
+  checkLogService(): Promise<boolean>;
+  searchLogs(opts: LogSearchFilters): Promise<LogSearchResult>;
+  getTableSchema(schemaTable: string): Promise<TableSchemaDetail>;
+  listSchemaPolicies(schema?: string): Promise<PolicySummary[]>;
+  runPgDDL(sql: string, confirm: boolean): Promise<{ ok: boolean; message: string }>;
+  listPgFunctions?(schema?: string): Promise<PgFunctionRow[]>;
+  listPgExtensions?(): Promise<PgExtensionRow[]>;
+  listPgRoles?(): Promise<PgRoleRow[]>;
+  listPgMigrations?(): Promise<PgMigrationRow[]>;
+  listGatewayRoutes(): Promise<GatewayRoute[]>;
+  upsertGatewayRoute(input: GatewayRouteInput): Promise<void>;
+  deleteGatewayRoute(routeId: string, confirm: boolean): Promise<void>;
+  getGatewayPrivilege(): Promise<GatewayPrivilege>;
+  listGatewayDomains?(): Promise<string[]>;
+  listFunctionNames?(): Promise<string[]>;
+  setGatewayServiceEnabled?(enable: boolean): Promise<void>;
+  setGatewayAuthEnabled?(enable: boolean): Promise<void>;
+  fetchMetricSeries(
+    metricName: string,
+    opts?: { startTime?: string; endTime?: string; period?: number },
+  ): Promise<MetricSeries>;
   listSecrets(): Promise<SecretItem[]>;
   readRows(table: string, opts?: { limit?: number; offset?: number }): Promise<RowPage>;
   runReadSql(sql: string): Promise<RowPage>;

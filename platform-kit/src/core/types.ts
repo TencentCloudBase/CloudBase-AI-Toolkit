@@ -90,12 +90,135 @@ export interface MetricSeries {
 export interface UsageItem {
   productName: string;
   usedLabel: string;
+  quotaLabel?: string;
+  progress?: number;
 }
 
 export interface LogEntry {
-  title: string;
+  id?: string;
   time?: string;
-  level: "error" | "warn" | "info";
+  level: "error" | "warn" | "info" | "debug";
+  service?: string;
+  message: string;
+  /** @deprecated use message */
+  title?: string;
+  raw?: Record<string, unknown>;
+}
+
+export interface LogSearchFilters {
+  queryString: string;
+  service?: "tcb" | "tcbr" | "";
+  level?: "all" | "error" | "warn" | "info";
+  startTime?: string;
+  endTime?: string;
+  limit?: number;
+  sort?: "asc" | "desc";
+  context?: string;
+}
+
+export interface LogSearchResult {
+  entries: LogEntry[];
+  context?: string;
+}
+
+export interface PolicySummary {
+  name: string;
+  schema?: string;
+  table?: string;
+  permissive?: string;
+  roles: string[];
+  command: string;
+  using?: string;
+  withCheck?: string;
+}
+
+export interface TableSchemaDetail {
+  schemaTable: string;
+  kind: string;
+  rowCount?: number | null;
+  columns: ColumnSummary[];
+  primaryKey: string[];
+  indexes: { name: string; definition: string }[];
+  foreignKeys: {
+    constraintName: string;
+    columnName: string;
+    references: string;
+    referencedColumn: string;
+  }[];
+  security: {
+    rowLevelSecurityEnabled: boolean;
+    forceRowLevelSecurity: boolean;
+    policies: PolicySummary[];
+  };
+}
+
+export interface PgFunctionRow {
+  name: string;
+  schema: string;
+  returnType?: string;
+  language?: string;
+}
+
+export interface PgExtensionRow {
+  name: string;
+  schema?: string;
+  version?: string;
+}
+
+export interface PgRoleRow {
+  name: string;
+  superuser?: boolean;
+  canLogin?: boolean;
+}
+
+export interface PgMigrationRow {
+  version: string;
+  name?: string;
+  appliedAt?: string;
+  sql?: string;
+}
+
+export interface PolicyInput {
+  name: string;
+  schemaTable: string;
+  command: string;
+  roles: string[];
+  using?: string;
+  withCheck?: string;
+  permissive?: boolean;
+}
+
+export interface GatewayRoute {
+  routeId?: string;
+  domain: string;
+  path: string;
+  upstreamResourceType: string;
+  upstreamResourceName: string;
+  enableAuth?: boolean;
+  enable?: boolean;
+  domainType?: string;
+}
+
+export interface GatewayRouteInput {
+  routeId?: string;
+  domain: string;
+  path: string;
+  upstreamResourceType: string;
+  upstreamResourceName: string;
+  enableAuth?: boolean;
+  enablePathTransmission?: boolean;
+  enable?: boolean;
+}
+
+export interface GatewayPrivilege {
+  enableService?: boolean;
+  enableAuth?: boolean;
+}
+
+export interface MetricQueryOpts {
+  startTime?: string;
+  endTime?: string;
+  period?: number;
 }
 
 export interface EnvInfoView {
@@ -117,6 +240,10 @@ export interface AppUser {
   uid: string;
   name?: string;
   email?: string;
+  phone?: string;
+  createdAt?: string;
+  lastLoginAt?: string;
+  status?: "normal" | "disabled";
 }
 
 export interface SecretItem {

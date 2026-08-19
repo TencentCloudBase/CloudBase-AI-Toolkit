@@ -56,7 +56,7 @@ const ROUTES: Array<{
   { id: "cloudrun", labelKey: "menu.cloudrun" },
   { id: "hosting", labelKey: "menu.hosting" },
   { id: "auth", labelKey: "menu.auth" },
-  { id: "gateway", labelKey: "menu.gateway", hideWhen: EFeatureId.NON_POSTGRES_ENV },
+  { id: "gateway", labelKey: "menu.gateway" },
   { id: "logs", labelKey: "menu.logs" },
   { id: "settings", labelKey: "menu.settings" },
 ];

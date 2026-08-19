@@ -14,6 +14,7 @@ import type {
   TableSummary,
   UsageItem,
 } from "../../../shared/types.js";
+import { createV3DataStubs } from "../../../shared/v3-stubs.js";
 
 /**
  * 自定义 Provider 示例：kit 只要求实现 PlatformProvider 输入输出协议，
@@ -160,5 +161,6 @@ export function createMockProvider(): PlatformProvider {
     async sessionBoundEnv(): Promise<string | undefined> {
       return "mock-env-001";
     },
+    ...createV3DataStubs(),
   };
 }

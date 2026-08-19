@@ -131,6 +131,69 @@ export function createRemoteCloudBaseData(
     async sessionBoundEnv(sessionId?: string): Promise<string | undefined> {
       return (await call("sessionBoundEnv", { sessionId })) as string | undefined;
     },
+    async searchAppUsers(opts) {
+      return (await call("searchAppUsers", opts ?? {})) as { users: AppUser[]; total?: number };
+    },
+    async setAppUserStatus(uid, enabled) {
+      await call("setAppUserStatus", { uid, enabled });
+    },
+    async checkLogService() {
+      return Boolean(await call("checkLogService"));
+    },
+    async searchLogs(opts) {
+      return (await call("searchLogs", opts as unknown as Record<string, unknown>)) as import("../../shared/types.js").LogSearchResult;
+    },
+    async getTableSchema(schemaTable) {
+      return (await call("getTableSchema", { schemaTable })) as import("../../shared/types.js").TableSchemaDetail;
+    },
+    async listSchemaPolicies(schema = "public") {
+      return (await call("listSchemaPolicies", { schema })) as import("../../shared/types.js").PolicySummary[];
+    },
+    async runPgDDL(sql, confirm) {
+      return (await call("runPgDDL", { sql, confirm })) as { ok: boolean; message: string };
+    },
+    async listPgFunctions(schema = "public") {
+      return (await call("listPgFunctions", { schema })) as import("../../shared/types.js").PgFunctionRow[];
+    },
+    async listPgExtensions() {
+      return (await call("listPgExtensions")) as import("../../shared/types.js").PgExtensionRow[];
+    },
+    async listPgRoles() {
+      return (await call("listPgRoles")) as import("../../shared/types.js").PgRoleRow[];
+    },
+    async listPgMigrations() {
+      return (await call("listPgMigrations")) as import("../../shared/types.js").PgMigrationRow[];
+    },
+    async listGatewayRoutes() {
+      return (await call("listGatewayRoutes")) as import("../../shared/types.js").GatewayRoute[];
+    },
+    async upsertGatewayRoute(input) {
+      await call("upsertGatewayRoute", { input });
+    },
+    async deleteGatewayRoute(routeId, confirm) {
+      await call("deleteGatewayRoute", { routeId, confirm });
+    },
+    async getGatewayPrivilege() {
+      return (await call("getGatewayPrivilege")) as import("../../shared/types.js").GatewayPrivilege;
+    },
+    async listGatewayDomains() {
+      return (await call("listGatewayDomains")) as string[];
+    },
+    async listFunctionNames() {
+      return (await call("listFunctionNames")) as string[];
+    },
+    async setGatewayServiceEnabled(enable) {
+      await call("setGatewayServiceEnabled", { enable });
+    },
+    async setGatewayAuthEnabled(enable) {
+      await call("setGatewayAuthEnabled", { enable });
+    },
+    async fetchMetricSeries(metricName, opts) {
+      return (await call("fetchMetricSeries", {
+        metricName,
+        ...(opts ?? {}),
+      })) as MetricSeries;
+    },
   };
 }
 
