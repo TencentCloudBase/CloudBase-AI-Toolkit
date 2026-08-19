@@ -108,6 +108,8 @@ export interface CloudBaseData {
   listStorage(path?: string): Promise<StorageObject[]>;
   storageUrl(cloudPath: string): Promise<{ url: string; expiresInSec: number }>;
   authStatus(): Promise<AuthStatus>;
+  /** 发起 device-code 登录（auth start_auth device），返回验证 URL 与用户码。 */
+  startAuth(): Promise<AuthStatus>;
   /** 登录后列出账号下可用环境（auth status 的 env_candidates）。未登录返回空数组。 */
   listEnvironments(): Promise<EnvItem[]>;
   /** 选中环境：auth set_env envId=xxx。返回设置后的 auth status。 */

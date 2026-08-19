@@ -41,6 +41,23 @@ function unwrapData(payload: unknown): LooseRecord {
   return Object.keys(nested).length > 0 ? nested : root;
 }
 
+/** 解析 cloudbase-mcp auth 工具的登录态：auth_status === "READY" 即已登录。 */
+function isSignedIn(payload: LooseRecord): boolean {
+  return (
+    Boolean(payload.signedIn) ||
+    Boolean(payload.AUTH_READY) ||
+    str(payload.auth_status) === "READY" ||
+    str(payload.status) === "AUTH_READY" ||
+    str(payload.code) === "AUTH_READY" ||
+    str(payload.code) === "ENV_READY"
+  );
+}
+
+/** 取当前环境 ID：auth status 返回 current_env_id。 */
+function currentEnvId(payload: LooseRecord): string | undefined {
+  return str(payload.current_env_id ?? payload.currentEnvId ?? payload.envId ?? payload.EnvId);
+}
+
 function looksLikeWriteSql(sql: string): boolean {
   return /^\s*(insert|update|delete|alter|drop|create|truncate|grant|revoke|replace|merge|call|do)\b/i.test(
     sql,
@@ -186,16 +203,37 @@ export function createCloudBaseDataService(
       return { url, expiresInSec: 3600 };
     },
 
+    async startAuth() {
+      const payload = unwrapData(
+        await bridge.callTool("auth", { action: "start_auth", authMode: "device" }),
+      );
+      const signedIn = isSignedIn(payload);
+      return {
+        signedIn,
+        envId: currentEnvId(payload),
+        authMode: "device-code",
+        persisted: Boolean(payload.persisted ?? signedIn),
+        tempCredentialsAvailable: Boolean(payload.tempCredentials ?? payload.hasTempCredentials),
+        verificationUrl:
+          str(payload.verification_uri_complete ?? payload.verificationUrl ?? payload.url) ?? "",
+        userCode: str(payload.user_code ?? payload.userCode) ?? "",
+        message: scrubInternalCodes(
+          str(payload.message) ??
+            (signedIn
+              ? "已登录，请选择环境"
+              : "请在浏览器中打开验证 URL 并输入用户码完成授权（device-code）"),
+        ),
+      } satisfies AuthStatus;
+    },
+
     async authStatus() {
       const payload = unwrapData(
         await bridge.callTool("auth", { action: "status" }),
       );
-      const signedIn = Boolean(
-        payload.signedIn ?? payload.AUTH_READY ?? str(payload.status) === "AUTH_READY",
-      );
+      const signedIn = isSignedIn(payload);
       return {
         signedIn,
-        envId: str(payload.envId ?? payload.EnvId),
+        envId: currentEnvId(payload),
         authMode: str(payload.authMode ?? payload.mode) ?? (signedIn ? "device-code" : undefined),
         persisted: Boolean(payload.persisted ?? signedIn),
         tempCredentialsAvailable: Boolean(payload.tempCredentials ?? payload.hasTempCredentials),
@@ -228,12 +266,10 @@ export function createCloudBaseDataService(
       const payload = unwrapData(
         await bridge.callTool("auth", { action: "set_env", envId }),
       );
-      const signedIn = Boolean(
-        payload.signedIn ?? payload.AUTH_READY ?? str(payload.status) === "AUTH_READY",
-      );
+      const signedIn = isSignedIn(payload);
       return {
         signedIn,
-        envId: str(payload.envId ?? payload.EnvId) ?? envId,
+        envId: str(payload.envId ?? payload.EnvId) ?? currentEnvId(payload) ?? envId,
         authMode: str(payload.authMode ?? payload.mode) ?? (signedIn ? "device-code" : undefined),
         persisted: Boolean(payload.persisted ?? signedIn),
         tempCredentialsAvailable: Boolean(payload.tempCredentials ?? payload.hasTempCredentials),

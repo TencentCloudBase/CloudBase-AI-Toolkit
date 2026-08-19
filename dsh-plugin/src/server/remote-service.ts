@@ -82,6 +82,7 @@ export function buildCloudBaseTypertContribution(): {
       invoke("listStorage", ["path"]),
       invoke("storageUrl", ["cloudPath"]),
       invoke("authStatus"),
+      invoke("startAuth"),
       invoke("listEnvironments"),
       invoke("setEnvironment", ["envId"]),
       invoke("appAuthConfig"),
@@ -143,6 +144,11 @@ export class CloudBaseRemoteService extends TypertRemoteService {
   @Remote("authStatus")
   async authStatus(): Promise<AuthStatus> {
     return toJsonSafe(await this.data.authStatus());
+  }
+
+  @Remote("startAuth")
+  async startAuth(): Promise<AuthStatus> {
+    return toJsonSafe(await this.data.startAuth());
   }
 
   @Remote("listEnvironments")

@@ -75,6 +75,9 @@ export function createRemoteCloudBaseData(
     async authStatus(): Promise<AuthStatus> {
       return (await call("authStatus")) as AuthStatus;
     },
+    async startAuth(): Promise<AuthStatus> {
+      return (await call("startAuth")) as AuthStatus;
+    },
     async listEnvironments(): Promise<EnvItem[]> {
       return (await call("listEnvironments")) as EnvItem[];
     },

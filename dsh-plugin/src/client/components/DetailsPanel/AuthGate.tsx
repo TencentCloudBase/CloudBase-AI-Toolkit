@@ -1,6 +1,5 @@
 import * as React from "react";
 import type { AuthStatus, CloudBaseData } from "../../../shared/types.js";
-import { appendUserMessage } from "../../lib/typert.js";
 import { IconLock } from "../../lib/icons.js";
 import { EnvSelector } from "./EnvSelector.js";
 
@@ -29,6 +28,24 @@ export function AuthGate(props: {
       setStatus(next);
       setError(undefined);
       setPolling(!next.signedIn && Boolean(next.verificationUrl));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [props.data]);
+
+  const startLogin = React.useCallback(async () => {
+    if (!props.data) {
+      setError("数据通道不可用");
+      return;
+    }
+    setLoading(true);
+    setError(undefined);
+    try {
+      const next = await props.data.startAuth();
+      setStatus(next);
+      setPolling(Boolean(next.verificationUrl));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -89,16 +106,7 @@ export function AuthGate(props: {
             <button
               className="cb-btn"
               type="button"
-              onClick={() => {
-                setLoading(true);
-                void appendUserMessage(
-                  props.data,
-                  "请调用 mcp__cloudbase__auth action=start_auth authMode=device，并返回 verification URL 和 user code 让我在浏览器完成授权。不要使用 API Key。",
-                ).finally(() => {
-                  // 等 3 秒后刷新，让模型有时间发起 start_auth
-                  window.setTimeout(() => void refresh(), 3000);
-                });
-              }}
+              onClick={() => void startLogin()}
             >
               开始 device-code 登录
             </button>
@@ -114,7 +122,12 @@ export function AuthGate(props: {
   return (
     <>
       <EnvSelector data={props.data} currentEnvId={status.envId} onChanged={setStatus} onError={setError} />
-      {props.children}
+      {/* key=envId：切换环境后强制 remount 各 tab，重新拉取新环境的数据 */}
+      {props.children && status.envId ? (
+        <React.Fragment key={status.envId}>{props.children}</React.Fragment>
+      ) : (
+        props.children
+      )}
     </>
   );
 }
