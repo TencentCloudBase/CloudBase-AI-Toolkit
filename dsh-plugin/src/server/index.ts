@@ -69,7 +69,7 @@ export function apply(ctx: PluginContext): void {
       return ctx.sessions?.current?.();
     },
     sessionEnvCache,
-    resolveCurrentSessionId,
+    () => resolveCurrentSessionId(ctx),
   );
   // TypertRemoteService 构造器自动把实例注册为 Cordis service（serviceKey="cloudbaseData"）。
   // 同时把 endpoints 注册进 typert local 注册表：api-gateway 的 claimsEndpoint 优先命中
@@ -84,9 +84,10 @@ export function apply(ctx: PluginContext): void {
   }
 
   ctx.on?.("tools/pre-execute", async (exec, next) => {
+    const proceed = next as () => Promise<{ kind: string } | undefined>;
     const toolExec = exec as { name?: string; arguments?: unknown; args?: unknown };
     const toolName = toolExec.name ?? "";
-    if (!isCloudbasePublicTool(toolName)) return next();
+    if (!isCloudbasePublicTool(toolName)) return proceed();
 
     const sessionId = resolveCurrentSessionId(ctx);
     const args = parseToolArguments(toolExec.arguments ?? toolExec.args);
@@ -95,14 +96,14 @@ export function apply(ctx: PluginContext): void {
     if (rawName === "auth" && args.action === "set_env" && typeof args.envId === "string") {
       sessionEnvCache.set(sessionId, args.envId);
       writeEnvHint(sessionEnvCache, sessionId, args.envId);
-      return next();
+      return proceed();
     }
 
     const bound = sessionEnvCache.get(sessionId);
     if (bound?.envId && cloudbaseToolNeedsEnv(rawName, args)) {
       writeEnvHint(sessionEnvCache, sessionId, bound.envId);
     }
-    return next();
+    return proceed();
   });
 
   ctx.effect?.(() => () => bridge.dispose());
