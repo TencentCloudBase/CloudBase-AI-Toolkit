@@ -109,18 +109,42 @@ dsh-plugin/
 └───────────┴─────────────────┴──────────────────────────────────────┘
 ```
 
-- **单行 header**（高 35px）：官方 CloudBase logo + 紧凑 env select（占满中间）+ 后端/预览胶囊（pill 11px + icon）+ GitHub 链接
+- **单行 header**（高 35px）：官方 CloudBase logo + 紧凑 env select（max-width 200px）+ 后端/预览胶囊（居中，icon 地球/数据库）+ GitHub 链接
 - **后端胶囊**：5 tab（数据库 / 存储 / 认证 / 配置 / 分析）
 - **预览胶囊**：URL input + iframe + 刷新/外链 + 最近部署 chips（localStorage 跨会话最多 5）
 - **默认 1:1**：1280 视口 `280/500/500`，大视口按 1:1 缩放
+
+## 五点五、通用平台 UI Kit（对齐 Supabase Platform Kit）
+
+目标：把右侧面板拆成**可复用组件库**，底层通过可配置的 provider 只关心输入输出，不关心实现。
+
+```
+src/client/kit/                     # 通用层（无云依赖）
+├── provider.ts                     # PlatformProvider 协议 + KIT_EVENTS 事件
+├── components/
+│   ├── ResourceTable.tsx           # 通用表格（排序/分页/复制/CSV）
+│   ├── UrlPreview.tsx              # 通用 Webview（URL + iframe + chips）
+│   └── EnvSelect.tsx               # 通用环境选择器（provider + onSwitched）
+├── lib/recent-deploys.ts           # 最近访问地址
+├── examples/custom-provider.example.ts  # 自定义 provider 示例（mock）
+└── index.ts                        # kit 统一导出
+```
+
+- **PlatformProvider 可插拔**：任何实现该接口的对象都能驱动 kit 组件。
+  - 默认：cloudbase-data 服务（host 包装 cloudbase-mcp，typert RPC → MCP capi/callCloudApi → 腾讯云控制面 API）
+  - 自定义：其他云/自研服务实现同接口即可复用（见 examples/custom-provider.example.ts）
+- **capi RPC 全链路**：client `typert.capi(service, action, params)` → `/api/cloudbaseData/capi` → host `@Remote('capi')` → `data-service.capi` → `bridge.callCloudApi`
+- **兼容层**：`PreviewTab`→UrlPreview、`EnvSelector`→EnvSelect 包装、`DataTableCard`→ResourceTable 薄包装
+- **Phase 2 候选**：kit 独立成包 `@cloudbase/ui-kit`、更多组件（StorageList/AuthPanel/MetricsGrid）、provider 默认实现切 capi
 
 ## 六、待办（优先级从高到低）
 
 1. **layout patch 持久化**（最影响 onboarding）：写 `tools/relax-dsh-layout.mjs` 脚本（npx 缓存清理时一键恢复 patch），README 加 install 步骤
 2. **PR #933 合并**：当前 OPEN MERGEABLE，等待 Booker 拍板
-3. **dsh-plugin README 完善**：中英双语 + 安装 + 截图 + 链接到 PR 评论
-4. **端到端演示脚本**（T9）：从创建到部署到分享的完整脚本（`scripts/e2e-live.mjs` 已有雏形）
-5. **sites 闭环**（R4）：bundle 携带 sites skill → 拷贝到 `~/.dsh/skills/cloudbase/` → 完整 demo
+3. **kit Phase 2**：独立成包 `@cloudbase/ui-kit`、更多通用组件（StorageList/AuthPanel/MetricsGrid）、provider 默认实现切 capi
+4. **dsh-plugin README 完善**：中英双语 + 安装 + 截图 + 链接到 PR 评论
+5. **端到端演示脚本**（T9）：从创建到部署到分享的完整脚本（`scripts/e2e-live.mjs` 已有雏形）
+6. **sites 闭环**（R4）：bundle 携带 sites skill → 拷贝到 `~/.dsh/skills/cloudbase/` → 完整 demo
 
 ## 七、真机验证清单（已通过）
 
