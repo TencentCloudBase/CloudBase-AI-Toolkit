@@ -2,6 +2,7 @@ import * as React from "react";
 import type { AppAuthConfig, AuthStatus, CloudBaseData } from "../../../shared/types.js";
 import { appendUserMessage } from "../../lib/typert.js";
 import { IconCheck, IconLock } from "../../lib/icons.js";
+import { friendlyError } from "../../lib/parse-tool-result.js";
 
 export function AuthTab(props: { data?: CloudBaseData }): React.ReactElement {
   const [status, setStatus] = React.useState<AuthStatus | undefined>(undefined);
@@ -19,7 +20,7 @@ export function AuthTab(props: { data?: CloudBaseData }): React.ReactElement {
         setConfig(nextConfig);
         setError(undefined);
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
+      .catch((err: unknown) => setError(friendlyError(err instanceof Error ? err.message : String(err))));
   }, [props.data]);
 
   const startLogin = async () => {

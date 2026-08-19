@@ -1,6 +1,7 @@
 import * as React from "react";
 import type { CloudBaseData, EnvInfoView } from "../../../shared/types.js";
 import { IconCheck, IconCopy } from "../../lib/icons.js";
+import { friendlyError } from "../../lib/parse-tool-result.js";
 
 export function ConfigTab(props: { data?: CloudBaseData }): React.ReactElement {
   const [info, setInfo] = React.useState<EnvInfoView | undefined>(undefined);
@@ -15,7 +16,7 @@ export function ConfigTab(props: { data?: CloudBaseData }): React.ReactElement {
     void props.data
       .envInfo()
       .then(setInfo)
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
+      .catch((err: unknown) => setError(friendlyError(err instanceof Error ? err.message : String(err))));
   }, [props.data]);
 
   const copy = async () => {

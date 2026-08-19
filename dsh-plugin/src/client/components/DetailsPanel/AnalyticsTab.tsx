@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { CloudBaseData, LogEntry, MetricSeries, UsageItem } from "../../../shared/types.js";
+import { friendlyError } from "../../lib/parse-tool-result.js";
 
 function Spark(props: { points: number[]; danger?: boolean }): React.ReactElement {
   const points = props.points.length > 1 ? props.points : [0, 0];
@@ -45,7 +46,7 @@ export function AnalyticsTab(props: { data?: CloudBaseData }): React.ReactElemen
         setErrors(nextErrors);
         setError(undefined);
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
+      .catch((err: unknown) => setError(friendlyError(err instanceof Error ? err.message : String(err))));
   }, [props.data]);
 
   return (

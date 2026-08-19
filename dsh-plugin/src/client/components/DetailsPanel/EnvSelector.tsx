@@ -1,6 +1,7 @@
 import * as React from "react";
 import type { AuthStatus, CloudBaseData, EnvItem } from "../../../shared/types.js";
 import { appendUserMessage } from "../../lib/typert.js";
+import { friendlyError } from "../../lib/parse-tool-result.js";
 
 /** 右侧面板顶部 header：登录后显示环境下拉（单行），选中后调用 auth set_env 切换当前环境。 */
 export function EnvSelector(props: {
@@ -25,7 +26,7 @@ export function EnvSelector(props: {
         if (!cancelled) setEnvs(items);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) setError(friendlyError(err instanceof Error ? err.message : String(err)));
       });
     return () => {
       cancelled = true;

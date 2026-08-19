@@ -3,7 +3,7 @@ import type { CloudBaseData, RowPage, TableSummary } from "../../../shared/types
 import { quotePgTable } from "../../../shared/sql-ident.js";
 import { appendUserMessage } from "../../lib/typert.js";
 import { IconPlus, IconPlay, IconSql, IconTable } from "../../lib/icons.js";
-import { cellText } from "../../lib/parse-tool-result.js";
+import { cellText, friendlyError } from "../../lib/parse-tool-result.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { SqlEditor } from "./SqlEditor.js";
 
@@ -29,7 +29,7 @@ export function DatabaseTab(props: { data?: CloudBaseData }): React.ReactElement
         setError(undefined);
         setSelected((current) => current ?? list[0]);
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
+      .catch((err: unknown) => setError(friendlyError(err instanceof Error ? err.message : String(err))));
   }, [props.data]);
 
   React.useEffect(() => {
@@ -38,7 +38,7 @@ export function DatabaseTab(props: { data?: CloudBaseData }): React.ReactElement
     void props.data
       .readRows(qualified, { limit: 50 })
       .then(setPage)
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
+      .catch((err: unknown) => setError(friendlyError(err instanceof Error ? err.message : String(err))));
   }, [props.data, selected, mode]);
 
   const grouped = {
@@ -59,7 +59,7 @@ export function DatabaseTab(props: { data?: CloudBaseData }): React.ReactElement
       setPage(await props.data.runReadSql(sql));
       setError(undefined);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(friendlyError(err instanceof Error ? err.message : String(err)));
     }
   };
 
@@ -129,6 +129,11 @@ export function DatabaseTab(props: { data?: CloudBaseData }): React.ReactElement
             <div className="cb-tree-sec">
               <IconTable /> Tables
             </div>
+            {error && tables.length === 0 ? (
+              <div className="cb-placeholder" style={{ margin: "8px", fontSize: "11px", textAlign: "left" }}>
+                {error}
+              </div>
+            ) : null}
             {grouped.table.map((item) => (
               <button
                 key={`${item.schema}.${item.name}`}

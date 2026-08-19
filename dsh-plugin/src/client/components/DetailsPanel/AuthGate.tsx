@@ -1,6 +1,7 @@
 import * as React from "react";
 import type { AuthStatus, CloudBaseData } from "../../../shared/types.js";
 import { IconLock } from "../../lib/icons.js";
+import { friendlyError } from "../../lib/parse-tool-result.js";
 
 /**
  * 右侧面板登录门：
@@ -29,7 +30,7 @@ export function AuthGate(props: {
       setError(undefined);
       setPolling(!next.signedIn && Boolean(next.verificationUrl));
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(friendlyError(err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
@@ -47,7 +48,7 @@ export function AuthGate(props: {
       setStatus(next);
       setPolling(Boolean(next.verificationUrl));
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(friendlyError(err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }

@@ -119,3 +119,17 @@ export function cellText(value: unknown): string {
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }
+
+/**
+ * 把 CloudBase MCP 的原始错误转成面板友好提示：
+ * - 资源过期/欠费 → 明确提示续费，不展示 RequestId/Issue 链接等噪音
+ * - 其他长错误 → 只保留首行，超出 200 字符截断
+ */
+export function friendlyError(message: string): string {
+  const text = String(message).trim();
+  if (/resource has expired|renewal fee|欠费|expired/i.test(text)) {
+    return "该环境资源已过期或欠费，请在 CloudBase 控制台续费后重试。";
+  }
+  const firstLine = text.split("\n")[0] ?? text;
+  return firstLine.length > 200 ? `${firstLine.slice(0, 200)}…` : firstLine;
+}

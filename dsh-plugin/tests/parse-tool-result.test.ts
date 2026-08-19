@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseDeploy, parseTable, toCsv, type ToolBlock } from "../src/client/lib/parse-tool-result.js";
+import { friendlyError, parseDeploy, parseTable, toCsv, type ToolBlock } from "../src/client/lib/parse-tool-result.js";
 
 describe("tool result parsing", () => {
   it("renders queryPgDatabase rows as a table model", () => {
@@ -89,5 +89,14 @@ describe("tool result parsing", () => {
     const deploy = parseDeploy(block);
     expect(deploy.url).toBe("https://fn-hello-123.tcloudbaseapp.com");
     expect(deploy.domain).toBe("fn-hello-123.tcloudbaseapp.com");
+  });
+
+  it("maps expired/arrears errors to friendly copy", () => {
+    const raw = "[ListTables] Resource has expired. Please renewal fee... RequestId: xyz 📦 CloudBase MCP v2.28.1";
+    expect(friendlyError(raw)).toBe("该环境资源已过期或欠费，请在 CloudBase 控制台续费后重试。");
+  });
+
+  it("truncates long errors to the first line", () => {
+    expect(friendlyError("line one\nline two\nline three")).toBe("line one");
   });
 });

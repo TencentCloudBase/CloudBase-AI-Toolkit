@@ -2,6 +2,7 @@ import * as React from "react";
 import type { CloudBaseData, StorageObject } from "../../../shared/types.js";
 import { appendUserMessage } from "../../lib/typert.js";
 import { IconDownload, IconExternal, IconFile } from "../../lib/icons.js";
+import { friendlyError } from "../../lib/parse-tool-result.js";
 
 export function StorageTab(props: { data?: CloudBaseData }): React.ReactElement {
   const [files, setFiles] = React.useState<StorageObject[]>([]);
@@ -18,7 +19,7 @@ export function StorageTab(props: { data?: CloudBaseData }): React.ReactElement 
       setFiles(await props.data.listStorage(path));
       setError(undefined);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(friendlyError(err instanceof Error ? err.message : String(err)));
     }
   }, [props.data, path]);
 
@@ -33,7 +34,7 @@ export function StorageTab(props: { data?: CloudBaseData }): React.ReactElement 
       if (result.url) window.open(result.url, "_blank");
       setHint("临时链接 1 小时后过期。私有桶请用临时链接，publicUrl 可能 403。");
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(friendlyError(err instanceof Error ? err.message : String(err)));
     }
   };
 
