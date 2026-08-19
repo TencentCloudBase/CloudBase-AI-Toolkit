@@ -39,6 +39,16 @@ export function registerKeyedSlot(
   run();
 }
 
+/** Register a toolview keyed by tool name; component receives tool block props. */
+export function registerToolViewSlot(
+  ctx: SlotHost,
+  toolName: string,
+  component: unknown,
+): void {
+  registerKeyedSlot(ctx, "tool.call.toolview", toolName, component);
+  registerKeyedSlot(ctx, "tool.call.toolview", `mcp__cloudbase__${toolName}`, component);
+}
+
 export function registerNamedSlot(
   ctx: SlotHost,
   slotName: string,

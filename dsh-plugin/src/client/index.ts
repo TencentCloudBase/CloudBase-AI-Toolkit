@@ -1,11 +1,12 @@
 import * as React from "react";
-import { DATA_TABLE_TOOLS, DEPLOY_TOOLS, URL_TOOLS } from "../shared/constants.js";
+import { DATA_TABLE_TOOLS, DEPLOY_TOOLS } from "../shared/constants.js";
 import { DataTableCard } from "./components/DataTableCard.js";
 import { DeliverableRow } from "./components/DeliverableRow.js";
 import { DeployPreviewCard } from "./components/DeployPreviewCard.js";
 import { DetailsPanel } from "./components/DetailsPanel/index.js";
 import { EnvBoundRow } from "./components/EnvBoundRow.js";
-import { openDetails, registerKeyedSlot, registerNamedSlot, type SlotHost } from "./lib/slots.js";
+import { ToolViewRouter } from "./kit/components/ToolViewRouter.js";
+import { openDetails, registerNamedSlot, registerToolViewSlot, type SlotHost } from "./lib/slots.js";
 import { getDataService } from "./lib/typert.js";
 import { ensureStyles } from "./styles.js";
 
@@ -13,6 +14,13 @@ export const name = "cloudbase-dsh-plugin-client";
 // connection 提供 /api RPC 通道（CloudBase 数据直调 host Remote，不依赖 ctx.remote 的
 // 编译期固定能力集）。不能 inject "remote.cloudbaseData"（第三方贡献不可注入）。
 export const inject = ["slots", "layout", "connection"];
+
+const ACTION_AWARE_TOOLS = [
+  ...DATA_TABLE_TOOLS,
+  "managePgDatabase",
+  "readNoSqlDatabaseStructure",
+  "auth",
+] as const;
 
 function withData(
   ctx: SlotHost,
@@ -30,13 +38,11 @@ function withData(
 export function apply(ctx: SlotHost): void {
   ensureStyles();
 
-  for (const toolName of DATA_TABLE_TOOLS) {
-    registerKeyedSlot(ctx, "tool.call.toolview", toolName, DataTableCard);
-    registerKeyedSlot(ctx, "tool.call.toolview", `mcp__cloudbase__${toolName}`, DataTableCard);
+  for (const toolName of ACTION_AWARE_TOOLS) {
+    registerToolViewSlot(ctx, toolName, ToolViewRouter);
   }
   for (const toolName of DEPLOY_TOOLS) {
-    registerKeyedSlot(ctx, "tool.call.toolview", toolName, DeployPreviewCard);
-    registerKeyedSlot(ctx, "tool.call.toolview", `mcp__cloudbase__${toolName}`, DeployPreviewCard);
+    registerToolViewSlot(ctx, toolName, DeployPreviewCard);
   }
 
   registerNamedSlot(ctx, "conversation.chat.turnTail", "cloudbase-deliverable", DeliverableRow, {
@@ -46,7 +52,7 @@ export function apply(ctx: SlotHost): void {
       if (!turn) return null;
       const nodes = Array.isArray(turn.nodes) ? (turn.nodes as Array<Record<string, unknown>>) : [];
       const hasDeploy = nodes.some((node) =>
-        URL_TOOLS.some((tool) => `${node.toolName ?? node.name ?? ""}`.includes(tool)),
+        DEPLOY_TOOLS.some((tool) => `${node.toolName ?? node.name ?? ""}`.includes(tool)),
       );
       return hasDeploy ? nodes : null;
     },
@@ -91,4 +97,4 @@ export function apply(ctx: SlotHost): void {
     });
 }
 
-export { DataTableCard, DeployPreviewCard, DeliverableRow, DetailsPanel };
+export { DataTableCard, DeployPreviewCard, DeliverableRow, DetailsPanel, ToolViewRouter };
