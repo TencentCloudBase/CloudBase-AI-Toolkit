@@ -1081,50 +1081,26 @@ markets:
   - id: docs-opencode
     product: OpenCode
     region: global
-    channel_type: community_plugin_directory
+    channel_type: docs_config_only
     listing_statuses:
-      # Official unified marketplace still unmerged (anomalyco/opencode#28696; feat PRs open).
       official_curated: not_applicable
-      community_directory: submittable
+      community_directory: not_applicable
       self_marketplace: not_applicable
       native_connector_or_builtin: not_applicable
       open_plugin_spec: not_applicable
       mcp_or_skill_registry: not_applicable
       docs_only: listed
-    submit_url_or_process: |
-      Community: PR to Tommertom/opencode-plugin-marketplace adding plugins/cloudbase.plugin.json
-      (schema/plugin.schema.json). Site: https://opencode-plugin-market.web.app
-      Status 2026-08-19: PR opened https://github.com/Tommertom/opencode-plugin-marketplace/pull/4
-      (MERGEABLE). Live site not yet searchable for CloudBase until merge + deploy.
-      Official: track anomalyco/opencode#28696 / feat PRs #40108 #33698 — prefer official when open.
-    eligibility: public_github_pr_required
-    blockers:
-      - Awaiting maintainer merge of Tommertom/opencode-plugin-marketplace#4
-      - Official OpenCode marketplace not yet merged (anomalyco/opencode#28696)
+    submit_url_or_process: Docs-only MCP/rules setup.
+    eligibility: n_a
+    blockers: []
     evidence_links:
       - doc/ide-setup/opencode.mdx
-      - https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/opencode
-      - https://github.com/Tommertom/opencode-plugin-marketplace
-      - https://github.com/Tommertom/opencode-plugin-marketplace/pull/4
-      - https://opencode-plugin-market.web.app
-      - https://github.com/anomalyco/opencode/issues/28696
-      - https://github.com/anomalyco/opencode/pull/40108
-    local_evidence:
-      - open_plugin_spec_cloudbase
-    submit_checklist:
-      - plugins/cloudbase.plugin.json validates against schema/plugin.schema.json
-      - installation.markdown points to official OpenCode ide-setup docs
-      - PR to Tommertom/opencode-plugin-marketplace
-      - After merge: confirm searchable on opencode-plugin-market.web.app; flip community_directory → listed
-      - When official marketplace ships: submit official format and record URL
+    local_evidence: []
+    submit_checklist: []
     recommended_install_path: doc/ide-setup/opencode.mdx
-    priority_hint: null
-    last_reviewed_at: "2026-08-19"
+    priority_hint: not_applicable
+    last_reviewed_at: "2026-07-27"
     owner: cloudbase-ai-toolkit
-    notes: |
-      2026-08-19: Upgraded from docs-only. Community PR #4 opened (binggg fork).
-      Official unified marketplace still OPEN/unmerged — community is primary discovery path.
-      Do not flip listed until site search returns CloudBase after merge.
 
   - id: docs-qwen-code
     product: Qwen Code
