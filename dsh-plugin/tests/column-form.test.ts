@@ -61,7 +61,7 @@ describe("kit suggestion and growth helpers", () => {
     expect(points[points.length - 1]).toBe(2);
     const items = buildSuggestions({
       tables: [{ name: "empty", schema: "public", kind: "table", rowCount: 0 }],
-      errors: [{ title: "boom", level: "error" }],
+      errors: [{ message: "boom", title: "boom", level: "error" }],
     });
     expect(items.some((item) => item.title.includes("empty"))).toBe(true);
     expect(items.some((item) => item.title.includes("错误"))).toBe(true);

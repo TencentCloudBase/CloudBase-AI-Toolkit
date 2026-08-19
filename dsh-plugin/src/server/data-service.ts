@@ -9,11 +9,22 @@ import type {
   DeploymentRecord,
   EnvInfoView,
   EnvItem,
+  GatewayPrivilege,
+  GatewayRoute,
+  GatewayRouteInput,
   LogEntry,
+  LogSearchFilters,
+  LogSearchResult,
   MetricSeries,
+  PgExtensionRow,
+  PgFunctionRow,
+  PgMigrationRow,
+  PgRoleRow,
+  PolicySummary,
   RowPage,
   SecretItem,
   StorageObject,
+  TableSchemaDetail,
   TableSummary,
   UsageItem,
 } from "../shared/types.js";
@@ -26,6 +37,12 @@ import {
   normalizeUrl,
   sortDeploymentsNewestFirst,
 } from "../shared/apps-access.js";
+import {
+  sqlListSchemaPolicies,
+  sqlListFunctions,
+  sqlListExtensions,
+  sqlListRoles,
+} from "../../../platform-kit/src/pg/sql.js";
 
 type LooseRecord = Record<string, unknown>;
 
@@ -177,23 +194,55 @@ export function createCloudBaseDataService(
     },
 
     async listAppUsers(opts) {
+      const result = await this.searchAppUsers({
+        pageSize: opts?.limit ?? 50,
+        pageNo: Math.floor((opts?.offset ?? 0) / (opts?.limit ?? 20)) + 1,
+      });
+      return result.users;
+    },
+
+    async searchAppUsers(opts) {
       const payload = unwrapData(
         await bridge.callTool("queryPermissions", {
           action: "listUsers",
-          pageNo: Math.floor((opts?.offset ?? 0) / (opts?.limit ?? 20)) + 1,
-          pageSize: opts?.limit ?? 50,
+          pageNo: opts?.pageNo ?? 1,
+          pageSize: opts?.pageSize ?? 50,
         }),
       );
       const users = arr(payload.users ?? payload.UserList ?? payload.Data);
-      return users.map((item): AppUser => {
+      const mapped = users.map((item): AppUser => {
         const row = rec(item);
+        const statusRaw = str(row.UserStatus ?? row.userStatus ?? row.Status)?.toUpperCase();
         return {
           uid: str(row.Uid ?? row.uid ?? row.uuid ?? row.id) ?? "unknown",
           name: str(row.Username ?? row.Name ?? row.name ?? row.NickName),
           email: str(row.Email ?? row.email),
+          phone: str(row.Phone ?? row.phone),
           createdAt: str(row.CreateTime ?? row.createdAt ?? row.CreatedAt),
           lastLoginAt: str(row.LastLoginTime ?? row.lastLoginAt ?? row.UpdateTime),
+          status: statusRaw === "BLOCKED" || statusRaw === "DISABLE" ? "disabled" : "normal",
         };
+      });
+      const keyword = opts?.keyword?.trim().toLowerCase();
+      const filtered = keyword
+        ? mapped.filter(
+            (user) =>
+              user.uid.toLowerCase().includes(keyword) ||
+              user.name?.toLowerCase().includes(keyword) ||
+              user.email?.toLowerCase().includes(keyword),
+          )
+        : mapped;
+      return {
+        users: filtered,
+        total: num(payload.Total ?? payload.total) ?? filtered.length,
+      };
+    },
+
+    async setAppUserStatus(uid, enabled) {
+      await bridge.callTool("managePermissions", {
+        action: "updateUser",
+        uid,
+        userStatus: enabled ? "ACTIVE" : "BLOCKED",
       });
     },
 
@@ -519,33 +568,299 @@ export function createCloudBaseDataService(
 
     async recentErrors() {
       try {
-        const payload = unwrapData(
-          await bridge.callTool("queryLogs", {
-            action: "searchLogs",
-            queryString: "log:ERROR",
-            limit: 20,
-          }),
-        );
-        const logs = arr(payload.logs ?? payload.Results ?? payload.items);
-        return logs.slice(0, 20).map((item): LogEntry => {
-          const row = rec(item);
-          return {
-            title: scrubInternalCodes(
-              str(row.log ?? row.message ?? row.content ?? row.topic) ?? "ERROR",
-            ),
-            time: str(row.time ?? row.timestamp ?? row.Time),
-            level: "error",
-          };
-        });
+        const result = await this.searchLogs({ queryString: "log:ERROR", limit: 20, sort: "desc" });
+        return result.entries.slice(0, 20);
       } catch (error) {
         return [
           {
-            title: scrubInternalCodes(
+            message: scrubInternalCodes(
               error instanceof Error ? error.message : String(error),
             ),
-            level: "warn",
+            level: "warn" as const,
           },
         ];
+      }
+    },
+
+    async checkLogService() {
+      const payload = unwrapData(
+        await bridge.callTool("queryLogs", { action: "checkLogService" }),
+      );
+      return Boolean(payload.enabled ?? payload.Enabled);
+    },
+
+    async searchLogs(opts: LogSearchFilters): Promise<LogSearchResult> {
+      const payload = unwrapData(
+        await bridge.callTool("queryLogs", {
+          action: "searchLogs",
+          queryString: opts.queryString || "*",
+          service: opts.service,
+          startTime: opts.startTime,
+          endTime: opts.endTime,
+          limit: opts.limit ?? 50,
+          sort: opts.sort ?? "desc",
+          context: opts.context,
+        }),
+      );
+      const logs = arr(payload.logs ?? payload.Results ?? payload.items);
+      const contextOut = str(payload.context ?? payload.Context);
+      return {
+        entries: logs.map((item, index): LogEntry => mapLogEntry(item, index)),
+        context: contextOut,
+      };
+    },
+
+    async getTableSchema(schemaTable): Promise<TableSchemaDetail> {
+      const payload = unwrapData(
+        await bridge.callTool("queryPgDatabase", {
+          action: "schema",
+          objectName: schemaTable.includes(".") ? schemaTable : `public.${schemaTable}`,
+        }),
+      );
+      const nested = rec(payload.schema ?? payload);
+      const columns = mapSchemaColumns({
+        columns: nested.columns ?? payload.columns,
+        primaryKey: nested.primaryKey ?? payload.primaryKey,
+        kind: nested.kind ?? payload.kind,
+      });
+      const security = rec(nested.security ?? payload.security);
+      const policiesRaw = arr(security.policies ?? nested.policies);
+      return {
+        schemaTable: str(nested.schemaTable ?? payload.schemaTable) ?? schemaTable,
+        kind: str(nested.kind ?? payload.kind) ?? "table",
+        rowCount: num(nested.rowCount ?? payload.rowCount) ?? null,
+        columns,
+        primaryKey: arr(nested.primaryKey ?? payload.primaryKey).map(String),
+        indexes: arr(nested.indexes ?? payload.indexes).map((item) => {
+          const row = rec(item);
+          return {
+            name: str(row.name ?? row.indexname) ?? "index",
+            definition: str(row.definition ?? row.indexdef) ?? "",
+          };
+        }),
+        foreignKeys: arr(nested.foreignKeys ?? payload.foreignKeys).map((item) => {
+          const row = rec(item);
+          return {
+            constraintName: str(row.constraintName) ?? "",
+            columnName: str(row.columnName) ?? "",
+            references: str(row.references) ?? "",
+            referencedColumn: str(row.referencedColumn) ?? "",
+          };
+        }),
+        security: {
+          rowLevelSecurityEnabled: Boolean(
+            security.rowLevelSecurityEnabled ?? security.rls_enabled,
+          ),
+          forceRowLevelSecurity: Boolean(security.forceRowLevelSecurity),
+          policies: policiesRaw.map(mapPolicyRow),
+        },
+      };
+    },
+
+    async listSchemaPolicies(schema = "public") {
+      const payload = unwrapData(
+        await bridge.callTool("queryPgDatabase", {
+          action: "sql",
+          sql: sqlListSchemaPolicies(schema),
+          limit: 500,
+        }),
+      );
+      return parsePolicyRows(payload);
+    },
+
+    async runPgDDL(sql, confirm) {
+      const payload = unwrapData(
+        await bridge.callTool("managePgDatabase", {
+          action: "execute",
+          sql,
+          confirm,
+        }),
+      );
+      return {
+        ok: payload.success !== false && !payload.error,
+        message: str(payload.message) ?? "OK",
+      };
+    },
+
+    async listPgFunctions(schema = "public") {
+      const payload = unwrapData(
+        await bridge.callTool("queryPgDatabase", {
+          action: "sql",
+          sql: sqlListFunctions(schema),
+          limit: 500,
+        }),
+      );
+      return parseSqlRows(payload).map((row): PgFunctionRow => ({
+        schema: str(row.schema) ?? schema,
+        name: str(row.name) ?? "unknown",
+        returnType: str(row.return_type),
+        language: str(row.language),
+      }));
+    },
+
+    async listPgExtensions() {
+      const payload = unwrapData(
+        await bridge.callTool("queryPgDatabase", {
+          action: "sql",
+          sql: sqlListExtensions(),
+          limit: 200,
+        }),
+      );
+      return parseSqlRows(payload).map((row): PgExtensionRow => ({
+        name: str(row.name) ?? "unknown",
+        schema: str(row.schema),
+        version: str(row.version),
+      }));
+    },
+
+    async listPgRoles() {
+      const payload = unwrapData(
+        await bridge.callTool("queryPgDatabase", {
+          action: "sql",
+          sql: sqlListRoles(),
+          limit: 200,
+        }),
+      );
+      return parseSqlRows(payload).map((row): PgRoleRow => ({
+        name: str(row.name) ?? "unknown",
+        superuser: Boolean(row.superuser),
+        canLogin: Boolean(row.can_login),
+      }));
+    },
+
+    async listPgMigrations() {
+      const payload = unwrapData(
+        await bridge.callTool("managePgDatabase", {
+          action: "listMigrations",
+          limit: 100,
+        }),
+      );
+      const items = arr(payload.migrations ?? payload.items ?? payload.records);
+      return items.map((item): PgMigrationRow => {
+        const row = rec(item);
+        return {
+          version: str(row.version ?? row.migrationVersion ?? row.Version) ?? "unknown",
+          name: str(row.name ?? row.migrationName),
+          appliedAt: str(row.appliedAt ?? row.ApplyTime ?? row.createdAt),
+          sql: str(row.sql ?? row.Sql),
+        };
+      });
+    },
+
+    async listGatewayRoutes(): Promise<GatewayRoute[]> {
+      const payload = unwrapData(
+        await bridge.callTool("queryGateway", { action: "listRoutes" }),
+      );
+      const routes = arr(payload.routes ?? payload.Routes);
+      return routes.map(mapGatewayRoute);
+    },
+
+    async upsertGatewayRoute(input: GatewayRouteInput) {
+      const action = input.routeId ? "updateRoute" : "createRoute";
+      await bridge.callTool("manageGateway", {
+        action,
+        routeId: input.routeId,
+        domain: input.domain,
+        path: input.path,
+        upstreamResourceType: input.upstreamResourceType,
+        targetName: input.upstreamResourceName,
+        route: {
+          domain: input.domain,
+          path: input.path,
+          upstreamResourceType: input.upstreamResourceType,
+          upstreamResourceName: input.upstreamResourceName,
+          enableAuth: input.enableAuth,
+          enablePathTransmission: input.enablePathTransmission,
+          enable: input.enable,
+        },
+      });
+    },
+
+    async deleteGatewayRoute(routeId, confirm) {
+      await bridge.callTool("manageGateway", {
+        action: "deleteRoute",
+        routeId,
+        confirm,
+      });
+    },
+
+    async getGatewayPrivilege(): Promise<GatewayPrivilege> {
+      const payload = unwrapData(
+        await bridge.callTool("queryGateway", { action: "getPrivilege" }),
+      );
+      const privilege = rec(payload.privilege ?? payload);
+      return {
+        enableService: Boolean(
+          privilege.enableService ?? privilege.EnableService ?? privilege.serviceEnabled,
+        ),
+        enableAuth: Boolean(
+          privilege.enableAuth ?? privilege.EnableAuth ?? privilege.authEnabled,
+        ),
+      };
+    },
+
+    async listGatewayDomains() {
+      const payload = unwrapData(
+        await bridge.callTool("queryGateway", { action: "listRoutes" }),
+      );
+      const routes = arr(payload.routes ?? payload.Routes);
+      const domains = routes
+        .map((item) => str(rec(item).Domain ?? rec(item).domain))
+        .filter((value): value is string => Boolean(value));
+      return [...new Set(domains)];
+    },
+
+    async listFunctionNames() {
+      const payload = unwrapData(
+        await bridge.callTool("queryFunctions", { action: "listFunctions" }),
+      );
+      return arr(payload.Functions ?? payload.functions)
+        .map((item) => str(rec(item).FunctionName ?? rec(item).Name ?? rec(item).name))
+        .filter((value): value is string => Boolean(value));
+    },
+
+    async setGatewayServiceEnabled(enable) {
+      await bridge.callTool("manageGateway", { action: "enableService", enable });
+    },
+
+    async setGatewayAuthEnabled(enable) {
+      await bridge.callTool("manageGateway", { action: "authSwitch", enable });
+    },
+
+    async fetchMetricSeries(metricName, opts) {
+      const labels: Record<string, string> = {
+        FunctionInvocation: "函数调用",
+        DbRead: "DB 读",
+        DbWrite: "DB 写",
+        FunctionError: "错误率",
+      };
+      try {
+        const payload = unwrapData(
+          await bridge.callTool("queryEnv", {
+            action: "metrics",
+            metricName,
+            startTime: opts?.startTime,
+            endTime: opts?.endTime,
+            period: opts?.period,
+          }),
+        );
+        const points = extractPoints(payload);
+        const latest = points[points.length - 1] ?? 0;
+        return {
+          name: metricName,
+          label: labels[metricName] ?? metricName,
+          valueLabel: formatMetricValue(latest, metricName),
+          points,
+          danger: metricName === "FunctionError",
+        } satisfies MetricSeries;
+      } catch {
+        return {
+          name: metricName,
+          label: labels[metricName] ?? metricName,
+          valueLabel: "—",
+          points: [],
+          danger: metricName === "FunctionError",
+        };
       }
     },
 
@@ -772,6 +1087,80 @@ export function createCloudBaseDataService(
       }
       return undefined;
     },
+  };
+}
+
+function mapLogEntry(item: unknown, index: number): LogEntry {
+  const row = rec(item);
+  const message = scrubInternalCodes(
+    str(row.log ?? row.message ?? row.content ?? row.topic ?? row.Msg) ?? "",
+  );
+  const levelRaw = str(row.level ?? row.Level ?? row.loglevel)?.toLowerCase() ?? "info";
+  const level =
+    levelRaw.includes("error") ? "error" :
+    levelRaw.includes("warn") ? "warn" :
+    levelRaw.includes("debug") ? "debug" : "info";
+  return {
+    id: str(row.id ?? row.RequestId) ?? String(index),
+    time: str(row.time ?? row.timestamp ?? row.Time ?? row.Timestamp),
+    service: str(row.service ?? row.src ?? row.module),
+    message: message || "—",
+    title: message,
+    level,
+    raw: row,
+  };
+}
+
+function mapPolicyRow(item: unknown): PolicySummary {
+  const row = rec(item);
+  return {
+    name: str(row.name ?? row.policyname) ?? "policy",
+    schema: str(row.schema ?? row.schemaname),
+    table: str(row.table ?? row.tablename),
+    permissive: str(row.permissive),
+    roles: arr(row.roles).map(String),
+    command: str(row.command ?? row.cmd) ?? "ALL",
+    using: str(row.using ?? row.qual),
+    withCheck: str(row.withCheck ?? row.with_check),
+  };
+}
+
+function parsePolicyRows(payload: LooseRecord): PolicySummary[] {
+  return parseSqlRows(payload).map(mapPolicyRow);
+}
+
+function parseSqlRows(payload: LooseRecord): LooseRecord[] {
+  const rowsRaw = arr(payload.rows ?? payload.records ?? payload.data ?? payload.items);
+  if (rowsRaw.length > 0) {
+    return rowsRaw.map((item) => rec(item));
+  }
+  const columns = arr(payload.columns).map((item) =>
+    typeof item === "string" ? item : str(rec(item).name),
+  ).filter((name): name is string => Boolean(name));
+  const matrix = arr(payload.Rows ?? payload.values);
+  return matrix.map((line) => {
+    const values = arr(line);
+    const row: LooseRecord = {};
+    columns.forEach((col, index) => {
+      row[col] = values[index];
+    });
+    return row;
+  });
+}
+
+function mapGatewayRoute(item: unknown): GatewayRoute {
+  const row = rec(item);
+  return {
+    routeId: str(row.RouteId ?? row.routeId ?? row.id),
+    domain: str(row.Domain ?? row.domain) ?? "",
+    path: str(row.Path ?? row.path) ?? "/",
+    upstreamResourceType: str(row.UpstreamResourceType ?? row.upstreamResourceType) ?? "",
+    upstreamResourceName: str(
+      row.UpstreamResourceName ?? row.upstreamResourceName ?? row.targetName,
+    ) ?? "",
+    enableAuth: Boolean(row.EnableAuth ?? row.enableAuth),
+    enable: row.Enable === undefined ? undefined : Boolean(row.Enable ?? row.enable),
+    domainType: str(row.DomainType ?? row.domainType),
   };
 }
 

@@ -104,6 +104,26 @@ export function buildCloudBaseTypertContribution(): {
       invoke("listDeployments"),
       invoke("rollbackDeployment", ["record"]),
       invoke("sessionBoundEnv", ["sessionId"]),
+      invoke("searchAppUsers", ["keyword", "pageNo", "pageSize"]),
+      invoke("setAppUserStatus", ["uid", "enabled"]),
+      invoke("checkLogService"),
+      invoke("searchLogs", ["queryString", "service", "startTime", "endTime", "limit", "sort", "context"]),
+      invoke("getTableSchema", ["schemaTable"]),
+      invoke("listSchemaPolicies", ["schema"]),
+      invoke("runPgDDL", ["sql", "confirm"]),
+      invoke("listPgFunctions", ["schema"]),
+      invoke("listPgExtensions"),
+      invoke("listPgRoles"),
+      invoke("listPgMigrations"),
+      invoke("listGatewayRoutes"),
+      invoke("upsertGatewayRoute", ["input"]),
+      invoke("deleteGatewayRoute", ["routeId", "confirm"]),
+      invoke("getGatewayPrivilege"),
+      invoke("listGatewayDomains"),
+      invoke("listFunctionNames"),
+      invoke("setGatewayServiceEnabled", ["enable"]),
+      invoke("setGatewayAuthEnabled", ["enable"]),
+      invoke("fetchMetricSeries", ["metricName", "startTime", "endTime", "period"]),
     ],
   };
 }
@@ -248,5 +268,123 @@ export class CloudBaseRemoteService extends TypertRemoteService {
   @Remote("sessionBoundEnv")
   async sessionBoundEnv(sessionId?: string): Promise<string | undefined> {
     return toJsonSafe(await this.data.sessionBoundEnv(sessionId));
+  }
+
+  @Remote("searchAppUsers")
+  async searchAppUsers(keyword?: string, pageNo?: number, pageSize?: number) {
+    return toJsonSafe(await this.data.searchAppUsers({ keyword, pageNo, pageSize }));
+  }
+
+  @Remote("setAppUserStatus")
+  async setAppUserStatus(uid: string, enabled: boolean): Promise<void> {
+    return toJsonSafe(await this.data.setAppUserStatus(uid, enabled));
+  }
+
+  @Remote("checkLogService")
+  async checkLogService(): Promise<boolean> {
+    return toJsonSafe(await this.data.checkLogService());
+  }
+
+  @Remote("searchLogs")
+  async searchLogs(
+    queryString: string,
+    service?: string,
+    startTime?: string,
+    endTime?: string,
+    limit?: number,
+    sort?: "asc" | "desc",
+    context?: string,
+  ) {
+    return toJsonSafe(
+      await this.data.searchLogs({
+        queryString,
+        service: service as "tcb" | "tcbr" | undefined,
+        startTime,
+        endTime,
+        limit,
+        sort,
+        context,
+      }),
+    );
+  }
+
+  @Remote("getTableSchema")
+  async getTableSchema(schemaTable: string) {
+    return toJsonSafe(await this.data.getTableSchema(schemaTable));
+  }
+
+  @Remote("listSchemaPolicies")
+  async listSchemaPolicies(schema?: string) {
+    return toJsonSafe(await this.data.listSchemaPolicies(schema));
+  }
+
+  @Remote("runPgDDL")
+  async runPgDDL(sql: string, confirm: boolean) {
+    return toJsonSafe(await this.data.runPgDDL(sql, confirm));
+  }
+
+  @Remote("listPgFunctions")
+  async listPgFunctions(schema?: string) {
+    return toJsonSafe(await this.data.listPgFunctions?.(schema));
+  }
+
+  @Remote("listPgExtensions")
+  async listPgExtensions() {
+    return toJsonSafe(await this.data.listPgExtensions?.());
+  }
+
+  @Remote("listPgRoles")
+  async listPgRoles() {
+    return toJsonSafe(await this.data.listPgRoles?.());
+  }
+
+  @Remote("listPgMigrations")
+  async listPgMigrations() {
+    return toJsonSafe(await this.data.listPgMigrations?.());
+  }
+
+  @Remote("listGatewayRoutes")
+  async listGatewayRoutes() {
+    return toJsonSafe(await this.data.listGatewayRoutes());
+  }
+
+  @Remote("upsertGatewayRoute")
+  async upsertGatewayRoute(input: Record<string, unknown>): Promise<void> {
+    return toJsonSafe(await this.data.upsertGatewayRoute(input as never));
+  }
+
+  @Remote("deleteGatewayRoute")
+  async deleteGatewayRoute(routeId: string, confirm: boolean): Promise<void> {
+    return toJsonSafe(await this.data.deleteGatewayRoute(routeId, confirm));
+  }
+
+  @Remote("getGatewayPrivilege")
+  async getGatewayPrivilege() {
+    return toJsonSafe(await this.data.getGatewayPrivilege());
+  }
+
+  @Remote("listGatewayDomains")
+  async listGatewayDomains() {
+    return toJsonSafe(await this.data.listGatewayDomains?.());
+  }
+
+  @Remote("listFunctionNames")
+  async listFunctionNames() {
+    return toJsonSafe(await this.data.listFunctionNames?.());
+  }
+
+  @Remote("setGatewayServiceEnabled")
+  async setGatewayServiceEnabled(enable: boolean): Promise<void> {
+    return toJsonSafe(await this.data.setGatewayServiceEnabled?.(enable));
+  }
+
+  @Remote("setGatewayAuthEnabled")
+  async setGatewayAuthEnabled(enable: boolean): Promise<void> {
+    return toJsonSafe(await this.data.setGatewayAuthEnabled?.(enable));
+  }
+
+  @Remote("fetchMetricSeries")
+  async fetchMetricSeries(metricName: string, startTime?: string, endTime?: string, period?: number) {
+    return toJsonSafe(await this.data.fetchMetricSeries(metricName, { startTime, endTime, period }));
   }
 }

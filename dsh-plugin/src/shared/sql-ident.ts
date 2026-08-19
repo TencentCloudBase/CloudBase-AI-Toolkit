@@ -317,7 +317,8 @@ function parseStatementImpact(sql: string): Partial<DdlImpactSummary> {
 
   if (/\bCREATE\s+POLICY\b/i.test(normalized)) {
     const policy = normalized.match(/CREATE\s+POLICY\s+([\w"]+)/i)?.[1];
-    partial.rlsChanges?.push(policy ? `CREATE POLICY ${unquoteIdent(policy)}` : "CREATE POLICY");
+    partial.rlsChanges = partial.rlsChanges ?? [];
+    partial.rlsChanges.push(policy ? `CREATE POLICY ${unquoteIdent(policy)}` : "CREATE POLICY");
     impacts.push(partial.rlsChanges[partial.rlsChanges.length - 1] ?? "CREATE POLICY");
     return { ...partial, kind: "privilege", warning: true };
   }

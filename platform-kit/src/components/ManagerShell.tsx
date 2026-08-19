@@ -9,7 +9,10 @@ import {
 } from "../hooks/use-menu.js";
 import { SidebarNav } from "./SidebarNav.js";
 import { OverviewPage } from "./OverviewPage.js";
-import { LogsPage } from "./LogsPage.js";
+import { LogsExplorerPage } from "./logs/LogsExplorerPage.js";
+import { DatabasePage } from "./database/DatabasePage.js";
+import { AuthUsersPage } from "./auth/AuthUsersPage.js";
+import { GatewayPage } from "./gateway/GatewayPage.js";
 import { ensureKitStyles } from "../theme/styles.js";
 import { resolvePostgresEnv } from "../core/features.js";
 
@@ -64,8 +67,14 @@ function ManagerShellInner(props: ManagerShellProps): React.ReactElement {
             onPreviewDeployment={props.onOpenPreview}
           />
         );
+      case "database":
+        return <DatabasePage provider={props.provider} />;
+      case "auth":
+        return <AuthUsersPage provider={props.provider} />;
+      case "gateway":
+        return <GatewayPage provider={props.provider} />;
       case "logs":
-        return <LogsPage provider={props.provider} />;
+        return <LogsExplorerPage provider={props.provider} />;
       default:
         return props.renderRoute?.(activeRoute) ?? (
           <div className="cb-kit-page">

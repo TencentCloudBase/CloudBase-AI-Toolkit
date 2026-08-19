@@ -1,9 +1,12 @@
 import * as React from "react";
 import type { PlatformProvider } from "../core/provider.js";
-import { useAccessEndpoints, useDeployments, useEnvInfo, useMetrics, useUsage } from "../hooks/use-platform.js";
+import { useAccessEndpoints, useDeployments, useEnvInfo, useUsage } from "../hooks/use-platform.js";
+import { useMetricCards } from "../hooks/use-metrics.js";
 import { useKit } from "../hooks/use-menu.js";
 import { AccessEndpointsList } from "./AccessEndpointsList.js";
 import { DeploymentTimeline } from "./DeploymentTimeline.js";
+import { MetricCardsGrid } from "./charts/MetricCardsGrid.js";
+import { UsageBarsList } from "./charts/UsageBarsList.js";
 
 export interface OverviewPageProps {
   provider?: PlatformProvider;
@@ -17,8 +20,19 @@ export function OverviewPage(props: OverviewPageProps): React.ReactElement {
   const endpoints = useAccessEndpoints(provider);
   const deployments = useDeployments(provider);
   const envInfo = useEnvInfo(provider);
-  const metrics = useMetrics(provider);
+  const metrics = useMetricCards(provider);
   const usage = useUsage(provider);
+
+  const metricLabel = (name: string, fallback: string) => {
+    const map: Record<string, Parameters<typeof kit.tr>[0]> = {
+      FunctionInvocation: "metric.FunctionInvocation",
+      DbRead: "metric.DbRead",
+      DbWrite: "metric.DbWrite",
+      FunctionError: "metric.FunctionError",
+    };
+    const key = map[name];
+    return key ? kit.tr(key) : fallback;
+  };
 
   return (
     <div className="cb-kit-page">
@@ -38,6 +52,21 @@ export function OverviewPage(props: OverviewPageProps): React.ReactElement {
           </div>
         </div>
       ) : null}
+
+      <MetricCardsGrid
+        title={kit.tr("overview.metrics.24h")}
+        refreshLabel={kit.tr("overview.metrics.refresh")}
+        series={metrics.data ?? []}
+        loading={metrics.loading}
+        onRefresh={() => metrics.reload()}
+        labelFor={metricLabel}
+      />
+
+      <UsageBarsList
+        title={kit.tr("overview.usage.cycle")}
+        items={usage.data ?? []}
+        emptyLabel={kit.tr("common.empty")}
+      />
 
       <AccessEndpointsList
         title={kit.tr("overview.accessEndpoints")}
@@ -71,34 +100,6 @@ export function OverviewPage(props: OverviewPageProps): React.ReactElement {
         }}
         onRollback={provider?.rollbackDeployment ? (r) => provider.rollbackDeployment!(r) : undefined}
       />
-
-      {metrics.data && metrics.data.length > 0 ? (
-        <div className="cb-kit-section">
-          <div className="cb-kit-section-h">{kit.tr("overview.metrics")}</div>
-          <div className="cb-kit-metrics">
-            {metrics.data.map((item) => (
-              <div key={item.name} className={`cb-kit-metric${item.danger ? " danger" : ""}`}>
-                <div className="k">{item.label}</div>
-                <div className="v">{item.valueLabel}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {usage.data && usage.data.length > 0 ? (
-        <div className="cb-kit-section">
-          <div className="cb-kit-section-h">{kit.tr("overview.usage")}</div>
-          <div className="cb-kit-card">
-            {usage.data.slice(0, 8).map((item) => (
-              <div key={item.productName} className="cb-kit-endpoint" style={{ cursor: "default" }}>
-                <span style={{ fontWeight: 500 }}>{item.productName}</span>
-                <span style={{ marginLeft: "auto", color: "var(--cb-text-2)" }}>{item.usedLabel}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
