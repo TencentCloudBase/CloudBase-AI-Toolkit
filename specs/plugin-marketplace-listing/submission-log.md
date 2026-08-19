@@ -318,3 +318,30 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 2. After live, confirm Skill marketplace entry for `cloudbase`
 3. Flip `markets.yaml` `qoder-plugin.mcp_or_skill_registry` → `listed`
 
+## OpenCode community plugin marketplace
+
+| Field | Value |
+|-------|-------|
+| Status | **PR open** — awaiting maintainer merge (site not listed yet) |
+| PR | https://github.com/Tommertom/opencode-plugin-marketplace/pull/4 |
+| Upstream | https://github.com/Tommertom/opencode-plugin-marketplace |
+| Fork / branch | `binggg/opencode-plugin-marketplace` `add-cloudbase-plugin` |
+| Listing file | `plugins/cloudbase.plugin.json` |
+| Docs | https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/opencode |
+| Site | https://opencode-plugin-market.web.app |
+| Submitted at | 2026-08-19 |
+| Official marketplace | Still unmerged — [anomalyco/opencode#28696](https://github.com/anomalyco/opencode/issues/28696); feat PRs [#40108](https://github.com/anomalyco/opencode/pull/40108) / [#33698](https://github.com/anomalyco/opencode/pull/33698) OPEN |
+
+### How to check progress (OpenCode community marketplace)
+
+1. Watch PR #4: https://github.com/Tommertom/opencode-plugin-marketplace/pull/4
+2. After merge, search https://opencode-plugin-market.web.app for `CloudBase` / `cloudbase`
+3. Flip `markets.yaml` `docs-opencode.community_directory` → `listed` and clear the merge blocker
+4. When official marketplace merges, prefer official submit and record URL under `official_curated`
+
+### 2026-08-19 — PR #4 opened
+
+- Confirmed 49 upstream plugins, zero cloudbase/tencent matches; schema + CONTRIBUTING reviewed.
+- Added MCP-style listing (`installableFromMarketplace: false`) with `installation.markdown` pointing at official OpenCode ide-setup.
+- Official channel still blocked → community PR is the deliverable this round; live site pre-merge has no CloudBase hit.
+
