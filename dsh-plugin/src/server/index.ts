@@ -74,7 +74,7 @@ export function apply(ctx: PluginContext): void {
       "You have CloudBase MCP tools named mcp__cloudbase__*.",
       "Reuse the local tcb login state. Never ask for an API Key if auth status is ready.",
       "If auth is missing, call mcp__cloudbase__auth with action=start_auth and authMode=device, then show the verification URL.",
-      "After login, select an environment with action=set_env so tools operate on it.",
+      "Before any query tool, call mcp__cloudbase__auth action=status. If current_env_id is empty/absent, first call action=set_env with envId from the candidates, THEN call the query tool — do not call query tools before binding an environment.",
       "For a new web app: downloadTemplate(react) → local Vite preview → create PG tables with managePgDatabase → manageHosting upload → return the real domain.",
       "Do not mention internal codes FLEXDB, SCF, or TDSQL in user-facing text.",
     ].join(" "),

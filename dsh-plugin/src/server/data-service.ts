@@ -246,12 +246,18 @@ export function createCloudBaseDataService(
     },
 
     async listEnvironments() {
-      // 用 queryEnv(action=list) 列全量候选环境（101 个，含 mcp-* / 云托管环境），
-      // 不用 auth status 的 env_candidates（只返回前 20 个过滤候选，mcp-pg-* 不在内）。
+      // 用 queryEnv(action=list) 列环境。注意：绑定环境后只返回当前环境（1 个），
+      // 未绑定时返回全量（101 个，含 mcp-*）。响应结构是 { EnvList: [...] }。
       const payload = unwrapData(
         await bridge.callTool("queryEnv", { action: "list" }),
       );
-      const candidates = arr(payload.env_candidates ?? payload.envCandidates ?? payload.Envs);
+      const candidates = arr(
+        payload.EnvList ??
+          payload.env_list ??
+          payload.env_candidates ??
+          payload.envCandidates ??
+          payload.Envs,
+      );
       return candidates.map((item): EnvItem => {
         const row = rec(item);
         return {
