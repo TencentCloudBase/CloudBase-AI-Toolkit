@@ -91,6 +91,7 @@ export function buildCloudBaseTypertContribution(): {
       invoke("recentErrors"),
       invoke("envInfo"),
       invoke("appendToSession", ["text"]),
+      invoke("capi", ["service", "action", "params"]),
     ],
   };
 }
@@ -189,5 +190,10 @@ export class CloudBaseRemoteService extends TypertRemoteService {
   @Remote("appendToSession")
   async appendToSession(text: string): Promise<void> {
     return toJsonSafe(await this.data.appendToSession(text));
+  }
+
+  @Remote("capi")
+  async capi(service: string, action: string, params: Record<string, unknown> = {}): Promise<unknown> {
+    return toJsonSafe(await this.data.capi(service, action, params));
   }
 }

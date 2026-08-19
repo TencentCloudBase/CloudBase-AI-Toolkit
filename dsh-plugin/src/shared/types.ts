@@ -120,4 +120,6 @@ export interface CloudBaseData {
   recentErrors(): Promise<LogEntry[]>;
   envInfo(): Promise<EnvInfoView>;
   appendToSession(text: string): Promise<void>;
+  /** 直调腾讯云控制面 API（MCP capi / callCloudApi）。输出为解包后的 JSON。 */
+  capi(service: string, action: string, params?: Record<string, unknown>): Promise<unknown>;
 }

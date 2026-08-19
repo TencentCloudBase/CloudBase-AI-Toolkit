@@ -477,6 +477,17 @@ export function createCloudBaseDataService(
       }
       await appendUserMessage(text);
     },
+
+    /**
+     * 直调腾讯云 CloudBase 控制面 API（MCP capi 工具 callCloudApi）。
+     * kit 的通用 provider 通道：业务组件只需 service/action/params 输入，
+     * 输出为解包后的 JSON，不关心具体云实现。
+     */
+    async capi(service, action, params = {}) {
+      return unwrapData(
+        await bridge.callTool("callCloudApi", { service, action, params }),
+      );
+    },
   };
 }
 

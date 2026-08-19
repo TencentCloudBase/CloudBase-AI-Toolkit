@@ -102,6 +102,9 @@ export function createRemoteCloudBaseData(
     async appendToSession(text: string): Promise<void> {
       await call("appendToSession", { text });
     },
+    async capi(service: string, action: string, params: Record<string, unknown> = {}): Promise<unknown> {
+      return call("capi", { service, action, params });
+    },
   };
 }
 
