@@ -28,6 +28,17 @@ declare module "@cloudbase/platform-kit" {
 
   export function ManagerShell(props: ManagerShellProps): React.ReactElement;
 
+  /** v3 页面组件：均可选 provider（缺省取 KitProvider 注入），data-service 需实现对应契约方法。 */
+  export interface KitPageProps {
+    provider?: CloudBaseData;
+  }
+
+  export function OverviewPage(props: KitPageProps): React.ReactElement;
+  export function DatabasePage(props: KitPageProps): React.ReactElement;
+  export function AuthUsersPage(props: KitPageProps): React.ReactElement;
+  export function GatewayPage(props: KitPageProps): React.ReactElement;
+  export function LogsPage(props: KitPageProps): React.ReactElement;
+
   export interface UrlPreviewProps {
     seedUrl?: string;
     endpoints?: AccessEndpoint[];

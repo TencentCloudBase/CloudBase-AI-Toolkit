@@ -98,7 +98,7 @@ export function createRemoteCloudBaseData(
     async startLogin(method, params) {
       return (await call("startLogin", { method, params })) as AuthStatus;
     },
-    async authStateChange(listener) {
+    authStateChange(listener) {
       const timer = window.setInterval(() => {
         void call("authStatus").then((status) => listener(status as AuthStatus));
       }, 5000);

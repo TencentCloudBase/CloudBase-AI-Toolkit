@@ -157,7 +157,7 @@ describe("data-service capi mappings", () => {
       },
     });
     const data = createCloudBaseDataService(bridge);
-    const status = await data.startLogin("device-code");
+    const status = await data.startLogin!("device-code");
     expect(status.signedIn).toBe(false);
     expect(status.verificationUrl).toContain("verify");
   });

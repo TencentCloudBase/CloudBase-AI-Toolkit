@@ -215,7 +215,7 @@ export function createCloudBaseDataService(
   }
 
   async function buildAuthStatus(probe = true): Promise<AuthStatus> {
-    const raw = await rawAuthCall({ action: "status" }).catch(() => ({}));
+    const raw = await rawAuthCall({ action: "status" }).catch(() => ({} as LooseRecord));
     const rawSigned =
       Boolean(raw.signedIn) ||
       Boolean(raw.AUTH_READY) ||
@@ -462,7 +462,7 @@ export function createCloudBaseDataService(
     },
 
     async startAuth() {
-      return service.startLogin("device-code");
+      return service.startLogin!("device-code");
     },
 
     authStateChange(listener: AuthStateListener): () => void {
@@ -529,12 +529,12 @@ export function createCloudBaseDataService(
     },
 
     async appAuthConfig() {
-      return service.getAuthLoginConfig();
+      return service.getAuthLoginConfig!();
     },
 
     async getAuthLoginConfig() {
       const envId = await requireEnvId();
-      const payload = await callCapi("tcb", "DescribeAppAuth", { EnvId: envId }).catch(() => ({}));
+      const payload = await callCapi("tcb", "DescribeAppAuth", { EnvId: envId }).catch(() => ({} as LooseRecord));
       const providers = arr(payload.Providers ?? payload.providers).map(
         (item): AppAuthConfig["providers"][number] => {
           const row = rec(item);
@@ -829,7 +829,7 @@ export function createCloudBaseDataService(
     },
 
     async listPgMigrations() {
-      return service.listMigrations();
+      return service.listMigrations!();
     },
 
     async listGatewayRoutes(): Promise<GatewayRoute[]> {
@@ -935,7 +935,7 @@ export function createCloudBaseDataService(
     },
 
     async listGatewayDomains() {
-      const domains = await service.listCustomDomains();
+      const domains = await service.listCustomDomains!();
       return domains.map((d) => d.domain).filter(Boolean);
     },
 
@@ -1035,7 +1035,7 @@ export function createCloudBaseDataService(
       const payload = await callCapi("tcb", "DescribeCDNChainTask", {
         EnvId: envId,
         Bucket: bucket,
-      }).catch(() => ({}));
+      }).catch(() => ({} as LooseRecord));
       return {
         status: (str(payload.Status ?? payload.status) ?? "unknown") as string,
       };
@@ -1046,7 +1046,7 @@ export function createCloudBaseDataService(
       const payload = await callCapi("tcb", "DescribeHostingDomain", {
         EnvId: envId,
         DomainType: "STATIC_STORE",
-      }).catch(() => ({}));
+      }).catch(() => ({} as LooseRecord));
       return arr(payload.Domains ?? payload.domains).map((item) => {
         const row = rec(item);
         return {
@@ -1126,7 +1126,7 @@ export function createCloudBaseDataService(
     },
 
     async envInfo() {
-      const auth = await rawAuthCall({ action: "status" }).catch(() => ({}));
+      const auth = await rawAuthCall({ action: "status" }).catch(() => ({} as LooseRecord));
       const activeEnvId = str(auth.current_env_id ?? auth.currentEnvId) ?? "";
       let env: LooseRecord = {};
       if (activeEnvId) {

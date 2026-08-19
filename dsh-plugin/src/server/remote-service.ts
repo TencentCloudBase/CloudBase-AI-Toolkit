@@ -222,17 +222,17 @@ export class CloudBaseRemoteService extends TypertRemoteService {
 
   @Remote("startLogin")
   async startLogin(method?: string, params?: { envId?: string; apiKey?: string }): Promise<AuthStatus> {
-    return toJsonSafe(await this.data.startLogin?.(method as never, params));
+    return toJsonSafe(await this.data.startLogin!(method as never, params));
   }
 
   @Remote("logout")
   async logout(): Promise<AuthStatus> {
-    return toJsonSafe(await this.data.logout?.());
+    return toJsonSafe(await this.data.logout!());
   }
 
   @Remote("getAuthLoginConfig")
   async getAuthLoginConfig(): Promise<AppAuthConfig> {
-    return toJsonSafe(await this.data.getAuthLoginConfig?.());
+    return toJsonSafe(await this.data.getAuthLoginConfig!());
   }
 
   @Remote("listEnvironments")

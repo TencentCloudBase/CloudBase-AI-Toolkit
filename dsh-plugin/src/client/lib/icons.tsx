@@ -109,6 +109,51 @@ export const IconOpen = () =>
       React.createElement("path", { key: "a", d: "M14 3h7v7M10 14L21 3M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5" }),
     ],
   });
+/** 云函数：代码/终端样式 */
+export const IconFunction = () =>
+  Svg({ children: React.createElement("path", { d: "M8 7l-5 5 5 5M16 7l5 5-5 5" }) });
+/** 云托管：云 + 部署下载 */
+export const IconCloudRun = () =>
+  Svg({
+    children: [
+      React.createElement("path", {
+        key: "a",
+        d: "M17.5 19a4.5 4.5 0 00.5-9 7 7 0 00-13-2 5 5 0 00.5 9.5",
+      }),
+      React.createElement("path", { key: "b", d: "M12 13V8M9 10l3-3 3 3" }),
+    ],
+  });
+/** 静态托管：box/容器 */
+export const IconHosting = () =>
+  Svg({
+    children: [
+      React.createElement("path", { key: "a", d: "M21 8l-9-5-9 5v8l9 5 9-5V8z" }),
+      React.createElement("path", { key: "b", d: "M3 8l9 5 9-5M12 13v8" }),
+    ],
+  });
+/** 网关：路由（起点→终点） */
+export const IconGateway = () =>
+  Svg({
+    children: [
+      React.createElement("circle", { key: "a", cx: "6", cy: "19", r: "3" }),
+      React.createElement("path", {
+        key: "b",
+        d: "M9 19h8.5a3.5 3.5 0 000-7h-11a3.5 3.5 0 010-7H15",
+      }),
+      React.createElement("circle", { key: "c", cx: "18", cy: "5", r: "3" }),
+    ],
+  });
+/** 日志：文件 + 行 */
+export const IconLogs = () =>
+  Svg({
+    children: [
+      React.createElement("path", {
+        key: "a",
+        d: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z",
+      }),
+      React.createElement("path", { key: "b", d: "M14 2v6h6M16 13H8M16 17H8M10 9H8" }),
+    ],
+  });
 export const IconGlobe = () =>
   Svg({
     children: [
