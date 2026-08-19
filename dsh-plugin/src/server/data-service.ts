@@ -42,9 +42,22 @@ import {
   sqlListFunctions,
   sqlListExtensions,
   sqlListRoles,
+  sqlListTables,
+  sqlListSchemas,
+  sqlListTriggers,
+  sqlListTypes,
+  sqlListColumnPrivileges,
+  sqlListMigrations,
+  sqlTableColumns,
+  sqlListIndexes,
+  sqlTableForeignKeys,
+  sqlTableRlsStatus,
+  sqlWrapDdl,
 } from "../../../platform-kit/src/pg/sql.js";
 
 type LooseRecord = Record<string, unknown>;
+type LoginMethod = "device-code" | "apikey" | "host-injected";
+type AuthStateListener = (status: AuthStatus) => void;
 
 function rec(value: unknown): LooseRecord {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -70,23 +83,6 @@ function unwrapData(payload: unknown): LooseRecord {
   return Object.keys(nested).length > 0 ? nested : root;
 }
 
-/** 解析 cloudbase-mcp auth 工具的登录态：auth_status === "READY" 即已登录。 */
-function isSignedIn(payload: LooseRecord): boolean {
-  return (
-    Boolean(payload.signedIn) ||
-    Boolean(payload.AUTH_READY) ||
-    str(payload.auth_status) === "READY" ||
-    str(payload.status) === "AUTH_READY" ||
-    str(payload.code) === "AUTH_READY" ||
-    str(payload.code) === "ENV_READY"
-  );
-}
-
-/** 取当前环境 ID：auth status 返回 current_env_id。 */
-function currentEnvId(payload: LooseRecord): string | undefined {
-  return str(payload.current_env_id ?? payload.currentEnvId ?? payload.envId ?? payload.EnvId);
-}
-
 function looksLikeWriteSql(sql: string): boolean {
   return /^\s*(insert|update|delete|alter|drop|create|truncate|grant|revoke|replace|merge|call|do)\b/i.test(
     sql,
@@ -95,7 +91,7 @@ function looksLikeWriteSql(sql: string): boolean {
 
 function mapTableKind(kindRaw: string): TableSummary["kind"] {
   const kind = kindRaw.toLowerCase();
-  if (kind.includes("view")) return "view";
+  if (kind.includes("view") || kindRaw === "v") return "view";
   if (kind.includes("func")) return "function";
   return "table";
 }
@@ -117,6 +113,30 @@ function mapTable(item: unknown): TableSummary {
   };
 }
 
+function defaultLoginOptions(): AuthStatus["loginOptions"] {
+  return [
+    { method: "device-code", title: "Device code", description: "OAuth device authorization flow" },
+    { method: "apikey", title: "API Key", description: "Environment API Key login" },
+  ];
+}
+
+function mapAuthPayload(payload: LooseRecord, signedIn: boolean): AuthStatus {
+  return {
+    signedIn,
+    envId: str(payload.current_env_id ?? payload.currentEnvId ?? payload.envId ?? payload.EnvId),
+    authMode: str(payload.authMode ?? payload.mode) as LoginMethod | undefined,
+    persisted: Boolean(payload.persisted ?? signedIn),
+    tempCredentialsAvailable: Boolean(payload.tempCredentials ?? payload.hasTempCredentials),
+    verificationUrl: str(payload.verification_uri_complete ?? payload.verificationUrl ?? payload.url),
+    userCode: str(payload.user_code ?? payload.userCode),
+    loginOptions: signedIn ? undefined : defaultLoginOptions(),
+    message: scrubInternalCodes(
+      str(payload.message) ??
+        (signedIn ? "已登录" : "未登录，请选择登录方式"),
+    ),
+  };
+}
+
 export function createCloudBaseDataService(
   bridge: CloudBaseMcpBridge,
   appendUserMessage?: (text: string) => Promise<void>,
@@ -124,23 +144,108 @@ export function createCloudBaseDataService(
   sessionEnvCache?: SessionEnvCache,
   getCurrentSessionId?: () => string,
 ): CloudBaseData {
-  return {
+  const authListeners = new Set<AuthStateListener>();
+  let authPollTimer: ReturnType<typeof setInterval> | undefined;
+
+  async function callCapi(
+    service: string,
+    action: string,
+    params: Record<string, unknown> = {},
+  ): Promise<LooseRecord> {
+    return unwrapData(
+      await bridge.callTool("callCloudApi", { service, action, params }),
+    );
+  }
+
+  async function rawAuthCall(args: Record<string, unknown>): Promise<LooseRecord> {
+    return unwrapData(await bridge.callTool("auth", args));
+  }
+
+  async function probeCredentials(): Promise<boolean> {
+    try {
+      const payload = await callCapi("tcb", "DescribeEnvs", {});
+      const envList = arr(payload.EnvList ?? payload.env_candidates ?? payload.envCandidates);
+      return envList.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  async function resolveActiveEnvId(): Promise<string | undefined> {
+    const sessionId = getCurrentSessionId?.();
+    const cached = sessionId && sessionEnvCache ? sessionEnvCache.get(sessionId)?.envId : undefined;
+    if (cached) return cached;
+    try {
+      const auth = await rawAuthCall({ action: "status" });
+      return str(auth.current_env_id ?? auth.currentEnvId ?? auth.envId ?? auth.EnvId) ?? cached;
+    } catch {
+      return cached;
+    }
+  }
+
+  async function requireEnvId(): Promise<string> {
+    const envId = await resolveActiveEnvId();
+    if (!envId) {
+      throw new Error("未绑定环境，请先登录并选择环境");
+    }
+    return envId;
+  }
+
+  async function executePgSql(sql: string): Promise<LooseRecord> {
+    const envId = await requireEnvId();
+    return callCapi("tcb", "ExecutePGSql", { EnvId: envId, Sql: sql });
+  }
+
+  async function executePgSqlWithDdlRetry(sql: string): Promise<LooseRecord> {
+    try {
+      return await executePgSql(sql);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/InternalError|internal error/i.test(message)) {
+        throw error;
+      }
+      return executePgSql(sqlWrapDdl(sql));
+    }
+  }
+
+  function notifyAuthListeners(status: AuthStatus): void {
+    for (const listener of authListeners) {
+      listener(status);
+    }
+  }
+
+  async function buildAuthStatus(probe = true): Promise<AuthStatus> {
+    const raw = await rawAuthCall({ action: "status" }).catch(() => ({}));
+    const rawSigned =
+      Boolean(raw.signedIn) ||
+      Boolean(raw.AUTH_READY) ||
+      str(raw.auth_status) === "READY" ||
+      str(raw.status) === "AUTH_READY" ||
+      str(raw.code) === "AUTH_READY" ||
+      str(raw.code) === "ENV_READY";
+    const valid = rawSigned && (!probe || (await probeCredentials()));
+    const status = mapAuthPayload(raw, valid);
+    if (!valid) {
+      status.signedIn = false;
+      status.loginOptions = defaultLoginOptions();
+    }
+    return status;
+  }
+
+  const service: CloudBaseData = {
     async listTables() {
       let pgError: string | undefined;
       try {
-        const payload = unwrapData(
-          await bridge.callTool("queryPgDatabase", {
-            action: "metadata",
-            limit: 200,
-          }),
-        );
-        const objects = arr(payload.objects ?? payload.tables ?? payload.items);
-        if (objects.length > 0) return objects.map(mapTable);
-        const listed = unwrapData(
-          await bridge.callTool("queryPgDatabase", { action: "objects", limit: 200 }),
-        );
-        const fallback = arr(listed.objects ?? listed.tables ?? listed.items);
-        if (fallback.length > 0) return fallback.map(mapTable);
+        const payload = await executePgSql(sqlListTables());
+        const rows = parseSqlRows(payload);
+        if (rows.length > 0) {
+          return rows.map((row): TableSummary => ({
+            name: str(row.name) ?? "unknown",
+            schema: str(row.schema) ?? "public",
+            kind: mapTableKind(str(row.kind) ?? "r"),
+            rowCount: num(row.estimated_rows),
+          }));
+        }
       } catch (error) {
         pgError = error instanceof Error ? error.message : String(error);
       }
@@ -168,33 +273,33 @@ export function createCloudBaseDataService(
         nosqlError = error instanceof Error ? error.message : String(error);
       }
 
-      if (pgError) {
-        throw new Error(pgError);
-      }
-      if (nosqlError) {
-        throw new Error(nosqlError);
-      }
+      if (pgError) throw new Error(pgError);
+      if (nosqlError) throw new Error(nosqlError);
       return [];
     },
 
     async listTableColumns(table) {
-      const payload = unwrapData(
-        await bridge.callTool("queryPgDatabase", {
-          action: "schema",
-          objectName: table.includes(".") ? table : `public.${table}`,
-        }),
+      const payload = await executePgSql(
+        sqlTableColumns(table.includes(".") ? table : `public.${table}`),
       );
-      const nested = rec(payload.schema ?? payload);
-      const columns = mapSchemaColumns({
-        columns: nested.columns ?? payload.columns,
-        primaryKey: nested.primaryKey ?? payload.primaryKey,
-        kind: nested.kind ?? payload.kind,
+      const rows = parseSqlRows(payload);
+      const columns = rows.map((row) => ({
+        name: str(row.column_name) ?? "unknown",
+        type: str(row.data_type) ?? "unknown",
+        dataType: str(row.data_type) ?? "unknown",
+        nullable: str(row.is_nullable)?.toUpperCase() === "YES",
+        isUpdatable: true,
+        primaryKey: Boolean(row.is_pk),
+      }));
+      return mapSchemaColumns({
+        columns,
+        primaryKey: columns.filter((c) => c.primaryKey).map((c) => c.name),
+        kind: "table",
       });
-      return columns;
     },
 
     async listAppUsers(opts) {
-      const result = await this.searchAppUsers({
+      const result = await service.searchAppUsers({
         pageSize: opts?.limit ?? 50,
         pageNo: Math.floor((opts?.offset ?? 0) / (opts?.limit ?? 20)) + 1,
       });
@@ -202,14 +307,16 @@ export function createCloudBaseDataService(
     },
 
     async searchAppUsers(opts) {
-      const payload = unwrapData(
-        await bridge.callTool("queryPermissions", {
-          action: "listUsers",
-          pageNo: opts?.pageNo ?? 1,
-          pageSize: opts?.pageSize ?? 50,
-        }),
-      );
-      const users = arr(payload.users ?? payload.UserList ?? payload.Data);
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcb", "DescribeUserList", {
+        EnvId: envId,
+        PageNo: opts?.pageNo ?? 1,
+        PageSize: opts?.pageSize ?? 50,
+        Name: opts?.keyword,
+        Email: opts?.keyword,
+      });
+      const data = rec(payload.Data ?? payload);
+      const users = arr(data.UserList ?? data.users ?? payload.UserList);
       const mapped = users.map((item): AppUser => {
         const row = rec(item);
         const statusRaw = str(row.UserStatus ?? row.userStatus ?? row.Status)?.toUpperCase();
@@ -234,87 +341,53 @@ export function createCloudBaseDataService(
         : mapped;
       return {
         users: filtered,
-        total: num(payload.Total ?? payload.total) ?? filtered.length,
+        total: num(data.Total ?? payload.Total ?? data.total) ?? filtered.length,
       };
     },
 
     async setAppUserStatus(uid, enabled) {
-      await bridge.callTool("managePermissions", {
-        action: "updateUser",
-        uid,
-        userStatus: enabled ? "ACTIVE" : "BLOCKED",
+      const envId = await requireEnvId();
+      await callCapi("tcb", "ModifyUser", {
+        EnvId: envId,
+        Uid: uid,
+        UserStatus: enabled ? "ACTIVE" : "BLOCKED",
       });
     },
 
     async listSecrets() {
+      const envId = await requireEnvId();
       const secrets: SecretItem[] = [];
       try {
-        const listed = unwrapData(
-          await bridge.callTool("queryFunctions", { action: "listFunctions" }),
-        );
-        const functions = arr(listed.Functions ?? listed.functions ?? listed.items);
+        const listed = await callCapi("tcb", "DescribeFunctions", { EnvId: envId, Limit: 20 });
+        const functions = arr(listed.Functions ?? listed.functions);
         for (const item of functions.slice(0, 20)) {
           const row = rec(item);
-          const name = str(row.FunctionName ?? row.Name ?? row.name);
+          const name = str(row.FunctionName ?? row.Name);
           if (!name) continue;
-          const detail = unwrapData(
-            await bridge
-              .callTool("queryFunctions", { action: "getFunctionDetail", functionName: name })
-              .catch(() => ({})),
-          );
-          const env = rec(detail.Environment ?? rec(detail.Function).Environment);
-          const vars = arr(env.Variables ?? env.variables);
-          for (const variable of vars) {
-            const entry = rec(variable);
-            const key = str(entry.Key ?? entry.key ?? entry.Name);
-            if (!key) continue;
-            const value = str(entry.Value ?? entry.value) ?? "";
-            secrets.push({
-              source: name,
-              sourceKind: "function",
-              key,
-              valueMasked: value.length > 4 ? `${value.slice(0, 2)}***` : "***",
+          try {
+            const detail = await callCapi("tcb", "GetFunction", {
+              EnvId: envId,
+              FunctionName: name,
             });
-          }
-        }
-      } catch {
-        // Function env listing is best-effort; panel still renders empty state.
-      }
-      try {
-        const run = unwrapData(
-          await bridge.callTool("queryCloudRun", { action: "list" }).catch(() => ({})),
-        );
-        const services = arr(run.ServerList ?? run.services ?? run.items);
-        for (const item of services.slice(0, 10)) {
-          const row = rec(item);
-          const name = str(row.ServerName ?? row.name);
-          if (!name) continue;
-          const envVars = arr(row.EnvParams ?? row.envVars ?? rec(row.Env).Variables);
-          for (const variable of envVars) {
-            if (typeof variable === "string") {
-              const [key] = variable.split("=");
+            const env = rec(detail.Environment ?? rec(detail.Function).Environment);
+            for (const variable of arr(env.Variables ?? env.variables)) {
+              const entry = rec(variable);
+              const key = str(entry.Key ?? entry.key ?? entry.Name);
               if (!key) continue;
+              const value = str(entry.Value ?? entry.value) ?? "";
               secrets.push({
                 source: name,
-                sourceKind: "cloudrun",
+                sourceKind: "function",
                 key,
-                valueMasked: "***",
+                valueMasked: value.length > 4 ? `${value.slice(0, 2)}***` : "***",
               });
-              continue;
             }
-            const entry = rec(variable);
-            const key = str(entry.Key ?? entry.key ?? entry.Name);
-            if (!key) continue;
-            secrets.push({
-              source: name,
-              sourceKind: "cloudrun",
-              key,
-              valueMasked: "***",
-            });
+          } catch {
+            // skip function without env vars
           }
         }
       } catch {
-        // CloudRun env listing is optional.
+        // best-effort
       }
       return secrets;
     },
@@ -323,119 +396,109 @@ export function createCloudBaseDataService(
       const limit = opts?.limit ?? 50;
       const offset = opts?.offset ?? 0;
       const sql = `SELECT * FROM ${quotePgTable(table)} LIMIT ${limit} OFFSET ${offset}`;
-      return this.runReadSql(sql);
+      return service.runReadSql(sql);
     },
 
     async runReadSql(sql) {
       if (looksLikeWriteSql(sql)) {
-        throw new Error("写 SQL 必须经会话确认后由模型调用 managePgDatabase 执行");
+        throw new Error("写 SQL 必须经会话确认后由 runPgDDL 执行");
       }
       const started = Date.now();
-      const payload = unwrapData(
-        await bridge.callTool("queryPgDatabase", {
-          action: "sql",
-          sql,
-          limit: 200,
-        }),
-      );
+      const payload = await executePgSql(sql);
       return toRowPage(payload, Date.now() - started);
     },
 
-    async listStorage(path = "") {
-      const payload = unwrapData(
-        await bridge.callTool("queryStorage", {
-          action: "list",
-          cloudPath: path || "/",
-        }),
-      );
-      const files = arr(payload.files ?? payload.Contents ?? payload.items);
-      return files.map((item): StorageObject => {
-        const row = rec(item);
-        const name = str(row.Key ?? row.name ?? row.fileName) ?? "unknown";
-        const size = num(row.Size ?? row.size) ?? 0;
-        return {
-          name: name.split("/").filter(Boolean).pop() ?? name,
-          cloudPath: name,
-          size,
-          sizeLabel: formatBytes(size),
-          updatedAt: str(row.LastModified ?? row.updatedAt ?? row.updateTime),
-          isDirectory: Boolean(row.isDirectory) || name.endsWith("/"),
-        };
-      });
+    async listStorage(_path = "") {
+      // Host COS responsibility per spec §3.6 — file listing via host SDK, not MCP storage tools.
+      return [] satisfies StorageObject[];
     },
 
-    async storageUrl(cloudPath) {
-      const payload = unwrapData(
-        await bridge.callTool("queryStorage", {
-          action: "url",
-          cloudPath,
-          maxAge: 3600,
-        }),
-      );
-      const url =
-        str(payload.temporaryUrl ?? payload.tempUrl ?? payload.url ?? payload.downloadUrl) ?? "";
-      return { url, expiresInSec: 3600 };
-    },
-
-    async startAuth() {
-      const payload = unwrapData(
-        await bridge.callTool("auth", { action: "start_auth", authMode: "device" }),
-      );
-      const signedIn = isSignedIn(payload);
-      return {
-        signedIn,
-        envId: currentEnvId(payload),
-        authMode: "device-code",
-        persisted: Boolean(payload.persisted ?? signedIn),
-        tempCredentialsAvailable: Boolean(payload.tempCredentials ?? payload.hasTempCredentials),
-        verificationUrl:
-          str(payload.verification_uri_complete ?? payload.verificationUrl ?? payload.url) ?? "",
-        userCode: str(payload.user_code ?? payload.userCode) ?? "",
-        message: scrubInternalCodes(
-          str(payload.message) ??
-            (signedIn
-              ? "已登录，请选择环境"
-              : "请在浏览器中打开验证 URL 并输入用户码完成授权（device-code）"),
-        ),
-      } satisfies AuthStatus;
+    async storageUrl(_cloudPath) {
+      throw new Error("storageUrl 需宿主注入 COS SDK 实现");
     },
 
     async authStatus() {
-      const payload = unwrapData(
-        await bridge.callTool("auth", { action: "status" }),
-      );
-      const signedIn = isSignedIn(payload);
-      return {
-        signedIn,
-        envId: currentEnvId(payload),
-        authMode: str(payload.authMode ?? payload.mode) ?? (signedIn ? "device-code" : undefined),
-        persisted: Boolean(payload.persisted ?? signedIn),
-        tempCredentialsAvailable: Boolean(payload.tempCredentials ?? payload.hasTempCredentials),
-        verificationUrl: str(payload.verification_uri_complete ?? payload.verificationUrl),
-        userCode: str(payload.user_code ?? payload.userCode),
-        message: scrubInternalCodes(
-          str(payload.message) ?? (signedIn ? "已登录" : "未登录，请使用 device-code 授权"),
-        ),
-      } satisfies AuthStatus;
+      return buildAuthStatus(true);
+    },
+
+    async startLogin(method: LoginMethod = "device-code", params?: { envId?: string; apiKey?: string }) {
+      if (method === "host-injected") {
+        return buildAuthStatus(true);
+      }
+      if (method === "apikey") {
+        const envId = params?.envId;
+        const apiKey = params?.apiKey;
+        if (!envId || !apiKey) {
+          return {
+            signedIn: false,
+            persisted: false,
+            tempCredentialsAvailable: false,
+            loginOptions: defaultLoginOptions(),
+            message: "API Key 登录需要 envId 与 apiKey",
+          } satisfies AuthStatus;
+        }
+        const payload = await rawAuthCall({
+          action: "login_by_api_key",
+          envId,
+          apiKey,
+        });
+        const status = mapAuthPayload(payload, await probeCredentials());
+        notifyAuthListeners(status);
+        return status;
+      }
+      const payload = await rawAuthCall({ action: "start_auth", authMode: "device" });
+      const status = mapAuthPayload(payload, false);
+      status.signedIn = false;
+      if (payload.verification_uri_complete || payload.verificationUrl) {
+        status.verificationUrl =
+          str(payload.verification_uri_complete ?? payload.verificationUrl ?? payload.url) ?? "";
+        status.userCode = str(payload.user_code ?? payload.userCode) ?? "";
+        status.message = scrubInternalCodes(
+          str(payload.message) ?? "请在浏览器完成 device-code 授权",
+        );
+      }
+      notifyAuthListeners(status);
+      return status;
+    },
+
+    async startAuth() {
+      return service.startLogin("device-code");
+    },
+
+    authStateChange(listener: AuthStateListener): () => void {
+      authListeners.add(listener);
+      if (!authPollTimer) {
+        authPollTimer = setInterval(() => {
+          void buildAuthStatus(true).then(notifyAuthListeners);
+        }, 5000);
+      }
+      void buildAuthStatus(true).then(listener);
+      return () => {
+        authListeners.delete(listener);
+        if (authListeners.size === 0 && authPollTimer) {
+          clearInterval(authPollTimer);
+          authPollTimer = undefined;
+        }
+      };
+    },
+
+    async logout() {
+      await rawAuthCall({ action: "logout", confirm: "yes" });
+      const status: AuthStatus = {
+        signedIn: false,
+        persisted: false,
+        tempCredentialsAvailable: false,
+        loginOptions: defaultLoginOptions(),
+        message: "已退出登录",
+      };
+      notifyAuthListeners(status);
+      return status;
     },
 
     async listEnvironments() {
-      // 用 callCloudApi DescribeEnvs 拿全量候选（不受 set_env 绑定影响，始终返回 101 个；
-      // queryEnv(action=list) 绑定后只返回当前 1 个）。callCloudApi 未绑定时返回
-      // ENV_REQUIRED 但附带完整 env_candidates，直接取它。过滤 status==="NORMAL"：
-      // UNAVAILABLE 多为欠费/不可用，不应出现在切换列表。
-      const payload = unwrapData(
-        await bridge.callTool("callCloudApi", {
-          service: "tcb",
-          action: "DescribeEnvs",
-          params: {},
-        }),
-      );
+      const payload = await callCapi("tcb", "DescribeEnvs", {});
       const candidates = arr(
-        payload.env_candidates ??
-          payload.envCandidates ??
-          payload.EnvList ??
-          payload.Envs,
+        payload.env_candidates ?? payload.envCandidates ?? payload.EnvList ?? payload.Envs,
       );
       return candidates
         .map((item): EnvItem => {
@@ -452,57 +515,36 @@ export function createCloudBaseDataService(
     },
 
     async setEnvironment(envId) {
-      const payload = unwrapData(
-        await bridge.callTool("auth", { action: "set_env", envId }),
-      );
-      const signedIn = isSignedIn(payload);
-      const resolvedEnvId = str(payload.envId ?? payload.EnvId) ?? currentEnvId(payload) ?? envId;
+      const payload = await rawAuthCall({ action: "set_env", envId });
       const sessionId = getCurrentSessionId?.();
+      const resolvedEnvId = str(payload.envId ?? payload.EnvId) ?? envId;
       if (sessionEnvCache && sessionId) {
         sessionEnvCache.set(sessionId, resolvedEnvId);
         writeEnvHint(sessionEnvCache, sessionId, resolvedEnvId);
       }
-      return {
-        signedIn,
-        envId: resolvedEnvId,
-        authMode: str(payload.authMode ?? payload.mode) ?? (signedIn ? "device-code" : undefined),
-        persisted: Boolean(payload.persisted ?? signedIn),
-        tempCredentialsAvailable: Boolean(payload.tempCredentials ?? payload.hasTempCredentials),
-        verificationUrl: str(payload.verification_uri_complete ?? payload.verificationUrl),
-        userCode: str(payload.user_code ?? payload.userCode),
-        message: scrubInternalCodes(
-          str(payload.message) ?? (signedIn ? `已切换环境 ${envId}` : "未登录"),
-        ),
-      } satisfies AuthStatus;
+      const status = await buildAuthStatus(true);
+      status.envId = resolvedEnvId;
+      notifyAuthListeners(status);
+      return status;
     },
 
     async appAuthConfig() {
-      const payload = unwrapData(
-        await bridge.callTool("queryAppAuth", { action: "listProviders" }).catch(() => ({})),
+      return service.getAuthLoginConfig();
+    },
+
+    async getAuthLoginConfig() {
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcb", "DescribeAppAuth", { EnvId: envId }).catch(() => ({}));
+      const providers = arr(payload.Providers ?? payload.providers).map(
+        (item): AppAuthConfig["providers"][number] => {
+          const row = rec(item);
+          const rawName = str(row.ProviderType ?? row.type ?? row.name) ?? "unknown";
+          return {
+            name: providerLabel(rawName),
+            enabled: Boolean(row.Status === "ENABLED" || row.enabled || row.Enable),
+          };
+        },
       );
-      const providers = arr(payload.providers ?? payload.Providers).map((item): AppAuthConfig["providers"][number] => {
-        const row = rec(item);
-        const rawName = str(row.ProviderType ?? row.type ?? row.name) ?? "unknown";
-        return {
-          name: providerLabel(rawName),
-          enabled: Boolean(row.Status === "ENABLED" || row.enabled || row.Enable),
-        };
-      });
-      if (providers.length === 0) {
-        const login = unwrapData(
-          await bridge.callTool("queryAppAuth", { action: "getLoginConfig" }).catch(() => ({})),
-        );
-        const flags = rec(login.loginConfig ?? login.config ?? login);
-        const mapped = [
-          { name: "邮箱密码", flag: flags.email ?? flags.Email ?? flags.emailPassword },
-          { name: "用户名密码", flag: flags.usernamePassword ?? flags.UsernamePassword },
-          { name: "微信", flag: flags.wechat ?? flags.Wechat ?? flags.wx },
-          { name: "匿名", flag: flags.anonymous ?? flags.Anonymous },
-        ].filter((item) => item.flag !== undefined);
-        for (const item of mapped) {
-          providers.push({ name: item.name, enabled: Boolean(item.flag) });
-        }
-      }
       return { providers } satisfies AppAuthConfig;
     },
 
@@ -513,15 +555,30 @@ export function createCloudBaseDataService(
         { metricName: "DbWrite", label: "DB 写" },
         { metricName: "FunctionError", label: "错误率", danger: true },
       ] as const;
+      const envId = await resolveActiveEnvId();
+      if (!envId) {
+        return names.map((item) => ({
+          name: item.metricName,
+          label: item.label,
+          valueLabel: "—",
+          points: [],
+          danger: "danger" in item ? item.danger : false,
+        }));
+      }
+      const end = new Date();
+      const start = new Date(end.getTime() - 24 * 3600 * 1000);
+      const fmt = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
       const series: MetricSeries[] = [];
       for (const item of names) {
         try {
-          const payload = unwrapData(
-            await bridge.callTool("queryEnv", {
-              action: "metrics",
-              metricName: item.metricName,
-            }),
-          );
+          const payload = await callCapi("tcb", "DescribeCurveData", {
+            EnvId: envId,
+            MetricName: item.metricName,
+            StartTime: fmt(start),
+            EndTime: fmt(end),
+            Period: 3600,
+          });
           const points = extractPoints(payload);
           const latest = points[points.length - 1] ?? 0;
           series.push({
@@ -545,9 +602,16 @@ export function createCloudBaseDataService(
     },
 
     async usage() {
-      const payload = unwrapData(
-        await bridge.callTool("queryEnv", { action: "usage" }),
-      );
+      const envId = await requireEnvId();
+      const end = new Date();
+      const start = new Date(end.getFullYear(), end.getMonth(), 1);
+      const fmtDate = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const payload = await callCapi("tcb", "DescribeUsage", {
+        EnvId: envId,
+        StartDate: fmtDate(start),
+        EndDate: fmtDate(end),
+      });
       const usages = arr(payload.Usages ?? payload.modules ?? payload.usage ?? payload.items);
       if (usages.length > 0) {
         return usages.map((item): UsageItem => {
@@ -568,7 +632,7 @@ export function createCloudBaseDataService(
 
     async recentErrors() {
       try {
-        const result = await this.searchLogs({ queryString: "log:ERROR", limit: 20, sort: "desc" });
+        const result = await service.searchLogs({ queryString: "log:ERROR", limit: 20, sort: "desc" });
         return result.entries.slice(0, 20);
       } catch (error) {
         return [
@@ -583,27 +647,33 @@ export function createCloudBaseDataService(
     },
 
     async checkLogService() {
-      const payload = unwrapData(
-        await bridge.callTool("queryLogs", { action: "checkLogService" }),
-      );
-      return Boolean(payload.enabled ?? payload.Enabled);
+      try {
+        const envId = await requireEnvId();
+        await callCapi("tcb", "SearchClsLog", {
+          EnvId: envId,
+          QueryString: "*",
+          Limit: 1,
+          StartTime: new Date(Date.now() - 3600000).toISOString(),
+          EndTime: new Date().toISOString(),
+        });
+        return true;
+      } catch {
+        return false;
+      }
     },
 
     async searchLogs(opts: LogSearchFilters): Promise<LogSearchResult> {
-      const payload = unwrapData(
-        await bridge.callTool("queryLogs", {
-          action: "searchLogs",
-          queryString: opts.queryString || "*",
-          service: opts.service,
-          startTime: opts.startTime,
-          endTime: opts.endTime,
-          limit: opts.limit ?? 50,
-          sort: opts.sort ?? "desc",
-          context: opts.context,
-        }),
-      );
-      const logs = arr(payload.logs ?? payload.Results ?? payload.items);
-      const contextOut = str(payload.context ?? payload.Context);
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcb", "SearchClsLog", {
+        EnvId: envId,
+        QueryString: opts.queryString || "*",
+        StartTime: opts.startTime,
+        EndTime: opts.endTime,
+        Limit: opts.limit ?? 50,
+        Context: opts.context,
+      });
+      const logs = arr(payload.Results ?? payload.logs ?? payload.items);
+      const contextOut = str(payload.Context ?? payload.context);
       return {
         entries: logs.map((item, index): LogEntry => mapLogEntry(item, index)),
         context: contextOut,
@@ -611,85 +681,114 @@ export function createCloudBaseDataService(
     },
 
     async getTableSchema(schemaTable): Promise<TableSchemaDetail> {
-      const payload = unwrapData(
-        await bridge.callTool("queryPgDatabase", {
-          action: "schema",
-          objectName: schemaTable.includes(".") ? schemaTable : `public.${schemaTable}`,
-        }),
-      );
-      const nested = rec(payload.schema ?? payload);
-      const columns = mapSchemaColumns({
-        columns: nested.columns ?? payload.columns,
-        primaryKey: nested.primaryKey ?? payload.primaryKey,
-        kind: nested.kind ?? payload.kind,
-      });
-      const security = rec(nested.security ?? payload.security);
-      const policiesRaw = arr(security.policies ?? nested.policies);
-      return {
-        schemaTable: str(nested.schemaTable ?? payload.schemaTable) ?? schemaTable,
-        kind: str(nested.kind ?? payload.kind) ?? "table",
-        rowCount: num(nested.rowCount ?? payload.rowCount) ?? null,
+      const qualified = schemaTable.includes(".") ? schemaTable : `public.${schemaTable}`;
+      const [colPayload, idxPayload, fkPayload, rlsPayload, policyPayload] = await Promise.all([
+        executePgSql(sqlTableColumns(qualified)),
+        executePgSql(sqlListIndexes(qualified)),
+        executePgSql(sqlTableForeignKeys(qualified)),
+        executePgSql(sqlTableRlsStatus(qualified)),
+        executePgSql(sqlListSchemaPolicies(qualified.split(".")[0] ?? "public")),
+      ]);
+      const colRows = parseSqlRows(colPayload);
+      const columns = colRows.map((row) => ({
+        name: str(row.column_name) ?? "unknown",
+        type: str(row.data_type) ?? "unknown",
+        dataType: str(row.data_type) ?? "unknown",
+        nullable: str(row.is_nullable)?.toUpperCase() === "YES",
+        isUpdatable: true,
+        primaryKey: Boolean(row.is_pk),
+      }));
+      const mapped = mapSchemaColumns({
         columns,
-        primaryKey: arr(nested.primaryKey ?? payload.primaryKey).map(String),
-        indexes: arr(nested.indexes ?? payload.indexes).map((item) => {
-          const row = rec(item);
-          return {
-            name: str(row.name ?? row.indexname) ?? "index",
-            definition: str(row.definition ?? row.indexdef) ?? "",
-          };
-        }),
-        foreignKeys: arr(nested.foreignKeys ?? payload.foreignKeys).map((item) => {
-          const row = rec(item);
-          return {
-            constraintName: str(row.constraintName) ?? "",
-            columnName: str(row.columnName) ?? "",
-            references: str(row.references) ?? "",
-            referencedColumn: str(row.referencedColumn) ?? "",
-          };
-        }),
+        primaryKey: columns.filter((c) => c.primaryKey).map((c) => c.name),
+        kind: "table",
+      });
+      const rlsRow = parseSqlRows(rlsPayload)[0] ?? {};
+      const tableName = qualified.split(".")[1] ?? qualified;
+      const schemaName = qualified.split(".")[0] ?? "public";
+      const policiesRaw = parseSqlRows(policyPayload).filter(
+        (p) => str(p.tablename) === tableName && str(p.schemaname) === schemaName,
+      );
+      return {
+        schemaTable: qualified,
+        kind: "table",
+        rowCount: null,
+        columns: mapped,
+        primaryKey: mapped.filter((c) => c.primaryKey).map((c) => c.name),
+        indexes: parseSqlRows(idxPayload).map((row) => ({
+          name: str(row.indexname) ?? "index",
+          definition: str(row.indexdef) ?? "",
+        })),
+        foreignKeys: parseSqlRows(fkPayload).map((row) => ({
+          constraintName: str(row.constraint_name) ?? "",
+          columnName: str(row.column_name) ?? "",
+          references: str(row.references) ?? "",
+          referencedColumn: str(row.referenced_column) ?? "",
+        })),
         security: {
-          rowLevelSecurityEnabled: Boolean(
-            security.rowLevelSecurityEnabled ?? security.rls_enabled,
-          ),
-          forceRowLevelSecurity: Boolean(security.forceRowLevelSecurity),
+          rowLevelSecurityEnabled: Boolean(rlsRow.rls_enabled),
+          forceRowLevelSecurity: Boolean(rlsRow.force_rls),
           policies: policiesRaw.map(mapPolicyRow),
         },
       };
     },
 
     async listSchemaPolicies(schema = "public") {
-      const payload = unwrapData(
-        await bridge.callTool("queryPgDatabase", {
-          action: "sql",
-          sql: sqlListSchemaPolicies(schema),
-          limit: 500,
-        }),
-      );
+      const payload = await executePgSql(sqlListSchemaPolicies(schema));
       return parsePolicyRows(payload);
     },
 
-    async runPgDDL(sql, confirm) {
-      const payload = unwrapData(
-        await bridge.callTool("managePgDatabase", {
-          action: "execute",
-          sql,
-          confirm,
-        }),
+    async listSchemas() {
+      const payload = await executePgSql(sqlListSchemas());
+      return parseSqlRows(payload).map((row) => ({
+        name: str(row.name) ?? "unknown",
+        owner: str(row.owner),
+      }));
+    },
+
+    async listTriggers(schema = "public") {
+      const payload = await executePgSql(sqlListTriggers(schema));
+      return parseSqlRows(payload).map((row) => ({
+        schema: str(row.schema) ?? schema,
+        table: str(row.table_name) ?? "",
+        name: str(row.name) ?? "unknown",
+        definition: str(row.definition),
+      }));
+    },
+
+    async listTypes(schema = "public") {
+      const payload = await executePgSql(sqlListTypes(schema));
+      return parseSqlRows(payload).map((row) => ({
+        schema: str(row.schema) ?? schema,
+        name: str(row.name) ?? "unknown",
+        definition: str(row.definition),
+      }));
+    },
+
+    async listColumnPrivileges(schemaTable: string) {
+      const payload = await executePgSql(
+        sqlListColumnPrivileges(schemaTable.includes(".") ? schemaTable : `public.${schemaTable}`),
       );
+      return parseSqlRows(payload).map((row) => ({
+        grantee: str(row.grantee) ?? "",
+        columnName: str(row.column_name) ?? "",
+        privilegeType: str(row.privilege_type) ?? "",
+      }));
+    },
+
+    async runPgDDL(sql, confirm) {
+      if (!confirm) {
+        throw new Error("runPgDDL 需要 confirm=true");
+      }
+      const payload = await executePgSqlWithDdlRetry(sql);
       return {
-        ok: payload.success !== false && !payload.error,
+        ok: payload.error === undefined && payload.Error === undefined,
         message: str(payload.message) ?? "OK",
       };
     },
 
     async listPgFunctions(schema = "public") {
-      const payload = unwrapData(
-        await bridge.callTool("queryPgDatabase", {
-          action: "sql",
-          sql: sqlListFunctions(schema),
-          limit: 500,
-        }),
-      );
+      const payload = await executePgSql(sqlListFunctions(schema));
       return parseSqlRows(payload).map((row): PgFunctionRow => ({
         schema: str(row.schema) ?? schema,
         name: str(row.name) ?? "unknown",
@@ -699,13 +798,7 @@ export function createCloudBaseDataService(
     },
 
     async listPgExtensions() {
-      const payload = unwrapData(
-        await bridge.callTool("queryPgDatabase", {
-          action: "sql",
-          sql: sqlListExtensions(),
-          limit: 200,
-        }),
-      );
+      const payload = await executePgSql(sqlListExtensions());
       return parseSqlRows(payload).map((row): PgExtensionRow => ({
         name: str(row.name) ?? "unknown",
         schema: str(row.schema),
@@ -714,13 +807,7 @@ export function createCloudBaseDataService(
     },
 
     async listPgRoles() {
-      const payload = unwrapData(
-        await bridge.callTool("queryPgDatabase", {
-          action: "sql",
-          sql: sqlListRoles(),
-          limit: 200,
-        }),
-      );
+      const payload = await executePgSql(sqlListRoles());
       return parseSqlRows(payload).map((row): PgRoleRow => ({
         name: str(row.name) ?? "unknown",
         superuser: Boolean(row.superuser),
@@ -728,103 +815,269 @@ export function createCloudBaseDataService(
       }));
     },
 
+    async listMigrations() {
+      try {
+        const payload = await executePgSql(sqlListMigrations());
+        return parseSqlRows(payload).map((row): PgMigrationRow => ({
+          version: str(row.version) ?? "unknown",
+          name: str(row.name),
+          appliedAt: str(row.applied_at),
+        }));
+      } catch {
+        return [];
+      }
+    },
+
     async listPgMigrations() {
-      const payload = unwrapData(
-        await bridge.callTool("managePgDatabase", {
-          action: "listMigrations",
-          limit: 100,
-        }),
-      );
-      const items = arr(payload.migrations ?? payload.items ?? payload.records);
-      return items.map((item): PgMigrationRow => {
-        const row = rec(item);
-        return {
-          version: str(row.version ?? row.migrationVersion ?? row.Version) ?? "unknown",
-          name: str(row.name ?? row.migrationName),
-          appliedAt: str(row.appliedAt ?? row.ApplyTime ?? row.createdAt),
-          sql: str(row.sql ?? row.Sql),
-        };
-      });
+      return service.listMigrations();
     },
 
     async listGatewayRoutes(): Promise<GatewayRoute[]> {
-      const payload = unwrapData(
-        await bridge.callTool("queryGateway", { action: "listRoutes" }),
-      );
-      const routes = arr(payload.routes ?? payload.Routes);
-      return routes.map(mapGatewayRoute);
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcb", "DescribeHTTPServiceRoute", {
+        EnvId: envId,
+        Filters: [{ Name: "DomainType", Values: ["HTTPSERVICE"] }],
+        Offset: 0,
+        Limit: 100,
+      });
+      const domains = arr(payload.Domains ?? payload.domains);
+      const routes: GatewayRoute[] = [];
+      for (const domainEntry of domains) {
+        const domainRow = rec(domainEntry);
+        const domain = str(domainRow.Domain ?? domainRow.domain) ?? "";
+        for (const route of arr(domainRow.Routes ?? domainRow.routes)) {
+          routes.push(mapGatewayRoute(route, domain));
+        }
+      }
+      return routes;
     },
 
     async upsertGatewayRoute(input: GatewayRouteInput) {
-      const action = input.routeId ? "updateRoute" : "createRoute";
-      await bridge.callTool("manageGateway", {
-        action,
-        routeId: input.routeId,
-        domain: input.domain,
-        path: input.path,
-        upstreamResourceType: input.upstreamResourceType,
-        targetName: input.upstreamResourceName,
-        route: {
-          domain: input.domain,
-          path: input.path,
-          upstreamResourceType: input.upstreamResourceType,
-          upstreamResourceName: input.upstreamResourceName,
-          enableAuth: input.enableAuth,
-          enablePathTransmission: input.enablePathTransmission,
-          enable: input.enable,
+      const envId = await requireEnvId();
+      if (input.routeId) {
+        await callCapi("tcb", "ModifyHTTPServiceRoute", {
+          EnvId: envId,
+          Domain: input.domain,
+          Routes: [
+            {
+              Path: input.path,
+              UpstreamResourceType: input.upstreamResourceType,
+              UpstreamResourceName: input.upstreamResourceName,
+              EnableAuth: input.enableAuth,
+              EnablePathTransmission: input.enablePathTransmission,
+              Enable: input.enable ?? true,
+            },
+          ],
+        });
+        return;
+      }
+      await callCapi("tcb", "CreateHTTPServiceRoute", {
+        EnvId: envId,
+        Domain: {
+          Domain: input.domain,
+          Routes: [
+            {
+              Path: input.path,
+              UpstreamResourceType: input.upstreamResourceType,
+              UpstreamResourceName: input.upstreamResourceName,
+              EnableAuth: input.enableAuth,
+              EnablePathTransmission: input.enablePathTransmission,
+              Enable: input.enable ?? true,
+            },
+          ],
         },
       });
     },
 
     async deleteGatewayRoute(routeId, confirm) {
-      await bridge.callTool("manageGateway", {
-        action: "deleteRoute",
-        routeId,
-        confirm,
+      if (!confirm) throw new Error("deleteGatewayRoute 需要 confirm=true");
+      const envId = await requireEnvId();
+      const routes = await service.listGatewayRoutes();
+      const target = routes.find((r) => r.routeId === routeId);
+      if (!target) throw new Error(`Route ${routeId} not found`);
+      await callCapi("tcb", "DeleteHTTPServiceRoute", {
+        EnvId: envId,
+        Domain: target.domain,
+        Path: target.path,
       });
     },
 
     async getGatewayPrivilege(): Promise<GatewayPrivilege> {
-      const payload = unwrapData(
-        await bridge.callTool("queryGateway", { action: "getPrivilege" }),
-      );
-      const privilege = rec(payload.privilege ?? payload);
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcb", "DescribeCloudBaseGWService", {
+        ServiceId: envId,
+        EnableRegion: true,
+        EnableUnion: true,
+      });
       return {
-        enableService: Boolean(
-          privilege.enableService ?? privilege.EnableService ?? privilege.serviceEnabled,
-        ),
-        enableAuth: Boolean(
-          privilege.enableAuth ?? privilege.EnableAuth ?? privilege.authEnabled,
-        ),
+        enableService: Boolean(payload.EnableService ?? payload.enableService),
+        enableAuth: Boolean(payload.EnableAuth ?? payload.enableAuth),
       };
     },
 
+    async listCustomDomains() {
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcb", "DescribePublicGwDomains", { EnvId: envId });
+      return arr(payload.Domains ?? payload.domains).map((item) => {
+        const row = rec(item);
+        return {
+          domain: str(row.Domain ?? row.domain) ?? "",
+          status: (str(row.Status ?? row.status)?.toLowerCase() === "ok" ? "ok" : "binding") as
+            | "binding"
+            | "ok"
+            | "fail",
+          accessType: str(row.AccessType ?? row.accessType) as "DIRECT" | "CDN" | "CUSTOM" | undefined,
+          certificateId: str(row.CertId ?? row.certificateId),
+          cnameTarget: str(row.CNAMEDomain ?? row.cnameTarget),
+          createdAt: str(row.CreateTime ?? row.createdAt),
+        };
+      });
+    },
+
     async listGatewayDomains() {
-      const payload = unwrapData(
-        await bridge.callTool("queryGateway", { action: "listRoutes" }),
+      const domains = await service.listCustomDomains();
+      return domains.map((d) => d.domain).filter(Boolean);
+    },
+
+    async bindCustomDomain(input: {
+      domain: string;
+      certId?: string;
+      cnameDomain?: string;
+      accessType?: string;
+      description?: string;
+    }) {
+      const envId = await requireEnvId();
+      await callCapi("tcb", "CreatePublicGwCustomDomain", {
+        EnvId: envId,
+        CustomDomain: input.domain,
+        CertId: input.certId,
+        CNAMEDomain: input.cnameDomain,
+        Desc: input.description,
+      }).catch(async () =>
+        callCapi("tcb", "BindPublicGwCustomDomain", {
+          EnvId: envId,
+          CustomDomain: input.domain,
+          CertId: input.certId,
+          CNAMEDomain: input.cnameDomain,
+        }),
       );
-      const routes = arr(payload.routes ?? payload.Routes);
-      const domains = routes
-        .map((item) => str(rec(item).Domain ?? rec(item).domain))
-        .filter((value): value is string => Boolean(value));
-      return [...new Set(domains)];
+    },
+
+    async deleteCustomDomain(domain: string, confirm: boolean) {
+      if (!confirm) throw new Error("deleteCustomDomain 需要 confirm=true");
+      const envId = await requireEnvId();
+      await callCapi("tcb", "UnbindPublicGwCustomDomain", {
+        EnvId: envId,
+        CustomDomain: domain,
+      });
+    },
+
+    async listSafetyDomains() {
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcb", "DescribeSafetySource", {
+        EnvId: envId,
+        Offset: 0,
+        Limit: 100,
+      });
+      return arr(payload.Sources ?? payload.sources ?? payload.items).map((item) => {
+        const row = rec(item);
+        return {
+          id: str(row.ItemId ?? row.id) ?? "",
+          appName: str(row.AppName ?? row.appName) ?? "",
+        };
+      });
+    },
+
+    async getStorageSecurityRules() {
+      const envId = await requireEnvId();
+      const envPayload = await callCapi("tcb", "DescribeEnvs", { EnvId: envId });
+      const env = rec(arr(envPayload.EnvList)[0]);
+      const storages = arr(env.Storages ?? env.storages);
+      const bucket = str(rec(storages[0]).Bucket ?? env.storageBucket);
+      if (!bucket) return { aclTag: "PRIVATE" as const, rule: undefined };
+      const payload = await callCapi("tcb", "DescribeStorageSafeRule", {
+        EnvId: envId,
+        Bucket: bucket,
+      });
+      return {
+        aclTag: (str(payload.AclTag ?? payload.aclTag) ?? "PRIVATE") as
+          | "READONLY"
+          | "PRIVATE"
+          | "ADMINWRITE"
+          | "ADMINONLY"
+          | "CUSTOM",
+        rule: str(payload.Rule ?? payload.rule),
+      };
+    },
+
+    async setStorageSecurityRules(rules: { aclTag: string; rule?: string }) {
+      const envId = await requireEnvId();
+      const envPayload = await callCapi("tcb", "DescribeEnvs", { EnvId: envId });
+      const env = rec(arr(envPayload.EnvList)[0]);
+      const storages = arr(env.Storages ?? env.storages);
+      const bucket = str(rec(storages[0]).Bucket ?? env.storageBucket);
+      if (!bucket) throw new Error("无法解析存储 Bucket");
+      await callCapi("tcb", "ModifyStorageSafeRule", {
+        EnvId: envId,
+        Bucket: bucket,
+        AclTag: rules.aclTag,
+        Rule: rules.rule,
+      });
+    },
+
+    async listCdnCacheConfig() {
+      const envId = await requireEnvId();
+      const envPayload = await callCapi("tcb", "DescribeEnvs", { EnvId: envId });
+      const env = rec(arr(envPayload.EnvList)[0]);
+      const storages = arr(env.Storages ?? env.storages);
+      const bucket = str(rec(storages[0]).Bucket ?? env.storageBucket);
+      if (!bucket) return { status: "unknown" as const };
+      const payload = await callCapi("tcb", "DescribeCDNChainTask", {
+        EnvId: envId,
+        Bucket: bucket,
+      }).catch(() => ({}));
+      return {
+        status: (str(payload.Status ?? payload.status) ?? "unknown") as string,
+      };
+    },
+
+    async getStorageCustomDomains() {
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcb", "DescribeHostingDomain", {
+        EnvId: envId,
+        DomainType: "STATIC_STORE",
+      }).catch(() => ({}));
+      return arr(payload.Domains ?? payload.domains).map((item) => {
+        const row = rec(item);
+        return {
+          domain: str(row.Domain ?? row.domain) ?? "",
+          status: str(row.Status ?? row.status),
+        };
+      });
     },
 
     async listFunctionNames() {
-      const payload = unwrapData(
-        await bridge.callTool("queryFunctions", { action: "listFunctions" }),
-      );
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcb", "DescribeFunctions", { EnvId: envId, Limit: 100 });
       return arr(payload.Functions ?? payload.functions)
-        .map((item) => str(rec(item).FunctionName ?? rec(item).Name ?? rec(item).name))
+        .map((item) => str(rec(item).FunctionName ?? rec(item).Name))
         .filter((value): value is string => Boolean(value));
     },
 
     async setGatewayServiceEnabled(enable) {
-      await bridge.callTool("manageGateway", { action: "enableService", enable });
+      const envId = await requireEnvId();
+      await callCapi("tcb", "ModifyCloudBaseGWPrivilege", {
+        ServiceId: envId,
+        EnableService: enable,
+      });
     },
 
     async setGatewayAuthEnabled(enable) {
-      await bridge.callTool("manageGateway", { action: "authSwitch", enable });
+      const envId = await requireEnvId();
+      await callCapi("tcb", "ModifyCloudBaseGWPrivilege", {
+        ServiceId: envId,
+        Options: [{ Key: "EnableAuth", Value: enable ? "true" : "false" }],
+      });
     },
 
     async fetchMetricSeries(metricName, opts) {
@@ -834,16 +1087,24 @@ export function createCloudBaseDataService(
         DbWrite: "DB 写",
         FunctionError: "错误率",
       };
+      const envId = await resolveActiveEnvId();
+      if (!envId) {
+        return {
+          name: metricName,
+          label: labels[metricName] ?? metricName,
+          valueLabel: "—",
+          points: [],
+          danger: metricName === "FunctionError",
+        } satisfies MetricSeries;
+      }
       try {
-        const payload = unwrapData(
-          await bridge.callTool("queryEnv", {
-            action: "metrics",
-            metricName,
-            startTime: opts?.startTime,
-            endTime: opts?.endTime,
-            period: opts?.period,
-          }),
-        );
+        const payload = await callCapi("tcb", "DescribeCurveData", {
+          EnvId: envId,
+          MetricName: metricName,
+          StartTime: opts?.startTime,
+          EndTime: opts?.endTime,
+          Period: opts?.period ?? 3600,
+        });
         const points = extractPoints(payload);
         const latest = points[points.length - 1] ?? 0;
         return {
@@ -865,45 +1126,32 @@ export function createCloudBaseDataService(
     },
 
     async envInfo() {
-      // 不硬编码环境 ID：先查 auth 状态拿当前绑定环境，再取环境详情。
-      // 未登录/未绑定时 MCP 会返回 auth 提示，envId 为空串展示占位。
-      const auth = unwrapData(
-        await bridge.callTool("auth", { action: "status" }).catch(() => ({})),
-      );
-      const activeEnvId = str(auth.envId ?? auth.EnvId) ?? "";
-      const info = unwrapData(
-        activeEnvId
-          ? await bridge.callTool("queryEnv", { action: "info", envId: activeEnvId })
-          : await bridge.callTool("queryEnv", { action: "info" }).catch(() => ({})),
-      );
-      const env = rec(info.EnvInfo ?? info.envInfo ?? info);
-      const envId = str(env.EnvId ?? env.envId) ?? str(info.EnvId) ?? activeEnvId;
+      const auth = await rawAuthCall({ action: "status" }).catch(() => ({}));
+      const activeEnvId = str(auth.current_env_id ?? auth.currentEnvId) ?? "";
+      let env: LooseRecord = {};
+      if (activeEnvId) {
+        const info = await callCapi("tcb", "DescribeEnvs", { EnvId: activeEnvId });
+        env = rec(arr(info.EnvList)[0]);
+      }
+      const envId = str(env.EnvId ?? env.envId) ?? activeEnvId;
       let functionCount = 0;
-      try {
-        const fn = unwrapData(
-          await bridge.callTool("queryFunctions", {
-            action: "listFunctions",
-          }).catch(() => bridge.callTool("getFunctionList", {})),
-        );
-        functionCount = arr(fn.Functions ?? fn.functions ?? fn.items).length;
-      } catch {
-        functionCount = 0;
+      if (envId) {
+        try {
+          const fn = await callCapi("tcb", "DescribeFunctions", { EnvId: envId, Limit: 100 });
+          functionCount = arr(fn.Functions ?? fn.functions).length;
+        } catch {
+          functionCount = 0;
+        }
       }
       let hostingDomainCount = 0;
-      try {
-        const hosting = unwrapData(
-          await bridge.callTool("queryHosting", { action: "websiteConfig" }),
-        );
-        const website = rec(hosting.websiteConfig);
-        const cdn =
-          str(hosting.CdnDomain) ??
-          str(website.CdnDomain) ??
-          str(hosting.defaultDomain) ??
-          str(website.defaultDomain);
-        const domains = arr(hosting.domains ?? website.domains);
-        hostingDomainCount = Math.max(domains.length, cdn ? 1 : 0);
-      } catch {
-        hostingDomainCount = 0;
+      if (envId) {
+        try {
+          const hosting = await callCapi("tcb", "DescribeHostingDomain", { EnvId: envId });
+          const domains = arr(hosting.Domains ?? hosting.domains);
+          hostingDomainCount = domains.length || (str(hosting.DefaultDomain) ? 1 : 0);
+        } catch {
+          hostingDomainCount = 0;
+        }
       }
       return {
         envId,
@@ -913,7 +1161,7 @@ export function createCloudBaseDataService(
         hostingDomainCount,
         timezone: str(env.Timezone) ?? "Asia/Shanghai",
         alias: str(env.Alias ?? env.alias),
-        runtimeMode: str(env.RuntimeMode),
+        runtimeMode: str(env.RuntimeMode ?? env.runtimeMode),
       } satisfies EnvInfoView;
     },
 
@@ -924,147 +1172,100 @@ export function createCloudBaseDataService(
       await appendUserMessage(text);
     },
 
-    /**
-     * 直调腾讯云 CloudBase 控制面 API（MCP capi 工具 callCloudApi）。
-     * kit 的通用 provider 通道：业务组件只需 service/action/params 输入，
-     * 输出为解包后的 JSON，不关心具体云实现。
-     */
     async capi(service, action, params = {}) {
-      return unwrapData(
-        await bridge.callTool("callCloudApi", { service, action, params }),
-      );
+      return callCapi(service, action, params);
     },
 
     async listAccessEndpoints() {
+      const envId = await requireEnvId();
       const endpoints: AccessEndpoint[] = [];
       try {
-        const listPayload = unwrapData(
-          await bridge.callTool("queryApps", { action: "listApps", pageSize: 100 }),
-        );
-        const apps = arr(listPayload.apps ?? listPayload.ServiceList);
+        const listPayload = await callCapi("tcb", "DescribeCloudAppList", {
+          EnvId: envId,
+          DeployType: "static-hosting",
+          PageNo: 1,
+          PageSize: 100,
+        });
+        const apps = arr(listPayload.ServiceList ?? listPayload.apps);
         for (const app of apps) {
           const row = rec(app);
           const serviceName = str(row.ServiceName ?? row.serviceName);
-          if (!serviceName) continue;
-          try {
-            const detail = unwrapData(
-              await bridge.callTool("queryApps", { action: "getApp", serviceName }),
-            );
-            const mapped = mapAppToEndpoint(serviceName, detail.app ?? detail);
-            if (mapped) endpoints.push(mapped);
-          } catch {
-            const inlineDomain = str(row.Domain ?? row.domain);
-            if (inlineDomain) {
-              endpoints.push({
-                id: `app:${serviceName}`,
-                label: serviceName,
-                url: normalizeUrl(inlineDomain),
-                resourceType: "app",
-                serviceName,
-              });
-            }
+          const domain = str(row.Domain ?? row.domain);
+          if (serviceName && domain) {
+            endpoints.push({
+              id: `app:${serviceName}`,
+              label: serviceName,
+              url: normalizeUrl(domain),
+              resourceType: "app",
+              serviceName,
+            });
           }
         }
       } catch {
-        // Best-effort when queryApps is unavailable
+        // best-effort
+      }
+      try {
+        const hosting = await callCapi("tcb", "DescribeHostingDomain", { EnvId: envId });
+        const defaultDomain = str(hosting.DefaultDomain ?? hosting.defaultDomain);
+        if (defaultDomain) {
+          endpoints.push({
+            id: "hosting:default",
+            label: "静态托管",
+            url: normalizeUrl(defaultDomain),
+            resourceType: "hosting",
+          });
+        }
+      } catch {
+        // optional
       }
       return endpoints;
     },
 
     async listDeployments() {
+      const envId = await requireEnvId();
       const records: DeploymentRecord[] = [];
       try {
-        const listPayload = unwrapData(
-          await bridge.callTool("queryApps", { action: "listApps", pageSize: 50 }),
-        );
-        const apps = arr(listPayload.apps ?? listPayload.ServiceList);
+        const listPayload = await callCapi("tcb", "DescribeCloudAppList", {
+          EnvId: envId,
+          DeployType: "static-hosting",
+          PageNo: 1,
+          PageSize: 50,
+        });
+        const apps = arr(listPayload.ServiceList ?? listPayload.apps);
         for (const app of apps) {
           const row = rec(app);
           const serviceName = str(row.ServiceName ?? row.serviceName);
           if (!serviceName) continue;
-          let previewUrl: string | undefined;
+          const previewUrl = str(row.Domain ?? row.domain)
+            ? normalizeUrl(str(row.Domain ?? row.domain)!)
+            : undefined;
           try {
-            const detail = unwrapData(
-              await bridge.callTool("queryApps", { action: "getApp", serviceName }),
-            );
-            previewUrl = mapAppToEndpoint(serviceName, detail.app ?? detail)?.url;
-          } catch {
-            previewUrl = undefined;
-          }
-          try {
-            const versionsPayload = unwrapData(
-              await bridge.callTool("queryApps", {
-                action: "listAppVersions",
-                serviceName,
-                pageSize: 10,
-              }),
-            );
-            const versions = arr(versionsPayload.versions ?? versionsPayload.VersionList);
+            const versionsPayload = await callCapi("tcb", "DescribeCloudAppVersionList", {
+              EnvId: envId,
+              DeployType: "static-hosting",
+              ServiceName: serviceName,
+              PageNo: 1,
+              PageSize: 10,
+            });
+            const versions = arr(versionsPayload.VersionList ?? versionsPayload.versions);
             for (const version of versions) {
               const mapped = mapVersionToDeployment(serviceName, version, previewUrl);
               if (mapped) records.push(mapped);
             }
           } catch {
-            // skip apps without version history
+            // skip
           }
         }
       } catch {
-        // partial app records only
+        // partial
       }
-
-      try {
-        const runList = unwrapData(
-          await bridge.callTool("queryCloudRun", { action: "list" }).catch(() => ({})),
-        );
-        const services = arr(runList.services ?? runList.ServerList ?? runList.items);
-        for (const svc of services.slice(0, 20)) {
-          const row = rec(svc);
-          const serverName = str(row.ServerName ?? row.serverName ?? row.name);
-          if (!serverName) continue;
-          try {
-            const recordsPayload = unwrapData(
-              await bridge.callTool("queryCloudRun", {
-                action: "getDeployRecords",
-                detailServerName: serverName,
-              }),
-            );
-            const deployRecords = arr(
-              recordsPayload.DeployRecords ?? recordsPayload.deployRecords ?? recordsPayload.records,
-            );
-            for (const item of deployRecords.slice(0, 5)) {
-              const drow = rec(item);
-              const statusRaw = str(drow.Status ?? drow.status) ?? "unknown";
-              records.push({
-                id: `cloudrun:${serverName}:${str(drow.RunId ?? drow.BuildId) ?? records.length}`,
-                resourceType: "cloudrun",
-                resourceName: serverName,
-                status: mapVersionToDeployment(serverName, { Status: statusRaw })?.status ?? "unknown",
-                deployedAt: str(drow.DeployTime ?? drow.CreateTime ?? drow.UpdateTime),
-                previewUrl: str(drow.AccessUrl ?? row.AccessUrl),
-                relatedResources: [{ type: "cloudrun", name: serverName }],
-              });
-            }
-          } catch {
-            // skip service without deploy records
-          }
-        }
-      } catch {
-        // cloudrun optional
-      }
-
       return sortDeploymentsNewestFirst(records);
     },
 
     async rollbackDeployment(_record) {
-      // Rollback requires manageApps API support (P1); timeline shows confirm UI only.
       return false;
     },
 
-    /**
-     * 从当前会话的工具调用历史中读取最近一次 `auth set_env` 的环境 ID。
-     * 用于让右侧面板与对话侧 MCP 绑定保持一致（旧会话历史不会触发 turnTail）。
-     * 返回 undefined 表示会话里没有显式 set_env 记录。
-     */
     async sessionBoundEnv(sessionId?: string) {
       const session = getSession?.(sessionId) as { events?: readonly unknown[] } | undefined;
       const events = session?.events;
@@ -1082,12 +1283,14 @@ export function createCloudBaseDataService(
             return args.envId;
           }
         } catch {
-          // 参数 JSON 解析失败则跳过该事件
+          // skip
         }
       }
       return undefined;
     },
   };
+
+  return service;
 }
 
 function mapLogEntry(item: unknown, index: number): LogEntry {
@@ -1130,13 +1333,13 @@ function parsePolicyRows(payload: LooseRecord): PolicySummary[] {
 }
 
 function parseSqlRows(payload: LooseRecord): LooseRecord[] {
-  const rowsRaw = arr(payload.rows ?? payload.records ?? payload.data ?? payload.items);
+  const rowsRaw = arr(payload.rows ?? payload.records ?? payload.data ?? payload.items ?? payload.Rows);
   if (rowsRaw.length > 0) {
     return rowsRaw.map((item) => rec(item));
   }
-  const columns = arr(payload.columns).map((item) =>
-    typeof item === "string" ? item : str(rec(item).name),
-  ).filter((name): name is string => Boolean(name));
+  const columns = arr(payload.columns ?? payload.Columns)
+    .map((item) => (typeof item === "string" ? item : str(rec(item).name)))
+    .filter((name): name is string => Boolean(name));
   const matrix = arr(payload.Rows ?? payload.values);
   return matrix.map((line) => {
     const values = arr(line);
@@ -1148,11 +1351,11 @@ function parseSqlRows(payload: LooseRecord): LooseRecord[] {
   });
 }
 
-function mapGatewayRoute(item: unknown): GatewayRoute {
+function mapGatewayRoute(item: unknown, domainOverride?: string): GatewayRoute {
   const row = rec(item);
   return {
     routeId: str(row.RouteId ?? row.routeId ?? row.id),
-    domain: str(row.Domain ?? row.domain) ?? "",
+    domain: domainOverride ?? str(row.Domain ?? row.domain) ?? "",
     path: str(row.Path ?? row.path) ?? "/",
     upstreamResourceType: str(row.UpstreamResourceType ?? row.upstreamResourceType) ?? "",
     upstreamResourceName: str(
@@ -1165,18 +1368,17 @@ function mapGatewayRoute(item: unknown): GatewayRoute {
 }
 
 function toRowPage(payload: LooseRecord, elapsedMs: number): RowPage {
-  const rowsRaw = arr(payload.rows ?? payload.records ?? payload.data ?? payload.items);
+  const rowsRaw = arr(payload.rows ?? payload.records ?? payload.data ?? payload.items ?? payload.Rows);
   const rows = rowsRaw.map((item) => rec(item));
   const columns =
-    arr(payload.columns)
+    arr(payload.columns ?? payload.Columns)
       .map((item) => (typeof item === "string" ? item : str(rec(item).name)))
       .filter((name): name is string => Boolean(name)) ?? [];
-  const inferred =
-    columns.length > 0 ? columns : rows[0] ? Object.keys(rows[0]) : [];
+  const inferred = columns.length > 0 ? columns : rows[0] ? Object.keys(rows[0]) : [];
   return {
     columns: inferred,
     rows,
-    total: num(payload.total ?? payload.rowCount) ?? rows.length,
+    total: num(payload.total ?? payload.rowCount ?? payload.AffectedRows) ?? rows.length,
     elapsedMs,
   };
 }
@@ -1203,7 +1405,9 @@ function extractPoints(payload: LooseRecord): number[] {
 }
 
 function formatMetricValue(value: number, metricName: string): string {
-  if (metricName === "FunctionError") return `${(value * (value <= 1 ? 100 : 1)).toFixed(1)}%`.replace(/\.0%/, "%");
+  if (metricName === "FunctionError") {
+    return `${(value * (value <= 1 ? 100 : 1)).toFixed(1)}%`.replace(/\.0%/, "%");
+  }
   if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
   return String(Math.round(value));
 }

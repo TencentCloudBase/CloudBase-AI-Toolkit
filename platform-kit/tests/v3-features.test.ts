@@ -4,6 +4,8 @@ import {
   sqlCreatePolicy,
   sqlDropPolicy,
   sqlListSchemaPolicies,
+  sqlListSchemas,
+  sqlListMigrations,
   sqlToggleRLS,
 } from "../src/pg/sql.js";
 import { bucketUserGrowth } from "../src/utils/insights.js";
@@ -44,6 +46,11 @@ describe("pg/sql", () => {
     expect(alter).toContain('ALTER POLICY "select_own"');
 
     expect(sqlDropPolicy("public.todos", "select_own")).toContain('DROP POLICY "select_own"');
+  });
+
+  it("generates schema and migration SQL", () => {
+    expect(sqlListSchemas()).toContain("pg_namespace");
+    expect(sqlListMigrations()).toContain("pg_migrations");
   });
 });
 

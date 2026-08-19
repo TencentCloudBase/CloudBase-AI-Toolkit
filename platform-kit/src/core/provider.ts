@@ -41,6 +41,10 @@ export interface PlatformProvider {
   listStorage(path?: string): Promise<StorageObject[]>;
   storageUrl(cloudPath: string): Promise<{ url: string; expiresInSec: number }>;
   authStatus(): Promise<AuthStatus>;
+  startLogin?(method?: string, params?: { envId?: string; apiKey?: string }): Promise<AuthStatus>;
+  authStateChange?(listener: (status: AuthStatus) => void): () => void;
+  logout?(): Promise<AuthStatus>;
+  getAuthLoginConfig?(): Promise<AppAuthConfig>;
   listEnvironments(): Promise<EnvItem[]>;
   setEnvironment(envId: string): Promise<AuthStatus>;
   appAuthConfig(): Promise<AppAuthConfig>;
@@ -77,7 +81,13 @@ export interface PlatformProvider {
   /** P1: list database roles. */
   listPgRoles?(): Promise<PgRoleRow[]>;
   /** P1: list applied migrations. */
+  listMigrations?(): Promise<PgMigrationRow[]>;
+  /** @deprecated use listMigrations */
   listPgMigrations?(): Promise<PgMigrationRow[]>;
+  listSchemas?(): Promise<Array<{ name: string; owner?: string }>>;
+  listTriggers?(schema?: string): Promise<Array<{ schema: string; table: string; name: string; definition?: string }>>;
+  listTypes?(schema?: string): Promise<Array<{ schema: string; name: string; definition?: string }>>;
+  listColumnPrivileges?(schemaTable: string): Promise<Array<{ grantee: string; columnName: string; privilegeType: string }>>;
   /** Create or alter RLS policy. */
   upsertPolicy?(input: PolicyInput & { previousName?: string }, confirm: boolean): Promise<void>;
   /** Drop RLS policy. */
@@ -97,6 +107,15 @@ export interface PlatformProvider {
   upsertGatewayRoute(input: GatewayRouteInput): Promise<void>;
   deleteGatewayRoute(routeId: string, confirm: boolean): Promise<void>;
   getGatewayPrivilege(): Promise<GatewayPrivilege>;
+  listCustomDomains?(): Promise<Array<{ domain: string; status: string; accessType?: string; certificateId?: string; cnameTarget?: string; createdAt?: string }>>;
+  bindCustomDomain?(input: { domain: string; certId?: string; cnameDomain?: string; accessType?: string; description?: string }): Promise<void>;
+  deleteCustomDomain?(domain: string, confirm: boolean): Promise<void>;
+  listSafetyDomains?(): Promise<Array<{ id: string; appName: string }>>;
+  getStorageSecurityRules?(): Promise<{ aclTag: string; rule?: string }>;
+  setStorageSecurityRules?(rules: { aclTag: string; rule?: string }): Promise<void>;
+  listCdnCacheConfig?(): Promise<{ status: string }>;
+  getStorageCustomDomains?(): Promise<Array<{ domain: string; status?: string }>>;
+  /** @deprecated use listCustomDomains */
   listGatewayDomains?(): Promise<string[]>;
   listFunctionNames?(): Promise<string[]>;
   setGatewayServiceEnabled?(enable: boolean): Promise<void>;

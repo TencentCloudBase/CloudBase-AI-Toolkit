@@ -37,14 +37,23 @@ export interface StorageObject {
   isDirectory: boolean;
 }
 
+export type LoginMethod = "device-code" | "apikey" | "host-injected";
+
+export interface LoginOption {
+  method: LoginMethod;
+  title: string;
+  description?: string;
+}
+
 export interface AuthStatus {
   signedIn: boolean;
   envId?: string;
-  authMode?: string;
+  authMode?: LoginMethod | string;
   persisted: boolean;
   tempCredentialsAvailable: boolean;
   verificationUrl?: string;
   userCode?: string;
+  loginOptions?: LoginOption[];
   message: string;
 }
 
@@ -284,11 +293,26 @@ export interface CloudBaseData {
   listPgFunctions?(schema?: string): Promise<PgFunctionRow[]>;
   listPgExtensions?(): Promise<PgExtensionRow[]>;
   listPgRoles?(): Promise<PgRoleRow[]>;
+  listMigrations?(): Promise<PgMigrationRow[]>;
+  /** @deprecated use listMigrations */
   listPgMigrations?(): Promise<PgMigrationRow[]>;
+  listSchemas?(): Promise<Array<{ name: string; owner?: string }>>;
+  listTriggers?(schema?: string): Promise<Array<{ schema: string; table: string; name: string; definition?: string }>>;
+  listTypes?(schema?: string): Promise<Array<{ schema: string; name: string; definition?: string }>>;
+  listColumnPrivileges?(schemaTable: string): Promise<Array<{ grantee: string; columnName: string; privilegeType: string }>>;
   listGatewayRoutes(): Promise<GatewayRoute[]>;
   upsertGatewayRoute(input: GatewayRouteInput): Promise<void>;
   deleteGatewayRoute(routeId: string, confirm: boolean): Promise<void>;
   getGatewayPrivilege(): Promise<GatewayPrivilege>;
+  listCustomDomains?(): Promise<Array<{ domain: string; status: string; accessType?: string; certificateId?: string; cnameTarget?: string; createdAt?: string }>>;
+  bindCustomDomain?(input: { domain: string; certId?: string; cnameDomain?: string; accessType?: string; description?: string }): Promise<void>;
+  deleteCustomDomain?(domain: string, confirm: boolean): Promise<void>;
+  listSafetyDomains?(): Promise<Array<{ id: string; appName: string }>>;
+  getStorageSecurityRules?(): Promise<{ aclTag: string; rule?: string }>;
+  setStorageSecurityRules?(rules: { aclTag: string; rule?: string }): Promise<void>;
+  listCdnCacheConfig?(): Promise<{ status: string }>;
+  getStorageCustomDomains?(): Promise<Array<{ domain: string; status?: string }>>;
+  /** @deprecated use listCustomDomains */
   listGatewayDomains?(): Promise<string[]>;
   listFunctionNames?(): Promise<string[]>;
   setGatewayServiceEnabled?(enable: boolean): Promise<void>;
@@ -303,7 +327,11 @@ export interface CloudBaseData {
   listStorage(path?: string): Promise<StorageObject[]>;
   storageUrl(cloudPath: string): Promise<{ url: string; expiresInSec: number }>;
   authStatus(): Promise<AuthStatus>;
-  /** 发起 device-code 登录（auth start_auth device），返回验证 URL 与用户码。 */
+  startLogin?(method?: LoginMethod, params?: { envId?: string; apiKey?: string }): Promise<AuthStatus>;
+  authStateChange?(listener: (status: AuthStatus) => void): () => void;
+  logout?(): Promise<AuthStatus>;
+  getAuthLoginConfig?(): Promise<AppAuthConfig>;
+  /** @deprecated use startLogin('device-code') */
   startAuth(): Promise<AuthStatus>;
   /** 登录后列出账号下可用环境（auth status 的 env_candidates）。未登录返回空数组。 */
   listEnvironments(): Promise<EnvItem[]>;

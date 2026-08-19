@@ -66,7 +66,7 @@ export function usePgRoles(provider?: PlatformProvider) {
 
 export function usePgMigrations(provider?: PlatformProvider) {
   return useAsyncResource(
-    async () => (provider?.listPgMigrations ? provider.listPgMigrations() : []),
+    async () => (provider?.listMigrations ? provider.listMigrations() : provider?.listPgMigrations ? provider.listPgMigrations() : []),
     [provider],
   );
 }

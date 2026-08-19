@@ -2,49 +2,64 @@ import { describe, expect, it } from "vitest";
 import { createCloudBaseDataService } from "../src/server/data-service.js";
 import type { CloudBaseMcpBridge } from "../src/server/mcp-client.js";
 
-function fakeBridge(handlers: Record<string, unknown>): CloudBaseMcpBridge & {
-  calls: Array<{ name: string; args: Record<string, unknown> }>;
-} {
+function capiBridge(
+  handlers: Record<string, unknown>,
+  authHandlers: Record<string, unknown> = {},
+): CloudBaseMcpBridge & { calls: Array<{ name: string; args: Record<string, unknown> }> } {
   const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
   return {
     calls,
     async callTool(name: string, args: Record<string, unknown>) {
       calls.push({ name, args });
-      const key = `${name}:${String(args.action ?? "")}`;
-      if (!(key in handlers) && !(name in handlers)) {
-        throw new Error(`unexpected ${key}`);
+      if (name === "callCloudApi") {
+        const service = String(args.service);
+        const action = String(args.action);
+        const key = `${service}:${action}`;
+        const result = handlers[key] ?? handlers[action] ?? handlers["*"];
+        if (result instanceof Error) throw result;
+        return result ?? {};
       }
-      const result = handlers[key] ?? handlers[name];
-      if (result instanceof Error) throw result;
-      return result;
+      if (name === "auth") {
+        const action = String(args.action ?? "");
+        const result = authHandlers[`auth:${action}`] ?? authHandlers.auth;
+        if (result instanceof Error) throw result;
+        return result ?? {};
+      }
+      if (name === "readNoSqlDatabaseStructure") {
+        return handlers.nosql ?? { collections: [] };
+      }
+      throw new Error(`unexpected ${name}`);
     },
     async listTools() {
-      return Object.keys(handlers);
+      return ["callCloudApi", "auth"];
     },
     dispose() {},
   } as CloudBaseMcpBridge & { calls: Array<{ name: string; args: Record<string, unknown> }> };
 }
 
 describe("cloudbase-data mapping", () => {
-  it("exports product names and a full env id, passing envId into queryEnv", async () => {
-    const bridge = fakeBridge({
-      "auth:status": { envId: "ai-share-d2guukyxybb63b206" },
-      "queryEnv:info": {
-        EnvInfo: {
-          EnvId: "ai-share-d2guukyxybb63b206",
-          Region: "ap-shanghai",
+  const envId = "ai-share-d2guukyxybb63b206";
+  const auth = { "auth:status": { current_env_id: envId, auth_status: "READY" } };
+
+  it("exports product names and a full env id via capi DescribeEnvs", async () => {
+    const bridge = capiBridge(
+      {
+        "tcb:DescribeEnvs": {
+          EnvList: [{ EnvId: envId, Region: "ap-shanghai" }],
         },
+        "tcb:DescribeFunctions": { Functions: [{ FunctionName: "fn_a" }] },
+        "tcb:DescribeHostingDomain": { Domains: [{ Domain: "x.tcloudbaseapp.com" }] },
+        "tcb:DescribeUsage": {
+          Usages: [{ Module: "FLEXDB", CreditsValue: 12 }, { Module: "SCF", CreditsValue: 3 }],
+        },
+        "tcb:DescribeCurveData": { Values: [1, 4, 9] },
       },
-      "queryFunctions:listFunctions": { Functions: [{ Name: "fn_a" }] },
-      "queryHosting:websiteConfig": { defaultDomain: "x.tcloudbaseapp.com" },
-      "queryEnv:usage": {
-        Usages: [{ Module: "FLEXDB", CreditsValue: 12 }, { Module: "SCF", CreditsValue: 3 }],
-      },
-    });
+      auth,
+    );
     const data = createCloudBaseDataService(bridge);
 
     const info = await data.envInfo();
-    expect(info.envId).toBe("ai-share-d2guukyxybb63b206");
+    expect(info.envId).toBe(envId);
     expect(info.regionLabel).toContain("上海");
     expect(info.functionCount).toBe(1);
 
@@ -53,42 +68,44 @@ describe("cloudbase-data mapping", () => {
     expect(usage[0]?.usedLabel).toBe("12 资源点");
     expect(JSON.stringify(usage)).not.toContain("FLEXDB");
     expect(JSON.stringify(usage)).not.toContain("SCF");
-    // envId 来自 auth 绑定环境，而不是插件硬编码传入
-    expect(bridge.calls.some((call) => call.name === "queryEnv" && call.args.envId)).toBe(true);
-    expect(bridge.calls.find((call) => call.name === "auth")?.args).toEqual({ action: "status" });
+    expect(bridge.calls.some((c) => c.name === "callCloudApi" && c.args.action === "DescribeEnvs")).toBe(
+      true,
+    );
   });
 
-  it("counts hosting domains from CdnDomain without fabricating extra sites", async () => {
-    const bridge = fakeBridge({
-      "queryEnv:info": { EnvInfo: { EnvId: "env-x", Region: "ap-guangzhou" } },
-      "queryFunctions:listFunctions": { Functions: [] },
-      "queryHosting:websiteConfig": { CdnDomain: "env-x.tcloudbaseapp.com" },
-    });
+  it("counts hosting domains from DescribeHostingDomain", async () => {
+    const bridge = capiBridge(
+      {
+        "tcb:DescribeEnvs": { EnvList: [{ EnvId: "env-x", Region: "ap-guangzhou" }] },
+        "tcb:DescribeFunctions": { Functions: [] },
+        "tcb:DescribeHostingDomain": { DefaultDomain: "env-x.tcloudbaseapp.com" },
+      },
+      { "auth:status": { current_env_id: "env-x" } },
+    );
     const data = createCloudBaseDataService(bridge);
     const info = await data.envInfo();
     expect(info.hostingDomainCount).toBe(1);
     expect(info.regionLabel).toContain("广州");
   });
 
-  it("maps queryEnv metrics Curve.Values and queryPgDatabase metadata", async () => {
-    const bridge = fakeBridge({
-      "queryEnv:metrics": {
-        MetricName: "FunctionInvocation",
-        Curve: { Values: [1, 4, 9], NewValues: [1, 4, 9] },
+  it("maps DescribeCurveData metrics and ExecutePGSql table list", async () => {
+    const bridge = capiBridge(
+      {
+        "tcb:DescribeCurveData": { Values: [1, 4, 9] },
+        "tcb:ExecutePGSql": {
+          rows: [
+            {
+              schema: "public",
+              name: "todos",
+              kind: "r",
+              estimated_rows: 12,
+            },
+          ],
+        },
+        "tcb:DescribeEnvs": { EnvList: [{ EnvId: envId }] },
       },
-      "queryPgDatabase:metadata": {
-        objects: [
-          {
-            schema: "public",
-            name: "todos",
-            schemaTable: "public.todos",
-            kind: "table",
-            estimatedRows: 12,
-            columnCount: 4,
-          },
-        ],
-      },
-    });
+      auth,
+    );
     const data = createCloudBaseDataService(bridge);
     const metrics = await data.metrics();
     expect(metrics[0]?.points).toEqual([1, 4, 9]);
@@ -100,47 +117,51 @@ describe("cloudbase-data mapping", () => {
       schema: "public",
       kind: "table",
       rowCount: 12,
-      columnCount: 4,
     });
   });
 
   it("quotes table identifiers in readRows SQL", async () => {
-    const bridge = fakeBridge({
-      "queryPgDatabase:sql": { rows: [{ id: 1 }], columns: ["id"] },
-    });
+    const bridge = capiBridge(
+      {
+        "tcb:ExecutePGSql": { rows: [{ id: 1 }], columns: ["id"] },
+        "tcb:DescribeEnvs": { EnvList: [{ EnvId: envId }] },
+      },
+      auth,
+    );
     const data = createCloudBaseDataService(bridge);
     await data.readRows("public.todos", { limit: 10, offset: 0 });
-    const sql = String(bridge.calls[0]?.args.sql);
+    const capiCall = bridge.calls.find((c) => c.args.action === "ExecutePGSql");
+    const sql = String((capiCall?.args.params as Record<string, unknown>)?.Sql);
     expect(sql).toContain('"public"."todos"');
     expect(sql).not.toContain("public.todos LIMIT");
   });
 
   it("rejects write SQL on the panel read path", async () => {
-    const data = createCloudBaseDataService(fakeBridge({}));
+    const data = createCloudBaseDataService(capiBridge({}, auth));
     await expect(data.runReadSql("DELETE FROM public.todos")).rejects.toThrow(/写 SQL/);
   });
 
-  it("maps queryPgDatabase schema columns and listUsers", async () => {
-    const bridge = fakeBridge({
-      "queryPgDatabase:schema": {
-        columns: [
-          { name: "id", dataType: "integer", isNullable: false },
-          { name: "title", dataType: "text", isNullable: true },
-        ],
-        primaryKey: ["id"],
-        kind: "table",
+  it("maps ExecutePGSql columns and DescribeUserList users", async () => {
+    const bridge = capiBridge(
+      {
+        "tcb:ExecutePGSql": {
+          rows: [
+            { column_name: "id", data_type: "integer", is_nullable: "NO", is_pk: true },
+            { column_name: "title", data_type: "text", is_nullable: "YES", is_pk: false },
+          ],
+        },
+        "tcb:DescribeUserList": {
+          Data: { UserList: [{ Uid: "u1", Name: "alice", UserStatus: "ACTIVE" }] },
+        },
+        "tcb:DescribeFunctions": { Functions: [] },
+        "tcb:DescribeEnvs": { EnvList: [{ EnvId: envId }] },
       },
-      "queryPermissions:listUsers": {
-        users: [{ Uid: "u1", Username: "alice", CreateTime: "2026-08-01T00:00:00Z" }],
-      },
-      "queryFunctions:listFunctions": { Functions: [] },
-      "queryCloudRun:list": { ServerList: [] },
-    });
+      auth,
+    );
     const data = createCloudBaseDataService(bridge);
     const columns = await data.listTableColumns("public.todos");
     expect(columns[0]).toMatchObject({ name: "id", primaryKey: true, dataType: "integer" });
     expect(columns[1]?.nullable).toBe(true);
-    expect(bridge.calls[0]?.args).toMatchObject({ action: "schema", objectName: "public.todos" });
     const users = await data.listAppUsers({ limit: 20 });
     expect(users[0]).toMatchObject({ uid: "u1", name: "alice" });
     const secrets = await data.listSecrets();

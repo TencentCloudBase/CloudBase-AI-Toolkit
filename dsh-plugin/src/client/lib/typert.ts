@@ -95,6 +95,22 @@ export function createRemoteCloudBaseData(
     async startAuth(): Promise<AuthStatus> {
       return (await call("startAuth")) as AuthStatus;
     },
+    async startLogin(method, params) {
+      return (await call("startLogin", { method, params })) as AuthStatus;
+    },
+    async authStateChange(listener) {
+      const timer = window.setInterval(() => {
+        void call("authStatus").then((status) => listener(status as AuthStatus));
+      }, 5000);
+      void call("authStatus").then((status) => listener(status as AuthStatus));
+      return () => window.clearInterval(timer);
+    },
+    async logout() {
+      return (await call("logout")) as AuthStatus;
+    },
+    async getAuthLoginConfig() {
+      return (await call("getAuthLoginConfig")) as AppAuthConfig;
+    },
     async listEnvironments(): Promise<EnvItem[]> {
       return (await call("listEnvironments")) as EnvItem[];
     },
@@ -162,7 +178,10 @@ export function createRemoteCloudBaseData(
       return (await call("listPgRoles")) as import("../../shared/types.js").PgRoleRow[];
     },
     async listPgMigrations() {
-      return (await call("listPgMigrations")) as import("../../shared/types.js").PgMigrationRow[];
+      return (await call("listMigrations")) as import("../../shared/types.js").PgMigrationRow[];
+    },
+    async listMigrations() {
+      return (await call("listMigrations")) as import("../../shared/types.js").PgMigrationRow[];
     },
     async listGatewayRoutes() {
       return (await call("listGatewayRoutes")) as import("../../shared/types.js").GatewayRoute[];
@@ -177,7 +196,11 @@ export function createRemoteCloudBaseData(
       return (await call("getGatewayPrivilege")) as import("../../shared/types.js").GatewayPrivilege;
     },
     async listGatewayDomains() {
-      return (await call("listGatewayDomains")) as string[];
+      const rows = (await call("listCustomDomains")) as Array<{ domain: string }>;
+      return rows.map((row) => row.domain);
+    },
+    async listCustomDomains() {
+      return (await call("listCustomDomains")) as Array<{ domain: string; status: string }>;
     },
     async listFunctionNames() {
       return (await call("listFunctionNames")) as string[];

@@ -49,7 +49,7 @@ export function useGatewayMutations(provider?: PlatformProvider) {
 
 export function useGatewayDomains(provider?: PlatformProvider) {
   return useAsyncResource(
-    async () => (provider?.listGatewayDomains ? provider.listGatewayDomains() : []),
+    async () => (provider?.listCustomDomains ? provider.listCustomDomains() : provider?.listGatewayDomains ? provider.listGatewayDomains().then((d) => d.map((domain) => ({ domain, status: "ok" }))) : []),
     [provider],
   );
 }

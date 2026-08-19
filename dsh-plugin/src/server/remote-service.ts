@@ -91,6 +91,9 @@ export function buildCloudBaseTypertContribution(): {
       invoke("storageUrl", ["cloudPath"]),
       invoke("authStatus"),
       invoke("startAuth"),
+      invoke("startLogin", ["method", "params"]),
+      invoke("logout"),
+      invoke("listMigrations"),
       invoke("listEnvironments"),
       invoke("setEnvironment", ["envId"]),
       invoke("appAuthConfig"),
@@ -115,6 +118,19 @@ export function buildCloudBaseTypertContribution(): {
       invoke("listPgExtensions"),
       invoke("listPgRoles"),
       invoke("listPgMigrations"),
+      invoke("listCustomDomains"),
+      invoke("bindCustomDomain", ["input"]),
+      invoke("deleteCustomDomain", ["domain", "confirm"]),
+      invoke("listSchemas"),
+      invoke("listTriggers", ["schema"]),
+      invoke("listTypes", ["schema"]),
+      invoke("listColumnPrivileges", ["schemaTable"]),
+      invoke("listSafetyDomains"),
+      invoke("getStorageSecurityRules"),
+      invoke("setStorageSecurityRules", ["rules"]),
+      invoke("listCdnCacheConfig"),
+      invoke("getStorageCustomDomains"),
+      invoke("getAuthLoginConfig"),
       invoke("listGatewayRoutes"),
       invoke("upsertGatewayRoute", ["input"]),
       invoke("deleteGatewayRoute", ["routeId", "confirm"]),
@@ -202,6 +218,21 @@ export class CloudBaseRemoteService extends TypertRemoteService {
   @Remote("startAuth")
   async startAuth(): Promise<AuthStatus> {
     return toJsonSafe(await this.data.startAuth());
+  }
+
+  @Remote("startLogin")
+  async startLogin(method?: string, params?: { envId?: string; apiKey?: string }): Promise<AuthStatus> {
+    return toJsonSafe(await this.data.startLogin?.(method as never, params));
+  }
+
+  @Remote("logout")
+  async logout(): Promise<AuthStatus> {
+    return toJsonSafe(await this.data.logout?.());
+  }
+
+  @Remote("getAuthLoginConfig")
+  async getAuthLoginConfig(): Promise<AppAuthConfig> {
+    return toJsonSafe(await this.data.getAuthLoginConfig?.());
   }
 
   @Remote("listEnvironments")
@@ -341,6 +372,71 @@ export class CloudBaseRemoteService extends TypertRemoteService {
   @Remote("listPgMigrations")
   async listPgMigrations() {
     return toJsonSafe(await this.data.listPgMigrations?.());
+  }
+
+  @Remote("listMigrations")
+  async listMigrations() {
+    return toJsonSafe(await this.data.listMigrations?.());
+  }
+
+  @Remote("listCustomDomains")
+  async listCustomDomains() {
+    return toJsonSafe(await this.data.listCustomDomains?.());
+  }
+
+  @Remote("bindCustomDomain")
+  async bindCustomDomain(input: Record<string, unknown>): Promise<void> {
+    return toJsonSafe(await this.data.bindCustomDomain?.(input as never));
+  }
+
+  @Remote("deleteCustomDomain")
+  async deleteCustomDomain(domain: string, confirm: boolean): Promise<void> {
+    return toJsonSafe(await this.data.deleteCustomDomain?.(domain, confirm));
+  }
+
+  @Remote("listSchemas")
+  async listSchemas() {
+    return toJsonSafe(await this.data.listSchemas?.());
+  }
+
+  @Remote("listTriggers")
+  async listTriggers(schema?: string) {
+    return toJsonSafe(await this.data.listTriggers?.(schema));
+  }
+
+  @Remote("listTypes")
+  async listTypes(schema?: string) {
+    return toJsonSafe(await this.data.listTypes?.(schema));
+  }
+
+  @Remote("listColumnPrivileges")
+  async listColumnPrivileges(schemaTable: string) {
+    return toJsonSafe(await this.data.listColumnPrivileges?.(schemaTable));
+  }
+
+  @Remote("listSafetyDomains")
+  async listSafetyDomains() {
+    return toJsonSafe(await this.data.listSafetyDomains?.());
+  }
+
+  @Remote("getStorageSecurityRules")
+  async getStorageSecurityRules() {
+    return toJsonSafe(await this.data.getStorageSecurityRules?.());
+  }
+
+  @Remote("setStorageSecurityRules")
+  async setStorageSecurityRules(rules: { aclTag: string; rule?: string }): Promise<void> {
+    return toJsonSafe(await this.data.setStorageSecurityRules?.(rules));
+  }
+
+  @Remote("listCdnCacheConfig")
+  async listCdnCacheConfig() {
+    return toJsonSafe(await this.data.listCdnCacheConfig?.());
+  }
+
+  @Remote("getStorageCustomDomains")
+  async getStorageCustomDomains() {
+    return toJsonSafe(await this.data.getStorageCustomDomains?.());
   }
 
   @Remote("listGatewayRoutes")
