@@ -42,10 +42,10 @@ if (!existsSync(join(root, "dist/index.js"))) {
 const patch = readFileSync(join(root, "cordis.patch.yml"), "utf8");
 if (patch.includes("CLOUDBASE_API_KEY")) fail("patch must not forward CLOUDBASE_API_KEY");
 else pass("patch omits CLOUDBASE_API_KEY");
-if (!patch.includes("!!js (process.env.CLOUDBASE_ENV_ID || 'ai-share-d2guukyxybb63b206')")) {
-  fail("CLOUDBASE_ENV_ID must have a string fallback (undefined crashes dsh)");
+if (patch.includes("CLOUDBASE_ENV_ID")) {
+  fail("patch must not forward CLOUDBASE_ENV_ID — login via device-code");
 } else {
-  pass("CLOUDBASE_ENV_ID has string fallback");
+  pass("patch forwards no env (device-code login)");
 }
 
 const { CloudBaseMcpBridge, createCloudBaseDataService } = await import(

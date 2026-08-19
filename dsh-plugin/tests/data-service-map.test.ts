@@ -28,6 +28,7 @@ function fakeBridge(handlers: Record<string, unknown>): CloudBaseMcpBridge & {
 describe("cloudbase-data mapping", () => {
   it("exports product names and a full env id, passing envId into queryEnv", async () => {
     const bridge = fakeBridge({
+      "auth:status": { envId: "ai-share-d2guukyxybb63b206" },
       "queryEnv:info": {
         EnvInfo: {
           EnvId: "ai-share-d2guukyxybb63b206",
@@ -52,7 +53,9 @@ describe("cloudbase-data mapping", () => {
     expect(usage[0]?.usedLabel).toBe("12 资源点");
     expect(JSON.stringify(usage)).not.toContain("FLEXDB");
     expect(JSON.stringify(usage)).not.toContain("SCF");
+    // envId 来自 auth 绑定环境，而不是插件硬编码传入
     expect(bridge.calls.some((call) => call.name === "queryEnv" && call.args.envId)).toBe(true);
+    expect(bridge.calls.find((call) => call.name === "auth")?.args).toEqual({ action: "status" });
   });
 
   it("counts hosting domains from CdnDomain without fabricating extra sites", async () => {

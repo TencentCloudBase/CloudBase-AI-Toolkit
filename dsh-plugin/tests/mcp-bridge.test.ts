@@ -1,21 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { buildMcpPassthroughEnv } from "../src/shared/constants.js";
 import { buildMcpClientConfig, loginHint } from "../src/server/mcp-bridge.js";
 import { parseMcpFrames } from "../src/server/mcp-client.js";
 
 describe("mcp bridge env", () => {
-  it("always emits a string CLOUDBASE_ENV_ID and never API Key", () => {
-    const empty = buildMcpPassthroughEnv({});
-    expect(empty.CLOUDBASE_ENV_ID).toBe("ai-share-d2guukyxybb63b206");
-    expect("CLOUDBASE_API_KEY" in empty).toBe(false);
-
-    const custom = buildMcpPassthroughEnv({ CLOUDBASE_ENV_ID: "env-abc" });
-    expect(custom.CLOUDBASE_ENV_ID).toBe("env-abc");
-
-    const config = buildMcpClientConfig({ CLOUDBASE_ENV_ID: undefined });
-    const envId = config.env.CLOUDBASE_ENV_ID;
-    expect(typeof envId).toBe("string");
-    expect(envId?.length).toBeGreaterThan(0);
+  it("forwards no CloudBase env and never an API Key", () => {
+    const config = buildMcpClientConfig({ CLOUDBASE_API_KEY: "sk-test" });
+    // 登录走 cloudbase-mcp 自身 device-code；不注入 CLOUDBASE_ENV_ID / API Key
+    expect(Object.keys(config.env)).toHaveLength(0);
+    expect("CLOUDBASE_ENV_ID" in config.env).toBe(false);
+    expect("CLOUDBASE_API_KEY" in config.env).toBe(false);
     expect(JSON.stringify(config.env).includes("undefined")).toBe(false);
   });
 

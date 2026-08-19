@@ -1,5 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { DEFAULT_ENV_ID, MCP_PACKAGE, buildMcpPassthroughEnv } from "../shared/constants.js";
+import { MCP_PACKAGE } from "../shared/constants.js";
 
 interface JsonRpcResponse {
   jsonrpc?: string;
@@ -141,10 +141,11 @@ export class CloudBaseMcpBridge {
   }
 
   private async start(): Promise<void> {
-    const passthrough = buildMcpPassthroughEnv(this.env, DEFAULT_ENV_ID);
+    // 不注入任何 CloudBase env：登录走 cloudbase-mcp 自身的 device-code 流程
+    // （auth 工具 start_auth device），环境由用户登录后通过 auth set_env 选择。
+    // 透传 CLOUDBASE_API_KEY 会挡掉 device-code（无效 key 走 Key 模式）。
     const childEnv: NodeJS.ProcessEnv = {
       ...this.env,
-      ...passthrough,
       CLOUDBASE_MCP_DISABLE_LOG_FILE: "true",
     };
     delete childEnv.CLOUDBASE_API_KEY;

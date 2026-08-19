@@ -57,19 +57,13 @@ dsh --profile web --dump-config   # 应出现 # == @cloudbase/dsh-plugin 与 mcp
 
 ## 登录（device-code，无需 API Key）
 
-插件**不传 `CLOUDBASE_API_KEY`**。无效 Key 会挡住 device-code 流程。本机已有 `tcb login` 登录态时直接复用。
+插件**不传任何 CloudBase env、不传 API Key**。登录走 cloudbase-mcp 自身的 device-code 流程。本机已有 `tcb login` 登录态时直接复用。
 
 无登录态时，对模型说：
 
 > 调用 `mcp__cloudbase__auth`，`action=start_auth`，`authMode=device`，把 verification URL 给我。
 
-浏览器授权一次后登录态持久化。CI / 无头自动化才需要有效 API Key，且必须写在用户自己的 patch `env` 里（见下方「凭据 scrubbing」）。
-
-默认透传的环境 ID 是 `CLOUDBASE_ENV_ID`（未设置时为 `ai-share-d2guukyxybb63b206`，仅防止 `!!js` 得到 `undefined`）。请用你自己的环境 ID：
-
-```bash
-export CLOUDBASE_ENV_ID=your-env-id
-```
+浏览器授权一次后登录态持久化。登录后通过 `mcp__cloudbase__auth`（`action=set_env`）选择环境，后续工具自动使用该环境，插件无需也不能指定环境 ID。
 
 ## 功能
 
@@ -87,10 +81,10 @@ export CLOUDBASE_ENV_ID=your-env-id
 
 ## 已知坑（必读）
 
-1. **`!!js` 求值为 `undefined` 会让 dsh 启动崩溃。** `env` 里每个值必须是字符串。本插件只透传 `CLOUDBASE_ENV_ID`，并给了默认值。不要加未设置的 `TENCENTCLOUD_SECRETKEY` 等键。
+1. **`!!js` 求值为 `undefined` 会让 dsh 启动崩溃。** `env` 里每个值必须是字符串。本插件 **不声明任何 env**（登录走 MCP device-code），天然避开此坑。若用户在自己 patch 里加 env，每个值必须是字符串。
 2. **pnpm v9+ 默认禁止依赖 install 脚本。** `@cloudbase/cloudbase-mcp` 间接依赖 protobufjs，必须 `enable-scripts=true` 后再 `pnpm install`。一键脚本已包含此步。
 3. **UI 插件要重建 web 前端。** 装完后若看不到表格卡片 / 右侧面板，从 DSH 安装目录执行 `pnpm run build:web`，再重启 `dsh --profile web`。Headless 不需要。
-4. **凭据 scrubbing。** DSH stdio 桥会丢掉名字匹配 `KEY|PASSWORD|SECRET|TOKEN` 的环境变量。需要传给 MCP 的变量必须写在 mcp-client 的 `env` 字段。本插件只显式透传 `CLOUDBASE_ENV_ID`。`HOME` 会继承，因此本机 tcb 登录态可用。
+4. **凭据 scrubbing。** DSH stdio 桥会丢掉名字匹配 `KEY|PASSWORD|SECRET|TOKEN` 的环境变量。本插件不声明任何 env，登录/环境全部走 cloudbase-mcp 的 auth（device-code + set_env）。`HOME` 会继承，因此本机 tcb 登录态可用。
 5. **首次 npx 拉包可能 10–90s。** headless 首轮工具列表可能还是空的；重试即可。Web 长驻进程无此问题。本地验收：`cd dsh-plugin && npm run build && npm run e2e:live`。
 6. **不要塞无效 API Key。** cloudbase-mcp 检测到 Key 会走 Key 模式，device-code 会被挡住。
 
@@ -150,14 +144,14 @@ Compatibility: DSH `>=0.1.0-rc.6 <0.2.0`. Node `>=18`.
 
 ## Login
 
-The plugin **does not pass `CLOUDBASE_API_KEY`**. Reuse local `tcb login` state. If unsigned, ask the model to call `mcp__cloudbase__auth` with `action=start_auth` and `authMode=device`.
+The plugin **forwards no CloudBase env and no API key** — login goes through cloudbase-mcp's own device-code flow. Reuse local `tcb login` state. If unsigned, ask the model to call `mcp__cloudbase__auth` with `action=start_auth` and `authMode=device`, then pick an environment with `action=set_env` (tools use that env automatically).
 
 ## Known pitfalls
 
-1. `!!js` evaluating to `undefined` crashes dsh. Every `env` value must be a string. This plugin only forwards `CLOUDBASE_ENV_ID` with a fallback.
+1. `!!js` evaluating to `undefined` crashes dsh. Every `env` value must be a string. This plugin declares **no env at all** (device-code login), avoiding the trap entirely.
 2. pnpm v9+ blocks dependency install scripts. Set `enable-scripts=true` then `pnpm install` (the one-shot script does this).
 3. UI plugins need `pnpm run build:web` on the DSH install. Headless does not.
-4. Credential scrubbing: variables matching `KEY|PASSWORD|SECRET|TOKEN` are stripped unless listed under mcp-client `env`. We only forward `CLOUDBASE_ENV_ID`.
+4. Credential scrubbing: variables matching `KEY|PASSWORD|SECRET|TOKEN` are stripped. We declare no env — login and env selection go through cloudbase-mcp's auth tool (device-code + set_env). `HOME` is inherited so local `tcb login` state works.
 5. First `npx` fetch can take 10–90s; retry the headless turn if tools are missing. Local gate: `npm run e2e:live`.
 6. Never inject an invalid API Key — it blocks device-code.
 

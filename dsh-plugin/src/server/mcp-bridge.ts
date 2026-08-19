@@ -1,5 +1,3 @@
-import { DEFAULT_ENV_ID, buildMcpPassthroughEnv } from "../shared/constants.js";
-
 export interface McpClientPatchConfig {
   serverName: string;
   transport: "stdio";
@@ -9,18 +7,17 @@ export interface McpClientPatchConfig {
 }
 
 export function buildMcpClientConfig(
-  env: NodeJS.ProcessEnv = process.env,
+  _env: NodeJS.ProcessEnv = process.env,
 ): McpClientPatchConfig {
-  const passthrough = buildMcpPassthroughEnv(env, DEFAULT_ENV_ID);
-  if (Object.values(passthrough).some((value) => value === undefined)) {
-    throw new Error("MCP env passthrough must not contain undefined values");
-  }
+  // 不注入任何 CloudBase env：登录走 cloudbase-mcp 自身的 device-code 流程
+  // （auth 工具 start_auth device），环境由用户登录后通过 auth set_env 选择。
+  // 不设 env 也天然避免了 dsh 的 !!js undefined 崩溃坑。
   return {
     serverName: "cloudbase",
     transport: "stdio",
     command: "npx",
     args: ["-y", "@cloudbase/cloudbase-mcp@latest"],
-    env: passthrough,
+    env: {},
   };
 }
 

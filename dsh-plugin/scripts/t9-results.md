@@ -9,9 +9,9 @@ Host: macOS / dsh `0.1.0-rc.6` / `@cloudbase/cloudbase-mcp@latest` (npx, logged 
 | `npm test` | 18/18 pass |
 | `npm run typecheck` + `npm run build` | pass (server + client ModuleLoader factory + skill-cli) |
 | MCP `tools/list` via plugin `CloudBaseMcpBridge` | **38 tools**, including auth / queryEnv / queryPgDatabase / queryMysqlDatabase / readNoSqlDatabaseContent / queryStorage / queryAppAuth / queryLogs / queryFunctions / manageHosting |
-| patch contract | only `CLOUDBASE_ENV_ID` with string fallback; **no `CLOUDBASE_API_KEY`** |
+| patch contract | **no env at all** (device-code login); no `CLOUDBASE_ENV_ID`, no API key |
 | `dsh plugin --profile headless add <repo>/dsh-plugin` | profile `dsh.profile.bundles` includes `@cloudbase/dsh-plugin` |
-| `dsh --profile headless --dump-config` | `# == @cloudbase/dsh-plugin`, `id: mcp-cloudbase`, `serverName: cloudbase`, `npx -y @cloudbase/cloudbase-mcp@latest`, env fallback present, **API Key absent** (no boot crash from `!!js` undefined) |
+| `dsh --profile headless --dump-config` | `# == @cloudbase/dsh-plugin`, `id: mcp-cloudbase`, `serverName: cloudbase`, `npx -y @cloudbase/cloudbase-mcp@latest`, **no env forwarded**, **API Key absent** (no boot crash from `!!js` undefined) |
 | `cloudbase-skills sync` | `~/.dsh/skills/cloudbase/{sites,web-development,postgresql,cloud-functions,auth-web,cloud-storage}` |
 | panel `envInfo.envId` | full id `ai-share-d2guukyxybb63b206` (copyable in Config tab) |
 | term-map | usage JSON has no FLEXDB/SCF/TDSQL |

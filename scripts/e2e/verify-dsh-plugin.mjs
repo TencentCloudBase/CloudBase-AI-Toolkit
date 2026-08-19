@@ -38,10 +38,10 @@ if (pkg.dependencies && Object.keys(pkg.dependencies).length > 0) {
 const patch = readFileSync(join(plugin, "cordis.patch.yml"), "utf8");
 if (patch.includes("CLOUDBASE_API_KEY")) fail("cordis.patch.yml must not pass CLOUDBASE_API_KEY");
 else pass("patch does not pass CLOUDBASE_API_KEY");
-if (!patch.includes("!!js (process.env.CLOUDBASE_ENV_ID || 'ai-share-d2guukyxybb63b206')")) {
-  fail("patch must give CLOUDBASE_ENV_ID a string fallback");
+if (patch.includes("CLOUDBASE_ENV_ID") || patch.includes("!!js")) {
+  fail("patch must not forward env or !!js — login via cloudbase-mcp device-code");
 } else {
-  pass("patch CLOUDBASE_ENV_ID has string fallback");
+  pass("patch forwards no env (device-code login)");
 }
 
 const clientDir = join(plugin, "src/client");

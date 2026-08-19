@@ -1,4 +1,3 @@
-import { DEFAULT_ENV_ID } from "../shared/constants.js";
 import { quotePgTable } from "../shared/sql-ident.js";
 import type {
   AppAuthConfig,
@@ -47,10 +46,6 @@ function looksLikeWriteSql(sql: string): boolean {
   );
 }
 
-function resolveEnvId(): string {
-  return process.env.CLOUDBASE_ENV_ID?.trim() || DEFAULT_ENV_ID;
-}
-
 function mapTableKind(kindRaw: string): TableSummary["kind"] {
   const kind = kindRaw.toLowerCase();
   if (kind.includes("view")) return "view";
@@ -81,20 +76,18 @@ export function createCloudBaseDataService(
 ): CloudBaseData {
   return {
     async listTables() {
-      const envId = resolveEnvId();
       let pgError: string | undefined;
       try {
         const payload = unwrapData(
           await bridge.callTool("queryPgDatabase", {
             action: "metadata",
             limit: 200,
-            envId,
           }),
         );
         const objects = arr(payload.objects ?? payload.tables ?? payload.items);
         if (objects.length > 0) return objects.map(mapTable);
         const listed = unwrapData(
-          await bridge.callTool("queryPgDatabase", { action: "objects", limit: 200, envId }),
+          await bridge.callTool("queryPgDatabase", { action: "objects", limit: 200 }),
         );
         const fallback = arr(listed.objects ?? listed.tables ?? listed.items);
         if (fallback.length > 0) return fallback.map(mapTable);
@@ -107,7 +100,6 @@ export function createCloudBaseDataService(
         const nosql = unwrapData(
           await bridge.callTool("readNoSqlDatabaseStructure", {
             action: "listCollections",
-            envId,
           }),
         );
         const collections = arr(nosql.collections ?? nosql.Collections);
@@ -152,7 +144,6 @@ export function createCloudBaseDataService(
           action: "sql",
           sql,
           limit: 200,
-          envId: resolveEnvId(),
         }),
       );
       return toRowPage(payload, Date.now() - started);
@@ -163,7 +154,6 @@ export function createCloudBaseDataService(
         await bridge.callTool("queryStorage", {
           action: "list",
           cloudPath: path || "/",
-          envId: resolveEnvId(),
         }),
       );
       const files = arr(payload.files ?? payload.Contents ?? payload.items);
@@ -188,7 +178,6 @@ export function createCloudBaseDataService(
           action: "url",
           cloudPath,
           maxAge: 3600,
-          envId: resolveEnvId(),
         }),
       );
       const url =
@@ -198,7 +187,7 @@ export function createCloudBaseDataService(
 
     async authStatus() {
       const payload = unwrapData(
-        await bridge.callTool("auth", { action: "status", envId: resolveEnvId() }),
+        await bridge.callTool("auth", { action: "status" }),
       );
       const signedIn = Boolean(
         payload.signedIn ?? payload.AUTH_READY ?? str(payload.status) === "AUTH_READY",
@@ -218,9 +207,8 @@ export function createCloudBaseDataService(
     },
 
     async appAuthConfig() {
-      const envId = resolveEnvId();
       const payload = unwrapData(
-        await bridge.callTool("queryAppAuth", { action: "listProviders", envId }).catch(() => ({})),
+        await bridge.callTool("queryAppAuth", { action: "listProviders" }).catch(() => ({})),
       );
       const providers = arr(payload.providers ?? payload.Providers).map((item): AppAuthConfig["providers"][number] => {
         const row = rec(item);
@@ -232,7 +220,7 @@ export function createCloudBaseDataService(
       });
       if (providers.length === 0) {
         const login = unwrapData(
-          await bridge.callTool("queryAppAuth", { action: "getLoginConfig", envId }).catch(() => ({})),
+          await bridge.callTool("queryAppAuth", { action: "getLoginConfig" }).catch(() => ({})),
         );
         const flags = rec(login.loginConfig ?? login.config ?? login);
         const mapped = [
@@ -249,7 +237,6 @@ export function createCloudBaseDataService(
     },
 
     async metrics() {
-      const envId = resolveEnvId();
       const names = [
         { metricName: "FunctionInvocation", label: "函数调用" },
         { metricName: "DbRead", label: "DB 读" },
@@ -262,7 +249,6 @@ export function createCloudBaseDataService(
           const payload = unwrapData(
             await bridge.callTool("queryEnv", {
               action: "metrics",
-              envId,
               metricName: item.metricName,
             }),
           );
@@ -290,7 +276,7 @@ export function createCloudBaseDataService(
 
     async usage() {
       const payload = unwrapData(
-        await bridge.callTool("queryEnv", { action: "usage", envId: resolveEnvId() }),
+        await bridge.callTool("queryEnv", { action: "usage" }),
       );
       const usages = arr(payload.Usages ?? payload.modules ?? payload.usage ?? payload.items);
       if (usages.length > 0) {
@@ -317,7 +303,6 @@ export function createCloudBaseDataService(
             action: "searchLogs",
             queryString: "log:ERROR",
             limit: 20,
-            envId: resolveEnvId(),
           }),
         );
         const logs = arr(payload.logs ?? payload.Results ?? payload.items);
@@ -344,19 +329,25 @@ export function createCloudBaseDataService(
     },
 
     async envInfo() {
-      const envIdHint = resolveEnvId();
+      // 不硬编码环境 ID：先查 auth 状态拿当前绑定环境，再取环境详情。
+      // 未登录/未绑定时 MCP 会返回 auth 提示，envId 为空串展示占位。
+      const auth = unwrapData(
+        await bridge.callTool("auth", { action: "status" }).catch(() => ({})),
+      );
+      const activeEnvId = str(auth.envId ?? auth.EnvId) ?? "";
       const info = unwrapData(
-        await bridge.callTool("queryEnv", { action: "info", envId: envIdHint }),
+        activeEnvId
+          ? await bridge.callTool("queryEnv", { action: "info", envId: activeEnvId })
+          : await bridge.callTool("queryEnv", { action: "info" }).catch(() => ({})),
       );
       const env = rec(info.EnvInfo ?? info.envInfo ?? info);
-      const envId = str(env.EnvId ?? env.envId) ?? str(info.EnvId) ?? envIdHint;
+      const envId = str(env.EnvId ?? env.envId) ?? str(info.EnvId) ?? activeEnvId;
       let functionCount = 0;
       try {
         const fn = unwrapData(
           await bridge.callTool("queryFunctions", {
             action: "listFunctions",
-            envId,
-          }).catch(() => bridge.callTool("getFunctionList", { envId })),
+          }).catch(() => bridge.callTool("getFunctionList", {})),
         );
         functionCount = arr(fn.Functions ?? fn.functions ?? fn.items).length;
       } catch {
@@ -365,7 +356,7 @@ export function createCloudBaseDataService(
       let hostingDomainCount = 0;
       try {
         const hosting = unwrapData(
-          await bridge.callTool("queryHosting", { action: "websiteConfig", envId }),
+          await bridge.callTool("queryHosting", { action: "websiteConfig" }),
         );
         const website = rec(hosting.websiteConfig);
         const cdn =
