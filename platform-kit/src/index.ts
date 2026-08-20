@@ -17,6 +17,8 @@ export type {
   RowPage,
   StorageObject,
   AuthStatus,
+  LoginMethod,
+  LoginOption,
   EnvItem,
   MetricSeries,
   UsageItem,

@@ -1,5 +1,6 @@
 import * as esbuild from "esbuild";
-import { mkdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,5 +32,19 @@ await esbuild.build({
   entryPoints: [join(root, "src/theme/styles.ts")],
   outfile: join(root, "dist/styles.js"),
 });
+
+const tscBin = join(root, "node_modules/typescript/bin/tsc");
+const tsc = spawnSync(process.execPath, [tscBin, "-p", "tsconfig.build.json"], {
+  cwd: root,
+  stdio: "inherit",
+});
+if (tsc.status !== 0) {
+  process.exit(tsc.status ?? 1);
+}
+
+writeFileSync(
+  join(root, "dist/styles.d.ts"),
+  `export { ensureKitStyles, KIT_CSS } from "./theme/styles.js";\n`,
+);
 
 console.log("built @cloudbase/platform-kit");

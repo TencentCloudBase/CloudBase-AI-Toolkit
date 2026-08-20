@@ -6,8 +6,16 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./styles": "./dist/styles.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./styles": {
+      "types": "./dist/styles.d.ts",
+      "import": "./dist/styles.js",
+      "default": "./dist/styles.js"
+    }
   },
   "files": [
     "dist",
@@ -18,7 +26,8 @@
     "clean": "rm -rf dist",
     "build": "node build.mjs",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "consumer-smoke": "tsc --noEmit -p tsconfig.consumer.json"
   },
   "keywords": [
     "cloudbase",
@@ -50,8 +59,15 @@
     }
   },
   "devDependencies": {
+    "@testing-library/dom": "10.4.0",
+    "@testing-library/react": "16.3.0",
+    "@types/node": "24.3.0",
     "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
     "esbuild": "0.25.9",
+    "jsdom": "26.1.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
     "typescript": "5.9.2",
     "vitest": "3.2.7"
   }

@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "jsx": "react",
+    "paths": {
+      "@cloudbase/platform-kit": ["./dist/index.d.ts"],
+      "@cloudbase/platform-kit/styles": ["./dist/styles.d.ts"]
+    }
+  },
+  "include": ["scripts/consumer-smoke.ts"]
+}

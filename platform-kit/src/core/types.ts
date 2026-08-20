@@ -67,10 +67,30 @@ export interface StorageObject {
   isDirectory: boolean;
 }
 
+export type LoginMethod = "device-code" | "apikey" | "host-injected";
+
+export interface LoginOption {
+  method: LoginMethod;
+  title: string;
+  description?: string;
+}
+
 export interface AuthStatus {
   signedIn: boolean;
   envId?: string;
   message: string;
+  /** Login method that produced this status, when known. */
+  authMode?: LoginMethod | string;
+  /** True when credentials are persisted by the host (not only in-memory). */
+  persisted?: boolean;
+  /** True when short-lived host credentials are available. */
+  tempCredentialsAvailable?: boolean;
+  /** Browser URL for device-code verification. */
+  verificationUrl?: string;
+  /** User-facing device code shown alongside verificationUrl. */
+  userCode?: string;
+  /** Methods the host can offer when signedIn is false. */
+  loginOptions?: LoginOption[];
 }
 
 export interface EnvItem {

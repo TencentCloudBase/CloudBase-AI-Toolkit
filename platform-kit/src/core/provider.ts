@@ -41,6 +41,12 @@ export interface PlatformProvider {
   listStorage(path?: string): Promise<StorageObject[]>;
   storageUrl(cloudPath: string): Promise<{ url: string; expiresInSec: number }>;
   authStatus(): Promise<AuthStatus>;
+  /**
+   * Begin a login flow.
+   * `host-injected` — host already has credentials; return signed-in status.
+   * `apikey` — validate envId + apiKey; signedIn only when both are accepted.
+   * `device-code` (default) — return verificationUrl + userCode without flipping signedIn.
+   */
   startLogin?(method?: string, params?: { envId?: string; apiKey?: string }): Promise<AuthStatus>;
   authStateChange?(listener: (status: AuthStatus) => void): () => void;
   logout?(): Promise<AuthStatus>;

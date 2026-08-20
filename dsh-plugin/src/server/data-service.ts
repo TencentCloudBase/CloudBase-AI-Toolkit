@@ -20,6 +20,7 @@ import type {
   PgFunctionRow,
   PgMigrationRow,
   PgRoleRow,
+  PolicyInput,
   PolicySummary,
   RowPage,
   SecretItem,
@@ -48,6 +49,10 @@ import {
   sqlListTypes,
   sqlListColumnPrivileges,
   sqlListMigrations,
+  sqlToggleRLS,
+  sqlDropPolicy,
+  sqlCreatePolicy,
+  sqlAlterPolicy,
   sqlTableColumns,
   sqlListIndexes,
   sqlTableForeignKeys,
@@ -826,6 +831,19 @@ export function createCloudBaseDataService(
         ok: payload.error === undefined && payload.Error === undefined,
         message: str(payload.message) ?? "OK",
       };
+    },
+
+    async upsertPolicy(input: PolicyInput & { previousName?: string }, confirm: boolean) {
+      const sql = input.previousName ? sqlAlterPolicy(input) : sqlCreatePolicy(input);
+      await service.runPgDDL(sql, confirm);
+    },
+
+    async dropPolicy(schemaTable: string, policyName: string, confirm: boolean) {
+      await service.runPgDDL(sqlDropPolicy(schemaTable, policyName), confirm);
+    },
+
+    async toggleTableRls(schemaTable: string, enable: boolean, confirm: boolean) {
+      await service.runPgDDL(sqlToggleRLS(schemaTable, enable), confirm);
     },
 
     async listPgFunctions(schema = "public") {
