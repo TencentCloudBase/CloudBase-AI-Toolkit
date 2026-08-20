@@ -101,6 +101,40 @@ function num(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+/** Align with MCP envQuery: PG signal is PostgreSQL[] and/or Meta postgresql=enable. */
+function hasPostgresqlSignal(env: LooseRecord): boolean {
+  const pgList = arr(env.PostgreSQL ?? env.postgresql);
+  if (pgList.length > 0) return true;
+  const metaList = arr(env.Meta ?? env.meta);
+  return metaList.some((item) => {
+    const row = rec(item);
+    const key = str(row.Key ?? row.key) ?? "";
+    const value = String(row.Value ?? row.value ?? "").toLowerCase();
+    return /^postgre[_]?sql$/i.test(key) && value === "enable";
+  });
+}
+
+/**
+ * Derive runtimeMode when DescribeEnvs omits RuntimeMode (common on live PG envs).
+ * Returns "postgresql" | "nosql" | explicit lowercase mode | undefined.
+ */
+function deriveRuntimeMode(env: LooseRecord): string | undefined {
+  const explicit = str(env.RuntimeMode ?? env.runtimeMode)?.toLowerCase();
+  if (explicit) {
+    if (explicit.includes("postgres") || explicit === "pg") return "postgresql";
+    return explicit;
+  }
+  if (hasPostgresqlSignal(env)) return "postgresql";
+  const databases = arr(env.Databases ?? env.databases);
+  if (databases.length > 0) return "nosql";
+  return undefined;
+}
+
+function envIsPostgres(env: LooseRecord): boolean {
+  const mode = (deriveRuntimeMode(env) ?? "").toLowerCase();
+  return mode.includes("postgres") || mode === "pg" || hasPostgresqlSignal(env);
+}
+
 function unwrapData(payload: unknown): LooseRecord {
   const root = rec(payload);
   const nested = rec(root.data);
@@ -259,8 +293,7 @@ export function createCloudBaseDataService(
   async function isPostgresEnv(): Promise<boolean> {
     const envId = await requireEnvId();
     const env = await describeEnvRecord(envId);
-    const mode = str(env.RuntimeMode ?? env.runtimeMode)?.toLowerCase();
-    return mode === "postgresql" || mode === "pg" || Boolean(mode?.includes("postgres"));
+    return envIsPostgres(env);
   }
 
   async function resolveAccessToken(): Promise<string | undefined> {
@@ -1703,6 +1736,8 @@ export function createCloudBaseDataService(
           hostingDomainCount = 0;
         }
       }
+      const runtimeMode = deriveRuntimeMode(env);
+      const isPg = envIsPostgres(env);
       return {
         envId,
         regionLabel: mapRegion(str(env.Region ?? env.region)),
@@ -1711,7 +1746,8 @@ export function createCloudBaseDataService(
         hostingDomainCount,
         timezone: str(env.Timezone) ?? "Asia/Shanghai",
         alias: str(env.Alias ?? env.alias),
-        runtimeMode: str(env.RuntimeMode ?? env.runtimeMode),
+        runtimeMode,
+        isPostgresEnv: isPg,
       } satisfies EnvInfoView;
     },
 

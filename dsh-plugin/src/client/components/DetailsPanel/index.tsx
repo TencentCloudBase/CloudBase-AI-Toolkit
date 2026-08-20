@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { AuthStatus, CloudBaseData } from "../../../shared/types.js";
+import type { AuthStatus, CloudBaseData, EnvInfoView } from "../../../shared/types.js";
 import {
   IconChart,
   IconCloudBase,
@@ -19,8 +19,6 @@ import { ensureStyles } from "../../styles.js";
 import { AuthGate } from "./AuthGate.js";
 import { EnvSelector } from "./EnvSelector.js";
 import { PreviewTab } from "./PreviewTab.js";
-import { ConfigTab } from "./ConfigTab.js";
-import { AnalyticsTab } from "./AnalyticsTab.js";
 import {
   AuthUsersPage,
   DatabasePage,
@@ -33,14 +31,14 @@ import {
   HostingPage,
   StoragePage,
   SettingsPage,
-  ConfirmDialog,
   type MenuRouteId,
   resolvePostgresEnv,
+  detectLocale,
+  type Locale,
 } from "@cloudbase/platform-kit";
 
 type ViewId = "backend" | "preview";
 
-/** 未实现模块的说明页（替代 P1 占位符）：明确标注状态，不伪造功能。 */
 /** Kept for reference; renderRoute now uses real page components. */
 export function NotImplementedRoute({ route }: { route: string }): React.ReactElement {
   return (
@@ -60,26 +58,111 @@ export interface DetailsPanelProps {
   sessionId?: string;
 }
 
+type FeatureCtxState = { runtimeMode?: string; isPostgresEnv?: boolean };
+
+/** Unwrap typert / RPC wrappers so runtimeMode / isPostgresEnv are readable. */
+function unwrapEnvInfoPayload(raw: unknown): EnvInfoView {
+  const root =
+    raw !== null && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {};
+  const nested =
+    root.data !== null && typeof root.data === "object" && !Array.isArray(root.data)
+      ? (root.data as Record<string, unknown>)
+      : undefined;
+  const pick =
+    nested &&
+    ("envId" in nested ||
+      "runtimeMode" in nested ||
+      "RuntimeMode" in nested ||
+      "isPostgresEnv" in nested)
+      ? nested
+      : root;
+  return {
+    envId: String(pick.envId ?? pick.EnvId ?? ""),
+    regionLabel: String(pick.regionLabel ?? pick.Region ?? ""),
+    functionCount: Number(pick.functionCount ?? 0),
+    hostingDomainCount: Number(pick.hostingDomainCount ?? 0),
+    timezone: String(pick.timezone ?? "Asia/Shanghai"),
+    alias: typeof pick.alias === "string" ? pick.alias : undefined,
+    runtimeMode:
+      typeof pick.runtimeMode === "string"
+        ? pick.runtimeMode
+        : typeof pick.RuntimeMode === "string"
+          ? pick.RuntimeMode
+          : undefined,
+    isPostgresEnv:
+      typeof pick.isPostgresEnv === "boolean"
+        ? pick.isPostgresEnv
+        : typeof pick.IsPostgresEnv === "boolean"
+          ? pick.IsPostgresEnv
+          : undefined,
+  };
+}
+
+function featureCtxFromEnvInfo(info: EnvInfoView): FeatureCtxState {
+  const runtimeMode = info.runtimeMode;
+  const isPostgresEnv =
+    info.isPostgresEnv ??
+    resolvePostgresEnv({
+      runtimeMode,
+      isPostgresEnv: info.isPostgresEnv,
+    });
+  return { runtimeMode, isPostgresEnv };
+}
+
+/** Prefer dsh / host document language when exposed; otherwise undefined (kit detects). */
+function detectHostLocale(): Locale | undefined {
+  if (typeof document !== "undefined") {
+    const htmlLang =
+      document.documentElement.lang || document.documentElement.getAttribute("lang") || "";
+    if (/^zh/i.test(htmlLang)) return "zh";
+    if (/^en/i.test(htmlLang)) return "en";
+  }
+  try {
+    const stored =
+      (typeof localStorage !== "undefined" &&
+        (localStorage.getItem("dsh.locale") ||
+          localStorage.getItem("dsh-locale") ||
+          localStorage.getItem("locale"))) ||
+      "";
+    if (/^zh/i.test(stored)) return "zh";
+    if (/^en/i.test(stored)) return "en";
+  } catch {
+    // ignore storage access errors in sandboxed webviews
+  }
+  return undefined;
+}
+
 export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
   ensureStyles();
   const [view, setView] = React.useState<ViewId>("backend");
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>(undefined);
   const [route, setRoute] = React.useState<MenuRouteId>("overview");
-  const [featureCtx, setFeatureCtx] = React.useState<{ runtimeMode?: string; isPostgresEnv?: boolean }>({});
+  const [featureCtx, setFeatureCtx] = React.useState<FeatureCtxState>({});
+  const [hostLocale] = React.useState<Locale | undefined>(() => detectHostLocale() ?? detectLocale());
   const data = props.cloudbaseData;
+
+  const applyEnvInfo = React.useCallback((raw: unknown) => {
+    // Live probe: log raw shape once so we can confirm field nesting on device.
+    if (typeof console !== "undefined") {
+      try {
+        console.info("[cloudbase] envInfo raw keys", raw && typeof raw === "object" ? Object.keys(raw as object) : raw);
+      } catch {
+        // ignore
+      }
+    }
+    const info = unwrapEnvInfoPayload(raw);
+    setFeatureCtx(featureCtxFromEnvInfo(info));
+  }, []);
 
   React.useEffect(() => {
     if (!data) return;
     void data
       .envInfo()
-      .then((info) => {
-        setFeatureCtx({
-          runtimeMode: info.runtimeMode,
-          isPostgresEnv: resolvePostgresEnv({ runtimeMode: info.runtimeMode }),
-        });
-      })
+      .then((info) => applyEnvInfo(info))
       .catch(() => undefined);
-  }, [data]);
+  }, [data, applyEnvInfo]);
 
   React.useEffect(() => {
     const onActivate = (event: Event) => {
@@ -96,14 +179,9 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
     if (!data) return;
     void data
       .envInfo()
-      .then((info) => {
-        setFeatureCtx({
-          runtimeMode: info.runtimeMode,
-          isPostgresEnv: resolvePostgresEnv({ runtimeMode: info.runtimeMode }),
-        });
-      })
+      .then((info) => applyEnvInfo(info))
       .catch(() => undefined);
-  }, [data]);
+  }, [data, applyEnvInfo]);
 
   return (
     <div className="cb-root cb-kit-fill">
@@ -161,6 +239,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
               ) : (
                 <ManagerShell
                   provider={data}
+                  locale={hostLocale}
                   featureCtx={{ ...featureCtx, envId: status.envId }}
                   route={route}
                   onRouteChange={setRoute}

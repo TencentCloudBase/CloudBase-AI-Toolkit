@@ -216,10 +216,17 @@ export function mapCdnCacheItem(item: unknown, bucket?: string): CdnCacheItem {
 export const FN_LOGS_CLS_FALLBACK = /请升级到最新版开发者工具|当前版本不支持更多日志检索/;
 export const INVOKE_RETIRED = /已无用|现网也没有调用|可下线/;
 export const BUCKET_WRITE_UNSUPPORTED =
-  "CloudBase COS buckets are environment-managed (DescribeEnvs.Storages). tcb has no public CreateBucket/DeleteBucket for COS; MCP CreateBucket is PostgreSQL store, not this page.";
+  "This environment does not support creating or deleting buckets here. Open the CloudBase console to manage storage.";
 export const INVOKE_UNSUPPORTED =
-  "tcb/InvokeFunction is retired on the live control plane. Invocation is not available via CAPI from this panel.";
+  "This panel cannot invoke functions here. Open the CloudBase console to run invoke tests.";
 export const HOSTING_COS_HINT =
-  "File listing requires the host COS provider (listHostingObjects). Control-plane CAPI does not list hosting objects.";
+  "Hosting files cannot be listed here. Open the CloudBase console to browse them.";
 export const BUILD_LOG_CODING =
-  "Build logs use CODING / DescribeCloudRunBuildLog and need a CODING login. Use process logs for image deploys.";
+  "Build logs need a linked build account. Use process logs for image deploys.";
+
+/** Console deep-link helper for empty-state CTAs. */
+export function consoleEnvUrl(envId: string | undefined, hashPath: string): string {
+  const path = hashPath.replace(/^\//, "");
+  const q = envId ? `envId=${encodeURIComponent(envId)}` : "";
+  return `https://tcb.cloud.tencent.com/dev?${q}#/${path}`;
+}

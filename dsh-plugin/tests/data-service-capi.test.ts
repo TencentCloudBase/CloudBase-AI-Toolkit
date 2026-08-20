@@ -175,6 +175,29 @@ describe("data-service capi mappings", () => {
     expect(status.verificationUrl).toContain("verify");
   });
 
+  it("envInfo derives postgresql when RuntimeMode missing but PostgreSQL present", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        "tcb:DescribeEnvs": {
+          EnvList: [
+            {
+              EnvId: envId,
+              Region: "ap-shanghai",
+              PostgreSQL: [{ InstanceId: "pg-1", Status: "RUNNING" }],
+              Meta: [{ Key: "postgresql", Value: "enable" }],
+            },
+          ],
+        },
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    const info = await data.envInfo();
+    expect(info.runtimeMode).toBe("postgresql");
+    expect(info.isPostgresEnv).toBe(true);
+  });
+
   it("envInfo uses DescribeEnvs and ListFunctions capi", async () => {
     const bridge = capiBridge(baseHandlers, baseAuth);
     const data = createCloudBaseDataService(bridge);
@@ -282,7 +305,7 @@ describe("data-service capi mappings", () => {
     };
     const bridge = capiBridge(handlers, baseAuth);
     const data = createCloudBaseDataService(bridge);
-    await expect(data.createStorageBucket!("extra")).rejects.toThrow(/DescribeEnvs.Storages|BUCKET_WRITE/);
+    await expect(data.createStorageBucket!("extra")).rejects.toThrow(/does not support|控制台|console/i);
   });
 
   it("invokeFunction uses scf Invoke", async () => {

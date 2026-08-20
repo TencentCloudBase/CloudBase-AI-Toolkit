@@ -249,6 +249,8 @@ export interface EnvInfoView {
   timezone: string;
   alias?: string;
   runtimeMode?: string;
+  /** Host-derived PG flag; when set, preferred over runtimeMode heuristics. */
+  isPostgresEnv?: boolean;
 }
 
 export interface AppAuthConfig {

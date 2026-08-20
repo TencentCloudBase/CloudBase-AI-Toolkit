@@ -85,4 +85,6 @@ declare module "@cloudbase/platform-kit" {
   ): (key: string, vars?: Record<string, string | number>) => string;
 
   export function resolvePostgresEnv(ctx: { runtimeMode?: string; isPostgresEnv?: boolean }): boolean;
+  export function detectLocale(): Locale;
+  export type Locale = "zh" | "en";
 }

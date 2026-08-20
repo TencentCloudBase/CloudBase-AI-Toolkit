@@ -33,7 +33,22 @@ export function HostingPage(props: HostingPageProps): React.ReactElement {
       <div className="cb-kit-section">
         <div className="cb-kit-section-h">{kit.tr("hosting.domains")}</div>
         {(domains.data ?? []).length === 0 ? (
-          <EmptyState>{kit.tr("hosting.empty")}</EmptyState>
+          <EmptyState
+            action={
+              <button
+                type="button"
+                className="cb-kit-btn"
+                onClick={() => {
+                  const href = `https://tcb.cloud.tencent.com/dev?envId=${encodeURIComponent(kit.featureCtx.envId ?? "")}#/static-hosting`;
+                  if (typeof window !== "undefined") window.open(href, "_blank", "noreferrer");
+                }}
+              >
+                {kit.tr("hosting.consoleOpen")}
+              </button>
+            }
+          >
+            {kit.tr("hosting.emptyGuide")}
+          </EmptyState>
         ) : (
           <div className="cb-kit-card">
             {(domains.data ?? []).map((item) => (

@@ -34,6 +34,22 @@ describe("component render", () => {
       expect(screen.getByText(label)).toBeTruthy();
     }
     expect(document.querySelectorAll(".cb-kit-nav-item")).toHaveLength(10);
+    expect(screen.getByText("中")).toBeTruthy();
+    expect(screen.getByText("EN")).toBeTruthy();
+  });
+
+  it("locale switcher flips menu labels zh↔en", async () => {
+    const provider = createMockPlatformProvider();
+    render(<ManagerShell locale="zh" provider={provider} />);
+    expect(screen.getByText("概览")).toBeTruthy();
+    screen.getByText("EN").click();
+    await waitFor(() => {
+      expect(screen.getByText("Overview")).toBeTruthy();
+    });
+    screen.getByText("中").click();
+    await waitFor(() => {
+      expect(screen.getByText("概览")).toBeTruthy();
+    });
   });
 
   it("DatabasePage shows SQL editor tab in postgres env", () => {

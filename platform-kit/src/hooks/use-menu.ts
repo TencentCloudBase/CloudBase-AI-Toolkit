@@ -86,6 +86,7 @@ export function useMenu(options: UseMenuOptions): MenuItem[] {
 
 export interface KitContextValue {
   locale: Locale;
+  setLocale: (locale: Locale) => void;
   provider?: PlatformProvider;
   featureCtx: EnvFeatureContext;
   tr: ReturnType<typeof createTranslator>;
@@ -101,16 +102,26 @@ export interface KitProviderProps {
 }
 
 export function KitProvider(props: KitProviderProps): React.ReactElement {
-  const locale = props.locale ?? detectLocale();
+  const [locale, setLocaleState] = React.useState<Locale>(() => props.locale ?? detectLocale());
+
+  React.useEffect(() => {
+    if (props.locale) setLocaleState(props.locale);
+  }, [props.locale]);
+
+  const setLocale = React.useCallback((next: Locale) => {
+    setLocaleState(next);
+  }, []);
+
   const tr = React.useMemo(() => createTranslator(locale), [locale]);
   const value = React.useMemo(
     (): KitContextValue => ({
       locale,
+      setLocale,
       provider: props.provider,
       featureCtx: props.featureCtx ?? {},
       tr,
     }),
-    [locale, props.featureCtx, props.provider, tr],
+    [locale, setLocale, props.featureCtx, props.provider, tr],
   );
   return React.createElement(KitContext.Provider, { value }, props.children);
 }
@@ -121,6 +132,7 @@ export function useKit(): KitContextValue {
     const locale = detectLocale();
     return {
       locale,
+      setLocale: () => undefined,
       featureCtx: {},
       tr: createTranslator(locale),
     };

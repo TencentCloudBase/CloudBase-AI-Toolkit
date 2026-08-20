@@ -2,11 +2,16 @@ import * as React from "react";
 import type { PlatformProvider } from "../../core/provider.js";
 import { useKit } from "../../hooks/use-menu.js";
 import { useDebouncedValue, useFunctionDetail, useFunctionLogs, useFunctions } from "../../hooks/use-resources.js";
-import { filterFunctions } from "../../services/resource-map.js";
+import { consoleEnvUrl, filterFunctions } from "../../services/resource-map.js";
 import { DegradeNote, EmptyState, ErrorBanner, KvList, PageHead, SimpleTable, TabsBar } from "./ResourceParts.js";
 
 export interface FunctionsPageProps {
   provider?: PlatformProvider;
+}
+
+function looksUnavailable(error?: string): boolean {
+  if (!error) return false;
+  return /not support|does not support|不适用|unsupported|not available|InvalidAction|UnknownOperation/i.test(error);
 }
 
 export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
@@ -23,6 +28,24 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
   const [payload, setPayload] = React.useState("{}");
   const [invokeResult, setInvokeResult] = React.useState<string | undefined>(undefined);
   const [invokeLoading, setInvokeLoading] = React.useState(false);
+  const envId = kit.featureCtx.envId;
+  const consoleHref = consoleEnvUrl(envId, "scf");
+
+  const openConsole = () => {
+    if (typeof window !== "undefined") window.open(consoleHref, "_blank", "noreferrer");
+  };
+
+  const emptyNode = (
+    <EmptyState
+      action={
+        <button type="button" className="cb-kit-btn" onClick={openConsole}>
+          {kit.tr("fn.consoleCreate")}
+        </button>
+      }
+    >
+      {kit.tr("fn.emptyGuide")}
+    </EmptyState>
+  );
 
   return (
     <div className="cb-kit-page">
@@ -34,7 +57,16 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
           onChange={(e) => setKeyword(e.target.value)}
         />
       </PageHead>
-      <ErrorBanner error={list.error} retry={() => list.reload()} retryLabel={kit.tr("common.retry")} />
+      {looksUnavailable(list.error) ? (
+        <DegradeNote>
+          {kit.tr("capability.unavailable")}{" "}
+          <button type="button" className="cb-kit-btn ghost cb-kit-inline-btn" onClick={openConsole}>
+            {kit.tr("common.openConsole")}
+          </button>
+        </DegradeNote>
+      ) : (
+        <ErrorBanner error={list.error} retry={() => list.reload()} retryLabel={kit.tr("common.retry")} />
+      )}
       <SimpleTable
         loading={list.loading}
         loadingLabel={kit.tr("table.loading")}
@@ -45,7 +77,7 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
           kit.tr("fn.col.invokes"),
           kit.tr("fn.col.updated"),
         ]}
-        empty={<EmptyState>{kit.tr("fn.empty")}</EmptyState>}
+        empty={emptyNode}
         rows={filtered.map((item) => ({
           key: item.name,
           cells: [
@@ -134,7 +166,7 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
                     try {
                       const result = await provider.invokeFunction(selected, payload);
                       if (result.unsupportedReason) {
-                        setInvokeResult(result.unsupportedReason);
+                        setInvokeResult(kit.tr("fn.invoke.unsupported"));
                       } else {
                         setInvokeResult(result.result || kit.tr("common.empty"));
                       }

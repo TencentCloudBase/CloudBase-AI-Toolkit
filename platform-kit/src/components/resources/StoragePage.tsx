@@ -133,8 +133,27 @@ export function StoragePage(props: StoragePageProps): React.ReactElement {
               kit.tr("storage.col.kind"),
             ]}
             empty={
-              <EmptyState action={isPg ? <button type="button" className="cb-kit-btn" onClick={() => bucketInputRef.current?.focus()}>{kit.tr("storage.createBucket")}</button> : undefined}>
-                {kit.tr("storage.empty")}
+              <EmptyState
+                action={
+                  isPg ? (
+                    <button type="button" className="cb-kit-btn" onClick={() => bucketInputRef.current?.focus()}>
+                      {kit.tr("storage.createBucket")}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="cb-kit-btn"
+                      onClick={() => {
+                        const href = `https://tcb.cloud.tencent.com/dev?envId=${encodeURIComponent(kit.featureCtx.envId ?? "")}#/storage`;
+                        if (typeof window !== "undefined") window.open(href, "_blank", "noreferrer");
+                      }}
+                    >
+                      {kit.tr("storage.consoleOpen")}
+                    </button>
+                  )
+                }
+              >
+                {kit.tr("storage.emptyGuide")}
               </EmptyState>
             }
             rows={(buckets.data ?? []).map((item) => ({

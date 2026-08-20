@@ -250,6 +250,8 @@ export interface EnvInfoView {
   timezone: string;
   alias?: string;
   runtimeMode?: string;
+  /** Derived from RuntimeMode / PostgreSQL[] / Meta; preferred over guessing runtimeMode alone. */
+  isPostgresEnv?: boolean;
 }
 
 export interface DeployPreview {

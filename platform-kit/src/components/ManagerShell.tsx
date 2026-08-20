@@ -1,10 +1,10 @@
 import * as React from "react";
 import type { PlatformProvider } from "../core/provider.js";
 import type { Locale } from "../i18n/messages.js";
-import { detectLocale } from "../i18n/index.js";
 import type { EnvFeatureContext } from "../core/types.js";
 import {
   KitProvider,
+  useKit,
   useMenu,
   type MenuRouteId,
 } from "../hooks/use-menu.js";
@@ -34,8 +34,33 @@ export interface ManagerShellProps {
   onOpenPreview?: (url: string) => void;
 }
 
+function LocaleSwitcher(): React.ReactElement {
+  const kit = useKit();
+  return (
+    <div className="cb-kit-locale" role="group" aria-label={kit.tr("locale.switch")}>
+      <button
+        type="button"
+        className={`cb-kit-locale-btn${kit.locale === "zh" ? " active" : ""}`}
+        onClick={() => kit.setLocale("zh")}
+        title={kit.tr("locale.zh")}
+      >
+        中
+      </button>
+      <button
+        type="button"
+        className={`cb-kit-locale-btn${kit.locale === "en" ? " active" : ""}`}
+        onClick={() => kit.setLocale("en")}
+        title={kit.tr("locale.en")}
+      >
+        EN
+      </button>
+    </div>
+  );
+}
+
 function ManagerShellInner(props: ManagerShellProps): React.ReactElement {
   ensureKitStyles();
+  const kit = useKit();
   const [route, setRoute] = React.useState<MenuRouteId>(props.route ?? "overview");
   const activeRoute = props.route ?? route;
 
@@ -52,7 +77,7 @@ function ManagerShellInner(props: ManagerShellProps): React.ReactElement {
   }, [props.featureCtx]);
 
   const menuItems = useMenu({
-    locale: props.locale ?? detectLocale(),
+    locale: kit.locale,
     route: activeRoute,
     featureCtx,
     icons: props.icons,
@@ -102,7 +127,10 @@ function ManagerShellInner(props: ManagerShellProps): React.ReactElement {
 
   return (
     <div className="cb-kit-root">
-      {props.header}
+      <div className="cb-kit-top">
+        <div className="cb-kit-top-main">{props.header}</div>
+        <LocaleSwitcher />
+      </div>
       <div className="cb-kit-shell">
         <SidebarNav items={menuItems} onSelect={selectRoute} />
         <main className="cb-kit-main">{defaultBody}</main>

@@ -19,6 +19,22 @@ export const KIT_CSS = `
   flex-direction: column;
 }
 .cb-kit-shell { display: flex; flex: 1; min-height: 0; }
+.cb-kit-top {
+  display: flex; align-items: stretch; gap: 8px; flex-shrink: 0;
+  border-bottom: 1px solid var(--cb-border); background: var(--cb-panel);
+}
+.cb-kit-top-main { flex: 1; min-width: 0; }
+.cb-kit-locale {
+  display: inline-flex; align-items: center; gap: 2px; padding: 6px 10px;
+  flex-shrink: 0; align-self: center;
+}
+.cb-kit-locale-btn {
+  border: 1px solid var(--cb-border); background: var(--cb-bg); color: var(--cb-text-2);
+  font: inherit; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 6px;
+  cursor: pointer; min-width: 28px;
+}
+.cb-kit-locale-btn:hover { background: var(--cb-hover); color: var(--cb-text); }
+.cb-kit-locale-btn.active { background: var(--cb-accent); color: var(--cb-text); border-color: var(--cb-border-strong); }
 .cb-kit-sidebar {
   width: var(--cb-sidebar-w); min-width: var(--cb-sidebar-w); border-right: 1px solid var(--cb-border);
   background: var(--cb-bg); overflow-y: auto; padding: 8px 0;

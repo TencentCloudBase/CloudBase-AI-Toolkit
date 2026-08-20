@@ -7,10 +7,16 @@ import {
   useCloudRunLogs,
   useCloudRunServices,
 } from "../../hooks/use-resources.js";
+import { consoleEnvUrl } from "../../services/resource-map.js";
 import { DegradeNote, EmptyState, ErrorBanner, PageHead, SimpleTable, TabsBar } from "./ResourceParts.js";
 
 export interface CloudRunPageProps {
   provider?: PlatformProvider;
+}
+
+function looksUnavailable(error?: string): boolean {
+  if (!error) return false;
+  return /not support|does not support|不适用|unsupported|not available|InvalidAction|UnknownOperation/i.test(error);
 }
 
 export function CloudRunPage(props: CloudRunPageProps): React.ReactElement {
@@ -24,11 +30,36 @@ export function CloudRunPage(props: CloudRunPageProps): React.ReactElement {
   const logs = useCloudRunLogs(provider, selected, runId);
   const [tab, setTab] = React.useState("versions");
   const [buildNote, setBuildNote] = React.useState<string | undefined>(undefined);
+  const consoleHref = consoleEnvUrl(kit.featureCtx.envId, "platform-run");
+  const openConsole = () => {
+    if (typeof window !== "undefined") window.open(consoleHref, "_blank", "noreferrer");
+  };
+
+  const emptyNode = (
+    <EmptyState
+      action={
+        <button type="button" className="cb-kit-btn" onClick={openConsole}>
+          {kit.tr("run.consoleCreate")}
+        </button>
+      }
+    >
+      {kit.tr("run.emptyGuide")}
+    </EmptyState>
+  );
 
   return (
     <div className="cb-kit-page">
       <PageHead title={kit.tr("run.title")} onRefresh={() => list.reload()} refreshLabel={kit.tr("common.refresh")} />
-      <ErrorBanner error={list.error} retry={() => list.reload()} retryLabel={kit.tr("common.retry")} />
+      {looksUnavailable(list.error) ? (
+        <DegradeNote>
+          {kit.tr("capability.unavailable")}{" "}
+          <button type="button" className="cb-kit-btn ghost cb-kit-inline-btn" onClick={openConsole}>
+            {kit.tr("common.openConsole")}
+          </button>
+        </DegradeNote>
+      ) : (
+        <ErrorBanner error={list.error} retry={() => list.reload()} retryLabel={kit.tr("common.retry")} />
+      )}
       <SimpleTable
         loading={list.loading}
         columns={[
@@ -39,7 +70,7 @@ export function CloudRunPage(props: CloudRunPageProps): React.ReactElement {
           kit.tr("run.col.cpu"),
           kit.tr("run.col.mem"),
         ]}
-        empty={kit.tr("run.empty")}
+        empty={emptyNode}
         rows={(list.data ?? []).map((item) => ({
           key: item.name,
           cells: [
@@ -100,7 +131,7 @@ export function CloudRunPage(props: CloudRunPageProps): React.ReactElement {
                       return;
                     }
                     const result = await provider.getCloudRunBuildLog(selected);
-                    setBuildNote(result.unsupportedReason ?? result.text);
+                    setBuildNote(result.unsupportedReason ? kit.tr("run.buildLog.coding") : result.text);
                   })();
                 }}
               >

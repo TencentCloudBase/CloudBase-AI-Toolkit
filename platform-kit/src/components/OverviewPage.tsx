@@ -60,12 +60,13 @@ export function OverviewPage(props: OverviewPageProps): React.ReactElement {
         loading={metrics.loading}
         onRefresh={() => metrics.reload()}
         labelFor={metricLabel}
+        emptyLabel={kit.tr("overview.metrics.empty")}
       />
 
       <UsageBarsList
         title={kit.tr("overview.usage.cycle")}
         items={usage.data ?? []}
-        emptyLabel={kit.tr("common.empty")}
+        emptyLabel={kit.tr("overview.usage.empty")}
       />
 
       <AccessEndpointsList

@@ -16,11 +16,17 @@ export function createTranslator(locale: Locale) {
 }
 
 /**
- * 默认语言探测：读浏览器/系统语言，`zh*` → zh，其余 → en。
- * kit 内置，宿主无需注入；若宿主有明确语言设置，可显式传 locale 覆盖。
- * 无 navigator（SSR/测试）时回退 zh。
+ * Default locale detection: document lang → navigator → zh fallback.
+ * Host can pass an explicit locale to KitProvider / ManagerShell to override.
+ * No navigator (SSR/tests) falls back to zh.
  */
 export function detectLocale(): Locale {
+  if (typeof document !== "undefined") {
+    const htmlLang = document.documentElement.lang || document.documentElement.getAttribute("lang") || "";
+    if (/^zh/i.test(htmlLang)) return "zh";
+    if (/^en/i.test(htmlLang)) return "en";
+  }
   if (typeof navigator !== "undefined" && /^zh/i.test(navigator.language)) return "zh";
-  return "en";
+  if (typeof navigator !== "undefined" && navigator.language) return "en";
+  return "zh";
 }
