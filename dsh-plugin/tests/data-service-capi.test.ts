@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -110,13 +110,13 @@ describe("data-service capi mappings", () => {
     expect(bridge.toolCalls.every((t) => !FORBIDDEN.test(t.name))).toBe(true);
   });
 
-  it("searchLogs maps CLS topic-not-exist to a console enable message", async () => {
+  it("searchLogs maps CLS topic-not-exist to a not-enabled message", async () => {
     const bridge = capiBridge(
       { ...baseHandlers, "tcb:SearchClsLog": new Error("[SearchClsLog] topic not exist") },
       baseAuth,
     );
     const data = createCloudBaseDataService(bridge);
-    await expect(data.searchLogs({ queryString: "*" })).rejects.toThrow(/控制台开通/);
+    await expect(data.searchLogs({ queryString: "*" })).rejects.toThrow("当前环境未开通日志服务");
     expect(await data.checkLogService()).toBe(false);
   });
 
@@ -298,14 +298,24 @@ describe("data-service capi mappings", () => {
     expect(JSON.stringify(pgCall?.params)).toMatch(/DELETE FROM storage\.buckets/);
   });
 
-  it("createStorageBucket rejects on non-PG env", async () => {
+  it("createStorageBucket rejects on non-PG env with in-place reason", async () => {
     const handlers = {
       ...baseHandlers,
       "tcb:DescribeEnvs": { EnvList: [{ EnvId: envId, Region: "ap-shanghai", RuntimeMode: "nosql" }] },
     };
     const bridge = capiBridge(handlers, baseAuth);
     const data = createCloudBaseDataService(bridge);
-    await expect(data.createStorageBucket!("extra")).rejects.toThrow(/does not support|控制台|console/i);
+    await expect(data.createStorageBucket!("extra")).rejects.toThrow("该环境不支持创建存储桶");
+    expect(bridge.capiCalls.some((c) => c.action === "ExecutePGSql")).toBe(false);
+  });
+
+  it("createStorageBucket writes public flag via ExecutePGSql when opted in", async () => {
+    const bridge = capiBridge(baseHandlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    await data.createStorageBucket!("public-bucket", { public: true });
+    const pgCall = bridge.capiCalls.find((c) => c.action === "ExecutePGSql");
+    expect(JSON.stringify(pgCall?.params)).toMatch(/storage\.buckets/);
+    expect(JSON.stringify(pgCall?.params)).toContain("true");
   });
 
   it("invokeFunction uses scf Invoke", async () => {
@@ -319,5 +329,75 @@ describe("data-service capi mappings", () => {
     expect(result.result).toContain("ok");
     expect(bridge.capiCalls.some((c) => c.service === "scf" && c.action === "Invoke")).toBe(true);
     expect(bridge.capiCalls.some((c) => c.action === "InvokeFunction")).toBe(false);
+  });
+
+  it("listHostingObjects lists hosting files via host COS contract", async () => {
+    const handlers = {
+      ...baseHandlers,
+      "tcb:DescribeStaticStore": {
+        Data: [{ Bucket: "tcb-hosting-test-123", Region: "ap-shanghai", Status: "online" }],
+      },
+    };
+    const authHandlers = {
+      ...baseAuth,
+      "auth:get_temp_credentials": {
+        ok: true,
+        code: "TEMP_CREDENTIALS_READY",
+        credentials: {
+          secretId: "AKID-secret-id",
+          secretKey: "secret-key-value",
+          token: "session-token-value",
+          masked: false,
+        },
+      },
+    };
+    const bridge = capiBridge(handlers, authHandlers);
+    const data = createCloudBaseDataService(bridge);
+    const xml =
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<ListBucketResult>` +
+      `<Name>tcb-hosting-test-123</Name><Prefix></Prefix><Marker></Marker><MaxKeys>1000</MaxKeys>` +
+      `<IsTruncated>false</IsTruncated>` +
+      `<Contents><Key>index.html</Key><LastModified>2026-01-01T00:00:00Z</LastModified><ETag>"abc"</ETag><Size>1024</Size><StorageClass>STANDARD</StorageClass></Contents>` +
+      `<Contents><Key>assets/logo.png</Key><LastModified>2026-01-02T00:00:00Z</LastModified><ETag>"def"</ETag><Size>2048</Size><StorageClass>STANDARD</StorageClass></Contents>` +
+      `<CommonPrefixes><Prefix>css/</Prefix></CommonPrefixes>` +
+      `</ListBucketResult>`;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      expect(url).toContain("tcb-hosting-test-123.cos.ap-shanghai.myqcloud.com");
+      return {
+        ok: true,
+        status: 200,
+        text: async () => xml,
+      } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const objects = await data.listHostingObjects!("");
+      expect(objects.some((o) => o.cloudPath === "index.html" && o.size === 1024)).toBe(true);
+      expect(objects.some((o) => o.isDirectory && o.cloudPath === "css/")).toBe(true);
+      const authCall = bridge.toolCalls.find(
+        (t) => t.name === "auth" && t.args.action === "get_temp_credentials",
+      );
+      expect(authCall?.args.action).toBe("get_temp_credentials");
+      expect(authCall?.args.confirm).toBe("yes");
+      const authHeader = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string> | undefined;
+      expect(authHeader?.Authorization).toContain("q-sign-algorithm=sha1");
+      expect(authHeader?.["x-cos-security-token"]).toBe("session-token-value");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("listHostingObjects returns empty when hosting store is absent", async () => {
+    const handlers = {
+      ...baseHandlers,
+      "tcb:DescribeStaticStore": { Data: null },
+    };
+    const bridge = capiBridge(handlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    const objects = await data.listHostingObjects!("");
+    expect(objects).toEqual([]);
+    expect(bridge.toolCalls.some((t) => t.name === "auth" && t.args.action === "get_temp_credentials")).toBe(false);
   });
 });

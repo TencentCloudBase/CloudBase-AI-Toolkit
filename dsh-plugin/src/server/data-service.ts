@@ -1,5 +1,6 @@
 import { quotePgTable } from "../shared/sql-ident.js";
 import { mapSchemaColumns } from "../shared/column-form.js";
+import { createHash, createHmac } from "node:crypto";
 import type {
   AppAuthConfig,
   AppUser,
@@ -60,10 +61,7 @@ import {
   sqlWrapDdl,
 } from "../../../platform-kit/src/pg/sql.js";
 import {
-  BUCKET_WRITE_UNSUPPORTED,
   FN_LOGS_CLS_FALLBACK,
-  INVOKE_UNSUPPORTED,
-  INVOKE_RETIRED,
   BUILD_LOG_CODING,
   mapCdnCacheItem,
   mapCloudRunDeploy,
@@ -148,7 +146,7 @@ function looksLikeWriteSql(sql: string): boolean {
 }
 
 const CLS_TIME_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
-const CLS_UNAVAILABLE_MESSAGE = "当前环境未接入日志服务，请在 CloudBase 控制台开通";
+const CLS_UNAVAILABLE_MESSAGE = "当前环境未开通日志服务";
 
 function formatClsTime(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -1390,26 +1388,18 @@ export function createCloudBaseDataService(
       } catch {
         throw new Error("Payload must be valid JSON");
       }
-      try {
-        const result = await callCapi("scf", "Invoke", {
-          FunctionName: name,
-          Namespace: envId,
-          ClientContext: "",
-          LogType: "Tail",
-          Qualifier: "$LATEST",
-          Event: eventPayload,
-        });
-        const ret = rec(result.Result ?? result);
-        const msg = str(ret.RetMsg ?? ret.retMsg) ?? JSON.stringify(result);
-        const log = str(result.LogResult ?? result.Log ?? ret.Log);
-        return { result: log ? `${msg}\n\n--- Log ---\n${log}` : msg };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (INVOKE_RETIRED.test(message)) {
-          return { result: "", unsupportedReason: INVOKE_UNSUPPORTED };
-        }
-        throw error;
-      }
+      const result = await callCapi("scf", "Invoke", {
+        FunctionName: name,
+        Namespace: envId,
+        ClientContext: "",
+        LogType: "Tail",
+        Qualifier: "$LATEST",
+        Event: eventPayload,
+      });
+      const ret = rec(result.Result ?? result);
+      const msg = str(ret.RetMsg ?? ret.retMsg) ?? JSON.stringify(result);
+      const log = str(result.LogResult ?? result.Log ?? ret.Log);
+      return { result: log ? `${msg}\n\n--- Log ---\n${log}` : msg };
     },
 
     async listCloudRunServices() {
@@ -1578,6 +1568,45 @@ export function createCloudBaseDataService(
         .filter((item): item is NonNullable<typeof item> => Boolean(item));
     },
 
+    async listHostingObjects(prefix) {
+      const envId = await requireEnvId();
+      const store = await callCapi("tcb", "DescribeStaticStore", { EnvId: envId }).catch(
+        () => ({} as LooseRecord),
+      );
+      const stores = arr(store.Data ?? store.data ?? store.StaticStoreInfo ?? store.staticStoreInfo);
+      const first = rec(stores[0] ?? {});
+      const bucket = str(first.Bucket ?? first.bucket);
+      const region = str(first.Region ?? first.region);
+      if (!bucket || !region) return [];
+      const credPayload = await rawAuthCall({
+        action: "get_temp_credentials",
+        confirm: "yes",
+        reveal: true,
+      });
+      const cred = rec(credPayload.credentials ?? credPayload);
+      const secretId = str(cred.secretId ?? cred.SecretId);
+      const secretKey = str(cred.secretKey ?? cred.SecretKey);
+      const token = str(cred.token ?? cred.Token ?? cred.sessionToken ?? cred.SessionToken);
+      if (!secretId || !secretKey || !token) {
+        throw new Error("当前登录态不支持导出临时密钥，无法列出托管文件");
+      }
+      const cleanPrefix = (prefix ?? "").replace(/^\//, "");
+      const xml = await cosListObjects({
+        bucket,
+        region,
+        params: {
+          "delimiter": "/",
+          "encoding-type": "url",
+          "max-keys": "1000",
+          "prefix": cleanPrefix,
+        },
+        secretId,
+        secretKey,
+        token,
+      });
+      return parseCosListObjectsXml(xml, cleanPrefix);
+    },
+
     async listCdnCacheItems(bucketName?: string) {
       const envId = await requireEnvId();
       const bucket = await resolveDefaultBucket(envId, bucketName);
@@ -1589,19 +1618,20 @@ export function createCloudBaseDataService(
       return [mapCdnCacheItem(payload, bucket)];
     },
 
-    async createStorageBucket(name: string) {
+    async createStorageBucket(name: string, opts?: { public?: boolean }) {
       const trimmed = name.trim();
       if (!trimmed || !/^[a-z0-9][a-z0-9_-]*$/i.test(trimmed)) {
         throw new Error("Invalid bucket name");
       }
       if (await isPostgresEnv()) {
         const escaped = escapeSqlLiteral(trimmed);
+        const publicFlag = opts?.public ? "true" : "false";
         await executePgSqlWithDdlRetry(
-          `INSERT INTO storage.buckets (id, name, public) VALUES ('${escaped}', '${escaped}', false);`,
+          `INSERT INTO storage.buckets (id, name, public) VALUES ('${escaped}', '${escaped}', ${publicFlag});`,
         );
         return;
       }
-      throw new Error(BUCKET_WRITE_UNSUPPORTED);
+      throw new Error("该环境不支持创建存储桶");
     },
 
     async deleteStorageBucket(name: string, confirm: boolean) {
@@ -1611,7 +1641,7 @@ export function createCloudBaseDataService(
         await executePgSqlWithDdlRetry(`DELETE FROM storage.buckets WHERE id = '${escaped}';`);
         return;
       }
-      throw new Error(BUCKET_WRITE_UNSUPPORTED);
+      throw new Error("该环境不支持删除存储桶");
     },
 
     async listSslCertificates() {
@@ -1996,6 +2026,124 @@ function formatMetricValue(value: number, metricName: string): string {
   }
   if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
   return String(Math.round(value));
+}
+
+/**
+ * Host COS contract for static hosting file listing.
+ * Lists objects in the hosting bucket via COS GET Bucket (List Objects) with a
+ * q-sign-algorithm=sha1 signature derived from the session temp credentials.
+ */
+async function cosListObjects(opts: {
+  bucket: string;
+  region: string;
+  params: Record<string, string>;
+  secretId: string;
+  secretKey: string;
+  token?: string;
+}): Promise<string> {
+  const host = `${opts.bucket}.cos.${opts.region}.myqcloud.com`;
+  const headers: Record<string, string> = { host };
+  if (opts.token) headers["x-cos-security-token"] = opts.token;
+  const paramKeys = Object.keys(opts.params).sort();
+  const query = paramKeys
+    .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(opts.params[key] ?? "")}`)
+    .join("&");
+  const authorization = cosSignRequest({
+    method: "GET",
+    host,
+    path: "/",
+    paramKeys,
+    query,
+    headerKeys: Object.keys(headers).sort(),
+    headers,
+    secretId: opts.secretId,
+    secretKey: opts.secretKey,
+    nowMs: Date.now(),
+  });
+  const requestHeaders: Record<string, string> = { Authorization: authorization };
+  if (opts.token) requestHeaders["x-cos-security-token"] = opts.token;
+  const response = await fetch(`https://${host}/?${query}`, { headers: requestHeaders });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`列出托管文件失败 (${response.status})：${text.slice(0, 200)}`);
+  }
+  return response.text();
+}
+
+function cosSignRequest(opts: {
+  method: string;
+  host: string;
+  path: string;
+  paramKeys: string[];
+  query: string;
+  headerKeys: string[];
+  headers: Record<string, string>;
+  secretId: string;
+  secretKey: string;
+  nowMs: number;
+}): string {
+  const start = Math.floor(opts.nowMs / 1000) - 60;
+  const end = start + 600;
+  const keyTime = `${start};${end}`;
+  const signKey = createHmac("sha1", opts.secretKey).update(keyTime).digest("hex");
+  const headerList = opts.headerKeys
+    .map((key) => `${key.toLowerCase()}=${encodeURIComponent(opts.headers[key] ?? "")}`)
+    .join("&");
+  const httpString = `${opts.method.toLowerCase()}\n${opts.path}\n${opts.query}\n${headerList}\n`;
+  const stringToSign = `sha1\n${keyTime}\n${createHash("sha1").update(httpString).digest("hex")}\n`;
+  const signature = createHmac("sha1", signKey).update(stringToSign).digest("hex");
+  return [
+    "q-sign-algorithm=sha1",
+    `q-ak=${encodeURIComponent(opts.secretId)}`,
+    `q-sign-time=${keyTime}`,
+    `q-key-time=${keyTime}`,
+    `q-header-list=${opts.headerKeys.map((key) => key.toLowerCase()).join(";")}`,
+    `q-url-param-list=${opts.paramKeys.join(";")}`,
+    `q-signature=${signature}`,
+  ].join("&");
+}
+
+function extractXmlTag(block: string, tag: string): string | undefined {
+  const match = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`).exec(block);
+  return match ? match[1] : undefined;
+}
+
+function parseCosListObjectsXml(xml: string, basePrefix: string): StorageObject[] {
+  const objects: StorageObject[] = [];
+  const seenDirs = new Set<string>();
+  const contentsRe = /<Contents>([\s\S]*?)<\/Contents>/g;
+  let match: RegExpExecArray | null;
+  while ((match = contentsRe.exec(xml)) !== null) {
+    const block = match[1] ?? "";
+    const key = decodeURIComponent(extractXmlTag(block, "Key") ?? "");
+    if (!key) continue;
+    const size = Number(extractXmlTag(block, "Size")) || 0;
+    objects.push({
+      cloudPath: key,
+      name: key.split("/").pop() || key,
+      isDirectory: false,
+      size,
+      sizeLabel: formatBytes(size),
+      updatedAt: extractXmlTag(block, "LastModified"),
+    });
+  }
+  const prefixesRe = /<CommonPrefixes>([\s\S]*?)<\/CommonPrefixes>/g;
+  while ((match = prefixesRe.exec(xml)) !== null) {
+    const block = match[1] ?? "";
+    const dirKey = decodeURIComponent(extractXmlTag(block, "Prefix") ?? "");
+    if (!dirKey || seenDirs.has(dirKey)) continue;
+    seenDirs.add(dirKey);
+    const relative = basePrefix ? dirKey.slice(basePrefix.length) : dirKey;
+    const dirName = relative.replace(/\/$/, "").split("/").pop() || dirKey;
+    objects.push({
+      cloudPath: dirKey.endsWith("/") ? dirKey : `${dirKey}/`,
+      name: dirName,
+      isDirectory: true,
+      size: 0,
+      sizeLabel: "—",
+    });
+  }
+  return objects;
 }
 
 function stringifyUsage(value: unknown): string | undefined {

@@ -7,7 +7,6 @@ import {
   useCloudRunLogs,
   useCloudRunServices,
 } from "../../hooks/use-resources.js";
-import { consoleEnvUrl } from "../../services/resource-map.js";
 import { DegradeNote, EmptyState, ErrorBanner, PageHead, SimpleTable, TabsBar } from "./ResourceParts.js";
 
 export interface CloudRunPageProps {
@@ -30,33 +29,16 @@ export function CloudRunPage(props: CloudRunPageProps): React.ReactElement {
   const logs = useCloudRunLogs(provider, selected, runId);
   const [tab, setTab] = React.useState("versions");
   const [buildNote, setBuildNote] = React.useState<string | undefined>(undefined);
-  const consoleHref = consoleEnvUrl(kit.featureCtx.envId, "platform-run");
-  const openConsole = () => {
-    if (typeof window !== "undefined") window.open(consoleHref, "_blank", "noreferrer");
-  };
 
   const emptyNode = (
-    <EmptyState
-      action={
-        <button type="button" className="cb-kit-btn" onClick={openConsole}>
-          {kit.tr("run.consoleCreate")}
-        </button>
-      }
-    >
-      {kit.tr("run.emptyGuide")}
-    </EmptyState>
+    <EmptyState>{kit.tr("run.emptyGuide")}</EmptyState>
   );
 
   return (
     <div className="cb-kit-page">
       <PageHead title={kit.tr("run.title")} onRefresh={() => list.reload()} refreshLabel={kit.tr("common.refresh")} />
       {looksUnavailable(list.error) ? (
-        <DegradeNote>
-          {kit.tr("capability.unavailable")}{" "}
-          <button type="button" className="cb-kit-btn ghost cb-kit-inline-btn" onClick={openConsole}>
-            {kit.tr("common.openConsole")}
-          </button>
-        </DegradeNote>
+        <DegradeNote>{list.error}</DegradeNote>
       ) : (
         <ErrorBanner error={list.error} retry={() => list.reload()} retryLabel={kit.tr("common.retry")} />
       )}

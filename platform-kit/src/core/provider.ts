@@ -127,14 +127,14 @@ export interface PlatformProvider {
   listCdnCacheConfig?(bucket?: string): Promise<{ status: string }>;
   listCdnCacheItems?(bucket?: string): Promise<import("./types.js").CdnCacheItem[]>;
   listStorageBuckets?(): Promise<import("./types.js").StorageBucket[]>;
-  createStorageBucket?(name: string): Promise<void>;
+  createStorageBucket?(name: string, opts?: { public?: boolean }): Promise<void>;
   deleteStorageBucket?(name: string, confirm: boolean): Promise<void>;
 
   listFunctions?(opts?: { searchKey?: string; limit?: number; offset?: number }): Promise<import("./types.js").CloudFunctionSummary[]>;
   getFunction?(name: string): Promise<import("./types.js").CloudFunctionDetail>;
   listFunctionTriggers?(name: string): Promise<import("./types.js").CloudFunctionTrigger[]>;
   listFunctionLogs?(name: string, opts?: { limit?: number }): Promise<import("./types.js").CloudFunctionLog[]>;
-  invokeFunction?(name: string, payload?: string): Promise<{ result: string; unsupportedReason?: string }>;
+  invokeFunction?(name: string, payload?: string): Promise<{ result: string }>;
 
   listCloudRunServices?(): Promise<import("./types.js").CloudRunService[]>;
   getCloudRunService?(name: string): Promise<{ service: import("./types.js").CloudRunService; versions: import("./types.js").CloudRunVersion[] }>;

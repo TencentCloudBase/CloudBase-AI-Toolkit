@@ -53,8 +53,9 @@ describe("cls unavailable mapping", () => {
 });
 
 describe("i18n + layout tokens", () => {
-  it("uses the console-enable copy for CLS disabled", () => {
-    expect(t("zh", "logs.cls.disabled")).toContain("CloudBase 控制台开通");
+  it("uses the not-enabled copy for CLS disabled", () => {
+    expect(t("zh", "logs.cls.disabled")).toContain("未开通日志服务");
+    expect(t("zh", "logs.cls.disabled")).not.toContain("控制台");
     expect(t("zh", "db.tab.sql")).toBe("SQL");
   });
 

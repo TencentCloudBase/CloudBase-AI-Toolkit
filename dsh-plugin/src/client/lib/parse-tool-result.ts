@@ -131,7 +131,7 @@ export function cellText(value: unknown): string {
 export function friendlyError(message: string): string {
   const text = String(message).trim();
   if (/resource has expired|renewal fee|欠费|expired/i.test(text)) {
-    return "该环境资源已过期或欠费，请在 CloudBase 控制台续费后重试。";
+    return "该环境资源已过期或欠费，续费后即可恢复使用。";
   }
   const firstLine = text.split("\n")[0] ?? text;
   return firstLine.length > 200 ? `${firstLine.slice(0, 200)}…` : firstLine;

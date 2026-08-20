@@ -92,8 +92,10 @@ export function useHostingVersions(provider?: PlatformProvider) {
 export function useHostingObjects(provider?: PlatformProvider, prefix?: string) {
   return useAsyncResource(
     async () => {
-      if (!provider?.listHostingObjects) return { objects: [], hostMissing: true as const };
-      return { objects: await provider.listHostingObjects(prefix), hostMissing: false as const };
+      if (!provider?.listHostingObjects) {
+        throw new Error("当前环境无法列出托管文件");
+      }
+      return provider.listHostingObjects(prefix);
     },
     [provider, prefix],
   );

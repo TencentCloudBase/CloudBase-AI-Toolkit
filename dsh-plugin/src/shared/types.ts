@@ -330,7 +330,7 @@ export interface CloudBaseData {
   listCdnCacheConfig?(bucket?: string): Promise<{ status: string }>;
   listCdnCacheItems?(bucket?: string): Promise<Array<{ id: string; status: string; bucket?: string }>>;
   listStorageBuckets?(): Promise<Array<{ name: string; region?: string; createdAt?: string; sizeLabel?: string; cdnDomain?: string; kind?: "storage" | "hosting" }>>;
-  createStorageBucket?(name: string): Promise<void>;
+  createStorageBucket?(name: string, opts?: { public?: boolean }): Promise<void>;
   deleteStorageBucket?(name: string, confirm: boolean): Promise<void>;
   listFunctions?(opts?: { searchKey?: string; limit?: number; offset?: number }): Promise<Array<{ name: string; runtime?: string; status?: string; invokeCount?: number; updatedAt?: string }>>;
   getFunction?(name: string): Promise<{
@@ -343,7 +343,7 @@ export interface CloudBaseData {
   }>;
   listFunctionTriggers?(name: string): Promise<Array<{ name: string; type: string; triggerDesc?: string }>>;
   listFunctionLogs?(name: string, opts?: { limit?: number }): Promise<Array<{ requestId?: string; time?: string; message: string }>>;
-  invokeFunction?(name: string, payload?: string): Promise<{ result: string; unsupportedReason?: string }>;
+  invokeFunction?(name: string, payload?: string): Promise<{ result: string }>;
   listCloudRunServices?(): Promise<Array<{ name: string; status?: string; version?: string; traffic?: string; cpu?: string; memory?: string; instanceCount?: number }>>;
   getCloudRunService?(name: string): Promise<{
     service: { name: string; status?: string; version?: string };

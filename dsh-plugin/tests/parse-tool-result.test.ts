@@ -93,7 +93,7 @@ describe("tool result parsing", () => {
 
   it("maps expired/arrears errors to friendly copy", () => {
     const raw = "[ListTables] Resource has expired. Please renewal fee... RequestId: xyz 📦 CloudBase MCP v2.28.1";
-    expect(friendlyError(raw)).toBe("该环境资源已过期或欠费，请在 CloudBase 控制台续费后重试。");
+    expect(friendlyError(raw)).toBe("该环境资源已过期或欠费，续费后即可恢复使用。");
   });
 
   it("truncates long errors to the first line", () => {

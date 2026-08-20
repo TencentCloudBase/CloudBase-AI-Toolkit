@@ -31,8 +31,9 @@ export function StoragePage(props: StoragePageProps): React.ReactElement {
   const [rule, setRule] = React.useState("");
   const [cdnRows, setCdnRows] = React.useState<Array<{ id: string; status: string }>>([]);
   const [hint, setHint] = React.useState<string | undefined>(undefined);
-  const [newBucket, setNewBucket] = React.useState("");
-  const bucketInputRef = React.useRef<HTMLInputElement>(null);
+  const [createOpen, setCreateOpen] = React.useState(false);
+  const [newBucketName, setNewBucketName] = React.useState("");
+  const [newBucketPublic, setNewBucketPublic] = React.useState(false);
   const [selectedFile, setSelectedFile] = React.useState<File | undefined>(undefined);
   const [uploading, setUploading] = React.useState(false);
   const [confirmSecurity, setConfirmSecurity] = React.useState(false);
@@ -90,10 +91,12 @@ export function StoragePage(props: StoragePageProps): React.ReactElement {
   };
 
   const createBucket = async () => {
-    if (!provider?.createStorageBucket || !newBucket.trim()) return;
+    if (!provider?.createStorageBucket || !newBucketName.trim()) return;
     try {
-      await provider.createStorageBucket(newBucket.trim());
-      setNewBucket("");
+      await provider.createStorageBucket(newBucketName.trim(), { public: newBucketPublic });
+      setNewBucketName("");
+      setNewBucketPublic(false);
+      setCreateOpen(false);
       buckets.reload();
       setHint(kit.tr("common.success"));
     } catch (error) {
@@ -111,14 +114,7 @@ export function StoragePage(props: StoragePageProps): React.ReactElement {
         <>
           {isPg ? (
             <div className="cb-kit-spread cb-kit-page-actions">
-              <input
-                ref={bucketInputRef}
-                className="cb-kit-input flex"
-                placeholder={kit.tr("storage.createHint")}
-                value={newBucket}
-                onChange={(e) => setNewBucket(e.target.value)}
-              />
-              <button type="button" className="cb-kit-btn" onClick={() => void createBucket()} disabled={!newBucket.trim()}>
+              <button type="button" className="cb-kit-btn" onClick={() => setCreateOpen(true)}>
                 {kit.tr("storage.createBucket")}
               </button>
             </div>
@@ -136,20 +132,11 @@ export function StoragePage(props: StoragePageProps): React.ReactElement {
               <EmptyState
                 action={
                   isPg ? (
-                    <button type="button" className="cb-kit-btn" onClick={() => bucketInputRef.current?.focus()}>
+                    <button type="button" className="cb-kit-btn" onClick={() => setCreateOpen(true)}>
                       {kit.tr("storage.createBucket")}
                     </button>
                   ) : (
-                    <button
-                      type="button"
-                      className="cb-kit-btn"
-                      onClick={() => {
-                        const href = `https://tcb.cloud.tencent.com/dev?envId=${encodeURIComponent(kit.featureCtx.envId ?? "")}#/storage`;
-                        if (typeof window !== "undefined") window.open(href, "_blank", "noreferrer");
-                      }}
-                    >
-                      {kit.tr("storage.consoleOpen")}
-                    </button>
+                    kit.tr("storage.bucketCreateUnsupported")
                   )
                 }
               >
@@ -273,6 +260,48 @@ export function StoragePage(props: StoragePageProps): React.ReactElement {
           ) : null}
         </>
       )}
+
+      {createOpen ? (
+        <div className="cb-kit-drawer-backdrop" role="presentation" onClick={() => setCreateOpen(false)}>
+          <div
+            className="cb-kit-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cb-kit-storage-create-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="cb-kit-storage-create-title">{kit.tr("storage.createBucket")}</h3>
+            <div className="cb-kit-field">
+              <span>{kit.tr("storage.createHint")}</span>
+              <input
+                className="cb-kit-input"
+                placeholder={kit.tr("storage.createHint")}
+                value={newBucketName}
+                onChange={(e) => setNewBucketName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void createBucket();
+                }}
+              />
+            </div>
+            <label className="cb-kit-field inline">
+              <input
+                type="checkbox"
+                checked={newBucketPublic}
+                onChange={(e) => setNewBucketPublic(e.target.checked)}
+              />
+              <span>{kit.tr("storage.createPublic")}</span>
+            </label>
+            <div className="cb-kit-drawer-actions">
+              <button type="button" className="cb-kit-btn ghost" onClick={() => setCreateOpen(false)}>
+                {kit.tr("common.cancel")}
+              </button>
+              <button type="button" className="cb-kit-btn" disabled={!newBucketName.trim()} onClick={() => void createBucket()}>
+                {kit.tr("storage.createBucket")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <ConfirmDialog
         open={confirmSecurity}

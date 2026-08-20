@@ -2,7 +2,7 @@ import * as React from "react";
 import type { PlatformProvider } from "../../core/provider.js";
 import { useKit } from "../../hooks/use-menu.js";
 import { useDebouncedValue, useFunctionDetail, useFunctionLogs, useFunctions } from "../../hooks/use-resources.js";
-import { consoleEnvUrl, filterFunctions } from "../../services/resource-map.js";
+import { filterFunctions } from "../../services/resource-map.js";
 import { DegradeNote, EmptyState, ErrorBanner, KvList, PageHead, SimpleTable, TabsBar } from "./ResourceParts.js";
 
 export interface FunctionsPageProps {
@@ -28,23 +28,9 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
   const [payload, setPayload] = React.useState("{}");
   const [invokeResult, setInvokeResult] = React.useState<string | undefined>(undefined);
   const [invokeLoading, setInvokeLoading] = React.useState(false);
-  const envId = kit.featureCtx.envId;
-  const consoleHref = consoleEnvUrl(envId, "scf");
-
-  const openConsole = () => {
-    if (typeof window !== "undefined") window.open(consoleHref, "_blank", "noreferrer");
-  };
 
   const emptyNode = (
-    <EmptyState
-      action={
-        <button type="button" className="cb-kit-btn" onClick={openConsole}>
-          {kit.tr("fn.consoleCreate")}
-        </button>
-      }
-    >
-      {kit.tr("fn.emptyGuide")}
-    </EmptyState>
+    <EmptyState>{kit.tr("fn.emptyGuide")}</EmptyState>
   );
 
   return (
@@ -58,12 +44,7 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
         />
       </PageHead>
       {looksUnavailable(list.error) ? (
-        <DegradeNote>
-          {kit.tr("capability.unavailable")}{" "}
-          <button type="button" className="cb-kit-btn ghost cb-kit-inline-btn" onClick={openConsole}>
-            {kit.tr("common.openConsole")}
-          </button>
-        </DegradeNote>
+        <DegradeNote>{list.error}</DegradeNote>
       ) : (
         <ErrorBanner error={list.error} retry={() => list.reload()} retryLabel={kit.tr("common.retry")} />
       )}
@@ -165,11 +146,7 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
                     setInvokeResult(undefined);
                     try {
                       const result = await provider.invokeFunction(selected, payload);
-                      if (result.unsupportedReason) {
-                        setInvokeResult(kit.tr("fn.invoke.unsupported"));
-                      } else {
-                        setInvokeResult(result.result || kit.tr("common.empty"));
-                      }
+                      setInvokeResult(result.result || kit.tr("common.empty"));
                     } catch (error) {
                       setInvokeResult(error instanceof Error ? error.message : String(error));
                     } finally {
