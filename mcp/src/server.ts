@@ -20,6 +20,7 @@ import { registerAppAuthTools } from "./tools/app-auth.js";
 import { registerAppTools } from "./tools/apps.js";
 import { registerLogTools } from "./tools/logs.js";
 import { registerPermissionTools } from "./tools/permissions.js";
+import { registerMsgPushTools } from "./tools/msg-push.js";
 import { CloudBaseOptions, Logger, PluginOptions } from "./types.js";
 import type { AuthOptions } from "./auth.js";
 import { enableCloudMode } from "./utils/cloud-mode.js";
@@ -105,6 +106,7 @@ const AVAILABLE_PLUGINS: Record<string, PluginDefinition> = {
   apps: { name: "apps", register: registerAppTools },
   cloudrun: { name: "cloudrun", register: registerCloudRunTools },
   capi: { name: "capi", register: registerCapiTools },
+  "msg-push": { name: "msg-push", register: registerMsgPushTools },
 };
 
 const PLUGIN_ALIASES: Record<string, string> = {

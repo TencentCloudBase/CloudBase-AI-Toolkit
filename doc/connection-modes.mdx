@@ -362,6 +362,7 @@ CloudBase MCP 针对不同部署场景提供分层安全保护：
 | `database-nosql` | 否 | 仅 NoSQL 数据库（`database` 的子集） |
 | `database-sql` | 否 | 仅 SQL 数据库（`mysql_database` 的子集） |
 | `data-model` | 否 | 仅数据模型（`database` 的子集） |
+| `msg-push` | 否 | 小程序消息推送配置（`queryMessagePush`/`manageMessagePush`；依赖微信 IDE 登录态通道，需宿主注入 `pluginOptions.msgPush.requestFn`） |
 
 兼容别名（建议优先使用 canonical 名称）：
 
