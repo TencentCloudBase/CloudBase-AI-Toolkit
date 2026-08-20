@@ -19,8 +19,6 @@ import { ensureStyles } from "../../styles.js";
 import { AuthGate } from "./AuthGate.js";
 import { EnvSelector } from "./EnvSelector.js";
 import { PreviewTab } from "./PreviewTab.js";
-import { ConfigTab } from "./ConfigTab.js";
-import { AnalyticsTab } from "./AnalyticsTab.js";
 import {
   AuthUsersPage,
   DatabasePage,
@@ -32,8 +30,10 @@ import {
   CloudRunPage,
   HostingPage,
   StoragePage,
+  SettingsPage,
   type MenuRouteId,
   resolvePostgresEnv,
+  asPlatformProvider,
 } from "@cloudbase/platform-kit";
 
 type ViewId = "backend" | "preview";
@@ -104,7 +104,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
   }, [data]);
 
   return (
-    <div className="cb-root" style={{ height: "100%" }}>
+    <div className="cb-root" data-testid="cb-details" style={{ height: "100%" }}>
       <AuthGate data={data}>
         {({ status, setStatus }: { status: AuthStatus; setStatus: (s: AuthStatus) => void }) => {
           const topbar = (
@@ -158,7 +158,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
                 </>
               ) : (
                 <ManagerShell
-                  provider={data as never}
+                  provider={asPlatformProvider(data)}
                   featureCtx={{ ...featureCtx, envId: status.envId }}
                   route={route}
                   onRouteChange={setRoute}
@@ -180,32 +180,28 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
                     settings: { idle: <IconGear />, active: <IconGear /> },
                   }}
                   renderRoute={(activeRoute) => {
+                    const provider = asPlatformProvider(data);
                     switch (activeRoute) {
                       case "overview":
-                        return <OverviewPage provider={data as never} />;
+                        return <OverviewPage provider={provider} />;
                       case "database":
-                        return <DatabasePage provider={data as never} />;
+                        return <DatabasePage provider={provider} />;
                       case "storage":
-                        return <StoragePage provider={data as never} />;
+                        return <StoragePage provider={provider} />;
                       case "auth":
-                        return <AuthUsersPage provider={data as never} />;
+                        return <AuthUsersPage provider={provider} />;
                       case "gateway":
-                        return <GatewayPage provider={data as never} />;
+                        return <GatewayPage provider={provider} />;
                       case "logs":
-                        return <LogsPage provider={data as never} />;
+                        return <LogsPage provider={provider} />;
                       case "settings":
-                        return (
-                          <>
-                            <ConfigTab data={data} />
-                            <AnalyticsTab data={data} />
-                          </>
-                        );
+                        return <SettingsPage provider={provider} />;
                       case "functions":
-                        return <FunctionsPage provider={data as never} />;
+                        return <FunctionsPage provider={provider} />;
                       case "cloudrun":
-                        return <CloudRunPage provider={data as never} />;
+                        return <CloudRunPage provider={provider} />;
                       case "hosting":
-                        return <HostingPage provider={data as never} />;
+                        return <HostingPage provider={provider} />;
                       default:
                         return null;
                     }

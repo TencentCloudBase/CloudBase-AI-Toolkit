@@ -129,6 +129,14 @@ export { FunctionsPage } from "./components/resources/FunctionsPage.js";
 export { CloudRunPage } from "./components/resources/CloudRunPage.js";
 export { HostingPage } from "./components/resources/HostingPage.js";
 export { StoragePage } from "./components/resources/StoragePage.js";
+export { SettingsPage } from "./components/settings/SettingsPage.js";
+export { ConfirmDialog } from "./components/ConfirmDialog.js";
+export { asPlatformProvider } from "./utils/provider-cast.js";
+export {
+  sqlListStorageBuckets,
+  sqlCreateStorageBucket,
+  sqlDeleteStorageBucket,
+} from "./pg/sql.js";
 export { SparkChart } from "./components/charts/SparkChart.js";
 export { MetricCardsGrid } from "./components/charts/MetricCardsGrid.js";
 export { UsageBarsList } from "./components/charts/UsageBarsList.js";

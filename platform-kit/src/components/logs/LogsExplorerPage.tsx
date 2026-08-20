@@ -124,12 +124,18 @@ export function LogsExplorerPage(props: LogsExplorerPageProps): React.ReactEleme
         expandedId={expandedId}
         onToggle={(id) => setExpandedId((prev) => (prev === id ? undefined : id))}
         emptyLabel={kit.tr("logs.empty")}
-        expandLabel={kit.tr("logs.expand")}
+        expandLabel={kit.tr("logs.details")}
+        columnLabels={{
+          time: kit.tr("logs.col.time"),
+          service: kit.tr("logs.col.service"),
+          level: kit.tr("logs.col.level"),
+          message: kit.tr("logs.col.message"),
+        }}
       />
 
       {logs.hasMore ? (
         <button type="button" className="cb-kit-btn ghost" style={{ marginTop: 8 }} onClick={() => logs.loadMore()}>
-          Load more
+          {kit.tr("logs.loadMore")}
         </button>
       ) : null}
     </div>

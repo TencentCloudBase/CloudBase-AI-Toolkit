@@ -242,18 +242,28 @@ describe("data-service capi mappings", () => {
     expect(domains.some((item) => item.domain.includes("tcloudbaseapp.com"))).toBe(true);
   });
 
-  it("createStorageBucket explains missing COS control-plane API", async () => {
+  it("createStorageBucket uses ExecutePGSql on postgres env", async () => {
     const bridge = capiBridge(baseHandlers, baseAuth);
     const data = createCloudBaseDataService(bridge);
-    await expect(data.createStorageBucket!("extra")).rejects.toThrow(/DescribeEnvs.Storages/);
-    expect(bridge.capiCalls.some((c) => c.action === "CreateBucket")).toBe(false);
+    await data.createStorageBucket!("avatars");
+    const call = bridge.capiCalls.find((c) => c.action === "ExecutePGSql");
+    expect(call?.params.Sql).toMatch(/INSERT INTO storage\.buckets/);
   });
 
-  it("invokeFunction does not call retired InvokeFunction", async () => {
+  it("deleteStorageBucket uses ExecutePGSql on postgres env", async () => {
     const bridge = capiBridge(baseHandlers, baseAuth);
     const data = createCloudBaseDataService(bridge);
+    await data.deleteStorageBucket!("avatars", true);
+    const call = bridge.capiCalls.find((c) => c.action === "ExecutePGSql");
+    expect(String(call?.params.Sql)).toMatch(/DELETE FROM storage\.buckets/);
+  });
+
+  it("invokeFunction uses scf Invoke", async () => {
+    const bridge = capiBridge({ ...baseHandlers, "scf:Invoke": { Result: '{"ok":true}' } }, baseAuth);
+    const data = createCloudBaseDataService(bridge);
     const result = await data.invokeFunction!("fn_a", "{}");
-    expect(result.unsupportedReason).toMatch(/retired|下线/i);
+    expect(result.result).toContain("ok");
+    expect(bridge.capiCalls.some((c) => c.action === "Invoke" && c.service === "scf")).toBe(true);
     expect(bridge.capiCalls.some((c) => c.action === "InvokeFunction")).toBe(false);
   });
 });

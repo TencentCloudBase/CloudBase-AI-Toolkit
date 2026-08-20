@@ -2,6 +2,29 @@ import * as React from "react";
 import type { PolicyInput, PolicySummary, TableSchemaDetail, TableSummary } from "../../core/types.js";
 import { sqlAlterPolicy, sqlCreatePolicy, sqlDropPolicy } from "../../pg/sql.js";
 
+const POLICY_TEMPLATES = [
+  {
+    id: "authRead",
+    labelKey: "db.policy.template.authRead",
+    using: "auth.role() = 'authenticated'",
+    withCheck: "",
+  },
+  {
+    id: "publicRead",
+    labelKey: "db.policy.template.publicRead",
+    using: "true",
+    withCheck: "",
+  },
+  {
+    id: "userFilter",
+    labelKey: "db.policy.template.userFilter",
+    using: "auth.uid() = user_id",
+    withCheck: "auth.uid() = user_id",
+  },
+] as const;
+
+const DEFAULT_ROLES = ["public", "authenticated"];
+
 export interface RlsPolicyEditorProps {
   open: boolean;
   schemaTable: string;
@@ -17,17 +40,23 @@ const COMMANDS = ["SELECT", "INSERT", "UPDATE", "DELETE", "ALL"];
 export function RlsPolicyEditor(props: RlsPolicyEditorProps): React.ReactElement | null {
   const [name, setName] = React.useState("");
   const [command, setCommand] = React.useState("SELECT");
-  const [roles, setRoles] = React.useState("public");
+  const [selectedRoles, setSelectedRoles] = React.useState<string[]>(["public"]);
   const [using, setUsing] = React.useState("");
   const [withCheck, setWithCheck] = React.useState("");
+  const [panel, setPanel] = React.useState<"form" | "templates">("form");
+  const roleOptions = React.useMemo(() => {
+    const fromInitial = props.initial?.roles ?? [];
+    return [...new Set([...DEFAULT_ROLES, ...fromInitial])];
+  }, [props.initial?.roles]);
 
   React.useEffect(() => {
     if (!props.open) return;
     setName(props.initial?.name ?? "");
     setCommand(props.initial?.command ?? "SELECT");
-    setRoles((props.initial?.roles ?? ["public"]).join(", "));
+    setSelectedRoles(props.initial?.roles?.length ? [...props.initial.roles] : ["public"]);
     setUsing(props.initial?.using ?? "");
     setWithCheck(props.initial?.withCheck ?? "");
+    setPanel("form");
   }, [props.open, props.initial]);
 
   if (!props.open) return null;
@@ -36,7 +65,7 @@ export function RlsPolicyEditor(props: RlsPolicyEditorProps): React.ReactElement
     name: name.trim(),
     schemaTable: props.schemaTable,
     command,
-    roles: roles.split(",").map((r) => r.trim()).filter(Boolean),
+    roles: selectedRoles,
     using,
     withCheck,
     previousName: props.initial?.name,
@@ -58,6 +87,35 @@ export function RlsPolicyEditor(props: RlsPolicyEditorProps): React.ReactElement
     <div className="cb-kit-drawer-backdrop" onClick={props.onClose}>
       <div className="cb-kit-drawer" onClick={(e) => e.stopPropagation()}>
         <h3>{props.initial ? props.labels["db.policy.edit"] : props.labels["db.policy.create"]}</h3>
+        <div className="cb-kit-tabs">
+          <button type="button" className={panel === "form" ? "active" : ""} onClick={() => setPanel("form")}>
+            Form
+          </button>
+          <button type="button" className={panel === "templates" ? "active" : ""} onClick={() => setPanel("templates")}>
+            {props.labels["db.policy.templates"] ?? "Templates"}
+          </button>
+        </div>
+        {panel === "templates" ? (
+          <div className="cb-kit-section">
+            {POLICY_TEMPLATES.map((tpl) => (
+              <button
+                key={tpl.id}
+                type="button"
+                className="cb-kit-btn ghost"
+                style={{ display: "block", width: "100%", marginBottom: 6, textAlign: "left" }}
+                onClick={() => {
+                  setUsing(tpl.using);
+                  setWithCheck(tpl.withCheck);
+                  setPanel("form");
+                }}
+              >
+                {props.labels[tpl.labelKey] ?? tpl.id}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {panel === "form" ? (
+          <>
         <label className="cb-kit-field">
           <span>{props.labels["db.policy.name"]}</span>
           <input className="cb-kit-input" value={name} onChange={(e) => setName(e.target.value)} />
@@ -72,7 +130,25 @@ export function RlsPolicyEditor(props: RlsPolicyEditorProps): React.ReactElement
         </label>
         <label className="cb-kit-field">
           <span>{props.labels["db.policy.roles"]}</span>
-          <input className="cb-kit-input" value={roles} onChange={(e) => setRoles(e.target.value)} />
+          <div className="cb-kit-role-select">
+            {roleOptions.map((role) => {
+              const active = selectedRoles.includes(role);
+              return (
+                <button
+                  key={role}
+                  type="button"
+                  className={`cb-kit-role-chip${active ? " active" : ""}`}
+                  onClick={() =>
+                    setSelectedRoles((prev) =>
+                      active ? prev.filter((r) => r !== role) : [...prev, role],
+                    )
+                  }
+                >
+                  {role}
+                </button>
+              );
+            })}
+          </div>
         </label>
         <label className="cb-kit-field">
           <span>{props.labels["db.policy.using"]}</span>
@@ -101,6 +177,8 @@ export function RlsPolicyEditor(props: RlsPolicyEditorProps): React.ReactElement
             {props.labels["db.policy.confirm"]}
           </button>
         </div>
+          </>
+        ) : null}
       </div>
     </div>
   );

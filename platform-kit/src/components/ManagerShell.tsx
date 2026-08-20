@@ -18,6 +18,7 @@ import { FunctionsPage } from "./resources/FunctionsPage.js";
 import { CloudRunPage } from "./resources/CloudRunPage.js";
 import { HostingPage } from "./resources/HostingPage.js";
 import { StoragePage } from "./resources/StoragePage.js";
+import { SettingsPage } from "./settings/SettingsPage.js";
 import { ensureKitStyles } from "../theme/styles.js";
 import { resolvePostgresEnv } from "../core/features.js";
 
@@ -88,6 +89,8 @@ function ManagerShellInner(props: ManagerShellProps): React.ReactElement {
         return <HostingPage provider={props.provider} />;
       case "storage":
         return <StoragePage provider={props.provider} />;
+      case "settings":
+        return <SettingsPage provider={props.provider} />;
       default:
         return props.renderRoute?.(activeRoute) ?? (
           <div className="cb-kit-page">
@@ -98,11 +101,11 @@ function ManagerShellInner(props: ManagerShellProps): React.ReactElement {
   })();
 
   return (
-    <div className="cb-kit-root">
+    <div className="cb-kit-root" data-testid="cb-kit-root">
       {props.header}
       <div className="cb-kit-shell">
         <SidebarNav items={menuItems} onSelect={selectRoute} />
-        <main className="cb-kit-main">{defaultBody}</main>
+        <main className="cb-kit-main" data-testid={`cb-kit-main-${activeRoute}`}>{defaultBody}</main>
       </div>
     </div>
   );

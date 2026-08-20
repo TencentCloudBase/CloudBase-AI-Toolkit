@@ -1,6 +1,72 @@
 import * as React from "react";
 import type { GatewayRoute, GatewayRouteInput } from "../../core/types.js";
 
+export interface DomainBindDrawerProps {
+  open: boolean;
+  certificates: Array<{ id: string; domain: string; status: string }>;
+  labels: Record<string, string>;
+  onClose: () => void;
+  onSave: (input: { domain: string; certId?: string; cnameDomain?: string }) => Promise<void>;
+  pending?: boolean;
+}
+
+export function DomainBindDrawer(props: DomainBindDrawerProps): React.ReactElement | null {
+  const [domain, setDomain] = React.useState("");
+  const [certId, setCertId] = React.useState("");
+  const [cname, setCname] = React.useState("");
+
+  React.useEffect(() => {
+    if (!props.open) return;
+    setDomain("");
+    setCertId("");
+    setCname("");
+  }, [props.open]);
+
+  if (!props.open) return null;
+
+  return (
+    <div className="cb-kit-drawer-backdrop" onClick={props.onClose}>
+      <div className="cb-kit-drawer" onClick={(e) => e.stopPropagation()}>
+        <h3>{props.labels["gateway.domains.bind"]}</h3>
+        <label className="cb-kit-field">
+          <span>{props.labels["gateway.domain"]}</span>
+          <input className="cb-kit-input" value={domain} onChange={(e) => setDomain(e.target.value)} />
+        </label>
+        <label className="cb-kit-field">
+          <span>{props.labels["gateway.domains.cert"]}</span>
+          <select className="cb-kit-select" value={certId} onChange={(e) => setCertId(e.target.value)}>
+            <option value="">—</option>
+            {props.certificates.map((cert) => (
+              <option key={cert.id} value={cert.id}>
+                {cert.domain} ({cert.status})
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="cb-kit-field">
+          <span>{props.labels["gateway.domains.cname"]}</span>
+          <input className="cb-kit-input" value={cname} onChange={(e) => setCname(e.target.value)} />
+        </label>
+        <div className="cb-kit-drawer-actions">
+          <button type="button" className="cb-kit-btn ghost" onClick={props.onClose}>
+            {props.labels["gateway.cancel"]}
+          </button>
+          <button
+            type="button"
+            className="cb-kit-btn"
+            disabled={props.pending || !domain.trim()}
+            onClick={() =>
+              void props.onSave({ domain: domain.trim(), certId: certId || undefined, cnameDomain: cname || undefined })
+            }
+          >
+            {props.labels["gateway.save"]}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export interface RouteFormDrawerProps {
   open: boolean;
   initial?: GatewayRoute;
@@ -77,7 +143,7 @@ export function RouteFormDrawer(props: RouteFormDrawerProps): React.ReactElement
         </label>
         <label className="cb-kit-field inline">
           <input type="checkbox" checked={enable} onChange={(e) => setEnable(e.target.checked)} />
-          <span>Enabled</span>
+          <span>{props.labels["common.enabled"] ?? "Enabled"}</span>
         </label>
         <div className="cb-kit-drawer-actions">
           <button type="button" className="cb-kit-btn ghost" onClick={props.onClose}>{props.labels["gateway.cancel"]}</button>
@@ -120,7 +186,7 @@ export function RouteTable(props: RouteTableProps): React.ReactElement {
         <span>{props.labels["gateway.upstreamType"]}</span>
         <span>{props.labels["gateway.upstream"]}</span>
         <span>{props.labels["gateway.auth"]}</span>
-        <span>Actions</span>
+        <span>{props.labels["common.actions"] ?? "Actions"}</span>
       </div>
       {props.routes.map((route) => (
         <div key={`${route.domain}:${route.path}:${route.routeId ?? route.upstreamResourceName}`} className="cb-kit-table-row static cols-5">
@@ -128,9 +194,13 @@ export function RouteTable(props: RouteTableProps): React.ReactElement {
           <span>{route.upstreamResourceType}</span>
           <span>{route.upstreamResourceName}</span>
           <span>{route.enableAuth ? "Yes" : "No"}</span>
-          <span style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            <button type="button" className="cb-kit-btn ghost" onClick={() => props.onEdit(route)}>Edit</button>
-            <button type="button" className="cb-kit-btn ghost" onClick={() => props.onDelete(route)}>Delete</button>
+          <span className="cb-kit-page-actions cb-kit-gap-sm">
+            <button type="button" className="cb-kit-btn ghost" onClick={() => props.onEdit(route)}>
+              {props.labels["common.edit"] ?? "Edit"}
+            </button>
+            <button type="button" className="cb-kit-btn ghost" onClick={() => props.onDelete(route)}>
+              {props.labels["common.delete"] ?? "Delete"}
+            </button>
           </span>
         </div>
       ))}

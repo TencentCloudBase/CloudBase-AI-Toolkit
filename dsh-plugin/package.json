@@ -35,6 +35,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "e2e:live": "node scripts/e2e-live.mjs",
+    "ui:unattended": "python3.11 scripts/unattended-ui.py",
     "prepublishOnly": "npm run typecheck && npm run build && npm test"
   },
   "keywords": [

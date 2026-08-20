@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { DeploymentRecord } from "../core/types.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 
 export interface DeploymentTimelineProps {
   records: DeploymentRecord[];
@@ -21,6 +22,7 @@ function statusClass(status: DeploymentRecord["status"]): string {
 export function DeploymentTimeline(props: DeploymentTimelineProps): React.ReactElement {
   const [expanded, setExpanded] = React.useState<string | undefined>(undefined);
   const [rolling, setRolling] = React.useState<string | undefined>(undefined);
+  const [rollbackTarget, setRollbackTarget] = React.useState<DeploymentRecord | undefined>(undefined);
 
   if (props.loading) {
     return <div style={{ padding: 12, color: "var(--cb-text-3)", fontSize: 12 }}>…</div>;
@@ -90,24 +92,9 @@ export function DeploymentTimeline(props: DeploymentTimelineProps): React.ReactE
                     {props.onRollback && record.status === "success" ? (
                       <button
                         type="button"
+                        className="cb-kit-btn ghost"
                         disabled={rolling === record.id}
-                        onClick={async () => {
-                          if (!window.confirm(props.rollbackConfirm ?? "Rollback?")) return;
-                          setRolling(record.id);
-                          try {
-                            await props.onRollback!(record);
-                          } finally {
-                            setRolling(undefined);
-                          }
-                        }}
-                        style={{
-                          padding: "4px 10px",
-                          fontSize: 11,
-                          border: "1px solid var(--cb-border-strong)",
-                          borderRadius: 5,
-                          background: "var(--cb-panel)",
-                          cursor: "pointer",
-                        }}
+                        onClick={() => setRollbackTarget(record)}
                       >
                         {props.rollbackLabel}
                       </button>
@@ -119,6 +106,25 @@ export function DeploymentTimeline(props: DeploymentTimelineProps): React.ReactE
           })
         )}
       </div>
+      <ConfirmDialog
+        open={Boolean(rollbackTarget)}
+        title={props.rollbackLabel ?? "Rollback"}
+        body={props.rollbackConfirm ?? "Rollback?"}
+        confirmLabel={props.rollbackLabel ?? "Rollback"}
+        danger
+        pending={Boolean(rollbackTarget && rolling === rollbackTarget.id)}
+        onCancel={() => setRollbackTarget(undefined)}
+        onConfirm={() => {
+          if (!rollbackTarget || !props.onRollback) return;
+          setRolling(rollbackTarget.id);
+          void props
+            .onRollback(rollbackTarget)
+            .finally(() => {
+              setRolling(undefined);
+              setRollbackTarget(undefined);
+            });
+        }}
+      />
     </div>
   );
 }

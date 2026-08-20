@@ -121,6 +121,9 @@ export function buildCloudBaseTypertContribution(): {
       invoke("listCustomDomains"),
       invoke("bindCustomDomain", ["input"]),
       invoke("deleteCustomDomain", ["domain", "confirm"]),
+      invoke("listSslCertificates"),
+      invoke("listAuthDomains"),
+      invoke("getGatewayQpsLimit"),
       invoke("listSchemas"),
       invoke("listTriggers", ["schema"]),
       invoke("listTypes", ["schema"]),
@@ -392,6 +395,21 @@ export class CloudBaseRemoteService extends TypertRemoteService {
   @Remote("deleteCustomDomain")
   async deleteCustomDomain(domain: string, confirm: boolean): Promise<void> {
     return toJsonSafe(await this.data.deleteCustomDomain?.(domain, confirm));
+  }
+
+  @Remote("listSslCertificates")
+  async listSslCertificates() {
+    return toJsonSafe(await this.data.listSslCertificates?.());
+  }
+
+  @Remote("listAuthDomains")
+  async listAuthDomains() {
+    return toJsonSafe(await this.data.listAuthDomains?.());
+  }
+
+  @Remote("getGatewayQpsLimit")
+  async getGatewayQpsLimit() {
+    return toJsonSafe(await this.data.getGatewayQpsLimit?.());
   }
 
   @Remote("listSchemas")

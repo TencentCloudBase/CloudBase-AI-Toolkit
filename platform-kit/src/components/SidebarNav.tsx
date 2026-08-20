@@ -15,6 +15,7 @@ export function SidebarNav(props: SidebarNavProps): React.ReactElement {
           <button
             key={item.id}
             type="button"
+            data-testid={`cb-nav-${item.id}`}
             className={`cb-kit-nav-item${item.selected ? " active" : ""}${item.restricted ? " restricted" : ""}`}
             onClick={() => props.onSelect(item.id!)}
             title={item.restricted ? item.label : undefined}

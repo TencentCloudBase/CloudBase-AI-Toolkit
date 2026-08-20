@@ -13,6 +13,7 @@ import {
 } from "../../hooks/use-database.js";
 import { useKit } from "../../hooks/use-menu.js";
 import { FeatureGuard } from "../FeatureGuard.js";
+import { ConfirmDialog } from "../ConfirmDialog.js";
 import { sqlToggleRLS } from "../../pg/sql.js";
 import { buildDropPolicySql, RlsPolicyEditor, TableDetailSheet, TableListPanel } from "./DatabaseParts.js";
 import { SqlEditorPanel } from "./SqlEditorPanel.js";
@@ -34,6 +35,8 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
   const mutation = usePgMutation(provider);
   const [editorOpen, setEditorOpen] = React.useState(false);
   const [editPolicy, setEditPolicy] = React.useState<PolicySummary | undefined>();
+  const [confirmRls, setConfirmRls] = React.useState<boolean | undefined>(undefined);
+  const [confirmDropPolicy, setConfirmDropPolicy] = React.useState<PolicySummary | undefined>(undefined);
 
   const functions = usePgFunctions(isPg ? provider : undefined);
   const extensions = usePgExtensions(isPg ? provider : undefined);
@@ -70,6 +73,10 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
       "db.policy.withCheck": kit.tr("db.policy.withCheck"),
       "db.policy.preview": kit.tr("db.policy.preview"),
       "db.policy.confirm": kit.tr("db.policy.confirm"),
+      "db.policy.templates": kit.tr("db.policy.templates"),
+      "db.policy.template.authRead": kit.tr("db.policy.template.authRead"),
+      "db.policy.template.publicRead": kit.tr("db.policy.template.publicRead"),
+      "db.policy.template.userFilter": kit.tr("db.policy.template.userFilter"),
       "common.loading": kit.tr("common.loading"),
       "common.empty": kit.tr("common.empty"),
       "common.cancel": kit.tr("common.cancel"),
@@ -82,16 +89,12 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
     tables.reload();
   };
 
-  const handleToggleRls = async (enable: boolean) => {
-    if (!selected || !window.confirm(enable ? labels["db.rls.enable"] : labels["db.rls.disable"])) return;
-    await mutation.execute(sqlToggleRLS(selected, enable));
-    refreshSchema();
+  const handleToggleRls = (enable: boolean) => {
+    setConfirmRls(enable);
   };
 
-  const handleDeletePolicy = async (policy: PolicySummary) => {
-    if (!selected || !window.confirm(kit.tr("gateway.deleteConfirm"))) return;
-    await mutation.execute(buildDropPolicySql(selected, policy.name));
-    refreshSchema();
+  const handleDeletePolicy = (policy: PolicySummary) => {
+    setConfirmDropPolicy(policy);
   };
 
   if (!isPg) {
@@ -115,7 +118,7 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
   }
 
   return (
-    <div className="cb-kit-page">
+    <div className="cb-kit-page" data-testid="cb-page-database">
       <div className="cb-kit-page-head">
         <h2 className="cb-kit-page-title">{kit.tr("db.title")}</h2>
         <div className="cb-kit-page-actions">
@@ -249,6 +252,41 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
           }}
         />
       ) : null}
+
+      <ConfirmDialog
+        open={confirmRls !== undefined}
+        title={confirmRls ? labels["db.rls.enable"] : labels["db.rls.disable"]}
+        body={confirmRls ? labels["db.rls.enable"] : labels["db.rls.disable"]}
+        confirmLabel={kit.tr("common.confirm")}
+        cancelLabel={labels["common.cancel"]}
+        onCancel={() => setConfirmRls(undefined)}
+        onConfirm={() => {
+          if (!selected || confirmRls === undefined) return;
+          void mutation.execute(sqlToggleRLS(selected, confirmRls)).then(() => {
+            setConfirmRls(undefined);
+            refreshSchema();
+          });
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(confirmDropPolicy)}
+        title={labels["db.policy.delete"]}
+        body={kit.tr("gateway.deleteConfirm")}
+        confirmLabel={kit.tr("common.delete")}
+        cancelLabel={labels["common.cancel"]}
+        danger
+        onCancel={() => setConfirmDropPolicy(undefined)}
+        onConfirm={() => {
+          if (!selected || !confirmDropPolicy) return;
+          void mutation
+            .execute(buildDropPolicySql(selected, confirmDropPolicy.name))
+            .then(() => {
+              setConfirmDropPolicy(undefined);
+              refreshSchema();
+            });
+        }}
+      />
     </div>
   );
 }

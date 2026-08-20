@@ -58,6 +58,9 @@ import {
   sqlTableForeignKeys,
   sqlTableRlsStatus,
   sqlWrapDdl,
+  sqlListStorageBuckets,
+  sqlCreateStorageBucket,
+  sqlDeleteStorageBucket,
 } from "../../../platform-kit/src/pg/sql.js";
 import {
   BUCKET_WRITE_UNSUPPORTED,
@@ -249,6 +252,13 @@ export function createCloudBaseDataService(
     if (preferred) return preferred;
     const env = await describeEnvRecord(envId);
     return str(rec(arr(env.Storages ?? env.storages)[0]).Bucket ?? env.storageBucket);
+  }
+
+  async function isPostgresEnvironment(): Promise<boolean> {
+    const envId = await requireEnvId();
+    const env = await describeEnvRecord(envId);
+    const mode = str(env.RuntimeMode ?? env.runtimeMode)?.toLowerCase() ?? "";
+    return mode.includes("postgres") || mode === "pg";
   }
 
   async function executePgSql(sql: string): Promise<LooseRecord> {
@@ -1220,8 +1230,28 @@ export function createCloudBaseDataService(
       }
     },
 
-    async invokeFunction(_name, _payload) {
-      return { result: "", unsupportedReason: INVOKE_UNSUPPORTED };
+    async invokeFunction(name, payload = "{}") {
+      const envId = await requireEnvId();
+      try {
+        const result = await callCapi(
+          "scf",
+          "Invoke",
+          {
+            FunctionName: name,
+            Namespace: envId,
+            ClientContext: payload,
+            LogType: "Tail",
+          },
+          "2018-04-16",
+        );
+        const resultPayload =
+          str(result.Result ?? result.result) ??
+          JSON.stringify(result.RetMsg ?? result.Response ?? result);
+        return { result: resultPayload };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return { result: "", unsupportedReason: message };
+      }
     },
 
     async listCloudRunServices() {
@@ -1368,6 +1398,20 @@ export function createCloudBaseDataService(
 
     async listStorageBuckets() {
       const envId = await requireEnvId();
+      if (await isPostgresEnvironment()) {
+        try {
+          const payload = await executePgSql(sqlListStorageBuckets());
+          const rows = parseSqlRows(payload);
+          if (rows.length > 0) {
+            return rows.map((row) => ({
+              name: str(row.id ?? row.name) ?? "unknown",
+              kind: "storage" as const,
+            }));
+          }
+        } catch {
+          // fall through to DescribeEnvs
+        }
+      }
       const env = await describeEnvRecord(envId);
       return arr(env.Storages ?? env.storages)
         .map((item) => mapStorageBucket(item, "storage"))
@@ -1385,12 +1429,53 @@ export function createCloudBaseDataService(
       return [mapCdnCacheItem(payload, bucket)];
     },
 
-    async createStorageBucket(_name: string) {
-      throw new Error(BUCKET_WRITE_UNSUPPORTED);
+    async createStorageBucket(name: string) {
+      if (!(await isPostgresEnvironment())) {
+        throw new Error(BUCKET_WRITE_UNSUPPORTED);
+      }
+      await executePgSqlWithDdlRetry(sqlCreateStorageBucket(name));
     },
 
-    async deleteStorageBucket(_name: string, _confirm: boolean) {
-      throw new Error(BUCKET_WRITE_UNSUPPORTED);
+    async deleteStorageBucket(name: string, confirm: boolean) {
+      if (!confirm) throw new Error("deleteStorageBucket requires confirm=true");
+      if (!(await isPostgresEnvironment())) {
+        throw new Error(BUCKET_WRITE_UNSUPPORTED);
+      }
+      await executePgSqlWithDdlRetry(sqlDeleteStorageBucket(name));
+    },
+
+    async listSslCertificates() {
+      const payload = await callCapi("ssl", "DescribeCertificates", { Limit: 100, Offset: 0 });
+      return arr(payload.Certificates ?? payload.certificates).map((item) => {
+        const row = rec(item);
+        return {
+          id: str(row.CertificateId ?? row.certificateId) ?? "",
+          domain: str(row.Domain ?? row.domain) ?? "",
+          status: str(row.Status ?? row.status) ?? "unknown",
+        };
+      });
+    },
+
+    async listAuthDomains() {
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcb", "DescribeAuthDomains", { EnvId: envId });
+      return arr(payload.Domains ?? payload.domains ?? payload.AuthDomains).map((item) => {
+        const row = rec(item);
+        return {
+          id: str(row.Id ?? row.id) ?? "",
+          domain: str(row.Domain ?? row.domain) ?? "",
+        };
+      });
+    },
+
+    async getGatewayQpsLimit() {
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcb", "DescribeCloudBaseGWService", {
+        ServiceId: envId,
+        EnableRegion: true,
+        EnableUnion: true,
+      });
+      return num(payload.QpsLimit ?? payload.qpsLimit);
     },
 
     async setGatewayServiceEnabled(enable) {

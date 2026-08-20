@@ -70,9 +70,9 @@ describe("component render", () => {
       </KitProvider>,
     );
     expect(screen.getByText("网关路由")).toBeTruthy();
-    expect(screen.getByText("添加路由")).toBeTruthy();
+    expect(screen.getAllByText("添加路由").length).toBeGreaterThan(0);
     await waitFor(() => {
-      expect(screen.getByText("暂无数据")).toBeTruthy();
+      expect(screen.getByText(/暂无路由/)).toBeTruthy();
     });
   });
 

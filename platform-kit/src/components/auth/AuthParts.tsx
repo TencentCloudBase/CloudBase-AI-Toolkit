@@ -29,6 +29,7 @@ export interface UsersTableProps {
   onToggleStatus?: (uid: string, enabled: boolean) => void;
   pendingUid?: string;
   labels: Record<string, string>;
+  confirmDisable?: (message: string) => Promise<boolean>;
 }
 
 export function UsersTable(props: UsersTableProps): React.ReactElement {

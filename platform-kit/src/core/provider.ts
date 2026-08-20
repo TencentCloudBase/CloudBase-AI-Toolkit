@@ -42,7 +42,7 @@ export interface PlatformProvider {
   storageUrl(cloudPath: string, opts?: { bucket?: string }): Promise<{ url: string; expiresInSec: number }>;
   /** Host COS listing for static hosting (signed). */
   listHostingObjects?(prefix?: string): Promise<StorageObject[]>;
-  uploadStorage?(cloudPath: string, opts?: { bucket?: string }): Promise<void>;
+  uploadStorage?(file: File, cloudPath: string, opts?: { bucket?: string }): Promise<void>;
   authStatus(): Promise<AuthStatus>;
   /**
    * Begin a login flow.
@@ -119,6 +119,9 @@ export interface PlatformProvider {
   listCustomDomains?(): Promise<Array<{ domain: string; status: string; accessType?: string; certificateId?: string; cnameTarget?: string; createdAt?: string }>>;
   bindCustomDomain?(input: { domain: string; certId?: string; cnameDomain?: string; accessType?: string; description?: string }): Promise<void>;
   deleteCustomDomain?(domain: string, confirm: boolean): Promise<void>;
+  listSslCertificates?(): Promise<Array<{ id: string; domain: string; status: string }>>;
+  listAuthDomains?(): Promise<Array<{ id: string; domain: string }>>;
+  getGatewayQpsLimit?(): Promise<number | undefined>;
   listSafetyDomains?(): Promise<Array<{ id: string; appName: string }>>;
   getStorageSecurityRules?(bucket?: string): Promise<{ aclTag: string; rule?: string }>;
   setStorageSecurityRules?(rules: { aclTag: string; rule?: string; bucket?: string }): Promise<void>;

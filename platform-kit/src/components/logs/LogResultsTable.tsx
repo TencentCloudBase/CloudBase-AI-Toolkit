@@ -8,6 +8,12 @@ export interface LogResultsTableProps {
   onToggle: (id: string) => void;
   emptyLabel?: string;
   expandLabel?: string;
+  columnLabels?: {
+    time?: string;
+    service?: string;
+    level?: string;
+    message?: string;
+  };
 }
 
 function entryId(entry: LogEntry, index: number): string {
