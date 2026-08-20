@@ -7,6 +7,7 @@ import { SqlEditorPanel } from "../src/components/database/SqlEditorPanel.js";
 import { GatewayPage } from "../src/components/gateway/GatewayPage.js";
 import { LogsPage } from "../src/components/LogsPage.js";
 import { ManagerShell } from "../src/components/ManagerShell.js";
+import { SettingsPage } from "../src/components/settings/SettingsPage.js";
 import { KitProvider } from "../src/hooks/use-menu.js";
 import { createMockPlatformProvider } from "../src/examples/custom-provider.example.js";
 
@@ -104,5 +105,22 @@ describe("component render", () => {
     await waitFor(() => {
       expect(screen.getByText("暂无日志")).toBeTruthy();
     });
+  });
+
+  it("SettingsPage shows gateway toggles and auth domain delete action", async () => {
+    const provider = createMockPlatformProvider();
+    render(
+      <KitProvider locale="zh" provider={provider}>
+        <SettingsPage provider={provider} />
+      </KitProvider>,
+    );
+    expect(screen.getByText("环境设置")).toBeTruthy();
+    expect(screen.getByText("网关与 QPS")).toBeTruthy();
+    expect(document.querySelectorAll(".cb-kit-toggle input[type=checkbox]").length).toBe(2);
+    await waitFor(() => {
+      expect(screen.getByText("app.example.com")).toBeTruthy();
+    });
+    const deleteButtons = screen.getAllByText("删除");
+    expect(deleteButtons.length).toBeGreaterThan(0);
   });
 });

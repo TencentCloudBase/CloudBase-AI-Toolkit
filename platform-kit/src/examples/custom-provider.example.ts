@@ -393,6 +393,16 @@ export class MockPlatformProvider implements PlatformProvider {
 
   async setGatewayAuthEnabled(_enable: boolean): Promise<void> {}
 
+  // capi tcb DescribeAuthDomains
+  async listAuthDomains(): Promise<Array<{ domain: string; id?: string; status?: string }>> {
+    return [{ domain: "app.example.com", id: "id-1", status: "NORMAL" }];
+  }
+
+  // capi tcb DeleteAuthDomain
+  async deleteAuthDomain(_domainId: string, confirm: boolean): Promise<void> {
+    if (!confirm) throw new Error("confirm required");
+  }
+
   private emit(): void {
     for (const listener of this.listeners) listener(this.session);
   }

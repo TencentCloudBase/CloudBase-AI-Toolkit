@@ -173,6 +173,8 @@ export type MessageKey =
   | "settings.gateway"
   | "settings.qps"
   | "settings.authDomains"
+  | "settings.authDomains.delete"
+  | "settings.authDomains.deleteConfirm"
   | "settings.secrets"
   | "settings.secretsEmpty"
   | "common.yes"

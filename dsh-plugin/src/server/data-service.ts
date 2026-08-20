@@ -1678,6 +1678,15 @@ export function createCloudBaseDataService(
       });
     },
 
+    async deleteAuthDomain(domainId: string, confirm: boolean) {
+      if (!confirm) throw new Error("deleteAuthDomain 需要 confirm=true");
+      const envId = await requireEnvId();
+      await callCapi("tcb", "DeleteAuthDomain", {
+        EnvId: envId,
+        DomainIds: [domainId],
+      });
+    },
+
     async setGatewayServiceEnabled(enable) {
       const envId = await requireEnvId();
       await callCapi("tcb", "ModifyCloudBaseGWPrivilege", {

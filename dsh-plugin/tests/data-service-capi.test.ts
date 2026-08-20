@@ -203,6 +203,31 @@ describe("data-service capi mappings", () => {
     expect(routes[0]?.domain).toBe("gw.example.com");
   });
 
+  it("deleteAuthDomain uses tcb DeleteAuthDomain with DomainIds and requires confirm", async () => {
+    const bridge = capiBridge(baseHandlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    await expect(data.deleteAuthDomain!("d1", false)).rejects.toThrow("confirm");
+    await data.deleteAuthDomain!("d1", true);
+    const call = bridge.capiCalls.find((c) => c.action === "DeleteAuthDomain");
+    expect(call?.service).toBe("tcb");
+    expect(call?.params).toEqual({ EnvId: envId, DomainIds: ["d1"] });
+  });
+
+  it("listAuthDomains maps DescribeAuthDomains rows with id and status", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        "tcb:DescribeAuthDomains": {
+          Domains: [{ Domain: "app.example.com", Id: "id-1", Status: "NORMAL" }],
+        },
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    const domains = await data.listAuthDomains?.();
+    expect(domains?.[0]).toMatchObject({ domain: "app.example.com", id: "id-1", status: "NORMAL" });
+  });
+
   it("authStatus requires DescribeEnvs probe", async () => {
     const bridge = capiBridge(
       { "tcb:DescribeEnvs": { EnvList: [] } },

@@ -119,6 +119,7 @@ export interface PlatformProvider {
   listCustomDomains?(): Promise<Array<{ domain: string; status: string; accessType?: string; certificateId?: string; cnameTarget?: string; createdAt?: string }>>;
   listSslCertificates?(): Promise<Array<{ id: string; name: string; status?: string }>>;
   listAuthDomains?(): Promise<Array<{ domain: string; id?: string; status?: string }>>;
+  deleteAuthDomain?(domainId: string, confirm: boolean): Promise<void>;
   bindCustomDomain?(input: { domain: string; certId?: string; cnameDomain?: string; accessType?: string; description?: string }): Promise<void>;
   deleteCustomDomain?(domain: string, confirm: boolean): Promise<void>;
   listSafetyDomains?(): Promise<Array<{ id: string; appName: string }>>;
