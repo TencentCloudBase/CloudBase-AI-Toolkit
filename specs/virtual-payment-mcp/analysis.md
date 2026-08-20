@@ -107,7 +107,7 @@ UI → callbackconfig.ts commonInvokeCallbackConfigCgi
 
 随 `cloud_fn_deploy` / 开发者工具上传同步。`dev-platform` 文案也写：配置了云调用权限后需在微信开发者工具同步上传。
 
-**对 MCP 的含义：** 需求 3.2「查询+批量绑定/解绑且幂等」若要做到不redeploy，**依赖 starkewang 补 setfuncconfig（或等价）写接口**。在接口就绪前，IDE MCP 可降级为：改本地 `config.json` + 提示调用已有 `cloud_fn_deploy`（须在评审中确认是否接受）。
+**对 MCP 的含义：** 云调用绑定归属**微信云开发后端开发**（Booker 2026-08-20 裁定），MCP 不封装（`queryCloudCall`/`manageCloudCall` 已移除）。若后端要做到不 redeploy 的批量绑定，**依赖 starkewang 补 setfuncconfig（或等价）写接口**；未就绪前降级为改本地 `config.json` + 上传。
 
 ### 2.2 云托管令牌白名单（非虚拟支付默认路径）
 
