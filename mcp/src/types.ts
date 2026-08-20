@@ -181,6 +181,49 @@ export interface StorageOverrides {
 export interface PluginOptions {
   functions?: FunctionDeployOverrides;
   storage?: StorageOverrides;
+
+  /**
+   * 消息推送（msg-push）插件配置。
+   *
+   * 消息推送 qbase 管理能力（getappconfig / uploadappconfig / route/getcallbacksupportlist /
+   * get|setcontainercallbackconfig）依赖微信小程序登录态，CloudBase MCP 独立运行
+   * （腾讯云身份）无法直连。复用现有 `cloudBaseOptions.requestFn`（CloudApiRequestFn：
+   * service/action/version/region/payload 领域语义）作为传输层——与 databaseNoSQL/functions
+   * 完全一致，包内不感知 URL。宿主（如微信开发者工具）在 createCloudBaseMcpServer 时注入
+   * requestFn 并启用 msg-push 插件即可；未注入时工具返回明确指引错误（指向微信 IDE 工具）。
+   */
+  msgPush?: MsgPushOverrides;
+}
+
+/**
+ * 消息推送领域动作（经 CloudApiRequestFn 的 action 字段表达，宿主映射到具体 qbase CGI，
+ * CloudBase MCP 不感知 URL）。与现有 service/action/payload 分层一致：
+ * 本包只表达「做什么」，由宿主注入的 requestFn 负责「怎么发 + 鉴权」。
+ */
+export type MsgPushAction =
+  | "getAppConfig"
+  | "uploadAppConfig"
+  | "getCallbackSupportList"
+  | "getContainerCallbackConfig"
+  | "setContainerCallbackConfig";
+
+/** 消息推送 qbase 响应（业务码 ret === 0 为成功；由宿主 requestFn 解包后返回） */
+export interface MsgPushQbaseResponse {
+  base_resp?: {
+    ret: number;
+    errmsg?: string;
+  };
+  [key: string]: unknown;
+}
+
+/**
+ * 消息推送（msg-push）插件 override 钩子。
+ * 复用现有 `cloudBaseOptions.requestFn`（CloudApiRequestFn）传输层，
+ * 仅在需要定制 service 名等场景下通过本钩子提供；未提供时工具用默认 service 约定。
+ */
+export interface MsgPushOverrides {
+  /** 消息推送 qbase CGI 对应的 Cloud API service 名（默认 "qbase"）；宿主可按后端契约覆盖 */
+  service?: string;
 }
 
 export type Logger = (data: {

@@ -2,7 +2,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 
 # MCP 工具
 
-当前包含 38 个工具，按功能分组如下。
+当前包含 40 个工具，按功能分组如下。
 
 源数据: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.json)
 
@@ -107,6 +107,11 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 ### 云 API
 
 - [`callCloudApi`](#callcloudapi)
+
+### 消息推送
+
+- [`queryMessagePush`](#querymessagepush)
+- [`manageMessagePush`](#managemessagepush)
 
 ---
 
@@ -1995,8 +2000,9 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
       - 需要 auth-web 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web)
       - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)
 
-      固定技能文档 (skill) 查询当前支持 28 个固定文档，分别是：
-      文档名：ai-model-nodejs 文档介绍："Use this skill for Node.js backend AI via @cloudbase/node-sdk (&gt;=3.16.0) — cloud functions, CloudRun, Express, Koa, NestJS, serverless APIs, scheduled jobs, LLM proxies. Only SDK supporting image generation (ai.createImageModel + generateImage). Text models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field of generateText/streamText. MUST run two-step preflight before code — see body. Keywords: backend, 云函数, 云托管, serverless, LLM proxy, agent orchestration, generateText, streamText, generateImage, createModel, hunyuan-image, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat)."
+      固定技能文档 (skill) 查询当前支持 29 个固定文档，分别是：
+      文档名：skills 文档介绍：Unified CloudBase execution guide for all-in-one skill installs. Use this first for CloudBase app tasks, especially existing apps with TODOs, fixed pages, or active handlers. Routes PostgreSQL / CloudBase PG / app.rdb() / queryPgDatabase / managePgDatabase work away from legacy NoSQL and old auth patterns.
+文档名：ai-model-nodejs 文档介绍："Use this skill for Node.js backend AI via @cloudbase/node-sdk (&gt;=3.16.0) — cloud functions, CloudRun, Express, Koa, NestJS, serverless APIs, scheduled jobs, LLM proxies. Only SDK supporting image generation (ai.createImageModel + generateImage). Text models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field of generateText/streamText. MUST run two-step preflight before code — see body. Keywords: backend, 云函数, 云托管, serverless, LLM proxy, agent orchestration, generateText, streamText, generateImage, createModel, hunyuan-image, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat)."
 文档名：ai-model-web 文档介绍："Use this skill when a browser/Web app (React, Vue, Angular, Next, Nuxt, static sites, SPAs, dashboards, AI chat UI) needs AI models via @cloudbase/js-sdk. Default routing for page/页面/Web/前端/frontend/网页/H5 AI — call directly from browser, do NOT propose a Node.js proxy. Covers generateText and streamText. Models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field. MUST run two-step preflight before code — see body. Keywords: 页面, Web, 前端, React, Vue, Next, Nuxt, SPA, AI chat UI, generateText, streamText, createModel, hunyuan-exp, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for Node.js backend (use ai-model-nodejs), Mini Program (use ai-model-wechat), or image generation (Node SDK only)."
 文档名：ai-model-wechat 文档介绍："Use this skill for WeChat Mini Program AI via wx.cloud.extend.AI (小程序, 企业微信小程序, wx.cloud apps). Features generateText and streamText with callbacks (onText, onEvent, onFinish). Models via wx.cloud.extend.AI.createModel with groups hunyuan-exp (小程序成长计划), cloudbase (main managed), or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the data wrapper model field. API differs from JS/Node SDK — streamText needs data wrapper, generateText returns raw response. MUST run two-step preflight before code — see body. Keywords: Mini Program AI, wx.cloud.extend.AI, 小程序成长计划, ai_miniprogram_inspire_plan, Token Credits 资源包, generateText, streamText, createModel, hunyuan-exp, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs)."
 文档名：auth-nodejs-cloudbase 文档介绍：CloudBase Node SDK auth guide for server-side identity, user lookup, and custom login tickets. This skill should be used when Node.js code must read caller identity, inspect end users, or bridge an existing user system into CloudBase; not when configuring providers or building client login UI.
@@ -2047,7 +2053,7 @@ API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
     {
       name: "skillName",
       type: "string",
-      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
+      description: `mode=skill 时指定。技能名称。 可填写的值: "skills", "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
     },
     {
       name: "apiName",
@@ -3369,6 +3375,86 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
       name: "region",
       type: "string",
       description: `云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写入 params.Region。`,
+    }
+  ]}
+/>
+
+---
+
+### `queryMessagePush`
+查询小程序云开发消息推送配置（qbase getappconfig）或全部合法消息推送事件约束（getcallbacksupportlist）。消息推送把小程序事件（含虚拟支付回调）送到云函数，无需自建服务器。action=list 返回当前配置列表（msgType/event/env/functionName/enable）与 version（乐观锁版本号）；action=listSupportedEvents 返回全部合法事件（按消息类型分组，含虚拟支付 7 个 xpay_* 事件），供 manageMessagePush 的 event_types 使用。需要微信 IDE 登录态通道（宿主注入 pluginOptions.msgPush.requestFn），独立 CloudBase MCP 运行会返回指引错误。
+
+#### 参数
+
+<ParameterTable
+  parameters={[
+    {
+      name: "appid",
+      type: "string",
+      required: true,
+      description: `小程序 AppID（必填，与微信开发者工具一致；用于选择微信登录态会话）`,
+    },
+    {
+      name: "env",
+      type: "string",
+      description: `可选：环境 ID；传入时 list 仅返回该环境的订阅条目`,
+    },
+    {
+      name: "action",
+      type: "string",
+      required: true,
+      description: `list: 查询当前消息推送配置列表 listSupportedEvents: 查询全部合法消息推送事件约束（按 msgType 分组） 可填写的值: "list", "listSupportedEvents"`,
+    }
+  ]}
+/>
+
+---
+
+### `manageMessagePush`
+管理小程序云开发消息推送配置（写操作，需 confirm="yes" 确认）。基于「读全量 → merge → 全量覆盖（带 version 乐观锁）」实现声明式幂等（对齐 kubectl apply：event_types 是期望集合，重复执行收敛到同一状态；version 冲突即 RFC 7232 If-Match 412，返回可重试错误：重读 → merge → 重试）。action=subscribe 订阅事件到指定云函数（event_types 缺省时默认订阅虚拟支付 7 个 xpay_* 事件；显式传入支持任意合法事件）；同一事件只能推到一个云函数（一事一函数），已绑定其他函数的事件会自动重绑并说明。action=unsubscribe 移除指定事件订阅（event_types 必填，只移除匹配条目，保留其他配置）。action=setEnable 启用/停用指定事件订阅（event_types + enable 必填）。action=ensureCloudFunctionMode 确保推送模式为云函数（若为云托管整包接收则切换 qbase_open=false，需确认）。集合无变化时不发起写请求（幂等 no-op，无需确认）。需要微信 IDE 登录态通道（宿主注入 pluginOptions.msgPush.requestFn）。
+
+#### 参数
+
+<ParameterTable
+  parameters={[
+    {
+      name: "appid",
+      type: "string",
+      required: true,
+      description: `小程序 AppID（必填，与微信开发者工具一致；用于选择微信登录态会话）`,
+    },
+    {
+      name: "env_id",
+      type: "string",
+      required: true,
+      description: `环境 ID（订阅条目绑定的云开发环境）`,
+    },
+    {
+      name: "function_name",
+      type: "string",
+      required: true,
+      description: `接收消息推送的云函数名`,
+    },
+    {
+      name: "action",
+      type: "string",
+      required: true,
+      description: `subscribe: 订阅事件到指定云函数（event_types 缺省=虚拟支付 7 事件） unsubscribe: 移除指定事件订阅（event_types 必填） setEnable: 启用/停用指定事件订阅（event_types + enable 必填） ensureCloudFunctionMode: 确保为云函数推送模式（云托管整包接收时切换，需确认） 可填写的值: "subscribe", "unsubscribe", "setEnable", "ensureCloudFunctionMode"`,
+    },
+    {
+      name: "event_types",
+      type: "array of string",
+      description: `要操作的事件列表（任意合法事件，可先 queryMessagePush(action=listSupportedEvents) 查询全量约束）。subscribe 缺省时默认订阅虚拟支付 7 个事件：xpay_goods_deliver_notify、xpay_coin_pay_notify、xpay_complaint_notify、xpay_subscribe_signing_result_notify、xpay_subscribe_pay_fail_notify、xpay_subscribe_ios_refund_query_notify、xpay_refund_notify；unsubscribe / setEnable 时必填。`,
+    },
+    {
+      name: "enable",
+      type: "boolean",
+      description: `setEnable 时必填：true 启用订阅 / false 停用订阅`,
+    },
+    {
+      name: "confirm",
+      type: "string",
+      description: `写操作确认：确认执行请传 confirm="yes"；不传或传其他值将返回待确认的配置摘要（CONFIRM_REQUIRED），核对后再重试。集合无变化时无需确认。`,
     }
   ]}
 />
