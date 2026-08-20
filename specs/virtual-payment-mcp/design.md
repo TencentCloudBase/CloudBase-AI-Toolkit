@@ -30,7 +30,7 @@ flowchart TB
 
 | 层 | 职责 |
 | --- | --- |
-| **CloudBase MCP** | **实现源**：消息推送工具（`queryMessagePush`/`manageMessagePush`，进 `AVAILABLE_PLUGINS`）；随包发版；telemetry 收集使用数据 |
+| **CloudBase MCP** | **实现源**：消息推送工具（`queryMessagePush`/`manageMessagePush`，进 `AVAILABLE_PLUGINS` 但默认不启用）；随包发版 |
 | WeChat IDE Skills/MCP | **消费方**：升级 `@cloudbase/cloudbase-mcp` 版本，经 `EXPOSED_TOOL_NAME` 暴露 `cloud_msg_push_query`/`cloud_msg_push_manage`；登录=扫码 |
 | 后端（微信云开发） | 云调用绑定接口开发（`setfuncconfig` 或等价），MCP 不封装 |
 | 控制台（weda-alternative） | 虚拟支付商户展示 UI |
@@ -61,7 +61,7 @@ flowchart TB
 
 > **v1 边界（Booker 2026-08-20 裁定）：** 消息推送工具 = CloudBase MCP 实现 + 微信侧消费。云调用与虚拟支付商户查询均不在 MCP 范围——云调用归属后端开发，商户展示归属控制台团队。
 
-**发布链路（Booker 2026-08-20）：** 实现 → 单测 → `mcp/scripts/test-with-ticket.cjs` 真实调用（微信 IDE ticket）→ 提交 PR → 发布新版本 → main 升级版本号（验证旧工具无 break change）→ 提 PR 给微信侧参考。telemetry 保持开启（`enableTelemetry` 默认 true）用于优化。
+**发布链路（Booker 2026-08-20）：** 实现 → 单测 → `mcp/scripts/test-with-ticket.cjs` 真实调用（微信 IDE ticket）→ 提交 PR → 发布新版本 → main 升级版本号（验证旧工具无 break change）→ 提 PR 给微信侧参考。**启用方式：msg-push 进 AVAILABLE_PLUGINS 但不在 DEFAULT_PLUGINS，用户需手动启用（微信仓库代码 pluginsEnabled 传入）**。telemetry 遵循微信侧默认（关闭）。
 
 > **不做（Booker 2026-08-20 裁定）：** 云调用工具（`queryCloudCall` / `manageCloudCall`）与虚拟支付商户查询工具（`queryVirtualPaymentConfig` / `query_xpay_config`）**均已从设计移除**——云调用归属后端开发，商户展示归属控制台团队，MCP 均不提供。
 
@@ -194,7 +194,7 @@ UI：控制台（weda-alternative）在 `globalsettings` 微信支付 Card 旁�
 
 当前 `cloudbase-tools.ts` 只包装 `@cloudbase/cloudbase-mcp` 的 nosql/storage，且 `requestFn` 打 tcb。
 
-**推荐（实现源修正，Booker 2026-08-20）：** 消息推送工具在 **CloudBase-MCP 仓库实现**（`queryMessagePush`/`manageMessagePush`，进 `AVAILABLE_PLUGINS`），随包发布新版本；main（微信开发者工具）升级 `@cloudbase/cloudbase-mcp` 版本号后，经 `EXPOSED_TOOL_NAME` 映射暴露为 `cloud_msg_push_query`/`cloud_msg_push_manage`——**无需在 main 侧新增原生实现**。升级时验证旧工具（nosql/storage 等）schema 无 break change，再提 PR 给微信侧参考。云调用与虚拟支付商户查询**不做**（归属后端开发/控制台团队）。
+**推荐（实现源修正，Booker 2026-08-20）：** 消息推送工具在 **CloudBase-MCP 仓库实现**（`queryMessagePush`/`manageMessagePush`，进 `AVAILABLE_PLUGINS` 但不在 DEFAULT_PLUGINS），随包发布新版本；main（微信开发者工具）升级 `@cloudbase/cloudbase-mcp` 版本号后，经 `EXPOSED_TOOL_NAME` 映射暴露为 `cloud_msg_push_query`/`cloud_msg_push_manage`——**无需在 main 侧新增原生实现**。升级时验证旧工具（nosql/storage 等）schema 无 break change，再提 PR 给微信侧参考。云调用与虚拟支付商户查询**不做**（归属后端开发/控制台团队）。
 
 ## 7. Agent skill 草案
 

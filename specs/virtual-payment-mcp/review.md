@@ -2,7 +2,7 @@
 
 面向产品 / starkewang / 微信 IDE / CloudBase MCP 维护者。本阶段无实现代码。
 
-> **已裁定（Booker 2026-08-20，两轮）：** ① 消息推送工具**通用化**——不限于虚拟支付，`event_types` 支持任意合法事件，xpay 7 事件为缺省默认集合；② 云调用绑定**完全归属微信云开发后端开发**——**微信 IDE MCP 与 CloudBase MCP 均不提供云调用工具**（`queryCloudCall`/`manageCloudCall` 已移除）；③ 虚拟支付商户展示**归属控制台（weda-alternative）团队**——**微信 IDE MCP 与 CloudBase MCP 均不提供商户查询工具**（`queryVirtualPaymentConfig` 已移除）；④ 工具命名**对齐 `cloud_*` 体系**：CloudBase MCP 内部 `queryMessagePush`/`manageMessagePush`，微信侧暴露 `cloud_msg_push_query` / `cloud_msg_push_manage`；⑤ **实现源修正（Booker 2026-08-20）**：消息推送工具在 **CloudBase-MCP 仓库单端实现**，随包发版，**main 升级 `@cloudbase/cloudbase-mcp` 版本消费**（验证无 break change），再提 PR 给微信侧参考；测试用 `mcp/scripts/test-with-ticket.cjs`（微信 IDE ticket），telemetry 保持开启。以下决策点基于此裁定。
+> **已裁定（Booker 2026-08-20，两轮）：** ① 消息推送工具**通用化**——不限于虚拟支付，`event_types` 支持任意合法事件，xpay 7 事件为缺省默认集合；② 云调用绑定**完全归属微信云开发后端开发**——**微信 IDE MCP 与 CloudBase MCP 均不提供云调用工具**（`queryCloudCall`/`manageCloudCall` 已移除）；③ 虚拟支付商户展示**归属控制台（weda-alternative）团队**——**微信 IDE MCP 与 CloudBase MCP 均不提供商户查询工具**（`queryVirtualPaymentConfig` 已移除）；④ 工具命名**对齐 `cloud_*` 体系**：CloudBase MCP 内部 `queryMessagePush`/`manageMessagePush`，微信侧暴露 `cloud_msg_push_query` / `cloud_msg_push_manage`；⑤ **实现源修正（Booker 2026-08-20）**：消息推送工具在 **CloudBase-MCP 仓库单端实现**，随包发版，**main 升级 `@cloudbase/cloudbase-mcp` 版本消费**（验证无 break change），再提 PR 给微信侧参考；测试用 `mcp/scripts/test-with-ticket.cjs`（微信 IDE ticket）；**msg-push 默认不启用（用户/微信代码显式启用），telemetry 遵循微信侧默认关闭**。以下决策点基于此裁定。
 
 ## 决策点清单
 

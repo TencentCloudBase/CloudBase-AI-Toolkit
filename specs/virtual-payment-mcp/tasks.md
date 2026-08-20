@@ -34,7 +34,7 @@
 
 ## 阶段 B — CloudBase-MCP 实现（核心，唯一实现源）
 
-- [ ] B.1 新增 `mcp/src/tools/msg-push.ts`：实现 `queryMessagePush` / `manageMessagePush`（qbase CGI 封装 + 幂等 merge + 写确认；通用事件，xpay 默认集合），进 `AVAILABLE_PLUGINS`（或 DEFAULT_PLUGINS）
+- [ ] B.1 新增 `mcp/src/tools/msg-push.ts`：实现 `queryMessagePush` / `manageMessagePush`（qbase CGI 封装 + 幂等 merge + 写确认；通用事件，xpay 默认集合），进 `AVAILABLE_PLUGINS`（**不在 DEFAULT_PLUGINS，默认不启用**）
   - _需求: 1, 5
   - **开发时使用 worktree 隔离：** 是（`.worktrees/virtual-payment-impl`，分支 `feat/virtual-payment-mcp`）
 
@@ -46,7 +46,7 @@
   - _需求: 1, 5
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] B.4 提交 PR 到 CloudBase-MCP 仓库 → 发布新版本（`mcp/package.json` bump + `prepublishOnly` 流程），telemetry 保持开启
+- [ ] B.4 提交 PR 到 CloudBase-MCP 仓库（**只开发不发版**，发布由 Booker 另行确认）；不强制开启 telemetry（遵循微信侧默认）
   - _需求: 5
   - **开发时使用 worktree 隔离：** 是
 
