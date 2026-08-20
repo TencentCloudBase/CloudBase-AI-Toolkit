@@ -158,6 +158,16 @@ export interface PolicySummary {
   withCheck?: string;
 }
 
+export interface PolicyInput {
+  name: string;
+  schemaTable: string;
+  command: string;
+  roles: string[];
+  using?: string;
+  withCheck?: string;
+  permissive?: boolean;
+}
+
 export interface TableSchemaDetail {
   schemaTable: string;
   kind: string;
@@ -300,6 +310,9 @@ export interface CloudBaseData {
   listTriggers?(schema?: string): Promise<Array<{ schema: string; table: string; name: string; definition?: string }>>;
   listTypes?(schema?: string): Promise<Array<{ schema: string; name: string; definition?: string }>>;
   listColumnPrivileges?(schemaTable: string): Promise<Array<{ grantee: string; columnName: string; privilegeType: string }>>;
+  upsertPolicy?(input: PolicyInput & { previousName?: string }, confirm: boolean): Promise<void>;
+  dropPolicy?(schemaTable: string, policyName: string, confirm: boolean): Promise<void>;
+  toggleTableRls?(schemaTable: string, enable: boolean, confirm: boolean): Promise<void>;
   listGatewayRoutes(): Promise<GatewayRoute[]>;
   upsertGatewayRoute(input: GatewayRouteInput): Promise<void>;
   deleteGatewayRoute(routeId: string, confirm: boolean): Promise<void>;
