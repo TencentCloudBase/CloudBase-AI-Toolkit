@@ -1,6 +1,6 @@
 # platform-kit 能力对齐矩阵
 
-> 由 `scripts/capability-sync.mjs` 自动生成 · 上次巡检：2026-08-20T01:06
+> 由 `scripts/capability-sync.mjs` 自动生成 · 上次巡检：2026-08-20T01:12
 >
 > **维护约定**：dev-platform 或 cloudbase-mcp 迭代后重跑本脚本（`node scripts/capability-sync.mjs`），把新增的 ❌/⚠️ 缺口派发为 ATO 任务。不要手改本文件（要改改脚本）。
 >
