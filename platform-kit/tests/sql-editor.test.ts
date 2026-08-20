@@ -53,9 +53,10 @@ describe("cls unavailable mapping", () => {
 });
 
 describe("i18n + layout tokens", () => {
-  it("uses the console-enable copy for CLS disabled", () => {
-    expect(t("zh", "logs.cls.disabled")).toContain("CloudBase 控制台开通");
-    expect(t("zh", "db.tab.sql")).toBe("SQL");
+  it("defines resource page copy", () => {
+    expect(t("zh", "fn.title")).toBe("云函数");
+    expect(t("zh", "cr.empty")).toBe("暂无云托管服务");
+    expect(t("zh", "storage.bucketWrite.unsupported")).toContain("CreateBucket");
   });
 
   it("defines narrow-width toolbar classes", () => {

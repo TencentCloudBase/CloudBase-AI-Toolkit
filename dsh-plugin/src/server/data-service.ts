@@ -24,6 +24,14 @@ import type {
   RowPage,
   SecretItem,
   StorageObject,
+  StorageBucket,
+  CloudFunctionDetail,
+  CloudFunctionSummary,
+  CloudRunLogResult,
+  CloudRunService,
+  FunctionLogRow,
+  HostingInfo,
+  WriteUnsupported,
   TableSchemaDetail,
   TableSummary,
   UsageItem,
@@ -54,6 +62,20 @@ import {
   sqlTableRlsStatus,
   sqlWrapDdl,
 } from "../../../platform-kit/src/pg/sql.js";
+import {
+  BUCKET_WRITE_UNSUPPORTED,
+  INVOKE_UNSUPPORTED,
+  countHostingDomains,
+  mapCloudRunDeploys,
+  mapCloudRunService,
+  mapCloudRunVersions,
+  mapFunctionDetail,
+  mapFunctionLogs,
+  mapFunctionSummary,
+  mapHostingInfo,
+  mapLogLines,
+  mapStorageBuckets,
+} from "./resource-capi.js";
 
 type LooseRecord = Record<string, unknown>;
 type LoginMethod = "device-code" | "apikey" | "host-injected";
@@ -175,10 +197,35 @@ export function createCloudBaseDataService(
     service: string,
     action: string,
     params: Record<string, unknown> = {},
+    version?: string,
   ): Promise<LooseRecord> {
-    return unwrapData(
-      await bridge.callTool("callCloudApi", { service, action, params }),
-    );
+    const args: Record<string, unknown> = { service, action, params };
+    if (version) args.version = version;
+    return unwrapData(await bridge.callTool("callCloudApi", args));
+  }
+
+  async function callTcbr(action: string, params: Record<string, unknown>): Promise<LooseRecord> {
+    return callCapi("tcbr", action, params, "2022-02-17");
+  }
+
+  async function listFunctionRows(
+    envId: string,
+    opts?: { searchKey?: string; limit?: number; offset?: number },
+  ): Promise<unknown[]> {
+    const params: Record<string, unknown> = { EnvId: envId };
+    if (opts?.limit != null) params.Limit = opts.limit;
+    if (opts?.offset != null) params.Offset = opts.offset;
+    if (opts?.searchKey) params.SearchKey = opts.searchKey;
+    try {
+      const payload = await callCapi("tcb", "ListFunctions", params);
+      return arr(payload.Functions ?? payload.functions);
+    } catch {
+      const payload = await callCapi("tcb", "DescribeFunctions", {
+        EnvId: envId,
+        Limit: opts?.limit ?? 100,
+      });
+      return arr(payload.Functions ?? payload.functions);
+    }
   }
 
   async function rawAuthCall(args: Record<string, unknown>): Promise<LooseRecord> {
@@ -382,8 +429,7 @@ export function createCloudBaseDataService(
       const envId = await requireEnvId();
       const secrets: SecretItem[] = [];
       try {
-        const listed = await callCapi("tcb", "DescribeFunctions", { EnvId: envId, Limit: 20 });
-        const functions = arr(listed.Functions ?? listed.functions);
+        const functions = await listFunctionRows(envId, { limit: 20 });
         for (const item of functions.slice(0, 20)) {
           const row = rec(item);
           const name = str(row.FunctionName ?? row.Name);
@@ -435,6 +481,18 @@ export function createCloudBaseDataService(
     async listStorage(_path = "") {
       // Host COS responsibility per spec §3.6 — file listing via host SDK, not MCP storage tools.
       return [] satisfies StorageObject[];
+    },
+
+    async listStorageObjects(_bucket: string, _prefix = "") {
+      return [] satisfies StorageObject[];
+    },
+
+    async listHostingObjects(_prefix = "") {
+      return [] satisfies StorageObject[];
+    },
+
+    async uploadStorage() {
+      throw new Error("uploadStorage 需宿主注入 COS SDK 实现");
     },
 
     async storageUrl(_cloudPath) {
@@ -1099,10 +1157,158 @@ export function createCloudBaseDataService(
 
     async listFunctionNames() {
       const envId = await requireEnvId();
-      const payload = await callCapi("tcb", "DescribeFunctions", { EnvId: envId, Limit: 100 });
-      return arr(payload.Functions ?? payload.functions)
-        .map((item) => str(rec(item).FunctionName ?? rec(item).Name))
+      return (await listFunctionRows(envId, { limit: 100 }))
+        .map((item) => mapFunctionSummary(item)?.name)
         .filter((value): value is string => Boolean(value));
+    },
+
+    async listFunctions(opts?: { searchKey?: string; limit?: number; offset?: number }) {
+      const envId = await requireEnvId();
+      return (await listFunctionRows(envId, opts))
+        .map((item) => mapFunctionSummary(item))
+        .filter((item): item is CloudFunctionSummary => Boolean(item));
+    },
+
+    async getFunction(name: string): Promise<CloudFunctionDetail> {
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcb", "GetFunction", { EnvId: envId, FunctionName: name });
+      const detail = mapFunctionDetail(payload, name);
+      if (detail.triggers.length === 0) {
+        try {
+          const extra = await callCapi("scf", "ListTriggers", { FunctionName: name, Namespace: envId });
+          detail.triggers = arr(extra.Triggers ?? extra.triggers).map((item) => {
+            const row = rec(item);
+            return {
+              name: str(row.TriggerName ?? row.Name) ?? "trigger",
+              type: str(row.Type) ?? "unknown",
+              triggerDesc: str(row.TriggerDesc),
+            };
+          });
+        } catch {
+          // Triggers are optional; GetFunction already tried.
+        }
+      }
+      return detail;
+    },
+
+    async listFunctionLogs(name: string): Promise<FunctionLogRow[]> {
+      const envId = await requireEnvId();
+      try {
+        const payload = await callCapi("tcb", "GetFunctionLogs", {
+          EnvId: envId,
+          FunctionName: name,
+          Limit: 20,
+        });
+        const rows = mapFunctionLogs(payload);
+        if (rows.length > 0) return rows;
+      } catch {
+        // GetFunctionLogs often asks to upgrade the developer tools; fall back to CLS.
+      }
+      const end = new Date();
+      const start = new Date(end.getTime() - 24 * 3600000);
+      const payload = await callCapi("tcb", "SearchClsLog", {
+        EnvId: envId,
+        QueryString: name,
+        Limit: 20,
+        StartTime: formatClsTime(start),
+        EndTime: formatClsTime(end),
+        Sort: "desc",
+      });
+      return mapFunctionLogs(payload);
+    },
+
+    async invokeFunction(_name: string, _payload?: string): Promise<WriteUnsupported> {
+      return INVOKE_UNSUPPORTED;
+    },
+
+    async listCloudRunServices() {
+      const envId = await requireEnvId();
+      const payload = await callTcbr("DescribeCloudRunServers", { EnvId: envId });
+      return arr(payload.ServerList ?? payload.Servers ?? payload.serverList)
+        .map((item) => mapCloudRunService(item))
+        .filter((item): item is CloudRunService => Boolean(item));
+    },
+
+    async getCloudRunService(name: string) {
+      const envId = await requireEnvId();
+      let payload: LooseRecord = {};
+      try {
+        payload = await callTcbr("DescribeCloudRunServerDetail", {
+          EnvId: envId,
+          ServerName: name,
+        });
+      } catch {
+        payload = {};
+      }
+      const service = mapCloudRunService(payload.Server ?? payload) ?? {
+        name,
+        status: str(payload.Status),
+      };
+      return { service, versions: mapCloudRunVersions(payload) };
+    },
+
+    async listCloudRunDeploys(name: string) {
+      const envId = await requireEnvId();
+      try {
+        const payload = await callTcbr("DescribeCloudRunDeployRecord", {
+          EnvId: envId,
+          ServerName: name,
+        });
+        return mapCloudRunDeploys(payload);
+      } catch {
+        return [];
+      }
+    },
+
+    async listCloudRunLogs(name: string, kind: "process" | "build"): Promise<CloudRunLogResult> {
+      const envId = await requireEnvId();
+      if (kind === "build") {
+        try {
+          const payload = await callTcbr("DescribeCloudRunBuildLog", {
+            EnvId: envId,
+            ServerName: name,
+          });
+          return { lines: mapLogLines(payload) };
+        } catch {
+          return {
+            lines: [],
+            notice:
+              "构建日志依赖 CODING 流水线，当前环境不可用或接口失败。运行日志请查看 process 页签。",
+          };
+        }
+      }
+      try {
+        const payload = await callTcbr("DescribeCloudRunProcessLog", {
+          EnvId: envId,
+          ServerName: name,
+        });
+        return { lines: mapLogLines(payload) };
+      } catch {
+        return { lines: [] };
+      }
+    },
+
+    async getHostingOverview(): Promise<HostingInfo> {
+      const envId = await requireEnvId();
+      const [hosting, envPayload] = await Promise.all([
+        callCapi("tcb", "DescribeHostingDomain", { EnvId: envId }).catch(() => ({} as LooseRecord)),
+        callCapi("tcb", "DescribeEnvs", { EnvId: envId }).catch(() => ({} as LooseRecord)),
+      ]);
+      return mapHostingInfo(hosting, rec(arr(envPayload.EnvList)[0]));
+    },
+
+    async listHostingVersions() {
+      return service.listDeployments();
+    },
+
+    async listStorageBuckets(): Promise<StorageBucket[]> {
+      const envId = await requireEnvId();
+      const envPayload = await callCapi("tcb", "DescribeEnvs", { EnvId: envId });
+      return mapStorageBuckets(envPayload);
+    },
+
+    async describeBucketWriteSupport(): Promise<WriteUnsupported> {
+      return BUCKET_WRITE_UNSUPPORTED;
     },
 
     async setGatewayServiceEnabled(enable) {
@@ -1178,8 +1384,7 @@ export function createCloudBaseDataService(
       let functionCount = 0;
       if (envId) {
         try {
-          const fn = await callCapi("tcb", "DescribeFunctions", { EnvId: envId, Limit: 100 });
-          functionCount = arr(fn.Functions ?? fn.functions).length;
+          functionCount = (await listFunctionRows(envId, { limit: 100 })).length;
         } catch {
           functionCount = 0;
         }
@@ -1188,8 +1393,7 @@ export function createCloudBaseDataService(
       if (envId) {
         try {
           const hosting = await callCapi("tcb", "DescribeHostingDomain", { EnvId: envId });
-          const domains = arr(hosting.Domains ?? hosting.domains);
-          hostingDomainCount = domains.length || (str(hosting.DefaultDomain) ? 1 : 0);
+          hostingDomainCount = countHostingDomains(hosting);
         } catch {
           hostingDomainCount = 0;
         }
@@ -1248,11 +1452,13 @@ export function createCloudBaseDataService(
       try {
         const hosting = await callCapi("tcb", "DescribeHostingDomain", { EnvId: envId });
         const defaultDomain = str(hosting.DefaultDomain ?? hosting.defaultDomain);
-        if (defaultDomain) {
+        const hosted = mapHostingInfo(hosting, {});
+        const url = defaultDomain ?? hosted.defaultUrl ?? hosted.domains[0]?.domain;
+        if (url) {
           endpoints.push({
             id: "hosting:default",
             label: "静态托管",
-            url: normalizeUrl(defaultDomain),
+            url: normalizeUrl(url),
             resourceType: "hosting",
           });
         }

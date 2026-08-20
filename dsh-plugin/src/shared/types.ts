@@ -37,6 +37,85 @@ export interface StorageObject {
   isDirectory: boolean;
 }
 
+export interface WriteUnsupported {
+  supported: false;
+  reason: string;
+}
+
+export interface CloudFunctionSummary {
+  name: string;
+  runtime?: string;
+  status?: string;
+  invokeCount?: number;
+  updatedAt?: string;
+}
+
+export interface CloudFunctionTrigger {
+  name: string;
+  type: string;
+  triggerDesc?: string;
+}
+
+export interface CloudFunctionDetail {
+  name: string;
+  runtime?: string;
+  status?: string;
+  handler?: string;
+  timeout?: number;
+  memorySize?: number;
+  environment: Array<{ key: string; value: string }>;
+  triggers: CloudFunctionTrigger[];
+}
+
+export interface FunctionLogRow {
+  requestId?: string;
+  startTime?: string;
+  duration?: string;
+  status?: string;
+  log?: string;
+}
+
+export interface CloudRunService {
+  name: string;
+  status?: string;
+  version?: string;
+  traffic?: string;
+  cpu?: string;
+  memory?: string;
+  instanceCount?: string;
+}
+
+export interface CloudRunVersion {
+  versionName: string;
+  status?: string;
+  deployedAt?: string;
+}
+
+export interface CloudRunDeployRecord {
+  id: string;
+  status?: string;
+  deployedAt?: string;
+  versionName?: string;
+}
+
+export interface CloudRunLogResult {
+  lines: string[];
+  notice?: string;
+}
+
+export interface HostingInfo {
+  domains: Array<{ domain: string; status?: string }>;
+  defaultUrl?: string;
+}
+
+export interface StorageBucket {
+  name: string;
+  region?: string;
+  createdAt?: string;
+  sizeLabel?: string;
+  cdnDomain?: string;
+}
+
 export type LoginMethod = "device-code" | "apikey" | "host-injected";
 
 export interface LoginOption {
@@ -326,6 +405,21 @@ export interface CloudBaseData {
   runReadSql(sql: string): Promise<RowPage>;
   listStorage(path?: string): Promise<StorageObject[]>;
   storageUrl(cloudPath: string): Promise<{ url: string; expiresInSec: number }>;
+  listStorageObjects?(bucket: string, prefix?: string): Promise<StorageObject[]>;
+  listHostingObjects?(prefix?: string): Promise<StorageObject[]>;
+  uploadStorage?(input: { bucket?: string; prefix?: string }): Promise<{ uploaded: number }>;
+  listFunctions?(opts?: { searchKey?: string; limit?: number; offset?: number }): Promise<CloudFunctionSummary[]>;
+  getFunction?(name: string): Promise<CloudFunctionDetail>;
+  listFunctionLogs?(name: string): Promise<FunctionLogRow[]>;
+  invokeFunction?(name: string, payload?: string): Promise<{ result: string } | WriteUnsupported>;
+  listCloudRunServices?(): Promise<CloudRunService[]>;
+  getCloudRunService?(name: string): Promise<{ service: CloudRunService; versions: CloudRunVersion[] }>;
+  listCloudRunDeploys?(name: string): Promise<CloudRunDeployRecord[]>;
+  listCloudRunLogs?(name: string, kind: "process" | "build"): Promise<CloudRunLogResult>;
+  getHostingOverview?(): Promise<HostingInfo>;
+  listHostingVersions?(): Promise<DeploymentRecord[]>;
+  listStorageBuckets?(): Promise<StorageBucket[]>;
+  describeBucketWriteSupport?(): Promise<WriteUnsupported>;
   authStatus(): Promise<AuthStatus>;
   startLogin?(method?: LoginMethod, params?: { envId?: string; apiKey?: string }): Promise<AuthStatus>;
   authStateChange?(listener: (status: AuthStatus) => void): () => void;

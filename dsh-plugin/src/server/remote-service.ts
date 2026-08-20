@@ -137,6 +137,21 @@ export function buildCloudBaseTypertContribution(): {
       invoke("getGatewayPrivilege"),
       invoke("listGatewayDomains"),
       invoke("listFunctionNames"),
+      invoke("listFunctions", ["searchKey", "limit", "offset"]),
+      invoke("getFunction", ["name"]),
+      invoke("listFunctionLogs", ["name"]),
+      invoke("invokeFunction", ["name", "payload"]),
+      invoke("listCloudRunServices"),
+      invoke("getCloudRunService", ["name"]),
+      invoke("listCloudRunDeploys", ["name"]),
+      invoke("listCloudRunLogs", ["name", "kind"]),
+      invoke("getHostingOverview"),
+      invoke("listHostingVersions"),
+      invoke("listHostingObjects", ["prefix"]),
+      invoke("listStorageBuckets"),
+      invoke("listStorageObjects", ["bucket", "prefix"]),
+      invoke("uploadStorage", ["bucket", "prefix"]),
+      invoke("describeBucketWriteSupport"),
       invoke("setGatewayServiceEnabled", ["enable"]),
       invoke("setGatewayAuthEnabled", ["enable"]),
       invoke("fetchMetricSeries", ["metricName", "startTime", "endTime", "period"]),
@@ -467,6 +482,81 @@ export class CloudBaseRemoteService extends TypertRemoteService {
   @Remote("listFunctionNames")
   async listFunctionNames() {
     return toJsonSafe(await this.data.listFunctionNames?.());
+  }
+
+  @Remote("listFunctions")
+  async listFunctions(searchKey?: string, limit?: number, offset?: number) {
+    return toJsonSafe(await this.data.listFunctions?.({ searchKey, limit, offset }));
+  }
+
+  @Remote("getFunction")
+  async getFunction(name: string) {
+    return toJsonSafe(await this.data.getFunction?.(name));
+  }
+
+  @Remote("listFunctionLogs")
+  async listFunctionLogs(name: string) {
+    return toJsonSafe(await this.data.listFunctionLogs?.(name));
+  }
+
+  @Remote("invokeFunction")
+  async invokeFunction(name: string, payload?: string) {
+    return toJsonSafe(await this.data.invokeFunction?.(name, payload));
+  }
+
+  @Remote("listCloudRunServices")
+  async listCloudRunServices() {
+    return toJsonSafe(await this.data.listCloudRunServices?.());
+  }
+
+  @Remote("getCloudRunService")
+  async getCloudRunService(name: string) {
+    return toJsonSafe(await this.data.getCloudRunService?.(name));
+  }
+
+  @Remote("listCloudRunDeploys")
+  async listCloudRunDeploys(name: string) {
+    return toJsonSafe(await this.data.listCloudRunDeploys?.(name));
+  }
+
+  @Remote("listCloudRunLogs")
+  async listCloudRunLogs(name: string, kind?: string) {
+    return toJsonSafe(await this.data.listCloudRunLogs?.(name, kind === "build" ? "build" : "process"));
+  }
+
+  @Remote("getHostingOverview")
+  async getHostingOverview() {
+    return toJsonSafe(await this.data.getHostingOverview?.());
+  }
+
+  @Remote("listHostingVersions")
+  async listHostingVersions() {
+    return toJsonSafe(await this.data.listHostingVersions?.());
+  }
+
+  @Remote("listHostingObjects")
+  async listHostingObjects(prefix?: string) {
+    return toJsonSafe(await this.data.listHostingObjects?.(prefix ?? ""));
+  }
+
+  @Remote("listStorageBuckets")
+  async listStorageBuckets() {
+    return toJsonSafe(await this.data.listStorageBuckets?.());
+  }
+
+  @Remote("listStorageObjects")
+  async listStorageObjects(bucket: string, prefix?: string) {
+    return toJsonSafe(await this.data.listStorageObjects?.(bucket, prefix ?? ""));
+  }
+
+  @Remote("uploadStorage")
+  async uploadStorage(bucket?: string, prefix?: string) {
+    return toJsonSafe(await this.data.uploadStorage?.({ bucket, prefix }));
+  }
+
+  @Remote("describeBucketWriteSupport")
+  async describeBucketWriteSupport() {
+    return toJsonSafe(await this.data.describeBucketWriteSupport?.());
   }
 
   @Remote("setGatewayServiceEnabled")

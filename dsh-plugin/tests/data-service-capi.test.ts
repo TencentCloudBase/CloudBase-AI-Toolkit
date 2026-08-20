@@ -89,6 +89,7 @@ describe("data-service capi mappings", () => {
       Domains: [{ Domain: "gw.example.com", Routes: [{ Path: "/api", UpstreamResourceName: "fn" }] }],
     },
     "tcb:DescribeCloudBaseGWService": { EnableService: true, EnableAuth: false },
+    "tcb:ListFunctions": { Functions: [{ FunctionName: "fn_a" }] },
     "tcb:DescribeFunctions": { Functions: [{ FunctionName: "fn_a" }] },
     "tcb:DescribeHostingDomain": { Domains: [{ Domain: "x.tcloudbaseapp.com" }] },
     "tcb:DescribeUsage": { Usages: [{ Module: "FLEXDB", CreditsValue: 5 }] },
@@ -175,12 +176,95 @@ describe("data-service capi mappings", () => {
     expect(status.verificationUrl).toContain("verify");
   });
 
-  it("envInfo uses DescribeEnvs and DescribeFunctions capi", async () => {
+  it("envInfo uses DescribeEnvs and ListFunctions capi", async () => {
     const bridge = capiBridge(baseHandlers, baseAuth);
     const data = createCloudBaseDataService(bridge);
     const info = await data.envInfo();
     expect(info.envId).toBe(envId);
     expect(info.functionCount).toBe(1);
+    expect(bridge.capiCalls.some((c) => c.action === "ListFunctions")).toBe(true);
     expect(bridge.toolCalls.every((t) => t.name === "callCloudApi" || t.name === "auth")).toBe(true);
+  });
+
+  it("listFunctions uses tcb/ListFunctions", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        "tcb:ListFunctions": {
+          Functions: [{ FunctionName: "hello", Runtime: "Nodejs18.15", Status: "Active", ModTime: "2026-08-01" }],
+        },
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    const list = await data.listFunctions!({ searchKey: "he" });
+    expect(list[0]?.name).toBe("hello");
+    expect(bridge.capiCalls.find((c) => c.action === "ListFunctions")?.params).toMatchObject({
+      EnvId: envId,
+      SearchKey: "he",
+    });
+  });
+
+  it("listCloudRunServices uses tcbr with version 2022-02-17 and only EnvId", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        "tcbr:DescribeCloudRunServers": { ServerList: [{ ServerName: "api", Status: "running", Cpu: "0.5" }] },
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    const list = await data.listCloudRunServices!();
+    expect(list[0]?.name).toBe("api");
+    const call = bridge.toolCalls.find((t) => t.args.action === "DescribeCloudRunServers");
+    expect(call?.args.service).toBe("tcbr");
+    expect(call?.args.version).toBe("2022-02-17");
+    expect(call?.args.params).toEqual({ EnvId: envId });
+  });
+
+  it("listStorageBuckets maps DescribeEnvs Storages", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        "tcb:DescribeEnvs": {
+          EnvList: [
+            {
+              EnvId: envId,
+              Storages: [{ Bucket: "a-123", Region: "ap-shanghai", CreateTime: "2026-01-01", Size: 2048 }],
+            },
+          ],
+        },
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    const buckets = await data.listStorageBuckets!();
+    expect(buckets[0]?.name).toBe("a-123");
+    expect(buckets[0]?.sizeLabel).toContain("kB");
+  });
+
+  it("getHostingOverview reads DomainSet", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        "tcb:DescribeHostingDomain": { DomainSet: [{ Domain: "app.tcloudbaseapp.com", Status: "ONLINE" }] },
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    const info = await data.getHostingOverview!();
+    expect(info.domains[0]?.domain).toBe("app.tcloudbaseapp.com");
+  });
+
+  it("invokeFunction and bucket writes degrade without calling missing Actions", async () => {
+    const bridge = capiBridge(baseHandlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    const invoke = await data.invokeFunction!("hello");
+    expect("supported" in invoke && invoke.supported).toBe(false);
+    const write = await data.describeBucketWriteSupport!();
+    expect(write.supported).toBe(false);
+    expect(bridge.capiCalls.some((c) => c.action === "InvokeFunction" || c.action === "CreateBucket")).toBe(
+      false,
+    );
   });
 });

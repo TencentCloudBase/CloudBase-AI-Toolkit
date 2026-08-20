@@ -23,6 +23,16 @@ import type {
   RowPage,
   SecretItem,
   StorageObject,
+  StorageBucket,
+  CloudFunctionSummary,
+  CloudFunctionDetail,
+  FunctionLogRow,
+  CloudRunService,
+  CloudRunVersion,
+  CloudRunDeployRecord,
+  CloudRunLogResult,
+  HostingInfo,
+  WriteUnsupported,
   TableSchemaDetail,
   TableSummary,
   UsageItem,
@@ -40,6 +50,28 @@ export interface PlatformProvider {
   runReadSql(sql: string): Promise<RowPage>;
   listStorage(path?: string): Promise<StorageObject[]>;
   storageUrl(cloudPath: string): Promise<{ url: string; expiresInSec: number }>;
+  /** Host COS listing scoped to a bucket. Falls back to listStorage when omitted. */
+  listStorageObjects?(bucket: string, prefix?: string): Promise<StorageObject[]>;
+  /** Host COS listing for static hosting objects. */
+  listHostingObjects?(prefix?: string): Promise<StorageObject[]>;
+  /** Host COS upload (file picker / signed PUT). Not implemented via CAPI. */
+  uploadStorage?(input: { bucket?: string; prefix?: string }): Promise<{ uploaded: number }>;
+
+  listFunctions?(opts?: { searchKey?: string; limit?: number; offset?: number }): Promise<CloudFunctionSummary[]>;
+  getFunction?(name: string): Promise<CloudFunctionDetail>;
+  listFunctionLogs?(name: string): Promise<FunctionLogRow[]>;
+  invokeFunction?(name: string, payload?: string): Promise<{ result: string } | WriteUnsupported>;
+
+  listCloudRunServices?(): Promise<CloudRunService[]>;
+  getCloudRunService?(name: string): Promise<{ service: CloudRunService; versions: CloudRunVersion[] }>;
+  listCloudRunDeploys?(name: string): Promise<CloudRunDeployRecord[]>;
+  listCloudRunLogs?(name: string, kind: "process" | "build"): Promise<CloudRunLogResult>;
+
+  getHostingOverview?(): Promise<HostingInfo>;
+  listHostingVersions?(): Promise<DeploymentRecord[]>;
+
+  listStorageBuckets?(): Promise<StorageBucket[]>;
+  describeBucketWriteSupport?(): Promise<WriteUnsupported>;
   authStatus(): Promise<AuthStatus>;
   startLogin?(method?: string, params?: { envId?: string; apiKey?: string }): Promise<AuthStatus>;
   authStateChange?(listener: (status: AuthStatus) => void): () => void;

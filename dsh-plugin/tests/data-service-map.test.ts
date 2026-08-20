@@ -47,6 +47,7 @@ describe("cloudbase-data mapping", () => {
         "tcb:DescribeEnvs": {
           EnvList: [{ EnvId: envId, Region: "ap-shanghai" }],
         },
+        "tcb:ListFunctions": { Functions: [{ FunctionName: "fn_a" }] },
         "tcb:DescribeFunctions": { Functions: [{ FunctionName: "fn_a" }] },
         "tcb:DescribeHostingDomain": { Domains: [{ Domain: "x.tcloudbaseapp.com" }] },
         "tcb:DescribeUsage": {
@@ -77,6 +78,7 @@ describe("cloudbase-data mapping", () => {
     const bridge = capiBridge(
       {
         "tcb:DescribeEnvs": { EnvList: [{ EnvId: "env-x", Region: "ap-guangzhou" }] },
+        "tcb:ListFunctions": { Functions: [] },
         "tcb:DescribeFunctions": { Functions: [] },
         "tcb:DescribeHostingDomain": { DefaultDomain: "env-x.tcloudbaseapp.com" },
       },

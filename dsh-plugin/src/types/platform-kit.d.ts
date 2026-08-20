@@ -38,6 +38,10 @@ declare module "@cloudbase/platform-kit" {
   export function AuthUsersPage(props: KitPageProps): React.ReactElement;
   export function GatewayPage(props: KitPageProps): React.ReactElement;
   export function LogsPage(props: KitPageProps): React.ReactElement;
+  export function FunctionsPage(props: KitPageProps): React.ReactElement;
+  export function CloudRunPage(props: KitPageProps): React.ReactElement;
+  export function HostingPage(props: KitPageProps): React.ReactElement;
+  export function StoragePage(props: KitPageProps): React.ReactElement;
 
   export interface UrlPreviewProps {
     seedUrl?: string;

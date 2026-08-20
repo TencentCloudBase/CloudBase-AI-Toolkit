@@ -205,6 +205,63 @@ export function createRemoteCloudBaseData(
     async listFunctionNames() {
       return (await call("listFunctionNames")) as string[];
     },
+    async listFunctions(opts) {
+      return (await call("listFunctions", opts ?? {})) as import("../../shared/types.js").CloudFunctionSummary[];
+    },
+    async getFunction(name) {
+      return (await call("getFunction", { name })) as import("../../shared/types.js").CloudFunctionDetail;
+    },
+    async listFunctionLogs(name) {
+      return (await call("listFunctionLogs", { name })) as import("../../shared/types.js").FunctionLogRow[];
+    },
+    async invokeFunction(name, payload) {
+      return (await call("invokeFunction", { name, payload })) as import("../../shared/types.js").WriteUnsupported;
+    },
+    async listCloudRunServices() {
+      return (await call("listCloudRunServices")) as import("../../shared/types.js").CloudRunService[];
+    },
+    async getCloudRunService(name) {
+      return (await call("getCloudRunService", { name })) as {
+        service: import("../../shared/types.js").CloudRunService;
+        versions: import("../../shared/types.js").CloudRunVersion[];
+      };
+    },
+    async listCloudRunDeploys(name) {
+      return (await call("listCloudRunDeploys", { name })) as import("../../shared/types.js").CloudRunDeployRecord[];
+    },
+    async listCloudRunLogs(name, kind) {
+      return (await call("listCloudRunLogs", { name, kind })) as import("../../shared/types.js").CloudRunLogResult;
+    },
+    async getHostingOverview() {
+      return (await call("getHostingOverview")) as import("../../shared/types.js").HostingInfo;
+    },
+    async listHostingVersions() {
+      return (await call("listHostingVersions")) as DeploymentRecord[];
+    },
+    async listHostingObjects(prefix) {
+      return (await call("listHostingObjects", { prefix: prefix ?? "" })) as StorageObject[];
+    },
+    async listStorageBuckets() {
+      return (await call("listStorageBuckets")) as import("../../shared/types.js").StorageBucket[];
+    },
+    async listStorageObjects(bucket, prefix) {
+      return (await call("listStorageObjects", { bucket, prefix: prefix ?? "" })) as StorageObject[];
+    },
+    async uploadStorage(input) {
+      return (await call("uploadStorage", input ?? {})) as { uploaded: number };
+    },
+    async describeBucketWriteSupport() {
+      return (await call("describeBucketWriteSupport")) as import("../../shared/types.js").WriteUnsupported;
+    },
+    async getStorageSecurityRules() {
+      return (await call("getStorageSecurityRules")) as { aclTag: string; rule?: string };
+    },
+    async setStorageSecurityRules(rules) {
+      await call("setStorageSecurityRules", { rules });
+    },
+    async listCdnCacheConfig() {
+      return (await call("listCdnCacheConfig")) as { status: string };
+    },
     async setGatewayServiceEnabled(enable) {
       await call("setGatewayServiceEnabled", { enable });
     },

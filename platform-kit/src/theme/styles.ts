@@ -118,6 +118,10 @@ export const KIT_CSS = `
 .cb-kit-table .cb-kit-table-head, .cb-kit-table .cb-kit-table-row { display: grid; grid-template-columns: 120px 90px 70px 1fr; gap: 8px; padding: 8px 12px; align-items: center; text-align: left; width: 100%; }
 .cb-kit-table .cb-kit-table-head.cols-4, .cb-kit-table .cb-kit-table-row.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 .cb-kit-table .cb-kit-table-head.cols-5, .cb-kit-table .cb-kit-table-row.cols-5 { grid-template-columns: 1.2fr 1fr 1fr .7fr .8fr; }
+.cb-kit-table .cb-kit-table-head.cols-6, .cb-kit-table .cb-kit-table-row.cols-6 { grid-template-columns: 1.4fr .9fr .7fr .7fr .7fr 1fr; }
+.cb-kit-table .cb-kit-table-head.cols-7, .cb-kit-table .cb-kit-table-row.cols-7 { grid-template-columns: 1.3fr .7fr .8fr .6fr .5fr .6fr .6fr; }
+.cb-kit-crumbs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; font-size: 12px; }
+.cb-kit-crumbs button { border: none; background: transparent; color: var(--cb-blue); cursor: pointer; font: inherit; padding: 0; }
 .cb-kit-table-head { font-size: 10.5px; color: var(--cb-text-3); text-transform: uppercase; border-bottom: 1px solid var(--cb-border); background: var(--cb-bg); }
 .cb-kit-table-row { border: none; background: transparent; cursor: pointer; font: inherit; border-bottom: 1px solid var(--cb-border); }
 .cb-kit-table-row.static { cursor: default; }

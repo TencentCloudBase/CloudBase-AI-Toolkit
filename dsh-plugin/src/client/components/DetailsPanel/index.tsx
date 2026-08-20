@@ -16,27 +16,30 @@ import {
   IconLogs,
 } from "../../lib/icons.js";
 import { ensureStyles } from "../../styles.js";
-import { AuthGate } from "./AuthGate.js";
-import { EnvSelector } from "./EnvSelector.js";
-import { PreviewTab } from "./PreviewTab.js";
-import { StorageTab } from "./StorageTab.js";
-import { ConfigTab } from "./ConfigTab.js";
-import { AnalyticsTab } from "./AnalyticsTab.js";
 import {
   AuthUsersPage,
+  CloudRunPage,
   DatabasePage,
+  FunctionsPage,
   GatewayPage,
+  HostingPage,
   LogsPage,
   ManagerShell,
   OverviewPage,
+  StoragePage,
   type MenuRouteId,
   resolvePostgresEnv,
 } from "@cloudbase/platform-kit";
+import { AuthGate } from "./AuthGate.js";
+import { EnvSelector } from "./EnvSelector.js";
+import { PreviewTab } from "./PreviewTab.js";
+import { ConfigTab } from "./ConfigTab.js";
+import { AnalyticsTab } from "./AnalyticsTab.js";
 
 type ViewId = "backend" | "preview";
 
-/** 未实现模块的说明页（替代 P1 占位符）：明确标注状态，不伪造功能。 */
-function NotImplementedRoute({ route }: { route: string }): React.ReactElement {
+/** Kept for reference after real pages replaced the placeholder. */
+export function NotImplementedRoute({ route }: { route: string }): React.ReactElement {
   return (
     <div className="cb-kit-page">
       <div className="cb-kit-empty">
@@ -182,7 +185,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
                       case "database":
                         return <DatabasePage provider={data as never} />;
                       case "storage":
-                        return <StorageTab data={data} />;
+                        return <StoragePage provider={data as never} />;
                       case "auth":
                         return <AuthUsersPage provider={data as never} />;
                       case "gateway":
@@ -197,9 +200,11 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
                           </>
                         );
                       case "functions":
+                        return <FunctionsPage provider={data as never} />;
                       case "cloudrun":
+                        return <CloudRunPage provider={data as never} />;
                       case "hosting":
-                        return <NotImplementedRoute route={activeRoute} />;
+                        return <HostingPage provider={data as never} />;
                       default:
                         return null;
                     }
