@@ -510,6 +510,120 @@ describe('hosting tools', () => {
     expect(mockDeleteFiles).not.toHaveBeenCalled();
   });
 
+  it('manageHosting(action=delete) should rewrite DescribeStaticStore rate-limit errors with actionable guidance', async () => {
+    const tools = createMockServer();
+    mockDeleteFiles.mockRejectedValueOnce(
+      new Error(
+        '[DescribeStaticStore] Your current request times equals to `23` in a second, which exceeds the frequency limit `20` for a second. Please reduce the frequency of calls.',
+      ),
+    );
+
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'delete',
+      cloudPath: 'site/index.html',
+      confirm: true,
+    })).content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain('DescribeStaticStore');
+    expect(payload.message).toContain('QPS 限制');
+    expect(payload.message).toContain('等待 1-2 秒后重试');
+    expect(payload.message).toContain('isDir=true');
+  });
+
+  it('manageHosting(action=delete) should forward non-rate-limit errors unchanged', async () => {
+    const tools = createMockServer();
+    mockDeleteFiles.mockRejectedValueOnce(new Error('[DeleteFile] file not found'));
+
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'delete',
+      cloudPath: 'site/missing.html',
+      confirm: true,
+    })).content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain('file not found');
+    expect(payload.message).not.toContain('QPS 限制');
+  });
+
+  it('manageHosting(action=delete) should treat SDK Error array as failure with actionable guidance', async () => {
+    const tools = createMockServer();
+    mockDeleteFiles.mockResolvedValueOnce({
+      Deleted: [],
+      Error: [new Error('Access Denied')],
+    });
+    mockFindFiles.mockResolvedValueOnce([]);
+
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'delete',
+      cloudPath: 'site/index.html',
+      confirm: true,
+    })).content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain('文件可能未完全删除');
+    expect(payload.message).toContain('queryHosting(action="findFiles"');
+    expect(payload.data.error).toContain('删除请求未生效');
+  });
+
+  it('manageHosting(action=delete) should surface post-validation failure when file still exists', async () => {
+    const tools = createMockServer();
+    mockDeleteFiles.mockResolvedValueOnce({ Deleted: [{ Key: 'site/index.html' }], Error: [] });
+    mockFindFiles.mockResolvedValueOnce([{ Key: 'site/index.html', Size: 100 }]);
+
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'delete',
+      cloudPath: 'site/index.html',
+      confirm: true,
+    })).content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.data.error).toContain('文件仍在静态托管中');
+    expect(payload.message).toContain('文件可能未完全删除');
+  });
+
+  it('manageHosting description should warn about DescribeStaticStore rate-limit and bulk-delete pacing', () => {
+    const tools = createMockServer();
+    const description = tools.manageHosting.meta.description as string;
+    expect(description).toContain('DescribeStaticStore');
+    expect(description).toContain('20 次/秒 QPS 限制');
+    expect(description).toContain('isDir=true');
+    expect(description).toContain('frequency limit');
+  });
+
+  it('queryHosting(action=findFiles) should enrich DescribeStaticStore rate-limit errors with pacing guidance', async () => {
+    const tools = createMockServer();
+    mockFindFiles.mockRejectedValueOnce(
+      new Error(
+        '[DescribeStaticStore] Your current request times equals to `23` in a second, which exceeds the frequency limit `20` for a second. Please reduce the frequency of calls.',
+      ),
+    );
+
+    const payload = JSON.parse((await tools.queryHosting.handler({
+      action: 'findFiles',
+      prefix: 'site/',
+    })).content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain('DescribeStaticStore');
+    expect(payload.message).toContain('QPS 限制');
+    expect(payload.message).toContain('等待 1-2 秒后重试');
+  });
+
+  it('queryHosting(action=findFiles) should forward non-rate-limit errors unchanged', async () => {
+    const tools = createMockServer();
+    mockFindFiles.mockRejectedValueOnce(new Error('[FindFile] access denied'));
+
+    const payload = JSON.parse((await tools.queryHosting.handler({
+      action: 'findFiles',
+      prefix: 'site/',
+    })).content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain('access denied');
+    expect(payload.message).not.toContain('QPS 限制');
+  });
+
   it('manageHosting(action=setWebsiteDocument) should forward document settings and routing rules', async () => {
     const tools = createMockServer();
     const payload = JSON.parse((await tools.manageHosting.handler({
