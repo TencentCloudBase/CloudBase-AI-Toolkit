@@ -302,9 +302,27 @@ export type CloudRunDeployRegistration = {
   waitMs: number;
 };
 
+export type CloudRunDeployNextStepAction =
+  | "getDeployLog"
+  | "getProcessLog"
+  | "getDeployRecords";
+
+/**
+ * Follow-up next_step after getDeployLog is unavailable (CODING login / image
+ * deploy). Must never suggest getDeployLog again.
+ */
+export type CloudRunDeployFollowUpAction = "getProcessLog" | "getDeployRecords";
+
 export type CloudRunDeployNextStep = {
   tool: "queryCloudRun";
-  action: "getDeployLog" | "getProcessLog" | "getDeployRecords";
+  action: CloudRunDeployNextStepAction;
+  suggested_args: Record<string, string | number>;
+  note?: string;
+};
+
+export type CloudRunDeployFollowUpNextStep = {
+  tool: "queryCloudRun";
+  action: CloudRunDeployFollowUpAction;
   suggested_args: Record<string, string | number>;
   note?: string;
 };
@@ -335,9 +353,9 @@ export function isCloudRunCodingBuildLogError(error: unknown): boolean {
 
 export type CloudRunGetProcessLogNextAction = {
   tool: "queryCloudRun";
-  action: "getProcessLog" | "getDeployRecords";
+  action: CloudRunDeployFollowUpAction;
   args: {
-    action: "getProcessLog" | "getDeployRecords";
+    action: CloudRunDeployFollowUpAction;
     detailServerName: string;
     runId?: string;
   };
@@ -355,12 +373,13 @@ export function buildGetDeployLogCodingFallback(options: {
   nextActions: CloudRunGetProcessLogNextAction[];
   data: {
     runId?: string;
-    next_step: CloudRunDeployNextStep;
+    next_step: CloudRunDeployFollowUpNextStep;
     upstreamError?: string;
   };
 } {
   const runId = isValidCloudRunRunId(options.runId) ? options.runId.trim() : undefined;
-  const next_step: CloudRunDeployNextStep = runId
+  // Narrow to follow-up actions only — never suggest getDeployLog again.
+  const next_step: CloudRunDeployFollowUpNextStep = runId
     ? {
         tool: "queryCloudRun",
         action: "getProcessLog",
