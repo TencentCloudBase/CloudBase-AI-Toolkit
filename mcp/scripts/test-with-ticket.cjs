@@ -268,15 +268,9 @@ function createStorageOverrides(bucket, region) {
 }
 
 // ─── 消息推送 qbase 传输层（模拟 IDE 的 ideRequest 直连 wxa-dev-qbase）────────
-// 与微信云开发控制台 callbackconfig.ts 的 CGI 地址一致
-const QBASE_BASE = "https://servicewechat.com/wxa-dev-qbase";
-const QBASE_PATHS = {
-  getAppConfig: `${QBASE_BASE}/getappconfig`,
-  uploadAppConfig: `${QBASE_BASE}/uploadappconfig`,
-  getCallbackSupportList: `${QBASE_BASE}/route/getcallbacksupportlist`,
-  getContainerConfig: `${QBASE_BASE}/getcontainercallbackconfig`,
-  setContainerConfig: `${QBASE_BASE}/setcontainercallbackconfig`,
-};
+// 与微信云开发控制台 callbackconfig.ts 的 CGI 地址一致：
+// https://servicewechat.com/wxa-dev-qbase/{getappconfig,uploadappconfig,
+// route/getcallbacksupportlist,get|setcontainercallbackconfig}
 
 /** 真实传输：带 ticket 直连 qbase CGI（POST，URL 带 appid/newticket） */
 function createTicketMsgPushRequestFn() {
