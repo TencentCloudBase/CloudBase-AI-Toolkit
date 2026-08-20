@@ -32,23 +32,21 @@
   - _需求: 5
   - **开发时使用 worktree 隔离：** N/A
 
-## 阶段 B — 微信开发者工具 MCP（main 仓）
+## 阶段 B — 微信开发者工具 MCP（main 仓，核心交付 = 消息推送）
 
-- [ ] B.1 新增 `query_msg_push` / `manage_msg_push`（qbase 封装 + 幂等 merge + 写确认；通用事件，xpay 默认集合）
+- [ ] B.1 新增 `cloud_msg_push_query` / `cloud_msg_push_manage`（qbase 封装 + 幂等 merge + 写确认；通用事件，xpay 默认集合；命名对齐 `EMcpToolName`/`EXPOSED_TOOL_NAME` 映射）
   - _需求: 1
   - **开发时使用 worktree 隔离：** 是（main 仓独立 worktree）
 
-- [ ] B.2 新增 `query_cloud_call`（**只读**，v1 不提供 `manage_cloud_call` 写入）
-  - _需求: 2
+- [ ] B.2 在 `mcp.config.ts` 的 `EMcpToolName` 增加 `CLOUD_MSG_PUSH_QUERY` / `CLOUD_MSG_PUSH_MANAGE`，并接入 `EXPOSED_TOOL_NAME` 映射
+  - _需求: 1
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] B.3 新增 `query_xpay_config`（按 A.3；未就绪则返回 blocked）
-  - _需求: 3
+- [ ] B.3 更新 Nightly `tools.yaml` / `--help`；禁止手抄过期 schema 到 CloudBase-MCP
+  - _需求: 1, 7
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] B.4 更新 Nightly `tools.yaml` / `--help`；禁止手抄过期 schema 到 CloudBase-MCP
-  - _需求: 1, 2, 3, 7
-  - **开发时使用 worktree 隔离：** 是
+> **v1 边界：** 微信 IDE MCP **不做**云调用工具（`query_cloud_call`/`manage_cloud_call`）与虚拟支付商户查询（`query_xpay_config`）——云调用归属后端链路（CloudBase MCP 承接），商户展示归属控制台团队。
 
 ## 阶段 C — 控制台 UI（weda-alternative）
 
@@ -60,25 +58,29 @@
   - _需求: 3
   - **开发时使用 worktree 隔离：** 是
 
-## 阶段 D — CloudBase-MCP（含云调用服务端链路）
+## 阶段 D — CloudBase-MCP（含云调用后端链路）
 
-- [ ] D.1（可选，依赖 A.4）实现 `queryMessagePush` / `manageMessagePush` 等对齐工具 + schema 测试 + 生成 `scripts/tools.json` / `doc/mcp-tools.md`
+- [ ] D.1（可选，依赖 A.4）实现 `queryMessagePush` / `manageMessagePush` 等对齐工具（与微信 IDE `cloud_msg_push_query`/`cloud_msg_push_manage` 语义对齐）+ schema 测试 + 生成 `scripts/tools.json` / `doc/mcp-tools.md`
   - _需求: 5
   - **开发时使用 worktree 隔离：** 是（`.worktrees/virtual-payment-impl`）
 
-- [ ] D.2 云调用绑定（服务端链路主执行面）：依赖 A.2 契约，实现 `queryCloudCall` / `manageCloudCall`（读+写，`setfuncconfig` 或等价）；未就绪时降级 `config.json` + 上传说明
+- [ ] D.2 云调用绑定（后端链路主执行面）：依赖 A.2 契约，实现 `queryCloudCall` / `manageCloudCall`（读+写，`setfuncconfig` 或等价）；未就绪时降级 `config.json` + 上传说明
   - _需求: 2, 4, 5
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] D.3 若 A.4 未就绪：文档注明 blocked；可选占位工具返回 nextActions → wechatide
+- [ ] D.3（可选）虚拟支付商户只读查询 `queryVirtualPaymentConfig`（依赖 A.3 后端接口；未就绪标 blocked）
+  - _需求: 3, 5
+  - **开发时使用 worktree 隔离：** 是
+
+- [ ] D.4 若 A.4 未就绪：文档注明 blocked；可选占位工具返回 nextActions → wechatide
   - _需求: 5
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] D.4 新增 `config/source/skills/miniprogram-virtual-payment/`（或评审确认的路径）+ `skill-metadata.json` + `npm run build:skill-manifest`
+- [ ] D.5 新增 `config/source/skills/miniprogram-virtual-payment/`（或评审确认的路径）+ `skill-metadata.json` + `npm run build:skill-manifest`
   - _需求: 6
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] D.5 更新 `wxide-vs-cloudbase-mcp.md` 与 `doc/ide-setup/wechat-devtools.mdx` 虚拟支付小节
+- [ ] D.6 更新 `wxide-vs-cloudbase-mcp.md` 与 `doc/ide-setup/wechat-devtools.mdx` 虚拟支付小节
   - _需求: 5, 6
   - **开发时使用 worktree 隔离：** 是
 
@@ -92,8 +94,8 @@
   - _需求: 2, 5
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] E.3 `query_xpay_config` / UI 字段一致
-  - _需求: 3
+- [ ] E.3 `queryVirtualPaymentConfig` / 控制台 UI 字段一致（CloudBase MCP 侧；微信 IDE 不涉及）
+  - _需求: 3, 5
   - **开发时使用 worktree 隔离：** 是
 
 - [ ] E.4 skill 驱动的端到端沙箱支付回调（低额度或沙箱）
@@ -105,4 +107,6 @@
 - 在主工作区 `feat/dsh-plugin` 或 `mcp-region-env-scope` worktree 内夹带实现
 - 猜测公众平台未暴露接口
 - 为评测/grader 增加专用分支
-- 微信 IDE MCP 的云调用绑定写入（`manage_cloud_call`，v1 归属服务端链路/CloudBase MCP）
+- 微信 IDE MCP 的云调用工具（含只读，v1 归属后端链路/CloudBase MCP）
+- 微信 IDE MCP 的虚拟支付商户查询工具（归属控制台团队）
+

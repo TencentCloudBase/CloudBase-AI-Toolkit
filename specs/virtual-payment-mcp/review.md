@@ -2,17 +2,15 @@
 
 面向产品 / starkewang / 微信 IDE / CloudBase MCP 维护者。本阶段无实现代码。
 
-> **已裁定（Booker 2026-08-20）：** ① 消息推送工具**通用化**——不限于虚拟支付，`event_types` 支持任意合法事件，xpay 7 事件为缺省默认集合；② 云调用绑定归属**云开发服务端链路**——微信 IDE MCP v1 只读（`query_cloud_call`），写入（`manage_cloud_call`）由 CloudBase MCP 在 `setfuncconfig` 或等价接口就绪后提供。以下决策点基于此裁定。
+> **已裁定（Booker 2026-08-20，两轮）：** ① 消息推送工具**通用化**——不限于虚拟支付，`event_types` 支持任意合法事件，xpay 7 事件为缺省默认集合；② 云调用绑定**完全归属微信云开发后端开发**——微信 IDE MCP **不提供任何云调用工具（含只读）**，由 CloudBase MCP 在 `setfuncconfig` 或等价接口就绪后承接；③ 虚拟支付商户展示**归属控制台（weda-alternative）团队**——微信 IDE MCP 不提供商户查询工具，CloudBase MCP 侧可选；④ 工具命名**对齐 `cloud_*` 体系**：`cloud_msg_push_query` / `cloud_msg_push_manage`。以下决策点基于此裁定。
 
 ## 决策点清单
 
-### D1. Tool 粒度
+### D1. Tool 粒度（已定：命名对齐 cloud_*）
 
-**提案（默认）：** `query_*` / `manage_*` + `action` 枚举（见 `design.md`），微信侧 snake_case ≤30 字符。
+**已定（Booker 2026-08-20）：** 微信侧工具 = `cloud_msg_push_query`（读）+ `cloud_msg_push_manage`（写，action 枚举），命名对齐 `EMcpToolName`（`cloud_db_read_struct` 等）与 `EXPOSED_TOOL_NAME` 映射协作方式。每个事件一个 tool 的方案已拒绝（工具膨胀）。
 
-**备选：** 每个事件一个 tool（拒绝：工具膨胀，不利于 agent）。
-
-**请确认：** 是否采纳默认提案。
+**仍待确认：** `cloud_msg_push_manage` 的 action 枚举（subscribe/unsubscribe/setEnable/ensureCloudFunctionMode）是否够用。
 
 ### D2. 推送类型覆盖（通用化，已裁定方向）
 
@@ -32,13 +30,13 @@
 
 **请确认：** 是否允许 MCP 直接复用现网 CGI（微信 IDE 登录态）。
 
-### D4. 云调用写路径（归属服务端链路，已裁定方向）
+### D4. 云调用写路径（完全归属后端链路，已裁定方向）
 
-**已定：** 微信 IDE MCP v1 **不提供** `manage_cloud_call` 写入；云调用绑定归属**服务端链路**，由 CloudBase MCP 承接（读+写）。
+**已定：** 微信 IDE MCP **不提供任何云调用工具（含只读）**；云调用绑定归属**微信云开发后端开发**，由 CloudBase MCP 承接（读+写，依赖 `setfuncconfig` 或等价）。
 
-**仍待确认：**
+**仍待确认（服务端/CloudBase MCP 侧）：**
 
-- **提案优先：** 新 `setfuncconfig`（或 batch bind）与 `getfuncconfig` 对称（服务端出接口，CloudBase MCP 封装）
+- **提案优先：** 新 `setfuncconfig`（或 batch bind）与 `getfuncconfig` 对称（后端出接口，CloudBase MCP 封装）
 - **降级：** 改 `config.json` + `cloud_fn_deploy`，工具返回中标明「需重新上传后生效」
 - 选优先还是降级；降级是否可进 CloudBase MCP v1
 
@@ -56,13 +54,15 @@
 
 **现状：** 无 offerId 查询面；普通商户 API 不可复用。
 
-**请确认：** 查询 CGI/字段 owner、ETA；未就绪时 UI/MCP 是否接受 blocked 空态上线。
+**已定（Booker 2026-08-20）：** 商户展示归属**控制台（weda-alternative）团队**，微信 IDE MCP 不提供查询工具；CloudBase MCP 侧可选（接口就绪后）。
 
-### D7. UI 形态
+**请确认（控制台团队）：** 查询 CGI/字段 owner、ETA；未就绪时 UI 是否接受 blocked 空态上线。
+
+### D7. UI 形态（控制台团队）
 
 **提案：** 微信支付 Card 内增加「虚拟支付」子区域（不必强行合并表格）。
 
-**请确认：** tab vs 子区域。
+**请确认：** tab vs 子区域（weda-alternative 团队定）。
 
 ### D8. Skill 归属
 
@@ -74,10 +74,11 @@
 
 ## 给 starkewang 的摘要
 
-1. **7 个虚拟支付回调事件**可由现有消息推送 overwrite 模型一次覆盖；工具本身是**通用消息推送配置**（不限于虚拟支付），xpay 7 事件为默认集合，动态 constraints 可覆盖更多非支付事件，但产品默认应锁 xpay 避免误绑。
+1. **微信 IDE MCP 核心交付 = 消息推送配置**（`cloud_msg_push_query` / `cloud_msg_push_manage`，通用工具）。7 个虚拟支付回调事件可由现有消息推送 overwrite 模型一次覆盖；xpay 7 事件为默认集合，动态 constraints 可覆盖更多非支付事件，但产品默认应锁 xpay 避免误绑。
 2. 最大缺口不是「能不能配消息推送」，而是：**云函数 OpenAPI 写接口（setfuncconfig）**与**米大师应用查询接口**；以及 CloudBase MCP 所需的 **TCB 身份可调代理**。
 3. 现有 get/overwrite CGI + version 已足够支撑幂等批量订阅，增量 API 为体验优化非必须。
-4. **云调用绑定归属服务端链路**：微信 IDE MCP v1 只读，写入由 CloudBase MCP 承接——请服务端确认 `setfuncconfig` 排期。
+4. **云调用绑定归属后端链路**：微信 IDE MCP 不提供任何云调用工具，写入/查询由 CloudBase MCP 承接——请服务端确认 `setfuncconfig` 排期。
+5. **虚拟支付商户展示归属控制台（weda-alternative）团队**，微信 IDE MCP 不做；CloudBase MCP 侧可选（接口就绪后）。
 
 ## 旧任务
 

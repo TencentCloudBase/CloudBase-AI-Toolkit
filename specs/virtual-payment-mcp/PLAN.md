@@ -86,8 +86,8 @@
 
 - 省略 `event_types` 一次订阅 7 个 xpay 事件，幂等重入不重复
 - 指定增删与 list 一致
-- 云调用 bind 22 个 path（或阶段 2 确认的子集），查询/解绑幂等
-- `query_xpay_config` 在已开通应用上返回 offerId 等字段；未开通返回明确 empty
+- 云调用 bind 22 个 path（或阶段 2 确认的子集），查询/解绑幂等（CloudBase MCP 侧）
+- `queryVirtualPaymentConfig`（CloudBase MCP 侧，可选）在已开通应用上返回 offerId 等字段；未开通返回明确 empty
 - agent skill 按顺序调用不跳步
 
 **依赖：** 阶段 3；真实 AppID（沙箱）

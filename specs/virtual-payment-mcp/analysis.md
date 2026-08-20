@@ -152,8 +152,7 @@ schema 用 `z.enum` 约束上述路径。微信开放平台若增删 path，以�
 **结论：** 无米大师 `offerId`、签约状态、订阅签约、iOS 虚拟支付状态的查询面。3.4 需要：
 
 1. 新 qbase/微信侧查询 CGI（或文档化已有未接入接口）—— **starkewang / 微信支付团队**
-2. 控制台 UI：微信支付卡片增加「虚拟支付」子区域（weda-alternative）
-3. MCP 只读 `query_xpay_config`
+2. 控制台 UI：微信支付卡片增加「虚拟支付」子区域（weda-alternative）—— **微信 IDE MCP 不提供商户查询工具**，仅 CloudBase MCP 可选对齐
 
 禁止在分析阶段发明公众平台商户后台 URL。
 

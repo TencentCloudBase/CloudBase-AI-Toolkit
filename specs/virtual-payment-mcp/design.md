@@ -1,10 +1,10 @@
-# 技术方案：消息推送配置 MCP（通用）+ 虚拟支付配套（商户查询 / 云调用服务端链路）
+# 技术方案：消息推送配置 MCP（通用，微信 IDE 核心交付）
 
 ## 1. 目标与非目标
 
-**目标：** 让 agent 通过 MCP 批量、幂等地完成消息推送配置（通用工具，虚拟支付 7 事件为默认场景），查询米大师应用信息；云调用绑定经服务端链路（TCB 后端接口 + CloudBase MCP）完成；配套 skill。
+**目标：** 让 agent 通过微信开发者工具 MCP 批量、幂等地完成**消息推送配置**（通用工具 `cloud_msg_push_query` / `cloud_msg_push_manage`，虚拟支付 7 事件为默认场景）；云调用绑定与虚拟支付商户展示分别由**后端链路**与**控制台团队**承接；配套 skill。
 
-**非目标（本阶段）：** 实现代码、微信公众平台商户后台自动化开户、普通微信支付下单流程改造、**微信 IDE MCP 的云调用绑定写入（v1 不做，归属服务端链路）**。
+**非目标（本阶段）：** 实现代码、微信公众平台商户后台自动化开户、普通微信支付下单流程改造、**微信 IDE MCP 的云调用工具（含只读，v1 不做，归属后端链路）**、**微信 IDE MCP 的虚拟支付商户查询工具（归属控制台团队）**。
 
 ## 2. 架构与分工
 
@@ -30,37 +30,36 @@ flowchart TB
 
 | 层 | 职责 |
 | --- | --- |
-| WeChat IDE Skills/MCP | **默认执行面**：消息推送配置（通用）+ 虚拟支付商户查询；云调用仅只读查询；登录=扫码 |
-| CloudBase MCP | **补齐 + 服务端链路**：无 DevTools 时；云调用绑定（读+写，依赖 `setfuncconfig` 或等价）；依赖 TCB 代理 API |
+| WeChat IDE Skills/MCP | **核心交付 = 消息推送配置**（通用，`cloud_msg_push_query` / `cloud_msg_push_manage`）；登录=扫码 |
+| CloudBase MCP | **补齐 + 后端链路执行面**：消息推送对齐、云调用绑定（读+写，依赖 `setfuncconfig` 或等价）、虚拟支付商户只读查询（接口就绪后）；依赖 TCB 代理 API |
+| 控制台（weda-alternative） | 虚拟支付商户展示 UI |
 | CloudBase Skills | 知识与顺序，不替代执行 |
 
 依据：`config/source/skills/miniprogram-development/references/wxide-vs-cloudbase-mcp.md`。
-分工裁定：Booker 2026-08-20 —— 消息推送工具**通用化**（不限虚拟支付）；云调用绑定归属**云开发服务端链路**，微信 IDE MCP v1 不做写入。
+分工裁定：Booker 2026-08-20 —— 消息推送工具**通用化**（不限虚拟支付）；云调用绑定归属**微信云开发后端开发**，微信 IDE MCP 不提供任何云调用工具；虚拟支付商户展示归属**控制台团队**，微信 IDE MCP 不提供商户查询工具。
 
 ## 3. 工具命名与参数风格
 
 ### 3.1 微信 IDE 暴露名（snake_case，≤30）
 
-对齐 `main/.../mcp.config.ts` 与 `cloudbase-tools.ts`：
+对齐 `main/.../mcp.config.ts` 的 `EMcpToolName` 与 `cloudbase-tools.ts` 的 `EXPOSED_TOOL_NAME` 映射（内部 camelCase → 暴露 `cloud_*`）：
 
 | 暴露名 | 语义 |
 | --- | --- |
-| `query_msg_push` | 查询消息推送配置 / 合法事件约束（通用） |
-| `manage_msg_push` | 订阅、删除、启停、切模式（写，需确认；通用事件，xpay 为默认集合） |
-| `query_cloud_call` | 查询云函数 OpenAPI 白名单（**只读**，v1 无写入） |
-| `query_xpay_config` | 查询虚拟支付商户/米大师信息（只读） |
+| `cloud_msg_push_query` | 查询消息推送配置 / 合法事件约束（通用，只读） |
+| `cloud_msg_push_manage` | 订阅、删除、启停、切模式（写，需确认；通用事件，xpay 为默认集合） |
 
 公共入参：`appid: string`（必填，与现有 wechatide 一致）、`env`/`env_id`（环境 ID）。
 
-> **v1 边界：** 微信 IDE MCP **不提供** `manage_cloud_call`（云调用绑定写入）。该能力归属服务端链路，由 CloudBase MCP 在 `setfuncconfig` 或等价接口就绪后提供（见 4.2 与需求 5）。
+> **v1 边界（Booker 2026-08-20 裁定）：** 微信 IDE MCP **只提供消息推送两个工具**。云调用（含只读查询）与虚拟支付商户查询均不在微信侧范围——云调用归属后端链路（CloudBase MCP 承接），商户展示归属控制台团队。
 
 CloudBase MCP 对齐名（API 就绪后）：
 
 | CloudBase | 对齐 | 归属 |
 | --- | --- | --- |
-| `queryMessagePush` / `manageMessagePush` | ← msg push（通用） | 双端对齐 |
-| `queryCloudCall` / `manageCloudCall` | ← cloud call（读+写） | **服务端链路主执行面**（微信 IDE 仅读） |
-| `queryVirtualPaymentConfig` | ← xpay config | 双端对齐 |
+| `queryMessagePush` / `manageMessagePush` | ← msg push（通用） | 双端对齐（微信 IDE `cloud_msg_push_query`/`cloud_msg_push_manage`） |
+| `queryCloudCall` / `manageCloudCall` | ← cloud call（读+写） | **后端链路主执行面**（微信 IDE 不提供） |
+| `queryVirtualPaymentConfig` | ← xpay config（只读） | **CloudBase MCP 可选**（接口就绪后；微信 IDE 不提供） |
 
 ### 3.2 Schema 草案（Zod）
 
@@ -76,7 +75,7 @@ export const XPAY_EVENT_TYPES = [
   "xpay_refund_notify",
 ] as const;
 
-// 云调用 OpenAPI 路径枚举（CloudBase MCP 侧使用；微信 IDE v1 只读查询不涉及）
+// 云调用 OpenAPI 路径枚举（仅 CloudBase MCP 侧使用，微信 IDE 不涉及）
 export const XPAY_OPENAPI_PATHS = [
   "/xpay/query_order",
   "/xpay/refund_order",
@@ -102,14 +101,14 @@ export const XPAY_OPENAPI_PATHS = [
   "/xpay/upload_vp_file",
 ] as const;
 
-// query_msg_push
+// cloud_msg_push_query —— 查询消息推送配置 / 合法事件约束（只读）
 z.object({
   appid: z.string(),
   env: z.string().optional(),
   action: z.enum(["list", "listSupportedEvents"]),
 });
 
-// manage_msg_push —— 通用消息推送（不限于虚拟支付）
+// cloud_msg_push_manage —— 通用消息推送（不限于虚拟支付）
 // event_types 省略 → 默认 XPAY_EVENT_TYPES（虚拟支付默认场景）
 // event_types 传入 → 支持任意合法事件（由 listSupportedEvents 返回全量约束）
 z.object({
@@ -126,16 +125,12 @@ z.object({
   enable: z.boolean().optional(), // setEnable
   confirm: z.boolean().optional(), // if host requires, mirror CloudBase write tools
 });
+```
 
-// query_cloud_call —— 微信 IDE v1 仅只读
-z.object({
-  appid: z.string(),
-  env_id: z.string(),
-  function_name: z.string(),
-  action: z.enum(["list"]),
-});
+> **微信 IDE MCP 仅暴露以上两个工具。** 云调用（`queryCloudCall`/`manageCloudCall`）与虚拟支付商户查询（`queryVirtualPaymentConfig`）为 CloudBase MCP 侧工具，API 就绪后注册，schema 草案如下（仅 CloudBase MCP 侧）：
 
-// manage_cloud_call —— CloudBase MCP 侧（服务端链路），API 就绪后注册
+```ts
+// manage_cloud_call —— CloudBase MCP 侧（后端链路），setfuncconfig 或等价接口就绪后注册
 // z.object({
 //   appid/env_id/function_name: ...,
 //   action: z.enum(["bind", "unbind"]),
@@ -143,11 +138,11 @@ z.object({
 //   confirm: z.boolean().optional(),
 // });
 
-// query_xpay_config
-z.object({
-  appid: z.string(),
-  action: z.enum(["info"]).default("info"),
-});
+// query_xpay_config —— CloudBase MCP 侧（可选），后端接口就绪后注册
+// z.object({
+//   appid: z.string(),
+//   action: z.enum(["info"]).default("info"),
+// });
 ```
 
 说明：
@@ -174,24 +169,24 @@ z.object({
 4. 若集合无变化 → 直接成功（不 POST）  
 5. 否则 POST overwrite，失败则提示 version conflict 并建议重试  
 
-### 4.2 云调用（服务端链路，微信 IDE MCP v1 不写）
+### 4.2 云调用（后端链路，微信 IDE MCP 不提供任何工具）
 
 | 步骤 | 接口 | 状态 | 归属 |
 | --- | --- | --- | --- |
-| 读 | `POST .../getfuncconfig` `{func_name, env}` → `api_whitelist` | 已存在 | 微信 IDE 只读 / CloudBase MCP 读 |
-| 写 | **待** `setfuncconfig` 或等价 | **缺口** | **CloudBase MCP（服务端链路）** |
-| 降级 | 改本地 `config.json` `permissions.openapi` + `cloud_fn_deploy` | 评审可选 | 服务端/CloudBase MCP |
+| 读 | `POST .../getfuncconfig` `{func_name, env}` → `api_whitelist` | 已存在 | CloudBase MCP 读 |
+| 写 | **待** `setfuncconfig` 或等价 | **缺口** | **CloudBase MCP（后端链路）** |
+| 降级 | 改本地 `config.json` `permissions.openapi` + `cloud_fn_deploy` | 评审可选 | 后端/CloudBase MCP |
 
 不要把 `usecloudaccesstoken`（云托管令牌）当成虚拟支付云函数绑定。
 
-### 4.3 虚拟支付商户
+### 4.3 虚拟支付商户（控制台团队负责，微信 IDE MCP 不提供查询）
 
 | 步骤 | 接口 | 状态 |
 | --- | --- | --- |
 | 普通商户 | `getmchbyappid` / `getapplywxpaylist` / `getauthstate` | 已存在，**不可**冒充虚拟支付 |
 | 米大师/xpay | **待** 查询 CGI / Cloud API | **缺口** |
 
-UI：在 `globalsettings` 微信支付 Card 旁增加「虚拟支付」子区，数据源接新查询。
+UI：控制台（weda-alternative）在 `globalsettings` 微信支付 Card 旁增加「虚拟支付」子区，数据源接新查询（本项目微信 IDE MCP 侧不做，仅记录接口依赖供 CloudBase MCP 对齐）。
 
 ## 5. 鉴权边界
 
@@ -207,7 +202,7 @@ UI：在 `globalsettings` 微信支付 Card 旁增加「虚拟支付」子区，
 
 当前 `cloudbase-tools.ts` 只包装 `@cloudbase/cloudbase-mcp` 的 nosql/storage，且 `requestFn` 打 tcb。
 
-**推荐：** 消息推送（通用）/ xpay 查询作为 **wechatide 原生 tools**（与 `cloud_fn_deploy` 同层），不要塞进 `createCloudBaseToolDefs` 白名单，直到 CloudBase MCP 包内也有同名工具且存在 TCB API。云调用绑定写入（`manage_cloud_call`）**不进入微信 IDE**，由 CloudBase MCP 承接（服务端链路）。
+**推荐：** 消息推送（`cloud_msg_push_query`/`cloud_msg_push_manage`）作为 **wechatide 原生 tools**（与 `cloud_fn_deploy` 同层），通过 `EXPOSED_TOOL_NAME` 映射暴露为 `cloud_*` 名；不要塞进 `createCloudBaseToolDefs` 白名单，直到 CloudBase MCP 包内也有同名工具且存在 TCB API。云调用绑定写入（`manage_cloud_call`）与虚拟支付商户查询（`queryVirtualPaymentConfig`）**不进入微信 IDE**，由 CloudBase MCP 承接（后端链路）。
 
 ## 7. Agent skill 草案
 
@@ -216,13 +211,13 @@ UI：在 `globalsettings` 微信支付 Card 旁增加「虚拟支付」子区，
 
 顺序（强制）：
 
-1. 确认 AppID / envId / 虚拟支付已开通（`query_xpay_config`）  
-2. `manage_msg_push(action=ensureCloudFunctionMode)`  
+1. 确认 AppID / envId / 虚拟支付已开通（控制台确认；微信侧无查询工具）  
+2. `cloud_msg_push_manage(action=ensureCloudFunctionMode)`  
 3. 创建回调云函数代码 → `cloud_fn_deploy`  
-4. `manage_msg_push(action=subscribe)`（默认 7 事件；其他事件传入 `event_types`）  
-5. 云调用 OpenAPI 绑定（如需）→ **CloudBase MCP `manage_cloud_call`（服务端链路，待 API 就绪）**；微信 IDE 侧仅 `query_cloud_call` 只读确认  
-6. 小程序端 `wx.requestVirtualPayment`（或文档现行 API）  
-7. 云函数处理 notify，调用 `/xpay/notify_provide_goods` 等  
+4. `cloud_msg_push_manage(action=subscribe)`（默认 7 事件；其他事件传入 `event_types`）  
+5. 小程序端 `wx.requestVirtualPayment`（或文档现行 API）  
+6. 云函数处理 notify，调用 `/xpay/notify_provide_goods` 等  
+7. 云调用 OpenAPI 绑定（如需）→ **CloudBase MCP `manage_cloud_call`（后端链路，待 API 就绪）**，微信 IDE 侧不涉及  
 
 与现有 `cloudbase-wechat-integration`（普通微信支付/集成中心）分流：虚拟支付触发词走本 skill。
 
