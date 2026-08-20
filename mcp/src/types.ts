@@ -181,6 +181,52 @@ export interface StorageOverrides {
 export interface PluginOptions {
   functions?: FunctionDeployOverrides;
   storage?: StorageOverrides;
+
+  /**
+   * 消息推送（msg-push）插件配置。
+   *
+   * qbase 管理 CGI（getappconfig / uploadappconfig / route/getcallbacksupportlist /
+   * get|setcontainercallbackconfig）依赖微信小程序登录态，CloudBase MCP 独立运行
+   * （腾讯云身份）无法直连。宿主（如微信开发者工具）需注入 requestFn 提供传输层，
+   * 否则 queryMessagePush / manageMessagePush 返回明确指引错误（指向微信 IDE 工具）。
+   */
+  msgPush?: MsgPushOverrides;
+}
+
+/**
+ * 消息推送 qbase CGI 请求函数入参（由宿主注入）。
+ * url 为完整 CGI 地址（如 https://servicewechat.com/wxa-dev-qbase/getappconfig），
+ * 宿主负责按自身登录态（ideRequest / ticket）附加鉴权信息。
+ */
+export interface MsgPushRequestFnOptions {
+  url: string;
+  method?: "get" | "post";
+  body?: Record<string, unknown>;
+  /** 小程序 AppID（工具入参透传，宿主可据此选择会话） */
+  appid?: string;
+}
+
+/** 消息推送 qbase CGI 响应（含 base_resp 业务码，ret === 0 为成功） */
+export interface MsgPushQbaseResponse {
+  base_resp?: {
+    ret: number;
+    errmsg?: string;
+  };
+  [key: string]: unknown;
+}
+
+/** 消息推送 qbase CGI 请求函数（由宿主按自身登录态实现） */
+export type MsgPushRequestFn = (
+  options: MsgPushRequestFnOptions,
+) => Promise<MsgPushQbaseResponse>;
+
+/**
+ * 消息推送（msg-push）插件 override 钩子。
+ * 实现方（如微信 IDE）负责将 qbase CGI 请求发送到微信登录态通道。
+ */
+export interface MsgPushOverrides {
+  /** qbase CGI 请求函数；未注入时工具返回 blocked 指引错误 */
+  requestFn?: MsgPushRequestFn;
 }
 
 export type Logger = (data: {

@@ -29,6 +29,10 @@ export type {
   FunctionDeployOverrides,
   PluginOptions,
   CloudApiRequestFn,
+  MsgPushRequestFn,
+  MsgPushRequestFnOptions,
+  MsgPushQbaseResponse,
+  MsgPushOverrides,
 } from "./types.js";
 
 export { getLoginState, logout } from "./auth.js";
