@@ -35,12 +35,6 @@ import {
 
 type ViewId = "backend" | "preview";
 
-/** 跟随宿主语言：dsh web 运行在浏览器，取系统语言；无 navigator 时默认 zh。 */
-function detectLocale(): "zh" | "en" {
-  if (typeof navigator !== "undefined" && /^zh/i.test(navigator.language)) return "zh";
-  return "en";
-}
-
 /** 未实现模块的说明页（替代 P1 占位符）：明确标注状态，不伪造功能。 */
 function NotImplementedRoute({ route }: { route: string }): React.ReactElement {
   return (
@@ -161,7 +155,6 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
               ) : (
                 <ManagerShell
                   provider={data as never}
-                  locale={detectLocale()}
                   featureCtx={{ ...featureCtx, envId: status.envId }}
                   route={route}
                   onRouteChange={setRoute}

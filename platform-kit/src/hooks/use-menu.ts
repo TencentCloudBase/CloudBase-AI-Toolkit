@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Locale } from "../i18n/messages.js";
-import { createTranslator } from "../i18n/index.js";
+import { createTranslator, detectLocale } from "../i18n/index.js";
 import type { PlatformProvider } from "../core/provider.js";
 import { EFeatureId } from "../core/features.js";
 import type { EnvFeatureContext } from "../core/types.js";
@@ -101,7 +101,7 @@ export interface KitProviderProps {
 }
 
 export function KitProvider(props: KitProviderProps): React.ReactElement {
-  const locale = props.locale ?? "zh";
+  const locale = props.locale ?? detectLocale();
   const tr = React.useMemo(() => createTranslator(locale), [locale]);
   const value = React.useMemo(
     (): KitContextValue => ({
@@ -118,10 +118,11 @@ export function KitProvider(props: KitProviderProps): React.ReactElement {
 export function useKit(): KitContextValue {
   const ctx = React.useContext(KitContext);
   if (!ctx) {
+    const locale = detectLocale();
     return {
-      locale: "zh",
+      locale,
       featureCtx: {},
-      tr: createTranslator("zh"),
+      tr: createTranslator(locale),
     };
   }
   return ctx;

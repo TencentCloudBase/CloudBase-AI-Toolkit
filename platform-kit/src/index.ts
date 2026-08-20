@@ -39,7 +39,7 @@ export type {
   PgMigrationRow,
 } from "./core/types.js";
 export { EFeatureId, isFeatureAvailable, resolvePostgresEnv } from "./core/features.js";
-export { t, createTranslator } from "./i18n/index.js";
+export { t, createTranslator, detectLocale } from "./i18n/index.js";
 export type { Locale, MessageKey } from "./i18n/messages.js";
 export { ensureKitStyles, KIT_CSS } from "./theme/styles.js";
 export {

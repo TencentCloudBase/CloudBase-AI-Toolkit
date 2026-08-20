@@ -1,6 +1,7 @@
 import * as React from "react";
 import type { PlatformProvider } from "../core/provider.js";
 import type { Locale } from "../i18n/messages.js";
+import { detectLocale } from "../i18n/index.js";
 import type { EnvFeatureContext } from "../core/types.js";
 import {
   KitProvider,
@@ -46,7 +47,7 @@ function ManagerShellInner(props: ManagerShellProps): React.ReactElement {
   }, [props.featureCtx]);
 
   const menuItems = useMenu({
-    locale: props.locale ?? "zh",
+    locale: props.locale ?? detectLocale(),
     route: activeRoute,
     featureCtx,
     icons: props.icons,
