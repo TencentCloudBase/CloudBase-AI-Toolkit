@@ -103,8 +103,21 @@ describe("data-service capi mappings", () => {
     const data = createCloudBaseDataService(bridge);
     const result = await data.searchLogs({ queryString: "log:ERROR", limit: 10 });
     expect(result.entries.length).toBeGreaterThan(0);
-    expect(bridge.capiCalls.some((c) => c.action === "SearchClsLog")).toBe(true);
+    const call = bridge.capiCalls.find((c) => c.action === "SearchClsLog");
+    expect(call).toBeTruthy();
+    expect(String(call?.params.StartTime)).toMatch(/^\d{4}-\d{2}-\d{2} /);
+    expect(call?.params.Sort).toBe("desc");
     expect(bridge.toolCalls.every((t) => !FORBIDDEN.test(t.name))).toBe(true);
+  });
+
+  it("searchLogs maps CLS topic-not-exist to a console enable message", async () => {
+    const bridge = capiBridge(
+      { ...baseHandlers, "tcb:SearchClsLog": new Error("[SearchClsLog] topic not exist") },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    await expect(data.searchLogs({ queryString: "*" })).rejects.toThrow(/控制台开通/);
+    expect(await data.checkLogService()).toBe(false);
   });
 
   it("searchAppUsers uses DescribeUserList", async () => {

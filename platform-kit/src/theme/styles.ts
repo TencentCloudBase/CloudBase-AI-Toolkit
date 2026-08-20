@@ -33,7 +33,15 @@ export const KIT_CSS = `
 .cb-kit-nav-item.restricted { opacity: .55; }
 .cb-kit-main { flex: 1; min-width: 0; overflow: auto; display: flex; flex-direction: column; }
 .cb-kit-page { padding: 16px 18px; flex: 1; min-height: 0; overflow: auto; }
-.cb-kit-page-title { font-size: 15px; font-weight: 650; margin: 0 0 14px; }
+.cb-kit-page-title {
+  font-size: 15px; font-weight: 650; margin: 0 0 14px;
+  writing-mode: horizontal-tb; white-space: nowrap; min-width: 0;
+}
+.cb-kit-page-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px;
+}
+.cb-kit-page-head .cb-kit-page-title { flex: 1 1 100%; margin: 0; }
+.cb-kit-page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .cb-kit-section { margin-bottom: 18px; }
 .cb-kit-section-h { font-size: 11px; color: var(--cb-text-3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
 .cb-kit-card { border: 1px solid var(--cb-border); border-radius: var(--cb-r); background: var(--cb-panel); overflow: hidden; }
@@ -139,7 +147,11 @@ export const KIT_CSS = `
 .cb-kit-usage-bar { height: 6px; background: var(--cb-accent); border-radius: 999px; overflow: hidden; }
 .cb-kit-usage-fill { height: 100%; background: var(--cb-blue); }
 .cb-kit-collapse-head { width: 100%; text-align: left; border: none; background: var(--cb-bg); padding: 8px 10px; font: inherit; font-weight: 600; cursor: pointer; border: 1px solid var(--cb-border); border-radius: var(--cb-r); margin-bottom: 8px; }
-.cb-kit-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.cb-kit-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+.cb-kit-table { overflow-x: auto; }
+.cb-kit-sql-wrap { overflow: auto; border: 1px solid var(--cb-border); border-radius: var(--cb-r); }
+.cb-kit-sql-wrap table { width: 100%; border-collapse: collapse; font-family: var(--cb-mono); font-size: 11px; }
+.cb-kit-sql-wrap th, .cb-kit-sql-wrap td { padding: 6px 8px; border-bottom: 1px solid var(--cb-border); text-align: left; white-space: nowrap; }
 .cb-spark { display: block; width: 100%; margin-top: 6px; }
 `;
 

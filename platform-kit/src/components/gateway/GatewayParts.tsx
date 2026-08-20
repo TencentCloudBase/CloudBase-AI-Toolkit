@@ -128,7 +128,7 @@ export function RouteTable(props: RouteTableProps): React.ReactElement {
           <span>{route.upstreamResourceType}</span>
           <span>{route.upstreamResourceName}</span>
           <span>{route.enableAuth ? "Yes" : "No"}</span>
-          <span style={{ display: "flex", gap: 6 }}>
+          <span style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             <button type="button" className="cb-kit-btn ghost" onClick={() => props.onEdit(route)}>Edit</button>
             <button type="button" className="cb-kit-btn ghost" onClick={() => props.onDelete(route)}>Delete</button>
           </span>

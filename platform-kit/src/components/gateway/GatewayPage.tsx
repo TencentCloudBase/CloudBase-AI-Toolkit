@@ -51,8 +51,8 @@ export function GatewayPage(props: GatewayPageProps): React.ReactElement {
 
   const domainList = React.useMemo(() => {
     const fromRoutes = [...grouped.keys()];
-    const fromApi = domains.data ?? [];
-    return [...new Set([...fromApi, ...fromRoutes])];
+    const fromApi = (domains.data ?? []).map((item) => (typeof item === "string" ? item : item.domain));
+    return [...new Set([...fromApi, ...fromRoutes].filter(Boolean))];
   }, [grouped, domains.data]);
 
   const refresh = () => {
@@ -62,35 +62,37 @@ export function GatewayPage(props: GatewayPageProps): React.ReactElement {
 
   return (
     <div className="cb-kit-page">
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <h2 className="cb-kit-page-title" style={{ margin: 0, flex: 1 }}>{kit.tr("gateway.title")}</h2>
-        <label className="cb-kit-toggle">
-          <span>{kit.tr("gateway.serviceEnabled")}</span>
-          <input
-            type="checkbox"
-            checked={Boolean(privilegeData?.enableService)}
-            onChange={(e) => void mutations.toggleService(e.target.checked).then(refresh)}
-          />
-        </label>
-        <label className="cb-kit-toggle">
-          <span>{kit.tr("gateway.authEnabled")}</span>
-          <input
-            type="checkbox"
-            checked={Boolean(privilegeData?.enableAuth)}
-            onChange={(e) => void mutations.toggleAuth(e.target.checked).then(refresh)}
-          />
-        </label>
-        <button type="button" className="cb-kit-btn ghost" onClick={refresh}>{kit.tr("common.refresh")}</button>
-        <button
-          type="button"
-          className="cb-kit-btn"
-          onClick={() => {
-            setEditRoute(undefined);
-            setDrawerOpen(true);
-          }}
-        >
-          {kit.tr("gateway.addRoute")}
-        </button>
+      <div className="cb-kit-page-head">
+        <h2 className="cb-kit-page-title">{kit.tr("gateway.title")}</h2>
+        <div className="cb-kit-page-actions">
+          <label className="cb-kit-toggle">
+            <span>{kit.tr("gateway.serviceEnabled")}</span>
+            <input
+              type="checkbox"
+              checked={Boolean(privilegeData?.enableService)}
+              onChange={(e) => void mutations.toggleService(e.target.checked).then(refresh)}
+            />
+          </label>
+          <label className="cb-kit-toggle">
+            <span>{kit.tr("gateway.authEnabled")}</span>
+            <input
+              type="checkbox"
+              checked={Boolean(privilegeData?.enableAuth)}
+              onChange={(e) => void mutations.toggleAuth(e.target.checked).then(refresh)}
+            />
+          </label>
+          <button type="button" className="cb-kit-btn ghost" onClick={refresh}>{kit.tr("common.refresh")}</button>
+          <button
+            type="button"
+            className="cb-kit-btn"
+            onClick={() => {
+              setEditRoute(undefined);
+              setDrawerOpen(true);
+            }}
+          >
+            {kit.tr("gateway.addRoute")}
+          </button>
+        </div>
       </div>
 
       {[...grouped.entries()].map(([domain, domainRoutes]) => {

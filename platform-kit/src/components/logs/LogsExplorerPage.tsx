@@ -2,6 +2,7 @@ import * as React from "react";
 import type { PlatformProvider } from "../../core/provider.js";
 import { useKit } from "../../hooks/use-menu.js";
 import { useLogsSearch, useLogServiceCheck } from "../../hooks/use-logs-search.js";
+import { isClsUnavailableError } from "../../utils/cls-errors.js";
 import {
   LogFiltersBar,
   buildLogSearchFilters,
@@ -41,8 +42,10 @@ export function LogsExplorerPage(props: LogsExplorerPageProps): React.ReactEleme
     [queryString, service, level, timePreset, customStart, customEnd, searchTick],
   );
 
-  const logs = useLogsSearch(provider, filters, searchTick > 0);
   const clsCheck = useLogServiceCheck(provider);
+  const logsEnabled = searchTick > 0 && clsCheck.data === true;
+  const logs = useLogsSearch(provider, filters, logsEnabled);
+  const clsDown = clsCheck.data === false || isClsUnavailableError(logs.error);
 
   const labels = React.useMemo(
     () => ({
@@ -71,24 +74,24 @@ export function LogsExplorerPage(props: LogsExplorerPageProps): React.ReactEleme
 
   return (
     <div className="cb-kit-page">
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <h2 className="cb-kit-page-title" style={{ margin: 0, flex: 1 }}>
-          {kit.tr("logs.title")}
-        </h2>
-        <button
-          type="button"
-          className="cb-kit-btn ghost"
-          onClick={() => exportLogsCsv(logs.data?.entries ?? [])}
-          disabled={(logs.data?.entries.length ?? 0) === 0}
-        >
-          {kit.tr("logs.export")}
-        </button>
-        <button type="button" className="cb-kit-btn ghost" onClick={() => logs.reload()}>
-          {kit.tr("common.refresh")}
-        </button>
+      <div className="cb-kit-page-head">
+        <h2 className="cb-kit-page-title">{kit.tr("logs.title")}</h2>
+        <div className="cb-kit-page-actions">
+          <button
+            type="button"
+            className="cb-kit-btn ghost"
+            onClick={() => exportLogsCsv(logs.data?.entries ?? [])}
+            disabled={(logs.data?.entries.length ?? 0) === 0}
+          >
+            {kit.tr("logs.export")}
+          </button>
+          <button type="button" className="cb-kit-btn ghost" onClick={() => logs.reload()}>
+            {kit.tr("common.refresh")}
+          </button>
+        </div>
       </div>
 
-      {clsCheck.data === false ? (
+      {clsDown ? (
         <div className="cb-kit-banner warn">{kit.tr("logs.cls.disabled")}</div>
       ) : null}
 
@@ -111,7 +114,7 @@ export function LogsExplorerPage(props: LogsExplorerPageProps): React.ReactEleme
         onSearch={() => setSearchTick((v) => v + 1)}
       />
 
-      {logs.error ? (
+      {logs.error && !clsDown ? (
         <div style={{ color: "var(--cb-danger)", fontSize: 12, marginBottom: 8 }}>{logs.error}</div>
       ) : null}
 

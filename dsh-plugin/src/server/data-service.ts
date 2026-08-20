@@ -89,6 +89,30 @@ function looksLikeWriteSql(sql: string): boolean {
   );
 }
 
+const CLS_TIME_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+const CLS_UNAVAILABLE_MESSAGE = "当前环境未接入日志服务，请在 CloudBase 控制台开通";
+
+function formatClsTime(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function toClsTime(value: string | undefined, fallback: Date): string {
+  if (value && CLS_TIME_RE.test(value)) return value;
+  if (value) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return formatClsTime(parsed);
+  }
+  return formatClsTime(fallback);
+}
+
+function isClsUnavailableError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /topic not exist|未接入日志|日志服务未开通|HTTP 404|ResourceNotFound|FailedOperation\.TopicNotExist|TopicNotExist/i.test(
+    message,
+  );
+}
+
 function mapTableKind(kindRaw: string): TableSummary["kind"] {
   const kind = kindRaw.toLowerCase();
   if (kind.includes("view") || kindRaw === "v") return "view";
@@ -649,35 +673,52 @@ export function createCloudBaseDataService(
     async checkLogService() {
       try {
         const envId = await requireEnvId();
+        const end = new Date();
         await callCapi("tcb", "SearchClsLog", {
           EnvId: envId,
           QueryString: "*",
           Limit: 1,
-          StartTime: new Date(Date.now() - 3600000).toISOString(),
-          EndTime: new Date().toISOString(),
+          StartTime: formatClsTime(new Date(end.getTime() - 3600000)),
+          EndTime: formatClsTime(end),
+          Sort: "desc",
         });
         return true;
-      } catch {
+      } catch (error) {
+        if (isClsUnavailableError(error)) return false;
         return false;
       }
     },
 
     async searchLogs(opts: LogSearchFilters): Promise<LogSearchResult> {
       const envId = await requireEnvId();
-      const payload = await callCapi("tcb", "SearchClsLog", {
-        EnvId: envId,
-        QueryString: opts.queryString || "*",
-        StartTime: opts.startTime,
-        EndTime: opts.endTime,
-        Limit: opts.limit ?? 50,
-        Context: opts.context,
-      });
-      const logs = arr(payload.Results ?? payload.logs ?? payload.items);
-      const contextOut = str(payload.Context ?? payload.context);
-      return {
-        entries: logs.map((item, index): LogEntry => mapLogEntry(item, index)),
-        context: contextOut,
-      };
+      const end = new Date();
+      const start = new Date(end.getTime() - 4 * 3600000);
+      try {
+        const payload = await callCapi("tcb", "SearchClsLog", {
+          EnvId: envId,
+          QueryString: opts.queryString || "*",
+          StartTime: toClsTime(opts.startTime, start),
+          EndTime: toClsTime(opts.endTime, end),
+          Limit: Math.min(opts.limit ?? 50, 100),
+          Context: opts.context,
+          Sort: opts.sort ?? "desc",
+        });
+        const envelope = `${str(payload.message) ?? ""} ${JSON.stringify(payload)}`;
+        if (payload.success === false || isClsUnavailableError(envelope)) {
+          throw new Error(str(payload.message) ?? CLS_UNAVAILABLE_MESSAGE);
+        }
+        const logs = arr(payload.Results ?? payload.logs ?? payload.items);
+        const contextOut = str(payload.Context ?? payload.context);
+        return {
+          entries: logs.map((item, index): LogEntry => mapLogEntry(item, index)),
+          context: contextOut,
+        };
+      } catch (error) {
+        if (isClsUnavailableError(error)) {
+          throw new Error(CLS_UNAVAILABLE_MESSAGE);
+        }
+        throw error;
+      }
     },
 
     async getTableSchema(schemaTable): Promise<TableSchemaDetail> {

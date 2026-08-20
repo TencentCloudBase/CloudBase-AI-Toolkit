@@ -15,6 +15,7 @@ import { useKit } from "../../hooks/use-menu.js";
 import { FeatureGuard } from "../FeatureGuard.js";
 import { sqlToggleRLS } from "../../pg/sql.js";
 import { buildDropPolicySql, RlsPolicyEditor, TableDetailSheet, TableListPanel } from "./DatabaseParts.js";
+import { SqlEditorPanel } from "./SqlEditorPanel.js";
 
 export interface DatabasePageProps {
   provider?: PlatformProvider;
@@ -28,6 +29,7 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
   const [selected, setSelected] = React.useState<string | undefined>();
   const [activeTab, setActiveTab] = React.useState("structure");
   const [globalTab, setGlobalTab] = React.useState<string | undefined>();
+  const [workspace, setWorkspace] = React.useState<"tables" | "sql">("tables");
   const schemaRes = useTableSchema(isPg ? provider : undefined, selected);
   const mutation = usePgMutation(provider);
   const [editorOpen, setEditorOpen] = React.useState(false);
@@ -114,7 +116,28 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
 
   return (
     <div className="cb-kit-page">
-      <h2 className="cb-kit-page-title">{kit.tr("db.title")}</h2>
+      <div className="cb-kit-page-head">
+        <h2 className="cb-kit-page-title">{kit.tr("db.title")}</h2>
+        <div className="cb-kit-page-actions">
+          <div className="cb-kit-tabs" style={{ marginBottom: 0 }}>
+            <button type="button" className={workspace === "tables" ? "active" : ""} onClick={() => setWorkspace("tables")}>
+              {kit.tr("db.tab.tables")}
+            </button>
+            <button type="button" className={workspace === "sql" ? "active" : ""} onClick={() => setWorkspace("sql")}>
+              {kit.tr("db.tab.sql")}
+            </button>
+          </div>
+        </div>
+      </div>
+      {workspace === "sql" ? (
+        <SqlEditorPanel
+          provider={provider}
+          runLabel={kit.tr("db.sql.run")}
+          hintLabel={kit.tr("db.sql.hint")}
+          confirmWriteLabel={kit.tr("db.sql.confirmWrite")}
+        />
+      ) : (
+        <>
       <div className="cb-kit-db-layout">
         <TableListPanel
           tables={tables.data ?? []}
@@ -208,8 +231,10 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
           </button>
         ))}
       </div>
+        </>
+      )}
 
-      {selected ? (
+      {selected && workspace === "tables" ? (
         <RlsPolicyEditor
           open={editorOpen}
           schemaTable={selected}
