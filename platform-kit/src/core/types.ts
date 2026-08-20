@@ -263,6 +263,7 @@ export interface AppUser {
   phone?: string;
   createdAt?: string;
   lastLoginAt?: string;
+  providers?: string[];
   status?: "normal" | "disabled";
 }
 

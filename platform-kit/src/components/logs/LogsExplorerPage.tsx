@@ -115,7 +115,7 @@ export function LogsExplorerPage(props: LogsExplorerPageProps): React.ReactEleme
       />
 
       {logs.error && !clsDown ? (
-        <div style={{ color: "var(--cb-danger)", fontSize: 12, marginBottom: 8 }}>{logs.error}</div>
+        <div className="cb-kit-danger-block">{logs.error}</div>
       ) : null}
 
       <LogResultsTable
@@ -124,17 +124,15 @@ export function LogsExplorerPage(props: LogsExplorerPageProps): React.ReactEleme
         expandedId={expandedId}
         onToggle={(id) => setExpandedId((prev) => (prev === id ? undefined : id))}
         emptyLabel={kit.tr("logs.empty")}
-        expandLabel={kit.tr("logs.details")}
-        columnLabels={{
-          time: kit.tr("logs.col.time"),
-          service: kit.tr("logs.col.service"),
-          level: kit.tr("logs.col.level"),
-          message: kit.tr("logs.col.message"),
-        }}
+        expandLabel={kit.tr("logs.col.details")}
+        timeLabel={kit.tr("logs.col.time")}
+        serviceLabel={kit.tr("logs.col.service")}
+        levelLabel={kit.tr("logs.col.level")}
+        messageLabel={kit.tr("logs.col.message")}
       />
 
       {logs.hasMore ? (
-        <button type="button" className="cb-kit-btn ghost" style={{ marginTop: 8 }} onClick={() => logs.loadMore()}>
+        <button type="button" className="cb-kit-btn ghost cb-kit-mt-sm" onClick={() => logs.loadMore()}>
           {kit.tr("logs.loadMore")}
         </button>
       ) : null}

@@ -18,7 +18,7 @@ export interface PreviewTabProps {
 }
 
 export function PreviewTab(props: PreviewTabProps): React.ReactElement {
-  const endpoints = useAccessEndpoints(props.data as never);
+  const endpoints = useAccessEndpoints(props.data);
   const tr = createTranslator("zh");
 
   return (

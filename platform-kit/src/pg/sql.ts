@@ -239,27 +239,3 @@ export function sqlWrapDdl(sql: string): string {
   const escaped = sql.replace(/'/g, "''");
   return `DO LANGUAGE plpgsql $$ BEGIN EXECUTE '${escaped}'; END $$;`;
 }
-
-const BUCKET_NAME_RE = /^[a-zA-Z0-9_-]+$/;
-
-function assertBucketName(name: string): string {
-  const trimmed = name.trim();
-  if (!BUCKET_NAME_RE.test(trimmed)) {
-    throw new Error("Invalid bucket name");
-  }
-  return trimmed.replace(/'/g, "''");
-}
-
-export function sqlListStorageBuckets(): string {
-  return `SELECT id, name, public FROM storage.buckets ORDER BY name;`;
-}
-
-export function sqlCreateStorageBucket(name: string): string {
-  const safe = assertBucketName(name);
-  return `INSERT INTO storage.buckets (id, name, public) VALUES ('${safe}', '${safe}', false);`;
-}
-
-export function sqlDeleteStorageBucket(name: string): string {
-  const safe = assertBucketName(name);
-  return `DELETE FROM storage.buckets WHERE id = '${safe}';`;
-}

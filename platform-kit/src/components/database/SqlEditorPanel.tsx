@@ -9,6 +9,8 @@ export interface SqlEditorPanelProps {
   runLabel: string;
   hintLabel: string;
   confirmWriteLabel: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
 }
 
 export function SqlEditorPanel(props: SqlEditorPanelProps): React.ReactElement {
@@ -16,34 +18,28 @@ export function SqlEditorPanel(props: SqlEditorPanelProps): React.ReactElement {
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>();
   const [page, setPage] = React.useState<RowPage | undefined>();
-  const [confirmWrite, setConfirmWrite] = React.useState(false);
-  const pendingSqlRef = React.useRef<string>("");
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const pendingRun = React.useRef(false);
 
-  const executeSql = React.useCallback(async (statement: string) => {
+  const run = React.useCallback(async (confirmed = false) => {
     setPending(true);
     setError(undefined);
     try {
       if (!props.provider) throw new Error("no provider");
-      const result = await runSqlStatement(statement, props.provider, () => true);
-      setPage(result);
+      const result = await runSqlStatement(sql, props.provider, async () => {
+        if (confirmed) return true;
+        pendingRun.current = true;
+        setConfirmOpen(true);
+        return false;
+      });
+      if (result) setPage(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (message !== "cancelled") setError(message);
     } finally {
       setPending(false);
     }
-  }, [props.provider]);
-
-  const run = React.useCallback(async () => {
-    const trimmed = sql.trim();
-    if (!trimmed) return;
-    if (!/^\s*(select|show|explain)\b/i.test(trimmed)) {
-      pendingSqlRef.current = trimmed;
-      setConfirmWrite(true);
-      return;
-    }
-    await executeSql(trimmed);
-  }, [executeSql, sql]);
+  }, [props.provider, sql]);
 
   return (
     <div>
@@ -56,17 +52,17 @@ export function SqlEditorPanel(props: SqlEditorPanelProps): React.ReactElement {
         onKeyDown={(e) => {
           if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
             e.preventDefault();
-            void run();
+            void run(false);
           }
         }}
       />
-      <div className="cb-kit-page-actions cb-kit-page-toolbar">
-        <button type="button" className="cb-kit-btn" disabled={pending} onClick={() => void run()}>
+      <div className="cb-kit-page-actions cb-kit-spread">
+        <button type="button" className="cb-kit-btn" disabled={pending} onClick={() => void run(false)}>
           {props.runLabel}
         </button>
-        <span className="cb-kit-section-h">{props.hintLabel}</span>
+        <span className="cb-kit-hint">{props.hintLabel}</span>
       </div>
-      {error ? <div className="cb-kit-inline-error">{error}</div> : null}
+      {error ? <div className="cb-kit-error-banner">{error}</div> : null}
       {page ? (
         <div className="cb-kit-sql-wrap">
           <table>
@@ -90,14 +86,21 @@ export function SqlEditorPanel(props: SqlEditorPanelProps): React.ReactElement {
         </div>
       ) : null}
       <ConfirmDialog
-        open={confirmWrite}
-        title={props.runLabel}
-        body={props.confirmWriteLabel}
-        confirmLabel={props.runLabel}
-        onCancel={() => setConfirmWrite(false)}
+        open={confirmOpen}
+        title={props.confirmWriteLabel}
+        body={sql}
+        confirmLabel={props.confirmLabel ?? "Confirm"}
+        cancelLabel={props.cancelLabel ?? "Cancel"}
+        onCancel={() => {
+          setConfirmOpen(false);
+          pendingRun.current = false;
+        }}
         onConfirm={() => {
-          setConfirmWrite(false);
-          void executeSql(pendingSqlRef.current);
+          setConfirmOpen(false);
+          if (pendingRun.current) {
+            pendingRun.current = false;
+            void run(true);
+          }
         }}
       />
     </div>

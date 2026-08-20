@@ -24,26 +24,8 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
   const [invokeResult, setInvokeResult] = React.useState<string | undefined>(undefined);
   const [invokeLoading, setInvokeLoading] = React.useState(false);
 
-  const runInvoke = async () => {
-    if (!provider?.invokeFunction || !selected) return;
-    setInvokeLoading(true);
-    setInvokeResult(undefined);
-    try {
-      const result = await provider.invokeFunction(selected, payload);
-      if (result.unsupportedReason) {
-        setInvokeResult(result.unsupportedReason);
-      } else {
-        setInvokeResult(result.result || kit.tr("common.empty"));
-      }
-    } catch (err) {
-      setInvokeResult(err instanceof Error ? err.message : String(err));
-    } finally {
-      setInvokeLoading(false);
-    }
-  };
-
   return (
-    <div className="cb-kit-page" data-testid="cb-page-functions">
+    <div className="cb-kit-page">
       <PageHead title={kit.tr("fn.title")} onRefresh={() => list.reload()} refreshLabel={kit.tr("common.refresh")}>
         <input
           className="cb-kit-input flex"
@@ -55,6 +37,7 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
       <ErrorBanner error={list.error} retry={() => list.reload()} retryLabel={kit.tr("common.retry")} />
       <SimpleTable
         loading={list.loading}
+        loadingLabel={kit.tr("table.loading")}
         columns={[
           kit.tr("fn.col.name"),
           kit.tr("fn.col.runtime"),
@@ -62,7 +45,7 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
           kit.tr("fn.col.invokes"),
           kit.tr("fn.col.updated"),
         ]}
-        empty={kit.tr("fn.empty")}
+        empty={<EmptyState>{kit.tr("fn.empty")}</EmptyState>}
         rows={filtered.map((item) => ({
           key: item.name,
           cells: [
@@ -79,7 +62,7 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
         }))}
       />
       {selected ? (
-        <div className="cb-kit-section cb-kit-section-mt">
+        <div className="cb-kit-section">
           <div className="cb-kit-section-h">{selected}</div>
           <TabsBar
             active={tab}
@@ -110,7 +93,7 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
           ) : null}
           {tab === "triggers" ? (
             <SimpleTable
-              columns={[kit.tr("fn.col.name"), kit.tr("fn.col.type"), kit.tr("fn.col.desc")]}
+              columns={[kit.tr("fn.col.triggerName"), kit.tr("fn.col.triggerType"), kit.tr("fn.col.triggerDesc")]}
               empty={kit.tr("common.empty")}
               rows={(detail.data?.triggers ?? []).map((item) => ({
                 key: item.name,
@@ -123,6 +106,7 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
               {logs.error ? <DegradeNote>{kit.tr("fn.logs.clsFallback")}</DegradeNote> : null}
               <SimpleTable
                 loading={logs.loading}
+                loadingLabel={kit.tr("table.loading")}
                 columns={[kit.tr("fn.col.time"), kit.tr("fn.col.requestId"), kit.tr("fn.col.message")]}
                 empty={kit.tr("common.empty")}
                 rows={(logs.data ?? []).map((item, index) => ({
@@ -134,23 +118,33 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
           ) : null}
           {tab === "invoke" ? (
             <div>
-              {!provider?.invokeFunction ? <DegradeNote>{kit.tr("fn.invoke.unsupported")}</DegradeNote> : null}
               <label className="cb-kit-field">
                 <span>{kit.tr("fn.invoke.payload")}</span>
-                <textarea
-                  className="cb-kit-textarea"
-                  data-testid="cb-fn-payload"
-                  rows={6}
-                  value={payload}
-                  onChange={(e) => setPayload(e.target.value)}
-                />
+                <textarea className="cb-kit-textarea" rows={6} value={payload} onChange={(e) => setPayload(e.target.value)} />
               </label>
               <button
                 type="button"
                 className="cb-kit-btn"
-                data-testid="cb-fn-invoke"
                 disabled={invokeLoading || !provider?.invokeFunction}
-                onClick={() => void runInvoke()}
+                onClick={() => {
+                  void (async () => {
+                    if (!provider?.invokeFunction || !selected) return;
+                    setInvokeLoading(true);
+                    setInvokeResult(undefined);
+                    try {
+                      const result = await provider.invokeFunction(selected, payload);
+                      if (result.unsupportedReason) {
+                        setInvokeResult(result.unsupportedReason);
+                      } else {
+                        setInvokeResult(result.result || kit.tr("common.empty"));
+                      }
+                    } catch (error) {
+                      setInvokeResult(error instanceof Error ? error.message : String(error));
+                    } finally {
+                      setInvokeLoading(false);
+                    }
+                  })();
+                }}
               >
                 {invokeLoading ? kit.tr("fn.invoke.loading") : kit.tr("fn.invoke.run")}
               </button>
@@ -163,11 +157,7 @@ export function FunctionsPage(props: FunctionsPageProps): React.ReactElement {
             </div>
           ) : null}
         </div>
-      ) : (
-        !list.loading && (list.data ?? []).length === 0 ? (
-          <EmptyState>{kit.tr("fn.empty")}</EmptyState>
-        ) : null
-      )}
+      ) : null}
     </div>
   );
 }

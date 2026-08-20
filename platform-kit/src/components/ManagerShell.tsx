@@ -101,11 +101,11 @@ function ManagerShellInner(props: ManagerShellProps): React.ReactElement {
   })();
 
   return (
-    <div className="cb-kit-root" data-testid="cb-kit-root">
+    <div className="cb-kit-root">
       {props.header}
       <div className="cb-kit-shell">
         <SidebarNav items={menuItems} onSelect={selectRoute} />
-        <main className="cb-kit-main" data-testid={`cb-kit-main-${activeRoute}`}>{defaultBody}</main>
+        <main className="cb-kit-main">{defaultBody}</main>
       </div>
     </div>
   );

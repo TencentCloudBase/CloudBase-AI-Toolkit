@@ -64,7 +64,6 @@ export function HostingPage(props: HostingPageProps): React.ReactElement {
           ))}
         </div>
         <SimpleTable
-          loading={files.loading}
           columns={[kit.tr("fn.col.name"), kit.tr("hosting.col.size"), kit.tr("fn.col.updated"), kit.tr("hosting.col.type")]}
           empty={kit.tr("common.empty")}
           rows={(files.data?.objects ?? []).map((item) => ({

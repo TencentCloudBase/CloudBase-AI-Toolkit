@@ -18,6 +18,13 @@ const LEVEL_QUERY: Record<Exclude<LogLevelFilter, "all">, string> = {
   info: "log:INFO",
 };
 
+function toApiTime(value?: string): string | undefined {
+  if (!value) return undefined;
+  const normalized = value.includes("T") ? value.replace("T", " ") : value;
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(normalized)) return `${normalized}:00`;
+  return normalized;
+}
+
 function formatTime(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
@@ -28,7 +35,7 @@ export function buildTimeRange(preset: LogTimePreset, customStart?: string, cust
   endTime?: string;
 } {
   if (preset === "custom") {
-    return { startTime: customStart, endTime: customEnd };
+    return { startTime: toApiTime(customStart), endTime: toApiTime(customEnd) };
   }
   const now = new Date();
   const endTime = formatTime(now);

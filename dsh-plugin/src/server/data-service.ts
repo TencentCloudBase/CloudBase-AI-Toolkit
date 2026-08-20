@@ -58,14 +58,12 @@ import {
   sqlTableForeignKeys,
   sqlTableRlsStatus,
   sqlWrapDdl,
-  sqlListStorageBuckets,
-  sqlCreateStorageBucket,
-  sqlDeleteStorageBucket,
 } from "../../../platform-kit/src/pg/sql.js";
 import {
   BUCKET_WRITE_UNSUPPORTED,
   FN_LOGS_CLS_FALLBACK,
   INVOKE_UNSUPPORTED,
+  INVOKE_RETIRED,
   BUILD_LOG_CODING,
   mapCdnCacheItem,
   mapCloudRunDeploy,
@@ -254,11 +252,26 @@ export function createCloudBaseDataService(
     return str(rec(arr(env.Storages ?? env.storages)[0]).Bucket ?? env.storageBucket);
   }
 
-  async function isPostgresEnvironment(): Promise<boolean> {
+  function escapeSqlLiteral(value: string): string {
+    return value.replace(/'/g, "''");
+  }
+
+  async function isPostgresEnv(): Promise<boolean> {
     const envId = await requireEnvId();
     const env = await describeEnvRecord(envId);
-    const mode = str(env.RuntimeMode ?? env.runtimeMode)?.toLowerCase() ?? "";
-    return mode.includes("postgres") || mode === "pg";
+    const mode = str(env.RuntimeMode ?? env.runtimeMode)?.toLowerCase();
+    return mode === "postgresql" || mode === "pg" || Boolean(mode?.includes("postgres"));
+  }
+
+  async function resolveAccessToken(): Promise<string | undefined> {
+    const raw = await rawAuthCall({ action: "status" }).catch(() => ({} as LooseRecord));
+    return str(
+      raw.access_token ??
+        raw.accessToken ??
+        raw.token ??
+        raw.TempSecretId ??
+        raw.apiKey,
+    );
   }
 
   async function executePgSql(sql: string): Promise<LooseRecord> {
@@ -478,13 +491,119 @@ export function createCloudBaseDataService(
       return toRowPage(payload, Date.now() - started);
     },
 
-    async listStorage(_path = "") {
-      // Host COS responsibility per spec §3.6 — file listing via host SDK, not MCP storage tools.
-      return [] satisfies StorageObject[];
+    async listStorage(path = "", opts?: { bucket?: string }) {
+      if (!(await isPostgresEnv())) {
+        return [] satisfies StorageObject[];
+      }
+      const bucket = opts?.bucket?.trim();
+      if (!bucket) return [];
+      const prefix = path.replace(/^\//, "").replace(/\/$/, "");
+      const bucketEsc = escapeSqlLiteral(bucket);
+      const prefixFilter = prefix
+        ? `AND name LIKE '${escapeSqlLiteral(prefix)}/%'`
+        : "";
+      const payload = await executePgSql(
+        `SELECT name, metadata, created_at, updated_at FROM storage.objects WHERE bucket_id = '${bucketEsc}' ${prefixFilter} ORDER BY name LIMIT 500;`,
+      );
+      const seenDirs = new Set<string>();
+      const objects: StorageObject[] = [];
+      for (const row of parseSqlRows(payload)) {
+        const fullName = str(row.name) ?? "";
+        if (!fullName) continue;
+        const relative = prefix ? fullName.slice(prefix.length + (prefix ? 1 : 0)) : fullName;
+        const slashIdx = relative.indexOf("/");
+        if (slashIdx >= 0) {
+          const dirName = relative.slice(0, slashIdx);
+          const dirPath = prefix ? `${prefix}/${dirName}/` : `${dirName}/`;
+          if (!seenDirs.has(dirPath)) {
+            seenDirs.add(dirPath);
+            objects.push({
+              cloudPath: dirPath,
+              name: dirName,
+              isDirectory: true,
+              size: 0,
+              sizeLabel: "—",
+            });
+          }
+          continue;
+        }
+        const meta = rec(row.metadata);
+        const size = num(meta.size ?? meta.Size) ?? 0;
+        objects.push({
+          cloudPath: fullName,
+          name: relative || fullName.split("/").pop() || fullName,
+          isDirectory: false,
+          size,
+          sizeLabel: formatBytes(size),
+          updatedAt: str(row.updated_at ?? row.created_at),
+        });
+      }
+      return objects;
     },
 
-    async storageUrl(_cloudPath) {
-      throw new Error("storageUrl 需宿主注入 COS SDK 实现");
+    async uploadStorage(
+      cloudPath: string,
+      opts?: { bucket?: string; fileBase64?: string; fileName?: string; contentType?: string },
+    ) {
+      if (!(await isPostgresEnv())) {
+        throw new Error("Non-PG upload requires host COS provider");
+      }
+      const envId = await requireEnvId();
+      const bucket = opts?.bucket?.trim();
+      if (!bucket) throw new Error("bucket required for upload");
+      if (!opts?.fileBase64) throw new Error("fileBase64 required for upload");
+      const fileName = opts.fileName?.trim() || cloudPath.split("/").filter(Boolean).pop() || "upload.bin";
+      const basePath = cloudPath.endsWith("/")
+        ? cloudPath
+        : cloudPath.includes("/")
+          ? `${cloudPath.replace(/\/?$/, "/")}`
+          : "";
+      const objectName = `${basePath}${fileName}`.replace(/^\//, "");
+      const token = await resolveAccessToken();
+      if (!token) throw new Error("No access token available for PG storage upload");
+      const body = Buffer.from(opts.fileBase64, "base64");
+      const url = `https://${envId}.api.tcloudbasegateway.com/v1/storages/object/${encodeURIComponent(bucket)}/${objectName.split("/").map(encodeURIComponent).join("/")}`;
+      const response = await fetch(url, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": opts.contentType ?? "application/octet-stream",
+          "Content-Length": String(body.length),
+        },
+        body,
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw new Error(`Upload failed (${response.status}): ${text.slice(0, 240)}`);
+      }
+    },
+
+    async storageUrl(cloudPath, opts) {
+      if (!(await isPostgresEnv())) {
+        throw new Error("storageUrl requires host COS provider for non-PG environments");
+      }
+      const envId = await requireEnvId();
+      const bucket = opts?.bucket?.trim();
+      if (!bucket) throw new Error("bucket required");
+      const token = await resolveAccessToken();
+      if (!token) throw new Error("No access token for signed download URL");
+      const objectName = cloudPath.replace(/^\//, "");
+      const signUrl = `https://${envId}.api.tcloudbasegateway.com/v1/storages/object/sign/${encodeURIComponent(bucket)}/${objectName.split("/").map(encodeURIComponent).join("/")}`;
+      const response = await fetch(signUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ expiresIn: 3600 }),
+      });
+      if (!response.ok) {
+        throw new Error(`Sign download URL failed (${response.status})`);
+      }
+      const payload = rec(await response.json().catch(() => ({})));
+      const url = str(payload.url ?? payload.signedUrl ?? payload.downloadUrl);
+      if (!url) throw new Error("Signed URL missing from gateway response");
+      return { url, expiresInSec: 3600 };
     },
 
     async authStatus() {
@@ -1230,27 +1349,33 @@ export function createCloudBaseDataService(
       }
     },
 
-    async invokeFunction(name, payload = "{}") {
+    async invokeFunction(name, payload) {
       const envId = await requireEnvId();
+      const eventPayload = payload?.trim() || "{}";
       try {
-        const result = await callCapi(
-          "scf",
-          "Invoke",
-          {
-            FunctionName: name,
-            Namespace: envId,
-            ClientContext: payload,
-            LogType: "Tail",
-          },
-          "2018-04-16",
-        );
-        const resultPayload =
-          str(result.Result ?? result.result) ??
-          JSON.stringify(result.RetMsg ?? result.Response ?? result);
-        return { result: resultPayload };
+        JSON.parse(eventPayload);
+      } catch {
+        throw new Error("Payload must be valid JSON");
+      }
+      try {
+        const result = await callCapi("scf", "Invoke", {
+          FunctionName: name,
+          Namespace: envId,
+          ClientContext: "",
+          LogType: "Tail",
+          Qualifier: "$LATEST",
+          Event: eventPayload,
+        });
+        const ret = rec(result.Result ?? result);
+        const msg = str(ret.RetMsg ?? ret.retMsg) ?? JSON.stringify(result);
+        const log = str(result.LogResult ?? result.Log ?? ret.Log);
+        return { result: log ? `${msg}\n\n--- Log ---\n${log}` : msg };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        return { result: "", unsupportedReason: message };
+        if (INVOKE_RETIRED.test(message)) {
+          return { result: "", unsupportedReason: INVOKE_UNSUPPORTED };
+        }
+        throw error;
       }
     },
 
@@ -1397,21 +1522,23 @@ export function createCloudBaseDataService(
     },
 
     async listStorageBuckets() {
-      const envId = await requireEnvId();
-      if (await isPostgresEnvironment()) {
-        try {
-          const payload = await executePgSql(sqlListStorageBuckets());
-          const rows = parseSqlRows(payload);
-          if (rows.length > 0) {
-            return rows.map((row) => ({
-              name: str(row.id ?? row.name) ?? "unknown",
-              kind: "storage" as const,
-            }));
-          }
-        } catch {
-          // fall through to DescribeEnvs
-        }
+      if (await isPostgresEnv()) {
+        const payload = await executePgSql(
+          "SELECT id, name, public, created_at FROM storage.buckets ORDER BY created_at DESC NULLS LAST;",
+        );
+        return parseSqlRows(payload)
+          .map((row) =>
+            mapStorageBucket(
+              {
+                Name: str(row.id ?? row.name),
+                CreateTime: str(row.created_at),
+              },
+              "storage",
+            ),
+          )
+          .filter((item): item is NonNullable<typeof item> => Boolean(item));
       }
+      const envId = await requireEnvId();
       const env = await describeEnvRecord(envId);
       return arr(env.Storages ?? env.storages)
         .map((item) => mapStorageBucket(item, "storage"))
@@ -1430,52 +1557,59 @@ export function createCloudBaseDataService(
     },
 
     async createStorageBucket(name: string) {
-      if (!(await isPostgresEnvironment())) {
-        throw new Error(BUCKET_WRITE_UNSUPPORTED);
+      const trimmed = name.trim();
+      if (!trimmed || !/^[a-z0-9][a-z0-9_-]*$/i.test(trimmed)) {
+        throw new Error("Invalid bucket name");
       }
-      await executePgSqlWithDdlRetry(sqlCreateStorageBucket(name));
+      if (await isPostgresEnv()) {
+        const escaped = escapeSqlLiteral(trimmed);
+        await executePgSqlWithDdlRetry(
+          `INSERT INTO storage.buckets (id, name, public) VALUES ('${escaped}', '${escaped}', false);`,
+        );
+        return;
+      }
+      throw new Error(BUCKET_WRITE_UNSUPPORTED);
     },
 
     async deleteStorageBucket(name: string, confirm: boolean) {
       if (!confirm) throw new Error("deleteStorageBucket requires confirm=true");
-      if (!(await isPostgresEnvironment())) {
-        throw new Error(BUCKET_WRITE_UNSUPPORTED);
+      if (await isPostgresEnv()) {
+        const escaped = escapeSqlLiteral(name.trim());
+        await executePgSqlWithDdlRetry(`DELETE FROM storage.buckets WHERE id = '${escaped}';`);
+        return;
       }
-      await executePgSqlWithDdlRetry(sqlDeleteStorageBucket(name));
+      throw new Error(BUCKET_WRITE_UNSUPPORTED);
     },
 
     async listSslCertificates() {
-      const payload = await callCapi("ssl", "DescribeCertificates", { Limit: 100, Offset: 0 });
-      return arr(payload.Certificates ?? payload.certificates).map((item) => {
-        const row = rec(item);
-        return {
-          id: str(row.CertificateId ?? row.certificateId) ?? "",
-          domain: str(row.Domain ?? row.domain) ?? "",
-          status: str(row.Status ?? row.status) ?? "unknown",
-        };
-      });
+      try {
+        const payload = await callCapi("ssl", "DescribeCertificates", { Offset: 0, Limit: 100 });
+        return arr(payload.Certificates ?? payload.certificates).map((item) => {
+          const row = rec(item);
+          return {
+            id: str(row.CertificateId ?? row.certificateId ?? row.Id) ?? "",
+            name: str(row.Alias ?? row.Domain ?? row.domain) ?? "",
+            status: str(row.Status ?? row.status),
+          };
+        });
+      } catch {
+        return [];
+      }
     },
 
     async listAuthDomains() {
       const envId = await requireEnvId();
-      const payload = await callCapi("tcb", "DescribeAuthDomains", { EnvId: envId });
-      return arr(payload.Domains ?? payload.domains ?? payload.AuthDomains).map((item) => {
+      const payload = await callCapi("tcb", "DescribeAuthDomains", { EnvId: envId }).catch(
+        () => ({} as LooseRecord),
+      );
+      return arr(payload.Domains ?? payload.AuthDomains ?? payload.domains).map((item) => {
         const row = rec(item);
         return {
-          id: str(row.Id ?? row.id) ?? "",
           domain: str(row.Domain ?? row.domain) ?? "",
+          id: str(row.Id ?? row.id),
+          status: str(row.Status ?? row.status),
         };
       });
-    },
-
-    async getGatewayQpsLimit() {
-      const envId = await requireEnvId();
-      const payload = await callCapi("tcb", "DescribeCloudBaseGWService", {
-        ServiceId: envId,
-        EnableRegion: true,
-        EnableUnion: true,
-      });
-      return num(payload.QpsLimit ?? payload.qpsLimit);
     },
 
     async setGatewayServiceEnabled(enable) {

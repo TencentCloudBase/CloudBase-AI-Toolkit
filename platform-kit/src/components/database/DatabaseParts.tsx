@@ -2,34 +2,12 @@ import * as React from "react";
 import type { PolicyInput, PolicySummary, TableSchemaDetail, TableSummary } from "../../core/types.js";
 import { sqlAlterPolicy, sqlCreatePolicy, sqlDropPolicy } from "../../pg/sql.js";
 
-const POLICY_TEMPLATES = [
-  {
-    id: "authRead",
-    labelKey: "db.policy.template.authRead",
-    using: "auth.role() = 'authenticated'",
-    withCheck: "",
-  },
-  {
-    id: "publicRead",
-    labelKey: "db.policy.template.publicRead",
-    using: "true",
-    withCheck: "",
-  },
-  {
-    id: "userFilter",
-    labelKey: "db.policy.template.userFilter",
-    using: "auth.uid() = user_id",
-    withCheck: "auth.uid() = user_id",
-  },
-] as const;
-
-const DEFAULT_ROLES = ["public", "authenticated"];
-
 export interface RlsPolicyEditorProps {
   open: boolean;
   schemaTable: string;
   initial?: PolicySummary;
   labels: Record<string, string>;
+  roleOptions?: string[];
   onClose: () => void;
   onSubmit: (sql: string) => Promise<void>;
   pending?: boolean;
@@ -37,17 +15,39 @@ export interface RlsPolicyEditorProps {
 
 const COMMANDS = ["SELECT", "INSERT", "UPDATE", "DELETE", "ALL"];
 
+const POLICY_TEMPLATES = [
+  {
+    id: "authRead",
+    labelKey: "db.policy.templateAuthRead",
+    using: "auth.role() = 'authenticated'",
+    withCheck: "",
+  },
+  {
+    id: "publicRead",
+    labelKey: "db.policy.templatePublicRead",
+    using: "true",
+    withCheck: "",
+  },
+  {
+    id: "userFilter",
+    labelKey: "db.policy.templateUserFilter",
+    using: "auth.uid() = user_id",
+    withCheck: "auth.uid() = user_id",
+  },
+] as const;
+
 export function RlsPolicyEditor(props: RlsPolicyEditorProps): React.ReactElement | null {
   const [name, setName] = React.useState("");
   const [command, setCommand] = React.useState("SELECT");
   const [selectedRoles, setSelectedRoles] = React.useState<string[]>(["public"]);
   const [using, setUsing] = React.useState("");
   const [withCheck, setWithCheck] = React.useState("");
-  const [panel, setPanel] = React.useState<"form" | "templates">("form");
-  const roleOptions = React.useMemo(() => {
-    const fromInitial = props.initial?.roles ?? [];
-    return [...new Set([...DEFAULT_ROLES, ...fromInitial])];
-  }, [props.initial?.roles]);
+  const [templateTab, setTemplateTab] = React.useState<"form" | "templates">("form");
+
+  const roleOptions = React.useMemo(
+    () => Array.from(new Set(["public", "authenticated", ...(props.roleOptions ?? [])])),
+    [props.roleOptions],
+  );
 
   React.useEffect(() => {
     if (!props.open) return;
@@ -56,16 +56,29 @@ export function RlsPolicyEditor(props: RlsPolicyEditorProps): React.ReactElement
     setSelectedRoles(props.initial?.roles?.length ? [...props.initial.roles] : ["public"]);
     setUsing(props.initial?.using ?? "");
     setWithCheck(props.initial?.withCheck ?? "");
-    setPanel("form");
+    setTemplateTab("form");
   }, [props.open, props.initial]);
 
   if (!props.open) return null;
+
+  const toggleRole = (role: string) => {
+    setSelectedRoles((prev) =>
+      prev.includes(role) ? prev.filter((item) => item !== role) : [...prev, role],
+    );
+  };
+
+  const applyTemplate = (template: (typeof POLICY_TEMPLATES)[number]) => {
+    setUsing(template.using);
+    setWithCheck(template.withCheck);
+    if (!name.trim()) setName(template.id);
+    setTemplateTab("form");
+  };
 
   const buildInput = (): PolicyInput & { previousName?: string } => ({
     name: name.trim(),
     schemaTable: props.schemaTable,
     command,
-    roles: selectedRoles,
+    roles: selectedRoles.length > 0 ? selectedRoles : ["public"],
     using,
     withCheck,
     previousName: props.initial?.name,
@@ -88,33 +101,22 @@ export function RlsPolicyEditor(props: RlsPolicyEditorProps): React.ReactElement
       <div className="cb-kit-drawer" onClick={(e) => e.stopPropagation()}>
         <h3>{props.initial ? props.labels["db.policy.edit"] : props.labels["db.policy.create"]}</h3>
         <div className="cb-kit-tabs">
-          <button type="button" className={panel === "form" ? "active" : ""} onClick={() => setPanel("form")}>
-            Form
+          <button type="button" className={templateTab === "form" ? "active" : ""} onClick={() => setTemplateTab("form")}>
+            {props.labels["db.policy.form"] ?? "Form"}
           </button>
-          <button type="button" className={panel === "templates" ? "active" : ""} onClick={() => setPanel("templates")}>
+          <button type="button" className={templateTab === "templates" ? "active" : ""} onClick={() => setTemplateTab("templates")}>
             {props.labels["db.policy.templates"] ?? "Templates"}
           </button>
         </div>
-        {panel === "templates" ? (
-          <div className="cb-kit-section">
-            {POLICY_TEMPLATES.map((tpl) => (
-              <button
-                key={tpl.id}
-                type="button"
-                className="cb-kit-btn ghost"
-                style={{ display: "block", width: "100%", marginBottom: 6, textAlign: "left" }}
-                onClick={() => {
-                  setUsing(tpl.using);
-                  setWithCheck(tpl.withCheck);
-                  setPanel("form");
-                }}
-              >
-                {props.labels[tpl.labelKey] ?? tpl.id}
+        {templateTab === "templates" ? (
+          <div className="cb-kit-card cb-kit-gap-sm">
+            {POLICY_TEMPLATES.map((template) => (
+              <button key={template.id} type="button" className="cb-kit-btn ghost" onClick={() => applyTemplate(template)}>
+                {props.labels[template.labelKey] ?? template.labelKey}
               </button>
             ))}
           </div>
-        ) : null}
-        {panel === "form" ? (
+        ) : (
           <>
         <label className="cb-kit-field">
           <span>{props.labels["db.policy.name"]}</span>
@@ -130,24 +132,17 @@ export function RlsPolicyEditor(props: RlsPolicyEditorProps): React.ReactElement
         </label>
         <label className="cb-kit-field">
           <span>{props.labels["db.policy.roles"]}</span>
-          <div className="cb-kit-role-select">
-            {roleOptions.map((role) => {
-              const active = selectedRoles.includes(role);
-              return (
-                <button
-                  key={role}
-                  type="button"
-                  className={`cb-kit-role-chip${active ? " active" : ""}`}
-                  onClick={() =>
-                    setSelectedRoles((prev) =>
-                      active ? prev.filter((r) => r !== role) : [...prev, role],
-                    )
-                  }
-                >
-                  {role}
-                </button>
-              );
-            })}
+          <div className="cb-kit-role-list">
+            {roleOptions.map((role) => (
+              <label key={role} className="cb-kit-field inline">
+                <input
+                  type="checkbox"
+                  checked={selectedRoles.includes(role)}
+                  onChange={() => toggleRole(role)}
+                />
+                <span>{role}</span>
+              </label>
+            ))}
           </div>
         </label>
         <label className="cb-kit-field">
@@ -178,7 +173,7 @@ export function RlsPolicyEditor(props: RlsPolicyEditorProps): React.ReactElement
           </button>
         </div>
           </>
-        ) : null}
+        )}
       </div>
     </div>
   );
@@ -298,9 +293,9 @@ export function TableDetailSheet(props: TableDetailSheetProps): React.ReactEleme
       {!props.loading && props.activeTab === "indexes" && schema ? (
         <div className="cb-kit-card">
           {schema.indexes.map((idx) => (
-            <div key={idx.name} style={{ padding: "8px 12px", borderBottom: "1px solid var(--cb-border)" }}>
-              <div style={{ fontWeight: 600 }}>{idx.name}</div>
-              <div className="mono" style={{ fontSize: 11 }}>{idx.definition}</div>
+            <div key={idx.name} className="cb-kit-list-item">
+              <div className="cb-kit-weight">{idx.name}</div>
+              <div className="mono">{idx.definition}</div>
             </div>
           ))}
           {schema.indexes.length === 0 ? <div className="cb-kit-restricted">{props.labels["common.empty"]}</div> : null}
@@ -328,16 +323,16 @@ export function TableDetailSheet(props: TableDetailSheetProps): React.ReactEleme
         <div>
           {noPolicies ? <div className="cb-kit-banner warn">{props.labels["db.rls.noPolicies"]}</div> : null}
           {props.onCreatePolicy ? (
-            <button type="button" className="cb-kit-btn" style={{ marginBottom: 8 }} onClick={props.onCreatePolicy}>
+            <button type="button" className="cb-kit-btn cb-kit-mb-sm" onClick={props.onCreatePolicy}>
               {props.labels["db.policy.create"]}
             </button>
           ) : null}
           {schema.security.policies.map((policy) => (
-            <div key={policy.name} className="cb-kit-card" style={{ marginBottom: 8, padding: "10px 12px" }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+            <div key={policy.name} className="cb-kit-card cb-kit-policy-card">
+              <div className="cb-kit-policy-head">
                 <strong>{policy.name}</strong>
                 <span className="cb-kit-badge unknown">{policy.command}</span>
-                <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                <span className="cb-kit-ml-auto">
                   {props.onEditPolicy ? (
                     <button type="button" className="cb-kit-btn ghost" onClick={() => props.onEditPolicy?.(policy)}>
                       {props.labels["db.policy.edit"]}
@@ -350,7 +345,7 @@ export function TableDetailSheet(props: TableDetailSheetProps): React.ReactEleme
                   ) : null}
                 </span>
               </div>
-              <div className="mono" style={{ fontSize: 11 }}>USING ({policy.using ?? "true"})</div>
+              <div className="mono">USING ({policy.using ?? "true"})</div>
             </div>
           ))}
         </div>

@@ -30,6 +30,7 @@ export function CloudRunPage(props: CloudRunPageProps): React.ReactElement {
       <PageHead title={kit.tr("run.title")} onRefresh={() => list.reload()} refreshLabel={kit.tr("common.refresh")} />
       <ErrorBanner error={list.error} retry={() => list.reload()} retryLabel={kit.tr("common.retry")} />
       <SimpleTable
+        loading={list.loading}
         columns={[
           kit.tr("run.col.service"),
           kit.tr("run.col.status"),
@@ -38,7 +39,6 @@ export function CloudRunPage(props: CloudRunPageProps): React.ReactElement {
           kit.tr("run.col.cpu"),
           kit.tr("run.col.mem"),
         ]}
-        loading={list.loading}
         empty={kit.tr("run.empty")}
         rows={(list.data ?? []).map((item) => ({
           key: item.name,
@@ -57,7 +57,7 @@ export function CloudRunPage(props: CloudRunPageProps): React.ReactElement {
         }))}
       />
       {selected ? (
-        <div className="cb-kit-section" style={{ marginTop: 16 }}>
+        <div className="cb-kit-section">
           <div className="cb-kit-section-h">{selected}</div>
           <TabsBar
             active={tab}
@@ -70,7 +70,7 @@ export function CloudRunPage(props: CloudRunPageProps): React.ReactElement {
           />
           {tab === "versions" ? (
             <SimpleTable
-              columns={[kit.tr("run.col.version"), kit.tr("run.col.status"), kit.tr("run.col.deployed")]}
+              columns={[kit.tr("fn.col.name"), kit.tr("run.col.status"), kit.tr("run.col.deployed")]}
               empty={kit.tr("common.empty")}
               rows={(detail.data?.versions ?? []).map((item) => ({
                 key: item.versionName,
@@ -80,7 +80,7 @@ export function CloudRunPage(props: CloudRunPageProps): React.ReactElement {
           ) : null}
           {tab === "deploys" ? (
             <SimpleTable
-              columns={[kit.tr("run.col.id"), kit.tr("run.col.status"), kit.tr("run.col.time"), kit.tr("run.col.runId")]}
+              columns={[kit.tr("run.col.id"), kit.tr("run.col.status"), kit.tr("run.col.deployed"), kit.tr("run.col.runId")]}
               empty={kit.tr("common.empty")}
               rows={(deploys.data ?? []).map((item) => ({
                 key: item.id,
@@ -104,7 +104,7 @@ export function CloudRunPage(props: CloudRunPageProps): React.ReactElement {
                   })();
                 }}
               >
-                Build log
+                {kit.tr("run.col.buildLog")}
               </button>
               {buildNote ? <DegradeNote>{buildNote}</DegradeNote> : null}
               {(logs.data ?? []).length === 0 ? (

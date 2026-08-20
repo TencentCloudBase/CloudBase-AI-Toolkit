@@ -8,11 +8,10 @@ import {
   useGatewayPrivilege,
   useGatewayRoutes,
 } from "../../hooks/use-gateway-routes.js";
-import { useAsyncResource } from "../../hooks/use-platform.js";
 import { useKit } from "../../hooks/use-menu.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
-import { DomainBindDrawer, RouteFormDrawer, RouteTable } from "./GatewayParts.js";
-import { ErrorBanner, SimpleTable } from "../resources/ResourceParts.js";
+import { ErrorBanner, EmptyState, SimpleTable } from "../resources/ResourceParts.js";
+import { RouteFormDrawer, RouteTable } from "./GatewayParts.js";
 
 export interface GatewayPageProps {
   provider?: PlatformProvider;
@@ -23,43 +22,46 @@ export function GatewayPage(props: GatewayPageProps): React.ReactElement {
   const provider = props.provider ?? kit.provider;
   const routes = useGatewayRoutes(provider);
   const privilege = useGatewayPrivilege(provider);
-  const privilegeData = privilege.data as import("../../core/types.js").GatewayPrivilege | undefined;
+  const privilegeData = privilege.data;
   const mutations = useGatewayMutations(provider);
   const domains = useGatewayDomains(provider);
-  const certificates = useAsyncResource(
-    () => (provider?.listSslCertificates ? provider.listSslCertificates() : Promise.resolve([])),
-    [provider],
-  );
   const functions = useFunctionNames(provider);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const [domainDrawerOpen, setDomainDrawerOpen] = React.useState(false);
   const [editRoute, setEditRoute] = React.useState<GatewayRoute | undefined>();
   const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>({});
-  const [serviceEnabled, setServiceEnabled] = React.useState<boolean | undefined>(undefined);
-  const [authEnabled, setAuthEnabled] = React.useState<boolean | undefined>(undefined);
+  const [serviceEnabled, setServiceEnabled] = React.useState(true);
+  const [authEnabled, setAuthEnabled] = React.useState(false);
   const [mutationError, setMutationError] = React.useState<string | undefined>(undefined);
+  const [bindOpen, setBindOpen] = React.useState(false);
+  const [bindDomain, setBindDomain] = React.useState("");
+  const [bindCertId, setBindCertId] = React.useState("");
+  const [bindCname, setBindCname] = React.useState("");
+  const [bindPolling, setBindPolling] = React.useState(false);
   const [confirmDeleteRoute, setConfirmDeleteRoute] = React.useState<GatewayRoute | undefined>(undefined);
-  const [confirmUnbindDomain, setConfirmUnbindDomain] = React.useState<string | undefined>(undefined);
-  const [pollTick, setPollTick] = React.useState(0);
+  const [confirmUnbind, setConfirmUnbind] = React.useState<string | undefined>(undefined);
+  const [certs, setCerts] = React.useState<Array<{ id: string; name: string }>>([]);
 
   React.useEffect(() => {
-    if (privilegeData) {
-      setServiceEnabled(Boolean(privilegeData.enableService));
-      setAuthEnabled(Boolean(privilegeData.enableAuth));
-    }
-  }, [privilegeData]);
+    setServiceEnabled(Boolean(privilegeData?.enableService));
+    setAuthEnabled(Boolean(privilegeData?.enableAuth));
+  }, [privilegeData?.enableAuth, privilegeData?.enableService]);
 
   React.useEffect(() => {
-    const binding = (domains.data ?? []).some(
-      (d) => typeof d !== "string" && d.status === "binding",
+    if (!provider?.listSslCertificates) return;
+    void provider.listSslCertificates().then((items) =>
+      setCerts(items.map((item) => ({ id: item.id, name: item.name || item.id }))),
     );
-    if (!binding) return;
-    const timer = window.setInterval(() => {
-      domains.reload();
-      setPollTick((v) => v + 1);
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, [domains, pollTick]);
+  }, [provider]);
+
+  React.useEffect(() => {
+    if (!bindPolling) return;
+    const tick = window.setInterval(() => domains.reload(), 4000);
+    const stop = window.setTimeout(() => setBindPolling(false), 60000);
+    return () => {
+      window.clearInterval(tick);
+      window.clearTimeout(stop);
+    };
+  }, [bindPolling]);
 
   const labels = {
     "gateway.addRoute": kit.tr("gateway.addRoute"),
@@ -70,15 +72,13 @@ export function GatewayPage(props: GatewayPageProps): React.ReactElement {
     "gateway.domain": kit.tr("gateway.domain"),
     "gateway.save": kit.tr("gateway.save"),
     "gateway.cancel": kit.tr("gateway.cancel"),
-    "gateway.domains.bind": kit.tr("gateway.domains.bind"),
-    "gateway.domains.unbind": kit.tr("gateway.domains.unbind"),
-    "gateway.domains.cname": kit.tr("gateway.domains.cname"),
-    "gateway.domains.cert": kit.tr("gateway.domains.cert"),
-    "gateway.domains.status": kit.tr("gateway.domains.status"),
-    "common.edit": kit.tr("common.edit"),
-    "common.delete": kit.tr("common.delete"),
-    "common.actions": kit.tr("common.actions"),
-    "common.enabled": kit.tr("common.enabled"),
+    "gateway.deleteConfirm": kit.tr("gateway.deleteConfirm"),
+    "gateway.enabled": kit.tr("gateway.enabled"),
+    "gateway.edit": kit.tr("gateway.edit"),
+    "gateway.delete": kit.tr("gateway.delete"),
+    "gateway.actions": kit.tr("gateway.actions"),
+    "common.yes": kit.tr("common.yes"),
+    "common.no": kit.tr("common.no"),
   };
 
   const grouped = React.useMemo(() => {
@@ -103,58 +103,46 @@ export function GatewayPage(props: GatewayPageProps): React.ReactElement {
     domains.reload();
   };
 
-  const handleToggleService = async (checked: boolean) => {
+  const toggleService = async (enable: boolean) => {
     setMutationError(undefined);
-    const prev = serviceEnabled;
-    setServiceEnabled(checked);
+    setServiceEnabled(enable);
     try {
-      await mutations.toggleService(checked);
+      await mutations.toggleService(enable);
       refresh();
-    } catch (err) {
-      setServiceEnabled(prev);
-      setMutationError(`${kit.tr("gateway.mutationError")}: ${err instanceof Error ? err.message : String(err)}`);
+    } catch (error) {
+      setServiceEnabled(!enable);
+      setMutationError(error instanceof Error ? error.message : String(error));
     }
   };
 
-  const handleToggleAuth = async (checked: boolean) => {
+  const toggleAuth = async (enable: boolean) => {
     setMutationError(undefined);
-    const prev = authEnabled;
-    setAuthEnabled(checked);
+    setAuthEnabled(enable);
     try {
-      await mutations.toggleAuth(checked);
+      await mutations.toggleAuth(enable);
       refresh();
-    } catch (err) {
-      setAuthEnabled(prev);
-      setMutationError(`${kit.tr("gateway.mutationError")}: ${err instanceof Error ? err.message : String(err)}`);
+    } catch (error) {
+      setAuthEnabled(!enable);
+      setMutationError(error instanceof Error ? error.message : String(error));
     }
   };
 
   return (
-    <div className="cb-kit-page" data-testid="cb-page-gateway">
+    <div className="cb-kit-page">
       <div className="cb-kit-page-head">
         <h2 className="cb-kit-page-title">{kit.tr("gateway.title")}</h2>
         <div className="cb-kit-page-actions">
           <label className="cb-kit-toggle">
             <span>{kit.tr("gateway.serviceEnabled")}</span>
-            <input
-              type="checkbox"
-              checked={Boolean(serviceEnabled)}
-              onChange={(e) => void handleToggleService(e.target.checked)}
-            />
+            <input type="checkbox" checked={serviceEnabled} onChange={(e) => void toggleService(e.target.checked)} />
           </label>
           <label className="cb-kit-toggle">
             <span>{kit.tr("gateway.authEnabled")}</span>
-            <input
-              type="checkbox"
-              checked={Boolean(authEnabled)}
-              onChange={(e) => void handleToggleAuth(e.target.checked)}
-            />
+            <input type="checkbox" checked={authEnabled} onChange={(e) => void toggleAuth(e.target.checked)} />
           </label>
-          <button type="button" className="cb-kit-btn ghost" onClick={refresh}>
-            {kit.tr("common.refresh")}
-          </button>
-          <button type="button" className="cb-kit-btn" onClick={() => setDomainDrawerOpen(true)}>
-            {kit.tr("gateway.domains.bind")}
+          <button type="button" className="cb-kit-btn ghost" onClick={refresh}>{kit.tr("common.refresh")}</button>
+          <button type="button" className="cb-kit-btn" onClick={() => setBindOpen(true)}>
+            {kit.tr("gateway.bindDomain")}
           </button>
           <button
             type="button"
@@ -169,52 +157,46 @@ export function GatewayPage(props: GatewayPageProps): React.ReactElement {
         </div>
       </div>
 
-      {mutationError ? <div className="cb-kit-inline-error">{mutationError}</div> : null}
-      <ErrorBanner error={routes.error} retry={refresh} retryLabel={kit.tr("common.retry")} />
+      {mutationError ? <ErrorBanner error={`${kit.tr("gateway.mutationError")}: ${mutationError}`} /> : null}
 
       <div className="cb-kit-section">
-        <div className="cb-kit-section-h">{kit.tr("gateway.domains.title")}</div>
+        <div className="cb-kit-section-h">{kit.tr("gateway.domainsTitle")}</div>
         <SimpleTable
           loading={domains.loading}
+          loadingLabel={kit.tr("table.loading")}
           columns={[
             kit.tr("gateway.domain"),
-            kit.tr("gateway.domains.status"),
-            kit.tr("gateway.domains.cname"),
-            kit.tr("gateway.domains.cert"),
+            kit.tr("gateway.domainStatus"),
+            kit.tr("gateway.domainCname"),
+            kit.tr("gateway.domainCert"),
+            "",
           ]}
-          empty={kit.tr("gateway.domains.empty")}
+          empty={kit.tr("common.empty")}
           rows={(domains.data ?? []).map((item) => {
-            const domain = typeof item === "string" ? item : item.domain;
-            const status = typeof item === "string" ? "ok" : (item.status ?? "—");
-            const cname =
-              typeof item === "string"
-                ? "—"
-                : ((item as { cnameTarget?: string }).cnameTarget ?? "—");
-            const cert =
-              typeof item === "string"
-                ? "—"
-                : ((item as { certificateId?: string }).certificateId ?? "—");
+            const row = typeof item === "string" ? { domain: item, status: "ok" } : item;
             return {
-              key: domain,
-              cells: [domain, String(status), String(cname), String(cert)],
+              key: row.domain,
+              cells: [
+                row.domain,
+                row.status ?? "—",
+                row.cnameTarget ?? "—",
+                row.certificateId ?? "—",
+                "",
+              ],
             };
           })}
         />
-        <div className="cb-kit-page-actions">
-          {(domains.data ?? []).map((item) => {
-            const row = typeof item === "string" ? { domain: item, status: "ok" } : item;
-            return (
-              <button
-                key={`unbind-${row.domain}`}
-                type="button"
-                className="cb-kit-btn ghost danger"
-                onClick={() => setConfirmUnbindDomain(row.domain)}
-              >
-                {kit.tr("gateway.domains.unbind")} {row.domain}
+        {(domains.data ?? []).map((item) => {
+          const domain = typeof item === "string" ? item : item.domain;
+          return (
+            <div key={`unbind-${domain}`} className="cb-kit-spread">
+              <span className="mono">{domain}</span>
+              <button type="button" className="cb-kit-btn ghost" onClick={() => setConfirmUnbind(domain)}>
+                {kit.tr("gateway.unbindDomain")}
               </button>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
 
       {[...grouped.entries()].map(([domain, domainRoutes]) => {
@@ -244,14 +226,22 @@ export function GatewayPage(props: GatewayPageProps): React.ReactElement {
       })}
 
       {(routes.data ?? []).length === 0 && !routes.loading ? (
-        <div className="cb-kit-restricted">
-          {kit.tr("gateway.routes.empty")}
-          <div className="cb-kit-empty-action">
-            <button type="button" className="cb-kit-btn" onClick={() => setDrawerOpen(true)}>
+        <EmptyState
+          action={
+            <button
+              type="button"
+              className="cb-kit-btn"
+              onClick={() => {
+                setEditRoute(undefined);
+                setDrawerOpen(true);
+              }}
+            >
               {kit.tr("gateway.addRoute")}
             </button>
-          </div>
-        </div>
+          }
+        >
+          {kit.tr("gateway.empty")}
+        </EmptyState>
       ) : null}
 
       <RouteFormDrawer
@@ -269,47 +259,84 @@ export function GatewayPage(props: GatewayPageProps): React.ReactElement {
         }}
       />
 
-      <DomainBindDrawer
-        open={domainDrawerOpen}
-        certificates={certificates.data ?? []}
-        labels={labels}
-        pending={mutations.pending}
-        onClose={() => setDomainDrawerOpen(false)}
-        onSave={async (input) => {
-          if (!provider?.bindCustomDomain) return;
-          await provider.bindCustomDomain(input);
-          setDomainDrawerOpen(false);
-          domains.reload();
-        }}
-      />
+      {bindOpen ? (
+        <div className="cb-kit-drawer-backdrop" onClick={() => setBindOpen(false)}>
+          <div className="cb-kit-drawer" onClick={(e) => e.stopPropagation()}>
+            <h3>{kit.tr("gateway.bindDomain")}</h3>
+            <label className="cb-kit-field">
+              <span>{kit.tr("gateway.domain")}</span>
+              <input className="cb-kit-input" value={bindDomain} onChange={(e) => setBindDomain(e.target.value)} />
+            </label>
+            <label className="cb-kit-field">
+              <span>{kit.tr("gateway.domainCert")}</span>
+              <select className="cb-kit-select" value={bindCertId} onChange={(e) => setBindCertId(e.target.value)}>
+                <option value="">—</option>
+                {certs.map((cert) => (
+                  <option key={cert.id} value={cert.id}>{cert.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="cb-kit-field">
+              <span>{kit.tr("gateway.cnameHint")}</span>
+              <input className="cb-kit-input" value={bindCname} onChange={(e) => setBindCname(e.target.value)} />
+            </label>
+            <div className="cb-kit-drawer-actions">
+              <button type="button" className="cb-kit-btn ghost" onClick={() => setBindOpen(false)}>{kit.tr("gateway.cancel")}</button>
+              <button
+                type="button"
+                className="cb-kit-btn"
+                disabled={!bindDomain.trim() || !bindCertId || !provider?.bindCustomDomain}
+                onClick={() => {
+                  void provider
+                    ?.bindCustomDomain?.({
+                      domain: bindDomain.trim(),
+                      certId: bindCertId,
+                      cnameDomain: bindCname.trim() || undefined,
+                    })
+                    .then(() => {
+                      setBindOpen(false);
+                      setBindDomain("");
+                      setBindCname("");
+                      setBindPolling(true);
+                      refresh();
+                    })
+                    .catch((error) => setMutationError(error instanceof Error ? error.message : String(error)));
+                }}
+              >
+                {kit.tr("gateway.save")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <ConfirmDialog
         open={Boolean(confirmDeleteRoute)}
-        title={kit.tr("common.delete")}
-        body={kit.tr("gateway.deleteConfirm")}
-        confirmLabel={kit.tr("common.delete")}
+        title={kit.tr("gateway.deleteConfirm")}
+        body={confirmDeleteRoute?.path ?? ""}
+        confirmLabel={kit.tr("common.confirm")}
         cancelLabel={kit.tr("common.cancel")}
-        danger
         onCancel={() => setConfirmDeleteRoute(undefined)}
         onConfirm={() => {
           const route = confirmDeleteRoute;
+          setConfirmDeleteRoute(undefined);
           if (!route?.routeId) return;
-          void mutations.remove(route.routeId).then(refresh).finally(() => setConfirmDeleteRoute(undefined));
+          void mutations.remove(route.routeId).then(refresh);
         }}
       />
 
       <ConfirmDialog
-        open={Boolean(confirmUnbindDomain)}
-        title={kit.tr("gateway.domains.unbind")}
-        body={confirmUnbindDomain ?? ""}
-        confirmLabel={kit.tr("gateway.domains.unbind")}
+        open={Boolean(confirmUnbind)}
+        title={kit.tr("gateway.unbindDomain")}
+        body={confirmUnbind ?? ""}
+        confirmLabel={kit.tr("common.confirm")}
         cancelLabel={kit.tr("common.cancel")}
-        danger
-        onCancel={() => setConfirmUnbindDomain(undefined)}
+        onCancel={() => setConfirmUnbind(undefined)}
         onConfirm={() => {
-          const domain = confirmUnbindDomain;
+          const domain = confirmUnbind;
+          setConfirmUnbind(undefined);
           if (!domain || !provider?.deleteCustomDomain) return;
-          void provider.deleteCustomDomain(domain, true).then(() => domains.reload()).finally(() => setConfirmUnbindDomain(undefined));
+          void provider.deleteCustomDomain(domain, true).then(refresh).catch((error) => setMutationError(error instanceof Error ? error.message : String(error)));
         }}
       />
     </div>

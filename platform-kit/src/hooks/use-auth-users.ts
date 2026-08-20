@@ -1,28 +1,24 @@
 import * as React from "react";
 import type { PlatformProvider } from "../core/provider.js";
+import type { AppUser } from "../core/types.js";
 import { useAsyncResource } from "./use-platform.js";
 
-export function useAuthUsers(provider?: PlatformProvider, opts?: { pageSize?: number }) {
-  const pageSize = opts?.pageSize ?? 20;
-  const [pageNo, setPageNo] = React.useState(1);
-  const resource = useAsyncResource(
+export function useAuthUsers(
+  provider?: PlatformProvider,
+  opts?: { pageSize?: number; pageNo?: number; keyword?: string },
+) {
+  return useAsyncResource(
     async () => {
-      if (!provider) return { users: [], total: 0 };
-      const result = await provider.searchAppUsers({ pageNo, pageSize });
+      if (!provider) return { users: [] as AppUser[], total: 0 };
+      const result = await provider.searchAppUsers({
+        pageSize: opts?.pageSize ?? 20,
+        pageNo: opts?.pageNo ?? 1,
+        keyword: opts?.keyword,
+      });
       return { users: result.users, total: result.total ?? result.users.length };
     },
-    [provider, pageNo, pageSize],
+    [provider, opts?.pageSize, opts?.pageNo, opts?.keyword],
   );
-  return {
-    users: resource.data?.users ?? [],
-    total: resource.data?.total ?? 0,
-    pageNo,
-    setPageNo,
-    pageSize,
-    loading: resource.loading,
-    error: resource.error,
-    reload: resource.reload,
-  };
 }
 
 export function useSetUserStatus(provider?: PlatformProvider) {

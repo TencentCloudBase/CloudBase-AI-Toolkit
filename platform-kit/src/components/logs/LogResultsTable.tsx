@@ -8,12 +8,10 @@ export interface LogResultsTableProps {
   onToggle: (id: string) => void;
   emptyLabel?: string;
   expandLabel?: string;
-  columnLabels?: {
-    time?: string;
-    service?: string;
-    level?: string;
-    message?: string;
-  };
+  timeLabel?: string;
+  serviceLabel?: string;
+  levelLabel?: string;
+  messageLabel?: string;
 }
 
 function entryId(entry: LogEntry, index: number): string {
@@ -27,10 +25,10 @@ export function LogResultsTable(props: LogResultsTableProps): React.ReactElement
   return (
     <div className="cb-kit-card cb-kit-table">
       <div className="cb-kit-table-head">
-        <span>Time</span>
-        <span>Service</span>
-        <span>Level</span>
-        <span>Message</span>
+        <span>{props.timeLabel ?? "Time"}</span>
+        <span>{props.serviceLabel ?? "Service"}</span>
+        <span>{props.levelLabel ?? "Level"}</span>
+        <span>{props.messageLabel ?? "Message"}</span>
       </div>
       {props.entries.map((entry, index) => {
         const id = entryId(entry, index);
@@ -53,9 +51,7 @@ export function LogResultsTable(props: LogResultsTableProps): React.ReactElement
             </button>
             {expanded ? (
               <div className="cb-kit-log-detail">
-                <div style={{ fontSize: 10.5, color: "var(--cb-text-3)", marginBottom: 4 }}>
-                  {props.expandLabel ?? "Details"}
-                </div>
+                <div className="cb-kit-muted">{props.expandLabel ?? "Details"}</div>
                 <pre>{entry.raw ? JSON.stringify(entry.raw, null, 2) : entry.message}</pre>
               </div>
             ) : null}
