@@ -9,7 +9,9 @@
 3. 微信支付配置区不展示米大师/虚拟支付商户信息（控制台团队负责）
 4. 面向人的文档无法给 agent 结构化执行顺序
 
-本需求将**消息推送配置能力**下沉到 **微信开发者工具 MCP（默认执行面）**，工具为**通用消息推送配置**（不限于虚拟支付，虚拟支付 7 事件为默认场景）；**云调用绑定与虚拟支付商户展示分别归属后端开发与控制台团队，MCP 均不提供对应工具**。同时提供 agent skill。
+本需求将**消息推送配置能力**下沉到 **CloudBase MCP（实现源）**，工具为**通用消息推送配置**（不限于虚拟支付，虚拟支付 7 事件为默认场景）；**微信开发者工具 MCP 通过升级 `@cloudbase/cloudbase-mcp` 版本消费**（`EXPOSED_TOOL_NAME` 映射暴露为 `cloud_msg_push_*`）；**云调用绑定与虚拟支付商户展示分别归属后端开发与控制台团队，MCP 均不提供对应工具**。同时提供 agent skill。
+
+**实现路径（Booker 2026-08-20 裁定）：** 单端实现——在 **CloudBase-MCP 仓库**实现 `queryMessagePush` / `manageMessagePush`（内部 camelCase 命名，进 `AVAILABLE_PLUGINS`），随包发布新版本；**main（微信开发者工具）仓库升级 `@cloudbase/cloudbase-mcp` 版本号消费**（验证旧工具无 break change，`EXPOSED_TOOL_NAME` 映射不破），再提 PR 给微信侧参考。测试用 `mcp/scripts/test-with-ticket.cjs`（微信 IDE ticket + 模拟请求）扩展；telemetry 保持开启以收集工具使用数据。
 
 **本轮范围：** 仅需求/设计/任务拆分（spec）。不实现、不集成、不开 PR。
 
@@ -23,7 +25,7 @@
 
 **通用性边界：** 本工具是**通用消息推送配置**（消息类型 `event` + 任意合法 `event_type`），不只服务虚拟支付。虚拟支付 7 个 `xpay_*` 事件作为 `event_types` 缺省时的默认订阅集合，是工具的一个便捷入口，而非工具的唯一用途。
 
-**命名依据（Booker 2026-08-20 裁定）：** 对齐微信开发者工具现有 `cloud_*` 命名体系（`cloud_db_read_struct` / `cloud_stor_write` 等）与 `EXPOSED_TOOL_NAME` 映射协作方式（内部 camelCase → 暴露 `cloud_*`）。消息推送对应：`cloud_msg_push_query`（读）+ `cloud_msg_push_manage`（写）。
+**命名依据（Booker 2026-08-20 裁定）：** CloudBase MCP 内部实现用 **camelCase**（`queryMessagePush` / `manageMessagePush`，对齐 `readNoSqlDatabaseStructure` 惯例，进 `AVAILABLE_PLUGINS`）；微信 IDE 侧经 `EXPOSED_TOOL_NAME` 映射暴露为 **`cloud_msg_push_query` / `cloud_msg_push_manage`**（对齐 `cloud_db_read_struct` 体系）。
 
 #### 验收标准
 
@@ -80,18 +82,20 @@
 3. When 虚拟支付商户需要展示，the 后端 shall 提供只读查询（offerId 等字段）；无接口则控制台 UI 标 blocked。
 4. When 接口仅接受微信 IDE 登录态，the 文档 shall 标明 CloudBase MCP（腾讯云身份）不可直接调用，避免实现方越权。
 
-### 需求 5 - CloudBase MCP 能力对齐
+### 需求 5 - CloudBase MCP 消息推送工具（实现源 + 发布）
 
-**用户故事：** 作为不使用微信开发者工具、仅使用 CloudBase MCP 的 AI 会话，我希望在后端契约允许时也能完成消息推送配置。
+**用户故事：** 作为 CloudBase MCP 维护者，我希望在 CloudBase-MCP 仓库实现消息推送工具，随包发布新版本，供微信开发者工具与纯 CloudBase MCP 用户消费。
 
-**对齐范围（Booker 2026-08-20 裁定，范围收窄）：** CloudBase MCP 仅对齐**消息推送配置**（与微信 IDE MCP 语义对齐）。云调用绑定与虚拟支付商户查询工具均已从设计移除（分别归属后端开发与控制台团队）。
+**实现路径（Booker 2026-08-20 裁定，实现源修正）：** **CloudBase MCP 是消息推送工具的唯一实现源**（`queryMessagePush` / `manageMessagePush`，进 `AVAILABLE_PLUGINS` 或 DEFAULT_PLUGINS）。发布链路：实现 + 单测 + 用 `mcp/scripts/test-with-ticket.cjs`（微信 IDE ticket）做真实调用测试 → 提交 PR → 发布新版本 → **main 仓库升级 `@cloudbase/cloudbase-mcp` 版本号消费**（验证旧工具无 break change）→ 提 PR 给微信侧参考。telemetry 保持开启（`enableTelemetry` 默认 true）以收集工具使用数据用于优化。
 
 #### 验收标准
 
-1. When TCB/云开发侧可调用 API 就绪，the CloudBase MCP shall 提供与微信 IDE MCP **语义对齐**的消息推送查询/管理工具（命名按 CloudBase `query*`/`manage*` 惯例），schema 含相同枚举。
-2. When API 未就绪，the CloudBase MCP shall 不注册假工具或乱调 `callCloudApi`；若注册占位，调用时 shall 返回明确 blocked 与 nextActions（指向 wechatide 工具或控制台）。
-3. When 修改插件清单或工具名，the 文档 (`doc/connection-modes.mdx`、README) shall 同步校验（canonical 名可解析）。
-4. When 在 wxide 嵌入场景，the 实现 shall 遵守 `wxide-vs-cloudbase-mcp.md`：不复制 wechatide schema，默认执行面仍为 IDE Skills。
+1. When TCB/云开发侧可调用 API 就绪，the CloudBase MCP shall 提供消息推送查询/管理工具（`queryMessagePush` / `manageMessagePush`，命名按 CloudBase `query*`/`manage*` 惯例，进 `AVAILABLE_PLUGINS`），schema 含相同枚举。
+2. When 发布新版本，the 旧工具（nosql/storage 等）schema 与行为 shall 无 break change（main 升级后 `EXPOSED_TOOL_NAME` 映射不破、既有工具可用）。
+3. When 需要真实调用验证，the 测试 shall 通过 `mcp/scripts/test-with-ticket.cjs`（微信 IDE ticket + 模拟 qbase 请求）完成，不依赖手工点控制台。
+4. When telemetry 可用，the 工具使用与错误数据 shall 保持上报（默认开启），用于后续优化。
+5. When 修改插件清单或工具名，the 文档 (`doc/connection-modes.mdx`、README) shall 同步校验（canonical 名可解析）。
+6. When 在 wxide 嵌入场景，the 实现 shall 遵守 `wxide-vs-cloudbase-mcp.md`：不复制 wechatide schema，微信侧默认执行面仍为 IDE Skills。
 
 ### 需求 6 - 虚拟支付接入 agent skill
 

@@ -61,13 +61,13 @@
 
 ## 阶段 3 — 开发（新任务，worktree 隔离）
 
-分三个可并行仓，但 **CloudBase MCP 实现依赖阶段 2 的 TCB API**；微信 IDE 工具可在 qbase CGI 确认后先做。
+**实现源修正（Booker 2026-08-20）：** 消息推送工具在 **CloudBase-MCP 仓库单端实现**（唯一实现源），发布新版本；`main` 仅升级 `@cloudbase/cloudbase-mcp` 版本消费（`EXPOSED_TOOL_NAME` 暴露），验证无 break change 后提 PR 给微信侧参考。
 
 | 仓 | 内容 | worktree |
 | --- | --- | --- |
-| `main`（微信开发者工具） | 原生 MCP tools：消息推送（`cloud_msg_push_query`/`cloud_msg_push_manage`）；写操作确认框；tools.yaml | 独立 worktree |
+| `CloudBase-MCP` | **实现源**：`queryMessagePush`/`manageMessagePush` + `test-with-ticket.cjs` 真实测试 + 发版 + skill + schema 测试 | `.worktrees/virtual-payment-impl` + `feat/virtual-payment-mcp` |
+| `main`（微信开发者工具） | **消费方**：升级版本 + `EMcpToolName`/`EXPOSED_TOOL_NAME` 映射 + 无 break change 回归 + tools.yaml | 独立 worktree |
 | `weda-alternative` | 微信支付配置区虚拟支付展示 | 独立 worktree |
-| `CloudBase-MCP` | 消息推送对齐工具（仅 API 就绪后）、skill、schema 测试、文档 | `.worktrees/virtual-payment-impl` + `feat/virtual-payment-mcp` |
 
 **输入：** 已评审 spec + 阶段 2 契约  
 **输出：** 实现 + 单测 + 生成产物  

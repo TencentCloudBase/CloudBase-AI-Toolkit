@@ -32,21 +32,23 @@
   - _需求: 5
   - **开发时使用 worktree 隔离：** N/A
 
-## 阶段 B — 微信开发者工具 MCP（main 仓，核心交付 = 消息推送）
+## 阶段 B — CloudBase-MCP 实现（核心，唯一实现源）
 
-- [ ] B.1 新增 `cloud_msg_push_query` / `cloud_msg_push_manage`（qbase 封装 + 幂等 merge + 写确认；通用事件，xpay 默认集合；命名对齐 `EMcpToolName`/`EXPOSED_TOOL_NAME` 映射）
-  - _需求: 1
-  - **开发时使用 worktree 隔离：** 是（main 仓独立 worktree）
+- [ ] B.1 新增 `mcp/src/tools/msg-push.ts`：实现 `queryMessagePush` / `manageMessagePush`（qbase CGI 封装 + 幂等 merge + 写确认；通用事件，xpay 默认集合），进 `AVAILABLE_PLUGINS`（或 DEFAULT_PLUGINS）
+  - _需求: 1, 5
+  - **开发时使用 worktree 隔离：** 是（`.worktrees/virtual-payment-impl`，分支 `feat/virtual-payment-mcp`）
 
-- [ ] B.2 在 `mcp.config.ts` 的 `EMcpToolName` 增加 `CLOUD_MSG_PUSH_QUERY` / `CLOUD_MSG_PUSH_MANAGE`，并接入 `EXPOSED_TOOL_NAME` 映射
-  - _需求: 1
+- [ ] B.2 schema 测试：`z.enum` 枚举、幂等 merge、version 冲突、非法事件拒绝；生成 `scripts/tools.json` / `doc/mcp-tools.md`
+  - _需求: 1, 5
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] B.3 更新 Nightly `tools.yaml` / `--help`；禁止手抄过期 schema 到 CloudBase-MCP
-  - _需求: 1, 7
+- [ ] B.3 扩展 `mcp/scripts/test-with-ticket.cjs`：新增消息推送测试组（微信 IDE ticket `--appid/--env-id/--ticket` 真实调用 `getappconfig`/`uploadappconfig`，可模拟发请求验证幂等）
+  - _需求: 1, 5
   - **开发时使用 worktree 隔离：** 是
 
-> **v1 边界：** 微信 IDE MCP **不做**云调用工具（`query_cloud_call`/`manage_cloud_call`）与虚拟支付商户查询（`query_xpay_config`）——云调用归属后端链路（CloudBase MCP 承接），商户展示归属控制台团队。
+- [ ] B.4 提交 PR 到 CloudBase-MCP 仓库 → 发布新版本（`mcp/package.json` bump + `prepublishOnly` 流程），telemetry 保持开启
+  - _需求: 5
+  - **开发时使用 worktree 隔离：** 是
 
 ## 阶段 C — 控制台 UI（weda-alternative）
 
@@ -58,31 +60,39 @@
   - _需求: 3
   - **开发时使用 worktree 隔离：** 是
 
-## 阶段 D — CloudBase-MCP（仅消息推送对齐）
+## 阶段 D — main（微信开发者工具）消费 + skill
 
-- [ ] D.1（可选，依赖 A.4）实现 `queryMessagePush` / `manageMessagePush` 等对齐工具（与微信 IDE `cloud_msg_push_query`/`cloud_msg_push_manage` 语义对齐）+ schema 测试 + 生成 `scripts/tools.json` / `doc/mcp-tools.md`
-  - _需求: 5
-  - **开发时使用 worktree 隔离：** 是（`.worktrees/virtual-payment-impl`）
+- [ ] D.1 main 升级 `@cloudbase/cloudbase-mcp` 版本号；在 `EMcpToolName` 增加 `CLOUD_MSG_PUSH_QUERY` / `CLOUD_MSG_PUSH_MANAGE`，`EXPOSED_TOOL_NAME` 映射 `queryMessagePush`→`cloud_msg_push_query`、`manageMessagePush`→`cloud_msg_push_manage`
+  - _需求: 1, 5
+  - **开发时使用 worktree 隔离：** 是（main 仓独立 worktree）
 
-- [ ] D.2 若 A.4 未就绪：文档注明 blocked；可选占位工具返回 nextActions → wechatide
+- [ ] D.2 **无 break change 验证**：升级后旧工具（nosql/storage/env 等）schema 与行为不变，`createCloudBaseToolDefs` 白名单不破；回归测试通过
   - _需求: 5
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] D.3 新增 `config/source/skills/miniprogram-virtual-payment/`（或评审确认的路径）+ `skill-metadata.json` + `npm run build:skill-manifest`
+- [ ] D.3 提交 PR 给微信侧（main 仓库）参考；更新 Nightly `tools.yaml` / `--help`（禁止手抄过期 schema）
+  - _需求: 1, 7
+  - **开发时使用 worktree 隔离：** 是
+
+- [ ] D.4 新增 `config/source/skills/miniprogram-virtual-payment/`（或评审确认的路径）+ `skill-metadata.json` + `npm run build:skill-manifest`
   - _需求: 6
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] D.4 更新 `wxide-vs-cloudbase-mcp.md` 与 `doc/ide-setup/wechat-devtools.mdx` 虚拟支付小节
+- [ ] D.5 更新 `wxide-vs-cloudbase-mcp.md` 与 `doc/ide-setup/wechat-devtools.mdx` 虚拟支付小节
   - _需求: 5, 6
   - **开发时使用 worktree 隔离：** 是
 
 ## 阶段 E — 验证
 
-- [ ] E.1 幂等与 7 事件默认订阅手工/e2e；任意合法事件订阅（非 xpay）
+- [ ] E.1 幂等与 7 事件默认订阅手工/e2e（`test-with-ticket.cjs` 真实调用）；任意合法事件订阅（非 xpay）
   - _需求: 1
   - **开发时使用 worktree 隔离：** 是（验证环境独立）
 
-- [ ] E.2 skill 驱动的端到端沙箱支付回调（低额度或沙箱）
+- [ ] E.2 main 升级后工具可用性回归：`cloud_msg_push_query` / `cloud_msg_push_manage` 正常暴露调用，旧工具无回归
+  - _需求: 5
+  - **开发时使用 worktree 隔离：** 是
+
+- [ ] E.3 skill 驱动的端到端沙箱支付回调（低额度或沙箱）
   - _需求: 6
   - **开发时使用 worktree 隔离：** 是
 
@@ -93,5 +103,6 @@
 - 为评测/grader 增加专用分支
 - 云调用工具（`queryCloudCall` / `manageCloudCall`）——归属微信云开发后端开发，MCP 均不提供（Booker 2026-08-20 裁定）
 - 虚拟支付商户查询工具（`query_xpay_config` / `queryVirtualPaymentConfig`）——归属控制台团队，MCP 均不提供（Booker 2026-08-20 裁定）
+- main 侧原生实现消息推送（实现源 = CloudBase-MCP，main 仅升级版本消费，Booker 2026-08-20 裁定）
 
 
