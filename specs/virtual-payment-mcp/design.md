@@ -153,6 +153,11 @@ z.object({
 4. 若集合无变化 → 直接成功（不 POST）  
 5. 否则 POST overwrite，失败则提示 version conflict 并建议重试  
 
+**工程语义（对齐成熟范式，Booker 2026-08-20）：** 本算法即 Read-Modify-Write + 乐观并发控制——
+- `version` 语义对齐 **RFC 7232** 的 ETag/`If-Match`：冲突=412，客户端重读→merge→重试（定义重试上限与退避）
+- `event_types` 是**声明式期望集合**，幂等对齐 **kubectl apply**：重复执行收敛到同一状态
+- **硬约束：必须先读全量再 merge，禁止用本地列表直接覆盖**（会冲掉线上其他非目标配置，控制台自身也遵循「读→merge→覆盖」纪律）
+
 ### 4.2 云调用（后端开发，MCP 均不提供工具）
 
 | 步骤 | 接口 | 状态 | 归属 |

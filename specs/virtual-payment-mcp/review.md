@@ -28,7 +28,12 @@
 
 **备选：** 新做增量 add/remove CGI（更清晰，但要排期）。
 
-**请确认：** 是否允许 MCP 直接复用现网 CGI（微信 IDE 登录态）。
+**工程参考（Booker 2026-08-20 补充，建议作为实现语义依据）：**
+
+1. **语义对齐 RFC 7232（HTTP 条件请求）**：`version` 即 ETag、`uploadappconfig` 即全量 PUT + `If-Match`。冲突 = 412 Precondition Failed → 客户端重读 → merge → 重试（需定义重试上限与退避）。控制台实测：保存前必先 `getappconfig` 拿全量 + version，内存 merge 后再全量覆盖（`newcallbackconfig/index.tsx` `foundDuplicate`/`foundSameMsgEntry` 逻辑），version 不匹配即失败——MCP 必须复刻该「先读再 merge」纪律，禁止用本地空列表直接覆盖（会冲掉线上其他配置）。
+2. **幂等对齐 kubectl apply（声明式）**：`manage_msg_push` 的 `event_types` 是**声明式期望集合**而非增量动作——重复执行收敛到同一状态（同 `(msgType,event)` 只保留一个，其他条目保留）。对应 K8s `resourceVersion` 乐观锁 + client-side 三方合并的成熟范式。
+
+**请确认：** 是否允许 MCP 直接复用现网 CGI（微信 IDE 登录态）；是否采纳上述 RFC 7232 / kubectl apply 语义作为实现约束。
 
 ### D4. 云调用写路径（完全归属后端开发，已裁定）
 
