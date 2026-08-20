@@ -68,19 +68,15 @@
   - _需求: 2, 4, 5
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] D.3（可选）虚拟支付商户只读查询 `queryVirtualPaymentConfig`（依赖 A.3 后端接口；未就绪标 blocked）
-  - _需求: 3, 5
-  - **开发时使用 worktree 隔离：** 是
-
-- [ ] D.4 若 A.4 未就绪：文档注明 blocked；可选占位工具返回 nextActions → wechatide
+- [ ] D.3 若 A.4 未就绪：文档注明 blocked；可选占位工具返回 nextActions → wechatide
   - _需求: 5
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] D.5 新增 `config/source/skills/miniprogram-virtual-payment/`（或评审确认的路径）+ `skill-metadata.json` + `npm run build:skill-manifest`
+- [ ] D.4 新增 `config/source/skills/miniprogram-virtual-payment/`（或评审确认的路径）+ `skill-metadata.json` + `npm run build:skill-manifest`
   - _需求: 6
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] D.6 更新 `wxide-vs-cloudbase-mcp.md` 与 `doc/ide-setup/wechat-devtools.mdx` 虚拟支付小节
+- [ ] D.5 更新 `wxide-vs-cloudbase-mcp.md` 与 `doc/ide-setup/wechat-devtools.mdx` 虚拟支付小节
   - _需求: 5, 6
   - **开发时使用 worktree 隔离：** 是
 
@@ -94,11 +90,7 @@
   - _需求: 2, 5
   - **开发时使用 worktree 隔离：** 是
 
-- [ ] E.3 `queryVirtualPaymentConfig` / 控制台 UI 字段一致（CloudBase MCP 侧；微信 IDE 不涉及）
-  - _需求: 3, 5
-  - **开发时使用 worktree 隔离：** 是
-
-- [ ] E.4 skill 驱动的端到端沙箱支付回调（低额度或沙箱）
+- [ ] E.3 skill 驱动的端到端沙箱支付回调（低额度或沙箱）
   - _需求: 6
   - **开发时使用 worktree 隔离：** 是
 
@@ -107,6 +99,6 @@
 - 在主工作区 `feat/dsh-plugin` 或 `mcp-region-env-scope` worktree 内夹带实现
 - 猜测公众平台未暴露接口
 - 为评测/grader 增加专用分支
-- 微信 IDE MCP 的云调用工具（含只读，v1 归属后端链路/CloudBase MCP）
-- 微信 IDE MCP 的虚拟支付商户查询工具（归属控制台团队）
+- 虚拟支付商户查询工具（`query_xpay_config` / `queryVirtualPaymentConfig`）——归属控制台团队，MCP 均不提供（Booker 2026-08-20 裁定）
+
 

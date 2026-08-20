@@ -59,7 +59,8 @@ CloudBase MCP 对齐名（API 就绪后）：
 | --- | --- | --- |
 | `queryMessagePush` / `manageMessagePush` | ← msg push（通用） | 双端对齐（微信 IDE `cloud_msg_push_query`/`cloud_msg_push_manage`） |
 | `queryCloudCall` / `manageCloudCall` | ← cloud call（读+写） | **后端链路主执行面**（微信 IDE 不提供） |
-| `queryVirtualPaymentConfig` | ← xpay config（只读） | **CloudBase MCP 可选**（接口就绪后；微信 IDE 不提供） |
+
+> **不做（Booker 2026-08-20 裁定）：** 虚拟支付商户查询工具（`queryVirtualPaymentConfig` / `query_xpay_config`）**从设计移除**——商户展示完全归属控制台（weda-alternative）团队，微信 IDE MCP 与 CloudBase MCP 均不提供该查询工具。
 
 ### 3.2 Schema 草案（Zod）
 
@@ -127,7 +128,7 @@ z.object({
 });
 ```
 
-> **微信 IDE MCP 仅暴露以上两个工具。** 云调用（`queryCloudCall`/`manageCloudCall`）与虚拟支付商户查询（`queryVirtualPaymentConfig`）为 CloudBase MCP 侧工具，API 就绪后注册，schema 草案如下（仅 CloudBase MCP 侧）：
+> **微信 IDE MCP 仅暴露以上两个工具。** 云调用（`queryCloudCall`/`manageCloudCall`）为 CloudBase MCP 侧工具，API 就绪后注册，schema 草案如下（仅 CloudBase MCP 侧）：
 
 ```ts
 // manage_cloud_call —— CloudBase MCP 侧（后端链路），setfuncconfig 或等价接口就绪后注册
@@ -137,13 +138,9 @@ z.object({
 //   api_list: z.array(z.enum(XPAY_OPENAPI_PATHS)).min(1),
 //   confirm: z.boolean().optional(),
 // });
-
-// query_xpay_config —— CloudBase MCP 侧（可选），后端接口就绪后注册
-// z.object({
-//   appid: z.string(),
-//   action: z.enum(["info"]).default("info"),
-// });
 ```
+
+> **不做（Booker 2026-08-20 裁定）：** 虚拟支付商户查询工具（`query_xpay_config` / `queryVirtualPaymentConfig`）已从设计移除，无 schema。
 
 说明：
 
@@ -179,14 +176,14 @@ z.object({
 
 不要把 `usecloudaccesstoken`（云托管令牌）当成虚拟支付云函数绑定。
 
-### 4.3 虚拟支付商户（控制台团队负责，微信 IDE MCP 不提供查询）
+### 4.3 虚拟支付商户（控制台团队负责，MCP 均不提供查询）
 
 | 步骤 | 接口 | 状态 |
 | --- | --- | --- |
 | 普通商户 | `getmchbyappid` / `getapplywxpaylist` / `getauthstate` | 已存在，**不可**冒充虚拟支付 |
 | 米大师/xpay | **待** 查询 CGI / Cloud API | **缺口** |
 
-UI：控制台（weda-alternative）在 `globalsettings` 微信支付 Card 旁增加「虚拟支付」子区，数据源接新查询（本项目微信 IDE MCP 侧不做，仅记录接口依赖供 CloudBase MCP 对齐）。
+UI：控制台（weda-alternative）在 `globalsettings` 微信支付 Card 旁增加「虚拟支付」子区，数据源接新查询。**微信 IDE MCP 与 CloudBase MCP 均不提供商户查询工具**（Booker 2026-08-20 裁定）。
 
 ## 5. 鉴权边界
 
@@ -202,7 +199,7 @@ UI：控制台（weda-alternative）在 `globalsettings` 微信支付 Card 旁�
 
 当前 `cloudbase-tools.ts` 只包装 `@cloudbase/cloudbase-mcp` 的 nosql/storage，且 `requestFn` 打 tcb。
 
-**推荐：** 消息推送（`cloud_msg_push_query`/`cloud_msg_push_manage`）作为 **wechatide 原生 tools**（与 `cloud_fn_deploy` 同层），通过 `EXPOSED_TOOL_NAME` 映射暴露为 `cloud_*` 名；不要塞进 `createCloudBaseToolDefs` 白名单，直到 CloudBase MCP 包内也有同名工具且存在 TCB API。云调用绑定写入（`manage_cloud_call`）与虚拟支付商户查询（`queryVirtualPaymentConfig`）**不进入微信 IDE**，由 CloudBase MCP 承接（后端链路）。
+**推荐：** 消息推送（`cloud_msg_push_query`/`cloud_msg_push_manage`）作为 **wechatide 原生 tools**（与 `cloud_fn_deploy` 同层），通过 `EXPOSED_TOOL_NAME` 映射暴露为 `cloud_*` 名；不要塞进 `createCloudBaseToolDefs` 白名单，直到 CloudBase MCP 包内也有同名工具且存在 TCB API。云调用绑定（`manage_cloud_call`）**不进入微信 IDE**，由 CloudBase MCP 承接（后端链路）。虚拟支付商户查询**不做**（归属控制台团队，Booker 2026-08-20 裁定）。
 
 ## 7. Agent skill 草案
 

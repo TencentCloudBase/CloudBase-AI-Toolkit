@@ -87,7 +87,6 @@
 - 省略 `event_types` 一次订阅 7 个 xpay 事件，幂等重入不重复
 - 指定增删与 list 一致
 - 云调用 bind 22 个 path（或阶段 2 确认的子集），查询/解绑幂等（CloudBase MCP 侧）
-- `queryVirtualPaymentConfig`（CloudBase MCP 侧，可选）在已开通应用上返回 offerId 等字段；未开通返回明确 empty
 - agent skill 按顺序调用不跳步
 
 **依赖：** 阶段 3；真实 AppID（沙箱）
@@ -99,7 +98,7 @@
 | 风险 | 影响 | 缓解 |
 | --- | --- | --- |
 | 无 setfuncconfig | 3.2 无法不部署完成绑定 | 评审选降级：改 config.json + deploy |
-| 无米大师查询 CGI | 3.4 MCP/UI 无法做 | 阶段 2 阻塞；UI 可先放「未开通/接口未就绪」空态 |
+| 无米大师查询 CGI | 3.4 控制台 UI 无法做 | 阶段 2 阻塞；UI 可先放「未开通/接口未就绪」空态（MCP 已不做商户查询） |
 | 把全部 constraints 当默认订阅 | 支付云函数收到无关事件 | 默认仅 7 个 xpay_* |
 | CloudBase MCP 抢先实现假 API | 越权/不可用 | 无契约不写 callCloudApi 猜测 Action |
 | 主工作区 `mcp-region-env-scope` 被污染 | 并行开发冲突 | 全程独立 worktree |

@@ -2,7 +2,7 @@
 
 面向产品 / starkewang / 微信 IDE / CloudBase MCP 维护者。本阶段无实现代码。
 
-> **已裁定（Booker 2026-08-20，两轮）：** ① 消息推送工具**通用化**——不限于虚拟支付，`event_types` 支持任意合法事件，xpay 7 事件为缺省默认集合；② 云调用绑定**完全归属微信云开发后端开发**——微信 IDE MCP **不提供任何云调用工具（含只读）**，由 CloudBase MCP 在 `setfuncconfig` 或等价接口就绪后承接；③ 虚拟支付商户展示**归属控制台（weda-alternative）团队**——微信 IDE MCP 不提供商户查询工具，CloudBase MCP 侧可选；④ 工具命名**对齐 `cloud_*` 体系**：`cloud_msg_push_query` / `cloud_msg_push_manage`。以下决策点基于此裁定。
+> **已裁定（Booker 2026-08-20，两轮）：** ① 消息推送工具**通用化**——不限于虚拟支付，`event_types` 支持任意合法事件，xpay 7 事件为缺省默认集合；② 云调用绑定**完全归属微信云开发后端开发**——微信 IDE MCP **不提供任何云调用工具（含只读）**，由 CloudBase MCP 在 `setfuncconfig` 或等价接口就绪后承接；③ 虚拟支付商户展示**归属控制台（weda-alternative）团队**——**微信 IDE MCP 与 CloudBase MCP 均不提供商户查询工具**（`queryVirtualPaymentConfig` 已移除）；④ 工具命名**对齐 `cloud_*` 体系**：`cloud_msg_push_query` / `cloud_msg_push_manage`。以下决策点基于此裁定。
 
 ## 决策点清单
 
@@ -54,7 +54,7 @@
 
 **现状：** 无 offerId 查询面；普通商户 API 不可复用。
 
-**已定（Booker 2026-08-20）：** 商户展示归属**控制台（weda-alternative）团队**，微信 IDE MCP 不提供查询工具；CloudBase MCP 侧可选（接口就绪后）。
+**已定（Booker 2026-08-20）：** 商户展示归属**控制台（weda-alternative）团队**，**微信 IDE MCP 与 CloudBase MCP 均不提供查询工具**（`queryVirtualPaymentConfig` 已从设计移除）。
 
 **请确认（控制台团队）：** 查询 CGI/字段 owner、ETA；未就绪时 UI 是否接受 blocked 空态上线。
 
@@ -78,7 +78,7 @@
 2. 最大缺口不是「能不能配消息推送」，而是：**云函数 OpenAPI 写接口（setfuncconfig）**与**米大师应用查询接口**；以及 CloudBase MCP 所需的 **TCB 身份可调代理**。
 3. 现有 get/overwrite CGI + version 已足够支撑幂等批量订阅，增量 API 为体验优化非必须。
 4. **云调用绑定归属后端链路**：微信 IDE MCP 不提供任何云调用工具，写入/查询由 CloudBase MCP 承接——请服务端确认 `setfuncconfig` 排期。
-5. **虚拟支付商户展示归属控制台（weda-alternative）团队**，微信 IDE MCP 不做；CloudBase MCP 侧可选（接口就绪后）。
+5. **虚拟支付商户展示归属控制台（weda-alternative）团队**，微信 IDE MCP 与 CloudBase MCP 均不做；商户查询工具（`queryVirtualPaymentConfig`）已从设计移除。
 
 ## 旧任务
 

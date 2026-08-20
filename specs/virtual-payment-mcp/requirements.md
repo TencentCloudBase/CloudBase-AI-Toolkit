@@ -53,11 +53,11 @@
 6. When 后端尚无独立 set 接口，the 云开发侧 shall 书面确认降级路径（改 `config.json` + 上传），并在 MCP 返回中写明生效方式；不得假装已远端写入成功。
 7. When 微信 IDE MCP 工具集发布，the 工具列表 shall 不包含任何云调用工具（`query_cloud_call` / `manage_cloud_call` 均不在 v1 范围），云调用能力在微信侧完全不可见。
 
-### 需求 3 - 虚拟支付商户信息展示（控制台团队负责，微信 IDE MCP 不提供查询工具）
+### 需求 3 - 虚拟支付商户信息展示（控制台团队负责，MCP 均不提供查询工具）
 
 **用户故事：** 作为开发者，我希望在微信支付配置区看到当前 AppID 关联的米大师/虚拟支付应用信息，而不与普通微信支付商户混为一谈。
 
-**归属边界（Booker 2026-08-20 裁定，范围收窄）：** 虚拟支付商户展示是**控制台（weda-alternative）团队**的工作。**微信 IDE MCP 不提供虚拟支付商户查询工具**（`query_xpay_config` / `cloud_xpay_config` 不在 v1 范围）；CloudBase MCP 侧可在后端接口就绪后提供只读查询对齐（见需求 5）。
+**归属边界（Booker 2026-08-20 裁定，范围收窄）：** 虚拟支付商户展示是**控制台（weda-alternative）团队**的工作。**微信 IDE MCP 与 CloudBase MCP 均不提供虚拟支付商户查询工具**（`query_xpay_config` / `queryVirtualPaymentConfig` 已从设计移除）。
 
 #### 验收标准
 
@@ -65,7 +65,7 @@
 2. When 虚拟支付应用已关联，the UI shall 至少展示：`offerId`、商户名、签约/启用状态；若有则展示订阅签约状态与 iOS 虚拟支付状态。
 3. When 未关联或接口未就绪，the UI shall 展示明确空态/未就绪说明，不得复用普通商户号列表冒充。
 4. When 仅存在普通微信支付商户，the 普通商户区行为 shall 保持现状，虚拟支付区独立展示。
-5. When 微信 IDE MCP 工具集发布，the 工具列表 shall 不包含虚拟支付商户查询工具；商户信息查询仅由控制台 UI 与（接口就绪后的）CloudBase MCP 提供。
+5. When 微信 IDE MCP 工具集发布，the 工具列表 shall 不包含虚拟支付商户查询工具；商户信息查询仅由控制台 UI 提供。
 
 ### 需求 4 - 云开发侧后端接口支撑
 
@@ -77,18 +77,18 @@
 
 1. When 消息推送需要读写，the 后端 shall 提供查询与变更能力（允许复用现有 `getappconfig`/`uploadappconfig`/`getcallbacksupportlist`，或提供增量 API）；契约需文档化鉴权与 version。
 2. When 云调用需要绑定/解绑（后端链路），the 后端 shall 提供查询+变更（现有 `getfuncconfig` 读 + 新增 `setfuncconfig` 或等价批量 bind/unbind 写）；若短期仅有查询，shall 书面确认降级路径（`config.json` + 上传）。
-3. When 虚拟支付商户需要展示，the 后端 shall 提供只读查询（offerId 等字段）；无接口则控制台 UI 与 CloudBase MCP 商户查询标 blocked。
+3. When 虚拟支付商户需要展示，the 后端 shall 提供只读查询（offerId 等字段）；无接口则控制台 UI 标 blocked。
 4. When 接口仅接受微信 IDE 登录态，the 文档 shall 标明 CloudBase MCP（腾讯云身份）不可直接调用，避免实现方越权。
 
 ### 需求 5 - CloudBase MCP 能力对齐
 
 **用户故事：** 作为不使用微信开发者工具、仅使用 CloudBase MCP 的 AI 会话，我希望在后端契约允许时也能完成同类配置（消息推送 + 云调用绑定）。
 
-**对齐范围（Booker 2026-08-20 裁定，范围收窄）：** CloudBase MCP 对齐能力——① 消息推送配置（与微信 IDE MCP 语义对齐）；② **云调用绑定（后端链路主执行面，依赖 TCB 后端 `setfuncconfig` 或等价接口）**；③ 虚拟支付商户只读查询（接口就绪后，可选）。微信 IDE MCP 仅负责消息推送（需求 1）。
+**对齐范围（Booker 2026-08-20 裁定，范围收窄）：** CloudBase MCP 对齐能力——① 消息推送配置（与微信 IDE MCP 语义对齐）；② **云调用绑定（后端链路主执行面，依赖 TCB 后端 `setfuncconfig` 或等价接口）**。微信 IDE MCP 仅负责消息推送（需求 1）。虚拟支付商户查询工具已从设计移除（归属控制台团队，见需求 3）。
 
 #### 验收标准
 
-1. When TCB/云开发侧可调用 API 就绪，the CloudBase MCP shall 提供与微信 IDE MCP **语义对齐**的消息推送查询/管理工具（命名按 CloudBase `query*`/`manage*` 惯例），schema 含相同枚举；云调用绑定工具（查询+绑定/解绑）shall 在 `setfuncconfig` 或等价接口就绪后注册；虚拟支付商户只读查询（`queryVirtualPaymentConfig`）shall 在后端接口就绪后注册。
+1. When TCB/云开发侧可调用 API 就绪，the CloudBase MCP shall 提供与微信 IDE MCP **语义对齐**的消息推送查询/管理工具（命名按 CloudBase `query*`/`manage*` 惯例），schema 含相同枚举；云调用绑定工具（查询+绑定/解绑）shall 在 `setfuncconfig` 或等价接口就绪后注册。
 2. When API 未就绪，the CloudBase MCP shall 不注册假工具或乱调 `callCloudApi`；若注册占位，调用时 shall 返回明确 blocked 与 nextActions（指向 wechatide 工具或控制台）。
 3. When 修改插件清单或工具名，the 文档 (`doc/connection-modes.mdx`、README) shall 同步校验（canonical 名可解析）。
 4. When 在 wxide 嵌入场景，the 实现 shall 遵守 `wxide-vs-cloudbase-mcp.md`：不复制 wechatide schema，默认执行面仍为 IDE Skills。
