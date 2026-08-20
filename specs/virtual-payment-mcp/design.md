@@ -63,6 +63,12 @@ flowchart TB
 
 **发布链路（Booker 2026-08-20）：** 实现 → 单测 → `mcp/scripts/test-with-ticket.cjs` 真实调用（微信 IDE ticket）→ 提交 PR → 发布新版本 → main 升级版本号（验证旧工具无 break change）→ 提 PR 给微信侧参考。**启用方式：msg-push 进 AVAILABLE_PLUGINS 但不在 DEFAULT_PLUGINS，用户需手动启用（微信仓库代码 pluginsEnabled 传入）**。telemetry 遵循微信侧默认（关闭）。
 
+**适配层（Booker 2026-08-20 修正，对齐现有工具模式）：** 消息推送**复用现有 `cloudBaseOptions.requestFn`（`CloudApiRequestFn`：service/action/version/region/payload 领域语义）**作为传输层——与 databaseNoSQL/functions 完全一致，**包内不出现 qbase URL、不定义独立 `MsgPushRequestFn` 通道**。具体：
+- 领域动作枚举 `MsgPushAction`：`getAppConfig` / `uploadAppConfig` / `getCallbackSupportList` / `getContainerCallbackConfig` / `setContainerCallbackConfig`
+- service 默认 `"qbase"`（`pluginOptions.msgPush.service` 可覆盖），version `"2018-06-08"`，payload 为操作入参
+- 微信侧 `createWxIDERequestFn` 已能将任意 service/action 转发到 `wxa-dev-qbase/apihttpagent`（该 URL 本身在 qbase 域）——**微信侧可能无需新增适配器**，仅需确认 qbase service 契约
+- 未注入 requestFn 时工具返回指引错误（指向微信 IDE 工具），与现有工具一致
+
 > **不做（Booker 2026-08-20 裁定）：** 云调用工具（`queryCloudCall` / `manageCloudCall`）与虚拟支付商户查询工具（`queryVirtualPaymentConfig` / `query_xpay_config`）**均已从设计移除**——云调用归属后端开发，商户展示归属控制台团队，MCP 均不提供。
 
 ### 3.2 Schema 草案（Zod）
