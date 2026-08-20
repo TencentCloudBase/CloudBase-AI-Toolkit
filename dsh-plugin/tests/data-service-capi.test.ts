@@ -128,6 +128,58 @@ describe("data-service capi mappings", () => {
     expect(bridge.capiCalls.find((c) => c.action === "DescribeUserList")?.params.EnvId).toBe(envId);
   });
 
+  it("searchAppUsers with keyword does not send server-side AND filters", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        "tcb:DescribeUserList": {
+          Data: {
+            Total: 3,
+            UserList: [
+              { Uid: "u1", Name: "alice", Phone: "13800000001", UserStatus: "ACTIVE" },
+              { Uid: "u2", Name: "", Email: "bob@example.com", UserStatus: "ACTIVE" },
+              { Uid: "u3", Name: "carol", Email: "carol@example.com", Phone: "13900000003", UserStatus: "ACTIVE" },
+            ],
+          },
+        },
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    // Phone-only user: server-side Name+Email AND filter would drop this row,
+    // so the fix pulls up to 100 rows and filters on the client.
+    const result = await data.searchAppUsers({ keyword: "13800000001", pageNo: 1, pageSize: 20 });
+    expect(result.users.map((u) => u.uid)).toEqual(["u1"]);
+    const call = bridge.capiCalls.find((c) => c.action === "DescribeUserList");
+    expect(call?.params.Name).toBeUndefined();
+    expect(call?.params.Email).toBeUndefined();
+    expect(call?.params.PageSize).toBe(100);
+  });
+
+  it("searchAppUsers filters on email and name client-side", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        "tcb:DescribeUserList": {
+          Data: {
+            Total: 3,
+            UserList: [
+              { Uid: "u1", Name: "alice", Phone: "13800000001", UserStatus: "ACTIVE" },
+              { Uid: "u2", Name: "", Email: "bob@example.com", UserStatus: "ACTIVE" },
+              { Uid: "u3", Name: "carol", Email: "carol@example.com", Phone: "13900000003", UserStatus: "ACTIVE" },
+            ],
+          },
+        },
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    const byEmail = await data.searchAppUsers({ keyword: "bob@example.com", pageNo: 1, pageSize: 20 });
+    expect(byEmail.users.map((u) => u.uid)).toEqual(["u2"]);
+    const byName = await data.searchAppUsers({ keyword: "carol", pageNo: 1, pageSize: 20 });
+    expect(byName.users.map((u) => u.uid)).toEqual(["u3"]);
+  });
+
   it("setAppUserStatus uses ModifyUser", async () => {
     const bridge = capiBridge({ ...baseHandlers, "tcb:ModifyUser": {} }, baseAuth);
     const data = createCloudBaseDataService(bridge);
@@ -205,6 +257,40 @@ describe("data-service capi mappings", () => {
     expect(info.envId).toBe(envId);
     expect(info.functionCount).toBe(1);
     expect(bridge.toolCalls.every((t) => t.name === "callCloudApi" || t.name === "auth")).toBe(true);
+  });
+
+  it("envInfo probes ExecutePGSql when DescribeEnvs record has no PG signal", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        // weda / platform env invisible to DescribeEnvs → empty EnvList
+        "tcb:DescribeEnvs": { EnvList: [] },
+        // data plane is authorized → probe succeeds
+        "tcb:ExecutePGSql": { rows: [{ ok: 1 }] },
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    const info = await data.envInfo();
+    expect(info.isPostgresEnv).toBe(true);
+    expect(info.runtimeMode).toBe("postgresql");
+    const probe = bridge.capiCalls.find((c) => c.action === "ExecutePGSql");
+    expect(probe?.params).toMatchObject({ EnvId: envId, Sql: expect.stringContaining("SELECT 1") });
+  });
+
+  it("envInfo keeps nosql when ExecutePGSql probe fails", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        "tcb:DescribeEnvs": { EnvList: [{ EnvId: envId, Region: "ap-shanghai", RuntimeMode: "nosql" }] },
+        "tcb:ExecutePGSql": new Error("environment not found or not authorized"),
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    const info = await data.envInfo();
+    expect(info.isPostgresEnv).toBe(false);
+    expect(info.runtimeMode).toBe("nosql");
   });
 
   it("listFunctions uses tcb ListFunctions", async () => {
@@ -399,5 +485,49 @@ describe("data-service capi mappings", () => {
     const objects = await data.listHostingObjects!("");
     expect(objects).toEqual([]);
     expect(bridge.toolCalls.some((t) => t.name === "auth" && t.args.action === "get_temp_credentials")).toBe(false);
+  });
+
+  it("listAccessEndpoints falls back to DescribeEnvs StaticStorages domains", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        "tcb:DescribeCloudAppList": { ServiceList: [] },
+        "tcb:DescribeHostingDomain": { DomainSet: [] },
+        "tcb:DescribeEnvs": {
+          EnvList: [
+            {
+              EnvId: envId,
+              StaticStorages: [{ StaticDomain: "my-app.tcloudbaseapp.com", Status: "online" }],
+            },
+          ],
+        },
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    const endpoints = await data.listAccessEndpoints();
+    expect(endpoints.some((e) => e.url === "https://my-app.tcloudbaseapp.com")).toBe(true);
+  });
+
+  it("listAccessEndpoints returns [] when env is not bound instead of throwing", async () => {
+    const bridge = capiBridge(baseHandlers, {
+      "auth:status": { auth_status: "READY", current_env_id: null },
+    });
+    const data = createCloudBaseDataService(bridge);
+    await expect(data.listAccessEndpoints()).resolves.toEqual([]);
+    await expect(data.listDeployments()).resolves.toEqual([]);
+  });
+
+  it("listDeployments maps CloudApp versions and never throws on CAPI failure", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        "tcb:DescribeCloudAppList": new Error("[DescribeCloudAppList] network down"),
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    await expect(data.listDeployments()).resolves.toEqual([]);
+    await expect(data.listAccessEndpoints()).resolves.toEqual([]);
   });
 });

@@ -422,12 +422,14 @@ export function createCloudBaseDataService(
 
     async searchAppUsers(opts) {
       const envId = await requireEnvId();
+      const keyword = opts?.keyword?.trim();
+      // keyword 搜索时不传服务端模糊过滤字段（Name/Email 同时传为 AND 语义，
+      // 实测会把只匹配单个字段的用户过滤掉，例如用户有 Phone 无 Name/Email），
+      // 改为拉取本页上限后客户端过滤；无 keyword 时正常服务端分页。
       const payload = await callCapi("tcb", "DescribeUserList", {
         EnvId: envId,
         PageNo: opts?.pageNo ?? 1,
-        PageSize: opts?.pageSize ?? 50,
-        Name: opts?.keyword,
-        Email: opts?.keyword,
+        PageSize: keyword ? 100 : (opts?.pageSize ?? 50),
       });
       const data = rec(payload.Data ?? payload);
       const users = arr(data.UserList ?? data.users ?? payload.UserList);
@@ -444,18 +446,19 @@ export function createCloudBaseDataService(
           status: statusRaw === "BLOCKED" || statusRaw === "DISABLE" ? "disabled" : "normal",
         };
       });
-      const keyword = opts?.keyword?.trim().toLowerCase();
-      const filtered = keyword
+      const keywordLower = keyword?.toLowerCase();
+      const filtered = keywordLower
         ? mapped.filter(
             (user) =>
-              user.uid.toLowerCase().includes(keyword) ||
-              user.name?.toLowerCase().includes(keyword) ||
-              user.email?.toLowerCase().includes(keyword),
+              user.uid.toLowerCase().includes(keywordLower) ||
+              user.name?.toLowerCase().includes(keywordLower) ||
+              user.email?.toLowerCase().includes(keywordLower) ||
+              user.phone?.toLowerCase().includes(keywordLower),
           )
         : mapped;
       return {
         users: filtered,
-        total: num(data.Total ?? payload.Total ?? data.total) ?? filtered.length,
+        total: keywordLower ? filtered.length : (num(data.Total ?? payload.Total ?? data.total) ?? filtered.length),
       };
     },
 
@@ -1766,8 +1769,20 @@ export function createCloudBaseDataService(
           hostingDomainCount = 0;
         }
       }
-      const runtimeMode = deriveRuntimeMode(env);
-      const isPg = envIsPostgres(env);
+      let runtimeMode = deriveRuntimeMode(env);
+      let isPg = envIsPostgres(env);
+      // PG 探活兜底：DescribeEnvs 查不到环境记录或记录里没有 PG 信号时
+      // （平台授权 / API Key 环境，管控面不可见但数据面可用），用 ExecutePGSql
+      // 确认是否 PostgreSQL 环境，避免数据库页误判为 PostgreSQL-only 占位。
+      if (!isPg && envId) {
+        try {
+          await callCapi("tcb", "ExecutePGSql", { EnvId: envId, Sql: "SELECT 1 AS probe" });
+          isPg = true;
+          runtimeMode = "postgresql";
+        } catch {
+          // nosql 环境或数据面不可达，保持原判定
+        }
+      }
       return {
         envId,
         regionLabel: mapRegion(str(env.Region ?? env.region)),
@@ -1793,8 +1808,21 @@ export function createCloudBaseDataService(
     },
 
     async listAccessEndpoints() {
-      const envId = await requireEnvId();
       const endpoints: AccessEndpoint[] = [];
+      let envId: string | undefined;
+      try {
+        envId = await requireEnvId();
+      } catch {
+        // 未绑定环境时返回空列表而不是抛错，避免 RPC 层把错误包装成
+        // "Failed to fetch" 导致概览页访问入口整块红字。
+        return endpoints;
+      }
+      const seen = new Set<string>();
+      const pushEndpoint = (endpoint: AccessEndpoint) => {
+        if (seen.has(endpoint.url)) return;
+        seen.add(endpoint.url);
+        endpoints.push(endpoint);
+      };
       try {
         const listPayload = await callCapi("tcb", "DescribeCloudAppList", {
           EnvId: envId,
@@ -1808,7 +1836,7 @@ export function createCloudBaseDataService(
           const serviceName = str(row.ServiceName ?? row.serviceName);
           const domain = str(row.Domain ?? row.domain);
           if (serviceName && domain) {
-            endpoints.push({
+            pushEndpoint({
               id: `app:${serviceName}`,
               label: serviceName,
               url: normalizeUrl(domain),
@@ -1824,7 +1852,7 @@ export function createCloudBaseDataService(
         const hosting = await callCapi("tcb", "DescribeHostingDomain", { EnvId: envId });
         const defaultDomain = str(hosting.DefaultDomain ?? hosting.defaultDomain);
         if (defaultDomain) {
-          endpoints.push({
+          pushEndpoint({
             id: "hosting:default",
             label: "静态托管",
             url: normalizeUrl(defaultDomain),
@@ -1834,12 +1862,38 @@ export function createCloudBaseDataService(
       } catch {
         // optional
       }
+      // DescribeEnvs 的 StaticStorages.StaticDomain 是静态托管真实访问域名，
+      // 对 DescribeCloudAppList 不可见的环境（平台 / weda 环境）也能兜底返回。
+      try {
+        const envPayload = await callCapi("tcb", "DescribeEnvs", { EnvId: envId });
+        const env = rec(arr(envPayload.EnvList)[0]);
+        for (const store of arr(env.StaticStorages ?? env.staticStorages)) {
+          const row = rec(store);
+          const domain = str(row.StaticDomain ?? row.staticDomain ?? row.Domain ?? row.domain);
+          if (domain) {
+            pushEndpoint({
+              id: `hosting:${domain}`,
+              label: "静态托管",
+              url: normalizeUrl(domain),
+              resourceType: "hosting",
+            });
+          }
+        }
+      } catch {
+        // optional
+      }
       return endpoints;
     },
 
     async listDeployments() {
-      const envId = await requireEnvId();
       const records: DeploymentRecord[] = [];
+      let envId: string | undefined;
+      try {
+        envId = await requireEnvId();
+      } catch {
+        // 同 listAccessEndpoints：未绑定环境时返回空列表而不是抛错
+        return records;
+      }
       try {
         const listPayload = await callCapi("tcb", "DescribeCloudAppList", {
           EnvId: envId,

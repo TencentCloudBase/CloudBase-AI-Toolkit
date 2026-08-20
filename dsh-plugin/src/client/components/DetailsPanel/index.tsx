@@ -153,8 +153,22 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
       }
     }
     const info = unwrapEnvInfoPayload(raw);
-    setFeatureCtx(featureCtxFromEnvInfo(info));
-  }, []);
+    const ctx = featureCtxFromEnvInfo(info);
+    setFeatureCtx(ctx);
+    // PG 探活兜底：DescribeEnvs 对平台授权 / API Key 环境不可见时 envInfo 无法
+    // 确认 PG 类型（runtimeMode 为空 → isPostgresEnv=false），用数据面
+    // ExecutePGSql 探测，成功则把数据库页切到 PostgreSQL 模式（表列表可渲染）。
+    if (!ctx.isPostgresEnv && info.envId && data?.capi) {
+      void data
+        .capi("tcb", "ExecutePGSql", { EnvId: info.envId, Sql: "SELECT 1 AS probe" })
+        .then(() => {
+          setFeatureCtx((prev) =>
+            prev.isPostgresEnv ? prev : { ...prev, runtimeMode: "postgresql", isPostgresEnv: true },
+          );
+        })
+        .catch(() => undefined);
+    }
+  }, [data]);
 
   React.useEffect(() => {
     if (!data) return;
