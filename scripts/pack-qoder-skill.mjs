@@ -91,9 +91,11 @@ Usage:
   assertSkillReady(skillDir);
 
   const version = readFrontmatterVersion(path.join(skillDir, "SKILL.md"));
+  // Version-free asset name (same strategy as the Kimi pack): the release tag
+  // carries the version, so the zip-url stays stable across releases.
   const outPath =
     args.out ||
-    path.join(ROOT, "dist", `${skillId}-skill-v${version}.zip`);
+    path.join(ROOT, "dist", `${skillId}-skill.zip`);
 
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   if (fs.existsSync(outPath)) fs.rmSync(outPath);

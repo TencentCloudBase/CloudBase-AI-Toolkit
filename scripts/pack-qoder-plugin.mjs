@@ -78,9 +78,11 @@ Usage:
     fs.readFileSync(path.join(PLUGIN_DIR, ".qoder-plugin", "plugin.json"), "utf8"),
   );
   const version = manifest.version || "0.0.0";
+  // Version-free asset name (same strategy as the Kimi pack): the release tag
+  // carries the version, so the zip-url stays stable across releases.
   const outPath =
     args.out ||
-    path.join(ROOT, "dist", `cloudbase-qoder-v${version}.zip`);
+    path.join(ROOT, "dist", "cloudbase-qoder.zip");
 
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   if (fs.existsSync(outPath)) fs.rmSync(outPath);

@@ -37,8 +37,22 @@ jobs:
         with:
           node-version: "22"
 
+      # Whitelist of plugin/skill zips attached to every release.
+      # All zips share the version-free asset naming (release tag carries the
+      # version, so zip-urls stay stable across releases):
+      #   - cloudbase-kimi.zip    Kimi Code / Kimi Work plugin (self-contained routing skill)
+      #   - cloudbase-qoder.zip   Qoder / QoderWork plugin (full plugin dir)
+      #   - cloudbase-skill.zip   QoderWork entry skill (skills/cloudbase)
+      # IDE plugins that already ship through dedicated repos/marketplaces
+      # (.claude-plugin, .cursor-plugin, .codex-plugin, .plugin) are NOT zipped here.
       - name: Pack Kimi plugin zip
         run: node scripts/pack-kimi-plugin.mjs
+
+      - name: Pack Qoder plugin zip
+        run: node scripts/pack-qoder-plugin.mjs
+
+      - name: Pack Qoder skill zip
+        run: node scripts/pack-qoder-skill.mjs
 
       - name: Verify release exists
         env:
