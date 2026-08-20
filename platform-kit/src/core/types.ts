@@ -272,3 +272,96 @@ export interface SecretItem {
   key: string;
   valueMasked: string;
 }
+
+export interface CloudFunctionSummary {
+  name: string;
+  runtime?: string;
+  status?: string;
+  invokeCount?: number;
+  updatedAt?: string;
+}
+
+export interface CloudFunctionDetail extends CloudFunctionSummary {
+  handler?: string;
+  timeout?: number;
+  memorySize?: number;
+  description?: string;
+  environment: Array<{ key: string; value: string }>;
+  triggers: CloudFunctionTrigger[];
+}
+
+export interface CloudFunctionTrigger {
+  name: string;
+  type: string;
+  triggerDesc?: string;
+}
+
+export interface CloudFunctionLog {
+  requestId?: string;
+  time?: string;
+  durationMs?: number;
+  message: string;
+}
+
+export interface CloudRunService {
+  name: string;
+  status?: string;
+  version?: string;
+  traffic?: string;
+  cpu?: string;
+  memory?: string;
+  instanceCount?: number;
+}
+
+export interface CloudRunVersion {
+  versionName: string;
+  status?: string;
+  deployedAt?: string;
+  flowRatio?: number;
+}
+
+export interface CloudRunDeployRecord {
+  id: string;
+  status?: string;
+  deployedAt?: string;
+  buildId?: string;
+  runId?: string;
+}
+
+export interface CloudRunLogLine {
+  time?: string;
+  message: string;
+}
+
+export interface HostingDomain {
+  domain: string;
+  status?: string;
+  kind?: "default" | "custom" | "app";
+}
+
+export interface HostingVersion {
+  serviceName: string;
+  versionName: string;
+  status?: string;
+  deployedAt?: string;
+}
+
+export interface StorageBucket {
+  name: string;
+  region?: string;
+  createdAt?: string;
+  sizeLabel?: string;
+  cdnDomain?: string;
+  kind?: "storage" | "hosting";
+}
+
+export interface StorageSecurityRule {
+  aclTag: string;
+  rule?: string;
+}
+
+export interface CdnCacheItem {
+  id: string;
+  status: string;
+  bucket?: string;
+}

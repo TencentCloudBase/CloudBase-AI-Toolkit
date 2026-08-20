@@ -89,7 +89,7 @@ describe("data-service capi mappings", () => {
       Domains: [{ Domain: "gw.example.com", Routes: [{ Path: "/api", UpstreamResourceName: "fn" }] }],
     },
     "tcb:DescribeCloudBaseGWService": { EnableService: true, EnableAuth: false },
-    "tcb:DescribeFunctions": { Functions: [{ FunctionName: "fn_a" }] },
+    "tcb:ListFunctions": { Functions: [{ FunctionName: "fn_a" }] },
     "tcb:DescribeHostingDomain": { Domains: [{ Domain: "x.tcloudbaseapp.com" }] },
     "tcb:DescribeUsage": { Usages: [{ Module: "FLEXDB", CreditsValue: 5 }] },
     "tcb:DescribeCurveData": { Values: [1, 2, 3] },
@@ -175,12 +175,85 @@ describe("data-service capi mappings", () => {
     expect(status.verificationUrl).toContain("verify");
   });
 
-  it("envInfo uses DescribeEnvs and DescribeFunctions capi", async () => {
+  it("envInfo uses DescribeEnvs and ListFunctions capi", async () => {
     const bridge = capiBridge(baseHandlers, baseAuth);
     const data = createCloudBaseDataService(bridge);
     const info = await data.envInfo();
     expect(info.envId).toBe(envId);
     expect(info.functionCount).toBe(1);
     expect(bridge.toolCalls.every((t) => t.name === "callCloudApi" || t.name === "auth")).toBe(true);
+  });
+
+  it("listFunctions uses tcb ListFunctions", async () => {
+    const bridge = capiBridge(baseHandlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    const fns = await data.listFunctions!({ searchKey: "fn" });
+    expect(fns[0]?.name).toBe("fn_a");
+    const call = bridge.capiCalls.find((c) => c.action === "ListFunctions");
+    expect(call?.service).toBe("tcb");
+    expect(call?.params.SearchKey).toBe("fn");
+  });
+
+  it("listStorageBuckets maps DescribeEnvs Storages", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        "tcb:DescribeEnvs": {
+          EnvList: [
+            {
+              EnvId: envId,
+              Storages: [{ Bucket: "636c-test-1", Region: "ap-shanghai", CdnDomain: "cdn.example.com" }],
+            },
+          ],
+        },
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    const buckets = await data.listStorageBuckets!();
+    expect(buckets[0]?.name).toBe("636c-test-1");
+    expect(buckets[0]?.region).toBe("ap-shanghai");
+  });
+
+  it("listCloudRunServices uses tcbr DescribeCloudRunServers with API version", async () => {
+    const bridge = capiBridge(
+      { ...baseHandlers, "tcbr:DescribeCloudRunServers": { ServerList: [], Total: 0 } },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    const servers = await data.listCloudRunServices!();
+    expect(servers).toEqual([]);
+    const call = bridge.toolCalls.find((t) => t.args.action === "DescribeCloudRunServers");
+    expect(call?.args.service).toBe("tcbr");
+    expect(call?.args.version).toBe("2022-02-17");
+    expect(call?.args.params).toEqual({ EnvId: envId });
+  });
+
+  it("listHostingDomains reads DomainSet", async () => {
+    const bridge = capiBridge(
+      {
+        ...baseHandlers,
+        "tcb:DescribeHostingDomain": { DomainSet: [{ Domain: "a.tcloudbaseapp.com", Status: "online" }] },
+      },
+      baseAuth,
+    );
+    const data = createCloudBaseDataService(bridge);
+    const domains = await data.listHostingDomains!();
+    expect(domains.some((item) => item.domain.includes("tcloudbaseapp.com"))).toBe(true);
+  });
+
+  it("createStorageBucket explains missing COS control-plane API", async () => {
+    const bridge = capiBridge(baseHandlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    await expect(data.createStorageBucket!("extra")).rejects.toThrow(/DescribeEnvs.Storages/);
+    expect(bridge.capiCalls.some((c) => c.action === "CreateBucket")).toBe(false);
+  });
+
+  it("invokeFunction does not call retired InvokeFunction", async () => {
+    const bridge = capiBridge(baseHandlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    const result = await data.invokeFunction!("fn_a", "{}");
+    expect(result.unsupportedReason).toMatch(/retired|下线/i);
+    expect(bridge.capiCalls.some((c) => c.action === "InvokeFunction")).toBe(false);
   });
 });

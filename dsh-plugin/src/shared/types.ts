@@ -321,9 +321,35 @@ export interface CloudBaseData {
   bindCustomDomain?(input: { domain: string; certId?: string; cnameDomain?: string; accessType?: string; description?: string }): Promise<void>;
   deleteCustomDomain?(domain: string, confirm: boolean): Promise<void>;
   listSafetyDomains?(): Promise<Array<{ id: string; appName: string }>>;
-  getStorageSecurityRules?(): Promise<{ aclTag: string; rule?: string }>;
-  setStorageSecurityRules?(rules: { aclTag: string; rule?: string }): Promise<void>;
-  listCdnCacheConfig?(): Promise<{ status: string }>;
+  getStorageSecurityRules?(bucket?: string): Promise<{ aclTag: string; rule?: string }>;
+  setStorageSecurityRules?(rules: { aclTag: string; rule?: string; bucket?: string }): Promise<void>;
+  listCdnCacheConfig?(bucket?: string): Promise<{ status: string }>;
+  listCdnCacheItems?(bucket?: string): Promise<Array<{ id: string; status: string; bucket?: string }>>;
+  listStorageBuckets?(): Promise<Array<{ name: string; region?: string; createdAt?: string; sizeLabel?: string; cdnDomain?: string; kind?: "storage" | "hosting" }>>;
+  createStorageBucket?(name: string): Promise<void>;
+  deleteStorageBucket?(name: string, confirm: boolean): Promise<void>;
+  listFunctions?(opts?: { searchKey?: string; limit?: number; offset?: number }): Promise<Array<{ name: string; runtime?: string; status?: string; invokeCount?: number; updatedAt?: string }>>;
+  getFunction?(name: string): Promise<{
+    name: string;
+    runtime?: string;
+    status?: string;
+    handler?: string;
+    environment: Array<{ key: string; value: string }>;
+    triggers: Array<{ name: string; type: string; triggerDesc?: string }>;
+  }>;
+  listFunctionTriggers?(name: string): Promise<Array<{ name: string; type: string; triggerDesc?: string }>>;
+  listFunctionLogs?(name: string, opts?: { limit?: number }): Promise<Array<{ requestId?: string; time?: string; message: string }>>;
+  invokeFunction?(name: string, payload?: string): Promise<{ result: string; unsupportedReason?: string }>;
+  listCloudRunServices?(): Promise<Array<{ name: string; status?: string; version?: string; traffic?: string; cpu?: string; memory?: string; instanceCount?: number }>>;
+  getCloudRunService?(name: string): Promise<{
+    service: { name: string; status?: string; version?: string };
+    versions: Array<{ versionName: string; status?: string; deployedAt?: string }>;
+  }>;
+  listCloudRunDeployRecords?(name: string): Promise<Array<{ id: string; status?: string; deployedAt?: string; runId?: string; buildId?: string }>>;
+  getCloudRunProcessLog?(name: string, runId?: string): Promise<Array<{ time?: string; message: string }>>;
+  getCloudRunBuildLog?(name: string, buildId?: string): Promise<{ text: string; unsupportedReason?: string }>;
+  listHostingDomains?(): Promise<Array<{ domain: string; status?: string; kind?: "default" | "custom" | "app" }>>;
+  listHostingVersions?(): Promise<Array<{ serviceName: string; versionName: string; status?: string; deployedAt?: string }>>;
   getStorageCustomDomains?(): Promise<Array<{ domain: string; status?: string }>>;
   /** @deprecated use listCustomDomains */
   listGatewayDomains?(): Promise<string[]>;
@@ -337,8 +363,10 @@ export interface CloudBaseData {
   listSecrets(): Promise<SecretItem[]>;
   readRows(table: string, opts?: { limit?: number; offset?: number }): Promise<RowPage>;
   runReadSql(sql: string): Promise<RowPage>;
-  listStorage(path?: string): Promise<StorageObject[]>;
-  storageUrl(cloudPath: string): Promise<{ url: string; expiresInSec: number }>;
+  listStorage(path?: string, opts?: { bucket?: string }): Promise<StorageObject[]>;
+  storageUrl(cloudPath: string, opts?: { bucket?: string }): Promise<{ url: string; expiresInSec: number }>;
+  listHostingObjects?(prefix?: string): Promise<StorageObject[]>;
+  uploadStorage?(cloudPath: string, opts?: { bucket?: string }): Promise<void>;
   authStatus(): Promise<AuthStatus>;
   startLogin?(method?: LoginMethod, params?: { envId?: string; apiKey?: string }): Promise<AuthStatus>;
   authStateChange?(listener: (status: AuthStatus) => void): () => void;

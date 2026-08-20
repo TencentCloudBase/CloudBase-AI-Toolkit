@@ -59,6 +59,24 @@ import {
   sqlTableRlsStatus,
   sqlWrapDdl,
 } from "../../../platform-kit/src/pg/sql.js";
+import {
+  BUCKET_WRITE_UNSUPPORTED,
+  FN_LOGS_CLS_FALLBACK,
+  INVOKE_UNSUPPORTED,
+  BUILD_LOG_CODING,
+  mapCdnCacheItem,
+  mapCloudRunDeploy,
+  mapCloudRunLogLine,
+  mapCloudRunService,
+  mapCloudRunVersion,
+  mapFunctionDetail,
+  mapFunctionLog,
+  mapFunctionSummary,
+  mapFunctionTrigger,
+  mapHostingDomain,
+  mapHostingVersion,
+  mapStorageBucket,
+} from "../../../platform-kit/src/services/resource-map.js";
 
 type LooseRecord = Record<string, unknown>;
 type LoginMethod = "device-code" | "apikey" | "host-injected";
@@ -180,10 +198,12 @@ export function createCloudBaseDataService(
     service: string,
     action: string,
     params: Record<string, unknown> = {},
+    version?: string,
   ): Promise<LooseRecord> {
-    return unwrapData(
-      await bridge.callTool("callCloudApi", { service, action, params }),
-    );
+    const args: Record<string, unknown> = { service, action, params };
+    if (version) args.version = version;
+    else if (service === "tcbr") args.version = "2022-02-17";
+    return unwrapData(await bridge.callTool("callCloudApi", args));
   }
 
   async function rawAuthCall(args: Record<string, unknown>): Promise<LooseRecord> {
@@ -218,6 +238,17 @@ export function createCloudBaseDataService(
       throw new Error("未绑定环境，请先登录并选择环境");
     }
     return envId;
+  }
+
+  async function describeEnvRecord(envId: string): Promise<LooseRecord> {
+    const envPayload = await callCapi("tcb", "DescribeEnvs", { EnvId: envId });
+    return rec(arr(envPayload.EnvList)[0]);
+  }
+
+  async function resolveDefaultBucket(envId: string, preferred?: string): Promise<string | undefined> {
+    if (preferred) return preferred;
+    const env = await describeEnvRecord(envId);
+    return str(rec(arr(env.Storages ?? env.storages)[0]).Bucket ?? env.storageBucket);
   }
 
   async function executePgSql(sql: string): Promise<LooseRecord> {
@@ -387,7 +418,7 @@ export function createCloudBaseDataService(
       const envId = await requireEnvId();
       const secrets: SecretItem[] = [];
       try {
-        const listed = await callCapi("tcb", "DescribeFunctions", { EnvId: envId, Limit: 20 });
+        const listed = await callCapi("tcb", "ListFunctions", { EnvId: envId, Limit: 20 });
         const functions = arr(listed.Functions ?? listed.functions);
         for (const item of functions.slice(0, 20)) {
           const row = rec(item);
@@ -1047,12 +1078,9 @@ export function createCloudBaseDataService(
       });
     },
 
-    async getStorageSecurityRules() {
+    async getStorageSecurityRules(bucketName?: string) {
       const envId = await requireEnvId();
-      const envPayload = await callCapi("tcb", "DescribeEnvs", { EnvId: envId });
-      const env = rec(arr(envPayload.EnvList)[0]);
-      const storages = arr(env.Storages ?? env.storages);
-      const bucket = str(rec(storages[0]).Bucket ?? env.storageBucket);
+      const bucket = bucketName ?? (await resolveDefaultBucket(envId));
       if (!bucket) return { aclTag: "PRIVATE" as const, rule: undefined };
       const payload = await callCapi("tcb", "DescribeStorageSafeRule", {
         EnvId: envId,
@@ -1069,12 +1097,9 @@ export function createCloudBaseDataService(
       };
     },
 
-    async setStorageSecurityRules(rules: { aclTag: string; rule?: string }) {
+    async setStorageSecurityRules(rules: { aclTag: string; rule?: string; bucket?: string }) {
       const envId = await requireEnvId();
-      const envPayload = await callCapi("tcb", "DescribeEnvs", { EnvId: envId });
-      const env = rec(arr(envPayload.EnvList)[0]);
-      const storages = arr(env.Storages ?? env.storages);
-      const bucket = str(rec(storages[0]).Bucket ?? env.storageBucket);
+      const bucket = rules.bucket ?? (await resolveDefaultBucket(envId));
       if (!bucket) throw new Error("无法解析存储 Bucket");
       await callCapi("tcb", "ModifyStorageSafeRule", {
         EnvId: envId,
@@ -1084,12 +1109,9 @@ export function createCloudBaseDataService(
       });
     },
 
-    async listCdnCacheConfig() {
+    async listCdnCacheConfig(bucketName?: string) {
       const envId = await requireEnvId();
-      const envPayload = await callCapi("tcb", "DescribeEnvs", { EnvId: envId });
-      const env = rec(arr(envPayload.EnvList)[0]);
-      const storages = arr(env.Storages ?? env.storages);
-      const bucket = str(rec(storages[0]).Bucket ?? env.storageBucket);
+      const bucket = bucketName ?? (await resolveDefaultBucket(envId));
       if (!bucket) return { status: "unknown" as const };
       const payload = await callCapi("tcb", "DescribeCDNChainTask", {
         EnvId: envId,
@@ -1104,9 +1126,8 @@ export function createCloudBaseDataService(
       const envId = await requireEnvId();
       const payload = await callCapi("tcb", "DescribeHostingDomain", {
         EnvId: envId,
-        DomainType: "STATIC_STORE",
       }).catch(() => ({} as LooseRecord));
-      return arr(payload.Domains ?? payload.domains).map((item) => {
+      return arr(payload.DomainSet ?? payload.Domains ?? payload.domains).map((item) => {
         const row = rec(item);
         return {
           domain: str(row.Domain ?? row.domain) ?? "",
@@ -1117,10 +1138,259 @@ export function createCloudBaseDataService(
 
     async listFunctionNames() {
       const envId = await requireEnvId();
-      const payload = await callCapi("tcb", "DescribeFunctions", { EnvId: envId, Limit: 100 });
+      const payload = await callCapi("tcb", "ListFunctions", { EnvId: envId, Limit: 100, Offset: 0 });
       return arr(payload.Functions ?? payload.functions)
         .map((item) => str(rec(item).FunctionName ?? rec(item).Name))
         .filter((value): value is string => Boolean(value));
+    },
+
+    async listFunctions(opts) {
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcb", "ListFunctions", {
+        EnvId: envId,
+        Limit: opts?.limit ?? 100,
+        Offset: opts?.offset ?? 0,
+        ...(opts?.searchKey ? { SearchKey: opts.searchKey } : {}),
+      });
+      return arr(payload.Functions ?? payload.functions)
+        .map(mapFunctionSummary)
+        .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    },
+
+    async getFunction(name) {
+      const envId = await requireEnvId();
+      try {
+        const payload = await callCapi("tcb", "GetFunction", {
+          EnvId: envId,
+          FunctionName: name,
+          Namespace: envId,
+        });
+        return mapFunctionDetail(payload, name);
+      } catch {
+        const payload = await callCapi("tcb", "GetFunction", {
+          EnvId: envId,
+          FunctionName: name,
+        });
+        return mapFunctionDetail(payload, name);
+      }
+    },
+
+    async listFunctionTriggers(name) {
+      const envId = await requireEnvId();
+      const detail = await service.getFunction!(name);
+      if (detail.triggers.length > 0) return detail.triggers;
+      try {
+        const payload = await callCapi("scf", "ListTriggers", {
+          FunctionName: name,
+          Namespace: envId,
+        });
+        return arr(payload.Triggers ?? payload.triggers)
+          .map(mapFunctionTrigger)
+          .filter((item): item is NonNullable<typeof item> => Boolean(item));
+      } catch {
+        return [];
+      }
+    },
+
+    async listFunctionLogs(name, opts) {
+      const envId = await requireEnvId();
+      try {
+        const payload = await callCapi("tcb", "GetFunctionLogs", {
+          EnvId: envId,
+          FunctionName: name,
+          Limit: opts?.limit ?? 20,
+          Offset: 0,
+        });
+        return arr(payload.Data ?? payload.Logs ?? payload.logs)
+          .map(mapFunctionLog)
+          .filter((item): item is NonNullable<typeof item> => Boolean(item));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!FN_LOGS_CLS_FALLBACK.test(message)) throw error;
+        const cls = await service.searchLogs({
+          queryString: `functionName:${name}`,
+          service: "tcb",
+          limit: opts?.limit ?? 20,
+        });
+        return cls.entries.map((entry) => ({
+          requestId: entry.id,
+          time: entry.time,
+          message: entry.message,
+        }));
+      }
+    },
+
+    async invokeFunction(_name, _payload) {
+      return { result: "", unsupportedReason: INVOKE_UNSUPPORTED };
+    },
+
+    async listCloudRunServices() {
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcbr", "DescribeCloudRunServers", { EnvId: envId });
+      return arr(payload.ServerList ?? payload.serverList)
+        .map(mapCloudRunService)
+        .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    },
+
+    async getCloudRunService(name) {
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcbr", "DescribeCloudRunServerDetail", {
+        EnvId: envId,
+        ServerName: name,
+      });
+      const service =
+        mapCloudRunService(payload.ServerBaseInfo ?? payload.Server ?? payload) ?? {
+          name,
+        };
+      const versions = arr(
+        payload.VersionItems ?? payload.Versions ?? rec(payload.ServerBaseInfo).VersionItems,
+      )
+        .map(mapCloudRunVersion)
+        .filter((item): item is NonNullable<typeof item> => Boolean(item));
+      return { service, versions };
+    },
+
+    async listCloudRunDeployRecords(name) {
+      const envId = await requireEnvId();
+      const payload = await callCapi("tcbr", "DescribeCloudRunDeployRecord", {
+        EnvId: envId,
+        ServerName: name,
+      });
+      return arr(payload.DeployRecord ?? payload.Records ?? payload.DeployRecords)
+        .map(mapCloudRunDeploy)
+        .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    },
+
+    async getCloudRunProcessLog(name, runId) {
+      const envId = await requireEnvId();
+      let resolvedRunId = runId;
+      if (!resolvedRunId) {
+        const records = await service.listCloudRunDeployRecords!(name);
+        resolvedRunId = records[0]?.runId;
+      }
+      if (!resolvedRunId) return [];
+      const payload = await callCapi("tcbr", "DescribeCloudRunProcessLog", {
+        EnvId: envId,
+        ServerName: name,
+        RunId: resolvedRunId,
+      });
+      return arr(payload.Logs ?? payload.logs ?? payload.Log).map(mapCloudRunLogLine);
+    },
+
+    async getCloudRunBuildLog(name, buildId) {
+      const envId = await requireEnvId();
+      try {
+        const payload = await callCapi("tcbr", "DescribeCloudRunBuildLog", {
+          EnvId: envId,
+          ServerName: name,
+          ...(buildId ? { BuildId: buildId } : {}),
+        });
+        const text = str(rec(payload.Log).Text) ?? str(payload.Text) ?? JSON.stringify(payload);
+        return { text };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return { text: "", unsupportedReason: /CODING|qcloud user/i.test(message) ? BUILD_LOG_CODING : message };
+      }
+    },
+
+    async listHostingDomains() {
+      const envId = await requireEnvId();
+      const domains: ReturnType<typeof mapHostingDomain>[] = [];
+      try {
+        const hosting = await callCapi("tcb", "DescribeHostingDomain", { EnvId: envId });
+        for (const item of arr(hosting.DomainSet ?? hosting.Domains)) {
+          domains.push(mapHostingDomain(item, "custom"));
+        }
+        if (str(hosting.DefaultDomain)) {
+          domains.push({ domain: str(hosting.DefaultDomain)!, kind: "default", status: "online" });
+        }
+      } catch {
+        // continue
+      }
+      try {
+        const env = await describeEnvRecord(envId);
+        for (const item of arr(env.StaticStorages ?? env.staticStorages)) {
+          domains.push(mapHostingDomain(item, "default"));
+        }
+      } catch {
+        // continue
+      }
+      try {
+        const apps = await callCapi("tcb", "DescribeCloudAppList", {
+          EnvId: envId,
+          DeployType: "static-hosting",
+          PageNo: 1,
+          PageSize: 50,
+        });
+        for (const item of arr(apps.ServiceList ?? apps.apps)) {
+          domains.push(mapHostingDomain(item, "app"));
+        }
+      } catch {
+        // continue
+      }
+      const seen = new Set<string>();
+      return domains.filter((item): item is NonNullable<typeof item> => {
+        if (!item?.domain || seen.has(item.domain)) return false;
+        seen.add(item.domain);
+        return true;
+      });
+    },
+
+    async listHostingVersions() {
+      const envId = await requireEnvId();
+      const records: ReturnType<typeof mapHostingVersion>[] = [];
+      const apps = await callCapi("tcb", "DescribeCloudAppList", {
+        EnvId: envId,
+        DeployType: "static-hosting",
+        PageNo: 1,
+        PageSize: 50,
+      }).catch(() => ({}) as LooseRecord);
+      for (const app of arr(apps.ServiceList ?? apps.apps)) {
+        const serviceName = str(rec(app).ServiceName ?? rec(app).serviceName);
+        if (!serviceName) continue;
+        try {
+          const versions = await callCapi("tcb", "DescribeCloudAppVersionList", {
+            EnvId: envId,
+            DeployType: "static-hosting",
+            ServiceName: serviceName,
+            PageNo: 1,
+            PageSize: 20,
+          });
+          for (const version of arr(versions.VersionList ?? versions.versions)) {
+            records.push(mapHostingVersion(serviceName, version));
+          }
+        } catch {
+          // skip
+        }
+      }
+      return records.filter((item): item is NonNullable<typeof item> => Boolean(item));
+    },
+
+    async listStorageBuckets() {
+      const envId = await requireEnvId();
+      const env = await describeEnvRecord(envId);
+      return arr(env.Storages ?? env.storages)
+        .map((item) => mapStorageBucket(item, "storage"))
+        .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    },
+
+    async listCdnCacheItems(bucketName?: string) {
+      const envId = await requireEnvId();
+      const bucket = await resolveDefaultBucket(envId, bucketName);
+      if (!bucket) return [];
+      const payload = await callCapi("tcb", "DescribeCDNChainTask", {
+        EnvId: envId,
+        Bucket: bucket,
+      }).catch(() => ({} as LooseRecord));
+      return [mapCdnCacheItem(payload, bucket)];
+    },
+
+    async createStorageBucket(_name: string) {
+      throw new Error(BUCKET_WRITE_UNSUPPORTED);
+    },
+
+    async deleteStorageBucket(_name: string, _confirm: boolean) {
+      throw new Error(BUCKET_WRITE_UNSUPPORTED);
     },
 
     async setGatewayServiceEnabled(enable) {
@@ -1196,7 +1466,7 @@ export function createCloudBaseDataService(
       let functionCount = 0;
       if (envId) {
         try {
-          const fn = await callCapi("tcb", "DescribeFunctions", { EnvId: envId, Limit: 100 });
+          const fn = await callCapi("tcb", "ListFunctions", { EnvId: envId, Limit: 100, Offset: 0 });
           functionCount = arr(fn.Functions ?? fn.functions).length;
         } catch {
           functionCount = 0;
@@ -1206,8 +1476,10 @@ export function createCloudBaseDataService(
       if (envId) {
         try {
           const hosting = await callCapi("tcb", "DescribeHostingDomain", { EnvId: envId });
-          const domains = arr(hosting.Domains ?? hosting.domains);
-          hostingDomainCount = domains.length || (str(hosting.DefaultDomain) ? 1 : 0);
+          const domains = arr(hosting.DomainSet ?? hosting.Domains ?? hosting.domains);
+          const staticCount = arr(env.StaticStorages ?? env.staticStorages).length;
+          hostingDomainCount =
+            domains.length || staticCount || (str(hosting.DefaultDomain) ? 1 : 0);
         } catch {
           hostingDomainCount = 0;
         }

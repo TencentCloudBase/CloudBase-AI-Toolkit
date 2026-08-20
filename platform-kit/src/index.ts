@@ -39,6 +39,11 @@ export type {
   PgExtensionRow,
   PgRoleRow,
   PgMigrationRow,
+  CloudFunctionSummary,
+  CloudFunctionDetail,
+  CloudRunService,
+  HostingDomain,
+  StorageBucket,
 } from "./core/types.js";
 export { EFeatureId, isFeatureAvailable, resolvePostgresEnv } from "./core/features.js";
 export { t, createTranslator, detectLocale } from "./i18n/index.js";
@@ -73,6 +78,7 @@ export {
   useGatewayDomains,
   useFunctionNames,
 } from "./hooks/use-gateway-routes.js";
+export { useFunctions, useCloudRunServices, useStorageBuckets, useHostingDomains } from "./hooks/use-resources.js";
 export { useFeatureAvailable, useEnvFeatures } from "./hooks/use-feature-available.js";
 export {
   useMenu,
@@ -119,6 +125,10 @@ export { LogsPage, LogsExplorerPage } from "./components/LogsPage.js";
 export { DatabasePage } from "./components/database/DatabasePage.js";
 export { AuthUsersPage } from "./components/auth/AuthUsersPage.js";
 export { GatewayPage } from "./components/gateway/GatewayPage.js";
+export { FunctionsPage } from "./components/resources/FunctionsPage.js";
+export { CloudRunPage } from "./components/resources/CloudRunPage.js";
+export { HostingPage } from "./components/resources/HostingPage.js";
+export { StoragePage } from "./components/resources/StoragePage.js";
 export { SparkChart } from "./components/charts/SparkChart.js";
 export { MetricCardsGrid } from "./components/charts/MetricCardsGrid.js";
 export { UsageBarsList } from "./components/charts/UsageBarsList.js";

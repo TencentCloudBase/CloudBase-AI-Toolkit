@@ -96,7 +96,10 @@ export const KIT_CSS = `
 .cb-kit-combobox-option:hover, .cb-kit-combobox-option.active { background: var(--cb-hover); }
 .cb-kit-combobox-option .label { font-weight: 500; font-size: 12px; }
 .cb-kit-combobox-option .sub { font-size: 10.5px; color: var(--cb-text-3); font-family: var(--cb-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cb-kit-restricted { padding: 24px; text-align: center; color: var(--cb-text-3); border: 1px dashed var(--cb-border-strong); border-radius: var(--cb-r); margin: 16px; }
+.cb-kit-restricted, .cb-kit-empty { padding: 24px; text-align: center; color: var(--cb-text-3); border: 1px dashed var(--cb-border-strong); border-radius: var(--cb-r); margin: 16px 0; }
+.cb-kit-table-head.cols-6, .cb-kit-table-row.cols-6 { grid-template-columns: 1.4fr 1fr .8fr .7fr 1fr .6fr; }
+.cb-kit-crumb { display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; margin-bottom: 8px; }
+.cb-kit-crumb button { border: none; background: transparent; color: var(--cb-blue); cursor: pointer; font: inherit; padding: 0; }
 .cb-kit-metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
 .cb-kit-metric { border: 1px solid var(--cb-border); border-radius: var(--cb-r); padding: 10px 12px; }
 .cb-kit-metric .k { font-size: 11px; color: var(--cb-text-3); }

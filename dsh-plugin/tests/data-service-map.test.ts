@@ -47,7 +47,7 @@ describe("cloudbase-data mapping", () => {
         "tcb:DescribeEnvs": {
           EnvList: [{ EnvId: envId, Region: "ap-shanghai" }],
         },
-        "tcb:DescribeFunctions": { Functions: [{ FunctionName: "fn_a" }] },
+        "tcb:ListFunctions": { Functions: [{ FunctionName: "fn_a" }] },
         "tcb:DescribeHostingDomain": { Domains: [{ Domain: "x.tcloudbaseapp.com" }] },
         "tcb:DescribeUsage": {
           Usages: [{ Module: "FLEXDB", CreditsValue: 12 }, { Module: "SCF", CreditsValue: 3 }],
@@ -77,7 +77,7 @@ describe("cloudbase-data mapping", () => {
     const bridge = capiBridge(
       {
         "tcb:DescribeEnvs": { EnvList: [{ EnvId: "env-x", Region: "ap-guangzhou" }] },
-        "tcb:DescribeFunctions": { Functions: [] },
+        "tcb:ListFunctions": { Functions: [] },
         "tcb:DescribeHostingDomain": { DefaultDomain: "env-x.tcloudbaseapp.com" },
       },
       { "auth:status": { current_env_id: "env-x" } },
@@ -153,7 +153,7 @@ describe("cloudbase-data mapping", () => {
         "tcb:DescribeUserList": {
           Data: { UserList: [{ Uid: "u1", Name: "alice", UserStatus: "ACTIVE" }] },
         },
-        "tcb:DescribeFunctions": { Functions: [] },
+        "tcb:ListFunctions": { Functions: [] },
         "tcb:DescribeEnvs": { EnvList: [{ EnvId: envId }] },
       },
       auth,

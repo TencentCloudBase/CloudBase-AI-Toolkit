@@ -38,8 +38,11 @@ export interface PlatformProvider {
   listTableColumns(table: string): Promise<ColumnSummary[]>;
   readRows(table: string, opts?: { limit?: number; offset?: number }): Promise<RowPage>;
   runReadSql(sql: string): Promise<RowPage>;
-  listStorage(path?: string): Promise<StorageObject[]>;
-  storageUrl(cloudPath: string): Promise<{ url: string; expiresInSec: number }>;
+  listStorage(path?: string, opts?: { bucket?: string }): Promise<StorageObject[]>;
+  storageUrl(cloudPath: string, opts?: { bucket?: string }): Promise<{ url: string; expiresInSec: number }>;
+  /** Host COS listing for static hosting (signed). */
+  listHostingObjects?(prefix?: string): Promise<StorageObject[]>;
+  uploadStorage?(cloudPath: string, opts?: { bucket?: string }): Promise<void>;
   authStatus(): Promise<AuthStatus>;
   /**
    * Begin a login flow.
@@ -117,9 +120,28 @@ export interface PlatformProvider {
   bindCustomDomain?(input: { domain: string; certId?: string; cnameDomain?: string; accessType?: string; description?: string }): Promise<void>;
   deleteCustomDomain?(domain: string, confirm: boolean): Promise<void>;
   listSafetyDomains?(): Promise<Array<{ id: string; appName: string }>>;
-  getStorageSecurityRules?(): Promise<{ aclTag: string; rule?: string }>;
-  setStorageSecurityRules?(rules: { aclTag: string; rule?: string }): Promise<void>;
-  listCdnCacheConfig?(): Promise<{ status: string }>;
+  getStorageSecurityRules?(bucket?: string): Promise<{ aclTag: string; rule?: string }>;
+  setStorageSecurityRules?(rules: { aclTag: string; rule?: string; bucket?: string }): Promise<void>;
+  listCdnCacheConfig?(bucket?: string): Promise<{ status: string }>;
+  listCdnCacheItems?(bucket?: string): Promise<import("./types.js").CdnCacheItem[]>;
+  listStorageBuckets?(): Promise<import("./types.js").StorageBucket[]>;
+  createStorageBucket?(name: string): Promise<void>;
+  deleteStorageBucket?(name: string, confirm: boolean): Promise<void>;
+
+  listFunctions?(opts?: { searchKey?: string; limit?: number; offset?: number }): Promise<import("./types.js").CloudFunctionSummary[]>;
+  getFunction?(name: string): Promise<import("./types.js").CloudFunctionDetail>;
+  listFunctionTriggers?(name: string): Promise<import("./types.js").CloudFunctionTrigger[]>;
+  listFunctionLogs?(name: string, opts?: { limit?: number }): Promise<import("./types.js").CloudFunctionLog[]>;
+  invokeFunction?(name: string, payload?: string): Promise<{ result: string; unsupportedReason?: string }>;
+
+  listCloudRunServices?(): Promise<import("./types.js").CloudRunService[]>;
+  getCloudRunService?(name: string): Promise<{ service: import("./types.js").CloudRunService; versions: import("./types.js").CloudRunVersion[] }>;
+  listCloudRunDeployRecords?(name: string): Promise<import("./types.js").CloudRunDeployRecord[]>;
+  getCloudRunProcessLog?(name: string, runId?: string): Promise<import("./types.js").CloudRunLogLine[]>;
+  getCloudRunBuildLog?(name: string, buildId?: string): Promise<{ text: string; unsupportedReason?: string }>;
+
+  listHostingDomains?(): Promise<import("./types.js").HostingDomain[]>;
+  listHostingVersions?(): Promise<import("./types.js").HostingVersion[]>;
   getStorageCustomDomains?(): Promise<Array<{ domain: string; status?: string }>>;
   /** @deprecated use listCustomDomains */
   listGatewayDomains?(): Promise<string[]>;

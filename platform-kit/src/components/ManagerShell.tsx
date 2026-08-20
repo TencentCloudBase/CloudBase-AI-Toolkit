@@ -14,6 +14,10 @@ import { LogsExplorerPage } from "./logs/LogsExplorerPage.js";
 import { DatabasePage } from "./database/DatabasePage.js";
 import { AuthUsersPage } from "./auth/AuthUsersPage.js";
 import { GatewayPage } from "./gateway/GatewayPage.js";
+import { FunctionsPage } from "./resources/FunctionsPage.js";
+import { CloudRunPage } from "./resources/CloudRunPage.js";
+import { HostingPage } from "./resources/HostingPage.js";
+import { StoragePage } from "./resources/StoragePage.js";
 import { ensureKitStyles } from "../theme/styles.js";
 import { resolvePostgresEnv } from "../core/features.js";
 
@@ -76,6 +80,14 @@ function ManagerShellInner(props: ManagerShellProps): React.ReactElement {
         return <GatewayPage provider={props.provider} />;
       case "logs":
         return <LogsExplorerPage provider={props.provider} />;
+      case "functions":
+        return <FunctionsPage provider={props.provider} />;
+      case "cloudrun":
+        return <CloudRunPage provider={props.provider} />;
+      case "hosting":
+        return <HostingPage provider={props.provider} />;
+      case "storage":
+        return <StoragePage provider={props.provider} />;
       default:
         return props.renderRoute?.(activeRoute) ?? (
           <div className="cb-kit-page">
