@@ -87,6 +87,7 @@ dsh --profile web --dump-config   # 应出现 # == @cloudbase/dsh-plugin 与 mcp
 4. **凭据 scrubbing。** DSH stdio 桥会丢掉名字匹配 `KEY|PASSWORD|SECRET|TOKEN` 的环境变量。本插件不声明任何 env，登录/环境全部走 cloudbase-mcp 的 auth（device-code + set_env）。`HOME` 会继承，因此本机 tcb 登录态可用。
 5. **首次 npx 拉包可能 10–90s。** headless 首轮工具列表可能还是空的；重试即可。Web 长驻进程无此问题。本地验收：`cd dsh-plugin && npm run build && npm run e2e:live`。
 6. **不要塞无效 API Key。** cloudbase-mcp 检测到 Key 会走 Key 模式，device-code 会被挡住。
+7. **空白「新会话」会把右侧 details 列宽压成 0。** DSH layout 在 `blank` 会话上强制 `details=0`，CloudBase 面板在 DOM 里但看不见。打开任意已有会话，或运行 `node tools/relax-dsh-layout.mjs` 后重启 `dsh --profile web`。无人值守点击：`DSH_URL=http://127.0.0.1:3080 python3.11 scripts/unattended-ui.py`。
 
 ## 隐私
 
