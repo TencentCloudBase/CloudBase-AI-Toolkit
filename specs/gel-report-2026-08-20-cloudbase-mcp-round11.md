@@ -154,4 +154,4 @@ errorLogs 与 slow-query 同属 CynosDB 日志只读面，符合 2026-08-14 imag
 - MCP npm `2.28.1`；manager-node 5.6.6；CLI 3.7.2
 - 灯塔 snapshot：`2026-08-17T02:31:06Z`；08-13 总报错率 11.5%
 - DSH plugins：**1650**（round10 ~1472）
-- 本轮已创建任务：见 ATO pending（本报告提交后回填 ID）
+- 本轮已创建任务（pending / low / 人审）：`6e50a32b`（MySQL errorLogs）/ `306c3cf1`（Cursor Marketplace）/ `9d0375d1`（PG 分号引导）
