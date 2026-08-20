@@ -318,6 +318,8 @@ export interface CloudBaseData {
   deleteGatewayRoute(routeId: string, confirm: boolean): Promise<void>;
   getGatewayPrivilege(): Promise<GatewayPrivilege>;
   listCustomDomains?(): Promise<Array<{ domain: string; status: string; accessType?: string; certificateId?: string; cnameTarget?: string; createdAt?: string }>>;
+  listSslCertificates?(): Promise<Array<{ id: string; name: string; status?: string }>>;
+  listAuthDomains?(): Promise<Array<{ domain: string; id?: string; status?: string }>>;
   bindCustomDomain?(input: { domain: string; certId?: string; cnameDomain?: string; accessType?: string; description?: string }): Promise<void>;
   deleteCustomDomain?(domain: string, confirm: boolean): Promise<void>;
   listSafetyDomains?(): Promise<Array<{ id: string; appName: string }>>;
@@ -366,7 +368,10 @@ export interface CloudBaseData {
   listStorage(path?: string, opts?: { bucket?: string }): Promise<StorageObject[]>;
   storageUrl(cloudPath: string, opts?: { bucket?: string }): Promise<{ url: string; expiresInSec: number }>;
   listHostingObjects?(prefix?: string): Promise<StorageObject[]>;
-  uploadStorage?(cloudPath: string, opts?: { bucket?: string }): Promise<void>;
+  uploadStorage?(
+    cloudPath: string,
+    opts?: { bucket?: string; fileBase64?: string; fileName?: string; contentType?: string },
+  ): Promise<void>;
   authStatus(): Promise<AuthStatus>;
   startLogin?(method?: LoginMethod, params?: { envId?: string; apiKey?: string }): Promise<AuthStatus>;
   authStateChange?(listener: (status: AuthStatus) => void): () => void;

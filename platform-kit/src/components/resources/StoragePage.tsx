@@ -3,7 +3,16 @@ import type { PlatformProvider } from "../../core/provider.js";
 import type { StorageObject } from "../../core/types.js";
 import { useKit } from "../../hooks/use-menu.js";
 import { useStorageBuckets, useStorageObjects } from "../../hooks/use-resources.js";
-import { DegradeNote, EmptyState, ErrorBanner, PageHead, SimpleTable, TabsBar } from "./ResourceParts.js";
+import { ConfirmDialog } from "../ConfirmDialog.js";
+import {
+  DegradeNote,
+  EmptyState,
+  ErrorBanner,
+  InlineMessage,
+  PageHead,
+  SimpleTable,
+  TabsBar,
+} from "./ResourceParts.js";
 
 export interface StoragePageProps {
   provider?: PlatformProvider;
@@ -12,6 +21,7 @@ export interface StoragePageProps {
 export function StoragePage(props: StoragePageProps): React.ReactElement {
   const kit = useKit();
   const provider = props.provider ?? kit.provider;
+  const isPg = kit.featureCtx.isPostgresEnv ?? false;
   const buckets = useStorageBuckets(provider);
   const [bucket, setBucket] = React.useState<string | undefined>(undefined);
   const [path, setPath] = React.useState("");
@@ -21,6 +31,13 @@ export function StoragePage(props: StoragePageProps): React.ReactElement {
   const [rule, setRule] = React.useState("");
   const [cdnRows, setCdnRows] = React.useState<Array<{ id: string; status: string }>>([]);
   const [hint, setHint] = React.useState<string | undefined>(undefined);
+  const [newBucket, setNewBucket] = React.useState("");
+  const bucketInputRef = React.useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = React.useState<File | undefined>(undefined);
+  const [uploading, setUploading] = React.useState(false);
+  const [confirmSecurity, setConfirmSecurity] = React.useState(false);
+  const [confirmDeleteBucket, setConfirmDeleteBucket] = React.useState<string | undefined>(undefined);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const crumbs = path.split("/").filter(Boolean);
 
   React.useEffect(() => {
@@ -43,36 +60,106 @@ export function StoragePage(props: StoragePageProps): React.ReactElement {
     if (!provider || file.isDirectory) return;
     const result = await provider.storageUrl(file.cloudPath, bucket ? { bucket } : undefined);
     if (result.url && typeof window !== "undefined") window.open(result.url, "_blank");
-    setHint("临时链接会过期。");
+    setHint(kit.tr("storage.link"));
+  };
+
+  const uploadSelected = async () => {
+    if (!provider?.uploadStorage || !selectedFile || !bucket) return;
+    setUploading(true);
+    setHint(undefined);
+    try {
+      const buffer = await selectedFile.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i] ?? 0);
+      const fileBase64 = btoa(binary);
+      const targetPath = path.endsWith("/") || !path ? path || "" : `${path}/`;
+      await provider.uploadStorage(targetPath, {
+        bucket,
+        fileBase64,
+        fileName: selectedFile.name,
+        contentType: selectedFile.type || "application/octet-stream",
+      });
+      setHint(kit.tr("storage.uploadSuccess"));
+      files.reload();
+    } catch (error) {
+      setHint(`${kit.tr("storage.uploadFailed")}: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const createBucket = async () => {
+    if (!provider?.createStorageBucket || !newBucket.trim()) return;
+    try {
+      await provider.createStorageBucket(newBucket.trim());
+      setNewBucket("");
+      buckets.reload();
+      setHint(kit.tr("common.success"));
+    } catch (error) {
+      setHint(error instanceof Error ? error.message : String(error));
+    }
   };
 
   return (
     <div className="cb-kit-page">
       <PageHead title={kit.tr("storage.title")} onRefresh={() => buckets.reload()} refreshLabel={kit.tr("common.refresh")} />
       <ErrorBanner error={buckets.error} retry={() => buckets.reload()} retryLabel={kit.tr("common.retry")} />
-      <DegradeNote>{kit.tr("storage.bucketCreateUnsupported")}</DegradeNote>
+      {!isPg ? <DegradeNote>{kit.tr("storage.bucketCreateUnsupported")}</DegradeNote> : null}
 
       {!bucket ? (
-        <SimpleTable
-          columns={[kit.tr("storage.buckets"), "Region", "CDN", "Kind"]}
-          empty={kit.tr("storage.empty")}
-          rows={(buckets.data ?? []).map((item) => ({
-            key: item.name,
-            cells: [item.name, item.region ?? "—", item.cdnDomain ?? "—", item.kind ?? "storage"],
-            onClick: () => {
-              setBucket(item.name);
-              setPath("");
-              setTab("files");
-            },
-          }))}
-        />
+        <>
+          {isPg ? (
+            <div className="cb-kit-spread cb-kit-page-actions">
+              <input
+                ref={bucketInputRef}
+                className="cb-kit-input flex"
+                placeholder={kit.tr("storage.createHint")}
+                value={newBucket}
+                onChange={(e) => setNewBucket(e.target.value)}
+              />
+              <button type="button" className="cb-kit-btn" onClick={() => void createBucket()} disabled={!newBucket.trim()}>
+                {kit.tr("storage.createBucket")}
+              </button>
+            </div>
+          ) : null}
+          <SimpleTable
+            loading={buckets.loading}
+            loadingLabel={kit.tr("table.loading")}
+            columns={[
+              kit.tr("storage.buckets"),
+              kit.tr("storage.col.region"),
+              kit.tr("storage.col.cdn"),
+              kit.tr("storage.col.kind"),
+            ]}
+            empty={
+              <EmptyState action={isPg ? <button type="button" className="cb-kit-btn" onClick={() => bucketInputRef.current?.focus()}>{kit.tr("storage.createBucket")}</button> : undefined}>
+                {kit.tr("storage.empty")}
+              </EmptyState>
+            }
+            rows={(buckets.data ?? []).map((item) => ({
+              key: item.name,
+              cells: [item.name, item.region ?? "—", item.cdnDomain ?? "—", item.kind ?? "storage"],
+              onClick: () => {
+                setBucket(item.name);
+                setPath("");
+                setTab("files");
+              },
+            }))}
+          />
+        </>
       ) : (
         <>
-          <div className="cb-kit-page-actions" style={{ marginBottom: 8 }}>
+          <div className="cb-kit-page-actions cb-kit-spread">
             <button type="button" className="cb-kit-btn ghost" onClick={() => setBucket(undefined)}>
               ← {kit.tr("storage.buckets")}
             </button>
             <span className="mono">{bucket}</span>
+            {isPg ? (
+              <button type="button" className="cb-kit-btn ghost" onClick={() => setConfirmDeleteBucket(bucket)}>
+                {kit.tr("storage.deleteBucket")}
+              </button>
+            ) : null}
           </div>
           <TabsBar
             active={tab}
@@ -85,7 +172,7 @@ export function StoragePage(props: StoragePageProps): React.ReactElement {
           />
           {tab === "files" ? (
             <>
-              <div className="cb-kit-crumb">
+              <div className="cb-kit-crumb cb-kit-spread">
                 <button type="button" onClick={() => setPath("")}>
                   /
                 </button>
@@ -98,63 +185,45 @@ export function StoragePage(props: StoragePageProps): React.ReactElement {
                   </span>
                 ))}
                 <span className="cb-spacer" />
-                <button
-                  type="button"
-                  className="cb-kit-btn"
-                  onClick={() => {
-                    void (async () => {
-                      if (provider?.uploadStorage) {
-                        await provider.uploadStorage(path || "/", { bucket });
-                        files.reload();
-                        return;
-                      }
-                      setHint("上传需宿主实现 uploadStorage（COS）。");
-                    })();
-                  }}
-                >
-                  {kit.tr("storage.upload")}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="cb-kit-file-input"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0])}
+                />
+                {selectedFile ? <span className="mono">{selectedFile.name}</span> : null}
+                <button type="button" className="cb-kit-btn" disabled={!selectedFile || uploading} onClick={() => void uploadSelected()}>
+                  {uploading ? kit.tr("common.loading") : kit.tr("storage.upload")}
                 </button>
               </div>
-              {hint ? <div className="cb-kit-banner warn">{hint}</div> : null}
-              {(files.data ?? []).length === 0 ? (
-                <EmptyState>{kit.tr("common.empty")}</EmptyState>
-              ) : (
-                <div className="cb-kit-card cb-kit-table">
-                  <div className="cb-kit-table-head cols-4">
-                    <span>{kit.tr("fn.col.name")}</span>
-                    <span>Size</span>
-                    <span>{kit.tr("fn.col.updated")}</span>
-                    <span />
+              {hint ? <InlineMessage kind={hint.includes(kit.tr("storage.uploadFailed")) || hint.includes("失败") ? "err" : "ok"}>{hint}</InlineMessage> : null}
+              <SimpleTable
+                loading={files.loading}
+                loadingLabel={kit.tr("table.loading")}
+                columns={[kit.tr("fn.col.name"), kit.tr("storage.col.size"), kit.tr("fn.col.updated"), ""]}
+                empty={kit.tr("common.empty")}
+                rows={(files.data ?? []).map((file) => ({
+                  key: file.cloudPath,
+                  cells: [
+                    file.isDirectory ? `📁 ${file.name}` : file.name,
+                    file.sizeLabel ?? "—",
+                    file.updatedAt ?? "—",
+                    "",
+                  ],
+                  onClick: file.isDirectory
+                    ? () => setPath(file.cloudPath.endsWith("/") ? file.cloudPath : `${file.cloudPath}/`)
+                    : undefined,
+                }))}
+              />
+              {(files.data ?? []).map((file) =>
+                !file.isDirectory ? (
+                  <div key={`link-${file.cloudPath}`} className="cb-kit-spread">
+                    <span className="mono">{file.name}</span>
+                    <button type="button" className="cb-kit-btn ghost" onClick={() => void openUrl(file)}>
+                      {kit.tr("storage.link")}
+                    </button>
                   </div>
-                  {(files.data ?? []).map((file) => (
-                    <div key={file.cloudPath} className="cb-kit-table-row static cols-4">
-                      <span>
-                        {file.isDirectory ? (
-                          <button
-                            type="button"
-                            className="cb-kit-btn ghost"
-                            onClick={() =>
-                              setPath(file.cloudPath.endsWith("/") ? file.cloudPath : `${file.cloudPath}/`)
-                            }
-                          >
-                            {file.name}
-                          </button>
-                        ) : (
-                          file.name
-                        )}
-                      </span>
-                      <span>{file.sizeLabel}</span>
-                      <span>{file.updatedAt ?? "—"}</span>
-                      <span>
-                        {!file.isDirectory ? (
-                          <button type="button" className="cb-kit-btn ghost" onClick={() => void openUrl(file)}>
-                            {kit.tr("storage.link")}
-                          </button>
-                        ) : null}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                ) : null,
               )}
             </>
           ) : null}
@@ -168,20 +237,14 @@ export function StoragePage(props: StoragePageProps): React.ReactElement {
                 <span>Rule</span>
                 <textarea className="cb-kit-textarea" rows={6} value={rule} onChange={(e) => setRule(e.target.value)} />
               </div>
-              <button
-                type="button"
-                className="cb-kit-btn"
-                onClick={() => {
-                  void provider?.setStorageSecurityRules?.({ aclTag: acl, rule, bucket });
-                }}
-              >
+              <button type="button" className="cb-kit-btn" onClick={() => setConfirmSecurity(true)}>
                 {kit.tr("storage.acl.edit")}
               </button>
             </div>
           ) : null}
           {tab === "cdn" ? (
             <SimpleTable
-              columns={["Id", "Status"]}
+              columns={["Id", kit.tr("gateway.domainStatus")]}
               empty={kit.tr("common.empty")}
               rows={cdnRows.map((item) => ({
                 key: item.id,
@@ -191,6 +254,43 @@ export function StoragePage(props: StoragePageProps): React.ReactElement {
           ) : null}
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmSecurity}
+        title={kit.tr("storage.acl.edit")}
+        body={kit.tr("storage.securityConfirm")}
+        confirmLabel={kit.tr("common.confirm")}
+        cancelLabel={kit.tr("common.cancel")}
+        onCancel={() => setConfirmSecurity(false)}
+        onConfirm={() => {
+          setConfirmSecurity(false);
+          void provider
+            ?.setStorageSecurityRules?.({ aclTag: acl, rule, bucket })
+            .then(() => setHint(kit.tr("common.success")))
+            .catch((error) => setHint(error instanceof Error ? error.message : String(error)));
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(confirmDeleteBucket)}
+        title={kit.tr("storage.deleteBucket")}
+        body={confirmDeleteBucket ?? ""}
+        confirmLabel={kit.tr("common.confirm")}
+        cancelLabel={kit.tr("common.cancel")}
+        onCancel={() => setConfirmDeleteBucket(undefined)}
+        onConfirm={() => {
+          const name = confirmDeleteBucket;
+          setConfirmDeleteBucket(undefined);
+          if (!name || !provider?.deleteStorageBucket) return;
+          void provider
+            .deleteStorageBucket(name, true)
+            .then(() => {
+              setBucket(undefined);
+              buckets.reload();
+            })
+            .catch((error) => setHint(error instanceof Error ? error.message : String(error)));
+        }}
+      />
     </div>
   );
 }

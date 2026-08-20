@@ -16,6 +16,7 @@ import { FeatureGuard } from "../FeatureGuard.js";
 import { sqlToggleRLS } from "../../pg/sql.js";
 import { buildDropPolicySql, RlsPolicyEditor, TableDetailSheet, TableListPanel } from "./DatabaseParts.js";
 import { SqlEditorPanel } from "./SqlEditorPanel.js";
+import { ConfirmDialog } from "../ConfirmDialog.js";
 
 export interface DatabasePageProps {
   provider?: PlatformProvider;
@@ -34,6 +35,11 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
   const mutation = usePgMutation(provider);
   const [editorOpen, setEditorOpen] = React.useState(false);
   const [editPolicy, setEditPolicy] = React.useState<PolicySummary | undefined>();
+  const [confirm, setConfirm] = React.useState<
+    | { kind: "rls"; enable: boolean }
+    | { kind: "deletePolicy"; policy: PolicySummary }
+    | undefined
+  >();
 
   const functions = usePgFunctions(isPg ? provider : undefined);
   const extensions = usePgExtensions(isPg ? provider : undefined);
@@ -70,6 +76,11 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
       "db.policy.withCheck": kit.tr("db.policy.withCheck"),
       "db.policy.preview": kit.tr("db.policy.preview"),
       "db.policy.confirm": kit.tr("db.policy.confirm"),
+      "db.policy.templates": kit.tr("db.policy.templates"),
+      "db.policy.form": kit.tr("db.policy.form"),
+      "db.policy.templateAuthRead": kit.tr("db.policy.templateAuthRead"),
+      "db.policy.templatePublicRead": kit.tr("db.policy.templatePublicRead"),
+      "db.policy.templateUserFilter": kit.tr("db.policy.templateUserFilter"),
       "common.loading": kit.tr("common.loading"),
       "common.empty": kit.tr("common.empty"),
       "common.cancel": kit.tr("common.cancel"),
@@ -82,15 +93,24 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
     tables.reload();
   };
 
-  const handleToggleRls = async (enable: boolean) => {
-    if (!selected || !window.confirm(enable ? labels["db.rls.enable"] : labels["db.rls.disable"])) return;
-    await mutation.execute(sqlToggleRLS(selected, enable));
-    refreshSchema();
+  const handleToggleRls = (enable: boolean) => {
+    if (!selected) return;
+    setConfirm({ kind: "rls", enable });
   };
 
-  const handleDeletePolicy = async (policy: PolicySummary) => {
-    if (!selected || !window.confirm(kit.tr("gateway.deleteConfirm"))) return;
-    await mutation.execute(buildDropPolicySql(selected, policy.name));
+  const handleDeletePolicy = (policy: PolicySummary) => {
+    if (!selected) return;
+    setConfirm({ kind: "deletePolicy", policy });
+  };
+
+  const runConfirm = async () => {
+    if (!confirm || !selected) return;
+    if (confirm.kind === "rls") {
+      await mutation.execute(sqlToggleRLS(selected, confirm.enable));
+    } else {
+      await mutation.execute(buildDropPolicySql(selected, confirm.policy.name));
+    }
+    setConfirm(undefined);
     refreshSchema();
   };
 
@@ -102,9 +122,9 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
           <div />
         </FeatureGuard>
         {tables.data && tables.data.length > 0 ? (
-          <div className="cb-kit-card" style={{ marginTop: 12 }}>
+          <div className="cb-kit-card cb-kit-mt-sm">
             {tables.data.map((table) => (
-              <div key={`${table.schema}.${table.name}`} style={{ padding: "8px 12px", borderBottom: "1px solid var(--cb-border)" }}>
+              <div key={`${table.schema}.${table.name}`} className="cb-kit-list-item">
                 {table.schema}.{table.name}
               </div>
             ))}
@@ -119,7 +139,7 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
       <div className="cb-kit-page-head">
         <h2 className="cb-kit-page-title">{kit.tr("db.title")}</h2>
         <div className="cb-kit-page-actions">
-          <div className="cb-kit-tabs" style={{ marginBottom: 0 }}>
+          <div className="cb-kit-tabs compact">
             <button type="button" className={workspace === "tables" ? "active" : ""} onClick={() => setWorkspace("tables")}>
               {kit.tr("db.tab.tables")}
             </button>
@@ -148,7 +168,7 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
             setActiveTab("structure");
           }}
         />
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="cb-kit-flex-1">
           {globalTab ? (
             <div>
               <div className="cb-kit-tabs">
@@ -162,14 +182,14 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
                     {labels[`db.tab.${tab}`]}
                   </button>
                 ))}
-                <button type="button" onClick={() => setGlobalTab(undefined)}>← Tables</button>
+                <button type="button" onClick={() => setGlobalTab(undefined)}>{kit.tr("db.backToTables")}</button>
               </div>
               {globalTab === "functions" ? (
                 <div className="cb-kit-card">
                   {(functions.data ?? []).map((fn) => (
-                    <div key={fn.name} style={{ padding: "8px 12px", borderBottom: "1px solid var(--cb-border)" }}>
+                    <div key={fn.name} className="cb-kit-list-item">
                       <strong>{fn.name}</strong>
-                      <span className="mono" style={{ marginLeft: 8, fontSize: 11 }}>{fn.returnType}</span>
+                      <span className="mono cb-kit-ml-sm">{fn.returnType}</span>
                     </div>
                   ))}
                 </div>
@@ -177,7 +197,7 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
               {globalTab === "extensions" ? (
                 <div className="cb-kit-card">
                   {(extensions.data ?? []).map((ext) => (
-                    <div key={ext.name} style={{ padding: "8px 12px", borderBottom: "1px solid var(--cb-border)" }}>
+                    <div key={ext.name} className="cb-kit-list-item">
                       {ext.name} <span className="mono">{ext.version}</span>
                     </div>
                   ))}
@@ -186,7 +206,7 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
               {globalTab === "roles" ? (
                 <div className="cb-kit-card">
                   {(roles.data ?? []).map((role) => (
-                    <div key={role.name} style={{ padding: "8px 12px", borderBottom: "1px solid var(--cb-border)" }}>
+                    <div key={role.name} className="cb-kit-list-item">
                       {role.name}
                     </div>
                   ))}
@@ -195,9 +215,9 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
               {globalTab === "migrations" ? (
                 <div className="cb-kit-card">
                   {(migrations.data ?? []).map((m) => (
-                    <div key={m.version} style={{ padding: "8px 12px", borderBottom: "1px solid var(--cb-border)" }}>
+                    <div key={m.version} className="cb-kit-list-item">
                       <div><strong>{m.version}</strong> {m.name}</div>
-                      {m.appliedAt ? <div style={{ fontSize: 11, color: "var(--cb-text-3)" }}>{m.appliedAt}</div> : null}
+                      {m.appliedAt ? <div className="cb-kit-muted">{m.appliedAt}</div> : null}
                     </div>
                   ))}
                 </div>
@@ -224,7 +244,7 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
           )}
         </div>
       </div>
-      <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+      <div className="cb-kit-spread cb-kit-mt-sm">
         {(["functions", "extensions", "roles", "migrations"] as const).map((tab) => (
           <button key={tab} type="button" className="cb-kit-btn ghost" onClick={() => setGlobalTab(tab)}>
             {labels[`db.tab.${tab}`]}
@@ -240,6 +260,7 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
           schemaTable={selected}
           initial={editPolicy}
           labels={labels}
+          roleOptions={["public", "authenticated", ...(roles.data ?? []).map((r) => r.name)]}
           pending={mutation.pending}
           onClose={() => setEditorOpen(false)}
           onSubmit={async (sql) => {
@@ -249,6 +270,27 @@ export function DatabasePage(props: DatabasePageProps): React.ReactElement {
           }}
         />
       ) : null}
+
+      <ConfirmDialog
+        open={confirm?.kind === "rls"}
+        title={confirm?.kind === "rls" && confirm.enable ? labels["db.rls.enable"] : labels["db.rls.disable"]}
+        body={confirm?.kind === "rls" && confirm.enable ? labels["db.rls.enable"] : labels["db.rls.disable"]}
+        confirmLabel={kit.tr("common.confirm")}
+        cancelLabel={labels["common.cancel"]}
+        pending={mutation.pending}
+        onCancel={() => setConfirm(undefined)}
+        onConfirm={() => void runConfirm()}
+      />
+      <ConfirmDialog
+        open={confirm?.kind === "deletePolicy"}
+        title={kit.tr("db.policy.delete")}
+        body={kit.tr("gateway.deleteConfirm")}
+        confirmLabel={kit.tr("common.confirm")}
+        cancelLabel={labels["common.cancel"]}
+        pending={mutation.pending}
+        onCancel={() => setConfirm(undefined)}
+        onConfirm={() => void runConfirm()}
+      />
     </div>
   );
 }

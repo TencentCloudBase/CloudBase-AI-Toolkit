@@ -42,6 +42,17 @@ declare module "@cloudbase/platform-kit" {
   export function HostingPage(props: KitPageProps): React.ReactElement;
   export function StoragePage(props: KitPageProps): React.ReactElement;
   export function LogsPage(props: KitPageProps): React.ReactElement;
+  export function SettingsPage(props: KitPageProps): React.ReactElement;
+  export function ConfirmDialog(props: {
+    open: boolean;
+    title: string;
+    body: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    pending?: boolean;
+    onCancel: () => void;
+    onConfirm: () => void;
+  }): React.ReactElement | null;
 
   export interface UrlPreviewProps {
     seedUrl?: string;

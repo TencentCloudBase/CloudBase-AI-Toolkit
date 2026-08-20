@@ -168,4 +168,18 @@ describe("resource pages", () => {
     );
     expect(empty).toContain(t("zh", "storage.empty"));
   });
+
+  it("SimpleTable loading shows skeleton instead of empty dash", () => {
+    const loading = renderToStaticMarkup(
+      React.createElement(SimpleTable, {
+        columns: ["Bucket"],
+        empty: "—",
+        loading: true,
+        loadingLabel: "加载中…",
+        rows: [],
+      }),
+    );
+    expect(loading).toContain("cb-kit-skeleton-row");
+    expect(loading).not.toContain("cb-kit-empty");
+  });
 });

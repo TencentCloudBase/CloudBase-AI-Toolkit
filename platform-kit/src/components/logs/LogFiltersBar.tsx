@@ -16,6 +16,11 @@ export interface LogFiltersBarProps {
   onSearch: () => void;
 }
 
+function toDatetimeLocalValue(value?: string): string {
+  if (!value) return "";
+  return value.replace(" ", "T").slice(0, 16);
+}
+
 export function LogFiltersBar(props: LogFiltersBarProps): React.ReactElement {
   return (
     <div className="cb-kit-filters">
@@ -56,14 +61,14 @@ export function LogFiltersBar(props: LogFiltersBarProps): React.ReactElement {
           <input
             className="cb-kit-input"
             type="datetime-local"
-            value={props.customStart ?? ""}
-            onChange={(e) => props.onChange({ customStart: e.target.value.replace("T", " ") + ":00" })}
+            value={toDatetimeLocalValue(props.customStart)}
+            onChange={(e) => props.onChange({ customStart: e.target.value })}
           />
           <input
             className="cb-kit-input"
             type="datetime-local"
-            value={props.customEnd ?? ""}
-            onChange={(e) => props.onChange({ customEnd: e.target.value.replace("T", " ") + ":00" })}
+            value={toDatetimeLocalValue(props.customEnd)}
+            onChange={(e) => props.onChange({ customEnd: e.target.value })}
           />
         </>
       ) : null}

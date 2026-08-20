@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 import type { DeploymentRecord } from "../core/types.js";
 
 export interface DeploymentTimelineProps {
@@ -21,12 +22,13 @@ function statusClass(status: DeploymentRecord["status"]): string {
 export function DeploymentTimeline(props: DeploymentTimelineProps): React.ReactElement {
   const [expanded, setExpanded] = React.useState<string | undefined>(undefined);
   const [rolling, setRolling] = React.useState<string | undefined>(undefined);
+  const [rollbackTarget, setRollbackTarget] = React.useState<DeploymentRecord | undefined>(undefined);
 
   if (props.loading) {
-    return <div style={{ padding: 12, color: "var(--cb-text-3)", fontSize: 12 }}>…</div>;
+    return <div className="cb-kit-muted-block">…</div>;
   }
   if (props.error) {
-    return <div style={{ padding: 12, color: "var(--cb-danger)", fontSize: 12 }}>{props.error}</div>;
+    return <div className="cb-kit-danger-block">{props.error}</div>;
   }
 
   const label = (status: DeploymentRecord["status"]) =>
@@ -37,7 +39,7 @@ export function DeploymentTimeline(props: DeploymentTimelineProps): React.ReactE
       {props.title ? <div className="cb-kit-section-h">{props.title}</div> : null}
       <div className="cb-kit-timeline">
         {props.records.length === 0 ? (
-          <div className="cb-kit-restricted" style={{ margin: 0 }}>—</div>
+          <div className="cb-kit-restricted tight">—</div>
         ) : (
           props.records.map((record) => {
             const isOpen = expanded === record.id;
@@ -49,21 +51,21 @@ export function DeploymentTimeline(props: DeploymentTimelineProps): React.ReactE
                   onClick={() => setExpanded(isOpen ? undefined : record.id)}
                 >
                   <span className={`cb-kit-badge ${statusClass(record.status)}`}>{label(record.status)}</span>
-                  <span style={{ fontWeight: 600 }}>{record.resourceName}</span>
-                  <span style={{ color: "var(--cb-text-3)", fontSize: 11 }}>{record.resourceType}</span>
-                  <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--cb-text-3)", fontFamily: "var(--cb-mono)" }}>
+                  <span className="cb-kit-deploy-name">{record.resourceName}</span>
+                  <span className="cb-kit-deploy-meta">{record.resourceType}</span>
+                  <span className="cb-kit-deploy-time">
                     {record.deployedAt ?? "—"}
                   </span>
                 </button>
                 {isOpen ? (
                   <div className="cb-kit-deploy-body">
                     {record.previewUrl ? (
-                      <div style={{ marginBottom: 8 }}>
+                      <div className="cb-kit-mb-sm">
                         <a
                           href={record.previewUrl}
                           target="_blank"
                           rel="noreferrer"
-                          style={{ color: "var(--cb-blue)", fontFamily: "var(--cb-mono)", fontSize: 11.5 }}
+                          className="cb-kit-preview-link"
                           onClick={(e) => {
                             if (props.onPreview) {
                               e.preventDefault();
@@ -76,12 +78,12 @@ export function DeploymentTimeline(props: DeploymentTimelineProps): React.ReactE
                       </div>
                     ) : null}
                     {record.relatedResources && record.relatedResources.length > 0 ? (
-                      <div style={{ marginBottom: 8 }}>
-                        <div style={{ fontSize: 10.5, color: "var(--cb-text-3)", marginBottom: 4 }}>
+                      <div className="cb-kit-mb-sm">
+                        <div className="cb-kit-muted">
                           {props.expandLabel}
                         </div>
                         {record.relatedResources.map((rel) => (
-                          <div key={`${rel.type}:${rel.name}`} style={{ fontFamily: "var(--cb-mono)", fontSize: 11 }}>
+                          <div key={`${rel.type}:${rel.name}`} className="mono">
                             {rel.type}: {rel.name}
                           </div>
                         ))}
@@ -91,23 +93,8 @@ export function DeploymentTimeline(props: DeploymentTimelineProps): React.ReactE
                       <button
                         type="button"
                         disabled={rolling === record.id}
-                        onClick={async () => {
-                          if (!window.confirm(props.rollbackConfirm ?? "Rollback?")) return;
-                          setRolling(record.id);
-                          try {
-                            await props.onRollback!(record);
-                          } finally {
-                            setRolling(undefined);
-                          }
-                        }}
-                        style={{
-                          padding: "4px 10px",
-                          fontSize: 11,
-                          border: "1px solid var(--cb-border-strong)",
-                          borderRadius: 5,
-                          background: "var(--cb-panel)",
-                          cursor: "pointer",
-                        }}
+                        onClick={() => setRollbackTarget(record)}
+                        className="cb-kit-btn ghost"
                       >
                         {props.rollbackLabel}
                       </button>
@@ -119,6 +106,24 @@ export function DeploymentTimeline(props: DeploymentTimelineProps): React.ReactE
           })
         )}
       </div>
+      <ConfirmDialog
+        open={Boolean(rollbackTarget)}
+        title={props.rollbackLabel ?? "Rollback"}
+        body={props.rollbackConfirm ?? "Rollback?"}
+        pending={Boolean(rolling)}
+        onCancel={() => setRollbackTarget(undefined)}
+        onConfirm={() => {
+          if (!rollbackTarget || !props.onRollback) return;
+          const record = rollbackTarget;
+          setRolling(record.id);
+          void props
+            .onRollback(record)
+            .finally(() => {
+              setRolling(undefined);
+              setRollbackTarget(undefined);
+            });
+        }}
+      />
     </div>
   );
 }

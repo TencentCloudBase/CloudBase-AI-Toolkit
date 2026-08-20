@@ -32,6 +32,8 @@ import {
   CloudRunPage,
   HostingPage,
   StoragePage,
+  SettingsPage,
+  ConfirmDialog,
   type MenuRouteId,
   resolvePostgresEnv,
 } from "@cloudbase/platform-kit";
@@ -104,7 +106,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
   }, [data]);
 
   return (
-    <div className="cb-root" style={{ height: "100%" }}>
+    <div className="cb-root cb-kit-fill">
       <AuthGate data={data}>
         {({ status, setStatus }: { status: AuthStatus; setStatus: (s: AuthStatus) => void }) => {
           const topbar = (
@@ -158,7 +160,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
                 </>
               ) : (
                 <ManagerShell
-                  provider={data as never}
+                  provider={data}
                   featureCtx={{ ...featureCtx, envId: status.envId }}
                   route={route}
                   onRouteChange={setRoute}
@@ -182,30 +184,25 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
                   renderRoute={(activeRoute) => {
                     switch (activeRoute) {
                       case "overview":
-                        return <OverviewPage provider={data as never} />;
+                        return <OverviewPage provider={data} />;
                       case "database":
-                        return <DatabasePage provider={data as never} />;
+                        return <DatabasePage provider={data} />;
                       case "storage":
-                        return <StoragePage provider={data as never} />;
+                        return <StoragePage provider={data} />;
                       case "auth":
-                        return <AuthUsersPage provider={data as never} />;
+                        return <AuthUsersPage provider={data} />;
                       case "gateway":
-                        return <GatewayPage provider={data as never} />;
+                        return <GatewayPage provider={data} />;
                       case "logs":
-                        return <LogsPage provider={data as never} />;
+                        return <LogsPage provider={data} />;
                       case "settings":
-                        return (
-                          <>
-                            <ConfigTab data={data} />
-                            <AnalyticsTab data={data} />
-                          </>
-                        );
+                        return <SettingsPage provider={data} />;
                       case "functions":
-                        return <FunctionsPage provider={data as never} />;
+                        return <FunctionsPage provider={data} />;
                       case "cloudrun":
-                        return <CloudRunPage provider={data as never} />;
+                        return <CloudRunPage provider={data} />;
                       case "hosting":
-                        return <HostingPage provider={data as never} />;
+                        return <HostingPage provider={data} />;
                       default:
                         return null;
                     }

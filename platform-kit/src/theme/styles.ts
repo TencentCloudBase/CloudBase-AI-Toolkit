@@ -118,6 +118,25 @@ export const KIT_CSS = `
 .cb-kit-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center; }
 .cb-kit-banner { padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 12px; }
 .cb-kit-banner.warn { background: #fff8c5; color: var(--cb-warn); border: 1px solid #f0e6a0; }
+.cb-kit-banner.ok { background: #dafbe1; color: var(--cb-ok); border: 1px solid #aceebb; }
+.cb-kit-banner.err { background: #ffebe9; color: var(--cb-danger); border: 1px solid #ffcecb; }
+.cb-kit-error-banner { color: var(--cb-danger); margin-bottom: var(--cb-gap-sm); }
+.cb-kit-inline-btn { margin-left: var(--cb-gap-sm); }
+.cb-kit-span-3 { grid-column: span 3; }
+.cb-kit-gap-sm { gap: var(--cb-gap-sm); }
+.cb-kit-spread { display: flex; align-items: center; gap: var(--cb-gap-sm); }
+.cb-kit-page-actions.cb-kit-spread { margin-bottom: var(--cb-gap-sm); }
+.cb-kit-empty-action { margin-top: var(--cb-gap-sm); }
+.cb-kit-skeleton-row { opacity: .55; }
+.cb-kit-skeleton-cell { display: block; height: 10px; background: var(--cb-accent); border-radius: 4px; }
+.cb-kit-table-loading { padding: 8px 12px; font-size: 11px; color: var(--cb-text-3); }
+.cb-kit-confirm { width: min(360px, 92vw); height: auto; align-self: center; margin: auto; border-radius: var(--cb-r); }
+.cb-kit-confirm-body { font-size: 12px; color: var(--cb-text-2); margin: 0 0 12px; white-space: pre-wrap; }
+.cb-kit-pagination { display: flex; align-items: center; gap: var(--cb-gap-sm); margin-top: var(--cb-gap-sm); font-size: 12px; }
+.cb-kit-file-input { font-size: 12px; max-width: 220px; }
+:root .cb-kit-root, .cb-kit-root {
+  --cb-gap-sm: 8px;
+}
 .cb-kit-table .cb-kit-table-head, .cb-kit-table .cb-kit-table-row { display: grid; grid-template-columns: 120px 90px 70px 1fr; gap: 8px; padding: 8px 12px; align-items: center; text-align: left; width: 100%; }
 .cb-kit-table .cb-kit-table-head.cols-4, .cb-kit-table .cb-kit-table-row.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 .cb-kit-table .cb-kit-table-head.cols-5, .cb-kit-table .cb-kit-table-row.cols-5 { grid-template-columns: 1.2fr 1fr 1fr .7fr .8fr; }
@@ -147,6 +166,29 @@ export const KIT_CSS = `
 .cb-kit-code { background: var(--cb-bg); padding: 8px; border-radius: 6px; font-family: var(--cb-mono); font-size: 11px; overflow: auto; }
 .cb-kit-chart-card { border: 1px solid var(--cb-border); border-radius: var(--cb-r); padding: 10px 12px; margin-bottom: 12px; }
 .cb-kit-chart-head { display: flex; align-items: center; font-size: 12px; margin-bottom: 6px; }
+.cb-kit-chart-latest { margin-left: auto; font-family: var(--cb-mono); }
+.cb-kit-hint { font-size: 11px; color: var(--cb-text-3); }
+.cb-kit-mt-sm { margin-top: var(--cb-gap-sm, 8px); }
+.cb-kit-restricted.tight { margin: 0; }
+.cb-kit-deploy-name { font-weight: 600; }
+.cb-kit-deploy-meta { color: var(--cb-text-3); font-size: 11px; }
+.cb-kit-deploy-time { margin-left: auto; font-size: 11px; color: var(--cb-text-3); font-family: var(--cb-mono); }
+.cb-kit-preview-link { color: var(--cb-blue); font-family: var(--cb-mono); font-size: 11.5px; }
+.cb-kit-mb-sm { margin-bottom: var(--cb-gap-sm, 8px); }
+.cb-kit-ml-sm { margin-left: var(--cb-gap-sm, 8px); }
+.cb-kit-fill { height: 100%; }
+.cb-kit-flex-1 { flex: 1; min-width: 0; }
+.cb-kit-list-item { padding: 8px 12px; border-bottom: 1px solid var(--cb-border); }
+.cb-kit-list-item:last-child { border-bottom: none; }
+.cb-kit-muted { font-size: 11px; color: var(--cb-text-3); }
+.cb-kit-weight { font-weight: 600; }
+.cb-kit-muted-block { padding: 12px; color: var(--cb-text-3); font-size: 12px; }
+.cb-kit-danger-block { padding: 12px; color: var(--cb-danger); font-size: 12px; }
+.cb-kit-policy-head { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.cb-kit-ml-auto { margin-left: auto; display: flex; gap: 6px; }
+.cb-kit-policy-card { margin-bottom: 8px; padding: 10px 12px; }
+.cb-kit-tabs.compact { margin-bottom: 0; }
+.cb-kit-role-list { display: flex; flex-wrap: wrap; gap: var(--cb-gap-sm, 8px); }
 .cb-kit-usage-bar { height: 6px; background: var(--cb-accent); border-radius: 999px; overflow: hidden; }
 .cb-kit-usage-fill { height: 100%; background: var(--cb-blue); }
 .cb-kit-collapse-head { width: 100%; text-align: left; border: none; background: var(--cb-bg); padding: 8px 10px; font: inherit; font-weight: 600; cursor: pointer; border: 1px solid var(--cb-border); border-radius: var(--cb-r); margin-bottom: 8px; }

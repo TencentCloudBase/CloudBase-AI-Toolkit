@@ -77,7 +77,7 @@ export function RouteFormDrawer(props: RouteFormDrawerProps): React.ReactElement
         </label>
         <label className="cb-kit-field inline">
           <input type="checkbox" checked={enable} onChange={(e) => setEnable(e.target.checked)} />
-          <span>Enabled</span>
+          <span>{props.labels["gateway.enabled"]}</span>
         </label>
         <div className="cb-kit-drawer-actions">
           <button type="button" className="cb-kit-btn ghost" onClick={props.onClose}>{props.labels["gateway.cancel"]}</button>
@@ -120,17 +120,21 @@ export function RouteTable(props: RouteTableProps): React.ReactElement {
         <span>{props.labels["gateway.upstreamType"]}</span>
         <span>{props.labels["gateway.upstream"]}</span>
         <span>{props.labels["gateway.auth"]}</span>
-        <span>Actions</span>
+        <span>{props.labels["gateway.actions"] ?? "Actions"}</span>
       </div>
       {props.routes.map((route) => (
         <div key={`${route.domain}:${route.path}:${route.routeId ?? route.upstreamResourceName}`} className="cb-kit-table-row static cols-5">
           <span className="mono">{route.path}</span>
           <span>{route.upstreamResourceType}</span>
           <span>{route.upstreamResourceName}</span>
-          <span>{route.enableAuth ? "Yes" : "No"}</span>
-          <span style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            <button type="button" className="cb-kit-btn ghost" onClick={() => props.onEdit(route)}>Edit</button>
-            <button type="button" className="cb-kit-btn ghost" onClick={() => props.onDelete(route)}>Delete</button>
+          <span>{route.enableAuth ? props.labels["common.yes"] ?? "Yes" : props.labels["common.no"] ?? "No"}</span>
+          <span className="cb-kit-spread">
+            <button type="button" className="cb-kit-btn ghost" onClick={() => props.onEdit(route)}>
+              {props.labels["gateway.edit"] ?? "Edit"}
+            </button>
+            <button type="button" className="cb-kit-btn ghost" onClick={() => props.onDelete(route)}>
+              {props.labels["gateway.delete"] ?? "Delete"}
+            </button>
           </span>
         </div>
       ))}

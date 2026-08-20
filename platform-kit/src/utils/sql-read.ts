@@ -12,8 +12,8 @@ export function isReadSql(sql: string): boolean {
 export async function runSqlStatement(
   sql: string,
   provider: Pick<PlatformProvider, "runReadSql" | "runPgDDL">,
-  confirmWrite: () => boolean,
-): Promise<RowPage> {
+  confirmWrite: () => boolean | Promise<boolean>,
+): Promise<RowPage | undefined> {
   const trimmed = sql.trim();
   if (!trimmed) {
     throw new Error("empty sql");
@@ -21,7 +21,8 @@ export async function runSqlStatement(
   if (isReadSql(trimmed)) {
     return provider.runReadSql(trimmed);
   }
-  if (!confirmWrite()) {
+  const confirmed = await confirmWrite();
+  if (!confirmed) {
     throw new Error("cancelled");
   }
   const result = await provider.runPgDDL(trimmed, true);

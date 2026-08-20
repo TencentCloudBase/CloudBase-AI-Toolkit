@@ -242,18 +242,59 @@ describe("data-service capi mappings", () => {
     expect(domains.some((item) => item.domain.includes("tcloudbaseapp.com"))).toBe(true);
   });
 
-  it("createStorageBucket explains missing COS control-plane API", async () => {
+  it("createStorageBucket writes via ExecutePGSql on PG env", async () => {
     const bridge = capiBridge(baseHandlers, baseAuth);
     const data = createCloudBaseDataService(bridge);
-    await expect(data.createStorageBucket!("extra")).rejects.toThrow(/DescribeEnvs.Storages/);
+    await data.createStorageBucket!("my-bucket");
+    expect(bridge.capiCalls.some((c) => c.action === "ExecutePGSql")).toBe(true);
+    const pgCall = bridge.capiCalls.find((c) => c.action === "ExecutePGSql");
+    expect(JSON.stringify(pgCall?.params)).toMatch(/storage\.buckets/);
     expect(bridge.capiCalls.some((c) => c.action === "CreateBucket")).toBe(false);
   });
 
-  it("invokeFunction does not call retired InvokeFunction", async () => {
+  it("listStorageBuckets on PG env reads storage.buckets via ExecutePGSql", async () => {
+    const handlers = {
+      ...baseHandlers,
+      "tcb:ExecutePGSql": {
+        rows: [{ id: "avatars", name: "avatars", public: false, created_at: "2026-01-01" }],
+      },
+    };
+    const bridge = capiBridge(handlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    const buckets = await data.listStorageBuckets!();
+    expect(buckets[0]?.name).toBe("avatars");
+    expect(bridge.capiCalls.some((c) => c.action === "ExecutePGSql")).toBe(true);
+    expect(JSON.stringify(bridge.capiCalls.find((c) => c.action === "ExecutePGSql")?.params)).toMatch(/storage\.buckets/);
+  });
+
+  it("deleteStorageBucket writes DELETE via ExecutePGSql on PG env", async () => {
     const bridge = capiBridge(baseHandlers, baseAuth);
     const data = createCloudBaseDataService(bridge);
+    await data.deleteStorageBucket!("avatars", true);
+    const pgCall = bridge.capiCalls.find((c) => c.action === "ExecutePGSql");
+    expect(JSON.stringify(pgCall?.params)).toMatch(/DELETE FROM storage\.buckets/);
+  });
+
+  it("createStorageBucket rejects on non-PG env", async () => {
+    const handlers = {
+      ...baseHandlers,
+      "tcb:DescribeEnvs": { EnvList: [{ EnvId: envId, Region: "ap-shanghai", RuntimeMode: "nosql" }] },
+    };
+    const bridge = capiBridge(handlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    await expect(data.createStorageBucket!("extra")).rejects.toThrow(/DescribeEnvs.Storages|BUCKET_WRITE/);
+  });
+
+  it("invokeFunction uses scf Invoke", async () => {
+    const handlers = {
+      ...baseHandlers,
+      "scf:Invoke": { Result: { RetMsg: "ok" } },
+    };
+    const bridge = capiBridge(handlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
     const result = await data.invokeFunction!("fn_a", "{}");
-    expect(result.unsupportedReason).toMatch(/retired|下线/i);
+    expect(result.result).toContain("ok");
+    expect(bridge.capiCalls.some((c) => c.service === "scf" && c.action === "Invoke")).toBe(true);
     expect(bridge.capiCalls.some((c) => c.action === "InvokeFunction")).toBe(false);
   });
 });

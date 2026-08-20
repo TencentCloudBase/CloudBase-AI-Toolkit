@@ -29,11 +29,11 @@ describe("sql editor", () => {
     const readPage = await runSqlStatement("SELECT 1 AS ok", provider, () => {
       throw new Error("confirm should not run for SELECT");
     });
-    expect(readPage.rows[0]?.ok).toBe(1);
+    expect(readPage?.rows[0]?.ok).toBe(1);
     expect(calls).toEqual(["read:SELECT 1 AS ok"]);
 
     const writePage = await runSqlStatement("DELETE FROM public.todos", provider, () => true);
-    expect(writePage.columns).toEqual(["message"]);
+    expect(writePage?.columns).toEqual(["message"]);
     expect(calls).toContain("ddl:DELETE FROM public.todos:true");
 
     await expect(runSqlStatement("DELETE FROM public.todos", provider, () => false)).rejects.toThrow(

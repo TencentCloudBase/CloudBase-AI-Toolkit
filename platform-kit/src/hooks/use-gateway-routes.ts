@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { GatewayRouteInput } from "../core/types.js";
+import type { GatewayPrivilege, GatewayRouteInput } from "../core/types.js";
 import type { PlatformProvider } from "../core/provider.js";
 import { useAsyncResource } from "./use-platform.js";
 
@@ -11,7 +11,7 @@ export function useGatewayRoutes(provider?: PlatformProvider) {
 }
 
 export function useGatewayPrivilege(provider?: PlatformProvider) {
-  return useAsyncResource(
+  return useAsyncResource<GatewayPrivilege>(
     async () => (provider ? provider.getGatewayPrivilege() : {}),
     [provider],
   );
@@ -49,7 +49,18 @@ export function useGatewayMutations(provider?: PlatformProvider) {
 
 export function useGatewayDomains(provider?: PlatformProvider) {
   return useAsyncResource(
-    async () => (provider?.listCustomDomains ? provider.listCustomDomains() : provider?.listGatewayDomains ? provider.listGatewayDomains().then((d) => d.map((domain) => ({ domain, status: "ok" }))) : []),
+    async () => {
+      if (provider?.listCustomDomains) return provider.listCustomDomains();
+      if (provider?.listGatewayDomains) {
+        return (await provider.listGatewayDomains()).map((domain) => ({
+          domain,
+          status: "ok",
+          cnameTarget: undefined as string | undefined,
+          certificateId: undefined as string | undefined,
+        }));
+      }
+      return [];
+    },
     [provider],
   );
 }

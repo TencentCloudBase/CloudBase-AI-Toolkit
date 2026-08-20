@@ -64,7 +64,7 @@ export function HostingPage(props: HostingPageProps): React.ReactElement {
           ))}
         </div>
         <SimpleTable
-          columns={[kit.tr("fn.col.name"), "Size", kit.tr("fn.col.updated"), "Type"]}
+          columns={[kit.tr("fn.col.name"), kit.tr("hosting.col.size"), kit.tr("fn.col.updated"), kit.tr("hosting.col.type")]}
           empty={kit.tr("common.empty")}
           rows={(files.data?.objects ?? []).map((item) => ({
             key: item.cloudPath,

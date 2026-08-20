@@ -25,7 +25,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "node build.mjs",
-    "test": "vitest run",
+    "test": "node scripts/validate-i18n.mjs && vitest run",
     "typecheck": "tsc --noEmit",
     "consumer-smoke": "tsc --noEmit -p tsconfig.consumer.json"
   },
