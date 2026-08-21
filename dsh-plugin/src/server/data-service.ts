@@ -426,11 +426,21 @@ export function createCloudBaseDataService(
       // keyword 搜索时不传服务端模糊过滤字段（Name/Email 同时传为 AND 语义，
       // 实测会把只匹配单个字段的用户过滤掉，例如用户有 Phone 无 Name/Email），
       // 改为拉取本页上限后客户端过滤；无 keyword 时正常服务端分页。
-      const payload = await callCapi("tcb", "DescribeUserList", {
-        EnvId: envId,
-        PageNo: opts?.pageNo ?? 1,
-        PageSize: keyword ? 100 : (opts?.pageSize ?? 50),
-      });
+      let payload: LooseRecord;
+      try {
+        payload = await callCapi("tcb", "DescribeUserList", {
+          EnvId: envId,
+          PageNo: opts?.pageNo ?? 1,
+          PageSize: keyword ? 100 : (opts?.pageSize ?? 50),
+        });
+      } catch (err) {
+        // 身份认证后端未开通的环境 DescribeUserList 报
+        // error.operation.failedenv_not_exist —— 降级为空态而非面板吃原始报错。
+        if (/env_not_exist|backend not found|operation[._ ]?failed/i.test(err instanceof Error ? err.message : String(err))) {
+          return { users: [], total: 0 };
+        }
+        throw err;
+      }
       const data = rec(payload.Data ?? payload);
       const users = arr(data.UserList ?? data.users ?? payload.UserList);
       const mapped = users.map((item): AppUser => {
@@ -1316,15 +1326,24 @@ export function createCloudBaseDataService(
 
     async listFunctions(opts) {
       const envId = await requireEnvId();
-      const payload = await callCapi("tcb", "ListFunctions", {
-        EnvId: envId,
-        Limit: opts?.limit ?? 100,
-        Offset: opts?.offset ?? 0,
-        ...(opts?.searchKey ? { SearchKey: opts.searchKey } : {}),
-      });
-      return arr(payload.Functions ?? payload.functions)
-        .map(mapFunctionSummary)
-        .filter((item): item is NonNullable<typeof item> => Boolean(item));
+      try {
+        const payload = await callCapi("tcb", "ListFunctions", {
+          EnvId: envId,
+          Limit: opts?.limit ?? 100,
+          Offset: opts?.offset ?? 0,
+          ...(opts?.searchKey ? { SearchKey: opts.searchKey } : {}),
+        });
+        return arr(payload.Functions ?? payload.functions)
+          .map(mapFunctionSummary)
+          .filter((item): item is NonNullable<typeof item> => Boolean(item));
+      } catch (err) {
+        // 部分环境（如未开通函数后端的 PG 环境）ListFunctions 会报
+        // function backend not found —— 降级为空态而非面板吃原始报错。
+        if (/backend not found/i.test(err instanceof Error ? err.message : String(err))) {
+          return [];
+        }
+        throw err;
+      }
     },
 
     async getFunction(name) {
