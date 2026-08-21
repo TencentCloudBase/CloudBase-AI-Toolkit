@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-08-20T03:09:44.704Z
+爬取时间: 2026-08-21T03:14:12.209Z
 
 ## 文档列表
 
@@ -83,6 +83,7 @@
 - [云开发 CloudBase 查询环境下的服务器实例_腾讯云](./876-129760-云开发-CloudBase-查询环境下的服务器实例_腾讯云.md)
 - [云开发 CloudBase 获取VM规格_腾讯云](./876-129360-云开发-CloudBase-获取VM规格_腾讯云.md)
 - [云开发 CloudBase 查询云服务器价格_腾讯云](./876-129759-云开发-CloudBase-查询云服务器价格_腾讯云.md)
+- [云开发 CloudBase 绑定用户自定义CLS日志主题_腾讯云](./876-136527-云开发-CloudBase-绑定用户自定义CLS日志主题_腾讯云.md)
 - [云开发 CloudBase 搜索CLS日志_腾讯云](./876-128127-云开发-CloudBase-搜索CLS日志_腾讯云.md)
 - [云开发 CloudBase 开通 MySql_腾讯云](./876-128186-云开发-CloudBase-开通-MySql_腾讯云.md)
 - [云开发 CloudBase 查看指定环境单条 migration](./876-132262-云开发-CloudBase-查看指定环境单条-migration.md)

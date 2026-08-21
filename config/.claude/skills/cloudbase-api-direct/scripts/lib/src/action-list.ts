@@ -4,13 +4,14 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 123
+ * Action 数量: 124
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
   'AddProvider',
   'AllocateEnv',
   'AssumeRoleForAllocatedEnv',
+  'BindCls',
   'BindStorageSource',
   'CheckTcbService',
   'CreateAIModel',
