@@ -7,7 +7,8 @@ import { CloudBaseOptions } from '../types.js';
 import { shouldRegisterTool } from './cloud-mode.js';
 import { debug } from './logger.js';
 import { reportToolCall, readMcpClientInfoFromServer } from './telemetry.js';
-import { isToolPayloadError } from "./tool-result.js";
+import { isToolPayloadError, ToolPayloadError } from "./tool-result.js";
+import { applyRepeatGuardToPayload, resetRepeatGuard } from "./repeat-error-guard.js";
 
 
 /**
@@ -173,6 +174,8 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             const result = await handler(args);
 
             success = true;
+            // 任一工具成功说明重复错误循环已被打破，清零连续错误计数
+            resetRepeatGuard();
             requestId = extractRequestIdFromToolResult(result);
             const duration = Date.now() - startTime;
             debug(`工具执行成功: ${name}`, { duration, requestId: requestId || undefined });
@@ -198,7 +201,9 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             // Preserve structured tool guidance such as next_step.
             // These errors are expected control flow and should be serialized by the outer server wrapper.
             if (isToolPayloadError(error)) {
-                throw error;
+                // 连续相同结构化错误达到阈值时注入 repeat_guard 升级提示，
+                // 打断无头客户端的原样重试循环（不改写 message，保持遥测聚合稳定）
+                throw new ToolPayloadError(applyRepeatGuardToPayload(error.payload));
             }
 
             // In tests, avoid any extra work that may block (envId lookup, issue link generation, etc.)

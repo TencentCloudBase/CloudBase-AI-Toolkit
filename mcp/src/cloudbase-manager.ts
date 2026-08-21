@@ -141,14 +141,21 @@ async function throwEnvRequiredError(options?: {
     const envCandidates =
         options?.envCandidates ?? (await listAvailableEnvCandidates(options));
     const singleEnvId = envCandidates.length === 1 ? envCandidates[0].envId : undefined;
+    // 终止性引导：明确「重试当前工具不会成功」，给出可直接执行的替代动作与
+    // 无头/无人值守环境的 fallback（CLOUDBASE_ENV_ID 或宿主配置传入 envId），
+    // 避免客户端把本错误当作可重试错误陷入死循环（2026-08-20 单日 15 万次重试风暴）。
+    const retryHint = "重试当前工具不会成功，请停止原样重试。";
+    const headlessHint =
+        "若运行在无浏览器/无人值守环境而无法交互完成登录绑定，可在启动 MCP 前设置 CLOUDBASE_ENV_ID 环境变量指定默认环境。";
+    const message = envCandidates.length === 0
+        ? `当前已登录，但还没有可用环境。${retryHint}请改为在腾讯云控制台创建 CloudBase 环境后重新绑定；${headlessHint}`
+        : envCandidates.length === 1
+            ? `当前已登录，但尚未绑定环境。${retryHint}请先调用 auth(action="set_env", envId="${singleEnvId}") 完成绑定后再继续；${headlessHint}`
+            : `当前已登录，但尚未绑定环境。${retryHint}请先调用 auth(action="set_env", envId=候选环境之一) 完成绑定后再继续；${headlessHint}`;
     throwToolPayloadError({
         ok: false,
         code: "ENV_REQUIRED",
-        message: envCandidates.length === 0
-            ? "当前已登录，但还没有可用环境，请先调用 auth 工具完成环境选择或创建环境。"
-            : envCandidates.length === 1
-                ? `当前已登录，但尚未绑定环境。可直接选择环境 ${singleEnvId}。`
-                : "当前已登录，但尚未绑定环境，请先调用 auth 工具选择环境。",
+        message,
         env_candidates: envCandidates,
         next_step: buildAuthNextStep("set_env", {
             requiredParams: singleEnvId ? undefined : ["envId"],
