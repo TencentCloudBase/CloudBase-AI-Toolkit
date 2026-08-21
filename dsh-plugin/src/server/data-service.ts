@@ -906,8 +906,13 @@ export function createCloudBaseDataService(
         if (payload.success === false || isClsUnavailableError(envelope)) {
           throw new Error(str(payload.message) ?? CLS_UNAVAILABLE_MESSAGE);
         }
-        const logs = arr(payload.Results ?? payload.logs ?? payload.items);
-        const contextOut = str(payload.Context ?? payload.context);
+        // SearchClsLog 真实返回结构为 { LogResults: { Results: [...], Context } }，
+        // 兼容顶层字段的历史形态
+        const logResults = rec(payload.LogResults ?? payload.logResults);
+        const logs = arr(
+          logResults.Results ?? logResults.results ?? payload.Results ?? payload.logs ?? payload.items,
+        );
+        const contextOut = str(logResults.Context ?? logResults.context ?? payload.Context ?? payload.context);
         return {
           entries: logs.map((item, index): LogEntry => mapLogEntry(item, index)),
           context: contextOut,
@@ -1148,10 +1153,12 @@ export function createCloudBaseDataService(
       const routes = await service.listGatewayRoutes();
       const target = routes.find((r) => r.routeId === routeId);
       if (!target) throw new Error(`Route ${routeId} not found`);
+      // 876/129799：DeleteHTTPServiceRoute 参数为 Paths.N（String 数组）；
+      // Paths 为空则删除域名及全部路由——此处仅删单条 path 路由
       await callCapi("tcb", "DeleteHTTPServiceRoute", {
         EnvId: envId,
         Domain: target.domain,
-        Path: target.path,
+        Paths: [target.path],
       });
     },
 
@@ -1697,9 +1704,12 @@ export function createCloudBaseDataService(
 
     async setGatewayAuthEnabled(enable) {
       const envId = await requireEnvId();
+      // 对照 cloudbase-mcp authSwitch 实现：Options Key 必须为 "authswitch"，
+      // 且 EnableService 必填（与鉴权开关同值透传）
       await callCapi("tcb", "ModifyCloudBaseGWPrivilege", {
         ServiceId: envId,
-        Options: [{ Key: "EnableAuth", Value: enable ? "true" : "false" }],
+        EnableService: enable,
+        Options: [{ Key: "authswitch", Value: enable ? "true" : "false" }],
       });
     },
 
@@ -2012,21 +2022,33 @@ function parsePolicyRows(payload: LooseRecord): PolicySummary[] {
 }
 
 function parseSqlRows(payload: LooseRecord): LooseRecord[] {
-  const rowsRaw = arr(payload.rows ?? payload.records ?? payload.data ?? payload.items ?? payload.Rows);
-  if (rowsRaw.length > 0) {
-    return rowsRaw.map((item) => rec(item));
-  }
   const columns = arr(payload.columns ?? payload.Columns)
     .map((item) => (typeof item === "string" ? item : str(rec(item).name)))
     .filter((name): name is string => Boolean(name));
-  const matrix = arr(payload.Rows ?? payload.values);
-  return matrix.map((line) => {
-    const values = arr(line);
+  const zip = (values: unknown[]): LooseRecord => {
     const row: LooseRecord = {};
     columns.forEach((col, index) => {
       row[col] = values[index];
     });
     return row;
+  };
+  // ExecutePGSql 的 Rows 每项可能是：对象、值数组，或 JSON 编码的值数组字符串
+  // （实测 `Rows: ["[\"3\"]"]`）。字符串必须先 JSON.parse 再按列压缩，
+  // 否则 rec() 会把整行吞成空对象，下游全部过滤成空列表。
+  const rowsRaw = arr(payload.rows ?? payload.records ?? payload.data ?? payload.items ?? payload.Rows);
+  return rowsRaw.map((item) => {
+    if (typeof item === "string") {
+      try {
+        const parsed = JSON.parse(item) as unknown;
+        if (Array.isArray(parsed)) return zip(parsed);
+        if (parsed !== null && typeof parsed === "object") return rec(parsed);
+      } catch {
+        // 非 JSON 字符串，按单列值兜底
+      }
+      return zip([item]);
+    }
+    if (Array.isArray(item)) return zip(item);
+    return rec(item);
   });
 }
 
@@ -2046,14 +2068,45 @@ function mapGatewayRoute(item: unknown, domainOverride?: string): GatewayRoute {
   };
 }
 
+function normalizeSqlRow(item: unknown): LooseRecord {
+  // 与 parseSqlRows 同一契约：ExecutePGSql 的 Rows 项可能是对象、值数组或
+  // JSON 编码的值数组字符串；字符串必须先解析，否则整行被吞成空对象。
+  if (typeof item === "string") {
+    try {
+      const parsed = JSON.parse(item) as unknown;
+      if (Array.isArray(parsed)) return { __values: parsed };
+      if (parsed !== null && typeof parsed === "object") return rec(parsed);
+    } catch {
+      // 非 JSON 字符串，按单值行兜底
+    }
+    return { __values: [item] };
+  }
+  if (Array.isArray(item)) return { __values: item };
+  return rec(item);
+}
+
+function materializeSqlRow(row: LooseRecord, columns: string[]): LooseRecord {
+  const values = arr(row.__values);
+  if (values.length === 0) return row;
+  const out: LooseRecord = {};
+  columns.forEach((col, index) => {
+    out[col] = values[index];
+  });
+  return out;
+}
+
 function toRowPage(payload: LooseRecord, elapsedMs: number): RowPage {
-  const rowsRaw = arr(payload.rows ?? payload.records ?? payload.data ?? payload.items ?? payload.Rows);
-  const rows = rowsRaw.map((item) => rec(item));
+  const rowsRaw = arr(
+    payload.rows ?? payload.records ?? payload.data ?? payload.items ?? payload.Rows ?? payload.values,
+  );
   const columns =
     arr(payload.columns ?? payload.Columns)
       .map((item) => (typeof item === "string" ? item : str(rec(item).name)))
       .filter((name): name is string => Boolean(name)) ?? [];
-  const inferred = columns.length > 0 ? columns : rows[0] ? Object.keys(rows[0]) : [];
+  const rows = rowsRaw
+    .map(normalizeSqlRow)
+    .map((row) => materializeSqlRow(row, columns));
+  const inferred = columns.length > 0 ? columns : rows[0] && rows[0].__values === undefined ? Object.keys(rows[0]) : [];
   return {
     columns: inferred,
     rows,
