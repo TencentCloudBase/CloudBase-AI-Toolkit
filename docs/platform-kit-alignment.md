@@ -1,6 +1,6 @@
 # platform-kit 能力对齐矩阵
 
-> 由 `scripts/capability-sync.mjs` 自动生成 · 上次巡检：2026-08-20T01:12
+> 由 `scripts/capability-sync.mjs` 自动生成 · 上次巡检：2026-08-20T17:15
 >
 > **维护约定**：dev-platform 或 cloudbase-mcp 迭代后重跑本脚本（`node scripts/capability-sync.mjs`），把新增的 ❌/⚠️ 缺口派发为 ATO 任务。不要手改本文件（要改改脚本）。
 >
@@ -19,7 +19,7 @@
 | hosting | HostingPage | ⚠️ 部分（功能深度待对齐） | 静态托管（域名/文件/部署） | 111 UI / 43 API / 50 文件 |
 | gateway | GatewayPage | ⚠️ 部分 | 网关（HTTP 开关/域名/路由/安全来源） | 104 UI / 18 API / 54 文件 |
 | logs | LogsPage | ⚠️ 部分 | 日志（CLS 查询/函数日志） | 11 UI / 0 API / 5 文件 |
-| settings | SettingsPage | ❌ 缺失 | 设置（环境配置/QPS/CDN） | 85 UI / 17 API / 53 文件 |
+| settings | SettingsPage | ⚠️ 部分 | 设置（环境配置/QPS/CDN） | 85 UI / 17 API / 53 文件 |
 
 > **功能深度解读**：dev-platform 大量功能是 UI/交互层实现的（如 bucket 表单校验、RLS 策略编辑器、上传进度、空态引导），接口层并未增加。UI 操作数反映"这个页面有多少交互功能面"，API 调用数反映"数据层有多少请求点"。两者都要对齐。
 
@@ -47,12 +47,13 @@ auth callCloudApi downloadTemplate envDomainManagement envQuery manageAgents man
 
 - **STORAGE_ACTIONS**: `buckets`, `config`, `uploadPlan`, `objectInfo`, `signUpload`, `signDownload`, `createBucket`
 
-## 5. platform-kit 已实现组件（27 个）
+## 5. platform-kit 已实现组件（29 个）
 
 - `AccessEndpointsList`
 - `AuthParts`
 - `AuthUsersPage`
 - `CloudRunPage`
+- `ConfirmDialog`
 - `DatabasePage`
 - `DatabaseParts`
 - `DeploymentTimeline`
@@ -69,6 +70,7 @@ auth callCloudApi downloadTemplate envDomainManagement envQuery manageAgents man
 - `MetricCardsGrid`
 - `OverviewPage`
 - `ResourceParts`
+- `SettingsPage`
 - `SidebarNav`
 - `SparkChart`
 - `SqlEditorPanel`
@@ -88,7 +90,7 @@ auth callCloudApi downloadTemplate envDomainManagement envQuery manageAgents man
 - | hosting | HostingPage | ⚠️ 部分（功能深度待对齐） | 静态托管（域名/文件/部署） | 111 UI / 43 API / 50 文件 |
 - | gateway | GatewayPage | ⚠️ 部分 | 网关（HTTP 开关/域名/路由/安全来源） | 104 UI / 18 API / 54 文件 |
 - | logs | LogsPage | ⚠️ 部分 | 日志（CLS 查询/函数日志） | 11 UI / 0 API / 5 文件 |
-- | settings | SettingsPage | ❌ 缺失 | 设置（环境配置/QPS/CDN） | 85 UI / 17 API / 53 文件 |
+- | settings | SettingsPage | ⚠️ 部分 | 设置（环境配置/QPS/CDN） | 85 UI / 17 API / 53 文件 |
 
 ---
 *生成命令：`node scripts/capability-sync.mjs`*

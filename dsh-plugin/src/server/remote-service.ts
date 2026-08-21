@@ -140,6 +140,30 @@ export function buildCloudBaseTypertContribution(): {
       invoke("setGatewayServiceEnabled", ["enable"]),
       invoke("setGatewayAuthEnabled", ["enable"]),
       invoke("fetchMetricSeries", ["metricName", "startTime", "endTime", "period"]),
+      invoke("listFunctions", ["searchKey", "limit", "offset"]),
+      invoke("getFunction", ["name"]),
+      invoke("listFunctionTriggers", ["name"]),
+      invoke("listFunctionLogs", ["name", "limit"]),
+      invoke("invokeFunction", ["name", "payload"]),
+      invoke("listCloudRunServices"),
+      invoke("getCloudRunService", ["name"]),
+      invoke("listCloudRunDeployRecords", ["name"]),
+      invoke("getCloudRunProcessLog", ["name", "runId"]),
+      invoke("getCloudRunBuildLog", ["name", "buildId"]),
+      invoke("listHostingDomains"),
+      invoke("listHostingVersions"),
+      invoke("listHostingObjects", ["prefix"]),
+      invoke("listStorageBuckets"),
+      invoke("uploadStorage", ["cloudPath", "bucket", "fileBase64", "fileName", "contentType"]),
+      invoke("createStorageBucket", ["name", "isPublic"]),
+      invoke("deleteStorageBucket", ["name", "confirm"]),
+      invoke("listSslCertificates"),
+      invoke("listCdnCacheItems", ["bucketName"]),
+      invoke("listAuthDomains"),
+      invoke("deleteAuthDomain", ["domainId", "confirm"]),
+      invoke("upsertPolicy", ["input", "confirm"]),
+      invoke("dropPolicy", ["schemaTable", "policyName", "confirm"]),
+      invoke("toggleTableRls", ["schemaTable", "enable", "confirm"]),
     ],
   };
 }
@@ -482,5 +506,133 @@ export class CloudBaseRemoteService extends TypertRemoteService {
   @Remote("fetchMetricSeries")
   async fetchMetricSeries(metricName: string, startTime?: string, endTime?: string, period?: number) {
     return toJsonSafe(await this.data.fetchMetricSeries(metricName, { startTime, endTime, period }));
+  }
+
+  @Remote("listFunctions")
+  async listFunctions(searchKey?: string, limit?: number, offset?: number) {
+    return toJsonSafe(await this.data.listFunctions?.({ searchKey, limit, offset }));
+  }
+
+  @Remote("getFunction")
+  async getFunction(name: string) {
+    return toJsonSafe(await this.data.getFunction?.(name));
+  }
+
+  @Remote("listFunctionTriggers")
+  async listFunctionTriggers(name: string) {
+    return toJsonSafe(await this.data.listFunctionTriggers?.(name));
+  }
+
+  @Remote("listFunctionLogs")
+  async listFunctionLogs(name: string, limit?: number) {
+    return toJsonSafe(await this.data.listFunctionLogs?.(name, { limit }));
+  }
+
+  @Remote("invokeFunction")
+  async invokeFunction(name: string, payload?: string) {
+    return toJsonSafe(await this.data.invokeFunction?.(name, payload));
+  }
+
+  @Remote("listCloudRunServices")
+  async listCloudRunServices() {
+    return toJsonSafe(await this.data.listCloudRunServices?.());
+  }
+
+  @Remote("getCloudRunService")
+  async getCloudRunService(name: string) {
+    return toJsonSafe(await this.data.getCloudRunService?.(name));
+  }
+
+  @Remote("listCloudRunDeployRecords")
+  async listCloudRunDeployRecords(name: string) {
+    return toJsonSafe(await this.data.listCloudRunDeployRecords?.(name));
+  }
+
+  @Remote("getCloudRunProcessLog")
+  async getCloudRunProcessLog(name: string, runId?: string) {
+    return toJsonSafe(await this.data.getCloudRunProcessLog?.(name, runId));
+  }
+
+  @Remote("getCloudRunBuildLog")
+  async getCloudRunBuildLog(name: string, buildId?: string) {
+    return toJsonSafe(await this.data.getCloudRunBuildLog?.(name, buildId));
+  }
+
+  @Remote("listHostingDomains")
+  async listHostingDomains() {
+    return toJsonSafe(await this.data.listHostingDomains?.());
+  }
+
+  @Remote("listHostingVersions")
+  async listHostingVersions() {
+    return toJsonSafe(await this.data.listHostingVersions?.());
+  }
+
+  @Remote("listHostingObjects")
+  async listHostingObjects(prefix?: string) {
+    return toJsonSafe(await this.data.listHostingObjects?.(prefix));
+  }
+
+  @Remote("listStorageBuckets")
+  async listStorageBuckets() {
+    return toJsonSafe(await this.data.listStorageBuckets?.());
+  }
+
+  @Remote("uploadStorage")
+  async uploadStorage(
+    cloudPath: string,
+    bucket?: string,
+    fileBase64?: string,
+    fileName?: string,
+    contentType?: string,
+  ): Promise<void> {
+    return toJsonSafe(
+      await this.data.uploadStorage?.(cloudPath, { bucket, fileBase64, fileName, contentType }),
+    );
+  }
+
+  @Remote("createStorageBucket")
+  async createStorageBucket(name: string, isPublic?: boolean): Promise<void> {
+    return toJsonSafe(await this.data.createStorageBucket?.(name, { public: isPublic }));
+  }
+
+  @Remote("deleteStorageBucket")
+  async deleteStorageBucket(name: string, confirm: boolean): Promise<void> {
+    return toJsonSafe(await this.data.deleteStorageBucket?.(name, confirm));
+  }
+
+  @Remote("listSslCertificates")
+  async listSslCertificates() {
+    return toJsonSafe(await this.data.listSslCertificates?.());
+  }
+
+  @Remote("listCdnCacheItems")
+  async listCdnCacheItems(bucketName?: string) {
+    return toJsonSafe(await this.data.listCdnCacheItems?.(bucketName));
+  }
+
+  @Remote("listAuthDomains")
+  async listAuthDomains() {
+    return toJsonSafe(await this.data.listAuthDomains?.());
+  }
+
+  @Remote("deleteAuthDomain")
+  async deleteAuthDomain(domainId: string, confirm: boolean): Promise<void> {
+    return toJsonSafe(await this.data.deleteAuthDomain?.(domainId, confirm));
+  }
+
+  @Remote("upsertPolicy")
+  async upsertPolicy(input: Record<string, unknown>, confirm: boolean): Promise<void> {
+    return toJsonSafe(await this.data.upsertPolicy?.(input as never, confirm));
+  }
+
+  @Remote("dropPolicy")
+  async dropPolicy(schemaTable: string, policyName: string, confirm: boolean): Promise<void> {
+    return toJsonSafe(await this.data.dropPolicy?.(schemaTable, policyName, confirm));
+  }
+
+  @Remote("toggleTableRls")
+  async toggleTableRls(schemaTable: string, enable: boolean, confirm: boolean): Promise<void> {
+    return toJsonSafe(await this.data.toggleTableRls?.(schemaTable, enable, confirm));
   }
 }
