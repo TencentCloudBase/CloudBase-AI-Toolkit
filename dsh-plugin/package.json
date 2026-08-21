@@ -1,0 +1,107 @@
+{
+  "name": "@cloudbase/dsh-plugin",
+  "version": "0.1.0",
+  "description": "CloudBase backend for DeepSeek Harness — full-stack apps from chat, DB/Storage/Auth panel, one-click deploy",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./client": "./dist/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/index.js",
+    "dist/index.js.map",
+    "dist/client.js",
+    "dist/client.js.map",
+    "dist/skill-cli.js",
+    "dist/skill-cli.js.map",
+    "cordis.patch.yml",
+    "cordis.patch.example.yml",
+    "skills",
+    "scripts/install.sh",
+    "scripts/mcp-env-proxy.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "cloudbase-skills": "./dist/skill-cli.js"
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "node build.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "e2e:live": "node scripts/e2e-live.mjs",
+    "prepublishOnly": "npm run typecheck && npm run build && npm test"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "cloudbase",
+    "mcp",
+    "baas"
+  ],
+  "author": "TencentCloudBase",
+  "license": "MIT",
+  "homepage": "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/tree/main/dsh-plugin",
+  "bugs": {
+    "url": "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/issues",
+    "email": "bookerzhao@tencent.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TencentCloudBase/CloudBase-AI-Toolkit.git",
+    "directory": "dsh-plugin"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@codemirror/commands": "6.10.3",
+    "@codemirror/lang-sql": "6.10.0",
+    "@codemirror/language": "6.12.2",
+    "@codemirror/state": "6.6.0",
+    "@codemirror/view": "6.39.16",
+    "@deepseek-ai/dsh-invariants": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.6",
+    "@types/node": "24.3.0",
+    "@types/react": "19.1.12",
+    "esbuild": "0.25.9",
+    "typescript": "5.9.2",
+    "vitest": "3.2.7",
+    "zod": "^4.4.3"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "connection",
+        "slots",
+        "layout"
+      ]
+    }
+  }
+}

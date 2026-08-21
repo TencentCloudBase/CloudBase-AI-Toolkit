@@ -1,0 +1,74 @@
+{
+  "name": "@cloudbase/platform-kit",
+  "version": "0.1.0",
+  "description": "Headless CloudBase platform console kit — provider-driven UI for env management, preview, deployments, and resources",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./styles": {
+      "types": "./dist/styles.d.ts",
+      "import": "./dist/styles.js",
+      "default": "./dist/styles.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README-ZH.md"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "node build.mjs",
+    "test": "node scripts/validate-i18n.mjs && vitest run",
+    "typecheck": "tsc --noEmit",
+    "consumer-smoke": "tsc --noEmit -p tsconfig.consumer.json"
+  },
+  "keywords": [
+    "cloudbase",
+    "platform-kit",
+    "headless",
+    "console",
+    "dashboard"
+  ],
+  "author": "TencentCloudBase",
+  "license": "MIT",
+  "homepage": "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/tree/main/platform-kit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TencentCloudBase/CloudBase-AI-Toolkit.git",
+    "directory": "platform-kit"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.0",
+    "@testing-library/react": "16.3.0",
+    "@types/node": "24.3.0",
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
+    "esbuild": "0.25.9",
+    "jsdom": "26.1.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "typescript": "5.9.2",
+    "vitest": "3.2.7"
+  }
+}
