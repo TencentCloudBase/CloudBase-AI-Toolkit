@@ -99,9 +99,11 @@ export function createRemoteCloudBaseData(
       return (await call("startLogin", { method, params })) as AuthStatus;
     },
     authStateChange(listener) {
+      // 兜底轮询：服务端 authStatus 已是纯本地读（零云端调用），60s 一次只为
+      // 进程外变更兜底；登录态/环境态的主同步路径是用户操作 + 服务端事件广播。
       const timer = window.setInterval(() => {
         void call("authStatus").then((status) => listener(status as AuthStatus));
-      }, 5000);
+      }, 60000);
       void call("authStatus").then((status) => listener(status as AuthStatus));
       return () => window.clearInterval(timer);
     },

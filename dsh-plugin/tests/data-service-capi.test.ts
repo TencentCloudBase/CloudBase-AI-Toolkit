@@ -228,15 +228,16 @@ describe("data-service capi mappings", () => {
     expect(domains?.[0]).toMatchObject({ domain: "app.example.com", id: "id-1", status: "NORMAL" });
   });
 
-  it("authStatus requires DescribeEnvs probe", async () => {
+  it("authStatus is local-only (zero cloud probe); real probe reserved for user actions", async () => {
     const bridge = capiBridge(
       { "tcb:DescribeEnvs": { EnvList: [] } },
       { "auth:status": { auth_status: "READY" } },
     );
     const data = createCloudBaseDataService(bridge);
+    // 事件驱动改造后 authStatus 纯本地读 token 态，轮询路径零云端调用
     const status = await data.authStatus();
-    expect(status.signedIn).toBe(false);
-    expect(status.loginOptions?.length).toBeGreaterThan(0);
+    expect(status.signedIn).toBe(true);
+    expect(bridge.capiCalls).toHaveLength(0);
   });
 
   it("startLogin device-code does not mark signed-in without probe", async () => {

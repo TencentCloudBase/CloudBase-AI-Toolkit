@@ -227,16 +227,70 @@ export function createCloudBaseDataService(
   const authListeners = new Set<AuthStateListener>();
   let authPollTimer: ReturnType<typeof setInterval> | undefined;
 
+  // ── 事件驱动改造（消灭 5s 云端探测轮询）──────────────────────────────
+  // 轮询只做兜底（60s、纯本地 token 读），登录态/环境态更新走事件广播；
+  // probeCredentials 结果缓存 60s，登录/登出/切环境事件主动失效。
+  const PROBE_CACHE_TTL_MS = 60_000;
+  const RESULT_CACHE_TTL_MS = 30_000;
+  const AUTH_FALLBACK_INTERVAL_MS = 60_000;
+  const ENV_BINDING_BREAK_MS = 60_000;
+  const ENV_BINDING_ERROR = /ENV_REQUIRED|AUTH_REQUIRED/i;
+
+  let probeCache: { value: boolean; at: number } | null = null;
+  let envBindingBreakAt = 0;
+
+  function createTtlCache<T>(ttlMs: number) {
+    const store = new Map<string, { value: T; at: number }>();
+    return {
+      get(key: string): T | undefined {
+        const hit = store.get(key);
+        if (!hit) return undefined;
+        if (Date.now() - hit.at > ttlMs) {
+          store.delete(key);
+          return undefined;
+        }
+        return hit.value;
+      },
+      set(key: string, value: T): void {
+        store.set(key, { value, at: Date.now() });
+      },
+      clear(): void {
+        store.clear();
+      },
+    };
+  }
+
+  const resultCache = createTtlCache<unknown>(RESULT_CACHE_TTL_MS);
+
+  function invalidateAuthCaches(): void {
+    probeCache = null;
+    resultCache.clear();
+    envBindingBreakAt = 0;
+  }
+
   async function callCapi(
     service: string,
     action: string,
     params: Record<string, unknown> = {},
     version?: string,
   ): Promise<LooseRecord> {
+    // 客户端熔断：ENV_REQUIRED/AUTH_REQUIRED 触发后短时间内本地快速失败，
+    // 不再打云端（与 mcp 侧 repeat-error-guard 双保险），用户操作事件重置。
+    if (envBindingBreakAt && Date.now() - envBindingBreakAt < ENV_BINDING_BREAK_MS) {
+      throw new Error("环境绑定校验已暂停重试，请重新登录或切换环境后再试");
+    }
     const args: Record<string, unknown> = { service, action, params };
     if (version) args.version = version;
     else if (service === "tcbr") args.version = "2022-02-17";
-    return unwrapData(await bridge.callTool("callCloudApi", args));
+    try {
+      return unwrapData(await bridge.callTool("callCloudApi", args));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (ENV_BINDING_ERROR.test(message)) {
+        envBindingBreakAt = Date.now();
+      }
+      throw error;
+    }
   }
 
   async function rawAuthCall(args: Record<string, unknown>): Promise<LooseRecord> {
@@ -244,11 +298,17 @@ export function createCloudBaseDataService(
   }
 
   async function probeCredentials(): Promise<boolean> {
+    if (probeCache && Date.now() - probeCache.at < PROBE_CACHE_TTL_MS) {
+      return probeCache.value;
+    }
     try {
       const payload = await callCapi("tcb", "DescribeEnvs", {});
       const envList = arr(payload.EnvList ?? payload.env_candidates ?? payload.envCandidates);
-      return envList.length > 0;
+      probeCache = { value: envList.length > 0, at: Date.now() };
+      return probeCache.value;
     } catch {
+      // 失败也入缓存：多环境未绑定场景下避免观察者每轮询周期都真探一次
+      probeCache = { value: false, at: Date.now() };
       return false;
     }
   }
@@ -651,7 +711,9 @@ export function createCloudBaseDataService(
     },
 
     async authStatus() {
-      return buildAuthStatus(true);
+      // 纯本地读 token 存在性（IPC 到 cloudbase-mcp，不打云 API）。
+      // 真实云端探测只发生在用户主动操作（登录/切环境），面板轮询走本路径零开销。
+      return buildAuthStatus(false);
     },
 
     async startLogin(method: LoginMethod = "device-code", params?: { envId?: string; apiKey?: string }) {
@@ -670,6 +732,7 @@ export function createCloudBaseDataService(
             message: "API Key 登录需要 envId 与 apiKey",
           } satisfies AuthStatus;
         }
+        invalidateAuthCaches();
         const payload = await rawAuthCall({
           action: "login_by_api_key",
           envId,
@@ -700,12 +763,14 @@ export function createCloudBaseDataService(
 
     authStateChange(listener: AuthStateListener): () => void {
       authListeners.add(listener);
+      // 事件驱动：登录态/环境态变更由 notifyAuthListeners 广播（本地操作、
+      // bridge onEnvChanged），定时器只做 60s 兜底且纯本地读 token（不碰网络）。
       if (!authPollTimer) {
         authPollTimer = setInterval(() => {
-          void buildAuthStatus(true).then(notifyAuthListeners);
-        }, 5000);
+          void buildAuthStatus(false).then(notifyAuthListeners);
+        }, AUTH_FALLBACK_INTERVAL_MS);
       }
-      void buildAuthStatus(true).then(listener);
+      void buildAuthStatus(false).then(listener);
       return () => {
         authListeners.delete(listener);
         if (authListeners.size === 0 && authPollTimer) {
@@ -717,6 +782,7 @@ export function createCloudBaseDataService(
 
     async logout() {
       await rawAuthCall({ action: "logout", confirm: "yes" });
+      invalidateAuthCaches();
       const status: AuthStatus = {
         signedIn: false,
         persisted: false,
@@ -755,7 +821,9 @@ export function createCloudBaseDataService(
         sessionEnvCache.set(sessionId, resolvedEnvId);
         writeEnvHint(sessionEnvCache, sessionId, resolvedEnvId);
       }
-      const status = await buildAuthStatus(true);
+      // 面板自己就是环境变更当事人：本地直接更新状态并广播，零云端调用
+      invalidateAuthCaches();
+      const status = await buildAuthStatus(false);
       status.envId = resolvedEnvId;
       notifyAuthListeners(status);
       return status;
@@ -798,6 +866,9 @@ export function createCloudBaseDataService(
           danger: "danger" in item ? item.danger : false,
         }));
       }
+      // TTL 缓存：React 重渲染会短时间重复拉取（每次串行 4 次 DescribeCurveData）
+      const cached = resultCache.get(`metrics:${envId}`);
+      if (cached) return cached as MetricSeries[];
       const end = new Date();
       const start = new Date(end.getTime() - 24 * 3600 * 1000);
       const fmt = (d: Date) =>
@@ -831,11 +902,14 @@ export function createCloudBaseDataService(
           });
         }
       }
+      resultCache.set(`metrics:${envId}`, series);
       return series;
     },
 
     async usage() {
       const envId = await requireEnvId();
+      const cached = resultCache.get(`usage:${envId}`);
+      if (cached) return cached as UsageItem[];
       const end = new Date();
       const start = new Date(end.getFullYear(), end.getMonth(), 1);
       const fmtDate = (d: Date) =>
@@ -847,7 +921,7 @@ export function createCloudBaseDataService(
       });
       const usages = arr(payload.Usages ?? payload.modules ?? payload.usage ?? payload.items);
       if (usages.length > 0) {
-        return usages.map((item): UsageItem => {
+        const items = usages.map((item): UsageItem => {
           const row = rec(item);
           const code = str(row.Module ?? row.type ?? row.module ?? row.name) ?? "Other";
           const credits = num(row.CreditsValue);
@@ -857,10 +931,14 @@ export function createCloudBaseDataService(
           const quota = str(row.quota ?? row.limit);
           return formatUsageItem(code, used, quota);
         });
+        resultCache.set(`usage:${envId}`, items);
+        return items;
       }
-      return Object.entries(rec(payload))
+      const entries: UsageItem[] = Object.entries(rec(payload))
         .filter(([key]) => ["FLEXDB", "TDSQL", "SCF", "EKS", "COS", "HOSTING", "Auth"].includes(key))
         .map(([key, value]) => formatUsageItem(key, stringifyUsage(value)));
+      resultCache.set(`usage:${envId}`, entries);
+      return entries;
     },
 
     async recentErrors() {
@@ -1780,6 +1858,9 @@ export function createCloudBaseDataService(
     async envInfo() {
       const auth = await rawAuthCall({ action: "status" }).catch(() => ({} as LooseRecord));
       const activeEnvId = str(auth.current_env_id ?? auth.currentEnvId) ?? "";
+      // TTL 缓存：React 重渲染会短时间重复拉取（每次约 5 次 capi 调用）
+      const cached = resultCache.get(`envInfo:${activeEnvId}`);
+      if (cached) return cached as EnvInfoView;
       let env: LooseRecord = {};
       if (activeEnvId) {
         const info = await callCapi("tcb", "DescribeEnvs", { EnvId: activeEnvId });
@@ -1821,7 +1902,7 @@ export function createCloudBaseDataService(
           // nosql 环境或数据面不可达，保持原判定
         }
       }
-      return {
+      const info: EnvInfoView = {
         envId,
         regionLabel: mapRegion(str(env.Region ?? env.region)),
         regionCode: str(env.Region ?? env.region),
@@ -1831,7 +1912,9 @@ export function createCloudBaseDataService(
         alias: str(env.Alias ?? env.alias),
         runtimeMode,
         isPostgresEnv: isPg,
-      } satisfies EnvInfoView;
+      };
+      resultCache.set(`envInfo:${activeEnvId}`, info);
+      return info;
     },
 
     async appendToSession(text) {
@@ -1997,6 +2080,22 @@ export function createCloudBaseDataService(
       return undefined;
     },
   };
+
+  // 会话 AI set_env（显式或 ensureSessionEnv 隐式重绑）→ 事件驱动同步面板状态，
+  // 不依赖任何云端轮询。bridge mock 场景可能没有该方法，做能力探测。
+  if (typeof bridge.onEnvChanged === "function") {
+    bridge.onEnvChanged((envId) => {
+      invalidateAuthCaches();
+      void buildAuthStatus(false)
+        .then((status) => {
+          status.envId = envId;
+          notifyAuthListeners(status);
+        })
+        .catch(() => {
+          // 本地状态读失败时保持静默，等下一次事件或兜底轮询
+        });
+    });
+  }
 
   return service;
 }

@@ -25,6 +25,8 @@ export interface McpCallResult {
 
 export const MCP_REQUEST_TIMEOUT_MS = 90_000;
 
+export type EnvChangeListener = (envId: string) => void;
+
 interface Pending {
   resolve: (value: JsonRpcResponse) => void;
   reject: (error: Error) => void;
@@ -102,6 +104,7 @@ export class CloudBaseMcpBridge {
   private pending = new Map<number, Pending>();
   private ready: Promise<void> | null = null;
   private lastInjectedEnvId: string | undefined;
+  private envListeners = new Set<EnvChangeListener>();
 
   private readonly env: NodeJS.ProcessEnv;
   private readonly command: string;
@@ -127,26 +130,37 @@ export class CloudBaseMcpBridge {
       .filter((name): name is string => typeof name === "string");
   }
 
+  /**
+   * 订阅环境变更事件。触发点：会话 AI 调 auth set_env 成功（显式或
+   * ensureSessionEnv 隐式重绑）。面板用它做事件驱动状态同步，替代云端轮询。
+   */
+  onEnvChanged(listener: EnvChangeListener): () => void {
+    this.envListeners.add(listener);
+    return () => {
+      this.envListeners.delete(listener);
+    };
+  }
+
+  private notifyEnvChanged(envId: string): void {
+    for (const listener of this.envListeners) {
+      listener(envId);
+    }
+  }
+
   async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
     await this.ensureReady();
     if (name === "auth" && args.action === "set_env" && typeof args.envId === "string") {
+      const response = await this.request("tools/call", { name, arguments: args });
+      const payload = this.unwrapResponse(response, name);
+      // 成功后才记录注入态并广播：失败时保留旧绑定，避免观察者误同步
       this.lastInjectedEnvId = args.envId;
+      this.notifyEnvChanged(args.envId);
+      return payload;
     }
-    await this.ensureSessionEnv(name, args);
+    const rebound = await this.ensureSessionEnv(name, args);
+    if (rebound) this.notifyEnvChanged(rebound);
     const response = await this.request("tools/call", { name, arguments: args });
-    if (response.error) {
-      throw new Error(response.error.message || `MCP ${name} failed`);
-    }
-    const result = (response.result ?? {}) as McpCallResult;
-    if (result.isError) {
-      const payload = extractToolPayload(result);
-      const message =
-        typeof payload === "string"
-          ? payload
-          : JSON.stringify(payload ?? { message: `MCP ${name} returned isError` });
-      throw new Error(message);
-    }
-    return extractToolPayload(result);
+    return this.unwrapResponse(response, name);
   }
 
   dispose(): void {
@@ -251,17 +265,34 @@ export class CloudBaseMcpBridge {
     this.child?.stdin.write(encodeMessage({ jsonrpc: "2.0", method, params }));
   }
 
-  private async ensureSessionEnv(name: string, args: Record<string, unknown>): Promise<void> {
-    if (!this.sessionEnvCache || !cloudbaseToolNeedsEnv(name, args)) return;
+  private unwrapResponse(response: JsonRpcResponse, name: string): unknown {
+    if (response.error) {
+      throw new Error(response.error.message || `MCP ${name} failed`);
+    }
+    const result = (response.result ?? {}) as McpCallResult;
+    if (result.isError) {
+      const payload = extractToolPayload(result);
+      const message =
+        typeof payload === "string"
+          ? payload
+          : JSON.stringify(payload ?? { message: `MCP ${name} returned isError` });
+      throw new Error(message);
+    }
+    return extractToolPayload(result);
+  }
+
+  private async ensureSessionEnv(name: string, args: Record<string, unknown>): Promise<string | undefined> {
+    if (!this.sessionEnvCache || !cloudbaseToolNeedsEnv(name, args)) return undefined;
     const sessionId = this.getSessionId?.();
-    if (!sessionId) return;
+    if (!sessionId) return undefined;
     const bound = this.sessionEnvCache.get(sessionId);
-    if (!bound?.envId || bound.envId === this.lastInjectedEnvId) return;
+    if (!bound?.envId || bound.envId === this.lastInjectedEnvId) return undefined;
     await this.request("tools/call", {
       name: "auth",
       arguments: { action: "set_env", envId: bound.envId },
     });
     this.lastInjectedEnvId = bound.envId;
+    return bound.envId;
   }
 }
 
