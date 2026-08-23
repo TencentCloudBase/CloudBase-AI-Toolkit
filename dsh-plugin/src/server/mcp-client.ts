@@ -8,6 +8,8 @@ import {
 interface JsonRpcResponse {
   jsonrpc?: string;
   id?: number;
+  method?: string;
+  params?: unknown;
   result?: unknown;
   error?: { code?: number; message?: string; data?: unknown };
 }
@@ -26,6 +28,28 @@ export interface McpCallResult {
 export const MCP_REQUEST_TIMEOUT_MS = 90_000;
 
 export type EnvChangeListener = (envId: string) => void;
+
+/**
+ * MCP server 主动推送的环境变更 notification method
+ * （mcp/src/tools/env.ts 的 auth set_env 成功处发送）。
+ * 无 id 的 JSON-RPC notification，任何连上 MCP server 的客户端都能收到，
+ * 跨客户端通用，替代客户端本地推断 + 兜底轮询。
+ */
+export const ENV_CHANGED_NOTIFICATION_METHOD = "notifications/cloudbase/env_changed";
+
+/**
+ * 从服务端推送的 notification 消息中提取环境变更事件。
+ * 非环境变更 notification 或缺少 envId 时返回 undefined。
+ */
+export function extractEnvChangedNotification(
+  message: JsonRpcResponse,
+): string | undefined {
+  if (message.method !== ENV_CHANGED_NOTIFICATION_METHOD) return undefined;
+  const params = asRecord(message.params);
+  return typeof params.envId === "string" && params.envId.length > 0
+    ? params.envId
+    : undefined;
+}
 
 interface Pending {
   resolve: (value: JsonRpcResponse) => void;
@@ -230,7 +254,17 @@ export class CloudBaseMcpBridge {
     const parsed = parseMcpFrames(Buffer.concat([this.buf, chunk]));
     this.buf = Buffer.from(parsed.rest);
     for (const message of parsed.messages) {
-      if (typeof message.id !== "number") continue;
+      if (typeof message.id !== "number") {
+        // 服务端主动推送的 notification（无 id）：识别环境变更事件并广播。
+        // 跨客户端通用 —— 无论 set_env 由哪个会话/客户端发起，只要连的是
+        // 同一个 MCP server 进程，本 bridge 都能收到并同步面板状态。
+        const envId = extractEnvChangedNotification(message);
+        if (envId) {
+          this.lastInjectedEnvId = envId;
+          this.notifyEnvChanged(envId);
+        }
+        continue;
+      }
       const pending = this.pending.get(message.id);
       if (!pending) continue;
       this.pending.delete(message.id);
