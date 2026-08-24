@@ -146,6 +146,9 @@ export function createRemoteCloudBaseData(
     async listDeployments(): Promise<DeploymentRecord[]> {
       return (await call("listDeployments")) as DeploymentRecord[];
     },
+    async rollbackDeployment(record) {
+      return Boolean(await call("rollbackDeployment", { record }));
+    },
     async sessionBoundEnv(sessionId?: string): Promise<string | undefined> {
       return (await call("sessionBoundEnv", { sessionId })) as string | undefined;
     },
@@ -218,6 +221,167 @@ export function createRemoteCloudBaseData(
         metricName,
         ...(opts ?? {}),
       })) as MetricSeries;
+    },
+    async listFunctions(opts) {
+      return (await call("listFunctions", opts ?? {})) as Array<{
+        name: string;
+        runtime?: string;
+        status?: string;
+        invokeCount?: number;
+        updatedAt?: string;
+      }>;
+    },
+    async getFunction(name) {
+      return (await call("getFunction", { name })) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["getFunction"]>>
+      >;
+    },
+    async listFunctionTriggers(name) {
+      return (await call("listFunctionTriggers", { name })) as Array<{
+        name: string;
+        type: string;
+        triggerDesc?: string;
+      }>;
+    },
+    async listFunctionLogs(name, opts) {
+      return (await call("listFunctionLogs", { name, limit: opts?.limit })) as Array<{
+        requestId?: string;
+        time?: string;
+        message: string;
+      }>;
+    },
+    async invokeFunction(name, payload) {
+      return (await call("invokeFunction", { name, payload })) as { result: string };
+    },
+    async listCloudRunServices() {
+      return (await call("listCloudRunServices")) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listCloudRunServices"]>>
+      >;
+    },
+    async getCloudRunService(name) {
+      return (await call("getCloudRunService", { name })) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["getCloudRunService"]>>
+      >;
+    },
+    async listCloudRunDeployRecords(name) {
+      return (await call("listCloudRunDeployRecords", { name })) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listCloudRunDeployRecords"]>>
+      >;
+    },
+    async getCloudRunProcessLog(name, runId) {
+      return (await call("getCloudRunProcessLog", { name, runId })) as Array<{
+        time?: string;
+        message: string;
+      }>;
+    },
+    async getCloudRunBuildLog(name, buildId) {
+      return (await call("getCloudRunBuildLog", { name, buildId })) as {
+        text: string;
+        unsupportedReason?: string;
+      };
+    },
+    async listHostingDomains() {
+      return (await call("listHostingDomains")) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listHostingDomains"]>>
+      >;
+    },
+    async listHostingVersions() {
+      return (await call("listHostingVersions")) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listHostingVersions"]>>
+      >;
+    },
+    async listHostingObjects(prefix) {
+      return (await call("listHostingObjects", { prefix })) as StorageObject[];
+    },
+    async listStorageBuckets() {
+      return (await call("listStorageBuckets")) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listStorageBuckets"]>>
+      >;
+    },
+    async uploadStorage(cloudPath, opts) {
+      await call("uploadStorage", { cloudPath, ...(opts ?? {}) });
+    },
+    async createStorageBucket(name, opts) {
+      await call("createStorageBucket", { name, isPublic: opts?.public });
+    },
+    async deleteStorageBucket(name, confirm) {
+      await call("deleteStorageBucket", { name, confirm });
+    },
+    async listSslCertificates() {
+      return (await call("listSslCertificates")) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listSslCertificates"]>>
+      >;
+    },
+    async listCdnCacheItems(bucketName) {
+      return (await call("listCdnCacheItems", { bucketName })) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listCdnCacheItems"]>>
+      >;
+    },
+    async listAuthDomains() {
+      return (await call("listAuthDomains")) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listAuthDomains"]>>
+      >;
+    },
+    async deleteAuthDomain(domainId, confirm) {
+      await call("deleteAuthDomain", { domainId, confirm });
+    },
+    async upsertPolicy(input, confirm) {
+      await call("upsertPolicy", { input, confirm });
+    },
+    async dropPolicy(schemaTable, policyName, confirm) {
+      await call("dropPolicy", { schemaTable, policyName, confirm });
+    },
+    async toggleTableRls(schemaTable, enable, confirm) {
+      await call("toggleTableRls", { schemaTable, enable, confirm });
+    },
+    async bindCustomDomain(input) {
+      await call("bindCustomDomain", { input });
+    },
+    async deleteCustomDomain(domain, confirm) {
+      await call("deleteCustomDomain", { domain, confirm });
+    },
+    async listSchemas() {
+      return (await call("listSchemas")) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listSchemas"]>>
+      >;
+    },
+    async listTriggers(schema = "public") {
+      return (await call("listTriggers", { schema })) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listTriggers"]>>
+      >;
+    },
+    async listTypes(schema = "public") {
+      return (await call("listTypes", { schema })) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listTypes"]>>
+      >;
+    },
+    async listColumnPrivileges(schemaTable) {
+      return (await call("listColumnPrivileges", { schemaTable })) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listColumnPrivileges"]>>
+      >;
+    },
+    async listSafetyDomains() {
+      return (await call("listSafetyDomains")) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listSafetyDomains"]>>
+      >;
+    },
+    async getStorageSecurityRules(bucket) {
+      return (await call("getStorageSecurityRules", { bucket })) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["getStorageSecurityRules"]>>
+      >;
+    },
+    async setStorageSecurityRules(rules) {
+      await call("setStorageSecurityRules", rules);
+    },
+    async listCdnCacheConfig(bucket) {
+      return (await call("listCdnCacheConfig", { bucket })) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["listCdnCacheConfig"]>>
+      >;
+    },
+    async getStorageCustomDomains() {
+      return (await call("getStorageCustomDomains")) as Awaited<
+        ReturnType<NonNullable<CloudBaseData["getStorageCustomDomains"]>>
+      >;
     },
   };
 }

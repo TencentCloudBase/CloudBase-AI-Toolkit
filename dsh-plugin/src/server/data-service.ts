@@ -1239,7 +1239,11 @@ export function createCloudBaseDataService(
       if (!confirm) throw new Error("deleteGatewayRoute 需要 confirm=true");
       const envId = await requireEnvId();
       const routes = await service.listGatewayRoutes();
-      const target = routes.find((r) => r.routeId === routeId);
+      // DescribeHTTPServiceRoute often omits RouteId; mapGatewayRoute synthesizes
+      // `${domain}::${path}` so UI + host can still address a row.
+      const target =
+        routes.find((r) => r.routeId === routeId) ??
+        routes.find((r) => gatewayRouteKey(r.domain, r.path) === routeId);
       if (!target) throw new Error(`Route ${routeId} not found`);
       // 876/129799：DeleteHTTPServiceRoute 参数为 Paths.N（String 数组）；
       // Paths 为空则删除域名及全部路由——此处仅删单条 path 路由
@@ -2100,24 +2104,65 @@ export function createCloudBaseDataService(
   return service;
 }
 
+function parseLogContentFields(row: LooseRecord): LooseRecord {
+  // SearchClsLog Results[].Content is often a JSON string (accesslog payload).
+  const contentRaw = row.Content ?? row.content ?? row.Logs ?? row.logs;
+  if (typeof contentRaw === "string") {
+    const trimmed = contentRaw.trim();
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed) as unknown;
+        if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return rec(parsed);
+        }
+      } catch {
+        // keep raw Content as message source below
+      }
+    }
+    return {};
+  }
+  if (contentRaw !== null && typeof contentRaw === "object" && !Array.isArray(contentRaw)) {
+    return rec(contentRaw);
+  }
+  return {};
+}
+
 function mapLogEntry(item: unknown, index: number): LogEntry {
   const row = rec(item);
+  const contentFields = parseLogContentFields(row);
+  // Prefer explicit top-level fields; fall back to parsed Content JSON.
+  const merged: LooseRecord = { ...contentFields, ...row };
   const message = scrubInternalCodes(
-    str(row.log ?? row.message ?? row.content ?? row.topic ?? row.Msg) ?? "",
+    str(
+      merged.log ??
+        merged.message ??
+        merged.Msg ??
+        merged.topic ??
+        (typeof merged.Content === "string" && !merged.Content.trim().startsWith("{")
+          ? merged.Content
+          : undefined) ??
+        (typeof merged.content === "string" && !merged.content.trim().startsWith("{")
+          ? merged.content
+          : undefined) ??
+        contentFields.path ??
+        contentFields.logType ??
+        (typeof row.Content === "string" ? row.Content : undefined) ??
+        (typeof row.content === "string" ? row.content : undefined),
+    ) ?? "",
   );
-  const levelRaw = str(row.level ?? row.Level ?? row.loglevel)?.toLowerCase() ?? "info";
+  const levelRaw = str(merged.level ?? merged.Level ?? merged.loglevel)?.toLowerCase() ?? "info";
   const level =
     levelRaw.includes("error") ? "error" :
     levelRaw.includes("warn") ? "warn" :
     levelRaw.includes("debug") ? "debug" : "info";
   return {
-    id: str(row.id ?? row.RequestId) ?? String(index),
-    time: str(row.time ?? row.timestamp ?? row.Time ?? row.Timestamp),
-    service: str(row.service ?? row.src ?? row.module),
+    id: str(merged.id ?? merged.RequestId ?? merged.PkgLogId) ?? String(index),
+    time: str(merged.time ?? merged.timestamp ?? merged.Time ?? merged.Timestamp),
+    service: str(merged.service ?? merged.src ?? merged.module ?? contentFields.logType),
     message: message || "—",
     title: message,
     level,
-    raw: row,
+    raw: merged,
   };
 }
 
@@ -2170,12 +2215,20 @@ function parseSqlRows(payload: LooseRecord): LooseRecord[] {
   });
 }
 
+function gatewayRouteKey(domain: string, path: string): string {
+  return `${domain}::${path}`;
+}
+
 function mapGatewayRoute(item: unknown, domainOverride?: string): GatewayRoute {
   const row = rec(item);
+  const domain = domainOverride ?? str(row.Domain ?? row.domain) ?? "";
+  const path = str(row.Path ?? row.path) ?? "/";
+  // API often omits RouteId; synthesize a stable key so delete UI is not a no-op.
+  const routeId = str(row.RouteId ?? row.routeId ?? row.id) ?? (domain ? gatewayRouteKey(domain, path) : undefined);
   return {
-    routeId: str(row.RouteId ?? row.routeId ?? row.id),
-    domain: domainOverride ?? str(row.Domain ?? row.domain) ?? "",
-    path: str(row.Path ?? row.path) ?? "/",
+    routeId,
+    domain,
+    path,
     upstreamResourceType: str(row.UpstreamResourceType ?? row.upstreamResourceType) ?? "",
     upstreamResourceName: str(
       row.UpstreamResourceName ?? row.upstreamResourceName ?? row.targetName,

@@ -320,8 +320,14 @@ export function GatewayPage(props: GatewayPageProps): React.ReactElement {
         onConfirm={() => {
           const route = confirmDeleteRoute;
           setConfirmDeleteRoute(undefined);
-          if (!route?.routeId) return;
-          void mutations.remove(route.routeId).then(refresh);
+          if (!route) return;
+          // DescribeHTTPServiceRoute may omit RouteId; fall back to domain::path
+          // so delete is not a silent no-op (gate R3).
+          const routeId =
+            route.routeId ||
+            (route.domain ? `${route.domain}::${route.path || "/"}` : undefined);
+          if (!routeId) return;
+          void mutations.remove(routeId).then(refresh);
         }}
       />
 

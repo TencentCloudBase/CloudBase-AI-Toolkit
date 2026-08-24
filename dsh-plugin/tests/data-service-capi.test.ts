@@ -84,11 +84,27 @@ describe("data-service capi mappings", () => {
     "tcb:DescribeUserList": {
       Data: { Total: 1, UserList: [{ Uid: "u1", Name: "alice", UserStatus: "ACTIVE" }] },
     },
-    "tcb:SearchClsLog": { Results: [{ Msg: "hello", Level: "INFO" }], Context: "ctx-1" },
+    "tcb:SearchClsLog": {
+      LogResults: {
+        Results: [
+          {
+            Time: "2026-08-21 01:25:17",
+            Content: JSON.stringify({
+              logType: "accesslog",
+              path: "/v1/rdb/rest/tasks",
+              level: "INFO",
+            }),
+          },
+        ],
+        Context: "ctx-1",
+      },
+    },
     "tcb:DescribeHTTPServiceRoute": {
       Domains: [{ Domain: "gw.example.com", Routes: [{ Path: "/api", UpstreamResourceName: "fn" }] }],
     },
     "tcb:DescribeCloudBaseGWService": { EnableService: true, EnableAuth: false },
+    "tcb:DeleteHTTPServiceRoute": { RequestId: "del-1" },
+    "tcb:ModifyCloudBaseGWPrivilege": { RequestId: "priv-1" },
     "tcb:ListFunctions": { Functions: [{ FunctionName: "fn_a" }] },
     "tcb:DescribeHostingDomain": { Domains: [{ Domain: "x.tcloudbaseapp.com" }] },
     "tcb:DescribeUsage": { Usages: [{ Module: "FLEXDB", CreditsValue: 5 }] },
@@ -103,11 +119,58 @@ describe("data-service capi mappings", () => {
     const data = createCloudBaseDataService(bridge);
     const result = await data.searchLogs({ queryString: "log:ERROR", limit: 10 });
     expect(result.entries.length).toBeGreaterThan(0);
+    expect(result.entries[0]?.message).toContain("/v1/rdb/rest/tasks");
+    expect(result.entries[0]?.service).toBe("accesslog");
+    expect(result.context).toBe("ctx-1");
     const call = bridge.capiCalls.find((c) => c.action === "SearchClsLog");
     expect(call).toBeTruthy();
     expect(String(call?.params.StartTime)).toMatch(/^\d{4}-\d{2}-\d{2} /);
     expect(call?.params.Sort).toBe("desc");
     expect(bridge.toolCalls.every((t) => !FORBIDDEN.test(t.name))).toBe(true);
+  });
+
+  it("searchLogs reads nested LogResults.Results and parses Content JSON", async () => {
+    const bridge = capiBridge(baseHandlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    const result = await data.searchLogs({ queryString: "*" });
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0]?.raw).toMatchObject({
+      logType: "accesslog",
+      path: "/v1/rdb/rest/tasks",
+    });
+  });
+
+  it("listGatewayRoutes synthesizes routeId when API omits RouteId", async () => {
+    const bridge = capiBridge(baseHandlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    const routes = await data.listGatewayRoutes();
+    expect(routes[0]?.routeId).toBe("gw.example.com::/api");
+    expect(routes[0]?.path).toBe("/api");
+  });
+
+  it("deleteGatewayRoute sends Paths array and resolves synthesized routeId", async () => {
+    const bridge = capiBridge(baseHandlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    await data.deleteGatewayRoute("gw.example.com::/api", true);
+    const call = bridge.capiCalls.find((c) => c.action === "DeleteHTTPServiceRoute");
+    expect(call?.params).toMatchObject({
+      EnvId: envId,
+      Domain: "gw.example.com",
+      Paths: ["/api"],
+    });
+    expect(call?.params).not.toHaveProperty("Path");
+  });
+
+  it("setGatewayAuthEnabled uses authswitch Options key and EnableService", async () => {
+    const bridge = capiBridge(baseHandlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    await data.setGatewayAuthEnabled!(true);
+    const call = bridge.capiCalls.find((c) => c.action === "ModifyCloudBaseGWPrivilege");
+    expect(call?.params).toMatchObject({
+      ServiceId: envId,
+      EnableService: true,
+      Options: [{ Key: "authswitch", Value: "true" }],
+    });
   });
 
   it("searchLogs maps CLS topic-not-exist to a not-enabled message", async () => {
@@ -400,6 +463,44 @@ describe("data-service capi mappings", () => {
     expect(buckets[0]?.name).toBe("avatars");
     expect(bridge.capiCalls.some((c) => c.action === "ExecutePGSql")).toBe(true);
     expect(JSON.stringify(bridge.capiCalls.find((c) => c.action === "ExecutePGSql")?.params)).toMatch(/storage\.buckets/);
+  });
+
+  it("parses real ExecutePGSql wire shape (Columns + JSON-encoded Rows strings)", async () => {
+    // 线上实测：ExecutePGSql 返回 Rows: ["[\"...\"]"]（每行一个 JSON 编码的值数组字符串），
+    // 不是对象数组；解析失败会让所有 SQL 读路径静默变空列表。
+    const handlers = {
+      ...baseHandlers,
+      "tcb:ExecutePGSql": {
+        RequestId: "req-1",
+        ExecutionTimeMs: 9,
+        Columns: ["id", "name", "public", "created_at"],
+        Rows: [
+          JSON.stringify(["avatars", "avatars", false, "2026-01-01"]),
+          JSON.stringify(["assets", "assets", true, "2026-02-01"]),
+        ],
+        AffectedRows: 0,
+      },
+    };
+    const bridge = capiBridge(handlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    const buckets = await data.listStorageBuckets!();
+    expect(buckets.map((b) => b.name)).toEqual(["avatars", "assets"]);
+  });
+
+  it("runReadSql materializes JSON-encoded Rows strings into columns", async () => {
+    const handlers = {
+      ...baseHandlers,
+      "tcb:ExecutePGSql": {
+        Columns: ["n"],
+        Rows: [JSON.stringify([3])],
+        AffectedRows: 0,
+      },
+    };
+    const bridge = capiBridge(handlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    const page = await data.runReadSql("SELECT count(*) AS n FROM storage.buckets");
+    expect(page.columns).toEqual(["n"]);
+    expect(page.rows[0]).toEqual({ n: 3 });
   });
 
   it("deleteStorageBucket writes DELETE via ExecutePGSql on PG env", async () => {
