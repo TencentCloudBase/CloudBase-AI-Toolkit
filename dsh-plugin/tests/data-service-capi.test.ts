@@ -259,6 +259,28 @@ describe("data-service capi mappings", () => {
     expect(bridge.capiCalls.some((c) => c.action === "ExecutePGSql")).toBe(true);
   });
 
+  it("listTables parses ExecutePGSql Rows as JSON-encoded value arrays", async () => {
+    // Live wire shape: Rows items are JSON strings like '["auth","apikey_token","r","-1"]'.
+    // Without JSON.parse each row becomes {} and every table name falls back to "unknown".
+    const handlers = {
+      ...baseHandlers,
+      "tcb:ExecutePGSql": {
+        Columns: ["schema", "name", "kind", "estimated_rows"],
+        Rows: [
+          JSON.stringify(["auth", "apikey_token", "r", -1]),
+          JSON.stringify(["public", "todos", "r", 3]),
+        ],
+      },
+    };
+    const bridge = capiBridge(handlers, baseAuth);
+    const data = createCloudBaseDataService(bridge);
+    const tables = await data.listTables();
+    expect(tables).toEqual([
+      { name: "apikey_token", schema: "auth", kind: "table", rowCount: -1 },
+      { name: "todos", schema: "public", kind: "table", rowCount: 3 },
+    ]);
+  });
+
   it("listGatewayRoutes uses DescribeHTTPServiceRoute", async () => {
     const bridge = capiBridge(baseHandlers, baseAuth);
     const data = createCloudBaseDataService(bridge);
