@@ -24,10 +24,12 @@ import {
   listAvailableEnvCandidates,
   logCloudBaseResult,
   resetCloudBaseManagerCache,
+  resolveEnvCandidateByEnvId,
   type EnvCandidate,
 } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
 import { debug } from "../utils/logger.js";
+import { resolveSiteAndRegion, TCB_QUERY_REGIONS } from "../utils/site-map.js";
 import {
   buildAuthNextStep,
   buildJsonToolResult,
@@ -658,6 +660,58 @@ async function fetchAvailableEnvCandidates(
   }
 }
 
+async function fetchAccountEnvCandidates(
+  cloudBaseOptions: any,
+): Promise<EnvCandidate[]> {
+  try {
+    return await listAvailableEnvCandidates({
+      cloudBaseOptions,
+      ignorePinnedEnvId: true,
+    });
+  } catch {
+    return [];
+  }
+}
+
+type CredentialScope = "single_env" | "account";
+
+function isApiKeyCredentialMode(): boolean {
+  return Boolean(getCloudBaseApiKeyFromEnv() && process.env.CLOUDBASE_ENV_ID);
+}
+
+function getCredentialScope(): CredentialScope {
+  return isApiKeyCredentialMode() ? "single_env" : "account";
+}
+
+function buildCredentialBoundaryPayload(cloudBaseOptions?: { region?: string; envId?: string }) {
+  const credentialScope = getCredentialScope();
+  const currentRegion = resolveSiteAndRegion(cloudBaseOptions ?? {}).region;
+  const pinnedEnvId = process.env.CLOUDBASE_ENV_ID || cloudBaseOptions?.envId || null;
+  const scopeNote =
+    credentialScope === "single_env"
+      ? `当前为环境级 API Key 登录（单环境权限）。只能访问已绑定的 envId${pinnedEnvId ? ` ${pinnedEnvId}` : ""}，看不到账号下其他环境或其他地域。这是凭据权限边界，不是环境不存在。`
+      : `当前为账号级登录。DescribeEnvs 按地域查询；未传 region 时使用当前地域 ${currentRegion}。其他地域请用 queryEnv(action="list", region="ap-singapore")，或 CLI: tcb env list -r ap-singapore。`;
+
+  return {
+    credential_scope: credentialScope,
+    current_region: currentRegion,
+    scope_note: scopeNote,
+  };
+}
+
+function applyBoundEnvRegion(
+  server: ExtendedMcpServer,
+  region?: string,
+) {
+  if (!region) {
+    return;
+  }
+  process.env.TCB_REGION = region;
+  if (server.cloudBaseOptions) {
+    server.cloudBaseOptions.region = region;
+  }
+}
+
 type AuthAction =
   | "status"
   | "start_auth"
@@ -971,6 +1025,7 @@ function buildEnvQueryListResult(params: {
       alias?: string;
       aliasExact?: boolean;
       envId?: string;
+      region?: string;
       limit?: number;
       offset?: number;
       fields?: EnvFieldName[];
@@ -978,7 +1033,10 @@ function buildEnvQueryListResult(params: {
 }) {
   const envList = Array.isArray(params.result?.EnvList) ? params.result.EnvList : [];
   const shouldRestrictToCurrentEnv =
-    params.hasEnvId && !params.filters.alias && !params.filters.envId;
+    params.hasEnvId &&
+    !params.filters.alias &&
+    !params.filters.envId &&
+    !params.filters.region;
   const baseList = shouldRestrictToCurrentEnv
     ? envList.filter((env: any) => env.EnvId === params.cloudBaseOptions?.envId)
     : envList;
@@ -996,6 +1054,13 @@ function buildEnvQueryListResult(params: {
           "action=list with envId only returns a concise summary. Use action=info to fetch detailed environment information such as full resource metadata and additional environment details.",
       }
     : undefined;
+  const credentialBoundary = buildCredentialBoundaryPayload(params.cloudBaseOptions);
+  const queryRegion =
+    params.filters.region || credentialBoundary.current_region;
+  const currentEnvOnlyNote =
+    shouldRestrictToCurrentEnv && credentialBoundary.credential_scope === "account"
+      ? `已绑定环境，list 默认只返回当前环境。要查看其他地域请传 region（例如 region="ap-singapore"），或使用 CLI: tcb env list -r ap-singapore。`
+      : undefined;
 
   return {
     EnvList: paginated.items.map((env) => selectEnvFields(env, params.filters.fields)),
@@ -1007,9 +1072,13 @@ function buildEnvQueryListResult(params: {
       alias: params.filters.alias ?? null,
       aliasExact: params.filters.aliasExact ?? null,
       envId: params.filters.envId ?? null,
+      region: params.filters.region ?? null,
       fields: params.filters.fields ?? [...DEFAULT_ENV_FIELDS],
       currentEnvOnly: shouldRestrictToCurrentEnv,
     },
+    ...credentialBoundary,
+    query_region: queryRegion,
+    ...(currentEnvOnlyNote ? { scope_note: currentEnvOnlyNote } : {}),
     ...(exactEnvIdSummaryHint
       ? {
           RecommendedNextAction: exactEnvIdSummaryHint,
@@ -1886,15 +1955,19 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       requireEnvId: options?.requireEnvId ?? true,
       mcpServer: server,
     });
-  const getManagerForEnvQuery = (targetEnvId?: string, requireEnvId = true) =>
+  const getManagerForEnvQuery = (
+    targetEnvId?: string,
+    requireEnvId = true,
+    region?: string,
+  ) =>
     getCloudBaseManager({
-      cloudBaseOptions:
-        targetEnvId && targetEnvId !== cloudBaseOptions?.envId
-          ? {
-              ...cloudBaseOptions,
-              envId: targetEnvId,
-            }
-          : cloudBaseOptions,
+      cloudBaseOptions: {
+        ...cloudBaseOptions,
+        ...(targetEnvId && targetEnvId !== cloudBaseOptions?.envId
+          ? { envId: targetEnvId }
+          : {}),
+        ...(region ? { region } : {}),
+      },
       requireEnvId,
       mcpServer: server,
     });
@@ -1911,7 +1984,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     {
       title: "CloudBase 开发阶段登录与环境",
       description:
-        "CloudBase（腾讯云开发）开发阶段登录与环境绑定。登录后即可访问云资源；环境(env)是云函数、数据库、静态托管等资源的隔离单元，绑定环境后其他 MCP 工具才能操作该环境。支持：查询状态、发起登录、API Key登录、绑定环境(set_env)、退出登录。",
+        "CloudBase（腾讯云开发）开发阶段登录与环境绑定。登录后即可访问云资源；环境(env)是云函数、数据库、静态托管等资源的隔离单元，绑定环境后其他 MCP 工具才能操作该环境。支持：查询状态、发起登录、API Key登录、绑定环境(set_env)、退出登录。auth(status) 会返回 credential_scope（account=账号级 / single_env=环境级 API Key）与当前 region；环境级 API Key 只能看到绑定的 envId，查不到其他地域环境是权限边界而非环境不存在。",
       inputSchema: {
         action: z
           .enum(authActionEnum)
@@ -2046,14 +2119,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           let envPreparation:
             | AuthEnvPreparationResult
             | undefined;
-          const message =
-            authStatus === "READY"
-              ? undefined
-              : authStatus === "PENDING"
-                ? "设备码授权进行中，请完成浏览器授权后再次调用 auth(action=\"status\")"
-                : isCodeBuddyIde(server)
-                  ? "当前未登录。CodeBuddy 暂不支持在 tool 内发起认证，请在外部完成认证后再次调用 auth(action=\"status\")。"
-                  : "当前未登录，请先执行 auth(action=\"start_auth\")";
+          const credentialBoundary = buildCredentialBoundaryPayload(cloudBaseOptions);
 
           if (authStatus === "READY" && loginState) {
             envPreparation = await prepareAuthEnvironment({
@@ -2063,11 +2129,23 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             });
           }
 
+          const statusMessage =
+            authStatus === "READY"
+              ? envPreparation?.message
+                ? `${envPreparation.message} ${credentialBoundary.scope_note}`
+                : credentialBoundary.scope_note
+              : authStatus === "PENDING"
+                ? "设备码授权进行中，请完成浏览器授权后再次调用 auth(action=\"status\")"
+                : isCodeBuddyIde(server)
+                  ? "当前未登录。CodeBuddy 暂不支持在 tool 内发起认证，请在外部完成认证后再次调用 auth(action=\"status\")。"
+                  : "当前未登录，请先执行 auth(action=\"start_auth\")";
+
           return buildJsonToolResult({
             ok: true,
             code: "STATUS",
             auth_status: authStatus,
             ...(isApiKeyMode ? { auth_mode: "api_key" } : {}),
+            ...credentialBoundary,
             auth_config: authConfigSummary,
             ...(envPreparation
               ? buildAuthEnvSetupPayload(envPreparation)
@@ -2080,7 +2158,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               authFlowState.status === "PENDING"
                 ? buildDeviceAuthChallengePayload(authFlowState.authChallenge)
                 : undefined,
-            message,
+            message: statusMessage,
             next_step:
               authStatus === "REQUIRED"
                 ? buildAuthRequiredNextStep(server)
@@ -2406,28 +2484,54 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             });
           }
 
-          const envCandidates = await fetchAvailableEnvCandidates(cloudBaseOptions, server);
+          const credentialBoundary = buildCredentialBoundaryPayload(cloudBaseOptions);
+          const envCandidates = isApiKeyCredentialMode()
+            ? await fetchAvailableEnvCandidates(cloudBaseOptions, server)
+            : await fetchAccountEnvCandidates(cloudBaseOptions);
           if (!envId) {
             return buildJsonToolResult({
               ok: false,
               code: "INVALID_ARGS",
               message: "action=set_env 时必须提供 envId",
+              ...credentialBoundary,
               ...buildEnvCandidatePayload(envCandidates),
               next_step: buildSetEnvNextStep(envCandidates),
             });
           }
 
-          const target = envCandidates.find((item) => item.envId === envId);
-          if (envCandidates.length > 0 && !target) {
+          if (isApiKeyCredentialMode()) {
+            const pinnedEnvId = process.env.CLOUDBASE_ENV_ID;
+            if (pinnedEnvId && envId !== pinnedEnvId) {
+              return buildJsonToolResult({
+                ok: false,
+                code: "CREDENTIAL_SCOPE_LIMITED",
+                message: `当前为环境级 API Key 登录，只能绑定已授权环境 ${pinnedEnvId}，不能切换到 ${envId}。这是凭据权限边界，不是目标环境不存在。`,
+                ...credentialBoundary,
+                current_env_id: pinnedEnvId,
+                ...buildEnvCandidatePayload(envCandidates),
+              });
+            }
+            await envManager.setEnvId(envId);
             return buildJsonToolResult({
-              ok: false,
-              code: "INVALID_ARGS",
-              message: `未找到环境: ${envId}`,
-              ...buildEnvCandidatePayload(envCandidates),
-              next_step: buildSetEnvNextStep(envCandidates),
+              ok: true,
+              code: "ENV_READY",
+              message: `环境设置成功，当前环境: ${envId}`,
+              current_env_id: envId,
+              ...credentialBoundary,
             });
           }
+
+          let target = envCandidates.find((item) => item.envId === envId);
+          if (!target) {
+            target = await resolveEnvCandidateByEnvId({
+              envId,
+              cloudBaseOptions,
+              loginState,
+            });
+          }
+
           await envManager.setEnvId(envId);
+<<<<<<< HEAD
           // 跨客户端通用事件推送（MCP 协议 notification，无 id）：任何客户端
           // （如 dsh-plugin 面板）都能通过 notifications/cloudbase/env_changed
           // 感知环境变更，替代客户端本地推断与兜底轮询。通知失败不影响主流程。
@@ -2437,11 +2541,21 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               params: { envId },
             })
             .catch(() => {});
+=======
+          applyBoundEnvRegion(server, target?.region);
+          const regionHint = target?.region
+            ? `，地域: ${target.region}`
+            : target
+              ? ""
+              : "。未在当前探测地域中确认该 envId，已按唯一 ID 直绑；若后续接口仍指向错误地域，请设置 TCB_REGION 或 queryEnv(action=\"list\", region=...)";
+>>>>>>> origin/main
           return buildJsonToolResult({
             ok: true,
             code: "ENV_READY",
-            message: `环境设置成功，当前环境: ${envId}`,
+            message: `环境设置成功，当前环境: ${envId}${regionHint}`,
+            ...credentialBoundary,
             current_env_id: envId,
+            current_region: target?.region || credentialBoundary.current_region,
           });
         }
 
@@ -2565,6 +2679,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     alias,
     aliasExact,
     envId,
+    region,
     limit,
     offset,
     fields,
@@ -2583,6 +2698,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       alias?: string;
       aliasExact?: boolean;
       envId?: string;
+      region?: (typeof TCB_QUERY_REGIONS)[number];
       limit?: number;
       offset?: number;
       fields?: EnvFieldName[];
@@ -2603,18 +2719,17 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         switch (action) {
           case "list":
             try {
-              const cloudbaseList = await getCloudBaseManager({
-                cloudBaseOptions,
-                requireEnvId: true,
-                mcpServer: server, // Pass server for IDE detection
-              });
+              const cloudbaseList = await getManagerForEnvQuery(undefined, false, region);
 
-              // 当环境变量设置了 CLOUDBASE_ENV_ID 时（如 API Key 模式），
-              // 避免调用 DescribeEnvs（临时密钥可能不支持该接口），
-              // 改为通过 DescribeEnvInfo 获取单环境信息
-              // 注意：requestFn 模式（如微信 IDE）使用 DescribeEnvs，不走此分支
+              // API Key / env-var pin: skip DescribeEnvs (STS often cannot list).
+              // Account-level sessions that only pinned CLOUDBASE_ENV_ID via set_env
+              // can still pass region/alias/envId to list other environments.
               const envIdFromEnv = !cloudBaseOptions?.requestFn && process.env.CLOUDBASE_ENV_ID;
-              if (envIdFromEnv) {
+              const shouldPinToEnvVar = Boolean(
+                envIdFromEnv &&
+                (isApiKeyCredentialMode() || (!region && !alias && !envId)),
+              );
+              if (shouldPinToEnvVar && envIdFromEnv) {
                 try {
                   const envInfo = await cloudbaseList.env.describeEnvInfo({ EnvId: envIdFromEnv });
                   logCloudBaseResult(server.logger, envInfo);
@@ -2661,11 +2776,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               debug("获取环境列表时出错，尝试降级到 listEnvs():", error instanceof Error ? error : new Error(String(error)));
               // Fallback to original method on error
               try {
-                const cloudbaseList = await getCloudBaseManager({
-                  cloudBaseOptions,
-                  requireEnvId: true,
-                  mcpServer: server, // Pass server for IDE detection
-                });
+                const cloudbaseList = await getManagerForEnvQuery(undefined, false, region);
                 result = await cloudbaseList.env.listEnvs();
                 logCloudBaseResult(server.logger, result);
               } catch (fallbackError) {
@@ -2693,6 +2804,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 alias,
                 aliasExact,
                 envId,
+                region,
                 limit,
                 offset,
                 fields,
@@ -2905,12 +3017,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   const queryEnvToolSchema = {
     title: "CloudBase 环境查询",
     description:
-      "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情、安全域名、资源用量与监控指标。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。\n\n📊 action=usage 对齐 tcb env usage/info：透传 Manager SDK describeEnvAccountCircle + describeCreditsUsageDetail，返回计费周期与各模块资源点用量（FLEXDB/SCF/COS 等）。envId 必填；type 可选过滤模块；未传 startDate/endDate 时自动使用当前计费周期。\n\n📈 action=metrics 对齐 TCB DescribeCurveData（manager.monitor.describeCurveData，不是云监控 GetMonitorData）：查询环境/网关 QPS、云函数调用与错误、数据库 CPU/内存/磁盘、云托管 CPU/QPS 等时序。envId 与 metricName 必填；startTime/endTime 格式 YYYY-MM-DD HH:mm:ss，须成对传入，不传则默认最近 24 小时；period 仅 300/3600/86400。GatewayTraceEnvQPS 未传 resourceID 时自动填环境级 all|:|all|:|all|:|all；云托管 Tke* 指标必须传服务名 resourceID。禁止用 callCloudApi 猜测监控 Action。\n\n🔍 action=info 还会派生三个用于后端选型的字段：\n- `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。\n- `EnvInfo.RuntimeBackends`：`{postgresql, nosql, mysql}` 三个布尔值，描述当前环境实际并存的后端。\n- `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。\n\n🌐 action=info 还会在不改写 `StaticStorages[].StaticDomain`（云 API 名义域名）的前提下，投影网关路由 Enable 状态：`StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。\n\nAI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType=\"noSqlDatabase\")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用。",
+      "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情、安全域名、资源用量与监控指标。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。账号级登录可传 region（ap-shanghai/ap-guangzhou/ap-singapore）查询对应地域，对齐 CLI `tcb env list -r <region>`；环境级 API Key 只能看到绑定的 envId，返回 credential_scope=single_env，不要误判为环境不存在。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。\n\n📊 action=usage 对齐 tcb env usage/info：透传 Manager SDK describeEnvAccountCircle + describeCreditsUsageDetail，返回计费周期与各模块资源点用量（FLEXDB/SCF/COS 等）。envId 必填；type 可选过滤模块；未传 startDate/endDate 时自动使用当前计费周期。\n\n📈 action=metrics 对齐 TCB DescribeCurveData（manager.monitor.describeCurveData，不是云监控 GetMonitorData）：查询环境/网关 QPS、云函数调用与错误、数据库 CPU/内存/磁盘、云托管 CPU/QPS 等时序。envId 与 metricName 必填；startTime/endTime 格式 YYYY-MM-DD HH:mm:ss，须成对传入，不传则默认最近 24 小时；period 仅 300/3600/86400。GatewayTraceEnvQPS 未传 resourceID 时自动填环境级 all|:|all|:|all|:|all；云托管 Tke* 指标必须传服务名 resourceID。禁止用 callCloudApi 猜测监控 Action。\n\n🔍 action=info 还会派生三个用于后端选型的字段：\n- `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。\n- `EnvInfo.RuntimeBackends`：`{postgresql, nosql, mysql}` 三个布尔值，描述当前环境实际并存的后端。\n- `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。\n\n🌐 action=info 还会在不改写 `StaticStorages[].StaticDomain`（云 API 名义域名）的前提下，投影网关路由 Enable 状态：`StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。\n\nAI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType=\"noSqlDatabase\")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用。",
     inputSchema: {
       action: z
         .enum(["list", "info", "domains", "usage", "metrics"])
         .describe(
-          "查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId 筛选，返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表，usage=环境资源用量（必须传入 envId，对齐 tcb env usage/info），metrics=环境监控时序（必须传入 envId 与 metricName，对齐 TCB DescribeCurveData）",
+          "查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId / region 筛选，返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表，usage=环境资源用量（必须传入 envId，对齐 tcb env usage/info），metrics=环境监控时序（必须传入 envId 与 metricName，对齐 TCB DescribeCurveData）",
         ),
       alias: z.string().optional().describe("按环境别名筛选。action=list 时可选"),
       aliasExact: z.boolean().optional().describe("按环境别名精确筛选。action=list 时可选；与 alias 配合使用"),
@@ -2919,6 +3031,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         .optional()
         .describe(
           "环境 ID。action=list 时可选（仅按 DescribeEnvs 语义做筛选，仍返回摘要）；action=info / action=usage / action=metrics 时必填。",
+        ),
+      region: z
+        .enum(TCB_QUERY_REGIONS)
+        .optional()
+        .describe(
+          "查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。环境级 API Key 无法用此参数看到其他环境。等价 CLI：tcb env list -r <region> --json。",
         ),
       limit: z.number().int().positive().optional().describe("返回数量上限。action=list 时可选"),
       offset: z.number().int().min(0).optional().describe("分页偏移。action=list 时可选"),

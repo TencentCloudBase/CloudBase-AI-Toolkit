@@ -127,7 +127,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 ## 详细规格
 
 ### `auth`
-CloudBase（腾讯云开发）开发阶段登录与环境绑定。登录后即可访问云资源；环境(env)是云函数、数据库、静态托管等资源的隔离单元，绑定环境后其他 MCP 工具才能操作该环境。支持：查询状态、发起登录、API Key登录、绑定环境(set_env)、退出登录。
+CloudBase（腾讯云开发）开发阶段登录与环境绑定。登录后即可访问云资源；环境(env)是云函数、数据库、静态托管等资源的隔离单元，绑定环境后其他 MCP 工具才能操作该环境。支持：查询状态、发起登录、API Key登录、绑定环境(set_env)、退出登录。auth(status) 会返回 credential_scope（account=账号级 / single_env=环境级 API Key）与当前 region；环境级 API Key 只能看到绑定的 envId，查不到其他地域环境是权限边界而非环境不存在。
 
 #### 参数
 
@@ -189,7 +189,7 @@ CloudBase（腾讯云开发）开发阶段登录与环境绑定。登录后即�
 ---
 
 ### `queryEnv`
-查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情、安全域名、资源用量与监控指标。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。
+查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情、安全域名、资源用量与监控指标。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。账号级登录可传 region（ap-shanghai/ap-guangzhou/ap-singapore）查询对应地域，对齐 CLI `tcb env list -r &lt;region&gt;`；环境级 API Key 只能看到绑定的 envId，返回 credential_scope=single_env，不要误判为环境不存在。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。
 
 📊 action=usage 对齐 tcb env usage/info：透传 Manager SDK describeEnvAccountCircle + describeCreditsUsageDetail，返回计费周期与各模块资源点用量（FLEXDB/SCF/COS 等）。envId 必填；type 可选过滤模块；未传 startDate/endDate 时自动使用当前计费周期。
 
@@ -212,7 +212,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "action",
       type: "string",
       required: true,
-      description: `查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId 筛选，返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表，usage=环境资源用量（必须传入 envId，对齐 tcb env usage/info），metrics=环境监控时序（必须传入 envId 与 metricName，对齐 TCB DescribeCurveData） 可填写的值: "list", "info", "domains", "usage", "metrics"`,
+      description: `查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId / region 筛选，返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表，usage=环境资源用量（必须传入 envId，对齐 tcb env usage/info），metrics=环境监控时序（必须传入 envId 与 metricName，对齐 TCB DescribeCurveData） 可填写的值: "list", "info", "domains", "usage", "metrics"`,
     },
     {
       name: "alias",
@@ -228,6 +228,11 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "envId",
       type: "string",
       description: `环境 ID。action=list 时可选（仅按 DescribeEnvs 语义做筛选，仍返回摘要）；action=info / action=usage / action=metrics 时必填。`,
+    },
+    {
+      name: "region",
+      type: "string",
+      description: `查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。环境级 API Key 无法用此参数看到其他环境。等价 CLI：tcb env list -r <region> --json。 可填写的值: "ap-shanghai", "ap-guangzhou", "ap-singapore"`,
     },
     {
       name: "limit",
@@ -300,7 +305,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
 ---
 
 ### `envQuery`
-查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情、安全域名、资源用量与监控指标。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。
+查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情、安全域名、资源用量与监控指标。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。账号级登录可传 region（ap-shanghai/ap-guangzhou/ap-singapore）查询对应地域，对齐 CLI `tcb env list -r &lt;region&gt;`；环境级 API Key 只能看到绑定的 envId，返回 credential_scope=single_env，不要误判为环境不存在。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。
 
 📊 action=usage 对齐 tcb env usage/info：透传 Manager SDK describeEnvAccountCircle + describeCreditsUsageDetail，返回计费周期与各模块资源点用量（FLEXDB/SCF/COS 等）。envId 必填；type 可选过滤模块；未传 startDate/endDate 时自动使用当前计费周期。
 
@@ -323,7 +328,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "action",
       type: "string",
       required: true,
-      description: `查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId 筛选，返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表，usage=环境资源用量（必须传入 envId，对齐 tcb env usage/info），metrics=环境监控时序（必须传入 envId 与 metricName，对齐 TCB DescribeCurveData） 可填写的值: "list", "info", "domains", "usage", "metrics"`,
+      description: `查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId / region 筛选，返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表，usage=环境资源用量（必须传入 envId，对齐 tcb env usage/info），metrics=环境监控时序（必须传入 envId 与 metricName，对齐 TCB DescribeCurveData） 可填写的值: "list", "info", "domains", "usage", "metrics"`,
     },
     {
       name: "alias",
@@ -339,6 +344,11 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "envId",
       type: "string",
       description: `环境 ID。action=list 时可选（仅按 DescribeEnvs 语义做筛选，仍返回摘要）；action=info / action=usage / action=metrics 时必填。`,
+    },
+    {
+      name: "region",
+      type: "string",
+      description: `查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。环境级 API Key 无法用此参数看到其他环境。等价 CLI：tcb env list -r <region> --json。 可填写的值: "ap-shanghai", "ap-guangzhou", "ap-singapore"`,
     },
     {
       name: "limit",
@@ -1945,7 +1955,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 - aider: Aider AI编辑器
 
 特别说明：
-- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.28.1），便于后续维护和版本追踪
+- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.31.0），便于后续维护和版本追踪
 - 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）
 
 #### 参数
@@ -1985,9 +1995,8 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
       - 需要 auth-web 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web)
       - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)
 
-      固定技能文档 (skill) 查询当前支持 29 个固定文档，分别是：
-      文档名：skills 文档介绍：Unified CloudBase execution guide for all-in-one skill installs. Use this first for CloudBase app tasks, especially existing apps with TODOs, fixed pages, or active handlers. Routes PostgreSQL / CloudBase PG / app.rdb() / queryPgDatabase / managePgDatabase work away from legacy NoSQL and old auth patterns.
-文档名：ai-model-nodejs 文档介绍："Use this skill for Node.js backend AI via @cloudbase/node-sdk (&gt;=3.16.0) — cloud functions, CloudRun, Express, Koa, NestJS, serverless APIs, scheduled jobs, LLM proxies. Only SDK supporting image generation (ai.createImageModel + generateImage). Text models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field of generateText/streamText. MUST run two-step preflight before code — see body. Keywords: backend, 云函数, 云托管, serverless, LLM proxy, agent orchestration, generateText, streamText, generateImage, createModel, hunyuan-image, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat)."
+      固定技能文档 (skill) 查询当前支持 28 个固定文档，分别是：
+      文档名：ai-model-nodejs 文档介绍："Use this skill for Node.js backend AI via @cloudbase/node-sdk (&gt;=3.16.0) — cloud functions, CloudRun, Express, Koa, NestJS, serverless APIs, scheduled jobs, LLM proxies. Only SDK supporting image generation (ai.createImageModel + generateImage). Text models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field of generateText/streamText. MUST run two-step preflight before code — see body. Keywords: backend, 云函数, 云托管, serverless, LLM proxy, agent orchestration, generateText, streamText, generateImage, createModel, hunyuan-image, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat)."
 文档名：ai-model-web 文档介绍："Use this skill when a browser/Web app (React, Vue, Angular, Next, Nuxt, static sites, SPAs, dashboards, AI chat UI) needs AI models via @cloudbase/js-sdk. Default routing for page/页面/Web/前端/frontend/网页/H5 AI — call directly from browser, do NOT propose a Node.js proxy. Covers generateText and streamText. Models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field. MUST run two-step preflight before code — see body. Keywords: 页面, Web, 前端, React, Vue, Next, Nuxt, SPA, AI chat UI, generateText, streamText, createModel, hunyuan-exp, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for Node.js backend (use ai-model-nodejs), Mini Program (use ai-model-wechat), or image generation (Node SDK only)."
 文档名：ai-model-wechat 文档介绍："Use this skill for WeChat Mini Program AI via wx.cloud.extend.AI (小程序, 企业微信小程序, wx.cloud apps). Features generateText and streamText with callbacks (onText, onEvent, onFinish). Models via wx.cloud.extend.AI.createModel with groups hunyuan-exp (小程序成长计划), cloudbase (main managed), or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the data wrapper model field. API differs from JS/Node SDK — streamText needs data wrapper, generateText returns raw response. MUST run two-step preflight before code — see body. Keywords: Mini Program AI, wx.cloud.extend.AI, 小程序成长计划, ai_miniprogram_inspire_plan, Token Credits 资源包, generateText, streamText, createModel, hunyuan-exp, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs)."
 文档名：auth-nodejs-cloudbase 文档介绍：CloudBase Node SDK auth guide for server-side identity, user lookup, and custom login tickets. This skill should be used when Node.js code must read caller identity, inspect end users, or bridge an existing user system into CloudBase; not when configuring providers or building client login UI.
@@ -2038,7 +2047,7 @@ API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
     {
       name: "skillName",
       type: "string",
-      description: `mode=skill 时指定。技能名称。 可填写的值: "skills", "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
+      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
     },
     {
       name: "apiName",
@@ -3326,6 +3335,8 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
 
 ⚠️ 云托管（CloudBase Run）统一走 tcbr service（CreateCloudRunEnv / CreateCloudRunServer / DescribeEnvBaseInfo / DescribeCloudRunEnvs，version="2022-02-17"），tcb 旧小租户接口 CreateCloudBaseRunResource 等已被禁用；部署请用 manageCloudRun。查询单个环境基础信息/是否已开通云托管用 DescribeEnvBaseInfo（EnvId 必填），查询环境列表及资源信息用 DescribeCloudRunEnvs（EnvId 可选过滤）。
 
+⚠️ Region 必须作为本工具顶层参数 `region` 传入（对应 X-TC-Region / 地域 endpoint），不要放进 params。params 里的 Region 会被剥离并当作顶层 region 使用。
+
 销毁环境时，常见做法是至少带上 `EnvId` 和 `BypassCheck: true`，如果环境已经处于隔离期再按文档补 `IsForce: true`。
 
 #### 参数
@@ -3352,7 +3363,12 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
     {
       name: "params",
       type: "object",
-      description: `Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：\`{ "service": "tcb", "action": "DestroyEnv", "params": { "EnvId": "env-xxx", "BypassCheck": true } }\`，如果环境已经处于隔离期，可再补 \`IsForce: true\`；更新环境别名则可用 \`{ "service": "tcb", "action": "ModifyEnv", "params": { "EnvId": "env-xxx", "Alias": "demo" } }\`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode="openapi")，而不是优先使用 callCloudApi。`,
+      description: `Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：\`{ "service": "tcb", "action": "DestroyEnv", "params": { "EnvId": "env-xxx", "BypassCheck": true } }\`，如果环境已经处于隔离期，可再补 \`IsForce: true\`；更新环境别名则可用 \`{ "service": "tcb", "action": "ModifyEnv", "params": { "EnvId": "env-xxx", "Alias": "demo" } }\`。不要把 Region 放进 params（会报 The parameter Region is not recognized）；跨地域请用顶层 region，例如 \`{ "service": "tcb", "action": "DescribeEnvs", "region": "ap-singapore" }\`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode="openapi")，而不是优先使用 callCloudApi。`,
+    },
+    {
+      name: "region",
+      type: "string",
+      description: `云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写入 params.Region。`,
     }
   ]}
 />

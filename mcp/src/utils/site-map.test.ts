@@ -10,6 +10,7 @@ vi.mock("./project-config.js", () => ({
 
 import {
   SITE_REGION_MAP,
+  TCB_QUERY_REGIONS,
   getSite,
   isSiteId,
   normalizeSite,
@@ -21,6 +22,13 @@ describe("site-map mapping table", () => {
   it("should map domestic regions to domestic site", () => {
     expect(getSite("ap-shanghai")).toBe("domestic");
     expect(getSite("ap-guangzhou")).toBe("domestic");
+  });
+
+  it("should keep TCB_QUERY_REGIONS covering SITE_REGION_MAP regions", () => {
+    const mapped = Object.values(SITE_REGION_MAP).flatMap((site) => site.regions);
+    for (const region of mapped) {
+      expect(TCB_QUERY_REGIONS).toContain(region);
+    }
   });
 
   it("should return ambiguous for ap-singapore without explicit site", () => {

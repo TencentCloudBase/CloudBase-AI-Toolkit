@@ -25,6 +25,7 @@
     "sync:codebuddy-marketplace": "node scripts/sync-codebuddy-marketplace.mjs",
     "pack:qoder-plugin": "node scripts/pack-qoder-plugin.mjs",
     "pack:qoder-skill": "node scripts/pack-qoder-skill.mjs",
+    "pack:kimi-plugin": "node scripts/pack-kimi-plugin.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

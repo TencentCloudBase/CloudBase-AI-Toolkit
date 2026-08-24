@@ -169,3 +169,133 @@ describe("queryCloudRun getProcessLog handler", () => {
     expect(manager.cloudrun.getProcessLog).not.toHaveBeenCalled();
   });
 });
+
+const CODING_BUILD_LOG_ERROR =
+  "[DescribeCloudRunBuildLog] User not created or may not qcloud user, please login CODING and try again.";
+
+describe("buildGetDeployLogCodingFallback next_step action union", () => {
+  it("with runId: next_step and nextActions only use getProcessLog (never getDeployLog)", async () => {
+    const { buildGetDeployLogCodingFallback } = await import("./cloudrun.js");
+    const result = buildGetDeployLogCodingFallback({
+      serverName: "svc-a",
+      runId: "run-1",
+      reason: "coding",
+    });
+
+    expect(result.data.next_step.action).toBe("getProcessLog");
+    expect(result.data.next_step.suggested_args.action).toBe("getProcessLog");
+    expect(result.nextActions.map((a) => a.action)).toEqual(["getProcessLog"]);
+    expect(result.nextActions[0]).toMatchObject({
+      tool: "queryCloudRun",
+      action: "getProcessLog",
+      args: {
+        action: "getProcessLog",
+        detailServerName: "svc-a",
+        runId: "run-1",
+      },
+    });
+  });
+
+  it("without runId: next_step is getDeployRecords and nextActions stay on follow-up union", async () => {
+    const { buildGetDeployLogCodingFallback } = await import("./cloudrun.js");
+    const result = buildGetDeployLogCodingFallback({
+      serverName: "svc-b",
+      reason: "image_no_build",
+    });
+
+    expect(result.data.next_step.action).toBe("getDeployRecords");
+    expect(result.data.next_step.suggested_args.action).toBe("getDeployRecords");
+    expect(result.nextActions.map((a) => a.action)).toEqual([
+      "getDeployRecords",
+      "getProcessLog",
+    ]);
+    for (const next of result.nextActions) {
+      expect(next.args.action).toBe(next.action);
+    }
+  });
+});
+
+describe("queryCloudRun getDeployLog CODING fallback", () => {
+  it("rewrites CODING getBuildLog failures to getProcessLog nextActions", async () => {
+    const manager = makeManager({
+      getBuildLog: vi.fn().mockRejectedValue(new Error(CODING_BUILD_LOG_ERROR)),
+    });
+    mockGetCloudBaseManager.mockReturnValue(manager);
+    const { tools } = await createCloudRunTools();
+
+    const res = await tools.queryCloudRun.handler({
+      action: "getDeployLog",
+      detailServerName: "my-svc",
+    });
+    const parsed = parseToolResult(res);
+    const payloadText = JSON.stringify(parsed);
+
+    expect(parsed.success).toBe(false);
+    expect(parsed.error).toBe("CODING_BUILD_LOG_UNAVAILABLE");
+    expect(parsed.message).toMatch(/getProcessLog/);
+    expect(parsed.message).toMatch(/my-svc/);
+    expect(parsed.message).toMatch(/run-latest/);
+    expect(parsed.nextActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          tool: "queryCloudRun",
+          action: "getProcessLog",
+          args: expect.objectContaining({
+            action: "getProcessLog",
+            detailServerName: "my-svc",
+            runId: "run-latest",
+          }),
+        }),
+      ]),
+    );
+    expect(parsed.data.next_step.action).toBe("getProcessLog");
+    expect(payloadText).toMatch(/getProcessLog/);
+    expect(payloadText).not.toBe(JSON.stringify({ success: false, error: CODING_BUILD_LOG_ERROR }));
+    expect(manager.cloudrun.getBuildLog).toHaveBeenCalled();
+    expect(manager.cloudrun.getProcessLog).not.toHaveBeenCalled();
+  });
+
+  it("skips getBuildLog when latest BuildId is 0 (image deploy)", async () => {
+    const manager = makeManager({
+      getDeployRecords: vi.fn().mockResolvedValue({
+        DeployRecords: [
+          {
+            DeployId: "d-image",
+            Status: "normal",
+            RunId: "run-image",
+            BuildId: 0,
+          },
+        ],
+      }),
+    });
+    mockGetCloudBaseManager.mockReturnValue(manager);
+    const { tools } = await createCloudRunTools();
+
+    const res = await tools.queryCloudRun.handler({
+      action: "getDeployLog",
+      detailServerName: "image-svc",
+    });
+    const parsed = parseToolResult(res);
+
+    expect(parsed.success).toBe(false);
+    expect(parsed.error).toBe("NO_CODING_BUILD_FOR_IMAGE_DEPLOY");
+    expect(parsed.nextActions[0].action).toBe("getProcessLog");
+    expect(parsed.nextActions[0].args.runId).toBe("run-image");
+    expect(manager.cloudrun.getBuildLog).not.toHaveBeenCalled();
+  });
+
+  it("does not rewrite unrelated getBuildLog errors", async () => {
+    const manager = makeManager({
+      getBuildLog: vi.fn().mockRejectedValue(new Error("network timeout")),
+    });
+    mockGetCloudBaseManager.mockReturnValue(manager);
+    const { tools } = await createCloudRunTools();
+
+    await expect(
+      tools.queryCloudRun.handler({
+        action: "getDeployLog",
+        detailServerName: "my-svc",
+      }),
+    ).rejects.toThrow("network timeout");
+  });
+});

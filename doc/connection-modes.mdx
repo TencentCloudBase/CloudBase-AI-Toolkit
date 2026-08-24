@@ -71,6 +71,23 @@ CloudBase MCP 支持两种连接方式：**本地模式**（MCP 服务在本机�
 2. `TENCENTCLOUD_SECRETID` + `TENCENTCLOUD_SECRETKEY` — 腾讯云永久/临时密钥
 3. 本地存储的 Device Flow 登录凭证（`~/.config/.cloudbase/auth.json`）
 
+#### 登录模式与查询范围
+
+两种登录的**可见环境范围不同**，这是凭据权限边界，不是环境丢失：
+
+| 登录方式 | `auth(status)` 字段 | 能看到什么 |
+|----------|---------------------|------------|
+| 账号级（device / web / 腾讯云 SecretId） | `credential_scope=account` | 当前地域下账号有权的环境；其他地域需显式查询 |
+| 环境级 API Key（`CLOUDBASE_API_KEY` + `CLOUDBASE_ENV_ID`） | `credential_scope=single_env` | **仅绑定的那一个 envId**，无法列出其他环境或其他地域 |
+
+跨地域查询（仅账号级凭据）：
+
+- MCP：`queryEnv(action="list", region="ap-singapore")`（`envQuery` 同义）
+- MCP 管控面：`callCloudApi(service="tcb", action="DescribeEnvs", region="ap-singapore")`。**不要把 `Region` 放进 `params`**（会报 `The parameter Region is not recognized`）
+- CLI：`tcb env list -r ap-singapore --json`
+
+绑定非当前地域环境：账号级登录下 `auth(action="set_env", envId="<EnvId>")` 不要求 envId 出现在当前地域候选列表中；环境级 API Key 不能改绑到其他 envId。
+
 #### API Key 模式示例
 
 ```json
