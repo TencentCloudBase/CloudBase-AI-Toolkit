@@ -150,6 +150,17 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 6. **CI 主动监控（强制）**：git push 后必须主动监控 CI Pipeline，不能等用户提醒。使用 `gh pr view --json statusCheckRollup` 等待 CI 完成；如果 CI 失败，自动分析日志并修复；CI 全绿后主动告知用户。
 </git_push>
 
+<dependency_upgrade_checklist>
+升级任何依赖（尤其 @cloudbase/manager-node 等运行时依赖）时，必须**三份 lockfile 同步**，缺一不可：
+
+1. 根 `package-lock.json`：CI `nightly-build.yaml` 在根目录执行 `npm ci --ignore-scripts`
+2. `mcp/package-lock.json`：同一 workflow 第二步 `cd mcp && npm ci`（历史遗留 npm lockfile）
+3. `pnpm-lock.yaml`：mcp 开发主 lockfile（用 `pnpm install` 更新）
+
+漏任一份会导致 CI 报 `Invalid: lock file's X does not satisfy Y` 或 `Missing: xxx from lock file`（2026-08-24 PR #952 实测踩坑）。
+提交前自查：`git ls-tree -r origin/main | grep -E "package-lock|pnpm-lock"` 列全所有 lockfile 逐一确认同步，push 后等 `build-and-publish` 转绿再合入。
+</dependency_upgrade_checklist>
+
 <skills_and_rules_maintenance>
 对外暴露的 skills 和规则文件采用「单一语义源 + 自动生成兼容层」的方式维护，具体约定如下：
 
