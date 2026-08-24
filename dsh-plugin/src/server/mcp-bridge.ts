@@ -1,10 +1,26 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { BoundEnvEntry, ListBoundEnvsResult } from "../shared/types.js";
 
-const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+/**
+ * 从编译产物位置向上定位包根（含 package.json 的目录）。
+ * 源码布局是 src/server/（上两级），打包产物布局是 dist/（上一级），
+ * 写死级数会在其中一种布局下指到包外，向上扫描对两种布局都成立。
+ */
+function findPackageRoot(startDir: string): string {
+  let dir = startDir;
+  for (let depth = 0; depth < 6; depth += 1) {
+    if (existsSync(join(dir, "package.json"))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return startDir;
+}
+
+const PACKAGE_ROOT = findPackageRoot(dirname(fileURLToPath(import.meta.url)));
 
 export interface McpClientPatchConfig {
   serverName: string;
