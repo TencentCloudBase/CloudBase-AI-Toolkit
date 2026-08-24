@@ -3,6 +3,7 @@ import {
   assertTcbCloudRunActionAllowed,
   buildCapiErrorMessage,
   removeEmptyStringParams,
+  resolveCloudApiRegionAndParams,
 } from "./capi.js";
 
 describe("buildCapiErrorMessage", () => {
@@ -99,6 +100,43 @@ describe("assertTcbCloudRunActionAllowed", () => {
     expect(() =>
       assertTcbCloudRunActionAllowed("scf", "CreateCloudBaseRunResource"),
     ).not.toThrow();
+  });
+});
+
+describe("resolveCloudApiRegionAndParams", () => {
+  it("prefers top-level region and strips params.Region", () => {
+    expect(
+      resolveCloudApiRegionAndParams({
+        region: "ap-singapore",
+        params: { EnvId: "env-xxx", Region: "ap-shanghai" },
+      }),
+    ).toEqual({
+      region: "ap-singapore",
+      params: { EnvId: "env-xxx" },
+    });
+  });
+
+  it("promotes params.Region when top-level region is omitted", () => {
+    expect(
+      resolveCloudApiRegionAndParams({
+        params: { Region: "ap-singapore" },
+      }),
+    ).toEqual({
+      region: "ap-singapore",
+      params: {},
+    });
+  });
+});
+
+describe("buildCapiErrorMessage region", () => {
+  it("guides callers to top-level region when Region is not recognized", () => {
+    const message = buildCapiErrorMessage(
+      "tcb",
+      "DescribeEnvs",
+      new Error("The parameter Region is not recognized"),
+    );
+    expect(message).toContain("顶层参数 region");
+    expect(message).toContain("X-TC-Region");
   });
 });
 

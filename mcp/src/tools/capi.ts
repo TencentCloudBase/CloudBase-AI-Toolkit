@@ -55,6 +55,26 @@ export function assertTcbCloudRunActionAllowed(service: string, action: string):
     }
 }
 
+export function resolveCloudApiRegionAndParams(args: {
+    region?: string;
+    params?: Record<string, any>;
+}): { region?: string; params: Record<string, any> } {
+    const raw = { ...(args.params ?? {}) };
+    const nestedRegion =
+        typeof raw.Region === "string" && raw.Region.trim()
+            ? raw.Region.trim()
+            : typeof raw.region === "string" && raw.region.trim()
+                ? raw.region.trim()
+                : undefined;
+    delete raw.Region;
+    delete raw.region;
+    const region =
+        (typeof args.region === "string" && args.region.trim()
+            ? args.region.trim()
+            : undefined) || nestedRegion;
+    return { region, params: raw };
+}
+
 function levenshteinDistance(left: string, right: string) {
     const rows = left.length + 1;
     const cols = right.length + 1;
@@ -204,6 +224,12 @@ export function buildCapiErrorMessage(service: AllowedService, action: string, e
         suggestions.push(buildCapiDocGuidance(service));
     }
 
+    if (/parameter\s+`?Region`?\s+is not recognized/i.test(baseMessage)) {
+        suggestions.push(
+            "Region 不是 Action body 参数。请使用 callCloudApi 顶层参数 region（例如 region=\"ap-singapore\"），对应 X-TC-Region。",
+        );
+    }
+
     if (hasParameterError) {
         suggestions.push("请求参数名与 API 定义不一致，请核对参数字段（区分大小写）并移除未支持字段。");
         if (service === "tcb" && tcbEntry) {
@@ -287,6 +313,8 @@ export function registerCapiTools(server: ExtendedMcpServer) {
 
 ⚠️ 云托管（CloudBase Run）统一走 tcbr service（CreateCloudRunEnv / CreateCloudRunServer / DescribeEnvBaseInfo / DescribeCloudRunEnvs，version="2022-02-17"），tcb 旧小租户接口 CreateCloudBaseRunResource 等已被禁用；部署请用 manageCloudRun。查询单个环境基础信息/是否已开通云托管用 DescribeEnvBaseInfo（EnvId 必填），查询环境列表及资源信息用 DescribeCloudRunEnvs（EnvId 可选过滤）。
 
+⚠️ Region 必须作为本工具顶层参数 \`region\` 传入（对应 X-TC-Region / 地域 endpoint），不要放进 params。params 里的 Region 会被剥离并当作顶层 region 使用。
+
 销毁环境时，常见做法是至少带上 \`EnvId\` 和 \`BypassCheck: true\`，如果环境已经处于隔离期再按文档补 \`IsForce: true\`。`,
             inputSchema: {
                 service: z
@@ -306,7 +334,13 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                     .record(z.any())
                     .optional()
                     .describe(
-                        "Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：`{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }`，如果环境已经处于隔离期，可再补 `IsForce: true`；更新环境别名则可用 `{ \"service\": \"tcb\", \"action\": \"ModifyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"Alias\": \"demo\" } }`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
+                        "Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：`{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }`，如果环境已经处于隔离期，可再补 `IsForce: true`；更新环境别名则可用 `{ \"service\": \"tcb\", \"action\": \"ModifyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"Alias\": \"demo\" } }`。不要把 Region 放进 params（会报 The parameter Region is not recognized）；跨地域请用顶层 region，例如 `{ \"service\": \"tcb\", \"action\": \"DescribeEnvs\", \"region\": \"ap-singapore\" }`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
+                    ),
+                region: z
+                    .string()
+                    .optional()
+                    .describe(
+                        "云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写入 params.Region。",
                     ),
             },
             annotations: {
@@ -322,11 +356,13 @@ export function registerCapiTools(server: ExtendedMcpServer) {
             action,
             params,
             version,
+            region,
         }: {
             service: AllowedService;
             action: string;
             params?: Record<string, any>;
             version?: string;
+            region?: string;
         }) => {
             if (!ALLOWED_SERVICES.includes(service)) {
                 throw new Error(
@@ -336,7 +372,13 @@ export function registerCapiTools(server: ExtendedMcpServer) {
 
             assertTcbCloudRunActionAllowed(service, action);
 
-            const cloudbase = await getManager();
+            const { region: resolvedRegion, params: bodyParams } =
+                resolveCloudApiRegionAndParams({ region, params });
+            const cloudbase = await getCloudBaseManager({
+                cloudBaseOptions: resolvedRegion
+                    ? { ...cloudBaseOptions, region: resolvedRegion }
+                    : cloudBaseOptions,
+            });
             if (['1', 'true'].includes(process.env.CLOUDBASE_EVALUATE_MODE ?? '')) {
                 if (service === 'lowcode') {
                     throw new Error(`${service}/${action} Cloud API is not exposed or does not exist. Please use another API.`);
@@ -371,7 +413,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
 
             let result: unknown;
             try {
-                const cleanedParams = params ? removeEmptyStringParams(params) : {};
+                const cleanedParams = removeEmptyStringParams(bodyParams);
                 result = await cloudbase.commonService(service, version).call({
                     Action: action,
                     Param: cleanedParams,

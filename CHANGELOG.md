@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+## [2.31.0](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.30.1...v2.31.0) (2026-08-20)
+
+### Bug Fixes
+
+* **cloudrun**: rewrite getDeployLog (DescribeCloudRunBuildLog) CODING-login / image-deploy failures to `getProcessLog` / `getDeployRecords` next steps instead of bubbling raw English errors
+
+## [2.30.1](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.30.0...v2.30.1) (2026-08-20)
+
+### Code Refactoring
+
+* **kimi**: assemble sibling skills into `cloudbase/references` inside the plugin zip, keeping the archive self-contained and in sync with the manifest contract
+
+## [2.30.0](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.29.0...v2.30.0) (2026-08-20)
+
+### Features
+
+* **mcp**: support cross-region env query and expose credential boundary for auth/env tools
+
+### Code Refactoring
+
+* **mcp**: drop redundant `login_mode`, keep `credential_scope` as the credential boundary signal
+* **kimi**: whitelist-only plugin zip with a version-free asset name
+
+## [2.29.0](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.28.1...v2.29.0) (2026-08-20)
+
+### Features
+
+* **kimi**: add Kimi Code plugin manifest reusing shared CloudBase skills and MCP assets
+* **kimi**: pack Kimi plugin zip and attach it to GitHub Release assets on publish
+
+### Bug Fixes
+
+* **kimi**: align manifest with Kimi official docs (`INTEGRATION_IDE=Kimi`), pin MCP package version, and drop unsupported skill-inject hooks
+* **kimi**: load a single routing skill via `searchKnowledgeBase` instead of shipping 29 skills
+* **kimi**: prefer MCP `auth` device-code login and remove tcb CLI from skillInstructions
+
+### Documentation
+
+* **kimi**: rewrite plugin interface copy for scenarios and permissions; align with Vercel/Supabase Codex plugin patterns
+
 ## [2.28.1](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.28.0...v2.28.1) (2026-08-18)
 
 ### Bug Fixes

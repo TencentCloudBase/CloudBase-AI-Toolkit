@@ -1,0 +1,66 @@
+name: Release Plugin Zips
+
+on:
+  # Attach plugin zips to every published release.
+  release:
+    types: [published]
+  # Manual backfill: attach plugin zips to an existing release.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach plugin zips (e.g. v2.28.1)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  pack-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [[ -n "${{ github.event.release.tag_name }}" ]]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      # Whitelist of plugin/skill zips attached to every release.
+      # All zips share the version-free asset naming (release tag carries the
+      # version, so zip-urls stay stable across releases):
+      #   - cloudbase-kimi.zip    Kimi Code / Kimi Work plugin (self-contained routing skill)
+      #   - cloudbase-qoder.zip   Qoder / QoderWork plugin (full plugin dir)
+      #   - cloudbase-skill.zip   QoderWork entry skill (skills/cloudbase)
+      # IDE plugins that already ship through dedicated repos/marketplaces
+      # (.claude-plugin, .cursor-plugin, .codex-plugin, .plugin) are NOT zipped here.
+      - name: Pack Kimi plugin zip
+        run: node scripts/pack-kimi-plugin.mjs
+
+      - name: Pack Qoder plugin zip
+        run: node scripts/pack-qoder-plugin.mjs
+
+      - name: Pack Qoder skill zip
+        run: node scripts/pack-qoder-skill.mjs
+
+      - name: Verify release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "${{ steps.tag.outputs.tag }}" --json tagName >/dev/null
+
+      - name: Upload plugin zips to release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ steps.tag.outputs.tag }}" dist/*.zip --clobber

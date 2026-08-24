@@ -31,6 +31,7 @@ const {
   mockEnvManagerSetEnvId,
   mockGetCachedEnvId,
   mockListAvailableEnvCandidates,
+  mockResolveEnvCandidateByEnvId,
   mockGetCloudBaseManager,
   mockResetCloudBaseManagerCache,
   mockResolveAuthOptions,
@@ -90,6 +91,7 @@ const {
   mockEnvManagerSetEnvId: vi.fn(),
   mockGetCachedEnvId: vi.fn(),
   mockListAvailableEnvCandidates: vi.fn(),
+  mockResolveEnvCandidateByEnvId: vi.fn(),
   mockGetCloudBaseManager: vi.fn(),
   mockResetCloudBaseManagerCache: vi.fn(),
   mockCheckAndInitTcbService: vi.fn(),
@@ -149,6 +151,7 @@ vi.mock("../cloudbase-manager.js", () => ({
   getCachedEnvId: mockGetCachedEnvId,
   getCloudBaseManager: mockGetCloudBaseManager,
   listAvailableEnvCandidates: mockListAvailableEnvCandidates,
+  resolveEnvCandidateByEnvId: mockResolveEnvCandidateByEnvId,
   logCloudBaseResult: vi.fn(),
   resetCloudBaseManagerCache: mockResetCloudBaseManagerCache,
 }));
@@ -177,6 +180,7 @@ function createMockServer(ide = "TestIDE", authOptions?: any) {
     ide,
     server: {
       sendLoggingMessage: vi.fn(),
+      notification: vi.fn().mockResolvedValue(undefined),
     },
     registerTool: vi.fn(
       (name: string, meta: any, handler: (args: any) => Promise<any>) => {
@@ -196,12 +200,15 @@ function createMockServer(ide = "TestIDE", authOptions?: any) {
 describe("env tools - auth", () => {
   let tools: ReturnType<typeof createMockServer>["tools"];
   const originalCloudbaseEnvId = process.env.CLOUDBASE_ENV_ID;
+  const originalTcbRegion = process.env.TCB_REGION;
+  const originalApiKey = process.env.CLOUDBASE_API_KEY;
 
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.CLOUDBASE_ENV_ID;
     mockGetCachedEnvId.mockReturnValue(null);
     mockListAvailableEnvCandidates.mockResolvedValue([]);
+    mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);
     mockGetAuthProgressState.mockResolvedValue({
       status: "IDLE",
       updatedAt: Date.now(),
@@ -244,10 +251,19 @@ describe("env tools - auth", () => {
   afterEach(() => {
     if (originalCloudbaseEnvId === undefined) {
       delete process.env.CLOUDBASE_ENV_ID;
-      return;
+    } else {
+      process.env.CLOUDBASE_ENV_ID = originalCloudbaseEnvId;
     }
-
-    process.env.CLOUDBASE_ENV_ID = originalCloudbaseEnvId;
+    if (originalTcbRegion === undefined) {
+      delete process.env.TCB_REGION;
+    } else {
+      process.env.TCB_REGION = originalTcbRegion;
+    }
+    if (originalApiKey === undefined) {
+      delete process.env.CLOUDBASE_API_KEY;
+    } else {
+      process.env.CLOUDBASE_API_KEY = originalApiKey;
+    }
   });
 
   it("should expose auth tool and remove standalone logout tool", () => {
@@ -275,6 +291,8 @@ describe("env tools - auth", () => {
       tool: "auth",
       action: "start_auth",
     });
+    expect(payload.credential_scope).toBe("account");
+    expect(payload.current_region).toBeTruthy();
   });
 
   it("auth(action=get_temp_credentials) should require explicit confirmation", async () => {
@@ -462,6 +480,7 @@ describe("env tools - auth", () => {
       secretKey: "skey",
     });
     mockListAvailableEnvCandidates.mockResolvedValue([]);
+    mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);
     mockCheckAndCreateFreeEnv.mockImplementation(async (_manager: any, context: any) => ({
       success: true,
       envId: "env-created",
@@ -498,6 +517,7 @@ describe("env tools - auth", () => {
       secretKey: "skey",
     });
     mockListAvailableEnvCandidates.mockResolvedValue([]);
+    mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);
     mockCheckAndInitTcbService.mockImplementation(async (_manager: any, context: any) => ({
       ...context,
       checkTcbServiceAttempted: true,
@@ -537,6 +557,7 @@ describe("env tools - auth", () => {
       secretKey: "skey",
     });
     mockListAvailableEnvCandidates.mockResolvedValue([]);
+    mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);
 
     const result = await tools.auth.handler({ action: "status" });
     const payload = JSON.parse(result.content[0].text);
@@ -680,6 +701,7 @@ describe("env tools - auth", () => {
       secretKey: "skey",
     });
     mockListAvailableEnvCandidates.mockResolvedValue([]);
+    mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);
     mockCheckAndCreateFreeEnv.mockImplementation(async (_manager: any, context: any) => ({
       success: true,
       envId: "env-web-created",
@@ -716,7 +738,8 @@ describe("env tools - auth", () => {
       },
     ]);
 
-    const result = await tools.auth.handler({
+    const { server, tools: localTools } = createMockServer();
+    const result = await localTools.auth.handler({
       action: "set_env",
       envId: "env-test",
     });
@@ -727,6 +750,69 @@ describe("env tools - auth", () => {
     expect(payload.next_step).toBeUndefined();
     expect(payload.env_candidates).toBeUndefined();
     expect(mockEnvManagerSetEnvId).toHaveBeenCalledWith("env-test");
+    // set_env 成功时应推送跨客户端环境变更通知（替代客户端兜底轮询）
+    expect(server.server.notification).toHaveBeenCalledWith({
+      method: "notifications/cloudbase/env_changed",
+      params: { envId: "env-test" },
+    });
+  });
+
+  it("auth(action=set_env) should bind envId outside current-region candidates", async () => {
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+    });
+    mockListAvailableEnvCandidates.mockResolvedValue([
+      { envId: "env-shanghai", alias: "sh", region: "ap-shanghai" },
+    ]);
+    mockResolveEnvCandidateByEnvId.mockResolvedValue({
+      envId: "alfred-test-sg-d7gxpjc7g94e84f6c",
+      alias: "sg",
+      region: "ap-singapore",
+    });
+
+    const { tools: localTools, server } = createMockServer();
+    const result = await localTools.auth.handler({
+      action: "set_env",
+      envId: "alfred-test-sg-d7gxpjc7g94e84f6c",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      code: "ENV_READY",
+      current_env_id: "alfred-test-sg-d7gxpjc7g94e84f6c",
+      current_region: "ap-singapore",
+    });
+    expect(mockEnvManagerSetEnvId).toHaveBeenCalledWith("alfred-test-sg-d7gxpjc7g94e84f6c");
+    expect(server.cloudBaseOptions?.region).toBe("ap-singapore");
+    expect(process.env.TCB_REGION).toBe("ap-singapore");
+  });
+
+  it("auth(action=set_env) should reject other envIds in API Key mode", async () => {
+    process.env.CLOUDBASE_API_KEY = "test-api-key";
+    process.env.CLOUDBASE_ENV_ID = "env-pinned";
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+    });
+    mockListAvailableEnvCandidates.mockResolvedValue([
+      { envId: "env-pinned" },
+    ]);
+
+    const result = await tools.auth.handler({
+      action: "set_env",
+      envId: "env-other",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      ok: false,
+      code: "CREDENTIAL_SCOPE_LIMITED",
+      credential_scope: "single_env",
+    });
+    expect(payload.message).toContain("凭据权限边界");
+    expect(mockEnvManagerSetEnvId).not.toHaveBeenCalled();
+    delete process.env.CLOUDBASE_API_KEY;
   });
 
   it("auth(action=logout) should clear session state", async () => {
@@ -930,6 +1016,7 @@ describe("env tools - envQuery", () => {
     delete process.env.CLOUDBASE_ENV_ID;
     mockGetCachedEnvId.mockReturnValue(null);
     mockListAvailableEnvCandidates.mockResolvedValue([]);
+    mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);
     mockGetAuthProgressState.mockResolvedValue({
       status: "IDLE",
       updatedAt: Date.now(),
@@ -1017,6 +1104,7 @@ describe("env tools - envQuery", () => {
       fields: ["EnvId", "Alias"],
       currentEnvOnly: false,
     });
+    expect(payload.credential_scope).toBe("account");
   });
 
   it("envQuery(list) should support exact alias filtering when requested", async () => {
@@ -1100,6 +1188,56 @@ describe("env tools - envQuery", () => {
       tool: "queryEnv",
       action: "info",
     });
+  });
+
+  it("envQuery(list) should pass region through to CloudBase manager", async () => {
+    const commonServiceCall = vi.fn().mockResolvedValue({
+      EnvList: [
+        {
+          EnvId: "alfred-test-sg-d7gxpjc7g94e84f6c",
+          Alias: "sg",
+          Region: "ap-singapore",
+          Status: "NORMAL",
+        },
+      ],
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      commonService: vi.fn(() => ({
+        call: commonServiceCall,
+      })),
+      env: {
+        listEnvs: vi.fn(),
+      },
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.queryEnv.handler({
+      action: "list",
+      region: "ap-singapore",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockGetCloudBaseManager).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requireEnvId: false,
+        cloudBaseOptions: expect.objectContaining({
+          region: "ap-singapore",
+        }),
+      }),
+    );
+    expect(payload.EnvList[0].EnvId).toBe("alfred-test-sg-d7gxpjc7g94e84f6c");
+    expect(payload.AppliedFilters.region).toBe("ap-singapore");
+    expect(payload.AppliedFilters.currentEnvOnly).toBe(false);
+    expect(payload.query_region).toBe("ap-singapore");
+  });
+
+  it("queryEnv schema should expose region enum for list", async () => {
+    const { tools } = createMockServer();
+    expect(tools.queryEnv.meta.inputSchema.region.unwrap().options).toEqual([
+      "ap-shanghai",
+      "ap-guangzhou",
+      "ap-singapore",
+    ]);
   });
 
   it("envQuery(list) should use DescribeEnvInfo when CLOUDBASE_ENV_ID is set", async () => {

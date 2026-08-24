@@ -302,9 +302,27 @@ export type CloudRunDeployRegistration = {
   waitMs: number;
 };
 
+export type CloudRunDeployNextStepAction =
+  | "getDeployLog"
+  | "getProcessLog"
+  | "getDeployRecords";
+
+/**
+ * Follow-up next_step after getDeployLog is unavailable (CODING login / image
+ * deploy). Must never suggest getDeployLog again.
+ */
+export type CloudRunDeployFollowUpAction = "getProcessLog" | "getDeployRecords";
+
 export type CloudRunDeployNextStep = {
   tool: "queryCloudRun";
-  action: "getDeployLog" | "getProcessLog" | "getDeployRecords";
+  action: CloudRunDeployNextStepAction;
+  suggested_args: Record<string, string | number>;
+  note?: string;
+};
+
+export type CloudRunDeployFollowUpNextStep = {
+  tool: "queryCloudRun";
+  action: CloudRunDeployFollowUpAction;
   suggested_args: Record<string, string | number>;
   note?: string;
 };
@@ -319,6 +337,110 @@ export function isValidCloudRunBuildId(value: unknown): value is number {
 
 export function isValidCloudRunRunId(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * DescribeCloudRunBuildLog / getBuildLog fails when the Tencent Cloud account
+ * has no CODING user. Agents should switch to getProcessLog (RunId) instead of
+ * retrying getDeployLog.
+ */
+export function isCloudRunCodingBuildLogError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /DescribeCloudRunBuildLog|please login CODING|login CODING|User not created or may not qcloud user/i.test(
+    message,
+  );
+}
+
+export type CloudRunGetProcessLogNextAction = {
+  tool: "queryCloudRun";
+  action: CloudRunDeployFollowUpAction;
+  args: {
+    action: CloudRunDeployFollowUpAction;
+    detailServerName: string;
+    runId?: string;
+  };
+};
+
+export function buildGetDeployLogCodingFallback(options: {
+  serverName: string;
+  runId?: string;
+  upstreamError?: string;
+  reason: "coding" | "image_no_build";
+}): {
+  success: false;
+  error: string;
+  message: string;
+  nextActions: CloudRunGetProcessLogNextAction[];
+  data: {
+    runId?: string;
+    next_step: CloudRunDeployFollowUpNextStep;
+    upstreamError?: string;
+  };
+} {
+  const runId = isValidCloudRunRunId(options.runId) ? options.runId.trim() : undefined;
+  // Narrow to follow-up actions only — never suggest getDeployLog again.
+  const next_step: CloudRunDeployFollowUpNextStep = runId
+    ? {
+        tool: "queryCloudRun",
+        action: "getProcessLog",
+        suggested_args: {
+          action: "getProcessLog",
+          detailServerName: options.serverName,
+          runId,
+        },
+        note: "getDeployLog needs CODING / DescribeCloudRunBuildLog. Use getProcessLog for deploy-step and runtime logs.",
+      }
+    : {
+        tool: "queryCloudRun",
+        action: "getDeployRecords",
+        suggested_args: {
+          action: "getDeployRecords",
+          detailServerName: options.serverName,
+        },
+        note: "Read latestDeploy.RunId from getDeployRecords, then queryCloudRun(action=\"getProcessLog\"). Skip retrying getDeployLog for CODING login errors.",
+      };
+
+  const nextActions: CloudRunGetProcessLogNextAction[] = [
+    {
+      tool: "queryCloudRun",
+      action: next_step.action,
+      args: {
+        action: next_step.action,
+        detailServerName: options.serverName,
+        ...(runId ? { runId } : {}),
+      },
+    },
+  ];
+  if (next_step.action === "getDeployRecords") {
+    nextActions.push({
+      tool: "queryCloudRun",
+      action: "getProcessLog",
+      args: {
+        action: "getProcessLog",
+        detailServerName: options.serverName,
+      },
+    });
+  }
+
+  const message =
+    options.reason === "image_no_build"
+      ? `Service '${options.serverName}' has no cloud source build (BuildId=0). Skip getDeployLog; use queryCloudRun(action="getProcessLog"${runId ? `, runId="${runId}"` : ""}) for deploy-step and runtime logs.`
+      : `getDeployLog (DescribeCloudRunBuildLog) failed because this account is not a CODING user. Do not retry getDeployLog. Use queryCloudRun(action="getProcessLog", detailServerName="${options.serverName}"${runId ? `, runId="${runId}"` : ""}) — RunId comes from getDeployRecords/latestDeploy.`;
+
+  return {
+    success: false,
+    error:
+      options.reason === "image_no_build"
+        ? "NO_CODING_BUILD_FOR_IMAGE_DEPLOY"
+        : "CODING_BUILD_LOG_UNAVAILABLE",
+    message,
+    nextActions,
+    data: {
+      ...(runId ? { runId } : {}),
+      next_step,
+      ...(options.upstreamError ? { upstreamError: options.upstreamError } : {}),
+    },
+  };
 }
 
 function extractServerManageTaskInfo(resp: unknown): {
@@ -1168,13 +1290,62 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
             }
 
             const buildId = input.buildId ?? latestDeploy.BuildId;
+            const latestRunId = isValidCloudRunRunId(latestDeploy.RunId)
+              ? latestDeploy.RunId.trim()
+              : undefined;
+
+            // Image deploys typically have BuildId=0 and no CODING build.
+            if (!isValidCloudRunBuildId(buildId)) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify(
+                      buildGetDeployLogCodingFallback({
+                        serverName,
+                        runId: latestRunId,
+                        reason: "image_no_build",
+                      }),
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+              };
+            }
+
             // Build log (CODING / DescribeCloudRunBuildLog). Meaningful only for
-            // cloud source builds; image deploys have no build process. Accounts
-            // without a CODING user may fail here — use getProcessLog for runtime logs.
-            const buildLogResult: any = await cloudrunService.getBuildLog({
-              serverName,
-              buildId,
-            });
+            // cloud source builds. Accounts without a CODING user fail here —
+            // rewrite to getProcessLog instead of bubbling the raw English error.
+            let buildLogResult: unknown;
+            try {
+              buildLogResult = await cloudrunService.getBuildLog({
+                serverName,
+                buildId,
+              });
+            } catch (error) {
+              if (isCloudRunCodingBuildLogError(error)) {
+                const upstreamError = error instanceof Error ? error.message : String(error);
+                return {
+                  content: [
+                    {
+                      type: "text",
+                      text: JSON.stringify(
+                        buildGetDeployLogCodingFallback({
+                          serverName,
+                          runId: latestRunId,
+                          upstreamError,
+                          reason: "coding",
+                        }),
+                        null,
+                        2,
+                      ),
+                    },
+                  ],
+                };
+              }
+              throw error;
+            }
 
             let processLogs: unknown[] = [];
             let processLogsWarning: string | undefined;
@@ -1190,7 +1361,11 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
               }
             }
 
-            const buildLogText = typeof buildLogResult?.Log?.Text === 'string' ? buildLogResult.Log.Text : '';
+            const buildLogRecord =
+              buildLogResult && typeof buildLogResult === "object"
+                ? (buildLogResult as { Log?: { Text?: string } })
+                : undefined;
+            const buildLogText = typeof buildLogRecord?.Log?.Text === 'string' ? buildLogRecord.Log.Text : '';
             const processLogText = Array.isArray(processLogs) && processLogs.length > 0 ? normalizeProcessLogText(processLogs) : '';
             const combinedLogText = [buildLogText, processLogText].filter(Boolean).join('\n');
 
@@ -1203,7 +1378,7 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
                     data: {
                       buildId,
                       deployRecord: latestDeploy,
-                      buildLog: buildLogResult?.Log || null,
+                      buildLog: buildLogRecord?.Log || null,
                       // Optional best-effort attach; prefer dedicated getProcessLog for runtime diagnosis
                       processLogs,
                       combinedLogText,

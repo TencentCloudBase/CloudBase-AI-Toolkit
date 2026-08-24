@@ -97,16 +97,19 @@ export function apply(ctx: SlotHost): void {
     registerNamedSlot(ctx, slotName, "cloudbase-details", Panel, { priority: -10 });
   }
 
+  // Always open details so unsigned users see the login card (Device code / API Key).
+  // Gating on signedIn left no entry point when authStatus fails or returns unsigned.
   void getDataService(ctx)
     ?.authStatus()
-    .then((status) => {
-      if (status.signedIn) openDetails(ctx);
+    .then(() => {
+      openDetails(ctx);
     })
     .catch((error: unknown) => {
       console.warn(
-        "[cloudbase] details auto-open skipped:",
+        "[cloudbase] authStatus probe failed; still opening details for login:",
         error instanceof Error ? error.message : String(error),
       );
+      openDetails(ctx);
     });
 }
 

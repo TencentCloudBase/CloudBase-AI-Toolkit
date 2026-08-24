@@ -13,7 +13,9 @@ describe("cordis patch contract", () => {
     expect(patch).not.toContain("CLOUDBASE_ENV_ID");
     expect(patch).not.toContain("CLOUDBASE_API_KEY");
     expect(patch).not.toMatch(/TENCENTCLOUD_SECRET/);
-    expect(patch).not.toMatch(/!!js/);
+    // !!js 表达式仅允许用于路径解析（baseUrl 锚定包真实安装位置），
+    // 禁止把进程环境变量注入 MCP 子进程（凭据泄漏通道）。
+    expect(patch).not.toMatch(/!!js.*process\.env/);
   });
 
   it("ships a 0-runtime-dep package with DSH compat range", () => {

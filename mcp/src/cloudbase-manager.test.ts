@@ -528,3 +528,51 @@ describe("cloudbase manager auth gate", () => {
     await expect(getEnvId()).resolves.toBe("env-picked");
   });
 });
+
+describe("listAvailableEnvCandidates region scope", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    delete process.env.CLOUDBASE_ENV_ID;
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      token: "token",
+    });
+    mockCommonServiceCall.mockResolvedValue({
+      EnvList: [
+        { EnvId: "env-sg", Alias: "sg", Region: "ap-singapore", Status: "NORMAL" },
+      ],
+    });
+  });
+
+  it("should pass region override into CloudBase manager", async () => {
+    const { listAvailableEnvCandidates } = await import("./cloudbase-manager.js");
+    const result = await listAvailableEnvCandidates({
+      ignorePinnedEnvId: true,
+      region: "ap-singapore",
+    });
+
+    expect(mockCloudBaseCtor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        region: "ap-singapore",
+      }),
+    );
+    expect(result).toEqual([
+      expect.objectContaining({
+        envId: "env-sg",
+        region: "ap-singapore",
+      }),
+    ]);
+  });
+
+  it("should ignore pinned CLOUDBASE_ENV_ID when requested", async () => {
+    process.env.CLOUDBASE_ENV_ID = "env-pinned";
+    const { listAvailableEnvCandidates } = await import("./cloudbase-manager.js");
+    const result = await listAvailableEnvCandidates({
+      ignorePinnedEnvId: true,
+      region: "ap-singapore",
+    });
+    expect(result.map((item) => item.envId)).toEqual(["env-sg"]);
+  });
+});

@@ -8,7 +8,7 @@ import {
 import { CloudBaseOptions, Logger } from './types.js';
 import { debug, error } from './utils/logger.js';
 import { buildAuthNextStep, throwToolPayloadError } from './utils/tool-result.js';
-import { resolveSiteAndRegion } from './utils/site-map.js';
+import { resolveSiteAndRegion, TCB_QUERY_REGIONS } from './utils/site-map.js';
 
 // Timeout for envId auto-resolution flow.
 // 10 minutes (600 seconds) - matches InteractiveServer timeout
@@ -52,34 +52,50 @@ function createManagerFromLoginState(loginState: any, region?: string): CloudBas
 export async function listAvailableEnvCandidates(options?: {
     cloudBaseOptions?: CloudBaseOptions;
     loginState?: any;
+    region?: string;
+    ignorePinnedEnvId?: boolean;
 }): Promise<EnvCandidate[]> {
-    const { cloudBaseOptions, loginState: providedLoginState } = options ?? {};
+    const {
+        cloudBaseOptions,
+        loginState: providedLoginState,
+        region: regionOverride,
+        ignorePinnedEnvId,
+    } = options ?? {};
 
-    // 优先使用显式传入的 envId
-    if (cloudBaseOptions?.envId) {
-        return [{
-            envId: cloudBaseOptions.envId,
-        }];
+    if (!ignorePinnedEnvId) {
+        // Prefer an explicit envId pin (bound session / API Key).
+        if (cloudBaseOptions?.envId) {
+            return [{
+                envId: cloudBaseOptions.envId,
+                region: cloudBaseOptions.region,
+            }];
+        }
+
+        // When CLOUDBASE_ENV_ID is set and credentials are not explicit, skip DescribeEnvs.
+        const hasExplicitCredentials = !!(cloudBaseOptions?.secretId && cloudBaseOptions?.secretKey);
+        if (process.env.CLOUDBASE_ENV_ID && !hasExplicitCredentials) {
+            return [{
+                envId: process.env.CLOUDBASE_ENV_ID,
+            }];
+        }
     }
 
-    // 当环境变量设置了 CLOUDBASE_ENV_ID 且没有显式 credentials 时，直接返回（避免调 DescribeEnvs）
-    // 有显式 credentials 时需要重新查询，因为可能是不同账号
-    const hasExplicitCredentials = !!(cloudBaseOptions?.secretId && cloudBaseOptions?.secretKey);
-    if (process.env.CLOUDBASE_ENV_ID && !hasExplicitCredentials) {
-        return [{
-            envId: process.env.CLOUDBASE_ENV_ID,
-        }];
-    }
+    const region = resolveSiteAndRegion({
+        ...(cloudBaseOptions ?? {}),
+        ...(regionOverride ? { region: regionOverride } : {}),
+    }).region;
 
     let cloudbase: CloudBase | undefined;
     if (cloudBaseOptions?.secretId && cloudBaseOptions?.secretKey) {
-        cloudbase = createCloudBaseManagerWithOptions(cloudBaseOptions);
+        cloudbase = createCloudBaseManagerWithOptions({
+            ...cloudBaseOptions,
+            region,
+        });
     } else {
         const loginState = providedLoginState ?? await peekLoginState();
         if (!loginState?.secretId || !loginState?.secretKey) {
             return [];
         }
-        const region = resolveSiteAndRegion(cloudBaseOptions ?? {}).region;
         cloudbase = createManagerFromLoginState(loginState, region);
     }
 
@@ -102,6 +118,47 @@ export async function listAvailableEnvCandidates(options?: {
             return [];
         }
     }
+}
+
+/**
+ * Look up an envId across known TCB regions. Used by set_env so a Singapore
+ * env can be bound even when the current session region is ap-shanghai.
+ */
+export async function resolveEnvCandidateByEnvId(options: {
+    envId: string;
+    cloudBaseOptions?: CloudBaseOptions;
+    loginState?: any;
+}): Promise<EnvCandidate | undefined> {
+    const { envId, cloudBaseOptions, loginState } = options;
+    const seenRegions = new Set<string>();
+    const regionsToProbe = [
+        resolveSiteAndRegion({
+            ...(cloudBaseOptions ?? {}),
+        }).region,
+        ...TCB_QUERY_REGIONS,
+    ];
+
+    for (const region of regionsToProbe) {
+        if (seenRegions.has(region)) {
+            continue;
+        }
+        seenRegions.add(region);
+        const candidates = await listAvailableEnvCandidates({
+            cloudBaseOptions,
+            loginState,
+            region,
+            ignorePinnedEnvId: true,
+        });
+        const matched = candidates.find((item) => item.envId === envId);
+        if (matched) {
+            return {
+                ...matched,
+                region: matched.region || region,
+            };
+        }
+    }
+
+    return undefined;
 }
 
 function throwAuthRequiredError() {
