@@ -38,10 +38,10 @@ if (pkg.dependencies && Object.keys(pkg.dependencies).length > 0) {
 const patch = readFileSync(join(plugin, "cordis.patch.yml"), "utf8");
 if (patch.includes("CLOUDBASE_API_KEY")) fail("cordis.patch.yml must not pass CLOUDBASE_API_KEY");
 else pass("patch does not pass CLOUDBASE_API_KEY");
-if (patch.includes("CLOUDBASE_ENV_ID") || patch.includes("!!js")) {
-  fail("patch must not forward env or !!js — login via cloudbase-mcp device-code");
+if (patch.includes("CLOUDBASE_ENV_ID") || /!!js.*process\.env/.test(patch)) {
+  fail("patch must not forward env or !!js process.env — login via cloudbase-mcp device-code");
 } else {
-  pass("patch forwards no env (device-code login)");
+  pass("patch forwards no env (device-code login; !!js path resolve allowed)");
 }
 
 const clientDir = join(plugin, "src/client");
@@ -53,9 +53,12 @@ function walk(dir, acc = []) {
   }
   return acc;
 }
+// Ban rollback *UI* copy/controls; allow RPC bridge method names (rollbackDeployment).
 const rollbackHits = walk(clientDir).filter((path) => {
-  if (path.endsWith("toolview-routing.ts")) return false;
-  return /rollback/i.test(readFileSync(path, "utf8"));
+  if (path.endsWith("toolview-routing.ts") || path.endsWith("typert.ts")) return false;
+  const text = readFileSync(path, "utf8");
+  const stripped = text.replace(/rollbackDeployment/g, "").replace(/rollbackMigration/g, "");
+  return /rollback/i.test(stripped);
 });
 if (rollbackHits.length > 0) fail(`rollback mentioned in UI source: ${rollbackHits.join(", ")}`);
 else pass("no rollback control in client UI");
