@@ -11,8 +11,8 @@ import { join } from "node:path";
 const MCP_PACKAGE = "@cloudbase/cloudbase-mcp@latest";
 
 /**
- * Prefer ~/.npm/_npx/*/node_modules/.bin/cloudbase-mcp over live npx.
- * npx version checks hang on poor networks and block the bridge.
+ * Prefer a cached bin under ~/.npm/_npx/<hash>/node_modules/.bin/cloudbase-mcp
+ * over live npx. npx version checks hang on poor networks and block the bridge.
  */
 function findCachedCloudbaseMcpBin() {
   const npxRoot = join(homedir(), ".npm", "_npx");
