@@ -39,12 +39,30 @@ import {
 
 type ViewId = "backend" | "preview";
 
-/** Kept for reference; renderRoute now uses real page components. */
+const ROUTE_MCP_HINTS: Record<string, string> = {
+  auth: "mcp__cloudbase__queryAppAuth / manageAppAuth（用户列表、禁用启用）",
+  gateway: "mcp__cloudbase__queryGateway / manageGateway（路由 CRUD、域名）",
+  logs: "mcp__cloudbase__queryLogs（CLS 检索；未开通时返回友好说明）",
+  database: "mcp__cloudbase__queryPgDatabase / executeReadOnlySQL",
+  storage: "mcp__cloudbase__queryStorage / manageStorage",
+  functions: "mcp__cloudbase__queryFunctions / manageFunctions",
+  cloudrun: "mcp__cloudbase__queryCloudRun / manageCloudRun",
+  hosting: "mcp__cloudbase__queryHosting / manageHosting",
+  settings: "mcp__cloudbase__queryEnv / manageEnv / queryAppAuth",
+  overview: "mcp__cloudbase__queryEnv action=info",
+};
+
+/**
+ * Fallback stub when a menu has no wired page yet.
+ * Guides the operator to the matching cloudbase-mcp tools instead of a dead end.
+ */
 export function NotImplementedRoute({ route }: { route: string }): React.ReactElement {
+  const hint = ROUTE_MCP_HINTS[route] ?? "mcp__cloudbase__*（见 cloudbase-mcp 工具列表）";
   return (
     <div className="cb-kit-page">
       <div className="cb-kit-empty">
-        <strong>{route}</strong> 模块正在开发中，后续版本提供
+        <strong>{route}</strong> 面板暂未就地实现。请在对话中调用：
+        <code style={{ display: "block", marginTop: 8 }}>{hint}</code>
       </div>
     </div>
   );
@@ -297,7 +315,7 @@ export function DetailsPanel(props: DetailsPanelProps): React.ReactElement {
                       case "hosting":
                         return <HostingPage provider={data} />;
                       default:
-                        return null;
+                        return <NotImplementedRoute route={String(activeRoute)} />;
                     }
                   }}
                 />

@@ -4,6 +4,7 @@ import {
   cloudbaseToolNeedsEnv,
   type SessionEnvCache,
 } from "./mcp-bridge.js";
+import { resolveMcpLaunch } from "./resolve-mcp-cmd.js";
 
 interface JsonRpcResponse {
   jsonrpc?: string;
@@ -138,8 +139,15 @@ export class CloudBaseMcpBridge {
 
   constructor(options: CloudBaseMcpBridgeOptions = {}) {
     this.env = options.env ?? process.env;
-    this.command = options.command ?? "npx";
-    this.args = options.args ?? ["-y", MCP_PACKAGE];
+    if (options.command != null) {
+      this.command = options.command;
+      // Explicit command keeps legacy npx-style default args unless overridden.
+      this.args = options.args ?? ["-y", MCP_PACKAGE];
+    } else {
+      const launch = resolveMcpLaunch(this.env);
+      this.command = launch.command;
+      this.args = options.args ?? launch.args;
+    }
     this.sessionEnvCache = options.sessionEnvCache;
     this.getSessionId = options.getSessionId;
   }

@@ -4,14 +4,55 @@
  * auth(set_env) before env-bound tools. Handles auth action=list_bound_envs locally.
  */
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
-const MCP_CMD = process.env.CLOUDBASE_MCP_COMMAND ?? "npx";
-const MCP_ARGS = process.env.CLOUDBASE_MCP_ARGS
-  ? process.env.CLOUDBASE_MCP_ARGS.split(",")
-  : ["-y", "@cloudbase/cloudbase-mcp@latest"];
+const MCP_PACKAGE = "@cloudbase/cloudbase-mcp@latest";
+
+/**
+ * Prefer ~/.npm/_npx/*/node_modules/.bin/cloudbase-mcp over live npx.
+ * npx version checks hang on poor networks and block the bridge.
+ */
+function findCachedCloudbaseMcpBin() {
+  const npxRoot = join(homedir(), ".npm", "_npx");
+  if (!existsSync(npxRoot)) return undefined;
+  let best;
+  let entries;
+  try {
+    entries = readdirSync(npxRoot);
+  } catch {
+    return undefined;
+  }
+  for (const name of entries) {
+    const bin = join(npxRoot, name, "node_modules", ".bin", "cloudbase-mcp");
+    if (!existsSync(bin)) continue;
+    let mtime = 0;
+    try {
+      mtime = statSync(bin).mtimeMs;
+    } catch {
+      continue;
+    }
+    if (!best || mtime > best.mtime) best = { path: bin, mtime };
+  }
+  return best?.path;
+}
+
+function resolveMcpLaunch() {
+  if (process.env.CLOUDBASE_MCP_COMMAND) {
+    return {
+      command: process.env.CLOUDBASE_MCP_COMMAND,
+      args: process.env.CLOUDBASE_MCP_ARGS
+        ? process.env.CLOUDBASE_MCP_ARGS.split(",")
+        : ["-y", MCP_PACKAGE],
+    };
+  }
+  const cached = findCachedCloudbaseMcpBin();
+  if (cached) return { command: cached, args: [] };
+  return { command: "npx", args: ["-y", MCP_PACKAGE] };
+}
+
+const { command: MCP_CMD, args: MCP_ARGS } = resolveMcpLaunch();
 const HINT_FILE =
   process.env.CLOUDBASE_DSH_ENV_HINT_FILE ?? join(tmpdir(), "cloudbase-dsh-env-hint.json");
 

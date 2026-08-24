@@ -2531,7 +2531,6 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           }
 
           await envManager.setEnvId(envId);
-<<<<<<< HEAD
           // 跨客户端通用事件推送（MCP 协议 notification，无 id）：任何客户端
           // （如 dsh-plugin 面板）都能通过 notifications/cloudbase/env_changed
           // 感知环境变更，替代客户端本地推断与兜底轮询。通知失败不影响主流程。
@@ -2541,14 +2540,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               params: { envId },
             })
             .catch(() => {});
-=======
           applyBoundEnvRegion(server, target?.region);
           const regionHint = target?.region
             ? `，地域: ${target.region}`
             : target
               ? ""
               : "。未在当前探测地域中确认该 envId，已按唯一 ID 直绑；若后续接口仍指向错误地域，请设置 TCB_REGION 或 queryEnv(action=\"list\", region=...)";
->>>>>>> origin/main
           return buildJsonToolResult({
             ok: true,
             code: "ENV_READY",
