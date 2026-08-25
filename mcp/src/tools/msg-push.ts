@@ -658,10 +658,16 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
         return buildTransportUnavailablePayload("queryMessagePush", action);
       }
       if (action === "list") {
-        const [state, container] = await Promise.all([
+        const [state, containerRaw] = await Promise.all([
           readCallbackConfig(server, appid),
-          readContainerConfig(server, appid),
+          // 兼容性降级：微信侧 apihttpagent 通道不支持 getcontainercallbackconfig
+          // （ret=-9991）时，容器配置读取失败不阻断 list（pushMode 默认 cloudfunction）
+          readContainerConfig(server, appid).catch((e) => {
+            console.warn(`[msg-push] 读取云托管容器配置失败，降级为云函数模式推断: ${e instanceof Error ? e.message : String(e)}`);
+            return null;
+          }),
         ]);
+        const container = containerRaw;
         const pushMode = resolvePushMode(container);
         const callbacks = env
           ? state.list.filter((c) => c.env === env)
