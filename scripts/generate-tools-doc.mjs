@@ -80,6 +80,8 @@ const PLUGIN_MAP = {
   searchKnowledgeBase:        '搜索与知识库',
   activateInviteCode:         '激励计划',
   callCloudApi:               '云 API',
+  queryMessagePush:           '消息推送',
+  manageMessagePush:          '消息推送',
 };
 
 function getPlugin(toolName) {

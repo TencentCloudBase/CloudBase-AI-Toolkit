@@ -11,6 +11,11 @@ import {
   type GatewayRouteUrlCandidate,
 } from "../utils/gateway-access-urls.js";
 import { jsonContent } from "../utils/json-content.js";
+import type {
+  HTTPServiceDomainParam,
+  VerifyHttpServiceRouteCheckItem,
+  VerifyHttpServiceRouteRes,
+} from "@cloudbase/manager-node/types/env/type.js";
 
 const QUERY_GATEWAY_ACTIONS = [
   "listRoutes",
@@ -117,6 +122,69 @@ function normalizeAccessPath(path: string | undefined): string {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
+/** Single check item from VerifyHTTPServiceRoute. */
+type VerifyHttpServiceRouteCheck = VerifyHttpServiceRouteCheckItem;
+
+/** Response shape of env.verifyHttpServiceRoute (manager-node >= 5.8.1). */
+type VerifyHttpServiceRouteResult = VerifyHttpServiceRouteRes;
+
+type VerifyDnsRecord = {
+  subdomain?: string;
+  recordType?: string;
+  recordValue?: string;
+};
+
+type FailedVerifyCheck = {
+  name: string;
+  status: string;
+  code?: string;
+  message?: string;
+  dnsRecords?: VerifyDnsRecord[];
+};
+
+/**
+ * Collect FAIL items from VerifyHTTPServiceRoute, mapping DNS records to
+ * lowercase field names for MCP structured output (aligned with CLI 3.8.1).
+ */
+function collectFailedVerifyChecks(
+  result: VerifyHttpServiceRouteResult,
+): FailedVerifyCheck[] {
+  const checkItems: Record<string, VerifyHttpServiceRouteCheck | undefined> = {
+    ownership: result.Ownership,
+    cert: result.Cert,
+    quota: result.Quota,
+    routeConflict: result.RouteConflict,
+    domainConflict: result.DomainConflict,
+    internalAccount: result.InternalAccount,
+    blacklist: result.Blacklist,
+    cdnResource: result.CDNResource,
+    eo: result.EO,
+  };
+
+  return Object.entries(checkItems)
+    .filter(([, item]) => item?.Status === "FAIL")
+    .map(([name, item]) => {
+      const dnsRecords = item?.OwnershipVerification?.DnsVerification?.map(
+        ({ Subdomain, RecordType, RecordValue }) => ({
+          subdomain: Subdomain,
+          recordType: RecordType,
+          recordValue: RecordValue,
+        }),
+      );
+      return {
+        name,
+        status: item!.Status!,
+        ...(item?.Code ? { code: item.Code } : {}),
+        ...(item?.Message ? { message: item.Message } : {}),
+        ...(dnsRecords?.length ? { dnsRecords } : {}),
+      };
+    });
+}
+
+function isDefaultHttpServiceDomain(domain: string): boolean {
+  return /(^|\.)app\.tcloudbase\.com$/i.test(domain);
+}
+
 export function registerGatewayTools(server: ExtendedMcpServer) {
   const cloudBaseOptions = server.cloudBaseOptions;
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
@@ -138,6 +206,162 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     data: {},
     message: error instanceof Error ? error.message : String(error),
   });
+
+  const verifyHttpServiceRouteOrFail = async (params: {
+    envId: string;
+    domainParam: HTTPServiceDomainParam;
+    action: string;
+    /** When true, API exceptions degrade to warn for default HTTPSERVICE domains. */
+    allowDefaultDomainApiFallback?: boolean;
+  }): Promise<GatewayToolEnvelope | null> => {
+    const cloudbase = await getManager();
+    let result: VerifyHttpServiceRouteResult;
+    try {
+      result = await cloudbase.env.verifyHttpServiceRoute({
+        EnvId: params.envId,
+        Domain: params.domainParam,
+      });
+    } catch (err: unknown) {
+      const domain = params.domainParam.Domain;
+      if (
+        params.allowDefaultDomainApiFallback &&
+        domain &&
+        isDefaultHttpServiceDomain(domain)
+      ) {
+        const message = err instanceof Error ? err.message : String(err);
+        server.logger?.({
+          type: "errorToolCall",
+          toolName: "manageGateway",
+          message: `verifyHttpServiceRoute skipped for default domain ${domain}: ${message}`,
+        });
+        return null;
+      }
+      throw err;
+    }
+
+    logCloudBaseResult(server.logger, result);
+
+    if (result.Passed !== false) {
+      return null;
+    }
+
+    const checks = collectFailedVerifyChecks(result);
+    const ownershipDns = checks.find((c) => c.name === "ownership")?.dnsRecords;
+    const hasDns = Boolean(ownershipDns?.length);
+
+    return {
+      success: false,
+      data: {
+        action: params.action,
+        domain: params.domainParam.Domain,
+        checks,
+        ...(result.RequestId ? { requestId: result.RequestId } : {}),
+      },
+      message: hasDns
+        ? "HTTP 服务域名配置预检未通过：域名归属权校验失败。请按 data.checks 中 ownership.dnsRecords 配置 DNS TXT 记录后重试。"
+        : "HTTP 服务域名配置预检未通过。请根据 data.checks 修复问题后重试。",
+      nextActions: [
+        {
+          tool: "manageGateway",
+          action: params.action,
+          reason: hasDns
+            ? "配置 DNS TXT（主机记录/记录类型/记录值见 data.checks[].dnsRecords）后重新调用本 action"
+            : "根据 data.checks 修复预检失败项后重新调用本 action",
+        },
+      ],
+    };
+  };
+
+  /**
+   * Resolve SSL certificate ID for bindCustomDomain.
+   * Explicit certificateId wins; otherwise search by domain (single → auto, multi → guidance).
+   */
+  const resolveCertificateIdForBind = async (
+    domain: string,
+    certificateId: string | undefined,
+  ): Promise<
+    | { ok: true; certificateId: string }
+    | { ok: false; envelope: GatewayToolEnvelope }
+  > => {
+    if (certificateId) {
+      return { ok: true, certificateId };
+    }
+
+    const cloudbase = await getManager();
+    let certificates: Array<{
+      CertificateId?: string;
+      Domain?: string;
+      Alias?: string;
+      CertEndTime?: string;
+    }> = [];
+    try {
+      const res = await cloudbase.env.describeCertificates({
+        SearchKey: domain,
+      });
+      certificates = res?.Certificates ?? [];
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `获取 SSL 证书列表失败：${message}。请传入 certificateId，或确认账号有 SSL 证书服务权限。`,
+      );
+    }
+
+    if (certificates.length === 0) {
+      return {
+        ok: false,
+        envelope: {
+          success: false,
+          data: { action: "bindCustomDomain", domain, certificates: [] },
+          message: `未找到域名 [${domain}] 相关的可用 SSL 证书。请在腾讯云 SSL 证书控制台上传/申请后传入 certificateId 重试。`,
+          nextActions: [
+            {
+              tool: "manageGateway",
+              action: "bindCustomDomain",
+              reason:
+                "上传或申请匹配该域名的证书后，传入 certificateId 再调用 bindCustomDomain",
+            },
+          ],
+        },
+      };
+    }
+
+    if (certificates.length === 1) {
+      const only = certificates[0]?.CertificateId;
+      if (!only) {
+        throw new Error(
+          `域名 [${domain}] 匹配到证书但缺少 CertificateId，请显式传入 certificateId。`,
+        );
+      }
+      return { ok: true, certificateId: only };
+    }
+
+    const options = certificates.map((cert) => ({
+      certificateId: cert.CertificateId,
+      domain: cert.Domain,
+      alias: cert.Alias,
+      certEndTime: cert.CertEndTime,
+    }));
+
+    return {
+      ok: false,
+      envelope: {
+        success: false,
+        data: {
+          action: "bindCustomDomain",
+          domain,
+          certificates: options,
+        },
+        message: `找到 ${certificates.length} 个匹配证书，请选择其中一个 certificateId 后重试 bindCustomDomain（MCP 非交互，不会自动选择）。`,
+        nextActions: options
+          .filter((c) => c.certificateId)
+          .map((c) => ({
+            tool: "manageGateway",
+            action: "bindCustomDomain",
+            reason: `使用 certificateId=${c.certificateId}（domain=${c.domain ?? "-"}, 到期=${c.certEndTime ?? "-"}）重试`,
+          })),
+      },
+    };
+  };
 
   const withEnvelope = async (handler: () => Promise<GatewayToolEnvelope>) => {
     try {
@@ -671,6 +895,18 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       case "createRoute": {
         const cloudbase = await getManager();
         const payload = await normalizeRoutePayload(input);
+
+        // Probe → create: ownership / cert / quota / conflict checks before create.
+        const verifyFailure = await verifyHttpServiceRouteOrFail({
+          envId: payload.EnvId,
+          domainParam: payload.Domain,
+          action: "createRoute",
+          allowDefaultDomainApiFallback: true,
+        });
+        if (verifyFailure) {
+          return verifyFailure;
+        }
+
         let result;
         try {
           result = await cloudbase.env.createHttpServiceRoute({
@@ -962,10 +1198,8 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         );
       }
       case "bindCustomDomain": {
-        if (!input.domain || !input.certificateId) {
-          throw new Error(
-            "action=bindCustomDomain 时必须提供 domain 和 certificateId",
-          );
+        if (!input.domain) {
+          throw new Error("action=bindCustomDomain 时必须提供 domain");
         }
         const accessType = input.accessType ?? "DIRECT";
         if (accessType === "CUSTOM" && !input.customCname) {
@@ -980,12 +1214,41 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
               "说明：https://docs.cloudbase.net/service/custom-domain",
           );
         }
+
+        const envId = await resolveEnvId();
         const cloudbase = await getManager();
+
+        // Align CLI 3.8.1: verify before certificate resolution / bind.
+        const verifyDomainParam: HTTPServiceDomainParam = {
+          Domain: input.domain,
+          CertId: input.certificateId || "",
+          AccessType: accessType,
+          Enable: input.enable !== undefined ? input.enable : true,
+          ...(input.customCname ? { CustomCname: input.customCname } : {}),
+        };
+        const verifyFailure = await verifyHttpServiceRouteOrFail({
+          envId,
+          domainParam: verifyDomainParam,
+          action: "bindCustomDomain",
+        });
+        if (verifyFailure) {
+          return verifyFailure;
+        }
+
+        const certResolved = await resolveCertificateIdForBind(
+          input.domain,
+          input.certificateId,
+        );
+        if (!certResolved.ok) {
+          return certResolved.envelope;
+        }
+        const certificateId = certResolved.certificateId;
+
         const result = await cloudbase.env.bindCustomDomain({
-          EnvId: await resolveEnvId(),
+          EnvId: envId,
           Domain: {
             Domain: input.domain,
-            CertId: input.certificateId,
+            CertId: certificateId,
             AccessType: accessType,
             ...(input.enable !== undefined
               ? { Enable: input.enable }
@@ -1001,7 +1264,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           {
             action: input.action,
             domain: input.domain,
-            certificateId: input.certificateId,
+            certificateId,
             accessType,
             ...(input.customCname
               ? { customCname: input.customCname }
@@ -1205,7 +1468,8 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         "createRoute 只建网关入口，不改上游权限。" +
         "enablePathTransmission：默认 false 剥触发路径前缀；true 透传完整路径（CBR 多路由、WEB_SCF 自管子路径常需 true；STATIC_STORE 自定义触发路径映射站点根通常 false）。" +
         "⚠️ 自定义域名访问：若环境已有自定义域名（先 queryGateway listCustomDomains），优先 createRoute 并显式传入该 domain，无需 certificateId；" +
-        "仅首次绑定全新自定义域名时用 bindCustomDomain（需 certificateId）。CORS/安全域名用 envDomainManagement。" +
+        "仅首次绑定全新自定义域名时用 bindCustomDomain（certificateId 可选：未传时按域名自动检索证书，单证书自动选用、多证书返回选择指引）。" +
+        "createRoute / bindCustomDomain 创建前会调用 VerifyHTTPServiceRoute 做归属权等预检（探测→创建）；失败时返回 data.checks 与 DNS TXT 指引，配置后重试。CORS/安全域名用 envDomainManagement。" +
         "enableService/authSwitch：HTTP 网关总开关与访问鉴权开关；createRoute 后若访问报 HTTPSERVICE_NONACTIVATED，通常是总开关未开启（用 queryGateway getPrivilege 查询、enableService 开启）。",
       inputSchema: {
         action: z
@@ -1218,7 +1482,8 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
               "updateRoute 也可传 enable/route.enable 直接改 Routes[].Enable。" +
               "关闭 *.tcloudbaseapp.com 默认静态托管域：disableRoute + domain=该 STATIC_STORE IsDefault 域名 + path=\"/\"。" +
               "已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；" +
-              "bindCustomDomain 仅用于首次绑定新域名（需 certificateId；可选 accessType=DIRECT|CDN|CUSTOM，CUSTOM 需 customCname；普通场景用默认 DIRECT）。" +
+              "bindCustomDomain 仅用于首次绑定新域名（certificateId 可选，未传则按域名自动检索；可选 accessType=DIRECT|CDN|CUSTOM，CUSTOM 需 customCname；普通场景用默认 DIRECT）。" +
+              "createRoute/bindCustomDomain 创建前会 VerifyHTTPServiceRoute 预检；失败时按返回的 DNS TXT 指引配置后重试。" +
               "接入说明：https://docs.cloudbase.net/service/custom-domain",
           ),
         targetName: z
@@ -1313,7 +1578,9 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           .string()
           .optional()
           .describe(
-            "证书 ID。仅首次 bindCustomDomain 必填。" +
+            "证书 ID。仅 bindCustomDomain 使用：显式传入时跳过自动检索；" +
+              "省略时按 domain 调用 describeCertificates(SearchKey=domain)——" +
+              "单证书自动选用，无证书报错，多证书返回结构化选择指引（MCP 非交互）。" +
               "在已有自定义域名上 createRoute / updateRoute / deleteRoute 不需要 certificateId。",
           ),
         accessType: z

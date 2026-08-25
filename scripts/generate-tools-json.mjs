@@ -10,6 +10,21 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * 文档生成时启用的插件集合 = 默认插件 + 需显式启用的非默认插件（如 msg-push）。
+ * 与 `mcp/src/server.ts` 的 DEFAULT_PLUGINS / AVAILABLE_PLUGINS 保持同步：
+ * 新增默认插件或新的"可选启用"插件时，需同步更新本数组，否则对应工具不会出现在
+ * scripts/tools.json / doc/mcp-tools.md 中。
+ */
+const DOC_PLUGINS = [
+  // server.ts DEFAULT_PLUGINS
+  'env', 'database', 'pg_database', 'pg_storage', 'mysql_database',
+  'functions', 'hosting', 'storage', 'setup', 'rag', 'cloudrun', 'gateway',
+  'app-auth', 'apps', 'permissions', 'logs', 'agents', 'capi',
+  // 可选启用（不在 DEFAULT_PLUGINS）
+  'msg-push',
+];
+
 async function generateToolsJson() {
   console.log('🔧 正在启动 CloudBase MCP Server...');
 
@@ -36,11 +51,15 @@ async function generateToolsJson() {
     });
   }
 
-  // 创建客户端和传输
+  // 创建客户端和传输（显式启用 DOC_PLUGINS，覆盖默认集合）
   const transport = new StdioClientTransport({
     command: 'node',
     args: [cliPath],
-    cwd: mcpPath
+    cwd: mcpPath,
+    env: {
+      ...process.env,
+      CLOUDBASE_MCP_PLUGINS_ENABLED: DOC_PLUGINS.join(','),
+    },
   });
 
   const client = new Client({

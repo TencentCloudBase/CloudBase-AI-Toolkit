@@ -1,36 +1,36 @@
-# CloudBase Mini Program References
+# CloudBase 小程序集成参考
 
-This document supplements `SKILL.md` with practical **WeChat Mini Program + CloudBase** integration guidance.
+本文补充 `SKILL.md`，提供实用的 **微信小程序 + CloudBase** 集成指引。
 
-## How to use this reference (for a coding agent)
+## 如何使用本参考（面向 coding agent）
 
-1. **Understand platform differences**
-   - WeChat Mini Program and Web have completely different authentication approaches.
-   - Must strictly distinguish between platforms.
-   - Never mix Web authentication methods into mini program projects.
-   - Mini programs with CloudBase are naturally login-free.
+1. **理解平台差异**
+   - 微信小程序与 Web 的认证方式完全不同。
+   - 必须严格区分平台。
+   - 绝不要把 Web 认证方法混入小程序项目。
+   - 使用 CloudBase 的小程序天然免登录。
 
-2. **Follow CloudBase best practices**
-   - Use `wx.cloud` APIs on the mini program client side.
-   - Configure appropriate database permissions before relying on client writes.
-   - Prefer cloud functions for cross-collection operations and privileged writes.
-   - Use `OPENID` from `cloud.getWXContext()` as the stable user identifier on the server side.
+2. **遵循 CloudBase 最佳实践**
+   - 小程序客户端使用 `wx.cloud` API。
+   - 依赖客户端写入前，先配置合适的数据库权限。
+   - 跨集合操作与特权写入优先走云函数。
+   - 服务端用 `cloud.getWXContext()` 取得的 `OPENID` 作为稳定用户标识。
 
-3. **Use correct SDKs and APIs**
-   - Mini program client code should use `wx.cloud.database()`, `wx.cloud.callFunction()`, and `wx.cloud.uploadFile()` as appropriate.
-   - Do not use Web SDK authentication patterns in mini programs.
-   - Use `envQuery` to get environment ID when available.
+3. **使用正确的 SDK 与 API**
+   - 小程序客户端按需使用 `wx.cloud.database()`、`wx.cloud.callFunction()`、`wx.cloud.uploadFile()`。
+   - 不要在小程序中使用 Web SDK 认证模式。
+   - 可用时通过 `envQuery` 获取环境 ID。
 
-4. **Choose the right cloud execution surface**
-   - **微信云开发 = CloudBase × 微信.** For daily mini program cloud ops (env list, NoSQL, cloud functions, cloud storage) when Nightly DevTools Skills are available, prefer `wechatide` / `cloudbase-operator` with WeChat login. See [devtools-debug-preview.md](devtools-debug-preview.md) and [wxide-vs-cloudbase-mcp.md](wxide-vs-cloudbase-mcp.md).
-   - Use **CloudBase MCP** (IDE MCP or mcporter below) for gaps Nightly does not cover (advanced permissions, data models, MySQL/PG, broader env governance), or when Nightly / `wechatide` is unavailable.
-   - Do **not** force a separate Tencent Cloud MCP login for everyday ops that `wechatide` can already do.
+4. **选择正确的云执行面**
+   - **微信云开发 = CloudBase × 微信。** Nightly 开发者工具 Skills 可用时，日常小程序云操作（环境列表、NoSQL、云函数、云存储）优先用 `wechatide` / `cloudbase-operator` + 微信登录。见 [devtools-debug-preview.md](devtools-debug-preview.md) 与 [wxide-vs-cloudbase-mcp.md](wxide-vs-cloudbase-mcp.md)。
+   - Nightly 未覆盖的缺口（进阶权限、数据模型、MySQL/PG、更广的环境治理），或 Nightly / `wechatide` 不可用时，使用 **CloudBase MCP**（IDE MCP 或下方 mcporter）。
+   - **不要** 为 `wechatide` 已能完成的日常操作强制单独做腾讯云 MCP 登录。
 
-5. **Use CloudBase MCP via mcporter (CLI) when IDE MCP is not available / Nightly path is not enough**
-   - You do **not** need to hard-code Secret ID / Secret Key / Env ID in config.
-   - CloudBase MCP supports device-code login via the `auth` tool, so credentials can be obtained interactively.
-   - Add CloudBase MCP server in `config/mcporter.json`:
-     If other MCP servers already exist, keep them and only add the `cloudbase` entry.
+5. **IDE MCP 不可用 / Nightly 路径不够时，经 mcporter（CLI）使用 CloudBase MCP**
+   - **无需** 在配置中硬编码 Secret ID / Secret Key / Env ID。
+   - CloudBase MCP 支持通过 `auth` 工具做 device-code 登录，可交互获取凭证。
+   - 在 `config/mcporter.json` 中添加 CloudBase MCP server：
+     若已有其他 MCP server，保留它们，仅追加 `cloudbase` 条目。
      ```json
      {
        "mcpServers": {
@@ -43,19 +43,19 @@ This document supplements `SKILL.md` with practical **WeChat Mini Program + Clou
        }
      }
      ```
-   - Discover tools and schemas:
-     - `npx mcporter list` — list configured servers
-     - `npx mcporter describe cloudbase --all-parameters` — inspect CloudBase server config and get full tool schemas with all parameters (⚠️ **必须加 `--all-parameters` 才能获取完整参数信息**)
-     - `npx mcporter list cloudbase --schema` — get full JSON schema for all CloudBase tools
-     - `npx mcporter call cloudbase.help --output json` — discover available CloudBase tools and their schemas
-   - Call CloudBase tools (auth flow examples):
+   - 发现工具与 schema：
+     - `npx mcporter list` — 列出已配置 server
+     - `npx mcporter describe cloudbase --all-parameters` — 检查 CloudBase server 配置并获取含全部参数的完整工具 schema（⚠️ **必须加 `--all-parameters` 才能获取完整参数信息**）
+     - `npx mcporter list cloudbase --schema` — 获取全部 CloudBase 工具的完整 JSON schema
+     - `npx mcporter call cloudbase.help --output json` — 发现可用 CloudBase 工具及其 schema
+   - 调用 CloudBase 工具（鉴权流程示例）：
      - `npx mcporter call cloudbase.auth action=status --output json`
      - `npx mcporter call cloudbase.auth action=start_auth authMode=device --output json`
      - `npx mcporter call cloudbase.auth action=set_env envId=env-xxx --output json`
 
-## 1. Environment Initialization
+## 1. 环境初始化
 
-Mini programs using CloudBase should initialize `wx.cloud` once during app startup.
+使用 CloudBase 的小程序应在应用启动时初始化一次 `wx.cloud`。
 
 ```js
 App({
@@ -68,21 +68,21 @@ App({
 });
 ```
 
-### Rules
+### 规则
 
-- Always obtain the environment ID via `envQuery` when available.
-- Prefer a single app-level initialization instead of repeated page-level initialization.
-- Use `traceUser: true` unless there is a clear reason not to, so CloudBase can associate requests with the current WeChat user.
+- 可用时始终通过 `envQuery` 获取环境 ID。
+- 优先在应用级初始化一次，避免在页面级反复初始化。
+- 除非有明确理由，使用 `traceUser: true`，以便 CloudBase 将请求与当前微信用户关联。
 
-## 2. Authentication Model
+## 2. 认证模型
 
-Mini program CloudBase is **naturally login-free**.
+小程序 CloudBase **天然免登录**。
 
-### Required behavior
+### 必须遵守的行为
 
-- Do **not** generate login pages or login flows.
-- Do **not** port Web authentication patterns into mini programs.
-- In cloud functions, retrieve user identity with `cloud.getWXContext().OPENID`.
+- **不要** 生成登录页或登录流程。
+- **不要** 把 Web 认证模式移植到小程序。
+- 在云函数中用 `cloud.getWXContext().OPENID` 获取用户身份。
 
 ```js
 const cloud = require("wx-server-sdk");
@@ -96,55 +96,55 @@ exports.main = async () => {
 };
 ```
 
-## 3. Recommended Capability Boundaries
+## 3. 推荐能力边界
 
-Use the right CloudBase capability in the right layer.
+在正确的层级使用正确的 CloudBase 能力。
 
-### Client side
+### 客户端
 
-- `wx.cloud.database()` for client-safe reads and user-scoped writes
-- `wx.cloud.uploadFile()` for user-generated assets
-- `wx.cloud.callFunction()` for invoking backend orchestration
+- `wx.cloud.database()` — 客户端安全读、用户作用域写
+- `wx.cloud.uploadFile()` — 用户生成资源
+- `wx.cloud.callFunction()` — 调用后端编排
 
-### Cloud functions
+### 云函数
 
-- Privileged writes
-- Cross-collection transactions or workflows
-- Third-party API integration
-- Data normalization / validation
-- Accessing trusted user identity via `OPENID`
+- 特权写入
+- 跨集合事务或工作流
+- 第三方 API 集成
+- 数据规范化 / 校验
+- 经 `OPENID` 访问可信用户身份
 
-## 4. Environment Selection
+## 4. 环境选择
 
-- Do not hard-code a random environment ID.
-- Prefer obtaining the environment ID from tooling such as `envQuery`.
-- Initialize CloudBase once, usually in `app.js` / `app.ts`.
+- 不要硬编码随意的环境 ID。
+- 优先从 `envQuery` 等工具获取环境 ID。
+- 通常在 `app.js` / `app.ts` 中初始化一次 CloudBase。
 
-## 5. WeChat Developer Tools and Project Shape
+## 5. 微信开发者工具与项目形态
 
-- Confirm `project.config.json` includes `appid` before asking the user to open the project.
-- Mini program source is typically under `miniprogram/`.
-- Cloud functions are typically under `cloudfunctions/`.
-- Generated pages should include companion config files such as `index.json`.
+- 请用户打开项目前，确认 `project.config.json` 含有 `appid`。
+- 小程序源码通常在 `miniprogram/` 下。
+- 云函数通常在 `cloudfunctions/` 下。
+- 生成的页面应包含配套配置文件，如 `index.json`。
 
-## 6. AI and Model Usage
+## 6. AI 与模型使用
 
-- Mini programs on supported base library versions can use `wx.cloud.extend.AI`.
-- Keep prompts and model selection explicit.
-- If streaming is used, consume the stream fully and update UI incrementally where appropriate.
+- 在支持的基础库版本上，小程序可使用 `wx.cloud.extend.AI`。
+- 保持 prompt 与模型选择明确。
+- 若使用流式输出，应完整消费流，并在合适处增量更新 UI。
 
-## 7. Fallback When IDE MCP / Nightly Skills Are Unavailable
+## 7. IDE MCP / Nightly Skills 不可用时的回退
 
-If Nightly `wechatide` is unavailable and IDE-native MCP integration is also unavailable, use CloudBase MCP through `mcporter` and complete login with device-code auth instead of embedding secrets in config. Prefer installing Nightly for mini program daily ops when possible: https://developers.weixin.qq.com/miniprogram/dev/devtools/nightly_backup.html
+若 Nightly `wechatide` 不可用，且 IDE 原生 MCP 集成也不可用，则通过 `mcporter` 使用 CloudBase MCP，用 device-code 鉴权完成登录，而不是把密钥写进配置。小程序日常操作仍尽量安装 Nightly：https://developers.weixin.qq.com/miniprogram/dev/devtools/nightly_backup.html
 
-## 8. Console and Operational Links
+## 8. 控制台与运维链接
 
-When relevant, guide users to the CloudBase console for:
+相关时，引导用户前往 CloudBase 控制台查看：
 
-- environment settings
-- database permission rules
-- cloud function deployment status
-- storage management
-- billing / package information
+- 环境设置
+- 数据库权限规则
+- 云函数部署状态
+- 存储管理
+- 计费 / 套餐信息
 
-Prefer console guidance over guessing permissions or environment state.
+优先用控制台指引，不要臆测权限或环境状态。

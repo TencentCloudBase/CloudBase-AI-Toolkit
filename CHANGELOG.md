@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+## [2.32.0](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.31.0...v2.32.0) (2026-08-24)
+
+### Features
+
+* **msg-push**: add `queryMessagePush` / `manageMessagePush` for event and message-type subscriptions (virtual-pay defaults, idempotent merge, optional appid)
+* **gateway**: verify HTTP service before custom-domain / route create, with certificate auto-select and structured DNS guidance
+
+### Bug Fixes
+
+* **cloudrun**: align getDeployLog CODING fallback with process-log next steps
+* **msg-push**: pass appid through transport, preserve enable on rebound, prefer ret=80208 for VERSION_CONFLICT
+* **skill**: compress miniprogram-development description under Codex 1024-char limit
+
+### Documentation
+
+* **miniprogram**: message-push / customer-service skill reference and layered Chinese localization
+
 ## [2.31.0](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.30.1...v2.31.0) (2026-08-20)
 
 ### Bug Fixes

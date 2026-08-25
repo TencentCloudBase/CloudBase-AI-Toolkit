@@ -34,7 +34,7 @@
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/cloudbase-mcp@2.31.0"],
+      "args": ["-y", "@cloudbase/cloudbase-mcp@2.32.0"],
       "env": {
         "INTEGRATION_IDE": "Kimi"
       }

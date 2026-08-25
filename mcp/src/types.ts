@@ -68,6 +68,9 @@ type CloudBaseConfigBase = NonNullable<ConstructorParameters<typeof CloudBase>[0
  * 自定义 API 请求函数，由外部注入，替代 TC3 签名发请求。
  * 入参对齐 CAPI 模式：service + action + version + region + payload。
  * 返回腾讯云 API 响应中 Response 字段的内容（已解包）。
+ *
+ * `appid` 为可选扩展字段（向后兼容）：多小程序会话场景下由工具透传，
+ * 宿主（如微信 IDE）据此选择对应登录态；未使用多 appid 的注入方可忽略。
  */
 export type CloudApiRequestFn = (params: {
   service: string
@@ -75,6 +78,8 @@ export type CloudApiRequestFn = (params: {
   version: string
   region: string
   payload: Record<string, any>
+  /** Optional WeChat mini-program AppID for host login-session selection */
+  appid?: string
 }) => Promise<any>
 
 export type CloudBaseOptions = CloudBaseConfigBase & {
@@ -181,6 +186,49 @@ export interface StorageOverrides {
 export interface PluginOptions {
   functions?: FunctionDeployOverrides;
   storage?: StorageOverrides;
+
+  /**
+   * 消息推送（msg-push）插件配置。
+   *
+   * 消息推送 qbase 管理能力（getappconfig / uploadappconfig / route/getcallbacksupportlist /
+   * get|setcontainercallbackconfig）依赖微信小程序登录态，CloudBase MCP 独立运行
+   * （腾讯云身份）无法直连。复用现有 `cloudBaseOptions.requestFn`（CloudApiRequestFn：
+   * service/action/version/region/payload 领域语义）作为传输层——与 databaseNoSQL/functions
+   * 完全一致，包内不感知 URL。宿主（如微信开发者工具）在 createCloudBaseMcpServer 时注入
+   * requestFn 并启用 msg-push 插件即可；未注入时工具返回明确指引错误（指向微信 IDE 工具）。
+   */
+  msgPush?: MsgPushOverrides;
+}
+
+/**
+ * 消息推送领域动作（经 CloudApiRequestFn 的 action 字段表达，宿主映射到具体 qbase CGI，
+ * CloudBase MCP 不感知 URL）。与现有 service/action/payload 分层一致：
+ * 本包只表达「做什么」，由宿主注入的 requestFn 负责「怎么发 + 鉴权」。
+ */
+export type MsgPushAction =
+  | "getAppConfig"
+  | "uploadAppConfig"
+  | "getCallbackSupportList"
+  | "getContainerCallbackConfig"
+  | "setContainerCallbackConfig";
+
+/** 消息推送 qbase 响应（业务码 ret === 0 为成功；由宿主 requestFn 解包后返回） */
+export interface MsgPushQbaseResponse {
+  base_resp?: {
+    ret: number;
+    errmsg?: string;
+  };
+  [key: string]: unknown;
+}
+
+/**
+ * 消息推送（msg-push）插件 override 钩子。
+ * 复用现有 `cloudBaseOptions.requestFn`（CloudApiRequestFn）传输层，
+ * 仅在需要定制 service 名等场景下通过本钩子提供；未提供时工具用默认 service 约定。
+ */
+export interface MsgPushOverrides {
+  /** 消息推送 qbase CGI 对应的 Cloud API service 名（默认 "qbase"）；宿主可按后端契约覆盖 */
+  service?: string;
 }
 
 export type Logger = (data: {

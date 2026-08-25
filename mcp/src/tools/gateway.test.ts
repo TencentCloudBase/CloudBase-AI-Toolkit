@@ -9,6 +9,8 @@ const {
   mockDeleteHttpServiceRoute,
   mockBindCustomDomain,
   mockDeleteCustomDomain,
+  mockVerifyHttpServiceRoute,
+  mockDescribeCertificates,
   mockGetCloudBaseManager,
   mockLogCloudBaseResult,
   mockGetEnvId,
@@ -21,6 +23,8 @@ const {
   mockDeleteHttpServiceRoute: vi.fn(),
   mockBindCustomDomain: vi.fn(),
   mockDeleteCustomDomain: vi.fn(),
+  mockVerifyHttpServiceRoute: vi.fn(),
+  mockDescribeCertificates: vi.fn(),
   mockGetCloudBaseManager: vi.fn(),
   mockLogCloudBaseResult: vi.fn(),
   mockGetEnvId: vi.fn(),
@@ -115,6 +119,13 @@ describe("gateway tools", () => {
     mockDeleteCustomDomain.mockResolvedValue({
       RequestId: "req-domain-delete",
     });
+    mockVerifyHttpServiceRoute.mockResolvedValue({
+      Passed: true,
+      RequestId: "req-verify-pass",
+    });
+    mockDescribeCertificates.mockResolvedValue({
+      Certificates: [],
+    });
     mockCommonServiceCall.mockResolvedValue({
       EnableService: true,
       EnableAuth: false,
@@ -130,6 +141,8 @@ describe("gateway tools", () => {
         deleteHttpServiceRoute: mockDeleteHttpServiceRoute,
         bindCustomDomain: mockBindCustomDomain,
         deleteCustomDomain: mockDeleteCustomDomain,
+        verifyHttpServiceRoute: mockVerifyHttpServiceRoute,
+        describeCertificates: mockDescribeCertificates,
       },
       commonService: vi.fn(() => ({
         call: mockCommonServiceCall,
@@ -212,7 +225,9 @@ describe("gateway tools", () => {
     expect(schema.domain.description).toContain("无需证书");
     expect(schema.domain.description).toContain("HTTPSERVICE");
     expect(schema.domain.description).toContain("listRoutes");
+    expect(description).toContain("VerifyHTTPServiceRoute");
     expect(schema.certificateId.description).toContain("createRoute");
+    expect(schema.certificateId.description).toContain("describeCertificates");
   });
 
   it("manageGateway(action=createRoute) should require upstreamResourceType", async () => {
@@ -930,6 +945,14 @@ describe("gateway tools", () => {
 
     const payload = JSON.parse(result.content[0].text);
 
+    expect(mockVerifyHttpServiceRoute).toHaveBeenCalledWith({
+      EnvId: "env-test",
+      Domain: expect.objectContaining({
+        Domain: "api.example.com",
+        CertId: "cert-1",
+        AccessType: "DIRECT",
+      }),
+    });
     expect(mockBindCustomDomain).toHaveBeenCalledWith({
       EnvId: "env-test",
       Domain: {
@@ -946,6 +969,178 @@ describe("gateway tools", () => {
         accessType: "DIRECT",
       },
     });
+  });
+
+  it("manageGateway(action=bindCustomDomain) should fail on ownership verify without binding", async () => {
+    mockVerifyHttpServiceRoute.mockResolvedValue({
+      Passed: false,
+      RequestId: "req-verify-fail",
+      Ownership: {
+        Status: "FAIL",
+        Code: "OWNERSHIP_FAILED",
+        Message: "domain ownership not verified",
+        OwnershipVerification: {
+          DnsVerification: [
+            {
+              Subdomain: "_cloudbase-challenge.api.example.com",
+              RecordType: "TXT",
+              RecordValue: "verify-token-abc",
+            },
+          ],
+        },
+      },
+      Cert: { Status: "SKIPPED" },
+      Quota: { Status: "PASS" },
+    });
+
+    const result = await tools.manageGateway.handler({
+      action: "bindCustomDomain",
+      domain: "api.example.com",
+      certificateId: "cert-1",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("预检未通过");
+    expect(payload.data.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "ownership",
+          status: "FAIL",
+          code: "OWNERSHIP_FAILED",
+          dnsRecords: [
+            {
+              subdomain: "_cloudbase-challenge.api.example.com",
+              recordType: "TXT",
+              recordValue: "verify-token-abc",
+            },
+          ],
+        }),
+      ]),
+    );
+    expect(mockBindCustomDomain).not.toHaveBeenCalled();
+    expect(mockDescribeCertificates).not.toHaveBeenCalled();
+  });
+
+  it("manageGateway(action=bindCustomDomain) should auto-select single certificate when certificateId omitted", async () => {
+    mockDescribeCertificates.mockResolvedValue({
+      Certificates: [
+        {
+          CertificateId: "cert-auto-1",
+          Domain: "api.example.com",
+          CertEndTime: "2027-01-01",
+        },
+      ],
+    });
+
+    const result = await tools.manageGateway.handler({
+      action: "bindCustomDomain",
+      domain: "api.example.com",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockDescribeCertificates).toHaveBeenCalledWith({
+      SearchKey: "api.example.com",
+    });
+    expect(mockBindCustomDomain).toHaveBeenCalledWith({
+      EnvId: "env-test",
+      Domain: {
+        Domain: "api.example.com",
+        CertId: "cert-auto-1",
+        AccessType: "DIRECT",
+      },
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        certificateId: "cert-auto-1",
+      },
+    });
+  });
+
+  it("manageGateway(action=bindCustomDomain) should return certificate selection guidance when multiple match", async () => {
+    mockDescribeCertificates.mockResolvedValue({
+      Certificates: [
+        {
+          CertificateId: "cert-a",
+          Domain: "api.example.com",
+          Alias: "a",
+          CertEndTime: "2027-01-01",
+        },
+        {
+          CertificateId: "cert-b",
+          Domain: "*.example.com",
+          Alias: "b",
+          CertEndTime: "2027-06-01",
+        },
+      ],
+    });
+
+    const result = await tools.manageGateway.handler({
+      action: "bindCustomDomain",
+      domain: "api.example.com",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("匹配证书");
+    expect(payload.message).toContain("certificateId");
+    expect(payload.data.certificates).toHaveLength(2);
+    expect(payload.nextActions?.length).toBeGreaterThanOrEqual(2);
+    expect(mockBindCustomDomain).not.toHaveBeenCalled();
+  });
+
+  it("manageGateway(action=createRoute) should fail on verify without creating route", async () => {
+    mockVerifyHttpServiceRoute.mockResolvedValue({
+      Passed: false,
+      RequestId: "req-route-verify-fail",
+      Ownership: {
+        Status: "FAIL",
+        Code: "OWNERSHIP_FAILED",
+        Message: "ownership fail",
+        OwnershipVerification: {
+          DnsVerification: [
+            {
+              Subdomain: "_cb.api.example.com",
+              RecordType: "TXT",
+              RecordValue: "token-xyz",
+            },
+          ],
+        },
+      },
+      RouteConflict: { Status: "PASS" },
+    });
+
+    const result = await tools.manageGateway.handler({
+      action: "createRoute",
+      domain: "api.example.com",
+      targetName: "helloFn",
+      path: "/api/hello",
+      upstreamResourceType: "WEB_SCF",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("预检未通过");
+    expect(payload.data.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "ownership",
+          dnsRecords: [
+            {
+              subdomain: "_cb.api.example.com",
+              recordType: "TXT",
+              recordValue: "token-xyz",
+            },
+          ],
+        }),
+      ]),
+    );
+    expect(mockCreateHttpServiceRoute).not.toHaveBeenCalled();
   });
 
   it("manageGateway(action=bindCustomDomain) should pass accessType and enable", async () => {

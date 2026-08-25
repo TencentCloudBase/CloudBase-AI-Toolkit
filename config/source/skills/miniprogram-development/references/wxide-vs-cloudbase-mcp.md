@@ -1,43 +1,47 @@
-# WeChat IDE Skills vs CloudBase MCP / Skills
+# 微信 IDE Skills 与 CloudBase MCP / Skills
 
 **微信云开发 = CloudBase × 微信**：同一套云能力，在微信侧用开发者工具登录态直达；CloudBase MCP 补 IDE Skills 未覆盖的进阶云治理。
 
-## Three layers
+## 三层结构
 
-| Layer | Role | Login | Typical capabilities |
+| 层 | 角色 | 登录 | 典型能力 |
 | --- | --- | --- | --- |
-| **WeChat IDE Skills** (Nightly) | Execution surface (default for mini programs) | WeChat scan login in DevTools | Project / compile / simulator / preview / upload, automation, console/network, cloud env / functions / NoSQL / storage via `wechatide` |
-| **CloudBase Skills** | Knowledge pack | Does not replace login | CloudBase rules, pitfalls, coding conventions (`npx skills add tencentcloudbase/cloudbase-skills -y`) |
-| **CloudBase MCP** | Full cloud complement | Tencent Cloud auth (API Key / web / device-code) | Env governance, advanced permissions, data models, MySQL/PostgreSQL, and other gaps IDE Skills do not cover |
+| **微信 IDE Skills**（Nightly） | 执行面（小程序默认） | 开发者工具内微信扫码登录 | 项目 / 编译 / 模拟器 / 预览 / 上传、自动化、控制台/网络、经 `wechatide` 的云环境 / 云函数 / NoSQL / 云存储 |
+| **CloudBase Skills** | 知识包 | 不替代登录 | CloudBase 规则、陷阱、编码约定（`npx skills add tencentcloudbase/cloudbase-skills -y`） |
+| **CloudBase MCP** | 完整云能力补全 | 腾讯云鉴权（API Key / web / device-code） | 环境治理、细粒度权限、数据模型、MySQL/PostgreSQL，以及 IDE Skills 未覆盖的其他缺口 |
 
-Nightly ships built-in Skills/MCP: https://developers.weixin.qq.com/miniprogram/dev/devtools/nightly_backup.html
+Nightly 内置 Skills/MCP：https://developers.weixin.qq.com/miniprogram/dev/devtools/nightly_backup.html
 
-## Decision tree
+## 决策树
 
-1. Is the task mini program **debug / preview / open project / console / network / upload experience build**?
-   - Yes → **WeChat IDE Skills** (`wechatide`). See [devtools-debug-preview.md](devtools-debug-preview.md).
-2. Is the task **daily** cloud ops on the mini program CloudBase env (list/query collections, deploy a function, list/upload storage)?
-   - Nightly available → **WeChat IDE Skills** `cloudbase-operator` tools.
-   - Nightly unavailable → **CloudBase MCP** (after Tencent Cloud login).
-3. Is the task **advanced cloud** (data model / MySQL / PG / fine-grained security rules / multi-env platform ops beyond IDE tools)?
-   - → **CloudBase MCP**.
-4. Always useful: install **CloudBase Skills** as knowledge constraints for how to write CloudBase code — they are not a substitute for either execution surface.
+1. 任务是否为小程序 **调试 / 预览 / 打开项目 / 控制台 / 网络 / 上传体验版**？
+   - 是 → **微信 IDE Skills**（`wechatide`）。见 [devtools-debug-preview.md](devtools-debug-preview.md)。
+2. 任务是否为小程序 CloudBase 环境上的 **日常** 云操作（列举/查询集合、部署函数、列举/上传存储）？
+   - Nightly 可用 → **微信 IDE Skills** 的 `cloudbase-operator` 工具。
+   - Nightly 不可用 → **CloudBase MCP**（完成腾讯云登录后）。
+3. 任务是否为 **消息推送 / 客服自动回复**（消息推送、客服自动回复、MsgType/Event 回调绑定）？
+   - → 优先 **微信 IDE Skills / IDE 云开发控制台**。见 [message-push-customer-service.md](message-push-customer-service.md)。
+   - `cloud_msg_push_query` / `cloud_msg_push_manage` **尚未暴露**（9109db6b）。不要用底层传输绕过。
+4. 任务是否为 **进阶云能力**（数据模型 / MySQL / PG / 细粒度安全规则 / 超出 IDE 工具的多环境平台运维）？
+   - → **CloudBase MCP**。
+5. 始终有用：安装 **CloudBase Skills** 作为编写 CloudBase 代码的知识约束 —— 它们不能替代任一执行面。
 
-## Do / Don't
+## 应当 / 禁止
 
-**Do**
+**应当**
 
-- Prefer Nightly + `wechatide` for high-frequency mini program workflows
-- Keep CloudBase Skills installed for best-practice knowledge
-- Use CloudBase MCP to fill gaps IDE Skills do not cover
+- 高频小程序工作流优先 Nightly + `wechatide`
+- 保持安装 CloudBase Skills 以获取最佳实践知识
+- 用 CloudBase MCP 填补 IDE Skills 未覆盖的缺口
 
-**Don't**
+**禁止**
 
-- Force a separate Tencent Cloud MCP login for everyday NoSQL / function / storage ops when `wechatide` already works with WeChat login
-- Assume Stable DevTools includes the same Skills/MCP as Nightly
-- Copy or invent `wechatide` tool schemas — use `--help` and the Nightly `tools.yaml`
+- 在 `wechatide` 已能用微信登录完成日常 NoSQL / 函数 / 存储操作时，仍强制单独走腾讯云 MCP 登录
+- 假定稳定版 DevTools 与 Nightly 具备相同的 Skills/MCP
+- 复制或臆造 `wechatide` 工具 schema —— 使用 `--help` 与 Nightly 的 `tools.yaml`
 
-## Related
+## 相关
 
-- Execution paths: [devtools-debug-preview.md](devtools-debug-preview.md)
-- `wx.cloud` / OPENID / client rules: [cloudbase-integration.md](cloudbase-integration.md)
+- 执行路径：[devtools-debug-preview.md](devtools-debug-preview.md)
+- `wx.cloud` / OPENID / 客户端规则：[cloudbase-integration.md](cloudbase-integration.md)
+- 消息推送 / 客服自动回复：[message-push-customer-service.md](message-push-customer-service.md)

@@ -24,22 +24,15 @@
 
 ## 最近更新
 
+**v2.32.x**（2026-08）
+
+- 小程序：新增 `queryMessagePush` / `manageMessagePush`，支持事件与消息类型订阅（虚拟支付默认事件、声明式幂等、可选 appid）
+- 网关：`manageGateway` 在创建自定义域名/路由前校验 HTTP 服务，并支持证书自动选择与更清晰的 DNS 指引
+- Skills：补充消息推送/客服参考，并为 miniprogram-development 做分层中文化
+
 **v2.31.x**（2026-08）
 
 - 云托管：`getDeployLog` 遇 CODING 未登录 / 镜像部署无构建时，改写为 `getProcessLog` / `getDeployRecords` 建议，不再暴露原始英文报错
-
-**v2.30.x**（2026-08）
-
-- 环境：支持跨区域环境查询，并更清晰暴露 MCP 鉴权的 credential-scope 边界
-- 鉴权：移除冗余 `login_mode`，统一用 `credential_scope` 表达凭据边界
-- 发布：Kimi 插件 zip 改为白名单打包、无版本号的稳定资源名
-- Kimi：插件 zip 将兄弟 skills 组装进 `skills/cloudbase/references/`，保证压缩包自包含且与 manifest 契约同步
-
-**v2.29.x**（2026-08）
-
-- IDE：新增 Kimi Code 插件（`kimi.plugin.json`），复用共享 CloudBase skills / MCP 资产
-- 发布：自动打包 Kimi 插件 zip，并挂到 GitHub Release 附件
-- 登录体验：Kimi 侧通过 MCP `auth` 设备码登录；routing skill 按需拉取领域知识
 
 [Releases][changelog] · [Star][github-stars-link] · Watch → Releases
 

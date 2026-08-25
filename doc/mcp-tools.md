@@ -2,7 +2,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 
 # MCP 工具
 
-当前包含 38 个工具，按功能分组如下。
+当前包含 40 个工具，按功能分组如下。
 
 源数据: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.json)
 
@@ -107,6 +107,11 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 ### 云 API
 
 - [`callCloudApi`](#callcloudapi)
+
+### 消息推送
+
+- [`queryMessagePush`](#querymessagepush)
+- [`manageMessagePush`](#managemessagepush)
 
 ---
 
@@ -1995,8 +2000,9 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
       - 需要 auth-web 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web)
       - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)
 
-      固定技能文档 (skill) 查询当前支持 28 个固定文档，分别是：
-      文档名：ai-model-nodejs 文档介绍："Use this skill for Node.js backend AI via @cloudbase/node-sdk (&gt;=3.16.0) — cloud functions, CloudRun, Express, Koa, NestJS, serverless APIs, scheduled jobs, LLM proxies. Only SDK supporting image generation (ai.createImageModel + generateImage). Text models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field of generateText/streamText. MUST run two-step preflight before code — see body. Keywords: backend, 云函数, 云托管, serverless, LLM proxy, agent orchestration, generateText, streamText, generateImage, createModel, hunyuan-image, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat)."
+      固定技能文档 (skill) 查询当前支持 29 个固定文档，分别是：
+      文档名：skills 文档介绍：Unified CloudBase execution guide for all-in-one skill installs. Use this first for CloudBase app tasks, especially existing apps with TODOs, fixed pages, or active handlers. Routes PostgreSQL / CloudBase PG / app.rdb() / queryPgDatabase / managePgDatabase work away from legacy NoSQL and old auth patterns.
+文档名：ai-model-nodejs 文档介绍："Use this skill for Node.js backend AI via @cloudbase/node-sdk (&gt;=3.16.0) — cloud functions, CloudRun, Express, Koa, NestJS, serverless APIs, scheduled jobs, LLM proxies. Only SDK supporting image generation (ai.createImageModel + generateImage). Text models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field of generateText/streamText. MUST run two-step preflight before code — see body. Keywords: backend, 云函数, 云托管, serverless, LLM proxy, agent orchestration, generateText, streamText, generateImage, createModel, hunyuan-image, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat)."
 文档名：ai-model-web 文档介绍："Use this skill when a browser/Web app (React, Vue, Angular, Next, Nuxt, static sites, SPAs, dashboards, AI chat UI) needs AI models via @cloudbase/js-sdk. Default routing for page/页面/Web/前端/frontend/网页/H5 AI — call directly from browser, do NOT propose a Node.js proxy. Covers generateText and streamText. Models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field. MUST run two-step preflight before code — see body. Keywords: 页面, Web, 前端, React, Vue, Next, Nuxt, SPA, AI chat UI, generateText, streamText, createModel, hunyuan-exp, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for Node.js backend (use ai-model-nodejs), Mini Program (use ai-model-wechat), or image generation (Node SDK only)."
 文档名：ai-model-wechat 文档介绍："Use this skill for WeChat Mini Program AI via wx.cloud.extend.AI (小程序, 企业微信小程序, wx.cloud apps). Features generateText and streamText with callbacks (onText, onEvent, onFinish). Models via wx.cloud.extend.AI.createModel with groups hunyuan-exp (小程序成长计划), cloudbase (main managed), or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the data wrapper model field. API differs from JS/Node SDK — streamText needs data wrapper, generateText returns raw response. MUST run two-step preflight before code — see body. Keywords: Mini Program AI, wx.cloud.extend.AI, 小程序成长计划, ai_miniprogram_inspire_plan, Token Credits 资源包, generateText, streamText, createModel, hunyuan-exp, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs)."
 文档名：auth-nodejs-cloudbase 文档介绍：CloudBase Node SDK auth guide for server-side identity, user lookup, and custom login tickets. This skill should be used when Node.js code must read caller identity, inspect end users, or bridge an existing user system into CloudBase; not when configuring providers or building client login UI.
@@ -2016,7 +2022,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 文档名：data-model-creation 文档介绍："[Deprecated] Optional advanced tool for complex data modeling. For simple MySQL table creation, use relational-database-tool directly; for PostgreSQL / CloudBase PG schema work, use postgresql-development. New environments should use PostgreSQL DDL via queryPgDatabase/managePgDatabase — see postgresql-development skill instead."
 文档名：http-api-cloudbase 文档介绍：CloudBase official HTTP API client guide. This skill should be used when backends, scripts, or non-SDK clients must call CloudBase platform APIs over raw HTTP instead of using a platform SDK or MCP management tool.
 文档名：minimal-web-baas-demo 文档介绍："Fast path for a minimal CloudBase Web + database demo (最小前后端 / 最小可用 fullstack / Lovable-like BaaS). Defaults to @cloudbase/js-sdk client CRUD (NoSQL app.database / PG app.rdb), MCP-only schema, preview-first, and forbids cloud functions unless secrets, cron/background jobs, or logic that security rules/RLS cannot express. Use for 搭一套 demo、留言板、Todo、Notes、Kanban, or when users say 带云函数+云数据库 but only need CRUD. NOT for production multi-service backends, CloudRun, WeChat Mini Programs, or tasks that truly need server secrets."
-文档名：miniprogram-development 文档介绍：WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, optimizing, and promoting mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, optimize, or promote WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools Nightly workflows, `wechatide` CLI, WeChat IDE Skills/MCP, console/network debugging, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users ask about mini program SEO / search optimization / search promotion (小程序 SEO、搜索优化、微信搜索收录、搜索推广、页面收录、关键词排名、被搜索到) or page indexing by the WeChat search crawler (`mpcrawler`). Use it when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, 微信云开发, or 云开发 in a mini program project.
+文档名：miniprogram-development 文档介绍：WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, optimizing, and promoting mini program projects. This skill should be used when users ask to create, develop, modify, debug, preview, test, deploy, publish, launch, review, optimize, or promote WeChat Mini Programs, mini program pages, components, `tabBar`, routing, navigation, icon assets, project structure, project configuration, `project.config.json`, `appid` setup, device preview, real-device validation, WeChat Developer Tools Nightly workflows, `wechatide` CLI, WeChat IDE Skills/MCP, console/network debugging, `miniprogram-ci` preview/upload flows, or mini program release processes. It should also be used when users ask about mini program SEO / search optimization / search promotion (小程序 SEO、搜索优化、微信搜索收录、搜索推广、页面收录、关键词排名、被搜索到) or page indexing by the WeChat search crawler (`mpcrawler`). when users explicitly mention CloudBase, `wx.cloud`, Tencent CloudBase, 腾讯云开发, 微信云开发, or 云开发 in a mini program project.
 文档名：ops-inspector 文档介绍：AIOps-style CloudBase inspection skill (v3). Use when users need health checks, log diagnosis, alarm interpretation (CPU alert normal?, peak QPS), metrics via queryEnv(action=metrics), or fault playbooks for 429 / function 404 / ACCESS_TOKEN_INVALID / zero invocations. Triggers on 巡检, 诊断, 告警, 峰值 QPS, 限频, 调用量为 0, troubleshooting.
 文档名：postgresql-development-cloudbase 文档介绍："Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG."
 文档名：relational-database-mcp-cloudbase 文档介绍："[Deprecated] This is the required documentation for agents operating on the CloudBase Relational Database through MCP. It defines the canonical SQL management flow with `queryMysqlDatabase`, `manageMysqlDatabase`, `queryPermissions`, and `managePermissions`, including MySQL provisioning, destroy flow, async status checks, safe query execution, schema initialization, and permission updates. New environments should use PostgreSQL — see postgresql-development skill instead."
@@ -2047,7 +2053,7 @@ API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
     {
       name: "skillName",
       type: "string",
-      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
+      description: `mode=skill 时指定。技能名称。 可填写的值: "skills", "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
     },
     {
       name: "apiName",
@@ -2595,7 +2601,7 @@ CloudBase HTTP 网关统一只读入口（Domain/Route）。查询域名下路�
 ---
 
 ### `manageGateway`
-CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute/deleteRoute 把域名下的 path 转到上游；enableRoute/disableRoute 启用或禁用已有路由（底层 ModifyHTTPServiceRoute 的 Routes[].Enable，不是 ModifyGatewayRoute）。未传 domain 时用 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（形如 *.\{region\}.app.tcloudbase.com），不会使用静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）。这是网关默认域上的路径路由，不是 STATIC_STORE 上游绑定；STATIC_STORE 上游必须显式传 upstreamResourceType=STATIC_STORE。关闭静态托管默认域名（*.tcloudbaseapp.com）：先 queryGateway(listRoutes) 找到 DomainType=STATIC_STORE 且 IsDefault=true 的 domain，再 manageGateway(action="disableRoute", domain=该域名, path="/")；勿用 manageHosting。创建后可用 queryGateway(action="listRoutes") 核对 Domain / DomainType / Path / UpstreamResourceType。上游类型只用一个参数 upstreamResourceType（也可写在 route.upstreamResourceType，route 优先）：WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，LH=轻量应用服务器；配合 targetName 或 route.serviceName（云函数名/云托管服务名/静态托管实例名，常见 staticstore）。createRoute 只建网关入口，不改上游权限。enablePathTransmission：默认 false 剥触发路径前缀；true 透传完整路径（CBR 多路由、WEB_SCF 自管子路径常需 true；STATIC_STORE 自定义触发路径映射站点根通常 false）。⚠️ 自定义域名访问：若环境已有自定义域名（先 queryGateway listCustomDomains），优先 createRoute 并显式传入该 domain，无需 certificateId；仅首次绑定全新自定义域名时用 bindCustomDomain（需 certificateId）。CORS/安全域名用 envDomainManagement。enableService/authSwitch：HTTP 网关总开关与访问鉴权开关；createRoute 后若访问报 HTTPSERVICE_NONACTIVATED，通常是总开关未开启（用 queryGateway getPrivilege 查询、enableService 开启）。
+CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute/deleteRoute 把域名下的 path 转到上游；enableRoute/disableRoute 启用或禁用已有路由（底层 ModifyHTTPServiceRoute 的 Routes[].Enable，不是 ModifyGatewayRoute）。未传 domain 时用 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（形如 *.\{region\}.app.tcloudbase.com），不会使用静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）。这是网关默认域上的路径路由，不是 STATIC_STORE 上游绑定；STATIC_STORE 上游必须显式传 upstreamResourceType=STATIC_STORE。关闭静态托管默认域名（*.tcloudbaseapp.com）：先 queryGateway(listRoutes) 找到 DomainType=STATIC_STORE 且 IsDefault=true 的 domain，再 manageGateway(action="disableRoute", domain=该域名, path="/")；勿用 manageHosting。创建后可用 queryGateway(action="listRoutes") 核对 Domain / DomainType / Path / UpstreamResourceType。上游类型只用一个参数 upstreamResourceType（也可写在 route.upstreamResourceType，route 优先）：WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，LH=轻量应用服务器；配合 targetName 或 route.serviceName（云函数名/云托管服务名/静态托管实例名，常见 staticstore）。createRoute 只建网关入口，不改上游权限。enablePathTransmission：默认 false 剥触发路径前缀；true 透传完整路径（CBR 多路由、WEB_SCF 自管子路径常需 true；STATIC_STORE 自定义触发路径映射站点根通常 false）。⚠️ 自定义域名访问：若环境已有自定义域名（先 queryGateway listCustomDomains），优先 createRoute 并显式传入该 domain，无需 certificateId；仅首次绑定全新自定义域名时用 bindCustomDomain（certificateId 可选：未传时按域名自动检索证书，单证书自动选用、多证书返回选择指引）。createRoute / bindCustomDomain 创建前会调用 VerifyHTTPServiceRoute 做归属权等预检（探测→创建）；失败时返回 data.checks 与 DNS TXT 指引，配置后重试。CORS/安全域名用 envDomainManagement。enableService/authSwitch：HTTP 网关总开关与访问鉴权开关；createRoute 后若访问报 HTTPSERVICE_NONACTIVATED，通常是总开关未开启（用 queryGateway getPrivilege 查询、enableService 开启）。
 
 #### 参数
 
@@ -2605,7 +2611,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
       name: "action",
       type: "string",
       required: true,
-      description: `写操作：createRoute/updateRoute/deleteRoute 管理路由；enableRoute/disableRoute 启用或禁用已有路由（需 path，建议显式传 domain）；bindCustomDomain/deleteCustomDomain 管理自定义域名；enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权（需配合 enable 参数）。createRoute/updateRoute 必须提供 upstreamResourceType；enableRoute/disableRoute 会先 listRoutes 定位已有路由，通常不必重填上游。updateRoute 也可传 enable/route.enable 直接改 Routes[].Enable。关闭 *.tcloudbaseapp.com 默认静态托管域：disableRoute + domain=该 STATIC_STORE IsDefault 域名 + path="/"。已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；bindCustomDomain 仅用于首次绑定新域名（需 certificateId；可选 accessType=DIRECT|CDN|CUSTOM，CUSTOM 需 customCname；普通场景用默认 DIRECT）。接入说明：https://docs.cloudbase.net/service/custom-domain 可填写的值: "createRoute", "updateRoute", "deleteRoute", "enableRoute", "disableRoute", "bindCustomDomain", "deleteCustomDomain", "enableService", "authSwitch"`,
+      description: `写操作：createRoute/updateRoute/deleteRoute 管理路由；enableRoute/disableRoute 启用或禁用已有路由（需 path，建议显式传 domain）；bindCustomDomain/deleteCustomDomain 管理自定义域名；enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权（需配合 enable 参数）。createRoute/updateRoute 必须提供 upstreamResourceType；enableRoute/disableRoute 会先 listRoutes 定位已有路由，通常不必重填上游。updateRoute 也可传 enable/route.enable 直接改 Routes[].Enable。关闭 *.tcloudbaseapp.com 默认静态托管域：disableRoute + domain=该 STATIC_STORE IsDefault 域名 + path="/"。已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；bindCustomDomain 仅用于首次绑定新域名（certificateId 可选，未传则按域名自动检索；可选 accessType=DIRECT|CDN|CUSTOM，CUSTOM 需 customCname；普通场景用默认 DIRECT）。createRoute/bindCustomDomain 创建前会 VerifyHTTPServiceRoute 预检；失败时按返回的 DNS TXT 指引配置后重试。接入说明：https://docs.cloudbase.net/service/custom-domain 可填写的值: "createRoute", "updateRoute", "deleteRoute", "enableRoute", "disableRoute", "bindCustomDomain", "deleteCustomDomain", "enableService", "authSwitch"`,
     },
     {
       name: "targetName",
@@ -2675,7 +2681,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
     {
       name: "certificateId",
       type: "string",
-      description: `证书 ID。仅首次 bindCustomDomain 必填。在已有自定义域名上 createRoute / updateRoute / deleteRoute 不需要 certificateId。`,
+      description: `证书 ID。仅 bindCustomDomain 使用：显式传入时跳过自动检索；省略时按 domain 调用 describeCertificates(SearchKey=domain)——单证书自动选用，无证书报错，多证书返回结构化选择指引（MCP 非交互）。在已有自定义域名上 createRoute / updateRoute / deleteRoute 不需要 certificateId。`,
     },
     {
       name: "accessType",
@@ -3369,6 +3375,91 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
       name: "region",
       type: "string",
       description: `云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写入 params.Region。`,
+    }
+  ]}
+/>
+
+---
+
+### `queryMessagePush`
+查询小程序云开发消息推送配置（qbase getappconfig）或全部合法消息推送事件约束（getcallbacksupportlist）。消息推送把小程序事件/消息（含虚拟支付回调、text/image 等消息类型）送到云函数，无需自建服务器。action=list 返回当前配置列表（msgType/event/env/functionName/enable）与 version（乐观锁版本号）；action=listSupportedEvents 返回全部合法约束（按消息类型分组：event 组含事件名列表；text/image/voice/video/miniprogrampage 组 events 为空数组），事件类用 manageMessagePush(event_types=...)，消息类型用 manageMessagePush(msg_type=...)。需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn），独立 CloudBase MCP 运行会返回指引错误。
+
+#### 参数
+
+<ParameterTable
+  parameters={[
+    {
+      name: "appid",
+      type: "string",
+      required: true,
+      description: `小程序 AppID（必填，与微信开发者工具一致；用于选择微信登录态会话）`,
+    },
+    {
+      name: "env",
+      type: "string",
+      description: `可选：环境 ID；传入时 list 仅返回该环境的订阅条目`,
+    },
+    {
+      name: "action",
+      type: "string",
+      required: true,
+      description: `list: 查询当前消息推送配置列表 listSupportedEvents: 查询全部合法消息推送事件约束（按 msgType 分组） 可填写的值: "list", "listSupportedEvents"`,
+    }
+  ]}
+/>
+
+---
+
+### `manageMessagePush`
+管理小程序云开发消息推送配置（写操作，需 confirm="yes" 确认）。基于「读全量 → merge → 全量覆盖（带 version 乐观锁）」实现声明式幂等（对齐 kubectl apply：event_types 是期望集合，重复执行收敛到同一状态；version 冲突即 RFC 7232 If-Match 412，返回可重试错误：重读 → merge → 重试）。msg_type 区分两类条目（缺省 "event"，向后兼容）：msg_type="event" 操作事件类（需 event_types；subscribe 缺省时默认虚拟支付 7 个 xpay_* 事件）；msg_type="text"|"image"|"voice"|"video"|"miniprogrampage" 操作消息类型条目（event 固定空串，勿传 event_types）。action=subscribe 订阅到指定云函数；同一 (msgType,event) 只能推到一个云函数（一事一函数），已绑定其他函数会自动重绑并说明。action=unsubscribe 移除匹配订阅（msg_type=event 时 event_types 必填；消息类型时按 msg_type 移除）。action=setEnable 启用/停用匹配订阅（msg_type=event 时 event_types + enable 必填；消息类型时 msg_type + enable）。action=ensureCloudFunctionMode 确保推送模式为云函数（若为云托管整包接收则切换 qbase_open=false，需确认）。集合无变化时不发起写请求（幂等 no-op，无需确认）。需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn）。
+
+#### 参数
+
+<ParameterTable
+  parameters={[
+    {
+      name: "appid",
+      type: "string",
+      required: true,
+      description: `小程序 AppID（必填，与微信开发者工具一致；用于选择微信登录态会话）`,
+    },
+    {
+      name: "env_id",
+      type: "string",
+      required: true,
+      description: `环境 ID（订阅条目绑定的云开发环境）`,
+    },
+    {
+      name: "function_name",
+      type: "string",
+      required: true,
+      description: `接收消息推送的云函数名`,
+    },
+    {
+      name: "action",
+      type: "string",
+      required: true,
+      description: `subscribe: 订阅到指定云函数（msg_type=event 时 event_types 缺省=虚拟支付 7 事件；消息类型时按 msg_type 订阅） unsubscribe: 移除匹配订阅（msg_type=event 时 event_types 必填） setEnable: 启用/停用匹配订阅（msg_type=event 时 event_types + enable 必填） ensureCloudFunctionMode: 确保为云函数推送模式（云托管整包接收时切换，需确认） 可填写的值: "subscribe", "unsubscribe", "setEnable", "ensureCloudFunctionMode"`,
+    },
+    {
+      name: "msg_type",
+      type: "string",
+      description: `消息类型（缺省 "event"）。"event"：事件类条目，需配合 event_types（subscribe 可缺省=虚拟支付 7 事件）。"text"|"image"|"voice"|"video"|"miniprogrampage"：消息类型条目（event 固定空串），勿传 event_types。 可填写的值: "event", "text", "image", "voice", "video", "miniprogrampage"`,
+    },
+    {
+      name: "event_types",
+      type: "array of string",
+      description: `要操作的事件列表（仅 msg_type="event" 时使用；可先 queryMessagePush(action=listSupportedEvents) 查询全量约束）。subscribe 缺省时默认订阅虚拟支付 7 个事件：xpay_goods_deliver_notify、xpay_coin_pay_notify、xpay_complaint_notify、xpay_subscribe_signing_result_notify、xpay_subscribe_pay_fail_notify、xpay_subscribe_ios_refund_query_notify、xpay_refund_notify；unsubscribe / setEnable 且 msg_type=event 时必填。消息类型操作请勿传本参数。`,
+    },
+    {
+      name: "enable",
+      type: "boolean",
+      description: `setEnable 时必填：true 启用订阅 / false 停用订阅`,
+    },
+    {
+      name: "confirm",
+      type: "string",
+      description: `写操作确认：确认执行请传 confirm="yes"；不传或传其他值将返回待确认的配置摘要（CONFIRM_REQUIRED），核对后再重试。集合无变化时无需确认。`,
     }
   ]}
 />

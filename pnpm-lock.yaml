@@ -34,8 +34,8 @@ importers:
   .:
     dependencies:
       '@cloudbase/manager-node':
-        specifier: 5.6.6
-        version: 5.6.6
+        specifier: 5.8.1
+        version: 5.8.1
     devDependencies:
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
@@ -111,8 +111,8 @@ importers:
         specifier: ^1.14.0
         version: 1.18.2
       '@cloudbase/manager-node':
-        specifier: 5.6.6
-        version: 5.6.6
+        specifier: 5.8.1
+        version: 5.8.1
       '@cloudbase/mcp':
         specifier: 1.0.0-beta.25
         version: 1.0.0-beta.25
@@ -330,8 +330,8 @@ packages:
     resolution: {integrity: sha512-IteJl7RjPYjsqQbmSr6Vr0el6I19SzI1ya6Nw1ov4KEHxXdwrjJ2uubBeUK4mc54kmzFmvTwqBuyJdhUQ/YDXA==}
     engines: {node: '>=18.0.0'}
 
-  '@cloudbase/manager-node@5.6.6':
-    resolution: {integrity: sha512-kwK+Ox2wbnJ0cgRja2ClgmIErbwRqje2kDIjS+1/Uxg9YmwZvR+RiWDdarqElxqwVj90V4sYx3Aa2wx6ldjWXQ==}
+  '@cloudbase/manager-node@5.8.1':
+    resolution: {integrity: sha512-OhDqKAeu4YX/Vt1VeTsCe6FxiDkqLLeRz4Wpmeskd0jfzEu8OJVJyWRkLOzra4RlOROu049ujzJWzpNDnl6FnA==}
 
   '@cloudbase/mcp@1.0.0-beta.25':
     resolution: {integrity: sha512-IZw5MGTin3/SHlJVL6aoMLocAIlqsm8Oif0Xlb4OeznlAFuSIGwMV8ZJ5Dn9ftzyN/kwKjysa6x+Rmfw6MG51A==}
@@ -345,6 +345,9 @@ packages:
 
   '@cloudbase/toolbox@0.8.1':
     resolution: {integrity: sha512-kSiX4Cx+B+WGt/gBSAST+l0MwM8ya5FqJu6qq7kNpHSibvz3wSe0r/JzBuov0YF7fNj7qmxsmDIPAToFoV3vjQ==}
+
+  '@cloudbase/toolbox@0.8.3':
+    resolution: {integrity: sha512-Q+RT/cG0HH8V3N3ovRMKPgoOvD22Owdp5GkHDP5TKN7GpLWv3tvkfUDXFtH2jLFL+69t0qiNrP4ZlVH1/900pg==}
 
   '@codemirror/autocomplete@6.20.3':
     resolution: {integrity: sha512-tlosUqb+3BbxCxZdu4tKeRghPFC+QM7q4X5YhKV2eCmPG+1r2F3f4AaSz5sCrFqUtX4Jh20VFTKecl16MgiV9g==}
@@ -4809,10 +4812,11 @@ snapshots:
 
   '@cloudbase/functions-typings@1.2.1': {}
 
-  '@cloudbase/manager-node@5.6.6':
+  '@cloudbase/manager-node@5.8.1':
     dependencies:
       '@cloudbase/database': 0.6.2
       '@cloudbase/signature-nodejs': 1.1.0
+      '@cloudbase/toolbox': 0.8.3
       archiver: 3.1.1
       cos-nodejs-sdk-v5: 2.15.4
       del: 5.1.0
@@ -4828,8 +4832,10 @@ snapshots:
       uuid: 9.0.1
       walkdir: 0.4.1
     transitivePeerDependencies:
+      - bare-abort-controller
       - bufferutil
       - encoding
+      - react-native-b4a
       - supports-color
       - utf-8-validate
 
@@ -4875,6 +4881,40 @@ snapshots:
       make-dir: 3.1.0
       mustache: 4.2.0
       nanoid: 3.3.12
+      node-fetch: 2.7.0
+      open: 7.1.0
+      ora: 5.4.1
+      parse-json: 5.2.0
+      path-type: 4.0.0
+      portfinder: 1.0.38
+      query-string: 6.14.1
+      terminal-link: 2.1.1
+      yaml: 1.10.3
+      yargs: 15.4.1
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - encoding
+      - react-native-b4a
+      - supports-color
+
+  '@cloudbase/toolbox@0.8.3':
+    dependencies:
+      '@cloudbase/cloud-api': 0.5.5
+      '@types/lowdb': 1.0.15
+      address: 1.2.2
+      ajv: 6.12.6
+      archiver: 5.3.2
+      decompress: '@xhmikosr/decompress@11.1.3'
+      del: 5.1.0
+      dotenv: 8.6.0
+      import-fresh: 3.3.1
+      jsonfile: 6.2.0
+      lodash: 4.18.1
+      log-symbols: 4.1.0
+      lowdb: 1.0.0
+      make-dir: 3.1.0
+      mustache: 4.2.0
+      nanoid: 3.3.17
       node-fetch: 2.7.0
       open: 7.1.0
       ora: 5.4.1
@@ -6113,7 +6153,7 @@ snapshots:
 
   agent-base@6.0.2:
     dependencies:
-      debug: 4.4.1(supports-color@5.5.0)
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -7415,7 +7455,7 @@ snapshots:
   https-proxy-agent@5.0.1:
     dependencies:
       agent-base: 6.0.2
-      debug: 4.4.1(supports-color@5.5.0)
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 

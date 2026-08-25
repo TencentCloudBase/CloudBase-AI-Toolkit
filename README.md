@@ -24,22 +24,15 @@ The CloudBase integration layer for AI coding tools: Plugin installs the stack, 
 
 ## Recent updates
 
+**v2.32.x** (2026-08)
+
+- Mini Program: `queryMessagePush` / `manageMessagePush` for event and message-type subscriptions (virtual-pay defaults, idempotent merge, optional appid)
+- Gateway: `manageGateway` verifies HTTP service before custom-domain / route create, with certificate auto-select and clearer DNS guidance
+- Skills: message-push / customer-service reference plus layered Chinese localization for miniprogram-development
+
 **v2.31.x** (2026-08)
 
 - CloudRun: `getDeployLog` failures (CODING login / image deploy with no build) now rewrite to `getProcessLog` / `getDeployRecords` next steps instead of raw English errors
-
-**v2.30.x** (2026-08)
-
-- Env: cross-region environment query and clearer credential-scope boundary for MCP auth
-- Auth: drop redundant `login_mode`; keep `credential_scope` as the single credential boundary signal
-- Release: Kimi plugin zip uses a whitelist-only, version-free asset name
-- Kimi: plugin zip assembles sibling skills into `skills/cloudbase/references/` so the archive stays self-contained and in sync with the manifest contract
-
-**v2.29.x** (2026-08)
-
-- IDE: Kimi Code plugin (`kimi.plugin.json`) reuses shared CloudBase skills/MCP assets
-- Release: pack Kimi plugin zip and attach it to GitHub Release assets automatically
-- Auth UX: Kimi login via MCP `auth` device-code flow; routing skill loads domain knowledge on demand
 
 [Releases][changelog] · [Star][github-stars-link] · Watch → Releases
 

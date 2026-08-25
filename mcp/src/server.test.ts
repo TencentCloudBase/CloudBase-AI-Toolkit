@@ -20,6 +20,7 @@ const {
   mockRegisterLogTools,
   mockRegisterAgentTools,
   mockRegisterAppTools,
+  mockRegisterMsgPushTools,
   mockResolveSiteAndRegion,
 } = vi.hoisted(() => ({
   mockRegisterEnvTools: vi.fn(),
@@ -41,6 +42,7 @@ const {
   mockRegisterLogTools: vi.fn(),
   mockRegisterAgentTools: vi.fn(),
   mockRegisterAppTools: vi.fn(),
+  mockRegisterMsgPushTools: vi.fn(),
   mockResolveSiteAndRegion: vi.fn(() => ({ site: "domestic", region: "ap-shanghai" })),
 }));
 
@@ -63,6 +65,7 @@ vi.mock("./tools/permissions.js", () => ({ registerPermissionTools: mockRegister
 vi.mock("./tools/logs.js", () => ({ registerLogTools: mockRegisterLogTools }));
 vi.mock("./tools/agents.js", () => ({ registerAgentTools: mockRegisterAgentTools }));
 vi.mock("./tools/apps.js", () => ({ registerAppTools: mockRegisterAppTools }));
+vi.mock("./tools/msg-push.js", () => ({ registerMsgPushTools: mockRegisterMsgPushTools }));
 vi.mock("./utils/tool-wrapper.js", () => ({
   wrapServerWithTelemetry: vi.fn(),
   applyCategoryAnnotationMeta: (config: unknown) => config,
@@ -170,5 +173,24 @@ describe("server plugin registration", () => {
     });
 
     expect(mockRegisterDatabaseTools).not.toHaveBeenCalled();
+  });
+
+  it("should NOT register msg-push tools by default (opt-in plugin)", async () => {
+    const { createCloudBaseMcpServer } = await import("./server.js");
+
+    await createCloudBaseMcpServer({ enableTelemetry: false });
+
+    expect(mockRegisterMsgPushTools).not.toHaveBeenCalled();
+  });
+
+  it("should register msg-push tools when explicitly enabled", async () => {
+    const { createCloudBaseMcpServer } = await import("./server.js");
+
+    await createCloudBaseMcpServer({
+      enableTelemetry: false,
+      pluginsEnabled: ["msg-push"],
+    });
+
+    expect(mockRegisterMsgPushTools).toHaveBeenCalledTimes(1);
   });
 });
