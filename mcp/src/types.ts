@@ -229,6 +229,12 @@ export interface MsgPushQbaseResponse {
 export interface MsgPushOverrides {
   /** 消息推送 qbase CGI 对应的 Cloud API service 名（默认 "qbase"）；宿主可按后端契约覆盖 */
   service?: string;
+  /**
+   * Optional readonly hook to list cloud function names in an env.
+   * Used by manageMessagePush(action=subscribe) to reject unknown function_name.
+   * Hosts may inject this; when omitted the tool falls back to CloudBase Manager getFunctionList.
+   */
+  listCloudFunctions?: (envId: string) => Promise<string[]>;
 }
 
 export type Logger = (data: {

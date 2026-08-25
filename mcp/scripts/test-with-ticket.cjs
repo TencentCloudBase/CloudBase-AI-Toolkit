@@ -319,6 +319,8 @@ function createMockMsgPushBackend() {
   let enable = true;
   let callbacks = [];
   let qbaseOpen = false;
+  let containerPath = "/push";
+  let containerTextMode = 1;
 
   return {
     requestFn: async ({ url, body }) => {
@@ -344,15 +346,30 @@ function createMockMsgPushBackend() {
         return { base_resp: { ret: 0 } };
       }
       if (url.endsWith("/getcontainercallbackconfig")) {
-        return { base_resp: { ret: 0 }, qbase_open: qbaseOpen };
+        return {
+          base_resp: { ret: 0 },
+          qbase_open: qbaseOpen,
+          qbase_env: "env-container",
+          qbase_container_path: containerPath,
+          text_mode: containerTextMode,
+        };
       }
       if (url.endsWith("/setcontainercallbackconfig")) {
         qbaseOpen = body.qbase_open === true;
+        if (typeof body.qbase_container_path === "string") {
+          containerPath = body.qbase_container_path;
+        }
+        if (typeof body.qbase_env === "string") {
+          // keep for mock completeness
+        }
+        if (typeof body.text_mode === "number") {
+          containerTextMode = body.text_mode;
+        }
         return { base_resp: { ret: 0 } };
       }
       throw new Error(`mock qbase: 未知 CGI ${url}`);
     },
-    state: () => ({ version, enable, callbacks, qbaseOpen }),
+    state: () => ({ version, enable, callbacks, qbaseOpen, containerPath, containerTextMode }),
   };
 }
 
@@ -432,7 +449,12 @@ async function runMsgPushTestGroup() {
     ide: "wxide",
     cloudBaseOptions: { envId, requestFn: cloudRequestFn },
     pluginsEnabled: ["msg-push"],
-    pluginOptions: { msgPush: {} },
+    pluginOptions: {
+      msgPush: {
+        // subscribe validates function existence; inject readonly list for E2E
+        listCloudFunctions: async () => ["msg-push-test-fn"],
+      },
+    },
   });
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -451,12 +473,16 @@ async function runMsgPushTestGroup() {
   // 1. 只读检查
   const list1 = await call("queryMessagePush", { appid, action: "list" });
   if (!list1.success) throw new Error(`queryMessagePush(list) 失败: ${JSON.stringify(list1)}`);
-  process.stderr.write(`[msgpush] ✅ list 成功：version=${list1.version}, enable=${list1.enable}, callbacks=${list1.callbacks.length}\n`);
+  if (!list1.pushMode || !["cloudfunction", "container"].includes(list1.pushMode)) {
+    throw new Error(`list 缺少 pushMode: ${JSON.stringify(list1)}`);
+  }
+  process.stderr.write(
+    `[msgpush] ✅ list 成功：pushMode=${list1.pushMode}, version=${list1.version}, enable=${list1.enable}, callbacks=${list1.callbacks.length}\n`,
+  );
 
-  // 真实模式：快照完整原始 config（version + 原始 config 字符串），
-  // subscribe 的 rebound 语义可能改绑已有回调、enable 也会被置 true，
-  // unsubscribe/setEnable 无法保证还原，结束必须全量快照还原。
+  // 真实模式：先快照（含云托管），再必要时切回云函数模式，结束必须还原。
   let configSnapshot = null;
+  let containerSnapshot = null;
   if (!mockMsgPush && ticketTransport) {
     const raw = await ticketTransport({
       url: QBASE_PATHS.getAppConfig,
@@ -466,6 +492,30 @@ async function runMsgPushTestGroup() {
     });
     configSnapshot = { version: raw.version, config: raw.config };
     process.stderr.write(`[msgpush] 📸 已快照原始配置 version=${raw.version}\n`);
+    const rawContainer = await ticketTransport({
+      url: QBASE_PATHS.getContainerCallbackConfig,
+      method: "post",
+      body: {},
+      appid,
+    });
+    const { base_resp: _b, ...containerFields } = rawContainer || {};
+    containerSnapshot = containerFields;
+    process.stderr.write(
+      `[msgpush] 📸 已快照云托管配置 qbase_open=${containerFields.qbase_open === true}\n`,
+    );
+  }
+
+  // 若当前已是云托管模式，先切回云函数模式，否则后续 subscribe 会被拒绝
+  if (list1.pushMode === "container") {
+    const switchBack = await call("manageMessagePush", {
+      ...baseArgs,
+      action: "ensureCloudFunctionMode",
+      confirm: "yes",
+    });
+    if (!switchBack.success && switchBack.code !== "NO_CHANGE") {
+      throw new Error(`测试前切回云函数模式失败: ${JSON.stringify(switchBack)}`);
+    }
+    process.stderr.write("[msgpush] ⚠️ 环境原为云托管模式，已临时切到云函数模式（结束将快照还原）\n");
   }
 
   const supported = await call("queryMessagePush", { appid, action: "listSupportedEvents" });
@@ -649,6 +699,55 @@ async function runMsgPushTestGroup() {
   }
   process.stderr.write("[msgpush] ✅ unsubscribe msg_type=text 成功\n");
 
+  // 5c. 云托管模式往返：ensureContainerMode → list pushMode=container →
+  //     subscribe 拒绝 → ensureCloudFunctionMode 切回（真实模式结束会快照还原）
+  {
+    const ensureC = await call("manageMessagePush", {
+      ...baseArgs,
+      action: "ensureContainerMode",
+      qbase_container_path: "/msgpush-e2e-container",
+      qbase_env: envId,
+      text_mode: 1,
+      confirm: "yes",
+    });
+    if (!ensureC.success && ensureC.code !== "NO_CHANGE") {
+      throw new Error(`ensureContainerMode 失败: ${JSON.stringify(ensureC)}`);
+    }
+    const listC = await call("queryMessagePush", { appid, action: "list" });
+    if (listC.pushMode !== "container") {
+      throw new Error(`ensureContainerMode 后 pushMode 期望 container，实际 ${listC.pushMode}`);
+    }
+    if (!listC.note || !/云托管/.test(listC.note)) {
+      throw new Error(`云托管 list 缺少 note: ${JSON.stringify(listC)}`);
+    }
+    process.stderr.write("[msgpush] ✅ ensureContainerMode + list pushMode=container\n");
+
+    const blocked = await call("manageMessagePush", {
+      ...baseArgs,
+      action: "subscribe",
+      event_types: [testEvent],
+      confirm: "yes",
+    });
+    if (blocked.code !== "CONTAINER_MODE_ACTIVE") {
+      throw new Error(`云托管模式下 subscribe 应拒绝，实际 ${JSON.stringify(blocked)}`);
+    }
+    process.stderr.write("[msgpush] ✅ 云托管模式拒绝 subscribe（CONTAINER_MODE_ACTIVE）\n");
+
+    const back = await call("manageMessagePush", {
+      ...baseArgs,
+      action: "ensureCloudFunctionMode",
+      confirm: "yes",
+    });
+    if (!back.success && back.code !== "NO_CHANGE") {
+      throw new Error(`ensureCloudFunctionMode 失败: ${JSON.stringify(back)}`);
+    }
+    const listBack = await call("queryMessagePush", { appid, action: "list" });
+    if (listBack.pushMode !== "cloudfunction") {
+      throw new Error(`切回后 pushMode 期望 cloudfunction，实际 ${listBack.pushMode}`);
+    }
+    process.stderr.write("[msgpush] ✅ ensureCloudFunctionMode 往返切换成功\n");
+  }
+
   // 6. 全量快照还原（真实模式）：subscribe 会改绑已有回调 + 置 enable=true，
   //    unsubscribe/setEnable 只能还原工具自身写的条目，无法恢复被 rebound 的
   //    原回调 —— 必须用测试前的完整 config 覆盖写还原。
@@ -675,6 +774,21 @@ async function runMsgPushTestGroup() {
       throw new Error(`快照还原失败: ${JSON.stringify(restore)}`);
     }
     process.stderr.write(`[msgpush] ✅ 原始配置快照已还原（version=${cur.version}）\n`);
+  }
+
+  if (!mockMsgPush && ticketTransport && containerSnapshot) {
+    const restoreContainer = await ticketTransport({
+      url: QBASE_PATHS.setContainerCallbackConfig,
+      method: "post",
+      body: containerSnapshot,
+      appid,
+    });
+    if (restoreContainer?.base_resp?.ret !== 0) {
+      throw new Error(`云托管快照还原失败: ${JSON.stringify(restoreContainer)}`);
+    }
+    process.stderr.write(
+      `[msgpush] ✅ 云托管配置快照已还原（qbase_open=${containerSnapshot.qbase_open === true}）\n`,
+    );
   }
 
   if (mockMsgPush) {
