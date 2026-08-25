@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+## [2.32.1](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.0...v2.32.1) (2026-08-25)
+
+### Features
+
+* **msg-push**: detect container vs cloudfunction push mode; add `ensureContainerMode` / `setContainerCallback` and function-existence check on subscribe
+
+### Bug Fixes
+
+* **msg-push**: degrade function-existence check when host hook is absent (WeChat IDE compat)
+
+### Documentation
+
+* **skill**: document push-mode (cloudfunction/container) and WeChat-side tool names in message-push reference
+
 ## [2.32.0](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.31.0...v2.32.0) (2026-08-24)
 
 ### Features

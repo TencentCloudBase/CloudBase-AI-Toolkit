@@ -1960,7 +1960,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 - aider: Aider AI编辑器
 
 特别说明：
-- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.31.0），便于后续维护和版本追踪
+- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.32.0），便于后续维护和版本追踪
 - 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）
 
 #### 参数
@@ -3382,7 +3382,7 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
 ---
 
 ### `queryMessagePush`
-查询小程序云开发消息推送配置（qbase getappconfig）或全部合法消息推送事件约束（getcallbacksupportlist）。消息推送把小程序事件/消息（含虚拟支付回调、text/image 等消息类型）送到云函数，无需自建服务器。action=list 返回当前配置列表（msgType/event/env/functionName/enable）与 version（乐观锁版本号）；action=listSupportedEvents 返回全部合法约束（按消息类型分组：event 组含事件名列表；text/image/voice/video/miniprogrampage 组 events 为空数组），事件类用 manageMessagePush(event_types=...)，消息类型用 manageMessagePush(msg_type=...)。需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn），独立 CloudBase MCP 运行会返回指引错误。
+查询小程序云开发消息推送配置（qbase getappconfig）或全部合法消息推送事件约束（getcallbacksupportlist）。推送模式有两种：云函数（默认，按 (msgType,event) 逐条回调）与云托管（qbase_open=true，整包接收所有消息到容器 path）。action=list 同时返回 pushMode（cloudfunction|container）、containerConfig、callbacks 与 version；云托管模式下 callbacks 可能仍存在但不生效（见 note），需 ensureCloudFunctionMode 切回云函数模式后才会按回调推送。action=listSupportedEvents 返回全部合法约束（按消息类型分组）。需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn）。
 
 #### 参数
 
@@ -3403,7 +3403,7 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
       name: "action",
       type: "string",
       required: true,
-      description: `list: 查询当前消息推送配置列表 listSupportedEvents: 查询全部合法消息推送事件约束（按 msgType 分组） 可填写的值: "list", "listSupportedEvents"`,
+      description: `list: 查询当前消息推送配置列表（含 pushMode/containerConfig） listSupportedEvents: 查询全部合法消息推送事件约束（按 msgType 分组） 可填写的值: "list", "listSupportedEvents"`,
     }
   ]}
 />
@@ -3411,7 +3411,7 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
 ---
 
 ### `manageMessagePush`
-管理小程序云开发消息推送配置（写操作，需 confirm="yes" 确认）。基于「读全量 → merge → 全量覆盖（带 version 乐观锁）」实现声明式幂等（对齐 kubectl apply：event_types 是期望集合，重复执行收敛到同一状态；version 冲突即 RFC 7232 If-Match 412，返回可重试错误：重读 → merge → 重试）。msg_type 区分两类条目（缺省 "event"，向后兼容）：msg_type="event" 操作事件类（需 event_types；subscribe 缺省时默认虚拟支付 7 个 xpay_* 事件）；msg_type="text"|"image"|"voice"|"video"|"miniprogrampage" 操作消息类型条目（event 固定空串，勿传 event_types）。action=subscribe 订阅到指定云函数；同一 (msgType,event) 只能推到一个云函数（一事一函数），已绑定其他函数会自动重绑并说明。action=unsubscribe 移除匹配订阅（msg_type=event 时 event_types 必填；消息类型时按 msg_type 移除）。action=setEnable 启用/停用匹配订阅（msg_type=event 时 event_types + enable 必填；消息类型时 msg_type + enable）。action=ensureCloudFunctionMode 确保推送模式为云函数（若为云托管整包接收则切换 qbase_open=false，需确认）。集合无变化时不发起写请求（幂等 no-op，无需确认）。需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn）。
+管理小程序云开发消息推送配置（写操作，需 confirm="yes" 确认）。推送模式：云函数（默认，按 (msgType,event) 回调）vs 云托管（整包接收；云托管模式下 subscribe/unsubscribe/setEnable 会被拒绝，先 ensureCloudFunctionMode）。基于「读全量 → merge → 全量覆盖（带 version 乐观锁）」实现声明式幂等。msg_type 缺省 "event"；消息类型用 msg_type=text|image|voice|video|miniprogrampage。action=subscribe 前会校验 function_name 在环境中真实存在。action=ensureCloudFunctionMode 关闭云托管整包接收；action=ensureContainerMode 开启云托管（需 qbase_container_path/qbase_env/text_mode）；action=setContainerCallback 更新云托管 path/env/text_mode。集合无变化时不发起写请求（幂等 no-op）。需要微信 IDE 登录态通道。
 
 #### 参数
 
@@ -3427,19 +3427,19 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
       name: "env_id",
       type: "string",
       required: true,
-      description: `环境 ID（订阅条目绑定的云开发环境）`,
+      description: `环境 ID（云函数订阅绑定的云开发环境；ensureContainerMode/setContainerCallback 未传 qbase_env 时也可作为云托管环境默认值）`,
     },
     {
       name: "function_name",
       type: "string",
       required: true,
-      description: `接收消息推送的云函数名`,
+      description: `接收消息推送的云函数名（subscribe/unsubscribe/setEnable/ensureCloudFunctionMode 使用；云托管相关 action 可传占位）`,
     },
     {
       name: "action",
       type: "string",
       required: true,
-      description: `subscribe: 订阅到指定云函数（msg_type=event 时 event_types 缺省=虚拟支付 7 事件；消息类型时按 msg_type 订阅） unsubscribe: 移除匹配订阅（msg_type=event 时 event_types 必填） setEnable: 启用/停用匹配订阅（msg_type=event 时 event_types + enable 必填） ensureCloudFunctionMode: 确保为云函数推送模式（云托管整包接收时切换，需确认） 可填写的值: "subscribe", "unsubscribe", "setEnable", "ensureCloudFunctionMode"`,
+      description: `subscribe: 订阅到指定云函数（云托管模式下拒绝） unsubscribe: 移除匹配订阅（云托管模式下拒绝） setEnable: 启用/停用匹配订阅（云托管模式下拒绝） ensureCloudFunctionMode: 切到云函数推送模式（关闭 qbase_open） ensureContainerMode: 切到云托管整包接收（需 qbase_container_path + text_mode） setContainerCallback: 更新云托管回调 path/env/text_mode 可填写的值: "subscribe", "unsubscribe", "setEnable", "ensureCloudFunctionMode", "ensureContainerMode", "setContainerCallback"`,
     },
     {
       name: "msg_type",
@@ -3449,12 +3449,27 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
     {
       name: "event_types",
       type: "array of string",
-      description: `要操作的事件列表（仅 msg_type="event" 时使用；可先 queryMessagePush(action=listSupportedEvents) 查询全量约束）。subscribe 缺省时默认订阅虚拟支付 7 个事件：xpay_goods_deliver_notify、xpay_coin_pay_notify、xpay_complaint_notify、xpay_subscribe_signing_result_notify、xpay_subscribe_pay_fail_notify、xpay_subscribe_ios_refund_query_notify、xpay_refund_notify；unsubscribe / setEnable 且 msg_type=event 时必填。消息类型操作请勿传本参数。`,
+      description: `要操作的事件列表（仅 msg_type="event" 时使用；可先 queryMessagePush(action=listSupportedEvents) 查询全量约束）。subscribe 缺省时默认订阅虚拟支付 7 个事件；unsubscribe / setEnable 且 msg_type=event 时必填。`,
     },
     {
       name: "enable",
       type: "boolean",
       description: `setEnable 时必填：true 启用订阅 / false 停用订阅`,
+    },
+    {
+      name: "qbase_container_path",
+      type: "string",
+      description: `云托管回调路径/URL（ensureContainerMode 必填；setContainerCallback 可选更新）`,
+    },
+    {
+      name: "qbase_env",
+      type: "string",
+      description: `云托管服务所在环境 ID（ensureContainerMode/setContainerCallback 可选；缺省用 env_id）`,
+    },
+    {
+      name: "text_mode",
+      type: "number",
+      description: `云托管消息正文编码：1=json，2=xml（ensureContainerMode 必填；setContainerCallback 可选更新） 可填写的值: 1, 2`,
     },
     {
       name: "confirm",

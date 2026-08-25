@@ -27,6 +27,7 @@ The CloudBase integration layer for AI coding tools: Plugin installs the stack, 
 **v2.32.x** (2026-08)
 
 - Mini Program: `queryMessagePush` / `manageMessagePush` for event and message-type subscriptions (virtual-pay defaults, idempotent merge, optional appid)
+- Mini Program: message push aware of cloudfunction vs container mode (`ensureContainerMode` / `setContainerCallback`, function-existence check)
 - Gateway: `manageGateway` verifies HTTP service before custom-domain / route create, with certificate auto-select and clearer DNS guidance
 - Skills: message-push / customer-service reference plus layered Chinese localization for miniprogram-development
 
