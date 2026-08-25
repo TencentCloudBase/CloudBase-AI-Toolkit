@@ -63,9 +63,17 @@ if [[ -n "$CHANGED_MANIFESTS" ]]; then
   echo "[git-guard] 检测到依赖清单变更，校验 lockfile 同步…"
   for manifest in $CHANGED_MANIFESTS; do
     dir="$(dirname "$manifest")"
-    dir="${dir:-.}"
-    # 同目录存在的 lockfile 形态（自动适配：npm/pnpm/yarn）
-    for lock in "$dir/package-lock.json" "$dir/pnpm-lock.yaml" "$dir/yarn.lock"; do
+    # Normalize "." so lock paths match `git diff --name-only` (no ./ prefix).
+    if [[ "$dir" == "." ]]; then
+      dir=""
+    fi
+    # Same-directory lockfile shapes (npm / pnpm / yarn).
+    for lock_name in package-lock.json pnpm-lock.yaml yarn.lock; do
+      if [[ -n "$dir" ]]; then
+        lock="$dir/$lock_name"
+      else
+        lock="$lock_name"
+      fi
       if [[ -f "$lock" ]]; then
         if printf '%s\n' "$CHANGED_FILES" | grep -qxF "$lock"; then
           say_ok "$lock 已随清单更新"
