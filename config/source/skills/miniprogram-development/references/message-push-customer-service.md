@@ -203,3 +203,27 @@ wechatide -c <clientName> -t <cloud_fn_logs_or_equivalent> ...
 - 微信侧 CLI 暴露 / 缺失命令：任务 **9109db6b**
 - 日志 API 调研：任务 **d5735473**
 - 规格设计（CloudBase-MCP msg-push + EXPOSED_TOOL_NAME）：`specs/virtual-payment-mcp/design.md`（任务 **43367cc6**）
+
+## 5. 推送模式：云函数 vs 云托管
+
+消息推送有**推送模式**，IDE「消息推送」面板右上角展示（云函数 / 云托管）：
+
+| 模式 | 行为 | 配置方式 |
+|---|---|---|
+| **云函数**（默认） | 按 (消息类型, 事件) 二元组逐条推送至对应云函数 | IDE 面板逐条添加，或 MCP `manageMessagePush(subscribe)` |
+| **云托管** | **整包接收所有消息**至云托管服务（一条 path 全收），云函数回调失效 | IDE 面板「云托管」切换 |
+
+### 行为要点（MCP / IDE 一致）
+
+- 云托管模式下，云函数回调**存在但不生效**——查询会返回 `pushMode=container` 及提示
+- 云托管模式下 `subscribe/unsubscribe/setEnable` 会被**拒绝**（提示先切回云函数模式）
+- 切换模式是**写操作**，需确认；切到云托管需提供服务路径（真实环境需已有云托管服务）
+- 云托管开通：IDE 云开发控制台 → 云托管 → 立即开通（可能与按量付费联动）；若环境无云托管服务，配置容器回调会失败
+
+### 操作方式（当前）
+
+```text
+# 当前唯一操作途径：微信开发者工具 IDE（消息推送面板 + 云托管页面）
+# MCP：queryMessagePush(list) 可读 pushMode；manageMessagePush(ensureCloudFunctionMode/ensureContainerMode/setContainerCallback) 管理模式
+# 底层 CGI / 开通接口细节见 skill wxide-qbase-msgpush-e2e，本参考不展开
+```
