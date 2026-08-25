@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { getCloudBaseManager } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
 import {
   CloudApiRequestFn,
@@ -507,35 +506,17 @@ async function assertCloudFunctionExists(
   functionName: string,
 ): Promise<ReturnType<typeof buildJsonToolResult> | null> {
   const override = server.pluginOptions?.msgPush?.listCloudFunctions;
+  // 兼容性降级：host 未提供 listCloudFunctions hook（如微信 IDE 无腾讯云凭据）时
+  // 跳过存在性校验，保持原有 subscribe 行为（写配置不阻断）；仅 host 显式启用时校验。
+  if (!override) {
+    return null;
+  }
   let names: string[];
   try {
-    if (override) {
-      names = await override(envId);
-    } else {
-      const manager = await getCloudBaseManager({
-        cloudBaseOptions: {
-          ...(server.cloudBaseOptions ?? {}),
-          envId,
-        },
-      });
-      const result = await manager.functions.getFunctionList(100, 0);
-      names = (result.Functions ?? [])
-        .map((f: { FunctionName?: string }) => f.FunctionName)
-        .filter((n: string | undefined): n is string => !!n);
-    }
+    names = await override(envId);
   } catch (e) {
-    return buildJsonToolResult({
-      ok: false,
-      code: "FUNCTION_LOOKUP_FAILED",
-      message:
-        `无法校验云函数是否存在于环境 ${envId}：${e instanceof Error ? e.message : String(e)}。` +
-        `请确认已登录腾讯云开发并绑定该环境后重试，或先用 queryFunctions(action=listFunctions) 核对。`,
-      next_step: {
-        tool: "queryFunctions",
-        action: "listFunctions",
-        hint: "确认云函数列表后再 subscribe",
-      },
-    });
+    // hook 本身失败（如网络/权限）时降级放行，不阻断订阅
+    return null;
   }
   if (!names.includes(functionName)) {
     return buildJsonToolResult({

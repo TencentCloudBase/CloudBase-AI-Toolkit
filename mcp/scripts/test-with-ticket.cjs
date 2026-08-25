@@ -121,6 +121,7 @@ function httpsPost(urlStr, bodyStr) {
     if (PROXY_AGENT) {
       options.agent = PROXY_AGENT;
     }
+    console.error("[DEBUG httpsPost]", u.hostname, "path前80:", (u.pathname + u.search).slice(0, 80));
     const req = require('https').request(options, (res) => {
       let d = ""; res.on("data", c => d += c);
       res.on("end", () => {
@@ -284,18 +285,62 @@ const QBASE_PATHS = {
   getCallbackSupportList: `${QBASE_BASE}/route/getcallbacksupportlist`,
   getContainerConfig: `${QBASE_BASE}/getcontainercallbackconfig`,
   setContainerConfig: `${QBASE_BASE}/setcontainercallbackconfig`,
+  getContainerCallbackConfig: `${QBASE_BASE}/getcontainercallbackconfig`,
+  setContainerCallbackConfig: `${QBASE_BASE}/setcontainercallbackconfig`,
 };
+
+
+/** --ticket=auto：每次请求前从本地 Whistle（127.0.0.1:8899）抓最新 qbase newticket（时效极短场景） */
+function fetchLatestTicketFromWhistle() {
+  return new Promise((resolve, reject) => {
+    const post = require("http").request(
+      { host: "127.0.0.1", port: 8899, path: "/cgi-bin/get-data?count=300", method: "POST" },
+      (res) => {
+        let buf = "";
+        res.on("data", (c) => (buf += c));
+        res.on("end", () => {
+          try {
+            const d = JSON.parse(buf);
+            const data = ((d.data || {}).data) || {};
+            const cands = [];
+            for (const v of Object.values(data)) {
+              const u = (v.url || "");
+              if (u.includes("wxa-dev-qbase") && u.includes("newticket=")) {
+                const q = new URL(u).searchParams;
+                const t = q.get("newticket");
+                if (t) cands.push([v.endTime || v.startTime || "", t]);
+              }
+            }
+            cands.sort((a, b) => (a[0] < b[0] ? 1 : -1));
+            if (!cands.length) return reject(new Error("Whistle 无 qbase ticket，请先在 IDE 打开消息推送页面"));
+            resolve(cands[0][1]);
+          } catch (e) {
+            reject(new Error("解析 Whistle 响应失败: " + e.message));
+          }
+        });
+      },
+    );
+    post.on("error", reject);
+    post.end();
+  });
+}
 
 /** 真实传输：带 ticket 直连 qbase CGI（POST，URL 带 appid/newticket） */
 function createTicketMsgPushRequestFn() {
   return async ({ url, method = "post", body, appid: reqAppid }) => {
     const u = new URL(url);
     u.searchParams.set("appid", reqAppid || appid);
-    u.searchParams.set("newticket", ticket);
+    u.searchParams.set("newticket", ticket === "auto" ? await fetchLatestTicketFromWhistle() : ticket);
     u.searchParams.set("platform", "0");
     u.searchParams.set("os", "darwin");
     const bodyStr = body ? JSON.stringify(body) : "{}";
-    const json = await httpsPost(u.toString(), bodyStr);
+    let json;
+    try {
+      json = await httpsPost(u.toString(), bodyStr);
+    } catch (e) {
+      console.error("[DEBUG ticketTransport] httpsPost 失败:", e.message);
+      throw e;
+    }
     if (!json || !json.base_resp) {
       throw new Error(`qbase 响应缺少 base_resp: ${JSON.stringify(json).slice(0, 200)}`);
     }
@@ -465,7 +510,11 @@ async function runMsgPushTestGroup() {
   const call = async (name, args) => {
     const res = await client.callTool({ name, arguments: args });
     const text = res.content?.[0]?.text ?? "{}";
-    return JSON.parse(text);
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error(`callTool ${name} 返回非 JSON: ${text.slice(0, 400)}`);
+    }
   };
 
   const baseArgs = { appid, env_id: envId, function_name: "msg-push-test-fn" };
@@ -863,6 +912,7 @@ async function main() {
 if (testGroup === "msgpush") {
   runMsgPushTestGroup().catch((e) => {
     process.stderr.write(`[test-with-ticket] ❌ 消息推送测试组失败: ${e.message}\n`);
+    if (e.stack) process.stderr.write(`[test-with-ticket] stack: ${e.stack.split("\n").slice(0, 4).join(" | ")}\n`);
     process.exit(1);
   });
   return;
