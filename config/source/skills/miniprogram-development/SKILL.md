@@ -46,7 +46,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Assuming Stable WeChat Developer Tools includes Nightly Skills/`wechatide` (it may not).
 - Forcing CloudBase MCP Tencent Cloud login for daily mini program cloud ops when Nightly `wechatide` already works.
 - Inventing `wechatide` tool names or flags instead of using `--help` / Nightly `tools.yaml`.
-- Bypassing wxide CLI / IDE for message-push ops with low-level transport before `cloud_msg_push_*` is exposed (see [message-push-customer-service.md](references/message-push-customer-service.md)).
+- Bypassing wxide CLI / IDE for message-push ops with low-level transport before `cloud_*_msg_push` is exposed (see [message-push-customer-service.md](references/message-push-customer-service.md)).
 - Assuming cloud-function return values auto-reply to customer-service chats (must use `cloud.openapi.customerServiceMessage.send`).
 - Making code or configuration changes without first following the Change Safety Protocol (`cloudbase-platform/references/protocols/change-safety-protocol.md`).
 - Performing mini program upload/publish without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
@@ -157,7 +157,7 @@ Keep the custom `tabBar` layout text-only, and use flex centering or matching `h
 
 > 微信生态专章：消息推送 / 客服自动回复细节以中文 reference 为准（术语保留英文 API 名）。
 
-- **Current only ops path:** WeChat Developer Tools IDE + wxide CLI. Do not teach low-level bypasses while `cloud_msg_push_query` / `cloud_msg_push_manage` are not yet exposed (track **9109db6b**).
+- **Current only ops path:** WeChat Developer Tools IDE + wxide CLI. Do not teach low-level bypasses while `cloud_query_msg_push` / `cloud_manage_msg_push` are not yet exposed (track **9109db6b**).
 - Deploy receiver functions with `cloud_fn_deploy` **and** `--remote-npm-install`; bind (MsgType, Event) → one cloud function in the IDE message-push panel until CLI tools land.
 - Customer-service auto-reply requires `cloud.openapi.customerServiceMessage.send` plus `config.json` openapi permissions — function return values alone do not reply.
 - Function logs: IDE **云开发控制台 → 云函数 → 日志**; CLI log query is pending (**9109db6b** / **d5735473**).
@@ -217,6 +217,6 @@ Page({
 - [CloudBase Mini Program Integration](references/cloudbase-integration.md) — use this when the mini program project explicitly integrates CloudBase
 - [WeChat DevTools Debug and Preview](references/devtools-debug-preview.md) — Nightly / `wechatide` paths, required context, and no-Nightly fallbacks
 - [WeChat IDE Skills vs CloudBase MCP](references/wxide-vs-cloudbase-mcp.md) — layering and when to use which execution surface
-- [Message Push & Customer Service Auto-Reply](references/message-push-customer-service.md) — 消息推送 / 客服自动回复 via wxide CLI + IDE (no low-level bypass; pending `cloud_msg_push_*`)
+- [Message Push & Customer Service Auto-Reply](references/message-push-customer-service.md) — 消息推送 / 客服自动回复 via wxide CLI + IDE (no low-level bypass; pending `cloud_*_msg_push`)
 - [Mini Program SEO & WeChat Search Optimization](references/seo-search-optimization.md) — 小程序搜索优化 / page indexing / search promotion (`mpcrawler`, URL reachability, `navigator` jumps, titles & thumbnails)
 - [Common Pitfalls](references/pitfalls.md) — read before generating code for optional chaining, TDesign styling, Canvas + storage, and environment issues
