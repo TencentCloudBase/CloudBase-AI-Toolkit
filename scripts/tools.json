@@ -2072,7 +2072,7 @@
     },
     {
       "name": "downloadTemplate",
-      "description": "自动下载并部署CloudBase项目模板。\n**Note**: Call this tool when the user requests to create a new project using a CloudBase template.\n\n支持的模板:\n- react: React + CloudBase 全栈应用模板\n- vue: Vue + CloudBase 全栈应用模板\n- miniprogram: 微信小程序 + 云开发模板  \n- uniapp: UniApp + CloudBase 跨端应用模板\n- rules: 只包含AI编辑器配置文件（包含Cursor、WindSurf、CodeBuddy等所有主流编辑器配置），适合在已有项目中补充AI编辑器配置\n\n支持的IDE类型:\n- all: 下载所有IDE配置\n- cursor: Cursor AI编辑器\n- 其他IDE类型见下方列表\n\n注意：如果未传入 ide 参数且无法从环境变量检测到 IDE，将提示错误并要求传入 ide 参数\n- windsurf: WindSurf AI编辑器\n- codebuddy: CodeBuddy AI编辑器\n- claude-code: Claude Code AI编辑器\n- cline: Cline AI编辑器\n- gemini-cli: Gemini CLI\n- opencode: OpenCode AI编辑器\n- qwen-code: 通义灵码\n- baidu-comate: 百度Comate\n- openai-codex-cli: OpenAI Codex CLI\n- augment-code: Augment Code\n- github-copilot: GitHub Copilot\n- roocode: RooCode AI编辑器\n- tongyi-lingma: 通义灵码\n- trae: Trae AI编辑器\n- qoder: Qoder AI编辑器\n- antigravity: Google Antigravity AI编辑器\n- vscode: Visual Studio Code\n- kiro: Kiro AI编辑器\n- aider: Aider AI编辑器\n\n特别说明：\n- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.31.0），便于后续维护和版本追踪\n- 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）",
+      "description": "自动下载并部署CloudBase项目模板。\n**Note**: Call this tool when the user requests to create a new project using a CloudBase template.\n\n支持的模板:\n- react: React + CloudBase 全栈应用模板\n- vue: Vue + CloudBase 全栈应用模板\n- miniprogram: 微信小程序 + 云开发模板  \n- uniapp: UniApp + CloudBase 跨端应用模板\n- rules: 只包含AI编辑器配置文件（包含Cursor、WindSurf、CodeBuddy等所有主流编辑器配置），适合在已有项目中补充AI编辑器配置\n\n支持的IDE类型:\n- all: 下载所有IDE配置\n- cursor: Cursor AI编辑器\n- 其他IDE类型见下方列表\n\n注意：如果未传入 ide 参数且无法从环境变量检测到 IDE，将提示错误并要求传入 ide 参数\n- windsurf: WindSurf AI编辑器\n- codebuddy: CodeBuddy AI编辑器\n- claude-code: Claude Code AI编辑器\n- cline: Cline AI编辑器\n- gemini-cli: Gemini CLI\n- opencode: OpenCode AI编辑器\n- qwen-code: 通义灵码\n- baidu-comate: 百度Comate\n- openai-codex-cli: OpenAI Codex CLI\n- augment-code: Augment Code\n- github-copilot: GitHub Copilot\n- roocode: RooCode AI编辑器\n- tongyi-lingma: 通义灵码\n- trae: Trae AI编辑器\n- qoder: Qoder AI编辑器\n- antigravity: Google Antigravity AI编辑器\n- vscode: Visual Studio Code\n- kiro: Kiro AI编辑器\n- aider: Aider AI编辑器\n\n特别说明：\n- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.32.0），便于后续维护和版本追踪\n- 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3618,7 +3618,7 @@
     },
     {
       "name": "queryMessagePush",
-      "description": "查询小程序云开发消息推送配置（qbase getappconfig）或全部合法消息推送事件约束（getcallbacksupportlist）。消息推送把小程序事件/消息（含虚拟支付回调、text/image 等消息类型）送到云函数，无需自建服务器。action=list 返回当前配置列表（msgType/event/env/functionName/enable）与 version（乐观锁版本号）；action=listSupportedEvents 返回全部合法约束（按消息类型分组：event 组含事件名列表；text/image/voice/video/miniprogrampage 组 events 为空数组），事件类用 manageMessagePush(event_types=...)，消息类型用 manageMessagePush(msg_type=...)。需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn），独立 CloudBase MCP 运行会返回指引错误。",
+      "description": "查询小程序云开发消息推送配置（qbase getappconfig）或全部合法消息推送事件约束（getcallbacksupportlist）。推送模式有两种：云函数（默认，按 (msgType,event) 逐条回调）与云托管（qbase_open=true，整包接收所有消息到容器 path）。action=list 同时返回 pushMode（cloudfunction|container）、containerConfig、callbacks 与 version；云托管模式下 callbacks 可能仍存在但不生效（见 note），需 ensureCloudFunctionMode 切回云函数模式后才会按回调推送。action=listSupportedEvents 返回全部合法约束（按消息类型分组）。需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn）。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3636,7 +3636,7 @@
               "list",
               "listSupportedEvents"
             ],
-            "description": "list: 查询当前消息推送配置列表\nlistSupportedEvents: 查询全部合法消息推送事件约束（按 msgType 分组）"
+            "description": "list: 查询当前消息推送配置列表（含 pushMode/containerConfig）\nlistSupportedEvents: 查询全部合法消息推送事件约束（按 msgType 分组）"
           }
         },
         "required": [
@@ -3649,7 +3649,7 @@
     },
     {
       "name": "manageMessagePush",
-      "description": "管理小程序云开发消息推送配置（写操作，需 confirm=\"yes\" 确认）。基于「读全量 → merge → 全量覆盖（带 version 乐观锁）」实现声明式幂等（对齐 kubectl apply：event_types 是期望集合，重复执行收敛到同一状态；version 冲突即 RFC 7232 If-Match 412，返回可重试错误：重读 → merge → 重试）。msg_type 区分两类条目（缺省 \"event\"，向后兼容）：msg_type=\"event\" 操作事件类（需 event_types；subscribe 缺省时默认虚拟支付 7 个 xpay_* 事件）；msg_type=\"text\"|\"image\"|\"voice\"|\"video\"|\"miniprogrampage\" 操作消息类型条目（event 固定空串，勿传 event_types）。action=subscribe 订阅到指定云函数；同一 (msgType,event) 只能推到一个云函数（一事一函数），已绑定其他函数会自动重绑并说明。action=unsubscribe 移除匹配订阅（msg_type=event 时 event_types 必填；消息类型时按 msg_type 移除）。action=setEnable 启用/停用匹配订阅（msg_type=event 时 event_types + enable 必填；消息类型时 msg_type + enable）。action=ensureCloudFunctionMode 确保推送模式为云函数（若为云托管整包接收则切换 qbase_open=false，需确认）。集合无变化时不发起写请求（幂等 no-op，无需确认）。需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn）。",
+      "description": "管理小程序云开发消息推送配置（写操作，需 confirm=\"yes\" 确认）。推送模式：云函数（默认，按 (msgType,event) 回调）vs 云托管（整包接收；云托管模式下 subscribe/unsubscribe/setEnable 会被拒绝，先 ensureCloudFunctionMode）。基于「读全量 → merge → 全量覆盖（带 version 乐观锁）」实现声明式幂等。msg_type 缺省 \"event\"；消息类型用 msg_type=text|image|voice|video|miniprogrampage。action=subscribe 前会校验 function_name 在环境中真实存在。action=ensureCloudFunctionMode 关闭云托管整包接收；action=ensureContainerMode 开启云托管（需 qbase_container_path/qbase_env/text_mode）；action=setContainerCallback 更新云托管 path/env/text_mode。集合无变化时不发起写请求（幂等 no-op）。需要微信 IDE 登录态通道。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3659,11 +3659,11 @@
           },
           "env_id": {
             "type": "string",
-            "description": "环境 ID（订阅条目绑定的云开发环境）"
+            "description": "环境 ID（云函数订阅绑定的云开发环境；ensureContainerMode/setContainerCallback 未传 qbase_env 时也可作为云托管环境默认值）"
           },
           "function_name": {
             "type": "string",
-            "description": "接收消息推送的云函数名"
+            "description": "接收消息推送的云函数名（subscribe/unsubscribe/setEnable/ensureCloudFunctionMode 使用；云托管相关 action 可传占位）"
           },
           "action": {
             "type": "string",
@@ -3671,9 +3671,11 @@
               "subscribe",
               "unsubscribe",
               "setEnable",
-              "ensureCloudFunctionMode"
+              "ensureCloudFunctionMode",
+              "ensureContainerMode",
+              "setContainerCallback"
             ],
-            "description": "subscribe: 订阅到指定云函数（msg_type=event 时 event_types 缺省=虚拟支付 7 事件；消息类型时按 msg_type 订阅）\nunsubscribe: 移除匹配订阅（msg_type=event 时 event_types 必填）\nsetEnable: 启用/停用匹配订阅（msg_type=event 时 event_types + enable 必填）\nensureCloudFunctionMode: 确保为云函数推送模式（云托管整包接收时切换，需确认）"
+            "description": "subscribe: 订阅到指定云函数（云托管模式下拒绝）\nunsubscribe: 移除匹配订阅（云托管模式下拒绝）\nsetEnable: 启用/停用匹配订阅（云托管模式下拒绝）\nensureCloudFunctionMode: 切到云函数推送模式（关闭 qbase_open）\nensureContainerMode: 切到云托管整包接收（需 qbase_container_path + text_mode）\nsetContainerCallback: 更新云托管回调 path/env/text_mode"
           },
           "msg_type": {
             "type": "string",
@@ -3692,11 +3694,27 @@
             "items": {
               "type": "string"
             },
-            "description": "要操作的事件列表（仅 msg_type=\"event\" 时使用；可先 queryMessagePush(action=listSupportedEvents) 查询全量约束）。subscribe 缺省时默认订阅虚拟支付 7 个事件：xpay_goods_deliver_notify、xpay_coin_pay_notify、xpay_complaint_notify、xpay_subscribe_signing_result_notify、xpay_subscribe_pay_fail_notify、xpay_subscribe_ios_refund_query_notify、xpay_refund_notify；unsubscribe / setEnable 且 msg_type=event 时必填。消息类型操作请勿传本参数。"
+            "description": "要操作的事件列表（仅 msg_type=\"event\" 时使用；可先 queryMessagePush(action=listSupportedEvents) 查询全量约束）。subscribe 缺省时默认订阅虚拟支付 7 个事件；unsubscribe / setEnable 且 msg_type=event 时必填。"
           },
           "enable": {
             "type": "boolean",
             "description": "setEnable 时必填：true 启用订阅 / false 停用订阅"
+          },
+          "qbase_container_path": {
+            "type": "string",
+            "description": "云托管回调路径/URL（ensureContainerMode 必填；setContainerCallback 可选更新）"
+          },
+          "qbase_env": {
+            "type": "string",
+            "description": "云托管服务所在环境 ID（ensureContainerMode/setContainerCallback 可选；缺省用 env_id）"
+          },
+          "text_mode": {
+            "type": "number",
+            "enum": [
+              1,
+              2
+            ],
+            "description": "云托管消息正文编码：1=json，2=xml（ensureContainerMode 必填；setContainerCallback 可选更新）"
           },
           "confirm": {
             "type": "string",

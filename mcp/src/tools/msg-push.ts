@@ -407,6 +407,45 @@ interface ContainerCallbackConfig {
   [key: string]: unknown;
 }
 
+/** Push mode derived from getContainerCallbackConfig.qbase_open */
+export type MsgPushMode = "cloudfunction" | "container";
+
+export function resolvePushMode(
+  container: ContainerCallbackConfig | null | undefined,
+): MsgPushMode {
+  return container?.qbase_open === true ? "container" : "cloudfunction";
+}
+
+/** Public subset of container callback fields returned to agents */
+export function pickContainerConfigPublic(
+  container: ContainerCallbackConfig | null | undefined,
+): {
+  qbase_container_path?: string;
+  qbase_env?: string;
+  text_mode?: number;
+  qbase_open?: boolean;
+} | undefined {
+  if (!container) return undefined;
+  return {
+    qbase_open: container.qbase_open === true,
+    qbase_container_path:
+      typeof container.qbase_container_path === "string"
+        ? container.qbase_container_path
+        : undefined,
+    qbase_env:
+      typeof container.qbase_env === "string" ? container.qbase_env : undefined,
+    text_mode:
+      typeof container.text_mode === "number" ? container.text_mode : undefined,
+  };
+}
+
+const CONTAINER_MODE_BLOCK_NOTE =
+  "当前为云托管模式（整包接收），云函数 callbacks 存在但不生效；如需云函数模式请调 ensureCloudFunctionMode 切换";
+
+const CONTAINER_MODE_WRITE_ERROR =
+  "当前 pushMode=container（云托管整包接收），云函数回调配置存在但不生效。" +
+  "如需云函数模式请调 action=ensureCloudFunctionMode 切换。";
+
 /** 读取云托管消息推送配置；无配置（云函数模式）返回 null */
 async function readContainerConfig(
   server: ExtendedMcpServer,
@@ -440,6 +479,60 @@ async function setContainerConfig(
       `setcontainercallbackconfig 失败(ret=${ret}): ${resp.base_resp?.errmsg ?? "未知错误"}`,
     );
   }
+}
+
+function buildContainerModeBlockedPayload(action: string) {
+  return buildJsonToolResult({
+    ok: false,
+    code: "CONTAINER_MODE_ACTIVE",
+    pushMode: "container" as const,
+    message: CONTAINER_MODE_WRITE_ERROR,
+    next_step: {
+      tool: "manageMessagePush",
+      action: "ensureCloudFunctionMode",
+      required_params: ["appid", "env_id", "function_name", "confirm"],
+      hint: `先切换到云函数模式后再执行 ${action}`,
+    },
+  });
+}
+
+/**
+ * Verify function_name exists in envId via optional host hook or CloudBase Manager list.
+ * Returns an error tool result when missing / unreadable; null when OK.
+ */
+async function assertCloudFunctionExists(
+  server: ExtendedMcpServer,
+  envId: string,
+  functionName: string,
+): Promise<ReturnType<typeof buildJsonToolResult> | null> {
+  const override = server.pluginOptions?.msgPush?.listCloudFunctions;
+  // 兼容性降级：host 未提供 listCloudFunctions hook（如微信 IDE 无腾讯云凭据）时
+  // 跳过存在性校验，保持原有 subscribe 行为（写配置不阻断）；仅 host 显式启用时校验。
+  if (!override) {
+    return null;
+  }
+  let names: string[];
+  try {
+    names = await override(envId);
+  } catch (e) {
+    // hook 本身失败（如网络/权限）时降级放行，不阻断订阅
+    return null;
+  }
+  if (!names.includes(functionName)) {
+    return buildJsonToolResult({
+      ok: false,
+      code: "FUNCTION_NOT_FOUND",
+      message: `云函数 ${functionName} 不存在于环境 ${envId}，请先创建或修正参数`,
+      envId,
+      function_name: functionName,
+      next_step: {
+        tool: "manageFunctions",
+        action: "createFunction",
+        required_params: ["functionName"],
+      },
+    });
+  }
+  return null;
 }
 
 function buildTransportUnavailablePayload(toolName: string, action?: string) {
@@ -538,11 +631,11 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
       title: "查询小程序消息推送配置",
       description:
         "查询小程序云开发消息推送配置（qbase getappconfig）或全部合法消息推送事件约束（getcallbacksupportlist）。" +
-        "消息推送把小程序事件/消息（含虚拟支付回调、text/image 等消息类型）送到云函数，无需自建服务器。" +
-        "action=list 返回当前配置列表（msgType/event/env/functionName/enable）与 version（乐观锁版本号）；" +
-        "action=listSupportedEvents 返回全部合法约束（按消息类型分组：event 组含事件名列表；text/image/voice/video/miniprogrampage 组 events 为空数组），" +
-        "事件类用 manageMessagePush(event_types=...)，消息类型用 manageMessagePush(msg_type=...)。" +
-        "需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn），独立 CloudBase MCP 运行会返回指引错误。",
+        "推送模式有两种：云函数（默认，按 (msgType,event) 逐条回调）与云托管（qbase_open=true，整包接收所有消息到容器 path）。" +
+        "action=list 同时返回 pushMode（cloudfunction|container）、containerConfig、callbacks 与 version；" +
+        "云托管模式下 callbacks 可能仍存在但不生效（见 note），需 ensureCloudFunctionMode 切回云函数模式后才会按回调推送。" +
+        "action=listSupportedEvents 返回全部合法约束（按消息类型分组）。" +
+        "需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn）。",
       inputSchema: {
         appid: z
           .string()
@@ -551,7 +644,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
         action: z
           .enum(["list", "listSupportedEvents"])
           .describe(
-            "list: 查询当前消息推送配置列表\nlistSupportedEvents: 查询全部合法消息推送事件约束（按 msgType 分组）",
+            "list: 查询当前消息推送配置列表（含 pushMode/containerConfig）\nlistSupportedEvents: 查询全部合法消息推送事件约束（按 msgType 分组）",
           ),
       },
       annotations: {
@@ -565,7 +658,11 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
         return buildTransportUnavailablePayload("queryMessagePush", action);
       }
       if (action === "list") {
-        const state = await readCallbackConfig(server, appid);
+        const [state, container] = await Promise.all([
+          readCallbackConfig(server, appid),
+          readContainerConfig(server, appid),
+        ]);
+        const pushMode = resolvePushMode(container);
         const callbacks = env
           ? state.list.filter((c) => c.env === env)
           : state.list;
@@ -575,12 +672,23 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
           message: "查询消息推送配置成功",
           version: state.version,
           enable: state.enable,
+          pushMode,
+          containerConfig: pickContainerConfigPublic(container),
           callbacks,
+          note: pushMode === "container" ? CONTAINER_MODE_BLOCK_NOTE : undefined,
           filteredByEnv: env ?? undefined,
-          next_steps: [
-            "manageMessagePush(action=subscribe) 订阅事件（缺省 event_types 时默认订阅虚拟支付 7 事件）",
-            "queryMessagePush(action=listSupportedEvents) 查看全部合法事件",
-          ],
+          next_steps:
+            pushMode === "container"
+              ? [
+                  "当前为云托管模式：云函数 subscribe/unsubscribe/setEnable 会被拒绝",
+                  "manageMessagePush(action=ensureCloudFunctionMode) 切回云函数模式",
+                  "manageMessagePush(action=setContainerCallback) 更新云托管 path/env/text_mode",
+                ]
+              : [
+                  "manageMessagePush(action=subscribe) 订阅事件（缺省 event_types 时默认订阅虚拟支付 7 事件）",
+                  "manageMessagePush(action=ensureContainerMode) 切换到云托管整包接收",
+                  "queryMessagePush(action=listSupportedEvents) 查看全部合法事件",
+                ],
         });
       }
       if (action === "listSupportedEvents") {
@@ -633,30 +741,43 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
       title: "管理小程序消息推送配置",
       description:
         "管理小程序云开发消息推送配置（写操作，需 confirm=\"yes\" 确认）。" +
-        "基于「读全量 → merge → 全量覆盖（带 version 乐观锁）」实现声明式幂等（对齐 kubectl apply：event_types 是期望集合，重复执行收敛到同一状态；" +
-        "version 冲突即 RFC 7232 If-Match 412，返回可重试错误：重读 → merge → 重试）。" +
-        "msg_type 区分两类条目（缺省 \"event\"，向后兼容）：" +
-        "msg_type=\"event\" 操作事件类（需 event_types；subscribe 缺省时默认虚拟支付 7 个 xpay_* 事件）；" +
-        "msg_type=\"text\"|\"image\"|\"voice\"|\"video\"|\"miniprogrampage\" 操作消息类型条目（event 固定空串，勿传 event_types）。" +
-        "action=subscribe 订阅到指定云函数；同一 (msgType,event) 只能推到一个云函数（一事一函数），已绑定其他函数会自动重绑并说明。" +
-        "action=unsubscribe 移除匹配订阅（msg_type=event 时 event_types 必填；消息类型时按 msg_type 移除）。" +
-        "action=setEnable 启用/停用匹配订阅（msg_type=event 时 event_types + enable 必填；消息类型时 msg_type + enable）。" +
-        "action=ensureCloudFunctionMode 确保推送模式为云函数（若为云托管整包接收则切换 qbase_open=false，需确认）。" +
-        "集合无变化时不发起写请求（幂等 no-op，无需确认）。" +
-        "需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn）。",
+        "推送模式：云函数（默认，按 (msgType,event) 回调）vs 云托管（整包接收；云托管模式下 subscribe/unsubscribe/setEnable 会被拒绝，先 ensureCloudFunctionMode）。" +
+        "基于「读全量 → merge → 全量覆盖（带 version 乐观锁）」实现声明式幂等。" +
+        "msg_type 缺省 \"event\"；消息类型用 msg_type=text|image|voice|video|miniprogrampage。" +
+        "action=subscribe 前会校验 function_name 在环境中真实存在。" +
+        "action=ensureCloudFunctionMode 关闭云托管整包接收；action=ensureContainerMode 开启云托管（需 qbase_container_path/qbase_env/text_mode）；" +
+        "action=setContainerCallback 更新云托管 path/env/text_mode。" +
+        "集合无变化时不发起写请求（幂等 no-op）。需要微信 IDE 登录态通道。",
       inputSchema: {
         appid: z
           .string()
           .describe("小程序 AppID（必填，与微信开发者工具一致；用于选择微信登录态会话）"),
-        env_id: z.string().describe("环境 ID（订阅条目绑定的云开发环境）"),
-        function_name: z.string().describe("接收消息推送的云函数名"),
-        action: z
-          .enum(["subscribe", "unsubscribe", "setEnable", "ensureCloudFunctionMode"])
+        env_id: z
+          .string()
           .describe(
-            "subscribe: 订阅到指定云函数（msg_type=event 时 event_types 缺省=虚拟支付 7 事件；消息类型时按 msg_type 订阅）\n" +
-              "unsubscribe: 移除匹配订阅（msg_type=event 时 event_types 必填）\n" +
-              "setEnable: 启用/停用匹配订阅（msg_type=event 时 event_types + enable 必填）\n" +
-              "ensureCloudFunctionMode: 确保为云函数推送模式（云托管整包接收时切换，需确认）",
+            "环境 ID（云函数订阅绑定的云开发环境；ensureContainerMode/setContainerCallback 未传 qbase_env 时也可作为云托管环境默认值）",
+          ),
+        function_name: z
+          .string()
+          .describe(
+            "接收消息推送的云函数名（subscribe/unsubscribe/setEnable/ensureCloudFunctionMode 使用；云托管相关 action 可传占位）",
+          ),
+        action: z
+          .enum([
+            "subscribe",
+            "unsubscribe",
+            "setEnable",
+            "ensureCloudFunctionMode",
+            "ensureContainerMode",
+            "setContainerCallback",
+          ])
+          .describe(
+            "subscribe: 订阅到指定云函数（云托管模式下拒绝）\n" +
+              "unsubscribe: 移除匹配订阅（云托管模式下拒绝）\n" +
+              "setEnable: 启用/停用匹配订阅（云托管模式下拒绝）\n" +
+              "ensureCloudFunctionMode: 切到云函数推送模式（关闭 qbase_open）\n" +
+              "ensureContainerMode: 切到云托管整包接收（需 qbase_container_path + text_mode）\n" +
+              "setContainerCallback: 更新云托管回调 path/env/text_mode",
           ),
         msg_type: z
           .enum(MSG_TYPES)
@@ -671,11 +792,27 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
           .optional()
           .describe(
             "要操作的事件列表（仅 msg_type=\"event\" 时使用；可先 queryMessagePush(action=listSupportedEvents) 查询全量约束）。" +
-              "subscribe 缺省时默认订阅虚拟支付 7 个事件：xpay_goods_deliver_notify、xpay_coin_pay_notify、xpay_complaint_notify、" +
-              "xpay_subscribe_signing_result_notify、xpay_subscribe_pay_fail_notify、xpay_subscribe_ios_refund_query_notify、xpay_refund_notify；" +
-              "unsubscribe / setEnable 且 msg_type=event 时必填。消息类型操作请勿传本参数。",
+              "subscribe 缺省时默认订阅虚拟支付 7 个事件；unsubscribe / setEnable 且 msg_type=event 时必填。",
           ),
         enable: z.boolean().optional().describe("setEnable 时必填：true 启用订阅 / false 停用订阅"),
+        qbase_container_path: z
+          .string()
+          .optional()
+          .describe(
+            "云托管回调路径/URL（ensureContainerMode 必填；setContainerCallback 可选更新）",
+          ),
+        qbase_env: z
+          .string()
+          .optional()
+          .describe(
+            "云托管服务所在环境 ID（ensureContainerMode/setContainerCallback 可选；缺省用 env_id）",
+          ),
+        text_mode: z
+          .union([z.literal(1), z.literal(2)])
+          .optional()
+          .describe(
+            "云托管消息正文编码：1=json，2=xml（ensureContainerMode 必填；setContainerCallback 可选更新）",
+          ),
         confirm: z
           .string()
           .optional()
@@ -699,6 +836,9 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
       msg_type,
       event_types,
       enable,
+      qbase_container_path,
+      qbase_env,
+      text_mode,
       confirm,
     }: {
       appid: string;
@@ -708,6 +848,9 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
       msg_type?: MsgType;
       event_types?: string[];
       enable?: boolean;
+      qbase_container_path?: string;
+      qbase_env?: string;
+      text_mode?: 1 | 2;
       confirm?: string;
     }) => {
       if (!getTransport(server)) {
@@ -725,7 +868,8 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
             success: true,
             code: "NO_CHANGE",
             message: "当前已是云函数推送模式（云托管整包接收未开启），无需变更",
-            containerConfig: current ?? undefined,
+            pushMode: "cloudfunction",
+            containerConfig: pickContainerConfigPublic(current),
           });
         }
         if (!confirmed) {
@@ -733,9 +877,8 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
             toolName: "manageMessagePush",
             action,
             message:
-              `当前推送模式为云托管整包接收（qbase_open=true，环境 ${current.qbase_env ?? "-"}，路径 ${current.qbase_container_path ?? "-"}），` +
-              `事件会整包进入云托管而非云函数。\n即将执行 setcontainercallbackconfig 关闭云托管整包接收（qbase_open=false），` +
-              `使消息推送按事件进入云函数 ${env_id}/${function_name}。`,
+              `切换后停止云托管整包接收（qbase_open=false），消息按云函数回调推送；若 callbacks 为空则收不到任何消息。\n` +
+              `当前云托管配置：环境 ${current.qbase_env ?? "-"}，路径 ${current.qbase_container_path ?? "-"}，text_mode=${current.text_mode ?? "-"}。`,
             requiredParams: ["appid", "env_id", "function_name", "confirm"],
           });
         }
@@ -755,6 +898,161 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
           success: true,
           message: "已切换到云函数推送模式（setcontainercallbackconfig qbase_open=false 成功）",
           action,
+          pushMode: "cloudfunction",
+        });
+      }
+
+      if (action === "ensureContainerMode") {
+        const path = qbase_container_path?.trim();
+        const containerEnv = (qbase_env ?? env_id)?.trim();
+        if (!path) {
+          throw new Error(
+            'ensureContainerMode 必须提供 qbase_container_path（云托管回调路径/URL）',
+          );
+        }
+        if (text_mode !== 1 && text_mode !== 2) {
+          throw new Error(
+            "ensureContainerMode 必须提供 text_mode（1=json / 2=xml）",
+          );
+        }
+        if (!containerEnv) {
+          throw new Error(
+            "ensureContainerMode 必须提供 qbase_env 或 env_id（云托管服务所在环境）",
+          );
+        }
+        const current = await readContainerConfig(server, appid);
+        const alreadySame =
+          current?.qbase_open === true &&
+          current.qbase_container_path === path &&
+          current.qbase_env === containerEnv &&
+          Number(current.text_mode) === text_mode;
+        if (alreadySame) {
+          return buildJsonToolResult({
+            ok: true,
+            success: true,
+            code: "NO_CHANGE",
+            message: "当前已是云托管推送模式且配置一致，无需变更",
+            pushMode: "container",
+            containerConfig: pickContainerConfigPublic(current),
+          });
+        }
+        if (!confirmed) {
+          return buildConfirmPayload({
+            toolName: "manageMessagePush",
+            action,
+            message:
+              `切换后所有消息类型整包推送到云托管服务（path=${path}，env=${containerEnv}，text_mode=${text_mode}），云函数回调失效。\n` +
+              `当前：pushMode=${resolvePushMode(current)}，` +
+              `path=${current?.qbase_container_path ?? "-"}，env=${current?.qbase_env ?? "-"}，text_mode=${current?.text_mode ?? "-"}。`,
+            requiredParams: [
+              "appid",
+              "env_id",
+              "qbase_container_path",
+              "text_mode",
+              "confirm",
+            ],
+          });
+        }
+        const nextCfg = {
+          ...(current ?? {}),
+          qbase_open: true,
+          qbase_container_path: path,
+          qbase_env: containerEnv,
+          text_mode,
+        };
+        await setContainerConfig(server, appid, nextCfg);
+        logger?.({
+          type: "toolInfo",
+          toolName: "manageMessagePush",
+          message: "已切换到云托管推送模式",
+          appid,
+          envId: containerEnv,
+        });
+        return buildJsonToolResult({
+          ok: true,
+          success: true,
+          message: "已切换到云托管推送模式（qbase_open=true）",
+          action,
+          pushMode: "container",
+          containerConfig: pickContainerConfigPublic(nextCfg),
+        });
+      }
+
+      if (action === "setContainerCallback") {
+        const current = await readContainerConfig(server, appid);
+        const nextPath =
+          qbase_container_path?.trim() ||
+          (typeof current?.qbase_container_path === "string"
+            ? current.qbase_container_path
+            : undefined);
+        const nextEnv =
+          (qbase_env ?? env_id)?.trim() ||
+          (typeof current?.qbase_env === "string" ? current.qbase_env : undefined);
+        const nextTextMode =
+          text_mode === 1 || text_mode === 2
+            ? text_mode
+            : typeof current?.text_mode === "number"
+              ? (current.text_mode as 1 | 2)
+              : undefined;
+        if (!nextPath) {
+          throw new Error(
+            "setContainerCallback 需要 qbase_container_path（或当前已有配置可沿用）",
+          );
+        }
+        if (!nextEnv) {
+          throw new Error(
+            "setContainerCallback 需要 qbase_env 或 env_id（或当前已有配置可沿用）",
+          );
+        }
+        if (nextTextMode !== 1 && nextTextMode !== 2) {
+          throw new Error(
+            "setContainerCallback 需要 text_mode（1=json / 2=xml，或当前已有配置可沿用）",
+          );
+        }
+        const nextCfg = {
+          ...(current ?? {}),
+          qbase_open: current?.qbase_open === true,
+          qbase_container_path: nextPath,
+          qbase_env: nextEnv,
+          text_mode: nextTextMode,
+        };
+        const same =
+          current?.qbase_container_path === nextPath &&
+          current?.qbase_env === nextEnv &&
+          Number(current?.text_mode) === nextTextMode &&
+          (current?.qbase_open === true) === (nextCfg.qbase_open === true);
+        if (same) {
+          return buildJsonToolResult({
+            ok: true,
+            success: true,
+            code: "NO_CHANGE",
+            message: "云托管回调配置无变化（幂等）",
+            pushMode: resolvePushMode(current),
+            containerConfig: pickContainerConfigPublic(current),
+          });
+        }
+        if (!confirmed) {
+          const before = pickContainerConfigPublic(current) ?? {};
+          const after = pickContainerConfigPublic(nextCfg) ?? {};
+          return buildConfirmPayload({
+            toolName: "manageMessagePush",
+            action,
+            message:
+              `即将更新云托管回调配置：\n` +
+              `- 旧: path=${before.qbase_container_path ?? "-"}, env=${before.qbase_env ?? "-"}, text_mode=${before.text_mode ?? "-"}, qbase_open=${before.qbase_open ?? false}\n` +
+              `- 新: path=${after.qbase_container_path ?? "-"}, env=${after.qbase_env ?? "-"}, text_mode=${after.text_mode ?? "-"}, qbase_open=${after.qbase_open ?? false}`,
+            requiredParams: ["appid", "confirm"],
+          });
+        }
+        await setContainerConfig(server, appid, nextCfg);
+        return buildJsonToolResult({
+          ok: true,
+          success: true,
+          message: "已更新云托管回调配置",
+          action,
+          pushMode: resolvePushMode(nextCfg),
+          before: pickContainerConfigPublic(current),
+          after: pickContainerConfigPublic(nextCfg),
         });
       }
 
@@ -764,6 +1062,14 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
           `msg_type="${resolvedMsgType}" 时不应传 event_types（消息类型条目的 event 固定为空串 ""）；` +
             `请去掉 event_types，仅传 msg_type / function_name / enable（setEnable 时）`,
         );
+      }
+
+      // Reject cloud-function callback writes while container mode is active (silent-failure guard)
+      {
+        const container = await readContainerConfig(server, appid);
+        if (resolvePushMode(container) === "container") {
+          return buildContainerModeBlockedPayload(action);
+        }
       }
 
       // subscribe / unsubscribe / setEnable 共用流程：读 → 校验 → merge → 确认 → 覆盖写
@@ -883,6 +1189,16 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
           msg_type: resolvedMsgType,
           warnings: warnings.length ? warnings : undefined,
         });
+      }
+
+      // 4b. subscribe：校验云函数真实存在（仅有变更时）
+      if (action === "subscribe") {
+        const missing = await assertCloudFunctionExists(
+          server,
+          env_id,
+          function_name,
+        );
+        if (missing) return missing;
       }
 
       // 5. 有变更 → 需确认

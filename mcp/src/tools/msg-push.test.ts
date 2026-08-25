@@ -20,6 +20,9 @@ function createQbaseBackendMock(options?: {
   /** Message types with empty event (text/image/...) included in getcallbacksupportlist */
   supportedMsgTypes?: string[];
   containerQbaseOpen?: boolean;
+  containerPath?: string;
+  containerEnv?: string;
+  containerTextMode?: number;
   /** 上传携带该 version 时返回版本冲突（模拟并发写入） */
   conflictOnVersion?: number;
 }) {
@@ -27,6 +30,9 @@ function createQbaseBackendMock(options?: {
   let enable = true;
   let callbacks = [...(options?.initialCallbacks ?? [])];
   let containerQbaseOpen = options?.containerQbaseOpen ?? false;
+  let containerPath = options?.containerPath ?? "/push";
+  let containerEnv = options?.containerEnv ?? "env-container";
+  let containerTextMode = options?.containerTextMode ?? 1;
 
   const supportedEvents = new Set(
     options?.supportedEvents ?? ["user_enter_tempsession", ...XPAY_EVENT_TYPES],
@@ -95,12 +101,23 @@ function createQbaseBackendMock(options?: {
       return {
         base_resp: { ret: 0 },
         qbase_open: containerQbaseOpen,
-        qbase_env: "env-container",
-        qbase_container_path: "/push",
+        qbase_env: containerEnv,
+        qbase_container_path: containerPath,
+        text_mode: containerTextMode,
       };
     }
     if (params.action === "setContainerCallbackConfig") {
-      containerQbaseOpen = params.payload?.qbase_open === true;
+      const body = params.payload ?? {};
+      containerQbaseOpen = body.qbase_open === true;
+      if (typeof body.qbase_container_path === "string") {
+        containerPath = body.qbase_container_path;
+      }
+      if (typeof body.qbase_env === "string") {
+        containerEnv = body.qbase_env;
+      }
+      if (typeof body.text_mode === "number") {
+        containerTextMode = body.text_mode;
+      }
       return { base_resp: { ret: 0 } };
     }
     throw new Error(`unexpected qbase action: ${params.action}`);
@@ -109,11 +126,24 @@ function createQbaseBackendMock(options?: {
   return {
     requestFn,
     calls,
-    getState: () => ({ version, enable, callbacks, containerQbaseOpen }),
+    getState: () => ({
+      version,
+      enable,
+      callbacks,
+      containerQbaseOpen,
+      containerPath,
+      containerEnv,
+      containerTextMode,
+    }),
   };
 }
 
-function createMockServer(requestFn: (params: any) => Promise<MsgPushQbaseResponse>) {
+function createMockServer(
+  requestFn: (params: any) => Promise<MsgPushQbaseResponse>,
+  options?: {
+    listCloudFunctions?: (envId: string) => Promise<string[]>;
+  },
+) {
   const tools: Record<
     string,
     {
@@ -125,7 +155,13 @@ function createMockServer(requestFn: (params: any) => Promise<MsgPushQbaseRespon
   const server: ExtendedMcpServer = {
     cloudBaseOptions: { envId: "env-test", requestFn },
     logger: vi.fn(),
-    pluginOptions: {},
+    pluginOptions: {
+      msgPush: {
+        listCloudFunctions:
+          options?.listCloudFunctions ??
+          (async () => ["cb", "msg-fn", "msg-push-test-fn", "fn1", "fn2"]),
+      },
+    },
     registerTool: vi.fn(
       (name: string, meta: any, handler: (args: any) => Promise<any>) => {
         tools[name] = { meta, handler };
@@ -160,6 +196,8 @@ describe("msg-push tools schema", () => {
       "unsubscribe",
       "setEnable",
       "ensureCloudFunctionMode",
+      "ensureContainerMode",
+      "setContainerCallback",
     ]);
     // msg_type is optional enum (default event when omitted)
     expect(schema.msg_type._def.typeName).toBe("ZodOptional");
@@ -639,6 +677,7 @@ describe("manageMessagePush — ensureCloudFunctionMode", () => {
       }),
     );
     expect(result.code).toBe("NO_CHANGE");
+    expect(result.pushMode).toBe("cloudfunction");
   });
 
   it("云托管模式（qbase_open=true）需确认后切换 qbase_open=false", async () => {
@@ -654,7 +693,8 @@ describe("manageMessagePush — ensureCloudFunctionMode", () => {
       }),
     );
     expect(pending.code).toBe("CONFIRM_REQUIRED");
-    expect(pending.message).toMatch(/云托管/);
+    expect(pending.message).toMatch(/停止云托管整包接收/);
+    expect(pending.message).toMatch(/callbacks 为空则收不到任何消息/);
 
     const done = parseResult(
       await tools.manageMessagePush.handler({
@@ -666,11 +706,229 @@ describe("manageMessagePush — ensureCloudFunctionMode", () => {
       }),
     );
     expect(done.success).toBe(true);
+    expect(done.pushMode).toBe("cloudfunction");
     const setCalls = backend.calls.filter((c) => c.action === "setContainerCallbackConfig");
     expect(setCalls).toHaveLength(1);
     expect(setCalls[0]!.payload!.qbase_open).toBe(false);
     // 保留其他云托管字段
     expect(setCalls[0]!.payload!.qbase_container_path).toBe("/push");
+  });
+});
+
+describe("queryMessagePush / manageMessagePush — pushMode & container", () => {
+  it("list 返回 pushMode=cloudfunction 与 containerConfig", async () => {
+    const backend = createQbaseBackendMock({ containerQbaseOpen: false });
+    const tools = createMockServer(backend.requestFn).tools;
+    const result = parseResult(
+      await tools.queryMessagePush.handler({ appid: "wx1", action: "list" }),
+    );
+    expect(result.success).toBe(true);
+    expect(result.pushMode).toBe("cloudfunction");
+    expect(result.containerConfig).toMatchObject({
+      qbase_open: false,
+      qbase_container_path: "/push",
+    });
+    expect(result.note).toBeUndefined();
+  });
+
+  it("list 云托管模式返回 pushMode=container 与 note", async () => {
+    const backend = createQbaseBackendMock({
+      containerQbaseOpen: true,
+      containerPath: "/svc/msg",
+      containerEnv: "env-run",
+      containerTextMode: 2,
+    });
+    const tools = createMockServer(backend.requestFn).tools;
+    const result = parseResult(
+      await tools.queryMessagePush.handler({ appid: "wx1", action: "list" }),
+    );
+    expect(result.pushMode).toBe("container");
+    expect(result.note).toMatch(/云托管模式/);
+    expect(result.containerConfig).toMatchObject({
+      qbase_open: true,
+      qbase_container_path: "/svc/msg",
+      qbase_env: "env-run",
+      text_mode: 2,
+    });
+  });
+
+  it("云托管模式下 subscribe/unsubscribe/setEnable 拒绝且不写 uploadAppConfig", async () => {
+    const backend = createQbaseBackendMock({ containerQbaseOpen: true });
+    const tools = createMockServer(backend.requestFn).tools;
+
+    for (const action of ["subscribe", "unsubscribe", "setEnable"] as const) {
+      const result = parseResult(
+        await tools.manageMessagePush.handler({
+          appid: "wx1",
+          env_id: "env-a",
+          function_name: "cb",
+          action,
+          event_types: ["user_enter_tempsession"],
+          enable: action === "setEnable" ? false : undefined,
+          confirm: "yes",
+        }),
+      );
+      expect(result.ok).toBe(false);
+      expect(result.code).toBe("CONTAINER_MODE_ACTIVE");
+      expect(result.pushMode).toBe("container");
+      expect(result.message).toMatch(/ensureCloudFunctionMode/);
+    }
+    expect(backend.calls.filter((c) => c.action === "uploadAppConfig")).toHaveLength(0);
+  });
+
+  it("ensureContainerMode 需确认后 qbase_open=true", async () => {
+    const backend = createQbaseBackendMock({ containerQbaseOpen: false });
+    const tools = createMockServer(backend.requestFn).tools;
+
+    const pending = parseResult(
+      await tools.manageMessagePush.handler({
+        appid: "wx1",
+        env_id: "env-a",
+        function_name: "cb",
+        action: "ensureContainerMode",
+        qbase_container_path: "/run/push",
+        qbase_env: "env-run",
+        text_mode: 1,
+      }),
+    );
+    expect(pending.code).toBe("CONFIRM_REQUIRED");
+    expect(pending.message).toMatch(/云函数回调失效/);
+
+    const done = parseResult(
+      await tools.manageMessagePush.handler({
+        appid: "wx1",
+        env_id: "env-a",
+        function_name: "cb",
+        action: "ensureContainerMode",
+        qbase_container_path: "/run/push",
+        qbase_env: "env-run",
+        text_mode: 1,
+        confirm: "yes",
+      }),
+    );
+    expect(done.success).toBe(true);
+    expect(done.pushMode).toBe("container");
+    expect(done.containerConfig).toMatchObject({
+      qbase_open: true,
+      qbase_container_path: "/run/push",
+      qbase_env: "env-run",
+      text_mode: 1,
+    });
+    expect(backend.getState().containerQbaseOpen).toBe(true);
+    expect(backend.getState().containerPath).toBe("/run/push");
+  });
+
+  it("ensureContainerMode 配置一致时 NO_CHANGE", async () => {
+    const backend = createQbaseBackendMock({
+      containerQbaseOpen: true,
+      containerPath: "/run/push",
+      containerEnv: "env-run",
+      containerTextMode: 1,
+    });
+    const tools = createMockServer(backend.requestFn).tools;
+    const result = parseResult(
+      await tools.manageMessagePush.handler({
+        appid: "wx1",
+        env_id: "env-a",
+        function_name: "cb",
+        action: "ensureContainerMode",
+        qbase_container_path: "/run/push",
+        qbase_env: "env-run",
+        text_mode: 1,
+        confirm: "yes",
+      }),
+    );
+    expect(result.code).toBe("NO_CHANGE");
+    expect(
+      backend.calls.filter((c) => c.action === "setContainerCallbackConfig"),
+    ).toHaveLength(0);
+  });
+
+  it("setContainerCallback 展示新旧 diff 并更新", async () => {
+    const backend = createQbaseBackendMock({
+      containerQbaseOpen: true,
+      containerPath: "/old",
+      containerEnv: "env-old",
+      containerTextMode: 1,
+    });
+    const tools = createMockServer(backend.requestFn).tools;
+
+    const pending = parseResult(
+      await tools.manageMessagePush.handler({
+        appid: "wx1",
+        env_id: "env-a",
+        function_name: "cb",
+        action: "setContainerCallback",
+        qbase_container_path: "/new",
+        qbase_env: "env-new",
+        text_mode: 2,
+      }),
+    );
+    expect(pending.code).toBe("CONFIRM_REQUIRED");
+    expect(pending.message).toMatch(/旧:.*\/old/);
+    expect(pending.message).toMatch(/新:.*\/new/);
+
+    const done = parseResult(
+      await tools.manageMessagePush.handler({
+        appid: "wx1",
+        env_id: "env-a",
+        function_name: "cb",
+        action: "setContainerCallback",
+        qbase_container_path: "/new",
+        qbase_env: "env-new",
+        text_mode: 2,
+        confirm: "yes",
+      }),
+    );
+    expect(done.success).toBe(true);
+    expect(done.after).toMatchObject({
+      qbase_container_path: "/new",
+      qbase_env: "env-new",
+      text_mode: 2,
+    });
+    expect(backend.getState().containerPath).toBe("/new");
+    expect(backend.getState().containerTextMode).toBe(2);
+  });
+
+  it("subscribe 拒绝不存在的云函数", async () => {
+    const backend = createQbaseBackendMock();
+    const tools = createMockServer(backend.requestFn, {
+      listCloudFunctions: async () => ["other-fn"],
+    }).tools;
+
+    const result = parseResult(
+      await tools.manageMessagePush.handler({
+        appid: "wx1",
+        env_id: "env-a",
+        function_name: "missing-fn",
+        action: "subscribe",
+        event_types: ["user_enter_tempsession"],
+        confirm: "yes",
+      }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("FUNCTION_NOT_FOUND");
+    expect(result.message).toMatch(/云函数 missing-fn 不存在于环境 env-a/);
+    expect(backend.calls.filter((c) => c.action === "uploadAppConfig")).toHaveLength(0);
+  });
+
+  it("subscribe 云函数存在时正常写入", async () => {
+    const backend = createQbaseBackendMock();
+    const tools = createMockServer(backend.requestFn, {
+      listCloudFunctions: async () => ["cb"],
+    }).tools;
+    const result = parseResult(
+      await tools.manageMessagePush.handler({
+        appid: "wx1",
+        env_id: "env-a",
+        function_name: "cb",
+        action: "subscribe",
+        event_types: ["user_enter_tempsession"],
+        confirm: "yes",
+      }),
+    );
+    expect(result.success).toBe(true);
+    expect(result.added).toEqual(["user_enter_tempsession"]);
   });
 });
 
