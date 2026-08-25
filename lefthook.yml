@@ -1,42 +1,13 @@
-# EXAMPLE USAGE:
+# Git hooks 配置（lefthook）
+# 参考：https://lefthook.dev/configuration/
 #
-#   Refer for explanation to following link:
-#   https://lefthook.dev/configuration/
-#
-# pre-push:
-#   jobs:
-#     - name: packages audit
-#       tags:
-#         - frontend
-#         - security
-#       run: yarn audit
-#
-#     - name: gems audit
-#       tags:
-#         - backend
-#         - security
-#       run: bundle audit
-#
-# pre-commit:
-#   parallel: true
-#   jobs:
-#     - run: yarn eslint {staged_files}
-#       glob: "*.{js,ts,jsx,tsx}"
-#
-#     - name: rubocop
-#       glob: "*.rb"
-#       exclude:
-#         - config/application.rb
-#         - config/routes.rb
-#       run: bundle exec rubocop --force-exclusion -- {all_files}
-#
-#     - name: govet
-#       files: git ls-files -m
-#       glob: "*.go"
-#       run: go vet -- {files}
-#
-#     - script: "hello.js"
-#       runner: node
-#
-#     - script: "hello.go"
-#       runner: go run
+# 规则说明：
+# - pre-push git-guard：通用护盾（分支基线 + lockfile 同步检查），
+#   见 scripts/git-guard-pre-push.sh（2026-08-24，PR #952/#953 教训沉淀）。
+#   任何依赖升级 / 开分支的推送都会被机械校验，失败拒绝 push。
+
+pre-push:
+  parallel: false
+  jobs:
+    - name: git-guard
+      run: bash scripts/git-guard-pre-push.sh
