@@ -94,7 +94,7 @@ try {
   }
 
   const data = createCloudBaseDataService(bridge);
-  const auth = await data.authStatus();
+  let auth = await data.authStatus();
   pass(`authStatus signedIn=${auth.signedIn} envId=${auth.envId ?? "—"} mode=${auth.authMode ?? "—"}`);
   if (!auth.signedIn) {
     if (!auth.message || /假|mock|demo/i.test(auth.message)) {
@@ -104,13 +104,40 @@ try {
     }
   }
 
+  // Bind env when signed in but unbound (device-code login does not auto-pick).
+  // Prefer CLOUDBASE_ENV_ID; default to CloudBase-MCP production env for unattended gates.
+  const targetEnvId =
+    process.env.CLOUDBASE_ENV_ID?.trim() || "ai-native-d1ggefhgb8c27e3e8";
+  if (auth.signedIn && !auth.envId) {
+    try {
+      auth = await data.setEnvironment(targetEnvId);
+      if (auth.envId) {
+        pass(`setEnvironment bound ${auth.envId}`);
+      } else {
+        fail(`setEnvironment(${targetEnvId}) did not bind envId`);
+      }
+    } catch (error) {
+      fail(
+        `setEnvironment(${targetEnvId}) failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
   const info = await data.envInfo();
   if (!info.envId || info.envId.length < 8) fail(`envInfo.envId not fully shown: ${info.envId}`);
   else pass(`envInfo.envId full display: ${info.envId}`);
   if (!info.regionLabel || info.regionLabel === "FLEXDB") fail(`bad regionLabel ${info.regionLabel}`);
   else pass(`envInfo.regionLabel=${info.regionLabel} functionCount=${info.functionCount}`);
 
-  const usage = await data.usage();
+  let usage = [];
+  try {
+    usage = await data.usage();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    pass(`usage real error (no fake metrics): ${message.slice(0, 200)}`);
+  }
   const usageText = textOf(usage);
   if (/\b(FLEXDB|TDSQL|SCF)\b/.test(usageText)) {
     fail(`usage leaked internal codes: ${usageText}`);

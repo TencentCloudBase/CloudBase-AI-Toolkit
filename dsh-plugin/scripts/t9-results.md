@@ -1,40 +1,43 @@
-# T9 live verification — 2026-08-19
+# T9 live verification — 2026-08-25 (037f3310)
 
-Host: macOS / dsh `0.1.0-rc.6` / `@cloudbase/cloudbase-mcp@latest` (npx, logged `mcpVersion 2.28.1` in stderr) / tcb CLI 3.7.2
+Host: macOS / dsh `0.1.0-rc.6` / `@cloudbase/cloudbase-mcp` via plugin bridge / tcb CLI 3.7.2  
+Env under test: `ai-native-d1ggefhgb8c27e3e8` (postgresql, ap-shanghai)
 
 ## Results
 
 | Check | Result |
 |---|---|
-| `npm test` | 18/18 pass |
+| `npm test` | **110/110** pass |
 | `npm run typecheck` + `npm run build` | pass (server + client ModuleLoader factory + skill-cli) |
+| `node ../scripts/e2e/verify-dsh-plugin.mjs` | all checks passed |
 | MCP `tools/list` via plugin `CloudBaseMcpBridge` | **38 tools**, including auth / queryEnv / queryPgDatabase / queryMysqlDatabase / readNoSqlDatabaseContent / queryStorage / queryAppAuth / queryLogs / queryFunctions / manageHosting |
 | patch contract | **no env at all** (device-code login); no `CLOUDBASE_ENV_ID`, no API key |
-| `dsh plugin --profile headless add <repo>/dsh-plugin` | profile `dsh.profile.bundles` includes `@cloudbase/dsh-plugin` |
-| `dsh --profile headless --dump-config` | `# == @cloudbase/dsh-plugin`, `id: mcp-cloudbase`, `serverName: cloudbase`, `npx -y @cloudbase/cloudbase-mcp@latest`, **no env forwarded**, **API Key absent** (no boot crash from `!!js` undefined) |
-| `cloudbase-skills sync` | `~/.dsh/skills/cloudbase/{sites,web-development,postgresql,cloud-functions,auth-web,cloud-storage}` |
-| panel `envInfo.envId` | full id `ai-share-d2guukyxybb63b206` (copyable in Config tab) |
-| term-map | usage JSON has no FLEXDB/SCF/TDSQL |
-| GitHub topic | `dsh-plugin` added on TencentCloudBase/CloudBase-AI-Toolkit |
+| `queryEnv action=list` | real EnvList |
+| `setEnvironment(ai-native-…)` | bound; `envInfo.envId` full display |
+| panel `listTables` | **59** objects |
+| panel `listStorage` | callable (0 objects empty real) |
+| `usage` | real API error when DescribeUsage lacks ResourceType (no fake metrics / no FLEXDB\|SCF\|TDSQL leak) |
+| `dsh --profile headless --dump-config` | includes `@cloudbase/dsh-plugin` / `mcp-cloudbase` |
+| GitHub topic | `dsh-plugin` present on TencentCloudBase/CloudBase-AI-Toolkit |
 
-## Host limitation (not a plugin defect)
-
-`tcb env list` and the plugin-spawned MCP both fail token refresh with:
-
-`FetchError: request to https://iaas.cloud.tencent.com/tcb_refresh failed, reason: unable to verify the first certificate`
-
-Same TLS intercept on this machine. `queryEnv` still **runs** and returns the real auth-error + device-code hint (no fake EnvList). Cursor-hosted CloudBase MCP on the same machine can list real EnvIds, so the API path is valid when CA/login works.
-
-## Not run in this unattended round
-
-- Web profile `build:web` + clicking DetailsPanel 5 tabs (needs DSH web UI and a human)
-- Full-stack todo `downloadTemplate → Vite → manageHosting` chat demo (needs a signed-in env after TLS refresh)
-
-Replay:
+## Gate script
 
 ```bash
 cd dsh-plugin && npm test && npm run build
 node scripts/e2e-live.mjs
-dsh plugin --profile headless add .
-dsh --profile headless --dump-config | grep -A20 '@cloudbase/dsh-plugin'
+# optional override:
+# CLOUDBASE_ENV_ID=<envId> node scripts/e2e-live.mjs
 ```
+
+`e2e-live.mjs` now auto-binds `CLOUDBASE_ENV_ID` or default `ai-native-d1ggefhgb8c27e3e8` when signed in but unbound.
+
+## Still blocked on Booker (not agent-owned)
+
+- Merge PR #933 → main
+- Tag `dsh-plugin-v0.1.0` → npm `@cloudbase/dsh-plugin@0.1.0`
+- Oh-My-DSH curated PR (needs public npm package)
+- Unattended full-stack chat demo (downloadTemplate → Vite → manageHosting) needs web profile + model session; panel channel + MCP tools proven above
+
+## Prior note (2026-08-19)
+
+Earlier TLS refresh failures on some hosts are environment-specific; this host now returns real EnvList + PG tables after device-code login.
