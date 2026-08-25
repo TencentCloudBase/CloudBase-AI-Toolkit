@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+## [2.32.2](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.1...v2.32.2) (2026-08-25)
+
+### Bug Fixes
+
+* **msg-push**: degrade container-config read in list when WeChat apihttpagent returns -9991
+* **deps**: bump `@cloudbase/manager-node` to 5.8.2 (requestFn support)
+
+### Documentation
+
+* **skill**: refine message-push / customer-service reference for container mode
+
 ## [2.32.1](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.0...v2.32.1) (2026-08-25)
 
 ### Features
