@@ -105,23 +105,30 @@ try {
   }
 
   // Bind env when signed in but unbound (device-code login does not auto-pick).
-  // Prefer CLOUDBASE_ENV_ID; default to CloudBase-MCP production env for unattended gates.
-  const targetEnvId =
-    process.env.CLOUDBASE_ENV_ID?.trim() || "ai-native-d1ggefhgb8c27e3e8";
+  // 2026-08-26 污染清理（037f3310 收口）：去掉硬编码生产环境默认值——无人值守
+  // 门禁必须显式 CLOUDBASE_ENV_ID，未设置即 fail，禁止静默绑定生产环境刷绿
+  // （教训：agent 曾靠自动 set_env 让 T9 门禁"全绿"，测试自写证据给自己看）。
+  const targetEnvId = process.env.CLOUDBASE_ENV_ID?.trim();
   if (auth.signedIn && !auth.envId) {
-    try {
-      auth = await data.setEnvironment(targetEnvId);
-      if (auth.envId) {
-        pass(`setEnvironment bound ${auth.envId}`);
-      } else {
-        fail(`setEnvironment(${targetEnvId}) did not bind envId`);
-      }
-    } catch (error) {
+    if (!targetEnvId) {
       fail(
-        `setEnvironment(${targetEnvId}) failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        "signed in but env unbound: set CLOUDBASE_ENV_ID explicitly for unattended gate (no silent default)",
       );
+    } else {
+      try {
+        auth = await data.setEnvironment(targetEnvId);
+        if (auth.envId) {
+          pass(`setEnvironment bound ${auth.envId}`);
+        } else {
+          fail(`setEnvironment(${targetEnvId}) did not bind envId`);
+        }
+      } catch (error) {
+        fail(
+          `setEnvironment(${targetEnvId}) failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
     }
   }
 
