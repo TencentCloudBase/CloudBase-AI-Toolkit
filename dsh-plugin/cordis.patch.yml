@@ -1,0 +1,17 @@
+# CloudBase DSH plugin bundle patch.
+# Session MCP goes through mcp-env-proxy (auto-injects set_env from host cache).
+# Login still uses cloudbase-mcp device-code; no API Key forwarded here.
+# 脚本路径用 !!js 表达式按 baseUrl（profile 目录）解析到包的真实安装位置，
+# 相对路径会以 dsh 启动时的 cwd 解析，从其他目录启动必然 MODULE_NOT_FOUND。
+
+- insert:
+    - id: mcp-cloudbase
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: cloudbase
+        transport: stdio
+        command: node
+        args: [!!js 'new URL("node_modules/@cloudbase/dsh-plugin/scripts/mcp-env-proxy.mjs", baseUrl).pathname']
+        env: {}
+    - id: cloudbase-dsh-plugin
+      name: '@cloudbase/dsh-plugin'

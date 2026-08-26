@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { wrapServerWithTelemetry } from "./tool-wrapper.js";
 import { ToolPayloadError } from "./tool-result.js";
 import { reportToolCall } from "./telemetry.js";
+import { __resetRepeatGuardForTests, REPEAT_GUARD_THRESHOLD } from "./repeat-error-guard.js";
 
 vi.mock("./cloud-mode.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./cloud-mode.js")>();
@@ -41,6 +42,10 @@ function withTelemetryEnabled<T>(run: () => Promise<T>) {
 }
 
 describe("wrapServerWithTelemetry", () => {
+  beforeEach(() => {
+    __resetRepeatGuardForTests();
+  });
+
   it("should preserve ToolPayloadError for outer server wrapper", async () => {
     let wrappedHandler: ((args: any) => Promise<any>) | undefined;
 
@@ -146,6 +151,81 @@ describe("wrapServerWithTelemetry", () => {
           requestId: "req-error",
         }),
       );
+    });
+  });
+
+  it("should escalate repeated identical payload errors and reset after success", async () => {
+    await withTelemetryEnabled(async () => {
+      let handlerImpl: () => Promise<any> = async () => ({});
+      let wrappedHandler: ((args: any) => Promise<any>) | undefined;
+
+      const server = {
+        registerTool: vi.fn((_name: string, _meta: any, handler: (args: any) => Promise<any>) => {
+          wrappedHandler = handler;
+          return undefined;
+        }),
+        logger: vi.fn(),
+        cloudBaseOptions: undefined,
+        ide: "Cursor",
+      } as any;
+
+      wrapServerWithTelemetry(server);
+      server.registerTool("demo", {}, (...handlerArgs: any[]) => {
+        void handlerArgs;
+        return handlerImpl();
+      });
+
+      const envRequiredPayload = {
+        ok: false,
+        code: "ENV_REQUIRED",
+        message: "当前已登录，但尚未绑定环境。重试当前工具不会成功。",
+        next_step: {
+          tool: "auth",
+          action: "set_env",
+          required_params: ["envId"],
+        },
+      };
+      handlerImpl = async () => {
+        throw new ToolPayloadError(envRequiredPayload);
+      };
+
+      const captureRejection = async () => {
+        try {
+          await wrappedHandler?.({});
+        } catch (error) {
+          return error as ToolPayloadError;
+        }
+        throw new Error("expected rejection");
+      };
+
+      for (let i = 1; i < REPEAT_GUARD_THRESHOLD; i += 1) {
+        const rejected = await captureRejection();
+        expect(rejected.payload).toMatchObject({ code: "ENV_REQUIRED" });
+        expect((rejected.payload as any).repeat_guard).toBeUndefined();
+      }
+
+      // 达到阈值：注入 repeat_guard 升级提示
+      const escalated = await captureRejection();
+      expect((escalated.payload as any).repeat_guard).toMatchObject({
+        code: "ENV_REQUIRED",
+        consecutive_count: REPEAT_GUARD_THRESHOLD,
+        threshold: REPEAT_GUARD_THRESHOLD,
+      });
+      expect((escalated.payload as any).repeat_guard.notice).toContain("停止重试");
+      // message 保持稳定，便于遥测按文案聚合
+      expect(escalated.message).toBe(envRequiredPayload.message);
+
+      // 成功一次后计数清零，再次失败重新从零累计
+      handlerImpl = async () => ({
+        content: [{ type: "text", text: "ok" }],
+      });
+      await wrappedHandler?.({});
+
+      handlerImpl = async () => {
+        throw new ToolPayloadError(envRequiredPayload);
+      };
+      const restarted = await captureRejection();
+      expect((restarted.payload as any).repeat_guard).toBeUndefined();
     });
   });
 });

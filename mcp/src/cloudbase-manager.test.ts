@@ -258,6 +258,49 @@ describe("cloudbase manager auth gate", () => {
         }),
       }),
     });
+
+    // 终止性引导：message 必须明确「重试无效」并给出无头环境 fallback
+    try {
+      await getCloudBaseManager();
+      expect.unreachable("ENV_REQUIRED should be thrown");
+    } catch (error: any) {
+      const message = error?.payload?.message ?? "";
+      expect(message).toContain("停止原样重试");
+      expect(message).toContain('auth(action="set_env", envId=');
+      expect(message).toContain("CLOUDBASE_ENV_ID");
+    }
+  });
+
+  it("requireEnvId=false should exempt env binding and construct manager without envId", async () => {
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      token: "token",
+    });
+    mockCommonServiceCall.mockResolvedValue({
+      EnvList: [
+        { EnvId: "env-1", Alias: "prod", Region: "ap-shanghai" },
+        { EnvId: "env-2", Alias: "dev", Region: "ap-shanghai" },
+      ],
+    });
+
+    const { getCloudBaseManager } = await import("./cloudbase-manager.js");
+
+    // 已登录但多环境未绑定：callCloudApi 场景（commonService 不依赖 envId）应放行
+    await expect(
+      getCloudBaseManager({ requireEnvId: false }),
+    ).resolves.toMatchObject({
+      commonService: expect.any(Function),
+      env: expect.any(Object),
+    });
+    expect(mockCloudBaseCtor).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        secretId: "sid",
+        secretKey: "skey",
+        token: "token",
+        envId: undefined,
+      }),
+    );
   });
 
   it("getEnvId should fail fast with ENV_REQUIRED when login exists but multiple envs", async () => {

@@ -176,8 +176,64 @@ function buildUploadErrorMessage(error: unknown, localPath?: string): string {
   return `[manageHosting(upload)] ${baseMessage}\n建议：${suggestions.join(' ')}`;
 }
 
+/**
+ * TCB 管控面 DescribeStaticStore 接口 QPS 限流（20 次/秒）。
+ * Manager SDK 的 hosting.deleteFiles / uploadFiles / findFiles 等每次调用
+ * 都会先 checkStatus() → getInfo() → DescribeStaticStore（无缓存），
+ * AI 连续快速删除多个文件或失败后立即重试时极易触发该限流。
+ */
+const DESCRIBE_STATIC_STORE_RATE_LIMIT_RE =
+  /\[DescribeStaticStore\][\s\S]*exceeds the frequency limit `20` for a second/i;
+
+function buildDeleteErrorMessage(error: unknown): string {
+  const baseMessage = error instanceof Error ? error.message : String(error);
+
+  if (DESCRIBE_STATIC_STORE_RATE_LIMIT_RE.test(baseMessage)) {
+    return (
+      `[manageHosting(delete)] ${baseMessage}\n` +
+      '原因：静态托管底层 DescribeStaticStore 管控接口有 20 次/秒的 QPS 限制，' +
+      '连续快速删除多个文件（或失败后立即重试）容易触发限流，删除操作本身可能已经部分生效。\n' +
+      '处理建议：\n' +
+      '1) 等待 1-2 秒后重试本次删除，不要立即连续重试；\n' +
+      '2) 批量删除多个文件时，逐次调用并保持间隔（建议每秒不超过 10 次），不要并发或循环快速重试；\n' +
+      '3) 同一目录下的多个文件可改用 isDir=true 一次删除整个目录，减少调用次数；\n' +
+      '4) 若不确定删除是否已生效，可调用 queryHosting(action="findFiles") 核对。'
+    );
+  }
+
+  return `[manageHosting(delete)] ${baseMessage}`;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Manager SDK hosting.deleteFiles 对 COS 删除失败不抛异常，返回
+ * { Deleted: [], Error: [e] }；此处提取 Error 数组为可读字符串列表，
+ * 供 delete 路径做失败判定与引导。
+ */
+function extractDeleteErrors(result: unknown): string[] {
+  if (!isRecord(result)) {
+    return [];
+  }
+
+  const rawErrors = result.Error ?? result.error;
+  if (!Array.isArray(rawErrors)) {
+    return [];
+  }
+
+  return rawErrors
+    .map((item) => {
+      if (typeof item === 'string' && item.trim()) {
+        return item.trim();
+      }
+      if (isRecord(item) && typeof item.message === 'string') {
+        return item.message;
+      }
+      return JSON.stringify(item);
+    })
+    .filter(Boolean);
 }
 
 function getRecordString(record: Record<string, unknown>, keys: string[]): string | undefined {
@@ -483,11 +539,27 @@ async function getHostingStoreOrThrow(
   );
 }
 
+function enrichRateLimitMessage(message: string): string {
+  // delete 路径已由 buildDeleteErrorMessage 提供完整引导，避免重复追加
+  if (message.includes('QPS 限制') || message.includes('等待 1-2 秒后重试')) {
+    return message;
+  }
+  if (DESCRIBE_STATIC_STORE_RATE_LIMIT_RE.test(message)) {
+    return (
+      `${message}\n` +
+      '原因：静态托管底层 DescribeStaticStore 管控接口有 20 次/秒的 QPS 限制，' +
+      '连续快速调用（或失败后立即重试）容易触发限流，本次查询/操作可能没有完整生效。\n' +
+      '处理建议：等待 1-2 秒后重试，不要连续快速重试；多个文件操作请逐次调用并保持间隔。'
+    );
+  }
+  return message;
+}
+
 function buildFailureResult(action: string, error: unknown) {
   return buildJsonToolResult({
     success: false,
     errorCode: `HOSTING_${action.toUpperCase()}_FAILED`,
-    message: error instanceof Error ? error.message : String(error),
+    message: enrichRateLimitMessage(error instanceof Error ? error.message : String(error)),
   });
 }
 
@@ -696,7 +768,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     'manageHosting',
     {
       title: '管理 CloudBase 静态托管',
-      description: '管理 CloudBase 静态托管的变更操作。action=upload 上传本地构建产物到共享域名（域名格式：<envId>-<appId>.tcloudbaseapp.com/<cloudPath>）；action=delete 删除托管文件或目录（必须 confirm=true）；action=setWebsiteDocument 设置首页/错误页/路由规则；action=enableService 开通静态托管；action=bindDomain / unbindDomain / updateDomain 管理自定义域名；action=downloadFile / downloadDirectory 下载托管内容到本地。⚠️ 本工具没有关闭默认域名（*.tcloudbaseapp.com）的 action；要禁用该默认公网域名，请用 manageGateway(action="disableRoute", domain=该 STATIC_STORE IsDefault 域名, path="/")（底层 ModifyHTTPServiceRoute，不是 ModifyGatewayRoute）。⚠️ 新项目部署优先使用 manageApps（部署到独立子域名），本工具适合已有老项目继续使用或作为 manageApps 的 fallback。manageApps 与 manageHosting 域名不同，切换会导致老链接失效。若任务只是查看配置、文件或域名状态，请改用 queryHosting。',
+      description: '管理 CloudBase 静态托管的变更操作。action=upload 上传本地构建产物到共享域名（域名格式：<envId>-<appId>.tcloudbaseapp.com/<cloudPath>）；action=delete 删除托管文件或目录（必须 confirm=true）；action=setWebsiteDocument 设置首页/错误页/路由规则；action=enableService 开通静态托管；action=bindDomain / unbindDomain / updateDomain 管理自定义域名；action=downloadFile / downloadDirectory 下载托管内容到本地。⚠️ 底层每次托管操作都会请求 DescribeStaticStore 管控接口（20 次/秒 QPS 限制）：批量删除多个文件请逐次调用并保持间隔（建议每秒不超过 10 次），同一目录下多个文件可优先用 isDir=true 一次删除整个目录；若报错含 "frequency limit" 说明触发了限流，请等待 1-2 秒后重试，不要连续快速重试。⚠️ 本工具没有关闭默认域名（*.tcloudbaseapp.com）的 action；要禁用该默认公网域名，请用 manageGateway(action="disableRoute", domain=该 STATIC_STORE IsDefault 域名, path="/")（底层 ModifyHTTPServiceRoute，不是 ModifyGatewayRoute）。⚠️ 新项目部署优先使用 manageApps（部署到独立子域名），本工具适合已有老项目继续使用或作为 manageApps 的 fallback。manageApps 与 manageHosting 域名不同，切换会导致老链接失效。若任务只是查看配置、文件或域名状态，请改用 queryHosting。',
       inputSchema: manageHostingInputSchema,
       annotations: {
         readOnlyHint: false,
@@ -883,15 +955,28 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             if (!input.confirm) {
               throw new Error('manageHosting(action="delete") 是破坏性操作，必须显式传 confirm=true。');
             }
-            const result = await cloudbase.hosting.deleteFiles({
-              cloudPath: input.cloudPath,
-              isDir: input.isDir ?? false,
-            });
+            let result: unknown;
+            try {
+              result = await cloudbase.hosting.deleteFiles({
+                cloudPath: input.cloudPath,
+                isDir: input.isDir ?? false,
+              });
+            } catch (error) {
+              throw new Error(buildDeleteErrorMessage(error));
+            }
             logCloudBaseResult(server.logger, result);
+
+            // Manager SDK 的 deleteFiles 对 COS 单文件删除失败不抛异常，
+            // 而是返回 { Deleted: [], Error: [e] }，需要显式检查 Error 数组。
+            const deleteErrors = extractDeleteErrors(result);
 
             // Post-validation: verify deletion was successful
             let deleteVerified = true;
             let verificationError: string | undefined;
+            if (deleteErrors.length > 0) {
+              deleteVerified = false;
+              verificationError = `删除请求未生效：${deleteErrors.join('；')}`;
+            }
             try {
               const checkResult = await cloudbase.hosting.findFiles({
                 prefix: input.cloudPath,
@@ -900,7 +985,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
               
               if (Array.isArray(checkResult) && checkResult.length > 0) {
                 deleteVerified = false;
-                verificationError = `删除后验证失败：文件仍在静态托管中`;
+                verificationError = verificationError ?? `删除后验证失败：文件仍在静态托管中`;
               }
             } catch (error) {
               // If query fails, assume deletion was successful
@@ -919,7 +1004,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
               },
               message: deleteVerified
                 ? `已删除静态托管${input.isDir ? '目录' : '文件'} \`${input.cloudPath}\`。`
-                : `删除操作已提交，但验证发现文件可能未完全删除，请手动确认。`,
+                : `删除操作已提交，但验证发现文件可能未完全删除。` +
+                  `可能原因：底层 COS 删除请求失败（如文件不存在、存储桶权限不足），或触发 DescribeStaticStore 限流后删除未生效。` +
+                  `建议：1) 等待 1-2 秒后用 queryHosting(action="findFiles", prefix="${input.cloudPath}") 核对文件状态；` +
+                  `2) 若确认文件仍存在，重新调用 manageHosting(action="delete", confirm=true) 重试；` +
+                  `3) 批量删除多个文件请逐次调用并保持间隔（DescribeStaticStore 有 20 次/秒 QPS 限制）。`,
             });
           }
 

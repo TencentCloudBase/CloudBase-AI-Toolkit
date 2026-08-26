@@ -1,0 +1,15 @@
+# Copy this fragment into a profile cordis.patch.yml if you are not using
+# `dsh plugin add @cloudbase/dsh-plugin`. Same rules as the bundled patch:
+# - never pass CLOUDBASE_API_KEY (blocks device-code)
+# - never leave !!js env values undefined
+
+- insert:
+    - id: mcp-cloudbase
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: cloudbase
+        transport: stdio
+        command: npx
+        args: ['-y', '@cloudbase/cloudbase-mcp@latest']
+        env:
+          CLOUDBASE_ENV_ID: !!js (process.env.CLOUDBASE_ENV_ID || 'ai-share-d2guukyxybb63b206')

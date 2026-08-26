@@ -1,0 +1,24 @@
+{
+  "include": ["src/client", "src/server", "src/shared", "src/types", "tests"],
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": false,
+    "jsx": "react",
+    "jsxFactory": "React.createElement",
+    "jsxFragmentFactory": "React.Fragment",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": false,
+    "isolatedModules": true,
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "paths": {
+      "@cloudbase/platform-kit": ["./src/types/platform-kit.d.ts"]
+    }
+  }
+}

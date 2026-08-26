@@ -2531,6 +2531,15 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           }
 
           await envManager.setEnvId(envId);
+          // 跨客户端通用事件推送（MCP 协议 notification，无 id）：任何客户端
+          // （如 dsh-plugin 面板）都能通过 notifications/cloudbase/env_changed
+          // 感知环境变更，替代客户端本地推断与兜底轮询。通知失败不影响主流程。
+          void server.server
+            .notification({
+              method: "notifications/cloudbase/env_changed",
+              params: { envId },
+            })
+            .catch(() => {});
           applyBoundEnvRegion(server, target?.region);
           const regionHint = target?.region
             ? `，地域: ${target.region}`

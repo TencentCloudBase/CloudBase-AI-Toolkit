@@ -292,6 +292,11 @@ export function buildCapiErrorMessage(service: AllowedService, action: string, e
 export function registerCapiTools(server: ExtendedMcpServer) {
     const cloudBaseOptions = server.cloudBaseOptions;
     const logger = server.logger;
+    // commonService 透传调用只依赖凭据上下文（secretId/secretKey/token/region），
+    // EnvId 由 params 携带，不依赖 MCP 绑定的环境。强制绑定会在「已登录但未绑环境」
+    // 场景把 DescribeEnvs/CreateEnv/CAM 等无 env 依赖的 Action 全部挡在 ENV_REQUIRED，
+    // 并诱发无头客户端原样重试风暴（2026-08-20 单日 15 万次报错），故豁免环境绑定。
+    const getManager = () => getCloudBaseManager({ cloudBaseOptions, requireEnvId: false });
 
     server.registerTool?.(
         "callCloudApi",
