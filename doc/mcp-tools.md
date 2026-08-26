@@ -870,7 +870,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "role",
       type: "string",
-      description: `可选的 PostgreSQL role，传给 Manager SDK executePGSql 的 Role（平台会 SET ROLE）。默认 cloudbase_admin。推荐取值：cloudbase_admin / anon / authenticated / service_role。不要传 postgres、postgres_pgdb_* 或从环境名臆造的角色；不确定时省略本字段，或先用 cloudbase_admin 执行 SELECT rolname FROM pg_roles。`,
+      description: `可选的 PostgreSQL role，传给 Manager SDK executePGSql 的 Role（平台会 SET ROLE）。默认 cloudbase_postgres。推荐取值：cloudbase_postgres / anon / authenticated / service_role。不要传 postgres、postgres_pgdb_*、平台保留角色（cloudbase_admin，为平台管理账号不对用户开放）或从环境名臆造的角色；不确定时省略本字段，或先用 cloudbase_postgres 执行 SELECT rolname FROM pg_roles。`,
     },
     {
       name: "objectName",
