@@ -111,7 +111,7 @@ describe("PG database tools", () => {
           defaultSchema: "public",
           runtimeMode: "cloudbase-manager",
           bootstrapMode: "cloud",
-          role: "cloudbase_admin",
+          role: "cloudbase_postgres",
         },
       },
     });
@@ -462,12 +462,38 @@ describe("PG database tools", () => {
       errorCode: "PG_ROLE_NOT_AVAILABLE",
       data: {
         attemptedRole: "postgres_pgdb_efk2jh5f",
-        defaultRole: "cloudbase_admin",
+        defaultRole: "cloudbase_postgres",
         listRolesSql: "SELECT rolname FROM pg_roles ORDER BY rolname;",
       },
     });
-    expect(payload.message).toContain("cloudbase_admin");
+    expect(payload.message).toContain("cloudbase_postgres");
     expect(payload.message).toContain("SELECT rolname FROM pg_roles");
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("managePgDatabase(execute) rejects platform-reserved cloudbase_admin role", async () => {
+    const createClient = vi.fn();
+    const { server, tools } = createMockServer();
+    registerPGDatabaseTools(server, { createClient });
+
+    const payload = buildToolPayload(
+      await tools.managePgDatabase.handler({
+        action: "execute",
+        sql: "SELECT 1",
+        role: "cloudbase_admin",
+        confirm: true,
+      }),
+    );
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "PG_ROLE_NOT_AVAILABLE",
+      data: {
+        attemptedRole: "cloudbase_admin",
+        defaultRole: "cloudbase_postgres",
+      },
+    });
+    expect(payload.message).toContain("Platform-reserved roles (cloudbase_admin)");
     expect(createClient).not.toHaveBeenCalled();
   });
 
@@ -523,7 +549,7 @@ describe("PG database tools", () => {
       errorCode: "PG_ROLE_NOT_AVAILABLE",
       data: {
         attemptedRole: "custom_missing_role",
-        defaultRole: "cloudbase_admin",
+        defaultRole: "cloudbase_postgres",
       },
     });
     expect(payload.message).toContain("SELECT rolname FROM pg_roles");
@@ -531,7 +557,7 @@ describe("PG database tools", () => {
       tool: "managePgDatabase",
       action: "execute",
       suggested_args: {
-        role: "cloudbase_admin",
+        role: "cloudbase_postgres",
       },
     });
   });
@@ -546,7 +572,8 @@ describe("PG database tools", () => {
         ? roleSchema.description
         : String(roleSchema?.description ?? "");
 
-    expect(description).toContain("cloudbase_admin");
+    expect(description).toContain("cloudbase_postgres");
+    expect(description).toContain("平台保留角色（cloudbase_admin");
     expect(description).toContain("postgres_pgdb_*");
     expect(description).not.toMatch(/可传 postgres[^_]/);
   });

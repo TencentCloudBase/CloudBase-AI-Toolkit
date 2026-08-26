@@ -191,23 +191,29 @@ async function resolvePgDbContext(
     envId,
     instanceId: args?.instanceId ?? "cloudbase-pg",
     defaultSchema: args?.defaultSchema ?? "public",
-    role: args?.role ?? "cloudbase_admin",
+    role: args?.role ?? PG_DEFAULT_ROLE,
   };
 }
 
 
 /** Default / recommended roles for CloudBase PG ExecutePGSql.Role */
-const PG_DEFAULT_ROLE = "cloudbase_admin";
+const PG_DEFAULT_ROLE = "cloudbase_postgres";
 const PG_RECOMMENDED_ROLES = [
-  "cloudbase_admin",
+  "cloudbase_postgres",
   "anon",
   "authenticated",
   "service_role",
 ] as const;
+/**
+ * Platform-owned admin roles. cloudbase_admin is the platform management
+ * account and must not be used by user-facing ExecutePGSql calls.
+ */
+const PG_PLATFORM_RESERVED_ROLES = ["cloudbase_admin"] as const;
 
 /**
  * Roles that look like login/instance principals and routinely fail SET ROLE
  * in beacon data (e.g. postgres, postgres_pgdb_<id>). Reject before the API call.
+ * Also rejects platform-reserved roles (cloudbase_admin) that are not for user calls.
  */
 function isLikelyInvalidPgExecuteRole(role: string): boolean {
   const normalized = role.trim();
@@ -215,6 +221,10 @@ function isLikelyInvalidPgExecuteRole(role: string): boolean {
     return true;
   }
   if (normalized === "postgres") {
+    return true;
+  }
+  // Platform management account, reserved for the platform itself.
+  if ((PG_PLATFORM_RESERVED_ROLES as readonly string[]).includes(normalized)) {
     return true;
   }
   // Instance-derived login principals, not valid ExecutePGSql Role targets
@@ -262,9 +272,11 @@ function isPgRoleExecutionError(message: string): boolean {
 
 function buildPgRoleGuidanceMessage(attemptedRole: string): string {
   const recommended = PG_RECOMMENDED_ROLES.join(", ");
+  const reserved = PG_PLATFORM_RESERVED_ROLES.join(", ");
   return (
     `PostgreSQL role "${attemptedRole}" cannot be used with ExecutePGSql (SET ROLE failed or role does not exist). ` +
     `Do not invent roles like postgres / postgres_pgdb_* from env or instance names. ` +
+    `Platform-reserved roles (${reserved}) are the platform management account and must not be used by user calls. ` +
     `Omit role (defaults to ${PG_DEFAULT_ROLE}) or pass one of: ${recommended}. ` +
     `To list roles that exist in this database, retry with role=${PG_DEFAULT_ROLE} and SQL: SELECT rolname FROM pg_roles ORDER BY rolname;`
   );
@@ -3390,7 +3402,7 @@ export function registerPGDatabaseTools(
           .describe(
             `可选的 PostgreSQL role，传给 Manager SDK executePGSql 的 Role（平台会 SET ROLE）。默认 ${PG_DEFAULT_ROLE}。` +
               `推荐取值：${PG_RECOMMENDED_ROLES.join(" / ")}。` +
-              `不要传 postgres、postgres_pgdb_* 或从环境名臆造的角色；不确定时省略本字段，或先用 ${PG_DEFAULT_ROLE} 执行 SELECT rolname FROM pg_roles。`,
+              `不要传 postgres、postgres_pgdb_*、平台保留角色（${PG_PLATFORM_RESERVED_ROLES.join("、")}，为平台管理账号不对用户开放）或从环境名臆造的角色；不确定时省略本字段，或先用 ${PG_DEFAULT_ROLE} 执行 SELECT rolname FROM pg_roles。`,
           ),
         objectName: z
           .string()
