@@ -1,6 +1,6 @@
 import { AuthSupervisor, authStore, refreshTmpToken, resolveCredential } from "@cloudbase/toolbox";
 import { debug } from "./utils/logger.js";
-import { normalizeSite, resolveSite, SITE_REGION_MAP } from "./utils/site-map.js";
+import { getSite, normalizeSite, resolveSite, SITE_REGION_MAP } from "./utils/site-map.js";
 
 const auth = AuthSupervisor.getInstance({});
 
@@ -432,7 +432,7 @@ async function writeSiteCredential(
  * 确保存储已为分槽格式并返回槽位快照。
  * 用于登录前迁移旧单槽数据，避免 @cloudbase/toolbox 内部误命中旧凭证而跳过新站点登录。
  */
-async function ensureSlottedCredential(): Promise<Record<string, unknown>> {
+export async function ensureSlottedCredential(): Promise<Record<string, unknown>> {
   const raw = await readStoredCredentialRaw();
   if (raw && isSlottedCredential(raw)) {
     return { ...raw };
@@ -497,6 +497,21 @@ function isUsableCredential(value: unknown): boolean {
   );
 }
 
+/**
+ * 返回当前存在可用凭证的 site 槽位列表（凭证续期失败视为不可用）。
+ * 用于歧义 region（如 ap-singapore）时判定用户实际所属站点。
+ */
+export async function listUsableCredentialSites(): Promise<SlotId[]> {
+  const usable: SlotId[] = [];
+  for (const site of ["domestic", "intl"] as const) {
+    const state = await resolveSiteLoginState(site).catch(() => null);
+    if (state) {
+      usable.push(site);
+    }
+  }
+  return usable;
+}
+
 export async function peekLoginState(options?: {
   ignoreEnvVars?: boolean;
   site?: string;
@@ -529,9 +544,25 @@ export async function peekLoginState(options?: {
   }
 
   // 按 site 读取分槽凭证（缺省按 TCB_SITE/region 解析站点，默认 domestic）
-  const site: SlotId =
-    normalizeSite(options?.site) ?? resolveSite(options?.region, process.env.TCB_SITE);
-  const slotLoginState = await resolveSiteLoginState(site);
+  const explicitSite = normalizeSite(options?.site) ?? normalizeSite(process.env.TCB_SITE);
+  const site: SlotId = explicitSite ?? resolveSite(options?.region);
+  let slotLoginState = await resolveSiteLoginState(site);
+
+  // 歧义 region（如 ap-singapore 同时属于 domestic 与 intl）且未显式指定 site 时，
+  // 解析槽位为空则回退检查另一槽位：仅另一槽位有可用凭证时直接使用，
+  // 避免对单站点用户误报 AUTH_REQUIRED（如国内站 ap-singapore 环境场景）。
+  if (!slotLoginState && !explicitSite && getSite(options?.region) === "ambiguous") {
+    const fallbackSite: SlotId = site === "domestic" ? "intl" : "domestic";
+    const fallbackLoginState = await resolveSiteLoginState(fallbackSite);
+    if (fallbackLoginState) {
+      debug("peekLoginState: ambiguous region, using the only usable site slot", {
+        resolvedSite: site,
+        fallbackSite,
+      });
+      return fallbackLoginState;
+    }
+  }
+
   if (slotLoginState) {
     return slotLoginState;
   }

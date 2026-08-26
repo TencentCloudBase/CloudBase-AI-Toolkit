@@ -42,19 +42,32 @@ vi.mock("./utils/logger.js", () => ({
   debug: vi.fn(),
 }));
 
-vi.mock("./utils/site-map.js", () => ({
-  normalizeSite: (v: unknown) =>
-    v === "intl" ? "intl" : v === "domestic" ? "domestic" : undefined,
-  resolveSite: (_region?: string, site?: string) => {
-    const normalized =
-      site === "intl" ? "intl" : site === "domestic" ? "domestic" : undefined;
-    return normalized ?? "domestic";
-  },
-  SITE_REGION_MAP: {
-    domestic: { authHost: "tcb.cloud.tencent.com" },
-    intl: { authHost: "tcb.tencentcloud.com" },
-  },
-}));
+vi.mock("./utils/site-map.js", () => {
+  const normalizeSite = (v: unknown) =>
+    v === "intl" ? "intl" : v === "domestic" ? "domestic" : undefined;
+  const getSite = (region?: string, site?: string) => {
+    const normalized = normalizeSite(site);
+    if (normalized) {
+      return normalized;
+    }
+    if (region === "ap-singapore") {
+      return "ambiguous" as const;
+    }
+    return "domestic" as const;
+  };
+  return {
+    normalizeSite,
+    getSite,
+    resolveSite: (region?: string, site?: string) => {
+      const result = getSite(region, site);
+      return result === "ambiguous" ? "intl" : result;
+    },
+    SITE_REGION_MAP: {
+      domestic: { authHost: "tcb.cloud.tencent.com" },
+      intl: { authHost: "tcb.tencentcloud.com" },
+    },
+  };
+});
 
 vi.mock("./utils/tencent-cloud.js", () => ({
   isInternationalRegion: vi.fn(() => false),
@@ -394,6 +407,83 @@ describe("multi-site credential slots", () => {
       secretId: "legacy-sid",
       secretKey: "legacy-skey",
     });
+  });
+
+  it("should fall back to the only usable slot for ambiguous region without explicit site (issue #960)", async () => {
+    // 国内站账号 device 登录后凭证为 flat（等价 domestic 槽），绑定 ap-singapore 环境
+    authStoreData.credential = {
+      secretId: "flat-sid",
+      secretKey: "flat-skey",
+    };
+
+    const { peekLoginState } = await import("./auth.js");
+    const loginState = await peekLoginState({ region: "ap-singapore" });
+
+    expect(loginState).toMatchObject({
+      secretId: "flat-sid",
+      secretKey: "flat-skey",
+    });
+  });
+
+  it("should fall back to domestic slotted credential for ambiguous region (issue #960)", async () => {
+    authStoreData.credential = {
+      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
+    };
+
+    const { peekLoginState } = await import("./auth.js");
+    const loginState = await peekLoginState({ region: "ap-singapore" });
+
+    expect(loginState).toMatchObject({
+      secretId: "dom-sid",
+      secretKey: "dom-skey",
+    });
+  });
+
+  it("should keep resolved intl slot when both slots have credentials", async () => {
+    authStoreData.credential = {
+      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
+      intl: { secretId: "intl-sid", secretKey: "intl-skey" },
+    };
+
+    const { peekLoginState } = await import("./auth.js");
+    const loginState = await peekLoginState({ region: "ap-singapore" });
+
+    expect(loginState).toMatchObject({ secretId: "intl-sid" });
+  });
+
+  it("should not fall back across slots when site is explicit (issue #960)", async () => {
+    authStoreData.credential = {
+      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
+    };
+
+    const { peekLoginState } = await import("./auth.js");
+    await expect(
+      peekLoginState({ region: "ap-singapore", site: "intl" }),
+    ).resolves.toBeNull();
+  });
+
+  it("should not fall back across slots when TCB_SITE is set", async () => {
+    process.env.TCB_SITE = "intl";
+    try {
+      authStoreData.credential = {
+        domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
+      };
+
+      const { peekLoginState } = await import("./auth.js");
+      await expect(peekLoginState({ region: "ap-singapore" })).resolves.toBeNull();
+    } finally {
+      delete process.env.TCB_SITE;
+    }
+  });
+
+  it("should list only sites with usable credentials", async () => {
+    authStoreData.credential = {
+      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
+      intl: {},
+    };
+
+    const { listUsableCredentialSites } = await import("./auth.js");
+    await expect(listUsableCredentialSites()).resolves.toEqual(["domestic"]);
   });
 
   it("should not fall back to intl credential when reading default domestic", async () => {
