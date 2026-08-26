@@ -17,7 +17,10 @@ const tempDirs = [];
 
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
-    fs.rmSync(dir, { recursive: true, force: true });
+    // Session hooks spawn nohup'd background processes (preview / install)
+    // that keep writing into the temp dir after spawnSync returns; retry to
+    // survive the ENOTEMPTY race on slow CI runners.
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
