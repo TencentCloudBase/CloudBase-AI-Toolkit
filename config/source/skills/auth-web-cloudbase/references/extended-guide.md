@@ -4,6 +4,8 @@
 
 ## Login Methods
 
+> ⚠️ **OTP verification must go through the `data.verifyOtp({ token })` callback returned by `signInWithOtp` / `signUp`.** Do NOT invent a standalone `auth.verifyOtp({ token })` call — the standalone form additionally requires `messageId` and fails with `"messageId is required"` when it is missing. The full flow is three steps: send code → keep the returned `data` (or its `verifyOtp` callback) → verify with `data.verifyOtp({ token })`.
+
 **1. Phone OTP (Recommended)**
 - Automatically use `auth-tool-cloudbase` to turn on `SMS Login` through `manageAppAuth`
 - Send the phone number to `auth.signInWithOtp({ phone, ... })`, then call the returned `verifyOtp({ token })`.

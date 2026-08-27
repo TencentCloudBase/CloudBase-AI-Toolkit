@@ -68,8 +68,11 @@ describe("app auth tools", () => {
     emailOtp: "auth.signInWithOtp({ email })",
     password: "auth.signInWithPassword({ username|email|phone, password })",
     signup: "auth.signUp({ phone|email, ... })",
-    verifyOtp: "verifyOtp({ token })",
+    verifyOtp:
+      "const { data, error } = await auth.signInWithOtp({ email })\nconst { data: loginData, error: loginError } = await data.verifyOtp({ token })",
     anonymous: "auth.signInAnonymously()",
+    caution:
+      "verifyOtp is a callback on the signInWithOtp / signUp result: call data.verifyOtp({ token }) with only the token. Do NOT call a standalone auth.verifyOtp({ token }) — it requires an extra messageId and fails with 'messageId is required' when the messageId is missing. Error 'messageId is required' means you used the standalone call instead of the callback.",
   };
 
   beforeEach(() => {
