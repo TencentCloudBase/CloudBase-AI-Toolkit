@@ -2,7 +2,7 @@
 
 ## 查询HTTP访问服务路由信息
 
-最近更新时间：2026-07-28 03:22:44
+最近更新时间：2026-08-27 03:01:20
 
 -   微信扫一扫 
 -   QQ
@@ -18,7 +18,7 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-本接口DescribeHTTPServiceRoute用于查询环境下HTTP访问服务路由信息。可通过Filters过滤。如果不存在不会返回错误。HTTP访问服务提供了默认域名，通过本接口可直接获取默认域名。
+本接口DescribeHTTPServiceRoute用于查询环境下HTTP访问服务路由信息。可通过Filters过滤。如果不存在不会返回错误。HTTP访问服务提供了默认域名，通过本接口可直接获取默认域名。前置需已开通 HTTP 访问服务；调用CreateHTTPServiceRoute或者ModifyHTTPServiceRoute后可使用本接口查询创建或者修改结果
 
 默认接口请求频率限制：20次/秒。
 
@@ -168,5 +168,9 @@ X-TC-Action: DescribeHTTPServiceRoute
 
 | 错误码 | 描述 |
 | --- | --- |
+| FailedOperation.ThirdServiceError | 请求第三方服务，第三方服务返回报错信息 |
+| InternalError | 内部错误。 |
+| InternalError.Database | 数据库错误。 |
+| InternalError.Timeout | 服务超时。 |
 | InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
 | InvalidParameter.EnvId | 环境ID非法。 |
