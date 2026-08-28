@@ -63,7 +63,7 @@ You need a [CloudBase environment](https://tcb.cloud.tencent.com/dev) and should
 | Official MCP Registry `io.github.TencentCloudBase/cloudbase-mcp` | Discover via [registry search=cloudbase](https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase) |
 | `npx plugins add TencentCloudBase/cloudbase-plugin` | Open Plugin Spec tools |
 | `npm i -g @cloudbase/cli && tcb ai` | [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce) configures many IDEs |
-| Marketplace / built-in plugin | Claude Code, Codex, CodeBuddy, WorkBuddy, ZCode, etc. |
+| Marketplace / built-in plugin | Claude Code, Codex, CodeBuddy, WorkBuddy, Kimi Code, Kimi Work, ZCode, etc. |
 
 ## Connection modes
 

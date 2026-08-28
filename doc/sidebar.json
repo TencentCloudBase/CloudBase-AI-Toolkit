@@ -59,7 +59,8 @@
               "ai/cloudbase-ai-toolkit/ide-setup/opencode",
               "ai/cloudbase-ai-toolkit/ide-setup/kiro",
               "ai/cloudbase-ai-toolkit/ide-setup/iflow-cli",
-              "ai/cloudbase-ai-toolkit/ide-setup/cloudbase-cli"
+              "ai/cloudbase-ai-toolkit/ide-setup/cloudbase-cli",
+              "ai/cloudbase-ai-toolkit/ide-setup/kimi-code"
             ]
           }
         ]

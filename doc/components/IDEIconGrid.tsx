@@ -28,6 +28,20 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy',
   },
   {
+    id: 'kimi-code',
+    name: 'Kimi Code',
+    platform: '命令行工具',
+    iconUrl: 'https://kimi.com/favicon.ico',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/kimi-code',
+  },
+  {
+    id: 'kimi-work',
+    name: 'Kimi Work',
+    platform: '桌面应用',
+    iconUrl: 'https://kimi.com/favicon.ico',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/kimi-code',
+  },
+  {
     id: 'zcode',
     name: 'ZCode',
     platform: '独立 IDE',

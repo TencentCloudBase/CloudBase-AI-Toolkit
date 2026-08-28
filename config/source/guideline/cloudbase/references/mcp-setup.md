@@ -38,7 +38,7 @@ npx plugins add TencentCloudBase/cloudbase-plugin -y --scope user --target curso
 npx plugins targets
 ```
 
-**Not supported by `npx plugins` yet** (use each product's native path): CodeBuddy, WorkBuddy, ZCode, WindSurf, and other IDEs without Open Plugin Spec. For those, use Approach A (native MCP) or Approach B (mcporter) below, plus Skills if needed.
+**Not supported by `npx plugins` yet** (use each product's native path): CodeBuddy, WorkBuddy, Kimi Code, Kimi Work, ZCode, WindSurf, and other IDEs without Open Plugin Spec. For those, use Approach A (native MCP) or Approach B (mcporter) below, plus Skills if needed.
 
 **Do not double-install:** if Claude Code / Codex already has the plugin via marketplace (`claude plugin install` / `codex plugin add`), do **not** also run `npx plugins add` for the same tool.
 
