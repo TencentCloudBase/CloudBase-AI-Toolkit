@@ -1,0 +1,88 @@
+name: Internal Docs Guard
+
+# 拦截 specs/ 内部文档重新入库。
+#
+# 本地 lefthook 的 specs-guard 只能保护「包含新版 lefthook.yml 的分支」，
+# 挡不住基于旧 main 切出的 worktree —— 那里的 .gitignore 和 lefthook.yml
+# 都还是旧版，git add specs/ 完全不受限。CI 跑在 GitHub 上，只看 PR diff，
+# 跟本地 hook 版本无关，所以这一层是真正的兜底。
+#
+# 只检查新增/修改（ACMR）：删除 specs 的 PR（历史清理）不受影响。
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  specs-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Check for specs/ files entering the repository
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -uo pipefail
+
+          # 白名单：有真实功能依赖，必须留在仓库
+          #   - plugin-marketplace-listing: analyze-plugin-marketplace 脚本与测试的数据文件
+          #   - npm-supply-chain-security-hardening: AGENTS.md 强制引用的供应链安全规范
+          WHITELIST=(
+            "specs/plugin-marketplace-listing/"
+            "specs/npm-supply-chain-security-hardening/"
+          )
+
+          if [ -n "${BASE_SHA:-}" ] && git rev-parse --verify "$BASE_SHA" >/dev/null 2>&1; then
+            CHANGED="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD -- specs || true)"
+          else
+            # push 到 main 或拿不到基线时，退回检查当前树里的 specs
+            CHANGED="$(git ls-files -- specs || true)"
+          fi
+
+          OFFENDERS=()
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            keep=0
+            for w in "${WHITELIST[@]}"; do
+              case "$f" in
+                "$w"*) keep=1; break ;;
+              esac
+            done
+            [ "$keep" -eq 0 ] && OFFENDERS+=("$f")
+          done <<< "$CHANGED"
+
+          if [ "${#OFFENDERS[@]}" -eq 0 ]; then
+            echo "OK: no internal specs/ files are entering the repository."
+            exit 0
+          fi
+
+          echo "::error::specs/ is a local-only directory in this repository and must not be committed."
+          echo ""
+          echo "The following files were added or modified in this PR:"
+          echo ""
+          for f in "${OFFENDERS[@]}"; do
+            echo "  - $f"
+          done
+          echo ""
+          echo "How to fix:"
+          echo ""
+          echo "  1. Unstage and untrack them (local files are kept):"
+          echo "       git restore --staged specs/"
+          echo "       git rm -r --cached specs/"
+          echo "       git add specs/plugin-marketplace-listing specs/npm-supply-chain-security-hardening"
+          echo ""
+          echo "  2. If you are working in a worktree branched off an older main, merge or"
+          echo "     rebase onto current main first so .gitignore and lefthook.yml pick up"
+          echo "     the specs rules."
+          echo ""
+          echo "  3. The archive location and sync commands for these documents are recorded"
+          echo "     in AGENTS.md under the <specs_archive> section (see origin/main if your"
+          echo "     local copy is outdated)."
+          echo ""
+          exit 1

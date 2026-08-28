@@ -70,6 +70,45 @@ alwaysApply: true
    - `mcp/` 子目录同样适用本约定：`mcp/AGENTS.md` 为源，`mcp/CLAUDE.md`、`mcp/CODEBUDDY.md` 为软链
 </project_rules>
 
+<specs_archive>
+## specs 的存放、同步与获取
+
+`specs/` 是**本地目录，已加入 `.gitignore`，不提交到公开仓库**（含内部任务 ID、审视报告、评测/归因上下文）。仅 `specs/plugin-marketplace-listing/` 与 `specs/npm-supply-chain-security-hardening/` 两个被代码或规范依赖的子目录留在仓库里。
+
+**写**：新 spec 照旧写在本仓库 `specs/<name>/{requirements,design,tasks}.md`，只是不要 `git add`。
+
+### 切分支 / merge 后 specs 变空是预期行为
+
+specs 不再被 git 跟踪，**从旧分支切到已移除 specs 的分支（或 merge 这类分支）时，git 会把工作区里的 spec 文件删掉**。这不是数据丢失，真源在私有归档仓里。
+
+- 提交时由 `pre-commit` 自动恢复一次（`lefthook.yml` 的 `specs-restore`）——本机 `post-checkout` / `post-merge` 被 git-lfs 的 `other-*` 链接接管，不走 lefthook，所以恢复挂在 pre-commit 上。
+- 手动恢复：`npm run specs:restore`
+- **AI agent：开工前发现 `specs/` 缺失、或某个 spec 目录是空的，先跑 `npm run specs:restore` 再继续**，不要报"文档丢失"。
+- **merge / 切分支前，本分支新写或改过的 spec 先跑 `npm run specs:archive`**——归档仓只在这次同步时才会拿到新内容，否则切走就没了。
+
+### 同步与获取
+
+```bash
+npm run specs:status    # 看本地与归档仓的漂移
+npm run specs:archive   # 本地 → 私有归档
+npm run specs:restore   # 私有归档 → 本地
+```
+
+脚本：`scripts/specs-sync.sh`。归档仓位置不写在仓库里，从环境变量 `SPECS_ARCHIVE_DIR` 或 `~/.config/cloudbase-mcp/specs-archive-dir` 读取；没配置时脚本静默跳过，不阻塞 git 操作。
+
+**新机器**：
+
+```bash
+git clone git@github.com:binggg/cloudbase-mcp-specs-archive.git ~/Projects/cloudbase-mcp-specs-archive
+mkdir -p ~/.config/cloudbase-mcp
+printf '%s\n' "$HOME/Projects/cloudbase-mcp-specs-archive" > ~/.config/cloudbase-mcp/specs-archive-dir
+```
+
+- 私有归档仓：`binggg/cloudbase-mcp-specs-archive`（PRIVATE，main 分支）
+- 公开仓库的 git **历史**里仍能看到旧 spec 文件（只做了最新版本移除，未 rewrite）
+- 对外产物（`config/source/skills/`、`plugin/`、`doc/`、IDE command 模板）里提到的 `specs/` 指的是**使用者自己项目**里的目录，与本仓库的归档约定无关，不要往那里写私有归档信息
+</specs_archive>
+
 <attribution_evaluation_guardrails>
 当任务来源于 failing eval、attribution issue、grader、benchmark、trace、result artifact 或其他评测证据时，必须额外遵守以下规则：
 1. 评测证据只用于定位问题，不等于产品公开契约；先判断是否存在真实用户可见的产品缺陷，再决定是否修改产品代码。

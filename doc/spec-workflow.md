@@ -74,7 +74,7 @@ specs/
     tasks.md         # 任务拆分与进度
 ```
 
-> `specs/` 是本地目录，已加入 `.gitignore`，**不提交到公开仓库**（spec 中含内部信息）。完整历史归档在私有仓库 `cloudbase-mcp-specs-archive`。
+> spec 文档生成在**你自己的项目**里，是否纳入版本控制由你的项目自行决定。
 
 ### requirements.md 示例
 
