@@ -78,7 +78,7 @@ These findings were identified but not fixed in this session:
 ## Report delivery
 
 1. Save the report to the workspace (e.g., `specs/audit-<date>/report.md`).
-   - In this repo `specs/` is local-only and gitignored: do not `git add` it. Archive / retrieve via the private repo described in `AGENTS.md` section `<specs_archive>`.
+   - In this repo `specs/` is local-only and gitignored: do not `git add` it. Archive / retrieve via the private repo described in `AGENTS.md` section `<internal_dirs>`.
 2. Present it to the user via `open_result_view`.
 3. Summarize key metrics in the chat message.
 

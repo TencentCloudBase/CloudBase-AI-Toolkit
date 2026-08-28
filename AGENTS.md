@@ -70,44 +70,53 @@ alwaysApply: true
    - `mcp/` 子目录同样适用本约定：`mcp/AGENTS.md` 为源，`mcp/CLAUDE.md`、`mcp/CODEBUDDY.md` 为软链
 </project_rules>
 
-<specs_archive>
-## specs 的存放、同步与获取
+<internal_dirs>
+## 本地内部目录的存放、同步与获取
 
-`specs/` 是**本地目录，已加入 `.gitignore`，不提交到公开仓库**（含内部任务 ID、审视报告、评测/归因上下文）。仅 `specs/plugin-marketplace-listing/` 与 `specs/npm-supply-chain-security-hardening/` 两个被代码或规范依赖的子目录留在仓库里。
+两个目录**都不提交到公开仓库**，只在本地维护并归档到私有仓：
 
-**写**：新 spec 照旧写在本仓库 `specs/<name>/{requirements,design,tasks}.md`，只是不要 `git add`。
+| 目录 | 内容 | 为什么不入库 |
+| --- | --- | --- |
+| `specs/` | 规格 / 设计 / 审视报告 | 含内部任务 ID、审视报告、评测/归因上下文 |
+| `.workbuddy/` | IDE 本地状态：AI 每日记忆、plans、expert 会话历史 | 类比 `.idea/` / `.vscode/`，本就不该进版本控制；记忆里带内部任务 ID 与未公开决策 |
 
-### 切分支 / merge 后 specs 变空是预期行为
+`specs/` 里仅 `specs/plugin-marketplace-listing/` 与 `specs/npm-supply-chain-security-hardening/` 两个被代码或规范依赖的子目录留在仓库里，其余全部忽略。`.workbuddy/` 全量忽略。
 
-specs 不再被 git 跟踪，**从旧分支切到已移除 specs 的分支（或 merge 这类分支）时，git 会把工作区里的 spec 文件删掉**。这不是数据丢失，真源在私有归档仓里。
+**写**：新 spec 照旧写在本仓库 `specs/<name>/{requirements,design,tasks}.md`，只是不要 `git add`。`.workbuddy/` 由 IDE 自行维护，不用管。
 
-- 提交时由 `pre-commit` 自动恢复一次（`lefthook.yml` 的 `specs-restore`）——本机 `post-checkout` / `post-merge` 被 git-lfs 的 `other-*` 链接接管，不走 lefthook，所以恢复挂在 pre-commit 上。
-- 手动恢复：`npm run specs:restore`
-- **AI agent：开工前发现 `specs/` 缺失、或某个 spec 目录是空的，先跑 `npm run specs:restore` 再继续**，不要报"文档丢失"。
-- **merge / 切分支前，本分支新写或改过的 spec 先跑 `npm run specs:archive`**——归档仓只在这次同步时才会拿到新内容，否则切走就没了。
+### 切分支 / merge 后目录变空是预期行为
+
+这些目录不再被 git 跟踪，**从旧分支切到已移除它们的分支（或 merge 这类分支）时，git 会把工作区里的文件删掉**。这不是数据丢失，真源在私有归档仓里。
+
+- 提交时由 `pre-commit` 自动恢复一次（`lefthook.yml` 的 `internal-restore`）——本机 `post-checkout` / `post-merge` 被 git-lfs 的 `other-*` 链接接管，不走 lefthook，所以恢复挂在 pre-commit 上。
+- 手动恢复：`npm run internal:restore`
+- **AI agent：开工前发现 `specs/` 或 `.workbuddy/` 缺失、或其中某个目录是空的，先跑 `npm run internal:restore` 再继续**，不要报"文档丢失"。
+- **merge / 切分支前，本分支新写或改过的内容先跑 `npm run internal:archive`**——归档仓只在这次同步时才会拿到新内容，否则切走就没了。
 
 ### 同步与获取
 
 ```bash
-npm run specs:status    # 看本地与归档仓的漂移
-npm run specs:archive   # 本地 → 私有归档
-npm run specs:restore   # 私有归档 → 本地
+npm run internal:status    # 看本地与归档仓的漂移
+npm run internal:archive   # 本地 → 私有归档
+npm run internal:restore   # 私有归档 → 本地
 ```
 
-脚本：`scripts/specs-sync.sh`。归档仓位置不写在仓库里，从环境变量 `SPECS_ARCHIVE_DIR` 或 `~/.config/cloudbase-mcp/specs-archive-dir` 读取；没配置时脚本静默跳过，不阻塞 git 操作。
+脚本：`scripts/internal-sync.sh`。两个目录的差异：`specs/` pull 时跳过仍在版本控制里的白名单子目录（避免冲掉未提交改动）；`.workbuddy/` pull 时带 `-u`，本地更新的文件不覆盖（那是 IDE 刚写的实时状态）。
+
+归档仓位置不写在仓库里，从环境变量 `INTERNAL_ARCHIVE_DIR` 或 `~/.config/cloudbase-mcp/internal-archive-dir` 读取；没配置时脚本静默跳过，不阻塞 git 操作。
 
 **新机器**：
 
 ```bash
 git clone git@github.com:binggg/cloudbase-mcp-specs-archive.git ~/Projects/cloudbase-mcp-specs-archive
 mkdir -p ~/.config/cloudbase-mcp
-printf '%s\n' "$HOME/Projects/cloudbase-mcp-specs-archive" > ~/.config/cloudbase-mcp/specs-archive-dir
+printf '%s\n' "$HOME/Projects/cloudbase-mcp-specs-archive" > ~/.config/cloudbase-mcp/internal-archive-dir
 ```
 
-- 私有归档仓：`binggg/cloudbase-mcp-specs-archive`（PRIVATE，main 分支）
-- 公开仓库的 git **历史**里仍能看到旧 spec 文件（只做了最新版本移除，未 rewrite）
+- 私有归档仓：`binggg/cloudbase-mcp-specs-archive`（PRIVATE，main 分支），顶层同时放 `specs/` 与 `.workbuddy/`
+- 公开仓库的 git **历史**里仍能看到旧 spec 与 `.workbuddy/` 文件（只做了最新版本移除，未 rewrite）
 - 对外产物（`config/source/skills/`、`plugin/`、`doc/`、IDE command 模板）里提到的 `specs/` 指的是**使用者自己项目**里的目录，与本仓库的归档约定无关，不要往那里写私有归档信息
-</specs_archive>
+</internal_dirs>
 
 <attribution_evaluation_guardrails>
 当任务来源于 failing eval、attribution issue、grader、benchmark、trace、result artifact 或其他评测证据时，必须额外遵守以下规则：
@@ -155,6 +164,38 @@ printf '%s\n' "$HOME/Projects/cloudbase-mcp-specs-archive" > ~/.config/cloudbase
 10. 执行 `node scripts/diff-compat-config.mjs` 验证外部兼容面无回退
 11. 测试 IDE 特定下载功能是否正常工作
 </add_aiide>
+
+<ide_mcp_upgrade>
+# CodeBuddy IDE 内置 CloudBase MCP 升级与白名单同步
+
+涉及以下场景时，**必须先加载 skill `codebuddy-ide-mcp-upgrade`**（本仓库 `skills/codebuddy-ide-mcp-upgrade/`）：
+
+1. 升级 CodeBuddy IDE 内置的 CloudBase MCP bundle
+2. 修改 IDE 内嵌的 `toolWhiteList` / `systemPrompt` / `attatchPrompt`
+3. 排查「IDE 里集成的 CloudBase 功能不足」
+4. **MCP 发版后同步 IDE 侧配置**
+
+## 发版强制项（防漂移）
+
+MCP 每次发版（工具增删改名）都**必须**重新生成 IDE 侧白名单。否则新工具会被 IDE 的白名单静默过滤，用户侧零变化 —— 这是历史上「IDE 里 CloudBase 功能不足」的唯一根因（实测 21 条白名单里 12 条是已被 MCP 删除或改名的死条目，用户实际只能用 9 个）。
+
+发版 checklist：
+
+1. `scripts/tools.json` 是否已更新（工具清单真源）
+2. 用 `scripts/build-config.mjs` 重新生成配置，产出新 `toolWhiteList`
+3. 检查新增 / 改名的工具在提示词里是否有对应引导 —— 提示词引用已删除的工具名会导致模型调用不存在的工具
+4. 同步新配置给 IDE 侧
+5. 交付文档里记录本次新增了哪些工具
+
+## 关键约束
+
+- **白名单按 `scripts/tools.json` 全量生成，不要裁剪**。CodeBuddy 已支持 Tool Search（工具按需检索，不再全量占上下文），当初裁剪的唯一理由已不存在；继续裁剪只会让白名单随发版漂移成死条目。
+- **改 IDE 打包产物后必须对整文件做真实编译**（`node --check`）。JSON 字段回读全绿 ≠ 文件可用 —— 曾因重复拼接 `JSON.parse('` 前缀导致整文件 `SyntaxError`，而回读校验仍报全绿。
+- **白名单条数 ≥ 实际暴露工具数是正常的**：`msg-push` 等插件工具不在 `DEFAULT_PLUGINS` 内，需注入 `CLOUDBASE_MCP_PLUGINS_ENABLED` 才注册。IDE 侧白名单是 filter 不是枚举，多留位安全且便于后续启用插件。
+- **提示词要覆盖 PG 模式**。PG 模式下认证、存储、权限、迁移四项全部改道（pgstore 与 legacy COS 是两套系统、授权走 RLS），不是「多了一种数据库」。漏了会让模型把 PG 用户引导到 NoSQL / MySQL 路径。
+
+详细流程、脚本、端到端验收用例与踩坑记录见 skill 本体。
+</ide_mcp_upgrade>
 
 <add_example>
 # CloudBase AI Toolkit - 新增用户案例/视频/文章工作流

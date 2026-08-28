@@ -31,7 +31,7 @@ Use this skill when the user:
    - do not skip required confirmations when running spec mode
    - keep scope tight when running no-spec mode
 3. Keep artifacts in the repo conventions (e.g. `specs/<name>/...`) when spec is selected.
-   - `specs/` is a local-only directory in this repo: never `git add` it (it is gitignored). Sync / retrieve it through the private archive described in `AGENTS.md` section `<specs_archive>`.
+   - `specs/` is a local-only directory in this repo: never `git add` it (it is gitignored). Sync / retrieve it through the private archive described in `AGENTS.md` section `<internal_dirs>`.
 
 ## Command mapping
 

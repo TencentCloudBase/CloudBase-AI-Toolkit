@@ -26,9 +26,9 @@
     "pack:qoder-plugin": "node scripts/pack-qoder-plugin.mjs",
     "pack:qoder-skill": "node scripts/pack-qoder-skill.mjs",
     "pack:kimi-plugin": "node scripts/pack-kimi-plugin.mjs",
-    "specs:restore": "bash scripts/specs-sync.sh pull",
-    "specs:archive": "bash scripts/specs-sync.sh push",
-    "specs:status": "bash scripts/specs-sync.sh status",
+    "internal:restore": "bash scripts/internal-sync.sh pull",
+    "internal:archive": "bash scripts/internal-sync.sh push",
+    "internal:status": "bash scripts/internal-sync.sh status",
     "prepare": "husky"
   },
   "devDependencies": {
