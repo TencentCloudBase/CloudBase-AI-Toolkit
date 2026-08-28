@@ -2768,10 +2768,24 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               // API Key / env-var pin: skip DescribeEnvs (STS often cannot list).
               // Account-level sessions that only pinned CLOUDBASE_ENV_ID via set_env
               // can still pass region/alias/envId to list other environments.
-              const envIdFromEnv = !cloudBaseOptions?.requestFn && process.env.CLOUDBASE_ENV_ID;
+              // Hosted OAuth (env-scoped federated STS: cloudBaseOptions.token + envId)
+              // hits the same backend rejection ("invalid token") on account-level
+              // DescribeEnvs, so pin to the token-bound envId as well.
+              const tokenScopedEnvId =
+                typeof cloudBaseOptions?.envId === "string" &&
+                cloudBaseOptions.envId.length > 0 &&
+                typeof cloudBaseOptions?.token === "string" &&
+                cloudBaseOptions.token.length > 0
+                  ? cloudBaseOptions.envId
+                  : undefined;
+              const envIdFromEnv =
+                !cloudBaseOptions?.requestFn &&
+                (process.env.CLOUDBASE_ENV_ID || tokenScopedEnvId);
               const shouldPinToEnvVar = Boolean(
                 envIdFromEnv &&
-                (isApiKeyCredentialMode() || (!region && !alias && !envId)),
+                (isApiKeyCredentialMode() ||
+                  tokenScopedEnvId ||
+                  (!region && !alias && !envId)),
               );
               if (shouldPinToEnvVar && envIdFromEnv) {
                 try {
