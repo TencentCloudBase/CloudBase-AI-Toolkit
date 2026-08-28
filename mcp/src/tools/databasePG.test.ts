@@ -142,6 +142,68 @@ describe("PG database tools", () => {
     });
   });
 
+  it("queryPgDatabase(sql) echoes the user's original SQL in sqlPreview when execution fails", async () => {
+    const { server, tools } = createMockServer();
+    const userSql = "SELECT id FROM public.users WHERE id = 1";
+    const executedSql: string[] = [];
+    const fakeClient = createFakeClient(async (sql: string) => {
+      if (sql === "SELECT 1") {
+        return { rows: [{ "?column?": 1 }], rowCount: 1 };
+      }
+      executedSql.push(sql);
+      throw new Error('ERROR: column "id" does not exist (SQLSTATE 42703)');
+    });
+
+    registerPGDatabaseTools(server, {
+      createClient: vi.fn(() => fakeClient),
+    });
+
+    const payload = buildToolPayload(
+      await tools.queryPgDatabase.handler({
+        action: "sql",
+        sql: userSql,
+      }),
+    );
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "PG_SQL_EXEC_FAILED",
+    });
+    // 服务端执行的确实是带 limit 包装的只读 SQL
+    expect(
+      executedSql.some((sql) => sql.includes("cloudbase_mcp_readonly_limit")),
+    ).toBe(true);
+    // 但回显给调用方的必须是用户原始 SQL，而不是内部包装 SQL
+    expect(payload.data.sqlPreview).toBe(userSql);
+    expect(payload.data.sqlPreview).not.toContain("cloudbase_mcp_readonly_limit");
+  });
+
+  it("queryPgDatabase(sql) truncates sqlPreview to 500 chars on failure", async () => {
+    const { server, tools } = createMockServer();
+    const userSql = `SELECT ${"x".repeat(800)}`;
+    const fakeClient = createFakeClient(async (sql: string) => {
+      if (sql === "SELECT 1") {
+        return { rows: [{ "?column?": 1 }], rowCount: 1 };
+      }
+      throw new Error("ERROR: unexpected failure (SQLSTATE 42601)");
+    });
+
+    registerPGDatabaseTools(server, {
+      createClient: vi.fn(() => fakeClient),
+    });
+
+    const payload = buildToolPayload(
+      await tools.queryPgDatabase.handler({
+        action: "sql",
+        sql: userSql,
+      }),
+    );
+
+    expect(payload.errorCode).toBe("PG_SQL_EXEC_FAILED");
+    expect(payload.data.sqlPreview).toHaveLength(500);
+    expect(userSql.startsWith(payload.data.sqlPreview)).toBe(true);
+  });
+
   it("queryPgDatabase(objects) returns schema-qualified summaries without init", async () => {
     const { server, tools } = createMockServer();
     const fakeClient = createFakeClient(async (sql: string) => {

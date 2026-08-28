@@ -2090,7 +2090,7 @@ async function handleReadOnlySql(
       message: `PostgreSQL read-only SQL execution failed: ${reason}`,
       data: {
         role: context.role,
-        sqlPreview: limitedSql.trim().slice(0, 500),
+        sqlPreview: args.sql.trim().slice(0, 500),
       },
     });
   }
