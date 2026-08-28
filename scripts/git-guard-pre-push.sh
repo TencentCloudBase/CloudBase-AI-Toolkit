@@ -59,10 +59,48 @@ fi
 # 找出所有被变更的依赖清单文件（package.json 等）
 CHANGED_MANIFESTS="$(printf '%s\n' "$CHANGED_FILES" | grep -E '(^|/)package\.json$' || true)"
 
+# 依赖字段指纹：只有 dependencies / devDependencies / optionalDependencies /
+# peerDependencies / packageManager 变了才需要 lockfile 跟着动。
+# 只改 scripts、version、description 之类的元数据不影响 npm ci，
+# 拦下来纯属误伤（2026-08-28 加 npm scripts 被拦的教训）。
+deps_fingerprint() {
+  local ref="$1"
+  if ! command -v node >/dev/null 2>&1; then
+    echo "NO_NODE"
+    return
+  fi
+  git show "$ref" 2>/dev/null | node -e '
+    let s = "";
+    process.stdin.on("data", d => s += d);
+    process.stdin.on("end", () => {
+      try {
+        const p = JSON.parse(s);
+        const pick = o => (o && typeof o === "object") ? o : {};
+        console.log(JSON.stringify([
+          pick(p.dependencies), pick(p.devDependencies),
+          pick(p.optionalDependencies), pick(p.peerDependencies),
+          p.packageManager || ""
+        ]));
+      } catch (e) {
+        console.log("PARSE_ERROR");
+      }
+    });
+  '
+}
+
 if [[ -n "$CHANGED_MANIFESTS" ]]; then
-  echo "[git-guard] 检测到依赖清单变更，校验 lockfile 同步…"
   for manifest in $CHANGED_MANIFESTS; do
     dir="$(dirname "$manifest")"
+
+    base_fp="$(deps_fingerprint "$BASE_REF:$manifest")"
+    head_fp="$(deps_fingerprint "HEAD:$manifest")"
+    if [[ -n "$base_fp" && "$base_fp" != "NO_NODE" && "$base_fp" != "PARSE_ERROR" \
+       && "$base_fp" == "$head_fp" ]]; then
+      say_ok "$manifest 仅非依赖字段变更（scripts / 元数据），跳过 lockfile 校验"
+      continue
+    fi
+
+    echo "[git-guard] 检测到依赖变更，校验 lockfile 同步…"
     # Normalize "." so lock paths match `git diff --name-only` (no ./ prefix).
     if [[ "$dir" == "." ]]; then
       dir=""

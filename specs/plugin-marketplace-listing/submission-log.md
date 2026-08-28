@@ -71,11 +71,13 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 
 | Field | Value |
 |-------|-------|
-| Status | **PR mergeable** — conflict re-resolved 2026-08-13; CI green; awaiting xAI review |
+| Status | **PR mergeable** — conflict re-resolved 2026-08-28; diff trimmed to +186/-0; **blocked on maintainer running workflows** |
 | PR | https://github.com/xai-org/plugin-marketplace/pull/151 |
 | Source repo | https://github.com/TencentCloudBase/cloudbase-plugin.git |
-| Pinned SHA | `b615a7f8bfad6637f2297e1a993d29f6a292a13d` |
+| Pinned SHA | `747aadf1017060e899c4703e1bf8d520d2cd2513` |
 | Submitted at | 2026-07-28 |
+| Last polled | 2026-08-28 |
+| CI / review | `state: OPEN`, `mergeable: MERGEABLE`, `mergeStateStatus: BLOCKED`; Socket Security ×2 + semgrep green; **`Validate catalog` never ran** (`action_required`); no maintainer review or comment |
 
 ### How to check progress (Grok)
 
@@ -89,6 +91,24 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 - Merged latest `main` into `binggg/plugin-marketplace:add-cloudbase-plugin` (commit `d6b9848`), kept cloudbase pin `b615a7f`, adopted upstream mongodb changes, regenerated `plugin-index.json`.
 - `mergeable: MERGEABLE`, `mergeStateStatus: BLOCKED` (needs maintainer review/approve). All CI checks pass (Socket Security, semgrep).
 - Left comment asking for review: https://github.com/xai-org/plugin-marketplace/pull/151#issuecomment-5275877974
+
+### 2026-08-28 — Poll #151: drifted back to CONFLICTING, fixed + diff trimmed
+
+- State before: `mergeable: CONFLICTING`, `mergeStateStatus: DIRTY` — upstream's daily pin-bump bot merges into `main` almost every day (#353 08-25, #364 08-26), so any PR touching `marketplace.json` goes stale within ~48h. **This is recurring maintenance, not a one-off.**
+- Upstream main had grown from 19 → 21 entries (`pstack`, `browser-use` added).
+- Merged `upstream/main` into the branch (commit `adef6c5`) and rebuilt `marketplace.json` from upstream's exact formatting, appending a single `cloudbase` entry at the end.
+- **Dropped the incidental reformatting** of other plugins' `keywords`/`domains` arrays (inline → multiline) that came from an earlier prettier pass. Diff went **+286/−23 → +186/−0**; `marketplace.json` itself is now just +13 lines.
+- Re-pinned source SHA `b615a7f` → `747aadf1` (current `cloudbase-plugin` HEAD).
+- Regenerated `plugin-index.json` with upstream's script: 29 skills · 4 commands · 2 agents · 1 MCP server · 4 hooks.
+- Local CI parity: `validate-catalog.py` → Catalog OK; `generate-plugin-index.py --check` → Plugin index OK.
+- PR body rewritten (fresh SHA / diff size / checklist) and a follow-up comment left asking `ykeremy` to "Approve and run workflows": https://github.com/xai-org/plugin-marketplace/pull/151#issuecomment-5449856553
+- **Benchmarking:** #156 browser-use (+32/−0, opened 07-30) was reviewed and merged by `ykeremy` on 08-24; #317 pstack merged in ~1.5h; #148 / #136 also merged. Upstream does review external PRs — the +286-line noisy diff was very likely why ours sat. Small, surgical diffs get merged here.
+- **Hard blocker remains:** repo workflow `Validate catalog` is `action_required` for first-time fork contributors, so the required `validate` check has never run. Only a maintainer can clear it; asked twice now (07-29, 08-28).
+
+### 2026-08-28 — 环境坑：git-lfs hook 让所有 clone / checkout 失败
+
+- 本机 `git-lfs` 不在 PATH，但 git 模板里装了 LFS 的 `post-checkout` hook → 任何 clone/checkout（包括脚本里 `git clone`）都以 exit 2 失败，报 "This repository is configured for Git LFS but 'git-lfs' was not found".
+- 解法：`git -c core.hooksPath=/dev/null clone ...`，跑脚本时给子进程传环境变量 `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/dev/null`。
 
 ## cursor.directory
 

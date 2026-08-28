@@ -26,6 +26,10 @@
     "pack:qoder-plugin": "node scripts/pack-qoder-plugin.mjs",
     "pack:qoder-skill": "node scripts/pack-qoder-skill.mjs",
     "pack:kimi-plugin": "node scripts/pack-kimi-plugin.mjs",
+    "internal:restore": "bash scripts/internal-sync.sh pull",
+    "internal:archive": "bash scripts/internal-sync.sh push",
+    "internal:archive:all": "python3 scripts/internal-archive-all.py",
+    "internal:status": "bash scripts/internal-sync.sh status",
     "prepare": "husky"
   },
   "devDependencies": {

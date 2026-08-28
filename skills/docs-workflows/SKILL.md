@@ -38,6 +38,7 @@ Use this skill when the user asks to:
 1. Read the relevant command template from this skill's `references/`.
 2. Apply the template structure and required fields as the output contract.
 3. Keep edits minimal and consistent with repo doc locations (e.g. `doc/`, `specs/`).
+   - `doc/` is public documentation and is committed; `specs/` is local-only and gitignored — never commit it, and see `AGENTS.md` section `<internal_dirs>` for sync / retrieval.
 4. Prefer clarity and auditability over verbosity.
 
 ## Command mapping

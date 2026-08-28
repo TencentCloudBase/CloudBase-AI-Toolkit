@@ -264,12 +264,22 @@ markets:
       - PR to xai-org/plugin-marketplace
     recommended_install_path: null
     priority_hint: null
-    last_reviewed_at: "2026-08-13"
+    last_reviewed_at: "2026-08-28"
     owner: cloudbase-ai-toolkit
     notes: |
       2026-07-28: Catalog PR #151 opened. Awaiting xAI CI + code-owner review.
       2026-08-13: Re-resolved upstream conflict (merge commit d6b9848). PR mergeable,
       mergeStateStatus BLOCKED (needs maintainer approve). All CI green.
+      2026-08-28: Poll — PR still OPEN after 31 days, zero maintainer response, and
+      had drifted back to CONFLICTING/DIRTY from upstream daily pin bumps.
+      Fixed: merged upstream main (adef6c5), dropped the incidental JSON
+      reformatting of other entries so the diff is +186/-0 (was +286/-23),
+      re-pinned source to cloudbase-plugin 747aadf1, regenerated plugin-index.json
+      (29 skills / 4 commands / 2 agents / 1 MCP / 4 hooks). validate-catalog.py
+      and generate-plugin-index.py --check both pass locally. PR now MERGEABLE /
+      BLOCKED. Hard blocker unchanged: repo workflow `Validate catalog` never ran
+      (action_required, first-time fork contributor) — needs maintainer
+      "Approve and run workflows"; asked again in PR comment.
   - id: kimi-code-marketplace
     product: Kimi Code
     region: cn

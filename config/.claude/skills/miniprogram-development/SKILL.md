@@ -157,10 +157,10 @@ Keep the custom `tabBar` layout text-only, and use flex centering or matching `h
 
 > 微信生态专章：消息推送 / 客服自动回复细节以中文 reference 为准（术语保留英文 API 名）。
 
-- **Current only ops path:** WeChat Developer Tools IDE + wxide CLI. Do not teach low-level bypasses while `cloud_query_msg_push` / `cloud_manage_msg_push` are not yet exposed (track **9109db6b**).
+- **Current only ops path:** WeChat Developer Tools IDE + wxide CLI. Do not teach low-level bypasses while `cloud_query_msg_push` / `cloud_manage_msg_push` are not yet exposed (pending WeChat IDE CLI support).
 - Deploy receiver functions with `cloud_fn_deploy` **and** `--remote-npm-install`; bind (MsgType, Event) → one cloud function in the IDE message-push panel until CLI tools land.
 - Customer-service auto-reply requires `cloud.openapi.customerServiceMessage.send` plus `config.json` openapi permissions — function return values alone do not reply.
-- Function logs: IDE **云开发控制台 → 云函数 → 日志**; CLI log query is pending (**9109db6b** / **d5735473**).
+- Function logs: IDE **云开发控制台 → 云函数 → 日志**; the wxide CLI does not expose log query yet — do not teach low-level log CGI bypasses.
 - Full reference: [Message Push & Customer Service Auto-Reply](references/message-push-customer-service.md)
 
 ## Minimal project skeleton

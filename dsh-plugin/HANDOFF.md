@@ -1,6 +1,6 @@
 # dsh-plugin Handoff 2026-08-19（12:50 刷新）
 
-> 接手 agent 请先读本文 + `.workbuddy/memory/2026-08-19.md`（dsh-plugin 段）。
+> 接手 agent 请先读本文。需要 dsh-plugin 的历史上下文时看本地 `.workbuddy/memory/`（该目录不入库，缺失时跑 `npm run internal:restore` 恢复，见仓库根 `AGENTS.md` 的 `<internal_dirs>` 段）。
 > PR 状态：https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/pull/933（feat/dsh-plugin，OPEN MERGEABLE）
 
 ## 一、项目位置 & 核心信息
