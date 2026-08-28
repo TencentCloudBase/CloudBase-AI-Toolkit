@@ -1942,6 +1942,59 @@ describe("env tools - envQuery", () => {
     expect(missingMetric.content[0].text).toContain("metricName 为必填参数");
   });
 
+  it("queryEnv should guide on parameters (not auth) when the API reports an invalid parameter", async () => {
+    mockGetCloudBaseManager.mockResolvedValue({
+      monitor: {
+        describeCurveData: vi.fn().mockRejectedValue(
+          new Error(
+            "[DescribeCurveData] InvalidParameterValue: invalid parameter value period=86400 is not supported for the given time range",
+          ),
+        ),
+      },
+    });
+
+    const { tools } = createMockServer();
+    const text = (
+      await tools.queryEnv.handler({
+        action: "metrics",
+        envId: "env-test",
+        metricName: "GatewayTraceEnvQPS",
+        startTime: "2026-08-27 00:00:00",
+        endTime: "2026-08-28 00:00:00",
+        period: 86400,
+      })
+    ).content[0].text;
+
+    expect(text).toContain("参数错误");
+    expect(text).toContain("queryEnv(action=\"metrics\")");
+    // 参数类错误不该把 Agent 误导到鉴权方向
+    expect(text).not.toContain("认证");
+    expect(text).not.toContain("登录");
+    expect(text).not.toContain("auth");
+  });
+
+  it("queryEnv should keep auth guidance for real authentication errors", async () => {
+    mockGetCloudBaseManager.mockResolvedValue({
+      monitor: {
+        describeCurveData: vi
+          .fn()
+          .mockRejectedValue(new Error("[DescribeCurveData] AuthFailure: token expired")),
+      },
+    });
+
+    const { tools } = createMockServer();
+    const text = (
+      await tools.queryEnv.handler({
+        action: "metrics",
+        envId: "env-test",
+        metricName: "GatewayTraceEnvQPS",
+      })
+    ).content[0].text;
+
+    expect(text).toContain("认证错误");
+    expect(text).toContain("auth(action=\"status\")");
+  });
+
   it("envQuery(metrics) should call monitor.describeCurveData and summarize the curve", async () => {
     const describeCurveData = vi.fn().mockResolvedValue({
       StartTime: "2026-08-16 16:00:00",

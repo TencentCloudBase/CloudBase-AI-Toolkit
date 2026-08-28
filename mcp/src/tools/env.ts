@@ -1538,10 +1538,11 @@ function buildEnvQueryErrorMessage(error: unknown, action: string): string {
   const suggestions: string[] = [];
 
   if (hasInvalidParameterError) {
-    suggestions.push("参数错误：可能是认证信息无效或已过期，请尝试以下步骤：");
-    suggestions.push("1. 先调用 auth(action=\"status\") 检查当前登录状态");
-    suggestions.push("2. 如果未登录，调用 auth(action=\"start_auth\", authMode=\"device\") 完成登录");
-    suggestions.push("3. 登录完成后再次调用 queryEnv(action=\"list\")");
+    suggestions.push("参数错误：请求未通过服务端的参数校验，请检查本次调用的入参：");
+    suggestions.push("1. 各参数取值是否在允许范围内（枚举值、时间粒度、数量上限等）");
+    suggestions.push("2. 各参数格式是否正确，需要成对传入的参数是否齐全");
+    suggestions.push("3. 必填参数是否都已提供，参数名与类型是否正确");
+    suggestions.push(`4. 修正参数后重新调用 queryEnv(action=\"${action}\")`);
   }
 
   if (hasAuthError) {

@@ -624,6 +624,80 @@ describe('hosting tools', () => {
     expect(payload.message).not.toContain('QPS 限制');
   });
 
+  it('queryHosting(action=findFiles) should map COS-style Contents into the files array', async () => {
+    const tools = createMockServer();
+    mockFindFiles.mockResolvedValueOnce({
+      Contents: [
+        { Key: 'site/index.html', Size: 10, LastModified: '2026-08-28T00:00:00.000Z' },
+        { Key: 'site/app.js', Size: 20, LastModified: '2026-08-28T00:00:01.000Z' },
+      ],
+      IsTruncated: true,
+      NextMarker: 'site/app.js',
+    });
+
+    const payload = JSON.parse((await tools.queryHosting.handler({
+      action: 'findFiles',
+      prefix: 'site/',
+    })).content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(payload.data.files).toHaveLength(2);
+    expect(payload.data.files[0]).toMatchObject({ key: 'site/index.html', size: 10 });
+    expect(payload.data.files[1].key).toBe('site/app.js');
+    expect(payload.message).toContain('共 2 个');
+    // 分页信息透传：findFiles 的 marker 是 COS 游标，保持原样不做 offset 解析
+    expect(payload.data.isTruncated).toBe(true);
+    expect(payload.data.nextMarker).toBe('site/app.js');
+    expect(payload.message).toContain('nextMarker');
+    // 原始返回保持兼容
+    expect(payload.data.result).toMatchObject({ IsTruncated: true });
+  });
+
+  it('queryHosting(action=findFiles) should support the lowercase contents variant', async () => {
+    const tools = createMockServer();
+    mockFindFiles.mockResolvedValueOnce({
+      contents: [{ Key: 'site/index.html', Size: 10, LastModified: '2026-08-28T00:00:00.000Z' }],
+    });
+
+    const payload = JSON.parse((await tools.queryHosting.handler({
+      action: 'findFiles',
+      prefix: 'site/',
+    })).content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(payload.data.files).toHaveLength(1);
+    expect(payload.data.files[0].key).toBe('site/index.html');
+  });
+
+  it('queryHosting(action=listFiles) should keep numeric-offset marker pagination', async () => {
+    const tools = createMockServer();
+    mockListFiles.mockResolvedValue([
+      { Key: 'a.txt' },
+      { Key: 'b.txt' },
+      { Key: 'c.txt' },
+    ]);
+
+    const firstPage = JSON.parse((await tools.queryHosting.handler({
+      action: 'listFiles',
+      maxKeys: 2,
+    })).content[0].text);
+
+    expect(firstPage.data.files.map((file: { key: string }) => file.key)).toEqual(['a.txt', 'b.txt']);
+    expect(firstPage.data.totalCount).toBe(3);
+    // listFiles 的 marker 是自实现的数字 offset 字符串，不能被 COS 游标逻辑覆盖
+    expect(firstPage.data.nextMarker).toBe('2');
+
+    const secondPage = JSON.parse((await tools.queryHosting.handler({
+      action: 'listFiles',
+      maxKeys: 2,
+      marker: '2',
+    })).content[0].text);
+
+    expect(secondPage.data.files.map((file: { key: string }) => file.key)).toEqual(['c.txt']);
+    expect(secondPage.data.nextMarker).toBeUndefined();
+    expect(secondPage.data.isTruncated).toBe(false);
+  });
+
   it('manageHosting(action=setWebsiteDocument) should forward document settings and routing rules', async () => {
     const tools = createMockServer();
     const payload = JSON.parse((await tools.manageHosting.handler({

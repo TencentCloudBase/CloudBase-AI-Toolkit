@@ -563,11 +563,36 @@ function buildFailureResult(action: string, error: unknown) {
   });
 }
 
-function normalizeFileFields(files: unknown): Array<Record<string, unknown>> {
-  if (!Array.isArray(files)) return [];
+function extractFileList(files: unknown): unknown[] {
+  // hosting.listFiles 直接返回文件数组
+  if (Array.isArray(files)) return files;
 
-  return files.map(file => {
-    if (typeof file !== 'object' || file === null) return file;
+  // hosting.findFiles 返回 COS 风格对象，文件列表在 Contents 里
+  if (typeof files === 'object' && files !== null) {
+    const record = files as Record<string, unknown>;
+    if (Array.isArray(record.Contents)) return record.Contents;
+    if (Array.isArray(record.contents)) return record.contents;
+  }
+
+  return [];
+}
+
+function extractFilePagination(result: unknown): { isTruncated?: boolean; nextMarker?: string } {
+  if (typeof result !== 'object' || result === null) return {};
+
+  const record = result as Record<string, unknown>;
+  const isTruncated = record.IsTruncated ?? record.isTruncated;
+  const nextMarker = record.NextMarker ?? record.nextMarker;
+
+  return {
+    isTruncated: typeof isTruncated === 'boolean' ? isTruncated : undefined,
+    nextMarker: typeof nextMarker === 'string' && nextMarker.length > 0 ? nextMarker : undefined,
+  };
+}
+
+function normalizeFileFields(files: unknown): Array<Record<string, unknown>> {
+  return extractFileList(files).map((file): Record<string, unknown> => {
+    if (typeof file !== 'object' || file === null) return file as Record<string, unknown>;
 
     const record = file as Record<string, unknown>;
     return {
@@ -677,6 +702,8 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             });
             logCloudBaseResult(server.logger, result);
             const normalizedFiles = normalizeFileFields(result);
+            // findFiles 的 marker 是 COS 游标字符串，与 listFiles 的数字 offset 语义不同，此处只透传不做解析
+            const { isTruncated, nextMarker } = extractFilePagination(result);
             return buildJsonToolResult({
               success: true,
               data: {
@@ -685,9 +712,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 marker: input.marker,
                 maxKeys: input.maxKeys,
                 files: normalizedFiles,
+                nextMarker,
+                isTruncated,
                 result,
               },
-              message: `已按前缀 \`${input.prefix}\` 查询静态托管文件，共 ${Array.isArray(normalizedFiles) ? normalizedFiles.length : 0} 个。`,
+              message: `已按前缀 \`${input.prefix}\` 查询静态托管文件，共 ${normalizedFiles.length} 个。${nextMarker ? ' 还有更多文件，可使用 nextMarker 继续查询。' : ''}`,
             });
           }
 
