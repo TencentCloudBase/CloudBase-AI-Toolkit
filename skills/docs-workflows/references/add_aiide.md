@@ -247,7 +247,8 @@ Test the IDE-specific download feature:
 5. **Testing**: Thoroughly test the new IDE support before marking as complete
 6. **⭐ Sorting Rule — 新增 IDE 放在 WorkBuddy 后面**：所有 IDE 列表（IDEIconGrid、IDESelector、AiIdeWall、_docsHome、ErrorCodeIDEButton 等）中，新增的 IDE 条目统一放在 `workbuddy` 条目之后、`zcode` 之前。这是 CloudBase 生态优先级排序（WorkBuddy > 合作伙伴 > 第三方）。**不要追加到列表末尾。**
 7. **⭐ 同一厂商的多个产品合写一篇文档**：CLI 与桌面端、编辑器与 App 这类同一厂商的多形态产品（例：Kimi Code + Kimi Work），`doc/ide-setup/` 下只建 **一篇** 文档（以主打产品命名，如 `kimi-code.mdx`），用二级标题分节（`## Kimi Code（终端 CLI）` / `## Kimi Work（桌面端）`），开头放一张对照表说明各形态的插件入口与 MCP 配置路径。
-   - IDE 列表（IDEIconGrid / IDESelector / AiIdeWall / _docsHome / ErrorCodeIDEButton）中**仍保留各自的条目**（`setup.ts` 里也是各自的 IDE type，因为配置路径不同），但 `docUrl` / `href` **统一指向那唯一一篇文档**。
+   - **文档首页列表（`_docsHome.js` 的 `HERO_AI_AGENTS`，即「打开 AI Agent」那排 IDE 图标）同一厂商只放一个条目**：用合并后的厂商名（如 `Kimi`）作为 `id`，`docUrl`/`href` 指向那唯一一篇文档。不要在这里把每个产品都展开成独立 chip（否则首页会显得重复）。
+   - 其余 IDE 选择类组件（IDEIconGrid / IDESelector / AiIdeWall / ErrorCodeIDEButton）**仍保留各自的条目**（`setup.ts` 里也是各自的 IDE type，因为配置路径不同），但 `docUrl` / `href` **统一指向那唯一一篇文档**。
    - `sidebar.json` 只注册一篇。
    - 参考实现：`doc/ide-setup/kimi-code.mdx`。
 
