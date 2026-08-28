@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-08-27T12:48:39.900Z
+爬取时间: 2026-08-28T14:21:10.432Z
 
 ## 文档列表
 
@@ -73,6 +73,7 @@
 - [云开发 CloudBase 删除HTTP访问服务路由_腾讯云](./876-129799-云开发-CloudBase-删除HTTP访问服务路由_腾讯云.md)
 - [云开发 CloudBase 查询HTTP访问服务路由信息_腾讯云](./876-129798-云开发-CloudBase-查询HTTP访问服务路由信息_腾讯云.md)
 - [云开发 CloudBase 修改HTTP访问服务路由_腾讯云](./876-129797-云开发-CloudBase-修改HTTP访问服务路由_腾讯云.md)
+- [云开发 CloudBase 修改环境额外配置_腾讯云](./876-137192-云开发-CloudBase-修改环境额外配置_腾讯云.md)
 - [云开发 CloudBase 创建AI模型_腾讯云](./876-131320-云开发-CloudBase-创建AI模型_腾讯云.md)
 - [云开发 CloudBase 删除AI模型_腾讯云](./876-131319-云开发-CloudBase-删除AI模型_腾讯云.md)
 - [云开发 CloudBase 查询AI模型列表_腾讯云](./876-131318-云开发-CloudBase-查询AI模型列表_腾讯云.md)
