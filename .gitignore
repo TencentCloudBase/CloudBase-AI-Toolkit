@@ -46,3 +46,7 @@ dist/
 specs/*
 !specs/plugin-marketplace-listing/
 !specs/npm-supply-chain-security-hardening/
+
+# .workbuddy: IDE local state (AI daily memory, plans, expert session history).
+# 类比 .idea/ / .vscode/，本不该进版本控制；含内部任务 ID，私有归档另存。
+.workbuddy/
