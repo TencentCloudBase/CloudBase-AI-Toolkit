@@ -96,10 +96,13 @@ alwaysApply: true
 ### 同步与获取
 
 ```bash
-npm run internal:status    # 看本地与归档仓的漂移
-npm run internal:archive   # 本地 → 私有归档
-npm run internal:restore   # 私有归档 → 本地
+npm run internal:status         # 看本地与归档仓的漂移
+npm run internal:archive        # 本地 → 私有归档（只同步当前工作区）
+npm run internal:restore        # 私有归档 → 本地
+npm run internal:archive:all    # 扫所有 worktree，把漂移全收进归档仓
 ```
+
+`internal:archive` 只管当前工作区；写在一个 worktree 里、没归档就切走的内容会永久丢失（已经发生过一次）。`internal:archive:all` 按内容哈希 + mtime 扫全部 worktree 补齐，是防丢的真正兜底，**已配每日自动跑**。
 
 脚本：`scripts/internal-sync.sh`。两个目录的差异：`specs/` pull 时跳过仍在版本控制里的白名单子目录（避免冲掉未提交改动）；`.workbuddy/` pull 时带 `-u`，本地更新的文件不覆盖（那是 IDE 刚写的实时状态）。
 
