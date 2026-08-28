@@ -252,6 +252,9 @@ Test the IDE-specific download feature:
    - `sidebar.json` 只注册一篇。
    - 参考实现：`doc/ide-setup/kimi-code.mdx`。
 
+8. **⭐ 品牌名简化 — 合作/集成内容用短名 `CloudBase`**：在 Kimi 这类合作伙伴集成的内容（配置文档、官网博客、首页文案）里，统一用短品牌名 **`CloudBase`**，不要写全称 **`CloudBase AI Toolkit`**。理由：合作语境下「CloudBase 是 Kimi 接入的平台」比「CloudBase AI Toolkit 是…」更自然、更短。该约定只针对合作/集成叙事内容；产品自身概述页、能力列表等仍以官方全称 `CloudBase AI Toolkit` 为准。
+   - 参考实现：Kimi 博客标题 `CloudBase 现已成为 Kimi Code 与 Kimi Work 上的官方精选插件`（原 `CloudBase AI Toolkit 现已成为…` 已简化）。
+
 ### Step 11: Update cloudbase-docs (官网 + 文档站)
 
 CloudBase-MCP 的 `doc/` 目录通过 CI rsync 同步到 `cloudbase-docs` 仓库的 `docs/ai/cloudbase-ai-toolkit/`。但以下文件是 **cloudbase-docs 独有**，不会自动同步，必须手动更新：
