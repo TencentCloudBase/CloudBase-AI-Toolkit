@@ -271,6 +271,16 @@ CloudBase-MCP 的 `doc/` 目录通过 CI rsync 同步到 `cloudbase-docs` 仓库
 3. 将 worktree 中改动过的 `doc/` 文件手动 cp 到 `docs/ai/cloudbase-ai-toolkit/` 和 `i18n/en/docusaurus-plugin-content-docs/current/ai/cloudbase-ai-toolkit/`（供本地预览，CI 正式同步需等 PR 合并）
 4. 两边分别 commit & push
 
+### Blog 链接规范（写博客时必看）
+
+`cloudbase-docs` 的**官网配置**（`docusaurus.website.config.ts`）设了 `docs: false` 且 `onBrokenLinks: "throw"`。因此：
+
+- ⚠️ **博客里引用文档站页面，必须用完整域名 `https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/...`，不能写站内裸路径 `/ai/cloudbase-ai-toolkit/...`**。裸路径在官网构建时被当成不存在的站内路由 → 直接构建失败（参考实现踩坑：Kimi 博客初版用了 `/ai/...` 裸路径，构建直接 throw）。
+- 现有 46 篇博客清一色用 `https://docs.cloudbase.net/...` 完整域名，照抄这个约定即可。
+- 英文版里的 `https://docs.cloudbase.net/...` 会被 `src/clientModules/docsLinksLocalizer.js` 自动改写成 `https://docs.cloudbase.net/en/...`，无需手写 en 路径。
+- 博客配图用 `static/img/blog/xxx.png`，Markdown 里写 `/img/blog/xxx.png`（静态资源，站内有效）。
+- **验收博客 = 跑一次官网生产构建**：`yarn clear && NODE_OPTIONS=--max-old-space-size=8192 yarn docusaurus build --config docusaurus.website.config.ts --out-dir build-website`。`onBrokenLinks: "throw"` 会抓出所有断链；zh+en 两个 locale 都构建通过才算过。注意构建与文档站 dev 实例共用 `.docusaurus` 缓存，构建前先 kill 文档站实例、清缓存，避免互相污染。
+
 ### Step 12: Regenerate ide-support-grid.png (如需要)
 
 `scripts/assets/ide-support-grid.png` 是 README 中引用的静态 IDE 网格图。新增 IDE 后需重新生成：
