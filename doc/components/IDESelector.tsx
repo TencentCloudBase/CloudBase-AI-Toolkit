@@ -67,10 +67,10 @@ const IDES: IDE[] = [
     platform: '桌面应用',
     configPath: '设置 → 插件',
     iconUrl: 'https://kimi.com/favicon.ico',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/kimi-work',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/kimi-code',
     supportsProjectMCP: false,
     useCommandInsteadOfConfig: true,
-    installCommandDocs: '**通过插件面板安装（推荐）**\n\n1. 打开 Kimi Work，点击左侧 **设置**（齿轮图标）\n2. 进入 **插件** 面板\n3. 在列表中找到 **Tencent CloudBase**，点击右侧开关启用\n4. 安装成功后显示版本号与能力摘要\n\n完整步骤见 [Kimi Work 配置指南](/ai/cloudbase-ai-toolkit/ide-setup/kimi-work)。',
+    installCommandDocs: '**通过插件面板安装（推荐）**\n\n1. 打开 Kimi Work，点击左侧 **设置**（齿轮图标）\n2. 进入 **插件** 面板\n3. 在列表中找到 **Tencent CloudBase**，点击右侧开关启用\n4. 安装成功后显示版本号与能力摘要\n\n完整步骤见 [Kimi 配置指南](/ai/cloudbase-ai-toolkit/ide-setup/kimi-code)。',
     configExample: '',
   },
   {

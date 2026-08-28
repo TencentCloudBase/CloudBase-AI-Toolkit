@@ -141,7 +141,7 @@ Skills shape structure and practice; MCP handles environment and resources. You 
 | [WorkBuddy](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) | Standalone IDE | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) |
 | [ZCode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/zcode) | Standalone IDE (≥ 3.4.1 built-in) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/zcode) |
 | [Kimi Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) | CLI (plugin marketplace) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) |
-| [Kimi Work](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-work) | Desktop app (plugin panel) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-work) |
+| [Kimi Work](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) | Desktop app (plugin panel) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) |
 | [Codex App](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codex) | App | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codex) |
 | [Cursor](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cursor) | Standalone IDE | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cursor) |
 | [WindSurf](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/windsurf) | IDE / plugins | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/windsurf) |

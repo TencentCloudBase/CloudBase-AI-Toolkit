@@ -39,7 +39,7 @@ const IDES: IDE[] = [
     name: 'Kimi Work',
     platform: '桌面应用',
     iconUrl: 'https://kimi.com/favicon.ico',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/kimi-work',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/kimi-code',
   },
   {
     id: 'zcode',

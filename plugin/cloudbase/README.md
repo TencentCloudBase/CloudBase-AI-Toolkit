@@ -181,7 +181,7 @@ Search for **Tencent CloudBase** (id: `cloudbase`) and install. See [`doc/ide-se
 ### Kimi Work
 
 Kimi Work ships CloudBase as a built-in plugin under **Settings → Plugins**.
-Enable it from the plugins panel. See [`doc/ide-setup/kimi-work.mdx`](../../doc/ide-setup/kimi-work.mdx).
+Enable it from the plugins panel. See [`doc/ide-setup/kimi-code.mdx`](../../doc/ide-setup/kimi-code.mdx).
 
 ## Relationship with CloudBase Sites
 
