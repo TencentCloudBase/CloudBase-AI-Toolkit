@@ -246,6 +246,10 @@ Test the IDE-specific download feature:
 4. **Documentation**: Always update all relevant documentation files
 5. **Testing**: Thoroughly test the new IDE support before marking as complete
 6. **⭐ Sorting Rule — 新增 IDE 放在 WorkBuddy 后面**：所有 IDE 列表（IDEIconGrid、IDESelector、AiIdeWall、_docsHome、ErrorCodeIDEButton 等）中，新增的 IDE 条目统一放在 `workbuddy` 条目之后、`zcode` 之前。这是 CloudBase 生态优先级排序（WorkBuddy > 合作伙伴 > 第三方）。**不要追加到列表末尾。**
+7. **⭐ 同一厂商的多个产品合写一篇文档**：CLI 与桌面端、编辑器与 App 这类同一厂商的多形态产品（例：Kimi Code + Kimi Work），`doc/ide-setup/` 下只建 **一篇** 文档（以主打产品命名，如 `kimi-code.mdx`），用二级标题分节（`## Kimi Code（终端 CLI）` / `## Kimi Work（桌面端）`），开头放一张对照表说明各形态的插件入口与 MCP 配置路径。
+   - IDE 列表（IDEIconGrid / IDESelector / AiIdeWall / _docsHome / ErrorCodeIDEButton）中**仍保留各自的条目**（`setup.ts` 里也是各自的 IDE type，因为配置路径不同），但 `docUrl` / `href` **统一指向那唯一一篇文档**。
+   - `sidebar.json` 只注册一篇。
+   - 参考实现：`doc/ide-setup/kimi-code.mdx`。
 
 ### Step 11: Update cloudbase-docs (官网 + 文档站)
 
@@ -282,7 +286,7 @@ CloudBase-MCP 的 `doc/` 目录通过 CI rsync 同步到 `cloudbase-docs` 仓库
 
 ```
 /add-aiide I need to add support for "NewIDE" AI editor
-→ Guide through all 10 steps to add complete IDE support
+→ Guide through all 12 steps to add complete IDE support
 ```
 
 ## Success Criteria
