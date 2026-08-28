@@ -29,6 +29,8 @@ alwaysApply: true
 4. 技术方案设计：对于需要 spec 的需求，在完成需求设计之后，你会根据当前的技术架构和前面确认好的需求，进行技术方案设计，保存在 `specs/spec_name/design.md` 中，精简但是能够准确描述技术架构（例如架构、技术栈、技术选型、数据库/接口设计、测试策略、安全性），必要时可以用 mermaid 来绘图，跟我确认清楚后，才进入下阶段。对于不需要 spec 的小需求，可以直接在对话中给出精简方案并继续执行。
 5. 任务拆分：对于需要 spec 的需求，在完成技术方案设计后，你会根据需求文档和技术方案，细化具体要做的事情，保存在 `specs/spec_name/tasks.md` 中，跟我确认清楚后，才开始正式执行任务，同时更新任务状态。对于不需要 spec 的小需求，可以直接给出精简任务说明或直接执行。
 
+   注：`specs/` 已加入 `.gitignore`，spec 文档只写在本地、**不要 `git add` 到公开仓库**（含内部信息，完整历史归档在私有仓库 `cloudbase-mcp-specs-archive`）。
+
 格式如下
 
 ``` markdown
@@ -50,7 +52,7 @@ alwaysApply: true
    - config 用来给 AI IDE 提供的规则和 mcp 预设配置
    - tests 自动化测试
    - skills 项目级 skills 源目录
-   - specs 需求/设计/任务文档
+   - specs 需求/设计/任务文档（**本地目录，不提交到公开仓库**。含内部信息，仅保留 `plugin-marketplace-listing/` 与 `npm-supply-chain-security-hardening/` 两个被代码或规范依赖的子目录；完整历史归档在私有仓库 `cloudbase-mcp-specs-archive`）
 
 2. AGENTS 文件约定
    - `AGENTS.md` 为项目及子目录的唯一可信源

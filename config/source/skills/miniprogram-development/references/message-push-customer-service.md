@@ -200,9 +200,9 @@ wechatide -c <clientName> -t <cloud_fn_logs_or_equivalent> ...
 - IDE Skills 与 CloudBase MCP 分层：[wxide-vs-cloudbase-mcp.md](wxide-vs-cloudbase-mcp.md)
 - CloudBase 小程序集成：[cloudbase-integration.md](cloudbase-integration.md)
 - 维护者 MCP E2E 权威源（外部）：`wxide-qbase-msgpush-e2e` skill — 不要在此内联其底层步骤
-- 微信侧 CLI 暴露 / 缺失命令：任务 **9109db6b**
-- 日志 API 调研：任务 **d5735473**
-- 规格设计（CloudBase-MCP msg-push + EXPOSED_TOOL_NAME）：`specs/virtual-payment-mcp/design.md`（任务 **43367cc6**）
+- 微信侧 CLI 暴露 / 缺失命令：跟进中
+- 日志 API 调研：跟进中
+- msg-push 与 `EXPOSED_TOOL_NAME` 的规格设计：见本文件第 5 节起的说明
 
 ## 5. 推送模式：云函数 vs 云托管
 
