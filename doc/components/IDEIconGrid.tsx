@@ -195,6 +195,20 @@ const IDES: IDE[] = [
     iconUrl: 'https://docs.cloudbase.net/img/favicon.png',
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/cloudbase-cli',
   },
+  {
+    id: 'kimi-code',
+    name: 'Kimi Code',
+    platform: '命令行工具',
+    iconUrl: 'https://kimi.com/favicon.ico',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/kimi-code',
+  },
+  {
+    id: 'kimi-work',
+    name: 'Kimi Work',
+    platform: '桌面应用',
+    iconUrl: 'https://kimi.com/favicon.ico',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/kimi-work',
+  },
 ]
 
 const iconsWithColor = new Set(['claude', 'gemini', 'baidu', 'alibaba', 'qwen', 'bytedance', 'tencent']);

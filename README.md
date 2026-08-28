@@ -90,7 +90,7 @@ Set up CloudBase for me:
 | Claude Code / Codex (native marketplace) | Add this repo as marketplace, then install the `cloudbase` plugin ([plugin docs](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ai-agent-plugins)) |
 | Open Plugin Spec tools | `npx plugins add TencentCloudBase/cloudbase-plugin` |
 | Prefer one CLI for many tools | [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce): `npm i -g @cloudbase/cli && tcb ai` |
-| CodeBuddy / WorkBuddy / ZCode (built-in) | Use the IDE’s built-in CloudBase plugin or connector; for CodeBuddy you can also [install via plugin marketplace](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) |
+| CodeBuddy / WorkBuddy / ZCode / Kimi (built-in) | Use the IDE's built-in CloudBase plugin or connector; for CodeBuddy you can also [install via plugin marketplace](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) |
 | Other MCP-capable IDEs | MCP config only (below) |
 
 #### Plugin
@@ -140,6 +140,8 @@ Skills shape structure and practice; MCP handles environment and resources. You 
 | [OpenClaw](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) | CLI | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) |
 | [WorkBuddy](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) | Standalone IDE | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) |
 | [ZCode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/zcode) | Standalone IDE (≥ 3.4.1 built-in) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/zcode) |
+| [Kimi Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) | CLI (plugin marketplace) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) |
+| [Kimi Work](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-work) | Desktop app (plugin panel) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-work) |
 | [Codex App](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codex) | App | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codex) |
 | [Cursor](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cursor) | Standalone IDE | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cursor) |
 | [WindSurf](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/windsurf) | IDE / plugins | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/windsurf) |

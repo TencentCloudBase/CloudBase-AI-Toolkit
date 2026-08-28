@@ -62,6 +62,8 @@ export const IDE_TYPES = [
   "kiro", // Kiro AI编辑器
   "aider", // Aider AI编辑器
   "iflow-cli", // iFlow CLI
+  "kimi-code", // Kimi Code CLI
+  "kimi-work", // Kimi Work 桌面端
 ] as const;
 
 // IDE映射关系表
@@ -140,6 +142,12 @@ export const RAW_IDE_FILE_MAPPINGS: Record<string, IdeFileDescriptor[]> = {
     { path: "IFLOW.md" },
     { path: ".iflow/settings.json", isMcpConfig: true },
   ],
+  "kimi-code": [
+    { path: ".kimi-code/mcp.json", isMcpConfig: true },
+  ],
+  "kimi-work": [
+    { path: ".kimi-work/mcp.json", isMcpConfig: true },
+  ],
 };
 
 const IDE_FILE_MAPPINGS = structuredClone(RAW_IDE_FILE_MAPPINGS)
@@ -181,6 +189,8 @@ const IDE_DESCRIPTIONS: Record<string, string> = {
   kiro: "Kiro AI编辑器",
   aider: "Aider AI编辑器",
   "iflow-cli": "iFlow CLI",
+  "kimi-code": "Kimi Code CLI",
+  "kimi-work": "Kimi Work 桌面端",
 };
 
 // INTEGRATION_IDE 环境变量值到 IDE 类型的映射
@@ -208,6 +218,8 @@ const INTEGRATION_IDE_MAPPING: Record<string, string> = {
   VSCode: "vscode",
   Kiro: "kiro",
   iFlow: "iflow-cli",
+  "Kimi Code": "kimi-code",
+  "Kimi Work": "kimi-work",
 };
 
 export type DownloadTemplateIdeResolution =
