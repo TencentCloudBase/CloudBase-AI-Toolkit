@@ -80,7 +80,7 @@
     "cors": "^2.8.5",
     "express": "5.1.0",
     "fd-slicer": "^1.1.0",
-    "lockfile": "^1.0.4",
+    "lockfile": "npm:@stackline/lockfile@1.0.5",
     "open": "^10.1.2",
     "punycode": "^2.3.1",
     "unzipper": "^0.12.3",

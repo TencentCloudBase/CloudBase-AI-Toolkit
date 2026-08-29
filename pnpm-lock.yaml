@@ -138,8 +138,8 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
       lockfile:
-        specifier: ^1.0.4
-        version: 1.0.4
+        specifier: npm:@stackline/lockfile@1.0.5
+        version: '@stackline/lockfile@1.0.5'
       open:
         specifier: ^10.1.2
         version: 10.2.0
@@ -1299,6 +1299,10 @@ packages:
 
   '@so-ric/colorspace@1.1.6':
     resolution: {integrity: sha512-/KiKkpHNOBgkFJwu9sh48LkHSMYGyuTcSFK/qMBdnOAlrRJzRSXAOFB5qwzaVQuDl8wAvHVMkaASQDReTahxuw==}
+
+  '@stackline/lockfile@1.0.5':
+    resolution: {integrity: sha512-joabBF+8zd6JwdHweGfmi9S9T/JU6Mjf40ocYo84FJWB9oKfvINwx0feHG3t/lY1FVmaMLRGLZ3b+mhyFbhPng==}
+    engines: {node: '>=14.17'}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -3235,9 +3239,6 @@ packages:
   locate-path@5.0.0:
     resolution: {integrity: sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g==}
     engines: {node: '>=8'}
-
-  lockfile@1.0.4:
-    resolution: {integrity: sha512-cvbTwETRfsFh4nHsL1eGWapU1XFi5Ot9E85sWAwia7Y7EgB7vfqcZhTKZ+l7hCGxSPoushMv5GKhT5PdLv03WA==}
 
   lodash.defaults@4.2.0:
     resolution: {integrity: sha512-qjxPLHd3r5DnsdGacqOMU6pb/avJzdh9tFX2ymgoZE27BmjXrNy/y4LoaiTeAb+O3gL8AfpJGtqfX/ae2leYYQ==}
@@ -5689,6 +5690,10 @@ snapshots:
       color: 5.0.3
       text-hex: 1.0.0
 
+  '@stackline/lockfile@1.0.5':
+    dependencies:
+      signal-exit: 3.0.7
+
   '@standard-schema/spec@1.1.0': {}
 
   '@testing-library/dom@10.4.0':
@@ -7912,10 +7917,6 @@ snapshots:
   locate-path@5.0.0:
     dependencies:
       p-locate: 4.1.0
-
-  lockfile@1.0.4:
-    dependencies:
-      signal-exit: 3.0.7
 
   lodash.defaults@4.2.0: {}
 
