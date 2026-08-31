@@ -687,20 +687,19 @@ function isApiKeyCredentialMode(): boolean {
 }
 
 function getCredentialScope(cloudBaseOptions?: {
-  region?: string;
-  envId?: string;
-  token?: string;
+  credentialScope?: string;
 }): CredentialScope {
-  // 托管 OAuth（tcb-bff 签发的环境级 federated token）与单环境 API Key 同属环境级凭证：
-  // 账号级 DescribeEnvs(不带 EnvId) 会被后端拒绝（invalid token），只能访问绑定环境。
-  if (cloudBaseOptions?.envId && cloudBaseOptions?.token) return "single_env";
+  // 只认宿主的显式声明 credentialScope: 'env'（如 tcb-bff hosted OAuth 签发的
+  // 环境级 federated STS）。账号级 DescribeEnvs（不带 EnvId）会被后端拒绝（invalid token）。
+  // 注意：不能用 token 字段的有无推断范围——sessionToken 本身不携带权限范围语义。
+  if (cloudBaseOptions?.credentialScope === "env") return "single_env";
   return isApiKeyCredentialMode() ? "single_env" : "account";
 }
 
 function buildCredentialBoundaryPayload(cloudBaseOptions?: {
   region?: string;
   envId?: string;
-  token?: string;
+  credentialScope?: string;
 }) {
   const credentialScope = getCredentialScope(cloudBaseOptions);
   const currentRegion = resolveSiteAndRegion(cloudBaseOptions ?? {}).region;
@@ -2779,23 +2778,21 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               // API Key / env-var pin: skip DescribeEnvs (STS often cannot list).
               // Account-level sessions that only pinned CLOUDBASE_ENV_ID via set_env
               // can still pass region/alias/envId to list other environments.
-              // Hosted OAuth (env-scoped federated STS: cloudBaseOptions.token + envId)
-              // hits the same backend rejection ("invalid token") on account-level
-              // DescribeEnvs, so pin to the token-bound envId as well.
-              const tokenScopedEnvId =
+              // Hosted OAuth: 宿主（tcb-bff）显式声明 credentialScope: 'env'，签发的
+              // 环境级 federated STS 调账号级 DescribeEnvs 会被拒（"invalid token"），
+              // 同样 pin 到绑定 envId 降级为 describeEnvInfo。
+              const isEnvScopedCredential =
+                cloudBaseOptions?.credentialScope === "env" &&
                 typeof cloudBaseOptions?.envId === "string" &&
-                cloudBaseOptions.envId.length > 0 &&
-                typeof cloudBaseOptions?.token === "string" &&
-                cloudBaseOptions.token.length > 0
-                  ? cloudBaseOptions.envId
-                  : undefined;
+                cloudBaseOptions.envId.length > 0;
               const envIdFromEnv =
                 !cloudBaseOptions?.requestFn &&
-                (process.env.CLOUDBASE_ENV_ID || tokenScopedEnvId);
+                (process.env.CLOUDBASE_ENV_ID ||
+                  (isEnvScopedCredential ? cloudBaseOptions.envId : undefined));
               const shouldPinToEnvVar = Boolean(
                 envIdFromEnv &&
                 (isApiKeyCredentialMode() ||
-                  tokenScopedEnvId ||
+                  isEnvScopedCredential ||
                   (!region && !alias && !envId)),
               );
               if (shouldPinToEnvVar && envIdFromEnv) {
@@ -2818,10 +2815,10 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                   result = { EnvList: [{ EnvId: envIdFromEnv }] };
                 }
                 // 给调用方 AI 说明降级原因，避免误判为"账号只有一个环境"
-                if (tokenScopedEnvId) {
+                if (isEnvScopedCredential) {
                   result = {
                     ...result,
-                    scope_note: `当前凭证为环境级（托管授权 token 绑定 ${envIdFromEnv}），账号级环境列表接口无权限，已降级为仅返回绑定环境的信息。如需查看账号下全部环境，请用有账号级权限的凭证登录。`,
+                    scope_note: `当前凭证为环境级（托管授权凭证绑定 ${envIdFromEnv}），账号级环境列表接口无权限，已降级为仅返回绑定环境的信息。如需查看账号下全部环境，请用有账号级权限的凭证登录。`,
                   };
                 }
               } else {
