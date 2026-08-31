@@ -2,7 +2,7 @@
 
 ## 在PostgreSQL数据库上执行SQL查询
 
-最近更新时间：2026-05-20 03:00:31
+最近更新时间：2026-08-31 01:55:01
 
 -   微信扫一扫 
 -   QQ
@@ -41,13 +41,13 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 云开发环境ID
 
   
-示例值：pg-mikejliu-0g9cqmar358527a9 |
+示例值：lo **od _\- **\*\***_** 10a94df |
 | Sql | 是 | String | 
 
 要执行的SQL语句
 
   
-示例值：select column\_name FROM information\_schema.columns WHERE table\_schema = 'public' AND table\_name = 'test\_products' |
+示例值：select \* from pg\_namespace |
 | Role | 否 | String | 
 
 指定 role 执行 SQL
@@ -70,14 +70,14 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
   
 注意：此字段可能返回 null，表示取不到有效值。  
-示例值：\["column\_name"\] |
+示例值：\["oid"\] |
 | Rows | Array of String | 
 
 数据行。每一行数据都是一个JSON串，将JSON进行反序列化将得到了每列的值。值可能是 null 或者 字符串，如果是 null 说明该列的值为 <null>，如果是字符串则为该列的值的字符串表示形式。
 
   
 注意：此字段可能返回 null，表示取不到有效值。  
-示例值：\["\["id"\]"\] |
+示例值：\["\["99","pg\_toast","10",null\]"\] |
 | ExecutionTimeMs | Integer | 
 
 SQL执行耗时
@@ -85,12 +85,12 @@ SQL执行耗时
 单位：毫秒
 
   
-示例值：58 |
+示例值：8 |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 创建表
+### 示例1 ExecutePGSql
 
 #### 输入示例
 
@@ -102,40 +102,8 @@ X-TC-Action: ExecutePGSql
 <公共请求参数>
 
 {
-    "EnvId": "pg-mikejliu-0g9cqmar358527a9",
-    "Sql": "CREATE TABLE test_products (\n    id SERIAL PRIMARY KEY,                        -- 产品唯一标识\n    sku VARCHAR(20) UNIQUE NOT NULL,             -- 库存单位编码，唯一且必填\n    name TEXT NOT NULL,                          -- 产品名称\n    category VARCHAR(50),                        -- 分类\n    price NUMERIC(12, 2) NOT NULL DEFAULT 0.00,  -- 单价\n    stock_quantity INTEGER DEFAULT 0,            -- 库存数量\n    tags JSONB,                                  -- 标签（使用 JSONB 存储扩展属性）\n    last_updated TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() -- 最后更新时间\n);",
-    "Role": "cloudbase_********"
-}
-```
-
-#### 输出示例
-
-```json
-{
-    "Response": {
-        "AffectedRows": 0,
-        "Columns": null,
-        "ExecutionTimeMs": 34,
-        "Rows": null,
-        "RequestId": "5cf1d355-cdb7-4879-bd22-4e89ddc10095"
-    }
-}
-```
-
-### 示例2 查询表字段
-
-#### 输入示例
-
-```
-POST / HTTP/1.1
-Host: tcb.tencentcloudapi.com
-Content-Type: application/json
-X-TC-Action: ExecutePGSql
-<公共请求参数>
-
-{
-    "EnvId": "pg-mikejliu-0g9cqmar358527a9",
-    "Sql": "select column_name FROM information_schema.columns WHERE table_schema = 'public'   AND table_name = 'test_products'"
+    "EnvId": "lo**od*-*********10a94df",
+    "Sql": "select * from pg_namespace"
 }
 ```
 
@@ -146,13 +114,13 @@ X-TC-Action: ExecutePGSql
     "Response": {
         "AffectedRows": 0,
         "Columns": [
-            "column_name"
+            "oid"
         ],
-        "ExecutionTimeMs": 58,
+        "ExecutionTimeMs": 8,
         "Rows": [
-            "[\"id\"]"
+            "[\"99\",\"pg_toast\",\"10\",null]"
         ],
-        "RequestId": "21b3df84-7ea3-4487-9583-e4de88b4ab89"
+        "RequestId": "6907a086-5639-4c9d-89bf-66921dd1168e"
     }
 }
 ```
@@ -193,6 +161,7 @@ X-TC-Action: ExecutePGSql
 | FailedOperation.InstanceStatusConflict | Instance status does not match the required status for this operation. |
 | FailedOperation.PGConnectError | Failed to connect to PostgreSQL instance. |
 | FailedOperation.PGExecuteSqlError | Execute SQL error. |
+| FailedOperation.PGResultTooLarge | 返回结果超出限制 |
 | InternalError.SYS\_ERR | 系统内部异常。 |
 | InvalidParameter.INVALID\_PARAM | 请求参数错误。 |
 | ResourceNotFound.RoleNotFound | Database role not found. |
