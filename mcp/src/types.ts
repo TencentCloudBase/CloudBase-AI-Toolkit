@@ -86,6 +86,14 @@ export type CloudBaseOptions = CloudBaseConfigBase & {
   requestFn?: CloudApiRequestFn
   /** 站点：domestic（国内站）/ intl（国际站）。可选；缺省按 TCB_SITE / region 映射表 / 项目配置解析 */
   site?: string
+  /**
+   * 凭证权限范围的显式声明（可选，由宿主传入）。
+   * - 'env'：环境级凭证（如 tcb-bff hosted OAuth 签发的 federated STS，policy 收敛到单个 env）。
+   *   MCP 据此启用 queryEnv(action="list") 的 pin 降级，并在凭证边界标注中上报 single_env。
+   * - 缺省/'account'：账号级凭证，按地域全量 DescribeEnvs。
+   * 注意：不要用 token 字段的有无来推断权限范围——sessionToken 本身不携带范围语义。
+   */
+  credentialScope?: 'env' | 'account'
 }
 
 /**
