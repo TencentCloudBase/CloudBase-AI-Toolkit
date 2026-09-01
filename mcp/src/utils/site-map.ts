@@ -7,6 +7,8 @@ export interface SiteDefinition {
   label: string;
   authHost: string;
   consoleHost: string;
+  /** OAuth device-flow 后端端点（toolbox getOAuthEndpoint 可覆写；默认值与站点对应） */
+  oauthEndpoint?: string;
   defaultRegion: string;
   regions: string[];
   capabilities: {
@@ -26,6 +28,7 @@ export const SITE_REGION_MAP: Record<SiteId, SiteDefinition> = {
     label: "国内站",
     authHost: "tcb.cloud.tencent.com",
     consoleHost: "tcb.cloud.tencent.com",
+    oauthEndpoint: "https://tcb-api.cloud.tencent.com/qcloud-tcb/v1/oauth",
     defaultRegion: "ap-shanghai",
     regions: ["ap-shanghai", "ap-guangzhou", "ap-singapore"],
     capabilities: { noSql: true },
@@ -35,6 +38,9 @@ export const SITE_REGION_MAP: Record<SiteId, SiteDefinition> = {
     label: "国际站",
     authHost: "tcb.tencentcloud.com",
     consoleHost: "tcb.tencentcloud.com",
+    // 2026-09-01 实测：device/code + token 端点可用，且 device-code 注册表与国内站隔离
+    // （国内站有效期内的 code 在该端点轮询返回 expired_token）
+    oauthEndpoint: "https://tcb-api.tencentcloud.com/qcloud-tcb/v1/oauth",
     defaultRegion: "ap-singapore",
     regions: ["ap-singapore"],
     capabilities: { noSql: false },
@@ -97,8 +103,25 @@ export function getSite(region: string | undefined, explicitSite?: string): Site
 }
 
 /**
- * 认证/路由场景下解析站点：歧义（如 ap-singapore 未配 site）时默认 intl，保持既有国际站行为。
+ * API Key 换取网关（POST /capi/credential 的 host）地域选型。
+ *
+ * 2026-09-01 同一把国内站 key 三地域网关实测：
+ * - ap-shanghai / ap-guangzhou host 均换取成功（国内站集群共享 key 注册表，
+ *   URL 中的 region 段在国内站内部等价，互换可用）
+ * - ap-singapore host 拒绝（SIGN_PARAM_INVALID：sg 网关为国际站独立部署，
+ *   key 注册表与国内站隔离）
+ *
+ * 因此换取 host 按**站点**选择，而非按环境所属地域：
+ * - 显式 intl 站点（如 TCB_SITE=intl）→ 返回 intl 地域（ap-singapore）
+ * - domestic / 歧义（如仅设 TCB_REGION=ap-singapore）/ 未配置 → 返回 undefined，
+ *   toolbox 回落默认 ap-shanghai；国内站多地域环境（ap-guangzhou / ap-singapore）
+ *   经默认域名均可换取，盲目传环境地域反而会把国内站 key 打到 sg 网关导致换取失败
  */
+export function resolveApiKeyExchangeRegion(opts: { site?: string; region?: string } = {}): string | undefined {
+  const resolved = resolveSiteAndRegion(opts);
+  return resolved.site === "intl" && !resolved.ambiguous ? resolved.region : undefined;
+}
+
 export function resolveSite(region: string | undefined, explicitSite?: string): SiteId {
   const site = getSite(region, explicitSite);
   return site === "ambiguous" ? "intl" : site;

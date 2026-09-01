@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+### Features
+
+* **auth**: probe management-plane (CAM) capability after a successful API Key login (`login_by_api_key` and the `start_auth` API Key branch). Some API Keys (e.g. AI-suite JWT keys) can only exchange for gateway-scoped temporary credentials whose STS tokens are rejected by TCB CAM — previously MCP reported `AUTH_READY` while every management tool (`queryEnv`, `queryAppAuth`, `manageAppAuth`, ...) silently failed. A cached, lightweight `DescribeEnvInfo` probe now appends an explicit warning recommending long-term `TENCENTCLOUD_SECRETID` / `TENCENTCLOUD_SECRETKEY` when CAM definitively rejects the credential; inconclusive results (timeout / network) produce no warning.
+
+### Bug Fixes
+
+* **auth**: pass resolved region to `loginByApiKey` when site is explicitly intl (`TCB_SITE=intl`), so international-site API keys exchange via the `ap-singapore` gateway instead of the domestic default. Gateway selection follows **site**, not env region: domestic multi-region envs (incl. `ap-guangzhou` / `ap-singapore`) keep using the default gateway which routes by envId — verified by live cross-region gateway probes (sh/gz succeed, sg rejects domestic keys with `SIGN_PARAM_INVALID`). Ambiguous region without explicit site (e.g. bare `TCB_REGION=ap-singapore`) also keeps the default to avoid breaking domestic Singapore-region envs.
+* **auth**: enrich `auth(start_auth)` / `login_by_api_key` failure diagnostics — show resolved exchange gateway region, `TCB_SITE`, and a site-mismatch hint (intl keys require `TCB_SITE=intl`; domestic envs must not set it). The previous hard-coded `ap-shanghai` endpoint display is now resolved dynamically.
+* **auth**: complete international-site device-flow login — for `TCB_SITE=intl`, device codes are now issued by the intl OAuth backend (`tcb-api.tencentcloud.com`, verified live: reachable device/code + token endpoints with an independent device-code registry) and the verification URL is rewritten to the intl auth host (`tcb.tencentcloud.com/dev#/cli-auth`) while preserving `user_code`. Previously the code was always issued by the domestic backend, so intl accounts could never complete authorization. Explicit `oauthEndpoint` overrides still take precedence.
 ### Code Refactoring
 
 * **rag**: retire the `vector` mode of `searchKnowledgeBase`; official doc search (`mode=docs`, backed by the `app.docs` full-text search) is now the only retrieval path. The `content` / `id` / `threshold` / `limit` / `options` parameters are removed together with the two calls to the `tcb-advanced-a656fc` knowledge gateway. Callers should use `mode=docs` with `action=searchDocs` / `findByName` / `readDoc`.

@@ -1,6 +1,12 @@
 import { AuthSupervisor, authStore, refreshTmpToken, resolveCredential } from "@cloudbase/toolbox";
 import { debug } from "./utils/logger.js";
-import { getSite, normalizeSite, resolveSite, SITE_REGION_MAP } from "./utils/site-map.js";
+import {
+  getSite,
+  normalizeSite,
+  resolveApiKeyExchangeRegion,
+  resolveSite,
+  SITE_REGION_MAP,
+} from "./utils/site-map.js";
 
 const auth = AuthSupervisor.getInstance({});
 
@@ -526,10 +532,16 @@ export async function peekLoginState(options?: {
       try {
         // 优先使用 IDE 注入的工作目录，其次 process.cwd()
         const projectCwd = process.env.WORKSPACE_FOLDER_PATHS || process.cwd();
+        // 换取网关按站点选型：显式 intl → ap-singapore；domestic/歧义 → toolbox 默认
+        // ap-shanghai（国内站多地域环境均经其全局路由，详见 resolveApiKeyExchangeRegion）
+        const exchangeRegion = resolveApiKeyExchangeRegion({
+          site: options?.site,
+          region: options?.region,
+        });
         const credential = await auth.loginByApiKey(
           envVarLoginState.apiKey,
           envVarLoginState.envId,
-          { cwd: projectCwd }
+          { cwd: projectCwd, ...(exchangeRegion ? { region: exchangeRegion } : {}) }
         );
         return credential;
       } catch (e) {
@@ -633,6 +645,21 @@ export async function ensureLogin(options?: EnsureLoginOptions) {
       }
       if (resolvedAuthOptions.oauthEndpoint) {
         loginOptions.getOAuthEndpoint = () => resolvedAuthOptions.oauthEndpoint!;
+      } else if (resolvedSite === "intl") {
+        // 国际站 OAuth 后端独立部署（2026-09-01 实测 device/code+token 可用，注册表与国内站隔离）；
+        // 不覆写时 toolbox 默认打国内站端点，国际站账号无法完成授权
+        loginOptions.getOAuthEndpoint = () => SITE_REGION_MAP.intl.oauthEndpoint!;
+      }
+      if (resolvedSite === "intl") {
+        // device 模式的 verification_uri 标准模式下由客户端拼接，指向国内站授权页；
+        // 与 web 模式同款 host 改写，把授权页切到国际站
+        loginOptions.getAuthUrl = (url: string) =>
+          url
+            .replace(
+              `${SITE_REGION_MAP.domestic.authHost}/dev`,
+              `${SITE_REGION_MAP.intl.authHost}/dev`,
+            )
+            .replace(SITE_REGION_MAP.domestic.authHost, SITE_REGION_MAP.intl.authHost);
       }
       if (resolvedAuthOptions.oauthCustom) {
         loginOptions.custom = true;
