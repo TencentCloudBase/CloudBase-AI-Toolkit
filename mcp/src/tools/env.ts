@@ -25,6 +25,7 @@ import {
   getCloudBaseManager,
   listAvailableEnvCandidates,
   logCloudBaseResult,
+  probeApiKeyCamCapability,
   resetCloudBaseManagerCache,
   resolveEnvCandidateByEnvId,
   type EnvCandidate,
@@ -34,6 +35,7 @@ import { debug } from "../utils/logger.js";
 import {
   getSite,
   normalizeSite,
+  resolveApiKeyExchangeRegion,
   resolveSiteAndRegion,
   TCB_QUERY_REGIONS,
 } from "../utils/site-map.js";
@@ -880,6 +882,29 @@ function buildAuthEnvSetupPayload(preparation: AuthEnvPreparationResult) {
       : {}),
     ...buildEnvCandidatePayload(preparation.envCandidates),
   };
+}
+
+// API Key 登录态 CAM 能力受限时的用户提示（实测：部分 API Key 换出的 STS 不带 CAM 策略）
+const API_KEY_CAM_LIMITATION_WARNING =
+  "\n\n⚠️ 注意：该 API Key 换取的临时凭据无法调用管理面 API（CAM 鉴权不通过），管理类工具（queryEnv、queryAppAuth、manageAppAuth 等）将不可用。如需完整能力，请改用长期密钥 TENCENTCLOUD_SECRETID / TENCENTCLOUD_SECRETKEY 认证。";
+
+/**
+ * API Key 登录态 AUTH_READY 出口统一追加 CAM 能力探测警告。
+ * 仅在探测明确返回 limited（CAM 拒绝）时追加；capable/unknown 静默通过。
+ */
+async function appendApiKeyCamWarningIfNeeded(
+  loginState: any,
+  message: string,
+): Promise<string> {
+  try {
+    const probe = await probeApiKeyCamCapability(loginState);
+    return probe === "limited" ? message + API_KEY_CAM_LIMITATION_WARNING : message;
+  } catch (e) {
+    debug("appendApiKeyCamWarningIfNeeded: probe threw", {
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return message;
+  }
 }
 
 async function prepareAuthEnvironment(params: {
@@ -2217,7 +2242,10 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 return buildJsonToolResult({
                   ok: true,
                   code: "AUTH_READY",
-                  message: "当前使用 API Key 认证模式，已自动完成登录，无需手动授权。",
+                  message: await appendApiKeyCamWarningIfNeeded(
+                    existingLoginState,
+                    "当前使用 API Key 认证模式，已自动完成登录，无需手动授权。",
+                  ),
                   auth_mode: "api_key",
                   envId: process.env.CLOUDBASE_ENV_ID,
                 });
@@ -2228,16 +2256,22 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             }
 
             // API Key exchange failed: return diagnostic details
+            const exchangeRegion = resolveApiKeyExchangeRegion();
             let diagMessage = "当前配置了 API Key 认证模式，但换取临时密钥失败。";
-            const endpoint = process.env.CLOUDBASE_API_ENDPOINT || `https://${process.env.CLOUDBASE_ENV_ID}.ap-shanghai.tcb-api.tencentcloudapi.com`;
+            const endpoint =
+              process.env.CLOUDBASE_API_ENDPOINT ||
+              `https://${process.env.CLOUDBASE_ENV_ID}.${exchangeRegion ?? "ap-shanghai"}.tcb-api.tencentcloudapi.com`;
             diagMessage += `\n\n诊断信息：`;
             diagMessage += `\n- CLOUDBASE_ENV_ID: ${process.env.CLOUDBASE_ENV_ID}`;
             diagMessage += `\n- CLOUDBASE_API_KEY: ${apiKeyFromEnv.slice(0, 20)}...（已截断）`;
+            diagMessage += `\n- TCB_SITE: ${process.env.TCB_SITE || "(未设置)"}`;
+            diagMessage += `\n- 换取网关地域: ${exchangeRegion ?? "ap-shanghai（国内站默认，多地域环境均经其路由）"}`;
             diagMessage += `\n- Endpoint: ${endpoint}`;
             diagMessage += `\n\n可能原因：`;
             diagMessage += `\n1. API Key 已过期或被删除`;
             diagMessage += `\n2. Endpoint 不可达（网络/DNS 问题）`;
             diagMessage += `\n3. CLOUDBASE_ENV_ID 与 API Key 所属环境不匹配`;
+            diagMessage += `\n4. API Key 与站点不匹配：国际站环境的 Key 需配置 TCB_SITE=intl（走 ap-singapore 网关）；国内站环境（含 ap-guangzhou/ap-singapore 地域）不要配置 intl`;
             diagMessage += `\n\n建议：检查 MCP 配置中的 CLOUDBASE_API_KEY（或兼容的 CLOUDBASE_APIKEY）和 CLOUDBASE_ENV_ID 环境变量是否正确。`;
 
             return buildJsonToolResult({
@@ -2468,7 +2502,10 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               return buildJsonToolResult({
                 ok: true,
                 code: "AUTH_READY",
-                message: "API Key 认证成功，已获取临时密钥。",
+                message: await appendApiKeyCamWarningIfNeeded(
+                  loginState,
+                  "API Key 认证成功，已获取临时密钥。",
+                ),
                 auth_mode: "api_key",
                 ...buildAuthEnvSetupPayload(envPreparation),
                 next_step: envPreparation.nextStep,
@@ -2483,10 +2520,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             diagMessage += `\n\n诊断信息：`;
             diagMessage += `\n- CLOUDBASE_ENV_ID: ${toolApiKeyEnvId}`;
             diagMessage += `\n- CLOUDBASE_API_KEY: ${toolApiKey.slice(0, 20)}...（已截断）`;
+            diagMessage += `\n- TCB_SITE: ${process.env.TCB_SITE || "(未设置)"}`;
             diagMessage += `\n\n可能原因：`;
             diagMessage += `\n1. API Key 已过期或被删除`;
             diagMessage += `\n2. CLOUDBASE_ENV_ID 与 API Key 所属环境不匹配`;
-            diagMessage += `\n3. 网络连接问题`;
+            diagMessage += `\n3. API Key 与站点不匹配：国际站环境的 Key 需配置 TCB_SITE=intl（走 ap-singapore 网关）；国内站环境（含 ap-guangzhou/ap-singapore 地域）不要配置 intl`;
+            diagMessage += `\n4. 网络连接问题`;
             diagMessage += `\n\n建议：请检查 API Key 和环境 ID 是否正确。`;
 
             return buildJsonToolResult({

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+### Features
+
+* **auth**: probe management-plane (CAM) capability after a successful API Key login (`login_by_api_key` and the `start_auth` API Key branch). Some API Keys (e.g. AI-suite JWT keys) can only exchange for gateway-scoped temporary credentials whose STS tokens are rejected by TCB CAM — previously MCP reported `AUTH_READY` while every management tool (`queryEnv`, `queryAppAuth`, `manageAppAuth`, ...) silently failed. A cached, lightweight `DescribeEnvInfo` probe now appends an explicit warning recommending long-term `TENCENTCLOUD_SECRETID` / `TENCENTCLOUD_SECRETKEY` when CAM definitively rejects the credential; inconclusive results (timeout / network) produce no warning.
+
+### Bug Fixes
+
+* **auth**: pass resolved region to `loginByApiKey` when site is explicitly intl (`TCB_SITE=intl`), so international-site API keys exchange via the `ap-singapore` gateway instead of the domestic default. Gateway selection follows **site**, not env region: domestic multi-region envs (incl. `ap-guangzhou` / `ap-singapore`) keep using the default gateway which routes by envId — verified by live cross-region gateway probes (sh/gz succeed, sg rejects domestic keys with `SIGN_PARAM_INVALID`). Ambiguous region without explicit site (e.g. bare `TCB_REGION=ap-singapore`) also keeps the default to avoid breaking domestic Singapore-region envs.
+* **auth**: enrich `auth(start_auth)` / `login_by_api_key` failure diagnostics — show resolved exchange gateway region, `TCB_SITE`, and a site-mismatch hint (intl keys require `TCB_SITE=intl`; domestic envs must not set it). The previous hard-coded `ap-shanghai` endpoint display is now resolved dynamically.
+
 ## [2.32.2](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.1...v2.32.2) (2026-08-25)
 
 ### Bug Fixes

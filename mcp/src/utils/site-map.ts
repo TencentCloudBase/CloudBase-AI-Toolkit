@@ -99,6 +99,26 @@ export function getSite(region: string | undefined, explicitSite?: string): Site
 /**
  * 认证/路由场景下解析站点：歧义（如 ap-singapore 未配 site）时默认 intl，保持既有国际站行为。
  */
+/**
+ * API Key 换取网关（POST /capi/credential 的 host）地域选型。
+ *
+ * 2026-09-01 同一把国内站 key 三地域网关实测：
+ * - ap-shanghai / ap-guangzhou host 均换取成功（国内站集群共享 key 注册表，
+ *   URL 中的 region 段在国内站内部等价，互换可用）
+ * - ap-singapore host 拒绝（SIGN_PARAM_INVALID：sg 网关为国际站独立部署，
+ *   key 注册表与国内站隔离）
+ *
+ * 因此换取 host 按**站点**选择，而非按环境所属地域：
+ * - 显式 intl 站点（如 TCB_SITE=intl）→ 返回 intl 地域（ap-singapore）
+ * - domestic / 歧义（如仅设 TCB_REGION=ap-singapore）/ 未配置 → 返回 undefined，
+ *   toolbox 回落默认 ap-shanghai；国内站多地域环境（ap-guangzhou / ap-singapore）
+ *   经默认域名均可换取，盲目传环境地域反而会把国内站 key 打到 sg 网关导致换取失败
+ */
+export function resolveApiKeyExchangeRegion(opts: { site?: string; region?: string } = {}): string | undefined {
+  const resolved = resolveSiteAndRegion(opts);
+  return resolved.site === "intl" && !resolved.ambiguous ? resolved.region : undefined;
+}
+
 export function resolveSite(region: string | undefined, explicitSite?: string): SiteId {
   const site = getSite(region, explicitSite);
   return site === "ambiguous" ? "intl" : site;

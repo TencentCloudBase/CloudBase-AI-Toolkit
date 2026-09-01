@@ -62,6 +62,11 @@ vi.mock("./utils/site-map.js", () => {
       const result = getSite(region, site);
       return result === "ambiguous" ? "intl" : result;
     },
+    // 行为等价简化版：仅显式 intl 站点返回 ap-singapore，其余回落默认网关
+    resolveApiKeyExchangeRegion: (opts?: { site?: string; region?: string }) => {
+      const site = normalizeSite(opts?.site) ?? normalizeSite(process.env.TCB_SITE);
+      return site === "intl" ? "ap-singapore" : undefined;
+    },
     SITE_REGION_MAP: {
       domestic: { authHost: "tcb.cloud.tencent.com" },
       intl: { authHost: "tcb.tencentcloud.com" },
@@ -309,6 +314,35 @@ describe("CloudBase API Key env resolution", () => {
       "env-test",
       expect.objectContaining({ cwd: expect.any(String) }),
     );
+  });
+
+  it("peekLoginState should pass ap-singapore region when TCB_SITE=intl", async () => {
+    process.env.CLOUDBASE_API_KEY = "intl-key";
+    process.env.CLOUDBASE_ENV_ID = "env-intl";
+    process.env.TCB_SITE = "intl";
+
+    const { peekLoginState } = await import("./auth.js");
+    await peekLoginState();
+
+    expect(mockAuthLoginByApiKey).toHaveBeenCalledWith(
+      "intl-key",
+      "env-intl",
+      expect.objectContaining({ cwd: expect.any(String), region: "ap-singapore" }),
+    );
+  });
+
+  it("peekLoginState should not pass region for domestic default gateway", async () => {
+    process.env.CLOUDBASE_API_KEY = "cn-key";
+    process.env.CLOUDBASE_ENV_ID = "env-cn";
+    delete process.env.TCB_SITE;
+    delete process.env.TCB_REGION;
+
+    const { peekLoginState } = await import("./auth.js");
+    await peekLoginState();
+
+    const opts = mockAuthLoginByApiKey.mock.calls.at(-1)?.[2];
+    expect(opts).toEqual(expect.objectContaining({ cwd: expect.any(String) }));
+    expect(opts?.region).toBeUndefined();
   });
 });
 

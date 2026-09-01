@@ -14,6 +14,7 @@ import {
   getSite,
   isSiteId,
   normalizeSite,
+  resolveApiKeyExchangeRegion,
   resolveSite,
   resolveSiteAndRegion,
 } from "./site-map.js";
@@ -143,5 +144,42 @@ describe("resolveSiteAndRegion priority chain", () => {
       site: "domestic",
       region: "ap-shanghai",
     });
+  });
+});
+
+describe("resolveApiKeyExchangeRegion", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete process.env.TCB_SITE;
+    delete process.env.TCB_REGION;
+    mockReadProjectConfig.mockReturnValue(undefined);
+  });
+
+  it("should return intl region only for explicit intl site", () => {
+    expect(resolveApiKeyExchangeRegion({ site: "intl" })).toBe("ap-singapore");
+    process.env.TCB_SITE = "intl";
+    expect(resolveApiKeyExchangeRegion()).toBe("ap-singapore");
+    process.env.TCB_REGION = "ap-singapore";
+    expect(resolveApiKeyExchangeRegion()).toBe("ap-singapore");
+  });
+
+  it("should return undefined for domestic site regardless of region", () => {
+    expect(resolveApiKeyExchangeRegion()).toBeUndefined();
+    expect(resolveApiKeyExchangeRegion({ site: "domestic" })).toBeUndefined();
+    expect(resolveApiKeyExchangeRegion({ site: "domestic", region: "ap-guangzhou" })).toBeUndefined();
+    expect(resolveApiKeyExchangeRegion({ site: "domestic", region: "ap-singapore" })).toBeUndefined();
+  });
+
+  it("should return undefined for ambiguous region without explicit site", () => {
+    // 仅设 TCB_REGION=ap-singapore（歧义）时不得切到 sg 网关：
+    // 国内站 ap-singapore 环境的 key 经默认 ap-shanghai 网关全局路由
+    expect(resolveApiKeyExchangeRegion({ region: "ap-singapore" })).toBeUndefined();
+    process.env.TCB_REGION = "ap-singapore";
+    expect(resolveApiKeyExchangeRegion()).toBeUndefined();
+  });
+
+  it("should let explicit opts override intl env back to domestic", () => {
+    process.env.TCB_SITE = "intl";
+    expect(resolveApiKeyExchangeRegion({ site: "domestic" })).toBeUndefined();
   });
 });

@@ -1,6 +1,12 @@
 import { AuthSupervisor, authStore, refreshTmpToken, resolveCredential } from "@cloudbase/toolbox";
 import { debug } from "./utils/logger.js";
-import { getSite, normalizeSite, resolveSite, SITE_REGION_MAP } from "./utils/site-map.js";
+import {
+  getSite,
+  normalizeSite,
+  resolveApiKeyExchangeRegion,
+  resolveSite,
+  SITE_REGION_MAP,
+} from "./utils/site-map.js";
 
 const auth = AuthSupervisor.getInstance({});
 
@@ -526,10 +532,16 @@ export async function peekLoginState(options?: {
       try {
         // 优先使用 IDE 注入的工作目录，其次 process.cwd()
         const projectCwd = process.env.WORKSPACE_FOLDER_PATHS || process.cwd();
+        // 换取网关按站点选型：显式 intl → ap-singapore；domestic/歧义 → toolbox 默认
+        // ap-shanghai（国内站多地域环境均经其全局路由，详见 resolveApiKeyExchangeRegion）
+        const exchangeRegion = resolveApiKeyExchangeRegion({
+          site: options?.site,
+          region: options?.region,
+        });
         const credential = await auth.loginByApiKey(
           envVarLoginState.apiKey,
           envVarLoginState.envId,
-          { cwd: projectCwd }
+          { cwd: projectCwd, ...(exchangeRegion ? { region: exchangeRegion } : {}) }
         );
         return credential;
       } catch (e) {
