@@ -7,6 +7,8 @@ export interface SiteDefinition {
   label: string;
   authHost: string;
   consoleHost: string;
+  /** OAuth device-flow 后端端点（toolbox getOAuthEndpoint 可覆写；默认值与站点对应） */
+  oauthEndpoint?: string;
   defaultRegion: string;
   regions: string[];
   capabilities: {
@@ -26,6 +28,7 @@ export const SITE_REGION_MAP: Record<SiteId, SiteDefinition> = {
     label: "国内站",
     authHost: "tcb.cloud.tencent.com",
     consoleHost: "tcb.cloud.tencent.com",
+    oauthEndpoint: "https://tcb-api.cloud.tencent.com/qcloud-tcb/v1/oauth",
     defaultRegion: "ap-shanghai",
     regions: ["ap-shanghai", "ap-guangzhou", "ap-singapore"],
     capabilities: { noSql: true },
@@ -35,6 +38,9 @@ export const SITE_REGION_MAP: Record<SiteId, SiteDefinition> = {
     label: "国际站",
     authHost: "tcb.tencentcloud.com",
     consoleHost: "tcb.tencentcloud.com",
+    // 2026-09-01 实测：device/code + token 端点可用，且 device-code 注册表与国内站隔离
+    // （国内站有效期内的 code 在该端点轮询返回 expired_token）
+    oauthEndpoint: "https://tcb-api.tencentcloud.com/qcloud-tcb/v1/oauth",
     defaultRegion: "ap-singapore",
     regions: ["ap-singapore"],
     capabilities: { noSql: false },
@@ -96,9 +102,6 @@ export function getSite(region: string | undefined, explicitSite?: string): Site
   return "domestic";
 }
 
-/**
- * 认证/路由场景下解析站点：歧义（如 ap-singapore 未配 site）时默认 intl，保持既有国际站行为。
- */
 /**
  * API Key 换取网关（POST /capi/credential 的 host）地域选型。
  *
