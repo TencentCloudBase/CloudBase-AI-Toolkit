@@ -26,10 +26,10 @@
 
 **v2.32.x**（2026-08）
 
+- 认证 / 安全 / IDE：国际站（`TCB_SITE=intl`）登录链路修复；queryFunctions/queryCloudRun 默认脱敏环境变量；新增 Kimi Code / Kimi Work 支持
 - 小程序：新增 `queryMessagePush` / `manageMessagePush`，支持事件与消息类型订阅（虚拟支付默认事件、声明式幂等、可选 appid）
 - 小程序：消息推送支持云函数/云托管模式识别与切换（`ensureContainerMode` / `setContainerCallback`，订阅前校验函数存在）
 - 网关：`manageGateway` 在创建自定义域名/路由前校验 HTTP 服务，并支持证书自动选择与更清晰的 DNS 指引
-- Skills：补充消息推送/客服参考，并为 miniprogram-development 做分层中文化
 
 **v2.31.x**（2026-08）
 

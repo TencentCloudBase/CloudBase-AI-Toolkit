@@ -26,10 +26,10 @@ The CloudBase integration layer for AI coding tools: Plugin installs the stack, 
 
 **v2.32.x** (2026-08)
 
+- Auth / Security / IDE: international-site (`TCB_SITE=intl`) login routing; default env-var masking in queryFunctions/queryCloudRun; Kimi Code & Kimi Work support
 - Mini Program: `queryMessagePush` / `manageMessagePush` for event and message-type subscriptions (virtual-pay defaults, idempotent merge, optional appid)
 - Mini Program: message push aware of cloudfunction vs container mode (`ensureContainerMode` / `setContainerCallback`, function-existence check)
 - Gateway: `manageGateway` verifies HTTP service before custom-domain / route create, with certificate auto-select and clearer DNS guidance
-- Skills: message-push / customer-service reference plus layered Chinese localization for miniprogram-development
 
 **v2.31.x** (2026-08)
 
