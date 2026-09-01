@@ -10,8 +10,7 @@ import { jsonContent } from "../utils/json-content.js";
 import { debug, warn } from "../utils/logger.js";
 
 // 1. 枚举定义
-const KnowledgeBaseEnum = z.enum(["cloudbase", "scf", "miniprogram"]);
-const SearchKnowledgeModeEnum = z.enum(["vector", "skill", "openapi", "docs"]);
+const SearchKnowledgeModeEnum = z.enum(["skill", "openapi", "docs"]);
 const CloudBaseDocsActionEnum = z.enum([
   "listModules",
   "listModuleDocs",
@@ -19,12 +18,6 @@ const CloudBaseDocsActionEnum = z.enum([
   "readDoc",
   "searchDocs",
 ]);
-// 2. 枚举到后端 id 的映射
-const KnowledgeBaseIdMap: Record<z.infer<typeof KnowledgeBaseEnum>, string> = {
-  cloudbase: "ykfzskv4_ad28",
-  scf: "scfsczskzyws_4bdc",
-  miniprogram: "xcxzskws_25d8",
-};
 
 // ============ 缓存配置 ============
 const CACHE_BASE_DIR = path.join(os.homedir(), ".cloudbase-mcp");
@@ -180,31 +173,6 @@ async function updateCache(): Promise<void> {
     JSON.stringify({ timestamp: Date.now() }, null, 2),
     "utf8",
   );
-}
-
-// 安全 JSON.parse
-function safeParse(str: string) {
-  try {
-    return JSON.parse(str);
-  } catch (e) {
-    return {};
-  }
-}
-
-// 安全 JSON.stringify，处理循环引用
-function safeStringify(obj: any) {
-  const seen = new WeakSet();
-  try {
-    return JSON.stringify(obj, function (key, value) {
-      if (typeof value === "object" && value !== null) {
-        if (seen.has(value)) return;
-        seen.add(value);
-      }
-      return value;
-    });
-  } catch (e) {
-    return "";
-  }
 }
 
 type CloudBaseDocsAction = z.infer<typeof CloudBaseDocsActionEnum>;
@@ -526,9 +494,13 @@ export async function registerRagTools(server: ExtendedMcpServer) {
     "searchKnowledgeBase",
     {
       title: "云开发知识库检索",
-      description: `云开发知识库智能检索工具，支持向量查询 (vector)、固定技能文档 (skill)、OpenAPI 文档 (openapi) 和 CloudBase 官方文档 (docs) 查询。
+      description: `云开发知识库检索工具，支持 CloudBase 官方文档 (docs)、固定技能文档 (skill) 和 OpenAPI 文档 (openapi) 查询。
 
-      强烈推荐始终优先使用固定技能文档 (skill)、OpenAPI 文档 (openapi) 或 CloudBase 官方文档 (docs) 模式进行检索，仅当固定文档无法覆盖你的问题时，再使用向量查询 (vector) 模式。
+      按场景选择 mode：
+      - 不确定答案在哪、需要对官方文档做全文检索时：mode=docs + action=searchDocs（传 query 关键词）
+      - 已知文档标题、层级路径或 URL 时：mode=docs + action=findByName（传 input）或 action=readDoc（传 docPath）
+      - 需要某个场景的落地指南 / 最佳实践时：mode=skill + skillName
+      - 需要 HTTP API 的接口定义时：mode=openapi + apiName
 
       ⚠️ 重要：当 CloudBase skills 处于禁用状态或当前 IDE 不支持 skill 文件读取时，必须使用 searchKnowledgeBase(mode=skill, skillName=...) 来获取 CloudBase 技能文档内容，而不是尝试直接读取 skill 文件。直接读取可能返回 400 错误。示例：
       - 需要最小 Web+数据库 Demo 路径时：searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo)
@@ -578,33 +550,6 @@ export async function registerRagTools(server: ExtendedMcpServer) {
           .string()
           .optional()
           .describe("mode=docs 且 action=searchDocs 时指定。全文检索关键词。"),
-        threshold: z
-          .number()
-          .default(0.5)
-          .optional()
-          .describe("mode=vector 时指定。相似性检索阈值"),
-        id: KnowledgeBaseEnum.default("cloudbase").optional().describe(
-          "mode=vector 时指定。知识库范围，默认 cloudbase。cloudbase=云开发全量知识，scf=云开发的云函数知识, miniprogram=小程序知识（不包含云开发与云函数知识）",
-        ),
-        content: z.string().describe("mode=vector 时指定。检索内容").optional(),
-        options: z
-          .object({
-            chunkExpand: z
-              .array(z.number())
-              .min(2)
-              .max(2)
-              .default([3, 3])
-              .describe(
-                "指定返回的文档内容的展开长度,例如 [3,3]代表前后展开长度",
-              ),
-          })
-          .optional()
-          .describe("mode=vector 时指定。其他选项"),
-        limit: z
-          .number()
-          .default(5)
-          .optional()
-          .describe("mode=vector 时指定。指定返回最相似的 Top K 的 K 的值"),
       },
       annotations: {
         readOnlyHint: true,
@@ -613,11 +558,6 @@ export async function registerRagTools(server: ExtendedMcpServer) {
       },
     },
     async ({
-      id,
-      content,
-      options,
-      limit = 5,
-      threshold = 0.5,
       mode,
       skillName,
       apiName,
@@ -627,7 +567,6 @@ export async function registerRagTools(server: ExtendedMcpServer) {
       docPath,
       query,
     }) => {
-      const chunkExpand = options?.chunkExpand ?? [3, 3];
       if (mode === "docs") {
         try {
           const resolvedAction = action;
@@ -769,91 +708,8 @@ export async function registerRagTools(server: ExtendedMcpServer) {
         };
       }
 
-      // 向量检索模式下必须提供 id 和 content，避免后端报「知识库名称不能为空」
-      const vectorKnowledgeBaseId = id ?? "cloudbase";
-
-      if (mode === "vector") {
-        if (!content || !content.trim()) {
-          throw new Error(
-            "检索内容不能为空: please provide non-empty `content` when mode=vector.",
-          );
-        }
-      }
-
-      // 枚举到后端 id 映射
-      const backendId =
-        KnowledgeBaseIdMap[vectorKnowledgeBaseId as keyof typeof KnowledgeBaseIdMap] ||
-        vectorKnowledgeBaseId;
-      const signInRes = await fetch(
-        "https://tcb-advanced-a656fc.api.tcloudbasegateway.com/auth/v1/signin/anonymously",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            "x-device-id": "cloudbase-ai-toolkit",
-          },
-          body: safeStringify({
-            collectionView: backendId,
-            options: {
-              chunkExpand,
-            },
-            search: {
-              content: content,
-              limit,
-            },
-          }),
-        },
-      );
-      const token = (await signInRes.json()).access_token;
-      const res = await fetch(
-        `https://tcb-advanced-a656fc.api.tcloudbasegateway.com/v1/knowledge/search`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: safeStringify({
-            collectionView: backendId,
-            options: {
-              chunkExpand,
-            },
-            search: {
-              content: content,
-              limit,
-            },
-          }),
-        },
-      );
-      const result = await res.json();
-
-      if (result.code) {
-        throw new Error(result.message);
-      }
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: safeStringify(
-              result.data.documents
-                .filter((item: any) => item.score >= threshold)
-                .map((item: any) => {
-                  return {
-                    score: item.score,
-                    fileTile: item.documentSet.fileTitle,
-                    url: safeParse(item.documentSet.fileMetaData).url,
-                    paragraphTitle: item.data.paragraphTitle,
-                    text: `${item.data.pre?.join("\n") || ""}
-    ${item.data.text}
-    ${item.data.next?.join("\n") || ""}`,
-                  };
-                }),
-            ),
-          },
-        ],
-      };
+      // mode 是枚举，docs / skill / openapi 三个分支已在上面全部返回，这里不可达
+      throw new Error(`unsupported mode: ${String(mode)}`);
     },
   );
 }
