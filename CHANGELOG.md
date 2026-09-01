@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+### Security
+
+* **functions**: mask cloud-function environment variable values by default in `queryFunctions` (`getFunctionDetail` / `listFunctionTriggers`). The full raw SCF detail — including `Environment.Variables` plaintext — used to be returned to the model context on every read. Values are now replaced with `***` plus a `ValueLength` field (sufficient for config inspection and change verification); pass `revealEnvValues=true` to opt in to plaintext. Results written to the MCP server log are always masked, with no plaintext opt-out. Plaintext remains available via the console or `tcb fn detail` (fixes #971).
+
 ## [2.32.2](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.1...v2.32.2) (2026-08-25)
 
 ### Bug Fixes
