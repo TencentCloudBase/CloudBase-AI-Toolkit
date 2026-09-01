@@ -7,6 +7,10 @@ All notable changes to this project will be documented in this file. Follow the 
 ### Code Refactoring
 
 * **rag**: retire the `vector` mode of `searchKnowledgeBase`; official doc search (`mode=docs`, backed by the `app.docs` full-text search) is now the only retrieval path. The `content` / `id` / `threshold` / `limit` / `options` parameters are removed together with the two calls to the `tcb-advanced-a656fc` knowledge gateway. Callers should use `mode=docs` with `action=searchDocs` / `findByName` / `readDoc`.
+### Security
+
+- **cloudrun**: `queryCloudRun(action="detail")` 默认脱敏服务环境变量（`ServerConfig.EnvParams` 的值置为 `***`，保留 key），新增 `revealEnvParams` 入参（默认 `false`）显式获取明文，避免带密码的连接串等敏感值进入模型上下文
+* **functions**: mask cloud-function environment variable values by default in `queryFunctions` (`getFunctionDetail` / `listFunctionTriggers`). The full raw SCF detail — including `Environment.Variables` plaintext — used to be returned to the model context on every read. Values are now replaced with `***` plus a `ValueLength` field (sufficient for config inspection and change verification); pass `revealEnvValues=true` to opt in to plaintext. Results written to the MCP server log are always masked, with no plaintext opt-out. Plaintext remains available via the console or `tcb fn detail` (fixes #971).
 
 ## [2.32.2](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.1...v2.32.2) (2026-08-25)
 

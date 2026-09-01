@@ -1190,6 +1190,11 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
       description: `代码保护密钥，用于解密函数代码`,
     },
     {
+      name: "revealEnvValues",
+      type: "boolean",
+      description: `getFunctionDetail / listFunctionTriggers 时是否返回环境变量明文值。默认 false：Value 脱敏为 ***，仅保留 Key 与 ValueLength，足以确认配置了哪些变量及变更是否生效；true 时返回明文，敏感变量会进入模型上下文，谨慎使用。如需查看明文，建议优先使用控制台或 CLI`,
+    },
+    {
       name: "startTime",
       type: "string",
       description: `日志查询开始时间，格式必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 00:00:00）。与 endTime 间隔不能超过一天。不传时默认查询最近一天`,
@@ -2145,6 +2150,11 @@ API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
       name: "runId",
       type: "string",
       description: `运行ID（RunId），仅在action=getProcessLog时使用。不传时默认取该服务最近一次部署记录的 RunId（与 detail/getDeployRecords 的 latestDeploy.RunId 同源）。镜像部署与源码构建均可查询运行日志`,
+    },
+    {
+      name: "revealEnvParams",
+      type: "boolean",
+      description: `是否返回服务环境变量（ServerConfig.EnvParams）明文值（仅 action=detail 时生效）。默认 false，值脱敏为 "***"（保留 key，足够排查配置了哪些变量、变更是否生效）；true 时返回明文，敏感变量（如带密码的 DATABASE_URL）可能暴露给模型上下文，谨慎使用`,
     }
   ]}
 />
