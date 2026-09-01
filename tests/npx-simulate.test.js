@@ -68,10 +68,9 @@ async function testMcpConnection(cliPath) {
       const knowledgeResult = await client.callTool({
         name: "searchKnowledgeBase",
         arguments: {
-          mode: "vector",
-          id: "cloudbase", // 知识库范围
-          content: "test", // 检索内容
-          limit: 1, // 返回结果数量
+          mode: "docs",
+          action: "searchDocs",
+          query: "cloudbase", // 全文检索关键词
         },
       });
 

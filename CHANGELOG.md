@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+### Code Refactoring
+
+* **rag**: retire the `vector` mode of `searchKnowledgeBase`; official doc search (`mode=docs`, backed by the `app.docs` full-text search) is now the only retrieval path. The `content` / `id` / `threshold` / `limit` / `options` parameters are removed together with the two calls to the `tcb-advanced-a656fc` knowledge gateway. Callers should use `mode=docs` with `action=searchDocs` / `findByName` / `readDoc`.
 ### Security
 
 - **cloudrun**: `queryCloudRun(action="detail")` 默认脱敏服务环境变量（`ServerConfig.EnvParams` 的值置为 `***`，保留 key），新增 `revealEnvParams` 入参（默认 `false`）显式获取明文，避免带密码的连接串等敏感值进入模型上下文

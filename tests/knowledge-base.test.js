@@ -40,7 +40,7 @@ test("Knowledge base search functionality works correctly", async () => {
     // Wait longer for connection to establish in CI environment
     await delay(3000);
 
-    console.log("Testing knowledge base search functionality...");
+    console.log("Testing knowledge base docs search functionality...");
 
     // First, get the list of tools to confirm searchKnowledgeBase exists
     const toolsResult = await client.listTools();
@@ -60,20 +60,19 @@ test("Knowledge base search functionality works correctly", async () => {
     console.log("✅ Found searchKnowledgeBase tool");
     console.log("Tool description:", searchTool.description);
 
-    // Test the knowledge base search with a sample query
+    // Test the official docs full-text search with a sample query
     try {
       const searchResult = await client.callTool({
         name: "searchKnowledgeBase",
         arguments: {
-          mode: "vector",
-          id: "cloudbase",
-          content: "云函数",
-          limit: 3,
+          mode: "docs",
+          action: "searchDocs",
+          query: "云函数",
         },
       });
 
       console.log(
-        "Knowledge base search result:",
+        "Knowledge base docs search result:",
         JSON.stringify(searchResult, null, 2),
       );
 
@@ -81,21 +80,26 @@ test("Knowledge base search functionality works correctly", async () => {
       expect(searchResult.content).toBeDefined();
       expect(Array.isArray(searchResult.content)).toBe(true);
 
-      if (searchResult.content.length > 0) {
-        console.log("✅ Knowledge base search returned results");
+      // Check the structure of the first result
+      const firstResult = searchResult.content[0];
+      expect(firstResult.type).toBe("text");
+      expect(firstResult.text).toBeDefined();
 
-        // Check the structure of the first result
-        const firstResult = searchResult.content[0];
-        expect(firstResult.type).toBe("text");
-        expect(firstResult.text).toBeDefined();
+      const envelope = JSON.parse(firstResult.text);
+      expect(envelope.data.action).toBe("searchDocs");
 
+      if (envelope.success && Array.isArray(envelope.data.results)) {
+        console.log(
+          `✅ Knowledge base docs search returned ${envelope.data.results.length} results`,
+        );
         console.log(
           "First search result preview:",
-          firstResult.text.substring(0, 200) + "...",
+          JSON.stringify(envelope.data.results[0] ?? null).substring(0, 200) +
+            "...",
         );
       } else {
         console.log(
-          "⚠️ Knowledge base search returned no results (this may be expected if no knowledge base is configured)",
+          "⚠️ Knowledge base docs search returned no results (may be expected without network access)",
         );
       }
     } catch (toolError) {
@@ -185,19 +189,35 @@ test("Knowledge base tool parameters validation", async () => {
       JSON.stringify(searchTool.inputSchema, null, 2),
     );
 
-    // The schema should have properties for query and possibly topK
-    if (searchTool.inputSchema.properties) {
-      expect(searchTool.inputSchema.properties.content).toBeDefined();
-      console.log("✅ Content parameter is defined in schema");
+    const properties = searchTool.inputSchema.properties ?? {};
 
-      if (searchTool.inputSchema.properties.limit) {
-        console.log("✅ Limit parameter is defined in schema");
-      }
+    // vector 模式已下线，mode 只保留 docs / skill / openapi
+    expect(properties.mode.enum).toEqual(["skill", "openapi", "docs"]);
+    console.log("✅ Mode enum no longer exposes the retired vector mode");
 
-      if (searchTool.inputSchema.properties.id) {
-        console.log("✅ ID parameter is defined in schema");
-      }
+    // 随 vector 一起下线的入参不应再出现在 schema 中
+    for (const retiredParam of [
+      "content",
+      "limit",
+      "id",
+      "threshold",
+      "options",
+    ]) {
+      expect(properties[retiredParam]).toBeUndefined();
     }
+    console.log("✅ Retired vector parameters are absent from schema");
+
+    // docs 模式所需入参仍在
+    for (const docsParam of [
+      "action",
+      "query",
+      "docPath",
+      "input",
+      "moduleName",
+    ]) {
+      expect(properties[docsParam]).toBeDefined();
+    }
+    console.log("✅ docs mode parameters are defined in schema");
 
     console.log("✅ Parameter validation test completed");
   } catch (error) {

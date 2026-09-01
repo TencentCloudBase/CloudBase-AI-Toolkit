@@ -79,16 +79,24 @@ describe("rag tools", () => {
     expect(roots).toEqual([generatedSkills, sourceSkills, cacheSkills]);
   });
 
-  it("searchKnowledgeBase no longer requires id when mode=vector", async () => {
+  it("searchKnowledgeBase should no longer expose the retired vector mode", async () => {
     const { server, tools } = createMockServer();
 
     await registerRagTools(server);
 
-    await expect(
-      tools.searchKnowledgeBase.handler({
-        mode: "vector",
-      }),
-    ).rejects.toThrow("检索内容不能为空");
+    const { mode, ...rest } = tools.searchKnowledgeBase.meta.inputSchema;
+
+    expect(mode.options).toEqual(["skill", "openapi", "docs"]);
+    expect(mode.safeParse("vector").success).toBe(false);
+    expect(Object.keys(rest)).toEqual(
+      expect.not.arrayContaining([
+        "threshold",
+        "id",
+        "content",
+        "options",
+        "limit",
+      ]),
+    );
   });
 
   it("searchKnowledgeBase should expose docs mode and official app.docs actions", async () => {
@@ -96,9 +104,11 @@ describe("rag tools", () => {
 
     await registerRagTools(server);
 
-    expect(tools.searchKnowledgeBase.meta.inputSchema.mode.options).toEqual(
-      expect.arrayContaining(["vector", "skill", "openapi", "docs"]),
-    );
+    expect(tools.searchKnowledgeBase.meta.inputSchema.mode.options).toEqual([
+      "skill",
+      "openapi",
+      "docs",
+    ]);
     expect(tools.searchKnowledgeBase.meta.inputSchema.action).toBeDefined();
     expect(tools.searchKnowledgeBase.meta.inputSchema.moduleName).toBeDefined();
     expect(tools.searchKnowledgeBase.meta.inputSchema.input).toBeDefined();
