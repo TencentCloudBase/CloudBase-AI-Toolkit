@@ -1190,6 +1190,11 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
       description: `代码保护密钥，用于解密函数代码`,
     },
     {
+      name: "revealEnvValues",
+      type: "boolean",
+      description: `getFunctionDetail / listFunctionTriggers 时是否返回环境变量明文值。默认 false：Value 脱敏为 ***，仅保留 Key 与 ValueLength，足以确认配置了哪些变量及变更是否生效；true 时返回明文，敏感变量会进入模型上下文，谨慎使用。如需查看明文，建议优先使用控制台或 CLI`,
+    },
+    {
       name: "startTime",
       type: "string",
       description: `日志查询开始时间，格式必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 00:00:00）。与 endTime 间隔不能超过一天。不传时默认查询最近一天`,
@@ -1960,7 +1965,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 - aider: Aider AI编辑器
 
 特别说明：
-- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.32.2），便于后续维护和版本追踪
+- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.32.4），便于后续维护和版本追踪
 - 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）
 
 #### 参数
