@@ -1,6 +1,6 @@
 ## 查询账号已有权限
 
-最近更新时间：2025-09-12 01:52:50
+最近更新时间：2026-09-01 01:44:34
 
 -   微信扫一扫 
 -   QQ
@@ -41,11 +41,11 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 示例值：account1 |
 | Host | 是 | String | 主机  
 示例值：192.0.0.0 |
-| Db | 是 | String | 数据库名，为\*时，忽略Type/TableName, 表示修改用户全局权限；  
+| Db | 否 | String | 数据库名。为 _时，忽略Type/TableName，表示查询用户全局权限；不传时默认为_ 。  
 示例值：Db1 |
-| Type | 是 | String | 指定数据库下的对象类型，可选"table"，"\*"  
+| Type | 否 | String | 指定数据库下的对象类型，可选"table"、"\*"。不传时默认为\*；Type为table时，必须指定TableName。  
 示例值：table |
-| TableName | 否 | String | 当Type="table"时，用来指定表名  
+| TableName | 否 | String | 当Type="table"时，用来指定表名；Type为table时必填。  
 示例值：Table1 |
 
 ## 3\. 输出参数
