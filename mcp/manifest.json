@@ -117,7 +117,7 @@
     },
     {
       "name": "searchKnowledgeBase",
-      "description": "Search CloudBase knowledge base using vector search for professional documentation"
+      "description": "Search CloudBase knowledge base for official docs, skill guides, and OpenAPI references"
     },
     {
       "name": "downloadTemplate",

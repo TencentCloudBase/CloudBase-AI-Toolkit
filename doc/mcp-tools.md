@@ -1960,7 +1960,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 - aider: Aider AI编辑器
 
 特别说明：
-- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.32.2），便于后续维护和版本追踪
+- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.32.4），便于后续维护和版本追踪
 - 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）
 
 #### 参数
@@ -1990,9 +1990,13 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 ---
 
 ### `searchKnowledgeBase`
-云开发知识库智能检索工具，支持向量查询 (vector)、固定技能文档 (skill)、OpenAPI 文档 (openapi) 和 CloudBase 官方文档 (docs) 查询。
+云开发知识库检索工具，支持 CloudBase 官方文档 (docs)、固定技能文档 (skill) 和 OpenAPI 文档 (openapi) 查询。
 
-      强烈推荐始终优先使用固定技能文档 (skill)、OpenAPI 文档 (openapi) 或 CloudBase 官方文档 (docs) 模式进行检索，仅当固定文档无法覆盖你的问题时，再使用向量查询 (vector) 模式。
+      按场景选择 mode：
+      - 不确定答案在哪、需要对官方文档做全文检索时：mode=docs + action=searchDocs（传 query 关键词）
+      - 已知文档标题、层级路径或 URL 时：mode=docs + action=findByName（传 input）或 action=readDoc（传 docPath）
+      - 需要某个场景的落地指南 / 最佳实践时：mode=skill + skillName
+      - 需要 HTTP API 的接口定义时：mode=openapi + apiName
 
       ⚠️ 重要：当 CloudBase skills 处于禁用状态或当前 IDE 不支持 skill 文件读取时，必须使用 searchKnowledgeBase(mode=skill, skillName=...) 来获取 CloudBase 技能文档内容，而不是尝试直接读取 skill 文件。直接读取可能返回 400 错误。示例：
       - 需要最小 Web+数据库 Demo 路径时：searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo)
@@ -2047,7 +2051,7 @@ API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
       name: "mode",
       type: "string",
       required: true,
-      description: ` 可填写的值: "vector", "skill", "openapi", "docs"`,
+      description: ` 可填写的值: "skill", "openapi", "docs"`,
     },
     {
       name: "skillName",
@@ -2083,38 +2087,6 @@ API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
       name: "query",
       type: "string",
       description: `mode=docs 且 action=searchDocs 时指定。全文检索关键词。`,
-    },
-    {
-      name: "threshold",
-      type: "number",
-      description: `mode=vector 时指定。相似性检索阈值`,
-    },
-    {
-      name: "id",
-      type: "string",
-      description: `mode=vector 时指定。知识库范围，默认 cloudbase。cloudbase=云开发全量知识，scf=云开发的云函数知识, miniprogram=小程序知识（不包含云开发与云函数知识） 可填写的值: "cloudbase", "scf", "miniprogram"`,
-    },
-    {
-      name: "content",
-      type: "string",
-      description: `mode=vector 时指定。检索内容`,
-    },
-    {
-      name: "options",
-      type: "object",
-      description: `mode=vector 时指定。其他选项`,
-      children: [
-        {
-          name: "chunkExpand",
-          type: "array of number",
-          description: `指定返回的文档内容的展开长度,例如 [3,3]代表前后展开长度`,
-        }
-      ],
-    },
-    {
-      name: "limit",
-      type: "number",
-      description: `mode=vector 时指定。指定返回最相似的 Top K 的 K 的值`,
     }
   ]}
 />

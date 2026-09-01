@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+### Code Refactoring
+
+* **rag**: retire the `vector` mode of `searchKnowledgeBase`; official doc search (`mode=docs`, backed by the `app.docs` full-text search) is now the only retrieval path. The `content` / `id` / `threshold` / `limit` / `options` parameters are removed together with the two calls to the `tcb-advanced-a656fc` knowledge gateway. Callers should use `mode=docs` with `action=searchDocs` / `findByName` / `readDoc`.
+
 ## [2.32.2](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.1...v2.32.2) (2026-08-25)
 
 ### Bug Fixes
