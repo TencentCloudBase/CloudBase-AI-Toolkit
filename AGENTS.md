@@ -77,8 +77,8 @@ alwaysApply: true
 - WorkBuddy 专家目录 `~/.workbuddy/plugins/marketplaces/my-experts/plugins/` 是**同步产物（build output），禁止手改**（会被覆盖）；修改一律走"改仓库源码 → 同步命令"
 - 同步：`npm run experts:sync [expert-name]`（脚本 `scripts/sync-experts.mjs`：rsync --delete 镜像 → validate_expert.py → register_expert.py）；expert-manager 脚本在 WorkBuddy app bundle 内，路径可用 `EXPERT_MANAGER_SCRIPTS_DIR` 覆盖
 - 内容原则：精简有效、引用为主——Agent MD 只留角色/SOP/铁律/路由，领域知识引用运行时官方 skills，不复制进包防漂移；踩坑经验官方 skill 未覆盖的才留包内
-- 后续加新专家 = 在 `plugins/experts/` 建目录（手工建骨架，`init_expert.py` 强制写 my-experts 目录与仓库真源冲突）→ `npm run experts:sync`
-- plugin.json 的 `displayDescription` 限制 40-50 字，超长会校验 warning
+- 后续加新专家 = 在 `plugins/experts/` 建目录（手工建骨架，`init_expert.py` 强制写 my-experts 目录与仓库真源冲突）→ `npm run experts:sync`；删除专家 = 删源码目录 → 全量 `npm run experts:sync`（脚本自动清理 my-experts 孤儿产物）
+- plugin.json 的 `displayDescription` 限制 40-50 字，超长会校验 warning；`tags` 必须恰好 3 个；`defaultInitPrompt` 各语言须与 `quickPrompts[0]` 完全一致
 </experts>
 
 <internal_dirs>
