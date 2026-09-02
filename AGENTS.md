@@ -70,6 +70,17 @@ alwaysApply: true
    - `mcp/` 子目录同样适用本约定：`mcp/AGENTS.md` 为源，`mcp/CLAUDE.md`、`mcp/CODEBUDDY.md` 为软链
 </project_rules>
 
+<experts>
+## WorkBuddy 专家包源码约定
+
+- **真源**在仓库 `plugins/experts/<expert-name>/`（一个专家一个子目录，版本控制）；与对外发布目录 `plugin/`（CodeBuddy plugin）区分
+- WorkBuddy 专家目录 `~/.workbuddy/plugins/marketplaces/my-experts/plugins/` 是**同步产物（build output），禁止手改**（会被覆盖）；修改一律走"改仓库源码 → 同步命令"
+- 同步：`npm run experts:sync [expert-name]`（脚本 `scripts/sync-experts.mjs`：rsync --delete 镜像 → validate_expert.py → register_expert.py）；expert-manager 脚本在 WorkBuddy app bundle 内，路径可用 `EXPERT_MANAGER_SCRIPTS_DIR` 覆盖
+- 内容原则：精简有效、引用为主——Agent MD 只留角色/SOP/铁律/路由，领域知识引用运行时官方 skills，不复制进包防漂移；踩坑经验官方 skill 未覆盖的才留包内
+- 后续加新专家 = 在 `plugins/experts/` 建目录（手工建骨架，`init_expert.py` 强制写 my-experts 目录与仓库真源冲突）→ `npm run experts:sync`
+- plugin.json 的 `displayDescription` 限制 40-50 字，超长会校验 warning
+</experts>
+
 <internal_dirs>
 ## 本地内部目录的存放、同步与获取
 

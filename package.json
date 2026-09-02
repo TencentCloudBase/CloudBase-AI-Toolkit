@@ -23,6 +23,7 @@
     "check:plugin-marketplaces": "node scripts/check-plugin-marketplaces.mjs",
     "check:plugin-quality": "node scripts/check-plugin-quality.mjs",
     "sync:codebuddy-marketplace": "node scripts/sync-codebuddy-marketplace.mjs",
+    "experts:sync": "node scripts/sync-experts.mjs",
     "pack:qoder-plugin": "node scripts/pack-qoder-plugin.mjs",
     "pack:qoder-skill": "node scripts/pack-qoder-skill.mjs",
     "pack:kimi-plugin": "node scripts/pack-kimi-plugin.mjs",
