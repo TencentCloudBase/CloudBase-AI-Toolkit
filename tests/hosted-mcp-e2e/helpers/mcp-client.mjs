@@ -19,6 +19,21 @@ export function buildMcpUrl({ envId = getEnvId(), endpoint = getMcpEndpoint() } 
 }
 
 /**
+ * Default protocol version for initialize.
+ *
+ * The official SDK (1.30.x) hardcodes LATEST_PROTOCOL_VERSION (2025-11-25) in
+ * the initialize request body; `transport.setProtocolVersion()` only affects
+ * the MCP-Protocol-Version header of subsequent requests, so it cannot rescue
+ * a server that rejects unknown versions. The hosted staging server currently
+ * tops out at 2025-06-18 and returns "Bad Request: Unsupported protocol
+ * version" for anything newer (observed 2026-09-02). We therefore patch the
+ * outgoing initialize params to a server-supported version, defaulting to
+ * 2025-06-18. Override per-connection via opts.protocolVersion or globally
+ * via MCP_E2E_PROTOCOL_VERSION.
+ */
+const DEFAULT_PROTOCOL_VERSION = "2025-06-18";
+
+/**
  * Connect an official MCP client over StreamableHTTP.
  * @param {{ headers?: Record<string,string>, envId?: string, protocolVersion?: string }} opts
  */
@@ -34,14 +49,20 @@ export async function connectHostedMcpClient(opts = {}) {
     fetch: fetchFn,
   });
 
+  const requestedVersion =
+    opts.protocolVersion || process.env.MCP_E2E_PROTOCOL_VERSION || DEFAULT_PROTOCOL_VERSION;
+  const origSend = transport.send.bind(transport);
+  transport.send = async (message) => {
+    if (message?.method === "initialize" && message?.params) {
+      message.params.protocolVersion = requestedVersion;
+    }
+    return origSend(message);
+  };
+
   const client = new Client(
     { name: opts.clientName || "hosted-mcp-e2e", version: "1.0.0" },
     { capabilities: {} },
   );
-
-  if (opts.protocolVersion) {
-    transport.setProtocolVersion(opts.protocolVersion);
-  }
 
   await client.connect(transport);
   return { client, transport, url: url.toString() };
