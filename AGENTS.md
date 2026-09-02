@@ -247,14 +247,14 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 </git_push>
 
 <dependency_upgrade_checklist>
-升级任何依赖（尤其 @cloudbase/manager-node 等运行时依赖）时，必须**三份 lockfile 同步**，缺一不可：
+升级任何依赖（尤其 @cloudbase/manager-node 等运行时依赖）时，必须同步更新**单一 lockfile** `pnpm-lock.yaml`：
 
-1. 根 `package-lock.json`：CI `nightly-build.yaml` 在根目录执行 `npm ci --ignore-scripts`
-2. `mcp/package-lock.json`：同一 workflow 第二步 `cd mcp && npm ci`（历史遗留 npm lockfile）
-3. `pnpm-lock.yaml`：mcp 开发主 lockfile（用 `pnpm install` 更新）
+1. 确认根 `package.json` 声明 `"packageManager": "pnpm@..."`，并用 `corepack enable` + `pnpm install` 更新依赖。
+2. 安全补丁 / 版本钉死走 `pnpm.overrides`（不要再写 npm `overrides`）。
+3. 提交前本地跑通：`pnpm install --frozen-lockfile`（workspace 覆盖根目录与 `mcp/`）。
 
-漏任一份会导致 CI 报 `Invalid: lock file's X does not satisfy Y` 或 `Missing: xxx from lock file`（2026-08-24 PR #952 实测踩坑）。
-提交前自查：`git ls-tree -r origin/main | grep -E "package-lock|pnpm-lock"` 列全所有 lockfile 逐一确认同步，push 后等 `build-and-publish` 转绿再合入。
+CI（`nightly-build.yaml` / `npm-publish.yaml` 等）统一使用 `pnpm install --frozen-lockfile`；主仓不再维护 `package-lock.json` / `mcp/package-lock.json`。
+`dsh-plugin/`、`platform-kit/`、`examples/` 若仍有各自 npm lockfile，升级那些子包时单独处理，不要回写主仓 npm lockfile。
 </dependency_upgrade_checklist>
 
 <skills_and_rules_maintenance>

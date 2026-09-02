@@ -32,16 +32,21 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
 
+      - name: Enable corepack
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install root dependencies (for build-allinone-skill scripts)
-        run: npm ci --ignore-scripts
+        run: pnpm install --frozen-lockfile
 
       - name: Build all-in-one skill
-        run: npx tsx scripts/build-allinone-skill.ts --dir config/allinone
+        run: pnpm exec tsx scripts/build-allinone-skill.ts --dir config/allinone
 
       - name: Commit and push
         run: |
@@ -72,16 +77,21 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
 
+      - name: Enable corepack
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install root dependencies (for build-allinone-skill scripts)
-        run: npm ci --ignore-scripts
+        run: pnpm install --frozen-lockfile
 
       - name: Sync codebuddy plugin
-        run: npx tsx scripts/sync-codebuddy-plugin.ts
+        run: pnpm exec tsx scripts/sync-codebuddy-plugin.ts
 
       - name: Commit and push
         run: |

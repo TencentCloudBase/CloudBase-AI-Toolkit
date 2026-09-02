@@ -26,42 +26,35 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: 'mcp/package-lock.json'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
           
-      - name: Install root dependencies (for build-allinone-skill scripts)
-        run: npm ci --ignore-scripts
-
       - name: Install dependencies
-        run: |
-          cd mcp
-          npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build package
-        run: |
-          cd mcp
-          npm run build
+        working-directory: ./mcp
+        run: pnpm run build
 
       - name: Smoke CLI cloud-mode
         working-directory: ./mcp
-        run: npm run test:cli:cloud-mode
+        run: pnpm run test:cli:cloud-mode
 
       - name: Test package
         # WARNING: Secrets are only available for non-fork PRs due to GitHub's built-in protection.
         # We still add explicit condition for defense in depth.
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        run: |
-          cd mcp
-          npm run test
+        working-directory: ./mcp
+        run: pnpm run test
         env:
           TENCENTCLOUD_SECRETID: ${{ secrets.TENCENTCLOUD_SECRETID }}
           TENCENTCLOUD_SECRETKEY: ${{ secrets.TENCENTCLOUD_SECRETKEY }}
           CLOUDBASE_ENV_ID: ${{ secrets.CLOUDBASE_ENV_ID }}
 
       - name: Test hooks
-        run: npm run test:hooks
+        run: pnpm run test:hooks
           
       - name: Publish to pkg.pr.new
-        run: |
-          cd mcp
-          npx pkg-pr-new publish --comment=off 
+        working-directory: ./mcp
+        # Not a workspace dependency; keep npx for one-shot publish tooling.
+        run: npx pkg-pr-new publish --comment=off
