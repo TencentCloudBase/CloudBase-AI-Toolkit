@@ -30,13 +30,15 @@
     "internal:archive": "bash scripts/internal-sync.sh push",
     "internal:archive:all": "python3 scripts/internal-archive-all.py",
     "internal:status": "bash scripts/internal-sync.sh status",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:hosted-mcp:e2e": "vitest run tests/hosted-mcp-e2e/"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
     "husky": "^9.1.7",
     "js-yaml": "4.3.0",
     "tsx": "^4.21.0",
+    "undici": "6.28.0",
     "vitest": "3.2.7"
   },
   "dependencies": {
