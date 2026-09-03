@@ -229,7 +229,7 @@ describe("app tools", () => {
     const result = await tools.manageApps.handler({
       action: "deployApp",
       serviceName: "demo-app",
-      cosTimestamp: "1741234567",
+      cosTimestamp: 1741234567,
       buildPath: "dist",
       framework: "static",
     });
@@ -243,7 +243,7 @@ describe("app tools", () => {
         serviceName: "demo-app",
         buildType: "ZIP",
         staticConfig: expect.objectContaining({
-          cosTimestamp: "1741234567",
+          cosTimestamp: 1741234567,
         }),
       }),
     );
@@ -310,7 +310,7 @@ describe("app tools", () => {
     const result = await tools.manageApps.handler({
       action: "deployApp",
       serviceName: "demo-app",
-      cosTimestamp: "1741234567",
+      cosTimestamp: 1741234567,
       framework: "static",
       installCmd: "",
       buildCmd: "",
@@ -318,8 +318,94 @@ describe("app tools", () => {
     const payload = JSON.parse(result.content[0].text);
 
     expect(mockUploadCode).not.toHaveBeenCalled();
-    expect(mockCreateApp).toHaveBeenCalled();
+    expect(mockCreateApp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deployType: "static-hosting",
+        serviceName: "demo-app",
+        buildType: "ZIP",
+        staticConfig: expect.objectContaining({
+          cosTimestamp: 1741234567,
+        }),
+      }),
+    );
     expect(payload.success).toBe(true);
+  });
+
+  it("cloud mode deployApp with both localPath and cosTimestamp still rejects localPath", async () => {
+    mockIsCloudMode.mockReturnValue(true);
+
+    const result = await tools.manageApps.handler({
+      action: "deployApp",
+      serviceName: "demo-app",
+      filePath: "/etc",
+      cosTimestamp: 1741234567,
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    // #984 语义不回退：云端模式带 localPath 一律拒绝，即使同时传了 cosTimestamp
+    expect(mockUploadCode).not.toHaveBeenCalled();
+    expect(mockCreateApp).not.toHaveBeenCalled();
+    expect(payload).toMatchObject({
+      success: false,
+      code: "CLOUD_MODE_UNSUPPORTED_ACTION",
+      data: {
+        code: "CLOUD_MODE_UNSUPPORTED_ACTION",
+        action: "deployApp",
+        reason: "localPath",
+      },
+    });
+  });
+
+  it("deployApp with both filePath and cosTimestamp is rejected (strict either-or)", async () => {
+    const result = await tools.manageApps.handler({
+      action: "deployApp",
+      serviceName: "demo-app",
+      filePath: "/tmp/demo-app",
+      cosTimestamp: 1741234567,
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockUploadCode).not.toHaveBeenCalled();
+    expect(mockCreateApp).not.toHaveBeenCalled();
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("二选一");
+  });
+
+  it("queryApps(action=getUploadUrl) should return pre-signed upload info", async () => {
+    mockDescribeCosInfo.mockResolvedValueOnce({
+      UploadUrl: "https://example.com/upload-query",
+      UploadHeaders: [
+        { Key: "Content-Type", Value: "application/zip" },
+        { Key: "Authorization", Value: "sig" },
+      ],
+      UnixTimestamp: 1741234567,
+      RequestId: "req-cos-info-query",
+    });
+
+    const result = await tools.queryApps.handler({
+      action: "getUploadUrl",
+      serviceName: "demo-app",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockDescribeCosInfo).toHaveBeenCalledWith({
+      deployType: "static-hosting",
+      serviceName: "demo-app",
+      suffix: ".zip",
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "getUploadUrl",
+        serviceName: "demo-app",
+        uploadUrl: "https://example.com/upload-query",
+        uploadHeaders: expect.arrayContaining([
+          expect.objectContaining({ Key: "Content-Type" }),
+        ]),
+        unixTimestamp: 1741234567,
+      },
+    });
+    expect(payload.message).toContain("cosTimestamp");
   });
 
   it("manageApps(action=getUploadUrl) should return pre-signed URL", async () => {
