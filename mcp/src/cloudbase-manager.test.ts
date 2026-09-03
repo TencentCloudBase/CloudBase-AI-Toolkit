@@ -20,14 +20,16 @@ const mockEnsureLogin = vi.fn();
 const mockCommonServiceCall = vi.fn();
 const mockListEnvs = vi.fn();
 
-const { mockReadProjectConfig, mockReadProjectEnvId } = vi.hoisted(() => ({
+const { mockReadProjectConfig, mockReadProjectEnvId, mockReadCloudbaseRcBinding } = vi.hoisted(() => ({
   mockReadProjectConfig: vi.fn(),
   mockReadProjectEnvId: vi.fn(),
+  mockReadCloudbaseRcBinding: vi.fn(),
 }));
 
 vi.mock("./utils/project-config.js", () => ({
   readProjectConfig: mockReadProjectConfig,
   readProjectEnvId: mockReadProjectEnvId,
+  readCloudbaseRcBinding: mockReadCloudbaseRcBinding,
 }));
 
 vi.mock("./auth.js", () => ({
@@ -55,6 +57,7 @@ describe("cloudbase manager auth gate", () => {
     delete process.env.CLOUDBASE_ENV_ID;
     mockReadProjectConfig.mockReturnValue(undefined);
     mockReadProjectEnvId.mockReturnValue(undefined);
+    mockReadCloudbaseRcBinding.mockReturnValue(undefined);
     mockAuthGetProgressState.mockResolvedValue({
       status: "IDLE",
       updatedAt: Date.now(),
@@ -548,6 +551,7 @@ describe("listAvailableEnvCandidates region scope", () => {
     delete process.env.CLOUDBASE_ENV_ID;
     mockReadProjectConfig.mockReturnValue(undefined);
     mockReadProjectEnvId.mockReturnValue(undefined);
+    mockReadCloudbaseRcBinding.mockReturnValue(undefined);
     mockPeekLoginState.mockResolvedValue({
       secretId: "sid",
       secretKey: "skey",
@@ -602,6 +606,7 @@ describe("project-pinned envId (.cloudbase/project.json)", () => {
     delete process.env.TCB_SITE;
     mockReadProjectConfig.mockReturnValue(undefined);
     mockReadProjectEnvId.mockReturnValue(undefined);
+    mockReadCloudbaseRcBinding.mockReturnValue(undefined);
     mockAuthGetProgressState.mockResolvedValue({
       status: "IDLE",
       updatedAt: Date.now(),
@@ -622,6 +627,7 @@ describe("project-pinned envId (.cloudbase/project.json)", () => {
 
   afterEach(() => {
     mockReadProjectEnvId.mockReturnValue(undefined);
+    mockReadCloudbaseRcBinding.mockReturnValue(undefined);
     delete process.env.CLOUDBASE_ENV_ID;
   });
 
