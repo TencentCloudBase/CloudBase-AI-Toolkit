@@ -19,6 +19,7 @@
 | 10 | Allinone skill（`TencentCloudBase/cloudbase-skills`） | ✅ `build-allinone-skill.ts` | 独立仓库：`push-allinone-skill.yml` | CodeBuddy 等 | ❌ 不需要 |
 | 11 | npm 包 `@cloudbase/cloudbase-mcp` | ✅ pnpm build + publish | npm registry：`npm-publish.yaml` | 所有 IDE（npx 拉取） | ❌ 不需要（npm 即 registry） |
 | 12 | Gemini 扩展（`gemini-extension.json` + `GEMINI.md`） | ❌ 无 | 仓库内 manifest，按需分发 | Gemini | ❌ 暂不需要 |
+| 13 | WorkBuddy 专家包 `<expert-name>.zip`（每个专家一个 zip） | ✅ `scripts/pack-experts.mjs` | ✅ release assets（本行更新起自动挂载） | WorkBuddy 专家分享 / 手动导入 | ✅ 已满足 |
 
 ## 二、缺口判定
 
