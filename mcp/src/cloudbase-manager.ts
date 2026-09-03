@@ -9,6 +9,7 @@ import { CloudBaseOptions, Logger } from './types.js';
 import { debug, error } from './utils/logger.js';
 import { buildAuthNextStep, throwToolPayloadError } from './utils/tool-result.js';
 import { resolveSiteAndRegion, TCB_QUERY_REGIONS } from './utils/site-map.js';
+import { readProjectEnvId } from './utils/project-config.js';
 
 // Timeout for envId auto-resolution flow.
 // 10 minutes (600 seconds) - matches InteractiveServer timeout
@@ -339,7 +340,16 @@ class EnvironmentManager {
                 return this.cachedEnvId;
             }
 
-            // 2. 如果登录态里已有 envId，直接复用
+            // 2. 项目级配置固定的环境（`.cloudbase/project.json` 的 envId）
+            // 优先于账号级登录态：登录态是全局的，可能指向另一个仓库绑定的环境。
+            const projectEnvId = readProjectEnvId();
+            if (projectEnvId) {
+                debug('使用项目配置(.cloudbase/project.json)的环境ID:', { envId: projectEnvId });
+                this._setCachedEnvId(projectEnvId);
+                return projectEnvId;
+            }
+
+            // 3. 如果登录态里已有 envId，直接复用
             const loginState = await peekLoginState();
             if (typeof loginState?.envId === 'string' && loginState.envId.length > 0) {
                 debug('使用登录态中的环境ID:', { envId: loginState.envId });
@@ -347,7 +357,7 @@ class EnvironmentManager {
                 return loginState.envId;
             }
 
-            // 3. 单环境自动绑定；多环境时返回结构化引导，不再触发交互弹窗
+            // 4. 单环境自动绑定；多环境时返回结构化引导，不再触发交互弹窗
             const envCandidates = await listAvailableEnvCandidates({ loginState });
             if (envCandidates.length === 1) {
                 const singleEnvId = envCandidates[0].envId;
@@ -409,6 +419,15 @@ export async function getEnvId(cloudBaseOptions?: CloudBaseOptions): Promise<str
     if (cachedEnvId) {
         debug('使用缓存中的 envId:', { envId: cachedEnvId });
         return cachedEnvId;
+    }
+
+    // 项目级配置固定的环境优先于账号级登录态，保证「打开仓库即连对环境」，
+    // 且同一仓库的每个 Git worktree / 每个新进程都不需要重复 set_env。
+    const projectEnvId = readProjectEnvId();
+    if (projectEnvId) {
+        debug('使用项目配置(.cloudbase/project.json)的 envId:', { envId: projectEnvId });
+        await envManager.setEnvId(projectEnvId);
+        return projectEnvId;
     }
 
     const loginState = await peekLoginState();
@@ -619,9 +638,15 @@ export async function getCloudBaseManager(options: GetManagerOptions = {}): Prom
                 // If cached, use it directly; otherwise check loginEnvId before calling getEnvId()
                 // This avoids unnecessary async calls when we have a valid envId available
                 const cachedEnvId = envManager.getCachedEnvId() || process.env.CLOUDBASE_ENV_ID;
+                const projectEnvId = cachedEnvId ? undefined : readProjectEnvId();
                 if (cachedEnvId) {
                     debug('使用 envManager 缓存的环境ID:', { cachedEnvId });
                     finalEnvId = cachedEnvId;
+                } else if (projectEnvId) {
+                    // 项目级绑定优先于全局登录态 envId：后者可能来自另一个仓库
+                    debug('使用项目配置(.cloudbase/project.json)的环境ID:', { projectEnvId });
+                    await envManager.setEnvId(projectEnvId);
+                    finalEnvId = projectEnvId;
                 } else if (loginEnvId) {
                     // If no cache but loginState has envId, use it directly
                     debug('使用 loginState 中的环境ID:', { loginEnvId });
