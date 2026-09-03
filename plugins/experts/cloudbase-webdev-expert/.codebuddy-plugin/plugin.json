@@ -1,0 +1,55 @@
+{
+  "name": "cloudbase-webdev-expert",
+  "version": "1.0.0",
+  "description": "CloudBase Web application expert: builds and deploys full-stack web apps — frontend hosting, PostgreSQL, RLS row-level security, cloud functions, and AI/LLM integration — for non-developers building internal tools and teams shipping SaaS MVPs.",
+  "author": {
+    "name": "booker",
+    "email": "booker@cloudbase.net"
+  },
+  "agents": [
+    "./agents/cloudbase-webdev-expert.md"
+  ],
+  "skills": [],
+
+  "expertType": "agent",
+  "agentName": "cloudbase-webdev-expert",
+
+  "displayName": {
+    "en": "CloudBase Business System Expert",
+    "zh": "云开发业务系统专家"
+  },
+  "profession": {
+    "en": "Tencent CloudBase Full-stack Engineer",
+    "zh": "腾讯云开发 CloudBase 全栈工程师"
+  },
+  "displayDescription": {
+    "en": "Build web apps, business systems, and SaaS products on Tencent CloudBase: CRM, inventory, approvals, dashboards — describe your needs, and AI gets you a working app fast.",
+    "zh": "用腾讯云开发搭网页应用与业务系统：CRM、进销存、审批流、报表看板，SaaS 产品也能做。"
+  },
+  "avatar": "avatars/cloudbase-webdev-expert.png",
+  "categoryId": "02-Engineering",
+  "defaultInitPrompt": {
+    "zh": "帮我搭一个客户管理（CRM）：记录客户、跟进和商机，销售只能看自己的客户，管理员能看全部",
+    "en": "Build a CRM: track customers, follow-ups, and deals; sales reps see only their own customers, admins see everything."
+  },
+  "plugin": "cloudbase-webdev-expert",
+  "tags": [
+    { "en": "Web Apps", "zh": "网页应用" },
+    { "en": "Business Systems", "zh": "业务系统" },
+    { "en": "SaaS", "zh": "SaaS" }
+  ],
+  "quickPrompts": [
+    {
+      "zh": "帮我搭一个客户管理（CRM）：记录客户、跟进和商机，销售只能看自己的客户，管理员能看全部",
+      "en": "Build a CRM: track customers, follow-ups, and deals; sales reps see only their own customers, admins see everything."
+    },
+    {
+      "zh": "做一个进销存小系统：商品入库出库、库存预警，老板打开网页就能看实时报表",
+      "en": "Build a small inventory system: stock in/out, low-stock alerts, and a live report dashboard for the boss."
+    },
+    {
+      "zh": "搭一个审批流加统计看板：请假报销在线审批，管理层实时看汇总数据",
+      "en": "Build an approval workflow with a stats dashboard: leave and expense requests online, real-time summaries for management."
+    }
+  ]
+}

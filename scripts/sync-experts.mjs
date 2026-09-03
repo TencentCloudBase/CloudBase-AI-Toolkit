@@ -18,7 +18,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { rmSync, existsSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -118,6 +118,21 @@ if (experts.length === 0) {
   console.log(`（${SOURCE_ROOT} 下暂无专家包）`);
   process.exit(0);
 }
+
+// 清理目标目录里源码已不存在的孤儿专家（仅在全量同步时执行，避免误删未指定的专家）
+if (!filter && existsSync(TARGET_ROOT)) {
+  const orphans = readdirSync(TARGET_ROOT).filter(
+    (n) =>
+      statSync(join(TARGET_ROOT, n)).isDirectory() &&
+      !n.startsWith(".") &&
+      !experts.includes(n)
+  );
+  for (const name of orphans) {
+    rmSync(join(TARGET_ROOT, name), { recursive: true, force: true });
+    console.log(`🗑️  已清理孤儿专家产物: ${name}（源码已不存在）`);
+  }
+}
+
 console.log(`专家目录: ${TARGET_ROOT}`);
 for (const name of experts) syncExpert(name);
 console.log(`\n全部完成：${experts.length} 个专家已同步。`);
