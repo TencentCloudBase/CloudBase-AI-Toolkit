@@ -26,3 +26,20 @@ export function readProjectConfig(cwd?: string): ProjectConfig | undefined {
     return undefined;
   }
 }
+
+/**
+ * 读取项目级配置里的默认环境（`.cloudbase/project.json` 的 `envId`）。
+ *
+ * 该字段让环境绑定跟随仓库工作区，而不是跟随单个 MCP 进程：
+ * 新起的 stdio 进程、以及同一仓库的每个 Git worktree（`.cloudbase/project.json`
+ * 已提交，各 worktree 都有该文件）都能直接命中同一环境，无需重复 `auth(set_env)`；
+ * 不同仓库各读自己的文件，绑定不会互相串。
+ */
+export function readProjectEnvId(cwd?: string): string | undefined {
+  const envId = readProjectConfig(cwd)?.envId;
+  if (typeof envId !== "string") {
+    return undefined;
+  }
+  const trimmed = envId.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}

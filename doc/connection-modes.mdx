@@ -188,6 +188,19 @@ CloudBase 有**国内站**（`domestic`，cloud.tencent.com）与**国际站**�
 }
 ```
 
+其中 `envId` 会作为该项目的默认环境，解析优先级：
+
+```
+显式 cloudBaseOptions.envId
+  > 环境变量 CLOUDBASE_ENV_ID
+  > 当前进程内已绑定的环境（auth(action="set_env") 结果）
+  > 项目级配置 .cloudbase/project.json 的 envId
+  > 账号登录态里的环境
+  > 返回 ENV_REQUIRED，引导调用 auth(action="set_env")
+```
+
+因为该文件在仓库内且随仓库提交，所以新起的 MCP 进程、以及同一仓库的每个 Git worktree 都会自动命中同一环境，无需为每个 worktree 重新 `set_env`；不同仓库各读自己的文件，绑定不会互相串。
+
 ### 多站点凭证并存
 
 登录凭证按站点分槽存储（`~/.config/.cloudbase/auth.json` 的 `credential` 升级为 `credential.domestic` / `credential.intl`），国内站与国际站可分别登录并存，切换环境无需重新登录。旧版单槽数据读取时自动视为 `domestic`，首次写回时自动升级为分槽格式。
