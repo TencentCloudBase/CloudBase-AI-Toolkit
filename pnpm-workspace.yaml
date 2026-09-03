@@ -11,4 +11,4 @@ packages:
 minimumReleaseAge: 4320   # 3 days (4320 minutes). Increase to 10080 (7 days) after validation.
 # blockExoticSubdeps: true  # Enable after full pnpm migration
 
-# Note: .npmrc at root provides ignore-scripts=true as fallback for npm users during transition.
+# Note: .npmrc at root provides ignore-scripts=true for install hygiene.

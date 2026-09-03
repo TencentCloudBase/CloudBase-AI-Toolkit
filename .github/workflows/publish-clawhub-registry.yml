@@ -67,13 +67,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Enable corepack
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install root dependencies (for build-allinone-skill scripts)
-        run: npm ci --ignore-scripts
+        run: pnpm install --frozen-lockfile
 
       - name: Build publish artifacts
         run: node scripts/build-clawhub-publish-artifacts.mjs --targets "$TARGETS"

@@ -21,10 +21,11 @@ CloudBase AI Toolkit 因其 MCP Server + 大量 AI IDE 技能分发能力，成�
 
 ### Phase 2 进行中 / 计划中
 
-- [ ] `packageManager` 字段 + corepack 强制
-- [ ] 安全敏感依赖精确版本 pinning（@cloudbase/manager-node 等）
-- [ ] pnpm 11 迁移或 npm 强化 quarantine 配置
+- [x] `packageManager` 字段 + corepack 强制（主仓 CI 已统一 `pnpm install --frozen-lockfile`，单一 `pnpm-lock.yaml`）
+- [x] 安全敏感依赖精确版本 pinning（@cloudbase/manager-node 等）
+- [ ] pnpm 11 迁移或进一步强化 quarantine 配置
 - [ ] Renovate 配置（Actions + 敏感依赖 review 策略）
+- [ ] `dsh-plugin/` / `platform-kit/` / `examples/` 子包 npm lockfile 后续收敛
 
 ### Phase 3 计划中
 

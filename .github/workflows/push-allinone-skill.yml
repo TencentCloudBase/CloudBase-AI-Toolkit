@@ -22,16 +22,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Enable corepack
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install root dependencies (for build-allinone-skill scripts)
-        run: npm ci --ignore-scripts
+        run: pnpm install --frozen-lockfile
 
       - name: Build allinone skill
-        run: npx tsx scripts/build-allinone-skill.ts --dir /tmp/allinone-build
+        run: pnpm exec tsx scripts/build-allinone-skill.ts --dir /tmp/allinone-build
 
       - name: Setup target repository
         run: |
