@@ -111,7 +111,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Exposing functions publicly or deploying without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
 - **Returning `req.headers`, `process.env`, `event`, or `context` wholesale** — gateways may inject `x-cloudbase-context` (base64 temporary credentials). Never echo that header or dump credential env vars to clients. Follow `../cloudbase-platform/references/protocols/sensitive-runtime-data-protection.md`.
 - **Using a bare layer name (e.g. `common`) across environments.** SCF LayerName is an account-scoped shared namespace: same name → shared version sequence. Create new layers with fixed format `{layerName}_{当前envId}` (e.g. `common_cloud1-d9ghadgak3edf6b36`). Pass the full name as `layerName` — do not invent automatic suffixes. Treat MCP layer `warnings` as soft advisories (operation still succeeds). Details: `./references/operations-and-config.md`.
-- **Defaulting new CRUD to TCP DB clients** (`DATABASE_URL` / `mysql2` / `pg` / Redis) instead of native `app.rdb()` / `app.database()` or MCP SQL. TCP is exception-only for existing ORM migrations — see `references/vpc-and-tcp-database.md` only then.
+- **MCP 长耗时镜像部署必须闭环**：当使用 `manageFunctions` 的 `deployFunction` 执行 `cloud` 或 `local` 真实部署时，优先传 `wait=false`，避免单次 Tool Call 长时间阻塞。若返回 `taskId`，不得在状态为 `running` 时结束流程、报告成功或让用户自行等待；必须自动调用 `queryFunctions(action="getFunctionDeployStatus", taskId="...")`，按照返回的进度继续轮询，直到 `succeeded` 或 `failed`。仅达到合理轮询上限时，才可报告“仍在执行”，并附带 `taskId`、当前阶段和最近进度。成功时汇报镜像/构建 ID、函数状态和 Gateway URL；失败时汇报失败阶段、错误码、requestId 和诊断建议。若状态为 `expired`，说明任务超过最长保留时间被终结，云端可能仍在部署，必须用 `getFunctionDetail` 确认实际状态，不得直接判定失败。
 
 ### Minimal checklist
 
@@ -119,12 +119,38 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Decide whether the task is Event Function, HTTP Function, or actually CloudRun.
 - Pick the detailed reference file in [references.md](references.md) before writing implementation code.
 
-## Overview
+## MCP image deployment with polling
 
-Use this skill when developing, deploying, and operating CloudBase cloud functions. CloudBase has two different programming models:
+For real `cloud` or `local` custom-image deployments, prefer:
 
-- **Event Functions**: serverless handlers driven by SDK calls, timers, and other events.
-- **HTTP Functions**: standard web services for HTTP endpoints, SSE, or WebSocket workloads. By default they run on a managed runtime (`scf_bootstrap` + zip); when they need custom system libraries or an arbitrary runtime they can instead run from a container image (`Runtime: CustomImage`, deployed from TCR — see `./references/http-functions-custom-image.md`).
+```json
+{
+  "action": "deployFunction",
+  "dryRun": false,
+  "confirm": true,
+  "wait": false,
+  "deployConfig": {}
+}
+```
+
+The `wait` field controls whether the current MCP Tool call waits for the complete deployment:
+
+- `wait=true`: wait for the manager deployment to reach a terminal result and return it.
+- `wait=false`: return a `taskId` promptly while the deployment continues in the MCP background.
+
+When `wait=false` returns a `taskId`, the deployment workflow is not complete. Automatically call `queryFunctions` with `action="getFunctionDeployStatus"` and that `taskId`; continue while the status is `running`, then stop only at `succeeded` or `failed`. Wait about 5 seconds before the first follow-up query and use the returned progress/`nextActions` to continue without aggressive polling. Do not tell the user to ask again or imply success before a terminal status is returned. An `expired` status means the task exceeded the maximum retention window and was force-terminated locally — the cloud deployment may still be in progress, so confirm the real state with `getFunctionDetail` instead of reporting failure.
+
+If a reasonable polling limit is reached, report only that the task is still running, including the `taskId`, current status, current stage, and latest progress. For a terminal result, report the deployment strategy, action, image URI/digest, build ID, function status, Gateway URL, or the failed stage, error code, request ID, and diagnostic next step.
+
+### Personal-tier TCR credentials — never put the password in tool arguments
+
+Personal-tier image builds (`imageConfig.imageType="personal"` with `local` / `cloud`) need a TCR push credential. Read it from the MCP process environment, not from tool arguments:
+
+- Leave `func.imageConfig.build.registryCredential` **out of the request** when `TCB_TCR_USERNAME` and `TCB_TCR_PASSWORD` are set in the MCP server `env` block — the MCP fills them in automatically, the same way `TENCENTCLOUD_SECRETID` works.
+- **Never ask the user to paste the password into chat, and never write it into tool arguments.** Anything placed in arguments enters the model context and the tool-call history.
+- If deployment fails with `CLOUD_REGISTRY_CREDENTIAL_MISSING` or `CLOUD_REGISTRY_CREDENTIAL_INVALID`, instruct the user to add these two variables to the `env` block of their MCP configuration and restart the MCP server. Do not work around it by passing the credential inline.
+- The username is the Tencent Cloud account UIN and is not itself a secret; it may be passed explicitly if needed. Explicit arguments take precedence per field, so username-in-argument plus password-from-environment is a valid combination.
+
 
 ## Writing mode at a glance
 

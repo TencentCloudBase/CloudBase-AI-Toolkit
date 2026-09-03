@@ -17,6 +17,10 @@ import {
 } from "./function-updating.js";
 import type { ExtendedMcpServer } from "../server.js";
 
+const personalCredential = {
+  username: "100000000001",
+  password: "test-password",
+};
 const {
   mockCreateFunction,
   mockUpdateFunctionCode,
@@ -27,6 +31,8 @@ const {
   mockGetEnvId,
   mockLogCloudBaseResult,
   mockIsCloudMode,
+  mockCheckDeployConfig,
+  mockDeployFunction,
 } = vi.hoisted(() => ({
   mockCreateFunction: vi.fn(),
   mockUpdateFunctionCode: vi.fn(),
@@ -37,6 +43,8 @@ const {
   mockGetEnvId: vi.fn(),
   mockLogCloudBaseResult: vi.fn(),
   mockIsCloudMode: vi.fn(),
+  mockCheckDeployConfig: vi.fn(),
+  mockDeployFunction: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
@@ -84,6 +92,9 @@ describe("functions tool helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     functionUpdatingRuntime.sleep = async () => undefined;
+    // 凭证环境变量会影响镜像部署用例，逐个用例自行设置，默认必须干净
+    delete process.env.TCB_TCR_USERNAME;
+    delete process.env.TCB_TCR_PASSWORD;
     mockIsCloudMode.mockReturnValue(false);
     mockGetEnvId.mockResolvedValue("env-test");
     mockCreateFunction.mockResolvedValue({
@@ -105,12 +116,29 @@ describe("functions tool helpers", () => {
       Environment: { Variables: [] },
       VpcConfig: {},
     });
+    mockCheckDeployConfig.mockReturnValue({ ready: true, checks: [] });
+    mockDeployFunction.mockResolvedValue({
+      functionName: "http-image-demo",
+      functionType: "HTTP",
+      requestedStrategy: "image",
+      effectiveStrategy: "image",
+      action: "create",
+      operations: ["deploy-function"],
+      dryRun: true,
+      steps: [{ stage: "done", status: "success" }],
+      warnings: [],
+      plan: { action: "create", operations: ["deploy-function"] },
+    });
     mockGetCloudBaseManager.mockResolvedValue({
       functions: {
         createFunction: mockCreateFunction,
         updateFunctionCode: mockUpdateFunctionCode,
         updateFunctionConfig: mockUpdateFunctionConfig,
         getFunctionDetail: mockGetFunctionDetail,
+      },
+      functionDeployer: {
+        checkConfig: mockCheckDeployConfig,
+        deployFunction: mockDeployFunction,
       },
       access: {
         createAccess: mockCreateAccess,
@@ -122,6 +150,8 @@ describe("functions tool helpers", () => {
 
   afterEach(() => {
     functionUpdatingRuntime.sleep = originalSleep;
+    delete process.env.TCB_TCR_USERNAME;
+    delete process.env.TCB_TCR_PASSWORD;
   });
 
   it("soft-warns bare layer names and accepts env-suffixed names", () => {
@@ -254,6 +284,553 @@ describe("functions tool helpers", () => {
         }),
       ]),
     );
+  });
+
+  it("maps createFunction cloud buildStrategy to functionDeployer dry-run", async () => {
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: true,
+      func: {
+        name: "http-cloud-demo",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "personal",
+          build: {
+            cwd: "/workspace/functions/http-cloud-demo",
+            namespace: "demo",
+            repository: "http-cloud-demo",
+            registryCredential: personalCredential,
+          },
+        },
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    // func 的镜像/构建字段原样透传给 functionDeployer，runtime/imagePort 默认值由 SDK 补齐。
+    expect(mockCheckDeployConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "http-cloud-demo",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: expect.objectContaining({
+          imageType: "personal",
+          build: expect.objectContaining({
+            cwd: "/workspace/functions/http-cloud-demo",
+          }),
+        }),
+      }),
+    );
+    expect(mockDeployFunction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buildStrategy: "cloud",
+        imageConfig: expect.objectContaining({ imageType: "personal" }),
+      }),
+      expect.objectContaining({
+        dryRun: true,
+        autoGrant: false,
+        onProgress: expect.any(Function),
+      }),
+    );
+  });
+
+  it("starts a confirmed deployment asynchronously and exposes task status", async () => {
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: false,
+      wait: false,
+      confirm: true,
+      func: {
+        name: "http-async-demo",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "personal",
+          build: {
+            cwd: "/workspace/functions/http-async-demo",
+            namespace: "demo",
+            repository: "http-async-demo",
+            registryCredential: personalCredential,
+          },
+        },
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    expect(payload.data.taskId).toEqual(expect.any(String));
+    expect(payload.data.status).toBe("running");
+    expect(payload.message).toContain("异步镜像部署任务");
+    expect(mockDeployFunction).toHaveBeenCalledWith(
+      expect.objectContaining({ buildStrategy: "cloud" }),
+      expect.objectContaining({ dryRun: false, autoGrant: false }),
+    );
+
+    const statusResult = await tools.queryFunctions.handler({
+      action: "getFunctionDeployStatus",
+      taskId: payload.data.taskId,
+    });
+    const statusPayload = JSON.parse(statusResult.content[0].text);
+    expect(statusPayload.success).toBe(true);
+    expect(statusPayload.data.taskId).toBe(payload.data.taskId);
+    expect(["running", "succeeded"]).toContain(statusPayload.data.status);
+  });
+
+  it("rejects status lookup for an unknown deployment task", async () => {
+    const result = await tools.queryFunctions.handler({
+      action: "getFunctionDeployStatus",
+      taskId: "missing-task",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("未找到部署任务");
+  });
+
+  it("exposes buildStrategy as an enum on the func Inspector schema", () => {
+    const funcSchema = tools.manageFunctions.meta.inputSchema.func;
+    expect(funcSchema).toBeDefined();
+    const buildStrategy = funcSchema.unwrap().shape.buildStrategy;
+    expect(buildStrategy).toBeDefined();
+    expect(buildStrategy.unwrap()._def.typeName).toBe("ZodEnum");
+    expect(buildStrategy.unwrap()._def.values).toEqual([
+      "zip",
+      "cloud",
+      "local",
+      "image",
+    ]);
+  });
+  it("rejects real deploy without explicit confirmation", async () => {
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: false,
+      func: {
+        name: "http-cloud-demo",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "personal",
+          build: {
+            cwd: "/workspace/functions/http-cloud-demo",
+            namespace: "demo",
+            repository: "http-cloud-demo",
+            registryCredential: personalCredential,
+          },
+        },
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("confirm=true");
+    expect(mockDeployFunction).not.toHaveBeenCalled();
+  });
+
+  it("executes a confirmed cloud deployment with default autoGrant", async () => {
+    mockDeployFunction.mockResolvedValueOnce({
+      functionName: "http-cloud-demo",
+      functionType: "HTTP",
+      requestedStrategy: "cloud",
+      effectiveStrategy: "cloud",
+      action: "create",
+      operations: ["create-function"],
+      dryRun: false,
+      buildId: "build-456",
+      imageUri: "demo.tencentcloudcr.com/team/http-cloud-demo:v1",
+      gatewayUrl: "https://example.com/functions/http-cloud-demo",
+      steps: [
+        { stage: "build", status: "success" },
+        { stage: "deploy-function", status: "success" },
+      ],
+      warnings: [],
+    });
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: false,
+      confirm: true,
+      func: {
+        name: "http-cloud-demo",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "personal",
+          build: {
+            cwd: "/workspace/functions/http-cloud-demo",
+            namespace: "demo",
+            repository: "http-cloud-demo",
+            registryCredential: personalCredential,
+          },
+        },
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    expect(payload.message).toContain("部署成功");
+    expect(mockDeployFunction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buildStrategy: "cloud",
+        imageConfig: expect.objectContaining({ imageType: "personal" }),
+      }),
+      expect.objectContaining({
+        dryRun: false,
+        autoGrant: false,
+        onProgress: expect.any(Function),
+      }),
+    );
+  });
+
+  it("executes a confirmed personal local deployment in local mode", async () => {
+    mockDeployFunction.mockResolvedValueOnce({
+      functionName: "http-local-demo",
+      functionType: "HTTP",
+      requestedStrategy: "local",
+      effectiveStrategy: "local",
+      action: "create",
+      operations: ["create-function"],
+      dryRun: false,
+      imageUri: "ccr.ccs.tencentyun.com/demo/http-local-demo:v1",
+      steps: [
+        { stage: "login", status: "success" },
+        { stage: "build", status: "success" },
+        { stage: "push", status: "success" },
+        { stage: "deploy-function", status: "success" },
+      ],
+      warnings: [],
+    });
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: false,
+      confirm: true,
+      func: {
+        name: "http-local-demo",
+        type: "HTTP",
+        buildStrategy: "local",
+        imageConfig: {
+          imageType: "personal",
+          build: {
+            cwd: "/workspace/functions/http-local-demo",
+            repository: "ccr.ccs.tencentyun.com/demo/http-local-demo",
+            tag: "v1",
+            registryCredential: personalCredential,
+          },
+        },
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    expect(mockDeployFunction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buildStrategy: "local",
+        imageConfig: expect.objectContaining({
+          imageType: "personal",
+          build: expect.objectContaining({
+            cwd: "/workspace/functions/http-local-demo",
+            repository: "ccr.ccs.tencentyun.com/demo/http-local-demo",
+            tag: "v1",
+            registryCredential: personalCredential,
+          }),
+        }),
+      }),
+      expect.objectContaining({
+        dryRun: false,
+        autoGrant: false,
+        onProgress: expect.any(Function),
+      }),
+    );
+  });
+
+  it("fills personal registry credential from TCB_TCR_* env when omitted from args", async () => {
+    process.env.TCB_TCR_USERNAME = "100012345678";
+    process.env.TCB_TCR_PASSWORD = "env-only-secret";
+
+    await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: {
+        name: "http-env-cred",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "personal",
+          // 请求参数里完全没有 registryCredential
+          build: { cwd: "/workspace/functions/http-env-cred" },
+        },
+      },
+    });
+
+    expect(mockCheckDeployConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imageConfig: expect.objectContaining({
+          build: expect.objectContaining({
+            registryCredential: {
+              username: "100012345678",
+              password: "env-only-secret",
+            },
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("lets an explicit credential argument win over the environment", async () => {
+    process.env.TCB_TCR_USERNAME = "100000000000";
+    process.env.TCB_TCR_PASSWORD = "env-secret";
+
+    await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: {
+        name: "http-arg-cred",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "personal",
+          build: {
+            cwd: "/workspace/functions/http-arg-cred",
+            registryCredential: personalCredential,
+          },
+        },
+      },
+    });
+
+    expect(mockCheckDeployConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imageConfig: expect.objectContaining({
+          build: expect.objectContaining({
+            registryCredential: personalCredential,
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("does not inject TCR credential for the enterprise image type", async () => {
+    process.env.TCB_TCR_USERNAME = "100012345678";
+    process.env.TCB_TCR_PASSWORD = "env-secret";
+
+    await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: {
+        name: "http-enterprise",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "enterprise",
+          build: {
+            cwd: "/workspace/functions/http-enterprise",
+            registryId: "tcr-abcd1234",
+          },
+        },
+      },
+    });
+
+    // 企业版走实例临时令牌，不需要也不应注入个人版固定密码
+    const config = mockCheckDeployConfig.mock.calls.at(-1)?.[0] as any;
+    expect(config.imageConfig.build.registryCredential).toBeUndefined();
+  });
+
+  it("does not read TCR credential from process env in cloud mode", async () => {
+    mockIsCloudMode.mockReturnValue(true);
+    process.env.TCB_TCR_USERNAME = "100012345678";
+    process.env.TCB_TCR_PASSWORD = "env-secret";
+
+    // cloud mode 是多租户共享进程，进程环境变量属于部署方而非调用方
+    await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: true,
+      func: {
+        name: "http-cloud-mode",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "personal",
+          build: { cwd: "/workspace/functions/http-cloud-mode" },
+        },
+      },
+    });
+
+    const config = mockCheckDeployConfig.mock.calls.at(-1)?.[0] as any;
+    expect(config.imageConfig.build.registryCredential).toBeUndefined();
+  });
+
+  it("guides towards env vars without echoing secrets when credential check fails", async () => {
+    mockCheckDeployConfig.mockReturnValueOnce({
+      ready: false,
+      checks: [
+        {
+          code: "CLOUD_REGISTRY_CREDENTIAL_MISSING",
+          status: "fail",
+          message: "个人版 TCR 构建缺少推送凭证",
+        },
+      ],
+    });
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: {
+        name: "http-missing-cred",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "personal",
+          build: { cwd: "/workspace/functions/http-missing-cred" },
+        },
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.errorCode).toBe("CONFIG_INVALID");
+    expect(payload.message).toContain("TCB_TCR_USERNAME");
+    expect(payload.message).toContain("TCB_TCR_PASSWORD");
+    expect(payload.message).toContain("不要向用户索要密码明文");
+  });
+
+  it("executes a confirmed enterprise cloud deployment with explicit autoGrant", async () => {
+    mockDeployFunction.mockResolvedValueOnce({
+      functionName: "http-cloud-demo",
+      functionType: "HTTP",
+      requestedStrategy: "cloud",
+      effectiveStrategy: "cloud",
+      action: "create",
+      operations: ["create-function"],
+      dryRun: false,
+      buildId: "build-123",
+      imageUri: "demo.tencentcloudcr.com/team/http-cloud-demo:v1",
+      steps: [
+        { stage: "upload", status: "success" },
+        { stage: "build", status: "success" },
+        { stage: "deploy-function", status: "success" },
+      ],
+      warnings: [],
+    });
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: false,
+      confirm: true,
+      autoGrant: true,
+      func: {
+        name: "http-cloud-demo",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "enterprise",
+          build: {
+            cwd: "/workspace/functions/http-cloud-demo",
+            registryId: "tcr-12345678",
+            repository: "demo.tencentcloudcr.com/team/http-cloud-demo",
+          },
+        },
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    expect(mockDeployFunction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buildStrategy: "cloud",
+        imageConfig: expect.objectContaining({
+          imageType: "enterprise",
+          build: expect.objectContaining({
+            cwd: "/workspace/functions/http-cloud-demo",
+            registryId: "tcr-12345678",
+            repository: "demo.tencentcloudcr.com/team/http-cloud-demo",
+          }),
+        }),
+      }),
+      expect.objectContaining({
+        dryRun: false,
+        autoGrant: true,
+        onProgress: expect.any(Function),
+      }),
+    );
+  });
+
+  it("allows cloud strategy dry-run in cloud mode", async () => {
+    mockIsCloudMode.mockReturnValue(true);
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: true,
+      func: {
+        name: "http-cloud-demo",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "personal",
+          build: {
+            cwd: "/workspace/http-cloud-demo",
+            namespace: "demo",
+            repository: "http-cloud-demo",
+            registryCredential: personalCredential,
+          },
+        },
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    expect(mockDeployFunction).toHaveBeenCalledWith(
+      expect.objectContaining({ buildStrategy: "cloud" }),
+      expect.objectContaining({ dryRun: true, autoGrant: false }),
+    );
+  });
+
+  it("rejects local strategy in cloud mode", async () => {
+    mockIsCloudMode.mockReturnValue(true);
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: true,
+      func: {
+        name: "http-local-demo",
+        type: "HTTP",
+        buildStrategy: "local",
+        imageConfig: {
+          imageType: "personal",
+          build: {
+            cwd: "/workspace/http-local-demo",
+            repository: "ccr.ccs.tencentyun.com/demo/http-local-demo",
+            registryCredential: personalCredential,
+          },
+        },
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("buildStrategy=local");
+    expect(mockDeployFunction).not.toHaveBeenCalled();
+  });
+
+  it("rejects real cloud deployment in cloud mode", async () => {
+    mockIsCloudMode.mockReturnValue(true);
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: false,
+      confirm: true,
+      func: {
+        name: "http-cloud-demo",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "personal",
+          build: {
+            cwd: "/workspace/http-cloud-demo",
+            namespace: "demo",
+            repository: "http-cloud-demo",
+            registryCredential: personalCredential,
+          },
+        },
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("读取并打包本地构建上下文");
+    expect(mockDeployFunction).not.toHaveBeenCalled();
   });
 
   it("creates a CustomImage HTTP function via image deploy mode", async () => {

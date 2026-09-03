@@ -1167,7 +1167,7 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
       name: "action",
       type: "string",
       required: true,
-      description: `只读操作类型： - \`listFunctions\`: 列出所有 CloudBase 云函数 - \`getFunctionDetail\`: 获取 CloudBase 云函数详情（需要 functionName） - \`listFunctionLogs\`: 查询 CloudBase 云函数执行日志（需要 functionName） - \`getFunctionLogDetail\`: 获取日志详情（需要 requestId） - \`listFunctionLayers\`: 列出函数绑定的层 - \`listLayers\`: 列出所有层（账号级视图，含其他环境创建的层） - \`listLayerVersions\`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图） - \`getLayerVersionDetail\`: 获取层版本详情（账号级视图） - \`listFunctionTriggers\`: 列出函数触发器（用于查看定时任务 / cron / timer 配置） - \`getFunctionDownloadUrl\`: 获取函数代码下载地址 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl"`,
+      description: `只读操作类型： - \`listFunctions\`: 列出所有 CloudBase 云函数 - \`getFunctionDetail\`: 获取 CloudBase 云函数详情（需要 functionName） - \`listFunctionLogs\`: 查询 CloudBase 云函数执行日志（需要 functionName） - \`getFunctionLogDetail\`: 获取日志详情（需要 requestId） - \`listFunctionLayers\`: 列出函数绑定的层 - \`listLayers\`: 列出所有层（账号级视图，含其他环境创建的层） - \`listLayerVersions\`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图） - \`getLayerVersionDetail\`: 获取层版本详情（账号级视图） - \`listFunctionTriggers\`: 列出函数触发器（用于查看定时任务 / cron / timer 配置） - \`getFunctionDownloadUrl\`: 获取函数代码下载地址 - \`getFunctionDeployStatus\`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND。 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl", "getFunctionDeployStatus"`,
     },
     {
       name: "functionName",
@@ -1228,6 +1228,11 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
       name: "layerVersion",
       type: "number",
       description: `层版本号。\`getLayerVersionDetail\` 操作必填`,
+    },
+    {
+      name: "taskId",
+      type: "string",
+      description: `\`getFunctionDeployStatus\` 操作时的异步部署任务 ID（由 manageFunctions 的 wait=false 返回）。任务仅保存在当前 MCP 进程内存中：终态任务保留约 30 分钟，运行中任务最长保留 2 小时。`,
     }
   ]}
 />
@@ -1235,7 +1240,9 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
 ---
 
 ### `manageFunctions`
-CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。镜像部署（Runtime=CustomImage）：先把代码经 zip→COS→CloudApp custom 构建→TCR 推镜像（这一阶段为裸腾讯云 API，本工具不覆盖），再用 createFunction(func.runtime="CustomImage", imageConfig) 基于 TCR 镜像创建 HTTP 函数；后续迭代用 updateFunctionCode + imageConfig 换镜像 tag。危险操作需要显式 confirm=true。
+CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。HTTP 云函数镜像构建部署：createFunction / updateFunctionCode 通过 func.buildStrategy 区分。func.buildStrategy=image（已有镜像，填 func.imageConfig.imageUri）直接创建/更新 HTTP 函数；func.buildStrategy=local（本地 Docker 构建推送）、cloud（CloudApp 云端构建）走镜像构建部署编排（需要 func.imageConfig；build 非必填，缺省仓库坐标自动补齐：namespace 默认 envId、repository 默认函数名），默认仅生成 dry-run 计划；传入 dryRun=false 且 confirm=true 后执行真实部署。真实部署可传 wait=false 立即返回 taskId，再通过 queryFunctions 的 getFunctionDeployStatus 查询进度和结果。wait=false 仅表示当前 Tool 不等待完整部署；调用方不得在 status=running 时结束流程，必须自动轮询到 succeeded/failed 后再向用户汇报，除非达到轮询上限。local 始终要求本地 MCP 模式；cloud 的真实执行需要读取本地构建上下文，也要求本地 MCP 模式；cloud mode 仅支持 cloud dry-run 和 image 策略。func.buildStrategy 省略或为 zip 时按传统代码包部署。危险操作需要显式 confirm=true。
+
+**个人版 TCR 凭证**：imageType=personal 的 local/cloud 构建需要推送凭证。若 MCP 配置的 env 中已设置 TCB_TCR_USERNAME 与 TCB_TCR_PASSWORD（与 TENCENTCLOUD_SECRETID 等密钥同样的配置方式），则不需要在请求参数中传递 func.imageConfig.build.registryCredential，留空即可自动读取。不要向用户索要密码明文，也不要把密码写进工具参数；缺少凭证时应引导用户在 MCP 配置的 env 中设置这两个环境变量。
 
 **层（Layer）说明**：
 - 层为 SCF 账号级共享命名空间：不同环境创建同名层会共享同一层的版本序列；删除某版本会影响所有绑定该版本的环境的函数
@@ -1255,7 +1262,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "func",
       type: "object",
-      description: `createFunction 操作的函数配置`,
+      description: `createFunction / updateFunctionCode 的函数配置。镜像/构建部署通过 func.buildStrategy（zip/cloud/local/image）区分，镜像相关字段收敛在 func.imageConfig 命名空间下。`,
       children: [
         {
           name: "name",
@@ -1339,9 +1346,14 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
           description: `运行时环境。Event 函数支持多种运行时:   Nodejs: Nodejs20.19, Nodejs18.15, Nodejs16.13, Nodejs14.18, Nodejs12.16, Nodejs10.15, Nodejs8.9   Python: Python3.10, Python3.9, Python3.7, Python3.6, Python2.7   Php: Php8.0, Php7.4, Php7.2   Java: Java8, Java11   Golang: Golang1 推荐运行时:   Node.js: Nodejs18.15   Python: Python3.9   PHP: Php7.4   Java: Java11   Go: Golang1 镜像部署（基于 TCR 镜像创建函数）时填 "CustomImage"，并提供 imageConfig；此时无需 functionRootPath/zipFile。`,
         },
         {
+          name: "buildStrategy",
+          type: "string",
+          description: `HTTP 函数部署策略：zip=代码包部署（默认，缺省即 zip）；image=使用已有镜像（imageConfig.imageUri 必填）；cloud=云端构建镜像；local=本地 Docker 构建镜像。cloud/local 走镜像构建部署编排，需要 imageConfig；其中 build 非必填：目标仓库坐标（namespace 默认 envId、repository 默认函数名）等缺省可自动补齐，仅在需要指定构建细节或个人版 build.registryCredential 等特定字段时才提供 build。 可填写的值: "zip", "cloud", "local", "image"`,
+        },
+        {
           name: "imageConfig",
           type: "object",
-          description: `镜像部署配置（仅 runtime=CustomImage 时使用）。用于 zip→COS→CloudApp custom 构建→TCR→SCF 的「阶段 B」：基于已推送到 TCR 的镜像创建 HTTP 函数。传入 imageConfig 后即按镜像部署处理，函数无需打包本地代码、scf_bootstrap 或 Handler。`,
+          description: `镜像配置（buildStrategy=image/cloud/local 或 runtime=CustomImage 时使用），镜像相关字段全部收敛在此命名空间下。image：填 imageUri 使用已有镜像；cloud/local：可填 build 描述如何构建，省略时用默认仓库坐标自动补齐。传入已有镜像（imageUri）即按镜像部署处理，函数无需打包本地代码、scf_bootstrap 或 Handler。`,
           children: [
             {
               name: "imageType",
@@ -1351,8 +1363,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
             {
               name: "imageUri",
               type: "string",
-              required: true,
-              description: `完整镜像地址（必须含 tag），格式 {domain}/{namespace}/{image}:{tag}，例如 ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001。不要使用 :latest。`,
+              description: `完整镜像地址（必须含 tag），格式 {domain}/{namespace}/{image}:{tag}，例如 ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001。不要使用 :latest。buildStrategy=image（已有镜像）时必填；buildStrategy=cloud/local 可以不填：镜像地址由构建流程产出并回传；目标仓库由 build.repository/build.namespace 决定，显式提供时优先使用你提供的配置，省略时由 manager-node 用默认值自动补齐并创建/复用（namespace 默认 envId、repository 默认函数名）。`,
             },
             {
               name: "registryId",
@@ -1383,6 +1394,86 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
               name: "containerImageAccelerate",
               type: "boolean",
               description: `是否开启镜像加速。镜像较大时建议开启以缩短冷启动时间。`,
+            },
+            {
+              name: "build",
+              type: "object",
+              description: `镜像构建目标。buildStrategy=cloud（云端构建）或 local（本地 Docker 构建）时使用；buildStrategy=image（已有镜像）不填。cloud/local 下 build 非必填：缺省仓库坐标可自动补齐（namespace 默认 envId、repository 默认函数名），仅需指定构建细节或个人版 build.registryCredential 等字段时才填。`,
+              children: [
+                {
+                  name: "cwd",
+                  type: "string",
+                  required: true,
+                  description: `镜像构建上下文的绝对目录。`,
+                },
+                {
+                  name: "dockerfile",
+                  type: "string",
+                  description: `Dockerfile 相对 build.cwd 的路径，默认 Dockerfile。`,
+                },
+                {
+                  name: "registryId",
+                  type: "string",
+                  description: `企业版 TCR 实例 ID；personal 镜像构建不填。`,
+                },
+                {
+                  name: "namespace",
+                  type: "string",
+                  description: `目标镜像命名空间；不传时默认使用当前环境 ID（envId）。`,
+                },
+                {
+                  name: "repository",
+                  type: "string",
+                  description: `不含 tag/digest 的目标仓库路径；不传时默认使用函数名。local personal 需填写完整 registry/namespace/repository。`,
+                },
+                {
+                  name: "tag",
+                  type: "string",
+                  description: `local 策略的目标镜像 tag；cloud 策略由平台生成，不填。`,
+                },
+                {
+                  name: "platform",
+                  type: "string",
+                  description: `目标镜像平台，当前仅支持 linux/amd64。 可填写的值: const "linux/amd64"`,
+                },
+                {
+                  name: "buildArgs",
+                  type: "object",
+                  description: `Docker 构建参数。禁止传递密钥或凭证。`,
+                },
+                {
+                  name: "registryCredential",
+                  type: "object",
+                  description: `个人版 TCR 推送凭证（personal local/cloud 需要）。推荐整体省略，改为在 MCP 配置的 env 中设置 TCB_TCR_USERNAME 与 TCB_TCR_PASSWORD，与 TENCENTCLOUD_SECRETID 等密钥的配置方式一致；已设置环境变量时不需要在请求参数中传递凭证。字段级回退：显式传入的字段优先，未传字段读环境变量。`,
+                  children: [
+                    {
+                      name: "username",
+                      type: "string",
+                      description: `个人版 CCR 登录用户名，必须为腾讯云账号 UIN。省略时回退读取 MCP 进程的 TCB_TCR_USERNAME 环境变量。`,
+                    },
+                    {
+                      name: "password",
+                      type: "string",
+                      description: `个人版 CCR 固定密码。**不要在此字段填写明文密码**：请在 MCP 配置的 env 中设置 TCB_TCR_PASSWORD，本字段留空即可自动读取。敏感字段，禁止写入日志或响应。`,
+                    }
+                  ],
+                },
+                {
+                  name: "forceBuild",
+                  type: "boolean",
+                  description: `是否忽略同摘要复用并强制重新构建。`,
+                },
+                {
+                  name: "retainedTags",
+                  type: "integer",
+                  description: `个人版 TCR 构建完成后保留的最新镜像标签数量。`,
+                }
+              ],
+            },
+            {
+              name: "localFallback",
+              type: "string",
+              description: `buildStrategy=local 时本地构建不可用的处理方式，默认 error。 可填写的值: "cloud", "error"`,
             }
           ],
         },
@@ -1560,14 +1651,24 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
       description: `层绑定时的代码保护密钥`,
     },
     {
-      name: "imageConfig",
-      type: "unknown",
-      description: `镜像部署配置（Runtime=CustomImage）。createFunction 时基于 TCR 镜像创建 HTTP 函数，updateFunctionCode 时仅更换镜像 tag。需提供 imageUri（含 tag），企业版 TCR 还需 registryId。也可在 func.imageConfig 中提供；两处都传时以顶层 imageConfig 优先。`,
+      name: "dryRun",
+      type: "boolean",
+      description: `镜像构建部署（func.buildStrategy=cloud/local）是否只生成部署计划。默认 true；传 false 时必须同时传 confirm=true。`,
+    },
+    {
+      name: "wait",
+      type: "boolean",
+      description: `真实镜像部署是否等待完整部署；设为 false 立即返回 taskId 并后台执行。`,
+    },
+    {
+      name: "autoGrant",
+      type: "boolean",
+      description: `镜像部署是否允许 manager-node 自动补齐固定白名单 CAM 策略。默认 false；仅在明确确认权限变更时设为 true。`,
     },
     {
       name: "confirm",
       type: "boolean",
-      description: `危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作需要显式传入 confirm=true`,
+      description: `危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作以及镜像构建部署（func.buildStrategy=cloud/local）真实执行需要显式传入 confirm=true`,
     },
     {
       name: "incrementalFile",
@@ -1960,7 +2061,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 - aider: Aider AI编辑器
 
 特别说明：
-- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.32.2），便于后续维护和版本追踪
+- rules 模板会自动包含当前 mcp 版本号信息（版本号：2.32.4），便于后续维护和版本追踪
 - 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）
 
 #### 参数
@@ -2000,8 +2101,9 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
       - 需要 auth-web 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web)
       - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)
 
-      固定技能文档 (skill) 查询当前支持 28 个固定文档，分别是：
-      文档名：ai-model-nodejs 文档介绍："Use this skill for Node.js backend AI via @cloudbase/node-sdk (&gt;=3.16.0) — cloud functions, CloudRun, Express, Koa, NestJS, serverless APIs, scheduled jobs, LLM proxies. Only SDK supporting image generation (ai.createImageModel + generateImage). Text models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field of generateText/streamText. MUST run two-step preflight before code — see body. Keywords: backend, 云函数, 云托管, serverless, LLM proxy, agent orchestration, generateText, streamText, generateImage, createModel, hunyuan-image, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat)."
+      固定技能文档 (skill) 查询当前支持 29 个固定文档，分别是：
+      文档名：skills 文档介绍：Unified CloudBase execution guide for all-in-one skill installs. Use this first for CloudBase app tasks, especially existing apps with TODOs, fixed pages, or active handlers. Routes PostgreSQL / CloudBase PG / app.rdb() / queryPgDatabase / managePgDatabase work away from legacy NoSQL and old auth patterns.
+文档名：ai-model-nodejs 文档介绍："Use this skill for Node.js backend AI via @cloudbase/node-sdk (&gt;=3.16.0) — cloud functions, CloudRun, Express, Koa, NestJS, serverless APIs, scheduled jobs, LLM proxies. Only SDK supporting image generation (ai.createImageModel + generateImage). Text models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field of generateText/streamText. MUST run two-step preflight before code — see body. Keywords: backend, 云函数, 云托管, serverless, LLM proxy, agent orchestration, generateText, streamText, generateImage, createModel, hunyuan-image, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat)."
 文档名：ai-model-web 文档介绍："Use this skill when a browser/Web app (React, Vue, Angular, Next, Nuxt, static sites, SPAs, dashboards, AI chat UI) needs AI models via @cloudbase/js-sdk. Default routing for page/页面/Web/前端/frontend/网页/H5 AI — call directly from browser, do NOT propose a Node.js proxy. Covers generateText and streamText. Models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the model field. MUST run two-step preflight before code — see body. Keywords: 页面, Web, 前端, React, Vue, Next, Nuxt, SPA, AI chat UI, generateText, streamText, createModel, hunyuan-exp, Token Credits, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for Node.js backend (use ai-model-nodejs), Mini Program (use ai-model-wechat), or image generation (Node SDK only)."
 文档名：ai-model-wechat 文档介绍："Use this skill for WeChat Mini Program AI via wx.cloud.extend.AI (小程序, 企业微信小程序, wx.cloud apps). Features generateText and streamText with callbacks (onText, onEvent, onFinish). Models via wx.cloud.extend.AI.createModel with groups hunyuan-exp (小程序成长计划), cloudbase (main managed), or custom-*. Model IDs (deepseek-v4-flash, deepseek-v3.2, hunyuan-2.0-instruct-20251111, glm-5, kimi-k2.6) go in the data wrapper model field. API differs from JS/Node SDK — streamText needs data wrapper, generateText returns raw response. MUST run two-step preflight before code — see body. Keywords: Mini Program AI, wx.cloud.extend.AI, 小程序成长计划, ai_miniprogram_inspire_plan, Token Credits 资源包, generateText, streamText, createModel, hunyuan-exp, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, MiniMax. NOT for browser/Web (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs)."
 文档名：auth-nodejs-cloudbase 文档介绍：CloudBase Node SDK auth guide for server-side identity, user lookup, and custom login tickets. This skill should be used when Node.js code must read caller identity, inspect end users, or bridge an existing user system into CloudBase; not when configuring providers or building client login UI.
@@ -2030,14 +2132,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 文档名：ui-design 文档介绍：Use when users need visual direction, interface hierarchy, layout decisions, design specifications, or prototypes before implementing a Web or mini program UI.
 文档名：web-development 文档介绍：Use when users need to implement, integrate, debug, build, deploy, or validate a Web frontend after the product direction is already clear, especially for React, Vue, Vite, browser flows, or CloudBase Web integration.
 
-      OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。当前支持 7 个 API 文档，分别是：
-      API名：mysqldb API介绍：关系型数据库 RESTful API (MySQL/PostgreSQL) - 云开发关系型数据库 HTTP API
-API名：functions API介绍：Cloud Functions API - 云函数 HTTP API
-API名：auth API介绍：Authentication API - 身份认证 HTTP API
-API名：cloudrun API介绍：CloudRun API - 云托管服务 HTTP API
-API名：storage API介绍：Storage API - 云存储 HTTP API
-API名：nosql API介绍：NoSQL RESTful API - 文档型数据库 HTTP API
-API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
+      OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。当前支持 0 个 API 文档，分别是：
 
 #### 参数
 
@@ -2052,12 +2147,12 @@ API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
     {
       name: "skillName",
       type: "string",
-      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
+      description: `mode=skill 时指定。技能名称。 可填写的值: "skills", "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
     },
     {
       name: "apiName",
       type: "string",
-      description: `mode=openapi 时指定。API 名称。 可填写的值: "mysqldb", "functions", "auth", "cloudrun", "storage", "nosql", "ai_model"`,
+      description: `mode=openapi 时指定。API 名称。 当前暂时无法枚举可选值；如需查看当前可用项，可直接传入字符串，工具会在执行时返回可用列表。`,
     },
     {
       name: "action",
