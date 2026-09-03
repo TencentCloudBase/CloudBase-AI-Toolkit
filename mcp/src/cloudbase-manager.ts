@@ -340,11 +340,12 @@ class EnvironmentManager {
                 return this.cachedEnvId;
             }
 
-            // 2. 项目级配置固定的环境（`.cloudbase/project.json` 的 envId）
+            // 2. 项目级配置固定的环境（.cloudbase/project.json 的 envId，
+            //    回退 cloudbaserc.json 的字面量/{{env.*}} envId）
             // 优先于账号级登录态：登录态是全局的，可能指向另一个仓库绑定的环境。
             const projectEnvId = readProjectEnvId();
             if (projectEnvId) {
-                debug('使用项目配置(.cloudbase/project.json)的环境ID:', { envId: projectEnvId });
+                debug('使用项目配置(project.json/cloudbaserc.json)的环境ID:', { envId: projectEnvId });
                 this._setCachedEnvId(projectEnvId);
                 return projectEnvId;
             }
@@ -644,7 +645,7 @@ export async function getCloudBaseManager(options: GetManagerOptions = {}): Prom
                     finalEnvId = cachedEnvId;
                 } else if (projectEnvId) {
                     // 项目级绑定优先于全局登录态 envId：后者可能来自另一个仓库
-                    debug('使用项目配置(.cloudbase/project.json)的环境ID:', { projectEnvId });
+                    debug('使用项目配置(project.json/cloudbaserc.json)的环境ID:', { projectEnvId });
                     await envManager.setEnvId(projectEnvId);
                     finalEnvId = projectEnvId;
                 } else if (loginEnvId) {

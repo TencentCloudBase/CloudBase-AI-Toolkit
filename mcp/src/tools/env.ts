@@ -927,7 +927,7 @@ async function prepareAuthEnvironment(params: {
   const currentEnvId =
     getCachedEnvId() ||
     process.env.CLOUDBASE_ENV_ID ||
-    // 项目级绑定（`.cloudbase/project.json` 的 envId）优先于账号级登录态：
+    // 项目级绑定（.cloudbase/project.json 的 envId，回退 cloudbaserc.json）优先于账号级登录态：
     // 登录态是全局的，可能指向别的仓库绑定的环境。
     readProjectEnvId() ||
     (typeof loginState?.envId === "string" && loginState.envId.length > 0
