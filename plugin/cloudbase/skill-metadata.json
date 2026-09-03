@@ -936,7 +936,8 @@
           "jsapi 支付",
           "公众号",
           "微信 oauth",
-          "支付回调"
+          "支付回调",
+          "虚拟支付"
         ],
         "allOf": [
           [
@@ -955,7 +956,10 @@
         "anyOf": [
           "jsapi",
           "openid",
-          "prepay"
+          "prepay",
+          "virtualpayment",
+          "xpay",
+          "offerid"
         ],
         "minScore": 6
       },
@@ -963,21 +967,27 @@
         "aliases": [
           "微信支付",
           "wechat pay",
-          "jsapi"
+          "jsapi",
+          "虚拟支付"
         ],
         "intents": [
           "微信支付集成",
-          "公众号 oauth"
+          "公众号 oauth",
+          "小程序虚拟支付接入"
         ],
         "entities": [
           "JSAPI",
           "openid",
           "prepay_id",
-          "支付回调"
+          "支付回调",
+          "wx.requestVirtualPayment",
+          "xpay_goods_deliver_notify",
+          "OfferID"
         ],
         "examples": [
           "小程序微信支付",
-          "公众号 oauth 授权"
+          "公众号 oauth 授权",
+          "小程序虚拟支付接入"
         ]
       }
     },
