@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-08-28 01:53:20
+最近更新时间：2026-09-03 01:54:25
 
 -   微信扫一扫 
 -   QQ
@@ -193,6 +193,7 @@ _我的收藏_
 | [DestroyMySQL](/document/api/876/128182) | 销毁MySql | 20 |
 | [RunSql](/document/api/876/127880) | 执行MySQL语句 | 100 |
 | [ExecutePGSql](/document/api/876/130469) | 在PostgreSQL数据库上执行SQL查询 | 20 |
+| [ModifyPGInstanceSpec](/document/api/876/137349) | 修改 PG 独享实例规格 | 20 |
 
 ## 登录配置相关接口
 
