@@ -5,7 +5,7 @@ import { jsonContent } from "../utils/json-content.js";
 import { isCloudMode } from "../utils/cloud-mode.js";
 import { preferGatewayOrFallback, resolveGatewayAccessUrls } from "../utils/gateway-access-urls.js";
 
-const QUERY_APP_ACTIONS = ["listApps", "getApp", "listAppVersions", "getAppVersion", "getBuildLog"] as const;
+const QUERY_APP_ACTIONS = ["listApps", "getApp", "listAppVersions", "getAppVersion", "getBuildLog", "getUploadUrl"] as const;
 const MANAGE_APP_ACTIONS = ["deployApp", "getUploadUrl", "deleteApp", "deleteAppVersion"] as const;
 const APP_FRAMEWORKS = ["vue", "react", "next", "nuxt", "vite", "angular", "static"] as const;
 
@@ -96,13 +96,14 @@ export function registerAppTools(server: ExtendedMcpServer) {
     {
       title: "查询 CloudBase 应用部署状态",
       description:
-        "查询 CloudBase 应用部署的应用和版本。可查应用列表/详情、版本列表/详情；部署后用 getAppVersion 按 buildId 轮询构建状态；getBuildLog 可查询构建日志用于诊断失败原因。",
+        "查询 CloudBase 应用部署的应用和版本。可查应用列表/详情、版本列表/详情；部署后用 getAppVersion 按 buildId 轮询构建状态；getBuildLog 可查询构建日志用于诊断失败原因。\n" +
+        "action=getUploadUrl（只读）可获取预签名上传 URL：无本地文件系统时（cloud mode），先拿到 uploadUrl 自行 PUT 代码 zip，再用返回的 unixTimestamp 调 manageApps(action=deployApp, cosTimestamp) 触发部署。",
       inputSchema: {
         action: z.enum(QUERY_APP_ACTIONS),
         serviceName: z
           .string()
           .optional()
-          .describe("CloudBase 应用服务名。getApp / listAppVersions / getAppVersion / getBuildLog 时必填；重新部署后复用同一个 serviceName 查询版本历史。"),
+          .describe("CloudBase 应用服务名。getApp / listAppVersions / getAppVersion / getBuildLog / getUploadUrl 时必填；重新部署后复用同一个 serviceName 查询版本历史。"),
         searchKey: z.string().optional().describe("按应用服务名模糊搜索关键词，仅 action=listApps 时使用。"),
         pageNo: z.number().optional().describe("分页页码，从 1 开始。"),
         pageSize: z.number().optional().describe("分页大小。"),
@@ -174,6 +175,50 @@ export function registerAppTools(server: ExtendedMcpServer) {
 
         if (!serviceName) {
           throw new Error(`action=${action} 时必须提供 serviceName`);
+        }
+
+        // getUploadUrl — 只读获取预签名上传 URL（cloud mode 上传通道第一步）
+        // 语义说明：本 action 是"铸造一张 staging 范围的上传凭据"而非纯查询，挂在只读工具下
+        // 是有意为之（cloud agent 可能只有只读权限）。凭据只能 PUT 到该 serviceName 的构建
+        // staging key，且时效短；真正改变状态的 deployApp 必须再经 manageApps（非只读）二次授权。
+        if (action === "getUploadUrl") {
+          const cosInfoResult = await appService.describeCosInfo({
+            deployType: "static-hosting",
+            serviceName,
+            suffix: ".zip",
+          });
+          // 只记录 RequestId：UploadUrl / UploadHeaders 含预签名凭据（Authorization），不能进日志
+          logCloudBaseResult(server.logger, { RequestId: cosInfoResult.RequestId });
+
+          return jsonContent(
+            buildEnvelope(
+              {
+                action,
+                serviceName,
+                uploadUrl: cosInfoResult.UploadUrl,
+                uploadHeaders: cosInfoResult.UploadHeaders,
+                unixTimestamp: cosInfoResult.UnixTimestamp,
+                usage: {
+                  method: "PUT",
+                  contentType: "application/zip",
+                  steps: [
+                    "1. 将代码打包为 zip（排除 node_modules/.git）",
+                    "2. 用 PUT 方法把 zip 上传到 uploadUrl，请求头带 Content-Type: application/zip 以及 uploadHeaders 中的每个 header",
+                    `3. 调用 manageApps(action="deployApp", serviceName="${serviceName}", cosTimestamp=<unixTimestamp>) 触发部署`,
+                  ],
+                  followup: {
+                    tool: "manageApps",
+                    args: {
+                      action: "deployApp",
+                      serviceName,
+                      cosTimestamp: cosInfoResult.UnixTimestamp,
+                    },
+                  },
+                },
+              },
+              "预签名上传 URL 获取成功。请将代码 zip PUT 上传到 uploadUrl（携带 uploadHeaders 与 Content-Type: application/zip），然后用返回的 unixTimestamp 作为 cosTimestamp 调用 manageApps(action=deployApp) 触发部署。",
+            ),
+          );
         }
 
         if (action === "getApp") {
@@ -302,6 +347,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
       title: "部署应用到 CloudBase（独立子域名）",
       description:
         "部署 Web 应用到 CloudBase（构建前后端，部署到独立子域名）。\n" +
+        "云端上传通道（cloud mode，无本地文件系统）：queryApps(action=getUploadUrl) 或 manageApps(action=getUploadUrl) 获取预签名上传 URL → agent 自行 PUT 代码 zip 到 uploadUrl（带 uploadHeaders 与 Content-Type: application/zip）→ 用返回的 unixTimestamp 作为 cosTimestamp 调 deployApp 触发部署。\n" +
         "action=getUploadUrl 获取预签名上传 URL（cloud mode 下使用），返回上传地址和 cosTimestamp。\n" +
         "action=deployApp 上传源码 ZIP 并触发远端构建部署管道：\n" +
         "  1. 远端 npm install（可通过 installCmd=\"\" 跳过）\n" +
@@ -335,9 +381,12 @@ export function registerAppTools(server: ExtendedMcpServer) {
           .optional()
           .describe("要上传并部署的本地项目根目录绝对路径。本地模式下 deployApp 时必填；通常传源码所在目录（含 package.json 和源码），不是 dist 目录。构建产物目录请用 buildPath 指定。cloud mode 下无需传此参数，改用 cosTimestamp。"),
         cosTimestamp: z
-          .string()
+          .coerce
+          .number()
+          .int()
+          .positive()
           .optional()
-          .describe("可选 COS 时间戳。传入此值则直接使用已上传的代码创建应用，跳过本地文件上传。需先调用 getUploadUrl 获取预签名 URL，上传 ZIP 包后再传此时间戳。cloud mode 下为必填；本地模式也可传此值代替 filePath。两个路径二选一：filePath（本地打包上传）或 cosTimestamp（预签名 URL 上传）。"),
+          .describe("COS 时间戳（正整数 number，来自 getUploadUrl 返回的 unixTimestamp）。传入此值则直接使用已上传的代码创建应用，跳过本地文件上传。需先调用 getUploadUrl 获取预签名 URL，上传 ZIP 包后再传此时间戳。cloud mode 下为必填；本地模式也可传此值代替 filePath。两个路径严格二选一：filePath（本地打包上传）或 cosTimestamp（预签名 URL 上传），同时提供或都不提供都会报错。"),
         appPath: z
           .string()
           .optional()
@@ -403,7 +452,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
       action: ManageAppAction;
       serviceName: string;
       filePath?: string;
-      cosTimestamp?: string;
+      cosTimestamp?: number;
       appPath?: string;
       buildPath?: string;
       framework?: string;
@@ -442,7 +491,8 @@ export function registerAppTools(server: ExtendedMcpServer) {
             deployType: "static-hosting",
             serviceName,
           });
-          logCloudBaseResult(server.logger, cosInfoResult);
+          // 只记录 RequestId：UploadUrl / UploadHeaders 含预签名凭据（Authorization），不能进日志
+          logCloudBaseResult(server.logger, { RequestId: cosInfoResult.RequestId });
 
           const defaultIgnore = defaultPackIgnore;
           // eslint-disable-next-line max-len
@@ -487,19 +537,30 @@ export function registerAppTools(server: ExtendedMcpServer) {
           // Per-action cloud gate: never read caller-controlled local paths in cloud mode.
           // Upload channel: getUploadUrl → agent HTTP PUT zip → deployApp(cosTimestamp).
           if (isCloudMode()) {
+            // 云端模式保持 #984 语义：带 localPath 一律拒绝（即使同时传了 cosTimestamp）；
+            // 仅「不带 localPath 且带 cosTimestamp」的路径放行。
             if (filePath) {
               return jsonContent(buildCloudModeUnsupportedDeployEnvelope(serviceName, "localPath"));
             }
             if (!cosTimestamp) {
               return jsonContent(buildCloudModeUnsupportedDeployEnvelope(serviceName, "missingCosTimestamp"));
             }
-          } else if (!filePath && !cosTimestamp) {
-            throw new Error("action=deployApp 时必须提供 filePath（本地模式）或 cosTimestamp（cloud mode）。");
+          } else {
+            // 本地模式：filePath 与 cosTimestamp 严格二选一，都传或都不传都报错
+            if (filePath && cosTimestamp) {
+              throw new Error(
+                "action=deployApp 时 filePath 与 cosTimestamp 二选一，不能同时提供。" +
+                "本地目录上传请只传 filePath；预签名 URL 上传请只传 cosTimestamp。",
+              );
+            }
+            if (!filePath && !cosTimestamp) {
+              throw new Error("action=deployApp 时必须提供 filePath（本地模式）或 cosTimestamp（cloud mode）。");
+            }
           }
 
           // Local stdio only: pack directory and upload. Cloud mode must never reach uploadCode.
           let cosTs = cosTimestamp;
-          if (!isCloudMode() && filePath && !cosTs) {
+          if (!isCloudMode() && filePath) {
             // Default excludes large build dirs (empirically target/ can be tens of GB).
             // Merge caller ignore with defaults so explicit ignore does not drop safety excludes.
             const mergedIgnore = Array.from(new Set([
