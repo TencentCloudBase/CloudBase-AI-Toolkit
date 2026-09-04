@@ -1363,6 +1363,15 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           `${input.action} 的 buildStrategy=local 依赖本地源码与 Docker，在 cloud mode 下不可用。请改用本地 MCP 模式，或改用 cloud/image 策略。`,
         );
       }
+      // 只拦真实执行；cloud dry-run 在 cloud mode 下放行。
+      //
+      // 放行的前提是 dry-run 全程不碰本地文件系统——hosted 环境里 build.cwd 是调用方
+      // 本机的绝对路径，一旦 SDK 在这条路径上 stat 或读取 Dockerfile / 构建上下文，
+      // 用户就会收到难以理解的 ENOENT。已按 @cloudbase/manager-node 5.8.3 源码逐段核对：
+      // deployFunction 的 dry-run 分支在 validate（config-guard）+ plan（planner）之后
+      // 直接 buildResult 返回，两个模块都没有任何 fs 调用；唯一读文件的 preflight 位于
+      // 该 return 之后，dry-run 到不了。MCP 这侧同样只做字符串校验：isAbsolutePath 就是
+      // path.isAbsolute，不做 stat。升级 manager-node 时需要重新确认这个前提。
       if (
         strategy === "cloud" &&
         input.dryRun === false &&
