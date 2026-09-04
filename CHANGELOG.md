@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+### Features
+
+* **rag**: teach agents to look up error codes via `searchKnowledgeBase` — the tool description now lists "tool call failed with a specific error code (e.g. `OperationDenied.FreePackageDenied`)" as a first-class `mode=docs` + `action=searchDocs` scenario, so agents query the official error-code docs before retrying or guessing.
+* **skill**: add an error-code troubleshooting protocol to the `cloudbase-platform` skill — when a tool call fails with a specific error code (e.g. `OperationDenied.FreePackageDenied`), extract it and route through the official docs (`searchKnowledgeBase` docs search, falling back to `docs.cloudbase.net/error-code/basic` and cloud API error codes 876/34823). Never assert capability-per-plan or error-code semantics from memory; cite the official capability doc (e.g. Web 安全域名 876/127357) or the console plan comparison instead.
+
 ## [2.32.5](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.4...v2.32.5) (2026-09-01)
 
 ### Features
