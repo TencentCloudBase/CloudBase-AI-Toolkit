@@ -63,7 +63,7 @@ IDE 支持时优先用 Plugin；只需 MCP 配置时用本包即可。
 | Official MCP Registry `io.github.TencentCloudBase/cloudbase-mcp` | [registry search=cloudbase](https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase) 发现 |
 | `npx plugins add TencentCloudBase/cloudbase-plugin` | 支持 Open Plugin Spec 的工具 |
 | `npm i -g @cloudbase/cli && tcb ai` | [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce) 统一配置多种 IDE |
-| Marketplace / 内置插件 | Claude Code、Codex、CodeBuddy、WorkBuddy、ZCode 等 |
+| Marketplace / 内置插件 | Claude Code、Codex、CodeBuddy、WorkBuddy、Kimi Code、Kimi Work、ZCode 等 |
 
 ## 连接方式
 

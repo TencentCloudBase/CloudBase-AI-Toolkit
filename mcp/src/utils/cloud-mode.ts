@@ -84,6 +84,10 @@ export function shouldRegisterTool(toolName: string): boolean {
     'manageCloudRun',
     // Download tools - local file downloads
     'manageStorage',
+
+    // manageApps is intentionally NOT listed: deployApp with localPath/filePath is
+    // blocked per-action in apps.ts (CLOUD_MODE_UNSUPPORTED_ACTION) so cloud mode
+    // can still use getUploadUrl + cosTimestamp, deleteApp, and deleteAppVersion.
   ];
 
   return !cloudIncompatibleTools.includes(toolName);

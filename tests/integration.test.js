@@ -115,10 +115,9 @@ test("MCP server basic functionality test", async () => {
       const knowledgeResult = await client.callTool({
         name: "searchKnowledgeBase",
         arguments: {
-          mode: "vector",
-          id: "cloudbase", // 知识库范围
-          content: "test", // 检索内容
-          limit: 1, // 返回结果数量
+          mode: "docs",
+          action: "searchDocs",
+          query: "cloudbase", // full-text search keyword
         },
       });
 
@@ -433,7 +432,7 @@ test.skipIf(!hasCloudBaseCredentials())("Database tools support object/object[] 
       console.log("✅ 集合创建成功，工具返回:", createText.slice(0, 200));
     }
 
-    // Wait for collection to become writable after create (see specs/nosql-collection-readiness).
+    // Wait for collection to become writable after create.
     // Backend may return success before the collection is ready for PutItem.
     await delay(5000);
 

@@ -29,6 +29,48 @@ export type CloudRunAccessType = typeof CLOUDRUN_ACCESS_TYPES[number];
 export const CLOUDRUN_PACKAGE_TYPES = ['Trial', 'Standard', 'Professional', 'Enterprise'] as const;
 export type CloudRunPackageType = typeof CLOUDRUN_PACKAGE_TYPES[number];
 
+/** 环境变量脱敏后的占位值（不保留任何明文片段）。 */
+export const MASKED_CLOUDRUN_ENV_VALUE = "***";
+
+/**
+ * 对云托管 detail 返回的 ServerConfig.EnvParams（JSON 字符串）做脱敏：
+ * 解析后把所有 value 置为占位符、保留 key，再序列化回 JSON 字符串。
+ * 解析失败（非 JSON）时整串替换为占位符，避免任何明文片段外泄。
+ * 用于默认工具返回，避免明文进入模型上下文。
+ */
+export function maskCloudRunDetailEnvParams<
+  T extends { ServerConfig?: { EnvParams?: string } | null },
+>(detail: T): T {
+  const envParams = detail?.ServerConfig?.EnvParams;
+  if (typeof envParams !== "string" || envParams === "") {
+    return detail;
+  }
+
+  let masked: string;
+  try {
+    const parsed = JSON.parse(envParams);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      masked = JSON.stringify(
+        Object.fromEntries(
+          Object.entries(parsed).map(([key]) => [key, MASKED_CLOUDRUN_ENV_VALUE]),
+        ),
+      );
+    } else {
+      masked = MASKED_CLOUDRUN_ENV_VALUE;
+    }
+  } catch {
+    masked = MASKED_CLOUDRUN_ENV_VALUE;
+  }
+
+  return {
+    ...detail,
+    ServerConfig: {
+      ...detail.ServerConfig,
+      EnvParams: masked,
+    },
+  } as T;
+}
+
 // Input schema for queryCloudRun tool
 const queryCloudRunInputSchema = {
   action: z.enum(['list', 'detail', 'templates', 'getDeployLog', 'getProcessLog', 'getDeployRecords', 'envStatus']).describe('查询操作类型：list=获取云托管服务列表（支持分页和筛选），detail=查询指定服务的详细信息（包含服务配置和最新部署状态），templates=获取可用的项目模板列表（用于初始化新项目），getDeployLog=获取构建日志（仅云端源码构建有意义，走 CODING/DescribeCloudRunBuildLog；已有镜像部署无构建过程；未登录 CODING 的账号会报错），getProcessLog=获取运行日志（部署阶段步骤+容器启动/运行日志，走 tcbr/DescribeCloudRunProcessLog；镜像部署与源码构建均可用，不依赖 CODING；RunId 来自 detail/getDeployRecords 的 latestDeploy.RunId），getDeployRecords=获取指定服务的部署记录列表（按部署时间倒序，含 BuildId/RunId/FlowRatio/Status 等字段，用于查看历史发布与回滚上下文），envStatus=查询当前环境云托管是否已开通及开通状态（Status=creating开通中/normal已开通），用于initEnv之后轮询进度或deploy之前确认环境是否就绪'),
@@ -44,6 +86,7 @@ const queryCloudRunInputSchema = {
   detailServerName: z.string().optional().describe('要查询详细信息、部署记录、构建日志或运行日志的服务名称。当action为detail、getDeployLog、getProcessLog或getDeployRecords时建议提供，必须是已存在的服务名称。可通过list操作获取可用的服务名称列表'),
   buildId: z.number().optional().describe('构建ID，仅在action=getDeployLog时使用（构建日志，仅云端源码构建）。不传时默认返回最近一次部署的构建日志'),
   runId: z.string().optional().describe('运行ID（RunId），仅在action=getProcessLog时使用。不传时默认取该服务最近一次部署记录的 RunId（与 detail/getDeployRecords 的 latestDeploy.RunId 同源）。镜像部署与源码构建均可查询运行日志'),
+  revealEnvParams: z.boolean().optional().default(false).describe('是否返回服务环境变量（ServerConfig.EnvParams）明文值（仅 action=detail 时生效）。默认 false，值脱敏为 "***"（保留 key，足够排查配置了哪些变量、变更是否生效）；true 时返回明文，敏感变量（如带密码的 DATABASE_URL）可能暴露给模型上下文，谨慎使用'),
 };
 
 // Input schema for manageCloudRun tool
@@ -150,6 +193,7 @@ type queryCloudRunInput = {
   buildId?: number;
   runId?: string;
   envId?: string;
+  revealEnvParams?: boolean;
 };
 
 type ManageCloudRunInput = {
@@ -1219,7 +1263,8 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
                   text: JSON.stringify({
                     success: true,
                     data: {
-                      service: result,
+                      // 默认脱敏 ServerConfig.EnvParams 的值（保留 key）；revealEnvParams=true 时返回明文
+                      service: input.revealEnvParams === true ? result : maskCloudRunDetailEnvParams(result),
                       latestDeploy,
                       // 若最新部署记录带镜像信息（镜像部署），透出便于展示
                       ...(extractCloudRunImageInfo(result, latestDeploy)

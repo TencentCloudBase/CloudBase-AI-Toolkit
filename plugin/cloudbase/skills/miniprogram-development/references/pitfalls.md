@@ -68,7 +68,7 @@ const name = (user && user.name) || 'Guest';
 
 **问题**：agent 教授底层绕过、省略 `--remote-npm-install`，或误以为函数返回值会回复聊天。
 
-**正确做法**：遵循 [message-push-customer-service.md](message-push-customer-service.md) —— 仅用 IDE / wxide CLI；回复走 OpenAPI `customerServiceMessage.send`；CLI 缺口标注 9109db6b。
+**正确做法**：遵循 [message-push-customer-service.md](message-push-customer-service.md) —— 仅用 IDE / wxide CLI；回复走 OpenAPI `customerServiceMessage.send`；CLI 尚未提供消息推送与日志查询能力，不要教授底层绕过。
 
 ## 6. 通用建议
 

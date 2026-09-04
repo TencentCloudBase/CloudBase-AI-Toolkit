@@ -18,13 +18,18 @@ jobs:
           ref: chore/pure_doc_skill
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Enable corepack
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "20"
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Configure Git
         run: |
@@ -32,10 +37,10 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Crawl docs
-        run: npx tsx scripts/crawl-tcb-docs.ts
+        run: pnpm exec tsx scripts/crawl-tcb-docs.ts
 
       - name: Generate action list
-        run: npx tsx scripts/generate-actionlist.ts
+        run: pnpm exec tsx scripts/generate-actionlist.ts
 
       - name: Commit and push
         run: |

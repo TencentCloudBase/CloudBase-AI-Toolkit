@@ -29,6 +29,8 @@ alwaysApply: true
 4. 技术方案设计：对于需要 spec 的需求，在完成需求设计之后，你会根据当前的技术架构和前面确认好的需求，进行技术方案设计，保存在 `specs/spec_name/design.md` 中，精简但是能够准确描述技术架构（例如架构、技术栈、技术选型、数据库/接口设计、测试策略、安全性），必要时可以用 mermaid 来绘图，跟我确认清楚后，才进入下阶段。对于不需要 spec 的小需求，可以直接在对话中给出精简方案并继续执行。
 5. 任务拆分：对于需要 spec 的需求，在完成技术方案设计后，你会根据需求文档和技术方案，细化具体要做的事情，保存在 `specs/spec_name/tasks.md` 中，跟我确认清楚后，才开始正式执行任务，同时更新任务状态。对于不需要 spec 的小需求，可以直接给出精简任务说明或直接执行。
 
+   注：`specs/` 已加入 `.gitignore`，spec 文档只写在本地、**不要 `git add` 到公开仓库**（含内部信息，完整历史归档在私有仓库 `cloudbase-mcp-specs-archive`）。
+
 格式如下
 
 ``` markdown
@@ -50,7 +52,7 @@ alwaysApply: true
    - config 用来给 AI IDE 提供的规则和 mcp 预设配置
    - tests 自动化测试
    - skills 项目级 skills 源目录
-   - specs 需求/设计/任务文档
+   - specs 需求/设计/任务文档（**本地目录，不提交到公开仓库**。含内部信息，仅保留 `plugin-marketplace-listing/` 与 `npm-supply-chain-security-hardening/` 两个被代码或规范依赖的子目录；完整历史归档在私有仓库 `cloudbase-mcp-specs-archive`）
 
 2. AGENTS 文件约定
    - `AGENTS.md` 为项目及子目录的唯一可信源
@@ -67,6 +69,68 @@ alwaysApply: true
 4. 项目子目录规则
    - `mcp/` 子目录同样适用本约定：`mcp/AGENTS.md` 为源，`mcp/CLAUDE.md`、`mcp/CODEBUDDY.md` 为软链
 </project_rules>
+
+<experts>
+## WorkBuddy 专家包源码约定
+
+- **真源**在仓库 `plugins/experts/<expert-name>/`（一个专家一个子目录，版本控制）；与对外发布目录 `plugin/`（CodeBuddy plugin）区分
+- WorkBuddy 专家目录 `~/.workbuddy/plugins/marketplaces/my-experts/plugins/` 是**同步产物（build output），禁止手改**（会被覆盖）；修改一律走"改仓库源码 → 同步命令"
+- 同步：`npm run experts:sync [expert-name]`（脚本 `scripts/sync-experts.mjs`：rsync --delete 镜像 → validate_expert.py → register_expert.py）；expert-manager 脚本在 WorkBuddy app bundle 内，路径可用 `EXPERT_MANAGER_SCRIPTS_DIR` 覆盖
+- 内容原则：精简有效、引用为主——Agent MD 只留角色/SOP/铁律/路由，领域知识引用运行时官方 skills，不复制进包防漂移；踩坑经验官方 skill 未覆盖的才留包内
+- 后续加新专家 = 在 `plugins/experts/` 建目录（手工建骨架，`init_expert.py` 强制写 my-experts 目录与仓库真源冲突）→ `npm run experts:sync`；删除专家 = 删源码目录 → 全量 `npm run experts:sync`（脚本自动清理 my-experts 孤儿产物）
+- plugin.json 的 `displayDescription` 限制 40-50 字，超长会校验 warning；`tags` 必须恰好 3 个；`defaultInitPrompt` 各语言须与 `quickPrompts[0]` 完全一致
+</experts>
+
+<internal_dirs>
+## 本地内部目录的存放、同步与获取
+
+两个目录**都不提交到公开仓库**，只在本地维护并归档到私有仓：
+
+| 目录 | 内容 | 为什么不入库 |
+| --- | --- | --- |
+| `specs/` | 规格 / 设计 / 审视报告 | 含内部任务 ID、审视报告、评测/归因上下文 |
+| `.workbuddy/` | IDE 本地状态：AI 每日记忆、plans、expert 会话历史 | 类比 `.idea/` / `.vscode/`，本就不该进版本控制；记忆里带内部任务 ID 与未公开决策 |
+
+`specs/` 里仅 `specs/plugin-marketplace-listing/` 与 `specs/npm-supply-chain-security-hardening/` 两个被代码或规范依赖的子目录留在仓库里，其余全部忽略。`.workbuddy/` 全量忽略。
+
+**写**：新 spec 照旧写在本仓库 `specs/<name>/{requirements,design,tasks}.md`，只是不要 `git add`。`.workbuddy/` 由 IDE 自行维护，不用管。
+
+### 切分支 / merge 后目录变空是预期行为
+
+这些目录不再被 git 跟踪，**从旧分支切到已移除它们的分支（或 merge 这类分支）时，git 会把工作区里的文件删掉**。这不是数据丢失，真源在私有归档仓里。
+
+- 提交时由 `pre-commit` 自动恢复一次（`lefthook.yml` 的 `internal-restore`）——本机 `post-checkout` / `post-merge` 被 git-lfs 的 `other-*` 链接接管，不走 lefthook，所以恢复挂在 pre-commit 上。
+- 手动恢复：`npm run internal:restore`
+- **AI agent：开工前发现 `specs/` 或 `.workbuddy/` 缺失、或其中某个目录是空的，先跑 `npm run internal:restore` 再继续**，不要报"文档丢失"。
+- **merge / 切分支前，本分支新写或改过的内容先跑 `npm run internal:archive`**——归档仓只在这次同步时才会拿到新内容，否则切走就没了。
+
+### 同步与获取
+
+```bash
+npm run internal:status         # 看本地与归档仓的漂移
+npm run internal:archive        # 本地 → 私有归档（只同步当前工作区）
+npm run internal:restore        # 私有归档 → 本地
+npm run internal:archive:all    # 扫所有 worktree，把漂移全收进归档仓
+```
+
+`internal:archive` 只管当前工作区；写在一个 worktree 里、没归档就切走的内容会永久丢失（已经发生过一次）。`internal:archive:all` 按内容哈希 + mtime 扫全部 worktree 补齐，是防丢的真正兜底，**已配每日自动跑**。
+
+脚本：`scripts/internal-sync.sh`。两个目录的差异：`specs/` pull 时跳过仍在版本控制里的白名单子目录（避免冲掉未提交改动）；`.workbuddy/` pull 时带 `-u`，本地更新的文件不覆盖（那是 IDE 刚写的实时状态）。
+
+归档仓位置不写在仓库里，从环境变量 `INTERNAL_ARCHIVE_DIR` 或 `~/.config/cloudbase-mcp/internal-archive-dir` 读取；没配置时脚本静默跳过，不阻塞 git 操作。
+
+**新机器**：
+
+```bash
+git clone git@github.com:binggg/cloudbase-mcp-specs-archive.git ~/Projects/cloudbase-mcp-specs-archive
+mkdir -p ~/.config/cloudbase-mcp
+printf '%s\n' "$HOME/Projects/cloudbase-mcp-specs-archive" > ~/.config/cloudbase-mcp/internal-archive-dir
+```
+
+- 私有归档仓：`binggg/cloudbase-mcp-specs-archive`（PRIVATE，main 分支），顶层同时放 `specs/` 与 `.workbuddy/`
+- 公开仓库的 git **历史**里仍能看到旧 spec 与 `.workbuddy/` 文件（只做了最新版本移除，未 rewrite）
+- 对外产物（`config/source/skills/`、`plugin/`、`doc/`、IDE command 模板）里提到的 `specs/` 指的是**使用者自己项目**里的目录，与本仓库的归档约定无关，不要往那里写私有归档信息
+</internal_dirs>
 
 <attribution_evaluation_guardrails>
 当任务来源于 failing eval、attribution issue、grader、benchmark、trace、result artifact 或其他评测证据时，必须额外遵守以下规则：
@@ -115,6 +179,38 @@ alwaysApply: true
 11. 测试 IDE 特定下载功能是否正常工作
 </add_aiide>
 
+<ide_mcp_upgrade>
+# CodeBuddy IDE 内置 CloudBase MCP 升级与白名单同步
+
+涉及以下场景时，**必须先加载 skill `codebuddy-ide-mcp-upgrade`**（本仓库 `skills/codebuddy-ide-mcp-upgrade/`）：
+
+1. 升级 CodeBuddy IDE 内置的 CloudBase MCP bundle
+2. 修改 IDE 内嵌的 `toolWhiteList` / `systemPrompt` / `attatchPrompt`
+3. 排查「IDE 里集成的 CloudBase 功能不足」
+4. **MCP 发版后同步 IDE 侧配置**
+
+## 发版强制项（防漂移）
+
+MCP 每次发版（工具增删改名）都**必须**重新生成 IDE 侧白名单。否则新工具会被 IDE 的白名单静默过滤，用户侧零变化 —— 这是历史上「IDE 里 CloudBase 功能不足」的唯一根因（实测 21 条白名单里 12 条是已被 MCP 删除或改名的死条目，用户实际只能用 9 个）。
+
+发版 checklist：
+
+1. `scripts/tools.json` 是否已更新（工具清单真源）
+2. 用 `scripts/build-config.mjs` 重新生成配置，产出新 `toolWhiteList`
+3. 检查新增 / 改名的工具在提示词里是否有对应引导 —— 提示词引用已删除的工具名会导致模型调用不存在的工具
+4. 同步新配置给 IDE 侧
+5. 交付文档里记录本次新增了哪些工具
+
+## 关键约束
+
+- **白名单按 `scripts/tools.json` 全量生成，不要裁剪**。CodeBuddy 已支持 Tool Search（工具按需检索，不再全量占上下文），当初裁剪的唯一理由已不存在；继续裁剪只会让白名单随发版漂移成死条目。
+- **改 IDE 打包产物后必须对整文件做真实编译**（`node --check`）。JSON 字段回读全绿 ≠ 文件可用 —— 曾因重复拼接 `JSON.parse('` 前缀导致整文件 `SyntaxError`，而回读校验仍报全绿。
+- **白名单条数 ≥ 实际暴露工具数是正常的**：`msg-push` 等插件工具不在 `DEFAULT_PLUGINS` 内，需注入 `CLOUDBASE_MCP_PLUGINS_ENABLED` 才注册。IDE 侧白名单是 filter 不是枚举，多留位安全且便于后续启用插件。
+- **提示词要覆盖 PG 模式**。PG 模式下认证、存储、权限、迁移四项全部改道（pgstore 与 legacy COS 是两套系统、授权走 RLS），不是「多了一种数据库」。漏了会让模型把 PG 用户引导到 NoSQL / MySQL 路径。
+
+详细流程、脚本、端到端验收用例与踩坑记录见 skill 本体。
+</ide_mcp_upgrade>
+
 <add_example>
 # CloudBase AI Toolkit - 新增用户案例/视频/文章工作流
 0. 注意标题尽量用原标题，然后适当增加一些描述
@@ -151,14 +247,14 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 </git_push>
 
 <dependency_upgrade_checklist>
-升级任何依赖（尤其 @cloudbase/manager-node 等运行时依赖）时，必须**三份 lockfile 同步**，缺一不可：
+升级任何依赖（尤其 @cloudbase/manager-node 等运行时依赖）时，必须同步更新**单一 lockfile** `pnpm-lock.yaml`：
 
-1. 根 `package-lock.json`：CI `nightly-build.yaml` 在根目录执行 `npm ci --ignore-scripts`
-2. `mcp/package-lock.json`：同一 workflow 第二步 `cd mcp && npm ci`（历史遗留 npm lockfile）
-3. `pnpm-lock.yaml`：mcp 开发主 lockfile（用 `pnpm install` 更新）
+1. 确认根 `package.json` 声明 `"packageManager": "pnpm@..."`，并用 `corepack enable` + `pnpm install` 更新依赖。
+2. 安全补丁 / 版本钉死走 `pnpm.overrides`（不要再写 npm `overrides`）。
+3. 提交前本地跑通：`pnpm install --frozen-lockfile`（workspace 覆盖根目录与 `mcp/`）。
 
-漏任一份会导致 CI 报 `Invalid: lock file's X does not satisfy Y` 或 `Missing: xxx from lock file`（2026-08-24 PR #952 实测踩坑）。
-提交前自查：`git ls-tree -r origin/main | grep -E "package-lock|pnpm-lock"` 列全所有 lockfile 逐一确认同步，push 后等 `build-and-publish` 转绿再合入。
+CI（`nightly-build.yaml` / `npm-publish.yaml` 等）统一使用 `pnpm install --frozen-lockfile`；主仓不再维护 `package-lock.json` / `mcp/package-lock.json`。
+`dsh-plugin/`、`platform-kit/`、`examples/` 若仍有各自 npm lockfile，升级那些子包时单独处理，不要回写主仓 npm lockfile。
 </dependency_upgrade_checklist>
 
 <skills_and_rules_maintenance>

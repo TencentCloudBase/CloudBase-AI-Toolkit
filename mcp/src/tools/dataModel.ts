@@ -1146,13 +1146,18 @@ classDiagram
           };
         }
 
-        // 轮询任务状态直至完成或超时
+        // 轮询任务状态直至终态（成功/确认失败）或超时。
+        // QueryModelTaskStatus 会返回 "running" 等中间态，不能只把 "init" 当作未完成，
+        // 否则中间态会被误判为失败（实测创建实际成功但 status:fail）。
         const maxWaitTime = 30000; // 30秒超时
         const startTime = Date.now();
+        const terminalStatuses = ["success", "fail", "failed"];
+        const isTerminalStatus = (s: string) =>
+          terminalStatuses.includes(s.toLowerCase());
         let status = "init";
         let statusResult: any = null;
 
-        while (status === "init" && Date.now() - startTime < maxWaitTime) {
+        while (!isTerminalStatus(status) && Date.now() - startTime < maxWaitTime) {
           await new Promise((resolve) => setTimeout(resolve, 2000)); // 等待2秒
 
           statusResult = await cloudbase.commonService("lowcode").call({
@@ -1191,9 +1196,9 @@ classDiagram
                   message:
                     status === "success"
                       ? `数据模型创建成功，共处理${models.length}个模型`
-                      : status === "init"
-                        ? `任务超时，任务ID: ${taskId}，请稍后手动查询状态`
-                        : `数据模型创建失败`,
+                      : !isTerminalStatus(status)
+                        ? `任务超时（最后状态: ${status}），任务ID: ${taskId}，请稍后手动查询状态`
+                        : `数据模型创建失败（status=${status}）`,
                   taskResult: statusResult?.Data,
                 },
                 null,

@@ -173,6 +173,16 @@ manually under **Settings → MCP Servers**.
 See [`doc/ide-setup/zcode.mdx`](../../doc/ide-setup/zcode.mdx) for the full
 guide.
 
+### Kimi Code
+
+Kimi Code supports CloudBase via its **Curated plugin marketplace** (`/plugins`).
+Search for **Tencent CloudBase** (id: `cloudbase`) and install. See [`doc/ide-setup/kimi-code.mdx`](../../doc/ide-setup/kimi-code.mdx).
+
+### Kimi Work
+
+Kimi Work ships CloudBase as a built-in plugin under **Settings → Plugins**.
+Enable it from the plugins panel. See [`doc/ide-setup/kimi-code.mdx`](../../doc/ide-setup/kimi-code.mdx).
+
 ## Relationship with CloudBase Sites
 
 | | **Tencent CloudBase** (this plugin) | **CloudBase Sites** (`plugin/cloudbase-sites`) |

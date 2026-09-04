@@ -9,6 +9,7 @@ import { CloudBaseOptions, Logger } from './types.js';
 import { debug, error } from './utils/logger.js';
 import { buildAuthNextStep, throwToolPayloadError } from './utils/tool-result.js';
 import { resolveSiteAndRegion, TCB_QUERY_REGIONS } from './utils/site-map.js';
+import { readProjectEnvId } from './utils/project-config.js';
 
 // Timeout for envId auto-resolution flow.
 // 10 minutes (600 seconds) - matches InteractiveServer timeout
@@ -47,6 +48,71 @@ function createManagerFromLoginState(loginState: any, region?: string): CloudBas
         proxy: process.env.http_proxy,
         region: region ?? resolveSiteAndRegion().region,
     });
+}
+
+/**
+ * API Key 换取的临时凭据登录态 CAM 能力探测结果：
+ * - capable: DescribeEnvs 调用成功，管理面工具可用
+ * - limited: CAM 明确拒绝（AuthFailure.UnauthorizedOperation / invalid token），管理面工具不可用
+ * - unknown: 超时/网络等其他失败，不做判断（避免误导性警告）
+ */
+export type ApiKeyCamProbeResult = "capable" | "limited" | "unknown";
+
+// 仅缓存确定性结果（capable/limited），unknown 不缓存以便下次重试
+const apiKeyCamProbeCache = new Map<string, boolean>();
+
+const CAM_PROBE_TIMEOUT_MS = 8000;
+
+/**
+ * 轻量探测 API Key 登录态能否调用管理面（CAM）API。
+ * 背景：部分 API Key（如"AI 开发套件"形态的 JWT key）只能完成 tcb-api 网关的登录态换取，
+ * 换出的 STS 凭据不带 CAM 策略，queryEnv/queryAppAuth 等管理类工具会全部失败。
+ * 实测凭据：2026-09-01 国际站认证排查（specs/intl-auth-investigation）。
+ */
+export async function probeApiKeyCamCapability(loginState: {
+    secretId?: string;
+    secretKey?: string;
+    token?: string;
+    envId?: string;
+}): Promise<ApiKeyCamProbeResult> {
+    if (!loginState.secretId || !loginState.secretKey || !loginState.envId) {
+        return "unknown";
+    }
+    const cacheKey = `${loginState.secretId}:${loginState.envId}`;
+    const cached = apiKeyCamProbeCache.get(cacheKey);
+    if (cached !== undefined) {
+        return cached ? "capable" : "limited";
+    }
+    try {
+        const manager = createManagerFromLoginState(loginState);
+        // 查询环境详情（DescribeEnvInfo）：单环境、入参仅 EnvId，比 DescribeEnvs 更贴合
+        // "登录后查环境" 的首个真实调用；Action 名已对照 CAM 资源级策略文档确认
+        const probeCall = manager.commonService("tcb").call({
+            Action: "DescribeEnvInfo",
+            Param: { EnvId: loginState.envId },
+        });
+        const timeout = new Promise((_, reject) => {
+            const timer = setTimeout(
+                () => reject(new Error("probe timeout")),
+                CAM_PROBE_TIMEOUT_MS,
+            );
+            // 不阻塞进程退出
+            (timer as unknown as { unref?: () => void }).unref?.();
+        });
+        await Promise.race([probeCall, timeout]);
+        apiKeyCamProbeCache.set(cacheKey, true);
+        return "capable";
+    } catch (e) {
+        const code = (e as { code?: string })?.code ?? (e instanceof Error ? e.message : String(e));
+        // 仅把 CAM 明确拒绝判定为 limited；超时/网络等 inconclusive 失败归为 unknown
+        if (code.includes("UnauthorizedOperation") || code.includes("invalid token")) {
+            debug("probeApiKeyCamCapability: CAM rejected", { code });
+            apiKeyCamProbeCache.set(cacheKey, false);
+            return "limited";
+        }
+        debug("probeApiKeyCamCapability: inconclusive failure", { code });
+        return "unknown";
+    }
 }
 
 export async function listAvailableEnvCandidates(options?: {
@@ -274,7 +340,17 @@ class EnvironmentManager {
                 return this.cachedEnvId;
             }
 
-            // 2. 如果登录态里已有 envId，直接复用
+            // 2. 项目级配置固定的环境（.cloudbase/project.json 的 envId，
+            //    回退 cloudbaserc.json 的字面量/{{env.*}} envId）
+            // 优先于账号级登录态：登录态是全局的，可能指向另一个仓库绑定的环境。
+            const projectEnvId = readProjectEnvId();
+            if (projectEnvId) {
+                debug('使用项目配置(project.json/cloudbaserc.json)的环境ID:', { envId: projectEnvId });
+                this._setCachedEnvId(projectEnvId);
+                return projectEnvId;
+            }
+
+            // 3. 如果登录态里已有 envId，直接复用
             const loginState = await peekLoginState();
             if (typeof loginState?.envId === 'string' && loginState.envId.length > 0) {
                 debug('使用登录态中的环境ID:', { envId: loginState.envId });
@@ -282,7 +358,7 @@ class EnvironmentManager {
                 return loginState.envId;
             }
 
-            // 3. 单环境自动绑定；多环境时返回结构化引导，不再触发交互弹窗
+            // 4. 单环境自动绑定；多环境时返回结构化引导，不再触发交互弹窗
             const envCandidates = await listAvailableEnvCandidates({ loginState });
             if (envCandidates.length === 1) {
                 const singleEnvId = envCandidates[0].envId;
@@ -344,6 +420,15 @@ export async function getEnvId(cloudBaseOptions?: CloudBaseOptions): Promise<str
     if (cachedEnvId) {
         debug('使用缓存中的 envId:', { envId: cachedEnvId });
         return cachedEnvId;
+    }
+
+    // 项目级配置固定的环境优先于账号级登录态，保证「打开仓库即连对环境」，
+    // 且同一仓库的每个 Git worktree / 每个新进程都不需要重复 set_env。
+    const projectEnvId = readProjectEnvId();
+    if (projectEnvId) {
+        debug('使用项目配置(.cloudbase/project.json)的 envId:', { envId: projectEnvId });
+        await envManager.setEnvId(projectEnvId);
+        return projectEnvId;
     }
 
     const loginState = await peekLoginState();
@@ -554,9 +639,15 @@ export async function getCloudBaseManager(options: GetManagerOptions = {}): Prom
                 // If cached, use it directly; otherwise check loginEnvId before calling getEnvId()
                 // This avoids unnecessary async calls when we have a valid envId available
                 const cachedEnvId = envManager.getCachedEnvId() || process.env.CLOUDBASE_ENV_ID;
+                const projectEnvId = cachedEnvId ? undefined : readProjectEnvId();
                 if (cachedEnvId) {
                     debug('使用 envManager 缓存的环境ID:', { cachedEnvId });
                     finalEnvId = cachedEnvId;
+                } else if (projectEnvId) {
+                    // 项目级绑定优先于全局登录态 envId：后者可能来自另一个仓库
+                    debug('使用项目配置(project.json/cloudbaserc.json)的环境ID:', { projectEnvId });
+                    await envManager.setEnvId(projectEnvId);
+                    finalEnvId = projectEnvId;
                 } else if (loginEnvId) {
                     // If no cache but loginState has envId, use it directly
                     debug('使用 loginState 中的环境ID:', { loginEnvId });

@@ -134,6 +134,7 @@ CloudBase 有**国内站**（`domestic`，cloud.tencent.com）与**国际站**�
 显式 cloudBaseOptions.site/region
   > 环境变量 TCB_SITE / TCB_REGION
   > 项目级配置 .cloudbase/project.json
+  > cloudbaserc.json（按字段回退，site 为 MCP 扩展字段）
   > 全局默认：domestic + ap-shanghai
 ```
 
@@ -189,6 +190,26 @@ CloudBase 有**国内站**（`domestic`，cloud.tencent.com）与**国际站**�
   "envId": "your-env-id"
 }
 ```
+
+其中 `envId` 会作为该项目的默认环境，解析优先级：
+
+```
+显式 cloudBaseOptions.envId
+  > 环境变量 CLOUDBASE_ENV_ID
+  > 当前进程内已绑定的环境（auth(action="set_env") 结果）
+  > 项目级配置 .cloudbase/project.json 的 envId
+  > cloudbaserc.json 的 envId（按字段回退）
+  > 账号登录态里的环境
+  > 返回 ENV_REQUIRED，引导调用 auth(action="set_env")
+```
+
+`cloudbaserc.json` 回退源说明（面向已有 CLI 项目，无需重复维护绑定配置）：
+
+- **按字段回退**：project.json 与 cloudbaserc.json 各字段独立互补（如 project.json 只写 site、cloudbaserc.json 只写 envId 时两边同时生效），同一字段以 project.json 优先
+- **envId / region 支持字面量与 `{{env.KEY}}` 模板**：模板从项目根 `.env` / `.env.local` 解析（与 CLI 同源）；`{{private.X}}` 及解析失败的模板会被跳过，继续走下一级，不会报错
+- **MCP 不写 cloudbaserc.json**：它是 CLI 维护的人工部署配置（CLI 部署后还会自动回写）；机器管理的绑定持久化走 `.cloudbase/project.json`
+
+因为该文件在仓库内且随仓库提交，所以新起的 MCP 进程、以及同一仓库的每个 Git worktree 都会自动命中同一环境，无需为每个 worktree 重新 `set_env`；不同仓库各读自己的文件，绑定不会互相串。
 
 ### 多站点凭证并存
 

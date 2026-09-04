@@ -21,7 +21,7 @@ Nightly 内置 Skills/MCP：https://developers.weixin.qq.com/miniprogram/dev/dev
    - Nightly 不可用 → **CloudBase MCP**（完成腾讯云登录后）。
 3. 任务是否为 **消息推送 / 客服自动回复**（消息推送、客服自动回复、MsgType/Event 回调绑定）？
    - → 优先 **微信 IDE Skills / IDE 云开发控制台**。见 [message-push-customer-service.md](message-push-customer-service.md)。
-   - `cloud_msg_push_query` / `cloud_msg_push_manage` **尚未暴露**（9109db6b）。不要用底层传输绕过。
+   - `cloud_query_msg_push` / `cloud_manage_msg_push` **尚未暴露**（等待微信 IDE 侧升级支持）。不要用底层传输绕过。
 4. 任务是否为 **进阶云能力**（数据模型 / MySQL / PG / 细粒度安全规则 / 超出 IDE 工具的多环境平台运维）？
    - → **CloudBase MCP**。
 5. 始终有用：安装 **CloudBase Skills** 作为编写 CloudBase 代码的知识约束 —— 它们不能替代任一执行面。

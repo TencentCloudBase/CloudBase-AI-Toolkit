@@ -79,16 +79,24 @@ describe("rag tools", () => {
     expect(roots).toEqual([generatedSkills, sourceSkills, cacheSkills]);
   });
 
-  it("searchKnowledgeBase no longer requires id when mode=vector", async () => {
+  it("searchKnowledgeBase should no longer expose the retired vector mode", async () => {
     const { server, tools } = createMockServer();
 
     await registerRagTools(server);
 
-    await expect(
-      tools.searchKnowledgeBase.handler({
-        mode: "vector",
-      }),
-    ).rejects.toThrow("检索内容不能为空");
+    const { mode, ...rest } = tools.searchKnowledgeBase.meta.inputSchema;
+
+    expect(mode.options).toEqual(["skill", "openapi", "docs"]);
+    expect(mode.safeParse("vector").success).toBe(false);
+    expect(Object.keys(rest)).toEqual(
+      expect.not.arrayContaining([
+        "threshold",
+        "id",
+        "content",
+        "options",
+        "limit",
+      ]),
+    );
   });
 
   it("searchKnowledgeBase should expose docs mode and official app.docs actions", async () => {
@@ -96,9 +104,11 @@ describe("rag tools", () => {
 
     await registerRagTools(server);
 
-    expect(tools.searchKnowledgeBase.meta.inputSchema.mode.options).toEqual(
-      expect.arrayContaining(["vector", "skill", "openapi", "docs"]),
-    );
+    expect(tools.searchKnowledgeBase.meta.inputSchema.mode.options).toEqual([
+      "skill",
+      "openapi",
+      "docs",
+    ]);
     expect(tools.searchKnowledgeBase.meta.inputSchema.action).toBeDefined();
     expect(tools.searchKnowledgeBase.meta.inputSchema.moduleName).toBeDefined();
     expect(tools.searchKnowledgeBase.meta.inputSchema.input).toBeDefined();
@@ -267,6 +277,48 @@ describe("rag tools", () => {
       vi.doUnmock("fs/promises");
       vi.doUnmock("lockfile");
       vi.resetModules();
+    }
+  });
+
+  it("searchKnowledgeBase skill/openapi modes return remote URLs instead of local paths in cloud mode", async () => {
+    const originalFetch = globalThis.fetch;
+    const previousCloudMode = process.env.CLOUDBASE_MCP_CLOUD_MODE;
+    process.env.CLOUDBASE_MCP_CLOUD_MODE = "true";
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("offline")) as typeof fetch;
+
+    try {
+      const { server, tools } = createMockServer();
+      await registerRagTools(server);
+
+      const openapiResult = await tools.searchKnowledgeBase.handler({
+        mode: "openapi",
+        apiName: "nosql",
+      });
+      const openapiText = openapiResult.content[0].text;
+      expect(openapiText).toContain(
+        "https://docs.cloudbase.net/openapi/nosql.v1.openapi.yaml",
+      );
+      expect(openapiText).not.toContain("Path:");
+      expect(openapiText).not.toContain(".cloudbase-mcp");
+
+      // Skill enumeration may be unavailable offline; either way the response
+      // must point at the remote SKILL.md URL instead of a server-local path.
+      const skillResult = await tools.searchKnowledgeBase.handler({
+        mode: "skill",
+        skillName: "auth-tool",
+      });
+      const skillText = skillResult.content[0].text;
+      expect(skillText).toContain(
+        "https://cnb.cool/tencent/cloud/cloudbase/skills/-/git/raw/main/skills",
+      );
+      expect(skillText).not.toContain("absolute path is:");
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (previousCloudMode === undefined) {
+        delete process.env.CLOUDBASE_MCP_CLOUD_MODE;
+      } else {
+        process.env.CLOUDBASE_MCP_CLOUD_MODE = previousCloudMode;
+      }
     }
   });
 });

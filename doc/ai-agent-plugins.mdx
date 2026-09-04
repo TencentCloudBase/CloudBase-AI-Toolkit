@@ -80,7 +80,7 @@ npx plugins add https://cnb.cool/tencent/cloud/cloudbase/cloudbase-sites-plugin.
 
 ### 方式 2：按 IDE 手动安装
 
-适用于 CodeBuddy（插件市场）、WorkBuddy、ZCode，或希望走 IDE 原生插件机制的场景：
+适用于 CodeBuddy（插件市场）、WorkBuddy、Kimi Code（`/plugins` 插件市场）、Kimi Work（设置→插件面板）、ZCode，或希望走 IDE 原生插件机制的场景：
 
 <Tabs>
   <TabItem value="codex-app" label="Codex App">
@@ -150,6 +150,25 @@ codebuddy plugin install cloudbase@tencent-cloudbase
 ![WorkBuddy 内置 CloudBase 连接器](https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/assets/workbuddy-connector-full.png)
 
   </TabItem>
+  <TabItem value="kimi-code" label="Kimi Code">
+
+1. 在 Kimi Code 中输入 `/plugins` 打开插件面板
+2. 切换到 **Curated** 标签页
+3. 找到 **Tencent CloudBase**（id: `cloudbase`），回车选择 **install**
+4. 安装完成后重启 Kimi Code 或新开对话
+
+详见 [Kimi Code 配置指南](ide-setup/kimi-code)。
+
+  </TabItem>
+  <TabItem value="kimi-work" label="Kimi Work">
+
+1. 打开 Kimi Work，点击左侧 **设置**（齿轮图标）
+2. 进入 **插件** 面板
+3. 在列表中找到 **Tencent CloudBase**，点击右侧开关启用
+
+详见 [Kimi 配置指南](ide-setup/kimi-code)。
+
+  </TabItem>
   <TabItem value="zcode" label="ZCode">
 
 ZCode（≥ 3.4.1）设置 → **插件** → **开发者工具** → 启用 **cloudbase-skills**。
@@ -165,7 +184,7 @@ ZCode（≥ 3.4.1）设置 → **插件** → **开发者工具** → 启用 **c
 
 <IDESelector defaultIDE="cursor" showInstallButton={false} />
 
-> CodeBuddy / WorkBuddy / ZCode 尚未实现 Open Plugin Specification，因此暂不支持 `npx plugins` 一键安装；请用各自原生路径（CodeBuddy 用插件市场，WorkBuddy 用连接器，ZCode 用内置插件）。
+> CodeBuddy / WorkBuddy / Kimi Code / Kimi Work / ZCode 尚未实现 Open Plugin Specification，因此暂不支持 `npx plugins` 一键安装；请用各自原生路径（CodeBuddy 用插件市场，WorkBuddy 用连接器，Kimi Code 用 `/plugins` 插件市场，Kimi Work 用设置→插件面板，ZCode 用内置插件）。
 
 ## 插件里有什么
 

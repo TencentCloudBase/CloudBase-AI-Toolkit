@@ -5,6 +5,43 @@
 # - pre-push git-guard：通用护盾（分支基线 + lockfile 同步检查），
 #   见 scripts/git-guard-pre-push.sh（2026-08-24，PR #952/#953 教训沉淀）。
 #   任何依赖升级 / 开分支的推送都会被机械校验，失败拒绝 push。
+# - pre-commit internal-restore：specs/ 与 .workbuddy/ 从版本控制移除后，
+#   切分支会被 git 清空，自动从私有归档仓捞回，见 scripts/internal-sync.sh。
+# - pre-commit internal-docs-guard：拦截 specs/ 与 .workbuddy/ 内部文件入库，
+#   见 scripts/git-guard-internal.sh（2026-08-28）。文档约定拦不住 AI agent 与
+#   旧 worktree，所以加机械防线兜底。
+#
+# 注意：hook 依赖仓库内的 lefthook.yml，因此只对包含本文件的分支生效。
+# 基于旧 main 的 worktree 不会加载这些 job，那种情况由 CI 的
+# internal-docs-guard workflow 兜底。
+
+pre-commit:
+  parallel: false
+  jobs:
+    # specs/ 与 .workbuddy/ 都已从版本控制移除，切分支或 merge 时 git 会顺手
+    # 把工作区里这些文件删掉。这里负责自动从私有归档仓捞回来，见
+    # scripts/internal-sync.sh。
+    # 挂在 pre-commit 而不只是 post-checkout：本机的 post-checkout/post-merge
+    # 被 git-lfs 的 other-* 链接管，不走 lefthook，写了也不会跑。
+    - name: internal-restore
+      run: bash scripts/internal-sync.sh pull --hook
+    - name: internal-docs-guard
+      run: bash scripts/git-guard-internal.sh
+
+# 同上，切分支 / merge 后立刻恢复。注意：本机 post-checkout / post-merge
+# 被 git-lfs 的 other-* 链接接管，不会走到 lefthook，所以这两个 job 在这里
+# 属于"换个环境就自动生效"的兜底，真正兜住本机的是上面的 pre-commit。
+post-checkout:
+  parallel: false
+  jobs:
+    - name: internal-restore
+      run: bash scripts/internal-sync.sh pull --hook
+
+post-merge:
+  parallel: false
+  jobs:
+    - name: internal-restore
+      run: bash scripts/internal-sync.sh pull --hook
 
 pre-push:
   parallel: false

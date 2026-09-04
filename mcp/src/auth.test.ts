@@ -62,9 +62,20 @@ vi.mock("./utils/site-map.js", () => {
       const result = getSite(region, site);
       return result === "ambiguous" ? "intl" : result;
     },
+    // 行为等价简化版：仅显式 intl 站点返回 ap-singapore，其余回落默认网关
+    resolveApiKeyExchangeRegion: (opts?: { site?: string; region?: string }) => {
+      const site = normalizeSite(opts?.site) ?? normalizeSite(process.env.TCB_SITE);
+      return site === "intl" ? "ap-singapore" : undefined;
+    },
     SITE_REGION_MAP: {
-      domestic: { authHost: "tcb.cloud.tencent.com" },
-      intl: { authHost: "tcb.tencentcloud.com" },
+      domestic: {
+        authHost: "tcb.cloud.tencent.com",
+        oauthEndpoint: "https://tcb-api.cloud.tencent.com/qcloud-tcb/v1/oauth",
+      },
+      intl: {
+        authHost: "tcb.tencentcloud.com",
+        oauthEndpoint: "https://tcb-api.tencentcloud.com/qcloud-tcb/v1/oauth",
+      },
     },
   };
 });
@@ -309,6 +320,35 @@ describe("CloudBase API Key env resolution", () => {
       "env-test",
       expect.objectContaining({ cwd: expect.any(String) }),
     );
+  });
+
+  it("peekLoginState should pass ap-singapore region when TCB_SITE=intl", async () => {
+    process.env.CLOUDBASE_API_KEY = "intl-key";
+    process.env.CLOUDBASE_ENV_ID = "env-intl";
+    process.env.TCB_SITE = "intl";
+
+    const { peekLoginState } = await import("./auth.js");
+    await peekLoginState();
+
+    expect(mockAuthLoginByApiKey).toHaveBeenCalledWith(
+      "intl-key",
+      "env-intl",
+      expect.objectContaining({ cwd: expect.any(String), region: "ap-singapore" }),
+    );
+  });
+
+  it("peekLoginState should not pass region for domestic default gateway", async () => {
+    process.env.CLOUDBASE_API_KEY = "cn-key";
+    process.env.CLOUDBASE_ENV_ID = "env-cn";
+    delete process.env.TCB_SITE;
+    delete process.env.TCB_REGION;
+
+    const { peekLoginState } = await import("./auth.js");
+    await peekLoginState();
+
+    const opts = mockAuthLoginByApiKey.mock.calls.at(-1)?.[2];
+    expect(opts).toEqual(expect.objectContaining({ cwd: expect.any(String) }));
+    expect(opts?.region).toBeUndefined();
   });
 });
 
@@ -572,6 +612,56 @@ describe("multi-site credential slots", () => {
     const getAuthUrl = mockAuthLoginByWebAuth.mock.calls.at(-1)![0].getAuthUrl;
     const url = getAuthUrl("https://tcb.cloud.tencent.com/oauth/authorize?client_id=x");
     expect(url).toContain("tencentcloud.com");
+  });
+
+  it("should use intl OAuth endpoint and rewrite device verification URL for intl site", async () => {
+    mockAuthGetLoginState
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ secretId: "sid", secretKey: "skey" });
+
+    const { ensureLogin } = await import("./auth.js");
+    await ensureLogin({ authMode: "device", region: "ap-singapore", site: "intl" });
+
+    const loginOptions = mockAuthLoginByWebAuth.mock.calls.at(-1)![0];
+    expect(loginOptions.getOAuthEndpoint()).toBe(
+      "https://tcb-api.tencentcloud.com/qcloud-tcb/v1/oauth",
+    );
+    const rewritten = loginOptions.getAuthUrl(
+      "https://tcb.cloud.tencent.com/dev#/cli-auth?user_code=ABCD-1234&from=cli&flow=device",
+    );
+    expect(rewritten).toContain("tcb.tencentcloud.com/dev#/cli-auth");
+    expect(rewritten).not.toContain("tcb.cloud.tencent.com");
+    expect(rewritten).toContain("user_code=ABCD-1234");
+  });
+
+  it("should keep toolbox default OAuth endpoint for domestic device login", async () => {
+    mockAuthGetLoginState
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ secretId: "sid", secretKey: "skey" });
+
+    const { ensureLogin } = await import("./auth.js");
+    await ensureLogin({ authMode: "device", site: "domestic" });
+
+    const loginOptions = mockAuthLoginByWebAuth.mock.calls.at(-1)![0];
+    expect(loginOptions.getOAuthEndpoint).toBeUndefined();
+    expect(loginOptions.getAuthUrl).toBeUndefined();
+  });
+
+  it("should let explicit oauthEndpoint override the intl default in device mode", async () => {
+    mockAuthGetLoginState
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ secretId: "sid", secretKey: "skey" });
+
+    const { ensureLogin } = await import("./auth.js");
+    await ensureLogin({
+      authMode: "device",
+      region: "ap-singapore",
+      site: "intl",
+      oauthEndpoint: "https://custom.example.com/oauth",
+    });
+
+    const loginOptions = mockAuthLoginByWebAuth.mock.calls.at(-1)![0];
+    expect(loginOptions.getOAuthEndpoint()).toBe("https://custom.example.com/oauth");
   });
 
   it("should use domestic login page URL fromCloudBaseLoginPage on domestic site", async () => {

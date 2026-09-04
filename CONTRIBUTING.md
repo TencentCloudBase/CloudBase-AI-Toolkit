@@ -10,15 +10,9 @@ git clone https://github.com/TencentCloudBase/CloudBase-AI-ToolKit.git
 cd CloudBase-AI-ToolKit
 ```
 
-2. 安装依赖
+2. 安装依赖（本仓库统一使用 pnpm；请先启用 corepack）
 ```bash
-# 使用 npm
-npm install
-
-# 或使用 yarn
-yarn install
-
-# 或使用 pnpm
+corepack enable
 pnpm install
 ```
 

@@ -26,10 +26,10 @@
 
 **v2.32.x**（2026-08）
 
+- 认证 / 安全 / IDE：国际站（`TCB_SITE=intl`）登录链路修复；queryFunctions/queryCloudRun 默认脱敏环境变量；新增 Kimi Code / Kimi Work 支持
 - 小程序：新增 `queryMessagePush` / `manageMessagePush`，支持事件与消息类型订阅（虚拟支付默认事件、声明式幂等、可选 appid）
 - 小程序：消息推送支持云函数/云托管模式识别与切换（`ensureContainerMode` / `setContainerCallback`，订阅前校验函数存在）
 - 网关：`manageGateway` 在创建自定义域名/路由前校验 HTTP 服务，并支持证书自动选择与更清晰的 DNS 指引
-- Skills：补充消息推送/客服参考，并为 miniprogram-development 做分层中文化
 
 **v2.31.x**（2026-08）
 
@@ -89,7 +89,7 @@ AI IDE（Cursor、Claude Code、Codex、CodeBuddy 等）擅长生成代码。真
 | Claude Code / Codex（原生 marketplace） | 添加本仓库为 marketplace，再安装 `cloudbase` 插件（见[插件文档](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ai-agent-plugins)） |
 | 支持 Open Plugin Spec 的工具 | `npx plugins add TencentCloudBase/cloudbase-plugin` |
 | 希望 CLI 统一配置多种工具 | [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce)：`npm i -g @cloudbase/cli && tcb ai` |
-| CodeBuddy / WorkBuddy / ZCode（已内置） | 使用 IDE 内置的 CloudBase 插件或连接器；CodeBuddy 也可通过[插件市场安装](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) |
+| CodeBuddy / WorkBuddy / ZCode / Kimi（已内置） | 使用 IDE 内置的 CloudBase 插件或连接器；CodeBuddy 也可通过[插件市场安装](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) |
 | 其他支持 MCP 的 IDE | 仅配置 MCP（见下方） |
 
 #### Plugin
@@ -139,6 +139,8 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
 | [OpenClaw](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) | CLI | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) |
 | [WorkBuddy](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) | 独立 IDE | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) |
 | [ZCode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/zcode) | 独立 IDE（≥ 3.4.1 内置插件） | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/zcode) |
+| [Kimi Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) | CLI（插件市场） | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) |
+| [Kimi Work](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) | 桌面应用（插件面板） | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) |
 | [Codex App](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codex) | 独立应用 | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codex) |
 | [Cursor](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cursor) | 独立 IDE | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/cursor) |
 | [WindSurf](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/windsurf) | 独立 IDE / 插件 | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/windsurf) |
@@ -256,6 +258,8 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
 ```
 
 托管 URL 可用 `site`（`domestic` / `intl`）指定登录站点（国内站新加坡需 `site=domestic`），也可用 `enable_plugins` / `disable_plugins` 裁剪工具集。名称以 `mcp/src/server.ts` 为准。
+
+**云端 Hosted MCP E2E**（官方 SDK 客户端）：`npm run test:hosted-mcp:e2e`，环境变量与双模式说明见 [`tests/hosted-mcp-e2e/README.md`](tests/hosted-mcp-e2e/README.md)。缺凭证时相关用例 skip（退出码 0）。
 
 **自建 Cloud Mode**：在自有服务器部署时设置 `CLOUDBASE_MCP_CLOUD_MODE=true`（或 `MCP_CLOUD_MODE=true`），禁用本地文件与本地进程类工具，避免远程调用方操作宿主机。
 

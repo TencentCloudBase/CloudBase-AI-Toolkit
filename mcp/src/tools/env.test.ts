@@ -36,6 +36,7 @@ const {
   mockResolveEnvCandidateByEnvId,
   mockGetCloudBaseManager,
   mockResetCloudBaseManagerCache,
+  mockProbeApiKeyCamCapability,
   mockResolveAuthOptions,
   mockCheckAndInitTcbService,
   mockCheckAndCreateFreeEnv,
@@ -98,6 +99,7 @@ const {
   mockResolveEnvCandidateByEnvId: vi.fn(),
   mockGetCloudBaseManager: vi.fn(),
   mockResetCloudBaseManagerCache: vi.fn(),
+  mockProbeApiKeyCamCapability: vi.fn().mockResolvedValue("capable"),
   mockCheckAndInitTcbService: vi.fn(),
   mockCheckAndCreateFreeEnv: vi.fn(),
   mockResolveAuthOptions: vi.fn((options: any = {}) => ({
@@ -159,6 +161,7 @@ vi.mock("../cloudbase-manager.js", () => ({
   listAvailableEnvCandidates: mockListAvailableEnvCandidates,
   resolveEnvCandidateByEnvId: mockResolveEnvCandidateByEnvId,
   logCloudBaseResult: vi.fn(),
+  probeApiKeyCamCapability: mockProbeApiKeyCamCapability,
   resetCloudBaseManagerCache: mockResetCloudBaseManagerCache,
 }));
 
@@ -931,6 +934,36 @@ describe("env tools - auth", () => {
     expect(payload).toHaveProperty("current_env_id", "env-test");
     expect(process.env.CLOUDBASE_API_KEY).toBe("test-api-key");
     expect(process.env.CLOUDBASE_ENV_ID).toBe("env-test");
+    expect(mockProbeApiKeyCamCapability).toHaveBeenCalledWith(
+      expect.objectContaining({ secretId: "sid", envId: "env-test" }),
+    );
+    // 默认探测 capable：不追加 CAM 警告
+    expect(payload.message).not.toContain("管理面 API");
+  });
+
+  it("auth(action=login_by_api_key) should warn when CAM probe reports limited", async () => {
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      token: "token",
+      envId: "env-test",
+    });
+    mockProbeApiKeyCamCapability.mockResolvedValue("limited");
+    mockGetCachedEnvId.mockReturnValue("env-test");
+
+    const result = await tools.auth.handler({
+      action: "login_by_api_key",
+      apiKey: "test-api-key",
+      apiKeyEnvId: "env-test",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toHaveProperty("ok", true);
+    expect(payload).toHaveProperty("code", "AUTH_READY");
+    expect(payload.message).toContain("无法调用管理面 API");
+    expect(payload.message).toContain("TENCENTCLOUD_SECRETID");
+
+    mockProbeApiKeyCamCapability.mockResolvedValue("capable");
   });
 
   it("auth(action=login_by_api_key) should return error when peekLoginState returns null", async () => {
@@ -1940,6 +1973,59 @@ describe("env tools - envQuery", () => {
       envId: "env-test",
     });
     expect(missingMetric.content[0].text).toContain("metricName 为必填参数");
+  });
+
+  it("queryEnv should guide on parameters (not auth) when the API reports an invalid parameter", async () => {
+    mockGetCloudBaseManager.mockResolvedValue({
+      monitor: {
+        describeCurveData: vi.fn().mockRejectedValue(
+          new Error(
+            "[DescribeCurveData] InvalidParameterValue: invalid parameter value period=86400 is not supported for the given time range",
+          ),
+        ),
+      },
+    });
+
+    const { tools } = createMockServer();
+    const text = (
+      await tools.queryEnv.handler({
+        action: "metrics",
+        envId: "env-test",
+        metricName: "GatewayTraceEnvQPS",
+        startTime: "2026-08-27 00:00:00",
+        endTime: "2026-08-28 00:00:00",
+        period: 86400,
+      })
+    ).content[0].text;
+
+    expect(text).toContain("参数错误");
+    expect(text).toContain("queryEnv(action=\"metrics\")");
+    // 参数类错误不该把 Agent 误导到鉴权方向
+    expect(text).not.toContain("认证");
+    expect(text).not.toContain("登录");
+    expect(text).not.toContain("auth");
+  });
+
+  it("queryEnv should keep auth guidance for real authentication errors", async () => {
+    mockGetCloudBaseManager.mockResolvedValue({
+      monitor: {
+        describeCurveData: vi
+          .fn()
+          .mockRejectedValue(new Error("[DescribeCurveData] AuthFailure: token expired")),
+      },
+    });
+
+    const { tools } = createMockServer();
+    const text = (
+      await tools.queryEnv.handler({
+        action: "metrics",
+        envId: "env-test",
+        metricName: "GatewayTraceEnvQPS",
+      })
+    ).content[0].text;
+
+    expect(text).toContain("认证错误");
+    expect(text).toContain("auth(action=\"status\")");
   });
 
   it("envQuery(metrics) should call monitor.describeCurveData and summarize the curve", async () => {

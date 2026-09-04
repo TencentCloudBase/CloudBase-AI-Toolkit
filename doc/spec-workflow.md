@@ -74,6 +74,8 @@ specs/
     tasks.md         # 任务拆分与进度
 ```
 
+> spec 文档生成在**你自己的项目**里，是否纳入版本控制由你的项目自行决定。
+
 ### requirements.md 示例
 
 ```markdown

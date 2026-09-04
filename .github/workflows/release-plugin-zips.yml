@@ -43,6 +43,7 @@ jobs:
       #   - cloudbase-kimi.zip    Kimi Code / Kimi Work plugin (self-contained routing skill)
       #   - cloudbase-qoder.zip   Qoder / QoderWork plugin (full plugin dir)
       #   - cloudbase-skill.zip   QoderWork entry skill (skills/cloudbase)
+      #   - <expert-name>.zip     WorkBuddy expert packages (plugins/experts/*, one zip each)
       # IDE plugins that already ship through dedicated repos/marketplaces
       # (.claude-plugin, .cursor-plugin, .codex-plugin, .plugin) are NOT zipped here.
       - name: Pack Kimi plugin zip
@@ -53,6 +54,9 @@ jobs:
 
       - name: Pack Qoder skill zip
         run: node scripts/pack-qoder-skill.mjs
+
+      - name: Pack expert package zips
+        run: node scripts/pack-experts.mjs
 
       - name: Verify release exists
         env:

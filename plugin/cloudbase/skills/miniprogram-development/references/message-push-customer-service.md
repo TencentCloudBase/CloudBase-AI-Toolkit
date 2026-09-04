@@ -12,7 +12,7 @@
 | 优先 Nightly：`wechatide -c <clientName> -t <toolName>`（用 `--help` 发现参数） | 臆造工具名或参数 |
 | 在微信侧工具尚未暴露前，用 IDE **云开发控制台 → 消息推送** 做回调绑定 | 把 CloudBase MCP 的 `queryMessagePush` / `manageMessagePush` 当作小程序日常操作路径教给 agent |
 
-**微信 IDE 暴露状态：** 规格设计了 `cloud_query_msg_push` / `cloud_manage_msg_push`（由 CloudBase MCP 的 `queryMessagePush` / `manageMessagePush` 经 `EXPOSED_TOOL_NAME` 映射；需 main 升级 `@cloudbase/cloudbase-mcp` 后）。该消费链路归属 **9109db6b** —— **尚未暴露**。在此之前，本 skill 只把 **IDE UI + 现有 wxide CLI 云/预览命令** 当作面向 agent 的操作面。不要文档化或教授底层替代方案。
+**微信 IDE 暴露状态：** 规格设计了 `cloud_query_msg_push` / `cloud_manage_msg_push`（由 CloudBase MCP 的 `queryMessagePush` / `manageMessagePush` 经 `EXPOSED_TOOL_NAME` 映射；需微信侧升级 `@cloudbase/cloudbase-mcp` 后）—— **尚未暴露**。在此之前，本 skill 只把 **IDE UI + 现有 wxide CLI 云/预览命令** 当作面向 agent 的操作面。不要文档化或教授底层替代方案。
 
 **维护者 E2E（不对产品 agent）：** CloudBase-MCP msg-push 工具的完整 ticket / 回归流程在外部 skill `wxide-qbase-msgpush-e2e`（`~/.workbuddy/skills/wxide-qbase-msgpush-e2e/SKILL.md`）。只指向该处；不要把其中的底层步骤复制进本参考。
 
@@ -48,7 +48,7 @@
 2. 选择 **云函数** 模式（非容器），除非项目明确使用云托管回调。
 3. 为所需消息类型和/或事件添加入口；各自指向接收端函数名；开启推送。
 
-**待 wxide CLI（9109db6b）：**
+**待 wxide CLI 支持（尚未提供）：**
 
 ```text
 # 尚不可用 — 不要臆造或用底层调用代替
@@ -174,7 +174,7 @@ await cloud.openapi.customerServiceMessage.send({
 目前尚无稳定的 wxide CLI 日志查询工具（例如未来的 `cloud_fn_logs` 或等价物）。
 
 ```text
-# 待补齐 — 待 wxide CLI 提供（归属 9109db6b；接口调研 d5735473）
+# 待补齐 — 待 wxide CLI 提供日志查询能力
 # 本 skill 不要教授底层日志 CGI 绕过
 wechatide -c <clientName> -t <cloud_fn_logs_or_equivalent> ...
 ```
@@ -190,7 +190,7 @@ wechatide -c <clientName> -t <cloud_fn_logs_or_equivalent> ...
 3. 在 IDE **消息推送** 中绑定 (MsgType, Event) → 函数（或未来的 `cloud_manage_msg_push`）。
 4. 测试 `text` / 媒体消息类型时，确保已有客服入口 / 能力。
 5. 上传体验版 / 预览；用真机触发。
-6. 在 IDE 云函数 **日志** 中验证（CLI 日志：待 9109db6b）。
+6. 在 IDE 云函数 **日志** 中验证（CLI 日志查询能力尚未提供）。
 
 ---
 
@@ -200,9 +200,9 @@ wechatide -c <clientName> -t <cloud_fn_logs_or_equivalent> ...
 - IDE Skills 与 CloudBase MCP 分层：[wxide-vs-cloudbase-mcp.md](wxide-vs-cloudbase-mcp.md)
 - CloudBase 小程序集成：[cloudbase-integration.md](cloudbase-integration.md)
 - 维护者 MCP E2E 权威源（外部）：`wxide-qbase-msgpush-e2e` skill — 不要在此内联其底层步骤
-- 微信侧 CLI 暴露 / 缺失命令：任务 **9109db6b**
-- 日志 API 调研：任务 **d5735473**
-- 规格设计（CloudBase-MCP msg-push + EXPOSED_TOOL_NAME）：`specs/virtual-payment-mcp/design.md`（任务 **43367cc6**）
+- 微信侧 CLI 暴露 / 缺失命令：跟进中
+- 日志 API 调研：跟进中
+- msg-push 与 `EXPOSED_TOOL_NAME` 的规格设计：见本文件第 5 节起的说明
 
 ## 5. 推送模式：云函数 vs 云托管
 

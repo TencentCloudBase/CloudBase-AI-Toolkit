@@ -142,6 +142,68 @@ describe("PG database tools", () => {
     });
   });
 
+  it("queryPgDatabase(sql) echoes the user's original SQL in sqlPreview when execution fails", async () => {
+    const { server, tools } = createMockServer();
+    const userSql = "SELECT id FROM public.users WHERE id = 1";
+    const executedSql: string[] = [];
+    const fakeClient = createFakeClient(async (sql: string) => {
+      if (sql === "SELECT 1") {
+        return { rows: [{ "?column?": 1 }], rowCount: 1 };
+      }
+      executedSql.push(sql);
+      throw new Error('ERROR: column "id" does not exist (SQLSTATE 42703)');
+    });
+
+    registerPGDatabaseTools(server, {
+      createClient: vi.fn(() => fakeClient),
+    });
+
+    const payload = buildToolPayload(
+      await tools.queryPgDatabase.handler({
+        action: "sql",
+        sql: userSql,
+      }),
+    );
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "PG_SQL_EXEC_FAILED",
+    });
+    // 服务端执行的确实是带 limit 包装的只读 SQL
+    expect(
+      executedSql.some((sql) => sql.includes("cloudbase_mcp_readonly_limit")),
+    ).toBe(true);
+    // 但回显给调用方的必须是用户原始 SQL，而不是内部包装 SQL
+    expect(payload.data.sqlPreview).toBe(userSql);
+    expect(payload.data.sqlPreview).not.toContain("cloudbase_mcp_readonly_limit");
+  });
+
+  it("queryPgDatabase(sql) truncates sqlPreview to 500 chars on failure", async () => {
+    const { server, tools } = createMockServer();
+    const userSql = `SELECT ${"x".repeat(800)}`;
+    const fakeClient = createFakeClient(async (sql: string) => {
+      if (sql === "SELECT 1") {
+        return { rows: [{ "?column?": 1 }], rowCount: 1 };
+      }
+      throw new Error("ERROR: unexpected failure (SQLSTATE 42601)");
+    });
+
+    registerPGDatabaseTools(server, {
+      createClient: vi.fn(() => fakeClient),
+    });
+
+    const payload = buildToolPayload(
+      await tools.queryPgDatabase.handler({
+        action: "sql",
+        sql: userSql,
+      }),
+    );
+
+    expect(payload.errorCode).toBe("PG_SQL_EXEC_FAILED");
+    expect(payload.data.sqlPreview).toHaveLength(500);
+    expect(userSql.startsWith(payload.data.sqlPreview)).toBe(true);
+  });
+
   it("queryPgDatabase(objects) returns schema-qualified summaries without init", async () => {
     const { server, tools } = createMockServer();
     const fakeClient = createFakeClient(async (sql: string) => {
@@ -1280,6 +1342,51 @@ describe("PG database tools", () => {
       });
     });
 
+    it("applyMigration rejects migrationName containing digits before calling cloud APIs", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "create_test_table_2",
+          migrationVersion: "20260720160000",
+          sql: "CREATE TABLE public.test(id int)",
+          confirm: true,
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "MIGRATION_NAME_INVALID",
+        data: { requiredPattern: "^[a-z][a-z_]*$" },
+      });
+      expect(payload.message).toContain("only lowercase letters and underscores");
+      expect(mockCommonServiceCall).not.toHaveBeenCalled();
+    });
+
+    it("planMigration rejects camelCase migrationName before calling cloud APIs", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "planMigration",
+          migrationName: "CreateTestTable",
+          migrationVersion: "20260720160000",
+          sql: "CREATE TABLE public.test(id int)",
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "MIGRATION_NAME_INVALID",
+      });
+      expect(mockCommonServiceCall).not.toHaveBeenCalled();
+    });
+
     it("applyMigration sends Migrations array and returns localFileHint", async () => {
       const { server, tools } = createMockServer();
       registerPGDatabaseTools(server, { createClient: vi.fn() });
@@ -1562,13 +1669,13 @@ describe("PG database tools", () => {
       mockApplyMigrationCloudApis({
         previewExecutable: false,
         pendingVersion: "20260802200900",
-        pendingName: "mcptest0802_tmp",
+        pendingName: "mcptest_tmp",
       });
 
       const payload = buildToolPayload(
         await tools.managePgDatabase.handler({
           action: "applyMigration",
-          migrationName: "mcptest0802_tmp",
+          migrationName: "mcptest_tmp",
           migrationVersion: "20260802200900",
           sql: "CREATE TABLE mcptest0802 (id serial primary key, name text)",
           confirm: true,
@@ -1593,13 +1700,13 @@ describe("PG database tools", () => {
         taskStatus: "Failed",
         taskReason: "migration plan is not executable",
         pendingVersion: "20260802200900",
-        pendingName: "mcptest0802_tmp",
+        pendingName: "mcptest_tmp",
       });
 
       const payload = buildToolPayload(
         await tools.managePgDatabase.handler({
           action: "applyMigration",
-          migrationName: "mcptest0802_tmp",
+          migrationName: "mcptest_tmp",
           migrationVersion: "20260802200900",
           sql: "CREATE TABLE mcptest0802 (id serial primary key, name text)",
           confirm: true,
@@ -1718,7 +1825,7 @@ describe("PG database tools", () => {
       setupMigrationMock();
       mockApplyMigrationCloudApis({
         pendingVersion: "20260802200900",
-        pendingName: "mcptest0802_tmp",
+        pendingName: "mcptest_tmp",
         omitPendingFromVerifyList: true,
         remoteMigrations: [{ Version: "20260801200000", Name: "older_migration", Query: "SELECT 1" }],
       });
@@ -1726,7 +1833,7 @@ describe("PG database tools", () => {
       const payload = buildToolPayload(
         await tools.managePgDatabase.handler({
           action: "applyMigration",
-          migrationName: "mcptest0802_tmp",
+          migrationName: "mcptest_tmp",
           migrationVersion: "20260802200900",
           sql: "CREATE TABLE mcptest0802 (id serial primary key, name text)",
           confirm: true,

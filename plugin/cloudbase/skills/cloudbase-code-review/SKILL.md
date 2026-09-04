@@ -1,7 +1,7 @@
 ---
 name: cloudbase-code-review
 description: "Code review and validation for CloudBase projects. After writing code for Web / miniprogram / CloudRun / cloud-function projects, call this skill to check for known pitfalls — auth guard misuse, missing database tables, RLS misconfiguration, storage domain setup, and SDK API misuse. Supports automated lint scripts (regex-based) + LLM semantic review."
-version: 2.32.4
+version: 2.32.5
 alwaysApply: false
 ---
 
@@ -13,7 +13,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 # CloudBase Code Review
 
-> **One-liner**: After implementing CloudBase features, call this skill to catch common mistakes before the grader does.
+> **One-liner**: After implementing CloudBase features, call this skill to catch common mistakes before users do.
 
 ## When to use
 

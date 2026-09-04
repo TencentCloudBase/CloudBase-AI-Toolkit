@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+### Features
+
+* **rag**: teach agents to look up error codes via `searchKnowledgeBase` — the tool description now lists "tool call failed with a specific error code (e.g. `OperationDenied.FreePackageDenied`)" as a first-class `mode=docs` + `action=searchDocs` scenario, so agents query the official error-code docs before retrying or guessing.
+* **skill**: add an error-code troubleshooting protocol to the `cloudbase-platform` skill — when a tool call fails with a specific error code (e.g. `OperationDenied.FreePackageDenied`), extract it and route through the official docs (`searchKnowledgeBase` docs search, falling back to `docs.cloudbase.net/error-code/basic` and cloud API error codes 876/34823). Never assert capability-per-plan or error-code semantics from memory; cite the official capability doc (e.g. Web 安全域名 876/127357) or the console plan comparison instead.
+* **env-binding**: `cloudbaserc.json` 现在作为环境绑定的字段级回退源（envId / region / site），位于 `.cloudbase/project.json` 之后、账号登录态之前。已有 CLI 项目无需再维护第二份绑定配置：envId 支持字面量与 `{{env.KEY}}` 模板（模板从项目根 `.env` / `.env.local` 解析，与 CLI 同源；`{{private.X}}` 与解析失败的模板安全跳过、回落下一级）。MCP 仍不写 `cloudbaserc.json`，机器管理的绑定持久化继续走 `.cloudbase/project.json`。注意这是对存量 CLI 用户的行为变化：以前 `cloudbaserc.json` 的 envId 不影响 MCP 环境绑定，现在会自动生效。
+
+## [2.32.5](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.4...v2.32.5) (2026-09-01)
+
+### Features
+
+* **ide**: add Kimi Code & Kimi Work IDE support
+* **auth**: probe management-plane (CAM) capability after a successful API Key login (`login_by_api_key` and the `start_auth` API Key branch). Some API Keys (e.g. AI-suite JWT keys) can only exchange for gateway-scoped temporary credentials whose STS tokens are rejected by TCB CAM — previously MCP reported `AUTH_READY` while every management tool (`queryEnv`, `queryAppAuth`, `manageAppAuth`, ...) silently failed. A cached, lightweight `DescribeEnvInfo` probe now appends an explicit warning recommending long-term `TENCENTCLOUD_SECRETID` / `TENCENTCLOUD_SECRETKEY` when CAM definitively rejects the credential; inconclusive results (timeout / network) produce no warning.
+
+### Bug Fixes
+
+* **auth**: pass resolved region to `loginByApiKey` when site is explicitly intl (`TCB_SITE=intl`), so international-site API keys exchange via the `ap-singapore` gateway instead of the domestic default. Gateway selection follows **site**, not env region: domestic multi-region envs (incl. `ap-guangzhou` / `ap-singapore`) keep using the default gateway which routes by envId — verified by live cross-region gateway probes (sh/gz succeed, sg rejects domestic keys with `SIGN_PARAM_INVALID`). Ambiguous region without explicit site (e.g. bare `TCB_REGION=ap-singapore`) also keeps the default to avoid breaking domestic Singapore-region envs.
+* **auth**: enrich `auth(start_auth)` / `login_by_api_key` failure diagnostics — show resolved exchange gateway region, `TCB_SITE`, and a site-mismatch hint (intl keys require `TCB_SITE=intl`; domestic envs must not set it). The previous hard-coded `ap-shanghai` endpoint display is now resolved dynamically.
+* **auth**: complete international-site device-flow login — for `TCB_SITE=intl`, device codes are now issued by the intl OAuth backend (`tcb-api.tencentcloud.com`, verified live: reachable device/code + token endpoints with an independent device-code registry) and the verification URL is rewritten to the intl auth host (`tcb.tencentcloud.com/dev#/cli-auth`) while preserving `user_code`. Previously the code was always issued by the domestic backend, so intl accounts could never complete authorization. Explicit `oauthEndpoint` overrides still take precedence.
+* **mcp**: `queryEnv(list)` pin to the bound env for hosted OAuth (环境级 STS) tokens
+* **hosting/pg/env**: correct misleading output from queryHosting, PG sqlPreview and queryEnv errors
+
+### Code Refactoring
+
+* **rag**: retire the `vector` mode of `searchKnowledgeBase`; official doc search (`mode=docs`, backed by the `app.docs` full-text search) is now the only retrieval path. The `content` / `id` / `threshold` / `limit` / `options` parameters are removed together with the two calls to the `tcb-advanced-a656fc` knowledge gateway. Callers should use `mode=docs` with `action=searchDocs` / `findByName` / `readDoc`.
+
+### Security
+
+* **cloudrun**: `queryCloudRun(action="detail")` 默认脱敏服务环境变量（`ServerConfig.EnvParams` 的值置为 `***`，保留 key），新增 `revealEnvParams` 入参（默认 `false`）显式获取明文，避免带密码的连接串等敏感值进入模型上下文
+* **functions**: mask cloud-function environment variable values by default in `queryFunctions` (`getFunctionDetail` / `listFunctionTriggers`). The full raw SCF detail — including `Environment.Variables` plaintext — used to be returned to the model context on every read. Values are now replaced with `***` plus a `ValueLength` field (sufficient for config inspection and change verification); pass `revealEnvValues=true` to opt in to plaintext. Results written to the MCP server log are always masked, with no plaintext opt-out. Plaintext remains available via the console or `tcb fn detail` (fixes #971).
+
+
 ## [2.32.2](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.1...v2.32.2) (2026-08-25)
 
 ### Bug Fixes

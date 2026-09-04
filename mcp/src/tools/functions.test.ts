@@ -1138,4 +1138,85 @@ describe("functions tool helpers", () => {
     expect(mockUpdateFunctionConfig).toHaveBeenCalledTimes(1);
     expect(mockGetFunctionDetail.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
+
+  describe("env variable masking (getFunctionDetail / listFunctionTriggers)", () => {
+    const detailWithSecret = {
+      Status: "Active",
+      Timeout: 20,
+      Environment: {
+        Variables: [
+          { Key: "DB_PASSWORD", Value: "super-secret-value" },
+          { Key: "NODE_ENV", Value: "production" },
+        ],
+      },
+      VpcConfig: {},
+    };
+
+    it("masks env variable values by default and keeps Key + ValueLength", async () => {
+      mockGetFunctionDetail.mockResolvedValue(detailWithSecret);
+
+      const result = await tools.queryFunctions.handler({
+        action: "getFunctionDetail",
+        functionName: "hello",
+      });
+
+      const payload = JSON.parse(result.content[0].text);
+      const variables = payload.data.functionDetail.Environment.Variables;
+      expect(variables[0]).toMatchObject({
+        Key: "DB_PASSWORD",
+        Value: "***",
+        ValueLength: "super-secret-value".length,
+      });
+      expect(variables[1]).toMatchObject({
+        Key: "NODE_ENV",
+        Value: "***",
+        ValueLength: "production".length,
+      });
+      // raw 与 functionDetail 同步脱敏，明文不出现在任何返回字段
+      expect(JSON.stringify(payload)).not.toContain("super-secret-value");
+      // 日志侧也拿到脱敏后的结果
+      const logged = mockLogCloudBaseResult.mock.calls.at(-1)?.[1];
+      expect(logged.Environment.Variables[0].Value).toBe("***");
+    });
+
+    it("returns plaintext env values only when revealEnvValues=true, but still masks logs", async () => {
+      mockGetFunctionDetail.mockResolvedValue(detailWithSecret);
+
+      const result = await tools.queryFunctions.handler({
+        action: "getFunctionDetail",
+        functionName: "hello",
+        revealEnvValues: true,
+      });
+
+      const payload = JSON.parse(result.content[0].text);
+      expect(payload.data.functionDetail.Environment.Variables[0]).toMatchObject({
+        Key: "DB_PASSWORD",
+        Value: "super-secret-value",
+      });
+      const logged = mockLogCloudBaseResult.mock.calls.at(-1)?.[1];
+      expect(logged.Environment.Variables[0].Value).toBe("***");
+    });
+
+    it("masks env variable values in listFunctionTriggers raw payload", async () => {
+      mockGetFunctionDetail.mockResolvedValue(detailWithSecret);
+
+      const result = await tools.queryFunctions.handler({
+        action: "listFunctionTriggers",
+        functionName: "hello",
+      });
+
+      const payload = JSON.parse(result.content[0].text);
+      expect(JSON.stringify(payload)).not.toContain("super-secret-value");
+      expect(payload.data.raw.Environment.Variables[0]).toMatchObject({
+        Key: "DB_PASSWORD",
+        Value: "***",
+      });
+    });
+
+    it("documents the default-masking behavior in the queryFunctions schema", () => {
+      const schema = tools.queryFunctions.meta.inputSchema;
+      expect(schema.revealEnvValues).toBeDefined();
+      expect(schema.revealEnvValues._def.description).toContain("默认 false");
+    });
+  });
 });

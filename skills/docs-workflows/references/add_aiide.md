@@ -245,12 +245,62 @@ Test the IDE-specific download feature:
 3. **MCP Configuration**: If the IDE supports MCP, ensure `.mcp.json` is properly configured
 4. **Documentation**: Always update all relevant documentation files
 5. **Testing**: Thoroughly test the new IDE support before marking as complete
+6. **⭐ Sorting Rule — 新增 IDE 放在 WorkBuddy 后面**：所有 IDE 列表（IDEIconGrid、IDESelector、AiIdeWall、_docsHome、ErrorCodeIDEButton 等）中，新增的 IDE 条目统一放在 `workbuddy` 条目之后、`zcode` 之前。这是 CloudBase 生态优先级排序（WorkBuddy > 合作伙伴 > 第三方）。**不要追加到列表末尾。**
+7. **⭐ 同一厂商的多个产品合写一篇文档**：CLI 与桌面端、编辑器与 App 这类同一厂商的多形态产品（例：Kimi Code + Kimi Work），`doc/ide-setup/` 下只建 **一篇** 文档（以主打产品命名，如 `kimi-code.mdx`），用二级标题分节（`## Kimi Code（终端 CLI）` / `## Kimi Work（桌面端）`），开头放一张对照表说明各形态的插件入口与 MCP 配置路径。
+   - **文档首页列表（`_docsHome.js` 的 `HERO_AI_AGENTS`，即「打开 AI Agent」那排 IDE 图标）同一厂商只放一个条目**：用合并后的厂商名（如 `Kimi`）作为 `id`，`docUrl`/`href` 指向那唯一一篇文档。不要在这里把每个产品都展开成独立 chip（否则首页会显得重复）。
+   - 其余 IDE 选择类组件（IDEIconGrid / IDESelector / AiIdeWall / ErrorCodeIDEButton）**仍保留各自的条目**（`setup.ts` 里也是各自的 IDE type，因为配置路径不同），但 `docUrl` / `href` **统一指向那唯一一篇文档**。
+   - `sidebar.json` 只注册一篇。
+   - 参考实现：`doc/ide-setup/kimi-code.mdx`。
+
+8. **⭐ 品牌名简化 — 合作/集成内容用短名 `CloudBase`**：在 Kimi 这类合作伙伴集成的内容（配置文档、官网博客、首页文案）里，统一用短品牌名 **`CloudBase`**，不要写全称 **`CloudBase AI Toolkit`**。理由：合作语境下「CloudBase 是 Kimi 接入的平台」比「CloudBase AI Toolkit 是…」更自然、更短。该约定只针对合作/集成叙事内容；产品自身概述页、能力列表等仍以官方全称 `CloudBase AI Toolkit` 为准。
+   - 参考实现：Kimi 博客标题 `CloudBase 现已成为 Kimi Code 与 Kimi Work 上的官方精选插件`（原 `CloudBase AI Toolkit 现已成为…` 已简化）。
+
+### Step 11: Update cloudbase-docs (官网 + 文档站)
+
+CloudBase-MCP 的 `doc/` 目录通过 CI rsync 同步到 `cloudbase-docs` 仓库的 `docs/ai/cloudbase-ai-toolkit/`。但以下文件是 **cloudbase-docs 独有**，不会自动同步，必须手动更新：
+
+| # | 文件 | 用途 | 排序规则 |
+|---|------|------|----------|
+| 1 | `src/pages/_docsHome.js` → `HERO_AI_AGENTS` | 文档首页「这样告诉 AI 使用 CloudBase / 打开 AI Agent」IDE 图标列表 | WorkBuddy 后 |
+| 2 | `src/components/AiIdeWall/ides.js` → `AI_IDES` | 官网首页 / 开发者页 IDE 图标墙（AiIdeWall 组件） | WorkBuddy 后 |
+| 3 | `src/pages/_websiteHomeCopy.js` → `aiToolkit.lead` | 官网 AI Toolkit 区块文案（中英双语 inline t()） | 文案加名称 |
+| 4 | `src/pages/developers/index.js` → description | 开发者页 AI Toolkit 描述文案 | 文案加名称 |
+| 5 | `docs/.../components/ErrorCodeIDEButton.tsx` → `POPULAR_IDES` | 文档页「遇到错误？使用 AI 工具排查」IDE 选择器（rsync 同步源在 MCP，但 cloudbase-docs 版本可能已独立修改，两边都要改） | WorkBuddy 后 |
+| 6 | `i18n/en/.../components/ErrorCodeIDEButton.tsx` | 英文版 ErrorCodeIDEButton | 同上 |
+
+**操作流程：**
+1. 在 CloudBase-MCP worktree 完成上述 Step 1-10
+2. 切换到 cloudbase-docs 仓库，编辑上述 6 个文件
+3. 将 worktree 中改动过的 `doc/` 文件手动 cp 到 `docs/ai/cloudbase-ai-toolkit/` 和 `i18n/en/docusaurus-plugin-content-docs/current/ai/cloudbase-ai-toolkit/`（供本地预览，CI 正式同步需等 PR 合并）
+4. 两边分别 commit & push
+
+### Blog 链接规范（写博客时必看）
+
+`cloudbase-docs` 的**官网配置**（`docusaurus.website.config.ts`）设了 `docs: false` 且 `onBrokenLinks: "throw"`。因此：
+
+- ⚠️ **博客里引用文档站页面，必须用完整域名 `https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/...`，不能写站内裸路径 `/ai/cloudbase-ai-toolkit/...`**。裸路径在官网构建时被当成不存在的站内路由 → 直接构建失败（参考实现踩坑：Kimi 博客初版用了 `/ai/...` 裸路径，构建直接 throw）。
+- 现有 46 篇博客清一色用 `https://docs.cloudbase.net/...` 完整域名，照抄这个约定即可。
+- 英文版里的 `https://docs.cloudbase.net/...` 会被 `src/clientModules/docsLinksLocalizer.js` 自动改写成 `https://docs.cloudbase.net/en/...`，无需手写 en 路径。
+- 博客配图用 `static/img/blog/xxx.png`，Markdown 里写 `/img/blog/xxx.png`（静态资源，站内有效）。
+- **验收博客 = 跑一次官网生产构建**：`yarn clear && NODE_OPTIONS=--max-old-space-size=8192 yarn docusaurus build --config docusaurus.website.config.ts --out-dir build-website`。`onBrokenLinks: "throw"` 会抓出所有断链；zh+en 两个 locale 都构建通过才算过。注意构建与文档站 dev 实例共用 `.docusaurus` 缓存，构建前先 kill 文档站实例、清缓存，避免互相污染。
+
+### Step 12: Regenerate ide-support-grid.png (如需要)
+
+`scripts/assets/ide-support-grid.png` 是 README 中引用的静态 IDE 网格图。新增 IDE 后需重新生成：
+
+```bash
+# 使用 Python PIL 从 icon URLs 生成网格图（脚本待补充）
+# 或用 HTML 截图方式生成
+# 当前为手工作业，后续应自动化
+```
+
+> ⚠️ 该图目前为手工制作，暂无自动化生成脚本。新增 IDE 后需手动重新排版导出 PNG。
 
 ## Example
 
 ```
 /add-aiide I need to add support for "NewIDE" AI editor
-→ Guide through all 10 steps to add complete IDE support
+→ Guide through all 12 steps to add complete IDE support
 ```
 
 ## Success Criteria
@@ -259,9 +309,12 @@ Test the IDE-specific download feature:
 - [ ] IDE icon fetched from official website and uploaded to cloud storage
 - [ ] Hardlink script updated and executed
 - [ ] IDE setup documentation created
-- [ ] All documentation files updated (README.md, doc/index.mdx, doc/faq.md)
-- [ ] UI components updated with correct icon URLs (IDESelector.tsx, IDEIconGrid.tsx)
+- [ ] All documentation files updated (README.md, doc/index.mdx, doc/faq.md, ai-agent-plugins.mdx)
+- [ ] UI components updated with correct icon URLs (IDESelector.tsx, IDEIconGrid.tsx) — **排序在 WorkBuddy 后**
 - [ ] Code mappings updated (IDE_TYPES, RAW_IDE_FILE_MAPPINGS, IDE_DESCRIPTIONS, INTEGRATION_IDE_MAPPING)
+- [ ] cloudbase-docs 独有文件已更新（_docsHome.js / AiIdeWall/ides.js / _websiteHomeCopy.js / developers/index.js / ErrorCodeIDEButton.tsx ×2）
+- [ ] cloudbase-docs docs/ 与 i18n/en/ 已同步（供本地预览）
 - [ ] Hardlinks verified
 - [ ] IDE-specific download functionality tested and working
 - [ ] IDE appears correctly in documentation UI with proper icon display
+- [ ] ide-support-grid.png 已重新生成（或确认待办）

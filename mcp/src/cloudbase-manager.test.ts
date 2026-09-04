@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToolPayloadError } from "./utils/tool-result.js";
 
 const mockCloudBaseCtor = vi.fn();
@@ -19,6 +19,18 @@ const mockPeekLoginState = vi.fn();
 const mockEnsureLogin = vi.fn();
 const mockCommonServiceCall = vi.fn();
 const mockListEnvs = vi.fn();
+
+const { mockReadProjectConfig, mockReadProjectEnvId, mockReadCloudbaseRcBinding } = vi.hoisted(() => ({
+  mockReadProjectConfig: vi.fn(),
+  mockReadProjectEnvId: vi.fn(),
+  mockReadCloudbaseRcBinding: vi.fn(),
+}));
+
+vi.mock("./utils/project-config.js", () => ({
+  readProjectConfig: mockReadProjectConfig,
+  readProjectEnvId: mockReadProjectEnvId,
+  readCloudbaseRcBinding: mockReadCloudbaseRcBinding,
+}));
 
 vi.mock("./auth.js", () => ({
   buildDeviceAuthChallengePayload: mockBuildDeviceAuthChallengePayload,
@@ -43,6 +55,9 @@ describe("cloudbase manager auth gate", () => {
     vi.resetModules();
     vi.clearAllMocks();
     delete process.env.CLOUDBASE_ENV_ID;
+    mockReadProjectConfig.mockReturnValue(undefined);
+    mockReadProjectEnvId.mockReturnValue(undefined);
+    mockReadCloudbaseRcBinding.mockReturnValue(undefined);
     mockAuthGetProgressState.mockResolvedValue({
       status: "IDLE",
       updatedAt: Date.now(),
@@ -534,6 +549,9 @@ describe("listAvailableEnvCandidates region scope", () => {
     vi.resetModules();
     vi.clearAllMocks();
     delete process.env.CLOUDBASE_ENV_ID;
+    mockReadProjectConfig.mockReturnValue(undefined);
+    mockReadProjectEnvId.mockReturnValue(undefined);
+    mockReadCloudbaseRcBinding.mockReturnValue(undefined);
     mockPeekLoginState.mockResolvedValue({
       secretId: "sid",
       secretKey: "skey",
@@ -574,5 +592,112 @@ describe("listAvailableEnvCandidates region scope", () => {
       region: "ap-singapore",
     });
     expect(result.map((item) => item.envId)).toEqual(["env-sg"]);
+  });
+});
+
+// 覆盖 .cloudbase/project.json 的 envId 绑定：新起的 MCP 进程 / 每个 Git worktree
+// 都只能靠这个仓库内文件恢复绑定（进程内存缓存必然是空的）。
+describe("project-pinned envId (.cloudbase/project.json)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    delete process.env.CLOUDBASE_ENV_ID;
+    delete process.env.TCB_REGION;
+    delete process.env.TCB_SITE;
+    mockReadProjectConfig.mockReturnValue(undefined);
+    mockReadProjectEnvId.mockReturnValue(undefined);
+    mockReadCloudbaseRcBinding.mockReturnValue(undefined);
+    mockAuthGetProgressState.mockResolvedValue({
+      status: "IDLE",
+      updatedAt: Date.now(),
+    });
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      token: "token",
+    });
+    // 账号可访问多个环境：这是修复前每个 worktree 都被要求重新 set_env 的场景
+    mockCommonServiceCall.mockResolvedValue({
+      EnvList: [
+        { EnvId: "env-project-a", Alias: "a", Region: "ap-singapore" },
+        { EnvId: "env-project-b", Alias: "b", Region: "ap-singapore" },
+      ],
+    });
+  });
+
+  afterEach(() => {
+    mockReadProjectEnvId.mockReturnValue(undefined);
+    mockReadCloudbaseRcBinding.mockReturnValue(undefined);
+    delete process.env.CLOUDBASE_ENV_ID;
+  });
+
+  it("should pin project envId in a fresh process without asking for set_env", async () => {
+    mockReadProjectEnvId.mockReturnValue("env-project-a");
+
+    const { getCloudBaseManager, getEnvId } = await import("./cloudbase-manager.js");
+
+    await expect(getEnvId()).resolves.toBe("env-project-a");
+    await expect(getCloudBaseManager()).resolves.toMatchObject({
+      commonService: expect.any(Function),
+    });
+    expect(mockCloudBaseCtor).toHaveBeenLastCalledWith(
+      expect.objectContaining({ envId: "env-project-a" }),
+    );
+  });
+
+  it("should keep repositories isolated: each project file pins its own env", async () => {
+    mockReadProjectEnvId.mockReturnValue("env-project-b");
+
+    const { getEnvId } = await import("./cloudbase-manager.js");
+
+    await expect(getEnvId()).resolves.toBe("env-project-b");
+  });
+
+  it("should prefer project envId over account-level loginState envId", async () => {
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      token: "token",
+      envId: "env-project-a",
+    });
+    mockReadProjectEnvId.mockReturnValue("env-project-b");
+
+    const { getCloudBaseManager } = await import("./cloudbase-manager.js");
+
+    await expect(getCloudBaseManager()).resolves.toMatchObject({
+      commonService: expect.any(Function),
+    });
+    expect(mockCloudBaseCtor).toHaveBeenLastCalledWith(
+      expect.objectContaining({ envId: "env-project-b" }),
+    );
+  });
+
+  it("should prefer CLOUDBASE_ENV_ID over project envId", async () => {
+    process.env.CLOUDBASE_ENV_ID = "env-from-host";
+    mockReadProjectEnvId.mockReturnValue("env-project-a");
+
+    const { getEnvId } = await import("./cloudbase-manager.js");
+
+    await expect(getEnvId()).resolves.toBe("env-from-host");
+  });
+
+  it("should prefer explicit envId and runtime set_env over project envId", async () => {
+    mockReadProjectEnvId.mockReturnValue("env-project-a");
+
+    const { envManager, getEnvId } = await import("./cloudbase-manager.js");
+
+    await expect(getEnvId({ envId: "env-explicit" })).resolves.toBe("env-explicit");
+
+    await envManager.setEnvId("env-switched");
+    await expect(getEnvId()).resolves.toBe("env-switched");
+  });
+
+  it("should still surface ENV_REQUIRED when project file has no envId", async () => {
+    const { getEnvId } = await import("./cloudbase-manager.js");
+
+    await expect(getEnvId()).rejects.toMatchObject({
+      name: "ToolPayloadError",
+      payload: expect.objectContaining({ code: "ENV_REQUIRED" }),
+    });
   });
 });

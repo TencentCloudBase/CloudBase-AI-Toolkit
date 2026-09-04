@@ -210,6 +210,7 @@ type QueryFunctionsInput = {
   limit?: number;
   offset?: number;
   codeSecret?: string;
+  revealEnvValues?: boolean;
   startTime?: string;
   endTime?: string;
   requestId?: string;
@@ -264,8 +265,37 @@ type ManageFunctionsInput = {
   autoGrant?: boolean;
 };
 
-const VPC_SCHEMA = z.object({
-  vpcId: z
+/** 环境变量脱敏后的占位值（不保留任何明文片段）。 */
+export const MASKED_ENV_VALUE = "***";
+
+/**
+ * 对 getFunctionDetail 返回的 Environment.Variables 做脱敏：
+ * 保留 Key 与原始值长度（ValueLength），Value 置为占位符。
+ * 用于默认工具返回与日志落盘，避免明文进入模型上下文 / 持久化日志。
+ */
+export function maskFunctionDetailEnvValues<
+  T extends { Environment?: { Variables?: IEnvVariable[] } | null },
+>(detail: T): T {
+  const variables = detail?.Environment?.Variables;
+  if (!Array.isArray(variables) || variables.length === 0) {
+    return detail;
+  }
+  return {
+    ...detail,
+    Environment: {
+      ...detail.Environment,
+      Variables: variables.map((item) => ({
+        ...item,
+        Value: MASKED_ENV_VALUE,
+        ...(typeof item.Value === "string"
+          ? { ValueLength: item.Value.length }
+          : {}),
+      })),
+    },
+  } as T;
+}
+
+const VPC_SCHEMA = z.object({  vpcId: z
     .string()
     .describe(
       "VPC ID from the real database/network console (e.g. vpc-xxxxxxxx). Required for non-native TCP DB access. Do NOT invent or use placeholders.",
@@ -887,16 +917,21 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         input.functionName,
         input.codeSecret,
       );
-      logCloudBaseResult(server.logger, result);
+      // 日志侧一律脱敏（持久化，不提供明文口子）；工具返回侧按 revealEnvValues 决定
+      logCloudBaseResult(server.logger, maskFunctionDetailEnvValues(result));
+      const functionDetail =
+        input.revealEnvValues === true
+          ? result
+          : maskFunctionDetailEnvValues(result);
       return buildEnvelope(
         {
           action: input.action,
           functionName: input.functionName,
-          functionDetail: result,
+          functionDetail,
           layers: normalizeFunctionLayers(result.Layers),
           triggers: result.Triggers || [],
           requestId: result.RequestId,
-          raw: result,
+          raw: functionDetail,
         },
         `已获取函数 ${input.functionName} 的详情`,
         [
@@ -1156,14 +1191,18 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         input.functionName,
         input.codeSecret,
       );
-      logCloudBaseResult(server.logger, result);
+      logCloudBaseResult(server.logger, maskFunctionDetailEnvValues(result));
+      const detail =
+        input.revealEnvValues === true
+          ? result
+          : maskFunctionDetailEnvValues(result);
       return buildEnvelope(
         {
           action: input.action,
           functionName: input.functionName,
-          triggers: result.Triggers || [],
-          requestId: result.RequestId,
-          raw: result,
+          triggers: detail.Triggers || [],
+          requestId: detail.RequestId,
+          raw: detail,
         },
         `已获取函数 ${input.functionName} 的触发器列表`,
         [
@@ -2316,6 +2355,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         limit: z.number().optional().describe("分页数量（limit）。列表类 action 可选，默认值由后端决定"),
         offset: z.number().optional().describe("分页偏移（offset）。列表类 action 可选，默认 0"),
         codeSecret: z.string().optional().describe("代码保护密钥，用于解密函数代码"),
+        revealEnvValues: z
+          .boolean()
+          .optional()
+          .describe(
+            "getFunctionDetail / listFunctionTriggers 时是否返回环境变量明文值。默认 false：Value 脱敏为 ***，仅保留 Key 与 ValueLength，足以确认配置了哪些变量及变更是否生效；true 时返回明文，敏感变量会进入模型上下文，谨慎使用。如需查看明文，建议优先使用控制台或 CLI",
+          ),
         startTime: z
           .string()
           .optional()
