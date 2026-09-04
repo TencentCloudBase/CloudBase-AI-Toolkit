@@ -27,7 +27,7 @@ Every CloudBase task follows this three-stage process:
 ```
 
 **Key constraints:**
-- **Stage 2a (resource preparation) must come before frontend code.** Prefer MCP tools; when they are not loaded yet (first session / pre-restart), fall back to `tcb` CLI after configuring MCP. Don't write frontend code that depends on uncreated resources (tables, auth providers, storage buckets) — the grader will fail.
+- **Stage 2a (resource preparation) must come before frontend code.** Prefer MCP tools; when they are not loaded yet (first session / pre-restart), fall back to `tcb` CLI after configuring MCP. Don't write frontend code that depends on uncreated resources (tables, auth providers, storage buckets) — the app cannot run end-to-end without them.
 - **Do not skip Stage 3.** The close-out catches known pitfalls that agents commonly miss during implementation.
 
 ## Scope
@@ -58,18 +58,18 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 
 - Minimal Web + database demo / Lovable-like BaaS fast path -> `./minimal-web-baas-demo/SKILL.md` (default for 最小前后端 demo; BaaS-first, no cloud functions)
 - Web app execution -> `./web-development/SKILL.md`
-- Web auth provider readiness -> `./auth-tool/SKILL.md`
-- Web auth implementation -> `./auth-web/SKILL.md`
-- CloudBase PostgreSQL / PG app data -> `./postgresql-development/SKILL.md`
+- Web auth provider readiness -> `./auth-tool-cloudbase/SKILL.md`
+- Web auth implementation -> `./auth-web-cloudbase/SKILL.md`
+- CloudBase PostgreSQL / PG app data -> `./postgresql-development-cloudbase/SKILL.md`
 - WeChat Pay / Official Account OAuth through CloudBase Integration Center -> `./cloudbase-wechat-integration/SKILL.md`
-- Browser-side document database CRUD -> `./no-sql-web-sdk/SKILL.md`
+- Browser-side document database CRUD -> `./cloudbase-document-database-web-sdk/SKILL.md`
 - Browser-side file upload -> `./cloud-storage-web/SKILL.md`
 - Platform overview only when capability selection is still unclear -> `./cloudbase-platform/SKILL.md`
 - If using `searchKnowledgeBase(mode="skill")`, pass the reference directory id such as `postgresql-development-cloudbase` or `minimal-web-baas-demo`, not a guessed alias.
 
 ### High-yield guardrails
 
-- **Prepare backend resources before writing frontend code.** Prefer MCP for auth providers, database tables, storage domains, and security rules. If MCP tools are missing in this session, configure MCP for the next session and use `tcb` CLI now — do not stall waiting for restart. Frontend code written against non-existent resources will cause grader failures.
+- **Prepare backend resources before writing frontend code.** Prefer MCP for auth providers, database tables, storage domains, and security rules. If MCP tools are missing in this session, configure MCP for the next session and use `tcb` CLI now — do not stall waiting for restart. Frontend code written against non-existent resources will fail at runtime and require rework.
 - **Change Safety Protocol**: Before any non-trivial code or configuration change, you must strictly follow `cloudbase-platform/references/protocols/change-safety-protocol.md` (declare impact → obtain user confirmation → verify after change → escalate to root cause analysis after 3 occurrences of the same symptom).
 - **Deployment Gate**: Before any deployment, publish, custom domain, CloudRun, or public exposure work, you must complete the checks in `cloudbase-platform/references/protocols/deployment-gate.md` and present the mandatory declaration template.
 - If the same path fails 2-3 times, stop retrying and reroute. Check platform skill, auth domain, runtime, and permission model before editing more code.
@@ -94,27 +94,24 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
    - Treat it as a targeted repair task, not a greenfield build.
    - Prefer the shortest path from current code to working flow.
 
-2. Auth tasks:
-   - If the account identifier is a plain username such as `admin`, `editor`, or another string without `@`, treat `usernamePassword` login as a blocking prerequisite.
-   - First call `queryAppAuth(action=\"getLoginConfig\")`.
-   - If `loginMethods.usernamePassword !== true`, immediately call `manageAppAuth(action=\"patchLoginStrategy\", patch={ usernamePassword: true })`.
-   - In Web login code, use `auth.signInWithPassword({ username, password })`.
-   - Do not assume direct Web `auth.signUp({ username, password })` is available for every environment or SDK version; verify `sdkHints` / installed SDK behavior first. If username registration is required and direct signup is unsupported, route registration through a backend or management API path that creates CloudBase Auth users, without exposing secret keys in browser code.
-   - Never use `signUpWithEmailAndPassword` or `signInWithEmailAndPassword` for these username-style account flows.
+3. Auth tasks:
+   - Read `./auth-web-cloudbase/SKILL.md` before writing auth code — the full username/password recipe and provider readiness flow live there.
+   - Blocking prerequisite for username-style accounts (`admin`, `editor`, any string without `@`): call `queryAppAuth(action="getLoginConfig")`; if `loginMethods.usernamePassword !== true`, enable it with `manageAppAuth(action="patchLoginStrategy", patch={ usernamePassword: true })` first.
+   - Use `auth.signInWithPassword({ username, password })`; never `signUpWithEmailAndPassword` / `signInWithEmailAndPassword` for username-style flows.
    - Once readiness is confirmed, return to the active frontend handler and finish the real login/register flow.
 
-3. Database and storage tasks:
+4. Database and storage tasks:
    - Reuse the current shared `app`, `auth`, `db`, and storage helpers instead of creating parallel SDK wrappers.
-   - If the task mentions CloudBase PG, PostgreSQL, Postgres, PG mode, JS SDK v3 PostgreSQL, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, `mysqldb` OpenAPI, or RLS, read `./postgresql-development/SKILL.md` before touching database code.
+   - If the task mentions CloudBase PG, PostgreSQL, Postgres, PG mode, JS SDK v3 PostgreSQL, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, `mysqldb` OpenAPI, or RLS, read `./postgresql-development-cloudbase/SKILL.md` before touching database code.
    - For CloudBase PG, use `queryPgDatabase` / `managePgDatabase` for schema and management; do not route PG work to MySQL `queryMysqlDatabase` / `manageMysqlDatabase` or NoSQL collection APIs.
    - For OpenAPI lookup, call `searchKnowledgeBase({ mode: "openapi", apiName: "mysqldb" })` directly. Do not pass guessed `action` values such as `getApiDocs` or `listEndpoints`; those belong to no supported tool mode.
    - For CloudBase PG Web CRUD, prefer JS SDK v3 `app.rdb()` and documented storage `app.storage.from()` APIs before raw HTTP.
    - For browser-side CloudBase storage upload from local Vite/preview, check the actual browser `host:port` in security domains first (`envQuery(action="domains")`, then `envDomainManagement(action="create")` if missing). A failed cover upload must not silently skip the subsequent PG article insert.
-- For CloudBase Web SDK `db.collection(...).add(...)`, persist the created document ID from `result._id`.
-- For writes, validate the actual SDK result instead of assuming success.
-- **Legacy API STOP card:** If the task says `PostgreSQL`, `CloudBase PG`, `PG mode`, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, `PostgREST`, or `RLS`, do not write NoSQL examples from memory. Use `app.rdb().from(...)` for Web CRUD, `queryPgDatabase` / `managePgDatabase` for management, and `auth.getSession()` for Web auth guards. Do not use `app.database()`, `db.collection(...)`, `.where()`, `.orderBy()`, `app.uploadFile()`, `getLoginState()`, or `auth.getUser()` as the PG/auth default.
+   - For CloudBase Web SDK `db.collection(...).add(...)`, persist the created document ID from `result._id`.
+   - For writes, validate the actual SDK result instead of assuming success.
+   - **Legacy API STOP card:** If the task says `PostgreSQL`, `CloudBase PG`, `PG mode`, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, `PostgREST`, or `RLS`, do not write NoSQL examples from memory. Use `app.rdb().from(...)` for Web CRUD, `queryPgDatabase` / `managePgDatabase` for management, and `auth.getSession()` for Web auth guards. Do not use `app.database()`, `db.collection(...)`, `.where()`, `.orderBy()`, `app.uploadFile()`, `getLoginState()`, or `auth.getUser()` as the PG/auth default.
 
-4. Targeted repair tasks:
+5. Targeted repair tasks:
    - Functional closure beats exploration.
    - Avoid broad repo sweeps, UI redesign, and detached demo code.
    - Keep file discovery narrow. Prefer direct reads of the known active files over `Glob` / broad search across the whole project.

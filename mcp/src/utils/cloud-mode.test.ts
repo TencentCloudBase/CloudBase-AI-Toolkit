@@ -49,4 +49,13 @@ describe("cloud-mode", () => {
     expect(shouldRegisterTool("createFunction")).toBe(false);
     expect(shouldRegisterTool("downloadTemplate")).toBe(false);
   });
+
+  it("registers callCloudApi in both cloud and local modes", () => {
+    clearCloudModeSignals();
+    process.env.CLOUDBASE_MCP_CLOUD_MODE = "true";
+    expect(shouldRegisterTool("callCloudApi")).toBe(true);
+
+    clearCloudModeSignals();
+    expect(shouldRegisterTool("callCloudApi")).toBe(true);
+  });
 });
