@@ -27,7 +27,12 @@ export type ErrorGuidance = {
   docsUrl: string;
 };
 
-const ERROR_CODE_DOCS_BASIC = "https://docs.cloudbase.net/error-code/basic";
+/**
+ * 官方错误码专页前缀，形如 https://docs.cloudbase.net/error-code/EXCEED_REQUEST_LIMIT。
+ * 实测：/error-code/basic/<CODE> 会退回 basic 通用页（只泛泛提及该码），
+ * 而 /error-code/<CODE> 才是该错误码的专属页，内容详得多。
+ */
+const ERROR_CODE_DOCS = "https://docs.cloudbase.net/error-code";
 
 const REGISTRY: ErrorGuidance[] = [
   // 细分：仅在 Message 里能识别出写入子码/写配额措辞时才给写入专项结论。
@@ -37,7 +42,7 @@ const REGISTRY: ErrorGuidance[] = [
     summary:
       "数据库写入配额已用尽：当前环境资源点已耗尽或已超出当日写入配额，所有写入请求都会被拒绝，" +
       "读取不受影响。这与单次写入的文档条数、文档大小无关，单条小文档写入同样会触发。",
-    docsUrl: `${ERROR_CODE_DOCS_BASIC}/EXCEED_REQUEST_LIMIT`,
+    docsUrl: `${ERROR_CODE_DOCS}/EXCEED_REQUEST_LIMIT`,
   },
   // 兜底：Message 文案变更后细分失配时降级到这里，结论对任何 EXCEED_REQUEST_LIMIT 都成立。
   {
@@ -45,7 +50,7 @@ const REGISTRY: ErrorGuidance[] = [
     summary:
       "请求配额已超出限制。这是环境级配额问题，通常不是单次请求参数问题" +
       "（例如写入配额耗尽时，单次只写 1 条同样会被拒绝），减少单次请求量并不能解决。",
-    docsUrl: `${ERROR_CODE_DOCS_BASIC}/EXCEED_REQUEST_LIMIT`,
+    docsUrl: `${ERROR_CODE_DOCS}/EXCEED_REQUEST_LIMIT`,
   },
 ];
 

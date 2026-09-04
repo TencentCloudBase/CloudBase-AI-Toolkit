@@ -67,7 +67,17 @@ describe("error-guidance", () => {
 
       expect(enhanced).toContain(WRITE_OVERRUN_MESSAGE);
       expect(enhanced).toContain("与单次写入的文档条数、文档大小无关");
-      expect(enhanced).toContain("https://docs.cloudbase.net/error-code/basic/EXCEED_REQUEST_LIMIT");
+      expect(enhanced).toContain("https://docs.cloudbase.net/error-code/EXCEED_REQUEST_LIMIT");
+    });
+
+    it("links to the dedicated error-code page, not the generic basic page", () => {
+      // 实测：/error-code/basic/<CODE> 会退回 basic 通用页（只泛泛提及该码），
+      // /error-code/<CODE> 才是专属页（同一错误码出现次数 17 vs 4）。
+      const enhanced = enhanceErrorMessage(
+        apiError(WRITE_OVERRUN_MESSAGE, { code: "EXCEED_REQUEST_LIMIT" }),
+        WRITE_OVERRUN_MESSAGE,
+      );
+      expect(enhanced).not.toContain("/error-code/basic/");
     });
 
     it("keeps the Code in the output so error-code troubleshooting can hit the docs", () => {
