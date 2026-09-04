@@ -191,9 +191,10 @@ function applyTerminalError(
 export function startFunctionDeployTask(
   manager: FunctionDeployManager,
   input: FunctionDeployConfigInput,
+  envId: string,
   options: IFunctionDeployOptions,
 ): FunctionDeployTask {
-  const task = createFunctionDeployTask(input);
+  const task = createFunctionDeployTask(input, envId);
 
   void executeFunctionDeploy(manager, input, {
     ...options,
@@ -238,6 +239,7 @@ export function serializeFunctionDeployTask(
 ): FunctionDeployTaskView {
   return {
     taskId: task.taskId,
+    envId: task.envId,
     functionName: task.functionName,
     requestedStrategy: task.requestedStrategy,
     status: task.status,
@@ -259,6 +261,10 @@ const POLL_HINT = "请继续轮询，不要向用户报告部署完成。";
 function describeRunningPhase(task: FunctionDeployTask): string {
   if (task.deploy.status === "waiting-active") {
     return "正在等待 Active 状态";
+  }
+  // queued 也属于 in-flight，但它是「构建尚未开始」而非「正在构建」，单独措辞
+  if (task.build.status === "queued") {
+    return "镜像构建排队中（尚未收到首个构建事件）";
   }
   if (IN_FLIGHT_BUILD_STATUSES.has(task.build.status)) {
     return `正在执行镜像构建（${task.build.status}）`;

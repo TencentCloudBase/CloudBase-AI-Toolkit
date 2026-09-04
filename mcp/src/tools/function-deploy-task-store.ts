@@ -172,6 +172,7 @@ function enforceMaxTasks(): void {
  */
 export function createFunctionDeployTask(
   input: FunctionDeployConfigInput,
+  envId: string,
   now: number = Date.now(),
 ): FunctionDeployTask {
   cleanupFunctionDeployTasks(now);
@@ -181,6 +182,7 @@ export function createFunctionDeployTask(
   const nowIso = toIsoString(now);
   const task: FunctionDeployTask = {
     taskId: randomUUID(),
+    envId,
     functionName: input.name,
     requestedStrategy: strategy,
     status: "running",
@@ -206,7 +208,11 @@ export function createFunctionDeployTask(
 }
 
 /**
- * 按 taskId 读取任务并刷新 lastAccessAt。
+ * 按 taskId + envId 读取任务并刷新 lastAccessAt。
+ *
+ * envId 不匹配时返回 undefined 而不是抛「无权访问」：任务表是进程内全局 Map，
+ * 在 hosted 多租户形态下区分「任务不存在」与「任务存在但不属于你」本身就是信息泄漏，
+ * 调用方只需知道自己这个环境下查不到这个任务。
  *
  * 这里刻意做惰性清理而不依赖定时器：既保证过期任务不会被读到，
  * 也让测试可以直接注入 now，无需操纵假定时器。任务上限 500，全表扫描成本可忽略。
@@ -215,11 +221,12 @@ export function createFunctionDeployTask(
  */
 export function getFunctionDeployTask(
   taskId: string,
+  envId: string,
   now: number = Date.now(),
 ): FunctionDeployTask | undefined {
   cleanupFunctionDeployTasks(now);
   const task = functionDeployTasks.get(taskId);
-  if (!task) {
+  if (!task || task.envId !== envId) {
     return undefined;
   }
   task.lastAccessAt = toIsoString(now);

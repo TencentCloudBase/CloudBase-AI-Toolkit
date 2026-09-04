@@ -1167,7 +1167,7 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
       name: "action",
       type: "string",
       required: true,
-      description: `只读操作类型： - \`listFunctions\`: 列出所有 CloudBase 云函数 - \`getFunctionDetail\`: 获取 CloudBase 云函数详情（需要 functionName） - \`listFunctionLogs\`: 查询 CloudBase 云函数执行日志（需要 functionName） - \`getFunctionLogDetail\`: 获取日志详情（需要 requestId） - \`listFunctionLayers\`: 列出函数绑定的层 - \`listLayers\`: 列出所有层（账号级视图，含其他环境创建的层） - \`listLayerVersions\`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图） - \`getLayerVersionDetail\`: 获取层版本详情（账号级视图） - \`listFunctionTriggers\`: 列出函数触发器（用于查看定时任务 / cron / timer 配置） - \`getFunctionDownloadUrl\`: 获取函数代码下载地址 - \`getFunctionDeployStatus\`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND。 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl", "getFunctionDeployStatus"`,
+      description: `只读操作类型： - \`listFunctions\`: 列出所有 CloudBase 云函数 - \`getFunctionDetail\`: 获取 CloudBase 云函数详情（需要 functionName） - \`listFunctionLogs\`: 查询 CloudBase 云函数执行日志（需要 functionName） - \`getFunctionLogDetail\`: 获取日志详情（需要 requestId） - \`listFunctionLayers\`: 列出函数绑定的层 - \`listLayers\`: 列出所有层（账号级视图，含其他环境创建的层） - \`listLayerVersions\`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图） - \`getLayerVersionDetail\`: 获取层版本详情（账号级视图） - \`listFunctionTriggers\`: 列出函数触发器（用于查看定时任务 / cron / timer 配置） - \`getFunctionDownloadUrl\`: 获取函数代码下载地址 - \`getFunctionDeployStatus\`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl", "getFunctionDeployStatus"`,
     },
     {
       name: "functionName",
@@ -1247,7 +1247,9 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
 ### `manageFunctions`
 CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。HTTP 云函数镜像构建部署：createFunction / updateFunctionCode 通过 func.buildStrategy 区分。func.buildStrategy=image（已有镜像，填 func.imageConfig.imageUri）直接创建/更新 HTTP 函数；func.buildStrategy=local（本地 Docker 构建推送）、cloud（CloudApp 云端构建）走镜像构建部署编排（需要 func.imageConfig；build 非必填，缺省仓库坐标自动补齐：namespace 默认 envId、repository 默认函数名），默认仅生成 dry-run 计划；传入 dryRun=false 且 confirm=true 后执行真实部署。真实部署可传 wait=false 立即返回 taskId，再通过 queryFunctions 的 getFunctionDeployStatus 查询进度和结果。wait=false 仅表示当前 Tool 不等待完整部署；调用方不得在 status=running 时结束流程，必须自动轮询到 succeeded/failed 后再向用户汇报，除非达到轮询上限。local 始终要求本地 MCP 模式；cloud 的真实执行需要读取本地构建上下文，也要求本地 MCP 模式；cloud mode 仅支持 cloud dry-run 和 image 策略。func.buildStrategy 省略或为 zip 时按传统代码包部署。危险操作需要显式 confirm=true。
 
-**个人版 TCR 凭证**：imageType=personal 的 local/cloud 构建需要推送凭证。若 MCP 配置的 env 中已设置 TCB_TCR_USERNAME 与 TCB_TCR_PASSWORD（与 TENCENTCLOUD_SECRETID 等密钥同样的配置方式），则不需要在请求参数中传递 func.imageConfig.build.registryCredential，留空即可自动读取。不要向用户索要密码明文，也不要把密码写进工具参数；缺少凭证时应引导用户在 MCP 配置的 env 中设置这两个环境变量。
+**个人版 TCR 凭证**：imageType=personal 的 local/cloud 构建需要推送凭证。若 MCP 配置的 env 中已设置 TCB_TCR_USERNAME 与 TCB_TCR_PASSWORD（与 TENCENTCLOUD_SECRETID 等密钥同样的配置方式），则不需要在请求参数中传递 func.imageConfig.build.registryCredential，留空即可自动读取。不要向用户索要密码明文，也不要把密码写进工具参数。
+注意这条 env 通道只在**本地 stdio MCP、且客户端的 mcp.json 支持自定义 env 块**时可用：部分 GUI 客户端不继承 shell 的 export，IDE 内置型 MCP 的凭据注入通常是硬编码白名单（例如只放行 TENCENTCLOUD_*），这类用户没有配置自定义 env 的通道，「在 MCP 配置的 env 中设置」对他们是无效指引。面向内置 MCP 用户应改为引导：使用企业版（imageType=enterprise，走实例临时令牌，不需要固定密码），或改用 buildStrategy=image 直接部署已推送的镜像。
+**企业版登录态要求**：enterprise 的 cloud/local 构建要经 CAM 铸造 TCR 临时令牌，环境级 API Key 与 OAuth 换出的临时凭据都不带 CAM 策略，会被前置拦截并提示改用账号级密钥或 image 策略；个人版走静态密码直接 docker login，不经过 CAM，反而是 API Key 用户唯一能走通的构建路径。
 
 **层（Layer）说明**：
 - 层为 SCF 账号级共享命名空间：不同环境创建同名层会共享同一层的版本序列；删除某版本会影响所有绑定该版本的环境的函数
@@ -1363,42 +1365,52 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
             {
               name: "imageType",
               type: "string",
-              description: `镜像仓库类型：enterprise（企业版 TCR）或 personal（个人版）。省略时默认 enterprise。 可填写的值: "enterprise", "personal"`,
+              description: `镜像仓库类型：enterprise=企业版 TCR，personal=个人版 CCR；省略时由 SDK 推断——填了 registryId 推断为 enterprise，否则推断为 personal。 可填写的值: "enterprise", "personal"`,
+            },
+            {
+              name: "registryId",
+              type: "string",
+              description: `企业版 TCR 实例 ID，形如 tcr-xxxxxxxx；imageType=enterprise 时必填，个人版镜像不填。`,
+            },
+            {
+              name: "imagePort",
+              type: "number",
+              description: `HTTP 镜像函数监听端口，SDK 仅允许 9000；省略即用该值，不要填其他端口。 可填写的值: const 9000`,
+            },
+            {
+              name: "entryPoint",
+              type: "string",
+              description: `覆盖镜像入口点（ENTRYPOINT），一般不需要单独设置。`,
+            },
+            {
+              name: "command",
+              type: "string",
+              description: `覆盖镜像启动命令，例如 python；不填则使用镜像 Dockerfile 中的默认值。`,
+            },
+            {
+              name: "args",
+              type: "string",
+              description: `覆盖镜像启动参数，空格分隔，例如 -u app.py。`,
+            },
+            {
+              name: "commandList",
+              type: "array of string",
+              description: `镜像启动命令的数组写法，元素已按参数切分，适用于命令本身含空格的场景。`,
+            },
+            {
+              name: "argsList",
+              type: "array of string",
+              description: `镜像启动参数的数组写法，元素已按参数切分，适用于参数本身含空格的场景。`,
+            },
+            {
+              name: "containerImageAccelerate",
+              type: "boolean",
+              description: `是否开启镜像加速；镜像较大时建议开启以缩短冷启动时间。`,
             },
             {
               name: "imageUri",
               type: "string",
               description: `完整镜像地址（必须含 tag），格式 {domain}/{namespace}/{image}:{tag}，例如 ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001。不要使用 :latest。buildStrategy=image（已有镜像）时必填；buildStrategy=cloud/local 可以不填：镜像地址由构建流程产出并回传；目标仓库由 build.repository/build.namespace 决定，显式提供时优先使用你提供的配置，省略时由 manager-node 用默认值自动补齐并创建/复用（namespace 默认 envId、repository 默认函数名）。`,
-            },
-            {
-              name: "registryId",
-              type: "string",
-              description: `TCR 实例 ID，形如 tcr-xxxxxxxx。imageType=enterprise 时必填。`,
-            },
-            {
-              name: "command",
-              type: "string",
-              description: `覆盖镜像 ENTRYPOINT。不填则使用 Dockerfile 默认值，例如 python。`,
-            },
-            {
-              name: "args",
-              type: "string",
-              description: `覆盖镜像 CMD，空格分隔，例如 -u app.py。`,
-            },
-            {
-              name: "entryPoint",
-              type: "string",
-              description: `镜像入口点，一般不需要单独设置。`,
-            },
-            {
-              name: "imagePort",
-              type: "number",
-              description: `容器监听端口。Web Server 函数填 9000（默认），Job 型镜像填 -1。`,
-            },
-            {
-              name: "containerImageAccelerate",
-              type: "boolean",
-              description: `是否开启镜像加速。镜像较大时建议开启以缩短冷启动时间。`,
             },
             {
               name: "build",
@@ -1663,7 +1675,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "wait",
       type: "boolean",
-      description: `真实镜像部署是否等待完整部署；设为 false 立即返回 taskId 并后台执行。`,
+      description: `真实镜像部署是否等待完整部署；设为 false 立即返回 taskId 并后台执行。默认 true 是为了兼容既有调用方，但同步等待最长可达约 15 分钟，很容易先撞上 MCP Client 的请求超时——客户端超时只是断开这次请求，云端部署仍在继续，却拿不到 taskId 追踪。因此执行真实构建部署（buildStrategy=cloud/local，dryRun=false）时建议显式传 wait=false。`,
     },
     {
       name: "autoGrant",

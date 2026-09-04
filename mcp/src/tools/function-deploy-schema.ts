@@ -212,26 +212,54 @@ const FUNCTION_HTTP_COMMON_FIELDS = {
 
 // imageConfig 命名空间下的镜像运行时公共字段，对齐 cloudbaserc / toolbox 的嵌套形状。
 // 仅做结构与格式校验；imageType/registryId 的业务组合约束交由 SDK checkConfig。
-const FUNCTION_IMAGE_CONFIG_COMMON_FIELDS = {
+//
+// 这里是 imageConfig 公共字段的唯一定义处：manageFunctions 对外暴露的扁平入参
+// schema 同样由本对象展开而来，避免两份 schema 各自演进后出现「工具入参接受、
+// 部署校验拒绝」或字段被静默丢弃的漂移。新增字段只改这里。
+export const FUNCTION_IMAGE_CONFIG_COMMON_FIELDS = {
   imageType: z
     .enum(FUNCTION_IMAGE_TYPES)
     .optional()
-    .describe("镜像仓库类型：enterprise=企业版 TCR，personal=个人版 CCR；省略时由 SDK 推断。"),
+    .describe(
+      "镜像仓库类型：enterprise=企业版 TCR，personal=个人版 CCR；" +
+        "省略时由 SDK 推断——填了 registryId 推断为 enterprise，否则推断为 personal。",
+    ),
   registryId: z
     .string()
     .min(1)
     .optional()
-    .describe("企业版 TCR 实例 ID；个人版镜像不填。"),
+    .describe("企业版 TCR 实例 ID，形如 tcr-xxxxxxxx；imageType=enterprise 时必填，个人版镜像不填。"),
   imagePort: z
     .literal(IMAGE_FUNCTION_PORT)
     .optional()
-    .describe(`HTTP 镜像函数监听端口，当前固定为 ${IMAGE_FUNCTION_PORT}。`),
-  entryPoint: z.string().min(1).optional().describe("覆盖镜像入口点。"),
-  command: z.string().optional().describe("覆盖镜像启动命令。"),
-  args: z.string().optional().describe("覆盖镜像启动参数。"),
-  commandList: z.array(z.string()).optional().describe("镜像启动命令列表。"),
-  argsList: z.array(z.string()).optional().describe("镜像启动参数列表。"),
-  containerImageAccelerate: z.boolean().optional().describe("是否开启镜像加速。"),
+    .describe(
+      `HTTP 镜像函数监听端口，SDK 仅允许 ${IMAGE_FUNCTION_PORT}；省略即用该值，不要填其他端口。`,
+    ),
+  entryPoint: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("覆盖镜像入口点（ENTRYPOINT），一般不需要单独设置。"),
+  command: z
+    .string()
+    .optional()
+    .describe("覆盖镜像启动命令，例如 python；不填则使用镜像 Dockerfile 中的默认值。"),
+  args: z
+    .string()
+    .optional()
+    .describe("覆盖镜像启动参数，空格分隔，例如 -u app.py。"),
+  commandList: z
+    .array(z.string())
+    .optional()
+    .describe("镜像启动命令的数组写法，元素已按参数切分，适用于命令本身含空格的场景。"),
+  argsList: z
+    .array(z.string())
+    .optional()
+    .describe("镜像启动参数的数组写法，元素已按参数切分，适用于参数本身含空格的场景。"),
+  containerImageAccelerate: z
+    .boolean()
+    .optional()
+    .describe("是否开启镜像加速；镜像较大时建议开启以缩短冷启动时间。"),
 };
 
 export const FUNCTION_IMAGE_BUILD_SCHEMA = z
@@ -413,3 +441,22 @@ export const FUNCTION_DEPLOY_CONFIG_INPUT_SCHEMA = z.discriminatedUnion("buildSt
 export const FUNCTION_DEPLOY_CONFIG_SCHEMA = FUNCTION_DEPLOY_CONFIG_INPUT_SCHEMA;
 
 export type FunctionDeployConfigInput = z.infer<typeof FUNCTION_DEPLOY_CONFIG_SCHEMA>;
+
+/**
+ * 推断本次部署实际生效的镜像仓库类型。
+ *
+ * 对齐 SDK 契约（IHttpImageRuntimeCommon.imageType：「省略时由 registryId 推断为
+ * enterprise，否则推断为 personal」）：显式声明优先，缺省按 registryId 是否存在推断。
+ *
+ * 两者的差别不只是仓库形态——企业版要经 CAM 铸造临时令牌，个人版走静态密码直接
+ * docker login，登录态要求完全不同，因此调用方需要在真正构建前拿到这个结论。
+ */
+export function resolveEffectiveImageType(
+  config: FunctionDeployConfigInput,
+): (typeof FUNCTION_IMAGE_TYPES)[number] {
+  const { imageType, registryId } = config.imageConfig;
+  if (imageType) {
+    return imageType;
+  }
+  return registryId ? "enterprise" : "personal";
+}

@@ -126,6 +126,14 @@ export type FunctionDeploySummary = Pick<
 
 export type FunctionDeployTask = {
   taskId: string;
+  /**
+   * 任务归属的环境 ID，创建时固定写入。
+   *
+   * 任务表是进程内全局 Map，而 hosted 形态下同一进程服务多个租户；查询按
+   * taskId + envId 双重匹配，避免拿到 taskId 就能读到别的环境的
+   * functionName / imageUri / gatewayUrl。
+   */
+  envId: string;
   functionName: string;
   requestedStrategy: FunctionDeployStrategy;
   status: FunctionDeployTaskStatus;
@@ -143,6 +151,7 @@ export type FunctionDeployTask = {
 /** getFunctionDeployStatus 的固定响应结构；running 时 result / error 必为 null。 */
 export type FunctionDeployTaskView = {
   taskId: string;
+  envId: string;
   functionName: string;
   requestedStrategy: FunctionDeployStrategy;
   status: FunctionDeployTaskStatus;

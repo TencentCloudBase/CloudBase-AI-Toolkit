@@ -10,6 +10,7 @@ import {
   resolveEventFunctionRuntime,
   shouldInstallDependencyForFunction,
 } from "./functions.js";
+import { FUNCTION_IMAGE_CONFIG_COMMON_FIELDS } from "./function-deploy-schema.js";
 import {
   FUNCTION_UPDATING_ERROR_CODE,
   FUNCTION_UPDATING_RETRY_AFTER_SECONDS,
@@ -33,6 +34,7 @@ const {
   mockIsCloudMode,
   mockCheckDeployConfig,
   mockDeployFunction,
+  mockProbeCamCapabilityForLogin,
 } = vi.hoisted(() => ({
   mockCreateFunction: vi.fn(),
   mockUpdateFunctionCode: vi.fn(),
@@ -45,12 +47,14 @@ const {
   mockIsCloudMode: vi.fn(),
   mockCheckDeployConfig: vi.fn(),
   mockDeployFunction: vi.fn(),
+  mockProbeCamCapabilityForLogin: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
   getCloudBaseManager: mockGetCloudBaseManager,
   getEnvId: mockGetEnvId,
   logCloudBaseResult: mockLogCloudBaseResult,
+  probeCamCapabilityForLogin: mockProbeCamCapabilityForLogin,
 }));
 
 vi.mock("../utils/cloud-mode.js", () => ({
@@ -97,6 +101,8 @@ describe("functions tool helpers", () => {
     delete process.env.TCB_TCR_PASSWORD;
     mockIsCloudMode.mockReturnValue(false);
     mockGetEnvId.mockResolvedValue("env-test");
+    // 默认登录态可用；需要验证 CAM 前置拦截的用例自行改成 "limited"
+    mockProbeCamCapabilityForLogin.mockResolvedValue("capable");
     mockCreateFunction.mockResolvedValue({
       RequestId: "req-create-function",
       FunctionName: "httpDemo",
@@ -750,6 +756,151 @@ describe("functions tool helpers", () => {
     );
   });
 
+  it("blocks a real enterprise cloud build when the login state has no CAM permission", async () => {
+    // 环境级 API Key / OAuth STS 不带 CAM 策略，无法铸造企业版 TCR 临时令牌
+    mockProbeCamCapabilityForLogin.mockResolvedValue("limited");
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: false,
+      confirm: true,
+      func: {
+        name: "http-cloud-demo",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "enterprise",
+          registryId: "tcr-12345678",
+          build: { cwd: "/workspace/functions/http-cloud-demo" },
+        },
+      },
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("CAM");
+    // 前置拦截的意义就在于根本不发起部署，而不是让它跑到一半再失败
+    expect(mockDeployFunction).not.toHaveBeenCalled();
+  });
+
+  it("infers enterprise from registryId and blocks a CAM-limited local build", async () => {
+    // SDK 契约：省略 imageType 时由 registryId 推断为 enterprise
+    mockProbeCamCapabilityForLogin.mockResolvedValue("limited");
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: false,
+      confirm: true,
+      func: {
+        name: "http-local-demo",
+        type: "HTTP",
+        buildStrategy: "local",
+        imageConfig: {
+          registryId: "tcr-12345678",
+          build: { cwd: "/workspace/functions/http-local-demo" },
+        },
+      },
+    });
+
+    expect(JSON.parse(result.content[0].text).success).toBe(false);
+    expect(mockDeployFunction).not.toHaveBeenCalled();
+  });
+
+  it("does not run the CAM preflight for a personal-registry build", async () => {
+    // 个人版走静态密码直接 docker login，不经过 CAM，不该被拦
+    mockProbeCamCapabilityForLogin.mockResolvedValue("limited");
+    mockDeployFunction.mockResolvedValueOnce({
+      functionName: "http-personal-demo",
+      functionType: "HTTP",
+      requestedStrategy: "cloud",
+      effectiveStrategy: "cloud",
+      action: "create",
+      operations: ["create-function"],
+      dryRun: false,
+      steps: [],
+      warnings: [],
+    });
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: false,
+      confirm: true,
+      func: {
+        name: "http-personal-demo",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "personal",
+          build: {
+            cwd: "/workspace/functions/http-personal-demo",
+            registryCredential: personalCredential,
+          },
+        },
+      },
+    });
+
+    expect(JSON.parse(result.content[0].text).success).toBe(true);
+    expect(mockProbeCamCapabilityForLogin).not.toHaveBeenCalled();
+    expect(mockDeployFunction).toHaveBeenCalled();
+  });
+
+  it("does not run the CAM preflight for a dry-run", async () => {
+    mockProbeCamCapabilityForLogin.mockResolvedValue("limited");
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: true,
+      func: {
+        name: "http-cloud-demo",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "enterprise",
+          registryId: "tcr-12345678",
+          build: { cwd: "/workspace/functions/http-cloud-demo" },
+        },
+      },
+    });
+
+    expect(JSON.parse(result.content[0].text).success).toBe(true);
+    expect(mockProbeCamCapabilityForLogin).not.toHaveBeenCalled();
+  });
+
+  it("lets an inconclusive CAM probe through instead of blocking the deployment", async () => {
+    // 超时/网络失败归为 unknown；据此拦截会误伤正常用户
+    mockProbeCamCapabilityForLogin.mockResolvedValue("unknown");
+    mockDeployFunction.mockResolvedValueOnce({
+      functionName: "http-cloud-demo",
+      functionType: "HTTP",
+      requestedStrategy: "cloud",
+      effectiveStrategy: "cloud",
+      action: "create",
+      operations: ["create-function"],
+      dryRun: false,
+      steps: [],
+      warnings: [],
+    });
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      dryRun: false,
+      confirm: true,
+      func: {
+        name: "http-cloud-demo",
+        type: "HTTP",
+        buildStrategy: "cloud",
+        imageConfig: {
+          imageType: "enterprise",
+          registryId: "tcr-12345678",
+          build: { cwd: "/workspace/functions/http-cloud-demo" },
+        },
+      },
+    });
+
+    expect(JSON.parse(result.content[0].text).success).toBe(true);
+    expect(mockDeployFunction).toHaveBeenCalled();
+  });
+
   it("allows cloud strategy dry-run in cloud mode", async () => {
     mockIsCloudMode.mockReturnValue(true);
     const result = await tools.manageFunctions.handler({
@@ -1217,6 +1368,105 @@ describe("functions tool helpers", () => {
       const schema = tools.queryFunctions.meta.inputSchema;
       expect(schema.revealEnvValues).toBeDefined();
       expect(schema.revealEnvValues._def.description).toContain("默认 false");
+    });
+  });
+
+  describe("getFunctionDeployStatus availability", () => {
+    it("explains why the action cannot work in cloud mode", async () => {
+      // 异步任务只由 buildStrategy=cloud/local 的真实部署创建，两者在 cloud mode 下都被拦；
+      // image 策略走同步 createFunction(deployMode="image")，也不产生 taskId。
+      // 因此这里必然查不到任务，要给出原因而不是通用的「任务不存在」。
+      mockIsCloudMode.mockReturnValue(true);
+
+      const result = await tools.queryFunctions.handler({
+        action: "getFunctionDeployStatus",
+        taskId: "any-task-id",
+      });
+
+      const payload = JSON.parse(result.content[0].text);
+      expect(payload.success).toBe(false);
+      expect(payload.errorCode).toBe("DEPLOY_TASK_NOT_FOUND");
+      expect(payload.message).toContain("cloud mode");
+      expect(payload.message).toContain("buildStrategy=cloud/local");
+      // 明确拒绝，不该再去翻任务表
+      expect(payload.data.cloudMode).toBe(true);
+    });
+
+    it("reports a missing task with the current envId in local mode", async () => {
+      const result = await tools.queryFunctions.handler({
+        action: "getFunctionDeployStatus",
+        taskId: "missing-task-id",
+      });
+
+      const payload = JSON.parse(result.content[0].text);
+      expect(payload.success).toBe(false);
+      expect(payload.errorCode).toBe("DEPLOY_TASK_NOT_FOUND");
+      expect(payload.message).toContain("env-test");
+    });
+  });
+
+  /**
+   * manageFunctions 对外的 imageConfig 入参 schema 与部署侧的 strict 联合共用同一份
+   * 字段定义。这组用例守住这个不变量：两边任一侧单独演进都会在这里失败。
+   */
+  describe("imageConfig input schema contract", () => {
+    const parseFunc = (imageConfig: Record<string, unknown>) =>
+      tools.manageFunctions.meta.inputSchema.func.safeParse({
+        name: "http-image-demo",
+        type: "HTTP",
+        buildStrategy: "image",
+        imageConfig: {
+          imageType: "personal",
+          imageUri: "ccr.ccs.tencentyun.com/demo/http-image-demo:v1",
+          ...imageConfig,
+        },
+      });
+
+    it("keeps commandList and argsList instead of silently stripping them", () => {
+      // 回归：扁平入参 schema 曾缺这两个字段，z.object 默认 strip 会把它们静默丢掉——
+      // 用户传了完全不生效，也拿不到任何报错
+      const parsed = parseFunc({
+        commandList: ["python"],
+        argsList: ["-u", "app.py"],
+      });
+
+      expect(parsed.success).toBe(true);
+      expect(parsed.data?.imageConfig).toMatchObject({
+        commandList: ["python"],
+        argsList: ["-u", "app.py"],
+      });
+    });
+
+    it("accepts the only imagePort the SDK allows", () => {
+      expect(parseFunc({ imagePort: 9000 }).success).toBe(true);
+    });
+
+    it("rejects any imagePort other than 9000", () => {
+      // SDK 契约注明「容器监听端口，仅允许 9000」。这里曾是任意 number，
+      // 描述还写着「Job 型镜像填 -1」，照着填就会撞上部署侧 z.literal(9000) 的费解报错
+      expect(parseFunc({ imagePort: -1 }).success).toBe(false);
+      expect(parseFunc({ imagePort: 8080 }).success).toBe(false);
+    });
+
+    it("rejects an unknown field instead of dropping it", () => {
+      expect(parseFunc({ imagePortt: 9000 }).success).toBe(false);
+    });
+
+    it("exposes the same field set as the deploy-side schema", () => {
+      const toolFields = Object.keys(
+        tools.manageFunctions.meta.inputSchema.func._def.innerType.shape
+          .imageConfig._def.innerType.shape,
+      ).sort();
+
+      // 工具入参 = 公共字段 + 三个按 buildStrategy 分叉的字段
+      expect(toolFields).toEqual(
+        [
+          ...Object.keys(FUNCTION_IMAGE_CONFIG_COMMON_FIELDS),
+          "imageUri",
+          "build",
+          "localFallback",
+        ].sort(),
+      );
     });
   });
 });

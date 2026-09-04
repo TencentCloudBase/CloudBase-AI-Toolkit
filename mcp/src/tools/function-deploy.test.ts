@@ -92,6 +92,7 @@ function makeTask(
   const now = new Date().toISOString();
   return {
     taskId: "task-1",
+    envId: "envA-test",
     functionName: "hello-world",
     requestedStrategy: strategy,
     status: "running",
@@ -123,7 +124,7 @@ describe("function deploy task cache", () => {
       });
     });
 
-    const task = startFunctionDeployTask(manager, cloudInput, {
+    const task = startFunctionDeployTask(manager, cloudInput, "envA-test", {
       dryRun: false,
       autoGrant: false,
     });
@@ -177,7 +178,7 @@ describe("function deploy task cache", () => {
       });
     });
 
-    const task = startFunctionDeployTask(manager, localInput, {
+    const task = startFunctionDeployTask(manager, localInput, "envA-test", {
       dryRun: false,
       autoGrant: false,
     });
@@ -217,7 +218,7 @@ describe("function deploy task cache", () => {
       }),
     );
 
-    const task = startFunctionDeployTask(manager, imageInput, {
+    const task = startFunctionDeployTask(manager, imageInput, "envA-test", {
       dryRun: false,
       autoGrant: false,
     });
@@ -246,7 +247,7 @@ describe("function deploy task cache", () => {
       throw error;
     });
 
-    const task = startFunctionDeployTask(manager, cloudInput, {
+    const task = startFunctionDeployTask(manager, cloudInput, "envA-test", {
       dryRun: false,
       autoGrant: false,
     });
@@ -266,7 +267,7 @@ describe("function deploy task cache", () => {
   it("fails the task with CONFIG_INVALID when checkConfig is not ready", async () => {
     const manager = createManager(async () => deployResult(), false);
 
-    const task = startFunctionDeployTask(manager, cloudInput, {
+    const task = startFunctionDeployTask(manager, cloudInput, "envA-test", {
       dryRun: false,
       autoGrant: false,
     });
@@ -287,7 +288,7 @@ describe("function deploy task cache", () => {
           resolveDeploy = resolve;
         }),
     );
-    const task = startFunctionDeployTask(manager, cloudInput, {
+    const task = startFunctionDeployTask(manager, cloudInput, "envA-test", {
       dryRun: false,
       autoGrant: false,
     });
@@ -305,7 +306,7 @@ describe("function deploy task cache", () => {
 
   it("creates the task already running with startedAt recorded", () => {
     const manager = createManager(() => new Promise(() => undefined));
-    const task = startFunctionDeployTask(manager, cloudInput, {
+    const task = startFunctionDeployTask(manager, cloudInput, "envA-test", {
       dryRun: false,
       autoGrant: false,
     });
@@ -326,7 +327,7 @@ describe("function deploy task cache", () => {
       throw new Error("deploy aborted");
     });
 
-    const task = startFunctionDeployTask(manager, cloudInput, {
+    const task = startFunctionDeployTask(manager, cloudInput, "envA-test", {
       dryRun: false,
       autoGrant: false,
     });
@@ -349,7 +350,7 @@ describe("function deploy task cache", () => {
       return deployResult();
     });
 
-    const task = startFunctionDeployTask(manager, cloudInput, {
+    const task = startFunctionDeployTask(manager, cloudInput, "envA-test", {
       dryRun: false,
       autoGrant: false,
       onProgress: (event) => seen.push(`${event.stage}:${event.status}`),
@@ -370,6 +371,7 @@ describe("function deploy task cache", () => {
         "build",
         "createdAt",
         "deploy",
+        "envId",
         "error",
         "finishedAt",
         "functionName",

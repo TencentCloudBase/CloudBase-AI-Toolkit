@@ -21,6 +21,7 @@ function makeTask(strategy: FunctionDeployStrategy): FunctionDeployTask {
   const now = new Date().toISOString();
   return {
     taskId: "task-progress",
+    envId: "envA-test",
     functionName: "hello-world",
     requestedStrategy: strategy,
     status: "running",

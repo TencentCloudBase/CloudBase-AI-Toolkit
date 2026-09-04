@@ -151,6 +151,16 @@ Personal-tier image builds (`imageConfig.imageType="personal"` with `local` / `c
 - If deployment fails with `CLOUD_REGISTRY_CREDENTIAL_MISSING` or `CLOUD_REGISTRY_CREDENTIAL_INVALID`, instruct the user to add these two variables to the `env` block of their MCP configuration and restart the MCP server. Do not work around it by passing the credential inline.
 - The username is the Tencent Cloud account UIN and is not itself a secret; it may be passed explicitly if needed. Explicit arguments take precedence per field, so username-in-argument plus password-from-environment is a valid combination.
 
+**Know when that environment channel does not exist.** It works only for a local stdio MCP server whose client configuration exposes a custom `env` block. Some GUI clients do not inherit shell exports, and IDE-embedded MCP servers usually inject credentials from a hard-coded allowlist (often only `TENCENTCLOUD_*`), leaving the user no way to set arbitrary variables. Telling those users to "set it in the MCP `env` block" is an instruction they cannot act on. Route them to an enterprise registry (`imageType="enterprise"`, which mints a short-lived TCR token instead of using a fixed password) or to `buildStrategy="image"` with an already-pushed image.
+
+### Enterprise-tier builds require a login state with CAM permission
+
+`cloud` / `local` builds against an enterprise registry mint a TCR token through CAM (as does `autoGrant`). Environment-level API Keys and OAuth-issued STS credentials carry no CAM policy, so those calls fail with `UnauthorizedOperation`. The MCP probes the login state before starting a real enterprise build and refuses up front rather than failing midway; treat that error as a routing signal, not a retryable fault:
+
+- Sign in with an account-level `TENCENTCLOUD_SECRETID` / `TENCENTCLOUD_SECRETKEY` pair, **or**
+- Switch to `buildStrategy="image"` and deploy an image that was pushed elsewhere, **or**
+- Use a personal-tier registry — its static password goes straight to `docker login` without touching CAM, which makes it the one build path that does work for API Key users.
+
 
 ## Writing mode at a glance
 

@@ -28,7 +28,15 @@ export const TERMINAL_BUILD_STATUSES = new Set<FunctionDeployBuildStatus>([
   "skipped",
 ]);
 
+/**
+ * 构建尚未收尾的状态，即 TERMINAL_BUILD_STATUSES 的补集。
+ *
+ * queued 必须在列：任务创建即落 queued，首个构建事件到达前一直停在这里。
+ * 漏掉它会让 failInFlightStages 放过「排队时就失败/过期」的任务，
+ * 结果任务已是 failed/expired，build.status 却仍显示 queued。
+ */
 export const IN_FLIGHT_BUILD_STATUSES = new Set<FunctionDeployBuildStatus>([
+  "queued",
   "building",
   "pushing",
 ]);
