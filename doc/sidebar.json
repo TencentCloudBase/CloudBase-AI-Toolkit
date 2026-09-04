@@ -147,6 +147,11 @@
         ]
       },
       {
+        "type": "doc",
+        "id": "ai/cloudbase-ai-toolkit/markdown-access",
+        "label": "Markdown 文档访问"
+      },
+      {
         "type": "category",
         "label": "入门教程",
         "collapsible": true,
