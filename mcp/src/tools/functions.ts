@@ -3,13 +3,31 @@ import {
   getCloudBaseManager,
   getEnvId,
   logCloudBaseResult,
+  probeCamCapabilityForLogin,
 } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
 import { isCloudMode } from "../utils/cloud-mode.js";
 import { resolveGatewayAccessUrls } from "../utils/gateway-access-urls.js";
 import { jsonContent } from "../utils/json-content.js";
 import { debug } from "../utils/logger.js";
-import { isToolPayloadError } from "../utils/tool-result.js";
+import { isToolPayloadError, throwToolPayloadError } from "../utils/tool-result.js";
+import {
+  DEPLOY_TASK_NOT_FOUND_ERROR_CODE,
+  describeFunctionDeployTask,
+  executeFunctionDeployWithProgress,
+  getFunctionDeployTask,
+  resolveRegistryCredential,
+  serializeFunctionDeployTask,
+  startFunctionDeployTask,
+  type FunctionDeployManager,
+} from "./function-deploy.js";
+import {
+  FUNCTION_DEPLOY_CONFIG_SCHEMA,
+  FUNCTION_IMAGE_BUILD_SCHEMA,
+  FUNCTION_IMAGE_CONFIG_COMMON_FIELDS,
+  FUNCTION_IMAGE_LOCAL_FALLBACKS,
+  resolveEffectiveImageType,
+} from "./function-deploy-schema.js";
 import {
   buildFunctionUpdatingPayload,
   getErrorMessage,
@@ -105,6 +123,7 @@ export const QUERY_FUNCTION_ACTIONS = [
   "getLayerVersionDetail",
   "listFunctionTriggers",
   "getFunctionDownloadUrl",
+  "getFunctionDeployStatus",
 ] as const;
 
 export const MANAGE_FUNCTION_ACTIONS = [
@@ -203,6 +222,7 @@ type QueryFunctionsInput = {
   searchKey?: string;
   layerName?: string;
   layerVersion?: number;
+  taskId?: string;
 };
 
 type ManageFunctionsInput = {
@@ -243,6 +263,9 @@ type ManageFunctionsInput = {
   confirm?: boolean;
   incrementalFile?: string;
   imageConfig?: FunctionImageConfigInput;
+  dryRun?: boolean;
+  wait?: boolean;
+  autoGrant?: boolean;
 };
 
 /** 环境变量脱敏后的占位值（不保留任何明文片段）。 */
@@ -292,39 +315,44 @@ export const CUSTOM_IMAGE_RUNTIME = "CustomImage";
 
 // HTTP 函数镜像部署配置，对应 Manager SDK 的 IFunctionImageConfig（camelCase）。
 // 用于 zip→COS→CloudApp custom 构建→TCR→SCF 镜像部署链路的「阶段 B」：基于已推送到 TCR 的镜像创建/更新函数。
-const IMAGE_CONFIG_SCHEMA = z.object({
-  imageType: z
-    .enum(["enterprise", "personal"])
-    .optional()
-    .describe("镜像仓库类型：enterprise（企业版 TCR）或 personal（个人版）。省略时默认 enterprise。"),
-  imageUri: z
-    .string()
-    .describe(
-      "完整镜像地址（必须含 tag），格式 {domain}/{namespace}/{image}:{tag}，" +
-        "例如 ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001。不要使用 :latest。",
+/**
+ * manageFunctions 对外暴露的 imageConfig 入参 schema。
+ *
+ * 公共字段直接展开 FUNCTION_IMAGE_CONFIG_COMMON_FIELDS（唯一定义处），这里只补三个
+ * 按 buildStrategy 分叉的字段。曾经这里维护过一份独立的扁平副本，结果与部署侧的
+ * strict 联合漂移：commandList/argsList 只存在于部署侧，工具入参收到后被 z.object
+ * 默认的 strip 静默丢弃；imagePort 这边写成任意 number 且描述称 Job 型填 -1，部署侧
+ * 却是 z.literal(9000)（SDK 契约同样注明「仅允许 9000」），照描述填就会撞上难懂的
+ * 校验错误。共用同一份字段定义即可从根上消除这类漂移。
+ *
+ * strict：未知字段直接报错，而不是被静默丢弃后一路沉默到部署行为与预期不符。
+ */
+const IMAGE_CONFIG_SCHEMA = z
+  .object({
+    ...FUNCTION_IMAGE_CONFIG_COMMON_FIELDS,
+    imageUri: z
+      .string()
+      .optional()
+      .describe(
+        "完整镜像地址（必须含 tag），格式 {domain}/{namespace}/{image}:{tag}，" +
+          "例如 ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001。不要使用 :latest。" +
+          "buildStrategy=image（已有镜像）时必填；" +
+          "buildStrategy=cloud/local 可以不填：镜像地址由构建流程产出并回传；" +
+          "目标仓库由 build.repository/build.namespace 决定，显式提供时优先使用你提供的配置，" +
+          "省略时由 manager-node 用默认值自动补齐并创建/复用（namespace 默认 envId、repository 默认函数名）。",
+      ),
+    build: FUNCTION_IMAGE_BUILD_SCHEMA.optional().describe(
+      "镜像构建目标。buildStrategy=cloud（云端构建）或 local（本地 Docker 构建）时使用；" +
+        "buildStrategy=image（已有镜像）不填。" +
+        "cloud/local 下 build 非必填：缺省仓库坐标可自动补齐（namespace 默认 envId、repository 默认函数名），" +
+        "仅需指定构建细节或个人版 build.registryCredential 等字段时才填。",
     ),
-  registryId: z
-    .string()
-    .optional()
-    .describe("TCR 实例 ID，形如 tcr-xxxxxxxx。imageType=enterprise 时必填。"),
-  command: z
-    .string()
-    .optional()
-    .describe("覆盖镜像 ENTRYPOINT。不填则使用 Dockerfile 默认值，例如 python。"),
-  args: z
-    .string()
-    .optional()
-    .describe("覆盖镜像 CMD，空格分隔，例如 -u app.py。"),
-  entryPoint: z.string().optional().describe("镜像入口点，一般不需要单独设置。"),
-  imagePort: z
-    .number()
-    .optional()
-    .describe("容器监听端口。Web Server 函数填 9000（默认），Job 型镜像填 -1。"),
-  containerImageAccelerate: z
-    .boolean()
-    .optional()
-    .describe("是否开启镜像加速。镜像较大时建议开启以缩短冷启动时间。"),
-});
+    localFallback: z
+      .enum(FUNCTION_IMAGE_LOCAL_FALLBACKS)
+      .optional()
+      .describe("buildStrategy=local 时本地构建不可用的处理方式，默认 error。"),
+  })
+  .strict();
 
 const SEVEN_FIELD_CRON_REGEX = /^\s*\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s*$/;
 
@@ -411,10 +439,20 @@ const CREATE_FUNCTION_SCHEMA = z.object({
         `  Go: ${RECOMMENDED_RUNTIMES.golang}\n\n` +
         `镜像部署（基于 TCR 镜像创建函数）时填 "${CUSTOM_IMAGE_RUNTIME}"，并提供 imageConfig；此时无需 functionRootPath/zipFile。`,
     ),
+  buildStrategy: z
+    .enum(["zip", "cloud", "local", "image"])
+    .optional()
+    .describe(
+      "HTTP 函数部署策略：" +
+        "zip=代码包部署（默认，缺省即 zip）；image=使用已有镜像（imageConfig.imageUri 必填）；" +
+        "cloud=云端构建镜像；local=本地 Docker 构建镜像。cloud/local 走镜像构建部署编排，需要 imageConfig；" +
+        "其中 build 非必填：目标仓库坐标（namespace 默认 envId、repository 默认函数名）等缺省可自动补齐，" +
+        "仅在需要指定构建细节或个人版 build.registryCredential 等特定字段时才提供 build。",
+    ),
   imageConfig: IMAGE_CONFIG_SCHEMA.optional().describe(
-    "镜像部署配置（仅 runtime=CustomImage 时使用）。" +
-      "用于 zip→COS→CloudApp custom 构建→TCR→SCF 的「阶段 B」：基于已推送到 TCR 的镜像创建 HTTP 函数。" +
-      "传入 imageConfig 后即按镜像部署处理，函数无需打包本地代码、scf_bootstrap 或 Handler。",
+    "镜像配置（buildStrategy=image/cloud/local 或 runtime=CustomImage 时使用），镜像相关字段全部收敛在此命名空间下。" +
+      "image：填 imageUri 使用已有镜像；cloud/local：可填 build 描述如何构建，省略时用默认仓库坐标自动补齐。" +
+      "传入已有镜像（imageUri）即按镜像部署处理，函数无需打包本地代码、scf_bootstrap 或 Handler。",
   ),
   triggers: z.array(TRIGGER_SCHEMA).optional().describe("触发器配置数组"),
   handler: z.string().optional().describe("函数入口"),
@@ -726,11 +764,15 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
 
     if (input.action === "createFunction" || input.action === "updateFunctionCode") {
-      // 镜像部署不依赖本地代码目录（代码已在 TCR），cloud mode 下可用。
-      const hasImageConfig = Boolean(
-        input.imageConfig ?? input.func?.imageConfig,
+      // 镜像部署不依赖本地代码目录（image 已在 TCR；cloud 云端构建）；
+      // local 构建虽依赖本地，其 cloud mode 拦截在 runFunctionImageDeploy 内按 buildStrategy 处理。
+      const buildStrategy = input.func?.buildStrategy as string | undefined;
+      const hasImageDeploy = Boolean(
+        input.imageConfig ??
+          input.func?.imageConfig ??
+          (buildStrategy && buildStrategy !== "zip"),
       );
-      if (hasImageConfig) {
+      if (hasImageDeploy) {
         return;
       }
       throw new Error(
@@ -794,6 +836,60 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     input: QueryFunctionsInput,
   ): Promise<FunctionToolEnvelope> => {
     switch (input.action) {
+    case "getFunctionDeployStatus": {
+      if (!input.taskId) {
+        throw new Error("getFunctionDeployStatus 操作时，taskId 参数是必需的");
+      }
+      // cloud mode 下这个 action 不可能命中任何任务：异步任务只由 buildStrategy=cloud/local
+      // 的真实部署创建，而这两条路径在 cloud mode 下都被拦（image 策略走同步的
+      // createFunction(deployMode="image")，根本不产生 taskId）。给出明确原因，
+      // 而不是让 hosted 用户对着通用的「任务不存在」反复重试。
+      if (isCloudMode()) {
+        throwToolPayloadError({
+          success: false,
+          errorCode: DEPLOY_TASK_NOT_FOUND_ERROR_CODE,
+          data: { action: input.action, taskId: input.taskId, cloudMode: true },
+          message:
+            `${input.action} 在 cloud mode 下不可用：异步部署任务只由 buildStrategy=cloud/local 的真实部署创建，` +
+            "而这两种策略的真实执行在 cloud mode 下都不支持（需要读取本地构建上下文或本地 Docker），因此不会存在任何 taskId。" +
+            "buildStrategy=image 走同步部署，直接在 manageFunctions 的返回里拿结果，也不需要查询部署状态。" +
+            "如需异步镜像构建部署，请改用本地 MCP 模式。",
+        });
+      }
+      // 任务按 envId 隔离：同一进程可能先后服务多个环境，仅凭 taskId 不足以授权
+      const taskEnvId =
+        cloudBaseOptions?.envId ?? (await getEnvId(cloudBaseOptions));
+      const task = getFunctionDeployTask(input.taskId, taskEnvId);
+      if (!task) {
+        // 任务只保存在 MCP 进程内存中：过期、清理或 MCP Server 重启后都会丢失
+        throwToolPayloadError({
+          success: false,
+          errorCode: DEPLOY_TASK_NOT_FOUND_ERROR_CODE,
+          data: { action: input.action, taskId: input.taskId, expired: true },
+          message: `未找到部署任务 ${input.taskId}；部署任务不存在，可能已过期、不属于当前环境 ${taskEnvId}，或 MCP Server 已重启（任务仅保存在 MCP 进程内存中）。`,
+        });
+      }
+      return {
+        success: task.status !== "failed" && task.status !== "expired",
+        data: {
+          action: input.action,
+          ...serializeFunctionDeployTask(task),
+        },
+        message: describeFunctionDeployTask(task),
+        ...(task.status === "running"
+          ? {
+              nextActions: [
+                {
+                  tool: "queryFunctions",
+                  action: "getFunctionDeployStatus",
+                  reason: "继续查询云函数部署状态",
+                  suggested_args: { taskId: task.taskId },
+                },
+              ],
+            }
+          : {}),
+      };
+    }
     case "listFunctions": {
       const cloudbase = await getManager();
       const result = await cloudbase.functions.getFunctionList(
@@ -1173,6 +1269,208 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         : rawInput;
     ensureActionAllowedInCloudMode(input);
 
+    /**
+     * 用 TCB_TCR_USERNAME / TCB_TCR_PASSWORD 补齐个人版 TCR 推送凭证。
+     *
+     * 目的是让调用方不必把密码写进 Tool 入参（入参会进入模型上下文与调用历史）。
+     * 只在 imageType=personal 时生效：enterprise 用实例临时令牌，不需要固定密码。
+     *
+     * cloud mode 下不读进程环境变量：Hosted 是多租户共享进程，
+     * 读到的会是部署方的凭证而非调用方的，属于越权。
+     */
+    const applyRegistryCredentialFromEnv = (
+      imageConfig: unknown,
+    ): unknown => {
+      if (!imageConfig || typeof imageConfig !== "object") {
+        return imageConfig;
+      }
+      const config = imageConfig as Record<string, unknown>;
+      const build = config.build;
+      // 只有 local/cloud 才有 build；image 策略无需推送凭证
+      if (!build || typeof build !== "object") {
+        return imageConfig;
+      }
+      // imageType 缺省为 enterprise，与 schema 描述保持一致
+      if (config.imageType !== "personal") {
+        return imageConfig;
+      }
+
+      const buildConfig = build as Record<string, unknown>;
+      const { credential } = resolveRegistryCredential(
+        buildConfig.registryCredential as
+          | { username?: string; password?: string }
+          | undefined,
+        { allowEnv: !isCloudMode() },
+      );
+
+      if (!credential) {
+        return imageConfig;
+      }
+
+      return {
+        ...config,
+        build: { ...buildConfig, registryCredential: credential },
+      };
+    };
+
+    // HTTP 云函数镜像构建部署（func.buildStrategy=cloud/local）走 manager-node functionDeployer 编排。
+    // 由 createFunction / updateFunctionCode 在 func.buildStrategy=cloud/local 时复用：
+    // local=本地 Docker 构建推送，cloud=CloudApp 云端构建。image=已有镜像走扁平分支，不进入此函数。
+    // 部署配置对齐 toolbox：从 func 组装（buildStrategy 与 imageConfig 均为函数级字段）。
+    const runFunctionImageDeploy = async (): Promise<FunctionToolEnvelope> => {
+      const func = (input.func ?? {}) as Record<string, unknown>;
+      const strategy = func.buildStrategy as "cloud" | "local" | undefined;
+      const functionName = String(input.functionName ?? func.name ?? "");
+      if (!functionName) {
+        throw new Error(
+          `${input.action} 触发镜像构建部署时，函数名是必需的（func.name 或顶层 functionName）。`,
+        );
+      }
+      const deployConfig: Record<string, unknown> = {
+        name: functionName,
+        type: "HTTP",
+        buildStrategy: strategy,
+        imageConfig: applyRegistryCredentialFromEnv(func.imageConfig),
+      };
+      for (const key of [
+        "runtime",
+        "description",
+        "timeout",
+        "memorySize",
+        "envVariables",
+        "vpc",
+        "layers",
+        "role",
+        "codeSecret",
+        "public",
+        "path",
+        "gatewayPath",
+        "protocolType",
+        "protocolParams",
+        "instanceConcurrencyConfig",
+      ]) {
+        if (func[key] !== undefined) {
+          deployConfig[key] = func[key];
+        }
+      }
+      if (input.dryRun === false && input.confirm !== true) {
+        throw new Error(
+          `${input.action} 执行真实镜像部署时必须显式传入 confirm=true；如只查看计划，请使用 dryRun=true。`,
+        );
+      }
+      if (strategy === "local" && isCloudMode()) {
+        throw new Error(
+          `${input.action} 的 buildStrategy=local 依赖本地源码与 Docker，在 cloud mode 下不可用。请改用本地 MCP 模式，或改用 cloud/image 策略。`,
+        );
+      }
+      // 只拦真实执行；cloud dry-run 在 cloud mode 下放行。
+      //
+      // 放行的前提是 dry-run 全程不碰本地文件系统——hosted 环境里 build.cwd 是调用方
+      // 本机的绝对路径，一旦 SDK 在这条路径上 stat 或读取 Dockerfile / 构建上下文，
+      // 用户就会收到难以理解的 ENOENT。已按 @cloudbase/manager-node 5.8.3 源码逐段核对：
+      // deployFunction 的 dry-run 分支在 validate（config-guard）+ plan（planner）之后
+      // 直接 buildResult 返回，两个模块都没有任何 fs 调用；唯一读文件的 preflight 位于
+      // 该 return 之后，dry-run 到不了。MCP 这侧同样只做字符串校验：isAbsolutePath 就是
+      // path.isAbsolute，不做 stat。升级 manager-node 时需要重新确认这个前提。
+      if (
+        strategy === "cloud" &&
+        input.dryRun === false &&
+        isCloudMode()
+      ) {
+        throw new Error(
+          `${input.action} 的 buildStrategy=cloud 在真实执行时需要读取并打包本地构建上下文，在 cloud mode 下不可用。请改用本地 MCP 模式执行，或先提供已推送镜像并使用 image 策略。`,
+        );
+      }
+
+      const parsedDeployConfig = FUNCTION_DEPLOY_CONFIG_SCHEMA.safeParse(deployConfig);
+      if (!parsedDeployConfig.success) {
+        throw new Error(
+          `${input.action} 镜像部署参数校验失败：${parsedDeployConfig.error.issues
+            .map((issue) => `${issue.path.join(".") || "func"}: ${issue.message}`)
+            .join("；")}`,
+        );
+      }
+
+      // 企业版 TCR 的云端/本地构建要靠 CAM 铸造临时令牌（autoGrant 授权同理）。
+      // 环境级 API Key 与 OAuth 换出的 STS 都不带 CAM 策略，会在构建跑到一半时抛
+      // UnauthorizedOperation；这里前置探测，把中途失败提前成开始前的明确报错。
+      // 个人版走静态密码直接 docker login，不经过 CAM，因此不做拦截。
+      if (
+        input.dryRun === false &&
+        (strategy === "cloud" || strategy === "local") &&
+        resolveEffectiveImageType(parsedDeployConfig.data) === "enterprise"
+      ) {
+        // unknown（超时/网络/拿不到登录态）一律放行，只拦 CAM 明确拒绝的情况
+        if ((await probeCamCapabilityForLogin(cloudBaseOptions)) === "limited") {
+          throw new Error(
+            `${input.action} 的 buildStrategy=${strategy} 需要通过 CAM 为企业版 TCR 铸造临时令牌，` +
+              "但当前登录态无 CAM 权限（环境级 API Key 与 OAuth 换出的临时凭据都不带 CAM 策略），构建必然在中途失败。" +
+              "请改用账号级密钥 TENCENTCLOUD_SECRETID / TENCENTCLOUD_SECRETKEY 登录，" +
+              "或改用 buildStrategy=image 直接部署已推送的镜像；" +
+              "个人版镜像（imageType=personal）走静态密码不经过 CAM，也不受此限制。",
+          );
+        }
+      }
+
+      const cloudbase = await getManager();
+      const deployEnvId =
+        cloudBaseOptions?.envId ?? (await getEnvId(cloudBaseOptions));
+      if (input.dryRun === false && input.wait === false) {
+        const task = startFunctionDeployTask(
+          cloudbase as unknown as FunctionDeployManager,
+          parsedDeployConfig.data,
+          deployEnvId,
+          {
+            dryRun: false,
+            autoGrant: input.autoGrant === true,
+          },
+        );
+        return buildEnvelope(
+          {
+            action: input.action,
+            taskId: task.taskId,
+            functionName: task.functionName,
+            requestedStrategy: task.requestedStrategy,
+            status: task.status,
+            createdAt: task.createdAt,
+            build: task.build,
+            deploy: task.deploy,
+          },
+          `已接受云函数 ${task.functionName} 的异步镜像部署任务。当前请求不会等待完整构建；请勿向用户报告“部署已完成”。必须使用 queryFunctions(action="getFunctionDeployStatus", taskId="${task.taskId}") 自动轮询，直到 status=succeeded 或 failed，再向用户汇报最终结果。建议首次等待约 5 秒，后续按返回的 progress 继续查询；仅达到轮询上限时，才报告任务仍在执行并附带 taskId。`,
+          [
+            {
+              tool: "queryFunctions",
+              action: "getFunctionDeployStatus",
+              reason: "查询异步部署任务状态",
+              suggested_args: { taskId: task.taskId },
+            },
+          ],
+        );
+      }
+      const syncResult = await executeFunctionDeployWithProgress(
+        cloudbase as unknown as FunctionDeployManager,
+        parsedDeployConfig.data,
+        {
+          dryRun: input.dryRun !== false,
+          autoGrant: input.autoGrant === true,
+        },
+      );
+      // wait 默认 true 是为兼容既有调用方保留的，但同步等待最长可达约 15 分钟，
+      // 很容易先撞上 MCP Client 的请求超时——超时只断开这次请求，云端部署仍在继续，
+      // 调用方却没有 taskId 可追踪。这里在返回里提示下次改用异步路径。
+      if (input.dryRun === false && input.wait !== false) {
+        return {
+          ...syncResult,
+          message:
+            `${syncResult.message}` +
+            "\n提示：本次为同步等待完整部署（wait 默认 true），构建耗时可能达到十几分钟并触发 MCP Client 请求超时；" +
+            "超时只会断开请求，云端部署仍在继续，但届时拿不到 taskId 追踪。" +
+            '下次执行真实构建部署建议传 wait=false，再用 queryFunctions(action="getFunctionDeployStatus") 轮询。',
+        };
+      }
+      return syncResult;
+    };
+
     switch (input.action) {
     case "createFunction": {
       if (deployOverrides?.createFunction) {
@@ -1185,6 +1483,19 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         });
         return buildEnvelope({ action: input.action, result }, '云函数部署成功（override）');
       }
+
+      // func.buildStrategy=cloud/local 的 HTTP 镜像构建部署走 functionDeployer 编排；
+      // image=已有镜像与代码包（zip/缺省）保持既有分支。
+      const createStrategy = input.func?.buildStrategy as
+        | "zip"
+        | "cloud"
+        | "local"
+        | "image"
+        | undefined;
+      if (createStrategy === "cloud" || createStrategy === "local") {
+        return runFunctionImageDeploy();
+      }
+
       if (!input.func?.name || typeof input.func.name !== "string") {
         throw new Error("createFunction 操作时，func.name 参数是必需的");
       }
@@ -1196,8 +1507,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         `[createFunction] name=${functionName}, type=${String(func.type || "Event")}`,
       );
 
-      // 镜像部署分支（Runtime=CustomImage）：基于已推送到 TCR 的镜像创建 HTTP 函数。
-      // 对应 zip→COS→CloudApp custom 构建→TCR→SCF 链路的「阶段 B」。
+      // 镜像部署分支（buildStrategy=image / Runtime=CustomImage / 传入 imageConfig）：
+      // 基于已推送到 TCR 的镜像创建 HTTP 函数，对应 zip→COS→CloudApp custom 构建→TCR→SCF 链路的「阶段 B」。
       const createImageConfig =
         input.imageConfig ??
         (func.imageConfig as FunctionImageConfigInput | undefined);
@@ -1206,7 +1517,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         func.runtime.replace(/\s+/g, "").toLowerCase() ===
           CUSTOM_IMAGE_RUNTIME.toLowerCase();
 
-      if (createImageConfig || isImageRuntime) {
+      if (createStrategy === "image" || createImageConfig || isImageRuntime) {
         if (!createImageConfig?.imageUri) {
           throw new Error(
             "镜像部署（runtime=CustomImage）时，imageConfig.imageUri 是必需的，" +
@@ -1465,12 +1776,24 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         }
       }
 
-      // 镜像更新分支：后续迭代只需用新镜像 tag 更新函数。
+      // func.buildStrategy=cloud/local 的 HTTP 镜像构建部署走 functionDeployer 编排；
+      // 函数存在性与「更新中」忙碌检测已在上方完成，保持 updateFunctionCode 既有语义。
+      const updateStrategy = input.func?.buildStrategy as
+        | "zip"
+        | "cloud"
+        | "local"
+        | "image"
+        | undefined;
+      if (updateStrategy === "cloud" || updateStrategy === "local") {
+        return runFunctionImageDeploy();
+      }
+
+      // 镜像更新分支（buildStrategy=image / 传入 imageConfig）：后续迭代只需用新镜像 tag 更新函数。
       const updateImageConfig =
         input.imageConfig ??
         (input.func?.imageConfig as FunctionImageConfigInput | undefined);
-      if (updateImageConfig) {
-        if (!updateImageConfig.imageUri) {
+      if (updateStrategy === "image" || updateImageConfig) {
+        if (!updateImageConfig?.imageUri) {
           throw new Error(
             "镜像更新时，imageConfig.imageUri 是必需的，格式为 {domain}/{namespace}/{image}:{tag}（含 tag，不要用 :latest）。",
           );
@@ -2081,7 +2404,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             "\n- `listLayerVersions`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图）" +
             "\n- `getLayerVersionDetail`: 获取层版本详情（账号级视图）" +
             "\n- `listFunctionTriggers`: 列出函数触发器（用于查看定时任务 / cron / timer 配置）" +
-            "\n- `getFunctionDownloadUrl`: 获取函数代码下载地址"
+            "\n- `getFunctionDownloadUrl`: 获取函数代码下载地址" +
+            "\n- `getFunctionDeployStatus`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。"
           ),
         functionName: z
           .string()
@@ -2125,6 +2449,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             "层为账号级共享命名空间；推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）",
           ),
         layerVersion: z.number().optional().describe("层版本号。`getLayerVersionDetail` 操作必填"),
+        taskId: z
+          .string()
+          .optional()
+          .describe(
+            "`getFunctionDeployStatus` 操作时的异步部署任务 ID（由 manageFunctions 的 wait=false 返回）。任务仅保存在当前 MCP 进程内存中：终态任务保留约 30 分钟，运行中任务最长保留 2 小时。",
+          ),
       },
       annotations: {
         readOnlyHint: true,
@@ -2142,9 +2472,23 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       description:
         "CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。" +
         "如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。" +
-        "镜像部署（Runtime=CustomImage）：先把代码经 zip→COS→CloudApp custom 构建→TCR 推镜像（这一阶段为裸腾讯云 API，本工具不覆盖），" +
-        "再用 createFunction(func.runtime=\"CustomImage\", imageConfig) 基于 TCR 镜像创建 HTTP 函数；后续迭代用 updateFunctionCode + imageConfig 换镜像 tag。" +
-        "危险操作需要显式 confirm=true。" +
+        "HTTP 云函数镜像构建部署：createFunction / updateFunctionCode 通过 func.buildStrategy 区分。" +
+        "func.buildStrategy=image（已有镜像，填 func.imageConfig.imageUri）直接创建/更新 HTTP 函数；" +
+        "func.buildStrategy=local（本地 Docker 构建推送）、cloud（CloudApp 云端构建）走镜像构建部署编排（需要 func.imageConfig；build 非必填，缺省仓库坐标自动补齐：namespace 默认 envId、repository 默认函数名），" +
+        "默认仅生成 dry-run 计划；传入 dryRun=false 且 confirm=true 后执行真实部署。真实部署可传 wait=false 立即返回 taskId，再通过 queryFunctions 的 getFunctionDeployStatus 查询进度和结果。wait=false 仅表示当前 Tool 不等待完整部署；调用方不得在 status=running 时结束流程，必须自动轮询到 succeeded/failed 后再向用户汇报，除非达到轮询上限。" +
+        "local 始终要求本地 MCP 模式；cloud 的真实执行需要读取本地构建上下文，也要求本地 MCP 模式；cloud mode 仅支持 cloud dry-run 和 image 策略。" +
+        "func.buildStrategy 省略或为 zip 时按传统代码包部署。危险操作需要显式 confirm=true。" +
+        "\n\n**个人版 TCR 凭证**：imageType=personal 的 local/cloud 构建需要推送凭证。" +
+        "若 MCP 配置的 env 中已设置 TCB_TCR_USERNAME 与 TCB_TCR_PASSWORD（与 TENCENTCLOUD_SECRETID 等密钥同样的配置方式），" +
+        "则不需要在请求参数中传递 func.imageConfig.build.registryCredential，留空即可自动读取。" +
+        "不要向用户索要密码明文，也不要把密码写进工具参数。" +
+        "\n注意这条 env 通道只在**本地 stdio MCP、且客户端的 mcp.json 支持自定义 env 块**时可用：" +
+        "部分 GUI 客户端不继承 shell 的 export，IDE 内置型 MCP 的凭据注入通常是硬编码白名单（例如只放行 TENCENTCLOUD_*），" +
+        "这类用户没有配置自定义 env 的通道，「在 MCP 配置的 env 中设置」对他们是无效指引。" +
+        "面向内置 MCP 用户应改为引导：使用企业版（imageType=enterprise，走实例临时令牌，不需要固定密码），或改用 buildStrategy=image 直接部署已推送的镜像。" +
+        "\n**企业版登录态要求**：enterprise 的 cloud/local 构建要经 CAM 铸造 TCR 临时令牌，" +
+        "环境级 API Key 与 OAuth 换出的临时凭据都不带 CAM 策略，会被前置拦截并提示改用账号级密钥或 image 策略；" +
+        "个人版走静态密码直接 docker login，不经过 CAM，反而是 API Key 用户唯一能走通的构建路径。" +
         "\n\n**层（Layer）说明**：" +
         "\n- 层为 SCF 账号级共享命名空间：不同环境创建同名层会共享同一层的版本序列；删除某版本会影响所有绑定该版本的环境的函数" +
         "\n- 创建层必须用带环境标识的唯一层名，固定格式：`{layerName}_{当前envId}`（如 `common_cloud1-d9ghadgak3edf6b36`）。不要在不同环境使用相同裸层名，创建前先 `listLayers` 查重" +
@@ -2158,7 +2502,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             "createLayerVersion、deleteLayerVersion、attachLayer、detachLayer、updateFunctionLayers。" +
             "层名推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）"
           ),
-        func: CREATE_FUNCTION_SCHEMA.optional().describe("createFunction 操作的函数配置"),
+        func: CREATE_FUNCTION_SCHEMA.optional().describe(
+          "createFunction / updateFunctionCode 的函数配置。镜像/构建部署通过 func.buildStrategy（zip/cloud/local/image）区分，" +
+            "镜像相关字段收敛在 func.imageConfig 命名空间下。",
+        ),
         functionRootPath: z.string().optional().describe(
           "创建或更新函数代码时默认推荐的本地目录方式。" +
           "必须是直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions 或 /abs/path/functions），" +
@@ -2217,12 +2564,29 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           .optional()
           .describe("updateFunctionLayers 的目标层列表，顺序即最终顺序"),
         codeSecret: z.string().optional().describe("层绑定时的代码保护密钥"),
-        imageConfig: IMAGE_CONFIG_SCHEMA.optional().describe(
-          "镜像部署配置（Runtime=CustomImage）。createFunction 时基于 TCR 镜像创建 HTTP 函数，" +
-            "updateFunctionCode 时仅更换镜像 tag。需提供 imageUri（含 tag），企业版 TCR 还需 registryId。" +
-            "也可在 func.imageConfig 中提供；两处都传时以顶层 imageConfig 优先。",
-        ),
-        confirm: z.boolean().optional().describe("危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作需要显式传入 confirm=true"),
+        dryRun: z
+          .boolean()
+          .optional()
+          .default(true)
+          .describe("镜像构建部署（func.buildStrategy=cloud/local）是否只生成部署计划。默认 true；传 false 时必须同时传 confirm=true。"),
+        wait: z
+          .boolean()
+          .optional()
+          .default(true)
+          .describe(
+            "真实镜像部署是否等待完整部署；设为 false 立即返回 taskId 并后台执行。" +
+              "默认 true 是为了兼容既有调用方，但同步等待最长可达约 15 分钟，很容易先撞上 MCP Client 的请求超时——" +
+              "客户端超时只是断开这次请求，云端部署仍在继续，却拿不到 taskId 追踪。" +
+              "因此执行真实构建部署（buildStrategy=cloud/local，dryRun=false）时建议显式传 wait=false。",
+          ),
+        autoGrant: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe(
+            "镜像部署是否允许 manager-node 自动补齐固定白名单 CAM 策略。默认 false；仅在明确确认权限变更时设为 true。",
+          ),
+        confirm: z.boolean().optional().describe("危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作以及镜像构建部署（func.buildStrategy=cloud/local）真实执行需要显式传入 confirm=true"),
         incrementalFile: z.string().optional().describe("incrementalDeployFunction 增量部署时的变更文件路径"),
       },
       annotations: {

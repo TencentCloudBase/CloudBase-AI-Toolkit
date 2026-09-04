@@ -17,6 +17,7 @@
 # MCP local IDE / rules artifacts
 # Package publish backup files
 mcp/.agent/
+mcp/.agents/
 mcp/.claude/
 mcp/.clinerules/
 mcp/.codebuddy/

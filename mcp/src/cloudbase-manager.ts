@@ -115,6 +115,46 @@ export async function probeApiKeyCamCapability(loginState: {
     }
 }
 
+/**
+ * 探测「当前登录态」能否调用管理面（CAM）API。
+ *
+ * 与 probeApiKeyCamCapability 的区别：那个要求调用方自己准备好 loginState，
+ * 这里负责解析当前登录态（显式凭据优先，否则 peek 本地登录态）再转交探测。
+ *
+ * 典型用途是把「构建/授权跑到一半才抛 UnauthorizedOperation」提前成开始前的明确报错：
+ * 环境级 API Key 与 OAuth 换出的 STS 都不带 CAM 策略，凡是需要 CAM 的路径都会失败。
+ *
+ * 刻意不去推断凭证类型——`CloudBaseOptions` 已明确规定不得用 token 字段的有无推断
+ * 权限范围——而是发一次真实调用按结果判定。探测结果按 secretId+envId 缓存，
+ * 超时/网络失败一律归为 unknown，调用方不应据此拦截，避免误伤。
+ */
+export async function probeCamCapabilityForLogin(
+    cloudBaseOptions?: CloudBaseOptions,
+): Promise<ApiKeyCamProbeResult> {
+    try {
+        const { region: fallbackRegion, site } = resolveSiteAndRegion(cloudBaseOptions ?? {});
+        const loginState =
+            cloudBaseOptions?.secretId && cloudBaseOptions?.secretKey
+                ? cloudBaseOptions
+                : await peekLoginState({ region: fallbackRegion, site });
+        if (!loginState?.secretId || !loginState?.secretKey) {
+            return "unknown";
+        }
+        return await probeApiKeyCamCapability({
+            secretId: loginState.secretId,
+            secretKey: loginState.secretKey,
+            token: (loginState as { token?: string }).token,
+            envId:
+                cloudBaseOptions?.envId ?? (loginState as { envId?: string }).envId,
+        });
+    } catch (e) {
+        debug("probeCamCapabilityForLogin: failed to resolve login state", {
+            error: e instanceof Error ? e.message : String(e),
+        });
+        return "unknown";
+    }
+}
+
 export async function listAvailableEnvCandidates(options?: {
     cloudBaseOptions?: CloudBaseOptions;
     loginState?: any;

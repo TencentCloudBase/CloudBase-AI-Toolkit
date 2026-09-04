@@ -45,6 +45,8 @@ CloudBase MCP 支持两种连接方式：**本地模式**（MCP 服务在本机�
 | `TCB_AUTH_OAUTH_ENDPOINT` | 自定义 device-code 登录 endpoint（可选，推荐作为主要覆盖项） | 不设则使用默认登录 endpoint |
 | `TCB_AUTH_CLIENT_ID` | 自定义 device-code 登录 `client_id`（高级可选） | 不设则使用默认 `client_id` |
 | `TCB_AUTH_OAUTH_CUSTOM` | 自定义 endpoint 返回格式开关（高级可选） | 未配置 endpoint 时默认 `false`；配置 endpoint 后默认 `true` |
+| `TCB_TCR_USERNAME` | 个人版 TCR 推送用户名，即腾讯云账号 UIN（可选） | 仅 HTTP 云函数个人版镜像构建（`imageType=personal` 的 `local` / `cloud`）需要；与 cloudbaserc 的 `{{env.TCB_TCR_USERNAME}}` 同名，CLI 与 MCP 共用一套变量 |
+| `TCB_TCR_PASSWORD` | 个人版 TCR 固定密码（可选） | 同上；配置后无需在工具参数中传递凭证，避免密码进入 AI 上下文。[获取个人版镜像仓库密码](https://console.cloud.tencent.com/tcr/token) |
 | `INTEGRATION_IDE` | 当前 IDE 标识（如 `Cursor`、`CodeBuddy`）（可选） | 用于日志与能力适配 |
 | `CLOUDBASE_MCP_PLUGINS_ENABLED` | 启用的插件列表，逗号分隔（可选） | 不设则使用默认插件集 |
 | `CLOUDBASE_MCP_PLUGINS_DISABLED` | 禁用的插件列表，逗号分隔（可选） | 与 URL 参数 `disable_plugins` 效果类似 |

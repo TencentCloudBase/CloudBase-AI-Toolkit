@@ -35,8 +35,8 @@ importers:
   .:
     dependencies:
       '@cloudbase/manager-node':
-        specifier: 5.8.2
-        version: 5.8.2
+        specifier: 5.8.3
+        version: 5.8.3
     devDependencies:
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
@@ -115,14 +115,14 @@ importers:
         specifier: ^1.14.0
         version: 1.18.2
       '@cloudbase/manager-node':
-        specifier: 5.8.2
-        version: 5.8.2
+        specifier: 5.8.3
+        version: 5.8.3
       '@cloudbase/mcp':
         specifier: 1.0.0-beta.25
         version: 1.0.0-beta.25
       '@cloudbase/toolbox':
-        specifier: ^0.8.1
-        version: 0.8.1
+        specifier: ^0.8.4
+        version: 0.8.4
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
         version: 1.30.0(zod@3.25.76)
@@ -334,8 +334,8 @@ packages:
     resolution: {integrity: sha512-IteJl7RjPYjsqQbmSr6Vr0el6I19SzI1ya6Nw1ov4KEHxXdwrjJ2uubBeUK4mc54kmzFmvTwqBuyJdhUQ/YDXA==}
     engines: {node: '>=18.0.0'}
 
-  '@cloudbase/manager-node@5.8.2':
-    resolution: {integrity: sha512-kzjqjxGChbyTBCCM3xa+ahnLtgyk/7P7dIqgsUub+7vgJRMJZOZdMkUrshXGrViFoMjuXe0A9/B+I01PKLouUQ==}
+  '@cloudbase/manager-node@5.8.3':
+    resolution: {integrity: sha512-hGzQQHRFZdodw7URJ5xPgMZLwBCY6OfWgSIHkx8MaKPSFkPNFXb2Hf9S2N7aBxuu85GQVfnXi4X0fig3KHXyhA==}
 
   '@cloudbase/mcp@1.0.0-beta.25':
     resolution: {integrity: sha512-IZw5MGTin3/SHlJVL6aoMLocAIlqsm8Oif0Xlb4OeznlAFuSIGwMV8ZJ5Dn9ftzyN/kwKjysa6x+Rmfw6MG51A==}
@@ -347,11 +347,8 @@ packages:
   '@cloudbase/signature-nodejs@2.0.0':
     resolution: {integrity: sha512-eFtRiZuD21+/s/4opejhcN8msFLBK5POwkT445yyA47kps35qXrHGqlLQgt00bmRU4VtjwN6LHr2O3PjHjWW6Q==}
 
-  '@cloudbase/toolbox@0.8.1':
-    resolution: {integrity: sha512-kSiX4Cx+B+WGt/gBSAST+l0MwM8ya5FqJu6qq7kNpHSibvz3wSe0r/JzBuov0YF7fNj7qmxsmDIPAToFoV3vjQ==}
-
-  '@cloudbase/toolbox@0.8.3':
-    resolution: {integrity: sha512-Q+RT/cG0HH8V3N3ovRMKPgoOvD22Owdp5GkHDP5TKN7GpLWv3tvkfUDXFtH2jLFL+69t0qiNrP4ZlVH1/900pg==}
+  '@cloudbase/toolbox@0.8.4':
+    resolution: {integrity: sha512-v5fOhz3l3ms+7sL0DuLEMkfIBx2yCfaHtLVI912SNAd0QP46Coi6chBCRYJqdklANAVbF12BgdRDaJy5ZFBFeg==}
 
   '@codemirror/autocomplete@6.20.3':
     resolution: {integrity: sha512-tlosUqb+3BbxCxZdu4tKeRghPFC+QM7q4X5YhKV2eCmPG+1r2F3f4AaSz5sCrFqUtX4Jh20VFTKecl16MgiV9g==}
@@ -1161,79 +1158,66 @@ packages:
     resolution: {integrity: sha512-EIPRXTVQpHyF8WOo219AD2yEltPehLTcTMz2fn6JsatLYSzQf00hj3rulF+yauOlF9/FtM2WpkT/hJh/KJFGhA==}
     cpu: [arm]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-arm-musleabihf@4.60.4':
     resolution: {integrity: sha512-J3Yh9PzzF1Ovah2At+lHiGQdsYgArxBbXv/zHfSyaiFQEqvNv7DcW98pCrmdjCZBrqBiKrKKe2V+aaSGWuBe/w==}
     cpu: [arm]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-linux-arm64-gnu@4.60.4':
     resolution: {integrity: sha512-BFDEZMYfUvLn37ONE1yMBojPxnMlTFsdyNoqncT0qFq1mAfllL+ATMMJd8TeuVMiX84s1KbcxcZbXInmcO2mRg==}
     cpu: [arm64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-arm64-musl@4.60.4':
     resolution: {integrity: sha512-pc9EYOSlOgdQ2uPl1o9PF6/kLSgaUosia7gOuS8mB69IxJvlclko1MECXysjs5ryez1/5zjYqx3+xYU0TU6R1A==}
     cpu: [arm64]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-linux-loong64-gnu@4.60.4':
     resolution: {integrity: sha512-NxnomyxYerDh5n4iLrNa+sH+Z+U4BMEE46V2PgQ/hoB909i8gV1M5wPojWg9fk1jWpO3IQnOs20K4wyZuFLEFQ==}
     cpu: [loong64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-loong64-musl@4.60.4':
     resolution: {integrity: sha512-nbJnQ8a3z1mtmrwImCYhc6BGpThAyYVRQxw9uKSKG4wR6aAYno9sVjJ0zaZcW9BPJX1GbrDPf+SvdWjgTuDmnw==}
     cpu: [loong64]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-linux-ppc64-gnu@4.60.4':
     resolution: {integrity: sha512-2EU6acNrQLd8tYvo/LXW535wupT3m6fo7HKo6lr7ktQoItxTyOL1ZCR/GfGCuXl2vR+zmfI6eRXkSemafv+iVg==}
     cpu: [ppc64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-ppc64-musl@4.60.4':
     resolution: {integrity: sha512-WeBtoMuaMxiiIrO2IYP3xs6GMWkJP2C0EoT8beTLkUPmzV1i/UcOSVw1d5r9KBODtHKilG5yFxsGRnBbK3wJ4A==}
     cpu: [ppc64]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-linux-riscv64-gnu@4.60.4':
     resolution: {integrity: sha512-FJHFfqpKUI3A10WrWKiFbBZ7yVbGT4q4B5o1qKFFojqpaYoh9LrQgqWCmmcxQzVSXYtyB5bzkXrYzlHTs21MYA==}
     cpu: [riscv64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-riscv64-musl@4.60.4':
     resolution: {integrity: sha512-mcEl6CUT5IAUmQf1m9FYSmVqCJlpQ8r8eyftFUHG8i9OhY7BkBXSUdnLH5DOf0wCOjcP9v/QO93zpmF1SptCCw==}
     cpu: [riscv64]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-linux-s390x-gnu@4.60.4':
     resolution: {integrity: sha512-ynt3JxVd2w2buzoKDWIyiV1pJW93xlQic1THVLXilz429oijRpSHivZAgp65KBu+cMcgf1eVVjdnTLvPxgCuoQ==}
     cpu: [s390x]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-x64-gnu@4.60.4':
     resolution: {integrity: sha512-Boiz5+MsaROEWDf+GGEwF8VMHGhlUoQMtIPjOgA5fv4osupqTVnJteQNKJwUcnUog2G55jYXH7KZFFiJe0TEzQ==}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-x64-musl@4.60.4':
     resolution: {integrity: sha512-+qfSY27qIrFfI/Hom04KYFw3GKZSGU4lXus51wsb5EuySfFlWRwjkKWoE9emgRw/ukoT4Udsj4W/+xxG8VbPKg==}
     cpu: [x64]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-openbsd-x64@4.60.4':
     resolution: {integrity: sha512-VpTfOPHgVXEBeeR8hZ2O0F3aSso+JDWqTWmTmzcQKted54IAdUVbxE+j/MVxUsKa8L20HJhv3vUezVPoquqWjA==}
@@ -2736,7 +2720,7 @@ packages:
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   globby@10.0.2:
     resolution: {integrity: sha512-7dUi7RvCoT/xast/o/dLN53oqND4yk0nsHkhRgn9w65C4PofCLOoJ39iSOg+qVDdWQPIEj+eszMHQ+aLVwwQSg==}
@@ -3402,11 +3386,6 @@ packages:
 
   mustache@4.2.0:
     resolution: {integrity: sha512-71ippSywq5Yb7/tVYyGbkBggbU8H3u5Rz56fH60jGFgr8uHwxs+aSKeqmluIVzM0m0kB7xQjKS6qPfd0b2ZoqQ==}
-    hasBin: true
-
-  nanoid@3.3.12:
-    resolution: {integrity: sha512-ZB9RH/39qpq5Vu6Y+NmUaFhQR6pp+M2Xt76XBnEwDaGcVAqhlvxrl3B2bKS5D3NH3QR76v3aSrKaF/Kiy7lEtQ==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
   nanoid@3.3.17:
@@ -4419,11 +4398,12 @@ packages:
 
   uuid@3.4.0:
     resolution: {integrity: sha512-HjSDRw6gZE5JMggctHBcjVak08+KEVhSIiDzFnT9S9aegmp85S/bReBVTb4QTFaRNptJ9kuYaNhnbNEOkbKb/A==}
-    deprecated: Please upgrade  to version 7 or higher.  Older versions may use Math.random() in certain circumstances, which is known to be problematic.  See https://v8.dev/blog/math-random for details.
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   uuid@9.0.1:
     resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   validate-npm-package-license@3.0.4:
@@ -4816,11 +4796,11 @@ snapshots:
 
   '@cloudbase/functions-typings@1.2.1': {}
 
-  '@cloudbase/manager-node@5.8.2':
+  '@cloudbase/manager-node@5.8.3':
     dependencies:
       '@cloudbase/database': 0.6.2
       '@cloudbase/signature-nodejs': 1.1.0
-      '@cloudbase/toolbox': 0.8.3
+      '@cloudbase/toolbox': 0.8.4
       archiver: 3.1.1
       cos-nodejs-sdk-v5: 2.15.4
       del: 5.1.0
@@ -4868,40 +4848,7 @@ snapshots:
       is-stream: 2.0.1
       url: 0.11.4
 
-  '@cloudbase/toolbox@0.8.1':
-    dependencies:
-      '@cloudbase/cloud-api': 0.5.5
-      '@types/lowdb': 1.0.15
-      address: 1.2.2
-      archiver: 5.3.2
-      decompress: '@xhmikosr/decompress@11.1.3'
-      del: 5.1.0
-      dotenv: 8.6.0
-      import-fresh: 3.3.1
-      jsonfile: 6.2.0
-      lodash: 4.18.1
-      log-symbols: 4.1.0
-      lowdb: 1.0.0
-      make-dir: 3.1.0
-      mustache: 4.2.0
-      nanoid: 3.3.12
-      node-fetch: 2.7.0
-      open: 7.1.0
-      ora: 5.4.1
-      parse-json: 5.2.0
-      path-type: 4.0.0
-      portfinder: 1.0.38
-      query-string: 6.14.1
-      terminal-link: 2.1.1
-      yaml: 1.10.3
-      yargs: 15.4.1
-    transitivePeerDependencies:
-      - bare-abort-controller
-      - encoding
-      - react-native-b4a
-      - supports-color
-
-  '@cloudbase/toolbox@0.8.3':
+  '@cloudbase/toolbox@0.8.4':
     dependencies:
       '@cloudbase/cloud-api': 0.5.5
       '@types/lowdb': 1.0.15
@@ -8064,8 +8011,6 @@ snapshots:
 
   mustache@4.2.0: {}
 
-  nanoid@3.3.12: {}
-
   nanoid@3.3.17: {}
 
   negotiator@0.6.3: {}
@@ -8276,7 +8221,7 @@ snapshots:
   portfinder@1.0.38:
     dependencies:
       async: 3.2.6
-      debug: 4.4.1(supports-color@5.5.0)
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -9066,7 +9011,7 @@ snapshots:
   url@0.11.4:
     dependencies:
       punycode: 1.4.1
-      qs: 6.14.0
+      qs: 6.15.3
 
   util-deprecate@1.0.2: {}
 
