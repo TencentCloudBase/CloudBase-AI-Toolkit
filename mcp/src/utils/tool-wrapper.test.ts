@@ -123,6 +123,73 @@ describe("wrapServerWithTelemetry", () => {
     });
   });
 
+  it("sets isError=true on structured business-failure results", async () => {
+    let wrappedHandler: ((args: any) => Promise<any>) | undefined;
+
+    const server = {
+      registerTool: vi.fn((_name: string, _meta: any, handler: (args: any) => Promise<any>) => {
+        wrappedHandler = handler;
+        return undefined;
+      }),
+      logger: vi.fn(),
+      cloudBaseOptions: undefined,
+      ide: "Cursor",
+    } as any;
+
+    wrapServerWithTelemetry(server);
+    server.registerTool("demo", {}, async () => ({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ success: false, errorCode: "MIGRATION_TASK_FAILED", message: "boom" }),
+        },
+      ],
+    }));
+
+    const result = await wrappedHandler?.({});
+    expect(result?.isError).toBe(true);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(false);
+  });
+
+  it("sets isError=true on structuredContent business failures and leaves successes untouched", async () => {
+    let wrappedHandler: ((args: any) => Promise<any>) | undefined;
+    let handlerImpl: (args: any) => Promise<any> = async () => ({});
+
+    const server = {
+      registerTool: vi.fn((_name: string, _meta: any, handler: (args: any) => Promise<any>) => {
+        wrappedHandler = handler;
+        return undefined;
+      }),
+      logger: vi.fn(),
+      cloudBaseOptions: undefined,
+      ide: "Cursor",
+    } as any;
+
+    wrapServerWithTelemetry(server);
+    server.registerTool("demo", {}, (args: any) => handlerImpl(args));
+
+    handlerImpl = async () => ({
+      structuredContent: { success: false, message: "query failed" },
+      content: [],
+    });
+    const failure = await wrappedHandler?.({});
+    expect(failure?.isError).toBe(true);
+
+    handlerImpl = async () => ({
+      structuredContent: { success: true },
+      content: [],
+    });
+    const ok = await wrappedHandler?.({});
+    expect(ok?.isError).toBeUndefined();
+
+    handlerImpl = async () => ({
+      content: [{ type: "text", text: "plain text without structured payload" }],
+    });
+    const plain = await wrappedHandler?.({});
+    expect(plain?.isError).toBeUndefined();
+  });
+
   it("should keep failure requestId extraction for errored handlers", async () => {
     await withTelemetryEnabled(async () => {
       let wrappedHandler: ((args: any) => Promise<any>) | undefined;

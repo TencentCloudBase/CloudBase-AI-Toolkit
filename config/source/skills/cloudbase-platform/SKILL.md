@@ -57,9 +57,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Making code or configuration changes without first following the Change Safety Protocol (`cloudbase-platform/references/protocols/change-safety-protocol.md`).
 - Starting any deployment, publish, custom domain, or CloudRun work without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
 - Echoing `x-cloudbase-context`, full `req.headers`, or `process.env` from Cloud Functions / CloudRun (including httpbin-style debug images) — follow `references/protocols/sensitive-runtime-data-protection.md`.
-- **Confusing security domains with custom domains**: These are two completely different tools for different purposes:
-  - `envDomainManagement` (action: create/delete) = Security domains (安全域名) for CORS/request source validation - used for browser upload whitelisting. Does NOT accept certificateId.
-  - `manageGateway(action="bindCustomDomain")` = Bind a **new** custom domain (自定义域名) for public HTTPS — requires `domain` + `certificateId`. If `queryGateway(action="listCustomDomains")` already returns a usable custom domain, prefer `manageGateway(action="createRoute", domain="<existing-domain>")` instead; routing does **not** need certificateId.
+- **Confusing security domains with custom domains**: these are two different tools for different purposes. See the "Domain Management Tools" table below for the authoritative split.
 
 ## When to use this skill
 
@@ -126,29 +124,20 @@ When working with domain-related tasks, use the correct tool based on the requir
 - Task mentions "public access" or "HTTPS" with domain → Prefer reuse via `createRoute` when possible; only `bindCustomDomain` for first-time domain bind
 - Task mentions "关闭/禁用静态托管默认域名" / `*.tcloudbaseapp.com` → `queryGateway(listRoutes)` then `manageGateway(disableRoute)` with that STATIC_STORE domain; never invent `ModifyGatewayRoute`
 
+### Error Code Troubleshooting: Route Through Official Docs
+
+When a CloudBase tool call fails and the error message contains a specific error code (pattern `Category.Code`, e.g. `OperationDenied.FreePackageDenied`, `ResourceNotFound.*`), **always route through the official docs before acting — do not guess the meaning, do not hardcode fix recipes here**:
+
+1. Extract the error code from the error message.
+2. Look it up: `searchKnowledgeBase(mode="docs", action="searchDocs", query="<错误码>")` — official docs search covers error-code pages. Act on the documented meaning and the fix steps the doc prescribes (plan limits → upgrade guidance, misconfiguration → config fix, etc.).
+3. If docs search returns nothing, fall back to the canonical error-code pages:
+   - Error code basics & self-service troubleshooting: `https://docs.cloudbase.net/error-code/basic`
+   - Control-plane cloud API error codes: `https://cloud.tencent.com/document/product/876/34823`
+4. Never assert capability-per-plan or error-code semantics from memory — official docs and the console plan comparison are the only authoritative sources. Example: for Web 安全域名 plan requirements, cite `https://cloud.tencent.com/document/product/876/127357` rather than assuming which tier unlocks it.
+
 ### Recording Operation Results
 
-When a task explicitly requires recording operation steps or results to a file (e.g., `RESULT.json`):
-
-1. Perform the tool calls first to get actual results
-2. Collect all operation steps with their success/failure status
-3. Write the complete record to the specified file in the required format
-4. Include both successful operations and failed attempts with error messages
-
-Example structure for operation recording:
-```json
-{
-  "steps": [
-    {"action": "listDomains", "success": true, "message": "Found 3 domains"},
-    {"action": "bindDomain", "success": false, "message": "Certificate not found"}
-  ],
-  "summary": {
-    "totalAttempted": 2,
-    "succeeded": 1,
-    "failed": 1
-  }
-}
-```
+When a task explicitly requires recording operation steps or results to a file (e.g., `RESULT.json`): perform the tool calls first, then write a complete record containing every attempt (action, success/failure, message) plus a `summary` with total / succeeded / failed counts. Do not write the file from memory before the calls finish.
 
 ## Storage and Hosting
 
@@ -305,64 +294,22 @@ Compatibility note:
 
 ## Role Management (MCP)
 
-CloudBase MCP provides role management capabilities through the `queryPermissions` and `managePermissions` tools. These are equivalent to the CLI `tcb role` commands.
+CloudBase MCP provides role management via `queryPermissions` and `managePermissions` (CLI equivalent: `tcb role`). See each tool's schema for the full action list.
 
 **⚠️ CRITICAL: Role policies and resource permissions are two independent systems with NO automatic synchronization.**
 
 - Resource permissions (security rules) control access to specific resources (tables, collections, functions, storage)
 - Roles (identity dimension) control policy bundles and member assignments
 
-### Available Actions
+**Query** (`queryPermissions`): `listRoles`, `getRole` (by `roleId` / `roleIdentity` / `roleName`).
+**Manage** (`managePermissions`): `createRole`, `updateRole`, `deleteRoles`, `addRoleMembers`, `removeRoleMembers`, `addRolePolicies`, `removeRolePolicies`.
 
-**Query Operations** (via `queryPermissions`):
-| Action | Description |
-|--------|-------------|
-| `listRoles` | List all roles (system and custom) |
-| `getRole` | Get detailed role information by roleId/roleIdentity/roleName |
-
-**Management Operations** (via `managePermissions`):
-| Action | Description |
-|--------|-------------|
-| `createRole` | Create a new custom role |
-| `updateRole` | Update an existing role (add/remove policies or members) |
-| `deleteRoles` | Delete one or more custom roles |
-| `addRoleMembers` | Add members to a role |
-| `removeRoleMembers` | Remove members from a role |
-| `addRolePolicies` | Add policies to a role |
-| `removeRolePolicies` | Remove policies from a role |
-
-### Usage Examples
-
-**List all roles:**
 ```
-queryPermissions(action="listRoles")
+managePermissions(action="createRole", roleName="Developer", roleIdentity="developer",
+                  policies=["FunctionsAccess"], memberUids=["user-uid-1"])
 ```
 
-**Get specific role details:**
-```
-queryPermissions(action="getRole", roleId="role-xxx")
-# or by identity
-queryPermissions(action="getRole", roleIdentity="dev_role")
-# or by name
-queryPermissions(action="getRole", roleName="Developer")
-```
-
-**Delete a custom role:**
-```
-managePermissions(action="deleteRoles", roleIds=["role-xxx"])
-```
-
-**Create a custom role:**
-```
-managePermissions(action="createRole", roleName="Developer", roleIdentity="developer", policies=["FunctionsAccess"], memberUids=["user-uid-1"])
-```
-
-**Update a role (add policies):**
-```
-managePermissions(action="updateRole", roleId="role-xxx", addPolicies=["StoragesAccess"])
-```
-
-> ⚠️ Note: Only custom roles can be deleted. System roles are read-only.
+> ⚠️ Only custom roles can be deleted. System roles are read-only.
 
 See also: CLI equivalent commands in `cloudbase-cli/references/permission.md`
 
@@ -391,108 +338,27 @@ See also: CLI equivalent commands in `cloudbase-cli/references/permission.md`
 
 ## Console Management
 
-After creating/deploying resources, provide corresponding console management page links. All console URLs follow the pattern: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/{path}`.
+After creating/deploying resources, provide corresponding console links. All console URLs follow the pattern: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/{path}` — replace `${envId}` with the real EnvId resolved via `envQuery` (resolve aliases first; see Environment and Authentication below), and resource names with actual values.
 
-The CloudBase console is updated frequently. If a live, logged-in console shows a different hash path from this document, prefer the live console path over stale documentation and then update this skill to match.
+The CloudBase console is updated frequently. If a live, logged-in console shows a different hash path from this list, prefer the live console path over stale documentation and then update this skill to match.
 
-### Core Function Entry Points
+### Entry points (one line each)
 
-1. **Overview (概览)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/overview`
-   - Main dashboard showing environment status, resource usage, and quick access to key features
-   - Displays overview of all CloudBase services and their status
+- Overview: `#/overview`
+- Template Center: `#/cloud-template/market`
+- Document Database: `#/db/doc` · Collections `#/db/doc/collection/${collectionName}` · Models `#/db/doc/model/${modelName}`
+- MySQL Database: `#/db/mysql` · Tables `#/db/mysql/table/default/` (must be enabled in console first)
+- Cloud Functions: `#/scf` · Detail `#/scf/detail?id=${functionName}&NameSpace=${envId}`
+- CloudRun: `#/platform-run`
+- Cloud Storage: `#/storage`
+- AI+: `#/ai`
+- Static Hosting: `#/static-hosting` (alt: `https://console.cloud.tencent.com/tcb/hosting`)
+- Identity Authentication: `#/identity` · Login management `#/identity/login-manage` · Token management `#/identity/token-management`
+- Weida Low-Code: `#/lowcode/apps`
+- Logs & Monitoring: `#/devops/log`
+- Environment Settings: `#/env/http-access` (security domains, CORS, env vars, quotas)
 
-2. **Template Center (模板中心)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/cloud-template/market`
-   - Access project templates for React, Vue, Mini Program, UniApp, and backend frameworks
-   - AI Builder templates for rapid application generation
-   - Framework templates: React, Vue, Miniapp, UniApp, Gin, Django, Flask, SpringBoot, Express, NestJS, FastAPI
-
-3. **Document Database (文档型数据库)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/db/doc`
-   - Manage NoSQL document database collections
-   - **Collection Management**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/db/doc/collection/${collectionName}`
-     - View, edit, and manage collection data
-     - Configure security rules and permissions
-   - **Data Model Management**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/db/doc/model/${modelName}`
-     - Create and manage data models with relationships
-     - View model schema and field definitions
-
-4. **MySQL Database (MySQL 数据库)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/db/mysql`
-   - Manage MySQL relational database
-   - **Table Management**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/db/mysql/table/default/`
-     - Create, modify, and manage database tables
-     - Execute SQL queries and manage table structure
-   - **Important**: Must enable MySQL database in console before use
-
-5. **Cloud Functions (云函数)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/scf`
-   - Manage and deploy Node.js cloud functions
-   - **Function List**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/scf`
-   - **Function Detail**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/scf/detail?id=${functionName}&NameSpace=${envId}`
-     - View function code, logs, and configuration
-     - Manage function triggers and environment variables
-     - Monitor function invocations and performance
-
-6. **CloudRun (云托管)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/platform-run`
-   - Manage containerized backend services
-   - Deploy services using Function mode or Container mode
-   - Configure service scaling, access types, and environment variables
-   - View service logs and monitoring data
-
-7. **Cloud Storage (云存储)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/storage`
-   - Manage file storage buckets
-   - Upload, download, and organize files
-   - Configure storage permissions and access policies
-   - Generate temporary access URLs for private files
-
-8. **AI+**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/ai`
-   - Access AI capabilities and services
-   - AI Builder for generating templates and code
-   - AI image recognition and other AI features
-
-9. **Static Website Hosting (静态网站托管)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/static-hosting`
-   - Deploy and manage static websites
-   - Alternative URL: `https://console.cloud.tencent.com/tcb/hosting`
-   - Configure custom domains and CDN settings
-   - View deployment history and access logs
-
-10. **Identity Authentication (身份认证)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/identity`
-    - Configure authentication methods and user management
-    - **Login Management**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/identity/login-manage`
-      - Enable/disable login methods (SMS, Email, Username/Password, WeChat, Custom Login)
-      - Configure SMS/Email templates
-      - Manage security domain whitelist
-    - **Token Management**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/identity/token-management`
-      - Manage API Keys and Publishable Keys
-      - View and manage access tokens
-
-11. **Weida Low-Code (微搭低代码)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/lowcode/apps`
-    - Access Weida low-code development platform
-    - Build applications using visual drag-and-drop interface
-
-12. **Logs & Monitoring (日志监控)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/devops/log`
-    - View logs from cloud functions, CloudRun services, and other resources
-    - Monitor resource usage, performance metrics, and error rates
-    - Set up alerts and notifications
-
-13. **Environment Settings (环境配置)**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/env/http-access`
-    - Configure environment-level settings
-    - Manage security domains and CORS settings
-    - Configure environment variables and secrets
-    - View environment information and resource quotas
-
-### URL Construction Guidelines
-
-- **Base URL Pattern**: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/{path}`
-- **Replace Variables**: Always replace `${envId}` with the actual environment ID queried via `envQuery` tool
-- **Alias Handling**: If the conversation only contains an alias or shorthand, first resolve it with `envQuery(action="list", alias=..., aliasExact=true)` and use the returned `EnvId`; if the alias is ambiguous or missing, ask the user to confirm before generating links
-- **Resource-Specific URLs**: For specific resources (collections, functions, models), replace resource name variables with actual values
-- **Usage**: After creating/deploying resources, provide these console links to users for management operations
-
-### Quick Reference
-
-When directing users to console pages:
-- Use the full URL with environment ID
-- Explain what they can do on each page
-- Provide context about why they need to access that specific page
-- For configuration pages (like login management), guide users through the setup process
+For configuration pages (like login management), guide users through the setup process rather than only dropping a link.
 
 ## Reference index
 

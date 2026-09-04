@@ -70,6 +70,17 @@ alwaysApply: true
    - `mcp/` 子目录同样适用本约定：`mcp/AGENTS.md` 为源，`mcp/CLAUDE.md`、`mcp/CODEBUDDY.md` 为软链
 </project_rules>
 
+<experts>
+## WorkBuddy 专家包源码约定
+
+- **真源**在仓库 `plugins/experts/<expert-name>/`（一个专家一个子目录，版本控制）；与对外发布目录 `plugin/`（CodeBuddy plugin）区分
+- WorkBuddy 专家目录 `~/.workbuddy/plugins/marketplaces/my-experts/plugins/` 是**同步产物（build output），禁止手改**（会被覆盖）；修改一律走"改仓库源码 → 同步命令"
+- 同步：`npm run experts:sync [expert-name]`（脚本 `scripts/sync-experts.mjs`：rsync --delete 镜像 → validate_expert.py → register_expert.py）；expert-manager 脚本在 WorkBuddy app bundle 内，路径可用 `EXPERT_MANAGER_SCRIPTS_DIR` 覆盖
+- 内容原则：精简有效、引用为主——Agent MD 只留角色/SOP/铁律/路由，领域知识引用运行时官方 skills，不复制进包防漂移；踩坑经验官方 skill 未覆盖的才留包内
+- 后续加新专家 = 在 `plugins/experts/` 建目录（手工建骨架，`init_expert.py` 强制写 my-experts 目录与仓库真源冲突）→ `npm run experts:sync`；删除专家 = 删源码目录 → 全量 `npm run experts:sync`（脚本自动清理 my-experts 孤儿产物）
+- plugin.json 的 `displayDescription` 限制 40-50 字，超长会校验 warning；`tags` 必须恰好 3 个；`defaultInitPrompt` 各语言须与 `quickPrompts[0]` 完全一致
+</experts>
+
 <internal_dirs>
 ## 本地内部目录的存放、同步与获取
 
@@ -236,14 +247,14 @@ cp -r doc/* {cloudbase-docs dir}/docs/ai/cloudbase-ai-toolkit/
 </git_push>
 
 <dependency_upgrade_checklist>
-升级任何依赖（尤其 @cloudbase/manager-node 等运行时依赖）时，必须**三份 lockfile 同步**，缺一不可：
+升级任何依赖（尤其 @cloudbase/manager-node 等运行时依赖）时，必须同步更新**单一 lockfile** `pnpm-lock.yaml`：
 
-1. 根 `package-lock.json`：CI `nightly-build.yaml` 在根目录执行 `npm ci --ignore-scripts`
-2. `mcp/package-lock.json`：同一 workflow 第二步 `cd mcp && npm ci`（历史遗留 npm lockfile）
-3. `pnpm-lock.yaml`：mcp 开发主 lockfile（用 `pnpm install` 更新）
+1. 确认根 `package.json` 声明 `"packageManager": "pnpm@..."`，并用 `corepack enable` + `pnpm install` 更新依赖。
+2. 安全补丁 / 版本钉死走 `pnpm.overrides`（不要再写 npm `overrides`）。
+3. 提交前本地跑通：`pnpm install --frozen-lockfile`（workspace 覆盖根目录与 `mcp/`）。
 
-漏任一份会导致 CI 报 `Invalid: lock file's X does not satisfy Y` 或 `Missing: xxx from lock file`（2026-08-24 PR #952 实测踩坑）。
-提交前自查：`git ls-tree -r origin/main | grep -E "package-lock|pnpm-lock"` 列全所有 lockfile 逐一确认同步，push 后等 `build-and-publish` 转绿再合入。
+CI（`nightly-build.yaml` / `npm-publish.yaml` 等）统一使用 `pnpm install --frozen-lockfile`；主仓不再维护 `package-lock.json` / `mcp/package-lock.json`。
+`dsh-plugin/`、`platform-kit/`、`examples/` 若仍有各自 npm lockfile，升级那些子包时单独处理，不要回写主仓 npm lockfile。
 </dependency_upgrade_checklist>
 
 <skills_and_rules_maintenance>

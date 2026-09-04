@@ -501,8 +501,31 @@ function isSchemaDdlRisk(risk: string, sql: string): boolean {
  */
 const LOCAL_MIGRATIONS_DIR = "cloudbase/migrations";
 const LOCAL_MIGRATIONS_DIR_LEGACY = "migrations";
-/** Same constraint as applyMigration.migrationName (broader than CLI /^[a-z_]+$/ — digits allowed). */
-const MIGRATION_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
+/** Same constraint as applyMigration.migrationName (server/CLI parity: lowercase letters and underscores only, digits rejected server-side). */
+const MIGRATION_NAME_PATTERN = /^[a-z][a-z_]*$/;
+const MIGRATION_NAME_RULE_MESSAGE =
+  "migrationName must start with a lowercase letter and contain only lowercase letters and underscores " +
+  "(no digits — the PushPGUserMigrations API rejects digit characters with " +
+  "\"Name 只允许小写字母和下划线\"). Use underscores instead of digits, e.g. add_user_table_v2.";
+
+/** Validate migrationName against the server-side rule before calling migration APIs. */
+function validateMigrationName(
+  name: string,
+  actionLabel: string,
+): ReturnType<typeof buildPgToolResult> | null {
+  if (!MIGRATION_NAME_PATTERN.test(name.trim())) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "MIGRATION_NAME_INVALID",
+      data: {
+        migrationName: name,
+        requiredPattern: MIGRATION_NAME_PATTERN.source,
+      },
+      message: `Invalid migrationName "${name}" when action=${actionLabel}. ${MIGRATION_NAME_RULE_MESSAGE}`,
+    });
+  }
+  return null;
+}
 
 function getMigrationProjectRoot(): string {
   const fromEnv =
@@ -2375,8 +2398,13 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgDbCont
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_NAME_REQUIRED",
-      message: "Provide migrationName (lowercase letters, digits and underscores, starting with a letter) when action=planMigration.",
+      message: "Provide migrationName (lowercase letters and underscores, starting with a letter) when action=planMigration.",
     });
+  }
+
+  const invalidName = validateMigrationName(args.migrationName, "planMigration");
+  if (invalidName) {
+    return invalidName;
   }
 
   const versionOrError = requireExplicitMigrationVersion(args, "planMigration");
@@ -2468,8 +2496,13 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_NAME_REQUIRED",
-      message: "Provide migrationName (lowercase letters, digits and underscores, starting with a letter) when action=applyMigration.",
+      message: "Provide migrationName (lowercase letters and underscores, starting with a letter) when action=applyMigration.",
     });
+  }
+
+  const invalidName = validateMigrationName(args.migrationName, "applyMigration");
+  if (invalidName) {
+    return invalidName;
   }
 
   if (args.confirm !== true) {
@@ -3138,6 +3171,11 @@ async function handleRepairMigration(args: ManagePgDatabaseArgs, context: PgDbCo
     });
   }
 
+  const invalidRepairName = validateMigrationName(args.migrationName, "repairMigration");
+  if (invalidRepairName) {
+    return invalidRepairName;
+  }
+
   if (!args.repairStatus) {
     return buildPgToolResult({
       success: false,
@@ -3412,9 +3450,9 @@ export function registerPGDatabaseTools(
           ),
         migrationName: z
           .string()
-          .regex(/^[a-z][a-z0-9_]*$/)
+          .regex(/^[a-z][a-z_]*$/)
           .optional()
-          .describe("plan/apply/repair 必填：migration 名称，小写字母开头，仅允许小写字母、数字和下划线。"),
+          .describe("plan/apply/repair 必填：migration 名称，小写字母开头，仅允许小写字母和下划线（不允许数字，服务端 PushPGUserMigrations 会拒绝含数字的名称）。"),
         migrationVersion: z
           .string()
           .regex(/^\d{14}$/)

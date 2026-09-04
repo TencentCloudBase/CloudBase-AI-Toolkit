@@ -89,9 +89,9 @@ All reference documentation files are located in the \`references/\` directory r
 cloudbase/
 ├── SKILL.md              # This file (main entry)
 └── references/           # All reference documentation
-    ├── auth-web/${subSkillFile}       # Web authentication guide
-    ├── auth-wechat/${subSkillFile}    # WeChat authentication guide
-    ├── no-sql-web-sdk/${subSkillFile} # NoSQL database for Web
+    ├── auth-web-cloudbase/${subSkillFile}              # Web authentication guide
+    ├── auth-wechat-miniprogram/${subSkillFile}         # WeChat authentication guide
+    ├── cloudbase-document-database-web-sdk/${subSkillFile} # NoSQL database for Web
     ├── ui-design/        # UI design guidelines
     └── ...               # Other reference docs
 \`\`\`

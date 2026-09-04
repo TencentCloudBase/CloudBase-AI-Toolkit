@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ExtendedMcpServer } from "../server.js";
+import { isCloudMode } from "../utils/cloud-mode.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
 
 const CATEGORY = "PostgreSQL storage";
@@ -16,6 +17,39 @@ const STORAGE_ACTIONS = [
 ] as const;
 
 type StorageAction = (typeof STORAGE_ACTIONS)[number];
+
+/**
+ * hosted/云端模式下不可用的 action：依赖真实 bucket 名称与存储数据面，
+ * MCP 只能返回实现方案，hosted 客户端无法基于其继续执行，需提前拦截。
+ */
+const CLOUD_MODE_UNAVAILABLE_ACTIONS: ReadonlySet<StorageAction> = new Set([
+  "createBucket",
+  "uploadPlan",
+  "objectInfo",
+]);
+
+function ensureActionAllowedInCloudMode(args: QueryPgStorageArgs) {
+  if (!isCloudMode()) {
+    return undefined;
+  }
+  if (!CLOUD_MODE_UNAVAILABLE_ACTIONS.has(args.action)) {
+    return undefined;
+  }
+  return buildPgStorageResult({
+    success: false,
+    errorCode: "CLOUD_MODE_ACTION_UNAVAILABLE",
+    data: {
+      action: args.action,
+      cloudMode: true,
+      availableActions: ["buckets", "config"],
+      recommendation: "Use CloudBase SDK or HTTP API in application code for PG storage data-plane operations.",
+    },
+    message:
+      `queryPgStorage action=${args.action} 在 hosted/云端模式下不可用：该操作依赖真实 bucket 名称和存储数据面访问。` +
+      "请在应用代码中直接使用 CloudBase SDK 或 HTTP API 完成存储操作，或改用本地模式运行 MCP 后重试。" +
+      "hosted 模式下本工具仅支持 buckets/config 能力摘要查询。",
+  });
+}
 
 type PgStorageObjectInput = {
   objectKey: string;
@@ -258,6 +292,11 @@ export function registerPGStorageTools(server: ExtendedMcpServer) {
       },
     },
     async (args: QueryPgStorageArgs) => {
+      const cloudModeBlock = ensureActionAllowedInCloudMode(args);
+      if (cloudModeBlock) {
+        return cloudModeBlock;
+      }
+
       switch (args.action) {
         case "buckets":
         case "config":
