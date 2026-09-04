@@ -259,6 +259,8 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
 
 托管 URL 可用 `site`（`domestic` / `intl`）指定登录站点（国内站新加坡需 `site=domestic`），也可用 `enable_plugins` / `disable_plugins` 裁剪工具集。名称以 `mcp/src/server.ts` 为准。
 
+**云端 Hosted MCP E2E**（官方 SDK 客户端）：`npm run test:hosted-mcp:e2e`，环境变量与双模式说明见 [`tests/hosted-mcp-e2e/README.md`](tests/hosted-mcp-e2e/README.md)。缺凭证时相关用例 skip（退出码 0）。
+
 **自建 Cloud Mode**：在自有服务器部署时设置 `CLOUDBASE_MCP_CLOUD_MODE=true`（或 `MCP_CLOUD_MODE=true`），禁用本地文件与本地进程类工具，避免远程调用方操作宿主机。
 
 | 场景 | 建议 |
