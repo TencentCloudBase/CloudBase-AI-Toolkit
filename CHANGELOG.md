@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ### Features
 
+* **rag**: teach agents to look up error codes via `searchKnowledgeBase` — the tool description now lists "tool call failed with a specific error code (e.g. `OperationDenied.FreePackageDenied`)" as a first-class `mode=docs` + `action=searchDocs` scenario, so agents query the official error-code docs before retrying or guessing.
+* **skill**: add an error-code troubleshooting protocol to the `cloudbase-platform` skill — when a tool call fails with a specific error code (e.g. `OperationDenied.FreePackageDenied`), extract it and route through the official docs (`searchKnowledgeBase` docs search, falling back to `docs.cloudbase.net/error-code/basic` and cloud API error codes 876/34823). Never assert capability-per-plan or error-code semantics from memory; cite the official capability doc (e.g. Web 安全域名 876/127357) or the console plan comparison instead.
 * **env-binding**: `cloudbaserc.json` 现在作为环境绑定的字段级回退源（envId / region / site），位于 `.cloudbase/project.json` 之后、账号登录态之前。已有 CLI 项目无需再维护第二份绑定配置：envId 支持字面量与 `{{env.KEY}}` 模板（模板从项目根 `.env` / `.env.local` 解析，与 CLI 同源；`{{private.X}}` 与解析失败的模板安全跳过、回落下一级）。MCP 仍不写 `cloudbaserc.json`，机器管理的绑定持久化继续走 `.cloudbase/project.json`。注意这是对存量 CLI 用户的行为变化：以前 `cloudbaserc.json` 的 envId 不影响 MCP 环境绑定，现在会自动生效。
 
 ## [2.32.5](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.4...v2.32.5) (2026-09-01)

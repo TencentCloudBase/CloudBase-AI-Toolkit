@@ -7,7 +7,7 @@ import { CloudBaseOptions } from '../types.js';
 import { shouldRegisterTool } from './cloud-mode.js';
 import { debug } from './logger.js';
 import { reportToolCall, readMcpClientInfoFromServer } from './telemetry.js';
-import { isToolPayloadError, ToolPayloadError } from "./tool-result.js";
+import { isToolPayloadError, ToolPayloadError, withBusinessFailureIsError } from "./tool-result.js";
 import { applyRepeatGuardToPayload, resetRepeatGuard } from "./repeat-error-guard.js";
 
 
@@ -182,7 +182,9 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             if (!isTestEnvironment) {
                 server.logger?.({ type: 'afterToolCall', toolName: name, args: sanitizeArgs(args), result: result, duration });
             }
-            return result;
+            // 业务失败（结构化 { success: false } 返回）必须带 MCP isError=true，
+            // 否则客户端会把失败误判为成功（实测 applyMigration / 知识库查询失败均踩坑）。
+            return withBusinessFailureIsError(result);
         } catch (error) {
             success = false;
             errorMessage = error instanceof Error ? error.message : String(error);

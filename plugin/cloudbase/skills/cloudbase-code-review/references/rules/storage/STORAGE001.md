@@ -30,7 +30,7 @@
 
 ## 修复指引
 
-通过 MCP 工具 `envDomainManagement` 添加安全域名，或在 grader `before()` 阶段通过 `CreateAuthDomain` API 添加：
+通过 MCP 工具 `envDomainManagement` 添加安全域名，或通过 `CreateAuthDomain` API 添加：
 
 ```typescript
 // 通过 CreateAuthDomain API
@@ -47,4 +47,4 @@ await cloudbase.commonService("tcb", TCB_VERSION).call({
 
 ## 根因
 
-CloudBase 安全域名机制会拦截未注册的 origin 发出的请求。Vite 默认的 `localhost:5173` 不在白名单中，浏览器直传 CloudBase 存储时会因跨域失败。评测环境通过 grader 的 `before()` 预置了该域名，但 agent 在写本地项目时也需要主动配置。
+CloudBase 安全域名机制会拦截未注册的 origin 发出的请求。Vite 默认的 `localhost:5173` 不在白名单中，浏览器直传 CloudBase 存储时会因跨域失败。agent 在写本地项目时需要主动把 dev server 地址加入安全域名。

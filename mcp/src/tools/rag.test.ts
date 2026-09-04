@@ -279,4 +279,46 @@ describe("rag tools", () => {
       vi.resetModules();
     }
   });
+
+  it("searchKnowledgeBase skill/openapi modes return remote URLs instead of local paths in cloud mode", async () => {
+    const originalFetch = globalThis.fetch;
+    const previousCloudMode = process.env.CLOUDBASE_MCP_CLOUD_MODE;
+    process.env.CLOUDBASE_MCP_CLOUD_MODE = "true";
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("offline")) as typeof fetch;
+
+    try {
+      const { server, tools } = createMockServer();
+      await registerRagTools(server);
+
+      const openapiResult = await tools.searchKnowledgeBase.handler({
+        mode: "openapi",
+        apiName: "nosql",
+      });
+      const openapiText = openapiResult.content[0].text;
+      expect(openapiText).toContain(
+        "https://docs.cloudbase.net/openapi/nosql.v1.openapi.yaml",
+      );
+      expect(openapiText).not.toContain("Path:");
+      expect(openapiText).not.toContain(".cloudbase-mcp");
+
+      // Skill enumeration may be unavailable offline; either way the response
+      // must point at the remote SKILL.md URL instead of a server-local path.
+      const skillResult = await tools.searchKnowledgeBase.handler({
+        mode: "skill",
+        skillName: "auth-tool",
+      });
+      const skillText = skillResult.content[0].text;
+      expect(skillText).toContain(
+        "https://cnb.cool/tencent/cloud/cloudbase/skills/-/git/raw/main/skills",
+      );
+      expect(skillText).not.toContain("absolute path is:");
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (previousCloudMode === undefined) {
+        delete process.env.CLOUDBASE_MCP_CLOUD_MODE;
+      } else {
+        process.env.CLOUDBASE_MCP_CLOUD_MODE = previousCloudMode;
+      }
+    }
+  });
 });

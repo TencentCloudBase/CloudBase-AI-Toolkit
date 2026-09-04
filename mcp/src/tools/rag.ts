@@ -6,6 +6,7 @@ import * as path from "path";
 import { z } from "zod";
 import { createCloudBaseManagerWithOptions } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
+import { isCloudMode } from "../utils/cloud-mode.js";
 import { jsonContent } from "../utils/json-content.js";
 import { debug, warn } from "../utils/logger.js";
 
@@ -76,7 +77,16 @@ interface CacheMeta {
 }
 
 // OpenAPI 文档信息类型
-type OpenAPIInfo = { name: string; description: string; absolutePath: string };
+type OpenAPIInfo = {
+  name: string;
+  description: string;
+  absolutePath?: string;
+  url?: string;
+};
+
+// 云端（hosted）模式下 skill 文档的远程基址：返回远程 URL 而不是服务端本地路径
+const SKILL_REMOTE_BASE_URL =
+  "https://cnb.cool/tencent/cloud/cloudbase/skills/-/git/raw/main/skills";
 
 // 资源下载结果类型
 interface DownloadResult {
@@ -317,6 +327,7 @@ async function downloadOpenAPI() {
           name: source.name,
           description: source.description,
           absolutePath: filePath,
+          url: source.url,
         });
       } catch (error) {
         warn(`[downloadOpenAPI] Failed to download ${source.name}`, {
@@ -334,14 +345,14 @@ async function downloadOpenAPI() {
 }
 
 // 实际执行下载所有资源的函数（webTemplate 和 openAPI 并发下载）
-async function _doDownloadResources(): Promise<DownloadResult> {
+async function _doDownloadResources(skipOpenAPI: boolean): Promise<DownloadResult> {
   // 并发下载 webTemplate 和 openAPIDocs
   const [webTemplateDir, openAPIDocs] = await Promise.all([
     // 下载 web 模板
     downloadWebTemplate(),
 
-    // 并发下载所有 OpenAPI 文档
-    downloadOpenAPI(),
+    // 并发下载所有 OpenAPI 文档（云端模式跳过：openapi 直接返回远程 URL）
+    skipOpenAPI ? Promise.resolve([] as OpenAPIInfo[]) : downloadOpenAPI(),
   ]);
 
   debug("[downloadResources] 所有资源下载完成");
@@ -349,7 +360,10 @@ async function _doDownloadResources(): Promise<DownloadResult> {
 }
 
 // 下载所有资源（带缓存和共享 Promise 机制）
-async function downloadResources(): Promise<DownloadResult> {
+async function downloadResources(
+  options: { skipOpenAPI?: boolean } = {},
+): Promise<DownloadResult> {
+  const skipOpenAPI = options.skipOpenAPI === true;
   const webTemplateDir = path.join(CACHE_BASE_DIR, "web-template");
   const openAPIDir = path.join(CACHE_BASE_DIR, "openapi");
 
@@ -362,8 +376,14 @@ async function downloadResources(): Promise<DownloadResult> {
   // 先快速检查缓存（不需要锁，因为只是读取）
   if (await canUseCache()) {
     try {
+      // 检查 webTemplate 目录存在（云端模式不需要 openapi 本地文件）
+      await fs.access(webTemplateDir);
+      if (skipOpenAPI) {
+        debug("[downloadResources] 使用 webTemplate 缓存（快速路径，跳过 openapi）");
+        return { webTemplateDir, openAPIDocs: [] };
+      }
       // 检查两个目录都存在
-      await Promise.all([fs.access(webTemplateDir), fs.access(openAPIDir)]);
+      await fs.access(openAPIDir);
       const files = await fs.readdir(openAPIDir);
       if (files.length > 0) {
         debug("[downloadResources] 使用缓存（快速路径）");
@@ -430,7 +450,7 @@ async function downloadResources(): Promise<DownloadResult> {
       }
 
       // 执行下载
-      const result = await _doDownloadResources();
+      const result = await _doDownloadResources(skipOpenAPI);
       await updateCache();
       debug("[downloadResources] 缓存已更新");
       return result;
@@ -457,14 +477,34 @@ export async function registerRagTools(server: ExtendedMcpServer) {
   let skills: SkillInfo[] = [];
   let fallbackSkillsRoot: string | undefined;
 
+  // 云端（hosted）模式：openapi 不下载 yaml 文件，直接返回远程 URL
+  const cloudMode = isCloudMode();
+
   try {
-    const { webTemplateDir, openAPIDocs } = await downloadResources();
-    openapis = openAPIDocs;
+    const { webTemplateDir, openAPIDocs } = await downloadResources({
+      skipOpenAPI: cloudMode,
+    });
+    if (cloudMode) {
+      openapis = OPENAPI_SOURCES.map((source) => ({
+        name: source.name,
+        description: source.description,
+        url: source.url,
+      }));
+    } else {
+      openapis = openAPIDocs;
+    }
     fallbackSkillsRoot = path.join(webTemplateDir, ".claude", "skills");
   } catch (error) {
     warn("[downloadResources] Failed to download resources", {
       error,
     });
+    if (cloudMode) {
+      openapis = OPENAPI_SOURCES.map((source) => ({
+        name: source.name,
+        description: source.description,
+        url: source.url,
+      }));
+    }
   }
 
   try {
@@ -497,6 +537,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
       description: `云开发知识库检索工具，支持 CloudBase 官方文档 (docs)、固定技能文档 (skill) 和 OpenAPI 文档 (openapi) 查询。
 
       按场景选择 mode：
+      - 工具调用报错且错误信息含具体错误码（如 OperationDenied.FreePackageDenied）时：mode=docs + action=searchDocs（query=错误码），先查错误码官方含义与处理指引再行动，不要凭猜测重试
       - 不确定答案在哪、需要对官方文档做全文检索时：mode=docs + action=searchDocs（传 query 关键词）
       - 已知文档标题、层级路径或 URL 时：mode=docs + action=findByName（传 input）或 action=readDoc（传 docPath）
       - 需要某个场景的落地指南 / 最佳实践时：mode=skill + skillName
@@ -665,11 +706,28 @@ export async function registerRagTools(server: ExtendedMcpServer) {
         );
 
         if (!skill) {
+          const remoteHint =
+            isCloudMode() && skillName?.trim()
+              ? ` You can also try fetching the skill doc directly from: ${SKILL_REMOTE_BASE_URL}/${encodeURIComponent(skillName.trim())}/SKILL.md`
+              : "";
           return {
             content: [
               {
                 type: "text",
-                text: `Skill document "${skillName}" not found. Available skill docs: ${skillNames.join(", ") || "none"}`,
+                text: `Skill document "${skillName}" not found. Available skill docs: ${skillNames.join(", ") || "none"}.${remoteHint}`,
+              },
+            ],
+          };
+        }
+
+        // 云端（hosted）模式：返回远程 URL，不返回服务端本地路径（客户端读不到）
+        if (isCloudMode()) {
+          const remoteSkillName = path.basename(path.dirname(skill.absolutePath));
+          return {
+            content: [
+              {
+                type: "text",
+                text: `The skill doc is available at: ${SKILL_REMOTE_BASE_URL}/${encodeURIComponent(remoteSkillName)}/SKILL.md\nFetch this remote URL over HTTP. Local file paths are not available in cloud mode.`,
               },
             ],
           };
@@ -698,11 +756,23 @@ export async function registerRagTools(server: ExtendedMcpServer) {
           };
         }
 
+        // 云端（hosted）模式：返回远程 URL，不下载/不返回服务端本地文件
+        if (isCloudMode() && api.url) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `OpenAPI document: ${api.name}\nDescription: ${api.description}\nURL: ${api.url}\n\nFetch this remote URL over HTTP. Local file paths are not available in cloud mode.`,
+              },
+            ],
+          };
+        }
+
         return {
           content: [
             {
               type: "text",
-              text: `OpenAPI document: ${api.name}\nDescription: ${api.description}\nPath: ${api.absolutePath}\n\n${(await fs.readFile(api.absolutePath)).toString()}`,
+              text: `OpenAPI document: ${api.name}\nDescription: ${api.description}\nPath: ${api.absolutePath}\n\n${(await fs.readFile(api.absolutePath!)).toString()}`,
             },
           ],
         };

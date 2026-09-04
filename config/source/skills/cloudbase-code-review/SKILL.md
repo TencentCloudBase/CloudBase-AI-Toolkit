@@ -13,7 +13,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 # CloudBase Code Review
 
-> **One-liner**: After implementing CloudBase features, call this skill to catch common mistakes before the grader does.
+> **One-liner**: After implementing CloudBase features, call this skill to catch common mistakes before users do.
 
 ## When to use
 
