@@ -25,7 +25,7 @@ You must read and complete this gate before:
 | SSL certificate obtained + certificateId available | **New** domain bind fails        | Only when first-time `bindCustomDomain`; retrieve certificateId from SSL console |
 
 **Critical distinction**:
-- Security Domain (`envDomainManagement`) ≠ Custom Domain (`manageGateway` Domain/Route)
+- Security Domain (`manageEnv` action=addSecurityDomain/removeSecurityDomain; deprecated alias `envDomainManagement`) ≠ Custom Domain (`manageGateway` Domain/Route)
 - Reusing an existing custom domain = `createRoute` (no cert). Binding a brand-new custom domain = `bindCustomDomain` (needs certificateId).
 
 ### CloudRun (Container Services)
