@@ -359,6 +359,8 @@ async function callNoSqlContentApi(options: {
       message: error instanceof Error ? error.message : String(error),
     });
 
+    // 错误指引与 RequestId 归一统一在 utils/tool-wrapper 的工具错误出口处理，
+    // 这里不再单独翻译，避免每个工具各做一份、且只覆盖本文件。
     throw error;
   }
 }
