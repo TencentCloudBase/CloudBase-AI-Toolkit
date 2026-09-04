@@ -2981,11 +2981,11 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                     "此查询不会自动知道你当前浏览器实际使用的自定义域名或本地端口。即使已经存在一些 localhost/127.0.0.1 条目，也不能据此认定浏览器上传已就绪。若浏览器 Web 应用需要直接上传文件到 CloudBase，请先确认并添加当前访问地址对应的 host:port，再依赖 app.uploadFile()。",
                 },
                 next_step_template: {
-                  tool: "envDomainManagement",
-                  action: "create",
+                  tool: "manageEnv",
+                  action: "addSecurityDomain",
                   domains: ["<actual-browser-host>:<actual-browser-port>"],
                   note:
-                    "请把占位符替换为当前浏览器实际访问 origin 对应的 host:port，再执行添加。",
+                    "请把占位符替换为当前浏览器实际访问 origin 对应的 host:port，再执行添加。manageEnv(action=addSecurityDomain) 即原 envDomainManagement(create)。",
                 },
               };
             }
@@ -3228,8 +3228,23 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     },
   };
   server.registerTool?.("queryEnv", queryEnvToolSchema, queryEnvHandler);
-  // 向后兼容：envQuery 作为 queryEnv 的别名注册
-  server.registerTool?.("envQuery", queryEnvToolSchema, queryEnvHandler);
+  // 向后兼容：envQuery 作为 queryEnv 的别名注册。
+  // DEPRECATED：词序与 query*/manage* 规范不一致（灯塔数据显示与 queryEnv 在 2.32.5 并行被调用），
+  // 本版本仅标记废弃，计划下个版本移除此别名注册。
+  server.registerTool?.(
+    "envQuery",
+    {
+      ...queryEnvToolSchema,
+      description:
+        (queryEnvToolSchema.description ?? "") +
+        "\n\n⚠️ DEPRECATED：此工具名已废弃，是 queryEnv 的旧词序别名，入参与 action 完全一致。请直接调用 queryEnv；本别名将在下个版本移除。",
+      annotations: {
+        ...queryEnvToolSchema.annotations,
+        deprecated: true,
+      },
+    },
+    queryEnvHandler,
+  );
 
   // envDomainManagement - 环境域名管理（合并 createEnvDomain + deleteEnvDomain）
   // 微信 IDE 场景不需要域名管理
@@ -3237,9 +3252,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "envDomainManagement",
     {
-      title: "CloudBase 环境域名管理（安全域名 / CORS 白名单）",
+      title: "CloudBase 环境安全域名管理（浏览器 CORS 白名单）【已废弃】",
       description:
-        "管理 CloudBase 环境的安全域名（安全域名 / CORS 白名单），支持添加和删除操作。（原工具名：createEnvDomain/deleteEnvDomain，为兼容旧AI规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 直接访问 CloudBase 资源时，应先用 queryEnv(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。新增或删除后请每约 10 秒轮询 queryEnv(action=domains) 确认状态收敛，勿一次 sleep 满 10 分钟；多数环境数分钟内可收敛。⚠️ 重要：此工具仅用于 CORS/请求来源验证，不涉及 SSL 证书。自定义域名公网 HTTPS：先 queryGateway(listCustomDomains)；已有域名则 manageGateway(createRoute) 显式传 domain（无需证书）；仅首次绑定新域名才用 bindCustomDomain（需 certificateId）。",
+        "⚠️ DEPRECATED：此工具已废弃并收编进 manageEnv，请改用 manageEnv(action=\"addSecurityDomain\") / manageEnv(action=\"removeSecurityDomain\")（入参 domains 完全一致）。本别名将在下个版本移除。\n\n管理【环境安全域名】＝浏览器跨域（CORS）白名单：控制允许哪些网页 origin（host:port）从浏览器直接调用本环境的 CloudBase 资源。只做 CORS 来源验证，不提供访问域名，不涉及 HTTPS 证书。⚠️ 与【网关自定义域名】是两套完全独立的配置，互不相干：如需给自己的域名绑定 HTTPS 访问入口（云托管 / 网关服务），那属于 manageGateway 的职责——先 queryGateway(listCustomDomains)；已有域名则 manageGateway(createRoute) 显式传 domain（无需证书）；仅首次绑定新域名才用 bindCustomDomain（需 certificateId）。不要用本工具做这件事。\n\n操作指引：（原工具名 createEnvDomain/deleteEnvDomain，为兼容旧 AI 规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 直接访问 CloudBase 资源时，先用 queryEnv(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。新增或删除后请每约 10 秒轮询 queryEnv(action=domains) 确认状态收敛，勿一次 sleep 满 10 分钟；多数环境数分钟内可收敛。",
       inputSchema: {
         action: z
           .enum(["create", "delete"])
@@ -3309,14 +3324,20 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "manageEnv",
     {
-      title: "CloudBase 环境管理（创建/变配/续费）",
+      title: "CloudBase 环境管理（创建/变配/续费/安全域名）",
       description:
-        "管理 CloudBase 环境，支持：listPackages=查询可选套餐列表，create=创建新环境（需确认），modifyPlan=变更套餐（升降配，需确认），renew=续费环境（需确认）。\n\n⚠️ 所有涉及费用的操作（create/modifyPlan/renew），执行前必须展示配置摘要并等待用户通过 confirm=\"yes\" 确认。",
+        "管理 CloudBase 环境，支持：listPackages=查询可选套餐列表，create=创建新环境（需确认），modifyPlan=变更套餐（升降配，需确认），renew=续费环境（需确认），addSecurityDomain=添加环境安全域名（浏览器 CORS 白名单，不计费、无需确认），removeSecurityDomain=删除环境安全域名（不计费、无需确认）。\n\n⚠️ 涉及费用的操作（create/modifyPlan/renew），执行前必须展示配置摘要并等待用户通过 confirm=\"yes\" 确认；安全域名操作（addSecurityDomain/removeSecurityDomain）不计费，无需 confirm。\n\nℹ️ 安全域名＝浏览器跨域（CORS）白名单，控制允许哪些网页 origin（host:port）从浏览器直接调用本环境的 CloudBase 资源，不提供访问域名、不涉及 HTTPS 证书。给自己的域名绑定 HTTPS 访问入口（云托管/网关服务）属于 manageGateway（listCustomDomains/bindCustomDomain）的职责，与本工具无关。",
       inputSchema: {
         action: z
-          .enum(["listPackages", "create", "modifyPlan", "renew"])
+          .enum(["listPackages", "create", "modifyPlan", "renew", "addSecurityDomain", "removeSecurityDomain"])
           .describe(
-            "操作类型：listPackages=查询可选套餐，create=创建环境，modifyPlan=变更套餐，renew=续费",
+            "操作类型：listPackages=查询可选套餐，create=创建环境，modifyPlan=变更套餐，renew=续费，addSecurityDomain=添加安全域名（CORS 白名单条目），removeSecurityDomain=删除安全域名",
+          ),
+        domains: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "安全域名数组（格式：host:port，例如 localhost:5173 或 127.0.0.1:4173）。仅 action=addSecurityDomain/removeSecurityDomain 时有效且必填。注意：这是 CORS 白名单条目，不是自定义域名，不需要证书。添加前应先用 queryEnv(action=domains) 检查浏览器实际 origin 是否已在白名单中。",
           ),
         alias: z
           .string()
@@ -3364,6 +3385,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       duration?: number;
       envId?: string;
       confirm?: string;
+      domains?: string[];
     }) => {
       const action = rawArgs.action ?? "";
       const alias = normalizeOptionalToolString(rawArgs.alias);
@@ -3372,6 +3394,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       const duration = rawArgs.duration ?? 1;
       const envId = normalizeOptionalToolString(rawArgs.envId);
       const confirmed = rawArgs.confirm === "yes";
+      const domains = (rawArgs.domains ?? [])
+        .map((d) => (typeof d === "string" ? d.trim() : ""))
+        .filter(Boolean);
 
       try {
         const cloudbase = await getManager({ requireEnvId: false });
@@ -3801,11 +3826,50 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             });
           }
 
+          case "addSecurityDomain":
+          case "removeSecurityDomain": {
+            // 安全域名（浏览器 CORS 白名单）增删。原 envDomainManagement(create/delete) 的能力收编：
+            // 不计费、无需 confirm；微信 IDE 场景不提供域名管理（与原工具的注册 guard 保持一致）。
+            if (server.ide === "wxide") {
+              return buildJsonToolResult({
+                ok: false,
+                code: "TOOL_UNAVAILABLE_IN_WXIDE",
+                message:
+                  "微信开发者工具场景不提供环境安全域名管理。如需配置浏览器 CORS 白名单，请使用其他接入方式（CloudBase MCP / 控制台）。",
+              });
+            }
+            if (!domains.length) {
+              return buildJsonToolResult({
+                ok: false,
+                code: "DOMAINS_REQUIRED",
+                message: `action=${action} 时 domains 为必填参数（host:port 数组，例如 ["localhost:5173"]）。添加前建议先用 queryEnv(action="domains") 检查浏览器实际 origin 是否已在白名单中。`,
+                next_step: {
+                  tool: "queryEnv",
+                  action: "domains",
+                },
+              });
+            }
+            // 安全域名是环境级操作，复用与原 envDomainManagement 相同的管理器获取方式（要求环境上下文）。
+            const domainManager = await getManager();
+            const domainResult =
+              action === "addSecurityDomain"
+                ? await domainManager.env.createEnvDomain(domains)
+                : await domainManager.env.deleteEnvDomain(domains);
+            logCloudBaseResult(server.logger, domainResult);
+            return buildJsonToolResult(
+              buildEnvDomainManagementResult({
+                action: action === "addSecurityDomain" ? "create" : "delete",
+                domains,
+                result: domainResult,
+              }),
+            );
+          }
+
           default:
             return buildJsonToolResult({
               ok: false,
               code: "INVALID_ACTION",
-              message: `不支持的操作: ${action}。支持的操作: listPackages, create, destroy, modifyPlan, renew。`,
+              message: `不支持的操作: ${action}。支持的操作: listPackages, create, modifyPlan, renew, addSecurityDomain, removeSecurityDomain。`,
             });
         }
       } catch (error) {

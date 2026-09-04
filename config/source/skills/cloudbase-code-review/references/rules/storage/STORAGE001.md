@@ -22,7 +22,7 @@
 1. 项目是否使用了 CloudBase 云存储？（上传文件、图片等）
 2. 如果是，`localhost:5173`（Vite dev server 默认地址）是否已加入安全域名？
 3. 加入方式：
-   - 通过 MCP 的 `envDomainManagement` 工具？
+   - 通过 MCP 的 `manageEnv(action="addSecurityDomain")` 工具（旧工具名 `envDomainManagement` 已废弃收编）？
    - 通过 CloudBase Console 手动添加？
    - 通过 `CreateAuthDomain` API？
 4. 如果有其他开发端口（如 `5174`、`4173`），是否也加了？
@@ -30,7 +30,7 @@
 
 ## 修复指引
 
-通过 MCP 工具 `envDomainManagement` 添加安全域名，或通过 `CreateAuthDomain` API 添加：
+通过 MCP 工具 `manageEnv(action="addSecurityDomain", domains=[...])` 添加安全域名（旧工具名 `envDomainManagement` 已废弃），或通过 `CreateAuthDomain` API 添加：
 
 ```typescript
 // 通过 CreateAuthDomain API

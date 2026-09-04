@@ -1697,8 +1697,8 @@ describe("env tools - envQuery", () => {
         configuredEntries: ["localhost:5173"],
       },
       next_step_template: {
-        tool: "envDomainManagement",
-        action: "create",
+        tool: "manageEnv",
+        action: "addSecurityDomain",
         domains: ["<actual-browser-host>:<actual-browser-port>"],
       },
     });
@@ -1732,8 +1732,8 @@ describe("env tools - envQuery", () => {
       configuredEntries: ["127.0.0.1:4173", "localhost:4173"],
     });
     expect(payload.next_step_template).toMatchObject({
-      tool: "envDomainManagement",
-      action: "create",
+      tool: "manageEnv",
+      action: "addSecurityDomain",
       domains: ["<actual-browser-host>:<actual-browser-port>"],
     });
   });
@@ -2296,6 +2296,89 @@ describe("manageEnv", () => {
     });
     expect(payload.message).toContain("BillTags");
     expect(payload.message).toContain("baas_personal");
+  });
+
+  it("addSecurityDomain should call createEnvDomain and return polling guidance", async () => {
+    const createEnvDomain = vi.fn().mockResolvedValue({
+      RequestId: "req-manageenv-add-domain",
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { createEnvDomain },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "addSecurityDomain",
+          domains: ["localhost:5173"],
+        })
+      ).content[0].text,
+    );
+
+    expect(createEnvDomain).toHaveBeenCalledWith(["localhost:5173"]);
+    expect(payload).toMatchObject({
+      ok: true,
+      code: "DOMAIN_UPDATE_PENDING",
+      operation: "create",
+      targetDomains: ["localhost:5173"],
+      propagation: {
+        requiresPolling: true,
+        pollTool: "queryEnv",
+        pollAction: "domains",
+      },
+    });
+  });
+
+  it("removeSecurityDomain should call deleteEnvDomain and return polling guidance", async () => {
+    const deleteEnvDomain = vi.fn().mockResolvedValue({
+      RequestId: "req-manageenv-remove-domain",
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { deleteEnvDomain },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "removeSecurityDomain",
+          domains: ["localhost:5173"],
+        })
+      ).content[0].text,
+    );
+
+    expect(deleteEnvDomain).toHaveBeenCalledWith(["localhost:5173"]);
+    expect(payload).toMatchObject({
+      ok: true,
+      code: "DOMAIN_DELETE_PENDING",
+      operation: "delete",
+      targetDomains: ["localhost:5173"],
+      propagation: {
+        requiresPolling: true,
+        pollTool: "queryEnv",
+        pollAction: "domains",
+      },
+    });
+  });
+
+  it("addSecurityDomain should require domains parameter", async () => {
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { createEnvDomain: vi.fn() },
+    } as any);
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "addSecurityDomain",
+        })
+      ).content[0].text,
+    );
+
+    expect(payload).toMatchObject({ ok: false });
+    expect(payload.message).toContain("domains");
+    expect(payload.message).toContain('queryEnv(action="domains")');
   });
 
   it("create should require confirm before execution", async () => {
