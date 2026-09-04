@@ -66,13 +66,13 @@ describe("deploy tools registration", () => {
   it("registers deployPlan and deploy with expected annotations", async () => {
     const { tools } = await createDeployTools();
 
-    expect(Object.keys(tools).sort()).toEqual(["deploy", "deployPlan"]);
+    expect(Object.keys(tools).sort()).toEqual(["deployApply", "deployPlan"]);
 
     expect(tools.deployPlan.meta.annotations).toMatchObject({
       readOnlyHint: true,
       category: "deploy",
     });
-    expect(tools.deploy.meta.annotations).toMatchObject({
+    expect(tools.deployApply.meta.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: true,
       category: "deploy",
@@ -83,7 +83,7 @@ describe("deploy tools registration", () => {
     const { tools } = await createDeployTools();
     const expected = ["database", "functions", "app", "hosting", "gateway"];
 
-    for (const toolName of ["deployPlan", "deploy"]) {
+    for (const toolName of ["deployPlan", "deployApply"]) {
       for (const field of ["only", "skip"]) {
         const schema = tools[toolName].meta.inputSchema[field];
         expect(
@@ -101,7 +101,7 @@ describe("deploy tools registration", () => {
   it("marks deploy as requiring explicit confirm in its description", async () => {
     const { tools } = await createDeployTools();
 
-    expect(tools.deploy.meta.description).toContain("confirm=true");
+    expect(tools.deployApply.meta.description).toContain("confirm=true");
     expect(tools.deployPlan.meta.description).toContain("dry-run");
   });
 });
@@ -114,7 +114,7 @@ describe("deploy confirm gate", () => {
 
   it("rejects when confirm is not passed", async () => {
     const { tools } = await createDeployTools();
-    const result = parseToolResult(await tools.deploy.handler({ cwd: "/tmp/any" }));
+    const result = parseToolResult(await tools.deployApply.handler({ cwd: "/tmp/any" }));
 
     expect(result.success).toBe(false);
     expect(result.message).toContain("confirm=true");
@@ -123,7 +123,7 @@ describe("deploy confirm gate", () => {
 
   it("rejects when confirm is false", async () => {
     const { tools } = await createDeployTools();
-    const result = parseToolResult(await tools.deploy.handler({ confirm: false, cwd: "/tmp/any" }));
+    const result = parseToolResult(await tools.deployApply.handler({ confirm: false, cwd: "/tmp/any" }));
 
     expect(result.success).toBe(false);
     expect(result.message).toContain("confirm=true");
@@ -331,7 +331,7 @@ describe("deploy execution", () => {
     const cwd = makeProject();
 
     const result = parseToolResult(
-      await tools.deploy.handler({
+      await tools.deployApply.handler({
         confirm: true,
         cwd,
         yes: true,
@@ -366,7 +366,7 @@ describe("deploy execution", () => {
     const { tools } = await createDeployTools();
     const cwd = makeProject();
 
-    await tools.deploy.handler({ confirm: true, cwd });
+    await tools.deployApply.handler({ confirm: true, cwd });
 
     expect(deployMock.mock.calls[0][0].yes).toBe(false);
   });
@@ -377,7 +377,7 @@ describe("deploy execution", () => {
 
     for (const concurrency of [0, 1.5, -1]) {
       const result = parseToolResult(
-        await tools.deploy.handler({ confirm: true, cwd, concurrency }),
+        await tools.deployApply.handler({ confirm: true, cwd, concurrency }),
       );
       expect(result.success).toBe(false);
       expect(result.message).toContain("并发数");
@@ -390,9 +390,302 @@ describe("deploy execution", () => {
     const cwd = makeProject();
     deployMock.mockRejectedValue(new Error("gateway timeout"));
 
-    const result = parseToolResult(await tools.deploy.handler({ confirm: true, cwd }));
+    const result = parseToolResult(await tools.deployApply.handler({ confirm: true, cwd }));
 
     expect(result.success).toBe(false);
     expect(result.message).toContain("gateway timeout");
+    expect(result.errorCode).toBe("DEPLOY_FAILED");
+  });
+
+  it("propagates a code from the orchestrator error onto errorCode", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject();
+    const err = Object.assign(new Error("db migration conflict"), {
+      code: "MIGRATION_CONFLICT",
+    });
+    deployMock.mockRejectedValue(err);
+
+    const result = parseToolResult(await tools.deployApply.handler({ confirm: true, cwd }));
+
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe("MIGRATION_CONFLICT");
+  });
+});
+
+describe("error envelope carries a stable errorCode", () => {
+  let tmpDirs: string[];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOrchestrator();
+    tmpDirs = [];
+  });
+
+  afterEach(() => {
+    for (const dir of tmpDirs) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup failures in restricted CI/sandbox delete hooks.
+      }
+    }
+  });
+
+  function makeProject(config: Record<string, unknown> = BASE_CONFIG): string {
+    const dir = writeProject(config);
+    tmpDirs.push(dir);
+    return dir;
+  }
+
+  it("CONFIG_NOT_FOUND when no cloudbaserc under cwd", async () => {
+    const { tools } = await createDeployTools();
+    const emptyDir = fs.mkdtempSync(path.join(process.cwd(), ".tmp-deploy-test-"));
+    tmpDirs.push(emptyDir);
+
+    const result = parseToolResult(await tools.deployPlan.handler({ cwd: emptyDir }));
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe("CONFIG_NOT_FOUND");
+  });
+
+  it("CONFIG_INVALID when schema validation fails", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject({ version: "2.1", envId: "env-1", functions: [{ timeout: 5 }] });
+
+    const result = parseToolResult(await tools.deployPlan.handler({ cwd }));
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe("CONFIG_INVALID");
+  });
+
+  it("ENV_UNRESOLVED when env id cannot be determined", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject({ version: "2.1", functions: [{ name: "fn-a" }] });
+    mockGetEnvId.mockResolvedValue("");
+
+    const result = parseToolResult(await tools.deployPlan.handler({ cwd }));
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe("ENV_UNRESOLVED");
+  });
+
+  it("CONFIRM_REQUIRED when deploy is called without confirm", async () => {
+    const { tools } = await createDeployTools();
+    const result = parseToolResult(await tools.deployApply.handler({ cwd: "/tmp/any" }));
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe("CONFIRM_REQUIRED");
+  });
+
+  it("INVALID_CONCURRENCY on bad concurrency values", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject();
+    const result = parseToolResult(
+      await tools.deployApply.handler({ confirm: true, cwd, concurrency: 0 }),
+    );
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe("INVALID_CONCURRENCY");
+  });
+});
+
+describe("deployPlan reconciles action classification with execution (yes semantics)", () => {
+  let tmpDirs: string[];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOrchestrator();
+    tmpDirs = [];
+  });
+
+  afterEach(() => {
+    for (const dir of tmpDirs) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup failures in restricted CI/sandbox delete hooks.
+      }
+    }
+  });
+
+  function makeProject(config: Record<string, unknown> = BASE_CONFIG): string {
+    const dir = writeProject(config);
+    tmpDirs.push(dir);
+    return dir;
+  }
+
+  it("re-labels an existing function (update) as skip when yes is not passed", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject();
+    deployPlanMock.mockResolvedValue([
+      { type: "functions", name: "fn-a", status: "update", action: "覆盖更新已存在函数 fn-a" },
+    ]);
+
+    const result = parseToolResult(await tools.deployPlan.handler({ cwd }));
+
+    expect(result.success).toBe(true);
+    expect(result.data.yes).toBe(false);
+    const item = (result.data.plan as any[])[0];
+    // Plan must reflect what deploy actually does: yes=false -> conservative skip.
+    expect(item.status).toBe("skip");
+    expect(item.declaredStatus).toBe("update");
+  });
+
+  it("keeps update when yes=true (deploy will actually overwrite)", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject();
+    deployPlanMock.mockResolvedValue([
+      { type: "functions", name: "fn-a", status: "update", action: "覆盖更新已存在函数 fn-a" },
+    ]);
+
+    const result = parseToolResult(await tools.deployPlan.handler({ cwd, yes: true }));
+
+    expect(result.data.yes).toBe(true);
+    const item = (result.data.plan as any[])[0];
+    expect(item.status).toBe("update");
+    expect(item.declaredStatus).toBeUndefined();
+  });
+
+  it("does not touch create / non-function statuses regardless of yes", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject();
+    deployPlanMock.mockResolvedValue([
+      { type: "functions", name: "fn-new", status: "create", action: "新建函数 fn-new" },
+      { type: "app", name: "app-1", status: "update", action: "覆盖更新云应用 app-1" },
+      { type: "hosting", name: "site", status: "deploy", action: "直传覆盖静态托管 site" },
+    ]);
+
+    const result = parseToolResult(await tools.deployPlan.handler({ cwd }));
+    const plan = result.data.plan as any[];
+
+    expect(plan[0].status).toBe("create");
+    // app update is not affected by the functions-only reconcile (deploy actually updates it)
+    expect(plan[1].status).toBe("update");
+    expect(plan[2].status).toBe("deploy");
+  });
+});
+
+describe("deploy destructive database migration gate", () => {
+  let tmpDirs: string[];
+
+  const DB_CONFIG = {
+    version: "2.1",
+    envId: "env-from-config",
+    database: { type: "postgresql", migrations: "./cloudbase/migrations" },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOrchestrator();
+    deployMock.mockResolvedValue({ plan: [], results: [] });
+    tmpDirs = [];
+  });
+
+  afterEach(() => {
+    for (const dir of tmpDirs) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup failures in restricted CI/sandbox delete hooks.
+      }
+    }
+  });
+
+  // Writes a project with a database config and the given migration files.
+  function makeDbProject(migrations: Record<string, string>): string {
+    const dir = writeProject(DB_CONFIG);
+    tmpDirs.push(dir);
+    const migDir = path.join(dir, "cloudbase", "migrations");
+    fs.mkdirSync(migDir, { recursive: true });
+    for (const [file, sql] of Object.entries(migrations)) {
+      fs.writeFileSync(path.join(migDir, file), sql);
+    }
+    return dir;
+  }
+
+  // The dry-run plan the gate inspects: one aggregated database create item whose
+  // changes[].to lists the pending migration identifiers.
+  function planWithPending(pending: string[]) {
+    return [
+      {
+        type: "database",
+        name: "postgresql",
+        status: "create",
+        action: `将执行 ${pending.length} 条数据库迁移`,
+        changes: pending.map((m) => ({ field: "migration", to: m })),
+      },
+    ];
+  }
+
+  it("blocks when a pending migration contains destructive SQL and confirmDestructive is absent", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeDbProject({
+      "20260101000000_drop_users.sql": "DROP TABLE users;",
+    });
+    deployPlanMock.mockResolvedValue(planWithPending(["20260101000000_drop_users"]));
+
+    const result = parseToolResult(await tools.deployApply.handler({ confirm: true, cwd }));
+
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe("DESTRUCTIVE_CONFIRM_REQUIRED");
+    expect(result.message).toContain("20260101000000_drop_users");
+    // must NOT have executed the real deploy
+    expect(deployMock).not.toHaveBeenCalled();
+  });
+
+  it("proceeds when confirmDestructive=true even with destructive migrations", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeDbProject({
+      "20260101000000_drop_users.sql": "DROP TABLE users;",
+    });
+    deployPlanMock.mockResolvedValue(planWithPending(["20260101000000_drop_users"]));
+
+    const result = parseToolResult(
+      await tools.deployApply.handler({ confirm: true, confirmDestructive: true, cwd }),
+    );
+
+    expect(result.success).toBe(true);
+    expect(deployMock).toHaveBeenCalledTimes(1);
+    // gate short-circuits before executing when confirmDestructive is true: no dry-run needed
+    expect(deployPlanMock).not.toHaveBeenCalled();
+  });
+
+  it("does not block additive-only migrations", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeDbProject({
+      "20260101000000_create_users.sql": "CREATE TABLE users (id serial primary key);",
+    });
+    deployPlanMock.mockResolvedValue(planWithPending(["20260101000000_create_users"]));
+
+    const result = parseToolResult(await tools.deployApply.handler({ confirm: true, cwd }));
+
+    expect(result.success).toBe(true);
+    expect(deployMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips the gate entirely when database is excluded via skip", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeDbProject({
+      "20260101000000_drop_users.sql": "DROP TABLE users;",
+    });
+
+    const result = parseToolResult(
+      await tools.deployApply.handler({ confirm: true, cwd, skip: ["database"] }),
+    );
+
+    expect(result.success).toBe(true);
+    // database not participating -> no dry-run, no gate
+    expect(deployPlanMock).not.toHaveBeenCalled();
+    expect(deployMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("only counts pending migrations, not already-applied destructive files", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeDbProject({
+      "20260101000000_drop_users.sql": "DROP TABLE users;",
+      "20260102000000_add_col.sql": "ALTER TABLE t ADD COLUMN c int;",
+    });
+    // drop_users is already applied (not in pending) -> should not block
+    deployPlanMock.mockResolvedValue(planWithPending(["20260102000000_add_col"]));
+
+    const result = parseToolResult(await tools.deployApply.handler({ confirm: true, cwd }));
+
+    expect(result.success).toBe(true);
+    expect(deployMock).toHaveBeenCalledTimes(1);
   });
 });

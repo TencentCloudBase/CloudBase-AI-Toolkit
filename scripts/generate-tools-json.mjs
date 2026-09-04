@@ -19,7 +19,7 @@ const __dirname = path.dirname(__filename);
 const DOC_PLUGINS = [
   // server.ts DEFAULT_PLUGINS
   'env', 'database', 'pg_database', 'pg_storage', 'mysql_database',
-  'functions', 'hosting', 'storage', 'setup', 'rag', 'cloudrun', 'gateway',
+  'functions', 'hosting', 'storage', 'setup', 'rag', 'cloudrun', 'deploy', 'gateway',
   'app-auth', 'apps', 'permissions', 'logs', 'agents', 'capi',
   // 可选启用（不在 DEFAULT_PLUGINS）
   'msg-push',

@@ -51,10 +51,10 @@ Keep all secrets in env files; never hard-code them in `cloudbaserc`.
 # preview staging
 deployPlan({ mode: "staging" })
 # apply staging
-deploy({ confirm: true, mode: "staging" })
+deployApply({ confirm: true, mode: "staging" })
 
 # preview production (confirm envId with user first)
 deployPlan({ mode: "production" })
 # apply production
-deploy({ confirm: true, mode: "production" })
+deployApply({ confirm: true, mode: "production" })
 ```

@@ -758,6 +758,7 @@
         ],
         "anyOf": [
           "deployPlan",
+          "deployApply",
           "deploy",
           "envOverrides",
           "desired state"
@@ -784,6 +785,7 @@
         "entities": [
           "cloudbaserc",
           "deployPlan",
+          "deployApply",
           "deploy",
           "envOverrides",
           "DeployOrchestrator"

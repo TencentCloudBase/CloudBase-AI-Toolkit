@@ -1,6 +1,6 @@
 ---
 name: cloudbase-declarative-deploy
-description: CloudBase declarative deployment from a cloudbaserc config (声明式部署, 配置式部署, cloudbaserc 部署) through the deploy / deployPlan MCP tools. Use when deploying database, functions, app, hosting, or gateway resources described in cloudbaserc.json/yaml as a single desired-state config, when a user wants a dry-run plan before applying, or when handling multi-environment deploys via mode / envOverrides. Covers plan-then-apply flow (deployPlan dry-run → deploy confirm=true), envId resolution priority, only/skip filtering, concurrency, and continueOnError. Prefer deployPlan before deploy; do not confuse with per-resource tcb CLI deploy or single-function deploy.
+description: CloudBase declarative deployment from a cloudbaserc config (声明式部署, 配置式部署, cloudbaserc 部署) through the deployApply / deployPlan MCP tools. Use when deploying database, functions, app, hosting, or gateway resources described in cloudbaserc.json/yaml as a single desired-state config, when a user wants a dry-run plan before applying, or when handling multi-environment deploys via mode / envOverrides. Covers plan-then-apply flow (deployPlan dry-run → deployApply confirm=true), envId resolution priority, only/skip filtering, concurrency, and continueOnError. Prefer deployPlan before deployApply; do not confuse with per-resource tcb CLI deploy or single-function deploy.
 version: 1.0.0
 alwaysApply: false
 ---
@@ -8,7 +8,7 @@ alwaysApply: false
 # CloudBase Declarative Deploy
 
 Deploy a whole CloudBase project from one `cloudbaserc` config as **desired state**,
-using the `deployPlan` (dry-run) and `deploy` (apply) MCP tools. The orchestrator
+using the `deployPlan` (dry-run) and `deployApply` (apply) MCP tools. The orchestrator
 applies resources in a fixed dependency order:
 
 ```
@@ -43,10 +43,10 @@ install the full CloudBase plugin — do not HTTP-fetch remote skill markdown.
 
 1. **Plan before apply — always.**
    Run `deployPlan` first (dry-run, zero side effects). Read the per-resource action
-   classification and show it to the user before calling `deploy`.
+   classification and show it to the user before calling `deployApply`.
 
 2. **Apply requires explicit confirm.**
-   `deploy` will refuse unless `confirm=true` is passed. This is the destructive-write guard.
+   `deployApply` will refuse unless `confirm=true` is passed. This is the destructive-write guard.
 
 3. **Deployment Gate.**
    Before any apply, complete `cloudbase-platform/references/protocols/deployment-gate.md`
@@ -92,7 +92,7 @@ with the user before applying to production.
 1. Ensure a `cloudbaserc` config exists under the project root (`cwd`).
 2. Call `deployPlan` (optionally with `mode`, `envId`, `only`, `skip`). Read the plan.
 3. Present the plan + Deployment Gate declaration to the user; get confirmation.
-4. Call `deploy` with `confirm=true` (plus `yes` / `concurrency` / `continueOnError`
+4. Call `deployApply` with `confirm=true` (plus `yes` / `concurrency` / `continueOnError`
    as needed). Reuse the same `mode` / `envId` / `only` / `skip` as the plan.
 5. Report the applied result back to the user.
 
@@ -101,12 +101,12 @@ with the user before applying to production.
 | User task | Read |
 |-----------|------|
 | cloudbaserc resource fields & desired-state config shape | `references/config-schema.md` |
-| deployPlan → deploy two-step flow, parameters, safety | `references/plan-and-apply.md` |
+| deployPlan → deployApply two-step flow, parameters, safety | `references/plan-and-apply.md` |
 | Multi-env (mode / envOverrides), envId priority, env vars | `references/multi-env.md` |
 
 ## Minimum self-check
 
-- [ ] Ran `deployPlan` and read the action classification before `deploy`?
+- [ ] Ran `deployPlan` and read the action classification before `deployApply`?
 - [ ] Resolved and confirmed the target `envId`?
 - [ ] Completed the Deployment Gate declaration before applying?
 - [ ] Passed `confirm=true` only after user confirmation?

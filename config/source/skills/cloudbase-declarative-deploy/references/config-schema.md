@@ -4,7 +4,7 @@ The `cloudbaserc` config declares the **desired state** of a CloudBase project.
 Supported file formats (searched from `cwd` downward): `cloudbaserc.json`,
 `cloudbaserc.yaml`, `cloudbaserc.yml`, `cloudbaserc.js`.
 
-`deploy` / `deployPlan` validate the parsed config against the official cloudbaserc schema
+`deployApply` / `deployPlan` validate the parsed config against the official cloudbaserc schema
 before applying. A schema failure aborts with the offending field path and reason.
 
 > Official schema source: `https://static.cloudbase.net/cli/cloudbaserc.schema.json` (JSON Schema Draft-07)
@@ -110,7 +110,7 @@ Keep secrets in env files, never hard-coded in `cloudbaserc`.
 
 ## Validation
 
-`deploy` / `deployPlan` run schema validation after parsing. If it fails you get a message
+`deployApply` / `deployPlan` run schema validation after parsing. If it fails you get a message
 like:
 
 ```text
