@@ -84,9 +84,6 @@ export function shouldRegisterTool(toolName: string): boolean {
     'manageCloudRun',
     // Download tools - local file downloads
     'manageStorage',
-
-    // Cloud API tools - requires secret keys which are not available in cloud mode
-    'callCloudApi',
   ];
 
   return !cloudIncompatibleTools.includes(toolName);

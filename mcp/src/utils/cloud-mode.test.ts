@@ -50,10 +50,10 @@ describe("cloud-mode", () => {
     expect(shouldRegisterTool("downloadTemplate")).toBe(false);
   });
 
-  it("skips callCloudApi in cloud mode but registers it locally", () => {
+  it("registers callCloudApi in both cloud and local modes", () => {
     clearCloudModeSignals();
     process.env.CLOUDBASE_MCP_CLOUD_MODE = "true";
-    expect(shouldRegisterTool("callCloudApi")).toBe(false);
+    expect(shouldRegisterTool("callCloudApi")).toBe(true);
 
     clearCloudModeSignals();
     expect(shouldRegisterTool("callCloudApi")).toBe(true);
