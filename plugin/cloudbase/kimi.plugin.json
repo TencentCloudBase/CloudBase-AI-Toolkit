@@ -2,7 +2,7 @@
   "$schema": "https://kimi.com/schemas/kimi.plugin.schema.json",
   "name": "cloudbase",
   "version": "0.2.0",
-  "description": "Tencent CloudBase — AI models, authentication, NoSQL/PostgreSQL databases, cloud functions, cloud storage, CloudRun backend services, and WeChat Mini Program integration. Powered by cloudbase-mcp.",
+  "description": "Tencent CloudBase \u2014 AI models, authentication, NoSQL/PostgreSQL databases, cloud functions, cloud storage, CloudRun backend services, and WeChat Mini Program integration. Powered by cloudbase-mcp.",
   "keywords": [
     "cloudbase",
     "tencent-cloud",
@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "Tencent CloudBase",
     "shortDescription": "Build, deploy, and manage CloudBase apps",
-    "longDescription": "CloudBase 官方 Kimi 插件。提供 cloudbase-mcp 工具调用与 routing skill，让你从 Kimi 直接开发、部署、运维 CloudBase 应用。\n\nTry with prompts like:\n- CloudBase 帮我搭一个带用户登录、数据库和管理后台的 Web 应用并部署\n- CloudBase 列出环境里所有 CloudRun 服务和最近 1 小时云函数报错\n- CloudBase 用 CloudBase PG 建一张用户表并启用 RLS 安全规则",
+    "longDescription": "CloudBase \u5b98\u65b9 Kimi \u63d2\u4ef6\u3002\u63d0\u4f9b cloudbase-mcp \u5de5\u5177\u8c03\u7528\u4e0e routing skill\uff0c\u8ba9\u4f60\u4ece Kimi \u76f4\u63a5\u5f00\u53d1\u3001\u90e8\u7f72\u3001\u8fd0\u7ef4 CloudBase \u5e94\u7528\u3002\n\nTry with prompts like:\n- CloudBase \u5e2e\u6211\u642d\u4e00\u4e2a\u5e26\u7528\u6237\u767b\u5f55\u3001\u6570\u636e\u5e93\u548c\u7ba1\u7406\u540e\u53f0\u7684 Web \u5e94\u7528\u5e76\u90e8\u7f72\n- CloudBase \u5217\u51fa\u73af\u5883\u91cc\u6240\u6709 CloudRun \u670d\u52a1\u548c\u6700\u8fd1 1 \u5c0f\u65f6\u4e91\u51fd\u6570\u62a5\u9519\n- CloudBase \u7528 CloudBase PG \u5efa\u4e00\u5f20\u7528\u6237\u8868\u5e76\u542f\u7528 RLS \u5b89\u5168\u89c4\u5219",
     "developerName": "Tencent CloudBase",
     "websiteURL": "https://cloudbase.net",
     "iconUrl": "https://raw.githubusercontent.com/TencentCloudBase/CloudBase-AI-Toolkit/main/plugin/cloudbase/assets/logo.png"
@@ -30,13 +30,13 @@
   "sessionStart": {
     "skill": "cloudbase"
   },
-  "skillInstructions": "Log in via the plugin's MCP `auth` tool (device-code flow) — no long-lived API keys are accepted. Prefer this plugin's MCP tools for all CloudBase operations. Domain knowledge is fetched on demand via the routing skill (searchKnowledgeBase mode=skill).",
+  "skillInstructions": "Log in via the plugin's MCP `auth` tool (device-code flow) \u2014 no long-lived API keys are accepted. Prefer this plugin's MCP tools for all CloudBase operations. Domain knowledge is fetched on demand via the routing skill (searchKnowledgeBase mode=skill).",
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
       "args": [
         "-y",
-        "@cloudbase/cloudbase-mcp@2.32.5"
+        "@cloudbase/cloudbase-mcp@2.33.0"
       ],
       "env": {
         "INTEGRATION_IDE": "Kimi"

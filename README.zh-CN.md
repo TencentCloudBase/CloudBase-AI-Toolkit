@@ -24,6 +24,12 @@
 
 ## 最近更新
 
+**v2.33.x**（2026-09）
+
+- 云函数 / 应用：支持自定义容器镜像部署与异步状态查询；云端上传通道（`getUploadUrl` + `deployApp` cosTimestamp）
+- 环境绑定：`cloudbaserc.json` 可作为 envId / region / site 的字段级回退（字面量与 `{{env.KEY}}`）
+- 错误引导 / Skills：按结构化 `Code` 集中引导；虚拟支付参考；CodeBuddy IDE MCP 升级 skill；WorkBuddy experts
+
 **v2.32.x**（2026-08）
 
 - 认证 / 安全 / IDE：国际站（`TCB_SITE=intl`）登录链路修复；queryFunctions/queryCloudRun 默认脱敏环境变量；新增 Kimi Code / Kimi Work 支持

@@ -4,16 +4,35 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+## [2.33.0](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.5...v2.33.0) (2026-09-04)
+
 ### Features
 
-* **functions**: custom-image deployment for HTTP cloud functions, plus asynchronous deploy-status polling. `manageFunctions` gains `func.buildStrategy`: `image` deploys an already-pushed image, while `cloud` (CloudApp remote build) and `local` (local Docker build) run the full build-and-deploy orchestration through manager-node's `functionDeployer`. Real deployments require `dryRun=false` **and** `confirm=true`; passing `wait=false` returns a `taskId` immediately and runs the build in the background, which `queryFunctions(action="getFunctionDeployStatus", taskId=...)` then polls for stage progress, build/deploy sub-states, and the final result. Deploy tasks live only in the MCP process memory, are scoped to the environment that started them, and are never dropped while still running — a client timeout does not cancel the deployment. Personal-registry (`imageType=personal`) builds can pick up push credentials from the `TCB_TCR_USERNAME` / `TCB_TCR_PASSWORD` environment variables so passwords never enter tool arguments; that channel only exists for local stdio MCP servers whose client config supports a custom `env` block. Enterprise-registry (`imageType=enterprise`) `cloud`/`local` builds mint a TCR token through CAM, so the login state is probed up front and credentials without CAM policy (environment-level API Keys, OAuth-issued STS) are rejected before the build starts rather than failing midway. `local` always requires a local MCP server; `cloud` real execution does too, since it packs a local build context — cloud mode therefore supports only `cloud` dry-runs and the `image` strategy.
+* **functions**: support custom container image deploy for cloud functions, plus async deploy status query helpers so agents can poll without blocking on long builds (#985).
+* **apps**: cloud upload channel — `queryApps(getUploadUrl)` plus `deployApp` accepting either localPath or cosTimestamp (#989).
+* **env-binding**: treat `cloudbaserc.json` as a field-level env binding fallback (envId / region / site) after `.cloudbase/project.json`, supporting literal envId and `{{env.KEY}}` templates resolved from project-root `.env` / `.env.local` (#987).
+* **skills**: add mini program virtual payment reference docs (#988).
+* **skills**: add `codebuddy-ide-mcp-upgrade` skill for upgrading the IDE-bundled CloudBase MCP and regenerating tool whitelists (#976).
+* **experts**: add WorkBuddy expert package source + sync workflow; replace saas-architect with focused webdev expert; attach expert package zips to release assets (#978/#979/#986).
 * **rag**: teach agents to look up error codes via `searchKnowledgeBase` — the tool description now lists "tool call failed with a specific error code (e.g. `OperationDenied.FreePackageDenied`)" as a first-class `mode=docs` + `action=searchDocs` scenario, so agents query the official error-code docs before retrying or guessing.
 * **skill**: add an error-code troubleshooting protocol to the `cloudbase-platform` skill — when a tool call fails with a specific error code (e.g. `OperationDenied.FreePackageDenied`), extract it and route through the official docs (`searchKnowledgeBase` docs search, falling back to `docs.cloudbase.net/error-code/basic` and cloud API error codes 876/34823). Never assert capability-per-plan or error-code semantics from memory; cite the official capability doc (e.g. Web 安全域名 876/127357) or the console plan comparison instead.
-* **env-binding**: `cloudbaserc.json` 现在作为环境绑定的字段级回退源（envId / region / site），位于 `.cloudbase/project.json` 之后、账号登录态之前。已有 CLI 项目无需再维护第二份绑定配置：envId 支持字面量与 `{{env.KEY}}` 模板（模板从项目根 `.env` / `.env.local` 解析，与 CLI 同源；`{{private.X}}` 与解析失败的模板安全跳过、回落下一级）。MCP 仍不写 `cloudbaserc.json`，机器管理的绑定持久化继续走 `.cloudbase/project.json`。注意这是对存量 CLI 用户的行为变化：以前 `cloudbaserc.json` 的 envId 不影响 MCP 环境绑定，现在会自动生效。
 
 ### Bug Fixes
 
-* **errors**: add a centralized error-guidance registry (`mcp/src/utils/error-guidance.ts`) wired into the shared tool error exit, so every tool failure — not just NoSQL writes — can carry actionable guidance and an official docs link (fixes #994). The backend returns `Code=EXCEED_REQUEST_LIMIT` with `Message="Write request overrun. Please improve write specifications..."`, which reads as "you wrote too many documents at once" and steered users and agents toward batching even though a single small document triggers it identically. Guidance is now matched on the structured `Code` (the stable contract) rather than the `Message`, which the cloud API spec explicitly marks as unstable; a per-code fallback entry means a changed `Message` degrades to correct-but-generic guidance instead of passing raw English through. Plan-specific thresholds are no longer hardcoded — they live in the linked docs. `RequestId` is normalized across the `requestId` / `RequestId` / `requestID` / `Response.RequestId` mount points at the same shared exit.
+* **errors**: add a centralized error-guidance registry (`mcp/src/utils/error-guidance.ts`) wired into the shared tool error exit, so every tool failure — not just NoSQL writes — can carry actionable guidance and an official docs link (fixes #994). Guidance is matched on the structured `Code` (the stable contract) rather than the `Message`; plan-specific thresholds stay in the linked docs.
+* **mcp**: hosted MCP staging E2E defect batch — applyMigration, dataModel polling, isError semantics, storagePG gating, rag remote docs (#992).
+* **mcp**: hosted MCP defect batch — cloud-mode gating, PG/dataModel, skills docs quality (#991).
+* **apps**: harden cloud-mode `deployApp` localPath gate (#984).
+* **skills**: restore activation-critical model vocabulary in cloudbase description (#993).
+
+### Code Refactoring
+
+* **env**: converge env domain tool naming into the `query*` / `manage*` system (#997).
+* **dsh-plugin**: remove the right-side details panel for the 0.1.0 slim surface (#996).
+
+### Continuous Integration
+
+* **crawl-docs**: restore `npm ci` for `chore/pure_doc_skill` (branch still has npm lockfile only); the earlier pnpm switch broke the scheduled crawl when corepack resolved pnpm 11 on Node 20.
 
 ## [2.32.5](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.4...v2.32.5) (2026-09-01)
 

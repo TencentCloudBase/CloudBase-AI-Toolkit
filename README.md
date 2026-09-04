@@ -24,6 +24,12 @@ The CloudBase integration layer for AI coding tools: Plugin installs the stack, 
 
 ## Recent updates
 
+**v2.33.x** (2026-09)
+
+- Functions / Apps: custom container-image deploy for cloud functions with async status query; cloud upload channel (`getUploadUrl` + `deployApp` cosTimestamp)
+- Env binding: `cloudbaserc.json` as field-level fallback for envId / region / site (literal + `{{env.KEY}}`)
+- Errors / Skills: centralized error guidance by structured `Code`; virtual-pay reference; CodeBuddy IDE MCP upgrade skill; WorkBuddy experts
+
 **v2.32.x** (2026-08)
 
 - Auth / Security / IDE: international-site (`TCB_SITE=intl`) login routing; default env-var masking in queryFunctions/queryCloudRun; Kimi Code & Kimi Work support
