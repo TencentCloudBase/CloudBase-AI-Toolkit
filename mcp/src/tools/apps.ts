@@ -178,13 +178,17 @@ export function registerAppTools(server: ExtendedMcpServer) {
         }
 
         // getUploadUrl — 只读获取预签名上传 URL（cloud mode 上传通道第一步）
+        // 语义说明：本 action 是"铸造一张 staging 范围的上传凭据"而非纯查询，挂在只读工具下
+        // 是有意为之（cloud agent 可能只有只读权限）。凭据只能 PUT 到该 serviceName 的构建
+        // staging key，且时效短；真正改变状态的 deployApp 必须再经 manageApps（非只读）二次授权。
         if (action === "getUploadUrl") {
           const cosInfoResult = await appService.describeCosInfo({
             deployType: "static-hosting",
             serviceName,
             suffix: ".zip",
           });
-          logCloudBaseResult(server.logger, cosInfoResult);
+          // 只记录 RequestId：UploadUrl / UploadHeaders 含预签名凭据（Authorization），不能进日志
+          logCloudBaseResult(server.logger, { RequestId: cosInfoResult.RequestId });
 
           return jsonContent(
             buildEnvelope(
@@ -379,8 +383,10 @@ export function registerAppTools(server: ExtendedMcpServer) {
         cosTimestamp: z
           .coerce
           .number()
+          .int()
+          .positive()
           .optional()
-          .describe("COS 时间戳（number，来自 getUploadUrl 返回的 unixTimestamp）。传入此值则直接使用已上传的代码创建应用，跳过本地文件上传。需先调用 getUploadUrl 获取预签名 URL，上传 ZIP 包后再传此时间戳。cloud mode 下为必填；本地模式也可传此值代替 filePath。两个路径严格二选一：filePath（本地打包上传）或 cosTimestamp（预签名 URL 上传），同时提供或都不提供都会报错。"),
+          .describe("COS 时间戳（正整数 number，来自 getUploadUrl 返回的 unixTimestamp）。传入此值则直接使用已上传的代码创建应用，跳过本地文件上传。需先调用 getUploadUrl 获取预签名 URL，上传 ZIP 包后再传此时间戳。cloud mode 下为必填；本地模式也可传此值代替 filePath。两个路径严格二选一：filePath（本地打包上传）或 cosTimestamp（预签名 URL 上传），同时提供或都不提供都会报错。"),
         appPath: z
           .string()
           .optional()
@@ -485,7 +491,8 @@ export function registerAppTools(server: ExtendedMcpServer) {
             deployType: "static-hosting",
             serviceName,
           });
-          logCloudBaseResult(server.logger, cosInfoResult);
+          // 只记录 RequestId：UploadUrl / UploadHeaders 含预签名凭据（Authorization），不能进日志
+          logCloudBaseResult(server.logger, { RequestId: cosInfoResult.RequestId });
 
           const defaultIgnore = defaultPackIgnore;
           // eslint-disable-next-line max-len

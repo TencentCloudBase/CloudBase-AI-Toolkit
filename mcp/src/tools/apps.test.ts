@@ -406,6 +406,48 @@ describe("app tools", () => {
       },
     });
     expect(payload.message).toContain("cosTimestamp");
+    // 日志不得落入预签名凭据（UploadUrl / UploadHeaders 含 Authorization 签名），只允许 RequestId
+    expect(mockLogCloudBaseResult).toHaveBeenCalledWith(expect.anything(), { RequestId: "req-cos-info-query" });
+    const loggedPayloads = mockLogCloudBaseResult.mock.calls.map((call) => call[1]);
+    for (const logged of loggedPayloads) {
+      expect(JSON.stringify(logged)).not.toContain("Authorization");
+      expect(JSON.stringify(logged)).not.toContain("upload-query");
+    }
+  });
+
+  it("manageApps(action=getUploadUrl) should not log pre-signed credentials either", async () => {
+    mockDescribeCosInfo.mockResolvedValueOnce({
+      UploadUrl: "https://example.com/upload-manage",
+      UploadHeaders: [{ Key: "Authorization", Value: "sig" }],
+      UnixTimestamp: 1741234567,
+      RequestId: "req-cos-info-manage",
+    });
+
+    await tools.manageApps.handler({
+      action: "getUploadUrl",
+      serviceName: "demo-app",
+    });
+
+    expect(mockLogCloudBaseResult).toHaveBeenCalledWith(expect.anything(), { RequestId: "req-cos-info-manage" });
+    const loggedPayloads = mockLogCloudBaseResult.mock.calls.map((call) => call[1]);
+    for (const logged of loggedPayloads) {
+      expect(JSON.stringify(logged)).not.toContain("Authorization");
+      expect(JSON.stringify(logged)).not.toContain("upload-manage");
+    }
+  });
+
+  it("cosTimestamp schema rejects non-positive-integer values", () => {
+    const schema = (tools.manageApps.meta as any).inputSchema.cosTimestamp;
+
+    // 合法值：正整数（含字符串数字 coerce）
+    expect(schema.parse("1741234567")).toBe(1741234567);
+    expect(schema.parse(1741234567)).toBe(1741234567);
+
+    // 非法值：0 / 负数 / 浮点 / 非数字
+    expect(() => schema.parse(0)).toThrow();
+    expect(() => schema.parse(-1)).toThrow();
+    expect(() => schema.parse(1.5)).toThrow();
+    expect(() => schema.parse("abc")).toThrow();
   });
 
   it("manageApps(action=getUploadUrl) should return pre-signed URL", async () => {
