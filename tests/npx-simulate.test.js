@@ -137,7 +137,7 @@ test("npx/纯净产物环境模拟测试", async () => {
 
     // 3. 安装依赖（只安装 dependencies）
     console.log("📥 安装生产依赖...");
-    execSync("npm install --production", {
+    execSync("npm install --production --no-audit --no-fund --loglevel=error", {
       cwd: pkgDir,
       stdio: "inherit",
     });
@@ -194,7 +194,7 @@ test("npx/纯净产物环境模拟测试", async () => {
       console.warn("⚠️ tar 包清理失败:", e.message);
     }
   }
-}, 300000); // 300s: CI runner 繁重时 npm install 生产依赖可超 2 分钟（2026-09-04 两次实测）
+}, 600000); // 600s: 无 lockfile 全量 registry 解析在 CI 繁忙时 300s 也不够（2026-09-04 实测）
 
 // 环境信息查询测试函数
 async function testEnvironmentInfo(cliPath) {
