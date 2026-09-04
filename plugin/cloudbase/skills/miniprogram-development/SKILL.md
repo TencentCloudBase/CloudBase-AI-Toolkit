@@ -30,13 +30,13 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 - CloudBase auth -> `../auth-wechat-miniprogram/SKILL.md`
 - CloudBase document DB -> `../cloudbase-document-database-in-wechat-miniprogram/SKILL.md`
-- Mini Program WeChat Pay or Integration Center generated payment functions -> `../cloudbase-wechat-integration/SKILL.md` (official docs: `https://docs.cloudbase.net/integration/wechat-pay-miniprogram/index.md`)
+- Mini Program WeChat Pay, 虚拟支付 (virtual payment, `wx.requestVirtualPayment`), or Integration Center generated payment functions -> `../cloudbase-wechat-integration/SKILL.md` (official docs: `https://docs.cloudbase.net/integration/wechat-pay-miniprogram/index.md`)
 - UI generation -> `../ui-design/SKILL.md` first
 
 ### Do NOT use for
 
 - Web auth flows or Web SDK-specific frontend implementation.
-- WeChat Pay, payment callbacks, refunds, or Official Account OAuth details; use `cloudbase-wechat-integration` for those scenarios.
+- WeChat Pay, 虚拟支付 / `wx.requestVirtualPayment`, payment callbacks, refunds, or Official Account OAuth details; use `cloudbase-wechat-integration` for those scenarios.
 
 ### Common mistakes / gotchas
 
