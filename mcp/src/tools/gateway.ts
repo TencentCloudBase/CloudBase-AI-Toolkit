@@ -1469,7 +1469,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         "enablePathTransmission：默认 false 剥触发路径前缀；true 透传完整路径（CBR 多路由、WEB_SCF 自管子路径常需 true；STATIC_STORE 自定义触发路径映射站点根通常 false）。" +
         "⚠️ 自定义域名访问：若环境已有自定义域名（先 queryGateway listCustomDomains），优先 createRoute 并显式传入该 domain，无需 certificateId；" +
         "仅首次绑定全新自定义域名时用 bindCustomDomain（certificateId 可选：未传时按域名自动检索证书，单证书自动选用、多证书返回选择指引）。" +
-        "createRoute / bindCustomDomain 创建前会调用 VerifyHTTPServiceRoute 做归属权等预检（探测→创建）；失败时返回 data.checks 与 DNS TXT 指引，配置后重试。CORS/安全域名用 envDomainManagement。" +
+        "createRoute / bindCustomDomain 创建前会调用 VerifyHTTPServiceRoute 做归属权等预检（探测→创建）；失败时返回 data.checks 与 DNS TXT 指引，配置后重试。CORS/安全域名（浏览器跨域白名单，与本工具的网关自定义域名无关）用 manageEnv(action=addSecurityDomain/removeSecurityDomain)。" +
         "enableService/authSwitch：HTTP 网关总开关与访问鉴权开关；createRoute 后若访问报 HTTPSERVICE_NONACTIVATED，通常是总开关未开启（用 queryGateway getPrivilege 查询、enableService 开启）。",
       inputSchema: {
         action: z
