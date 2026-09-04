@@ -194,7 +194,7 @@ test("npx/纯净产物环境模拟测试", async () => {
       console.warn("⚠️ tar 包清理失败:", e.message);
     }
   }
-}, 120000); // 增加到 120 秒
+}, 600000); // 10 分钟：本测试做真实 npm pack + npm install --production，CI runner 慢时 120s 不够（2026-09-04 连续三次超时）
 
 // 环境信息查询测试函数
 async function testEnvironmentInfo(cliPath) {
