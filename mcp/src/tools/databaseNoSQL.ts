@@ -26,18 +26,6 @@ const PROJECTION_GUIDANCE =
   `合法示例：${PROJECTION_EXAMPLE}（只返回这些字段），或 ${PROJECTION_EXCLUDE_EXAMPLE}（排除字段）。` +
   `不要传字段名数组、逗号分隔字符串、查询条件，也不要在同一投影里混用包含(1/true)与排除(0/false)（_id 除外）。`;
 
-/**
- * 写入配额耗尽时后端 Code 与 Message 语义相反：Code 说配额（OutOfWriteRequestQuota），
- * Message 却说"写太多"（Write request overrun）。原样透传会把用户和 AI 一起误导到
- * "减少单次写入条数"上，而实际与条数、文档大小都无关（单条小文档同样触发）。
- */
-const NOSQL_WRITE_QUOTA_GUIDANCE =
-  `数据库写入配额已用尽，这与单次写入的条数或文档大小无关：当前环境资源点已耗尽，或已超出当日写入配额，` +
-  `所有写入请求都会被拒绝（读取不受影响）。建议：1) 云开发控制台 → 资源管理，查看资源点余额；` +
-  `2) 升级套餐或购买资源点加量包；3) 个人版环境数据库写入配额为 30,000 次/天，每天 0 点自动重置，也可次日重试。`;
-/** 与 NOSQL_WRITE_QUOTA_GUIDANCE 对应的后端错误码，保留它才能让错误码排障协议命中官方文档。 */
-const NOSQL_WRITE_QUOTA_CODE = "LimitExceeded.OutOfWriteRequestQuota";
-
 /** Convert object values to JSON strings for API calls */
 const toJSONString = (v: any): any =>
   typeof v === "object" && v !== null ? JSON.stringify(v) : v;
@@ -265,33 +253,6 @@ function enhanceQueryRecordsError(error: unknown): never {
   throw error instanceof Error ? error : new Error(message);
 }
 
-/**
- * 写入侧错误增强：把后端不可操作的英文原文翻译成可自助排查的中文指引。
- * 与 enhanceQueryRecordsError 同构（08-17 已确立的「按 Code 匹配 → 输出指引」模式）。
- * 必须保留后端错误码与 RequestId，否则错误码排障协议无法命中官方文档。
- */
-function enhanceNoSqlWriteError(error: unknown, action: string): never {
-  const source = error instanceof Error ? error : new Error(String(error ?? ""));
-  const message = source.message;
-  const code = (source as any).code ?? (source as any).Code;
-
-  const isWriteQuotaExceeded =
-    /OutOfWriteRequestQuota/i.test(String(code ?? "")) ||
-    /write request overrun/i.test(message);
-
-  if (isWriteQuotaExceeded) {
-    const err = new Error(
-      `[${action}] ${NOSQL_WRITE_QUOTA_CODE}：${NOSQL_WRITE_QUOTA_GUIDANCE}\n原始信息：${message}`,
-    );
-    (err as any).code = String(code ?? NOSQL_WRITE_QUOTA_CODE);
-    (err as any).requestId =
-      (source as any).requestId ?? (source as any).requestID ?? (source as any).RequestId;
-    throw err;
-  }
-
-  throw source;
-}
-
 function withCollectionName<T extends Record<string, unknown>>(
   collectionName: string,
   payload: T,
@@ -398,14 +359,9 @@ async function callNoSqlContentApi(options: {
       message: error instanceof Error ? error.message : String(error),
     });
 
-    // SDK 不同版本把 RequestId 挂在 requestID / RequestId 上，统一归一到 requestId，
-    // 失败路径原本拿不到它，用户报障时无法用后端 RequestId 穿透日志。
-    const source = error as any;
-    if (source && !source.requestId) {
-      source.requestId = source.requestID ?? source.RequestId;
-    }
-
-    enhanceNoSqlWriteError(error, options.action);
+    // 错误指引与 RequestId 归一统一在 utils/tool-wrapper 的工具错误出口处理，
+    // 这里不再单独翻译，避免每个工具各做一份、且只覆盖本文件。
+    throw error;
   }
 }
 
