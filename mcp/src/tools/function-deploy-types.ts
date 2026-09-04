@@ -45,18 +45,27 @@ export type FunctionDeployTaskStatus =
   | "expired";
 
 /**
- * 构建子状态。
+ * 构建子状态的全集。
  *
- * 这里的 queued 是真实可观测状态：任务已创建但首个构建事件尚未到达。
+ * queued 是真实可观测状态：任务已创建但首个构建事件尚未到达。
  * 与任务级状态无关，不要一并删除。
+ *
+ * 写成运行时数组而非纯类型，是为了让 function-deploy-progress 里
+ * IN_FLIGHT / TERMINAL 两个集合能被测试断言为对本集合的一个划分
+ * （每个状态恰好属于其中之一）。曾经 queued 两个集合都不在，
+ * 导致排队阶段失败或过期的任务一直显示 build.status=queued。
  */
+export const FUNCTION_DEPLOY_BUILD_STATUSES = [
+  "queued",
+  "building",
+  "pushing",
+  "succeeded",
+  "failed",
+  "skipped",
+] as const;
+
 export type FunctionDeployBuildStatus =
-  | "queued"
-  | "building"
-  | "pushing"
-  | "succeeded"
-  | "failed"
-  | "skipped";
+  (typeof FUNCTION_DEPLOY_BUILD_STATUSES)[number];
 
 export type FunctionDeployStageStatus =
   | "pending"

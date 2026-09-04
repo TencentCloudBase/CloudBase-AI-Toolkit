@@ -8,6 +8,7 @@ import {
   STAGE_META,
   TERMINAL_BUILD_STATUSES,
 } from "./function-deploy-progress.js";
+import { FUNCTION_DEPLOY_BUILD_STATUSES } from "./function-deploy-types.js";
 import type {
   FunctionDeployStrategy,
   FunctionDeployTask,
@@ -224,5 +225,20 @@ describe("function deploy progress state machine", () => {
     for (const status of IN_FLIGHT_BUILD_STATUSES) {
       expect(TERMINAL_BUILD_STATUSES.has(status)).toBe(false);
     }
+  });
+
+  it("partitions every build status into exactly one of the two sets", () => {
+    // in-flight 声称是 terminal 的补集，但只验「不相交」是不够的：
+    // queued 曾经两个集合都不在，failInFlightStages 于是放过了排队阶段失败/过期的
+    // 任务，任务已 failed/expired 而 build.status 仍显示 queued。这里断言二者构成
+    // 一个真正的划分，新增状态却忘了归类时会直接失败。
+    for (const status of FUNCTION_DEPLOY_BUILD_STATUSES) {
+      const inFlight = IN_FLIGHT_BUILD_STATUSES.has(status);
+      const terminal = TERMINAL_BUILD_STATUSES.has(status);
+      expect(inFlight !== terminal).toBe(true);
+    }
+    expect(
+      IN_FLIGHT_BUILD_STATUSES.size + TERMINAL_BUILD_STATUSES.size,
+    ).toBe(FUNCTION_DEPLOY_BUILD_STATUSES.length);
   });
 });
