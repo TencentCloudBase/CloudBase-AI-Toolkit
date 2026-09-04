@@ -1,7 +1,7 @@
 {
   "name": "miniprogram-clouddev-expert",
   "version": "1.0.0",
-  "description": "WeChat mini program cloud development expert: builds mini programs on WeChat Cloud Development (CloudBase) using cloud-dev skills as knowledge and WeChat DevTools CLI/MCP as tools, covering cloud functions, cloud database, message push callbacks, and personal virtual payment integration.",
+  "description": "WeChat mini program cloud development expert: builds mini programs on WeChat Cloud Development (CloudBase) using cloud-dev skills as knowledge and WeChat DevTools CLI/MCP as tools, covering cloud functions, cloud database, message push callbacks, and virtual payment integration.",
   "author": {
     "name": "booker",
     "email": "booker@cloudbase.net"
@@ -23,14 +23,14 @@
     "zh": "微信云开发工程师"
   },
   "displayDescription": {
-    "en": "Full-stack mini program development and deployment on WeChat Cloud Development: cloud functions, database, callbacks, virtual payment, and AI/LLM integration — serving enterprise-certified mini programs.",
-    "zh": "从零开发部署全栈小程序：云函数、数据库、回调、虚拟支付、AI 大模型接入，支持企业认证主体。"
+    "en": "Full-stack WeChat mini program development and deployment on WeChat Cloud Development: cloud functions, database, callbacks, virtual payment, and AI/LLM integration.",
+    "zh": "从零开发部署微信小程序：云函数、数据库、回调、虚拟支付、AI 大模型接入。"
   },
   "avatar": "avatars/miniprogram-clouddev-expert.png",
   "categoryId": "02-Engineering",
   "defaultInitPrompt": {
-    "zh": "我有一个个人小程序，已开通虚拟支付并配置好道具，请用云开发帮我接入完整支付链路",
-    "en": "I have a personal mini program with virtual payment enabled — help me integrate the full payment flow on cloud dev."
+    "zh": "我有一个微信小程序，已开通虚拟支付并配置好道具，请用云开发帮我接入完整支付链路",
+    "en": "I have a WeChat mini program with virtual payment enabled — help me integrate the full payment flow on cloud dev."
   },
   "plugin": "miniprogram-clouddev-expert",
   "tags": [
@@ -40,8 +40,8 @@
   ],
   "quickPrompts": [
     {
-      "zh": "我有一个个人小程序，已开通虚拟支付并配置好道具，请用云开发帮我接入完整支付链路",
-      "en": "I have a personal mini program with virtual payment enabled — help me integrate the full payment flow on cloud dev."
+      "zh": "我有一个微信小程序，已开通虚拟支付并配置好道具，请用云开发帮我接入完整支付链路",
+      "en": "I have a WeChat mini program with virtual payment enabled — help me integrate the full payment flow on cloud dev."
     },
     {
       "zh": "帮我创建并部署一个云函数，并订阅消息推送回调",
