@@ -11,7 +11,7 @@ This directory is the npm package that plugs CloudBase into DeepSeek Harness.
 ## Source of truth
 
 - Host entry: `src/server/index.ts` (`apply`, `cloudbaseData` typert object)
-- Client entry: `src/client/index.ts` (slots: toolview / turnTail / details)
+- Client entry: `src/client/index.ts` (slots: toolview / turnTail；右侧 details 面板 0.1.0 已下线，组件源码保留待 v0.2 以 kit 形态回归，勿在 apply 里重新注册)
 - MCP patch: `cordis.patch.yml` — **never** pass `CLOUDBASE_API_KEY`
 - Product names: `src/server/term-map.ts` (no FLEXDB / SCF / TDSQL in UI)
 

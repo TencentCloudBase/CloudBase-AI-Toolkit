@@ -3,6 +3,13 @@
 > 接手 agent 请先读本文。需要 dsh-plugin 的历史上下文时看本地 `.workbuddy/memory/`（该目录不入库，缺失时跑 `npm run internal:restore` 恢复，见仓库根 `AGENTS.md` 的 `<internal_dirs>` 段）。
 > PR 状态：https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/pull/933（feat/dsh-plugin，OPEN MERGEABLE）
 
+## 〇、2026-09-04 裁剪：右侧 details 面板 0.1.0 下线
+
+- **决策**：0.1.0 重发 npm 前全砍右侧 details 面板（后端 5 tab + 预览 webview + 顶部胶囊 + 启动强开 + shadow 原生 details）。原因：开箱体验依赖宿主 layout patch（不随包分发），用户装到的是 300-520px 窄条且启动抢屏；核心价值（toolview 卡片/交付物行）全在聊天流、零面板耦合
+- **改动**：`src/client/index.ts` 移除 Panel 注册/withData/启动 openDetails、`inject` 去掉 layout；`styles.ts` 清掉 16 个面板专用死选择器；`DetailsPanel/` 组件源码保留（不注册不打包），v0.2 以 kit 形态回归时再接线
+- **验证**：vitest 110/110、tsc clean、esbuild 通过；bundle 中 `cloudbase-details`/`openDetails` 为 0，`cloudbase-deliverable`/`cloudbase-env-bound` 保留
+- **登录引导**：随面板下线后走 DSH 对话内（模型调 cloudbase auth 工具）；未登录 UI 入口是 v0.2 kit 的必修项
+
 ## 一、项目位置 & 核心信息
 
 - **仓库根**：`~/Projects/CloudBase-MCP/`（name=`cloudbase-ai-toolkit` v1.7.3，包管理 pnpm）

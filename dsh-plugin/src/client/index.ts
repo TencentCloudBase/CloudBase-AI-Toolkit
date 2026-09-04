@@ -11,29 +11,16 @@ import { ToolViewRouter } from "./components/ToolViewRouter.js";
 import { makeWriteOpToolCard } from "./components/WriteOpToolCard.js";
 import { DeliverableRow } from "./components/DeliverableRow.js";
 import { DeployPreviewCard } from "./components/DeployPreviewCard.js";
-import { DetailsPanel } from "./components/DetailsPanel/index.js";
 import { EnvBoundRow } from "./components/EnvBoundRow.js";
-import { openDetails, registerKeyedSlot, registerNamedSlot, type SlotHost } from "./lib/slots.js";
+import { registerKeyedSlot, registerNamedSlot, type SlotHost } from "./lib/slots.js";
 import { getDataService } from "./lib/typert.js";
 import { ensureStyles } from "./styles.js";
 
 export const name = "cloudbase-dsh-plugin-client";
 // connection 提供 /api RPC 通道（CloudBase 数据直调 host Remote，不依赖 ctx.remote 的
 // 编译期固定能力集）。不能 inject "remote.cloudbaseData"（第三方贡献不可注入）。
-export const inject = ["slots", "layout", "connection"];
-
-function withData(
-  ctx: SlotHost,
-  Component: React.ComponentType<{ cloudbaseData?: ReturnType<typeof getDataService>; openDetails?: () => void }>,
-) {
-  return function Bound(props: Record<string, unknown>) {
-    return React.createElement(Component, {
-      ...props,
-      cloudbaseData: getDataService(ctx),
-      openDetails: () => ctx.layout?.openDetails?.(),
-    });
-  };
-}
+// 0.1.0 精简：右侧 details 面板已下线（v0.2 以 kit 形态回归），只保留聊天流 slot。
+export const inject = ["slots", "connection"];
 
 export function apply(ctx: SlotHost): void {
   ensureStyles();
@@ -90,28 +77,7 @@ export function apply(ctx: SlotHost): void {
       return hasSetEnv ? nodes : null;
     },
   });
-
-  const Panel = withData(ctx, DetailsPanel);
-  for (const slotName of ["details", "conversation.details", "layout.details"]) {
-    // 用更低 priority shadow 原生 details 面板：登录后右侧栏即 CloudBase 面板。
-    registerNamedSlot(ctx, slotName, "cloudbase-details", Panel, { priority: -10 });
-  }
-
-  // Always open details so unsigned users see the login card (Device code / API Key).
-  // Gating on signedIn left no entry point when authStatus fails or returns unsigned.
-  void getDataService(ctx)
-    ?.authStatus()
-    .then(() => {
-      openDetails(ctx);
-    })
-    .catch((error: unknown) => {
-      console.warn(
-        "[cloudbase] authStatus probe failed; still opening details for login:",
-        error instanceof Error ? error.message : String(error),
-      );
-      openDetails(ctx);
-    });
 }
 
-export { DataTableCard, DeployPreviewCard, DeliverableRow, DetailsPanel };
+export { DataTableCard, DeployPreviewCard, DeliverableRow };
 export { EnvBadge } from "./kit/components/EnvBadge.js";
