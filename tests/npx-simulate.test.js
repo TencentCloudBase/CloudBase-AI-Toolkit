@@ -194,7 +194,7 @@ test("npx/纯净产物环境模拟测试", async () => {
       console.warn("⚠️ tar 包清理失败:", e.message);
     }
   }
-}, 120000); // 增加到 120 秒
+}, 300000); // 300s: CI runner 繁重时 npm install 生产依赖可超 2 分钟（2026-09-04 两次实测）
 
 // 环境信息查询测试函数
 async function testEnvironmentInfo(cliPath) {
