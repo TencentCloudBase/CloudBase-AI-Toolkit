@@ -3240,7 +3240,6 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         "\n\n⚠️ DEPRECATED：此工具名已废弃，是 queryEnv 的旧词序别名，入参与 action 完全一致。请直接调用 queryEnv；本别名将在下个版本移除。",
       annotations: {
         ...queryEnvToolSchema.annotations,
-        deprecated: true,
       },
     },
     queryEnvHandler,
