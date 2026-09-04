@@ -3,7 +3,14 @@ import { test, expect } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { execSync, spawnSync } from "child_process";
+import { exec, spawnSync } from "child_process";
+import { promisify } from "util";
+
+// 注意：不要在这里用 execSync 跑 npm pack / npm install 这类长任务。
+// execSync 会阻塞 vitest worker 的事件循环，worker 发出的 RPC（onTaskUpdate）
+// 在阻塞期间无法收到 ack，60s 后被记为 unhandled error，整个 run 以 exit 1 失败
+// ——即使所有测试都通过（2026-09-04 main 与多个分支同时触发，CI runner 变慢后必现）。
+const execAsync = promisify(exec);
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -118,10 +125,10 @@ test("npx/纯净产物环境模拟测试", async () => {
 
     // 1. 打包
     console.log("📦 执行 npm pack...");
-    tarballPath = execSync("npm pack", {
-      encoding: "utf-8",
+    const packOutput = await execAsync("npm pack", {
       cwd: path.join(__dirname, "../mcp"),
-    })
+    });
+    tarballPath = packOutput.stdout
       .split("\n")
       .find((line) => line.endsWith(".tgz"))
       .trim();
@@ -130,17 +137,22 @@ test("npx/纯净产物环境模拟测试", async () => {
 
     // 2. 解包
     console.log("📂 解包到临时目录...");
-    execSync(`tar -xzf ${tarballPath} -C ${tmpDir}`);
+    await execAsync(`tar -xzf ${tarballPath} -C ${tmpDir}`);
     pkgDir = path.join(tmpDir, "package");
 
     console.log("📂 解包目录:", pkgDir);
 
     // 3. 安装依赖（只安装 dependencies）
     console.log("📥 安装生产依赖...");
-    execSync("npm install --production --no-audit --no-fund --loglevel=error", {
-      cwd: pkgDir,
-      stdio: "inherit",
-    });
+    try {
+      await execAsync("npm install --production --no-audit --no-fund --loglevel=error", {
+        cwd: pkgDir,
+        maxBuffer: 100 * 1024 * 1024,
+      });
+    } catch (e) {
+      console.error("npm install stderr (tail):", String(e.stderr || "").slice(-2000));
+      throw e;
+    }
 
     // 4. 运行 CLI 基础测试
     console.log("🚀 测试 CLI 启动...");
@@ -194,7 +206,7 @@ test("npx/纯净产物环境模拟测试", async () => {
       console.warn("⚠️ tar 包清理失败:", e.message);
     }
   }
-}, 600000); // 600s: 无 lockfile 全量 registry 解析在 CI 繁忙时 300s 也不够（2026-09-04 实测）
+}, 600000); // 600s: 无 lockfile 全量 registry 解析在 CI 繁忙时 300s 也不够（2026-09-04 实测，连续三次超时）
 
 // 环境信息查询测试函数
 async function testEnvironmentInfo(cliPath) {
