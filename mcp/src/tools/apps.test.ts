@@ -13,6 +13,10 @@ const {
   mockCreateApp,
   mockDescribeBuildLog,
   mockDescribeCosInfo,
+  mockDeleteApp,
+  mockDeleteAppVersion,
+  mockIsCloudMode,
+  mockGetEnvId,
 } = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
   mockLogCloudBaseResult: vi.fn(),
@@ -24,15 +28,20 @@ const {
   mockCreateApp: vi.fn(),
   mockDescribeBuildLog: vi.fn(),
   mockDescribeCosInfo: vi.fn(),
+  mockDeleteApp: vi.fn(),
+  mockDeleteAppVersion: vi.fn(),
+  mockIsCloudMode: vi.fn(() => false),
+  mockGetEnvId: vi.fn(async () => "env-test"),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
   getCloudBaseManager: mockGetCloudBaseManager,
+  getEnvId: mockGetEnvId,
   logCloudBaseResult: mockLogCloudBaseResult,
 }));
 
 vi.mock("../utils/cloud-mode.js", () => ({
-  isCloudMode: () => false,
+  isCloudMode: mockIsCloudMode,
 }));
 
 function createMockServer() {
@@ -56,6 +65,8 @@ describe("app tools", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsCloudMode.mockReturnValue(false);
+    mockGetEnvId.mockResolvedValue("env-test");
     mockDescribeAppList.mockResolvedValue({
       Total: 1,
       ServiceList: [{ ServiceName: "demo-app" }],
@@ -88,6 +99,12 @@ describe("app tools", () => {
       VersionName: "v1",
       RequestId: "req-app-create",
     });
+    mockDeleteApp.mockResolvedValue({
+      RequestId: "req-app-delete",
+    });
+    mockDeleteAppVersion.mockResolvedValue({
+      RequestId: "req-app-delete-version",
+    });
     mockDescribeBuildLog.mockResolvedValue({
       Response: {
         Total: 2,
@@ -113,6 +130,8 @@ describe("app tools", () => {
         uploadCode: mockUploadCode,
         createApp: mockCreateApp,
         describeCosInfo: mockDescribeCosInfo,
+        deleteApp: mockDeleteApp,
+        deleteAppVersion: mockDeleteAppVersion,
       },
       commonService: () => ({
         call: mockDescribeBuildLog,
@@ -235,6 +254,72 @@ describe("app tools", () => {
         serviceName: "demo-app",
       },
     });
+  });
+
+  it("cloud mode deployApp rejects localPath", async () => {
+    mockIsCloudMode.mockReturnValue(true);
+
+    const result = await tools.manageApps.handler({
+      action: "deployApp",
+      serviceName: "demo-app",
+      filePath: "/etc",
+      buildPath: "dist",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockUploadCode).not.toHaveBeenCalled();
+    expect(mockCreateApp).not.toHaveBeenCalled();
+    expect(payload).toMatchObject({
+      success: false,
+      code: "CLOUD_MODE_UNSUPPORTED_ACTION",
+      data: {
+        code: "CLOUD_MODE_UNSUPPORTED_ACTION",
+        action: "deployApp",
+        reason: "localPath",
+      },
+    });
+    expect(payload.message).toContain("localPath");
+  });
+
+  it("cloud mode deleteApp still works", async () => {
+    mockIsCloudMode.mockReturnValue(true);
+
+    const result = await tools.manageApps.handler({
+      action: "deleteApp",
+      serviceName: "demo-app",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockDeleteApp).toHaveBeenCalledWith({
+      deployType: "static-hosting",
+      serviceName: "demo-app",
+    });
+    expect(mockUploadCode).not.toHaveBeenCalled();
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "deleteApp",
+        serviceName: "demo-app",
+      },
+    });
+  });
+
+  it("cloud mode deployApp with cosTimestamp still works", async () => {
+    mockIsCloudMode.mockReturnValue(true);
+
+    const result = await tools.manageApps.handler({
+      action: "deployApp",
+      serviceName: "demo-app",
+      cosTimestamp: "1741234567",
+      framework: "static",
+      installCmd: "",
+      buildCmd: "",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockUploadCode).not.toHaveBeenCalled();
+    expect(mockCreateApp).toHaveBeenCalled();
+    expect(payload.success).toBe(true);
   });
 
   it("manageApps(action=getUploadUrl) should return pre-signed URL", async () => {

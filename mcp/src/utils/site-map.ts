@@ -1,4 +1,4 @@
-import { readProjectConfig } from "./project-config.js";
+import { readCloudbaseRcBinding, readProjectConfig } from "./project-config.js";
 
 export type SiteId = "domestic" | "intl";
 
@@ -136,21 +136,24 @@ export interface ProjectConfig {
 /**
  * 统一 site/region 解析入口（收敛各调用点分散的 region fallback）。
  *
- * 优先级：显式参数 > 环境变量（TCB_SITE/TCB_REGION）> 项目配置（.cloudbase/project.json）> 全局默认
- * （site=domestic, region=ap-shanghai）。
+ * 优先级：显式参数 > 环境变量（TCB_SITE/TCB_REGION）> 项目配置（.cloudbase/project.json）
+ * > cloudbaserc.json（CLI 项目已有配置，按字段回退）> 全局默认（site=domestic, region=ap-shanghai）。
  *
  * 当仅指定 region 且该 region 在多个 site 的地域列表中都存在（如 ap-singapore）时，
  * 返回 site=intl 并标记 ambiguous=true（兼容既有国际站行为），调用方可用 ambiguous 提示用户显式指定 site。
  */
 export function resolveSiteAndRegion(opts: { site?: string; region?: string } = {}): SiteResolution {
   const projectConfig = readProjectConfig();
+  const rcBinding = readCloudbaseRcBinding();
 
   const explicitSite =
     normalizeSite(opts.site) ??
     normalizeSite(process.env.TCB_SITE) ??
-    normalizeSite(projectConfig?.site);
+    normalizeSite(projectConfig?.site) ??
+    normalizeSite(rcBinding?.site);
 
-  const explicitRegion = opts.region ?? process.env.TCB_REGION ?? projectConfig?.region;
+  const explicitRegion =
+    opts.region ?? process.env.TCB_REGION ?? projectConfig?.region ?? rcBinding?.region;
 
   let site = explicitSite;
   let ambiguous = false;

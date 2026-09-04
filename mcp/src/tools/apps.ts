@@ -16,6 +16,7 @@ type ToolEnvelope = {
   success: boolean;
   data: Record<string, unknown>;
   message: string;
+  code?: string;
 };
 
 function buildEnvelope(data: Record<string, unknown>, message: string): ToolEnvelope {
@@ -26,11 +27,41 @@ function buildEnvelope(data: Record<string, unknown>, message: string): ToolEnve
   };
 }
 
-function buildErrorEnvelope(error: unknown): ToolEnvelope {
+function buildErrorEnvelope(error: unknown, code?: string): ToolEnvelope {
   return {
     success: false,
-    data: {},
+    data: code ? { code } : {},
     message: error instanceof Error ? error.message : String(error),
+    ...(code ? { code } : {}),
+  };
+}
+
+const CLOUD_MODE_UNSUPPORTED_ACTION = "CLOUD_MODE_UNSUPPORTED_ACTION";
+
+function buildCloudModeUnsupportedDeployEnvelope(serviceName: string, reason: "localPath" | "missingCosTimestamp"): ToolEnvelope {
+  const message =
+    reason === "localPath"
+      ? "CLOUD_MODE_UNSUPPORTED_ACTION: cloud mode does not support deployApp with localPath/filePath " +
+        "(server has no trusted local filesystem). Use getUploadUrl → HTTP PUT zip → deployApp(cosTimestamp), " +
+        "or run manageApps in local stdio mode / CLI."
+      : "CLOUD_MODE_UNSUPPORTED_ACTION: cloud mode deployApp requires cosTimestamp. " +
+        "Call getUploadUrl first, upload the zip to the pre-signed URL, then pass cosTimestamp.";
+
+  return {
+    success: false,
+    code: CLOUD_MODE_UNSUPPORTED_ACTION,
+    data: {
+      code: CLOUD_MODE_UNSUPPORTED_ACTION,
+      action: "deployApp",
+      serviceName,
+      reason,
+      nextStep: {
+        tool: "manageApps",
+        args: { action: "getUploadUrl", serviceName },
+        hint: "getUploadUrl → PUT zip to uploadUrl → deployApp(cosTimestamp)",
+      },
+    },
+    message,
   };
 }
 
@@ -453,23 +484,24 @@ export function registerAppTools(server: ExtendedMcpServer) {
         }
 
         if (action === "deployApp") {
-          // cloud mode 下必须有 cosTimestamp；本地模式必须有 filePath
+          // Per-action cloud gate: never read caller-controlled local paths in cloud mode.
+          // Upload channel: getUploadUrl → agent HTTP PUT zip → deployApp(cosTimestamp).
           if (isCloudMode()) {
+            if (filePath) {
+              return jsonContent(buildCloudModeUnsupportedDeployEnvelope(serviceName, "localPath"));
+            }
             if (!cosTimestamp) {
-              throw new Error(
-                "cloud mode 下 deployApp 需要 cosTimestamp 参数。请先调用 getUploadUrl 获取预签名上传 URL。" +
-                "上传代码后再用 cosTimestamp 调用 deployApp。",
-              );
+              return jsonContent(buildCloudModeUnsupportedDeployEnvelope(serviceName, "missingCosTimestamp"));
             }
           } else if (!filePath && !cosTimestamp) {
             throw new Error("action=deployApp 时必须提供 filePath（本地模式）或 cosTimestamp（cloud mode）。");
           }
 
-          // 上传代码到 COS（仅本地模式需要，cloud mode 用 cosTimestamp 跳过）
+          // Local stdio only: pack directory and upload. Cloud mode must never reach uploadCode.
           let cosTs = cosTimestamp;
-          if (filePath && !cosTs) {
-            // 默认排除大目录（2026-08-14 实证：ato 项目 target/ 54GB 被整个打进 zip）
-            // 用户显式传 ignore 时合并，避免覆盖默认值
+          if (!isCloudMode() && filePath && !cosTs) {
+            // Default excludes large build dirs (empirically target/ can be tens of GB).
+            // Merge caller ignore with defaults so explicit ignore does not drop safety excludes.
             const mergedIgnore = Array.from(new Set([
               ...defaultPackIgnore,
               ...(ignore ?? []),

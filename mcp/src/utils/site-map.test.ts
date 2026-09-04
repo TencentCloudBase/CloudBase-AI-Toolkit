@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockReadProjectConfig } = vi.hoisted(() => ({
+const { mockReadProjectConfig, mockReadCloudbaseRcBinding } = vi.hoisted(() => ({
   mockReadProjectConfig: vi.fn(),
+  mockReadCloudbaseRcBinding: vi.fn(),
 }));
 
 vi.mock("./project-config.js", () => ({
   readProjectConfig: mockReadProjectConfig,
+  readCloudbaseRcBinding: mockReadCloudbaseRcBinding,
 }));
 
 import {
@@ -145,6 +147,45 @@ describe("resolveSiteAndRegion priority chain", () => {
       region: "ap-shanghai",
     });
   });
+
+  it("should fall back to cloudbaserc.json when project config is absent", () => {
+    mockReadCloudbaseRcBinding.mockReturnValue({
+      site: "intl",
+      region: "ap-singapore",
+    });
+    expect(resolveSiteAndRegion()).toEqual({
+      site: "intl",
+      region: "ap-singapore",
+    });
+  });
+
+  it("should fall back to cloudbaserc.json per field when project config is partial", () => {
+    // project.json 只写 site，cloudbaserc.json 只写 region：字段级互补，不是整文件二选一
+    mockReadProjectConfig.mockReturnValue({ site: "domestic" });
+    mockReadCloudbaseRcBinding.mockReturnValue({ region: "ap-singapore" });
+    expect(resolveSiteAndRegion()).toEqual({
+      site: "domestic",
+      region: "ap-singapore",
+    });
+  });
+
+  it("should let project config override cloudbaserc.json", () => {
+    mockReadProjectConfig.mockReturnValue({ site: "domestic", region: "ap-shanghai" });
+    mockReadCloudbaseRcBinding.mockReturnValue({ site: "intl", region: "ap-singapore" });
+    expect(resolveSiteAndRegion()).toEqual({
+      site: "domestic",
+      region: "ap-shanghai",
+    });
+  });
+
+  it("should let env override cloudbaserc.json", () => {
+    mockReadCloudbaseRcBinding.mockReturnValue({ site: "intl" });
+    process.env.TCB_SITE = "domestic";
+    expect(resolveSiteAndRegion()).toEqual({
+      site: "domestic",
+      region: "ap-shanghai",
+    });
+  });
 });
 
 describe("resolveApiKeyExchangeRegion", () => {
@@ -153,6 +194,7 @@ describe("resolveApiKeyExchangeRegion", () => {
     delete process.env.TCB_SITE;
     delete process.env.TCB_REGION;
     mockReadProjectConfig.mockReturnValue(undefined);
+    mockReadCloudbaseRcBinding.mockReturnValue(undefined);
   });
 
   it("should return intl region only for explicit intl site", () => {
