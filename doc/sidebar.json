@@ -152,6 +152,11 @@
         "label": "Markdown 文档访问"
       },
       {
+        "type": "doc",
+        "id": "ai/cloudbase-ai-toolkit/api-reference",
+        "label": "TCB 开放 API 清单"
+      },
+      {
         "type": "category",
         "label": "入门教程",
         "collapsible": true,
