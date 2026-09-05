@@ -58,6 +58,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 
 - Minimal Web + database demo / Lovable-like BaaS fast path -> `./minimal-web-baas-demo/SKILL.md` (default for 最小前后端 demo; BaaS-first, no cloud functions)
 - Web app execution -> `./web-development/SKILL.md`
+- Declarative whole-project deploy from cloudbaserc (deployApply/deployPlan) -> `./cloudbase-declarative-deploy/SKILL.md`
 - Web auth provider readiness -> `./auth-tool-cloudbase/SKILL.md`
 - Web auth implementation -> `./auth-web-cloudbase/SKILL.md`
 - CloudBase PostgreSQL / PG app data -> `./postgresql-development-cloudbase/SKILL.md`

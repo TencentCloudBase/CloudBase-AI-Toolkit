@@ -4,6 +4,11 @@ import { z } from "zod";
 import { getCloudBaseManager, getEnvId } from "../cloudbase-manager.js";
 import type { ExtendedMcpServer } from "../server.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
+import {
+  getSqlVerb,
+  isDestructiveSql,
+  stripLeadingSqlComments,
+} from "../utils/sql-risk.js";
 
 const CATEGORY = "PostgreSQL database";
 const QUERY_PG_DATABASE = "queryPgDatabase";
@@ -340,37 +345,6 @@ function normalizeLimit(limit?: number, fallback = 20, max = 200) {
   return Math.max(1, Math.min(max, Math.floor(limit!)));
 }
 
-function stripLeadingSqlComments(sql: string) {
-  let normalized = sql.trim();
-
-  while (normalized.length > 0) {
-    if (normalized.startsWith("--")) {
-      normalized = normalized.replace(/^--.*(?:\r?\n|$)/, "").trimStart();
-      continue;
-    }
-
-    if (normalized.startsWith("#")) {
-      normalized = normalized.replace(/^#.*(?:\r?\n|$)/, "").trimStart();
-      continue;
-    }
-
-    if (normalized.startsWith("/*")) {
-      normalized = normalized.replace(/^\/\*[\s\S]*?\*\//, "").trimStart();
-      continue;
-    }
-
-    break;
-  }
-
-  return normalized;
-}
-
-function getSqlVerb(sql: string) {
-  const normalized = stripLeadingSqlComments(sql);
-  const match = normalized.match(/^([a-zA-Z]+)/);
-  return match ? match[1].toUpperCase() : "";
-}
-
 function isReadOnlySql(sql: string) {
   const normalized = stripLeadingSqlComments(sql);
   const verb = getSqlVerb(normalized);
@@ -398,21 +372,6 @@ function buildLimitedReadOnlySql(sql: string, limit: number) {
     return sql;
   }
   return `SELECT * FROM (${normalized}) AS cloudbase_mcp_readonly_limit LIMIT ${limit}`;
-}
-
-function isDestructiveSql(sql: string) {
-  const normalized = stripLeadingSqlComments(sql);
-  const verb = getSqlVerb(normalized);
-
-  if (["DROP", "TRUNCATE", "DELETE"].includes(verb)) {
-    return true;
-  }
-
-  if (verb === "ALTER") {
-    return /\b(DROP|RENAME)\b/i.test(normalized);
-  }
-
-  return false;
 }
 
 function classifySqlRisk(sql: string) {

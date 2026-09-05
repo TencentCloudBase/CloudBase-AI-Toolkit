@@ -58,4 +58,17 @@ describe("cloud-mode", () => {
     clearCloudModeSignals();
     expect(shouldRegisterTool("callCloudApi")).toBe(true);
   });
+
+  it("skips declarative deploy tools in cloud mode (local cloudbaserc dependency)", () => {
+    clearCloudModeSignals();
+    process.env.CLOUDBASE_MCP_CLOUD_MODE = "true";
+    expect(shouldRegisterTool("deployApply")).toBe(false);
+    expect(shouldRegisterTool("deployPlan")).toBe(false);
+  });
+
+  it("registers deploy tools when not in cloud mode", () => {
+    clearCloudModeSignals();
+    expect(shouldRegisterTool("deployApply")).toBe(true);
+    expect(shouldRegisterTool("deployPlan")).toBe(true);
+  });
 });

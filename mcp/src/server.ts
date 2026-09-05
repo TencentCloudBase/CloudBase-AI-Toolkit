@@ -13,6 +13,7 @@ import { registerStorageTools } from "./tools/storage.js";
 import { SetLevelRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { registerCapiTools } from "./tools/capi.js";
 import { registerCloudRunTools } from "./tools/cloudrun.js";
+import { registerDeployTools } from "./tools/deploy.js";
 import { registerDataModelTools } from "./tools/dataModel.js";
 import { registerGatewayTools } from "./tools/gateway.js";
 import { registerAgentTools } from "./tools/agents.js";
@@ -48,6 +49,7 @@ const DEFAULT_PLUGINS = [
   "setup",
   "rag",
   "cloudrun",
+  "deploy",
   "gateway",
   "app-auth",
   "apps",
@@ -105,6 +107,7 @@ const AVAILABLE_PLUGINS: Record<string, PluginDefinition> = {
   agents: { name: "agents", register: registerAgentTools },
   apps: { name: "apps", register: registerAppTools },
   cloudrun: { name: "cloudrun", register: registerCloudRunTools },
+  deploy: { name: "deploy", register: registerDeployTools },
   capi: { name: "capi", register: registerCapiTools },
   "msg-push": { name: "msg-push", register: registerMsgPushTools },
 };

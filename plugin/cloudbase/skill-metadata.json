@@ -728,6 +728,76 @@
         ]
       }
     },
+    "cloudbase-declarative-deploy": {
+      "priority": 6,
+      "promptSignals": {
+        "phrases": [
+          "声明式部署",
+          "配置式部署",
+          "cloudbaserc 部署",
+          "deployplan",
+          "declarative deploy",
+          "deploy from cloudbaserc",
+          "部署整个项目",
+          "dry-run 部署计划",
+          "预演部署"
+        ],
+        "allOf": [
+          [
+            "cloudbaserc",
+            "部署"
+          ],
+          [
+            "声明式",
+            "部署"
+          ],
+          [
+            "declarative",
+            "deploy"
+          ]
+        ],
+        "anyOf": [
+          "deployPlan",
+          "deployApply",
+          "deploy",
+          "envOverrides",
+          "desired state"
+        ],
+        "minScore": 6,
+        "noneOf": [
+          "tcb deploy",
+          "单个函数"
+        ]
+      },
+      "retrieval": {
+        "aliases": [
+          "声明式部署",
+          "配置式部署",
+          "cloudbaserc deploy",
+          "declarative deploy"
+        ],
+        "intents": [
+          "从 cloudbaserc 部署整个项目",
+          "预演部署计划",
+          "多环境部署",
+          "声明式部署资源"
+        ],
+        "entities": [
+          "cloudbaserc",
+          "deployPlan",
+          "deployApply",
+          "deploy",
+          "envOverrides",
+          "DeployOrchestrator"
+        ],
+        "examples": [
+          "用 cloudbaserc 声明式部署整个项目",
+          "先预演一下部署计划再执行",
+          "按 production mode 部署到生产环境",
+          "deploy the whole project from cloudbaserc"
+        ]
+      }
+    },
     "cloudbase-code-review": {
       "priority": 5,
       "promptSignals": {

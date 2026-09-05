@@ -49,6 +49,74 @@ export function getCloudModeStatus(): {
 }
 
 /**
+ * Tools that are incompatible with cloud mode because they read from or write to
+ * the local filesystem (uploads, downloads, config files, or building an upload
+ * artifact from `process.cwd()`). In cloud mode these top-level tools are not
+ * registered at all; where a tool has both cloud-safe and local-only actions,
+ * gating happens at the action level inside the tool instead (see
+ * `ensureActionAllowedInCloudMode` in functions.ts / hosting.ts).
+ *
+ * IMPORTANT: keep this list in sync with the tools actually registered. Entries
+ * that no longer match a registered tool name are dead (they silently gate
+ * nothing). `CLOUD_INCOMPATIBLE_TOOLS.test.ts` asserts every entry here maps to
+ * a known tool or a documented action-level exception to prevent silent rot.
+ */
+export const CLOUD_INCOMPATIBLE_TOOLS = [
+  // Auth tools - local file uploads
+  'auth',
+
+  // Storage tools - local file uploads / downloads.
+  // NOTE: `uploadFile` is not a top-level tool name (storage upload is exposed
+  // via `manageStorage`); kept here as a documented action-level exception.
+  'uploadFile',
+  'manageStorage',
+
+  // Function tools - local code uploads.
+  // NOTE: createFunction / updateFunctionCode are now actions of `manageFunctions`,
+  // not top-level tools, so gating them here is a no-op kept for documentation.
+  // The real cloud-mode guard for those actions lives in
+  // functions.ts#ensureActionAllowedInCloudMode. Left here intentionally so the
+  // sync test flags them as "action-level exceptions" rather than removing the
+  // record of why they are not top-level tools.
+  'updateFunctionCode',
+  'createFunction',
+
+  // Declarative deploy tools - read local cloudbaserc and build the upload
+  // artifact from cwd (process.cwd() when no cwd is passed). Same class as the
+  // function/upload tools above: they have no meaning without a local project.
+  'deployApply',
+  'deployPlan',
+
+  // Download tools - local file downloads
+  'downloadTemplate',
+
+  // Setup tools - local config file operations.
+  // NOTE: `setupEnvironmentId` is not a top-level tool name; kept as a documented
+  // action-level exception (env binding is handled via `auth`/setup flows).
+  'setupEnvironmentId',
+
+  // CloudRun tools - local file operations
+  'manageCloudRun',
+
+  // manageApps is intentionally NOT listed: deployApp with localPath/filePath is
+  // blocked per-action in apps.ts (CLOUD_MODE_UNSUPPORTED_ACTION) so cloud mode
+  // can still use getUploadUrl + cosTimestamp, deleteApp, and deleteAppVersion.
+] as const;
+
+/**
+ * Tool names that appear in CLOUD_INCOMPATIBLE_TOOLS for documentation but are no
+ * longer registered as top-level tools (their cloud gating is enforced at the
+ * action level instead). The sync test treats these as expected, everything else
+ * must resolve to a registered tool.
+ */
+export const CLOUD_INCOMPATIBLE_ACTION_LEVEL_EXCEPTIONS = [
+  'createFunction',
+  'updateFunctionCode',
+  'uploadFile',
+  'setupEnvironmentId',
+] as const;
+
+/**
  * Check if a tool should be registered in cloud mode
  * @param toolName - The name of the tool
  * @returns true if the tool should be registered in current mode
@@ -59,36 +127,5 @@ export function shouldRegisterTool(toolName: string): boolean {
     return true;
   }
 
-  // Cloud-incompatible tools that involve local file operations
-  const cloudIncompatibleTools = [
-    // Auth tools - local file uploads
-    'auth',
-
-    // Storage tools - local file uploads
-    'uploadFile',
-
-    // Hosting tools - action-level cloud gating is handled inside manageHosting
-
-    // Function tools - local code uploads
-    'updateFunctionCode',
-    'createFunction', // also involves local files
-
-
-    // Download tools - local file downloads
-    'downloadTemplate',
-
-    // Setup tools - local config file operations
-    'setupEnvironmentId',
-
-    // CloudRun tools - local file operations
-    'manageCloudRun',
-    // Download tools - local file downloads
-    'manageStorage',
-
-    // manageApps is intentionally NOT listed: deployApp with localPath/filePath is
-    // blocked per-action in apps.ts (CLOUD_MODE_UNSUPPORTED_ACTION) so cloud mode
-    // can still use getUploadUrl + cosTimestamp, deleteApp, and deleteAppVersion.
-  ];
-
-  return !cloudIncompatibleTools.includes(toolName);
+  return !CLOUD_INCOMPATIBLE_TOOLS.includes(toolName as (typeof CLOUD_INCOMPATIBLE_TOOLS)[number]);
 }
