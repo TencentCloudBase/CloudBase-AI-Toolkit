@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from 'fs';
 import path from 'path';
+import { t, type MessageKey } from "../i18n/index.js";
 
 const { mockGetCloudBaseManager, mockGetEnvId } = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
@@ -161,7 +162,7 @@ describe("manageCloudRun deploy imageUrl branch", () => {
         runId: "run-hermes-1",
       },
     });
-    expect(parsed.data.next_step.note).toMatch(/skip getDeployLog/i);
+    expect(parsed.data.next_step.note).toMatch(/跳过 getDeployLog/i);
     expect(parsed.message).toMatch(/getProcessLog/);
     expect(parsed.message).not.toMatch(/getDeployLog.*build progress/);
     expect(manager.cloudrun.getDeployRecords).toHaveBeenCalled();
@@ -187,7 +188,7 @@ describe("manageCloudRun deploy imageUrl branch", () => {
     expect(schema.imageUrl.description).toMatch(/必须传 imageUrl|不要回退到源码构建/);
     expect(schema.targetPath.description).toMatch(/优先传 imageUrl|不等于必须走源码构建/);
     expect(schema.action.description).toMatch(/getProcessLog|跳过 getDeployLog/);
-    expect(tools.manageCloudRun.meta.description).toMatch(/getProcessLog|跳过 getDeployLog/);
+    expect(t(tools.manageCloudRun.meta.description as MessageKey)).toMatch(/getProcessLog|跳过 getDeployLog/);
   });
 
   it("auto-fills vpcInfo from env DescribeEnvBaseInfo when VpcConf is omitted", async () => {

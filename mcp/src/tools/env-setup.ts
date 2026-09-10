@@ -9,6 +9,7 @@
 
 import CloudBase from "@cloudbase/manager-node";
 import { getLoginState } from "../auth.js";
+import { t } from "../i18n/index.js";
 import { debug, error as logError } from "../utils/logger.js";
 import { telemetryReporter } from "../utils/telemetry.js";
 
@@ -75,8 +76,8 @@ function parseInitTcbError(err: any): EnvSetupError {
     .join(" ")
     .toLowerCase();
 
-  let friendlyMessage = rawMessage || "CloudBase 服务初始化失败";
-  let actionText = "请完成所需的账号准备后重新调用 auth(action=\"status\")。";
+  let friendlyMessage = rawMessage || t("envSetup.initFailed");
+  let actionText = t("envSetup.action.prepareAccount");
 
   const errorInfo: EnvSetupError = {
     code: errorCode,
@@ -111,15 +112,15 @@ function parseInitTcbError(err: any): EnvSetupError {
 
   if (realNamePatterns.some((pattern) => searchBlob.includes(pattern))) {
     errorInfo.needRealNameAuth = true;
-    errorInfo.message = "当前账号需要先完成实名认证";
-    errorInfo.actionText = "请先完成实名认证，完成后重新调用 auth(action=\"status\")。";
+    errorInfo.message = t("envSetup.needRealNameAuth");
+    errorInfo.actionText = t("envSetup.action.realNameAuth");
     return errorInfo;
   }
 
   if (camPatterns.some((pattern) => searchBlob.includes(pattern))) {
     errorInfo.needCamAuth = true;
-    errorInfo.message = "当前账号需要先开通 CloudBase 服务";
-    errorInfo.actionText = "请先开通 CloudBase 服务，完成后重新调用 auth(action=\"status\")。";
+    errorInfo.message = t("envSetup.needCamAuth");
+    errorInfo.actionText = t("envSetup.action.camAuth");
     return errorInfo;
   }
 
@@ -320,13 +321,7 @@ export async function checkAndCreateFreeEnv(
   // User-facing notice emitted at the entry: inform the user that an automatic
   // free-env creation is being attempted. Informational only — no confirm.
   // Built once up-front so every return path can surface the same notice.
-  const userNotice = [
-    "系统检测到您当前没有可用的 CloudBase 环境，将自动尝试为您创建一个免费环境。",
-    "创建依据：通过 NewUser / ReturningUser / BaasFree 等优惠活动资格检查；",
-    "环境别名：ai-native（默认）；",
-    "费用说明：该环境为免费活动赠送，创建过程不会产生费用；如不符合免费条件，将引导您前往购买页；",
-    "流程说明：此为自动流程，无需您确认；创建成功后将自动绑定到当前会话。"
-  ].join("\n");
+  const userNotice = t("envSetup.userNotice");
 
   debug('[env-setup] User notice prepared:', { userNotice });
 
@@ -370,7 +365,7 @@ export async function checkAndCreateFreeEnv(
       // Set error context to inform user they don't qualify for free environment
       newContext.createEnvError = {
         code: "NoPromotionalActivity",
-        message: "当前账号不符合免费环境创建条件，请手动创建环境",
+        message: t("envSetup.noPromotionalActivity"),
         helpUrl: "https://buy.cloud.tencent.com/lowcode?buyType=tcb&channel=mcp"
       };
 
@@ -449,7 +444,7 @@ export async function checkAndCreateFreeEnv(
 
         newContext.createEnvError = {
           code: "InvalidEnvId",
-          message: "环境创建成功但未返回有效的环境ID，请稍后重试或手动创建环境",
+          message: t("envSetup.invalidEnvId"),
           helpUrl: "https://buy.cloud.tencent.com/lowcode?buyType=tcb&channel=mcp"
         };
 

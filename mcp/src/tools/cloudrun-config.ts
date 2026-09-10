@@ -3,6 +3,8 @@
  * Aligns with console SubmitServerConfigChangeDiff field mapping.
  */
 
+import { t } from "../i18n/index.js";
+
 export type CloudRunVpcConf = {
   VpcId?: string;
   SubnetId?: string;
@@ -162,9 +164,7 @@ export function assertCpuMemPair(config: CloudRunServerConfigLike): void {
   const hasCpu = config.Cpu !== undefined && config.Cpu !== null;
   const hasMem = config.Mem !== undefined && config.Mem !== null;
   if (hasCpu !== hasMem) {
-    throw new Error(
-      "Cpu and Mem must be provided together when updating CloudRun config (platform requires the pair).",
-    );
+    throw new Error(t("cloudrunConfig.cpuMemPairRequired"));
   }
 }
 

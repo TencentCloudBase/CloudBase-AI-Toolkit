@@ -9,6 +9,7 @@ import type {
   FunctionDeployStageStatus,
   FunctionDeployTask,
 } from "./function-deploy-types.js";
+import { t } from "../i18n/index.js";
 import { omitUndefined } from "./function-deploy-types.js";
 
 /**
@@ -104,7 +105,7 @@ function applyProgressFailure(
   }
   task.error = omitUndefined({
     stage: errorStage,
-    message: event.message ?? `部署阶段 ${event.stage} 失败`,
+    message: event.message ?? t("functionDeployProgress.stageFailed", { stage: event.stage }),
     errorCode: event.errorCode,
     requestId: event.requestId,
   });

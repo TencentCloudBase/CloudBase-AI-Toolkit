@@ -13,6 +13,8 @@ vi.mock("./project-config.js", () => ({
 import {
   SITE_REGION_MAP,
   TCB_QUERY_REGIONS,
+  getConsoleDevUrl,
+  getGatewayBaseUrl,
   getSite,
   isSiteId,
   normalizeSite,
@@ -223,5 +225,76 @@ describe("resolveApiKeyExchangeRegion", () => {
   it("should let explicit opts override intl env back to domestic", () => {
     process.env.TCB_SITE = "intl";
     expect(resolveApiKeyExchangeRegion({ site: "domestic" })).toBeUndefined();
+  });
+});
+
+describe("getGatewayBaseUrl / getConsoleDevUrl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete process.env.TCB_SITE;
+    delete process.env.TCB_REGION;
+    mockReadProjectConfig.mockReturnValue(undefined);
+    mockReadCloudbaseRcBinding.mockReturnValue(undefined);
+  });
+
+  it("getGatewayBaseUrl should build domestic gateway host by default", () => {
+    expect(getGatewayBaseUrl("env-abc")).toBe(
+      "https://env-abc.api.tcloudbasegateway.com",
+    );
+  });
+
+  it("getGatewayBaseUrl should build intl gateway host for explicit intl site", () => {
+    expect(getGatewayBaseUrl("env-abc", "intl")).toBe(
+      "https://env-abc.api.intl.tcloudbasegateway.com",
+    );
+  });
+
+  it("getGatewayBaseUrl should follow the resolution chain when site is omitted", () => {
+    // 环境变量 TCB_SITE=intl（调用方均不传 explicitSite，必须生效）
+    process.env.TCB_SITE = "intl";
+    expect(getGatewayBaseUrl("env-abc")).toBe(
+      "https://env-abc.api.intl.tcloudbasegateway.com",
+    );
+    // 项目配置 .cloudbase/project.json site=intl
+    delete process.env.TCB_SITE;
+    mockReadProjectConfig.mockReturnValue({ site: "intl" });
+    expect(getGatewayBaseUrl("env-abc")).toBe(
+      "https://env-abc.api.intl.tcloudbasegateway.com",
+    );
+  });
+
+  it("getConsoleDevUrl should build dev platform URLs for both sites", () => {
+    expect(getConsoleDevUrl("env-abc", "static-hosting")).toBe(
+      "https://tcb.cloud.tencent.com/dev?envId=env-abc#static-hosting",
+    );
+    expect(getConsoleDevUrl("env-abc", "static-hosting", "intl")).toBe(
+      "https://tcb.tencentcloud.com/dev?envId=env-abc#static-hosting",
+    );
+  });
+
+  it("getConsoleDevUrl should follow the resolution chain when site is omitted", () => {
+    process.env.TCB_SITE = "intl";
+    expect(getConsoleDevUrl("env-abc", "static-hosting")).toBe(
+      "https://tcb.tencentcloud.com/dev?envId=env-abc#static-hosting",
+    );
+  });
+
+  it("getConsoleDevUrl should encodeURIComponent the envId", () => {
+    expect(getConsoleDevUrl("env a/b?c")).toBe(
+      "https://tcb.cloud.tencent.com/dev?envId=env%20a%2Fb%3Fc",
+    );
+  });
+
+  it("getConsoleDevUrl should dedupe leading # in hash", () => {
+    expect(getConsoleDevUrl("env-abc", "#data-models")).toBe(
+      "https://tcb.cloud.tencent.com/dev?envId=env-abc#data-models",
+    );
+  });
+
+  it("getConsoleDevUrl should omit query when envId is missing", () => {
+    expect(getConsoleDevUrl(undefined)).toBe("https://tcb.cloud.tencent.com/dev");
+    expect(getConsoleDevUrl(undefined, "static-hosting", "intl")).toBe(
+      "https://tcb.tencentcloud.com/dev#static-hosting",
+    );
   });
 });

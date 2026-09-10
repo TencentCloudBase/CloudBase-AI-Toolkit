@@ -3,6 +3,7 @@ import * as path from "path";
 import { z } from "zod";
 import { getCloudBaseManager, getEnvId } from "../cloudbase-manager.js";
 import type { ExtendedMcpServer } from "../server.js";
+import { t } from "../i18n/index.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
 import {
   getSqlVerb,
@@ -277,14 +278,10 @@ function isPgRoleExecutionError(message: string): boolean {
 
 function buildPgRoleGuidanceMessage(attemptedRole: string): string {
   const recommended = PG_RECOMMENDED_ROLES.join(", ");
-  const reserved = PG_PLATFORM_RESERVED_ROLES.join(", ");
-  return (
-    `PostgreSQL role "${attemptedRole}" cannot be used with ExecutePGSql (SET ROLE failed or role does not exist). ` +
-    `Do not invent roles like postgres / postgres_pgdb_* from env or instance names. ` +
-    `Platform-reserved roles (${reserved}) are the platform management account and must not be used by user calls. ` +
-    `Omit role (defaults to ${PG_DEFAULT_ROLE}) or pass one of: ${recommended}. ` +
-    `To list roles that exist in this database, retry with role=${PG_DEFAULT_ROLE} and SQL: SELECT rolname FROM pg_roles ORDER BY rolname;`
-  );
+  return t("databasePG.roleError.guidance", {
+    role: attemptedRole,
+    recommended,
+  });
 }
 
 function buildPgRoleErrorPayload(
@@ -306,7 +303,7 @@ function buildPgRoleErrorPayload(
       buildNextAction(
         MANAGE_PG_DATABASE,
         "execute",
-        `Retry without a custom role (defaults to ${PG_DEFAULT_ROLE}), or pass role=${PG_DEFAULT_ROLE} explicitly.`,
+        t("databasePG.roleError.retryWithoutCustomRole", { defaultRole: PG_DEFAULT_ROLE }),
         {
           action: "execute",
           role: PG_DEFAULT_ROLE,
@@ -317,7 +314,7 @@ function buildPgRoleErrorPayload(
       buildNextAction(
         QUERY_PG_DATABASE,
         "context",
-        "Inspect the auto-derived PG context (includes default role) before retrying.",
+        t("databasePG.roleError.inspectContext"),
         { action: "context" },
       ),
     ],
@@ -462,10 +459,6 @@ const LOCAL_MIGRATIONS_DIR = "cloudbase/migrations";
 const LOCAL_MIGRATIONS_DIR_LEGACY = "migrations";
 /** Same constraint as applyMigration.migrationName (server/CLI parity: lowercase letters and underscores only, digits rejected server-side). */
 const MIGRATION_NAME_PATTERN = /^[a-z][a-z_]*$/;
-const MIGRATION_NAME_RULE_MESSAGE =
-  "migrationName must start with a lowercase letter and contain only lowercase letters and underscores " +
-  "(no digits — the PushPGUserMigrations API rejects digit characters with " +
-  "\"Name 只允许小写字母和下划线\"). Use underscores instead of digits, e.g. add_user_table_v2.";
 
 /** Validate migrationName against the server-side rule before calling migration APIs. */
 function validateMigrationName(
@@ -480,7 +473,11 @@ function validateMigrationName(
         migrationName: name,
         requiredPattern: MIGRATION_NAME_PATTERN.source,
       },
-      message: `Invalid migrationName "${name}" when action=${actionLabel}. ${MIGRATION_NAME_RULE_MESSAGE}`,
+      message: t("databasePG.migration.nameInvalid", {
+        action: actionLabel,
+        name,
+        rule: t("databasePG.migration.nameRule"),
+      }),
     });
   }
   return null;
@@ -567,9 +564,10 @@ function ensureLocalMigrationSqlFile(
       return {
         ok: false,
         errorCode: "LOCAL_MIGRATION_FILE_WRITE_FAILED",
-        message:
-          `Failed to read existing local migration file ${candidate.relativePath}: ` +
-          `${error instanceof Error ? error.message : String(error)}`,
+        message: t("databasePG.localFile.readFailed", {
+          path: candidate.relativePath,
+          reason: error instanceof Error ? error.message : String(error),
+        }),
         relativePath: candidate.relativePath,
         absolutePath: candidate.absolutePath,
       };
@@ -657,19 +655,14 @@ function syncFetchedMigrationsToLocalFiles(
       return {
         ok: false,
         errorCode: "LOCAL_MIGRATION_FETCH_INVALID_NAME",
-        message:
-          `Remote migration name "${name}" (version=${version}) is invalid. ` +
-          "Names must match /^[a-z][a-z0-9_]*$/ (same as applyMigration.migrationName). " +
-          "Repair the remote history record, then retry fetchMigration.",
+        message: t("databasePG.localFile.invalidRemoteName", { name, version }),
       };
     }
     if (!item.Query.trim()) {
       return {
         ok: false,
         errorCode: "LOCAL_MIGRATION_FETCH_EMPTY_QUERY",
-        message:
-          `DescribePGUserMigration returned empty Query for version=${version} (${name}). ` +
-          "Refuse to write an empty local migration file (would poison Git checksums).",
+        message: t("databasePG.localFile.emptyQuery", { version, name }),
       };
     }
 
@@ -688,9 +681,11 @@ function syncFetchedMigrationsToLocalFiles(
       return {
         ok: false,
         errorCode: "LOCAL_MIGRATION_FILE_WRITE_FAILED",
-        message:
-          `Failed to write local migration file ${relativePath} under workspace ${projectRoot}: ` +
-          `${error instanceof Error ? error.message : String(error)}`,
+        message: t("databasePG.localFile.fetchWriteFailed", {
+          path: relativePath,
+          root: projectRoot,
+          reason: error instanceof Error ? error.message : String(error),
+        }),
         relativePath,
       };
     }
@@ -1042,8 +1037,10 @@ async function buildMigrationsPayloadWithRemoteHistory(
     const query = typeof detail.Query === "string" ? detail.Query : "";
     if (!query.trim()) {
       throw new Error(
-        `DescribePGUserMigration returned empty Query for version=${summary.Version} (${summary.Name}). ` +
-          "Cannot hydrate remote history for PushPGUserMigrations.",
+        t("databasePG.localFile.hydrateEmptyQuery", {
+          version: summary.Version,
+          name: summary.Name,
+        }),
       );
     }
     migrations.push({
@@ -1064,11 +1061,11 @@ async function buildMigrationsPayloadWithRemoteHistory(
 
 function formatMigrationsPayloadSourceLabel(source: MigrationsPayloadSource, remoteCount: number): string {
   if (remoteCount <= 0) {
-    return "no remote history";
+    return t("databasePG.payloadSource.noRemoteHistory");
   }
   return source === "local"
-    ? `local tree covered ${remoteCount} remote migration(s) (CLI parity, skipped Describe hydrate)`
-    : `hydrated ${remoteCount} remote migration(s) via Describe (local tree incomplete)`;
+    ? t("databasePG.payloadSource.localCovered", { count: remoteCount })
+    : t("databasePG.payloadSource.hydrated", { count: remoteCount });
 }
 
 async function waitPgMigrationTask(
@@ -1096,8 +1093,12 @@ async function waitPgMigrationTask(
   }
 
   const error = new Error(
-    `DescribeTaskResult timed out after ${Math.floor(maxWaitMs / 1000)}s ` +
-      `for TaskId=${taskId} (last Status=${last.Status || "-"}, Phase=${last.Phase || "-"}).`,
+    t("databasePG.task.pollTimeout", {
+      seconds: Math.floor(maxWaitMs / 1000),
+      taskId,
+      status: last.Status || "-",
+      phase: last.Phase || "-",
+    }),
   );
   (error as Error & { lastTask?: PgMigrationTaskResult }).lastTask = last;
   throw error;
@@ -1110,7 +1111,7 @@ function buildMigrationTaskPendingNextActions(version: string, taskId?: string):
       buildNextAction(
         MANAGE_PG_DATABASE,
         "describeMigrationTask",
-        "FIRST: poll DescribeTaskResult for Status/Phase/Reason. listMigrations alone cannot explain a Failed task (see issue #857).",
+        t("databasePG.task.pendingFirst"),
         { action: "describeMigrationTask", taskId },
       ),
     );
@@ -1119,23 +1120,18 @@ function buildMigrationTaskPendingNextActions(version: string, taskId?: string):
     buildNextAction(
       MANAGE_PG_DATABASE,
       "listMigrations",
-      "Check whether migrationVersion landed in remote history. Do NOT re-push the same version while the task may still be running.",
+      t("databasePG.task.checkLanded"),
       { action: "listMigrations", limit: 20 },
     ),
     buildNextAction(
       MANAGE_PG_DATABASE,
       "migrationDetail",
-      "If listMigrations already shows this version, inspect the applied record. If missing after several minutes and the task is Failed/terminal, inspect Conflicts/SQL before considering a NEW migrationVersion.",
+      t("databasePG.task.inspectDetail"),
       { action: "migrationDetail", migrationVersion: version },
     ),
   );
   return actions;
 }
-
-const MIGRATION_VERSION_REQUIRED_MESSAGE =
-  "migrationVersion is required (14-digit UTC timestamp YYYYMMDDHHMMSS). " +
-  "Decide the version first, write local file cloudbase/migrations/<version>_<migrationName>.sql, " +
-  "then call planMigration/applyMigration with the same migrationVersion and migrationName.";
 
 function requireExplicitMigrationVersion(
   args: ManagePgDatabaseArgs,
@@ -1146,7 +1142,10 @@ function requireExplicitMigrationVersion(
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_VERSION_REQUIRED",
-      message: `Provide migrationVersion when action=${actionLabel}. ${MIGRATION_VERSION_REQUIRED_MESSAGE}`,
+      message: t("databasePG.migration.versionRequired", {
+      action: actionLabel,
+      rule: t("databasePG.migration.versionRule"),
+    }),
     });
   }
   return version;
@@ -1727,9 +1726,7 @@ async function executeManagerPGSql(
     return "Response" in result && result.Response ? result.Response : result;
   }
 
-  throw new Error(
-    "Current @cloudbase/manager-node runtime does not expose database.executePGSql or commonService fallback. Upgrade to @cloudbase/manager-node >= 5.4.0.",
-  );
+  throw new Error(t("databasePG.runtime.noExecutePgSql"));
 }
 
 /**
@@ -1758,9 +1755,7 @@ async function callPgMigrationApi(
   }
 
   if (!isCloudBaseWithCommonService(manager)) {
-    throw new Error(
-      "Current @cloudbase/manager-node runtime does not support migration APIs. Upgrade to @cloudbase/manager-node >= 5.4.0.",
-    );
+    throw new Error(t("databasePG.runtime.noMigrationApi"));
   }
 
   const result = await manager.commonService("tcb", "2018-06-08").call({
@@ -1905,7 +1900,7 @@ async function ensurePgReadyOnce(
     const reason =
       lastError instanceof Error ? lastError.message : String(lastError);
     throw new Error(
-      `PostgreSQL is not ready after ${maxAttempts} attempts. Last error: ${reason}`,
+      t("databasePG.runtime.probeFailed", { maxAttempts, reason }),
     );
   })();
 
@@ -1927,12 +1922,12 @@ async function handleQueryContext(server: ExtendedMcpServer) {
         role: context.role,
       },
     },
-    message: "Resolved current CloudBase PostgreSQL context (auto-derived).",
+    message: t("databasePG.queryContext.resolved"),
     nextActions: [
       buildNextAction(
         QUERY_PG_DATABASE,
         "objects",
-        "List schema-qualified objects before inspecting an individual table.",
+        t("databasePG.queryContext.listObjectsFirst"),
         { action: "objects", limit: 20 },
       ),
     ],
@@ -1956,15 +1951,14 @@ async function handleListObjects(
       schemaFilter: args.schema ?? null,
       limit,
     },
-    message:
-      objects.length > 0
-        ? `Listed ${objects.length} schema-qualified PostgreSQL objects. Inspect one object schema before writing SQL.`
-        : "No PostgreSQL objects matched the current filter.",
+    message: objects.length > 0
+      ? t("databasePG.listObjects.listed", { count: objects.length })
+      : t("databasePG.listObjects.none"),
     nextActions:
       objects.length > 0
         ? [
             buildSchemaNextAction(
-              "Inspect the most relevant object schema before querying data.",
+              t("databasePG.listObjects.inspectFirst"),
               objects[0].schemaTable,
             ),
           ]
@@ -1972,7 +1966,7 @@ async function handleListObjects(
             buildNextAction(
               QUERY_PG_DATABASE,
               "context",
-              "Re-check the current PG context if no objects were expectedly returned.",
+              t("databasePG.listObjects.recheckContext"),
               { action: "context" },
             ),
           ],
@@ -1996,15 +1990,14 @@ async function handleMetadata(
       schemaFilter: args.schema ?? null,
       limit,
     },
-    message:
-      tables.length > 0
-        ? `Summarized ${tables.length} PostgreSQL objects with row-count and RLS hints. Use schema inspection before composing joins or mutations.`
-        : "No PostgreSQL objects matched the current metadata filter.",
+    message: tables.length > 0
+      ? t("databasePG.metadata.summarized", { count: tables.length })
+      : t("databasePG.metadata.none"),
     nextActions:
       tables.length > 0
         ? [
             buildSchemaNextAction(
-              "Inspect the relevant table schema to confirm columns, keys, and policies.",
+              t("databasePG.metadata.inspectTable"),
               tables[0].schemaTable,
             ),
           ]
@@ -2012,7 +2005,7 @@ async function handleMetadata(
             buildNextAction(
               QUERY_PG_DATABASE,
               "objects",
-              "List objects first if metadata is empty or too restrictive.",
+              t("databasePG.metadata.listObjectsFirst"),
               { action: "objects", schema: args.schema, limit },
             ),
           ],
@@ -2028,7 +2021,7 @@ async function handleReadOnlySql(
     return buildPgToolResult({
       success: false,
       errorCode: "SQL_REQUIRED",
-      message: "Provide a read-only SQL statement when action=sql.",
+      message: t("databasePG.readOnly.sqlRequired"),
     });
   }
 
@@ -2036,17 +2029,16 @@ async function handleReadOnlySql(
     return buildPgToolResult({
       success: false,
       errorCode: "READ_ONLY_SQL_REQUIRED",
-      message:
-        "queryPgDatabase(action=sql) only accepts read-only SQL. For DDL/DML (CREATE/ALTER/INSERT/UPDATE/DELETE/...), call managePgDatabase(action=execute) with confirm=true and the same SQL.",
+      message: t("databasePG.readOnly.readOnlyOnly"),
       nextActions: [
         buildNextAction(
           MANAGE_PG_DATABASE,
           "execute",
-          "Re-issue this statement via managePgDatabase(action=execute) with confirm=true.",
+          t("databasePG.readOnly.reissueViaManage"),
           { action: "execute", sql: args.sql, confirm: true },
         ),
         buildSchemaNextAction(
-          "Inspect schema first if you are deciding which write operation is needed.",
+          t("databasePG.readOnly.inspectSchemaBeforeWrite"),
           `${context.defaultSchema}.your_table`,
         ),
       ],
@@ -2069,7 +2061,7 @@ async function handleReadOnlySql(
     return buildPgToolResult({
       success: false,
       errorCode: "PG_SQL_EXEC_FAILED",
-      message: `PostgreSQL read-only SQL execution failed: ${reason}`,
+      message: t("databasePG.readOnly.execFailed", { reason }),
       data: {
         role: context.role,
         sqlPreview: args.sql.trim().slice(0, 500),
@@ -2086,11 +2078,14 @@ async function handleReadOnlySql(
       rowCount: result.rowCount ?? summary.returnedRows,
     },
     message: summary.truncated
-      ? `Read-only SQL executed successfully. Showing ${summary.rows.length} of ${summary.returnedRows} rows to control token usage.`
-      : "Read-only SQL executed successfully.",
+      ? t("databasePG.readOnly.truncated", {
+          shown: summary.rows.length,
+          total: summary.returnedRows,
+        })
+      : t("databasePG.readOnly.success"),
     nextActions: [
       buildSchemaNextAction(
-        "Inspect the table schema if you need to refine joins, filters, or mutations.",
+        t("databasePG.readOnly.refine"),
         parseTargetTableFromSql(args.sql, context.defaultSchema) ??
           `${context.defaultSchema}.your_table`,
       ),
@@ -2107,7 +2102,7 @@ async function handleExecuteSql(
     return buildPgToolResult({
       success: false,
       errorCode: "SQL_REQUIRED",
-      message: "Provide a SQL statement when action=execute.",
+      message: t("databasePG.execute.sqlRequired"),
     });
   }
 
@@ -2117,10 +2112,7 @@ async function handleExecuteSql(
     return buildPgToolResult({
       success: false,
       errorCode: "DDL_USE_APPLY_MIGRATION",
-      message:
-        "Schema DDL (CREATE/ALTER/DROP/TRUNCATE/...) must use applyMigration with an explicit migrationVersion, " +
-        "not execute. Write local cloudbase/migrations/<version>_<name>.sql first, then call applyMigration. " +
-        "Set allowDdlViaExecute=true only for exceptional one-off ops that intentionally bypass migration history.",
+      message: t("databasePG.execute.ddlUseApplyMigration"),
       data: {
         classification,
         localFileHintPattern: "cloudbase/migrations/<migrationVersion>_<migrationName>.sql",
@@ -2129,7 +2121,7 @@ async function handleExecuteSql(
         buildNextAction(
           MANAGE_PG_DATABASE,
           "planMigration",
-          "Preview the schema change as a versioned migration (provide migrationVersion + migrationName).",
+          t("databasePG.execute.previewAsMigration"),
           {
             action: "planMigration",
             migrationName: "describe_your_change",
@@ -2140,7 +2132,7 @@ async function handleExecuteSql(
         buildNextAction(
           MANAGE_PG_DATABASE,
           "applyMigration",
-          "Apply the schema change via PushPGUserMigrations with the same explicit migrationVersion.",
+          t("databasePG.execute.applyViaPush"),
           {
             action: "applyMigration",
             migrationName: "describe_your_change",
@@ -2161,7 +2153,7 @@ async function handleExecuteSql(
     return buildPgToolResult({
       success: false,
       errorCode: "CONFIRM_REQUIRED",
-      message: `This SQL is classified as ${classification.risk}. Re-run managePgDatabase(action=execute) with the same sql and confirm=true to proceed.`,
+      message: t("databasePG.execute.confirmRequired", { risk: classification.risk }),
       data: {
         classification,
       },
@@ -2169,7 +2161,7 @@ async function handleExecuteSql(
         buildNextAction(
           MANAGE_PG_DATABASE,
           "execute",
-          "Re-issue with confirm=true to actually run the SQL.",
+          t("databasePG.execute.reissueWithConfirm"),
           {
             action: "execute",
             sql: args.sql,
@@ -2180,7 +2172,7 @@ async function handleExecuteSql(
         buildNextAction(
           QUERY_PG_DATABASE,
           "metadata",
-          "Inspect table size and shape before destructive changes.",
+          t("databasePG.execute.inspectBeforeDestructive"),
           { action: "metadata", limit: 20 },
         ),
       ],
@@ -2201,7 +2193,7 @@ async function handleExecuteSql(
     return buildPgToolResult({
       success: false,
       errorCode: "PG_SQL_EXEC_FAILED",
-      message: `PostgreSQL SQL execution failed: ${reason}`,
+      message: t("databasePG.execute.execFailed", { reason }),
       data: {
         role: context.role,
         sqlPreview: args.sql.trim().slice(0, 500),
@@ -2223,22 +2215,21 @@ async function handleExecuteSql(
       targetTable: targetTable ?? null,
       ...(args.allowDdlViaExecute === true && isSchemaDdlRisk(classification.risk, args.sql)
         ? {
-            warning:
-              "DDL executed via allowDdlViaExecute bypasses migration history. Prefer applyMigration for reproducible schema changes.",
+            warning: t("databasePG.execute.ddlBypassWarning"),
           }
         : {}),
     },
     message:
       args.allowDdlViaExecute === true && isSchemaDdlRisk(classification.risk, args.sql)
-        ? "Write SQL executed successfully (DDL via allowDdlViaExecute; migration history was bypassed)."
-        : "Write SQL executed successfully.",
+        ? t("databasePG.execute.successDdlBypass")
+        : t("databasePG.execute.success"),
     nextActions:
       classification.risk === "schema_change" && targetTable
         ? [
             buildNextAction(
               QUERY_PG_DATABASE,
               "schema",
-              "Inspect the table schema, columns, indexes, and RLS policies after schema changes.",
+              t("databasePG.execute.inspectAfterSchema"),
               {
                 action: "schema",
                 objectName: targetTable,
@@ -2249,7 +2240,7 @@ async function handleExecuteSql(
             buildNextAction(
               QUERY_PG_DATABASE,
               "sql",
-              "Verify the mutation with a focused read-only SQL query.",
+              t("databasePG.execute.verifyMutation"),
               {
                 action: "sql",
                 sql: targetTable
@@ -2267,7 +2258,7 @@ async function handleDryRun(args: ManagePgDatabaseArgs) {
     return buildPgToolResult({
       success: false,
       errorCode: "SQL_REQUIRED",
-      message: "Provide a SQL statement when action=dryRun.",
+      message: t("databasePG.dryRun.sqlRequired"),
     });
   }
 
@@ -2282,13 +2273,12 @@ async function handleDryRun(args: ManagePgDatabaseArgs) {
         wouldExecute: false,
         sqlPreview: args.sql.trim().slice(0, 500),
       },
-      message:
-        "SQL dry run completed. This statement is read-only; use queryPgDatabase(action=sql) to execute it.",
+      message: t("databasePG.dryRun.readOnlyDone"),
       nextActions: [
         buildNextAction(
           QUERY_PG_DATABASE,
           "sql",
-          "Execute the read-only SQL through queryPgDatabase.",
+          t("databasePG.dryRun.executeViaQuery"),
           { action: "sql", sql: args.sql, limit: 20 },
         ),
       ],
@@ -2305,13 +2295,12 @@ async function handleDryRun(args: ManagePgDatabaseArgs) {
         preferredAction: "applyMigration",
         localFileHintPattern: "cloudbase/migrations/<migrationVersion>_<migrationName>.sql",
       },
-      message:
-        "SQL dry run completed. Schema DDL should use applyMigration with an explicit migrationVersion, not execute.",
+      message: t("databasePG.dryRun.schemaDdlDone"),
       nextActions: [
         buildNextAction(
           MANAGE_PG_DATABASE,
           "applyMigration",
-          "Apply schema DDL via versioned migration (provide migrationVersion + migrationName + confirm=true).",
+          t("databasePG.dryRun.applyViaMigration"),
           {
             action: "applyMigration",
             migrationName: "describe_your_change",
@@ -2331,13 +2320,12 @@ async function handleDryRun(args: ManagePgDatabaseArgs) {
       wouldExecute: false,
       sqlPreview: args.sql.trim().slice(0, 500),
     },
-    message:
-      "SQL dry run completed. Write SQL requires managePgDatabase(action=execute, confirm=true).",
+    message: t("databasePG.dryRun.writeDone"),
     nextActions: [
       buildNextAction(
         MANAGE_PG_DATABASE,
         "execute",
-        "Execute the write SQL only after explicit confirmation.",
+        t("databasePG.dryRun.executeAfterConfirm"),
         { action: "execute", sql: args.sql, confirm: true },
       ),
     ],
@@ -2349,7 +2337,7 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgDbCont
     return buildPgToolResult({
       success: false,
       errorCode: "SQL_REQUIRED",
-      message: "Provide migration SQL when action=planMigration.",
+      message: t("databasePG.planMigration.sqlRequired"),
     });
   }
 
@@ -2357,7 +2345,7 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgDbCont
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_NAME_REQUIRED",
-      message: "Provide migrationName (lowercase letters and underscores, starting with a letter) when action=planMigration.",
+      message: t("databasePG.planMigration.nameRequired"),
     });
   }
 
@@ -2412,15 +2400,24 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgDbCont
         apiResult: result as Record<string, unknown>,
       },
       message: executable
-        ? `Migration plan generated via PreviewPGUserMigrations (${payloadSourceLabel}${includeAll ? ", includeAll=true" : ""}). Reuse migrationVersion=${version} on applyMigration. Ensure local file ${localFileHint} exists and matches.`
-        : `Migration plan is NOT executable (PreviewPGUserMigrations.Executable=false after ${payloadSourceLabel}${includeAll ? ", includeAll=true" : ""}). Inspect apiResult.Conflicts before applyMigration. Common causes: version older than latest remote (${hydrated.latestVersion || "unknown"}) — retry with includeAll=true (CLI --include-all) if intentionally out-of-order, or pick a newer version; checksum mismatch.`,
+        ? t("databasePG.planMigration.executable", {
+            source: payloadSourceLabel,
+            includeAll: includeAll ? "，includeAll=true" : "",
+            version,
+            localFileHint,
+          })
+        : t("databasePG.planMigration.notExecutable", {
+            source: payloadSourceLabel,
+            includeAll: includeAll ? "，includeAll=true" : "",
+            latest: hydrated.latestVersion || "unknown",
+          }),
       nextActions: [
         buildNextAction(
           MANAGE_PG_DATABASE,
           "applyMigration",
           executable
-            ? "Review the plan above. If it looks correct, call applyMigration with the same migrationVersion."
-            : "Resolve Conflicts (often pick a migrationVersion newer than LatestVersion, or set includeAll=true for intentional out-of-order), then retry planMigration/applyMigration.",
+            ? t("databasePG.planMigration.reviewPlan")
+            : t("databasePG.planMigration.resolveConflicts"),
           {
             action: "applyMigration",
             migrationName: args.migrationName,
@@ -2437,7 +2434,9 @@ async function handlePlanMigration(args: ManagePgDatabaseArgs, context: PgDbCont
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_API_ERROR",
-      message: `PreviewPGUserMigrations failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: t("databasePG.planMigration.failed", {
+        reason: error instanceof Error ? error.message : String(error),
+      }),
     });
   }
 }
@@ -2447,7 +2446,7 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
     return buildPgToolResult({
       success: false,
       errorCode: "SQL_REQUIRED",
-      message: "Provide migration SQL when action=applyMigration.",
+      message: t("databasePG.applyMigration.sqlRequired"),
     });
   }
 
@@ -2455,7 +2454,7 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_NAME_REQUIRED",
-      message: "Provide migrationName (lowercase letters and underscores, starting with a letter) when action=applyMigration.",
+      message: t("databasePG.applyMigration.nameRequired"),
     });
   }
 
@@ -2468,7 +2467,7 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
     return buildPgToolResult({
       success: false,
       errorCode: "CONFIRM_REQUIRED",
-      message: "PushPGUserMigrations requires confirm=true. Run with confirm=true to proceed.",
+      message: t("databasePG.applyMigration.confirmRequired"),
     });
   }
 
@@ -2498,7 +2497,7 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
         buildNextAction(
           MANAGE_PG_DATABASE,
           "planMigration",
-          "After aligning the local SQL file with the sql argument (or choosing a new migrationVersion), preview again.",
+          t("databasePG.applyMigration.previewAgain"),
           {
             action: "planMigration",
             migrationName: args.migrationName,
@@ -2559,23 +2558,23 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
           previewResult: preview as Record<string, unknown>,
           verified: false,
         },
-        message:
-          `PreviewPGUserMigrations reported Executable=false for migrationVersion=${version} ` +
-          `(latest remote=${hydrated.latestVersion || "unknown"}, ${payloadSourceLabel}, includeAll=${includeAll}). ` +
-          "Push was NOT submitted. Inspect previewResult.Conflicts — common reasons: " +
-          "local_migration_before_latest_remote (pick a newer 14-digit version, or set includeAll=true / CLI --include-all for intentional out-of-order) or checksum_mismatch. " +
-          "If the schema change is urgent you may fall back to action=execute with allowDdlViaExecute=true, but that bypasses migration history.",
+        message: t("databasePG.applyMigration.notExecutable", {
+          version,
+          latest: hydrated.latestVersion || "unknown",
+          source: payloadSourceLabel,
+          includeAll: String(includeAll),
+        }),
         nextActions: [
           buildNextAction(
             MANAGE_PG_DATABASE,
             "listMigrations",
-            "Check LatestVersion and pick a migrationVersion strictly newer than it.",
+            t("databasePG.applyMigration.checkLatest"),
             { action: "listMigrations", limit: 20 },
           ),
           buildNextAction(
             MANAGE_PG_DATABASE,
             "planMigration",
-            "Re-run planMigration after adjusting migrationVersion/SQL (or includeAll=true for out-of-order).",
+            t("databasePG.applyMigration.rerunPlan"),
             {
               action: "planMigration",
               migrationName: args.migrationName,
@@ -2622,11 +2621,7 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
           waitForTask: false,
           verified: null,
         },
-        message:
-          `PushPGUserMigrations accepted TaskId=${taskId} (waitForTask=false). ` +
-          "TaskId means accepted, not applied. Call action=describeMigrationTask FIRST for Status/Phase/Reason, " +
-          `then listMigrations to see whether migrationVersion=${version} landed. ` +
-          "Do NOT re-push the same version while the task may still be running.",
+        message: t("databasePG.applyMigration.taskPending", { taskId, version }),
         nextActions: buildMigrationTaskPendingNextActions(version, taskId),
       });
     }
@@ -2649,13 +2644,11 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
             taskPollTimeoutMs: pollTimeoutMs,
             verified: null,
           },
-          message:
-            `PushPGUserMigrations returned TaskId=${taskId}, but waiting for DescribeTaskResult timed out ` +
-            `after ${Math.floor(pollTimeoutMs / 1000)}s: ${error instanceof Error ? error.message : String(error)}. ` +
-            "The migration may STILL be running in the background (large DDL / lock waits). " +
-            "Call action=describeMigrationTask FIRST (Status/Phase/Reason), then listMigrations. " +
-            "Do NOT re-push the same migrationVersion, and do NOT fall back to execute until the task is terminal " +
-            "and listMigrations confirms the version is missing.",
+          message: t("databasePG.applyMigration.taskTimeout", {
+            taskId,
+            seconds: Math.floor(pollTimeoutMs / 1000),
+            reason: error instanceof Error ? error.message : String(error),
+          }),
           nextActions: buildMigrationTaskPendingNextActions(version, taskId),
         });
       }
@@ -2674,16 +2667,16 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
             taskResult: taskResult as Record<string, unknown>,
             verified: false,
           },
-          message:
-            `PushPGUserMigrations TaskId=${taskId} failed at phase=${taskResult.Phase || "-"}: ` +
-            `${taskResult.Reason || "unknown reason"}. ` +
-            "The migration did NOT take effect. Fix Conflicts/SQL (or use a newer migrationVersion), then retry applyMigration. " +
-            "Urgent bypass: action=execute with allowDdlViaExecute=true (skips migration history).",
+          message: t("databasePG.applyMigration.taskFailed", {
+            taskId,
+            phase: taskResult.Phase || "-",
+            reason: taskResult.Reason || "unknown reason",
+          }),
           nextActions: [
             buildNextAction(
               MANAGE_PG_DATABASE,
               "planMigration",
-              "Preview again to inspect Conflicts before retrying apply.",
+              t("databasePG.applyMigration.previewConflicts"),
               {
                 action: "planMigration",
                 migrationName: args.migrationName,
@@ -2696,7 +2689,7 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
             buildNextAction(
               MANAGE_PG_DATABASE,
               "listMigrations",
-              "Confirm the version is still absent from remote history.",
+              t("databasePG.applyMigration.confirmAbsent"),
               { action: "listMigrations", limit: 20 },
             ),
           ],
@@ -2721,22 +2714,21 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
           taskResult: taskResult as Record<string, unknown> | null,
           verified: false,
         },
-        message:
-          `PushPGUserMigrations completed (TaskId=${taskId || "none"}), but migrationVersion=${version} is not present in the remote migration history, ` +
-          "so the migration did NOT take effect. Do not assume the schema change is applied. " +
-          "Re-check the SQL and migrationVersion, inspect the migration with action=migrationDetail, and retry action=applyMigration. " +
-          "If the schema change is urgent you may fall back to action=execute with allowDdlViaExecute=true, but that bypasses migration history.",
+        message: t("databasePG.applyMigration.notApplied", {
+          taskId: taskId || "none",
+          version,
+        }),
         nextActions: [
           buildNextAction(
             MANAGE_PG_DATABASE,
             "listMigrations",
-            "Inspect the remote migration history to confirm the migration is missing.",
+            t("databasePG.applyMigration.confirmMissing"),
             { action: "listMigrations", limit: 20 },
           ),
           buildNextAction(
             MANAGE_PG_DATABASE,
             "migrationDetail",
-            "Inspect the backend record for this migrationVersion to find why it was not applied.",
+            t("databasePG.applyMigration.inspectBackend"),
             { action: "migrationDetail", migrationVersion: version },
           ),
         ],
@@ -2756,14 +2748,15 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
           taskResult: taskResult as Record<string, unknown> | null,
           verified: null,
         },
-        message:
-          `PushPGUserMigrations was submitted, but verifying migrationVersion=${version} against the remote history failed: ${verification.error}. ` +
-          "The migration may or may not have been applied — verify with action=listMigrations before running any dependent SQL.",
+        message: t("databasePG.applyMigration.verifyFailed", {
+          version,
+          reason: verification.error ?? "-",
+        }),
         nextActions: [
           buildNextAction(
             MANAGE_PG_DATABASE,
             "listMigrations",
-            "Manually verify whether the remote migration history records this migrationVersion.",
+            t("databasePG.applyMigration.manuallyVerify"),
             { action: "listMigrations", limit: 20 },
           ),
         ],
@@ -2786,15 +2779,24 @@ async function handleApplyMigration(args: ManagePgDatabaseArgs, context: PgDbCon
         taskResult: taskResult as Record<string, unknown> | null,
         verified: true,
       },
-      message:
-        `Migrations applied via PushPGUserMigrations (${payloadSourceLabel}${includeAll ? ", includeAll=true" : ""}), task ${taskId ? `TaskId=${taskId} ` : ""}verified present in the remote migration history. ` +
-        `Local SQL ${localFile.action === "created" ? "written" : "matched"} at ${localFile.relativePath}.`,
+      message: t("databasePG.applyMigration.success", {
+        source: payloadSourceLabel,
+        includeAll: includeAll ? "，includeAll=true" : "",
+        task: taskId ? `TaskId=${taskId} ` : "",
+        localAction:
+          localFile.action === "created"
+            ? t("databasePG.applyMigration.localWritten")
+            : t("databasePG.applyMigration.localMatched"),
+        localPath: localFile.relativePath,
+      }),
     });
   } catch (error) {
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_API_ERROR",
-      message: `PushPGUserMigrations failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: t("databasePG.applyMigration.failed", {
+        reason: error instanceof Error ? error.message : String(error),
+      }),
     });
   }
 }
@@ -2813,13 +2815,15 @@ async function handleListMigrations(args: ManagePgDatabaseArgs, context: PgDbCon
     return buildPgToolResult({
       success: true,
       data: result as Record<string, unknown>,
-      message: "Migration list retrieved via ListPGUserMigrations.",
+      message: t("databasePG.listMigrations.success"),
     });
   } catch (error) {
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_API_ERROR",
-      message: `ListPGUserMigrations failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: t("databasePG.listMigrations.failed", {
+        reason: error instanceof Error ? error.message : String(error),
+      }),
     });
   }
 }
@@ -2829,7 +2833,7 @@ async function handleMigrationDetail(args: ManagePgDatabaseArgs, context: PgDbCo
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_VERSION_REQUIRED",
-      message: "Provide migrationVersion (14-digit timestamp YYYYMMDDHHMMSS) when action=migrationDetail.",
+      message: t("databasePG.migrationDetail.versionRequired"),
     });
   }
 
@@ -2840,13 +2844,15 @@ async function handleMigrationDetail(args: ManagePgDatabaseArgs, context: PgDbCo
     return buildPgToolResult({
       success: true,
       data: result as Record<string, unknown>,
-      message: "Migration detail retrieved via DescribePGUserMigration.",
+      message: t("databasePG.migrationDetail.success"),
     });
   } catch (error) {
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_API_ERROR",
-      message: `DescribePGUserMigration failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: t("databasePG.migrationDetail.failed", {
+        reason: error instanceof Error ? error.message : String(error),
+      }),
     });
   }
 }
@@ -2867,9 +2873,7 @@ async function handleDescribeMigrationTask(
     return buildPgToolResult({
       success: false,
       errorCode: "TASK_ID_REQUIRED",
-      message:
-        "Provide taskId when action=describeMigrationTask " +
-        "(from applyMigration Push / MIGRATION_TASK_PENDING / MIGRATION_TASK_TIMEOUT data.taskResult.TaskId).",
+      message: t("databasePG.migration.taskIdRequired"),
     });
   }
 
@@ -2889,7 +2893,7 @@ async function handleDescribeMigrationTask(
         buildNextAction(
           MANAGE_PG_DATABASE,
           "listMigrations",
-          "Task Succeed — confirm migrationVersion is present in remote history before dependent SQL.",
+          t("databasePG.task.succeedConfirm"),
           { action: "listMigrations", limit: 20 },
         ),
       );
@@ -2898,7 +2902,7 @@ async function handleDescribeMigrationTask(
           buildNextAction(
             MANAGE_PG_DATABASE,
             "migrationDetail",
-            "Inspect the applied migration record.",
+            t("databasePG.task.inspectApplied"),
             { action: "migrationDetail", migrationVersion: versionHint },
           ),
         );
@@ -2908,7 +2912,7 @@ async function handleDescribeMigrationTask(
         buildNextAction(
           MANAGE_PG_DATABASE,
           "listMigrations",
-          "Confirm the version is absent from history, then fix Conflicts/SQL and retry with a NEW migrationVersion (do not re-push the failed version blindly).",
+          t("databasePG.task.failedFixFirst"),
           { action: "listMigrations", limit: 20 },
         ),
       );
@@ -2917,13 +2921,13 @@ async function handleDescribeMigrationTask(
         buildNextAction(
           MANAGE_PG_DATABASE,
           "describeMigrationTask",
-          "Task still running — poll again shortly. Do NOT re-push the same migrationVersion.",
+          t("databasePG.task.stillRunning"),
           { action: "describeMigrationTask", taskId },
         ),
         buildNextAction(
           MANAGE_PG_DATABASE,
           "listMigrations",
-          "Optionally check whether the version already landed while Status is still non-terminal.",
+          t("databasePG.task.optionallyCheck"),
           { action: "listMigrations", limit: 20 },
         ),
       );
@@ -2940,17 +2944,28 @@ async function handleDescribeMigrationTask(
       },
       message:
         status === "succeed"
-          ? `DescribeTaskResult TaskId=${taskId} Status=Succeed (Phase=${taskResult.Phase || "-"}). Verify with listMigrations before treating schema as applied.`
+          ? t("databasePG.describeTask.succeed", { taskId, phase: taskResult.Phase || "-" })
           : status === "failed"
-            ? `DescribeTaskResult TaskId=${taskId} Status=Failed at phase=${taskResult.Phase || "-"}: ${taskResult.Reason || "unknown reason"}. Do NOT re-push the same migrationVersion until Conflicts/SQL are fixed.`
-            : `DescribeTaskResult TaskId=${taskId} Status=${statusLabel} Phase=${taskResult.Phase || "-"}. Task is not terminal yet — poll again; do not re-push.`,
+            ? t("databasePG.describeTask.failed", {
+                taskId,
+                phase: taskResult.Phase || "-",
+                reason: taskResult.Reason || "unknown reason",
+              })
+            : t("databasePG.describeTask.running", {
+                taskId,
+                status: statusLabel,
+                phase: taskResult.Phase || "-",
+              }),
       nextActions,
     });
   } catch (error) {
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_API_ERROR",
-      message: `DescribeTaskResult failed for TaskId=${taskId}: ${error instanceof Error ? error.message : String(error)}`,
+      message: t("databasePG.describeTask.failedApi", {
+        taskId,
+        reason: error instanceof Error ? error.message : String(error),
+      }),
     });
   }
 }
@@ -3045,21 +3060,23 @@ async function handleFetchMigration(
           action,
         })),
       },
-      message:
-        remoteItems.length === 0
-          ? "No remote migrations to fetch. Local cloudbase/migrations/ unchanged."
-          : `Fetched ${remoteItems.length} remote migration(s): wrote ${written.length}, skipped ${skipped.length}` +
-            (skipped.length > 0 && !force
-              ? " (existing files left untouched; pass force=true to overwrite, matching CLI --force)."
-              : ".") +
-            ` Directory: ${LOCAL_MIGRATIONS_DIR}/.`,
+      message: remoteItems.length === 0
+        ? t("databasePG.fetch.none")
+        : t("databasePG.fetch.fetched", {
+            total: remoteItems.length,
+            written: written.length,
+            skipped: skipped.length,
+            suffix:
+              skipped.length > 0 && !force ? t("databasePG.fetch.forceHint") : "",
+            dir: LOCAL_MIGRATIONS_DIR,
+          }),
       nextActions:
         skipped.length > 0 && !force
           ? [
               buildNextAction(
                 MANAGE_PG_DATABASE,
                 "fetchMigration",
-                "Re-run with force=true to overwrite skipped local files from remote history (checksum realign).",
+                t("databasePG.fetch.rerunWithForce"),
                 {
                   action: "fetchMigration",
                   force: true,
@@ -3073,7 +3090,9 @@ async function handleFetchMigration(
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_API_ERROR",
-      message: `fetchMigration failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: t("databasePG.fetch.failed", {
+        reason: error instanceof Error ? error.message : String(error),
+      }),
     });
   }
 }
@@ -3083,7 +3102,7 @@ async function handleRollbackMigration(args: ManagePgDatabaseArgs, context: PgDb
     return buildPgToolResult({
       success: false,
       errorCode: "LAST_N_REQUIRED",
-      message: "Provide lastN (positive integer) when action=rollbackMigration.",
+      message: t("databasePG.rollback.lastNRequired"),
     });
   }
 
@@ -3091,7 +3110,7 @@ async function handleRollbackMigration(args: ManagePgDatabaseArgs, context: PgDb
     return buildPgToolResult({
       success: false,
       errorCode: "CONFIRM_REQUIRED",
-      message: "RollbackPGUserMigrations requires confirm=true. Run with confirm=true to proceed.",
+      message: t("databasePG.rollback.confirmRequired"),
     });
   }
 
@@ -3102,13 +3121,15 @@ async function handleRollbackMigration(args: ManagePgDatabaseArgs, context: PgDb
     return buildPgToolResult({
       success: true,
       data: result as Record<string, unknown>,
-      message: "Migration rolled back via RollbackPGUserMigrations.",
+      message: t("databasePG.rollback.success"),
     });
   } catch (error) {
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_API_ERROR",
-      message: `RollbackPGUserMigrations failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: t("databasePG.rollback.failed", {
+        reason: error instanceof Error ? error.message : String(error),
+      }),
     });
   }
 }
@@ -3118,7 +3139,7 @@ async function handleRepairMigration(args: ManagePgDatabaseArgs, context: PgDbCo
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_VERSION_REQUIRED",
-      message: "Provide migrationVersion (14-digit timestamp YYYYMMDDHHMMSS) when action=repairMigration.",
+      message: t("databasePG.repair.versionRequired"),
     });
   }
 
@@ -3126,7 +3147,7 @@ async function handleRepairMigration(args: ManagePgDatabaseArgs, context: PgDbCo
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_NAME_REQUIRED",
-      message: "Provide migrationName when action=repairMigration.",
+      message: t("databasePG.repair.nameRequired"),
     });
   }
 
@@ -3139,7 +3160,7 @@ async function handleRepairMigration(args: ManagePgDatabaseArgs, context: PgDbCo
     return buildPgToolResult({
       success: false,
       errorCode: "REPAIR_STATUS_REQUIRED",
-      message: "Provide repairStatus (applied or reverted) when action=repairMigration.",
+      message: t("databasePG.repair.statusRequired"),
     });
   }
 
@@ -3147,7 +3168,7 @@ async function handleRepairMigration(args: ManagePgDatabaseArgs, context: PgDbCo
     return buildPgToolResult({
       success: false,
       errorCode: "REPAIR_REASON_REQUIRED",
-      message: "Provide repairReason when action=repairMigration.",
+      message: t("databasePG.repair.reasonRequired"),
     });
   }
 
@@ -3155,7 +3176,7 @@ async function handleRepairMigration(args: ManagePgDatabaseArgs, context: PgDbCo
     return buildPgToolResult({
       success: false,
       errorCode: "SQL_REQUIRED",
-      message: "Provide sql (Query) when action=repairMigration with repairStatus=applied.",
+      message: t("databasePG.repair.sqlRequired"),
     });
   }
 
@@ -3174,13 +3195,15 @@ async function handleRepairMigration(args: ManagePgDatabaseArgs, context: PgDbCo
     return buildPgToolResult({
       success: true,
       data: result as Record<string, unknown>,
-      message: "Migration history repaired via RepairPGUserMigrationHistory.",
+      message: t("databasePG.repair.success"),
     });
   } catch (error) {
     return buildPgToolResult({
       success: false,
       errorCode: "MIGRATION_API_ERROR",
-      message: `RepairPGUserMigrationHistory failed: ${error instanceof Error ? error.message : String(error)}`,
+      message: t("databasePG.repair.failed", {
+        reason: error instanceof Error ? error.message : String(error),
+      }),
     });
   }
 }
@@ -3196,8 +3219,7 @@ async function handleGetPgSchema(
     return buildPgToolResult({
       success: false,
       errorCode: "SCHEMA_QUALIFIED_NAME_REQUIRED",
-      message:
-        "queryPgDatabase(action=schema) requires a schema-qualified object name like public.users.",
+      message: t("databasePG.schema.nameRequired"),
     });
   }
 
@@ -3209,12 +3231,12 @@ async function handleGetPgSchema(
     return buildPgToolResult({
       success: false,
       errorCode: "OBJECT_NOT_FOUND",
-      message: `PostgreSQL object ${objectName} was not found in the current CloudBase PG context.`,
+      message: t("databasePG.schema.notFound", { objectName }),
       nextActions: [
         buildNextAction(
           QUERY_PG_DATABASE,
           "objects",
-          "List schema-qualified objects to find the correct table or view name.",
+          t("databasePG.schema.listObjects"),
           { action: "objects", schema: parsed.schema, limit: 20 },
         ),
       ],
@@ -3229,15 +3251,15 @@ async function handleGetPgSchema(
     success: true,
     data: schemaInfo as unknown as Record<string, unknown>,
     message: rlsWithoutPolicies
-      ? "Resolved PostgreSQL schema, key, index, and security details. WARNING: RLS is enabled but no policies were found; browser/client reads and writes will be denied until policies are created or RLS is disabled."
-      : "Resolved PostgreSQL schema, key, index, and security details. Use this structure before composing multi-table SQL.",
+      ? t("databasePG.schema.rlsNoPolicies")
+      : t("databasePG.schema.resolved"),
     nextActions: [
       ...(rlsWithoutPolicies
         ? [
             buildNextAction(
               MANAGE_PG_DATABASE,
               "execute",
-              "Create SELECT/INSERT/UPDATE/DELETE RLS policies or disable RLS before browser-side app.rdb() CRUD.",
+              t("databasePG.schema.createPolicies"),
               {
                 action: "execute",
                 sql: `-- Example: CREATE POLICY ... ON ${objectName} FOR SELECT USING (true);`,
@@ -3249,13 +3271,13 @@ async function handleGetPgSchema(
       buildNextAction(
         QUERY_PG_DATABASE,
         "metadata",
-        "Check row-count and RLS hints for nearby tables before more complex queries.",
+        t("databasePG.schema.checkNearby"),
         { action: "metadata", schema: parsed.schema, limit: 20 },
       ),
       buildNextAction(
         QUERY_PG_DATABASE,
         "sql",
-        "Run a focused read-only query now that the schema is known.",
+        t("databasePG.schema.runFocusedQuery"),
         {
           action: "sql",
           sql: `SELECT * FROM ${objectName} LIMIT 20`,
@@ -3278,9 +3300,8 @@ export function registerPGDatabaseTools(
   server.registerTool?.(
     QUERY_PG_DATABASE,
     {
-      title: "查询 PostgreSQL 上下文、对象、元数据或执行只读 SQL",
-      description:
-        "查询 CloudBase PostgreSQL 数据库。支持获取当前 PG 上下文、列出带 schema 的数据库对象、读取轻量元数据、检查单个对象结构，以及执行只读 SQL。",
+      title: "databasePG.queryPgDatabase.title",
+      description: "databasePG.queryPgDatabase.description",
       inputSchema: {
         action: z
           .enum(QUERY_ACTIONS)
@@ -3330,12 +3351,12 @@ export function registerPGDatabaseTools(
         return buildPgToolResult({
           success: false,
           errorCode: "PG_NOT_READY",
-          message: `CloudBase PostgreSQL is not ready. ${reason}`,
+          message: t("databasePG.runtime.notReady", { reason }),
           nextActions: [
             buildNextAction(
               "queryEnv",
               "info",
-              "检查当前环境 PostgreSQL 实例状态。",
+              t("databasePG.runtime.queryEnvInfo"),
               { action: "info", envId: context.envId },
             ),
           ],
@@ -3355,7 +3376,7 @@ export function registerPGDatabaseTools(
           return buildPgToolResult({
             success: false,
             errorCode: "UNSUPPORTED_ACTION",
-            message: `Unsupported PostgreSQL query action: ${args.action}`,
+            message: t("databasePG.unsupportedQueryAction", { action: args.action }),
           });
       }
     },
@@ -3364,9 +3385,8 @@ export function registerPGDatabaseTools(
   server.registerTool?.(
     MANAGE_PG_DATABASE,
     {
-      title: "管理 PostgreSQL 上下文或执行写入 SQL",
-      description:
-        "管理 CloudBase PostgreSQL：执行已确认的写入 SQL、SQL 风险预检、迁移管理。建表/ALTER/DROP 等 schema 变更必须使用 applyMigration（显式 migrationVersion；成功前自动写入或校验本地 cloudbase/migrations/<version>_<name>.sql，与 CLI tcb db pg migration 一致），不要默认用 execute。execute 主要用于 DML 与 GRANT/RLS 等运维 SQL。",
+      title: "databasePG.managePgDatabase.title",
+      description: "databasePG.managePgDatabase.description",
       inputSchema: {
         action: z
           .enum(MANAGE_ACTIONS)
@@ -3537,12 +3557,12 @@ export function registerPGDatabaseTools(
             return buildPgToolResult({
               success: false,
               errorCode: "PG_NOT_READY",
-              message: `CloudBase PostgreSQL is not ready. ${reason}`,
+              message: t("databasePG.runtime.notReady", { reason }),
               nextActions: [
                 buildNextAction(
                   "queryEnv",
                   "info",
-                  "检查当前环境 PostgreSQL 实例状态。",
+                  t("databasePG.runtime.queryEnvInfo"),
                   { action: "info", envId: context.envId },
                 ),
               ],
@@ -3570,14 +3590,14 @@ export function registerPGDatabaseTools(
             case "fetchMigration": return handleFetchMigration(args, context, deps, cbOpts);
             case "rollbackMigration": return handleRollbackMigration(args, context, deps, cbOpts);
             case "repairMigration": return handleRepairMigration(args, context, deps, cbOpts);
-            default: return buildPgToolResult({ success: false, errorCode: "UNSUPPORTED_ACTION", message: `Unsupported action: ${args.action}` });
+            default: return buildPgToolResult({ success: false, errorCode: "UNSUPPORTED_ACTION", message: t("databasePG.unsupportedAction", { action: args.action }) });
           }
         }
         default:
           return buildPgToolResult({
             success: false,
             errorCode: "UNSUPPORTED_ACTION",
-            message: `Unsupported PostgreSQL manage action: ${args.action}`,
+            message: t("databasePG.unsupportedManageAction", { action: args.action }),
           });
       }
     },

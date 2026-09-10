@@ -16,6 +16,7 @@ import {
   resolveEnvUsageModules,
   summarizeEnvMetricCurve,
 } from "./env.js";
+import { t, type MessageKey } from "../i18n/index.js";
 import type { ExtendedMcpServer } from "../server.js";
 
 const {
@@ -2056,8 +2057,9 @@ describe("env tools - envQuery", () => {
       tools.queryEnv.meta.inputSchema.period.unwrap().options.map((item: { value: number }) => item.value),
     ).toEqual([...ENV_METRIC_PERIOD_VALUES]);
     expect(tools.envQuery.meta.inputSchema.action.options).toContain("metrics");
-    expect(tools.queryEnv.meta.description).toContain("action=metrics");
-    expect(tools.queryEnv.meta.description).toContain("DescribeCurveData");
+    const queryEnvDescription = t(tools.queryEnv.meta.description as MessageKey);
+    expect(queryEnvDescription).toContain("action=metrics");
+    expect(queryEnvDescription).toContain("DescribeCurveData");
   });
 
   it("envQuery(usage) should require envId", async () => {

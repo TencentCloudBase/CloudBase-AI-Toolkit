@@ -127,10 +127,50 @@ export function resolveSite(region: string | undefined, explicitSite?: string): 
   return site === "ambiguous" ? "intl" : site;
 }
 
+/**
+ * CloudBase 数据面网关基础地址（对齐 CLI `EDomain.Gateway` 的站点切换语义）。
+ *
+ * - intl 站点：`https://{envId}.api.intl.tcloudbasegateway.com`
+ * - domestic（默认）：`https://{envId}.api.tcloudbasegateway.com`
+ *
+ * site 缺省时按 TCB_SITE / region 解析链取站点。此前 tools 内硬编码国内网关，
+ * 国际站环境生成的 URL 不可达（2026-09-09 对比 CLI 发现的 gap）。
+ */
+export function getGatewayBaseUrl(envId: string, explicitSite?: string): string {
+  // 走 resolveSiteAndRegion 完整解析链（显式参数 > TCB_SITE > 项目配置 > rc 绑定 > region 推断），
+  // 否则调用方不传 explicitSite 时 TCB_SITE=intl / 项目配置 intl 全部失效，仍生成国内站 URL
+  const { site } = resolveSiteAndRegion({ site: explicitSite });
+  const host =
+    site === "intl"
+      ? `${envId}.api.intl.tcloudbasegateway.com`
+      : `${envId}.api.tcloudbasegateway.com`;
+  return `https://${host}`;
+}
+
+/**
+ * 控制台 / dev 平台链接（消费 SiteDefinition.consoleHost）。
+ *
+ * - intl 站点：`https://tcb.tencentcloud.com/dev?envId=...#hash`
+ * - domestic（默认）：`https://tcb.cloud.tencent.com/dev?envId=...#hash`
+ */
+export function getConsoleDevUrl(
+  envId: string | undefined,
+  hash?: string,
+  explicitSite?: string,
+): string {
+  // 同 getGatewayBaseUrl：缺省 site 必须走完整解析链（TCB_SITE / 项目配置 / rc 绑定 / region）
+  const { site } = resolveSiteAndRegion({ site: explicitSite });
+  const query = envId ? `?envId=${encodeURIComponent(envId)}` : "";
+  const fragment = hash ? `#${hash.replace(/^#/, "")}` : "";
+  return `https://${SITE_REGION_MAP[site].consoleHost}/dev${query}${fragment}`;
+}
+
 export interface ProjectConfig {
   site?: string;
   region?: string;
   envId?: string;
+  /** 实例/输出语言（zh/en），P1 仅 auth 工具消费；随 site/region 同机制持久化于 .cloudbase/project.json */
+  lang?: string;
 }
 
 /**

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { t } from "../i18n/index.js";
 import { warn } from "../utils/logger.js";
 import type { FunctionDeployConfigInput } from "./function-deploy-schema.js";
 import { failInFlightStages } from "./function-deploy-progress.js";
@@ -83,7 +84,7 @@ function markFunctionDeployTaskExpired(
   failInFlightStages(task);
   task.error = task.error ?? {
     message:
-      "部署任务超过最长保留时间（2 小时）已被标记为过期；云端构建或云函数部署可能仍在继续，请通过 queryFunctions 的 getFunctionDetail 确认实际状态。",
+      t("functionDeploy.taskExpired"),
     errorCode: DEPLOY_TASK_EXPIRED_ERROR_CODE,
   };
 }
@@ -158,7 +159,7 @@ function enforceMaxTasks(): void {
 
   if (functionDeployTasks.size >= maxTasks) {
     warn(
-      "云函数部署任务缓存已达上限但无可清理的终态任务，将暂时超过上限以避免中断正在执行的部署",
+      t("functionDeploy.taskStoreLimitWarn"),
       { taskCount: functionDeployTasks.size, maxTasks },
     );
   }

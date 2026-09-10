@@ -1,7 +1,9 @@
 import { z } from "zod";
 import type { ExtendedMcpServer } from "../server.js";
+import { t } from "../i18n/index.js";
 import { isCloudMode } from "../utils/cloud-mode.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
+import { getGatewayBaseUrl } from "../utils/site-map.js";
 
 const CATEGORY = "PostgreSQL storage";
 const QUERY_PG_STORAGE = "queryPgStorage";
@@ -42,12 +44,9 @@ function ensureActionAllowedInCloudMode(args: QueryPgStorageArgs) {
       action: args.action,
       cloudMode: true,
       availableActions: ["buckets", "config"],
-      recommendation: "Use CloudBase SDK or HTTP API in application code for PG storage data-plane operations.",
+      recommendation: t("storagePG.cloudModeRecommendation"),
     },
-    message:
-      `queryPgStorage action=${args.action} 在 hosted/云端模式下不可用：该操作依赖真实 bucket 名称和存储数据面访问。` +
-      "请在应用代码中直接使用 CloudBase SDK 或 HTTP API 完成存储操作，或改用本地模式运行 MCP 后重试。" +
-      "hosted 模式下本工具仅支持 buckets/config 能力摘要查询。",
+    message: t("storagePG.cloudModeUnavailable", { action: args.action }),
   });
 }
 
@@ -81,7 +80,7 @@ function requireBucket(args: QueryPgStorageArgs) {
     return buildPgStorageResult({
       success: false,
       errorCode: "BUCKET_REQUIRED",
-      message: "Provide bucket when querying PostgreSQL storage.",
+      message: t("storagePG.bucketRequired"),
     });
   }
   return undefined;
@@ -138,11 +137,9 @@ async function handleBuckets(server: ExtendedMcpServer) {
       capability: "storageManagerSdkOrHttpApi",
       envId: server.cloudBaseOptions?.envId ?? null,
       supportedActions: ["buckets", "config", "uploadPlan", "objectInfo", "createBucket"],
-      note:
-        "PG environment storage is exposed as metadata and implementation plans in MCP. Application data-plane upload/download should use SDK or HTTP API code.",
+      note: t("storagePG.bucketsNote"),
     },
-    message:
-      "Resolved PostgreSQL storage capability summary. Use uploadPlan for application-side upload implementation.",
+    message: t("storagePG.bucketsSuccess"),
   });
 }
 
@@ -151,7 +148,7 @@ async function handleCreateBucket(args: QueryPgStorageArgs, server: ExtendedMcpS
     return buildPgStorageResult({
       success: false,
       errorCode: "BUCKET_REQUIRED",
-      message: "Provide bucket name to create a PG storage bucket.",
+      message: t("storagePG.createBucketRequired"),
     });
   }
 
@@ -163,12 +160,12 @@ async function handleCreateBucket(args: QueryPgStorageArgs, server: ExtendedMcpS
     data: {
       action: "createBucket",
       bucket,
-      description: `Creates PG storage bucket '${bucket}'`,
+      description: t("storagePG.createBucketDescription", { bucket }),
       plans: {
         sql: `INSERT INTO storage.buckets (id, name, public) VALUES ('${bucket}', '${bucket}', false);`,
         httpApi: {
           method: "POST",
-          url: `https://${envId}.api.tcloudbasegateway.com/v1/storages/bucket/`,
+          url: `${getGatewayBaseUrl(envId)}/v1/storages/bucket/`,
           headers: {
             "Authorization": "Bearer {service_role_token}",
             "Content-Type": "application/json",
@@ -178,15 +175,14 @@ async function handleCreateBucket(args: QueryPgStorageArgs, server: ExtendedMcpS
         cli: `tcb db execute -e ${envId} --sql "INSERT INTO storage.buckets (id, name, public) VALUES ('${bucket}', '${bucket}', false);"`,
       },
       tokenRequired: "service_role",
-      tokenGuide: "Use manageAppAuth(action='createApiKey', name='storage-server-key') to get a service_role level API key token.",
+      tokenGuide: t("storagePG.createBucketTokenGuide"),
       nextSteps: [
-        "Option A: Run the SQL via managePgDatabase(action='execute', confirm=true)",
-        "Option B: Call the HTTP API with a service_role token",
-        "Option C: Use CloudBase CLI: tcb db execute",
+        t("storagePG.createBucketNextStepA"),
+        t("storagePG.createBucketNextStepB"),
+        t("storagePG.createBucketNextStepC"),
       ],
     },
-    message:
-      `Generated bucket creation plan for '${bucket}'. Execute one of the provided plans to create the bucket, then configure RLS policies.`,
+    message: t("storagePG.createBucketSuccess", { bucket }),
   });
 }
 
@@ -212,13 +208,12 @@ async function handleUploadPlan(args: QueryPgStorageArgs, server: ExtendedMcpSer
         multiFileOutputIsMetadataOnly: true,
       },
       steps: [
-        "Get an application-side or service-side access token.",
-        "Call the CloudBase storage HTTP API or Manager SDK from application code.",
-        "Upload file bytes outside MCP, then call objectInfo if metadata verification is needed.",
+        t("storagePG.uploadPlanStep1"),
+        t("storagePG.uploadPlanStep2"),
+        t("storagePG.uploadPlanStep3"),
       ],
     },
-    message:
-      "Generated an HTTP API upload plan without signed URLs or file content. This keeps MCP token usage stable for multi-file uploads.",
+    message: t("storagePG.uploadPlanSuccess"),
   });
 }
 
@@ -236,8 +231,7 @@ async function handleObjectInfo(args: QueryPgStorageArgs, server: ExtendedMcpSer
       implementation: "use_sdk_or_http_api_in_app_code",
       mcpFileIo: false,
     },
-    message:
-      "Generated an object metadata query plan. Use application code or service code for actual storage data-plane calls.",
+    message: t("storagePG.objectInfoSuccess"),
   });
 }
 
@@ -252,10 +246,9 @@ async function handleSignedUrl(args: QueryPgStorageArgs) {
       action: args.action,
       bucket: args.bucket,
       expiresIn: args.expiresIn ?? 900,
-      recommendation: "Use queryPgStorage(action=uploadPlan) and HTTP API/SDK application code for multi-file flows.",
+      recommendation: t("storagePG.signedUrlRecommendation"),
     },
-    message:
-      "Signed URL generation is intentionally not the default PG storage path because multi-file signed outputs waste tokens. Use uploadPlan unless a delegated one-off upload/download is explicitly required.",
+    message: t("storagePG.signedUrlNotDefault"),
   });
 }
 
@@ -263,9 +256,8 @@ export function registerPGStorageTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     QUERY_PG_STORAGE,
     {
-      title: "查询 PostgreSQL 环境云存储能力和上传方案",
-      description:
-        "查询 CloudBase PostgreSQL 环境下的云存储能力。返回 bucket/config 能力摘要、对象信息查询方案，以及基于 HTTP API 或 SDK 的上传实现方案；不会读取本地文件，也不会默认输出大量签名 URL。",
+      title: "storagePG.title",
+      description: "storagePG.description",
       inputSchema: {
         action: z
           .enum(STORAGE_ACTIONS)
@@ -314,7 +306,7 @@ export function registerPGStorageTools(server: ExtendedMcpServer) {
           return buildPgStorageResult({
             success: false,
             errorCode: "UNSUPPORTED_ACTION",
-            message: `Unsupported PostgreSQL storage action: ${args.action}`,
+            message: t("storagePG.unsupportedAction", { action: args.action }),
           });
       }
     },

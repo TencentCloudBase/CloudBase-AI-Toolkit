@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { t } from "../i18n/index.js";
 
 const { mockGetCloudBaseManager, mockGetEnvId } = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
@@ -189,7 +190,7 @@ describe("manageCloudRun traffic handler", () => {
         serverName: "my-svc",
         trafficOp: "set",
       }),
-    ).rejects.toThrow(/stablePercent and canaryPercent/);
+    ).rejects.toThrow(t("cloudrun.error.percentsRequired"));
     expect(manager.cloudrun.setTraffic).not.toHaveBeenCalled();
   });
 
@@ -206,7 +207,9 @@ describe("manageCloudRun traffic handler", () => {
         stablePercent: 50,
         canaryPercent: 30,
       }),
-    ).rejects.toThrow(/must equal 100/);
+    ).rejects.toThrow(
+      t("cloudrun.error.percentSum", { stable: 50, canary: 30, sum: 80 }),
+    );
     expect(manager.cloudrun.setTraffic).not.toHaveBeenCalled();
   });
 
@@ -282,7 +285,7 @@ describe("queryCloudRun getDeployRecords", () => {
     const res = await tools.queryCloudRun.handler({ action: "getDeployRecords" });
     const parsed = parseToolResult(res);
     expect(parsed.success).toBe(false);
-    expect(parsed.error).toContain("detailServerName or serverName");
+    expect(parsed.error).toContain("detailServerName 或 serverName");
     expect(manager.cloudrun.getDeployRecords).not.toHaveBeenCalled();
   });
 });
@@ -299,7 +302,7 @@ describe("queryCloudRun detail deploy status case normalization", () => {
     });
     const parsed = parseToolResult(res);
     expect(parsed.success).toBe(true);
-    expect(parsed.message).toMatch(/latest deploy failed/i);
+    expect(parsed.message).toMatch(/部署失败/);
   });
 
   it("treats uppercase CREATING as deploy still running", async () => {
@@ -313,6 +316,6 @@ describe("queryCloudRun detail deploy status case normalization", () => {
     });
     const parsed = parseToolResult(res);
     expect(parsed.success).toBe(true);
-    expect(parsed.message).toMatch(/still running/i);
+    expect(parsed.message).toMatch(/仍在进行中/);
   });
 });

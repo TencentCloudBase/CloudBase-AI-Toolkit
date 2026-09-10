@@ -3,6 +3,7 @@ import path from 'path';
 import { z } from 'zod';
 import { getCloudBaseManager, getEnvId, logCloudBaseResult } from '../cloudbase-manager.js';
 import { ExtendedMcpServer } from '../server.js';
+import { t } from '../i18n/index.js';
 import { isCloudMode } from '../utils/cloud-mode.js';
 import {
   flattenHttpServiceRoutes,
@@ -13,6 +14,7 @@ import {
   type GatewayRouteUrlCandidate,
 } from '../utils/gateway-access-urls.js';
 import { sendDeployNotification } from '../utils/notification.js';
+import { getConsoleDevUrl } from '../utils/site-map.js';
 import { buildJsonToolResult, toolPayloadErrorToResult } from '../utils/tool-result.js';
 
 interface ExtendedEnvInfo {
@@ -163,17 +165,20 @@ function buildUploadErrorMessage(error: unknown, localPath?: string): string {
 
   if (/路径不存在|无读写权限/i.test(baseMessage)) {
     if (localPath) {
-      suggestions.push(`请先确认本地路径 \`${localPath}\` 存在且当前进程有读取权限。`);
+      suggestions.push(t('hosting.uploadErrorPathSuggestion', { localPath }));
     }
-    suggestions.push('如果报错的是构建产物中的某个静态资源文件，请检查构建后的资源引用路径是否正确。');
-    suggestions.push('若站点部署到子路径，请确认 publicPath、base、assetPrefix 等配置没有把资源指向不存在的位置。');
+    suggestions.push(t('hosting.uploadErrorAssetSuggestion'));
+    suggestions.push(t('hosting.uploadErrorPublicPathSuggestion'));
   }
 
   if (suggestions.length === 0) {
-    suggestions.push('请检查上传目录、文件权限和构建产物完整性后重试。');
+    suggestions.push(t('hosting.uploadErrorDefaultSuggestion'));
   }
 
-  return `[manageHosting(upload)] ${baseMessage}\n建议：${suggestions.join(' ')}`;
+  return t('hosting.uploadErrorWrapper', {
+    message: baseMessage,
+    suggestions: suggestions.join(' '),
+  });
 }
 
 /**
@@ -189,19 +194,10 @@ function buildDeleteErrorMessage(error: unknown): string {
   const baseMessage = error instanceof Error ? error.message : String(error);
 
   if (DESCRIBE_STATIC_STORE_RATE_LIMIT_RE.test(baseMessage)) {
-    return (
-      `[manageHosting(delete)] ${baseMessage}\n` +
-      '原因：静态托管底层 DescribeStaticStore 管控接口有 20 次/秒的 QPS 限制，' +
-      '连续快速删除多个文件（或失败后立即重试）容易触发限流，删除操作本身可能已经部分生效。\n' +
-      '处理建议：\n' +
-      '1) 等待 1-2 秒后重试本次删除，不要立即连续重试；\n' +
-      '2) 批量删除多个文件时，逐次调用并保持间隔（建议每秒不超过 10 次），不要并发或循环快速重试；\n' +
-      '3) 同一目录下的多个文件可改用 isDir=true 一次删除整个目录，减少调用次数；\n' +
-      '4) 若不确定删除是否已生效，可调用 queryHosting(action="findFiles") 核对。'
-    );
+    return t('hosting.deleteRateLimitGuidance', { message: baseMessage });
   }
 
-  return `[manageHosting(delete)] ${baseMessage}`;
+  return t('hosting.deleteErrorWrapper', { message: baseMessage });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -365,7 +361,7 @@ async function callTcbHostingAction(
   const service = cloudbase.commonService?.('tcb', '2018-06-08');
 
   if (!service?.call) {
-    throw new Error(`当前 CloudBase Manager 实例不支持 commonService.call，无法执行 ${action}。`);
+    throw new Error(t('hosting.commonServiceUnsupported', { action }));
   }
 
   const result = await service.call({
@@ -424,16 +420,16 @@ function buildDomainMutationResult(params: {
   const { action, domain, certId, domainId, domainConfig, result, taskStatus } = params;
   const actionLabel =
     action === 'bindDomain'
-      ? '绑定'
+      ? t('hosting.domainActionBind')
       : action === 'unbindDomain'
-        ? '解绑'
-        : '修改';
+        ? t('hosting.domainActionUnbind')
+        : t('hosting.domainActionUpdate');
   const successIndicator =
     action === 'bindDomain'
-      ? `继续调用 queryHosting(action="domainStatus", domains=["${domain}"])，直到返回中出现该域名，并且相关状态字段显示为已生效。`
+      ? t('hosting.domainSuccessIndicatorBind', { domain })
       : action === 'unbindDomain'
-        ? `继续调用 queryHosting(action="domainStatus", domains=["${domain}"])，直到返回中不再出现该域名。`
-        : `继续调用 queryHosting(action="domainStatus", domains=["${domain}"])，确认返回中的配置字段已更新为最新值。`;
+        ? t('hosting.domainSuccessIndicatorUnbind', { domain })
+        : t('hosting.domainSuccessIndicatorUpdate', { domain });
 
   return {
     success: true,
@@ -456,7 +452,7 @@ function buildDomainMutationResult(params: {
       nextActions: [buildDomainStatusNextStep([domain])],
       result,
     },
-    message: `静态托管域名${actionLabel}请求已提交。域名配置、证书校验和边缘侧传播通常需要 30 秒到 10 分钟，请继续调用 queryHosting(action="domainStatus") 确认最终结果。`,
+    message: t('hosting.domainMutationSubmitted', { actionLabel }),
   };
 }
 
@@ -534,23 +530,22 @@ async function getHostingStoreOrThrow(
     return hostingInfo[0];
   }
 
-  throw new Error(
-    `当前环境 ${envId} 未发现静态托管资源配置，无法上传文件。请先确认 MCP 已绑定到已开通静态托管的 CloudBase 环境；如需切换环境，请调用 auth(action="set_env", envId="目标环境ID") 后重试。`,
-  );
+  throw new Error(t('hosting.hostingStoreMissing', { envId }));
 }
 
 function enrichRateLimitMessage(message: string): string {
-  // delete 路径已由 buildDeleteErrorMessage 提供完整引导，避免重复追加
-  if (message.includes('QPS 限制') || message.includes('等待 1-2 秒后重试')) {
+  // delete 路径已由 buildDeleteErrorMessage 提供完整引导，避免重复追加。
+  // 中英文引导文本特征均参与判断（zh: "QPS 限制"/"等待 1-2 秒后重试"；en: "QPS limit"/"wait 1-2 seconds"）
+  if (
+    message.includes('QPS 限制') ||
+    message.includes('等待 1-2 秒后重试') ||
+    message.includes('QPS limit') ||
+    message.includes('wait 1-2 seconds')
+  ) {
     return message;
   }
   if (DESCRIBE_STATIC_STORE_RATE_LIMIT_RE.test(message)) {
-    return (
-      `${message}\n` +
-      '原因：静态托管底层 DescribeStaticStore 管控接口有 20 次/秒的 QPS 限制，' +
-      '连续快速调用（或失败后立即重试）容易触发限流，本次查询/操作可能没有完整生效。\n' +
-      '处理建议：等待 1-2 秒后重试，不要连续快速重试；多个文件操作请逐次调用并保持间隔。'
-    );
+    return t('hosting.queryRateLimitGuidance', { message });
   }
   return message;
 }
@@ -621,9 +616,7 @@ function ensureManageHostingActionAllowedInCloudMode(input: ManageHostingInput) 
   }
 
   if (input.action === 'upload' || input.action === 'downloadFile' || input.action === 'downloadDirectory') {
-    throw new Error(
-      `manageHosting(action="${input.action}") 在 cloud mode 下不可用，因为该操作依赖本地文件路径。请改用本地模式执行；若只需要远端管理静态托管，可继续使用 delete / setWebsiteDocument / enableService / bindDomain / unbindDomain / updateDomain。`,
-    );
+    throw new Error(t('hosting.cloudModeLocalActionUnavailable', { action: input.action }));
   }
 }
 
@@ -634,8 +627,8 @@ export function registerHostingTools(server: ExtendedMcpServer) {
   server.registerTool(
     'queryHosting',
     {
-      title: '查询 CloudBase 静态托管',
-      description: '查询 CloudBase 静态托管的只读信息。适合 AI 先做发现再决定下一步：action=websiteConfig 查询首页/错误页/路由规则与站点域名信息；action=status 查询托管服务状态；action=findFiles 按前缀查找文件；action=listFiles 列出全部托管文件；action=domainStatus 查询自定义域名的当前状态与配置。该工具不会产生任何副作用。',
+      title: 'hosting.queryTitle',
+      description: 'hosting.queryDescription',
       inputSchema: queryHostingInputSchema,
       annotations: {
         readOnlyHint: true,
@@ -661,7 +654,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 action: 'websiteConfig',
                 websiteConfig,
               },
-              message: '已获取静态托管网站文档配置与站点域名信息。',
+              message: t('hosting.websiteConfigSuccess'),
             });
           }
 
@@ -686,14 +679,14 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 result,
               },
               message: hostingInfo.length > 0
-                ? '已获取静态托管服务状态。'
-                : '静态托管服务当前未返回可用实例信息，可能尚未开通。',
+                ? t('hosting.statusEnabled')
+                : t('hosting.statusNotEnabled'),
             });
           }
 
           case 'findFiles': {
             if (!input.prefix) {
-              throw new Error('queryHosting(action="findFiles") 需要提供 prefix，用于按前缀查找托管文件。');
+              throw new Error(t('hosting.findFilesPrefixRequired'));
             }
             const result = await cloudbase.hosting.findFiles({
               prefix: input.prefix,
@@ -716,7 +709,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 isTruncated,
                 result,
               },
-              message: `已按前缀 \`${input.prefix}\` 查询静态托管文件，共 ${normalizedFiles.length} 个。${nextMarker ? ' 还有更多文件，可使用 nextMarker 继续查询。' : ''}`,
+              message: t('hosting.findFilesSuccess', {
+                prefix: input.prefix,
+                count: normalizedFiles.length,
+                more: nextMarker ? t('hosting.findFilesMore') : '',
+              }),
             });
           }
 
@@ -740,13 +737,18 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 nextMarker,
                 isTruncated: nextMarker !== undefined,
               },
-              message: `已列出静态托管中的文件（第 ${start + 1}-${start + paginatedFiles.length} 个，共 ${normalizedFiles.length} 个）。${nextMarker ? ' 还有更多文件，可使用 nextMarker 继续查询。' : ''}`,
+              message: t('hosting.listFilesSuccess', {
+                start: start + 1,
+                end: start + paginatedFiles.length,
+                count: normalizedFiles.length,
+                more: nextMarker ? t('hosting.findFilesMore') : '',
+              }),
             });
           }
 
           case 'domainStatus': {
             if (!input.domains || input.domains.length === 0) {
-              throw new Error('queryHosting(action="domainStatus") 需要提供 domains 数组，例如 ["www.example.com"]。');
+              throw new Error(t('hosting.domainStatusDomainsRequired'));
             }
             const result = await cloudbase.hosting.tcbCheckResource({
               domains: input.domains,
@@ -771,15 +773,15 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                         pollAction: 'domainStatus',
                         pollIntervalSuggestionSeconds: 30,
                         timeoutSuggestionSeconds: 600,
-                        successIndicator: '目标域名出现在返回结果中，并且相关状态字段显示为已生效。',
+                        successIndicator: t('hosting.domainStatusSuccessIndicator'),
                       },
                       nextActions: [buildDomainStatusNextStep(summary.missingDomains)],
                     }),
                 result,
               },
               message: allMatched
-                ? '已查询到目标静态托管域名配置。若这是绑定或修改后的确认步骤，请继续核对状态字段、证书信息和配置内容是否符合预期。'
-                : '部分目标静态托管域名尚未在查询结果中出现。若这是绑定后的确认步骤，请继续调用 queryHosting(action="domainStatus") 直到结果收敛或达到超时。',
+                ? t('hosting.domainStatusAllMatched')
+                : t('hosting.domainStatusPending'),
             });
           }
         }
@@ -796,8 +798,8 @@ export function registerHostingTools(server: ExtendedMcpServer) {
   server.registerTool(
     'manageHosting',
     {
-      title: '管理 CloudBase 静态托管',
-      description: '管理 CloudBase 静态托管的变更操作。action=upload 上传本地构建产物到共享域名（域名格式：<envId>-<appId>.tcloudbaseapp.com/<cloudPath>）；action=delete 删除托管文件或目录（必须 confirm=true）；action=setWebsiteDocument 设置首页/错误页/路由规则；action=enableService 开通静态托管；action=bindDomain / unbindDomain / updateDomain 管理自定义域名；action=downloadFile / downloadDirectory 下载托管内容到本地。⚠️ 底层每次托管操作都会请求 DescribeStaticStore 管控接口（20 次/秒 QPS 限制）：批量删除多个文件请逐次调用并保持间隔（建议每秒不超过 10 次），同一目录下多个文件可优先用 isDir=true 一次删除整个目录；若报错含 "frequency limit" 说明触发了限流，请等待 1-2 秒后重试，不要连续快速重试。⚠️ 本工具没有关闭默认域名（*.tcloudbaseapp.com）的 action；要禁用该默认公网域名，请用 manageGateway(action="disableRoute", domain=该 STATIC_STORE IsDefault 域名, path="/")（底层 ModifyHTTPServiceRoute，不是 ModifyGatewayRoute）。⚠️ 新项目部署优先使用 manageApps（部署到独立子域名），本工具适合已有老项目继续使用或作为 manageApps 的 fallback。manageApps 与 manageHosting 域名不同，切换会导致老链接失效。若任务只是查看配置、文件或域名状态，请改用 queryHosting。',
+      title: 'hosting.manageTitle',
+      description: 'hosting.manageDescription',
       inputSchema: manageHostingInputSchema,
       annotations: {
         readOnlyHint: false,
@@ -816,7 +818,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         switch (input.action) {
           case 'upload': {
             if ((!input.localPath || !input.cloudPath) && (!input.files || input.files.length === 0)) {
-              throw new Error('manageHosting(action="upload") 需要提供 localPath + cloudPath，或提供 files 多文件上传列表。');
+              throw new Error(t('hosting.uploadArgsRequired'));
             }
 
             let result: unknown;
@@ -845,7 +847,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             const getGatewayManager = async () => {
               const manager = await getManager();
               if (!manager) {
-                throw new Error("cloudbase manager unavailable");
+                throw new Error(t('hosting.managerUnavailable'));
               }
               return manager as any;
             };
@@ -933,7 +935,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                   url: accessUrl,
                   projectId: envId,
                   projectName,
-                  consoleUrl: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/static-hosting`,
+                  consoleUrl: getConsoleDevUrl(envId, 'static-hosting'),
                 });
               }
             } catch {
@@ -942,14 +944,11 @@ export function registerHostingTools(server: ExtendedMcpServer) {
 
             const uploadPrefix = input.cloudPath ?? input.files?.[0]?.cloudPath ?? '';
             const routeDisabled = staticDomainRouteEnabled === false;
-            let message =
-              '静态托管文件上传成功。若需要校验上传结果，请继续调用 queryHosting(action="findFiles") 或 queryHosting(action="listFiles")。';
+            let message = t('hosting.uploadSuccess');
             if (routeDisabled && accessUrlReachable) {
-              message =
-                '静态托管文件上传成功。默认静态托管域名的网关路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），已改用其他可达域名作为 accessUrl。可用 manageGateway(action="updateRoute", route.enable=true) 重新启用默认域路由。';
+              message = t('hosting.uploadRouteDisabledWithFallback');
             } else if (routeDisabled && !accessUrlReachable) {
-              message =
-                '静态托管文件上传成功，但默认静态托管域名的网关路由已禁用（GATEWAY_ROUTE_DISABLED），当前没有可达的 accessUrl。请用 manageGateway(action="updateRoute", domain="<静态域名>", path="/", upstreamResourceType="STATIC_STORE", targetName="staticstore", route.enable=true) 启用路由，或改用已启用的自定义域名 / CloudBase Sites 域名访问。';
+              message = t('hosting.uploadRouteDisabledNoAccess');
             }
 
             return buildJsonToolResult({
@@ -979,10 +978,10 @@ export function registerHostingTools(server: ExtendedMcpServer) {
 
           case 'delete': {
             if (!input.cloudPath) {
-              throw new Error('manageHosting(action="delete") 需要提供 cloudPath。');
+              throw new Error(t('hosting.deleteCloudPathRequired'));
             }
             if (!input.confirm) {
-              throw new Error('manageHosting(action="delete") 是破坏性操作，必须显式传 confirm=true。');
+              throw new Error(t('hosting.deleteConfirmRequired'));
             }
             let result: unknown;
             try {
@@ -1004,7 +1003,9 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             let verificationError: string | undefined;
             if (deleteErrors.length > 0) {
               deleteVerified = false;
-              verificationError = `删除请求未生效：${deleteErrors.join('；')}`;
+              verificationError = t('hosting.deleteVerificationIncomplete', {
+                errors: deleteErrors.join('；'),
+              });
             }
             try {
               const checkResult = await cloudbase.hosting.findFiles({
@@ -1014,7 +1015,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
               
               if (Array.isArray(checkResult) && checkResult.length > 0) {
                 deleteVerified = false;
-                verificationError = verificationError ?? `删除后验证失败：文件仍在静态托管中`;
+                verificationError = verificationError ?? t('hosting.deleteVerifyFailed');
               }
             } catch (error) {
               // If query fails, assume deletion was successful
@@ -1032,18 +1033,17 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 ...(verificationError ? { error: verificationError } : {}),
               },
               message: deleteVerified
-                ? `已删除静态托管${input.isDir ? '目录' : '文件'} \`${input.cloudPath}\`。`
-                : `删除操作已提交，但验证发现文件可能未完全删除。` +
-                  `可能原因：底层 COS 删除请求失败（如文件不存在、存储桶权限不足），或触发 DescribeStaticStore 限流后删除未生效。` +
-                  `建议：1) 等待 1-2 秒后用 queryHosting(action="findFiles", prefix="${input.cloudPath}") 核对文件状态；` +
-                  `2) 若确认文件仍存在，重新调用 manageHosting(action="delete", confirm=true) 重试；` +
-                  `3) 批量删除多个文件请逐次调用并保持间隔（DescribeStaticStore 有 20 次/秒 QPS 限制）。`,
+                ? t('hosting.deleteSuccess', {
+                    type: input.isDir ? t('hosting.typeDirectory') : t('hosting.typeFile'),
+                    cloudPath: input.cloudPath,
+                  })
+                : t('hosting.deleteUnverified', { cloudPath: input.cloudPath }),
             });
           }
 
           case 'setWebsiteDocument': {
             if (!input.indexDocument) {
-              throw new Error('manageHosting(action="setWebsiteDocument") 需要提供 indexDocument，例如 index.html。');
+              throw new Error(t('hosting.setWebsiteDocumentIndexRequired'));
             }
             const result = await cloudbase.hosting.setWebsiteDocument({
               indexDocument: input.indexDocument,
@@ -1061,7 +1061,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 result,
                 nextActions: [buildWebsiteConfigNextStep()],
               },
-              message: '静态托管网站文档配置已提交。若需要确认最终配置，请继续调用 queryHosting(action="websiteConfig")。',
+              message: t('hosting.setWebsiteDocumentSuccess'),
             });
           }
 
@@ -1081,13 +1081,13 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 result,
                 nextActions: [buildStatusNextStep()],
               },
-              message: '静态托管服务开通请求已提交。请继续调用 queryHosting(action="status") 确认服务是否已可用。',
+              message: t('hosting.enableServiceSuccess'),
             });
           }
 
           case 'bindDomain': {
             if (!input.domain || !input.certId) {
-              throw new Error('manageHosting(action="bindDomain") 需要提供 domain 和 certId。');
+              throw new Error(t('hosting.bindDomainArgsRequired'));
             }
             const result = await cloudbase.hosting.CreateHostingDomain({
               domain: input.domain,
@@ -1106,10 +1106,10 @@ export function registerHostingTools(server: ExtendedMcpServer) {
 
           case 'unbindDomain': {
             if (!input.domain) {
-              throw new Error('manageHosting(action="unbindDomain") 需要提供 domain。');
+              throw new Error(t('hosting.unbindDomainArgsRequired'));
             }
             if (!input.confirm) {
-              throw new Error('manageHosting(action="unbindDomain") 会解绑现有自定义域名，必须显式传 confirm=true。');
+              throw new Error(t('hosting.unbindDomainConfirmRequired'));
             }
             const result = await cloudbase.hosting.deleteHostingDomain({
               domain: input.domain,
@@ -1126,7 +1126,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
 
           case 'updateDomain': {
             if (!input.domain || input.domainId === undefined || !input.domainConfig) {
-              throw new Error('manageHosting(action="updateDomain") 需要同时提供 domain、domainId 和 domainConfig。');
+              throw new Error(t('hosting.updateDomainArgsRequired'));
             }
             const result = await cloudbase.hosting.tcbModifyAttribute({
               domain: input.domain,
@@ -1147,7 +1147,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
 
           case 'downloadFile': {
             if (!input.cloudPath || !input.localPath) {
-              throw new Error('manageHosting(action="downloadFile") 需要同时提供 cloudPath 和 localPath，localPath 应包含目标文件名。');
+              throw new Error(t('hosting.downloadFileArgsRequired'));
             }
             const result = await cloudbase.hosting.downloadFile({
               cloudPath: input.cloudPath,
@@ -1162,13 +1162,16 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 localPath: input.localPath,
                 result,
               },
-              message: `已将静态托管文件 \`${input.cloudPath}\` 下载到本地路径 \`${input.localPath}\`。`,
+              message: t('hosting.downloadFileSuccess', {
+                cloudPath: input.cloudPath,
+                localPath: input.localPath,
+              }),
             });
           }
 
           case 'downloadDirectory': {
             if (!input.cloudPath || !input.localPath) {
-              throw new Error('manageHosting(action="downloadDirectory") 需要同时提供 cloudPath 和 localPath，localPath 应为本地目录路径。');
+              throw new Error(t('hosting.downloadDirectoryArgsRequired'));
             }
             const result = await cloudbase.hosting.downloadDirectory({
               cloudPath: input.cloudPath,
@@ -1183,7 +1186,10 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 localPath: input.localPath,
                 result,
               },
-              message: `已将静态托管目录 \`${input.cloudPath}\` 下载到本地目录 \`${input.localPath}\`。`,
+              message: t('hosting.downloadDirectorySuccess', {
+                cloudPath: input.cloudPath,
+                localPath: input.localPath,
+              }),
             });
           }
         }

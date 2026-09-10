@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registerPermissionTools, validateUserRegoContent } from "./permissions.js";
+import { t } from "../i18n/index.js";
 import type { ExtendedMcpServer } from "../server.js";
 
 const {
@@ -690,7 +691,7 @@ describe("permission tools", () => {
         action: "setPolicy",
         key: "authz.user.rego",
         rego: expect.stringContaining("package authz.user"),
-        sideEffect: expect.stringContaining("disables legacy gateway"),
+        sideEffect: expect.stringContaining(t("permissions.setPolicySideEffect")),
       },
     });
   });

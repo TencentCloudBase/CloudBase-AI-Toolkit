@@ -6,6 +6,7 @@ import {
   MsgPushQbaseResponse,
 } from "../types.js";
 import { buildJsonToolResult } from "../utils/tool-result.js";
+import { t } from "../i18n/index.js";
 
 const CATEGORY = "消息推送";
 
@@ -261,7 +262,7 @@ function getTransport(server: ExtendedMcpServer): CloudApiRequestFn | undefined 
 
 function parseConfigString(config: unknown): { enable: boolean; callbacks: CallbackEntry[] } {
   if (typeof config !== "string" || !config) {
-    throw new QbaseError("PARSE_ERROR", "getappconfig 返回的 config 为空或非 JSON 字符串");
+    throw new QbaseError("PARSE_ERROR", t("msgPush.configEmptyOrInvalid"));
   }
   try {
     const parsed = JSON.parse(config);
@@ -272,7 +273,9 @@ function parseConfigString(config: unknown): { enable: boolean; callbacks: Callb
   } catch (e) {
     throw new QbaseError(
       "PARSE_ERROR",
-      `getappconfig 返回的 config 解析失败: ${e instanceof Error ? e.message : String(e)}`,
+      t("msgPush.configParseFailed", {
+        message: e instanceof Error ? e.message : String(e),
+      }),
     );
   }
 }
@@ -292,7 +295,7 @@ async function callQbase(
   if (!requestFn) {
     throw new QbaseError(
       "TRANSPORT_UNAVAILABLE",
-      "未注入 Cloud API 请求通道（cloudBaseOptions.requestFn）",
+      t("msgPush.transportNotInjected"),
     );
   }
   const service = server.pluginOptions?.msgPush?.service ?? MSG_PUSH_SERVICE;
@@ -311,7 +314,11 @@ async function callQbase(
   } catch (e) {
     throw new QbaseError(
       "TRANSPORT_ERROR",
-      `qbase 请求失败(${service}/${action}): ${e instanceof Error ? e.message : String(e)}`,
+      t("msgPush.qbaseRequestFailed", {
+        service,
+        action,
+        message: e instanceof Error ? e.message : String(e),
+      }),
     );
   }
 }
@@ -329,7 +336,10 @@ async function readCallbackConfig(
     }
     throw new QbaseError(
       ret,
-      `getappconfig 失败(ret=${ret}): ${resp.base_resp?.errmsg ?? "未知错误"}`,
+      t("msgPush.getAppConfigFailed", {
+        ret,
+        errmsg: resp.base_resp?.errmsg ?? t("msgPush.unknownError"),
+      }),
     );
   }
   const config = parseConfigString(resp.config);
@@ -350,7 +360,10 @@ async function fetchSupportedEvents(
   if (ret !== undefined && ret !== 0) {
     throw new QbaseError(
       ret,
-      `getcallbacksupportlist 失败(ret=${ret}): ${resp.base_resp?.errmsg ?? "未知错误"}`,
+      t("msgPush.getCallbackSupportListFailed", {
+        ret,
+        errmsg: resp.base_resp?.errmsg ?? t("msgPush.unknownError"),
+      }),
     );
   }
   const raw = resp.data;
@@ -388,13 +401,19 @@ async function uploadCallbackConfig(
     if (isVersionConflict) {
       throw new QbaseError(
         "VERSION_CONFLICT",
-        `uploadappconfig version 冲突（ret=${ret}，本地 version=${state.version}，服务端已被其他操作修改）: ${errmsg || "system error"}。` +
-          `请重新调用 queryMessagePush(action=list) 获取最新配置后重试（RFC 7232 If-Match 语义：重读 → merge → 重试）。`,
+        t("msgPush.versionConflict", {
+          ret,
+          localVersion: state.version,
+          errmsg: errmsg || "system error",
+        }),
       );
     }
     throw new QbaseError(
       ret,
-      `uploadappconfig 失败(ret=${ret}): ${errmsg || "未知错误"}。请重新查询最新配置后重试。`,
+      t("msgPush.uploadAppConfigFailed", {
+        ret,
+        errmsg: errmsg || t("msgPush.unknownError"),
+      }),
     );
   }
 }
@@ -439,12 +458,14 @@ export function pickContainerConfigPublic(
   };
 }
 
-const CONTAINER_MODE_BLOCK_NOTE =
-  "当前为云托管模式（整包接收），云函数 callbacks 存在但不生效；如需云函数模式请调 ensureCloudFunctionMode 切换";
+/** 云托管模式提示：调用时经 t() 解析，避免模块加载期固定语言 */
+function containerModeBlockNote(): string {
+  return t("msgPush.containerModeBlockNote");
+}
 
-const CONTAINER_MODE_WRITE_ERROR =
-  "当前 pushMode=container（云托管整包接收），云函数回调配置存在但不生效。" +
-  "如需云函数模式请调 action=ensureCloudFunctionMode 切换。";
+function containerModeWriteError(): string {
+  return t("msgPush.containerModeWriteError");
+}
 
 /** 读取云托管消息推送配置；无配置（云函数模式）返回 null */
 async function readContainerConfig(
@@ -459,7 +480,10 @@ async function readContainerConfig(
     }
     throw new QbaseError(
       ret,
-      `getcontainercallbackconfig 失败(ret=${ret}): ${resp.base_resp?.errmsg ?? "未知错误"}`,
+      t("msgPush.getContainerConfigFailed", {
+        ret,
+        errmsg: resp.base_resp?.errmsg ?? t("msgPush.unknownError"),
+      }),
     );
   }
   const { base_resp: _base, ...config } = resp;
@@ -476,7 +500,10 @@ async function setContainerConfig(
   if (ret !== undefined && ret !== 0) {
     throw new QbaseError(
       ret,
-      `setcontainercallbackconfig 失败(ret=${ret}): ${resp.base_resp?.errmsg ?? "未知错误"}`,
+      t("msgPush.setContainerConfigFailed", {
+        ret,
+        errmsg: resp.base_resp?.errmsg ?? t("msgPush.unknownError"),
+      }),
     );
   }
 }
@@ -486,12 +513,12 @@ function buildContainerModeBlockedPayload(action: string) {
     ok: false,
     code: "CONTAINER_MODE_ACTIVE",
     pushMode: "container" as const,
-    message: CONTAINER_MODE_WRITE_ERROR,
+    message: containerModeWriteError(),
     next_step: {
       tool: "manageMessagePush",
       action: "ensureCloudFunctionMode",
       required_params: ["appid", "env_id", "function_name", "confirm"],
-      hint: `先切换到云函数模式后再执行 ${action}`,
+      hint: t("msgPush.containerModeSwitchHint", { action }),
     },
   });
 }
@@ -522,7 +549,7 @@ async function assertCloudFunctionExists(
     return buildJsonToolResult({
       ok: false,
       code: "FUNCTION_NOT_FOUND",
-      message: `云函数 ${functionName} 不存在于环境 ${envId}，请先创建或修正参数`,
+      message: t("msgPush.functionNotFound", { functionName, envId }),
       envId,
       function_name: functionName,
       next_step: {
@@ -539,17 +566,11 @@ function buildTransportUnavailablePayload(toolName: string, action?: string) {
   return buildJsonToolResult({
     ok: false,
     code: "MSG_PUSH_TRANSPORT_UNAVAILABLE",
-    message:
-      "消息推送配置依赖微信小程序云开发 qbase 管理接口（需要微信 IDE 登录态），" +
-      "当前 CloudBase MCP 进程未注入 Cloud API 请求通道（cloudBaseOptions.requestFn），无法直连 qbase" +
-      "（安全边界：腾讯云身份不可调用微信登录态 CGI）。\n" +
-      "可用方案：\n" +
-      "- 在微信开发者工具 MCP 中使用 cloud_msg_push_query / cloud_msg_push_manage（微信 IDE 已注入 qbase 通道）\n" +
-      "- 或由宿主（微信 IDE）在 createCloudBaseMcpServer 时注入 cloudBaseOptions.requestFn，并在 pluginsEnabled 中启用 msg-push 插件",
+    message: t("msgPush.transportUnavailableMessage"),
     next_step: {
       tool: toolName,
       action,
-      hint: "需在微信 IDE 登录态通道中调用",
+      hint: t("msgPush.transportUnavailableHint"),
     },
   });
 }
@@ -568,10 +589,9 @@ function buildConfirmPayload({
   return buildJsonToolResult({
     ok: false,
     code: "CONFIRM_REQUIRED",
-    message:
-      `${message}\n\n请核对后传入 confirm="yes" 确认执行；如需取消或修改，请勿传 confirm="yes"，改传其他参数重试。`,
+    message: t("msgPush.confirmInstruction", { message }),
     confirmation_acknowledgement: {
-      text: "我已知晓并确认执行上述消息推送配置变更",
+      text: t("msgPush.confirmAckText"),
       required: true,
     },
     next_step: { tool: toolName, action, requiredParams },
@@ -582,10 +602,10 @@ function buildInvalidEventPayload(action: string, invalid: string[]) {
   return buildJsonToolResult({
     ok: false,
     code: "INVALID_EVENT_TYPE",
-    message:
-      `${action} 包含不在合法约束内的事件：${invalid.join(", ")}。` +
-      `请先调用 queryMessagePush(action=listSupportedEvents) 查询该小程序全部合法事件（含虚拟支付 7 个 xpay_* 事件），` +
-      `确认事件名称后重试。`,
+    message: t("msgPush.invalidEventMessage", {
+      action,
+      invalid: invalid.join(", "),
+    }),
     invalid_events: invalid,
     next_step: {
       tool: "queryMessagePush",
@@ -604,18 +624,39 @@ function buildMergeDiffText(
   const lines: string[] = [];
   if (action === "subscribe") {
     if (result.added.length) {
-      lines.push(`- 新增订阅（${envId}/${functionName}）: ${result.added.join(", ")}`);
+      lines.push(
+        t("msgPush.diffAdded", {
+          envId,
+          functionName,
+          events: result.added.join(", "),
+        }),
+      );
     }
     if (result.rebound.length) {
       lines.push(
-        `- 重绑事件（原绑定其他云函数，按"一事一函数"约束改绑到 ${envId}/${functionName}）: ${result.rebound.join(", ")}`,
+        t("msgPush.diffRebound", {
+          envId,
+          functionName,
+          events: result.rebound.join(", "),
+        }),
       );
     }
   } else if (action === "unsubscribe") {
-    lines.push(`- 移除订阅（${envId}/${functionName}）: ${result.removed.join(", ")}`);
+    lines.push(
+      t("msgPush.diffRemoved", {
+        envId,
+        functionName,
+        events: result.removed.join(", "),
+      }),
+    );
   } else if (action === "setEnable") {
     lines.push(
-      `- ${result.matched.length ? "" : "未匹配到条目"}订阅状态变更（${envId}/${functionName}）: ${result.matched.join(", ")}`,
+      (result.matched.length ? "" : t("msgPush.noMatchedEntries")) +
+        t("msgPush.diffSetEnable", {
+          envId,
+          functionName,
+          events: result.matched.join(", "),
+        }),
     );
   }
   return lines.join("\n");
@@ -628,14 +669,8 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "queryMessagePush",
     {
-      title: "查询小程序消息推送配置",
-      description:
-        "查询小程序云开发消息推送配置（qbase getappconfig）或全部合法消息推送事件约束（getcallbacksupportlist）。" +
-        "推送模式有两种：云函数（默认，按 (msgType,event) 逐条回调）与云托管（qbase_open=true，整包接收所有消息到容器 path）。" +
-        "action=list 同时返回 pushMode（cloudfunction|container）、containerConfig、callbacks 与 version；" +
-        "云托管模式下 callbacks 可能仍存在但不生效（见 note），需 ensureCloudFunctionMode 切回云函数模式后才会按回调推送。" +
-        "action=listSupportedEvents 返回全部合法约束（按消息类型分组）。" +
-        "需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn）。",
+      title: "msgPush.queryTitle",
+      description: "msgPush.queryDescription",
       inputSchema: {
         appid: z
           .string()
@@ -675,25 +710,25 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
         return buildJsonToolResult({
           ok: true,
           success: true,
-          message: "查询消息推送配置成功",
+          message: t("msgPush.queryListSuccess"),
           version: state.version,
           enable: state.enable,
           pushMode,
           containerConfig: pickContainerConfigPublic(container),
           callbacks,
-          note: pushMode === "container" ? CONTAINER_MODE_BLOCK_NOTE : undefined,
+          note: pushMode === "container" ? containerModeBlockNote() : undefined,
           filteredByEnv: env ?? undefined,
           next_steps:
             pushMode === "container"
               ? [
-                  "当前为云托管模式：云函数 subscribe/unsubscribe/setEnable 会被拒绝",
-                  "manageMessagePush(action=ensureCloudFunctionMode) 切回云函数模式",
-                  "manageMessagePush(action=setContainerCallback) 更新云托管 path/env/text_mode",
+                  t("msgPush.nextStepContainerRejected"),
+                  t("msgPush.nextStepEnsureCloudFunctionMode"),
+                  t("msgPush.nextStepSetContainerCallback"),
                 ]
               : [
-                  "manageMessagePush(action=subscribe) 订阅事件（缺省 event_types 时默认订阅虚拟支付 7 事件）",
-                  "manageMessagePush(action=ensureContainerMode) 切换到云托管整包接收",
-                  "queryMessagePush(action=listSupportedEvents) 查看全部合法事件",
+                  t("msgPush.nextStepSubscribe"),
+                  t("msgPush.nextStepEnsureContainerMode"),
+                  t("msgPush.nextStepListSupportedEvents"),
                 ],
         });
       }
@@ -721,22 +756,20 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
         return buildJsonToolResult({
           ok: true,
           success: true,
-          message: "获取合法消息推送事件约束成功",
+          message: t("msgPush.queryEventsSuccess"),
           msgTypes: grouped,
           totalEvents: supportedSet.size,
           xpay_default_events: {
             supported: xpaySupported,
             missing: xpayMissing,
             hint: xpayMissing.length
-              ? "以下默认事件不在当前小程序合法约束中（可能未开通虚拟支付），订阅时服务端可能拒绝"
+              ? t("msgPush.xpayMissingHint")
               : undefined,
           },
-          hint:
-            "manageMessagePush 的 event_types 仅接受上述合法事件；subscribe 缺省 event_types 时默认订阅虚拟支付 7 事件。" +
-            "消息类型条目（text/image/voice/video/miniprogrampage，events 为空数组）请用 manageMessagePush(msg_type=...) 管理，无需 event_types。",
+          hint: t("msgPush.listSupportedEventsHint"),
         });
       }
-      throw new Error(`不支持的操作类型: ${action}`);
+      throw new Error(t("msgPush.unsupportedAction", { action }));
     },
   );
 
@@ -744,16 +777,8 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "manageMessagePush",
     {
-      title: "管理小程序消息推送配置",
-      description:
-        "管理小程序云开发消息推送配置（写操作，需 confirm=\"yes\" 确认）。" +
-        "推送模式：云函数（默认，按 (msgType,event) 回调）vs 云托管（整包接收；云托管模式下 subscribe/unsubscribe/setEnable 会被拒绝，先 ensureCloudFunctionMode）。" +
-        "基于「读全量 → merge → 全量覆盖（带 version 乐观锁）」实现声明式幂等。" +
-        "msg_type 缺省 \"event\"；消息类型用 msg_type=text|image|voice|video|miniprogrampage。" +
-        "action=subscribe 前会校验 function_name 在环境中真实存在。" +
-        "action=ensureCloudFunctionMode 关闭云托管整包接收；action=ensureContainerMode 开启云托管（需 qbase_container_path/qbase_env/text_mode）；" +
-        "action=setContainerCallback 更新云托管 path/env/text_mode。" +
-        "集合无变化时不发起写请求（幂等 no-op）。需要微信 IDE 登录态通道。",
+      title: "msgPush.manageTitle",
+      description: "msgPush.manageDescription",
       inputSchema: {
         appid: z
           .string()
@@ -873,7 +898,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
             ok: true,
             success: true,
             code: "NO_CHANGE",
-            message: "当前已是云函数推送模式（云托管整包接收未开启），无需变更",
+            message: t("msgPush.alreadyCloudFunctionMode"),
             pushMode: "cloudfunction",
             containerConfig: pickContainerConfigPublic(current),
           });
@@ -882,9 +907,11 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
           return buildConfirmPayload({
             toolName: "manageMessagePush",
             action,
-            message:
-              `切换后停止云托管整包接收（qbase_open=false），消息按云函数回调推送；若 callbacks 为空则收不到任何消息。\n` +
-              `当前云托管配置：环境 ${current.qbase_env ?? "-"}，路径 ${current.qbase_container_path ?? "-"}，text_mode=${current.text_mode ?? "-"}。`,
+            message: t("msgPush.ensureCloudFunctionModeConfirm", {
+              env: current.qbase_env ?? "-",
+              path: current.qbase_container_path ?? "-",
+              textMode: current.text_mode ?? "-",
+            }),
             requiredParams: ["appid", "env_id", "function_name", "confirm"],
           });
         }
@@ -902,7 +929,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
         return buildJsonToolResult({
           ok: true,
           success: true,
-          message: "已切换到云函数推送模式（setcontainercallbackconfig qbase_open=false 成功）",
+          message: t("msgPush.switchedToCloudFunctionModeSuccess"),
           action,
           pushMode: "cloudfunction",
         });
@@ -912,19 +939,13 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
         const path = qbase_container_path?.trim();
         const containerEnv = (qbase_env ?? env_id)?.trim();
         if (!path) {
-          throw new Error(
-            'ensureContainerMode 必须提供 qbase_container_path（云托管回调路径/URL）',
-          );
+          throw new Error(t("msgPush.containerPathRequired"));
         }
         if (text_mode !== 1 && text_mode !== 2) {
-          throw new Error(
-            "ensureContainerMode 必须提供 text_mode（1=json / 2=xml）",
-          );
+          throw new Error(t("msgPush.textModeRequired"));
         }
         if (!containerEnv) {
-          throw new Error(
-            "ensureContainerMode 必须提供 qbase_env 或 env_id（云托管服务所在环境）",
-          );
+          throw new Error(t("msgPush.containerEnvRequired"));
         }
         const current = await readContainerConfig(server, appid);
         const alreadySame =
@@ -937,7 +958,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
             ok: true,
             success: true,
             code: "NO_CHANGE",
-            message: "当前已是云托管推送模式且配置一致，无需变更",
+            message: t("msgPush.alreadyContainerMode"),
             pushMode: "container",
             containerConfig: pickContainerConfigPublic(current),
           });
@@ -946,10 +967,15 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
           return buildConfirmPayload({
             toolName: "manageMessagePush",
             action,
-            message:
-              `切换后所有消息类型整包推送到云托管服务（path=${path}，env=${containerEnv}，text_mode=${text_mode}），云函数回调失效。\n` +
-              `当前：pushMode=${resolvePushMode(current)}，` +
-              `path=${current?.qbase_container_path ?? "-"}，env=${current?.qbase_env ?? "-"}，text_mode=${current?.text_mode ?? "-"}。`,
+            message: t("msgPush.ensureContainerModeConfirm", {
+              path,
+              env: containerEnv,
+              textMode: text_mode,
+              pushMode: resolvePushMode(current),
+              oldPath: current?.qbase_container_path ?? "-",
+              oldEnv: current?.qbase_env ?? "-",
+              oldTextMode: current?.text_mode ?? "-",
+            }),
             requiredParams: [
               "appid",
               "env_id",
@@ -977,7 +1003,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
         return buildJsonToolResult({
           ok: true,
           success: true,
-          message: "已切换到云托管推送模式（qbase_open=true）",
+          message: t("msgPush.switchedToContainerModeSuccess"),
           action,
           pushMode: "container",
           containerConfig: pickContainerConfigPublic(nextCfg),
@@ -1001,19 +1027,13 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
               ? (current.text_mode as 1 | 2)
               : undefined;
         if (!nextPath) {
-          throw new Error(
-            "setContainerCallback 需要 qbase_container_path（或当前已有配置可沿用）",
-          );
+          throw new Error(t("msgPush.setCallbackPathRequired"));
         }
         if (!nextEnv) {
-          throw new Error(
-            "setContainerCallback 需要 qbase_env 或 env_id（或当前已有配置可沿用）",
-          );
+          throw new Error(t("msgPush.setCallbackEnvRequired"));
         }
         if (nextTextMode !== 1 && nextTextMode !== 2) {
-          throw new Error(
-            "setContainerCallback 需要 text_mode（1=json / 2=xml，或当前已有配置可沿用）",
-          );
+          throw new Error(t("msgPush.setCallbackTextModeRequired"));
         }
         const nextCfg = {
           ...(current ?? {}),
@@ -1032,7 +1052,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
             ok: true,
             success: true,
             code: "NO_CHANGE",
-            message: "云托管回调配置无变化（幂等）",
+            message: t("msgPush.setCallbackNoChange"),
             pushMode: resolvePushMode(current),
             containerConfig: pickContainerConfigPublic(current),
           });
@@ -1043,10 +1063,16 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
           return buildConfirmPayload({
             toolName: "manageMessagePush",
             action,
-            message:
-              `即将更新云托管回调配置：\n` +
-              `- 旧: path=${before.qbase_container_path ?? "-"}, env=${before.qbase_env ?? "-"}, text_mode=${before.text_mode ?? "-"}, qbase_open=${before.qbase_open ?? false}\n` +
-              `- 新: path=${after.qbase_container_path ?? "-"}, env=${after.qbase_env ?? "-"}, text_mode=${after.text_mode ?? "-"}, qbase_open=${after.qbase_open ?? false}`,
+            message: t("msgPush.setCallbackConfirm", {
+              oldPath: before.qbase_container_path ?? "-",
+              oldEnv: before.qbase_env ?? "-",
+              oldTextMode: before.text_mode ?? "-",
+              oldOpen: String(before.qbase_open ?? false),
+              newPath: after.qbase_container_path ?? "-",
+              newEnv: after.qbase_env ?? "-",
+              newTextMode: after.text_mode ?? "-",
+              newOpen: String(after.qbase_open ?? false),
+            }),
             requiredParams: ["appid", "confirm"],
           });
         }
@@ -1054,7 +1080,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
         return buildJsonToolResult({
           ok: true,
           success: true,
-          message: "已更新云托管回调配置",
+          message: t("msgPush.setCallbackSuccess"),
           action,
           pushMode: resolvePushMode(nextCfg),
           before: pickContainerConfigPublic(current),
@@ -1065,8 +1091,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
       // Message-type entries use a fixed empty event; event_types must not be supplied
       if (!isEventMsgType && event_types && event_types.length > 0) {
         throw new Error(
-          `msg_type="${resolvedMsgType}" 时不应传 event_types（消息类型条目的 event 固定为空串 ""）；` +
-            `请去掉 event_types，仅传 msg_type / function_name / enable（setEnable 时）`,
+          t("msgPush.msgTypeNoEventTypes", { msgType: resolvedMsgType }),
         );
       }
 
@@ -1089,8 +1114,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
           // 缺省 = 虚拟支付默认事件集合
         } else if (!targets || targets.length === 0) {
           throw new Error(
-            `${action} 必须提供 event_types（要操作的事件列表，可先 queryMessagePush(action=listSupportedEvents) 查询）；` +
-              `若操作消息类型条目请传 msg_type（如 "text"），勿传 event_types`,
+            t("msgPush.eventTypesRequired", { action }),
           );
         }
         eventList = targets ?? [...XPAY_EVENT_TYPES];
@@ -1110,9 +1134,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: false,
               code: "INVALID_MSG_TYPE",
-              message:
-                `msg_type="${resolvedMsgType}" 不在 getcallbacksupportlist 合法消息类型内。` +
-                `请先 queryMessagePush(action=listSupportedEvents) 查看可用 msgTypes。`,
+              message: t("msgPush.invalidMsgType", { msgType: resolvedMsgType }),
               next_step: { tool: "queryMessagePush", action: "listSupportedEvents" },
             });
           }
@@ -1161,7 +1183,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
         );
       } else if (action === "setEnable") {
         if (enable === undefined) {
-          throw new Error("setEnable 必须提供 enable（true=启用 / false=停用）");
+          throw new Error(t("msgPush.enableRequired"));
         }
         result = mergeSetEnableList(
           state.list,
@@ -1172,7 +1194,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
           resolvedMsgType,
         );
       } else {
-        throw new Error(`不支持的操作类型: ${action}`);
+        throw new Error(t("msgPush.unsupportedAction", { action }));
       }
 
       const targetLabel = isEventMsgType
@@ -1187,10 +1209,14 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
           code: "NO_CHANGE",
           message:
             action === "subscribe"
-              ? `订阅已处于期望状态，无变更（幂等，未发起写请求）：${targetLabel} 均已绑定 ${env_id}/${function_name}`
+              ? t("msgPush.noChangeSubscribe", {
+                  targetLabel,
+                  envId: env_id,
+                  functionName: function_name,
+                })
               : action === "unsubscribe"
-                ? `未找到可移除的匹配订阅，无变更（幂等，未发起写请求）`
-                : `目标订阅状态已一致，无变更（幂等，未发起写请求）`,
+                ? t("msgPush.noChangeUnsubscribe")
+                : t("msgPush.noChangeSetEnable"),
           action,
           msg_type: resolvedMsgType,
           warnings: warnings.length ? warnings : undefined,
@@ -1213,8 +1239,13 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
         return buildConfirmPayload({
           toolName: "manageMessagePush",
           action,
-          message:
-            `即将执行消息推送配置变更（${env_id}/${function_name}，msg_type=${resolvedMsgType}，version=${state.version}）：\n${diffText}`,
+          message: t("msgPush.confirmPendingMessage", {
+            envId: env_id,
+            functionName: function_name,
+            msgType: resolvedMsgType,
+            version: state.version,
+            diff: diffText,
+          }),
           requiredParams: ["appid", "env_id", "function_name", "confirm"],
         });
       }
@@ -1245,7 +1276,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
             next_step: {
               tool: "queryMessagePush",
               action: "list",
-              hint: "重新读取最新配置后重试",
+              hint: t("msgPush.retryHint"),
             },
           });
         }
@@ -1266,18 +1297,26 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
       const changedText =
         action === "subscribe"
           ? [
-              result.added.length ? `新增 ${result.added.length} 个` : null,
-              result.rebound.length ? `重绑 ${result.rebound.length} 个` : null,
+              result.added.length
+                ? t("msgPush.changedAdded", { count: result.added.length })
+                : null,
+              result.rebound.length
+                ? t("msgPush.changedRebound", { count: result.rebound.length })
+                : null,
             ]
               .filter(Boolean)
-              .join("、")
+              .join(t("msgPush.changedJoiner"))
           : action === "unsubscribe"
-            ? `移除 ${result.removed.length} 个`
-            : `更新 ${result.matched.length} 个`;
+            ? t("msgPush.changedRemoved", { count: result.removed.length })
+            : t("msgPush.changedUpdated", { count: result.matched.length });
       return buildJsonToolResult({
         ok: true,
         success: true,
-        message: `${action} 成功（${changedText}），version=${state.version} → 服务端已更新`,
+        message: t("msgPush.actionSuccess", {
+          action,
+          changedText,
+          version: state.version,
+        }),
         action,
         msg_type: resolvedMsgType,
         added: result.added,

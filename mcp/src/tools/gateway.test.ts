@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registerGatewayTools } from "./gateway.js";
+import { t, type MessageKey } from "../i18n/index.js";
 import type { ExtendedMcpServer } from "../server.js";
 
 const {
@@ -191,7 +192,7 @@ describe("gateway tools", () => {
 
   it("manageGateway schema should cover function / CloudRun / static hosting upstreams", () => {
     const schema = tools.manageGateway.meta.inputSchema;
-    const description = tools.manageGateway.meta.description;
+    const description = t(tools.manageGateway.meta.description as MessageKey);
 
     expect(description).toContain("createRoute");
     expect(description).toContain("WEB_SCF");
@@ -717,7 +718,7 @@ describe("gateway tools", () => {
 
   it("manageGateway schema should document enableRoute/disableRoute", async () => {
     const schema = tools.manageGateway.meta.inputSchema;
-    const description = tools.manageGateway.meta.description;
+    const description = t(tools.manageGateway.meta.description as MessageKey);
 
     expect(description).toContain("enableRoute");
     expect(description).toContain("disableRoute");

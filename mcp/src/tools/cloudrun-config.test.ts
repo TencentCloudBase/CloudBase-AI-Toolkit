@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { t } from "../i18n/index.js";
 import {
   assertCpuMemPair,
   listLikelyRedeployFields,
@@ -105,7 +106,9 @@ describe("parseServerConfigToDiffItems", () => {
   });
 
   it("throws when Cpu is set without Mem", () => {
-    expect(() => parseServerConfigToDiffItems({ Cpu: 1 })).toThrow(/Cpu and Mem/);
+    expect(() => parseServerConfigToDiffItems({ Cpu: 1 })).toThrow(
+      t("cloudrunConfig.cpuMemPairRequired"),
+    );
   });
 
   it("assertCpuMemPair allows both unset", () => {

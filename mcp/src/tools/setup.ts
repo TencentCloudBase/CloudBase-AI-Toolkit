@@ -7,33 +7,30 @@ import * as os from "os";
 import * as path from "path";
 import { URL } from "url";
 import { z } from "zod";
+import { t, type MessageKey } from "../i18n/index.js";
 import { ExtendedMcpServer } from "../server.js";
 import { prepareSafeRemoteRequest } from "../utils/remote-url-safety.js";
 
-// 构建时注入的版本号
-// @ts-ignore
-declare const __MCP_VERSION__: string;
-
 // CloudBase 模板配置
-const TEMPLATES = {
+const TEMPLATES: Record<string, { description: MessageKey; url: string }> = {
   react: {
-    description: "React + CloudBase 全栈应用模板",
+    description: "setup.template.react",
     url: "https://static.cloudbase.net/cloudbase-examples/web-cloudbase-react-template.zip",
   },
   vue: {
-    description: "Vue + CloudBase 全栈应用模板",
+    description: "setup.template.vue",
     url: "https://static.cloudbase.net/cloudbase-examples/web-cloudbase-vue-template.zip",
   },
   miniprogram: {
-    description: "微信小程序 + 云开发模板",
+    description: "setup.template.miniprogram",
     url: "https://static.cloudbase.net/cloudbase-examples/miniprogram-cloudbase-miniprogram-template.zip",
   },
   uniapp: {
-    description: "UniApp + CloudBase 跨端应用模板",
+    description: "setup.template.uniapp",
     url: "https://static.cloudbase.net/cloudbase-examples/universal-cloudbase-uniapp-template.zip",
   },
   rules: {
-    description: "AI编辑器配置模板（包含所有主流编辑器配置）",
+    description: "setup.template.rules",
     url: "https://static.cloudbase.net/cloudbase-examples/web-cloudbase-project.zip",
   },
 };
@@ -157,31 +154,37 @@ const ALL_IDE_FILES = Array.from(
 // 为"all"选项添加映射
 IDE_FILE_MAPPINGS["all"] = ALL_IDE_FILES.map((path) => ({ path }));
 
-// IDE描述映射
-const IDE_DESCRIPTIONS: Record<string, string> = {
-  all: "所有IDE配置",
-  cursor: "Cursor AI编辑器",
-  windsurf: "WindSurf AI编辑器",
-  codebuddy: "CodeBuddy AI编辑器",
-  "claude-code": "Claude Code AI编辑器",
-  cline: "Cline AI编辑器",
-  "gemini-cli": "Gemini CLI",
-  opencode: "OpenCode AI编辑器",
-  "qwen-code": "通义灵码",
-  "baidu-comate": "百度Comate",
-  "openai-codex-cli": "OpenAI Codex CLI",
-  "augment-code": "Augment Code",
-  "github-copilot": "GitHub Copilot",
-  roocode: "RooCode AI编辑器（deprecated）",
-  "tongyi-lingma": "通义灵码",
-  trae: "Trae AI编辑器",
-  qoder: "Qoder AI编辑器",
-  antigravity: "Google Antigravity AI编辑器",
-  vscode: "Visual Studio Code",
-  kiro: "Kiro AI编辑器",
-  aider: "Aider AI编辑器",
-  "iflow-cli": "iFlow CLI",
+// IDE描述映射（值为词典 key，运行时经 t() 解析）
+const IDE_DESCRIPTIONS: Record<string, MessageKey> = {
+  all: "setup.ide.all",
+  cursor: "setup.ide.cursor",
+  windsurf: "setup.ide.windsurf",
+  codebuddy: "setup.ide.codebuddy",
+  "claude-code": "setup.ide.claudeCode",
+  cline: "setup.ide.cline",
+  "gemini-cli": "setup.ide.geminiCli",
+  opencode: "setup.ide.opencode",
+  "qwen-code": "setup.ide.qwenCode",
+  "baidu-comate": "setup.ide.baiduComate",
+  "openai-codex-cli": "setup.ide.openaiCodexCli",
+  "augment-code": "setup.ide.augmentCode",
+  "github-copilot": "setup.ide.githubCopilot",
+  roocode: "setup.ide.roocode",
+  "tongyi-lingma": "setup.ide.tongyiLingma",
+  trae: "setup.ide.trae",
+  qoder: "setup.ide.qoder",
+  antigravity: "setup.ide.antigravity",
+  vscode: "setup.ide.vscode",
+  kiro: "setup.ide.kiro",
+  aider: "setup.ide.aider",
+  "iflow-cli": "setup.ide.iflowCli",
 };
+
+/** 解析 IDE 描述：词典 key 优先，未知 IDE 原样返回 */
+function getIdeDescription(ide: string): string {
+  const key = IDE_DESCRIPTIONS[ide];
+  return key ? t(key) : ide;
+}
 
 // INTEGRATION_IDE 环境变量值到 IDE 类型的映射
 const INTEGRATION_IDE_MAPPING: Record<string, string> = {
@@ -254,7 +257,7 @@ const MAX_REDIRECT_HOPS = 5;
 // 下载文件到临时目录
 async function downloadFile(url: string, filePath: string, redirectCount = 0): Promise<void> {
   if (redirectCount > MAX_REDIRECT_HOPS) {
-    throw new Error(`重定向次数超过 ${MAX_REDIRECT_HOPS} 次限制`);
+    throw new Error(t("setup.download.redirectLimitExceeded", { max: MAX_REDIRECT_HOPS }));
   }
 
   const { requestUrl, requestOptions } = await prepareSafeRemoteRequest(url);
@@ -279,10 +282,10 @@ async function downloadFile(url: string, filePath: string, redirectCount = 0): P
               .then(resolve)
               .catch(reject);
           } else {
-            reject(new Error("重定向但没有location header"));
+            reject(new Error(t("setup.download.redirectNoLocation")));
           }
         } else {
-          reject(new Error(`下载失败，状态码: ${res.statusCode}`));
+          reject(new Error(t("setup.download.failedWithStatus", { status: res.statusCode ?? 0 })));
         }
       })
       .on("error", reject);
@@ -307,7 +310,7 @@ async function extractZip(zipPath: string, extractPath: string): Promise<void> {
       const entryPath = path.resolve(resolvedExtractPath, entry.entryName);
       if (!entryPath.startsWith(resolvedExtractPath + path.sep)) {
         throw new Error(
-          `解压失败: ZIP 文件中包含非法的路径 "${entry.entryName}"，已安全拦截`,
+          t("setup.extract.invalidPath", { path: entry.entryName }),
         );
       }
 
@@ -319,7 +322,9 @@ async function extractZip(zipPath: string, extractPath: string): Promise<void> {
     }
   } catch (error) {
     throw new Error(
-      `解压失败: ${error instanceof Error ? error.message : "未知错误"}`,
+      t("setup.extract.failed", {
+        reason: error instanceof Error ? error.message : t("setup.unknownError"),
+      }),
     );
   }
 }
@@ -353,7 +358,7 @@ async function copyFileIfNotExists(
   try {
     // 检查目标文件是否存在
     if (fs.existsSync(dest)) {
-      return { copied: false, reason: "文件已存在" };
+      return { copied: false, reason: t("setup.file.alreadyExists") };
     }
 
     // 创建目标目录
@@ -365,7 +370,9 @@ async function copyFileIfNotExists(
   } catch (error) {
     return {
       copied: false,
-      reason: `复制失败: ${error instanceof Error ? error.message : "未知错误"}`,
+      reason: t("setup.file.copyFailed", {
+        reason: error instanceof Error ? error.message : t("setup.unknownError"),
+      }),
     };
   }
 }
@@ -397,14 +404,14 @@ async function copyFile(
     if (template && shouldSkipReadme(template, dest, overwrite)) {
       return {
         copied: false,
-        reason: "README.md 文件已存在，已保护",
+        reason: t("setup.file.readmeProtected"),
         action: "protected",
       };
     }
 
     // 如果目标文件存在且不允许覆盖
     if (destExists && !overwrite) {
-      return { copied: false, reason: "文件已存在", action: "skipped" };
+      return { copied: false, reason: t("setup.file.alreadyExists"), action: "skipped" };
     }
 
     // 创建目标目录
@@ -419,7 +426,9 @@ async function copyFile(
   } catch (error) {
     return {
       copied: false,
-      reason: `复制失败: ${error instanceof Error ? error.message : "未知错误"}`,
+      reason: t("setup.file.copyFailed", {
+        reason: error instanceof Error ? error.message : t("setup.unknownError"),
+      }),
     };
   }
 }
@@ -440,7 +449,7 @@ export function validateIDE(ide: string): {
   if (!isValid) {
     return {
       valid: false,
-      error: `不支持的IDE类型: ${ide}`,
+      error: t("setup.invalidIdeType", { ide }),
       supportedIDEs: supportedIDEs as string[],
     };
   }
@@ -544,9 +553,8 @@ export function registerSetupTools(server: ExtendedMcpServer) {
   server.registerTool(
     "downloadTemplate",
     {
-      title: "下载项目模板",
-      description: `自动下载并部署CloudBase项目模板。
-**Note**: Call this tool when the user requests to create a new project using a CloudBase template.\n\n支持的模板:\n- react: React + CloudBase 全栈应用模板\n- vue: Vue + CloudBase 全栈应用模板\n- miniprogram: 微信小程序 + 云开发模板  \n- uniapp: UniApp + CloudBase 跨端应用模板\n- rules: 只包含AI编辑器配置文件（包含Cursor、WindSurf、CodeBuddy等所有主流编辑器配置），适合在已有项目中补充AI编辑器配置\n\n支持的IDE类型:\n- all: 下载所有IDE配置\n- cursor: Cursor AI编辑器\n- 其他IDE类型见下方列表\n\n注意：如果未传入 ide 参数且无法从环境变量检测到 IDE，将提示错误并要求传入 ide 参数\n- windsurf: WindSurf AI编辑器\n- codebuddy: CodeBuddy AI编辑器\n- claude-code: Claude Code AI编辑器\n- cline: Cline AI编辑器\n- gemini-cli: Gemini CLI\n- opencode: OpenCode AI编辑器\n- qwen-code: 通义灵码\n- baidu-comate: 百度Comate\n- openai-codex-cli: OpenAI Codex CLI\n- augment-code: Augment Code\n- github-copilot: GitHub Copilot\n- roocode: RooCode AI编辑器\n- tongyi-lingma: 通义灵码\n- trae: Trae AI编辑器\n- qoder: Qoder AI编辑器\n- antigravity: Google Antigravity AI编辑器\n- vscode: Visual Studio Code\n- kiro: Kiro AI编辑器\n- aider: Aider AI编辑器\n\n特别说明：\n- rules 模板会自动包含当前 mcp 版本号信息（版本号：${typeof __MCP_VERSION__ !== "undefined" ? __MCP_VERSION__ : "unknown"}），便于后续维护和版本追踪\n- 下载 rules 模板时，如果项目中已存在 README.md 文件，系统会自动保护该文件不被覆盖（除非设置 overwrite=true）`,
+      title: "setup.downloadTemplate.title",
+      description: "setup.downloadTemplate.description",
       inputSchema: {
         template: z
           .enum(["react", "vue", "miniprogram", "uniapp", "rules"])
@@ -591,7 +599,10 @@ export function registerSetupTools(server: ExtendedMcpServer) {
               content: [
                 {
                   type: "text",
-                  text: `❌ 无法识别当前 IDE 环境\n\n检测到 INTEGRATION_IDE="${ideResolution.integrationIDE}"，但无法映射到支持的 IDE 类型。\n\n请显式传入 \`ide\` 参数来指定要下载的 IDE 配置。\n\n支持的 IDE 类型: ${supportedIDEs}\n\n示例: \`ide: "cursor"\` 或 \`ide: "all"\`（下载所有 IDE 配置）`,
+                  text: t("setup.unmappedIde", {
+                    ide: ideResolution.integrationIDE ?? "-",
+                    ides: supportedIDEs,
+                  }),
                 },
               ],
             };
@@ -601,7 +612,7 @@ export function registerSetupTools(server: ExtendedMcpServer) {
             content: [
               {
                 type: "text",
-                text: `❌ 必须指定 IDE 参数\n\n请传入 \`ide\` 参数来指定要下载的 IDE 配置。\n\n支持的 IDE 类型: ${supportedIDEs}\n\n示例: \`ide: "cursor"\` 或 \`ide: "all"\`（下载所有 IDE 配置）`,
+                text: t("setup.missingIde", { ides: supportedIDEs }),
               },
             ],
           };
@@ -617,7 +628,7 @@ export function registerSetupTools(server: ExtendedMcpServer) {
             content: [
               {
                 type: "text",
-                text: `❌ ${ideValidation.error}\n\n支持的IDE类型: ${supportedIDEs}`,
+                text: `❌ ${ideValidation.error}\n\n${t("setup.supportedIdeTypes", { ides: supportedIDEs })}`,
               },
             ],
           };
@@ -629,7 +640,7 @@ export function registerSetupTools(server: ExtendedMcpServer) {
             content: [
               {
                 type: "text",
-                text: `❌ 不支持的模板类型: ${template}`,
+                text: t("setup.unsupportedTemplate", { template }),
               },
             ],
           };
@@ -697,56 +708,70 @@ export function registerSetupTools(server: ExtendedMcpServer) {
           }
 
           // 添加IDE过滤信息
-          const ideInfo = IDE_DESCRIPTIONS[resolvedIDE] || resolvedIDE;
+          const ideInfo = getIdeDescription(resolvedIDE);
           results.push(
-            `✅ ${templateConfig.description} (${ideInfo}) 同步完成`,
+            t("setup.syncCompleted", {
+              template: t(templateConfig.description),
+              ide: ideInfo,
+            }),
           );
-          results.push(`📁 临时目录: ${workingDir}`);
+          results.push(t("setup.tempDir", { dir: workingDir }));
           results.push(
-            `🔍 文件过滤: ${extractedFiles.length} → ${filteredFiles.length} 个文件`,
+            t("setup.fileFilter", {
+              from: extractedFiles.length,
+              to: filteredFiles.length,
+            }),
           );
           if (resolvedIDE !== "all") {
-            results.push(`✨ 已过滤IDE配置，仅保留 ${ideInfo} 相关文件`);
+            results.push(t("setup.ideFiltered", { ide: ideInfo }));
           }
 
           const stats: string[] = [];
-          if (createdCount > 0) stats.push(`新建 ${createdCount} 个文件`);
+          if (createdCount > 0) stats.push(t("setup.stats.created", { count: createdCount }));
           if (overwrittenCount > 0)
-            stats.push(`覆盖 ${overwrittenCount} 个文件`);
+            stats.push(t("setup.stats.overwritten", { count: overwrittenCount }));
           if (protectedCount > 0)
-            stats.push(`保护 ${protectedCount} 个文件（README.md）`);
-          if (skippedCount > 0) stats.push(`跳过 ${skippedCount} 个已存在文件`);
+            stats.push(t("setup.stats.protected", { count: protectedCount }));
+          if (skippedCount > 0) stats.push(t("setup.stats.skipped", { count: skippedCount }));
 
           if (stats.length > 0) {
-            results.push(`📊 ${stats.join("，")}`);
+            results.push(`📊 ${stats.join(t("setup.stats.separator"))}`);
           }
 
           if (overwrite || overwrittenCount > 0 || skippedCount > 0) {
-            results.push(`🔄 覆盖模式: ${overwrite ? "启用" : "禁用"}`);
+            results.push(
+              t("setup.overwriteMode", {
+                mode: overwrite ? t("setup.overwriteOn") : t("setup.overwriteOff"),
+              }),
+            );
           }
         } else {
           finalFiles = filteredFiles.map((relativePath) =>
             path.join(workingDir, relativePath),
           );
-          const ideInfo = IDE_DESCRIPTIONS[resolvedIDE] || resolvedIDE;
+          const ideInfo = getIdeDescription(resolvedIDE);
           results.push(
-            `✅ ${templateConfig.description} (${ideInfo}) 下载完成`,
+            t("setup.downloadCompleted", {
+              template: t(templateConfig.description),
+              ide: ideInfo,
+            }),
           );
-          results.push(`📁 保存在临时目录: ${workingDir}`);
+          results.push(t("setup.savedToTempDir", { dir: workingDir }));
           results.push(
-            `🔍 文件过滤: ${extractedFiles.length} → ${filteredFiles.length} 个文件`,
+            t("setup.fileFilter", {
+              from: extractedFiles.length,
+              to: filteredFiles.length,
+            }),
           );
           if (resolvedIDE !== "all") {
-            results.push(`✨ 已过滤IDE配置，仅保留 ${ideInfo} 相关文件`);
+            results.push(t("setup.ideFiltered", { ide: ideInfo }));
           }
-          results.push(
-            "💡 如需将模板（包括隐藏文件）复制到项目目录，请确保复制时包含所有隐藏文件。",
-          );
+          results.push(t("setup.copyHiddenFilesHint"));
         }
 
         // 文件路径列表
         results.push("");
-        results.push("📋 文件列表:");
+        results.push(t("setup.fileListHeader"));
         finalFiles.forEach((filePath) => {
           results.push(`${filePath}`);
         });
@@ -764,7 +789,9 @@ export function registerSetupTools(server: ExtendedMcpServer) {
           content: [
             {
               type: "text",
-              text: `❌ 下载模板失败: ${error instanceof Error ? error.message : "未知错误"}`,
+              text: t("setup.download.failed", {
+                reason: error instanceof Error ? error.message : t("setup.unknownError"),
+              }),
             },
           ],
         };

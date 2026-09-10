@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { t } from "../i18n/index.js";
 import {
   getCloudBaseManager,
   getEnvId,
@@ -258,15 +259,15 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         ...(result.RequestId ? { requestId: result.RequestId } : {}),
       },
       message: hasDns
-        ? "HTTP 服务域名配置预检未通过：域名归属权校验失败。请按 data.checks 中 ownership.dnsRecords 配置 DNS TXT 记录后重试。"
-        : "HTTP 服务域名配置预检未通过。请根据 data.checks 修复问题后重试。",
+        ? t("gateway.verify.failWithDns")
+        : t("gateway.verify.fail"),
       nextActions: [
         {
           tool: "manageGateway",
           action: params.action,
           reason: hasDns
-            ? "配置 DNS TXT（主机记录/记录类型/记录值见 data.checks[].dnsRecords）后重新调用本 action"
-            : "根据 data.checks 修复预检失败项后重新调用本 action",
+            ? t("gateway.verify.failWithDnsReason")
+            : t("gateway.verify.failReason"),
         },
       ],
     };
@@ -302,7 +303,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       throw new Error(
-        `获取 SSL 证书列表失败：${message}。请传入 certificateId，或确认账号有 SSL 证书服务权限。`,
+        t("gateway.cert.listFailed", { message }),
       );
     }
 
@@ -312,13 +313,12 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         envelope: {
           success: false,
           data: { action: "bindCustomDomain", domain, certificates: [] },
-          message: `未找到域名 [${domain}] 相关的可用 SSL 证书。请在腾讯云 SSL 证书控制台上传/申请后传入 certificateId 重试。`,
+          message: t("gateway.cert.noneFound", { domain }),
           nextActions: [
             {
               tool: "manageGateway",
               action: "bindCustomDomain",
-              reason:
-                "上传或申请匹配该域名的证书后，传入 certificateId 再调用 bindCustomDomain",
+              reason: t("gateway.cert.noneFoundReason"),
             },
           ],
         },
@@ -329,7 +329,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       const only = certificates[0]?.CertificateId;
       if (!only) {
         throw new Error(
-          `域名 [${domain}] 匹配到证书但缺少 CertificateId，请显式传入 certificateId。`,
+          t("gateway.cert.missingId", { domain }),
         );
       }
       return { ok: true, certificateId: only };
@@ -351,13 +351,17 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           domain,
           certificates: options,
         },
-        message: `找到 ${certificates.length} 个匹配证书，请选择其中一个 certificateId 后重试 bindCustomDomain（MCP 非交互，不会自动选择）。`,
+        message: t("gateway.cert.multiSelect", { count: certificates.length }),
         nextActions: options
           .filter((c) => c.certificateId)
           .map((c) => ({
             tool: "manageGateway",
             action: "bindCustomDomain",
-            reason: `使用 certificateId=${c.certificateId}（domain=${c.domain ?? "-"}, 到期=${c.certEndTime ?? "-"}）重试`,
+            reason: t("gateway.cert.multiReason", {
+              certificateId: c.certificateId ?? "-",
+              domain: c.domain ?? "-",
+              certEndTime: c.certEndTime ?? "-",
+            }),
           })),
       },
     };
@@ -502,17 +506,17 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
   const buildPrivilegeDescription = (privilege: GatewayPrivilege) => {
     const serviceStatus =
       privilege.EnableService === undefined
-        ? "未知"
+        ? t("gateway.privilege.unknown")
         : privilege.EnableService === true
-          ? "已开启"
-          : "未开启";
+          ? t("gateway.privilege.on")
+          : t("gateway.privilege.off");
     const authStatus =
       privilege.EnableAuth === undefined
-        ? "未知"
+        ? t("gateway.privilege.unknown")
         : privilege.EnableAuth === true
-          ? "已开启"
-          : "未开启";
-    return `HTTP 网关${serviceStatus}，访问鉴权${authStatus}`;
+          ? t("gateway.privilege.on")
+          : t("gateway.privilege.off");
+    return t("gateway.privilege.description", { serviceStatus, authStatus });
   };
 
   const resolveDefaultHttpDomain = async () => {
@@ -540,7 +544,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
 
     if (!preferred?.Domain) {
       throw new Error(
-        "环境默认 HTTP 访问域名未就绪或未开通。请先在控制台开通 HTTP 访问服务，或用 queryGateway(action=\"listRoutes\") 确认 Domains 中是否存在 DomainType=HTTPSERVICE 且 IsDefault=true 的域名（形如 *.{region}.app.tcloudbase.com）；不要使用静态托管域名（*.tcloudbaseapp.com）。也可以显式传入 domain 后重试 createRoute/updateRoute/deleteRoute。",
+        t("gateway.defaultDomain.notReady"),
       );
     }
 
@@ -565,9 +569,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     }
 
     throw new Error(
-      "必须提供 upstreamResourceType（或 route.upstreamResourceType）：" +
-        "WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，LH=轻量应用服务器。" +
-        "禁止仅凭 targetName/serviceName 推断上游类型。",
+      t("gateway.upstreamTypeRequired"),
     );
   };
 
@@ -600,8 +602,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       input.route?.serviceName ?? input.targetName;
     if (!upstreamResourceName) {
       throw new Error(
-        "必须提供 targetName 或 route.serviceName 作为上游资源名称：" +
-          "云函数名、云托管服务名，或静态托管实例名（常见为 staticstore）。",
+        t("gateway.upstreamNameRequired"),
       );
     }
 
@@ -685,7 +686,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     const routePath = input.routePath ?? input.path;
     if (!routePath) {
       throw new Error(
-        "action=enableRoute/disableRoute 时必须提供 path 或 route.path（例如 \"/\" 或 \"/api\"）",
+        t("gateway.toggle.pathRequired"),
       );
     }
 
@@ -713,19 +714,26 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
 
     if (matches.length === 0) {
       throw new Error(
-        `未找到路径 ${normalizedPath} 的路由` +
-          (preferredDomain ? `（域名 ${preferredDomain}）` : "") +
-          (upstreamName ? `（上游 ${upstreamName}）` : "") +
-          "。请先用 queryGateway(action=\"listRoutes\") 确认 Domain / Path，再调用 enableRoute/disableRoute。" +
-          "关闭静态托管默认域名（*.tcloudbaseapp.com）时，请显式传 domain=该 STATIC_STORE IsDefault 域名，并通常 path=\"/\"。",
+        t("gateway.toggle.notFound", {
+          path: normalizedPath,
+          domainSuffix: preferredDomain
+            ? t("gateway.toggle.notFoundDomainSuffix", { domain: preferredDomain })
+            : "",
+          upstreamSuffix: upstreamName
+            ? t("gateway.toggle.notFoundUpstreamSuffix", { upstreamName })
+            : "",
+        }),
       );
     }
 
     if (matches.length > 1) {
       const domains = [...new Set(matches.map((item) => item.Domain))];
       throw new Error(
-        `路径 ${normalizedPath} 匹配到 ${matches.length} 条路由（域名：${domains.join(", ")}）。` +
-          "请补充 domain（必要时再加 targetName/route.serviceName）精确定位后再 enableRoute/disableRoute。",
+        t("gateway.toggle.ambiguous", {
+          path: normalizedPath,
+          count: matches.length,
+          domains: domains.join(", "),
+        }),
       );
     }
 
@@ -738,20 +746,17 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     {
       tool: "queryGateway",
       action: "getRoute",
-      reason:
-        "创建后通常数秒到约 30 秒内生效；请立刻轮询 getRoute 或探测 accessUrl，勿盲等 60 秒以上",
+      reason: t("gateway.mutation.pollGetRoute"),
     },
     {
       tool: "queryPermissions",
       action: "getResourcePermission",
-      reason:
-        "确认函数安全规则是否允许预期访问方；网关 EnableAuth/auth=false 不等于函数已允许匿名访问",
+      reason: t("gateway.mutation.checkPermission"),
     },
     {
       tool: "managePermissions",
       action: "updateResourcePermission",
-      reason:
-        "只有在确认需要匿名或浏览器直连访问时，才按实际安全要求更新函数权限",
+      reason: t("gateway.mutation.updatePermission"),
     },
   ];
 
@@ -772,7 +777,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             total: customDomains.length,
             raw: result,
           },
-          `已获取 ${customDomains.length} 个自定义域名`,
+          t("gateway.query.listCustomDomains", { count: customDomains.length }),
         );
       }
       case "listRoutes": {
@@ -788,13 +793,13 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             total: result.TotalCount ?? routes.length,
             raw: result,
           },
-          `已获取 ${result.TotalCount ?? routes.length} 条 HTTP 路由`,
+          t("gateway.query.listRoutes", { count: result.TotalCount ?? routes.length }),
         );
       }
       case "getRoute": {
         if (!input.routeId && !input.targetName && !input.path) {
           throw new Error(
-            "action=getRoute 时至少需要提供 routeId、targetName 或 path",
+            t("gateway.query.getRouteRequired"),
           );
         }
 
@@ -842,15 +847,15 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             raw: result,
           },
           matches.length === 0
-            ? "未找到对应路由"
+            ? t("gateway.query.getRouteNotFound")
             : matches.length === 1
-              ? "已获取路由详情"
-              : `匹配到 ${matches.length} 条路由，请补充 path 或 domain 精确定位`,
+              ? t("gateway.query.getRouteSingle")
+              : t("gateway.query.getRouteMulti", { count: matches.length }),
           [
             {
               tool: "manageGateway",
               action: "createRoute",
-              reason: "为该目标新增 Domain/Route 访问路径",
+              reason: t("gateway.query.getRouteCreateReason"),
             },
           ],
         );
@@ -868,23 +873,20 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             raw: privilege,
           },
           buildPrivilegeDescription(privilege) +
-            (enableService
-              ? ""
-              : "；若路由创建成功但访问报 HTTPSERVICE_NONACTIVATED（403），请先开启 HTTP 网关"),
+            (enableService ? "" : t("gateway.privilege.nonActivatedHint")),
           enableService
             ? undefined
             : [
                 {
                   tool: "manageGateway",
                   action: "enableService",
-                  reason:
-                    "开启 HTTP 网关总开关（EnableService），开启后路由即可通过默认域访问",
+                  reason: t("gateway.privilege.enableServiceReason"),
                 },
               ],
         );
       }
       default:
-        throw new Error(`不支持的操作类型: ${input.action}`);
+        throw new Error(t("gateway.error.unsupportedAction", { action: input.action }));
     }
   };
 
@@ -916,16 +918,14 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);
           if (message.includes("An error has occurred")) {
-            let hint =
-              "为目标资源配置访问路由失败（后端内部错误）。请确保：1) 目标云函数已成功创建并处于 Active 状态；2) 环境默认 HTTP 域名已完成初始化（IsDefault）；3) 该访问路径未被占用。";
+            let hint = t("gateway.create.backendError");
             if (
               payload.resolved.upstreamResourceType === "WEB_SCF" ||
               payload.resolved.upstreamResourceType === "SCF"
             ) {
-              hint +=
-                "此外注意：HTTP 云函数必须用 upstreamResourceType=WEB_SCF，Event 云函数必须用 SCF；互标会导致此错误。";
+              hint += t("gateway.create.backendErrorScfHint");
             }
-            throw new Error(`${hint} 原始错误：${message}`);
+            throw new Error(`${hint}${t("gateway.create.backendErrorSuffix", { message })}`);
           }
           throw err;
         }
@@ -940,20 +940,17 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         try {
           const privilege = await getGatewayPrivilege();
           if (privilege.EnableService !== true) {
-            privilegeHint =
-              "⚠️ HTTP 网关总开关未开启，路由创建成功后访问仍将返回 HTTPSERVICE_NONACTIVATED（403）；请先调用 manageGateway(action=\"enableService\", enable=true) 开启，再立刻探测 accessUrl（通常数秒到约 30 秒内生效，勿盲等 60 秒以上）。";
+            privilegeHint = t("gateway.create.privilegeOffHint");
             privilegeNextActions = [
               {
                 tool: "manageGateway",
                 action: "enableService",
-                reason:
-                  "开启 HTTP 网关总开关（EnableService），否则访问路由会报 HTTPSERVICE_NONACTIVATED（403）",
+                reason: t("gateway.create.privilegeOffReason"),
               },
             ];
           }
         } catch {
-          privilegeHint =
-            "（无法确认 HTTP 网关开关状态；若访问报 HTTPSERVICE_NONACTIVATED，请用 queryGateway(action=\"getPrivilege\") 查询后用 manageGateway(action=\"enableService\") 开启）";
+          privilegeHint = t("gateway.create.privilegeUnknownHint");
         }
 
         return buildEnvelope(
@@ -976,13 +973,18 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
                 : "gateway.default",
             raw: result,
           },
-          `已为目标 ${payload.resolved.upstreamResourceName} 在域名 ${payload.resolved.domain} 创建路由 ${payload.resolved.path}（${payload.resolved.upstreamResourceType}）` +
+          t("gateway.create.message", {
+            upstreamResourceName: payload.resolved.upstreamResourceName,
+            domain: payload.resolved.domain,
+            path: payload.resolved.path,
+            upstreamResourceType: payload.resolved.upstreamResourceType,
+          }) +
             (payload.resolved.enablePathTransmission === true
-              ? "；已开启路径透传（后端收到完整请求路径）"
+              ? t("gateway.create.pathTransmissionOn")
               : payload.resolved.enablePathTransmission === false
-                ? "；路径透传关闭（网关会剥掉触发路径前缀后再转发给后端）"
-                : "；路径透传未显式设置（平台默认 false，会剥掉触发路径前缀）") +
-            `。注意：路由配置传播通常数秒到约 30 秒；请立刻用 queryGateway(getRoute) 或探测 accessUrl 确认，勿盲等 60 秒以上。该操作只创建网关入口，不会自动放开上游权限；若上游是云函数且需要匿名或浏览器直接访问，请继续检查函数资源权限。` +
+                ? t("gateway.create.pathTransmissionOff")
+                : t("gateway.create.pathTransmissionUnset")) +
+            t("gateway.create.messageTail") +
             (privilegeHint ? ` ${privilegeHint}` : ""),
           [
             ...privilegeNextActions,
@@ -1036,18 +1038,21 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
                 : "gateway.default",
             raw: result,
           },
-          `HTTP 路由更新成功（${payload.resolved.domain}${payload.resolved.path}` +
+          t("gateway.update.message", {
+            domain: payload.resolved.domain,
+            path: payload.resolved.path,
+          }) +
             (payload.resolved.enable === false
-              ? "，路由已禁用 Enable=false"
+              ? t("gateway.update.enableOff")
               : payload.resolved.enable === true
-                ? "，路由已启用 Enable=true"
+                ? t("gateway.update.enableOn")
                 : "") +
             (payload.resolved.enablePathTransmission === true
-              ? "，路径透传=开启"
+              ? t("gateway.update.transmissionOn")
               : payload.resolved.enablePathTransmission === false
-                ? "，路径透传=关闭"
+                ? t("gateway.update.transmissionOff")
                 : "") +
-            `）`,
+            t("gateway.update.messageEnd"),
           routeMutationNextActions(payload.resolved.upstreamResourceName),
         );
       }
@@ -1074,7 +1079,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           String(existing.UpstreamResourceName ?? "");
         if (!upstreamResourceName) {
           throw new Error(
-            `action=${input.action} 无法解析上游资源名；请用 queryGateway(listRoutes) 确认后传入 targetName 或 route.serviceName。`,
+            t("gateway.toggle.upstreamNameRequired", { action: input.action }),
           );
         }
 
@@ -1125,7 +1130,9 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         } as any);
         logCloudBaseResult(server.logger, result);
 
-        const verb = enable ? "启用" : "禁用";
+        const verb = enable
+          ? t("gateway.toggle.verbEnable")
+          : t("gateway.toggle.verbDisable");
         const accessUrl = enable
           ? `https://${domain}${normalizedPath}`
           : undefined;
@@ -1157,16 +1164,16 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
               : "gateway.custom",
             raw: result,
           },
-          `HTTP 路由已${verb}（${domain}${normalizedPath}，Enable=${enable}）。` +
+          t("gateway.toggle.title", { verb, domain, path: normalizedPath, enable: String(enable) }) +
             (enable
-              ? "启用后通常数秒到约 30 秒内可访问；请用 queryGateway(getRoute) 或探测 accessUrl 确认。"
-              : "禁用后该路径将不可公网访问（GATEWAY_ROUTE_DISABLED）；关闭静态托管默认域名（*.tcloudbaseapp.com）时，请确认 DomainType=STATIC_STORE 且 IsDefault=true。") +
-            " 底层对应 tcb ModifyHTTPServiceRoute（不是 ModifyGatewayRoute）。",
+              ? t("gateway.toggle.enabledTail")
+              : t("gateway.toggle.disabledTail")) +
+            t("gateway.toggle.messageEnd"),
           [
             {
               tool: "queryGateway",
               action: "getRoute",
-              reason: `复核路由 Enable=${enable} 是否已生效`,
+              reason: t("gateway.toggle.verifyReason", { enable: String(enable) }),
             },
           ],
         );
@@ -1174,7 +1181,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       case "deleteRoute": {
         const routePath = input.route?.path ?? input.path;
         if (!routePath) {
-          throw new Error("action=deleteRoute 时必须提供 route.path 或 path");
+          throw new Error(t("gateway.deleteRoute.pathRequired"));
         }
         const cloudbase = await getManager();
         const domain = await resolveRouteDomain(input.domain);
@@ -1194,24 +1201,22 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             path: normalizedPath,
             raw: result,
           },
-          "HTTP 路由删除成功",
+          t("gateway.deleteRoute.message"),
         );
       }
       case "bindCustomDomain": {
         if (!input.domain) {
-          throw new Error("action=bindCustomDomain 时必须提供 domain");
+          throw new Error(t("gateway.bind.domainRequired"));
         }
         const accessType = input.accessType ?? "DIRECT";
         if (accessType === "CUSTOM" && !input.customCname) {
           throw new Error(
-            "action=bindCustomDomain 且 accessType=CUSTOM 时必须提供 customCname（自有 CDN/WAF 的回源/回填地址，不是 DNS 解析目标）。" +
-              "说明：https://docs.cloudbase.net/service/custom-domain",
+            t("gateway.bind.customCnameRequired"),
           );
         }
         if (accessType !== "CUSTOM" && input.customCname) {
           throw new Error(
-            "customCname 仅在 accessType=CUSTOM 时可用；普通绑定用默认 DIRECT，不要传 customCname。" +
-              "说明：https://docs.cloudbase.net/service/custom-domain",
+            t("gateway.bind.customCnameNotAllowed"),
           );
         }
 
@@ -1274,20 +1279,19 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
               : {}),
             raw: result,
           },
-          `自定义域名绑定成功（${accessType}）`,
+          t("gateway.bind.message", { accessType }),
           [
             {
               tool: "manageGateway",
               action: "createRoute",
-              reason:
-                "绑定后需 createRoute 添加访问路径，并完成 DNS CNAME 解析后才可访问",
+              reason: t("gateway.bind.createRouteReason"),
             },
           ],
         );
       }
       case "deleteCustomDomain": {
         if (!input.domain) {
-          throw new Error("action=deleteCustomDomain 时必须提供 domain");
+          throw new Error(t("gateway.deleteCustomDomain.domainRequired"));
         }
         const cloudbase = await getManager();
         try {
@@ -1303,7 +1307,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
               domain: input.domain,
               raw: result,
             },
-            "自定义域名删除成功",
+            t("gateway.deleteCustomDomain.message"),
           );
         } catch (error) {
           const message =
@@ -1313,20 +1317,20 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
             return {
               success: false,
               data: { action: input.action, domain: input.domain },
-              message:
-                `域名 ${input.domain} 下仍有路由绑定，需先删除路由再删除域名。` +
-                `原始错误：${message}`,
+              message: t("gateway.deleteCustomDomain.routeBinding", {
+                domain: input.domain,
+                message,
+              }),
               nextActions: [
                 {
                   tool: "queryGateway",
                   action: "listRoutes",
-                  reason: "查看该域名下的路由，确认需要删除的路径",
+                  reason: t("gateway.deleteCustomDomain.listRoutesReason"),
                 },
                 {
                   tool: "manageGateway",
                   action: "deleteRoute",
-                  reason:
-                    "先删除该域名下的全部路由（逐个 deleteRoute），再重试 deleteCustomDomain",
+                  reason: t("gateway.deleteCustomDomain.deleteRoutesReason"),
                 },
               ],
             };
@@ -1336,36 +1340,33 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       }
       case "enableService": {
         if (typeof input.enable !== "boolean") {
-          throw new Error(
-            'action=enableService 时必须提供 enable 参数（boolean），如 enable=true 开启 HTTP 网关总开关、enable=false 关闭；禁止省略或传非布尔值。',
-          );
+          throw new Error(t("gateway.enableService.enableRequired"));
         }
         const cloudbase = await getManager();
         const result = await cloudbase.access.switchAuth(input.enable);
         logCloudBaseResult(server.logger, result);
 
-        const serviceText = input.enable ? "开启" : "关闭";
         return buildEnvelope(
           {
             action: input.action,
             enable: input.enable,
             raw: result,
           },
-          `HTTP 网关总开关${serviceText}成功`,
+          input.enable
+            ? t("gateway.enableService.onMessage")
+            : t("gateway.enableService.offMessage"),
           [
             {
               tool: "queryGateway",
               action: "getPrivilege",
-              reason: "复核 HTTP 网关总开关与访问鉴权状态",
+              reason: t("gateway.enableService.verifyReason"),
             },
           ],
         );
       }
       case "authSwitch": {
         if (typeof input.enable !== "boolean") {
-          throw new Error(
-            'action=authSwitch 时必须提供 enable 参数（boolean），如 enable=true 开启访问鉴权、enable=false 关闭；禁止省略或传非布尔值。',
-          );
+          throw new Error(t("gateway.authSwitch.enableRequired"));
         }
         const cloudbase = await getManager();
         const result = await cloudbase
@@ -1385,38 +1386,34 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           });
         logCloudBaseResult(server.logger, result);
 
-        const serviceText = input.enable ? "开启" : "关闭";
         return buildEnvelope(
           {
             action: input.action,
             enable: input.enable,
             raw: result,
           },
-          `HTTP 访问服务鉴权${serviceText}成功`,
+          input.enable
+            ? t("gateway.authSwitch.onMessage")
+            : t("gateway.authSwitch.offMessage"),
           [
             {
               tool: "queryGateway",
               action: "getPrivilege",
-              reason: "复核 HTTP 网关总开关与访问鉴权状态",
+              reason: t("gateway.authSwitch.verifyReason"),
             },
           ],
         );
       }
       default:
-        throw new Error(`不支持的操作类型: ${input.action}`);
+        throw new Error(t("gateway.error.unsupportedAction", { action: input.action }));
     }
   };
 
   server.registerTool?.(
     "queryGateway",
     {
-      title: "查询 CloudBase 网关",
-      description:
-        "CloudBase HTTP 网关统一只读入口（Domain/Route）。查询域名下路径路由及其上游：" +
-        "WEB_SCF/SCF=云函数，CBR=云托管，STATIC_STORE=静态托管，LH=轻量应用服务器。" +
-        "主键为 Domain + Path；listRoutes / getRoute / listCustomDomains / getPrivilege。" +
-        "getPrivilege 查询 HTTP 网关总开关（enableService）与访问鉴权（enableAuth）状态。" +
-        "实现自定义域名访问前，先 listCustomDomains：若已有自定义域名，优先 createRoute 挂路由（无需证书 ID）；仅在没有可用自定义域名时才 bindCustomDomain。",
+      title: "gateway.query.title",
+      description: "gateway.query.description",
       inputSchema: {
         action: z
           .enum(QUERY_GATEWAY_ACTIONS)
@@ -1454,23 +1451,8 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "manageGateway",
     {
-      title: "管理 CloudBase 网关",
-      description:
-        "CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute/deleteRoute 把域名下的 path 转到上游；" +
-        "enableRoute/disableRoute 启用或禁用已有路由（底层 ModifyHTTPServiceRoute 的 Routes[].Enable，不是 ModifyGatewayRoute）。" +
-        "未传 domain 时用 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（形如 *.{region}.app.tcloudbase.com），不会使用静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）。" +
-        "这是网关默认域上的路径路由，不是 STATIC_STORE 上游绑定；STATIC_STORE 上游必须显式传 upstreamResourceType=STATIC_STORE。" +
-        "关闭静态托管默认域名（*.tcloudbaseapp.com）：先 queryGateway(listRoutes) 找到 DomainType=STATIC_STORE 且 IsDefault=true 的 domain，再 manageGateway(action=\"disableRoute\", domain=该域名, path=\"/\")；勿用 manageHosting。" +
-        "创建后可用 queryGateway(action=\"listRoutes\") 核对 Domain / DomainType / Path / UpstreamResourceType。" +
-        "上游类型只用一个参数 upstreamResourceType（也可写在 route.upstreamResourceType，route 优先）：" +
-        "WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，LH=轻量应用服务器；" +
-        "配合 targetName 或 route.serviceName（云函数名/云托管服务名/静态托管实例名，常见 staticstore）。" +
-        "createRoute 只建网关入口，不改上游权限。" +
-        "enablePathTransmission：默认 false 剥触发路径前缀；true 透传完整路径（CBR 多路由、WEB_SCF 自管子路径常需 true；STATIC_STORE 自定义触发路径映射站点根通常 false）。" +
-        "⚠️ 自定义域名访问：若环境已有自定义域名（先 queryGateway listCustomDomains），优先 createRoute 并显式传入该 domain，无需 certificateId；" +
-        "仅首次绑定全新自定义域名时用 bindCustomDomain（certificateId 可选：未传时按域名自动检索证书，单证书自动选用、多证书返回选择指引）。" +
-        "createRoute / bindCustomDomain 创建前会调用 VerifyHTTPServiceRoute 做归属权等预检（探测→创建）；失败时返回 data.checks 与 DNS TXT 指引，配置后重试。CORS/安全域名（浏览器跨域白名单，与本工具的网关自定义域名无关）用 manageEnv(action=addSecurityDomain/removeSecurityDomain)。" +
-        "enableService/authSwitch：HTTP 网关总开关与访问鉴权开关；createRoute 后若访问报 HTTPSERVICE_NONACTIVATED，通常是总开关未开启（用 queryGateway getPrivilege 查询、enableService 开启）。",
+      title: "gateway.manage.title",
+      description: "gateway.manage.description",
       inputSchema: {
         action: z
           .enum(MANAGE_GATEWAY_ACTIONS)

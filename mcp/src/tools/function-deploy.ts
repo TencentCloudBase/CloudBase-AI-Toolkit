@@ -5,6 +5,8 @@ import type {
   IFunctionDeployResult,
 } from "@cloudbase/manager-node/types/deploy/types.js";
 
+import { t } from "../i18n/index.js";
+
 import type { FunctionDeployConfigInput } from "./function-deploy-schema.js";
 import {
   applyFunctionDeployProgress,
@@ -255,36 +257,38 @@ export function serializeFunctionDeployTask(
   };
 }
 
-const POLL_HINT = "请继续轮询，不要向用户报告部署完成。";
+function pollHint(): string {
+  return t("functionDeploy.pollHint");
+}
 
 /** 运行中任务的当前阶段短语，用于拼装面向 Agent 的提示文案。 */
 function describeRunningPhase(task: FunctionDeployTask): string {
   if (task.deploy.status === "waiting-active") {
-    return "正在等待 Active 状态";
+    return t("functionDeploy.phaseWaitingActive");
   }
   // queued 也属于 in-flight，但它是「构建尚未开始」而非「正在构建」，单独措辞
   if (task.build.status === "queued") {
-    return "镜像构建排队中（尚未收到首个构建事件）";
+    return t("functionDeploy.phaseBuildQueued");
   }
   if (IN_FLIGHT_BUILD_STATUSES.has(task.build.status)) {
-    return `正在执行镜像构建（${task.build.status}）`;
+    return t("functionDeploy.phaseBuilding", { status: task.build.status });
   }
-  return "部署任务执行中";
+  return t("functionDeploy.phaseRunning");
 }
 
 export function describeFunctionDeployTask(task: FunctionDeployTask): string {
-  const subject = `云函数 ${task.functionName}`;
+  const subject = t("functionDeploy.taskSubject", { fnName: task.functionName });
   switch (task.status) {
   case "running":
-    return `${subject} ${describeRunningPhase(task)}；${POLL_HINT}`;
+    return `${subject} ${describeRunningPhase(task)}；${pollHint()}`;
   case "succeeded":
-    return `${subject} 镜像部署成功。`;
+    return `${subject} ${t("functionDeploy.statusSucceeded")}`;
   case "failed":
-    return `${subject} 部署失败，请根据 error.stage 和 progress 排查。`;
+    return `${subject} ${t("functionDeploy.statusFailed")}`;
   case "expired":
-    return `${subject} 的部署任务已过期（超过最长保留时间）；云端可能仍在部署，请用 getFunctionDetail 确认实际状态。`;
+    return `${subject} ${t("functionDeploy.statusExpired")}`;
   default:
-    return `${subject} 部署任务状态未知。`;
+    return `${subject} ${t("functionDeploy.statusUnknown")}`;
   }
 }
 
@@ -377,12 +381,10 @@ function buildRegistryCredentialHint(checks: Array<Record<string, unknown>>): st
     return "";
   }
 
-  return (
-    `个人版 TCR 推送凭证缺失或不合法：请在 MCP 配置的 env 中设置 ` +
-    `${TCR_CREDENTIAL_ENV_VARS.username}（腾讯云账号 UIN）与 ` +
-    `${TCR_CREDENTIAL_ENV_VARS.password}，配置后无需在请求参数中传递密码；` +
-    `不要向用户索要密码明文并写入工具参数。`
-  );
+  return t("functionDeploy.registryCredentialHint", {
+    username: TCR_CREDENTIAL_ENV_VARS.username,
+    password: TCR_CREDENTIAL_ENV_VARS.password,
+  });
 }
 
 /**
@@ -405,7 +407,7 @@ export async function executeFunctionDeploy(
       success: false as const,
       data: { configReport },
       errorCode: "CONFIG_INVALID",
-      message: `云函数镜像部署配置校验未通过，未执行部署。${credentialHint}`,
+      message: t("functionDeploy.configInvalid") + credentialHint,
     };
   }
 
@@ -415,8 +417,8 @@ export async function executeFunctionDeploy(
     success: true as const,
     data: sanitizeFunctionDeployResult(result),
     message: result.dryRun
-      ? `已生成云函数 ${result.functionName} 的镜像部署 dry-run 计划，未执行构建、推送或云端变更。`
-      : `云函数 ${result.functionName} 镜像部署成功。`,
+      ? t("functionDeploy.dryRunPlanGenerated", { fnName: result.functionName })
+      : t("functionDeploy.deploySucceeded", { fnName: result.functionName }),
   };
 }
 

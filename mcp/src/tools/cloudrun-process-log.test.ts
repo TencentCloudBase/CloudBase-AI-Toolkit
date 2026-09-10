@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { t, type MessageKey } from "../i18n/index.js";
 
 const { mockGetCloudBaseManager, mockGetEnvId } = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
@@ -84,7 +85,7 @@ describe("queryCloudRun getProcessLog schema", () => {
     expect(actionDesc).toMatch(/getProcessLog=.*运行日志/);
     expect(actionDesc).toMatch(/CODING/);
     expect(tools.queryCloudRun.meta.inputSchema.runId).toBeDefined();
-    expect(tools.queryCloudRun.meta.description).toMatch(/getProcessLog/);
+    expect(t(tools.queryCloudRun.meta.description as MessageKey)).toMatch(/getProcessLog/);
   });
 
   it("documents InitialDelaySeconds real readiness semantics", async () => {

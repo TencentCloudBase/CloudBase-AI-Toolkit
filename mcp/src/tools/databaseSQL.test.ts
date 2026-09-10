@@ -670,7 +670,7 @@ describe("SQL database tools", () => {
         },
       },
     });
-    expect(payload.message).toMatch(/TCP migration/i);
+    expect(payload.message).toMatch(/TCP 迁移/);
     expect(payload.nextActions?.[0]).toMatchObject({
       tool: "queryMysqlDatabase",
       action: "runQuery",

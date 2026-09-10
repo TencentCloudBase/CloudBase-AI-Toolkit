@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { loadEnvVariables } from "@cloudbase/toolbox";
 import type { ProjectConfig } from "./site-map.js";
 
@@ -145,4 +145,46 @@ export function readProjectEnvId(cwd?: string): string | undefined {
     }
   }
   return readCloudbaseRcBinding(cwd)?.envId;
+}
+
+/**
+ * 合并写入项目级配置 `.cloudbase/project.json`（机器管理文件）。
+ *
+ * 仅 patch 传入的字段（undefined 不覆盖既有值）；文件不存在时创建（含 `.cloudbase`
+ * 目录）。cloudbaserc.json 保持**只读不写**——那是 CLI 维护的人工部署配置。
+ * 写失败不抛出（fail-safe），由调用方决定是否提示。
+ *
+ * @returns 是否写入成功
+ */
+export function writeProjectConfig(
+  patch: Partial<ProjectConfig>,
+  cwd?: string,
+): boolean {
+  try {
+    const projectRoot = cwd ?? process.env.WORKSPACE_FOLDER_PATHS ?? process.cwd();
+    const configPath = join(projectRoot, ".cloudbase", "project.json");
+    let existing: Record<string, unknown> = {};
+    if (existsSync(configPath)) {
+      try {
+        const parsed = JSON.parse(readFileSync(configPath, "utf-8"));
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          existing = parsed;
+        }
+      } catch {
+        // 坏 JSON：不读旧值，直接以 patch 覆盖（避免永久性损坏阻塞绑定）
+      }
+    }
+    const next = { ...existing };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined) {
+        continue;
+      }
+      next[key] = value;
+    }
+    mkdirSync(dirname(configPath), { recursive: true });
+    writeFileSync(configPath, `${JSON.stringify(next, null, 2)}\n`, "utf-8");
+    return true;
+  } catch {
+    return false;
+  }
 }

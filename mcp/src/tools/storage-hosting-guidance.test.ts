@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExtendedMcpServer } from "../server.js";
+import { t, type MessageKey } from "../i18n/index.js";
 
 const {
   mockGetCloudBaseManager,
@@ -119,14 +120,16 @@ describe("storage and hosting tool guidance", () => {
   it("should clearly separate static hosting uploads from cloud storage uploads", () => {
     const tools = createMockServer();
 
-    expect(tools.manageHosting.meta.description).toContain("action=upload");
-    expect(tools.manageHosting.meta.description).toContain("queryHosting");
+    // description 已迁移为词典 key 字符串，真实 server 由 registerTool 包装层解析；
+    // 这里的 mock registerTool 不走包装层，断言前需自行 t() 解析。
+    expect(t(tools.manageHosting.meta.description as MessageKey)).toContain("action=upload");
+    expect(t(tools.manageHosting.meta.description as MessageKey)).toContain("queryHosting");
     expect(tools.manageHosting.meta.inputSchema.cloudPath.description).toContain("静态托管中的目标路径");
     expect(tools.manageHosting.meta.inputSchema.action.description).toContain("upload=上传本地构建产物到静态托管");
-    expect(tools.manageStorage.meta.description).toContain("仅用于 COS/Storage 对象");
-    expect(tools.manageStorage.meta.description).toContain("不用于静态网站托管");
-    expect(tools.manageStorage.meta.description).toContain("公有读");
-    expect(tools.queryStorage.meta.description).toContain("公有读");
+    expect(t(tools.manageStorage.meta.description as MessageKey)).toContain("仅用于 COS/Storage 对象");
+    expect(t(tools.manageStorage.meta.description as MessageKey)).toContain("不用于静态网站托管");
+    expect(t(tools.manageStorage.meta.description as MessageKey)).toContain("公有读");
+    expect(t(tools.queryStorage.meta.description as MessageKey)).toContain("公有读");
   });
 
   it("manageStorage(upload) should expose a permanent publicUrl derived from DescribeEnvs", async () => {

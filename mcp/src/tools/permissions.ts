@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getCloudBaseManager, getEnvId, logCloudBaseResult } from "../cloudbase-manager.js";
 import type { ExtendedMcpServer } from "../server.js";
 import { jsonContent } from "../utils/json-content.js";
+import { t } from "../i18n/index.js";
 
 const QUERY_PERMISSION_ACTIONS = [
   "getResourcePermission",
@@ -50,11 +51,11 @@ type ToolEnvelope = {
 };
 
 function buildWriteVerificationHint(resourceId: string) {
-  return `对于 ${resourceId} 这类有后端权限控制的集合，前端调用 .doc(id).update() / .doc(id).remove() 后，不能只看是否没有抛异常。请显式检查返回结果中的 updated / deleted 是否大于 0；如果 result.code、result.message 存在，或 updated / deleted 为 0，要把它当作真实失败并向上抛错。`;
+  return t("permissions.writeVerificationHint", { resourceId });
 }
 
 function buildPermissionPropagationHint(resourceId: string) {
-  return `刚更新完 ${resourceId} 的安全规则时，后端权限通常在数秒到约 30 秒内生效。若紧接着的真实写操作仍返回 DATABASE_PERMISSION_DENIED，请先间隔数秒用同一登录态重试同一条 .doc(id).update() / .doc(id).remove()；不要盲等数分钟，也不要立刻连续重写规则，更不要在短暂传播窗口里把旧拒绝直接当成规则表达式仍然错误。`;
+  return t("permissions.permissionPropagationHint", { resourceId });
 }
 
 type CreateRuleHint = {
@@ -145,21 +146,17 @@ function looksLikeUserRego(value: string): boolean {
  */
 export function validateUserRegoContent(value: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(
-      "action=setPolicy 需要非空 regoContent（对齐 CLI `tcb policy set <regoContent>`）。",
-    );
+    throw new Error(t("permissions.validateRegoEmpty"));
   }
   const trimmed = value.trim();
   if (!looksLikeUserRego(trimmed)) {
-    throw new Error(
-      "Rego 策略必须以 `package authz.user` 开头（对齐 https://docs.cloudbase.net/cli-v1/policy/management ）。",
-    );
+    throw new Error(t("permissions.validateRegoPackage"));
   }
   const open = (trimmed.match(/\{/g) || []).length;
   const close = (trimmed.match(/\}/g) || []).length;
   if (open !== close) {
     throw new Error(
-      `Rego 策略花括号不匹配（{=${open}, }=${close}）。请检查语法后再调用 setPolicy。`,
+      t("permissions.validateRegoBraces", { open, close }),
     );
   }
   return trimmed;
@@ -240,14 +237,7 @@ function resolveFunctionAuthzRegoInput(
   if (isPublicFunctionInvokeRule(securityRule)) {
     return buildPublicFunctionsUserRego(resourceId);
   }
-  throw new Error(
-    `PostgreSQL environments manage HTTP/function gateway auth via OPA Rego ` +
-      `(same as CLI \`tcb policy set\`), not ModifyResourcePermission / function security-rule JSON. ` +
-      `Pass either:\n` +
-      `1) permission="CUSTOM" with securityRule as a full Rego document starting with \`package authz.user\`, or\n` +
-      `2) permission="CUSTOM" with securityRule='{"invoke":true}' to generate a public-functions allow policy.\n` +
-      `See https://docs.cloudbase.net/cli-v1/policy/management`,
-  );
+  throw new Error(t("permissions.regoInputRequired"));
 }
 
 async function describeEnvAuthzConfigByKey(
@@ -255,9 +245,7 @@ async function describeEnvAuthzConfigByKey(
   key: AuthzConfigKey = AUTHZ_USER_REGO_KEY,
 ): Promise<{ key: AuthzConfigKey; value: string; raw: unknown }> {
   if (!cloudbase?.permission?.describeEnvAuthzConfig) {
-    throw new Error(
-      "Current @cloudbase/manager-node does not expose permission.describeEnvAuthzConfig. Upgrade manager-node (>= 5.5.5) to align with CLI tcb policy get.",
-    );
+    throw new Error(t("permissions.managerNoDescribeEnvAuthz"));
   }
   const result = await cloudbase.permission.describeEnvAuthzConfig({ key });
   const value =
@@ -281,9 +269,7 @@ async function modifyEnvAuthzUserRego(
   value: string,
 ): Promise<unknown> {
   if (!cloudbase?.permission?.modifyEnvAuthzConfig) {
-    throw new Error(
-      "Current @cloudbase/manager-node does not expose permission.modifyEnvAuthzConfig. Upgrade manager-node (>= 5.5.5) to align with CLI tcb policy set.",
-    );
+    throw new Error(t("permissions.managerNoModifyEnvAuthz"));
   }
   const validated = validateUserRegoContent(value);
   return cloudbase.permission.modifyEnvAuthzConfig({
@@ -297,9 +283,7 @@ async function describeResourcePolicyListAligned(
   policyResourceType?: (typeof POLICY_LIST_RESOURCE_TYPES)[number],
 ): Promise<unknown> {
   if (!cloudbase?.permission?.describeResourcePolicyList) {
-    throw new Error(
-      "Current @cloudbase/manager-node does not expose permission.describeResourcePolicyList. Upgrade manager-node (>= 5.5.5) to align with CLI tcb policy list.",
-    );
+    throw new Error(t("permissions.managerNoDescribeResourcePolicyList"));
   }
   return cloudbase.permission.describeResourcePolicyList(
     policyResourceType ? { resourceType: policyResourceType } : undefined,
@@ -379,10 +363,9 @@ async function modifyFunctionPermissionWithPgFallback(options: {
     }
     if (permission !== "CUSTOM") {
       throw new Error(
-        `PostgreSQL environments do not support ModifyResourcePermission. ` +
-          `Align with CLI \`tcb policy set\`: use permission="CUSTOM" and pass OPA Rego ` +
-          `(package authz.user) or securityRule='{"invoke":true}' for public functions. ` +
-          `Underlying error: ${error instanceof Error ? error.message : String(error)}`,
+        t("permissions.pgModifyUnsupported", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
       );
     }
     const rego = resolveFunctionAuthzRegoInput(securityRule, resourceId);
@@ -396,7 +379,7 @@ function normalizeRecordArray(value: unknown, label: string) {
     return undefined;
   }
   if (!Array.isArray(value)) {
-    throw new Error(`${label} 必须是数组`);
+    throw new Error(t("permissions.mustBeArray", { label }));
   }
   return value as Array<Record<string, unknown>>;
 }
@@ -439,11 +422,11 @@ function buildRecommendedOwnerWriteRule(resourceId: string): string {
 }
 
 function buildRoleLookupNote() {
-  return "如果你需要 app-level admin override（例如 CMS 中 admin 可编辑所有文章，而 editor 只能编辑自己的文章），CUSTOM 规则通常是必要的。一个已验证可用的模式是：角色集合文档主键就是 auth.uid，并在文章权限里写 get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid。若现有 schema 已经有 users / profiles / user_roles 其一，请复用已存在且能通过 _id == auth.uid 直接 get() 到的那一份；不要把 where({ uid }) 查询得到的集合误写成 get('database.users.' + auth.uid)。";
+  return t("permissions.roleLookupNote");
 }
 
 function buildRecommendedClientWritePattern(resourceId: string) {
-  return `对于 CMS 文章这类使用 app-level admin override 的 CUSTOM 规则，前端可继续使用 db.collection('${resourceId}').doc(id).update(...) / remove(...)。关键是安全规则要采用已验证模式：get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid，并且文章文档中要真实写入 authorId。`;
+  return t("permissions.recommendedClientWritePattern", { resourceId });
 }
 
 function buildCreateRuleHint(
@@ -472,13 +455,8 @@ function buildCreateRuleHint(
   return {
     type: "createRuleDocWarning",
     severity: "warning",
-    summary:
-      "create 规则不应引用 doc.*，因为 create 时文档尚未存在。",
-    detail:
-      "CloudBase 的 create 规则验证的是写入数据（request.data），此时文档尚不存在，doc.* 不可用。" +
-      "请将 create 规则改为仅使用 auth.* 检查（如 auth.uid != null && auth.loginType != 'ANONYMOUS'），" +
-      "或在写入时将 owner 字段（如 _openid / authorId）写入 request.data，然后在 create 规则中用 request.data._openid == auth.openid 做校验。" +
-      "read / update / delete 规则可以使用 doc.* 引用已有文档字段，且客户端查询条件必须是规则约束的子集（如 _openid: '{openid}'）。",
+    summary: t("permissions.createRuleSummary"),
+    detail: t("permissions.createRuleDetail"),
     recommendedRulePattern: "auth.uid != null && auth.loginType != 'ANONYMOUS'",
     recommendedPermission: "CUSTOM",
     recommendedSecurityRule: JSON.stringify({
@@ -503,10 +481,8 @@ function buildDocIdWriteRuleHint(
     type: "docIdWriteRuleWarning",
     severity: "warning",
     appliesTo,
-    summary:
-      "当前安全规则在 document-id 写入场景下可能被后端直接拒绝。",
-    detail:
-      "这类规则经常在 owner-only 集合里被写错，但对于 CMS 文章这种“admin 可编辑所有文章、editor 只能编辑自己的文章”的场景，已验证可用的做法是保留 doc.authorId，并通过独立角色集合做 admin override：get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid。不要默认改成 where(...)，也不要把同集合 owner 判断重写成 get('database.collection.' + doc._id)。",
+    summary: t("permissions.docIdWriteSummary"),
+    detail: t("permissions.docIdWriteDetail"),
     recommendedRulePattern: "doc.authorId == auth.uid",
     recommendedPermission: "CUSTOM",
     recommendedSecurityRule: buildRecommendedOwnerWriteRule(resourceId),
@@ -532,9 +508,8 @@ function buildInvalidGetPathHint(
   return {
     type: "invalidGetPathWarning",
     severity: "warning",
-    summary: "get() 的 path 只应包含 collection 和 documentId，不应把字段名拼进 path 字符串。",
-    detail:
-      "请写成 get('database.collection.' + doc._id).fieldName，而不是 get('database.collection.' + doc._id + '.fieldName')。但在 CMS 文章权限里，不要把 get('database.collection.' + doc._id) 当成默认首选方案；更稳的已验证模式是读取单独的角色集合：get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid。",
+    summary: t("permissions.invalidGetPathSummary"),
+    detail: t("permissions.invalidGetPathDetail"),
     recommendedRulePattern: "doc.authorId == auth.uid",
     recommendedPermission: "CUSTOM",
     recommendedSecurityRule: buildRecommendedOwnerWriteRule(resourceId),
@@ -561,9 +536,8 @@ function buildTemplateLiteralRuleHint(
   return {
     type: "templateLiteralRuleWarning",
     severity: "warning",
-    summary: "CloudBase security rule 表达式不支持把 ${...} 当作 JS 模板字符串插值。",
-    detail:
-      "在 securityRule 字符串里，请使用表达式拼接，例如 get('database.user_roles.' + auth.uid).role，而不是 get('database.user_roles.${auth.uid}').role。对于 CMS 文章这类需要 app-level admin override 的规则，请优先使用已验证的 user_roles + doc.authorId 模式。",
+    summary: t("permissions.templateLiteralSummary"),
+    detail: t("permissions.templateLiteralDetail"),
     recommendedRulePattern: "doc.authorId == auth.uid",
     recommendedPermission: "CUSTOM",
     recommendedSecurityRule: buildRecommendedOwnerWriteRule(resourceId),
@@ -599,10 +573,10 @@ async function ensureStorageBucketsExist(cloudbase: any, resourceIds: string[]) 
   }
 
   if (missingBuckets.length === 1) {
-    throw new Error(`存储 Bucket ${missingBuckets[0]} 不存在`);
+    throw new Error(t("permissions.bucketMissing", { bucket: missingBuckets[0] }));
   }
 
-  throw new Error(`以下存储 Bucket 不存在: ${missingBuckets.join(", ")}`);
+  throw new Error(t("permissions.bucketsMissing", { buckets: missingBuckets.join(", ") }));
 }
 
 export function registerPermissionTools(server: ExtendedMcpServer) {
@@ -620,8 +594,8 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "queryPermissions",
     {
-      title: "查询 CloudBase 权限与用户配置",
-      description: "查询 CloudBase 权限与用户配置，支持查询资源权限（数据库/云函数/存储桶等）、角色列表/详情、应用用户列表/详情，以及网关 OPA 授权策略（对齐 CLI `tcb policy list/get`）。\n\n示例：\n- 查询存储桶权限：`action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\"`\n- 列出旧网关策略：`action=\"listPolicy\"`（PG / OPA 引擎环境返回空列表，与 CLI 一致）\n- 读取用户 Rego：`action=\"getPolicy\"`；平台扩展策略：`action=\"getPolicy\", extension=true`\n\n📌 跨后端边界提示：调用前先用 `envQuery(action=\"info\", envId=...)` 看 `EnvInfo.RuntimeBackends`。`resourceType=\"noSqlDatabase\"` 查询的是 CloudBase NoSQL 集合规则，与 CloudBase PostgreSQL（PG）表的行级安全（RLS）是两套独立机制——同一个 PG 环境里 NoSQL 集合若仍在使用，对那些集合查询本工具结果**仍然有效**。要查 PG 表 RLS，请改用 `queryPgDatabase(action=\"sql\", sql=\"SELECT * FROM pg_policies WHERE tablename=...\")`。本工具不涉及 MySQL 权限。\n\n⚠️ PostgreSQL 环境：平台 `DescribeResourcePermission` 对 PG 环境会直接拒绝。当 `resourceType=\"function\"` 时，本工具会自动回退到 Manager SDK `describeEnvAuthzConfig`（与 CLI `tcb policy get` 一致，读取 `authz.user.rego`）。显式 OPA 策略请用 `listPolicy` / `getPolicy`。",
+      title: "permissions.queryTitle",
+      description: "permissions.queryDescription",
       inputSchema: {
         action: z.enum(QUERY_PERMISSION_ACTIONS),
         resourceType: z
@@ -691,7 +665,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
         switch (action) {
           case "getResourcePermission": {
             if (!resourceType || !resourceId) {
-              throw new Error("action=getResourcePermission 时必须提供 resourceType 和 resourceId");
+              throw new Error(t("permissions.getResourcePermissionParamsRequired"));
             }
             if (resourceType === "storage") {
               await ensureStorageBucketsExist(cloudbase, [resourceId]);
@@ -722,13 +696,15 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 raw: result.raw ?? result,
               },
               result.fallback
-                ? "资源权限查询成功（PostgreSQL 环境已回退到 describeEnvAuthzConfig / tcb policy get）"
-                : "资源权限查询成功",
+                ? t("permissions.getResourcePermissionFallbackSuccess")
+                : t("permissions.getResourcePermissionSuccess"),
             );
           }
           case "listResourcePermissions": {
             if (!resourceType) {
-              throw new Error("action=listResourcePermissions 时必须提供 resourceType");
+              throw new Error(
+                t("permissions.paramRequired", { action, param: "resourceType" }),
+              );
             }
             if (resourceType === "storage" && resourceIds?.length) {
               await ensureStorageBucketsExist(cloudbase, resourceIds);
@@ -763,8 +739,8 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 raw: result.raw ?? result,
               },
               result.fallback
-                ? "资源权限列表查询成功（PostgreSQL 环境已回退到 describeEnvAuthzConfig / tcb policy get）"
-                : "资源权限列表查询成功",
+                ? t("permissions.listResourcePermissionsFallbackSuccess")
+                : t("permissions.listResourcePermissionsSuccess"),
             );
           }
           case "listRoles": {
@@ -783,7 +759,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 total: result.Data.TotalCount ?? 0,
                 raw: result,
               },
-              "角色列表查询成功",
+              t("permissions.listRolesSuccess"),
             );
           }
           case "getRole": {
@@ -814,7 +790,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 role,
                 raw: result,
               },
-              "角色详情查询成功",
+              t("permissions.getRoleSuccess"),
             );
           }
           case "listUsers": {
@@ -832,12 +808,12 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 total: result.Data.Total ?? 0,
                 raw: result,
               },
-              "应用用户列表查询成功",
+              t("permissions.listUsersSuccess"),
             );
           }
           case "getUser": {
             if (!uid && !username) {
-              throw new Error("action=getUser 时必须提供 uid 或 username");
+              throw new Error(t("permissions.getUserParamsRequired"));
             }
             const result = await cloudbase.user.describeUserList({
               pageNo: 1,
@@ -856,7 +832,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 user,
                 raw: result,
               },
-              "应用用户详情查询成功",
+              t("permissions.getUserSuccess"),
             );
           }
           case "listPolicy": {
@@ -877,10 +853,10 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 policies: policyList,
                 total,
                 note:
-                  "PG 环境与 authz_engine=opa 的环境会返回空列表（与 CLI `tcb policy list` / SDK describeResourcePolicyList 一致）。读取用户 Rego 请用 action=getPolicy。",
+                  t("permissions.listPolicyNote"),
                 raw: result,
               },
-              "网关授权策略列表查询成功",
+              t("permissions.listPolicySuccess"),
             );
           }
           case "getPolicy": {
@@ -897,8 +873,8 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 raw: result.raw,
               },
               extension
-                ? "平台扩展 OPA 策略查询成功（authz.platform.extension.rego）"
-                : "用户 OPA 策略查询成功（authz.user.rego）",
+                ? t("permissions.getPolicyExtensionSuccess")
+                : t("permissions.getPolicySuccess"),
             );
           }
         }
@@ -908,9 +884,8 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "managePermissions",
     {
-      title: "管理 CloudBase 权限与用户配置",
-      description:
-        "管理 CloudBase 权限与用户配置，支持修改资源权限（数据库/云函数/存储桶等）、角色管理、成员与策略增删、应用用户 CRUD，以及设置网关 OPA Rego 策略（对齐 CLI `tcb policy set`）。\n\n示例：\n- 设置存储桶为私有：`action=\"updateResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"PRIVATE\"`\n- 创建角色：`action=\"createRole\", roleName=\"admin\", roleIdentity=\"admin\"`\n- 放开云函数匿名/未登录访问（PG 会走 OPA，对齐 CLI `tcb policy set`）：`action=\"updateResourcePermission\", resourceType=\"function\", resourceId=\"myFn\", permission=\"CUSTOM\", securityRule='{\"invoke\":true}'`\n- 直接设置用户 Rego：`action=\"setPolicy\", regoContent=\"package authz.user\\n\\ndefault allow := false\\n\", confirm=true`（⚠️ 立即禁用旧网关鉴权）\n\n注意：`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单；前端用户名密码注册应使用 `auth.signUp({ username, password })`，登录应使用 `auth.signInWithPassword({ username, password })`。直接在浏览器里用 `auth.signUp` 创建用户名密码用户取决于 SDK/provider 支持，使用前必须验证；不支持时应走后端或管理端边界，不能在浏览器暴露密钥。`securityRule` 的详细语义取决于 `resourceType`：`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType=\"noSqlDatabase\"` 的文档数据库安全规则；配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。\n\n📌 跨后端边界提示：调用前先用 `envQuery(action=\"info\", envId=...)` 看 `EnvInfo.RuntimeBackends`：\n- `resourceType=\"noSqlDatabase\"` 仅作用于 CloudBase NoSQL 文档数据库的集合；CloudBase PostgreSQL（PG）表的行级权限**不**受它控制——PG 表请改用 RLS：`managePgDatabase(action=\"execute\", confirm=true)` 跑 `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` 与 `CREATE POLICY ...`。同一个 PG 环境里如果还有 NoSQL 集合在用，对那些**集合**继续使用 `noSqlDatabase` 规则是正确的——不是\"PG 环境就禁用本工具\"。\n- `resourceType=\"storage\"` 控制的是 NoSQL/COS 存储桶 ACL；PG 的 `pgstore` bucket 不在此 `resourceType` 覆盖范围内。\n- 本工具不涉及 MySQL；MySQL 数据库权限请走 MySQL 自身的 GRANT/REVOKE 语句（通过 `manageMysqlDatabase`）。\n\n⚠️ PostgreSQL 环境：平台 `ModifyResourcePermission` 对 PG 环境会直接拒绝。当 `resourceType=\"function\"` 时，本工具会自动回退到 Manager SDK `modifyEnvAuthzConfig`（与 CLI `tcb policy set` 一致，写入 `authz.user.rego`）。`securityRule` 可传完整 Rego（`package authz.user`）或 `'{\"invoke\":true}'`（自动生成放通 anonymous/unauthenticated 调 functions 的策略）。设置 Rego 后旧网关鉴权会失效，行为与 CLI 相同。显式 OPA 策略请优先用 `action=\"setPolicy\"`。",
+      title: "permissions.manageTitle",
+      description: "permissions.manageDescription",
       inputSchema: {
         action: z.enum(MANAGE_PERMISSION_ACTIONS),
         resourceType: z
@@ -1015,7 +990,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
         switch (action) {
           case "updateResourcePermission": {
             if (!resourceType || !resourceId || !permission) {
-              throw new Error("action=updateResourcePermission 时必须提供 resourceType、resourceId 和 permission");
+              throw new Error(t("permissions.updateResourcePermissionParamsRequired"));
             }
             let result: unknown;
             let fallback: "modifyEnvAuthzConfig" | undefined;
@@ -1062,13 +1037,13 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 raw: result,
               },
               fallback
-                ? "资源权限更新成功（PostgreSQL 环境已回退到 modifyEnvAuthzConfig / tcb policy set）"
-                : "资源权限更新成功",
+                ? t("permissions.updateResourcePermissionFallbackSuccess")
+                : t("permissions.updateResourcePermissionSuccess"),
             );
           }
           case "createRole": {
             if (!roleName || !roleIdentity) {
-              throw new Error("action=createRole 时必须提供 roleName 和 roleIdentity");
+              throw new Error(t("permissions.createRoleParamsRequired"));
             }
             const result = await cloudbase.permission.createRole({
               roleName,
@@ -1085,7 +1060,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 roleName,
                 raw: result,
               },
-              "角色创建成功",
+              t("permissions.createRoleSuccess"),
             );
           }
           case "updateRole":
@@ -1094,18 +1069,20 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
           case "addRolePolicies":
           case "removeRolePolicies": {
             if (!roleId) {
-              throw new Error(`action=${action} 时必须提供 roleId`);
+              throw new Error(
+                t("permissions.paramRequired", { action, param: "roleId" }),
+              );
             }
 
             if (action === "addRolePolicies" || action === "removeRolePolicies") {
               if (policyIds?.length) {
                 throw new Error(
-                  `action=${action} 暂不支持 policyIds。请改传 policies，且每项至少包含 ResourceType 和 Resource。`,
+                  t("permissions.policyIdsUnsupported", { action }),
                 );
               }
               if (!normalizedPolicies?.length) {
                 throw new Error(
-                  `action=${action} 时必须提供 policies，且每项至少包含 ResourceType 和 Resource。`,
+                  t("permissions.policiesRequired", { action }),
                 );
               }
             }
@@ -1135,12 +1112,14 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 roleId,
                 raw: result,
               },
-              "角色更新成功",
+              t("permissions.updateRoleSuccess"),
             );
           }
           case "deleteRoles": {
             if (!roleIds?.length) {
-              throw new Error("action=deleteRoles 时必须提供 roleIds");
+              throw new Error(
+                t("permissions.paramRequired", { action, param: "roleIds" }),
+              );
             }
             const result = await cloudbase.permission.deleteRoles({
               roleIds,
@@ -1153,12 +1132,12 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 roleIds,
                 raw: result,
               },
-              "角色删除成功",
+              t("permissions.deleteRolesSuccess"),
             );
           }
           case "createUser": {
             if (!username || !password) {
-              throw new Error("action=createUser 时必须提供 username 和 password");
+              throw new Error(t("permissions.createUserParamsRequired"));
             }
             const result = await cloudbase.user.createUser({
               name: username,
@@ -1174,12 +1153,14 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 username,
                 raw: result,
               },
-              "应用用户创建成功",
+              t("permissions.createUserSuccess"),
             );
           }
           case "updateUser": {
             if (!uid) {
-              throw new Error("action=updateUser 时必须提供 uid");
+              throw new Error(
+                t("permissions.paramRequired", { action, param: "uid" }),
+              );
             }
             const result = await cloudbase.user.modifyUser({
               uid,
@@ -1196,12 +1177,14 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 uid,
                 raw: result,
               },
-              "应用用户更新成功",
+              t("permissions.updateUserSuccess"),
             );
           }
           case "deleteUsers": {
             if (!uids?.length) {
-              throw new Error("action=deleteUsers 时必须提供 uids");
+              throw new Error(
+                t("permissions.paramRequired", { action, param: "uids" }),
+              );
             }
             const result = await cloudbase.user.deleteUsers({
               uids,
@@ -1214,14 +1197,12 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 uids,
                 raw: result,
               },
-              "应用用户删除成功",
+              t("permissions.deleteUsersSuccess"),
             );
           }
           case "setPolicy": {
             if (confirm !== true) {
-              throw new Error(
-                "action=setPolicy 会立即禁用旧网关鉴权（对齐 CLI `tcb policy set`），必须显式传 confirm=true。",
-              );
+              throw new Error(t("permissions.setPolicyConfirmRequired"));
             }
             const validated = validateUserRegoContent(regoContent ?? "");
             const result = await modifyEnvAuthzUserRego(cloudbase, validated);
@@ -1232,15 +1213,14 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 envId,
                 key: AUTHZ_USER_REGO_KEY,
                 rego: validated,
-                sideEffect:
-                  "Setting authz.user.rego immediately disables legacy gateway authorization.",
+                sideEffect: t("permissions.setPolicySideEffect"),
                 nextSteps: [
                   'queryPermissions(action="getPolicy")',
                   'queryPermissions(action="listPolicy")',
                 ],
                 raw: result,
               },
-              "用户 OPA Rego 策略设置成功（旧网关鉴权已失效）",
+              t("permissions.setPolicySuccess"),
             );
           }
         }
