@@ -1,0 +1,67 @@
+name: Skill Docs Sync Check
+
+# 守住三件事：
+#   1) 每个 config/source/skills/*/SKILL.md 都在 doc/prompts/config.yaml 中登记
+#      （否则新增 skill 不会有文档页，历史上曾静默漏掉 8 个）
+#   2) doc/prompts 下的产物与 skills 源一致（源改了没重新生成会被拦下）
+#   3) 页面里指向 CNB 源仓库的链接目标确实存在（离线），并联网确认可访问
+# 检查脚本：scripts/check-prompts-sync.mjs
+
+on:
+  pull_request:
+    paths:
+      - 'config/source/skills/**'
+      - 'doc/prompts/**'
+      - 'doc/components/prompts.json'
+      - 'doc/components/AIDevelopmentPrompt.tsx'
+      - 'doc/sidebar.json'
+      - 'scripts/generate-prompts.mjs'
+      - 'scripts/generate-prompts-data.mjs'
+      - 'scripts/check-prompts-sync.mjs'
+      - 'tests/generate-prompts.test.js'
+      - 'package.json'
+  push:
+    branches:
+      - main
+    paths:
+      - 'config/source/skills/**'
+      - 'doc/prompts/**'
+      - 'doc/components/prompts.json'
+      - 'doc/components/AIDevelopmentPrompt.tsx'
+      - 'doc/sidebar.json'
+      - 'scripts/generate-prompts.mjs'
+      - 'scripts/generate-prompts-data.mjs'
+      - 'scripts/check-prompts-sync.mjs'
+      - 'tests/generate-prompts.test.js'
+      - 'package.json'
+
+jobs:
+  prompts-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check skill docs sync (coverage + artifacts + link targets)
+        run: pnpm run check:prompts-sync
+
+      - name: Check CNB links are reachable
+        # 在上一步的离线检查之上，联网确认 CNB 镜像确实可访问。
+        # 限流/超时不会判失败（脚本区分「死链」与「无法确认」），只有 404/非文本才红。
+        run: pnpm run check:prompts-links
+
+      - name: Run prompts generation tests
+        run: pnpm exec vitest run tests/generate-prompts.test.js

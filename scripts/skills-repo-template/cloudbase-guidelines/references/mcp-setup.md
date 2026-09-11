@@ -119,6 +119,8 @@ When your IDE does not support native MCP or Plugin install, use **mcporter** as
   `npx mcporter call cloudbase.auth action=status --output json`
 - Start device-flow login:
   `npx mcporter call cloudbase.auth action=start_auth authMode=device --output json`
+- Start device-flow login on the international site (国际站环境必须显式传 `site=intl`，否则会走国内站链路):
+  `npx mcporter call cloudbase.auth action=start_auth authMode=device site=intl --output json`
 - Resolve env alias to full EnvId:
   `npx mcporter call cloudbase.envQuery action=list alias=demo aliasExact=true fields='["EnvId","Alias","Status","IsDefault"]' --output json`
 - Bind environment after login:

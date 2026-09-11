@@ -78,6 +78,8 @@ codebuddy plugin install cloudbase@tencent-cloudbase
 
 无需预先配置 CLI。直接在 CodeBuddy 里开始对话，系统会提示完成 **Device 登录**（设备码授权），按页面提示授权即可。
 
+> 🌏 **国际站用户**：环境开通在腾讯云**国际站**时，需先声明站点，否则登录会走国内站授权页。在 MCP 配置的 `env` 中加入 `"TCB_SITE": "intl"`（或使用启动参数 `--site intl`），重启 CodeBuddy 后再登录。详见 [连接方式 - 国际站用户](../connection-modes#国际站用户)。
+
 ### 没有腾讯云账号（API Key）
 
 若你只有环境级 API Key（例如由合作方/管理员下发），请先安装 CloudBase CLI，再用 API Key 登录：
@@ -86,6 +88,7 @@ codebuddy plugin install cloudbase@tencent-cloudbase
 # 安装 CloudBase CLI
 npm i -g @cloudbase/cli
 
+# 国际站用户请先执行 tcb config set isIntl true（或设置环境变量 TCB_IS_INTL=true）切换到国际站链路
 # 使用环境 API Key 登录（必须同时指定环境 ID）
 tcb login --cloudbase-api-key <cloudbaseApiKey> -e <cloudbaseEnvId>
 ```
