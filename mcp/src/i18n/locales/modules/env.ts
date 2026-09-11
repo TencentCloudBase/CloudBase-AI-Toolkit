@@ -176,6 +176,7 @@ export const env = defineModule(
 
     // ---- auth 工具输出 ----
     "auth.actionNotSupported": "当前 IDE 不支持 auth(action=\"{action}\")。",
+    "auth.invalidSite": "site 取值无效：{site}。可选值：domestic（国内站）、intl（国际站）。",
     "auth.devicePending":
       "设备码授权进行中，请完成浏览器授权后再次调用 auth(action=\"status\")",
     "auth.notLoggedInCodeBuddy":
@@ -483,6 +484,8 @@ export const env = defineModule(
 
     // ---- auth tool output ----
     "auth.actionNotSupported": "The current IDE does not support auth(action=\"{action}\").",
+    "auth.invalidSite":
+      "Invalid site value: {site}. Allowed values: domestic (China site), intl (international site).",
     "auth.devicePending":
       "Device-code authorization in progress. Complete the browser authorization, then call auth(action=\"status\") again",
     "auth.notLoggedInCodeBuddy":

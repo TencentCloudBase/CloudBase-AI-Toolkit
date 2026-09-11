@@ -2157,18 +2157,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           .enum(["domestic", "intl"])
           .optional()
           .describe(
-            "站点：domestic=国内站，intl=国际站。环境开通在腾讯云国际站时，登录（start_auth/login_by_api_key）需显式传 intl，否则会走国内站链路、看不到国际站环境；缺省按 TCB_SITE 环境变量 / region 映射表 / 项目配置解析",
+            "站点：domestic=国内站，intl=国际站。环境开通在腾讯云国际站时，登录（start_auth/login_by_api_key）需显式传 intl，否则会走国内站链路、看不到国际站环境；调用级显式传入优先于 TCB_SITE 环境变量 / region 映射表 / 项目配置，影响登录端点、授权页与 API Key 换取网关",
           ),
         envId: z
           .string()
           .optional()
           .describe("环境ID(CloudBase 环境唯一标识)，绑定后工具将操作该环境。action=set_env 时必填"),
-        site: z
-          .enum(["domestic", "intl"])
-          .optional()
-          .describe(
-            "站点：domestic=国内站，intl=国际站。优先级高于 TCB_SITE/项目配置；影响登录端点、授权页与 API Key 换取网关",
-          ),
         region: z
           .string()
           .optional()
@@ -2230,7 +2224,6 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       reveal?: unknown;
       apiKey?: unknown;
       apiKeyEnvId?: unknown;
-      site?: unknown;
       region?: unknown;
       lang?: unknown;
     }) => {
@@ -2256,23 +2249,22 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       const reveal = normalizeOptionalToolBoolean(rawArgs.reveal) === true;
 
       // 显式站点：归一化为 domestic/intl，非法取值直接报错而不是静默忽略
-      const site = normalizeSite(rawArgs.site);
-      if (rawArgs.site !== undefined && rawArgs.site !== null && site === undefined) {
+      if (rawArgs.site !== undefined && rawArgs.site !== null && toolSite === undefined) {
         return buildJsonToolResult({
           ok: false,
           code: "INVALID_ARGS",
-          message: `site 取值无效：${String(rawArgs.site)}。可选值：domestic（国内站）、intl（国际站）。`,
+          message: t("env.auth.invalidSite", { site: String(rawArgs.site) }, outLang),
           next_step: buildAuthNextStep(action, {
             suggestedArgs: { action, site: "intl" },
           }),
         });
       }
-      if (site) {
+      if (toolSite) {
         // 与 cli.ts 的 --site 语义一致：同步到环境变量与 cloudBaseOptions，
         // 让本次登录（OAuth 端点/授权页改写、API Key 换取网关）以及后续工具调用都按该站点解析
-        process.env.TCB_SITE = site;
+        process.env.TCB_SITE = toolSite;
         if (server.cloudBaseOptions) {
-          server.cloudBaseOptions.site = site;
+          server.cloudBaseOptions.site = toolSite;
         }
       }
 

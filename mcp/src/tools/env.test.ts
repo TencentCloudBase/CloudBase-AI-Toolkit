@@ -812,7 +812,8 @@ describe("env tools - auth", () => {
     const payload = JSON.parse(result.content[0].text);
 
     expect(payload).toHaveProperty("code", "INVALID_ARGS");
-    expect(payload.message).toContain("site 取值无效");
+    // 断言按词典键构造（语言无关），避免把用例绑死在中文字面量上
+    expect(payload.message).toBe(t("env.auth.invalidSite", { site: "us-east" }));
   });
 
   it("auth(action=start_auth, authMode=web) should continue environment preparation after login", async () => {
