@@ -70,9 +70,90 @@ async function readSkillFiles(skillDir) {
   return fileContents;
 }
 
+/**
+ * 递归列出 skill 目录下的所有 markdown 文件（SKILL.md 优先），返回相对 skill 目录的 posix 路径
+ */
+function listSkillMarkdownFiles(skillDir) {
+  const result = [];
+
+  const walk = (dir, prefix) => {
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    for (const entry of entries) {
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        walk(path.join(dir, entry.name), rel);
+      } else if (entry.name.endsWith('.md')) {
+        result.push(rel);
+      }
+    }
+  };
+
+  if (fs.existsSync(skillDir)) {
+    walk(skillDir, '');
+  }
+
+  return result.sort((a, b) => {
+    if (a === 'SKILL.md') return -1;
+    if (b === 'SKILL.md') return 1;
+    return a.localeCompare(b);
+  });
+}
+
+/**
+ * 把 skill 内容里的相对链接改写为 CNB 源仓库的绝对地址。
+ *
+ * SKILL.md 会被整段嵌进文档页，其中的 `references/x.md` 这类相对路径在文档站上无法解析：
+ * 读者点不开，AI 读到「先加载 references/core.md」时也无从取值。改写为绝对地址后可直接取用。
+ * 代码块内的内容保持原样，避免污染示例代码。
+ */
+function rewriteRelativeLinks(content, skillId) {
+  let fencing = false;
+
+  return content
+    .split('\n')
+    .map(line => {
+      if (line.trim().startsWith('```')) {
+        fencing = !fencing;
+        return line;
+      }
+      if (fencing) return line;
+
+      return line.replace(/\]\(([^)\s]+)\)/g, (whole, target) => {
+        // 绝对地址 / 站内绝对路径 / 纯锚点一律不动
+        if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith('/') || target.startsWith('#')) {
+          return whole;
+        }
+
+        const hashIndex = target.indexOf('#');
+        const pathPart = hashIndex === -1 ? target : target.slice(0, hashIndex);
+        const anchor = hashIndex === -1 ? '' : target.slice(hashIndex);
+        if (!pathPart) return whole;
+
+        const resolved = path.posix.normalize(path.posix.join(skillId, pathPart));
+        // 越出 skills 目录说明目标不在本仓库，保持原样
+        if (resolved.startsWith('..')) return whole;
+
+        return `](${cnbRawUrl(`${SKILLS_REPO_PATH}/${resolved}`)}${anchor})`;
+      });
+    })
+    .join('\n');
+}
+
 const FULL_INSTALL_COMMAND = 'npx skills add tencentcloudbase/cloudbase-skills';
 const SINGLE_INSTALL_REPO = 'https://github.com/tencentcloudbase/skills';
 const SKILL_VIEW_BASE_URL = 'https://skills.sh/tencentcloudbase/skills';
+
+// Skill 源仓库镜像：CNB（国内可直连，且有 raw 直链）。
+// ⚠️ raw 直链格式是 `/-/git/raw/<branch>/<path>`，不是 `/-/raw/` —— 后者会返回 SPA 的 HTML（HTTP 200），极易误判。
+const CNB_REPO_URL = 'https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit';
+const CNB_BRANCH = 'main';
+// 源 skill 在仓库中的路径，需与 SKILLS_DIR 保持一致
+const SKILLS_REPO_PATH = 'config/source/skills';
+
+const cnbRawUrl = repoPath => `${CNB_REPO_URL}/-/git/raw/${CNB_BRANCH}/${repoPath}`;
+const cnbBlobUrl = repoPath => `${CNB_REPO_URL}/-/blob/${CNB_BRANCH}/${repoPath}`;
 
 /**
  * Extract the `name` field from SKILL.md frontmatter
@@ -104,7 +185,7 @@ function maxBacktickRun(text) {
 /**
  * Generate MDX content for a single rule
  */
-function generateMDX(ruleConfig, files) {
+function generateMDX(ruleConfig, files, skillMarkdownFiles = []) {
   const { id, title, description, prompts = [], ruleDir } = ruleConfig;
   const skillId = ruleDir || id;
   const singleInstallCommand = `npx skills add ${SINGLE_INSTALL_REPO} --skill ${skillId}`;
@@ -141,15 +222,30 @@ function generateMDX(ruleConfig, files) {
   // Embed SKILL.md original content at the very bottom for SEO
   const skillFile = files.find(f => f.filename === 'SKILL.md');
   if (skillFile && skillFile.content) {
+    // 相对链接改写为 CNB 绝对地址（raw 形式）：嵌进文档页后相对路径无法解析，
+    // 改成绝对地址后读者可复制、AI 可直接抓取
+    const skillBody = rewriteRelativeLinks(skillFile.content, skillId);
     mdx += `\n---\n\n`;
     mdx += `## Skill 规则原文\n\n`;
     mdx += `<details>\n<summary>查看 SKILL.md 原文</summary>\n\n`;
-    const fenceLen = Math.max(4, maxBacktickRun(skillFile.content) + 1);
+    const fenceLen = Math.max(4, maxBacktickRun(skillBody) + 1);
     const fence = '`'.repeat(fenceLen);
-    mdx += `${fence}markdown\n${skillFile.content}\n${fence}\n\n`;
+    mdx += `${fence}markdown\n${skillBody}\n${fence}\n\n`;
     mdx += `</details>\n`;
   }
-  
+
+  // 参考文件索引：代码栅栏内的链接不可点，这里给出可直接打开的地址（blob 形式，人读友好）
+  const referenceFiles = skillMarkdownFiles.filter(file => file !== 'SKILL.md');
+  if (referenceFiles.length > 0) {
+    mdx += `\n## 参考文件\n\n`;
+    mdx += `当前 Skill 的详细规则文件（源仓库 CNB 镜像，国内可直连）：\n\n`;
+    for (const file of referenceFiles) {
+      const href = cnbBlobUrl(`${SKILLS_REPO_PATH}/${skillId}/${file}`);
+      mdx += `- [\`${file}\`](${href})\n`;
+    }
+    mdx += '\n';
+  }
+
   return mdx;
 }
 
@@ -312,14 +408,17 @@ async function main() {
     
     // Read all markdown files
     const files = await readSkillFiles(actualSkillDir);
-    
+
     if (files.length === 0) {
       console.warn(`Warning: No markdown files found in ${actualSkillDir}`);
       continue;
     }
+
+    // 递归列出该 skill 下的全部 markdown（含 references/ 子目录），用于生成参考文件索引
+    const skillMarkdownFiles = listSkillMarkdownFiles(actualSkillDir);
     
     // Generate MDX content
-    const mdxContent = generateMDX(ruleConfig, files);
+    const mdxContent = generateMDX(ruleConfig, files, skillMarkdownFiles);
     
     // Write to file
     const outputFile = path.join(PROMPTS_DIR, `${id}.mdx`);

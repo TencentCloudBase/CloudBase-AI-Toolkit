@@ -134,6 +134,17 @@ rules:
       - "在 Android 应用中使用 CloudBase HTTP API 实现数据查询和更新"
       - "在 iOS 应用中使用 CloudBase HTTP API 实现数据库操作"
   
+  - id: postgresql-development-cloudbase
+    title: 关系型数据库：PostgreSQL
+    description: 使用 CloudBase PostgreSQL（PG 模式）设计表结构、通过 JS SDK 或 MCP 工具读写数据、配置权限，并落地 Web 后台管理场景
+    shortDescription: PostgreSQL 开发与调试
+    category: database
+    order: 7
+    prompts:
+      - "帮我在 CloudBase PostgreSQL 中设计用户表并配置权限"
+      - "在 Web 应用中使用 CloudBase PostgreSQL 的 JS SDK 实现数据增删改查"
+      - "帮我排查 CloudBase PG 应用的数据库连接和权限配置问题"
+
   - id: cloud-functions
     title: 后端开发：云函数
     description: 开发和部署 Node.js 云函数，包括运行时选择、部署、日志查询、HTTP 访问配置
@@ -156,6 +167,28 @@ rules:
       - "帮我部署一个 Node.js 后端服务到 CloudBase 云托管"
       - "在 CloudBase 云托管中创建一个支持多语言的后端服务"
   
+  - id: cloudbase-declarative-deploy
+    title: 后端开发：声明式部署
+    description: 用 cloudbaserc 配置描述整个项目的目标状态，通过 deployPlan 预演和 deployApply 应用，支持多环境覆盖与只部署部分资源
+    shortDescription: cloudbaserc 声明式部署
+    category: backend
+    order: 3
+    prompts:
+      - "帮我把 CloudBase 项目改成 cloudbaserc 声明式部署配置"
+      - "部署前先给我一份 deployPlan 预演结果，确认后再应用"
+      - "用 cloudbaserc 的 envOverrides 配置多环境部署"
+
+  - id: cloud-api-operations
+    title: 后端开发：Cloud API 操作
+    description: 在没有专用 MCP 工具时，通过 callCloudApi 或官方 SDK 操作腾讯云管控面资源（监控告警、CLB、CAM、COS、MySQL、SCF 等），包含 API 检索、CAM 授权与常用编排流程
+    shortDescription: 管控面 API 调用与 CAM 授权
+    category: backend
+    order: 4
+    prompts:
+      - "帮我给 CloudBase 云函数配置一个 CPU 使用率告警"
+      - "通过 callCloudApi 调用腾讯云监控接口查询云函数的指标数据"
+      - "帮我创建 CAM 角色并授权云函数访问 COS 存储桶"
+
   - id: web-development
     title: 应用集成：Web 应用
     description: 通用 Web 应用开发、构建调试、浏览器验证与 CloudBase 集成
@@ -223,6 +256,17 @@ rules:
       - "在 Android 应用中集成 CloudBase HTTP API"
       - "在 iOS 应用中集成 CloudBase HTTP API"
   
+  - id: cloud-storage-web
+    title: 应用集成：云存储（Web SDK）
+    description: 使用 CloudBase Web SDK 完成文件上传、下载、临时访问链接获取与文件管理
+    shortDescription: Web SDK 云存储
+    category: frontend
+    order: 7
+    prompts:
+      - "帮我实现一个文件上传功能，文件存到 CloudBase 云存储"
+      - "在 Web 应用中获取 CloudBase 云存储文件的临时访问链接"
+      - "帮我给 CloudBase 云存储配置安全域名和跨域规则"
+
   - id: spec-workflow
     title: 开发工具：Spec 工作流
     description: 按需求分析、技术设计、任务拆分推进的工程规划工作流
@@ -245,6 +289,39 @@ rules:
       - "介绍 CloudBase 云函数的使用场景和最佳实践"
       - "介绍小程序云开发的核心概念和使用方法"
   
+  - id: cloudbase-cli
+    title: 开发工具：CloudBase CLI
+    description: 使用 tcb CLI 管理云函数、云托管、数据库、存储、静态托管与权限，适用于 CI/CD 与批量操作，支持国内站与国际站链路切换
+    shortDescription: tcb 命令行资源管理
+    category: tools
+    order: 3
+    prompts:
+      - "帮我把云函数用 tcb CLI 部署到 CloudBase"
+      - "在 CI 脚本里用 CloudBase CLI 完成一次批量部署发布"
+      - "国际站环境用 tcb CLI 登录时怎么指定站点？"
+
+  - id: cloudbase-code-review
+    title: 开发工具：代码审查
+    description: 写完代码后对 CloudBase 项目做落地检查，覆盖鉴权守卫、数据表缺失、RLS 配置、存储域名与 SDK 误用等常见坑
+    shortDescription: 项目落地检查与常见坑
+    category: tools
+    order: 4
+    prompts:
+      - "帮我检查这个 CloudBase Web 项目有没有鉴权配置问题"
+      - "帮我审查小程序项目里的 SDK 用法是否符合规范"
+      - "检查云开发数据库的表结构和安全规则配置是否正确"
+
+  - id: ops-inspector
+    title: 开发工具：环境巡检与诊断
+    description: 对 CloudBase 环境做健康检查、日志诊断、告警解读与故障排查，覆盖限频 429、云函数 404、调用量为 0 等典型问题
+    shortDescription: 环境巡检、告警与故障诊断
+    category: tools
+    order: 5
+    prompts:
+      - "帮我巡检一下 CloudBase 环境的健康状况"
+      - "云函数调用量突然变成 0 了，帮我排查原因"
+      - "帮我解读 CPU 使用率告警并给出处理建议"
+
   - id: ai-model-web
     title: 在 Web 应用中集成 AI 功能
     description: 在浏览器/Web 应用中使用 CloudBase AI 模型，支持文本生成和流式响应
@@ -277,3 +354,14 @@ rules:
       - "在微信小程序中集成 CloudBase AI 模型，实现智能对话功能"
       - "创建一个使用 CloudBase AI 模型的小程序应用，支持流式响应"
       - "在小程序中使用混元模型生成内容并展示给用户"
+  
+  - id: cloudbase-agent
+    title: 在应用中集成 AI Agent
+    description: 使用 CloudBase Agent SDK（TypeScript / Python）构建和部署 AI Agent 服务，基于 AG-UI 协议打通 Agent 与 Web / 小程序前端
+    shortDescription: Agent 服务构建与部署
+    category: ai
+    order: 4
+    prompts:
+      - "帮我用 CloudBase Agent SDK 搭建一个支持流式输出的 AI Agent 服务"
+      - "把 LangGraph 的 Agent 通过 CloudBase Agent SDK 部署到云托管"
+      - "帮我实现一个 Web 前端，接入 AG-UI 协议展示 Agent 的流式回复"
