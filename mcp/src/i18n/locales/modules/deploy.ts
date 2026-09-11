@@ -74,12 +74,12 @@ export const deploy = defineModule(
     buildTitle: "Build static hosting projects declared in the config (local build)",
     buildDescription:
       "Parses cloudbaserc and runs a local build for every hosting[] item that declares a buildCommand (only buildCommand runs — no dependency install, no upload)." +
-      "Equivalent to the CLI's tcb app build, but it only handles hosting[] static items and has nothing to do with the cloudbaserc app resource type (the cloud build pipeline)." +
-      "Declarative hosting deployment is split into three steps — build → plan → apply — and this tool is the first one:" +
-      "build the artifacts locally, preview with deployPlan, then upload them with deployApply." +
-      "deployApply no longer builds implicitly — a hosting item with a build command that is missing its artifacts fails with guidance to run this tool first." +
-      "Pure static hosting (no buildCommand and no detectable framework) is skipped automatically." +
-      "The build is a purely local operation: it resolves no environment, requires no login and needs no confirm." +
+      " Equivalent to the CLI's tcb app build, but it only handles hosting[] static items and has nothing to do with the cloudbaserc app resource type (the cloud build pipeline)." +
+      " Declarative hosting deployment is split into three steps — build → plan → apply — and this tool is the first one:" +
+      " build the artifacts locally, preview with deployPlan, then upload them with deployApply." +
+      " deployApply no longer builds implicitly — a hosting item with a build command that is missing its artifacts fails with guidance to run this tool first." +
+      " Pure static hosting (no buildCommand and no detectable framework) is skipped automatically." +
+      " The build is a purely local operation: it resolves no environment, requires no login and needs no confirm." +
       "\n- cwd: project root, defaults to the current working directory" +
       "\n- mode: environment name; when it matches envOverrides.<mode> the corresponding multi-environment overrides are merged",
     planTitle: "Preview CloudBase declarative deployment plan",
