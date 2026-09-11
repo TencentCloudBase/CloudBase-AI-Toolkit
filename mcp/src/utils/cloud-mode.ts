@@ -84,6 +84,7 @@ export const CLOUD_INCOMPATIBLE_TOOLS = [
   // Declarative deploy tools - read local cloudbaserc and build the upload
   // artifact from cwd (process.cwd() when no cwd is passed). Same class as the
   // function/upload tools above: they have no meaning without a local project.
+  'deployBuild',
   'deployApply',
   'deployPlan',
 

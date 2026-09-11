@@ -11,6 +11,12 @@ import { getCloudBaseManager, getEnvId } from "../cloudbase-manager.js";
 import type { ExtendedMcpServer } from "../server.js";
 import { jsonContent } from "../utils/json-content.js";
 import { findDestructiveStatements } from "../utils/sql-risk.js";
+import {
+  HOSTING_BUILD_ERROR_CODES,
+  buildHostingItem,
+  neutralizeHostingForDeploy,
+  type HostingItem,
+} from "./hosting-build-utils.js";
 
 // 声明式部署可编排的资源类型，与 DeployOrchestrator 的部署顺序一致：
 // database → functions → app → hosting → gateway
@@ -35,8 +41,12 @@ type ToolEnvelope = {
  * - CONFIRM_REQUIRED：写操作未显式传 confirm=true
  * - DESTRUCTIVE_CONFIRM_REQUIRED：待执行的数据库迁移含破坏性语句，需额外传 confirmDestructive=true
  * - DEPLOY_FAILED：编排器执行失败或其它未分类错误（可能透传引擎 errorCode）
+ *
+ * hosting 构建/中立化错误码（BUILD_OUTPUT_NOT_FOUND / DEPENDENCY_NOT_INSTALLED /
+ * BUILD_FAILED）定义在 hosting-build-utils.ts，这里并入保持单一信封错误码真源。
  */
 export const DEPLOY_ERROR_CODES = {
+  ...HOSTING_BUILD_ERROR_CODES,
   CONFIG_NOT_FOUND: "CONFIG_NOT_FOUND",
   CONFIG_INVALID: "CONFIG_INVALID",
   ENV_UNRESOLVED: "ENV_UNRESOLVED",
@@ -316,7 +326,93 @@ export function registerDeployTools(server: ExtendedMcpServer) {
   const cloudBaseOptions = server.cloudBaseOptions;
   const getManager = () => getCloudBaseManager({ cloudBaseOptions });
 
-  // 工具一：deployPlan —— 只读，预演部署计划（dry-run）
+  // 工具一：deployBuild —— 本地构建 hosting[] 产物（build → plan → apply 的第一步，与 tcb app build 对齐）
+  server.registerTool?.(
+    "deployBuild",
+    {
+      title: "构建声明式配置中的静态托管项目（本地构建）",
+      description:
+        "解析 cloudbaserc 并对 hosting[] 中配置了 buildCommand 的项目执行本地构建（仅执行 buildCommand，不安装依赖、不上传）。" +
+        "对应 CLI 的 tcb app build，但只处理 hosting[] 静态托管项，与 cloudbaserc 的 app 资源类型（云端构建管线）无关。" +
+        "声明式 hosting 部署拆分为「build → plan → apply」三步，本工具是第一步：" +
+        "先本地构建产物，再 deployPlan 预演，最后 deployApply 上传产物。" +
+        "deployApply 不再隐式本地构建 —— 带构建命令的 hosting 项在产物缺失时会报错引导先执行本工具。" +
+        "纯静态托管（未配置 buildCommand 且无法探测框架）自动跳过。" +
+        "构建为纯本地操作：不解析环境、不要求登录，也不需要 confirm。" +
+        "\n- cwd：项目根目录，默认当前工作目录" +
+        "\n- mode：环境名，命中 envOverrides.<mode> 时合并对应的多环境覆盖配置",
+      inputSchema: {
+        cwd: z
+          .string()
+          .optional()
+          .describe("项目根目录，从此目录向下搜索 cloudbaserc；默认当前工作目录"),
+        mode: z
+          .string()
+          .optional()
+          .describe("环境名（如 production/staging），命中 envOverrides.<mode> 时合并覆盖"),
+      },
+      annotations: {
+        // 本地构建会执行 buildCommand 并写产物文件，不是 read-only；但不变更云端资源，非 destructive。
+        readOnlyHint: false,
+        openWorldHint: true,
+        category: "deploy",
+      },
+    },
+    async ({ cwd, mode }: { cwd?: string; mode?: string }) => {
+      try {
+        const projectRoot = cwd ?? process.cwd();
+        const config = await resolveDeployConfig({ cwd: projectRoot, mode });
+        assertConfigValid(config);
+
+        const hostingItems = Array.isArray(config.hosting)
+          ? (config.hosting as HostingItem[])
+          : [];
+        if (hostingItems.length === 0) {
+          return jsonContent(
+            buildEnvelope(
+              { cwd: projectRoot, mode: mode ?? null, built: 0, skipped: 0, items: [] },
+              "配置中无 hosting 项，无需构建",
+            ),
+          );
+        }
+
+        // 依次构建各 hosting 项（fail-fast：任一项构建失败即中断，与 CLI tcb app build 一致）
+        const items: Array<{
+          name: string;
+          root: string;
+          action: string;
+          outputDir: string | null;
+        }> = [];
+        let built = 0;
+        let skipped = 0;
+        for (const item of hostingItems) {
+          const outcome = buildHostingItem(item, projectRoot);
+          items.push({
+            name: outcome.name,
+            root: outcome.root,
+            action: outcome.action,
+            outputDir: outcome.outputDir ?? null,
+          });
+          if (outcome.action === "built") {
+            built += 1;
+          } else {
+            skipped += 1;
+          }
+        }
+
+        return jsonContent(
+          buildEnvelope(
+            { cwd: projectRoot, mode: mode ?? null, built, skipped, items },
+            `构建完成：共 ${hostingItems.length} 项，产物已生成，可执行 deployApply 完成部署`,
+          ),
+        );
+      } catch (error) {
+        return jsonContent(buildErrorEnvelope(error));
+      }
+    },
+  );
+
+  // 工具二：deployPlan —— 只读，预演部署计划（dry-run）
   server.registerTool?.(
     "deployPlan",
     {
@@ -422,7 +518,7 @@ export function registerDeployTools(server: ExtendedMcpServer) {
     },
   );
 
-  // 工具二：deployApply —— 写操作，执行声明式部署（本地形态的 apply，与 deployPlan 对仗）
+  // 工具三：deployApply —— 写操作，执行声明式部署（本地形态的 apply，与 deployPlan 对仗）
   server.registerTool?.(
     "deployApply",
     {
@@ -581,8 +677,25 @@ export function registerDeployTools(server: ExtendedMcpServer) {
           }
         }
 
+        // hosting 中立化：hosting 参与本次部署时，deploy 不再隐式本地构建
+        // （声明式构建已拆到 deployBuild）。每个带 buildCommand 的项必须有构建产物：
+        // 有则清空命令后直传产物；缺失则抛 BUILD_OUTPUT_NOT_FOUND 引导先 deployBuild。
+        // 与 databaseParticipates 同一判定模式：hosting 被 only/skip 排除时不检查，
+        // 避免「本次不部署 hosting」却因产物缺失误报。
+        const hostingParticipates =
+          Array.isArray(config.hosting) &&
+          config.hosting.length > 0 &&
+          (!only || only.includes("hosting")) &&
+          !(skip ?? []).includes("hosting");
+
+        let deployConfig = config;
+        if (hostingParticipates) {
+          // 中立化返回新 config（不改入参）；可能抛 HostingBuildError(BUILD_OUTPUT_NOT_FOUND)
+          deployConfig = neutralizeHostingForDeploy(config, projectRoot);
+        }
+
         const result = await orchestrator.deploy({
-          config,
+          config: deployConfig,
           envId,
           cwd: projectRoot,
           only,
@@ -594,7 +707,13 @@ export function registerDeployTools(server: ExtendedMcpServer) {
 
         return jsonContent(
           buildEnvelope(
-            { cwd: projectRoot, mode: mode ?? null, envId, result },
+            {
+              cwd: projectRoot,
+              mode: mode ?? null,
+              envId,
+              hostingNeutralized: hostingParticipates,
+              result,
+            },
             "声明式部署已执行",
           ),
         );

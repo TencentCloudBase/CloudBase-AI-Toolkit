@@ -2,14 +2,39 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-const { mockGetCloudBaseManager, mockGetEnvId } = vi.hoisted(() => ({
+const {
+  mockGetCloudBaseManager,
+  mockGetEnvId,
+  mockBuildHostingItem,
+  mockNeutralizeHosting,
+} = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
   mockGetEnvId: vi.fn(),
+  mockBuildHostingItem: vi.fn(),
+  mockNeutralizeHosting: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
   getCloudBaseManager: mockGetCloudBaseManager,
   getEnvId: mockGetEnvId,
+}));
+
+vi.mock("./hosting-build-utils.js", () => ({
+  HOSTING_BUILD_ERROR_CODES: {
+    BUILD_OUTPUT_NOT_FOUND: "BUILD_OUTPUT_NOT_FOUND",
+    DEPENDENCY_NOT_INSTALLED: "DEPENDENCY_NOT_INSTALLED",
+    BUILD_FAILED: "BUILD_FAILED",
+  },
+  HostingBuildError: class HostingBuildError extends Error {
+    readonly code: string;
+    constructor(code: string, message: string) {
+      super(message);
+      this.name = "HostingBuildError";
+      this.code = code;
+    }
+  },
+  buildHostingItem: mockBuildHostingItem,
+  neutralizeHostingForDeploy: mockNeutralizeHosting,
 }));
 
 type RegisteredTool = { meta: any; handler: (args: any) => Promise<any> };
@@ -63,11 +88,18 @@ const BASE_CONFIG = {
 };
 
 describe("deploy tools registration", () => {
-  it("registers deployPlan and deploy with expected annotations", async () => {
+  it("registers deployBuild, deployPlan and deploy with expected annotations", async () => {
     const { tools } = await createDeployTools();
 
-    expect(Object.keys(tools).sort()).toEqual(["deployApply", "deployPlan"]);
+    expect(Object.keys(tools).sort()).toEqual(["deployApply", "deployBuild", "deployPlan"]);
 
+    // deployBuild is a local-only build step: not read-only (executes the build command
+    // and writes artifacts locally) but not destructive on cloud resources either.
+    expect(tools.deployBuild.meta.annotations).toMatchObject({
+      readOnlyHint: false,
+      category: "deploy",
+    });
+    expect(tools.deployBuild.meta.annotations.destructiveHint).not.toBe(true);
     expect(tools.deployPlan.meta.annotations).toMatchObject({
       readOnlyHint: true,
       category: "deploy",
@@ -77,6 +109,14 @@ describe("deploy tools registration", () => {
       destructiveHint: true,
       category: "deploy",
     });
+  });
+
+  it("deployBuild only exposes cwd/mode (no envId / confirm / destructive gates)", async () => {
+    const { tools } = await createDeployTools();
+
+    expect(Object.keys(tools.deployBuild.meta.inputSchema).sort()).toEqual(["cwd", "mode"]);
+    // No confirm gate: deployBuild only builds locally, never mutates cloud resources.
+    expect(tools.deployBuild.meta.description).not.toContain("confirm=true");
   });
 
   it("declares only/skip as enums matching orchestration order in both tools", async () => {
@@ -686,6 +726,211 @@ describe("deploy destructive database migration gate", () => {
     const result = parseToolResult(await tools.deployApply.handler({ confirm: true, cwd }));
 
     expect(result.success).toBe(true);
+    expect(deployMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+const HOSTING_CONFIG = {
+  version: "2.1",
+  envId: "env-from-config",
+  hosting: [{ name: "site", root: ".", buildCommand: "npm run build", outputDir: "dist" }],
+};
+
+describe("deployBuild", () => {
+  let tmpDirs: string[];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    tmpDirs = [];
+  });
+
+  afterEach(() => {
+    for (const dir of tmpDirs) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup failures in restricted CI/sandbox delete hooks.
+      }
+    }
+  });
+
+  function makeProject(config: Record<string, unknown> = HOSTING_CONFIG): string {
+    const dir = writeProject(config);
+    tmpDirs.push(dir);
+    return dir;
+  }
+
+  it("reports CONFIG_NOT_FOUND when no cloudbaserc exists under cwd", async () => {
+    const { tools } = await createDeployTools();
+    const emptyDir = fs.mkdtempSync(path.join(process.cwd(), ".tmp-deploy-test-"));
+    tmpDirs.push(emptyDir);
+
+    const result = parseToolResult(await tools.deployBuild.handler({ cwd: emptyDir }));
+
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe("CONFIG_NOT_FOUND");
+    expect(mockBuildHostingItem).not.toHaveBeenCalled();
+  });
+
+  it("says nothing to build when config has no hosting", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject({ version: "2.1", envId: "env-from-config" });
+
+    const result = parseToolResult(await tools.deployBuild.handler({ cwd }));
+
+    expect(result.success).toBe(true);
+    expect(result.message).toContain("无需构建");
+    expect(mockBuildHostingItem).not.toHaveBeenCalled();
+  });
+
+  it("builds every hosting item and reports built/skipped counts", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject({
+      version: "2.1",
+      envId: "env-from-config",
+      hosting: [
+        { name: "site-a", root: ".", buildCommand: "npm run build" },
+        { name: "site-b", root: ".", framework: "static" },
+      ],
+    });
+    mockBuildHostingItem
+      .mockReturnValueOnce({
+        name: "site-a",
+        root: cwd,
+        action: "built",
+        buildCommand: "npm run build",
+        outputDir: path.join(cwd, "dist"),
+      })
+      .mockReturnValueOnce({ name: "site-b", root: cwd, action: "skipped" });
+
+    const result = parseToolResult(await tools.deployBuild.handler({ cwd }));
+
+    expect(result.success).toBe(true);
+    expect(result.data.built).toBe(1);
+    expect(result.data.skipped).toBe(1);
+    expect(result.data.items).toHaveLength(2);
+    expect(result.message).toContain("deployApply");
+    expect(mockBuildHostingItem).toHaveBeenCalledTimes(2);
+  });
+
+  it("never requires env resolution or a manager (pure local build step)", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject();
+    mockBuildHostingItem.mockReturnValue({
+      name: "site",
+      root: cwd,
+      action: "built",
+      outputDir: path.join(cwd, "dist"),
+    });
+
+    await tools.deployBuild.handler({ cwd });
+
+    expect(mockGetCloudBaseManager).not.toHaveBeenCalled();
+    expect(mockGetEnvId).not.toHaveBeenCalled();
+  });
+
+  it("surfaces strategy-layer errors with a stable errorCode", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject();
+    mockBuildHostingItem.mockImplementation(() => {
+      throw Object.assign(new Error("[site] 未检测到 node_modules"), {
+        code: "DEPENDENCY_NOT_INSTALLED",
+      });
+    });
+
+    const result = parseToolResult(await tools.deployBuild.handler({ cwd }));
+
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe("DEPENDENCY_NOT_INSTALLED");
+  });
+});
+
+describe("deployApply hosting neutralization", () => {
+  let tmpDirs: string[];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockOrchestrator();
+    deployMock.mockResolvedValue({ plan: [], results: [] });
+    // Default: neutralization succeeds and returns a config whose hosting was cleared.
+    mockNeutralizeHosting.mockImplementation((config: Record<string, unknown>) => ({
+      ...config,
+      hosting: [],
+    }));
+    tmpDirs = [];
+  });
+
+  afterEach(() => {
+    for (const dir of tmpDirs) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup failures in restricted CI/sandbox delete hooks.
+      }
+    }
+  });
+
+  function makeProject(config: Record<string, unknown> = HOSTING_CONFIG): string {
+    const dir = writeProject(config);
+    tmpDirs.push(dir);
+    return dir;
+  }
+
+  it("neutralizes hosting before deploying when hosting participates", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject();
+
+    const result = parseToolResult(await tools.deployApply.handler({ confirm: true, cwd }));
+
+    expect(result.success).toBe(true);
+    expect(result.data.hostingNeutralized).toBe(true);
+    expect(mockNeutralizeHosting).toHaveBeenCalledTimes(1);
+    expect(mockNeutralizeHosting).toHaveBeenCalledWith(expect.anything(), cwd);
+    // The orchestrator receives the neutralized config (hosting commands cleared),
+    // not the raw config — so deploy skips the implicit local build.
+    expect(deployMock.mock.calls[0][0].config.hosting).toEqual([]);
+  });
+
+  it("blocks deploy with BUILD_OUTPUT_NOT_FOUND when a participating item lacks build output", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject();
+    mockNeutralizeHosting.mockImplementation(() => {
+      throw Object.assign(
+        new Error(
+          "[site] 未找到构建产物：/x/dist\nhosting 声明式部署不再自动执行本地构建，请先执行 deployBuild 完成构建后再执行 deployApply。",
+        ),
+        { code: "BUILD_OUTPUT_NOT_FOUND" },
+      );
+    });
+
+    const result = parseToolResult(await tools.deployApply.handler({ confirm: true, cwd }));
+
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe("BUILD_OUTPUT_NOT_FOUND");
+    expect(result.message).toContain("deployBuild");
+    expect(deployMock).not.toHaveBeenCalled();
+  });
+
+  it("skips neutralization when hosting is excluded via skip/only", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject();
+
+    await tools.deployApply.handler({ confirm: true, cwd, skip: ["hosting"] });
+    await tools.deployApply.handler({ confirm: true, cwd, only: ["functions"] });
+
+    expect(mockNeutralizeHosting).not.toHaveBeenCalled();
+    expect(deployMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips neutralization when the config has no hosting resources", async () => {
+    const { tools } = await createDeployTools();
+    const cwd = makeProject({ version: "2.1", envId: "env-from-config" });
+
+    const result = parseToolResult(await tools.deployApply.handler({ confirm: true, cwd }));
+
+    expect(result.success).toBe(true);
+    expect(result.data.hostingNeutralized).toBe(false);
+    expect(mockNeutralizeHosting).not.toHaveBeenCalled();
     expect(deployMock).toHaveBeenCalledTimes(1);
   });
 });
