@@ -61,9 +61,13 @@ import type { CreateEnvParams } from "@cloudbase/manager-node/types/interfaces/t
 /**
  * Resources accepted by CreateEnv. Matches Cloud API / Manager SDK contract.
  * `postgresql` enables CloudBase PostgreSQL (PG mode) when supported by the package.
+ *
+ * `flexdb` (NoSQL document database) is intentionally NOT offered: new environments are
+ * created without a document-database tenant. It is not a queryable flag either — the
+ * NoSQL capability is probed at runtime from `EnvInfo.Databases[]`
+ * (see `isUsableNoSqlDatabaseEntry`), not from the CreateEnv `Resources` list.
  */
 export const CREATE_ENV_RESOURCE_VALUES = [
-  "flexdb",
   "storage",
   "function",
   "postgresql",
@@ -71,10 +75,19 @@ export const CREATE_ENV_RESOURCE_VALUES = [
 
 export type CreateEnvResource = (typeof CREATE_ENV_RESOURCE_VALUES)[number];
 
-/** Default Resources when callers omit the field (schema promises "all four"). */
+/** Default Resources when callers omit the field (schema promises "all three"). */
 export const DEFAULT_CREATE_ENV_RESOURCES: CreateEnvResource[] = [
   ...CREATE_ENV_RESOURCE_VALUES,
 ];
+
+/**
+ * Regions accepted by `manageEnv(action="create")`。
+ *
+ * 刻意与 `TCB_QUERY_REGIONS` 分开命名：后者描述的是「可以拿去探测既有环境」的地域集合，
+ * 而 create 还取决于站点 / 套餐可用性（例如国内站的 ap-guangzhou 是按白名单提供的）。
+ * 取值当前与查询集一致 —— 这是公开契约下能确认的唯一集合，未拿到文档依据前不要放宽。
+ */
+export const CREATE_ENV_REGIONS = TCB_QUERY_REGIONS;
 
 export function resolveCreateEnvResources(
   resources: readonly string[] | undefined,
@@ -1713,15 +1726,18 @@ function normalizeOptionalToolBoolean(value: unknown) {
 }
 
 /**
- * 解析用于询价的 region。与 cloudbase-manager.ts 一致：
- * cloudBaseOptions.region → TCB_REGION → 'ap-shanghai'。
+ * 解析 create 未显式传 region 时，实际会落到哪个地域。
+ *
+ * 必须与「会话 manager 使用的地域」同口径 —— cloudbase-manager.ts 里 manager 的 region
+ * 由 `resolveSiteAndRegion(cloudBaseOptions)` 决定，解析链为：
+ * cloudBaseOptions.region → TCB_REGION → 项目配置 / rc 绑定 → 站点默认地域
+ * （国内站 ap-shanghai、国际站 ap-singapore）。
+ *
+ * 不要退回硬编码 ap-shanghai：国际站会话的默认地域是 ap-singapore，
+ * 硬编码会让确认页展示的地域与实际创建出的环境所在地域不一致。
  */
 function resolvePricingRegion(cloudBaseOptions: any): string {
-  return (
-    (typeof cloudBaseOptions?.region === "string" && cloudBaseOptions.region) ||
-    process.env.TCB_REGION ||
-    "ap-shanghai"
-  );
+  return resolveSiteAndRegion(cloudBaseOptions ?? {}).region;
 }
 
 /**
@@ -3495,7 +3511,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           .array(z.enum(CREATE_ENV_RESOURCE_VALUES))
           .optional()
           .describe(
-            "启用的资源类型（action=create 时可选）。省略时默认全部四项：flexdb(文档数据库)、storage(存储)、function(云函数)、postgresql(PostgreSQL)。CreateEnv 要求 Resources 非空，MCP 会始终下发该字段。",
+            "启用的资源类型（action=create 时可选）。可选值：storage(存储)、function(云函数)、postgresql(PostgreSQL)，省略时默认全部三项。CreateEnv 要求 Resources 非空，MCP 会始终下发该字段。不再包含 flexdb(文档数据库)：新建环境不会创建 NoSQL 实例，其可用性以 queryEnv(action=\"info\") 返回的 EnvInfo.RuntimeBackends 为准。",
           ),
         duration: z
           .number()
@@ -3505,10 +3521,10 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           .optional()
           .describe("购买或续费时长（月），action=create/renew 时可选，默认 1"),
         region: z
-          .enum(TCB_QUERY_REGIONS)
+          .enum(CREATE_ENV_REGIONS)
           .optional()
           .describe(
-            "创建地域（仅 action=create 时有效）。按 X-TC-Region 语义透传，决定新环境所在地域；等价 CLI：tcb env create --region ap-guangzhou。不传则用当前会话地域（cloudBaseOptions.region → TCB_REGION → 站点默认地域）。注意：region 不写进 CreateEnv 请求体，而是通过请求层地域上下文生效——这与「请勿把 Region 放进 params」的 callCloudApi 约定一致。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）；如需在国内站该地域创建，请先 auth(site=\"domestic\") 或设置 TCB_SITE=domestic。"
+            "创建地域（仅 action=create 时有效）。按 X-TC-Region 语义透传，决定新环境所在地域；等价 CLI：tcb env create --region ap-shanghai。不传则用当前会话地域（cloudBaseOptions.region → TCB_REGION → 项目配置 / rc 绑定 → 站点默认地域：国内站 ap-shanghai、国际站 ap-singapore）。注意：region 不写进 CreateEnv 请求体，而是通过请求层地域上下文生效——这与「请勿把 Region 放进 params」的 callCloudApi 约定一致。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）；如需在国内站该地域创建，请先 auth(site=\"domestic\") 或设置 TCB_SITE=domestic。"
           ),
         envId: z
           .string()

@@ -508,7 +508,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "resources",
       type: "array of string",
-      description: `启用的资源类型（action=create 时可选）。省略时默认全部四项：flexdb(文档数据库)、storage(存储)、function(云函数)、postgresql(PostgreSQL)。CreateEnv 要求 Resources 非空，MCP 会始终下发该字段。`,
+      description: `启用的资源类型（action=create 时可选）。可选值：storage(存储)、function(云函数)、postgresql(PostgreSQL)，省略时默认全部三项。CreateEnv 要求 Resources 非空，MCP 会始终下发该字段。不再包含 flexdb(文档数据库)：新建环境不会创建 NoSQL 实例，其可用性以 queryEnv(action="info") 返回的 EnvInfo.RuntimeBackends 为准。`,
     },
     {
       name: "duration",
@@ -518,7 +518,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "region",
       type: "string",
-      description: `创建地域（仅 action=create 时有效）。按 X-TC-Region 语义透传，决定新环境所在地域；等价 CLI：tcb env create --region ap-guangzhou。不传则用当前会话地域（cloudBaseOptions.region → TCB_REGION → 站点默认地域）。注意：region 不写进 CreateEnv 请求体，而是通过请求层地域上下文生效——这与「请勿把 Region 放进 params」的 callCloudApi 约定一致。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）；如需在国内站该地域创建，请先 auth(site="domestic") 或设置 TCB_SITE=domestic。 可填写的值: "ap-shanghai", "ap-guangzhou", "ap-singapore"`,
+      description: `创建地域（仅 action=create 时有效）。按 X-TC-Region 语义透传，决定新环境所在地域；等价 CLI：tcb env create --region ap-shanghai。不传则用当前会话地域（cloudBaseOptions.region → TCB_REGION → 项目配置 / rc 绑定 → 站点默认地域：国内站 ap-shanghai、国际站 ap-singapore）。注意：region 不写进 CreateEnv 请求体，而是通过请求层地域上下文生效——这与「请勿把 Region 放进 params」的 callCloudApi 约定一致。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）；如需在国内站该地域创建，请先 auth(site="domestic") 或设置 TCB_SITE=domestic。 可填写的值: "ap-shanghai", "ap-guangzhou", "ap-singapore"`,
     },
     {
       name: "envId",

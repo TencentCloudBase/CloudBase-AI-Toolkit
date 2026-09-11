@@ -8,6 +8,7 @@ import {
   formatEnvMetricTime,
   isUsableNoSqlDatabaseEntry,
   registerEnvTools,
+  resolveCreateEnvResources,
   resolveEnvMetricName,
   resolveEnvMetricPeriod,
   resolveEnvMetricResourceId,
@@ -176,7 +177,11 @@ vi.mock("./env-setup.js", () => ({
   checkAndCreateFreeEnv: mockCheckAndCreateFreeEnv,
 }));
 
-function createMockServer(ide = "TestIDE", authOptions?: any) {
+function createMockServer(
+  ide = "TestIDE",
+  authOptions?: any,
+  cloudBaseOptions?: Record<string, unknown>,
+) {
   const tools: Record<
     string,
     {
@@ -186,7 +191,10 @@ function createMockServer(ide = "TestIDE", authOptions?: any) {
   > = {};
 
   const server: ExtendedMcpServer = {
-    cloudBaseOptions: { envId: "env-test", region: "ap-guangzhou" },
+    cloudBaseOptions: cloudBaseOptions ?? {
+      envId: "env-test",
+      region: "ap-guangzhou",
+    },
     authOptions,
     ide,
     server: {
@@ -2667,7 +2675,7 @@ describe("manageEnv", () => {
       code: "CONFIRM_REQUIRED",
     });
     expect(payload.message).toContain("确认");
-    expect(payload.message).toContain("flexdb, storage, function, postgresql");
+    expect(payload.message).toContain("storage, function, postgresql");
     // 未显式传 region 时，摘要回显会话地域（mock server 的 cloudBaseOptions.region）
     expect(payload.message).toContain("地域: ap-guangzhou");
     expect(payload.message).toContain("按 X-TC-Region 语义生效");
@@ -2765,7 +2773,7 @@ describe("manageEnv", () => {
     expect(createEnv).toHaveBeenCalledWith({
       Alias: "my-env",
       PackageId: "baas_personal",
-      Resources: ["flexdb", "storage", "function", "postgresql"],
+      Resources: ["storage", "function", "postgresql"],
       Period: 1,
     });
     expect(mockGetCloudBaseManager).toHaveBeenCalledWith(
@@ -2909,7 +2917,7 @@ describe("manageEnv", () => {
           action: "create",
           alias: "my-env",
           packageId: "baas_personal",
-          resources: ["flexdb", "storage", "function", "postgresql"],
+          resources: ["storage", "function", "postgresql"],
           duration: 1,
           confirm: "yes",
         })
@@ -2923,14 +2931,14 @@ describe("manageEnv", () => {
       Alias: "my-env",
       PackageId: "baas_personal",
       Period: 1,
-      Resources: ["flexdb", "storage", "function", "postgresql"],
+      Resources: ["storage", "function", "postgresql"],
     });
     expect(createEnv.mock.calls[0][0]).not.toHaveProperty("Region");
     expect(payload).toMatchObject({
       ok: true,
       code: "ENV_CREATED",
       envId: "env-new-123",
-      resources: ["flexdb", "storage", "function", "postgresql"],
+      resources: ["storage", "function", "postgresql"],
     });
   });
 
@@ -2972,13 +2980,88 @@ describe("manageEnv", () => {
       Alias: "default-res",
       PackageId: "baas_personal",
       Period: 1,
-      Resources: ["flexdb", "storage", "function", "postgresql"],
+      Resources: ["storage", "function", "postgresql"],
     });
     expect(payload).toMatchObject({
       ok: true,
       code: "ENV_CREATED",
       envId: "env-default-resources",
     });
+  });
+
+  it("create preview falls back to the resolved site region when the session has no region", async () => {
+    // 会话未提供 region 时必须回落到「站点默认地域」（国际站 ap-singapore），
+    // 而不是硬编码 ap-shanghai —— 否则确认页展示的地域与实际创建出的环境不一致。
+    const prevSite = process.env.TCB_SITE;
+    const prevRegion = process.env.TCB_REGION;
+    process.env.TCB_SITE = "intl";
+    delete process.env.TCB_REGION;
+    try {
+      const createEnv = vi.fn().mockResolvedValue({ EnvId: "env-site-default" });
+      const describeBillingInfo = vi
+        .fn()
+        .mockResolvedValue({ EnvBillingInfoList: [] });
+      mockGetCloudBaseManager.mockResolvedValue({
+        env: {
+          createEnv,
+          describeBillingInfo,
+          describeBaasPackageList: vi
+            .fn()
+            .mockResolvedValue({ PackageList: [] }),
+        },
+      } as any);
+
+      // 显式清掉会话 region，逼出「站点默认地域」这一级
+      const { tools } = createMockServer("TestIDE", undefined, {
+        envId: "env-test",
+      });
+      const preview = JSON.parse(
+        (
+          await tools.manageEnv.handler({
+            action: "create",
+            alias: "site-default-env",
+            packageId: "baas_personal",
+          })
+        ).content[0].text,
+      );
+
+      expect(preview).toMatchObject({ ok: false, code: "CONFIRM_REQUIRED" });
+      expect(preview.message).toContain("地域: ap-singapore");
+      expect(preview.next_step).toMatchObject({
+        region: "ap-singapore",
+        regionSource: "session",
+      });
+    } finally {
+      if (prevSite === undefined) {
+        delete process.env.TCB_SITE;
+      } else {
+        process.env.TCB_SITE = prevSite;
+      }
+      if (prevRegion === undefined) {
+        delete process.env.TCB_REGION;
+      } else {
+        process.env.TCB_REGION = prevRegion;
+      }
+    }
+  });
+
+  it("create schema should no longer accept flexdb in resources", () => {
+    const { tools } = createMockServer();
+    const resourcesSchema = tools.manageEnv.meta.inputSchema.resources;
+
+    // 省略时由 resolveCreateEnvResources 兜底，默认值不再包含 flexdb
+    expect(resolveCreateEnvResources(undefined)).toEqual([
+      "storage",
+      "function",
+      "postgresql",
+    ]);
+    expect(resourcesSchema.parse(["storage", "postgresql"])).toEqual([
+      "storage",
+      "postgresql",
+    ]);
+    // 显式传 flexdb 必须被 schema 拒绝，而不是静默透传给 CreateEnv
+    expect(() => resourcesSchema.parse(["flexdb"])).toThrow();
+    expect(() => resourcesSchema.parse(["storage", "flexdb"])).toThrow();
   });
 
   it("modifyPlan should require confirm before execution", async () => {
