@@ -84,9 +84,19 @@ type OpenAPIInfo = {
   url?: string;
 };
 
-// 云端（hosted）模式下 skill 文档的远程基址：返回远程 URL 而不是服务端本地路径
-const SKILL_REMOTE_BASE_URL =
-  "https://cnb.cool/tencent/cloud/cloudbase/skills/-/git/raw/main/skills";
+// 云端（hosted）模式下 skill 文档的远程基址：返回远程 URL 而不是服务端本地路径。
+//
+// 该地址指向官方 `npx skills add TencentCloudBase/cloudbase-skills` 分发的聚合 skill 仓
+// （all-in-one）。它在 CNB 与 GitHub TencentCloudBase/cloudbase-skills 之间同步，是当前
+// 唯一有 references/ 的活仓；旧的 `.../cloudbase/skills` 仓已停止更新（新 skill 与 references 均 404）。
+//
+// 聚合仓目录结构为：
+//   <base>/<skillName>/SKILL.md
+//   <base>/<skillName>/references/<file>.md
+// 注意 base 里已含聚合前缀 `.../skills/cloudbase/references`，因此再拼 `<skillName>` 才是单个
+// skill 的根目录（`<base>/<skillName>/SKILL.md` 已验证返回 200）。
+export const SKILL_REMOTE_BASE_URL =
+  "https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references";
 
 // 资源下载结果类型
 interface DownloadResult {
@@ -549,6 +559,8 @@ export async function registerRagTools(server: ExtendedMcpServer) {
       - 需要 auth-web 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web)
       - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)
 
+      返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。
+
       固定技能文档 (skill) 查询当前支持 ${skills.length} 个固定文档，分别是：
       ${skills
           .map(
@@ -707,8 +719,8 @@ export async function registerRagTools(server: ExtendedMcpServer) {
 
         if (!skill) {
           const remoteHint =
-            isCloudMode() && skillName?.trim()
-              ? ` You can also try fetching the skill doc directly from: ${SKILL_REMOTE_BASE_URL}/${encodeURIComponent(skillName.trim())}/SKILL.md`
+            skillName?.trim()
+              ? ` You can also try fetching the skill doc directly from: ${buildSkillRawUrl(skillName.trim(), "SKILL.md")}`
               : "";
           return {
             content: [
@@ -720,27 +732,41 @@ export async function registerRagTools(server: ExtendedMcpServer) {
           };
         }
 
-        // 云端（hosted）模式：返回远程 URL，不返回服务端本地路径（客户端读不到）
-        if (isCloudMode()) {
-          const remoteSkillName = path.basename(path.dirname(skill.absolutePath));
-          return {
-            content: [
-              {
-                type: "text",
-                text: `The skill doc is available at: ${SKILL_REMOTE_BASE_URL}/${encodeURIComponent(remoteSkillName)}/SKILL.md\nFetch this remote URL over HTTP. Local file paths are not available in cloud mode.`,
-              },
-            ],
-          };
+        const skillDir = path.dirname(skill.absolutePath);
+        const remoteSkillName = path.basename(skillDir);
+        const markdownFiles = await collectSkillMarkdownFiles(skillDir);
+        const remoteState = await getRemoteSkillState(remoteSkillName);
+        const localContent = (await fs.readFile(skill.absolutePath)).toString();
+        const sections: string[] = [];
+
+        if (remoteState === "available") {
+          sections.push(
+            buildSkillRemoteFileList(remoteSkillName, markdownFiles),
+          );
+        } else if (remoteState === "missing") {
+          sections.push(
+            `Skill "${remoteSkillName}" is not present in the remote CloudBase skills repository (HTTP 404); no remote file URLs are provided to avoid dead links.`,
+          );
+        } else {
+          sections.push(
+            `Could not confirm the remote address for skill "${remoteSkillName}" (probe failed); no possibly-stale remote file URLs are provided.`,
+          );
         }
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: `The skill doc's absolute path is: ${skill.absolutePath}. ${(await fs.readFile(skill.absolutePath)).toString()}`,
-            },
-          ],
-        };
+        // 云端（hosted）模式：客户端读不到服务端本地路径，改返回正文（相对链接改写为绝对地址）
+        if (isCloudMode()) {
+          const body =
+            remoteState === "available"
+              ? rewriteRelativeLinks(localContent, remoteSkillName)
+              : localContent;
+          sections.push(`--- SKILL.md content ---\n${body}`);
+          return { content: [{ type: "text", text: sections.join("\n\n") }] };
+        }
+
+        sections.push(
+          `The skill doc's absolute path is: ${skill.absolutePath}.\n--- SKILL.md content ---\n${localContent}`,
+        );
+        return { content: [{ type: "text", text: sections.join("\n\n") }] };
       }
 
       if (mode === "openapi") {
@@ -815,4 +841,139 @@ async function collectSkillDescriptions(rootDir: string): Promise<SkillInfo[]> {
   }
   await walk(rootDir);
   return result;
+}
+
+// ============ 远端 skill 地址 ============
+
+/** 逐段编码路径（保留 `/` 分隔符），避免 skill 名/文件名中的特殊字符破坏 URL。 */
+function encodeRawPath(relativePath: string): string {
+  return relativePath
+    .split("/")
+    .filter((segment) => segment.length > 0)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+}
+
+/** 拼接聚合仓中某个 skill 文件的可直接抓取的 raw 地址。 */
+export function buildSkillRawUrl(skillName: string, relativePath: string): string {
+  return `${SKILL_REMOTE_BASE_URL}/${encodeURIComponent(skillName)}/${encodeRawPath(relativePath)}`;
+}
+
+/**
+ * 收集 skill 目录下所有 `.md`（递归，含 `references/` 及更深层），返回相对 skill 根目录的
+ * posix 路径，`SKILL.md` 排在最前，其余按字典序。非 `.md` 文件不纳入清单：它们不是可读文档
+ * （如远端聚合仓根部的 `activation-map.yaml` 也不在任何单个 skill 目录内），列出反而会诱导 AI
+ * 去抓取无法解析的资产。
+ */
+export async function collectSkillMarkdownFiles(skillDir: string): Promise<string[]> {
+  const files: string[] = [];
+  async function walk(dir: string): Promise<void> {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(fullPath);
+      } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".md")) {
+        files.push(path.relative(skillDir, fullPath).split(path.sep).join("/"));
+      }
+    }
+  }
+  await walk(skillDir);
+  return files.sort((a, b) => {
+    if (a === "SKILL.md") return -1;
+    if (b === "SKILL.md") return 1;
+    return a.localeCompare(b);
+  });
+}
+
+/**
+ * 把 SKILL.md 正文里「代码栅栏之外」的相对链接改写为聚合仓 raw 绝对地址。
+ *
+ * 实现思路来自 `scripts/generate-prompts.mjs` 的 rewriteRelativeLinks（栅栏感知、只改写栅栏外
+ * 链接、保留锚点、跳过绝对地址/站内绝对路径/纯锚点）。考虑到 `scripts/` 是 .mjs、`mcp/src/`
+ * 会编译到 `mcp/dist`，跨目录 import 会破坏构建，这里按本文件的远端基址重写一份，不共享实现。
+ *
+ * 栅栏判定：按行扫描，某行 trim 后以 ``` 开头就翻转栅栏状态；栅栏内的内容原样保留（其中可能是
+ * 示例代码，改写会改变语义）。相对链接以 skill 目录为基准解析 —— `../sibling/SKILL.md` 在聚合仓
+ * 中同样成立；一旦解析结果越出聚合 references 根（以 `..` 开头）就保持原样。
+ */
+export function rewriteRelativeLinks(content: string, skillName: string): string {
+  let fencing = false;
+
+  return content
+    .split("\n")
+    .map((line) => {
+      if (line.trim().startsWith("```")) {
+        fencing = !fencing;
+        return line;
+      }
+      if (fencing) return line;
+
+      return line.replace(/\]\(([^)\s]+)\)/g, (whole, target: string) => {
+        // 带协议（http:、https:、mailto: 等）、站内绝对路径、纯锚点一律不改写
+        if (
+          /^[a-z][a-z0-9+.-]*:/i.test(target) ||
+          target.startsWith("/") ||
+          target.startsWith("#")
+        ) {
+          return whole;
+        }
+
+        const hashIndex = target.indexOf("#");
+        const pathPart = hashIndex === -1 ? target : target.slice(0, hashIndex);
+        const anchor = hashIndex === -1 ? "" : target.slice(hashIndex);
+        if (!pathPart) return whole;
+
+        const resolved = path.posix.normalize(
+          path.posix.join(skillName, pathPart),
+        );
+        // 越出聚合 references 根说明目标不在本仓，保持原样
+        if (resolved.startsWith("..")) return whole;
+
+        return `](${SKILL_REMOTE_BASE_URL}/${encodeRawPath(resolved)}${anchor})`;
+      });
+    })
+    .join("\n");
+}
+
+type RemoteSkillState = "available" | "missing" | "unknown";
+
+// 每个 skill 名只探测一次；聚合仓是 skill 的权威远端镜像，本地/缓存可能领先或落后于它。
+const remoteSkillStateCache = new Map<string, Promise<RemoteSkillState>>();
+
+/**
+ * 探测 skill 在聚合仓中是否存在（HEAD `<base>/<skillName>/SKILL.md`）。
+ * 404 => 明确不存在（用于避免返回死链）；其余状态或网络异常 => 无法确认。
+ */
+function getRemoteSkillState(skillName: string): Promise<RemoteSkillState> {
+  const cached = remoteSkillStateCache.get(skillName);
+  if (cached) return cached;
+
+  const probe = (async (): Promise<RemoteSkillState> => {
+    try {
+      const response = await fetch(buildSkillRawUrl(skillName, "SKILL.md"), {
+        method: "HEAD",
+      });
+      return response.status === 404 ? "missing" : "available";
+    } catch {
+      return "unknown";
+    }
+  })();
+
+  remoteSkillStateCache.set(skillName, probe);
+  return probe;
+}
+
+/** 生成「该 skill 的所有 md 文件 raw 地址」清单，供 AI 按需抓取。 */
+function buildSkillRemoteFileList(
+  skillName: string,
+  markdownFiles: string[],
+): string {
+  const lines = markdownFiles.map(
+    (file) => `- ${file}: ${buildSkillRawUrl(skillName, file)}`,
+  );
+  return [
+    `Remote mirror of skill "${skillName}" (CNB raw, fetch these URLs on demand):`,
+    ...lines,
+  ].join("\n");
 }
