@@ -3,7 +3,7 @@
 .DS_Store
 .env.local
 .generated
-.skills-repo-output
+.skills-repo-output*
 .workbuddy/
 .worktrees/
 **/.cloudbase-sites/
@@ -51,3 +51,9 @@ specs/*
 # .workbuddy: IDE local state (AI daily memory, plans, expert session history).
 # 类比 .idea/ / .vscode/，本不该进版本控制；含内部任务 ID，私有归档另存。
 .workbuddy/
+
+# 测试与构建残留
+mcp/.tmp-*/
+mcp/*.tgz
+**/vitest.config.js.timestamp-*.mjs
+tests/fixtures/readme-test/
