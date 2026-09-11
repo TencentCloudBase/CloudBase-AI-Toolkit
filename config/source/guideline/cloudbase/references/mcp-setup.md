@@ -149,7 +149,7 @@ Query available plans, create environments, change plans, and renew:
   ```
 
   Resources parameter values: `flexdb` (document database), `storage` (cloud storage), `function` (cloud functions), `postgresql` (PostgreSQL database).
-  Do **not** pass `region`: CreateEnv does not accept Region; environment region is determined by account/package.
+  Optional `region` (e.g. `region=ap-guangzhou`) selects where the environment is created: it is sent as the **`X-TC-Region` request context** (same as CLI `tcb env create --region ap-guangzhou`), never as a CreateEnv body field. Omit it to use the current session region. If you pass `region`, repeat the same value on the confirming call (`confirm=yes`), otherwise the environment may be created in the session region instead.
 
 - **Change plan** (e.g. upgrade to standard):
   `npx mcporter call cloudbase.manageEnv action=modifyPlan envId=<envId> packageId=baas_pf_standard confirm=yes --output json`

@@ -255,7 +255,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "region",
       type: "string",
-      description: `查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 取该环境自身的 Region，ignored_params 说明忽略原因——不要据此判定该地域没有环境。 可填写的值: "ap-shanghai", "ap-guangzhou", "ap-singapore"`,
+      description: `查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 取该环境自身的 Region、ignored_params 说明忽略原因——不要据此判定该地域没有环境。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）：若两站都登录过，传该地域会静默查国际站账号，请先用 auth(site="domestic") 或设置 TCB_SITE=domestic 明确站点。 可填写的值: "ap-shanghai", "ap-guangzhou", "ap-singapore"`,
     },
     {
       name: "limit",
@@ -373,7 +373,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "region",
       type: "string",
-      description: `查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 取该环境自身的 Region，ignored_params 说明忽略原因——不要据此判定该地域没有环境。 可填写的值: "ap-shanghai", "ap-guangzhou", "ap-singapore"`,
+      description: `查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 取该环境自身的 Region、ignored_params 说明忽略原因——不要据此判定该地域没有环境。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）：若两站都登录过，传该地域会静默查国际站账号，请先用 auth(site="domestic") 或设置 TCB_SITE=domestic 明确站点。 可填写的值: "ap-shanghai", "ap-guangzhou", "ap-singapore"`,
     },
     {
       name: "limit",
@@ -514,6 +514,11 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "duration",
       type: "integer",
       description: `购买或续费时长（月），action=create/renew 时可选，默认 1`,
+    },
+    {
+      name: "region",
+      type: "string",
+      description: `创建地域（仅 action=create 时有效）。按 X-TC-Region 语义透传，决定新环境所在地域；等价 CLI：tcb env create --region ap-guangzhou。不传则用当前会话地域（cloudBaseOptions.region → TCB_REGION → 站点默认地域）。注意：region 不写进 CreateEnv 请求体，而是通过请求层地域上下文生效——这与「请勿把 Region 放进 params」的 callCloudApi 约定一致。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）；如需在国内站该地域创建，请先 auth(site="domestic") 或设置 TCB_SITE=domestic。 可填写的值: "ap-shanghai", "ap-guangzhou", "ap-singapore"`,
     },
     {
       name: "envId",
@@ -2156,9 +2161,8 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 
       返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。
 
-      固定技能文档 (skill) 查询当前支持 31 个固定文档，分别是：
-      文档名：skills 文档介绍：Unified CloudBase execution guide for all-in-one skill installs. Use this first for CloudBase app tasks, especially existing apps with TODOs, fixed pages, or active handlers. Routes PostgreSQL / CloudBase PG / app.rdb() / queryPgDatabase / managePgDatabase work away from legacy NoSQL and old auth patterns.
-文档名：ai-model-nodejs 文档介绍："Use this skill for Node.js backend AI via @cloudbase/node-sdk (&gt;=3.16.0) — cloud functions, CloudRun, Express/Koa/NestJS, serverless APIs, scheduled jobs, LLM proxies, agent orchestration. The only SDK supporting image generation (ai.createImageModel + generateImage). Text via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*; model ids (e.g. deepseek-v4-flash, glm-5, kimi-k2.6) go in the `model` field of generateText/streamText. MUST run two-step preflight before code — see body. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat)."
+      固定技能文档 (skill) 查询当前支持 30 个固定文档，分别是：
+      文档名：ai-model-nodejs 文档介绍："Use this skill for Node.js backend AI via @cloudbase/node-sdk (&gt;=3.16.0) — cloud functions, CloudRun, Express/Koa/NestJS, serverless APIs, scheduled jobs, LLM proxies, agent orchestration. The only SDK supporting image generation (ai.createImageModel + generateImage). Text via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*; model ids (e.g. deepseek-v4-flash, glm-5, kimi-k2.6) go in the `model` field of generateText/streamText. MUST run two-step preflight before code — see body. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat)."
 文档名：ai-model-web 文档介绍："Use this skill when a browser/Web app (React, Vue, Next, Nuxt, static sites, SPAs, dashboards, AI chat UI, 页面, 前端, 网页) needs AI models via @cloudbase/js-sdk. Default routing for Web/frontend AI — call directly from the browser, do NOT propose a Node.js proxy. Covers generateText and streamText; models via ai.createModel with groups cloudbase, hunyuan-exp, or custom-*, model id in the `model` field. MUST run two-step preflight before code — see body. NOT for Node.js backend (use ai-model-nodejs), Mini Program (use ai-model-wechat), or image generation (Node SDK only)."
 文档名：ai-model-wechat 文档介绍："Use this skill for WeChat Mini Program AI via wx.cloud.extend.AI (小程序, wx.cloud apps). Covers generateText and streamText with callbacks (onText, onEvent, onFinish); streamText needs a data wrapper, generateText returns the raw response. Models via wx.cloud.extend.AI.createModel with groups hunyuan-exp (小程序成长计划), cloudbase (main managed), or custom-*; model id goes in the data wrapper `model` field. MUST run two-step preflight before code — see body. NOT for browser/Web (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs)."
 文档名：auth-nodejs-cloudbase 文档介绍：CloudBase Node SDK auth guide for server-side identity, user lookup, and custom login tickets. This skill should be used when Node.js code must read caller identity, inspect end users, or bridge an existing user system into CloudBase; not when configuring providers or building client login UI.
@@ -2189,8 +2193,9 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 文档名：ui-design 文档介绍：Use when users need visual direction, interface hierarchy, layout decisions, design specifications, or prototypes before implementing a Web or mini program UI.
 文档名：web-development 文档介绍：Use when users need to implement, integrate, debug, build, deploy, or validate a Web frontend after the product direction is already clear, especially for React, Vue, Vite, browser flows, or CloudBase Web integration.
 
-      OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。当前支持 7 个 API 文档，分别是：
-      API名：mysqldb API介绍：关系型数据库 RESTful API (MySQL/PostgreSQL) - 云开发关系型数据库 HTTP API
+      OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。当前支持 8 个 API 文档，分别是：
+      API名：mysqldb API介绍：MySQL RESTful API - 云开发 MySQL 数据库 HTTP API
+API名：pgdb API介绍：PostgreSQL RESTful API (PostgREST) - 云开发 PostgreSQL 数据库 HTTP API，含 exec-pgsql 直连 SQL
 API名：functions API介绍：Cloud Functions API - 云函数 HTTP API
 API名：auth API介绍：Authentication API - 身份认证 HTTP API
 API名：cloudrun API介绍：CloudRun API - 云托管服务 HTTP API
@@ -2211,12 +2216,12 @@ API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
     {
       name: "skillName",
       type: "string",
-      description: `mode=skill 时指定。技能名称。 可填写的值: "skills", "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
+      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
     },
     {
       name: "apiName",
       type: "string",
-      description: `mode=openapi 时指定。API 名称。 可填写的值: "mysqldb", "functions", "auth", "cloudrun", "storage", "nosql", "ai_model"`,
+      description: `mode=openapi 时指定。API 名称。 可填写的值: "mysqldb", "pgdb", "functions", "auth", "cloudrun", "storage", "nosql", "ai_model"`,
     },
     {
       name: "action",
@@ -3653,7 +3658,7 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
     {
       name: "region",
       type: "string",
-      description: `云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写入 params.Region。`,
+      description: `云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写入 params.Region。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）：若你要操作的是国内站的 ap-singapore 环境，请先用 auth(action="start_auth"|"login_by_api_key", site="domestic") 或设置 TCB_SITE=domestic 明确站点，否则请求会静默打到国际站账号。`,
     }
   ]}
 />

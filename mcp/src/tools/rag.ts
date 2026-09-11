@@ -258,8 +258,14 @@ const OPENAPI_SOURCES: Array<{
 }> = [
     {
       name: "mysqldb",
-      description: "关系型数据库 RESTful API (MySQL/PostgreSQL) - 云开发关系型数据库 HTTP API",
+      description: "MySQL RESTful API - 云开发 MySQL 数据库 HTTP API",
       url: "https://docs.cloudbase.net/openapi/mysqldb.v1.openapi.yaml",
+    },
+    {
+      name: "pgdb",
+      description:
+        "PostgreSQL RESTful API (PostgREST) - 云开发 PostgreSQL 数据库 HTTP API，含 exec-pgsql 直连 SQL",
+      url: "https://docs.cloudbase.net/openapi/pgdb.v1.openapi.yaml",
     },
     {
       name: "functions",

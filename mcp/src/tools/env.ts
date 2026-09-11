@@ -3295,7 +3295,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         .enum(TCB_QUERY_REGIONS)
         .optional()
         .describe(
-          "查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 取该环境自身的 Region，ignored_params 说明忽略原因——不要据此判定该地域没有环境。",
+          "查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 取该环境自身的 Region、ignored_params 说明忽略原因——不要据此判定该地域没有环境。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）：若两站都登录过，传该地域会静默查国际站账号，请先用 auth(site=\"domestic\") 或设置 TCB_SITE=domestic 明确站点。",
         ),
       limit: z.number().int().positive().optional().describe("返回数量上限。action=list 时可选"),
       offset: z.number().int().min(0).optional().describe("分页偏移。action=list 时可选"),
@@ -3504,6 +3504,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           .max(36)
           .optional()
           .describe("购买或续费时长（月），action=create/renew 时可选，默认 1"),
+        region: z
+          .enum(TCB_QUERY_REGIONS)
+          .optional()
+          .describe(
+            "创建地域（仅 action=create 时有效）。按 X-TC-Region 语义透传，决定新环境所在地域；等价 CLI：tcb env create --region ap-guangzhou。不传则用当前会话地域（cloudBaseOptions.region → TCB_REGION → 站点默认地域）。注意：region 不写进 CreateEnv 请求体，而是通过请求层地域上下文生效——这与「请勿把 Region 放进 params」的 callCloudApi 约定一致。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）；如需在国内站该地域创建，请先 auth(site=\"domestic\") 或设置 TCB_SITE=domestic。"
+          ),
         envId: z
           .string()
           .optional()
@@ -3527,6 +3533,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       packageId?: string;
       resources?: string[];
       duration?: number;
+      region?: string;
       envId?: string;
       confirm?: string;
       domains?: string[];
@@ -3536,6 +3543,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       const packageId = normalizeOptionalToolString(rawArgs.packageId);
       const resolvedResources = resolveCreateEnvResources(rawArgs.resources);
       const duration = rawArgs.duration ?? 1;
+      const createRegion = normalizeOptionalToolString(rawArgs.region);
       const envId = normalizeOptionalToolString(rawArgs.envId);
       const confirmed = rawArgs.confirm === "yes";
       const domains = (rawArgs.domains ?? [])
@@ -3562,16 +3570,24 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           }
 
           case "create": {
-            // CreateEnv (Manager SDK / Cloud API) accepts Alias, PackageId, Resources, Period, etc.
-            // It does NOT accept Region — region is determined by account/package, not this call.
+            // CreateEnv (Manager SDK / Cloud API) 的请求体不接受 Region —— 与官方文档一致。
+            // 但「环境地域」本身是可选的：地域由请求层地域上下文（X-TC-Region 头 / 地域 endpoint）决定，
+            // 因此显式 region 通过构建「地域作用域的 manager」生效，而不是塞进 createParams。
+            // 官方 CLI 同构：tcb env create --region <r> → getRegion() → new Manager({region}) → X-TC-Region。
+            // 未显式传 region 时回落当前会话地域链（cloudBaseOptions.region → TCB_REGION → 站点默认）。
+            const effectiveRegion = createRegion ?? resolvePricingRegion(cloudBaseOptions);
+            // 仅在显式指定地域时另建 manager；否则复用会话 manager，避免无谓重建。
+            const createManager = createRegion
+              ? await getManagerForEnvQuery(undefined, false, createRegion)
+              : cloudbase;
             if (!confirmed) {
               // 查询套餐名和预计费用（失败降级，不阻塞 confirm 流程）
               const packageTitle = packageId
-                ? await fetchPackageTitle(cloudbase, packageId)
+                ? await fetchPackageTitle(createManager, packageId)
                 : undefined;
-              const pricingRegion = resolvePricingRegion(cloudBaseOptions);
+              const pricingRegion = effectiveRegion;
               const priceProbe = packageId
-                ? await calculateCreatePrice(cloudbase, {
+                ? await calculateCreatePrice(createManager, {
                     packageId,
                     region: pricingRegion,
                     period: duration,
@@ -3602,7 +3618,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 t("env.manage.createResources", { resources: resolvedResources.join(", ") }),
               );
               messageLines.push(t("env.manage.createDuration", { duration }));
-              messageLines.push(t("env.manage.createRegionNote"));
+              messageLines.push(t("env.manage.createRegion", { region: effectiveRegion }));
+              if (createRegion) {
+                // 二次调用（confirm="yes"）会重新解析 rawArgs，因此必须提示同步带上 region，
+                // 否则会回落到会话地域，创建结果与用户确认过的摘要不一致。
+                messageLines.push(t("env.manage.createRegionExplicitHint"));
+              }
               messageLines.push("");
 
               // 资源清单 / 计费项 / 计费方式
@@ -3679,7 +3700,16 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 next_step: {
                   tool: "manageEnv",
                   action: "create",
-                  requiredParams: ["alias", "packageId", "confirm"],
+                  requiredParams: [
+                    "alias",
+                    "packageId",
+                    "confirm",
+                    // 已显式指定地域时必须一并重复传入，否则二次调用会回落会话地域，
+                    // 创建出的环境与用户确认过的摘要不一致。
+                    ...(createRegion ? ["region"] : []),
+                  ],
+                  region: effectiveRegion,
+                  regionSource: createRegion ? "explicit" : "session",
                 },
               });
             }
@@ -3698,13 +3728,28 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               Period: duration,
             };
 
-            const result = await cloudbase.env.createEnv(createParams);
+            // 注意：地域不写进 createParams（CreateEnv 请求体不接受 Region），
+            // 而是由 createManager 的地域上下文（X-TC-Region）决定。
+            const result = await createManager.env.createEnv(createParams);
             logCloudBaseResult(server.logger, result);
+
+            // CreateEnv 的响应只有 EnvId / RequestId，不含地域。
+            // 这里做一次「尽力而为」的核验（DescribeBillingInfo），拿不到就不写这一项，
+            // 避免把「请求地域」当成既成事实回报给用户。
+            const verifiedBilling = await fetchEnvBillingSummary(
+              createManager,
+              result.EnvId,
+            );
             return buildJsonToolResult({
               ok: true,
               code: "ENV_CREATED",
               message: t("env.manage.createSuccess", { envId: result.EnvId }),
               envId: result.EnvId,
+              region: effectiveRegion,
+              regionSource: createRegion ? "explicit" : "session",
+              ...(verifiedBilling?.region
+                ? { verifiedRegion: verifiedBilling.region }
+                : {}),
               resources: resolvedResources,
             });
           }

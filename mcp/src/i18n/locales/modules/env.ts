@@ -237,8 +237,10 @@ export const env = defineModule(
     "manage.createPackage": "- 套餐: {packageId}",
     "manage.createResources": "- 资源类型: {resources}",
     "manage.createDuration": "- 时长: {duration} 个月",
-    "manage.createRegionNote":
-      "- 说明: CreateEnv 不接受 Region 入参，环境地域由账号与套餐侧决定。",
+    "manage.createRegion":
+      "- 地域: {region}（按 X-TC-Region 语义生效，决定新环境所在地域）",
+    "manage.createRegionExplicitHint":
+      "（本次已显式指定地域：二次调用传 confirm=\"yes\" 时请一并带上相同的 region）",
     "manage.createAck": "☐ 我已知晓将创建付费资源及计费规则，确认按上述配置开通。",
     "manage.createCancelNote": "（如需取消或修改，请勿传 confirm=\"yes\"，改传其他参数重试）",
     "manage.createAckText": "我已知晓将创建付费资源及计费规则",
@@ -557,8 +559,10 @@ export const env = defineModule(
     "manage.createPackage": "- Package: {packageId}",
     "manage.createResources": "- Resource types: {resources}",
     "manage.createDuration": "- Duration: {duration} month(s)",
-    "manage.createRegionNote":
-      "- Note: CreateEnv does not accept a Region argument; the environment region is decided by the account and package side.",
+    "manage.createRegion":
+      "- Region: {region} (applied as X-TC-Region; determines where the new environment lives)",
+    "manage.createRegionExplicitHint":
+      "(You specified the region explicitly: pass the same region together with confirm=\"yes\" on the second call)",
     "manage.createAck":
       "☐ I understand that paid resources will be created and the billing rules apply, and confirm activation with the configuration above.",
     "manage.createCancelNote":

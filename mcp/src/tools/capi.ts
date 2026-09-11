@@ -340,7 +340,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                     .string()
                     .optional()
                     .describe(
-                        "云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写入 params.Region。",
+                        "云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写入 params.Region。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）：若你要操作的是国内站的 ap-singapore 环境，请先用 auth(action=\"start_auth\"|\"login_by_api_key\", site=\"domestic\") 或设置 TCB_SITE=domestic 明确站点，否则请求会静默打到国际站账号。",
                     ),
             },
             annotations: {

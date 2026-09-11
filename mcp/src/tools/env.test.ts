@@ -2668,8 +2668,16 @@ describe("manageEnv", () => {
     });
     expect(payload.message).toContain("确认");
     expect(payload.message).toContain("flexdb, storage, function, postgresql");
-    expect(payload.message).not.toContain("地域:");
-    expect(payload.message).toContain("CreateEnv 不接受 Region");
+    // 未显式传 region 时，摘要回显会话地域（mock server 的 cloudBaseOptions.region）
+    expect(payload.message).toContain("地域: ap-guangzhou");
+    expect(payload.message).toContain("按 X-TC-Region 语义生效");
+    // 未显式指定地域时不应出现「二次调用需重复带 region」的提示
+    expect(payload.message).not.toContain("本次已显式指定地域");
+    expect(payload.next_step).toMatchObject({
+      region: "ap-guangzhou",
+      regionSource: "session",
+    });
+    expect(payload.next_step.requiredParams).not.toContain("region");
     // 询价失败时应降级，仍返回 confirm 并暴露 pricing.inquiryFailed
     expect(payload.pricing?.inquiryFailed).toBe(true);
     expect(payload.release_method?.method).toBe("手动销毁");
@@ -2704,6 +2712,76 @@ describe("manageEnv", () => {
       text: expect.stringContaining("我已知晓"),
     });
     expect(payload.release_method?.detail).toContain("资源释放方式");
+  });
+
+  it("create should apply an explicit region via the request context, not the CreateEnv body", async () => {
+    const createEnv = vi.fn().mockResolvedValue({ EnvId: "env-new" });
+    const describeBillingInfo = vi.fn().mockResolvedValue({
+      EnvBillingInfoList: [{ EnvId: "env-new", Region: "ap-singapore" }],
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        createEnv,
+        describeBillingInfo,
+        describeBaasPackageList: vi.fn().mockResolvedValue({ PackageList: [] }),
+      },
+    } as any);
+
+    const { tools } = createMockServer();
+
+    // 1) 确认前：摘要回显地域，并要求二次调用带上同一个 region
+    const preview = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "create",
+          alias: "my-env",
+          packageId: "baas_personal",
+          region: "ap-singapore",
+        })
+      ).content[0].text,
+    );
+    expect(preview).toMatchObject({ ok: false, code: "CONFIRM_REQUIRED" });
+    expect(preview.message).toContain("地域: ap-singapore");
+    expect(preview.message).toContain("本次已显式指定地域");
+    expect(preview.next_step).toMatchObject({
+      region: "ap-singapore",
+      regionSource: "explicit",
+    });
+    expect(preview.next_step.requiredParams).toContain("region");
+
+    // 2) 确认后：manager 必须按显式地域重建（X-TC-Region 上下文），CreateEnv 请求体不含 Region
+    const created = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "create",
+          alias: "my-env",
+          packageId: "baas_personal",
+          region: "ap-singapore",
+          confirm: "yes",
+        })
+      ).content[0].text,
+    );
+
+    expect(createEnv).toHaveBeenCalledWith({
+      Alias: "my-env",
+      PackageId: "baas_personal",
+      Resources: ["flexdb", "storage", "function", "postgresql"],
+      Period: 1,
+    });
+    expect(mockGetCloudBaseManager).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cloudBaseOptions: expect.objectContaining({ region: "ap-singapore" }),
+        requireEnvId: false,
+      }),
+    );
+    expect(created).toMatchObject({
+      ok: true,
+      code: "ENV_CREATED",
+      envId: "env-new",
+      region: "ap-singapore",
+      regionSource: "explicit",
+      verifiedRegion: "ap-singapore",
+    });
   });
 
   it("create should show free-experience disclosure when packageId hints free tier", async () => {

@@ -238,7 +238,8 @@ When a task explicitly requires recording operation steps or results to a file (
      - `function` — Cloud Functions
      - `postgresql` — PostgreSQL relational database (PG mode)
    - Defaults to all four when omitted. MCP always sends non-empty `Resources` to CreateEnv.
-   - Do **not** pass `region`: CreateEnv does not accept Region; environment region is determined by account/package.
+   - Region is selectable: pass `region` (e.g. `region="ap-guangzhou"`) to choose where the environment is created. It is applied as the **`X-TC-Region` request context**, not as a CreateEnv body field — so do **not** put `Region` inside `params`. Omit it to use the current session region (`cloudBaseOptions.region` → `TCB_REGION` → site default). Equivalent CLI: `tcb env create --region ap-guangzhou`.
+   - ⚠️ If you pass `region`, repeat the same value on the confirming call together with `confirm="yes"`; otherwise the second call falls back to the session region and the environment may be created somewhere other than the summary you confirmed.
    - ⚠️ **All paid operations** (create / modifyPlan / renew) require `confirm="yes"`.
 
    **Querying available packages before creating:**
