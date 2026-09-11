@@ -4,6 +4,25 @@ Use this reference when deploying **existing / third-party apps** (GitHub projec
 
 Official docs: [VPC configuration for CloudBase Run](https://docs.cloudbase.net/run/deploy/networking/vpc)
 
+## 先决策：真的需要 TCP 直连吗？（SDK 优先）
+
+进入本文件（VPC / 安全组 / 连接串）之前，先确认 TCP 直连是**必要**的，而不是默认的。SDK / 网关路径不经过 VPC、不需要数据库账号密码，天然避开直连的网络与凭证问题：
+
+| 维度 | SDK / 网关路径（优先） | TCP 直连（兜底） |
+| --- | --- | --- |
+| 网络配置 | 无需 `VpcConf` | 必须绑定同 VPC + 安全组放行 DB 端口 |
+| 数据库凭证 | 环境内置，无需注入账号密码 | 需要生成 / 注入 / 轮换账号密码 |
+| 典型故障 | 基本没有 | `ETIMEDOUT`、安全组拦截、密码错误、VPC 未挂载 |
+| 适用场景 | 新应用 / CloudBase 原生数据（PG、NoSQL、storage） | 迁移已有应用、SDK 不覆盖的能力（特定 SQL 方言、Redis 原生协议等） |
+
+SDK 路径的具体形态：
+
+- CloudBase PG → `app.rdb()`（js-sdk v3 / node-sdk，走 PG HTTP 网关；见 `../../postgresql-development-cloudbase/SKILL.md`）
+- NoSQL → `app.database()`；对象存储 → `app.storage`
+- 若新应用只需要这些数据面，还可考虑直接用 HTTP 云函数（内置 SDK、免 VPC），不上云托管容器
+
+仅当应用是经典 TCP 客户端（mysql2 / pg / Prisma / SQLAlchemy / WordPress / Ghost 等迁移场景）且改造为 SDK 的方案被否决时，才继续往下走 VPC 流程。
+
 ## Critical distinction
 
 | Concept | What it controls | Typical field |
@@ -115,7 +134,7 @@ Missing `VpcConf` here commonly yields deploy **success** followed by runtime `E
 ## Agent checklist (copy into plan before deploy)
 
 - [ ] DB dependency signals scanned
-- [ ] TCP vs CloudBase SDK/gateway path decided
+- [ ] TCP vs CloudBase SDK/gateway path decided — **SDK/网关优先，TCP 仅用于迁移类应用或 SDK 未覆盖的能力**（见开头决策表）
 - [ ] `VpcId` + `SubnetId` resolved (same region as DB)
 - [ ] Private connection string prepared
 - [ ] Security group / allowlist planned
