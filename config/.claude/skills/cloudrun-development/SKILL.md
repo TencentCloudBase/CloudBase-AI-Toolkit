@@ -31,7 +31,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 - You still need to choose between Function mode and Container mode.
 - The prompt mentions `queryCloudRun`, `manageCloudRun`, Dockerfile, service domains, or public/private access.
-- The app depends on MySQL, PostgreSQL, Redis, or other VPC-private resources over TCP → also read `references/vpc-and-database.md`.
+- The app depends on MySQL, PostgreSQL, Redis, or other VPC-private resources over TCP → **先做数据库访问方式决策（SDK/网关优先，见下方「数据库访问方式决策门」）**；确认必须 TCP 直连后 → also read `references/vpc-and-database.md`.
 - You are choosing between CloudRun and HTTP cloud functions for a stateless HTTP service.
 - Container deploy fails (`deploy_failed`, Pod not ready, readiness/probe failed, third-party `imageUrl` won't stay up) → also read `references/image-deploy-troubleshooting.md` and follow the **Container deploy failure SOP** below. Do not start by raising `InitialDelaySeconds`.
 
@@ -57,6 +57,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Assuming local run is available for Container mode.
 - Opening public access by default when the scenario only needs private or mini-program internal access.
 - **Deploying an existing app with `DATABASE_URL` / MySQL / PostgreSQL / Redis but omitting `serverConfig.VpcConf`** — deploy appears to succeed, then runtime DB connections fail.
+- **新应用部署默认选 TCP 直连数据库** — 能用 SDK/网关访问的数据（PG `app.rdb()`、NoSQL、storage）不需要 `VpcConf` 也不需要数据库账号密码；仅迁移类应用（经典驱动/ORM 无法替换）才走 TCP 直连 + `VpcConf`。见「数据库访问方式决策门」。
 - Confusing `OpenAccessTypes` (how users reach the service) with `VpcConf` (how the service reaches VPC databases).
 - **Deploying to an environment that has not initialized CloudRun** — `CreateCloudRunServer` on an environment with no 大租户 record silently lands in the legacy 小租户 path, creating wrong small-tenant services/versions. Always ensure the environment is initialized first (`manageCloudRun(action="initEnv")`, tcbr) before the first deploy. `manageCloudRun(action="deploy")` now blocks new-service creation on uninitialized environments with guidance.
 - **Using the legacy `tcb` CloudRun API** (`CreateCloudBaseRunResource` / `DescribeCloudBaseRunResource` / `DeleteCloudBaseRunResource`) — these are deprecated 小租户 open APIs and are blocked in `callCloudApi`. CloudRun always goes through `tcbr` (`CreateCloudRunEnv` / `CreateCloudRunServer`). Query a single environment's base info / whether CloudRun is enabled with `DescribeEnvBaseInfo` (`EnvId` required) — use `manageCloudRun(action="initEnv")` to open and `queryCloudRun(action="envStatus")` to poll status; query the environment list / resource info with `DescribeCloudRunEnvs` (`EnvId` optional filter).
@@ -102,6 +103,23 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 - 迁移已有 / GitHub / 第三方应用，或需要常驻进程
 
 **决策示例：** 一个带 `Dockerfile` 的 Go/Python HTTP API，无长连接、无自定义运行时、不碰 VPC 数据库 → 选 HTTP 云函数而不是云托管；同一份代码若有 WebSocket 长连接 → 才选云托管。
+
+### 数据库访问方式决策门（部署前必答：SDK 优先，TCP 直连兜底）
+
+> 核心原则：**能用 CloudBase SDK/网关访问的数据，一律优先 SDK 路径。** TCP 直连会引入 VPC、安全组、数据库账号密码三件套，全是部署后才暴露的问题（`ETIMEDOUT`、安全组拦截、密码注入），能不碰就不碰。
+
+**优先：SDK / 网关路径（无需 `VpcConf`、无需数据库账号密码）**
+
+- CloudBase PG → `app.rdb()`（js-sdk v3 / node-sdk，走 PG HTTP 网关；详见 `../postgresql-development-cloudbase/SKILL.md`）
+- NoSQL → `app.database()`；对象存储 → `app.storage`
+- 新应用 / CloudBase 原生数据 → 数据层直接按 SDK 路径设计，部署时完全不需要 VPC 配置；若只用到这些数据面，还可结合上一节的「HTTP 云函数优先」进一步免掉云托管
+
+**仅当以下情况才走 TCP 直连（须完成 `references/vpc-and-database.md` 全流程）：**
+
+- 迁移已有 / GitHub / 第三方应用，数据层是经典驱动或 ORM（mysql2、pg、Prisma、SQLAlchemy、WordPress / Ghost 等），改造成 SDK 的成本高或用户明确要求保留
+- 需要 SDK 不覆盖的能力（特定 SQL 方言、存储过程、Redis 原生协议等）
+
+**决策动作：** 扫描到 `DATABASE_URL` / DB 依赖信号时，先停下来回答「这个数据访问能不能换成 SDK/网关」，再决定是否进入 VPC checklist——不要默认按 TCP 直连方案往下走。
 
 ### When CloudRun is a better fit
 
