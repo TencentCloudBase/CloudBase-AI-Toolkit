@@ -1,12 +1,11 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-09-10T07:19:32.148Z
+爬取时间: 2026-09-11T07:18:33.245Z
 
 ## 文档列表
 
 - [云开发 CloudBase 公共参数_腾讯云](./876-34812-云开发-CloudBase-公共参数_腾讯云.md)
 - [云开发 CloudBase API 概览_腾讯云](./876-34809-云开发-CloudBase-API-概览_腾讯云.md)
-- [云开发 CloudBase 创建HTTP访问服务路由_腾讯云](./876-129800-云开发-CloudBase-创建HTTP访问服务路由_腾讯云.md)
 - [云开发 CloudBase 校验HTTP访问服务路由_腾讯云](./876-135630-云开发-CloudBase-校验HTTP访问服务路由_腾讯云.md)
 - [云开发 CloudBase 删除HTTP访问服务路由_腾讯云](./876-129799-云开发-CloudBase-删除HTTP访问服务路由_腾讯云.md)
 - [云开发 CloudBase 查询HTTP访问服务路由信息_腾讯云](./876-129798-云开发-CloudBase-查询HTTP访问服务路由信息_腾讯云.md)
@@ -45,6 +44,7 @@
 - [云开发 CloudBase 更新tcb用户_腾讯云](./876-127958-云开发-CloudBase-更新tcb用户_腾讯云.md)
 - [云开发 CloudBase 查询资源基础权限_腾讯云](./876-132256-云开发-CloudBase-查询资源基础权限_腾讯云.md)
 - [云开发 CloudBase 修改资源基础权限_腾讯云](./876-132255-云开发-CloudBase-修改资源基础权限_腾讯云.md)
+- [云开发 CloudBase 创建HTTP访问服务路由_腾讯云](./876-129800-云开发-CloudBase-创建HTTP访问服务路由_腾讯云.md)
 - [云开发 CloudBase 查询云托管服务版本的详情_腾讯云](./876-49739-云开发-CloudBase-查询云托管服务版本的详情_腾讯云.md)
 - [云开发 CloudBase 获取云托管代码上传和下载url_腾讯](./876-48345-云开发-CloudBase-获取云托管代码上传和下载url_腾讯.md)
 - [云开发 CloudBase 创建环境_腾讯云](./876-128592-云开发-CloudBase-创建环境_腾讯云.md)
@@ -81,6 +81,7 @@
 - [云开发 CloudBase 查询AI模型列表_腾讯云](./876-131318-云开发-CloudBase-查询AI模型列表_腾讯云.md)
 - [云开发 CloudBase 查询托管类型AI模型列表_腾讯云](./876-131317-云开发-CloudBase-查询托管类型AI模型列表_腾讯云.md)
 - [云开发 CloudBase 更新AI模型_腾讯云](./876-131316-云开发-CloudBase-更新AI模型_腾讯云.md)
+- [云开发 CloudBase 更新云函数代码_腾讯云](./876-137952-云开发-CloudBase-更新云函数代码_腾讯云.md)
 - [云开发 CloudBase 绑定用户自定义CLS日志主题_腾讯云](./876-136527-云开发-CloudBase-绑定用户自定义CLS日志主题_腾讯云.md)
 - [云开发 CloudBase 搜索CLS日志_腾讯云](./876-128127-云开发-CloudBase-搜索CLS日志_腾讯云.md)
 - [云开发 CloudBase 开通 MySql_腾讯云](./876-128186-云开发-CloudBase-开通-MySql_腾讯云.md)
@@ -108,6 +109,12 @@
 - [云开发 CloudBase 创建云开发平台的API Key_腾讯](./876-129835-云开发-CloudBase-创建云开发平台的API-Key_腾讯.md)
 - [云开发 CloudBase 删除云开发平台的API Key_腾讯](./876-129834-云开发-CloudBase-删除云开发平台的API-Key_腾讯.md)
 - [云开发 CloudBase 查询云开发平台的API Key列表_](./876-129833-云开发-CloudBase-查询云开发平台的API-Key列表_.md)
+- [云开发 CloudBase 创建云函数_腾讯云](./876-137951-云开发-CloudBase-创建云函数_腾讯云.md)
+- [云开发 CloudBase 删除云函数_腾讯云](./876-137950-云开发-CloudBase-删除云函数_腾讯云.md)
+- [云开发 CloudBase 更新函数配置_腾讯云](./876-137946-云开发-CloudBase-更新函数配置_腾讯云.md)
+- [云开发 CloudBase 获取函数列表_腾讯云](./876-137947-云开发-CloudBase-获取函数列表_腾讯云.md)
+- [云开发 CloudBase 获取云函数详情_腾讯云](./876-137948-云开发-CloudBase-获取云函数详情_腾讯云.md)
+- [云开发 CloudBase 获取云函数地址并下载_腾讯云](./876-137949-云开发-CloudBase-获取云函数地址并下载_腾讯云.md)
 - [云托管 CloudBase Run API 概览_腾讯云](./1243-75722-云托管-CloudBase-Run-API-概览_腾讯云.md)
 - [云托管 CloudBase Run 创建云托管服务_腾讯云](./1243-75712-云托管-CloudBase-Run-创建云托管服务_腾讯云.md)
 - [云托管 CloudBase Run 启动版本实例_腾讯云](./1243-130559-云托管-CloudBase-Run-启动版本实例_腾讯云.md)

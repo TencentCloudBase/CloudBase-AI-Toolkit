@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 123
+ * Action 数量: 130
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -24,6 +24,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'CreateCustomLoginKey',
   'CreateEnv',
   'CreateEnvResource',
+  'CreateFunction',
   'CreateHTTPServiceRoute',
   'CreateHostingDomain',
   'CreateMySQL',
@@ -37,6 +38,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DeleteCloudAppVersion',
   'DeleteCloudRunServer',
   'DeleteCloudRunVersions',
+  'DeleteFunction',
   'DeleteHTTPServiceRoute',
   'DeleteProvider',
   'DeleteTable',
@@ -93,8 +95,11 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DestroyEnv',
   'DestroyMySQL',
   'DestroyStaticStore',
+  'DownloadFunction',
   'ExecutePGSql',
+  'GetFunction',
   'GetProviders',
+  'ListFunctions',
   'ListPGUserMigrations',
   'ListTables',
   'ModifyClient',
@@ -129,6 +134,8 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'UnbindStorageSource',
   'UpdateAIModel',
   'UpdateCloudRunServer',
+  'UpdateFunctionCode',
+  'UpdateFunctionConfiguration',
   'UpdateTable',
   'VerifyHTTPServiceRoute',
 ];

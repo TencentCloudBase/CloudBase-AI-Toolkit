@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-09-10 02:54:06
+最近更新时间：2026-09-11 02:53:58
 
 -   微信扫一扫 
 -   QQ
@@ -19,21 +19,23 @@ _我的收藏_
 -   [云开发接入相关接口](#.E4.BA.91.E5.BC.80.E5.8F.91.E6.8E.A5.E5.85.A5.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "云开发接入相关接口")
 -   [环境相关接口](#.E7.8E.AF.E5.A2.83.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "环境相关接口")
 -   [用户权限相关接口](#.E7.94.A8.E6.88.B7.E6.9D.83.E9.99.90.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "用户权限相关接口")
+-   [HTTP网关相关接口](#HTTP.E7.BD.91.E5.85.B3.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "HTTP网关相关接口")
 -   [云托管相关接口](#.E4.BA.91.E6.89.98.E7.AE.A1.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "云托管相关接口")
 -   [计费相关接口](#.E8.AE.A1.E8.B4.B9.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "计费相关接口")
 -   [其他接口](#.E5.85.B6.E4.BB.96.E6.8E.A5.E5.8F.A3 "其他接口")
 -   [文档型云数据库相关接口](#.E6.96.87.E6.A1.A3.E5.9E.8B.E4.BA.91.E6.95.B0.E6.8D.AE.E5.BA.93.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "文档型云数据库相关接口")
 -   [静态托管相关接口](#.E9.9D.99.E6.80.81.E6.89.98.E7.AE.A1.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "静态托管相关接口")
 -   [AI模型相关接口](#AI.E6.A8.A1.E5.9E.8B.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "AI模型相关接口")
+-   [tcb相关接口](#tcb.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "tcb相关接口")
 -   [搜索日志相关接口](#.E6.90.9C.E7.B4.A2.E6.97.A5.E5.BF.97.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "搜索日志相关接口")
 -   [SQL型云数据库相关接口](#SQL.E5.9E.8B.E4.BA.91.E6.95.B0.E6.8D.AE.E5.BA.93.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "SQL型云数据库相关接口")
 -   [登录配置相关接口](#.E7.99.BB.E5.BD.95.E9.85.8D.E7.BD.AE.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "登录配置相关接口")
+-   [云函数相关接口](#.E4.BA.91.E5.87.BD.E6.95.B0.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "云函数相关接口")
 
 ## 云开发接入相关接口
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
-| [CreateHTTPServiceRoute](/document/api/876/129800) | 创建HTTP访问服务路由 | 20 |
 | [VerifyHTTPServiceRoute](/document/api/876/135630) | 校验HTTP访问服务路由 | 20 |
 | [DeleteHTTPServiceRoute](/document/api/876/129799) | 删除HTTP访问服务路由 | 20 |
 | [DescribeHTTPServiceRoute](/document/api/876/129798) | 查询HTTP访问服务路由信息 | 20 |
@@ -82,6 +84,12 @@ _我的收藏_
 | [ModifyUser](/document/api/876/127958) | 更新tcb用户 | 20 |
 | [DescribeResourcePermission](/document/api/876/132256) | 查询资源基础权限 | 20 |
 | [ModifyResourcePermission](/document/api/876/132255) | 修改资源基础权限 | 20 |
+
+## HTTP网关相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [CreateHTTPServiceRoute](/document/api/876/129800) | 创建HTTP访问服务路由 | 20 |
 
 ## 云托管相关接口
 
@@ -149,6 +157,12 @@ _我的收藏_
 | [DescribeManagedAIModelList](/document/api/876/131317) | 查询托管类型AI模型列表 | 20 |
 | [UpdateAIModel](/document/api/876/131316) | 更新AI模型 | 20 |
 
+## tcb相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [UpdateFunctionCode](/document/api/876/137952) | 更新云函数代码 | 20 |
+
 ## 搜索日志相关接口
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
@@ -190,6 +204,17 @@ _我的收藏_
 | [CreateApiKey](/document/api/876/129835) | 创建云开发平台的API Key | 20 |
 | [DeleteApiKey](/document/api/876/129834) | 删除云开发平台的API Key | 20 |
 | [DescribeApiKeyList](/document/api/876/129833) | 查询云开发平台的API Key列表 | 20 |
+
+## 云函数相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [CreateFunction](/document/api/876/137951) | 创建云函数 | 20 |
+| [DeleteFunction](/document/api/876/137950) | 删除云函数 | 20 |
+| [UpdateFunctionConfiguration](/document/api/876/137946) | 更新函数配置 | 20 |
+| [ListFunctions](/document/api/876/137947) | 获取函数列表 | 20 |
+| [GetFunction](/document/api/876/137948) | 获取云函数详情 | 20 |
+| [DownloadFunction](/document/api/876/137949) | 获取云函数地址并下载 | 20 |
 
 > 注意：
 > 
