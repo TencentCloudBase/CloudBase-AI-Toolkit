@@ -67,7 +67,9 @@ describe("cloud-incompatible tools gate stays in sync with registered tools", ()
   });
 
   it("gates the declarative deploy tools in cloud mode", () => {
-    // deployApply/deployPlan read a local cloudbaserc from cwd; they must be gated.
+    // deployBuild/deployApply/deployPlan read a local cloudbaserc from cwd (deployBuild also
+    // runs the local build command); they must be gated.
+    expect(CLOUD_INCOMPATIBLE_TOOLS).toContain("deployBuild");
     expect(CLOUD_INCOMPATIBLE_TOOLS).toContain("deployApply");
     expect(CLOUD_INCOMPATIBLE_TOOLS).toContain("deployPlan");
   });
