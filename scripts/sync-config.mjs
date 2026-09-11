@@ -15,7 +15,9 @@
  * 工作流程：
  * 1. 读取 scripts/template-config.json 获取模板列表
  * 2. 遍历每个模板，将 config 目录内容复制到对应模板目录
- * 3. 根据配置决定是否执行 Git 提交和推送操作
+ * 3. 差集清理：删除目标端各 skills/ 目录下源中已不存在的 skill 子目录（僵尸 skill）
+ * 4. 同步后断言：目标端 skill 集合必须等于源端应有集合，否则非零退出并阻断 Git 操作
+ * 5. 根据配置决定是否执行 Git 提交和推送操作
  * 
  * 使用方式：
  *   node scripts/sync-config.mjs                     # 同步所有模板
@@ -294,59 +296,216 @@ function createBackup(targetDir) {
   }
 }
 
+// 承载 skill 的目录名。差集清理只在这个名字的目录里做删除，绝不触碰其父目录。
+const SKILLS_DIR_NAME = 'skills';
+
 /**
- * 获取 config 目录下的所有目录列表
- * @returns {Array<string>} 目录名称数组
+ * 转为 posix 风格路径，便于与 includePatterns 比较
+ * @param {string} filePath
+ * @returns {string}
  */
-function getConfigDirectories() {
-  try {
-    const items = fs.readdirSync(configDir);
-    const directories = items.filter(item => {
-      const itemPath = path.join(configDir, item);
-      return fs.statSync(itemPath).isDirectory();
-    });
-    return directories;
-  } catch (error) {
-    console.error('获取 config 目录列表失败:', error.message);
-    return [];
+function toPosixPath(filePath) {
+  return filePath.split(path.sep).join('/');
+}
+
+/**
+ * 判断 candidate 是否等于 parent 或位于 parent 内部（两边都会规范化）
+ * @param {string} parent
+ * @param {string} candidate
+ * @returns {boolean}
+ */
+function isSamePathOrWithin(parent, candidate) {
+  const rel = path.relative(path.resolve(parent), path.resolve(candidate));
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+/**
+ * 删除/写入前的越界保护：路径必须严格落在 root 内
+ * @param {string} root
+ * @param {string} candidate
+ * @param {string} label 出错时用于定位的描述
+ */
+function assertWithin(root, candidate, label) {
+  if (!isSamePathOrWithin(root, candidate)) {
+    throw new Error(`拒绝操作越界路径: ${label} (${candidate}) 不在 ${root} 内`);
   }
 }
 
 /**
- * 清理目标目录中的指定目录
- * @param {string} targetDir 目标目录
- * @param {Array<string>} dirsToClean 要清理的目录列表
+ * 判断相对路径是否被 includePatterns 覆盖（与 copyDirectory 的判定保持一致）
+ * @param {string} relPosixPath 相对 configDir 的 posix 路径
+ * @param {Array<string>|null} includePatterns
+ * @returns {boolean}
  */
-function cleanDirectories(targetDir, dirsToClean) {
-  if (!fs.existsSync(targetDir)) {
-    return;
+function isPathIncluded(relPosixPath, includePatterns = null) {
+  if (!includePatterns) return true;
+  return includePatterns.some(
+    pattern => relPosixPath === pattern || relPosixPath.startsWith(`${pattern}/`),
+  );
+}
+
+/**
+ * 递归找出源目录下所有名为 skills 的目录。
+ * 只跟随真实目录（Dirent.isDirectory() 对符号链接返回 false），跳过 .git/node_modules。
+ * @param {string} rootDir
+ * @returns {Array<string>} 绝对路径，已排序
+ */
+function findSkillsDirectories(rootDir) {
+  const found = [];
+
+  const walk = dir => {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name === '.git' || entry.name === 'node_modules') continue;
+
+      const childPath = path.join(dir, entry.name);
+      if (entry.name === SKILLS_DIR_NAME) {
+        found.push(childPath);
+        continue; // skills 目录下不会再嵌套 skills
+      }
+      walk(childPath);
+    }
+  };
+
+  walk(rootDir);
+  return found.sort();
+}
+
+/**
+ * 计算同步后目标端每个 skills 目录应有的 skill 集合。
+ *
+ * 关键点：对每个 skill 复用 copyDirectory 使用的 isExcludedSkill 判定，
+ * 因此"期望集合"天然与复制逻辑一致（被平台过滤的 skill 既不算缺失、也不会被误删）。
+ *
+ * @param {string} srcRoot 源根目录（这里是 .generated/compat-config）
+ * @param {Object} [options]
+ * @param {Array<string>|null} [options.includePatterns] 模板的包含模式
+ * @param {Set<string>} [options.excludedSkills] 平台需要过滤的 skill 集合
+ * @returns {Map<string, Set<string>>} key 为相对 srcRoot 的 posix 路径（如 ".claude/skills"）
+ */
+export function collectExpectedSkills(srcRoot, options = {}) {
+  const { includePatterns = null, excludedSkills = new Set() } = options;
+  const expected = new Map();
+
+  for (const skillsDir of findSkillsDirectories(srcRoot)) {
+    const relSkillsDir = toPosixPath(path.relative(srcRoot, skillsDir));
+    if (!isPathIncluded(relSkillsDir, includePatterns)) continue;
+
+    const skillNames = new Set();
+    for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const relPath = `${relSkillsDir}/${entry.name}`;
+      if (isExcludedSkill(relPath, excludedSkills)) continue;
+      skillNames.add(entry.name);
+    }
+
+    expected.set(relSkillsDir, skillNames);
   }
-  
-  console.log(`  🧹 清理目标目录中的旧目录...`);
-  let cleanedCount = 0;
-  
-  for (const dirName of dirsToClean) {
-    const dirPath = path.join(targetDir, dirName);
-    
-    if (fs.existsSync(dirPath)) {
-      try {
-        const stat = fs.statSync(dirPath);
-        if (stat.isDirectory()) {
-          fs.rmSync(dirPath, { recursive: true, force: true });
-          console.log(`    🗑️  已删除: ${dirName}`);
-          cleanedCount++;
-        }
-      } catch (error) {
-        console.error(`    ❌ 删除目录失败: ${dirName}`, error.message);
+
+  return expected;
+}
+
+/**
+ * 差集清理：只删除目标端各 skills 目录下"源中不存在"的 skill 子目录。
+ *
+ * 安全约束：
+ * - 只遍历由源端派生的 skills 目录（目录名必须严格等于 skills）
+ * - 只删除目录，文件/符号链接一律跳过（Dirent.isDirectory() 不跟随符号链接）
+ * - 每次删除前做路径规范化 + 前缀校验，确保路径落在 targetDir 内
+ *
+ * @param {string} targetDir 模板目标目录
+ * @param {Map<string, Set<string>>} expectedBySkillsDir collectExpectedSkills 的返回值
+ * @param {Object} [options]
+ * @param {boolean} [options.dryRun] 干运行：只打印不删除
+ * @param {(message: string) => void} [options.log]
+ * @returns {Array<{relPath: string, skill: string}>} 已删除（dry-run 下为将被删除）的条目
+ */
+export function cleanStaleSkills(targetDir, expectedBySkillsDir, options = {}) {
+  const { dryRun = false, log = console.log } = options;
+  const removed = [];
+
+  for (const [relSkillsDir, expectedNames] of expectedBySkillsDir) {
+    if (path.basename(relSkillsDir) !== SKILLS_DIR_NAME) {
+      throw new Error(`拒绝清理非 skills 目录: ${relSkillsDir}`);
+    }
+
+    const skillsDir = path.resolve(targetDir, relSkillsDir);
+    assertWithin(targetDir, skillsDir, relSkillsDir);
+    if (!fs.existsSync(skillsDir)) continue;
+
+    for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue; // 文件 / 符号链接不碰
+      if (expectedNames.has(entry.name)) continue;
+
+      const entryPath = path.resolve(skillsDir, entry.name);
+      assertWithin(skillsDir, entryPath, relSkillsDir);
+
+      const relPath = `${relSkillsDir}/${entry.name}`;
+      removed.push({ relPath, skill: entry.name });
+
+      if (dryRun) {
+        log(`    🔍 [干运行] 将删除废弃 skill: ${relPath}`);
+      } else {
+        fs.rmSync(entryPath, { recursive: true, force: true });
+        log(`    🗑️  已删除废弃 skill: ${relPath}`);
       }
     }
   }
-  
-  if (cleanedCount > 0) {
-    console.log(`  ✅ 已清理 ${cleanedCount} 个目录`);
-  } else {
-    console.log(`  ℹ️  没有需要清理的目录`);
+
+  return removed;
+}
+
+/**
+ * 同步后断言：目标端每个 skills 目录的 skill 集合必须等于源端应有的集合。
+ * @param {string} targetDir 模板目标目录
+ * @param {Map<string, Set<string>>} expectedBySkillsDir collectExpectedSkills 的返回值
+ * @returns {{ok: boolean, issues: Array<{relSkillsDir: string, missing: Array<string>, unexpected: Array<string>}>}}
+ */
+export function assertSkillsInSync(targetDir, expectedBySkillsDir) {
+  const issues = [];
+
+  for (const [relSkillsDir, expectedNames] of expectedBySkillsDir) {
+    const skillsDir = path.resolve(targetDir, relSkillsDir);
+    assertWithin(targetDir, skillsDir, relSkillsDir);
+
+    const actual = new Set();
+    if (fs.existsSync(skillsDir)) {
+      for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
+        if (entry.isDirectory()) actual.add(entry.name);
+      }
+    }
+
+    const missing = [...expectedNames].filter(name => !actual.has(name)).sort();
+    const unexpected = [...actual].filter(name => !expectedNames.has(name)).sort();
+    if (missing.length > 0 || unexpected.length > 0) {
+      issues.push({ relSkillsDir, missing, unexpected });
+    }
   }
+
+  return { ok: issues.length === 0, issues };
+}
+
+/**
+ * 把断言差异格式化成可读文本
+ * @param {Array<{relSkillsDir: string, missing: Array<string>, unexpected: Array<string>}>} issues
+ * @returns {string}
+ */
+export function formatSkillSyncIssues(issues) {
+  return issues
+    .map(({ relSkillsDir, missing, unexpected }) => {
+      const lines = [`  ❌ ${relSkillsDir} 与源端不一致`];
+      if (missing.length > 0) lines.push(`     缺少: ${missing.join(', ')}`);
+      if (unexpected.length > 0) lines.push(`     残留: ${unexpected.join(', ')}`);
+      return lines.join('\n');
+    })
+    .join('\n');
 }
 
 /**
@@ -388,13 +547,9 @@ async function syncConfigs(options = {}) {
   console.log(`📋 共需要同步 ${templateConfigs.length} 个模板`);
   console.log(`🔧 模式: ${dryRun ? '干运行' : '实际执行'}\n`);
   
-  // 获取要清理的目录列表（config 目录下的所有目录 + skills 目录）
-  const configDirectories = getConfigDirectories();
-  const dirsToClean = [...configDirectories, 'skills'];
-  console.log(`📋 将清理的目录: ${dirsToClean.join(', ')}\n`);
-  
   let successCount = 0;
   let skipCount = 0;
+  const assertionFailures = [];
   
   // 遍历模板列表
   for (let i = 0; i < templateConfigs.length; i++) {
@@ -405,6 +560,12 @@ async function syncConfigs(options = {}) {
     const templateType = (typeof templateConfig === 'object' && templateConfig.type)
       || (templatePath.startsWith('web/') ? 'web' : templatePath.startsWith('miniprogram/') ? 'miniprogram' : null);
     const excludedSkills = getExcludedSkills(templateType);
+
+    // 源端该模板应有的 skill 集合（按 skills 目录分组），用于差集清理与同步后断言
+    const expectedBySkillsDir = collectExpectedSkills(configDir, {
+      includePatterns,
+      excludedSkills,
+    });
     
     console.log(`\n[${i + 1}/${templateConfigs.length}] 处理模板: ${templatePath}${templateType ? ` [${templateType}]` : ''}`);
     if (includePatterns) {
@@ -426,16 +587,12 @@ async function syncConfigs(options = {}) {
     
     if (dryRun) {
       console.log(`  🔍 [干运行] 将同步到: ${targetDir}`);
-      // 显示将要清理的目录
-      const existingDirs = dirsToClean.filter(dirName => {
-        const dirPath = path.join(targetDir, dirName);
-        return fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory();
-      });
-      if (existingDirs.length > 0) {
-        console.log(`  🔍 [干运行] 将清理目录: ${existingDirs.join(', ')}`);
-      } else {
-        console.log(`  🔍 [干运行] 没有需要清理的目录`);
+      // 只预览"源中不存在的 skill 子目录"，不实际删除
+      const plannedDeletions = cleanStaleSkills(targetDir, expectedBySkillsDir, { dryRun: true });
+      if (plannedDeletions.length === 0) {
+        console.log(`  🔍 [干运行] 没有需要清理的废弃 skill`);
       }
+      console.log(`  🔍 [干运行] 跳过同步后断言`);
       successCount++;
       continue;
     }
@@ -449,9 +606,6 @@ async function syncConfigs(options = {}) {
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
     }
-    
-    // 清理目标目录中的旧目录
-    // cleanDirectories(targetDir, dirsToClean);
     
     // 同步config目录下的所有内容
     if (includePatterns) {
@@ -474,6 +628,19 @@ async function syncConfigs(options = {}) {
         }
       }
     }
+
+    // 差集清理：删除目标端 skills/ 下源中已不存在的 skill 子目录
+    const removedSkills = cleanStaleSkills(targetDir, expectedBySkillsDir);
+    if (removedSkills.length > 0) {
+      console.log(`  🧹 已清理 ${removedSkills.length} 个废弃 skill 目录`);
+    }
+
+    // 同步后断言：目标端 skill 集合必须与源端一致，不一致则记入 failures 并由 CI 拦截
+    const { ok, issues } = assertSkillsInSync(targetDir, expectedBySkillsDir);
+    if (!ok) {
+      assertionFailures.push({ templatePath, issues });
+      console.error(`  ❌ skill 集合校验失败:\n${formatSkillSyncIssues(issues)}`);
+    }
     
     successCount++;
     console.log(`  ✅ 同步完成: ${templatePath}`);
@@ -482,6 +649,14 @@ async function syncConfigs(options = {}) {
   console.log(`\n📊 同步统计:`);
   console.log(`  ✅ 成功同步: ${successCount} 个模板`);
   console.log(`  ⚠️  跳过: ${skipCount} 个模板`);
+
+  // 断言失败必须阻断后续 Git 操作，避免把脏 skill 列表提交/发布出去
+  if (assertionFailures.length > 0) {
+    const summary = assertionFailures
+      .map(({ templatePath, issues }) => `模板 ${templatePath}:\n${formatSkillSyncIssues(issues)}`)
+      .join('\n');
+    throw new Error(`❌ skill 同步校验未通过，已阻止 Git 操作：\n${summary}`);
+  }
   
   // Git提交和推送
   if (!skipGit && !dryRun && templateConfig.syncConfig?.autoCommit) {
@@ -650,5 +825,7 @@ async function main() {
   }
 }
 
-// 运行主函数
-main().catch(console.error); 
+// 运行主函数（仅在作为 CLI 直接执行时；被 import 时不产生副作用）
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  main().catch(console.error);
+}
