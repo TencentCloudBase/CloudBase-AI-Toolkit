@@ -1097,6 +1097,13 @@ function buildEnvQueryListResult(params: {
   result: any;
   cloudBaseOptions: any;
   hasEnvId: boolean;
+  /**
+   * region 是否真正透传到了按地域的 DescribeEnvs 查询。
+   * 环境级凭证（托管授权 token / API Key）下 list 会 pin 到绑定 envId 改走
+   * describeEnvInfo，此时 region 不参与查询——回执必须如实反映，否则调用方
+   * 会拿 AppliedFilters.region 误判环境地域。缺省视为已生效（向后兼容）。
+   */
+  regionApplied?: boolean;
     filters: {
       alias?: string;
       aliasExact?: boolean;
@@ -1108,11 +1115,14 @@ function buildEnvQueryListResult(params: {
   };
 }) {
   const envList = Array.isArray(params.result?.EnvList) ? params.result.EnvList : [];
+  const regionIgnored =
+    params.regionApplied === false && Boolean(params.filters.region);
+  // region 被忽略时，结果实际仍被限制在绑定环境上
   const shouldRestrictToCurrentEnv =
     params.hasEnvId &&
     !params.filters.alias &&
     !params.filters.envId &&
-    !params.filters.region;
+    (!params.filters.region || regionIgnored);
   const baseList = shouldRestrictToCurrentEnv
     ? envList.filter((env: any) => env.EnvId === params.cloudBaseOptions?.envId)
     : envList;
@@ -1131,12 +1141,22 @@ function buildEnvQueryListResult(params: {
       }
     : undefined;
   const credentialBoundary = buildCredentialBoundaryPayload(params.cloudBaseOptions);
+  // query_region 表示「本次查询实际使用的地域」：region 被忽略时回落到绑定环境所在地域
   const queryRegion =
-    params.filters.region || credentialBoundary.current_region;
+    !regionIgnored && params.filters.region
+      ? params.filters.region
+      : credentialBoundary.current_region;
   const currentEnvOnlyNote =
     shouldRestrictToCurrentEnv && credentialBoundary.credential_scope === "account"
       ? `已绑定环境，list 默认只返回当前环境。要查看其他地域请传 region（例如 region="ap-singapore"），或使用 CLI: tcb env list -r ap-singapore。`
       : undefined;
+  const boundEnvId = params.cloudBaseOptions?.envId;
+  const regionIgnoredNote = regionIgnored
+    ? `已忽略 region="${params.filters.region}"：当前为环境级凭证（单环境权限），查询固定落在绑定环境${boundEnvId ? ` ${boundEnvId}` : ""}，地域参数不参与查询。这是凭据权限边界，不代表该地域没有环境。`
+    : undefined;
+  const scopeNotes = [currentEnvOnlyNote, regionIgnoredNote].filter(
+    (note): note is string => Boolean(note),
+  );
 
   return {
     EnvList: paginated.items.map((env) => selectEnvFields(env, params.filters.fields)),
@@ -1148,13 +1168,26 @@ function buildEnvQueryListResult(params: {
       alias: params.filters.alias ?? null,
       aliasExact: params.filters.aliasExact ?? null,
       envId: params.filters.envId ?? null,
-      region: params.filters.region ?? null,
+      // 只回显真正生效的地域；被忽略时置 null，原因见 ignored_params / scope_note
+      region: regionIgnored ? null : (params.filters.region ?? null),
       fields: params.filters.fields ?? [...DEFAULT_ENV_FIELDS],
       currentEnvOnly: shouldRestrictToCurrentEnv,
     },
     ...credentialBoundary,
     query_region: queryRegion,
-    ...(currentEnvOnlyNote ? { scope_note: currentEnvOnlyNote } : {}),
+    ...(scopeNotes.length ? { scope_note: scopeNotes.join(" ") } : {}),
+    ...(regionIgnored
+      ? {
+          ignored_params: [
+            {
+              name: "region",
+              value: params.filters.region,
+              reason:
+                "环境级凭证为单环境权限，region 不参与查询；结果恒为绑定环境",
+            },
+          ],
+        }
+      : {}),
     ...(exactEnvIdSummaryHint
       ? {
           RecommendedNextAction: exactEnvIdSummaryHint,
@@ -2809,6 +2842,10 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     }) => {
       try {
         let result;
+        // region 是否真正透传到按地域的 DescribeEnvs：环境级凭证会 pin 到绑定
+        // envId 改走 describeEnvInfo（见下方 list 分支），此时 region 不生效，
+        // 回执必须如实告知，避免调用方据此误判环境地域。
+        let regionAppliedToQuery = false;
 
         switch (action) {
           case "list":
@@ -2862,6 +2899,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                   };
                 }
               } else {
+                // 走到这里说明没有 pin 到绑定环境，region 会随 manager 透传到
+                // DescribeEnvs 的 X-TC-Region
+                regionAppliedToQuery = Boolean(region);
                 // Use commonService to call DescribeEnvs with filter parameters
                 // Filter parameters match the reference conditions provided by user
                 result = await cloudbaseList.commonService("tcb", "2018-06-08").call({
@@ -2890,6 +2930,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               // Fallback to original method on error
               try {
                 const cloudbaseList = await getManagerForEnvQuery(undefined, false, region);
+                regionAppliedToQuery = Boolean(region);
                 result = await cloudbaseList.env.listEnvs();
                 logCloudBaseResult(server.logger, result);
               } catch (fallbackError) {
@@ -2913,6 +2954,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               result,
               cloudBaseOptions,
               hasEnvId,
+              regionApplied: regionAppliedToQuery,
               filters: {
                 alias,
                 aliasExact,
@@ -2950,7 +2992,10 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             break;
 
           case "domains":
-            const cloudbaseDomains = await getManager();
+            // 与 info/usage/metrics 对齐：必须落到调用方指定的 envId。
+            // 之前用 getManager() 会静默返回「当前绑定环境」的域名，
+            // 传了别的 envId 时会拿到错误对象（配 Web 安全域名时尤其危险）。
+            const cloudbaseDomains = await getManagerForEnvQuery(envId);
             result = await cloudbaseDomains.env.getEnvAuthDomains();
             logCloudBaseResult(server.logger, result);
             if (result && typeof result === "object" && !Array.isArray(result)) {
@@ -3130,7 +3175,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   const queryEnvToolSchema = {
     title: "CloudBase 环境查询",
     description:
-      "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情、安全域名、资源用量与监控指标。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。账号级登录可传 region（ap-shanghai/ap-guangzhou/ap-singapore）查询对应地域，对齐 CLI `tcb env list -r <region>`；环境级 API Key 只能看到绑定的 envId，返回 credential_scope=single_env，不要误判为环境不存在。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。\n\n📊 action=usage 对齐 tcb env usage/info：透传 Manager SDK describeEnvAccountCircle + describeCreditsUsageDetail，返回计费周期与各模块资源点用量（FLEXDB/SCF/COS 等）。envId 必填；type 可选过滤模块；未传 startDate/endDate 时自动使用当前计费周期。\n\n📈 action=metrics 对齐 TCB DescribeCurveData（manager.monitor.describeCurveData，不是云监控 GetMonitorData）：查询环境/网关 QPS、云函数调用与错误、数据库 CPU/内存/磁盘、云托管 CPU/QPS 等时序。envId 与 metricName 必填；startTime/endTime 格式 YYYY-MM-DD HH:mm:ss，须成对传入，不传则默认最近 24 小时；period 仅 300/3600/86400。GatewayTraceEnvQPS 未传 resourceID 时自动填环境级 all|:|all|:|all|:|all；云托管 Tke* 指标必须传服务名 resourceID。禁止用 callCloudApi 猜测监控 Action。\n\n🔍 action=info 还会派生三个用于后端选型的字段：\n- `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。\n- `EnvInfo.RuntimeBackends`：`{postgresql, nosql, mysql}` 三个布尔值，描述当前环境实际并存的后端。\n- `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。\n\n🌐 action=info 还会在不改写 `StaticStorages[].StaticDomain`（云 API 名义域名）的前提下，投影网关路由 Enable 状态：`StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。\n\nAI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType=\"noSqlDatabase\")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用。",
+      "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情、安全域名、资源用量与监控指标。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。账号级登录可传 region（ap-shanghai/ap-guangzhou/ap-singapore）查询对应地域，对齐 CLI `tcb env list -r <region>`；环境级凭证（API Key / 托管授权 token）只能看到绑定的 envId，返回 credential_scope=single_env，此时 region 不参与查询会在 ignored_params 中如实说明（AppliedFilters.region 为 null），不要误判为环境不存在或地域过滤失效。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。\n\n📊 action=usage 对齐 tcb env usage/info：透传 Manager SDK describeEnvAccountCircle + describeCreditsUsageDetail，返回计费周期与各模块资源点用量（FLEXDB/SCF/COS 等）。envId 必填；type 可选过滤模块；未传 startDate/endDate 时自动使用当前计费周期。\n\n📈 action=metrics 对齐 TCB DescribeCurveData（manager.monitor.describeCurveData，不是云监控 GetMonitorData）：查询环境/网关 QPS、云函数调用与错误、数据库 CPU/内存/磁盘、云托管 CPU/QPS 等时序。envId 与 metricName 必填；startTime/endTime 格式 YYYY-MM-DD HH:mm:ss，须成对传入，不传则默认最近 24 小时；period 仅 300/3600/86400。GatewayTraceEnvQPS 未传 resourceID 时自动填环境级 all|:|all|:|all|:|all；云托管 Tke* 指标必须传服务名 resourceID。禁止用 callCloudApi 猜测监控 Action。\n\n🔍 action=info 还会派生三个用于后端选型的字段：\n- `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。\n- `EnvInfo.RuntimeBackends`：`{postgresql, nosql, mysql}` 三个布尔值，描述当前环境实际并存的后端。\n- `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。\n\n🌐 action=info 还会在不改写 `StaticStorages[].StaticDomain`（云 API 名义域名）的前提下，投影网关路由 Enable 状态：`StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。\n\nAI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType=\"noSqlDatabase\")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用。",
     inputSchema: {
       action: z
         .enum(["list", "info", "domains", "usage", "metrics"])
@@ -3143,13 +3188,13 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         .string()
         .optional()
         .describe(
-          "环境 ID。action=list 时可选（仅按 DescribeEnvs 语义做筛选，仍返回摘要）；action=info / action=usage / action=metrics 时必填。",
+          "环境 ID。action=list 时可选（仅按 DescribeEnvs 语义做筛选，仍返回摘要）；action=info / action=usage / action=metrics 时必填；action=domains 时可选（不传则查当前绑定环境，传了则查该环境的安全域名）。",
         ),
       region: z
         .enum(TCB_QUERY_REGIONS)
         .optional()
         .describe(
-          "查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。环境级 API Key 无法用此参数看到其他环境。等价 CLI：tcb env list -r <region> --json。",
+          "查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 为绑定环境所在地域，ignored_params 说明忽略原因——不要据此判定该地域没有环境。",
         ),
       limit: z.number().int().positive().optional().describe("返回数量上限。action=list 时可选"),
       offset: z.number().int().min(0).optional().describe("分页偏移。action=list 时可选"),

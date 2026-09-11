@@ -1796,6 +1796,89 @@ describe("env tools - envQuery", () => {
     });
   });
 
+  it("envQuery(domains) should resolve the manager against the requested envId", async () => {
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        getEnvAuthDomains: vi.fn().mockResolvedValue({ Domains: [] }),
+      },
+    });
+
+    const { tools } = createMockServer();
+    await tools.queryEnv.handler({ action: "domains", envId: "env-override" });
+
+    expect(mockGetCloudBaseManager).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cloudBaseOptions: expect.objectContaining({
+          envId: "env-override",
+        }),
+      }),
+    );
+  });
+
+  it("envQuery(list) should report region as ignored under env-scoped credentials", async () => {
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        describeEnvInfo: vi.fn().mockResolvedValue({
+          EnvInfo: {
+            EnvBaseInfo: {
+              EnvId: "env-test",
+              Alias: "bound",
+              Region: "ap-singapore",
+            },
+          },
+        }),
+      },
+      commonService: vi.fn(() => ({
+        call: vi.fn().mockResolvedValue({ EnvList: [] }),
+      })),
+    });
+
+    const { server, tools } = createMockServer();
+    (server as any).cloudBaseOptions.credentialScope = "env";
+
+    const payload = JSON.parse(
+      (await tools.queryEnv.handler({ action: "list", region: "ap-shanghai" })).content[0].text,
+    );
+
+    expect(payload.credential_scope).toBe("single_env");
+    expect(payload.EnvList).toEqual([
+      { EnvId: "env-test", Alias: "bound", Region: "ap-singapore" },
+    ]);
+    // region 没有参与查询：不得回显成「已按 ap-shanghai 过滤」
+    expect(payload.AppliedFilters.region).toBeNull();
+    expect(payload.AppliedFilters.currentEnvOnly).toBe(true);
+    expect(payload.query_region).toBe("ap-guangzhou");
+    expect(payload.ignored_params).toEqual([
+      {
+        name: "region",
+        value: "ap-shanghai",
+        reason: "环境级凭证为单环境权限，region 不参与查询；结果恒为绑定环境",
+      },
+    ]);
+    expect(payload.scope_note).toContain('已忽略 region="ap-shanghai"');
+  });
+
+  it("envQuery(list) should still report region when account-level credentials apply it", async () => {
+    mockGetCloudBaseManager.mockResolvedValue({
+      commonService: vi.fn(() => ({
+        call: vi.fn().mockResolvedValue({
+          EnvList: [{ EnvId: "env-other", Alias: "other", Region: "ap-shanghai" }],
+        }),
+      })),
+      env: { listEnvs: vi.fn() },
+    });
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (await tools.queryEnv.handler({ action: "list", region: "ap-shanghai" })).content[0].text,
+    );
+
+    expect(payload.credential_scope).toBe("account");
+    expect(payload.AppliedFilters.region).toBe("ap-shanghai");
+    expect(payload.query_region).toBe("ap-shanghai");
+    expect(payload.ignored_params).toBeUndefined();
+  });
+
   it("envDomainManagement(create) should return structured polling guidance", async () => {
     const createEnvDomain = vi.fn().mockResolvedValue({
       RequestId: "req-create-domain",
