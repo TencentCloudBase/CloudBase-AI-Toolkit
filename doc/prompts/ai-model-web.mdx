@@ -270,7 +270,7 @@ import cloudbase from "@cloudbase/js-sdk";
 
 const app = cloudbase.init({
   env: "<YOUR_ENV_ID>",
-  accessKey: "<YOUR_PUBLISHABLE_KEY>"  // Get it from the CloudBase console
+  accessKey: import.meta.env.VITE_PUBLISHABLE_KEY  // auto-provision via queryAppAuth / manageAppAuth, write to .env.local (see auth-web-cloudbase prerequisites)
 });
 
 const auth = app.auth;

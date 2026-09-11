@@ -62,12 +62,15 @@ https://github.com/TencentCloudBase/CloudBase-AI-Toolkit
 
 无需预先配置。在 CodeBuddy Code 中直接开始对话，按提示完成 **Device 登录** 即可。
 
+> 🌏 **国际站用户**：环境开通在腾讯云**国际站**时，需先声明站点，否则登录会走国内站授权页。在 MCP 配置的 `env` 中加入 `"TCB_SITE": "intl"`（或使用启动参数 `--site intl`），重启后再登录。详见 [连接方式 - 国际站用户](../connection-modes#国际站用户)。
+
 ### 没有腾讯云账号（API Key）
 
 ```bash
 # 安装 CloudBase CLI
 npm i -g @cloudbase/cli
 
+# 国际站用户请先执行 tcb config set isIntl true（或设置环境变量 TCB_IS_INTL=true）切换到国际站链路
 # 使用环境 API Key 登录（必须同时指定环境 ID）
 tcb login --cloudbase-api-key <cloudbaseApiKey> -e <cloudbaseEnvId>
 ```

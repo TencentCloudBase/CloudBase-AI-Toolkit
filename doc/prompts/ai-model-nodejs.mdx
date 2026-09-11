@@ -219,7 +219,7 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
 
 ## Custom onboarding (models outside the managed catalog)
 
-When the user wants a **non-managed** text model (self-hosted, enterprise-internal, third-party OpenAI-compatible endpoint, …), **do not block**. Guide them through onboarding — console flow, the full `CreateAIModel` payload, and follow-up management steps: [custom-onboarding.md](references/custom-onboarding.md). The custom `GroupName` MUST start with `custom-`; custom-model billing is covered by the third-party provider and does not draw from the Token Credits resource pack.
+When the user wants a **non-managed** text model (self-hosted, enterprise-internal, third-party OpenAI-compatible endpoint, …), **do not block**. Guide them through onboarding — console flow, the full `CreateAIModel` payload, and follow-up management steps: [custom-onboarding.md](https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit/-/git/raw/main/config/source/skills/ai-model-nodejs/references/custom-onboarding.md). The custom `GroupName` MUST start with `custom-`; custom-model billing is covered by the third-party provider and does not draw from the Token Credits resource pack.
 
 ---
 
@@ -285,7 +285,7 @@ const ai = app.ai();
 
 ## SDK API Reference (on demand)
 
-For full `generateText` / `streamText` / `generateImage` code examples, the error-handling pattern, image-generation parameters, and the complete TypeScript type definitions, read [api-reference.md](references/api-reference.md). That file (together with this SKILL.md) is the authoritative reference for `@cloudbase/node-sdk`'s AI surface — look up method signatures there before writing code. If a method or field is not documented there, stop and ask, or check the live contract via the MCP tools. No guessing.
+For full `generateText` / `streamText` / `generateImage` code examples, the error-handling pattern, image-generation parameters, and the complete TypeScript type definitions, read [api-reference.md](https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit/-/git/raw/main/config/source/skills/ai-model-nodejs/references/api-reference.md). That file (together with this SKILL.md) is the authoritative reference for `@cloudbase/node-sdk`'s AI surface — look up method signatures there before writing code. If a method or field is not documented there, stop and ask, or check the live contract via the MCP tools. No guessing.
 
 ---
 
@@ -309,8 +309,16 @@ For full `generateText` / `streamText` / `generateImage` code examples, the erro
 
 All packaged reference files (required for skill lint reachability):
 
-- [api-reference.md](references/api-reference.md) — generateText / streamText / generateImage examples, error-handling pattern, image parameters, TypeScript type definitions
-- [custom-onboarding.md](references/custom-onboarding.md) — onboarding models outside the managed catalog (console flow + `CreateAIModel`)
+- [api-reference.md](https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit/-/git/raw/main/config/source/skills/ai-model-nodejs/references/api-reference.md) — generateText / streamText / generateImage examples, error-handling pattern, image parameters, TypeScript type definitions
+- [custom-onboarding.md](https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit/-/git/raw/main/config/source/skills/ai-model-nodejs/references/custom-onboarding.md) — onboarding models outside the managed catalog (console flow + `CreateAIModel`)
 ````
 
 </details>
+
+## 参考文件
+
+当前 Skill 的详细规则文件（源仓库 CNB 镜像，国内可直连）：
+
+- [`references/api-reference.md`](https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit/-/blob/main/config/source/skills/ai-model-nodejs/references/api-reference.md)
+- [`references/custom-onboarding.md`](https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit/-/blob/main/config/source/skills/ai-model-nodejs/references/custom-onboarding.md)
+

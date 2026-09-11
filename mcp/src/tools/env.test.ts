@@ -212,6 +212,7 @@ describe("env tools - auth", () => {
   let tools: ReturnType<typeof createMockServer>["tools"];
   const originalCloudbaseEnvId = process.env.CLOUDBASE_ENV_ID;
   const originalTcbRegion = process.env.TCB_REGION;
+  const originalTcbSite = process.env.TCB_SITE;
   const originalApiKey = process.env.CLOUDBASE_API_KEY;
 
   beforeEach(() => {
@@ -269,6 +270,11 @@ describe("env tools - auth", () => {
       delete process.env.TCB_REGION;
     } else {
       process.env.TCB_REGION = originalTcbRegion;
+    }
+    if (originalTcbSite === undefined) {
+      delete process.env.TCB_SITE;
+    } else {
+      process.env.TCB_SITE = originalTcbSite;
     }
     if (originalApiKey === undefined) {
       delete process.env.CLOUDBASE_API_KEY;
@@ -760,6 +766,53 @@ describe("env tools - auth", () => {
     } finally {
       delete process.env.TCB_SITE;
     }
+  });
+
+  it("auth(action=start_auth, site=intl) should switch to intl route even when TCB_SITE is unset", async () => {
+    mockPeekLoginState.mockResolvedValue(null);
+    mockSupervisorLoginByWebAuth.mockImplementation(
+      async ({ onDeviceCode }: { onDeviceCode: (info: any) => void }) => {
+        onDeviceCode({
+          user_code: "WDJB-MJHT",
+          verification_uri:
+            "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device",
+          device_code: "device-code",
+          expires_in: 600,
+        });
+        return new Promise(() => {});
+      },
+    );
+
+    const result = await tools.auth.handler({
+      action: "start_auth",
+      authMode: "device",
+      site: "intl",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toHaveProperty("code", "AUTH_PENDING");
+    const callArgs = mockSupervisorLoginByWebAuth.mock.calls.at(-1)![0];
+    expect(callArgs.getOAuthEndpoint("ignored")).toBe(
+      "https://tcb-api.tencentcloud.com/qcloud-tcb/v1/oauth",
+    );
+    expect(
+      callArgs.getAuthUrl(
+        "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device",
+      ),
+    ).toBe("https://tcb.tencentcloud.com/dev#/cli-auth?from=cli&flow=device");
+    // 站点写入环境变量，供本次登录后续环节与后续工具调用按同一站点解析
+    expect(process.env.TCB_SITE).toBe("intl");
+  });
+
+  it("auth(action=status, site=<invalid>) should reject invalid site value", async () => {
+    const result = await tools.auth.handler({
+      action: "status",
+      site: "us-east",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toHaveProperty("code", "INVALID_ARGS");
+    expect(payload.message).toContain("site 取值无效");
   });
 
   it("auth(action=start_auth, authMode=web) should continue environment preparation after login", async () => {

@@ -373,6 +373,28 @@ CloudBase AI ToolKit 与微信开发者工具可以完美配合使用，提供�
 
 这样就可以切换到新的腾讯云账号了。
 
+### 国际站环境登录后看不到环境怎么办？
+
+腾讯云 CloudBase 分国内站与国际站，未显式指定站点时一律按**国内站**处理。如果环境开通在国际站，登录会跳到国内站授权页，登录后在环境选择器里找不到你的国际站环境。MCP 配置里声明站点后重新登录即可：
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "TCB_SITE": "intl"
+      }
+    }
+  }
+}
+```
+
+其他方式（启动参数 `--site intl`、对话中指定 `site="intl"`、项目级 `.cloudbase/project.json`、CloudBase CLI `tcb config set isIntl true`）见 [连接方式 - 国际站用户](./connection-modes#国际站用户)。
+
+国内站与国际站凭证按站点分槽存储，可并存，切换站点无需重新登录（见下条）。
+
 ### 国内站新加坡环境被当成国际站了怎么办？
 
 国内站现已支持新加坡地域（`ap-singapore`）。由于国内站与国际站都提供该地域，仅配置 `TCB_REGION=ap-singapore` 会被默认按**国际站**处理（登录跳到国际站、NoSQL 工具被跳过）。国内站新加坡用户需显式指定站点：
