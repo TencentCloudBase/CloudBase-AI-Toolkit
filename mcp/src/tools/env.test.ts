@@ -1847,7 +1847,9 @@ describe("env tools - envQuery", () => {
     // region 没有参与查询：不得回显成「已按 ap-shanghai 过滤」
     expect(payload.AppliedFilters.region).toBeNull();
     expect(payload.AppliedFilters.currentEnvOnly).toBe(true);
-    expect(payload.query_region).toBe("ap-guangzhou");
+    // query_region 表示结果实际落在哪：pinned 分支要用绑定环境自身的 Region，
+    // 而不是凭据/配置默认地域（本例配置是 ap-guangzhou，环境在 ap-singapore）
+    expect(payload.query_region).toBe("ap-singapore");
     expect(payload.ignored_params).toEqual([
       {
         name: "region",
@@ -1877,6 +1879,70 @@ describe("env tools - envQuery", () => {
     expect(payload.AppliedFilters.region).toBe("ap-shanghai");
     expect(payload.query_region).toBe("ap-shanghai");
     expect(payload.ignored_params).toBeUndefined();
+  });
+
+  it("envQuery(list) should not report ignored_params when region is absent on the pinned path", async () => {
+    process.env.CLOUDBASE_ENV_ID = "env-test";
+
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        describeEnvInfo: vi.fn().mockResolvedValue({
+          EnvInfo: {
+            EnvBaseInfo: { EnvId: "env-test", Alias: "bound", Region: "ap-shanghai" },
+          },
+        }),
+      },
+      commonService: vi.fn(() => ({
+        call: vi.fn().mockResolvedValue({ EnvList: [] }),
+      })),
+    });
+
+    const { server, tools } = createMockServer();
+    (server as any).cloudBaseOptions.credentialScope = "env";
+
+    const payload = JSON.parse(
+      (await tools.queryEnv.handler({ action: "list" })).content[0].text,
+    );
+
+    // 没传 region 就没有「被忽略的参数」可说，不能凭空造一条
+    expect(payload.ignored_params).toBeUndefined();
+    expect(payload.AppliedFilters.region).toBeNull();
+    expect(payload.AppliedFilters.currentEnvOnly).toBe(true);
+    // pinned 结果就是绑定环境本身，query_region 如实回落到该环境的 Region
+    expect(payload.query_region).toBe("ap-shanghai");
+  });
+
+  it("envQuery(list) should keep the pinned env when CLOUDBASE_ENV_ID differs from the bound envId", async () => {
+    process.env.CLOUDBASE_ENV_ID = "env-from-var";
+
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        describeEnvInfo: vi.fn().mockResolvedValue({
+          EnvInfo: {
+            EnvBaseInfo: { EnvId: "env-from-var", Alias: "var-bound", Region: "ap-singapore" },
+          },
+        }),
+      },
+      commonService: vi.fn(() => ({
+        call: vi.fn().mockResolvedValue({ EnvList: [] }),
+      })),
+    });
+
+    const { server, tools } = createMockServer();
+    (server as any).cloudBaseOptions.credentialScope = "env";
+
+    const payload = JSON.parse(
+      (await tools.queryEnv.handler({ action: "list", region: "ap-shanghai" })).content[0].text,
+    );
+
+    // 过滤必须按真正查询到的 envId（CLOUDBASE_ENV_ID），
+    // 否则会把唯一的结果滤掉，回执变成空列表
+    expect(payload.EnvList).toEqual([
+      { EnvId: "env-from-var", Alias: "var-bound", Region: "ap-singapore" },
+    ]);
+    expect(payload.TotalCount).toBe(1);
+    expect(payload.AppliedFilters.currentEnvOnly).toBe(true);
+    expect(payload.query_region).toBe("ap-singapore");
   });
 
   it("envDomainManagement(create) should return structured polling guidance", async () => {

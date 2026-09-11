@@ -1104,6 +1104,13 @@ function buildEnvQueryListResult(params: {
    * 会拿 AppliedFilters.region 误判环境地域。缺省视为已生效（向后兼容）。
    */
   regionApplied?: boolean;
+  /**
+   * 本次查询实际落到的 envId。list 的 pinned 分支用的是
+   * `process.env.CLOUDBASE_ENV_ID || cloudBaseOptions.envId`，两者在 API Key
+   * 场景下可能不同；过滤「只保留当前环境」时必须按真正查询的那个 id，
+   * 否则会把唯一的结果滤成空列表。缺省回落到 cloudBaseOptions.envId。
+   */
+  targetEnvId?: string;
     filters: {
       alias?: string;
       aliasExact?: boolean;
@@ -1115,16 +1122,17 @@ function buildEnvQueryListResult(params: {
   };
 }) {
   const envList = Array.isArray(params.result?.EnvList) ? params.result.EnvList : [];
+  const currentEnvId = params.targetEnvId || params.cloudBaseOptions?.envId;
   const regionIgnored =
     params.regionApplied === false && Boolean(params.filters.region);
   // region 被忽略时，结果实际仍被限制在绑定环境上
   const shouldRestrictToCurrentEnv =
-    params.hasEnvId &&
+    (params.hasEnvId || Boolean(params.targetEnvId)) &&
     !params.filters.alias &&
     !params.filters.envId &&
     (!params.filters.region || regionIgnored);
   const baseList = shouldRestrictToCurrentEnv
-    ? envList.filter((env: any) => env.EnvId === params.cloudBaseOptions?.envId)
+    ? envList.filter((env: any) => env.EnvId === currentEnvId)
     : envList;
   const filteredList = filterEnvList(baseList, {
     alias: params.filters.alias,
@@ -1141,16 +1149,23 @@ function buildEnvQueryListResult(params: {
       }
     : undefined;
   const credentialBoundary = buildCredentialBoundaryPayload(params.cloudBaseOptions);
-  // query_region 表示「本次查询实际使用的地域」：region 被忽略时回落到绑定环境所在地域
+  // query_region 表示「本次查询实际落到哪」：
+  // - pinned（环境级凭证 / env 变量绑定）：查询不按地域过滤，用结果里该环境自身的
+  //   Region 回答；取不到（结果为空）才回落到当前凭据地域；
+  // - 账号级：region 生效时就是所传地域，未传时是当前凭据地域。
+  // 任何时候都不要拿它判断「某地域有没有环境」。
+  const pinnedEnvRegion = params.targetEnvId
+    ? envList.find((env: any) => env.EnvId === currentEnvId)?.Region
+    : undefined;
   const queryRegion =
-    !regionIgnored && params.filters.region
+    params.filters.region && !regionIgnored
       ? params.filters.region
-      : credentialBoundary.current_region;
+      : pinnedEnvRegion || credentialBoundary.current_region;
   const currentEnvOnlyNote =
     shouldRestrictToCurrentEnv && credentialBoundary.credential_scope === "account"
       ? `已绑定环境，list 默认只返回当前环境。要查看其他地域请传 region（例如 region="ap-singapore"），或使用 CLI: tcb env list -r ap-singapore。`
       : undefined;
-  const boundEnvId = params.cloudBaseOptions?.envId;
+  const boundEnvId = currentEnvId;
   const regionIgnoredNote = regionIgnored
     ? `已忽略 region="${params.filters.region}"：当前为环境级凭证（单环境权限），查询固定落在绑定环境${boundEnvId ? ` ${boundEnvId}` : ""}，地域参数不参与查询。这是凭据权限边界，不代表该地域没有环境。`
     : undefined;
@@ -2846,6 +2861,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         // envId 改走 describeEnvInfo（见下方 list 分支），此时 region 不生效，
         // 回执必须如实告知，避免调用方据此误判环境地域。
         let regionAppliedToQuery = false;
+        // pinned 分支实际查询的 envId（可能是 CLOUDBASE_ENV_ID，与
+        // cloudBaseOptions.envId 不一致）。回执里「只保留当前环境」必须按它过滤。
+        let pinnedEnvId: string | undefined;
 
         switch (action) {
           case "list":
@@ -2873,6 +2891,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                   (!region && !alias && !envId)),
               );
               if (shouldPinToEnvVar && envIdFromEnv) {
+                // 记录真正被查询的 envId：后面回执按它过滤，而不是按
+                // cloudBaseOptions.envId（两者在 API Key 场景下可能不同）。
+                pinnedEnvId = envIdFromEnv;
                 try {
                   const envInfo = await cloudbaseList.env.describeEnvInfo({ EnvId: envIdFromEnv });
                   logCloudBaseResult(server.logger, envInfo);
@@ -2955,6 +2976,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               cloudBaseOptions,
               hasEnvId,
               regionApplied: regionAppliedToQuery,
+              targetEnvId: pinnedEnvId,
               filters: {
                 alias,
                 aliasExact,
@@ -3194,7 +3216,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         .enum(TCB_QUERY_REGIONS)
         .optional()
         .describe(
-          "查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 为绑定环境所在地域，ignored_params 说明忽略原因——不要据此判定该地域没有环境。",
+          "查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 取该环境自身的 Region，ignored_params 说明忽略原因——不要据此判定该地域没有环境。",
         ),
       limit: z.number().int().positive().optional().describe("返回数量上限。action=list 时可选"),
       offset: z.number().int().min(0).optional().describe("分页偏移。action=list 时可选"),
