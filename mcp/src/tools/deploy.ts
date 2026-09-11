@@ -331,17 +331,8 @@ export function registerDeployTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "deployBuild",
     {
-      title: "构建声明式配置中的静态托管项目（本地构建）",
-      description:
-        "解析 cloudbaserc 并对 hosting[] 中配置了 buildCommand 的项目执行本地构建（仅执行 buildCommand，不安装依赖、不上传）。" +
-        "对应 CLI 的 tcb app build，但只处理 hosting[] 静态托管项，与 cloudbaserc 的 app 资源类型（云端构建管线）无关。" +
-        "声明式 hosting 部署拆分为「build → plan → apply」三步，本工具是第一步：" +
-        "先本地构建产物，再 deployPlan 预演，最后 deployApply 上传产物。" +
-        "deployApply 不再隐式本地构建 —— 带构建命令的 hosting 项在产物缺失时会报错引导先执行本工具。" +
-        "纯静态托管（未配置 buildCommand 且无法探测框架）自动跳过。" +
-        "构建为纯本地操作：不解析环境、不要求登录，也不需要 confirm。" +
-        "\n- cwd：项目根目录，默认当前工作目录" +
-        "\n- mode：环境名，命中 envOverrides.<mode> 时合并对应的多环境覆盖配置",
+      title: "deploy.buildTitle",
+      description: "deploy.buildDescription",
       inputSchema: {
         cwd: z
           .string()
