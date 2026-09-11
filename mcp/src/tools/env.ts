@@ -2089,6 +2089,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 .describe("高级可选：自定义 endpoint 返回格式开关。未配置 endpoint 时默认 false；配置 endpoint 后默认 true。标准 {code,result} 包装格式的端点（如国际站 tcb-api.tencentcloud.com）应显式传 false"),
             }
           : {}),
+        site: z
+          .enum(["domestic", "intl"])
+          .optional()
+          .describe(
+            "站点：domestic=国内站，intl=国际站。环境开通在腾讯云国际站时，登录（start_auth/login_by_api_key）需显式传 intl，否则会走国内站链路、看不到国际站环境；缺省按 TCB_SITE 环境变量 / region 映射表 / 项目配置解析",
+          ),
         envId: z
           .string()
           .optional()
@@ -2136,6 +2142,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       oauthEndpoint?: unknown;
       clientId?: unknown;
       oauthCustom?: unknown;
+      site?: unknown;
       envId?: string;
       confirm?: unknown;
       reveal?: unknown;
@@ -2153,6 +2160,28 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       const envId = rawArgs.envId;
       const confirm = rawArgs.confirm === "yes" ? "yes" : undefined;
       const reveal = normalizeOptionalToolBoolean(rawArgs.reveal) === true;
+
+      // 显式站点：归一化为 domestic/intl，非法取值直接报错而不是静默忽略
+      const site = normalizeSite(rawArgs.site);
+      if (rawArgs.site !== undefined && rawArgs.site !== null && site === undefined) {
+        return buildJsonToolResult({
+          ok: false,
+          code: "INVALID_ARGS",
+          message: `site 取值无效：${String(rawArgs.site)}。可选值：domestic（国内站）、intl（国际站）。`,
+          next_step: buildAuthNextStep(action, {
+            suggestedArgs: { action, site: "intl" },
+          }),
+        });
+      }
+      if (site) {
+        // 与 cli.ts 的 --site 语义一致：同步到环境变量与 cloudBaseOptions，
+        // 让本次登录（OAuth 端点/授权页改写、API Key 换取网关）以及后续工具调用都按该站点解析
+        process.env.TCB_SITE = site;
+        if (server.cloudBaseOptions) {
+          server.cloudBaseOptions.site = site;
+        }
+      }
+
       const resolvedAuthOptions = resolveToolAuthOptions(server, {
         authMode,
         oauthEndpoint,

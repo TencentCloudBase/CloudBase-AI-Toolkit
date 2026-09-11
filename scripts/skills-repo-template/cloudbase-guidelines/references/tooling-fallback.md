@@ -48,7 +48,7 @@ Do **not** require the user to paste env vars into MCP JSON before you can proce
 
 | Goal | MCP (when available) | CLI fallback — read skill, do not guess |
 |------|----------------------|------------------------------------------|
-| Login | `auth` (`start_auth` / device) | `cloudbase-cli` → `core.md` (`tcb login`) |
+| Login | `auth` (`start_auth` / device; 国际站环境加 `site="intl"`) | `cloudbase-cli` → `core.md` (`tcb login`; 国际站先 `tcb config set isIntl true`) |
 | Bind / select env | `auth.set_env` + `envQuery` | `cloudbase-cli` → `core.md` (`tcb env use`) |
 | Cloud function deploy | `manageFunctions` / `queryFunctions` | `cloud-functions` + `cloudbase-cli` → `functions.md` |
 | Web / static hosting | `manageApps` / `manageHosting` | `cloudbase-cli` → `hosting.md` (build locally, then hosting deploy) |

@@ -166,6 +166,11 @@ CloudBase（腾讯云开发）开发阶段登录与环境绑定。登录后即�
       description: `高级可选：自定义 endpoint 返回格式开关。未配置 endpoint 时默认 false；配置 endpoint 后默认 true，且不能设为 false`,
     },
     {
+      name: "site",
+      type: "string",
+      description: `站点：domestic=国内站，intl=国际站。环境开通在腾讯云国际站时，登录（start_auth/login_by_api_key）需显式传 intl，否则会走国内站链路、看不到国际站环境；缺省按 TCB_SITE 环境变量 / region 映射表 / 项目配置解析 可填写的值: "domestic", "intl"`,
+    },
+    {
       name: "envId",
       type: "string",
       description: `环境ID(CloudBase 环境唯一标识)，绑定后工具将操作该环境。action=set_env 时必填`,
