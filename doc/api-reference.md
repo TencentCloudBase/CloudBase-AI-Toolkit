@@ -2,7 +2,7 @@
 
 > - 数据源：[API 概览](https://cloud.tencent.com/document/api/876/34809) · [依赖产品接口指引](https://cloud.tencent.com/document/api/876/34808)
 > - 所有接口均为腾讯云 API 3.0 管控面接口，支持各语言官方 SDK 调用；也可通过 CloudBase MCP 的 `callCloudApi` 工具或 [API Explorer](https://console.cloud.tencent.com/api/explorer) 直接调用
-> - 最近同步：2026-09-10
+> - 最近同步：2026-09-11
 
 ## API 概览
 
@@ -10,7 +10,6 @@
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
-| [CreateHTTPServiceRoute](https://cloud.tencent.com/document/api/876/129800) | 创建HTTP访问服务路由 | 20 |
 | [VerifyHTTPServiceRoute](https://cloud.tencent.com/document/api/876/135630) | 校验HTTP访问服务路由 | 20 |
 | [DeleteHTTPServiceRoute](https://cloud.tencent.com/document/api/876/129799) | 删除HTTP访问服务路由 | 20 |
 | [DescribeHTTPServiceRoute](https://cloud.tencent.com/document/api/876/129798) | 查询HTTP访问服务路由信息 | 20 |
@@ -59,6 +58,12 @@
 | [ModifyUser](https://cloud.tencent.com/document/api/876/127958) | 更新tcb用户 | 20 |
 | [DescribeResourcePermission](https://cloud.tencent.com/document/api/876/132256) | 查询资源基础权限 | 20 |
 | [ModifyResourcePermission](https://cloud.tencent.com/document/api/876/132255) | 修改资源基础权限 | 20 |
+
+## HTTP网关相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [CreateHTTPServiceRoute](https://cloud.tencent.com/document/api/876/129800) | 创建HTTP访问服务路由 | 20 |
 
 ## 云托管相关接口
 
@@ -126,6 +131,12 @@
 | [DescribeManagedAIModelList](https://cloud.tencent.com/document/api/876/131317) | 查询托管类型AI模型列表 | 20 |
 | [UpdateAIModel](https://cloud.tencent.com/document/api/876/131316) | 更新AI模型 | 20 |
 
+## tcb相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [UpdateFunctionCode](https://cloud.tencent.com/document/api/876/137952) | 更新云函数代码 | 20 |
+
 ## 搜索日志相关接口
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
@@ -167,6 +178,17 @@
 | [CreateApiKey](https://cloud.tencent.com/document/api/876/129835) | 创建云开发平台的API Key | 20 |
 | [DeleteApiKey](https://cloud.tencent.com/document/api/876/129834) | 删除云开发平台的API Key | 20 |
 | [DescribeApiKeyList](https://cloud.tencent.com/document/api/876/129833) | 查询云开发平台的API Key列表 | 20 |
+
+## 云函数相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [CreateFunction](https://cloud.tencent.com/document/api/876/137951) | 创建云函数 | 20 |
+| [DeleteFunction](https://cloud.tencent.com/document/api/876/137950) | 删除云函数 | 20 |
+| [UpdateFunctionConfiguration](https://cloud.tencent.com/document/api/876/137946) | 更新函数配置 | 20 |
+| [ListFunctions](https://cloud.tencent.com/document/api/876/137947) | 获取函数列表 | 20 |
+| [GetFunction](https://cloud.tencent.com/document/api/876/137948) | 获取云函数详情 | 20 |
+| [DownloadFunction](https://cloud.tencent.com/document/api/876/137949) | 获取云函数地址并下载 | 20 |
 
 > 注意：
 > 
