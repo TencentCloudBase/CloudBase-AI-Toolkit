@@ -191,16 +191,17 @@ When a task explicitly requires recording operation steps or results to a file (
    **Creating an environment with specific resources:**
    ```
    manageEnv(action="create", alias="my-env", packageId="baas_personal",
-             resources=["flexdb","storage","function","postgresql"], confirm="yes")
+             resources=["storage","function","postgresql"], confirm="yes")
    ```
 
    - **`resources`** (optional, create only): controls which CloudBase capabilities to enable:
-     - `flexdb` — Document database (NoSQL)
      - `storage` — Cloud Storage
      - `function` — Cloud Functions
      - `postgresql` — PostgreSQL relational database (PG mode)
-   - Defaults to all four when omitted. MCP always sends non-empty `Resources` to CreateEnv.
-   - Do **not** pass `region`: CreateEnv does not accept Region; environment region is determined by account/package.
+   - Defaults to all three when omitted. MCP always sends non-empty `Resources` to CreateEnv.
+   - `flexdb` (document database) is **not** offered: new environments are created without a NoSQL tenant. Do not pass it — it is rejected by the schema. To find out whether an environment actually has NoSQL, read `queryEnv(action="info")` → `EnvInfo.RuntimeBackends` rather than assuming.
+   - Region is selectable: pass `region` (e.g. `region="ap-shanghai"`) to choose where the environment is created. It is applied as the **`X-TC-Region` request context**, not as a CreateEnv body field — so do **not** put `Region` inside `params`. Omit it to use the current session region (`cloudBaseOptions.region` → `TCB_REGION` → project config / rc binding → site default: `ap-shanghai` for the domestic site, `ap-singapore` for the intl site). Equivalent CLI: `tcb env create --region ap-shanghai`.
+   - ⚠️ If you pass `region`, repeat the same value on the confirming call together with `confirm="yes"`; otherwise the second call falls back to the session region and the environment may be created somewhere other than the summary you confirmed.
    - ⚠️ **All paid operations** (create / modifyPlan / renew) require `confirm="yes"`.
 
    **Querying available packages before creating:**
