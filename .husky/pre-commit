@@ -12,7 +12,10 @@ fi
 
 # --- Step 1: i18n coverage ratchet (mcp/src 参数级 .describe 中文只减不增) ---
 # 只在 mcp i18n 面有改动时跑，避免无关提交被拖慢（脚本零依赖、毫秒级完成）。
-# 与 .github/workflows/i18n-coverage.yml 同一道闸，本地先拦一次省得等 CI。
+# 与 .github/workflows/i18n-guard.yml 同一道闸（CI 侧），逻辑在
+# mcp/scripts/check-i18n-coverage.mjs。注意本文件只在上游 dev 的机器上生效：
+# 若 core.hooksPath 被全局指向了别的目录（如 lefthook 的 ~/.git-hooks），
+# 本钩子会被整体绕过，此时由 lefthook.yml 的同名 job 接手。
 if git diff --cached --name-only | grep -qE '^mcp/(src/|scripts/check-i18n-coverage\.mjs|i18n-coverage-baseline\.json)'; then
   echo "[husky] mcp i18n surface changed, running i18n coverage check..."
   node mcp/scripts/check-i18n-coverage.mjs

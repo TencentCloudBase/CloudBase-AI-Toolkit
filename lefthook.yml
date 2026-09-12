@@ -27,6 +27,17 @@ pre-commit:
       run: bash scripts/internal-sync.sh pull --hook
     - name: internal-docs-guard
       run: bash scripts/git-guard-internal.sh
+    # mcp 参数级 .describe() 中文棘轮（零依赖、毫秒级、不过滤文件）。
+    # 同一道闸有三个入口，缺一不可：
+    #   1. 本文件（lefthook）—— 本机生效。core.hooksPath 全局指向 ~/.git-hooks，
+    #      该目录下是 lefthook 的 shim，按"仓库根有无 lefthook.yml"分发。
+    #   2. .husky/pre-commit —— 上游 dev 生效（package.json prepare 跑 husky）。
+    #      本机被 (1) 挡在前面，永远不会执行。
+    #   3. .github/workflows/i18n-guard.yml —— CI 兜底，本地漏了还能拦。
+    # 故意不写 files/glob 过滤：闸门"静默不触发"比"多跑 50ms"危险得多。
+    # 逻辑只在这一个脚本里，本文件与 husky 只各占一行接线。
+    - name: i18n-coverage
+      run: node mcp/scripts/check-i18n-coverage.mjs
 
 # 同上，切分支 / merge 后立刻恢复。注意：本机 post-checkout / post-merge
 # 被 git-lfs 的 other-* 链接接管，不会走到 lefthook，所以这两个 job 在这里
