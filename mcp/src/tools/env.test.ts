@@ -18,6 +18,7 @@ import {
   summarizeEnvMetricCurve,
 } from "./env.js";
 import { t, type MessageKey } from "../i18n/index.js";
+import { resolveSiteAndRegion } from "../utils/site-map.js";
 import type { ExtendedMcpServer } from "../server.js";
 
 const {
@@ -2720,6 +2721,57 @@ describe("manageEnv", () => {
       text: expect.stringContaining("我已知晓"),
     });
     expect(payload.release_method?.detail).toContain("资源释放方式");
+  });
+
+  it("create 摘要的地域与「会话 manager 使用的地域」同口径", async () => {
+    // 回归保护：resolvePricingRegion 曾硬编码 ap-shanghai，于是国际站会话的确认页展示
+    // ap-shanghai、实际环境却创建在 ap-singapore（b453f0a5e 修的就是这个）。
+    // 它必须是 resolveSiteAndRegion 的同口径，而不是某个字面量 —— 否则「确认页说的地域」
+    // 与「实际创建的地域」会不一致。
+    //
+    // 分工：单点场景（TCB_SITE=intl → ap-singapore 的字面量）已由
+    // 「create preview falls back to the resolved site region when the session has no region」
+    // 与 utils/site-map.test.ts 钉住；这里补的是**形状矩阵** —— 保证四个输入形状
+    // 用的是同一个口径，防止有人对某个形状特判（比如又写回一个字面量默认值）。
+    const cases = [
+      { label: "仅会话 envId（默认站点）", options: { envId: "env-test" } },
+      { label: "site=intl 且无 region", options: { envId: "env-test", site: "intl" } },
+      { label: "site=domestic 且无 region", options: { envId: "env-test", site: "domestic" } },
+      { label: "显式 region 优先于站点默认", options: { envId: "env-test", region: "ap-guangzhou" } },
+    ];
+
+    for (const testCase of cases) {
+      vi.clearAllMocks();
+      mockPeekLoginState.mockResolvedValue({
+        secretId: "sid",
+        secretKey: "skey",
+        envId: "env-test",
+        token: "token",
+      });
+      mockGetCloudBaseManager.mockResolvedValue({ env: { createEnv: vi.fn() } } as any);
+
+      const { tools } = createMockServer("TestIDE", undefined, testCase.options);
+      const payload = JSON.parse(
+        (
+          await tools.manageEnv.handler({
+            action: "create",
+            alias: "my-env",
+            packageId: "baas_personal",
+          })
+        ).content[0].text,
+      );
+
+      const expected = resolveSiteAndRegion(testCase.options).region;
+      expect({
+        label: testCase.label,
+        region: payload.next_step?.region,
+        hasRegionInMessage: payload.message?.includes(`地域: ${expected}`),
+      }).toMatchObject({
+        label: testCase.label,
+        region: expected,
+        hasRegionInMessage: true,
+      });
+    }
   });
 
   it("create should apply an explicit region via the request context, not the CreateEnv body", async () => {

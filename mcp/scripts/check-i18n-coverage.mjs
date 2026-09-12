@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 /**
- * i18n 覆盖面棘轮（ratchet）—— 守住 mcp/src 下**参数级 `.describe()` 的中文硬编码只减不增**。
+ * i18n 覆盖面守卫 —— 两层，各守一个面：
+ *
+ *   1. **工具级文案必须是词典 key**（`registerTool` 的 title / description）
+ *   2. **参数级 `.describe()` 的中文硬编码只减不增**（棘轮 + 基线）
  *
  * ## 为什么需要它
  *
@@ -12,20 +15,21 @@
  *   | 运行期消息    | t("...") 调用点                             | 英文 ✅   |
  *   | 参数级        | `.describe("...")` 硬编码在 tools/*.ts      | 中文 ❌   |
  *
- * 前两层有平台级守卫（locales 的 zh/en 键对称由 `defineModule` 的
- * `E extends Record<keyof Z, string>` 在**编译期**保证，漏译直接报错）；
- * 参数级却完全在体系之外 —— 没有任何机制会在你新写一句中文 `.describe()` 时拦一下，
- * 于是英文用户看到的参数说明里混着中文。platform-kit 有 validate-i18n.mjs，
- * mcp 没有对应物，中文硬编码可以一路溜进主干。
+ * **第 1 层**（本脚本前半）是「工具级国际化」这个交付物的正面守卫：注册点写
+ * `description: "storage.queryDescription"` 会按实例语言解析，而写成
+ * `description: "查询云存储"` 会**原样透出**给 en 用户 —— 之前没有任何机制
+ * 会在这种回退发生时拦一下，CI 照样全绿。因此这里不接受任何基线：写成硬编码
+ * 字面量（或把字面量挪进同文件常量再引用）就是失败。
  *
- * 这个脚本就是那道闸：把当前存量冻结成基线白名单，之后**只减不增**。
- * 新增中文 `.describe()` → CI 直接红；翻译掉一批 → 基线必须同步收紧（否则棘轮会松动、
- * 被翻译过的字段再改回中文就再也拦不住了）。
+ * **第 2 层**（本脚本后半）是参数级：`.describe()` 完全在 i18n 体系之外，
+ * 没有任何机制会在你新写一句中文时拦一下，于是英文用户看到的参数说明里混着
+ * 中文。platform-kit 有 validate-i18n.mjs，mcp 没有对应物，中文硬编码可以
+ * 一路溜进主干。这一层用棘轮（存量冻结成基线，只减不增）。
  *
- * ## 关于基线的两个数字口径
+ * ## 关于第 2 层基线的两个数字口径
  *
- * 本脚本是**源码级静态**扫描，不需要构建、不需要跑 MCP，口径是「mcp/src 下所有含中文的
- * `.describe()` 字面量」= 475 条（2026-09-12, head b453f0a5e）：
+ * 棘轮是**源码级静态**扫描，不需要构建、不需要跑 MCP，口径是「mcp/src 下所有含中文的
+ * `.describe()` 字面量」= 464 条（2026-09-12, head 82ddc75dd）：
  *
  *   - 覆盖嵌套：`z.object({ a: z.string().describe("中文") })` 里的内层也算；
  *   - 覆盖未注册工具：intl 站点不注册的 NoSQL 工具照样要守；
@@ -36,15 +40,23 @@
  * 只看顶层、且只统计当前站点实际注册的工具，因此是**静态口径的子集**。
  * 两个数不相等是正常的：前者是上界（守 CI），后者是实况（看效果）。
  *
+ * ## 实现要点（为什么不是几行正则）
+ *
+ * 两层都要在源码里做结构判定，而源码里同时存在：注释里的示例代码、模板字符串里的
+ * 花括号、正则字面量里的引号（`/["']/g`）。所以先造一份「同长度结构掩码」——
+ * 行注释、块注释、字符串、正则的**内容**置空、定界符与换行保留 —— 括号配对与属性名
+ * 识别都在掩码上做，取值时按起始下标回原文取。正则与除号靠「前一个有效字符」区分，
+ * 且只认同行内能闭合的正则，宁可少认也不错认。
+ *
  * ## 用法
  *
  *   node mcp/scripts/check-i18n-coverage.mjs              # 校验（CI / pre-commit 用）
- *   node mcp/scripts/check-i18n-coverage.mjs --update     # 收敛基线（翻译完 / 有意新增后）
+ *   node mcp/scripts/check-i18n-coverage.mjs --update     # 收敛第 2 层基线（翻译完 / 有意新增后）
  *   node mcp/scripts/check-i18n-coverage.mjs --skip-shrink  # 只拦新增，不拦基线收紧（应急）
  *   node mcp/scripts/check-i18n-coverage.mjs --self-test  # 扫描器自检（守卫的守卫）
  *   node mcp/scripts/check-i18n-coverage.mjs --verbose    # 打印全部条目
  *
- * 退出码：0 = 与基线一致；1 = 棘轮被推动 / 基线缺失 / 自检失败；2 = 参数错误。
+ * 退出码：0 = 通过；1 = 工具级文案非词典 key / 棘轮被推动 / 基线缺失 / 自检失败；2 = 参数错误。
  *
  * 零依赖（仅 node: 内置模块），CI 里无需 pnpm install 即可运行。
  */
@@ -58,6 +70,16 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const MCP_ROOT = resolve(HERE, "..");
 const SCAN_ROOT = join(MCP_ROOT, "src");
 const BASELINE_FILE = join(MCP_ROOT, "i18n-coverage-baseline.json");
+const LOCALES_MODULES_DIR = join(SCAN_ROOT, "i18n", "locales", "modules");
+
+/** 工具注册点所在的目录（registerTool 调用只应出现在这里）。 */
+const TOOLS_DIR = join(SCAN_ROOT, "tools");
+
+/** 正则字面量判定用：这些关键字后面跟的 `/` 是正则开始而非除号。 */
+const REGEX_PRECEDING_KEYWORDS = new Set([
+  "return", "typeof", "instanceof", "in", "of", "new", "delete",
+  "void", "case", "do", "else", "yield", "await", "throw",
+]);
 
 /** 只在 mcp/src 下跳过 i18n 词典目录 —— 那是全仓唯一「中文合法存在」的地方。 */
 const SKIP_DIR_PATHS = new Set([join(SCAN_ROOT, "i18n")]);
@@ -156,6 +178,315 @@ export function scanDescribeLiterals(source) {
 }
 
 // ---------------------------------------------------------------------------
+// 结构掩码：把「字符串内容 / 注释 / 正则字面量内容」置空
+//
+// 工具注册点的 meta 是**对象字面量**，要判断它的 title/description 是词典 key
+// 还是硬编码文案，必须做结构遍历。直接对源码做结构遍历会被字符串里的花括号、
+// 注释里的示例代码、正则里的引号带偏，所以先造一份「同长度、结构可见」的掩码：
+// 定界符（引号、`//`、`/* */`、`/ /`）保留，内容换成空格，换行保留。
+// 之后的括号配对、属性名识别都在掩码上做，需要取值时再按起始下标回原文取。
+// ---------------------------------------------------------------------------
+
+/** 正则字面量判定：看前一个有效字符（掩码里字符串/注释已是空格，因此天然跳过）。 */
+function isRegexStart(chars, index) {
+  let j = index - 1;
+  while (j >= 0 && isSpace(chars[j])) j -= 1;
+  if (j < 0) return true;
+  const prev = chars[j];
+  if (/[A-Za-z0-9_$]/.test(prev)) {
+    // `return /re/` 之类的关键字后才是正则，`a / b` 是除法
+    let k = j;
+    while (k >= 0 && /[A-Za-z0-9_$]/.test(chars[k])) k -= 1;
+    return REGEX_PRECEDING_KEYWORDS.has(chars.slice(k + 1, j + 1).join(""));
+  }
+  if (prev === ")" || prev === "]" || prev === "}") return false;
+  return true;
+}
+
+export function maskCode(source) {
+  const chars = source.split("");
+  const literals = [];
+  const blank = (from, to) => {
+    for (let k = Math.max(0, from); k < Math.min(to, chars.length); k += 1) {
+      if (chars[k] !== "\n" && chars[k] !== "\r") chars[k] = " ";
+    }
+  };
+  let i = 0;
+  while (i < source.length) {
+    const ch = source[i];
+    const next = source[i + 1];
+    if (ch === "/" && next === "/") {
+      let nl = source.indexOf("\n", i);
+      if (nl === -1) nl = source.length;
+      blank(i, nl);
+      i = nl;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      let close = source.indexOf("*/", i + 2);
+      close = close === -1 ? source.length : close + 2;
+      blank(i, close);
+      i = close;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      const literal = readStringLiteral(source, i);
+      literals.push({ start: i, end: literal.end, closed: literal.closed, text: literal.text });
+      blank(i + 1, literal.closed ? literal.end - 1 : literal.end);
+      i = literal.end;
+      continue;
+    }
+    if (ch === "/" && isRegexStart(chars, i)) {
+      // 只在同一行内找闭合 `/`（正则字面量不跨行）；找不到就当除号，宁可少认也不错认。
+      let j = i + 1;
+      let inClass = false;
+      let close = -1;
+      while (j < source.length) {
+        const c = source[j];
+        if (c === "\n" || c === "\r") break;
+        if (c === "\\") { j += 2; continue; }
+        if (c === "[") { inClass = true; j += 1; continue; }
+        if (c === "]") { inClass = false; j += 1; continue; }
+        if (c === "/" && !inClass) { close = j; break; }
+        j += 1;
+      }
+      if (close !== -1) {
+        blank(i + 1, close);
+        i = close + 1;
+        while (i < source.length && /[a-z]/.test(source[i])) i += 1;
+        continue;
+      }
+    }
+    i += 1;
+  }
+  return { mask: chars.join(""), literals };
+}
+
+// ---------------------------------------------------------------------------
+// 对象字面量遍历（在掩码上做结构，回原文取字面量值）
+// ---------------------------------------------------------------------------
+
+/**
+ * 读对象字面量的**直接子级**属性。
+ * 返回 [{ name, literal }]，literal 为字符串字面量原文；非字面量值（表达式/变量/
+ * 模板拼接）为 null —— 这类值不在静态检查范围内（它们本来就不该是硬编码 key）。
+ */
+export function readObjectEntries(mask, literalByStart, braceStart) {
+  const entries = [];
+  let i = braceStart + 1;
+  let nested = 0;
+  let expectProp = true;
+  while (i < mask.length) {
+    const c = mask[i];
+    if (isSpace(c)) { i += 1; continue; }
+
+    if (!expectProp) {
+      // 值区域：跳到本属性的结尾（顶层 , 或对象结束）
+      if (c === "(" || c === "[" || c === "{") { nested += 1; i += 1; continue; }
+      if (c === ")" || c === "]" || c === "}") {
+        if (nested === 0) break;
+        nested -= 1;
+        i += 1;
+        continue;
+      }
+      if (c === "," && nested === 0) { expectProp = true; i += 1; continue; }
+      i += 1;
+      continue;
+    }
+
+    if (c === "}") break;
+    if (c === ",") { i += 1; continue; }
+    if (c === "." && mask[i + 1] === "." && mask[i + 2] === ".") {
+      // 展开（...base）：值继承自别处，本层不再有该属性名
+      expectProp = false;
+      i += 3;
+      continue;
+    }
+    let name = null;
+    if (c === '"' || c === "'") {
+      const literal = literalByStart.get(i);
+      if (!literal) { i += 1; continue; }
+      name = literal.text;
+      i = literal.end;
+    } else if (/[A-Za-z_$]/.test(c)) {
+      let k = i;
+      while (k < mask.length && /[A-Za-z0-9_$]/.test(mask[k])) k += 1;
+      name = mask.slice(i, k);
+      i = k;
+    } else {
+      i += 1;
+      continue;
+    }
+    while (i < mask.length && isSpace(mask[i])) i += 1;
+
+    let literal = null;
+    let refIdent = null;
+    if (mask[i] === ":") {
+      i += 1;
+      while (i < mask.length && isSpace(mask[i])) i += 1;
+      if (mask[i] === '"' || mask[i] === "'" || mask[i] === "`") {
+        const found = literalByStart.get(i);
+        if (found && found.closed) {
+          literal = found.text;
+          i = found.end;
+        } else {
+          // 未闭合（多半是把正则/注释误当字符串），跳到行尾避免误吞
+          const nl = mask.indexOf("\n", i);
+          i = nl === -1 ? mask.length : nl;
+        }
+      } else if (mask[i] !== undefined && /[A-Za-z_$]/.test(mask[i])) {
+        // 裸引用（`description: someConst`）：值不在本对象里，但可以直接指向一个
+        // 变量再塞硬编码文案。记下标识符交给调用方在同文件内再解析一层。
+        let k = i;
+        while (k < mask.length && /[A-Za-z0-9_$]/.test(mask[k])) k += 1;
+        let n = k;
+        while (n < mask.length && isSpace(mask[n])) n += 1;
+        if (mask[n] === "," || mask[n] === "}" || mask[n] === ")") {
+          refIdent = mask.slice(i, k);
+        }
+      }
+    }
+    entries.push({ name, literal, refIdent });
+    expectProp = false;
+  }
+  return entries;
+}
+
+/** 定位 registerTool 调用的第二个实参（meta）。 */
+function findMetaArgument(mask, openParen) {
+  let i = openParen + 1;
+  let depth = 1;
+  let brackets = 0;
+  while (i < mask.length) {
+    const c = mask[i];
+    if (c === "(") { depth += 1; i += 1; continue; }
+    if (c === ")") {
+      depth -= 1;
+      if (depth === 0) return null;
+      i += 1;
+      continue;
+    }
+    if (c === "[" || c === "{") { brackets += 1; i += 1; continue; }
+    if (c === "]" || c === "}") { brackets -= 1; i += 1; continue; }
+    if (c === "," && depth === 1 && brackets === 0) {
+      let j = i + 1;
+      while (j < mask.length && isSpace(mask[j])) j += 1;
+      if (mask[j] === "{") return { kind: "object", braceStart: j };
+      const ident = /^[A-Za-z_$][A-Za-z0-9_$]*/.exec(mask.slice(j, j + 80));
+      if (ident) return { kind: "identifier", name: ident[0] };
+      return { kind: "unknown" };
+    }
+    i += 1;
+  }
+  return null;
+}
+
+/**
+ * 扫描一个源文件里所有 registerTool 调用，返回每个调用的 meta 属性。
+ * meta 是变量时（`registerTool(name, metaVar, cb)`）在**同文件内**解析一层
+ * `const metaVar = { ... }`，避免把 meta 挪进变量就能绕过检查。
+ */
+export function scanToolMeta(source) {
+  const { mask, literals } = maskCode(source);
+  const literalByStart = new Map(literals.map((literal) => [literal.start, literal]));
+  const sites = [];
+  const re = /registerTool(?:\s*\?\.)?\s*\(/g;
+  let match;
+  while ((match = re.exec(mask)) !== null) {
+    const openParen = match.index + match[0].length - 1;
+    let i = openParen + 1;
+    while (i < mask.length && isSpace(mask[i])) i += 1;
+    let toolName = null;
+    if (mask[i] === '"' || mask[i] === "'" || mask[i] === "`") {
+      const literal = literalByStart.get(i);
+      if (literal && literal.closed) {
+        toolName = literal.text;
+        i = literal.end;
+      }
+    }
+    const argument = findMetaArgument(mask, i - 1 >= openParen ? openParen : openParen);
+    if (!argument) continue;
+
+    let props = [];
+    let resolved = true;
+    if (argument.kind === "object") {
+      props = readObjectEntries(mask, literalByStart, argument.braceStart);
+    } else if (argument.kind === "identifier") {
+      const decl = new RegExp(
+        `(?:^|[^A-Za-z0-9_$])const\\s+${argument.name}\\s*(?::[^=\\n]*)?=\\s*\\{`,
+      ).exec(mask);
+      if (decl) {
+        const braceStart = mask.indexOf("{", decl.index + decl[0].length - 1);
+        props = readObjectEntries(mask, literalByStart, braceStart);
+      } else {
+        resolved = false;
+      }
+    } else {
+      resolved = false;
+    }
+
+    // 属性值是裸引用时再解析一层同文件常量：防止把硬编码文案挪进变量就绕过检查
+    props = props.map((prop) => {
+      if (prop.literal !== null || !prop.refIdent) return prop;
+      const declaration = new RegExp(
+        `(?:^|[^A-Za-z0-9_$])const\\s+${prop.refIdent}\\s*(?::[^=\\n]*)?=\\s*['"\`]`,
+      ).exec(mask);
+      if (!declaration) return { ...prop, unresolvedRef: true };
+      const quoteIndex = declaration.index + declaration[0].length - 1;
+      const found = literalByStart.get(quoteIndex);
+      return found && found.closed ? { ...prop, literal: found.text } : { ...prop, unresolvedRef: true };
+    });
+
+    sites.push({ toolName, props, resolved });
+  }
+  return sites;
+}
+
+// ---------------------------------------------------------------------------
+// 词典 key 全集
+// ---------------------------------------------------------------------------
+
+/**
+ * 从 locales/modules/*.ts 的 zh 树收集 key 全集（`<module>.<key>`）。
+ * zh 是真源，en 的 key 完整性由 defineModule 的泛型约束在编译期保证，
+ * 因此只扫 zh 就够；命名空间取模块文件的导出名（已核对与文件名一致）。
+ */
+export function collectDictionaryKeys() {
+  const keys = new Set();
+  const modules = [];
+  let files = [];
+  try {
+    files = readdirSync(LOCALES_MODULES_DIR)
+      .filter((name) => name.endsWith(".ts") && !name.endsWith(".d.ts"))
+      .sort();
+  } catch {
+    return { keys, modules };
+  }
+  for (const name of files) {
+    const source = readFileSync(join(LOCALES_MODULES_DIR, name), "utf8");
+    const declaration = /export\s+const\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*defineModule\s*\(/.exec(source);
+    const stem = name.replace(/\.ts$/, "");
+    const namespace = declaration ? declaration[1] : stem;
+    if (namespace !== stem) {
+      modules.push({ name, namespace, keys: 0, mismatch: true });
+    }
+    const { mask, literals } = maskCode(source);
+    const braceStart = mask.indexOf("{", declaration ? declaration.index + declaration[0].length : 0);
+    if (braceStart === -1) continue;
+    const literalByStart = new Map(literals.map((literal) => [literal.start, literal]));
+    const entries = readObjectEntries(mask, literalByStart, braceStart);
+    let count = 0;
+    for (const entry of entries) {
+      if (entry.literal === null) continue;
+      keys.add(`${namespace}.${entry.name}`);
+      count += 1;
+    }
+    modules.push({ name, namespace, keys: count, mismatch: false });
+  }
+  return { keys, modules };
+}
+
+// ---------------------------------------------------------------------------
 // 收集
 // ---------------------------------------------------------------------------
 
@@ -222,6 +553,65 @@ export function collectCoverage() {
 
   entries.sort((a, b) => a.file.localeCompare(b.file) || a.hash.localeCompare(b.hash));
   return { entries, literalTotal, englishTotal, fileCount: files.length };
+}
+
+/**
+ * 扫描工具注册面的文案（registerTool 的 title / description）。
+ *
+ * 判定：字面量值必须是词典 key。表达式值（`t("x") + t("y")`、变量、模板拼接）
+ * 不算违规 —— 它们本来就无法是硬编码 key，也不是本次要守的东西。
+ */
+export function collectToolMetaCoverage() {
+  const dictionary = collectDictionaryKeys();
+  const files = listSourceFiles(TOOLS_DIR).sort();
+  const sites = [];
+  const violations = [];
+  const unresolved = [];
+  const unresolvedRefs = [];
+
+  for (const file of files) {
+    const source = readFileSync(file, "utf8");
+    const repoPath = toRepoPath(file);
+    for (const site of scanToolMeta(source)) {
+      const tool = site.toolName ? `"${site.toolName}"` : "(工具名非字面量)";
+      if (!site.resolved) {
+        unresolved.push({ file: repoPath, tool });
+        continue;
+      }
+      for (const prop of site.props) {
+        if (prop.name !== "title" && prop.name !== "description") continue;
+        if (prop.unresolvedRef) {
+          unresolvedRefs.push({ file: repoPath, tool, prop: prop.name, ident: prop.refIdent });
+          continue;
+        }
+        if (prop.literal === null) continue;
+        if (!dictionary.keys.has(prop.literal)) {
+          violations.push({ file: repoPath, tool, prop: prop.name, literal: prop.literal });
+        }
+      }
+      sites.push({ file: repoPath, tool });
+    }
+  }
+
+  return { dictionary, sites, violations, unresolved, unresolvedRefs, fileCount: files.length };
+}
+
+/**
+ * 安全网：registerTool 调用只应出现在 mcp/src/tools 下。
+ * 若这项检查的覆盖面之外又出现注册点（比如新目录里注册工具），至少要让 CI 日志里看得见。
+ */
+export function findRegisterToolOutsideTools() {
+  const found = [];
+  for (const file of listSourceFiles(SCAN_ROOT).sort()) {
+    if (file.startsWith(TOOLS_DIR + sep)) continue;
+    const basename = file.slice(file.lastIndexOf(sep) + 1);
+    // server.ts 里是 registerTool 的**类型声明与方法包装**，不是注册点
+    if (basename === "server.ts") continue;
+    const { mask } = maskCode(readFileSync(file, "utf8"));
+    const count = (mask.match(/registerTool(?:\s*\?\.)?\s*\(/g) ?? []).length;
+    if (count > 0) found.push({ file: toRepoPath(file), count });
+  }
+  return found;
 }
 
 // ---------------------------------------------------------------------------
@@ -345,15 +735,239 @@ function runSelfTest() {
     process.exit(1);
   }
   console.log(`i18n coverage 自检 OK: ${cases.length} 个扫描器用例通过`);
+  runToolMetaSelfTest();
+}
+
+function runToolMetaSelfTest() {
+  const cases = [
+    {
+      name: "对象字面量里取到 title/description",
+      src: 'server.registerTool("t", { title: "storage.queryTitle", description: "storage.queryDescription" }, h);',
+      expect: ["title=storage.queryTitle", "description=storage.queryDescription"],
+    },
+    {
+      name: "?. 可选调用形式同样命中",
+      src: 'server.registerTool?.(\n  "t",\n  { description: "env.queryDescription" },\n  h,\n);',
+      expect: ["description=env.queryDescription"],
+    },
+    {
+      name: "注释里的 registerTool 不命中",
+      src: '// server.registerTool("t", { description: "x" })\nconst a = 1;',
+      expect: [],
+    },
+    {
+      name: "字符串里的 registerTool 不命中",
+      src: 'const s = \'server.registerTool("t", { description: "x" })\';',
+      expect: [],
+    },
+    {
+      name: "正则里的 registerTool 不命中",
+      src: "const re = /registerTool\\(/g;",
+      expect: [],
+    },
+    {
+      name: "正则里的引号不破坏后续解析",
+      src: 'const re = /["\']/g;\nserver.registerTool("t", { description: "storage.queryTitle" }, h);',
+      expect: ["description=storage.queryTitle"],
+    },
+    {
+      name: "字符类里的 / 不提前闭合正则",
+      src: 'const re = /[/"]/g;\nserver.registerTool("t", { description: "d" }, h);',
+      expect: ["description=d"],
+    },
+    {
+      name: "除号不被误当正则",
+      src: 'const r = a / b;\nserver.registerTool("t", { description: "d" }, h);',
+      expect: ["description=d"],
+    },
+    {
+      name: "meta 是变量时解析同文件 const",
+      src: 'const meta = { description: "storage.queryTitle" };\nserver.registerTool("t", meta, h);',
+      expect: ["description=storage.queryTitle"],
+    },
+    {
+      name: "meta 是变量但无同文件声明 → 未解析",
+      src: "server.registerTool(\"t\", externalMeta, h);",
+      expect: [],
+      expectUnresolved: 1,
+    },
+    {
+      name: "展开的属性由来源层负责，本层只检查覆盖项",
+      src: 'const base = { title: "a" };\nserver.registerTool("t", { ...base, description: "b" }, h);',
+      expect: ["description=b"],
+    },
+    {
+      name: "嵌套 inputSchema 里的 description 不算工具级",
+      src: 'server.registerTool("t", { description: "d", inputSchema: { a: { description: "inner" } } }, h);',
+      expect: ["description=d"],
+    },
+    {
+      name: "表达式值不收集（不是硬编码 key）",
+      src: 'server.registerTool("t", { description: t("x") + t("y") }, h);',
+      expect: [],
+    },
+    {
+      name: "模板字符串值算字面量",
+      src: 'server.registerTool("t", { description: `查询` }, h);',
+      expect: ["description=查询"],
+    },
+    {
+      name: "方法简写不吞后续属性",
+      src: 'server.registerTool("t", { handler() { return { description: "inner" }; }, description: "d" }, h);',
+      expect: ["description=d"],
+    },
+    {
+      name: "未闭合字符串不吞后续语句",
+      src: 'const a = "x\nserver.registerTool("t", { description: "d" }, h);',
+      expect: ["description=d"],
+    },
+    {
+      name: "工具名为常量时不冒充字面量",
+      src: 'server.registerTool(QUERY_PG, { description: "databasePG.queryPgDatabase.description" }, h);',
+      expect: ["description=databasePG.queryPgDatabase.description"],
+    },
+    {
+      name: "属性值是裸引用时解析同文件 const",
+      src: 'const META_KEY = "storage.queryTitle";\nserver.registerTool("t", { description: META_KEY }, h);',
+      expect: ["description=storage.queryTitle"],
+    },
+    {
+      name: "属性值裸引用但同文件无 const → 未解析（只告警）",
+      src: 'server.registerTool("t", { description: IMPORTED_KEY }, h);',
+      expect: [],
+      expectUnresolvedRef: 1,
+    },
+    {
+      name: "属性值是函数调用时不误判为裸引用",
+      src: 'server.registerTool("t", { description: buildDescription() }, h);',
+      expect: [],
+    },
+  ];
+
+  const failures = [];
+  for (const testCase of cases) {
+    const sites = scanToolMeta(testCase.src);
+    const actual = sites
+      .flatMap((site) => site.props)
+      .filter((prop) => (prop.name === "title" || prop.name === "description") && prop.literal !== null)
+      .map((prop) => `${prop.name}=${prop.literal}`);
+    const unresolvedActual = sites.filter((site) => !site.resolved).length;
+    const unresolvedRefActual = sites
+      .flatMap((site) => site.props)
+      .filter((prop) => prop.unresolvedRef).length;
+    const expectUnresolved = testCase.expectUnresolved ?? 0;
+    const expectUnresolvedRef = testCase.expectUnresolvedRef ?? 0;
+    const ok =
+      actual.length === testCase.expect.length &&
+      actual.every((value, index) => value === testCase.expect[index]) &&
+      unresolvedActual === expectUnresolved &&
+      unresolvedRefActual === expectUnresolvedRef;
+    if (!ok) {
+      failures.push({ ...testCase, actual, unresolvedActual, unresolvedRefActual });
+    }
+  }
+
+  // 词典模块是「引号属性名 + 未加引号属性名」混排，单独验一次 key 读取
+  const dictSource = 'defineModule(\n  { "query.title": "查询", plain: "x", nested: { skip: "y" } },\n  {},\n);';
+  const dictMask = maskCode(dictSource);
+  const dictLiteralByStart = new Map(dictMask.literals.map((literal) => [literal.start, literal]));
+  const dictKeys = readObjectEntries(
+    dictMask.mask,
+    dictLiteralByStart,
+    dictMask.mask.indexOf("{", dictMask.mask.indexOf("(")),
+  ).map((entry) => entry.name);
+  if (dictKeys.join(",") !== "query.title,plain,nested") {
+    failures.push({ name: "词典模块的 key 读取", expect: ["query.title", "plain", "nested"], actual: dictKeys });
+  }
+
+  if (failures.length) {
+    console.error(`i18n tool meta 自检失败 ${failures.length}/${cases.length}:`);
+    for (const failure of failures) {
+      console.error(`  ✗ ${failure.name}`);
+      console.error(`      期望 ${JSON.stringify(failure.expect)}${failure.expectUnresolved ? ` + ${failure.expectUnresolved} 未解析` : ""}${failure.expectUnresolvedRef ? ` + ${failure.expectUnresolvedRef} 裸引用未解析` : ""}`);
+      console.error(`      实际 ${JSON.stringify(failure.actual)} + ${failure.unresolvedActual} 未解析 + ${failure.unresolvedRefActual} 裸引用未解析`);
+    }
+    process.exit(1);
+  }
+  console.log(`i18n tool meta 自检 OK: ${cases.length} 个扫描器用例通过（含正则/模板串/变量 meta 边角）`);
+}
+
+/**
+ * 工具级文案检查：registerTool 的 title/description 写成字符串字面量时必须是词典 key。
+ * 返回 true 表示通过；失败信息直接打印（CI 日志即修复指引）。
+ */
+function checkToolMeta() {
+  const report = collectToolMetaCoverage();
+  console.log(
+    `i18n tool meta: 扫描 mcp/src/tools ${report.fileCount} 个文件 → ` +
+      `${report.sites.length} 个 registerTool 注册点，词典 key ${report.dictionary.keys.size} 个`,
+  );
+
+  const outside = findRegisterToolOutsideTools();
+  if (outside.length) {
+    console.error("⚠️  mcp/src/tools 之外还有 registerTool 调用，本检查覆盖不到（请把它们挪回 tools/ 或扩检查范围）:");
+    for (const item of outside) {
+      console.error(`   ⚠️  ${item.file}  ×${item.count}`);
+    }
+  }
+
+  const fixHint = () => {
+    console.error("\n怎么修:");
+    console.error("  · 把文案加进 src/i18n/locales/modules/<module>.ts 的 zh / en 两棵树，");
+    console.error('    再把 title/description 写成词典 key 字符串（如 "storage.queryTitle"）：');
+    console.error("    注册包装层会按实例语言解析成实际文案，en 树漏译由编译期约束拦下。");
+    console.error("  · 若是动态拼出来的文案，直接写成表达式（如 t(\"x\") + t(\"y\")）—— 本检查只拦字面量。");
+  };
+
+  if (report.unresolved.length) {
+    console.error(
+      `\n❌ ${report.unresolved.length} 个注册点的 meta 无法静态判定 —— 多半是把 meta 挪进了导入的变量。` +
+        "本检查只解析同文件内的 const 声明，请就近声明或改用字面量：",
+    );
+    for (const item of report.unresolved) {
+      console.error(`   ❌ ${item.file}  ${item.tool}`);
+    }
+    process.exit(1);
+  }
+
+  if (report.unresolvedRefs.length) {
+    console.error(
+      `⚠️  ${report.unresolvedRefs.length} 处工具级文案是裸引用且无法在同文件内解析 —— ` +
+        "若该变量里藏了硬编码文案则会漏检，请就近声明或改成词典 key：",
+    );
+    for (const item of report.unresolvedRefs) {
+      console.error(`   ⚠️  ${item.file}  ${item.tool}  ${item.prop}: ${item.ident}`);
+    }
+  }
+
+  if (report.violations.length) {
+    console.error(
+      `\n❌ ${report.violations.length} 处工具级文案是硬编码字面量而非词典 key —— ` +
+        "en 实例下会原样透出，工具级国际化被静默回退:",
+    );
+    for (const item of report.violations) {
+      const preview = previewText(item.literal);
+      console.error(`   ❌ ${item.file}  ${item.tool}  ${item.prop}: "${preview}"`);
+    }
+    fixHint();
+    process.exit(1);
+  }
+
+  console.log(`✅ i18n tool meta OK: ${report.sites.length} 个注册点的 title/description 全部走词典 key。`);
+  return true;
 }
 
 function printHelp() {
   console.log(`用法: node mcp/scripts/check-i18n-coverage.mjs [选项]
 
-  (无选项)        校验 mcp/src 的参数级中文 .describe() 是否与基线一致
-  --update        以当前扫描结果重写基线（翻译完 / 有意新增后收敛棘轮）
+  本脚本是两层守卫：
+    1. 工具级 —— registerTool 的 title/description 必须是词典 key（无基线，写成硬编码即失败）
+    2. 参数级 —— mcp/src 的含中文 .describe() 只减不增（棘轮 + 基线）
+
+  (无选项)        跑上述两层校验
+  --update        以当前扫描结果重写第 2 层基线（翻译完 / 有意新增后收敛棘轮）
   --skip-shrink   只拦「新增」，放宽「基线里有而现状没有」的收紧要求
-  --self-test     跑扫描器自检用例
+  --self-test     跑两层扫描器的自检用例
   --verbose       打印全部条目而非仅前 20 条
   -h, --help      显示本帮助`);
 }
@@ -381,6 +995,12 @@ export function main(argv = process.argv.slice(2)) {
   const updateMode = argv.includes("--update");
   const skipShrink = argv.includes("--skip-shrink");
   const verbose = argv.includes("--verbose");
+
+  // 工具级文案（registerTool 的 title/description）必须是词典 key。
+  // 这一层没有基线：写成硬编码就是回归，没有「存量豁免」一说。
+  if (!checkToolMeta()) {
+    process.exit(1);
+  }
 
   const coverage = collectCoverage();
   console.log(
