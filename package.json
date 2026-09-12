@@ -4,6 +4,8 @@
   "packageManager": "pnpm@10.8.0",
   "scripts": {
     "check:readme-sync": "node scripts/check-readme-sync.js",
+    "check:i18n-coverage": "node mcp/scripts/check-i18n-coverage.mjs",
+    "update:i18n-baseline": "node mcp/scripts/check-i18n-coverage.mjs --update",
     "update:compat-baseline": "node scripts/update-compat-baseline.mjs",
     "check:compat-diff": "node scripts/diff-compat-config.mjs",
     "sync:claude-skills-mirror": "node scripts/sync-claude-skills-mirror.mjs",
