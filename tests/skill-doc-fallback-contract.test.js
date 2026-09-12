@@ -7,9 +7,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const RAG_SOURCE = path.join(ROOT_DIR, 'mcp', 'src', 'tools', 'rag.ts');
+// searchKnowledgeBase 的 description 已迁移到 i18n 词典模块，契约断言覆盖工具源码 + 词典
+const RAG_DICT = path.join(
+  ROOT_DIR,
+  'mcp',
+  'src',
+  'i18n',
+  'locales',
+  'modules',
+  'rag.ts',
+);
 
 describe('searchKnowledgeBase skill-doc fallback contract', () => {
-  const source = fs.readFileSync(RAG_SOURCE, 'utf8');
+  const source =
+    fs.readFileSync(RAG_SOURCE, 'utf8') + fs.readFileSync(RAG_DICT, 'utf8');
 
   test('description mentions disabled-skill fallback guidance', () => {
     expect(source).toContain('skill');

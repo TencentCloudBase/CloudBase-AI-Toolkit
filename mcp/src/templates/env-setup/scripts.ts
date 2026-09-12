@@ -210,6 +210,8 @@ export function getJavaScripts(wsPort: number): string {
   // Create new environment
   function createNewEnv() {
     console.log('[env-setup] Creating new environment');
+    // TODO(intl): 国际站购买链接域名待确认（buy.cloud.tencent.com 是否服务国际站），
+    // 确认后按站点切换，参考 utils/site-map.ts 的站点解析链（specs/intl-site-enhancement 需求 4.3）
     openUrl(null, 'https://buy.cloud.tencent.com/lowcode?buyType=tcb&channel=mcp');
   }
 

@@ -555,7 +555,7 @@ describe("PG database tools", () => {
         defaultRole: "cloudbase_postgres",
       },
     });
-    expect(payload.message).toContain("Platform-reserved roles (cloudbase_admin)");
+    expect(payload.message).toContain("平台保留角色（cloudbase_admin）");
     expect(createClient).not.toHaveBeenCalled();
   });
 
@@ -804,7 +804,7 @@ describe("PG database tools", () => {
     });
     const payload = buildToolPayload(result);
 
-    expect(payload.message).toContain("RLS is enabled but no policies");
+    expect(payload.message).toContain("RLS 已启用但未找到任何 policy");
     expect(payload.nextActions[0]).toMatchObject({
       tool: "managePgDatabase",
       action: "execute",
@@ -1362,7 +1362,7 @@ describe("PG database tools", () => {
         errorCode: "MIGRATION_NAME_INVALID",
         data: { requiredPattern: "^[a-z][a-z_]*$" },
       });
-      expect(payload.message).toContain("only lowercase letters and underscores");
+      expect(payload.message).toContain("小写字母和下划线");
       expect(mockCommonServiceCall).not.toHaveBeenCalled();
     });
 
@@ -1756,8 +1756,8 @@ describe("PG database tools", () => {
             taskResult: { TaskId: "task-1" },
           },
         });
-        expect(String(payload.message)).toContain("describeMigrationTask FIRST");
-        expect(String(payload.message)).toContain("Do NOT re-push");
+        expect(String(payload.message)).toContain("describeMigrationTask");
+        expect(String(payload.message)).toContain("禁止重推");
         expect(payload.nextActions?.[0]).toMatchObject({
           tool: "managePgDatabase",
           action: "describeMigrationTask",
@@ -1801,7 +1801,7 @@ describe("PG database tools", () => {
           taskResult: { TaskId: "task-1" },
         },
       });
-      expect(String(payload.message)).toContain("describeMigrationTask FIRST");
+      expect(String(payload.message)).toContain("describeMigrationTask");
       expect(mockCommonServiceCall).not.toHaveBeenCalledWith(
         expect.objectContaining({ Action: "DescribeTaskResult" }),
       );

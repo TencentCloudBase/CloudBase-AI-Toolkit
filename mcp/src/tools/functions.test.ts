@@ -17,6 +17,7 @@ import {
   functionUpdatingRuntime,
 } from "./function-updating.js";
 import type { ExtendedMcpServer } from "../server.js";
+import { functions as functionsDict } from "../i18n/locales/modules/functions.js";
 
 const personalCredential = {
   username: "100000000001",
@@ -171,10 +172,12 @@ describe("functions tool helpers", () => {
   });
 
   it("documents fixed layer naming format in manageFunctions description", () => {
-    const description = tools.manageFunctions.meta.description as string;
-    expect(description).toContain("{layerName}_{当前envId}");
-    expect(description).toContain("common_cloud1-d9ghadgak3edf6b36");
-    expect(description).toContain("SCF 账号级共享命名空间");
+    // meta.description 已 i18n 化：工具注册的是词典 key，server.ts 包装层负责解析
+    expect(tools.manageFunctions.meta.description).toBe("functions.manageDescription");
+    // 词典 zh 文案仍保留固定的层命名格式说明
+    expect(functionsDict.zh.manageDescription).toContain("{layerName}_{当前envId}");
+    expect(functionsDict.zh.manageDescription).toContain("common_cloud1-d9ghadgak3edf6b36");
+    expect(functionsDict.zh.manageDescription).toContain("SCF 账号级共享命名空间");
   });
 
   it("keeps HTTP functions from forcing dependency install when package.json is absent", () => {

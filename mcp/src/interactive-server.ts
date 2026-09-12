@@ -5,6 +5,7 @@ import open from "open";
 import { WebSocket, WebSocketServer } from "ws";
 import { renderEnvSetupPage } from "./templates/env-setup/index.js";
 import { debug, error, info, warn } from "./utils/logger.js";
+import { getConsoleDevUrl } from "./utils/site-map.js";
 
 function isVSCodeEnvironment() {
   return Boolean(
@@ -1880,7 +1881,7 @@ export class InteractiveServer {
 
         function createNewEnv() {
             const integrationIde = '${process.env.INTEGRATION_IDE || "AI Toolkit"}';
-            const url = \`http://tcb.cloud.tencent.com/dev?from=\${encodeURIComponent(integrationIde)}\`;
+            const url = \`${getConsoleDevUrl(undefined)}?from=\${encodeURIComponent(integrationIde)}\`;
             location.href = url;
         }
 

@@ -1,0 +1,2366 @@
+{
+  "schemaVersion": 1,
+  "description": "mcp/src 中参数级 .describe() 的中文硬编码存量清单（棘轮基线，按文件分组）。由 mcp/scripts/check-i18n-coverage.mjs --update 生成，请勿手工编辑。",
+  "files": {
+    "mcp/src/tools/app-auth.ts": [
+      {
+        "hash": "0ad697eaf3a57f2a",
+        "count": 1,
+        "text": "updateClientConfig 时的客户端 Id；省略时默认使用当前环境 ID"
+      },
+      {
+        "hash": "156b215ea0de25b8",
+        "count": 1,
+        "text": "createApiKey 时的 API key 名称；服务端可能忽略该值（如 publish_key 每环境唯一时），返回体中的 keyName 一律为服务端实际存储的名称"
+      },
+      {
+        "hash": "249af888a7ca8e8e",
+        "count": 1,
+        "text": "provider 标识，如 email、google"
+      },
+      {
+        "hash": "356cb5ce63233b8f",
+        "count": 1,
+        "text": "provider 标识，如 email、google；addProvider 时也可作为自定义 provider Id"
+      },
+      {
+        "hash": "6f84ee0af1259c3b",
+        "count": 1,
+        "text": "API key 列表页码，从 1 开始"
+      },
+      {
+        "hash": "72ce075d4fbd12e4",
+        "count": 1,
+        "text": "API key 列表每页条数"
+      },
+      {
+        "hash": "7806b598560e9508",
+        "count": 1,
+        "text": "createApiKey 时的 API key 类型，默认 publish_key"
+      },
+      {
+        "hash": "79fd5a4167194a0f",
+        "count": 1,
+        "text": "patchLoginStrategy 使用的简化登录策略 patch，如 { usernamePassword: true }"
+      },
+      {
+        "hash": "902846dd09de7ef0",
+        "count": 1,
+        "text": "provider / client 的配置对象"
+      },
+      {
+        "hash": "9616a3651cf69b41",
+        "count": 1,
+        "text": "addProvider 时的 provider 协议类型"
+      },
+      {
+        "hash": "9798190d159146f7",
+        "count": 1,
+        "text": "addProvider 时的展示名称，可传字符串或多语言对象"
+      },
+      {
+        "hash": "c5f247df02653097",
+        "count": 1,
+        "text": "deleteApiKey 时的 API key 唯一标识"
+      },
+      {
+        "hash": "d57dc0b560f958c3",
+        "count": 1,
+        "text": "OAuth client_id / DescribeClient 的 Id；省略时默认使用当前环境 ID（默认客户端）"
+      },
+      {
+        "hash": "d5849b9a36299a3d",
+        "count": 1,
+        "text": "API key 类型过滤，可选 publish_key 或 api_key"
+      },
+      {
+        "hash": "e2187b605aba5c28",
+        "count": 1,
+        "text": "createApiKey 时的有效期，单位秒；0 表示不过期。复用已有 key 时该值不生效，此时返回体会带 created=false 与 warnings"
+      }
+    ],
+    "mcp/src/tools/apps.ts": [
+      {
+        "hash": "035743573fea25e3",
+        "count": 1,
+        "text": "构建产物目录，相对于 filePath，例如 dist 或 build。\\n"
+      },
+      {
+        "hash": "1a0707105d1dd219",
+        "count": 1,
+        "text": "上传时忽略的文件/目录 glob 模式，例如 **/node_modules/**。\\n"
+      },
+      {
+        "hash": "2d7205067244ad34",
+        "count": 1,
+        "text": "分页页码，从 1 开始。"
+      },
+      {
+        "hash": "35c2eb619acf8c10",
+        "count": 1,
+        "text": "自定义部署命令。通常无需填写，默认自动生成 tcb hosting deploy 命令。"
+      },
+      {
+        "hash": "3f7b3a42936f67cc",
+        "count": 1,
+        "text": "按应用服务名模糊搜索关键词，仅 action=listApps 时使用。"
+      },
+      {
+        "hash": "5c9283fdd66d5c10",
+        "count": 1,
+        "text": "CloudBase 应用服务名，会体现在域名中：`<serviceName>-<envId>.webapps.tcloudbase.com`。deployApp 时复用现有 serviceName 会…"
+      },
+      {
+        "hash": "5fe9ff3535d80c07",
+        "count": 1,
+        "text": "COS 时间戳（正整数 number，来自 getUploadUrl 返回的 unixTimestamp）。传入此值则直接使用已上传的代码创建应用，跳过本地文件上传。需先调用 getUploadUrl…"
+      },
+      {
+        "hash": "6bac49238b96f4f6",
+        "count": 1,
+        "text": "构建日志偏移量，用于分页拉取后续日志。仅 action=getBuildLog 时使用，不传时从开头返回。"
+      },
+      {
+        "hash": "6dba7658a61a247c",
+        "count": 1,
+        "text": "构建命令，例如 npm run build。不传时默认 npm run build。本地已构建好可传空字符串 '' 跳过构建步骤。若希望完全跳过远端管道，请改用 manageHosting。"
+      },
+      {
+        "hash": "84f91726f957075b",
+        "count": 1,
+        "text": "应用线上访问路径（hosting mount path），例如 /my-web-app。不是本地目录路径；CloudApp 已有独立子域名，省略时默认为 /（根路径）。"
+      },
+      {
+        "hash": "88eb9013ae49d855",
+        "count": 1,
+        "text": "前端框架类型。可选值：vue、react、next、nuxt、vite、angular、static。\\n"
+      },
+      {
+        "hash": "8ffb878fadd3162e",
+        "count": 1,
+        "text": "分页大小。"
+      },
+      {
+        "hash": "9b79a40b579fa793",
+        "count": 1,
+        "text": "要删除的历史版本名，仅 action=deleteAppVersion 时必填。"
+      },
+      {
+        "hash": "ae9e89443e2c6ae3",
+        "count": 1,
+        "text": "要上传并部署的本地项目根目录绝对路径。本地模式下 deployApp 时必填；通常传源码所在目录（含 package.json 和源码），不是 dist 目录。构建产物目录请用 buildPath 指…"
+      },
+      {
+        "hash": "b2d85772735a3e2a",
+        "count": 1,
+        "text": "版本名称。getAppVersion 时可与 buildId 二选一；已知版本号时优先传该值。"
+      },
+      {
+        "hash": "bae78fdd93993eb6",
+        "count": 1,
+        "text": "依赖安装命令，例如 npm install。不传时默认 npm install。本地已安装或无需安装可传空字符串 '' 跳过，但远端仍会执行 tcb hosting deploy。"
+      },
+      {
+        "hash": "dd837cd760b59b84",
+        "count": 1,
+        "text": "构建 ID。getAppVersion 时可与 versionName 二选一；部署返回 BuildId 后可直接用它轮询状态。getBuildLog 时必填。"
+      },
+      {
+        "hash": "f77e72dd149eb2ec",
+        "count": 1,
+        "text": "CloudBase 应用服务名。getApp / listAppVersions / getAppVersion / getBuildLog / getUploadUrl 时必填；重新部署后复用同一个…"
+      },
+      {
+        "hash": "f8b9e02a7a5c236f",
+        "count": 1,
+        "text": "构建时使用的 Node.js 版本；不传时由 CloudBase 使用默认值。"
+      }
+    ],
+    "mcp/src/tools/capi.ts": [
+      {
+        "hash": "187b8d5825bbab18",
+        "count": 1,
+        "text": "API 版本（可选）。缺省时按 service 使用 SDK 内置默认版本；tcbr 必须传 \\\"2022-02-17\\\"（否则请求缺少 X-TC-Version 会失败），monitor 必须传 \\…"
+      },
+      {
+        "hash": "2030e688df09b0ff",
+        "count": 1,
+        "text": "Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：`{ \\\"service\\\": \\\"tc…"
+      },
+      {
+        "hash": "54b3f307aa720f75",
+        "count": 1,
+        "text": "具体 Action 名称，需符合对应服务的官方 API 定义。若不确定正确 Action，请先查官方文档；不要用近义词或历史命名进行猜测。tcb 常用 Action：环境管理 CreateEnv/Mo…"
+      },
+      {
+        "hash": "cc9027f1464f9947",
+        "count": 1,
+        "text": "云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写…"
+      },
+      {
+        "hash": "f0f07a58eb4ca7c4",
+        "count": 1,
+        "text": "选择要访问的服务。可选：tcb、tcbr、scf、sts、cam、lowcode、cdn、vpc、monitor（云监控/告警，version 需传 2018-07-24）、postgres（云数据库…"
+      }
+    ],
+    "mcp/src/tools/cloudrun.ts": [
+      {
+        "hash": "003443fcf2b49ab7",
+        "count": 1,
+        "text": "本地运行端口配置，仅函数型服务有效。指定服务在本地运行时监听的端口号，默认3000。确保端口未被其他程序占用"
+      },
+      {
+        "hash": "089bee22c555f1c6",
+        "count": 1,
+        "text": "Agent配置项，仅在createAgent操作时使用"
+      },
+      {
+        "hash": "09d4b146575164bd",
+        "count": 1,
+        "text": "运行模式：normal=普通函数模式，agent=Agent模式（用于AI智能体开发）"
+      },
+      {
+        "hash": "0ba223ca609b3cd0",
+        "count": 1,
+        "text": "VPC网络配置（实例出网/私有网络）。用于让云托管实例接入指定 VPC，从而内网访问 MySQL/PostgreSQL/Redis/CVM 等资源。与 OpenAccessTypes（外部如何访问本服…"
+      },
+      {
+        "hash": "0f5abf99807352bf",
+        "count": 1,
+        "text": "本地运行参数配置，仅函数型云托管服务支持。用于配置本地开发环境的运行参数，不影响云端部署"
+      },
+      {
+        "hash": "10af649ac22b2b8e",
+        "count": 1,
+        "text": "结束时间，格式：HH:mm:ss"
+      },
+      {
+        "hash": "142487fb9be74c53",
+        "count": 1,
+        "text": "环境 ID（action=envStatus 时使用；不传则使用当前配置的环境）。格式如 env-xxxxxx"
+      },
+      {
+        "hash": "1573217a55211191",
+        "count": 1,
+        "text": "Agent描述信息"
+      },
+      {
+        "hash": "162fa996e6e16ac3",
+        "count": 1,
+        "text": "Dockerfile文件名配置，仅容器型服务需要。指定用于构建容器镜像的Dockerfile文件路径，默认为项目根目录下的Dockerfile"
+      },
+      {
+        "hash": "1810d029bed3defd",
+        "count": 1,
+        "text": "循环类型：none=无循环，daily=每日循环，weekly=每周循环，monthly=每月循环"
+      },
+      {
+        "hash": "18154b60052e6c4a",
+        "count": 1,
+        "text": "内网访问开关配置，控制是否启用内网访问。true=启用内网访问（可通过云开发SDK直接调用），false=关闭内网访问（仅公网访问）"
+      },
+      {
+        "hash": "198bb78efe288500",
+        "count": 1,
+        "text": "CLS日志集ID配置，指定日志服务（CLS）的日志集ID。需要先开通CLS日志服务"
+      },
+      {
+        "hash": "1b2644fcdb1c4c63",
+        "count": 1,
+        "text": "要查询详细信息、部署记录、构建日志或运行日志的服务名称。当action为detail、getDeployLog、getProcessLog或getDeployRecords时建议提供，必须是已存在的服…"
+      },
+      {
+        "hash": "1c28af8fc97bfeae",
+        "count": 1,
+        "text": "自定义日志配置，用于配置服务的日志收集和存储策略"
+      },
+      {
+        "hash": "1d7d82fc0f3e356d",
+        "count": 1,
+        "text": "内网域名配置，用于配置服务的内网访问域名。仅在启用内网访问时有效"
+      },
+      {
+        "hash": "1e28c69be481ba26",
+        "count": 1,
+        "text": "起始时间，格式：HH:mm:ss"
+      },
+      {
+        "hash": "1ebfe8535b1d1ed0",
+        "count": 1,
+        "text": "是否开启公网访问，true=开启公网访问，false=关闭公网访问"
+      },
+      {
+        "hash": "1f811954da1bb1bf",
+        "count": 1,
+        "text": "存储卷名称"
+      },
+      {
+        "hash": "2238a5ad79ff225f",
+        "count": 1,
+        "text": "运行模式配置，指定服务的运行模式。影响服务的调度和资源分配方式"
+      },
+      {
+        "hash": "22faec739bfcb9c4",
+        "count": 1,
+        "text": "查询操作类型：list=获取云托管服务列表（支持分页和筛选），detail=查询指定服务的详细信息（包含服务配置和最新部署状态），templates=获取可用的项目模板列表（用于初始化新项目），get…"
+      },
+      {
+        "hash": "2bc77bc89f00e518",
+        "count": 1,
+        "text": "稳定版本流量比例（trafficOp=set 时使用），取值范围0-100。与 canaryPercent 之和必须等于100。例如希望 90% 流量打到稳定版、10% 打到灰度版，则 stableP…"
+      },
+      {
+        "hash": "2cf96909f6b0d1fa",
+        "count": 1,
+        "text": "端口健康检查初始延迟（秒）。部署完成后先等待 N 秒才开始端口探测，之后约每 5s 检查一次、连续约 30 次；30 次全失败才判定部署失败（约 150s 探测窗口），不是「N 秒后立即失败」。启动耗…"
+      },
+      {
+        "hash": "391c3cab406e092b",
+        "count": 1,
+        "text": "公网访问配置，用于控制服务的公网访问策略。可配置是否开启公网访问及访问路径"
+      },
+      {
+        "hash": "3bef0a37231bfbdd",
+        "count": 1,
+        "text": "Dockerfile Cmd参数配置，仅容器型服务需要。指定容器启动时的默认命令数组，如[\"npm\",\"start\"]"
+      },
+      {
+        "hash": "3d75e278f272f51c",
+        "count": 1,
+        "text": "服务标签配置，用于标识服务类型。如设置为\"function:\"表示函数型服务。SDK会自动根据配置生成"
+      },
+      {
+        "hash": "3f885b36235a70fd",
+        "count": 1,
+        "text": "扩缩容类型：cpu=基于CPU使用率扩缩容，mem=基于内存使用率扩缩容，cpu/mem=基于CPU和内存使用率扩缩容"
+      },
+      {
+        "hash": "43ede2d988d4750d",
+        "count": 1,
+        "text": "VPC网络ID，格式如 vpc-xxxxxxxx。必须与目标数据库/Redis 处于同一地域，并优先选择同一 VPC。禁止猜测或使用占位符；须来自数据库控制台、已有资源详情、callCloudApi …"
+      },
+      {
+        "hash": "456b919ad2945284",
+        "count": 1,
+        "text": "环境变量配置，JSON字符串格式。用于传递配置信息给服务代码，如\\'{\"DATABASE_URL\":\"postgres://user:pass@10.x.x.x:5432/db\",\"NODE_ENV\"…"
+      },
+      {
+        "hash": "456f1d7cf3cf4554",
+        "count": 1,
+        "text": "循环起始日期，格式：YYYY-MM-DD"
+      },
+      {
+        "hash": "46b535bb4515841c",
+        "count": 1,
+        "text": "灰度版本流量比例（trafficOp=set 时使用），取值范围0-100。与 stablePercent 之和必须等于100。例如希望 90% 流量打到稳定版、10% 打到灰度版，则 stableP…"
+      },
+      {
+        "hash": "47ffd8cd6258cc17",
+        "count": 1,
+        "text": "服务配置项，用于 deploy / updateConfig。包括资源规格、访问权限、环境变量、日志、网络等。deploy 未提供时对已存在服务仍会从远程合并保留 VpcConf/EnvParams/…"
+      },
+      {
+        "hash": "496685a9d6de130f",
+        "count": 1,
+        "text": "是否返回服务环境变量（ServerConfig.EnvParams）明文值（仅 action=detail 时生效）。默认 false，值脱敏为 \"***\"（保留 key，足够排查配置了哪些变量、变更…"
+      },
+      {
+        "hash": "53fbeb0b2be0c2e7",
+        "count": 1,
+        "text": "Agent名称，用于生成BotId"
+      },
+      {
+        "hash": "5b10bab02041fc6b",
+        "count": 1,
+        "text": "定时扩缩容的目标副本数，最小值0（缩容到0）"
+      },
+      {
+        "hash": "6211e1bcd2d3fabd",
+        "count": 1,
+        "text": "流量管理子操作（action=traffic 时使用）：set=调整灰度流量比例（需先部署新版本至灰度，通过 stablePercent/canaryPercent 设置稳定版与灰度版流量比例，两者之…"
+      },
+      {
+        "hash": "6ae92bdef8b2f999",
+        "count": 1,
+        "text": "项目模板标识符，用于指定初始化项目时使用的模板。可通过queryCloudRun的templates操作获取可用模板列表。常用模板：helloworld=Hello World示例，nodejs=No…"
+      },
+      {
+        "hash": "706369267cd32635",
+        "count": 1,
+        "text": "云托管服务名称，用于标识和管理服务。命名规则：支持大小写字母、数字、连字符和下划线，必须以字母开头，长度3-45个字符。在init操作中会作为在targetPath下创建的子目录名，在其他操作中作为目…"
+      },
+      {
+        "hash": "714371e8ec8fdbff",
+        "count": 1,
+        "text": "云托管环境套餐类型（action=initEnv 时使用）：Trial=试用，Standard=标准，Professional=专业，Enterprise=企业。默认 Trial"
+      },
+      {
+        "hash": "74a995418e5630e0",
+        "count": 1,
+        "text": "运行ID（RunId），仅在action=getProcessLog时使用。不传时默认取该服务最近一次部署记录的 RunId（与 detail/getDeployRecords 的 latestDep…"
+      },
+      {
+        "hash": "7f73de62d0067a55",
+        "count": 1,
+        "text": "最大实例数配置，控制服务的最大运行实例数量。当请求量增加时，服务最多可以扩展到指定数量的实例，超过此数量后将拒绝新的请求。建议根据业务峰值设置"
+      },
+      {
+        "hash": "804d5aa123ec486a",
+        "count": 1,
+        "text": "子网 ID 列表（action=initEnv 时可选）。当需指定自有 VPC 时必填，如 [\"subnet-xxxxxxxx\"]。与 vpcId 一起透传给 CreateCloudRunEnv 的 …"
+      },
+      {
+        "hash": "842bf31d79723ea2",
+        "count": 1,
+        "text": "本地运行时的附加环境变量配置，用于本地开发和调试。格式为键值对，如{\"DEBUG\":\"true\",\"LOG_LEVEL\":\"debug\"}。这些变量仅在本地运行时生效"
+      },
+      {
+        "hash": "8915d4402a100778",
+        "count": 1,
+        "text": "构建ID，仅在action=getDeployLog时使用（构建日志，仅云端源码构建）。不传时默认返回最近一次部署的构建日志"
+      },
+      {
+        "hash": "8d4eedf767bd190d",
+        "count": 1,
+        "text": "存储卷配置数组，用于挂载云存储（如CFS）到服务实例中。可用于持久化数据或共享文件"
+      },
+      {
+        "hash": "92e1d0fbd7ca0a3c",
+        "count": 1,
+        "text": "Bot标签，用于生成BotId，不提供时自动生成"
+      },
+      {
+        "hash": "9666edf5f303bae0",
+        "count": 1,
+        "text": "CPU规格配置，单位为核。可选值：0.25、0.5、1、2、4、8等。注意：内存规格必须是CPU规格的2倍（如CPU=0.25时内存=0.5，CPU=1时内存=2）。影响服务性能和计费"
+      },
+      {
+        "hash": "984a12528cd8dd35",
+        "count": 1,
+        "text": "本地代码路径，必须是绝对路径。在deploy操作中指定要部署的代码目录，在download操作中指定下载目标目录，在init操作中指定云托管服务的上级目录（会在该目录下创建以serverName命名的…"
+      },
+      {
+        "hash": "9a02875778d73ed5",
+        "count": 1,
+        "text": "Agent ID，在agent模式下使用，用于标识特定的Agent实例"
+      },
+      {
+        "hash": "9aa93ac74f7e2a99",
+        "count": 1,
+        "text": "服务名称筛选条件，支持模糊匹配。例如：输入\"test\"可匹配\"test-service\"、\"my-test-app\"等服务名称。留空则查询所有服务"
+      },
+      {
+        "hash": "9c3003f73ff8ae49",
+        "count": 1,
+        "text": "扩缩容阈值，单位为百分比。如60表示当资源使用率达到60%时触发扩缩容"
+      },
+      {
+        "hash": "a823366452d50049",
+        "count": 1,
+        "text": "内存规格配置，单位为GB。可选值：0.5、1、2、4、8、16等。注意：必须是CPU规格的2倍。影响服务性能和计费"
+      },
+      {
+        "hash": "a8ec6c16bc8c22cb",
+        "count": 1,
+        "text": "日志解析类型配置，指定日志的解析方式。用于将原始日志解析为结构化数据"
+      },
+      {
+        "hash": "aa6e89aebb08774f",
+        "count": 1,
+        "text": "Dockerfile EntryPoint参数配置，仅容器型服务需要。指定容器启动时的入口程序数组，如[\"node\",\"app.js\"]"
+      },
+      {
+        "hash": "afbe816c74bf5812",
+        "count": 1,
+        "text": "构建目录配置，指定代码构建的目录路径。当代码结构与标准不同时使用，默认为项目根目录"
+      },
+      {
+        "hash": "b13ef0e6ce866c09",
+        "count": 1,
+        "text": "最小实例数配置，控制服务的最小运行实例数量。设置为0时支持缩容到0（无请求时不产生费用），设置为大于0时始终保持指定数量的实例运行（确保快速响应但会增加成本）。建议设置为1以降低冷启动延迟，提升用户体…"
+      },
+      {
+        "hash": "b288956225081467",
+        "count": 1,
+        "text": "定时扩缩容配置数组，用于配置服务的定时自动扩缩容策略。可配置多个时间段的扩缩容计划，支持每日/每周/每月循环"
+      },
+      {
+        "hash": "b96e2d0434fa585a",
+        "count": 1,
+        "text": "云托管服务管理操作类型：init=从模板初始化新的云托管项目代码（在targetPath目录下创建以serverName命名的子目录，支持多种语言和框架模板），download=从云端下载现有服务的代…"
+      },
+      {
+        "hash": "beef216887ad0767",
+        "count": 1,
+        "text": "页码，用于分页查询。从1开始，默认值：1。配合pageSize使用可实现分页浏览"
+      },
+      {
+        "hash": "bfd561514e69900d",
+        "count": 1,
+        "text": "公网访问路径配置"
+      },
+      {
+        "hash": "c0f6767d17285ae9",
+        "count": 1,
+        "text": "强制操作开关，用于跳过确认提示。默认false（需要确认），设置为true时跳过所有确认步骤。删除操作时强烈建议设置为true以避免误操作"
+      },
+      {
+        "hash": "cf1ebe3cb6a1aa55",
+        "count": 1,
+        "text": "扩缩容配置数组，用于配置服务的自动扩缩容策略。可配置多个扩缩容策略"
+      },
+      {
+        "hash": "d1f30c2b0f6205c0",
+        "count": 1,
+        "text": "服务类型筛选条件：function=函数型云托管（仅支持Node.js，有特殊的开发要求和限制，适合简单的API服务），container=容器型服务（推荐使用，支持任意语言和框架如Java/Go/P…"
+      },
+      {
+        "hash": "d7213d4cd50d9007",
+        "count": 1,
+        "text": "环境 ID（action=initEnv 时使用；不传则使用当前配置的环境）。格式如 env-xxxxxx"
+      },
+      {
+        "hash": "de9ffa5db4c5823f",
+        "count": 1,
+        "text": "存储卷类型，如CFS表示云文件存储"
+      },
+      {
+        "hash": "e11660d94550e73b",
+        "count": 1,
+        "text": "Agent模板类型，默认为blank（空白模板）"
+      },
+      {
+        "hash": "e14c44da488d24f6",
+        "count": 1,
+        "text": "服务类型配置：function=函数型云托管（仅支持Node.js，有特殊的开发要求和限制，适合简单的API服务），container=容器型服务（推荐使用，支持任意语言和框架如Java/Go/Pyt…"
+      },
+      {
+        "hash": "e23b5c205b9cc6b3",
+        "count": 1,
+        "text": "服务监听端口配置。函数型服务固定为3000，容器型服务可自定义。服务代码必须监听此端口才能正常接收请求"
+      },
+      {
+        "hash": "e3c8e54a46b8af5c",
+        "count": 1,
+        "text": "会话保持配置，用于控制是否启用会话保持功能。启用后会将同一客户端的请求路由到同一实例"
+      },
+      {
+        "hash": "e5a2438a8c7860d1",
+        "count": 1,
+        "text": "公网访问类型配置，控制服务的访问权限：OA=办公网访问，PUBLIC=公网访问（默认，可通过HTTPS域名访问），MINIAPP=小程序访问，VPC=VPC访问（仅同VPC内可访问）。可配置多个类型"
+      },
+      {
+        "hash": "e8438e4d152e9e43",
+        "count": 1,
+        "text": "存储卷挂载路径，服务代码中的目标路径"
+      },
+      {
+        "hash": "e9962e46bf7cfe49",
+        "count": 1,
+        "text": "循环结束日期，格式：YYYY-MM-DD"
+      },
+      {
+        "hash": "f3ec673fea0a541d",
+        "count": 1,
+        "text": "VPC 网络 ID（action=initEnv 时可选）。当平台拒绝系统创建网络时必填，格式如 vpc-xxxxxxxx。与 subnetIds 一起透传给 CreateCloudRunEnv 的 …"
+      },
+      {
+        "hash": "f463526e015c4fba",
+        "count": 1,
+        "text": "EnvParams 合并策略（deploy / updateConfig）：false（默认）= 与远程按 key 合并（输入覆盖同名 key，远程其余 key 保留）；true= 用输入 EnvPa…"
+      },
+      {
+        "hash": "f6881fe2769e3d60",
+        "count": 1,
+        "text": "子网ID，格式如 subnet-xxxxxxxx。云托管实例将占用该子网 IP，需确保有足够可用 IP"
+      },
+      {
+        "hash": "f70bf716c7a6ace3",
+        "count": 1,
+        "text": "CLS日志主题ID配置，指定日志服务（CLS）的日志主题ID。需要先开通CLS日志服务"
+      },
+      {
+        "hash": "fa41480431a4af65",
+        "count": 1,
+        "text": "已有镜像部署（action=deploy 时使用）：直接指定容器镜像地址，如 ccr.ccs.tencentyun.com/ns/img:v1 或公网 registry 地址。传入后走 DeployT…"
+      },
+      {
+        "hash": "fca46378f7f9d6da",
+        "count": 1,
+        "text": "分页大小，控制每页返回的服务数量。取值范围：1-100，默认值：10。建议根据网络性能和显示需求调整"
+      },
+      {
+        "hash": "ff456dbe9f77f8cd",
+        "count": 1,
+        "text": "日志类型配置，指定服务的日志收集类型。影响日志的采集方式和存储格式"
+      }
+    ],
+    "mcp/src/tools/databaseNoSQL.ts": [
+      {
+        "hash": "0734db28ed6476b2",
+        "count": 1,
+        "text": "索引字段名"
+      },
+      {
+        "hash": "081999fb34293d0f",
+        "count": 1,
+        "text": "待创建索引的字段与约束配置"
+      },
+      {
+        "hash": "08a1254bfd9b0cc6",
+        "count": 2,
+        "text": "可选：显式指定数据库实例ID；未传时会自动解析并缓存"
+      },
+      {
+        "hash": "11a24bc3dca87924",
+        "count": 1,
+        "text": "要插入的文档对象数组,每个文档都是对象(insert 操作必填)"
+      },
+      {
+        "hash": "187153cbce754487",
+        "count": 1,
+        "text": "要创建的索引名称"
+      },
+      {
+        "hash": "24db8d321f69168e",
+        "count": 1,
+        "text": "createCollection: 创建集合 updateCollection: 更新集合配置；添加索引请传 updateOptions.CreateIndexes，删除索引请传 updateOpti…"
+      },
+      {
+        "hash": "286e3647662b1f47",
+        "count": 1,
+        "text": "是否更新多条记录(update/delete 操作可选)"
+      },
+      {
+        "hash": "4ab139de508621d9",
+        "count": 1,
+        "text": "返回数量限制(listCollections 操作时可选)"
+      },
+      {
+        "hash": "4e985ab25ad1e931",
+        "count": 1,
+        "text": "索引名称(checkIndex 操作时必填)"
+      },
+      {
+        "hash": "5a45f4f119a946b7",
+        "count": 1,
+        "text": "要删除的索引名称"
+      },
+      {
+        "hash": "6180b41c9d6a122a",
+        "count": 3,
+        "text": "集合名称"
+      },
+      {
+        "hash": "6461ce927db9edc8",
+        "count": 1,
+        "text": "更新选项(updateCollection 时使用)。CreateIndexes 用于添加索引，DropIndexes 用于删除索引。"
+      },
+      {
+        "hash": "7c4573d72cbaf614",
+        "count": 1,
+        "text": "sort 字段名"
+      },
+      {
+        "hash": "82ca7df9e6b40741",
+        "count": 1,
+        "text": "索引方向，通常 1 表示升序，-1 表示降序"
+      },
+      {
+        "hash": "8fa17d2a96c954ff",
+        "count": 1,
+        "text": "跳过的记录数"
+      },
+      {
+        "hash": "92b0573ee17b8e06",
+        "count": 1,
+        "text": "要添加的索引列表"
+      },
+      {
+        "hash": "99aeea622e5099d0",
+        "count": 1,
+        "text": "返回数量限制，整数，范围 1-${QUERY_RECORDS_MAX_LIMIT}，默认 ${QUERY_RECORDS_DEFAULT_LIMIT}。"
+      },
+      {
+        "hash": "9cfea8e136a74825",
+        "count": 1,
+        "text": "返回字段投影，仅支持对象或对应 JSON 字符串，值只能是 1/0/true/false。"
+      },
+      {
+        "hash": "a1fcca44f27aec42",
+        "count": 1,
+        "text": "更新内容(对象或字符串,推荐对象)(update 操作必填)。按 MongoDB 更新语义传入 MgoUpdate：部分更新请使用 \\`$set\\`、\\`$inc\\`、\\`$unset\\`、\\`$pu…"
+      },
+      {
+        "hash": "a3cbae8c8f8bc5fc",
+        "count": 1,
+        "text": "集合名称(describeCollection、listIndexes、checkIndex 操作时必填)"
+      },
+      {
+        "hash": "a3eaf9cba187e2b7",
+        "count": 1,
+        "text": "排序条件，仅支持数组 [{\"key\":\"createdAt\",\"direction\":-1}] 或对应 JSON 字符串。"
+      },
+      {
+        "hash": "b67af4188703e0b1",
+        "count": 1,
+        "text": "是否在不存在时插入(update 操作可选)"
+      },
+      {
+        "hash": "b99ccd0d2653024d",
+        "count": 1,
+        "text": "索引字段列表，支持单字段或复合索引"
+      },
+      {
+        "hash": "badfdd65f4d28702",
+        "count": 1,
+        "text": "要删除的索引列表"
+      },
+      {
+        "hash": "bbcc3475a25424db",
+        "count": 1,
+        "text": "排序方向,1:升序,-1:降序"
+      },
+      {
+        "hash": "c31e9db7174cf0ed",
+        "count": 1,
+        "text": "listCollections: 列出集合列表 describeCollection: 描述集合详情（会返回索引摘要） checkCollection: 检查集合是否存在 listIndexes: 列…"
+      },
+      {
+        "hash": "cccf332490258ff4",
+        "count": 1,
+        "text": "是否唯一索引"
+      },
+      {
+        "hash": "ce4ba80cc9b9bd6f",
+        "count": 1,
+        "text": "insert: 插入数据（新增文档）\\nupdate: 更新数据\\ndelete: 删除数据"
+      },
+      {
+        "hash": "ecfc08d9d4124e84",
+        "count": 1,
+        "text": "偏移量(listCollections 操作时可选)"
+      },
+      {
+        "hash": "f168231b7800019a",
+        "count": 1,
+        "text": "查询条件(对象或字符串,推荐对象)(update/delete 操作必填)"
+      },
+      {
+        "hash": "f7caffab49e3d7a4",
+        "count": 1,
+        "text": "查询条件(对象或字符串,推荐对象)"
+      }
+    ],
+    "mcp/src/tools/databasePG.ts": [
+      {
+        "hash": "0a777cda03729c11",
+        "count": 1,
+        "text": "执行任何写入 SQL 前都需要显式设置为 true。"
+      },
+      {
+        "hash": "0f59021416e6591a",
+        "count": 1,
+        "text": "apply 可选，默认 true。设为 false 时 Push 后立即返回 TaskId（errorCode=MIGRATION_TASK_PENDING），由调用方用 describeMigrat…"
+      },
+      {
+        "hash": "20e8a804b160c163",
+        "count": 1,
+        "text": "plan/apply 可选：回滚 SQL 语句。"
+      },
+      {
+        "hash": "262864402fa9010b",
+        "count": 1,
+        "text": "apply 可选：获取数据库锁的最长时间（毫秒），默认 5000。"
+      },
+      {
+        "hash": "2990a8844273dcc3",
+        "count": 1,
+        "text": "可选的 PostgreSQL 逻辑实例标识，默认 cloudbase-pg。"
+      },
+      {
+        "hash": "2afede2e80bafb0f",
+        "count": 1,
+        "text": "repair 必填：applied=标记为已应用（可补录 Query），reverted=删除 history 记录。"
+      },
+      {
+        "hash": "3b6e5a6b13831696",
+        "count": 1,
+        "text": "action=sql 时使用的只读 SQL"
+      },
+      {
+        "hash": "3e6094337025f319",
+        "count": 1,
+        "text": "可选的摘要数量上限，用于对象、元数据或 SQL 返回行数，默认 20，最大 200。"
+      },
+      {
+        "hash": "473c4e54b0e82995",
+        "count": 1,
+        "text": "可选的默认 schema，默认 public。"
+      },
+      {
+        "hash": "4dc4da2dbe184410",
+        "count": 1,
+        "text": "list 可选：返回数量上限，1-500，默认 100。"
+      },
+      {
+        "hash": "6019fb47ee14c270",
+        "count": 1,
+        "text": "rollback 必填：回滚最近 N 条已应用的 Migration，正整数。"
+      },
+      {
+        "hash": "6a77c8105e292eb4",
+        "count": 1,
+        "text": "apply 可选：单条 SQL 执行最长时间（毫秒），默认 300000。"
+      },
+      {
+        "hash": "6cd559afb03fd0e2",
+        "count": 1,
+        "text": "可选的 CloudBase 环境 ID，不传时使用当前 MCP 环境。"
+      },
+      {
+        "hash": "6fb9a5cd250d79d9",
+        "count": 1,
+        "text": "可选的 schema 过滤条件，用于 action=objects 或 action=metadata"
+      },
+      {
+        "hash": "76c3f86abf7922ef",
+        "count": 1,
+        "text": "操作类型：context=获取当前 PostgreSQL 上下文；objects=列出带 schema 的数据库对象；metadata=获取轻量表元数据；schema=检查单个带 schema 的对象…"
+      },
+      {
+        "hash": "8b121edb96681b34",
+        "count": 1,
+        "text": "14 位时间戳 YYYYMMDDHHMMSS。plan/apply/detail/repair 必填；fetchMigration 可选（传入则只拉该条，省略则拉全量远端 history）；禁止由服务…"
+      },
+      {
+        "hash": "96095be9d8aba810",
+        "count": 1,
+        "text": "fetchMigration 可选，默认 false。true=覆盖本地已存在的同名 SQL 文件（对齐 CLI tcb db pg migration fetch --force）；false=跳过…"
+      },
+      {
+        "hash": "9f33b271c252ae8f",
+        "count": 1,
+        "text": "action=schema 时使用的带 schema 的 PostgreSQL 对象名，例如 public.users"
+      },
+      {
+        "hash": "acd9270f186585af",
+        "count": 1,
+        "text": "可选，默认 false。仅当需要故意绕过 migration history 时设为 true，才允许 schema DDL 走 execute；正常建表/改 schema 必须用 applyMigr…"
+      },
+      {
+        "hash": "b72e35097b38b559",
+        "count": 1,
+        "text": "可选的对象名，当前仅用于非 migration 场景。migration 相关操作请使用 migrationName / migrationVersion / lastN。"
+      },
+      {
+        "hash": "c238b79fd8b37f96",
+        "count": 1,
+        "text": "操作类型：execute=执行已确认的写入 SQL（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）；dryRun=只分析 SQL 风险…"
+      },
+      {
+        "hash": "c5c7999558df1caa",
+        "count": 1,
+        "text": "planMigration / applyMigration 可选，默认 false。true=允许 out-of-order（version 小于远端 LatestVersion）仍可 Previe…"
+      },
+      {
+        "hash": "c69908bdddd6a074",
+        "count": 1,
+        "text": "list 可选：分页偏移，默认 0。"
+      },
+      {
+        "hash": "c8b60e4afe6c55dc",
+        "count": 1,
+        "text": "可选的 PostgreSQL role，传给 Manager SDK executePGSql 的 Role（平台会 SET ROLE）。默认 ${PG_DEFAULT_ROLE}。"
+      },
+      {
+        "hash": "cc6b4dd547779264",
+        "count": 1,
+        "text": "action=execute、dryRun、planMigration、applyMigration 或 repairMigration(applied) 使用的 SQL 语句"
+      },
+      {
+        "hash": "effb933934ce84e7",
+        "count": 1,
+        "text": "plan/apply/repair 必填：migration 名称，小写字母开头，仅允许小写字母和下划线（不允许数字，服务端 PushPGUserMigrations 会拒绝含数字的名称）。"
+      },
+      {
+        "hash": "fa7ae9897e5d05f8",
+        "count": 1,
+        "text": "describeMigrationTask 必填：PushPGUserMigrations / applyMigration 返回的 TaskId。用于一次性查询 DescribeTaskResult…"
+      },
+      {
+        "hash": "fb11eee33904b743",
+        "count": 1,
+        "text": "repair 必填：修复原因。"
+      },
+      {
+        "hash": "fb2e108335ba79ea",
+        "count": 1,
+        "text": "apply 可选：轮询 DescribeTaskResult 的最长等待（毫秒）。默认 ${MIGRATION_TASK_DEFAULT_WAIT_MS}（与 CLI tcb db pg migrat…"
+      }
+    ],
+    "mcp/src/tools/dataModel.ts": [
+      {
+        "hash": "0099c00a10776f73",
+        "count": 1,
+        "text": "操作类型：get=查询单个模型（含Schema字段列表、格式、关联关系，需要提供 name 参数），list=获取模型列表（不含Schema，可选 names 参数过滤），docs=生成SDK使用文档…"
+      },
+      {
+        "hash": "58003ae880d79a69",
+        "count": 1,
+        "text": "数据库实例类型，可选值：MYSQL=MySQL 数据库，FLEXDB=文档型数据库（NoSQL）"
+      },
+      {
+        "hash": "7732e9facf2b4ca2",
+        "count": 1,
+        "text": "要查询的数据模型名称。当 action='get' 或 action='docs' 时，此参数为必填项，必须提供已存在的数据模型名称。可通过 action='list' 操作获取可用的模型名称列表"
+      },
+      {
+        "hash": "946150a93936400e",
+        "count": 1,
+        "text": "Mermaid classDiagram代码，描述数据模型结构。 示例： classDiagram class Student { name: string <<姓名>> age: number = …"
+      },
+      {
+        "hash": "f253cee2ba7ece9a",
+        "count": 1,
+        "text": "操作类型：create=创建新模型"
+      },
+      {
+        "hash": "fbcd59901f0efe00",
+        "count": 1,
+        "text": "模型名称数组（list操作时可选，用于过滤）"
+      },
+      {
+        "hash": "fc216c7b6aec3b55",
+        "count": 1,
+        "text": "是否立即发布模型"
+      }
+    ],
+    "mcp/src/tools/deploy.ts": [
+      {
+        "hash": "05d374ced55809e4",
+        "count": 3,
+        "text": "环境名（如 production/staging），命中 envOverrides.<mode> 时合并覆盖"
+      },
+      {
+        "hash": "4dd3e1f6dc9f7f70",
+        "count": 2,
+        "text": "跳过指定资源类型，可选值：database/functions/app/hosting/gateway"
+      },
+      {
+        "hash": "79edac67cb932afa",
+        "count": 2,
+        "text": "目标环境 ID，优先级高于 cloudbaserc 中的 envId；不传则用配置值或当前绑定环境"
+      },
+      {
+        "hash": "a9a4301d7e61ef08",
+        "count": 1,
+        "text": "危险操作确认开关。部署会变更云端资源，必须显式传 confirm=true 才会执行"
+      },
+      {
+        "hash": "ae0e7a02b2fb0c3f",
+        "count": 1,
+        "text": "破坏性数据库变更确认开关。当待执行迁移含 DROP/TRUNCATE/DELETE 或 ALTER…DROP/RENAME 时，"
+      },
+      {
+        "hash": "b9c75794d7072dc6",
+        "count": 1,
+        "text": "仅部署指定资源类型，可选值：database/functions/app/hosting/gateway"
+      },
+      {
+        "hash": "c2f090bcbb46d6eb",
+        "count": 3,
+        "text": "项目根目录，从此目录向下搜索 cloudbaserc；默认当前工作目录"
+      },
+      {
+        "hash": "c4148cdeb2a7713e",
+        "count": 1,
+        "text": "某个资源失败后是否继续部署其余资源；database 失败始终强制中断"
+      },
+      {
+        "hash": "c6486e8c49c02e60",
+        "count": 1,
+        "text": "同类型资源最大并行数，默认 1（串行）；仅作用于同类型资源，跨类型依赖顺序不变"
+      },
+      {
+        "hash": "d4ffb6d095af3405",
+        "count": 1,
+        "text": "与 deployApply 的 yes 对齐，用于复算已存在函数的有效动作。"
+      },
+      {
+        "hash": "da786578e4d4a9c8",
+        "count": 1,
+        "text": "遇到已存在资源时是否直接覆盖更新。true=覆盖；false（默认）=保守跳过已存在资源"
+      },
+      {
+        "hash": "ea3db8e8bba9cc8f",
+        "count": 1,
+        "text": "仅计算指定资源类型的计划，可选值：database/functions/app/hosting/gateway"
+      }
+    ],
+    "mcp/src/tools/env.ts": [
+      {
+        "hash": "0fec6de1ce7921ee",
+        "count": 1,
+        "text": "资源 ID。仅 action=metrics 时有效。云函数传函数名，文档库传集合名，云托管必须传服务名；GatewayTraceEnvQPS 不传则使用环境级 all|:|all|:|all|:|a…"
+      },
+      {
+        "hash": "2ef9bbcab0658080",
+        "count": 1,
+        "text": "高级可选：自定义 endpoint 返回格式开关。未配置 endpoint 时默认 false；配置 endpoint 后默认 true。标准 {code,result} 包装格式的端点（如国际站 t…"
+      },
+      {
+        "hash": "304f49af0ff7375b",
+        "count": 1,
+        "text": "按环境别名筛选。action=list 时可选"
+      },
+      {
+        "hash": "30f86061cc9a763b",
+        "count": 1,
+        "text": "分页偏移。action=list 时可选"
+      },
+      {
+        "hash": "3531936937f83b35",
+        "count": 1,
+        "text": "地域（如 ap-shanghai / ap-guangzhou / ap-singapore）。用于 region→site 推断与 API Key 换取网关选择；显式 site 优先"
+      },
+      {
+        "hash": "3acdab5ff7927e67",
+        "count": 1,
+        "text": "环境 ID（action=modifyPlan/renew 时必填）"
+      },
+      {
+        "hash": "445733802457b9fa",
+        "count": 1,
+        "text": "操作类型：listPackages=查询可选套餐，create=创建环境，modifyPlan=变更套餐，renew=续费，addSecurityDomain=添加安全域名（CORS 白名单条目），r…"
+      },
+      {
+        "hash": "473a5570290ad272",
+        "count": 1,
+        "text": "查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId / region 筛选，返回 EnvId、Alias、Status、EnvType、Region、…"
+      },
+      {
+        "hash": "4c5a9109fb450c3c",
+        "count": 1,
+        "text": "action=logout 时确认操作，传 yes"
+      },
+      {
+        "hash": "514abc43a521e5b8",
+        "count": 1,
+        "text": "启用的资源类型（action=create 时可选）。可选值：storage(存储)、function(云函数)、postgresql(PostgreSQL)，省略时默认全部三项。CreateEnv …"
+      },
+      {
+        "hash": "57ee2714480fd302",
+        "count": 1,
+        "text": "确认操作。所有付费操作（create/modifyPlan/renew）必须传 \\\"yes\\\" 确认"
+      },
+      {
+        "hash": "5c672f8cf517f3e5",
+        "count": 1,
+        "text": "按环境别名精确筛选。action=list 时可选；与 alias 配合使用"
+      },
+      {
+        "hash": "5d203626a9ee789f",
+        "count": 1,
+        "text": "环境 ID。action=list 时可选（仅按 DescribeEnvs 语义做筛选，仍返回摘要）；action=info / action=usage / action=metrics 时必填；a…"
+      },
+      {
+        "hash": "5dc3ac3fa22843de",
+        "count": 1,
+        "text": "用量开始日期（YYYY-MM-DD）。仅 action=usage 时有效；与 endDate 成对传入。不传则使用当前计费周期。"
+      },
+      {
+        "hash": "6a1eb0dfed4f9e38",
+        "count": 1,
+        "text": "动作：status=查询状态，start_auth=发起登录，login_by_api_key=API Key登录，set_env=绑定环境(传envId)，logout=退出登录"
+      },
+      {
+        "hash": "6a41e13f93ceb91e",
+        "count": 1,
+        "text": "监控结束时间（YYYY-MM-DD HH:mm:ss）。仅 action=metrics 时有效；与 startTime 成对传入。不传则默认最近 24 小时。"
+      },
+      {
+        "hash": "6afba4172b007947",
+        "count": 1,
+        "text": "查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r…"
+      },
+      {
+        "hash": "6e7b88d50583421c",
+        "count": 1,
+        "text": "监控指标名。仅 action=metrics 时有效且必填。GatewayTraceEnvQPS/EnvQPSAll=环境与网关 QPS；FunctionInvocation/FunctionErro…"
+      },
+      {
+        "hash": "77061131ce45a172",
+        "count": 1,
+        "text": "返回数量上限。action=list 时可选"
+      },
+      {
+        "hash": "7e4f7619e65fe324",
+        "count": 1,
+        "text": "输出语言：zh=中文（默认），en=英文。覆盖实例级语言（createCloudBaseMcpServer lang 选项 / TCB_LANG / project.json）"
+      },
+      {
+        "hash": "7ea0848dfa8c0485",
+        "count": 1,
+        "text": "创建地域（仅 action=create 时有效）。按 X-TC-Region 语义透传，决定新环境所在地域；等价 CLI：tcb env create --region ap-shanghai。不传…"
+      },
+      {
+        "hash": "7fb26c6df1bbb326",
+        "count": 1,
+        "text": "环境ID(CloudBase 环境唯一标识)，绑定后工具将操作该环境。action=set_env 时必填"
+      },
+      {
+        "hash": "8f1286b4b7d9d7e0",
+        "count": 1,
+        "text": "高级可选：自定义 device-code 登录 client_id，不传则使用默认值"
+      },
+      {
+        "hash": "8f9c1d57d09c34da",
+        "count": 1,
+        "text": "高级可选：自定义 device-code 登录 endpoint。配置后 oauthCustom 默认按 true 处理"
+      },
+      {
+        "hash": "952606cd38e10d76",
+        "count": 1,
+        "text": "操作类型：create=添加安全域名，delete=删除安全域名"
+      },
+      {
+        "hash": "9596dead49bbdc27",
+        "count": 1,
+        "text": "站点：domestic=国内站，intl=国际站。环境开通在腾讯云国际站时，登录（start_auth/login_by_api_key）需显式传 intl，否则会走国内站链路、看不到国际站环境；调用…"
+      },
+      {
+        "hash": "97c35a3df81ff9cf",
+        "count": 1,
+        "text": "action=get_temp_credentials 时可选。true=返回明文临时密钥；默认 false 仅返回脱敏结果"
+      },
+      {
+        "hash": "9b8cceb5cce27f8f",
+        "count": 1,
+        "text": "CloudBase 环境ID(EnvId)，action=login_by_api_key 时必填，用于指定 API Key 所属环境"
+      },
+      {
+        "hash": "b0b184054f65d4bf",
+        "count": 1,
+        "text": "购买或续费时长（月），action=create/renew 时可选，默认 1"
+      },
+      {
+        "hash": "b4ed1fa444577c43",
+        "count": 1,
+        "text": "用量结束日期（YYYY-MM-DD）。仅 action=usage 时有效；与 startDate 成对传入。不传则使用当前计费周期。"
+      },
+      {
+        "hash": "b5b6dd155455de92",
+        "count": 1,
+        "text": "返回字段白名单。仅支持 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault。action=list 时可选"
+      },
+      {
+        "hash": "b963c025c02bc2c9",
+        "count": 1,
+        "text": "监控开始时间（YYYY-MM-DD HH:mm:ss）。仅 action=metrics 时有效；与 endTime 成对传入。不传则默认最近 24 小时。结束时间须晚于开始时间至少五分钟。"
+      },
+      {
+        "hash": "baced9e902c1691f",
+        "count": 1,
+        "text": "CloudBase API Key，action=login_by_api_key 时必填"
+      },
+      {
+        "hash": "bbc023308831093f",
+        "count": 1,
+        "text": "认证模式：device=设备码授权，web=浏览器回调授权"
+      },
+      {
+        "hash": "c72b4b180988b0d8",
+        "count": 1,
+        "text": "是否返回每日用量明细。仅 action=usage 时有效；默认 true。"
+      },
+      {
+        "hash": "d139fb8edec85520",
+        "count": 1,
+        "text": "安全域名数组（格式：host:port，例如 localhost:5173 或 127.0.0.1:4173）。仅 action=addSecurityDomain/removeSecurityDom…"
+      },
+      {
+        "hash": "d667264e0a3ba8ef",
+        "count": 1,
+        "text": "环境别名（action=create 时必填）。要求：小写字母/数字/减号，不能以减号开头或结尾，最长 20 位"
+      },
+      {
+        "hash": "d8350e84015fa76b",
+        "count": 1,
+        "text": "子资源 ID。仅 action=metrics 时有效；查询云托管某版本监控时传入版本名。"
+      },
+      {
+        "hash": "dcabe9810371068c",
+        "count": 1,
+        "text": "安全域名数组（格式：host:port，例如 localhost:5173 或 127.0.0.1:4173）。注意：不是自定义域名，不需要证书。"
+      },
+      {
+        "hash": "e065263328e81821",
+        "count": 1,
+        "text": "统计周期（秒）。仅 action=metrics 时有效；仅支持 300、3600、86400。不传则由后端按时间范围自动选择。时间范围 ≤1 天不可用 86400；>3 天不可用 300。"
+      },
+      {
+        "hash": "ec5830922bf462e7",
+        "count": 1,
+        "text": "套餐 ID（action=create/modifyPlan 时必填）。可选值如 baas_personal(个人版)、baas_pf_standard(标准版)、baas_pf_enterprise…"
+      },
+      {
+        "hash": "f0ede8e6e0bc2990",
+        "count": 1,
+        "text": "用量模块过滤。仅 action=usage 时有效；不传则查询全部模块。可选值对齐 tcb CLI：FLEXDB、TDSQL、SCF、EKS、COS、AI、HOSTING、Auth、APIInvoca…"
+      }
+    ],
+    "mcp/src/tools/function-deploy-schema.ts": [
+      {
+        "hash": "055dcad6e166234a",
+        "count": 1,
+        "text": "镜像部署运行时。省略时由 SDK 自动规范化为 ${CUSTOM_IMAGE_RUNTIME}。"
+      },
+      {
+        "hash": "0df99beaa96fa614",
+        "count": 1,
+        "text": "是否开启镜像加速；镜像较大时建议开启以缩短冷启动时间。"
+      },
+      {
+        "hash": "111cd9ad5d6e4ae6",
+        "count": 1,
+        "text": "覆盖镜像启动参数，空格分隔，例如 -u app.py。"
+      },
+      {
+        "hash": "14d34ba3ede0ca73",
+        "count": 1,
+        "text": "HTTP 函数协议类型：HTTP 或 WS。"
+      },
+      {
+        "hash": "18920b5fc78e7ba8",
+        "count": 1,
+        "text": "本地构建不可用时的处理方式，默认 error，禁止静默改变构建环境。"
+      },
+      {
+        "hash": "26cbc88442edce25",
+        "count": 1,
+        "text": "覆盖镜像入口点（ENTRYPOINT），一般不需要单独设置。"
+      },
+      {
+        "hash": "288194d8cd2f0d10",
+        "count": 1,
+        "text": "Dockerfile 相对 build.cwd 的路径，默认 Dockerfile。"
+      },
+      {
+        "hash": "29c7dc2649e6f4e6",
+        "count": 1,
+        "text": "目标镜像命名空间；不传时默认使用当前环境 ID（envId）。"
+      },
+      {
+        "hash": "35b9f80048dc6651",
+        "count": 1,
+        "text": "函数代码加密密钥。"
+      },
+      {
+        "hash": "37096a5f717ff746",
+        "count": 1,
+        "text": "函数执行角色名称。"
+      },
+      {
+        "hash": "37d31c4cdfbd3b1c",
+        "count": 1,
+        "text": "单实例最大并发数，范围 1-100。"
+      },
+      {
+        "hash": "389d4a151958b01f",
+        "count": 1,
+        "text": "镜像仓库类型：enterprise=企业版 TCR，personal=个人版 CCR；"
+      },
+      {
+        "hash": "3d7a7b178371030a",
+        "count": 1,
+        "text": "目标镜像平台，当前仅支持 ${DEFAULT_IMAGE_PLATFORM}。"
+      },
+      {
+        "hash": "498596bb35c4b5dc",
+        "count": 1,
+        "text": "函数 VPC 配置。"
+      },
+      {
+        "hash": "4ae16745636f1c22",
+        "count": 1,
+        "text": "兼容既有声明式部署的云接入路径。"
+      },
+      {
+        "hash": "52f5b13df885b284",
+        "count": 1,
+        "text": "是否忽略同摘要复用并强制重新构建。"
+      },
+      {
+        "hash": "5f0121990f6b0b98",
+        "count": 1,
+        "text": "镜像启动参数的数组写法，元素已按参数切分，适用于参数本身含空格的场景。"
+      },
+      {
+        "hash": "611b77cf5db936bd",
+        "count": 1,
+        "text": "镜像启动命令的数组写法，元素已按参数切分，适用于命令本身含空格的场景。"
+      },
+      {
+        "hash": "638b04c112bd08bd",
+        "count": 1,
+        "text": "函数名称：字母开头，仅允许字母、数字、下划线和中划线，长度 2-60。"
+      },
+      {
+        "hash": "6fc911fbd979439d",
+        "count": 1,
+        "text": "镜像构建上下文的绝对目录。"
+      },
+      {
+        "hash": "7c629894a16891b6",
+        "count": 1,
+        "text": "函数运行时环境变量。"
+      },
+      {
+        "hash": "7d8246c928d0b9e1",
+        "count": 1,
+        "text": "是否开启智能动态并发。"
+      },
+      {
+        "hash": "7f543b67e79dade5",
+        "count": 1,
+        "text": "个人版 TCR 推送凭证（personal local/cloud 需要）。"
+      },
+      {
+        "hash": "81bffaab4b525fb5",
+        "count": 1,
+        "text": "函数绑定的 Layer。"
+      },
+      {
+        "hash": "8eaf3f1880f8f12d",
+        "count": 1,
+        "text": "HTTP 函数实例并发配置。"
+      },
+      {
+        "hash": "9305cd9235c7d002",
+        "count": 1,
+        "text": "WebSocket 空闲超时，单位秒，范围 10-7200。"
+      },
+      {
+        "hash": "9e0e6ddebc9d5853",
+        "count": 1,
+        "text": "Layer 名称。"
+      },
+      {
+        "hash": "9ebb6fbb6efafb6a",
+        "count": 1,
+        "text": "函数描述。"
+      },
+      {
+        "hash": "a302d148bdb62d9b",
+        "count": 1,
+        "text": "子网 ID。必须与 vpcId 属于同一 VPC，禁止填写占位符。"
+      },
+      {
+        "hash": "a5109e511cbefcca",
+        "count": 1,
+        "text": "函数内存，单位 MB，范围 64-3072，建议使用 64 的整数倍。"
+      },
+      {
+        "hash": "a6f62e0ff530e7ee",
+        "count": 1,
+        "text": "已有镜像地址，例如 ccr.ccs.tencentyun.com/ns/app:v1。"
+      },
+      {
+        "hash": "b1fc867c4e859ae5",
+        "count": 1,
+        "text": "MVP 镜像部署仅支持 HTTP 函数。"
+      },
+      {
+        "hash": "b432c4fa0b2218b3",
+        "count": 1,
+        "text": "协议参数。"
+      },
+      {
+        "hash": "b77456feead2108d",
+        "count": 1,
+        "text": "不含 tag/digest 的目标仓库路径；不传时默认使用函数名。local personal 需填写完整 registry/namespace/repository。"
+      },
+      {
+        "hash": "b99c12879586ef62",
+        "count": 1,
+        "text": "个人版 CCR 固定密码。**不要在此字段填写明文密码**："
+      },
+      {
+        "hash": "baf9b066904c6238",
+        "count": 1,
+        "text": "企业版 TCR 实例 ID，形如 tcr-xxxxxxxx；imageType=enterprise 时必填，个人版镜像不填。"
+      },
+      {
+        "hash": "bd514c7f59d0e458",
+        "count": 1,
+        "text": "是否允许匿名访问；省略表示不管理访问规则。"
+      },
+      {
+        "hash": "d24bf60d0e9a95f9",
+        "count": 1,
+        "text": "Layer 版本号。"
+      },
+      {
+        "hash": "d2b5f83754bf958b",
+        "count": 1,
+        "text": "VPC ID。必须使用真实网络配置，禁止填写占位符。"
+      },
+      {
+        "hash": "dcd8193f578a0584",
+        "count": 1,
+        "text": "个人版 CCR 登录用户名，必须为腾讯云账号 UIN。"
+      },
+      {
+        "hash": "dfaece20ed7a3e8b",
+        "count": 1,
+        "text": "个人版 TCR 构建完成后保留的最新镜像标签数量。"
+      },
+      {
+        "hash": "e2ecb5346e1d434a",
+        "count": 1,
+        "text": "Docker 构建参数。禁止传递密钥或凭证。"
+      },
+      {
+        "hash": "e636c60507ef3547",
+        "count": 1,
+        "text": "企业版 TCR 实例 ID；personal 镜像构建不填。"
+      },
+      {
+        "hash": "e6af4ebf289bfd0c",
+        "count": 1,
+        "text": "local 策略的目标镜像 tag；cloud 策略由平台生成，不填。"
+      },
+      {
+        "hash": "e9a33e06b87040e3",
+        "count": 1,
+        "text": "覆盖镜像启动命令，例如 python；不填则使用镜像 Dockerfile 中的默认值。"
+      },
+      {
+        "hash": "eec9f714e944e2ed",
+        "count": 1,
+        "text": "HTTP 镜像函数监听端口，SDK 仅允许 ${IMAGE_FUNCTION_PORT}；省略即用该值，不要填其他端口。"
+      },
+      {
+        "hash": "f674b37294082717",
+        "count": 1,
+        "text": "函数超时，单位秒，范围 1-900。"
+      },
+      {
+        "hash": "fb09dbaa6257000c",
+        "count": 1,
+        "text": "HTTP 网关路径，例如 /api。"
+      }
+    ],
+    "mcp/src/tools/functions.ts": [
+      {
+        "hash": "07078edea9d6ddcd",
+        "count": 1,
+        "text": "buildStrategy=local 时本地构建不可用的处理方式，默认 error。"
+      },
+      {
+        "hash": "0a1fec4b875ef263",
+        "count": 1,
+        "text": "配置更新时的超时时间"
+      },
+      {
+        "hash": "1371c06566b230d3",
+        "count": 1,
+        "text": "触发器配置。timer 必须使用 CloudBase 7 段 cron 格式：秒 分 时 日 月 星期 年。"
+      },
+      {
+        "hash": "161573e26a595631",
+        "count": 1,
+        "text": "日志请求 ID。`getFunctionLogDetail` 操作必填，可从 `listFunctionLogs` 结果中获取"
+      },
+      {
+        "hash": "1bc5c4f879a4209c",
+        "count": 2,
+        "text": "层版本号"
+      },
+      {
+        "hash": "2324060b5a93274b",
+        "count": 1,
+        "text": "层内容路径，可为目录或 ZIP 文件"
+      },
+      {
+        "hash": "23dae3f62e68af43",
+        "count": 1,
+        "text": "层内容的 base64 编码"
+      },
+      {
+        "hash": "29c8443b994b387f",
+        "count": 1,
+        "text": "分页偏移（offset）。列表类 action 可选，默认 0"
+      },
+      {
+        "hash": "3710f77c72a5b4a2",
+        "count": 1,
+        "text": "函数版本别名，如 $LATEST、$DEFAULT。日志查询时可选"
+      },
+      {
+        "hash": "382110a9a07862ef",
+        "count": 1,
+        "text": "层适用的运行时列表"
+      },
+      {
+        "hash": "3886a7f53e62afa2",
+        "count": 1,
+        "text": "`getFunctionDeployStatus` 操作时的异步部署任务 ID（由 manageFunctions 的 wait=false 返回）。任务仅保存在当前 MCP 进程内存中：终态任务保留…"
+      },
+      {
+        "hash": "39292d1eb180969f",
+        "count": 1,
+        "text": "仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。"
+      },
+      {
+        "hash": "3a1bdb071df4b690",
+        "count": 1,
+        "text": "真实镜像部署是否等待完整部署；设为 false 立即返回 taskId 并后台执行。"
+      },
+      {
+        "hash": "3a783a7fd3552932",
+        "count": 1,
+        "text": "配置更新时的 VPC 信息。非原生 TCP 连库场景必填真实 vpcId+subnetId；不要用占位符。"
+      },
+      {
+        "hash": "3f5239c97c0af75c",
+        "count": 1,
+        "text": "deleteFunctionTrigger 的目标触发器名称"
+      },
+      {
+        "hash": "42a38f2ba860d4d3",
+        "count": 1,
+        "text": "invokeFunction 的调用参数"
+      },
+      {
+        "hash": "435db3bcb39d02e9",
+        "count": 1,
+        "text": "镜像构建目标。buildStrategy=cloud（云端构建）或 local（本地 Docker 构建）时使用；"
+      },
+      {
+        "hash": "467d1eefaca7fa33",
+        "count": 1,
+        "text": "私有网络配置（出网）。非原生 SDK、用 TCP 访问 VPC 内 MySQL/PostgreSQL/Redis 时必填。vpcId/subnetId 必须与数据库内网 VPC 一致；未知时先查控制台…"
+      },
+      {
+        "hash": "4aaa6a8561e2e063",
+        "count": 1,
+        "text": "只读操作类型："
+      },
+      {
+        "hash": "4c6f54eabdabf2b0",
+        "count": 1,
+        "text": "层版本描述"
+      },
+      {
+        "hash": "4f3b8802d2083acc",
+        "count": 1,
+        "text": "目标函数名称（顶层）。updateFunctionCode / updateFunctionConfig / invokeFunction 等 action 使用此字段。"
+      },
+      {
+        "hash": "4f83013d4e06c6f7",
+        "count": 1,
+        "text": "createFunctionTrigger 的触发器列表，用于定时跑 / 定时任务 / scheduled job。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），"
+      },
+      {
+        "hash": "4f955b29e49f132c",
+        "count": 1,
+        "text": "HTTP 函数部署策略："
+      },
+      {
+        "hash": "518d77435e63e7a2",
+        "count": 1,
+        "text": "层名称"
+      },
+      {
+        "hash": "5252b63a217241e4",
+        "count": 1,
+        "text": "函数类型"
+      },
+      {
+        "hash": "5a3a1ab8470f423e",
+        "count": 2,
+        "text": "函数入口"
+      },
+      {
+        "hash": "5c741aa2c09476ce",
+        "count": 1,
+        "text": "触发器配置数组"
+      },
+      {
+        "hash": "5d69b668c3cc50d0",
+        "count": 1,
+        "text": "完整镜像地址（必须含 tag），格式 {domain}/{namespace}/{image}:{tag}，"
+      },
+      {
+        "hash": "5ded8fe80e1f34fa",
+        "count": 1,
+        "text": "层名称搜索关键字"
+      },
+      {
+        "hash": "61be9affce90fcc8",
+        "count": 1,
+        "text": "层版本号。`getLayerVersionDetail` 操作必填"
+      },
+      {
+        "hash": "68c2a169bd39970f",
+        "count": 1,
+        "text": "环境变量。若包含 DATABASE_URL / MYSQL_* / POSTGRES_* / REDIS_* 等传统 TCP 连库变量，必须同时配置 vpc（vpcId+subnetId），且 ID …"
+      },
+      {
+        "hash": "6ed05a04f56bac62",
+        "count": 1,
+        "text": "createFunction 时是否覆盖"
+      },
+      {
+        "hash": "6f21d5799e62cb9c",
+        "count": 1,
+        "text": "是否等待依赖安装"
+      },
+      {
+        "hash": "711b1768b80c23d6",
+        "count": 1,
+        "text": "getFunctionDetail / listFunctionTriggers 时是否返回环境变量明文值。默认 false：Value 脱敏为 ***，仅保留 Key 与 ValueLength，足…"
+      },
+      {
+        "hash": "715c4e2e3d26ae4e",
+        "count": 1,
+        "text": "层绑定时的代码保护密钥"
+      },
+      {
+        "hash": "7247deebbf63f0a9",
+        "count": 1,
+        "text": "函数名称"
+      },
+      {
+        "hash": "7577a6fc3f07c5b4",
+        "count": 1,
+        "text": "层名称。`listLayerVersions`、`getLayerVersionDetail` 操作必填。"
+      },
+      {
+        "hash": "77c9fa2fd9c78cd8",
+        "count": 1,
+        "text": "日志查询开始时间，格式必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 00:00:00）。"
+      },
+      {
+        "hash": "7d7dc461cb8865ec",
+        "count": 1,
+        "text": "函数超时时间"
+      },
+      {
+        "hash": "80246d017f36cff8",
+        "count": 1,
+        "text": "HTTP 函数访问协议，当前仅支持 WebSockets，取值为 WS（配合 protocolParams.wsParams 使用）。普通 HTTP 函数不要传此字段；传其他值（如 HTTP）会报 I…"
+      },
+      {
+        "hash": "873c399b033e9719",
+        "count": 1,
+        "text": "分页数量（limit）。列表类 action 可选，默认值由后端决定"
+      },
+      {
+        "hash": "8a00abc5596a9ffd",
+        "count": 1,
+        "text": "CloudBase 云函数名称。`getFunctionDetail`、`listFunctionLogs`、`listFunctionLayers`、`listFunctionTriggers`、`…"
+      },
+      {
+        "hash": "8be55ee8086349b3",
+        "count": 1,
+        "text": "层查询的运行时筛选，如 Nodejs18.15"
+      },
+      {
+        "hash": "97a4fdd6dcfba720",
+        "count": 1,
+        "text": "updateFunctionLayers 的目标层列表，顺序即最终顺序"
+      },
+      {
+        "hash": "98ef9496cde3a6bc",
+        "count": 1,
+        "text": "写操作类型，例如 createFunction、updateFunctionCode、incrementalDeployFunction、invokeFunction、deleteFunction、"
+      },
+      {
+        "hash": "98f2e1e7261305a6",
+        "count": 1,
+        "text": "层名称。创建层推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）；"
+      },
+      {
+        "hash": "99de32c2bc532699",
+        "count": 1,
+        "text": "创建或更新函数代码时默认推荐的本地目录方式。"
+      },
+      {
+        "hash": "ba44655b73fdf468",
+        "count": 1,
+        "text": "日志查询结束时间，格式必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 23:59:59）。"
+      },
+      {
+        "hash": "c8770ea254fa21a3",
+        "count": 1,
+        "text": "忽略文件"
+      },
+      {
+        "hash": "cb673b0552a512a6",
+        "count": 1,
+        "text": "层许可证信息"
+      },
+      {
+        "hash": "cbfa1f013c0d6d88",
+        "count": 1,
+        "text": "WebSocket 空闲超时时间（秒）"
+      },
+      {
+        "hash": "d059236a55fe1129",
+        "count": 1,
+        "text": "createFunction / updateFunctionCode 的函数配置。镜像/构建部署通过 func.buildStrategy（zip/cloud/local/image）区分，"
+      },
+      {
+        "hash": "dfce8e22b41fce4b",
+        "count": 1,
+        "text": "触发器类型"
+      },
+      {
+        "hash": "e00436816d42a0fb",
+        "count": 1,
+        "text": "Layer 配置"
+      },
+      {
+        "hash": "e4c1fdf1ab3340fb",
+        "count": 1,
+        "text": "危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作以及镜像构建部署（func.bui…"
+      },
+      {
+        "hash": "e85a55c843f48593",
+        "count": 1,
+        "text": "镜像部署是否允许 manager-node 自动补齐固定白名单 CAM 策略。默认 false；仅在明确确认权限变更时设为 true。"
+      },
+      {
+        "hash": "e91ee45aab47f29c",
+        "count": 1,
+        "text": "运行时环境。Event 函数支持多种运行时:\\n"
+      },
+      {
+        "hash": "ef3ffdc3ba91b0f7",
+        "count": 1,
+        "text": "incrementalDeployFunction 增量部署时的变更文件路径"
+      },
+      {
+        "hash": "f0854eba94232c42",
+        "count": 1,
+        "text": "配置更新时要合并的环境变量。若含 DATABASE_URL / MYSQL_* / POSTGRES_* / REDIS_* 等 TCP 连库变量，必须同时提供真实 vpc（或函数已绑定完整 VPC）…"
+      },
+      {
+        "hash": "f2be565d2093d9e7",
+        "count": 1,
+        "text": "代码保护密钥，用于解密函数代码"
+      },
+      {
+        "hash": "f54572fcd78d82f7",
+        "count": 1,
+        "text": "触发器名称"
+      },
+      {
+        "hash": "fb4064204984b00e",
+        "count": 1,
+        "text": "镜像构建部署（func.buildStrategy=cloud/local）是否只生成部署计划。默认 true；传 false 时必须同时传 confirm=true。"
+      },
+      {
+        "hash": "ff99540323aa9943",
+        "count": 1,
+        "text": "镜像配置（buildStrategy=image/cloud/local 或 runtime=CustomImage 时使用），镜像相关字段全部收敛在此命名空间下。"
+      }
+    ],
+    "mcp/src/tools/gateway.ts": [
+      {
+        "hash": "0aa65c2ed862154c",
+        "count": 1,
+        "text": "上游资源名过滤（UpstreamResourceName）：云函数名、云托管服务名，或静态托管实例名（常见 staticstore）。"
+      },
+      {
+        "hash": "0d7bb54a8c5c9078",
+        "count": 1,
+        "text": "路由级开关（Routes[].Enable / Route.Enable）。createRoute/updateRoute 可用："
+      },
+      {
+        "hash": "174b2a6f9d02f1d3",
+        "count": 1,
+        "text": "同顶层 upstreamResourceType。route 内设置时优先于顶层。"
+      },
+      {
+        "hash": "1f31a3731f65d315",
+        "count": 1,
+        "text": "触发路径（网关匹配前缀），默认 /{上游名}。例：云函数 /api/hello、云托管 /api、静态托管 / 或 /app。"
+      },
+      {
+        "hash": "20e260d4a2b72b10",
+        "count": 1,
+        "text": "证书 ID。仅 bindCustomDomain 使用：显式传入时跳过自动检索；"
+      },
+      {
+        "hash": "34463912bdda32e1",
+        "count": 1,
+        "text": "路由对象（可选写法）。例：云函数 {upstreamResourceType:\\\"WEB_SCF\\\",serviceName:\\\"fn\\\",path:\\\"/api\\\"}；"
+      },
+      {
+        "hash": "362125535c0c52d9",
+        "count": 1,
+        "text": "只读操作类型：listRoutes、getRoute、listCustomDomains、getPrivilege。"
+      },
+      {
+        "hash": "4709f0c5220f556b",
+        "count": 1,
+        "text": "上游实例名：云函数名 / 云托管服务名 / 静态托管实例名（常见 staticstore）/ LH 实例。优先于顶层 targetName。"
+      },
+      {
+        "hash": "6c60b0e170ca1ffe",
+        "count": 1,
+        "text": "绑定类型（仅 bindCustomDomain，默认 DIRECT）。"
+      },
+      {
+        "hash": "7486acedda72af6b",
+        "count": 1,
+        "text": "路由路径。getRoute / listRoutes 过滤时可选"
+      },
+      {
+        "hash": "76e222941e5e0f66",
+        "count": 1,
+        "text": "路径透传（EnablePathTransmission），平台默认 false。例 path=/api 且请求 /api/users："
+      },
+      {
+        "hash": "86ae555a65a0c963",
+        "count": 1,
+        "text": "网关路径鉴权（EnableAuth）。匿名/浏览器公网访问通常 false。"
+      },
+      {
+        "hash": "877ba40b9b5f3e72",
+        "count": 1,
+        "text": "同顶层 enablePathTransmission。route 内设置时优先于顶层。"
+      },
+      {
+        "hash": "96a78f892bf3c883",
+        "count": 1,
+        "text": "路由 ID。getRoute 时可选"
+      },
+      {
+        "hash": "a63212c36b6284b3",
+        "count": 1,
+        "text": "开关目标状态：enableService / authSwitch 必填（true 开启 / false 关闭）；"
+      },
+      {
+        "hash": "abd9433eb891e49d",
+        "count": 1,
+        "text": "域名。getRoute / listRoutes 过滤时可选"
+      },
+      {
+        "hash": "b30f48c4995bd254",
+        "count": 1,
+        "text": "自有 CDN/WAF 的回源/回填地址（仅 bindCustomDomain 且 accessType=CUSTOM）。"
+      },
+      {
+        "hash": "c1b969d049d250ed",
+        "count": 1,
+        "text": "上游资源名称（UpstreamResourceName），与 route.serviceName 二选一（route 优先）。"
+      },
+      {
+        "hash": "df1feacf0b3e9145",
+        "count": 1,
+        "text": "上游类型（与 route.upstreamResourceType 二选一，route 优先）。"
+      },
+      {
+        "hash": "ec87f27c88267e4c",
+        "count": 1,
+        "text": "域名。省略时自动使用环境 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（*.{region}.app.tcloudbase.com），不会回退到静态托管 …"
+      },
+      {
+        "hash": "f42f81ca70554b85",
+        "count": 1,
+        "text": "写操作：createRoute/updateRoute/deleteRoute 管理路由；enableRoute/disableRoute 启用或禁用已有路由（需 path，建议显式传 domain）…"
+      }
+    ],
+    "mcp/src/tools/hosting.ts": [
+      {
+        "hash": "029c7e925e29b4ec",
+        "count": 1,
+        "text": "该文件上传到静态托管后的托管路径。"
+      },
+      {
+        "hash": "0b933efb1a04ea0e",
+        "count": 1,
+        "text": "错误页文档名称。仅 action=setWebsiteDocument 时可选，例如 404.html。"
+      },
+      {
+        "hash": "0d88e7a175be629c",
+        "count": 1,
+        "text": "管理类型：upload=上传本地构建产物到静态托管，delete=删除静态托管文件或目录，setWebsiteDocument=设置首页/错误页/路由规则，enableService=开通静态托管服务…"
+      },
+      {
+        "hash": "16d67ca01684eaca",
+        "count": 1,
+        "text": "Referer 规则值列表。"
+      },
+      {
+        "hash": "17b09bd0d18a86f0",
+        "count": 1,
+        "text": "上传时忽略的文件模式。仅 action=upload 时可选，例如 node_modules 或 [\"**/*.map\", \"**/.DS_Store\"]。"
+      },
+      {
+        "hash": "1a7a8b5126f80db8",
+        "count": 1,
+        "text": "本地路径。action=upload 时表示要上传的本地文件/目录路径；action=downloadFile 或 downloadDirectory 时表示下载到本地的目标路径。建议传绝对路径。"
+      },
+      {
+        "hash": "1d6d39ee8a8e65cd",
+        "count": 1,
+        "text": "IP 访问控制配置。"
+      },
+      {
+        "hash": "20539bc61de562bb",
+        "count": 1,
+        "text": "Referer 防盗链开关：on=开启，off=关闭。"
+      },
+      {
+        "hash": "26f23209e686c142",
+        "count": 1,
+        "text": "缓存 TTL，单位秒。"
+      },
+      {
+        "hash": "3636b6ba022fd4a6",
+        "count": 1,
+        "text": "把匹配结果替换为固定文件路径，例如 index.html。"
+      },
+      {
+        "hash": "371309390c8ef33e",
+        "count": 1,
+        "text": "证书 ID。仅 action=bindDomain 时必填。"
+      },
+      {
+        "hash": "3901bb797d5bf703",
+        "count": 1,
+        "text": "文件前缀过滤条件。仅 action=findFiles 时使用，例如 app/ 或 assets/logo。"
+      },
+      {
+        "hash": "44e0ebbab8eeb8ed",
+        "count": 1,
+        "text": "自定义域名。action=bindDomain / unbindDomain / updateDomain 时使用，例如 www.example.com。"
+      },
+      {
+        "hash": "4a09ec2612fb8a30",
+        "count": 1,
+        "text": "把匹配前缀替换成新的前缀路径。"
+      },
+      {
+        "hash": "4ac53dd0419aecdf",
+        "count": 1,
+        "text": "每个 IP 的 QPS 上限。"
+      },
+      {
+        "hash": "4f7878209fb6d2d3",
+        "count": 1,
+        "text": "分页起始标记。仅 action=findFiles 时使用，用于续查上一页之后的结果。"
+      },
+      {
+        "hash": "59ad42053f810a7e",
+        "count": 1,
+        "text": "多文件上传配置。仅 action=upload 时可选；传入后会逐项上传，不再依赖单个 localPath/cloudPath。"
+      },
+      {
+        "hash": "5b6d6171e1a5058e",
+        "count": 1,
+        "text": "要查询的自定义域名列表。仅 action=domainStatus 时使用，例如 [\"www.example.com\"]。"
+      },
+      {
+        "hash": "5d129f3d3f324159",
+        "count": 1,
+        "text": "查询类型：websiteConfig=查询静态托管网站文档配置与站点域名信息，status=查询静态托管服务状态，findFiles=按前缀查找托管文件，listFiles=列出静态托管中的全部文件，…"
+      },
+      {
+        "hash": "5db1e283df0296fa",
+        "count": 1,
+        "text": "Referer 规则类型：blacklist=黑名单，whitelist=白名单。"
+      },
+      {
+        "hash": "5f4ccecced5cba7b",
+        "count": 1,
+        "text": "匹配前缀规则，例如 app/ 或 assets/。与 httpErrorCodeReturnedEquals 二选一或按 CloudBase 规则组合使用。"
+      },
+      {
+        "hash": "6ff0963c2f35a955",
+        "count": 1,
+        "text": "IP 频控配置。"
+      },
+      {
+        "hash": "75a53abe110747e4",
+        "count": 1,
+        "text": "域名配置。仅 action=updateDomain 时必填，支持缓存、Referer、防盗链、IP 规则与频控。"
+      },
+      {
+        "hash": "7e171b9112251139",
+        "count": 1,
+        "text": "高风险操作确认开关。action=delete 和 action=unbindDomain 时必须显式传 true，避免误删文件或误解绑域名。"
+      },
+      {
+        "hash": "9a6257132b62fc25",
+        "count": 1,
+        "text": "规则匹配值。"
+      },
+      {
+        "hash": "9abfb02053ed6fe4",
+        "count": 1,
+        "text": "网站路由规则列表。仅 action=setWebsiteDocument 时可选。SPA 常见配置是将 404 重写到 index.html。"
+      },
+      {
+        "hash": "9f389d9d791dbe38",
+        "count": 1,
+        "text": "IP 规则列表。"
+      },
+      {
+        "hash": "af5318d8077daae9",
+        "count": 1,
+        "text": "是否把 cloudPath 视为目录。仅 action=delete 时使用；true=删除目录，false=删除单个文件。"
+      },
+      {
+        "hash": "b572f0c22e031fee",
+        "count": 1,
+        "text": "缓存规则类型：fileType=文件类型，path=路径。"
+      },
+      {
+        "hash": "b90933644c6c5984",
+        "count": 1,
+        "text": "IP 频控开关：on=开启，off=关闭。"
+      },
+      {
+        "hash": "c772c939171e7436",
+        "count": 1,
+        "text": "单个待上传文件的本地绝对路径。"
+      },
+      {
+        "hash": "c9e2359060d4b786",
+        "count": 1,
+        "text": "网站首页文档名称。仅 action=setWebsiteDocument 时必填，例如 index.html。"
+      },
+      {
+        "hash": "cfd63cd02e0b4762",
+        "count": 1,
+        "text": "过滤类型：blacklist=黑名单，whitelist=白名单。"
+      },
+      {
+        "hash": "e14eace029e4610a",
+        "count": 1,
+        "text": "IP 访问控制开关：on=开启，off=关闭。"
+      },
+      {
+        "hash": "e86b6ee2862043bc",
+        "count": 1,
+        "text": "Referer 防盗链配置。"
+      },
+      {
+        "hash": "ea9b4fe5f82f7067",
+        "count": 1,
+        "text": "单次返回的最大文件条数。仅 action=findFiles 时使用。"
+      },
+      {
+        "hash": "f1b8a1ed39d00604",
+        "count": 1,
+        "text": "域名 ID。仅 action=updateDomain 时必填，用于精确更新指定域名配置。"
+      },
+      {
+        "hash": "f31c6a649ffddf13",
+        "count": 1,
+        "text": "是否允许空 Referer。"
+      },
+      {
+        "hash": "fa3c7483e5bc6406",
+        "count": 1,
+        "text": "静态托管中的目标路径。action=upload 时表示上传后的托管路径；action=delete/downloadFile/downloadDirectory 时表示托管侧文件或目录路径。"
+      },
+      {
+        "hash": "fc2654f0adab5e7d",
+        "count": 1,
+        "text": "Referer 规则列表。"
+      },
+      {
+        "hash": "fc82bfb3af8ce864",
+        "count": 1,
+        "text": "匹配 HTTP 错误码，例如 404。SPA 回退常用 404。"
+      },
+      {
+        "hash": "fd1d08645b5ce616",
+        "count": 1,
+        "text": "CDN 缓存规则列表。"
+      }
+    ],
+    "mcp/src/tools/logs.ts": [
+      {
+        "hash": "1215be591a76aeb3",
+        "count": 1,
+        "text": "CLS 查询语句，**action=\\\"searchLogs\\\" 时必填**，需严格遵循 CLS（Cloud Log Service）语法规范，详见 https://cloud.tencent.com…"
+      },
+      {
+        "hash": "9bc6abbbd0acadf9",
+        "count": 1,
+        "text": "日志来源服务："
+      },
+      {
+        "hash": "9f76f3271a9b7408",
+        "count": 1,
+        "text": "返回日志条数限制，默认 20"
+      },
+      {
+        "hash": "ae3a4349ad09a051",
+        "count": 1,
+        "text": "按时间排序：`asc` 升序，`desc` 降序"
+      },
+      {
+        "hash": "b7bbfb458ea9b889",
+        "count": 1,
+        "text": "翻页上下文，用于继续上一次查询"
+      },
+      {
+        "hash": "b94c5b43b6f01455",
+        "count": 1,
+        "text": "操作类型："
+      },
+      {
+        "hash": "d1664db77e7e273e",
+        "count": 1,
+        "text": "查询结束时间，格式：`YYYY-MM-DD HH:mm:ss`，如 `2024-01-01 23:59:59`"
+      },
+      {
+        "hash": "de5052fe40658ef4",
+        "count": 1,
+        "text": "查询开始时间，格式：`YYYY-MM-DD HH:mm:ss`，如 `2024-01-01 00:00:00`"
+      }
+    ],
+    "mcp/src/tools/msg-push.ts": [
+      {
+        "hash": "0c00c6b6f1c69a4c",
+        "count": 1,
+        "text": "接收消息推送的云函数名（subscribe/unsubscribe/setEnable/ensureCloudFunctionMode 使用；云托管相关 action 可传占位）"
+      },
+      {
+        "hash": "0c7a1826dc57d316",
+        "count": 1,
+        "text": "list: 查询当前消息推送配置列表（含 pushMode/containerConfig）\\nlistSupportedEvents: 查询全部合法消息推送事件约束（按 msgType 分组）"
+      },
+      {
+        "hash": "0d2df4618147bcb5",
+        "count": 1,
+        "text": "setEnable 时必填：true 启用订阅 / false 停用订阅"
+      },
+      {
+        "hash": "2fc1d11c37f55a14",
+        "count": 1,
+        "text": "环境 ID（云函数订阅绑定的云开发环境；ensureContainerMode/setContainerCallback 未传 qbase_env 时也可作为云托管环境默认值）"
+      },
+      {
+        "hash": "3ce62ec89d268e34",
+        "count": 2,
+        "text": "小程序 AppID（必填，与微信开发者工具一致；用于选择微信登录态会话）"
+      },
+      {
+        "hash": "71973f1adca98e05",
+        "count": 1,
+        "text": "消息类型（缺省 \"event\"）。"
+      },
+      {
+        "hash": "89eede69860d0bae",
+        "count": 1,
+        "text": "云托管服务所在环境 ID（ensureContainerMode/setContainerCallback 可选；缺省用 env_id）"
+      },
+      {
+        "hash": "8d0cba63bf916b34",
+        "count": 1,
+        "text": "写操作确认：确认执行请传 confirm=\"yes\"；不传或传其他值将返回待确认的配置摘要（CONFIRM_REQUIRED），核对后再重试。集合无变化时无需确认。"
+      },
+      {
+        "hash": "b74f868e6b0a0020",
+        "count": 1,
+        "text": "要操作的事件列表（仅 msg_type=\\\"event\\\" 时使用；可先 queryMessagePush(action=listSupportedEvents) 查询全量约束）。"
+      },
+      {
+        "hash": "bcfaec9d5d2d8b12",
+        "count": 1,
+        "text": "subscribe: 订阅到指定云函数（云托管模式下拒绝）\\n"
+      },
+      {
+        "hash": "d38701c7d4bb0d7d",
+        "count": 1,
+        "text": "可选：环境 ID；传入时 list 仅返回该环境的订阅条目"
+      },
+      {
+        "hash": "dcdf56a9e64e4a23",
+        "count": 1,
+        "text": "云托管消息正文编码：1=json，2=xml（ensureContainerMode 必填；setContainerCallback 可选更新）"
+      },
+      {
+        "hash": "ed3c98356ae46488",
+        "count": 1,
+        "text": "云托管回调路径/URL（ensureContainerMode 必填；setContainerCallback 可选更新）"
+      }
+    ],
+    "mcp/src/tools/permissions.ts": [
+      {
+        "hash": "20b203a3c2d59bcf",
+        "count": 1,
+        "text": "仅 action=getPolicy。true=读取平台为该环境单独配置的策略（authz.platform.extension.rego），默认 false=用户策略（authz.user.rego…"
+      },
+      {
+        "hash": "2c962dc06c8dc65b",
+        "count": 1,
+        "text": "仅 action=listPolicy。按资源类型过滤，当前仅支持 `policy`，对齐 CLI `tcb policy list --resource-type policy`。"
+      },
+      {
+        "hash": "2f358f2fb1a629f3",
+        "count": 1,
+        "text": "资源类型特定的规则内容，详细语义依赖 `resourceType`。当 `resourceType=\\\"noSqlDatabase\\\"` 且 `permission=\\\"CUSTOM\\\"` 时，应传文…"
+      },
+      {
+        "hash": "3955d18763ef94ab",
+        "count": 1,
+        "text": "目标资源类型。`securityRule` 的具体语义依赖这个值；`noSqlDatabase` 使用集合安全规则，`function` 与 `storage` 也有各自独立的安全规则语义，不要套用 …"
+      },
+      {
+        "hash": "64d008f2e379e9d0",
+        "count": 1,
+        "text": "仅 action=setPolicy。设置 Rego 后会立即禁用旧网关鉴权，必须显式传 confirm=true（对齐 CLI 确认提示）。"
+      },
+      {
+        "hash": "76fa39e7e6ba6aaa",
+        "count": 1,
+        "text": "角色标识符（字母/数字/_-:@.），action=createRole 时必填，用于程序化引用角色"
+      },
+      {
+        "hash": "b3ac3283c43dd93c",
+        "count": 1,
+        "text": "策略 ID 列表（当前不支持直接按 ID 绑定，请改传 policies 详情对象）"
+      },
+      {
+        "hash": "eedb223bfc95e926",
+        "count": 1,
+        "text": "仅 action=setPolicy。用户 OPA Rego 全文，必须以 `package authz.user` 开头，对齐 CLI `tcb policy set <regoContent>`。"
+      }
+    ],
+    "mcp/src/tools/rag.ts": [
+      {
+        "hash": "02db68896c2f79c4",
+        "count": 1,
+        "text": "mode=docs 且 action=readDoc 时指定。文档相对路径或完整 URL。"
+      },
+      {
+        "hash": "6f2b46a252a0afb8",
+        "count": 1,
+        "text": "mode=docs 且 action=searchDocs 时指定。全文检索关键词。"
+      },
+      {
+        "hash": "9f5c587044689fc4",
+        "count": 1,
+        "text": "仅 mode=docs 时指定；mode=openapi 不要传 action。CloudBase 文档操作类型：listModules=列出所有文档模块，listModuleDocs=获取指定模块的…"
+      },
+      {
+        "hash": "9fcdfac829c0bff0",
+        "count": 1,
+        "text": "mode=docs 且 action=findByName 时指定。支持模块名、文档标题、层级路径或 URL。"
+      },
+      {
+        "hash": "c36fd6f67b9c828d",
+        "count": 1,
+        "text": "mode=docs 且 action=listModuleDocs 时指定。模块名称。"
+      },
+      {
+        "hash": "c4220cf1b662c4bf",
+        "count": 1,
+        "text": "${description} 当前暂时无法枚举可选值；如需查看当前可用项，可直接传入字符串，工具会在执行时返回可用列表。"
+      }
+    ],
+    "mcp/src/tools/setup.ts": [
+      {
+        "hash": "29c3efe07172c8e8",
+        "count": 1,
+        "text": "指定要下载的IDE类型。"
+      },
+      {
+        "hash": "9de194d272ceaadf",
+        "count": 1,
+        "text": "是否覆盖已存在的文件，默认为false（不覆盖）"
+      },
+      {
+        "hash": "cea77516229e01bf",
+        "count": 1,
+        "text": "要下载的模板类型"
+      }
+    ],
+    "mcp/src/tools/storage.ts": [
+      {
+        "hash": "4d92da041815cfbb",
+        "count": 1,
+        "text": "强制操作开关，删除操作时建议设置为true以确认删除，默认false"
+      },
+      {
+        "hash": "6ebb04376e801330",
+        "count": 1,
+        "text": "云端文件路径，例如 files/data.txt"
+      },
+      {
+        "hash": "7785a73ed48c7aaf",
+        "count": 1,
+        "text": "管理操作类型：upload=上传文件或目录，download=下载文件或目录，delete=删除文件或目录"
+      },
+      {
+        "hash": "79cc5a04a0c2b7f3",
+        "count": 1,
+        "text": "本地文件路径，建议传入绝对路径，例如 /tmp/files/data.txt；upload/download 操作时必填，delete 操作时不需要传该参数"
+      },
+      {
+        "hash": "92cebeae4b67e9b5",
+        "count": 1,
+        "text": "是否为目录操作，true=目录操作，false=文件操作，默认false"
+      },
+      {
+        "hash": "a8c7c61361a8425c",
+        "count": 1,
+        "text": "临时链接有效期，单位为秒，取值范围：1-86400，默认值：3600（1小时）"
+      },
+      {
+        "hash": "b9fbdfb666847565",
+        "count": 1,
+        "text": "查询操作类型：list=列出目录下的所有文件，info=获取指定文件的详细信息，url=获取文件的临时下载链接，read=读取文本文件内容"
+      },
+      {
+        "hash": "fe08800c0d23905b",
+        "count": 1,
+        "text": "云端文件路径，例如 files/data.txt 或 files/（目录）"
+      }
+    ],
+    "mcp/src/tools/storagePG.ts": [
+      {
+        "hash": "224fc6c3d7a72cf9",
+        "count": 1,
+        "text": "签名 URL 有效期，单位秒，范围 60 到 86400。"
+      },
+      {
+        "hash": "3b2a00c928a658a6",
+        "count": 1,
+        "text": "操作类型：buckets/config=查询存储能力摘要；createBucket=生成 bucket 创建方案（SQL/HTTP API/CLI）；uploadPlan=生成 HTTP API/SD…"
+      },
+      {
+        "hash": "7a9c0edf81471d55",
+        "count": 1,
+        "text": "多个对象 key，用于对象元信息查询规划"
+      },
+      {
+        "hash": "c6a7963888fc571e",
+        "count": 1,
+        "text": "待上传对象的元信息。文件字节内容不会通过 MCP 传递。"
+      },
+      {
+        "hash": "d358b612f1f72c4e",
+        "count": 1,
+        "text": "单个对象 key"
+      },
+      {
+        "hash": "d7e923c6389d80a3",
+        "count": 1,
+        "text": "云存储 bucket 名称"
+      }
+    ]
+  }
+}

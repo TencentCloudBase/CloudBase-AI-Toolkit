@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getCloudBaseManager, logCloudBaseResult } from "../cloudbase-manager.js";
 import { TCB_ACTION_INDEX_MAP } from "../generated/tcb-action-index.js";
+import { t } from "../i18n/index.js";
 import { ExtendedMcpServer } from "../server.js";
 
 const CATEGORY = "cloud-api";
@@ -42,18 +43,24 @@ const TCB_CLOUDRUN_FORBIDDEN_ACTIONS_LOWER = new Set(
     TCB_CLOUDRUN_FORBIDDEN_ACTIONS.map((name) => name.toLowerCase()),
 );
 
-const TCB_CLOUDRUN_FORBIDDEN_HINT =
-    `云托管（CloudBase Run）统一走 tcbr 新逻辑（CreateCloudRunEnv / CreateCloudRunServer），` +
-    `不要使用 tcb 旧小租户接口（${TCB_CLOUDRUN_FORBIDDEN_ACTIONS.join(" / ")}）。` +
-    `新环境请先初始化云托管：callCloudApi(service="tcbr", version="2022-02-17", action="CreateCloudRunEnv", params={EnvId:"..."})，` +
-    `再通过 manageCloudRun(action="deploy") 创建服务；查询单个环境基础信息/是否已开通云托管用 callCloudApi(service="tcbr", version="2022-02-17", action="DescribeEnvBaseInfo", params={EnvId:"..."})，查询环境列表/资源信息用 DescribeCloudRunEnvs。`;
+function buildTcbCloudRunForbiddenHint(): string {
+    return t("capi.tcbForbiddenHint", {
+        actions: TCB_CLOUDRUN_FORBIDDEN_ACTIONS.join(" / "),
+    });
+}
 
 /**
  * Reject legacy tcb small-tenant CloudRun APIs; throw with tcbr guidance when blocked.
  */
 export function assertTcbCloudRunActionAllowed(service: string, action: string): void {
     if (service === "tcb" && TCB_CLOUDRUN_FORBIDDEN_ACTIONS_LOWER.has(action.toLowerCase())) {
-        throw new Error(`[${service}/${action}] 已禁用：${TCB_CLOUDRUN_FORBIDDEN_HINT}`);
+        throw new Error(
+            t("capi.tcbForbiddenPrefix", {
+                service,
+                action,
+                hint: buildTcbCloudRunForbiddenHint(),
+            }),
+        );
     }
 }
 
@@ -192,12 +199,7 @@ export const CAM_AUTH_ERROR_PATTERN =
  * Shared by callCloudApi and manageCloudRun error builders.
  */
 export function buildCamAuthGuidance(): string {
-    return (
-        "这通常是 CAM 权限不足（常见于 API Key 登录仅授权数据面：DB/函数/存储）。请任选其一：" +
-        "1) 改用 device code 登录管控面：auth(action=\"start_auth\", authMode=\"device\")；" +
-        "2) 或使用腾讯云 SecretId/SecretKey（确认子账号已授 CAM 策略，如 QcloudTCBFullAccess、QcloudVPCReadOnlyAccess）；" +
-        "3) 确认目标资源属于当前登录账号。"
-    );
+    return t("capi.camAuthGuidance");
 }
 
 export function isCamAuthError(message: string): boolean {
@@ -219,36 +221,34 @@ export function buildCapiErrorMessage(service: AllowedService, action: string, e
 
     if (hasInvalidActionError) {
         suggestions.push(
-            `Action \`${action}\` 可能不存在或不对外开放。请不要继续猜测 Action 名称，先确认 service=\`${service}\` 下该 Action 在当前 API 版本是否真实存在。`,
+            t("capi.errorInvalidAction", { action, service }),
         );
         if (service === "tcb") {
             const candidates = suggestTcbActions(action);
             if (candidates.length > 0) {
-                suggestions.push(`可能的 tcb Action：${candidates.map((item) => `\`${item}\``).join("、")}。`);
+                suggestions.push(t("capi.errorSuggestedActions", { candidates: candidates.map((item) => `\`${item}\``).join("、") }));
             }
         }
         suggestions.push(buildCapiDocGuidance(service));
     }
 
     if (/parameter\s+`?Region`?\s+is not recognized/i.test(baseMessage)) {
-        suggestions.push(
-            "Region 不是 Action body 参数。请使用 callCloudApi 顶层参数 region（例如 region=\"ap-singapore\"），对应 X-TC-Region。",
-        );
+        suggestions.push(t("capi.errorRegionParam"));
     }
 
     if (hasParameterError) {
-        suggestions.push("请求参数名与 API 定义不一致，请核对参数字段（区分大小写）并移除未支持字段。");
+        suggestions.push(t("capi.errorParameterMismatch"));
         if (service === "tcb" && tcbEntry) {
             const paramHint = [
                 tcbEntry.paramKeys.length > 0
-                    ? `常见参数键：${formatTcbParamKeys(tcbEntry.paramKeys)}`
+                    ? t("capi.errorParamKeys", { keys: formatTcbParamKeys(tcbEntry.paramKeys) })
                     : "",
                 tcbEntry.requiredKeys.length > 0
-                    ? `必填参数：${formatTcbParamKeys(tcbEntry.requiredKeys)}`
+                    ? t("capi.errorRequiredKeys", { keys: formatTcbParamKeys(tcbEntry.requiredKeys) })
                     : "",
             ].filter(Boolean);
             if (paramHint.length > 0) {
-                suggestions.push(`\`${tcbEntry.action}\` ${paramHint.join("；")}。`);
+                suggestions.push(t("capi.errorTcbEntryHint", { action: tcbEntry.action, paramHint: paramHint.join("；") }));
             }
             const paramsTypeHint = formatTcbParamsTypeHint(tcbEntry.action);
             if (paramsTypeHint) {
@@ -258,28 +258,28 @@ export function buildCapiErrorMessage(service: AllowedService, action: string, e
     }
 
     if (hasInvalidParameterValueError) {
-        suggestions.push("请求参数值格式不正确或超出有效范围。请检查：");
-        suggestions.push("1. 字符串参数是否为空或包含非法字符");
-        suggestions.push("2. 数值参数是否在允许范围内");
-        suggestions.push("3. 枚举值是否使用了正确的取值（区分大小写）");
-        suggestions.push("4. 必填参数是否有值");
+        suggestions.push(t("capi.errorInvalidValueIntro"));
+        suggestions.push(t("capi.errorInvalidValue1"));
+        suggestions.push(t("capi.errorInvalidValue2"));
+        suggestions.push(t("capi.errorInvalidValue3"));
+        suggestions.push(t("capi.errorInvalidValue4"));
         if (service === "tcb" && tcbEntry) {
             const paramsTypeHint = formatTcbParamsTypeHint(tcbEntry.action);
             if (paramsTypeHint) {
-                suggestions.push("参数类型参考：");
+                suggestions.push(t("capi.errorInvalidValueTypeIntro"));
                 suggestions.push(paramsTypeHint);
             }
         }
     }
 
     if (/ECONNRESET|socket hang up|ETIMEDOUT|ENOTFOUND/i.test(baseMessage)) {
-        suggestions.push("网络请求异常，建议稍后重试，并检查本地网络/代理设置。");
+        suggestions.push(t("capi.errorNetwork"));
     }
 
     if (suggestions.length === 0) {
-        suggestions.push(`请检查 service/action/params 是否与官方 API 文档一致后重试。${buildCapiDocGuidance(service)}`);
+        suggestions.push(`${t("capi.errorGenericFallback")}${buildCapiDocGuidance(service)}`);
         if (service === "tcb" && tcbEntry && tcbEntry.paramKeys.length > 0) {
-            suggestions.push(`\`${tcbEntry.action}\` 常见参数键：${formatTcbParamKeys(tcbEntry.paramKeys)}。`);
+            suggestions.push(t("capi.errorTcbEntryHintKeys", { action: tcbEntry.action, keys: formatTcbParamKeys(tcbEntry.paramKeys) }));
             const paramsTypeHint = formatTcbParamsTypeHint(tcbEntry.action);
             if (paramsTypeHint) {
                 suggestions.push(paramsTypeHint);
@@ -287,7 +287,14 @@ export function buildCapiErrorMessage(service: AllowedService, action: string, e
         }
     }
 
-    return `[${service}/${action}] 调用失败: ${baseMessage}\n建议：${suggestions.join(" ")}\n参考文档：CloudBase API 概览 ${CLOUDBASE_CONTROL_PLANE_DOC_URL}\n云开发依赖资源接口指引 ${CLOUDBASE_DEPENDENCY_API_DOC_URL}`;
+    return t("capi.errorBuild", {
+        service,
+        action,
+        baseMessage,
+        suggestions: suggestions.join(" "),
+        controlPlaneUrl: CLOUDBASE_CONTROL_PLANE_DOC_URL,
+        dependencyUrl: CLOUDBASE_DEPENDENCY_API_DOC_URL,
+    });
 }
 
 /**
@@ -307,21 +314,8 @@ export function registerCapiTools(server: ExtendedMcpServer) {
     server.registerTool?.(
         "callCloudApi",
         {
-            title: "调用云API",
-            description:
-                `通用的云 API 调用工具，主要用于 CloudBase / 腾讯云管控面与依赖资源相关 API 调用。**调用前必读接口索引** https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/api-reference.md （每日自动同步的 Action 级索引，含 rate limit；先查此索引确认 service/Action/参数，避免猜测 Action 名称；索引未覆盖的产品再去该产品官方 API 文档核对）。如果你的目标是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请不要优先使用 callCloudApi，而应优先查看对应 OpenAPI / Swagger。现有 OpenAPI / Swagger 能力不是通用的管控面 Action 集合；管控面 API 请优先参考 CloudBase API 概览 ${CLOUDBASE_CONTROL_PLANE_DOC_URL} 与云开发依赖资源接口指引 ${CLOUDBASE_DEPENDENCY_API_DOC_URL}。对于 tcb service，常用 Action 分类如下：
-
-**环境管理**: \`CreateEnv\`、\`ModifyEnv\`、\`DescribeEnvs\`、\`DestroyEnv\`
-**用户管理**: \`CreateUser\`、\`ModifyUser\`、\`DescribeUserList\`、\`DeleteUsers\`
-**认证配置**: \`EditAuthConfig\`、\`DescribeAuthDomains\`
-**云函数**: \`DescribeFunctions\`、\`CreateFunction\`、\`UpdateFunctionCode\`、\`DeleteFunction\`
-**数据库**: \`CreateMySQLInstance\`、\`DescribeMySQLInstances\`、\`DestroyMySQLInstance\`
-
-⚠️ 云托管（CloudBase Run）统一走 tcbr service（CreateCloudRunEnv / CreateCloudRunServer / DescribeEnvBaseInfo / DescribeCloudRunEnvs，version="2022-02-17"），tcb 旧小租户接口 CreateCloudBaseRunResource 等已被禁用；部署请用 manageCloudRun。查询单个环境基础信息/是否已开通云托管用 DescribeEnvBaseInfo（EnvId 必填），查询环境列表及资源信息用 DescribeCloudRunEnvs（EnvId 可选过滤）。
-
-⚠️ Region 必须作为本工具顶层参数 \`region\` 传入（对应 X-TC-Region / 地域 endpoint），不要放进 params。params 里的 Region 会被剥离并当作顶层 region 使用。
-
-销毁环境时，常见做法是至少带上 \`EnvId\` 和 \`BypassCheck: true\`，如果环境已经处于隔离期再按文档补 \`IsForce: true\`。`,
+            title: "capi.title",
+            description: "capi.description",
             inputSchema: {
                 service: z
                     .enum(ALLOWED_SERVICES)
@@ -346,7 +340,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                     .string()
                     .optional()
                     .describe(
-                        "云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写入 params.Region。",
+                        "云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写入 params.Region。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）：若你要操作的是国内站的 ap-singapore 环境，请先用 auth(action=\"start_auth\"|\"login_by_api_key\", site=\"domestic\") 或设置 TCB_SITE=domestic 明确站点，否则请求会静默打到国际站账号。",
                     ),
             },
             annotations: {
@@ -387,7 +381,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
             });
             if (['1', 'true'].includes(process.env.CLOUDBASE_EVALUATE_MODE ?? '')) {
                 if (service === 'lowcode') {
-                    throw new Error(`${service}/${action} Cloud API is not exposed or does not exist. Please use another API.`);
+                    throw new Error(t("capi.evalModeNotExposed", { service, action }));
                 }
                 if (service === 'tcb') {
                     const tcbCapiForbidList = [
@@ -412,7 +406,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                     ];
 
                     if (tcbCapiForbidList.includes(action)) {
-                        throw new Error(`${service}/${action} Cloud API is not exposed or does not exist. Please use another API.`);
+                        throw new Error(t("capi.evalModeNotExposed", { service, action }));
                     }
                 }
             }

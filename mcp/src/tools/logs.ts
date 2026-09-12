@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getCloudBaseManager, logCloudBaseResult } from "../cloudbase-manager.js";
 import type { ExtendedMcpServer } from "../server.js";
 import { jsonContent } from "../utils/json-content.js";
+import { t } from "../i18n/index.js";
 
 const QUERY_LOG_ACTIONS = ["checkLogService", "searchLogs"] as const;
 
@@ -36,16 +37,8 @@ export function registerLogTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "queryLogs",
     {
-      title: "查询 CloudBase 日志服务",
-      description:
-        "CloudBase 日志域统一只读入口。支持检查日志服务状态并搜索 CLS 日志。" +
-        "\n\n**重要区分**：" +
-        "\n- 查询云函数日志：使用 `queryFunctions(action=\"listFunctionLogs\", functionName=\"xxx\")`" +
-        "\n- 查询 CLS 日志（跨服务日志聚合）：使用本工具 `queryLogs(action=\"searchLogs\")`" +
-        "\n\n**适用场景**：" +
-        "\n- 检查 CLS 日志服务是否开通：`action=\"checkLogService\"`" +
-        "\n- 跨服务日志搜索（如搜索所有 ERROR 日志）：`action=\"searchLogs\"`" +
-        "\n- 按 CLS 语法检索特定服务的日志：`action=\"searchLogs\", service=\"tcb|tcbr\"`",
+      title: "logs.title",
+      description: "logs.description",
       inputSchema: {
         action: z
           .enum(QUERY_LOG_ACTIONS)
@@ -133,22 +126,13 @@ export function registerLogTools(server: ExtendedMcpServer) {
                 action,
                 enabled,
               },
-              enabled ? "日志服务已开通" : "日志服务未开通或仍在初始化中",
+              enabled ? t("logs.serviceEnabled") : t("logs.serviceDisabled"),
             ),
           );
         }
 
         if (!queryString) {
-          throw new Error(
-            "action=\"searchLogs\" 时必须提供 queryString 参数（CLS 查询语句，需遵循 CLS 语法规范，参考 https://cloud.tencent.com/document/api/876/128127）。" +
-            "\n\n常用查询示例：" +
-            "\n- 云函数日志：`(src:app OR src:system) AND log:\"START RequestId\"`" +
-            "\n- 文档型数据库：`module:database`" +
-            "\n- SQL 型数据库：`module:rdb`" +
-            "\n- 网关访问日志：`logType:accesslog`" +
-            "\n- 大模型 trace 日志：`module:llm AND logType:llm-tracelog`" +
-            "\n\n如果需要查询特定云函数的执行日志，建议使用 `queryFunctions(action=\"listFunctionLogs\", functionName=\"xxx\")`。"
-          );
+          throw new Error(t("logs.missingQueryString"));
         }
         const result = await cloudbase.log.searchClsLog({
           queryString,
@@ -168,7 +152,7 @@ export function registerLogTools(server: ExtendedMcpServer) {
               results: result.LogResults ?? null,
               raw: result,
             },
-            "日志检索成功",
+            t("logs.searchSuccess"),
           ),
         );
       } catch (error) {

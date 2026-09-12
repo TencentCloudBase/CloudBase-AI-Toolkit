@@ -1,5 +1,6 @@
 import path from "node:path";
 import { z } from "zod";
+import { t } from "../i18n/index.js";
 
 const FUNCTION_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{1,59}$/;
 const BUILD_ARG_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -196,7 +197,7 @@ const FUNCTION_HTTP_COMMON_FIELDS = {
         }
         return !trimmed.split("/").some((segment) => segment === "." || segment === "..");
       },
-      "gatewayPath 必须以 / 开头，且不能包含查询串、片段、反斜杠或相对路径段。",
+      { message: t("functionDeploySchema.gatewayPathInvalid") },
     )
     .optional()
     .describe("HTTP 网关路径，例如 /api。"),
@@ -266,11 +267,11 @@ export const FUNCTION_IMAGE_BUILD_SCHEMA = z
   .object({
     cwd: z
       .string()
-      .refine(isAbsolutePath, "build.cwd 必须是绝对路径。")
+      .refine(isAbsolutePath, { message: t("functionDeploySchema.buildCwdAbsolute") })
       .describe("镜像构建上下文的绝对目录。"),
     dockerfile: z
       .string()
-      .refine(isSafeRelativePath, "build.dockerfile 必须是构建上下文内的安全相对路径。")
+      .refine(isSafeRelativePath, { message: t("functionDeploySchema.buildDockerfileSafeRelative") })
       .optional()
       .describe("Dockerfile 相对 build.cwd 的路径，默认 Dockerfile。"),
     registryId: z
@@ -291,7 +292,7 @@ export const FUNCTION_IMAGE_BUILD_SCHEMA = z
     tag: z
       .string()
       .regex(IMAGE_TAG_PATTERN)
-      .refine((value) => value.toLowerCase() !== "latest", "镜像 tag 禁止使用 latest。")
+      .refine((value) => value.toLowerCase() !== "latest", { message: t("functionDeploySchema.tagNoLatest") })
       .optional()
       .describe("local 策略的目标镜像 tag；cloud 策略由平台生成，不填。"),
     platform: z
@@ -306,21 +307,21 @@ export const FUNCTION_IMAGE_BUILD_SCHEMA = z
             context.addIssue({
               code: z.ZodIssueCode.custom,
               path: [key],
-              message: "构建参数名需以字母或下划线开头，仅包含字母、数字和下划线。",
+              message: t("functionDeploySchema.buildArgKeyInvalid"),
             });
           }
           if (SENSITIVE_BUILD_ARG_KEY_PATTERN.test(key)) {
             context.addIssue({
               code: z.ZodIssueCode.custom,
               path: [key],
-              message: "禁止通过 buildArgs 传递 secret、token、password、credential 或 key。",
+              message: t("functionDeploySchema.buildArgSensitive"),
             });
           }
           if (value.includes("\0")) {
             context.addIssue({
               code: z.ZodIssueCode.custom,
               path: [key],
-              message: "构建参数值不能包含 NUL 字符。",
+              message: t("functionDeploySchema.buildArgNul"),
             });
           }
         }
@@ -380,7 +381,7 @@ const FUNCTION_IMAGE_IMAGE_CONFIG_SCHEMA = z
             parsed.registry &&
             (parsed.digest || (parsed.tag && parsed.tag.toLowerCase() !== "latest")),
         );
-      }, "imageUri 必须是包含 registry 和不可变 tag 或 digest 的完整镜像地址，禁止 latest。")
+      }, { message: t("functionDeploySchema.imageUriImmutable") })
       .describe("已有镜像地址，例如 ccr.ccs.tencentyun.com/ns/app:v1。"),
   })
   .strict();

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import { deploy as deployDict } from "../i18n/locales/modules/deploy.js";
 
 const {
   mockGetCloudBaseManager,
@@ -141,8 +142,12 @@ describe("deploy tools registration", () => {
   it("marks deploy as requiring explicit confirm in its description", async () => {
     const { tools } = await createDeployTools();
 
-    expect(tools.deployApply.meta.description).toContain("confirm=true");
-    expect(tools.deployPlan.meta.description).toContain("dry-run");
+    // meta.description 已 i18n 化：工具注册的是词典 key，server.ts 包装层负责解析
+    expect(tools.deployApply.meta.description).toBe("deploy.applyDescription");
+    expect(tools.deployPlan.meta.description).toBe("deploy.planDescription");
+    // 词典 zh 文案仍保留 confirm / dry-run 语义说明
+    expect(deployDict.zh.applyDescription).toContain("confirm=true");
+    expect(deployDict.zh.planDescription).toContain("dry-run");
   });
 });
 

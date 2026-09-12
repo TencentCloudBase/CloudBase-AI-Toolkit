@@ -2,6 +2,7 @@ import * as fs from "fs/promises";
 import * as os from "os";
 import * as path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { t } from "../i18n/index.js";
 import type { ExtendedMcpServer } from "../server.js";
 
 const { mockGetCloudBaseManager, mockCreateCloudBaseManagerWithOptions } = vi.hoisted(() => ({
@@ -331,7 +332,10 @@ describe("rag tools", () => {
       expect(skillText).toContain(
         "https://cnb.cool/tencent/cloud/cloudbase/cloudbase-skills/-/git/raw/main/skills/cloudbase/references/__missing-skill__/SKILL.md",
       );
-      expect(skillText).not.toContain("absolute path is:");
+      // 本地绝对路径提示必须缺失（断言按词典键构造，避免绑定具体语言）
+      expect(skillText).not.toContain(
+        t("rag.skillLocal", { path: "__SENTINEL__", content: "" }).split("__SENTINEL__")[0],
+      );
     } finally {
       globalThis.fetch = originalFetch;
       if (previousCloudMode === undefined) {
@@ -529,7 +533,9 @@ describe("searchKnowledgeBase mode=skill remote references", () => {
     expect(text).not.toContain(
       `](${SKILL_REMOTE_BASE_URL}/myskill/references/inside.md)`,
     );
-    expect(text).not.toContain("absolute path is:");
+    expect(text).not.toContain(
+      t("rag.skillLocal", { path: "__SENTINEL__", content: "" }).split("__SENTINEL__")[0],
+    );
   });
 
   it("falls back to inline content without dead links when the mirror is missing", async () => {
@@ -544,9 +550,11 @@ describe("searchKnowledgeBase mode=skill remote references", () => {
     });
     const text = result.content[0].text;
 
-    expect(text).toContain("not present in the remote");
+    expect(text).toContain(
+      t("rag.skillRemoteMissing", { skillName: "local-only-skill" }),
+    );
     expect(text).not.toContain(SKILL_REMOTE_BASE_URL);
-    expect(text).toContain("--- SKILL.md content ---");
+    expect(text).toContain(t("rag.skillContentHeading", { body: "" }).trim());
     expect(text).toContain("](references/guide.md)");
   });
 
@@ -562,7 +570,13 @@ describe("searchKnowledgeBase mode=skill remote references", () => {
     });
     const text = result.content[0].text;
 
-    expect(text).toContain("not found");
+    expect(text).toContain(
+      t("rag.skillNotFound", {
+        skillName: "ghost-skill",
+        available: "myskill",
+        remoteHint: "",
+      }).trim(),
+    );
     expect(text).toContain(`${SKILL_REMOTE_BASE_URL}/ghost-skill/SKILL.md`);
   });
 });

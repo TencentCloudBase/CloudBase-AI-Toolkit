@@ -4,6 +4,7 @@ import {
   getCloudBaseManager,
   logCloudBaseResult,
 } from "../cloudbase-manager.js";
+import { t } from "../i18n/index.js";
 import { getInteractiveServer } from "../interactive-server.js";
 import { isCloudMode } from "../utils/cloud-mode.js";
 import { debug, error, warn } from "../utils/logger.js";
@@ -156,13 +157,14 @@ export async function _promptAndSetEnvironmentId(
   });
   if (!loginState) {
     debug("[interactive] User not logged in");
+    const loginError = t("interactive.loginRequired");
     return {
       selectedEnvId: null,
       cancelled: false,
-      error: "请先登录云开发账户",
+      error: loginError,
       failureInfo: {
         reason: 'login_failed',
-        error: "请先登录云开发账户",
+        error: loginError,
         errorCode: "LOGIN_REQUIRED",
       },
     };
@@ -334,13 +336,14 @@ export async function _promptAndSetEnvironmentId(
   // If query failed completely, return error
   if (!queryEnvSuccess && queryEnvError) {
     debug("[interactive] Environment query failed completely, returning error");
+    const envQueryErrorMsg = t("interactive.envQueryFailed", { error: queryEnvError });
     return {
       selectedEnvId: null,
       cancelled: false,
-      error: `无法获取环境列表: ${queryEnvError}`,
+      error: envQueryErrorMsg,
       failureInfo: {
         reason: 'env_query_failed',
-        error: `无法获取环境列表: ${queryEnvError}`,
+        error: envQueryErrorMsg,
         errorCode: "ENV_QUERY_FAILED",
         helpUrl: "https://docs.cloudbase.net/cli-v1/env",
         details: {
@@ -468,7 +471,7 @@ export async function _promptAndSetEnvironmentId(
               });
               setupContext.createEnvError = {
                 code: "EnvNotYetAvailable",
-                message: "环境正在创建中，请稍等片刻后刷新页面或重新尝试",
+                message: t("interactive.envNotYetAvailable"),
                 helpUrl: "https://buy.cloud.tencent.com/lowcode?buyType=tcb&channel=mcp"
               };
             }
@@ -492,7 +495,7 @@ export async function _promptAndSetEnvironmentId(
           // Set error if envId is invalid
           setupContext.createEnvError = {
             code: "InvalidEnvId",
-            message: "环境创建成功但环境ID无效，请稍后重试",
+            message: t("interactive.invalidEnvId"),
             helpUrl: "https://buy.cloud.tencent.com/lowcode?buyType=tcb&channel=mcp"
           };
         }
@@ -505,7 +508,7 @@ export async function _promptAndSetEnvironmentId(
         });
         setupContext.createEnvError = {
           code: "MissingEnvId",
-          message: "环境创建成功但未返回环境ID，请稍后重试或手动创建环境",
+          message: t("interactive.missingEnvId"),
           helpUrl: "https://buy.cloud.tencent.com/lowcode?buyType=tcb&channel=mcp"
         };
       } else if (!success && !setupContext.createEnvError) {
@@ -519,7 +522,7 @@ export async function _promptAndSetEnvironmentId(
         // Set a default error message
         setupContext.createEnvError = {
           code: "CreateEnvFailed",
-          message: "免费环境创建失败，请手动创建环境",
+          message: t("interactive.createEnvFailed"),
           helpUrl: "https://buy.cloud.tencent.com/lowcode?buyType=tcb&channel=mcp"
         };
       }
@@ -542,7 +545,7 @@ export async function _promptAndSetEnvironmentId(
     // If creation failed in cloud mode, return error message
     if (inCloudMode) {
       debug("[interactive] CloudMode: Returning error message");
-      let errorMsg = "未找到可用环境";
+      let errorMsg = t("interactive.noEnvironments");
       let failureReason: EnvSetupFailureInfo['reason'] = 'no_environments';
       let errorCode = "NO_ENVIRONMENTS";
 
@@ -552,12 +555,12 @@ export async function _promptAndSetEnvironmentId(
         errorMsg = `${freeEnvUserNotice}\n${errorMsg}`;
       }
       if (setupContext.initTcbError) {
-        errorMsg += `\nCloudBase 初始化失败: ${setupContext.initTcbError.message}`;
+        errorMsg += `\n${t("interactive.tcbInitFailed", { message: setupContext.initTcbError.message })}`;
         failureReason = 'tcb_init_failed';
         errorCode = setupContext.initTcbError.code || "TCB_INIT_FAILED";
       }
       if (setupContext.createEnvError) {
-        errorMsg += `\n环境创建失败: ${setupContext.createEnvError.message}`;
+        errorMsg += `\n${t("interactive.envCreationFailed", { message: setupContext.createEnvError.message })}`;
         if (failureReason === 'no_environments') {
           failureReason = 'env_creation_failed';
         }
@@ -565,7 +568,7 @@ export async function _promptAndSetEnvironmentId(
       }
       const helpUrl = setupContext.createEnvError?.helpUrl || setupContext.initTcbError?.helpUrl;
       if (helpUrl) {
-        errorMsg += `\n请访问: ${helpUrl}`;
+        errorMsg += `\n${t("interactive.visitUrl", { url: helpUrl })}`;
       }
       return {
         selectedEnvId: null,
@@ -668,14 +671,17 @@ export async function _promptAndSetEnvironmentId(
   if (result.cancelled) {
     const isTimeout = (result as any).timeout === true;
     const timeoutDuration = (result as any).timeoutDuration;
+    const cancelError = isTimeout
+      ? t("interactive.envSelectionTimeout", {
+        seconds: timeoutDuration ? timeoutDuration / 1000 : 120,
+      })
+      : t("interactive.userCancelled");
     return {
       selectedEnvId: null,
       cancelled: true,
       failureInfo: {
         reason: isTimeout ? 'timeout' : 'cancelled',
-        error: isTimeout
-          ? `环境选择超时（${timeoutDuration ? timeoutDuration / 1000 : 120}秒），请重新尝试或手动设置环境ID`
-          : "用户取消了环境选择",
+        error: cancelError,
         errorCode: isTimeout ? "ENV_SELECTION_TIMEOUT" : "USER_CANCELLED",
         helpUrl: isTimeout ? "https://docs.cloudbase.net/cli-v1/env" : undefined,
         details: isTimeout ? {
@@ -778,7 +784,7 @@ export async function autoSetupEnvironmentId(mcpServer?: any): Promise<string | 
     return selectedEnvId;
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    console.error("自动配置环境ID时出错:", errorObj);
+    console.error(t("interactive.autoSetupError"), errorObj);
 
     // Report unexpected error to telemetry
     await telemetryReporter.report('toolkit_env_setup', {

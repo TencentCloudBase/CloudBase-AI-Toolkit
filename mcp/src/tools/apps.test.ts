@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registerAppTools } from "./apps.js";
+import { t } from "../i18n/index.js";
 import type { ExtendedMcpServer } from "../server.js";
 
 const {
@@ -477,8 +478,9 @@ describe("app tools", () => {
   });
 
   it("manageApps schema should clarify redeploy flow and framework values", () => {
-    expect(tools.manageApps.meta.description).toContain("远端构建");
-    expect(tools.manageApps.meta.description).toContain("与 manageHosting 对比");
+    expect(tools.manageApps.meta.description).toBe("apps.manageDescription");
+    expect(t("apps.manageDescription")).toContain("远端构建");
+    expect(t("apps.manageDescription")).toContain("与 manageHosting 对比");
     expect(tools.manageApps.meta.inputSchema.serviceName.description).toContain("重新部署");
     expect(tools.manageApps.meta.inputSchema.framework.safeParse("static").success).toBe(true);
     expect(tools.manageApps.meta.inputSchema.framework.safeParse("html").success).toBe(false);

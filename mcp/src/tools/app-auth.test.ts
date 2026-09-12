@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { t } from "../i18n/index.js";
 import type { ExtendedMcpServer } from "../server.js";
 import { registerAppAuthTools } from "./app-auth.js";
 
@@ -71,8 +72,7 @@ describe("app auth tools", () => {
     verifyOtp:
       "const { data, error } = await auth.signInWithOtp({ email })\nconst { data: loginData, error: loginError } = await data.verifyOtp({ token })",
     anonymous: "auth.signInAnonymously()",
-    caution:
-      "verifyOtp is a callback on the signInWithOtp / signUp result: call data.verifyOtp({ token }) with only the token. Do NOT call a standalone auth.verifyOtp({ token }) — it requires an extra messageId and fails with 'messageId is required' when the messageId is missing. Error 'messageId is required' means you used the standalone call instead of the callback.",
+    caution: t("appAuth.sdkHintCaution"),
   };
 
   beforeEach(() => {
@@ -235,7 +235,7 @@ describe("app auth tools", () => {
       webSdkHint: {
         blocked: false,
         register:
-          "direct username/password signUp is SDK/provider dependent; verify before use, otherwise create users through a backend or management API boundary",
+          t("appAuth.webSdkRegisterHint"),
         login: "auth.signInWithPassword({ username, password })",
         accountInputType: "text",
         avoidEmailHelpers: true,
@@ -291,7 +291,7 @@ describe("app auth tools", () => {
       webSdkHint: {
         blocked: false,
         register:
-          "direct username/password signUp is SDK/provider dependent; verify before use, otherwise create users through a backend or management API boundary",
+          t("appAuth.webSdkRegisterHint"),
         login: "auth.signInWithPassword({ username, password })",
         accountInputType: "text",
         avoidEmailHelpers: true,
@@ -330,7 +330,7 @@ describe("app auth tools", () => {
       sdkHints: expectedSdkHints,
       webSdkHint: {
         blocked: true,
-        reason: "plain username-style identifiers require usernamePassword auth",
+        reason: t("appAuth.webSdkBlockedReason"),
         nextStep:
           'manageAppAuth({ action: "patchLoginStrategy", patch: { usernamePassword: true } })',
         accountInputType: "text",
@@ -389,7 +389,7 @@ describe("app auth tools", () => {
 
     expect(payload).toEqual({
       success: false,
-      error: "no active environment selected",
+      error: t("appAuth.noActiveEnv"),
       code: "ENV_REQUIRED",
     });
   });
@@ -405,7 +405,7 @@ describe("app auth tools", () => {
 
     expect(payload).toEqual({
       success: false,
-      error: "authentication required",
+      error: t("appAuth.authRequired"),
       code: "AUTH_REQUIRED",
     });
   });

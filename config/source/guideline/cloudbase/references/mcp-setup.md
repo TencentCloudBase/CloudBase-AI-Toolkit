@@ -145,11 +145,11 @@ Query available plans, create environments, change plans, and renew:
 
 - **Create a new environment**:
   ```
-  npx mcporter call cloudbase.manageEnv action=create alias=my-env packageId=baas_personal resources='["flexdb","storage","function","postgresql"]' duration=1 confirm=yes --output json
+  npx mcporter call cloudbase.manageEnv action=create alias=my-env packageId=baas_personal resources='["storage","function","postgresql"]' duration=1 confirm=yes --output json
   ```
 
-  Resources parameter values: `flexdb` (document database), `storage` (cloud storage), `function` (cloud functions), `postgresql` (PostgreSQL database).
-  Do **not** pass `region`: CreateEnv does not accept Region; environment region is determined by account/package.
+  Resources parameter values: `storage` (cloud storage), `function` (cloud functions), `postgresql` (PostgreSQL database). `flexdb` (document database) is **not** offered — new environments are created without a NoSQL tenant, and passing it is rejected by the schema. To find out whether an environment actually has NoSQL, read `queryEnv(action="info")` → `EnvInfo.RuntimeBackends` instead of assuming.
+  Optional `region` (e.g. `region=ap-shanghai`) selects where the environment is created: it is sent as the **`X-TC-Region` request context** (same as CLI `tcb env create --region ap-shanghai`), never as a CreateEnv body field. Omit it to use the current session region (`cloudBaseOptions.region` → `TCB_REGION` → project config / rc binding → site default: `ap-shanghai` domestic, `ap-singapore` intl). If you pass `region`, repeat the same value on the confirming call (`confirm=yes`), otherwise the environment may be created in the session region instead.
 
 - **Change plan** (e.g. upgrade to standard):
   `npx mcporter call cloudbase.manageEnv action=modifyPlan envId=<envId> packageId=baas_pf_standard confirm=yes --output json`

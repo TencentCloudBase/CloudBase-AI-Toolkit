@@ -1,0 +1,56 @@
+name: platform-kit CI
+
+# platform-kit 自己的测试此前**从未在任何 CI 里跑过**：
+#   · platform-kit/package.json 里 `test` = `node scripts/validate-i18n.mjs && vitest run`
+#   · 但仓库里唯一调用 `pnpm run test` 的地方在 nightly-build.yaml，且 working-directory: ./mcp
+#   · mcp/vitest.config.js 的 include 是 `../tests/**/*.test.js` + `src/**/*.test.ts`（相对 mcp/），
+#     根本收不到 platform-kit/tests/**
+# 于是 6 个文件 / 43 条用例（组件渲染、provider 契约、SQL 编辑器、页面资源、v3 特性）本地能过、
+# CI 里永远不跑 —— 典型的「写好了没接到闸门上」。这里按包自身的 test 脚本把它接上。
+#
+# 与 i18n-guard.yml 的分工：
+#   · i18n-guard 的 platform-kit job 零依赖、只在 i18n 面变动时秒级校验词典 zh/en 键对称；
+#   · 本 workflow 要装依赖、覆盖 platform-kit 全量测试，只在 platform-kit / 依赖清单变动时触发。
+#     （两者都会跑 validate-i18n.mjs，重复一次换来「i18n 闸门不依赖安装」这一点，值得。）
+
+on:
+  pull_request:
+    paths:
+      - 'platform-kit/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/platform-kit-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'platform-kit/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/platform-kit-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: platform-kit 测试
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test (validate-i18n + vitest)
+        working-directory: ./platform-kit
+        run: pnpm run test

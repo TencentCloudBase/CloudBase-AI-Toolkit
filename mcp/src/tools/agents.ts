@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getCloudBaseManager, logCloudBaseResult } from "../cloudbase-manager.js";
 import type { ExtendedMcpServer } from "../server.js";
 import { jsonContent } from "../utils/json-content.js";
+import { t } from "../i18n/index.js";
 
 const QUERY_AGENT_ACTIONS = ["listAgents", "getAgent", "getAgentLogs"] as const;
 const MANAGE_AGENT_ACTIONS = ["createAgent", "updateAgent", "deleteAgent"] as const;
@@ -107,8 +108,8 @@ export function registerAgentTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "queryAgents",
     {
-      title: "查询 CloudBase Agent",
-      description: "CloudBase Agent 域统一只读入口。支持列表、详情与日志查询。",
+      title: "agents.queryTitle",
+      description: "agents.queryDescription",
       inputSchema: {
         action: z.enum(QUERY_AGENT_ACTIONS),
         agentId: z.string().optional(),
@@ -151,13 +152,13 @@ export function registerAgentTools(server: ExtendedMcpServer) {
                 total: result.Total ?? 0,
                 raw: result,
               },
-              "Agent 列表查询成功",
+              t("agents.listSuccess"),
             ),
           );
         }
 
         if (!agentId) {
-          throw new Error(`action=${action} 时必须提供 agentId`);
+          throw new Error(t("agents.agentIdRequired", { action }));
         }
 
         if (action === "getAgent") {
@@ -175,7 +176,7 @@ export function registerAgentTools(server: ExtendedMcpServer) {
                 },
                 raw: result,
               },
-              "Agent 详情查询成功",
+              t("agents.getSuccess"),
             ),
           );
         }
@@ -192,7 +193,7 @@ export function registerAgentTools(server: ExtendedMcpServer) {
               agentId,
               logs: result,
             },
-            "Agent 日志查询成功",
+            t("agents.logsSuccess"),
           ),
         );
       } catch (error) {
@@ -204,8 +205,8 @@ export function registerAgentTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "manageAgents",
     {
-      title: "管理 CloudBase Agent",
-      description: "CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent。",
+      title: "agents.manageTitle",
+      description: "agents.manageDescription",
       inputSchema: {
         action: z.enum(MANAGE_AGENT_ACTIONS),
         agentId: z.string().optional(),
@@ -285,7 +286,7 @@ export function registerAgentTools(server: ExtendedMcpServer) {
         if (action === "createAgent") {
           const normalizedName = normalizeString(payload.Name);
           if (!normalizedName) {
-            throw new Error("action=createAgent 时必须提供 name（可通过顶层 name 或 params.name 传入）");
+            throw new Error(t("agents.nameRequired"));
           }
 
           // CloudBase 后端在创建 Agent 时会同步创建云函数，函数名/别名长度受 SCF 限制（最大 64 字符）。
@@ -295,13 +296,12 @@ export function registerAgentTools(server: ExtendedMcpServer) {
           const sanitizedName = sanitizeAgentName(normalizedName);
           if (!sanitizedName) {
             throw new Error(
-              `name "${normalizedName}" 经 sanitize 后为空，请使用包含字母或数字的 name`
+              t("agents.nameSanitizedEmpty", { name: normalizedName })
             );
           }
           if (sanitizedName.length > 30) {
             throw new Error(
-              `agent name 过长（当前 ${sanitizedName.length} 字符）。CloudBase 创建 Agent 时会同步创建云函数，` +
-              `函数名/别名受 SCF 64 字符长度限制，且 envId 可能作为前缀拼接。请将 name 控制在 30 字符以内。`
+              t("agents.nameTooLong", { length: sanitizedName.length })
             );
           }
 
@@ -318,13 +318,13 @@ export function registerAgentTools(server: ExtendedMcpServer) {
                 action,
                 raw: result,
               },
-              "Agent 创建成功",
+              t("agents.createSuccess"),
             ),
           );
         }
 
         if (!agentId) {
-          throw new Error(`action=${action} 时必须提供 agentId`);
+          throw new Error(t("agents.agentIdRequired", { action }));
         }
 
         if (action === "updateAgent") {
@@ -340,7 +340,7 @@ export function registerAgentTools(server: ExtendedMcpServer) {
                 agentId,
                 raw: result,
               },
-              "Agent 更新成功",
+              t("agents.updateSuccess"),
             ),
           );
         }
@@ -356,7 +356,7 @@ export function registerAgentTools(server: ExtendedMcpServer) {
               agentId,
               raw: result,
             },
-            "Agent 删除成功",
+            t("agents.deleteSuccess"),
           ),
         );
       } catch (error) {

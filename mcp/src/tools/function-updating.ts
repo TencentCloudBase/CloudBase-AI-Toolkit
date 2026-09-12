@@ -3,6 +3,8 @@
  * SCF rejects UpdateFunctionConfiguration / UpdateFunctionCode while Status=Updating.
  */
 
+import { t } from "../i18n/index.js";
+
 export const FUNCTION_UPDATING_ERROR_CODE = "FUNCTION_UPDATING";
 
 /** Agents must wait at least this long before retrying the same write. */
@@ -86,16 +88,24 @@ export function buildFunctionUpdatingMessage(params: {
   rawMessage?: string;
 }): string {
   const namePart = params.functionName
-    ? `函数 \`${params.functionName}\``
-    : "目标函数";
-  const statusPart = params.status ? `（当前 Status=${params.status}）` : "";
+    ? t("functionUpdating.namedFn", { fnName: params.functionName })
+    : t("functionUpdating.targetFn");
+  const statusPart = params.status
+    ? t("functionUpdating.statusSuffix", { status: params.status })
+    : "";
   const lines = [
-    `${namePart} 尚未就绪${statusPart}，无法执行 manageFunctions(action="${params.action}")。`,
-    `不要立即重试同一写操作（SCF 会在 Updating 期间连续拒绝 UpdateFunctionConfiguration / UpdateFunctionCode）。`,
-    `请等待 ${FUNCTION_UPDATING_RETRY_AFTER_SECONDS} 秒后重试，或先调用 queryFunctions(action="getFunctionDetail") 确认 Status 为 Active。`,
+    t("functionUpdating.notReady", {
+      namePart,
+      statusPart,
+      action: params.action,
+    }),
+    t("functionUpdating.doNotRetryImmediately"),
+    t("functionUpdating.waitAndRetry", {
+      seconds: FUNCTION_UPDATING_RETRY_AFTER_SECONDS,
+    }),
   ];
   if (params.rawMessage) {
-    lines.push(`原始错误: ${params.rawMessage}`);
+    lines.push(t("functionUpdating.rawError", { message: params.rawMessage }));
   }
   return lines.join("\n");
 }
@@ -109,7 +119,7 @@ export function buildFunctionUpdatingNextActions(params: {
     {
       tool: "queryFunctions",
       action: "getFunctionDetail",
-      reason: "查看函数 Status，等到 Active 后再写配置/代码",
+      reason: t("functionUpdating.reasonCheckStatus"),
       suggested_args: {
         action: "getFunctionDetail",
         ...(functionName ? { functionName } : {}),
@@ -118,7 +128,9 @@ export function buildFunctionUpdatingNextActions(params: {
     {
       tool: "manageFunctions",
       action: params.action,
-      reason: `等待 ${FUNCTION_UPDATING_RETRY_AFTER_SECONDS} 秒且 Status=Active 后，用相同参数重试；禁止立刻连打`,
+      reason: t("functionUpdating.reasonRetryAfterWait", {
+        seconds: FUNCTION_UPDATING_RETRY_AFTER_SECONDS,
+      }),
       suggested_args: {
         action: params.action,
         ...(functionName ? { functionName } : {}),

@@ -1,0 +1,78 @@
+name: i18n Guard
+
+# 两道 i18n 闸门，一个共同目标：**中文不要悄悄漏进对外描述面**。
+#
+# 【job 1】mcp 对外描述面（工具级 + 参数级）
+#   MCP 的对外描述面是分层的，i18n 词典只覆盖其中两层：
+#     · 工具级 title / description  → 走 src/i18n/locales 词典，en 实例下英文 ✅
+#     · 运行期消息                  → t("...") 调用点                       ✅
+#     · 参数级 .describe()          → 硬编码在 tools/*.ts，**体系之外**     ❌
+#   工具级（第 1 层）虽然走词典，但注册点写成 `description: "查询云存储"` 就会
+#   **原样透出**给 en 用户 —— 此前没有任何机制会在这种回退发生时拦一下、CI 照样全绿。
+#   因此脚本里对这一层是硬检查：注册点的 title/description 必须是词典 key（无基线）。
+#   参数级（第 3 层）以 mcp/i18n-coverage-baseline.json 为棘轮基线，新增中文即红；
+#   翻译掉一批后基线必须同步收紧，否则棘轮松动、被翻译过的字段再改回中文就拦不住了。
+#
+# 【job 2】platform-kit 词典键对称
+#   platform-kit/scripts/validate-i18n.mjs 早就写好，但此前**没有任何 workflow 引用它** ——
+#   也就是说这个校验从落地起就没人跑过。顺手接上闸门，别再靠"记得去跑"。
+#   （platform-kit 的**全量测试**不在这里跑：那需要装依赖，放在 platform-kit-ci.yml，
+#     按 platform-kit/** 路径触发。这里只保留零依赖的词典对称校验，保持秒级。）
+#
+# 两个 job 都零依赖（仅 node: 内置模块），因此刻意不做 pnpm install —— 秒级完成。
+
+on:
+  pull_request:
+    paths:
+      - 'mcp/src/**'
+      - 'mcp/scripts/check-i18n-coverage.mjs'
+      - 'mcp/i18n-coverage-baseline.json'
+      - 'platform-kit/src/i18n/**'
+      - 'platform-kit/scripts/validate-i18n.mjs'
+      - '.github/workflows/i18n-guard.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'mcp/src/**'
+      - 'mcp/scripts/check-i18n-coverage.mjs'
+      - 'mcp/i18n-coverage-baseline.json'
+      - 'platform-kit/src/i18n/**'
+      - 'platform-kit/scripts/validate-i18n.mjs'
+      - '.github/workflows/i18n-guard.yml'
+
+jobs:
+  mcp-description-surface:
+    name: mcp 描述面（工具级 meta + 参数级棘轮）
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Scanner self-test
+        # 守卫的守卫：先确认扫描器本身没退化（注释里的示例代码、t("...") 词典调用、裸
+        # describe() 函数、正则字面量里的引号都不该被误判），否则棘轮可能变成「假绿」。
+        run: node mcp/scripts/check-i18n-coverage.mjs --self-test
+
+      - name: i18n guard (tool-level keys + param-level ratchet)
+        run: node mcp/scripts/check-i18n-coverage.mjs
+
+  platform-kit-dictionary:
+    name: platform-kit 词典键对称
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Validate zh/en dictionary symmetry
+        run: node platform-kit/scripts/validate-i18n.mjs

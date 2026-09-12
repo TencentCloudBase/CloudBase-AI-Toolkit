@@ -9,6 +9,7 @@ import { ExtendedMcpServer } from "../server.js";
 import { isCloudMode } from "../utils/cloud-mode.js";
 import { jsonContent } from "../utils/json-content.js";
 import { debug, warn } from "../utils/logger.js";
+import { t } from "../i18n/index.js";
 
 // 1. 枚举定义
 const SearchKnowledgeModeEnum = z.enum(["skill", "openapi", "docs"]);
@@ -226,7 +227,7 @@ function requireStringParam(
   action: CloudBaseDocsAction,
 ) {
   if (!value?.trim()) {
-    throw new Error(`action=${action} 时必须提供 ${fieldName}`);
+    throw new Error(t("rag.paramRequired", { action, param: fieldName }));
   }
   return value.trim();
 }
@@ -257,8 +258,14 @@ const OPENAPI_SOURCES: Array<{
 }> = [
     {
       name: "mysqldb",
-      description: "关系型数据库 RESTful API (MySQL/PostgreSQL) - 云开发关系型数据库 HTTP API",
+      description: "MySQL RESTful API - 云开发 MySQL 数据库 HTTP API",
       url: "https://docs.cloudbase.net/openapi/mysqldb.v1.openapi.yaml",
+    },
+    {
+      name: "pgdb",
+      description:
+        "PostgreSQL RESTful API (PostgREST) - 云开发 PostgreSQL 数据库 HTTP API，含 exec-pgsql 直连 SQL",
+      url: "https://docs.cloudbase.net/openapi/pgdb.v1.openapi.yaml",
     },
     {
       name: "functions",
@@ -300,7 +307,7 @@ async function downloadWebTemplate() {
 
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`下载模板失败，状态码: ${response.status}`);
+    throw new Error(t("rag.downloadTemplateFailed", { status: response.status }));
   }
   const buffer = Buffer.from(await response.arrayBuffer());
   await fs.writeFile(zipPath, buffer);
@@ -543,37 +550,23 @@ export async function registerRagTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "searchKnowledgeBase",
     {
-      title: "云开发知识库检索",
-      description: `云开发知识库检索工具，支持 CloudBase 官方文档 (docs)、固定技能文档 (skill) 和 OpenAPI 文档 (openapi) 查询。
-
-      按场景选择 mode：
-      - 工具调用报错且错误信息含具体错误码（如 OperationDenied.FreePackageDenied）时：mode=docs + action=searchDocs（query=错误码），先查错误码官方含义与处理指引再行动，不要凭猜测重试
-      - 不确定答案在哪、需要对官方文档做全文检索时：mode=docs + action=searchDocs（传 query 关键词）
-      - 已知文档标题、层级路径或 URL 时：mode=docs + action=findByName（传 input）或 action=readDoc（传 docPath）
-      - 需要某个场景的落地指南 / 最佳实践时：mode=skill + skillName
-      - 需要 HTTP API 的接口定义时：mode=openapi + apiName
-
-      ⚠️ 重要：当 CloudBase skills 处于禁用状态或当前 IDE 不支持 skill 文件读取时，必须使用 searchKnowledgeBase(mode=skill, skillName=...) 来获取 CloudBase 技能文档内容，而不是尝试直接读取 skill 文件。直接读取可能返回 400 错误。示例：
-      - 需要最小 Web+数据库 Demo 路径时：searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo)
-      - 需要 auth-tool 指南时：searchKnowledgeBase(mode=skill, skillName=auth-tool)
-      - 需要 auth-web 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web)
-      - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)
-
-      返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。
-
-      固定技能文档 (skill) 查询当前支持 ${skills.length} 个固定文档，分别是：
-      ${skills
+      title: "rag.title",
+      description: t("rag.description", {
+        skillCount: skills.length,
+        skillList: skills
           .map(
             (skill) =>
-              `文档名：${path.basename(path.dirname(skill.absolutePath))} 文档介绍：${skill.description
-              }`,
+              t("rag.skillListItem", {
+                name: path.basename(path.dirname(skill.absolutePath)),
+                description: skill.description,
+              }),
           )
-          .join("\n")}
-
-      OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。当前支持 ${openapis.length} 个 API 文档，分别是：
-      ${openapis
-          .map((api) => `API名：${api.name} API介绍：${api.description}`)
-          .join("\n")}`,
+          .join("\n"),
+        openapiCount: openapis.length,
+        openapiList: openapis
+          .map((api) => t("rag.openapiListItem", { name: api.name, description: api.description }))
+          .join("\n"),
+      }),
       inputSchema: {
         mode: SearchKnowledgeModeEnum,
         skillName: buildOptionalStringEnum(
@@ -624,15 +617,13 @@ export async function registerRagTools(server: ExtendedMcpServer) {
         try {
           const resolvedAction = action;
           if (!resolvedAction) {
-            throw new Error("mode=docs 时必须提供 action");
+            throw new Error(t("rag.actionRequired"));
           }
 
           const docsManager = getDocsManager();
 
           if (!docsManager) {
-            throw new Error(
-              "当前 @cloudbase/manager-node 实例不支持 app.docs，请确认版本 >= 5.0.0。",
-            );
+            throw new Error(t("rag.docsUnsupported"));
           }
 
           if (resolvedAction === "listModules") {
@@ -641,7 +632,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
               buildDocsEnvelope(
                 resolvedAction,
                 { modules },
-                "CloudBase 文档模块列表获取成功",
+                t("rag.listModulesSuccess"),
               ),
             );
           }
@@ -657,7 +648,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
               buildDocsEnvelope(
                 resolvedAction,
                 { moduleName: resolvedModuleName, docs },
-                "CloudBase 模块文档目录获取成功",
+                t("rag.listModuleDocsSuccess"),
               ),
             );
           }
@@ -673,7 +664,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
               buildDocsEnvelope(
                 resolvedAction,
                 { input: resolvedInput, result },
-                "CloudBase 文档查找成功",
+                t("rag.findByNameSuccess"),
               ),
             );
           }
@@ -689,7 +680,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
               buildDocsEnvelope(
                 resolvedAction,
                 { docPath: resolvedDocPath, content: markdown },
-                "CloudBase 文档读取成功",
+                t("rag.readDocSuccess"),
               ),
             );
           }
@@ -704,7 +695,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
             buildDocsEnvelope(
               resolvedAction,
               { query: resolvedQuery, results },
-              "CloudBase 文档搜索成功",
+              t("rag.searchDocsSuccess"),
             ),
           );
         } catch (error) {
@@ -720,13 +711,19 @@ export async function registerRagTools(server: ExtendedMcpServer) {
         if (!skill) {
           const remoteHint =
             skillName?.trim()
-              ? ` You can also try fetching the skill doc directly from: ${buildSkillRawUrl(skillName.trim(), "SKILL.md")}`
+              ? t("rag.skillRemoteHint", {
+                  url: buildSkillRawUrl(skillName.trim(), "SKILL.md"),
+                })
               : "";
           return {
             content: [
               {
                 type: "text",
-                text: `Skill document "${skillName}" not found. Available skill docs: ${skillNames.join(", ") || "none"}.${remoteHint}`,
+                text: t("rag.skillNotFound", {
+                  skillName,
+                  available: skillNames.join(", ") || "none",
+                  remoteHint,
+                }),
               },
             ],
           };
@@ -745,11 +742,11 @@ export async function registerRagTools(server: ExtendedMcpServer) {
           );
         } else if (remoteState === "missing") {
           sections.push(
-            `Skill "${remoteSkillName}" is not present in the remote CloudBase skills repository (HTTP 404); no remote file URLs are provided to avoid dead links.`,
+            t("rag.skillRemoteMissing", { skillName: remoteSkillName }),
           );
         } else {
           sections.push(
-            `Could not confirm the remote address for skill "${remoteSkillName}" (probe failed); no possibly-stale remote file URLs are provided.`,
+            t("rag.skillRemoteProbeFailed", { skillName: remoteSkillName }),
           );
         }
 
@@ -759,12 +756,15 @@ export async function registerRagTools(server: ExtendedMcpServer) {
             remoteState === "available"
               ? rewriteRelativeLinks(localContent, remoteSkillName)
               : localContent;
-          sections.push(`--- SKILL.md content ---\n${body}`);
+          sections.push(t("rag.skillContentHeading", { body }));
           return { content: [{ type: "text", text: sections.join("\n\n") }] };
         }
 
         sections.push(
-          `The skill doc's absolute path is: ${skill.absolutePath}.\n--- SKILL.md content ---\n${localContent}`,
+          t("rag.skillLocal", {
+            path: skill.absolutePath,
+            content: t("rag.skillContentHeading", { body: localContent }),
+          }),
         );
         return { content: [{ type: "text", text: sections.join("\n\n") }] };
       }
@@ -776,7 +776,10 @@ export async function registerRagTools(server: ExtendedMcpServer) {
             content: [
               {
                 type: "text",
-                text: `OpenAPI document "${apiName}" not found. Available APIs: ${openapiNames.join(", ") || "none"}`,
+                text: t("rag.openapiNotFound", {
+                  apiName,
+                  available: openapiNames.join(", ") || "none",
+                }),
               },
             ],
           };
@@ -788,7 +791,11 @@ export async function registerRagTools(server: ExtendedMcpServer) {
             content: [
               {
                 type: "text",
-                text: `OpenAPI document: ${api.name}\nDescription: ${api.description}\nURL: ${api.url}\n\nFetch this remote URL over HTTP. Local file paths are not available in cloud mode.`,
+                text: t("rag.openapiRemote", {
+                  name: api.name,
+                  description: api.description,
+                  url: api.url,
+                }),
               },
             ],
           };
@@ -798,14 +805,19 @@ export async function registerRagTools(server: ExtendedMcpServer) {
           content: [
             {
               type: "text",
-              text: `OpenAPI document: ${api.name}\nDescription: ${api.description}\nPath: ${api.absolutePath}\n\n${(await fs.readFile(api.absolutePath!)).toString()}`,
+              text: t("rag.openapiLocal", {
+                name: api.name,
+                description: api.description,
+                path: api.absolutePath ?? "-",
+                content: (await fs.readFile(api.absolutePath!)).toString(),
+              }),
             },
           ],
         };
       }
 
       // mode 是枚举，docs / skill / openapi 三个分支已在上面全部返回，这里不可达
-      throw new Error(`unsupported mode: ${String(mode)}`);
+      throw new Error(t("rag.unsupportedMode", { mode: String(mode) }));
     },
   );
 }
@@ -973,7 +985,7 @@ function buildSkillRemoteFileList(
     (file) => `- ${file}: ${buildSkillRawUrl(skillName, file)}`,
   );
   return [
-    `Remote mirror of skill "${skillName}" (CNB raw, fetch these URLs on demand):`,
+    t("rag.skillRemoteFileListHeader", { skillName }),
     ...lines,
   ].join("\n");
 }

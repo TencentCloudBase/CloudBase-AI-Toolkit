@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getCloudBaseManager, getEnvId } from '../cloudbase-manager.js';
 import { ExtendedMcpServer } from '../server.js';
 import { buildJsonToolResult } from '../utils/tool-result.js';
+import { t } from "../i18n/index.js";
 
 const MAX_INLINE_TEXT_BYTES = 256 * 1024;
 const STORAGE_READ_TEMP_PREFIX = 'cloudbase-mcp-storage-read-';
@@ -39,7 +40,7 @@ function getStorageTempFileName(cloudPath: string) {
 function decodeInlineTextContent(buffer: Buffer) {
   const inlineBuffer = buffer.subarray(0, MAX_INLINE_TEXT_BYTES);
   if (inlineBuffer.includes(0)) {
-    throw new Error('queryStorage action=read 仅支持读取文本文件内容；二进制文件请改用 action=url 获取下载链接，或使用 manageStorage(action="download") 下载到本地。');
+    throw new Error(t("storage.readBinaryUnsupported"));
   }
 
   return {
@@ -138,8 +139,8 @@ export function registerStorageTools(server: ExtendedMcpServer) {
   server.registerTool(
     "queryStorage",
     {
-      title: "查询 CloudBase 存储信息",
-      description: "⚠️ PG 模式环境请使用 queryPgStorage 而非本工具（pgstore 与旧 COS 是两套独立系统）。\n\n查询 CloudBase 云存储信息，支持列出目录文件、获取文件信息、获取临时下载链接等只读操作。返回的文件信息包括文件名、大小、修改时间、下载链接等。注意：action=url 返回的 temporaryUrl 是临时签名链接，有效期由 maxAge 参数决定（默认1小时），不要当作永久公网地址使用。工具还会基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导 publicUrl，⚠️ 警告：publicUrl 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先通过控制台/SDK 将目标路径设置为公有读。\n\n💡 存储桶 ACL 权限管理请使用 permissions 工具：queryPermissions(action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\") 查询，managePermissions(action=\"updateResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"READONLY\") 设置。\n\n📦 CloudBase PG / pgstore 环境：`DescribeEnvs.Storages[]` 列出的 bucket 是旧 NoSQL 后端的，不等于 pgstore bucket。本工具用于查看常规存储；为 PG 浏览器上传准备 bucket 时，请确认目标 bucket 是 pgstore 后端可用的，否则浏览器 `app.storage.from().upload(...)` 会得到 `STORAGE_BUCKET_NOT_FOUND` 并出现 `PUT https://undefined/`。",
+      title: "storage.queryTitle",
+      description: "storage.queryDescription",
       inputSchema: queryStorageInputSchema,
       annotations: {
         readOnlyHint: true,
@@ -153,7 +154,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         const manager = await getManager();
 
         if (!manager) {
-          throw new Error("Failed to initialize CloudBase manager. Please check your credentials and environment configuration.");
+          throw new Error(t("storage.managerInitFailed"));
         }
 
         const storageService = manager.storage;
@@ -180,7 +181,10 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                     files,
                     totalCount: files.length
                   },
-                  message: `Successfully listed ${files.length} files in directory '${input.cloudPath}'`
+                  message: t("storage.listSuccess", {
+                    count: files.length,
+                    path: input.cloudPath,
+                  })
                 }, null, 2)
               }
             ]
@@ -206,7 +210,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                     cloudPath: input.cloudPath,
                     fileInfo
                   },
-                  message: `Successfully retrieved file info for '${input.cloudPath}'`
+                  message: t("storage.infoSuccess", { path: input.cloudPath })
                 }, null, 2)
               }
             ]
@@ -247,13 +251,13 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                     action: 'url',
                     cloudPath: input.cloudPath,
                     temporaryUrl,
-                    expireTime: `${input.maxAge || 3600}秒`,
+                    expireTime: `${input.maxAge || 3600}${t("storage.seconds")}`,
                     fileId,
                     storageCdnDomain: publicAccess.storageCdnDomain,
                     publicUrl: publicAccess.publicUrl,
-                    note: "temporaryUrl 是临时签名链接，会按 expireTime 过期。publicUrl 基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导，⚠️ 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先将目标路径设置为公有读。"
+                    note: t("storage.urlNote")
                   },
-                  message: `Successfully generated temporary URL for '${input.cloudPath}'`
+                  message: t("storage.urlSuccess", { path: input.cloudPath })
                 }, null, 2)
               }
             ]
@@ -292,8 +296,11 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                       truncated: decoded.truncated
                     },
                     message: decoded.truncated
-                      ? `Successfully read text content for '${input.cloudPath}' (truncated to ${MAX_INLINE_TEXT_BYTES} bytes)`
-                      : `Successfully read text content for '${input.cloudPath}'`
+                      ? t("storage.readSuccessTruncated", {
+                          path: input.cloudPath,
+                          bytes: MAX_INLINE_TEXT_BYTES,
+                        })
+                      : t("storage.readSuccess", { path: input.cloudPath })
                   }, null, 2)
                 }
               ]
@@ -304,13 +311,13 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         }
 
         default:
-          throw new Error(`Unsupported action: ${input.action}`);
+          throw new Error(t("storage.unsupportedAction", { action: input.action }));
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return buildJsonToolResult({
         success: false,
-        message: `queryStorage 操作失败: ${message}`,
+        message: t("storage.queryFailed", { message }),
         action: input.action,
         cloudPath: input.cloudPath,
       });
@@ -322,8 +329,8 @@ export function registerStorageTools(server: ExtendedMcpServer) {
   server.registerTool(
     "manageStorage",
     {
-      title: "管理 CloudBase 存储文件",
-      description: "⚠️ PG 模式环境请使用 queryPgStorage 而非本工具（pgstore 与旧 COS 是两套独立系统）。\n\n管理 CloudBase 云存储文件，仅用于 COS/Storage 对象，不用于静态网站托管。支持上传文件/目录、下载文件/目录、删除文件/目录等操作。删除操作需要设置force=true进行确认，防止误删除重要文件。注意：上传后返回的 temporaryUrl 是临时签名链接，1小时后过期，不要当作永久公网地址写入配置或持久化存储。工具还会基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导 publicUrl，⚠️ 警告：publicUrl 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先通过控制台/SDK 将目标路径设置为公有读。\n\n💡 存储桶 ACL 权限管理请使用 permissions 工具：queryPermissions(action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\") 查询，managePermissions(action=\"updateResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"READONLY\") 设置。\n\n📦 CloudBase PG / pgstore 桶必须先创建后使用（与 Supabase Storage 一致：upload 前 bucket 必须存在）。浏览器 SDK `app.storage.from().upload(path, file)` 不会自动建桶，且 `path` 的第一段就是 bucket 名（例如 `covers/foo.png` → bucket=`covers`）；`from('covers')` 这个参数当前不会被拼到 path 里。如果上传时浏览器看到 `STORAGE_BUCKET_NOT_FOUND` 或 `PUT https://undefined/`（DevTools 表现为 `net::ERR_NAME_NOT_RESOLVED`），先用本工具或控制台确认 / 创建对应的 pgstore bucket，再让前端重试上传，不要让前端把上传失败静默吞掉。`DescribeEnvs.Storages[]` 返回的旧 NoSQL bucket（形如 `<hash>-<envId>-<appId>`）不是可用的 pgstore bucket，切勿当作默认目标使用。",
+      title: "storage.manageTitle",
+      description: "storage.manageDescription",
       inputSchema: manageStorageInputSchema,
       annotations: {
         readOnlyHint: false,
@@ -339,7 +346,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         const manager = await getManager();
 
         if (!manager) {
-          throw new Error("Failed to initialize CloudBase manager. Please check your credentials and environment configuration.");
+          throw new Error(t("storage.managerInitFailed"));
         }
 
       const storageService = manager.storage;
@@ -420,12 +427,18 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                     cloudPath: input.cloudPath,
                     isDirectory: input.isDirectory,
                     temporaryUrl,
-                    expireTime: "1小时",
+                    expireTime: t("storage.oneHour"),
                     storageCdnDomain: publicAccess.storageCdnDomain,
                     publicUrl: publicAccess.publicUrl,
-                    note: "temporaryUrl 是临时签名链接，1小时后过期，不要当作永久公网地址写入配置或持久化存储。publicUrl 基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导，⚠️ 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先将目标路径设置为公有读。"
+                    note: t("storage.uploadNote")
                   },
-                  message: `Successfully uploaded ${input.isDirectory ? 'directory' : 'file'} from '${input.localPath}' to '${input.cloudPath}'`
+                  message: t("storage.uploadSuccess", {
+                    type: input.isDirectory
+                      ? t("storage.itemDirectory")
+                      : t("storage.itemFile"),
+                    localPath,
+                    cloudPath: input.cloudPath,
+                  })
                 }, null, 2)
               }
             ]
@@ -467,7 +480,13 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                     localPath: input.localPath,
                     isDirectory: input.isDirectory
                   },
-                  message: `Successfully downloaded ${input.isDirectory ? 'directory' : 'file'} from '${input.cloudPath}' to '${input.localPath}'`
+                  message: t("storage.downloadSuccess", {
+                    type: input.isDirectory
+                      ? t("storage.itemDirectory")
+                      : t("storage.itemFile"),
+                    cloudPath: input.cloudPath,
+                    localPath: dlLocalPath,
+                  })
                 }, null, 2)
               }
             ]
@@ -482,8 +501,8 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                   type: "text",
                   text: JSON.stringify({
                     success: false,
-                    error: "Delete operation requires confirmation",
-                    message: "Please set force: true to confirm deletion. This action cannot be undone."
+                    error: t("storage.deleteRequiresConfirmation"),
+                    message: t("storage.deleteForceHint")
                   }, null, 2)
                 }
               ]
@@ -516,7 +535,12 @@ export function registerStorageTools(server: ExtendedMcpServer) {
                     isDirectory: input.isDirectory,
                     deleted: true
                   },
-                  message: `Successfully deleted ${input.isDirectory ? 'directory' : 'file'} '${input.cloudPath}'`
+                  message: t("storage.deleteSuccess", {
+                    type: input.isDirectory
+                      ? t("storage.itemDirectory")
+                      : t("storage.itemFile"),
+                    cloudPath: input.cloudPath,
+                  })
                 }, null, 2)
               }
             ]
@@ -524,13 +548,13 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         }
 
         default:
-          throw new Error(`Unsupported action: ${input.action}`);
+          throw new Error(t("storage.unsupportedAction", { action: input.action }));
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return buildJsonToolResult({
         success: false,
-        message: `manageStorage 操作失败: ${message}`,
+        message: t("storage.manageFailed", { message }),
         action: input.action,
         cloudPath: input.cloudPath,
       });

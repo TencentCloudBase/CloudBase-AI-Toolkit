@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getCloudBaseManager, getEnvId, logCloudBaseResult } from "../cloudbase-manager.js";
 import { ExtendedMcpServer } from "../server.js";
+import { t } from "../i18n/index.js";
 
 // 导入Mermaid转换功能
 let mermaidToJsonSchema: any = null;
@@ -78,7 +79,7 @@ function parseFieldStructure(
       type: field.type,
       title: field.title || fieldName,
       description: field.description || "",
-      error: "递归深度超限",
+      error: t("dataModel.fieldParse.depthExceeded"),
     };
   }
 
@@ -106,8 +107,8 @@ function parseFieldStructure(
       fieldInfo.items = {
         name: `${fieldName}_item`,
         type: "unknown",
-        title: "数组元素",
-        description: "数组元素结构解析失败",
+        title: t("dataModel.fieldParse.arrayItemTitle"),
+        description: t("dataModel.fieldParse.arrayItemParseFailed"),
         error: error.message,
       };
     }
@@ -130,8 +131,8 @@ function parseFieldStructure(
         {
           name: "property",
           type: "unknown",
-          title: "对象属性",
-          description: "对象属性结构解析失败",
+          title: t("dataModel.fieldParse.objectPropertyTitle"),
+          description: t("dataModel.fieldParse.objectPropertyParseFailed"),
           error: error.message,
         },
       ];
@@ -625,9 +626,8 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "manageDataModel",
     {
-      title: "数据模型管理",
-      description:
-        "数据模型查询工具，支持查询和列表数据模型（只读操作）。通过 action 参数区分操作类型：list=获取模型列表（不含Schema，可选 names 参数过滤），get=查询单个模型详情（含Schema字段列表、格式、关联关系等，需要提供 name 参数），docs=生成SDK使用文档（需要提供 name 参数）",
+      title: "dataModel.manageDataModel.title",
+      description: "dataModel.manageDataModel.description",
       inputSchema: {
         action: z
           .enum(["get", "list", "docs"])
@@ -663,7 +663,7 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
       switch (action) {
           case "get":
             if (!name) {
-              throw new Error("获取数据模型需要提供模型名称");
+              throw new Error(t("dataModel.manageDataModel.nameRequired"));
             }
 
             try {
@@ -712,7 +712,7 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
                     userFieldsCount: userFields.length,
                   };
                 } catch (e) {
-                  simplifiedSchema = { error: "Schema解析失败" };
+                  simplifiedSchema = { error: t("dataModel.manageDataModel.schemaParseFailed") };
                 }
               }
 
@@ -762,7 +762,9 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
                         }
                       } catch (e) {
                         console.warn(
-                          `获取关联模型 ${relatedModelName} 的 schema 失败:`,
+                          t("dataModel.manageDataModel.relatedSchemaWarn", {
+                            name: relatedModelName,
+                          }),
                           e
                         );
                       }
@@ -772,7 +774,7 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
                   // 调用 jsonSchemaToMermaid，传入正确的参数格式
                   mermaidDiagram = jsonSchemaToMermaid(schemasMap);
                 } catch (e) {
-                  console.warn("生成Mermaid图表失败:", e);
+                  console.warn(t("dataModel.manageDataModel.mermaidWarn"), e);
                 }
               }
 
@@ -795,7 +797,7 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
                         success: true,
                         action: "get",
                         data: simplifiedModel,
-                        message: "获取数据模型成功",
+                        message: t("dataModel.manageDataModel.getSuccess"),
                       },
                       null,
                       2
@@ -814,7 +816,7 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
                           success: false,
                           action: "get",
                           error: "ResourceNotFound",
-                          message: `数据模型 ${name} 不存在`,
+                          message: t("dataModel.manageDataModel.modelNotFound", { name }),
                         },
                         null,
                         2
@@ -868,7 +870,7 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
                       action: "list",
                       data: simplifiedModels,
                       count: simplifiedModels.length,
-                      message: "获取数据模型列表成功",
+                      message: t("dataModel.manageDataModel.listSuccess"),
                     },
                     null,
                     2
@@ -879,7 +881,7 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
 
           case "docs":
             if (!name) {
-              throw new Error("生成SDK文档需要提供模型名称");
+              throw new Error(t("dataModel.manageDataModel.docsNameRequired"));
             }
 
             try {
@@ -894,7 +896,7 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
               logCloudBaseResult(server.logger, result);
 
               if (!result.Data) {
-                throw new Error(`数据模型 ${name} 不存在`);
+                throw new Error(t("dataModel.manageDataModel.modelNotFound", { name }));
               }
 
               // 解析Schema获取字段信息
@@ -927,7 +929,7 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
                     }));
                 } catch (e) {
                   // Schema解析失败，使用空数组
-                  console.error("Schema解析失败", e);
+                  console.error(t("dataModel.manageDataModel.schemaParseFailed"), e);
                 }
               }
 
@@ -950,7 +952,7 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
                         modelName: name,
                         modelTitle: result.Data.Title,
                         docs,
-                        message: "SDK使用文档生成成功",
+                        message: t("dataModel.manageDataModel.docsSuccess"),
                       },
                       null,
                       2
@@ -969,7 +971,7 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
                           success: false,
                           action: "docs",
                           error: "ResourceNotFound",
-                          message: `数据模型 ${name} 不存在`,
+                          message: t("dataModel.manageDataModel.modelNotFound", { name }),
                         },
                         null,
                         2
@@ -982,7 +984,7 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
             }
 
         default:
-          throw new Error(`不支持的操作类型: ${action}`);
+          throw new Error(t("dataModel.unsupportedAction", { action }));
       }
     }
   );
@@ -991,9 +993,8 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "modifyDataModel",
     {
-      title: "修改数据模型（当前仅支持创建）",
-      description:
-        "基于Mermaid classDiagram创建数据模型。为保持兼容性，工具名仍为 modifyDataModel；当前仅支持创建新模型，不支持更新现有模型结构。内置异步任务监控，自动轮询直至完成或超时。",
+      title: "dataModel.modifyDataModel.title",
+      description: "dataModel.modifyDataModel.description",
       inputSchema: {
         mermaidDiagram: z.string()
           .describe(`Mermaid classDiagram代码，描述数据模型结构。
@@ -1085,7 +1086,7 @@ classDiagram
                   {
                     success: false,
                     error: "No schemas generated from Mermaid diagram",
-                    message: "无法从Mermaid图表生成数据模型Schema",
+                    message: t("dataModel.modifyDataModel.noSchemas"),
                   },
                   null,
                   2
@@ -1104,7 +1105,9 @@ classDiagram
               DbLinkName: null,
               Description:
                 (schema as any).description ||
-                `${(schema as any).title || name}数据模型`,
+                t("dataModel.modifyDataModel.defaultModelDescription", {
+                  name: (schema as any).title || name,
+                }),
               Schema: JSON.stringify(createBackendSchemaParams(schema)),
               Title: (schema as any).title || name,
               Name: name,
@@ -1136,7 +1139,7 @@ classDiagram
                     success: false,
                     requestId: result.RequestId,
                     error: "No TaskId returned",
-                    message: "创建任务失败，未返回任务ID",
+                    message: t("dataModel.modifyDataModel.noTaskId"),
                   },
                   null,
                   2
@@ -1195,10 +1198,17 @@ classDiagram
                   action: action,
                   message:
                     status === "success"
-                      ? `数据模型创建成功，共处理${models.length}个模型`
+                      ? t("dataModel.modifyDataModel.createSuccess", {
+                          count: models.length,
+                        })
                       : !isTerminalStatus(status)
-                        ? `任务超时（最后状态: ${status}），任务ID: ${taskId}，请稍后手动查询状态`
-                        : `数据模型创建失败（status=${status}）`,
+                        ? t("dataModel.modifyDataModel.taskTimeout", {
+                            status,
+                            taskId,
+                          })
+                        : t("dataModel.modifyDataModel.createFailed", {
+                            status,
+                          }),
                   taskResult: statusResult?.Data,
                 },
                 null,

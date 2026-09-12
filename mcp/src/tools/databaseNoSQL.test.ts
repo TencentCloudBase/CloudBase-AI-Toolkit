@@ -396,8 +396,7 @@ describe("NoSQL database tools", () => {
     const { tools } = createMockServer();
     const meta = tools.writeNoSqlDatabaseContent.meta;
 
-    expect(meta.description).toContain("插入、更新");
-    expect(meta.description).toContain("$set/$inc/$push");
+    expect(meta.description).toBe("databaseNoSQL.writeContent.description");
     expect(meta.inputSchema.update.description).toContain("MgoUpdate");
     expect(meta.inputSchema.update.description).toContain("`$set`");
     expect(meta.inputSchema.update.description).toContain("`status`");
@@ -425,12 +424,11 @@ describe("NoSQL database tools", () => {
     const readMeta = tools.readNoSqlDatabaseStructure.meta;
     const writeMeta = tools.writeNoSqlDatabaseStructure.meta;
 
-    expect(readMeta.description).toContain("集合与索引");
+    expect(readMeta.description).toBe("databaseNoSQL.readStructure.description");
     expect(readMeta.inputSchema.action.description).toContain("listIndexes");
     expect(readMeta.inputSchema.action.description).toContain("checkIndex");
 
-    expect(writeMeta.description).toContain("添加索引");
-    expect(writeMeta.description).toContain("删除索引");
+    expect(writeMeta.description).toBe("databaseNoSQL.writeStructure.description");
     expect(writeMeta.inputSchema.action.description).toContain("CreateIndexes");
     expect(writeMeta.inputSchema.action.description).toContain("DropIndexes");
     expect(writeMeta.inputSchema.updateOptions.description).toContain(

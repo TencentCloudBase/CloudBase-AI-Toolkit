@@ -10,6 +10,7 @@ import {
 import { ExtendedMcpServer } from "../server.js";
 import { Logger } from "../types.js";
 import { debug } from "../utils/logger.js";
+import { t } from "../i18n/index.js";
 
 const CATEGORY = "NoSQL database";
 const COLLECTION_READY_TIMEOUT_MS = 10000;
@@ -21,10 +22,11 @@ const QUERY_RECORDS_MAX_LIMIT = 1000;
 
 const PROJECTION_EXAMPLE = '{"_id":1,"name":1,"createdAt":1}';
 const PROJECTION_EXCLUDE_EXAMPLE = '{"password":0}';
-const PROJECTION_GUIDANCE =
-  `projection 必须是字段投影对象（或对应 JSON 字符串），值只能是 1/0/true/false。` +
-  `合法示例：${PROJECTION_EXAMPLE}（只返回这些字段），或 ${PROJECTION_EXCLUDE_EXAMPLE}（排除字段）。` +
-  `不要传字段名数组、逗号分隔字符串、查询条件，也不要在同一投影里混用包含(1/true)与排除(0/false)（_id 除外）。`;
+const projectionGuidance = () =>
+  t("databaseNoSQL.projection.guidance", {
+    example: PROJECTION_EXAMPLE,
+    excludeExample: PROJECTION_EXCLUDE_EXAMPLE,
+  });
 
 /** Convert object values to JSON strings for API calls */
 const toJSONString = (v: any): any =>
@@ -65,13 +67,13 @@ function normalizeSortDirection(value: unknown): 1 | -1 {
   }
 
   throw new Error(
-    `非法 sort direction: ${String(value)}，仅支持 1 / -1`,
+    t("databaseNoSQL.sort.directionInvalid", { value: String(value) }),
   );
 }
 
 function normalizeSortItem(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("sort 数组项必须是 { key, direction } 对象");
+    throw new Error(t("databaseNoSQL.sort.itemInvalid"));
   }
 
   const { key, direction } = value as {
@@ -80,7 +82,7 @@ function normalizeSortItem(value: unknown) {
   };
 
   if (typeof key !== "string" || key.trim() === "") {
-    throw new Error("sort.key 必须是非空字符串");
+    throw new Error(t("databaseNoSQL.sort.keyRequired"));
   }
 
   return {
@@ -104,14 +106,12 @@ function normalizeSortInput(sort: unknown) {
     try {
       parsed = JSON.parse(trimmed);
     } catch {
-      throw new Error("sort 必须是 sort 数组的 JSON 字符串");
+      throw new Error(t("databaseNoSQL.sort.jsonRequired"));
     }
   }
 
   if (!Array.isArray(parsed)) {
-    throw new Error(
-      'sort 仅支持数组 [{"key":"createdAt","direction":-1}] 或对应 JSON 字符串',
-    );
+    throw new Error(t("databaseNoSQL.sort.arrayInvalid"));
   }
 
   if (parsed.length === 0) {
@@ -141,20 +141,28 @@ function normalizeProjectionInput(projection: unknown): string | undefined {
       parsed = JSON.parse(trimmed);
     } catch {
       throw new Error(
-        `projection 必须是合法 JSON 对象字符串。${PROJECTION_GUIDANCE}`,
+        t("databaseNoSQL.projection.invalidJson", {
+          guidance: projectionGuidance(),
+        }),
       );
     }
   }
 
   if (Array.isArray(parsed)) {
     throw new Error(
-      `projection 不支持字段名数组。请改为对象，例如 ${PROJECTION_EXAMPLE}。${PROJECTION_GUIDANCE}`,
+      t("databaseNoSQL.projection.arrayUnsupported", {
+        example: PROJECTION_EXAMPLE,
+        guidance: projectionGuidance(),
+      }),
     );
   }
 
   if (!parsed || typeof parsed !== "object") {
     throw new Error(
-      `projection 必须是对象。请改为例如 ${PROJECTION_EXAMPLE}。${PROJECTION_GUIDANCE}`,
+      t("databaseNoSQL.projection.objectRequired", {
+        example: PROJECTION_EXAMPLE,
+        guidance: projectionGuidance(),
+      }),
     );
   }
 
@@ -170,14 +178,20 @@ function normalizeProjectionInput(projection: unknown): string | undefined {
   for (const [key, value] of entries) {
     if (typeof key !== "string" || key.trim() === "") {
       throw new Error(
-        `projection 字段名必须是非空字符串。${PROJECTION_GUIDANCE}`,
+        t("databaseNoSQL.projection.keyRequired", {
+          guidance: projectionGuidance(),
+        }),
       );
     }
 
     if (!isProjectionFlag(value)) {
       throw new Error(
-        `projection["${key}"] 的值非法（当前为 ${JSON.stringify(value)}），仅支持 1/0/true/false。` +
-          `合法示例：${PROJECTION_EXAMPLE}。${PROJECTION_GUIDANCE}`,
+        t("databaseNoSQL.projection.invalidFlag", {
+          key,
+          value: JSON.stringify(value),
+          example: PROJECTION_EXAMPLE,
+          guidance: projectionGuidance(),
+        }),
       );
     }
 
@@ -196,8 +210,10 @@ function normalizeProjectionInput(projection: unknown): string | undefined {
 
   if (hasInclude && hasExclude) {
     throw new Error(
-      `projection 不能同时混用包含(1/true)与排除(0/false)（_id 除外）。` +
-        `请只保留一种模式，例如 ${PROJECTION_EXAMPLE} 或 ${PROJECTION_EXCLUDE_EXAMPLE}。`,
+      t("databaseNoSQL.projection.mixedModes", {
+        example: PROJECTION_EXAMPLE,
+        excludeExample: PROJECTION_EXCLUDE_EXAMPLE,
+      }),
     );
   }
 
@@ -211,22 +227,28 @@ function normalizeQueryLimit(limit: unknown): number {
 
   if (typeof limit !== "number" || !Number.isFinite(limit)) {
     throw new Error(
-      `limit 必须是数字，取值范围 1-${QUERY_RECORDS_MAX_LIMIT}（默认 ${QUERY_RECORDS_DEFAULT_LIMIT}）。` +
-        `超出上限时请用 offset 分页，例如 limit=${QUERY_RECORDS_MAX_LIMIT}, offset=0，再 offset+=limit。`,
+      t("databaseNoSQL.limit.notNumber", {
+        max: QUERY_RECORDS_MAX_LIMIT,
+        fallback: QUERY_RECORDS_DEFAULT_LIMIT,
+      }),
     );
   }
 
   if (!Number.isInteger(limit)) {
     throw new Error(
-      `limit 必须是整数，取值范围 1-${QUERY_RECORDS_MAX_LIMIT}。当前值：${limit}`,
+      t("databaseNoSQL.limit.notInteger", {
+        max: QUERY_RECORDS_MAX_LIMIT,
+        value: limit,
+      }),
     );
   }
 
   if (limit < 1 || limit > QUERY_RECORDS_MAX_LIMIT) {
     throw new Error(
-      `limit 超出上限：当前 ${limit}，允许范围 1-${QUERY_RECORDS_MAX_LIMIT}（Cloud API MgoLimit lte）。` +
-        `请将 limit 调整为 ≤${QUERY_RECORDS_MAX_LIMIT}，并用 offset 分页拉取更多数据` +
-        `（例如 limit=${QUERY_RECORDS_MAX_LIMIT}, offset=0，下一页 offset=${QUERY_RECORDS_MAX_LIMIT}）。`,
+      t("databaseNoSQL.limit.outOfRange", {
+        value: limit,
+        max: QUERY_RECORDS_MAX_LIMIT,
+      }),
     );
   }
 
@@ -238,15 +260,19 @@ function enhanceQueryRecordsError(error: unknown): never {
 
   if (/Query projection.*illegal|projection entered in the request is illegal/i.test(message)) {
     throw new Error(
-      `QueryRecords 投影非法：${message}。修正建议：${PROJECTION_GUIDANCE}`,
+      t("databaseNoSQL.queryError.illegalProjection", {
+        message,
+        guidance: projectionGuidance(),
+      }),
     );
   }
 
   if (/MgoLimit.*lte|Field validation for 'MgoLimit' failed on the 'lte'/i.test(message)) {
     throw new Error(
-      `QueryRecords MgoLimit 超限：${message}。` +
-        `limit 最大为 ${QUERY_RECORDS_MAX_LIMIT}，请缩小 limit 并用 offset 分页` +
-        `（例如 limit=${QUERY_RECORDS_MAX_LIMIT}, offset=0）。`,
+      t("databaseNoSQL.queryError.mgoLimitExceeded", {
+        message,
+        max: QUERY_RECORDS_MAX_LIMIT,
+      }),
     );
   }
 
@@ -387,7 +413,7 @@ async function waitForCollectionReady({
   logger?.({
     type: "toolInfo",
     toolName: "writeNoSqlDatabaseStructure",
-    message: "Waiting for NoSQL collection readiness after createCollection",
+    message: t("databaseNoSQL.collectionReady.waiting"),
     collectionName,
     timeoutMs,
     pollIntervalMs,
@@ -431,7 +457,7 @@ async function waitForCollectionReady({
       logger?.({
         type: "toolInfo",
         toolName: "writeNoSqlDatabaseStructure",
-        message: "NoSQL collection is ready for subsequent operations",
+        message: t("databaseNoSQL.collectionReady.ready"),
         collectionName,
         waitedMs: Date.now() - startedAt,
       });
@@ -446,11 +472,17 @@ async function waitForCollectionReady({
     await delay(pollIntervalMs);
   }
 
-  const baseMessage = `集合 ${collectionName} 创建成功后等待就绪超时 (${timeoutMs}ms)`;
   const errorMessage =
     lastError instanceof Error
-      ? `${baseMessage}，最后一次检查错误: ${lastError.message}`
-      : `${baseMessage}，集合仍未进入可用状态`;
+      ? t("databaseNoSQL.collectionReady.timeoutWithLastError", {
+          collection: collectionName,
+          timeoutMs,
+          reason: lastError.message,
+        })
+      : t("databaseNoSQL.collectionReady.timeoutStillUnavailable", {
+          collection: collectionName,
+          timeoutMs,
+        });
 
   logger?.({
     type: "toolError",
@@ -475,9 +507,8 @@ export function registerDatabaseTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "readNoSqlDatabaseStructure",
     {
-      title: "读取 CloudBase NoSQL 数据库结构",
-      description:
-        "读取 CloudBase NoSQL 数据库集合与索引结构，支持列出集合、查看集合详情、列出索引以及检查索引是否存在。本工具为服务端管理工具，用于管理端查询数据库结构，不用于编写客户端代码。",
+      title: "databaseNoSQL.readStructure.title",
+      description: "databaseNoSQL.readStructure.description",
       inputSchema: {
         action: z.enum([
           "listCollections",
@@ -539,7 +570,7 @@ checkIndex: 检查指定索引是否存在`),
                   requestId: result.RequestId,
                   collections: result.Tables,
                   pager: result.Pager,
-                  message: "获取 NoSQL 数据库集合列表成功",
+                  message: t("databaseNoSQL.readStructure.listed"),
                 },
                 null,
                 2,
@@ -551,7 +582,7 @@ checkIndex: 检查指定索引是否存在`),
 
       if (action === "checkCollection") {
         if (!collectionName) {
-          throw new Error("检查集合时必须提供 collectionName");
+          throw new Error(t("databaseNoSQL.readStructure.collectionRequiredCheck"));
         }
         const envId = await getEnvId(server.cloudBaseOptions);
         let exists = false;
@@ -577,8 +608,8 @@ checkIndex: 检查指定索引是否存在`),
                   exists,
                   requestId,
                   message: exists
-                    ? "云开发数据库集合已存在"
-                    : "云开发数据库集合不存在",
+                    ? t("databaseNoSQL.readStructure.collectionExists")
+                    : t("databaseNoSQL.readStructure.collectionNotExists"),
                 }),
                 null,
                 2,
@@ -590,7 +621,7 @@ checkIndex: 检查指定索引是否存在`),
 
       if (action === "describeCollection") {
         if (!collectionName) {
-          throw new Error("查看集合详情时必须提供 collectionName");
+          throw new Error(t("databaseNoSQL.readStructure.collectionRequiredDescribe"));
         }
         const envId = await getEnvId(server.cloudBaseOptions);
         const result = await cloudbase.commonService("tcb", "2018-06-08").call({
@@ -608,7 +639,7 @@ checkIndex: 检查指定索引是否存在`),
                   requestId: result.RequestId,
                   indexNum: result.IndexNum,
                   indexes: result.Indexes,
-                  message: "获取云开发数据库集合信息成功",
+                  message: t("databaseNoSQL.readStructure.described"),
                 }),
                 null,
                 2,
@@ -620,7 +651,7 @@ checkIndex: 检查指定索引是否存在`),
 
       if (action === "listIndexes") {
         if (!collectionName) {
-          throw new Error("获取索引列表时必须提供 collectionName");
+          throw new Error(t("databaseNoSQL.readStructure.collectionRequiredIndexes"));
         }
         const envId = await getEnvId(server.cloudBaseOptions);
         const result = await cloudbase.commonService("tcb", "2018-06-08").call({
@@ -638,7 +669,7 @@ checkIndex: 检查指定索引是否存在`),
                   requestId: result.RequestId,
                   indexNum: result.IndexNum,
                   indexes: result.Indexes,
-                  message: "获取索引列表成功",
+                  message: t("databaseNoSQL.readStructure.indexesListed"),
                 }),
                 null,
                 2,
@@ -650,7 +681,7 @@ checkIndex: 检查指定索引是否存在`),
 
       if (action === "checkIndex") {
         if (!collectionName || !indexName) {
-          throw new Error("检查索引时必须提供 collectionName 和 indexName");
+          throw new Error(t("databaseNoSQL.readStructure.indexRequired"));
         }
         const envId = await getEnvId(server.cloudBaseOptions);
         let exists = false;
@@ -677,7 +708,9 @@ checkIndex: 检查指定索引是否存在`),
                   indexName,
                   exists,
                   requestId,
-                  message: exists ? "索引已存在" : "索引不存在",
+                  message: exists
+                    ? t("databaseNoSQL.readStructure.indexExists")
+                    : t("databaseNoSQL.readStructure.indexNotExists"),
                 }),
                 null,
                 2,
@@ -687,7 +720,7 @@ checkIndex: 检查指定索引是否存在`),
         };
       }
 
-      throw new Error(`不支持的操作类型: ${action}`);
+      throw new Error(t("databaseNoSQL.unsupportedAction", { action }));
     },
   );
 
@@ -695,9 +728,8 @@ checkIndex: 检查指定索引是否存在`),
   server.registerTool?.(
     "writeNoSqlDatabaseStructure",
     {
-      title: "创建并管理 CloudBase NoSQL 数据库集合",
-      description:
-        "创建、删除和管理 CloudBase NoSQL 数据库集合（collection）。支持创建新集合、删除现有集合，以及通过 updateCollection 的 updateOptions.CreateIndexes / updateOptions.DropIndexes 添加索引和删除索引。当需要新建集合时，使用 action=createCollection。本工具为服务端管理工具，用于管理端操作集合和索引结构，不用于编写客户端代码。",
+      title: "databaseNoSQL.writeStructure.title",
+      description: "databaseNoSQL.writeStructure.description",
       inputSchema: {
         action: z.enum([
           "createCollection",
@@ -786,7 +818,7 @@ deleteCollection: 删除集合`),
                     success: true,
                     action,
                     requestId: existsRequestId,
-                    message: "集合已存在，无需重复创建",
+                    message: t("databaseNoSQL.writeStructure.alreadyExists"),
                     exists: true,
                   }),
                   null,
@@ -820,7 +852,7 @@ deleteCollection: 删除集合`),
                   success: true,
                   requestId: result.RequestId,
                   action,
-                  message: "云开发数据库集合创建成功",
+                  message: t("databaseNoSQL.writeStructure.created"),
                 }),
                 null,
                 2,
@@ -832,7 +864,7 @@ deleteCollection: 删除集合`),
 
       if (action === "updateCollection") {
         if (!updateOptions) {
-          throw new Error("更新集合时必须提供 options");
+          throw new Error(t("databaseNoSQL.writeStructure.optionsRequired"));
         }
         const result = await cloudbase.commonService("tcb", "2018-06-08").call({
           Action: "UpdateTable",
@@ -852,7 +884,7 @@ deleteCollection: 删除集合`),
                   success: true,
                   requestId: result.RequestId,
                   action,
-                  message: "云开发数据库集合更新成功",
+                  message: t("databaseNoSQL.writeStructure.updated"),
                 }),
                 null,
                 2,
@@ -880,7 +912,9 @@ deleteCollection: 删除集合`),
               requestId: result.RequestId,
               action,
               message:
-                result.Exists === false ? "集合不存在" : "云开发数据库集合删除成功",
+                result.Exists === false
+                  ? t("databaseNoSQL.writeStructure.notExists")
+                  : t("databaseNoSQL.writeStructure.deleted"),
             },
           );
           if (result.Exists === false) {
@@ -898,14 +932,17 @@ deleteCollection: 删除集合`),
           const message = error instanceof Error ? error.message : String(error);
           if (/parameter invalid|invalid parameter|param(eter)?\s+invalid/i.test(message)) {
             throw new Error(
-              `deleteCollection 参数校验失败，请确认 collectionName 合法且已存在。当前 collectionName=\"${collectionName}\"。原始错误：${message}`,
+              t("databaseNoSQL.writeStructure.deleteInvalidParam", {
+                collectionName,
+                message,
+              }),
             );
           }
           throw error;
         }
       }
 
-      throw new Error(`不支持的操作类型: ${action}`);
+      throw new Error(t("databaseNoSQL.unsupportedAction", { action }));
     },
   );
 
@@ -913,11 +950,8 @@ deleteCollection: 删除集合`),
   server.registerTool?.(
     "readNoSqlDatabaseContent",
     {
-      title: "查询并获取 CloudBase NoSQL 数据库数据记录",
-      description:
-        "查询 CloudBase NoSQL 数据库中的数据记录。支持按条件筛选、分页、排序，适用于管理端数据查询与运维。" +
-        `limit 默认 ${QUERY_RECORDS_DEFAULT_LIMIT}、最大 ${QUERY_RECORDS_MAX_LIMIT}；超出请用 offset 分页。` +
-        `projection 仅支持 { field: 1|0 } 对象（示例 ${PROJECTION_EXAMPLE}），不要传字段数组。`,
+      title: "databaseNoSQL.readContent.title",
+      description: "databaseNoSQL.readContent.description",
       inputSchema: {
         collectionName: z.string().describe("集合名称"),
         instanceId: z
@@ -1017,7 +1051,7 @@ deleteCollection: 删除集合`),
                       ? result.Pager.Total
                       : documents.length,
                   pager: result.Pager,
-                  message: "文档查询成功",
+                  message: t("databaseNoSQL.readContent.success"),
                 }),
                 null,
                 2,
@@ -1035,11 +1069,8 @@ deleteCollection: 删除集合`),
   server.registerTool?.(
     "writeNoSqlDatabaseContent",
     {
-      title: "修改 CloudBase NoSQL 数据库数据记录",
-      description:
-        "修改 CloudBase NoSQL 数据库中的数据记录。支持插入、更新（含 $set/$inc/$push 等操作符）、删除、upsert 等操作，适用于管理端数据写入与运维。" +
-        "⚠️ 服务端写入不含 _openid：若集合依赖客户端 SDK（@cloudbase/js-sdk 或微信小程序 wx.cloud.database()）的行级安全规则（如 doc._openid == auth.openid），服务端写入时需手动补充 _openid 字段，否则客户端将无法读取到该数据。" +
-        "⚠️ 部分更新嵌套字段须使用点号路径，如 `$set: {\"shipping.city\": \"guangzhou\"}`，直接传嵌套对象会覆盖整个字段。",
+      title: "databaseNoSQL.writeContent.title",
+      description: "databaseNoSQL.writeContent.description",
       inputSchema: {
         action: z
           .enum(["insert", "update", "delete"])
@@ -1098,7 +1129,7 @@ deleteCollection: 删除集合`),
     }) => {
       if (action === "insert") {
         if (!documents) {
-          throw new Error("insert 操作时必须提供 documents");
+          throw new Error(t("databaseNoSQL.writeContent.documentsRequired"));
         }
         const text = await insertDocuments({
           collectionName,
@@ -1119,10 +1150,10 @@ deleteCollection: 删除集合`),
       }
       if (action === "update") {
         if (!query) {
-          throw new Error("update 操作时必须提供 query");
+          throw new Error(t("databaseNoSQL.writeContent.queryRequiredUpdate"));
         }
         if (!update) {
-          throw new Error("update 操作时必须提供 update");
+          throw new Error(t("databaseNoSQL.writeContent.updateRequired"));
         }
         const text = await updateDocuments({
           collectionName,
@@ -1146,7 +1177,7 @@ deleteCollection: 删除集合`),
       }
       if (action === "delete") {
         if (!query) {
-          throw new Error("delete 操作时必须提供 query");
+          throw new Error(t("databaseNoSQL.writeContent.queryRequiredDelete"));
         }
         const text = await deleteDocuments({
           collectionName,
@@ -1167,7 +1198,7 @@ deleteCollection: 删除集合`),
         };
       }
 
-      throw new Error(`不支持的操作类型: ${action}`);
+      throw new Error(t("databaseNoSQL.unsupportedAction", { action }));
     },
   );
 }
@@ -1216,7 +1247,7 @@ async function insertDocuments({
       insertedCount: Array.isArray(result.InsertedIds)
         ? result.InsertedIds.length
         : undefined,
-      message: "文档插入成功",
+      message: t("databaseNoSQL.writeContent.inserted"),
     }),
     null,
     2,
@@ -1280,7 +1311,11 @@ async function updateDocuments({
       matchedCount: result.MatchedNum,
       upsertedId: result.UpsertedId,
       ...(authLinkedDocWarning ? { warning: authLinkedDocWarning } : {}),
-      message: authLinkedDocWarning ? `文档更新成功；${authLinkedDocWarning}` : "文档更新成功",
+      message: authLinkedDocWarning
+        ? t("databaseNoSQL.writeContent.updatedWithWarning", {
+            warning: authLinkedDocWarning,
+          })
+        : t("databaseNoSQL.writeContent.updated"),
     }),
     null,
     2,
@@ -1317,7 +1352,7 @@ function buildAuthLinkedDocWarning({
   const queryObject = tryParseObjectLike(query);
   if (!queryObject) return null;
   if (!("uid" in queryObject) && !("userId" in queryObject)) return null;
-  return "若前端会用 doc(uid) 读取该集合，请改为直接创建 `_id = uid` 的文档；基于 uid 查询再 upsert 往往会生成不同的 `_id`，导致后续 doc(uid) 读取失败。";
+  return t("databaseNoSQL.writeContent.authLinkedDocWarning");
 }
 
 async function deleteDocuments({
@@ -1363,7 +1398,7 @@ async function deleteDocuments({
       success: true,
       requestId: result.RequestId,
       deleted: result.Deleted,
-      message: "文档删除成功",
+      message: t("databaseNoSQL.writeContent.deleted"),
     }),
     null,
     2,

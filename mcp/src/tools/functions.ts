@@ -34,6 +34,7 @@ import {
   isFunctionUpdatingError,
   waitUntilFunctionActive,
 } from "./function-updating.js";
+import { t } from "../i18n/index.js";
 
 import { IEnvVariable } from "@cloudbase/manager-node/types/function/types.js";
 import { existsSync } from "fs";
@@ -180,14 +181,17 @@ type FunctionToolEnvelope = {
 /** Layer soft-warn copy — account-scoped SCF LayerName guidance (no hard fail). */
 export const LAYER_SOFT_WARN = {
   createNameFormat: (envId: string) =>
-    `建议使用 {layerName}_${envId} 格式，当前名称可能与其他环境共享版本序列`,
-  deleteVersion:
-    "该层为账号级共享资源，删除版本会影响所有绑定该版本的环境的函数，请确认",
-  bindShared:
-    "层为账号级共享，绑定/解绑影响所有引用该层名的环境",
-  accountLevelView:
-    "返回账号级视图，含其他环境创建的层",
-} as const;
+    t("functions.layerWarn.createNameFormat", { envId }),
+  get deleteVersion(): string {
+    return t("functions.layerWarn.deleteVersion");
+  },
+  get bindShared(): string {
+    return t("functions.layerWarn.bindShared");
+  },
+  get accountLevelView(): string {
+    return t("functions.layerWarn.accountLevelView");
+  },
+};
 
 export function layerNameIncludesEnvId(
   layerName: string,
@@ -360,16 +364,11 @@ export function validateTimerCron(config: string): string {
   const trimmed = config.trim();
   const fields = trimmed.split(/\s+/);
   if (fields.length === 5) {
-    throw new Error(
-      `timer 触发器的 cron 表达式必须使用 7 段格式（秒 分 时 日 月 星期 年），不支持标准 5 段格式。` +
-        `\n收到 5 段: "${trimmed}"` +
-        `\n正确示例: "0 */5 * * * * *"（每 5 分钟执行），"0 0 2 1 * * *"（每月 1 号 2 点）`,
-    );
+    throw new Error(t("functions.timerCron.5Fields", { cron: trimmed }));
   }
   if (fields.length < 7) {
     throw new Error(
-      `timer 触发器的 cron 表达式必须使用 7 段格式（秒 分 时 日 月 星期 年），当前只有 ${fields.length} 段。` +
-        `\n正确示例: "0 */5 * * * * *"（每 5 分钟执行），"0 0 2 1 * * *"（每月 1 号 2 点）`,
+      t("functions.timerCron.fewFields", { fieldCount: fields.length }),
     );
   }
   return trimmed;
@@ -388,8 +387,7 @@ const TRIGGER_SCHEMA = z.object({
     .refine(
       (val) => SEVEN_FIELD_CRON_REGEX.test(val),
       {
-        message:
-          "timer 触发器的 cron 表达式必须使用 7 段格式（秒 分 时 日 月 星期 年），不支持 5 段格式。正确示例：0 */5 * * * * *",
+        message: t("functions.timerCron.refine"),
       },
     ),
 });
@@ -516,7 +514,7 @@ function processFunctionRootPath(
   if (lastDir === functionName) {
     const parentPath = path.dirname(normalizedPath);
     console.warn(
-      `检测到 functionRootPath 包含函数名 "${functionName}"，已自动调整为父目录: ${parentPath}`,
+      t("functions.rootPathAdjustedWarn", { fnName: functionName, parentPath }),
     );
     return parentPath;
   }
@@ -554,7 +552,10 @@ export function resolveEventFunctionRuntime(runtime: unknown): string {
   }
 
   throw new Error(
-    `不支持的运行时环境: "${String(runtime)}"\n\n支持的运行时:\n${formatRuntimeList()}`,
+    t("functions.unsupportedRuntime", {
+      runtime: String(runtime),
+      runtimes: formatRuntimeList(),
+    }),
   );
 }
 
@@ -570,79 +571,60 @@ export function buildFunctionOperationErrorMessage(
 
   if (/GetFunction.*未找到指定的Function|未找到指定的Function/i.test(baseMessage)) {
     suggestions.push(
-      `请先确认环境中已存在函数 \`${functionName}\`；如果还未创建，请先执行 \`manageFunctions(action="createFunction")\`。`,
+      t("functions.opErr.missingFn", { fnName: functionName }),
     );
   }
 
   if (/路径不存在/i.test(baseMessage) && expectedFunctionPath) {
     suggestions.push(
-      `当前工具会从 \`functionRootPath + 函数名\` 查找代码目录，期望目录是 \`${expectedFunctionPath}\`。`,
+      t("functions.opErr.expectedPath", { expectedPath: expectedFunctionPath }),
     );
-    suggestions.push("如果你传入的已经是函数目录本身，请改为传它的父目录。");
+    suggestions.push(t("functions.opErr.passParentDir"));
     if (functionRootPath) {
       const lastDir = path.basename(path.normalize(functionRootPath));
       if (lastDir !== "cloudfunctions" && lastDir !== "functions") {
         suggestions.push(
-          `functionRootPath 应该是直接包含函数文件夹的目录（如 cloudfunctions 或 functions），而不是项目根目录。` +
-          `请将 functionRootPath 改为 \`${path.join(path.normalize(functionRootPath), "cloudfunctions")}\` ` +
-          `或 \`${path.join(path.normalize(functionRootPath), "functions")}\`。`,
+          t("functions.opErr.rootPathFormat", {
+            cloudPath: path.join(path.normalize(functionRootPath), "cloudfunctions"),
+            functionsPath: path.join(path.normalize(functionRootPath), "functions"),
+          }),
         );
       }
     }
   }
 
   if (/paths\[0\].*undefined/i.test(baseMessage)) {
-    suggestions.push(
-      "HTTP 函数创建时需要提供 functionRootPath（指向 cloudfunctions 或 functions 目录的绝对路径，不是项目根目录）或 zipFile，否则 SDK 无法定位函数目录。",
-    );
+    suggestions.push(t("functions.opErr.missingRootPath"));
   }
 
   if (/依赖安装失败|package\.json/i.test(baseMessage)) {
-    suggestions.push(
-      "如果 HTTP 函数只使用原生 Node.js API 且没有第三方依赖，可以保留函数目录中的 index.js 和 scf_bootstrap，工具会跳过依赖安装。",
-    );
-    suggestions.push(
-      "如果你确实依赖 npm 包，请在函数目录下补充 package.json 后重试。",
-    );
+    suggestions.push(t("functions.opErr.nativeHttpHint"));
+    suggestions.push(t("functions.opErr.addPackageJson"));
   }
 
   if (isFunctionUpdatingError(error)) {
-    suggestions.push(
-      `函数当前处于 Updating/非 Active，不要立即重试 ${operation}。` +
-        `请等待约 10 秒，或先 queryFunctions(action="getFunctionDetail") 确认 Status 为 Active 后再重试。`,
-    );
+    suggestions.push(t("functions.opErr.updatingBusy", { operation }));
   }
 
   // Handle invalid parameter value errors from CloudBase API
   if (/invalid parameter value/i.test(baseMessage)) {
-    suggestions.push(
-      "检测到参数值格式错误。请重点检查以下配置项：",
-    );
-    suggestions.push(
-      "1. runtime: 请使用支持的运行时版本，如 Nodejs18.15、Nodejs16.13、Nodejs20.19 等（区分大小写，不要加空格）",
-    );
-    suggestions.push(
-      "2. handler: Event 函数默认使用 index.main，HTTP 函数默认使用 app.handler 或 scf_bootstrap 启动",
-    );
-    suggestions.push(
-      "3. functionName: 函数名称只能包含字母、数字、下划线、连字符，不能以数字开头",
-    );
-    suggestions.push(
-      "4. timeout: 超时时间需为整数，单位为秒，范围 1-900",
-    );
-    suggestions.push(
-      "5. envVariables: 环境变量键值对不能为空字符串",
-    );
-    suggestions.push(
-      "6. type: 函数类型只能是 Event 或 HTTP（区分大小写）",
-    );
+    suggestions.push(t("functions.opErr.invalidParamHeader"));
+    suggestions.push(t("functions.opErr.invalidParamRuntime"));
+    suggestions.push(t("functions.opErr.invalidParamHandler"));
+    suggestions.push(t("functions.opErr.invalidParamFunctionName"));
+    suggestions.push(t("functions.opErr.invalidParamTimeout"));
+    suggestions.push(t("functions.opErr.invalidParamEnvVariables"));
+    suggestions.push(t("functions.opErr.invalidParamType"));
   }
 
   if (suggestions.length === 0) {
-    suggestions.push("请检查函数名、目录结构和环境中的函数状态后重试。");
+    suggestions.push(t("functions.opErr.default"));
   }
 
-  return `[${operation}] ${baseMessage}\n建议：${suggestions.join(" ")}`;
+  return t("functions.opErr.prefix", {
+    operation,
+    message: baseMessage,
+  }) + suggestions.join(" ");
 }
 
 function wrapFunctionOperationError(
@@ -754,7 +736,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
   const requireConfirm = (action: string, confirm?: boolean) => {
     if (!confirm) {
-      throw new Error(`${action} 是危险操作，请显式传入 confirm=true 后再执行`);
+      throw new Error(t("functions.confirmRequired", { action }));
     }
   };
 
@@ -776,13 +758,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         return;
       }
       throw new Error(
-        `${input.action} 在 cloud mode 下不可用，因为该操作依赖本地函数代码目录。请改用本地模式执行，或使用镜像部署（runtime=CustomImage + imageConfig）。`,
+        t("functions.cloudMode.localOnly", { action: input.action }),
       );
     }
 
     if (input.action === "createLayerVersion" && input.contentPath) {
       throw new Error(
-        "createLayerVersion 在 cloud mode 下不支持 contentPath，本地文件内容请改为 base64Content 或改用本地模式执行。",
+        t("functions.cloudMode.contentPathUnsupported"),
       );
     }
   };
@@ -796,28 +778,24 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     limit?: number,
   ) => {
     if ((offset || 0) + (limit || 0) > 10000) {
-      throw new Error("offset+limit 不能大于 10000");
+      throw new Error(t("functions.offsetLimitTooLarge"));
     }
 
     if (startTime && !TIME_FORMAT_REGEX.test(startTime)) {
-      throw new Error(
-        `startTime 格式错误: "${startTime}"。必须使用 YYYY-MM-DD HH:mm:ss 格式（如 2024-01-01 00:00:00）`,
-      );
+      throw new Error(t("functions.startTimeInvalid", { value: startTime }));
     }
     if (endTime && !TIME_FORMAT_REGEX.test(endTime)) {
-      throw new Error(
-        `endTime 格式错误: "${endTime}"。必须使用 YYYY-MM-DD HH:mm:ss 格式（如 2024-01-01 23:59:59）`,
-      );
+      throw new Error(t("functions.endTimeInvalid", { value: endTime }));
     }
 
     if (startTime && endTime) {
       const start = new Date(startTime).getTime();
       const end = new Date(endTime).getTime();
       if (!Number.isFinite(start) || !Number.isFinite(end)) {
-        throw new Error("startTime 和 endTime 必须是有效的日期时间字符串");
+        throw new Error(t("functions.logRangeInvalidDatetime"));
       }
       if (end - start > 24 * 60 * 60 * 1000) {
-        throw new Error("startTime 和 endTime 间隔不能超过一天");
+        throw new Error(t("functions.logRangeTooLong"));
       }
     }
   };
@@ -838,7 +816,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     switch (input.action) {
     case "getFunctionDeployStatus": {
       if (!input.taskId) {
-        throw new Error("getFunctionDeployStatus 操作时，taskId 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "getFunctionDeployStatus", param: "taskId" }));
       }
       // cloud mode 下这个 action 不可能命中任何任务：异步任务只由 buildStrategy=cloud/local
       // 的真实部署创建，而这两条路径在 cloud mode 下都被拦（image 策略走同步的
@@ -850,10 +828,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           errorCode: DEPLOY_TASK_NOT_FOUND_ERROR_CODE,
           data: { action: input.action, taskId: input.taskId, cloudMode: true },
           message:
-            `${input.action} 在 cloud mode 下不可用：异步部署任务只由 buildStrategy=cloud/local 的真实部署创建，` +
-            "而这两种策略的真实执行在 cloud mode 下都不支持（需要读取本地构建上下文或本地 Docker），因此不会存在任何 taskId。" +
-            "buildStrategy=image 走同步部署，直接在 manageFunctions 的返回里拿结果，也不需要查询部署状态。" +
-            "如需异步镜像构建部署，请改用本地 MCP 模式。",
+            t("functions.deployStatus.cloudMode", { action: input.action }),
         });
       }
       // 任务按 envId 隔离：同一进程可能先后服务多个环境，仅凭 taskId 不足以授权
@@ -866,7 +841,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           success: false,
           errorCode: DEPLOY_TASK_NOT_FOUND_ERROR_CODE,
           data: { action: input.action, taskId: input.taskId, expired: true },
-          message: `未找到部署任务 ${input.taskId}；部署任务不存在，可能已过期、不属于当前环境 ${taskEnvId}，或 MCP Server 已重启（任务仅保存在 MCP 进程内存中）。`,
+          message: t("functions.deployTaskNotFound", { taskId: input.taskId, envId: taskEnvId }),
         });
       }
       return {
@@ -882,7 +857,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
                 {
                   tool: "queryFunctions",
                   action: "getFunctionDeployStatus",
-                  reason: "继续查询云函数部署状态",
+                  reason: t("functions.reason.continuePolling"),
                   suggested_args: { taskId: task.taskId },
                 },
               ],
@@ -905,24 +880,24 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           requestId: result.RequestId,
           raw: result,
         },
-        `已获取 ${result.Functions?.length || 0} 个云函数`,
+        t("functions.listedFunctions", { count: result.Functions?.length || 0 }),
         [
           {
             tool: "queryFunctions",
             action: "getFunctionDetail",
-            reason: "查看单个函数详情",
+            reason: t("functions.reason.getDetail"),
           },
           {
             tool: "manageFunctions",
             action: "createFunction",
-            reason: "创建新的云函数",
+            reason: t("functions.reason.createFn"),
           },
         ],
       );
     }
     case "getFunctionDetail": {
       if (!input.functionName) {
-        throw new Error("getFunctionDetail 操作时，functionName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: input.action, param: "functionName" }));
       }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.getFunctionDetail(
@@ -945,29 +920,29 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           requestId: result.RequestId,
           raw: functionDetail,
         },
-        `已获取函数 ${input.functionName} 的详情`,
+        t("functions.gotFunctionDetail", { fnName: input.functionName }),
         [
           {
             tool: "queryFunctions",
             action: "listFunctionLogs",
-            reason: "查看该函数的执行日志",
+            reason: t("functions.reason.viewLogs"),
           },
           {
             tool: "manageFunctions",
             action: "updateFunctionConfig",
-            reason: "更新该函数配置",
+            reason: t("functions.reason.updateConfig"),
           },
           {
             tool: "queryGateway",
             action: "getRoute",
-            reason: "查看该函数是否已暴露网关访问入口",
+            reason: t("functions.reason.checkGateway"),
           },
         ],
       );
     }
     case "listFunctionLogs": {
       if (!input.functionName) {
-        throw new Error("listFunctionLogs 操作时，functionName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "listFunctionLogs", param: "functionName" }));
       }
       validateLogRange(
         input.startTime,
@@ -991,11 +966,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         const errMsg = error instanceof Error ? error.message : String(error);
         if (/invalid parameter/i.test(errMsg)) {
           throw new Error(
-            `${errMsg}\n\n常见原因：\n` +
-            `1. startTime/endTime 格式错误，必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 00:00:00），不支持 ISO 8601 或时间戳\n` +
-            `2. startTime 和 endTime 间隔超过一天\n` +
-            `3. functionName 不存在或格式不正确\n` +
-            `建议：不传 startTime/endTime 时默认查询最近一天的日志。`,
+            `${errMsg}\n\n${t("functions.logsInvalidParamTips")}`,
           );
         }
         throw error;
@@ -1009,19 +980,19 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           requestId: result.RequestId,
           raw: result,
         },
-        `已获取函数 ${input.functionName} 的日志列表`,
+        t("functions.gotFunctionLogs", { fnName: input.functionName }),
         [
           {
             tool: "queryFunctions",
             action: "getFunctionLogDetail",
-            reason: "按 requestId 查看单条日志详情",
+            reason: t("functions.reason.logDetail"),
           },
         ],
       );
     }
     case "getFunctionLogDetail": {
       if (!input.requestId) {
-        throw new Error("getFunctionLogDetail 操作时，requestId 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: input.action, param: "requestId" }));
       }
       validateLogRange(input.startTime, input.endTime);
       const cloudbase = await getManager();
@@ -1036,10 +1007,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         const errMsg = error instanceof Error ? error.message : String(error);
         if (/invalid parameter/i.test(errMsg)) {
           throw new Error(
-            `${errMsg}\n\n常见原因：\n` +
-            `1. startTime/endTime 格式错误，必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 00:00:00），不支持 ISO 8601 或时间戳\n` +
-            `2. startTime 和 endTime 间隔超过一天\n` +
-            `建议：不传 startTime/endTime 时默认查询最近一天的日志。`,
+            `${errMsg}\n\n${t("functions.logDetailInvalidParamTips")}`,
           );
         }
         throw error;
@@ -1052,12 +1020,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           logDetail: result,
           raw: result,
         },
-        `已获取 requestId=${input.requestId} 的日志详情`,
+        t("functions.gotLogDetail", { requestId: input.requestId }),
       );
     }
     case "listFunctionLayers": {
       if (!input.functionName) {
-        throw new Error("listFunctionLayers 操作时，functionName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "listFunctionLayers", param: "functionName" }));
       }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.getFunctionDetail(
@@ -1075,17 +1043,17 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           requestId: result.RequestId,
           raw: result,
         },
-        `已获取函数 ${input.functionName} 当前绑定的层`,
+        t("functions.gotFunctionLayers", { fnName: input.functionName }),
         [
           {
             tool: "manageFunctions",
             action: "attachLayer",
-            reason: "为该函数追加绑定层",
+            reason: t("functions.reason.attachLayer"),
           },
           {
             tool: "manageFunctions",
             action: "updateFunctionLayers",
-            reason: "整体调整层顺序或绑定列表",
+            reason: t("functions.reason.reorderLayers"),
           },
         ],
       );
@@ -1107,17 +1075,17 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           requestId: result.RequestId,
           raw: result,
         },
-        `已获取 ${result.Layers?.length || 0} 条层记录`,
+        t("functions.gotLayers", { count: result.Layers?.length || 0 }),
         [
           {
             tool: "queryFunctions",
             action: "listLayerVersions",
-            reason: "查看某个层的版本列表",
+            reason: t("functions.reason.layerVersions"),
           },
           {
             tool: "manageFunctions",
             action: "createLayerVersion",
-            reason: "发布新的层版本",
+            reason: t("functions.reason.publishLayer"),
           },
         ],
         [LAYER_SOFT_WARN.accountLevelView],
@@ -1125,7 +1093,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "listLayerVersions": {
       if (!input.layerName) {
-        throw new Error("listLayerVersions 操作时，layerName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "listLayerVersions", param: "layerName" }));
       }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.listLayerVersions({
@@ -1140,17 +1108,17 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           requestId: result.RequestId,
           raw: result,
         },
-        `已获取层 ${input.layerName} 的版本列表`,
+        t("functions.gotLayerVersions", { layerName: input.layerName }),
         [
           {
             tool: "queryFunctions",
             action: "getLayerVersionDetail",
-            reason: "查看某个层版本详情",
+            reason: t("functions.reason.layerVersionDetail"),
           },
           {
             tool: "manageFunctions",
             action: "attachLayer",
-            reason: "将某个层版本绑定到函数",
+            reason: t("functions.reason.bindLayerVersion"),
           },
         ],
         [LAYER_SOFT_WARN.accountLevelView],
@@ -1158,10 +1126,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "getLayerVersionDetail": {
       if (!input.layerName) {
-        throw new Error("getLayerVersionDetail 操作时，layerName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "getLayerVersionDetail", param: "layerName" }));
       }
       if (typeof input.layerVersion !== "number") {
-        throw new Error("getLayerVersionDetail 操作时，layerVersion 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "getLayerVersionDetail", param: "layerVersion" }));
       }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.getLayerVersion({
@@ -1178,17 +1146,17 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           requestId: result.RequestId,
           raw: result,
         },
-        `已获取层 ${input.layerName} 版本 ${input.layerVersion} 的详情`,
+        t("functions.gotLayerVersionDetail", { layerName: input.layerName, layerVersion: input.layerVersion }),
         [
           {
             tool: "manageFunctions",
             action: "attachLayer",
-            reason: "绑定该层版本到函数",
+            reason: t("functions.reason.bindThisLayerVersion"),
           },
           {
             tool: "manageFunctions",
             action: "deleteLayerVersion",
-            reason: "删除该层版本",
+            reason: t("functions.reason.deleteLayerVersion"),
           },
         ],
         [LAYER_SOFT_WARN.accountLevelView],
@@ -1196,7 +1164,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "listFunctionTriggers": {
       if (!input.functionName) {
-        throw new Error("listFunctionTriggers 操作时，functionName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: input.action, param: "functionName" }));
       }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.getFunctionDetail(
@@ -1216,24 +1184,24 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           requestId: detail.RequestId,
           raw: detail,
         },
-        `已获取函数 ${input.functionName} 的触发器列表`,
+        t("functions.gotFunctionTriggers", { fnName: input.functionName }),
         [
           {
             tool: "manageFunctions",
             action: "createFunctionTrigger",
-            reason: "创建新的触发器",
+            reason: t("functions.reason.createTrigger"),
           },
           {
             tool: "manageFunctions",
             action: "deleteFunctionTrigger",
-            reason: "删除指定触发器",
+            reason: t("functions.reason.deleteTrigger"),
           },
         ],
       );
     }
     case "getFunctionDownloadUrl": {
       if (!input.functionName) {
-        throw new Error("getFunctionDownloadUrl 操作时，functionName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: input.action, param: "functionName" }));
       }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.getFunctionDownloadUrl(
@@ -1250,11 +1218,11 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           requestId: result.RequestId,
           raw: result,
         },
-        `已获取函数 ${input.functionName} 的代码下载链接`,
+        t("functions.gotDownloadUrl", { fnName: input.functionName }),
       );
     }
     default:
-      throw new Error(`不支持的操作类型: ${input.action}`);
+      throw new Error(t("functions.unsupportedAction", { action: input.action }));
     }
   };
 
@@ -1323,7 +1291,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       const functionName = String(input.functionName ?? func.name ?? "");
       if (!functionName) {
         throw new Error(
-          `${input.action} 触发镜像构建部署时，函数名是必需的（func.name 或顶层 functionName）。`,
+          t("functions.imageDeployFnNameRequired", { action: input.action }),
         );
       }
       const deployConfig: Record<string, unknown> = {
@@ -1355,12 +1323,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       }
       if (input.dryRun === false && input.confirm !== true) {
         throw new Error(
-          `${input.action} 执行真实镜像部署时必须显式传入 confirm=true；如只查看计划，请使用 dryRun=true。`,
+          t("functions.imageDeployConfirmRequired", { action: input.action }),
         );
       }
       if (strategy === "local" && isCloudMode()) {
         throw new Error(
-          `${input.action} 的 buildStrategy=local 依赖本地源码与 Docker，在 cloud mode 下不可用。请改用本地 MCP 模式，或改用 cloud/image 策略。`,
+          t("functions.imageDeployLocalCloudMode", { action: input.action }),
         );
       }
       // 只拦真实执行；cloud dry-run 在 cloud mode 下放行。
@@ -1378,16 +1346,19 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         isCloudMode()
       ) {
         throw new Error(
-          `${input.action} 的 buildStrategy=cloud 在真实执行时需要读取并打包本地构建上下文，在 cloud mode 下不可用。请改用本地 MCP 模式执行，或先提供已推送镜像并使用 image 策略。`,
+          t("functions.imageDeployCloudCloudMode", { action: input.action }),
         );
       }
 
       const parsedDeployConfig = FUNCTION_DEPLOY_CONFIG_SCHEMA.safeParse(deployConfig);
       if (!parsedDeployConfig.success) {
         throw new Error(
-          `${input.action} 镜像部署参数校验失败：${parsedDeployConfig.error.issues
-            .map((issue) => `${issue.path.join(".") || "func"}: ${issue.message}`)
-            .join("；")}`,
+          t("functions.imageDeployValidationFailed", {
+            action: input.action,
+            detail: parsedDeployConfig.error.issues
+              .map((issue) => `${issue.path.join(".") || "func"}: ${issue.message}`)
+              .join("；"),
+          }),
         );
       }
 
@@ -1403,11 +1374,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         // unknown（超时/网络/拿不到登录态）一律放行，只拦 CAM 明确拒绝的情况
         if ((await probeCamCapabilityForLogin(cloudBaseOptions)) === "limited") {
           throw new Error(
-            `${input.action} 的 buildStrategy=${strategy} 需要通过 CAM 为企业版 TCR 铸造临时令牌，` +
-              "但当前登录态无 CAM 权限（环境级 API Key 与 OAuth 换出的临时凭据都不带 CAM 策略），构建必然在中途失败。" +
-              "请改用账号级密钥 TENCENTCLOUD_SECRETID / TENCENTCLOUD_SECRETKEY 登录，" +
-              "或改用 buildStrategy=image 直接部署已推送的镜像；" +
-              "个人版镜像（imageType=personal）走静态密码不经过 CAM，也不受此限制。",
+            t("functions.imageDeployCamLimited", { action: input.action, strategy }),
           );
         }
       }
@@ -1436,12 +1403,15 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             build: task.build,
             deploy: task.deploy,
           },
-          `已接受云函数 ${task.functionName} 的异步镜像部署任务。当前请求不会等待完整构建；请勿向用户报告“部署已完成”。必须使用 queryFunctions(action="getFunctionDeployStatus", taskId="${task.taskId}") 自动轮询，直到 status=succeeded 或 failed，再向用户汇报最终结果。建议首次等待约 5 秒，后续按返回的 progress 继续查询；仅达到轮询上限时，才报告任务仍在执行并附带 taskId。`,
+          t("functions.imageDeployAsyncAccepted", {
+            fnName: task.functionName,
+            taskId: task.taskId,
+          }),
           [
             {
               tool: "queryFunctions",
               action: "getFunctionDeployStatus",
-              reason: "查询异步部署任务状态",
+              reason: t("functions.reason.checkDeployStatus"),
               suggested_args: { taskId: task.taskId },
             },
           ],
@@ -1463,9 +1433,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           ...syncResult,
           message:
             `${syncResult.message}` +
-            "\n提示：本次为同步等待完整部署（wait 默认 true），构建耗时可能达到十几分钟并触发 MCP Client 请求超时；" +
-            "超时只会断开请求，云端部署仍在继续，但届时拿不到 taskId 追踪。" +
-            '下次执行真实构建部署建议传 wait=false，再用 queryFunctions(action="getFunctionDeployStatus") 轮询。',
+            "\n" +
+            t("functions.imageDeploySyncWaitHint"),
         };
       }
       return syncResult;
@@ -1481,7 +1450,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           force: input.force,
           installDependency: input.func?.installDependency as boolean | undefined,
         });
-        return buildEnvelope({ action: input.action, result }, '云函数部署成功（override）');
+        return buildEnvelope({ action: input.action, result }, t("functions.overrideDeployOk"));
       }
 
       // func.buildStrategy=cloud/local 的 HTTP 镜像构建部署走 functionDeployer 编排；
@@ -1497,7 +1466,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       }
 
       if (!input.func?.name || typeof input.func.name !== "string") {
-        throw new Error("createFunction 操作时，func.name 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "createFunction", param: "func.name" }));
       }
       const cloudbase = await getManager();
 
@@ -1519,18 +1488,13 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
       if (createStrategy === "image" || createImageConfig || isImageRuntime) {
         if (!createImageConfig?.imageUri) {
-          throw new Error(
-            "镜像部署（runtime=CustomImage）时，imageConfig.imageUri 是必需的，" +
-              "格式为 {domain}/{namespace}/{image}:{tag}（含 tag，不要用 :latest）。",
-          );
+          throw new Error(t("functions.imageUriRequired"));
         }
         if (
           (createImageConfig.imageType ?? "enterprise") === "enterprise" &&
           !createImageConfig.registryId
         ) {
-          throw new Error(
-            "imageType=enterprise（企业版 TCR）时，imageConfig.registryId（tcr-xxxxxxxx）是必需的。",
-          );
+          throw new Error(t("functions.registryIdRequired"));
         }
 
         // 镜像函数即 HTTP 函数；Manager SDK 会自动补 ImageType=enterprise、ImagePort=9000，
@@ -1568,26 +1532,25 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             imageUri: createImageConfig.imageUri,
             raw: imageResult as Record<string, unknown>,
           },
-          `已基于镜像 ${createImageConfig.imageUri} 创建 HTTP 函数 ${functionName}。` +
-            `请确认 TCR、SCF 与构建管道处于同一地域；如需通过 URL 访问，请显式调用 ` +
-            `manageGateway(action="createRoute", upstreamResourceType="WEB_SCF") 并按需调整函数安全规则。` +
-            `部署后可用 queryFunctions(action="getFunctionDetail") 确认函数已就绪。`,
+          t("functions.imageCreatedMessage", {
+            imageUri: createImageConfig.imageUri,
+            fnName: functionName,
+          }),
           [
             {
               tool: "queryFunctions",
               action: "getFunctionDetail",
-              reason: "确认镜像函数已就绪（Active）",
+              reason: t("functions.reason.imageFnReady"),
             },
             {
               tool: "manageFunctions",
               action: "updateFunctionCode",
-              reason: "后续迭代只需用新镜像 tag 调用 updateFunctionCode 更新镜像",
+              reason: t("functions.reason.imageNextIteration"),
             },
             {
               tool: "manageGateway",
               action: "createRoute",
-              reason:
-                "如需通过 URL 访问镜像 HTTP 函数，显式创建 Domain/Route 访问入口并传 type=\"HTTP\"（映射 WEB_SCF）",
+              reason: t("functions.reason.imageGatewayRoute"),
             },
           ],
         );
@@ -1603,7 +1566,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           originalRuntime.replace(/\s+/g, "") === func.runtime
         ) {
           console.warn(
-            `检测到 runtime 参数包含空格: "${originalRuntime}"，已自动移除空格`,
+            t("functions.runtimeSpacesRemovedWarn", { runtime: originalRuntime }),
           );
         }
       }
@@ -1620,9 +1583,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       );
 
       if (functionType === "HTTP" && !processedRootPath && !input.zipFile) {
-        throw new Error(
-          "createFunction 创建 HTTP 函数时，需要提供 functionRootPath（指向 cloudfunctions 或 functions 目录的绝对路径，不是项目根目录）或 zipFile。",
-        );
+        throw new Error(t("functions.httpFunctionNeedsRootPath"));
       }
 
       const hasPackageJson =
@@ -1635,7 +1596,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
       if (functionType === "HTTP" && processedRootPath && !hasPackageJson) {
         console.warn(
-          `检测到 HTTP 函数 ${functionName} 目录下没有 package.json，已跳过依赖安装；如果你需要第三方依赖，请补充 package.json 后重试。`,
+          t("functions.noPackageJsonWarn", { fnName: functionName }),
         );
       }
 
@@ -1661,12 +1622,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         {
           tool: "queryFunctions",
           action: "getFunctionDetail",
-          reason: "确认函数配置",
+          reason: t("functions.reason.confirmConfig"),
         },
         {
           tool: "queryFunctions",
           action: "listFunctionTriggers",
-          reason: "检查函数触发器",
+          reason: t("functions.reason.checkTriggers"),
         },
       ];
 
@@ -1674,32 +1635,29 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         nextActions.push({
           tool: "manageGateway",
           action: "createRoute",
-          reason:
-            "如果需要通过 URL 访问 HTTP 函数，请调用 manageGateway(action=\"createRoute\") 并显式传 upstreamResourceType=\"WEB_SCF\"，再按实际路径和鉴权需求创建访问入口，不要默认假设 /函数名 已存在",
+          reason: t("functions.reason.gatewayRouteForHttp"),
         });
         nextActions.push({
           tool: "queryGateway",
           action: "getRoute",
-          reason: "交付前确认 HTTP 访问路径是否已存在并已生效",
+          reason: t("functions.reason.confirmAccessPath"),
         });
         nextActions.push({
           tool: "queryPermissions",
           action: "getResourcePermission",
-          reason:
-            "评测、浏览器或其他外部调用方可能以匿名身份访问；若直接报 EXCEED_AUTHORITY，应先读取当前函数安全规则",
+          reason: t("functions.reason.checkPermission"),
         });
         nextActions.push({
           tool: "managePermissions",
           action: "updateResourcePermission",
-          reason:
-            "只有在确认需要匿名访问时，才按实际安全要求调整函数安全规则，例如处理 EXCEED_AUTHORITY",
+          reason: t("functions.reason.adjustPermission"),
         });
       }
 
       const message =
         func.type === "HTTP"
-          ? `已创建 HTTP 函数 ${functionName}。如果后续需要通过 URL 访问，请显式调用 manageGateway(action="createRoute")，并把 upstreamResourceType="WEB_SCF" 一起传入，再按实际路径和鉴权需求创建访问入口。评测或其他外部调用方可能会以匿名身份访问，而且失败后不一定会把 EXCEED_AUTHORITY 再反馈给 AI；交付前请主动确认访问路径和函数安全规则，若已出现 EXCEED_AUTHORITY，请先调用 queryPermissions(action="getResourcePermission", resourceType="function", resourceId="${functionName}") 查看当前规则，再按需要使用 managePermissions(action="updateResourcePermission") 调整权限。`
-          : `已创建函数 ${functionName}`;
+          ? t("functions.createdHttpFunctionMessage", { fnName: functionName })
+          : t("functions.createdFunction", { fnName: functionName });
 
       let accessUrl: string | undefined;
       let accessUrls: string[] = [];
@@ -1744,10 +1702,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           force: input.force,
           installDependency: input.func?.installDependency as boolean | undefined,
         });
-        return buildEnvelope({ action: input.action, result }, '云函数代码更新成功（override）');
+        return buildEnvelope({ action: input.action, result }, t("functions.overrideUpdateOk"));
       }
       if (!input.functionName) {
-        throw new Error("updateFunctionCode 操作时，functionName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "updateFunctionCode", param: "functionName" }));
       }
       const cloudbase = await getManager();
 
@@ -1794,9 +1752,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         (input.func?.imageConfig as FunctionImageConfigInput | undefined);
       if (updateStrategy === "image" || updateImageConfig) {
         if (!updateImageConfig?.imageUri) {
-          throw new Error(
-            "镜像更新时，imageConfig.imageUri 是必需的，格式为 {domain}/{namespace}/{image}:{tag}（含 tag，不要用 :latest）。",
-          );
+          throw new Error(t("functions.imageUpdateUriRequired"));
         }
         let imageResult: unknown;
         try {
@@ -1853,13 +1809,15 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
               : {}),
             raw: imageResult as Record<string, unknown>,
           },
-          `已将函数 ${input.functionName} 的镜像更新为 ${updateImageConfig.imageUri}。` +
-            `部署后可用 queryFunctions(action="getFunctionDetail") 确认函数已就绪（Active）。`,
+          t("functions.imageUpdatedMessage", {
+            fnName: input.functionName,
+            imageUri: updateImageConfig.imageUri,
+          }),
           [
             {
               tool: "queryFunctions",
               action: "getFunctionDetail",
-              reason: "确认镜像更新后函数已就绪（Active）",
+              reason: t("functions.reason.imageUpdateReady"),
             },
           ],
         );
@@ -1928,19 +1886,19 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             : {}),
           raw: result as Record<string, unknown>,
         },
-        `已更新函数 ${input.functionName} 的代码`,
+        t("functions.updatedCode", { fnName: input.functionName }),
         [
           {
             tool: "queryFunctions",
             action: "getFunctionDetail",
-            reason: "确认最新函数配置",
+            reason: t("functions.reason.latestConfig"),
           },
         ],
       );
     }
     case "updateFunctionConfig": {
       if (!input.functionName) {
-        throw new Error("updateFunctionConfig 操作时，functionName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: input.action, param: "functionName" }));
       }
       const cloudbase = await getManager();
 
@@ -1949,7 +1907,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       );
 
       if (!functionDetail) {
-        throw new Error(`函数 ${input.functionName} 不存在或无法获取详情`);
+        throw new Error(t("functions.functionMissing", { fnName: input.functionName }));
       }
 
       const configBusy = await waitForManageWriteOrGuide(
@@ -2001,12 +1959,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             functionName: input.functionName,
             raw: result,
           },
-          `已更新函数 ${input.functionName} 的配置`,
+          t("functions.updatedConfig", { fnName: input.functionName }),
           [
             {
               tool: "queryFunctions",
               action: "getFunctionDetail",
-              reason: "确认配置变更结果",
+              reason: t("functions.reason.confirmConfigChange"),
             },
           ],
         );
@@ -2023,7 +1981,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "invokeFunction": {
       if (!input.functionName) {
-        throw new Error("invokeFunction 操作时，functionName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "invokeFunction", param: "functionName" }));
       }
       const cloudbase = await getManager();
       try {
@@ -2039,12 +1997,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             invokeResult: result,
             raw: result,
           },
-          `已调用函数 ${input.functionName}`,
+          t("functions.invokedFunction", { fnName: input.functionName }),
           [
             {
               tool: "queryFunctions",
               action: "listFunctionLogs",
-              reason: "查看本次调用日志",
+              reason: t("functions.reason.viewCallLogs"),
             },
           ],
         );
@@ -2056,7 +2014,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           errorMessage.includes("函数不存在")
         ) {
           throw new Error(
-            `${errorMessage}\n\nTip: "invokeFunction" 只能调用已部署的云函数。数据库操作请使用对应的数据工具。`,
+            t("functions.invokeNotFoundTip", { message: errorMessage }),
           );
         }
         throw error;
@@ -2064,7 +2022,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "deleteFunction": {
       if (!input.functionName) {
-        throw new Error("deleteFunction 操作时，functionName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: input.action, param: "functionName" }));
       }
       requireConfirm(input.action, input.confirm);
       const cloudbase = await getManager();
@@ -2076,22 +2034,22 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           functionName: input.functionName,
           raw: result,
         },
-        `已删除函数 ${input.functionName}`,
+        t("functions.deletedFunction", { fnName: input.functionName }),
         [
           {
             tool: "queryFunctions",
             action: "listFunctions",
-            reason: "确认函数已被删除",
+            reason: t("functions.reason.confirmDeleted"),
           },
         ],
       );
     }
     case "createFunctionTrigger": {
       if (!input.functionName) {
-        throw new Error("createFunctionTrigger 操作时，functionName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "createFunctionTrigger", param: "functionName" }));
       }
       if (!input.triggers?.length) {
-        throw new Error("createFunctionTrigger 操作时，triggers 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "createFunctionTrigger", param: "triggers" }));
       }
       // Validate timer cron format before sending to CloudBase
       for (const trigger of input.triggers) {
@@ -2111,22 +2069,22 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           functionName: input.functionName,
           raw: result,
         },
-        `已为函数 ${input.functionName} 创建触发器`,
+        t("functions.createdTriggers", { fnName: input.functionName }),
         [
           {
             tool: "queryFunctions",
             action: "listFunctionTriggers",
-            reason: "确认触发器已生效",
+            reason: t("functions.reason.confirmTriggers"),
           },
         ],
       );
     }
     case "deleteFunctionTrigger": {
       if (!input.functionName) {
-        throw new Error("deleteFunctionTrigger 操作时，functionName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "deleteFunctionTrigger", param: "functionName" }));
       }
       if (!input.triggerName) {
-        throw new Error("deleteFunctionTrigger 操作时，triggerName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "deleteFunctionTrigger", param: "triggerName" }));
       }
       requireConfirm(input.action, input.confirm);
       const cloudbase = await getManager();
@@ -2141,27 +2099,25 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           triggerName: input.triggerName,
           raw: {},
         },
-        `已删除函数 ${input.functionName} 的触发器 ${input.triggerName}`,
+        t("functions.deletedTrigger", { fnName: input.functionName, triggerName: input.triggerName }),
         [
           {
             tool: "queryFunctions",
             action: "listFunctionTriggers",
-            reason: "确认剩余触发器列表",
+            reason: t("functions.reason.remainingTriggers"),
           },
         ],
       );
     }
     case "createLayerVersion": {
       if (!input.layerName) {
-        throw new Error("createLayerVersion 操作时，layerName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: input.action, param: "layerName" }));
       }
       if (!input.runtimes?.length) {
-        throw new Error("createLayerVersion 操作时，runtimes 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: input.action, param: "runtimes" }));
       }
       if (!input.contentPath && !input.base64Content) {
-        throw new Error(
-          "createLayerVersion 操作时，contentPath 和 base64Content 至少需要提供一个",
-        );
+        throw new Error(t("functions.contentPathRequired"));
       }
       const envId = await getEnvId(cloudBaseOptions);
       const nameWarning = buildCreateLayerNameWarning(input.layerName, envId);
@@ -2183,12 +2139,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           requestId: result.RequestId,
           raw: result,
         },
-        `已创建层 ${input.layerName} 的新版本`,
+        t("functions.createdLayerVersion", { layerName: input.layerName }),
         [
           {
             tool: "queryFunctions",
             action: "listLayerVersions",
-            reason: "查看该层的全部版本",
+            reason: t("functions.reason.allLayerVersions"),
           },
         ],
         nameWarning ? [nameWarning] : undefined,
@@ -2196,10 +2152,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
     case "deleteLayerVersion": {
       if (!input.layerName) {
-        throw new Error("deleteLayerVersion 操作时，layerName 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "deleteLayerVersion", param: "layerName" }));
       }
       if (typeof input.layerVersion !== "number") {
-        throw new Error("deleteLayerVersion 操作时，layerVersion 参数是必需的");
+        throw new Error(t("functions.paramRequired", { action: "deleteLayerVersion", param: "layerVersion" }));
       }
       requireConfirm(input.action, input.confirm);
       const cloudbase = await getManager();
@@ -2215,12 +2171,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           layerVersion: input.layerVersion,
           raw: result,
         },
-        `已删除层 ${input.layerName} 的版本 ${input.layerVersion}`,
+        t("functions.deletedLayerVersion", { layerName: input.layerName, layerVersion: input.layerVersion }),
         [
           {
             tool: "queryFunctions",
             action: "listLayerVersions",
-            reason: "确认剩余层版本",
+            reason: t("functions.reason.remainingLayerVersions"),
           },
         ],
         [LAYER_SOFT_WARN.deleteVersion],
@@ -2230,7 +2186,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     case "detachLayer":
     case "updateFunctionLayers": {
       if (!input.functionName) {
-        throw new Error(`${input.action} 操作时，functionName 参数是必需的`);
+        throw new Error(t("functions.paramRequired", { action: input.action, param: "functionName" }));
       }
       const cloudbase = await getManager();
       const envId = await getEnvId(cloudBaseOptions);
@@ -2238,10 +2194,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
       if (input.action === "attachLayer") {
         if (!input.layerName) {
-          throw new Error("attachLayer 操作时，layerName 参数是必需的");
+          throw new Error(t("functions.paramRequired", { action: input.action, param: "layerName" }));
         }
         if (typeof input.layerVersion !== "number") {
-          throw new Error("attachLayer 操作时，layerVersion 参数是必需的");
+          throw new Error(t("functions.paramRequired", { action: input.action, param: "layerVersion" }));
         }
         const result = await cloudbase.functions.attachLayer({
           envId,
@@ -2263,12 +2219,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             requestId: result.RequestId,
             raw: result,
           },
-          `已将层 ${input.layerName}:${input.layerVersion} 绑定到函数 ${input.functionName}`,
+          t("functions.attachedLayer", { layerName: input.layerName, layerVersion: input.layerVersion, fnName: input.functionName }),
           [
             {
               tool: "queryFunctions",
               action: "listFunctionLayers",
-              reason: "确认函数当前绑定层列表",
+              reason: t("functions.reason.currentLayers"),
             },
           ],
           bindWarnings,
@@ -2277,10 +2233,10 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
       if (input.action === "detachLayer") {
         if (!input.layerName) {
-          throw new Error("detachLayer 操作时，layerName 参数是必需的");
+          throw new Error(t("functions.paramRequired", { action: "detachLayer", param: "layerName" }));
         }
         if (typeof input.layerVersion !== "number") {
-          throw new Error("detachLayer 操作时，layerVersion 参数是必需的");
+          throw new Error(t("functions.paramRequired", { action: "detachLayer", param: "layerVersion" }));
         }
         requireConfirm(input.action, input.confirm);
         const result = await cloudbase.functions.unAttachLayer({
@@ -2303,12 +2259,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             requestId: result.RequestId,
             raw: result,
           },
-          `已从函数 ${input.functionName} 解绑层 ${input.layerName}:${input.layerVersion}`,
+          t("functions.detachedLayer", { layerName: input.layerName, layerVersion: input.layerVersion, fnName: input.functionName }),
           [
             {
               tool: "queryFunctions",
               action: "listFunctionLayers",
-              reason: "确认解绑后的层列表",
+              reason: t("functions.reason.detachedLayers"),
             },
           ],
           bindWarnings,
@@ -2317,9 +2273,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
 
       const normalizedLayers = normalizeManageLayers(input.layers);
       if (!normalizedLayers.length) {
-        throw new Error(
-          "updateFunctionLayers 操作时，layers 参数必须包含有效的 layerName 和 layerVersion",
-        );
+        throw new Error(t("functions.layersInvalid"));
       }
       const result = await cloudbase.functions.updateFunctionLayer({
         envId,
@@ -2338,12 +2292,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           requestId: result.RequestId,
           raw: result,
         },
-        `已更新函数 ${input.functionName} 的层绑定列表`,
+        t("functions.updatedLayers", { fnName: input.functionName }),
         [
           {
             tool: "queryFunctions",
             action: "listFunctionLayers",
-            reason: "确认最新层顺序和绑定结果",
+            reason: t("functions.reason.latestLayerOrder"),
           },
         ],
         bindWarnings,
@@ -2355,7 +2309,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         const fn = deployOverrides?.incrementalDeployFunction;
         if (!fn) {
           throw new Error(
-            'incrementalDeployFunction 需要通过 pluginOptions.functions.incrementalDeployFunction 注入实现（仅在支持的 IDE 环境中可用）'
+            t("functions.incrementalNotInjected")
           );
         }
         const result = await fn({
@@ -2363,33 +2317,17 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           functionRootPath: input.functionRootPath ?? '',
           incrementalFile: input.incrementalFile ?? '',
         });
-        return buildEnvelope({ action: input.action, result }, '云函数增量部署成功');
+        return buildEnvelope({ action: input.action, result }, t("functions.incrementalDeployOk"));
       }
-      throw new Error(`不支持的操作类型: ${input.action}`);
+      throw new Error(t("functions.unsupportedAction", { action: input.action }));
     }
   };
 
   server.registerTool?.(
     "queryFunctions",
     {
-      title: "查询 CloudBase 云函数",
-      description:
-        "CloudBase 云函数统一只读入口。通过更自解释的 action 查询 CloudBase 云函数列表、函数详情、执行日志、层、触发器和代码下载地址。" +
-        "\n\n**分页说明**：`listFunctions`、`listLayers` 支持 `limit` 和 `offset` 参数。" +
-        "\n- `limit`: 分页数量，默认值由后端决定" +
-        "\n- `offset`: 分页偏移，从 0 开始" +
-        "\n- 示例：`queryFunctions(action=\"listFunctions\", offset=10, limit=10)`" +
-        "\n\n**查询 CloudBase 云函数日志**：使用 `action=\"listFunctionLogs\"`，需要提供 `functionName` 参数。" +
-        "\n- 示例：`queryFunctions(action=\"listFunctionLogs\", functionName=\"my-function\")`" +
-        "\n- 如需查看日志详情：`queryFunctions(action=\"getFunctionLogDetail\", requestId=\"xxx\")`" +
-        "\n\n**定时任务 / cron / 定时跑**：使用 `listFunctionTriggers` 查询函数的 timer 触发器配置。" +
-        "\n\n**层（Layer）说明**：" +
-        "\n- 层为 SCF 账号级共享命名空间：不同环境创建同名层会共享同一层的版本序列；删除某版本会影响所有绑定该版本的环境的函数" +
-        "\n- 创建层必须用带环境标识的唯一层名，固定格式：`{layerName}_{当前envId}`（如 `common_cloud1-d9ghadgak3edf6b36`）。不要在不同环境使用相同裸层名，创建前先 `listLayers` 查重" +
-        "\n- `listLayers` / `listLayerVersions` / `getLayerVersionDetail` 返回账号级视图，可能含其他环境创建的层" +
-        "\n\n**区分 `queryLogs` 工具**：" +
-        "\n- 本工具用于查询特定 CloudBase 云函数的执行日志" +
-        "\n- `queryLogs` 工具用于搜索 CLS 日志服务（跨服务日志聚合）",
+      title: "functions.queryTitle",
+      description: "functions.queryDescription",
       inputSchema: {
         action: z
           .enum(QUERY_FUNCTION_ACTIONS)
@@ -2468,31 +2406,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "manageFunctions",
     {
-      title: "管理 CloudBase 云函数",
-      description:
-        "CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。" +
-        "如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。" +
-        "HTTP 云函数镜像构建部署：createFunction / updateFunctionCode 通过 func.buildStrategy 区分。" +
-        "func.buildStrategy=image（已有镜像，填 func.imageConfig.imageUri）直接创建/更新 HTTP 函数；" +
-        "func.buildStrategy=local（本地 Docker 构建推送）、cloud（CloudApp 云端构建）走镜像构建部署编排（需要 func.imageConfig；build 非必填，缺省仓库坐标自动补齐：namespace 默认 envId、repository 默认函数名），" +
-        "默认仅生成 dry-run 计划；传入 dryRun=false 且 confirm=true 后执行真实部署。真实部署可传 wait=false 立即返回 taskId，再通过 queryFunctions 的 getFunctionDeployStatus 查询进度和结果。wait=false 仅表示当前 Tool 不等待完整部署；调用方不得在 status=running 时结束流程，必须自动轮询到 succeeded/failed 后再向用户汇报，除非达到轮询上限。" +
-        "local 始终要求本地 MCP 模式；cloud 的真实执行需要读取本地构建上下文，也要求本地 MCP 模式；cloud mode 仅支持 cloud dry-run 和 image 策略。" +
-        "func.buildStrategy 省略或为 zip 时按传统代码包部署。危险操作需要显式 confirm=true。" +
-        "\n\n**个人版 TCR 凭证**：imageType=personal 的 local/cloud 构建需要推送凭证。" +
-        "若 MCP 配置的 env 中已设置 TCB_TCR_USERNAME 与 TCB_TCR_PASSWORD（与 TENCENTCLOUD_SECRETID 等密钥同样的配置方式），" +
-        "则不需要在请求参数中传递 func.imageConfig.build.registryCredential，留空即可自动读取。" +
-        "不要向用户索要密码明文，也不要把密码写进工具参数。" +
-        "\n注意这条 env 通道只在**本地 stdio MCP、且客户端的 mcp.json 支持自定义 env 块**时可用：" +
-        "部分 GUI 客户端不继承 shell 的 export，IDE 内置型 MCP 的凭据注入通常是硬编码白名单（例如只放行 TENCENTCLOUD_*），" +
-        "这类用户没有配置自定义 env 的通道，「在 MCP 配置的 env 中设置」对他们是无效指引。" +
-        "面向内置 MCP 用户应改为引导：使用企业版（imageType=enterprise，走实例临时令牌，不需要固定密码），或改用 buildStrategy=image 直接部署已推送的镜像。" +
-        "\n**企业版登录态要求**：enterprise 的 cloud/local 构建要经 CAM 铸造 TCR 临时令牌，" +
-        "环境级 API Key 与 OAuth 换出的临时凭据都不带 CAM 策略，会被前置拦截并提示改用账号级密钥或 image 策略；" +
-        "个人版走静态密码直接 docker login，不经过 CAM，反而是 API Key 用户唯一能走通的构建路径。" +
-        "\n\n**层（Layer）说明**：" +
-        "\n- 层为 SCF 账号级共享命名空间：不同环境创建同名层会共享同一层的版本序列；删除某版本会影响所有绑定该版本的环境的函数" +
-        "\n- 创建层必须用带环境标识的唯一层名，固定格式：`{layerName}_{当前envId}`（如 `common_cloud1-d9ghadgak3edf6b36`）。不要在不同环境使用相同裸层名，创建前先 `listLayers` 查重" +
-        "\n- 相关 action：`createLayerVersion` / `deleteLayerVersion` / `attachLayer` / `detachLayer` / `updateFunctionLayers`（只读查询见 queryFunctions 的 listLayers / listLayerVersions / getLayerVersionDetail）",
+      title: "functions.manageTitle",
+      description: "functions.manageDescription",
       inputSchema: {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)

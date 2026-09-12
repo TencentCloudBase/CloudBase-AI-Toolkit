@@ -72,6 +72,7 @@ vi.mock('../utils/cloud-mode.js', () => ({
 }));
 
 import { registerHostingTools } from './hosting.js';
+import { t } from '../i18n/index.js';
 
 function createMockServer() {
   const tools: Record<string, { meta: any; handler: (args: any) => Promise<any> }> = {};
@@ -211,10 +212,13 @@ describe('hosting tools', () => {
     const tools = createMockServer();
 
     expect(Object.keys(tools).sort()).toEqual(['manageHosting', 'queryHosting']);
-    expect(tools.queryHosting.meta.description).toContain('只读');
+    // 工具级 description/title 迁移为词典 key 字符串，由 server registerTool 包装层解析
+    expect(tools.queryHosting.meta.description).toBe('hosting.queryDescription');
+    expect(tools.queryHosting.meta.title).toBe('hosting.queryTitle');
     expect(tools.queryHosting.meta.inputSchema.action.description).toContain('websiteConfig');
     expect(tools.queryHosting.meta.inputSchema.domains.description).toContain('domainStatus');
-    expect(tools.manageHosting.meta.description).toContain('若任务只是查看配置、文件或域名状态，请改用 queryHosting');
+    expect(tools.manageHosting.meta.description).toBe('hosting.manageDescription');
+    expect(tools.manageHosting.meta.title).toBe('hosting.manageTitle');
     expect(tools.manageHosting.meta.inputSchema.action.description).toContain('setWebsiteDocument');
     expect(tools.manageHosting.meta.inputSchema.confirm.description).toContain('delete');
     expect(tools.manageHosting.meta.inputSchema.indexDocument.description).toContain('action=setWebsiteDocument');
@@ -582,9 +586,11 @@ describe('hosting tools', () => {
     expect(payload.message).toContain('文件可能未完全删除');
   });
 
-  it('manageHosting description should warn about DescribeStaticStore rate-limit and bulk-delete pacing', () => {
+  it('manageHosting description (dictionary zh text) should warn about DescribeStaticStore rate-limit and bulk-delete pacing', () => {
     const tools = createMockServer();
-    const description = tools.manageHosting.meta.description as string;
+    // meta.description 是词典 key；内容校验针对 zh 词典解析结果
+    expect(tools.manageHosting.meta.description).toBe('hosting.manageDescription');
+    const description = t('hosting.manageDescription');
     expect(description).toContain('DescribeStaticStore');
     expect(description).toContain('20 次/秒 QPS 限制');
     expect(description).toContain('isDir=true');

@@ -51,6 +51,8 @@
     "test:pg:cloud": "npm run build && node ./scripts/verify-pg-cloud-smoke.mjs",
     "test:cli:cloud-mode": "node ./scripts/verify-cli-cloud-mode-smoke.mjs",
     "test:npm:tarball-smoke": "node ./scripts/verify-npm-tarball-smoke.mjs",
+    "check:i18n": "node ./scripts/check-i18n-coverage.mjs",
+    "update:i18n-baseline": "node ./scripts/check-i18n-coverage.mjs --update",
     "test:inspector": "npm run build && npx @modelcontextprotocol/inspector node ./dist/cli.cjs",
     "prepublishOnly": "npm run build && node scripts/prepare-publish.cjs",
     "postpublish": "node scripts/restore-deps.cjs"

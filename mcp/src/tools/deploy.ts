@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { getCloudBaseManager, getEnvId } from "../cloudbase-manager.js";
+import { t } from "../i18n/index.js";
 import type { ExtendedMcpServer } from "../server.js";
 import { jsonContent } from "../utils/json-content.js";
 import { findDestructiveStatements } from "../utils/sql-risk.js";
@@ -115,7 +116,7 @@ async function resolveDeployConfig(options: {
   if (!found?.filepath) {
     throw new DeployError(
       DEPLOY_ERROR_CODES.CONFIG_NOT_FOUND,
-      `未在 ${options.cwd} 找到 cloudbaserc 配置文件（支持 json/yaml/yml/js）`,
+      t("deploy.configNotFound", { cwd: options.cwd }),
     );
   }
   const rawConfig = await loadConfig({ configPath: found.filepath });
@@ -147,7 +148,7 @@ async function resolveDeployEnvId(options: {
   if (!resolved) {
     throw new DeployError(
       DEPLOY_ERROR_CODES.ENV_UNRESOLVED,
-      "未能确定部署环境 ID：请在 cloudbaserc 配置 envId、通过 envId 参数指定，或先登录并绑定环境。",
+      t("deploy.envUnresolved"),
     );
   }
   return resolved;
@@ -168,7 +169,7 @@ function assertConfigValid(config: Record<string, unknown>): void {
     .join("; ");
   throw new DeployError(
     DEPLOY_ERROR_CODES.CONFIG_INVALID,
-    `cloudbaserc 配置校验未通过：${detail}`,
+    t("deploy.configInvalid", { detail }),
   );
 }
 
@@ -184,7 +185,7 @@ function normalizeConcurrency(concurrency?: number): number | undefined {
   if (!Number.isInteger(concurrency) || concurrency < 1) {
     throw new DeployError(
       DEPLOY_ERROR_CODES.INVALID_CONCURRENCY,
-      `无效的并发数 ${concurrency}，应为不小于 1 的整数`,
+      t("deploy.invalidConcurrency", { concurrency }),
     );
   }
   return concurrency;
@@ -225,7 +226,7 @@ function reconcilePlanWithExecution(plan: unknown, yes: boolean): PlanItem[] {
         ...item,
         status: "skip",
         declaredStatus: "update",
-        action: `已存在函数 ${item.name}：未传 yes=true，执行时将保守跳过（不覆盖）。传 yes=true 才会覆盖更新。`,
+        action: t("deploy.planSkipExistingFn", { fnName: item.name }),
       };
     }
     return item;
@@ -330,17 +331,8 @@ export function registerDeployTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "deployBuild",
     {
-      title: "构建声明式配置中的静态托管项目（本地构建）",
-      description:
-        "解析 cloudbaserc 并对 hosting[] 中配置了 buildCommand 的项目执行本地构建（仅执行 buildCommand，不安装依赖、不上传）。" +
-        "对应 CLI 的 tcb app build，但只处理 hosting[] 静态托管项，与 cloudbaserc 的 app 资源类型（云端构建管线）无关。" +
-        "声明式 hosting 部署拆分为「build → plan → apply」三步，本工具是第一步：" +
-        "先本地构建产物，再 deployPlan 预演，最后 deployApply 上传产物。" +
-        "deployApply 不再隐式本地构建 —— 带构建命令的 hosting 项在产物缺失时会报错引导先执行本工具。" +
-        "纯静态托管（未配置 buildCommand 且无法探测框架）自动跳过。" +
-        "构建为纯本地操作：不解析环境、不要求登录，也不需要 confirm。" +
-        "\n- cwd：项目根目录，默认当前工作目录" +
-        "\n- mode：环境名，命中 envOverrides.<mode> 时合并对应的多环境覆盖配置",
+      title: "deploy.buildTitle",
+      description: "deploy.buildDescription",
       inputSchema: {
         cwd: z
           .string()
@@ -416,23 +408,8 @@ export function registerDeployTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "deployPlan",
     {
-      title: "预演 CloudBase 声明式部署计划",
-      description:
-        "解析 cloudbaserc 并计算声明式部署计划（dry-run，不产生任何变更）。" +
-        "这是 deployApply 的预演对仗工具：plan 计算、deployApply 执行同一份 cloudbaserc。" +
-        "返回每个资源的动作分类：create=新建，update=覆盖更新，skip=无变更/不会执行，" +
-        "conflict=检测到冲突需中断，deploy=直传覆盖。" +
-        "计划已按 yes 复算为「实际会发生的动作」：不传 yes=true 时，云端已存在的函数会标为 skip" +
-        "（并在 declaredStatus 保留 update），与 deployApply 的实际执行结果一致，避免预演与执行相反。" +
-        "\n适用边界：本工具用于项目级声明式编排（一份 cloudbaserc 统一 plan/apply）；" +
-        "单资源临时直传请用 manageFunctions/manageHosting/manageApps。" +
-        "\n- cwd：项目根目录，默认当前工作目录" +
-        "\n- mode：环境名，命中 envOverrides.<mode> 时合并对应的多环境覆盖配置" +
-        "\n- envId：目标环境 ID，优先级高于 cloudbaserc 中的 envId；不传则用配置值或当前绑定环境" +
-        "\n- only：仅计算指定资源类型的计划" +
-        "\n- skip：跳过指定资源类型" +
-        "\n- yes：与 deployApply 的 yes 对齐，用于复算已存在函数的有效动作。" +
-        "true=预演为覆盖更新(update)；false（默认）=预演为保守跳过(skip)",
+      title: "deploy.planTitle",
+      description: "deploy.planDescription",
       inputSchema: {
         cwd: z
           .string()
@@ -509,7 +486,7 @@ export function registerDeployTools(server: ExtendedMcpServer) {
         return jsonContent(
           buildEnvelope(
             { cwd: projectRoot, mode: mode ?? null, envId, yes: yes === true, plan },
-            "已生成声明式部署计划",
+            t("deploy.planGenerated"),
           ),
         );
       } catch (error) {
@@ -522,28 +499,8 @@ export function registerDeployTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "deployApply",
     {
-      title: "执行 CloudBase 声明式部署（本地 apply）",
-      description:
-        "解析 cloudbaserc 并按 database→functions→app→hosting→gateway 顺序执行声明式部署。" +
-        "这是 deployPlan 的执行对仗工具（plan 预演 / deployApply 执行同一份 cloudbaserc），" +
-        "属于本地形态的 apply（读本地 cloudbaserc 并在本地构建上传），" +
-        "是会变更云端资源的写操作，必须显式传 confirm=true 才会执行。" +
-        "建议先用 deployPlan 预演，确认计划无误后再执行。" +
-        "\n适用边界：本工具用于项目级声明式编排（一份 cloudbaserc 统一 plan/apply）；" +
-        "单资源临时直传请用 manageFunctions/manageHosting/manageApps。" +
-        "\n- confirm：必须显式传 true 才执行部署，否则直接拒绝" +
-        "\n- confirmDestructive：当本次待执行的数据库迁移含破坏性语句（DROP/TRUNCATE/DELETE、" +
-        "ALTER…DROP/RENAME）时，除 confirm 外还必须显式传 confirmDestructive=true 才会执行；" +
-        "否则拒绝并列出命中的迁移与语句。无破坏性迁移时该参数不生效" +
-        "\n- cwd：项目根目录，默认当前工作目录" +
-        "\n- mode：环境名，命中 envOverrides.<mode> 时合并对应的多环境覆盖配置" +
-        "\n- envId：目标环境 ID，优先级高于 cloudbaserc 中的 envId；不传则用配置值或当前绑定环境" +
-        "\n- only：仅部署指定资源类型" +
-        "\n- skip：跳过指定资源类型" +
-        "\n- yes：遇到已存在资源时的处理方式。true=直接覆盖更新；false（默认）=保守跳过，" +
-        "在无法交互确认的场景下已存在资源不会被覆盖（与 deployPlan 的 yes 语义一致）" +
-        "\n- concurrency：同类型资源最大并行数，默认 1（串行）" +
-        "\n- continueOnError：某个资源失败后继续部署其余资源（database 失败仍强制中断）",
+      title: "deploy.applyTitle",
+      description: "deploy.applyDescription",
       inputSchema: {
         confirm: z
           .boolean()
@@ -627,8 +584,7 @@ export function registerDeployTools(server: ExtendedMcpServer) {
         if (confirm !== true) {
           throw new DeployError(
             DEPLOY_ERROR_CODES.CONFIRM_REQUIRED,
-            "部署会变更云端资源，必须显式传 confirm=true 才会执行。" +
-              "建议先用 deployPlan 预演部署计划，确认无误后再执行。",
+            t("deploy.confirmRequired"),
           );
         }
 
@@ -667,12 +623,16 @@ export function registerDeployTools(server: ExtendedMcpServer) {
           if (destructive.length > 0) {
             throw new DeployError(
               DEPLOY_ERROR_CODES.DESTRUCTIVE_CONFIRM_REQUIRED,
-              "本次待执行的数据库迁移包含破坏性语句（DROP/TRUNCATE/DELETE 或 ALTER…DROP/RENAME），" +
-                "可能造成数据/结构不可逆丢失。请先备份或复核，确认后额外传 confirmDestructive=true 再执行。" +
-                "命中迁移：" +
-                destructive
-                  .map((d) => `${d.migration}（${d.statements.length} 条破坏性语句）`)
+              t("deploy.destructiveConfirmRequired", {
+                items: destructive
+                  .map((d) =>
+                    t("deploy.destructiveMigrationItem", {
+                      migration: d.migration,
+                      count: d.statements.length,
+                    }),
+                  )
                   .join("；"),
+              }),
             );
           }
         }
@@ -714,7 +674,7 @@ export function registerDeployTools(server: ExtendedMcpServer) {
               hostingNeutralized: hostingParticipates,
               result,
             },
-            "声明式部署已执行",
+            t("deploy.applied"),
           ),
         );
       } catch (error) {

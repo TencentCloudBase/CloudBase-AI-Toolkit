@@ -40,7 +40,8 @@ import {
   resolveSiteAndRegion,
   TCB_QUERY_REGIONS,
 } from "../utils/site-map.js";
-import { readProjectEnvId } from "../utils/project-config.js";
+import { readProjectEnvId, writeProjectConfig } from "../utils/project-config.js";
+import { normalizeLang, t, type Lang } from "../i18n/index.js";
 import {
   buildAuthNextStep,
   buildJsonToolResult,
@@ -60,9 +61,13 @@ import type { CreateEnvParams } from "@cloudbase/manager-node/types/interfaces/t
 /**
  * Resources accepted by CreateEnv. Matches Cloud API / Manager SDK contract.
  * `postgresql` enables CloudBase PostgreSQL (PG mode) when supported by the package.
+ *
+ * `flexdb` (NoSQL document database) is intentionally NOT offered: new environments are
+ * created without a document-database tenant. It is not a queryable flag either — the
+ * NoSQL capability is probed at runtime from `EnvInfo.Databases[]`
+ * (see `isUsableNoSqlDatabaseEntry`), not from the CreateEnv `Resources` list.
  */
 export const CREATE_ENV_RESOURCE_VALUES = [
-  "flexdb",
   "storage",
   "function",
   "postgresql",
@@ -70,10 +75,19 @@ export const CREATE_ENV_RESOURCE_VALUES = [
 
 export type CreateEnvResource = (typeof CREATE_ENV_RESOURCE_VALUES)[number];
 
-/** Default Resources when callers omit the field (schema promises "all four"). */
+/** Default Resources when callers omit the field (schema promises "all three"). */
 export const DEFAULT_CREATE_ENV_RESOURCES: CreateEnvResource[] = [
   ...CREATE_ENV_RESOURCE_VALUES,
 ];
+
+/**
+ * Regions accepted by `manageEnv(action="create")`。
+ *
+ * 刻意与 `TCB_QUERY_REGIONS` 分开命名：后者描述的是「可以拿去探测既有环境」的地域集合，
+ * 而 create 还取决于站点 / 套餐可用性（例如国内站的 ap-guangzhou 是按白名单提供的）。
+ * 取值当前与查询集一致 —— 这是公开契约下能确认的唯一集合，未拿到文档依据前不要放宽。
+ */
+export const CREATE_ENV_REGIONS = TCB_QUERY_REGIONS;
 
 export function resolveCreateEnvResources(
   resources: readonly string[] | undefined,
@@ -122,7 +136,10 @@ export function resolveEnvUsageModules(
   const invalid = normalized.filter((item) => !ENV_USAGE_MODULE_SET.has(item));
   if (invalid.length > 0) {
     throw new Error(
-      `无效的用量模块 type: ${invalid.join(", ")}。可选值：${ENV_USAGE_MODULE_VALUES.join(", ")}`,
+      t("env.usage.invalidModules", {
+        invalid: invalid.join(", "),
+        allowed: ENV_USAGE_MODULE_VALUES.join(", "),
+      }),
     );
   }
   return normalized as EnvUsageModule[];
@@ -154,15 +171,13 @@ export function resolveEnvUsageDateRange(options: {
 
   if (startFromParams || endFromParams) {
     if (!startFromParams || !endFromParams) {
-      throw new Error(
-        "查询资源用量时 startDate 与 endDate 必须同时提供，格式为 YYYY-MM-DD。",
-      );
+      throw new Error(t("env.usage.datePairRequired"));
     }
     if (!ENV_USAGE_DATE_RE.test(startFromParams) || !ENV_USAGE_DATE_RE.test(endFromParams)) {
-      throw new Error("startDate / endDate 格式必须为 YYYY-MM-DD。");
+      throw new Error(t("env.usage.dateFormatInvalid"));
     }
     if (startFromParams > endFromParams) {
-      throw new Error("startDate 不能晚于 endDate。");
+      throw new Error(t("env.usage.dateOrderInvalid"));
     }
     return {
       startDate: startFromParams,
@@ -174,9 +189,7 @@ export function resolveEnvUsageDateRange(options: {
   const startDate = extractAccountCircleDate(options.accountCircle?.StartTime);
   const endDate = extractAccountCircleDate(options.accountCircle?.EndTime);
   if (!startDate || !endDate) {
-    throw new Error(
-      "无法从计费周期推导用量日期范围。请显式传入 startDate/endDate（YYYY-MM-DD），或确认环境计费周期可用。",
-    );
+    throw new Error(t("env.usage.dateRangeUnresolvable"));
   }
   return { startDate, endDate, dateSource: "accountCircle" };
 }
@@ -247,12 +260,15 @@ export function resolveEnvMetricName(metricName: unknown): EnvMetricName {
       : undefined;
   if (!normalized) {
     throw new Error(
-      `查询监控指标时 metricName 为必填参数。可选值：${ENV_METRIC_NAME_VALUES.join(", ")}`,
+      t("env.metrics.nameRequired", { allowed: ENV_METRIC_NAME_VALUES.join(", ") }),
     );
   }
   if (!ENV_METRIC_NAME_SET.has(normalized)) {
     throw new Error(
-      `无效的 metricName: ${normalized}。可选值：${ENV_METRIC_NAME_VALUES.join(", ")}`,
+      t("env.metrics.nameInvalid", {
+        metricName: normalized,
+        allowed: ENV_METRIC_NAME_VALUES.join(", "),
+      }),
     );
   }
   return normalized as EnvMetricName;
@@ -269,9 +285,7 @@ export function resolveEnvMetricPeriod(period: unknown): EnvMetricPeriod | undef
         ? Number(period.trim())
         : Number.NaN;
   if (!ENV_METRIC_PERIOD_SET.has(numericPeriod)) {
-    throw new Error(
-      `period 仅支持 300、3600、86400（秒）。当前值：${String(period)}`,
-    );
+    throw new Error(t("env.metrics.periodInvalid", { period: String(period) }));
   }
   return numericPeriod as EnvMetricPeriod;
 }
@@ -292,20 +306,18 @@ export function resolveEnvMetricTimeRange(options: {
 
   if (startFromParams || endFromParams) {
     if (!startFromParams || !endFromParams) {
-      throw new Error(
-        "查询监控指标时 startTime 与 endTime 必须同时提供，格式为 YYYY-MM-DD HH:mm:ss。",
-      );
+      throw new Error(t("env.metrics.timePairRequired"));
     }
     if (!ENV_METRIC_TIME_RE.test(startFromParams) || !ENV_METRIC_TIME_RE.test(endFromParams)) {
-      throw new Error("startTime / endTime 格式必须为 YYYY-MM-DD HH:mm:ss。");
+      throw new Error(t("env.metrics.timeFormatInvalid"));
     }
     const startMs = Date.parse(startFromParams.replace(" ", "T"));
     const endMs = Date.parse(endFromParams.replace(" ", "T"));
     if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
-      throw new Error("startTime / endTime 无法解析为有效时间。");
+      throw new Error(t("env.metrics.timeUnparsable"));
     }
     if (endMs - startMs < ENV_METRIC_MIN_RANGE_MS) {
-      throw new Error("结束时间需要晚于开始时间至少五分钟（监控最小粒度为 5 分钟）。");
+      throw new Error(t("env.metrics.timeRangeTooShort"));
     }
     return {
       startTime: startFromParams,
@@ -338,9 +350,7 @@ export function resolveEnvMetricResourceId(
     return GATEWAY_ENV_QPS_DEFAULT_RESOURCE_ID;
   }
   if (ENV_METRICS_REQUIRING_RESOURCE_ID.has(metricName)) {
-    throw new Error(
-      `查询 ${metricName} 时 resourceID 为必填（云托管服务名）。请先 queryCloudRun(action="list") 获取服务名后再查询。`,
-    );
+    throw new Error(t("env.metrics.resourceIdRequired", { metricName }));
   }
   return undefined;
 }
@@ -518,10 +528,12 @@ function buildLocalDevDomainHint() {
   return {
     format: "host:port",
     useActualOrigin: true,
-    requiredValue: "当前浏览器实际访问 origin 对应的 host:port",
-    deriveFrom: ["浏览器地址栏中的当前 origin", "本地 dev server 实际启动输出"],
-    note:
-      "如果你的前端运行在自定义域名或本地开发端口上，请把当前浏览器实际访问地址对应的 host:port 加入安全域名。不要依赖一组固定默认端口，也不要假设已有 localhost/127.0.0.1 条目已经覆盖当前运行端口。",
+    requiredValue: t("env.domainHint.requiredValue"),
+    deriveFrom: [
+      t("env.domainHint.deriveFromOrigin"),
+      t("env.domainHint.deriveFromDevServer"),
+    ],
+    note: t("env.domainHint.note"),
   };
 }
 
@@ -579,16 +591,14 @@ function buildEnvDomainManagementResult(params: {
       operation: action,
       targetDomains: domains,
       asyncState: "PENDING",
-      message:
-        '安全域名已提交添加请求。该变更通常需要数分钟传播（平台侧）；请每 10 秒轮询 queryEnv(action="domains") 直到 Status 为 ENABLE，勿一次 sleep 满 10 分钟。',
+      message: t("env.domainResult.createMessage"),
       propagation: {
         requiresPolling: true,
         pollTool: "queryEnv",
         pollAction: "domains",
         pollIntervalSuggestionSeconds: 10,
         timeoutSuggestionSeconds: 300,
-        successCondition:
-          '目标域名出现在 queryEnv(action="domains") 返回中，且 Status 为 ENABLE。',
+        successCondition: t("env.domainResult.createSuccess"),
       },
       next_step: {
         tool: "queryEnv",
@@ -607,16 +617,14 @@ function buildEnvDomainManagementResult(params: {
     operation: action,
     targetDomains: domains,
     asyncState: "PENDING",
-    message:
-      '安全域名已提交删除请求。该变更通常需要数分钟传播；请每 10 秒轮询 queryEnv(action="domains") 直到目标域名不再出现，勿一次 sleep 满数分钟。',
+    message: t("env.domainResult.deleteMessage"),
     propagation: {
       requiresPolling: true,
       pollTool: "queryEnv",
       pollAction: "domains",
       pollIntervalSuggestionSeconds: 10,
       timeoutSuggestionSeconds: 300,
-      successCondition:
-        '目标域名不再出现在 queryEnv(action="domains") 返回中。',
+      successCondition: t("env.domainResult.deleteSuccess"),
     },
     next_step: {
       tool: "queryEnv",
@@ -636,7 +644,7 @@ function formatDeviceAuthHint(deviceAuthInfo?: DeviceFlowAuthInfo): string {
   const verificationUriComplete = buildVerificationUriComplete(deviceAuthInfo);
   const lines = [
     "",
-    "### Device Flow 授权信息",
+    t("env.deviceAuth.heading"),
     `- user_code: ${deviceAuthInfo.user_code}`,
   ];
 
@@ -649,7 +657,7 @@ function formatDeviceAuthHint(deviceAuthInfo?: DeviceFlowAuthInfo): string {
   lines.push(`- expires_in: ${deviceAuthInfo.expires_in}s`);
   lines.push(
     "",
-    "请优先向用户展示完整的 `verification_uri_complete`，不要截断或改写 URL。",
+    t("env.deviceAuth.uriNotice"),
   );
   return lines.join("\n");
 }
@@ -710,8 +718,10 @@ function buildCredentialBoundaryPayload(cloudBaseOptions?: {
   const pinnedEnvId = process.env.CLOUDBASE_ENV_ID || cloudBaseOptions?.envId || null;
   const scopeNote =
     credentialScope === "single_env"
-      ? `当前为环境级凭证登录（单环境权限，API Key 或托管授权 token）。只能访问已绑定的 envId${pinnedEnvId ? ` ${pinnedEnvId}` : ""}，看不到账号下其他环境或其他地域。这是凭据权限边界，不是环境不存在。queryEnv(action="list") 会自动降级为仅返回绑定环境的信息。`
-      : `当前为账号级登录。DescribeEnvs 按地域查询；未传 region 时使用当前地域 ${currentRegion}。其他地域请用 queryEnv(action="list", region="ap-singapore")，或 CLI: tcb env list -r ap-singapore。`;
+      ? t("env.credential.singleEnvNote", {
+          pinnedEnvId: pinnedEnvId ? ` ${pinnedEnvId}` : "",
+        })
+      : t("env.credential.accountNote", { currentRegion });
 
   return {
     credential_scope: credentialScope,
@@ -760,6 +770,32 @@ async function applyBoundEnvSite(
     region,
     site: usableSites[0],
   });
+}
+
+/**
+ * 把 set_env 上**显式传入**的 site/region/lang 持久化到 `.cloudbase/project.json`
+ * （MCP 机器管理文件，合并写：undefined 字段不覆盖既有值）。
+ *
+ * 只写显式参数：解析链推导出的值不落盘，避免把一次性推断固化成项目配置。
+ * 未显式传任何一项时不落盘，也不会创建文件——set_env 的常规调用保持零副作用。
+ * envId 不在此持久化：绑定态由 envManager 维护，`.cloudbase/project.json` 的 envId
+ * 是使用方自己维护的绑定来源（见 readProjectEnvId），MCP 只读不写。
+ * cloudbaserc.json 同样保持只读不写（那是 CLI 维护的人工部署配置）。
+ * writeProjectConfig 内部 fail-safe（写失败返回 false 而不抛出），不阻塞绑定主流程。
+ */
+function persistAuthBinding(patch: {
+  site?: string;
+  region?: string;
+  lang?: Lang;
+}): void {
+  const hasPatch = Object.values(patch).some((value) => value !== undefined);
+  if (!hasPatch) {
+    return;
+  }
+  const persisted = writeProjectConfig(patch);
+  if (!persisted) {
+    debug("persistAuthBinding: writeProjectConfig failed", patch);
+  }
 }
 
 type AuthAction =
@@ -897,8 +933,7 @@ function buildAuthEnvSetupPayload(preparation: AuthEnvPreparationResult) {
 }
 
 // API Key 登录态 CAM 能力受限时的用户提示（实测：部分 API Key 换出的 STS 不带 CAM 策略）
-const API_KEY_CAM_LIMITATION_WARNING =
-  "\n\n⚠️ 注意：该 API Key 换取的临时凭据无法调用管理面 API（CAM 鉴权不通过），管理类工具（queryEnv、queryAppAuth、manageAppAuth 等）将不可用。如需完整能力，请改用长期密钥 TENCENTCLOUD_SECRETID / TENCENTCLOUD_SECRETKEY 认证。";
+const getApiKeyCamLimitationWarning = () => t("env.apiKey.camLimitation");
 
 /**
  * API Key 登录态 AUTH_READY 出口统一追加 CAM 能力探测警告。
@@ -910,7 +945,7 @@ async function appendApiKeyCamWarningIfNeeded(
 ): Promise<string> {
   try {
     const probe = await probeApiKeyCamCapability(loginState);
-    return probe === "limited" ? message + API_KEY_CAM_LIMITATION_WARNING : message;
+    return probe === "limited" ? message + getApiKeyCamLimitationWarning() : message;
   } catch (e) {
     debug("appendApiKeyCamWarningIfNeeded: probe threw", {
       error: e instanceof Error ? e.message : String(e),
@@ -942,7 +977,7 @@ async function prepareAuthEnvironment(params: {
       envCandidates: [],
       envSetupStatus: "NOT_NEEDED",
       envSetupActions: [],
-      message: `当前已登录，环境: ${currentEnvId}`,
+      message: t("env.prepare.envReady", { envId: currentEnvId }),
       nextStep: buildAuthNextStep("status", {
         suggestedArgs: { action: "status" },
       }),
@@ -961,7 +996,7 @@ async function prepareAuthEnvironment(params: {
       envCandidates,
       envSetupStatus: "AUTO_BOUND",
       envSetupActions: dedupeActions(envSetupActions),
-      message: `当前已登录，已自动绑定唯一环境: ${singleEnvId}`,
+      message: t("env.prepare.autoBound", { envId: singleEnvId }),
       nextStep: buildAuthNextStep("status", {
         suggestedArgs: { action: "status" },
       }),
@@ -975,7 +1010,7 @@ async function prepareAuthEnvironment(params: {
       envCandidates,
       envSetupStatus: "SELECTION_REQUIRED",
       envSetupActions: dedupeActions(envSetupActions),
-      message: "当前已登录，但存在多个可用环境，请先选择环境。",
+      message: t("env.prepare.multipleEnvs"),
       nextStep: buildSetEnvNextStep(envCandidates),
     };
   }
@@ -1013,7 +1048,7 @@ async function prepareAuthEnvironment(params: {
       : buildAuthEnvSetupFailure({
           reason: "tcb_init_failed",
           errorCode: "TCB_INIT_FAILED",
-          message: "CloudBase 服务初始化失败，请稍后重试。",
+          message: t("env.prepare.tcbInitFailed"),
           helpUrl: "https://buy.cloud.tencent.com/lowcode?buyType=tcb&channel=mcp",
         });
 
@@ -1047,7 +1082,7 @@ async function prepareAuthEnvironment(params: {
 
   if (createResult.success && createResult.envId) {
     await envManager.setEnvId(createResult.envId);
-    const successMessage = `当前已登录，已自动创建并绑定环境: ${createResult.envId}`;
+    const successMessage = t("env.prepare.autoCreated", { envId: createResult.envId });
     return {
       currentEnvId: createResult.envId,
       envStatus: "READY",
@@ -1071,7 +1106,7 @@ async function prepareAuthEnvironment(params: {
     : buildAuthEnvSetupFailure({
         reason: "env_creation_failed",
         errorCode: "ENV_CREATION_FAILED",
-        message: "环境创建失败，请稍后重试或手动创建环境。",
+        message: t("env.prepare.envCreateFailed"),
         helpUrl: "https://buy.cloud.tencent.com/lowcode?buyType=tcb&channel=mcp",
       });
 
@@ -1163,7 +1198,7 @@ function buildEnvQueryListResult(params: {
       : pinnedEnvRegion || credentialBoundary.current_region;
   const currentEnvOnlyNote =
     shouldRestrictToCurrentEnv && credentialBoundary.credential_scope === "account"
-      ? `已绑定环境，list 默认只返回当前环境。要查看其他地域请传 region（例如 region="ap-singapore"），或使用 CLI: tcb env list -r ap-singapore。`
+      ? t("env.list.currentEnvOnlyNote")
       : undefined;
   const boundEnvId = currentEnvId;
   const regionIgnoredNote = regionIgnored
@@ -1626,60 +1661,64 @@ function buildEnvQueryErrorMessage(error: unknown, action: string): string {
   const suggestions: string[] = [];
 
   if (hasInvalidParameterError) {
-    suggestions.push("参数错误：请求未通过服务端的参数校验，请检查本次调用的入参：");
-    suggestions.push("1. 各参数取值是否在允许范围内（枚举值、时间粒度、数量上限等）");
-    suggestions.push("2. 各参数格式是否正确，需要成对传入的参数是否齐全");
-    suggestions.push("3. 必填参数是否都已提供，参数名与类型是否正确");
-    suggestions.push(`4. 修正参数后重新调用 queryEnv(action=\"${action}\")`);
+    suggestions.push(t("env.queryError.paramHeader"));
+    suggestions.push(t("env.queryError.paramItem1"));
+    suggestions.push(t("env.queryError.paramItem2"));
+    suggestions.push(t("env.queryError.paramItem3"));
+    suggestions.push(t("env.queryError.paramItem4", { action }));
   }
 
   if (hasAuthError) {
-    suggestions.push("认证错误：当前未登录或认证已过期。");
-    suggestions.push("建议先执行 auth(action=\"status\") 查看状态，然后按提示完成登录。");
+    suggestions.push(t("env.queryError.authHeader"));
+    suggestions.push(t("env.queryError.authAdvice"));
   }
 
   if (hasPermissionError) {
-    suggestions.push("权限错误：当前账号可能没有访问该资源的权限。");
-    suggestions.push("请确认：1) 已选择正确的环境 2) 账号有对应权限");
+    suggestions.push(t("env.queryError.permissionHeader"));
+    suggestions.push(t("env.queryError.permissionAdvice"));
   }
 
   if (hasEnvNotFoundError) {
-    suggestions.push("环境错误：指定的环境不存在或无法访问。");
-    suggestions.push("请使用 queryEnv(action=\"list\") 查看可用的环境列表。");
+    suggestions.push(t("env.queryError.envHeader"));
+    suggestions.push(t("env.queryError.envAdvice"));
   }
 
   if (hasNetworkError) {
-    suggestions.push("网络错误：请检查网络连接，稍后重试。");
+    suggestions.push(t("env.queryError.network"));
   }
 
   if (action === "usage" && suggestions.length === 0) {
-    suggestions.push("查询环境资源用量失败，建议：");
-    suggestions.push("1. 先调用 auth(action=\"status\") 确认登录状态；未登录则 auth(action=\"start_auth\")");
-    suggestions.push("2. 使用 queryEnv(action=\"list\") 确认 envId 正确且可访问");
+    suggestions.push(t("env.queryError.usageHeader"));
+    suggestions.push(t("env.queryError.stepAuthStatus"));
+    suggestions.push(t("env.queryError.stepListEnv"));
     suggestions.push(
-      `3. 再调用 queryEnv(action=\"usage\", envId=\"<EnvId>\")；可用 type 过滤模块（${ENV_USAGE_MODULE_VALUES.join(", ")}）`,
+      t("env.queryError.usageStep3", { modules: ENV_USAGE_MODULE_VALUES.join(", ") }),
     );
   }
 
   if (action === "metrics" && suggestions.length === 0) {
-    suggestions.push("查询环境监控指标失败，建议：");
-    suggestions.push("1. 先调用 auth(action=\"status\") 确认登录状态；未登录则 auth(action=\"start_auth\")");
-    suggestions.push("2. 使用 queryEnv(action=\"list\") 确认 envId 正确且可访问");
+    suggestions.push(t("env.queryError.metricsHeader"));
+    suggestions.push(t("env.queryError.stepAuthStatus"));
+    suggestions.push(t("env.queryError.stepListEnv"));
     suggestions.push(
-      `3. 再调用 queryEnv(action=\"metrics\", envId=\"<EnvId>\", metricName=\"GatewayTraceEnvQPS\")；metricName 可选值：${ENV_METRIC_NAME_VALUES.join(", ")}`,
+      t("env.queryError.metricsStep3", { names: ENV_METRIC_NAME_VALUES.join(", ") }),
     );
-    suggestions.push("4. startTime/endTime 格式为 YYYY-MM-DD HH:mm:ss，须成对传入；period 仅 300/3600/86400");
+    suggestions.push(t("env.queryError.metricsStep4"));
   }
 
   // If no specific pattern matched, provide general guidance
   if (suggestions.length === 0) {
-    suggestions.push("查询环境信息时出错，建议：");
-    suggestions.push("1. 先调用 auth(action=\"status\") 确认登录状态");
-    suggestions.push("2. 如未登录，执行 auth(action=\"start_auth\") 完成认证");
-    suggestions.push("3. 确认环境 ID 正确且可访问");
+    suggestions.push(t("env.queryError.generalHeader"));
+    suggestions.push(t("env.queryError.generalStep1"));
+    suggestions.push(t("env.queryError.generalStep2"));
+    suggestions.push(t("env.queryError.generalStep3"));
   }
 
-  return `[queryEnv/${action}] 调用失败: ${baseMessage}\n\n解决建议：\n${suggestions.join("\n")}`;
+  return t("env.queryError.wrapper", {
+    action,
+    message: baseMessage,
+    suggestions: suggestions.join("\n"),
+  });
 }
 
 function normalizeOptionalToolBoolean(value: unknown) {
@@ -1687,15 +1726,18 @@ function normalizeOptionalToolBoolean(value: unknown) {
 }
 
 /**
- * 解析用于询价的 region。与 cloudbase-manager.ts 一致：
- * cloudBaseOptions.region → TCB_REGION → 'ap-shanghai'。
+ * 解析 create 未显式传 region 时，实际会落到哪个地域。
+ *
+ * 必须与「会话 manager 使用的地域」同口径 —— cloudbase-manager.ts 里 manager 的 region
+ * 由 `resolveSiteAndRegion(cloudBaseOptions)` 决定，解析链为：
+ * cloudBaseOptions.region → TCB_REGION → 项目配置 / rc 绑定 → 站点默认地域
+ * （国内站 ap-shanghai、国际站 ap-singapore）。
+ *
+ * 不要退回硬编码 ap-shanghai：国际站会话的默认地域是 ap-singapore，
+ * 硬编码会让确认页展示的地域与实际创建出的环境所在地域不一致。
  */
 function resolvePricingRegion(cloudBaseOptions: any): string {
-  return (
-    (typeof cloudBaseOptions?.region === "string" && cloudBaseOptions.region) ||
-    process.env.TCB_REGION ||
-    "ap-shanghai"
-  );
+  return resolveSiteAndRegion(cloudBaseOptions ?? {}).region;
 }
 
 /**
@@ -1843,7 +1885,7 @@ function formatPriceSection(priceResult: any): {
   detail: string;
 } {
   if (!priceResult || typeof priceResult !== "object") {
-    return { summary: "询价返回为空", detail: "" };
+    return { summary: t("env.price.empty"), detail: "" };
   }
 
   const currency = priceResult.Currency === "USD" ? "$" : "￥";
@@ -1858,40 +1900,40 @@ function formatPriceSection(priceResult: any): {
   let summary = "";
 
   if (Number.isFinite(realTotalCost) && realTotalCost > 0) {
-    summary = `预计实付 ${currency}${realTotalCost}`;
-    lines.push(`- 实付总价: ${currency}${realTotalCost}`);
+    summary = t("env.price.estimatedReal", { currency, amount: realTotalCost });
+    lines.push(t("env.price.lineRealTotal", { currency, amount: realTotalCost }));
   } else if (Number.isFinite(totalCost) && totalCost > 0) {
-    summary = `预计费用 ${currency}${totalCost}`;
-    lines.push(`- 总价: ${currency}${totalCost}`);
+    summary = t("env.price.estimated", { currency, amount: totalCost });
+    lines.push(t("env.price.lineTotal", { currency, amount: totalCost }));
   }
 
   if (Number.isFinite(totalCost) && totalCost > 0 && totalCost !== realTotalCost) {
-    lines.push(`- 原价: ${currency}${totalCost}`);
+    lines.push(t("env.price.lineOriginal", { currency, amount: totalCost }));
   }
 
   if (Number.isFinite(unitPrice) && unitPrice > 0) {
-    lines.push(`- 单价: ${currency}${unitPrice}`);
+    lines.push(t("env.price.lineUnit", { currency, amount: unitPrice }));
   }
 
   if (timeSpan !== undefined && TimeUnit) {
-    lines.push(`- 时长: ${timeSpan} ${TimeUnit}`);
+    lines.push(t("env.price.lineDuration", { timeSpan, timeUnit: TimeUnit }));
   }
 
   if (refund !== undefined && Number.isFinite(refund) && refund > 0) {
-    lines.push(`- 退款: ${currency}${refund}（变配降级时退回差价）`);
+    lines.push(t("env.price.lineRefund", { currency, amount: refund }));
     if (summary) {
-      summary += `，退款 ${currency}${refund}`;
+      summary += t("env.price.refundSuffix", { currency, amount: refund });
     } else {
-      summary = `退款 ${currency}${refund}`;
+      summary = t("env.price.refundOnly", { currency, amount: refund });
     }
   }
 
   if (priceResult.Formula && typeof priceResult.Formula === "string") {
-    lines.push(`- 计价公式: ${priceResult.Formula}`);
+    lines.push(t("env.price.lineFormula", { formula: priceResult.Formula }));
   }
 
   return {
-    summary: summary || "询价返回缺少总价字段",
+    summary: summary || t("env.price.missingTotal"),
     detail: lines.join("\n"),
   };
 }
@@ -1906,9 +1948,9 @@ function buildReleaseMethodHint(): {
   note: string;
 } {
   return {
-    method: "手动销毁",
+    method: t("env.release.method"),
     consoleUrl: "https://console.cloud.tencent.com/tcb",
-    note: '环境创建后可随时销毁以停止计费。当前 manageEnv 未提供 destroy action，请前往控制台手动销毁，或调用 manageEnv(action="listPackages") 查看其他套餐。',
+    note: t("env.release.note"),
   };
 }
 
@@ -1939,22 +1981,22 @@ function renderDocLinksBlock(
   filter?: ReadonlyArray<keyof typeof MANAGE_ENV_DOC_LINKS>,
 ): string {
   const labels: Record<keyof typeof MANAGE_ENV_DOC_LINKS, string> = {
-    package: "包年包月套餐说明",
-    billingItems: "计费能力项说明",
-    resourcePointPrice: "资源点价格文档",
-    prepayExpiry: "预付费计费与到期释放（费用中心通用）",
+    package: t("env.docLink.package"),
+    billingItems: t("env.docLink.billingItems"),
+    resourcePointPrice: t("env.docLink.resourcePointPrice"),
+    prepayExpiry: t("env.docLink.prepayExpiry"),
   };
   const entries = (filter ?? (Object.keys(MANAGE_ENV_DOC_LINKS) as Array<keyof typeof MANAGE_ENV_DOC_LINKS>))
     .map((k) => `- [${labels[k]}](${MANAGE_ENV_DOC_LINKS[k]})`)
     .join("\n");
-  return `参考文档：\n${entries}`;
+  return t("env.docLink.header", { entries });
 }
 
 /**
  * 资源清单详细描述（对应控制台购买页"资源清单"段）。
  */
 function buildResourceListText(): string {
-  return "资源清单：\n- 云开发环境 ×1（含 云数据库 / 云函数 / 云存储 / 静态托管 / 身份认证 等基础资源）";
+  return t("env.resourceListText");
 }
 
 /**
@@ -1962,7 +2004,7 @@ function buildResourceListText(): string {
  * 此处为静态披露，调用方在 confirm 消息中拼接即可。
  */
 function buildBillingItemsText(): string {
-  return "计费项：\n- 数据库容量/调用 · 云函数调用/资源/流量 · 存储读写/CDN · 网关/认证/API 调用 · QPS 超限按量 · 日志";
+  return t("env.billingItemsText");
 }
 
 /**
@@ -1980,15 +2022,9 @@ function buildBillingModeText(packageId: string | undefined): string {
     id.includes("试用") ||
     id.includes("体验");
   if (isFree) {
-    return (
-      "计费方式：\n- 免费体验版（每月赠送约 3000 资源点 ≈ 3 元，0 元开通）\n" +
-      "- 付费套餐：个人版 / 标准版 / 企业版 / 企业高级版"
-    );
+    return t("env.billingMode.free");
   }
-  return (
-    "计费方式：\n- 付费套餐：个人版 / 标准版 / 企业版 / 企业高级版\n" +
-    "- 免费体验版通过 auth 工具自动创建；本次 manageEnv(create) 不会创建免费版"
-  );
+  return t("env.billingMode.paid");
 }
 
 /**
@@ -2005,16 +2041,12 @@ function buildReleaseMethodDetailText(packageId: string | undefined): string {
     id.includes("trial") ||
     id.includes("试用") ||
     id.includes("体验");
-  const lines: string[] = ["资源释放方式：\n- 可随时在控制台销毁环境、关闭按量、退订加购资源"];
+  const lines: string[] = [t("env.releaseDetail.header")];
   if (isFree) {
-    lines.push(
-      "- 免费体验版：有效期 1 个月，到期可免费续期 1 个月；未续期则停服(保留数据)→1~7天回收站→释放(数据不可恢复)",
-    );
+    lines.push(t("env.releaseDetail.free"));
   } else {
-    lines.push(
-      "- 付费套餐到期未续费：停服(保留数据)→1~7天可回收站找回→释放(数据不可恢复)",
-    );
-    lines.push("- 主动销毁：随时生效；销毁前请确保已迁移或备份数据");
+    lines.push(t("env.releaseDetail.paidExpiry"));
+    lines.push(t("env.releaseDetail.paidManual"));
   }
   return lines.join("\n");
 }
@@ -2035,25 +2067,26 @@ function buildPricingDisclosureText(
     id.includes("trial") ||
     id.includes("试用") ||
     id.includes("体验");
-  const lines: string[] = ["预计费用："];
+  const lines: string[] = [t("env.pricing.header")];
 
   if (isFree) {
-    lines.push(
-      `- 免费体验版：本次开通 0 元；超免费额度后需升级为付费套餐（免费版不支持开按量）`,
-    );
-    lines.push("- 实际单价以资源点价格文档为准（3000 资源点 ≈ 3 元）");
+    lines.push(t("env.pricing.freeLine"));
+    lines.push(t("env.pricing.freeUnit"));
   } else {
-    lines.push(
-      `- 付费套餐：${priceSection?.summary ?? (priceError ? `⚠️ 询价失败（${priceError}），请前往控制台确认` : "询价返回为空")}`,
-    );
+    const paidSummary =
+      priceSection?.summary ??
+      (priceError
+        ? t("env.pricing.inquiryFailed", { error: priceError })
+        : t("env.price.empty"));
+    lines.push(t("env.pricing.paidLine", { summary: paidSummary }));
     if (priceSection?.detail) {
       lines.push(priceSection.detail);
     }
     if (priceError && priceSection) {
-      lines.push(`- ⚠️ 部分明细缺失：${priceError}`);
+      lines.push(t("env.pricing.partialMissing", { error: priceError }));
     }
-    lines.push(`- 计费周期：约 ${period} 个月（包年包月），到期可续费或变配`);
-    lines.push("- 超额可另开按量（次日结算），详细计费项以官方文档为准");
+    lines.push(t("env.pricing.period", { period }));
+    lines.push(t("env.pricing.overage"));
   }
   return lines.join("\n");
 }
@@ -2107,9 +2140,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "auth",
     {
-      title: "CloudBase 开发阶段登录与环境",
-      description:
-        "CloudBase（腾讯云开发）开发阶段登录与环境绑定。登录后即可访问云资源；环境(env)是云函数、数据库、静态托管等资源的隔离单元，绑定环境后其他 MCP 工具才能操作该环境。支持：查询状态、发起登录、API Key登录、绑定环境(set_env)、退出登录。auth(status) 会返回 credential_scope（account=账号级 / single_env=环境级 API Key）与当前 region；环境级 API Key 只能看到绑定的 envId，查不到其他地域环境是权限边界而非环境不存在。",
+      title: "env.authTitle",
+      description: "env.authDescription",
       inputSchema: {
         action: z
           .enum(authActionEnum)
@@ -2141,12 +2173,24 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           .enum(["domestic", "intl"])
           .optional()
           .describe(
-            "站点：domestic=国内站，intl=国际站。环境开通在腾讯云国际站时，登录（start_auth/login_by_api_key）需显式传 intl，否则会走国内站链路、看不到国际站环境；缺省按 TCB_SITE 环境变量 / region 映射表 / 项目配置解析",
+            "站点：domestic=国内站，intl=国际站。环境开通在腾讯云国际站时，登录（start_auth/login_by_api_key）需显式传 intl，否则会走国内站链路、看不到国际站环境；调用级显式传入优先于 TCB_SITE 环境变量 / region 映射表 / 项目配置，影响登录端点、授权页与 API Key 换取网关",
           ),
         envId: z
           .string()
           .optional()
           .describe("环境ID(CloudBase 环境唯一标识)，绑定后工具将操作该环境。action=set_env 时必填"),
+        region: z
+          .string()
+          .optional()
+          .describe(
+            "地域（如 ap-shanghai / ap-guangzhou / ap-singapore）。用于 region→site 推断与 API Key 换取网关选择；显式 site 优先",
+          ),
+        lang: z
+          .enum(["zh", "en"])
+          .optional()
+          .describe(
+            "输出语言：zh=中文（默认），en=英文。覆盖实例级语言（createCloudBaseMcpServer lang 选项 / TCB_LANG / project.json）",
+          ),
         ...(supportedAuthActions.includes("login_by_api_key")
           ? {
               apiKey: z
@@ -2196,12 +2240,23 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       reveal?: unknown;
       apiKey?: unknown;
       apiKeyEnvId?: unknown;
+      region?: unknown;
+      lang?: unknown;
     }) => {
       const action = rawArgs.action ?? "status";
       const authMode =
         rawArgs.authMode === "device" || rawArgs.authMode === "web"
           ? rawArgs.authMode
           : undefined;
+      // 调用级站点/地域/语言（优先级高于实例配置与环境变量；底层解析链见 utils/site-map.ts）
+      const toolSite = normalizeSite(rawArgs.site);
+      const toolRegion =
+        typeof rawArgs.region === "string" && rawArgs.region.trim().length > 0
+          ? rawArgs.region.trim()
+          : undefined;
+      const toolLang = normalizeLang(rawArgs.lang);
+      // 输出语言：调用级 lang > 实例 lang（createCloudBaseMcpServer / TCB_LANG / project.json）
+      const outLang: Lang = toolLang ?? server.lang ?? "zh";
       const oauthEndpoint = normalizeOptionalToolString(rawArgs.oauthEndpoint);
       const clientId = normalizeOptionalToolString(rawArgs.clientId);
       const oauthCustom = normalizeOptionalToolBoolean(rawArgs.oauthCustom);
@@ -2210,23 +2265,22 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       const reveal = normalizeOptionalToolBoolean(rawArgs.reveal) === true;
 
       // 显式站点：归一化为 domestic/intl，非法取值直接报错而不是静默忽略
-      const site = normalizeSite(rawArgs.site);
-      if (rawArgs.site !== undefined && rawArgs.site !== null && site === undefined) {
+      if (rawArgs.site !== undefined && rawArgs.site !== null && toolSite === undefined) {
         return buildJsonToolResult({
           ok: false,
           code: "INVALID_ARGS",
-          message: `site 取值无效：${String(rawArgs.site)}。可选值：domestic（国内站）、intl（国际站）。`,
+          message: t("env.auth.invalidSite", { site: String(rawArgs.site) }, outLang),
           next_step: buildAuthNextStep(action, {
             suggestedArgs: { action, site: "intl" },
           }),
         });
       }
-      if (site) {
+      if (toolSite) {
         // 与 cli.ts 的 --site 语义一致：同步到环境变量与 cloudBaseOptions，
         // 让本次登录（OAuth 端点/授权页改写、API Key 换取网关）以及后续工具调用都按该站点解析
-        process.env.TCB_SITE = site;
+        process.env.TCB_SITE = toolSite;
         if (server.cloudBaseOptions) {
-          server.cloudBaseOptions.site = site;
+          server.cloudBaseOptions.site = toolSite;
         }
       }
 
@@ -2250,7 +2304,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           return buildJsonToolResult({
             ok: false,
             code: "NOT_SUPPORTED",
-            message: `当前 IDE 不支持 auth(action="${action}")。`,
+            message: t("env.auth.actionNotSupported", { action }, outLang),
             next_step: buildAuthNextStep("status", {
               suggestedArgs: { action: "status" },
             }),
@@ -2258,7 +2312,10 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         }
 
         if (action === "status") {
-          const loginState = await peekLoginState();
+          const loginState = await peekLoginState({
+            ...(toolSite ? { site: toolSite } : {}),
+            ...(toolRegion ? { region: toolRegion } : {}),
+          });
           const authFlowState = await getAuthProgressState();
 
           // Detect API Key mode (CLOUDBASE_API_KEY preferred, CLOUDBASE_APIKEY fallback)
@@ -2289,15 +2346,16 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 ? `${envPreparation.message} ${credentialBoundary.scope_note}`
                 : credentialBoundary.scope_note
               : authStatus === "PENDING"
-                ? "设备码授权进行中，请完成浏览器授权后再次调用 auth(action=\"status\")"
+                ? t("env.auth.devicePending", undefined, outLang)
                 : isCodeBuddyIde(server)
-                  ? "当前未登录。CodeBuddy 暂不支持在 tool 内发起认证，请在外部完成认证后再次调用 auth(action=\"status\")。"
-                  : "当前未登录，请先执行 auth(action=\"start_auth\")";
+                  ? t("env.auth.notLoggedInCodeBuddy", undefined, outLang)
+                  : t("env.auth.notLoggedIn", undefined, outLang);
 
           return buildJsonToolResult({
             ok: true,
             code: "STATUS",
             auth_status: authStatus,
+            ...(toolSite ? { site: toolSite } : {}),
             ...(isApiKeyMode ? { auth_mode: "api_key" } : {}),
             ...credentialBoundary,
             auth_config: authConfigSummary,
@@ -2336,7 +2394,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                   code: "AUTH_READY",
                   message: await appendApiKeyCamWarningIfNeeded(
                     existingLoginState,
-                    "当前使用 API Key 认证模式，已自动完成登录，无需手动授权。",
+                    t("env.auth.apiKeyAutoLogin", undefined, outLang),
                   ),
                   auth_mode: "api_key",
                   envId: process.env.CLOUDBASE_ENV_ID,
@@ -2349,22 +2407,23 @@ export function registerEnvTools(server: ExtendedMcpServer) {
 
             // API Key exchange failed: return diagnostic details
             const exchangeRegion = resolveApiKeyExchangeRegion();
-            let diagMessage = "当前配置了 API Key 认证模式，但换取临时密钥失败。";
             const endpoint =
               process.env.CLOUDBASE_API_ENDPOINT ||
               `https://${process.env.CLOUDBASE_ENV_ID}.${exchangeRegion ?? "ap-shanghai"}.tcb-api.tencentcloudapi.com`;
-            diagMessage += `\n\n诊断信息：`;
-            diagMessage += `\n- CLOUDBASE_ENV_ID: ${process.env.CLOUDBASE_ENV_ID}`;
-            diagMessage += `\n- CLOUDBASE_API_KEY: ${apiKeyFromEnv.slice(0, 20)}...（已截断）`;
-            diagMessage += `\n- TCB_SITE: ${process.env.TCB_SITE || "(未设置)"}`;
-            diagMessage += `\n- 换取网关地域: ${exchangeRegion ?? "ap-shanghai（国内站默认，多地域环境均经其路由）"}`;
-            diagMessage += `\n- Endpoint: ${endpoint}`;
-            diagMessage += `\n\n可能原因：`;
-            diagMessage += `\n1. API Key 已过期或被删除`;
-            diagMessage += `\n2. Endpoint 不可达（网络/DNS 问题）`;
-            diagMessage += `\n3. CLOUDBASE_ENV_ID 与 API Key 所属环境不匹配`;
-            diagMessage += `\n4. API Key 与站点不匹配：国际站环境的 Key 需配置 TCB_SITE=intl（走 ap-singapore 网关）；国内站环境（含 ap-guangzhou/ap-singapore 地域）不要配置 intl`;
-            diagMessage += `\n\n建议：检查 MCP 配置中的 CLOUDBASE_API_KEY（或兼容的 CLOUDBASE_APIKEY）和 CLOUDBASE_ENV_ID 环境变量是否正确。`;
+            const diagMessage =
+              t("env.auth.apiKeyEnvExchangeFailed", undefined, outLang) +
+              t(
+                "env.auth.apiKeyDiagEnv",
+                {
+                  envId: String(process.env.CLOUDBASE_ENV_ID),
+                  apiKeyPrefix: apiKeyFromEnv.slice(0, 20),
+                  site: process.env.TCB_SITE || t("env.auth.siteUnset", undefined, outLang),
+                  gatewayRegion:
+                    exchangeRegion ?? t("env.auth.gatewayRegionDefault", undefined, outLang),
+                  endpoint,
+                },
+                outLang,
+              );
 
             return buildJsonToolResult({
               ok: false,
@@ -2384,8 +2443,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: true,
               code: "AUTH_PENDING",
-              message:
-                "设备码授权进行中，请在浏览器中打开 verification_uri 并输入 user_code 完成授权。",
+              message: t("env.auth.devicePendingBrowser", undefined, outLang),
               auth_challenge: buildDeviceAuthChallengePayload(
                 authFlowState.authChallenge,
               ),
@@ -2455,8 +2513,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               auth
                 .loginByWebAuth({
                   ...buildDeviceLoginOptions(resolvedAuthOptions, {
-                    region,
-                    site: server.cloudBaseOptions?.site,
+                    region: toolRegion ?? region,
+                    site: toolSite ?? server.cloudBaseOptions?.site,
                   }),
                   onDeviceCode: deviceOnCode,
                 })
@@ -2493,7 +2551,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               return buildJsonToolResult({
                 ok: false,
                 code: "AUTH_REQUIRED",
-                message: `设备码登录初始化失败: ${message}`,
+                message: t("env.auth.deviceInitFailed", { message }, outLang),
                 next_step: buildAuthNextStep("start_auth", {
                   suggestedArgs: { action: "start_auth", authMode: "device" },
                 }),
@@ -2504,7 +2562,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               return buildJsonToolResult({
                 ok: false,
                 code: "AUTH_REQUIRED",
-                message: "未获取到设备码信息，请重试设备码登录",
+                message: t("env.auth.deviceCodeMissing", undefined, outLang),
                 next_step: buildAuthNextStep("start_auth", {
                   suggestedArgs: { action: "start_auth", authMode: "device" },
                 }),
@@ -2515,8 +2573,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: true,
               code: "AUTH_PENDING",
-              message:
-                "已发起设备码登录，请在浏览器中打开 verification_uri 并输入 user_code 完成授权。授权完成后请再次调用 auth(action=\"status\")。",
+              message: t("env.auth.deviceStarted", undefined, outLang),
               auth_challenge: authChallenge(),
               ...buildEnvCandidatePayload(envCandidates),
               next_step: buildAuthNextStep("status", {
@@ -2527,7 +2584,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
 
           // 3. 非 Device Flow（显式 web 模式）仍然使用 getLoginState 阻塞等待
           const loginState = await ensureLogin({
-            region,
+            region: toolRegion ?? region,
+            site: toolSite ?? server.cloudBaseOptions?.site,
             authMode: effectiveMode,
             clientId: resolvedAuthOptions.clientId,
             oauthEndpoint: resolvedAuthOptions.oauthEndpoint,
@@ -2538,7 +2596,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: false,
               code: "AUTH_REQUIRED",
-              message: "未获取到登录态，请先完成认证",
+              message: t("env.auth.loginStateMissing", undefined, outLang),
               next_step: buildAuthNextStep("start_auth", {
                 suggestedArgs: { action: "start_auth", authMode: effectiveMode },
               }),
@@ -2568,7 +2626,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: false,
               code: "INVALID_ARGS",
-              message: "action=login_by_api_key 时必须同时提供 apiKey 和 envId。",
+              message: t("env.auth.apiKeyArgsRequired", undefined, outLang),
               next_step: buildAuthNextStep("login_by_api_key", {
                 suggestedArgs: { action: "login_by_api_key", apiKey: "<your-api-key>", envId: "<your-env-id>" },
               }),
@@ -2580,7 +2638,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           process.env.CLOUDBASE_ENV_ID = toolApiKeyEnvId;
 
           try {
-            const loginState = await peekLoginState();
+            // 显式 site/region 直接透传：显式 intl → ap-singapore 换取网关；
+            // 国内站 key 不受影响（resolveApiKeyExchangeRegion 对 domestic/歧义回默认网关）
+            const loginState = await peekLoginState({
+              ...(toolSite ? { site: toolSite } : {}),
+              ...(toolRegion ? { region: toolRegion } : {}),
+            });
             if (loginState) {
               const envPreparation = await prepareAuthEnvironment({
                 server,
@@ -2592,7 +2655,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 code: "AUTH_READY",
                 message: await appendApiKeyCamWarningIfNeeded(
                   loginState,
-                  "API Key 认证成功，已获取临时密钥。",
+                  t("env.auth.apiKeySuccess", undefined, outLang),
                 ),
                 auth_mode: "api_key",
                 ...buildAuthEnvSetupPayload(envPreparation),
@@ -2604,17 +2667,17 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             delete process.env.CLOUDBASE_API_KEY;
             delete process.env.CLOUDBASE_ENV_ID;
 
-            let diagMessage = "API Key 换取临时密钥失败。";
-            diagMessage += `\n\n诊断信息：`;
-            diagMessage += `\n- CLOUDBASE_ENV_ID: ${toolApiKeyEnvId}`;
-            diagMessage += `\n- CLOUDBASE_API_KEY: ${toolApiKey.slice(0, 20)}...（已截断）`;
-            diagMessage += `\n- TCB_SITE: ${process.env.TCB_SITE || "(未设置)"}`;
-            diagMessage += `\n\n可能原因：`;
-            diagMessage += `\n1. API Key 已过期或被删除`;
-            diagMessage += `\n2. CLOUDBASE_ENV_ID 与 API Key 所属环境不匹配`;
-            diagMessage += `\n3. API Key 与站点不匹配：国际站环境的 Key 需配置 TCB_SITE=intl（走 ap-singapore 网关）；国内站环境（含 ap-guangzhou/ap-singapore 地域）不要配置 intl`;
-            diagMessage += `\n4. 网络连接问题`;
-            diagMessage += `\n\n建议：请检查 API Key 和环境 ID 是否正确。`;
+            const diagMessage =
+              t("env.auth.apiKeyExchangeFailed", undefined, outLang) +
+              t(
+                "env.auth.apiKeyDiagLogin",
+                {
+                  envId: toolApiKeyEnvId,
+                  apiKeyPrefix: toolApiKey.slice(0, 20),
+                  site: process.env.TCB_SITE || t("env.auth.siteUnset", undefined, outLang),
+                },
+                outLang,
+              );
 
             return buildJsonToolResult({
               ok: false,
@@ -2635,7 +2698,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: false,
               code: "API_KEY_AUTH_FAILED",
-              message: `API Key 认证异常: ${message}`,
+              message: t("env.auth.apiKeyException", { message }, outLang),
               auth_mode: "api_key",
               next_step: buildAuthNextStep("login_by_api_key", {
                 suggestedArgs: { action: "login_by_api_key", apiKey: "<your-api-key>", envId: "<your-env-id>" },
@@ -2651,8 +2714,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               ok: false,
               code: "AUTH_REQUIRED",
               message: isCodeBuddyIde(server)
-                ? "当前未登录。CodeBuddy 暂不支持在 tool 内发起认证，请在外部完成认证后再次调用 auth(action=\"status\")。"
-                : "当前未登录，请先执行 auth(action=\"start_auth\")。",
+                ? t("env.auth.notLoggedInCodeBuddy", undefined, outLang)
+                : t("env.auth.notLoggedInPeriod", undefined, outLang),
               next_step: buildAuthRequiredNextStep(server),
             });
           }
@@ -2665,7 +2728,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: false,
               code: "INVALID_ARGS",
-              message: "action=set_env 时必须提供 envId",
+              message: t("env.auth.setEnvIdRequired", undefined, outLang),
               ...credentialBoundary,
               ...buildEnvCandidatePayload(envCandidates),
               next_step: buildSetEnvNextStep(envCandidates),
@@ -2678,17 +2741,26 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               return buildJsonToolResult({
                 ok: false,
                 code: "CREDENTIAL_SCOPE_LIMITED",
-                message: `当前为环境级 API Key 登录，只能绑定已授权环境 ${pinnedEnvId}，不能切换到 ${envId}。这是凭据权限边界，不是目标环境不存在。`,
+                message: t(
+                  "env.auth.credentialScopeLimited",
+                  { pinnedEnvId, envId },
+                  outLang,
+                ),
                 ...credentialBoundary,
                 current_env_id: pinnedEnvId,
                 ...buildEnvCandidatePayload(envCandidates),
               });
             }
             await envManager.setEnvId(envId);
+            persistAuthBinding({
+              site: toolSite,
+              region: toolRegion,
+              lang: toolLang,
+            });
             return buildJsonToolResult({
               ok: true,
               code: "ENV_READY",
-              message: `环境设置成功，当前环境: ${envId}`,
+              message: t("env.auth.envReady", { envId }, outLang),
               current_env_id: envId,
               ...credentialBoundary,
             });
@@ -2715,15 +2787,20 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             .catch(() => {});
           applyBoundEnvRegion(server, target?.region);
           await applyBoundEnvSite(server, target?.region);
+          persistAuthBinding({
+            site: toolSite,
+            region: toolRegion,
+            lang: toolLang,
+          });
           const regionHint = target?.region
-            ? `，地域: ${target.region}`
+            ? t("env.auth.regionHint", { region: target.region }, outLang)
             : target
               ? ""
-              : "。未在当前探测地域中确认该 envId，已按唯一 ID 直绑；若后续接口仍指向错误地域，请设置 TCB_REGION 或 queryEnv(action=\"list\", region=...)";
+              : t("env.auth.regionHintUnverified", undefined, outLang);
           return buildJsonToolResult({
             ok: true,
             code: "ENV_READY",
-            message: `环境设置成功，当前环境: ${envId}${regionHint}`,
+            message: t("env.auth.envReadyWithHint", { envId, regionHint }, outLang),
             ...credentialBoundary,
             current_env_id: envId,
             current_region: target?.region || credentialBoundary.current_region,
@@ -2736,7 +2813,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: false,
               code: "LOGOUT_NOT_ALLOWED",
-              message: "当前使用 API Key 认证模式，不支持退出登录。如需切换认证方式，请移除 CLOUDBASE_API_KEY（或兼容的 CLOUDBASE_APIKEY）环境变量后重启。",
+              message: t("env.auth.logoutNotAllowedApiKey", undefined, outLang),
               auth_mode: "api_key",
             });
           }
@@ -2745,7 +2822,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: false,
               code: "INVALID_ARGS",
-              message: "action=logout 时必须传 confirm=\"yes\"",
+              message: t("env.auth.logoutConfirmRequired", undefined, outLang),
               next_step: buildAuthNextStep("logout", {
                 suggestedArgs: { action: "logout", confirm: "yes" },
               }),
@@ -2757,7 +2834,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           return buildJsonToolResult({
             ok: true,
             code: "LOGGED_OUT",
-            message: "✅ 已退出登录",
+            message: t("env.auth.loggedOut", undefined, outLang),
           });
         }
 
@@ -2767,7 +2844,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: false,
               code: "AUTH_REQUIRED",
-              message: "当前未登录，请先完成管理端认证后再获取临时密钥。",
+              message: t("env.auth.tempCredNotLoggedIn", undefined, outLang),
               next_step: buildAuthRequiredNextStep(server),
             });
           }
@@ -2776,8 +2853,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: false,
               code: "INVALID_ARGS",
-              message:
-                "action=get_temp_credentials 时必须显式传 confirm=\"yes\"，以确认你要导出当前管理端临时密钥。",
+              message: t("env.auth.tempCredConfirmRequired", undefined, outLang),
               next_step: buildAuthNextStep("get_temp_credentials", {
                 suggestedArgs: { action: "get_temp_credentials", confirm: "yes" },
               }),
@@ -2788,8 +2864,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: false,
               code: "UNSUPPORTED_CREDENTIAL_TYPE",
-              message:
-                "当前登录态不是可导出的临时密钥。仅支持通过 Web / device 登录得到的临时密钥，永久密钥登录不允许导出。",
+              message: t("env.auth.tempCredUnsupportedType", undefined, outLang),
             });
           }
 
@@ -2800,7 +2875,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: false,
               code: "INTERNAL_ERROR",
-              message: "当前登录态缺少完整的临时密钥字段，请重新登录后再试。",
+              message: t("env.auth.tempCredIncomplete", undefined, outLang),
             });
           }
 
@@ -2808,8 +2883,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             ok: true,
             code: "TEMP_CREDENTIALS_READY",
             message: reveal
-              ? "当前管理端临时密钥已准备好，请注意避免泄露。"
-              : "当前管理端临时密钥已准备好，默认仅返回脱敏结果。",
+              ? t("env.auth.tempCredReadyReveal", undefined, outLang)
+              : t("env.auth.tempCredReadyMasked", undefined, outLang),
             env_id: normalizeOptionalToolString(loginState.envId) ?? null,
             credentials: {
               secretId: reveal ? secretId : maskSensitiveValue(secretId),
@@ -2823,7 +2898,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         return buildJsonToolResult({
           ok: false,
           code: "NOT_SUPPORTED",
-          message: `不支持的 auth action: ${action}`,
+          message: t("env.auth.unsupportedAction", { action }, outLang),
           next_step: buildAuthNextStep("status", {
             suggestedArgs: { action: "status" },
           }),
@@ -2833,7 +2908,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         return buildJsonToolResult({
           ok: false,
           code: "INTERNAL_ERROR",
-          message: `auth 执行失败: ${message}`,
+          message: t("env.auth.internalError", { message }, outLang),
           auth_challenge: authChallenge(),
           next_step: buildAuthNextStep("status", {
             suggestedArgs: { action: "status" },
@@ -2945,7 +3020,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 if (isEnvScopedCredential) {
                   result = {
                     ...result,
-                    scope_note: `当前凭证为环境级（托管授权凭证绑定 ${envIdFromEnv}），账号级环境列表接口无权限，已降级为仅返回绑定环境的信息。如需查看账号下全部环境，请用有账号级权限的凭证登录。`,
+                    scope_note: t("env.list.singleEnvDegradedNote", { envId: envIdFromEnv }),
                   };
                 }
               } else {
@@ -3070,15 +3145,13 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                   canAutoDetermineCurrentOrigin: false,
                   hasAnyConfiguredLocalEntry: localDevSummary.hasAnyConfiguredLocalEntry,
                   configuredEntries: localDevSummary.configuredEntries,
-                  note:
-                    "此查询不会自动知道你当前浏览器实际使用的自定义域名或本地端口。即使已经存在一些 localhost/127.0.0.1 条目，也不能据此认定浏览器上传已就绪。若浏览器 Web 应用需要直接上传文件到 CloudBase，请先确认并添加当前访问地址对应的 host:port，再依赖 app.uploadFile()。",
+                  note: t("env.domainStatus.note"),
                 },
                 next_step_template: {
                   tool: "manageEnv",
                   action: "addSecurityDomain",
                   domains: ["<actual-browser-host>:<actual-browser-port>"],
-                  note:
-                    "请把占位符替换为当前浏览器实际访问 origin 对应的 host:port，再执行添加。manageEnv(action=addSecurityDomain) 即原 envDomainManagement(create)。",
+                  note: t("env.domainStatus.nextStepNote"),
                 },
               };
             }
@@ -3088,9 +3161,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             // Explicit EnvId is required (DescribeEnvPostpayPackage / credits APIs reject missing EnvId).
             const usageEnvId = normalizeOptionalToolString(envId);
             if (!usageEnvId) {
-              throw new Error(
-                '查询资源用量时 envId 为必填参数。请先调用 queryEnv(action="list") 获取 EnvId，再调用 queryEnv(action="usage", envId="<EnvId>")。',
-              );
+              throw new Error(t("env.usage.envIdRequired"));
             }
             const modules = resolveEnvUsageModules(type);
             const includeDetails =
@@ -3135,9 +3206,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           case "metrics": {
             const metricsEnvId = normalizeOptionalToolString(envId);
             if (!metricsEnvId) {
-              throw new Error(
-                '查询监控指标时 envId 为必填参数。请先调用 queryEnv(action="list") 获取 EnvId，再调用 queryEnv(action="metrics", envId="<EnvId>", metricName="GatewayTraceEnvQPS")。',
-              );
+              throw new Error(t("env.metrics.envIdRequired"));
             }
             const resolvedMetricName = resolveEnvMetricName(metricName);
             const timeRange = resolveEnvMetricTimeRange({ startTime, endTime });
@@ -3149,9 +3218,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             const resolvedSubresourceId = normalizeOptionalToolString(subresourceID);
             const cloudbaseMetrics = await getManagerForEnvQuery(metricsEnvId);
             if (typeof cloudbaseMetrics?.monitor?.describeCurveData !== "function") {
-              throw new Error(
-                "当前 CloudBase Manager 不支持 monitor.describeCurveData。请升级 @cloudbase/manager-node。",
-              );
+              throw new Error(t("env.metrics.curveUnsupported"));
             }
             const curveParams: {
               MetricName: EnvMetricName;
@@ -3192,7 +3259,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           }
 
           default:
-            throw new Error(`不支持的查询类型: ${action}`);
+            throw new Error(t("env.queryError.unsupportedAction", { action }));
         }
 
         const responseText = JSON.stringify(result, null, 2);
@@ -3224,9 +3291,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
 
   // Register primary tool name (queryEnv)
   const queryEnvToolSchema = {
-    title: "CloudBase 环境查询",
-    description:
-      "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情、安全域名、资源用量与监控指标。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。账号级登录可传 region（ap-shanghai/ap-guangzhou/ap-singapore）查询对应地域，对齐 CLI `tcb env list -r <region>`；环境级凭证（API Key / 托管授权 token）只能看到绑定的 envId，返回 credential_scope=single_env，此时 region 不参与查询会在 ignored_params 中如实说明（AppliedFilters.region 为 null），不要误判为环境不存在或地域过滤失效。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。\n\n📊 action=usage 对齐 tcb env usage/info：透传 Manager SDK describeEnvAccountCircle + describeCreditsUsageDetail，返回计费周期与各模块资源点用量（FLEXDB/SCF/COS 等）。envId 必填；type 可选过滤模块；未传 startDate/endDate 时自动使用当前计费周期。\n\n📈 action=metrics 对齐 TCB DescribeCurveData（manager.monitor.describeCurveData，不是云监控 GetMonitorData）：查询环境/网关 QPS、云函数调用与错误、数据库 CPU/内存/磁盘、云托管 CPU/QPS 等时序。envId 与 metricName 必填；startTime/endTime 格式 YYYY-MM-DD HH:mm:ss，须成对传入，不传则默认最近 24 小时；period 仅 300/3600/86400。GatewayTraceEnvQPS 未传 resourceID 时自动填环境级 all|:|all|:|all|:|all；云托管 Tke* 指标必须传服务名 resourceID。禁止用 callCloudApi 猜测监控 Action。\n\n🔍 action=info 还会派生三个用于后端选型的字段：\n- `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。\n- `EnvInfo.RuntimeBackends`：`{postgresql, nosql, mysql}` 三个布尔值，描述当前环境实际并存的后端。\n- `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。\n\n🌐 action=info 还会在不改写 `StaticStorages[].StaticDomain`（云 API 名义域名）的前提下，投影网关路由 Enable 状态：`StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。\n\nAI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType=\"noSqlDatabase\")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用。",
+    title: "env.queryTitle",
+    description: "env.queryDescription",
     inputSchema: {
       action: z
         .enum(["list", "info", "domains", "usage", "metrics"])
@@ -3245,7 +3311,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         .enum(TCB_QUERY_REGIONS)
         .optional()
         .describe(
-          "查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 取该环境自身的 Region，ignored_params 说明忽略原因——不要据此判定该地域没有环境。",
+          "查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 取该环境自身的 Region、ignored_params 说明忽略原因——不要据此判定该地域没有环境。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）：若两站都登录过，传该地域会静默查国际站账号，请先用 auth(site=\"domestic\") 或设置 TCB_SITE=domestic 明确站点。",
         ),
       limit: z.number().int().positive().optional().describe("返回数量上限。action=list 时可选"),
       offset: z.number().int().min(0).optional().describe("分页偏移。action=list 时可选"),
@@ -3328,9 +3394,11 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     "envQuery",
     {
       ...queryEnvToolSchema,
+      // 别名 description 是拼接文本（不是单一词典 key），注册包装层无法再按 key 解析，
+      // 因此这里按实例语言先解析成最终文案再拼接。
       description:
-        (queryEnvToolSchema.description ?? "") +
-        "\n\n⚠️ DEPRECATED：此工具名已废弃，是 queryEnv 的旧词序别名，入参与 action 完全一致。请直接调用 queryEnv；本别名将在下个版本移除。",
+        t("env.queryDescription", undefined, server.lang) +
+        t("env.envQueryDeprecatedNotice", undefined, server.lang),
       annotations: {
         ...queryEnvToolSchema.annotations,
       },
@@ -3344,9 +3412,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "envDomainManagement",
     {
-      title: "CloudBase 环境安全域名管理（浏览器 CORS 白名单）【已废弃】",
-      description:
-        "⚠️ DEPRECATED：此工具已废弃并收编进 manageEnv，请改用 manageEnv(action=\"addSecurityDomain\") / manageEnv(action=\"removeSecurityDomain\")（入参 domains 完全一致）。本别名将在下个版本移除。\n\n管理【环境安全域名】＝浏览器跨域（CORS）白名单：控制允许哪些网页 origin（host:port）从浏览器直接调用本环境的 CloudBase 资源。只做 CORS 来源验证，不提供访问域名，不涉及 HTTPS 证书。⚠️ 与【网关自定义域名】是两套完全独立的配置，互不相干：如需给自己的域名绑定 HTTPS 访问入口（云托管 / 网关服务），那属于 manageGateway 的职责——先 queryGateway(listCustomDomains)；已有域名则 manageGateway(createRoute) 显式传 domain（无需证书）；仅首次绑定新域名才用 bindCustomDomain（需 certificateId）。不要用本工具做这件事。\n\n操作指引：（原工具名 createEnvDomain/deleteEnvDomain，为兼容旧 AI 规则可继续使用这些名称）当浏览器 Web 应用需要从本地 Vite / dev server 直接访问 CloudBase 资源时，先用 queryEnv(action=domains) 检查当前实际浏览器 origin 对应的 host:port 是否已在白名单中，再按该实际值添加。新增或删除后请每约 10 秒轮询 queryEnv(action=domains) 确认状态收敛，勿一次 sleep 满 10 分钟；多数环境数分钟内可收敛。",
+      title: "env.domainTitle",
+      description: "env.domainDescription",
       inputSchema: {
         action: z
           .enum(["create", "delete"])
@@ -3384,7 +3451,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             break;
 
           default:
-            throw new Error(`不支持的操作类型: ${action}`);
+            throw new Error(t("env.domain.unsupportedActionType", { action }));
         }
 
         return buildJsonToolResult(
@@ -3403,7 +3470,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           content: [
             {
               type: "text",
-              text: `域名管理操作失败: ${error instanceof Error ? error.message : String(error)}`,
+              text: t("env.domain.operationFailed", {
+                message: error instanceof Error ? error.message : String(error),
+              }),
             },
           ],
         };
@@ -3416,9 +3485,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   server.registerTool?.(
     "manageEnv",
     {
-      title: "CloudBase 环境管理（创建/变配/续费/安全域名）",
-      description:
-        "管理 CloudBase 环境，支持：listPackages=查询可选套餐列表，create=创建新环境（需确认），modifyPlan=变更套餐（升降配，需确认），renew=续费环境（需确认），addSecurityDomain=添加环境安全域名（浏览器 CORS 白名单，不计费、无需确认），removeSecurityDomain=删除环境安全域名（不计费、无需确认）。\n\n⚠️ 涉及费用的操作（create/modifyPlan/renew），执行前必须展示配置摘要并等待用户通过 confirm=\"yes\" 确认；安全域名操作（addSecurityDomain/removeSecurityDomain）不计费，无需 confirm。\n\nℹ️ 安全域名＝浏览器跨域（CORS）白名单，控制允许哪些网页 origin（host:port）从浏览器直接调用本环境的 CloudBase 资源，不提供访问域名、不涉及 HTTPS 证书。给自己的域名绑定 HTTPS 访问入口（云托管/网关服务）属于 manageGateway（listCustomDomains/bindCustomDomain）的职责，与本工具无关。",
+      title: "env.manageTitle",
+      description: "env.manageDescription",
       inputSchema: {
         action: z
           .enum(["listPackages", "create", "modifyPlan", "renew", "addSecurityDomain", "removeSecurityDomain"])
@@ -3443,7 +3511,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           .array(z.enum(CREATE_ENV_RESOURCE_VALUES))
           .optional()
           .describe(
-            "启用的资源类型（action=create 时可选）。省略时默认全部四项：flexdb(文档数据库)、storage(存储)、function(云函数)、postgresql(PostgreSQL)。CreateEnv 要求 Resources 非空，MCP 会始终下发该字段。",
+            "启用的资源类型（action=create 时可选）。可选值：storage(存储)、function(云函数)、postgresql(PostgreSQL)，省略时默认全部三项。CreateEnv 要求 Resources 非空，MCP 会始终下发该字段。不再包含 flexdb(文档数据库)：新建环境不会创建 NoSQL 实例，其可用性以 queryEnv(action=\"info\") 返回的 EnvInfo.RuntimeBackends 为准。",
           ),
         duration: z
           .number()
@@ -3452,6 +3520,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           .max(36)
           .optional()
           .describe("购买或续费时长（月），action=create/renew 时可选，默认 1"),
+        region: z
+          .enum(CREATE_ENV_REGIONS)
+          .optional()
+          .describe(
+            "创建地域（仅 action=create 时有效）。按 X-TC-Region 语义透传，决定新环境所在地域；等价 CLI：tcb env create --region ap-shanghai。不传则用当前会话地域（cloudBaseOptions.region → TCB_REGION → 项目配置 / rc 绑定 → 站点默认地域：国内站 ap-shanghai、国际站 ap-singapore）。注意：region 不写进 CreateEnv 请求体，而是通过请求层地域上下文生效——这与「请勿把 Region 放进 params」的 callCloudApi 约定一致。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）；如需在国内站该地域创建，请先 auth(site=\"domestic\") 或设置 TCB_SITE=domestic。"
+          ),
         envId: z
           .string()
           .optional()
@@ -3475,6 +3549,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       packageId?: string;
       resources?: string[];
       duration?: number;
+      region?: string;
       envId?: string;
       confirm?: string;
       domains?: string[];
@@ -3484,6 +3559,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       const packageId = normalizeOptionalToolString(rawArgs.packageId);
       const resolvedResources = resolveCreateEnvResources(rawArgs.resources);
       const duration = rawArgs.duration ?? 1;
+      const createRegion = normalizeOptionalToolString(rawArgs.region);
       const envId = normalizeOptionalToolString(rawArgs.envId);
       const confirmed = rawArgs.confirm === "yes";
       const domains = (rawArgs.domains ?? [])
@@ -3504,27 +3580,35 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: true,
               code: "PACKAGE_LIST",
-              message: "成功获取可选套餐列表。",
+              message: t("env.manage.packagesSuccess"),
               packages: result.PackageList || result,
             });
           }
 
           case "create": {
-            // CreateEnv (Manager SDK / Cloud API) accepts Alias, PackageId, Resources, Period, etc.
-            // It does NOT accept Region — region is determined by account/package, not this call.
+            // CreateEnv (Manager SDK / Cloud API) 的请求体不接受 Region —— 与官方文档一致。
+            // 但「环境地域」本身是可选的：地域由请求层地域上下文（X-TC-Region 头 / 地域 endpoint）决定，
+            // 因此显式 region 通过构建「地域作用域的 manager」生效，而不是塞进 createParams。
+            // 官方 CLI 同构：tcb env create --region <r> → getRegion() → new Manager({region}) → X-TC-Region。
+            // 未显式传 region 时回落当前会话地域链（cloudBaseOptions.region → TCB_REGION → 站点默认）。
+            const effectiveRegion = createRegion ?? resolvePricingRegion(cloudBaseOptions);
+            // 仅在显式指定地域时另建 manager；否则复用会话 manager，避免无谓重建。
+            const createManager = createRegion
+              ? await getManagerForEnvQuery(undefined, false, createRegion)
+              : cloudbase;
             if (!confirmed) {
               // 查询套餐名和预计费用（失败降级，不阻塞 confirm 流程）
               const packageTitle = packageId
-                ? await fetchPackageTitle(cloudbase, packageId)
+                ? await fetchPackageTitle(createManager, packageId)
                 : undefined;
-              const pricingRegion = resolvePricingRegion(cloudBaseOptions);
+              const pricingRegion = effectiveRegion;
               const priceProbe = packageId
-                ? await calculateCreatePrice(cloudbase, {
+                ? await calculateCreatePrice(createManager, {
                     packageId,
                     region: pricingRegion,
                     period: duration,
                   })
-                : { error: "缺少 packageId，无法询价" };
+                : { error: t("env.manage.missingPackageIdForPrice") };
               const priceSection = priceProbe.priceResult
                 ? formatPriceSection(priceProbe.priceResult)
                 : null;
@@ -3532,22 +3616,30 @@ export function registerEnvTools(server: ExtendedMcpServer) {
 
               // 组合多段披露文案（对照控制台购买页确认对话框）
               const messageLines: string[] = [];
-              messageLines.push("即将为你开通云开发环境");
-              messageLines.push("本操作会创建腾讯云开发环境资源。");
+              messageLines.push(t("env.manage.createHeader"));
+              messageLines.push(t("env.manage.createNotice"));
+              messageLines.push(t("env.manage.createFreeNote"));
+              messageLines.push(t("env.manage.createConfirmPrompt"));
               messageLines.push(
-                "为付费套餐后才会产生费用；免费体验版不会立即扣费（每月赠送约 3000 资源点 ≈ 3 元）。",
+                t("env.manage.createAlias", {
+                  alias: alias ?? t("env.manage.notProvided"),
+                }),
               );
-              messageLines.push("请核对以下配置信息后传入 confirm=\"yes\"：");
-              messageLines.push(`- 别名: ${alias ?? "(未提供)"}`);
               messageLines.push(
-                `- 套餐: ${packageId ?? "(未提供)"}` +
-                  (packageTitle ? `（${packageTitle}）` : ""),
+                t("env.manage.createPackage", {
+                  packageId: packageId ?? t("env.manage.notProvided"),
+                }) + (packageTitle ? `（${packageTitle}）` : ""),
               );
-              messageLines.push(`- 资源类型: ${resolvedResources.join(", ")}`);
-              messageLines.push(`- 时长: ${duration} 个月`);
               messageLines.push(
-                "- 说明: CreateEnv 不接受 Region 入参，环境地域由账号与套餐侧决定。",
+                t("env.manage.createResources", { resources: resolvedResources.join(", ") }),
               );
+              messageLines.push(t("env.manage.createDuration", { duration }));
+              messageLines.push(t("env.manage.createRegion", { region: effectiveRegion }));
+              if (createRegion) {
+                // 二次调用（confirm="yes"）会重新解析 rawArgs，因此必须提示同步带上 region，
+                // 否则会回落到会话地域，创建结果与用户确认过的摘要不一致。
+                messageLines.push(t("env.manage.createRegionExplicitHint"));
+              }
               messageLines.push("");
 
               // 资源清单 / 计费项 / 计费方式
@@ -3583,10 +3675,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               messageLines.push("");
 
               // 已知晓声明
-              messageLines.push("☐ 我已知晓将创建付费资源及计费规则，确认按上述配置开通。");
-              messageLines.push(
-                `（如需取消或修改，请勿传 confirm="yes"，改传其他参数重试）`,
-              );
+              messageLines.push(t("env.manage.createAck"));
+              messageLines.push(t("env.manage.createCancelNote"));
 
               return buildJsonToolResult({
                 ok: false,
@@ -3620,22 +3710,31 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 },
                 doc_links: MANAGE_ENV_DOC_LINKS,
                 confirmation_acknowledgement: {
-                  text: "我已知晓将创建付费资源及计费规则",
+                  text: t("env.manage.createAckText"),
                   required: true,
                 },
                 next_step: {
                   tool: "manageEnv",
                   action: "create",
-                  requiredParams: ["alias", "packageId", "confirm"],
+                  requiredParams: [
+                    "alias",
+                    "packageId",
+                    "confirm",
+                    // 已显式指定地域时必须一并重复传入，否则二次调用会回落会话地域，
+                    // 创建出的环境与用户确认过的摘要不一致。
+                    ...(createRegion ? ["region"] : []),
+                  ],
+                  region: effectiveRegion,
+                  regionSource: createRegion ? "explicit" : "session",
                 },
               });
             }
 
             if (!alias) {
-              throw new Error("创建环境时 alias（环境别名）为必填参数");
+              throw new Error(t("env.manage.createAliasRequired"));
             }
             if (!packageId) {
-              throw new Error("创建环境时 packageId（套餐 ID）为必填参数");
+              throw new Error(t("env.manage.createPackageRequired"));
             }
 
             const createParams: CreateEnvParams = {
@@ -3645,13 +3744,28 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               Period: duration,
             };
 
-            const result = await cloudbase.env.createEnv(createParams);
+            // 注意：地域不写进 createParams（CreateEnv 请求体不接受 Region），
+            // 而是由 createManager 的地域上下文（X-TC-Region）决定。
+            const result = await createManager.env.createEnv(createParams);
             logCloudBaseResult(server.logger, result);
+
+            // CreateEnv 的响应只有 EnvId / RequestId，不含地域。
+            // 这里做一次「尽力而为」的核验（DescribeBillingInfo），拿不到就不写这一项，
+            // 避免把「请求地域」当成既成事实回报给用户。
+            const verifiedBilling = await fetchEnvBillingSummary(
+              createManager,
+              result.EnvId,
+            );
             return buildJsonToolResult({
               ok: true,
               code: "ENV_CREATED",
-              message: `环境创建成功！新环境 ID: ${result.EnvId}。环境初始化可能需要几分钟，请通过 queryEnv(action="info", envId="${result.EnvId}") 轮询直到 Status 为正常。`,
+              message: t("env.manage.createSuccess", { envId: result.EnvId }),
               envId: result.EnvId,
+              region: effectiveRegion,
+              regionSource: createRegion ? "explicit" : "session",
+              ...(verifiedBilling?.region
+                ? { verifiedRegion: verifiedBilling.region }
+                : {}),
               resources: resolvedResources,
             });
           }
@@ -3660,7 +3774,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             // 变更套餐需要 confirm
             if (!confirmed) {
               if (!envId || !packageId) {
-                throw new Error("变更套餐时 envId 和 packageId 为必填参数");
+                throw new Error(t("env.manage.modifyArgsRequired"));
               }
               // 查询当前套餐名 + 新套餐名 + 询价（失败降级）
               const [currentBilling, newPackageTitle] = await Promise.all([
@@ -3678,39 +3792,44 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               const releaseMethod = buildReleaseMethodHint();
 
               const messageLines: string[] = [];
+              messageLines.push(t("env.manage.modifyHeader", { envId }));
+              messageLines.push(t("env.manage.confirmPrompt"));
               messageLines.push(
-                `变更环境 ${envId} 的套餐需要您确认。变配后不会立即重新计费，但会触发差价结算或退款。`,
-              );
-              messageLines.push("请核对后传入 confirm=\"yes\"：");
-              messageLines.push(
-                `- 当前套餐: ${currentBilling?.packageName ?? currentBilling?.packageId ?? "(未知)"}` +
+                t("env.manage.currentPackage", {
+                  packageName:
+                    currentBilling?.packageName ??
+                    currentBilling?.packageId ??
+                    t("env.manage.unknownValue"),
+                }) +
                   (currentBilling?.packageId && currentBilling.packageName
                     ? `（${currentBilling.packageId}）`
                     : ""),
               );
               if (currentBilling?.expireTime) {
-                messageLines.push(`- 当前到期时间: ${currentBilling.expireTime}`);
+                messageLines.push(
+                  t("env.manage.currentExpireTime", {
+                    expireTime: currentBilling.expireTime,
+                  }),
+                );
               }
               messageLines.push(
-                `- 新套餐: ${packageId}` +
+                t("env.manage.newPackage", { packageId }) +
                   (newPackageTitle ? `（${newPackageTitle}）` : ""),
               );
               messageLines.push("");
               if (priceSection) {
                 messageLines.push(
-                  `预计费用变化：${priceSection.summary}（差价/退款以账单为准）`,
+                  t("env.manage.modifyPriceChange", { summary: priceSection.summary }),
                 );
                 if (priceSection.detail) {
                   messageLines.push(priceSection.detail);
                 }
               } else if (priceProbe.error) {
                 messageLines.push(
-                  `预计费用变化：⚠️ 询价失败（${priceProbe.error}），请前往控制台确认价格`,
+                  t("env.manage.modifyPriceFailed", { error: priceProbe.error }),
                 );
               } else {
-                messageLines.push(
-                  "预计费用变化：询价返回为空，请前往控制台确认价格",
-                );
+                messageLines.push(t("env.manage.modifyPriceEmpty"));
               }
               messageLines.push("");
 
@@ -3724,10 +3843,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               );
               messageLines.push("");
 
-              messageLines.push("☐ 我已知晓变配将触发差价结算或退款，确认按上述配置变更。");
-              messageLines.push(
-                `（如需取消或修改，请勿传 confirm="yes"）`,
-              );
+              messageLines.push(t("env.manage.modifyAck"));
+              messageLines.push(t("env.manage.cancelNote"));
 
               return buildJsonToolResult({
                 ok: false,
@@ -3767,7 +3884,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                   prepayExpiry: MANAGE_ENV_DOC_LINKS.prepayExpiry,
                 },
                 confirmation_acknowledgement: {
-                  text: "我已知晓变配将触发差价结算或退款",
+                  text: t("env.manage.modifyAckText"),
                   required: true,
                 },
                 next_step: {
@@ -3779,10 +3896,10 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             }
 
             if (!envId) {
-              throw new Error("变更套餐时 envId 为必填参数");
+              throw new Error(t("env.manage.modifyEnvIdRequired"));
             }
             if (!packageId) {
-              throw new Error("变更套餐时 packageId 为必填参数");
+              throw new Error(t("env.manage.modifyPackageIdRequired"));
             }
 
             const result = await cloudbase.env.modifyEnvPlan({ EnvId: envId, PackageId: packageId });
@@ -3790,7 +3907,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: true,
               code: "PLAN_MODIFIED",
-              message: `环境 ${envId} 的套餐已成功变更为 ${packageId}。`,
+              message: t("env.manage.modifySuccess", { envId, packageId }),
               envId,
               packageId,
             });
@@ -3800,7 +3917,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             // 续费需要 confirm
             if (!confirmed) {
               if (!envId) {
-                throw new Error("续费环境时 envId 为必填参数");
+                throw new Error(t("env.manage.renewEnvIdRequired"));
               }
               // 查询当前套餐名 + 到期时间 + 询价（失败降级）
               const [currentBilling, priceProbe] = await Promise.all([
@@ -3814,34 +3931,41 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               const currentPackageId = currentBilling?.packageId;
 
               const messageLines: string[] = [];
+              messageLines.push(t("env.manage.renewHeader", { envId }));
+              messageLines.push(t("env.manage.confirmPrompt"));
               messageLines.push(
-                `续费环境 ${envId} 需要您确认。续费按当前套餐类型计算，延长到期时间。`,
-              );
-              messageLines.push("请核对后传入 confirm=\"yes\"：");
-              messageLines.push(
-                `- 当前套餐: ${currentBilling?.packageName ?? currentBilling?.packageId ?? "(未知)"}` +
+                t("env.manage.currentPackage", {
+                  packageName:
+                    currentBilling?.packageName ??
+                    currentBilling?.packageId ??
+                    t("env.manage.unknownValue"),
+                }) +
                   (currentBilling?.packageId && currentBilling.packageName
                     ? `（${currentBilling.packageId}）`
                     : ""),
               );
               if (currentBilling?.expireTime) {
-                messageLines.push(`- 当前到期时间: ${currentBilling.expireTime}`);
+                messageLines.push(
+                  t("env.manage.currentExpireTime", {
+                    expireTime: currentBilling.expireTime,
+                  }),
+                );
               }
-              messageLines.push(`- 续费时长: ${duration} 个月`);
+              messageLines.push(t("env.manage.renewDuration", { duration }));
               messageLines.push("");
               if (priceSection) {
-                messageLines.push(`预计费用：${priceSection.summary}`);
+                messageLines.push(
+                  t("env.manage.renewPrice", { summary: priceSection.summary }),
+                );
                 if (priceSection.detail) {
                   messageLines.push(priceSection.detail);
                 }
               } else if (priceProbe.error) {
                 messageLines.push(
-                  `预计费用：⚠️ 询价失败（${priceProbe.error}），请前往控制台确认价格`,
+                  t("env.manage.renewPriceFailed", { error: priceProbe.error }),
                 );
               } else {
-                messageLines.push(
-                  "预计费用：询价返回为空，请前往控制台确认价格",
-                );
+                messageLines.push(t("env.manage.renewPriceEmpty"));
               }
               messageLines.push("");
 
@@ -3853,10 +3977,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               messageLines.push(renderDocLinksBlock(["prepayExpiry"]));
               messageLines.push("");
 
-              messageLines.push("☐ 我已知晓续费将延长当前套餐的到期时间，确认按上述配置续费。");
-              messageLines.push(
-                `（如需取消或修改，请勿传 confirm="yes"）`,
-              );
+              messageLines.push(t("env.manage.renewAck"));
+              messageLines.push(t("env.manage.cancelNote"));
 
               return buildJsonToolResult({
                 ok: false,
@@ -3893,7 +4015,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                   prepayExpiry: MANAGE_ENV_DOC_LINKS.prepayExpiry,
                 },
                 confirmation_acknowledgement: {
-                  text: "我已知晓续费将延长当前套餐的到期时间",
+                  text: t("env.manage.renewAckText"),
                   required: true,
                 },
                 next_step: {
@@ -3905,7 +4027,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             }
 
             if (!envId) {
-              throw new Error("续费环境时 envId 为必填参数");
+              throw new Error(t("env.manage.renewEnvIdRequired"));
             }
 
             const result = await cloudbase.env.renewEnv({ EnvId: envId, Period: duration });
@@ -3913,7 +4035,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: true,
               code: "ENV_RENEWED",
-              message: `环境 ${envId} 已成功续费 ${duration} 个月。`,
+              message: t("env.manage.renewSuccess", { envId, duration }),
               envId,
             });
           }
@@ -3927,14 +4049,14 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 ok: false,
                 code: "TOOL_UNAVAILABLE_IN_WXIDE",
                 message:
-                  "微信开发者工具场景不提供环境安全域名管理。如需配置浏览器 CORS 白名单，请使用其他接入方式（CloudBase MCP / 控制台）。",
+                  t("env.manage.wxideDomainUnsupported"),
               });
             }
             if (!domains.length) {
               return buildJsonToolResult({
                 ok: false,
                 code: "DOMAINS_REQUIRED",
-                message: `action=${action} 时 domains 为必填参数（host:port 数组，例如 ["localhost:5173"]）。添加前建议先用 queryEnv(action="domains") 检查浏览器实际 origin 是否已在白名单中。`,
+                message: t("env.manage.domainsRequired", { action }),
                 next_step: {
                   tool: "queryEnv",
                   action: "domains",
@@ -3961,7 +4083,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             return buildJsonToolResult({
               ok: false,
               code: "INVALID_ACTION",
-              message: `不支持的操作: ${action}。支持的操作: listPackages, create, modifyPlan, renew, addSecurityDomain, removeSecurityDomain。`,
+              message: t("env.manage.unsupportedAction", { action }),
             });
         }
       } catch (error) {
@@ -3974,14 +4096,14 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           return buildJsonToolResult({
             ok: false,
             code: "PACKAGE_LIST_FAILED",
-            message: `查询套餐列表失败（计费标签 BillTags）：${errorMessage}。可改用控制台查看套餐，或直接使用已知 packageId（如 baas_personal）调用 manageEnv(action="create")。`,
+            message: t("env.manage.listPackagesFailed", { message: errorMessage }),
           });
         }
         return {
           content: [
             {
               type: "text",
-              text: `环境管理操作失败: ${errorMessage}`,
+              text: t("env.manage.operationFailed", { message: errorMessage }),
             },
           ],
         };

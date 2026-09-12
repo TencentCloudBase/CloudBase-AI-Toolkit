@@ -1,8 +1,13 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readCloudbaseRcBinding, readProjectConfig, readProjectEnvId } from "./project-config.js";
+import {
+  readCloudbaseRcBinding,
+  readProjectConfig,
+  readProjectEnvId,
+  writeProjectConfig as writeProjectConfigSource,
+} from "./project-config.js";
 
 function writeProjectConfig(dir: string, config: Record<string, unknown>) {
   mkdirSync(join(dir, ".cloudbase"), { recursive: true });
@@ -178,6 +183,72 @@ describe("readCloudbaseRcBinding", () => {
     const dir = writeCloudbaseRc(join(tempDir, "site"), { site: "intl" });
 
     expect(readCloudbaseRcBinding(dir)?.site).toBe("intl");
+  });
+});
+
+describe("writeProjectConfig", () => {
+  let tempDir: string;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), "cloudbase-write-config-"));
+  });
+
+  afterEach(() => {
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it("should merge patch into existing config without dropping fields", () => {
+    const dir = join(tempDir, "merge");
+    writeProjectConfig(dir, { envId: "env-keep", site: "intl", region: "ap-singapore" });
+
+    expect(writeProjectConfigSource({ lang: "en" }, dir)).toBe(true);
+
+    expect(readProjectConfig(dir)).toEqual({
+      envId: "env-keep",
+      site: "intl",
+      region: "ap-singapore",
+      lang: "en",
+    });
+  });
+
+  it("should create the .cloudbase directory when missing", () => {
+    const dir = join(tempDir, "no-dir");
+
+    expect(writeProjectConfigSource({ envId: "env-fresh" }, dir)).toBe(true);
+    expect(existsSync(join(dir, ".cloudbase", "project.json"))).toBe(true);
+    expect(readProjectConfig(dir)?.envId).toBe("env-fresh");
+  });
+
+  it("should overwrite cleanly when existing JSON is malformed", () => {
+    const dir = join(tempDir, "broken");
+    mkdirSync(join(dir, ".cloudbase"), { recursive: true });
+    writeFileSync(join(dir, ".cloudbase", "project.json"), "{invalid", "utf-8");
+
+    expect(writeProjectConfigSource({ lang: "zh" }, dir)).toBe(true);
+    expect(readProjectConfig(dir)).toEqual({ lang: "zh" });
+  });
+
+  it("should keep undefined patch fields from clobbering existing values", () => {
+    const dir = join(tempDir, "undefined-patch");
+    writeProjectConfig(dir, { envId: "env-keep" });
+
+    expect(writeProjectConfigSource({ envId: undefined, lang: "en" }, dir)).toBe(true);
+
+    const config = readProjectConfig(dir);
+    expect(config?.envId).toBe("env-keep");
+    expect(config?.lang).toBe("en");
+  });
+
+  it("should round-trip through readProjectConfig after writing", () => {
+    const dir = join(tempDir, "round-trip");
+
+    expect(writeProjectConfigSource({ site: "intl", region: "ap-singapore", lang: "en" }, dir)).toBe(true);
+
+    expect(readProjectConfig(dir)).toEqual({
+      site: "intl",
+      region: "ap-singapore",
+      lang: "en",
+    });
   });
 });
 
