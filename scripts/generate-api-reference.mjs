@@ -86,6 +86,21 @@ function extractContent(html) {
   return content;
 }
 
+/**
+ * 段内标题整体下移一级。
+ * 每个数据源以 `## {title}` 作为段标题，源页正文的 h2 若保持原级会与段标题平级，
+ * 渲染出「段标题下没有内容」的观感（如 `## API 概览` 紧跟 `## 环境相关接口`）。
+ */
+function demoteHeadings(turndown) {
+  turndown.addRule('demote-heading-level', {
+    filter: (node) => /^H[2-5]$/.test(node.nodeName),
+    replacement: (content, node) => {
+      const level = Number(node.nodeName[1]) + 1;
+      return `\n\n${'#'.repeat(level)} ${content}\n\n`;
+    },
+  });
+}
+
 function toMarkdown(turndown, html) {
   let md = turndown.turndown(html);
   // 官方站内相对链接转绝对链接，保证本页独立可读
@@ -109,6 +124,7 @@ async function main() {
     codeBlockStyle: 'fenced',
   });
   turndown.use(gfm);
+  demoteHeadings(turndown);
 
   const sections = [];
   for (const src of SOURCES) {
