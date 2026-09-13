@@ -196,7 +196,7 @@ export const env = defineModule(
     "auth.deviceStarted":
       "已发起设备码登录，请在浏览器中打开 verification_uri 并输入 user_code 完成授权。授权完成后请再次调用 auth(action=\"status\")。",
     "auth.loginStateMissing": "未获取到登录态，请先完成认证",
-    "auth.apiKeyArgsRequired": "action=login_by_api_key 时必须同时提供 apiKey 和 envId。",
+    "auth.apiKeyArgsRequired": "action=login_by_api_key 时必须同时提供 apiKey 和 apiKeyEnvId。",
     "auth.apiKeySuccess": "API Key 认证成功，已获取临时密钥。",
     "auth.apiKeyExchangeFailed": "API Key 换取临时密钥失败。",
     "auth.apiKeyDiagLogin":
@@ -511,7 +511,7 @@ export const env = defineModule(
       "Device-code login started. Open verification_uri in the browser and enter user_code to complete the authorization. Once authorized, call auth(action=\"status\") again.",
     "auth.loginStateMissing": "No login state was obtained; please complete authentication first",
     "auth.apiKeyArgsRequired":
-      "Both apiKey and envId must be provided when action=login_by_api_key.",
+      "Both apiKey and apiKeyEnvId must be provided when action=login_by_api_key.",
     "auth.apiKeySuccess":
       "API Key authentication succeeded; temporary credentials obtained.",
     "auth.apiKeyExchangeFailed":

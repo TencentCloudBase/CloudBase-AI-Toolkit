@@ -2628,7 +2628,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               code: "INVALID_ARGS",
               message: t("env.auth.apiKeyArgsRequired", undefined, outLang),
               next_step: buildAuthNextStep("login_by_api_key", {
-                suggestedArgs: { action: "login_by_api_key", apiKey: "<your-api-key>", envId: "<your-env-id>" },
+                suggestedArgs: { action: "login_by_api_key", apiKey: "<your-api-key>", apiKeyEnvId: "<your-env-id>" },
               }),
             });
           }
@@ -2686,7 +2686,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               auth_mode: "api_key",
               envId: toolApiKeyEnvId,
               next_step: buildAuthNextStep("login_by_api_key", {
-                suggestedArgs: { action: "login_by_api_key", apiKey: "<your-api-key>", envId: "<your-env-id>" },
+                suggestedArgs: { action: "login_by_api_key", apiKey: "<your-api-key>", apiKeyEnvId: "<your-env-id>" },
               }),
             });
           } catch (error) {
@@ -2701,7 +2701,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               message: t("env.auth.apiKeyException", { message }, outLang),
               auth_mode: "api_key",
               next_step: buildAuthNextStep("login_by_api_key", {
-                suggestedArgs: { action: "login_by_api_key", apiKey: "<your-api-key>", envId: "<your-env-id>" },
+                suggestedArgs: { action: "login_by_api_key", apiKey: "<your-api-key>", apiKeyEnvId: "<your-env-id>" },
               }),
             });
           }

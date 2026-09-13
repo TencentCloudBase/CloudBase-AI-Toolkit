@@ -1031,7 +1031,25 @@ describe("env tools - auth", () => {
 
     expect(payload).toHaveProperty("ok", false);
     expect(payload).toHaveProperty("code", "INVALID_ARGS");
-    expect(payload.message).toContain("apiKey 和 envId");
+    expect(payload.message).toContain("apiKey 和 apiKeyEnvId");
+    // 提示里的字段名必须是实现真正读取的那一个（rawArgs.apiKeyEnvId），
+    // 否则模型照着 next_step 重试会一直卡在 INVALID_ARGS。
+    expect(payload.next_step.suggested_args).toHaveProperty("apiKeyEnvId");
+    expect(payload.next_step.suggested_args).not.toHaveProperty("envId");
+  });
+
+  it("auth(action=login_by_api_key) suggested_args should be replayable without INVALID_ARGS", async () => {
+    // 回归：next_step.suggested_args 曾写成 envId，而实现只读 apiKeyEnvId，
+    // 于是「照提示重试」必然再次 INVALID_ARGS —— 模型陷入死循环。
+    const invalid = await tools.auth.handler({ action: "login_by_api_key" });
+    const invalidPayload = JSON.parse(invalid.content[0].text);
+    const suggested = invalidPayload.next_step.suggested_args;
+
+    // 把提示里的参数原样回传，必须能进入真实登录流程（而不是再次被判缺参）
+    const replayed = await tools.auth.handler({ ...suggested });
+    const replayedPayload = JSON.parse(replayed.content[0].text);
+
+    expect(replayedPayload.code).not.toBe("INVALID_ARGS");
   });
 
   it("auth(action=login_by_api_key) should succeed when peekLoginState returns credentials", async () => {
