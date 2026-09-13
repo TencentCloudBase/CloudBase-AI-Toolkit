@@ -511,7 +511,7 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
       });
       recordResult("云存储", "临时URL", urlRes.success, urlRes.text.slice(0, 80));
     }
-  }, 30000);
+  }, 60000);
 
   // ═══ 3.5 静态网站托管 ═══════════════════════════════════════════════════
   test.skipIf(!hasCredentials())("3.5 静态网站托管 - 部署验证", async () => {
@@ -537,7 +537,7 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
       });
       recordResult("静态托管", "查找文件", findRes.success, "");
     }
-  }, 30000);
+  }, 60000);
 
   // ═══ 3.6 云托管 Cloud Run（仅查询）═══════════════════════════════════════
   test.skipIf(!hasCredentials())("3.6 云托管 - 查询验证", async () => {
@@ -552,7 +552,7 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
       action: "templates",
     });
     recordResult("云托管", "模板列表", templatesRes.success, "");
-  }, 30000);
+  }, 60000);
 
   // ═══ 3.7 网关 ═══════════════════════════════════════════════════════════
   test.skipIf(!hasCredentials())("3.7 网关 - 路由验证", async () => {
@@ -587,7 +587,7 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
         recordResult("网关", "查询入口", getRouteRes.success, "");
       }
     }
-  }, 30000);
+  }, 60000);
 
   // ═══ 3.8 权限与认证 ═══════════════════════════════════════════════════════
   test.skipIf(!hasCredentials())("3.8 权限与认证 - 查询与用户管理", async () => {
@@ -634,7 +634,7 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
       action: "listUsers",
     });
     recordResult("权限", "用户列表", listUsersRes.success, "");
-  }, 30000);
+  }, 60000);
 
   // ═══ 3.9 环境管理 ═══════════════════════════════════════════════════════
   test.skipIf(!hasCredentials())("3.9 环境管理 - 查询验证", async () => {
@@ -655,7 +655,7 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
       action: "domains",
     });
     recordResult("环境", "安全域名", domainsRes.success, "");
-  }, 30000);
+  }, 60000);
 
   // ═══ 3.10 日志查询 ═══════════════════════════════════════════════════════
   test.skipIf(!hasCredentials())("3.10 日志查询 - 服务状态与搜索", async () => {
@@ -676,7 +676,7 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
       limit: 5,
     });
     recordResult("日志", "搜索日志", searchRes.success, "");
-  }, 30000);
+  }, 60000);
 
   // ═══ 3.11 callCloudApi 验证 ═══════════════════════════════════════════════
   test.skipIf(!hasCredentials())("3.11 callCloudApi - 通用云API调用", async () => {
@@ -700,5 +700,5 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
       },
     });
     recordResult("CloudAPI", "ListFunctions", funcRes.success, funcRes.text.slice(0, 120));
-  }, 30000);
+  }, 60000);
 });
