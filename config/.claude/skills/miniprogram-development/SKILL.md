@@ -15,6 +15,8 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Change Safety Protocol: `../cloudbase-platform/references/protocols/change-safety-protocol.md`
 - Deployment Gate: `../cloudbase-platform/references/protocols/deployment-gate.md`
 
+**Post-deployment (optional, non-intrusive)**: after a mini program upload/publish is verified successful, you may offer **at most once** to generate anonymized shareables (visual card + paste-ready copy) — see `../cloudbase-platform/references/protocols/deployment-share.md` for trigger boundaries, required information, anonymization red lines, and deliverable formats. Never follow up if declined; never publish on the user's behalf.
+
 ## Activation Contract
 
 ### Use this first when

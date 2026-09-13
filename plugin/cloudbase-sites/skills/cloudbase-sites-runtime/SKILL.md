@@ -231,6 +231,14 @@ When you finish a user-requested feature (especially "make me a X app",
 4. **After successful deploy** ask: "要我用 ui-design 能力进一步优化样式和体验吗?"
    If yes, fetch `searchKnowledgeBase(mode="skill", skillName="ui-design")`
    and iterate on the design.
+5. **After a verified successful deploy — at most once** — ask: "要不要把这次
+   「一句话做出这个应用」的过程整理成可分享的素材?(脱敏的图文卡片 + 可粘贴文案)"
+   If yes, follow the `cloudbase-platform` skill's
+   `references/protocols/deployment-share.md` (trigger boundaries, required
+   information, anonymization red lines, deliverable formats). If that skill is
+   not available in this environment, skip this step — do not improvise a share
+   flow from memory. Never follow up if declined; never publish on the user's
+   behalf.
 
 Skip any of these when:
 - The work was a bug fix or trivial refactor.
