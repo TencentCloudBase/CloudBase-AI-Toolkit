@@ -38,7 +38,8 @@ export const capi = defineModule(
     errorInvalidValue3: "3. 枚举值是否使用了正确的取值（区分大小写）",
     errorInvalidValue4: "4. 必填参数是否有值",
     errorInvalidValueTypeIntro: "参数类型参考：",
-    errorNetwork: "网络请求异常，建议稍后重试，并检查本地网络/代理设置。",
+    errorNetwork:
+      "网络请求异常，建议稍后重试，并检查本地网络/代理设置。请求发往 https://{service}.tencentcloudapi.com（该 service 已在白名单内），若目标地域的域名不可达也会表现为解析失败，请一并核对 region。",
     errorGenericFallback:
       "请检查 service/action/params 是否与官方 API 文档一致后重试。",
     errorBuild:
@@ -83,7 +84,7 @@ export const capi = defineModule(
     errorInvalidValue4: "4. Required params have values",
     errorInvalidValueTypeIntro: "Parameter type reference:",
     errorNetwork:
-      "Network request failed; retry later and check local network/proxy settings.",
+      "Network request failed; retry later and check local network/proxy settings. The request goes to https://{service}.tencentcloudapi.com (the service is in the allow-list), so an unreachable regional endpoint also surfaces as a lookup failure — check region as well.",
     errorGenericFallback:
       "Check service/action/params against the official API docs and retry.",
     errorBuild:

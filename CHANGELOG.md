@@ -11,9 +11,11 @@ All notable changes to this project will be documented in this file. Follow the 
 * **auth**: new optional `site` (`domestic`/`intl`), `region` and `lang` (`zh`/`en`) arguments on the auth tool. `site` takes priority over the instance-level site config and flows through `start_auth` (device + web), `login_by_api_key` and `status`; `status` echoes the resolved `site`. `set_env` persists explicitly-passed `site`/`region`/`lang` to `.cloudbase/project.json` (merged write; derived values are never persisted and no file is created when nothing explicit is passed).
 * **site**: gateway and console URLs now resolve per site through `getGatewayBaseUrl` / `getConsoleDevUrl` helpers in `site-map.ts` — intl sites get `api.intl.tcloudbasegateway.com` and `tcb.tencentcloud.com`, domestic sites keep the existing hosts. Replaces hardcoded domains in storagePG, hosting and the interactive server.
 
-* **capi**: `callCloudApi` service whitelist adds `monitor` (Tencent Cloud Monitor / alarm policies) and `postgres` (Cloud PostgreSQL), enabling alarm-policy workflows (CreateAlarmPolicy / BindingPolicyObject etc.) and PG instance queries directly through the tool. Both services have no SDK built-in default version — `monitor` requires version `2018-07-24`, `postgres` requires `2017-03-12` (enforced in schema guidance). The tool description now embeds the daily-synced api-reference index (https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/api-reference.md) as the first-stop Action lookup, and monitor auth-failure guidance points to the official monitor API overview.
+* **capi**: `callCloudApi` service allow-list expanded from 10 to 57 Tencent Cloud products, and it stays an **enum + version map** (`SERVICE_VERSIONS` in `mcp/src/tools/capi.ts`) rather than a free-form string: identifiers outside the list are still rejected before the request leaves the process, while products that previously forced a fallback to raw SDK calls — SSL certificates `ssl`, DNS records `dnspod`, domain registration `domain`, logs `cls`, MySQL `cdb`, CVM `cvm`, KMS `kms`, TCR `tcr`, CKafka `ckafka`, … — are now callable directly. `version` may be omitted for the 51 single-version products (resolved from the map); only the 6 multi-version products (`tke` / `mongodb` / `teo` / `vod` / `sms` / `monitor`) require it explicitly, and omitting it fails fast with the available versions instead of guessing one. The daily-synced api-reference index (https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/api-reference.md) remains the first-stop Action lookup, and monitor auth-failure guidance still points to the official monitor API overview. `lowcode` (Weida low-code, only reachable as the data-model backend — not a public capability, and already blocked in evaluate mode) is removed from the list; the data-model tools keep calling it internally through the SDK, which does not go through this allow-list.
 
 ### Bug Fixes
+
+* **capi**: `sts` no longer inherits the SDK's built-in default version. `@cloudbase/manager-node` maps `sts` to `2018-04-16` (SCF's version) while the official STS version is `2018-08-13`, so calls such as `GetCallerIdentity` failed with a misleading `The request action=... is invalid or not found in service=sts and version=2018-04-16`. The version map pins `sts` to `2018-08-13`, so calls that omit `version` now get the correct value instead of the SDK's wrong one.
 
 * **i18n**: `setInstanceLang` was never called by the server, so the `lang` option of `createCloudBaseMcpServer` only affected tool descriptions — every tool's output messages stayed in Chinese. The resolved instance language is now propagated to the i18n module before tools register.
 * **env**: `queryEnv(action="list")` no longer misreports how filters were applied, and `queryEnv(action="domains")` no longer ignores `envId`. Under env-scoped credentials (hosted OAuth token / API Key) the list path pins to the bound env and never sends `region` to `DescribeEnvs`, yet the response still echoed the requested region into `AppliedFilters.region` / `query_region` and flipped `currentEnvOnly` to `false` while returning the bound environment — so callers (and agents) could read the environment's region wrong. Those fields now reflect what actually ran: `AppliedFilters.region` is null and a new `ignored_params` entry plus a `scope_note` explain the credential boundary, while `query_region` reports the returned environment's own region on the pinned path. The "current environment only" filter now also keys off the envId actually queried (`CLOUDBASE_ENV_ID` can differ from the bound `envId`), so a pinned result can no longer be filtered away into an empty list. Separately, `action=domains` called `getManager()` and silently returned the bound environment's domains even when another `envId` was passed (dangerous when configuring Web security domains); it now resolves through `getManagerForEnvQuery(envId)` like `info` / `usage` / `metrics`, so a cross-environment lookup fails explicitly on the credential boundary instead of answering for the wrong environment.
@@ -74,7 +76,6 @@ All notable changes to this project will be documented in this file. Follow the 
 
 * **cloudrun**: `queryCloudRun(action="detail")` 默认脱敏服务环境变量（`ServerConfig.EnvParams` 的值置为 `***`，保留 key），新增 `revealEnvParams` 入参（默认 `false`）显式获取明文，避免带密码的连接串等敏感值进入模型上下文
 * **functions**: mask cloud-function environment variable values by default in `queryFunctions` (`getFunctionDetail` / `listFunctionTriggers`). The full raw SCF detail — including `Environment.Variables` plaintext — used to be returned to the model context on every read. Values are now replaced with `***` plus a `ValueLength` field (sufficient for config inspection and change verification); pass `revealEnvValues=true` to opt in to plaintext. Results written to the MCP server log are always masked, with no plaintext opt-out. Plaintext remains available via the console or `tcb fn detail` (fixes #971).
-
 
 ## [2.32.2](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/v2.32.1...v2.32.2) (2026-08-25)
 
@@ -186,11 +187,9 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## [1.7.0](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/compare/v1.6.0...v1.7.0) (2025-06-10)
 
-
 ### 其他
 
 * update doc ([bd49e04](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/bd49e0488b5ebcd16dd5d9c19a9ca801b1b0942c))
-
 
 ### 新功能
 
@@ -198,7 +197,6 @@ All notable changes to this project will be documented in this file. Follow the 
 * 增加规则 交互式反馈规则：在需求不明确时主动与用户对话澄清，优先使用自动化工具完成配置。执行高风险操作前必须获得用户确认。环境管理通过login/logout工具完成，交互对话使用interactiveDialog工具处理需求澄清和风险确认。简单修改无需确认，关键节点（如部署、数据删除）需交互，保持消息简洁并用emoji标记状态。 ([c234e9a](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/c234e9a065fc23181125cacafcee0a6d75773762))
 
 ## [1.6.0](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/compare/v1.5.0...v1.6.0) (2025-06-06)
-
 
 ### 其他
 
@@ -209,7 +207,6 @@ All notable changes to this project will be documented in this file. Follow the 
 * update mcp log ([9aa03c8](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/9aa03c8e1d41d90846aba144378c381d2d7f81ed))
 * update rules for envId not found ([0bbd874](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/0bbd87466606c69e48f092870a820cab94f95b8f))
 
-
 ### 新功能
 
 * add rules for cross db query ([de52863](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/de52863f5546f2af667a1477189bcdef7dbb80fe))
@@ -219,16 +216,13 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## [1.5.0](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/compare/v1.4.0...v1.5.0) (2025-06-04)
 
-
 ### 修复
 
 * function install Deps ([fffd16a](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/fffd16a120642d35dd115539301c05b12ffdbf9e))
 
-
 ### 新功能
 
 * 支持文心快码 Comate ([1df3806](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/1df38060221373fdd41f817c3bffe11412ac4ebd))
-
 
 ### 其他
 
@@ -238,13 +232,11 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## [1.4.0](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/compare/v1.1.0...v1.4.0) (2025-05-30)
 
-
 ### 其他
 
 * fix docs ([9b998fe](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/9b998fed7abfb0b8a9eccf8350c03bbfa2ca7d7a))
 * update doc ([af460bd](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/af460bdf2d29c65c8f9ba661cf591c3e2e4cbdd2))
 * update download link ([718a065](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/718a065c055940bd3ee85f1e0afb8819afece901))
-
 
 ### 新功能
 
@@ -256,7 +248,6 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## 1.3.0 (2025-05-28)
 
-
 ### 新功能
 
 * 优化小程序规则 ([b3d8873](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/b3d8873ba2c6540f65f9fdf5ff8b088214743e0d))
@@ -265,13 +256,11 @@ All notable changes to this project will be documented in this file. Follow the 
 * support web auth ([375c70e](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/375c70ec4d665cf32e4273cbc930d3f84e05dbec))
 * update config,support web auth ([870f3d4](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/870f3d4c363970646b0e823587185cefea83bfbc))
 
-
 ### 修复
 
 * **mcp:** 修复 logout 出参的问题 ([3a4e0a4](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/3a4e0a446e73259fc167c82468f0a096bdad235b))
 * update function deploy rules ([2892b07](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/2892b07ddf07fe081ea5c6fe1db5b01c32962722))
 * windsurf error ([500dfd7](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/commit/500dfd7556dca558ec42d58e38bfdfdaee0bd96b))
-
 
 ### 其他
 

@@ -178,11 +178,6 @@
     ],
     "mcp/src/tools/capi.ts": [
       {
-        "hash": "187b8d5825bbab18",
-        "count": 1,
-        "text": "API 版本（可选）。缺省时按 service 使用 SDK 内置默认版本；tcbr 必须传 \\\"2022-02-17\\\"（否则请求缺少 X-TC-Version 会失败），monitor 必须传 \\…"
-      },
-      {
         "hash": "2030e688df09b0ff",
         "count": 1,
         "text": "Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：`{ \\\"service\\\": \\\"tc…"
@@ -193,14 +188,19 @@
         "text": "具体 Action 名称，需符合对应服务的官方 API 定义。若不确定正确 Action，请先查官方文档；不要用近义词或历史命名进行猜测。tcb 常用 Action：环境管理 CreateEnv/Mo…"
       },
       {
+        "hash": "5f7e275c88a6bc0e",
+        "count": 1,
+        "text": "API 版本（多数场景可省略）。白名单里**只有一个官方版本的产品会自动补齐**，不必传；"
+      },
+      {
+        "hash": "8a0a6314340a4cbc",
+        "count": 1,
+        "text": "腾讯云产品标识（**白名单枚举，取值见本字段的 enum 列表，共 ${ALLOWED_SERVICES.length} 个**），决定请求域名 https://<service>.tencentcl…"
+      },
+      {
         "hash": "cc9027f1464f9947",
         "count": 1,
         "text": "云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写…"
-      },
-      {
-        "hash": "f0f07a58eb4ca7c4",
-        "count": 1,
-        "text": "选择要访问的服务。可选：tcb、tcbr、scf、sts、cam、lowcode、cdn、vpc、monitor（云监控/告警，version 需传 2018-07-24）、postgres（云数据库…"
       }
     ],
     "mcp/src/tools/cloudrun.ts": [

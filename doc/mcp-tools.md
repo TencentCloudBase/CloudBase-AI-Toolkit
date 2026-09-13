@@ -2169,7 +2169,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 文档名：auth-tool-cloudbase 文档介绍：CloudBase auth provider configuration and login-readiness guide. This skill should be used when users need to inspect, enable, disable, or configure auth providers, publishable-key prerequisites, login methods, SMS/email sender setup, or other provider-side readiness before implementing a client or backend auth flow.
 文档名：auth-web-cloudbase 文档介绍：CloudBase Web Authentication Quick Guide for frontend integration after auth-tool has already been checked. Provides concise and practical Web authentication solutions with multiple login methods and complete user management.
 文档名：auth-wechat-miniprogram 文档介绍：CloudBase WeChat Mini Program native authentication guide. This skill should be used when users need mini program identity handling, OPENID/UNIONID access, or `wx.cloud` auth behavior in projects where login is native and automatic.
-文档名：cloud-api-operations 文档介绍：Operate Tencent Cloud control-plane resources (monitoring/alarms, CLB, CAM roles, COS, MySQL, SCF, etc.) via cloud APIs when no dedicated MCP tool exists. Covers API discovery via the api-reference index, calling via MCP callCloudApi or official SDKs, credential/permission models with CAM authorization escalation, and battle-tested workflow recipes. Use when the task requires Tencent Cloud control-plane operations beyond CloudBase's own tooling.
+文档名：cloud-api-operations 文档介绍：Operate Tencent Cloud control-plane resources (monitoring/alarms, CLB, CAM roles, COS, MySQL, SCF) via cloud APIs when no dedicated MCP tool covers the task. Use when a task needs control-plane operations beyond CloudBase's own tooling, or when a callCloudApi call failed and needs classifying.
 文档名：cloud-functions 文档介绍：CloudBase function runtime guide for building, deploying, and debugging your own Event Functions or HTTP Functions. This skill should be used when users need application runtime code on CloudBase, not when they are merely calling CloudBase official platform APIs.
 文档名：cloud-storage-web 文档介绍：Complete guide for CloudBase cloud storage using Web SDK (@cloudbase/js-sdk) - upload, download, temporary URLs, file management, and best practices.
 文档名：cloudbase-agent 文档介绍：Build and deploy AI agents with CloudBase Agent SDK (TypeScript & Python). Implements the AG-UI protocol for streaming agent-UI communication. Use when deploying agent servers, using LangGraph/LangChain/CrewAI adapters, building custom adapters, understanding AG-UI protocol events, or building web/mini-program UI clients. Supports both TypeScript (@cloudbase/agent-server) and Python (cloudbase-agent-server via FastAPI).
@@ -3637,7 +3637,7 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
       name: "service",
       type: "string",
       required: true,
-      description: `选择要访问的服务。可选：tcb、tcbr、scf、sts、cam、lowcode、cdn、vpc、monitor（云监控/告警，version 需传 2018-07-24）、postgres（云数据库 PostgreSQL，version 需传 2017-03-12）。对于 tcb / scf / lowcode 等 CloudBase 管控面 Action，请优先查官方文档，不要直接猜测 Action。云托管统一走 tcbr（version 需传 2022-02-17）。 可填写的值: "tcb", "tcbr", "scf", "sts", "cam", "lowcode", "cdn", "vpc", "monitor", "postgres"`,
+      description: `腾讯云产品标识（**白名单枚举，取值见本字段的 enum 列表，共 57 个**），决定请求域名 https://<service>.tencentcloudapi.com。不在枚举内的产品标识一律拒绝，不要臆造 service 名，也不要试近义词（云数据库 MySQL 是 \`cdb\`、日志服务是 \`cls\`、DNS 解析是 \`dnspod\`、证书是 \`ssl\`；对象存储 COS 走独立 XML API，不在云 API 体系内）。需要新增产品请提需求补白名单。对于 tcb / scf / tcbr 等 CloudBase 管控面 Action，请优先查官方文档，不要直接猜测 Action。云托管统一走 tcbr。 可填写的值: "tcb", "tcbr", "scf", "sts", "cam", "cloudaudit", "tag", "billing", "region", "cvm", "lighthouse", "tke", "cbs", "cfs", "tcr", "cdb", "mariadb", "postgres", "sqlserver", "redis", "mongodb", "cynosdb", "dcdb", "tcaplusdb", "keewidb", "vpc", "clb", "cdn", "ecdn", "dnspod", "privatedns", "domain", "ssl", "teo", "gaap", "kms", "ssm", "waf", "cwp", "tcss", "ckafka", "tdmq", "tdmysql", "apigateway", "monitor", "cls", "apm", "tsf", "tat", "hunyuan", "lkeap", "tts", "trtc", "live", "vod", "sms", "ses"`,
     },
     {
       name: "action",
@@ -3648,7 +3648,7 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
     {
       name: "version",
       type: "string",
-      description: `API 版本（可选）。缺省时按 service 使用 SDK 内置默认版本；tcbr 必须传 "2022-02-17"（否则请求缺少 X-TC-Version 会失败），monitor 必须传 "2018-07-24"、postgres 必须传 "2017-03-12"（这两个 service 无内置默认版本，不传会失败）。示例：service="tcbr", version="2022-02-17", action="CreateCloudRunEnv", params={EnvId:"env-xxx",PackageType:"Standard"}。`,
+      description: `API 版本（多数场景可省略）。白名单里**只有一个官方版本的产品会自动补齐**，不必传；以下多版本产品必须显式传，缺省会报错并列出可选项：tke、mongodb、teo、monitor、vod、sms。示例：service="tcbr", version="2022-02-17", action="CreateCloudRunEnv", params={EnvId:"env-xxx",PackageType:"Standard"}；service="monitor" 需显式传 "2018-07-24"（告警策略族 Action 属于该版本）。`,
     },
     {
       name: "params",
