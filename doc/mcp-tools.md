@@ -2195,13 +2195,13 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 
       OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。当前支持 8 个 API 文档，分别是：
       API名：mysqldb API介绍：MySQL RESTful API - 云开发 MySQL 数据库 HTTP API
-API名：functions API介绍：Cloud Functions API - 云函数 HTTP API
-API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
-API名：storage API介绍：Storage API - 云存储 HTTP API
-API名：cloudrun API介绍：CloudRun API - 云托管服务 HTTP API
-API名：nosql API介绍：NoSQL RESTful API - 文档型数据库 HTTP API
-API名：auth API介绍：Authentication API - 身份认证 HTTP API
 API名：pgdb API介绍：PostgreSQL RESTful API (PostgREST) - 云开发 PostgreSQL 数据库 HTTP API，含 exec-pgsql 直连 SQL
+API名：functions API介绍：Cloud Functions API - 云函数 HTTP API
+API名：auth API介绍：Authentication API - 身份认证 HTTP API
+API名：cloudrun API介绍：CloudRun API - 云托管服务 HTTP API
+API名：storage API介绍：Storage API - 云存储 HTTP API
+API名：nosql API介绍：NoSQL RESTful API - 文档型数据库 HTTP API
+API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
 
 #### 参数
 
@@ -2221,7 +2221,7 @@ API名：pgdb API介绍：PostgreSQL RESTful API (PostgREST) - 云开发 Postgre
     {
       name: "apiName",
       type: "string",
-      description: `mode=openapi 时指定。API 名称。 可填写的值: "mysqldb", "functions", "ai_model", "storage", "cloudrun", "nosql", "auth", "pgdb"`,
+      description: `mode=openapi 时指定。API 名称。 可填写的值: "mysqldb", "pgdb", "functions", "auth", "cloudrun", "storage", "nosql", "ai_model"`,
     },
     {
       name: "action",

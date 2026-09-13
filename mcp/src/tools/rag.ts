@@ -326,32 +326,40 @@ async function downloadOpenAPI() {
   const baseDir = path.join(CACHE_BASE_DIR, "openapi");
   await fs.mkdir(baseDir, { recursive: true });
 
-  const results: OpenAPIInfo[] = [];
-  await Promise.all(
-    OPENAPI_SOURCES.map(async (source) => {
+  const downloaded = await Promise.all(
+    OPENAPI_SOURCES.map(async (source): Promise<OpenAPIInfo | undefined> => {
       try {
         const response = await fetch(source.url);
         if (!response.ok) {
           warn(`[downloadOpenAPI] Failed to download ${source.name}`, {
             status: response.status,
           });
-          return;
+          return undefined;
         }
         const content = await response.text();
         const filePath = path.join(baseDir, `${source.name}.openapi.yaml`);
         await fs.writeFile(filePath, content, "utf8");
-        results.push({
+        return {
           name: source.name,
           description: source.description,
           absolutePath: filePath,
           url: source.url,
-        });
+        };
       } catch (error) {
         warn(`[downloadOpenAPI] Failed to download ${source.name}`, {
           error,
         });
+        return undefined;
       }
     }),
+  );
+
+  // 顺序必须跟随 OPENAPI_SOURCES 声明顺序。`Promise.all` 只保证按输入顺序
+  // 返回结果，所以这里先收集再过滤；若改成在各并发任务内部 `results.push()`，
+  // 数组顺序会变成网络完成顺序，导致 tools.json / mcp-tools.md 里内联的
+  // OpenAPI 清单在每次构建之间无意义漂移。
+  const results = downloaded.filter(
+    (item): item is OpenAPIInfo => item !== undefined,
   );
 
   debug("[downloadOpenAPI] openAPIDocs 下载完成", {
