@@ -2,8 +2,8 @@
 
 Official docs:
 
-- `https://docs.cloudbase.net/integration/wechat-official-oauth/index.md`
-- `https://docs.cloudbase.net/integration/usage/index.md`
+- `https://docs.cloudbase.net/integration/wechat-official-oauth.md`
+- `https://docs.cloudbase.net/integration/usage.md`
 
 ## When To Use
 

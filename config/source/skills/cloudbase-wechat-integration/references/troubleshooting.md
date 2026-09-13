@@ -2,12 +2,12 @@
 
 Official docs:
 
-- `https://docs.cloudbase.net/integration/introduce/index.md`
-- `https://docs.cloudbase.net/integration/usage/index.md`
-- `https://docs.cloudbase.net/integration/wechat-pay-miniprogram/index.md`
-- `https://docs.cloudbase.net/integration/wechat-pay-jsapi-h5/index.md`
-- `https://docs.cloudbase.net/integration/wechat-pay-native/index.md`
-- `https://docs.cloudbase.net/integration/wechat-official-oauth/index.md`
+- `https://docs.cloudbase.net/integration/introduce.md`
+- `https://docs.cloudbase.net/integration/usage.md`
+- `https://docs.cloudbase.net/integration/wechat-pay-miniprogram.md`
+- `https://docs.cloudbase.net/integration/wechat-pay-jsapi-h5.md`
+- `https://docs.cloudbase.net/integration/wechat-pay-native.md`
+- `https://docs.cloudbase.net/integration/wechat-official-oauth.md`
 
 ## First Checks
 

@@ -2,7 +2,7 @@
 /**
  * Guard: CloudBase Skill 文档必须与 skills 源保持同步。
  *
- * 两项检查：
+ * 五项检查：
  *
  * 1) 覆盖率（静默漏配检测）
  *    `config/source/skills/<name>/SKILL.md` 必须登记进 `doc/prompts/config.yaml`
@@ -22,10 +22,19 @@
  *    生成器把 SKILL.md 内的相对链接改写成 CNB 绝对地址，一旦源文件改名/移动而没重生成，
  *    或者生成器改写规则出错，都会在这里被拦下 —— 不需要联网。
  *
+ * 4) 链接改写（离线、确定性）
+ *    SKILL.md 里栅栏外的相对链接必须全部被改写成 CNB 绝对地址，既不漏改也不误伤。
+ *
+ * 5) 官网链接形态（离线、确定性）
+ *    指向 docs.cloudbase.net 的链接必须用当前的 Markdown 寻址形态 `<page>.md`。
+ *    站点已从 `<page>/index.md` 迁移，而旧形态返回 200 + 兜底页（不 404），
+ *    读者和 agent 都拿不到正文却不会报错，只能靠形态判定拦下来。
+ *    详见下方 DOCS_STALE_ADDRESS_RE 的说明。
+ *
  * 用法：
- *   npm run check:prompts-sync                    # 覆盖率 + 产物新鲜度 + 链接目标
+ *   npm run check:prompts-sync                    # 检查 1-5（离线）
  *   node scripts/check-prompts-sync.mjs --coverage-only   # 只查覆盖率（供 vitest 复用）
- *   node scripts/check-prompts-sync.mjs --check-links     # 额外联网验证 CNB 链接可访问
+ *   node scripts/check-prompts-sync.mjs --check-links     # 额外联网复核 CNB 与官网链接
  *
  * 退出码：0 = 通过；1 = 需要处理（输出中带 [prompts-sync] 标记与修复命令）。
  */
@@ -79,6 +88,35 @@ const CNB_RAW_LINK_RE = /\/-\/git\/raw\/main\/config\/source\/skills\//g;
 const LINK_CHECK_CONCURRENCY = 3;
 const LINK_CHECK_DELAY_MS = 200;
 const LINK_CHECK_ATTEMPTS = 3;
+
+/**
+ * 官网文档链接的 Markdown 寻址形态。
+ *
+ * 站点的 Markdown 源已从 `<page>/index.md` 迁到 `<page>.md`，但旧形态**不会 404** ——
+ * 它返回 200 + 站点兜底页（HTML 里带「页面不存在」），所以写错形态既不报错、也看不出异常，
+ * 只是读者和 agent 都拿不到正文。实测：旧形态 0/53 可用（全兜底页），新形态 48/53；
+ * 仓内 skill 引用的 6 个页面在新形态下 100% 可读。
+ *
+ * 因此本项按**形态**离线判定，不依赖网络：只要出现 `<page>/index.md` 就是失效寻址。
+ * 注意 `/index`（不带 `.md`）是正常的渲染页，**不在**拦截范围 —— 别把规则扩大成「去掉 index」。
+ */
+const DOCS_STALE_ADDRESS_RE =
+  /https?:\/\/docs\.cloudbase\.net\/[^\s)`"'>,]*?\/index\.md/g;
+/** 官网 Markdown 链接形态（用于联网复核确实取到 Markdown 而非兜底页） */
+const DOCS_MARKDOWN_ADDRESS_RE =
+  /https?:\/\/docs\.cloudbase\.net\/[^\s)`"'>,]*?\.md/g;
+
+/**
+ * 官网链接的扫描范围。
+ *   blocking=true  本仓可改，命中即失败
+ *   blocking=false 外部仓同步产物（禁手改），命中只提示，需在上游修
+ */
+const DOCS_LINK_SCAN = [
+  { dir: 'config/source/skills', blocking: true },
+  { dir: 'doc/prompts', blocking: true },
+  { dir: 'plugin/cloudbase/skills', blocking: false },
+];
+const PLUGIN_SKILLS_UPSTREAM = 'TencentCloudBase/skills';
 
 function fail(lines) {
   console.error('');
@@ -444,6 +482,167 @@ function checkLinkRewrite(config) {
   ]);
 }
 
+/** 递归收集目录下的 markdown 文本文件 */
+function walkDocsLinkFiles(dir, out = []) {
+  if (!fs.existsSync(dir)) return out;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) walkDocsLinkFiles(full, out);
+    else if (/\.(md|mdx)$/i.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+
+/**
+ * 收集官网链接。
+ *   stale    —— `<page>/index.md` 失效寻址（按目录区分 blocking / advisory）
+ *   markdown —— 形态正确的 `<page>.md` 链接，供联网复核
+ */
+function collectDocsLinks() {
+  const stale = { blocking: [], advisory: [] };
+  const markdown = new Map(); // url -> Set(相对路径)
+
+  for (const { dir, blocking } of DOCS_LINK_SCAN) {
+    for (const file of walkDocsLinkFiles(path.join(ROOT_DIR, dir))) {
+      const rel = path.relative(ROOT_DIR, file);
+      const text = fs.readFileSync(file, 'utf8');
+      const staleUrls = new Set();
+
+      text.split('\n').forEach((line, index) => {
+        for (const match of line.matchAll(DOCS_STALE_ADDRESS_RE)) {
+          staleUrls.add(match[0]);
+          stale[blocking ? 'blocking' : 'advisory'].push({
+            file: rel,
+            line: index + 1,
+            url: match[0],
+          });
+        }
+      });
+
+      for (const match of text.matchAll(DOCS_MARKDOWN_ADDRESS_RE)) {
+        if (staleUrls.has(match[0])) continue;
+        if (!markdown.has(match[0])) markdown.set(match[0], new Set());
+        markdown.get(match[0]).add(rel);
+      }
+    }
+  }
+
+  return { stale, markdown };
+}
+
+/** 检查 5：官网文档链接必须用当前 Markdown 寻址形态（离线、确定性） */
+function checkDocsMarkdownAddressing() {
+  const { stale } = collectDocsLinks();
+
+  if (stale.advisory.length > 0) {
+    console.warn(
+      `[prompts-sync] 官网链接形态提示：${PLUGIN_SKILLS_UPSTREAM} 同步产物中有 ` +
+        `${stale.advisory.length} 处失效寻址，本仓改不了，需在上游修：`,
+    );
+    for (const hit of stale.advisory.slice(0, 5)) {
+      console.warn(`  - ${hit.file}:${hit.line}  ${hit.url}`);
+    }
+    if (stale.advisory.length > 5) {
+      console.warn(`  …… 其余 ${stale.advisory.length - 5} 处省略`);
+    }
+  }
+
+  if (stale.blocking.length === 0) {
+    console.log('[prompts-sync] 官网链接形态 OK：未发现 `<page>/index.md` 失效寻址');
+    return;
+  }
+
+  const byFile = new Map();
+  for (const hit of stale.blocking) {
+    if (!byFile.has(hit.file)) byFile.set(hit.file, []);
+    byFile.get(hit.file).push(hit);
+  }
+
+  fail([
+    '[prompts-sync][DOCS_ADDRESSING_STALE] 存在失效的官网文档寻址 `<page>/index.md`。',
+    '',
+    '站点的 Markdown 源早已从 `<page>/index.md` 迁到 `<page>.md`。旧形态不会 404，',
+    '而是返回 200 + 站点兜底页（HTML 里带「页面不存在」）——读者和 agent 都拿不到正文，',
+    '且不会报错。实测旧形态 0/53 可用，新形态 48/53。',
+    '',
+    ...byFile.entries().flatMap(([file, hits]) => [
+      `  - ${file}`,
+      ...hits.map((h) => `      L${h.line}  ${h.url}`),
+    ]),
+    '',
+    '修复：把 `<page>/index.md` 改成 `<page>.md`（仅改后缀形态，路径本身不动）。',
+    '注意 `/index`（不带 `.md`）是正常渲染页，不要顺手去掉 `index`。',
+    `改完跑 ${FIX_COMMAND} 刷新产物。`,
+    '',
+  ]);
+}
+
+/**
+ * 可选检查：官网 Markdown 链接是否真取得到 Markdown（`--check-links`）。
+ * 站点对没有 Markdown 的路径同样返回 200 + 兜底页，所以必须看 content-type。
+ * 这类失败**只告警不阻断**：它反映站点的发布覆盖（例如 `/http-api/**` 整段没有
+ * Markdown），不是本仓库能修的，不该挡住 PR。
+ */
+async function probeDocsMarkdown(url) {
+  let detail = '未知错误';
+
+  for (let attempt = 1; attempt <= LINK_CHECK_ATTEMPTS; attempt += 1) {
+    try {
+      const res = await fetchWithTimeout(url);
+      const type = res.headers.get('content-type') || '';
+      if (res.ok && type.startsWith('text/markdown')) return { ok: true };
+      return { ok: false, detail: `HTTP ${res.status}, content-type=${type || '(空)'}` };
+    } catch (e) {
+      detail = e?.message || String(e);
+    }
+
+    if (attempt < LINK_CHECK_ATTEMPTS) await sleep(600 * attempt);
+  }
+
+  return { ok: false, detail };
+}
+
+async function checkDocsMarkdownLiveness() {
+  const { markdown } = collectDocsLinks();
+  const urls = [...markdown.keys()].sort();
+  if (urls.length === 0) return;
+
+  const notMarkdown = [];
+  let cursor = 0;
+
+  const workers = Array.from(
+    { length: Math.min(LINK_CHECK_CONCURRENCY, urls.length) },
+    async () => {
+      while (cursor < urls.length) {
+        const url = urls[cursor++];
+        const result = await probeDocsMarkdown(url);
+        if (!result.ok) notMarkdown.push({ url, detail: result.detail });
+        await sleep(LINK_CHECK_DELAY_MS);
+      }
+    },
+  );
+
+  await Promise.all(workers);
+
+  const okCount = urls.length - notMarkdown.length;
+  if (notMarkdown.length === 0) {
+    console.log(`[prompts-sync] 官网 Markdown 存活 OK：${urls.length} 条链接均返回 Markdown`);
+    return;
+  }
+
+  console.warn(
+    `[prompts-sync] 官网 Markdown 存活检查：${okCount}/${urls.length} 返回 Markdown，` +
+      `${notMarkdown.length} 条未返回（站点发布覆盖缺口，非本仓错误，不计为失败）：`,
+  );
+  for (const item of notMarkdown.slice(0, 10)) {
+    console.warn(`  - ${item.url}  ${item.detail}`);
+  }
+  if (notMarkdown.length > 10) {
+    console.warn(`  …… 其余 ${notMarkdown.length - 10} 条省略`);
+  }
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const coverageOnly = args.includes('--coverage-only');
@@ -461,9 +660,11 @@ async function main() {
   checkFreshness();
   checkLinkTargets();
   checkLinkRewrite(config);
+  checkDocsMarkdownAddressing();
 
   if (checkLinks) {
     await checkLinkLiveness();
+    await checkDocsMarkdownLiveness();
   }
 
   console.log('[prompts-sync] 全部通过');

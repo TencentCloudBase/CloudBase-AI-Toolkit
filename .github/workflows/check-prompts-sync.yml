@@ -1,16 +1,23 @@
 name: Skill Docs Sync Check
 
-# 守住三件事：
+# 守住五件事：
 #   1) 每个 config/source/skills/*/SKILL.md 都在 doc/prompts/config.yaml 中登记
 #      （否则新增 skill 不会有文档页，历史上曾静默漏掉 8 个）
 #   2) doc/prompts 下的产物与 skills 源一致（源改了没重新生成会被拦下）
 #   3) 页面里指向 CNB 源仓库的链接目标确实存在（离线），并联网确认可访问
+#   4) SKILL.md 里栅栏外的相对链接都被完整改写成 CNB 绝对地址（不漏改也不误伤）
+#   5) 指向 docs.cloudbase.net 的链接必须用当前 Markdown 寻址形态 `<page>.md`
+#      —— 站点已从 `<page>/index.md` 迁移，旧形态返回 200 + 兜底页（不 404），
+#      读者和 agent 都拿不到正文却不会报错，只能靠形态判定拦下来。
+#      `plugin/cloudbase/skills/**` 来自外部仓（TencentCloudBase/skills）禁手改，
+#      那里的命中只提示不阻断，需在上游修。
 # 检查脚本：scripts/check-prompts-sync.mjs
 
 on:
   pull_request:
     paths:
       - 'config/source/skills/**'
+      - 'plugin/cloudbase/skills/**'
       - 'doc/prompts/**'
       - 'doc/components/prompts.json'
       - 'doc/components/AIDevelopmentPrompt.tsx'
@@ -25,6 +32,7 @@ on:
       - main
     paths:
       - 'config/source/skills/**'
+      - 'plugin/cloudbase/skills/**'
       - 'doc/prompts/**'
       - 'doc/components/prompts.json'
       - 'doc/components/AIDevelopmentPrompt.tsx'

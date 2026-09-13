@@ -2,8 +2,8 @@
 
 Official docs:
 
-- `https://docs.cloudbase.net/integration/introduce/index.md`
-- `https://docs.cloudbase.net/integration/usage/index.md`
+- `https://docs.cloudbase.net/integration/introduce.md`
+- `https://docs.cloudbase.net/integration/usage.md`
 
 ## What Integration Center Provides
 

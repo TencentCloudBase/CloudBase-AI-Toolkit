@@ -2,8 +2,8 @@
 
 Official docs:
 
-- `https://docs.cloudbase.net/integration/wechat-pay-miniprogram/index.md`
-- `https://docs.cloudbase.net/integration/usage/index.md`
+- `https://docs.cloudbase.net/integration/wechat-pay-miniprogram.md`
+- `https://docs.cloudbase.net/integration/usage.md`
 
 ## When To Use
 

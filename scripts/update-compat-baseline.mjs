@@ -31,10 +31,13 @@ function groupCountsOf(manifest) {
  *
  * 默认全量刷新：所有条目都用当前产物重算 hash，generatedAt 置为当前时间。
  *
- * 传 `only` 时做「定向刷新」：只把路径含该子串的条目更新到基线，其余条目保留
+ * 传 `only` 时做「定向刷新」：只把路径含任一子串的条目更新到基线，其余条目保留
  * 基线里的旧 hash。用于「本次只改了某个 skill，不想顺手把别的 skill 的存量漂移
  * 一起洗白」的场景 —— 全量刷新会把别人未经审核的漂移一并吞掉，让报告失真。
  * 定向模式不改 generatedAt（它表示最近一次全量刷新的时间）。
+ *
+ * 子串可为数组（CLI 上 `--only a,b` 或重复 `--only`）。改了多个 skill 时逐个跑
+ * 既慢又容易漏，写清一次改动的全部范围更稳妥。
  *
  * 注意：定向刷新只更新已存在的条目。若匹配到的产物在基线里不存在（新增文件），
  * 会记入 unseen 返回并提示走全量刷新 —— 新增/删除文件属于 existence 级变更，
@@ -44,8 +47,9 @@ export function updateCompatBaseline({ only } = {}) {
   buildCompatConfig({ outputDir: GENERATED_CONFIG_DIR });
 
   const fresh = buildCompatBaselineManifest(GENERATED_CONFIG_DIR);
+  const patterns = (Array.isArray(only) ? only : only ? [only] : []).filter(Boolean);
 
-  if (!only) {
+  if (patterns.length === 0) {
     fs.writeFileSync(BASELINE_FILE, JSON.stringify(fresh, null, 2) + "\n", "utf8");
 
     return {
@@ -66,7 +70,7 @@ export function updateCompatBaseline({ only } = {}) {
     const baseFiles = manifest.groups[groupName].files;
 
     for (const [file, hash] of Object.entries(freshFiles)) {
-      if (!file.includes(only)) {
+      if (!patterns.some((pattern) => file.includes(pattern))) {
         continue;
       }
       // 已存在的 key 赋值不会改变对象内的位置，路径字典序得以保持。
@@ -88,7 +92,7 @@ export function updateCompatBaseline({ only } = {}) {
   return {
     baselineFile: BASELINE_FILE,
     mode: "targeted",
-    only,
+    only: patterns,
     updated,
     unchanged,
     unseen,
@@ -98,15 +102,23 @@ export function updateCompatBaseline({ only } = {}) {
 }
 
 function parseArgs(argv) {
-  const onlyIndex = argv.indexOf("--only");
-  if (onlyIndex === -1) {
-    return { only: undefined };
-  }
-  const value = argv[onlyIndex + 1];
-  if (!value || value.startsWith("--")) {
-    throw new Error("--only 需要一个子串参数，例如 --only cloud-api-operations");
-  }
-  return { only: value };
+  const patterns = [];
+
+  argv.forEach((arg, index) => {
+    if (arg !== "--only") return;
+    const value = argv[index + 1];
+    if (!value || value.startsWith("--")) {
+      throw new Error(
+        "--only 需要一个子串参数，例如 --only cloud-api-operations；多个子串用逗号分隔或重复 --only",
+      );
+    }
+    for (const part of value.split(",")) {
+      const trimmed = part.trim();
+      if (trimmed) patterns.push(trimmed);
+    }
+  });
+
+  return { only: patterns.length > 0 ? patterns : undefined };
 }
 
 function main() {
@@ -115,7 +127,7 @@ function main() {
   console.log(`✅ Updated compat baseline: ${result.baselineFile}`);
 
   if (result.mode === "targeted") {
-    console.log(`🎯 定向刷新：匹配 "${result.only}"`);
+    console.log(`🎯 定向刷新：匹配 ${result.only.map((p) => `"${p}"`).join(", ")}`);
     console.log(`- 更新条目: ${result.updated}`);
     console.log(`- 未变化: ${result.unchanged}`);
     if (result.unseen.length > 0) {
@@ -134,5 +146,11 @@ function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main();
+  try {
+    main();
+  } catch (error) {
+    // 参数错误是使用者的输入问题，打印一行即可，不必甩出 stack。
+    console.error(`❌ ${error?.message || error}`);
+    process.exit(1);
+  }
 }

@@ -40,7 +40,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 - Detailed reference routing -> `./references.md`
 - Auth setup or provider-related backend work -> `../auth-tool-cloudbase/SKILL.md`
-- CloudBase Integration Center generated WeChat Pay or Official Account functions -> `../cloudbase-wechat-integration/SKILL.md` (official docs: `https://docs.cloudbase.net/integration/introduce/index.md`)
+- CloudBase Integration Center generated WeChat Pay or Official Account functions -> `../cloudbase-wechat-integration/SKILL.md` (official docs: `https://docs.cloudbase.net/integration/introduce.md`)
 - AI in functions -> `../ai-model-nodejs/SKILL.md`
 - Long-lived container services or Agent runtimes -> `../cloudrun-development/SKILL.md`
 - Calling CloudBase official platform APIs from a client or script -> `../http-api-cloudbase/SKILL.md`
