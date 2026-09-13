@@ -16,6 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # Dispatching the downstream pull-back (Sync CloudBase Plugin Skills) below
+      # needs actions: write; the default token is read-only for Actions.
+      actions: write
     
     steps:
       - name: Checkout source repository
@@ -69,6 +72,7 @@ jobs:
           rsync -a --checksum ../.skills-repo-output/ .
       
       - name: Commit and push changes
+        id: push_skills
         env:
           SKILLS_REPO_TOKEN: ${{ secrets.SKILLS_REPO_TOKEN }}
         run: |
@@ -97,6 +101,23 @@ jobs:
           if ! git diff --cached --quiet; then
             git commit -m "chore: sync skills from CloudBase-AI-ToolKit [skip ci]"
             git push
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
           else
             echo "No changes to commit"
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
           fi
+
+      # Sync CloudBase Plugin Skills listens on the same config/source/skills/**
+      # paths filter, so it starts in the same second as this job and clones
+      # TencentCloudBase/skills *before* the push above lands. It then finds no
+      # drift against its own .sync-metadata.json, reports success and skips —
+      # a green run that did nothing, leaving plugin/cloudbase/skills on the
+      # previous version until the 12h cron (observed on v2.34.2: pull-back
+      # started 16:23:00Z, upstream push landed 16:23:16Z, so plugin skills
+      # stayed on 2.34.1). Dispatch the pull-back explicitly after a real push
+      # so it can only ever read content this job has already written.
+      - name: Trigger Sync CloudBase Plugin Skills
+        if: steps.push_skills.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run "Sync CloudBase Plugin Skills" --ref main

@@ -8,9 +8,15 @@ on:
     branches:
       - main
     paths:
+      # Deliberately NOT config/source/skills/**: that path also triggers
+      # Push Skills Repository, so both jobs started in the same second and this
+      # pull-back cloned TencentCloudBase/skills before the push had landed —
+      # finding no drift, reporting success and doing nothing. Push Skills
+      # Repository now dispatches this workflow after its push succeeds; the
+      # 12h cron stays as a safety net. Keep the two self-triggers below so a
+      # change to this job or its script still runs it directly.
       - 'scripts/sync-cloudbase-plugin-skills.mjs'
       - '.github/workflows/sync-cloudbase-plugin-skills.yml'
-      - 'config/source/skills/**'
 
 permissions:
   contents: write
