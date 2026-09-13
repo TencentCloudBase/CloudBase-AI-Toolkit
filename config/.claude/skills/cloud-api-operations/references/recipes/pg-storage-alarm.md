@@ -1,10 +1,31 @@
 # Recipe 1 — PostgreSQL 存储空间使用率 ≥ 80% 告警
 
-**实证来源**：2026-09-08 主账号 AppId 1259548930 全链路实测，policy-b2lti7cg 已生效。
+## When to use
+
+要给 CloudBase PostgreSQL 实例配存储空间（磁盘）使用率告警时：
+
+- 新建使用率阈值告警策略，并绑定到指定实例
+- 已有策略但不生效：需要回查绑定维度（`resourceId` / `uid` 为 null、策略被 `alarm_disabled` 禁用）
+
+本篇只覆盖告警策略的创建 / 绑定 / 回查；查监控数据（`GetMonitorData`）或控制台可视化不在这里。
 
 ## 前置权限
 
-`monitor` 告警策略族 + `postgres` DescribeDBInstances。默认凭据（API Key / TCB 角色族）均无此权限，先走 [calling-methods.md §3](../calling-methods.md) 追加授权。
+需要 `monitor` 告警策略族的**写**权限 + `postgres` 读实例权限。
+
+权限来自哪种凭据身份，见 [calling-methods.md §3](../calling-methods.md)：账号级登录取该身份自身策略，服务角色发起的调用取角色挂载的策略，环境级 API Key 没有追加 CAM 策略的通道。**先直接往下做**，只有写操作真的返回 `UnauthorizedOperation` 时才回来补：
+
+- 告警策略族：`QcloudMonitorFullAccess`（`QcloudMonitorReadOnlyAccess` 对「告警策略」只有访问权、没有操作权，写操作挂它没用）
+- postgres 读实例：`QcloudPostgreSQLReadOnlyAccess`
+
+补权限的一键链接（`TCB_QcsRole` 为例，角色名与 `principal` 按实际角色替换）：
+
+- `https://console.cloud.tencent.com/cam/role/grant?roleName=TCB_QcsRole&policyName=QcloudMonitorFullAccess&principal=eyJzZXJ2aWNlIjoidGNiLmNsb3VkLnRlbmNlbnQuY29tIn0%3D`
+- `https://console.cloud.tencent.com/cam/role/grant?roleName=TCB_QcsRole&policyName=QcloudPostgreSQLReadOnlyAccess&principal=eyJzZXJ2aWNlIjoidGNiLmNsb3VkLnRlbmNlbnQuY29tIn0%3D`
+
+账号级身份（腾讯云密钥 / 子账号 / device 登录）缺权限时，由主账号给**这个身份**追加策略，别去点角色的链接。
+
+链接的拼法与角色载体的读法见 [calling-methods.md §3](../calling-methods.md)。
 
 官方 API 文档：监控告警 API 概览 https://cloud.tencent.com/document/product/649/30343（单个 Action 详细文档在 `document/api/248/` 下）。
 
@@ -38,26 +59,26 @@ CreateAlarmPolicy 实测可用的请求体：
       "Value": "80", "ContinuePeriod": 1, "NoticeFrequency": 3600, "IsPowerNotice": 0
     }]
   },
-  "NoticeIds": ["notice-q5jl62uv"]
+  "NoticeIds": ["notice-xxxxxxxx"]
 }
 ```
 
-返回 `PolicyId`（策略 ID）与 `OriginId`（数字，即后续绑定接口的 **GroupId**）。
+返回 `PolicyId`（策略 ID）与 `OriginId`（数字，即后续绑定接口的 **GroupId**）；维度里的 `uid` 取自步骤 3 的实例返回。
 
 绑定请求（步骤 6）：
 
 ```json
 {
   "Module": "monitor",
-  "PolicyId": "policy-b2lti7cg",
+  "PolicyId": "policy-xxxxxxxx",
   "Dimensions": [{
     "Region": "sh",
-    "Dimensions": "{\"uid\":425810,\"resourceId\":\"postgres-pdkup8by\"}"
+    "Dimensions": "{\"uid\":<实例Uid>,\"resourceId\":\"<PostgreSQL实例ID>\"}"
   }]
 }
 ```
 
-## 踩坑清单（全部实测）
+## 踩坑清单
 
 | 坑 | 现象 | 正确做法 |
 | --- | --- | --- |
@@ -70,13 +91,10 @@ CreateAlarmPolicy 实测可用的请求体：
 | DescribeAlarmNotices 参数 | 缺 `Order` 报 MissingParameter；小写 `asc` 报 invalid input param | 必传 `Module` + `Order="ASC"`（大写）+ `PageNumber/PageSize`；响应字段是 `Id`（不是 NoticeId） |
 | 服务端报错吞首字母 | `RojectId` / `RderType` / `SUnionRule` / `Egion` 等未定义参数报错 | 这是服务端报错**显示**怪癖（首字母被吞），实际核对的是完整参数名；先对照 SDK models 的字段定义，别被报错带偏 |
 | SDK 类名陷阱（Python） | `ConditionTemplate`/`AlertRule`/`Dimension` 不存在或形状不对 | Condition 用 `AlarmPolicyCondition`、规则用 `AlarmPolicyRule`、绑定维度用 `BindingPolicyObjectDimension`（`Dimension` 是别的接口的，只有 Name/Value） |
+| 以为只能 HTTP 直调 | 目标 service 不在 `callCloudApi` 支持的范围内，以为做不了 | 同序列可走官方 SDK 直调（[calling-methods.md §3](../calling-methods.md) 取临时密钥），两条路径结论一致、可互换 |
 
 ## 验证步骤
 
 1. `DescribeAlarmPolicies` 按 PolicyName 回查：确认 Enable=1、Condition 规则、NoticeIds。
 2. `DescribeBindingPolicyObjectList`（Module + GroupId）：确认 Total=1 且 Dimensions 双字段非 null。
 3. 若出现 null 维度残留记录，用 UnBindingPolicyObject 清理。
-
-## 二次实测记录（2026-09-08，账号 Uin 100046919896 / 环境 mcp-pg-ky5u9q）
-
-全链路二次打通：policy `policy-qnnip178`（GroupId 15961728）绑定 `postgres-l4xa5uq4`（uid 424521），回查双维度非 null、Enable=1。本次执行路径为 **SDK 直调**（monitor/postgres 未在 callCloudApi 白名单时，取 `auth get_temp_credentials` 临时密钥走官方 SDK，即 skill §2 代码管控路径），与首次 HTTP 直调结论一致。
