@@ -35,6 +35,8 @@ export const rag = defineModule(
     listModuleDocsSuccess: "CloudBase 模块文档目录获取成功",
     findByNameSuccess: "CloudBase 文档查找成功",
     readDocSuccess: "CloudBase 文档读取成功",
+    readDocNotMarkdown:
+      "文档 {docPath} 没有可用的 Markdown 版本（站点对该路径返回了 HTML 页面）。请用 action=searchDocs 或 action=findByName 确认正确地址后重试；也可以直接抓取网页版：{pageUrl}",
     searchDocsSuccess: "CloudBase 文档搜索成功",
     skillNotFound:
       "未找到技能文档 \"{skillName}\"。可用技能文档：{available}。{remoteHint}",
@@ -91,6 +93,8 @@ export const rag = defineModule(
     listModuleDocsSuccess: "CloudBase module doc catalog retrieved successfully",
     findByNameSuccess: "CloudBase doc lookup succeeded",
     readDocSuccess: "CloudBase doc read successfully",
+    readDocNotMarkdown:
+      "No Markdown version is available for {docPath} (the site returned an HTML page for it). Use action=searchDocs or action=findByName to confirm the correct address and retry; you can also fetch the rendered page directly: {pageUrl}",
     searchDocsSuccess: "CloudBase doc search succeeded",
     skillNotFound:
       "Skill document \"{skillName}\" not found. Available skill docs: {available}.{remoteHint}",

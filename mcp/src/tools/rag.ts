@@ -489,6 +489,40 @@ async function downloadResources(
   return resourceDownloadPromise;
 }
 
+/**
+ * docs.cloudbase.net 的 markdown 地址规则。
+ *
+ * 站点改为「页面路径 + `.md`」直接给出 Markdown 源文件；而 `@cloudbase/manager-node`
+ * 的 `DocsService.readDoc()` 仍按旧规则拼接 `<path>/index.md`。旧地址不会 404 ——
+ * 站点对未知路径返回 200 + HTML（SPA 兜底页），因此 SDK 会静默把整页 HTML 当成
+ * 文档正文返回，既不报错也无法从状态码察觉。
+ *
+ * SDK 对已以 `.md` 结尾的路径原样透传，所以在这里先把路径归一化成正确形态即可
+ * 绕开拼接逻辑；SDK 日后修好也不会重复加后缀。
+ */
+export function resolveDocsMarkdownPath(docPath: string): string {
+  const raw = docPath.trim();
+  const hashAt = raw.indexOf("#");
+  const withoutHash = (hashAt >= 0 ? raw.slice(0, hashAt) : raw).replace(/\/+$/, "");
+  const hash = hashAt >= 0 ? raw.slice(hashAt) : "";
+
+  // 旧文档里常见的 `<path>/index.md` 写法先还原成页面路径，再按新规则加后缀。
+  const base = withoutHash.replace(/\/index\.md$/i, "");
+  const normalized = /\.md$/i.test(base)
+    ? base
+    : `${base.replace(/\/index$/i, "")}.md`;
+
+  return `${normalized}${hash}`;
+}
+
+/**
+ * 识别 SPA 兜底页：站点对不存在的 markdown 路径同样返回 200，正文是站点 HTML 外壳。
+ * 用于把「静默返回一坨 HTML」换成明确的失败信息。
+ */
+export function isDocsHtmlFallback(content: string): boolean {
+  return /^<!doctype html|^<html[\s>]/i.test(content.replace(/^\uFEFF/, "").trimStart());
+}
+
 export async function registerRagTools(server: ExtendedMcpServer) {
   let openapis: OpenAPIInfo[] = [];
   let skills: SkillInfo[] = [];
@@ -675,11 +709,22 @@ export async function registerRagTools(server: ExtendedMcpServer) {
               "docPath",
               resolvedAction,
             );
-            const markdown = await docsManager.readDoc(resolvedDocPath);
+            const markdownPath = resolveDocsMarkdownPath(resolvedDocPath);
+            const markdown = await docsManager.readDoc(markdownPath);
+            // 站点对没有 markdown 的路径也返回 200 + HTML 外壳，必须显式判失败，
+            // 否则会把整页 HTML 当成文档正文交给模型（旧行为就是这样静默出错的）。
+            if (isDocsHtmlFallback(markdown)) {
+              throw new Error(
+                t("rag.readDocNotMarkdown", {
+                  docPath: markdownPath,
+                  pageUrl: markdownPath.replace(/\.md(?=#|$)/i, ""),
+                }),
+              );
+            }
             return jsonContent(
               buildDocsEnvelope(
                 resolvedAction,
-                { docPath: resolvedDocPath, content: markdown },
+                { docPath: resolvedDocPath, markdownPath, content: markdown },
                 t("rag.readDocSuccess"),
               ),
             );

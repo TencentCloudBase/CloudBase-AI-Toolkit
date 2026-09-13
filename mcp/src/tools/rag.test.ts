@@ -31,7 +31,9 @@ import {
   SKILL_REMOTE_BASE_URL,
   buildSkillRawUrl,
   collectSkillMarkdownFiles,
+  isDocsHtmlFallback,
   registerRagTools,
+  resolveDocsMarkdownPath,
   resolveSkillSearchRoots,
   rewriteRelativeLinks,
 } from "./rag.js";
@@ -210,6 +212,62 @@ describe("rag tools", () => {
       success: false,
       message: expect.stringContaining("docPath"),
     });
+  });
+
+  it("readDoc should request the .md address and report the resolved path", async () => {
+    const { server, tools } = createMockServer();
+    const readDoc = vi.fn().mockResolvedValue("# 快速开始\n正文");
+
+    mockCreateCloudBaseManagerWithOptions.mockReturnValue({ docs: { readDoc } });
+
+    await registerRagTools(server);
+
+    const result = await tools.searchKnowledgeBase.handler({
+      mode: "docs",
+      action: "readDoc",
+      docPath: "https://docs.cloudbase.net/quick-start/index",
+    });
+
+    // 站点把 markdown 放在 `<页面路径>.md`；旧规则拼的 `/index.md` 会拿到 HTML 兜底页。
+    expect(readDoc).toHaveBeenCalledWith(
+      "https://docs.cloudbase.net/quick-start.md",
+    );
+    expect(JSON.parse(result.content[0].text)).toMatchObject({
+      success: true,
+      data: {
+        action: "readDoc",
+        docPath: "https://docs.cloudbase.net/quick-start/index",
+        markdownPath: "https://docs.cloudbase.net/quick-start.md",
+        content: "# 快速开始\n正文",
+      },
+    });
+  });
+
+  it("readDoc should turn an HTML shell response into an explicit failure", async () => {
+    const { server, tools } = createMockServer();
+    const readDoc = vi
+      .fn()
+      .mockResolvedValue(
+        '<!doctype html><html lang="zh-Hans"><head><title>云开发</title></head></html>',
+      );
+
+    mockCreateCloudBaseManagerWithOptions.mockReturnValue({ docs: { readDoc } });
+
+    await registerRagTools(server);
+
+    const result = await tools.searchKnowledgeBase.handler({
+      mode: "docs",
+      action: "readDoc",
+      docPath: "https://docs.cloudbase.net/http-api/pgdb/update-records#step-1",
+    });
+
+    const body = JSON.parse(result.content[0].text);
+    expect(body.success).toBe(false);
+    // 报错要指出实际请求的 markdown 地址，并给出可抓取的网页版地址作为退路。
+    expect(body.message).toContain("update-records.md#step-1");
+    expect(body.message).toContain(
+      "https://docs.cloudbase.net/http-api/pgdb/update-records#step-1",
+    );
   });
 
   it("searchKnowledgeBase should avoid empty enums when dynamic catalogs are unavailable", async () => {
@@ -578,5 +636,66 @@ describe("searchKnowledgeBase mode=skill remote references", () => {
       }).trim(),
     );
     expect(text).toContain(`${SKILL_REMOTE_BASE_URL}/ghost-skill/SKILL.md`);
+  });
+});
+
+describe("CloudBase docs markdown addressing", () => {
+  // 站点规则：markdown 在 `<页面路径>.md`；`<路径>/index.md` 一律落到 SPA 兜底页。
+  it.each([
+    [
+      "裸页面路径加 .md",
+      "https://docs.cloudbase.net/quick-start/create-env",
+      "https://docs.cloudbase.net/quick-start/create-env.md",
+    ],
+    [
+      "相对路径同样处理",
+      "quick-start/create-env",
+      "quick-start/create-env.md",
+    ],
+    [
+      "index 型页面去掉 /index 再加 .md",
+      "https://docs.cloudbase.net/quick-start/index",
+      "https://docs.cloudbase.net/quick-start.md",
+    ],
+    [
+      "旧文档里的 /index.md 写法还原后重拼",
+      "https://docs.cloudbase.net/integration/introduce/index.md",
+      "https://docs.cloudbase.net/integration/introduce.md",
+    ],
+    [
+      "已是 .md 的路径原样透传（避免重复加后缀）",
+      "https://docs.cloudbase.net/quick-start/create-env.md",
+      "https://docs.cloudbase.net/quick-start/create-env.md",
+    ],
+    [
+      "结尾斜杠先归一化",
+      "https://docs.cloudbase.net/quick-start/create-env/",
+      "https://docs.cloudbase.net/quick-start/create-env.md",
+    ],
+    [
+      "保留锚点",
+      "https://docs.cloudbase.net/quick-start/create-env#step-2",
+      "https://docs.cloudbase.net/quick-start/create-env.md#step-2",
+    ],
+    [
+      "index 型路径带锚点",
+      "https://docs.cloudbase.net/faq/index#billing",
+      "https://docs.cloudbase.net/faq.md#billing",
+    ],
+    ["首尾空白先裁剪", "  quick-start/create-env  ", "quick-start/create-env.md"],
+  ])("%s", (_label, input, expected) => {
+    expect(resolveDocsMarkdownPath(input)).toBe(expected);
+  });
+
+  it.each([
+    ["doctype 开头的兜底页", "<!doctype html>\n<html>", true],
+    ["无 doctype 的 html 标签", '<html lang="zh-Hans">', true],
+    ["带 BOM 的兜底页", "\uFEFF<!DOCTYPE html><html>", true],
+    ["markdown 正文", "# 快速开始\n正文", false],
+    ["带 front matter 的 markdown", "---\ntitle: x\n---\n# 标题", false],
+    ["以 import 开头的 mdx 源文", "import Tabs from '@theme/Tabs';", false],
+    ["空字符串", "", false],
+  ])("isDocsHtmlFallback: %s", (_label, content, expected) => {
+    expect(isDocsHtmlFallback(content)).toBe(expected);
   });
 });
