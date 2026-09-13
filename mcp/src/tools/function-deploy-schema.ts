@@ -267,11 +267,11 @@ export const FUNCTION_IMAGE_BUILD_SCHEMA = z
   .object({
     cwd: z
       .string()
-      .refine(isAbsolutePath, { message: t("functionDeploySchema.buildCwdAbsolute") })
+      .refine(isAbsolutePath, () => ({ message: t("functionDeploySchema.buildCwdAbsolute") }))
       .describe("镜像构建上下文的绝对目录。"),
     dockerfile: z
       .string()
-      .refine(isSafeRelativePath, { message: t("functionDeploySchema.buildDockerfileSafeRelative") })
+      .refine(isSafeRelativePath, () => ({ message: t("functionDeploySchema.buildDockerfileSafeRelative") }))
       .optional()
       .describe("Dockerfile 相对 build.cwd 的路径，默认 Dockerfile。"),
     registryId: z
@@ -292,7 +292,7 @@ export const FUNCTION_IMAGE_BUILD_SCHEMA = z
     tag: z
       .string()
       .regex(IMAGE_TAG_PATTERN)
-      .refine((value) => value.toLowerCase() !== "latest", { message: t("functionDeploySchema.tagNoLatest") })
+      .refine((value) => value.toLowerCase() !== "latest", () => ({ message: t("functionDeploySchema.tagNoLatest") }))
       .optional()
       .describe("local 策略的目标镜像 tag；cloud 策略由平台生成，不填。"),
     platform: z
@@ -381,7 +381,7 @@ const FUNCTION_IMAGE_IMAGE_CONFIG_SCHEMA = z
             parsed.registry &&
             (parsed.digest || (parsed.tag && parsed.tag.toLowerCase() !== "latest")),
         );
-      }, { message: t("functionDeploySchema.imageUriImmutable") })
+      }, () => ({ message: t("functionDeploySchema.imageUriImmutable") }))
       .describe("已有镜像地址，例如 ccr.ccs.tencentyun.com/ns/app:v1。"),
   })
   .strict();

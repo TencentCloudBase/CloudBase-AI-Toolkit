@@ -440,12 +440,12 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                 service: z
                     .enum(ALLOWED_SERVICES)
                     .describe(
-                        `腾讯云产品标识（**白名单枚举，取值见本字段的 enum 列表，共 ${ALLOWED_SERVICES.length} 个**），决定请求域名 https://<service>.tencentcloudapi.com。不在枚举内的产品标识一律拒绝，不要臆造 service 名，也不要试近义词（云数据库 MySQL 是 \`cdb\`、日志服务是 \`cls\`、DNS 解析是 \`dnspod\`、证书是 \`ssl\`；对象存储 COS 走独立 XML API，不在云 API 体系内）。需要新增产品请提需求补白名单。对于 tcb / scf / tcbr 等 CloudBase 管控面 Action，请优先查官方文档，不要直接猜测 Action。云托管统一走 tcbr。`,
+                        `腾讯云产品标识，**取值只能来自本字段的 enum 白名单（共 ${ALLOWED_SERVICES.length} 个）**，决定请求域名 https://<service>.tencentcloudapi.com。名单外的取值一律拒绝，不要臆造；COS 不在云 API 体系内。产品名与 Action 对照见 skill cloud-api-operations。云托管统一走 tcbr。`,
                     ),
                 action: z
                     .string()
                     .min(1)
-                    .describe("具体 Action 名称，需符合对应服务的官方 API 定义。若不确定正确 Action，请先查官方文档；不要用近义词或历史命名进行猜测。tcb 常用 Action：环境管理 CreateEnv/ModifyEnv/DescribeEnvs/DestroyEnv、用户管理 CreateUser/ModifyUser/DescribeUserList/DeleteUsers、认证配置 EditAuthConfig、云函数 DescribeFunctions/CreateFunction、数据库 CreateMySQLInstance 等。tcbr 常用 Action：CreateCloudRunEnv（初始化云托管）、DescribeEnvBaseInfo（查询单个环境基础信息，EnvId 必填）、DescribeCloudRunEnvs（查询环境列表/资源信息，EnvId 可选过滤）、CreateCloudRunServer/DescribeCloudRunServers。"),
+                    .describe("具体 Action 名称，需符合对应服务的官方 API 定义。**不确定时先查官方文档，不要用近义词或历史命名猜测**（猜错会被服务端报成 action invalid，很难排查）。常用 Action 见 skill cloud-api-operations。"),
                 version: z
                     .string()
                     .optional()
@@ -459,13 +459,13 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                     .record(z.any())
                     .optional()
                     .describe(
-                        "Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：`{ \"service\": \"tcb\", \"action\": \"DestroyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"BypassCheck\": true } }`，如果环境已经处于隔离期，可再补 `IsForce: true`；更新环境别名则可用 `{ \"service\": \"tcb\", \"action\": \"ModifyEnv\", \"params\": { \"EnvId\": \"env-xxx\", \"Alias\": \"demo\" } }`。不要把 Region 放进 params（会报 The parameter Region is not recognized）；跨地域请用顶层 region，例如 `{ \"service\": \"tcb\", \"action\": \"DescribeEnvs\", \"region\": \"ap-singapore\" }`。若你的场景是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，而不是优先使用 callCloudApi。",
+                        "Action 对应的参数对象，键名与官方 API 定义一致，不确定时先查文档。**不要把 Region 放这里**，跨地域用顶层 region。CloudBase 业务 API 请优先用 searchKnowledgeBase(mode=\"openapi\")，不要用本工具。示例见 skill cloud-api-operations。",
                     ),
                 region: z
                     .string()
                     .optional()
                     .describe(
-                        "云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写入 params.Region。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）：若你要操作的是国内站的 ap-singapore 环境，请先用 auth(action=\"start_auth\"|\"login_by_api_key\", site=\"domestic\") 或设置 TCB_SITE=domestic 明确站点，否则请求会静默打到国际站账号。",
+                        "云 API 地域（X-TC-Region），如 ap-shanghai。跨地域必须传此顶层参数，不要写进 params。⚠️ ap-singapore 同属国内站与国际站，未指定站点按国际站（site=intl）处理：要操作国内站该地域环境，先 auth(action=\"start_auth\", site=\"domestic\") 或设 TCB_SITE=domestic。",
                     ),
             },
             annotations: {

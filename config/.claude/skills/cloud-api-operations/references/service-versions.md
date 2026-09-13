@@ -9,6 +9,7 @@
 - `version` 多数可以省：只有一个官方版本的产品由映射表自动补齐（例如 `ssl` → `2019-12-05`）。
 - **多版本产品必须显式传**（下表标 ⚠️）：缺省会报错并列出可选值，不会替你猜 —— 猜错会被服务端报成 `action is invalid or not found`，很难排查。
 - service 标识就是官方 SDK 的目录名：`tencentcloud/<service>/v<YYYYMMDD>`。
+- 常用 **Action 名与参数示例**（`tcb` / `tcbr` 的常见操作）见 [`./calling-methods.md`](./calling-methods.md) §1。
 
 ## 云开发 / 管控面
 

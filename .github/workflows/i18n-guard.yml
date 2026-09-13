@@ -12,6 +12,14 @@ name: i18n Guard
 #   因此脚本里对这一层是硬检查：注册点的 title/description 必须是词典 key（无基线）。
 #   参数级（第 3 层）以 mcp/i18n-coverage-baseline.json 为棘轮基线，新增中文即红；
 #   翻译掉一批后基线必须同步收紧，否则棘轮松动、被翻译过的字段再改回中文就拦不住了。
+#   同层还有一条**单条字数上限**（200 字符，只作用于新增条目）：超长条目几乎都是把
+#   示例 / 清单 / 反例整段塞进 schema —— 那属于 skill references，不该由参数级描述承担。
+#
+# 【job 1 的第三道闸门】求值时机
+#   模块顶层的 schema 常量在 import 期求值，早于 setInstanceLang()。把 t("...") 写在那里
+#   会固化成解析链兜底语言 —— en 实例下**静默返回中文且不报错**，比硬编码更隐蔽。
+#   守卫拒绝这种立即求值写法，但放行 `.refine(fn, () => ({ message: t(...) }))` 回调式
+#   （校验时才求值，跟随实例语言）。两者长得像，判据是回调边界。
 #
 # 【job 2】platform-kit 词典键对称
 #   platform-kit/scripts/validate-i18n.mjs 早就写好，但此前**没有任何 workflow 引用它** ——

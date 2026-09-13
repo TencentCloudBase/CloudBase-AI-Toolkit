@@ -48,7 +48,9 @@ node scripts/diff-compat-config.mjs      # 期望：Has blocking diff: NO
 pnpm run check:prompts-sync
 ```
 
-- **新增文件会让兼容面 diff 报 blocking**（「多出」也算阻断），执行 `node scripts/update-compat-baseline.mjs` 刷新 `config/source/editor-config/compat-baseline.json` 并提交。
+- **新增文件会让兼容面 diff 报 blocking**（「多出」也算阻断）。这种 existence 级变更要**全量**刷新：`node scripts/update-compat-baseline.mjs`（补新 key 只有全量能做）。
+- 只是**改了已有 md 的内容**：用 `node scripts/update-compat-baseline.mjs --only <你的 skill 目录名>` 定向刷新 —— 只更新路径含该子串的条目，保持别人的存量漂移不动（全量刷新会把它们一起洗白，报告就失真了）。
+- 刷新后 `config/source/editor-config/compat-baseline.json` 要一起提交。
 - 脚本产出的**已跟踪文件**要一起提交：`doc/prompts/**`、`doc/components/prompts.json`、`doc/sidebar.json`、`config/.claude/skills/**`、compat baseline。`.generated/**` 不入版本控制。
 - `main` 上另有 workflow 兜底同步镜像，本地先跑一遍可省掉一次往返。
 

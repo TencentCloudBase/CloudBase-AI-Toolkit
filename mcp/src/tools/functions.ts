@@ -384,12 +384,9 @@ const TRIGGER_SCHEMA = z.object({
         "⚠️ 不支持标准 5 段 cron（如 */5 * * * * 是错误的）。" +
         "正确示例：0 */5 * * * * *（每5分钟）、0 0 2 1 * * *（每月1号2点）、0 30 9 * * * *（每天9:30）",
     )
-    .refine(
-      (val) => SEVEN_FIELD_CRON_REGEX.test(val),
-      {
-        message: t("functions.timerCron.refine"),
-      },
-    ),
+    .refine((val) => SEVEN_FIELD_CRON_REGEX.test(val), () => ({
+      message: t("functions.timerCron.refine"),
+    })),
 });
 
 const CREATE_FUNCTION_SCHEMA = z.object({

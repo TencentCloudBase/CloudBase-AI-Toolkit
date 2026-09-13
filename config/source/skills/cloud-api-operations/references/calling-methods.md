@@ -33,6 +33,38 @@
   - `UnauthorizedOperation / AuthFailure` → CAM 权限不足；走 §3 授权升级
   - `Region is not recognized` → region 传到顶层参数，不放进 params
 
+### 常用 Action 与参数示例（tcb / tcbr）
+
+`tcb`（云开发管控面）：
+
+| 用途 | Action |
+| --- | --- |
+| 环境管理 | `CreateEnv` / `ModifyEnv` / `DescribeEnvs` / `DestroyEnv` |
+| 用户管理 | `CreateUser` / `ModifyUser` / `DescribeUserList` / `DeleteUsers` |
+| 认证配置 | `EditAuthConfig` |
+| 云函数 | `DescribeFunctions` / `CreateFunction` |
+| 数据库 | `CreateMySQLInstance` |
+
+`tcbr`（云托管）：`CreateCloudRunEnv`（初始化）、`DescribeEnvBaseInfo`（查单个环境，`EnvId` 必填）、`DescribeCloudRunEnvs`（查环境列表 / 资源，`EnvId` 可选过滤）、`CreateCloudRunServer` / `DescribeCloudRunServers`。
+
+参数示例：
+
+```json
+{ "service": "tcb", "action": "DestroyEnv", "params": { "EnvId": "env-xxx", "BypassCheck": true } }
+```
+
+环境已处于隔离期时可再补 `params.IsForce: true`；更新环境别名：
+
+```json
+{ "service": "tcb", "action": "ModifyEnv", "params": { "EnvId": "env-xxx", "Alias": "demo" } }
+```
+
+跨地域查询时 `region` 走顶层，不要放进 `params`：
+
+```json
+{ "service": "tcb", "action": "DescribeEnvs", "region": "ap-singapore" }
+```
+
 ## §2 代码管控（用户侧脚本/服务）
 
 1. **优先 `@cloudbase/manager-node`**：环境、存储、函数等常见操作有现成方法（https://docs.cloudbase.net/api-reference/manager/node/introduction）。

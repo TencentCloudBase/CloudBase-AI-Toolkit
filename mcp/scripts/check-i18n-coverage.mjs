@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * i18n 覆盖面守卫 —— 两层，各守一个面：
+ * i18n 覆盖面守卫 —— 三层，各守一个面：
  *
  *   1. **工具级文案必须是词典 key**（`registerTool` 的 title / description）
- *   2. **参数级 `.describe()` 的中文硬编码只减不增**（棘轮 + 基线）
+ *   2. **参数级 `.describe()` 的中文硬编码只减不增**（棘轮 + 基线），且新增条目有单条字数上限
+ *   3. **模块顶层 schema 里不得出现 t()**（那种位置求值早于实例语言注入）
  *
  * ## 为什么需要它
  *
@@ -26,6 +27,11 @@
  * 中文。platform-kit 有 validate-i18n.mjs，mcp 没有对应物，中文硬编码可以
  * 一路溜进主干。这一层用棘轮（存量冻结成基线，只减不增）。
  *
+ * 同层还有一条**单条字数上限**（`MAX_DESCRIBE_LENGTH`，只作用于新增条目）：
+ * 超长条目几乎都是把示例 / 清单 / 反例整段塞进 schema —— 那属于 skill references，
+ * 不该由参数级描述承担。条数棘轮只拦「有没有新的中文」，字数上限才拦「这段该不该
+ * 留在 schema 里」。
+ *
  * ## 关于第 2 层基线的两个数字口径
  *
  * 棘轮是**源码级静态**扫描，不需要构建、不需要跑 MCP，口径是「mcp/src 下所有含中文的
@@ -42,7 +48,7 @@
  *
  * ## 实现要点（为什么不是几行正则）
  *
- * 两层都要在源码里做结构判定，而源码里同时存在：注释里的示例代码、模板字符串里的
+ * 各层都要在源码里做结构判定，而源码里同时存在：注释里的示例代码、模板字符串里的
  * 花括号、正则字面量里的引号（`/["']/g`）。所以先造一份「同长度结构掩码」——
  * 行注释、块注释、字符串、正则的**内容**置空、定界符与换行保留 —— 括号配对与属性名
  * 识别都在掩码上做，取值时按起始下标回原文取。正则与除号靠「前一个有效字符」区分，
@@ -56,7 +62,7 @@
  *   node mcp/scripts/check-i18n-coverage.mjs --self-test  # 扫描器自检（守卫的守卫）
  *   node mcp/scripts/check-i18n-coverage.mjs --verbose    # 打印全部条目
  *
- * 退出码：0 = 通过；1 = 工具级文案非词典 key / 棘轮被推动 / 基线缺失 / 自检失败；2 = 参数错误。
+ * 退出码：0 = 通过；1 = 工具级文案非词典 key / 棘轮被推动 / 新增条目超长 / 顶层 schema 里用了 t() / 基线缺失 / 自检失败；2 = 参数错误。
  *
  * 零依赖（仅 node: 内置模块），CI 里无需 pnpm install 即可运行。
  */
@@ -87,6 +93,17 @@ const SKIP_DIR_PATHS = new Set([join(SCAN_ROOT, "i18n")]);
 const CJK = /[\u4e00-\u9fff]/;
 const SCHEMA_VERSION = 1;
 const TEXT_PREVIEW_LIMIT = 100;
+/**
+ * 参数级描述的**单条字数上限**（源代码字符数，含标点与插值）。
+ *
+ * `.describe()` 是参数级的一句话说明，不是文档载体。超过这个长度的条目几乎都是
+ * 「把示例 JSON / Action 清单 / 反例警示整段塞进 schema」—— 这类内容该外移到
+ * skill references，schema 里只留「不知道就会调错」的硬约束。
+ *
+ * 只管**新增条目**（存量已在基线里），所以历史债不会被一次性翻红；但改动存量
+ * 超长条目会让它重新变成「新增」，正好逼着顺手外移。
+ */
+const MAX_DESCRIBE_LENGTH = 200;
 /** baseline 里的相对路径统一带 mcp/ 前缀，让 diff 里一眼看出落在哪个包。 */
 const PATH_PREFIX = "mcp/";
 
@@ -545,7 +562,7 @@ export function collectCoverage() {
         existing.count += 1;
         continue;
       }
-      const entry = { file: repoPath, hash, count: 1, text: previewText(text) };
+      const entry = { file: repoPath, hash, count: 1, text: previewText(text), length: text.length };
       seen.set(hash, entry);
       entries.push(entry);
     }
@@ -610,6 +627,100 @@ export function findRegisterToolOutsideTools() {
     const { mask } = maskCode(readFileSync(file, "utf8"));
     const count = (mask.match(/registerTool(?:\s*\?\.)?\s*\(/g) ?? []).length;
     if (count > 0) found.push({ file: toRepoPath(file), count });
+  }
+  return found;
+}
+
+// ---------------------------------------------------------------------------
+// 求值时机：模块顶层 schema 里不得出现 t()
+//
+// 参数 schema 若在模块顶层构造，求值发生在 import 阶段，早于 server 创建时的
+// `setInstanceLang()`。此时 t() 只能拿到解析链兜底值（TCB_LANG / project.json /
+// zh），实例 lang 不生效 —— 而且不报错，只是静默用错语言。内联在
+// `registerXxxTools()` 里的 schema 没有这个问题（求值晚于语言注入）。
+// ---------------------------------------------------------------------------
+
+/** 从 `=` 之后的表达式起点读到语句结束（括号回零后的 `;` 或换行）。 */
+function readStatementEnd(mask, from) {
+  let i = from;
+  let depth = 0;
+  let started = false;
+  while (i < mask.length) {
+    const c = mask[i];
+    if (c === "(" || c === "{" || c === "[") {
+      depth += 1;
+      started = true;
+    } else if (c === ")" || c === "}" || c === "]") {
+      depth -= 1;
+    } else if (depth <= 0 && (c === ";" || (c === "\n" && started))) {
+      return i;
+    }
+    i += 1;
+  }
+  return mask.length;
+}
+
+/** 收集 body 内所有箭头函数体的范围 [start, end]，用于跳过回调体内的 t()。 */
+function collectCallbackRanges(body) {
+  const ranges = [];
+  let i = 0;
+  while (i < body.length - 1) {
+    if (body[i] === "=" && body[i + 1] === ">") {
+      let j = i + 2;
+      while (j < body.length && isSpace(body[j])) j += 1;
+      const open = body[j];
+      if (open === "(" || open === "{") {
+        const close = open === "(" ? ")" : "}";
+        let depth = 0;
+        let k = j;
+        while (k < body.length) {
+          if (body[k] === open) depth += 1;
+          else if (body[k] === close) {
+            depth -= 1;
+            if (depth === 0) break;
+          }
+          k += 1;
+        }
+        ranges.push([j, k]);
+        i = k + 1;
+        continue;
+      }
+    }
+    i += 1;
+  }
+  return ranges;
+}
+
+/**
+ * 扫描源码，返回模块**顶层**（行首，无缩进）schema 常量声明块内、**立即求值位置**的 t() 调用。
+ *
+ * - 只认行首声明：函数体内缩进的 schema 不在范围内（它们求值时机是对的）。
+ * - 跳过箭头函数体内：`.refine(fn, () => ({ message: t("x") }))` 的 t() 在校验时才求值，
+ *   语言是对的；而 `.refine(fn, { message: t("x") })`、`.describe(t("x"))` 在 import 期
+ *   求值，会固化成解析链兜底语言。
+ */
+export function findTopLevelSchemaT(source) {
+  const { mask } = maskCode(source);
+  const found = [];
+  const re = /^(?:export\s+)?const\s+[A-Za-z_$][A-Za-z0-9_$]*\s*(?::[^=\n]+)?=\s*z\b/gm;
+  let match;
+  while ((match = re.exec(mask)) !== null) {
+    const start = match.index;
+    const end = readStatementEnd(mask, start + match[0].length);
+    const body = mask.slice(start, end);
+    const callbacks = collectCallbackRanges(body);
+    const hits = [];
+    const tRe = /(?:^|[^A-Za-z0-9_$.])t\s*\(/g;
+    let tMatch;
+    while ((tMatch = tRe.exec(body)) !== null) {
+      const at = tMatch.index + tMatch[0].indexOf("t");
+      if (callbacks.some(([from, to]) => at >= from && at <= to)) continue;
+      hits.push(at);
+    }
+    if (!hits.length) continue;
+    const line = mask.slice(0, start).split("\n").length;
+    const nameMatch = /const\s+([A-Za-z_$][A-Za-z0-9_$]*)/.exec(mask.slice(start, start + 160));
+    found.push({ line, name: nameMatch ? nameMatch[1] : "(未识别)", count: hits.length });
   }
   return found;
 }
@@ -736,6 +847,7 @@ function runSelfTest() {
   }
   console.log(`i18n coverage 自检 OK: ${cases.length} 个扫描器用例通过`);
   runToolMetaSelfTest();
+  runTopLevelSchemaSelfTest();
 }
 
 function runToolMetaSelfTest() {
@@ -957,17 +1069,126 @@ function checkToolMeta() {
   return true;
 }
 
+function runTopLevelSchemaSelfTest() {
+  const cases = [
+    {
+      name: "顶层 schema 里的 t() 命中",
+      src: 'const S = z.object({ a: z.string().describe(t("x")) });',
+      expect: 1,
+    },
+    {
+      name: "换行形式的 z 声明同样命中",
+      src: 'export const S = z\n  .object({ a: z.string().describe(t("x")) });',
+      expect: 1,
+    },
+    {
+      name: "函数体内缩进的 schema 不命中",
+      src: 'function reg() {\n  const S = z.object({ a: z.string().describe(t("x")) });\n}',
+      expect: 0,
+    },
+    {
+      name: "字符串里的 t( 不命中",
+      src: 'const S = z.object({ a: z.string().describe("call t(x)") });',
+      expect: 0,
+    },
+    {
+      name: "非 schema 的顶层常量不命中",
+      src: 'const M = { a: t("x") };',
+      expect: 0,
+    },
+    {
+      name: "属性名 t 不命中",
+      src: 'const S = z.object({ t: z.string(), count: z.number() });',
+      expect: 0,
+    },
+    {
+      name: "回调内的 message t() 不命中（校验时才求值）",
+      src: 'const S = z.object({ a: z.string().refine(fn, () => ({ message: t("x") })) });',
+      expect: 0,
+    },
+    {
+      name: "非回调的 message t() 命中（import 期求值）",
+      src: 'const S = z.object({ a: z.string().refine(fn, { message: t("x") }) });',
+      expect: 1,
+    },
+    {
+      name: "多行回调体内的 t() 不命中",
+      src: 'const S = z.object({\n  a: z.string().refine(fn, () => ({\n    message: t("x"),\n  })),\n});',
+      expect: 0,
+    },
+    {
+      name: "顶层 schema 里的中文 describe 不归本层管",
+      src: 'const S = z.object({ a: z.string().describe("中文") });',
+      expect: 0,
+    },
+    {
+      name: "多个顶层 schema 各自计数",
+      src: 'const A = z.object({ a: z.string().describe(t("x")) });\nconst B = z.object({ b: z.string().describe(t("y")) });',
+      expect: 2,
+    },
+  ];
+
+  const failures = [];
+  for (const testCase of cases) {
+    const actual = findTopLevelSchemaT(testCase.src).length;
+    if (actual !== testCase.expect) failures.push({ ...testCase, actual });
+  }
+
+  if (failures.length) {
+    console.error(`i18n 求值时机自检失败 ${failures.length}/${cases.length}:`);
+    for (const failure of failures) {
+      console.error(`  ✗ ${failure.name}`);
+      console.error(`      期望 ${failure.expect}，实际 ${failure.actual}`);
+    }
+    process.exit(1);
+  }
+  console.log(`i18n 求值时机自检 OK: ${cases.length} 个用例通过`);
+}
+
+/**
+ * 求值时机检查：模块顶层 schema 里不得出现 t()。
+ * 返回 true 表示通过；失败信息直接打印（CI 日志即修复指引）。
+ */
+function checkTopLevelSchemaT() {
+  const offenders = [];
+  for (const file of listSourceFiles(SCAN_ROOT).sort()) {
+    for (const item of findTopLevelSchemaT(readFileSync(file, "utf8"))) {
+      offenders.push({ file: toRepoPath(file), ...item });
+    }
+  }
+
+  if (!offenders.length) {
+    console.log("✅ i18n 求值时机 OK: 模块顶层 schema 里没有 t() 调用。");
+    return true;
+  }
+
+  console.error(
+    `\n❌ ${offenders.length} 处模块顶层 schema 里调用了 t() —— 求值发生在 import 期，早于实例语言注入:`,
+  );
+  for (const item of offenders) {
+    console.error(`   ❌ ${item.file}:${item.line}  ${item.name}`);
+  }
+  console.error("\n怎么修:");
+  console.error("  · 包成工厂函数（`buildXxxSchema()`），在 `registerTool` 调用点构造 ——");
+  console.error("    那时 setInstanceLang 已执行，t() 拿到的才是实例语言。");
+  console.error("  · 或者把描述写成词典 key，交给注册包装层在注册期解析（包装层不递归 schema，");
+  console.error("    这条需要先扩包装层能力）。");
+  process.exit(1);
+}
+
 function printHelp() {
   console.log(`用法: node mcp/scripts/check-i18n-coverage.mjs [选项]
 
-  本脚本是两层守卫：
+  本脚本是三层守卫：
     1. 工具级 —— registerTool 的 title/description 必须是词典 key（无基线，写成硬编码即失败）
-    2. 参数级 —— mcp/src 的含中文 .describe() 只减不增（棘轮 + 基线）
+    2. 参数级 —— mcp/src 的含中文 .describe() 只减不增（棘轮 + 基线），新增条目不超过 ${MAX_DESCRIBE_LENGTH} 字符
+    3. 求值时机 —— 模块顶层 schema 里不得出现 t()（求值会早于实例语言注入）
 
-  (无选项)        跑上述两层校验
+  (无选项)        跑上述三层校验
   --update        以当前扫描结果重写第 2 层基线（翻译完 / 有意新增后收敛棘轮）
+  --allow-overlong 配合 --update：放行超过 ${MAX_DESCRIBE_LENGTH} 字符的新增条目（打印警告后写入）
   --skip-shrink   只拦「新增」，放宽「基线里有而现状没有」的收紧要求
-  --self-test     跑两层扫描器的自检用例
+  --self-test     跑三层扫描器的自检用例
   --verbose       打印全部条目而非仅前 20 条
   -h, --help      显示本帮助`);
 }
@@ -977,7 +1198,7 @@ function printHelp() {
 // ---------------------------------------------------------------------------
 
 export function main(argv = process.argv.slice(2)) {
-  const unknown = argv.filter((arg) => !["--update", "--skip-shrink", "--self-test", "--verbose", "-h", "--help"].includes(arg));
+  const unknown = argv.filter((arg) => !["--update", "--skip-shrink", "--allow-overlong", "--self-test", "--verbose", "-h", "--help"].includes(arg));
   if (unknown.length) {
     console.error(`i18n coverage: 未知参数 ${unknown.join(" ")}`);
     printHelp();
@@ -994,11 +1215,20 @@ export function main(argv = process.argv.slice(2)) {
 
   const updateMode = argv.includes("--update");
   const skipShrink = argv.includes("--skip-shrink");
+  const allowOverlong = argv.includes("--allow-overlong");
   const verbose = argv.includes("--verbose");
+  if (allowOverlong && !updateMode) {
+    console.error("i18n coverage: --allow-overlong 只在 --update 下有意义，已忽略");
+  }
 
   // 工具级文案（registerTool 的 title/description）必须是词典 key。
   // 这一层没有基线：写成硬编码就是回归，没有「存量豁免」一说。
   if (!checkToolMeta()) {
+    process.exit(1);
+  }
+
+  // 求值时机：模块顶层 schema 里的 t() 拿不到实例语言。同样无基线。
+  if (!checkTopLevelSchemaT()) {
     process.exit(1);
   }
 
@@ -1011,10 +1241,11 @@ export function main(argv = process.argv.slice(2)) {
 
   if (updateMode) {
     const previous = loadBaseline();
+    let added = [];
     if (previous) {
       const before = new Set(previous.entries.map(entryKey));
       const after = new Set(coverage.entries.map(entryKey));
-      const added = coverage.entries.filter((entry) => !before.has(entryKey(entry)));
+      added = coverage.entries.filter((entry) => !before.has(entryKey(entry)));
       const removed = previous.entries.filter((entry) => !after.has(entryKey(entry)));
       if (added.length) {
         console.log(`\n本次登记新增 ${added.length} 条中文参数描述:`);
@@ -1029,6 +1260,22 @@ export function main(argv = process.argv.slice(2)) {
         process.exit(0);
       }
     }
+
+    const overlongAdded = added.filter((entry) => entry.length > MAX_DESCRIBE_LENGTH);
+    if (overlongAdded.length && !allowOverlong) {
+      console.error(
+        `\n❌ 有 ${overlongAdded.length} 条新增描述超过 ${MAX_DESCRIBE_LENGTH} 字符，拒绝写入基线 —— 参数级 describe 不是文档载体:`,
+      );
+      printEntryList("!", overlongAdded, verbose ? 0 : 20);
+      console.error("\n   把示例 JSON / Action 清单 / 反例整段外移到 skill references，schema 里只留硬约束；");
+      console.error("   确实需要保留时加 --allow-overlong（会在日志里留痕）。");
+      process.exit(1);
+    }
+    if (overlongAdded.length) {
+      console.error(`\n⚠️  --allow-overlong 放行 ${overlongAdded.length} 条超长新增条目（已写入基线）:`);
+      printEntryList("!", overlongAdded, verbose ? 0 : 20);
+    }
+
     writeBaseline(coverage.entries);
     console.log(`\n已写入基线: ${relative(MCP_ROOT, BASELINE_FILE)}（${coverage.entries.length} 条）`);
     process.exit(0);
@@ -1050,9 +1297,18 @@ export function main(argv = process.argv.slice(2)) {
     process.exit(0);
   }
 
+  const overlong = added.filter((entry) => entry.length > MAX_DESCRIBE_LENGTH);
+
   if (added.length) {
     console.error(`\n❌ 新增了 ${added.length} 条中文参数描述 —— 参数级 .describe() 不走 i18n，en 实例下会以中文暴露给用户:`);
     printEntryList("+", added, verbose ? 0 : 20);
+  }
+
+  if (overlong.length) {
+    console.error(
+      `\n❌ 其中 ${overlong.length} 条超过 ${MAX_DESCRIBE_LENGTH} 字符 —— .describe() 是参数级的一句话说明，不是文档载体:`,
+    );
+    printEntryList("!", overlong, verbose ? 0 : 20);
   }
 
   if (removed.length) {
@@ -1068,6 +1324,10 @@ export function main(argv = process.argv.slice(2)) {
     console.error("  · 若这是无意的硬编码 —— 改用词典：把文案加进 src/i18n/locales/modules/<module>.ts");
     console.error('    的 zh/en 两棵树，再写 .describe(t("<module>.<key>"))；en 树漏译会被编译期约束拦下。');
     console.error("  · 若确实要保留中文（如 searchKnowledgeBase 的中文关键词别名）—— 登记进基线。");
+  }
+  if (overlong.length) {
+    console.error("  · 超长条目先外移：示例 JSON、Action / 产品清单、反例整段属于 skill references，");
+    console.error("    不是参数级 describe 该背的内容（每次 tools/list 都要喂给模型，且最难翻、最易腐化）。");
   }
   console.error("  · 收敛基线: node mcp/scripts/check-i18n-coverage.mjs --update");
   console.error("    （该命令会重写 mcp/i18n-coverage-baseline.json，把改动一起提交）");

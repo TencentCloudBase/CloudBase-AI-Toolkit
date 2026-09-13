@@ -178,14 +178,19 @@
     ],
     "mcp/src/tools/capi.ts": [
       {
-        "hash": "2030e688df09b0ff",
+        "hash": "3fda28c0d405f941",
         "count": 1,
-        "text": "Action 对应的参数对象，键名需与官方 API 定义一致。某些 Action 需要携带 EnvId 等信息；如不确定参数结构，请先查官方文档。tcb 示例：`{ \\\"service\\\": \\\"tc…"
+        "text": "Action 对应的参数对象，键名与官方 API 定义一致，不确定时先查文档。**不要把 Region 放这里**，跨地域用顶层 region。CloudBase 业务 API 请优先用 search…"
       },
       {
-        "hash": "54b3f307aa720f75",
+        "hash": "47b48d9e42b8143a",
         "count": 1,
-        "text": "具体 Action 名称，需符合对应服务的官方 API 定义。若不确定正确 Action，请先查官方文档；不要用近义词或历史命名进行猜测。tcb 常用 Action：环境管理 CreateEnv/Mo…"
+        "text": "云 API 地域（X-TC-Region），如 ap-shanghai。跨地域必须传此顶层参数，不要写进 params。⚠️ ap-singapore 同属国内站与国际站，未指定站点按国际站（site…"
+      },
+      {
+        "hash": "4fdbc8c84c515744",
+        "count": 1,
+        "text": "具体 Action 名称，需符合对应服务的官方 API 定义。**不确定时先查官方文档，不要用近义词或历史命名猜测**（猜错会被服务端报成 action invalid，很难排查）。常用 Action…"
       },
       {
         "hash": "5f7e275c88a6bc0e",
@@ -193,14 +198,9 @@
         "text": "API 版本（多数场景可省略）。白名单里**只有一个官方版本的产品会自动补齐**，不必传；"
       },
       {
-        "hash": "8a0a6314340a4cbc",
+        "hash": "d9453cf049d543f5",
         "count": 1,
-        "text": "腾讯云产品标识（**白名单枚举，取值见本字段的 enum 列表，共 ${ALLOWED_SERVICES.length} 个**），决定请求域名 https://<service>.tencentcl…"
-      },
-      {
-        "hash": "cc9027f1464f9947",
-        "count": 1,
-        "text": "云 API 地域（X-TC-Region）。例如 ap-shanghai、ap-guangzhou、ap-singapore。DescribeEnvs 等接口按地域查询，跨地域必须传此顶层参数，不要写…"
+        "text": "腾讯云产品标识，**取值只能来自本字段的 enum 白名单（共 ${ALLOWED_SERVICES.length} 个）**，决定请求域名 https://<service>.tencentclou…"
       }
     ],
     "mcp/src/tools/cloudrun.ts": [
