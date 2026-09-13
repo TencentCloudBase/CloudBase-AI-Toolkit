@@ -1118,6 +1118,8 @@ describe("env tools - auth", () => {
 
     expect(payload).toHaveProperty("ok", false);
     expect(payload).toHaveProperty("code", "API_KEY_AUTH_FAILED");
+    // 三个 next_step 出口都要给出实现真正读取的字段名，只锁一处会漏掉回归
+    expect(payload.next_step.suggested_args).toHaveProperty("apiKeyEnvId");
 
     // env vars should be cleaned up on failure
     expect(process.env.CLOUDBASE_API_KEY).toBeUndefined();
@@ -1137,6 +1139,8 @@ describe("env tools - auth", () => {
     expect(payload).toHaveProperty("ok", false);
     expect(payload).toHaveProperty("code", "API_KEY_AUTH_FAILED");
     expect(payload.message).toContain("network error");
+    // 异常出口同样要给出实现真正读取的字段名
+    expect(payload.next_step.suggested_args).toHaveProperty("apiKeyEnvId");
 
     // env vars should be cleaned up on exception
     expect(process.env.CLOUDBASE_API_KEY).toBeUndefined();
