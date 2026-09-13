@@ -35,6 +35,9 @@
  *   npm run check:prompts-sync                    # 检查 1-5（离线）
  *   node scripts/check-prompts-sync.mjs --coverage-only   # 只查覆盖率（供 vitest 复用）
  *   node scripts/check-prompts-sync.mjs --check-links     # 额外联网复核 CNB 与官网链接
+ *     （产物里的 CNB 链接固定指向 main；PR 阶段新增的文件在 main 上还不存在，
+ *      这类 404 属于「合并后才可见」——按本地是否存在区分后只打印、不计为失败。
+ *      见 checkLinkLiveness。）
  *
  * 退出码：0 = 通过；1 = 需要处理（输出中带 [prompts-sync] 标记与修复命令）。
  */
@@ -377,6 +380,7 @@ async function probeCnbRaw(repoPath) {
 async function checkLinkLiveness() {
   const unique = [...new Set(collectCnbLinks().map((link) => link.repoPath))].sort();
   const broken = [];
+  const pendingPublish = [];
   const inconclusive = [];
   let cursor = 0;
 
@@ -387,7 +391,16 @@ async function checkLinkLiveness() {
         const repoPath = unique[cursor++];
         const result = await probeCnbRaw(repoPath);
         if (!result.ok) {
-          (result.broken ? broken : inconclusive).push({ repoPath, detail: result.detail });
+          if (!result.broken) {
+            inconclusive.push({ repoPath, detail: result.detail });
+          } else if (fs.existsSync(path.join(ROOT_DIR, repoPath))) {
+            // 产物里的链接固定指向 main（生成器 CNB_BRANCH），而 PR 阶段新增的文件
+            // 在 main 上还不存在 —— 这个 404 只说明「合并后才可见」，链接本身没写错。
+            // 离线检查已保证本地源里存在该文件，所以按本地存在性把它和真死链区分开。
+            pendingPublish.push({ repoPath, detail: result.detail });
+          } else {
+            broken.push({ repoPath, detail: result.detail });
+          }
         }
         await sleep(LINK_CHECK_DELAY_MS);
       }
@@ -402,14 +415,25 @@ async function checkLinkLiveness() {
       '',
       ...broken.map((f) => `  - ${f.repoPath}\n      ${f.detail}`),
       '',
-      '可能是 CNB 镜像尚未同步、分支名变化，或生成器的链接改写规则有误。',
+      '这些路径在本地也找不到（本地能找到的会归为「待合并后可见」），基本是链接改写规则有误。',
       '',
     ]);
   }
 
+  if (pendingPublish.length > 0) {
+    console.log(
+      `[prompts-sync] CNB 链接存活：${pendingPublish.length} 个目标在 main 上还不存在` +
+        '（本地源已有，合并后才可见，不计为失败）：',
+    );
+    pendingPublish.slice(0, 10).forEach((f) => console.log(`  - ${f.repoPath}`));
+    if (pendingPublish.length > 10) console.log(`  …… 其余 ${pendingPublish.length - 10} 个省略`);
+  }
+
+  const liveCount = unique.length - inconclusive.length - pendingPublish.length;
+
   if (inconclusive.length > 0) {
     console.warn(
-      `[prompts-sync] CNB 链接存活检查：${unique.length - inconclusive.length}/${unique.length} 可访问，` +
+      `[prompts-sync] CNB 链接存活检查：${liveCount}/${unique.length} 可访问，` +
         `${inconclusive.length} 个未能确认（限流/超时等外部原因，非死链，不计为失败）：`,
     );
     inconclusive.slice(0, 10).forEach((f) => console.warn(`  - ${f.repoPath}  ${f.detail}`));
@@ -417,7 +441,10 @@ async function checkLinkLiveness() {
     return;
   }
 
-  console.log(`[prompts-sync] CNB 链接存活 OK：${unique.length} 个目标均可访问`);
+  console.log(
+    `[prompts-sync] CNB 链接存活 OK：${liveCount}/${unique.length} 个目标可访问` +
+      (pendingPublish.length > 0 ? `（另有 ${pendingPublish.length} 个待合并后可见）` : ''),
+  );
 }
 
 /** 统计栅栏外的相对 markdown 链接（生成器应把这些改写成 CNB 绝对地址；栅栏内不动，避免污染示例代码） */
