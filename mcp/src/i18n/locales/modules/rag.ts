@@ -21,11 +21,13 @@ export const rag = defineModule(
 
       返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。
 
-      固定技能文档 (skill) 查询当前支持 {skillCount} 个固定文档，分别是：
-      {skillList}
+      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 {skillCount} 个，API 共 {openapiCount} 个）。
 
-      OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。当前支持 {openapiCount} 个 API 文档，分别是：
-      {openapiList}`,
+      注意：OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。`,
+    skillCatalogHeader:
+      "CloudBase 技能文档 (skill) 当前可用 {count} 个，用 mode=skill + skillName 读取其中一篇：",
+    openapiCatalogHeader:
+      "OpenAPI 文档 (openapi) 当前可用 {count} 个，用 mode=openapi + apiName 读取其中一篇：",
     skillListItem: "文档名：{name} 文档介绍：{description}",
     openapiListItem: "API名：{name} API介绍：{description}",
     paramRequired: "action={action} 时必须提供 {param}",
@@ -79,11 +81,13 @@ export const rag = defineModule(
 
       The response contains the full SKILL.md of the skill plus the list of all its .md file URLs in the remote aggregate repo (CNB raw) — SKILL.md and references/ etc., fetchable over HTTP. Relative links outside code fences are rewritten to absolute URLs; when the skill is absent from the remote repo only the inline content is returned and that is stated explicitly, so no dead links are handed out.
 
-      Fixed skill doc (skill) queries currently support {skillCount} fixed docs:
-      {skillList}
+      When unsure which one to pick: call with mode=skill and no skillName, or mode=openapi and no apiName, to get the current catalog with each entry's scenario / summary, then call again with the name. Available names are also listed in this tool's skillName / apiName enums (currently {skillCount} skills, {openapiCount} APIs).
 
-      OpenAPI doc (openapi) queries only need mode="openapi" and apiName; do not pass action — action is only for mode="docs". Currently {openapiCount} API docs are supported:
-      {openapiList}`,
+      Note: OpenAPI doc (openapi) queries only need mode="openapi" and apiName; do not pass action — action is only for mode="docs".`,
+    skillCatalogHeader:
+      "CloudBase skill docs (skill), {count} available. Use mode=skill + skillName to read one:",
+    openapiCatalogHeader:
+      "OpenAPI docs (openapi), {count} available. Use mode=openapi + apiName to read one:",
     skillListItem: "Skill: {name} — Description: {description}",
     openapiListItem: "API: {name} — Description: {description}",
     paramRequired: "{param} is required when action={action}",

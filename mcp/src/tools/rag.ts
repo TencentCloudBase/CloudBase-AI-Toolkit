@@ -595,19 +595,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
       title: "rag.title",
       description: t("rag.description", {
         skillCount: skills.length,
-        skillList: skills
-          .map(
-            (skill) =>
-              t("rag.skillListItem", {
-                name: path.basename(path.dirname(skill.absolutePath)),
-                description: skill.description,
-              }),
-          )
-          .join("\n"),
         openapiCount: openapis.length,
-        openapiList: openapis
-          .map((api) => t("rag.openapiListItem", { name: api.name, description: api.description }))
-          .join("\n"),
       }),
       inputSchema: {
         mode: SearchKnowledgeModeEnum,
@@ -757,6 +745,21 @@ export async function registerRagTools(server: ExtendedMcpServer) {
       }
 
       if (mode === "skill") {
+        // 不传 skillName：返回带适用场景的完整目录，让调用方按需发现后再取正文
+        if (!skillName?.trim()) {
+          return jsonContent(
+            [
+              t("rag.skillCatalogHeader", { count: skillNames.length }),
+              ...skills.map((item) =>
+                t("rag.skillListItem", {
+                  name: path.basename(path.dirname(item.absolutePath)),
+                  description: item.description,
+                }),
+              ),
+            ].join("\n"),
+          );
+        }
+
         const skill = skills.find((item) =>
           item.absolutePath.includes(skillName!),
         );
@@ -823,6 +826,20 @@ export async function registerRagTools(server: ExtendedMcpServer) {
       }
 
       if (mode === "openapi") {
+        if (!apiName?.trim()) {
+          return jsonContent(
+            [
+              t("rag.openapiCatalogHeader", { count: openapiNames.length }),
+              ...openapis.map((api) =>
+                t("rag.openapiListItem", {
+                  name: api.name,
+                  description: api.description,
+                }),
+              ),
+            ].join("\n"),
+          );
+        }
+
         const api = openapis.find((api) => api.name === apiName);
         if (!api) {
           return {
@@ -883,7 +900,7 @@ function extractDescriptionFromFrontMatter(content: string): string | null {
     fm.push(lines[i]);
   const match = fm
     .join("\n")
-    .match(/^(?:decsription|description)\s*:\s*(.*)$/m);
+    .match(/^description\s*:\s*(.*)$/m);
   return match ? match[1].trim() : null;
 }
 
