@@ -37,3 +37,8 @@ These workflows are derived from former local command templates.
 - **Command**: `/check_ide_icons`
 - **Source**: `references/source-commands.md`
 - **Intent**: verify IDE icon configuration consistency across IDEIconGrid.tsx, IDESelector.tsx, setup.ts, and their cloudbase-docs mirror copies
+
+### Not in this skill: video tutorial intake
+
+`/add_video_tutorial` (add a Bilibili video to `doc/components/TutorialsGrid.tsx`, including thumbnail upload to CloudBase storage) lives in **`docs-workflows`** → `references/add_video_tutorial.md`, not here. Requests like "add video <Bilibili URL>" belong to that skill.
+
