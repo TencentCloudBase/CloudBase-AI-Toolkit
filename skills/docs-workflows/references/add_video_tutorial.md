@@ -138,6 +138,24 @@ When discovering videos via search (no specific URL provided), the raw `cloudbas
 - [ ] Video is placed at correct position (newest first)
 - [ ] ID is unique and follows kebab-case format
 - [ ] No duplicate entries exist
+- [ ] Entry ported to **both** mirrored copies in the docs site repo (zh + en)
+- [ ] `check-en-components.mjs` and `check-i18n-docs.mjs` pass in the docs repo
+- [ ] Docs-site branch pushed and the MR link handed to the user
+
+### 8. Sync to the website repo (QBase/cloudbase-docs)
+
+`TutorialsGrid.tsx` is **mirrored** into the docs site repo. The CloudBase-MCP PR alone does not update the live site — the entry must be ported separately.
+
+- **Repo**: `~/Projects/cloudbase-docs-sync-ce945d51` (remote `git@git.woa.com:QBase/cloudbase-docs.git`)
+- **Two mirrored copies, both need the same entry** (they are byte-identical today; `TutorialsGrid` is a known untranslated component, so the "English" copy keeps the Chinese video titles — `check-en-components.mjs` classifies it as `Warn`, never `Fail`):
+  - `docs/ai/cloudbase-ai-toolkit/components/TutorialsGrid.tsx`
+  - `i18n/en/docusaurus-plugin-content-docs/current/ai/cloudbase-ai-toolkit/components/TutorialsGrid.tsx`
+- **Branch from `origin/master`**, not from a previous sync branch — those are merged (verify with `git merge-base --is-ancestor <sha> origin/master`) and a stale base drags unrelated diff into the MR
+- **Anchor the insert** on `  // 视频` + the first existing video entry, replace with a hit-count check, then confirm `diff <CloudBase-MCP>/doc/components/TutorialsGrid.tsx docs/ai/.../TutorialsGrid.tsx` is empty and the two copies are byte-identical
+- **Guards before commit** (both must pass):
+  - `node scripts/check-en-components.mjs` → no `Fail`
+  - `node scripts/check-i18n-docs.mjs` → i18n pairing check passes
+- **MR is created by the user**: the gongfeng MCP gateway is read-only (46 read tools, no `create_merge_request`). Push the branch and hand over the TGIT link printed by the remote (`To create a merge request for <branch>: ...`)
 
 ## Example Usage
 
