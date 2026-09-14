@@ -640,6 +640,30 @@ describe('hosting tools', () => {
     expect(payload.data.verified).toBe(false);
   });
 
+  it('manageHosting(action=delete) should strip leading slash from cloudPath for delete and verification', () => {
+    const tools = createMockServer();
+    mockDeleteFiles.mockResolvedValueOnce({ Deleted: [], Error: [] });
+    // 模拟目录内容仍在（COS 真实对象 key 不带前导斜杠）
+    mockFindFiles.mockResolvedValueOnce([{ Key: 'dir/f.txt', Size: 100 }]);
+
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'delete',
+      cloudPath: '/dir',
+      isDir: true,
+      confirm: true,
+    })).content[0].text);
+
+    // 去掉前导斜杠后再传给 SDK：否则 isDir=true 走严格前缀匹配，
+    // `/dir/` 匹配不到 `dir/f.txt`，目录删除会静默 no-op（Deleted:0）。
+    expect(mockDeleteFiles).toHaveBeenCalledWith({ cloudPath: 'dir', isDir: true });
+    // 回查也必须用规范化后的前缀，否则带斜杠命中 0 条会把
+    // 「没删到」误判成「删干净了 verified:true」。
+    expect(mockFindFiles).toHaveBeenCalledWith({ prefix: 'dir', maxKeys: 100 });
+    // 目录内容仍在 ⇒ 验证失败，而非误报 verified:true
+    expect(payload.success).toBe(false);
+    expect(payload.data.verified).toBe(false);
+  });
+
   it('manageHosting description (dictionary zh text) should warn about DescribeStaticStore rate-limit and bulk-delete pacing', () => {
     const tools = createMockServer();
     // meta.description 是词典 key；内容校验针对 zh 词典解析结果

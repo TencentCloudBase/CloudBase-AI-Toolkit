@@ -983,10 +983,19 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             if (!input.confirm) {
               throw new Error(t('hosting.deleteConfirmRequired'));
             }
+            // 静态托管对象 key 不带前导斜杠。若不规范化，isDir=true 会走
+            // storage.deleteDirectoryCustom，其前缀由 getCloudKey(cloudPath)
+            // 生成且不做前导斜杠剥离，做严格字节前缀匹配时 `/dir/` 匹配不到
+            // `dir/f.txt`，导致目录删除静默 no-op（Deleted:0，文件全在）。
+            // 同时下面的回查 findFiles(prefix) 也是严格前缀匹配，带斜杠时
+            // 同样命中 0 条，会把「没删到」误判成「删干净了 verified:true」。
+            // 这里统一剥离前导斜杠，两种形态（/dir 与 dir）都按正确 key 处理。
+            const normalizedCloudPath = input.cloudPath.replace(/^\/+/, '');
+            const stripLeadingSlash = (value: string) => value.replace(/^\/+/, '');
             let result: unknown;
             try {
               result = await cloudbase.hosting.deleteFiles({
-                cloudPath: input.cloudPath,
+                cloudPath: normalizedCloudPath,
                 isDir: input.isDir ?? false,
               });
             } catch (error) {
@@ -1009,7 +1018,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             }
             try {
               const checkResult = await cloudbase.hosting.findFiles({
-                prefix: input.cloudPath,
+                prefix: normalizedCloudPath,
                 maxKeys: 100,
               });
 
@@ -1021,8 +1030,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
               //    /a/b.txt.bak 还在也会命中 → 把「已删成功」误判成未验证。
               //    单文件场景必须精确比对 Key（前缀场景见 normalizeFileFields 的 key 字段）。
               const remaining = normalizeFileFields(checkResult);
-              const stripLeadingSlash = (value: string) => value.replace(/^\/+/, '');
-              const targetPath = stripLeadingSlash(input.cloudPath ?? '');
+              const targetPath = normalizedCloudPath;
               const stillExists = input.isDir
                 ? remaining.length > 0
                 : remaining.some((file) => {
