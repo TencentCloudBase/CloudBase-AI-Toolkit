@@ -64,8 +64,11 @@ When discovering videos via search (no specific URL provided), the raw `cloudbas
 
 ### 3. Upload to Cloud Storage
 - **Prerequisite**: Ensure logged into correct CloudBase environment
-  - Check current environment using `envQuery` tool
-  - If wrong environment, user should logout and login again
+  - Run `auth(action="status")` FIRST and look for an env candidate with alias `tcb-advanced` (EnvId `tcb-advanced-a656fc`) in `env_candidates`.
+    The docs-site thumbnails live in that env, so an account that cannot see it **cannot upload** — `queryEnv(action="info", envId="tcb-advanced-a656fc")` returns `env not found in list`.
+    Do this check **before** downloading the thumbnail, so the account gap is surfaced early.
+  - If the env is missing: the logged-in Tencent Cloud account is the wrong one. Switching CloudBase connectors does not help (both point at the same account). Ask the user to confirm, then `auth(action="logout", confirm="yes")` → `auth(action="start_auth", authMode="device")` and have them approve the device code; re-check `auth(action="status")` until the candidate appears.
+  - Confirm the target is right by matching `queryEnv(action="info")`'s `Storages[0].CdnDomain` against the `video-thumbnails/` prefix already used in `TutorialsGrid.tsx` — they must be identical.
 - Upload thumbnail to cloud storage:
   - **Cloud Path**: `video-thumbnails/{BV号}.jpg`
   - **Tool**: `mcp_cloudbase_manageStorage` with `action=upload`
@@ -86,13 +89,15 @@ When discovering videos via search (no specific URL provided), the raw `cloudbas
   - Determine from video title/content or ask user
 
 - **Dev Tool Tags** (开发工具):
-  - Known values: `['CodeBuddy']`, `['Cursor']`, `['Claude Code']`, `['Figma']`, `['Codex']`, `['OpenClaw']`
+  - Known values: `['CodeBuddy']`, `['Cursor']`, `['Claude Code']`, `['Figma']`, `['Codex']`, `['OpenClaw']`, `['WorkBuddy']`, `['CloudBase']`
+  - `['WorkBuddy']` = tutorial is made with WorkBuddy; `['CloudBase']` is accepted as a platform tag paired with the AI tool when the video explicitly walks through the CloudBase platform surface
   - The list is open — when the video uses a tool not in this list, add it (and update the skill doc) rather than force-fitting a wrong tag
   - **Important**: Do NOT include "CloudBase AI Toolkit" or "MCP" - CloudBase MCP is the default backend service for all tutorials and doesn't need to be explicitly tagged
   - Determine from video title/content or ask user
 
 - **Tech Stack Tags** (技术栈) - Optional:
-  - Common values: `['Vue']`, `['React']`, `['小程序原生']`, `['云函数']`, `['云托管']`
+  - Common values: `['Vue']`, `['React']`, `['小程序原生']`, `['云函数']`, `['云托管']`, `['原生 HTML']`
+  - `['原生 HTML']` = hand-written HTML/CSS/JS (no framework), common for WorkBuddy/CodeBuddy one-shot page tutorials
   - **Important**: Do NOT include "CloudBase AI Toolkit" or "MCP" in techStackTags - CloudBase MCP is the default backend service for all tutorials and doesn't need to be explicitly tagged
   - Determine from video title/content or ask user
 
