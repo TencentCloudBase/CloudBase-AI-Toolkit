@@ -82,6 +82,12 @@ export const gateway = defineModule(
     "create.backendErrorScfHint":
       "此外注意：HTTP 云函数必须用 upstreamResourceType=WEB_SCF，Event 云函数必须用 SCF；互标会导致此错误。",
     "create.backendErrorSuffix": " 原始错误：{message}",
+    "create.upstreamNotFound":
+      "createRoute 未执行：上游目标不存在。upstreamResourceType={type}、targetName={name} 在环境中未找到，未创建任何路由。请先创建该资源（或核对名称/类型），再重新调用 createRoute。",
+    "create.upstreamCandidates":
+      "当前环境已有的 {type} 目标（最多 10 个，供核对名称）：{candidates}",
+    "create.upstreamNotFoundReason":
+      "核对上游资源名称与 upstreamResourceType 后重试 createRoute",
     "create.privilegeOffHint":
       "⚠️ HTTP 网关总开关未开启，路由创建成功后访问仍将返回 HTTPSERVICE_NONACTIVATED（403）；请先调用 manageGateway(action=\"enableService\", enable=true) 开启，再立刻探测 accessUrl（通常数秒到约 30 秒内生效，勿盲等 60 秒以上）。",
     "create.privilegeOffReason":
@@ -218,6 +224,12 @@ export const gateway = defineModule(
     "create.backendErrorScfHint":
       "Also note: HTTP cloud functions must use upstreamResourceType=WEB_SCF, Event cloud functions must use SCF; swapping them causes this error.",
     "create.backendErrorSuffix": " Original error: {message}",
+    "create.upstreamNotFound":
+      "createRoute skipped: the upstream target does not exist. upstreamResourceType={type}, targetName={name} was not found in this environment; no route was created. Create the resource (or fix the name/type), then call createRoute again.",
+    "create.upstreamCandidates":
+      "Existing {type} targets in this environment (up to 10, for name verification): {candidates}",
+    "create.upstreamNotFoundReason":
+      "Verify the upstream resource name and upstreamResourceType, then retry createRoute",
     "create.privilegeOffHint":
       "⚠️ The HTTP gateway master switch is off; after the route is created, access will still return HTTPSERVICE_NONACTIVATED (403). Call manageGateway(action=\"enableService\", enable=true) first, then probe accessUrl immediately (usually takes effect within a few seconds to ~30 seconds; do not wait 60+ seconds).",
     "create.privilegeOffReason":

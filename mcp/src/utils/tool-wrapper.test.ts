@@ -297,4 +297,51 @@ describe("wrapServerWithTelemetry", () => {
       expect((restarted.payload as any).repeat_guard).toBeUndefined();
     });
   });
+
+  it("builds the issue banner with a version line and no source-comment leakage", async () => {
+    // 这条 banner 只在**非测试环境**分支生成（`isTestEnvironment` 直接 rethrow），
+    // 所以必须用 withTelemetryEnabled 临时摘掉 NODE_ENV / VITEST。
+    await withTelemetryEnabled(async () => {
+      let wrappedHandler: ((args: any) => Promise<any>) | undefined;
+
+      const server = {
+        registerTool: vi.fn((_name: string, _meta: any, handler: (args: any) => Promise<any>) => {
+          wrappedHandler = handler;
+          return undefined;
+        }),
+        logger: vi.fn(),
+        cloudBaseOptions: undefined,
+        ide: "Cursor",
+      } as any;
+
+      wrapServerWithTelemetry(server);
+      server.registerTool("demo", {}, async () => {
+        throw new Error("boom");
+      });
+
+      let message = "";
+      try {
+        await wrappedHandler?.({});
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error);
+      }
+
+      expect(message).toContain("📦 CloudBase MCP v");
+
+      const encodedBody = /[?&]body=([^&]*)/.exec(message)?.[1] ?? "";
+      expect(encodedBody).not.toBe("");
+      const body = decodeURIComponent(encodedBody);
+
+      // 版本行必须存在。⚠️ 这里不能断言具体版本号：单测下构建期注入的 __MCP_VERSION__
+      // 不存在，走的是回退链 —— 而回退链必须把「构建期注入」排在宿主应用的
+      // process.env.npm_package_version **之前**（hosted 下那是 BFF 宿主的版本，实测报出
+      // 0.0.1，与 MCP 自身版本自相矛盾）。
+      expect(body).toContain("- MCP 版本：");
+
+      // ⚠️ 回归：行内注释必须写在模板字符串**外面**。塞进模板字面量里，
+      // 注释会原文进入用户可见的 issue 正文（曾经发生过）。
+      expect(body).not.toMatch(/^\s*\/\//m);
+      expect(body).not.toContain("宿主应用");
+    });
+  });
 });

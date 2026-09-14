@@ -586,6 +586,60 @@ describe('hosting tools', () => {
     expect(payload.message).toContain('文件可能未完全删除');
   });
 
+  it('manageHosting(action=delete) ignores same-prefix siblings when verifying a single file', async () => {
+    const tools = createMockServer();
+    mockDeleteFiles.mockResolvedValueOnce({ Deleted: [{ Key: 'site/index.html' }], Error: [] });
+    // findFiles 是 prefix 语义：删 site/index.html 时 site/index.html.bak 也会命中
+    mockFindFiles.mockResolvedValueOnce([
+      { Key: 'site/index.html.bak', Size: 100 },
+    ]);
+
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'delete',
+      cloudPath: 'site/index.html',
+      confirm: true,
+    })).content[0].text);
+
+    // 目标文件确实已删（只剩同前缀的兄弟文件），不应误报「未验证」
+    expect(payload.success).toBe(true);
+    expect(payload.data.verified).toBe(true);
+    expect(payload.data.error).toBeUndefined();
+  });
+
+  it('manageHosting(action=delete) detects a surviving file in a COS-style Contents response', async () => {
+    const tools = createMockServer();
+    mockDeleteFiles.mockResolvedValueOnce({ Deleted: [{ Key: 'site/index.html' }], Error: [] });
+    // findFiles 实际返回 COS 风格对象（列表在 Contents 内）——旧实现只判 Array.isArray，会静默放行
+    mockFindFiles.mockResolvedValueOnce({
+      Contents: [{ Key: 'site/index.html', Size: 100 }],
+      IsTruncated: false,
+    });
+
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'delete',
+      cloudPath: 'site/index.html',
+      confirm: true,
+    })).content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.data.verified).toBe(false);
+  });
+
+  it('manageHosting(action=delete) tolerates leading-slash differences when verifying', async () => {
+    const tools = createMockServer();
+    mockDeleteFiles.mockResolvedValueOnce({ Deleted: [{ Key: 'site/index.html' }], Error: [] });
+    mockFindFiles.mockResolvedValueOnce([{ Key: '/site/index.html', Size: 100 }]);
+
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'delete',
+      cloudPath: 'site/index.html',
+      confirm: true,
+    })).content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.data.verified).toBe(false);
+  });
+
   it('manageHosting description (dictionary zh text) should warn about DescribeStaticStore rate-limit and bulk-delete pacing', () => {
     const tools = createMockServer();
     // meta.description 是词典 key；内容校验针对 zh 词典解析结果

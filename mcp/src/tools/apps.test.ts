@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { registerAppTools } from "./apps.js";
 import { t } from "../i18n/index.js";
 import type { ExtendedMcpServer } from "../server.js";
@@ -238,13 +239,14 @@ describe("app tools", () => {
 
     // uploadCode should NOT be called when cosTimestamp is provided
     expect(mockUploadCode).not.toHaveBeenCalled();
+    // ⚠️ 类型契约（F12）：传入 number，但传给 SDK 的必须是 string
     expect(mockCreateApp).toHaveBeenCalledWith(
       expect.objectContaining({
         deployType: "static-hosting",
         serviceName: "demo-app",
         buildType: "ZIP",
         staticConfig: expect.objectContaining({
-          cosTimestamp: 1741234567,
+          cosTimestamp: "1741234567",
         }),
       }),
     );
@@ -305,9 +307,31 @@ describe("app tools", () => {
     });
   });
 
+  it("cloud mode deployApp via full schema→handler path passes cosTimestamp as string (F12)", async () => {
+    mockIsCloudMode.mockReturnValue(true);
+    const shape = (tools.manageApps.meta as any).inputSchema;
+
+    // 客户端按 JSON Schema 传 number（schema 宣告 string|number）
+    const parsed = z.object(shape).parse({
+      action: "deployApp",
+      serviceName: "demo-app",
+      cosTimestamp: 1741234567,
+      framework: "static",
+    });
+    expect(parsed.cosTimestamp).toBe("1741234567");
+
+    const result = await tools.manageApps.handler(parsed);
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+
+    // 硬契约：传到 SDK 的 StaticConfig.CosTimestamp 必须是 string
+    const sdkArg = mockCreateApp.mock.calls.at(-1)?.[0] as any;
+    expect(typeof sdkArg.staticConfig.cosTimestamp).toBe("string");
+    expect(sdkArg.staticConfig.cosTimestamp).toBe("1741234567");
+  });
+
   it("cloud mode deployApp with cosTimestamp still works", async () => {
     mockIsCloudMode.mockReturnValue(true);
-
     const result = await tools.manageApps.handler({
       action: "deployApp",
       serviceName: "demo-app",
@@ -325,7 +349,7 @@ describe("app tools", () => {
         serviceName: "demo-app",
         buildType: "ZIP",
         staticConfig: expect.objectContaining({
-          cosTimestamp: 1741234567,
+          cosTimestamp: "1741234567",
         }),
       }),
     );
@@ -437,18 +461,30 @@ describe("app tools", () => {
     }
   });
 
-  it("cosTimestamp schema rejects non-positive-integer values", () => {
+  it("cosTimestamp schema normalizes to string and rejects invalid values", () => {
     const schema = (tools.manageApps.meta as any).inputSchema.cosTimestamp;
 
-    // 合法值：正整数（含字符串数字 coerce）
-    expect(schema.parse("1741234567")).toBe(1741234567);
-    expect(schema.parse(1741234567)).toBe(1741234567);
+    // ⚠️ 类型契约（F12）：SDK 与后端要求 StaticConfig.CosTimestamp 是 **string**，
+    // schema 必须把任何合法输入归一成 string，绝不能输出的 number 直达后端。
+    expect(schema.parse("1741234567")).toBe("1741234567");
+    expect(schema.parse(1741234567)).toBe("1741234567");
+    expect(schema.parse(" 1741234567 ")).toBe("1741234567");
 
-    // 非法值：0 / 负数 / 浮点 / 非数字
+    // 非法值：0 / 负数 / 浮点 / 非数字 / 空串
     expect(() => schema.parse(0)).toThrow();
     expect(() => schema.parse(-1)).toThrow();
     expect(() => schema.parse(1.5)).toThrow();
     expect(() => schema.parse("abc")).toThrow();
+    expect(() => schema.parse("")).toThrow();
+    expect(schema.parse(undefined)).toBeUndefined();
+  });
+
+  it("buildId schema accepts string and number (shared by getAppVersion and getBuildLog)", () => {
+    const schema = (tools.queryApps.meta as any).inputSchema.buildId;
+
+    expect(schema.parse("2603252682")).toBe("2603252682");
+    expect(schema.parse(2603252682)).toBe("2603252682");
+    expect(schema.parse(undefined)).toBeUndefined();
   });
 
   it("manageApps(action=getUploadUrl) should return pre-signed URL", async () => {
@@ -503,7 +539,7 @@ describe("app tools", () => {
     const result = await tools.queryApps.handler({
       action: "getBuildLog",
       serviceName: "demo-app",
-      buildId: "build-1",
+      buildId: "2603252682",
     });
     const payload = JSON.parse(result.content[0].text);
 
@@ -512,7 +548,8 @@ describe("app tools", () => {
         Action: "DescribeCloudBaseRunBuildLog",
         Param: expect.objectContaining({
           ServiceName: "demo-app",
-          BuildId: "build-1",
+          // ⚠️ 类型契约（F13）：云 API 的 BuildId 是 Integer(int64)，传 string 会被后端拒
+          BuildId: 2603252682,
         }),
       }),
     );
@@ -521,12 +558,38 @@ describe("app tools", () => {
       data: {
         action: "getBuildLog",
         serviceName: "demo-app",
-        buildId: "build-1",
+        buildId: "2603252682",
         logs: expect.arrayContaining([
           expect.objectContaining({ Message: expect.any(String) }),
         ]),
       },
     });
+  });
+
+  it("queryApps(action=getBuildLog) accepts a numeric buildId and rejects non-numeric ones", async () => {
+    const numericResult = await tools.queryApps.handler({
+      action: "getBuildLog",
+      serviceName: "demo-app",
+      buildId: 2603252682,
+    });
+    expect(JSON.parse(numericResult.content[0].text).success).toBe(true);
+    expect(mockDescribeBuildLog).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        Param: expect.objectContaining({ BuildId: 2603252682 }),
+      }),
+    );
+
+    mockDescribeBuildLog.mockClear();
+    const badResult = await tools.queryApps.handler({
+      action: "getBuildLog",
+      serviceName: "demo-app",
+      buildId: "build-1",
+    });
+    const badPayload = JSON.parse(badResult.content[0].text);
+    expect(badPayload.success).toBe(false);
+    expect(badPayload.message).toContain("buildId");
+    // 不要在本地就知道不合法时还去打云端
+    expect(mockDescribeBuildLog).not.toHaveBeenCalled();
   });
 
   it("queryApps(action=getAppVersion) normalizes lowercase failed status", async () => {

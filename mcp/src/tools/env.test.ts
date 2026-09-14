@@ -2152,6 +2152,9 @@ describe("env tools - envQuery", () => {
     const result = await tools.queryEnv.handler({ action: "usage" });
     expect(result.content[0].text).toContain("envId 为必填参数");
     expect(result.content[0].text).toContain("queryEnv");
+    // ⚠️ F7：纯文本失败回执没有 { success: false } 可嗅，必须显式带 isError=true，
+    // 否则只看 isError 的客户端会把这次失败当成功。
+    expect(result.isError).toBe(true);
   });
 
   it("envQuery(usage) should call account circle + credits usage APIs", async () => {

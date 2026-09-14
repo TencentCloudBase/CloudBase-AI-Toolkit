@@ -44,6 +44,8 @@ export const apps = defineModule(
     getSuccess: "CloudBase 应用详情查询成功",
     listVersionsSuccess: "CloudBase 应用版本列表查询成功",
     buildIdRequired: "action=getBuildLog 时必须提供 buildId",
+    buildIdMustBeNumeric:
+      "buildId 必须是数字（云 API DescribeCloudBaseRunBuildLog 的 BuildId 为整数）。收到的值：{buildId}。请使用部署回执或 getAppVersion 返回的 BuildId。",
     buildLogFound: "查询到 {count} 条构建日志",
     buildLogEmpty: "暂无构建日志",
     nextStepQueryBuildLog: "查询构建日志",
@@ -126,6 +128,8 @@ export const apps = defineModule(
     getSuccess: "CloudBase app details retrieved successfully",
     listVersionsSuccess: "CloudBase app version list retrieved successfully",
     buildIdRequired: "buildId is required when action=getBuildLog",
+    buildIdMustBeNumeric:
+      "buildId must be numeric (the BuildId of the cloud API DescribeCloudBaseRunBuildLog is an integer). Received: {buildId}. Use the BuildId returned by the deploy response or getAppVersion.",
     buildLogFound: "Retrieved {count} build log entries",
     buildLogEmpty: "No build logs yet",
     nextStepQueryBuildLog: "Query build logs",

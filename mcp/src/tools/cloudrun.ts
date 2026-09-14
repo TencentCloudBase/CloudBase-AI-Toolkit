@@ -828,6 +828,39 @@ export async function describeCloudRunEnvStatus(
   return { isExist: true, status, baseInfo };
 }
 
+/**
+ * 判断「云托管环境未开通 / 不存在」类错误，用于 `describeCloudRunEnvStatus` 失败的归一化分支。
+ *
+ * ⚠️ 必须**同时**看 `error.code` 与 `error.message`：
+ * 报错文案有三套来源且会不一致 —— 英文错误码（`ResourceNotFound.CloudRunEnv`）、
+ * 中文兜底（`[DescribeEnvBaseInfo] 资源不存在`）、旧式 `InvalidParameter.*Env`。
+ * 只匹配 message 时，中文「资源不存在」不含 `ResourceNotFound`/`未开通`/`未初始化`，
+ * 守卫会失效并把裸错误抛给模型（国际站未开通云托管的环境实测命中，见 F2）。
+ *
+ * 调用方只有 `DescribeEnvBaseInfo`（唯一资源就是环境），因此把「资源不存在」纳入
+ * 未开通判定不会误伤其他语义。
+ */
+export function isCloudRunEnvNotOpenedError(error: unknown): boolean {
+  if (!error) {
+    return false;
+  }
+  const codeCandidates: unknown[] = [
+    (error as { code?: unknown }).code,
+    (error as { Code?: unknown }).Code,
+    (error as { original?: { code?: unknown } }).original?.code,
+    (error as { original?: { Code?: unknown } }).original?.Code,
+  ];
+  const codes = codeCandidates
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+  const message = error instanceof Error ? error.message : String(error);
+  const haystack = `${codes} ${message}`;
+  return (
+    /ResourceNotFound|not.?initialized|未开通|未初始化|资源不存在|环境不存在/i.test(haystack) ||
+    /InvalidParameter.*(?:Env|CloudRun)/i.test(haystack)
+  );
+}
+
 /** CloudRun EnvType for CreateCloudRunEnv (baas DescribeEnvBaseInfo enum). */
 export const CLOUDRUN_ENV_TYPE = "baas" as const;
 
@@ -951,14 +984,11 @@ export async function ensureCloudRunEnvInitialized(options: {
     }
     return true;
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    // 错误兜底：未初始化/未开通类错误码。
+    // 错误兜底：未初始化/未开通类错误码。判据统一收敛到 isCloudRunEnvNotOpenedError，
+    // 避免「只匹配 message」被本地化文案（中文「资源不存在」）绕过。
     // 注意：裸 InvalidParameter 可能是普通参数错误，不拦截；仅当其带 Env/CloudRun
     // 上下文（疑似 "EnvironmentId not found / CloudRun Env 未开通"）时才按未初始化处理。
-    if (
-      /ResourceNotFound|not.?initialized|未开通|未初始化/i.test(msg) ||
-      /InvalidParameter.*(?:Env|CloudRun)/i.test(msg)
-    ) {
+    if (isCloudRunEnvNotOpenedError(error)) {
       throwCloudRunEnvNotInitialized(options.envId);
     }
     // 其他错误（网络/权限等）不拦截，让上层按原逻辑处理。
@@ -1609,10 +1639,7 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
               status = await describeCloudRunEnvStatus(manager, envId);
             } catch (error) {
               const baseMessage = error instanceof Error ? error.message : String(error);
-              if (
-                /ResourceNotFound|not.?initialized|未开通|未初始化/i.test(baseMessage) ||
-                /InvalidParameter.*(?:Env|CloudRun)/i.test(baseMessage)
-              ) {
+              if (isCloudRunEnvNotOpenedError(error)) {
                 status = { isExist: false, status: "unopened", baseInfo: {} };
               } else {
                 throw new Error(t("cloudrun.error.actionFailed", {
@@ -1716,10 +1743,7 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
               current = await describeCloudRunEnvStatus(manager, envId);
             } catch (error) {
               const baseMessage = error instanceof Error ? error.message : String(error);
-              if (
-                /ResourceNotFound|not.?initialized|未开通|未初始化/i.test(baseMessage) ||
-                /InvalidParameter.*(?:Env|CloudRun)/i.test(baseMessage)
-              ) {
+              if (isCloudRunEnvNotOpenedError(error)) {
                 current = { isExist: false, status: "unopened", baseInfo: {} };
               } else {
                 throw new Error(t("cloudrun.error.actionFailed", {

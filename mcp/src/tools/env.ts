@@ -45,6 +45,7 @@ import { normalizeLang, t, type Lang } from "../i18n/index.js";
 import {
   buildAuthNextStep,
   buildJsonToolResult,
+  buildTextErrorResult,
   toolPayloadErrorToResult,
 } from "../utils/tool-result.js";
 import {
@@ -3065,14 +3066,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 }
                 debug("降级到 listEnvs() 也失败:", fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError)));
                 const enhancedMessage = buildEnvQueryErrorMessage(fallbackError, "list");
-                return {
-                  content: [
-                    {
-                      type: "text",
-                      text: enhancedMessage,
-                    },
-                  ],
-                };
+                return buildTextErrorResult(enhancedMessage);
               }
             }
             result = buildEnvQueryListResult({
@@ -3278,14 +3272,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           return toolPayloadResult;
         }
         const enhancedMessage = buildEnvQueryErrorMessage(error, action);
-        return {
-          content: [
-            {
-              type: "text",
-              text: enhancedMessage,
-            },
-          ],
-        };
+        return buildTextErrorResult(enhancedMessage);
       }
     };
 
@@ -3466,16 +3453,11 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         if (toolPayloadResult) {
           return toolPayloadResult;
         }
-        return {
-          content: [
-            {
-              type: "text",
-              text: t("env.domain.operationFailed", {
-                message: error instanceof Error ? error.message : String(error),
-              }),
-            },
-          ],
-        };
+        return buildTextErrorResult(
+          t("env.domain.operationFailed", {
+            message: error instanceof Error ? error.message : String(error),
+          }),
+        );
       }
     },
   );
@@ -4099,14 +4081,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             message: t("env.manage.listPackagesFailed", { message: errorMessage }),
           });
         }
-        return {
-          content: [
-            {
-              type: "text",
-              text: t("env.manage.operationFailed", { message: errorMessage }),
-            },
-          ],
-        };
+        return buildTextErrorResult(
+          t("env.manage.operationFailed", { message: errorMessage }),
+        );
       }
     },
   );

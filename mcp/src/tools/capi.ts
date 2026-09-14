@@ -435,7 +435,19 @@ export function registerCapiTools(server: ExtendedMcpServer) {
         "callCloudApi",
         {
             title: "capi.title",
-            description: "capi.description",
+            // ⚠️ 不能写成 `description: "capi.description"`（纯词典 key）：注册包装层解析
+            // key 时**不带插值参数**，而 {controlPlaneUrl}/{dependencyUrl} 只在错误路径
+            // （下方 t("capi.errorBuild", …)）传入 → 描述里的占位符永远替换不了，
+            // tools/list 在 zh 与 en 下都会吐字面 `{controlPlaneUrl}`。
+            // 因此这里按实例语言先解析成最终文案（与 env.ts 的 envQuery 别名同款处理）。
+            description: t(
+                "capi.description",
+                {
+                    controlPlaneUrl: CLOUDBASE_CONTROL_PLANE_DOC_URL,
+                    dependencyUrl: CLOUDBASE_DEPENDENCY_API_DOC_URL,
+                },
+                server.lang,
+            ),
             inputSchema: {
                 service: z
                     .enum(ALLOWED_SERVICES)

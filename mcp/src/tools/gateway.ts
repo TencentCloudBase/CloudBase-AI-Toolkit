@@ -208,6 +208,143 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
     message: error instanceof Error ? error.message : String(error),
   });
 
+  /**
+   * 上游目标存在性校验（F1）。
+   *
+   * 背景：`createHttpServiceRoute` 不校验 `UpstreamResourceName` 是否存在，预检
+   * （VerifyHTTPServiceRoute）也只查域名归属/证书/配额，因此**不存在的上游也能真实落库并
+   * 返回 success**，形成悬空路由（path 被占用、指向不存在的目标）。实测两站复现。
+   *
+   * 设计原则：**只在能证明「不存在」时拒绝**。
+   * - 列表接口报错、分页未扫全、类型不支持 → `unknown`，放行并记日志（fail-open）。
+   *   校验失败绝不该阻塞用户创建合法路由。
+   * - 只有扫完全量且确实没有该名称时，才返回 `missing`。
+   *
+   * 覆盖范围：SCF / WEB_SCF（函数列表）、CBR（云托管服务列表）。
+   * NOT covered：STATIC_STORE 的 UpstreamResourceName 是静态托管**实例名/固定别名
+   * staticstore**（不是 CloudApp 应用名），可靠列举要额外走 DescribeStaticStore，且该资源
+   * 随托管启用必然存在、悬空风险低；LH（轻量应用服务器）无列举接口。两者一律 fail-open。
+   */
+  const UPSTREAM_PROBE_PAGE_SIZE = 100;
+  const UPSTREAM_PROBE_MAX_PAGES = 5;
+  const UPSTREAM_PROBE_CANDIDATE_LIMIT = 10;
+
+  type UpstreamProbeResult =
+    | { status: "exists" }
+    | { status: "missing"; candidates: string[] }
+    | { status: "unknown"; reason: string };
+
+  const probeUpstreamResource = async (
+    cloudbase: any,
+    params: {
+      upstreamResourceType: UpstreamResourceType;
+      upstreamResourceName: string;
+    },
+  ): Promise<UpstreamProbeResult> => {
+    const wanted = params.upstreamResourceName.trim();
+    const upstreamResourceType = params.upstreamResourceType;
+    try {
+      if (upstreamResourceType === "SCF" || upstreamResourceType === "WEB_SCF") {
+        // fail-open：老 SDK / mock 没有该 API 时不校验，绝不让「拿不到列表」变成「判定不存在」。
+        if (typeof cloudbase.functions?.getFunctionList !== "function") {
+          return { status: "unknown", reason: "function-list-api-unavailable" };
+        }
+        const names = new Set<string>();
+        let scanned = 0;
+        let total = Number.POSITIVE_INFINITY;
+        for (let page = 0; page < UPSTREAM_PROBE_MAX_PAGES; page += 1) {
+          const res = await cloudbase.functions.getFunctionList(
+            UPSTREAM_PROBE_PAGE_SIZE,
+            scanned,
+          );
+          const list: unknown[] = Array.isArray(res?.Functions) ? res.Functions : [];
+          for (const item of list) {
+            const name = (item as { FunctionName?: unknown } | null)?.FunctionName;
+            if (typeof name === "string" && name) {
+              names.add(name);
+            }
+          }
+          scanned += list.length;
+          total = typeof res?.TotalCount === "number" ? res.TotalCount : scanned;
+          if (names.has(wanted) || list.length === 0 || scanned >= total) {
+            break;
+          }
+        }
+        if (names.has(wanted)) {
+          return { status: "exists" };
+        }
+        if (scanned >= total) {
+          return {
+            status: "missing",
+            candidates: [...names].slice(0, UPSTREAM_PROBE_CANDIDATE_LIMIT),
+          };
+        }
+        return { status: "unknown", reason: "function-list-partially-scanned" };
+      }
+
+      if (upstreamResourceType === "CBR") {
+        // fail-open：同上，`cloudrun?.list` 缺失时会短路成 undefined，若不显式拦截会被
+        // 误判成「列表为空 = 目标不存在」，从而错误拒绝合法路由。
+        if (typeof cloudbase.cloudrun?.list !== "function") {
+          return { status: "unknown", reason: "cloudrun-list-api-unavailable" };
+        }
+        const names = new Set<string>();
+        for (let page = 1; page <= UPSTREAM_PROBE_MAX_PAGES; page += 1) {
+          const res = await cloudbase.cloudrun.list({
+            pageSize: UPSTREAM_PROBE_PAGE_SIZE,
+            pageNum: page,
+          });
+          const list: unknown[] = Array.isArray(res?.ServerList) ? res.ServerList : [];
+          for (const item of list) {
+            const record = item as { ServerName?: unknown; Name?: unknown } | null;
+            const name = record?.ServerName ?? record?.Name;
+            if (typeof name === "string" && name) {
+              names.add(name);
+            }
+          }
+          const total = typeof res?.Total === "number" ? res.Total : names.size;
+          if (names.has(wanted) || list.length === 0 || names.size >= total) {
+            break;
+          }
+        }
+        if (names.has(wanted)) {
+          return { status: "exists" };
+        }
+        return {
+          status: "missing",
+          candidates: [...names].slice(0, UPSTREAM_PROBE_CANDIDATE_LIMIT),
+        };
+      }
+
+      // STATIC_STORE / LH：无可靠的实例列举通路，不校验（见上方说明）。
+      return { status: "unknown", reason: `unsupported-upstream-type:${upstreamResourceType}` };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { status: "unknown", reason: message };
+    }
+  };
+
+  /** 上游缺失时的候选列举工具，按类型给出下一步可用的只读入口。 */
+  const upstreamProbeNextAction = (
+    upstreamResourceType: UpstreamResourceType,
+  ): { tool: string; action: string; reason: string } | null => {
+    if (upstreamResourceType === "SCF" || upstreamResourceType === "WEB_SCF") {
+      return {
+        tool: "queryFunctions",
+        action: "listFunctions",
+        reason: t("gateway.create.upstreamNotFoundReason"),
+      };
+    }
+    if (upstreamResourceType === "CBR") {
+      return {
+        tool: "queryCloudRun",
+        action: "list",
+        reason: t("gateway.create.upstreamNotFoundReason"),
+      };
+    }
+    return null;
+  };
+
   const verifyHttpServiceRouteOrFail = async (params: {
     envId: string;
     domainParam: HTTPServiceDomainParam;
@@ -897,6 +1034,47 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       case "createRoute": {
         const cloudbase = await getManager();
         const payload = await normalizeRoutePayload(input);
+
+        // 上游目标存在性校验（F1）：平台侧不校验 UpstreamResourceName，不存在的目标也会
+        // 真实落库形成悬空路由并返回 success。能证明不存在就拒绝，校验不了就放行（fail-open）。
+        const upstreamProbe = await probeUpstreamResource(cloudbase, {
+          upstreamResourceType: payload.resolved.upstreamResourceType,
+          upstreamResourceName: payload.resolved.upstreamResourceName,
+        });
+        if (upstreamProbe.status === "missing") {
+          const nextAction = upstreamProbeNextAction(payload.resolved.upstreamResourceType);
+          return {
+            success: false,
+            data: {
+              action: "createRoute",
+              upstreamResourceType: payload.resolved.upstreamResourceType,
+              targetName: payload.resolved.upstreamResourceName,
+              path: payload.resolved.path,
+              candidates: upstreamProbe.candidates,
+              ...(upstreamProbe.candidates.length
+                ? {
+                    candidateHint: t("gateway.create.upstreamCandidates", {
+                      type: payload.resolved.upstreamResourceType,
+                      candidates: upstreamProbe.candidates.join("、"),
+                    }),
+                  }
+                : {}),
+            },
+            message: t("gateway.create.upstreamNotFound", {
+              type: payload.resolved.upstreamResourceType,
+              name: payload.resolved.upstreamResourceName,
+            }),
+            ...(nextAction ? { nextActions: [nextAction] } : {}),
+          };
+        }
+        if (upstreamProbe.status === "unknown") {
+          // 校验不了不阻塞创建，但要留痕，便于排查「为什么这次没拦住」。
+          server.logger?.({
+            type: "errorToolCall",
+            toolName: "manageGateway",
+            message: `createRoute upstream probe skipped (${payload.resolved.upstreamResourceType}/${payload.resolved.upstreamResourceName}): ${upstreamProbe.reason}`,
+          });
+        }
 
         // Probe → create: ownership / cert / quota / conflict checks before create.
         const verifyFailure = await verifyHttpServiceRouteOrFail({

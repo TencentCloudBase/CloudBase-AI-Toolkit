@@ -1487,4 +1487,145 @@ describe("gateway tools", () => {
     expect(payload.message).toContain("无法确认 HTTP 网关开关状态");
     expect(mockCreateHttpServiceRoute).toHaveBeenCalled();
   });
+
+  /**
+   * F1：平台侧不校验 UpstreamResourceName，不存在的上游也会真实落库形成悬空路由。
+   * 期望：能证明「不存在」时拒绝；证明不了时 fail-open 放行。
+   */
+  const buildManagerWithUpstreams = (opts: {
+    functionNames?: string[];
+    functionListError?: Error;
+    serverNames?: string[];
+  }) =>
+    ({
+      env: {
+        describeHttpServiceRoute: mockDescribeHttpServiceRoute,
+        createHttpServiceRoute: mockCreateHttpServiceRoute,
+        modifyHttpServiceRoute: mockModifyHttpServiceRoute,
+        deleteHttpServiceRoute: mockDeleteHttpServiceRoute,
+        bindCustomDomain: mockBindCustomDomain,
+        deleteCustomDomain: mockDeleteCustomDomain,
+        verifyHttpServiceRoute: mockVerifyHttpServiceRoute,
+        describeCertificates: mockDescribeCertificates,
+      },
+      commonService: vi.fn(() => ({ call: mockCommonServiceCall })),
+      access: { switchAuth: mockSwitchAuth },
+      functions: {
+        getFunctionList: vi.fn(async () => {
+          if (opts.functionListError) {
+            throw opts.functionListError;
+          }
+          const names = opts.functionNames ?? [];
+          return {
+            Functions: names.map((name) => ({ FunctionName: name })),
+            TotalCount: names.length,
+          };
+        }),
+      },
+      cloudrun: {
+        list: vi.fn(async () => {
+          const names = opts.serverNames ?? [];
+          return {
+            ServerList: names.map((name) => ({ ServerName: name })),
+            Total: names.length,
+          };
+        }),
+      },
+    }) as any;
+
+  it("manageGateway(action=createRoute) rejects a non-existent SCF upstream without creating the route", async () => {
+    mockGetCloudBaseManager.mockResolvedValue(
+      buildManagerWithUpstreams({ functionNames: ["otherFn"] }),
+    );
+
+    const result = await tools.manageGateway.handler({
+      action: "createRoute",
+      domain: "api.example.com",
+      path: "/nope",
+      targetName: "__mcp_e2e_nope__",
+      upstreamResourceType: "WEB_SCF",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("上游目标不存在");
+    expect(payload.data.candidates).toEqual(["otherFn"]);
+    expect(payload.data.action).toBe("createRoute");
+    // 关键：不存在的上游绝不落库（否则就是 F1 的悬空路由）
+    expect(mockCreateHttpServiceRoute).not.toHaveBeenCalled();
+  });
+
+  it("manageGateway(action=createRoute) still creates the route when the SCF upstream exists", async () => {
+    mockGetCloudBaseManager.mockResolvedValue(
+      buildManagerWithUpstreams({ functionNames: ["helloFn", "otherFn"] }),
+    );
+
+    const result = await tools.manageGateway.handler({
+      action: "createRoute",
+      domain: "api.example.com",
+      path: "/api/hello",
+      targetName: "helloFn",
+      upstreamResourceType: "WEB_SCF",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(mockCreateHttpServiceRoute).toHaveBeenCalled();
+  });
+
+  it("manageGateway(action=createRoute) fails open when the upstream list API errors", async () => {
+    mockGetCloudBaseManager.mockResolvedValue(
+      buildManagerWithUpstreams({ functionListError: new Error("ListFunctions denied") }),
+    );
+
+    const result = await tools.manageGateway.handler({
+      action: "createRoute",
+      domain: "api.example.com",
+      path: "/api/hello",
+      targetName: "helloFn",
+      upstreamResourceType: "WEB_SCF",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    // 校验不了不能阻塞用户创建合法路由
+    expect(payload.success).toBe(true);
+    expect(mockCreateHttpServiceRoute).toHaveBeenCalled();
+  });
+
+  it("manageGateway(action=createRoute) rejects a non-existent CBR upstream", async () => {
+    mockGetCloudBaseManager.mockResolvedValue(
+      buildManagerWithUpstreams({ serverNames: ["other-svc"] }),
+    );
+
+    const result = await tools.manageGateway.handler({
+      action: "createRoute",
+      domain: "api.example.com",
+      path: "/api/run",
+      targetName: "ghost-svc",
+      upstreamResourceType: "CBR",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("上游目标不存在");
+    expect(payload.data.candidates).toEqual(["other-svc"]);
+    expect(mockCreateHttpServiceRoute).not.toHaveBeenCalled();
+  });
+
+  it("manageGateway(action=createRoute) does not probe STATIC_STORE/LH upstreams", async () => {
+    mockGetCloudBaseManager.mockResolvedValue(buildManagerWithUpstreams({}));
+
+    const result = await tools.manageGateway.handler({
+      action: "createRoute",
+      domain: "api.example.com",
+      path: "/",
+      targetName: "staticstore",
+      upstreamResourceType: "STATIC_STORE",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    // STATIC_STORE 的资源名是实例名/固定别名，无可靠列举通路 → 不校验、不阻塞
+    expect(payload.success).toBe(true);
+    expect(mockCreateHttpServiceRoute).toHaveBeenCalled();
+  });
 });

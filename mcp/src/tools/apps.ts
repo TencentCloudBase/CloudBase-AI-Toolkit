@@ -108,9 +108,15 @@ export function registerAppTools(server: ExtendedMcpServer) {
           .optional()
           .describe("版本名称。getAppVersion 时可与 buildId 二选一；已知版本号时优先传该值。"),
         buildId: z
-          .string()
+          // ⚠️ 同一字段驱动两条链路、类型要求不同（F13）：
+          //   getAppVersion → SDK describeAppVersion，收 **string**
+          //   getBuildLog   → 云 API DescribeCloudBaseRunBuildLog，BuildId 是 **Integer(int64)**
+          // 收 string | number 并统一归一成 string（保证 getAppVersion 链路不回退），
+          // getBuildLog 分支再转 number 传给云 API。
+          .union([z.string(), z.number()])
+          .transform((value) => String(value).trim())
           .optional()
-          .describe("构建 ID。getAppVersion 时可与 versionName 二选一；部署返回 BuildId 后可直接用它轮询状态。getBuildLog 时必填。"),
+          .describe("构建 ID（数字或数字字符串均可）。getAppVersion 时可与 versionName 二选一；部署返回 BuildId 后可直接用它轮询状态。getBuildLog 时必填。"),
         start: z
           .number()
           .optional()
@@ -138,7 +144,8 @@ export function registerAppTools(server: ExtendedMcpServer) {
       pageNo?: number;
       pageSize?: number;
       versionName?: string;
-      buildId?: string;
+      /** schema 已归一成 string；放宽为 string | number 兼容直接调用 handler 的内部/测试路径。 */
+      buildId?: string | number;
       start?: number;
     }) => {
       try {
@@ -258,15 +265,22 @@ export function registerAppTools(server: ExtendedMcpServer) {
         }
 
         if (action === "getBuildLog") {
-          if (!buildId) {
+          if (buildId === undefined || buildId === null || String(buildId).trim() === "") {
             throw new Error(t("apps.buildIdRequired"));
+          }
+          // DescribeCloudBaseRunBuildLog 的 BuildId 是 Integer(int64)（官方文档 876/135707），
+          // 传 string 会被后端拒：The value type of parameter BuildId is not valid, input type
+          // should be int64。schema 侧已归一成 string（getAppVersion 需要 string），此处转 number。
+          const numericBuildId = Number(String(buildId).trim());
+          if (!Number.isInteger(numericBuildId) || numericBuildId <= 0) {
+            throw new Error(t("apps.buildIdMustBeNumeric", { buildId: String(buildId) }));
           }
           const result = await cloudbase.commonService("tcb", "2018-06-08").call({
             Action: "DescribeCloudBaseRunBuildLog",
             Param: {
               EnvId: cloudBaseOptions?.envId || process.env.CLOUDBASE_ENV_ID,
               ServiceName: serviceName,
-              BuildId: buildId,
+              BuildId: numericBuildId,
               Start: start ?? 0,
             },
           });
@@ -277,7 +291,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
               {
                 action,
                 serviceName,
-                buildId,
+                buildId: String(numericBuildId),
                 logs,
                 total: result.Response?.Total || logs.length,
                 nextStart: result.Response?.NextStart,
@@ -294,7 +308,8 @@ export function registerAppTools(server: ExtendedMcpServer) {
           deployType: "static-hosting",
           serviceName,
           versionName,
-          buildId,
+          // 该链路要 string（SDK 类型 IDescribeCloudAppVersionParams.BuildId: string）
+          buildId: buildId === undefined ? undefined : String(buildId),
         });
         logCloudBaseResult(server.logger, result);
 
@@ -358,12 +373,22 @@ export function registerAppTools(server: ExtendedMcpServer) {
           .optional()
           .describe("要上传并部署的本地项目根目录绝对路径。本地模式下 deployApp 时必填；通常传源码所在目录（含 package.json 和源码），不是 dist 目录。构建产物目录请用 buildPath 指定。cloud mode 下无需传此参数，改用 cosTimestamp。"),
         cosTimestamp: z
-          .coerce
-          .number()
-          .int()
-          .positive()
+          // ⚠️ 不能用 z.coerce.number()：SDK 的 StaticConfig.CosTimestamp（manager-node
+          // types/cloudApp/types.d.ts `CosTimestamp?: string | null`）与后端 CreateCloudApp
+          // 都要求 **string**。coerce 会把外部传入的值（含 getUploadUrl 返回的 unixTimestamp）
+          // 强制转成 number，后端直接拒绝：
+          //   The value type of parameter `StaticConfig.CosTimestamp` is not valid,
+          //   input type should be `string`
+          // 本地路径不受影响，是因为 cosTs 来自 SDK uploadCode() 的 string 返回值、不经 zod。
+          // 因此这里收 string | number，统一归一成 string 后再透传。
+          .union([z.string(), z.number()])
+          .transform((value) => String(value).trim())
+          .refine((value) => /^[1-9]\d*$/.test(value), {
+            message:
+              "cosTimestamp 必须是由数字组成的正整数时间戳，字符串或数字均可；直接使用 getUploadUrl 返回的 unixTimestamp 即可。",
+          })
           .optional()
-          .describe("COS 时间戳（正整数 number，来自 getUploadUrl 返回的 unixTimestamp）。传入此值则直接使用已上传的代码创建应用，跳过本地文件上传。需先调用 getUploadUrl 获取预签名 URL，上传 ZIP 包后再传此时间戳。cloud mode 下为必填；本地模式也可传此值代替 filePath。两个路径严格二选一：filePath（本地打包上传）或 cosTimestamp（预签名 URL 上传），同时提供或都不提供都会报错。"),
+          .describe("COS 时间戳（getUploadUrl 返回的 unixTimestamp，字符串或数字均可）。传入则直接用已上传的代码创建应用，跳过本地打包上传；需先 getUploadUrl 拿预签名 URL 并 PUT ZIP。cloud mode 必填。与 filePath 严格二选一，同时提供或都不提供都会报错。"),
         appPath: z
           .string()
           .optional()
@@ -429,7 +454,8 @@ export function registerAppTools(server: ExtendedMcpServer) {
       action: ManageAppAction;
       serviceName: string;
       filePath?: string;
-      cosTimestamp?: number;
+      /** schema 已归一成 string；此处放宽为 string | number 以兼容直接调用 handler 的内部/测试路径。 */
+      cosTimestamp?: string | number;
       appPath?: string;
       buildPath?: string;
       framework?: string;
@@ -536,7 +562,10 @@ export function registerAppTools(server: ExtendedMcpServer) {
           }
 
           // Local stdio only: pack directory and upload. Cloud mode must never reach uploadCode.
-          let cosTs = cosTimestamp;
+          // ⚠️ 类型契约（F12）：SDK `StaticConfig.CosTimestamp` 与后端 CreateCloudApp 都要求
+          // **string**。本地路径拿到的 `uploadResult.cosTimestamp` 本就是 SDK 给的 string；
+          // 外部传入的可能是 number（MCP 客户端按 JSON Schema 传数字），这里统一归一。
+          let cosTs = cosTimestamp === undefined ? undefined : String(cosTimestamp);
           if (!isCloudMode() && filePath) {
             // Default excludes large build dirs (empirically target/ can be tens of GB).
             // Merge caller ignore with defaults so explicit ignore does not drop safety excludes.
@@ -551,7 +580,9 @@ export function registerAppTools(server: ExtendedMcpServer) {
               ignore: mergedIgnore,
             });
             logCloudBaseResult(server.logger, uploadResult);
-            cosTs = uploadResult.cosTimestamp;
+            cosTs = uploadResult.cosTimestamp === undefined
+              ? undefined
+              : String(uploadResult.cosTimestamp);
           }
 
           // 构建命令智能默认值

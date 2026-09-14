@@ -3137,8 +3137,8 @@ action=getUploadUrl（只读）可获取预签名上传 URL：无本地文件系
     },
     {
       name: "buildId",
-      type: "string",
-      description: `构建 ID。getAppVersion 时可与 versionName 二选一；部署返回 BuildId 后可直接用它轮询状态。getBuildLog 时必填。`,
+      type: "string,number",
+      description: `构建 ID（数字或数字字符串均可）。getAppVersion 时可与 versionName 二选一；部署返回 BuildId 后可直接用它轮询状态。getBuildLog 时必填。`,
     },
     {
       name: "start",
@@ -3200,8 +3200,8 @@ action=deployApp 上传源码 ZIP 并触发远端构建部署管道：
     },
     {
       name: "cosTimestamp",
-      type: "integer",
-      description: `COS 时间戳（正整数 number，来自 getUploadUrl 返回的 unixTimestamp）。传入此值则直接使用已上传的代码创建应用，跳过本地文件上传。需先调用 getUploadUrl 获取预签名 URL，上传 ZIP 包后再传此时间戳。cloud mode 下为必填；本地模式也可传此值代替 filePath。两个路径严格二选一：filePath（本地打包上传）或 cosTimestamp（预签名 URL 上传），同时提供或都不提供都会报错。`,
+      type: "string,number",
+      description: `COS 时间戳（getUploadUrl 返回的 unixTimestamp，字符串或数字均可）。传入则直接用已上传的代码创建应用，跳过本地打包上传；需先 getUploadUrl 拿预签名 URL 并 PUT ZIP。cloud mode 必填。与 filePath 严格二选一，同时提供或都不提供都会报错。`,
     },
     {
       name: "appPath",
@@ -3264,6 +3264,8 @@ action=deployApp 上传源码 ZIP 并触发远端构建部署管道：
 📌 跨后端边界提示：调用前先用 `envQuery(action="info", envId=...)` 看 `EnvInfo.RuntimeBackends`。`resourceType="noSqlDatabase"` 查询的是 CloudBase NoSQL 集合规则，与 CloudBase PostgreSQL（PG）表的行级安全（RLS）是两套独立机制——同一个 PG 环境里 NoSQL 集合若仍在使用，对那些集合查询本工具结果**仍然有效**。要查 PG 表 RLS，请改用 `queryPgDatabase(action="sql", sql="SELECT * FROM pg_policies WHERE tablename=...")`。本工具不涉及 MySQL 权限。
 
 ⚠️ PostgreSQL 环境：平台 `DescribeResourcePermission` 对 PG 环境会直接拒绝。当 `resourceType="function"` 时，本工具会自动回退到 Manager SDK `describeEnvAuthzConfig`（与 CLI `tcb policy get` 一致，读取 `authz.user.rego`）。显式 OPA 策略请用 `listPolicy` / `getPolicy`。
+
+⚠️ 角色类 action（`listRoles` / `getRole`）在 **PostgreSQL 类型环境**下平台侧一律拒绝（`The current API does not support PostgreSQL type environments.`）——这是平台能力边界，不是配置问题，**不要在 PG 环境反复重试**；PG 环境请改用 RLS（`managePgDatabase(action="execute")` 跑 `CREATE POLICY`）或控制台管理权限。
 
 #### 参数
 
@@ -3348,6 +3350,8 @@ action=deployApp 上传源码 ZIP 并触发远端构建部署管道：
 - 本工具不涉及 MySQL；MySQL 数据库权限请走 MySQL 自身的 GRANT/REVOKE 语句（通过 `manageMysqlDatabase`）。
 
 ⚠️ PostgreSQL 环境：平台 `ModifyResourcePermission` 对 PG 环境会直接拒绝。当 `resourceType="function"` 时，本工具会自动回退到 Manager SDK `modifyEnvAuthzConfig`（与 CLI `tcb policy set` 一致，写入 `authz.user.rego`）。`securityRule` 可传完整 Rego（`package authz.user`）或 `'\{"invoke":true\}'`（自动生成放通 anonymous/unauthenticated 调 functions 的策略）。设置 Rego 后旧网关鉴权会失效，行为与 CLI 相同。显式 OPA 策略请优先用 `action="setPolicy"`。
+
+⚠️ 角色类 action（`createRole` / `deleteRoles` / `updateRole`）在 **PostgreSQL 类型环境**下平台侧一律拒绝（`The current API does not support PostgreSQL type environments.`）——平台能力边界，不是配置问题，**不要在 PG 环境反复重试**；PG 环境请改用 RLS（`managePgDatabase(action="execute")` 跑 `CREATE POLICY`）或控制台管理权限。
 
 #### 参数
 
@@ -3615,7 +3619,7 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
 ---
 
 ### `callCloudApi`
-通用的云 API 调用工具，主要用于 CloudBase / 腾讯云管控面与依赖资源相关 API 调用。**调用前必读接口索引** https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/api-reference.md （每日自动同步的 Action 级索引，含 rate limit；先查此索引确认 service/Action/参数，避免猜测 Action 名称；索引未覆盖的产品再去该产品官方 API 文档核对）。如果你的目标是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请不要优先使用 callCloudApi，而应优先查看对应 OpenAPI / Swagger。现有 OpenAPI / Swagger 能力不是通用的管控面 Action 集合；管控面 API 请优先参考 CloudBase API 概览 \{controlPlaneUrl\} 与云开发依赖资源接口指引 \{dependencyUrl\}。对于 tcb service，常用 Action 分类如下：
+通用的云 API 调用工具，主要用于 CloudBase / 腾讯云管控面与依赖资源相关 API 调用。**调用前必读接口索引** https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/api-reference.md （每日自动同步的 Action 级索引，含 rate limit；先查此索引确认 service/Action/参数，避免猜测 Action 名称；索引未覆盖的产品再去该产品官方 API 文档核对）。如果你的目标是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请不要优先使用 callCloudApi，而应优先查看对应 OpenAPI / Swagger。现有 OpenAPI / Swagger 能力不是通用的管控面 Action 集合；管控面 API 请优先参考 CloudBase API 概览 https://cloud.tencent.com/document/product/876/34809 与云开发依赖资源接口指引 https://cloud.tencent.com/document/product/876/34808。对于 tcb service，常用 Action 分类如下：
 
 **环境管理**: `CreateEnv`、`ModifyEnv`、`DescribeEnvs`、`DestroyEnv`
 **用户管理**: `CreateUser`、`ModifyUser`、`DescribeUserList`、`DeleteUsers`

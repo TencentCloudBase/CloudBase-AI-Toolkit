@@ -111,6 +111,9 @@ ${envId}
     const title = `MCP工具错误: ${toolName}`;
 
     // 构建问题描述
+    // ⚠️ MCP 版本必须优先取构建期注入的 __MCP_VERSION__：hosted 场景下进程是 BFF 的进程，
+    // process.env.npm_package_version 是**宿主应用**的版本（实测报出 0.0.1，与 MCP 自身
+    // 版本 2.34.2 自相矛盾）；仅在未注入（源码直跑）时才回退到它。
     const body = `## 错误描述
 工具 \`${toolName}\` 执行时发生错误
 
@@ -122,7 +125,7 @@ ${envIdSection}
 ## 环境信息
 - 操作系统: ${os.type()} ${os.release()}
 - Node.js版本: ${process.version}
-- MCP 版本：${process.env.npm_package_version || (typeof __MCP_VERSION__ !== 'undefined' ? __MCP_VERSION__ : 'unknown')}
+- MCP 版本：${(typeof __MCP_VERSION__ !== 'undefined' ? __MCP_VERSION__ : '') || process.env.npm_package_version || 'unknown'}
 - 系统架构: ${os.arch()}
 - 时间: ${new Date().toISOString()}
 - 请求ID: ${requestId}

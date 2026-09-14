@@ -1010,10 +1010,29 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             try {
               const checkResult = await cloudbase.hosting.findFiles({
                 prefix: input.cloudPath,
-                maxKeys: 1,
+                maxKeys: 100,
               });
-              
-              if (Array.isArray(checkResult) && checkResult.length > 0) {
+
+              // ⚠️ 回查有两个坑，都会让 verified 失真：
+              // 1) findFiles 返回 **COS 风格对象**（列表在 Contents 内），直接用
+              //    `Array.isArray(checkResult)` 判断会静默失效、恒判 verified=true。
+              //    统一走 extractFileList 归一化。
+              // 2) findFiles 是 **prefix** 语义：删单文件 /a/b.txt 时，若同前缀的
+              //    /a/b.txt.bak 还在也会命中 → 把「已删成功」误判成未验证。
+              //    单文件场景必须精确比对 Key（前缀场景见 normalizeFileFields 的 key 字段）。
+              const remaining = normalizeFileFields(checkResult);
+              const stripLeadingSlash = (value: string) => value.replace(/^\/+/, '');
+              const targetPath = stripLeadingSlash(input.cloudPath ?? '');
+              const stillExists = input.isDir
+                ? remaining.length > 0
+                : remaining.some((file) => {
+                    const key = typeof file.key === 'string' ? file.key : '';
+                    // 拿不到 Key 时保守按「仍存在」处理，避免误报已验证
+                    if (!key) return true;
+                    return stripLeadingSlash(key) === targetPath;
+                  });
+
+              if (stillExists) {
                 deleteVerified = false;
                 verificationError = verificationError ?? t('hosting.deleteVerifyFailed');
               }

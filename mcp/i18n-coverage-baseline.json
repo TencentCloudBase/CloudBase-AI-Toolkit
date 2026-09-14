@@ -111,11 +111,6 @@
         "text": "CloudBase 应用服务名，会体现在域名中：`<serviceName>-<envId>.webapps.tcloudbase.com`。deployApp 时复用现有 serviceName 会…"
       },
       {
-        "hash": "5fe9ff3535d80c07",
-        "count": 1,
-        "text": "COS 时间戳（正整数 number，来自 getUploadUrl 返回的 unixTimestamp）。传入此值则直接使用已上传的代码创建应用，跳过本地文件上传。需先调用 getUploadUrl…"
-      },
-      {
         "hash": "6bac49238b96f4f6",
         "count": 1,
         "text": "构建日志偏移量，用于分页拉取后续日志。仅 action=getBuildLog 时使用，不传时从开头返回。"
@@ -141,9 +136,19 @@
         "text": "分页大小。"
       },
       {
+        "hash": "984e2f4424b0d58b",
+        "count": 1,
+        "text": "COS 时间戳（getUploadUrl 返回的 unixTimestamp，字符串或数字均可）。传入则直接用已上传的代码创建应用，跳过本地打包上传；需先 getUploadUrl 拿预签名 URL …"
+      },
+      {
         "hash": "9b79a40b579fa793",
         "count": 1,
         "text": "要删除的历史版本名，仅 action=deleteAppVersion 时必填。"
+      },
+      {
+        "hash": "9c166e18a8fb41b0",
+        "count": 1,
+        "text": "构建 ID（数字或数字字符串均可）。getAppVersion 时可与 versionName 二选一；部署返回 BuildId 后可直接用它轮询状态。getBuildLog 时必填。"
       },
       {
         "hash": "ae9e89443e2c6ae3",
@@ -159,11 +164,6 @@
         "hash": "bae78fdd93993eb6",
         "count": 1,
         "text": "依赖安装命令，例如 npm install。不传时默认 npm install。本地已安装或无需安装可传空字符串 '' 跳过，但远端仍会执行 tcb hosting deploy。"
-      },
-      {
-        "hash": "dd837cd760b59b84",
-        "count": 1,
-        "text": "构建 ID。getAppVersion 时可与 versionName 二选一；部署返回 BuildId 后可直接用它轮询状态。getBuildLog 时必填。"
       },
       {
         "hash": "f77e72dd149eb2ec",

@@ -600,6 +600,61 @@ describe("queryCloudRun envStatus action", () => {
     expect(parsed.data.status).toBe("unopened");
   });
 
+  // F2 回归：错误文案已被下层本地化为中文，旧守卫只匹配 message 会失效 → 模型拿到裸错
+  it("treats a localized (Chinese) resource-not-found error as unopened", async () => {
+    mockGetCloudBaseManager.mockReturnValue({
+      commonService: vi.fn().mockReturnValue({
+        call: async () => {
+          throw new Error("[DescribeEnvBaseInfo] 资源不存在");
+        },
+      }),
+      cloudrun: {},
+    });
+    const tools = await createCloudRunTools();
+    const res = await tools.queryCloudRun.handler({ action: "envStatus", envId: "env-test" });
+    const parsed = parseToolResult(res);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data.status).toBe("unopened");
+    expect(parsed.data.isExist).toBe(false);
+    expect(parsed.message).toMatch(/initEnv/);
+  });
+
+  // F2 回归：错误码只在 error.code 上，message 不含任何可匹配文案
+  it("treats an error carrying only ResourceNotFound code as unopened", async () => {
+    mockGetCloudBaseManager.mockReturnValue({
+      commonService: vi.fn().mockReturnValue({
+        call: async () => {
+          const error = new Error("请求失败");
+          (error as Error & { code?: string }).code = "ResourceNotFound.CloudRunEnv";
+          throw error;
+        },
+      }),
+      cloudrun: {},
+    });
+    const tools = await createCloudRunTools();
+    const res = await tools.queryCloudRun.handler({ action: "envStatus", envId: "env-test" });
+    const parsed = parseToolResult(res);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data.status).toBe("unopened");
+  });
+
+  it("still rethrows unrelated errors instead of masking them as unopened", async () => {
+    mockGetCloudBaseManager.mockReturnValue({
+      commonService: vi.fn().mockReturnValue({
+        call: async () => {
+          const error = new Error("UnauthorizedOperation: no permission");
+          (error as Error & { code?: string }).code = "UnauthorizedOperation";
+          throw error;
+        },
+      }),
+      cloudrun: {},
+    });
+    const tools = await createCloudRunTools();
+    await expect(
+      tools.queryCloudRun.handler({ action: "envStatus", envId: "env-test" }),
+    ).rejects.toThrow(/UnauthorizedOperation/);
+  });
+
   it("falls back to the configured envId when envId is not provided", async () => {
     mockGetCloudBaseManager.mockReturnValue({
       commonService: vi.fn().mockReturnValue({
