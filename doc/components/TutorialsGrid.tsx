@@ -389,6 +389,19 @@ const tutorials: Tutorial[] = [
   },
   // 视频
   {
+    id: 'video-workbuddy-ai-workbench-deploy',
+    title: 'WorkBuddy搭建AI工作台完整教程｜从需求拆解到公网部署',
+    description: '子墨说AI',
+    category: '视频教程',
+    url: 'https://www.bilibili.com/video/BV1jDtx6GE7E/?share_source=copy_web&vd_source=068decbd00a3d00ff8662b6a358e5e1e',
+    type: 'video',
+    thumbnail: 'https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/video-thumbnails/BV1jDtx6GE7E.jpg',
+    terminalTags: ['Web'],
+    appTypeTags: ['工具/效率'],
+    devToolTags: ['WorkBuddy', 'CloudBase'],
+    techStackTags: ['原生 HTML'],
+  },
+  {
     id: 'video-ai-miniprogram-tutorial',
     title: '如何用AI制作高质量小程序｜保姆级教程',
     description: '是Skye学姐呀',
