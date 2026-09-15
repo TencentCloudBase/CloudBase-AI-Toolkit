@@ -105,6 +105,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 4. Database and storage tasks:
    - Reuse the current shared `app`, `auth`, `db`, and storage helpers instead of creating parallel SDK wrappers.
    - If the task mentions CloudBase PG, PostgreSQL, Postgres, PG mode, JS SDK v3 PostgreSQL, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, `mysqldb` OpenAPI, or RLS, read `./postgresql-development-cloudbase/SKILL.md` before touching database code.
+   - When the PG task defines an access pattern or investigates a slow query, also read `./postgresql-best-practices-cloudbase/SKILL.md`.
    - For CloudBase PG, use `queryPgDatabase` / `managePgDatabase` for schema and management; do not route PG work to MySQL `queryMysqlDatabase` / `manageMysqlDatabase` or NoSQL collection APIs.
    - For OpenAPI lookup, call `searchKnowledgeBase({ mode: "openapi", apiName: "mysqldb" })` directly. Do not pass guessed `action` values such as `getApiDocs` or `listEndpoints`; those belong to no supported tool mode.
    - For CloudBase PG Web CRUD, prefer JS SDK v3 `app.rdb()` and documented storage `app.storage.from()` APIs before raw HTTP.

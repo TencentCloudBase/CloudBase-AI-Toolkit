@@ -96,6 +96,31 @@ scenarios:
   label: Web projects + NoSQL Database
   mustCheckBeforeAction:
   - Login state and database access permission model
+- id: postgresql-best-practices-cloudbase
+  priority: 97
+  signals:
+  - PG access pattern
+  - 数据库访问路径
+  - N+1 查询
+  - 批量查询
+  - 慢查询
+  - EXPLAIN ANALYZE
+  - 缺索引
+  - 活动数据库容量
+  firstRead: postgresql-best-practices-cloudbase
+  thenRead:
+  - postgresql-development-cloudbase
+  beforeAction:
+  - 先列出接口、任务或 RPC 的读写路径、谓词、排序、基数和频率。
+  - 查询实现完成前确认数据库往返次数有界，并为每个高频谓词作出索引决策。
+  doNotUse:
+  - cloudbase-document-database-web-sdk
+  commonMistakes:
+  - 在循环中逐行查询数据库。
+  - 只增加数据库规格而不减少查询往返或检查执行计划。
+  label: CloudBase PostgreSQL Best Practices
+  mustCheckBeforeAction:
+  - Access paths, index decisions, row authorization, and launch capacity
 - id: postgresql-development-cloudbase
   priority: 96
   signals:

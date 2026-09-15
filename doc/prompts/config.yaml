@@ -145,6 +145,17 @@ rules:
       - "在 Web 应用中使用 CloudBase PostgreSQL 的 JS SDK 实现数据增删改查"
       - "帮我排查 CloudBase PG 应用的数据库连接和权限配置问题"
 
+  - id: postgresql-best-practices-cloudbase
+    title: PostgreSQL：设计与性能最佳实践
+    description: 按访问路径设计 CloudBase PostgreSQL，消除 N+1 与重复查询，通过索引和执行计划优化慢 SQL，并检查高流量上线容量
+    shortDescription: PostgreSQL 设计与性能优化
+    category: database
+    order: 8
+    prompts:
+      - "循环里查 users，帮我改成批量查询"
+      - "这个 PostgreSQL 接口很慢，帮我分析执行计划并补索引"
+      - "活动上线前检查数据库访问路径和容量风险"
+
   - id: cloud-functions
     title: 后端开发：云函数
     description: 开发和部署 Node.js 云函数，包括运行时选择、部署、日志查询、HTTP 访问配置

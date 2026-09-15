@@ -142,12 +142,12 @@ ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 -- Allow authenticated users to upload files
 CREATE POLICY "authenticated_upload" ON storage.objects
   FOR INSERT TO authenticated
-  WITH CHECK (auth.role() = 'authenticated');
+  WITH CHECK (true);
 
 -- Allow authenticated users to read/download files
 CREATE POLICY "authenticated_read" ON storage.objects
   FOR SELECT TO authenticated
-  USING (auth.role() = 'authenticated');
+  USING (true);
 
 -- Optional: allow users to update/delete their own files
 CREATE POLICY "users_manage_own" ON storage.objects

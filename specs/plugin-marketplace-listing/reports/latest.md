@@ -1,19 +1,19 @@
 # CloudBase Plugin Marketplace Analysis
 
-Generated: 2026-08-18T00:16:06.837Z
+Generated: 2026-09-15T02:24:42.999Z
 
 > This report does not auto-submit to any marketplace. All submissions are manual.
 
 ## Summary
 
-Total markets: **43**
+Total markets: **48**
 
 | Priority | Count |
 |----------|------:|
-| ready_to_submit | 5 |
+| ready_to_submit | 6 |
 | needs_packaging_or_manifest | 3 |
-| needs_partner_outreach | 11 |
-| listed | 8 |
+| needs_partner_outreach | 14 |
+| listed | 9 |
 | not_applicable | 15 |
 | unknown | 1 |
 
@@ -212,7 +212,7 @@ Recommended install docs: `doc/ide-setup/codex.mdx`
 - Region: global
 - Channel: `community_plugin_directory`
 - Eligibility: `public_github_pr_required`
-- Last reviewed: 2026-08-13
+- Last reviewed: 2026-08-28
 - Manual submit only: yes
 
 Statuses:
@@ -248,6 +248,49 @@ Evidence:
 - https://github.com/xai-org/plugin-marketplace
 - https://github.com/xai-org/plugin-marketplace/pull/151
 - https://x.ai/news/grok-plugin-marketplace
+
+### coze-skill-and-plugin-store — Coze (扣子)
+
+- Region: cn
+- Channel: `skill_registry`
+- Eligibility: `public_self_serve_submission`
+- Last reviewed: 2026-09-15
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: unknown
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: submittable
+- `docs_only`: listed
+
+Submit checklist:
+
+- [ ] Apply for skill publishing eligibility on the account that will own the listing
+- [ ] Decide between shipping a skill and shipping a plugin that wraps the CloudBase MCP server
+- [ ] Collect 3 shareable sample conversation links per skill
+
+Process:
+
+```
+Two documented public rails. Skill: 我的技能 → ⋮ → 申请技能上架资质 (a one-off eligibility form, reviewed),
+then 技能商店 → 上架到商店, which requires 3 shareable sample conversation links per skill; the Coze team
+reviews icon / name / description / behaviour and reports the result in 站内信, commonly in 1-3 working
+days. Plugin: publish the plugin, then 上架到商店 — Coze plugin store or the enterprise plugin store, one
+channel only. The docs cover building a plugin on top of an MCP server, which is the path that fits
+CloudBase: https://space.coze.cn/open/docs/guides/create_a_plugin_based_on_mcp
+Status 2026-09-15: CloudBase absent. The process is documented and self-serve; whether a given account is
+granted publishing eligibility is subject to Coze's review.
+```
+
+Evidence:
+
+- https://docs.coze.cn/cozespace_what_is_skill
+- https://docs.coze.cn/create-plugin
+- https://space.coze.cn/open/docs/guides/create_a_plugin_based_on_mcp
 
 ## needs_packaging_or_manifest
 
@@ -622,6 +665,145 @@ QoderWork has connector / integration marketplace plus custom MCP. CloudBase lis
 Evidence:
 
 - https://docs.qoder.com/zh/qoderwork/connectors
+
+### tencent-marvis — Tencent Marvis
+
+- Region: cn
+- Channel: `native_connector_or_builtin`
+- Eligibility: `internal_channel_or_partner_outreach`
+- Last reviewed: 2026-09-15
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: unknown
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: submittable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: unknown
+- `docs_only`: unknown
+
+Blockers:
+
+- Not in the curated official 连接 / Skill lists (no Tencent Cloud MCP among the 10)
+- No public submission form for the curated lists
+
+Submit checklist:
+
+- [ ] Confirm the internal channel for the curated 连接 / Skill lists
+- [ ] Add a Marvis section to doc/ide-setup once the config path is written up
+
+Process:
+
+```
+Self-serve custom MCP: 技能广场 → 工具箱 → 连接(MCP/CLI) → 我的连接 → + 自定义连接, then paste an MCP
+server JSON. The paste dialog says "优先使用 NPX 或 UVX 配置" → stdio via npx is supported, so
+`npx -y @cloudbase/cloudbase-mcp@latest` works with no packaging step.
+Official 连接 list is Tencent-curated (10 first-party servers) and 技能(Skill) is curated too; no public
+submission form. Tencent products are expected to go through an internal channel.
+Status 2026-09-15: CloudBase absent from the curated list; self-serve path usable today.
+Only public contact channel found: marvis@tencent.com, linked as a mailto on the official site. The product
+docs at /docs document concepts and usage only — no MCP / Skill submission process.
+```
+
+Evidence:
+
+- https://marvis.qq.com/
+- https://marvis.qq.com/docs
+
+### qwenwork-connector — QwenWork (千问办公)
+
+- Region: cn
+- Channel: `native_connector_or_builtin`
+- Eligibility: `partner_outreach_required`
+- Last reviewed: 2026-09-15
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: unknown
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: submittable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: unknown
+- `docs_only`: unknown
+
+Blockers:
+
+- No public connector submission form; market entries are onboarded with the vendor
+- CloudBase not present in the 连接器 market yet
+
+Submit checklist:
+
+- [ ] Confirm connector onboarding terms with the QwenWork partner team
+- [ ] Add a QwenWork section to doc/ide-setup once the config path is written up
+
+Process:
+
+```
+Self-serve: 左侧「扩展」→「连接器」→ 右上 + 添加 →「粘贴 JSON 配置」/「手动填写配置」.
+The manual form's server-type dropdown includes STDIO (a 命令 field plus env vars; the official example is
+`npx -y @modelcontextprotocol/server-filesystem`), and Streamable HTTP / SSE are supported as well.
+Official 连接器 market is partner-curated — the production tier already carries Supabase, Vercel and Neon
+— with no public submission form. Skills install to `~/.qwenworkcn/skills/`.
+Enterprise-scoped self-serve rails exist but do not reach the public catalog: 组织技能库 lets an
+organization upload SKILL.md or a ZIP and publish it to its own members after an admin review, and the
+enterprise AI asset console manages skills, connectors and expert kits.
+Status 2026-09-15: CloudBase absent from the market; self-serve custom connector works today.
+```
+
+Evidence:
+
+- https://help.aliyun.com/zh/qwenwork/qw-connectors
+- https://help.aliyun.com/zh/qwenwork/skills
+- https://help.aliyun.com/zh/qwenwork/skills-management
+- https://help.aliyun.com/zh/qwenwork/enterprise-ultimate-ai-assets/
+
+### doubao-work-connector — Doubao Work (豆包工作)
+
+- Region: cn
+- Channel: `native_connector_or_builtin`
+- Eligibility: `partner_outreach_required`
+- Last reviewed: 2026-09-15
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: unknown
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: submittable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: unknown
+- `docs_only`: unknown
+
+Blockers:
+
+- Custom connectors are desktop-client only (web / mobile / cloud PC unsupported)
+- No public submission form for the curated official 连接器 list
+
+Submit checklist:
+
+- [ ] Confirm connector onboarding terms with the Doubao partner team
+- [ ] Add a Doubao Work section to doc/ide-setup once the config path is written up
+
+Process:
+
+```
+Self-serve: 技能·连接器·伙伴 → 右上 + 新建 →「新建自定义连接器」.
+Transfer type offers HTTP and STDIO; the STDIO form exposes 服务器名称 / 命令 / 参数 / 环境变量, so
+`npx -y @cloudbase/cloudbase-mcp@latest` works. The dialog warns that custom connectors only work on the
+local desktop client — not the web, mobile or cloud-PC clients.
+Official 连接器 list (200+, curated, includes Tencent Meeting and Tencent Docs) has no public submission
+form; skills can be uploaded locally or created in chat.
+Status 2026-09-15: CloudBase absent from the official list.
+```
+
+Evidence:
+
+- https://www.doubao.com/chat/
 
 ### trae-mcp-marketplace — Trae IDE / Trae Work
 
@@ -1145,6 +1327,36 @@ Evidence:
 - https://github.com/TencentCloudBase/CloudBase-AI-Toolkit
 
 Recommended install docs: `mcp/server.json`
+
+### tencent-cloud-mcp-server-platform — Tencent Cloud MCP Server Platform
+
+- Region: cn
+- Channel: `mcp_registry_or_aggregator`
+- Eligibility: `n_a`
+- Last reviewed: 2026-09-15
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: not_applicable
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: listed
+- `docs_only`: listed
+
+Process:
+
+```
+Platform at https://tcb.cloud.tencent.com/mcp-server with a 申请上架 entry point. CloudBase is already
+listed with two servers — 云开发基础能力 and 云开发 AI 能力 — alongside third-party servers such as
+Hunyuan 3D, Tencent Maps, Lighthouse, Puppeteer and a memory module.
+```
+
+Evidence:
+
+- https://tcb.cloud.tencent.com/mcp-server
 
 ## not_applicable
 
