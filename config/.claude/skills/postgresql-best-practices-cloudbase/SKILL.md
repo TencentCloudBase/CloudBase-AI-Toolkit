@@ -71,7 +71,7 @@ Send request logs, traces, and high-volume analytics to the platform logging ser
 
 ### 4. Check launch capacity when traffic is material
 
-For campaigns, rankings, polling endpoints, or other bursty paths, inspect the target environment with `envQuery(action="info", envId=...)`. Report the observed PG allocation, expected peak load, and unresolved capacity risk. CloudBase currently requires an explicit capacity plan; do not represent autoscaling as guaranteed.
+For campaigns, rankings, polling endpoints, or other bursty paths, inspect the target environment with `queryEnv(action="info", envId=...)`. Report the observed PG allocation, expected peak load, and unresolved capacity risk. CloudBase currently requires an explicit capacity plan; do not represent autoscaling as guaranteed.
 
 **Complete when:** the current allocation is recorded and either judged against an explicit traffic assumption or raised to the user as an unresolved launch blocker.
 

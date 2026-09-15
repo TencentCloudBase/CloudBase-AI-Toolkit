@@ -4,7 +4,7 @@ Read this reference for burst traffic, launch readiness, or database sizing. Clo
 
 ## Inspect before a launch
 
-Call `envQuery(action="info", envId=...)` and record the PostgreSQL allocation exposed by the environment response. Pair it with explicit workload assumptions:
+Call `queryEnv(action="info", envId=...)` and record the PostgreSQL allocation exposed by the environment response. Pair it with explicit workload assumptions:
 
 - peak requests per second and burst duration;
 - database operations per request after batching;
