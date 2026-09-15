@@ -1,17 +1,11 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-09-14T07:54:54.129Z
+爬取时间: 2026-09-15T07:40:54.794Z
 
 ## 文档列表
 
 - [云开发 CloudBase 公共参数_腾讯云](./876-34812-云开发-CloudBase-公共参数_腾讯云.md)
 - [云开发 CloudBase API 概览_腾讯云](./876-34809-云开发-CloudBase-API-概览_腾讯云.md)
-- [云开发 CloudBase 校验HTTP访问服务路由_腾讯云](./876-135630-云开发-CloudBase-校验HTTP访问服务路由_腾讯云.md)
-- [云开发 CloudBase 删除HTTP访问服务路由_腾讯云](./876-129799-云开发-CloudBase-删除HTTP访问服务路由_腾讯云.md)
-- [云开发 CloudBase 查询HTTP访问服务路由信息_腾讯云](./876-129798-云开发-CloudBase-查询HTTP访问服务路由信息_腾讯云.md)
-- [云开发 CloudBase 修改HTTP访问服务路由_腾讯云](./876-129797-云开发-CloudBase-修改HTTP访问服务路由_腾讯云.md)
-- [云开发 CloudBase 清除HTTP服务域名缓存_腾讯云](./876-137741-云开发-CloudBase-清除HTTP服务域名缓存_腾讯云.md)
-- [云开发 CloudBase 查询HTTP访问服务缓存清除任务_腾](./876-137742-云开发-CloudBase-查询HTTP访问服务缓存清除任务_腾.md)
 - [云开发 CloudBase 获取环境列表_腾讯云](./876-34820-云开发-CloudBase-获取环境列表_腾讯云.md)
 - [云开发 CloudBase 销毁环境_腾讯云](./876-42149-云开发-CloudBase-销毁环境_腾讯云.md)
 - [云开发 CloudBase 检查是否开通Tcb服务_腾讯云](./876-42154-云开发-CloudBase-检查是否开通Tcb服务_腾讯云.md)
@@ -45,6 +39,12 @@
 - [云开发 CloudBase 查询资源基础权限_腾讯云](./876-132256-云开发-CloudBase-查询资源基础权限_腾讯云.md)
 - [云开发 CloudBase 修改资源基础权限_腾讯云](./876-132255-云开发-CloudBase-修改资源基础权限_腾讯云.md)
 - [云开发 CloudBase 创建HTTP访问服务路由_腾讯云](./876-129800-云开发-CloudBase-创建HTTP访问服务路由_腾讯云.md)
+- [云开发 CloudBase 校验HTTP访问服务路由_腾讯云](./876-135630-云开发-CloudBase-校验HTTP访问服务路由_腾讯云.md)
+- [云开发 CloudBase 删除HTTP访问服务路由_腾讯云](./876-129799-云开发-CloudBase-删除HTTP访问服务路由_腾讯云.md)
+- [云开发 CloudBase 查询HTTP访问服务路由信息_腾讯云](./876-129798-云开发-CloudBase-查询HTTP访问服务路由信息_腾讯云.md)
+- [云开发 CloudBase 修改HTTP访问服务路由_腾讯云](./876-129797-云开发-CloudBase-修改HTTP访问服务路由_腾讯云.md)
+- [云开发 CloudBase 查询HTTP访问服务缓存清除任务_腾](./876-137742-云开发-CloudBase-查询HTTP访问服务缓存清除任务_腾.md)
+- [云开发 CloudBase 清除HTTP服务域名缓存_腾讯云](./876-137741-云开发-CloudBase-清除HTTP服务域名缓存_腾讯云.md)
 - [云开发 CloudBase 查询云托管服务版本的详情_腾讯云](./876-49739-云开发-CloudBase-查询云托管服务版本的详情_腾讯云.md)
 - [云开发 CloudBase 获取云托管代码上传和下载url_腾讯](./876-48345-云开发-CloudBase-获取云托管代码上传和下载url_腾讯.md)
 - [云开发 CloudBase 创建环境_腾讯云](./876-128592-云开发-CloudBase-创建环境_腾讯云.md)
