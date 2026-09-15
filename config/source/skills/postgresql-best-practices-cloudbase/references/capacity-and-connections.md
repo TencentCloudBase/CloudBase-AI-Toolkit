@@ -1,6 +1,6 @@
 # Capacity and Connections
 
-Read this reference for burst traffic, launch readiness, connection pressure, or serverless database access.
+Read this reference for burst traffic, launch readiness, or database sizing. CloudBase PG business data uses the SDK or HTTP gateway, not an application-managed TCP pool.
 
 ## Inspect before a launch
 
@@ -27,32 +27,38 @@ database_ops_per_second =
 
 This is a planning estimate, not a capacity guarantee. Reduce round trips before using instance size as the only remedy.
 
-## Reuse connections at trusted compute boundaries
+## Prefer the SDK path; do not invent a TCP pool
 
-For Cloud Functions and CloudRun code that connects through a supported server-side driver, create the client or pool at module scope so warm invocations reuse it. Bound pool size and request timeouts for the runtime and instance concurrency.
+CloudBase PG traffic from Web, Mini Program, cloud functions, and CloudRun should go through `app.rdb()` (or the documented PG HTTP API). That path is an HTTP request to the CloudBase gateway. The platform owns database sessions behind the gateway. Application code does not open `pg.Pool`, does not hold `DATABASE_URL`, and cannot tune `max_connections` from the SDK.
+
+What still belongs to the application:
+
+- fewer round trips per request (batch, join, concurrency);
+- bounded result sets;
+- observed instance size versus stated peak QPS.
+
+Reuse one SDK app instance at module scope so credential and client setup are not repeated. That is not a PostgreSQL connection pool.
 
 ```ts
-import { Pool } from "pg";
+import cloudbase from "@cloudbase/js-sdk";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  max: 5,
-  connectionTimeoutMillis: 3_000,
-  idleTimeoutMillis: 30_000,
-});
+const app = cloudbase.init({ env: process.env.CLOUDBASE_ENV_ID! });
+export const db = app.rdb();
 
 export async function loadOrder(id: string) {
-  const result = await pool.query(
-    "SELECT id, status FROM orders WHERE id = $1",
-    [id],
-  );
-  return result.rows[0] ?? null;
+  const { data, error } = await db
+    .from("orders")
+    .select("id, status")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }
 ```
 
-The numeric defaults above are an example, not a universal setting. A larger pool can increase per-instance throughput but can exhaust database connections when serverless instances scale out.
+Do not expose database connection strings, SecretKey, API Key, or `service_role` credentials to browser code.
 
-Browser applications should use `app.rdb()` through the CloudBase gateway. Do not expose database connection strings, SecretKey, API Key, or `service_role` credentials to browser code.
+TCP clients (`pg`, Prisma, `DATABASE_URL`) are an exception-only migration path. They need VPC access and a bounded pool because each compute instance then holds real database connections. Do not introduce that path for new CloudBase PG CRUD. If an existing app already uses it, follow `../cloudrun-development/references/vpc-and-database.md` and `../cloud-functions/references/vpc-and-tcp-database.md`.
 
 ## Define a peak response
 
