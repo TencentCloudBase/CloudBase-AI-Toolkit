@@ -640,7 +640,7 @@ describe('hosting tools', () => {
     expect(payload.data.verified).toBe(false);
   });
 
-  it('manageHosting(action=delete) should strip leading slash from cloudPath for delete and verification', () => {
+  it('manageHosting(action=delete) should strip leading slash from cloudPath for delete and verification', async () => {
     const tools = createMockServer();
     mockDeleteFiles.mockResolvedValueOnce({ Deleted: [], Error: [] });
     // 模拟目录内容仍在（COS 真实对象 key 不带前导斜杠）
@@ -662,6 +662,52 @@ describe('hosting tools', () => {
     // 目录内容仍在 ⇒ 验证失败，而非误报 verified:true
     expect(payload.success).toBe(false);
     expect(payload.data.verified).toBe(false);
+  });
+
+  it('manageHosting(action=delete) should emit the normalized path inside the unverified self-check command', async () => {
+    const tools = createMockServer();
+    mockDeleteFiles.mockResolvedValueOnce({ Deleted: [], Error: [] });
+    mockFindFiles.mockResolvedValueOnce([{ Key: 'dir/f.txt', Size: 100 }]);
+
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'delete',
+      cloudPath: '/dir',
+      isDir: true,
+      confirm: true,
+    })).content[0].text);
+
+    // deleteUnverified 文案里的 {cloudPath} 会被拼成给 agent 自查用的
+    // queryHosting(action="findFiles", prefix="{cloudPath}")。若插入原始输入，
+    // agent 会照抄一条带前导斜杠的命令 ⇒ COS 侧严格前缀匹配 0 命中 ⇒
+    // 把「一个都没删掉」误读成「目录已空」。这里必须插入规范化后的路径。
+    expect(payload.message).toBe(t('hosting.deleteUnverified', { cloudPath: 'dir' }));
+    expect(payload.message).toContain('prefix="dir"');
+    expect(payload.message).not.toContain('prefix="/dir"');
+    // 回执里对用户原始输入的追溯不受影响
+    expect(payload.data.cloudPath).toBe('/dir');
+  });
+
+  it('queryHosting(action=findFiles) should strip leading slashes from prefix', async () => {
+    const tools = createMockServer();
+    mockFindFiles.mockResolvedValueOnce({
+      Contents: [{ Key: 'assets/logo.png', Size: 10, LastModified: '2026-08-28T00:00:00.000Z' }],
+      IsTruncated: false,
+    });
+
+    const payload = JSON.parse((await tools.queryHosting.handler({
+      action: 'findFiles',
+      prefix: '/assets/',
+    })).content[0].text);
+
+    // agent 依据 URL 形态（/assets/logo.png）推前缀时极自然带前导斜杠；
+    // 原样透传给 COS 会 0 命中，读侧被误读成「目录是空的」。
+    expect(mockFindFiles.mock.calls[0][0].prefix).toBe('assets/');
+    expect(mockFindFiles).toHaveBeenCalledWith(
+      expect.objectContaining({ prefix: 'assets/' }),
+    );
+    expect(payload.success).toBe(true);
+    expect(payload.data.prefix).toBe('assets/');
+    expect(payload.data.files).toHaveLength(1);
   });
 
   it('manageHosting description (dictionary zh text) should warn about DescribeStaticStore rate-limit and bulk-delete pacing', () => {
