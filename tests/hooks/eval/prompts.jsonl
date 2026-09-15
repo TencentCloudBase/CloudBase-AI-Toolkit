@@ -72,3 +72,7 @@
 {"prompt": "小程序运营推广：怎么让更多用户搜索到我的小程序", "expectedSkills": ["miniprogram-development"], "category": "miniprogram", "note": "正例：小程序运营推广 / 搜索曝光"}
 {"prompt": "帮我搭一个最小前后端留言板 demo", "expectedSkills": ["minimal-web-baas-demo"], "category": "baas-demo", "note": "正例：最小前后端 + 留言板 → minimal-web-baas-demo"}
 {"prompt": "做一个 Todo 风格的最小可用 fullstack demo", "expectedSkills": ["minimal-web-baas-demo"], "category": "baas-demo", "note": "正例：最小可用 fullstack / Todo demo → minimal-web-baas-demo；不应误伤显式云函数全栈题"}
+{"prompt": "循环里查 users，帮我改成批量查询", "expectedSkills": ["postgresql-best-practices-cloudbase"], "category": "database", "note": "正例：N+1 访问路径优化"}
+{"prompt": "这个 PostgreSQL 接口很慢，帮我分析 EXPLAIN ANALYZE 并补索引", "expectedSkills": ["postgresql-best-practices-cloudbase", "postgresql-development-cloudbase"], "category": "database", "note": "正例：PG 慢查询先加载质量规则，同时保留 CloudBase PG 操作上下文"}
+{"prompt": "活动上线前检查数据库访问路径和容量风险", "expectedSkills": ["postgresql-best-practices-cloudbase"], "category": "database", "note": "正例：高流量上线数据库检查"}
+{"prompt": "第一次在 CloudBase PG 上 app.rdb() 怎么初始化", "expectedSkills": ["postgresql-development-cloudbase"], "category": "database", "note": "邻接负例：SDK 初始化只路由 PG development"}

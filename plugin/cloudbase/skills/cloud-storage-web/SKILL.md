@@ -60,7 +60,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 When the app runs on a local browser origin and must upload files from the frontend:
 
-1. Use `envQuery` with `action="domains"` to inspect the current security-domain whitelist.
+1. Use `queryEnv` with `action="domains"` to inspect the current security-domain whitelist.
 2. Convert the browser origin into the CloudBase whitelist entry format:
    - Browser origin `http://127.0.0.1:4173` -> whitelist entry `127.0.0.1:4173`
    - Browser origin `http://localhost:5173` -> whitelist entry `localhost:5173`
@@ -142,12 +142,12 @@ ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 -- Allow authenticated users to upload files
 CREATE POLICY "authenticated_upload" ON storage.objects
   FOR INSERT TO authenticated
-  WITH CHECK (auth.role() = 'authenticated');
+  WITH CHECK (true);
 
 -- Allow authenticated users to read/download files
 CREATE POLICY "authenticated_read" ON storage.objects
   FOR SELECT TO authenticated
-  USING (auth.role() = 'authenticated');
+  USING (true);
 
 -- Optional: allow users to update/delete their own files
 CREATE POLICY "users_manage_own" ON storage.objects
@@ -216,7 +216,7 @@ const result = await app.uploadFile({
 - Validate file type and size before upload.
 - Show upload progress for larger files when UX matters.
 - On local dev origins, confirm the exact frontend origin already exists in environment security domains before assuming the upload path is usable.
-- Match against the whitelist entry format returned by `envQuery(action="domains")`, which is typically `host:port` instead of a full `http://...` URL.
+- Match against the whitelist entry format returned by `queryEnv(action="domains")`, which is typically `host:port` instead of a full `http://...` URL.
 - If the environment has no storage bucket or the SDK returns `STORAGE_NOT_EXIST` / `STORAGE_BUCKET_NOT_FOUND`, use CloudBase management/MCP storage tools to create or choose a bucket before retrying. Do not treat this as a successful optional upload.
 - After `app.uploadFile()` succeeds, do **not** fabricate a public-looking URL by concatenating `envId`, bucket domain, or `cloudPath`. Use the returned `fileID` with `app.getTempFileURL()` and store or display the SDK-resolved URL instead.
 
@@ -291,7 +291,7 @@ Use this for browser-initiated downloads. For programmatic rendering or preview,
 To avoid CORS problems, add your frontend domain in CloudBase security domains. In MCP-enabled workflows, prefer checking and updating this through tools before coding browser uploads.
 
 ```json
-{ "tool": "envQuery", "action": "domains" }
+{ "tool": "queryEnv", "action": "domains" }
 ```
 
 Use the actual browser origin when deciding what to add. If the page is running on a custom domain or a local dev port, add that exact `host:port` value instead of guessing from a hard-coded list.
@@ -304,7 +304,7 @@ Use the actual browser origin when deciding what to add. If the page is running 
 }
 ```
 
-Match the real browser origin to the whitelist entry format returned by `envQuery(action="domains")`. For local Vite and preview servers, the port can vary between runs, so avoid assuming any fixed default port is sufficient.
+Match the real browser origin to the whitelist entry format returned by `queryEnv(action="domains")`. For local Vite and preview servers, the port can vary between runs, so avoid assuming any fixed default port is sufficient.
 
 Typical examples:
 

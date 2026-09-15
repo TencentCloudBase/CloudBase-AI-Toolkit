@@ -3,7 +3,7 @@
   "displayName": "Tencent CloudBase",
   "toolWhiteList": [
 	"login",
-	"envQuery",
+	"queryEnv",
 	"readNoSqlDatabaseStructure",
 	"writeNoSqlDatabaseStructure",
 	"readNoSqlDatabaseContent",

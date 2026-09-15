@@ -120,7 +120,7 @@ When your IDE does not support native MCP or Plugin install, use **mcporter** as
 - Start device-flow login:
   `npx mcporter call cloudbase.auth action=start_auth authMode=device --output json`
 - Resolve env alias to full EnvId:
-  `npx mcporter call cloudbase.envQuery action=list alias=demo aliasExact=true fields='["EnvId","Alias","Status","IsDefault"]' --output json`
+  `npx mcporter call cloudbase.queryEnv action=list alias=demo aliasExact=true fields='["EnvId","Alias","Status","IsDefault"]' --output json`
 - Bind environment after login:
   `npx mcporter call cloudbase.auth action=set_env envId=<full-env-id> --output json`
 - Query app-side login config:
@@ -132,7 +132,7 @@ When your IDE does not support native MCP or Plugin install, use **mcporter** as
 
 ---
 
-## Environment Management Tools (manageEnv + auth + envQuery)
+## Environment Management Tools (manageEnv + auth + queryEnv)
 
 Beyond authentication, CloudBase MCP provides several environment management tools.
 
@@ -168,16 +168,16 @@ Query available plans, create environments, change plans, and renew:
 - **Logout** (clears login state and cached env binding):
   `npx mcporter call cloudbase.auth action=logout confirm=yes --output json`
 
-### envQuery — Query environment details
+### queryEnv — Query environment details
 
 - **List all environments**:
-  `npx mcporter call cloudbase.envQuery action=list --output json`
+  `npx mcporter call cloudbase.queryEnv action=list --output json`
 
 - **Get environment info** (runtime backends, storage, status):
-  `npx mcporter call cloudbase.envQuery action=info envId=<envId> --output json`
+  `npx mcporter call cloudbase.queryEnv action=info envId=<envId> --output json`
 
 - **Resolve alias to EnvId**:
-  `npx mcporter call cloudbase.envQuery action=list alias=demo aliasExact=true fields='["EnvId","Alias","Status","IsDefault"]' --output json`
+  `npx mcporter call cloudbase.queryEnv action=list alias=demo aliasExact=true fields='["EnvId","Alias","Status","IsDefault"]' --output json`
 
 ---
 
@@ -194,5 +194,5 @@ If `npm` / `npx` are missing, do **not** keep retrying `npx plugins` / `npx mcpo
 - **When MCP tools are available in this session**, prefer them for manage/deploy, and understand tool details first. Before calling any CloudBase MCP tool, run `npx mcporter describe cloudbase --all-parameters` (or `ToolSearch` in IDE) to inspect available tools and their parameters.
 - **When MCP is not configured or tools are not yet loaded** (common on first session, or right after install before restart): complete the MCP setup steps above for the **next** session, then use `tcb` CLI for login/manage now. Follow `tooling-fallback.md` and the `cloudbase-cli` skill (domain references — **not** `tcb deploy`). Do not block the user waiting for a restart.
 - You **do not need to hard-code Secret ID / Secret Key / Env ID** in the config. Prefer device-code login via MCP `auth` or `tcb login` instead of storing long-lived secrets in MCP JSON.
-- When the environment identifier in the conversation is an alias, nickname, or other short form, **do not pass it directly** to `auth.set_env`, SDK init, console URLs, or generated config files. First resolve it to the canonical full `EnvId` with `envQuery(action=list, alias=..., aliasExact=true)` when MCP is available; with CLI, confirm the full envId with the user (or `tcb env list` as a fallback) before `tcb env use`. If multiple environments match or no exact alias exists, stop and clarify with the user.
+- When the environment identifier in the conversation is an alias, nickname, or other short form, **do not pass it directly** to `auth.set_env`, SDK init, console URLs, or generated config files. First resolve it to the canonical full `EnvId` with `queryEnv(action=list, alias=..., aliasExact=true)` when MCP is available; with CLI, confirm the full envId with the user (or `tcb env list` as a fallback) before `tcb env use`. If multiple environments match or no exact alias exists, stop and clarify with the user.
 - Verify MCP availability with `npx mcporter list | grep cloudbase` or the IDE's MCP panel (skip the `npx` check when npm/npx is absent — use the IDE panel / native plugin instead). Missing MCP is a signal to **set up MCP + fall back to CLI**, not to stop the task.

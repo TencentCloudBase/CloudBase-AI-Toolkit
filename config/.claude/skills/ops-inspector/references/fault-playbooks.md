@@ -4,7 +4,7 @@ Four high-frequency KA / ops triage playbooks. Use the matching playbook when th
 
 Shared prerequisites for every playbook:
 
-1. `envQuery(action="info")` — bind `envId`
+1. `queryEnv(action="info")` — bind `envId`
 2. Prefer metrics via `queryEnv(action="metrics", ...)`
 3. Prefer logs via `queryLogs` / `queryFunctions` log actions
 4. Summarize with severity + next action + console link
@@ -86,7 +86,7 @@ Shared prerequisites for every playbook:
 
 1. Confirm which surface failed: **app user token** vs **env API key / publishable key** vs **MCP management login**
 2. App auth: follow `../auth-tool-cloudbase/SKILL.md` then platform auth skill (`auth-web` / `auth-wechat` / `auth-nodejs`) — check providers with `queryAppAuth` / related auth tools when available
-3. Env binding: `envQuery(action="info")` — wrong env often presents as token/env mismatch
+3. Env binding: `queryEnv(action="info")` — wrong env often presents as token/env mismatch
 4. `queryLogs(action="searchLogs", queryString="ACCESS_TOKEN_INVALID OR token invalid OR unauthorized", ...)`
 5. Metrics are usually secondary; only use `queryEnv(action="metrics")` if correlating a traffic drop after auth breakage
 

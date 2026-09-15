@@ -82,7 +82,7 @@ Before generating any AI-related SDK code, **run the two-step preflight**: ① e
 
 ### Step 0: obtain the environment ID
 
-Call the MCP tool `envQuery` with `action=info` and read `EnvId` from the response. Every subsequent check and purchase link uses this `EnvId`.
+Call the MCP tool `queryEnv` with `action=info` and read `EnvId` from the response. Every subsequent check and purchase link uses this `EnvId`.
 
 ---
 

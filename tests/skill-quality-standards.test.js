@@ -58,7 +58,7 @@ describe('skill quality standards', () => {
   test('cloud-storage-web documents exact-origin security-domain setup for local uploads', () => {
     const raw = readSourceSkill('cloud-storage-web');
 
-    expect(raw).toContain('envQuery');
+    expect(raw).toContain('queryEnv');
     expect(raw).toContain('envDomainManagement');
     expect(raw).toContain('127.0.0.1:4173');
     expect(raw).toContain('localhost:5173');

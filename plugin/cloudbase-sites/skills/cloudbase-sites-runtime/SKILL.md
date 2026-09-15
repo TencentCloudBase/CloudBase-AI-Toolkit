@@ -54,7 +54,7 @@ use the explicit CLI commands in this skill.
 These are the only tools that produce CloudBase side effects. Highlights:
 
 - `downloadTemplate({ template: "react" | "vue", ide })` — pull official template
-- `envQuery({ action: "info" })` + `auth({ action: "set_env", envId })` — bind env
+- `queryEnv({ action: "info" })` + `auth({ action: "set_env", envId })` — bind env
 - `manageApps({ action: "deployApp", ... })` — deploy to CloudApp (independent subdomain)
 - `envDomainManagement({ action: "create", domains })` — whitelist dev origin for CORS
 - `searchKnowledgeBase({ mode: "skill", skillName: "<name>" })` — fetch CloudBase domain skills (see below)
@@ -211,7 +211,7 @@ env never collide. The stable `siteName` in `app.json` ensures re-deploys
 preserve the URL.
 
 **Pre-flight:** if `manageApps` fails with "no envId" / env-related error,
-call `envQuery({ action: "info" })`. If multiple envs exist, ask the user
+call `queryEnv({ action: "info" })`. If multiple envs exist, ask the user
 to pick. After binding, retry the deploy.
 
 ## Proactive prompts (do not act unsolicited)
@@ -267,7 +267,7 @@ Skip any of these when:
    is owned by hooks + the `cloudbase-sites` CLI.
 
 5. **BaaS-first data persistence — detect the env type first.** Before any
-   data-layer work, call `envQuery({ action: "info" })` and branch on the
+   data-layer work, call `queryEnv({ action: "info" })` and branch on the
    detected database backend:
 
    | env type | schema / RLS | browser SDK | domain skill |
@@ -277,7 +277,7 @@ Skip any of these when:
 
    Do NOT load `cloudbase-document-database-web-sdk` (or NoSQL APIs) for a PG
    environment, and do NOT guess from the skill catalog — the catalog contains
-   both, only `envQuery` tells them apart. Reads/writes go through
+   both, only `queryEnv` tells them apart. Reads/writes go through
    `@cloudbase/js-sdk` from React/Vue code either way. Reach for cloud
    functions only when (a) the logic cannot be expressed as security rules AND
    (b) it needs server-side secrets or a third-party API AND (c) it's a

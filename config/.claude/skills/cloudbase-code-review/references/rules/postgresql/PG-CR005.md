@@ -21,7 +21,7 @@
 
 1. 项目是否运行在 CloudBase PG / pgstore 环境？
 2. 如果是，存储桶创建后是否配置了 `storage.objects` 表的 RLS 策略？
-3. 存储 RLS 策略是否至少允许认证用户上传（`FOR INSERT TO authenticated WITH CHECK (auth.role() = 'authenticated')`）和读取（`FOR SELECT TO authenticated USING (auth.role() = 'authenticated')`）？
+3. 存储 RLS 策略是否至少允许认证用户上传（`FOR INSERT TO authenticated WITH CHECK (true)`）和读取（`FOR SELECT TO authenticated USING (true)`）？`TO authenticated` 已经是角色门，不需要重复调用 `auth.role()`。
 4. 配置方式是否正确使用了 `managePgDatabase(action="execute", confirm=true)` 执行 SQL？不要使用 CloudBase 传统安全规则 API（`managePermissions` / `ModifyStorageSafeRule`），那是 NoSQL 环境用的。
 5. 如果上传失败（`STORAGE_PERMISSION_DENIED`），是否检查了 storage RLS 配置？
 
@@ -34,11 +34,11 @@ ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "authenticated_upload" ON storage.objects
   FOR INSERT TO authenticated
-  WITH CHECK (auth.role() = 'authenticated');
+  WITH CHECK (true);
 
 CREATE POLICY "authenticated_read" ON storage.objects
   FOR SELECT TO authenticated
-  USING (auth.role() = 'authenticated');
+  USING (true);
 ```
 
 详细指引见 `cloud-storage-web/SKILL.md` "Post-bucket: storage RLS" 章节。

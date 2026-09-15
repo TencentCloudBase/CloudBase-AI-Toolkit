@@ -62,7 +62,7 @@ function generatePrompt(pageUrl: string, locale: string): string {
 1. **分析代码库并使用 CloudBase MCP 工具解决问题**：
    - 深入分析我的代码库上下文，理解代码结构和相关模块
    - 阅读 CloudBase 的 AI rules 和 MCP 工具文档，理解问题的本质
-   - 尝试使用 CloudBase MCP 工具（如 envQuery、login、executeReadOnlySQL 等）来诊断和解决这个问题
+   - 尝试使用 CloudBase MCP 工具（如 queryEnv、login、executeReadOnlySQL 等）来诊断和解决这个问题
    - 如果需要修改代码，提出具体的修改方案，包括需要修改的文件、函数和代码行
    - **如果提供的资料不足以排查问题，请提示我复制更多的报错信息**，例如更具体的错误堆栈、完整的错误消息、相关代码片段或配置信息
 
@@ -87,7 +87,7 @@ Please help me resolve this by:
 1. **Analyze codebase and solve using CloudBase MCP tools**:
    - Deeply analyze my codebase context to understand the code structure and related modules
    - Read CloudBase AI rules and MCP tools documentation to understand the root cause
-   - Try using CloudBase MCP tools (such as envQuery, login, executeReadOnlySQL, etc.) to diagnose and solve this problem
+   - Try using CloudBase MCP tools (such as queryEnv, login, executeReadOnlySQL, etc.) to diagnose and solve this problem
    - If code changes are needed, propose specific modifications including files, functions, and code lines to modify
    - **If the provided information is insufficient to troubleshoot, please prompt me to copy more error details**, such as more specific error stack traces, complete error messages, relevant code snippets, or configuration information
 

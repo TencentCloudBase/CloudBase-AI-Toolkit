@@ -26,7 +26,7 @@
 ## 2. MCP 工具清单（能力边界 · 已注册 31 个）
 
 ```
-auth callCloudApi downloadTemplate envDomainManagement envQuery manageAgents manageAppAuth manageApps manageCloudRun manageDataModel manageEnv manageFunctions manageGateway managePermissions manageStorage modifyDataModel queryAgents queryAppAuth queryApps queryCloudRun queryEnv queryFunctions queryGateway queryLogs queryPermissions queryStorage readNoSqlDatabaseContent readNoSqlDatabaseStructure searchKnowledgeBase writeNoSqlDatabaseContent writeNoSqlDatabaseStructure
+auth callCloudApi downloadTemplate envDomainManagement queryEnv manageAgents manageAppAuth manageApps manageCloudRun manageDataModel manageEnv manageFunctions manageGateway managePermissions manageStorage modifyDataModel queryAgents queryAppAuth queryApps queryCloudRun queryEnv queryFunctions queryGateway queryLogs queryPermissions queryStorage readNoSqlDatabaseContent readNoSqlDatabaseStructure searchKnowledgeBase writeNoSqlDatabaseContent writeNoSqlDatabaseStructure
 ```
 
 > capi-only 铁律：kit 内不得调用上述专用工具，一律走 `callCloudApi(service, action, params)`。

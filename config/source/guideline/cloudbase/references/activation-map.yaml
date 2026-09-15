@@ -96,6 +96,31 @@ scenarios:
   label: Web projects + NoSQL Database
   mustCheckBeforeAction:
   - Login state and database access permission model
+- id: postgresql-best-practices-cloudbase
+  priority: 97
+  signals:
+  - PG access pattern
+  - 数据库访问路径
+  - N+1 查询
+  - 批量查询
+  - 慢查询
+  - EXPLAIN ANALYZE
+  - 缺索引
+  - 活动数据库容量
+  firstRead: postgresql-best-practices-cloudbase
+  thenRead:
+  - postgresql-development-cloudbase
+  beforeAction:
+  - 先列出接口、任务或 RPC 的读写路径、谓词、排序、基数和频率。
+  - 查询实现完成前确认数据库往返次数有界，并为每个高频谓词作出索引决策。
+  doNotUse:
+  - cloudbase-document-database-web-sdk
+  commonMistakes:
+  - 在循环中逐行查询数据库。
+  - 只增加数据库规格而不减少查询往返或检查执行计划。
+  label: CloudBase PostgreSQL Best Practices
+  mustCheckBeforeAction:
+  - Access paths, index decisions, row authorization, and launch capacity
 - id: postgresql-development-cloudbase
   priority: 96
   signals:
@@ -262,7 +287,7 @@ scenarios:
   beforeAction:
   - 按 BaaS-first 排序：Web SDK CRUD > MCP schema > 模板预热 > 云函数（默认 0）。
   - 连接器尽量预启用；凭据/Trust 等待窗口并行 downloadTemplate + 安装依赖。
-  - 能力嗅探顺序：connector ready → envQuery → 锁定一种 DB（NoSQL 或 PG 或 MySQL）→ MCP schema → @cloudbase/js-sdk CRUD → 本地预览；禁止中途横跳。
+  - 能力嗅探顺序：connector ready → queryEnv → 锁定一种 DB（NoSQL 或 PG 或 MySQL）→ MCP schema → @cloudbase/js-sdk CRUD → 本地预览；禁止中途横跳。
   - 先本地预览再部署；自定义域名 / DNS / 回滚非默认范围。
   doNotUse:
   - cloud-functions
@@ -344,7 +369,7 @@ scenarios:
   - ai-model-nodejs
   - ai-model-wechat
   beforeAction:
-  - 先跑「调用前必须的资格检查」：用 `envQuery` 拿到 `EnvId`，再按端别优先级查资格。
+  - 先跑「调用前必须的资格检查」：用 `queryEnv` 拿到 `EnvId`，再按端别优先级查资格。
   - Web / Node.js 端优先 `callCloudApi(tcb, DescribeEnvPostpayPackage)` 确认 Token Credits 资源包开通；未命中返回 `https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token` 引导购买。
   - 小程序端优先调用 `callCloudApi` 的 `DescribeActivityInfo`（参数 activityNames 为 ai_miniprogram_inspire_plan）判断成长计划是否报名；命中用 `hunyuan-exp` / `hunyuan-2.0-instruct-20251111`；未命中引导 `https://docs.cloudbase.net/ai/ai-inspire-plan` 或退回资源包 + 非 hunyuan 模型。
   - 指定的模型不在托管列表时走自定义接入（CloudBase 控制台 `#/ai` 或 `callCloudApi(tcb, CreateAIModel)`），不要点名任何第三方品牌。

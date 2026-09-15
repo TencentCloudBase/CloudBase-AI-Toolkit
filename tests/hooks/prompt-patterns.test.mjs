@@ -323,3 +323,28 @@ describe("web-development skill-metadata signals", () => {
     expect(result.matched).toBe(true);
   });
 });
+
+describe("postgresql-best-practices-cloudbase skill-metadata signals", () => {
+  const metadata = JSON.parse(readFileSync(METADATA_PATH, "utf-8"));
+  const compiled = compilePromptSignals(
+    metadata.skills["postgresql-best-practices-cloudbase"].promptSignals,
+  );
+
+  it.each([
+    "循环里查 users，帮我改成批量查询",
+    "这个 PostgreSQL 接口很慢，帮我分析 EXPLAIN ANALYZE 并补索引",
+    "活动上线前检查数据库访问路径和容量风险",
+  ])("matches access-pattern and slow-query work: %s", (prompt) => {
+    const result = matchPromptWithReason(normalizePromptText(prompt), compiled);
+    expect(result.matched).toBe(true);
+  });
+
+  it.each([
+    "帮我做登录页样式",
+    "NoSQL 集合加一条留言",
+    "第一次在 CloudBase PG 上 app.rdb() 怎么初始化",
+  ])("stays out of neighboring tasks: %s", (prompt) => {
+    const result = matchPromptWithReason(normalizePromptText(prompt), compiled);
+    expect(result.matched).toBe(false);
+  });
+});

@@ -97,7 +97,8 @@
               "ai/cloudbase-ai-toolkit/prompts/relational-database-web-cloudbase",
               "ai/cloudbase-ai-toolkit/prompts/data-model-creation",
               "ai/cloudbase-ai-toolkit/prompts/database-http-api",
-              "ai/cloudbase-ai-toolkit/prompts/postgresql-development-cloudbase"
+              "ai/cloudbase-ai-toolkit/prompts/postgresql-development-cloudbase",
+              "ai/cloudbase-ai-toolkit/prompts/postgresql-best-practices-cloudbase"
             ]
           },
           {

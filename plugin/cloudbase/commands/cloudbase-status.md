@@ -12,10 +12,10 @@ description: "CloudBase project health check. Inspect environment status, cloud 
 运行以下检查，失败时停止并给出可执行指引。
 
 1. **MCP 连接检查** — 确认 `cloudbase-mcp` server 已连接。
-   - 尝试调用 `envQuery({action:"info"})`。若调用失败，提示用户：
+   - 尝试调用 `queryEnv({action:"info"})`。若调用失败，提示用户：
      > CloudBase MCP 未连接或未鉴权。请确认 `cloudbase-mcp` server 已启动并完成授权流程。
 2. **环境选择** — 确认当前操作的 EnvId（`CLOUDBASE_ENV_ID` 或会话中已选定）。
-   - 若未设置：调用 `envQuery({action:"list"})` 让用户选择目标环境。
+   - 若未设置：调用 `queryEnv({action:"list"})` 让用户选择目标环境。
 3. **项目检测** — 检查当前目录是否为 CloudBase 项目：
    - `cloudbaserc.json` 存在 → 读取 `envId` 和 `functionRoot` 用于状态关联
    - `cloudfunctions/` 存在 → 标记为云函数项目
@@ -39,7 +39,7 @@ description: "CloudBase project health check. Inspect environment status, cloud 
 ### 1. 环境信息检查
 
 ```
-envQuery({ action: "info", envId: "<current-env-id>" })
+queryEnv({ action: "info", envId: "<current-env-id>" })
 ```
 
 提取并呈现：
@@ -131,7 +131,7 @@ queryLogs({ action: "status", envId: "<current-env-id>" })
 
 确认每个检查项已成功执行：
 
-- [ ] 环境信息查询成功（`envQuery` 返回有效结果）
+- [ ] 环境信息查询成功（`queryEnv` 返回有效结果）
 - [ ] 云函数列表查询成功（或环境无函数时标记"无云函数"）
 - [ ] 静态托管状态查询成功（或环境未开通时标记"未开通"）
 - [ ] 云托管状态查询成功（如适用，环境不支持时跳过）

@@ -1561,6 +1561,67 @@
         ]
       }
     },
+    "postgresql-best-practices-cloudbase": {
+      "priority": 8,
+      "promptSignals": {
+        "phrases": [
+          "n+1 查询",
+          "循环查数据库",
+          "批量查询",
+          "数据库访问路径",
+          "慢查询",
+          "缺索引",
+          "explain analyze",
+          "活动数据库容量"
+        ],
+        "allOf": [
+          [
+            "pg",
+            "性能"
+          ],
+          [
+            "postgresql",
+            "索引"
+          ],
+          [
+            "数据库",
+            "高并发"
+          ]
+        ],
+        "anyOf": [
+          "串行查询",
+          "全表扫描",
+          "keyset pagination"
+        ],
+        "noneOf": [
+          "登录页样式",
+          "nosql 集合"
+        ],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "pg best practices",
+          "postgresql performance"
+        ],
+        "intents": [
+          "设计数据库访问路径",
+          "优化慢查询",
+          "审查高并发数据库代码"
+        ],
+        "entities": [
+          "EXPLAIN ANALYZE",
+          "N+1",
+          "CREATE INDEX",
+          "access pattern"
+        ],
+        "examples": [
+          "循环里查 users，帮我改成批量查询",
+          "这个 PostgreSQL 接口很慢，帮我分析执行计划并补索引",
+          "活动上线前检查数据库访问路径和容量风险"
+        ]
+      }
+    },
     "spec-workflow": {
       "priority": 6,
       "promptSignals": {

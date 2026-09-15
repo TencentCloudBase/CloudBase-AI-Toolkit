@@ -1539,7 +1539,7 @@ async function enrichEnvInfoWithMissingFields(
 }
 
 /**
- * Project gateway Route.Enable onto envQuery(info) without mutating StaticDomain.
+ * Project gateway Route.Enable onto queryEnv(info) without mutating StaticDomain.
  *
  * StaticStorages[].StaticDomain stays the cloud-API nominal hostname.
  * Sibling field staticDomainRouteEnabled (and EnvInfo-level mirrors for the
