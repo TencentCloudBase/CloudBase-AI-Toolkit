@@ -76,7 +76,7 @@ When discovering videos via search (no specific URL provided), the raw `cloudbas
 - Get permanent access URL from upload response
   - Format: `https://{appId}-{envId}-{uin}.tcb.qcloud.la/video-thumbnails/{BV号}.jpg`
   - Example: `https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/video-thumbnails/BV1bRBkBFE7x.jpg`
-  - `appId` and the numeric `uin` suffix are visible in the env's `CdnDomain` returned by `envQuery`
+  - `appId` and the numeric `uin` suffix are visible in the env's `CdnDomain` returned by `queryEnv`
 
 ### 4. Determine Tags
 - **Terminal Tags** (终端/平台):
@@ -130,7 +130,7 @@ When discovering videos via search (no specific URL provided), the raw `cloudbas
 - [ ] Bilibili video URL is valid and accessible
 - [ ] Video metadata (title, author) successfully extracted
 - [ ] Thumbnail image downloaded successfully
-- [ ] CloudBase environment is correct (check envQuery before upload)
+- [ ] CloudBase environment is correct (check queryEnv before upload)
 - [ ] Thumbnail uploaded to cloud storage successfully
 - [ ] Cloud storage URL is permanent (not temporary)
 - [ ] Video entry added to TutorialsGrid.tsx with correct format
@@ -191,7 +191,7 @@ https://www.bilibili.com/video/BV1bRBkBFE7x/?share_source=copy_web&vd_source=068
 3. **Thumbnail URL Format**:
    - Use permanent cloud storage URL, not temporary URL
    - Format: `https://{appId}-{envId}-{uin}.tcb.qcloud.la/video-thumbnails/{BV号}.jpg`
-   - `appId` and the numeric `uin` suffix are visible in the env's `CdnDomain` returned by `envQuery` (e.g. `7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la` → AppId `7463`, envId `tcb-advanced-a656fc`, uin `1257967285`)
+   - `appId` and the numeric `uin` suffix are visible in the env's `CdnDomain` returned by `queryEnv` (e.g. `7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la` → AppId `7463`, envId `tcb-advanced-a656fc`, uin `1257967285`)
 
 4. **ID Generation**: 
    - Use kebab-case format

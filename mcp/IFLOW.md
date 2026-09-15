@@ -85,7 +85,7 @@ When you see "Read `{auth-web}` rule file" in this document:
 **⚠️ CRITICAL: Read this section first based on your project type**
 
 ### When Developing a Web Project:
-1. **Environment Check**: Call `envQuery` tool first (applies to all interactions)
+1. **Environment Check**: Call `queryEnv` tool first (applies to all interactions)
 2. **⚠️ Template Download (MANDATORY for New Projects)**: **MUST call `downloadTemplate` tool FIRST when starting a new project** - Do NOT create files manually. Use `downloadTemplate` with `template="react"` or `template="vue"` to get the complete project structure. Only proceed with manual file creation if template download fails or user explicitly requests it.
 3. **⚠️ UI Design (CRITICAL)**: **MUST read `rules/ui-design/rule.md` FIRST before generating any page, interface, component, or style** - This is NOT optional. You MUST explicitly read this file and output the design specification before writing any UI code.
 4. **Core Capabilities**: Read Core Capabilities section below (especially UI Design and Database + Authentication for Web)
@@ -97,7 +97,7 @@ When you see "Read `{auth-web}` rule file" in this document:
    - MySQL: `rules/relational-database-web-cloudbase/rule.md` + `rules/relational-database-mcp-cloudbase/rule.md`
 
 ### When Developing a Mini Program Project:
-1. **Environment Check**: Call `envQuery` tool first (applies to all interactions)
+1. **Environment Check**: Call `queryEnv` tool first (applies to all interactions)
 2. **⚠️ Template Download (MANDATORY for New Projects)**: **MUST call `downloadTemplate` tool FIRST when starting a new project** - Do NOT create files manually. Use `downloadTemplate` with `template="miniprogram"` to get the complete project structure. Only proceed with manual file creation if template download fails or user explicitly requests it.
 3. **⚠️ UI Design (CRITICAL)**: **MUST read `rules/ui-design/rule.md` FIRST before generating any page, interface, component, or style** - This is NOT optional. You MUST explicitly read this file and output the design specification before writing any UI code.
 4. **Core Capabilities**: Read Core Capabilities section below (especially UI Design and Database + Authentication for Mini Program)
@@ -108,7 +108,7 @@ When you see "Read `{auth-web}` rule file" in this document:
    - MySQL: `rules/relational-database-mcp-cloudbase/rule.md` (via tools)
 
 ### When Developing a Native App Project (iOS/Android/Flutter/React Native/etc.):
-1. **Environment Check**: Call `envQuery` tool first (applies to all interactions)
+1. **Environment Check**: Call `queryEnv` tool first (applies to all interactions)
 2. **⚠️ Platform Limitation**: **Native apps (iOS, Android, Flutter, React Native, and other native mobile frameworks) do NOT support CloudBase SDK** - Must use HTTP API to call CloudBase capabilities
 3. **⚠️ UI Design (CRITICAL)**: **MUST read `rules/ui-design/rule.md` FIRST before generating any page, interface, component, or style** - This is NOT optional. You MUST explicitly read this file and output the design specification before writing any UI code.
 4. **Required Rules**:
@@ -244,7 +244,7 @@ As the most important part of application development, the following four core c
 ### 0. Environment Check (First Step)
 After user inputs any content, first check CloudBase environment status:
 - Ensure current CloudBase environment ID is known
-- If not present in conversation history, must call `envQuery` tool with parameter `action=info` to query current environment information and environment ID
+- If not present in conversation history, must call `queryEnv` tool with parameter `action=info` to query current environment information and environment ID
 - **Important**: When environment ID configuration is involved in code later, automatically use the queried environment ID, no need for manual user input
 
 ### 1. Scenario Identification
@@ -385,7 +385,7 @@ When calling tool services, you need to fully understand the data types of all i
 For example, many interfaces require a confirm parameter, which is a boolean type. If you don't provide this parameter, or provide incorrect data type, the interface will return an error.
 
 ### Environment ID Auto-Configuration Rules
-- When generating project configuration files (such as `cloudbaserc.json`, `project.config.json`, etc.), automatically use the environment ID queried by `envQuery`
+- When generating project configuration files (such as `cloudbaserc.json`, `project.config.json`, etc.), automatically use the environment ID queried by `queryEnv`
 - In code examples involving environment ID, automatically fill in current environment ID, no need for manual user replacement
 - In deployment and preview related operations, prioritize using already queried environment information
 
@@ -434,7 +434,7 @@ For example, many interfaces require a confirm parameter, which is a boolean typ
 To ensure development quality, recommend completing the following checks before starting tasks:
 
 ### Recommended Steps
-0. **[ ] Environment Check**: Call `envQuery` tool to check CloudBase environment status (applies to all interactions)
+0. **[ ] Environment Check**: Call `queryEnv` tool to check CloudBase environment status (applies to all interactions)
 1. **[ ] Template Download Check (MANDATORY for New Projects)**: If starting a new project, have you called `downloadTemplate` tool FIRST? Do NOT manually create project files - use templates.
 2. **[ ] Scenario Identification**: Clearly identify what type of project this is (Web/Mini Program/Database/UI/AI)
 3. **[ ] Core Capability Confirmation**: Confirm all four core capabilities have been considered

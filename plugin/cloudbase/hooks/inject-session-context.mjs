@@ -86,7 +86,7 @@ var RULES_BLOCK = `## CloudBase Plugin (plugin-injected, MUST follow)
 ### Hard Rules
 
 1. **Environment Check (FIRST).** Before any CloudBase work, resolve envId + RuntimeMode + RecommendedSkills.
-   When CloudBase MCP tools are available in this session, call \`envQuery({ action: "info" })\`.
+   When CloudBase MCP tools are available in this session, call \`queryEnv({ action: "info" })\`.
    If MCP is missing or not yet loaded (first session / post-install before restart), configure MCP for
    the next session and use \`tcb\` CLI now (\`tcb login\` → \`tcb env list\` / \`tcb env use\`; see
    \`skills/cloudbase/references/tooling-fallback.md\`). Do not stall waiting for restart.
@@ -107,7 +107,7 @@ var RULES_BLOCK = `## CloudBase Plugin (plugin-injected, MUST follow)
    documented CLI init paths from \`tooling-fallback.md\` / \`cloudbase-cli\` instead of stalling.
 
 ### CLI Quick Reference
-- Prefer MCP when tools are loaded: \`manageFunctions\`, \`manageHosting\`, \`envQuery\`, \`manageStorage\`
+- Prefer MCP when tools are loaded: \`manageFunctions\`, \`manageHosting\`, \`queryEnv\`, \`manageStorage\`
 - First-session / MCP-missing fallback: \`tcb login\`, \`tcb env use\`, \`tcb fn deploy\`, \`tcb hosting deploy\` (not \`tcb deploy\`)
 - Decision tree: \`skills/cloudbase/references/tooling-fallback.md\``;
 

@@ -99,7 +99,7 @@ function num(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-/** Align with MCP envQuery: PG signal is PostgreSQL[] and/or Meta postgresql=enable. */
+/** Align with MCP queryEnv: PG signal is PostgreSQL[] and/or Meta postgresql=enable. */
 function hasPostgresqlSignal(env: LooseRecord): boolean {
   const pgList = arr(env.PostgreSQL ?? env.postgresql);
   if (pgList.length > 0) return true;

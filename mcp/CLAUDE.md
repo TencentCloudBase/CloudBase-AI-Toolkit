@@ -107,7 +107,7 @@ When you see "Read `{auth-web}` rule file" in this document:
 **⚠️ CRITICAL: Read this section first based on your project type**
 
 ### When Developing a Web Project:
-1. **Environment Check**: Resolve envId first — prefer `envQuery` when MCP is available in this session; otherwise use `tcb` CLI and configure MCP for next time (applies to all interactions)
+1. **Environment Check**: Resolve envId first — prefer `queryEnv` when MCP is available in this session; otherwise use `tcb` CLI and configure MCP for next time (applies to all interactions)
 2. **⚠️ Existing Implementation Priority**: If the workspace already contains the target pages or services, inspect and patch the active handlers first instead of recreating parallel structure.
 3. **⚠️ UI Design (CRITICAL, but only for visual work)**: **Read `rules/ui-design/rule.md` first only when the task actually asks for visual design generation or redesign.** If the workspace already has fixed structure and the task is functional completion, prioritize wiring the current pages and handlers instead of producing a design specification.
 4. **Core Capabilities**: Read Core Capabilities section below (especially UI Design and Database + Authentication for Web)
@@ -119,7 +119,7 @@ When you see "Read `{auth-web}` rule file" in this document:
    - MySQL: `rules/relational-database-web-cloudbase/rule.md` + `rules/relational-database-mcp-cloudbase/rule.md`
 
 ### When Developing a Mini Program Project:
-1. **Environment Check**: Resolve envId first — prefer `envQuery` when MCP is available in this session; otherwise use `tcb` CLI and configure MCP for next time (applies to all interactions)
+1. **Environment Check**: Resolve envId first — prefer `queryEnv` when MCP is available in this session; otherwise use `tcb` CLI and configure MCP for next time (applies to all interactions)
 2. **⚠️ UI Design (CRITICAL)**: **MUST read `rules/ui-design/rule.md` FIRST before generating any page, interface, component, or style** - This is NOT optional. You MUST explicitly read this file and output the design specification before writing any UI code.
 3. **Core Capabilities**: Read Core Capabilities section below (especially UI Design and Database + Authentication for Mini Program)
 4. **Platform Rules**: Read `rules/miniprogram-development/rule.md` for platform-specific rules (project structure, WeChat Developer Tools, wx.cloud usage)
@@ -129,7 +129,7 @@ When you see "Read `{auth-web}` rule file" in this document:
    - MySQL: `rules/relational-database-mcp-cloudbase/rule.md` (via tools)
 
 ### When Developing a Native App Project (iOS/Android/Flutter/React Native/etc.):
-1. **Environment Check**: Resolve envId first — prefer `envQuery` when MCP is available in this session; otherwise use `tcb` CLI and configure MCP for next time (applies to all interactions)
+1. **Environment Check**: Resolve envId first — prefer `queryEnv` when MCP is available in this session; otherwise use `tcb` CLI and configure MCP for next time (applies to all interactions)
 2. **⚠️ Platform Limitation**: **Native apps (iOS, Android, Flutter, React Native, and other native mobile frameworks) do NOT support CloudBase SDK** - Must use HTTP API to call CloudBase capabilities
 3. **⚠️ UI Design (CRITICAL)**: **MUST read `rules/ui-design/rule.md` FIRST before generating any page, interface, component, or style** - This is NOT optional. You MUST explicitly read this file and output the design specification before writing any UI code.
 4. **Required Rules**:
@@ -269,7 +269,7 @@ As the most important part of application development, the following four core c
 ### 0. Environment Check (First Step)
 After user inputs any content, first check CloudBase environment status:
 - Ensure current CloudBase environment ID is known
-- If not present in conversation history: when CloudBase MCP tools are available, call `envQuery` with `action=info`; if MCP is missing in this session, configure MCP for the next session and resolve envId via `tcb login` / `tcb env list` / `tcb env use` (see `tooling-fallback.md`)
+- If not present in conversation history: when CloudBase MCP tools are available, call `queryEnv` with `action=info`; if MCP is missing in this session, configure MCP for the next session and resolve envId via `tcb login` / `tcb env list` / `tcb env use` (see `tooling-fallback.md`)
 - **Important**: When environment ID configuration is involved in code later, automatically use the queried environment ID, no need for manual user input
 
 ### 1. Scenario Identification
@@ -401,8 +401,8 @@ When calling tool services, you need to fully understand the data types of all i
 For example, many interfaces require a confirm parameter, which is a boolean type. If you don't provide this parameter, or provide incorrect data type, the interface will return an error.
 
 ### Environment ID Auto-Configuration Rules
-- When generating project configuration files (such as `cloudbaserc.json`, `project.config.json`, etc.), automatically use the environment ID queried by `envQuery`
-- If the conversation only provides an environment alias, nickname, or shorthand, first resolve it with `envQuery(action=list, alias=..., aliasExact=true)` and use the returned full `EnvId`
+- When generating project configuration files (such as `cloudbaserc.json`, `project.config.json`, etc.), automatically use the environment ID queried by `queryEnv`
+- If the conversation only provides an environment alias, nickname, or shorthand, first resolve it with `queryEnv(action=list, alias=..., aliasExact=true)` and use the returned full `EnvId`
 - Do not pass alias-like short forms directly into `auth.set_env`, SDK init, console links, or generated config files; if the alias is ambiguous or missing, stop and ask the user to confirm
 - In code examples involving environment ID, automatically fill in current environment ID, no need for manual user replacement
 - In deployment and preview related operations, prioritize using already queried environment information
@@ -452,7 +452,7 @@ For example, many interfaces require a confirm parameter, which is a boolean typ
 To ensure development quality, recommend completing the following checks before starting tasks:
 
 ### Recommended Steps
-0. **[ ] Environment Check**: Resolve CloudBase envId (prefer `envQuery` when MCP is available; otherwise `tcb` CLI + configure MCP for next session)
+0. **[ ] Environment Check**: Resolve CloudBase envId (prefer `queryEnv` when MCP is available; otherwise `tcb` CLI + configure MCP for next session)
 1. **[ ] Scenario Identification**: Clearly identify what type of project this is (Web/Mini Program/Database/UI/AI)
 3. **[ ] Core Capability Confirmation**: Confirm all four core capabilities have been considered
    - UI Design: Have you explicitly read the file `rules/ui-design/rule.md` using file reading tools?

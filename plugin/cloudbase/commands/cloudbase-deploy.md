@@ -12,8 +12,8 @@ description: "Deploy CloudBase resources. Subcommands: function (cloud functions
 运行以下检查，失败时停止并给出可执行指引。
 
 1. **MCP 连接检查** — 确认 `cloudbase-mcp` server 已连接。
-   - 调用 `envQuery({action:"info"})` 验证连接和登录状态。若失败，提示用户完成授权。
-2. **环境选择** — 确认当前操作的 EnvId（`CLOUDBASE_ENV_ID` 或会话中已选定）。若未设置，先调用 `envQuery({action:"list"})` 让用户选择。
+   - 调用 `queryEnv({action:"info"})` 验证连接和登录状态。若失败，提示用户完成授权。
+2. **环境选择** — 确认当前操作的 EnvId（`CLOUDBASE_ENV_ID` 或会话中已选定）。若未设置，先调用 `queryEnv({action:"list"})` 让用户选择。
 3. **项目类型检测** — 扫描当前目录结构，判断部署目标：
 
    | 目录/文件标记 | 部署目标 | 说明 |
@@ -43,7 +43,7 @@ description: "Deploy CloudBase resources. Subcommands: function (cloud functions
 
 **生产环境门控**：
 
-若当前 EnvId 为生产环境（通过 `envQuery({action:"info"})` 的 Alias 或 Source 判断，或用户明确声明），必须获得显式确认：
+若当前 EnvId 为生产环境（通过 `queryEnv({action:"info"})` 的 Alias 或 Source 判断，或用户明确声明），必须获得显式确认：
 
 > ⚠️ **生产环境部署请求。**
 > 当前环境 `<EnvId>`（`<Alias>`）为生产环境，此次部署将影响线上服务。

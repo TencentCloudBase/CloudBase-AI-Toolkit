@@ -87,7 +87,7 @@ Use npm installation for modern Web projects. In React, Vue, Vite, and other bun
 ### Parameter map
 
 - For username-style identifiers, the required precondition is `loginMethods.usernamePassword === true` from `queryAppAuth(action="getLoginConfig")`. If it is false, enable it with `manageAppAuth(action="patchLoginStrategy", patch={ usernamePassword: true })` before wiring frontend auth code.
-- If the conversation only provides an environment alias, nickname, or other shorthand, resolve it with `envQuery(action="list", alias=..., aliasExact=true)` first and use the returned canonical full `EnvId` for SDK init, console links, and generated config. Do not pass alias-like short forms directly into `cloudbase.init({ env })`.
+- If the conversation only provides an environment alias, nickname, or other shorthand, resolve it with `queryEnv(action="list", alias=..., aliasExact=true)` first and use the returned canonical full `EnvId` for SDK init, console links, and generated config. Do not pass alias-like short forms directly into `cloudbase.init({ env })`.
 - Treat CloudBase Web Auth as **Supabase-like**, not “every `supabase-js` auth example is valid unchanged”
 - When `queryAppAuth` / `manageAppAuth` returns `sdkStyle: "supabase-like"` and `sdkHints`, follow those method and parameter hints first
 - `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })` use the phone number in a `phone` field, not `phone_number`
@@ -110,7 +110,7 @@ SDK init reference: [docs.cloudbase.net/api-reference/webv3/initialization.md](h
 import cloudbase from '@cloudbase/js-sdk'
 
 const app = cloudbase.init({
-  env: 'your-full-env-id', // Canonical full CloudBase environment ID resolved from envQuery or the console, not an alias or shorthand
+  env: 'your-full-env-id', // Canonical full CloudBase environment ID resolved from queryEnv or the console, not an alias or shorthand
   region: 'ap-shanghai',  // CloudBase environment Region, default 'ap-shanghai'
   accessKey: 'publishable key', // required, get from auth-tool-cloudbase
   // ⚠️ accessKey alone ≠ a login session. NoSQL CRUD needs a session —

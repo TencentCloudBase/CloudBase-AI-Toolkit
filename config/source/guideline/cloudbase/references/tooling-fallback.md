@@ -14,7 +14,7 @@ Do **not** block the user waiting for a restart when CLI (or another documented 
 
 ```
 1. Probe MCP in THIS session
-   - IDE: CloudBase tools visible (auth, envQuery, manageFunctions, …)
+   - IDE: CloudBase tools visible (auth, queryEnv, manageFunctions, …)
    - or: npx mcporter list | grep cloudbase  AND describe/call succeeds
      (if `npx` / `npm` missing → see "No npm/npx" below; do not stall)
 2. MCP tools usable now?
@@ -39,7 +39,7 @@ Do **not** block the user waiting for a restart when CLI (or another documented 
 Treat MCP as **unavailable in this session** when any of these hold:
 
 - No CloudBase MCP tools in the tool list / ToolSearch results
-- `auth` / `envQuery` / deploy tools return “unknown tool” or connection errors after one verify attempt
+- `auth` / `queryEnv` / deploy tools return “unknown tool” or connection errors after one verify attempt
 - User just finished MCP install/config and has not restarted
 
 Do **not** require the user to paste env vars into MCP JSON before you can proceed — configure MCP for later, use CLI now.
@@ -49,7 +49,7 @@ Do **not** require the user to paste env vars into MCP JSON before you can proce
 | Goal | MCP (when available) | CLI fallback — read skill, do not guess |
 |------|----------------------|------------------------------------------|
 | Login | `auth` (`start_auth` / device) | `cloudbase-cli` → `core.md` (`tcb login`) |
-| Bind / select env | `auth.set_env` + `envQuery` | `cloudbase-cli` → `core.md` (`tcb env use`) |
+| Bind / select env | `auth.set_env` + `queryEnv` | `cloudbase-cli` → `core.md` (`tcb env use`) |
 | Cloud function deploy | `manageFunctions` / `queryFunctions` | `cloud-functions` + `cloudbase-cli` → `functions.md` |
 | Web / static hosting | `manageApps` / `manageHosting` | `cloudbase-cli` → `hosting.md` (build locally, then hosting deploy) |
 | CloudRun | `manageCloudRun` / `queryCloudRun` | `cloudbase-cli` → `cloudrun.md` |

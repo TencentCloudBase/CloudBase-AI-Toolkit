@@ -12,9 +12,9 @@ description: "CloudBase environment management. Subcommands: list (environments)
 运行以下检查，失败时停止并给出可执行指引。
 
 1. **MCP 连接检查** — 确认 `cloudbase-mcp` server 已连接。
-   - 尝试调用 `envQuery({action:"list"})`，若调用失败或返回错误，提示用户：
+   - 尝试调用 `queryEnv({action:"list"})`，若调用失败或返回错误，提示用户：
      > CloudBase MCP 未连接或未鉴权。请确认 `cloudbase-mcp` server 已启动并完成授权流程。
-2. **登录状态验证** — 若 `envQuery({action:"list"})` 返回空列表或鉴权错误，引导用户完成 CloudBase 登录。
+2. **登录状态验证** — 若 `queryEnv({action:"list"})` 返回空列表或鉴权错误，引导用户完成 CloudBase 登录。
 3. **当前环境检测** — 检查 `CLOUDBASE_ENV_ID` 环境变量或会话上下文中是否已选定 EnvId。
    - 若未设置，`info` 和 `domains` 子命令需要先让用户从 `list` 结果中选择一个环境。
 
@@ -37,7 +37,7 @@ description: "CloudBase environment management. Subcommands: list (environments)
 调用 MCP 工具列出所有可访问的环境：
 
 ```
-envQuery({ action: "list" })
+queryEnv({ action: "list" })
 ```
 
 解析返回结果，提取每个环境的关键信息：
@@ -56,7 +56,7 @@ envQuery({ action: "list" })
 查看当前环境的详细信息：
 
 ```
-envQuery({ action: "info", envId: "<current-env-id>" })
+queryEnv({ action: "info", envId: "<current-env-id>" })
 ```
 
 若当前未选定环境，先执行 `list` 让用户选择，再调用 `info`。
@@ -82,7 +82,7 @@ envQuery({ action: "info", envId: "<current-env-id>" })
 查看当前环境的安全域名配置：
 
 ```
-envQuery({ action: "domains", envId: "<current-env-id>" })
+queryEnv({ action: "domains", envId: "<current-env-id>" })
 ```
 
 呈现安全域名列表：
@@ -98,7 +98,7 @@ envQuery({ action: "domains", envId: "<current-env-id>" })
 
 确认查询操作成功完成：
 
-- [ ] `envQuery` 调用返回有效结果（非空且无错误）
+- [ ] `queryEnv` 调用返回有效结果（非空且无错误）
 - [ ] 环境列表或详情信息已完整呈现
 - [ ] 若当前环境未设置，已引导用户选择
 

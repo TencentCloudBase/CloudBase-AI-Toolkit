@@ -33,7 +33,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 ### Then also read
 
 - Minimal Web + database demo (BaaS-first, no cloud functions by default) -> `../minimal-web-baas-demo/SKILL.md`
-  - **Stack order for 最小前后端 / Lovable-like demos:** Web SDK CRUD > MCP schema > template warmup during credential wait > cloud functions (default count = 0). Capability sniff: connector ready → `envQuery` → lock one DB plane → MCP schema → `@cloudbase/js-sdk` CRUD → preview.
+  - **Stack order for 最小前后端 / Lovable-like demos:** Web SDK CRUD > MCP schema > template warmup during credential wait > cloud functions (default count = 0). Capability sniff: connector ready → `queryEnv` → lock one DB plane → MCP schema → `@cloudbase/js-sdk` CRUD → preview.
 - Web app implementation -> `../web-development/SKILL.md`
 - Web auth and provider setup -> `../auth-tool-cloudbase/SKILL.md`, `../auth-web-cloudbase/SKILL.md`
 - Mini program development -> `../miniprogram-development/SKILL.md`
@@ -93,7 +93,7 @@ Use this skill for **CloudBase platform knowledge** when you need to:
    - Different platforms require different SDKs for data models
    - MySQL data models must use models SDK, not collection API
    - PostgreSQL / CloudBase PG work must route to `postgresql-development-cloudbase`; do not reuse NoSQL `app.database()` / `db.collection(...)` snippets or MySQL `queryMysqlDatabase` / `manageMysqlDatabase` for PG data paths
-   - Use `envQuery` tool to get environment ID
+   - Use `queryEnv` tool to get environment ID
    - In an existing Web application with fixed structure, inspect the existing `src/lib/backend.*`, `src/lib/auth.*`, `src/lib/*service.*`, and bound page handlers before broad concept reading.
 
 4. **Use the canonical CloudBase MCP setup from the main `cloudbase` guideline**
@@ -160,7 +160,7 @@ When a task explicitly requires recording operation steps or results to a file (
 3. **Cloud Storage Public URL**:
    - **CRITICAL**: `manageStorage(action=upload)` and `queryStorage(action=url)` return `temporaryUrl` which is a temporary signed URL that expires (default 1 hour). Do NOT use this as a permanent public URL.
    - To get the permanent public access URL for a cloud storage object:
-     1. Call `envQuery(action=info)` to get environment details
+     1. Call `queryEnv(action=info)` to get environment details
      2. Extract the storage CDN domain from `EnvInfo.Storages[0].CdnDomain` (e.g., `your-env-id.tcb.qcloud.la`)
      3. Construct the public URL: `https://{CdnDomain}/{cloudPath}`
    - Example: If `CdnDomain` is `env-xxx.tcb.qcloud.la` and `cloudPath` is `uploads/avatar.jpg`, the public URL is `https://env-xxx.tcb.qcloud.la/uploads/avatar.jpg`
@@ -170,8 +170,8 @@ When a task explicitly requires recording operation steps or results to a file (
 
 1. **SDK Initialization**:
    - CloudBase SDK initialization requires environment ID
-   - Can query environment ID via `envQuery` tool
-   - If the user only provides an environment alias, nickname, or other short form, resolve it with `envQuery(action="list", alias=..., aliasExact=true)` first and use the returned full `EnvId`
+   - Can query environment ID via `queryEnv` tool
+   - If the user only provides an environment alias, nickname, or other short form, resolve it with `queryEnv(action="list", alias=..., aliasExact=true)` first and use the returned full `EnvId`
    - Do not pass alias-like short forms directly into SDK init, `auth.set_env`, console URLs, or generated config files
    - For Web, always initialize synchronously:
      - `import cloudbase from "@cloudbase/js-sdk"; const app = cloudbase.init({ env: "your-full-env-id" });`
@@ -341,7 +341,7 @@ See also: CLI equivalent commands in `cloudbase-cli/references/permission.md`
 
 ## Console Management
 
-After creating/deploying resources, provide corresponding console links. All console URLs follow the pattern: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/{path}` — replace `${envId}` with the real EnvId resolved via `envQuery` (resolve aliases first; see Environment and Authentication below), and resource names with actual values.
+After creating/deploying resources, provide corresponding console links. All console URLs follow the pattern: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/{path}` — replace `${envId}` with the real EnvId resolved via `queryEnv` (resolve aliases first; see Environment and Authentication below), and resource names with actual values.
 
 The CloudBase console is updated frequently. If a live, logged-in console shows a different hash path from this list, prefer the live console path over stale documentation and then update this skill to match.
 

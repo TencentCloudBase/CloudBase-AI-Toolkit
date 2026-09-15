@@ -87,7 +87,7 @@ You MUST NOT jump straight into `wx.cloud.extend.AI.createModel(...)`. Before wr
 
 The Mini Program side has two billing paths: **小程序成长计划** (checked first; if enrolled, use `hunyuan-exp`) and **Token Credits 资源包** (generic fallback; if available, use the `cloudbase` main managed group).
 
-1. Fetch `envId` via the MCP tool `envQuery action=info`.
+1. Fetch `envId` via the MCP tool `queryEnv action=info`.
 
 2. Pick the branch by user intent:
 

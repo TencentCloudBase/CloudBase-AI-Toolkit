@@ -81,7 +81,7 @@ Use this order for every minimal Web + DB demo. **Do not reorder.** Cloud functi
 ```text
 0. Connector pre-enabled (or shortest Trust path)     ← host / partner packaging
 1. Template warmup // parallel with credential wait   ← downloadTemplate + install
-2. envQuery(action="info")                            ← sniff env + RuntimeBackends
+2. queryEnv(action="info")                            ← sniff env + RuntimeBackends
 3. Lock ONE DB plane (NoSQL | PG | MySQL)             ← no mid-flight thrash
 4. MCP schema + minimal permissions                   ← writeNoSql* / PG migrate / MySQL manage
 5. Browser @cloudbase/js-sdk CRUD                     ← app.database() / app.rdb()
@@ -94,7 +94,7 @@ Stack priority for this path: **Web SDK CRUD > MCP schema > template warmup > cl
 ## Standard playbook
 
 1. **Warm template in parallel with credentials** (see partner notes below): `downloadTemplate` (`react` default, `vue` if requested) → `npm install` / `pnpm install`.
-2. `envQuery(action="info")` → lock **one** DB plane (NoSQL **or** PG **or** MySQL). Do not thrash between them.
+2. `queryEnv(action="info")` → lock **one** DB plane (NoSQL **or** PG **or** MySQL). Do not thrash between them.
 3. MCP: create the collection/table + minimal permissions.
 4. Frontend: ensure session (`auth.signInAnonymously()` or equivalent), then wire list + create with `@cloudbase/js-sdk` (see Hard rule 6).
 5. Start / report preview URL; ask before deploy.
@@ -131,7 +131,7 @@ WorkBuddy SessionStart: https://www.workbuddy.ai/docs/cli/hooks (same `additiona
 For 最小前后端 / Lovable-like demos: FIRST call
 searchKnowledgeBase(mode="skill", skillName="minimal-web-baas-demo"), then Read.
 Do not rely only on ad-hoc expert-prompt brief text.
-Order: connector ready → template warmup during credential wait → envQuery →
+Order: connector ready → template warmup during credential wait → queryEnv →
 lock one DB → MCP schema → auth.signInAnonymously() (or session) →
 @cloudbase/js-sdk CRUD → preview.
 Do not dump all CloudBase skills. Do not create cloud functions for CRUD.

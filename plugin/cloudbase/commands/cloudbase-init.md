@@ -12,7 +12,7 @@ description: "Initialize a CloudBase project. Download a template, configure the
 运行以下检查，失败时停止并给出可执行指引。
 
 1. **MCP 连接检查** — 确认 `cloudbase-mcp` server 已连接。
-   - 调用 `envQuery({action:"list"})` 验证连接。若失败，提示用户完成授权。
+   - 调用 `queryEnv({action:"list"})` 验证连接。若失败，提示用户完成授权。
 2. **目录空检查** — 检查当前工作目录是否为空（或仅包含 `.git` 等无关文件）。
    - 若目录非空：提示用户当前目录已有文件，模板可能覆盖现有文件。询问是否切换到新目录或继续。
    - 推荐做法：创建新子目录（如 `mkdir my-cloudbase-app && cd my-cloudbase-app`）。
@@ -24,7 +24,7 @@ description: "Initialize a CloudBase project. Download a template, configure the
    | 微信小程序 | `miniprogram` | 小程序云开发项目，使用云函数 + 数据库 |
    | 云托管 | `cloudrun` | CloudBase Run 后端服务，支持 Java/Go/Python/Node.js 等 |
 
-4. **环境选择** — 若用户有多个环境，调用 `envQuery({action:"list"})` 让用户选择目标环境，用于后续 `cloudbaserc.json` 配置。
+4. **环境选择** — 若用户有多个环境，调用 `queryEnv({action:"list"})` 让用户选择目标环境，用于后续 `cloudbaserc.json` 配置。
 
 ## Plan
 
@@ -32,7 +32,7 @@ description: "Initialize a CloudBase project. Download a template, configure the
 
 1. **下载模板** — 调用 `downloadTemplate` 下载对应场景的项目模板。
 2. **复制文件** — 将模板内容复制到当前目录（含隐藏文件，如 `.gitignore`、`.env.example`）。
-3. **生成配置** — 使用 `envQuery` 获取的 EnvId 生成 `cloudbaserc.json`。
+3. **生成配置** — 使用 `queryEnv` 获取的 EnvId 生成 `cloudbaserc.json`。
 4. **小程序场景** — 检查 `project.config.json` 的 `appid` 字段，缺失则询问用户。
 5. **生成 README** — 生成包含项目结构、CloudBase 资源说明的 `README.md`。
 
@@ -66,7 +66,7 @@ cp -a /tmp/template/. ./
 
 ### 2. 生成 cloudbaserc.json
 
-使用 `envQuery({action:"info"})` 获取的 EnvId 生成配置文件：
+使用 `queryEnv({action:"info"})` 获取的 EnvId 生成配置文件：
 
 ```json
 {

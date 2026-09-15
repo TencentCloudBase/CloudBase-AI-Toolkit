@@ -55,7 +55,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Minimal checklist
 
-- [ ] Environment is bound and accessible (`envQuery(action="info")`)
+- [ ] Environment is bound and accessible (`queryEnv(action="info")`)
 - [ ] Metrics pulled with `queryEnv(action="metrics")` when the question involves QPS / CPU / throttle / invocation volume
 - [ ] CLS log service is enabled (`queryLogs(action="checkLogService")`) when log diagnosis is needed
 - [ ] Matching fault playbook selected when symptoms match 429 / function 404 / ACCESS_TOKEN_INVALID / 调用量为 0
@@ -89,7 +89,7 @@ Follow these steps in order for a comprehensive environment health check:
 **Step 1 — Environment Check**
 
 ```
-envQuery(action="info")
+queryEnv(action="info")
 ```
 
 Confirm the environment is accessible. Record the `envId` for console link generation.
@@ -234,7 +234,7 @@ This skill follows AIOps principles for intelligent inspection:
 
 | Operation | MCP Tool Call |
 |-----------|---------------|
-| Check environment | `envQuery(action="info")` |
+| Check environment | `queryEnv(action="info")` |
 | Query metrics (QPS/CPU/invocations) | `queryEnv(action="metrics", envId, metricName="...")` |
 | Check CLS status | `queryLogs(action="checkLogService")` |
 | List cloud functions | `queryFunctions(action="listFunctions")` |

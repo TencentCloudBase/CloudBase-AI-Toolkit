@@ -32,7 +32,7 @@ Cloud Function 部署失败？
 │  └─ 依赖安装慢 → 检查 package.json 是否包含不必要的大依赖
 │
 ├─ "permission denied" / 权限拒绝
-│  ├─ 检查环境 ID（envId）是否正确 → 调用 `envQuery(action=info)` 确认
+│  ├─ 检查环境 ID（envId）是否正确 → 调用 `queryEnv(action=info)` 确认
 │  ├─ 当前账号是否有该环境的部署权限？ → 控制台 → 权限设置
 │  ├─ cloudbaserc.json 中的 envId 与当前环境是否匹配？
 │  └─ 是否使用了错误的密钥 → 重新登录 `cloudbase login`

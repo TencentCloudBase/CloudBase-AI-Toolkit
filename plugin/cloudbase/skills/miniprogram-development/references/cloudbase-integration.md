@@ -19,7 +19,7 @@
 3. **使用正确的 SDK 与 API**
    - 小程序客户端按需使用 `wx.cloud.database()`、`wx.cloud.callFunction()`、`wx.cloud.uploadFile()`。
    - 不要在小程序中使用 Web SDK 认证模式。
-   - 可用时通过 `envQuery` 获取环境 ID。
+   - 可用时通过 `queryEnv` 获取环境 ID。
 
 4. **选择正确的云执行面**
    - **微信云开发 = CloudBase × 微信。** Nightly 开发者工具 Skills 可用时，日常小程序云操作（环境列表、NoSQL、云函数、云存储）优先用 `wechatide` / `cloudbase-operator` + 微信登录。见 [devtools-debug-preview.md](devtools-debug-preview.md) 与 [wxide-vs-cloudbase-mcp.md](wxide-vs-cloudbase-mcp.md)。
@@ -70,7 +70,7 @@ App({
 
 ### 规则
 
-- 可用时始终通过 `envQuery` 获取环境 ID。
+- 可用时始终通过 `queryEnv` 获取环境 ID。
 - 优先在应用级初始化一次，避免在页面级反复初始化。
 - 除非有明确理由，使用 `traceUser: true`，以便 CloudBase 将请求与当前微信用户关联。
 
@@ -117,7 +117,7 @@ exports.main = async () => {
 ## 4. 环境选择
 
 - 不要硬编码随意的环境 ID。
-- 优先从 `envQuery` 等工具获取环境 ID。
+- 优先从 `queryEnv` 等工具获取环境 ID。
 - 通常在 `app.js` / `app.ts` 中初始化一次 CloudBase。
 
 ## 5. 微信开发者工具与项目形态

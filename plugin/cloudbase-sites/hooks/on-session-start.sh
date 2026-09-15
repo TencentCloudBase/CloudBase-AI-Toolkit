@@ -97,7 +97,7 @@ you must not bypass them.
    daemonization, version metadata, and deploy history.
 
 5. **Data persistence: BaaS-first via Web SDK + MCP-managed schema — detect the env type FIRST.** Before any
-   data-layer work, call cloudbase-mcp `envQuery(action="info")` and branch on
+   data-layer work, call cloudbase-mcp `queryEnv(action="info")` and branch on
    the detected database backend:
    - **PostgreSQL env** (`RuntimeBackends.postgresql === true`): schema via
      versioned migrations `managePgDatabase(action="applyMigration", ...)`;
@@ -111,7 +111,7 @@ you must not bypass them.
      patterns, fetch the no-sql-web-sdk skill via
      `searchKnowledgeBase(mode=skill, skillName="no-sql-web-sdk")`.
    - Do NOT guess from the skill catalog — the catalog contains BOTH paths;
-     only `envQuery` tells a PG env from a NoSQL env. Loading no-sql-web-sdk
+     only `queryEnv` tells a PG env from a NoSQL env. Loading no-sql-web-sdk
      for a PG environment wastes the whole data-layer plan.
    - **Reads/writes (both env types):** use `@cloudbase/js-sdk` directly from
      the React/Vue code — PG: `app.rdb().from(...)`; NoSQL:
@@ -201,7 +201,7 @@ all skills with their descriptions.
 ### Pre-flight you may need
 
 If `manageApps` deploy fails with "no envId" or env-related error, call MCP
-`envQuery({ action: "info" })` once. If the user has multiple envs, ask them
+`queryEnv({ action: "info" })` once. If the user has multiple envs, ask them
 to pick. After binding, retry the deploy.
 
 For full contract see `skills/cloudbase-sites-runtime/SKILL.md`.'

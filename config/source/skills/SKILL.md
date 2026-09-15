@@ -76,7 +76,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 - **Deployment Gate**: Before any deployment, publish, custom domain, CloudRun, or public exposure work, you must complete the checks in `cloudbase-platform/references/protocols/deployment-gate.md` and present the mandatory declaration template.
 - If the same path fails 2-3 times, stop retrying and reroute. Check platform skill, auth domain, runtime, and permission model before editing more code.
 - Always specify `EnvId` explicitly in code, configuration, and command examples when initializing CloudBase clients or manager operations. Do not rely on the current CLI-selected environment or implicit defaults.
-- If the conversation only provides an environment alias, nickname, or other shorthand, resolve it with `envQuery(action=list, alias=..., aliasExact=true)` and use the returned canonical full `EnvId` before calling `auth.set_env`, generating console links, or writing config/code. If the alias is ambiguous or missing, stop and ask the user to confirm.
+- If the conversation only provides an environment alias, nickname, or other shorthand, resolve it with `queryEnv(action=list, alias=..., aliasExact=true)` and use the returned canonical full `EnvId` before calling `auth.set_env`, generating console links, or writing config/code. If the alias is ambiguous or missing, stop and ask the user to confirm.
 
 ### Do NOT use this as
 
@@ -86,7 +86,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 ## Working rules
 
 1. **BaaS-first, functions as last resort**:
-   - For 最小前后端 / Lovable-like demos, route first to `./minimal-web-baas-demo/SKILL.md`. Order: connector ready → template warmup during credential wait → `envQuery` → lock one DB → MCP schema → `@cloudbase/js-sdk` CRUD → preview. Default cloud function count = 0.
+   - For 最小前后端 / Lovable-like demos, route first to `./minimal-web-baas-demo/SKILL.md`. Order: connector ready → template warmup during credential wait → `queryEnv` → lock one DB → MCP schema → `@cloudbase/js-sdk` CRUD → preview. Default cloud function count = 0.
    - Before writing any cloud function or CloudRun service, ask: can the correct JS SDK surface handle this directly? Use `db.collection(...).get()` only for confirmed NoSQL collections; use `app.rdb().from(...)` for CloudBase PG tables; use `auth` / `storage` from the matching skill.
    - Use the matching JS SDK surface directly for: data reads/writes, file uploads, real-time updates, simple queries including leaderboards, lists, aggregations.
    - Only drop down to cloud functions when: the logic requires server-side permission enforcement that cannot be expressed in database rules/RLS, calling third-party services (payment, SMS, external APIs), or background jobs not triggered by the user.
@@ -109,7 +109,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
    - For CloudBase PG, use `queryPgDatabase` / `managePgDatabase` for schema and management; do not route PG work to MySQL `queryMysqlDatabase` / `manageMysqlDatabase` or NoSQL collection APIs.
    - For OpenAPI lookup, call `searchKnowledgeBase({ mode: "openapi", apiName: "mysqldb" })` directly. Do not pass guessed `action` values such as `getApiDocs` or `listEndpoints`; those belong to no supported tool mode.
    - For CloudBase PG Web CRUD, prefer JS SDK v3 `app.rdb()` and documented storage `app.storage.from()` APIs before raw HTTP.
-   - For browser-side CloudBase storage upload from local Vite/preview, check the actual browser `host:port` in security domains first (`envQuery(action="domains")`, then `envDomainManagement(action="create")` if missing). A failed cover upload must not silently skip the subsequent PG article insert.
+   - For browser-side CloudBase storage upload from local Vite/preview, check the actual browser `host:port` in security domains first (`queryEnv(action="domains")`, then `envDomainManagement(action="create")` if missing). A failed cover upload must not silently skip the subsequent PG article insert.
    - For CloudBase Web SDK `db.collection(...).add(...)`, persist the created document ID from `result._id`.
    - For writes, validate the actual SDK result instead of assuming success.
    - **Legacy API STOP card:** If the task says `PostgreSQL`, `CloudBase PG`, `PG mode`, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, `PostgREST`, or `RLS`, do not write NoSQL examples from memory. Use `app.rdb().from(...)` for Web CRUD, `queryPgDatabase` / `managePgDatabase` for management, and `auth.getSession()` for Web auth guards. Do not use `app.database()`, `db.collection(...)`, `.where()`, `.orderBy()`, `app.uploadFile()`, `getLoginState()`, or `auth.getUser()` as the PG/auth default.

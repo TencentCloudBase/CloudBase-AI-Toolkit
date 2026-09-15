@@ -49,7 +49,7 @@ export const SITE_REGION_MAP: Record<SiteId, SiteDefinition> = {
 
 export const SITE_IDS = Object.keys(SITE_REGION_MAP) as SiteId[];
 
-/** Regions accepted by envQuery(list) / cross-region DescribeEnvs probes. */
+/** Regions accepted by queryEnv(list) / cross-region DescribeEnvs probes. */
 export const TCB_QUERY_REGIONS = [
   "ap-shanghai",
   "ap-guangzhou",

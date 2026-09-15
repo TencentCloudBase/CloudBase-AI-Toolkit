@@ -14,20 +14,20 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 
 - [`auth`](#auth)
 
-### 其他
+### 环境管理
 
 - [`queryEnv`](#queryenv)
+- [`envQuery`](#envquery)
+- [`envDomainManagement`](#envdomainmanagement)
+
+### 其他
+
 - [`manageEnv`](#manageenv)
 - [`deployBuild`](#deploybuild)
 - [`deployPlan`](#deployplan)
 - [`deployApply`](#deployapply)
 - [`queryApps`](#queryapps)
 - [`manageApps`](#manageapps)
-
-### 环境管理
-
-- [`envQuery`](#envquery)
-- [`envDomainManagement`](#envdomainmanagement)
 
 ### NoSQL 数据库
 
@@ -2161,7 +2161,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 
       返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。
 
-      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 30 个，API 共 8 个）。
+      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 31 个，API 共 7 个）。
 
       注意：OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。
 
@@ -2178,12 +2178,12 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "skillName",
       type: "string",
-      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
+      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-best-practices-cloudbase", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
     },
     {
       name: "apiName",
       type: "string",
-      description: `mode=openapi 时指定。API 名称。 可填写的值: "mysqldb", "pgdb", "functions", "auth", "cloudrun", "storage", "nosql", "ai_model"`,
+      description: `mode=openapi 时指定。API 名称。 可填写的值: "mysqldb", "pgdb", "functions", "auth", "cloudrun", "storage", "ai_model"`,
     },
     {
       name: "action",
@@ -3223,7 +3223,7 @@ action=deployApp 上传源码 ZIP 并触发远端构建部署管道：
 - 列出旧网关策略：`action="listPolicy"`（PG / OPA 引擎环境返回空列表，与 CLI 一致）
 - 读取用户 Rego：`action="getPolicy"`；平台扩展策略：`action="getPolicy", extension=true`
 
-📌 跨后端边界提示：调用前先用 `envQuery(action="info", envId=...)` 看 `EnvInfo.RuntimeBackends`。`resourceType="noSqlDatabase"` 查询的是 CloudBase NoSQL 集合规则，与 CloudBase PostgreSQL（PG）表的行级安全（RLS）是两套独立机制——同一个 PG 环境里 NoSQL 集合若仍在使用，对那些集合查询本工具结果**仍然有效**。要查 PG 表 RLS，请改用 `queryPgDatabase(action="sql", sql="SELECT * FROM pg_policies WHERE tablename=...")`。本工具不涉及 MySQL 权限。
+📌 跨后端边界提示：调用前先用 `queryEnv(action="info", envId=...)` 看 `EnvInfo.RuntimeBackends`。`resourceType="noSqlDatabase"` 查询的是 CloudBase NoSQL 集合规则，与 CloudBase PostgreSQL（PG）表的行级安全（RLS）是两套独立机制——同一个 PG 环境里 NoSQL 集合若仍在使用，对那些集合查询本工具结果**仍然有效**。要查 PG 表 RLS，请改用 `queryPgDatabase(action="sql", sql="SELECT * FROM pg_policies WHERE tablename=...")`。本工具不涉及 MySQL 权限。
 
 ⚠️ PostgreSQL 环境：平台 `DescribeResourcePermission` 对 PG 环境会直接拒绝。当 `resourceType="function"` 时，本工具会自动回退到 Manager SDK `describeEnvAuthzConfig`（与 CLI `tcb policy get` 一致，读取 `authz.user.rego`）。显式 OPA 策略请用 `listPolicy` / `getPolicy`。
 
@@ -3306,7 +3306,7 @@ action=deployApp 上传源码 ZIP 并触发远端构建部署管道：
 
 注意：`createUser` / `updateUser` 是环境侧应用用户管理能力，适合测试账号、管理员或预置用户，不应替代浏览器里的 Web SDK 注册表单；前端用户名密码注册应使用 `auth.signUp(\{ username, password \})`，登录应使用 `auth.signInWithPassword(\{ username, password \})`。直接在浏览器里用 `auth.signUp` 创建用户名密码用户取决于 SDK/provider 支持，使用前必须验证；不支持时应走后端或管理端边界，不能在浏览器暴露密钥。`securityRule` 的详细语义取决于 `resourceType`：`doc._openid`、`auth.openid`、查询条件子集校验，以及 `create` / `update` / `delete` JSON 模板仅适用于 `resourceType="noSqlDatabase"` 的文档数据库安全规则；配置 `function` 或 `storage` 时，请参考各自官方安全规则文档，而不是复用 NoSQL 模板。
 
-📌 跨后端边界提示：调用前先用 `envQuery(action="info", envId=...)` 看 `EnvInfo.RuntimeBackends`：
+📌 跨后端边界提示：调用前先用 `queryEnv(action="info", envId=...)` 看 `EnvInfo.RuntimeBackends`：
 - `resourceType="noSqlDatabase"` 仅作用于 CloudBase NoSQL 文档数据库的集合；CloudBase PostgreSQL（PG）表的行级权限**不**受它控制——PG 表请改用 RLS：`managePgDatabase(action="execute", confirm=true)` 跑 `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` 与 `CREATE POLICY ...`。同一个 PG 环境里如果还有 NoSQL 集合在用，对那些**集合**继续使用 `noSqlDatabase` 规则是正确的——不是"PG 环境就禁用本工具"。
 - `resourceType="storage"` 控制的是 NoSQL/COS 存储桶 ACL；PG 的 `pgstore` bucket 不在此 `resourceType` 覆盖范围内。
 - 本工具不涉及 MySQL；MySQL 数据库权限请走 MySQL 自身的 GRANT/REVOKE 语句（通过 `manageMysqlDatabase`）。
