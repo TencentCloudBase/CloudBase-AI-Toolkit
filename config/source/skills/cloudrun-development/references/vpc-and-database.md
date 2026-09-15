@@ -11,7 +11,7 @@ Official docs: [VPC configuration for CloudBase Run](https://docs.cloudbase.net/
 | 维度 | SDK / 网关路径（优先） | TCP 直连（兜底） |
 | --- | --- | --- |
 | 网络配置 | 无需 `VpcConf` | 必须绑定同 VPC + 安全组放行 DB 端口 |
-| 数据库凭证 | 环境内置，无需注入账号密码 | 需要生成 / 注入 / 轮换账号密码 |
+| 数据库凭证 | 环境内置，无需注入**数据库**账号密码（≠ 不需要凭证，见下方注） | 需要生成 / 注入 / 轮换账号密码 |
 | 典型故障 | 基本没有 | `ETIMEDOUT`、安全组拦截、密码错误、VPC 未挂载 |
 | 适用场景 | 新应用 / CloudBase 原生数据（PG、NoSQL、storage） | 迁移已有应用、SDK 不覆盖的能力（特定 SQL 方言、Redis 原生协议等） |
 
@@ -22,6 +22,8 @@ SDK 路径的具体形态：
 - 若新应用只需要这些数据面，还可考虑直接用 HTTP 云函数（内置 SDK、免 VPC），不上云托管容器
 
 仅当应用是经典 TCP 客户端（mysql2 / pg / Prisma / SQLAlchemy / WordPress / Ghost 等迁移场景）且改造为 SDK 的方案被否决时，才继续往下走 VPC 流程。
+
+> ⚠️ **「无需数据库账号密码」≠「无需凭证」。** SDK / 网关路径省掉的是数据库账号密码与 `VpcConf`，但服务实例调用 CloudBase 资源（PG `app.rdb()` / NoSQL / storage）仍要带 CloudBase 资源访问凭证：由 `manageAppAuth(action="createApiKey", keyType="api_key")` 签发，经 `serverConfig.EnvParams` 注入 `CLOUDBASE_APIKEY`，不要从本地客户端登录态里取。完整步骤见 `../../cloud-functions/references/http-function-credentials.md`。
 
 ## Critical distinction
 

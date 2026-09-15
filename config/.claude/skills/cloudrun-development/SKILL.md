@@ -33,6 +33,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - The prompt mentions `queryCloudRun`, `manageCloudRun`, Dockerfile, service domains, or public/private access.
 - The app depends on MySQL, PostgreSQL, Redis, or other VPC-private resources over TCP → **先做数据库访问方式决策（SDK/网关优先，见下方「数据库访问方式决策门」）**；确认必须 TCP 直连后 → also read `references/vpc-and-database.md`.
 - You are choosing between CloudRun and HTTP cloud functions for a stateless HTTP service.
+- The service calls CloudBase resources (PG `app.rdb()`, NoSQL, storage, functions) through an SDK → **先过「计算资源访问 CloudBase 的凭证决策门」**：凭证谁签发、怎么注入、怎么吊销，都必须在写代码之前定下来。
 - Container deploy fails (`deploy_failed`, Pod not ready, readiness/probe failed, third-party `imageUrl` won't stay up) → also read `references/image-deploy-troubleshooting.md` and follow the **Container deploy failure SOP** below. Do not start by raising `InitialDelaySeconds`.
 
 ### Then also read
@@ -42,6 +43,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Web authentication for browser callers -> `../auth-web-cloudbase/SKILL.md`
 - Existing app + TCP database networking -> `references/vpc-and-database.md`
 - Container image deploy failure / probe / `deploy_failed` -> `references/image-deploy-troubleshooting.md`
+- Service calls CloudBase resources through an SDK (credential source / injection / revocation) -> `../cloud-functions/references/http-function-credentials.md`
 
 ### Do NOT use for
 
@@ -52,7 +54,9 @@ If a referenced sibling skill file is missing from this environment, ask the use
 ### Common mistakes / gotchas
 
 - Choosing CloudRun when the request only needs a normal cloud function.
-- Forgetting to listen on the platform-provided `PORT`.
+- **Forgetting to listen on the platform-provided `PORT` in Container mode** — and its mirror image in Function mode: calling `app.listen()` there, where the framework already owns the port and the second bind dies with `EADDRINUSE`.
+- **Guessing the credential environment variable name.** `@cloudbase/node-sdk` reads `CLOUDBASE_APIKEY`; an invented name (for example `TCB_API_KEY`) is silently ignored and only shows up later as "no credentials at runtime".
+- **Copying a server credential out of the local client login state** (`auth.json`, `.cloudbase/`) and injecting it into a deployed service. Issue the key with `manageAppAuth(action="createApiKey", keyType="api_key")` instead, so it has an owner, a rotation path, and a `keyId` you can revoke. See `../cloud-functions/references/http-function-credentials.md`.
 - Treating CloudRun as stateful app hosting and storing important state on local disk.
 - Assuming local run is available for Container mode.
 - Opening public access by default when the scenario only needs private or mini-program internal access.
@@ -74,6 +78,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Confirm whether the service should be public, VPC-only, or mini-program internal (**ingress**).
 - If the app uses TCP databases/caches, resolve and set `VpcConf` (**egress / private network**) before deploy — see `references/vpc-and-database.md`.
 - Keep the service stateless and externalize durable data.
+- **Settle the credential path for every CloudBase SDK call before writing code** — a server API Key issued through `manageAppAuth(action="createApiKey")` and injected via `EnvParams`, never a key copied out of the local client login state.
 - Use absolute paths for every local project path.
 - Confirm handlers never echo `x-cloudbase-context`, full headers, or credential env vars; do not deploy httpbin-style reflectors.
 - For third-party images, complete the five-item docs checklist (Cmd / port / bind env / volume / health) before deploy.
@@ -121,6 +126,20 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 
 **决策动作：** 扫描到 `DATABASE_URL` / DB 依赖信号时，先停下来回答「这个数据访问能不能换成 SDK/网关」，再决定是否进入 VPC checklist——不要默认按 TCP 直连方案往下走。
 
+### 计算资源访问 CloudBase 的凭证决策门（部署前必答）
+
+> 核心原则：**SDK 路径免掉的是数据库账号密码，不是 CloudBase 资源访问凭证。** 服务代码要调 CloudBase 资源（PG `app.rdb()` / NoSQL / storage / functions）时，先把凭证来源定下来，再写代码、再部署。
+
+三件事必须先答：
+
+1. **谁签发** — CloudBase 服务端 API Key：`manageAppAuth(action="createApiKey", keyType="api_key", keyName="<service>-<env>")`，或 CLI `tcb env apikey create my-key -e env-xxx`。**不要**从本地客户端登录态（`auth.json` / `.cloudbase/`）里取一把来用。
+2. **怎么注入** — 经 `serverConfig.EnvParams` 注入 `CLOUDBASE_APIKEY`（`@cloudbase/node-sdk` 自动读取该变量；显式字段是 `accessKey`）。变量名以官方为准，不要自造。改环境变量时保留已有键值，不要整份覆盖。
+3. **怎么吊销** — 每个服务一把专用 key，记录 `keyName` 与轮换负责人；下线或轮换时 `manageAppAuth(action="deleteApiKey", keyId=...)` 并**重新部署**。轮换后旧实例里残留的副本不会报错，只会静默失效。
+
+不要假设云托管容器已自动带上可用的 CloudBase 凭证 —— 部署后用一次真实的 SDK 读取验证（验证两次以上，不要只看进程起没起来）。完整步骤、Manager SDK 的腾讯云密钥对路径、环境变量合并的安全写法见 `../cloud-functions/references/http-function-credentials.md`。
+
+`api_key` 是**环境级**凭证：可绕过 RLS，单环境签发数量有限。不要给每个服务灌同一把 —— 任一实例失陷即整环境失陷。
+
 ### When CloudRun is a better fit
 
 - Long connections: WebSocket, SSE, server push
@@ -136,7 +155,7 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 | Dimension | Function mode | Container mode |
 | --- | --- | --- |
 | Best for | Fast start, Node.js service patterns, built-in framework, Agent flows | Existing containers, arbitrary runtimes, custom system dependencies |
-| Port model | Framework-managed local mode, deployed service still follows platform rules | App must listen on injected `PORT` |
+| Port model | The function framework binds the platform port itself — **your code must not call `app.listen()`** | App must listen on the injected `PORT` |
 | Dockerfile | Not required | Required — but a Dockerfile alone does **not** mean CloudRun; first check whether the service needs long connections / custom runtime. Stateless HTTP services with a Dockerfile may fit HTTP cloud functions better. |
 | Local run through tools | Supported | Not supported |
 | Typical use | Streaming APIs, low-latency backend, Agent service | Custom language stack, migrated container app |
@@ -148,7 +167,8 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
    - Container mode -> use when Docker/custom runtime is a real requirement
 
 2. **Follow mandatory runtime rules**
-   - Listen on `PORT`
+   - Container mode: listen on the injected `PORT`. Function mode: the framework binds the port for you — **never** call `app.listen()`
+   - Settle the credential gate (who issues / how injected / how revoked) before writing any CloudBase SDK call
    - Keep the service stateless
    - Put durable data in DB/storage/cache
    - Keep dependencies and image size small
@@ -379,7 +399,7 @@ PID 1 往往是监督进程，不是 HTTP 应用。用两次日志找子进程�
 
 1. Prefer PRIVATE/VPC or mini-program internal **ingress** when possible.
 2. For TCP database access, always pair private DB URLs with `VpcConf` in the same VPC/region as the database.
-3. Use environment variables for secrets and per-environment configuration — **read them server-side only; never return them in HTTP responses**.
+3. Use environment variables for secrets and per-environment configuration — **read them server-side only; never return them in HTTP responses**. CloudBase API Keys come from `manageAppAuth(action="createApiKey")`, not from a local client login file.
 4. Verify configuration before and after deployment with `queryCloudRun(action="detail")`.
 5. Keep startup work small to reduce cold-start impact.
 6. For Agent scenarios, use the Agent SDK skill for protocol and adapter details instead of duplicating them here.
@@ -393,6 +413,7 @@ PID 1 往往是监督进程，不是 HTTP 应用。用两次日志找子进程�
 - **Local run failure** -> remember only Function mode is supported by local-run tools.
 - **Performance issues** -> reduce dependencies, optimize initialization, and tune minimum instances.
 - **DB / Redis connection failure after a successful deploy** -> almost always missing or wrong `VpcConf`, wrong private host, or security group. Follow `references/vpc-and-database.md` before rewriting application code.
+- **CloudBase SDK call fails inside the service with missing / invalid credentials** -> the credential gate above was skipped, or the variable name is not the official one. Issue a key with `manageAppAuth(action="createApiKey")`, inject it as `CLOUDBASE_APIKEY` through `EnvParams`, redeploy, then verify a real read. See `../cloud-functions/references/http-function-credentials.md`.
 
 ## Reference index
 

@@ -1,10 +1,15 @@
-# HTTP Function Credentials for CloudBase SDKs
+# Runtime Credentials for CloudBase SDKs
 
-Use this reference whenever an HTTP Function (managed runtime or Custom Image) calls CloudBase resources through `@cloudbase/node-sdk` or `@cloudbase/manager-node`.
+Use this reference whenever a **server-side compute resource** calls CloudBase resources through `@cloudbase/node-sdk` or `@cloudbase/manager-node`:
+
+- HTTP Functions (managed runtime or Custom Image)
+- CloudBase Run services, **Function mode** and **Container mode** both
+
+CloudRun containers do not automatically carry usable CloudBase credentials for this path — the same explicit credential gate below applies before deployment.
 
 ## Credential boundary
 
-> **STOP:** Do not assume that an HTTP Function can use CloudBase SDKs without explicit credentials.
+> **STOP:** Do not assume a server-side compute resource — HTTP Function or CloudRun service — can use CloudBase SDKs without explicit credentials.
 
 Event Functions can use the platform-provided runtime credential path. HTTP Functions must not depend on that default temporary credential injection: credential rotation can leave the process with invalid credentials and cause intermittent authorization failures.
 
@@ -12,9 +17,12 @@ Before deploying an HTTP Function that calls CloudBase SDKs:
 
 1. Identify which SDK the function uses.
 2. Select one supported explicit credential path below.
-3. Store credentials in function environment variables, never in source code.
-4. Read the existing function configuration, merge the credential variables, and update it with `manageFunctions(action="updateFunctionConfig")`.
-5. Verify one real SDK operation after deployment.
+3. Issue the credential through the platform API, never by copying a key out of a local client login state (`auth.json`, `.cloudbase/`). A key with no `keyName` has no owner, no rotation record, and no `keyId` to revoke.
+4. Store credentials in environment variables, never in source code.
+   - HTTP Function → read the current config, merge, then `manageFunctions(action="updateFunctionConfig")`.
+   - CloudRun service → merge into `serverConfig.EnvParams` via `manageCloudRun(action="deploy" | "updateConfig")`.
+5. Verify one real SDK operation after deployment, more than once.
+6. Record the key owner and the rotation/revocation path. Rotating a key invalidates the in-container copy silently, so redeploy after every rotation.
 
 ## `@cloudbase/node-sdk`
 
@@ -44,7 +52,10 @@ manageAppAuth({
 });
 ```
 
-Inject the returned key into the HTTP Function as `CLOUDBASE_APIKEY`. Do not print it, commit it, return it to a client, or put it in browser code.
+Inject the returned key as `CLOUDBASE_APIKEY`. Do not print it, commit it, return it to a client, or put it in browser code.
+
+- HTTP Function → `manageFunctions(action="updateFunctionConfig", ...)`
+- CloudRun service → `manageCloudRun(action="deploy" | "updateConfig", serverConfig={ "EnvParams": "{\"CLOUDBASE_APIKEY\":\"<key>\"}" })`, merging existing env keys instead of replacing the whole object
 
 Use a dedicated key name for each service and define a rotation/revocation owner. `expireIn: 0` avoids automatic expiry but creates a long-lived secret, so use it only when the deployment's secret-rotation process is explicit.
 

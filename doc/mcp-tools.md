@@ -2442,7 +2442,7 @@ API名：ai_model API介绍：AI 大模型接入 API - 统一 AI 模型 HTTP API
         {
           name: "Port",
           type: "number",
-          description: `服务监听端口配置。函数型服务固定为3000，容器型服务可自定义。服务代码必须监听此端口才能正常接收请求`,
+          description: `服务监听端口配置。函数型服务固定为3000（函数框架自身监听该端口，业务代码不要自行 app.listen）；容器型服务可自定义，业务代码必须监听此端口`,
         },
         {
           name: "EnvParams",

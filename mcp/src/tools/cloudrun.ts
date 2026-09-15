@@ -124,7 +124,7 @@ const ManageCloudRunInputSchema = {
       PolicyThreshold: z.number().min(1).max(100).describe('扩缩容阈值，单位为百分比。如60表示当资源使用率达到60%时触发扩缩容')
     })).optional().describe('扩缩容配置数组，用于配置服务的自动扩缩容策略。可配置多个扩缩容策略'),
     CustomLogs: z.string().optional().describe('自定义日志配置，用于配置服务的日志收集和存储策略'),
-    Port: z.number().min(1).max(65535).optional().describe('服务监听端口配置。函数型服务固定为3000，容器型服务可自定义。服务代码必须监听此端口才能正常接收请求'),
+    Port: z.number().min(1).max(65535).optional().describe('服务监听端口配置。函数型服务固定为3000（函数框架自身监听该端口，业务代码不要自行 app.listen）；容器型服务可自定义，业务代码必须监听此端口'),
     EnvParams: z.string().optional().describe('环境变量配置，JSON字符串格式。用于传递配置信息给服务代码，如\'{"DATABASE_URL":"postgres://user:pass@10.x.x.x:5432/db","NODE_ENV":"production"}\'。SDK v5.6.1+ 会自动对传入的环境变量进行 AES-256-CBC 加密传输。⚠️ 若 EnvParams 含 DATABASE_URL / MYSQL_* / POSTGRES_* / REDIS_* 等传统 TCP 连库变量，必须同时配置 VpcConf，否则实例通常无法访问 VPC 内数据库'),
     Dockerfile: z.string().optional().describe('Dockerfile文件名配置，仅容器型服务需要。指定用于构建容器镜像的Dockerfile文件路径，默认为项目根目录下的Dockerfile'),
     BuildDir: z.string().optional().describe('构建目录配置，指定代码构建的目录路径。当代码结构与标准不同时使用，默认为项目根目录'),
