@@ -42,7 +42,7 @@ CREATE POLICY orders_read_own ON public.orders
   USING ((SELECT auth.uid()) = owner_id);
 ```
 
-CloudBase `auth.uid()` returns `text`; keep owner identifiers as `text` or `varchar` unless the actual identity contract guarantees UUID values. Wrapping stable auth helpers in `SELECT` lets PostgreSQL initialize the value once instead of evaluating it for every row.
+CloudBase `auth.uid()` returns `text`; keep owner identifiers as `varchar(64)` or `text`. Do not default owner columns to `uuid`. Wrapping stable auth helpers in `SELECT` lets PostgreSQL initialize the value once instead of evaluating it for every row. Table access still needs `GRANT` plus RLS; copy the grant sequence from `../postgresql-development-cloudbase/references/auth-and-rls.md`.
 
 For updates, use both predicates:
 
@@ -53,13 +53,13 @@ CREATE POLICY orders_update_own ON public.orders
   WITH CHECK ((SELECT auth.uid()) = owner_id);
 ```
 
-`TO authenticated` includes any authenticated session. When anonymous sign-in is enabled and permanent accounts require different access, add a tested JWT claim predicate; role gating alone does not distinguish those users.
+`TO authenticated` includes any session that maps to that role, including anonymous sign-in. Do not copy a Supabase claim name from memory. Inspect `auth.jwt()` in this environment, or store a durable role in a `profiles` / `user_roles` table keyed by `auth.uid()`.
 
 ## Multi-tenant default
 
 Use shared tables with an explicit `tenant_id` plus RLS when tenants share the same schema and lifecycle. Include `tenant_id` in unique constraints and leading index columns for tenant-scoped queries.
 
-Choose schema-per-tenant or database-per-tenant only when regulatory isolation, independent lifecycle, or noisy-neighbor constraints justify the operational cost. Do not create one table per user.
+CloudBase PG is one database per environment. Do not plan a second database or a provisioned schema-per-tenant fleet. Isolate tenants with `tenant_id` plus RLS. Do not create one table per user.
 
 ## Migration discipline
 

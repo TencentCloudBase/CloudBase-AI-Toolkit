@@ -4,7 +4,7 @@ Read this reference for burst traffic, launch readiness, or database sizing. Clo
 
 ## Inspect before a launch
 
-Call `queryEnv(action="info", envId=...)` and record the PostgreSQL allocation exposed by the environment response. Pair it with explicit workload assumptions:
+Call `envQuery(action="info", envId=...)` and record the PostgreSQL allocation exposed by the environment response. Pair it with explicit workload assumptions:
 
 - peak requests per second and burst duration;
 - database operations per request after batching;
@@ -29,7 +29,7 @@ This is a planning estimate, not a capacity guarantee. Reduce round trips before
 
 ## Prefer the SDK path; do not invent a TCP pool
 
-CloudBase PG traffic from Web, Mini Program, cloud functions, and CloudRun should go through `app.rdb()` (or the documented PG HTTP API). That path is an HTTP request to the CloudBase gateway. The platform owns database sessions behind the gateway. Application code does not open `pg.Pool`, does not hold `DATABASE_URL`, and cannot tune `max_connections` from the SDK.
+CloudBase PG traffic from Web, cloud functions, and CloudRun should go through the existing `app.rdb()` client (or the documented PG HTTP API). That path is an HTTP request to the CloudBase gateway. The platform owns database sessions behind the gateway. Application code does not open `pg.Pool`, does not hold `DATABASE_URL`, and cannot tune `max_connections` from the SDK. Do not add a second `cloudbase.init` in this skill; reuse the client from `../postgresql-development-cloudbase/SKILL.md`.
 
 What still belongs to the application:
 
@@ -37,20 +37,15 @@ What still belongs to the application:
 - bounded result sets;
 - observed instance size versus stated peak QPS.
 
-Reuse one SDK app instance at module scope so credential and client setup are not repeated. That is not a PostgreSQL connection pool.
+Reuse one SDK `app` / `db` at module scope so credential and client setup are not repeated. That is not a PostgreSQL connection pool. The documented single-row helper is `.single()`, not `.maybeSingle()`.
 
 ```ts
-import cloudbase from "@cloudbase/js-sdk";
-
-const app = cloudbase.init({ env: process.env.CLOUDBASE_ENV_ID! });
-export const db = app.rdb();
-
 export async function loadOrder(id: string) {
   const { data, error } = await db
     .from("orders")
     .select("id, status")
     .eq("id", id)
-    .maybeSingle();
+    .single();
   if (error) throw error;
   return data;
 }

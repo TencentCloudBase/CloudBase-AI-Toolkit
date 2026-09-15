@@ -4,7 +4,7 @@ Read this reference when a query or RPC is slow, or when a changed access path n
 
 ## Index observed access paths
 
-PostgreSQL automatically indexes primary and unique keys. It does not automatically index referencing foreign-key columns. Add indexes for frequent filters, joins, and stable ordering paths.
+PostgreSQL automatically indexes primary and unique keys. It does not automatically index referencing foreign-key columns. Add indexes for frequent filters, joins, and stable ordering paths. The SQL below is for migrations and `EXPLAIN`; substitute literals. Application reads still go through `app.rdb()`.
 
 **Incorrect**
 
@@ -39,18 +39,19 @@ WHERE created_at >= $1 AND created_at < $1 + INTERVAL '1 day'
 
 ## Explain before changing
 
-Use `queryPgDatabase(action="sql", sql="EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ...")` only with safe, read-only SQL and representative parameters. `ANALYZE` executes the statement; use plain `EXPLAIN` for writes or any statement with side effects.
+Use `queryPgDatabase(action="sql")` with `EXPLAIN (BUFFERS, FORMAT TEXT)` and representative literals. That action only accepts read-only SQL. The read-only gate treats the token `ANALYZE` as mutating, so `EXPLAIN ANALYZE` is rejected — do not send it through `queryPgDatabase`.
+
+Plain `EXPLAIN` estimates a plan; it does not prove runtime cost. After an index lands, compare scan type, row estimates, and buffer reads on the same `EXPLAIN` text. If actual timings are required, state that the management SQL path cannot run `EXPLAIN ANALYZE` and do not invent a TCP `psql` session.
 
 Record:
 
-- actual time and returned rows;
-- estimated rows versus actual rows;
+- estimated rows;
 - sequential scans on large relations;
-- loops greater than one on expensive child nodes;
-- sort/hash spill indicators and buffer reads;
+- sort or hash nodes;
+- buffer reads;
 - the dominant node, not merely the highest estimated cost.
 
-After changing SQL or adding an index through `applyMigration`, run the same plan again and compare actual execution time, row estimates, buffers, and scan type. A plan change without measured improvement is not completion.
+After changing SQL or adding an index through `applyMigration`, run the same `EXPLAIN` again and compare scan type, row estimates, and buffers. A plan change without a better scan or estimate is not completion.
 
 ## Stored procedures and RPCs
 
