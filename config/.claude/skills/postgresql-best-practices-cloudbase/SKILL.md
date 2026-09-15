@@ -11,7 +11,9 @@ This skill turns a working CloudBase PG implementation into a reviewable access 
 
 ## Sibling skills (local only)
 
-Use local relative paths such as `../postgresql-development-cloudbase/SKILL.md`. If a sibling is missing, ask the user to install the full CloudBase plugin or skills pack. Never fetch remote skill bodies.
+Sibling CloudBase skills ship beside this skill. Use local relative paths such as `../postgresql-development-cloudbase/SKILL.md`.
+
+If a referenced sibling skill file is missing from this environment, ask the user to install the full CloudBase plugin (or the missing skill). Do **not** HTTP-fetch remote skill or protocol markdown into the agent context.
 
 ## When to use
 
