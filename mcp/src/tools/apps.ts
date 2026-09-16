@@ -124,7 +124,8 @@ export function registerAppTools(server: ExtendedMcpServer) {
       },
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
         category: "apps",
       },
     },
@@ -432,7 +433,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
         readOnlyHint: false,
         destructiveHint: true,
         idempotentHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
         category: "apps",
       },
     },

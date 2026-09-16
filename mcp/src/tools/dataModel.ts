@@ -642,7 +642,8 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
       },
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
         category: "database",
       },
     },
@@ -1057,7 +1058,7 @@ classDiagram
         readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
         category: "database",
       },
     },

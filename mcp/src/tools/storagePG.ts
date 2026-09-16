@@ -279,7 +279,8 @@ export function registerPGStorageTools(server: ExtendedMcpServer) {
       },
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
         category: CATEGORY,
       },
     },

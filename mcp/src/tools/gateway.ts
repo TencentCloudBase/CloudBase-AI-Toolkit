@@ -1618,7 +1618,8 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
       },
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
         category: "gateway",
       },
     },
@@ -1774,7 +1775,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
         readOnlyHint: false,
         destructiveHint: true,
         idempotentHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
         category: "gateway",
       },
     },

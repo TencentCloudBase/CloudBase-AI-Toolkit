@@ -93,7 +93,8 @@ export function registerLogTools(server: ExtendedMcpServer) {
       },
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
         category: "logs",
       },
     },

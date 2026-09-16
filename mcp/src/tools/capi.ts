@@ -484,7 +484,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                 readOnlyHint: false,
                 destructiveHint: true,
                 idempotentHint: false,
-                openWorldHint: true,
+                openWorldHint: false,
                 category: CATEGORY,
             },
         },

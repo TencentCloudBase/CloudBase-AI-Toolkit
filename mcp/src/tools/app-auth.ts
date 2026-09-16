@@ -444,7 +444,8 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
       },
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
         category: "auth",
       },
     },
@@ -613,7 +614,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
         readOnlyHint: false,
         destructiveHint: true,
         idempotentHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
         category: "auth",
       },
     },

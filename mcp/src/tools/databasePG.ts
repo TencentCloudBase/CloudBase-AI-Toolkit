@@ -3333,7 +3333,8 @@ export function registerPGDatabaseTools(
       },
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
         category: CATEGORY,
       },
     },
@@ -3522,7 +3523,7 @@ export function registerPGDatabaseTools(
         readOnlyHint: false,
         destructiveHint: true,
         idempotentHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
         category: CATEGORY,
       },
     },

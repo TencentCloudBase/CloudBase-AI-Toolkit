@@ -642,7 +642,8 @@ export function registerHostingTools(server: ExtendedMcpServer) {
       inputSchema: queryHostingInputSchema,
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
         category: 'hosting',
       },
     },
@@ -818,7 +819,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         readOnlyHint: false,
         destructiveHint: true,
         idempotentHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
         category: 'hosting',
       },
     },

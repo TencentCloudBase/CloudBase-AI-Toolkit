@@ -346,7 +346,8 @@ export function registerDeployTools(server: ExtendedMcpServer) {
       annotations: {
         // 本地构建会执行 buildCommand 并写产物文件，不是 read-only；但不变更云端资源，非 destructive。
         readOnlyHint: false,
-        openWorldHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
         category: "deploy",
       },
     },
@@ -441,7 +442,8 @@ export function registerDeployTools(server: ExtendedMcpServer) {
       },
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
         category: "deploy",
       },
     },
@@ -553,7 +555,7 @@ export function registerDeployTools(server: ExtendedMcpServer) {
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
-        openWorldHint: true,
+        openWorldHint: false,
         category: "deploy",
       },
     },

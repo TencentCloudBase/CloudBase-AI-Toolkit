@@ -144,7 +144,8 @@ export function registerStorageTools(server: ExtendedMcpServer) {
       inputSchema: queryStorageInputSchema,
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
         category: "storage"
       }
     },
@@ -336,7 +337,7 @@ export function registerStorageTools(server: ExtendedMcpServer) {
         readOnlyHint: false,
         destructiveHint: true,
         idempotentHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
         category: "storage"
       }
     },

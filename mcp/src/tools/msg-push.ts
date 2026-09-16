@@ -684,7 +684,8 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
       },
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
         category: CATEGORY,
       },
     },
@@ -855,7 +856,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
         readOnlyHint: false,
         destructiveHint: true,
         idempotentHint: true,
-        openWorldHint: true,
+        openWorldHint: false,
         category: CATEGORY,
       },
     },

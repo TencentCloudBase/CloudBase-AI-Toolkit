@@ -1192,7 +1192,8 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
       inputSchema: queryCloudRunInputSchema,
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
         category: "cloudrun"
       }
     },
@@ -1708,7 +1709,7 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
         readOnlyHint: false,
         destructiveHint: true,
         idempotentHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
         category: "cloudrun"
       }
     },
