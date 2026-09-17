@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-09-15 03:25:54
+最近更新时间：2026-09-17 02:52:49
 
 -   微信扫一扫 
 -   QQ
@@ -25,11 +25,11 @@ _我的收藏_
 -   [文档型云数据库相关接口](#.E6.96.87.E6.A1.A3.E5.9E.8B.E4.BA.91.E6.95.B0.E6.8D.AE.E5.BA.93.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "文档型云数据库相关接口")
 -   [静态托管相关接口](#.E9.9D.99.E6.80.81.E6.89.98.E7.AE.A1.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "静态托管相关接口")
 -   [AI模型相关接口](#AI.E6.A8.A1.E5.9E.8B.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "AI模型相关接口")
--   [tcb相关接口](#tcb.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "tcb相关接口")
--   [搜索日志相关接口](#.E6.90.9C.E7.B4.A2.E6.97.A5.E5.BF.97.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "搜索日志相关接口")
+-   [日志监控相关接口](#.E6.97.A5.E5.BF.97.E7.9B.91.E6.8E.A7.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "日志监控相关接口")
 -   [SQL型云数据库相关接口](#SQL.E5.9E.8B.E4.BA.91.E6.95.B0.E6.8D.AE.E5.BA.93.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "SQL型云数据库相关接口")
--   [登录配置相关接口](#.E7.99.BB.E5.BD.95.E9.85.8D.E7.BD.AE.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "登录配置相关接口")
 -   [云函数相关接口](#.E4.BA.91.E5.87.BD.E6.95.B0.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "云函数相关接口")
+-   [tcb相关接口](#tcb.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "tcb相关接口")
+-   [管控相关接口](#.E7.AE.A1.E6.8E.A7.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "管控相关接口")
 
 ## 环境相关接口
 
@@ -60,6 +60,7 @@ _我的收藏_
 | [AllocateEnv](/document/api/876/131594) | 从环境池分配环境 | 3000 |
 | [ReleaseEnv](/document/api/876/131592) | 释放从环境池里分配的环境 | 1000 |
 | [AssumeRoleForAllocatedEnv](/document/api/876/131593) | 为环境池里的环境申请角色临时凭证 | 1000 |
+| [DescribePlatformAccountCircle](/document/api/876/138296) | 查询平台版资源计费周期 | 20 |
 | [ModifyEnvExtra](/document/api/876/137192) | 修改环境额外配置 | 20 |
 
 ## 用户权限相关接口
@@ -72,6 +73,18 @@ _我的收藏_
 | [ModifyUser](/document/api/876/127958) | 更新tcb用户 | 20 |
 | [DescribeResourcePermission](/document/api/876/132256) | 查询资源基础权限 | 20 |
 | [ModifyResourcePermission](/document/api/876/132255) | 修改资源基础权限 | 20 |
+| [CreateCustomLoginKey](/document/api/876/130046) | 自定义登录密钥生成 | 20 |
+| [DescribeClient](/document/api/876/129355) | 查询应用客户端详情 | 20 |
+| [ModifyLoginConfig](/document/api/876/129351) | 修改登录策略 | 20 |
+| [DescribeLoginConfig](/document/api/876/129354) | 获取登录策略 | 20 |
+| [ModifyClient](/document/api/876/129352) | 修改应用客户端 | 20 |
+| [GetProviders](/document/api/876/129353) | 获取三方认证源列表 | 20 |
+| [ModifyProvider](/document/api/876/129350) | 修改第三方认证源 | 20 |
+| [DeleteProvider](/document/api/876/129356) | 删除第三方认证源 | 20 |
+| [AddProvider](/document/api/876/129357) | 添加第三方认证源 | 20 |
+| [CreateApiKey](/document/api/876/129835) | 创建云开发平台的API Key | 20 |
+| [DeleteApiKey](/document/api/876/129834) | 删除云开发平台的API Key | 20 |
+| [DescribeApiKeyList](/document/api/876/129833) | 查询云开发平台的API Key列表 | 20 |
 
 ## HTTP网关相关接口
 
@@ -151,13 +164,7 @@ _我的收藏_
 | [DescribeManagedAIModelList](/document/api/876/131317) | 查询托管类型AI模型列表 | 20 |
 | [UpdateAIModel](/document/api/876/131316) | 更新AI模型 | 20 |
 
-## tcb相关接口
-
-| 接口名称 | 接口功能 | 频率限制（次/秒） |
-| --- | --- | --- |
-| [UpdateFunctionCode](/document/api/876/137952) | 更新云函数代码 | 20 |
-
-## 搜索日志相关接口
+## 日志监控相关接口
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
@@ -182,23 +189,6 @@ _我的收藏_
 | [ExecutePGSql](/document/api/876/130469) | 在PostgreSQL数据库上执行SQL查询 | 20 |
 | [ModifyPGInstanceSpec](/document/api/876/137349) | 修改 PG 独享实例规格 | 20 |
 
-## 登录配置相关接口
-
-| 接口名称 | 接口功能 | 频率限制（次/秒） |
-| --- | --- | --- |
-| [CreateCustomLoginKey](/document/api/876/130046) | 自定义登录密钥生成 | 20 |
-| [DescribeClient](/document/api/876/129355) | 查询应用客户端详情 | 20 |
-| [ModifyLoginConfig](/document/api/876/129351) | 修改登录策略 | 20 |
-| [DescribeLoginConfig](/document/api/876/129354) | 获取登录策略 | 20 |
-| [ModifyClient](/document/api/876/129352) | 修改应用客户端 | 20 |
-| [GetProviders](/document/api/876/129353) | 获取三方认证源列表 | 20 |
-| [ModifyProvider](/document/api/876/129350) | 修改第三方认证源 | 20 |
-| [DeleteProvider](/document/api/876/129356) | 删除第三方认证源 | 20 |
-| [AddProvider](/document/api/876/129357) | 添加第三方认证源 | 20 |
-| [CreateApiKey](/document/api/876/129835) | 创建云开发平台的API Key | 20 |
-| [DeleteApiKey](/document/api/876/129834) | 删除云开发平台的API Key | 20 |
-| [DescribeApiKeyList](/document/api/876/129833) | 查询云开发平台的API Key列表 | 20 |
-
 ## 云函数相关接口
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
@@ -209,6 +199,24 @@ _我的收藏_
 | [ListFunctions](/document/api/876/137947) | 获取函数列表 | 20 |
 | [GetFunction](/document/api/876/137948) | 获取云函数详情 | 20 |
 | [DownloadFunction](/document/api/876/137949) | 获取云函数地址并下载 | 20 |
+| [UpdateFunctionCode](/document/api/876/137952) | 更新云函数代码 | 20 |
+
+## tcb相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [DescribePlatformCreditsUsage](/document/api/876/138301) | 获取平台版资源点用量 | 20 |
+| [DescribePlatformCreditsUsageDetail](/document/api/876/138300) | 获取平台版资源点用量明细 | 20 |
+| [CreatePlatformEnv](/document/api/876/138302) | 创建平台版套餐环境 | 20 |
+| [DescribePlatformEnvUsage](/document/api/876/138299) | 查询平台版资源用量 | 20 |
+| [DescribePlatforms](/document/api/876/138298) | 查询平台版资源信息 | 20 |
+| [DestroyPlatformEnv](/document/api/876/138297) | 删除平台版环境 | 20 |
+
+## 管控相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [ModifyPlatformEnv](/document/api/876/138295) | 修改平台版环境信息 | 20 |
 
 > 注意：
 > 
