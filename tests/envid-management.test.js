@@ -181,7 +181,7 @@ describe('EnvId Management Tests', () => {
       expect(cloudrunCode).toMatch(/await getEnvId/);
     });
 
-    test('envQuery info should not append legacy guide prompt content', async () => {
+    test('queryEnv info should not append legacy guide prompt content', async () => {
       const fs = await import('fs');
       const path = await import('path');
       const { fileURLToPath } = await import('url');

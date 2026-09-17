@@ -3,21 +3,48 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import type { ExtendedMcpServer } from "../server.js";
-import { __resetPgReadyCache } from "./databasePG.js";
+import { t } from "../i18n/index.js";
+import { databasePG as databasePGDict } from "../i18n/locales/modules/databasePG.js";
+import {
+  __resetPgProvisionCache,
+  __resetPgReadyCache,
+} from "./databasePG.js";
 import { registerPGDatabaseTools } from "./databasePG.js";
 
 const {
   mockGetCloudBaseManager,
   mockCommonServiceCall,
+  mockQueryEnvRuntimeBackends,
 } = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
   mockCommonServiceCall: vi.fn(),
+  mockQueryEnvRuntimeBackends: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
   getCloudBaseManager: mockGetCloudBaseManager,
   getEnvId: vi.fn(async () => "env-test"),
 }));
+
+vi.mock("./env.js", () => ({
+  queryEnvRuntimeBackends: mockQueryEnvRuntimeBackends,
+}));
+
+function provisionedSnapshot(envId = "env-test") {
+  return {
+    envId,
+    runtimeMode: "postgresql" as const,
+    runtimeBackends: { postgresql: true, nosql: false, mysql: false },
+  };
+}
+
+function unprovisionedSnapshot(envId = "env-test") {
+  return {
+    envId,
+    runtimeMode: "nosql" as const,
+    runtimeBackends: { postgresql: false, nosql: true, mysql: false },
+  };
+}
 
 function buildToolPayload(result: any) {
   return JSON.parse(result.content[0].text);
@@ -61,8 +88,11 @@ function createFakeClient(
 describe("PG database tools", () => {
   beforeEach(() => {
     __resetPgReadyCache();
+    __resetPgProvisionCache();
     mockGetCloudBaseManager.mockReset();
     mockCommonServiceCall.mockReset();
+    mockQueryEnvRuntimeBackends.mockReset();
+    mockQueryEnvRuntimeBackends.mockResolvedValue(provisionedSnapshot());
   });
 
   it("registers PG tool names", () => {
@@ -114,6 +144,119 @@ describe("PG database tools", () => {
           role: "cloudbase_postgres",
         },
       },
+    });
+    expect(mockQueryEnvRuntimeBackends).toHaveBeenCalledWith(
+      server.cloudBaseOptions,
+      "env-test",
+    );
+  });
+
+  describe("PG provisioning gate", () => {
+    it("blocks queryPgDatabase(context) with PG_NOT_PROVISIONED when the env has no PG backend", async () => {
+      const { server, tools } = createMockServer();
+      const createClient = vi.fn();
+      mockQueryEnvRuntimeBackends.mockResolvedValue(unprovisionedSnapshot());
+      registerPGDatabaseTools(server, { createClient });
+
+      const payload = buildToolPayload(
+        await tools.queryPgDatabase.handler({ action: "context" }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "PG_NOT_PROVISIONED",
+        data: {
+          envId: "env-test",
+          runtimeMode: "nosql",
+          RuntimeBackends: { postgresql: false, nosql: true, mysql: false },
+        },
+      });
+      expect(payload.message).toBe(
+        t("databasePG.runtime.notProvisioned", { envId: "env-test" }),
+      );
+      expect(payload.nextActions).toEqual([
+        expect.objectContaining({
+          tool: "queryEnv",
+          action: "info",
+          suggested_args: { action: "info", envId: "env-test" },
+        }),
+      ]);
+      // Never suggest PG-only follow-ups, and never open a connection to probe.
+      expect(
+        payload.nextActions.some((step: { action: string }) =>
+          ["objects", "sql"].includes(step.action),
+        ),
+      ).toBe(false);
+      expect(createClient).not.toHaveBeenCalled();
+    });
+
+    it("blocks managePgDatabase actions before the ready probe when PG is not provisioned", async () => {
+      const { server, tools } = createMockServer();
+      const createClient = vi.fn();
+      mockQueryEnvRuntimeBackends.mockResolvedValue(unprovisionedSnapshot());
+      registerPGDatabaseTools(server, {
+        createClient,
+        readyCheckOptions: { maxAttempts: 2, retryDelayMs: 1 },
+      });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "execute",
+          sql: "INSERT INTO public.users(id) VALUES (1)",
+          confirm: true,
+        }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "PG_NOT_PROVISIONED",
+        data: { envId: "env-test", runtimeMode: "nosql" },
+      });
+      expect(createClient).not.toHaveBeenCalled();
+    });
+
+    it("caches the backend snapshot per env across calls", async () => {
+      const { server, tools } = createMockServer();
+      mockQueryEnvRuntimeBackends.mockResolvedValue(unprovisionedSnapshot());
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+
+      await tools.queryPgDatabase.handler({ action: "context" });
+      await tools.managePgDatabase.handler({ action: "dryRun", sql: "SELECT 1" });
+
+      expect(mockQueryEnvRuntimeBackends).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not block when environment info lookup fails", async () => {
+      const { server, tools } = createMockServer();
+      mockQueryEnvRuntimeBackends.mockRejectedValue(
+        new Error("DescribeEnvInfo failed"),
+      );
+      registerPGDatabaseTools(server, {
+        createClient: vi.fn(() =>
+          createFakeClient(async () => {
+            throw new Error("database is not available");
+          }),
+        ),
+        readyCheckOptions: { maxAttempts: 2, retryDelayMs: 1 },
+      });
+
+      // context still returns the derived context instead of a false block
+      const contextPayload = buildToolPayload(
+        await tools.queryPgDatabase.handler({ action: "context" }),
+      );
+      expect(contextPayload).toMatchObject({
+        success: true,
+        data: { context: { envId: "env-test" } },
+      });
+
+      // other actions keep falling through to the readiness probe
+      const objectsPayload = buildToolPayload(
+        await tools.queryPgDatabase.handler({ action: "objects", limit: 5 }),
+      );
+      expect(objectsPayload).toMatchObject({
+        success: false,
+        errorCode: "PG_NOT_READY",
+      });
     });
   });
 
@@ -624,20 +767,45 @@ describe("PG database tools", () => {
     });
   });
 
+  it("exposes schema descriptions as databasePG message keys in both languages", () => {
+    const { server, tools } = createMockServer();
+    registerPGDatabaseTools(server, { createClient: vi.fn() });
+
+    const zhDict = databasePGDict.zh as Record<string, string>;
+    const enDict = databasePGDict.en as Record<string, string>;
+
+    for (const toolName of ["queryPgDatabase", "managePgDatabase"]) {
+      const shape = tools[toolName].meta.inputSchema as Record<string, any>;
+      for (const [field, schema] of Object.entries(shape)) {
+        const description = String(schema.description);
+        expect(
+          description,
+          `${toolName}.${field} must carry a message key`,
+        ).toMatch(/^databasePG\.schema\./);
+        const key = description.slice("databasePG.".length);
+        expect(typeof zhDict[key]).toBe("string");
+        expect(typeof enDict[key]).toBe("string");
+      }
+    }
+  });
+
   it("managePgDatabase role schema description does not recommend postgres", () => {
     const { server, tools } = createMockServer();
     registerPGDatabaseTools(server, { createClient: vi.fn() });
 
     const roleSchema = tools.managePgDatabase.meta.inputSchema.role;
-    const description =
-      typeof roleSchema?.description === "string"
-        ? roleSchema.description
-        : String(roleSchema?.description ?? "");
+    // Schema descriptions carry message keys; the server localizes them on register.
+    expect(roleSchema?.description).toBe("databasePG.schema.manageRole");
+
+    const description = databasePGDict.zh["schema.manageRole"];
 
     expect(description).toContain("cloudbase_postgres");
     expect(description).toContain("平台保留角色（cloudbase_admin");
     expect(description).toContain("postgres_pgdb_*");
     expect(description).not.toMatch(/可传 postgres[^_]/);
+    expect(databasePGDict.en["schema.manageRole"]).toContain(
+      "cloudbase_postgres",
+    );
   });
 
   it("managePgDatabase(execute) allows schema DDL only with allowDdlViaExecute=true", async () => {

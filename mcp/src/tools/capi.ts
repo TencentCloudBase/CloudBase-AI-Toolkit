@@ -439,7 +439,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
             // key 时**不带插值参数**，而 {controlPlaneUrl}/{dependencyUrl} 只在错误路径
             // （下方 t("capi.errorBuild", …)）传入 → 描述里的占位符永远替换不了，
             // tools/list 在 zh 与 en 下都会吐字面 `{controlPlaneUrl}`。
-            // 因此这里按实例语言先解析成最终文案（与 env.ts 的 envQuery 别名同款处理）。
+            // Resolve the final text with the instance language so interpolation is preserved.
             description: t(
                 "capi.description",
                 {
@@ -452,33 +452,34 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                 service: z
                     .enum(ALLOWED_SERVICES)
                     .describe(
-                        `腾讯云产品标识，**取值只能来自本字段的 enum 白名单（共 ${ALLOWED_SERVICES.length} 个）**，决定请求域名 https://<service>.tencentcloudapi.com。名单外的取值一律拒绝，不要臆造；COS 不在云 API 体系内。产品名与 Action 对照见 skill cloud-api-operations。云托管统一走 tcbr。`,
+                        t(
+                            "capi.schema.service",
+                            { count: ALLOWED_SERVICES.length },
+                            server.lang,
+                        ),
                     ),
                 action: z
                     .string()
                     .min(1)
-                    .describe("具体 Action 名称，需符合对应服务的官方 API 定义。**不确定时先查官方文档，不要用近义词或历史命名猜测**（猜错会被服务端报成 action invalid，很难排查）。常用 Action 见 skill cloud-api-operations。"),
+                    .describe("capi.schema.action"),
                 version: z
                     .string()
                     .optional()
                     .describe(
-                        `API 版本（多数场景可省略）。白名单里**只有一个官方版本的产品会自动补齐**，不必传；` +
-                            `以下多版本产品必须显式传，缺省会报错并列出可选项：${MULTI_VERSION_SERVICES.join("、")}。` +
-                            `示例：service="tcbr", version="2022-02-17", action="CreateCloudRunEnv", params={EnvId:"env-xxx",PackageType:"Standard"}；` +
-                            `service="monitor" 需显式传 "2018-07-24"（告警策略族 Action 属于该版本）。`,
+                        t(
+                            "capi.schema.version",
+                            { services: MULTI_VERSION_SERVICES.join("、") },
+                            server.lang,
+                        ),
                     ),
                 params: z
                     .record(z.any())
                     .optional()
-                    .describe(
-                        "Action 对应的参数对象，键名与官方 API 定义一致，不确定时先查文档。**不要把 Region 放这里**，跨地域用顶层 region。CloudBase 业务 API 请优先用 searchKnowledgeBase(mode=\"openapi\")，不要用本工具。示例见 skill cloud-api-operations。",
-                    ),
+                    .describe("capi.schema.params"),
                 region: z
                     .string()
                     .optional()
-                    .describe(
-                        "云 API 地域（X-TC-Region），如 ap-shanghai。跨地域必须传此顶层参数，不要写进 params。⚠️ ap-singapore 同属国内站与国际站，未指定站点按国际站（site=intl）处理：要操作国内站该地域环境，先 auth(action=\"start_auth\", site=\"domestic\") 或设 TCB_SITE=domestic。",
-                    ),
+                    .describe("capi.schema.region"),
             },
             annotations: {
                 readOnlyHint: false,

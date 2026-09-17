@@ -142,6 +142,42 @@ export const msgPush = defineModule(
     changedUpdated: "更新 {count} 个",
     changedJoiner: "、",
     actionSuccess: "{action} 成功（{changedText}），version={version} → 服务端已更新",
+    "schema.queryAppid":
+      "小程序 AppID（必填，与微信开发者工具一致；用于选择微信登录态会话）",
+    "schema.queryEnv":
+      "可选：环境 ID；传入时 list 仅返回该环境的订阅条目",
+    "schema.queryAction":
+      "list: 查询当前消息推送配置列表（含 pushMode/containerConfig）\nlistSupportedEvents: 查询全部合法消息推送事件约束（按 msgType 分组）",
+    "schema.manageAppid":
+      "小程序 AppID（必填，与微信开发者工具一致；用于选择微信登录态会话）",
+    "schema.envId":
+      "环境 ID（云函数订阅绑定的云开发环境；ensureContainerMode/setContainerCallback 未传 qbase_env 时也可作为云托管环境默认值）",
+    "schema.functionName":
+      "接收消息推送的云函数名（subscribe/unsubscribe/setEnable/ensureCloudFunctionMode 使用；云托管相关 action 可传占位）",
+    "schema.manageAction":
+      "subscribe: 订阅到指定云函数（云托管模式下拒绝）\n" +
+      "unsubscribe: 移除匹配订阅（云托管模式下拒绝）\n" +
+      "setEnable: 启用/停用匹配订阅（云托管模式下拒绝）\n" +
+      "ensureCloudFunctionMode: 切到云函数推送模式（关闭 qbase_open）\n" +
+      "ensureContainerMode: 切到云托管整包接收（需 qbase_container_path + text_mode）\n" +
+      "setContainerCallback: 更新云托管回调 path/env/text_mode",
+    "schema.msgType":
+      '消息类型（缺省 "event"）。' +
+      '"event"：事件类条目，需配合 event_types（subscribe 可缺省=虚拟支付 7 事件）。' +
+      '"text"|"image"|"voice"|"video"|"miniprogrampage"：消息类型条目（event 固定空串），勿传 event_types。',
+    "schema.eventTypes":
+      "要操作的事件列表（仅 msg_type=\"event\" 时使用；可先 queryMessagePush(action=listSupportedEvents) 查询全量约束）。" +
+      "subscribe 缺省时默认订阅虚拟支付 7 个事件；unsubscribe / setEnable 且 msg_type=event 时必填。",
+    "schema.enable":
+      "setEnable 时必填：true 启用订阅 / false 停用订阅",
+    "schema.containerPath":
+      "云托管回调路径/URL（ensureContainerMode 必填；setContainerCallback 可选更新）",
+    "schema.containerEnv":
+      "云托管服务所在环境 ID（ensureContainerMode/setContainerCallback 可选；缺省用 env_id）",
+    "schema.textMode":
+      "云托管消息正文编码：1=json，2=xml（ensureContainerMode 必填；setContainerCallback 可选更新）",
+    "schema.confirm":
+      '写操作确认：确认执行请传 confirm="yes"；不传或传其他值将返回待确认的配置摘要（CONFIRM_REQUIRED），核对后再重试。集合无变化时无需确认。',
   },
   {
     queryTitle: "Query Mini Program message push config",
@@ -294,5 +330,41 @@ export const msgPush = defineModule(
     changedJoiner: ", ",
     actionSuccess:
       "{action} succeeded ({changedText}), version={version} → server updated",
+    "schema.queryAppid":
+      "Mini Program AppID (required; must match WeChat DevTools and is used to select the WeChat login-state session)",
+    "schema.queryEnv":
+      "Optional environment ID. When provided, list returns only subscriptions for that environment.",
+    "schema.queryAction":
+      "list: Query the current message push configuration (including pushMode/containerConfig)\nlistSupportedEvents: Query all supported message push event constraints (grouped by msgType)",
+    "schema.manageAppid":
+      "Mini Program AppID (required; must match WeChat DevTools and is used to select the WeChat login-state session)",
+    "schema.envId":
+      "Environment ID for the CloudBase environment bound to cloud function subscriptions. It is also the default CloudBase Run environment when ensureContainerMode/setContainerCallback omits qbase_env.",
+    "schema.functionName":
+      "Name of the cloud function that receives message pushes. Used by subscribe/unsubscribe/setEnable/ensureCloudFunctionMode; container-related actions may pass a placeholder.",
+    "schema.manageAction":
+      "subscribe: Subscribe a specified cloud function (rejected in container mode)\n" +
+      "unsubscribe: Remove matching subscriptions (rejected in container mode)\n" +
+      "setEnable: Enable or disable matching subscriptions (rejected in container mode)\n" +
+      "ensureCloudFunctionMode: Switch to cloud function push mode (disable qbase_open)\n" +
+      "ensureContainerMode: Switch to CloudBase Run whole-payload receive (requires qbase_container_path + text_mode)\n" +
+      "setContainerCallback: Update the CloudBase Run callback path/env/text_mode",
+    "schema.msgType":
+      'Message type (defaults to "event"). ' +
+      '"event": event entries used with event_types (subscribe may omit it to use the 7 virtual payment events). ' +
+      '"text"|"image"|"voice"|"video"|"miniprogrampage": message-type entries whose event is fixed to an empty string; do not pass event_types.',
+    "schema.eventTypes":
+      'Events to operate on (only when msg_type="event"; query all constraints first with queryMessagePush(action=listSupportedEvents)). ' +
+      "subscribe defaults to the 7 virtual payment events when omitted; it is required for unsubscribe / setEnable when msg_type=event.",
+    "schema.enable":
+      "Required for setEnable: true enables the subscription; false disables it.",
+    "schema.containerPath":
+      "CloudBase Run callback path/URL (required for ensureContainerMode; optional update for setContainerCallback)",
+    "schema.containerEnv":
+      "Environment ID hosting the CloudBase Run service (optional for ensureContainerMode/setContainerCallback; defaults to env_id)",
+    "schema.textMode":
+      "CloudBase Run message body encoding: 1=json, 2=xml (required for ensureContainerMode; optional update for setContainerCallback)",
+    "schema.confirm":
+      'Write confirmation. Pass confirm="yes" to proceed. Omitting it or passing another value returns a pending configuration summary (CONFIRM_REQUIRED); review it and retry. No confirmation is needed when the set is unchanged.',
   },
 );

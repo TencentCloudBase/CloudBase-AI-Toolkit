@@ -9,7 +9,7 @@ import { ExtendedMcpServer } from "../server.js";
 import { isCloudMode } from "../utils/cloud-mode.js";
 import { jsonContent } from "../utils/json-content.js";
 import { debug, warn } from "../utils/logger.js";
-import { t } from "../i18n/index.js";
+import { t, type Lang, type MessageKey } from "../i18n/index.js";
 
 // 1. 枚举定义
 const SearchKnowledgeModeEnum = z.enum(["skill", "openapi", "docs"]);
@@ -232,21 +232,29 @@ function requireStringParam(
   return value.trim();
 }
 
-function buildOptionalStringEnum(values: string[], description: string) {
+function buildOptionalStringEnum(
+  values: string[],
+  descriptionKey: MessageKey,
+  lang?: Lang,
+) {
   const uniqueValues = [...new Set(values.filter((value) => value.trim()))];
 
   if (uniqueValues.length > 0) {
     return z
       .enum(uniqueValues as [string, ...string[]])
       .optional()
-      .describe(description);
+      .describe(descriptionKey);
   }
 
   return z
     .string()
     .optional()
     .describe(
-      `${description} 当前暂时无法枚举可选值；如需查看当前可用项，可直接传入字符串，工具会在执行时返回可用列表。`,
+      t(
+        "rag.schema.enumUnavailable",
+        { description: t(descriptionKey, undefined, lang) },
+        lang,
+      ),
     );
 }
 
@@ -601,31 +609,33 @@ export async function registerRagTools(server: ExtendedMcpServer) {
         mode: SearchKnowledgeModeEnum,
         skillName: buildOptionalStringEnum(
           skillNames,
-          "mode=skill 时指定。技能名称。",
+          "rag.schema.skillName",
+          server.lang,
         ),
         apiName: buildOptionalStringEnum(
           openapiNames,
-          "mode=openapi 时指定。API 名称。",
+          "rag.schema.apiName",
+          server.lang,
         ),
         action: CloudBaseDocsActionEnum.optional().describe(
-          "仅 mode=docs 时指定；mode=openapi 不要传 action。CloudBase 文档操作类型：listModules=列出所有文档模块，listModuleDocs=获取指定模块的目录结构，findByName=按名称/路径/URL 智能查找，readDoc=读取指定文档 Markdown，searchDocs=全文搜索官方文档。",
+          "rag.schema.action",
         ),
         moduleName: z
           .string()
           .optional()
-          .describe("mode=docs 且 action=listModuleDocs 时指定。模块名称。"),
+          .describe("rag.schema.moduleName"),
         input: z
           .string()
           .optional()
-          .describe("mode=docs 且 action=findByName 时指定。支持模块名、文档标题、层级路径或 URL。"),
+          .describe("rag.schema.input"),
         docPath: z
           .string()
           .optional()
-          .describe("mode=docs 且 action=readDoc 时指定。文档相对路径或完整 URL。"),
+          .describe("rag.schema.docPath"),
         query: z
           .string()
           .optional()
-          .describe("mode=docs 且 action=searchDocs 时指定。全文检索关键词。"),
+          .describe("rag.schema.query"),
       },
       annotations: {
         readOnlyHint: true,

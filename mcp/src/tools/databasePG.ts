@@ -3,6 +3,10 @@ import * as path from "path";
 import { z } from "zod";
 import { getCloudBaseManager, getEnvId } from "../cloudbase-manager.js";
 import type { ExtendedMcpServer } from "../server.js";
+import {
+  queryEnvRuntimeBackends,
+  type EnvRuntimeBackendSnapshot,
+} from "./env.js";
 import { t } from "../i18n/index.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
 import {
@@ -1865,6 +1869,70 @@ export function __resetPgReadyCache() {
 }
 
 /**
+ * Per-env cache of successful backend snapshots. Only successful lookups are
+ * cached so a transient environment-info failure never freezes the gate.
+ */
+const pgProvisionCache = new Map<string, EnvRuntimeBackendSnapshot>();
+
+/**
+ * @internal Reset the provisioning snapshot cache (tests only).
+ */
+export function __resetPgProvisionCache() {
+  pgProvisionCache.clear();
+}
+
+/**
+ * Check whether CloudBase PostgreSQL is provisioned for the resolved env.
+ *
+ * Returns a PG_NOT_PROVISIONED payload when the environment is confirmed to
+ * have no PG backend, so callers can fail fast instead of running the ready
+ * probe (20 × SELECT 1) that would only time out. Returns null when PG is
+ * provisioned OR when environment info is unavailable — an unreadable env
+ * must never be turned into a false block; those calls keep their existing
+ * behaviour (context still returns, other actions fall through to
+ * PG_NOT_READY).
+ */
+async function checkPgProvisioned(
+  cloudBaseOptions: ExtendedMcpServer["cloudBaseOptions"] | undefined,
+  context: PgDbContext,
+): Promise<PgToolPayload | null> {
+  let snapshot = pgProvisionCache.get(context.envId);
+
+  if (!snapshot) {
+    try {
+      snapshot = await queryEnvRuntimeBackends(cloudBaseOptions, context.envId);
+    } catch {
+      return null;
+    }
+    pgProvisionCache.set(context.envId, snapshot);
+  }
+
+  if (snapshot.runtimeBackends.postgresql) {
+    return null;
+  }
+
+  return {
+    success: false,
+    errorCode: "PG_NOT_PROVISIONED",
+    message: t("databasePG.runtime.notProvisioned", { envId: snapshot.envId }),
+    data: {
+      envId: snapshot.envId,
+      runtimeMode: snapshot.runtimeMode,
+      // Public casing, matches queryEnv(action="info") EnvInfo.RuntimeBackends.
+      RuntimeBackends: { ...snapshot.runtimeBackends },
+    },
+    nextActions: [
+      buildNextAction(
+        "queryEnv",
+        "info",
+        t("databasePG.runtime.confirmBackends"),
+        { action: "info", envId: snapshot.envId },
+      ),
+    ],
+  };
+}
+
+/**
  * 首次 SQL 调用时探测 PG 就绪，Promise 缓存避免重复探测
  * 探测失败抛错，由调用方捕获返回 PG_NOT_READY 错误码
  */
@@ -1907,9 +1975,7 @@ async function ensurePgReadyOnce(
   return pgReadyPromise;
 }
 
-async function handleQueryContext(server: ExtendedMcpServer) {
-  const context = await resolvePgDbContext(server.cloudBaseOptions);
-
+async function handleQueryContext(context: PgDbContext) {
   return buildPgToolResult({
     success: true,
     data: {
@@ -3305,31 +3371,23 @@ export function registerPGDatabaseTools(
       inputSchema: {
         action: z
           .enum(QUERY_ACTIONS)
-          .describe(
-            "操作类型：context=获取当前 PostgreSQL 上下文；objects=列出带 schema 的数据库对象；metadata=获取轻量表元数据；schema=检查单个带 schema 的对象结构；sql=执行只读 SQL",
-          ),
-        sql: z.string().optional().describe("action=sql 时使用的只读 SQL"),
+          .describe("databasePG.schema.queryAction"),
+        sql: z.string().optional().describe("databasePG.schema.querySql"),
         objectName: z
           .string()
           .optional()
-          .describe(
-            "action=schema 时使用的带 schema 的 PostgreSQL 对象名，例如 public.users",
-          ),
+          .describe("databasePG.schema.queryObjectName"),
         schema: z
           .string()
           .optional()
-          .describe(
-            "可选的 schema 过滤条件，用于 action=objects 或 action=metadata",
-          ),
+          .describe("databasePG.schema.querySchemaFilter"),
         limit: z
           .number()
           .int()
           .min(1)
           .max(200)
           .optional()
-          .describe(
-            "可选的摘要数量上限，用于对象、元数据或 SQL 返回行数，默认 20，最大 200。",
-          ),
+          .describe("databasePG.schema.queryLimit"),
       },
       annotations: {
         readOnlyHint: true,
@@ -3339,11 +3397,19 @@ export function registerPGDatabaseTools(
       },
     },
     async (args: QueryPgDatabaseArgs) => {
-      if (args.action === "context") {
-        return handleQueryContext(server);
+      const context = await resolvePgDbContext(server.cloudBaseOptions);
+
+      const notProvisioned = await checkPgProvisioned(
+        server.cloudBaseOptions,
+        context,
+      );
+      if (notProvisioned) {
+        return buildPgToolResult(notProvisioned);
       }
 
-      const context = await resolvePgDbContext(server.cloudBaseOptions);
+      if (args.action === "context") {
+        return handleQueryContext(context);
+      }
 
       try {
         await ensurePgReadyOnce(server.cloudBaseOptions, deps);
@@ -3391,133 +3457,104 @@ export function registerPGDatabaseTools(
       inputSchema: {
         action: z
           .enum(MANAGE_ACTIONS)
-          .describe(
-            "操作类型：execute=执行已确认的写入 SQL（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）；dryRun=只分析 SQL 风险不执行；planMigration=预览迁移计划（需 migrationName + migrationVersion + sql；可选 includeAll=true 允许乱序，对齐 CLI --include-all）；applyMigration=应用迁移，建表/改 schema 首选（需 migrationName + migrationVersion + sql + confirm=true；可选 includeAll；本地 SQL 缺失则自动写入 cloudbase/migrations/，内容不一致则 LOCAL_MIGRATION_FILE_MISMATCH fail-closed；成功返回前会轮询 DescribeTaskResult（默认最长 10 分钟，可用 taskPollTimeoutMs / waitForTask 调整）并校验 migrationVersion 已落入远端历史；超时返回 MIGRATION_TASK_TIMEOUT，必须先 describeMigrationTask 再 listMigrations，禁止立刻重推同 version；未落库时返回 success=false 且 errorCode=MIGRATION_NOT_APPLIED）；listMigrations=查询已应用的 Migration 列表（可传 limit/offset 分页）；migrationDetail=查看单条 Migration 详情（需 migrationVersion）；describeMigrationTask=按 TaskId 查询 Push 异步任务状态（DescribeTaskResult：Status/Phase/Reason；需 taskId；用于 waitForTask=false / MIGRATION_TASK_TIMEOUT / 失败诊断，listMigrations 看不到 Reason）；fetchMigration=从远端 history 拉取 SQL 写入本地 cloudbase/migrations/（对齐 CLI tcb db pg migration fetch；可选 migrationVersion 拉单条，省略则全量；force=true 覆盖已存在文件，默认跳过）；rollbackMigration=回滚最近 N 条 Migration（需 lastN + confirm=true）；repairMigration=修复 Migration 历史记录（需 migrationVersion + migrationName + repairStatus + repairReason）",
-          ),
-        sql: z
-          .string()
-          .optional()
-          .describe("action=execute、dryRun、planMigration、applyMigration 或 repairMigration(applied) 使用的 SQL 语句"),
+          .describe("databasePG.schema.manageAction"),
+        sql: z.string().optional().describe("databasePG.schema.manageSql"),
         confirm: z
           .boolean()
           .optional()
-          .describe("执行任何写入 SQL 前都需要显式设置为 true。"),
-        envId: z
-          .string()
-          .optional()
-          .describe("可选的 CloudBase 环境 ID，不传时使用当前 MCP 环境。"),
+          .describe("databasePG.schema.manageConfirm"),
+        envId: z.string().optional().describe("databasePG.schema.manageEnvId"),
         instanceId: z
           .string()
           .optional()
-          .describe("可选的 PostgreSQL 逻辑实例标识，默认 cloudbase-pg。"),
+          .describe("databasePG.schema.manageInstanceId"),
         defaultSchema: z
           .string()
           .optional()
-          .describe("可选的默认 schema，默认 public。"),
-        role: z
-          .string()
-          .optional()
-          .describe(
-            `可选的 PostgreSQL role，传给 Manager SDK executePGSql 的 Role（平台会 SET ROLE）。默认 ${PG_DEFAULT_ROLE}。` +
-              `推荐取值：${PG_RECOMMENDED_ROLES.join(" / ")}。` +
-              `不要传 postgres、postgres_pgdb_*、平台保留角色（${PG_PLATFORM_RESERVED_ROLES.join("、")}，为平台管理账号不对用户开放）或从环境名臆造的角色；不确定时省略本字段，或先用 ${PG_DEFAULT_ROLE} 执行 SELECT rolname FROM pg_roles。`,
-          ),
+          .describe("databasePG.schema.manageDefaultSchema"),
+        role: z.string().optional().describe("databasePG.schema.manageRole"),
         objectName: z
           .string()
           .optional()
-          .describe(
-            "可选的对象名，当前仅用于非 migration 场景。migration 相关操作请使用 migrationName / migrationVersion / lastN。",
-          ),
+          .describe("databasePG.schema.manageObjectName"),
         migrationName: z
           .string()
           .regex(/^[a-z][a-z_]*$/)
           .optional()
-          .describe("plan/apply/repair 必填：migration 名称，小写字母开头，仅允许小写字母和下划线（不允许数字，服务端 PushPGUserMigrations 会拒绝含数字的名称）。"),
+          .describe("databasePG.schema.manageMigrationName"),
         migrationVersion: z
           .string()
           .regex(/^\d{14}$/)
           .optional()
-          .describe("14 位时间戳 YYYYMMDDHHMMSS。plan/apply/detail/repair 必填；fetchMigration 可选（传入则只拉该条，省略则拉全量远端 history）；禁止由服务端静默生成，避免与本地 cloudbase/migrations/<version>_<name>.sql 分叉。applyMigration 非增量：每次传完整 SQL；终态失败且 listMigrations 未落地时版本号不占用，换新 migrationVersion 重发全量 SQL 即可（同名不同版本不冲突）。"),
+          .describe("databasePG.schema.manageMigrationVersion"),
         rollbackSql: z
           .string()
           .optional()
-          .describe("plan/apply 可选：回滚 SQL 语句。"),
+          .describe("databasePG.schema.manageRollbackSql"),
         lastN: z
           .number()
           .int()
           .positive()
           .optional()
-          .describe("rollback 必填：回滚最近 N 条已应用的 Migration，正整数。"),
+          .describe("databasePG.schema.manageLastN"),
         limit: z
           .number()
           .int()
           .min(1)
           .max(500)
           .optional()
-          .describe("list 可选：返回数量上限，1-500，默认 100。"),
+          .describe("databasePG.schema.manageLimit"),
         offset: z
           .number()
           .int()
           .min(0)
           .optional()
-          .describe("list 可选：分页偏移，默认 0。"),
+          .describe("databasePG.schema.manageOffset"),
         lockTimeoutMs: z
           .number()
           .int()
           .optional()
-          .describe("apply 可选：获取数据库锁的最长时间（毫秒），默认 5000。"),
+          .describe("databasePG.schema.manageLockTimeoutMs"),
         statementTimeoutMs: z
           .number()
           .int()
           .optional()
-          .describe("apply 可选：单条 SQL 执行最长时间（毫秒），默认 300000。"),
+          .describe("databasePG.schema.manageStatementTimeoutMs"),
         taskPollTimeoutMs: z
           .number()
           .int()
           .min(MIGRATION_TASK_MIN_WAIT_MS)
           .max(MIGRATION_TASK_MAX_WAIT_MS)
           .optional()
-          .describe(
-            `apply 可选：轮询 DescribeTaskResult 的最长等待（毫秒）。默认 ${MIGRATION_TASK_DEFAULT_WAIT_MS}（与 CLI tcb db pg migration up 的 10 分钟对齐）。范围 ${MIGRATION_TASK_MIN_WAIT_MS}-${MIGRATION_TASK_MAX_WAIT_MS}。超时后务必先 describeMigrationTask(taskId) 再 listMigrations，禁止立刻重推同 version。`,
-          ),
+          .describe("databasePG.schema.manageTaskPollTimeoutMs"),
         waitForTask: z
           .boolean()
           .optional()
-          .describe(
-            "apply 可选，默认 true。设为 false 时 Push 后立即返回 TaskId（errorCode=MIGRATION_TASK_PENDING），由调用方用 describeMigrationTask 轮询任务终态，再用 listMigrations 确认是否落库；适合 MCP host 工具调用超时较短的场景。默认 true 会同步等到任务终态。",
-          ),
+          .describe("databasePG.schema.manageWaitForTask"),
         taskId: z
           .string()
           .optional()
-          .describe(
-            "describeMigrationTask 必填：PushPGUserMigrations / applyMigration 返回的 TaskId。用于一次性查询 DescribeTaskResult（Status/Phase/Reason），不轮询等待。",
-          ),
+          .describe("databasePG.schema.manageTaskId"),
         repairStatus: z
           .enum(["applied", "reverted"])
           .optional()
-          .describe("repair 必填：applied=标记为已应用（可补录 Query），reverted=删除 history 记录。"),
+          .describe("databasePG.schema.manageRepairStatus"),
         repairReason: z
           .string()
           .optional()
-          .describe("repair 必填：修复原因。"),
+          .describe("databasePG.schema.manageRepairReason"),
         force: z
           .boolean()
           .optional()
-          .describe(
-            "fetchMigration 可选，默认 false。true=覆盖本地已存在的同名 SQL 文件（对齐 CLI tcb db pg migration fetch --force）；false=跳过已存在文件。用于从远端 history 重新对齐 Git checksum。",
-          ),
+          .describe("databasePG.schema.manageForce"),
         includeAll: z
           .boolean()
           .optional()
-          .describe(
-            "planMigration / applyMigration 可选，默认 false。true=允许 out-of-order（version 小于远端 LatestVersion）仍可 Preview/Push，对齐 CLI tcb db pg migration up --include-all；仅在确认要补历史/乱序迁移时使用，日常应选更大的 migrationVersion。",
-          ),
+          .describe("databasePG.schema.manageIncludeAll"),
         allowDdlViaExecute: z
           .boolean()
           .optional()
-          .describe(
-            "可选，默认 false。仅当需要故意绕过 migration history 时设为 true，才允许 schema DDL 走 execute；正常建表/改 schema 必须用 applyMigration。",
-          ),
+          .describe("databasePG.schema.manageAllowDdlViaExecute"),
       },
       annotations: {
         readOnlyHint: false,
@@ -3530,6 +3567,11 @@ export function registerPGDatabaseTools(
     async (args: ManagePgDatabaseArgs) => {
       const context = await resolvePgDbContext(server.cloudBaseOptions, args);
       const cbOpts = server.cloudBaseOptions;
+
+      const notProvisioned = await checkPgProvisioned(cbOpts, context);
+      if (notProvisioned) {
+        return buildPgToolResult(notProvisioned);
+      }
 
       switch (args.action) {
         case "execute": {

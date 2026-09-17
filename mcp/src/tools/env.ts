@@ -1538,6 +1538,62 @@ async function enrichEnvInfoWithMissingFields(
   }
 }
 
+export type EnvRuntimeBackends = {
+  postgresql: boolean;
+  nosql: boolean;
+  mysql: boolean;
+};
+
+export type EnvRuntimeBackendSnapshot = {
+  envId: string;
+  runtimeMode: "postgresql" | "nosql";
+  runtimeBackends: EnvRuntimeBackends;
+};
+
+export async function queryEnvRuntimeBackends(
+  cloudBaseOptions: ExtendedMcpServer["cloudBaseOptions"],
+  envId: string,
+): Promise<EnvRuntimeBackendSnapshot> {
+  const manager = await getCloudBaseManager({
+    cloudBaseOptions: {
+      ...cloudBaseOptions,
+      envId,
+    },
+    requireEnvId: true,
+  });
+  let result = await manager.env.getEnvInfo();
+  result = await enrichEnvInfoWithMissingFields(manager, result, envId);
+  result = await enrichEnvInfoWithRuntimeMode(result, manager);
+
+  const enrichedEnvInfo = result?.EnvInfo as
+    | {
+        RuntimeMode?: unknown;
+        RuntimeBackends?: Partial<EnvRuntimeBackends>;
+      }
+    | undefined;
+  const runtimeMode = enrichedEnvInfo?.RuntimeMode;
+  const runtimeBackends = enrichedEnvInfo?.RuntimeBackends;
+  if (
+    (runtimeMode !== "postgresql" && runtimeMode !== "nosql") ||
+    !runtimeBackends ||
+    typeof runtimeBackends.postgresql !== "boolean" ||
+    typeof runtimeBackends.nosql !== "boolean" ||
+    typeof runtimeBackends.mysql !== "boolean"
+  ) {
+    throw new Error("CloudBase environment backend availability is unavailable.");
+  }
+
+  return {
+    envId,
+    runtimeMode,
+    runtimeBackends: {
+      postgresql: runtimeBackends.postgresql,
+      nosql: runtimeBackends.nosql,
+      mysql: runtimeBackends.mysql,
+    },
+  };
+}
+
 /**
  * Project gateway Route.Enable onto queryEnv(info) without mutating StaticDomain.
  *
@@ -2147,61 +2203,53 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         action: z
           .enum(authActionEnum)
           .optional()
-          .describe(
-            "动作：status=查询状态，start_auth=发起登录，login_by_api_key=API Key登录，set_env=绑定环境(传envId)，logout=退出登录",
-          ),
+          .describe("env.schema.auth.action"),
         ...(supportedAuthActions.includes("start_auth")
           ? {
               authMode: z
                 .enum(["device", "web"])
                 .optional()
-                .describe("认证模式：device=设备码授权，web=浏览器回调授权"),
+                .describe("env.schema.auth.authMode"),
               oauthEndpoint: z
                 .string()
                 .optional()
-                .describe("高级可选：自定义 device-code 登录 endpoint。配置后 oauthCustom 默认按 true 处理"),
+                .describe("env.schema.auth.oauthEndpoint"),
               clientId: z
                 .string()
                 .optional()
-                .describe("高级可选：自定义 device-code 登录 client_id，不传则使用默认值"),
+                .describe("env.schema.auth.clientId"),
               oauthCustom: z
                 .boolean()
                 .optional()
-                .describe("高级可选：自定义 endpoint 返回格式开关。未配置 endpoint 时默认 false；配置 endpoint 后默认 true。标准 {code,result} 包装格式的端点（如国际站 tcb-api.tencentcloud.com）应显式传 false"),
+                .describe("env.schema.auth.oauthCustom"),
             }
           : {}),
         site: z
           .enum(["domestic", "intl"])
           .optional()
-          .describe(
-            "站点：domestic=国内站，intl=国际站。环境开通在腾讯云国际站时，登录（start_auth/login_by_api_key）需显式传 intl，否则会走国内站链路、看不到国际站环境；调用级显式传入优先于 TCB_SITE 环境变量 / region 映射表 / 项目配置，影响登录端点、授权页与 API Key 换取网关",
-          ),
+          .describe("env.schema.auth.site"),
         envId: z
           .string()
           .optional()
-          .describe("环境ID(CloudBase 环境唯一标识)，绑定后工具将操作该环境。action=set_env 时必填"),
+          .describe("env.schema.auth.envId"),
         region: z
           .string()
           .optional()
-          .describe(
-            "地域（如 ap-shanghai / ap-guangzhou / ap-singapore）。用于 region→site 推断与 API Key 换取网关选择；显式 site 优先",
-          ),
+          .describe("env.schema.auth.region"),
         lang: z
           .enum(["zh", "en"])
           .optional()
-          .describe(
-            "输出语言：zh=中文（默认），en=英文。覆盖实例级语言（createCloudBaseMcpServer lang 选项 / TCB_LANG / project.json）",
-          ),
+          .describe("env.schema.auth.lang"),
         ...(supportedAuthActions.includes("login_by_api_key")
           ? {
               apiKey: z
                 .string()
                 .optional()
-                .describe("CloudBase API Key，action=login_by_api_key 时必填"),
+                .describe("env.schema.auth.apiKey"),
               apiKeyEnvId: z
                 .string()
                 .optional()
-                .describe("CloudBase 环境ID(EnvId)，action=login_by_api_key 时必填，用于指定 API Key 所属环境"),
+                .describe("env.schema.auth.apiKeyEnvId"),
             }
           : {}),
         ...(supportedAuthActions.includes("logout")
@@ -2209,7 +2257,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               confirm: z
                 .literal("yes")
                 .optional()
-                .describe("action=logout 时确认操作，传 yes"),
+                .describe("env.schema.auth.confirm"),
             }
           : {}),
         ...(supportedAuthActions.includes("get_temp_credentials")
@@ -2217,7 +2265,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               reveal: z
                 .boolean()
                 .optional()
-                .describe("action=get_temp_credentials 时可选。true=返回明文临时密钥；默认 false 仅返回脱敏结果"),
+                .describe("env.schema.auth.reveal"),
             }
           : {}),
       },
@@ -3283,89 +3331,63 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     inputSchema: {
       action: z
         .enum(["list", "info", "domains", "usage", "metrics"])
-        .describe(
-          "查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId / region 筛选，返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表，usage=环境资源用量（必须传入 envId，对齐 tcb env usage/info），metrics=环境监控时序（必须传入 envId 与 metricName，对齐 TCB DescribeCurveData）",
-        ),
-      alias: z.string().optional().describe("按环境别名筛选。action=list 时可选"),
-      aliasExact: z.boolean().optional().describe("按环境别名精确筛选。action=list 时可选；与 alias 配合使用"),
+        .describe("env.schema.query.action"),
+      alias: z.string().optional().describe("env.schema.query.alias"),
+      aliasExact: z.boolean().optional().describe("env.schema.query.aliasExact"),
       envId: z
         .string()
         .optional()
-        .describe(
-          "环境 ID。action=list 时可选（仅按 DescribeEnvs 语义做筛选，仍返回摘要）；action=info / action=usage / action=metrics 时必填；action=domains 时可选（不传则查当前绑定环境，传了则查该环境的安全域名）。",
-        ),
+        .describe("env.schema.query.envId"),
       region: z
         .enum(TCB_QUERY_REGIONS)
         .optional()
-        .describe(
-          "查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 取该环境自身的 Region、ignored_params 说明忽略原因——不要据此判定该地域没有环境。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）：若两站都登录过，传该地域会静默查国际站账号，请先用 auth(site=\"domestic\") 或设置 TCB_SITE=domestic 明确站点。",
-        ),
-      limit: z.number().int().positive().optional().describe("返回数量上限。action=list 时可选"),
-      offset: z.number().int().min(0).optional().describe("分页偏移。action=list 时可选"),
+        .describe("env.schema.query.region"),
+      limit: z.number().int().positive().optional().describe("env.schema.query.limit"),
+      offset: z.number().int().min(0).optional().describe("env.schema.query.offset"),
       fields: z
         .array(z.enum(DEFAULT_ENV_FIELDS))
         .optional()
-        .describe("返回字段白名单。仅支持 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault。action=list 时可选"),
+        .describe("env.schema.query.fields"),
       type: z
         .array(z.enum(ENV_USAGE_MODULE_VALUES))
         .optional()
-        .describe(
-          "用量模块过滤。仅 action=usage 时有效；不传则查询全部模块。可选值对齐 tcb CLI：FLEXDB、TDSQL、SCF、EKS、COS、AI、HOSTING、Auth、APIInvocation、HTTPInvocation、VM、Workflow、Other。",
-        ),
+        .describe("env.schema.query.type"),
       startDate: z
         .string()
         .optional()
-        .describe(
-          "用量开始日期（YYYY-MM-DD）。仅 action=usage 时有效；与 endDate 成对传入。不传则使用当前计费周期。",
-        ),
+        .describe("env.schema.query.startDate"),
       endDate: z
         .string()
         .optional()
-        .describe(
-          "用量结束日期（YYYY-MM-DD）。仅 action=usage 时有效；与 startDate 成对传入。不传则使用当前计费周期。",
-        ),
+        .describe("env.schema.query.endDate"),
       needUsageDetails: z
         .boolean()
         .optional()
-        .describe(
-          "是否返回每日用量明细。仅 action=usage 时有效；默认 true。",
-        ),
+        .describe("env.schema.query.needUsageDetails"),
       metricName: z
         .enum(ENV_METRIC_NAME_VALUES)
         .optional()
-        .describe(
-          "监控指标名。仅 action=metrics 时有效且必填。GatewayTraceEnvQPS/EnvQPSAll=环境与网关 QPS；FunctionInvocation/FunctionError/FunctionTimeout/FunctionThrottle=云函数调用、错误、超时、限流；DbRead/DbWrite/DbSizepkg=文档库读写与容量；MysqlCpuUsageRate/MysqlMemoryUse/MysqlStorageUsage=SQL 库 CPU/内存/磁盘；TkeCpuUsedService/TkeQPSService/TkeHttpErrorService=云托管 CPU/QPS/错误。",
-        ),
+        .describe("env.schema.query.metricName"),
       startTime: z
         .string()
         .optional()
-        .describe(
-          "监控开始时间（YYYY-MM-DD HH:mm:ss）。仅 action=metrics 时有效；与 endTime 成对传入。不传则默认最近 24 小时。结束时间须晚于开始时间至少五分钟。",
-        ),
+        .describe("env.schema.query.startTime"),
       endTime: z
         .string()
         .optional()
-        .describe(
-          "监控结束时间（YYYY-MM-DD HH:mm:ss）。仅 action=metrics 时有效；与 startTime 成对传入。不传则默认最近 24 小时。",
-        ),
+        .describe("env.schema.query.endTime"),
       period: z
         .union([z.literal(300), z.literal(3600), z.literal(86400)])
         .optional()
-        .describe(
-          "统计周期（秒）。仅 action=metrics 时有效；仅支持 300、3600、86400。不传则由后端按时间范围自动选择。时间范围 ≤1 天不可用 86400；>3 天不可用 300。",
-        ),
+        .describe("env.schema.query.period"),
       resourceID: z
         .string()
         .optional()
-        .describe(
-          "资源 ID。仅 action=metrics 时有效。云函数传函数名，文档库传集合名，云托管必须传服务名；GatewayTraceEnvQPS 不传则使用环境级 all|:|all|:|all|:|all。",
-        ),
+        .describe("env.schema.query.resourceID"),
       subresourceID: z
         .string()
         .optional()
-        .describe(
-          "子资源 ID。仅 action=metrics 时有效；查询云托管某版本监控时传入版本名。",
-        ),
+        .describe("env.schema.query.subresourceID"),
     },
     annotations: {
       readOnlyHint: true,
@@ -3375,24 +3397,6 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     },
   };
   server.registerTool?.("queryEnv", queryEnvToolSchema, queryEnvHandler);
-  // 向后兼容：envQuery 作为 queryEnv 的别名注册。
-  // DEPRECATED：词序与 query*/manage* 规范不一致（灯塔数据显示与 queryEnv 在 2.32.5 并行被调用），
-  // 本版本仅标记废弃，计划下个版本移除此别名注册。
-  server.registerTool?.(
-    "envQuery",
-    {
-      ...queryEnvToolSchema,
-      // 别名 description 是拼接文本（不是单一词典 key），注册包装层无法再按 key 解析，
-      // 因此这里按实例语言先解析成最终文案再拼接。
-      description:
-        t("env.queryDescription", undefined, server.lang) +
-        t("env.envQueryDeprecatedNotice", undefined, server.lang),
-      annotations: {
-        ...queryEnvToolSchema.annotations,
-      },
-    },
-    queryEnvHandler,
-  );
 
   // envDomainManagement - 环境域名管理（合并 createEnvDomain + deleteEnvDomain）
   // 微信 IDE 场景不需要域名管理
@@ -3405,8 +3409,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z
           .enum(["create", "delete"])
-          .describe("操作类型：create=添加安全域名，delete=删除安全域名"),
-        domains: z.array(z.string()).describe("安全域名数组（格式：host:port，例如 localhost:5173 或 127.0.0.1:4173）。注意：不是自定义域名，不需要证书。"),
+          .describe("env.schema.domain.action"),
+        domains: z.array(z.string()).describe("env.schema.domain.domains"),
       },
       annotations: {
         readOnlyHint: false,
@@ -3473,50 +3477,42 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z
           .enum(["listPackages", "create", "modifyPlan", "renew", "addSecurityDomain", "removeSecurityDomain"])
-          .describe(
-            "操作类型：listPackages=查询可选套餐，create=创建环境，modifyPlan=变更套餐，renew=续费，addSecurityDomain=添加安全域名（CORS 白名单条目），removeSecurityDomain=删除安全域名",
-          ),
+          .describe("env.schema.manage.action"),
         domains: z
           .array(z.string())
           .optional()
-          .describe(
-            "安全域名数组（格式：host:port，例如 localhost:5173 或 127.0.0.1:4173）。仅 action=addSecurityDomain/removeSecurityDomain 时有效且必填。注意：这是 CORS 白名单条目，不是自定义域名，不需要证书。添加前应先用 queryEnv(action=domains) 检查浏览器实际 origin 是否已在白名单中。",
-          ),
+          .describe("env.schema.manage.domains"),
         alias: z
           .string()
           .optional()
-          .describe("环境别名（action=create 时必填）。要求：小写字母/数字/减号，不能以减号开头或结尾，最长 20 位"),
+          .describe("env.schema.manage.alias"),
         packageId: z
           .string()
           .optional()
-          .describe("套餐 ID（action=create/modifyPlan 时必填）。可选值如 baas_personal(个人版)、baas_pf_standard(标准版)、baas_pf_enterprise(企业版)"),
+          .describe("env.schema.manage.packageId"),
         resources: z
           .array(z.enum(CREATE_ENV_RESOURCE_VALUES))
           .optional()
-          .describe(
-            "启用的资源类型（action=create 时可选）。可选值：storage(存储)、function(云函数)、postgresql(PostgreSQL)，省略时默认全部三项。CreateEnv 要求 Resources 非空，MCP 会始终下发该字段。不再包含 flexdb(文档数据库)：新建环境不会创建 NoSQL 实例，其可用性以 queryEnv(action=\"info\") 返回的 EnvInfo.RuntimeBackends 为准。",
-          ),
+          .describe("env.schema.manage.resources"),
         duration: z
           .number()
           .int()
           .min(1)
           .max(36)
           .optional()
-          .describe("购买或续费时长（月），action=create/renew 时可选，默认 1"),
+          .describe("env.schema.manage.duration"),
         region: z
           .enum(CREATE_ENV_REGIONS)
           .optional()
-          .describe(
-            "创建地域（仅 action=create 时有效）。按 X-TC-Region 语义透传，决定新环境所在地域；等价 CLI：tcb env create --region ap-shanghai。不传则用当前会话地域（cloudBaseOptions.region → TCB_REGION → 项目配置 / rc 绑定 → 站点默认地域：国内站 ap-shanghai、国际站 ap-singapore）。注意：region 不写进 CreateEnv 请求体，而是通过请求层地域上下文生效——这与「请勿把 Region 放进 params」的 callCloudApi 约定一致。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）；如需在国内站该地域创建，请先 auth(site=\"domestic\") 或设置 TCB_SITE=domestic。"
-          ),
+          .describe("env.schema.manage.region"),
         envId: z
           .string()
           .optional()
-          .describe("环境 ID（action=modifyPlan/renew 时必填）"),
+          .describe("env.schema.manage.envId"),
         confirm: z
           .literal("yes")
           .optional()
-          .describe("确认操作。所有付费操作（create/modifyPlan/renew）必须传 \"yes\" 确认"),
+          .describe("env.schema.manage.confirm"),
       },
       annotations: {
         readOnlyHint: false,

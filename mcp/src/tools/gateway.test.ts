@@ -202,33 +202,45 @@ describe("gateway tools", () => {
     expect(description).toContain("静态托管");
     expect(description).not.toContain('type="HTTP"');
     expect(description).not.toContain("targetType");
-    expect(schema.action.description).toContain("createRoute");
-    expect(schema.targetName.description).toContain("云函数");
-    expect(schema.targetName.description).toContain("云托管");
-    expect(schema.targetName.description).toContain("静态托管");
-    expect(schema.path.description).toContain("/api/hello");
-    expect(schema.upstreamResourceType.description).toContain("WEB_SCF");
-    expect(schema.upstreamResourceType.description).toContain("CBR");
-    expect(schema.upstreamResourceType.description).toContain("STATIC_STORE");
-    expect(schema.auth.description).toContain("通常 false");
-    expect(schema.enablePathTransmission.description).toContain("CBR");
-    expect(schema.enablePathTransmission.description).toContain("STATIC_STORE");
-    expect(schema.route.description).toContain("CBR");
-    expect(schema.route.description).toContain("STATIC_STORE");
-    expect(schema.route.description).toContain("staticstore");
+    const actionText = t(schema.action.description as MessageKey);
+    const targetNameText = t(schema.targetName.description as MessageKey);
+    const upstreamTypeText = t(
+      schema.upstreamResourceType.description as MessageKey,
+    );
+    const transmissionText = t(
+      schema.enablePathTransmission.description as MessageKey,
+    );
+    const routeText = t(schema.route.description as MessageKey);
+    const domainText = t(schema.domain.description as MessageKey);
+    const certificateIdText = t(schema.certificateId.description as MessageKey);
+
+    expect(actionText).toContain("createRoute");
+    expect(targetNameText).toContain("云函数");
+    expect(targetNameText).toContain("云托管");
+    expect(targetNameText).toContain("静态托管");
+    expect(t(schema.path.description as MessageKey)).toContain("/api/hello");
+    expect(upstreamTypeText).toContain("WEB_SCF");
+    expect(upstreamTypeText).toContain("CBR");
+    expect(upstreamTypeText).toContain("STATIC_STORE");
+    expect(t(schema.auth.description as MessageKey)).toContain("通常 false");
+    expect(transmissionText).toContain("CBR");
+    expect(transmissionText).toContain("STATIC_STORE");
+    expect(routeText).toContain("CBR");
+    expect(routeText).toContain("STATIC_STORE");
+    expect(routeText).toContain("staticstore");
     expect(description).toContain("listCustomDomains");
     expect(description).toContain("certificateId");
     expect(description).toContain("HTTPSERVICE");
     expect(description).toContain("tcloudbaseapp.com");
     expect(description).toContain("listRoutes");
     expect(description).toContain("不是 STATIC_STORE 上游绑定");
-    expect(schema.action.description).toContain("已有自定义域名");
-    expect(schema.domain.description).toContain("无需证书");
-    expect(schema.domain.description).toContain("HTTPSERVICE");
-    expect(schema.domain.description).toContain("listRoutes");
+    expect(actionText).toContain("已有自定义域名");
+    expect(domainText).toContain("无需证书");
+    expect(domainText).toContain("HTTPSERVICE");
+    expect(domainText).toContain("listRoutes");
     expect(description).toContain("VerifyHTTPServiceRoute");
-    expect(schema.certificateId.description).toContain("createRoute");
-    expect(schema.certificateId.description).toContain("describeCertificates");
+    expect(certificateIdText).toContain("createRoute");
+    expect(certificateIdText).toContain("describeCertificates");
   });
 
   it("manageGateway(action=createRoute) should require upstreamResourceType", async () => {
@@ -724,9 +736,11 @@ describe("gateway tools", () => {
     expect(description).toContain("disableRoute");
     expect(description).toContain("ModifyHTTPServiceRoute");
     expect(description).toContain("tcloudbaseapp.com");
-    expect(schema.action.description).toContain("disableRoute");
-    expect(schema.route.description).toContain("enable:false");
-    expect(schema.enable.description).toContain("Routes[].Enable");
+    expect(t(schema.action.description as MessageKey)).toContain("disableRoute");
+    expect(t(schema.route.description as MessageKey)).toContain("enable:false");
+    expect(t(schema.enable.description as MessageKey)).toContain(
+      "Routes[].Enable",
+    );
     expect(schema.action._def.values).toContain("enableRoute");
     expect(schema.action._def.values).toContain("disableRoute");
   });
@@ -812,10 +826,13 @@ describe("gateway tools", () => {
 
   it("manageGateway schema should explain path transmission impact", () => {
     const schema = tools.manageGateway.meta.inputSchema as Record<string, any>;
-    expect(schema.enablePathTransmission.description).toContain("路径透传");
-    expect(schema.enablePathTransmission.description).toContain("/api/users");
-    expect(schema.enablePathTransmission.description).toContain("false");
-    expect(schema.enablePathTransmission.description).toContain("true");
+    const transmissionText = t(
+      schema.enablePathTransmission.description as MessageKey,
+    );
+    expect(transmissionText).toContain("路径透传");
+    expect(transmissionText).toContain("/api/users");
+    expect(transmissionText).toContain("false");
+    expect(transmissionText).toContain("true");
   });
 
   it("manageGateway(action=deleteRoute) should delete by domain and path", async () => {

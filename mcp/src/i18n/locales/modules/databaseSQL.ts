@@ -10,9 +10,23 @@ export const databaseSQL = defineModule(
     "queryMysqlDatabase.title": "查询 CloudBase MySQL 数据库状态或执行只读 SQL",
     "queryMysqlDatabase.description":
       "查询 CloudBase MySQL 数据库信息。支持执行只读 SQL、查询 MySQL 开通结果、查询 MySQL 任务状态，以及获取当前实例生命周期上下文。标准 getInstanceInfo/describeInstance 不返回连接凭据；仅 getConnectionInfo 透传原始连接/集群载荷（含可能的凭据），且仅用于显式 TCP 迁移。业务 CRUD 优先使用 SDK 或 runQuery/runStatement。",
+    "schema.query.action":
+      "runQuery=执行只读 SQL；describeCreateResult=查询 CreateMySQL 结果；describeTaskStatus=查询 MySQL 任务状态；getInstanceInfo=获取不含连接凭据的生命周期上下文；describeInstance=getInstanceInfo 的别名；getConnectionInfo=透传可能包含凭据的原始连接/集群载荷（仅限 TCP 迁移例外场景）",
+    "schema.query.sql": "action=runQuery 使用的只读 SQL",
+    "schema.query.request": "describeCreateResult/describeTaskStatus 使用的官方请求载荷",
+    "schema.query.dbInstance": "runQuery 可选的 SQL 数据库实例上下文",
     "manageMysqlDatabase.title": "管理 CloudBase MySQL 数据库生命周期或执行写入 SQL",
     "manageMysqlDatabase.description":
       "管理 CloudBase MySQL 数据库资源。支持开通 MySQL、销毁 MySQL、执行写入 SQL/DDL，以及初始化数据库 Schema。注意：必须先开通 MySQL（action=provisionMySQL，confirm=true）才能执行 runStatement 或 initializeSchema。若 MySQL 尚未开通，工具会返回 MYSQL_NOT_CREATED 并给出开通的 nextAction 提示。",
+    "schema.manage.action":
+      "provisionMySQL=创建 MySQL 实例；destroyMySQL=销毁 MySQL 实例；runStatement=执行写入 SQL 或 DDL；initializeSchema=按顺序执行 Schema 初始化语句",
+    "schema.manage.confirm": "action=provisionMySQL 或 action=destroyMySQL 所需的显式确认",
+    "schema.manage.sql": "action=runStatement 使用的 SQL 语句",
+    "schema.manage.request": "action=provisionMySQL 或 action=destroyMySQL 使用的官方请求载荷",
+    "schema.manage.statements": "action=initializeSchema 使用的有序 Schema 初始化 SQL 语句",
+    "schema.manage.requireReady": "initializeSchema 是否应阻塞至确认 MySQL 就绪。默认为 true。",
+    "schema.manage.statusContext": "initializeSchema 前用于确认就绪状态的可选开通状态请求",
+    "schema.manage.dbInstance": "runStatement/initializeSchema 可选的 SQL 数据库实例上下文",
     "next.readyInitializeSchema": "MySQL 已就绪。接下来请初始化表和索引。",
     "next.provisionStillRunning": "MySQL 开通任务仍在进行。初始化 Schema 前请再次查询创建结果。",
     "next.destroyCompletedConfirm": "销毁任务已完成。请确认 MySQL 实例是否已不存在。",
@@ -87,10 +101,24 @@ export const databaseSQL = defineModule(
       "Query CloudBase MySQL database status or run read-only SQL",
     "queryMysqlDatabase.description":
       "Query CloudBase MySQL database information. Supports running read-only SQL, checking the MySQL provisioning result, querying MySQL task status, and getting the current instance lifecycle context. Standard getInstanceInfo/describeInstance never returns connection credentials; only getConnectionInfo passes through the raw connection/cluster payload (possibly including credentials), and only for explicit TCP migration. Prefer the SDK or runQuery/runStatement for business CRUD.",
+    "schema.query.action":
+      "runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get lifecycle context without connection credentials; describeInstance=alias of getInstanceInfo; getConnectionInfo=passthrough raw connection/cluster payload including possible credentials (TCP migration exception only)",
+    "schema.query.sql": "Read-only SQL used by action=runQuery",
+    "schema.query.request": "Official request payload used by describeCreateResult/describeTaskStatus",
+    "schema.query.dbInstance": "Optional SQL database instance context for runQuery",
     "manageMysqlDatabase.title":
       "Manage CloudBase MySQL database lifecycle or run write SQL",
     "manageMysqlDatabase.description":
       "Manage CloudBase MySQL database resources. Supports provisioning MySQL, destroying MySQL, running write SQL/DDL, and initializing the database schema. Note: MySQL must be provisioned first (action=provisionMySQL, confirm=true) before runStatement or initializeSchema can run. If MySQL is not provisioned, the tool returns MYSQL_NOT_CREATED with a provisioning nextAction hint.",
+    "schema.manage.action":
+      "provisionMySQL=create MySQL instance; destroyMySQL=destroy MySQL instance; runStatement=execute write SQL or DDL; initializeSchema=run ordered schema initialization statements",
+    "schema.manage.confirm": "Explicit confirmation required for action=provisionMySQL or action=destroyMySQL",
+    "schema.manage.sql": "SQL statement used by action=runStatement",
+    "schema.manage.request": "Official request payload used by action=provisionMySQL or action=destroyMySQL",
+    "schema.manage.statements": "Ordered schema initialization SQL statements used by action=initializeSchema",
+    "schema.manage.requireReady": "Whether initializeSchema should block until MySQL is confirmed ready. Defaults to true.",
+    "schema.manage.statusContext": "Optional provisioning status requests used to confirm readiness before initializeSchema",
+    "schema.manage.dbInstance": "Optional SQL database instance context for runStatement/initializeSchema",
     "next.readyInitializeSchema":
       "MySQL is ready. Initialize tables and indexes next.",
     "next.provisionStillRunning":

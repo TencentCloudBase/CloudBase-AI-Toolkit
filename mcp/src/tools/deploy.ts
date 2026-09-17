@@ -337,11 +337,11 @@ export function registerDeployTools(server: ExtendedMcpServer) {
         cwd: z
           .string()
           .optional()
-          .describe("项目根目录，从此目录向下搜索 cloudbaserc；默认当前工作目录"),
+          .describe("deploy.schema.build.cwd"),
         mode: z
           .string()
           .optional()
-          .describe("环境名（如 production/staging），命中 envOverrides.<mode> 时合并覆盖"),
+          .describe("deploy.schema.build.mode"),
       },
       annotations: {
         // 本地构建会执行 buildCommand 并写产物文件，不是 read-only；但不变更云端资源，非 destructive。
@@ -415,30 +415,27 @@ export function registerDeployTools(server: ExtendedMcpServer) {
         cwd: z
           .string()
           .optional()
-          .describe("项目根目录，从此目录向下搜索 cloudbaserc；默认当前工作目录"),
+          .describe("deploy.schema.plan.cwd"),
         mode: z
           .string()
           .optional()
-          .describe("环境名（如 production/staging），命中 envOverrides.<mode> 时合并覆盖"),
+          .describe("deploy.schema.plan.mode"),
         envId: z
           .string()
           .optional()
-          .describe("目标环境 ID，优先级高于 cloudbaserc 中的 envId；不传则用配置值或当前绑定环境"),
+          .describe("deploy.schema.plan.envId"),
         only: z
           .array(z.enum(RESOURCE_TYPES))
           .optional()
-          .describe("仅计算指定资源类型的计划，可选值：database/functions/app/hosting/gateway"),
+          .describe("deploy.schema.plan.only"),
         skip: z
           .array(z.enum(RESOURCE_TYPES))
           .optional()
-          .describe("跳过指定资源类型，可选值：database/functions/app/hosting/gateway"),
+          .describe("deploy.schema.plan.skip"),
         yes: z
           .boolean()
           .optional()
-          .describe(
-            "与 deployApply 的 yes 对齐，用于复算已存在函数的有效动作。" +
-              "true=预演为覆盖更新；false（默认）=预演为保守跳过",
-          ),
+          .describe("deploy.schema.plan.yes"),
       },
       annotations: {
         readOnlyHint: true,
@@ -507,50 +504,45 @@ export function registerDeployTools(server: ExtendedMcpServer) {
         confirm: z
           .boolean()
           .optional()
-          .describe("危险操作确认开关。部署会变更云端资源，必须显式传 confirm=true 才会执行"),
+          .describe("deploy.schema.apply.confirm"),
         confirmDestructive: z
           .boolean()
           .optional()
-          .describe(
-            "破坏性数据库变更确认开关。当待执行迁移含 DROP/TRUNCATE/DELETE 或 ALTER…DROP/RENAME 时，" +
-              "必须在 confirm=true 之外额外显式传 confirmDestructive=true；无破坏性迁移时不生效",
-          ),
+          .describe("deploy.schema.apply.confirmDestructive"),
         cwd: z
           .string()
           .optional()
-          .describe("项目根目录，从此目录向下搜索 cloudbaserc；默认当前工作目录"),
+          .describe("deploy.schema.apply.cwd"),
         mode: z
           .string()
           .optional()
-          .describe("环境名（如 production/staging），命中 envOverrides.<mode> 时合并覆盖"),
+          .describe("deploy.schema.apply.mode"),
         envId: z
           .string()
           .optional()
-          .describe("目标环境 ID，优先级高于 cloudbaserc 中的 envId；不传则用配置值或当前绑定环境"),
+          .describe("deploy.schema.apply.envId"),
         only: z
           .array(z.enum(RESOURCE_TYPES))
           .optional()
-          .describe("仅部署指定资源类型，可选值：database/functions/app/hosting/gateway"),
+          .describe("deploy.schema.apply.only"),
         skip: z
           .array(z.enum(RESOURCE_TYPES))
           .optional()
-          .describe("跳过指定资源类型，可选值：database/functions/app/hosting/gateway"),
+          .describe("deploy.schema.apply.skip"),
         yes: z
           .boolean()
           .optional()
-          .describe(
-            "遇到已存在资源时是否直接覆盖更新。true=覆盖；false（默认）=保守跳过已存在资源",
-          ),
+          .describe("deploy.schema.apply.yes"),
         concurrency: z
           .number()
           .int()
           .min(1)
           .optional()
-          .describe("同类型资源最大并行数，默认 1（串行）；仅作用于同类型资源，跨类型依赖顺序不变"),
+          .describe("deploy.schema.apply.concurrency"),
         continueOnError: z
           .boolean()
           .optional()
-          .describe("某个资源失败后是否继续部署其余资源；database 失败始终强制中断"),
+          .describe("deploy.schema.apply.continueOnError"),
       },
       annotations: {
         readOnlyHint: false,

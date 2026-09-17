@@ -3,7 +3,7 @@ import { defineModule } from "../types.js";
 export const interactive = defineModule(
   {
     loginRequired: "请先登录云开发账户",
-    envQueryFailed: "无法获取环境列表: {error}",
+    queryEnvFailed: "无法获取环境列表: {error}",
     envNotYetAvailable: "环境正在创建中，请稍等片刻后刷新页面或重新尝试",
     invalidEnvId: "环境创建成功但环境ID无效，请稍后重试",
     missingEnvId: "环境创建成功但未返回环境ID，请稍后重试或手动创建环境",
@@ -18,7 +18,7 @@ export const interactive = defineModule(
   },
   {
     loginRequired: "Please log in to your CloudBase account first",
-    envQueryFailed: "Failed to retrieve the environment list: {error}",
+    queryEnvFailed: "Failed to retrieve the environment list: {error}",
     envNotYetAvailable:
       "The environment is being created. Please wait a moment, refresh the page, or try again.",
     invalidEnvId:

@@ -215,14 +215,14 @@ describe('hosting tools', () => {
     // 工具级 description/title 迁移为词典 key 字符串，由 server registerTool 包装层解析
     expect(tools.queryHosting.meta.description).toBe('hosting.queryDescription');
     expect(tools.queryHosting.meta.title).toBe('hosting.queryTitle');
-    expect(tools.queryHosting.meta.inputSchema.action.description).toContain('websiteConfig');
-    expect(tools.queryHosting.meta.inputSchema.domains.description).toContain('domainStatus');
+    expect(t(tools.queryHosting.meta.inputSchema.action.description)).toContain('websiteConfig');
+    expect(t(tools.queryHosting.meta.inputSchema.domains.description)).toContain('domainStatus');
     expect(tools.manageHosting.meta.description).toBe('hosting.manageDescription');
     expect(tools.manageHosting.meta.title).toBe('hosting.manageTitle');
-    expect(tools.manageHosting.meta.inputSchema.action.description).toContain('setWebsiteDocument');
-    expect(tools.manageHosting.meta.inputSchema.confirm.description).toContain('delete');
-    expect(tools.manageHosting.meta.inputSchema.indexDocument.description).toContain('action=setWebsiteDocument');
-    expect(tools.manageHosting.meta.inputSchema.localPath.description).toContain('action=upload');
+    expect(t(tools.manageHosting.meta.inputSchema.action.description)).toContain('setWebsiteDocument');
+    expect(t(tools.manageHosting.meta.inputSchema.confirm.description)).toContain('delete');
+    expect(t(tools.manageHosting.meta.inputSchema.indexDocument.description)).toContain('action=setWebsiteDocument');
+    expect(t(tools.manageHosting.meta.inputSchema.localPath.description)).toContain('action=upload');
   });
 
   it('manageHosting domainConfig schema should expose fixed CDN option values as enums', () => {

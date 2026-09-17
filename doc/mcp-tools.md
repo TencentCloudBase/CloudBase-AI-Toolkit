@@ -2,7 +2,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 
 # MCP 工具
 
-当前包含 43 个工具，按功能分组如下。
+当前包含 42 个工具，按功能分组如下。
 
 源数据: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.json)
 
@@ -17,7 +17,6 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 ### 环境管理
 
 - [`queryEnv`](#queryenv)
-- [`envQuery`](#envquery)
 - [`envDomainManagement`](#envdomainmanagement)
 
 ### 其他
@@ -226,124 +225,6 @@ CloudBase（腾讯云开发）开发阶段登录与环境绑定。登录后即�
 🌐 action=info 还会在不改写 `StaticStorages[].StaticDomain`（云 API 名义域名）的前提下，投影网关路由 Enable 状态：`StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。
 
 AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType="noSqlDatabase")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用。
-
-#### 参数
-
-<ParameterTable
-  parameters={[
-    {
-      name: "action",
-      type: "string",
-      required: true,
-      description: `查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId / region 筛选，返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表，usage=环境资源用量（必须传入 envId，对齐 tcb env usage/info），metrics=环境监控时序（必须传入 envId 与 metricName，对齐 TCB DescribeCurveData） 可填写的值: "list", "info", "domains", "usage", "metrics"`,
-    },
-    {
-      name: "alias",
-      type: "string",
-      description: `按环境别名筛选。action=list 时可选`,
-    },
-    {
-      name: "aliasExact",
-      type: "boolean",
-      description: `按环境别名精确筛选。action=list 时可选；与 alias 配合使用`,
-    },
-    {
-      name: "envId",
-      type: "string",
-      description: `环境 ID。action=list 时可选（仅按 DescribeEnvs 语义做筛选，仍返回摘要）；action=info / action=usage / action=metrics 时必填；action=domains 时可选（不传则查当前绑定环境，传了则查该环境的安全域名）。`,
-    },
-    {
-      name: "region",
-      type: "string",
-      description: `查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 取该环境自身的 Region、ignored_params 说明忽略原因——不要据此判定该地域没有环境。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）：若两站都登录过，传该地域会静默查国际站账号，请先用 auth(site="domestic") 或设置 TCB_SITE=domestic 明确站点。 可填写的值: "ap-shanghai", "ap-guangzhou", "ap-singapore"`,
-    },
-    {
-      name: "limit",
-      type: "integer",
-      description: `返回数量上限。action=list 时可选`,
-    },
-    {
-      name: "offset",
-      type: "integer",
-      description: `分页偏移。action=list 时可选`,
-    },
-    {
-      name: "fields",
-      type: "array of string",
-      description: `返回字段白名单。仅支持 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault。action=list 时可选`,
-    },
-    {
-      name: "type",
-      type: "array of string",
-      description: `用量模块过滤。仅 action=usage 时有效；不传则查询全部模块。可选值对齐 tcb CLI：FLEXDB、TDSQL、SCF、EKS、COS、AI、HOSTING、Auth、APIInvocation、HTTPInvocation、VM、Workflow、Other。`,
-    },
-    {
-      name: "startDate",
-      type: "string",
-      description: `用量开始日期（YYYY-MM-DD）。仅 action=usage 时有效；与 endDate 成对传入。不传则使用当前计费周期。`,
-    },
-    {
-      name: "endDate",
-      type: "string",
-      description: `用量结束日期（YYYY-MM-DD）。仅 action=usage 时有效；与 startDate 成对传入。不传则使用当前计费周期。`,
-    },
-    {
-      name: "needUsageDetails",
-      type: "boolean",
-      description: `是否返回每日用量明细。仅 action=usage 时有效；默认 true。`,
-    },
-    {
-      name: "metricName",
-      type: "string",
-      description: `监控指标名。仅 action=metrics 时有效且必填。GatewayTraceEnvQPS/EnvQPSAll=环境与网关 QPS；FunctionInvocation/FunctionError/FunctionTimeout/FunctionThrottle=云函数调用、错误、超时、限流；DbRead/DbWrite/DbSizepkg=文档库读写与容量；MysqlCpuUsageRate/MysqlMemoryUse/MysqlStorageUsage=SQL 库 CPU/内存/磁盘；TkeCpuUsedService/TkeQPSService/TkeHttpErrorService=云托管 CPU/QPS/错误。 可填写的值: "GatewayTraceEnvQPS", "EnvQPSAll", "FunctionInvocation", "FunctionError", "FunctionTimeout", "FunctionThrottle", "FunctionDuration", "FunctionConcurrentExecutions", "DbRead", "DbWrite", "DbSizepkg", "MysqlCpuUsageRate", "MysqlMemoryUse", "MysqlStorageUsage", "MysqlQps", "MysqlSlowQueries", "MysqlDbConnections", "TkeCpuUsedService", "TkeMemUsedService", "TkeQPSService", "TkeHttpErrorService", "TkeInvokeNumService"`,
-    },
-    {
-      name: "startTime",
-      type: "string",
-      description: `监控开始时间（YYYY-MM-DD HH:mm:ss）。仅 action=metrics 时有效；与 endTime 成对传入。不传则默认最近 24 小时。结束时间须晚于开始时间至少五分钟。`,
-    },
-    {
-      name: "endTime",
-      type: "string",
-      description: `监控结束时间（YYYY-MM-DD HH:mm:ss）。仅 action=metrics 时有效；与 startTime 成对传入。不传则默认最近 24 小时。`,
-    },
-    {
-      name: "period",
-      type: "number",
-      description: `统计周期（秒）。仅 action=metrics 时有效；仅支持 300、3600、86400。不传则由后端按时间范围自动选择。时间范围 ≤1 天不可用 86400；>3 天不可用 300。 可填写的值: 300, 3600, 86400`,
-    },
-    {
-      name: "resourceID",
-      type: "string",
-      description: `资源 ID。仅 action=metrics 时有效。云函数传函数名，文档库传集合名，云托管必须传服务名；GatewayTraceEnvQPS 不传则使用环境级 all|:|all|:|all|:|all。`,
-    },
-    {
-      name: "subresourceID",
-      type: "string",
-      description: `子资源 ID。仅 action=metrics 时有效；查询云托管某版本监控时传入版本名。`,
-    }
-  ]}
-/>
-
----
-
-### `envQuery`
-查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情、安全域名、资源用量与监控指标。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。账号级登录可传 region（ap-shanghai/ap-guangzhou/ap-singapore）查询对应地域，对齐 CLI `tcb env list -r &lt;region&gt;`；环境级凭证（API Key / 托管授权 token）只能看到绑定的 envId，返回 credential_scope=single_env，此时 region 不参与查询会在 ignored_params 中如实说明（AppliedFilters.region 为 null），不要误判为环境不存在或地域过滤失效。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。
-
-📊 action=usage 对齐 tcb env usage/info：透传 Manager SDK describeEnvAccountCircle + describeCreditsUsageDetail，返回计费周期与各模块资源点用量（FLEXDB/SCF/COS 等）。envId 必填；type 可选过滤模块；未传 startDate/endDate 时自动使用当前计费周期。
-
-📈 action=metrics 对齐 TCB DescribeCurveData（manager.monitor.describeCurveData，不是云监控 GetMonitorData）：查询环境/网关 QPS、云函数调用与错误、数据库 CPU/内存/磁盘、云托管 CPU/QPS 等时序。envId 与 metricName 必填；startTime/endTime 格式 YYYY-MM-DD HH:mm:ss，须成对传入，不传则默认最近 24 小时；period 仅 300/3600/86400。GatewayTraceEnvQPS 未传 resourceID 时自动填环境级 all|:|all|:|all|:|all；云托管 Tke* 指标必须传服务名 resourceID。禁止用 callCloudApi 猜测监控 Action。
-
-🔍 action=info 还会派生三个用于后端选型的字段：
-- `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。
-- `EnvInfo.RuntimeBackends`：`\{postgresql, nosql, mysql\}` 三个布尔值，描述当前环境实际并存的后端。
-- `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。
-
-🌐 action=info 还会在不改写 `StaticStorages[].StaticDomain`（云 API 名义域名）的前提下，投影网关路由 Enable 状态：`StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。
-
-AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType="noSqlDatabase")` 在 PG 环境下仍然有效。真正不适用的是 MySQL：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用。
-
-⚠️ DEPRECATED：此工具名已废弃，是 queryEnv 的旧词序别名，入参与 action 完全一致。请直接调用 queryEnv；本别名将在下个版本移除。
 
 #### 参数
 
@@ -1067,22 +948,22 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "action",
       type: "string",
       required: true,
-      description: `runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get lifecycle context without connection credentials; describeInstance=alias of getInstanceInfo; getConnectionInfo=passthrough raw connection/cluster payload including possible credentials (TCP migration exception only) 可填写的值: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo", "describeInstance", "getConnectionInfo"`,
+      description: `runQuery=执行只读 SQL；describeCreateResult=查询 CreateMySQL 结果；describeTaskStatus=查询 MySQL 任务状态；getInstanceInfo=获取不含连接凭据的生命周期上下文；describeInstance=getInstanceInfo 的别名；getConnectionInfo=透传可能包含凭据的原始连接/集群载荷（仅限 TCP 迁移例外场景） 可填写的值: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo", "describeInstance", "getConnectionInfo"`,
     },
     {
       name: "sql",
       type: "string",
-      description: `Read-only SQL used by action=runQuery`,
+      description: `action=runQuery 使用的只读 SQL`,
     },
     {
       name: "request",
       type: "object",
-      description: `Official request payload used by describeCreateResult/describeTaskStatus`,
+      description: `describeCreateResult/describeTaskStatus 使用的官方请求载荷`,
     },
     {
       name: "dbInstance",
       type: "object",
-      description: `Optional SQL database instance context for runQuery`,
+      description: `runQuery 可选的 SQL 数据库实例上下文`,
       children: [
         {
           name: "instanceId",
@@ -1110,37 +991,37 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "action",
       type: "string",
       required: true,
-      description: `provisionMySQL=create MySQL instance; destroyMySQL=destroy MySQL instance; runStatement=execute write SQL or DDL; initializeSchema=run ordered schema initialization statements 可填写的值: "provisionMySQL", "destroyMySQL", "runStatement", "initializeSchema"`,
+      description: `provisionMySQL=创建 MySQL 实例；destroyMySQL=销毁 MySQL 实例；runStatement=执行写入 SQL 或 DDL；initializeSchema=按顺序执行 Schema 初始化语句 可填写的值: "provisionMySQL", "destroyMySQL", "runStatement", "initializeSchema"`,
     },
     {
       name: "confirm",
       type: "boolean",
-      description: `Explicit confirmation required for action=provisionMySQL or action=destroyMySQL`,
+      description: `action=provisionMySQL 或 action=destroyMySQL 所需的显式确认`,
     },
     {
       name: "sql",
       type: "string",
-      description: `SQL statement used by action=runStatement`,
+      description: `action=runStatement 使用的 SQL 语句`,
     },
     {
       name: "request",
       type: "object",
-      description: `Official request payload used by action=provisionMySQL or action=destroyMySQL`,
+      description: `action=provisionMySQL 或 action=destroyMySQL 使用的官方请求载荷`,
     },
     {
       name: "statements",
       type: "array of string",
-      description: `Ordered schema initialization SQL statements used by action=initializeSchema`,
+      description: `action=initializeSchema 使用的有序 Schema 初始化 SQL 语句`,
     },
     {
       name: "requireReady",
       type: "boolean",
-      description: `Whether initializeSchema should block until MySQL is confirmed ready. Defaults to true.`,
+      description: `initializeSchema 是否应阻塞至确认 MySQL 就绪。默认为 true。`,
     },
     {
       name: "statusContext",
       type: "object",
-      description: `Optional provisioning status requests used to confirm readiness before initializeSchema`,
+      description: `initializeSchema 前用于确认就绪状态的可选开通状态请求`,
       children: [
         {
           name: "createResultRequest",
@@ -1155,7 +1036,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "dbInstance",
       type: "object",
-      description: `Optional SQL database instance context for runStatement/initializeSchema`,
+      description: `runStatement/initializeSchema 可选的 SQL 数据库实例上下文`,
       children: [
         {
           name: "instanceId",
@@ -2161,7 +2042,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 
       返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。
 
-      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 31 个，API 共 7 个）。
+      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 31 个，API 共 8 个）。
 
       注意：OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。
 
@@ -2183,7 +2064,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "apiName",
       type: "string",
-      description: `mode=openapi 时指定。API 名称。 可填写的值: "mysqldb", "pgdb", "functions", "auth", "cloudrun", "storage", "ai_model"`,
+      description: `mode=openapi 时指定。API 名称。 可填写的值: "mysqldb", "pgdb", "functions", "auth", "cloudrun", "storage", "nosql", "ai_model"`,
     },
     {
       name: "action",

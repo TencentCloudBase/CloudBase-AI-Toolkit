@@ -45,7 +45,7 @@ describe("cloud-mode", () => {
   it("skips local-file tools in cloud mode", () => {
     clearCloudModeSignals();
     process.env.CLOUDBASE_MCP_CLOUD_MODE = "true";
-    expect(shouldRegisterTool("envQuery")).toBe(true);
+    expect(shouldRegisterTool("queryEnv")).toBe(true);
     expect(shouldRegisterTool("createFunction")).toBe(false);
     expect(shouldRegisterTool("downloadTemplate")).toBe(false);
   });

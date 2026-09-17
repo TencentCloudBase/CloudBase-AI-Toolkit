@@ -84,7 +84,7 @@ CloudBase MCP 支持两种连接方式：**本地模式**（MCP 服务在本机�
 
 跨地域查询（仅账号级凭据）：
 
-- MCP：`queryEnv(action="list", region="ap-singapore")`（`envQuery` 同义）
+- MCP：`queryEnv(action="list", region="ap-singapore")`（旧称 `envQuery`）
 - MCP 管控面：`callCloudApi(service="tcb", action="DescribeEnvs", region="ap-singapore")`。**不要把 `Region` 放进 `params`**（会报 `The parameter Region is not recognized`）
 - CLI：`tcb env list -r ap-singapore --json`
 

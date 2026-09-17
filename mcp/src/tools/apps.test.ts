@@ -517,7 +517,7 @@ describe("app tools", () => {
     expect(tools.manageApps.meta.description).toBe("apps.manageDescription");
     expect(t("apps.manageDescription")).toContain("远端构建");
     expect(t("apps.manageDescription")).toContain("与 manageHosting 对比");
-    expect(tools.manageApps.meta.inputSchema.serviceName.description).toContain("重新部署");
+    expect(t("apps.schema.manageServiceName")).toContain("重新部署");
     expect(tools.manageApps.meta.inputSchema.framework.safeParse("static").success).toBe(true);
     expect(tools.manageApps.meta.inputSchema.framework.safeParse("html").success).toBe(false);
   });

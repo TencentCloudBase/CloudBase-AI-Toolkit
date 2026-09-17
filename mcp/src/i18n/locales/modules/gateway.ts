@@ -138,6 +138,87 @@ export const gateway = defineModule(
     "authSwitch.onMessage": "HTTP 访问服务鉴权开启成功",
     "authSwitch.offMessage": "HTTP 访问服务鉴权关闭成功",
     "authSwitch.verifyReason": "复核 HTTP 网关总开关与访问鉴权状态",
+    // Input schema parameter descriptions
+    "schema.query.action":
+      "只读操作类型：listRoutes、getRoute、listCustomDomains、getPrivilege。" +
+      "getPrivilege 无需其他参数，直接返回 HTTP 网关总开关与访问鉴权状态。" +
+      "自定义域名访问场景先 listCustomDomains 确认是否已有域名可复用。",
+    "schema.query.targetName":
+      "上游资源名过滤（UpstreamResourceName）：云函数名、云托管服务名，或静态托管实例名（常见 staticstore）。",
+    "schema.query.routeId": "路由 ID。getRoute 时可选",
+    "schema.query.path": "路由路径。getRoute / listRoutes 过滤时可选",
+    "schema.query.domain": "域名。getRoute / listRoutes 过滤时可选",
+    "schema.manage.action":
+      "写操作：createRoute/updateRoute/deleteRoute 管理路由；enableRoute/disableRoute 启用或禁用已有路由（需 path，建议显式传 domain）；" +
+      "bindCustomDomain/deleteCustomDomain 管理自定义域名；" +
+      "enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权（需配合 enable 参数）。" +
+      "createRoute/updateRoute 必须提供 upstreamResourceType；enableRoute/disableRoute 会先 listRoutes 定位已有路由，通常不必重填上游。" +
+      "updateRoute 也可传 enable/route.enable 直接改 Routes[].Enable。" +
+      "关闭 *.tcloudbaseapp.com 默认静态托管域：disableRoute + domain=该 STATIC_STORE IsDefault 域名 + path=\"/\"。" +
+      "已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；" +
+      "bindCustomDomain 仅用于首次绑定新域名（certificateId 可选，未传则按域名自动检索；可选 accessType=DIRECT|CDN|CUSTOM，CUSTOM 需 customCname；普通场景用默认 DIRECT）。" +
+      "createRoute/bindCustomDomain 创建前会 VerifyHTTPServiceRoute 预检；失败时按返回的 DNS TXT 指引配置后重试。" +
+      "接入说明：https://docs.cloudbase.net/service/custom-domain",
+    "schema.manage.targetName":
+      "上游资源名称（UpstreamResourceName），与 route.serviceName 二选一（route 优先）。" +
+      "云函数=函数名；云托管=服务名；静态托管=实例名（常见 staticstore）。不会自动推断上游类型。",
+    "schema.manage.path":
+      "触发路径（网关匹配前缀），默认 /{上游名}。例：云函数 /api/hello、云托管 /api、静态托管 / 或 /app。" +
+      "只建网关入口；与 enablePathTransmission 共同决定上游实际收到的路径。",
+    "schema.manage.upstreamResourceType":
+      "上游类型（与 route.upstreamResourceType 二选一，route 优先）。" +
+      "WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，LH=轻量应用服务器。" +
+      "createRoute/updateRoute 必填其一；勿把 manageFunctions 的 type=HTTP|Event 传到本字段。",
+    "schema.manage.auth":
+      "网关路径鉴权（EnableAuth）。匿名/浏览器公网访问通常 false。" +
+      "只控制网关入口；云函数安全规则、云托管鉴权、静态托管权限需各自工具另行配置。",
+    "schema.manage.enablePathTransmission":
+      "路径透传（EnablePathTransmission），平台默认 false。例 path=/api 且请求 /api/users：" +
+      "false→上游收到 /users；true→上游收到 /api/users。" +
+      "CBR 云托管（Express 等自管子路由）与 WEB_SCF 多路径函数常需 true；" +
+      "STATIC_STORE 把触发路径映射到站点根目录（如 /app → 托管 /）时通常 false；" +
+      "单入口/根路径处理保持 false。也可用 route.enablePathTransmission（route 优先）。",
+    "schema.manage.route.serviceName":
+      "上游实例名：云函数名 / 云托管服务名 / 静态托管实例名（常见 staticstore）/ LH 实例。优先于顶层 targetName。",
+    "schema.manage.route.upstreamResourceType":
+      "同顶层 upstreamResourceType。route 内设置时优先于顶层。",
+    "schema.manage.route.enablePathTransmission":
+      "同顶层 enablePathTransmission。route 内设置时优先于顶层。",
+    "schema.manage.route.enable":
+      "路由级开关（Routes[].Enable / Route.Enable）。createRoute/updateRoute 可用：" +
+      "enable=false 禁用该 Domain+Path（访问返回 GATEWAY_ROUTE_DISABLED）；" +
+      "enable=true 重新启用。updateRoute 也可用顶层 enable 表达同一语义；" +
+      "也可用专用 action enableRoute/disableRoute。route.enable 优先于顶层 enable。",
+    "schema.manage.route":
+      "路由对象（可选写法）。例：云函数 {upstreamResourceType:\"WEB_SCF\",serviceName:\"fn\",path:\"/api\"}；" +
+      "云托管 {upstreamResourceType:\"CBR\",serviceName:\"svc\",path:\"/api\"}；" +
+      "静态托管 {upstreamResourceType:\"STATIC_STORE\",serviceName:\"staticstore\",path:\"/\"}；" +
+      "禁用路由 {path:\"/\",enable:false}（配合 updateRoute，或直接用 disableRoute）。",
+    "schema.manage.domain":
+      "域名。省略时自动使用环境 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（*.{region}.app.tcloudbase.com），不会回退到静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）；也不是 STATIC_STORE 上游绑定。" +
+      "可用 queryGateway(action=\"listRoutes\") 核对实际 Domain / DomainType。" +
+      "enableRoute/disableRoute 操作 *.tcloudbaseapp.com 时必须显式传入该域名。" +
+      "已有自定义域名时请显式传入该域名并 createRoute/updateRoute/deleteRoute，即可实现自定义域名访问且无需证书 ID；" +
+      "仅 bindCustomDomain 时表示要新绑定的域名。",
+    "schema.manage.certificateId":
+      "证书 ID。仅 bindCustomDomain 使用：显式传入时跳过自动检索；" +
+      "省略时按 domain 调用 describeCertificates(SearchKey=domain)——" +
+      "单证书自动选用，无证书报错，多证书返回结构化选择指引（MCP 非交互）。" +
+      "在已有自定义域名上 createRoute / updateRoute / deleteRoute 不需要 certificateId。",
+    "schema.manage.accessType":
+      "绑定类型（仅 bindCustomDomain，默认 DIRECT）。" +
+      "DIRECT=直连（普通绑域名用这个）；CDN=云开发 CDN；CUSTOM=自有 CDN/WAF（需 customCname）。" +
+      "详见 https://docs.cloudbase.net/service/custom-domain",
+    "schema.manage.customCname":
+      "自有 CDN/WAF 的回源/回填地址（仅 bindCustomDomain 且 accessType=CUSTOM）。" +
+      "不是 DNS 里用户域名要解析到的那个 CNAME；DIRECT/CDN 不要传。" +
+      "详见 https://docs.cloudbase.net/service/custom-domain",
+    "schema.manage.enable":
+      "开关目标状态：enableService / authSwitch 必填（true 开启 / false 关闭）；" +
+      "bindCustomDomain 可选：enable=false 表示绑定后禁用域名（默认启用）；" +
+      "updateRoute 可选：映射到 Routes[].Enable（也可用 route.enable，route 优先；" +
+      "也可用专用 action enableRoute/disableRoute）。" +
+      "省略或非布尔值在 enableService/authSwitch 会返回参数错误。",
   },
   {
     "query.title": "Query CloudBase Gateway",
@@ -284,5 +365,86 @@ export const gateway = defineModule(
     "authSwitch.offMessage": "HTTP access service auth disabled successfully",
     "authSwitch.verifyReason":
       "Verify the HTTP gateway master switch and access auth status",
+    // Input schema parameter descriptions
+    "schema.query.action":
+      "Read-only action: listRoutes, getRoute, listCustomDomains, getPrivilege. " +
+      "getPrivilege needs no other parameter and returns the HTTP gateway master switch and access auth status directly. " +
+      "For custom domain access, run listCustomDomains first to check whether an existing domain can be reused.",
+    "schema.query.targetName":
+      "Upstream resource name filter (UpstreamResourceName): a cloud function name, CloudRun service name, or static-hosting instance name (commonly staticstore).",
+    "schema.query.routeId": "Route ID. Optional for getRoute",
+    "schema.query.path": "Route path. Optional as a getRoute / listRoutes filter",
+    "schema.query.domain": "Domain. Optional as a getRoute / listRoutes filter",
+    "schema.manage.action":
+      "Write actions: createRoute/updateRoute/deleteRoute manage routes; enableRoute/disableRoute enable or disable an existing route (path required, passing domain explicitly is recommended); " +
+      "bindCustomDomain/deleteCustomDomain manage custom domains; " +
+      "enableService/authSwitch toggle the HTTP gateway master switch and access auth (requires the enable parameter). " +
+      "createRoute/updateRoute must provide upstreamResourceType; enableRoute/disableRoute run listRoutes first to locate the existing route, so the upstream usually does not need to be repeated. " +
+      "updateRoute can also pass enable/route.enable to change Routes[].Enable directly. " +
+      "To disable the default static-hosting domain *.tcloudbaseapp.com: disableRoute + domain=that STATIC_STORE IsDefault domain + path=\"/\". " +
+      "When a custom domain already exists, prefer createRoute(domain=existing domain) for access instead of calling bindCustomDomain / passing certificateId again; " +
+      "bindCustomDomain is only for binding a new domain the first time (certificateId is optional — when omitted, certificates are searched by domain; optional accessType=DIRECT|CDN|CUSTOM, CUSTOM requires customCname; use the default DIRECT for normal cases). " +
+      "createRoute/bindCustomDomain run a VerifyHTTPServiceRoute pre-check before creation; on failure, follow the returned DNS TXT guidance and retry. " +
+      "Setup guide: https://docs.cloudbase.net/service/custom-domain",
+    "schema.manage.targetName":
+      "Upstream resource name (UpstreamResourceName); use either this or route.serviceName (route wins). " +
+      "Cloud function=function name; CloudRun=service name; static hosting=instance name (commonly staticstore). The upstream type is never inferred automatically.",
+    "schema.manage.path":
+      "Trigger path (the gateway match prefix), defaults to /{upstream name}. Examples: cloud function /api/hello, CloudRun /api, static hosting / or /app. " +
+      "This only creates the gateway entry; together with enablePathTransmission it determines the path the upstream actually receives.",
+    "schema.manage.upstreamResourceType":
+      "Upstream type (use either this or route.upstreamResourceType, route wins). " +
+      "WEB_SCF=HTTP cloud function, SCF=Event cloud function, CBR=CloudRun, STATIC_STORE=static hosting, LH=Lighthouse. " +
+      "One of them is required for createRoute/updateRoute; do not pass the manageFunctions type=HTTP|Event value into this field.",
+    "schema.manage.auth":
+      "Gateway path auth (EnableAuth). Usually false for anonymous/browser public access. " +
+      "It only controls the gateway entry; cloud function security rules, CloudRun auth, and static hosting permissions must be configured with their own tools.",
+    "schema.manage.enablePathTransmission":
+      "Path transmission (EnablePathTransmission), platform default false. With path=/api and a request to /api/users: " +
+      "false→the upstream receives /users; true→the upstream receives /api/users. " +
+      "CBR CloudRun (Express and similar self-managed sub-routes) and multi-path WEB_SCF functions often need true; " +
+      "STATIC_STORE mapping a trigger path to the site root (e.g. /app → hosting /) is usually false; " +
+      "keep false for single-entry/root-path handling. route.enablePathTransmission also works (route wins).",
+    "schema.manage.route.serviceName":
+      "Upstream instance name: cloud function name / CloudRun service name / static-hosting instance name (commonly staticstore) / LH instance. Takes precedence over the top-level targetName.",
+    "schema.manage.route.upstreamResourceType":
+      "Same as the top-level upstreamResourceType. When set inside route, it takes precedence over the top level.",
+    "schema.manage.route.enablePathTransmission":
+      "Same as the top-level enablePathTransmission. When set inside route, it takes precedence over the top level.",
+    "schema.manage.route.enable":
+      "Route-level switch (Routes[].Enable / Route.Enable). Available for createRoute/updateRoute: " +
+      "enable=false disables this Domain+Path (access returns GATEWAY_ROUTE_DISABLED); " +
+      "enable=true re-enables it. updateRoute can express the same semantics with the top-level enable; " +
+      "the dedicated actions enableRoute/disableRoute also work. route.enable takes precedence over the top-level enable.",
+    "schema.manage.route":
+      "Route object (an optional form). Examples: cloud function {upstreamResourceType:\"WEB_SCF\",serviceName:\"fn\",path:\"/api\"}; " +
+      "CloudRun {upstreamResourceType:\"CBR\",serviceName:\"svc\",path:\"/api\"}; " +
+      "static hosting {upstreamResourceType:\"STATIC_STORE\",serviceName:\"staticstore\",path:\"/\"}; " +
+      "disable a route {path:\"/\",enable:false} (with updateRoute, or use disableRoute directly).",
+    "schema.manage.domain":
+      "Domain. When omitted, the env IsDefault default HTTP domain with DomainType=HTTPSERVICE (*.{region}.app.tcloudbase.com) is used; it never falls back to the static-hosting CDN domain (*.tcloudbaseapp.com, DomainType=STATIC_STORE), and it is not a STATIC_STORE upstream binding. " +
+      "Use queryGateway(action=\"listRoutes\") to verify the actual Domain / DomainType. " +
+      "When enableRoute/disableRoute targets *.tcloudbaseapp.com, this domain must be passed explicitly. " +
+      "If a custom domain already exists, pass it explicitly with createRoute/updateRoute/deleteRoute to serve custom domain access without a certificate ID; " +
+      "for bindCustomDomain only, it means the new domain to bind.",
+    "schema.manage.certificateId":
+      "Certificate ID. Used only by bindCustomDomain: passing it explicitly skips the automatic search; " +
+      "when omitted, describeCertificates(SearchKey=domain) is called by domain — " +
+      "a single certificate is selected automatically, no certificate raises an error, and multiple certificates return structured selection guidance (MCP is non-interactive). " +
+      "createRoute / updateRoute / deleteRoute on an existing custom domain do not need certificateId.",
+    "schema.manage.accessType":
+      "Binding type (bindCustomDomain only, default DIRECT). " +
+      "DIRECT=direct connection (use this for normal domain binding); CDN=CloudBase CDN; CUSTOM=your own CDN/WAF (requires customCname). " +
+      "See https://docs.cloudbase.net/service/custom-domain",
+    "schema.manage.customCname":
+      "Origin/backfill address of your own CDN/WAF (bindCustomDomain with accessType=CUSTOM only). " +
+      "This is not the CNAME the user domain should resolve to in DNS; do not pass it for DIRECT/CDN. " +
+      "See https://docs.cloudbase.net/service/custom-domain",
+    "schema.manage.enable":
+      "Target switch state: required for enableService / authSwitch (true to turn on / false to turn off); " +
+      "optional for bindCustomDomain: enable=false disables the domain after binding (enabled by default); " +
+      "optional for updateRoute: maps to Routes[].Enable (route.enable also works and wins; " +
+      "the dedicated actions enableRoute/disableRoute are available too). " +
+      "Omitting it or passing a non-boolean returns a parameter error for enableService/authSwitch.",
   },
 );

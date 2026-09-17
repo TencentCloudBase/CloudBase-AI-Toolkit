@@ -631,14 +631,12 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z
           .enum(["get", "list", "docs"])
-          .describe(
-            "操作类型：get=查询单个模型（含Schema字段列表、格式、关联关系，需要提供 name 参数），list=获取模型列表（不含Schema，可选 names 参数过滤），docs=生成SDK使用文档（需要提供 name 参数）"
-          ),
-        name: z.string().optional().describe("要查询的数据模型名称。当 action='get' 或 action='docs' 时，此参数为必填项，必须提供已存在的数据模型名称。可通过 action='list' 操作获取可用的模型名称列表"),
+          .describe("dataModel.schema.manage.action"),
+        name: z.string().optional().describe("dataModel.schema.manage.name"),
         names: z
           .array(z.string())
           .optional()
-          .describe("模型名称数组（list操作时可选，用于过滤）"),
+          .describe("dataModel.schema.manage.names"),
       },
       annotations: {
         readOnlyHint: true,
@@ -998,61 +996,22 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
       description: "dataModel.modifyDataModel.description",
       inputSchema: {
         mermaidDiagram: z.string()
-          .describe(`Mermaid classDiagram代码，描述数据模型结构。
-示例：
-classDiagram
-    class Student {
-        name: string <<姓名>>
-        age: number = 18 <<年龄>>
-        gender: x-enum = "男" <<性别>>
-        classId: string <<班级ID>>
-        identityId: string <<身份ID>>
-        course: Course[] <<课程>>
-        required() ["name"]
-        unique() ["name"]
-        enum_gender() ["男", "女"]
-        display_field() "name"
-    }
-    class Class {
-        className: string <<班级名称>>
-        display_field() "className"
-    }
-    class Course {
-        name: string <<课程名称>>
-        students: Student[] <<学生>>
-        display_field() "name"
-    }
-    class Identity {
-        number: string <<证件号码>>
-        display_field() "number"
-    }
-
-    %% 关联关系
-    Student "1" --> "1" Identity : studentId
-    Student "n" --> "1" Class : student2class
-    Student "n" --> "m" Course : course
-    Student "n" <-- "m" Course : students
-    %% 类的命名
-    note for Student "学生模型"
-    note for Class "班级模型"
-    note for Course "课程模型"
-    note for Identity "身份模型"
-`),
+          .describe("dataModel.schema.modify.mermaidDiagram"),
         action: z
           .enum(["create"])
           .optional()
           .default("create")
-          .describe("操作类型：create=创建新模型"),
+          .describe("dataModel.schema.modify.action"),
         publish: z
           .boolean()
           .optional()
           .default(false)
-          .describe("是否立即发布模型"),
+          .describe("dataModel.schema.modify.publish"),
         dbInstanceType: z
           .enum(["MYSQL", "FLEXDB"])
           .optional()
           .default("MYSQL")
-          .describe("数据库实例类型，可选值：MYSQL=MySQL 数据库，FLEXDB=文档型数据库（NoSQL）"),
+          .describe("dataModel.schema.modify.dbInstanceType"),
       },
       annotations: {
         readOnlyHint: false,

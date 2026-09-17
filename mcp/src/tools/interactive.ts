@@ -336,14 +336,14 @@ export async function _promptAndSetEnvironmentId(
   // If query failed completely, return error
   if (!queryEnvSuccess && queryEnvError) {
     debug("[interactive] Environment query failed completely, returning error");
-    const envQueryErrorMsg = t("interactive.envQueryFailed", { error: queryEnvError });
+    const queryEnvErrorMessage = t("interactive.queryEnvFailed", { error: queryEnvError });
     return {
       selectedEnvId: null,
       cancelled: false,
-      error: envQueryErrorMsg,
+      error: queryEnvErrorMessage,
       failureInfo: {
         reason: 'env_query_failed',
-        error: envQueryErrorMsg,
+        error: queryEnvErrorMessage,
         errorCode: "ENV_QUERY_FAILED",
         helpUrl: "https://docs.cloudbase.net/cli-v1/env",
         details: {

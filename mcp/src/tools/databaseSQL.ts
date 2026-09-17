@@ -1329,24 +1329,22 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z
           .enum(QUERY_ACTIONS)
-          .describe(
-            "runQuery=execute read-only SQL; describeCreateResult=query CreateMySQL result; describeTaskStatus=query MySQL task status; getInstanceInfo=get lifecycle context without connection credentials; describeInstance=alias of getInstanceInfo; getConnectionInfo=passthrough raw connection/cluster payload including possible credentials (TCP migration exception only)",
-          ),
+          .describe("databaseSQL.schema.query.action"),
         sql: z
           .string()
           .optional()
-          .describe("Read-only SQL used by action=runQuery"),
+          .describe("databaseSQL.schema.query.sql"),
         request: z
           .record(z.unknown())
           .optional()
-          .describe("Official request payload used by describeCreateResult/describeTaskStatus"),
+          .describe("databaseSQL.schema.query.request"),
         dbInstance: z
           .object({
             instanceId: z.string().optional(),
             schema: z.string().optional(),
           })
           .optional()
-          .describe("Optional SQL database instance context for runQuery"),
+          .describe("databaseSQL.schema.query.dbInstance"),
       },
       annotations: {
         readOnlyHint: true,
@@ -1384,43 +1382,41 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z
           .enum(MANAGE_ACTIONS)
-          .describe(
-            "provisionMySQL=create MySQL instance; destroyMySQL=destroy MySQL instance; runStatement=execute write SQL or DDL; initializeSchema=run ordered schema initialization statements",
-          ),
+          .describe("databaseSQL.schema.manage.action"),
         confirm: z
           .boolean()
           .optional()
-          .describe("Explicit confirmation required for action=provisionMySQL or action=destroyMySQL"),
+          .describe("databaseSQL.schema.manage.confirm"),
         sql: z
           .string()
           .optional()
-          .describe("SQL statement used by action=runStatement"),
+          .describe("databaseSQL.schema.manage.sql"),
         request: z
           .record(z.unknown())
           .optional()
-          .describe("Official request payload used by action=provisionMySQL or action=destroyMySQL"),
+          .describe("databaseSQL.schema.manage.request"),
         statements: z
           .array(z.string())
           .optional()
-          .describe("Ordered schema initialization SQL statements used by action=initializeSchema"),
+          .describe("databaseSQL.schema.manage.statements"),
         requireReady: z
           .boolean()
           .optional()
-          .describe("Whether initializeSchema should block until MySQL is confirmed ready. Defaults to true."),
+          .describe("databaseSQL.schema.manage.requireReady"),
         statusContext: z
           .object({
             createResultRequest: z.record(z.unknown()).optional(),
             taskStatusRequest: z.record(z.unknown()).optional(),
           })
           .optional()
-          .describe("Optional provisioning status requests used to confirm readiness before initializeSchema"),
+          .describe("databaseSQL.schema.manage.statusContext"),
         dbInstance: z
           .object({
             instanceId: z.string().optional(),
             schema: z.string().optional(),
           })
           .optional()
-          .describe("Optional SQL database instance context for runStatement/initializeSchema"),
+          .describe("databaseSQL.schema.manage.dbInstance"),
       },
       annotations: {
         readOnlyHint: false,

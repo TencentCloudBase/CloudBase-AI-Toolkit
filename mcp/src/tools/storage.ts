@@ -12,18 +12,18 @@ const STORAGE_READ_TEMP_PREFIX = 'cloudbase-mcp-storage-read-';
 
 // Input schema for queryStorage tool
 const queryStorageInputSchema = {
-  action: z.enum(['list', 'info', 'url', 'read']).describe('查询操作类型：list=列出目录下的所有文件，info=获取指定文件的详细信息，url=获取文件的临时下载链接，read=读取文本文件内容'),
-  cloudPath: z.string().describe('云端文件路径，例如 files/data.txt 或 files/（目录）'),
-  maxAge: z.number().min(1).max(86400).optional().default(3600).describe('临时链接有效期，单位为秒，取值范围：1-86400，默认值：3600（1小时）')
+  action: z.enum(['list', 'info', 'url', 'read']).describe('storage.schema.query.action'),
+  cloudPath: z.string().describe('storage.schema.query.cloudPath'),
+  maxAge: z.number().min(1).max(86400).optional().default(3600).describe('storage.schema.query.maxAge')
 };
 
 // Input schema for manageStorage tool
 const manageStorageInputSchema = {
-  action: z.enum(['upload', 'download', 'delete']).describe('管理操作类型：upload=上传文件或目录，download=下载文件或目录，delete=删除文件或目录'),
-  localPath: z.string().optional().describe('本地文件路径，建议传入绝对路径，例如 /tmp/files/data.txt；upload/download 操作时必填，delete 操作时不需要传该参数'),
-  cloudPath: z.string().describe('云端文件路径，例如 files/data.txt'),
-  force: z.boolean().optional().default(false).describe('强制操作开关，删除操作时建议设置为true以确认删除，默认false'),
-  isDirectory: z.boolean().optional().default(false).describe('是否为目录操作，true=目录操作，false=文件操作，默认false')
+  action: z.enum(['upload', 'download', 'delete']).describe('storage.schema.manage.action'),
+  localPath: z.string().optional().describe('storage.schema.manage.localPath'),
+  cloudPath: z.string().describe('storage.schema.manage.cloudPath'),
+  force: z.boolean().optional().default(false).describe('storage.schema.manage.force'),
+  isDirectory: z.boolean().optional().default(false).describe('storage.schema.manage.isDirectory')
 };
 
 type QueryStorageInput = {

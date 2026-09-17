@@ -44,6 +44,16 @@ export const capi = defineModule(
       "请检查 service/action/params 是否与官方 API 文档一致后重试。",
     errorBuild:
       "[{service}/{action}] 调用失败: {baseMessage}\n建议：{suggestions}\n参考文档：CloudBase API 概览 {controlPlaneUrl}\n云开发依赖资源接口指引 {dependencyUrl}",
+    "schema.service":
+      "腾讯云产品标识，**取值只能来自本字段的 enum 白名单（共 {count} 个）**，决定请求域名 https://<service>.tencentcloudapi.com。名单外的取值一律拒绝，不要臆造；COS 不在云 API 体系内。产品名与 Action 对照见 skill cloud-api-operations。云托管统一走 tcbr。",
+    "schema.action":
+      "具体 Action 名称，需符合对应服务的官方 API 定义。**不确定时先查官方文档，不要用近义词或历史命名猜测**（猜错会被服务端报成 action invalid，很难排查）。常用 Action 见 skill cloud-api-operations。",
+    "schema.version":
+      "API 版本（多数场景可省略）。白名单里**只有一个官方版本的产品会自动补齐**，不必传；以下多版本产品必须显式传，缺省会报错并列出可选项：{services}。示例：service=\"tcbr\", version=\"2022-02-17\", action=\"CreateCloudRunEnv\", params={EnvId:\"env-xxx\",PackageType:\"Standard\"}；service=\"monitor\" 需显式传 \"2018-07-24\"（告警策略族 Action 属于该版本）。",
+    "schema.params":
+      "Action 对应的参数对象，键名与官方 API 定义一致，不确定时先查文档。**不要把 Region 放这里**，跨地域用顶层 region。CloudBase 业务 API 请优先用 searchKnowledgeBase(mode=\"openapi\")，不要用本工具。示例见 skill cloud-api-operations。",
+    "schema.region":
+      "云 API 地域（X-TC-Region），如 ap-shanghai。跨地域必须传此顶层参数，不要写进 params。⚠️ ap-singapore 同属国内站与国际站，未指定站点按国际站（site=intl）处理：要操作国内站该地域环境，先 auth(action=\"start_auth\", site=\"domestic\") 或设 TCB_SITE=domestic。",
   },
   {
     title: "Call Cloud API",
@@ -89,5 +99,15 @@ export const capi = defineModule(
       "Check service/action/params against the official API docs and retry.",
     errorBuild:
       "[{service}/{action}] call failed: {baseMessage}\nSuggestions: {suggestions}\nReferences: CloudBase API overview {controlPlaneUrl}\nDependent-resource API guide {dependencyUrl}",
+    "schema.service":
+      "Tencent Cloud product identifier. **The value must come from this field's enum allow-list ({count} entries)** and determines the request domain https://<service>.tencentcloudapi.com. Values outside the list are rejected; do not invent one. COS is not part of the Cloud API system. See the cloud-api-operations skill for product-to-Action mappings. Always use tcbr for CloudBase Run.",
+    "schema.action":
+      "The exact Action name defined by the official API for the selected service. **If uncertain, consult the official documentation first; do not guess with synonyms or legacy names** (an incorrect guess is reported by the server as action invalid and is difficult to diagnose). See the cloud-api-operations skill for common Actions.",
+    "schema.version":
+      "API version (optional in most cases). Products with **exactly one official version in the allow-list are filled automatically**, so do not pass it. These multi-version products require an explicit version; omitting it returns an error with the available options: {services}. Examples: service=\"tcbr\", version=\"2022-02-17\", action=\"CreateCloudRunEnv\", params={EnvId:\"env-xxx\",PackageType:\"Standard\"}; service=\"monitor\" requires \"2018-07-24\" for the alert-policy Action family.",
+    "schema.params":
+      "Parameter object for the Action. Keys must match the official API definition; consult the documentation if uncertain. **Do not put Region here**; use the top-level region parameter for cross-region requests. For CloudBase business APIs, prefer searchKnowledgeBase(mode=\"openapi\") instead of this tool. See the cloud-api-operations skill for examples.",
+    "schema.region":
+      "Cloud API region (X-TC-Region), such as ap-shanghai. Cross-region requests must pass this top-level parameter, not put it in params. ⚠️ ap-singapore exists on both the domestic and international sites. When the site is unspecified, the international site (site=intl) is used. To operate a domestic-site environment in that region, first call auth(action=\"start_auth\", site=\"domestic\") or set TCB_SITE=domestic.",
   },
 );

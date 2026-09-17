@@ -558,16 +558,14 @@ export function registerSetupTools(server: ExtendedMcpServer) {
       inputSchema: {
         template: z
           .enum(["react", "vue", "miniprogram", "uniapp", "rules"])
-          .describe("要下载的模板类型"),
+          .describe("setup.schema.template"),
         ide: z
           .enum(IDE_TYPES)
-          .describe(
-            "指定要下载的IDE类型。",
-          ),
+          .describe("setup.schema.ide"),
         overwrite: z
           .boolean()
           .optional()
-          .describe("是否覆盖已存在的文件，默认为false（不覆盖）"),
+          .describe("setup.schema.overwrite"),
       },
       annotations: {
         readOnlyHint: false,

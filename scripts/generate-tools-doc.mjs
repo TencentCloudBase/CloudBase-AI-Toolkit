@@ -47,7 +47,6 @@ function typeOfSchema(schema) {
 const PLUGIN_MAP = {
   auth:                        '认证与登录',
   queryEnv:                    '环境管理',
-  envQuery:                    '环境管理',
   envDomainManagement:          '环境管理',
   readNoSqlDatabaseStructure:  'NoSQL 数据库',
   writeNoSqlDatabaseStructure: 'NoSQL 数据库',

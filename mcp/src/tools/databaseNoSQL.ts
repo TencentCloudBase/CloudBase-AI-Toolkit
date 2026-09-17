@@ -516,29 +516,23 @@ export function registerDatabaseTools(server: ExtendedMcpServer) {
           "checkCollection",
           "listIndexes",
           "checkIndex",
-        ]).describe(`listCollections: 列出集合列表
-describeCollection: 描述集合详情（会返回索引摘要）
-checkCollection: 检查集合是否存在
-listIndexes: 列出指定集合的索引列表
-checkIndex: 检查指定索引是否存在`),
+        ]).describe("databaseNoSQL.schema.readStructure.action"),
         limit: z
           .number()
           .optional()
-          .describe("返回数量限制(listCollections 操作时可选)"),
+          .describe("databaseNoSQL.schema.readStructure.limit"),
         offset: z
           .number()
           .optional()
-          .describe("偏移量(listCollections 操作时可选)"),
+          .describe("databaseNoSQL.schema.readStructure.offset"),
         collectionName: z
           .string()
           .optional()
-          .describe(
-            "集合名称(describeCollection、listIndexes、checkIndex 操作时必填)",
-          ),
+          .describe("databaseNoSQL.schema.readStructure.collectionName"),
         indexName: z
           .string()
           .optional()
-          .describe("索引名称(checkIndex 操作时必填)"),
+          .describe("databaseNoSQL.schema.readStructure.indexName"),
       },
       annotations: {
         readOnlyHint: true,
@@ -736,48 +730,44 @@ checkIndex: 检查指定索引是否存在`),
           "createCollection",
           "updateCollection",
           "deleteCollection",
-        ]).describe(`createCollection: 创建集合
-updateCollection: 更新集合配置；添加索引请传 updateOptions.CreateIndexes，删除索引请传 updateOptions.DropIndexes
-deleteCollection: 删除集合`),
+        ]).describe("databaseNoSQL.schema.writeStructure.action"),
         collectionName: z
           .string()
           .trim()
           .min(1, "collectionName 不能为空")
-          .describe("集合名称"),
+          .describe("databaseNoSQL.schema.writeStructure.collectionName"),
         updateOptions: z
           .object({
             CreateIndexes: z
               .array(
                 z.object({
-                  IndexName: z.string().describe("要创建的索引名称"),
+                  IndexName: z.string().describe("databaseNoSQL.schema.writeStructure.createIndex.name"),
                   MgoKeySchema: z.object({
-                    MgoIsUnique: z.boolean().describe("是否唯一索引"),
+                    MgoIsUnique: z.boolean().describe("databaseNoSQL.schema.writeStructure.createIndex.unique"),
                     MgoIndexKeys: z.array(
                       z.object({
-                        Name: z.string().describe("索引字段名"),
+                        Name: z.string().describe("databaseNoSQL.schema.writeStructure.createIndex.fieldName"),
                         Direction: z
                           .string()
-                          .describe("索引方向，通常 1 表示升序，-1 表示降序"),
+                          .describe("databaseNoSQL.schema.writeStructure.createIndex.direction"),
                       }),
-                    ).describe("索引字段列表，支持单字段或复合索引"),
-                  }).describe("待创建索引的字段与约束配置"),
+                    ).describe("databaseNoSQL.schema.writeStructure.createIndex.fields"),
+                  }).describe("databaseNoSQL.schema.writeStructure.createIndex.keySchema"),
                 }),
               )
               .optional()
-              .describe("要添加的索引列表"),
+              .describe("databaseNoSQL.schema.writeStructure.createIndexes"),
             DropIndexes: z
               .array(
                 z.object({
-                  IndexName: z.string().describe("要删除的索引名称"),
+                  IndexName: z.string().describe("databaseNoSQL.schema.writeStructure.dropIndex.name"),
                 }),
               )
               .optional()
-              .describe("要删除的索引列表"),
+              .describe("databaseNoSQL.schema.writeStructure.dropIndexes"),
           })
           .optional()
-          .describe(
-            "更新选项(updateCollection 时使用)。CreateIndexes 用于添加索引，DropIndexes 用于删除索引。",
-          ),
+          .describe("databaseNoSQL.schema.writeStructure.updateOptions"),
       },
       annotations: {
         readOnlyHint: false,
@@ -954,47 +944,38 @@ deleteCollection: 删除集合`),
       title: "databaseNoSQL.readContent.title",
       description: "databaseNoSQL.readContent.description",
       inputSchema: {
-        collectionName: z.string().describe("集合名称"),
+        collectionName: z.string().describe("databaseNoSQL.schema.readContent.collectionName"),
         instanceId: z
           .string()
           .optional()
-          .describe("可选：显式指定数据库实例ID；未传时会自动解析并缓存"),
+          .describe("databaseNoSQL.schema.readContent.instanceId"),
         query: z
           .union([z.object({}).passthrough(), z.string()])
           .optional()
-          .describe("查询条件(对象或字符串,推荐对象)"),
+          .describe("databaseNoSQL.schema.readContent.query"),
         projection: z
           .union([z.object({}).passthrough(), z.string()])
           .optional()
-          .describe(
-            `返回字段投影，仅支持对象或对应 JSON 字符串，值只能是 1/0/true/false。` +
-              `合法示例：${PROJECTION_EXAMPLE}（包含）或 ${PROJECTION_EXCLUDE_EXAMPLE}（排除）。` +
-              `不要传 ["name","age"] 这类字段数组，也不要混用包含与排除（_id 除外）。`,
-          ),
+          .describe("databaseNoSQL.schema.readContent.projection"),
         sort: z
           .union([
             z.array(
               z
                 .object({
-                  key: z.string().describe("sort 字段名"),
-                  direction: z.number().describe("排序方向,1:升序,-1:降序"),
+                  key: z.string().describe("databaseNoSQL.schema.readContent.sort.key"),
+                  direction: z.number().describe("databaseNoSQL.schema.readContent.sort.direction"),
                 })
                 .passthrough(),
             ),
             z.string(),
           ])
           .optional()
-          .describe(
-            '排序条件，仅支持数组 [{"key":"createdAt","direction":-1}] 或对应 JSON 字符串。',
-          ),
+          .describe("databaseNoSQL.schema.readContent.sort"),
         limit: z
           .number()
           .optional()
-          .describe(
-            `返回数量限制，整数，范围 1-${QUERY_RECORDS_MAX_LIMIT}，默认 ${QUERY_RECORDS_DEFAULT_LIMIT}。` +
-              `超过 ${QUERY_RECORDS_MAX_LIMIT} 会被 Cloud API MgoLimit lte 校验拒绝；请用 offset 分页。`,
-          ),
-        offset: z.number().optional().describe("跳过的记录数"),
+          .describe("databaseNoSQL.schema.readContent.limit"),
+        offset: z.number().optional().describe("databaseNoSQL.schema.readContent.offset"),
       },
       annotations: {
         readOnlyHint: true,
@@ -1076,40 +1057,32 @@ deleteCollection: 删除集合`),
       inputSchema: {
         action: z
           .enum(["insert", "update", "delete"])
-          .describe(
-            `insert: 插入数据（新增文档）\nupdate: 更新数据\ndelete: 删除数据`,
-          ),
-        collectionName: z.string().describe("集合名称"),
+          .describe("databaseNoSQL.schema.writeContent.action"),
+        collectionName: z.string().describe("databaseNoSQL.schema.writeContent.collectionName"),
         instanceId: z
           .string()
           .optional()
-          .describe("可选：显式指定数据库实例ID；未传时会自动解析并缓存"),
+          .describe("databaseNoSQL.schema.writeContent.instanceId"),
         documents: z
           .array(z.object({}).passthrough())
           .optional()
-          .describe("要插入的文档对象数组,每个文档都是对象(insert 操作必填)"),
+          .describe("databaseNoSQL.schema.writeContent.documents"),
         query: z
           .union([z.object({}).passthrough(), z.string()])
           .optional()
-          .describe("查询条件(对象或字符串,推荐对象)(update/delete 操作必填)"),
+          .describe("databaseNoSQL.schema.writeContent.query"),
         update: z
           .union([z.object({}).passthrough(), z.string()])
           .optional()
-          .describe(
-            `更新内容(对象或字符串,推荐对象)(update 操作必填)。按 MongoDB 更新语义传入 MgoUpdate：部分更新请使用 \`$set\`、\`$inc\`、\`$unset\`、\`$push\` 等操作符，例如使用 \`$set\` 更新 \`status\`；不要直接传"字段到值的普通对象"，否则可能替换整条文档。
-
-⚠️ 嵌套字段必须用点号路径（如 \`shipping.city\`），禁止整对象替换：
-- ❌ 错误：{ "$set": { "shipping": { "city": "guangzhou" } } } — shipping 被整块替换，原有 address/province 等字段全部丢失
-- ✅ 正确：{ "$set": { "shipping.city": "guangzhou" } } — 仅更新 city，shipping 下其他字段保留`,
-          ),
+          .describe("databaseNoSQL.schema.writeContent.update"),
         isMulti: z
           .boolean()
           .optional()
-          .describe("是否更新多条记录(update/delete 操作可选)"),
+          .describe("databaseNoSQL.schema.writeContent.isMulti"),
         upsert: z
           .boolean()
           .optional()
-          .describe("是否在不存在时插入(update 操作可选)"),
+          .describe("databaseNoSQL.schema.writeContent.upsert"),
       },
       annotations: {
         readOnlyHint: false,

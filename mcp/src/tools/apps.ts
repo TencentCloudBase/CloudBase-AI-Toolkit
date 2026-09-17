@@ -99,14 +99,14 @@ export function registerAppTools(server: ExtendedMcpServer) {
         serviceName: z
           .string()
           .optional()
-          .describe("CloudBase 应用服务名。getApp / listAppVersions / getAppVersion / getBuildLog / getUploadUrl 时必填；重新部署后复用同一个 serviceName 查询版本历史。"),
-        searchKey: z.string().optional().describe("按应用服务名模糊搜索关键词，仅 action=listApps 时使用。"),
-        pageNo: z.number().optional().describe("分页页码，从 1 开始。"),
-        pageSize: z.number().optional().describe("分页大小。"),
+          .describe("apps.schema.queryServiceName"),
+        searchKey: z.string().optional().describe("apps.schema.searchKey"),
+        pageNo: z.number().optional().describe("apps.schema.pageNo"),
+        pageSize: z.number().optional().describe("apps.schema.pageSize"),
         versionName: z
           .string()
           .optional()
-          .describe("版本名称。getAppVersion 时可与 buildId 二选一；已知版本号时优先传该值。"),
+          .describe("apps.schema.queryVersionName"),
         buildId: z
           // ⚠️ 同一字段驱动两条链路、类型要求不同（F13）：
           //   getAppVersion → SDK describeAppVersion，收 **string**
@@ -116,11 +116,11 @@ export function registerAppTools(server: ExtendedMcpServer) {
           .union([z.string(), z.number()])
           .transform((value) => String(value).trim())
           .optional()
-          .describe("构建 ID（数字或数字字符串均可）。getAppVersion 时可与 versionName 二选一；部署返回 BuildId 后可直接用它轮询状态。getBuildLog 时必填。"),
+          .describe("apps.schema.buildId"),
         start: z
           .number()
           .optional()
-          .describe("构建日志偏移量，用于分页拉取后续日志。仅 action=getBuildLog 时使用，不传时从开头返回。"),
+          .describe("apps.schema.start"),
       },
       annotations: {
         readOnlyHint: true,
@@ -368,11 +368,11 @@ export function registerAppTools(server: ExtendedMcpServer) {
         action: z.enum(MANAGE_APP_ACTIONS),
         serviceName: z
           .string()
-          .describe("CloudBase 应用服务名，会体现在域名中：`<serviceName>-<envId>.webapps.tcloudbase.com`。deployApp 时复用现有 serviceName 会新增一个部署版本并触发重新部署，而不是删除重建。首次部署请用新名称。"),
+          .describe("apps.schema.manageServiceName"),
         filePath: z
           .string()
           .optional()
-          .describe("要上传并部署的本地项目根目录绝对路径。本地模式下 deployApp 时必填；通常传源码所在目录（含 package.json 和源码），不是 dist 目录。构建产物目录请用 buildPath 指定。cloud mode 下无需传此参数，改用 cosTimestamp。"),
+          .describe("apps.schema.filePath"),
         cosTimestamp: z
           // ⚠️ 不能用 z.coerce.number()：SDK 的 StaticConfig.CosTimestamp（manager-node
           // types/cloudApp/types.d.ts `CosTimestamp?: string | null`）与后端 CreateCloudApp
@@ -389,45 +389,40 @@ export function registerAppTools(server: ExtendedMcpServer) {
               "cosTimestamp 必须是由数字组成的正整数时间戳，字符串或数字均可；直接使用 getUploadUrl 返回的 unixTimestamp 即可。",
           })
           .optional()
-          .describe("COS 时间戳（getUploadUrl 返回的 unixTimestamp，字符串或数字均可）。传入则直接用已上传的代码创建应用，跳过本地打包上传；需先 getUploadUrl 拿预签名 URL 并 PUT ZIP。cloud mode 必填。与 filePath 严格二选一，同时提供或都不提供都会报错。"),
+          .describe("apps.schema.cosTimestamp"),
         appPath: z
           .string()
           .optional()
-          .describe("应用线上访问路径（hosting mount path），例如 /my-web-app。不是本地目录路径；CloudApp 已有独立子域名，省略时默认为 /（根路径）。"),
+          .describe("apps.schema.appPath"),
         buildPath: z
           .string()
           .optional()
-          .describe("构建产物目录，相对于 filePath，例如 dist 或 build。\n" +
-            "⚠️ 传此值后远端构建系统会 cd 到此目录再执行 tcb hosting deploy，因此 deployCmd 会自动使用 .（当前目录）而非目录名，避免路径重复（如 dist/dist 错误）。\n" +
-            "纯静态 HTML 如果在项目根目录可省略，但注意 deployCmd 默认用 dist。"),
+          .describe("apps.schema.buildPath"),
         framework: z
           .enum(APP_FRAMEWORKS)
           .optional()
-          .describe("前端框架类型。可选值：vue、react、next、nuxt、vite、angular、static。\n" +
-            "即使传 static，仍会经过远端构建管道。如果本地已构建好，建议改用 manageHosting 直接上传，可完全跳过远端构建。"),
+          .describe("apps.schema.framework"),
         nodeJsVersion: z
           .string()
           .optional()
-          .describe("构建时使用的 Node.js 版本；不传时由 CloudBase 使用默认值。"),
+          .describe("apps.schema.nodeJsVersion"),
         installCmd: z
           .string()
           .optional()
-          .describe("依赖安装命令，例如 npm install。不传时默认 npm install。本地已安装或无需安装可传空字符串 '' 跳过，但远端仍会执行 tcb hosting deploy。"),
+          .describe("apps.schema.installCmd"),
         buildCmd: z
           .string()
           .optional()
-          .describe("构建命令，例如 npm run build。不传时默认 npm run build。本地已构建好可传空字符串 '' 跳过构建步骤。若希望完全跳过远端管道，请改用 manageHosting。"),
+          .describe("apps.schema.buildCmd"),
         deployCmd: z
           .string()
           .optional()
-          .describe("自定义部署命令。通常无需填写，默认自动生成 tcb hosting deploy 命令。" +
-            "有 buildPath 时远端已 cd 到该目录，默认用 . 作为源码路径；无 buildPath 时默认用 dist。"),
-        ignore: z.array(z.string()).optional().describe("上传时忽略的文件/目录 glob 模式，例如 **/node_modules/**。\n" +
-          "⚠️ 打包的是项目根目录（filePath）而非 buildPath 产物目录：若项目根含 target/（Rust）、.next/、dist-old/、build/ 等大构建产物，必须加进 ignore（如 **/target/**），否则整个目录被打进上传 zip（实证 54GB target → 34GB zip）。默认已排除 node_modules/.git/.DS_Store/**/target/**/.next/**/.next.bak/**。"),
+          .describe("apps.schema.deployCmd"),
+        ignore: z.array(z.string()).optional().describe("apps.schema.ignore"),
         versionName: z
           .string()
           .optional()
-          .describe("要删除的历史版本名，仅 action=deleteAppVersion 时必填。"),
+          .describe("apps.schema.manageVersionName"),
       },
       annotations: {
         readOnlyHint: false,

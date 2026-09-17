@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExtendedMcpServer } from "../server.js";
 import { registerDatabaseTools } from "./databaseNoSQL.js";
 import { resetDatabaseInstanceIdCache } from "../cloudbase-manager.js";
+import { databaseNoSQL as databaseNoSQLMessages } from "../i18n/locales/modules/databaseNoSQL.js";
 
 const {
   mockGetCloudBaseManager,
@@ -395,12 +396,14 @@ describe("NoSQL database tools", () => {
   it("writeNoSqlDatabaseContent should describe partial updates using MongoDB operators", () => {
     const { tools } = createMockServer();
     const meta = tools.writeNoSqlDatabaseContent.meta;
+    const updateDescription =
+      databaseNoSQLMessages.zh["schema.writeContent.update"];
 
     expect(meta.description).toBe("databaseNoSQL.writeContent.description");
-    expect(meta.inputSchema.update.description).toContain("MgoUpdate");
-    expect(meta.inputSchema.update.description).toContain("`$set`");
-    expect(meta.inputSchema.update.description).toContain("`status`");
-    expect(meta.inputSchema.update.description).toContain("`shipping.city`");
+    expect(updateDescription).toContain("MgoUpdate");
+    expect(updateDescription).toContain("`$set`");
+    expect(updateDescription).toContain("`status`");
+    expect(updateDescription).toContain("`shipping.city`");
   });
 
   it("writeNoSqlDatabaseContent should warn when auth-linked role docs are upserted by uid query", async () => {
@@ -423,20 +426,22 @@ describe("NoSQL database tools", () => {
     const { tools } = createMockServer();
     const readMeta = tools.readNoSqlDatabaseStructure.meta;
     const writeMeta = tools.writeNoSqlDatabaseStructure.meta;
+    const readActionDescription =
+      databaseNoSQLMessages.zh["schema.readStructure.action"];
+    const writeActionDescription =
+      databaseNoSQLMessages.zh["schema.writeStructure.action"];
+    const updateOptionsDescription =
+      databaseNoSQLMessages.zh["schema.writeStructure.updateOptions"];
 
     expect(readMeta.description).toBe("databaseNoSQL.readStructure.description");
-    expect(readMeta.inputSchema.action.description).toContain("listIndexes");
-    expect(readMeta.inputSchema.action.description).toContain("checkIndex");
+    expect(readActionDescription).toContain("listIndexes");
+    expect(readActionDescription).toContain("checkIndex");
 
     expect(writeMeta.description).toBe("databaseNoSQL.writeStructure.description");
-    expect(writeMeta.inputSchema.action.description).toContain("CreateIndexes");
-    expect(writeMeta.inputSchema.action.description).toContain("DropIndexes");
-    expect(writeMeta.inputSchema.updateOptions.description).toContain(
-      "CreateIndexes",
-    );
-    expect(writeMeta.inputSchema.updateOptions.description).toContain(
-      "DropIndexes",
-    );
+    expect(writeActionDescription).toContain("CreateIndexes");
+    expect(writeActionDescription).toContain("DropIndexes");
+    expect(updateOptionsDescription).toContain("CreateIndexes");
+    expect(updateOptionsDescription).toContain("DropIndexes");
   });
 
   it("listCollections should return Tables from ListTables API as collections", async () => {

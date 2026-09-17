@@ -13,9 +13,63 @@ export const databasePG = defineModule(
     "managePgDatabase.title": "管理 PostgreSQL 上下文或执行写入 SQL",
     "managePgDatabase.description":
       "管理 CloudBase PostgreSQL：执行已确认的写入 SQL、SQL 风险预检、迁移管理。建表/ALTER/DROP 等 schema 变更必须使用 applyMigration（显式 migrationVersion；成功前自动写入或校验本地 cloudbase/migrations/<version>_<name>.sql，与 CLI tcb db pg migration 一致），不要默认用 execute。execute 主要用于 DML 与 GRANT/RLS 等运维 SQL。",
+    "schema.queryAction":
+      "操作类型：context=获取当前 PostgreSQL 上下文；objects=列出带 schema 的数据库对象；metadata=获取轻量表元数据；schema=检查单个带 schema 的对象结构；sql=执行只读 SQL",
+    "schema.querySql": "action=sql 时使用的只读 SQL",
+    "schema.queryObjectName":
+      "action=schema 时使用的带 schema 的 PostgreSQL 对象名，例如 public.users",
+    "schema.querySchemaFilter":
+      "可选的 schema 过滤条件，用于 action=objects 或 action=metadata",
+    "schema.queryLimit":
+      "可选的摘要数量上限，用于对象、元数据或 SQL 返回行数，默认 20，最大 200。",
+    "schema.manageAction":
+      "操作类型：execute=执行已确认的写入 SQL（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）；dryRun=只分析 SQL 风险不执行；planMigration=预览迁移计划（需 migrationName + migrationVersion + sql；可选 includeAll=true 允许乱序，对齐 CLI --include-all）；applyMigration=应用迁移，建表/改 schema 首选（需 migrationName + migrationVersion + sql + confirm=true；可选 includeAll；本地 SQL 缺失则自动写入 cloudbase/migrations/，内容不一致则 LOCAL_MIGRATION_FILE_MISMATCH fail-closed；成功返回前会轮询 DescribeTaskResult（默认最长 10 分钟，可用 taskPollTimeoutMs / waitForTask 调整）并校验 migrationVersion 已落入远端历史；超时返回 MIGRATION_TASK_TIMEOUT，必须先 describeMigrationTask 再 listMigrations，禁止立刻重推同 version；未落库时返回 success=false 且 errorCode=MIGRATION_NOT_APPLIED）；listMigrations=查询已应用的 Migration 列表（可传 limit/offset 分页）；migrationDetail=查看单条 Migration 详情（需 migrationVersion）；describeMigrationTask=按 TaskId 查询 Push 异步任务状态（DescribeTaskResult：Status/Phase/Reason；需 taskId；用于 waitForTask=false / MIGRATION_TASK_TIMEOUT / 失败诊断，listMigrations 看不到 Reason）；fetchMigration=从远端 history 拉取 SQL 写入本地 cloudbase/migrations/（对齐 CLI tcb db pg migration fetch；可选 migrationVersion 拉单条，省略则全量；force=true 覆盖已存在文件，默认跳过）；rollbackMigration=回滚最近 N 条 Migration（需 lastN + confirm=true）；repairMigration=修复 Migration 历史记录（需 migrationVersion + migrationName + repairStatus + repairReason）",
+    "schema.manageSql":
+      "action=execute、dryRun、planMigration、applyMigration 或 repairMigration(applied) 使用的 SQL 语句",
+    "schema.manageConfirm": "执行任何写入 SQL 前都需要显式设置为 true。",
+    "schema.manageEnvId": "可选的 CloudBase 环境 ID，不传时使用当前 MCP 环境。",
+    "schema.manageInstanceId":
+      "可选的 PostgreSQL 逻辑实例标识，默认 cloudbase-pg。",
+    "schema.manageDefaultSchema": "可选的默认 schema，默认 public。",
+    "schema.manageRole":
+      "可选的 PostgreSQL role，传给 Manager SDK executePGSql 的 Role（平台会 SET ROLE）。默认 cloudbase_postgres。推荐取值：cloudbase_postgres / anon / authenticated / service_role。不要传 postgres、postgres_pgdb_*、平台保留角色（cloudbase_admin，为平台管理账号不对用户开放）或从环境名臆造的角色；不确定时省略本字段，或先用 cloudbase_postgres 执行 SELECT rolname FROM pg_roles。",
+    "schema.manageObjectName":
+      "可选的对象名，当前仅用于非 migration 场景。migration 相关操作请使用 migrationName / migrationVersion / lastN。",
+    "schema.manageMigrationName":
+      "plan/apply/repair 必填：migration 名称，小写字母开头，仅允许小写字母和下划线（不允许数字，服务端 PushPGUserMigrations 会拒绝含数字的名称）。",
+    "schema.manageMigrationVersion":
+      "14 位时间戳 YYYYMMDDHHMMSS。plan/apply/detail/repair 必填；fetchMigration 可选（传入则只拉该条，省略则拉全量远端 history）；禁止由服务端静默生成，避免与本地 cloudbase/migrations/<version>_<name>.sql 分叉。applyMigration 非增量：每次传完整 SQL；终态失败且 listMigrations 未落地时版本号不占用，换新 migrationVersion 重发全量 SQL 即可（同名不同版本不冲突）。",
+    "schema.manageRollbackSql": "plan/apply 可选：回滚 SQL 语句。",
+    "schema.manageLastN":
+      "rollback 必填：回滚最近 N 条已应用的 Migration，正整数。",
+    "schema.manageLimit": "list 可选：返回数量上限，1-500，默认 100。",
+    "schema.manageOffset": "list 可选：分页偏移，默认 0。",
+    "schema.manageLockTimeoutMs":
+      "apply 可选：获取数据库锁的最长时间（毫秒），默认 5000。",
+    "schema.manageStatementTimeoutMs":
+      "apply 可选：单条 SQL 执行最长时间（毫秒），默认 300000。",
+    "schema.manageTaskPollTimeoutMs":
+      "apply 可选：轮询 DescribeTaskResult 的最长等待（毫秒）。默认 600000（与 CLI tcb db pg migration up 的 10 分钟对齐）。范围 5000-600000。超时后务必先 describeMigrationTask(taskId) 再 listMigrations，禁止立刻重推同 version。",
+    "schema.manageWaitForTask":
+      "apply 可选，默认 true。设为 false 时 Push 后立即返回 TaskId（errorCode=MIGRATION_TASK_PENDING），由调用方用 describeMigrationTask 轮询任务终态，再用 listMigrations 确认是否落库；适合 MCP host 工具调用超时较短的场景。默认 true 会同步等到任务终态。",
+    "schema.manageTaskId":
+      "describeMigrationTask 必填：PushPGUserMigrations / applyMigration 返回的 TaskId。用于一次性查询 DescribeTaskResult（Status/Phase/Reason），不轮询等待。",
+    "schema.manageRepairStatus":
+      "repair 必填：applied=标记为已应用（可补录 Query），reverted=删除 history 记录。",
+    "schema.manageRepairReason": "repair 必填：修复原因。",
+    "schema.manageForce":
+      "fetchMigration 可选，默认 false。true=覆盖本地已存在的同名 SQL 文件（对齐 CLI tcb db pg migration fetch --force）；false=跳过已存在文件。用于从远端 history 重新对齐 Git checksum。",
+    "schema.manageIncludeAll":
+      "planMigration / applyMigration 可选，默认 false。true=允许 out-of-order（version 小于远端 LatestVersion）仍可 Preview/Push，对齐 CLI tcb db pg migration up --include-all；仅在确认要补历史/乱序迁移时使用，日常应选更大的 migrationVersion。",
+    "schema.manageAllowDdlViaExecute":
+      "可选，默认 false。仅当需要故意绕过 migration history 时设为 true，才允许 schema DDL 走 execute；正常建表/改 schema 必须用 applyMigration。",
     "runtime.probeFailed": "PostgreSQL 在 {maxAttempts} 次探测后仍未就绪。最近错误：{reason}",
     "runtime.notReady": "CloudBase PostgreSQL 尚未就绪。{reason}",
     "runtime.queryEnvInfo": "检查当前环境 PostgreSQL 实例状态。",
+    "runtime.notProvisioned":
+      "环境 {envId} 未开通 CloudBase PostgreSQL（EnvInfo.RuntimeBackends.postgresql=false），queryPgDatabase / managePgDatabase 的所有 action 均不可用。请先为该环境开通 PostgreSQL，或改用该环境实际可用的数据后端；在开通前不要重试 PG 工具。",
+    "runtime.confirmBackends":
+      "查询环境信息，确认 RuntimeBackends 中实际可用的数据后端。",
     "runtime.noExecutePgSql":
       "当前 @cloudbase/manager-node 运行时未暴露 database.executePGSql 或 commonService 回退。请升级到 @cloudbase/manager-node >= 5.4.0。",
     "runtime.noMigrationApi":
@@ -221,11 +275,69 @@ export const databasePG = defineModule(
     "managePgDatabase.title": "Manage PostgreSQL context or run write SQL",
     "managePgDatabase.description":
       "Manage CloudBase PostgreSQL: run confirmed write SQL, pre-check SQL risk, and manage migrations. Schema changes such as CREATE TABLE/ALTER/DROP must use applyMigration (explicit migrationVersion; the local cloudbase/migrations/<version>_<name>.sql file is written or verified automatically before success, matching the CLI tcb db pg migration). Do not use execute by default. execute is mainly for DML and ops SQL such as GRANT/RLS.",
+    "schema.queryAction":
+      "Action type: context=get the current PostgreSQL context; objects=list schema-qualified database objects; metadata=get lightweight table metadata; schema=inspect a single schema-qualified object structure; sql=run read-only SQL",
+    "schema.querySql": "Read-only SQL used when action=sql",
+    "schema.queryObjectName":
+      "Schema-qualified PostgreSQL object name used when action=schema, e.g. public.users",
+    "schema.querySchemaFilter":
+      "Optional schema filter, used with action=objects or action=metadata",
+    "schema.queryLimit":
+      "Optional cap on summary size, applied to objects, metadata, or SQL result rows. Defaults to 20, maximum 200.",
+    "schema.manageAction":
+      "Action type: execute=run confirmed write SQL (DML/GRANT/RLS; schema DDL is rejected by default and requires allowDdlViaExecute=true); dryRun=analyze SQL risk without executing; planMigration=preview a migration plan (requires migrationName + migrationVersion + sql; optional includeAll=true allows out-of-order, matching CLI --include-all); applyMigration=apply a migration, the preferred path for CREATE TABLE / schema changes (requires migrationName + migrationVersion + sql + confirm=true; optional includeAll; a missing local SQL file is written to cloudbase/migrations/ automatically, while mismatched content fails closed with LOCAL_MIGRATION_FILE_MISMATCH; before returning success it polls DescribeTaskResult (up to 10 minutes by default, tunable via taskPollTimeoutMs / waitForTask) and verifies migrationVersion landed in the remote history; on timeout it returns MIGRATION_TASK_TIMEOUT and you must call describeMigrationTask before listMigrations — never re-push the same version immediately; when the version did not land it returns success=false with errorCode=MIGRATION_NOT_APPLIED); listMigrations=list applied migrations (supports limit/offset paging); migrationDetail=inspect a single migration (requires migrationVersion); describeMigrationTask=query the async Push task status by TaskId (DescribeTaskResult: Status/Phase/Reason; requires taskId; use it for waitForTask=false / MIGRATION_TASK_TIMEOUT / failure diagnosis, because listMigrations does not expose Reason); fetchMigration=pull SQL from the remote history into local cloudbase/migrations/ (matches CLI tcb db pg migration fetch; optional migrationVersion pulls a single record, omitting it pulls everything; force=true overwrites existing files, skipped by default); rollbackMigration=roll back the last N migrations (requires lastN + confirm=true); repairMigration=repair the migration history record (requires migrationVersion + migrationName + repairStatus + repairReason)",
+    "schema.manageSql":
+      "SQL statement used when action=execute, dryRun, planMigration, applyMigration, or repairMigration(applied)",
+    "schema.manageConfirm":
+      "Must be explicitly set to true before running any write SQL.",
+    "schema.manageEnvId":
+      "Optional CloudBase environment ID; the current MCP environment is used when omitted.",
+    "schema.manageInstanceId":
+      "Optional PostgreSQL logical instance identifier, defaults to cloudbase-pg.",
+    "schema.manageDefaultSchema":
+      "Optional default schema, defaults to public.",
+    "schema.manageRole":
+      "Optional PostgreSQL role, passed as Role to the Manager SDK executePGSql (the platform issues SET ROLE). Defaults to cloudbase_postgres. Recommended values: cloudbase_postgres / anon / authenticated / service_role. Do not pass postgres, postgres_pgdb_*, platform-reserved roles (cloudbase_admin, the platform management account that is not exposed to users), or roles invented from the environment name; when unsure omit this field, or first run SELECT rolname FROM pg_roles with cloudbase_postgres.",
+    "schema.manageObjectName":
+      "Optional object name, currently only used for non-migration scenarios. For migration actions use migrationName / migrationVersion / lastN instead.",
+    "schema.manageMigrationName":
+      "Required for plan/apply/repair: migration name starting with a lowercase letter, containing only lowercase letters and underscores (no digits — the server-side PushPGUserMigrations rejects names containing digits).",
+    "schema.manageMigrationVersion":
+      "14-digit timestamp YYYYMMDDHHMMSS. Required for plan/apply/detail/repair; optional for fetchMigration (passing it pulls only that record, omitting it pulls the full remote history). It must never be generated silently by the server, to avoid diverging from the local cloudbase/migrations/<version>_<name>.sql file. applyMigration is not incremental: send the complete SQL every time; when a task fails terminally and listMigrations shows the version did not land, that version is not consumed — just pick a new migrationVersion and re-send the full SQL (the same name with a different version does not conflict).",
+    "schema.manageRollbackSql": "Optional for plan/apply: rollback SQL statement.",
+    "schema.manageLastN":
+      "Required for rollback: roll back the last N applied migrations, a positive integer.",
+    "schema.manageLimit":
+      "Optional for list: maximum number of records returned, 1-500, defaults to 100.",
+    "schema.manageOffset": "Optional for list: paging offset, defaults to 0.",
+    "schema.manageLockTimeoutMs":
+      "Optional for apply: maximum time to acquire the database lock in milliseconds, defaults to 5000.",
+    "schema.manageStatementTimeoutMs":
+      "Optional for apply: maximum execution time per SQL statement in milliseconds, defaults to 300000.",
+    "schema.manageTaskPollTimeoutMs":
+      "Optional for apply: maximum wait while polling DescribeTaskResult, in milliseconds. Defaults to 600000 (matching the 10 minutes of CLI tcb db pg migration up). Range 5000-600000. After a timeout always call describeMigrationTask(taskId) before listMigrations, and never re-push the same version immediately.",
+    "schema.manageWaitForTask":
+      "Optional for apply, defaults to true. When set to false, Push returns the TaskId immediately (errorCode=MIGRATION_TASK_PENDING) and the caller polls the task to a terminal state with describeMigrationTask, then confirms with listMigrations whether it landed; useful when the MCP host has a short tool-call timeout. The default true waits synchronously for the terminal state.",
+    "schema.manageTaskId":
+      "Required for describeMigrationTask: the TaskId returned by PushPGUserMigrations / applyMigration. Used for a one-shot DescribeTaskResult query (Status/Phase/Reason) without polling.",
+    "schema.manageRepairStatus":
+      "Required for repair: applied=mark as applied (Query can be backfilled), reverted=delete the history record.",
+    "schema.manageRepairReason": "Required for repair: the repair reason.",
+    "schema.manageForce":
+      "Optional for fetchMigration, defaults to false. true=overwrite the existing local SQL file with the same name (matching CLI tcb db pg migration fetch --force); false=skip existing files. Use it to realign Git checksums from the remote history.",
+    "schema.manageIncludeAll":
+      "Optional for planMigration / applyMigration, defaults to false. true=allow out-of-order versions (older than the remote LatestVersion) to still Preview/Push, matching CLI tcb db pg migration up --include-all; use it only when intentionally backfilling or applying out-of-order migrations — normally pick a larger migrationVersion instead.",
+    "schema.manageAllowDdlViaExecute":
+      "Optional, defaults to false. Set it to true only when intentionally bypassing migration history, which is the only case where schema DDL is allowed through execute; normal CREATE TABLE / schema changes must use applyMigration.",
     "runtime.probeFailed":
       "PostgreSQL is not ready after {maxAttempts} attempts. Last error: {reason}",
     "runtime.notReady": "CloudBase PostgreSQL is not ready. {reason}",
     "runtime.queryEnvInfo":
       "Check the current environment's PostgreSQL instance status.",
+    "runtime.notProvisioned":
+      "CloudBase PostgreSQL is not provisioned for environment {envId} (EnvInfo.RuntimeBackends.postgresql=false), so no queryPgDatabase / managePgDatabase action is available. Provision PostgreSQL for this environment first, or use a data backend that this environment actually has; do not retry the PG tools before it is provisioned.",
+    "runtime.confirmBackends":
+      "Query environment info to confirm which data backends are actually available in RuntimeBackends.",
     "runtime.noExecutePgSql":
       "Current @cloudbase/manager-node runtime does not expose database.executePGSql or commonService fallback. Upgrade to @cloudbase/manager-node >= 5.4.0.",
     "runtime.noMigrationApi":

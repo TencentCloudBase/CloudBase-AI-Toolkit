@@ -639,19 +639,19 @@ describe("STS 资源级临时密钥 - MCP 全资源验证", () => {
   // ═══ 3.9 环境管理 ═══════════════════════════════════════════════════════
   test.skipIf(!hasCredentials())("3.9 环境管理 - 查询验证", async () => {
     // 列出环境
-    const listRes = await safeTool(client, "envQuery", {
+    const listRes = await safeTool(client, "queryEnv", {
       action: "list",
     });
     recordResult("环境", "列出环境", listRes.success, listRes.text.slice(0, 120));
 
     // 环境详情
-    const infoRes = await safeTool(client, "envQuery", {
+    const infoRes = await safeTool(client, "queryEnv", {
       action: "info",
     });
     recordResult("环境", "环境详情", infoRes.success, "");
 
     // 安全域名
-    const domainsRes = await safeTool(client, "envQuery", {
+    const domainsRes = await safeTool(client, "queryEnv", {
       action: "domains",
     });
     recordResult("环境", "安全域名", domainsRes.success, "");
