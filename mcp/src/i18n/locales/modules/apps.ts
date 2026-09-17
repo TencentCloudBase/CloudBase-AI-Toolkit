@@ -84,6 +84,30 @@ export const apps = defineModule(
     deleteSuccess: "CloudBase 应用删除成功",
     versionNameRequired: "action=deleteAppVersion 时必须提供 versionName",
     deleteVersionSuccess: "CloudBase 应用版本删除成功",
+    "schema.queryServiceName": "CloudBase 应用服务名。getApp / listAppVersions / getAppVersion / getBuildLog / getUploadUrl 时必填；重新部署后复用同一个 serviceName 查询版本历史。",
+    "schema.searchKey": "按应用服务名模糊搜索关键词，仅 action=listApps 时使用。",
+    "schema.pageNo": "分页页码，从 1 开始。",
+    "schema.pageSize": "分页大小。",
+    "schema.queryVersionName": "版本名称。getAppVersion 时可与 buildId 二选一；已知版本号时优先传该值。",
+    "schema.buildId": "构建 ID（数字或数字字符串均可）。getAppVersion 时可与 versionName 二选一；部署返回 BuildId 后可直接用它轮询状态。getBuildLog 时必填。",
+    "schema.start": "构建日志偏移量，用于分页拉取后续日志。仅 action=getBuildLog 时使用，不传时从开头返回。",
+    "schema.manageServiceName": "CloudBase 应用服务名，会体现在域名中：`<serviceName>-<envId>.webapps.tcloudbase.com`。deployApp 时复用现有 serviceName 会新增一个部署版本并触发重新部署，而不是删除重建。首次部署请用新名称。",
+    "schema.filePath": "要上传并部署的本地项目根目录绝对路径。本地模式下 deployApp 时必填；通常传源码所在目录（含 package.json 和源码），不是 dist 目录。构建产物目录请用 buildPath 指定。cloud mode 下无需传此参数，改用 cosTimestamp。",
+    "schema.cosTimestamp": "COS 时间戳（getUploadUrl 返回的 unixTimestamp，字符串或数字均可）。传入则直接用已上传的代码创建应用，跳过本地打包上传；需先 getUploadUrl 拿预签名 URL 并 PUT ZIP。cloud mode 必填。与 filePath 严格二选一，同时提供或都不提供都会报错。",
+    "schema.appPath": "应用线上访问路径（hosting mount path），例如 /my-web-app。不是本地目录路径；CloudApp 已有独立子域名，省略时默认为 /（根路径）。",
+    "schema.buildPath": "构建产物目录，相对于 filePath，例如 dist 或 build。\n" +
+      "⚠️ 传此值后远端构建系统会 cd 到此目录再执行 tcb hosting deploy，因此 deployCmd 会自动使用 .（当前目录）而非目录名，避免路径重复（如 dist/dist 错误）。\n" +
+      "纯静态 HTML 如果在项目根目录可省略，但注意 deployCmd 默认用 dist。",
+    "schema.framework": "前端框架类型。可选值：vue、react、next、nuxt、vite、angular、static。\n" +
+      "即使传 static，仍会经过远端构建管道。如果本地已构建好，建议改用 manageHosting 直接上传，可完全跳过远端构建。",
+    "schema.nodeJsVersion": "构建时使用的 Node.js 版本；不传时由 CloudBase 使用默认值。",
+    "schema.installCmd": "依赖安装命令，例如 npm install。不传时默认 npm install。本地已安装或无需安装可传空字符串 '' 跳过，但远端仍会执行 tcb hosting deploy。",
+    "schema.buildCmd": "构建命令，例如 npm run build。不传时默认 npm run build。本地已构建好可传空字符串 '' 跳过构建步骤。若希望完全跳过远端管道，请改用 manageHosting。",
+    "schema.deployCmd": "自定义部署命令。通常无需填写，默认自动生成 tcb hosting deploy 命令。" +
+      "有 buildPath 时远端已 cd 到该目录，默认用 . 作为源码路径；无 buildPath 时默认用 dist。",
+    "schema.ignore": "上传时忽略的文件/目录 glob 模式，例如 **/node_modules/**。\n" +
+      "⚠️ 打包的是项目根目录（filePath）而非 buildPath 产物目录：若项目根含 target/（Rust）、.next/、dist-old/、build/ 等大构建产物，必须加进 ignore（如 **/target/**），否则整个目录被打进上传 zip（实证 54GB target → 34GB zip）。默认已排除 node_modules/.git/.DS_Store/**/target/**/.next/**/.next.bak/**。",
+    "schema.manageVersionName": "要删除的历史版本名，仅 action=deleteAppVersion 时必填。",
   },
   {
     queryTitle: "Query CloudBase app deployment status",
@@ -168,5 +192,28 @@ export const apps = defineModule(
     deleteSuccess: "CloudBase app deleted successfully",
     versionNameRequired: "versionName is required when action=deleteAppVersion",
     deleteVersionSuccess: "CloudBase app version deleted successfully",
+    "schema.queryServiceName": "CloudBase app service name. Required for getApp, listAppVersions, getAppVersion, getBuildLog, and getUploadUrl. Reuse the same serviceName after redeployment to query its version history.",
+    "schema.searchKey": "Keyword for fuzzy matching app service names; used only when action=listApps.",
+    "schema.pageNo": "Page number, starting from 1.",
+    "schema.pageSize": "Number of items per page.",
+    "schema.queryVersionName": "Version name. For getAppVersion, provide either this or buildId; prefer this value when the version name is known.",
+    "schema.buildId": "Build ID, accepted as a number or numeric string. For getAppVersion, provide either this or versionName. A BuildId returned by deployment can be passed directly to poll status. Required for getBuildLog.",
+    "schema.start": "Build log offset for fetching subsequent pages. Used only when action=getBuildLog; omit it to start from the beginning.",
+    "schema.manageServiceName": "CloudBase app service name, included in the domain as `<serviceName>-<envId>.webapps.tcloudbase.com`. Reusing an existing serviceName with deployApp creates a new deployment version and triggers redeployment instead of deleting and recreating the app. Use a new name for the first deployment.",
+    "schema.filePath": "Absolute path to the local project root to upload and deploy. Required for deployApp in local mode. Usually this is the source directory containing package.json and source files, not the dist directory; specify the output directory with buildPath. Omit this in cloud mode and use cosTimestamp instead.",
+    "schema.cosTimestamp": "COS timestamp returned as unixTimestamp by getUploadUrl; accepts a string or number. When provided, creates the app from previously uploaded code and skips local packaging and upload. Obtain a pre-signed URL with getUploadUrl and PUT the ZIP first. Required in cloud mode. Exactly one of filePath and cosTimestamp must be provided.",
+    "schema.appPath": "Online hosting mount path for the app, for example /my-web-app. This is not a local directory path. CloudApp has a dedicated subdomain, so the default is / when omitted.",
+    "schema.buildPath": "Build output directory relative to filePath, such as dist or build.\n" +
+      "⚠️ When set, the remote build system changes to this directory before running tcb hosting deploy, so deployCmd automatically uses . (the current directory) instead of the directory name to avoid duplicated paths such as dist/dist.\n" +
+      "It can be omitted for static HTML in the project root, but note that deployCmd defaults to dist.",
+    "schema.framework": "Frontend framework. Allowed values: vue, react, next, nuxt, vite, angular, and static.\n" +
+      "Even static uses the remote build pipeline. If the app is already built locally, use manageHosting to upload it directly and skip the remote build entirely.",
+    "schema.nodeJsVersion": "Node.js version used for the build; when omitted, CloudBase uses its default.",
+    "schema.installCmd": "Dependency installation command, for example npm install. Defaults to npm install when omitted. Pass an empty string '' when dependencies are already installed or no installation is needed, though the remote pipeline still runs tcb hosting deploy.",
+    "schema.buildCmd": "Build command, for example npm run build. Defaults to npm run build when omitted. Pass an empty string '' to skip the build step when the app is already built locally. To skip the remote pipeline entirely, use manageHosting.",
+    "schema.deployCmd": "Custom deployment command. Usually unnecessary; a tcb hosting deploy command is generated automatically. When buildPath is set, the remote process has already changed to that directory and defaults to . as the source path; otherwise it defaults to dist.",
+    "schema.ignore": "Glob patterns for files and directories to exclude from upload, for example **/node_modules/**.\n" +
+      "⚠️ Packaging starts at the project root (filePath), not the buildPath output directory. Add large build outputs at the project root, such as target/ (Rust), .next/, dist-old/, or build/, to ignore (for example **/target/**), or the entire directory will be included in the upload ZIP. By default, node_modules, .git, .DS_Store, **/target/**, .next/**, and .next.bak/** are excluded.",
+    "schema.manageVersionName": "Historical version name to delete; required only when action=deleteAppVersion.",
   },
 );

@@ -34,6 +34,65 @@ const RUNTIME_CATALOG_TOOLS = new Set(["searchKnowledgeBase"]);
 const createServer = (lang?: "zh" | "en") =>
   createCloudBaseMcpServer({ enableTelemetry: false, ...(lang ? { lang } : {}) });
 
+function collectSchemaDescriptions(
+  value: unknown,
+  seen = new Set<object>(),
+): string[] {
+  if (!value || typeof value !== "object" || seen.has(value)) {
+    return [];
+  }
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectSchemaDescriptions(item, seen));
+  }
+  if (value instanceof Map) {
+    return [...value.values()].flatMap((item) =>
+      collectSchemaDescriptions(item, seen),
+    );
+  }
+
+  const schema = value as {
+    description?: unknown;
+    _def?: Record<string, unknown>;
+  };
+  const descriptions =
+    typeof schema.description === "string" ? [schema.description] : [];
+  if (!schema._def) {
+    return descriptions.concat(
+      Object.values(value).flatMap((item) =>
+        collectSchemaDescriptions(item, seen),
+      ),
+    );
+  }
+
+  const definition = schema._def;
+  if (typeof definition.shape === "function") {
+    descriptions.push(
+      ...collectSchemaDescriptions(
+        (definition.shape as () => unknown)(),
+        seen,
+      ),
+    );
+  }
+  for (const key of [
+    "innerType",
+    "type",
+    "schema",
+    "in",
+    "out",
+    "keyType",
+    "valueType",
+    "rest",
+    "items",
+    "options",
+    "optionsMap",
+  ]) {
+    descriptions.push(...collectSchemaDescriptions(definition[key], seen));
+  }
+  return descriptions;
+}
+
 describe("工具级文案的语言接线", () => {
   it("工具描述不再是原始词典 key（注册包装层确实解析过了）", async () => {
     const server = await createServer("zh");
@@ -75,6 +134,17 @@ describe("工具级文案的语言接线", () => {
     const offenders = server.toolDefs
       .filter((tool) => !RUNTIME_CATALOG_TOOLS.has(tool.name) && CJK.test(tool.description))
       .map((tool) => `${tool.name}: ${tool.description.replace(/\s+/g, " ").slice(0, 80)}`);
+    expect(offenders).toEqual([]);
+  });
+
+  it("en instances expose English parameter schema descriptions", async () => {
+    const server = await createServer("en");
+
+    const offenders = server.toolDefs.flatMap((tool) =>
+      collectSchemaDescriptions(tool.inputSchema)
+        .filter((description) => CJK.test(description))
+        .map((description) => `${tool.name}: ${description.slice(0, 80)}`),
+    );
     expect(offenders).toEqual([]);
   });
 

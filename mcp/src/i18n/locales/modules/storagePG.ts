@@ -5,6 +5,13 @@ export const storagePG = defineModule(
     title: "查询 PostgreSQL 环境云存储能力和上传方案",
     description:
       "查询 CloudBase PostgreSQL 环境下的云存储能力。返回 bucket/config 能力摘要、对象信息查询方案，以及基于 HTTP API 或 SDK 的上传实现方案；不会读取本地文件，也不会默认输出大量签名 URL。",
+    "schema.action":
+      "操作类型：buckets/config=查询存储能力摘要；createBucket=生成 bucket 创建方案（SQL/HTTP API/CLI）；uploadPlan=生成 HTTP API/SDK 上传方案；objectInfo=生成对象元信息查询方案；signUpload/signDownload=显式的一次性签名 URL 请求占位",
+    "schema.bucket": "云存储 bucket 名称",
+    "schema.objectKey": "单个对象 key",
+    "schema.objectKeys": "多个对象 key，用于对象元信息查询规划",
+    "schema.objects": "待上传对象的元信息。文件字节内容不会通过 MCP 传递。",
+    "schema.expiresIn": "签名 URL 有效期，单位秒，范围 60 到 86400。",
     cloudModeUnavailable:
       "queryPgStorage action={action} 在 hosted/云端模式下不可用：该操作依赖真实 bucket 名称和存储数据面访问。请在应用代码中直接使用 CloudBase SDK 或 HTTP API 完成存储操作，或改用本地模式运行 MCP 后重试。hosted 模式下本工具仅支持 buckets/config 能力摘要查询。",
     cloudModeRecommendation:
@@ -40,6 +47,13 @@ export const storagePG = defineModule(
     title: "Query PostgreSQL environment storage capabilities and upload plans",
     description:
       "Query cloud storage capabilities of a CloudBase PostgreSQL environment. Returns a bucket/config capability summary, object metadata query plans, and upload implementation plans based on the HTTP API or SDK; it never reads local files and does not emit bulk signed URLs by default.",
+    "schema.action":
+      "Operation type: buckets/config=query the storage capability summary; createBucket=generate a bucket creation plan (SQL/HTTP API/CLI); uploadPlan=generate an HTTP API/SDK upload plan; objectInfo=generate an object metadata query plan; signUpload/signDownload=explicit placeholders for one-time signed URL requests",
+    "schema.bucket": "Cloud storage bucket name",
+    "schema.objectKey": "Single object key",
+    "schema.objectKeys": "Multiple object keys for planning object metadata queries",
+    "schema.objects": "Metadata for objects to upload. File bytes are not transferred through MCP.",
+    "schema.expiresIn": "Signed URL validity in seconds, from 60 to 86400.",
     cloudModeUnavailable:
       "queryPgStorage action={action} is unavailable in hosted/cloud mode: it depends on real bucket names and storage data-plane access. Use the CloudBase SDK or HTTP API directly in application code for storage operations, or run MCP in local mode and retry. In hosted mode this tool only supports the buckets/config capability summary queries.",
     cloudModeRecommendation:

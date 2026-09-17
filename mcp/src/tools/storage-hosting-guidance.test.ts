@@ -124,8 +124,8 @@ describe("storage and hosting tool guidance", () => {
     // 这里的 mock registerTool 不走包装层，断言前需自行 t() 解析。
     expect(t(tools.manageHosting.meta.description as MessageKey)).toContain("action=upload");
     expect(t(tools.manageHosting.meta.description as MessageKey)).toContain("queryHosting");
-    expect(tools.manageHosting.meta.inputSchema.cloudPath.description).toContain("静态托管中的目标路径");
-    expect(tools.manageHosting.meta.inputSchema.action.description).toContain("upload=上传本地构建产物到静态托管");
+    expect(t(tools.manageHosting.meta.inputSchema.cloudPath.description as MessageKey)).toContain("静态托管中的目标路径");
+    expect(t(tools.manageHosting.meta.inputSchema.action.description as MessageKey)).toContain("upload=上传本地构建产物到静态托管");
     expect(t(tools.manageStorage.meta.description as MessageKey)).toContain("仅用于 COS/Storage 对象");
     expect(t(tools.manageStorage.meta.description as MessageKey)).toContain("不用于静态网站托管");
     expect(t(tools.manageStorage.meta.description as MessageKey)).toContain("公有读");

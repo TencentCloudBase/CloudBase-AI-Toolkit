@@ -185,9 +185,9 @@ describe("manageCloudRun deploy imageUrl branch", () => {
   it("documents imageUrl-first semantics in schema descriptions", async () => {
     const { tools } = await createCloudRunTools();
     const schema = tools.manageCloudRun.meta.inputSchema;
-    expect(schema.imageUrl.description).toMatch(/必须传 imageUrl|不要回退到源码构建/);
-    expect(schema.targetPath.description).toMatch(/优先传 imageUrl|不等于必须走源码构建/);
-    expect(schema.action.description).toMatch(/getProcessLog|跳过 getDeployLog/);
+    expect(t(schema.imageUrl.description as MessageKey)).toMatch(/必须传 imageUrl|不要回退到源码构建/);
+    expect(t(schema.targetPath.description as MessageKey)).toMatch(/优先传 imageUrl|不等于必须走源码构建/);
+    expect(t(schema.action.description as MessageKey)).toMatch(/getProcessLog|跳过 getDeployLog/);
     expect(t(tools.manageCloudRun.meta.description as MessageKey)).toMatch(/getProcessLog|跳过 getDeployLog/);
   });
 

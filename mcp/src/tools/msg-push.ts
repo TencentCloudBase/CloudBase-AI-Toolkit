@@ -674,13 +674,11 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
       inputSchema: {
         appid: z
           .string()
-          .describe("小程序 AppID（必填，与微信开发者工具一致；用于选择微信登录态会话）"),
-        env: z.string().optional().describe("可选：环境 ID；传入时 list 仅返回该环境的订阅条目"),
+          .describe("msgPush.schema.queryAppid"),
+        env: z.string().optional().describe("msgPush.schema.queryEnv"),
         action: z
           .enum(["list", "listSupportedEvents"])
-          .describe(
-            "list: 查询当前消息推送配置列表（含 pushMode/containerConfig）\nlistSupportedEvents: 查询全部合法消息推送事件约束（按 msgType 分组）",
-          ),
+          .describe("msgPush.schema.queryAction"),
       },
       annotations: {
         readOnlyHint: true,
@@ -783,17 +781,13 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
       inputSchema: {
         appid: z
           .string()
-          .describe("小程序 AppID（必填，与微信开发者工具一致；用于选择微信登录态会话）"),
+          .describe("msgPush.schema.manageAppid"),
         env_id: z
           .string()
-          .describe(
-            "环境 ID（云函数订阅绑定的云开发环境；ensureContainerMode/setContainerCallback 未传 qbase_env 时也可作为云托管环境默认值）",
-          ),
+          .describe("msgPush.schema.envId"),
         function_name: z
           .string()
-          .describe(
-            "接收消息推送的云函数名（subscribe/unsubscribe/setEnable/ensureCloudFunctionMode 使用；云托管相关 action 可传占位）",
-          ),
+          .describe("msgPush.schema.functionName"),
         action: z
           .enum([
             "subscribe",
@@ -803,54 +797,32 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
             "ensureContainerMode",
             "setContainerCallback",
           ])
-          .describe(
-            "subscribe: 订阅到指定云函数（云托管模式下拒绝）\n" +
-              "unsubscribe: 移除匹配订阅（云托管模式下拒绝）\n" +
-              "setEnable: 启用/停用匹配订阅（云托管模式下拒绝）\n" +
-              "ensureCloudFunctionMode: 切到云函数推送模式（关闭 qbase_open）\n" +
-              "ensureContainerMode: 切到云托管整包接收（需 qbase_container_path + text_mode）\n" +
-              "setContainerCallback: 更新云托管回调 path/env/text_mode",
-          ),
+          .describe("msgPush.schema.manageAction"),
         msg_type: z
           .enum(MSG_TYPES)
           .optional()
-          .describe(
-            '消息类型（缺省 "event"）。' +
-              '"event"：事件类条目，需配合 event_types（subscribe 可缺省=虚拟支付 7 事件）。' +
-              '"text"|"image"|"voice"|"video"|"miniprogrampage"：消息类型条目（event 固定空串），勿传 event_types。',
-          ),
+          .describe("msgPush.schema.msgType"),
         event_types: z
           .array(z.string())
           .optional()
-          .describe(
-            "要操作的事件列表（仅 msg_type=\"event\" 时使用；可先 queryMessagePush(action=listSupportedEvents) 查询全量约束）。" +
-              "subscribe 缺省时默认订阅虚拟支付 7 个事件；unsubscribe / setEnable 且 msg_type=event 时必填。",
-          ),
-        enable: z.boolean().optional().describe("setEnable 时必填：true 启用订阅 / false 停用订阅"),
+          .describe("msgPush.schema.eventTypes"),
+        enable: z.boolean().optional().describe("msgPush.schema.enable"),
         qbase_container_path: z
           .string()
           .optional()
-          .describe(
-            "云托管回调路径/URL（ensureContainerMode 必填；setContainerCallback 可选更新）",
-          ),
+          .describe("msgPush.schema.containerPath"),
         qbase_env: z
           .string()
           .optional()
-          .describe(
-            "云托管服务所在环境 ID（ensureContainerMode/setContainerCallback 可选；缺省用 env_id）",
-          ),
+          .describe("msgPush.schema.containerEnv"),
         text_mode: z
           .union([z.literal(1), z.literal(2)])
           .optional()
-          .describe(
-            "云托管消息正文编码：1=json，2=xml（ensureContainerMode 必填；setContainerCallback 可选更新）",
-          ),
+          .describe("msgPush.schema.textMode"),
         confirm: z
           .string()
           .optional()
-          .describe(
-            '写操作确认：确认执行请传 confirm="yes"；不传或传其他值将返回待确认的配置摘要（CONFIRM_REQUIRED），核对后再重试。集合无变化时无需确认。',
-          ),
+          .describe("msgPush.schema.confirm"),
       },
       annotations: {
         readOnlyHint: false,

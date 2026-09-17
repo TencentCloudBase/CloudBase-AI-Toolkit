@@ -80,7 +80,7 @@ describe("queryCloudRun getProcessLog schema", () => {
 
   it("documents getDeployLog as build log and getProcessLog as runtime log", async () => {
     const { tools } = await createCloudRunTools();
-    const actionDesc = tools.queryCloudRun.meta.inputSchema.action.description as string;
+    const actionDesc = t(tools.queryCloudRun.meta.inputSchema.action.description as MessageKey);
     expect(actionDesc).toMatch(/getDeployLog=.*构建日志/);
     expect(actionDesc).toMatch(/getProcessLog=.*运行日志/);
     expect(actionDesc).toMatch(/CODING/);
@@ -93,7 +93,9 @@ describe("queryCloudRun getProcessLog schema", () => {
     const serverConfig = tools.manageCloudRun.meta.inputSchema.serverConfig.unwrap();
     const delayField = serverConfig.shape.InitialDelaySeconds;
     // .describe() is attached to the optional wrapper
-    const delayDesc = (delayField.description ?? delayField.unwrap?.()?.description) as string;
+    const delayDesc = t(
+      (delayField.description ?? delayField.unwrap?.()?.description) as MessageKey,
+    );
     expect(delayDesc).toMatch(/每 5s|每 5 秒/);
     expect(delayDesc).toMatch(/30/);
     expect(delayDesc).toMatch(/150/);

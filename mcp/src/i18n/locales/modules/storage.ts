@@ -8,6 +8,14 @@ export const storage = defineModule(
     manageTitle: "管理 CloudBase 存储文件",
     manageDescription:
       "⚠️ PG 模式环境请使用 queryPgStorage 而非本工具（pgstore 与旧 COS 是两套独立系统）。\n\n管理 CloudBase 云存储文件，仅用于 COS/Storage 对象，不用于静态网站托管。支持上传文件/目录、下载文件/目录、删除文件/目录等操作。删除操作需要设置force=true进行确认，防止误删除重要文件。注意：上传后返回的 temporaryUrl 是临时签名链接，1小时后过期，不要当作永久公网地址写入配置或持久化存储。工具还会基于 DescribeEnvs 返回的 Storages[0].CdnDomain 推导 publicUrl，⚠️ 警告：publicUrl 仅在存储桶 ACL 为公有读（所有用户可读）时才能被匿名访问；默认私有读写存储桶返回的 publicUrl 会 403，此时请继续使用 temporaryUrl 或先通过控制台/SDK 将目标路径设置为公有读。\n\n💡 存储桶 ACL 权限管理请使用 permissions 工具：queryPermissions(action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\") 查询，managePermissions(action=\"updateResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"READONLY\") 设置。\n\n📦 CloudBase PG / pgstore 桶必须先创建后使用（与 Supabase Storage 一致：upload 前 bucket 必须存在）。浏览器 SDK `app.storage.from().upload(path, file)` 不会自动建桶，且 `path` 的第一段就是 bucket 名（例如 `covers/foo.png` → bucket=`covers`）；`from('covers')` 这个参数当前不会被拼到 path 里。如果上传时浏览器看到 `STORAGE_BUCKET_NOT_FOUND` 或 `PUT https://undefined/`（DevTools 表现为 `net::ERR_NAME_NOT_RESOLVED`），先用本工具或控制台确认 / 创建对应的 pgstore bucket，再让前端重试上传，不要让前端把上传失败静默吞掉。`DescribeEnvs.Storages[]` 返回的旧 NoSQL bucket（形如 `<hash>-<envId>-<appId>`）不是可用的 pgstore bucket，切勿当作默认目标使用。",
+    "schema.query.action": "查询操作类型：list=列出目录下的所有文件，info=获取指定文件的详细信息，url=获取文件的临时下载链接，read=读取文本文件内容",
+    "schema.query.cloudPath": "云端文件路径，例如 files/data.txt 或 files/（目录）",
+    "schema.query.maxAge": "临时链接有效期，单位为秒，取值范围：1-86400，默认值：3600（1小时）",
+    "schema.manage.action": "管理操作类型：upload=上传文件或目录，download=下载文件或目录，delete=删除文件或目录",
+    "schema.manage.localPath": "本地文件路径，建议传入绝对路径，例如 /tmp/files/data.txt；upload/download 操作时必填，delete 操作时不需要传该参数",
+    "schema.manage.cloudPath": "云端文件路径，例如 files/data.txt",
+    "schema.manage.force": "强制操作开关，删除操作时建议设置为true以确认删除，默认false",
+    "schema.manage.isDirectory": "是否为目录操作，true=目录操作，false=文件操作，默认false",
     managerInitFailed: "初始化 CloudBase Manager 失败。请检查凭证与环境配置。",
     readBinaryUnsupported:
       "queryStorage action=read 仅支持读取文本文件内容；二进制文件请改用 action=url 获取下载链接，或使用 manageStorage(action=\"download\") 下载到本地。",
@@ -40,6 +48,14 @@ export const storage = defineModule(
     manageTitle: "Manage CloudBase storage files",
     manageDescription:
       "⚠️ For PG-mode environments use queryPgStorage instead of this tool (pgstore and the legacy COS are two separate systems).\n\nManage CloudBase cloud storage files — for COS/Storage objects only, not for static website hosting. Supports uploading/downloading/deleting files and directories. Delete operations require force=true as confirmation to prevent accidental deletion. Note: the temporaryUrl returned after upload is a temporary signed link that expires in 1 hour; do not write it into configuration or persistent storage as a permanent public URL. The tool also derives publicUrl from the Storages[0].CdnDomain returned by DescribeEnvs. ⚠️ Warning: publicUrl is anonymously accessible only when the bucket ACL is public-read; with the default private-read-write bucket the returned publicUrl will 403 — keep using temporaryUrl, or first set the target path to public-read via the console/SDK.\n\n💡 For bucket ACL permission management use the permissions tool: query with queryPermissions(action=\"getResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\"), set with managePermissions(action=\"updateResourcePermission\", resourceType=\"storage\", resourceId=\"bucket-name\", permission=\"READONLY\").\n\n📦 CloudBase PG / pgstore buckets must be created before use (same as Supabase Storage: the bucket must exist before upload). The browser SDK `app.storage.from().upload(path, file)` does not create buckets automatically, and the first segment of `path` is the bucket name (e.g. `covers/foo.png` → bucket=`covers`); the argument of `from('covers')` is currently not prepended to the path. If the browser sees `STORAGE_BUCKET_NOT_FOUND` or `PUT https://undefined/` during upload (shown as `net::ERR_NAME_NOT_RESOLVED` in DevTools), first confirm / create the corresponding pgstore bucket with this tool or the console, then have the frontend retry the upload — do not let the frontend silently swallow the upload failure. Legacy NoSQL buckets returned by `DescribeEnvs.Storages[]` (shaped like `<hash>-<envId>-<appId>`) are not usable pgstore buckets; never use them as the default target.",
+    "schema.query.action": "Query operation: list=list all files in a directory, info=get details for a specified file, url=get a temporary file download URL, read=read text file content",
+    "schema.query.cloudPath": "Cloud file path, for example files/data.txt or files/ (directory)",
+    "schema.query.maxAge": "Temporary URL validity in seconds, range: 1-86400, default: 3600 (1 hour)",
+    "schema.manage.action": "Management operation: upload=upload a file or directory, download=download a file or directory, delete=delete a file or directory",
+    "schema.manage.localPath": "Local file path; an absolute path such as /tmp/files/data.txt is recommended. Required for upload/download and not needed for delete",
+    "schema.manage.cloudPath": "Cloud file path, for example files/data.txt",
+    "schema.manage.force": "Force-operation switch. Set to true to confirm deletion; defaults to false",
+    "schema.manage.isDirectory": "Whether the operation targets a directory: true=directory, false=file; defaults to false",
     managerInitFailed: "Failed to initialize CloudBase manager. Please check your credentials and environment configuration.",
     readBinaryUnsupported:
       "queryStorage action=read supports text files only; for binary files use action=url to get a download URL, or use manageStorage(action=\"download\") to download to local disk.",

@@ -65,6 +65,9 @@ export const setup = defineModule(
     "overwriteOff": "禁用",
     "copyHiddenFilesHint": "💡 如需将模板（包括隐藏文件）复制到项目目录，请确保复制时包含所有隐藏文件。",
     "fileListHeader": "📋 文件列表:",
+    "schema.template": "要下载的模板类型",
+    "schema.ide": "指定要下载的IDE类型。",
+    "schema.overwrite": "是否覆盖已存在的文件，默认为false（不覆盖）",
   },
   {
     "downloadTemplate.title": "Download project template",
@@ -136,5 +139,9 @@ export const setup = defineModule(
     "copyHiddenFilesHint":
       "💡 To copy the template (including hidden files) into your project directory, make sure to include all hidden files when copying.",
     "fileListHeader": "📋 File list:",
+    "schema.template": "The type of template to download",
+    "schema.ide": "The IDE type whose configuration should be downloaded.",
+    "schema.overwrite":
+      "Whether to overwrite existing files. Defaults to false (do not overwrite).",
   },
 );

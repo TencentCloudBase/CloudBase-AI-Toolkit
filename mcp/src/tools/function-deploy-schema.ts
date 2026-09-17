@@ -101,18 +101,18 @@ function parseImageReference(reference: string) {
 
 const FUNCTION_VPC_SCHEMA = z
   .object({
-    vpcId: z.string().min(1).describe("VPC ID。必须使用真实网络配置，禁止填写占位符。"),
+    vpcId: z.string().min(1).describe("functionDeploySchema.schema.vpc.id"),
     subnetId: z
       .string()
       .min(1)
-      .describe("子网 ID。必须与 vpcId 属于同一 VPC，禁止填写占位符。"),
+      .describe("functionDeploySchema.schema.vpc.subnetId"),
   })
   .strict();
 
 const FUNCTION_LAYER_SCHEMA = z
   .object({
-    name: z.string().min(1).describe("Layer 名称。"),
-    version: z.number().int().positive().describe("Layer 版本号。"),
+    name: z.string().min(1).describe("functionDeploySchema.schema.layer.name"),
+    version: z.number().int().positive().describe("functionDeploySchema.schema.layer.version"),
   })
   .strict();
 
@@ -126,7 +126,7 @@ const FUNCTION_PROTOCOL_PARAMS_SCHEMA = z
           .min(10)
           .max(7200)
           .optional()
-          .describe("WebSocket 空闲超时，单位秒，范围 10-7200。"),
+          .describe("functionDeploySchema.schema.protocol.wsIdleTimeout"),
       })
       .strict()
       .optional(),
@@ -135,14 +135,14 @@ const FUNCTION_PROTOCOL_PARAMS_SCHEMA = z
 
 const FUNCTION_INSTANCE_CONCURRENCY_SCHEMA = z
   .object({
-    dynamicEnabled: z.boolean().optional().describe("是否开启智能动态并发。"),
+    dynamicEnabled: z.boolean().optional().describe("functionDeploySchema.schema.concurrency.dynamicEnabled"),
     maxConcurrency: z
       .number()
       .int()
       .min(1)
       .max(100)
       .optional()
-      .describe("单实例最大并发数，范围 1-100。"),
+      .describe("functionDeploySchema.schema.concurrency.maxConcurrency"),
   })
   .strict();
 
@@ -150,37 +150,37 @@ const FUNCTION_HTTP_COMMON_FIELDS = {
   name: z
     .string()
     .regex(FUNCTION_NAME_PATTERN)
-    .describe("函数名称：字母开头，仅允许字母、数字、下划线和中划线，长度 2-60。"),
-  type: z.literal("HTTP").describe("MVP 镜像部署仅支持 HTTP 函数。"),
+    .describe("functionDeploySchema.schema.http.name"),
+  type: z.literal("HTTP").describe("functionDeploySchema.schema.http.type"),
   runtime: z
     .literal(CUSTOM_IMAGE_RUNTIME)
     .optional()
-    .describe(`镜像部署运行时。省略时由 SDK 自动规范化为 ${CUSTOM_IMAGE_RUNTIME}。`),
-  description: z.string().optional().describe("函数描述。"),
+    .describe("functionDeploySchema.schema.http.runtime"),
+  description: z.string().optional().describe("functionDeploySchema.schema.http.description"),
   timeout: z
     .number()
     .int()
     .min(1)
     .max(900)
     .optional()
-    .describe("函数超时，单位秒，范围 1-900。"),
+    .describe("functionDeploySchema.schema.http.timeout"),
   memorySize: z
     .number()
     .int()
     .min(64)
     .max(3072)
     .optional()
-    .describe("函数内存，单位 MB，范围 64-3072，建议使用 64 的整数倍。"),
+    .describe("functionDeploySchema.schema.http.memorySize"),
   envVariables: z
     .record(z.union([z.string(), z.number(), z.boolean()]))
     .optional()
-    .describe("函数运行时环境变量。"),
-  vpc: FUNCTION_VPC_SCHEMA.optional().describe("函数 VPC 配置。"),
-  layers: z.array(FUNCTION_LAYER_SCHEMA).optional().describe("函数绑定的 Layer。"),
-  role: z.string().min(1).optional().describe("函数执行角色名称。"),
-  codeSecret: z.string().min(1).optional().describe("函数代码加密密钥。"),
-  public: z.boolean().optional().describe("是否允许匿名访问；省略表示不管理访问规则。"),
-  path: z.string().min(1).optional().describe("兼容既有声明式部署的云接入路径。"),
+    .describe("functionDeploySchema.schema.http.envVariables"),
+  vpc: FUNCTION_VPC_SCHEMA.optional().describe("functionDeploySchema.schema.http.vpc"),
+  layers: z.array(FUNCTION_LAYER_SCHEMA).optional().describe("functionDeploySchema.schema.http.layers"),
+  role: z.string().min(1).optional().describe("functionDeploySchema.schema.http.role"),
+  codeSecret: z.string().min(1).optional().describe("functionDeploySchema.schema.http.codeSecret"),
+  public: z.boolean().optional().describe("functionDeploySchema.schema.http.public"),
+  path: z.string().min(1).optional().describe("functionDeploySchema.schema.http.path"),
   gatewayPath: z
     .string()
     .refine(
@@ -200,15 +200,13 @@ const FUNCTION_HTTP_COMMON_FIELDS = {
       { message: t("functionDeploySchema.gatewayPathInvalid") },
     )
     .optional()
-    .describe("HTTP 网关路径，例如 /api。"),
+    .describe("functionDeploySchema.schema.http.gatewayPath"),
   protocolType: z
     .enum(FUNCTION_HTTP_PROTOCOL_TYPES)
     .optional()
-    .describe("HTTP 函数协议类型：HTTP 或 WS。"),
-  protocolParams: FUNCTION_PROTOCOL_PARAMS_SCHEMA.optional().describe("协议参数。"),
-  instanceConcurrencyConfig: FUNCTION_INSTANCE_CONCURRENCY_SCHEMA.optional().describe(
-    "HTTP 函数实例并发配置。",
-  ),
+    .describe("functionDeploySchema.schema.http.protocolType"),
+  protocolParams: FUNCTION_PROTOCOL_PARAMS_SCHEMA.optional().describe("functionDeploySchema.schema.http.protocolParams"),
+  instanceConcurrencyConfig: FUNCTION_INSTANCE_CONCURRENCY_SCHEMA.optional().describe("functionDeploySchema.schema.http.instanceConcurrency"),
 };
 
 // imageConfig 命名空间下的镜像运行时公共字段，对齐 cloudbaserc / toolbox 的嵌套形状。
@@ -221,46 +219,41 @@ export const FUNCTION_IMAGE_CONFIG_COMMON_FIELDS = {
   imageType: z
     .enum(FUNCTION_IMAGE_TYPES)
     .optional()
-    .describe(
-      "镜像仓库类型：enterprise=企业版 TCR，personal=个人版 CCR；" +
-        "省略时由 SDK 推断——填了 registryId 推断为 enterprise，否则推断为 personal。",
-    ),
+    .describe("functionDeploySchema.schema.image.type"),
   registryId: z
     .string()
     .min(1)
     .optional()
-    .describe("企业版 TCR 实例 ID，形如 tcr-xxxxxxxx；imageType=enterprise 时必填，个人版镜像不填。"),
+    .describe("functionDeploySchema.schema.image.registryId"),
   imagePort: z
     .literal(IMAGE_FUNCTION_PORT)
     .optional()
-    .describe(
-      `HTTP 镜像函数监听端口，SDK 仅允许 ${IMAGE_FUNCTION_PORT}；省略即用该值，不要填其他端口。`,
-    ),
+    .describe("functionDeploySchema.schema.image.port"),
   entryPoint: z
     .string()
     .min(1)
     .optional()
-    .describe("覆盖镜像入口点（ENTRYPOINT），一般不需要单独设置。"),
+    .describe("functionDeploySchema.schema.image.entryPoint"),
   command: z
     .string()
     .optional()
-    .describe("覆盖镜像启动命令，例如 python；不填则使用镜像 Dockerfile 中的默认值。"),
+    .describe("functionDeploySchema.schema.image.command"),
   args: z
     .string()
     .optional()
-    .describe("覆盖镜像启动参数，空格分隔，例如 -u app.py。"),
+    .describe("functionDeploySchema.schema.image.args"),
   commandList: z
     .array(z.string())
     .optional()
-    .describe("镜像启动命令的数组写法，元素已按参数切分，适用于命令本身含空格的场景。"),
+    .describe("functionDeploySchema.schema.image.commandList"),
   argsList: z
     .array(z.string())
     .optional()
-    .describe("镜像启动参数的数组写法，元素已按参数切分，适用于参数本身含空格的场景。"),
+    .describe("functionDeploySchema.schema.image.argsList"),
   containerImageAccelerate: z
     .boolean()
     .optional()
-    .describe("是否开启镜像加速；镜像较大时建议开启以缩短冷启动时间。"),
+    .describe("functionDeploySchema.schema.image.accelerate"),
 };
 
 export const FUNCTION_IMAGE_BUILD_SCHEMA = z
@@ -268,37 +261,37 @@ export const FUNCTION_IMAGE_BUILD_SCHEMA = z
     cwd: z
       .string()
       .refine(isAbsolutePath, () => ({ message: t("functionDeploySchema.buildCwdAbsolute") }))
-      .describe("镜像构建上下文的绝对目录。"),
+      .describe("functionDeploySchema.schema.build.cwd"),
     dockerfile: z
       .string()
       .refine(isSafeRelativePath, () => ({ message: t("functionDeploySchema.buildDockerfileSafeRelative") }))
       .optional()
-      .describe("Dockerfile 相对 build.cwd 的路径，默认 Dockerfile。"),
+      .describe("functionDeploySchema.schema.build.dockerfile"),
     registryId: z
       .string()
       .min(1)
       .optional()
-      .describe("企业版 TCR 实例 ID；personal 镜像构建不填。"),
+      .describe("functionDeploySchema.schema.build.registryId"),
     namespace: z
       .string()
       .min(1)
       .optional()
-      .describe("目标镜像命名空间；不传时默认使用当前环境 ID（envId）。"),
+      .describe("functionDeploySchema.schema.build.namespace"),
     repository: z
       .string()
       .min(1)
       .optional()
-      .describe("不含 tag/digest 的目标仓库路径；不传时默认使用函数名。local personal 需填写完整 registry/namespace/repository。"),
+      .describe("functionDeploySchema.schema.build.repository"),
     tag: z
       .string()
       .regex(IMAGE_TAG_PATTERN)
       .refine((value) => value.toLowerCase() !== "latest", () => ({ message: t("functionDeploySchema.tagNoLatest") }))
       .optional()
-      .describe("local 策略的目标镜像 tag；cloud 策略由平台生成，不填。"),
+      .describe("functionDeploySchema.schema.build.tag"),
     platform: z
       .literal(DEFAULT_IMAGE_PLATFORM)
       .optional()
-      .describe(`目标镜像平台，当前仅支持 ${DEFAULT_IMAGE_PLATFORM}。`),
+      .describe("functionDeploySchema.schema.build.platform"),
     buildArgs: z
       .record(z.string())
       .superRefine((buildArgs, context) => {
@@ -327,44 +320,31 @@ export const FUNCTION_IMAGE_BUILD_SCHEMA = z
         }
       })
       .optional()
-      .describe("Docker 构建参数。禁止传递密钥或凭证。"),
+      .describe("functionDeploySchema.schema.build.args"),
     registryCredential: z
       .object({
         username: z
           .string()
           .regex(/^\d{5,20}$/)
           .optional()
-          .describe(
-            "个人版 CCR 登录用户名，必须为腾讯云账号 UIN。" +
-              "省略时回退读取 MCP 进程的 TCB_TCR_USERNAME 环境变量。",
-          ),
+          .describe("functionDeploySchema.schema.build.credentialUsername"),
         password: z
           .string()
           .min(1)
           .max(16 * 1024)
           .optional()
-          .describe(
-            "个人版 CCR 固定密码。**不要在此字段填写明文密码**：" +
-              "请在 MCP 配置的 env 中设置 TCB_TCR_PASSWORD，本字段留空即可自动读取。" +
-              "敏感字段，禁止写入日志或响应。",
-          ),
+          .describe("functionDeploySchema.schema.build.credentialPassword"),
       })
       .strict()
       .optional()
-      .describe(
-        "个人版 TCR 推送凭证（personal local/cloud 需要）。" +
-          "推荐整体省略，改为在 MCP 配置的 env 中设置 TCB_TCR_USERNAME 与 TCB_TCR_PASSWORD，" +
-          "与 TENCENTCLOUD_SECRETID 等密钥的配置方式一致；" +
-          "已设置环境变量时不需要在请求参数中传递凭证。" +
-          "字段级回退：显式传入的字段优先，未传字段读环境变量。",
-      ),
-    forceBuild: z.boolean().optional().describe("是否忽略同摘要复用并强制重新构建。"),
+      .describe("functionDeploySchema.schema.build.registryCredential"),
+    forceBuild: z.boolean().optional().describe("functionDeploySchema.schema.build.force"),
     retainedTags: z
       .number()
       .int()
       .positive()
       .optional()
-      .describe("个人版 TCR 构建完成后保留的最新镜像标签数量。"),
+      .describe("functionDeploySchema.schema.build.retainedTags"),
   })
   .strict();
 
@@ -382,7 +362,7 @@ const FUNCTION_IMAGE_IMAGE_CONFIG_SCHEMA = z
             (parsed.digest || (parsed.tag && parsed.tag.toLowerCase() !== "latest")),
         );
       }, () => ({ message: t("functionDeploySchema.imageUriImmutable") }))
-      .describe("已有镜像地址，例如 ccr.ccs.tencentyun.com/ns/app:v1。"),
+      .describe("functionDeploySchema.schema.image.uri"),
   })
   .strict();
 
@@ -402,7 +382,7 @@ const FUNCTION_LOCAL_IMAGE_CONFIG_SCHEMA = z
     localFallback: z
       .enum(FUNCTION_IMAGE_LOCAL_FALLBACKS)
       .optional()
-      .describe("本地构建不可用时的处理方式，默认 error，禁止静默改变构建环境。"),
+      .describe("functionDeploySchema.schema.image.localFallback"),
   })
   .strict();
 

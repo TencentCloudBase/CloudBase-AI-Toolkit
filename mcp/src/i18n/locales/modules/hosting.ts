@@ -89,6 +89,72 @@ export const hosting = defineModule(
       "部分目标静态托管域名尚未在查询结果中出现。若这是绑定后的确认步骤，请继续调用 queryHosting(action=\"domainStatus\") 直到结果收敛或达到超时。",
     queryRateLimitGuidance:
       "{message}\n原因：静态托管底层 DescribeStaticStore 管控接口有 20 次/秒的 QPS 限制，连续快速调用（或失败后立即重试）容易触发限流，本次查询/操作可能没有完整生效。\n处理建议：等待 1-2 秒后重试，不要连续快速重试；多个文件操作请逐次调用并保持间隔。",
+    // Input schema parameter descriptions
+    "schema.routingRule.keyPrefixEquals":
+      "匹配前缀规则，例如 app/ 或 assets/。与 httpErrorCodeReturnedEquals 二选一或按 CloudBase 规则组合使用。",
+    "schema.routingRule.httpErrorCodeReturnedEquals":
+      "匹配 HTTP 错误码，例如 404。SPA 回退常用 404。",
+    "schema.routingRule.replaceKeyWith":
+      "把匹配结果替换为固定文件路径，例如 index.html。",
+    "schema.routingRule.replaceKeyPrefixWith": "把匹配前缀替换成新的前缀路径。",
+    "schema.domainConfig.refer": "Referer 防盗链配置。",
+    "schema.domainConfig.refer.switch": "Referer 防盗链开关：on=开启，off=关闭。",
+    "schema.domainConfig.refer.rules": "Referer 规则列表。",
+    "schema.domainConfig.refer.rules.type":
+      "Referer 规则类型：blacklist=黑名单，whitelist=白名单。",
+    "schema.domainConfig.refer.rules.referers": "Referer 规则值列表。",
+    "schema.domainConfig.refer.rules.allowEmpty": "是否允许空 Referer。",
+    "schema.domainConfig.cache": "CDN 缓存规则列表。",
+    "schema.domainConfig.cache.ruleType":
+      "缓存规则类型：fileType=文件类型，path=路径。",
+    "schema.domainConfig.cache.ruleValue": "规则匹配值。",
+    "schema.domainConfig.cache.cacheTtl": "缓存 TTL，单位秒。",
+    "schema.domainConfig.ipFilter": "IP 访问控制配置。",
+    "schema.domainConfig.ipFilter.switch": "IP 访问控制开关：on=开启，off=关闭。",
+    "schema.domainConfig.ipFilter.filterType":
+      "过滤类型：blacklist=黑名单，whitelist=白名单。",
+    "schema.domainConfig.ipFilter.filters": "IP 规则列表。",
+    "schema.domainConfig.ipFreqLimit": "IP 频控配置。",
+    "schema.domainConfig.ipFreqLimit.switch": "IP 频控开关：on=开启，off=关闭。",
+    "schema.domainConfig.ipFreqLimit.qps": "每个 IP 的 QPS 上限。",
+    "schema.query.action":
+      "查询类型：websiteConfig=查询静态托管网站文档配置与站点域名信息，status=查询静态托管服务状态，findFiles=按前缀查找托管文件，listFiles=列出静态托管中的全部文件，domainStatus=查询自定义域名配置与生效状态。该工具严格只读，不会修改任何资源。",
+    "schema.query.prefix":
+      "文件前缀过滤条件。仅 action=findFiles 时使用，例如 app/ 或 assets/logo。",
+    "schema.query.marker":
+      "分页起始标记。仅 action=findFiles 时使用，用于续查上一页之后的结果。",
+    "schema.query.maxKeys": "单次返回的最大文件条数。仅 action=findFiles 时使用。",
+    "schema.query.domains":
+      "要查询的自定义域名列表。仅 action=domainStatus 时使用，例如 [\"www.example.com\"]。",
+    "schema.manage.action":
+      "管理类型：upload=上传本地构建产物到静态托管，delete=删除静态托管文件或目录，setWebsiteDocument=设置首页/错误页/路由规则，enableService=开通静态托管服务，bindDomain=绑定自定义域名，unbindDomain=解绑自定义域名，updateDomain=更新域名缓存/防盗链/IP 规则，downloadFile=下载单个托管文件到本地，downloadDirectory=下载托管目录到本地。",
+    "schema.manage.localPath":
+      "本地路径。action=upload 时表示要上传的本地文件/目录路径；action=downloadFile 或 downloadDirectory 时表示下载到本地的目标路径。建议传绝对路径。",
+    "schema.manage.cloudPath":
+      "静态托管中的目标路径。action=upload 时表示上传后的托管路径；action=delete/downloadFile/downloadDirectory 时表示托管侧文件或目录路径。",
+    "schema.manage.files":
+      "多文件上传配置。仅 action=upload 时可选；传入后会逐项上传，不再依赖单个 localPath/cloudPath。",
+    "schema.manage.files.localPath": "单个待上传文件的本地绝对路径。",
+    "schema.manage.files.cloudPath": "该文件上传到静态托管后的托管路径。",
+    "schema.manage.ignore":
+      "上传时忽略的文件模式。仅 action=upload 时可选，例如 node_modules 或 [\"**/*.map\", \"**/.DS_Store\"]。",
+    "schema.manage.isDir":
+      "是否把 cloudPath 视为目录。仅 action=delete 时使用；true=删除目录，false=删除单个文件。",
+    "schema.manage.confirm":
+      "高风险操作确认开关。action=delete 和 action=unbindDomain 时必须显式传 true，避免误删文件或误解绑域名。",
+    "schema.manage.indexDocument":
+      "网站首页文档名称。仅 action=setWebsiteDocument 时必填，例如 index.html。",
+    "schema.manage.errorDocument":
+      "错误页文档名称。仅 action=setWebsiteDocument 时可选，例如 404.html。",
+    "schema.manage.routingRules":
+      "网站路由规则列表。仅 action=setWebsiteDocument 时可选。SPA 常见配置是将 404 重写到 index.html。",
+    "schema.manage.domain":
+      "自定义域名。action=bindDomain / unbindDomain / updateDomain 时使用，例如 www.example.com。",
+    "schema.manage.certId": "证书 ID。仅 action=bindDomain 时必填。",
+    "schema.manage.domainId":
+      "域名 ID。仅 action=updateDomain 时必填，用于精确更新指定域名配置。",
+    "schema.manage.domainConfig":
+      "域名配置。仅 action=updateDomain 时必填，支持缓存、Referer、防盗链、IP 规则与频控。",
   },
   {
     queryTitle: "Query CloudBase static hosting",
@@ -189,5 +255,80 @@ export const hosting = defineModule(
       "Some target static hosting domains have not appeared in the query results yet. If this is a confirmation step after binding, keep calling queryHosting(action=\"domainStatus\") until the results converge or the timeout is reached.",
     queryRateLimitGuidance:
       "{message}\nReason: the underlying DescribeStaticStore control-plane API has a 20 req/s QPS limit; rapid successive calls (or immediate retries after failures) easily trigger rate limiting, and this query/operation may not have fully taken effect.\nSuggestions: wait 1-2 seconds before retrying and avoid rapid successive retries; for multi-file operations, call sequentially with intervals.",
+    // Input schema parameter descriptions
+    "schema.routingRule.keyPrefixEquals":
+      "Prefix match rule, e.g. app/ or assets/. Use either this or httpErrorCodeReturnedEquals, or combine them per CloudBase rules.",
+    "schema.routingRule.httpErrorCodeReturnedEquals":
+      "HTTP error code to match, e.g. 404. SPA fallback commonly uses 404.",
+    "schema.routingRule.replaceKeyWith":
+      "Replace the match with a fixed file path, e.g. index.html.",
+    "schema.routingRule.replaceKeyPrefixWith":
+      "Replace the matched prefix with a new prefix path.",
+    "schema.domainConfig.refer": "Referer hotlink protection config.",
+    "schema.domainConfig.refer.switch":
+      "Referer hotlink protection switch: on=enabled, off=disabled.",
+    "schema.domainConfig.refer.rules": "Referer rule list.",
+    "schema.domainConfig.refer.rules.type":
+      "Referer rule type: blacklist=deny list, whitelist=allow list.",
+    "schema.domainConfig.refer.rules.referers": "Referer rule values.",
+    "schema.domainConfig.refer.rules.allowEmpty":
+      "Whether an empty Referer is allowed.",
+    "schema.domainConfig.cache": "CDN cache rule list.",
+    "schema.domainConfig.cache.ruleType":
+      "Cache rule type: fileType=file type, path=path.",
+    "schema.domainConfig.cache.ruleValue": "Rule match value.",
+    "schema.domainConfig.cache.cacheTtl": "Cache TTL in seconds.",
+    "schema.domainConfig.ipFilter": "IP access control config.",
+    "schema.domainConfig.ipFilter.switch":
+      "IP access control switch: on=enabled, off=disabled.",
+    "schema.domainConfig.ipFilter.filterType":
+      "Filter type: blacklist=deny list, whitelist=allow list.",
+    "schema.domainConfig.ipFilter.filters": "IP rule list.",
+    "schema.domainConfig.ipFreqLimit": "IP rate limit config.",
+    "schema.domainConfig.ipFreqLimit.switch":
+      "IP rate limit switch: on=enabled, off=disabled.",
+    "schema.domainConfig.ipFreqLimit.qps": "QPS cap per IP.",
+    "schema.query.action":
+      "Query type: websiteConfig=query the static hosting website document config and site domain info, status=query the static hosting service status, findFiles=find hosted files by prefix, listFiles=list all files in static hosting, domainStatus=query custom domain config and effective status. This tool is strictly read-only and never modifies resources.",
+    "schema.query.prefix":
+      "File prefix filter. Used only with action=findFiles, e.g. app/ or assets/logo.",
+    "schema.query.marker":
+      "Pagination start marker. Used only with action=findFiles to continue after the previous page.",
+    "schema.query.maxKeys":
+      "Maximum number of files returned per call. Used only with action=findFiles.",
+    "schema.query.domains":
+      "Custom domains to query. Used only with action=domainStatus, e.g. [\"www.example.com\"].",
+    "schema.manage.action":
+      "Management type: upload=upload local build artifacts to static hosting, delete=delete hosted files or directories, setWebsiteDocument=set the index/error document and routing rules, enableService=enable the static hosting service, bindDomain=bind a custom domain, unbindDomain=unbind a custom domain, updateDomain=update domain cache/hotlink protection/IP rules, downloadFile=download a single hosted file locally, downloadDirectory=download a hosted directory locally.",
+    "schema.manage.localPath":
+      "Local path. With action=upload it is the local file/directory to upload; with action=downloadFile or downloadDirectory it is the local download target. An absolute path is recommended.",
+    "schema.manage.cloudPath":
+      "Target path in static hosting. With action=upload it is the hosted path after upload; with action=delete/downloadFile/downloadDirectory it is the hosted file or directory path.",
+    "schema.manage.files":
+      "Multi-file upload config. Optional and only for action=upload; when provided, files are uploaded one by one and the single localPath/cloudPath is no longer used.",
+    "schema.manage.files.localPath":
+      "Absolute local path of a single file to upload.",
+    "schema.manage.files.cloudPath":
+      "Hosted path of this file after it is uploaded to static hosting.",
+    "schema.manage.ignore":
+      "File patterns to ignore during upload. Optional and only for action=upload, e.g. node_modules or [\"**/*.map\", \"**/.DS_Store\"].",
+    "schema.manage.isDir":
+      "Whether to treat cloudPath as a directory. Used only with action=delete; true=delete the directory, false=delete a single file.",
+    "schema.manage.confirm":
+      "High-risk operation confirmation switch. Must be explicitly true for action=delete and action=unbindDomain to avoid deleting files or unbinding domains by mistake.",
+    "schema.manage.indexDocument":
+      "Website index document name. Required only with action=setWebsiteDocument, e.g. index.html.",
+    "schema.manage.errorDocument":
+      "Error document name. Optional and only for action=setWebsiteDocument, e.g. 404.html.",
+    "schema.manage.routingRules":
+      "Website routing rule list. Optional and only for action=setWebsiteDocument. A common SPA setup rewrites 404 to index.html.",
+    "schema.manage.domain":
+      "Custom domain. Used with action=bindDomain / unbindDomain / updateDomain, e.g. www.example.com.",
+    "schema.manage.certId":
+      "Certificate ID. Required only with action=bindDomain.",
+    "schema.manage.domainId":
+      "Domain ID. Required only with action=updateDomain to update the specified domain config precisely.",
+    "schema.manage.domainConfig":
+      "Domain config. Required only with action=updateDomain; supports cache, Referer, hotlink protection, IP rules, and rate limiting.",
   },
 );

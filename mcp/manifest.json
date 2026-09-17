@@ -56,7 +56,7 @@
       "description": "Logout from CloudBase and clear local configurations"
     },
     {
-      "name": "envQuery",
+      "name": "queryEnv",
       "description": "Query CloudBase environment information, domains, and settings"
     },
     {

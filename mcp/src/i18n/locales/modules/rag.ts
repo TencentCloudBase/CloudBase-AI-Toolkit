@@ -60,6 +60,20 @@ export const rag = defineModule(
       "OpenAPI 文档：{name}\n简介：{description}\n路径：{path}\n\n{content}",
     unsupportedMode: "不支持的 mode：{mode}",
     downloadTemplateFailed: "下载模板失败，状态码: {status}",
+    "schema.skillName": "mode=skill 时指定。技能名称。",
+    "schema.apiName": "mode=openapi 时指定。API 名称。",
+    "schema.enumUnavailable":
+      "{description} 当前暂时无法枚举可选值；如需查看当前可用项，可直接传入字符串，工具会在执行时返回可用列表。",
+    "schema.action":
+      "仅 mode=docs 时指定；mode=openapi 不要传 action。CloudBase 文档操作类型：listModules=列出所有文档模块，listModuleDocs=获取指定模块的目录结构，findByName=按名称/路径/URL 智能查找，readDoc=读取指定文档 Markdown，searchDocs=全文搜索官方文档。",
+    "schema.moduleName":
+      "mode=docs 且 action=listModuleDocs 时指定。模块名称。",
+    "schema.input":
+      "mode=docs 且 action=findByName 时指定。支持模块名、文档标题、层级路径或 URL。",
+    "schema.docPath":
+      "mode=docs 且 action=readDoc 时指定。文档相对路径或完整 URL。",
+    "schema.query":
+      "mode=docs 且 action=searchDocs 时指定。全文检索关键词。",
   },
   {
     title: "CloudBase knowledge base search",
@@ -120,5 +134,19 @@ export const rag = defineModule(
       "OpenAPI document: {name}\nDescription: {description}\nPath: {path}\n\n{content}",
     unsupportedMode: "unsupported mode: {mode}",
     downloadTemplateFailed: "Failed to download template, status code: {status}",
+    "schema.skillName": "Required for mode=skill. The skill name.",
+    "schema.apiName": "Required for mode=openapi. The API name.",
+    "schema.enumUnavailable":
+      "{description} The available values cannot currently be enumerated. You may pass a string directly; the tool will return the available list when invoked.",
+    "schema.action":
+      "Only for mode=docs; do not pass action with mode=openapi. CloudBase documentation action: listModules lists all documentation modules; listModuleDocs gets the catalog for a module; findByName searches intelligently by name, path, or URL; readDoc reads document Markdown; searchDocs performs a full-text search of the official documentation.",
+    "schema.moduleName":
+      "Required when mode=docs and action=listModuleDocs. The module name.",
+    "schema.input":
+      "Required when mode=docs and action=findByName. Accepts a module name, document title, hierarchical path, or URL.",
+    "schema.docPath":
+      "Required when mode=docs and action=readDoc. A relative document path or full URL.",
+    "schema.query":
+      "Required when mode=docs and action=searchDocs. Full-text search keywords.",
   },
 );

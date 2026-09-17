@@ -25,6 +25,7 @@ import { registerMsgPushTools } from "./tools/msg-push.js";
 import { CloudBaseOptions, Logger, PluginOptions } from "./types.js";
 import type { AuthOptions } from "./auth.js";
 import { isMessageKey, resolveInstanceLang, setInstanceLang, t, type Lang } from "./i18n/index.js";
+import { localizeZodSchemaShape } from "./i18n/schema.js";
 import { enableCloudMode } from "./utils/cloud-mode.js";
 import { info } from './utils/logger.js';
 import { resolveSiteAndRegion, SITE_REGION_MAP } from "./utils/site-map.js";
@@ -325,6 +326,12 @@ export async function createCloudBaseMcpServer(options?: {
     }
     if (typeof toolMeta?.title === "string") {
       toolMeta.title = resolveToolText(toolMeta.title, server.lang);
+    }
+    if (toolMeta?.inputSchema && typeof toolMeta.inputSchema === "object") {
+      toolMeta.inputSchema = localizeZodSchemaShape(toolMeta.inputSchema, server.lang);
+    }
+    if (toolMeta?.outputSchema && typeof toolMeta.outputSchema === "object") {
+      toolMeta.outputSchema = localizeZodSchemaShape(toolMeta.outputSchema, server.lang);
     }
     // 同步记录到 toolDefs
     server.toolDefs.push({

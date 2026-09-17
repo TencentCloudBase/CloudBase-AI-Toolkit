@@ -261,10 +261,10 @@ export function registerPGStorageTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z
           .enum(STORAGE_ACTIONS)
-          .describe("操作类型：buckets/config=查询存储能力摘要；createBucket=生成 bucket 创建方案（SQL/HTTP API/CLI）；uploadPlan=生成 HTTP API/SDK 上传方案；objectInfo=生成对象元信息查询方案；signUpload/signDownload=显式的一次性签名 URL 请求占位"),
-        bucket: z.string().optional().describe("云存储 bucket 名称"),
-        objectKey: z.string().optional().describe("单个对象 key"),
-        objectKeys: z.array(z.string()).optional().describe("多个对象 key，用于对象元信息查询规划"),
+          .describe("storagePG.schema.action"),
+        bucket: z.string().optional().describe("storagePG.schema.bucket"),
+        objectKey: z.string().optional().describe("storagePG.schema.objectKey"),
+        objectKeys: z.array(z.string()).optional().describe("storagePG.schema.objectKeys"),
         objects: z
           .array(
             z.object({
@@ -274,8 +274,8 @@ export function registerPGStorageTools(server: ExtendedMcpServer) {
             }),
           )
           .optional()
-          .describe("待上传对象的元信息。文件字节内容不会通过 MCP 传递。"),
-        expiresIn: z.number().int().min(60).max(86400).optional().describe("签名 URL 有效期，单位秒，范围 60 到 86400。"),
+          .describe("storagePG.schema.objects"),
+        expiresIn: z.number().int().min(60).max(86400).optional().describe("storagePG.schema.expiresIn"),
       },
       annotations: {
         readOnlyHint: true,

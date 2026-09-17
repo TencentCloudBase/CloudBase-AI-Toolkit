@@ -82,6 +82,18 @@ export const permissions = defineModule(
     deleteUsersSuccess: "应用用户删除成功",
     setPolicySideEffect: "设置 authz.user.rego 会立即禁用旧网关鉴权。",
     setPolicySuccess: "用户 OPA Rego 策略设置成功（旧网关鉴权已失效）",
+    "schema.extension": "仅 action=getPolicy。true=读取平台为该环境单独配置的策略（authz.platform.extension.rego），默认 false=用户策略（authz.user.rego），对齐 CLI `tcb policy get --extension`。",
+    "schema.policyResourceType": "仅 action=listPolicy。按资源类型过滤，当前仅支持 `policy`，对齐 CLI `tcb policy list --resource-type policy`。",
+    "schema.resourceType": "目标资源类型。`securityRule` 的具体语义依赖这个值；`noSqlDatabase` 使用集合安全规则，`function` 与 `storage` 也有各自独立的安全规则语义，不要套用 NoSQL 规则语法。",
+    "schema.securityRule":
+      "资源类型特定的规则内容，详细语义依赖 `resourceType`。当 `resourceType=\"noSqlDatabase\"` 且 `permission=\"CUSTOM\"` 时，应传文档数据库安全规则 JSON（文档型数据库规则：`https://docs.cloudbase.net/database/security-rules`）；键通常为 `read` / `create` / `update` / `delete`，值为表达式。" +
+      "重要：`create` 规则验证写入数据，此时文档尚不存在，不能使用 `doc.*`；`read` / `update` / `delete` 规则可使用 `doc.*` 引用已有文档字段。" +
+      "不要把 `doc._openid`、`auth.openid`、查询条件子集校验或 `create` / `update` / `delete` 模板误用于 `function`、`storage` 或 `sqlDatabase`。" +
+      '如需配置 `function` 或 `storage`，请改查官方安全规则文档：云函数 `https://docs.cloudbase.net/cloud-function/security-rules`，云存储 `https://docs.cloudbase.net/storage/security-rules`。示例：{"read":"auth.uid != null","create":"auth.uid != null && auth.loginType != "ANONYMOUS"","update":"auth.uid != null && doc._openid == auth.openid","delete":"auth.uid != null && doc._openid == auth.openid"}',
+    "schema.roleIdentity": "角色标识符（字母/数字/_-:@.），action=createRole 时必填，用于程序化引用角色",
+    "schema.policyIds": "策略 ID 列表（当前不支持直接按 ID 绑定，请改传 policies 详情对象）",
+    "schema.regoContent": "仅 action=setPolicy。用户 OPA Rego 全文，必须以 `package authz.user` 开头，对齐 CLI `tcb policy set <regoContent>`。",
+    "schema.confirm": "仅 action=setPolicy。设置 Rego 后会立即禁用旧网关鉴权，必须显式传 confirm=true（对齐 CLI 确认提示）。",
   },
   {
     queryTitle: "Query CloudBase permissions and user config",
@@ -165,5 +177,17 @@ export const permissions = defineModule(
     deleteUsersSuccess: "App users deleted successfully",
     setPolicySideEffect: "Setting authz.user.rego immediately disables legacy gateway authorization.",
     setPolicySuccess: "User OPA Rego policy set successfully (legacy gateway authorization is now disabled)",
+    "schema.extension": "Used only when action=getPolicy. Set true to read the platform policy configured specifically for this environment (authz.platform.extension.rego); the default false reads the user policy (authz.user.rego). Aligned with CLI `tcb policy get --extension`.",
+    "schema.policyResourceType": "Used only when action=listPolicy. Filters by resource type; currently only `policy` is supported. Aligned with CLI `tcb policy list --resource-type policy`.",
+    "schema.resourceType": "Target resource type. The exact semantics of `securityRule` depend on this value. `noSqlDatabase` uses collection security rules, while `function` and `storage` each have distinct security rule semantics; do not apply NoSQL rule syntax to them.",
+    "schema.securityRule":
+      "Resource-type-specific rule content whose semantics depend on `resourceType`. When `resourceType=\"noSqlDatabase\"` and `permission=\"CUSTOM\"`, pass document database security rules as JSON (see `https://docs.cloudbase.net/database/security-rules`); keys are typically `read`, `create`, `update`, and `delete`, with expressions as values. " +
+      "Important: a `create` rule validates incoming data before the document exists, so it cannot use `doc.*`; `read`, `update`, and `delete` rules may reference existing fields with `doc.*`. " +
+      "Do not apply `doc._openid`, `auth.openid`, query-condition subset validation, or `create` / `update` / `delete` templates to `function`, `storage`, or `sqlDatabase`. " +
+      'For `function` or `storage`, consult the official security rule documentation instead: functions at `https://docs.cloudbase.net/cloud-function/security-rules` and storage at `https://docs.cloudbase.net/storage/security-rules`. Example: {"read":"auth.uid != null","create":"auth.uid != null && auth.loginType != "ANONYMOUS"","update":"auth.uid != null && doc._openid == auth.openid","delete":"auth.uid != null && doc._openid == auth.openid"}',
+    "schema.roleIdentity": "Role identifier using letters, numbers, or _-:@. Required when action=createRole and used to reference the role programmatically.",
+    "schema.policyIds": "Policy ID list. Direct binding by ID is not currently supported; pass policy detail objects through policies instead.",
+    "schema.regoContent": "Used only when action=setPolicy. Full user OPA Rego document; it must begin with `package authz.user`. Aligned with CLI `tcb policy set <regoContent>`.",
+    "schema.confirm": "Used only when action=setPolicy. Setting Rego immediately disables legacy gateway authorization, so confirm=true must be passed explicitly, matching the CLI confirmation prompt.",
   },
 );

@@ -35,63 +35,63 @@ const HOSTING_CACHE_RULE_TYPES = ['fileType', 'path'] as const;
 const HOSTING_IP_FILTER_TYPES = ['blacklist', 'whitelist'] as const;
 
 const routingRuleSchema = z.object({
-  keyPrefixEquals: z.string().optional().describe('匹配前缀规则，例如 app/ 或 assets/。与 httpErrorCodeReturnedEquals 二选一或按 CloudBase 规则组合使用。'),
-  httpErrorCodeReturnedEquals: z.string().optional().describe('匹配 HTTP 错误码，例如 404。SPA 回退常用 404。'),
-  replaceKeyWith: z.string().optional().describe('把匹配结果替换为固定文件路径，例如 index.html。'),
-  replaceKeyPrefixWith: z.string().optional().describe('把匹配前缀替换成新的前缀路径。'),
+  keyPrefixEquals: z.string().optional().describe('hosting.schema.routingRule.keyPrefixEquals'),
+  httpErrorCodeReturnedEquals: z.string().optional().describe('hosting.schema.routingRule.httpErrorCodeReturnedEquals'),
+  replaceKeyWith: z.string().optional().describe('hosting.schema.routingRule.replaceKeyWith'),
+  replaceKeyPrefixWith: z.string().optional().describe('hosting.schema.routingRule.replaceKeyPrefixWith'),
 });
 
 const domainConfigSchema = z.object({
   Refer: z.object({
-    Switch: z.enum(HOSTING_CDN_SWITCH_VALUES).describe('Referer 防盗链开关：on=开启，off=关闭。'),
+    Switch: z.enum(HOSTING_CDN_SWITCH_VALUES).describe('hosting.schema.domainConfig.refer.switch'),
     RefererRules: z.array(z.object({
-      RefererType: z.enum(HOSTING_REFERER_TYPES).describe('Referer 规则类型：blacklist=黑名单，whitelist=白名单。'),
-      Referers: z.array(z.string()).describe('Referer 规则值列表。'),
-      AllowEmpty: z.boolean().describe('是否允许空 Referer。'),
-    })).optional().describe('Referer 规则列表。'),
-  }).optional().describe('Referer 防盗链配置。'),
+      RefererType: z.enum(HOSTING_REFERER_TYPES).describe('hosting.schema.domainConfig.refer.rules.type'),
+      Referers: z.array(z.string()).describe('hosting.schema.domainConfig.refer.rules.referers'),
+      AllowEmpty: z.boolean().describe('hosting.schema.domainConfig.refer.rules.allowEmpty'),
+    })).optional().describe('hosting.schema.domainConfig.refer.rules'),
+  }).optional().describe('hosting.schema.domainConfig.refer'),
   Cache: z.array(z.object({
-    RuleType: z.enum(HOSTING_CACHE_RULE_TYPES).describe('缓存规则类型：fileType=文件类型，path=路径。'),
-    RuleValue: z.string().describe('规则匹配值。'),
-    CacheTtl: z.number().describe('缓存 TTL，单位秒。'),
-  })).optional().describe('CDN 缓存规则列表。'),
+    RuleType: z.enum(HOSTING_CACHE_RULE_TYPES).describe('hosting.schema.domainConfig.cache.ruleType'),
+    RuleValue: z.string().describe('hosting.schema.domainConfig.cache.ruleValue'),
+    CacheTtl: z.number().describe('hosting.schema.domainConfig.cache.cacheTtl'),
+  })).optional().describe('hosting.schema.domainConfig.cache'),
   IpFilter: z.object({
-    Switch: z.enum(HOSTING_CDN_SWITCH_VALUES).describe('IP 访问控制开关：on=开启，off=关闭。'),
-    FilterType: z.enum(HOSTING_IP_FILTER_TYPES).optional().describe('过滤类型：blacklist=黑名单，whitelist=白名单。'),
-    Filters: z.array(z.string()).optional().describe('IP 规则列表。'),
-  }).optional().describe('IP 访问控制配置。'),
+    Switch: z.enum(HOSTING_CDN_SWITCH_VALUES).describe('hosting.schema.domainConfig.ipFilter.switch'),
+    FilterType: z.enum(HOSTING_IP_FILTER_TYPES).optional().describe('hosting.schema.domainConfig.ipFilter.filterType'),
+    Filters: z.array(z.string()).optional().describe('hosting.schema.domainConfig.ipFilter.filters'),
+  }).optional().describe('hosting.schema.domainConfig.ipFilter'),
   IpFreqLimit: z.object({
-    Switch: z.enum(HOSTING_CDN_SWITCH_VALUES).describe('IP 频控开关：on=开启，off=关闭。'),
-    Qps: z.number().optional().describe('每个 IP 的 QPS 上限。'),
-  }).optional().describe('IP 频控配置。'),
+    Switch: z.enum(HOSTING_CDN_SWITCH_VALUES).describe('hosting.schema.domainConfig.ipFreqLimit.switch'),
+    Qps: z.number().optional().describe('hosting.schema.domainConfig.ipFreqLimit.qps'),
+  }).optional().describe('hosting.schema.domainConfig.ipFreqLimit'),
 });
 
 const queryHostingInputSchema = {
-  action: z.enum(['websiteConfig', 'status', 'findFiles', 'listFiles', 'domainStatus']).describe('查询类型：websiteConfig=查询静态托管网站文档配置与站点域名信息，status=查询静态托管服务状态，findFiles=按前缀查找托管文件，listFiles=列出静态托管中的全部文件，domainStatus=查询自定义域名配置与生效状态。该工具严格只读，不会修改任何资源。'),
-  prefix: z.string().optional().describe('文件前缀过滤条件。仅 action=findFiles 时使用，例如 app/ 或 assets/logo。'),
-  marker: z.string().optional().describe('分页起始标记。仅 action=findFiles 时使用，用于续查上一页之后的结果。'),
-  maxKeys: z.number().int().positive().optional().describe('单次返回的最大文件条数。仅 action=findFiles 时使用。'),
-  domains: z.array(z.string()).optional().describe('要查询的自定义域名列表。仅 action=domainStatus 时使用，例如 ["www.example.com"]。'),
+  action: z.enum(['websiteConfig', 'status', 'findFiles', 'listFiles', 'domainStatus']).describe('hosting.schema.query.action'),
+  prefix: z.string().optional().describe('hosting.schema.query.prefix'),
+  marker: z.string().optional().describe('hosting.schema.query.marker'),
+  maxKeys: z.number().int().positive().optional().describe('hosting.schema.query.maxKeys'),
+  domains: z.array(z.string()).optional().describe('hosting.schema.query.domains'),
 };
 
 const manageHostingInputSchema = {
-  action: z.enum(['upload', 'delete', 'setWebsiteDocument', 'enableService', 'bindDomain', 'unbindDomain', 'updateDomain', 'downloadFile', 'downloadDirectory']).describe('管理类型：upload=上传本地构建产物到静态托管，delete=删除静态托管文件或目录，setWebsiteDocument=设置首页/错误页/路由规则，enableService=开通静态托管服务，bindDomain=绑定自定义域名，unbindDomain=解绑自定义域名，updateDomain=更新域名缓存/防盗链/IP 规则，downloadFile=下载单个托管文件到本地，downloadDirectory=下载托管目录到本地。'),
-  localPath: z.string().optional().describe('本地路径。action=upload 时表示要上传的本地文件/目录路径；action=downloadFile 或 downloadDirectory 时表示下载到本地的目标路径。建议传绝对路径。'),
-  cloudPath: z.string().optional().describe('静态托管中的目标路径。action=upload 时表示上传后的托管路径；action=delete/downloadFile/downloadDirectory 时表示托管侧文件或目录路径。'),
+  action: z.enum(['upload', 'delete', 'setWebsiteDocument', 'enableService', 'bindDomain', 'unbindDomain', 'updateDomain', 'downloadFile', 'downloadDirectory']).describe('hosting.schema.manage.action'),
+  localPath: z.string().optional().describe('hosting.schema.manage.localPath'),
+  cloudPath: z.string().optional().describe('hosting.schema.manage.cloudPath'),
   files: z.array(z.object({
-    localPath: z.string().describe('单个待上传文件的本地绝对路径。'),
-    cloudPath: z.string().describe('该文件上传到静态托管后的托管路径。'),
-  })).default([]).describe('多文件上传配置。仅 action=upload 时可选；传入后会逐项上传，不再依赖单个 localPath/cloudPath。'),
-  ignore: z.union([z.string(), z.array(z.string())]).optional().describe('上传时忽略的文件模式。仅 action=upload 时可选，例如 node_modules 或 ["**/*.map", "**/.DS_Store"]。'),
-  isDir: z.boolean().optional().default(false).describe('是否把 cloudPath 视为目录。仅 action=delete 时使用；true=删除目录，false=删除单个文件。'),
-  confirm: z.boolean().optional().default(false).describe('高风险操作确认开关。action=delete 和 action=unbindDomain 时必须显式传 true，避免误删文件或误解绑域名。'),
-  indexDocument: z.string().optional().describe('网站首页文档名称。仅 action=setWebsiteDocument 时必填，例如 index.html。'),
-  errorDocument: z.string().optional().describe('错误页文档名称。仅 action=setWebsiteDocument 时可选，例如 404.html。'),
-  routingRules: z.array(routingRuleSchema).optional().describe('网站路由规则列表。仅 action=setWebsiteDocument 时可选。SPA 常见配置是将 404 重写到 index.html。'),
-  domain: z.string().optional().describe('自定义域名。action=bindDomain / unbindDomain / updateDomain 时使用，例如 www.example.com。'),
-  certId: z.string().optional().describe('证书 ID。仅 action=bindDomain 时必填。'),
-  domainId: z.number().optional().describe('域名 ID。仅 action=updateDomain 时必填，用于精确更新指定域名配置。'),
-  domainConfig: domainConfigSchema.optional().describe('域名配置。仅 action=updateDomain 时必填，支持缓存、Referer、防盗链、IP 规则与频控。'),
+    localPath: z.string().describe('hosting.schema.manage.files.localPath'),
+    cloudPath: z.string().describe('hosting.schema.manage.files.cloudPath'),
+  })).default([]).describe('hosting.schema.manage.files'),
+  ignore: z.union([z.string(), z.array(z.string())]).optional().describe('hosting.schema.manage.ignore'),
+  isDir: z.boolean().optional().default(false).describe('hosting.schema.manage.isDir'),
+  confirm: z.boolean().optional().default(false).describe('hosting.schema.manage.confirm'),
+  indexDocument: z.string().optional().describe('hosting.schema.manage.indexDocument'),
+  errorDocument: z.string().optional().describe('hosting.schema.manage.errorDocument'),
+  routingRules: z.array(routingRuleSchema).optional().describe('hosting.schema.manage.routingRules'),
+  domain: z.string().optional().describe('hosting.schema.manage.domain'),
+  certId: z.string().optional().describe('hosting.schema.manage.certId'),
+  domainId: z.number().optional().describe('hosting.schema.manage.domainId'),
+  domainConfig: domainConfigSchema.optional().describe('hosting.schema.manage.domainConfig'),
 };
 
 type QueryHostingInput = {

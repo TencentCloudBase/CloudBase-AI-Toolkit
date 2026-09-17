@@ -1191,8 +1191,8 @@ describe("env tools - auth", () => {
   });
 });
 
-describe("env tools - envQuery", () => {
-  const originalCloudbaseEnvId_envQuery = process.env.CLOUDBASE_ENV_ID;
+describe("env tools - queryEnv", () => {
+  const originalCloudbaseEnvIdQueryEnv = process.env.CLOUDBASE_ENV_ID;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1213,14 +1213,14 @@ describe("env tools - envQuery", () => {
   });
 
   afterEach(() => {
-    if (originalCloudbaseEnvId_envQuery !== undefined) {
-      process.env.CLOUDBASE_ENV_ID = originalCloudbaseEnvId_envQuery;
+    if (originalCloudbaseEnvIdQueryEnv !== undefined) {
+      process.env.CLOUDBASE_ENV_ID = originalCloudbaseEnvIdQueryEnv;
     } else {
       delete process.env.CLOUDBASE_ENV_ID;
     }
   });
 
-  it("envQuery(list) should support alias filters, pagination and field selection", async () => {
+  it("queryEnv(list) should support alias filters, pagination and field selection", async () => {
     mockGetCloudBaseManager.mockResolvedValue({
       commonService: vi.fn(() => ({
         call: vi.fn().mockResolvedValue({
@@ -1290,7 +1290,7 @@ describe("env tools - envQuery", () => {
     expect(payload.credential_scope).toBe("account");
   });
 
-  it("envQuery(list) should support exact alias filtering when requested", async () => {
+  it("queryEnv(list) should support exact alias filtering when requested", async () => {
     mockGetCloudBaseManager.mockResolvedValue({
       commonService: vi.fn(() => ({
         call: vi.fn().mockResolvedValue({
@@ -1342,7 +1342,7 @@ describe("env tools - envQuery", () => {
     });
   });
 
-  it("envQuery(list) should keep current-env restriction only when no explicit filter is provided", async () => {
+  it("queryEnv(list) should keep current-env restriction only when no explicit filter is provided", async () => {
     mockGetCloudBaseManager.mockResolvedValue({
       commonService: vi.fn(() => ({
         call: vi.fn().mockResolvedValue({
@@ -1373,7 +1373,7 @@ describe("env tools - envQuery", () => {
     });
   });
 
-  it("envQuery(list) should pass region through to CloudBase manager", async () => {
+  it("queryEnv(list) should pass region through to CloudBase manager", async () => {
     const commonServiceCall = vi.fn().mockResolvedValue({
       EnvList: [
         {
@@ -1423,7 +1423,7 @@ describe("env tools - envQuery", () => {
     ]);
   });
 
-  it("envQuery(list) should use DescribeEnvInfo when CLOUDBASE_ENV_ID is set", async () => {
+  it("queryEnv(list) should use DescribeEnvInfo when CLOUDBASE_ENV_ID is set", async () => {
     process.env.CLOUDBASE_ENV_ID = "env-test";
 
     const describeEnvInfo = vi.fn().mockResolvedValue({
@@ -1452,7 +1452,7 @@ describe("env tools - envQuery", () => {
     ]);
   });
 
-  it("envQuery(info) should preserve detailed fields such as PackageId", async () => {
+  it("queryEnv(info) should preserve detailed fields such as PackageId", async () => {
     const getEnvInfo = vi.fn().mockResolvedValue({
       EnvInfo: {
         EnvId: "env-test",
@@ -1511,7 +1511,7 @@ describe("env tools - envQuery", () => {
     });
   });
 
-  it("envQuery(info) should project staticDomainRouteEnabled without rewriting StaticDomain", async () => {
+  it("queryEnv(info) should project staticDomainRouteEnabled without rewriting StaticDomain", async () => {
     const describeHttpServiceRoute = vi.fn().mockResolvedValue({
       Domains: [
         {
@@ -1573,7 +1573,7 @@ describe("env tools - envQuery", () => {
     });
   });
 
-  it("envQuery(info) should set staticDomainRouteEnabled=true when default hosting route is enabled", async () => {
+  it("queryEnv(info) should set staticDomainRouteEnabled=true when default hosting route is enabled", async () => {
     mockGetCloudBaseManager.mockResolvedValue({
       env: {
         getEnvInfo: vi.fn().mockResolvedValue({
@@ -1625,7 +1625,7 @@ describe("env tools - envQuery", () => {
     expect(payload.EnvInfo.routeDisabled).toBeUndefined();
   });
 
-  it("envQuery(info) RuntimeBackends.nosql should require usable Databases InstanceId", async () => {
+  it("queryEnv(info) RuntimeBackends.nosql should require usable Databases InstanceId", async () => {
     const cases: Array<{
       name: string;
       envInfo: Record<string, unknown>;
@@ -1775,7 +1775,7 @@ describe("env tools - envQuery", () => {
     ).toBe(false);
   });
 
-  it("envQuery(info) should prefer explicit envId over cached binding", async () => {
+  it("queryEnv(info) should prefer explicit envId over cached binding", async () => {
     mockGetCloudBaseManager.mockResolvedValue({
       env: {
         getEnvInfo: vi.fn().mockResolvedValue({
@@ -1803,7 +1803,7 @@ describe("env tools - envQuery", () => {
     );
   });
 
-  it("envQuery(domains) should include local development host:port guidance", async () => {
+  it("queryEnv(domains) should include local development host:port guidance", async () => {
     mockGetCloudBaseManager.mockResolvedValue({
       env: {
         getEnvAuthDomains: vi.fn().mockResolvedValue({
@@ -1850,7 +1850,7 @@ describe("env tools - envQuery", () => {
     expect(payload.Domains[0]).toHaveProperty("CreateTime");
   });
 
-  it("envQuery(domains) should report configured local entries without inferring completeness", async () => {
+  it("queryEnv(domains) should report configured local entries without inferring completeness", async () => {
     mockGetCloudBaseManager.mockResolvedValue({
       env: {
         getEnvAuthDomains: vi.fn().mockResolvedValue({
@@ -1882,7 +1882,7 @@ describe("env tools - envQuery", () => {
     });
   });
 
-  it("envQuery(domains) should resolve the manager against the requested envId", async () => {
+  it("queryEnv(domains) should resolve the manager against the requested envId", async () => {
     mockGetCloudBaseManager.mockResolvedValue({
       env: {
         getEnvAuthDomains: vi.fn().mockResolvedValue({ Domains: [] }),
@@ -1901,7 +1901,7 @@ describe("env tools - envQuery", () => {
     );
   });
 
-  it("envQuery(list) should report region as ignored under env-scoped credentials", async () => {
+  it("queryEnv(list) should report region as ignored under env-scoped credentials", async () => {
     mockGetCloudBaseManager.mockResolvedValue({
       env: {
         describeEnvInfo: vi.fn().mockResolvedValue({
@@ -1946,7 +1946,7 @@ describe("env tools - envQuery", () => {
     expect(payload.scope_note).toContain('已忽略 region="ap-shanghai"');
   });
 
-  it("envQuery(list) should still report region when account-level credentials apply it", async () => {
+  it("queryEnv(list) should still report region when account-level credentials apply it", async () => {
     mockGetCloudBaseManager.mockResolvedValue({
       commonService: vi.fn(() => ({
         call: vi.fn().mockResolvedValue({
@@ -1967,7 +1967,7 @@ describe("env tools - envQuery", () => {
     expect(payload.ignored_params).toBeUndefined();
   });
 
-  it("envQuery(list) should not report ignored_params when region is absent on the pinned path", async () => {
+  it("queryEnv(list) should not report ignored_params when region is absent on the pinned path", async () => {
     process.env.CLOUDBASE_ENV_ID = "env-test";
 
     mockGetCloudBaseManager.mockResolvedValue({
@@ -1998,7 +1998,7 @@ describe("env tools - envQuery", () => {
     expect(payload.query_region).toBe("ap-shanghai");
   });
 
-  it("envQuery(list) should keep the pinned env when CLOUDBASE_ENV_ID differs from the bound envId", async () => {
+  it("queryEnv(list) should keep the pinned env when CLOUDBASE_ENV_ID differs from the bound envId", async () => {
     process.env.CLOUDBASE_ENV_ID = "env-from-var";
 
     mockGetCloudBaseManager.mockResolvedValue({
@@ -2129,7 +2129,6 @@ describe("env tools - envQuery", () => {
     expect(tools.queryEnv.meta.inputSchema.type.unwrap().element.options).toEqual([
       ...ENV_USAGE_MODULE_VALUES,
     ]);
-    expect(tools.envQuery.meta.inputSchema.action.options).toContain("usage");
   });
 
   it("queryEnv schema should expose metrics action and metric enum", async () => {
@@ -2141,13 +2140,12 @@ describe("env tools - envQuery", () => {
     expect(
       tools.queryEnv.meta.inputSchema.period.unwrap().options.map((item: { value: number }) => item.value),
     ).toEqual([...ENV_METRIC_PERIOD_VALUES]);
-    expect(tools.envQuery.meta.inputSchema.action.options).toContain("metrics");
     const queryEnvDescription = t(tools.queryEnv.meta.description as MessageKey);
     expect(queryEnvDescription).toContain("action=metrics");
     expect(queryEnvDescription).toContain("DescribeCurveData");
   });
 
-  it("envQuery(usage) should require envId", async () => {
+  it("queryEnv(usage) should require envId", async () => {
     const { tools } = createMockServer();
     const result = await tools.queryEnv.handler({ action: "usage" });
     expect(result.content[0].text).toContain("envId 为必填参数");
@@ -2157,7 +2155,7 @@ describe("env tools - envQuery", () => {
     expect(result.isError).toBe(true);
   });
 
-  it("envQuery(usage) should call account circle + credits usage APIs", async () => {
+  it("queryEnv(usage) should call account circle + credits usage APIs", async () => {
     const describeEnvAccountCircle = vi.fn().mockResolvedValue({
       StartTime: "2026-08-01 00:00:00",
       EndTime: "2026-08-31 23:59:59",
@@ -2219,7 +2217,7 @@ describe("env tools - envQuery", () => {
     });
   });
 
-  it("envQuery(usage) should honor explicit date range", async () => {
+  it("queryEnv(usage) should honor explicit date range", async () => {
     const describeEnvAccountCircle = vi.fn().mockResolvedValue({
       StartTime: "2026-08-01 00:00:00",
       EndTime: "2026-08-31 23:59:59",
@@ -2259,7 +2257,7 @@ describe("env tools - envQuery", () => {
     expect(payload.Modules).toEqual([...ENV_USAGE_MODULE_VALUES]);
   });
 
-  it("envQuery(metrics) should require envId and metricName", async () => {
+  it("queryEnv(metrics) should require envId and metricName", async () => {
     const { tools } = createMockServer();
     const missingEnv = await tools.queryEnv.handler({ action: "metrics" });
     expect(missingEnv.content[0].text).toContain("envId 为必填参数");
@@ -2325,7 +2323,7 @@ describe("env tools - envQuery", () => {
     expect(text).toContain("auth(action=\"status\")");
   });
 
-  it("envQuery(metrics) should call monitor.describeCurveData and summarize the curve", async () => {
+  it("queryEnv(metrics) should call monitor.describeCurveData and summarize the curve", async () => {
     const describeCurveData = vi.fn().mockResolvedValue({
       StartTime: "2026-08-16 16:00:00",
       EndTime: "2026-08-17 16:00:00",
@@ -2381,7 +2379,7 @@ describe("env tools - envQuery", () => {
     expect(payload.Curve.RequestId).toBe("req-metrics");
   });
 
-  it("envQuery(metrics) should default GatewayTraceEnvQPS resourceID and last 24h range", async () => {
+  it("queryEnv(metrics) should default GatewayTraceEnvQPS resourceID and last 24h range", async () => {
     const describeCurveData = vi.fn().mockResolvedValue({
       MetricName: "GatewayTraceEnvQPS",
       Period: 300,
@@ -2416,7 +2414,7 @@ describe("env tools - envQuery", () => {
     expect(payload.Summary.allZero).toBe(false);
   });
 
-  it("envQuery(metrics) should require resourceID for CloudRun metrics", async () => {
+  it("queryEnv(metrics) should require resourceID for CloudRun metrics", async () => {
     const { tools } = createMockServer();
     const result = await tools.queryEnv.handler({
       action: "metrics",

@@ -304,14 +304,10 @@ export function maskFunctionDetailEnvValues<
 
 const VPC_SCHEMA = z.object({  vpcId: z
     .string()
-    .describe(
-      "VPC ID from the real database/network console (e.g. vpc-xxxxxxxx). Required for non-native TCP DB access. Do NOT invent or use placeholders.",
-    ),
+    .describe("functions.schema.vpcId"),
   subnetId: z
     .string()
-    .describe(
-      "Subnet ID in the same VPC as the private DB endpoint (e.g. subnet-xxxxxxxx). Do NOT invent or use placeholders.",
-    ),
+    .describe("functions.schema.subnetId"),
 });
 
 // 镜像部署值，对应 SCF Runtime=CustomImage
@@ -337,24 +333,12 @@ const IMAGE_CONFIG_SCHEMA = z
     imageUri: z
       .string()
       .optional()
-      .describe(
-        "完整镜像地址（必须含 tag），格式 {domain}/{namespace}/{image}:{tag}，" +
-          "例如 ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001。不要使用 :latest。" +
-          "buildStrategy=image（已有镜像）时必填；" +
-          "buildStrategy=cloud/local 可以不填：镜像地址由构建流程产出并回传；" +
-          "目标仓库由 build.repository/build.namespace 决定，显式提供时优先使用你提供的配置，" +
-          "省略时由 manager-node 用默认值自动补齐并创建/复用（namespace 默认 envId、repository 默认函数名）。",
-      ),
-    build: FUNCTION_IMAGE_BUILD_SCHEMA.optional().describe(
-      "镜像构建目标。buildStrategy=cloud（云端构建）或 local（本地 Docker 构建）时使用；" +
-        "buildStrategy=image（已有镜像）不填。" +
-        "cloud/local 下 build 非必填：缺省仓库坐标可自动补齐（namespace 默认 envId、repository 默认函数名），" +
-        "仅需指定构建细节或个人版 build.registryCredential 等字段时才填。",
-    ),
+      .describe("functions.schema.image.imageUri"),
+    build: FUNCTION_IMAGE_BUILD_SCHEMA.optional().describe("functions.schema.image.build"),
     localFallback: z
       .enum(FUNCTION_IMAGE_LOCAL_FALLBACKS)
       .optional()
-      .describe("buildStrategy=local 时本地构建不可用的处理方式，默认 error。"),
+      .describe("functions.schema.image.localFallback"),
   })
   .strict();
 
@@ -375,31 +359,25 @@ export function validateTimerCron(config: string): string {
 }
 
 const TRIGGER_SCHEMA = z.object({
-  name: z.string().describe("触发器名称"),
-  type: z.enum(SUPPORTED_TRIGGER_TYPES).describe("触发器类型"),
+  name: z.string().describe("functions.schema.trigger.name"),
+  type: z.enum(SUPPORTED_TRIGGER_TYPES).describe("functions.schema.trigger.type"),
   config: z
     .string()
-    .describe(
-      "触发器配置。timer 必须使用 CloudBase 7 段 cron 格式：秒 分 时 日 月 星期 年。" +
-        "⚠️ 不支持标准 5 段 cron（如 */5 * * * * 是错误的）。" +
-        "正确示例：0 */5 * * * * *（每5分钟）、0 0 2 1 * * *（每月1号2点）、0 30 9 * * * *（每天9:30）",
-    )
+    .describe("functions.schema.trigger.config")
     .refine((val) => SEVEN_FIELD_CRON_REGEX.test(val), () => ({
       message: t("functions.timerCron.refine"),
     })),
 });
 
 const CREATE_FUNCTION_SCHEMA = z.object({
-  name: z.string().describe("函数名称"),
-  type: z.enum(["Event", "HTTP"]).optional().describe("函数类型"),
-  protocolType: z.enum(["WS"]).optional().describe(
-    "HTTP 函数访问协议，当前仅支持 WebSockets，取值为 WS（配合 protocolParams.wsParams 使用）。普通 HTTP 函数不要传此字段；传其他值（如 HTTP）会报 InvalidParameterValue.ProtocolType。",
-  ),
+  name: z.string().describe("functions.schema.create.name"),
+  type: z.enum(["Event", "HTTP"]).optional().describe("functions.schema.create.type"),
+  protocolType: z.enum(["WS"]).optional().describe("functions.schema.create.protocolType"),
   protocolParams: z
     .object({
       wsParams: z
         .object({
-          idleTimeOut: z.number().optional().describe("WebSocket 空闲超时时间（秒）"),
+          idleTimeOut: z.number().optional().describe("functions.schema.create.wsIdleTimeout"),
         })
         .optional(),
     })
@@ -410,49 +388,25 @@ const CREATE_FUNCTION_SCHEMA = z.object({
       maxConcurrency: z.number().optional(),
     })
     .optional(),
-  timeout: z.number().optional().describe("函数超时时间"),
+  timeout: z.number().optional().describe("functions.schema.create.timeout"),
   envVariables: z
     .record(z.string())
     .optional()
-    .describe(
-      "环境变量。若包含 DATABASE_URL / MYSQL_* / POSTGRES_* / REDIS_* 等传统 TCP 连库变量，必须同时配置 vpc（vpcId+subnetId），且 ID 必须来自真实库/网络信息，禁止猜测。原生 app.rdb()/app.database() 不需要 VPC。",
-    ),
-  vpc: VPC_SCHEMA.optional().describe(
-    "私有网络配置（出网）。非原生 SDK、用 TCP 访问 VPC 内 MySQL/PostgreSQL/Redis 时必填。vpcId/subnetId 必须与数据库内网 VPC 一致；未知时先查控制台或询问用户，禁止填占位符。",
-  ),
+    .describe("functions.schema.create.envVariables"),
+  vpc: VPC_SCHEMA.optional().describe("functions.schema.create.vpc"),
   runtime: z
     .string()
     .optional()
-    .describe(
-      "运行时环境。Event 函数支持多种运行时:\n" +
-        formatRuntimeList() +
-        "\n\n推荐运行时:\n" +
-        `  Node.js: ${RECOMMENDED_RUNTIMES.nodejs}\n` +
-        `  Python: ${RECOMMENDED_RUNTIMES.python}\n` +
-        `  PHP: ${RECOMMENDED_RUNTIMES.php}\n` +
-        `  Java: ${RECOMMENDED_RUNTIMES.java}\n` +
-        `  Go: ${RECOMMENDED_RUNTIMES.golang}\n\n` +
-        `镜像部署（基于 TCR 镜像创建函数）时填 "${CUSTOM_IMAGE_RUNTIME}"，并提供 imageConfig；此时无需 functionRootPath/zipFile。`,
-    ),
+    .describe("functions.schema.create.runtime"),
   buildStrategy: z
     .enum(["zip", "cloud", "local", "image"])
     .optional()
-    .describe(
-      "HTTP 函数部署策略：" +
-        "zip=代码包部署（默认，缺省即 zip）；image=使用已有镜像（imageConfig.imageUri 必填）；" +
-        "cloud=云端构建镜像；local=本地 Docker 构建镜像。cloud/local 走镜像构建部署编排，需要 imageConfig；" +
-        "其中 build 非必填：目标仓库坐标（namespace 默认 envId、repository 默认函数名）等缺省可自动补齐，" +
-        "仅在需要指定构建细节或个人版 build.registryCredential 等特定字段时才提供 build。",
-    ),
-  imageConfig: IMAGE_CONFIG_SCHEMA.optional().describe(
-    "镜像配置（buildStrategy=image/cloud/local 或 runtime=CustomImage 时使用），镜像相关字段全部收敛在此命名空间下。" +
-      "image：填 imageUri 使用已有镜像；cloud/local：可填 build 描述如何构建，省略时用默认仓库坐标自动补齐。" +
-      "传入已有镜像（imageUri）即按镜像部署处理，函数无需打包本地代码、scf_bootstrap 或 Handler。",
-  ),
-  triggers: z.array(TRIGGER_SCHEMA).optional().describe("触发器配置数组"),
-  handler: z.string().optional().describe("函数入口"),
-  ignore: z.union([z.string(), z.array(z.string())]).optional().describe("忽略文件"),
-  isWaitInstall: z.boolean().optional().describe("是否等待依赖安装"),
+    .describe("functions.schema.create.buildStrategy"),
+  imageConfig: IMAGE_CONFIG_SCHEMA.optional().describe("functions.schema.create.imageConfig"),
+  triggers: z.array(TRIGGER_SCHEMA).optional().describe("functions.schema.create.triggers"),
+  handler: z.string().optional().describe("functions.schema.create.handler"),
+  ignore: z.union([z.string(), z.array(z.string())]).optional().describe("functions.schema.create.ignore"),
+  isWaitInstall: z.boolean().optional().describe("functions.schema.create.isWaitInstall"),
   layers: z
     .array(
       z.object({
@@ -461,12 +415,12 @@ const CREATE_FUNCTION_SCHEMA = z.object({
       }),
     )
     .optional()
-    .describe("Layer 配置"),
+    .describe("functions.schema.create.layers"),
 });
 
 const MANAGE_LAYER_SCHEMA = z.object({
-  layerName: z.string().describe("层名称"),
-  layerVersion: z.number().describe("层版本号"),
+  layerName: z.string().describe("functions.schema.manageLayer.name"),
+  layerVersion: z.number().describe("functions.schema.manageLayer.version"),
 });
 
 /**
@@ -2328,68 +2282,42 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z
           .enum(QUERY_FUNCTION_ACTIONS)
-          .describe(
-            "只读操作类型：" +
-            "\n- `listFunctions`: 列出所有 CloudBase 云函数" +
-            "\n- `getFunctionDetail`: 获取 CloudBase 云函数详情（需要 functionName）" +
-            "\n- `listFunctionLogs`: 查询 CloudBase 云函数执行日志（需要 functionName）" +
-            "\n- `getFunctionLogDetail`: 获取日志详情（需要 requestId）" +
-            "\n- `listFunctionLayers`: 列出函数绑定的层" +
-            "\n- `listLayers`: 列出所有层（账号级视图，含其他环境创建的层）" +
-            "\n- `listLayerVersions`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图）" +
-            "\n- `getLayerVersionDetail`: 获取层版本详情（账号级视图）" +
-            "\n- `listFunctionTriggers`: 列出函数触发器（用于查看定时任务 / cron / timer 配置）" +
-            "\n- `getFunctionDownloadUrl`: 获取函数代码下载地址" +
-            "\n- `getFunctionDeployStatus`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。"
-          ),
+          .describe("functions.schema.query.action"),
         functionName: z
           .string()
           .optional()
-          .describe("CloudBase 云函数名称。`getFunctionDetail`、`listFunctionLogs`、`listFunctionLayers`、`listFunctionTriggers`、`getFunctionDownloadUrl` 时必填"),
-        limit: z.number().optional().describe("分页数量（limit）。列表类 action 可选，默认值由后端决定"),
-        offset: z.number().optional().describe("分页偏移（offset）。列表类 action 可选，默认 0"),
-        codeSecret: z.string().optional().describe("代码保护密钥，用于解密函数代码"),
+          .describe("functions.schema.query.functionName"),
+        limit: z.number().optional().describe("functions.schema.query.limit"),
+        offset: z.number().optional().describe("functions.schema.query.offset"),
+        codeSecret: z.string().optional().describe("functions.schema.query.codeSecret"),
         revealEnvValues: z
           .boolean()
           .optional()
-          .describe(
-            "getFunctionDetail / listFunctionTriggers 时是否返回环境变量明文值。默认 false：Value 脱敏为 ***，仅保留 Key 与 ValueLength，足以确认配置了哪些变量及变更是否生效；true 时返回明文，敏感变量会进入模型上下文，谨慎使用。如需查看明文，建议优先使用控制台或 CLI",
-          ),
+          .describe("functions.schema.query.revealEnvValues"),
         startTime: z
           .string()
           .optional()
-          .describe(
-            "日志查询开始时间，格式必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 00:00:00）。" +
-            "与 endTime 间隔不能超过一天。不传时默认查询最近一天"
-          ),
+          .describe("functions.schema.query.startTime"),
         endTime: z
           .string()
           .optional()
-          .describe(
-            "日志查询结束时间，格式必须为 YYYY-MM-DD HH:mm:ss（如 2024-01-01 23:59:59）。" +
-            "与 startTime 间隔不能超过一天。不传时默认为当前时间"
-          ),
+          .describe("functions.schema.query.endTime"),
         requestId: z
           .string()
           .optional()
-          .describe("日志请求 ID。`getFunctionLogDetail` 操作必填，可从 `listFunctionLogs` 结果中获取"),
-        qualifier: z.string().optional().describe("函数版本别名，如 $LATEST、$DEFAULT。日志查询时可选"),
-        runtime: z.string().optional().describe("层查询的运行时筛选，如 Nodejs18.15"),
-        searchKey: z.string().optional().describe("层名称搜索关键字"),
+          .describe("functions.schema.query.requestId"),
+        qualifier: z.string().optional().describe("functions.schema.query.qualifier"),
+        runtime: z.string().optional().describe("functions.schema.query.runtime"),
+        searchKey: z.string().optional().describe("functions.schema.query.searchKey"),
         layerName: z
           .string()
           .optional()
-          .describe(
-            "层名称。`listLayerVersions`、`getLayerVersionDetail` 操作必填。" +
-            "层为账号级共享命名空间；推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）",
-          ),
-        layerVersion: z.number().optional().describe("层版本号。`getLayerVersionDetail` 操作必填"),
+          .describe("functions.schema.query.layerName"),
+        layerVersion: z.number().optional().describe("functions.schema.query.layerVersion"),
         taskId: z
           .string()
           .optional()
-          .describe(
-            "`getFunctionDeployStatus` 操作时的异步部署任务 ID（由 manageFunctions 的 wait=false 返回）。任务仅保存在当前 MCP 进程内存中：终态任务保留约 30 分钟，运行中任务最长保留 2 小时。",
-          ),
+          .describe("functions.schema.query.taskId"),
       },
       annotations: {
         readOnlyHint: true,
@@ -2409,98 +2337,60 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z
           .enum(MANAGE_FUNCTION_ACTIONS)
-          .describe(
-            "写操作类型，例如 createFunction、updateFunctionCode、incrementalDeployFunction、invokeFunction、deleteFunction、" +
-            "createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、" +
-            "createLayerVersion、deleteLayerVersion、attachLayer、detachLayer、updateFunctionLayers。" +
-            "层名推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）"
-          ),
-        func: CREATE_FUNCTION_SCHEMA.optional().describe(
-          "createFunction / updateFunctionCode 的函数配置。镜像/构建部署通过 func.buildStrategy（zip/cloud/local/image）区分，" +
-            "镜像相关字段收敛在 func.imageConfig 命名空间下。",
-        ),
-        functionRootPath: z.string().optional().describe(
-          "创建或更新函数代码时默认推荐的本地目录方式。" +
-          "必须是直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions 或 /abs/path/functions），" +
-          "不要传项目根目录（如 /abs/path），也不要传到函数名子目录（如 /abs/path/cloudfunctions/hello）。" +
-          "本地应按 cloudfunctions/<functionName>/index.js 或 functions/<functionName>/index.js 布局，" +
-          "此参数传 cloudfunctions 或 functions 目录的绝对路径。" +
-          "SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。",
-        ),
-        force: z.boolean().optional().describe("createFunction 时是否覆盖"),
+          .describe("functions.schema.manage.action"),
+        func: CREATE_FUNCTION_SCHEMA.optional().describe("functions.schema.manage.func"),
+        functionRootPath: z.string().optional().describe("functions.schema.manage.functionRootPath"),
+        force: z.boolean().optional().describe("functions.schema.manage.force"),
         functionName: z
           .string()
           .optional()
-          .describe(
-            "目标函数名称（顶层）。updateFunctionCode / updateFunctionConfig / invokeFunction 等 action 使用此字段。" +
-              "不要只写在 func.name：createFunction 用 func.name，其它 action 用顶层 functionName。" +
-              "若误传 func.name，也会被识别为 functionName。",
-          ),
-        zipFile: z.string().optional().describe(
-          "仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。",
-        ),
-        handler: z.string().optional().describe("函数入口"),
-        timeout: z.number().optional().describe("配置更新时的超时时间"),
+          .describe("functions.schema.manage.functionName"),
+        zipFile: z.string().optional().describe("functions.schema.manage.zipFile"),
+        handler: z.string().optional().describe("functions.schema.manage.handler"),
+        timeout: z.number().optional().describe("functions.schema.manage.timeout"),
         envVariables: z
           .record(z.string())
           .optional()
-          .describe(
-            "配置更新时要合并的环境变量。若含 DATABASE_URL / MYSQL_* / POSTGRES_* / REDIS_* 等 TCP 连库变量，必须同时提供真实 vpc（或函数已绑定完整 VPC）。禁止猜测 vpcId/subnetId。",
-          ),
-        vpc: VPC_SCHEMA.optional().describe(
-          "配置更新时的 VPC 信息。非原生 TCP 连库场景必填真实 vpcId+subnetId；不要用占位符。",
-        ),
-        params: z.record(z.any()).optional().describe("invokeFunction 的调用参数"),
+          .describe("functions.schema.manage.envVariables"),
+        vpc: VPC_SCHEMA.optional().describe("functions.schema.manage.vpc"),
+        params: z.record(z.any()).optional().describe("functions.schema.manage.params"),
         triggers: z
           .array(TRIGGER_SCHEMA)
           .optional()
-          .describe(
-            "createFunctionTrigger 的触发器列表，用于定时跑 / 定时任务 / scheduled job。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），" +
-            '如 "0 */5 * * * * *" 表示每5分钟执行一次'
-          ),
-        triggerName: z.string().optional().describe("deleteFunctionTrigger 的目标触发器名称"),
+          .describe("functions.schema.manage.triggers"),
+        triggerName: z.string().optional().describe("functions.schema.manage.triggerName"),
         layerName: z
           .string()
           .optional()
-          .describe(
-            "层名称。创建层推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）；" +
-            "不要跨环境复用裸层名。层为账号级共享命名空间",
-          ),
-        layerVersion: z.number().optional().describe("层版本号"),
-        contentPath: z.string().optional().describe("层内容路径，可为目录或 ZIP 文件"),
-        base64Content: z.string().optional().describe("层内容的 base64 编码"),
-        runtimes: z.array(z.string()).optional().describe("层适用的运行时列表"),
-        description: z.string().optional().describe("层版本描述"),
-        licenseInfo: z.string().optional().describe("层许可证信息"),
+          .describe("functions.schema.manage.layerName"),
+        layerVersion: z.number().optional().describe("functions.schema.manage.layerVersion"),
+        contentPath: z.string().optional().describe("functions.schema.manage.contentPath"),
+        base64Content: z.string().optional().describe("functions.schema.manage.base64Content"),
+        runtimes: z.array(z.string()).optional().describe("functions.schema.manage.runtimes"),
+        description: z.string().optional().describe("functions.schema.manage.description"),
+        licenseInfo: z.string().optional().describe("functions.schema.manage.licenseInfo"),
         layers: z
           .array(MANAGE_LAYER_SCHEMA)
           .optional()
-          .describe("updateFunctionLayers 的目标层列表，顺序即最终顺序"),
-        codeSecret: z.string().optional().describe("层绑定时的代码保护密钥"),
+          .describe("functions.schema.manage.layers"),
+        codeSecret: z.string().optional().describe("functions.schema.manage.codeSecret"),
         dryRun: z
           .boolean()
           .optional()
           .default(true)
-          .describe("镜像构建部署（func.buildStrategy=cloud/local）是否只生成部署计划。默认 true；传 false 时必须同时传 confirm=true。"),
+          .describe("functions.schema.manage.dryRun"),
         wait: z
           .boolean()
           .optional()
           .default(true)
-          .describe(
-            "真实镜像部署是否等待完整部署；设为 false 立即返回 taskId 并后台执行。" +
-              "默认 true 是为了兼容既有调用方，但同步等待最长可达约 15 分钟，很容易先撞上 MCP Client 的请求超时——" +
-              "客户端超时只是断开这次请求，云端部署仍在继续，却拿不到 taskId 追踪。" +
-              "因此执行真实构建部署（buildStrategy=cloud/local，dryRun=false）时建议显式传 wait=false。",
-          ),
+          .describe("functions.schema.manage.wait"),
         autoGrant: z
           .boolean()
           .optional()
           .default(false)
-          .describe(
-            "镜像部署是否允许 manager-node 自动补齐固定白名单 CAM 策略。默认 false；仅在明确确认权限变更时设为 true。",
-          ),
-        confirm: z.boolean().optional().describe("危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作以及镜像构建部署（func.buildStrategy=cloud/local）真实执行需要显式传入 confirm=true"),
-        incrementalFile: z.string().optional().describe("incrementalDeployFunction 增量部署时的变更文件路径"),
+          .describe("functions.schema.manage.autoGrant"),
+        confirm: z.boolean().optional().describe("functions.schema.manage.confirm"),
+        incrementalFile: z.string().optional().describe("functions.schema.manage.incrementalFile"),
       },
       annotations: {
         readOnlyHint: false,

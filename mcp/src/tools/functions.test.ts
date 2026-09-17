@@ -1114,8 +1114,13 @@ describe("functions tool helpers", () => {
     expect(protocolType.unwrap()._def.values).toEqual(["WS"]);
     expect(protocolType.safeParse("WS").success).toBe(true);
     expect(protocolType.safeParse("HTTP").success).toBe(false);
-    expect(protocolType.description).toContain("WS");
-    expect(protocolType.description).toContain("WebSocket");
+    expect(protocolType.description).toBe(
+      "functions.schema.create.protocolType",
+    );
+    expect(functionsDict.zh["schema.create.protocolType"]).toContain("WS");
+    expect(functionsDict.zh["schema.create.protocolType"]).toContain(
+      "WebSocket",
+    );
   });
 
   it("falls back to func.name when top-level functionName is missing", () => {
@@ -1370,7 +1375,12 @@ describe("functions tool helpers", () => {
     it("documents the default-masking behavior in the queryFunctions schema", () => {
       const schema = tools.queryFunctions.meta.inputSchema;
       expect(schema.revealEnvValues).toBeDefined();
-      expect(schema.revealEnvValues._def.description).toContain("默认 false");
+      expect(schema.revealEnvValues._def.description).toBe(
+        "functions.schema.query.revealEnvValues",
+      );
+      expect(
+        functionsDict.zh["schema.query.revealEnvValues"],
+      ).toContain("默认 false");
     });
   });
 

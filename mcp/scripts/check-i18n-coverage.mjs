@@ -539,21 +539,42 @@ function previewText(text) {
   return flat.length > TEXT_PREVIEW_LIMIT ? `${flat.slice(0, TEXT_PREVIEW_LIMIT)}…` : flat;
 }
 
-/** 扫描 mcp/src，返回 { entries, literalTotal, englishTotal, fileCount }。 */
+/** Scan parameter descriptions and classify dictionary keys versus hardcoded text. */
 export function collectCoverage() {
   const files = listSourceFiles(SCAN_ROOT).sort();
+  const dictionary = collectDictionaryKeys();
   const entries = [];
+  const unlocalized = [];
   const seen = new Map(); // hash -> entry（同一文件内同文案只登记一次，用 count 记出现次数）
+  const seenUnlocalized = new Set();
   let literalTotal = 0;
-  let englishTotal = 0;
+  let localizedTotal = 0;
+  let englishHardcodedTotal = 0;
 
   for (const file of files) {
     const source = readFileSync(file, "utf8");
     const repoPath = toRepoPath(file);
     for (const text of scanDescribeLiterals(source)) {
       literalTotal += 1;
+      if (dictionary.keys.has(text)) {
+        localizedTotal += 1;
+      } else {
+        const identity = `${repoPath}\0${text}`;
+        if (!seenUnlocalized.has(identity)) {
+          seenUnlocalized.add(identity);
+          unlocalized.push({
+            file: repoPath,
+            hash: hashText(text),
+            count: 1,
+            text: previewText(text),
+            length: text.length,
+          });
+        }
+      }
       if (!CJK.test(text)) {
-        englishTotal += 1;
+        if (!dictionary.keys.has(text)) {
+          englishHardcodedTotal += 1;
+        }
         continue;
       }
       const hash = hashText(text);
@@ -569,7 +590,15 @@ export function collectCoverage() {
   }
 
   entries.sort((a, b) => a.file.localeCompare(b.file) || a.hash.localeCompare(b.hash));
-  return { entries, literalTotal, englishTotal, fileCount: files.length };
+  unlocalized.sort((a, b) => a.file.localeCompare(b.file) || a.text.localeCompare(b.text));
+  return {
+    entries,
+    unlocalized,
+    literalTotal,
+    localizedTotal,
+    englishHardcodedTotal,
+    fileCount: files.length,
+  };
 }
 
 /**
@@ -1235,9 +1264,20 @@ export function main(argv = process.argv.slice(2)) {
   const coverage = collectCoverage();
   console.log(
     `i18n coverage: 扫描 mcp/src ${coverage.fileCount} 个文件 → ` +
-      `${coverage.literalTotal} 个 .describe() 字面量，含中文 ${coverage.entries.length} 条` +
-      `（英文 ${coverage.englishTotal} 条不进棘轮）`,
+      `${coverage.literalTotal} 个 .describe() 字面量，词典 key ${coverage.localizedTotal} 条，` +
+      `硬编码中文 ${coverage.entries.length} 条，硬编码英文 ${coverage.englishHardcodedTotal} 条`,
   );
+
+  if (coverage.unlocalized.length) {
+    console.error(
+      `\n❌ ${coverage.unlocalized.length} 个参数描述仍是硬编码文本或无效词典 key:`,
+    );
+    printEntryList("!", coverage.unlocalized, verbose ? 0 : 20);
+    console.error(
+      '\n   Add matching zh/en dictionary entries and pass the key directly to .describe("<module>.schema.<field>").',
+    );
+    process.exit(1);
+  }
 
   if (updateMode) {
     const previous = loadBaseline();

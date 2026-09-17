@@ -430,17 +430,17 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
       description: "appAuth.queryDescription",
       inputSchema: {
         action: z.enum(QUERY_APP_AUTH_ACTIONS),
-        providerId: z.string().optional().describe("provider 标识，如 email、google"),
+        providerId: z.string().optional().describe("appAuth.schema.queryProviderId"),
         clientId: z
           .string()
           .optional()
-          .describe("OAuth client_id / DescribeClient 的 Id；省略时默认使用当前环境 ID（默认客户端）"),
+          .describe("appAuth.schema.queryClientId"),
         keyType: z
           .enum(APP_AUTH_KEY_TYPES)
           .optional()
-          .describe("API key 类型过滤，可选 publish_key 或 api_key"),
-        pageNumber: z.number().int().positive().optional().describe("API key 列表页码，从 1 开始"),
-        pageSize: z.number().int().positive().optional().describe("API key 列表每页条数"),
+          .describe("appAuth.schema.queryKeyType"),
+        pageNumber: z.number().int().positive().optional().describe("appAuth.schema.pageNumber"),
+        pageSize: z.number().int().positive().optional().describe("appAuth.schema.pageSize"),
       },
       annotations: {
         readOnlyHint: true,
@@ -575,40 +575,36 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
         patch: z
           .record(z.any())
           .optional()
-          .describe("patchLoginStrategy 使用的简化登录策略 patch，如 { usernamePassword: true }"),
-        providerId: z.string().optional().describe("provider 标识，如 email、google；addProvider 时也可作为自定义 provider Id"),
+          .describe("appAuth.schema.patch"),
+        providerId: z.string().optional().describe("appAuth.schema.manageProviderId"),
         providerType: z
           .enum(APP_AUTH_PROVIDER_TYPES)
           .optional()
-          .describe("addProvider 时的 provider 协议类型"),
+          .describe("appAuth.schema.providerType"),
         displayName: z
           .union([z.string(), z.record(z.any())])
           .optional()
-          .describe("addProvider 时的展示名称，可传字符串或多语言对象"),
+          .describe("appAuth.schema.displayName"),
         clientId: z
           .string()
           .optional()
-          .describe("updateClientConfig 时的客户端 Id；省略时默认使用当前环境 ID"),
-        config: z.record(z.any()).optional().describe("provider / client 的配置对象"),
+          .describe("appAuth.schema.manageClientId"),
+        config: z.record(z.any()).optional().describe("appAuth.schema.config"),
         keyType: z
           .enum(APP_AUTH_KEY_TYPES)
           .optional()
-          .describe("createApiKey 时的 API key 类型，默认 publish_key"),
+          .describe("appAuth.schema.manageKeyType"),
         keyName: z
           .string()
           .optional()
-          .describe(
-            "createApiKey 时的 API key 名称；服务端可能忽略该值（如 publish_key 每环境唯一时），返回体中的 keyName 一律为服务端实际存储的名称",
-          ),
+          .describe("appAuth.schema.keyName"),
         expireIn: z
           .number()
           .int()
           .min(0)
           .optional()
-          .describe(
-            "createApiKey 时的有效期，单位秒；0 表示不过期。复用已有 key 时该值不生效，此时返回体会带 created=false 与 warnings",
-          ),
-        keyId: z.string().optional().describe("deleteApiKey 时的 API key 唯一标识"),
+          .describe("appAuth.schema.expireIn"),
+        keyId: z.string().optional().describe("appAuth.schema.keyId"),
       },
       annotations: {
         readOnlyHint: false,

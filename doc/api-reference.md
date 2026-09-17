@@ -2,7 +2,7 @@
 
 > - 数据源：[API 概览](https://cloud.tencent.com/document/api/876/34809) · [依赖产品接口指引](https://cloud.tencent.com/document/api/876/34808)
 > - 所有接口均为腾讯云 API 3.0 管控面接口，支持各语言官方 SDK 调用；也可通过 CloudBase MCP 的 `callCloudApi` 工具或 [API Explorer](https://console.cloud.tencent.com/api/explorer) 直接调用
-> - 最近同步：2026-09-16
+> - 最近同步：2026-09-17
 
 ## API 概览
 
@@ -35,6 +35,7 @@
 | [AllocateEnv](https://cloud.tencent.com/document/api/876/131594) | 从环境池分配环境 | 3000 |
 | [ReleaseEnv](https://cloud.tencent.com/document/api/876/131592) | 释放从环境池里分配的环境 | 1000 |
 | [AssumeRoleForAllocatedEnv](https://cloud.tencent.com/document/api/876/131593) | 为环境池里的环境申请角色临时凭证 | 1000 |
+| [DescribePlatformAccountCircle](https://cloud.tencent.com/document/api/876/138296) | 查询平台版资源计费周期 | 20 |
 | [ModifyEnvExtra](https://cloud.tencent.com/document/api/876/137192) | 修改环境额外配置 | 20 |
 
 ### 用户权限相关接口
@@ -47,6 +48,18 @@
 | [ModifyUser](https://cloud.tencent.com/document/api/876/127958) | 更新tcb用户 | 20 |
 | [DescribeResourcePermission](https://cloud.tencent.com/document/api/876/132256) | 查询资源基础权限 | 20 |
 | [ModifyResourcePermission](https://cloud.tencent.com/document/api/876/132255) | 修改资源基础权限 | 20 |
+| [CreateCustomLoginKey](https://cloud.tencent.com/document/api/876/130046) | 自定义登录密钥生成 | 20 |
+| [DescribeClient](https://cloud.tencent.com/document/api/876/129355) | 查询应用客户端详情 | 20 |
+| [ModifyLoginConfig](https://cloud.tencent.com/document/api/876/129351) | 修改登录策略 | 20 |
+| [DescribeLoginConfig](https://cloud.tencent.com/document/api/876/129354) | 获取登录策略 | 20 |
+| [ModifyClient](https://cloud.tencent.com/document/api/876/129352) | 修改应用客户端 | 20 |
+| [GetProviders](https://cloud.tencent.com/document/api/876/129353) | 获取三方认证源列表 | 20 |
+| [ModifyProvider](https://cloud.tencent.com/document/api/876/129350) | 修改第三方认证源 | 20 |
+| [DeleteProvider](https://cloud.tencent.com/document/api/876/129356) | 删除第三方认证源 | 20 |
+| [AddProvider](https://cloud.tencent.com/document/api/876/129357) | 添加第三方认证源 | 20 |
+| [CreateApiKey](https://cloud.tencent.com/document/api/876/129835) | 创建云开发平台的API Key | 20 |
+| [DeleteApiKey](https://cloud.tencent.com/document/api/876/129834) | 删除云开发平台的API Key | 20 |
+| [DescribeApiKeyList](https://cloud.tencent.com/document/api/876/129833) | 查询云开发平台的API Key列表 | 20 |
 
 ### HTTP网关相关接口
 
@@ -126,13 +139,7 @@
 | [DescribeManagedAIModelList](https://cloud.tencent.com/document/api/876/131317) | 查询托管类型AI模型列表 | 20 |
 | [UpdateAIModel](https://cloud.tencent.com/document/api/876/131316) | 更新AI模型 | 20 |
 
-### tcb相关接口
-
-| 接口名称 | 接口功能 | 频率限制（次/秒） |
-| --- | --- | --- |
-| [UpdateFunctionCode](https://cloud.tencent.com/document/api/876/137952) | 更新云函数代码 | 20 |
-
-### 搜索日志相关接口
+### 日志监控相关接口
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
@@ -157,23 +164,6 @@
 | [ExecutePGSql](https://cloud.tencent.com/document/api/876/130469) | 在PostgreSQL数据库上执行SQL查询 | 20 |
 | [ModifyPGInstanceSpec](https://cloud.tencent.com/document/api/876/137349) | 修改 PG 独享实例规格 | 20 |
 
-### 登录配置相关接口
-
-| 接口名称 | 接口功能 | 频率限制（次/秒） |
-| --- | --- | --- |
-| [CreateCustomLoginKey](https://cloud.tencent.com/document/api/876/130046) | 自定义登录密钥生成 | 20 |
-| [DescribeClient](https://cloud.tencent.com/document/api/876/129355) | 查询应用客户端详情 | 20 |
-| [ModifyLoginConfig](https://cloud.tencent.com/document/api/876/129351) | 修改登录策略 | 20 |
-| [DescribeLoginConfig](https://cloud.tencent.com/document/api/876/129354) | 获取登录策略 | 20 |
-| [ModifyClient](https://cloud.tencent.com/document/api/876/129352) | 修改应用客户端 | 20 |
-| [GetProviders](https://cloud.tencent.com/document/api/876/129353) | 获取三方认证源列表 | 20 |
-| [ModifyProvider](https://cloud.tencent.com/document/api/876/129350) | 修改第三方认证源 | 20 |
-| [DeleteProvider](https://cloud.tencent.com/document/api/876/129356) | 删除第三方认证源 | 20 |
-| [AddProvider](https://cloud.tencent.com/document/api/876/129357) | 添加第三方认证源 | 20 |
-| [CreateApiKey](https://cloud.tencent.com/document/api/876/129835) | 创建云开发平台的API Key | 20 |
-| [DeleteApiKey](https://cloud.tencent.com/document/api/876/129834) | 删除云开发平台的API Key | 20 |
-| [DescribeApiKeyList](https://cloud.tencent.com/document/api/876/129833) | 查询云开发平台的API Key列表 | 20 |
-
 ### 云函数相关接口
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
@@ -184,6 +174,24 @@
 | [ListFunctions](https://cloud.tencent.com/document/api/876/137947) | 获取函数列表 | 20 |
 | [GetFunction](https://cloud.tencent.com/document/api/876/137948) | 获取云函数详情 | 20 |
 | [DownloadFunction](https://cloud.tencent.com/document/api/876/137949) | 获取云函数地址并下载 | 20 |
+| [UpdateFunctionCode](https://cloud.tencent.com/document/api/876/137952) | 更新云函数代码 | 20 |
+
+### tcb相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [DescribePlatformCreditsUsage](https://cloud.tencent.com/document/api/876/138301) | 获取平台版资源点用量 | 20 |
+| [DescribePlatformCreditsUsageDetail](https://cloud.tencent.com/document/api/876/138300) | 获取平台版资源点用量明细 | 20 |
+| [CreatePlatformEnv](https://cloud.tencent.com/document/api/876/138302) | 创建平台版套餐环境 | 20 |
+| [DescribePlatformEnvUsage](https://cloud.tencent.com/document/api/876/138299) | 查询平台版资源用量 | 20 |
+| [DescribePlatforms](https://cloud.tencent.com/document/api/876/138298) | 查询平台版资源信息 | 20 |
+| [DestroyPlatformEnv](https://cloud.tencent.com/document/api/876/138297) | 删除平台版环境 | 20 |
+
+### 管控相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [ModifyPlatformEnv](https://cloud.tencent.com/document/api/876/138295) | 修改平台版环境信息 | 20 |
 
 > 注意：
 > 
@@ -273,7 +281,7 @@
 | 接口名称 | 接口功能 |
 | --- | --- |
 | [CreateFunction](https://cloud.tencent.com/document/api/876/137951) | 创建函数 |
-| [UpdateFunctionCode](https://cloud.tencent.com/document/product/583/18581) | 更新函数代码 |
+| [UpdateFunctionCode](https://cloud.tencent.com/document/api/876/137952) | 更新函数代码 |
 | [ListFunctions](https://cloud.tencent.com/document/api/876/137947) | 获取函数列表 |
 | [Invoke](https://cloud.tencent.com/document/product/583/17243) | 运行函数 |
 | [GetFunction](https://cloud.tencent.com/document/api/876/137948) | 获取函数详细信息 |
