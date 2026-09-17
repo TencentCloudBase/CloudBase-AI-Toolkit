@@ -122,6 +122,8 @@ export const cloudrun = defineModule(
     "deploy.phaseStarting": "启动中",
     "deploy.warningSuffix":
       " 警告：{message} 请在依赖数据库连通性之前配置 serverConfig.VpcConf。",
+    "deploy.buildRecordLost":
+      "服务 '{serverName}' 的源码构建在平台侧丢失了构建记录（check_build_image 失败 300502 build not found），版本会一直卡在 creating 且 wx.cloud.callContainer 无法访问。这不是代码/配置问题：请改用 manageCloudRun(action=\"deploy\", force=true) 重新触发部署；若多次仍复现（失败构建 BuildId={buildId} RunId={runId}），需联系 CloudBase 平台清理该环境的异常构建资源后重试。",
 
     "updateConfig.noop": "服务 '{serverName}' 无有效配置变更。",
     "updateConfig.taskRunningHint":
@@ -476,6 +478,8 @@ export const cloudrun = defineModule(
     "deploy.phaseStarting": "starting",
     "deploy.warningSuffix":
       " Warning: {message} Set serverConfig.VpcConf before relying on DB connectivity.",
+    "deploy.buildRecordLost":
+      "Source build for service '{serverName}' lost its build record server-side (check_build_image failed 300502 build not found); the version stays stuck in 'creating' and wx.cloud.callContainer cannot reach it. This is not a code/config issue: re-trigger with manageCloudRun(action=\"deploy\", force=true); if it keeps happening (failed build BuildId={buildId} RunId={runId}), ask CloudBase platform to clean up the lost build resource for this env and retry.",
 
     "updateConfig.noop": "No effective config changes for '{serverName}'.",
     "updateConfig.taskRunningHint":

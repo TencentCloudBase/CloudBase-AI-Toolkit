@@ -399,6 +399,109 @@ export function isCloudRunCodingBuildLogError(error: unknown): boolean {
   );
 }
 
+/**
+ * Detect the platform-side "build record lost" symptom: a source build that
+ * pushes its image successfully but whose build record is then unqueryable, so
+ * the version is stuck in "creating" forever. The run log shows
+ * `check_build_image : fail [ErrorCode]:300502 [ErrorMessage]:build not found`.
+ * This is NOT a code/config problem — it requires re-triggering deploy (or a
+ * platform-side cleanup of the lost build resource).
+ */
+export function detectCloudRunBuildRecordLost(text: string): boolean {
+  if (typeof text !== "string" || !text.trim()) return false;
+  return /(?:\[?\s*errorcode\s*\]?\s*:?\s*300502)|build not found|check_build_image\s*:\s*fail/i.test(
+    text,
+  );
+}
+
+export const CLOUDRUN_BUILD_RECORD_LOST_VERIFY_MAX_WAIT_MS = 15_000;
+export const CLOUDRUN_BUILD_RECORD_LOST_VERIFY_INTERVAL_MS = 3_000;
+
+export type CloudRunBuildRecordLostResult = {
+  lost: boolean;
+  status?: string;
+  reason?: string;
+};
+
+/**
+ * Bounded, best-effort check that a freshly deployed source build is not stuck
+ * because its build record was lost server-side. Polls the deploy record status
+ * and the version run log; only reports `lost` when the version is still
+ * `creating` AND the log contains the 300502 / build-not-found evidence.
+ * Returns `null` when inconclusive so healthy (long-running) builds are not
+ * falsely flagged. Any error is swallowed and yields `null`.
+ */
+export async function verifyCloudRunBuildRecordNotLost(options: {
+  cloudrunService: {
+    getDeployRecords?: (params: { serverName: string }) => Promise<unknown>;
+    getProcessLog?: (params: { RunId: string }) => Promise<unknown>;
+  };
+  serverName: string;
+  runId?: string;
+  maxWaitMs?: number;
+  intervalMs?: number;
+  sleepFn?: (ms: number) => Promise<void>;
+}): Promise<CloudRunBuildRecordLostResult | null> {
+  const maxWaitMs = options.maxWaitMs ?? CLOUDRUN_BUILD_RECORD_LOST_VERIFY_MAX_WAIT_MS;
+  const intervalMs = options.intervalMs ?? CLOUDRUN_BUILD_RECORD_LOST_VERIFY_INTERVAL_MS;
+  const sleepFn = options.sleepFn ?? sleepMs;
+  const startAt = Date.now();
+
+  for (;;) {
+    let status: string | undefined;
+    let logText = "";
+
+    try {
+      if (typeof options.cloudrunService.getDeployRecords === "function") {
+        const records = (await options.cloudrunService.getDeployRecords({
+          serverName: options.serverName,
+        })) as { DeployRecords?: Array<{ Status?: string; RunId?: string }> };
+        const latest = records?.DeployRecords?.[0];
+        if (typeof latest?.Status === "string") status = latest.Status;
+        const rid =
+          options.runId ??
+          (isValidCloudRunRunId(latest?.RunId) ? latest!.RunId!.trim() : undefined);
+        if (
+          rid &&
+          typeof options.cloudrunService.getProcessLog === "function"
+        ) {
+          try {
+            const proc = (await options.cloudrunService.getProcessLog({
+              RunId: rid,
+            })) as { Logs?: unknown };
+            if (proc && typeof proc === "object") {
+              logText = JSON.stringify(proc);
+            }
+          } catch {
+            // ignore — log may lag behind registration
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Definitively lost: still creating AND the build-not-found evidence is present.
+    if (
+      typeof status === "string" &&
+      status.toLowerCase().includes("creating") &&
+      detectCloudRunBuildRecordLost(logText)
+    ) {
+      return { lost: true, status, reason: logText };
+    }
+
+    // Progressed out of creating → not lost (build either succeeded or failed normally).
+    if (typeof status === "string" && !status.toLowerCase().includes("creating")) {
+      return { lost: false, status };
+    }
+
+    if (Date.now() - startAt >= maxWaitMs) break;
+    await sleepFn(intervalMs);
+  }
+
+  return null;
+}
+
 export type CloudRunGetProcessLogNextAction = {
   tool: "queryCloudRun";
   action: CloudRunDeployFollowUpAction;
@@ -2279,6 +2382,23 @@ for await (let x of res.textStream) {
               mode: deployType,
             });
 
+            // Source builds run asynchronously on the platform. If the build
+            // record is lost server-side the version is stuck in "creating"
+            // forever (run log: check_build_image : fail 300502 build not found).
+            // Detect it early so the agent re-triggers instead of assuming success.
+            let buildRecordLost: CloudRunBuildRecordLostResult | null = null;
+            if (deployType === "source") {
+              try {
+                buildRecordLost = await verifyCloudRunBuildRecordNotLost({
+                  cloudrunService,
+                  serverName: input.serverName,
+                  runId: registration.runId,
+                });
+              } catch {
+                buildRecordLost = null;
+              }
+            }
+
             let cloudbasercGenerated = false;
             if (targetPath) {
               const cloudbasercPath = path.join(targetPath, 'cloudbaserc.json');
@@ -2379,6 +2499,53 @@ for await (let x of res.textStream) {
               runId: registration.runId,
               registered: registration.registered,
             });
+
+            // Surface a definitively lost build record as a clear failure instead
+            // of masking it as a healthy "deploying" state. The agent should
+            // re-trigger deploy (force=true); if it persists, platform cleanup is needed.
+            if (buildRecordLost?.lost) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify(
+                      {
+                        success: false,
+                        error: "CLOUDRUN_BUILD_RECORD_LOST",
+                        message: t("cloudrun.deploy.buildRecordLost", {
+                          serverName: input.serverName,
+                          buildId: isValidCloudRunBuildId(registration.buildId)
+                            ? String(registration.buildId)
+                            : "",
+                          runId: isValidCloudRunRunId(registration.runId)
+                            ? registration.runId
+                            : "",
+                        }),
+                        data: {
+                          serviceName: input.serverName,
+                          status: "creating",
+                          deployType,
+                          ...(isValidCloudRunBuildId(registration.buildId)
+                            ? { buildId: registration.buildId }
+                            : {}),
+                          ...(isValidCloudRunRunId(registration.runId)
+                            ? { runId: registration.runId }
+                            : {}),
+                          registration: {
+                            registered: registration.registered,
+                            timedOut: registration.timedOut,
+                            waitMs: registration.waitMs,
+                          },
+                        },
+                        next_step: nextStep,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+              };
+            }
 
             return {
               content: [
