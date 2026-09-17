@@ -2,6 +2,17 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './IDESelector.module.css';
 import { reportEvent } from './analytics';
+import {
+  buildConfigForMode,
+  buildCursorInstallUrl,
+  buildTraeInstallUrl,
+  buildVSCodeInstallUrl,
+  SITES,
+  SITE_IDS,
+  type ChannelType,
+  type ConnectionMode,
+  type SiteId,
+} from './connectionMatrix';
 import { getRandomPrompt } from './promptsData';
 
 interface IDE {
@@ -22,6 +33,10 @@ interface IDE {
   installCommand?: string;
   installCommandDocs?: string;
   useCommandInsteadOfConfig?: boolean;
+  /** 是否渲染一键安装按钮。与 `oneClickInstallUrl` 同时成立才显示。 */
+  showInstallButton?: boolean;
+  /** 该客户端是否出「远端 / 本地」与站点开关。`builtin` 通道不出——那些客户端走自有市场，用户选了也不生效。 */
+  showModeSwitch?: boolean;
 }
 
 const IDES: IDE[] = [
@@ -205,7 +220,7 @@ const IDES: IDE[] = [
     iconUrl: 'https://lf-cdn.trae.ai/obj/trae-ai-sg/trae_website_prod/favicon.png',
     docUrl: 'https://docs.trae.ai/ide/use-mcp-servers-in-agents?_lang=zh',
     supportsProjectMCP: true,
-    oneClickInstallUrl: 'trae://trae.ai-ide/mcp-import?type=stdio&name=cloudbase&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyJAY2xvdWRiYXNlL2Nsb3VkYmFzZS1tY3BAbGF0ZXN0Il0sImVudiI6eyJJTlRFR1JBVElPTl9JREUiOiJUcmFlIn19',
+    // 一键安装链接不在这里写死：由 buildTraeInstallUrl 按模式与站点生成
     configExample: `{
   "mcpServers": {
     "cloudbase": {
@@ -539,6 +554,60 @@ const IDES: IDE[] = [
   },
 ]
 
+/**
+ * 每个客户端「拿到配置」的路径。这不是分类癖，它决定这一页渲染什么：
+ *
+ * - `deeplink` 有官方安装协议 → 出「Add to X」按钮（本地 / 远端各一条链接）
+ * - `cli`      一条命令搞定 → 出命令 + 配置文件兜底
+ * - `manual`   用户自己写配置 → 出 JSON（本地 / 远端由开关切换）
+ * - `builtin`  客户端已内置 CloudBase，走自有市场或连接器 → **不出开关、不出配置**
+ *
+ * `builtin` 为什么必须区别对待：WorkBuddy / CodeBuddy 的连接器跟着用户本机登录态走，
+ * 页面上给一个「国内站 / 国际站」开关，用户选完以为生效了、实际没有任何作用——
+ * 那是在制造假的期望。
+ */
+const CHANNEL_BY_ID: Record<string, ChannelType> = {
+  // 有官方一键安装协议
+  cursor: 'deeplink',
+  'github-copilot': 'deeplink',
+  trae: 'deeplink',
+
+  // 一条命令安装
+  'claude-code': 'cli',
+  'codebuddy-code': 'cli',
+  'kimi-code': 'cli',
+  'iflow-cli': 'cli',
+  'openai-codex-cli': 'cli',
+
+  // 客户端已内置，走自有市场 / 连接器
+  'wechat-devtools': 'builtin',
+  workbuddy: 'builtin',
+  codebuddy: 'builtin',
+  'kimi-work': 'builtin',
+  zcode: 'builtin',
+  'codex-app': 'builtin',
+  openclaw: 'builtin',
+  'cloudbase-cli': 'builtin',
+
+  // 手写配置
+  opencode: 'manual',
+  qoder: 'manual',
+  windsurf: 'manual',
+  'tongyi-lingma': 'manual',
+  'qwen-code': 'manual',
+  'gemini-cli': 'manual',
+  cline: 'manual',
+  antigravity: 'manual',
+  roocode: 'manual',
+  'augment-code': 'manual',
+  kiro: 'manual',
+  'baidu-comate': 'manual',
+};
+
+function getChannel(ide: IDE): ChannelType {
+  return CHANNEL_BY_ID[ide.id] || 'manual';
+}
+
 // JSON syntax highlighter
 function highlightJSON(json: string): React.ReactNode[] {
   const lines = json.split('\n');
@@ -595,6 +664,10 @@ interface IDESelectorProps {
   customPrompt?: string;
   collapsibleInstallSteps?: boolean;
   collapseStep1?: boolean;
+  /** 默认连接方式。不传则远端优先（推荐路径）。 */
+  defaultMode?: ConnectionMode;
+  /** 默认站点。不传则国内站。 */
+  defaultSite?: SiteId;
 }
 
 // i18n translations
@@ -602,7 +675,7 @@ const translations: Record<string, Record<string, string>> = {
   'zh-CN': {
     client: 'Client',
     configureDescription: '配置你的 AI 工具以连接 CloudBase 能力',
-    connectionModesHint: '支持本地与托管两种连接方式，详见 ',
+    connectionModesHint: '支持本地与远端两种连接方式，详见 ',
     connectionModesLink: '连接方式',
     connectionModesSuffix: '。',
     installation: '步骤 1：安装 / 配置 CloudBase',
@@ -629,11 +702,20 @@ const translations: Record<string, Record<string, string>> = {
     copyPrompt: '复制提示词',
     refreshPrompt: '刷新',
     openInIDE: '用 {name} 打开',
+    connectionMode: '连接方式',
+    modeRemote: '远端（推荐）',
+    modeLocal: '本地',
+    siteLabel: '站点',
+    remoteNote: '远端模式只需填地址，客户端会在浏览器里引导你完成登录授权，密钥不落到配置文件。',
+    localNote: '本地模式在本机运行 npx，功能最全（含上传本地文件、下载模板等）。',
+    builtinNote: '该客户端已内置 CloudBase，接入方式以官方市场 / 连接器为准，站点跟随你的登录态，无需在此选择。',
+    siteNoSqlUnavailable: '国际站暂未提供 NoSQL（文档数据库）工具',
+    siteConsole: '控制台',
   },
   'en': {
     client: 'Client',
     configureDescription: 'Configure your AI tool to connect with CloudBase capabilities',
-    connectionModesHint: 'Supports local and hosted connection. See ',
+    connectionModesHint: 'Supports local and remote connection. See ',
     connectionModesLink: 'connection modes',
     connectionModesSuffix: '.',
     installation: 'Step 1: Install / Configure CloudBase',
@@ -660,6 +742,15 @@ const translations: Record<string, Record<string, string>> = {
     copyPrompt: 'Copy prompt',
     refreshPrompt: 'Refresh',
     openInIDE: 'Open with {name}',
+    connectionMode: 'Connection',
+    modeRemote: 'Remote (recommended)',
+    modeLocal: 'Local',
+    siteLabel: 'Site',
+    remoteNote: 'Remote needs only a URL — your client walks you through browser authorization, so no keys land in config files.',
+    localNote: 'Local runs npx on your machine with the full feature set, including local file upload and template download.',
+    builtinNote: 'This client ships CloudBase built in. Setup follows its own marketplace or connectors, and the site follows your login state — nothing to pick here.',
+    siteNoSqlUnavailable: 'NoSQL (document database) tools are not yet available on the international site',
+    siteConsole: 'Console',
   },
 };
 
@@ -668,7 +759,9 @@ export default function IDESelector({
   showInstallButton = true,
   customPrompt,
   collapsibleInstallSteps = false,
-  collapseStep1 = false
+  collapseStep1 = false,
+  defaultMode = 'remote',
+  defaultSite = 'domestic'
 }: IDESelectorProps) {
   const { i18n } = useDocusaurusContext();
   // Normalize locale: zh-Hans -> zh-CN, en -> en
@@ -705,6 +798,8 @@ export default function IDESelector({
   };
 
   const [selectedIDE, setSelectedIDE] = useState<string>(defaultIDE || 'cursor');
+  const [mode, setMode] = useState<ConnectionMode>(defaultMode);
+  const [site, setSite] = useState<SiteId>(defaultSite);
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
@@ -769,48 +864,44 @@ export default function IDESelector({
     return null;
   };
 
-  // Generate Cursor one-click install URL
-  const generateCursorInstallUrl = (ideConfig: IDE): string => {
-    const config = {
-      env: {
-        INTEGRATION_IDE: ideConfig.name
-      },
-      command: 'npx',
-      args: ['@cloudbase/cloudbase-mcp@latest']
-    };
-    const base64Config = btoa(JSON.stringify(config));
-    return `https://cursor.com/en-US/install-mcp?name=cloudbase&config=${encodeURIComponent(base64Config)}`;
-  };
+  // 接入通道决定这一页渲染什么（按钮 / 命令 / JSON / 只指路）
+  const channel = getChannel(ide);
 
-  // Generate VSCode one-click install URL
-  const generateVSCodeInstallUrl = (ideConfig: IDE): string => {
-    const config = {
-      name: 'cloudbase',
-      command: 'npx',
-      args: ['@cloudbase/cloudbase-mcp@latest'],
-      env: {
-        INTEGRATION_IDE: ideConfig.name
-      }
-    };
-    const configJson = JSON.stringify(config);
-    return `vscode:mcp/install?${encodeURIComponent(configJson)}`;
-  };
+  // builtin 通道不出开关：那些客户端的站点跟随用户本机登录态，让用户在这里选
+  // 只会制造「选了就生效」的假期望。
+  const supportsModeSwitch = ide.showModeSwitch ?? (channel !== 'builtin' && !!ide.configExample);
 
-  const getOneClickInstallUrl = (): string | null => {
-    if (ide.id === 'cursor') {
-      return generateCursorInstallUrl(ide);
+  // 一键安装链接：由模式与站点驱动。三家客户端的协议集中在 connectionMatrix.ts，
+  // 这里只负责按 ide.id 分派——不再各自维护一套生成逻辑。
+  const oneClickInstallUrl = useMemo(() => {
+    if (!showInstallButton) return null;
+    const ctx = { mode, siteId: site, ideName: ide.name };
+    switch (ide.id) {
+      case 'cursor':
+        return buildCursorInstallUrl(ctx);
+      case 'github-copilot':
+        return buildVSCodeInstallUrl(ctx);
+      case 'trae':
+        return buildTraeInstallUrl(ctx);
+      default:
+        return ide.oneClickInstallUrl || null;
     }
-    if (ide.id === 'github-copilot') {
-      return generateVSCodeInstallUrl(ide);
-    }
-    return ide.oneClickInstallUrl || null;
-  };
+  }, [ide, mode, site, showInstallButton]);
 
-  const oneClickInstallUrl = getOneClickInstallUrl();
   const isProtocolInstallUrl = !!oneClickInstallUrl && !/^https?:\/\//i.test(oneClickInstallUrl);
 
+  // 实际展示的配置：本地模式用 IDE 表里手写的那份（它承载了各家独有的容器键，
+  // 如 VS Code 的 servers、Cline 的 autoApprove），远端模式由它派生。
+  //
+  // 没有开关的客户端（builtin 通道）原样展示手写配置——开关是表达「我要哪种模式」
+  // 的唯一入口，没有开关就不该替用户改变配置形态。
+  const configExample = useMemo(() => {
+    if (!supportsModeSwitch) return ide.configExample;
+    return buildConfigForMode(ide.configExample, mode, site);
+  }, [ide, mode, site, supportsModeSwitch]);
+
   const handleCopyCode = async () => {
-    await navigator.clipboard.writeText(ide.configExample);
+    await navigator.clipboard.writeText(configExample);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
     reportEvent({
@@ -1035,6 +1126,81 @@ export default function IDESelector({
           )}
         </div>
       </div>
+
+      {/* 连接方式与站点开关：只有能写 MCP 配置的客户端才渲染 */}
+      {supportsModeSwitch ? (
+        <>
+          <div className={styles.modeBar}>
+            <div className={styles.modeGroup}>
+              <span className={styles.modeLabel}>{t.connectionMode}</span>
+              <div className={styles.segmented}>
+                <button
+                  type="button"
+                  className={`${styles.segment} ${mode === 'remote' ? styles.segmentActive : ''}`}
+                  aria-pressed={mode === 'remote'}
+                  onClick={() => {
+                    setMode('remote');
+                    reportEvent({
+                      name: 'IDE Selector - Switch Mode',
+                      ideId: ide.id,
+                      eventType: 'mode_remote',
+                    });
+                  }}
+                >
+                  {t.modeRemote}
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.segment} ${mode === 'local' ? styles.segmentActive : ''}`}
+                  aria-pressed={mode === 'local'}
+                  onClick={() => {
+                    setMode('local');
+                    reportEvent({
+                      name: 'IDE Selector - Switch Mode',
+                      ideId: ide.id,
+                      eventType: 'mode_local',
+                    });
+                  }}
+                >
+                  {t.modeLocal}
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.modeGroup}>
+              <span className={styles.modeLabel}>{t.siteLabel}</span>
+              <div className={styles.segmented}>
+                {SITE_IDS.map((siteId) => (
+                  <button
+                    key={siteId}
+                    type="button"
+                    className={`${styles.segment} ${site === siteId ? styles.segmentActive : ''}`}
+                    aria-pressed={site === siteId}
+                    onClick={() => {
+                      setSite(siteId);
+                      reportEvent({
+                        name: 'IDE Selector - Switch Site',
+                        ideId: ide.id,
+                        eventType: `site_${siteId}`,
+                      });
+                    }}
+                  >
+                    {isEnglish ? SITES[siteId].labelEn : SITES[siteId].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 当前选择直接决定下面这份配置能不能跑通，所以说明必须紧跟开关 */}
+          <p className={styles.modeNote}>
+            {mode === 'remote' ? t.remoteNote : t.localNote}
+            {mode === 'remote' && site === 'intl' ? ` ${t.siteNoSqlUnavailable}。` : ''}
+          </p>
+        </>
+      ) : (
+        <p className={styles.builtinNote}>{t.builtinNote}</p>
+      )}
 
       <p className={styles.description}>
         {t.configureDescription}
@@ -1306,7 +1472,7 @@ export default function IDESelector({
                       )}
 
                       {/* Manual configuration */}
-                      {!ide.useCommandInsteadOfConfig && (getOneClickInstallUrl() || ide.cliCommand) && (
+                      {!ide.useCommandInsteadOfConfig && (oneClickInstallUrl || ide.cliCommand) && (
                         <p className={styles.orManualConfig}>{t.orManualConfig}:</p>
                       )}
 
@@ -1344,7 +1510,7 @@ export default function IDESelector({
                               </button>
                             </div>
                             <pre className={styles.codeContent}>
-                              <code>{highlightJSON(ide.configExample)}</code>
+                              <code>{highlightJSON(configExample)}</code>
                             </pre>
                           </div>
                         </>
@@ -1447,7 +1613,7 @@ export default function IDESelector({
                 )}
 
                 {/* Manual configuration */}
-                {!ide.useCommandInsteadOfConfig && (getOneClickInstallUrl() || ide.cliCommand) && (
+                {!ide.useCommandInsteadOfConfig && (oneClickInstallUrl || ide.cliCommand) && (
                   <p className={styles.orManualConfig}>{t.orManualConfig}:</p>
                 )}
 
@@ -1485,7 +1651,7 @@ export default function IDESelector({
                         </button>
                       </div>
                       <pre className={styles.codeContent}>
-                        <code>{highlightJSON(ide.configExample)}</code>
+                        <code>{highlightJSON(configExample)}</code>
                       </pre>
                     </div>
                   </>

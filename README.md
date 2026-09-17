@@ -120,7 +120,7 @@ Details and IDE differences: [AI plugin docs](https://docs.cloudbase.net/ai/clou
 }
 ```
 
-Hosted HTTP, self-hosted Cloud Mode, and plugin scoping: [Install & connect](#install--connect).
+Remote HTTP, self-hosted Cloud Mode, and plugin scoping: [Install & connect](#install--connect).
 
 </details>
 
@@ -245,9 +245,16 @@ Others: [IDE setup guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide
 
 ### MCP connection modes
 
-**Local** (default): `npx` on your machine—full features, including local filesystem upload/templates.
+**Remote** (recommended): your IDE connects over HTTP to Tencent Cloud MCP. No local Node, and interactive clients finish authorization in the browser.
 
-**Hosted**: IDE connects over HTTP to Tencent Cloud MCP; no local Node. Some local-file features are unavailable.
+| Site | MCP endpoint |
+|------|--------------|
+| China (domestic) | `https://tcb-api.cloud.tencent.com/mcp/v1` |
+| International | `https://tcb-api.tencentcloud.com/mcp/v1` |
+
+Pick the endpoint matching the site your environment lives in—the two sites use separate accounts, consoles, and credentials.
+
+**Local**: runs `npx @cloudbase/cloudbase-mcp@latest` on your machine—full features, including local filesystem upload and template download.
 
 ```json
 {
@@ -264,16 +271,24 @@ Others: [IDE setup guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide
 }
 ```
 
-Hosted URLs can use `site` (`domestic` / `intl`) to pick the login site (e.g. domestic-site Singapore needs `site=domestic`), plus `enable_plugins` / `disable_plugins` to trim tools. Canonical names live in `mcp/src/server.ts`.
+Remote auth takes one of two paths:
 
-**Hosted MCP E2E** (official SDK client): `npm run test:hosted-mcp:e2e` — see [`tests/hosted-mcp-e2e/README.md`](tests/hosted-mcp-e2e/README.md) for apikey/OAuth modes, TLS-insecure staging, and env vars. Missing credentials skip (exit 0).
+- **OAuth (interactive, recommended)**: add the URL only. Your IDE opens the browser for login and consent—no keys in config files.
+- **Static credentials (CI/CD)**: add `env_id` with the `X-TencentCloud-*` headers above.
+
+Remote trade-off: local-filesystem features (upload, template download) are unavailable, and the international site does not yet expose NoSQL tools.
+
+Remote URLs also accept `site` (`domestic` / `intl`, only needed for a China-site environment in `ap-singapore`, where the region is ambiguous), plus `enable_plugins` / `disable_plugins` to trim tools. Canonical names live in `mcp/src/server.ts`.
+
+**Remote MCP E2E** (official SDK client): `npm run test:hosted-mcp:e2e` — see [`tests/hosted-mcp-e2e/README.md`](tests/hosted-mcp-e2e/README.md) for apikey/OAuth modes, TLS-insecure staging, and env vars. Missing credentials skip (exit 0).
 
 **Self-hosted Cloud Mode**: set `CLOUDBASE_MCP_CLOUD_MODE=true` (or `MCP_CLOUD_MODE=true`) so local file and process tools are disabled for remote callers.
 
 | Scenario | Suggestion |
 |------|------|
-| Personal | Local `npx` |
-| Team / zero ops | Hosted HTTP |
+| Personal / fastest start | Remote URL (OAuth) |
+| Need local file features | Local `npx` |
+| CI / automation | Remote + static credentials |
 | Self-hosted MCP | Cloud Mode required |
 
 ## Example
@@ -316,7 +331,7 @@ Deploy targets your own CloudBase environment. In local mode MCP runs on your ma
 <details>
 <summary>Is self-hosting the MCP server safe?</summary>
 
-Local `npx` is equivalent to running tools yourself. For remote hosts, set `CLOUDBASE_MCP_CLOUD_MODE=true` to disable local file/process tools. Tencent Cloud hosted HTTP includes this protection.
+Local `npx` is equivalent to running tools yourself. For remote hosts, set `CLOUDBASE_MCP_CLOUD_MODE=true` to disable local file/process tools. Tencent Cloud remote HTTP includes this protection.
 
 </details>
 
@@ -345,7 +360,7 @@ Both the domestic site (cloud.tencent.com) and the international site (tencentcl
 
 Credentials are stored per site (`credential.domestic` / `credential.intl`) so domestic and international logins can coexist; legacy single-slot `auth.json` is read as `domestic` and migrated on first write.
 
-**Hosted mode**: add `site=domestic` to the hosted URL (`https://tcb-api.cloud.tencent.com/mcp/v1?env_id=<env_id>&site=domestic`), since the URL is the only place hosted mode can carry the site (there is no MCP `env` block for HTTP servers).
+**Remote mode**: nothing extra to pass — the endpoint host decides the site (`tcb-api.cloud.tencent.com` = China site, `tcb-api.tencentcloud.com` = international site), and there is no `site` query parameter. This also covers a China-site environment located in `ap-singapore`: keep using the China-site endpoint.
 
 </details>
 

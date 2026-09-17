@@ -1,134 +1,47 @@
-# 连接方式：本地模式与托管模式
+# 连接方式：远端模式与本地模式
 
-CloudBase MCP 支持两种连接方式：**本地模式**（MCP 服务在本机通过 npx 运行）和**托管模式**（MCP 服务运行在腾讯云上，IDE 通过 HTTP 连接）。按需选择其一即可。
+CloudBase MCP 有两种接法：**远端模式**（MCP 服务运行在服务端，IDE 通过 HTTP 连接）与**本地模式**（MCP 服务在你本机通过 `npx` 运行，IDE 以 stdio 连接）。两种方式使用同一份 MCP 服务代码与同一套工具，差别只在**服务跑在哪里**，以及由此带来的本地文件能力差异。
 
----
-
-## 本地模式（推荐）
-
-### 含义与适用场景
-
-- **含义**：MCP 服务在你本机通过 `npx` 启动，与 IDE 同机运行。
-- **优点**：功能最全，包含上传/下载、模板安装等依赖本地文件系统的能力。
-- **要求**：本机已安装 Node.js，且能执行 `npx`。
-
-### 配置示例
-
-在 IDE 的 MCP 配置中添加（以 Cursor / WindSurf 等为例）：
-
-```json
-{
-  "mcpServers": {
-    "cloudbase": {
-      "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
-      "env": {}
-    }
-  }
-}
-```
-
-### 本地模式可选环境变量
-
-本地模式下，可通过修改 env 环境变量来控制。以下均为**可选**，不配置时使用默认行为。
-
-| 环境变量 | 说明 | 默认 / 说明 |
-|----------|------|-------------|
-| `CLOUDBASE_API_KEY` | CloudBase 环境级 API Key（推荐用于 CI/CD、MCP Server） | 与 `CLOUDBASE_ENV_ID` 配合使用，优先级高于 `TENCENTCLOUD_*` 密钥；兼容读取 `CLOUDBASE_APIKEY`（与 `@cloudbase/js-sdk` / `@cloudbase/node-sdk` 对齐，优先使用带下划线的 `CLOUDBASE_API_KEY`）；[在控制台创建](https://tcb.cloud.tencent.com/dev) |
-| `CLOUDBASE_ENV_ID` | 云开发环境 ID（可选） | 未设置时首次调用会引导登录并选择环境 |
-| `CLOUDBASE_API_ENDPOINT` | 自定义 API Key 换取凭证的 Endpoint（高级可选） | 不设则使用默认 `https://<envId>.<region>.tcb-api.tencentcloudapi.com` |
-| `TENCENTCLOUD_SECRETID` | 腾讯云 SecretId（可选） | 不设则通过登录引导获取；[获取腾讯云 API 密钥](https://console.cloud.tencent.com/cam/capi) |
-| `TENCENTCLOUD_SECRETKEY` | 腾讯云 SecretKey（可选） | 同上 |
-| `TENCENTCLOUD_SESSIONTOKEN` | 腾讯云临时密钥 Token（可选） | 仅在使用临时密钥时需要，可通过 [STS 服务](https://console.cloud.tencent.com/cam/capi) 获取 |
-| `TCB_REGION` | 腾讯云地域，如 `ap-shanghai`（可选） | 不设则使用 SDK 默认 |
-| `TCB_SITE` | 站点：`domestic`（国内站）或 `intl`（国际站）（可选） | 不设则按 `region` 反查映射表；`ap-singapore` 歧义时默认 `intl`。国内站新加坡用户必须显式设 `domestic`，避免被误判为国际站 |
-| `TCB_AUTH_OAUTH_ENDPOINT` | 自定义 device-code 登录 endpoint（可选，推荐作为主要覆盖项） | 不设则使用默认登录 endpoint |
-| `TCB_AUTH_CLIENT_ID` | 自定义 device-code 登录 `client_id`（高级可选） | 不设则使用默认 `client_id` |
-| `TCB_AUTH_OAUTH_CUSTOM` | 自定义 endpoint 返回格式开关（高级可选） | 未配置 endpoint 时默认 `false`；配置 endpoint 后默认 `true` |
-| `TCB_TCR_USERNAME` | 个人版 TCR 推送用户名，即腾讯云账号 UIN（可选） | 仅 HTTP 云函数个人版镜像构建（`imageType=personal` 的 `local` / `cloud`）需要；与 cloudbaserc 的 `{{env.TCB_TCR_USERNAME}}` 同名，CLI 与 MCP 共用一套变量 |
-| `TCB_TCR_PASSWORD` | 个人版 TCR 固定密码（可选） | 同上；配置后无需在工具参数中传递凭证，避免密码进入 AI 上下文。[获取个人版镜像仓库密码](https://console.cloud.tencent.com/tcr/token) |
-| `INTEGRATION_IDE` | 当前 IDE 标识（如 `Cursor`、`CodeBuddy`）（可选） | 用于日志与能力适配 |
-| `CLOUDBASE_MCP_PLUGINS_ENABLED` | 启用的插件列表，逗号分隔（可选） | 不设则使用默认插件集 |
-| `CLOUDBASE_MCP_PLUGINS_DISABLED` | 禁用的插件列表，逗号分隔（可选） | 与 URL 参数 `disable_plugins` 效果类似 |
-| `WORKSPACE_FOLDER_PATHS` / `PROJECT_ROOT` | 项目根目录（下载模板、远程文件等）（可选） | 不设则使用当前工作目录；CI 下可用 `GITHUB_WORKSPACE` 等 |
-| `CLOUDBASE_MCP_TELEMETRY_DISABLED` | 设为 `true` 关闭遥测上报（可选） | 默认上报 |
-| `CLOUDBASE_LOG_DIR` | 日志目录（可选） | 默认 `~/.cloudbase-mcp/logs` |
-
-### 登录相关环境变量怎么选
-
-大多数情况下，**这 3 个变量都不用配**：`TCB_AUTH_OAUTH_ENDPOINT`、`TCB_AUTH_CLIENT_ID`、`TCB_AUTH_OAUTH_CUSTOM`。
-
-只有在你们要接入企业/平台自己的登录中间层时，才需要配置。可参考官方文档 [无 CAM 子账号的隔离方案](https://docs.cloudbase.net/quick-start/enterprise-ai-platform-no-cam)。
-
-- 个人开发、普通团队：不用配，直接走默认 device-code 登录
-- 服务器、CI/CD、MCP Server、AI Agent：推荐配 `CLOUDBASE_API_KEY` + `CLOUDBASE_ENV_ID`（环境级长期凭证，自动换取临时密钥）
-- 传统密钥方式：配 `TENCENTCLOUD_SECRETID`、`TENCENTCLOUD_SECRETKEY`、`TENCENTCLOUD_SESSIONTOKEN`、`CLOUDBASE_ENV_ID`
-- 企业自建登录中间层：通常只先配 `TCB_AUTH_OAUTH_ENDPOINT`
-
-#### 凭证优先级
-
-当多种凭证同时存在时，MCP 按以下优先级选择：
-
-1. `CLOUDBASE_API_KEY` + `CLOUDBASE_ENV_ID` — CloudBase 环境级 API Key（若未设置 `CLOUDBASE_API_KEY`，兼容读取 `CLOUDBASE_APIKEY`）
-2. `TENCENTCLOUD_SECRETID` + `TENCENTCLOUD_SECRETKEY` — 腾讯云永久/临时密钥
-3. 本地存储的 Device Flow 登录凭证（`~/.config/.cloudbase/auth.json`）
-
-#### 登录模式与查询范围
-
-两种登录的**可见环境范围不同**，这是凭据权限边界，不是环境丢失：
-
-| 登录方式 | `auth(status)` 字段 | 能看到什么 |
-|----------|---------------------|------------|
-| 账号级（device / web / 腾讯云 SecretId） | `credential_scope=account` | 当前地域下账号有权的环境；其他地域需显式查询 |
-| 环境级 API Key（`CLOUDBASE_API_KEY` + `CLOUDBASE_ENV_ID`） | `credential_scope=single_env` | **仅绑定的那一个 envId**，无法列出其他环境或其他地域 |
-
-跨地域查询（仅账号级凭据）：
-
-- MCP：`queryEnv(action="list", region="ap-singapore")`（`envQuery` 同义）
-- MCP 管控面：`callCloudApi(service="tcb", action="DescribeEnvs", region="ap-singapore")`。**不要把 `Region` 放进 `params`**（会报 `The parameter Region is not recognized`）
-- CLI：`tcb env list -r ap-singapore --json`
-
-绑定非当前地域环境：账号级登录下 `auth(action="set_env", envId="<EnvId>")` 不要求 envId 出现在当前地域候选列表中；环境级 API Key 不能改绑到其他 envId。
-
-#### API Key 模式示例
-
-```json
-{
-  "mcpServers": {
-    "cloudbase": {
-      "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
-      "env": {
-        "CLOUDBASE_API_KEY": "<your-api-key>",
-        "CLOUDBASE_ENV_ID": "<your-env-id>"
-      }
-    }
-  }
-}
-```
-
-> 💡 API Key 可在 [云开发控制台](https://tcb.cloud.tencent.com/dev) 的环境设置中创建和管理。
->
-> ⚠️ API Key 具有环境级别的操作权限，请妥善保管，建议通过环境变量注入，不要硬编码在配置文件中。
-
-最小示例：
-
-```bash
-TCB_AUTH_OAUTH_ENDPOINT=https://auth.your-domain.com/oauth
-```
-
-补充说明：
-
-- `TCB_AUTH_CLIENT_ID`：只有自定义登录服务要求固定 `client_id` 时才配
-- `TCB_AUTH_OAUTH_CUSTOM`：配置自定义 `TCB_AUTH_OAUTH_ENDPOINT` 时应按 `true` 使用；现在默认也会自动按 `true` 处理
+不确定就先用**远端模式**：只填一个地址，支持 OAuth 的客户端会在浏览器里带你完成登录授权。
 
 ---
 
-## 站点与地域（site / region）
+## 两种方式怎么选
 
-CloudBase 有**国内站**（`domestic`，cloud.tencent.com）与**国际站**（`intl`，tencentcloud.com）两套独立的账号体系与登录域名。MCP 用 `site` 决定登录域名/凭证槽位，用 `region` 决定 API 路由目标，两者解耦。
+| 你的情况 | 推荐方式 | 说明 |
+|----------|----------|------|
+| 想最快跑通、不想在本机维护 Node 环境 | **远端模式** · 腾讯云提供的服务 | 只需一个地址，交互式客户端自动完成授权 |
+| 团队统一接入 | **远端模式** · 腾讯云提供的服务 | 免运维，能力随服务端统一升级，各端无需跟进版本 |
+| 云端 Agent / 平台集成（调用方不在开发者本机） | **远端模式** · 腾讯云提供的服务 | 调用方在云端，只能通过 HTTP 接入 |
+| CI/CD、脚本化、无人值守 | **远端模式** + 静态凭证 | 无法交互授权时用密钥，见 [鉴权方式](#remote-auth)；本地模式亦可（`npx` + `CLOUDBASE_API_KEY`） |
+| 需要上传本地文件、把模板下载到本机 | **本地模式**（`npx`） | 涉及本机文件系统与本地进程的工具只在本地模式注册 |
+| 已有自己的服务器，需接入内网或自管凭证 | **远端模式** · 在自有服务器自建 | 必须开启 Cloud Mode |
 
-### 解析优先级
+远端模式有条件缺口（涉及本机文件系统的工具不注册），见 [远端模式的能力边界](#remote-mode-capabilities)。推荐它的前提是把缺口说清楚，而不是含糊地都说好。
+
+---
+
+## 站点与地域（site / region） {#site-region}
+
+### 两套独立的账号体系
+
+CloudBase 有**国内站**（`domestic`，`cloud.tencent.com`）与**国际站**（`intl`，`tencentcloud.com`）两套互相独立的账号体系：环境、控制台、API 密钥、登录态都不通用。
+
+**接入前先确认你的环境开在哪个站，再选对应地址。** 选错站点的典型表现是**「登录成功但看不到自己的环境」**，而不是明确的报错。
+
+| | 国内站 | 国际站 |
+|---|---|---|
+| 远端 MCP 地址 | `https://tcb-api.cloud.tencent.com/mcp/v1` | `https://tcb-api.tencentcloud.com/mcp/v1` |
+| 控制台 | [tcb.cloud.tencent.com](https://tcb.cloud.tencent.com/dev) | [tcb.tencentcloud.com](https://tcb.tencentcloud.com/dev) |
+| 默认地域 | `ap-shanghai` | `ap-singapore` |
+| 支持地域 | `ap-shanghai`、`ap-guangzhou`、`ap-singapore` | `ap-singapore` |
+| NoSQL（文档数据库）工具 | 支持 | **暂未提供** |
+
+> **远端模式下站点由域名决定**——用国内站地址就是国内站，用国际站地址就是国际站。不存在「一个域名切两个站」的用法，也不需要额外声明。
+
+### 本地模式怎么定站点 {#local-mode-site}
+
+本地模式没有域名可依据，MCP 按下面的优先级推断站点：
 
 ```
 显式 cloudBaseOptions.site/region
@@ -138,7 +51,7 @@ CloudBase 有**国内站**（`domestic`，cloud.tencent.com）与**国际站**�
   > 全局默认：domestic + ap-shanghai
 ```
 
-### 地域与站点的默认关系
+按 `region` 反查站点时：
 
 | region | 未配 site 时的解析结果 |
 |--------|------------------------|
@@ -217,17 +130,77 @@ CloudBase 有**国内站**（`domestic`，cloud.tencent.com）与**国际站**�
 
 ---
 
-## 托管模式
+## 远端模式（推荐） {#remote-mode}
 
 ### 含义与适用场景
 
-- **含义**：MCP 服务运行在腾讯云上，IDE 通过 HTTP 连接云端服务，无需在本地安装或运行 Node。
-- **优点**：不依赖本机环境，配置好密钥即可使用。
-- **限制**：部分依赖本地文件系统的能力不可用（如本地文件上传、模板下载到本机等）。
+- **含义**：MCP 服务运行在服务端，IDE 通过 HTTP 连接，本机无需安装或运行 Node.js。
+- **适用场景**：快速跑通与团队统一接入；云端 Agent 或平台集成（调用方不在开发者本机）；已有自己的服务器且需要自行掌控部署。
+- **优点**：不依赖本机环境，只填一个地址即可；交互式客户端在浏览器里完成授权，密钥不落配置文件；能力随服务端统一升级，各端无需跟进版本。
+- **限制**：涉及本机文件系统的能力不可用，详见下节。
 
-### 配置示例
+远端服务有两种来源，能力完全一致，区别在由谁运维：
 
-将下面配置中的 `<env_id>`、`<腾讯云 Secret ID>`、`<腾讯云 Secret Key>` 替换为你的环境 ID 和腾讯云 API 密钥：
+- **使用腾讯云提供的 MCP 服务**：免运维，按下面的地址与鉴权方式配置即可，也是绝大多数用户的路径。
+- **在自有服务器自建**：需要自行部署并开启 Cloud Mode，适用于需接入内网或要自管凭证的场景。
+
+### 远端模式的能力边界 {#remote-mode-capabilities}
+
+MCP 服务不在开发者本机，因此**涉及本机文件系统与本地进程的工具不会注册**，调用时直接找不到该工具：
+
+| 工具 | 不可用原因 |
+|------|-----------|
+| `auth` | 登录依赖本地凭证文件的读写 |
+| `manageStorage` | 涉及本地文件上传/下载 |
+| `downloadTemplate` | 下载项目模板到本机 |
+| `manageCloudRun` | 涉及本地服务启动（`action="run"`） |
+| `deployBuild` | 读取本地 `cloudbaserc`，并从当前工作目录构建上传产物 |
+| `deployPlan` | 同上 |
+| `deployApply` | 同上 |
+
+另有一组**动作级限制**——工具本身仍在，但依赖本地文件系统的动作会在调用时返回明确错误：
+
+- `manageFunctions`：涉及本地代码上传的动作
+- `manageApps`：`deployApp` 传入 `filePath` / `localPath` 时不可用，改用 `getUploadUrl` 取预签名 URL、上传后带 `cosTimestamp` 调用
+- `manageStorage` 中读写本地文件的动作
+
+此外还有一项**站点级能力差异**：**国际站暂未提供 NoSQL（文档数据库）相关工具**，见 [站点与地域](#site-region)。
+
+这套裁剪由 **Cloud Mode** 统一实现。腾讯云提供的 MCP 服务已在服务端开启，直接使用即可；在自有服务器部署时需要自行开启（见[在自有服务器自建](#cloud-mode-self-host)）。
+
+### 配置方式一：OAuth 授权（交互式，推荐）
+
+只填地址，**不需要在配置文件里放任何密钥**：
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "type": "http",
+      "url": "https://tcb-api.cloud.tencent.com/mcp/v1"
+    }
+  }
+}
+```
+
+首次连接时客户端会自动完成：动态客户端注册（DCR）→ 打开浏览器登录 → 选择环境并确认授权 → 拿到令牌。
+
+Cursor、VS Code、WorkBuddy 等支持 OAuth 的客户端用这种方式即可。相比把密钥写进配置，它避免了密钥落盘与被误提交的风险。
+
+> 国际站把 `url` 换成 `https://tcb-api.tencentcloud.com/mcp/v1` 即可。
+>
+> ⚠️ 不支持 OAuth 的客户端用这种「只填地址」的写法会返回 `403 Forbidden: Missing credentials`，请改用[配置方式二：静态凭证](#remote-auth)。
+
+### 配置方式二：静态凭证 {#remote-auth}
+
+用于不支持 OAuth 的客户端，以及 CI/CD 等无法交互授权的场景。远端服务通过请求头（header）校验调用方身份，当前支持腾讯云 API 密钥：
+
+| Header | 值 | 获取方式 |
+|--------|-----|---------|
+| `X-TencentCloud-SecretId` | 腾讯云 SecretId | [腾讯云 API 密钥](https://console.cloud.tencent.com/cam/capi) |
+| `X-TencentCloud-SecretKey` | 腾讯云 SecretKey | 同上 |
+
+两个 header 需**成对传入**，缺一不可。将 `<env_id>` 替换为你的环境 ID（在 [云开发控制台](https://tcb.cloud.tencent.com/dev) 查看），完整配置：
 
 ```json
 {
@@ -244,15 +217,22 @@ CloudBase 有**国内站**（`domestic`，cloud.tencent.com）与**国际站**�
 }
 ```
 
-- **环境 ID**：在 [云开发控制台](https://tcb.cloud.tencent.com/dev) 查看。
-- **SecretId / SecretKey**：在 [腾讯云 API 密钥](https://console.cloud.tencent.com/cam/capi) 创建或查看。
+> ⚠️ 这对密钥是**账号级凭证**，权限覆盖整个腾讯云账号，请勿提交到仓库或转发他人；CI 等场景建议通过密钥管理服务注入。
+>
+> 若换成国际站，把 `url` 换成 `https://tcb-api.tencentcloud.com/mcp/v1?env_id=<env_id>`，并使用国际站的密钥。
 
-### 通过 URL 控制插件启用范围（仅托管模式）
+### URL 参数（仅远端模式） {#remote-url-params}
 
-在 `url` 中可通过 query 参数控制插件启用范围：
+远端模式的 MCP 配置没有 `env` 块，所以下面这些都只能通过 URL 参数传入。
 
-- `enable_plugins`：仅启用指定插件，多个插件使用逗号分隔，例如只启用 `env` 和 `database`
-- `disable_plugins`：从默认插件集合中禁用指定插件，多个插件使用逗号分隔，例如禁用 `rag` 和 `env`
+远端 URL 支持的 query 参数只有下面四个，**其余参数会被忽略**：
+
+| 参数 | 是否必填 | 作用 |
+|------|----------|------|
+| `env_id`（或 `envId`） | 使用静态密钥时必填；OAuth 接入时由 token 绑定环境，可省略 | 指定要操作的环境 |
+| `enable_plugins` | 否 | 仅启用指定插件，多个用逗号分隔 |
+| `disable_plugins` | 否 | 从默认插件集合中禁用指定插件，多个用逗号分隔 |
+| `use_internal_endpoint` | 否 | 走内网 endpoint，仅特定部署可用 |
 
 ```
 # 只启用指定插件
@@ -264,38 +244,17 @@ https://tcb-api.cloud.tencent.com/mcp/v1?env_id=YOUR_ENV_ID&disable_plugins=rag,
 
 当前可配置的插件名以 `mcp/src/server.ts` 为准，建议优先使用 canonical 名称：`env`, `database`, `pg_database`, `pg_storage`, `mysql_database`, `functions`, `hosting`, `storage`, `setup`, `rag`, `download`, `gateway`, `cloudrun`, `app-auth`, `permissions`, `logs`, `agents`, `apps`, `capi`, `database-nosql`, `database-sql`, `data-model`。
 
-### 通过 URL 指定站点（site）（仅托管模式）
+> ⚠️ **没有 `site` 参数，也没有 `region` 参数。** 站点由你使用的**域名**决定——用国内站地址就是国内站，即使环境位于 `ap-singapore`；写成 `site=domestic` 不会生效。`region` 则随环境走：OAuth 接入时由 token 绑定的环境决定，需要查询其他地域时在工具调用里传 `region` 参数。
 
-托管模式与本地模式一样区分**国内站**（`domestic`）与**国际站**（`intl`）。可通过 `site` query 参数显式指定站点，用于国内站新加坡地域等 `ap-singapore` 场景的正确路由：
+### 远端模式环境变量说明
 
-- `site=domestic`：国内站（cloud.tencent.com）
-- `site=intl`：国际站（tencentcloud.com）
-- 不传 `site` 时由服务端按环境归属解析；`ap-singapore` 地域国内站与国际站都存在，无法归属时默认按 `intl` 处理
+远端模式下，MCP 服务运行在服务端，环境变量在**服务端**配置。使用腾讯云提供的 MCP 服务时，通过 URL 与 headers 传入 `env_id` 和凭证即可，无需再配置服务端环境变量。
 
-```
-# 国内站新加坡地域：必须显式传 site=domestic，避免被按国际站处理
-https://tcb-api.cloud.tencent.com/mcp/v1?env_id=YOUR_ENV_ID&site=domestic
-```
+若你**自建**远端服务，可参考 [MCP 工具 - 云端 MCP 配置说明](/ai/cloudbase-ai-toolkit/mcp-tools#云端-mcp-配置说明) 中的可选环境变量表（如 `TENCENTCLOUD_SECRETID`、`TENCENTCLOUD_SECRETKEY`、`CLOUDBASE_ENV_ID` 等）；站点同样支持用 `TCB_SITE` 环境变量指定（`domestic` / `intl`），与本地模式行为一致。
 
-国内站新加坡用户（`TCB_REGION` 对应 `ap-singapore`）请务必在托管 URL 中带上 `site=domestic`，否则登录与 NoSQL 工具等能力可能被按国际站处理。
+### 在自有服务器自建（Cloud Mode） {#cloud-mode-self-host}
 
-### 托管模式环境变量说明
-
-托管模式下，MCP 服务运行在云端，环境变量在**服务端**配置。若你自建托管服务，可参考 [MCP 工具 - 云端 MCP 配置说明](/ai/cloudbase-ai-toolkit/mcp-tools#云端-mcp-配置说明) 中的可选环境变量表（如 `TENCENTCLOUD_SECRETID`、`TENCENTCLOUD_SECRETKEY`、`CLOUDBASE_ENV_ID` 等）；站点同样支持用 `TCB_SITE` 环境变量指定（`domestic` / `intl`），与本地模式行为一致。
-
-使用腾讯云提供的托管 MCP 时，通过上述 URL 与 headers 传入 `env_id` 和密钥即可，无需再配置服务端环境变量；如需指定站点，直接在 URL 上加 `site=domestic` 或 `site=intl` 参数（见上文）。
-
----
-
-## 自建服务器部署（Cloud Mode）
-
-### 含义与适用场景
-
-- **含义**：在自有服务器上运行 MCP 服务，通过环境变量启用 Cloud Mode，对外提供 Streamable HTTP 接口。
-- **优点**：完全自主可控的部署方式，可集成到已有基础设施中。
-- **安全机制**：启用 Cloud Mode 后，涉及本地文件系统读写和本地进程启动的工具将被**逐一禁用**（见下方完整列表），确保远程调用方无法通过这些工具操作服务器本地资源。
-
-### 启用方式
+#### 启用方式
 
 通过以下任一方式启用 Cloud Mode（三选一）：
 
@@ -310,21 +269,9 @@ export MCP_CLOUD_MODE=true
 npx @cloudbase/cloudbase-mcp@latest --cloud-mode
 ```
 
-### Cloud Mode 禁用的工具
+启用后对外提供 Streamable HTTP 接口，涉及本地文件系统读写和本地进程启动的工具将被逐一禁用（清单见[远端模式的能力边界](#remote-mode-capabilities)），确保远程调用方无法通过这些工具操作服务器本地资源。
 
-启用 Cloud Mode 后，以下涉及本地文件系统或本地进程的工具将被自动跳过注册：
-
-| 工具名 | 禁用原因 |
-|--------|----------|
-| `downloadTemplate` | 下载项目模板到本地 |
-| `manageCloudRun` | 涉及本地服务启动（`action="run"`） |
-| `manageStorage` | 涉及本地文件上传/下载 |
-| `manageApps` | `deployApp` 读取本地 filePath 上传代码 |
-| `createFunction` | 涉及本地代码上传 |
-| `updateFunctionCode` | 涉及本地代码上传 |
-| `setupEnvironmentId` | 涉及本地配置文件操作 |
-
-### 安全架构说明
+#### 安全架构说明
 
 CloudBase MCP 针对不同部署场景提供分层安全保护：
 
@@ -337,7 +284,7 @@ CloudBase MCP 针对不同部署场景提供分层安全保护：
 └─────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────┐
-│           云端模式 (Cloud Mode)                       │
+│         远端模式 (Remote / Cloud Mode)                │
 │  - 本地文件/进程工具自动禁用                           │
 │  - 三层过滤：服务端注册过滤 + 客户端白名单（双重冗余）  │
 │  - 远程调用方无法操作服务器本地资源                     │
@@ -345,15 +292,132 @@ CloudBase MCP 针对不同部署场景提供分层安全保护：
 └─────────────────────────────────────────────────────┘
 ```
 
-> **重要提示**：本地模式下 `manageCloudRun(action="run")` 等工具是产品的正常功能，等同于开发者在终端执行 `curl` 或 `node app.js`。这些工具仅在开发者本机运行，不存在权限提升风险。如果你需要在远程服务器上部署 MCP 服务并对外提供接口，**务必启用 Cloud Mode**。
+> **重要提示**：本地模式下 `manageCloudRun(action="run")` 等工具是产品的正常功能，等同于开发者在终端执行 `curl` 或 `node app.js`。这些工具仅在开发者本机运行，不存在权限提升风险。如果你需要在远程服务器上部署 MCP 服务并对外提供接口，**务必启用 Cloud Mode**（腾讯云提供的 MCP 服务已默认启用）。
 
-### 部署模式选择建议
+---
 
-| 场景 | 推荐模式 | 说明 |
-|------|---------|------|
-| 个人开发 | 本地模式（`npx`） | 功能最全，无需额外配置 |
-| 团队协作 / 远程服务 | 腾讯云托管模式 | 免运维，自动启用安全保护 |
-| 自建服务器 | Cloud Mode | 务必设置 `CLOUDBASE_MCP_CLOUD_MODE=true` |
+## 本地模式 {#local-mode}
+
+### 含义与适用场景
+
+- **含义**：MCP 服务在你本机通过 `npx` 启动，与 IDE 同机运行。
+- **适用场景**：需要依赖本地文件系统的能力（上传本地代码或目录、把模板下载到本机）；离线或受限网络环境。
+- **优点**：功能最全，包含上传/下载、模板安装等依赖本地文件系统的能力。
+- **要求**：本机已安装 Node.js，且能执行 `npx`。
+
+### 配置示例
+
+在 IDE 的 MCP 配置中添加（以 Cursor / WindSurf 等为例）：
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {}
+    }
+  }
+}
+```
+
+> 💡 本地模式的站点没有域名可依据，国际站用户需在 `env` 中声明 `TCB_SITE=intl`；国内站是默认值，不用写。见[本地模式怎么定站点](#local-mode-site)。
+
+### 本地模式可选环境变量
+
+本地模式下，可通过修改 env 环境变量来控制。以下均为**可选**，不配置时使用默认行为。
+
+| 环境变量 | 说明 | 默认 / 说明 |
+|----------|------|-------------|
+| `CLOUDBASE_API_KEY` | CloudBase 环境级 API Key（推荐用于 CI/CD、MCP Server） | 与 `CLOUDBASE_ENV_ID` 配合使用，优先级高于 `TENCENTCLOUD_*` 密钥；兼容读取 `CLOUDBASE_APIKEY`（与 `@cloudbase/js-sdk` / `@cloudbase/node-sdk` 对齐，优先使用带下划线的 `CLOUDBASE_API_KEY`）；[在控制台创建](https://tcb.cloud.tencent.com/dev) |
+| `CLOUDBASE_ENV_ID` | 云开发环境 ID（可选） | 未设置时首次调用会引导登录并选择环境 |
+| `CLOUDBASE_API_ENDPOINT` | 自定义 API Key 换取凭证的 Endpoint（高级可选） | 不设则使用默认 `https://<envId>.<region>.tcb-api.tencentcloudapi.com` |
+| `TENCENTCLOUD_SECRETID` | 腾讯云 SecretId（可选） | 不设则通过登录引导获取；[获取腾讯云 API 密钥](https://console.cloud.tencent.com/cam/capi) |
+| `TENCENTCLOUD_SECRETKEY` | 腾讯云 SecretKey（可选） | 同上 |
+| `TENCENTCLOUD_SESSIONTOKEN` | 腾讯云临时密钥 Token（可选） | 仅在使用临时密钥时需要，可通过 [STS 服务](https://console.cloud.tencent.com/cam/capi) 获取 |
+| `TCB_REGION` | 腾讯云地域，如 `ap-shanghai`（可选） | 不设则使用 SDK 默认 |
+| `TCB_SITE` | 站点：`domestic`（国内站）或 `intl`（国际站）（可选） | 不设则按 `region` 反查映射表；`ap-singapore` 歧义时默认 `intl`。国内站新加坡用户必须显式设 `domestic`，避免被误判为国际站 |
+| `TCB_AUTH_OAUTH_ENDPOINT` | 自定义 device-code 登录 endpoint（可选，推荐作为主要覆盖项） | 不设则使用默认登录 endpoint |
+| `TCB_AUTH_CLIENT_ID` | 自定义 device-code 登录 `client_id`（高级可选） | 不设则使用默认 `client_id` |
+| `TCB_AUTH_OAUTH_CUSTOM` | 自定义 endpoint 返回格式开关（高级可选） | 未配置 endpoint 时默认 `false`；配置 endpoint 后默认 `true` |
+| `TCB_TCR_USERNAME` | 个人版 TCR 推送用户名，即腾讯云账号 UIN（可选） | 仅 HTTP 云函数个人版镜像构建（`imageType=personal` 的 `local` / `cloud`）需要；与 cloudbaserc 的 `{{env.TCB_TCR_USERNAME}}` 同名，CLI 与 MCP 共用一套变量 |
+| `TCB_TCR_PASSWORD` | 个人版 TCR 固定密码（可选） | 同上；配置后无需在工具参数中传递凭证，避免密码进入 AI 上下文。[获取个人版镜像仓库密码](https://console.cloud.tencent.com/tcr/token) |
+| `INTEGRATION_IDE` | 当前 IDE 标识（如 `Cursor`、`CodeBuddy`）（可选） | 用于日志与能力适配 |
+| `CLOUDBASE_MCP_PLUGINS_ENABLED` | 启用的插件列表，逗号分隔（可选） | 不设则使用默认插件集 |
+| `CLOUDBASE_MCP_PLUGINS_DISABLED` | 禁用的插件列表，逗号分隔（可选） | 与 URL 参数 `disable_plugins` 效果类似 |
+| `WORKSPACE_FOLDER_PATHS` / `PROJECT_ROOT` | 项目根目录（下载模板、远程文件等）（可选） | 不设则使用当前工作目录；CI 下可用 `GITHUB_WORKSPACE` 等 |
+| `CLOUDBASE_MCP_TELEMETRY_DISABLED` | 设为 `true` 关闭遥测上报（可选） | 默认上报 |
+| `CLOUDBASE_LOG_DIR` | 日志目录（可选） | 默认 `~/.cloudbase-mcp/logs` |
+
+### 登录相关环境变量怎么选
+
+大多数情况下，**这 3 个变量都不用配**：`TCB_AUTH_OAUTH_ENDPOINT`、`TCB_AUTH_CLIENT_ID`、`TCB_AUTH_OAUTH_CUSTOM`。
+
+只有在你们要接入企业/平台自己的登录中间层时，才需要配置。可参考官方文档 [无 CAM 子账号的隔离方案](https://docs.cloudbase.net/quick-start/enterprise-ai-platform-no-cam)。
+
+- 个人开发、普通团队：不用配，直接走默认 device-code 登录
+- 服务器、CI/CD、MCP Server、AI Agent：推荐配 `CLOUDBASE_API_KEY` + `CLOUDBASE_ENV_ID`（环境级长期凭证，自动换取临时密钥）
+- 传统密钥方式：配 `TENCENTCLOUD_SECRETID`、`TENCENTCLOUD_SECRETKEY`、`TENCENTCLOUD_SESSIONTOKEN`、`CLOUDBASE_ENV_ID`
+- 企业自建登录中间层：通常只先配 `TCB_AUTH_OAUTH_ENDPOINT`
+
+#### 凭证优先级
+
+当多种凭证同时存在时，MCP 按以下优先级选择：
+
+1. `CLOUDBASE_API_KEY` + `CLOUDBASE_ENV_ID` — CloudBase 环境级 API Key（若未设置 `CLOUDBASE_API_KEY`，兼容读取 `CLOUDBASE_APIKEY`）
+2. `TENCENTCLOUD_SECRETID` + `TENCENTCLOUD_SECRETKEY` — 腾讯云永久/临时密钥
+3. 本地存储的 Device Flow 登录凭证（`~/.config/.cloudbase/auth.json`）
+
+#### 登录模式与查询范围
+
+两种登录的**可见环境范围不同**，这是凭据权限边界，不是环境丢失：
+
+| 登录方式 | `auth(status)` 字段 | 能看到什么 |
+|----------|---------------------|------------|
+| 账号级（device / web / 腾讯云 SecretId） | `credential_scope=account` | 当前地域下账号有权的环境；其他地域需显式查询 |
+| 环境级 API Key（`CLOUDBASE_API_KEY` + `CLOUDBASE_ENV_ID`） | `credential_scope=single_env` | **仅绑定的那一个 envId**，无法列出其他环境或其他地域 |
+
+跨地域查询（仅账号级凭据）：
+
+- MCP：`queryEnv(action="list", region="ap-singapore")`（旧称 `envQuery`）
+- MCP 管控面：`callCloudApi(service="tcb", action="DescribeEnvs", region="ap-singapore")`。**不要把 `Region` 放进 `params`**（会报 `The parameter Region is not recognized`）
+- CLI：`tcb env list -r ap-singapore --json`
+
+绑定非当前地域环境：账号级登录下 `auth(action="set_env", envId="<EnvId>")` 不要求 envId 出现在当前地域候选列表中；环境级 API Key 不能改绑到其他 envId。
+
+#### API Key 模式示例
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "CLOUDBASE_API_KEY": "<your-api-key>",
+        "CLOUDBASE_ENV_ID": "<your-env-id>"
+      }
+    }
+  }
+}
+```
+
+> 💡 API Key 可在 [云开发控制台](https://tcb.cloud.tencent.com/dev) 的环境设置中创建和管理。
+>
+> ⚠️ API Key 具有环境级别的操作权限，请妥善保管，建议通过环境变量注入，不要硬编码在配置文件中。
+
+#### 自定义登录中间层
+
+最小示例：
+
+```bash
+TCB_AUTH_OAUTH_ENDPOINT=https://auth.your-domain.com/oauth
+```
+
+补充说明：
+
+- `TCB_AUTH_CLIENT_ID`：只有自定义登录服务要求固定 `client_id` 时才配
+- `TCB_AUTH_OAUTH_CUSTOM`：配置自定义 `TCB_AUTH_OAUTH_ENDPOINT` 时应按 `true` 使用；现在默认也会自动按 `true` 处理
 
 ---
 

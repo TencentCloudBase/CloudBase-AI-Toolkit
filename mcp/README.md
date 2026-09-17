@@ -67,9 +67,16 @@ You need a [CloudBase environment](https://tcb.cloud.tencent.com/dev) and should
 
 ## Connection modes
 
-**Local** (default): `npx` on your machine—full features, including local filesystem upload/templates. Requires Node.js v18.15.0+.
+**Remote** (recommended): your IDE connects over HTTP to Tencent Cloud MCP. No local Node, and interactive clients finish authorization in the browser.
 
-**Hosted**: IDE connects over HTTP to Tencent Cloud MCP; no local Node. Some local-file features are unavailable.
+| Site | MCP endpoint |
+|------|--------------|
+| China (domestic) | `https://tcb-api.cloud.tencent.com/mcp/v1` |
+| International | `https://tcb-api.tencentcloud.com/mcp/v1` |
+
+Pick the endpoint matching the site your environment lives in—the two sites use separate accounts and credentials.
+
+**Local**: runs `npx @cloudbase/cloudbase-mcp@latest` on your machine—full features, including local filesystem upload and template download. Requires Node.js v18.15.0+.
 
 ```json
 {
@@ -86,21 +93,29 @@ You need a [CloudBase environment](https://tcb.cloud.tencent.com/dev) and should
 }
 ```
 
-Hosted URLs can use `site=domestic` to pin the login site—domestic-site Singapore must pass `site=domestic`—plus `enable_plugins` / `disable_plugins` (comma-separated). Canonical plugin names: see `src/server.ts` in this package (e.g. `env`, `database`, `functions`, `hosting`, `storage`, `pg_database`, `cloudrun`, `logs`).
+Remote auth takes one of two paths:
+
+- **OAuth (interactive, recommended)**: add the URL only—your IDE opens the browser for login and consent, so no keys land in config files.
+- **Static credentials (CI/CD)**: add `env_id` with the `X-TencentCloud-*` headers above.
+
+Remote trade-off: local-filesystem features (upload, template download) are unavailable, and the international site does not yet expose NoSQL tools.
+
+Remote URLs accept `site` for one case only—a China-site environment in `ap-singapore`, where the region is ambiguous—plus `enable_plugins` / `disable_plugins` (comma-separated). Canonical plugin names: see `src/server.ts` in this package (e.g. `env`, `database`, `functions`, `hosting`, `storage`, `pg_database`, `cloudrun`, `logs`).
 
 **Self-hosted Cloud Mode**: set `CLOUDBASE_MCP_CLOUD_MODE=true` (or `MCP_CLOUD_MODE=true`) so local file and process tools are disabled for remote callers.
 
 | Scenario | Suggestion |
 |------|------|
-| Personal | Local `npx` |
-| Team / zero ops | Hosted HTTP |
+| Personal / fastest start | Remote URL (OAuth) |
+| Need local file features | Local `npx` |
+| CI / automation | Remote + static credentials |
 | Self-hosted MCP | Cloud Mode required |
 
 ### Site & region
 
 Set `TCB_SITE` (`domestic` / `intl`) to select the login/credential site, and `TCB_REGION` for API routing. The domestic and international sites are separate account systems. `ap-singapore` exists on both, so **domestic-site Singapore users must set `TCB_SITE=domestic`**; otherwise it defaults to `intl`. Project-level `.cloudbase/project.json` (`{ site, region, envId }`) is also supported.
 
-In **hosted mode** there is no MCP `env` block for HTTP servers, so pass the site as a URL query parameter instead: `https://tcb-api.cloud.tencent.com/mcp/v1?env_id=<env_id>&site=domestic`. Self-hosted Cloud Mode deployments can still use the `TCB_SITE` environment variable.
+In **remote mode** the site is determined by the endpoint host itself—`tcb-api.cloud.tencent.com` is the China site, `tcb-api.tencentcloud.com` is the international site—and there is no `site` query parameter to set. This holds for a China-site environment in `ap-singapore` too: keep using the China-site endpoint. Self-hosted Cloud Mode deployments can still use the `TCB_SITE` environment variable.
 
 ## Capabilities
 

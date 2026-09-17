@@ -5,7 +5,7 @@ import PromptScenarios from './components/PromptScenarios';
 
 通过 Model Context Protocol (MCP) 连接后，你可以在 AI 对话中直接操作 CloudBase 服务，无需在 IDE 和控制台之间切换。
 
-支持**本地模式**（本机 npx 运行）和**托管模式**（HTTP 连接云端）。本地模式可配置环境变量，托管模式可通过 URL 控制插件。详见 [连接方式：本地模式与托管模式](/ai/cloudbase-ai-toolkit/connection-modes)。
+支持**远端模式**（推荐：IDE 通过 HTTP 连接云端，本机无需 Node）和**本地模式**（本机 `npx` 运行，含本地文件能力）。两种方式都区分国内站与国际站，接入前请先确认环境开在哪个站。详见 [连接方式：远端模式与本地模式](/ai/cloudbase-ai-toolkit/connection-modes)。
 
 **最快上手：** 复制下面的 AI Prompt，粘贴到你的 AI IDE。
 
@@ -20,17 +20,17 @@ import PromptScenarios from './components/PromptScenarios';
 在开始配置之前，请确保满足以下条件：
 
 <details>
-<summary><strong>已准备好Node.js 环境和云开发环境</strong></summary>
+<summary><strong>已准备好云开发环境（本地模式还需 Node.js）</strong></summary>
 
-**Node.js 环境：** 确保已安装 Node.js v18.15.0 或更高版本：
+**云开发环境：** 请参考文档 [开通云开发环境](../../quick-start/create-env)。新用户可以免费开通体验。
+
+**Node.js 环境（仅本地模式需要）：** 远端模式不依赖本机 Node，可跳过这一项。本地模式需确保已安装 Node.js v18.15.0 或更高版本：
 
 ```bash
 node --version
 ```
 
 如果未安装，请从 [Node.js 官网](https://nodejs.org/en/download) 下载安装。
-
-**云开发环境：** 请参考文档 [开通云开发环境](../../quick-start/create-env)。新用户可以免费开通体验。
 
 </details>
 
@@ -54,7 +54,10 @@ node --version
 
 AI 会自动引导你完成登录和环境选择。然后你可以开始使用自然语言描述需求，让 AI 帮你开发应用。
 
-> 🌏 **国际站用户**：如果环境开通在腾讯云**国际站**，需先声明站点（`TCB_SITE=intl`），否则登录会走国内站链路、看不到国际站环境。配置方式（MCP `env`、启动参数 `--site`、对话中指定、CLI）见 [连接方式 - 国际站用户](./connection-modes#国际站用户)。
+> 🌏 **站点别选错**：国内站与国际站是两套独立的账号体系，接入地址与登录态都不通用。接错站点的典型表现是**「登录成功但看不到自己的环境」**，而不是明确的报错。
+>
+> - **远端模式**：站点由域名决定 —— 国内站用 `https://tcb-api.cloud.tencent.com/mcp/v1`，国际站用 `https://tcb-api.tencentcloud.com/mcp/v1`。
+> - **本地模式**：没有域名可依据，需显式声明 `TCB_SITE=intl`，否则登录会走国内站链路、看不到国际站环境。配置方式（MCP `env`、启动参数 `--site`、对话中指定、CLI）见 [连接方式 - 国际站用户](./connection-modes#国际站用户)。
 >
 > 国内站在 `ap-singapore` 地域被误判为国际站的场景，见 [常见问题](./faq#国内站新加坡环境被当成国际站了怎么办)。
 

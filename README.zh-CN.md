@@ -119,7 +119,7 @@ npx plugins add TencentCloudBase/cloudbase-plugin
 }
 ```
 
-托管 HTTP、自建 Cloud Mode、按插件裁剪工具集见 [安装与连接](#安装与连接)。
+远端 HTTP、自建 Cloud Mode、按插件裁剪工具集见 [安装与连接](#安装与连接)。
 
 </details>
 
@@ -244,9 +244,16 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
 
 ### MCP 连接模式
 
-**本地模式**（默认）：本机 `npx` 启动，功能最全（含依赖本地文件系统的上传、模板等）。
+**远端模式**（推荐）：IDE 通过 HTTP 连接腾讯云上的 MCP，无需本机 Node；交互式客户端在浏览器里完成授权即可。
 
-**托管模式**：IDE 通过 HTTP 连接腾讯云上的 MCP，无需本机 Node；部分本地文件能力不可用。
+| 站点 | MCP 地址 |
+|------|----------|
+| 国内站 | `https://tcb-api.cloud.tencent.com/mcp/v1` |
+| 国际站 | `https://tcb-api.tencentcloud.com/mcp/v1` |
+
+请选与环境所在站点匹配的地址 —— 两套站点的账号、控制台与凭证互相独立。
+
+**本地模式**：本机 `npx @cloudbase/cloudbase-mcp@latest` 启动，功能最全（含依赖本地文件系统的上传、模板等）。
 
 ```json
 {
@@ -263,16 +270,24 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
 }
 ```
 
-托管 URL 可用 `site`（`domestic` / `intl`）指定登录站点（国内站新加坡需 `site=domestic`），也可用 `enable_plugins` / `disable_plugins` 裁剪工具集。名称以 `mcp/src/server.ts` 为准。
+远端模式有两种鉴权路径：
 
-**云端 Hosted MCP E2E**（官方 SDK 客户端）：`npm run test:hosted-mcp:e2e`，环境变量与双模式说明见 [`tests/hosted-mcp-e2e/README.md`](tests/hosted-mcp-e2e/README.md)。缺凭证时相关用例 skip（退出码 0）。
+- **OAuth（交互式，推荐）**：只填 URL，IDE 会打开浏览器完成登录与授权，配置文件里不需要放密钥。
+- **静态凭证（CI/CD）**：填 `env_id` 并附带上面的 `X-TencentCloud-*` headers。
+
+远端的取舍：依赖本地文件系统的能力（上传、模板下载）不可用；国际站暂未提供 NoSQL（文档数据库）工具。
+
+远端 URL 支持 `env_id`、`enable_plugins`、`disable_plugins`、`use_internal_endpoint` 四个参数；**没有 `site`**——站点由域名决定，国内站环境落在 `ap-singapore` 也一样。插件名称以 `mcp/src/server.ts` 为准。
+
+**云端 MCP E2E**（官方 SDK 客户端）：`npm run test:hosted-mcp:e2e`，环境变量与双模式说明见 [`tests/hosted-mcp-e2e/README.md`](tests/hosted-mcp-e2e/README.md)。缺凭证时相关用例 skip（退出码 0）。
 
 **自建 Cloud Mode**：在自有服务器部署时设置 `CLOUDBASE_MCP_CLOUD_MODE=true`（或 `MCP_CLOUD_MODE=true`），禁用本地文件与本地进程类工具，避免远程调用方操作宿主机。
 
 | 场景 | 建议 |
 |------|------|
-| 个人开发 | 本地 `npx` |
-| 团队 / 免运维 | 腾讯云托管 HTTP |
+| 个人开发 / 最快上手 | 远端 URL（OAuth） |
+| 需要本地文件能力 | 本地 `npx` |
+| CI / 自动化 | 远端 + 静态凭证 |
 | 自建 MCP 服务 | 必须开启 Cloud Mode |
 
 ## 案例
@@ -315,7 +330,7 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
 <details>
 <summary>自建 MCP 服务是否安全？</summary>
 
-本地 `npx` 等同于你在本机执行工具。远程部署务必设置 `CLOUDBASE_MCP_CLOUD_MODE=true`，以禁用本地文件与进程类工具。腾讯云托管 HTTP 模式已带该保护。
+本地 `npx` 等同于你在本机执行工具。远程部署务必设置 `CLOUDBASE_MCP_CLOUD_MODE=true`，以禁用本地文件与进程类工具。腾讯云远端 HTTP 模式已带该保护。
 
 </details>
 

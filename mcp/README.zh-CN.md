@@ -67,9 +67,16 @@ IDE 支持时优先用 Plugin；只需 MCP 配置时用本包即可。
 
 ## 连接方式
 
-**本地**（默认）：本机 `npx`，功能最全（含本地文件上传/模板）。需 Node.js v18.15.0+。
+**远端**（推荐）：IDE 通过 HTTP 连接腾讯云 MCP，无需本机 Node，交互式客户端在浏览器里完成授权。
 
-**托管**：IDE 通过 HTTP 连接腾讯云 MCP，无需本机 Node。部分依赖本地文件的能力不可用。
+| 站点 | MCP 地址 |
+|------|----------|
+| 国内站 | `https://tcb-api.cloud.tencent.com/mcp/v1` |
+| 国际站 | `https://tcb-api.tencentcloud.com/mcp/v1` |
+
+按环境所在站点选择地址——两个站点账号与凭证相互独立。
+
+**本地**：在本机运行 `npx @cloudbase/cloudbase-mcp@latest`，功能最全（含本地文件上传、模板下载）。需 Node.js v18.15.0+。
 
 ```json
 {
@@ -86,15 +93,29 @@ IDE 支持时优先用 Plugin；只需 MCP 配置时用本包即可。
 }
 ```
 
-托管 URL 可用 `site=domestic` 指定登录站点（国内站新加坡需 `site=domestic`），也可用 `enable_plugins` / `disable_plugins`（逗号分隔）裁剪工具集。插件名见本包 `src/server.ts`（如 `env`、`database`、`functions`、`hosting`、`storage`、`pg_database`、`cloudrun`、`logs`）。
+远端模式有两种鉴权路径：
+
+- **OAuth（交互式，推荐）**：只填 URL，IDE 会打开浏览器完成登录与授权，密钥不落配置文件。
+- **静态凭证（CI/CD）**：补上 `env_id` 与上面的 `X-TencentCloud-*` 请求头。
+
+远端的取舍：依赖本地文件系统的能力（上传、模板下载）不可用；国际站暂未提供 NoSQL 相关工具。
+
+远端 URL 可用 `site`，仅用于国内站账号的 `ap-singapore` 环境（该地域两站都有、服务端无法归属），另可用 `enable_plugins` / `disable_plugins`（逗号分隔）裁剪工具集。插件名见本包 `src/server.ts`（如 `env`、`database`、`functions`、`hosting`、`storage`、`pg_database`、`cloudrun`、`logs`）。
 
 **自建 Cloud Mode**：设置 `CLOUDBASE_MCP_CLOUD_MODE=true`（或 `MCP_CLOUD_MODE=true`），禁用面向远程调用方的本地文件/进程类工具。
 
 | 场景 | 建议 |
 |------|------|
-| 个人开发 | 本地 `npx` |
-| 团队 / 免运维 | 托管 HTTP |
+| 个人开发 / 最快上手 | 远端 URL（OAuth） |
+| 需要本地文件能力 | 本地 `npx` |
+| CI / 自动化 | 远端 + 静态凭证 |
 | 自建 MCP | 必须开 Cloud Mode |
+
+### 站点与地域
+
+用 `TCB_SITE`（`domestic` / `intl`）选择登录与凭证站点，`TCB_REGION` 控制 API 走哪个地域。国内站与国际站是两套独立账号体系。`ap-singapore` 在两个站点都存在，所以**国内站新加坡的用户必须显式设置 `TCB_SITE=domestic`**，否则会默认走国际站。也支持项目级 `.cloudbase/project.json`（`{ site, region, envId }`）。
+
+**远端模式下，站点由地址本身决定**——`tcb-api.cloud.tencent.com` 是国内站，`tcb-api.tencentcloud.com` 是国际站，不需要也不应该再选。国内站环境落在 `ap-singapore` 也照样用国内站地址——远端没有 `site` 参数，站点只由域名决定。自建 Cloud Mode 部署仍可用 `TCB_SITE` 环境变量。
 
 ## 能力
 

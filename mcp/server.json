@@ -39,20 +39,45 @@
       "headers": [
         {
           "name": "X-TencentCloud-SecretId",
-          "description": "Tencent Cloud SecretId for hosted MCP.",
-          "isRequired": true,
+          "description": "Tencent Cloud SecretId for the China site. Optional: interactive clients can authorize via OAuth instead of static credentials.",
+          "isRequired": false,
           "isSecret": true
         },
         {
           "name": "X-TencentCloud-SecretKey",
-          "description": "Tencent Cloud SecretKey for hosted MCP.",
-          "isRequired": true,
+          "description": "Tencent Cloud SecretKey for the China site. Optional: interactive clients can authorize via OAuth instead of static credentials.",
+          "isRequired": false,
           "isSecret": true
         }
       ],
       "variables": {
         "env_id": {
-          "description": "CloudBase environment ID",
+          "description": "CloudBase environment ID on the China site",
+          "isRequired": true,
+          "format": "string"
+        }
+      }
+    },
+    {
+      "type": "streamable-http",
+      "url": "https://tcb-api.tencentcloud.com/mcp/v1?env_id={env_id}",
+      "headers": [
+        {
+          "name": "X-TencentCloud-SecretId",
+          "description": "Tencent Cloud SecretId for the international site. Optional: interactive clients can authorize via OAuth instead of static credentials.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "X-TencentCloud-SecretKey",
+          "description": "Tencent Cloud SecretKey for the international site. Optional: interactive clients can authorize via OAuth instead of static credentials.",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ],
+      "variables": {
+        "env_id": {
+          "description": "CloudBase environment ID on the international site",
           "isRequired": true,
           "format": "string"
         }
