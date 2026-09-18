@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-09-17 02:52:49
+最近更新时间：2026-09-18 01:58:39
 
 -   微信扫一扫 
 -   QQ
@@ -28,8 +28,6 @@ _我的收藏_
 -   [日志监控相关接口](#.E6.97.A5.E5.BF.97.E7.9B.91.E6.8E.A7.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "日志监控相关接口")
 -   [SQL型云数据库相关接口](#SQL.E5.9E.8B.E4.BA.91.E6.95.B0.E6.8D.AE.E5.BA.93.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "SQL型云数据库相关接口")
 -   [云函数相关接口](#.E4.BA.91.E5.87.BD.E6.95.B0.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "云函数相关接口")
--   [tcb相关接口](#tcb.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "tcb相关接口")
--   [管控相关接口](#.E7.AE.A1.E6.8E.A7.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "管控相关接口")
 
 ## 环境相关接口
 
@@ -62,6 +60,10 @@ _我的收藏_
 | [AssumeRoleForAllocatedEnv](/document/api/876/131593) | 为环境池里的环境申请角色临时凭证 | 1000 |
 | [DescribePlatformAccountCircle](/document/api/876/138296) | 查询平台版资源计费周期 | 20 |
 | [ModifyEnvExtra](/document/api/876/137192) | 修改环境额外配置 | 20 |
+| [CreatePlatformEnv](/document/api/876/138302) | 创建平台版套餐环境 | 20 |
+| [DestroyPlatformEnv](/document/api/876/138297) | 删除平台版环境 | 20 |
+| [DescribePlatforms](/document/api/876/138298) | 查询平台版资源信息 | 20 |
+| [ModifyPlatformEnv](/document/api/876/138295) | 修改平台版环境信息 | 20 |
 
 ## 用户权限相关接口
 
@@ -115,6 +117,9 @@ _我的收藏_
 | [DescribeCreditsUsage](/document/api/876/132935) | 获取资源点用量 | 20 |
 | [DescribeCreditsUsageDetail](/document/api/876/132934) | 获取资源点用量明细 | 20 |
 | [DescribeEnvPlans](/document/api/876/133103) | 查询环境套餐信息 | 20 |
+| [DescribePlatformCreditsUsage](/document/api/876/138301) | 获取平台版资源点用量 | 20 |
+| [DescribePlatformCreditsUsageDetail](/document/api/876/138300) | 获取平台版资源点用量明细 | 20 |
+| [DescribePlatformEnvUsage](/document/api/876/138299) | 查询平台版资源用量 | 20 |
 
 ## 其他接口
 
@@ -200,23 +205,6 @@ _我的收藏_
 | [GetFunction](/document/api/876/137948) | 获取云函数详情 | 20 |
 | [DownloadFunction](/document/api/876/137949) | 获取云函数地址并下载 | 20 |
 | [UpdateFunctionCode](/document/api/876/137952) | 更新云函数代码 | 20 |
-
-## tcb相关接口
-
-| 接口名称 | 接口功能 | 频率限制（次/秒） |
-| --- | --- | --- |
-| [DescribePlatformCreditsUsage](/document/api/876/138301) | 获取平台版资源点用量 | 20 |
-| [DescribePlatformCreditsUsageDetail](/document/api/876/138300) | 获取平台版资源点用量明细 | 20 |
-| [CreatePlatformEnv](/document/api/876/138302) | 创建平台版套餐环境 | 20 |
-| [DescribePlatformEnvUsage](/document/api/876/138299) | 查询平台版资源用量 | 20 |
-| [DescribePlatforms](/document/api/876/138298) | 查询平台版资源信息 | 20 |
-| [DestroyPlatformEnv](/document/api/876/138297) | 删除平台版环境 | 20 |
-
-## 管控相关接口
-
-| 接口名称 | 接口功能 | 频率限制（次/秒） |
-| --- | --- | --- |
-| [ModifyPlatformEnv](/document/api/876/138295) | 修改平台版环境信息 | 20 |
 
 > 注意：
 > 

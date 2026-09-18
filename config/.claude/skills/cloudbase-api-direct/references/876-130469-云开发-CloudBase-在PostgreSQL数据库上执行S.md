@@ -2,7 +2,7 @@
 
 ## 在PostgreSQL数据库上执行SQL查询
 
-最近更新时间：2026-09-02 01:52:04
+最近更新时间：2026-09-18 01:58:35
 
 -   微信扫一扫 
 -   QQ
@@ -166,6 +166,7 @@ X-TC-Action: ExecutePGSql
 | 错误码 | 描述 |
 | --- | --- |
 | FailedOperation.InstanceStatusConflict | Instance status does not match the required status for this operation. |
+| FailedOperation.OperationTimeout | 操作超时 |
 | FailedOperation.PGConnectError | Failed to connect to PostgreSQL instance. |
 | FailedOperation.PGExecuteSqlError | Execute SQL error. |
 | FailedOperation.PGResultTooLarge | 返回结果超出限制 |
