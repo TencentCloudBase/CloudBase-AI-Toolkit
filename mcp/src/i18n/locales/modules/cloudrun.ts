@@ -53,6 +53,10 @@ export const cloudrun = defineModule(
       "请设置 force: true 以确认删除服务。该操作不可撤销。",
     "error.serverNameRequired":
       "{action} 操作需要提供 detailServerName 或 serverName",
+    "error.manageServerNameRequired":
+      "{action} 操作需要提供 serverName（字母开头，仅含字母、数字、连字符、下划线，3-45 位；initEnv 不需要该参数）",
+    "error.serverNameOutsideTargetPath":
+      "serverName 必须解析为 targetPath 的直接子目录，已拒绝执行：{serverName} → {targetPath}",
     "error.provideServerName": "请提供 detailServerName 或 serverName。",
     "error.serviceNotFound": "服务 '{serverName}' 不存在",
     "error.serviceNotFoundRetry": "请检查服务名后重试。",
@@ -406,6 +410,10 @@ export const cloudrun = defineModule(
       "Please set force: true to confirm deletion of the service. This action cannot be undone.",
     "error.serverNameRequired":
       "detailServerName or serverName is required for {action} action",
+    "error.manageServerNameRequired":
+      "serverName is required for the {action} action (start with a letter; letters, digits, hyphens and underscores only; 3-45 characters; initEnv does not take one)",
+    "error.serverNameOutsideTargetPath":
+      "serverName must resolve to a direct child of targetPath; refused: {serverName} → {targetPath}",
     "error.provideServerName":
       "Please provide detailServerName or serverName.",
     "error.serviceNotFound": "Service '{serverName}' not found",

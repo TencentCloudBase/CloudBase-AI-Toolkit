@@ -2175,7 +2175,6 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "serverName",
       type: "string",
-      required: true,
       description: `云托管服务名称，用于标识和管理服务。命名规则：支持大小写字母、数字、连字符和下划线，必须以字母开头，长度3-45个字符。在init操作中会作为在targetPath下创建的子目录名，在其他操作中作为目标服务名。initEnv 操作不需要此参数`,
     },
     {

@@ -105,10 +105,21 @@ const DEFAULT_INIT_TEMPLATE = "helloworld";
  */
 const CLOUDRUN_SERVER_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{2,44}$/;
 
+/**
+ * `initEnv` provisions the environment rather than a service, so it is the single manage action that
+ * never reads `serverName` — its own parameter description says so. Presence is enforced in the
+ * handler for every action not listed here, which also keeps a newly added action from silently
+ * receiving `undefined`.
+ */
+const CLOUDRUN_MANAGE_ACTIONS_WITHOUT_SERVER_NAME = new Set(['initEnv']);
+
 // Input schema for manageCloudRun tool
 const ManageCloudRunInputSchema = {
   action: z.enum(['init', 'download', 'run', 'deploy', 'delete', 'createAgent', 'updateConfig', 'initEnv', 'traffic']).describe('cloudrun.schema.manage.action'),
-  serverName: z.string().regex(CLOUDRUN_SERVER_NAME_PATTERN).describe('cloudrun.schema.manage.serverName'),
+  // Optional so that `initEnv` can be called the way it is documented (envId only) instead of forcing
+  // callers to invent a placeholder name. The pattern still applies whenever a value is present; the
+  // handler fails closed on a missing value for every action that actually uses it.
+  serverName: z.string().regex(CLOUDRUN_SERVER_NAME_PATTERN).optional().describe('cloudrun.schema.manage.serverName'),
 
   // Traffic management operation parameters (action=traffic)
   trafficOp: z.enum(['set', 'promote', 'rollback']).optional().describe('cloudrun.schema.manage.trafficOp'),
@@ -217,6 +228,11 @@ type queryCloudRunInput = {
 
 type ManageCloudRunInput = {
   action: 'init' | 'download' | 'run' | 'deploy' | 'delete' | 'createAgent' | 'updateConfig' | 'initEnv' | 'traffic';
+  /**
+   * Required by every action except `initEnv`. The schema types it as optional (initEnv takes no
+   * service name), so the handler enforces presence before any branch reads it — see the guard at the
+   * top of the manage handler.
+   */
   serverName: string;
   targetPath?: string;
   imageUrl?: string;
@@ -312,6 +328,31 @@ function validateAndNormalizePath(inputPath: string): string {
   // allowed — the user own the machine and the path is explicitly absolute.
 
   return normalizedPath;
+}
+
+/**
+ * Resolve `<targetPath>/<serverName>` and refuse anything that is not a direct child of `targetPath`.
+ *
+ * `CLOUDRUN_SERVER_NAME_PATTERN` already rejects separators and dots, so a well-formed name cannot
+ * escape — this is the second line at the sink, where the name becomes a local directory: `init` and
+ * `download` hand it to the Manager SDK (which resolves it against `targetPath` and extracts the
+ * downloaded archive there), and `createAgent` writes a project skeleton into it. Widening the naming
+ * rule later must not be able to re-open traversal, and callers take the resolved path from here
+ * instead of re-joining the name themselves.
+ *
+ * Exported for tests: the schema rejects the hostile inputs, so containment is exercised directly.
+ */
+export function resolveCloudRunProjectDir(targetPath: string, serverName: string): string {
+  const base = path.resolve(targetPath);
+  const projectDir = path.resolve(base, serverName);
+  const relative = path.relative(base, projectDir);
+  // One segment, directly under `targetPath`: the basename equality rejects a value carrying
+  // separators ('.', '/tmp/x', 'a/../b'), and the relative check rejects everything that leaves `base`.
+  const isSingleSegment = path.basename(projectDir) === serverName;
+  if (!isSingleSegment || !relative || relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(t("cloudrun.error.serverNameOutsideTargetPath", { serverName, targetPath }));
+  }
+  return projectDir;
 }
 
 export function buildManageCloudRunErrorMessage(action: ManageCloudRunInput["action"] | string, serverName: string, error: unknown): string {
@@ -1823,6 +1864,14 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
     },
     async (args: ManageCloudRunInput) => {
       const input = args;
+
+      // Presence guard for the parameter the schema leaves optional. Checked before any credential or
+      // network work, so a missing name fails closed here instead of reaching a path join or a cloud
+      // call as `undefined`.
+      if (!CLOUDRUN_MANAGE_ACTIONS_WITHOUT_SERVER_NAME.has(input.action) && !input.serverName) {
+        throw new Error(t("cloudrun.error.manageServerNameRequired", { action: input.action }));
+      }
+
       const manager = await getManager();
 
       if (!manager) {
@@ -2079,7 +2128,7 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
             });
 
             // Create project directory
-            const projectDir = path.join(targetPath, input.serverName);
+            const projectDir = resolveCloudRunProjectDir(targetPath, input.serverName);
             if (!fs.existsSync(projectDir)) {
               fs.mkdirSync(projectDir, { recursive: true });
             }
@@ -2872,6 +2921,9 @@ for await (let x of res.textStream) {
               throw new Error(t("cloudrun.error.targetPathRequired", { action: "download" }));
             }
 
+            // The SDK extracts into <targetPath>/<serverName>; check that destination at the sink too.
+            resolveCloudRunProjectDir(targetPath, input.serverName);
+
             const result = await cloudrunService.download({
               serverName: input.serverName,
               targetPath: targetPath,
@@ -2954,6 +3006,8 @@ for await (let x of res.textStream) {
               throw new Error(t("cloudrun.error.targetPathRequired", { action: "init" }));
             }
 
+            const resolvedProjectDir = resolveCloudRunProjectDir(targetPath, input.serverName);
+
             const result = await cloudrunService.init({
               serverName: input.serverName,
               targetPath: targetPath,
@@ -2962,7 +3016,7 @@ for await (let x of res.textStream) {
 
             // Generate cloudbaserc.json configuration file
             const currentEnvId = await getEnvId(cloudBaseOptions);
-            const cloudbasercPath = path.join(targetPath, input.serverName, 'cloudbaserc.json');
+            const cloudbasercPath = path.join(resolvedProjectDir, 'cloudbaserc.json');
             const cloudbasercContent = {
               envId: currentEnvId,
               cloudrun: {
@@ -2986,7 +3040,7 @@ for await (let x of res.textStream) {
                       serviceName: input.serverName,
                       template: input.template,
                       initPath: targetPath,
-                      projectDir: result.projectDir || path.join(targetPath, input.serverName),
+                      projectDir: result.projectDir || resolvedProjectDir,
                       cloudbasercGenerated: true
                     },
                     message: t("cloudrun.init.message", { serverName: input.serverName, template: input.template ?? DEFAULT_INIT_TEMPLATE, targetPath })
