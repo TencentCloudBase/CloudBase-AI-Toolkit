@@ -1,6 +1,6 @@
 {
   "name": "cloudbase-webdev-expert",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "CloudBase Web application expert: builds and deploys full-stack web apps — frontend hosting, PostgreSQL, RLS row-level security, cloud functions, and AI/LLM integration — for non-developers building internal tools and teams shipping SaaS MVPs.",
   "author": {
     "name": "booker",
@@ -29,6 +29,11 @@
   "defaultInitPrompt": {
     "zh": "帮我搭一个客户管理（CRM）：记录客户、跟进和商机，销售只能看自己的客户，管理员能看全部",
     "en": "Build a CRM: track customers, follow-ups, and deals; sales reps see only their own customers, admins see everything."
+  },
+  "dependencies": {
+    "connectors": [
+      "cloudbase"
+    ]
   },
   "plugin": "cloudbase-webdev-expert",
   "tags": [

@@ -7,7 +7,7 @@ export const cloudrun = defineModule(
       "查询云托管服务信息，支持获取服务列表、查询服务详情、获取可用模板列表、获取构建日志（getDeployLog，仅云端源码构建/依赖 CODING）、获取运行日志（getProcessLog，镜像与源码部署均可/不依赖 CODING）、获取部署记录以及查询环境云托管开通状态（envStatus）。返回的服务信息包括服务名称、状态、访问类型、配置详情以及最近部署上下文。",
     "manage.title": "管理 CloudRun 服务",
     "manage.description":
-      "管理云托管服务，按开发顺序支持：开通云托管环境（initEnv）、初始化项目（可从模板开始，模板列表可通过 queryCloudRun 查询）、下载服务代码、本地运行（仅函数型服务）、部署代码、仅更新配置（updateConfig，无需重新上传代码）、删除服务。deploy 支持两种方式：1) 源码构建（传入 targetPath，本地代码打包上传，默认路径）；2) 已有镜像部署（传入 imageUrl，如 ccr.ccs.tencentyun.com/ns/img:v1，走 DeployType=image 容器型部署，targetPath 可省略）。deploy 语义为「触发部署 + 轻量等待任务注册」（最多约 45s）。源码构建返回 buildId，用 getDeployLog 轮询构建进度后再 getProcessLog；镜像部署（imageUrl）BuildId 常为 0，跳过 getDeployLog，返回 runId/next_step 引导 getProcessLog（或先 getDeployRecords 取 RunId）。若用户明确指定镜像或无需重新构建，必须传 imageUrl，不要仅因本地有源码目录就回退到源码构建。deploy 对已存在服务会先读取远程配置再合并（保留 VpcConf/EnvParams/OpenAccessTypes）。updateConfig 对齐控制台服务设置页。删除操作需要确认，建议设置force=true。新环境首次部署前若提示未开通云托管，先调用 initEnv 开通（异步、幂等）。",
+      "管理云托管服务，按开发顺序支持：开通云托管环境（initEnv）、初始化项目（可从模板开始，模板列表可通过 queryCloudRun 查询）、下载服务代码、本地运行（仅函数型服务）、部署代码、仅更新配置（updateConfig，无需重新上传代码）、删除服务。deploy 支持两种方式：1) 源码构建（传入 targetPath，本地代码打包上传，默认路径）；2) 已有镜像部署（传入 imageUrl，如 ccr.ccs.tencentyun.com/ns/img:v1，走 DeployType=image 容器型部署，targetPath 可省略）。deploy 语义为「触发部署 + 轻量等待任务注册」（最多约 45s；不需要 buildId 时可传 waitRegistration=false 跳过等待）。源码构建返回 buildId，用 getDeployLog 轮询构建进度后再 getProcessLog；镜像部署（imageUrl）BuildId 常为 0，跳过 getDeployLog，返回 runId/next_step 引导 getProcessLog（或先 getDeployRecords 取 RunId）。若用户明确指定镜像或无需重新构建，必须传 imageUrl，不要仅因本地有源码目录就回退到源码构建。deploy 对已存在服务会先读取远程配置再合并（保留 VpcConf/EnvParams/OpenAccessTypes）。updateConfig 对齐控制台服务设置页。删除操作需要确认，建议设置force=true。新环境首次部署前若提示未开通云托管，先调用 initEnv 开通（异步、幂等）。",
 
     "error.managerInitFailed":
       "CloudBase Manager 初始化失败，请检查凭据与环境配置。",
@@ -29,7 +29,7 @@ export const cloudrun = defineModule(
     "error.deployTaskRunning":
       "服务 `{serverName}` 当前已有部署任务在执行，请等待现有任务完成后再重试。",
     "error.deployTaskRunningForce":
-      "如果你确认要覆盖当前流程，可在合适时机使用 `force=true` 再次发起。",
+      "注意：`force=true` 仅跳过本工具的确认提示，不会取消或覆盖平台上的发布任务。请先用 queryCloudRun(action=\"getManageTask\", serverName=\"{serverName}\") 确认任务真实状态：若任务已结束却仍报此错，或任务长时间停在非终态，请携带该输出联系 CloudBase 平台排查该环境的发布任务。",
     "error.vpcRequired":
       "CreateCloudRunServer 需要有效 VPC：请传 serverConfig.VpcConf（VpcId+SubnetId），或在 initEnv 时传入 vpcId/subnetIds（环境开通后 deploy 会自动从 EnvBaseInfo 回填）。若平台拒绝系统创建网络，必须指定上海地域 VPC。",
     "error.genericRetry": "请检查服务状态、部署参数和目标目录后重试。",
@@ -87,6 +87,8 @@ export const cloudrun = defineModule(
       "已获取 RunId='{runId}' 的运行日志（getProcessLog=运行日志；getDeployLog=构建日志，且仅云端构建/依赖 CODING）",
     "deployRecords.message":
       "已获取服务 '{serverName}' 的 {count} 条部署记录",
+    "manageTask.message":
+      "服务 '{serverName}' 的发布任务：TaskId={taskId}，TaskStatus={taskStatus}，最新版本状态={deployStatus}。若 TaskStatus 长时间不变、或版本长时间停在 creating，请用 queryCloudRun(action=\"getProcessLog\") 查看部署阶段日志。",
 
     "envStatus.unopened":
       "环境 {envId} 尚未开通云托管。请先调用 manageCloudRun(action=\"initEnv\", envId=\"{envId}\") 开通（异步、幂等），或前往控制台 环境 → 云托管 → 开通；Status=normal 后即可 deploy。",
@@ -186,7 +188,7 @@ export const cloudrun = defineModule(
     "nextStep.sourceNoBuildId":
       "BuildId 尚未就绪；可省略 buildId 以使用最近一次部署记录。构建完成后用 getProcessLog 查看运行日志。",
     "nextStep.sourceTimeout":
-      "任务注册等待超时；请稍候重试 getDeployLog，或打开 consoleUrl 查看。构建完成后用 getProcessLog 查看运行日志。",
+      "任务注册尚未就绪（等待超时，或调用时指定了 waitRegistration=false）；可省略 buildId 直接调 getDeployLog 使用最近一次部署记录，或用 queryCloudRun(action=\"getManageTask\") 查询发布任务状态。构建完成后用 getProcessLog 查看运行日志。",
 
     "progress.imageWithRunId":
       " 镜像部署：请用 queryCloudRun(action=\"getProcessLog\", detailServerName=\"{serverName}\", runId=\"{runId}\") 获取运行/部署步骤日志（跳过 getDeployLog）。",
@@ -203,7 +205,7 @@ export const cloudrun = defineModule(
 
     // Input schema parameter descriptions
     "schema.query.action":
-      "查询操作类型：list=获取云托管服务列表（支持分页和筛选），detail=查询指定服务的详细信息（包含服务配置和最新部署状态），templates=获取可用的项目模板列表（用于初始化新项目），getDeployLog=获取构建日志（仅云端源码构建有意义，走 CODING/DescribeCloudRunBuildLog；已有镜像部署无构建过程；未登录 CODING 的账号会报错），getProcessLog=获取运行日志（部署阶段步骤+容器启动/运行日志，走 tcbr/DescribeCloudRunProcessLog；镜像部署与源码构建均可用，不依赖 CODING；RunId 来自 detail/getDeployRecords 的 latestDeploy.RunId），getDeployRecords=获取指定服务的部署记录列表（按部署时间倒序，含 BuildId/RunId/FlowRatio/Status 等字段，用于查看历史发布与回滚上下文），envStatus=查询当前环境云托管是否已开通及开通状态（Status=creating开通中/normal已开通），用于initEnv之后轮询进度或deploy之前确认环境是否就绪",
+      "查询操作类型：list=获取云托管服务列表（支持分页和筛选），detail=查询指定服务的详细信息（包含服务配置和最新部署状态），templates=获取可用的项目模板列表（用于初始化新项目），getDeployLog=获取构建日志（仅云端源码构建有意义，走 CODING/DescribeCloudRunBuildLog；已有镜像部署无构建过程；未登录 CODING 的账号会报错），getProcessLog=获取运行日志（部署阶段步骤+容器启动/运行日志，走 tcbr/DescribeCloudRunProcessLog；镜像部署与源码构建均可用，不依赖 CODING；RunId 来自 detail/getDeployRecords 的 latestDeploy.RunId），getDeployRecords=获取指定服务的部署记录列表（按部署时间倒序，含 BuildId/RunId/FlowRatio/Status 等字段，用于查看历史发布与回滚上下文），envStatus=查询当前环境云托管是否已开通及开通状态（Status=creating开通中/normal已开通），用于initEnv之后轮询进度或deploy之前确认环境是否就绪，getManageTask=查询指定服务的发布任务状态（走 tcbr/DescribeServerManageTask），返回任务 Id/Status 与最新部署记录状态，用于判断部署是在推进还是已经卡住（例如版本长时间停在 creating）；遇到「已有部署发布任务运行中」时先用它确认任务真实状态，不要盲目重试",
     "schema.query.pageSize":
       "分页大小，控制每页返回的服务数量。取值范围：1-100，默认值：10。建议根据网络性能和显示需求调整",
     "schema.query.pageNum":
@@ -343,6 +345,8 @@ export const cloudrun = defineModule(
     "schema.manage.agentConfig.botTag": "Bot标签，用于生成BotId，不提供时自动生成",
     "schema.manage.agentConfig.description": "Agent描述信息",
     "schema.manage.agentConfig.template": "Agent模板类型，默认为blank（空白模板）",
+    "schema.manage.waitRegistration":
+      "deploy 时是否等待平台登记本次发布（默认 true，最多约 45 秒）。等待是为了拿到后续查询所需的标识（源码构建的 BuildId / 镜像部署的 RunId）；设为 false 时只做一次探测就返回，响应更快，适合不需要 buildId、之后再按需查询发布任务状态的场景",
     "schema.manage.force":
       "强制操作开关，用于跳过确认提示。默认false（需要确认），设置为true时跳过所有确认步骤。删除操作时强烈建议设置为true以避免误操作",
     "schema.manage.serverType":
@@ -354,7 +358,7 @@ export const cloudrun = defineModule(
       "Query CloudRun service info: list services, get service details, list available templates, get build logs (getDeployLog, cloud source builds only / depends on CODING), get runtime logs (getProcessLog, works for both image and source deploys / no CODING needed), get deploy records, and check the env's CloudRun provisioning status (envStatus). Returned info includes service name, status, access type, config details, and latest deploy context.",
     "manage.title": "Manage CloudRun services",
     "manage.description":
-      "Manage CloudRun services, in development order: provision the CloudRun env (initEnv), initialize a project (optionally from a template; list templates via queryCloudRun), download service code, run locally (function services only), deploy code, update config only (updateConfig, no code upload needed), and delete the service. deploy supports two modes: 1) source build (pass targetPath; local code is packaged and uploaded, the default); 2) existing image deploy (pass imageUrl, e.g. ccr.ccs.tencentyun.com/ns/img:v1; DeployType=image container deploy, targetPath optional). deploy means \"trigger deploy + lightweight wait for task registration\" (up to ~45s). Source builds return buildId — poll getDeployLog for build progress, then getProcessLog; image deploys (imageUrl) usually have BuildId=0 — getDeployLog is skipped, and runId/next_step guide you to getProcessLog (or getDeployRecords first for RunId). If the user explicitly specifies an image or no rebuild is needed, you must pass imageUrl instead of falling back to a source build just because a local source directory exists. For existing services, deploy reads the remote config first and merges (preserving VpcConf/EnvParams/OpenAccessTypes). updateConfig aligns with the console service settings page. Deletion requires confirmation; set force=true. If a new env reports CloudRun not provisioned before the first deploy, call initEnv first (async, idempotent).",
+      "Manage CloudRun services, in development order: provision the CloudRun env (initEnv), initialize a project (optionally from a template; list templates via queryCloudRun), download service code, run locally (function services only), deploy code, update config only (updateConfig, no code upload needed), and delete the service. deploy supports two modes: 1) source build (pass targetPath; local code is packaged and uploaded, the default); 2) existing image deploy (pass imageUrl, e.g. ccr.ccs.tencentyun.com/ns/img:v1; DeployType=image container deploy, targetPath optional). deploy means \"trigger deploy + lightweight wait for task registration\" (up to ~45s; pass waitRegistration=false to skip the wait when you don't need the buildId). Source builds return buildId — poll getDeployLog for build progress, then getProcessLog; image deploys (imageUrl) usually have BuildId=0 — getDeployLog is skipped, and runId/next_step guide you to getProcessLog (or getDeployRecords first for RunId). If the user explicitly specifies an image or no rebuild is needed, you must pass imageUrl instead of falling back to a source build just because a local source directory exists. For existing services, deploy reads the remote config first and merges (preserving VpcConf/EnvParams/OpenAccessTypes). updateConfig aligns with the console service settings page. Deletion requires confirmation; set force=true. If a new env reports CloudRun not provisioned before the first deploy, call initEnv first (async, idempotent).",
 
     "error.managerInitFailed":
       "Failed to initialize CloudBase manager. Please check your credentials and environment configuration.",
@@ -376,7 +380,7 @@ export const cloudrun = defineModule(
     "error.deployTaskRunning":
       "Service `{serverName}` already has a deploy task running. Wait for the current task to finish before retrying.",
     "error.deployTaskRunningForce":
-      "If you are sure you want to override the current flow, use `force=true` to retry at an appropriate time.",
+      "Note: `force=true` only skips this tool's confirmation prompt; it does not cancel or override the platform-side deploy task. First confirm the real task state with queryCloudRun(action=\"getManageTask\", serverName=\"{serverName}\"): if the task has already finished but this error persists, or it stays in a non-terminal state for a long time, contact the CloudBase platform with that output to investigate this environment's deploy task.",
     "error.vpcRequired":
       "CreateCloudRunServer requires a valid VPC: pass serverConfig.VpcConf (VpcId+SubnetId), or pass vpcId/subnetIds during initEnv (after provisioning, deploy auto-fills from EnvBaseInfo). If the platform rejects system-created networks, you must specify a Shanghai-region VPC.",
     "error.genericRetry":
@@ -441,6 +445,8 @@ export const cloudrun = defineModule(
       "Retrieved process/runtime log for RunId='{runId}' (getProcessLog=runtime log; getDeployLog=build log, cloud source builds only / depends on CODING)",
     "deployRecords.message":
       "Retrieved {count} deploy records for service '{serverName}'",
+    "manageTask.message":
+      "Deploy task for service '{serverName}': TaskId={taskId}, TaskStatus={taskStatus}, latest version status={deployStatus}. If TaskStatus never changes or the version stays in 'creating', check the deploy-phase log with queryCloudRun(action=\"getProcessLog\").",
 
     "envStatus.unopened":
       "CloudRun is not provisioned for environment {envId}. Call manageCloudRun(action=\"initEnv\", envId=\"{envId}\") first (async, idempotent), or use the console: Environment → CloudRun → Provision; deploy is available once Status=normal.",
@@ -543,7 +549,7 @@ export const cloudrun = defineModule(
     "nextStep.sourceNoBuildId":
       "BuildId not yet available; omit buildId to use the latest deploy record. After build, use getProcessLog for runtime logs.",
     "nextStep.sourceTimeout":
-      "Registration timed out; wait a moment then retry getDeployLog, or open consoleUrl. After build, use getProcessLog for runtime logs.",
+      "Task registration is not ready yet (either the wait timed out, or waitRegistration=false was set); omit buildId to use the latest deploy record with getDeployLog, or check the deploy-task state via queryCloudRun(action=\"getManageTask\"). After build, use getProcessLog for runtime logs.",
 
     "progress.imageWithRunId":
       " Image deploy: use queryCloudRun(action=\"getProcessLog\", detailServerName=\"{serverName}\", runId=\"{runId}\") for runtime/deploy-step logs (skip getDeployLog).",
@@ -560,7 +566,7 @@ export const cloudrun = defineModule(
 
     // Input schema parameter descriptions
     "schema.query.action":
-      "Query action: list=list CloudRun services (supports pagination and filtering), detail=query details of a service (including service config and latest deploy status), templates=list available project templates (for initializing new projects), getDeployLog=get build logs (only meaningful for cloud source builds, backed by CODING/DescribeCloudRunBuildLog; existing-image deploys have no build phase; accounts not logged into CODING get an error), getProcessLog=get runtime logs (deploy-phase steps plus container startup/runtime logs, backed by tcbr/DescribeCloudRunProcessLog; works for both image deploys and source builds and does not depend on CODING; RunId comes from latestDeploy.RunId of detail/getDeployRecords), getDeployRecords=list deploy records of a service (newest first, including BuildId/RunId/FlowRatio/Status, useful for release history and rollback context), envStatus=check whether CloudRun is provisioned for the current env and its status (Status=creating provisioning/normal provisioned), used to poll progress after initEnv or to confirm readiness before deploy",
+      "Query action: list=list CloudRun services (supports pagination and filtering), detail=query details of a service (including service config and latest deploy status), templates=list available project templates (for initializing new projects), getDeployLog=get build logs (only meaningful for cloud source builds, backed by CODING/DescribeCloudRunBuildLog; existing-image deploys have no build phase; accounts not logged into CODING get an error), getProcessLog=get runtime logs (deploy-phase steps plus container startup/runtime logs, backed by tcbr/DescribeCloudRunProcessLog; works for both image deploys and source builds and does not depend on CODING; RunId comes from latestDeploy.RunId of detail/getDeployRecords), getDeployRecords=list deploy records of a service (newest first, including BuildId/RunId/FlowRatio/Status, useful for release history and rollback context), envStatus=check whether CloudRun is provisioned for the current env and its status (Status=creating provisioning/normal provisioned), used to poll progress after initEnv or to confirm readiness before deploy, getManageTask=query the deploy task of a service (backed by tcbr/DescribeServerManageTask); returns the task Id/Status plus the latest deploy record status, used to tell whether a deploy is progressing or stuck (e.g. a version stuck in 'creating'). Use it to confirm the real task state when you hit \"a deploy task is already running\" instead of blindly retrying",
     "schema.query.pageSize":
       "Page size, controlling how many services are returned per page. Range: 1-100, default: 10. Adjust based on network performance and display needs",
     "schema.query.pageNum":
@@ -708,6 +714,8 @@ export const cloudrun = defineModule(
     "schema.manage.agentConfig.description": "Agent description",
     "schema.manage.agentConfig.template":
       "Agent template type, defaults to blank (empty template)",
+    "schema.manage.waitRegistration":
+      "Whether deploy waits for the platform to register this release (default true, up to ~45s). Waiting yields the identifier needed for follow-up queries (BuildId for source builds, RunId for image deploys). Set false to probe once and return immediately - faster, and suitable when you don't need the buildId and will query the deploy-task state on demand instead",
     "schema.manage.force":
       "Force switch, used to skip confirmation prompts. Default false (confirmation required); true skips all confirmation steps. Setting true is strongly recommended for delete operations to avoid accidental interruptions",
     "schema.manage.serverType":
