@@ -13,16 +13,16 @@
   "expertType": "agent",
   "agentName": "miniprogram-clouddev-expert",
   "displayName": {
-    "en": "Mini Program Full-Stack Expert",
-    "zh": "小程序全栈开发专家"
+    "en": "WeChat Mini Program Full-Stack Expert",
+    "zh": "微信小程序全栈开发专家"
   },
   "profession": {
-    "en": "WeChat Mini Program Engineer",
-    "zh": "微信小程序工程师"
+    "en": "WeChat Cloud Development Engineer",
+    "zh": "微信云开发工程师"
   },
   "displayDescription": {
-    "en": "Full-stack WeChat mini program development: frontend, backend, database, deployment, virtual payment, and AI/LLM integration — no server setup needed.",
-    "zh": "从零开发上线微信小程序：前端、后端、数据库、虚拟支付、AI 大模型接入，不用自己买服务器。"
+    "en": "Full-stack WeChat mini program development on WeChat Cloud Dev (CloudBase): frontend, backend, database, virtual payment, and AI/LLM integration — no server setup needed.",
+    "zh": "用微信云开发CloudBase开发上线小程序：前端、后端、数据库、虚拟支付、AI接入，不用买服务器。"
   },
   "avatar": "avatars/miniprogram-clouddev-expert.png",
   "categoryId": "02-Engineering",
