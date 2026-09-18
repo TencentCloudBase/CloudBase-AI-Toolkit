@@ -1448,7 +1448,7 @@ async function enrichEnvInfoWithRuntimeMode(result: any, manager?: any) {
         Permissions:
           "Use `managePermissions(resourceType=\"noSqlDatabase\", securityRule=...)` for collection rules. PG-only RLS guidance (e.g. `auth.uid()` SQL policies) does not apply here.",
         Storage:
-          "Browser uploads use `app.uploadFile()` against the bucket exposed in `EnvInfo.Storages[].Bucket`.",
+          "Browser uploads use `app.uploadFile()` against the environment's storage bucket: `EnvInfo.Storages[0].Bucket`, or `EnvInfo.Storages[0].ExternalStorage.BucketName` when `Bucket` is empty and `ExternalStorage.Enabled` is true (shared bucket). Keep `cloudPath` as a normal path; the BasePath is handled by CloudBase.",
         MysqlNotAvailable: hasMysql
           ? "MySQL instance(s) detected — see EnvInfo.MysqlInstances."
           : "No MySQL instance in this env. `manageMysqlDatabase` / `queryMysqlDatabase` and the `relational-database-mcp-cloudbase` skill are not applicable.",
@@ -3501,6 +3501,14 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           .max(36)
           .optional()
           .describe("env.schema.manage.duration"),
+        externalStorage: z
+          .object({
+            bucketName: z.string().min(1).describe("env.schema.manage.externalStorage.bucketName"),
+            region: z.string().min(1).describe("env.schema.manage.externalStorage.region"),
+            basePath: z.string().min(1).describe("env.schema.manage.externalStorage.basePath"),
+          })
+          .optional()
+          .describe("env.schema.manage.externalStorage"),
         region: z
           .enum(CREATE_ENV_REGIONS)
           .optional()
@@ -3532,6 +3540,11 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       envId?: string;
       confirm?: string;
       domains?: string[];
+      externalStorage?: {
+        bucketName: string;
+        region: string;
+        basePath: string;
+      };
     }) => {
       const action = rawArgs.action ?? "";
       const alias = normalizeOptionalToolString(rawArgs.alias);
@@ -3575,6 +3588,11 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             const createManager = createRegion
               ? await getManagerForEnvQuery(undefined, false, createRegion)
               : cloudbase;
+            // 共享桶只在 Resources 含 storage 时生效；不含时 CreateEnv 会静默忽略 ExternalStorage，
+            // 建出的环境与调用方预期不符，因此在确认摘要和真正创建之前都直接报错。
+            if (rawArgs.externalStorage && !(resolvedResources as string[]).includes("storage")) {
+              throw new Error(t("env.manage.createExternalStorageRequiresStorage"));
+            }
             if (!confirmed) {
               // 查询套餐名和预计费用（失败降级，不阻塞 confirm 流程）
               const packageTitle = packageId
@@ -3614,6 +3632,18 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               );
               messageLines.push(t("env.manage.createDuration", { duration }));
               messageLines.push(t("env.manage.createRegion", { region: effectiveRegion }));
+              if (rawArgs.externalStorage) {
+                messageLines.push(
+                  t("env.manage.createExternalStorage", {
+                    bucketName: rawArgs.externalStorage.bucketName,
+                    region: rawArgs.externalStorage.region,
+                    basePath: rawArgs.externalStorage.basePath,
+                  }),
+                );
+                // 与 region 同理：二次调用（confirm="yes"）只读本次参数，漏传 externalStorage
+                // 会建成独立桶且不报错，因此在摘要里显式提示。
+                messageLines.push(t("env.manage.createExternalStorageRepeatHint"));
+              }
               if (createRegion) {
                 // 二次调用（confirm="yes"）会重新解析 rawArgs，因此必须提示同步带上 region，
                 // 否则会回落到会话地域，创建结果与用户确认过的摘要不一致。
@@ -3702,6 +3732,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                     // 已显式指定地域时必须一并重复传入，否则二次调用会回落会话地域，
                     // 创建出的环境与用户确认过的摘要不一致。
                     ...(createRegion ? ["region"] : []),
+                    // 传了共享桶参数时同理：二次调用漏传会建成独立桶，且不会报错。
+                    ...(rawArgs.externalStorage ? ["externalStorage"] : []),
                   ],
                   region: effectiveRegion,
                   regionSource: createRegion ? "explicit" : "session",
@@ -3722,6 +3754,17 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               Resources: resolvedResources,
               Period: duration,
             };
+
+            // 共享桶：传入 externalStorage 即启用，转换为云 API 的大驼峰结构。
+            // 只作用于云存储；映射前缀等逻辑全部落在 SDK，MCP 不拼 BasePath。
+            if (rawArgs.externalStorage) {
+              createParams.ExternalStorage = {
+                Enabled: true,
+                BucketName: rawArgs.externalStorage.bucketName,
+                Region: rawArgs.externalStorage.region,
+                BasePath: rawArgs.externalStorage.basePath,
+              };
+            }
 
             // 注意：地域不写进 createParams（CreateEnv 请求体不接受 Region），
             // 而是由 createManager 的地域上下文（X-TC-Region）决定。

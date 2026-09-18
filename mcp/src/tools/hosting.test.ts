@@ -186,12 +186,13 @@ beforeEach(() => {
       describeHttpServiceRoute: mockDescribeHttpServiceRoute,
     },
     commonService: vi.fn(() => ({
-      call: vi.fn(({ Action }: { Action: string }) => {
+      call: vi.fn((callArgs: { Action: string }) => {
+        const { Action } = callArgs;
         if (Action === 'DescribeStaticStore') {
           return mockDescribeStaticStore();
         }
         if (Action === 'CreateStaticStore') {
-          return mockCreateStaticStore();
+          return mockCreateStaticStore(callArgs);
         }
         if (Action === 'DescribeHostingDomainTask') {
           return mockDescribeHostingDomainTask();
@@ -274,6 +275,27 @@ describe('hosting tools', () => {
       staticDomainRouteEnabled: true,
       accessUrlReachable: true,
     });
+  });
+
+  it('queryHosting(action=websiteConfig) should show the shared bucket name when hosting uses ExternalStorage', async () => {
+    // 共享桶托管环境 StaticStorages[0].Bucket 为空，应展示 ExternalStorage.BucketName（与 CLI hosting detail 一致）
+    mockGetEnvInfo.mockResolvedValueOnce({
+      EnvInfo: {
+        StaticStorages: [
+          {
+            StaticDomain: 'static.example.com',
+            Bucket: '',
+            ExternalStorage: { Enabled: true, BucketName: 'shared-hosting-1259548930', BasePath: 'env-test-static' },
+          },
+        ],
+      },
+    });
+    const tools = createMockServer();
+
+    const payload = JSON.parse((await tools.queryHosting.handler({ action: 'websiteConfig' })).content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(payload.data.websiteConfig.Bucket).toBe('shared-hosting-1259548930');
   });
 
   it('queryHosting(action=websiteConfig) should flag disabled default static-domain gateway route', async () => {
@@ -365,6 +387,57 @@ describe('hosting tools', () => {
       action: 'findFiles',
     });
     expect(mockSendDeployNotification).toHaveBeenCalled();
+  });
+
+  it('manageHosting(action=upload) should keep the static hosting domain + cloudPath when other apps share the same STATIC_STORE', async () => {
+    // tcb app deploy 部署的 CloudApp 与静态托管挂在同一个 STATIC_STORE 上，
+    // 各自的 webapps 子域名 IsDefault 同为 true 且排在默认托管域名之前；
+    // 它们服务的是各自的目录，不能拿来拼本次上传的 cloudPath
+    mockDescribeHttpServiceRoute.mockResolvedValue({
+      Domains: [
+        {
+          Domain: 'demo-app.webapps.tcloudbase.com',
+          IsDefault: true,
+          Routes: [
+            {
+              Path: '/',
+              Enable: true,
+              UpstreamResourceType: 'STATIC_STORE',
+              UpstreamResourceName: 'staticstore',
+            },
+          ],
+        },
+        {
+          Domain: 'static.example.com',
+          IsDefault: true,
+          Routes: [
+            {
+              Path: '/',
+              Enable: true,
+              UpstreamResourceType: 'STATIC_STORE',
+              UpstreamResourceName: 'staticstore',
+            },
+          ],
+        },
+      ],
+    });
+
+    const tools = createMockServer();
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'upload',
+      localPath: '/tmp/site-dist',
+      cloudPath: 'site',
+    })).content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(payload.data.accessUrl).toBe('https://static.example.com/site/');
+    expect(payload.data.accessUrlSource).toBe('hosting.staticDomain');
+    expect(payload.data.accessUrlReachable).toBe(true);
+    // 选中的地址排在首位，其他候选域名仍然保留
+    expect(payload.data.accessUrls[0]).toBe('https://static.example.com/site/');
+    expect(payload.data.accessUrls).toEqual(
+      expect.arrayContaining(['https://demo-app.webapps.tcloudbase.com/']),
+    );
   });
 
   it('manageHosting(action=upload) should omit disabled default-domain accessUrl and prefer enabled Sites domain', async () => {
@@ -470,6 +543,36 @@ describe('hosting tools', () => {
     expect(mockUploadFiles).not.toHaveBeenCalled();
   });
 
+  it('manageHosting(action=upload) should treat shared-bucket store (empty Bucket + ExternalStorage.Enabled) as valid', async () => {
+    // 共享桶托管环境：DescribeStaticStore 的 Bucket 为空，真实桶名在 ExternalStorage 里，
+    // Enabled=true 时应视为有效配置继续上传，而不是报「未发现静态托管资源配置」。
+    mockDescribeStaticStore.mockResolvedValueOnce({
+      Data: [
+        {
+          Status: 'online',
+          CdnDomain: 'shared-static.example.com',
+          Bucket: '',
+          ExternalStorage: {
+            Enabled: true,
+            BucketName: 'shared-hosting-1259548930',
+            Region: 'ap-shanghai',
+            BasePath: 'env-test-static',
+          },
+        },
+      ],
+    });
+
+    const tools = createMockServer();
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'upload',
+      localPath: '/tmp/site-dist',
+      cloudPath: 'site',
+    })).content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(mockUploadFiles).toHaveBeenCalled();
+  });
+
   it('manageHosting(action=upload) should succeed and return CdnDomain-based accessUrl for Mini Program env where getEnvInfo StaticStorages is empty', async () => {
     // Mini Program-sourced environments don't populate StaticStorages in
     // DescribeEnvs, but DescribeStaticStore returns the real bucket + CdnDomain.
@@ -533,6 +636,40 @@ describe('hosting tools', () => {
     expect(payload.message).toContain('QPS 限制');
     expect(payload.message).toContain('等待 1-2 秒后重试');
     expect(payload.message).toContain('isDir=true');
+  });
+
+  it('manageHosting(action=upload) should replace hosting-not-ready errors with status guidance', async () => {
+    const tools = createMockServer();
+    mockUploadFiles.mockRejectedValueOnce(new Error('静态网站服务【处理中】，无法进行此操作！'));
+
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'upload',
+      localPath: '/tmp/dist',
+      cloudPath: 'app',
+    })).content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain('静态网站服务【处理中】');
+    expect(payload.message).toContain('queryHosting(action="status")');
+    // 状态类错误不应再附带与上传内容有关的建议
+    expect(payload.message).not.toContain('构建产物完整性');
+  });
+
+  it('manageHosting(action=upload) should point hosting-not-enabled errors at enableService', async () => {
+    const tools = createMockServer();
+    mockUploadFiles.mockRejectedValueOnce(
+      new Error('您还没有开启静态网站服务，请先到云开发控制台开启静态网站服务！'),
+    );
+
+    const payload = JSON.parse((await tools.manageHosting.handler({
+      action: 'upload',
+      localPath: '/tmp/dist',
+      cloudPath: 'app',
+    })).content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain('manageHosting(action="enableService")');
+    expect(payload.message).not.toContain('构建产物完整性');
   });
 
   it('manageHosting(action=delete) should forward non-rate-limit errors unchanged', async () => {
@@ -861,6 +998,17 @@ describe('hosting tools', () => {
     });
     expect(mockCreateStaticStore).toHaveBeenCalled();
   });
+
+  it('manageHosting(action=enableService) without externalStorage should send only EnvId to CreateStaticStore', async () => {
+    const tools = createMockServer();
+    await tools.manageHosting.handler({ action: 'enableService' });
+
+    const callArgs = mockCreateStaticStore.mock.calls[0][0];
+    expect(callArgs.Action).toBe('CreateStaticStore');
+    expect(callArgs.Param.EnvId).toBeTruthy();
+    expect(callArgs.Param.ExternalStorage).toBeUndefined();
+  });
+
 
   it('manageHosting(action=bindDomain) should return structured polling guidance', async () => {
     const tools = createMockServer();

@@ -2867,6 +2867,104 @@ describe("manageEnv", () => {
     });
   });
 
+  it("create should reject externalStorage when resources does not include storage", async () => {
+    const createEnv = vi.fn().mockResolvedValue({ EnvId: "env-shared" });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        createEnv,
+        describeBaasPackageList: vi.fn().mockResolvedValue({ PackageList: [] }),
+      },
+    } as any);
+
+    const { tools } = createMockServer();
+    const result = await tools.manageEnv.handler({
+      action: "create",
+      alias: "shared-env",
+      packageId: "baas_personal",
+      resources: ["function"],
+      externalStorage: {
+        bucketName: "shared-cos-1259548930",
+        region: "ap-shanghai",
+        basePath: "shared-env",
+      },
+      confirm: "yes",
+    });
+
+    expect(createEnv).not.toHaveBeenCalled();
+    // 断言到具体报错文案，确保是新增的 resources 校验拦下的，而不是其他错误
+    expect(result.content[0].text).toContain("resources 必须包含 storage");
+  });
+
+  it("create should pass externalStorage through to CreateEnv as ExternalStorage", async () => {
+    const createEnv = vi.fn().mockResolvedValue({ EnvId: "env-shared" });
+    const describeBillingInfo = vi.fn().mockResolvedValue({
+      EnvBillingInfoList: [{ EnvId: "env-shared", Region: "ap-shanghai" }],
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        createEnv,
+        describeBillingInfo,
+        describeBaasPackageList: vi.fn().mockResolvedValue({ PackageList: [] }),
+      },
+    } as any);
+
+    const { tools } = createMockServer();
+
+    // 1) 未确认时，摘要应包含共享桶信息，且不发起创建
+    const preview = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "create",
+          alias: "shared-env",
+          packageId: "baas_personal",
+          externalStorage: {
+            bucketName: "shared-cos-1259548930",
+            region: "ap-shanghai",
+            basePath: "shared-env",
+          },
+        })
+      ).content[0].text,
+    );
+
+    expect(createEnv).not.toHaveBeenCalled();
+    expect(preview.code).toBe("CONFIRM_REQUIRED");
+    expect(preview.message).toContain("shared-cos-1259548930");
+    // 二次调用只读本次参数：必须提示重复传入 externalStorage，否则会建成独立桶
+    expect(preview.next_step.requiredParams).toContain("externalStorage");
+    expect(preview.message).toContain("externalStorage");
+
+    // 2) 确认后，externalStorage 转换为大驼峰 ExternalStorage 透传（Enabled 恒为 true）
+    const created = JSON.parse(
+      (
+        await tools.manageEnv.handler({
+          action: "create",
+          alias: "shared-env",
+          packageId: "baas_personal",
+          externalStorage: {
+            bucketName: "shared-cos-1259548930",
+            region: "ap-shanghai",
+            basePath: "shared-env",
+          },
+          confirm: "yes",
+        })
+      ).content[0].text,
+    );
+
+    expect(createEnv).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Alias: "shared-env",
+        PackageId: "baas_personal",
+        ExternalStorage: {
+          Enabled: true,
+          BucketName: "shared-cos-1259548930",
+          Region: "ap-shanghai",
+          BasePath: "shared-env",
+        },
+      }),
+    );
+    expect(created).toMatchObject({ ok: true, code: "ENV_CREATED", envId: "env-shared" });
+  });
+
   it("create should show free-experience disclosure when packageId hints free tier", async () => {
     const createEnv = vi.fn();
     const describeBaasPackageList = vi.fn().mockResolvedValue({

@@ -262,6 +262,42 @@ describe("permission tools", () => {
     });
   });
 
+  it("queryPermissions(action=getResourcePermission) should accept the shared bucket name in a shared-bucket environment", async () => {
+    // 共享桶环境 Storages[0].Bucket 为空，平台以 ExternalStorage.BucketName 作为资源 ID
+    const current = await mockGetCloudBaseManager();
+    mockGetCloudBaseManager.mockResolvedValue({
+      ...current,
+      env: {
+        ...current.env,
+        getEnvInfo: vi.fn().mockResolvedValue({
+          EnvInfo: {
+            Storages: [{ Bucket: "", ExternalStorage: { Enabled: true, BucketName: "shared-cos-1259548930" } }],
+          },
+        }),
+      },
+    });
+    mockDescribeResourcePermission.mockResolvedValueOnce({
+      Data: {
+        TotalCount: 1,
+        PermissionList: [{ ResourceType: "storage", Resource: "shared-cos-1259548930", Permission: "PRIVATE" }],
+      },
+      RequestId: "req-shared-storage-perm",
+    });
+
+    const result = await tools.queryPermissions.handler({
+      action: "getResourcePermission",
+      resourceType: "storage",
+      resourceId: "shared-cos-1259548930",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockDescribeResourcePermission).toHaveBeenCalledWith({
+      resourceType: "storage",
+      resources: ["shared-cos-1259548930"],
+    });
+    expect(payload).toMatchObject({ success: true, data: { resourceId: "shared-cos-1259548930" } });
+  });
+
   it("queryPermissions(action=listResourcePermissions) should include resource-level hints for risky custom rules", async () => {
     mockDescribeResourcePermission.mockResolvedValueOnce({
       Data: {

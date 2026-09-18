@@ -54,6 +54,10 @@ export const env = defineModule(
     "schema.manage.packageId": "套餐 ID（action=create/modifyPlan 时必填）。可选值如 baas_personal(个人版)、baas_pf_standard(标准版)、baas_pf_enterprise(企业版)",
     "schema.manage.resources": "启用的资源类型（action=create 时可选）。可选值：storage(存储)、function(云函数)、postgresql(PostgreSQL)，省略时默认全部三项。CreateEnv 要求 Resources 非空，MCP 会始终下发该字段。不再包含 flexdb(文档数据库)：新建环境不会创建 NoSQL 实例，其可用性以 queryEnv(action=\"info\") 返回的 EnvInfo.RuntimeBackends 为准。",
     "schema.manage.duration": "购买或续费时长（月），action=create/renew 时可选，默认 1",
+    "schema.manage.externalStorage": "云存储共享桶配置（action=create 时可选）。传入该对象表示该环境不再自动分配独立 COS 桶，而是使用指定桶作为云存储介质，通过 basePath 与同桶其他环境隔离；仅作用于云存储，静态托管的存储桶由平台在开通托管时分配。三个字段必须完整传入。⚠️ 与 region 同理：二次调用（confirm=\"yes\"）只读本次参数，漏传会创建出使用独立桶的环境且不报错。",
+    "schema.manage.externalStorage.bucketName": "共享桶名称（COS 桶名）",
+    "schema.manage.externalStorage.region": "共享桶所属地域，例如 ap-shanghai",
+    "schema.manage.externalStorage.basePath": "基础路径前缀，在同一共享桶内需唯一，用于与同桶其他环境隔离",
     "schema.manage.region": "创建地域（仅 action=create 时有效）。按 X-TC-Region 语义透传，决定新环境所在地域；等价 CLI：tcb env create --region ap-shanghai。不传则用当前会话地域（cloudBaseOptions.region → TCB_REGION → 项目配置 / rc 绑定 → 站点默认地域：国内站 ap-shanghai、国际站 ap-singapore）。注意：region 不写进 CreateEnv 请求体，而是通过请求层地域上下文生效——这与「请勿把 Region 放进 params」的 callCloudApi 约定一致。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）；如需在国内站该地域创建，请先 auth(site=\"domestic\") 或设置 TCB_SITE=domestic。",
     "schema.manage.envId": "环境 ID（action=modifyPlan/renew 时必填）",
     "schema.manage.confirm": "确认操作。所有付费操作（create/modifyPlan/renew）必须传 \"yes\" 确认",
@@ -281,8 +285,14 @@ export const env = defineModule(
     "manage.createDuration": "- 时长: {duration} 个月",
     "manage.createRegion":
       "- 地域: {region}（按 X-TC-Region 语义生效，决定新环境所在地域）",
+    "manage.createExternalStorage":
+      "- 云存储共享桶: {bucketName}（地域 {region}，BasePath {basePath}；仅作用于云存储）",
     "manage.createRegionExplicitHint":
       "（本次已显式指定地域：二次调用传 confirm=\"yes\" 时请一并带上相同的 region）",
+    "manage.createExternalStorageRepeatHint":
+      "（本次传入了共享桶参数：二次调用传 confirm=\"yes\" 时请一并带上相同的 externalStorage，漏传会创建为独立桶）",
+    "manage.createExternalStorageRequiresStorage":
+      "externalStorage 只作用于云存储，resources 必须包含 storage，否则共享桶配置不会生效",
     "manage.createAck": "☐ 我已知晓将创建付费资源及计费规则，确认按上述配置开通。",
     "manage.createCancelNote": "（如需取消或修改，请勿传 confirm=\"yes\"，改传其他参数重试）",
     "manage.createAckText": "我已知晓将创建付费资源及计费规则",
@@ -383,6 +393,10 @@ export const env = defineModule(
     "schema.manage.packageId": "Package ID (required when action=create/modifyPlan). Example values include baas_personal (Personal), baas_pf_standard (Standard), and baas_pf_enterprise (Enterprise)",
     "schema.manage.resources": "Resource types to enable (optional when action=create). Allowed values: storage, function, postgresql; defaults to all three when omitted. CreateEnv requires Resources to be non-empty, so MCP always sends this field. flexdb (document database) is no longer included: creating an environment does not create a NoSQL instance; its availability is reported by EnvInfo.RuntimeBackends from queryEnv(action=\"info\").",
     "schema.manage.duration": "Purchase or renewal duration in months. Optional when action=create/renew; defaults to 1",
+    "schema.manage.externalStorage": "Shared COS bucket configuration for cloud storage (optional when action=create). Passing this object means the environment does not get its own dedicated COS bucket; it uses the given bucket as its cloud storage medium and is isolated from other environments in the same bucket by basePath. It applies to cloud storage only — the static hosting bucket is allocated by the platform when hosting is enabled. All three fields are required. ⚠️ Like region, the confirming call (confirm=\"yes\") reads only its own arguments, so omitting it there silently creates the environment with a dedicated bucket.",
+    "schema.manage.externalStorage.bucketName": "Shared bucket name (COS bucket name)",
+    "schema.manage.externalStorage.region": "Region of the shared bucket, for example ap-shanghai",
+    "schema.manage.externalStorage.basePath": "Base path prefix. Must be unique within the shared bucket; isolates this environment from others in the same bucket",
     "schema.manage.region": "Creation region (only effective when action=create). Passed through with X-TC-Region semantics and determines where the new environment is created; CLI equivalent: tcb env create --region ap-shanghai. When omitted, the current session region is used (cloudBaseOptions.region → TCB_REGION → project configuration / rc binding → site default: ap-shanghai for the China site, ap-singapore for the international site). region is not written into the CreateEnv request body; it takes effect through the request-layer region context, matching the callCloudApi contract not to put Region in params. ⚠️ ap-singapore belongs to both the China and international sites; without an explicit site it is inferred as international (site=intl). To create there on the China site, first use auth(site=\"domestic\") or set TCB_SITE=domestic.",
     "schema.manage.envId": "Environment ID (required when action=modifyPlan/renew)",
     "schema.manage.confirm": "Confirm the operation. All billed operations (create/modifyPlan/renew) require passing \"yes\"",
@@ -645,8 +659,14 @@ export const env = defineModule(
     "manage.createDuration": "- Duration: {duration} month(s)",
     "manage.createRegion":
       "- Region: {region} (applied as X-TC-Region; determines where the new environment lives)",
+    "manage.createExternalStorage":
+      "- Shared storage bucket: {bucketName} (region {region}, BasePath {basePath}; applies to cloud storage only)",
     "manage.createRegionExplicitHint":
       "(You specified the region explicitly: pass the same region together with confirm=\"yes\" on the second call)",
+    "manage.createExternalStorageRepeatHint":
+      "(You passed shared bucket parameters: pass the same externalStorage together with confirm=\"yes\" on the second call; omitting it creates the environment with a dedicated bucket)",
+    "manage.createExternalStorageRequiresStorage":
+      "externalStorage applies to cloud storage only, so resources must include storage; otherwise the shared bucket configuration does not take effect",
     "manage.createAck":
       "☐ I understand that paid resources will be created and the billing rules apply, and confirm activation with the configuration above.",
     "manage.createCancelNote":

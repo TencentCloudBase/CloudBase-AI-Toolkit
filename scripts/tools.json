@@ -328,6 +328,33 @@
             "maximum": 36,
             "description": "购买或续费时长（月），action=create/renew 时可选，默认 1"
           },
+          "externalStorage": {
+            "type": "object",
+            "properties": {
+              "bucketName": {
+                "type": "string",
+                "minLength": 1,
+                "description": "共享桶名称（COS 桶名）"
+              },
+              "region": {
+                "type": "string",
+                "minLength": 1,
+                "description": "共享桶所属地域，例如 ap-shanghai"
+              },
+              "basePath": {
+                "type": "string",
+                "minLength": 1,
+                "description": "基础路径前缀，在同一共享桶内需唯一，用于与同桶其他环境隔离"
+              }
+            },
+            "required": [
+              "bucketName",
+              "region",
+              "basePath"
+            ],
+            "additionalProperties": false,
+            "description": "云存储共享桶配置（action=create 时可选）。传入该对象表示该环境不再自动分配独立 COS 桶，而是使用指定桶作为云存储介质，通过 basePath 与同桶其他环境隔离；仅作用于云存储，静态托管的存储桶由平台在开通托管时分配。三个字段必须完整传入。⚠️ 与 region 同理：二次调用（confirm=\"yes\"）只读本次参数，漏传会创建出使用独立桶的环境且不报错。"
+          },
           "region": {
             "type": "string",
             "enum": [
@@ -2136,7 +2163,7 @@
     },
     {
       "name": "searchKnowledgeBase",
-      "description": "云开发知识库检索工具，支持 CloudBase 官方文档 (docs)、固定技能文档 (skill) 和 OpenAPI 文档 (openapi) 查询。\n\n      按场景选择 mode：\n      - 工具调用报错且错误信息含具体错误码（如 OperationDenied.FreePackageDenied）时：mode=docs + action=searchDocs（query=错误码），先查错误码官方含义与处理指引再行动，不要凭猜测重试\n      - 不确定答案在哪、需要对官方文档做全文检索时：mode=docs + action=searchDocs（传 query 关键词）\n      - 已知文档标题、层级路径或 URL 时：mode=docs + action=findByName（传 input）或 action=readDoc（传 docPath）\n      - 需要某个场景的落地指南 / 最佳实践时：mode=skill + skillName\n      - 需要 HTTP API 的接口定义时：mode=openapi + apiName\n\n      ⚠️ 重要：当 CloudBase skills 处于禁用状态或当前 IDE 不支持 skill 文件读取时，必须使用 searchKnowledgeBase(mode=skill, skillName=...) 来获取 CloudBase 技能文档内容，而不是尝试直接读取 skill 文件。直接读取可能返回 400 错误。示例：\n      - 需要最小 Web+数据库 Demo 路径时：searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo)\n      - 需要 auth-tool 指南时：searchKnowledgeBase(mode=skill, skillName=auth-tool)\n      - 需要 auth-web 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web)\n      - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)\n\n      返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。\n\n      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 32 个，API 共 8 个）。\n\n      注意：OpenAPI 文档 (openapi) 查询只需要传 mode=\"openapi\" 和 apiName，不要传 action；action 仅用于 mode=\"docs\"。",
+      "description": "云开发知识库检索工具，支持 CloudBase 官方文档 (docs)、固定技能文档 (skill) 和 OpenAPI 文档 (openapi) 查询。\n\n      按场景选择 mode：\n      - 工具调用报错且错误信息含具体错误码（如 OperationDenied.FreePackageDenied）时：mode=docs + action=searchDocs（query=错误码），先查错误码官方含义与处理指引再行动，不要凭猜测重试\n      - 不确定答案在哪、需要对官方文档做全文检索时：mode=docs + action=searchDocs（传 query 关键词）\n      - 已知文档标题、层级路径或 URL 时：mode=docs + action=findByName（传 input）或 action=readDoc（传 docPath）\n      - 需要某个场景的落地指南 / 最佳实践时：mode=skill + skillName\n      - 需要 HTTP API 的接口定义时：mode=openapi + apiName\n\n      ⚠️ 重要：当 CloudBase skills 处于禁用状态或当前 IDE 不支持 skill 文件读取时，必须使用 searchKnowledgeBase(mode=skill, skillName=...) 来获取 CloudBase 技能文档内容，而不是尝试直接读取 skill 文件。直接读取可能返回 400 错误。示例：\n      - 需要最小 Web+数据库 Demo 路径时：searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo)\n      - 需要 auth-tool 指南时：searchKnowledgeBase(mode=skill, skillName=auth-tool)\n      - 需要 auth-web 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web)\n      - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)\n\n      返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。\n\n      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 30 个，API 共 8 个）。\n\n      注意：OpenAPI 文档 (openapi) 查询只需要传 mode=\"openapi\" 和 apiName，不要传 action；action 仅用于 mode=\"docs\"。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2151,7 +2178,6 @@
           "skillName": {
             "type": "string",
             "enum": [
-              "skills",
               "ai-model-nodejs",
               "ai-model-web",
               "ai-model-wechat",
@@ -2176,7 +2202,6 @@
               "minimal-web-baas-demo",
               "miniprogram-development",
               "ops-inspector",
-              "postgresql-best-practices-cloudbase",
               "postgresql-development-cloudbase",
               "relational-database-mcp-cloudbase",
               "relational-database-web-cloudbase",

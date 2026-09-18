@@ -30,6 +30,10 @@ export const hosting = defineModule(
     uploadErrorPublicPathSuggestion:
       "若站点部署到子路径，请确认 publicPath、base、assetPrefix 等配置没有把资源指向不存在的位置。",
     uploadErrorDefaultSuggestion: "请检查上传目录、文件权限和构建产物完整性后重试。",
+    notReadyGuidance:
+      "{message}\n原因：静态托管开通是异步任务，资源尚未就绪（状态为「初始化中」或「处理中」），此时任何读写操作都会被拒绝，与本次操作的内容无关。\n处理建议：\n1) 用 queryHosting(action=\"status\") 查询当前状态，等状态变为 online 后重试；\n2) 开通通常在几分钟内完成，请勿高频轮询（DescribeStaticStore 有 20 次/秒 QPS 限制）；\n3) 若状态长时间停留在「处理中」或变为 create_fail，说明开通任务异常，需到云开发控制台查看。",
+    notEnabledGuidance:
+      "{message}\n原因：该环境尚未开通静态托管，托管的读写接口均不可用。\n处理建议：\n1) 调用 manageHosting(action=\"enableService\") 开通；\n2) 开通是异步任务，之后用 queryHosting(action=\"status\") 等待状态变为 online 再重试本次操作。",
     deleteErrorWrapper: "[manageHosting(delete)] {message}",
     deleteRateLimitGuidance:
       "[manageHosting(delete)] {message}\n原因：静态托管底层 DescribeStaticStore 管控接口有 20 次/秒的 QPS 限制，连续快速删除多个文件（或失败后立即重试）容易触发限流，删除操作本身可能已经部分生效。\n处理建议：\n1) 等待 1-2 秒后重试本次删除，不要立即连续重试；\n2) 批量删除多个文件时，逐次调用并保持间隔（建议每秒不超过 10 次），不要并发或循环快速重试；\n3) 同一目录下的多个文件可改用 isDir=true 一次删除整个目录，减少调用次数；\n4) 若不确定删除是否已生效，可调用 queryHosting(action=\"findFiles\") 核对。",
@@ -187,6 +191,10 @@ export const hosting = defineModule(
       "If the site is deployed under a sub-path, confirm that publicPath, base, assetPrefix, and similar settings do not point assets to a non-existent location.",
     uploadErrorDefaultSuggestion:
       "Check the upload directory, file permissions, and build output integrity, then retry.",
+    notReadyGuidance:
+      "{message}\nReason: enabling static hosting is an asynchronous task and the resource is not ready yet (status is `init` or `process`). While in this state every hosting read/write is rejected, regardless of what this operation was doing.\nSuggestions:\n1) Call queryHosting(action=\"status\") and retry once the status becomes `online`;\n2) Enabling usually finishes within a few minutes; do not poll aggressively (DescribeStaticStore has a 20 req/s QPS limit);\n3) If the status stays `process` for a long time or turns into `create_fail`, the enabling task failed and needs to be checked in the CloudBase console.",
+    notEnabledGuidance:
+      "{message}\nReason: static hosting is not enabled for this environment, so all hosting read/write APIs are unavailable.\nSuggestions:\n1) Call manageHosting(action=\"enableService\") to enable it;\n2) Enabling is asynchronous — wait for queryHosting(action=\"status\") to report `online` before retrying this operation.",
     deleteErrorWrapper: "[manageHosting(delete)] {message}",
     deleteRateLimitGuidance:
       "[manageHosting(delete)] {message}\nReason: the underlying DescribeStaticStore control-plane API has a 20 req/s QPS limit; deleting multiple files in rapid succession (or retrying immediately after a failure) easily triggers rate limiting, and the deletion itself may have partially taken effect.\nSuggestions:\n1) Wait 1-2 seconds and retry this deletion; do not retry immediately in a tight loop;\n2) When deleting multiple files, call sequentially with intervals (no more than 10 calls per second recommended); do not retry concurrently or in fast loops;\n3) For multiple files in the same directory, use isDir=true to delete the whole directory in one call;\n4) To verify whether the deletion took effect, call queryHosting(action=\"findFiles\").",

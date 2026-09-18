@@ -25,39 +25,44 @@ Hosting = pre-built static files with CDN; for framework build + deploy, use `ap
 # 1. Confirm target environment
 tcb env list
 
-# 2. Check hosting status (auto-enables if not active)
-tcb hosting detail --env-id <envId>
-
-# 3. Build locally first
+# 2. Build locally first
 npm run build
 
-# 4. Deploy built assets
-tcb hosting deploy ./dist --env-id <envId> --yes
+# 3. Deploy built assets (hosting must already be enabled)
+tcb hosting deploy ./dist --env-id <envId>
 
-# 5. Verify
+# 4. Verify
 tcb hosting list --env-id <envId>
 ```
+
+> `tcb hosting deploy` only checks the hosting status, it never enables the service. If hosting is not enabled, the command fails and the environment owner must enable it in the CloudBase console first. If the service was just enabled and is still initializing (`init` / `process`), the command waits until it reports `online` (checks every 5 seconds, up to about 6 minutes) and then uploads.
 
 ### Deploy Variations
 
 ```bash
 # Deploy current directory
-tcb hosting deploy --env-id <envId> --yes
+tcb hosting deploy --env-id <envId>
 
 # Deploy to a sub-path
-tcb hosting deploy ./dist /v2 --env-id <envId> --yes
+tcb hosting deploy ./dist /v2 --env-id <envId>
 
 # Deploy a single file
-tcb hosting deploy ./index.html --env-id <envId> --yes
+tcb hosting deploy ./index.html --env-id <envId>
 
 # Update only one file (incremental)
-tcb hosting deploy ./dist/index.html /index.html --env-id <envId> --yes
+tcb hosting deploy ./dist/index.html /index.html --env-id <envId>
 
 # CI/CD: non-interactive with JSON output
-tcb hosting deploy ./dist --env-id $ENV_ID --yes --json
+tcb hosting deploy ./dist --env-id $ENV_ID --json
 ```
 
 > ⚠️ Deploy overwrites existing files at the same path. There is no built-in versioning — consider cleaning old files before redeploying.
+
+### Deploying to a Shared Bucket Environment
+
+Platforms that create many environments under one account may keep hosting files for all of them in one shared COS bucket, each environment under its own BasePath. The bucket is chosen by the platform when hosting is enabled and cannot be changed afterwards; the CLI has no flag for it.
+
+- Keep writing `cloudPath` as a plain path (`./dist app`). The CLI adds the BasePath, and the hosting domain resolves it too, so site URLs use the plain path — adding the BasePath to a URL returns 404.
 
 ---
 
@@ -88,7 +93,7 @@ tcb hosting delete --dry-run --env-id <envId>
 tcb hosting delete --env-id <envId> --yes
 
 # Deploy fresh build
-tcb hosting deploy ./dist --env-id <envId> --yes
+tcb hosting deploy ./dist --env-id <envId>
 ```
 
 ---
@@ -158,7 +163,8 @@ tcb hosting download <cloudPath> [localPath] --env-id <id>  # Download files
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| "Hosting not enabled" | Hosting service not activated | Run `tcb hosting detail -e <envId>` to auto-enable |
+| "Hosting not enabled" | Hosting service not activated | Enable static hosting for the environment in the CloudBase console, then retry |
+| `静态网站服务【初始化中】` (service initializing) | Hosting was just enabled and is not `online` yet | The deploy command already waits up to about 6 minutes; if it times out, wait a few minutes and retry |
 | File still accessible after delete | CDN cache delay (5-10 min) | Wait or flush CDN cache in console |
 | `meta.total` looks wrong | Directories (Size=0) excluded from count | This is expected behavior |
 | Deploy has no effect | Deploying to wrong path or env | Verify `--env-id` and cloud path; run `tcb hosting list` to check |
@@ -169,8 +175,9 @@ tcb hosting download <cloudPath> [localPath] --env-id <id>  # Download files
 
 - [ ] `tcb` CLI installed, version >= 3.0.0
 - [ ] Logged in (`tcb login`) and correct environment set (`tcb env use <envId>`)
-- [ ] Hosting service enabled (`tcb hosting detail --env-id <envId>`)
+- [ ] Static hosting already enabled for the environment (the CLI does not enable it)
+- [ ] On a shared hosting bucket, `cloudPath` is written as a plain path with no BasePath
 - [ ] Build output ready locally before deploying (e.g. `npm run build` completed)
 - [ ] For deletion: previewed with `--dry-run` first
-- [ ] For CI/CD: `--env-id` + `--yes` both specified
+- [ ] For CI/CD: `--env-id` specified (deletions also need `--yes`)
 - [ ] CDN cache delay considered (5-10 min after updates/deletions)

@@ -22,6 +22,7 @@ interface ExtendedEnvInfo {
     StaticStorages?: Array<{
       StaticDomain?: string;
       Bucket?: string;
+      ExternalStorage?: { Enabled?: boolean; BucketName?: string; [key: string]: unknown };
       [key: string]: unknown;
     }>;
     [key: string]: unknown;
@@ -159,8 +160,32 @@ function buildHostingAccessUrl(staticDomain?: string, cloudPath?: string, localP
   return `https://${staticDomain}${hostingAccessPathname(cloudPath, localPath)}`;
 }
 
+/**
+ * Manager SDK 的 HostingService 在每次读写前调用 checkStatus()，托管未开通或资源仍在初始化时
+ * 抛出固定中文文案。这类错误与上传内容无关，套上「检查目录 / 权限 / 构建产物」的建议会误导排查方向。
+ * MCP 不做阻塞轮询（开通是异步任务，通常几分钟），改为告诉调用方下一步该查什么。
+ */
+const HOSTING_NOT_READY_RE = /静态网站服务【(初始化中|处理中)】/;
+const HOSTING_NOT_ENABLED_RE = /您还没有开启静态网站服务/;
+
+function enrichHostingStatusMessage(message: string): string {
+  if (HOSTING_NOT_READY_RE.test(message)) {
+    return t('hosting.notReadyGuidance', { message });
+  }
+  if (HOSTING_NOT_ENABLED_RE.test(message)) {
+    return t('hosting.notEnabledGuidance', { message });
+  }
+  return message;
+}
+
 function buildUploadErrorMessage(error: unknown, localPath?: string): string {
   const baseMessage = error instanceof Error ? error.message : String(error);
+
+  // 状态类错误直接透传，由 buildFailureResult 统一补充引导
+  if (HOSTING_NOT_READY_RE.test(baseMessage) || HOSTING_NOT_ENABLED_RE.test(baseMessage)) {
+    return baseMessage;
+  }
+
   const suggestions: string[] = [];
 
   if (/路径不存在|无读写权限/i.test(baseMessage)) {
@@ -202,6 +227,12 @@ function buildDeleteErrorMessage(error: unknown): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+// 共享桶托管：Bucket 为空但 ExternalStorage.Enabled=true 时仍是有效托管配置。
+function hasEnabledExternalStorage(store: Record<string, unknown>): boolean {
+  const external = store.ExternalStorage;
+  return isRecord(external) && external.Enabled === true;
 }
 
 /**
@@ -483,7 +514,15 @@ async function getHostingWebsiteConfig(
     const envInfo = await cloudbase.env.getEnvInfo() as ExtendedEnvInfo;
     logCloudBaseResult(logger, envInfo);
     hostingResult.CdnDomain = envInfo.EnvInfo?.StaticStorages?.[0]?.StaticDomain ?? hostingResult.CdnDomain;
-    hostingResult.Bucket = envInfo.EnvInfo?.StaticStorages?.[0]?.Bucket ?? hostingResult.Bucket;
+    const staticStorage = envInfo.EnvInfo?.StaticStorages?.[0];
+    hostingResult.Bucket = staticStorage?.Bucket ?? hostingResult.Bucket;
+    // 共享桶托管环境 Bucket 为空，展示实际使用的共享桶名（与 CLI tcb hosting detail 一致）
+    const sharedBucketName = staticStorage?.ExternalStorage?.Enabled === true
+      ? staticStorage.ExternalStorage.BucketName
+      : undefined;
+    if (!hostingResult.Bucket && sharedBucketName) {
+      hostingResult.Bucket = sharedBucketName;
+    }
   } catch {
     // Ignore enrichment failures and return the website config as-is.
   }
@@ -536,8 +575,11 @@ async function getHostingStoreOrThrow(
   const result = await callTcbHostingAction(cloudbase, 'DescribeStaticStore', { EnvId: envId }, logger);
   const hostingInfo = extractStaticStores(result);
 
-  if (hostingInfo.length > 0 && hostingInfo[0].Bucket) {
-    return hostingInfo[0];
+  // 共享桶托管环境的 Bucket 为空，真实桶名在 ExternalStorage.Enabled=true 的结构里；
+  // store 只用于取 CdnDomain / StaticDomain 拼访问地址，不读桶名，视为有效配置即可。
+  const store = hostingInfo[0];
+  if (store && (store.Bucket || hasEnabledExternalStorage(store))) {
+    return store;
   }
 
   throw new Error(t('hosting.hostingStoreMissing', { envId }));
@@ -564,7 +606,9 @@ function buildFailureResult(action: string, error: unknown) {
   return buildJsonToolResult({
     success: false,
     errorCode: `HOSTING_${action.toUpperCase()}_FAILED`,
-    message: enrichRateLimitMessage(error instanceof Error ? error.message : String(error)),
+    message: enrichHostingStatusMessage(
+      enrichRateLimitMessage(error instanceof Error ? error.message : String(error)),
+    ),
   });
 }
 
@@ -904,6 +948,12 @@ export function registerHostingTools(server: ExtendedMcpServer) {
               disabledAccessUrls.push(fallbackAccessUrl);
             }
 
+            // 先找出与该静态托管 store 关联的网关路由；候选名依次尝试，命中即止
+            let gatewayResult: Awaited<ReturnType<typeof resolveGatewayAccessUrls>> = {
+              accessUrls: [],
+              routes: [],
+              disabledAccessUrls: [],
+            };
             for (const upstreamName of gatewayCandidates) {
               const gateway = await resolveGatewayAccessUrls({
                 envId,
@@ -911,22 +961,36 @@ export function registerHostingTools(server: ExtendedMcpServer) {
                 upstreamResourceTypes: ["STATIC_STORE"],
                 getManager: getGatewayManager,
               });
-              const preferred = preferGatewayOrFallback({
-                gateway,
-                fallbackUrl: fallbackAccessUrl || undefined,
-                fallbackSource: "hosting.staticDomain",
-                fallbackReachable,
-              });
-              if (preferred.accessUrl || preferred.disabledAccessUrls.length > 0) {
-                accessUrl = preferred.accessUrl ?? "";
-                accessUrls = preferred.accessUrls;
-                accessUrlSource = preferred.accessUrlSource;
-                accessUrlReachable = preferred.accessUrlReachable;
-                disabledAccessUrls = preferred.disabledAccessUrls;
-                if (preferred.accessUrl) {
-                  break;
-                }
+              if (gateway.routes.length > 0 || gateway.disabledAccessUrls.length > 0) {
+                gatewayResult = gateway;
+                break;
               }
+            }
+
+            const preferred = preferGatewayOrFallback({
+              gateway: gatewayResult,
+              fallbackUrl: fallbackAccessUrl || undefined,
+              fallbackSource: "hosting.staticDomain",
+              fallbackReachable,
+            });
+
+            // 静态托管域名本身可达时，它才是本次上传对应的地址。
+            // 网关里其他指向同一 STATIC_STORE 的域名（典型是 tcb app deploy 部署的
+            // CloudApp 各自的 webapps 子域名，且 IsDefault 为 true 会被排到前面）
+            // 服务的是各自的目录，拿它们拼上本次 cloudPath 会指向别的站点。
+            const preferStaticDomain = fallbackReachable && Boolean(fallbackAccessUrl);
+            if (preferred.accessUrl || preferred.disabledAccessUrls.length > 0) {
+              accessUrl = preferStaticDomain ? fallbackAccessUrl : preferred.accessUrl ?? "";
+              // 选中的地址排在首位，其余候选域名仍然保留供调用方参考
+              accessUrls = [
+                ...(accessUrl ? [accessUrl] : []),
+                ...preferred.accessUrls.filter((item) => item !== accessUrl),
+              ];
+              accessUrlSource = preferStaticDomain
+                ? "hosting.staticDomain"
+                : preferred.accessUrlSource;
+              accessUrlReachable = preferStaticDomain ? true : preferred.accessUrlReachable;
+              disabledAccessUrls = preferred.disabledAccessUrls;
             }
 
             try {

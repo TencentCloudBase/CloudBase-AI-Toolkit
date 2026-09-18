@@ -563,7 +563,10 @@ async function ensureStorageBucketsExist(cloudbase: any, resourceIds: string[]) 
   const envInfo = await cloudbase.env.getEnvInfo();
   const existingBuckets = new Set(
     (envInfo?.EnvInfo?.Storages ?? [])
-      .map((item: { Bucket?: string }) => item?.Bucket)
+      // 共享桶环境 Bucket 为空，平台以 ExternalStorage.BucketName 作为云存储权限的资源 ID（已实测）
+      .map((item: { Bucket?: string; ExternalStorage?: { Enabled?: boolean; BucketName?: string } }) =>
+        item?.Bucket || (item?.ExternalStorage?.Enabled === true ? item.ExternalStorage.BucketName : undefined),
+      )
       .filter((bucket: string | undefined): bucket is string => Boolean(bucket)),
   );
   const missingBuckets = resourceIds.filter((resourceId) => !existingBuckets.has(resourceId));
