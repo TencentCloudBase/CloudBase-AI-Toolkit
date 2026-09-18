@@ -55,8 +55,8 @@
       "en": "Build a client intake form: share it in the group chat, clients fill it themselves, and submissions are summarized into one table."
     },
     {
-      "zh": "做一份活动问卷：三个选择题加一个建议框，填完就能看到统计结果",
-      "en": "Build an event survey: three multiple-choice questions plus a suggestion box, with stats visible after submission."
+      "zh": "做一个团建投票：选项是烧烤、密室、剧本杀，每人只能投一次，投完能看到实时结果",
+      "en": "Build a team-event poll: options for BBQ, escape room, and murder mystery — one vote per person, live results after voting."
     }
   ]
 }

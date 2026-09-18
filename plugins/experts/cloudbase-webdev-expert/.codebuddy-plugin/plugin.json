@@ -21,8 +21,8 @@
     "zh": "Web 应用开发专家"
   },
   "displayDescription": {
-    "en": "Build websites, business systems, and SaaS products on Tencent CloudBase with a real database and login: CRM, inventory, approvals, dashboards — AI gets you a working app fast.",
-    "zh": "用腾讯云开发CloudBase搭网站与业务系统：CRM、进销存、审批流、报表看板，带数据库和登录。"
+    "en": "Build websites and business systems on Tencent CloudBase: landing pages, CRM, inventory, approvals — with a real database, login, and built-in AI models, deployed and live fast.",
+    "zh": "用腾讯云开发CloudBase搭网站与业务系统：官网、CRM、进销存审批，带数据库登录和AI接入。"
   },
   "avatar": "avatars/cloudbase-webdev-expert.png",
   "categoryId": "02-Engineering",
@@ -51,12 +51,12 @@
       "en": "Build a CRM: track customers, follow-ups, and deals; sales reps see only their own customers, admins see everything."
     },
     {
-      "zh": "做一个进销存小系统：商品入库出库、库存预警，老板打开网页就能看实时报表",
-      "en": "Build a small inventory system: stock in/out, low-stock alerts, and a live report dashboard for the boss."
+      "zh": "做一个产品官网：首页介绍、功能展示、常见问题，带一个咨询表单，客户提交后我在后台能看到",
+      "en": "Build a product website: hero section, features, FAQ, plus a consultation form — submissions show up in my backend."
     },
     {
-      "zh": "搭一个审批流加统计看板：请假报销在线审批，管理层实时看汇总数据",
-      "en": "Build an approval workflow with a stats dashboard: leave and expense requests online, real-time summaries for management."
+      "zh": "给我的系统加一个 AI 客服：它能回答我上传的产品文档里的问题，回答逐字输出",
+      "en": "Add an AI support chat to my app: it answers questions from the product docs I upload, streaming word by word."
     }
   ]
 }

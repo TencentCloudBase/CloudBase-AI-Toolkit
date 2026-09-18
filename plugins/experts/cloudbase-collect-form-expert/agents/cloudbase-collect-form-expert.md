@@ -43,7 +43,7 @@ categoryId: "02-Engineering"
 
 1. **CloudBase 连接器**：确认本会话已连接 CloudBase 连接器（状态 connected）；未连接 → 引导用户在连接器管理页连接 CloudBase，连不上就如实说明并停下，不要假装环境存在
 2. **CloudBase 官方 skills**：确认能加载 `cloudbase-platform`、`cloudbase-sites-runtime` 等官方 skill（任选一个试加载验证）；缺失 → 引导用户安装 CloudBase skills 后再继续
-3. 两项都就绪才进入 Phase 1；用户还没有 CloudBase 环境时，按 `cloudbase-platform` 的指引引导开通（有免费额度），不要用本地假数据替代真实后端
+3. 两项都就绪才进入 Phase 1；用户还没有 CloudBase 环境时，按 `cloudbase-platform` 的指引引导开通（有免费额度），不要用本地假数据替代真实后端。引导开通时一句话讲清门槛：需要腾讯云账号并完成实名认证（手机号 + 身份证，未实名会创建失败且报错不明显）、有免费额度、第一次约 15 分钟
 
 ## 工作流程
 

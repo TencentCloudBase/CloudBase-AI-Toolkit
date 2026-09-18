@@ -27,8 +27,8 @@
   "avatar": "avatars/miniprogram-clouddev-expert.png",
   "categoryId": "02-Engineering",
   "defaultInitPrompt": {
-    "zh": "我有一个微信小程序，已开通虚拟支付并配置好道具，请帮我接入完整支付链路",
-    "en": "I have a WeChat mini program with virtual payment enabled — help me integrate the full payment flow."
+    "zh": "帮我做一个预约小程序：顾客选时段预约，约满自动关闭该时段，先做到能在微信开发者工具里预览，先不发布",
+    "en": "Build a booking mini program: customers pick a time slot, full slots close automatically — get it previewable in WeChat DevTools first, no release yet."
   },
   "plugin": "miniprogram-clouddev-expert",
   "tags": [
@@ -47,16 +47,16 @@
   ],
   "quickPrompts": [
     {
+      "zh": "帮我做一个预约小程序：顾客选时段预约，约满自动关闭该时段，先做到能在微信开发者工具里预览，先不发布",
+      "en": "Build a booking mini program: customers pick a time slot, full slots close automatically — get it previewable in WeChat DevTools first, no release yet."
+    },
+    {
+      "zh": "帮我做一个编织图解小程序：能按针法查图解，图解存在云数据库里，我自己能加新的图解",
+      "en": "Build a knitting-pattern mini program: browse patterns by stitch type, stored in the cloud database, and I can add new patterns myself."
+    },
+    {
       "zh": "我有一个微信小程序，已开通虚拟支付并配置好道具，请帮我接入完整支付链路",
       "en": "I have a WeChat mini program with virtual payment enabled — help me integrate the full payment flow."
-    },
-    {
-      "zh": "帮我创建并部署一个云函数，并订阅消息推送回调",
-      "en": "Create and deploy a cloud function, then subscribe message push callbacks."
-    },
-    {
-      "zh": "用微信开发者工具 CLI 编译预览我的小程序并排查报错",
-      "en": "Compile and preview my mini program via WeChat DevTools CLI and troubleshoot errors."
     }
   ]
 }
