@@ -2490,6 +2490,31 @@ describe("PG database tools", () => {
       ).toBe(false);
     });
 
+    it("fetchMigration fails closed on a remote Version that is not 14 digits", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockFetchMigrationCloudApis([
+        {
+          Version: "../../../../tmp/evil",
+          Name: "init_schema",
+          Query: "CREATE TABLE public.a(id int);",
+        },
+      ]);
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({ action: "fetchMigration" }),
+      );
+
+      expect(payload).toMatchObject({
+        success: false,
+        errorCode: "LOCAL_MIGRATION_FETCH_INVALID_VERSION",
+      });
+      expect(
+        fs.existsSync(path.join(migrationWorkspace, "cloudbase/migrations")),
+      ).toBe(false);
+    });
+
     it("fetchMigration returns empty success when remote history is empty", async () => {
       const { server, tools } = createMockServer();
       registerPGDatabaseTools(server, { createClient: vi.fn() });

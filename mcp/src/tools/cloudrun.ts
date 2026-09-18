@@ -93,10 +93,22 @@ const queryCloudRunInputSchema = {
 /** init 缺省模板，与 schema 默认值保持一致（SDK 侧同样回退到该模板） */
 const DEFAULT_INIT_TEMPLATE = "helloworld";
 
+/**
+ * Service naming rule, matching `cloudrun.schema.manage.serverName`: upper/lowercase letters,
+ * digits, hyphens and underscores, starting with a letter, 3-45 characters.
+ *
+ * The value doubles as an on-disk path segment. `action=init` resolves it against `targetPath`
+ * (the Manager SDK calls `path.resolve(targetPath, serverName)` and extracts the downloaded
+ * template archive there) and then writes `targetPath/<serverName>/cloudbaserc.json`. Anchoring
+ * the pattern keeps it a single path segment, so `..`, `/` and `\` are rejected before the
+ * handler runs.
+ */
+const CLOUDRUN_SERVER_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{2,44}$/;
+
 // Input schema for manageCloudRun tool
 const ManageCloudRunInputSchema = {
   action: z.enum(['init', 'download', 'run', 'deploy', 'delete', 'createAgent', 'updateConfig', 'initEnv', 'traffic']).describe('cloudrun.schema.manage.action'),
-  serverName: z.string().describe('cloudrun.schema.manage.serverName'),
+  serverName: z.string().regex(CLOUDRUN_SERVER_NAME_PATTERN).describe('cloudrun.schema.manage.serverName'),
 
   // Traffic management operation parameters (action=traffic)
   trafficOp: z.enum(['set', 'promote', 'rollback']).optional().describe('cloudrun.schema.manage.trafficOp'),

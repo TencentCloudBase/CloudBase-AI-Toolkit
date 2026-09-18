@@ -154,7 +154,9 @@ export const databasePG = defineModule(
       "在工作区 {root} 下写入本地迁移文件 {path} 失败：{reason}。Push 未提交。请修复工作区权限或手动写入该文件，然后重试 applyMigration。",
     "localFile.fetchWriteFailed": "在工作区 {root} 下写入本地迁移文件 {path} 失败：{reason}",
     "localFile.invalidRemoteName":
-      "远端迁移名称 \"{name}\"（version={version}）无效。名称必须匹配 /^[a-z][a-z0-9_]*$/（与 applyMigration.migrationName 相同）。请修复远端历史记录后重试 fetchMigration。",
+      "远端迁移名称 \"{name}\"（version={version}）无效。名称必须匹配 /^[a-z][a-z_]*$/（与 applyMigration.migrationName 相同，不含数字）。请修复远端历史记录后重试 fetchMigration。",
+    "localFile.invalidRemoteVersion":
+      "远端迁移版本号 \"{version}\"（name={name}）无效。版本号必须匹配 /^\\d{14}$/（YYYYMMDDHHMMSS，与 applyMigration.migrationVersion 相同）。请修复远端历史记录后重试 fetchMigration。",
     "localFile.emptyQuery":
       "DescribePGUserMigration 对 version={version}（{name}）返回了空 Query。拒绝写入空的本地迁移文件（会污染 Git checksum）。",
     "localFile.hydrateEmptyQuery":
@@ -447,7 +449,9 @@ export const databasePG = defineModule(
     "localFile.fetchWriteFailed":
       "Failed to write local migration file {path} under workspace {root}: {reason}",
     "localFile.invalidRemoteName":
-      "Remote migration name \"{name}\" (version={version}) is invalid. Names must match /^[a-z][a-z0-9_]*$/ (same as applyMigration.migrationName). Repair the remote history record, then retry fetchMigration.",
+      "Remote migration name \"{name}\" (version={version}) is invalid. Names must match /^[a-z][a-z_]*$/ (same as applyMigration.migrationName, no digits). Repair the remote history record, then retry fetchMigration.",
+    "localFile.invalidRemoteVersion":
+      "Remote migration version \"{version}\" (name={name}) is invalid. Versions must match /^\\d{14}$/ (YYYYMMDDHHMMSS, same as applyMigration.migrationVersion). Repair the remote history record, then retry fetchMigration.",
     "localFile.emptyQuery":
       "DescribePGUserMigration returned empty Query for version={version} ({name}). Refuse to write an empty local migration file (would poison Git checksums).",
     "localFile.hydrateEmptyQuery":

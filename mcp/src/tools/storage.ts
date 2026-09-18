@@ -32,9 +32,19 @@ type QueryStorageInput = {
   maxAge?: number;
 };
 
+/**
+ * Last segment of a cloud path, reused as the temp file name for `action=read`.
+ *
+ * Splits on both separators rather than `path.posix.basename`: a Windows-style `..\..\x` stays a
+ * single (legal) segment under POSIX path rules, but escapes the temp directory once joined with
+ * `path.join` on a Windows host.
+ */
 function getStorageTempFileName(cloudPath: string) {
-  const baseName = path.posix.basename(cloudPath);
-  return baseName || 'storage-file';
+  const baseName = cloudPath.split(/[\\/]/).pop()?.trim() ?? '';
+  if (!baseName || baseName === '.' || baseName === '..') {
+    return 'storage-file';
+  }
+  return baseName;
 }
 
 function decodeInlineTextContent(buffer: Buffer) {

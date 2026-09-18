@@ -463,6 +463,14 @@ const LOCAL_MIGRATIONS_DIR = "cloudbase/migrations";
 const LOCAL_MIGRATIONS_DIR_LEGACY = "migrations";
 /** Same constraint as applyMigration.migrationName (server/CLI parity: lowercase letters and underscores only, digits rejected server-side). */
 const MIGRATION_NAME_PATTERN = /^[a-z][a-z_]*$/;
+/**
+ * Migration identity as returned by the control plane and accepted by `applyMigration.migrationVersion`:
+ * `<version>` in the local `cloudbase/migrations/<version>_<name>.sql` file name.
+ *
+ * Defined once and composed into both the tool schema and the local-file matcher so the two cannot drift.
+ */
+const MIGRATION_VERSION_BODY = "\\d{14}";
+const MIGRATION_VERSION_PATTERN = new RegExp(`^${MIGRATION_VERSION_BODY}$`);
 
 /** Validate migrationName against the server-side rule before calling migration APIs. */
 function validateMigrationName(
@@ -644,7 +652,7 @@ function syncFetchedMigrationsToLocalFiles(
   force: boolean,
 ): { ok: true; files: FetchLocalFileResult[] } | {
   ok: false;
-  errorCode: "LOCAL_MIGRATION_FETCH_EMPTY_QUERY" | "LOCAL_MIGRATION_FETCH_INVALID_NAME" | "LOCAL_MIGRATION_FILE_WRITE_FAILED";
+  errorCode: "LOCAL_MIGRATION_FETCH_EMPTY_QUERY" | "LOCAL_MIGRATION_FETCH_INVALID_NAME" | "LOCAL_MIGRATION_FETCH_INVALID_VERSION" | "LOCAL_MIGRATION_FILE_WRITE_FAILED";
   message: string;
   relativePath?: string;
 } {
@@ -655,6 +663,13 @@ function syncFetchedMigrationsToLocalFiles(
   for (const item of items) {
     const version = item.Version.trim();
     const name = item.Name.trim();
+    if (!MIGRATION_VERSION_PATTERN.test(version)) {
+      return {
+        ok: false,
+        errorCode: "LOCAL_MIGRATION_FETCH_INVALID_VERSION",
+        message: t("databasePG.localFile.invalidRemoteVersion", { version, name }),
+      };
+    }
     if (!MIGRATION_NAME_PATTERN.test(name)) {
       return {
         ok: false,
@@ -880,7 +895,7 @@ async function listAllRemoteMigrationSummaries(
 }
 
 /** `<version>_<name>.sql` — version is the identity key for completeness checks. */
-const LOCAL_MIGRATION_FILENAME_RE = /^(\d{14})_(.+)\.sql$/;
+const LOCAL_MIGRATION_FILENAME_RE = new RegExp(`^(${MIGRATION_VERSION_BODY})_(.+)\\.sql$`);
 
 type LocalMigrationFileEntry = {
   version: string;
@@ -3484,7 +3499,7 @@ export function registerPGDatabaseTools(
           .describe("databasePG.schema.manageMigrationName"),
         migrationVersion: z
           .string()
-          .regex(/^\d{14}$/)
+          .regex(MIGRATION_VERSION_PATTERN)
           .optional()
           .describe("databasePG.schema.manageMigrationVersion"),
         rollbackSql: z
