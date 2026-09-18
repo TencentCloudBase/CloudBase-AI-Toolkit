@@ -1,4 +1,4 @@
-# cloudbase-collect-form-expert（信息收集表单专家）
+# cloudbase-collect-form-expert（小工具开发专家）
 
 CloudBase 信息收集单专家。定位：替代「微信群里收 Excel」——生成收集表单、部署上线、返回二维码，发起人实时看汇总，填写者扫码即填无需装任何东西。
 

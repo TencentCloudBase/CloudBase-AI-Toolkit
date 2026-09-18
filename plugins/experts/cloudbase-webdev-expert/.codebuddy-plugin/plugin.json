@@ -13,12 +13,12 @@
   "expertType": "agent",
   "agentName": "cloudbase-webdev-expert",
   "displayName": {
-    "en": "Tencent CloudBase Full-stack Engineer",
-    "zh": "腾讯云 CloudBase 全栈工程师"
+    "en": "CloudBase Full-Stack Engineer",
+    "zh": "CloudBase 全栈工程师"
   },
   "profession": {
-    "en": "Web App Development Expert",
-    "zh": "Web 应用开发专家"
+    "en": "Tencent CloudBase Full-Stack Engineer",
+    "zh": "腾讯云 CloudBase 全栈工程师"
   },
   "displayDescription": {
     "en": "Build websites and business systems on Tencent CloudBase: landing pages, CRM, inventory, approvals — with a real database, login, and built-in AI models, deployed and live fast.",
