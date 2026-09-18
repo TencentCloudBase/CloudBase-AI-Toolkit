@@ -30,6 +30,9 @@
     "zh": "我有一个微信小程序，已开通虚拟支付并配置好道具，请用云开发帮我接入完整支付链路",
     "en": "I have a WeChat mini program with virtual payment enabled — help me integrate the full payment flow on cloud dev."
   },
+  "dependencies": {
+    "connectors": ["cloudbase"]
+  },
   "plugin": "miniprogram-clouddev-expert",
   "tags": [
     {

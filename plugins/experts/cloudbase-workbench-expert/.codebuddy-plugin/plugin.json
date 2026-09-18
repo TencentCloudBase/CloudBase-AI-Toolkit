@@ -30,6 +30,9 @@
     "zh": "帮我做一个健身打卡工具，每天记录练了什么，有打卡日历和连续天数统计",
     "en": "Build a workout check-in app: log each session, with a check-in calendar and a streak counter."
   },
+  "dependencies": {
+    "connectors": ["cloudbase"]
+  },
   "plugin": "cloudbase-workbench-expert",
   "tags": [
     {

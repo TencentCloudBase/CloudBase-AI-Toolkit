@@ -30,6 +30,9 @@
     "zh": "帮我做一个亲子活动报名表：家长扫码填孩子姓名和联系方式，我能实时看到报名人数和名单",
     "en": "Build a family-event sign-up form: parents scan and fill in their child's name and contact; I watch the sign-up list update in real time."
   },
+  "dependencies": {
+    "connectors": ["cloudbase"]
+  },
   "plugin": "cloudbase-collect-form-expert",
   "tags": [
     {

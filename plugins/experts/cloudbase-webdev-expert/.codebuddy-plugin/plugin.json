@@ -30,6 +30,9 @@
     "zh": "帮我搭一个客户管理（CRM）：记录客户、跟进和商机，销售只能看自己的客户，管理员能看全部",
     "en": "Build a CRM: track customers, follow-ups, and deals; sales reps see only their own customers, admins see everything."
   },
+  "dependencies": {
+    "connectors": ["cloudbase"]
+  },
   "plugin": "cloudbase-webdev-expert",
   "tags": [
     {
