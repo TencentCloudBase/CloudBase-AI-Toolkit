@@ -216,7 +216,7 @@ const iconsWithColor = new Set(['claude', 'gemini', 'baidu', 'alibaba', 'qwen', 
 const getIconUrl = (ide: IDE) => {
   if (ide.iconUrl) return ide.iconUrl;
   if (ide.iconSlug) {
-    const baseUrl = 'https://img.jsdelivr.com/raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/light';
+    const baseUrl = 'https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png@latest/light';
     if (iconsWithColor.has(ide.iconSlug)) {
       return `${baseUrl}/${ide.iconSlug}-color.png`;
     }

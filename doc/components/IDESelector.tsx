@@ -7,6 +7,7 @@ import {
   buildCursorInstallUrl,
   buildTraeInstallUrl,
   buildVSCodeInstallUrl,
+  buildWorkBuddyTaskUrl,
   SITES,
   SITE_IDS,
   type ChannelType,
@@ -25,7 +26,6 @@ interface IDE {
   iconUrl?: string;
   docUrl?: string;
   oneClickInstallUrl?: string;
-  oneClickInstallImage?: string;
   supportsProjectMCP?: boolean;
   cliCommand?: string;
   cliConfigExample?: string;
@@ -33,8 +33,6 @@ interface IDE {
   installCommand?: string;
   installCommandDocs?: string;
   useCommandInsteadOfConfig?: boolean;
-  /** 是否渲染一键安装按钮。与 `oneClickInstallUrl` 同时成立才显示。 */
-  showInstallButton?: boolean;
   /** 该客户端是否出「远端 / 本地」与站点开关。`builtin` 通道不出——那些客户端走自有市场，用户选了也不生效。 */
   showModeSwitch?: boolean;
 }
@@ -60,7 +58,6 @@ const IDES: IDE[] = [
     iconUrl: 'https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/assets/workbuddy-logo.svg',
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy',
     configExample: '',
-    showInstallButton: false,
     useCommandInsteadOfConfig: true,
     installCommandDocs: '**使用内置连接器**\n\n1. 在 WorkBuddy 对话界面中，点击输入框左下角的 **连接器** 按钮\n2. 在弹窗中找到 **腾讯云 CloudBase**，点击进入详情页，点击 **连接** 启用\n\n启用后，即可在对话中直接使用 CloudBase 的各项能力。\n\n**使用快捷命令**\n\n在对话中直接输入 `/cloudbase` 选择 CloudBase Skill，然后输入需求即可。',
   },
@@ -660,7 +657,6 @@ function highlightJSON(json: string): React.ReactNode[] {
 
 interface IDESelectorProps {
   defaultIDE?: string;
-  showInstallButton?: boolean;
   customPrompt?: string;
   collapsibleInstallSteps?: boolean;
   collapseStep1?: boolean;
@@ -683,6 +679,7 @@ const translations: Record<string, Record<string, string>> = {
     templateDescription: '模板已内置 MCP 配置和 AI 规则',
     viewTemplates: '查看模板',
     oneClickInstall: '一键安装',
+    openConnector: '打开连接器',
     orManualConfig: '或手动配置',
     orAddConfig: '将以下配置添加到项目目录下的',
     step2Verify: '步骤 2：和 AI 对话',
@@ -723,6 +720,7 @@ const translations: Record<string, Record<string, string>> = {
     templateDescription: 'Template includes MCP configuration and AI rules',
     viewTemplates: 'View templates',
     oneClickInstall: 'Install in one click',
+    openConnector: 'Open connector',
     orManualConfig: 'Or manual configuration',
     orAddConfig: 'Or add this configuration to',
     step2Verify: 'Step 2: Chat with AI',
@@ -756,7 +754,6 @@ const translations: Record<string, Record<string, string>> = {
 
 export default function IDESelector({
   defaultIDE,
-  showInstallButton = true,
   customPrompt,
   collapsibleInstallSteps = false,
   collapseStep1 = false,
@@ -855,7 +852,7 @@ export default function IDESelector({
   const getIconUrl = (ide: IDE) => {
     if (ide.iconUrl) return ide.iconUrl;
     if (ide.iconSlug) {
-      const baseUrl = 'https://img.jsdelivr.com/raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/light';
+      const baseUrl = 'https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png@latest/light';
       if (iconsWithColor.has(ide.iconSlug)) {
         return `${baseUrl}/${ide.iconSlug}-color.png`;
       }
@@ -871,22 +868,43 @@ export default function IDESelector({
   // 只会制造「选了就生效」的假期望。
   const supportsModeSwitch = ide.showModeSwitch ?? (channel !== 'builtin' && !!ide.configExample);
 
-  // 一键安装链接：由模式与站点驱动。三家客户端的协议集中在 connectionMatrix.ts，
+  // 一键安装 / 打开连接器：由模式与站点驱动。各家协议集中在 connectionMatrix.ts，
   // 这里只负责按 ide.id 分派——不再各自维护一套生成逻辑。
-  const oneClickInstallUrl = useMemo(() => {
-    if (!showInstallButton) return null;
+  //
+  // 出不出按钮只取决于「这个客户端有没有官方深链协议」，与页面无关。不要再用 prop
+  // 开关它：历史上有过一个 showInstallButton，从未被消费，各页面却抄着传 `{false}`，
+  // 一旦真接上门禁就会把深链按钮全部关掉。
+  //
+  // `kind` 区分两种语义，文案不能混：`install` 是真的把配置写进去；`task` 只是带着
+  // 连接器开一个任务草稿（WorkBuddy 没有 mcp/install 协议），写成「一键安装」是骗人。
+  const oneClickInstall = useMemo<{ url: string; kind: 'install' | 'task' } | null>(() => {
     const ctx = { mode, siteId: site, ideName: ide.name };
     switch (ide.id) {
       case 'cursor':
-        return buildCursorInstallUrl(ctx);
+        return { url: buildCursorInstallUrl(ctx), kind: 'install' };
       case 'github-copilot':
-        return buildVSCodeInstallUrl(ctx);
+        return { url: buildVSCodeInstallUrl(ctx), kind: 'install' };
       case 'trae':
-        return buildTraeInstallUrl(ctx);
+        return { url: buildTraeInstallUrl(ctx), kind: 'install' };
+      case 'workbuddy':
+        return { url: buildWorkBuddyTaskUrl(), kind: 'task' };
       default:
-        return ide.oneClickInstallUrl || null;
+        return ide.oneClickInstallUrl
+          ? { url: ide.oneClickInstallUrl, kind: 'install' }
+          : null;
     }
-  }, [ide, mode, site, showInstallButton]);
+  }, [ide, mode, site]);
+
+  const oneClickInstallUrl = oneClickInstall?.url ?? null;
+  const oneClickKind = oneClickInstall?.kind ?? 'install';
+
+  // task 型不是安装，按钮内文不能写 Add to
+  const oneClickButtonText =
+    oneClickKind === 'task'
+      ? isEnglish
+        ? `Open in ${ide.name}`
+        : `用 ${ide.name} 打开`
+      : `Add to ${ide.name}`;
 
   const isProtocolInstallUrl = !!oneClickInstallUrl && !/^https?:\/\//i.test(oneClickInstallUrl);
 
@@ -1077,8 +1095,13 @@ export default function IDESelector({
             </svg>
           </button>
 
-          {isOpen && (
-            <div className={styles.dropdown} role="listbox">
+          {/*
+            始终渲染，靠 CSS 隐藏。Docusaurus 走 SSG，条件渲染会让这份 IDE 名单
+            （28 个）不进静态 HTML——Algolia 与搜索引擎都读不到，于是「cloudbase
+            cline 怎么配」这类查询一个客户端名都搜不到。代价是几十个 DOM 节点，
+            换回来的是全部客户端可被检索。
+          */}
+          <div className={styles.dropdown} role="listbox" hidden={!isOpen}>
               <div className={styles.searchWrapper}>
                 <svg className={styles.searchIcon} width="14" height="14" viewBox="0 0 14 14" fill="none">
                   <path d="M6.5 11C9.26142 11 11.5 8.76142 11.5 6C11.5 3.23858 9.26142 1 6.5 1C3.73858 1 1.5 3.23858 1.5 6C1.5 8.76142 3.73858 11 6.5 11Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -1123,7 +1146,6 @@ export default function IDESelector({
                 )}
               </div>
             </div>
-          )}
         </div>
       </div>
 
@@ -1307,10 +1329,12 @@ export default function IDESelector({
               </div>
             )}
 
-            {/* One-click install button */}
+            {/* One-click install / open-connector button */}
             {oneClickInstallUrl && (
               <div className={styles.oneClickInstall}>
-                <p className={styles.oneClickLabel}>{t.oneClickInstall}:</p>
+                <p className={styles.oneClickLabel}>
+                  {oneClickKind === 'task' ? t.openConnector : t.oneClickInstall}:
+                </p>
                 <a
                   href={oneClickInstallUrl}
                   className={styles.oneClickButton}
@@ -1324,37 +1348,22 @@ export default function IDESelector({
                     });
                   }}
                 >
-                  {ide.oneClickInstallImage ? (
-                    <img
-                      src={ide.oneClickInstallImage}
-                      alt={`Add to ${ide.name}`}
-                      className={styles.oneClickImage}
-                    />
-                  ) : (ide.id === 'cursor' || ide.id === 'github-copilot') ? (
-                    <div className={styles.customOneClickButton}>
-                      {getIconUrl(ide) && (
-                        <img
-                          src={getIconUrl(ide)!}
-                          alt=""
-                          className={`${styles.customButtonIcon} ${ide.id === 'cursor' ? styles.cursorIcon : ''}`}
-                        />
-                      )}
-                      <span className={styles.customButtonText}>Add to {ide.name}</span>
-                    </div>
-                  ) : ide.id === 'trae' ? (
-                    <div className={styles.customOneClickButton}>
-                      {getIconUrl(ide) && (
-                        <img
-                          src={getIconUrl(ide)!}
-                          alt=""
-                          className={styles.customButtonIcon}
-                        />
-                      )}
-                      <span className={styles.customButtonText}>Add to {ide.name}</span>
-                    </div>
-                  ) : (
-                    <span>Add to {ide.name}</span>
-                  )}
+                  {/*
+                    所有客户端共用同一套按钮外观：浅灰底 + 圆角 + 品牌图标 + 「Add to X」。
+                    以前这里按 ide.id 分了四条分支（官方图片 badge / cursor+copilot / trae / 裸文字），
+                    同一个页面上的按钮因此长得各不相同，WorkBuddy 那条更是只剩一行没有按钮外观的纯文字。
+                    图标统一走 getIconUrl(ide)：30 多个客户端都已配好图源，没有图源时自动退化成纯文字按钮。
+                  */}
+                  <div className={styles.customOneClickButton}>
+                    {getIconUrl(ide) && (
+                      <img
+                        src={getIconUrl(ide)!}
+                        alt=""
+                        className={styles.customButtonIcon}
+                      />
+                    )}
+                    <span className={styles.customButtonText}>{oneClickButtonText}</span>
+                  </div>
                 </a>
               </div>
             )}

@@ -23,7 +23,8 @@ export type ConnectionMode = 'remote' | 'local';
  *
  * - `deeplink`  有官方一键安装协议（Cursor / VSCode 系 / Trae）→ 出按钮
  * - `cli`       一条命令安装（Claude Code / Gemini CLI 等）→ 出命令
- * - `builtin`   客户端已内置 CloudBase，无需配置 → 不出配置，只指路
+ * - `builtin`   客户端已内置 CloudBase，无需配置 → 不出配置，只指路。
+ *                其中带连接器深链的（WorkBuddy）额外给一个「打开连接器」按钮
  * - `manual`    用户自己写配置文件 / 图形界面粘贴 → 出 JSON
  */
 export type ChannelType = 'deeplink' | 'cli' | 'builtin' | 'manual';
@@ -349,4 +350,43 @@ export function buildTraeInstallUrl({ mode, siteId, ideName }: InstallLinkContex
   const type = mode === 'local' ? 'stdio' : 'http';
   const encoded = encodeURIComponent(toBase64(JSON.stringify(config)));
   return `${TRAE_SCHEME}trae.ai-ide/mcp-import?type=${type}&name=${MCP_SERVER_NAME}&config=${encoded}`;
+}
+
+/* ---------------------------------------------------------------------------
+ * 连接器深链（已内置 CloudBase 的客户端）
+ *
+ * WorkBuddy 的 `workbuddy://` 路由表里没有 `mcp/install`（已解包枚举全部字面量），
+ * 硬塞 MCP 安装链接会点出「当前版本不支持」。但它有 Task Deeplink 可以**预选连接器**：
+ * 命中条件是 host=`task` 且 `action=start`；点完落在新建任务页，CloudBase 已勾上、
+ * 提示词已填进草稿（停在草稿不自动提交；未授权时会引导过一次授权）。
+ *
+ * 所以它不是「一键装好」而是「一键带着 CloudBase 开任务」。调用方按下方的 `kind`
+ * 区分文案，不要统一写成「一键安装」。
+ *
+ * ⚠️ 当前 WorkBuddy 市场里的 CloudBase 条目是**本地 npx（stdio）型**，不是远端 URL
+ * 型。这条链接激活的就是那个条目，因此走的是本地模式链路。要让内置连接器也吃上远端
+ * 模式，需要先把市场条目的 mcp.json 改成 `{"url": ...}` 型——那是产品侧动作，不在这层。
+ * ------------------------------------------------------------------------- */
+
+/**
+ * CloudBase 在 WorkBuddy 连接器市场的 id。
+ *
+ * 四处取值一致，已核对：市场条目目录名、授权态 `connector-states.json` 的 key、
+ * 本地 `mcp.json` 里的 `connector:cloudbase`、市场条目内 `mcpServers` 的 key。
+ */
+export const WORKBUDDY_CONNECTOR_ID = 'cloudbase';
+
+/** 打开连接器时预填的提示词，让用户点完就有事可做 */
+const WORKBUDDY_DEFAULT_PROMPT = '用 CloudBase 帮我做一个应用';
+
+/**
+ * WorkBuddy：预选 CloudBase 连接器并新建任务。
+ *
+ * 只带 `connectorIds`。刻意不带 `cwd` / `skills`——那两个参数会改变落点页面的
+ * 形态，文档页不该替用户预设工作目录或技能集。
+ */
+export function buildWorkBuddyTaskUrl(
+  prompt: string = WORKBUDDY_DEFAULT_PROMPT,
+): string {
+  return `workbuddy://task?action=start&prompt=${encodeURIComponent(prompt)}&connectorIds=${WORKBUDDY_CONNECTOR_ID}`;
 }

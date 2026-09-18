@@ -25,6 +25,12 @@
 }
 
 /* Dropdown */
+.dropdown[hidden] {
+  /* `hidden` 属性自带 display:none，但会被本文件里 .dropdown 的 display 覆盖，
+     用属性选择器抬高特异性，保证「始终渲染 + CSS 隐藏」这条策略真的生效。 */
+  display: none;
+}
+
 .dropdownWrapper {
   position: relative;
 }
@@ -312,20 +318,15 @@
   font-weight: 500;
 }
 
+/* 外层 <a> 只管链接语义与布局；hover 视觉统一交给内层按钮，
+   避免「a 降透明度 + 按钮变底色」两层效果叠加。 */
 .oneClickButton {
   display: inline-block;
   text-decoration: none;
-  transition: opacity 0.15s ease;
 }
 
 .oneClickButton:hover {
-  opacity: 0.8;
   text-decoration: none;
-}
-
-.oneClickImage {
-  height: 40px;
-  display: block;
 }
 
 /* Custom One-click Button */
@@ -923,10 +924,6 @@
   .lineNumber {
     width: 1.5rem;
     padding-right: 0.5rem;
-  }
-
-  .oneClickImage {
-    height: 32px;
   }
 
   .cliCommandBlock {
