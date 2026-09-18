@@ -2,7 +2,7 @@
 
 > - 数据源：[API 概览](https://cloud.tencent.com/document/api/876/34809) · [依赖产品接口指引](https://cloud.tencent.com/document/api/876/34808)
 > - 所有接口均为腾讯云 API 3.0 管控面接口，支持各语言官方 SDK 调用；也可通过 CloudBase MCP 的 `callCloudApi` 工具或 [API Explorer](https://console.cloud.tencent.com/api/explorer) 直接调用
-> - 最近同步：2026-09-17
+> - 最近同步：2026-09-18
 
 ## API 概览
 
@@ -37,6 +37,10 @@
 | [AssumeRoleForAllocatedEnv](https://cloud.tencent.com/document/api/876/131593) | 为环境池里的环境申请角色临时凭证 | 1000 |
 | [DescribePlatformAccountCircle](https://cloud.tencent.com/document/api/876/138296) | 查询平台版资源计费周期 | 20 |
 | [ModifyEnvExtra](https://cloud.tencent.com/document/api/876/137192) | 修改环境额外配置 | 20 |
+| [CreatePlatformEnv](https://cloud.tencent.com/document/api/876/138302) | 创建平台版套餐环境 | 20 |
+| [DestroyPlatformEnv](https://cloud.tencent.com/document/api/876/138297) | 删除平台版环境 | 20 |
+| [DescribePlatforms](https://cloud.tencent.com/document/api/876/138298) | 查询平台版资源信息 | 20 |
+| [ModifyPlatformEnv](https://cloud.tencent.com/document/api/876/138295) | 修改平台版环境信息 | 20 |
 
 ### 用户权限相关接口
 
@@ -90,6 +94,9 @@
 | [DescribeCreditsUsage](https://cloud.tencent.com/document/api/876/132935) | 获取资源点用量 | 20 |
 | [DescribeCreditsUsageDetail](https://cloud.tencent.com/document/api/876/132934) | 获取资源点用量明细 | 20 |
 | [DescribeEnvPlans](https://cloud.tencent.com/document/api/876/133103) | 查询环境套餐信息 | 20 |
+| [DescribePlatformCreditsUsage](https://cloud.tencent.com/document/api/876/138301) | 获取平台版资源点用量 | 20 |
+| [DescribePlatformCreditsUsageDetail](https://cloud.tencent.com/document/api/876/138300) | 获取平台版资源点用量明细 | 20 |
+| [DescribePlatformEnvUsage](https://cloud.tencent.com/document/api/876/138299) | 查询平台版资源用量 | 20 |
 
 ### 其他接口
 
@@ -175,23 +182,6 @@
 | [GetFunction](https://cloud.tencent.com/document/api/876/137948) | 获取云函数详情 | 20 |
 | [DownloadFunction](https://cloud.tencent.com/document/api/876/137949) | 获取云函数地址并下载 | 20 |
 | [UpdateFunctionCode](https://cloud.tencent.com/document/api/876/137952) | 更新云函数代码 | 20 |
-
-### tcb相关接口
-
-| 接口名称 | 接口功能 | 频率限制（次/秒） |
-| --- | --- | --- |
-| [DescribePlatformCreditsUsage](https://cloud.tencent.com/document/api/876/138301) | 获取平台版资源点用量 | 20 |
-| [DescribePlatformCreditsUsageDetail](https://cloud.tencent.com/document/api/876/138300) | 获取平台版资源点用量明细 | 20 |
-| [CreatePlatformEnv](https://cloud.tencent.com/document/api/876/138302) | 创建平台版套餐环境 | 20 |
-| [DescribePlatformEnvUsage](https://cloud.tencent.com/document/api/876/138299) | 查询平台版资源用量 | 20 |
-| [DescribePlatforms](https://cloud.tencent.com/document/api/876/138298) | 查询平台版资源信息 | 20 |
-| [DestroyPlatformEnv](https://cloud.tencent.com/document/api/876/138297) | 删除平台版环境 | 20 |
-
-### 管控相关接口
-
-| 接口名称 | 接口功能 | 频率限制（次/秒） |
-| --- | --- | --- |
-| [ModifyPlatformEnv](https://cloud.tencent.com/document/api/876/138295) | 修改平台版环境信息 | 20 |
 
 > 注意：
 > 

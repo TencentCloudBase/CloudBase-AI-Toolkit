@@ -1,6 +1,6 @@
 {
   "name": "cloudbase-collect-form-expert",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CloudBase collect-form expert: replaces 'collecting replies in the group chat' — generates sign-up forms, surveys, polls, and info-collection forms, deploys them online, and returns a QR code. Respondents scan and fill without installing anything; the organizer watches responses come in live with auto-summarized stats and CSV export. Built and deployed end-to-end for non-developers.",
   "author": {
     "name": "booker",
@@ -29,6 +29,11 @@
   "defaultInitPrompt": {
     "zh": "帮我做一个亲子活动报名表：家长扫码填孩子姓名和联系方式，我能实时看到报名人数和名单",
     "en": "Build a family-event sign-up form: parents scan and fill in their child's name and contact; I watch the sign-up list update in real time."
+  },
+  "dependencies": {
+    "connectors": [
+      "cloudbase"
+    ]
   },
   "plugin": "cloudbase-collect-form-expert",
   "tags": [

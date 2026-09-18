@@ -1,6 +1,6 @@
 {
   "name": "miniprogram-clouddev-expert",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "WeChat mini program full-stack development expert: builds and deploys mini programs with frontend, backend (cloud functions), cloud database, message push callbacks, and virtual payment integration, powered by Tencent CloudBase (WeChat Cloud Dev).",
   "author": {
     "name": "booker",
@@ -29,6 +29,11 @@
   "defaultInitPrompt": {
     "zh": "我有一个微信小程序，已开通虚拟支付并配置好道具，请帮我接入完整支付链路",
     "en": "I have a WeChat mini program with virtual payment enabled — help me integrate the full payment flow."
+  },
+  "dependencies": {
+    "connectors": [
+      "cloudbase"
+    ]
   },
   "plugin": "miniprogram-clouddev-expert",
   "tags": [
