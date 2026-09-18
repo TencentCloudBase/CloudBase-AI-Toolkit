@@ -1,6 +1,6 @@
 {
   "name": "cloudbase-workbench-expert",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "CloudBase personal workbench expert: turns everyday tracking scenarios — check-ins, habits, watchlists, expense tracking, mood journal, weekly reviews — into shareable web apps backed by a real cloud database. Data survives device changes and browser resets, and can be shared with family or friends with per-person login. Built and deployed end-to-end for non-developers.",
   "author": {
     "name": "booker",
