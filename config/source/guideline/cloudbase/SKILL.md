@@ -8,6 +8,27 @@ version: 2.34.4
 
 # CloudBase Development Guidelines
 
+## Step 0 — Confirm the site (domestic vs international)
+
+CloudBase has **two independent account systems**: 国内站 (domestic, `cloud.tencent.com`) and 国际站 (international, `tencentcloud.com`). Environments, consoles, API keys, and login state do **not** cross over. A wrong-site login usually looks like *"logged in, but no environments visible"* rather than a clear error — so settle the site **before** installing MCP, logging in, or binding an env.
+
+Infer it when you can (console domain, envId, an existing error); otherwise **ask the user once**. Do not guess.
+
+| | 国内站 domestic | 国际站 international |
+|---|---|---|
+| Remote MCP (preferred) | `https://tcb-api.cloud.tencent.com/mcp/v1` | `https://tcb-api.tencentcloud.com/mcp/v1` |
+| Local stdio MCP | default — nothing to set | `TCB_SITE=intl` + `TCB_REGION=ap-singapore` |
+| `tcb` CLI | default | `TCB_IS_INTL=true` (or `tcb config set isIntl true`) |
+| Console | `tcb.cloud.tencent.com` | `tcb.tencentcloud.com` |
+| Default region | `ap-shanghai` | `ap-singapore` |
+| NoSQL / document DB tools | available | **not available** |
+
+- **International users: connect the international remote MCP endpoint directly** — `https://tcb-api.tencentcloud.com/mcp/v1`. It is a first-class hosted endpoint; OAuth covers the login. The site is decided by the host, so there is no `site` query parameter to pass.
+- Domestic remote MCP is the same shape at `https://tcb-api.cloud.tencent.com/mcp/v1` — that stays the default for domestic users.
+- `TCB_IS_INTL` (CLI) and `TCB_SITE` (MCP) are **different variable names for different tools**. Set the one matching the tool in use; setting the wrong one silently does nothing.
+
+Details and copy-paste configs: `references/mcp-setup.md`. CLI specifics: `references/tooling-fallback.md`.
+
 ## Workflow
 
 ```

@@ -28,6 +28,7 @@ Do **not** block the user waiting for a restart when CLI (or another documented 
    - Read sibling skill `cloudbase-cli` (local relative path) — start with
      `references/core.md`, then load ONLY the matching domain reference
    - Ensure `tcb` is installed (see install notes below)
+   - International site: `TCB_IS_INTL=true` — this is the **CLI** switch; `TCB_SITE` is the MCP one and will not move the CLI
    - `tcb login` (device code by default) → confirm envId → `tcb env use <envId>`
    - Deploy / manage by following that domain skill — do NOT invent shortcuts
 5. After the user restarts the session
@@ -85,6 +86,22 @@ When npm is available:
 - Or project-local / `npx`-style invocation if the project already depends on the CLI
 
 Always confirm `tcb --version` (or equivalent) before `tcb login`.
+
+### International site (国际站)
+
+The CLI and the local MCP server use **different switches** for the site. Setting the wrong one fails silently.
+
+| Tool | Switch | Verify |
+|------|--------|--------|
+| `tcb` CLI | `TCB_IS_INTL=true`, or persistently `tcb config set isIntl true` | `tcb config get isIntl` |
+| MCP (local stdio) | `TCB_SITE=intl` (+ `TCB_REGION=ap-singapore`) | session `auth` status / env list |
+| MCP (remote) | none — the **hostname** decides it (`tcb-api.tencentcloud.com` vs `tcb-api.cloud.tencent.com`) | endpoint returns 401 without credentials |
+
+With `isIntl` on, the CLI also rewrites its own hosted endpoints to the international host.
+
+> ⚠️ Wrong-site symptom: `tcb login` succeeds but `tcb env list` comes back empty. Check `isIntl` **before** re-authenticating or assuming the account has no environments.
+>
+> ⚠️ The international site has **no NoSQL / document-database tools**.
 
 ## Hard rules
 

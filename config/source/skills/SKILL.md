@@ -7,6 +7,14 @@ alwaysApply: true
 
 # CloudBase All-In-One
 
+## Step 0 — Confirm the site (domestic vs international)
+
+CloudBase runs 国内站 (domestic, `cloud.tencent.com`) and 国际站 (international, `tencentcloud.com`) as **two independent account systems** — environments, consoles, API keys, and login state do not cross over. A wrong-site login looks like *"logged in, but no environments"* rather than a clear error, so settle the site before logging in or configuring MCP.
+
+- **International (国际站)** — connect the international remote MCP endpoint directly: `https://tcb-api.tencentcloud.com/mcp/v1`. For local stdio set `TCB_SITE=intl` + `TCB_REGION=ap-singapore`; for the `tcb` CLI set `TCB_IS_INTL=true`.
+- **Domestic (国内站)** — `https://tcb-api.cloud.tencent.com/mcp/v1`. Both switches are the defaults, so nothing extra to declare.
+- Two gaps to plan around: remote endpoints take **no `site` / `region` query parameter** (the hostname decides), and the international site has **no NoSQL / document-database tools**.
+
 ## Workflow
 
 Every CloudBase task follows this three-stage process:

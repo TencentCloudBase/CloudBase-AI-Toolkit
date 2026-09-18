@@ -1,5 +1,70 @@
 # CloudBase MCP Setup Reference
 
+## Site: domestic or international (decide first)
+
+CloudBase has two independent account systems — 国内站 (`cloud.tencent.com`) and 国际站 (`tencentcloud.com`). Env, console, API keys, and login state do not cross over, and a wrong-site login looks like *"logged in, but no environments"*. Confirm the site before configuring MCP. Ask the user if the console domain / envId does not make it obvious.
+
+### International (国际站)
+
+**Preferred: connect the international remote MCP endpoint directly.** One URL, no local Node, no keys on disk.
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "type": "http",
+      "url": "https://tcb-api.tencentcloud.com/mcp/v1"
+    }
+  }
+}
+```
+
+OAuth-capable clients finish login in the browser (DCR → login → pick env → consent). For clients without OAuth, or for CI, use the static-credential form and add the international site's key pair:
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "type": "http",
+      "url": "https://tcb-api.tencentcloud.com/mcp/v1?env_id=<env_id>",
+      "headers": {
+        "X-TencentCloud-SecretId": "<intl Secret ID>",
+        "X-TencentCloud-SecretKey": "<intl Secret Key>"
+      }
+    }
+  }
+}
+```
+
+If the user needs **local stdio** instead (local file access, offline), set the site explicitly — the local server cannot infer it from a hostname:
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "TCB_SITE": "intl",
+        "TCB_REGION": "ap-singapore"
+      }
+    }
+  }
+}
+```
+
+### Domestic (国内站)
+
+Same shape, different host — `https://tcb-api.cloud.tencent.com/mcp/v1`. Nothing site-specific to declare: `domestic` + `ap-shanghai` are the defaults for both remote and local mode.
+
+> ⚠️ **No `site` / `region` query parameter on the remote endpoint.** The host decides the site. A domestic environment located in `ap-singapore` still uses the domestic host — do not try to switch sites with a URL parameter.
+>
+> ⚠️ **International has no NoSQL / document-database tools.** Route document-DB work to the domestic site or to PostgreSQL instead.
+
+> ℹ️ `TCB_SITE` is the **MCP** variable. The `tcb` CLI uses a different one (`TCB_IS_INTL`) — see `tooling-fallback.md`.
+
+---
+
 ## Preferred: Install CloudBase Plugin (global)
 
 When the user asks to install CloudBase / the AI Toolkit / the plugin, **prefer the Open Plugin Spec CLI** over hand-writing MCP JSON. One install brings MCP + Skills + Hooks.
