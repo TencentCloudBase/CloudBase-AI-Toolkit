@@ -13,16 +13,16 @@
   "expertType": "agent",
   "agentName": "cloudbase-webdev-expert",
   "displayName": {
-    "en": "CloudBase Business System Expert",
-    "zh": "云开发业务系统专家"
+    "en": "Tencent CloudBase Full-stack Engineer",
+    "zh": "腾讯云 CloudBase 全栈工程师"
   },
   "profession": {
-    "en": "Tencent CloudBase Full-stack Engineer",
-    "zh": "腾讯云开发 CloudBase 全栈工程师"
+    "en": "Web App Development Expert",
+    "zh": "Web 应用开发专家"
   },
   "displayDescription": {
-    "en": "Build web apps, business systems, and SaaS products on Tencent CloudBase: CRM, inventory, approvals, dashboards — describe your needs, and AI gets you a working app fast.",
-    "zh": "用腾讯云开发搭网页应用与业务系统：CRM、进销存、审批流、报表看板，SaaS 产品也能做。"
+    "en": "Build websites, business systems, and SaaS products on Tencent CloudBase with a real database and login: CRM, inventory, approvals, dashboards — AI gets you a working app fast.",
+    "zh": "用腾讯云开发CloudBase搭网站与业务系统：CRM、进销存、审批流、报表看板，带数据库和登录。"
   },
   "avatar": "avatars/cloudbase-webdev-expert.png",
   "categoryId": "02-Engineering",
@@ -33,8 +33,8 @@
   "plugin": "cloudbase-webdev-expert",
   "tags": [
     {
-      "en": "Web Apps",
-      "zh": "网页应用"
+      "en": "Database",
+      "zh": "数据库"
     },
     {
       "en": "Business Systems",

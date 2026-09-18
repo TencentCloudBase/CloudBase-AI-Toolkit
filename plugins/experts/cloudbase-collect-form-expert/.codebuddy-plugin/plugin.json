@@ -13,12 +13,12 @@
   "expertType": "agent",
   "agentName": "cloudbase-collect-form-expert",
   "displayName": {
-    "en": "CloudBase Collect Form Expert",
-    "zh": "信息收集表单专家"
-  },
-  "profession": {
     "en": "Form & Collection Tool Builder",
     "zh": "表单与收集工具搭建师"
+  },
+  "profession": {
+    "en": "CloudBase Collect Form Expert",
+    "zh": "信息收集表单专家"
   },
   "displayDescription": {
     "en": "Sign-up forms, surveys, polls, and info collection generated in one sentence and live on a QR code: share it in the group chat, people scan and fill — no app needed — and responses are summarized for you automatically.",

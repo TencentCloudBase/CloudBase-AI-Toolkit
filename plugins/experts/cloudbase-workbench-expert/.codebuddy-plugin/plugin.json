@@ -13,16 +13,16 @@
   "expertType": "agent",
   "agentName": "cloudbase-workbench-expert",
   "displayName": {
-    "en": "CloudBase Personal Workbench Expert",
-    "zh": "云端个人工作台专家"
+    "en": "CloudBase Productivity Tool Builder",
+    "zh": "CloudBase 效率工具搭建师"
   },
   "profession": {
-    "en": "Productivity Tool Builder",
-    "zh": "效率工具搭建师"
+    "en": "Personal Workbench Expert",
+    "zh": "个人工作台专家"
   },
   "displayDescription": {
     "en": "Turn check-ins, habits, lists, expense tracking, watchlists, reviews, and weekly reports into your personal workbench — data lives in the cloud so it survives phone changes and browser resets, and you can invite family or friends to use it together.",
-    "zh": "打卡、习惯、清单、记账、追剧、周报，搭你的云端工作台：数据不丢、换手机还在，能拉家人朋友一起用。"
+    "zh": "打卡、习惯、清单、记账、追剧、周报，搭你的个人工作台：数据不丢、换手机还在，能拉家人朋友一起用。"
   },
   "avatar": "avatars/cloudbase-workbench-expert.png",
   "categoryId": "02-Engineering",

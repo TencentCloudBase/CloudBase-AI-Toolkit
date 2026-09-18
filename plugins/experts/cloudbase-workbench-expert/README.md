@@ -1,4 +1,4 @@
-# cloudbase-workbench-expert（云端个人工作台专家）
+# cloudbase-workbench-expert（个人工作台专家）
 
 CloudBase 个人工作台单专家。定位：**打卡 / 习惯 / 清单 / 记账 / 追剧 / 复盘 / 周报**等日常记录场景 → 数据存云端的在线小应用：换设备不丢、可多人共用、有账号体系。
 
