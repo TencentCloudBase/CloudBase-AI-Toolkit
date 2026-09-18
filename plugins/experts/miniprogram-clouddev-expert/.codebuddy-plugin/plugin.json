@@ -1,7 +1,7 @@
 {
   "name": "miniprogram-clouddev-expert",
   "version": "1.0.2",
-  "description": "WeChat mini program cloud development expert: builds mini programs on WeChat Cloud Development (CloudBase) using cloud-dev skills as knowledge and WeChat DevTools CLI/MCP as tools, covering cloud functions, cloud database, message push callbacks, and virtual payment integration.",
+  "description": "WeChat mini program full-stack development expert: builds and deploys mini programs with frontend, backend (cloud functions), cloud database, message push callbacks, and virtual payment integration, powered by Tencent CloudBase (WeChat Cloud Dev).",
   "author": {
     "name": "booker",
     "email": "booker@cloudbase.net"
@@ -13,32 +13,32 @@
   "expertType": "agent",
   "agentName": "miniprogram-clouddev-expert",
   "displayName": {
-    "en": "Mini Program Cloud Dev Expert",
-    "zh": "小程序云开发专家"
+    "en": "Mini Program Full-Stack Expert",
+    "zh": "小程序全栈开发专家"
   },
   "profession": {
-    "en": "WeChat Cloud Development Engineer",
-    "zh": "微信云开发工程师"
+    "en": "WeChat Mini Program Engineer",
+    "zh": "微信小程序工程师"
   },
   "displayDescription": {
-    "en": "Full-stack WeChat mini program development and deployment on WeChat Cloud Development: cloud functions, database, callbacks, virtual payment, and AI/LLM integration.",
-    "zh": "从零开发部署微信小程序：云函数、数据库、回调、虚拟支付、AI 大模型接入。"
+    "en": "Full-stack WeChat mini program development: frontend, backend, database, deployment, virtual payment, and AI/LLM integration — no server setup needed.",
+    "zh": "从零开发上线微信小程序：前端、后端、数据库、虚拟支付、AI 大模型接入，不用自己买服务器。"
   },
   "avatar": "avatars/miniprogram-clouddev-expert.png",
   "categoryId": "02-Engineering",
   "defaultInitPrompt": {
-    "zh": "我有一个微信小程序，已开通虚拟支付并配置好道具，请用云开发帮我接入完整支付链路",
-    "en": "I have a WeChat mini program with virtual payment enabled — help me integrate the full payment flow on cloud dev."
+    "zh": "我有一个微信小程序，已开通虚拟支付并配置好道具，请帮我接入完整支付链路",
+    "en": "I have a WeChat mini program with virtual payment enabled — help me integrate the full payment flow."
   },
   "plugin": "miniprogram-clouddev-expert",
   "tags": [
     {
-      "en": "WeChat Cloud Dev",
-      "zh": "微信云开发"
+      "en": "WeChat Mini Program",
+      "zh": "微信小程序"
     },
     {
-      "en": "Cloud Functions",
-      "zh": "云函数"
+      "en": "Backend",
+      "zh": "后端开发"
     },
     {
       "en": "Virtual Payment",
@@ -47,8 +47,8 @@
   ],
   "quickPrompts": [
     {
-      "zh": "我有一个微信小程序，已开通虚拟支付并配置好道具，请用云开发帮我接入完整支付链路",
-      "en": "I have a WeChat mini program with virtual payment enabled — help me integrate the full payment flow on cloud dev."
+      "zh": "我有一个微信小程序，已开通虚拟支付并配置好道具，请帮我接入完整支付链路",
+      "en": "I have a WeChat mini program with virtual payment enabled — help me integrate the full payment flow."
     },
     {
       "zh": "帮我创建并部署一个云函数，并订阅消息推送回调",

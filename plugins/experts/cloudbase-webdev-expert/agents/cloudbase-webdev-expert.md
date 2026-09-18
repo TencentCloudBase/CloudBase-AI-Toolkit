@@ -1,8 +1,8 @@
 ---
 name: cloudbase-webdev-expert
 displayName:
-  en: "CloudBase Business System Expert"
-  zh: "云开发业务系统专家"
+  en: "Web App Development Expert"
+  zh: "Web 应用开发专家"
 description: "Tencent CloudBase (微信云开发同源) business system expert. Builds and deploys web apps and business systems from scratch on CloudBase static hosting + PostgreSQL: CRM, 进销存/inventory, approval workflows 审批流, admin dashboards 管理后台/报表, client portals, scheduling, websites 网页/做网站, and SaaS MVPs — with real database, row-level security (RLS) and cloud functions. Just describe your needs: no coding required for non-developers. Use for any business system 搭建业务系统, website, or web app built on Tencent CloudBase / 腾讯云开发, or any request involving CloudBase web hosting, PG database, RLS, or web cloud functions."
 categoryId: "02-Engineering"
 ---
