@@ -232,4 +232,54 @@ describe("waitForCloudRunDeployRegistration", () => {
     expect(result.registered).toBe(false);
     expect(result.timedOut).toBe(true);
   });
+
+  // maxWaitMs: 0 is how manageCloudRun(deploy, waitRegistration=false) skips the
+  // blocking wait: one probe, then return — never sleep, never hang the tool.
+  it("probes exactly once and never sleeps when maxWaitMs is 0", async () => {
+    const call = vi.fn().mockResolvedValue({ Task: { Id: 21, Status: "creating" } });
+    const getDeployRecords = vi
+      .fn()
+      .mockResolvedValue({ DeployRecords: [{ BuildId: 0, Status: "creating" }] });
+    const sleepFn = vi.fn().mockResolvedValue(undefined);
+
+    const result = await waitForCloudRunDeployRegistration({
+      manager: { commonService: () => ({ call }) },
+      cloudrunService: { getDeployRecords },
+      envId: "env-test",
+      serverName: "svc-nowait",
+      maxWaitMs: 0,
+      intervalMs: 3_000,
+      sleepFn,
+    });
+
+    expect(result.timedOut).toBe(true);
+    expect(result.buildId).toBeUndefined();
+    expect(result.taskId).toBe(21);
+    expect(result.taskStatus).toBe("creating");
+    expect(sleepFn).not.toHaveBeenCalled();
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(getDeployRecords).toHaveBeenCalledTimes(1);
+  });
+
+  it("still reports registered on the single probe when maxWaitMs is 0", async () => {
+    const call = vi.fn().mockResolvedValue({ Task: { Id: 22, Status: "running" } });
+    const getDeployRecords = vi
+      .fn()
+      .mockResolvedValue({ DeployRecords: [{ BuildId: 4242, Status: "building" }] });
+    const sleepFn = vi.fn().mockResolvedValue(undefined);
+
+    const result = await waitForCloudRunDeployRegistration({
+      manager: { commonService: () => ({ call }) },
+      cloudrunService: { getDeployRecords },
+      envId: "env-test",
+      serverName: "svc-nowait-hit",
+      maxWaitMs: 0,
+      sleepFn,
+    });
+
+    expect(result.registered).toBe(true);
+    expect(result.timedOut).toBe(false);
+    expect(result.buildId).toBe(4242);
+    expect(sleepFn).not.toHaveBeenCalled();
+  });
 });
