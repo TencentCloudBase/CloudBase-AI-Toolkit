@@ -57,6 +57,7 @@ describe("resolveMcpLaunch", () => {
       command: "npx",
       args: ["-y", "@cloudbase/cloudbase-mcp@latest"],
       source: "npx",
+      shell: process.platform === "win32",
     });
   });
 

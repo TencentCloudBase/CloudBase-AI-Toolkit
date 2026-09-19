@@ -8,6 +8,14 @@ export interface McpLaunchSpec {
   args: string[];
   /** How the command was resolved (for logs / tests). */
   source: "env" | "npx-cache" | "npx";
+  /**
+   * Whether the command must run through a shell. `npx` resolves to `npx.cmd`
+   * on Windows, which `spawn` cannot execute directly → ENOENT. The env /
+   * npx-cache branches already point at real executables and must NOT use a
+   * shell (a shell would re-quote paths that already contain spaces, e.g. a
+   * `CLOUDBASE_MCP_COMMAND` pointing at "C:\Program Files\nodejs\node.exe").
+   */
+  shell?: boolean;
 }
 
 /**
@@ -57,5 +65,10 @@ export function resolveMcpLaunch(
   if (cached) {
     return { command: cached, args: [], source: "npx-cache" };
   }
-  return { command: "npx", args: ["-y", MCP_PACKAGE], source: "npx" };
+  return {
+    command: "npx",
+    args: ["-y", MCP_PACKAGE],
+    source: "npx",
+    shell: process.platform === "win32",
+  };
 }
