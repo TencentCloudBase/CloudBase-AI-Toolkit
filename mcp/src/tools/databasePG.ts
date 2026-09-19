@@ -115,6 +115,7 @@ type PgQueryResult = {
   rowCount?: number | null;
   command?: string;
   fields?: PgQueryField[];
+  requestId?: string;
 };
 
 type PgClientLike = {
@@ -1230,6 +1231,24 @@ function buildSchemaTable(schema: string, name: string) {
   return `${schema}.${name}`;
 }
 
+/**
+ * Best-effort extraction of a backend RequestId from a thrown error so it can be
+ * surfaced to the caller (issue #1060 asks for RequestId on SQL failures). The
+ * CloudBase/manager SDK sometimes attaches `requestId`/`RequestId` to its error.
+ */
+function extractRequestId(error: unknown): string | undefined {
+  if (error && typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    if (typeof record.requestId === "string") {
+      return record.requestId;
+    }
+    if (typeof record.RequestId === "string") {
+      return record.RequestId;
+    }
+  }
+  return undefined;
+}
+
 function parseTargetTableFromSql(sql: string, defaultSchema: string) {
   const normalized = stripLeadingSqlComments(sql);
   const identifier = String.raw`((?:[A-Za-z_][A-Za-z0-9_$]*\.)?[A-Za-z_][A-Za-z0-9_$]*)`;
@@ -1855,9 +1874,14 @@ function createManagerPgClient(
       const rows = parseManagerRows(result);
       return {
         rows,
-        rowCount: result.AffectedRows ?? rows.length,
+        // AffectedRows may arrive as a `bigint` from the SDK/backend; coerce to a
+        // JSON-safe number so the result can be serialized. Leaving it as bigint
+        // made JSON.stringify throw, producing the opaque -32603 (issue #1060).
+        rowCount:
+          result.AffectedRows == null ? rows.length : Number(result.AffectedRows),
         command: inferCommand(renderedSql),
         fields: result.Columns?.map((name) => ({ name })) ?? [],
+        requestId: result.RequestId,
       };
     },
     async end() {
@@ -2146,6 +2170,7 @@ async function handleReadOnlySql(
       data: {
         role: context.role,
         sqlPreview: args.sql.trim().slice(0, 500),
+        requestId: extractRequestId(error),
       },
     });
   }
@@ -2157,6 +2182,7 @@ async function handleReadOnlySql(
       ...summary,
       command: result.command ?? "SELECT",
       rowCount: result.rowCount ?? summary.returnedRows,
+      requestId: result.requestId,
     },
     message: summary.truncated
       ? t("databasePG.readOnly.truncated", {
@@ -2278,6 +2304,7 @@ async function handleExecuteSql(
       data: {
         role: context.role,
         sqlPreview: args.sql.trim().slice(0, 500),
+        requestId: extractRequestId(error),
       },
     });
   }
@@ -2290,6 +2317,7 @@ async function handleExecuteSql(
       classification,
       command: result.command ?? getSqlVerb(args.sql),
       rowCount: result.rowCount ?? null,
+      requestId: result.requestId,
       previewRows: result.rows
         .slice(0, 5)
         .map((row) => serializeValue(row) as Record<string, unknown>),

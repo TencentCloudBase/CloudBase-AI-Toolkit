@@ -7,12 +7,30 @@ export type ToolNextStep = {
   suggested_args?: Record<string, unknown>;
 };
 
+/**
+ * JSON.stringify replacer: convert values that JSON cannot natively serialize
+ * into safe primitives. Without this, a `bigint` (e.g. a backend row-count
+ * returned as bigint) would make `JSON.stringify` throw
+ * `TypeError: Do not know how to serialize a BigInt`, which escapes tool
+ * handlers and surfaces to the client as the opaque MCP -32603 "Internal error"
+ * with no underlying message or RequestId. See issue #1060.
+ */
+function safeJsonReplacer(_key: string, value: unknown): unknown {
+  if (typeof value === "bigint") {
+    return value.toString();
+  }
+  if (typeof value === "function") {
+    return undefined;
+  }
+  return value;
+}
+
 export function buildJsonToolResult(payload: ToolPayload) {
   return {
     content: [
       {
         type: "text" as const,
-        text: JSON.stringify(payload, null, 2),
+        text: JSON.stringify(payload, safeJsonReplacer, 2),
       },
     ],
   };

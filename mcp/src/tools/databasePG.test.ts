@@ -1125,6 +1125,73 @@ describe("PG database tools", () => {
     });
   });
 
+  it("queryPgDatabase(sql) handles bigint AffectedRows and surfaces RequestId without -32603", async () => {
+    const fakeExecutePGSql = vi.fn(async ({ Sql }: { Sql: string }) => {
+      if (Sql === "SELECT 1") {
+        // Probe result: AffectedRows as bigint is what the SDK/backend can return.
+        return { AffectedRows: 1n, RequestId: "req-probe" };
+      }
+      return {
+        AffectedRows: 5n,
+        Columns: ["current_database", "mcp_execute_test"],
+        Rows: ['["postgres","1"]'],
+        RequestId: "req-query",
+      };
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      database: { executePGSql: fakeExecutePGSql },
+    });
+
+    const { server, tools } = createMockServer();
+    registerPGDatabaseTools(server);
+
+    const payload = buildToolPayload(
+      await tools.queryPgDatabase.handler({
+        action: "sql",
+        sql: "SELECT current_database(), 1 AS mcp_execute_test",
+      }),
+    );
+
+    // Before the fix, rowCount (a bigint) made JSON.stringify throw and the
+    // handler surfaced an opaque MCP -32603 instead of a payload.
+    expect(payload.success).toBe(true);
+    expect(payload.data.rowCount).toBe(5);
+    expect(typeof payload.data.rowCount).toBe("number");
+    expect(payload.data.requestId).toBe("req-query");
+  });
+
+  it("queryPgDatabase(sql) surfaces RequestId from a failed ExecutePGSql error", async () => {
+    const fakeExecutePGSql = vi.fn(async ({ Sql }: { Sql: string }) => {
+      if (Sql === "SELECT 1") {
+        return { AffectedRows: 1n, RequestId: "req-probe" };
+      }
+      const err = new Error("ERROR: permission denied (SQLSTATE 42501)") as Error & {
+        requestId?: string;
+      };
+      err.requestId = "req-fail-456";
+      throw err;
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      database: { executePGSql: fakeExecutePGSql },
+    });
+
+    const { server, tools } = createMockServer();
+    registerPGDatabaseTools(server);
+
+    const payload = buildToolPayload(
+      await tools.queryPgDatabase.handler({
+        action: "sql",
+        sql: "SELECT * FROM secret",
+      }),
+    );
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "PG_SQL_EXEC_FAILED",
+    });
+    expect(payload.data.requestId).toBe("req-fail-456");
+  });
+
   describe("migration actions", () => {
     let migrationWorkspace: string;
     let previousWorkspaceFolderPaths: string | undefined;
