@@ -4,6 +4,8 @@
 
 提交包由 `npm run build:connector:intl` 生成：`dist/cloudbase-intl-connector.zip`（含 `connector-meta.json`、`mcp.json`、`icon.svg`、`skills/`；本文件与 `extra/` 不进包）。包名不带版本号，版本在 `connector-meta.json` 的 `version` 字段里；本仓每次发布 release 会自动重建该 zip 并挂到 release assets（与专家包 `dist/<专家名>.zip` 同一机制），也可手动触发 `Release Plugin Zips` workflow 补挂。取包时请以 `connector-meta.json` 里的版本为准。
 
+`version` **不需要手改**：包内容（即进包的那几个文件）变更时，`Sync Connector Intl Package` workflow 会自动 patch +1 并提交本仓 main。
+
 ## 为什么必须新建而不是改现有 `cloudbase` 连接器
 
 现有 `cloudbase` 连接器是 **CLI + 本地 stdio MCP** 形态、跑在国内站、用 `tcb` CLI 做认证。本连接器是 **纯远端 MCP + 标准 MCP OAuth**、跑在国际站。两者站点、认证链路、依赖都不同；连接器文档也明确要求「同一服务若要提供两种接入方式，必须用两个不同的 source 分别提交」。

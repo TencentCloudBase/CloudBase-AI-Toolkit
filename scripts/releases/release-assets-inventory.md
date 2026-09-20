@@ -56,7 +56,7 @@
 ### 命名规则（与 kimi 一致）
 - **zip 名版本无关**：`cloudbase-kimi.zip` / `cloudbase-qoder.zip` / `cloudbase-skill.zip` / `cloudbase-intl-connector.zip`
 - **版本由 release tag 承载**（如 v2.30.1），zip-url 跨 release 稳定，对接方无需跟随版本改 URL
-- **例外**：连接器版本不在 release tag 里（tag 是 toolkit 版本），而在包内 `connectors/cloudbase-intl/connector-meta.json` 的 `version`；文件名同样不带版本，取包时以包内版本为准
+- **例外**：连接器版本不在 release tag 里（tag 是 toolkit 版本），而在包内 `connectors/cloudbase-intl/connector-meta.json` 的 `version`；文件名同样不带版本，取包时以包内版本为准。该版本在**进包内容变更时自动 patch +1**（`sync-connector-intl-package.yml` → `scripts/bump-connector-versions.mjs`，基线是最近 tag，对比时剔除 `version` 字段与不进包的 `SUBMISSION.md` / `extra/`），不需要手改
 - 已同步修改：`pack-qoder-plugin.mjs`、`pack-qoder-skill.mjs` 默认输出名去掉 `v{version}` 后缀（保留 `--out` 自定义能力）；`build-connector-cloudbase-intl.mjs` 由 `cloudbase-intl-connector-v{version}.zip` 改为版本无关命名
 
 ### 不纳入 zip 白名单的说明
