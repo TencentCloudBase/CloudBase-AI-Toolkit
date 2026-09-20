@@ -53,6 +53,14 @@
      - `npx mcporter call cloudbase.auth action=start_auth authMode=device --output json`
      - `npx mcporter call cloudbase.auth action=set_env envId=env-xxx --output json`
 
+## 0. 环境开通（动手前先确认）
+
+- 确认用户用的是**正式注册的小程序账号**：微信测试号不支持云开发，开发者工具里「云开发」按钮为灰色，容易被误判为云开发故障。个人主体注册正式小程序免费。
+- 开通云开发**优先在微信开发者工具里点「云开发」按钮**：环境自动与当前小程序关联。不要先去腾讯云控制台创建——腾讯云侧创建的环境小程序端用不了（暂时只支持 Web 端），后续要补做账号绑定 + 环境转换。
+- 开通过程弹出登录页面时，选择**「微信公众平台登录」**。
+- 开通前提：腾讯云账号已完成**实名认证**——未实名会创建失败且报错不明显（只在控制台右上角小字提示）。
+- 开通步骤与已有腾讯云环境的绑定转换见官方文档：https://docs.cloudbase.net/quick-start/create-env
+
 ## 1. 环境初始化
 
 使用 CloudBase 的小程序应在应用启动时初始化一次 `wx.cloud`。
