@@ -20,6 +20,7 @@
 | 11 | npm 包 `@cloudbase/cloudbase-mcp` | ✅ pnpm build + publish | npm registry：`npm-publish.yaml` | 所有 IDE（npx 拉取） | ❌ 不需要（npm 即 registry） |
 | 12 | Gemini 扩展（`gemini-extension.json` + `GEMINI.md`） | ❌ 无 | 仓库内 manifest，按需分发 | Gemini | ❌ 暂不需要 |
 | 13 | WorkBuddy 专家包 `<expert-name>.zip`（每个专家一个 zip） | ✅ `scripts/pack-experts.mjs` | ✅ release assets（本行更新起自动挂载） | WorkBuddy 专家分享 / 手动导入 | ✅ 已满足 |
+| 14 | WorkBuddy 连接器包 `cloudbase-intl-connector.zip`（国际站） | ✅ `scripts/build-connector-cloudbase-intl.mjs` | ✅ release assets | WorkBuddy 连接器上架提交 | ✅ 已满足 |
 
 ## 二、缺口判定
 
@@ -43,15 +44,20 @@
 
 ```yaml
 # 白名单（每个 release 自动打包上传）
-- cloudbase-kimi.zip    # pack-kimi-plugin.mjs  Kimi 插件（自包含 routing skill）
-- cloudbase-qoder.zip   # pack-qoder-plugin.mjs  Qoder 插件（整目录）
-- cloudbase-skill.zip   # pack-qoder-skill.mjs   QoderWork 入口 skill（skills/cloudbase）
+- cloudbase-kimi.zip            # pack-kimi-plugin.mjs  Kimi 插件（自包含 routing skill）
+- cloudbase-qoder.zip           # pack-qoder-plugin.mjs  Qoder 插件（整目录）
+- cloudbase-skill.zip           # pack-qoder-skill.mjs  QoderWork 入口 skill（skills/cloudbase）
+- <expert-name>.zip             # pack-experts.mjs  WorkBuddy 专家包（每专家一个）
+- cloudbase-intl-connector.zip  # build-connector-cloudbase-intl.mjs  WorkBuddy 连接器（国际站）
 ```
 
+`cloudbase-intl-connector.zip` 由 `pack-connector` **独立 job** 构建：它需要 `pnpm install` 后经 tsx 聚合 `config/source/**`（其余几个是零依赖纯 zip 步骤），且带 fail-hard 守卫（国内站 host 残留、地域/域名矛盾、密钥）。分开跑，守卫失败就不会连带其他 zip 一起失败。
+
 ### 命名规则（与 kimi 一致）
-- **zip 名版本无关**：`cloudbase-kimi.zip` / `cloudbase-qoder.zip` / `cloudbase-skill.zip`
+- **zip 名版本无关**：`cloudbase-kimi.zip` / `cloudbase-qoder.zip` / `cloudbase-skill.zip` / `cloudbase-intl-connector.zip`
 - **版本由 release tag 承载**（如 v2.30.1），zip-url 跨 release 稳定，对接方无需跟随版本改 URL
-- 已同步修改：`pack-qoder-plugin.mjs`、`pack-qoder-skill.mjs` 默认输出名去掉 `v{version}` 后缀（保留 `--out` 自定义能力）
+- **例外**：连接器版本不在 release tag 里（tag 是 toolkit 版本），而在包内 `connectors/cloudbase-intl/connector-meta.json` 的 `version`；文件名同样不带版本，取包时以包内版本为准
+- 已同步修改：`pack-qoder-plugin.mjs`、`pack-qoder-skill.mjs` 默认输出名去掉 `v{version}` 后缀（保留 `--out` 自定义能力）；`build-connector-cloudbase-intl.mjs` 由 `cloudbase-intl-connector-v{version}.zip` 改为版本无关命名
 
 ### 不纳入 zip 白名单的说明
 - `cloudbase-sites` 插件：与 cloudbase 插件同构但走 `cloudbase-sites-plugin` 独立仓库分发，暂无 zip 需求；若后续上架需要，可仿照 `pack-qoder-plugin.mjs` 新增脚本并加入白名单。

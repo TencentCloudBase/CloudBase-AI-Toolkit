@@ -2,7 +2,7 @@
 
 面向海外客户（新加坡等）的 CloudBase 国际站连接器。**登录走腾讯云国际站账号 OAuth，用户不需要粘贴任何密钥。**
 
-提交包已生成：`dist/cloudbase-intl-connector-v1.0.0.zip`（含 `connector-meta.json`、`mcp.json`、`icon.svg`、`skills/`；本文件与 `extra/` 不进包）。
+提交包由 `npm run build:connector:intl` 生成：`dist/cloudbase-intl-connector.zip`（含 `connector-meta.json`、`mcp.json`、`icon.svg`、`skills/`；本文件与 `extra/` 不进包）。包名不带版本号，版本在 `connector-meta.json` 的 `version` 字段里；本仓每次发布 release 会自动重建该 zip 并挂到 release assets（与专家包 `dist/<专家名>.zip` 同一机制），也可手动触发 `Release Plugin Zips` workflow 补挂。取包时请以 `connector-meta.json` 里的版本为准。
 
 ## 为什么必须新建而不是改现有 `cloudbase` 连接器
 

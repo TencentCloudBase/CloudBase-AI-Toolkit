@@ -18,9 +18,16 @@
  *   4. Adds connectors/cloudbase-intl/extra/*.md into skills/references/ and injects a
  *      pointer to them at the top of skills/SKILL.md.
  *   5. Validates the package (meta/mcp shape, no secrets, no China-site residue, no
- *      region/host contradictions) and zips the submittable files into dist/.
+ *      region/host contradictions) and zips the submittable files into
+ *      dist/cloudbase-intl-connector.zip.
  *
  * skills/ is generated output — never hand-edit it; change config/source/** or extra/ instead.
+ *
+ * Release flow (CI): .github/workflows/release-plugin-zips.yml builds this zip on
+ * `release: published` (or manually via workflow_dispatch) and attaches it to the release
+ * assets, the same way dist/<expert-name>.zip is attached. The asset name is version-free —
+ * the connector version lives in connector-meta.json, so the zip URL stays stable across
+ * releases.
  */
 
 import fs from "node:fs";
@@ -455,12 +462,16 @@ function validate() {
 // ---------------------------------------------------------------------------
 function packageConnector(meta) {
   fs.mkdirSync(DIST_DIR, { recursive: true });
-  const zipPath = path.join(DIST_DIR, `cloudbase-intl-connector-v${meta.version ?? "0.0.0"}.zip`);
+  // Version-free asset name, matching cloudbase-kimi.zip / cloudbase-qoder.zip /
+  // dist/<expert-name>.zip: the version travels inside connector-meta.json, so the
+  // download URL stays stable while the package version moves.
+  const zipPath = path.join(DIST_DIR, "cloudbase-intl-connector.zip");
   if (fs.existsSync(zipPath)) fs.rmSync(zipPath);
   execFileSync("zip", ["-r", "-X", "-q", zipPath, ...PACKAGE_ENTRIES], { cwd: CONNECTOR_DIR });
   const size = (fs.statSync(zipPath).size / 1024 / 1024).toFixed(2);
   console.log(`5/5  Packaged ${path.relative(ROOT, zipPath)} (${size} MB)`);
   console.log(`     Contents: ${PACKAGE_ENTRIES.join(", ")} (SUBMISSION.md and extra/ excluded)`);
+  console.log(`     Package version: ${meta.version ?? "(not set)"}`);
   // `id` / `visible_in` live in WorkBuddy's marketplace config, not in connector-meta.json
   // (they are absent from the documented meta field list). Echo them on every build so the
   // values to register by hand can never drift out of sight.

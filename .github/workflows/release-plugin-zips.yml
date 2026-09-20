@@ -37,13 +37,16 @@ jobs:
         with:
           node-version: "22"
 
-      # Whitelist of plugin/skill zips attached to every release.
-      # All zips share the version-free asset naming (release tag carries the
-      # version, so zip-urls stay stable across releases):
-      #   - cloudbase-kimi.zip    Kimi Code / Kimi Work plugin (self-contained routing skill)
-      #   - cloudbase-qoder.zip   Qoder / QoderWork plugin (full plugin dir)
-      #   - cloudbase-skill.zip   QoderWork entry skill (skills/cloudbase)
-      #   - <expert-name>.zip     WorkBuddy expert packages (plugins/experts/*, one zip each)
+      # Whitelist of plugin/skill/connector zips attached to every release.
+      # All zips share the version-free asset naming — the version travels inside
+      # each package (or in the release tag), so zip-urls stay stable across releases:
+      #   - cloudbase-kimi.zip           Kimi Code / Kimi Work plugin (self-contained routing skill)
+      #   - cloudbase-qoder.zip          Qoder / QoderWork plugin (full plugin dir)
+      #   - cloudbase-skill.zip          QoderWork entry skill (skills/cloudbase)
+      #   - <expert-name>.zip            WorkBuddy expert packages (plugins/experts/*, one zip each)
+      #   - cloudbase-intl-connector.zip WorkBuddy connector (international site). Built by the
+      #                                  pack-connector job below, not here: it aggregates
+      #                                  config/source/** and needs a full install.
       # IDE plugins that already ship through dedicated repos/marketplaces
       # (.claude-plugin, .cursor-plugin, .codex-plugin, .plugin) are NOT zipped here.
       - name: Pack Kimi plugin zip
@@ -68,3 +71,56 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ steps.tag.outputs.tag }}" dist/*.zip --clobber
+
+  # pack-connector builds dist/cloudbase-intl-connector.zip (WorkBuddy connector for the
+  # CloudBase international site) and attaches it to the same release.
+  #
+  # Separate job on purpose: unlike the plugin packs it aggregates config/source/** through
+  # tsx, so it needs a full install, and its build carries fail-hard guards (China-site host
+  # residue, region/host contradictions, secrets). Isolating it keeps a guard failure from
+  # taking the plugin and expert zips down with it.
+  pack-connector:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [[ -n "${{ github.event.release.tag_name }}" ]]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+
+      # Same install as push-allinone-skill.yml: the connector build runs
+      # scripts/build-allinone-skill.ts through tsx from the root devDependencies.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build cloudbase-intl connector zip
+        run: pnpm run build:connector:intl
+
+      - name: Verify release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "${{ steps.tag.outputs.tag }}" --json tagName >/dev/null
+
+      - name: Upload connector zip to release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ steps.tag.outputs.tag }}" dist/cloudbase-intl-connector.zip --clobber
