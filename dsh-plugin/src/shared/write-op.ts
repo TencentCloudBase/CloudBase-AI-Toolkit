@@ -44,7 +44,6 @@ function str(value: unknown): string | undefined {
 const PG_WRITE_ACTIONS = new Set([
   "execute",
   "applyMigration",
-  "rollbackMigration",
   "repairMigration",
   "planMigration",
 ]);
