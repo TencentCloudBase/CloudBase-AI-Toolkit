@@ -253,6 +253,26 @@ jobs:
             node scripts/issue-auto-processor.cjs extract-result
           }
 
+          # stdout carries the JSON payload; stderr carries unrelated diagnostics
+          # (runner warnings, glib `No such schema …`, Node deprecations). Merging
+          # them with 2>&1 used to make the payload unparseable, which pushed the
+          # raw model transcript into public PR bodies. Keep the streams apart.
+          codebuddy_stderr_log=/tmp/codebuddy-stderr.log
+
+          run_codebuddy_headless() {
+            timeout 1200s codebuddy -p "$(cat /tmp/codebuddy-prompt.txt)" -y --output-format json --permission-mode acceptEdits --model hy3-preview-ioa </dev/null 2>"$codebuddy_stderr_log"
+          }
+
+          report_codebuddy_stderr() {
+            if [ ! -s "$codebuddy_stderr_log" ]; then
+              return 0
+            fi
+            echo "::group::CodeBuddy CLI stderr (tail)"
+            tail -c 2000 "$codebuddy_stderr_log"
+            echo
+            echo "::endgroup::"
+          }
+
           has_nonempty_text() {
             [ -n "$(printf '%s' "$1" | tr -d '[:space:]')" ]
           }
@@ -338,6 +358,9 @@ jobs:
             local result_text="$3"
             local summary=""
             summary=$(printf '%s' "$result_text" | truncate_text_for_pr_body 12000)
+            if ! has_nonempty_text "$summary"; then
+              summary='The automated summary could not be extracted from the model output. See the workflow logs for details.'
+            fi
             {
               printf '%s\n\n' '## 🤖 Automated fix attempt'
               printf 'Fixes #%s\n\n' "$issue_number"
@@ -416,11 +439,15 @@ jobs:
               build_bug_prompt
 
               set +e
-              raw_output=$(timeout 1200s codebuddy -p "$(cat /tmp/codebuddy-prompt.txt)" -y --output-format json --permission-mode acceptEdits --model hy3-preview-ioa </dev/null 2>&1)
+              raw_output=$(run_codebuddy_headless)
               exit_code=$?
               set -e
 
               result_text=$(printf '%s' "$raw_output" | extract_result_text || true)
+
+              if ! has_nonempty_text "$result_text"; then
+                report_codebuddy_stderr
+              fi
 
               if [ $exit_code -ne 0 ]; then
                 local failure_detail="CodeBuddy exited with status $exit_code before producing a usable patch."
@@ -516,11 +543,15 @@ jobs:
             build_analysis_prompt
 
             set +e
-            raw_output=$(timeout 1200s codebuddy -p "$(cat /tmp/codebuddy-prompt.txt)" -y --output-format json --permission-mode acceptEdits --model hy3-preview-ioa </dev/null 2>&1)
+            raw_output=$(run_codebuddy_headless)
             exit_code=$?
             set -e
 
             result_text=$(printf '%s' "$raw_output" | extract_result_text || true)
+
+            if ! has_nonempty_text "$result_text"; then
+              report_codebuddy_stderr
+            fi
 
             if [ $exit_code -ne 0 ]; then
               local failure_detail="CodeBuddy exited with status $exit_code before producing a comment."
