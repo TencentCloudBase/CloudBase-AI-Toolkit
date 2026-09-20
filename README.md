@@ -33,6 +33,7 @@ The CloudBase integration layer for AI coding tools: Plugin installs the stack, 
 - Deploy / Apps: the cloud upload channel now completes end to end (`deployApp` accepts the timestamp `getUploadUrl` returns, `getBuildLog` accepts the build ID a deploy returns), and gateway route creation verifies the upstream exists before writing
 - Skills / Context: new PostgreSQL access-pattern best-practices skill (batching, indexes, RLS role gating, launch capacity); `searchKnowledgeBase`'s inline skill / OpenAPI catalogs now load on demand, cutting the 43-tool surface by 9.1% on every `tools/list`
 - Runtime / Hosting: CloudRun Function mode must not bind `PORT` (the function framework does) and gets a credential decision gate naming `CLOUDBASE_APIKEY`; hosting paths and prefixes are normalized so a leading slash can no longer read as an empty directory
+- Connectors: the international-site WorkBuddy connector (`cloudbase-intl`) is built from the same `config/source/**` corpus as the domestic one — remote `streamableHttp` with standard MCP OAuth instead of local stdio, with China-site hosts rewritten to their international equivalents
 
 **v2.33.x** (2026-09)
 

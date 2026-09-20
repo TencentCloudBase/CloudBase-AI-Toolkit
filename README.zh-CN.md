@@ -33,6 +33,7 @@
 - 部署 / 应用：云端上传通道可完整跑通（`deployApp` 接受 `getUploadUrl` 返回的时间戳，`getBuildLog` 接受部署返回的构建 ID）；网关路由创建前会校验上游资源是否存在
 - Skills / 上下文：新增 PostgreSQL 访问模式最佳实践 skill（批量读写、索引、RLS 角色门禁、上线容量）；`searchKnowledgeBase` 内联的 skill / OpenAPI 清单改为按需返回，43 个工具的常驻面在每次 `tools/list` 时缩小 9.1%
 - 运行态 / 托管：云托管 Function 模式不得监听 `PORT`（由函数框架绑定），并补上以 `CLOUDBASE_APIKEY` 为准的凭证决策门；静态托管的路径与前缀统一归一化，前导斜杠不再被误读成「目录为空」
+- 连接器：新增国际站 WorkBuddy 连接器 `cloudbase-intl`，与国内 `cloudbase` 共用 `config/source/**` 内容源（远程 `streamableHttp` + 标准 MCP OAuth，取代本地 stdio），构建时把中国站域名改写为国际站
 
 **v2.33.x**（2026-09）
 
