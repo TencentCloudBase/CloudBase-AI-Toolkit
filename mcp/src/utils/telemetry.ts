@@ -2,8 +2,10 @@ import crypto from 'crypto';
 import http from 'http';
 import https from 'https';
 import os from 'os';
-import { getCachedEnvId } from '../cloudbase-manager.js';
+import { peekLoginState } from '../auth.js';
+import { fetchEnvOwnerUin, getCachedEnvId } from '../cloudbase-manager.js';
 import { CloudBaseOptions } from '../types.js';
+import { isCloudMode } from './cloud-mode.js';
 import { debug } from './logger.js';
 import { normalizeSite, resolveSiteAndRegion } from './site-map.js';
 
@@ -16,8 +18,9 @@ declare const __MCP_VERSION__: string;
  * 
  * 隐私保护：
  * - 可通过环境变量 CLOUDBASE_MCP_TELEMETRY_DISABLED=true 完全关闭
- * - 不收集敏感信息（代码内容、具体文件路径等）
- * - 使用设备指纹而非真实用户信息
+ * - 不收集敏感信息（代码内容、具体文件路径、密钥等）
+ * - 设备标识使用匿名设备指纹
+ * - 账号归因使用 `login_uin`（主账号 uin，字段名与 CloudBase CLI 对齐），取不到时上报 unknown
  * - 所有数据仅用于产品改进，不用于其他用途
  */
 class TelemetryReporter {
@@ -387,6 +390,121 @@ function appendMcpClientInfoFields(
     }
 }
 
+// ---- 账号级归因（login_uin）----
+// 缓存键必须能区分凭证身份：hosted 是单进程多租户（网关按凭证缓存 MCP server 实例，
+// 同进程内并存多个租户），无键的进程级缓存会把 A 账号的 uin 上报到 B 账号的事件上。
+const MAX_UIN_CACHE_ENTRIES = 100;
+const uinBySecretId = new Map<string, string>();
+
+/** uin 归一化为纯数字字符串；非法值一律视为取不到 */
+function normalizeUin(value: unknown): string | undefined {
+    if (typeof value === 'number') {
+        // 19 位「大 uin」超出 Number.MAX_SAFE_INTEGER，以数字传递时已被 JS 精度截断
+        // （4611686018428325038 -> 4611686018428325000）。上报一个错号的危害大于上报
+        // unknown，因此丢弃这类值——调用方应以字符串传递 uin。
+        if (!Number.isSafeInteger(value) || value <= 0) {
+            return undefined;
+        }
+        return String(value);
+    }
+    if (typeof value !== 'string') {
+        return undefined;
+    }
+    const cleaned = value.trim();
+    return /^\d+$/.test(cleaned) ? cleaned : undefined;
+}
+
+function rememberUin(secretId: string, uin: string) {
+    if (uinBySecretId.size >= MAX_UIN_CACHE_ENTRIES && !uinBySecretId.has(secretId)) {
+        const oldest = uinBySecretId.keys().next();
+        if (!oldest.done) {
+            uinBySecretId.delete(oldest.value);
+        }
+    }
+    uinBySecretId.set(secretId, uin);
+}
+
+// 本地登录态只解析一次：peekLoginState 可能触发临时密钥续期（网络调用 + 写回凭证），
+// 不能挂在每次上报上，更不能挡住进程退出。
+let localLoginState: Awaited<ReturnType<typeof peekLoginState>> = null;
+let localLoginResolvePromise: Promise<void> | null = null;
+let localUinCached: string | undefined;
+
+async function warmLocalLoginState(): Promise<void> {
+    if (localLoginResolvePromise) {
+        return localLoginResolvePromise;
+    }
+    localLoginResolvePromise = (async () => {
+        try {
+            const state = await peekLoginState();
+            localLoginState = state;
+            localUinCached = normalizeUin(state?.uin);
+        } catch (err) {
+            debug('解析本地登录态失败，遥测账号归因取不到 uin', err instanceof Error ? err : new Error(String(err)));
+        }
+    })();
+    return localLoginResolvePromise;
+}
+
+/**
+ * 解析上报用的主账号 uin（字段名 login_uin，与 CloudBase CLI 对齐）。
+ *
+ * 取值优先级：
+ * 1. `cloudBaseOptions.uin`——宿主显式注入（hosted 由宿主从 OAuth token 解出），零额外调用；
+ * 2. 本地登录态（仅非 cloud mode 进程；cloud mode 是多租户共享进程，不做本地读取以免串号）；
+ * 3. `DescribeEnvInfo` 兜底——环境级凭证自身不带 uin，但该只读接口会返回主账号 uin，
+ *    结果按 secretId 隔离缓存。
+ *
+ * `allowResolve: false` 时只读已注入/已缓存的值，用于退出等不允许等待的路径。
+ * 任何失败一律降级为 'unknown'，绝不抛错、绝不阻塞工具调用。
+ */
+export async function resolveLoginUin(
+    cloudBaseOptions?: CloudBaseOptions,
+    options?: { allowResolve?: boolean },
+): Promise<string> {
+    const allowResolve = options?.allowResolve !== false;
+
+    const injected = normalizeUin(cloudBaseOptions?.uin);
+    if (injected) {
+        return injected;
+    }
+
+    const explicitSecretId = cloudBaseOptions?.secretId;
+    const inCloudMode = isCloudMode();
+
+    if (!explicitSecretId && !inCloudMode && allowResolve) {
+        await warmLocalLoginState();
+    }
+    if (!explicitSecretId && localUinCached) {
+        return localUinCached;
+    }
+
+    const secretId = explicitSecretId ?? (inCloudMode ? undefined : localLoginState?.secretId);
+    const cached = secretId ? uinBySecretId.get(secretId) : undefined;
+    if (cached) {
+        return cached;
+    }
+
+    if (!allowResolve || !secretId) {
+        return 'unknown';
+    }
+
+    const { region } = resolveTelemetrySiteRegion(cloudBaseOptions);
+    const probed = await fetchEnvOwnerUin({
+        secretId,
+        secretKey: explicitSecretId ? cloudBaseOptions?.secretKey : localLoginState?.secretKey,
+        token: explicitSecretId ? cloudBaseOptions?.token : localLoginState?.token,
+        envId: cloudBaseOptions?.envId ?? localLoginState?.envId,
+        region,
+    });
+    if (probed) {
+        rememberUin(secretId, probed);
+        return probed;
+    }
+
+    return 'unknown';
+}
+
 // 便捷方法
 export const reportToolCall =  async (params: {
     toolName: string;
@@ -411,6 +529,7 @@ export const reportToolCall =  async (params: {
     // 安全获取环境ID，优先使用传入的配置
     const { envId, envIdSource } = resolveEnvId(params.cloudBaseOptions);
     const siteRegion = resolveTelemetrySiteRegion(params.cloudBaseOptions);
+    const loginUin = await resolveLoginUin(params.cloudBaseOptions);
     debug('[telemetry] 工具调用 envId 获取结果', {
         toolName: params.toolName,
         envId,
@@ -429,6 +548,7 @@ export const reportToolCall =  async (params: {
         envId: envId || 'unknown',
         region: siteRegion.region,
         site: siteRegion.site,
+        login_uin: loginUin,
         nodeVersion,
         osType,
         osRelease,
@@ -499,6 +619,7 @@ export const reportToolkitLifecycle = async (params: {
     // 安全获取环境ID，优先使用传入的配置
     const { envId, envIdSource } = resolveEnvId(params.cloudBaseOptions);
     const siteRegion = resolveTelemetrySiteRegion(params.cloudBaseOptions);
+    const loginUin = await resolveLoginUin(params.cloudBaseOptions, { allowResolve: false });
     debug('[telemetry] 生命周期事件 envId 获取结果', {
         event: params.event,
         envId,
@@ -516,6 +637,7 @@ export const reportToolkitLifecycle = async (params: {
         envId: envId || 'unknown',
         region: siteRegion.region,
         site: siteRegion.site,
+        login_uin: loginUin,
         nodeVersion,
         osType,
         osRelease,

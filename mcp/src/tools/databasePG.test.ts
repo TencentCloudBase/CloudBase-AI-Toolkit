@@ -2531,65 +2531,6 @@ describe("PG database tools", () => {
       });
     });
 
-    it("rollbackMigration requires lastN", async () => {
-      const { server, tools } = createMockServer();
-      registerPGDatabaseTools(server, { createClient: vi.fn() });
-
-      const payload = buildToolPayload(
-        await tools.managePgDatabase.handler({
-          action: "rollbackMigration",
-          confirm: true,
-        }),
-      );
-
-      expect(payload).toMatchObject({
-        success: false,
-        errorCode: "LAST_N_REQUIRED",
-      });
-    });
-
-    it("rollbackMigration requires confirm=true", async () => {
-      const { server, tools } = createMockServer();
-      registerPGDatabaseTools(server, { createClient: vi.fn() });
-
-      const payload = buildToolPayload(
-        await tools.managePgDatabase.handler({
-          action: "rollbackMigration",
-          lastN: 1,
-        }),
-      );
-
-      expect(payload).toMatchObject({
-        success: false,
-        errorCode: "CONFIRM_REQUIRED",
-      });
-    });
-
-    it("rollbackMigration sends LastN", async () => {
-      const { server, tools } = createMockServer();
-      registerPGDatabaseTools(server, { createClient: vi.fn() });
-      setupMigrationMock();
-      mockCommonServiceCall.mockResolvedValue({
-        RequestId: "req-rollback",
-      });
-
-      const payload = buildToolPayload(
-        await tools.managePgDatabase.handler({
-          action: "rollbackMigration",
-          lastN: 3,
-          confirm: true,
-        }),
-      );
-
-      expect(payload).toMatchObject({ success: true });
-      expect(mockCommonServiceCall).toHaveBeenCalledWith(
-        expect.objectContaining({
-          Action: "RollbackPGUserMigrations",
-          Param: expect.objectContaining({ LastN: 3 }),
-        }),
-      );
-    });
-
     it("repairMigration requires migrationVersion", async () => {
       const { server, tools } = createMockServer();
       registerPGDatabaseTools(server, { createClient: vi.fn() });
@@ -2933,29 +2874,6 @@ describe("PG database tools", () => {
           }),
         );
         expect(commonServiceCall).not.toHaveBeenCalled();
-      });
-
-      it("rollbackMigration has no native wrapper and keeps using commonService", async () => {
-        const { server, tools } = createMockServer();
-        registerPGDatabaseTools(server, { createClient: vi.fn() });
-        setupMigrationMock();
-        mockCommonServiceCall.mockResolvedValue({ RequestId: "req-rollback-native" });
-
-        const payload = buildToolPayload(
-          await tools.managePgDatabase.handler({
-            action: "rollbackMigration",
-            lastN: 2,
-            confirm: true,
-          }),
-        );
-
-        expect(payload).toMatchObject({ success: true });
-        expect(mockCommonServiceCall).toHaveBeenCalledWith(
-          expect.objectContaining({
-            Action: "RollbackPGUserMigrations",
-            Param: expect.objectContaining({ LastN: 2 }),
-          }),
-        );
       });
 
       it("falls back to commonService when database lacks native methods", async () => {

@@ -185,3 +185,91 @@ test('workflow isolates batch iteration from CLI stdin consumption', () => {
 
   expect(raw).not.toContain('done < <(jq -c ".[]" .issue-auto-processor-issues.json)');
 });
+
+// `--output-format json` prints a pretty-printed array of conversation turns.
+const MODEL_TRANSCRIPT_FIXTURE = JSON.stringify(
+  [
+    {
+      type: 'message',
+      role: 'user',
+      content: [
+        {
+          type: 'input_text',
+          text: '<system-reminder data-role="memory"><memory>\n# auto memory\n</memory></system-reminder>',
+        },
+      ],
+    },
+    {
+      type: 'message',
+      role: 'assistant',
+      content: [{ type: 'output_text', text: '## Summary\n\nFixed the launch path.' }],
+    },
+  ],
+  null,
+  2,
+);
+
+// Observed verbatim at the head of an automated PR body on the Ubuntu runner.
+const RUNNER_STDERR_NOISE = 'No such schema \u201Corg.gnome.system.proxy\u201D\n';
+const EXPECTED_SUMMARY = '## Summary\n\nFixed the launch path.';
+
+test('extractResultText tolerates stderr noise captured alongside the JSON payload', () => {
+  expect(extractResultText(`${RUNNER_STDERR_NOISE}${MODEL_TRANSCRIPT_FIXTURE}`)).toBe(EXPECTED_SUMMARY);
+
+  expect(
+    extractResultText(
+      `${MODEL_TRANSCRIPT_FIXTURE}\n(node:3596) [DEP0040] DeprecationWarning: The \`punycode\` module is deprecated.`,
+    ),
+  ).toBe(EXPECTED_SUMMARY);
+});
+
+test('extractResultText picks the latest assistant turn past non-assistant records', () => {
+  const raw = JSON.stringify([
+    { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Real answer' }] },
+    { type: 'message', role: 'user', content: [{ type: 'tool_result', content: 'tool output noise' }] },
+  ]);
+
+  expect(extractResultText(raw)).toBe('Real answer');
+});
+
+test('extractResultText never returns model input when only user turns carry text', () => {
+  const userOnly = JSON.stringify(
+    [
+      {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: '# auto memory' }],
+      },
+    ],
+    null,
+    2,
+  );
+
+  expect(extractResultText(userOnly)).toBe('');
+});
+
+test('extractResultText refuses raw captures that look like a model transcript', () => {
+  const truncatedFixture = MODEL_TRANSCRIPT_FIXTURE.slice(0, 400);
+
+  expect(extractResultText(truncatedFixture)).toBe('');
+  expect(extractResultText(`${RUNNER_STDERR_NOISE}${truncatedFixture}`)).toBe('');
+  expect(extractResultText('<system-reminder data-role="memory">leaked</system-reminder>')).toBe('');
+});
+
+test('workflow captures CLI stdout and stderr separately so the JSON payload stays parseable', () => {
+  const raw = fs.readFileSync(WORKFLOW_FILE, 'utf8');
+
+  const cliInvocationLines = raw.split('\n').filter((line) => line.includes('codebuddy -p'));
+  expect(cliInvocationLines.length).toBe(1);
+  for (const line of cliInvocationLines) {
+    expect(line).not.toContain('2>&1');
+    expect(line).toContain('2>"$codebuddy_stderr_log"');
+  }
+
+  expect(raw.split('\n').filter((line) => line.includes('raw_output=$(run_codebuddy_headless)')).length).toBe(2);
+  expect(raw).toContain('run_codebuddy_headless() {');
+  expect(raw).toContain('report_codebuddy_stderr');
+  expect(raw).toContain(
+    "summary='The automated summary could not be extracted from the model output. See the workflow logs for details.'",
+  );
+});

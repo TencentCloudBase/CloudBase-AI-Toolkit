@@ -6,7 +6,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const MCP_PACKAGE = "@cloudbase/cloudbase-mcp@latest";
 
@@ -38,6 +38,17 @@ function findCachedCloudbaseMcpBin() {
   return best?.path;
 }
 
+/**
+ * Resolve the CLI entry of a cached @cloudbase/cloudbase-mcp install from its
+ * `.bin` shim. The shim itself is not spawnable on Windows (extension-less sh
+ * script; `.cmd` needs shell: true since Node 18.20.2) → run the real entry
+ * with process.execPath instead.
+ */
+function findCachedCloudbaseMcpEntry(bin) {
+  const entry = join(dirname(dirname(bin)), "@cloudbase", "cloudbase-mcp", "dist", "cli.cjs");
+  return existsSync(entry) ? entry : undefined;
+}
+
 function resolveMcpLaunch() {
   if (process.env.CLOUDBASE_MCP_COMMAND) {
     return {
@@ -45,14 +56,24 @@ function resolveMcpLaunch() {
       args: process.env.CLOUDBASE_MCP_ARGS
         ? process.env.CLOUDBASE_MCP_ARGS.split(",")
         : ["-y", MCP_PACKAGE],
+      // Explicit command points at a real executable (e.g. node.exe); never
+      // shell-quote it — the path can contain spaces.
+      shell: false,
     };
   }
   const cached = findCachedCloudbaseMcpBin();
-  if (cached) return { command: cached, args: [] };
-  return { command: "npx", args: ["-y", MCP_PACKAGE] };
+  if (cached) {
+    const entry = findCachedCloudbaseMcpEntry(cached);
+    // Real entry: shim-free, so no shell and no quoting hazards.
+    if (entry) return { command: process.execPath, args: [entry], shell: false };
+    // POSIX-only fallback (see findCachedCloudbaseMcpEntry).
+    if (process.platform !== "win32") return { command: cached, args: [], shell: false };
+  }
+  // Windows: `npx` is `npx.cmd`; spawn needs a shell to run it.
+  return { command: "npx", args: ["-y", MCP_PACKAGE], shell: process.platform === "win32" };
 }
 
-const { command: MCP_CMD, args: MCP_ARGS } = resolveMcpLaunch();
+const { command: MCP_CMD, args: MCP_ARGS, shell: MCP_SHELL } = resolveMcpLaunch();
 const HINT_FILE =
   process.env.CLOUDBASE_DSH_ENV_HINT_FILE ?? join(tmpdir(), "cloudbase-dsh-env-hint.json");
 
@@ -124,7 +145,13 @@ function buildListBoundEnvsResult(hint) {
 }
 
 function sendToChild(message) {
-  child.stdin.write(encodeMessage(message));
+  try {
+    // If spawn failed, the child 'error' handler rejects the pending request;
+    // the write may throw or emit an async stream error, neither should escape.
+    child.stdin.write(encodeMessage(message));
+  } catch {
+    /* error handler rejects the pending request */
+  }
 }
 
 function respond(id, result) {
@@ -153,7 +180,16 @@ function startChild() {
       delete childEnv[key];
     }
   }
-  child = spawn(MCP_CMD, MCP_ARGS, { env: childEnv, stdio: ["pipe", "pipe", "pipe"] });
+  child = spawn(MCP_CMD, MCP_ARGS, {
+    env: childEnv,
+    stdio: ["pipe", "pipe", "pipe"],
+    // Only the "npx" fallback sets shell (see resolveMcpLaunch).
+    shell: MCP_SHELL,
+  });
+  // A failed spawn (ENOENT) emits 'error' on the child, and a buffered stdin
+  // write emits an async stream 'error'. Swallow the latter so it cannot crash
+  // the host; the former is handled below.
+  child.stdin?.on("error", () => {});
   child.stdout.on("data", (chunk) => {
     const parsed = parseFrames(Buffer.concat([childBuf, chunk]));
     childBuf = Buffer.from(parsed.rest);
@@ -170,6 +206,12 @@ function startChild() {
     if (process.env.CLOUDBASE_MCP_DEBUG === "1") {
       process.stderr.write(`[cloudbase-mcp-proxy] ${chunk.toString("utf8")}`);
     }
+  });
+  child.on("error", (err) => {
+    child = null;
+    readyPromise = null;
+    for (const item of pending.values()) item.reject(err);
+    pending.clear();
   });
   child.on("exit", () => {
     child = null;

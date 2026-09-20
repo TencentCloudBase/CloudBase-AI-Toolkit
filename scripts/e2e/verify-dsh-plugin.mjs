@@ -57,7 +57,7 @@ function walk(dir, acc = []) {
 const rollbackHits = walk(clientDir).filter((path) => {
   if (path.endsWith("toolview-routing.ts") || path.endsWith("typert.ts")) return false;
   const text = readFileSync(path, "utf8");
-  const stripped = text.replace(/rollbackDeployment/g, "").replace(/rollbackMigration/g, "");
+  const stripped = text.replace(/rollbackDeployment/g, "");
   return /rollback/i.test(stripped);
 });
 if (rollbackHits.length > 0) fail(`rollback mentioned in UI source: ${rollbackHits.join(", ")}`);

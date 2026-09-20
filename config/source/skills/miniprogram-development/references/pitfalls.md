@@ -70,7 +70,17 @@ const name = (user && user.name) || 'Guest';
 
 **正确做法**：遵循 [message-push-customer-service.md](message-push-customer-service.md) —— 仅用 IDE / wxide CLI；回复走 OpenAPI `customerServiceMessage.send`；CLI 尚未提供消息推送与日志查询能力，不要教授底层绕过。
 
-## 6. 通用建议
+## 6. 云开发按钮置灰（测试号）
+
+**问题**：用户拿微信测试号开通云开发，开发者工具里「云开发」按钮是灰的，常被误判为云开发故障或工具版本问题。
+
+**正确做法**：
+- 先确认账号类型：测试号不支持云开发，直接说明并引导注册正式小程序（个人主体免费）。
+- 开通环境优先走微信开发者工具里的「云开发」按钮，登录页选择「微信公众平台登录」；不要先去腾讯云控制台创建环境。
+- 开通前提：腾讯云账号已完成实名认证。
+- 详细开通路径见 [cloudbase-integration.md](cloudbase-integration.md) 的「环境开通」。
+
+## 7. 通用建议
 
 生成涉及 CloudBase 的小程序代码时：
 1. 先读本陷阱文件。

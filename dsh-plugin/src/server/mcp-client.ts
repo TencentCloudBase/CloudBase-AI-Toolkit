@@ -134,6 +134,7 @@ export class CloudBaseMcpBridge {
   private readonly env: NodeJS.ProcessEnv;
   private readonly command: string;
   private readonly args: string[];
+  private readonly shell: boolean;
   private readonly sessionEnvCache?: SessionEnvCache;
   private readonly getSessionId?: () => string | undefined;
 
@@ -143,10 +144,12 @@ export class CloudBaseMcpBridge {
       this.command = options.command;
       // Explicit command keeps legacy npx-style default args unless overridden.
       this.args = options.args ?? ["-y", MCP_PACKAGE];
+      this.shell = false;
     } else {
       const launch = resolveMcpLaunch(this.env);
       this.command = launch.command;
       this.args = options.args ?? launch.args;
+      this.shell = launch.shell ?? false;
     }
     this.sessionEnvCache = options.sessionEnvCache;
     this.getSessionId = options.getSessionId;
@@ -230,16 +233,33 @@ export class CloudBaseMcpBridge {
       }
     }
 
+    // Windows: `npx` resolves to `npx.cmd`, which spawn() cannot execute
+    // without a shell → ENOENT. Only the "npx" launch source sets shell; the
+    // env / npx-cache sources point at real executables and must not be
+    // re-quoted by a shell (paths can contain spaces).
     const child = spawn(this.command, this.args, {
       env: childEnv,
       stdio: ["pipe", "pipe", "pipe"],
+      shell: this.shell,
     });
     this.child = child;
+    // A failed spawn (e.g. ENOENT) emits 'error' on the child, and the still
+    // buffered stdin write emits an async 'error' on the stream. Both must be
+    // swallowed/listened-for, otherwise the unhandled error kills the host.
+    child.stdin?.on("error", () => {});
     child.stdout.on("data", (chunk: Buffer) => this.onData(chunk));
     child.stderr.on("data", (chunk: Buffer) => {
       if (this.env.CLOUDBASE_MCP_DEBUG === "1") {
         process.stderr.write(`[cloudbase-mcp] ${chunk.toString("utf8")}`);
       }
+    });
+    child.on("error", (err) => {
+      this.child = null;
+      this.ready = null;
+      for (const item of this.pending.values()) {
+        item.reject(err);
+      }
+      this.pending.clear();
     });
     child.on("exit", () => {
       this.child = null;
@@ -299,7 +319,14 @@ export class CloudBaseMcpBridge {
           reject(error);
         },
       });
-      this.child?.stdin.write(encodeMessage({ jsonrpc: "2.0", id, method, params }));
+      try {
+        // If spawn failed, the child 'error' handler already rejected this
+        // pending request; the write may throw or emit an async stream error,
+        // both of which must not escape here.
+        this.child?.stdin.write(encodeMessage({ jsonrpc: "2.0", id, method, params }));
+      } catch {
+        /* error handler rejects the pending request */
+      }
     });
   }
 
