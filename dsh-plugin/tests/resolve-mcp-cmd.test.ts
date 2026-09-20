@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   findCachedCloudbaseMcpBin,
+  findCachedCloudbaseMcpEntry,
   resolveMcpLaunch,
 } from "../src/server/resolve-mcp-cmd.js";
 
@@ -50,6 +51,34 @@ describe("resolveMcpLaunch", () => {
     expect(launch.args).toEqual([]);
   });
 
+  it("launches a cached install through node + the package CLI entry", () => {
+    const npxRoot = makeNpxCache(true);
+    const entry = join(
+      npxRoot,
+      "abc123",
+      "node_modules",
+      "@cloudbase",
+      "cloudbase-mcp",
+      "dist",
+      "cli.cjs",
+    );
+    mkdirSync(join(entry, ".."), { recursive: true });
+    writeFileSync(entry, "#!/usr/bin/env node\n");
+    const launch = resolveMcpLaunch({}, { npxRoot });
+    expect(launch.source).toBe("npx-cache");
+    expect(launch.command).toBe(process.execPath);
+    expect(launch.args).toEqual([entry]);
+    // Real executable + argv array → never shell-quoted (paths may contain spaces).
+    expect(launch.shell).toBeUndefined();
+  });
+
+  it("findCachedCloudbaseMcpEntry returns undefined without a real package entry", () => {
+    const npxRoot = makeNpxCache(true);
+    const bin = findCachedCloudbaseMcpBin(npxRoot);
+    expect(bin).toBeDefined();
+    expect(findCachedCloudbaseMcpEntry(bin as string)).toBeUndefined();
+  });
+
   it("falls back to npx when cache is empty", () => {
     const npxRoot = makeNpxCache(false);
     const launch = resolveMcpLaunch({}, { npxRoot });
@@ -57,6 +86,7 @@ describe("resolveMcpLaunch", () => {
       command: "npx",
       args: ["-y", "@cloudbase/cloudbase-mcp@latest"],
       source: "npx",
+      shell: process.platform === "win32",
     });
   });
 
