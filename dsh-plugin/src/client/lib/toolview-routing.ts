@@ -55,7 +55,7 @@ function classifySqlKind(sql: string): SqlStatementKind {
 
 function resolveManagePgKind(args: Record<string, unknown>): ToolViewKind {
   const action = str(args.action);
-  if (!action || !["execute", "applyMigration", "rollbackMigration", "repairMigration"].includes(action)) {
+  if (!action || !["execute", "applyMigration", "repairMigration"].includes(action)) {
     return "data-table";
   }
   const sql = str(args.sql);

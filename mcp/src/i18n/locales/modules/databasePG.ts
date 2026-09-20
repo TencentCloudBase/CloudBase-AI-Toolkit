@@ -23,7 +23,7 @@ export const databasePG = defineModule(
     "schema.queryLimit":
       "可选的摘要数量上限，用于对象、元数据或 SQL 返回行数，默认 20，最大 200。",
     "schema.manageAction":
-      "操作类型：execute=执行已确认的写入 SQL（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）；dryRun=只分析 SQL 风险不执行；planMigration=预览迁移计划（需 migrationName + migrationVersion + sql；可选 includeAll=true 允许乱序，对齐 CLI --include-all）；applyMigration=应用迁移，建表/改 schema 首选（需 migrationName + migrationVersion + sql + confirm=true；可选 includeAll；本地 SQL 缺失则自动写入 cloudbase/migrations/，内容不一致则 LOCAL_MIGRATION_FILE_MISMATCH fail-closed；成功返回前会轮询 DescribeTaskResult（默认最长 10 分钟，可用 taskPollTimeoutMs / waitForTask 调整）并校验 migrationVersion 已落入远端历史；超时返回 MIGRATION_TASK_TIMEOUT，必须先 describeMigrationTask 再 listMigrations，禁止立刻重推同 version；未落库时返回 success=false 且 errorCode=MIGRATION_NOT_APPLIED）；listMigrations=查询已应用的 Migration 列表（可传 limit/offset 分页）；migrationDetail=查看单条 Migration 详情（需 migrationVersion）；describeMigrationTask=按 TaskId 查询 Push 异步任务状态（DescribeTaskResult：Status/Phase/Reason；需 taskId；用于 waitForTask=false / MIGRATION_TASK_TIMEOUT / 失败诊断，listMigrations 看不到 Reason）；fetchMigration=从远端 history 拉取 SQL 写入本地 cloudbase/migrations/（对齐 CLI tcb db pg migration fetch；可选 migrationVersion 拉单条，省略则全量；force=true 覆盖已存在文件，默认跳过）；rollbackMigration=回滚最近 N 条 Migration（需 lastN + confirm=true）；repairMigration=修复 Migration 历史记录（需 migrationVersion + migrationName + repairStatus + repairReason）",
+      "操作类型：execute=执行已确认的写入 SQL（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）；dryRun=只分析 SQL 风险不执行；planMigration=预览迁移计划（需 migrationName + migrationVersion + sql；可选 includeAll=true 允许乱序，对齐 CLI --include-all）；applyMigration=应用迁移，建表/改 schema 首选（需 migrationName + migrationVersion + sql + confirm=true；可选 includeAll；本地 SQL 缺失则自动写入 cloudbase/migrations/，内容不一致则 LOCAL_MIGRATION_FILE_MISMATCH fail-closed；成功返回前会轮询 DescribeTaskResult（默认最长 10 分钟，可用 taskPollTimeoutMs / waitForTask 调整）并校验 migrationVersion 已落入远端历史；超时返回 MIGRATION_TASK_TIMEOUT，必须先 describeMigrationTask 再 listMigrations，禁止立刻重推同 version；未落库时返回 success=false 且 errorCode=MIGRATION_NOT_APPLIED）；listMigrations=查询已应用的 Migration 列表（可传 limit/offset 分页）；migrationDetail=查看单条 Migration 详情（需 migrationVersion）；describeMigrationTask=按 TaskId 查询 Push 异步任务状态（DescribeTaskResult：Status/Phase/Reason；需 taskId；用于 waitForTask=false / MIGRATION_TASK_TIMEOUT / 失败诊断，listMigrations 看不到 Reason）；fetchMigration=从远端 history 拉取 SQL 写入本地 cloudbase/migrations/（对齐 CLI tcb db pg migration fetch；可选 migrationVersion 拉单条，省略则全量；force=true 覆盖已存在文件，默认跳过）；repairMigration=修复 Migration 历史记录（需 migrationVersion + migrationName + repairStatus + repairReason）",
     "schema.manageSql":
       "action=execute、dryRun、planMigration、applyMigration 或 repairMigration(applied) 使用的 SQL 语句",
     "schema.manageConfirm": "执行任何写入 SQL 前都需要显式设置为 true。",
@@ -34,14 +34,12 @@ export const databasePG = defineModule(
     "schema.manageRole":
       "可选的 PostgreSQL role，传给 Manager SDK executePGSql 的 Role（平台会 SET ROLE）。默认 cloudbase_postgres。推荐取值：cloudbase_postgres / anon / authenticated / service_role。不要传 postgres、postgres_pgdb_*、平台保留角色（cloudbase_admin，为平台管理账号不对用户开放）或从环境名臆造的角色；不确定时省略本字段，或先用 cloudbase_postgres 执行 SELECT rolname FROM pg_roles。",
     "schema.manageObjectName":
-      "可选的对象名，当前仅用于非 migration 场景。migration 相关操作请使用 migrationName / migrationVersion / lastN。",
+      "可选的对象名，当前仅用于非 migration 场景。migration 相关操作请使用 migrationName / migrationVersion。",
     "schema.manageMigrationName":
       "plan/apply/repair 必填：migration 名称，小写字母开头，仅允许小写字母和下划线（不允许数字，服务端 PushPGUserMigrations 会拒绝含数字的名称）。",
     "schema.manageMigrationVersion":
       "14 位时间戳 YYYYMMDDHHMMSS。plan/apply/detail/repair 必填；fetchMigration 可选（传入则只拉该条，省略则拉全量远端 history）；禁止由服务端静默生成，避免与本地 cloudbase/migrations/<version>_<name>.sql 分叉。applyMigration 非增量：每次传完整 SQL；终态失败且 listMigrations 未落地时版本号不占用，换新 migrationVersion 重发全量 SQL 即可（同名不同版本不冲突）。",
     "schema.manageRollbackSql": "plan/apply 可选：回滚 SQL 语句。",
-    "schema.manageLastN":
-      "rollback 必填：回滚最近 N 条已应用的 Migration，正整数。",
     "schema.manageLimit": "list 可选：返回数量上限，1-500，默认 100。",
     "schema.manageOffset": "list 可选：分页偏移，默认 0。",
     "schema.manageLockTimeoutMs":
@@ -244,11 +242,6 @@ export const databasePG = defineModule(
       "DescribeTaskResult TaskId={taskId} Status={status} Phase={phase}。任务尚未终止——请再次轮询；禁止重推。",
     "describeTask.failedApi":
       "TaskId={taskId} 的 DescribeTaskResult 失败：{reason}",
-    "rollback.lastNRequired": "action=rollbackMigration 时必须提供 lastN（正整数）。",
-    "rollback.confirmRequired":
-      "RollbackPGUserMigrations 需要 confirm=true。请携带 confirm=true 重新执行以继续。",
-    "rollback.success": "已通过 RollbackPGUserMigrations 回滚迁移。",
-    "rollback.failed": "RollbackPGUserMigrations 失败：{reason}",
     "repair.versionRequired":
       "action=repairMigration 时必须提供 migrationVersion（14 位时间戳 YYYYMMDDHHMMSS）。",
     "repair.nameRequired": "action=repairMigration 时必须提供 migrationName。",
@@ -287,7 +280,7 @@ export const databasePG = defineModule(
     "schema.queryLimit":
       "Optional cap on summary size, applied to objects, metadata, or SQL result rows. Defaults to 20, maximum 200.",
     "schema.manageAction":
-      "Action type: execute=run confirmed write SQL (DML/GRANT/RLS; schema DDL is rejected by default and requires allowDdlViaExecute=true); dryRun=analyze SQL risk without executing; planMigration=preview a migration plan (requires migrationName + migrationVersion + sql; optional includeAll=true allows out-of-order, matching CLI --include-all); applyMigration=apply a migration, the preferred path for CREATE TABLE / schema changes (requires migrationName + migrationVersion + sql + confirm=true; optional includeAll; a missing local SQL file is written to cloudbase/migrations/ automatically, while mismatched content fails closed with LOCAL_MIGRATION_FILE_MISMATCH; before returning success it polls DescribeTaskResult (up to 10 minutes by default, tunable via taskPollTimeoutMs / waitForTask) and verifies migrationVersion landed in the remote history; on timeout it returns MIGRATION_TASK_TIMEOUT and you must call describeMigrationTask before listMigrations — never re-push the same version immediately; when the version did not land it returns success=false with errorCode=MIGRATION_NOT_APPLIED); listMigrations=list applied migrations (supports limit/offset paging); migrationDetail=inspect a single migration (requires migrationVersion); describeMigrationTask=query the async Push task status by TaskId (DescribeTaskResult: Status/Phase/Reason; requires taskId; use it for waitForTask=false / MIGRATION_TASK_TIMEOUT / failure diagnosis, because listMigrations does not expose Reason); fetchMigration=pull SQL from the remote history into local cloudbase/migrations/ (matches CLI tcb db pg migration fetch; optional migrationVersion pulls a single record, omitting it pulls everything; force=true overwrites existing files, skipped by default); rollbackMigration=roll back the last N migrations (requires lastN + confirm=true); repairMigration=repair the migration history record (requires migrationVersion + migrationName + repairStatus + repairReason)",
+      "Action type: execute=run confirmed write SQL (DML/GRANT/RLS; schema DDL is rejected by default and requires allowDdlViaExecute=true); dryRun=analyze SQL risk without executing; planMigration=preview a migration plan (requires migrationName + migrationVersion + sql; optional includeAll=true allows out-of-order, matching CLI --include-all); applyMigration=apply a migration, the preferred path for CREATE TABLE / schema changes (requires migrationName + migrationVersion + sql + confirm=true; optional includeAll; a missing local SQL file is written to cloudbase/migrations/ automatically, while mismatched content fails closed with LOCAL_MIGRATION_FILE_MISMATCH; before returning success it polls DescribeTaskResult (up to 10 minutes by default, tunable via taskPollTimeoutMs / waitForTask) and verifies migrationVersion landed in the remote history; on timeout it returns MIGRATION_TASK_TIMEOUT and you must call describeMigrationTask before listMigrations — never re-push the same version immediately; when the version did not land it returns success=false with errorCode=MIGRATION_NOT_APPLIED); listMigrations=list applied migrations (supports limit/offset paging); migrationDetail=inspect a single migration (requires migrationVersion); describeMigrationTask=query the async Push task status by TaskId (DescribeTaskResult: Status/Phase/Reason; requires taskId; use it for waitForTask=false / MIGRATION_TASK_TIMEOUT / failure diagnosis, because listMigrations does not expose Reason); fetchMigration=pull SQL from the remote history into local cloudbase/migrations/ (matches CLI tcb db pg migration fetch; optional migrationVersion pulls a single record, omitting it pulls everything; force=true overwrites existing files, skipped by default); repairMigration=repair the migration history record (requires migrationVersion + migrationName + repairStatus + repairReason)",
     "schema.manageSql":
       "SQL statement used when action=execute, dryRun, planMigration, applyMigration, or repairMigration(applied)",
     "schema.manageConfirm":
@@ -301,14 +294,12 @@ export const databasePG = defineModule(
     "schema.manageRole":
       "Optional PostgreSQL role, passed as Role to the Manager SDK executePGSql (the platform issues SET ROLE). Defaults to cloudbase_postgres. Recommended values: cloudbase_postgres / anon / authenticated / service_role. Do not pass postgres, postgres_pgdb_*, platform-reserved roles (cloudbase_admin, the platform management account that is not exposed to users), or roles invented from the environment name; when unsure omit this field, or first run SELECT rolname FROM pg_roles with cloudbase_postgres.",
     "schema.manageObjectName":
-      "Optional object name, currently only used for non-migration scenarios. For migration actions use migrationName / migrationVersion / lastN instead.",
+      "Optional object name, currently only used for non-migration scenarios. For migration actions use migrationName / migrationVersion instead.",
     "schema.manageMigrationName":
       "Required for plan/apply/repair: migration name starting with a lowercase letter, containing only lowercase letters and underscores (no digits — the server-side PushPGUserMigrations rejects names containing digits).",
     "schema.manageMigrationVersion":
       "14-digit timestamp YYYYMMDDHHMMSS. Required for plan/apply/detail/repair; optional for fetchMigration (passing it pulls only that record, omitting it pulls the full remote history). It must never be generated silently by the server, to avoid diverging from the local cloudbase/migrations/<version>_<name>.sql file. applyMigration is not incremental: send the complete SQL every time; when a task fails terminally and listMigrations shows the version did not land, that version is not consumed — just pick a new migrationVersion and re-send the full SQL (the same name with a different version does not conflict).",
     "schema.manageRollbackSql": "Optional for plan/apply: rollback SQL statement.",
-    "schema.manageLastN":
-      "Required for rollback: roll back the last N applied migrations, a positive integer.",
     "schema.manageLimit":
       "Optional for list: maximum number of records returned, 1-500, defaults to 100.",
     "schema.manageOffset": "Optional for list: paging offset, defaults to 0.",
@@ -555,12 +546,6 @@ export const databasePG = defineModule(
       "DescribeTaskResult TaskId={taskId} Status={status} Phase={phase}. Task is not terminal yet — poll again; do not re-push.",
     "describeTask.failedApi":
       "DescribeTaskResult failed for TaskId={taskId}: {reason}",
-    "rollback.lastNRequired":
-      "Provide lastN (positive integer) when action=rollbackMigration.",
-    "rollback.confirmRequired":
-      "RollbackPGUserMigrations requires confirm=true. Run with confirm=true to proceed.",
-    "rollback.success": "Migration rolled back via RollbackPGUserMigrations.",
-    "rollback.failed": "RollbackPGUserMigrations failed: {reason}",
     "repair.versionRequired":
       "Provide migrationVersion (14-digit timestamp YYYYMMDDHHMMSS) when action=repairMigration.",
     "repair.nameRequired": "Provide migrationName when action=repairMigration.",

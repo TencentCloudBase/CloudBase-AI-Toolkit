@@ -35,7 +35,6 @@ const MANAGE_ACTIONS = [
   "migrationDetail",
   "describeMigrationTask",
   "fetchMigration",
-  "rollbackMigration",
   "repairMigration",
 ] as const;
 type QueryPgAction = (typeof QUERY_ACTIONS)[number];
@@ -68,7 +67,6 @@ type ManagePgDatabaseArgs = {
   migrationName?: string;
   migrationVersion?: string;
   rollbackSql?: string;
-  lastN?: number;
   limit?: number;
   offset?: number;
   lockTimeoutMs?: number;
@@ -1680,8 +1678,8 @@ function isPgMigrationApiDatabase(value: unknown): value is PgMigrationApiDataba
 }
 
 /**
- * Actions without a native wrapper in manager-node (e.g. RollbackPGUserMigrations)
- * are intentionally absent and keep using the commonService fallback.
+ * Actions without a native wrapper in manager-node are intentionally absent
+ * and keep using the commonService fallback.
  */
 const PgMigrationNativeActionMethods: Record<string, keyof PgMigrationApiDatabase> = {
   PreviewPGUserMigrations: "previewPGUserMigrations",
@@ -1751,7 +1749,7 @@ async function executeManagerPGSql(
 /**
  * Call a CloudBase PG migration API, preferring native manager-node methods
  * (>= 5.6.5) and falling back to the commonService channel for older runtimes
- * and actions without a native wrapper (RollbackPGUserMigrations).
+ * and actions without a native wrapper.
  */
 async function callPgMigrationApi(
   context: PgDbContext,
@@ -3178,43 +3176,6 @@ async function handleFetchMigration(
   }
 }
 
-async function handleRollbackMigration(args: ManagePgDatabaseArgs, context: PgDbContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
-  if (args.lastN === undefined || args.lastN < 1 || !Number.isInteger(args.lastN)) {
-    return buildPgToolResult({
-      success: false,
-      errorCode: "LAST_N_REQUIRED",
-      message: t("databasePG.rollback.lastNRequired"),
-    });
-  }
-
-  if (args.confirm !== true) {
-    return buildPgToolResult({
-      success: false,
-      errorCode: "CONFIRM_REQUIRED",
-      message: t("databasePG.rollback.confirmRequired"),
-    });
-  }
-
-  try {
-    const result = await callPgMigrationApi(context, "RollbackPGUserMigrations", {
-      LastN: args.lastN,
-    }, cloudBaseOptions);
-    return buildPgToolResult({
-      success: true,
-      data: result as Record<string, unknown>,
-      message: t("databasePG.rollback.success"),
-    });
-  } catch (error) {
-    return buildPgToolResult({
-      success: false,
-      errorCode: "MIGRATION_API_ERROR",
-      message: t("databasePG.rollback.failed", {
-        reason: error instanceof Error ? error.message : String(error),
-      }),
-    });
-  }
-}
-
 async function handleRepairMigration(args: ManagePgDatabaseArgs, context: PgDbContext, deps: PgToolDependencies, cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"]) {
   if (!args.migrationVersion?.trim()) {
     return buildPgToolResult({
@@ -3506,12 +3467,6 @@ export function registerPGDatabaseTools(
           .string()
           .optional()
           .describe("databasePG.schema.manageRollbackSql"),
-        lastN: z
-          .number()
-          .int()
-          .positive()
-          .optional()
-          .describe("databasePG.schema.manageLastN"),
         limit: z
           .number()
           .int()
@@ -3637,7 +3592,6 @@ export function registerPGDatabaseTools(
         case "migrationDetail":
         case "describeMigrationTask":
         case "fetchMigration":
-        case "rollbackMigration":
         case "repairMigration": {
           switch (args.action) {
             case "planMigration": return handlePlanMigration(args, context, deps, cbOpts);
@@ -3646,7 +3600,6 @@ export function registerPGDatabaseTools(
             case "migrationDetail": return handleMigrationDetail(args, context, deps, cbOpts);
             case "describeMigrationTask": return handleDescribeMigrationTask(args, context, deps, cbOpts);
             case "fetchMigration": return handleFetchMigration(args, context, deps, cbOpts);
-            case "rollbackMigration": return handleRollbackMigration(args, context, deps, cbOpts);
             case "repairMigration": return handleRepairMigration(args, context, deps, cbOpts);
             default: return buildPgToolResult({ success: false, errorCode: "UNSUPPORTED_ACTION", message: t("databasePG.unsupportedAction", { action: args.action }) });
           }
