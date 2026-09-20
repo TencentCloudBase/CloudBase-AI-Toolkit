@@ -94,6 +94,15 @@ export type CloudBaseOptions = CloudBaseConfigBase & {
    * 注意：不要用 token 字段的有无来推断权限范围——sessionToken 本身不携带范围语义。
    */
   credentialScope?: 'env' | 'account'
+  /**
+   * 环境归属账号（主账号）uin（可选，由宿主显式注入）。
+   * 用于遥测的账号级归因：hosted 宿主从 OAuth 授权信息取 ownerUin 传入
+   * （调用方可能是协作者/子账号，其 uin 不等于环境归属账号），
+   * 免去 MCP 侧为此单独发一次云 API 调用；与 DescribeEnvInfo 返回的
+   * EnvInfo.UserInfo.Uin 口径一致。
+   * 注意：不要从 secretId / token / envId 反推 uin——它们之间没有可靠映射。
+   */
+  uin?: string
 }
 
 /**

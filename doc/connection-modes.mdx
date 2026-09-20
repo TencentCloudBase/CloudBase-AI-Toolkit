@@ -349,6 +349,8 @@ CloudBase MCP 针对不同部署场景提供分层安全保护：
 | `CLOUDBASE_MCP_TELEMETRY_DISABLED` | 设为 `true` 关闭遥测上报（可选） | 默认上报 |
 | `CLOUDBASE_LOG_DIR` | 日志目录（可选） | 默认 `~/.cloudbase-mcp/logs` |
 
+**遥测上报内容**：工具名、调用是否成功、耗时、错误摘要（截断）、环境 ID、地域 / 站点、IDE 与 MCP 客户端标识、设备指纹，以及主账号 uin（字段名 `login_uin`，与 CloudBase CLI 对齐；取不到时上报 `unknown`）。不包含代码内容、文件路径与任何密钥。设 `CLOUDBASE_MCP_TELEMETRY_DISABLED=true` 可完全关闭。
+
 ### 登录相关环境变量怎么选
 
 大多数情况下，**这 3 个变量都不用配**：`TCB_AUTH_OAUTH_ENDPOINT`、`TCB_AUTH_CLIENT_ID`、`TCB_AUTH_OAUTH_CUSTOM`。

@@ -528,6 +528,34 @@ describe("multi-site credential slots", () => {
     });
   });
 
+  it("should keep uin when refreshing an expired temp credential", async () => {
+    // 续期响应只回密钥字段（toolbox 的 refreshTmpToken 仅手动回填 envId），不带 uin
+    authStoreData.credential = {
+      domestic: {
+        secretId: "old-sid",
+        secretKey: "old-skey",
+        refreshToken: "rt",
+        uin: 123811017,
+        accessTokenExpired: Date.now() - 60_000,
+        expired: Date.now() + 10 * 60_000,
+      },
+    };
+    const toolbox = await import("@cloudbase/toolbox");
+    vi.mocked(toolbox.refreshTmpToken).mockResolvedValueOnce({
+      secretId: "new-sid",
+      secretKey: "new-skey",
+      accessTokenExpired: Date.now() + 60 * 60_000,
+    } as any);
+
+    const { peekLoginState } = await import("./auth.js");
+    const loginState = await peekLoginState({ site: "domestic" });
+
+    expect(loginState?.secretId).toBe("new-sid");
+    // 账号归因字段必须跨续期保留，否则每续期一次 login_uin 就丢一次
+    expect(loginState?.uin).toBe(123811017);
+    expect(authStoreData.credential.domestic.uin).toBe(123811017);
+  });
+
   it("should fall back to the only usable slot for ambiguous region without explicit site (issue #960)", async () => {
     // 国内站账号 device 登录后凭证为 flat（等价 domestic 槽），绑定 ap-singapore 环境
     authStoreData.credential = {
