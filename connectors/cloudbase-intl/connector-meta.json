@@ -1,0 +1,26 @@
+{
+  "name": "Tencent CloudBase (International)",
+  "name_zh": "腾讯云 CloudBase（国际站）",
+  "name_en": "Tencent CloudBase (International)",
+  "description": "Build, deploy, debug, and troubleshoot CloudBase apps on the Tencent Cloud international site (Singapore): Web/H5 apps, native apps over HTTP API, cloud functions, CloudRun, PostgreSQL/MySQL, cloud storage, static hosting, authentication, AI model calls, AI agents, and ops diagnostics. Sign in with your Tencent Cloud International account.",
+  "description_zh": "腾讯云开发 CloudBase 国际站（新加坡）全栈开发、部署、调试与排障连接器。覆盖 Web/H5 应用、原生 App HTTP API、云函数、CloudRun、PostgreSQL/MySQL 数据库、云存储、静态托管、身份认证、AI 大模型调用、AI Agent 与资源巡检。使用腾讯云国际站账号登录。",
+  "description_en": "Build, deploy, debug, and troubleshoot CloudBase apps on the Tencent Cloud international site (Singapore): Web/H5 apps, native apps over HTTP API, cloud functions, CloudRun, PostgreSQL/MySQL, cloud storage, static hosting, authentication, AI model calls, AI agents, and ops diagnostics. Sign in with your Tencent Cloud International account.",
+  "source": "cloudbase-intl",
+  "type": "mcp",
+  "version": "1.0.0",
+  "minWorkbuddyVersion": "4.24.0",
+  "examples_zh": [
+    "用 CloudBase 国际站在新加坡创建一个 Web 应用，配置登录、PostgreSQL 数据库和静态托管",
+    "帮我给国际站环境部署一个容器化后端，并看日志排查启动失败",
+    "给国际站环境开通邮箱密码登录，并验证注册登录流程",
+    "查一下我这个国际站环境的云函数、云托管和数据库有没有异常",
+    "用 CloudBase AI 做一个流式输出的智能体，部署到国际站"
+  ],
+  "examples_en": [
+    "Create a web app on the CloudBase international site in Singapore with authentication, PostgreSQL, and static hosting",
+    "Deploy a containerized backend to my international site environment and check the logs for startup failures",
+    "Enable email and password sign-in for my international site environment and verify the sign-up flow",
+    "Inspect my international site environment for issues across cloud functions, CloudRun, and databases",
+    "Build a streaming AI agent with CloudBase AI and deploy it to the international site"
+  ]
+}
