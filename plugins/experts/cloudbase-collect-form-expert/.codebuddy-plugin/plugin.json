@@ -1,6 +1,6 @@
 {
   "name": "cloudbase-collect-form-expert",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "CloudBase collect-form expert: replaces 'collecting replies in the group chat' — generates sign-up forms, surveys, polls, and info-collection forms, deploys them online, and returns a QR code. Respondents scan and fill without installing anything; the organizer watches responses come in live with auto-summarized stats and CSV export. Built and deployed end-to-end for non-developers.",
   "author": {
     "name": "booker",
