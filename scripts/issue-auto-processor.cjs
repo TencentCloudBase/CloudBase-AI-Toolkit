@@ -61,8 +61,26 @@ function extractTextFromContent(content) {
   return '';
 }
 
+/**
+ * Roles that never carry the answer. Without this guard the "latest text wins"
+ * walk can return a prompt or a tool result — both are model *input*, and the
+ * caller publishes the result on a public surface (PR body / issue comment).
+ */
+const NON_ASSISTANT_ROLES = new Set(['user', 'system', 'human', 'developer']);
+
+function isNonAssistantRecord(value) {
+  const role = typeof value.role === 'string' ? value.role.trim().toLowerCase() : '';
+  return NON_ASSISTANT_ROLES.has(role);
+}
+
 function extractTextFromObject(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return '';
+  }
+
+  // A `result` envelope (`{type:"result",result:"…"}`) is CLI-owned output, not a
+  // conversation turn, so it stays eligible even when a role is present.
+  if (isNonAssistantRecord(value) && typeof value.result !== 'string') {
     return '';
   }
 
@@ -115,44 +133,156 @@ function extractTextFromParsed(value) {
   return extractTextFromObject(value);
 }
 
-function tryParseStructuredOutput(rawOutput) {
-  const trimmed = normalizeMultilineText(rawOutput);
-  if (!trimmed) {
-    return null;
-  }
+/**
+ * Find the end (exclusive) of the balanced JSON value starting at `start`,
+ * skipping over string literals and escapes. Returns -1 when unterminated.
+ */
+function findJsonDocumentEnd(text, start) {
+  const opening = text[start];
+  const closing = opening === '[' ? ']' : '}';
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
 
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    const lines = trimmed
-      .split(/\n+/)
-      .map((line) => line.trim())
-      .filter(Boolean);
+  for (let index = start; index < text.length; index += 1) {
+    const character = text[index];
 
-    if (lines.length === 0) {
-      return null;
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === '"') {
+        inString = false;
+      }
+      continue;
     }
 
-    const parsedLines = [];
-    for (const line of lines) {
-      try {
-        parsedLines.push(JSON.parse(line));
-      } catch {
-        return null;
+    if (character === '"') {
+      inString = true;
+    } else if (character === opening) {
+      depth += 1;
+    } else if (character === closing) {
+      depth -= 1;
+      if (depth === 0) {
+        return index + 1;
       }
     }
-
-    return parsedLines;
   }
+
+  return -1;
+}
+
+const MAX_JSON_DOCUMENT_SCAN_ATTEMPTS = 500;
+
+/**
+ * Pull every JSON document out of the captured output, tolerating surrounding
+ * and interleaved noise.
+ *
+ * The workflow invokes the CLI with `--output-format json`, but the capture also
+ * collects unrelated lines (runner stderr, Node deprecation warnings, glib
+ * `No such schema …`). A plain `JSON.parse` of the whole capture therefore
+ * throws, so scan for balanced documents instead of trusting the whole string.
+ */
+function collectJsonDocuments(text) {
+  const documents = [];
+  let index = 0;
+  let attempts = 0;
+
+  while (index < text.length && attempts < MAX_JSON_DOCUMENT_SCAN_ATTEMPTS) {
+    const arrayStart = text.indexOf('[', index);
+    const objectStart = text.indexOf('{', index);
+    let start = -1;
+
+    if (arrayStart < 0) {
+      start = objectStart;
+    } else if (objectStart < 0) {
+      start = arrayStart;
+    } else {
+      start = Math.min(arrayStart, objectStart);
+    }
+
+    if (start < 0) {
+      break;
+    }
+
+    attempts += 1;
+    const end = findJsonDocumentEnd(text, start);
+    if (end < 0) {
+      index = start + 1;
+      continue;
+    }
+
+    try {
+      documents.push(JSON.parse(text.slice(start, end)));
+      index = end;
+    } catch {
+      index = start + 1;
+    }
+  }
+
+  return documents;
+}
+
+/**
+ * Markers that only ever appear in a serialized model request/transcript.
+ * Used as a last-resort guard: if the capture cannot be parsed but looks like a
+ * transcript, publish nothing rather than the model's own input.
+ */
+const MODEL_TRANSCRIPT_MARKERS = [
+  '<system-reminder',
+  '"type": "input_text"',
+  '"type":"input_text"',
+  '"type": "output_text"',
+  '"type":"output_text"',
+  '"role": "user"',
+  '"role":"user"',
+];
+
+function looksLikeSerializedJson(text) {
+  return text.startsWith('[') || text.startsWith('{');
+}
+
+function looksLikeModelTranscript(text) {
+  const lower = text.toLowerCase();
+  return MODEL_TRANSCRIPT_MARKERS.some((marker) => lower.includes(marker));
 }
 
 function extractResultText(rawOutput) {
-  const parsed = tryParseStructuredOutput(rawOutput);
-  if (parsed !== null) {
-    return extractTextFromParsed(parsed);
+  const trimmed = normalizeMultilineText(rawOutput);
+  if (!trimmed) {
+    return '';
   }
 
-  return normalizeMultilineText(rawOutput);
+  const documents = [];
+  let wholeCaptureIsOneDocument = false;
+  try {
+    documents.push(JSON.parse(trimmed));
+    wholeCaptureIsOneDocument = true;
+  } catch {
+    // Noisy capture (see collectJsonDocuments); scan for embedded documents below.
+  }
+
+  if (!wholeCaptureIsOneDocument) {
+    documents.push(...collectJsonDocuments(trimmed));
+  }
+
+  for (let index = documents.length - 1; index >= 0; index -= 1) {
+    const documentText = extractTextFromParsed(documents[index]);
+    if (documentText) {
+      return documentText;
+    }
+  }
+
+  // Nothing usable was extracted. Never fall back to the raw capture: it can be
+  // the whole model transcript (system prompt / memory included), and callers
+  // write this value into public PR bodies and issue comments.
+  if (documents.length > 0 || looksLikeSerializedJson(trimmed) || looksLikeModelTranscript(trimmed)) {
+    return '';
+  }
+
+  // Plain `--output-format text` output is the answer itself.
+  return trimmed;
 }
 
 function extractPullRequestUrl(rawOutput) {
