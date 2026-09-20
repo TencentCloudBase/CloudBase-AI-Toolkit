@@ -1,6 +1,6 @@
 {
   "name": "cloudbase-webdev-expert",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "CloudBase Web application expert: builds and deploys full-stack web apps — frontend hosting, PostgreSQL, RLS row-level security, cloud functions, and AI/LLM integration — for non-developers building internal tools and teams shipping SaaS MVPs.",
   "author": {
     "name": "booker",
