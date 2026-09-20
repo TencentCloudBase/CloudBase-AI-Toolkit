@@ -1,6 +1,6 @@
 {
   "name": "miniprogram-clouddev-expert",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "WeChat mini program full-stack development expert: builds and deploys mini programs with frontend, backend (cloud functions), cloud database, message push callbacks, and virtual payment integration, powered by Tencent CloudBase (WeChat Cloud Dev).",
   "author": {
     "name": "booker",
