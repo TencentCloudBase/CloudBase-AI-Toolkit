@@ -14,7 +14,7 @@
         # fileURLToPath is unavailable in the !!js evaluator; replicate it safely.
         # On Windows URL#pathname yields "/C:/..." (leading slash), which node
         # then resolves as "C:\C:\..." → MODULE_NOT_FOUND. Strip it on win32.
-        args: [!!js '(() => { const p = new URL("node_modules/@cloudbase/dsh-plugin/scripts/mcp-env-proxy.mjs", baseUrl).pathname; return process.platform === "win32" && p.startsWith("/") ? p.slice(1) : p; })()']
+        args: [!!js '(() => { const raw = new URL("node_modules/@cloudbase/dsh-plugin/scripts/mcp-env-proxy.mjs", baseUrl).pathname; let p = raw; try { p = decodeURIComponent(raw); } catch (e) { p = raw; } return /^\/[A-Za-z]:/.test(p) ? p.slice(1) : p; })()']
         env: {}
     - id: cloudbase-dsh-plugin
       name: '@cloudbase/dsh-plugin'

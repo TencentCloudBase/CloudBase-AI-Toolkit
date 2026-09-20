@@ -6,7 +6,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const MCP_PACKAGE = "@cloudbase/cloudbase-mcp@latest";
 
@@ -38,6 +38,17 @@ function findCachedCloudbaseMcpBin() {
   return best?.path;
 }
 
+/**
+ * Resolve the CLI entry of a cached @cloudbase/cloudbase-mcp install from its
+ * `.bin` shim. The shim itself is not spawnable on Windows (extension-less sh
+ * script; `.cmd` needs shell: true since Node 18.20.2) → run the real entry
+ * with process.execPath instead.
+ */
+function findCachedCloudbaseMcpEntry(bin) {
+  const entry = join(dirname(dirname(bin)), "@cloudbase", "cloudbase-mcp", "dist", "cli.cjs");
+  return existsSync(entry) ? entry : undefined;
+}
+
 function resolveMcpLaunch() {
   if (process.env.CLOUDBASE_MCP_COMMAND) {
     return {
@@ -51,7 +62,13 @@ function resolveMcpLaunch() {
     };
   }
   const cached = findCachedCloudbaseMcpBin();
-  if (cached) return { command: cached, args: [], shell: false };
+  if (cached) {
+    const entry = findCachedCloudbaseMcpEntry(cached);
+    // Real entry: shim-free, so no shell and no quoting hazards.
+    if (entry) return { command: process.execPath, args: [entry], shell: false };
+    // POSIX-only fallback (see findCachedCloudbaseMcpEntry).
+    if (process.platform !== "win32") return { command: cached, args: [], shell: false };
+  }
   // Windows: `npx` is `npx.cmd`; spawn needs a shell to run it.
   return { command: "npx", args: ["-y", MCP_PACKAGE], shell: process.platform === "win32" };
 }

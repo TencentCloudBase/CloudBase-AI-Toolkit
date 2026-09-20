@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { MCP_PACKAGE } from "../shared/constants.js";
 
 export interface McpLaunchSpec {
@@ -48,7 +48,28 @@ export function findCachedCloudbaseMcpBin(
 }
 
 /**
- * Resolve MCP process launch: CLOUDBASE_MCP_COMMAND override → cached bin → npx fallback.
+ * Resolve the CLI entry of a cached `@cloudbase/cloudbase-mcp` install from its
+ * `.bin` shim path.
+ *
+ * npm links `.bin/cloudbase-mcp` as an extension-less sh shim (cmd-shim also
+ * writes `.cmd` / `.ps1`). Neither is spawnable on Windows: the sh shim is not
+ * a PE image, and Node ≥18.20.2 rejects `.cmd` without `shell: true` (EINVAL,
+ * CVE-2024-27980). Running the package's real JS entry through
+ * `process.execPath` bypasses shims on every platform.
+ */
+export function findCachedCloudbaseMcpEntry(bin: string): string | undefined {
+  const entry = join(
+    dirname(dirname(bin)),
+    "@cloudbase",
+    "cloudbase-mcp",
+    "dist",
+    "cli.cjs",
+  );
+  return existsSync(entry) ? entry : undefined;
+}
+
+/**
+ * Resolve MCP process launch: CLOUDBASE_MCP_COMMAND override → cached install → npx fallback.
  */
 export function resolveMcpLaunch(
   env: NodeJS.ProcessEnv = process.env,
@@ -63,7 +84,15 @@ export function resolveMcpLaunch(
   }
   const cached = findCachedCloudbaseMcpBin(options.npxRoot);
   if (cached) {
-    return { command: cached, args: [], source: "npx-cache" };
+    const entry = findCachedCloudbaseMcpEntry(cached);
+    if (entry) {
+      return { command: process.execPath, args: [entry], source: "npx-cache" };
+    }
+    // The sh shim is a POSIX script: spawnable on POSIX shells only. On win32
+    // it would fail, so fall through to the npx fallback instead.
+    if (process.platform !== "win32") {
+      return { command: cached, args: [], source: "npx-cache" };
+    }
   }
   return {
     command: "npx",
