@@ -50,6 +50,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Inventing `wechatide` tool names or flags instead of using `--help` / Nightly `tools.yaml`.
 - Bypassing wxide CLI / IDE for message-push ops with low-level transport before `cloud_*_msg_push` is exposed (see [message-push-customer-service.md](references/message-push-customer-service.md)).
 - Assuming cloud-function return values auto-reply to customer-service chats (must use `cloud.openapi.customerServiceMessage.send`).
+- Treating a grayed-out 云开发 button as a DevTools bug — trial/test accounts do not support CloudBase; confirm a registered mini program account first (see [CloudBase integration reference](references/cloudbase-integration.md), section 环境开通).
 - Making code or configuration changes without first following the Change Safety Protocol (`cloudbase-platform/references/protocols/change-safety-protocol.md`).
 - Performing mini program upload/publish without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
 
