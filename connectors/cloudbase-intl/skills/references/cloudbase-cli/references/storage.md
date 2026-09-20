@@ -64,6 +64,16 @@ tcb storage upload ./logo.png /images/logo.png
 tcb storage upload ./logo.png images/logo.png
 ```
 
+**Shared-bucket environments.** Some environments keep their files in a COS bucket shared with other environments, each isolated under its own directory prefix (BasePath). The CLI resolves the shared bucket and BasePath by itself, so you do not need to detect this: **write `cloudPath` exactly as in a normal environment** and never prepend the BasePath or the bucket name. `list`, `detail`, `url`, `cp` and `rm` accept and return the same plain paths.
+
+```bash
+# Environment whose storage BasePath is "tenant-a"
+# WRONG — the file ends up under tenant-a/tenant-a/images/logo.png
+tcb storage upload ./logo.png tenant-a/images/logo.png -e <envId>
+# CORRECT — stored as tenant-a/images/logo.png in the shared bucket
+tcb storage upload ./logo.png images/logo.png -e <envId>
+```
+
 For 50+ file uploads, check `cloudbase-error.log` for partial failure details. Retry with `--times 5 --interval 1000`.
 
 ---
@@ -163,6 +173,8 @@ tcb storage rules update --acl READONLY -e <envId>
 tcb storage rules update --acl CUSTOM \
   --rule '{"read": true, "write": "auth.openid == resource.openid"}' -e <envId>
 ```
+
+Storage rules are maintained per environment, not as a COS bucket ACL, so `rules get` / `rules update` work the same way in shared-bucket environments.
 
 ### Predefined ACL types
 
@@ -287,6 +299,7 @@ tcb storage rm file.txt --json -e <envId>         # script-friendly output
 ## Self-Check
 
 - [ ] `cloudPath` does NOT start with `/`?
+- [ ] `cloudPath` does NOT include the environment's BasePath (shared-bucket environments resolve it automatically)?
 - [ ] Used `--dry-run` before batch/wildcard deletions?
 - [ ] Wildcard patterns are properly quoted in shell?
 - [ ] Used new commands (`rm`, `rules get/update`) not deprecated ones?
