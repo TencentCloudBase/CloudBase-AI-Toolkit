@@ -116,6 +116,55 @@ export async function probeApiKeyCamCapability(loginState: {
 }
 
 /**
+ * 从 `DescribeEnvInfo` 读取环境归属账号的主账号 uin（`EnvInfo.UserInfo.Uin`）。
+ *
+ * 供遥测的账号级归因兜底：环境级凭证（API Key 换出的临时密钥、hosted OAuth STS）
+ * 自身不带 uin，但该只读接口对它们同样会返回主账号 uin。
+ * 只读、失败（无权限 / 网络 / 超时）一律返回 null——调用方不得据此中断主链路。
+ */
+export async function fetchEnvOwnerUin(loginState: {
+    secretId?: string;
+    secretKey?: string;
+    token?: string;
+    envId?: string;
+    region?: string;
+}): Promise<string | null> {
+    if (!loginState.secretId || !loginState.secretKey || !loginState.envId) {
+        return null;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        const manager = createManagerFromLoginState(
+            loginState,
+            loginState.region && loginState.region !== "unknown" ? loginState.region : undefined,
+        );
+        const call = manager.commonService("tcb", "2018-06-08").call({
+            Action: "DescribeEnvInfo",
+            Param: { EnvId: loginState.envId },
+        });
+        const timeout = new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error("fetchEnvOwnerUin timeout")), CAM_PROBE_TIMEOUT_MS);
+            (timer as unknown as { unref?: () => void }).unref?.();
+        });
+        const result = (await Promise.race([call, timeout])) as {
+            EnvInfo?: { UserInfo?: { Uin?: unknown } };
+        };
+        const raw = result?.EnvInfo?.UserInfo?.Uin;
+        const normalized = raw === undefined || raw === null ? "" : String(raw).trim();
+        return /^\d+$/.test(normalized) ? normalized : null;
+    } catch (e) {
+        debug("fetchEnvOwnerUin: failed", {
+            error: e instanceof Error ? e.message : String(e),
+        });
+        return null;
+    } finally {
+        if (timer) {
+            clearTimeout(timer);
+        }
+    }
+}
+
+/**
  * 探测「当前登录态」能否调用管理面（CAM）API。
  *
  * 与 probeApiKeyCamCapability 的区别：那个要求调用方自己准备好 loginState，

@@ -427,6 +427,12 @@ export interface LoginState {
   secretKey: string;
   token?: string;
   envId?: string;
+  /**
+   * 主账号 uin。本地凭证（`~/.config/.cloudbase/auth.json`）自带，
+   * 由 `@cloudbase/toolbox` 的 `resolveCredential()` 透传。
+   * 注意：临时密钥续期响应里没有 uin，须由调用方保留旧值（见 resolveSiteLoginState）。
+   */
+  uin?: string | number;
 }
 
 // ---- 多 site 凭证分槽（credential[site]）----
@@ -524,8 +530,16 @@ async function resolveSiteLoginState(site: SlotId): Promise<LoginState | null> {
     if (Date.now() < Number(credential.expired)) {
       try {
         const refreshed = await refreshTmpToken(credential);
-        await writeSiteCredential(site, refreshed ?? {});
-        const resolved = resolveCredential(refreshed ?? {});
+        // 续期响应只回密钥字段（toolbox 在 refreshTmpToken 里仅手动回填 envId），不含 uin。
+        // 直接写回会让账号归因在每次续期后丢失，因此显式沿用续期前的 uin。
+        const refreshedCredential =
+          refreshed &&
+          (refreshed as { uin?: unknown }).uin === undefined &&
+          credential.uin !== undefined
+            ? { ...refreshed, uin: credential.uin }
+            : refreshed;
+        await writeSiteCredential(site, refreshedCredential ?? {});
+        const resolved = resolveCredential(refreshedCredential ?? {});
         return resolved?.secretId ? (resolved as LoginState) : null;
       } catch (e) {
         const code = (e as any)?.code;
