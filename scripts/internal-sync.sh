@@ -67,11 +67,26 @@ while IFS= read -r dir; do
   [[ -n "$dir" ]] && KEEP_DIRS+=("--exclude=$dir/")
 done < <(git -C "$REPO_ROOT" ls-files specs/ | sed -n 's|^specs/\([^/]*\)/.*|\1|p' | sort -u)
 
+# 归档要忽略的垃圾文件（rsync 与计数两处判据必须一致）：
+#   .DS_Store             macOS 元数据
+#   .<name>.<10 位随机>    编辑器「临时名 + rename」原子写被打断留下的残片
+#                         （内容与同名正式文件逐字节相同，无归档价值；一个残片
+#                          还会被 pull 复制到所有 worktree，越滚越多）
+# 后缀写死 10 位是实测形态，同时也是为了不误伤 .env.local / .env.example
+# 这类名称里带点的正常隐藏文件（它们的后缀长度不同）。rsync 的 ? 与 shell 不同，
+# 匹配单个字符。
+IGNORE_RE='/\.DS_Store$|/\.[^/]*\.[A-Za-z0-9]{10}$'
+RSYNC_JUNK=(--exclude '.DS_Store' --exclude '.*.??????????')
+
 # 目录不存在时 find 返回非 0，pipefail 会让命令替换整体失败、被 set -e 杀掉。
 # （切分支把目录清空后正是这种场景，必须兜住）所以显式吃掉失败、回落 0。
+# 过滤后无剩余时 grep -v 返回 1，同样要兜住。
+list_files() {
+  find "${1:-.}" -type f 2>/dev/null | grep -vE "$IGNORE_RE" || true
+}
 count() {
   local n
-  n=$(find "$1" -type f -not -name '.DS_Store' 2>/dev/null | wc -l) || n=0
+  n=$(list_files "$1" | wc -l) || n=0
   echo "${n// /}"
 }
 
@@ -79,7 +94,7 @@ case "$CMD" in
   pull)
     b1="$(count "$LOCAL_SPECS")"
     mkdir -p "$LOCAL_SPECS"
-    rsync -a --exclude '.DS_Store' ${KEEP_DIRS[@]+"${KEEP_DIRS[@]}"} "$ARCHIVE_DIR/specs/" "$LOCAL_SPECS/"
+    rsync -a "${RSYNC_JUNK[@]}" ${KEEP_DIRS[@]+"${KEEP_DIRS[@]}"} "$ARCHIVE_DIR/specs/" "$LOCAL_SPECS/"
     a1="$(count "$LOCAL_SPECS")"
     if [[ "$b1" != "$a1" ]]; then
       echo "specs: 已从归档仓恢复（$b1 → $a1 个文件）"
@@ -91,7 +106,7 @@ case "$CMD" in
       b2="$(count "$LOCAL_WB")"
       mkdir -p "$LOCAL_WB"
       # -u：本地比归档仓新的文件是 IDE 刚写的实时状态，不覆盖
-      rsync -au --exclude '.DS_Store' "$ARCHIVE_DIR/.workbuddy/" "$LOCAL_WB/"
+      rsync -au "${RSYNC_JUNK[@]}" "$ARCHIVE_DIR/.workbuddy/" "$LOCAL_WB/"
       a2="$(count "$LOCAL_WB")"
       if [[ "$b2" != "$a2" ]]; then
         echo ".workbuddy: 已从归档仓恢复（$b2 → $a2 个文件）"
@@ -102,10 +117,10 @@ case "$CMD" in
     ;;
 
   push)
-    rsync -a --checksum --exclude '.DS_Store' "$LOCAL_SPECS/" "$ARCHIVE_DIR/specs/" 2>/dev/null || true
+    rsync -a --checksum "${RSYNC_JUNK[@]}" "$LOCAL_SPECS/" "$ARCHIVE_DIR/specs/" 2>/dev/null || true
     if [[ -d "$LOCAL_WB" ]]; then
       mkdir -p "$ARCHIVE_DIR/.workbuddy"
-      rsync -a --checksum --exclude '.DS_Store' "$LOCAL_WB/" "$ARCHIVE_DIR/.workbuddy/" 2>/dev/null || true
+      rsync -a --checksum "${RSYNC_JUNK[@]}" "$LOCAL_WB/" "$ARCHIVE_DIR/.workbuddy/" 2>/dev/null || true
     fi
     cd "$ARCHIVE_DIR"
     if [[ -n "$(git status --porcelain)" ]]; then
@@ -136,8 +151,8 @@ case "$CMD" in
       echo
       echo "$name —— 本地有但归档仓没有（切分支会丢）："
       comm -23 \
-        <(cd "$local_d" && find . -type f -not -name '.DS_Store' | sort) \
-        <(cd "$arch_d"  && find . -type f -not -name '.DS_Store' | sort) \
+        <(cd "$local_d" && list_files . | sort) \
+        <(cd "$arch_d"  && list_files . | sort) \
         | sed 's|^\./|  |'
     done
     ;;
