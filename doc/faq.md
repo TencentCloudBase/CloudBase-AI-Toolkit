@@ -391,7 +391,7 @@ CloudBase AI ToolKit 与微信开发者工具可以完美配合使用，提供�
 }
 ```
 
-其他方式（启动参数 `--site intl`、对话中指定 `site="intl"`、项目级 `.cloudbase/project.json`、CloudBase CLI `tcb config set isIntl true`）见 [连接方式 - 国际站用户](./connection-modes#国际站用户)。
+其他方式（启动参数 `--site intl`、对话中指定 `site="intl"`、项目级 `.cloudbase/project.json`、CloudBase CLI `tcb config set isIntl true`）见 [连接方式 - 站点与地域](./connection-modes#site-region)。
 
 国内站与国际站凭证按站点分槽存储，可并存，切换站点无需重新登录（见下条）。
 
