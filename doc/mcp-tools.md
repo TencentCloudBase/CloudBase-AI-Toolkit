@@ -2188,7 +2188,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "docPath",
       type: "string",
-      description: `mode=docs 且 action=readDoc 时指定。文档相对路径或完整 URL。`,
+      description: `mode=docs 且 action=readDoc 时指定。站内相对路径（如 /quick-start），或 action=findByName / action=searchDocs 返回的文档地址 —— 传地址时只取其中的路径，主机部分一律忽略。`,
     },
     {
       name: "query",
