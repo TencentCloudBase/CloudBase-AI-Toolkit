@@ -1,7 +1,7 @@
 ---
 name: miniprogram-development
 description: WeChat Mini Program development skill for building, debugging, previewing, testing, publishing, and optimizing mini program projects (小程序开发、调试、预览、发布). Covers project structure and config (`project.config.json`, `appid`, `miniprogramRoot`, `tabBar`, routing/navigation, icon assets), WeChat Developer Tools Nightly workflows (`wechatide` CLI, WeChat IDE Skills/MCP), `miniprogram-ci` preview/upload, console/network debugging, message push (消息推送) and customer-service auto-reply (客服消息), mini program SEO / search indexing (小程序搜索优化、页面收录、搜索推广、mpcrawler), and CloudBase integration (`wx.cloud`, 腾讯云开发, 云开发) when explicitly used. Use when users create, develop, modify, debug, preview, deploy, publish, or promote WeChat Mini Programs. NOT for Web frontend (use web-development), pure backend services (use cloudrun-development / cloud-functions), or UI-design-only tasks (use ui-design).
-version: 2.34.4
+version: 2.34.5
 alwaysApply: false
 ---
 
@@ -50,6 +50,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Inventing `wechatide` tool names or flags instead of using `--help` / Nightly `tools.yaml`.
 - Bypassing wxide CLI / IDE for message-push ops with low-level transport before `cloud_*_msg_push` is exposed (see [message-push-customer-service.md](references/message-push-customer-service.md)).
 - Assuming cloud-function return values auto-reply to customer-service chats (must use `cloud.openapi.customerServiceMessage.send`).
+- Treating a grayed-out 云开发 button as a DevTools bug — trial/test accounts do not support CloudBase; confirm a registered mini program account first (see [CloudBase integration reference](references/cloudbase-integration.md), section 环境开通).
 - Making code or configuration changes without first following the Change Safety Protocol (`cloudbase-platform/references/protocols/change-safety-protocol.md`).
 - Performing mini program upload/publish without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
 
