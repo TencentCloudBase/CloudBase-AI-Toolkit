@@ -13,8 +13,8 @@
   "expertType": "agent",
   "agentName": "cloudbase-workbench-expert",
   "displayName": {
-    "en": "CloudBase Productivity Tool Builder",
-    "zh": "CloudBase 效率工具搭建师"
+    "en": "CloudBase Workbench Expert",
+    "zh": "CloudBase 工作台专家"
   },
   "profession": {
     "en": "Personal Workbench Expert",
