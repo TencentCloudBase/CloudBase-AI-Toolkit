@@ -229,15 +229,15 @@ describe("rag tools", () => {
     });
 
     // 站点把 markdown 放在 `<页面路径>.md`；旧规则拼的 `/index.md` 会拿到 HTML 兜底页。
-    expect(readDoc).toHaveBeenCalledWith(
-      "https://docs.cloudbase.net/quick-start.md",
-    );
+    // 官方文档站的完整地址会被剥成站内路径再交给 SDK —— fetch 目标恒为首方基址，调用方
+    // 无法指定主机。回显给调用方的 docPath 仍是他传进来的原串。
+    expect(readDoc).toHaveBeenCalledWith("/quick-start.md");
     expect(JSON.parse(result.content[0].text)).toMatchObject({
       success: true,
       data: {
         action: "readDoc",
         docPath: "https://docs.cloudbase.net/quick-start/index",
-        markdownPath: "https://docs.cloudbase.net/quick-start.md",
+        markdownPath: "/quick-start.md",
         content: "# 快速开始\n正文",
       },
     });

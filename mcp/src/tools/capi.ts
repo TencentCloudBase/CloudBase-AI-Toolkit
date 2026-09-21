@@ -33,6 +33,8 @@ export const SERVICE_VERSIONS: Readonly<Record<string, readonly string[]>> = {
     tag: ["2018-08-13"],
     billing: ["2018-07-09"],
     region: ["2022-06-27"],
+    // 备案
+    ba: ["2020-07-20"],
     // 计算 / 容器 / 存储
     cvm: ["2017-03-12"],
     lighthouse: ["2020-03-24"],

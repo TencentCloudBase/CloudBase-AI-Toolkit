@@ -39,6 +39,10 @@ export const rag = defineModule(
     readDocSuccess: "CloudBase 文档读取成功",
     readDocNotMarkdown:
       "文档 {docPath} 没有可用的 Markdown 版本（站点对该路径返回了 HTML 页面）。请用 action=searchDocs 或 action=findByName 确认正确地址后重试；也可以直接抓取网页版：{pageUrl}",
+    readDocUrlNotAllowed:
+      "readDoc 只读取 CloudBase 官方文档站（{host}）上的文档，不接受其他主机的地址：{docPath}。请改传站内相对路径（如 /quick-start），或该文档站上的地址。",
+    readDocPathEmpty:
+      "readDoc 需要一个具体文档路径，{docPath} 里没有路径部分。例如传 /quick-start，或传 action=findByName / action=searchDocs 返回的文档地址。",
     searchDocsSuccess: "CloudBase 文档搜索成功",
     skillNotFound:
       "未找到技能文档 \"{skillName}\"。可用技能文档：{available}。{remoteHint}",
@@ -71,7 +75,7 @@ export const rag = defineModule(
     "schema.input":
       "mode=docs 且 action=findByName 时指定。支持模块名、文档标题、层级路径或 URL。",
     "schema.docPath":
-      "mode=docs 且 action=readDoc 时指定。文档相对路径或完整 URL。",
+      "mode=docs 且 action=readDoc 时指定。站内相对路径（如 /quick-start），或 action=findByName / action=searchDocs 返回的文档地址 —— 传地址时只取其中的路径，主机部分一律忽略。",
     "schema.query":
       "mode=docs 且 action=searchDocs 时指定。全文检索关键词。",
   },
@@ -113,6 +117,10 @@ export const rag = defineModule(
     readDocSuccess: "CloudBase doc read successfully",
     readDocNotMarkdown:
       "No Markdown version is available for {docPath} (the site returned an HTML page for it). Use action=searchDocs or action=findByName to confirm the correct address and retry; you can also fetch the rendered page directly: {pageUrl}",
+    readDocUrlNotAllowed:
+      "readDoc only reads documents on the official CloudBase docs site ({host}); other hosts are not accepted: {docPath}. Pass a site-relative path such as /quick-start, or an address on that docs site.",
+    readDocPathEmpty:
+      "readDoc needs a concrete document path; {docPath} carries no path. For example pass /quick-start, or a document address returned by action=findByName / action=searchDocs.",
     searchDocsSuccess: "CloudBase doc search succeeded",
     skillNotFound:
       "Skill document \"{skillName}\" not found. Available skill docs: {available}.{remoteHint}",
@@ -145,7 +153,7 @@ export const rag = defineModule(
     "schema.input":
       "Required when mode=docs and action=findByName. Accepts a module name, document title, hierarchical path, or URL.",
     "schema.docPath":
-      "Required when mode=docs and action=readDoc. A relative document path or full URL.",
+      "Required when mode=docs and action=readDoc. A site-relative path such as /quick-start, or a document address returned by action=findByName / action=searchDocs — only the path is used; any host is ignored.",
     "schema.query":
       "Required when mode=docs and action=searchDocs. Full-text search keywords.",
   },

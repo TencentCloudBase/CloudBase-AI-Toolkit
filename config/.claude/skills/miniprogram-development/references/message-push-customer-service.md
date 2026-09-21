@@ -14,7 +14,7 @@
 
 **微信 IDE 暴露状态：** 规格设计了 `cloud_query_msg_push` / `cloud_manage_msg_push`（由 CloudBase MCP 的 `queryMessagePush` / `manageMessagePush` 经 `EXPOSED_TOOL_NAME` 映射；需微信侧升级 `@cloudbase/cloudbase-mcp` 后）—— **尚未暴露**。在此之前，本 skill 只把 **IDE UI + 现有 wxide CLI 云/预览命令** 当作面向 agent 的操作面。不要文档化或教授底层替代方案。
 
-**维护者 E2E（不对产品 agent）：** CloudBase-MCP msg-push 工具的完整 ticket / 回归流程在外部 skill `wxide-qbase-msgpush-e2e`（`~/.workbuddy/skills/wxide-qbase-msgpush-e2e/SKILL.md`）。只指向该处；不要把其中的底层步骤复制进本参考。
+**维护者 E2E（不对产品 agent）：** CloudBase-MCP msg-push 工具的完整 ticket / 回归流程在维护者侧单独维护的 skill `wxide-qbase-msgpush-e2e`（不随本仓分发）。只指向该处；不要把其中的底层步骤复制进本参考。
 
 ## 何时阅读本参考
 
@@ -199,7 +199,7 @@ wechatide -c <clientName> -t <cloud_fn_logs_or_equivalent> ...
 - 调试 / 预览 / `wechatide` 上下文：[devtools-debug-preview.md](devtools-debug-preview.md)
 - IDE Skills 与 CloudBase MCP 分层：[wxide-vs-cloudbase-mcp.md](wxide-vs-cloudbase-mcp.md)
 - CloudBase 小程序集成：[cloudbase-integration.md](cloudbase-integration.md)
-- 维护者 MCP E2E 权威源（外部）：`wxide-qbase-msgpush-e2e` skill — 不要在此内联其底层步骤
+- 维护者 MCP E2E 权威源（维护者侧，不随本仓分发）：`wxide-qbase-msgpush-e2e` skill — 不要在此内联其底层步骤
 - 微信侧 CLI 暴露 / 缺失命令：跟进中
 - 日志 API 调研：跟进中
 - msg-push 与 `EXPOSED_TOOL_NAME` 的规格设计：见本文件第 5 节起的说明

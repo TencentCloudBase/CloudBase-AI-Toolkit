@@ -56,6 +56,7 @@ Priority rule: if `@cloudbase/manager-node` has a matching method, use it; drop 
 Recipes encode the exact call sequence, required parameters, and empirically discovered pitfalls so the flow works on the first pass. One scenario per file — start from the index `./references/recipes/README.md`, whose 状态 column records how far each recipe has been verified:
 
 - **PostgreSQL storage-usage alarm**: `./references/recipes/pg-storage-alarm.md`
+- **ICP filing readiness and wait-time checks**: `./references/recipes/icp-filing-readiness.md`
 
 **Done when**: every parameter value in the call sequence traces to a recipe value marked as verified (实测) or to official docs.
 

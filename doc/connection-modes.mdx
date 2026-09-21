@@ -58,6 +58,32 @@ CloudBase 有**国内站**（`domestic`，`cloud.tencent.com`）与**国际站**
 | `ap-shanghai` / `ap-guangzhou` | `domestic`（国内站） |
 | `ap-singapore` | **歧义**：国内站与国际站都有该地域，未配 site 时默认 `intl`（兼容既有行为） |
 
+### 命令行（tcb CLI）怎么定站点 {#cli-site}
+
+`tcb` CLI 用的是**另一个开关**，与 MCP 的 `TCB_SITE` 互不影响——设错那个只会静默无效：
+
+| 工具 | 开关 | 作用范围 | 校验 |
+|------|------|----------|------|
+| `tcb` CLI | 环境变量 `TCB_IS_INTL=true`，或持久化 `tcb config set isIntl true` | **本机全局**：对所有国内站项目同样生效 | `tcb config get isIntl` |
+| MCP（本地模式） | `TCB_SITE` + `TCB_REGION` | 单个 IDE 的 MCP 配置 | `auth(action="status")` |
+
+只是本次要用国际站，加环境变量即可，不留全局状态：
+
+```bash
+TCB_IS_INTL=true tcb login
+TCB_IS_INTL=true tcb env list
+```
+
+确认整机都走国际站，再持久化（会一并影响本机上的国内站项目）：
+
+```bash
+tcb config set isIntl true
+```
+
+> ⚠️ **`tcb login` 成功但 `tcb env list` 是空的，就是站点选错**，不是账号没有环境。先查 `isIntl`，不要急着重登。
+>
+> ⚠️ **改站点要两边一起改。** MCP 侧的解析优先级是「环境变量 > `.cloudbase/project.json`」，所以只改项目记录、不改客户端 `env`，MCP 仍然按旧站点走。项目记录是项目级、随仓库提交，重启后自动带入；`tcb config isIntl` 是机器级，不能当项目配置用。
+
 ### 国际站用户
 
 ```json

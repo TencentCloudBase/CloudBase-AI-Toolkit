@@ -532,6 +532,85 @@ export function resolveDocsMarkdownPath(docPath: string): string {
 }
 
 /**
+ * 交给 `DocsService.readDoc()` 的地址**永远不含 host**。
+ *
+ * Manager SDK 的 `DocsService.readDoc()` 见到 `http` 前缀就把入参原样 fetch、并把整段响应体
+ * 回显给调用方（`@cloudbase/manager-node/lib/docs/index.js:101`）。等于 docPath 是一条「由服务端
+ * 发起任意 HTTP 请求、把响应交给调用方」的通路：只要入参能带主机，`http://127.0.0.1/...`、
+ * `http://169.254.169.254/...`（云主机元数据）就能把工具变成 SSRF 原语。
+ *
+ * 而 docPath 收到完整 URL 是**主线用法**，不能靠「拒绝一切 URL」收口：`findByName` /
+ * `listModuleDocs` 的数据源 `category.json` 里 1016 个文档值全部是
+ * `https://docs.cloudbase.net/...` 形态，`searchDocs`（Algolia）返回的 `url` 也是完整地址，
+ * AI 拿到之后自然是原样喂回 readDoc。
+ *
+ * 所以这里的做法是**剥掉主机**：官方文档站的地址只取 pathname（+ 锚点），其余主机直接拒绝。
+ * 效果比白名单更强 —— 不是「允许的 host 恰好只有一个」，而是**没有任何 host 能走到 fetch**，
+ * 请求目标恒为 SDK 里的 `DOCS_BASE_URL`；顺带也让 `resolveDocsMarkdownPath` 的 `.md` 后缀
+ * 拼接不再可能作用在主机上（旧实现里裸主机名会被拼成 `docs.cloudbase.net.md`——`.md` 是
+ * 可被第三方注册的国家顶级域）。
+ */
+export const DOCS_BASE_HOST = "docs.cloudbase.net";
+
+/** 带 scheme 的绝对地址（`//host/path` 这类 protocol-relative 也算「指定了主机」）。 */
+const ABSOLUTE_DOC_URL_PATTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+function parseAbsoluteDocUrl(value: string): URL | null {
+  const candidate = value.startsWith("//") ? `https:${value}` : value;
+  if (!ABSOLUTE_DOC_URL_PATTERN.test(candidate)) {
+    return null;
+  }
+  try {
+    return new URL(candidate);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 把 docPath 折成站内相对路径：官方文档站地址**丢掉 host**只留路径，非首方主机直接拒绝。
+ *
+ * 查询串一并丢弃：站点用 `<路径>.md` 寻址，query 不属于寻址的一部分，留着只会拼出
+ * `.../x.md?foo` 这种畸形地址。锚点保留（`resolveDocsMarkdownPath` 本就支持 `#`）。
+ */
+export function toSiteRelativeDocPath(docPath: string): string {
+  const raw = docPath.trim();
+  const parsed = parseAbsoluteDocUrl(raw);
+  if (!parsed) {
+    return raw;
+  }
+
+  const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+  const isAllowedProtocol =
+    parsed.protocol === "http:" || parsed.protocol === "https:";
+  if (!isAllowedProtocol || host !== DOCS_BASE_HOST) {
+    throw new Error(
+      t("rag.readDocUrlNotAllowed", { docPath: raw, host: DOCS_BASE_HOST }),
+    );
+  }
+
+  const sitePath = `${parsed.pathname}${parsed.hash}`;
+  if (!sitePath.replace(/^\/+|\/+$/g, "")) {
+    throw new Error(t("rag.readDocPathEmpty", { docPath: raw }));
+  }
+  return sitePath;
+}
+
+/**
+ * invariant：走到 SDK 的地址不能含 host。
+ *
+ * 归一化之后再过一次，保证「fetch 目标恒为首方基址」这条性质不依赖
+ * `resolveDocsMarkdownPath` 的实现细节 —— 它以后改动了也漏不掉。
+ */
+export function assertNoHostInDocPath(sitePath: string): void {
+  if (parseAbsoluteDocUrl(sitePath.trim())) {
+    throw new Error(
+      t("rag.readDocUrlNotAllowed", { docPath: sitePath, host: DOCS_BASE_HOST }),
+    );
+  }
+}
+
+/**
  * 识别 SPA 兜底页：站点对不存在的 markdown 路径同样返回 200，正文是站点 HTML 外壳。
  * 用于把「静默返回一坨 HTML」换成明确的失败信息。
  */
@@ -716,15 +795,23 @@ export async function registerRagTools(server: ExtendedMcpServer) {
               "docPath",
               resolvedAction,
             );
-            const markdownPath = resolveDocsMarkdownPath(resolvedDocPath);
+            // 先剥掉 host（非首方主机直接拒绝），再做 `.md` 归一化，最后复核一遍不含 host。
+            // 三者顺序不能换：归一化会给路径补后缀，若让它作用在主机上就会把
+            // `docs.cloudbase.net` 拼成 `docs.cloudbase.net.md`（`.md` 是第三方可注册的 TLD）。
+            const siteDocPath = toSiteRelativeDocPath(resolvedDocPath);
+            const markdownPath = resolveDocsMarkdownPath(siteDocPath);
+            assertNoHostInDocPath(markdownPath);
             const markdown = await docsManager.readDoc(markdownPath);
             // 站点对没有 markdown 的路径也返回 200 + HTML 外壳，必须显式判失败，
             // 否则会把整页 HTML 当成文档正文交给模型（旧行为就是这样静默出错的）。
             if (isDocsHtmlFallback(markdown)) {
+              // 「网页版」退路必须是绝对地址：走到这里 markdownPath 已不含 host，只给路径
+              // 调用方没法直接抓。
+              const pageUrl = `https://${DOCS_BASE_HOST}${markdownPath.replace(/\.md(?=#|$)/i, "")}`;
               throw new Error(
                 t("rag.readDocNotMarkdown", {
                   docPath: markdownPath,
-                  pageUrl: markdownPath.replace(/\.md(?=#|$)/i, ""),
+                  pageUrl,
                 }),
               );
             }

@@ -63,6 +63,8 @@ describe("callCloudApi service 白名单", () => {
     expect(SERVICE_VERSIONS.ssl).toEqual(["2019-12-05"]);
     expect(SERVICE_VERSIONS.dnspod).toEqual(["2021-03-23"]);
     expect(SERVICE_VERSIONS.domain).toEqual(["2018-08-08"]);
+    // 备案走 ba（ICP备案），官方接口文档与 SDK 目录均为 v20200720
+    expect(SERVICE_VERSIONS.ba).toEqual(["2020-07-20"]);
     // 官方 STS 是 2018-08-13；SDK 内置的 2018-04-16 实为 SCF 版本，不能用
     expect(SERVICE_VERSIONS.sts).toEqual(["2018-08-13"]);
   });
