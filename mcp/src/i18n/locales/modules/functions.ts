@@ -5,8 +5,8 @@ export const functions = defineModule(
     // ---- 工具 meta ----
     queryTitle: "查询 CloudBase 云函数",
     queryDescription:
-      "CloudBase 云函数统一只读入口。通过更自解释的 action 查询 CloudBase 云函数列表、函数详情、执行日志、层、触发器和代码下载地址。" +
-      "\n\n**分页说明**：`listFunctions`、`listLayers` 支持 `limit` 和 `offset` 参数。" +
+      "CloudBase 云函数统一只读入口。通过更自解释的 action 查询 CloudBase 云函数列表、函数详情、执行日志、层、触发器、代码下载地址、已发布版本与流量别名。" +
+      "\n\n**分页说明**：`listFunctions`、`listLayers`、`listVersionByFunction` 支持 `limit` 和 `offset` 参数。" +
       "\n- `limit`: 分页数量，默认值由后端决定" +
       "\n- `offset`: 分页偏移，从 0 开始" +
       "\n- 示例：`queryFunctions(action=\"listFunctions\", offset=10, limit=10)`" +
@@ -14,6 +14,7 @@ export const functions = defineModule(
       "\n- 示例：`queryFunctions(action=\"listFunctionLogs\", functionName=\"my-function\")`" +
       "\n- 如需查看日志详情：`queryFunctions(action=\"getFunctionLogDetail\", requestId=\"xxx\")`" +
       "\n\n**定时任务 / cron / 定时跑**：使用 `listFunctionTriggers` 查询函数的 timer 触发器配置。" +
+      "\n\n**版本与流量路由**：`listVersionByFunction` 列出已发布版本（对齐 tcb fn list-function-versions）；`getFunctionAlias` 查看别名/灰度配置（对齐 tcb fn get-route，aliasName 默认 `$DEFAULT`）。" +
       "\n\n**层（Layer）说明**：" +
       "\n- 层为 SCF 账号级共享命名空间：不同环境创建同名层会共享同一层的版本序列；删除某版本会影响所有绑定该版本的环境的函数" +
       "\n- 创建层必须用带环境标识的唯一层名，固定格式：`{layerName}_{当前envId}`（如 `common_cloud1-d9ghadgak3edf6b36`）。不要在不同环境使用相同裸层名，创建前先 `listLayers` 查重" +
@@ -23,8 +24,9 @@ export const functions = defineModule(
       "\n- `queryLogs` 工具用于搜索 CLS 日志服务（跨服务日志聚合）",
     manageTitle: "管理 CloudBase 云函数",
     manageDescription:
-      "CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。" +
+      "CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、发布版本、配置流量别名、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。" +
       "如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。" +
+      "版本发布：`publishVersion` 对齐 tcb fn publish-version / SDK publishVersion；灰度/切流：`updateFunctionAliasConfig` 对齐 tcb fn config-route / SDK updateFunctionAliasConfig（aliasName 默认 `$DEFAULT`）。" +
       "HTTP 云函数镜像构建部署：createFunction / updateFunctionCode 通过 func.buildStrategy 区分。" +
       "func.buildStrategy=image（已有镜像，填 func.imageConfig.imageUri）直接创建/更新 HTTP 函数；" +
       "func.buildStrategy=local（本地 Docker 构建推送）、cloud（CloudApp 云端构建）走镜像构建部署编排（需要 func.imageConfig；build 非必填，缺省仓库坐标自动补齐：namespace 默认 envId、repository 默认函数名），" +
@@ -135,6 +137,12 @@ export const functions = defineModule(
     "reason.imageNextIteration": "后续迭代只需用新镜像 tag 调用 updateFunctionCode 更新镜像",
     "reason.imageGatewayRoute": "如需通过 URL 访问镜像 HTTP 函数，显式创建 Domain/Route 访问入口并传 type=\"HTTP\"（映射 WEB_SCF）",
     "reason.latestConfig": "确认最新函数配置",
+    "reason.publishVersion": "发布函数新版本（对齐 tcb fn publish-version）",
+    "reason.getFunctionAlias": "查看函数流量别名配置（对齐 tcb fn get-route）",
+    "reason.updateFunctionAlias": "更新函数流量别名/灰度路由（对齐 tcb fn config-route）",
+    "reason.listVersions": "查看函数已发布版本列表（对齐 tcb fn list-function-versions）",
+    "reason.routeTraffic": "将流量切到新版本或配置灰度权重",
+    "reason.confirmAlias": "确认别名与流量配置已生效",
 
     // ---- 成功 message ----
     listedFunctions: "已获取 {count} 个云函数",
@@ -147,6 +155,10 @@ export const functions = defineModule(
     gotLayerVersionDetail: "已获取层 {layerName} 版本 {layerVersion} 的详情",
     gotFunctionTriggers: "已获取函数 {fnName} 的触发器列表",
     gotDownloadUrl: "已获取函数 {fnName} 的代码下载链接",
+    gotFunctionVersions: "已获取函数 {fnName} 的版本列表",
+    gotFunctionAlias: "已获取函数 {fnName} 的别名 {aliasName}",
+    publishedVersion: "已发布函数 {fnName} 的新版本 {version}",
+    updatedFunctionAlias: "已更新函数 {fnName} 别名 {aliasName}（主版本 {version}）",
     createdHttpFunctionMessage: "已创建 HTTP 函数 {fnName}。如果后续需要通过 URL 访问，请显式调用 manageGateway(action=\"createRoute\")，并把 upstreamResourceType=\"WEB_SCF\" 一起传入，再按实际路径和鉴权需求创建访问入口。评测或其他外部调用方可能会以匿名身份访问，而且失败后不一定会把 EXCEED_AUTHORITY 再反馈给 AI；交付前请主动确认访问路径和函数安全规则，若已出现 EXCEED_AUTHORITY，请先调用 queryPermissions(action=\"getResourcePermission\", resourceType=\"function\", resourceId=\"{fnName}\") 查看当前规则，再按需要使用 managePermissions(action=\"updateResourcePermission\") 调整权限。",
     createdFunction: "已创建函数 {fnName}",
     imageCreatedMessage: "已基于镜像 {imageUri} 创建 HTTP 函数 {fnName}。请确认 TCR、SCF 与构建管道处于同一地域；如需通过 URL 访问，请显式调用 manageGateway(action=\"createRoute\", upstreamResourceType=\"WEB_SCF\") 并按需调整函数安全规则。部署后可用 queryFunctions(action=\"getFunctionDetail\") 确认函数已就绪。",
@@ -218,8 +230,8 @@ export const functions = defineModule(
     "schema.create.layers": "Layer 配置",
     "schema.manageLayer.name": "层名称",
     "schema.manageLayer.version": "层版本号",
-    "schema.query.action": "只读操作类型：\n- `listFunctions`: 列出所有 CloudBase 云函数\n- `getFunctionDetail`: 获取 CloudBase 云函数详情（需要 functionName）\n- `listFunctionLogs`: 查询 CloudBase 云函数执行日志（需要 functionName）\n- `getFunctionLogDetail`: 获取日志详情（需要 requestId）\n- `listFunctionLayers`: 列出函数绑定的层\n- `listLayers`: 列出所有层（账号级视图，含其他环境创建的层）\n- `listLayerVersions`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图）\n- `getLayerVersionDetail`: 获取层版本详情（账号级视图）\n- `listFunctionTriggers`: 列出函数触发器（用于查看定时任务 / cron / timer 配置）\n- `getFunctionDownloadUrl`: 获取函数代码下载地址\n- `getFunctionDeployStatus`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。",
-    "schema.query.functionName": "CloudBase 云函数名称。`getFunctionDetail`、`listFunctionLogs`、`listFunctionLayers`、`listFunctionTriggers`、`getFunctionDownloadUrl` 时必填",
+    "schema.query.action": "只读操作类型：\n- `listFunctions`: 列出所有 CloudBase 云函数\n- `getFunctionDetail`: 获取 CloudBase 云函数详情（需要 functionName）\n- `listFunctionLogs`: 查询 CloudBase 云函数执行日志（需要 functionName）\n- `getFunctionLogDetail`: 获取日志详情（需要 requestId）\n- `listFunctionLayers`: 列出函数绑定的层\n- `listLayers`: 列出所有层（账号级视图，含其他环境创建的层）\n- `listLayerVersions`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图）\n- `getLayerVersionDetail`: 获取层版本详情（账号级视图）\n- `listFunctionTriggers`: 列出函数触发器（用于查看定时任务 / cron / timer 配置）\n- `getFunctionDownloadUrl`: 获取函数代码下载地址\n- `getFunctionDeployStatus`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。\n- `listVersionByFunction`: 列出函数已发布版本（对齐 tcb fn list-function-versions / SDK listVersionByFunction；需要 functionName）\n- `getFunctionAlias`: 查询函数别名与流量路由（对齐 tcb fn get-route / SDK getFunctionAlias；需要 functionName；aliasName 默认 $DEFAULT）",
+    "schema.query.functionName": "CloudBase 云函数名称。`getFunctionDetail`、`listFunctionLogs`、`listFunctionLayers`、`listFunctionTriggers`、`getFunctionDownloadUrl`、`listVersionByFunction`、`getFunctionAlias` 时必填",
     "schema.query.limit": "分页数量（limit）。列表类 action 可选，默认值由后端决定",
     "schema.query.offset": "分页偏移（offset）。列表类 action 可选，默认 0",
     "schema.query.codeSecret": "代码保护密钥，用于解密函数代码",
@@ -233,11 +245,14 @@ export const functions = defineModule(
     "schema.query.layerName": "层名称。`listLayerVersions`、`getLayerVersionDetail` 操作必填。层为账号级共享命名空间；推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）",
     "schema.query.layerVersion": "层版本号。`getLayerVersionDetail` 操作必填",
     "schema.query.taskId": "`getFunctionDeployStatus` 操作时的异步部署任务 ID（由 manageFunctions 的 wait=false 返回）。任务仅保存在当前 MCP 进程内存中：终态任务保留约 30 分钟，运行中任务最长保留 2 小时。",
-    "schema.manage.action": "写操作类型，例如 createFunction、updateFunctionCode、incrementalDeployFunction、invokeFunction、deleteFunction、createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、createLayerVersion、deleteLayerVersion、attachLayer、detachLayer、updateFunctionLayers。层名推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）",
+    "schema.query.order": "`listVersionByFunction` 排序方向，如 ASC / DESC",
+    "schema.query.orderBy": "`listVersionByFunction` 排序字段，如 AddTime / ModTime",
+    "schema.query.aliasName": "`getFunctionAlias` 的别名名称。省略时默认 `$DEFAULT`（与 tcb fn get-route 一致）",
+    "schema.manage.action": "写操作类型，例如 createFunction、updateFunctionCode、incrementalDeployFunction、invokeFunction、deleteFunction、createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、createLayerVersion、deleteLayerVersion、attachLayer、detachLayer、updateFunctionLayers、publishVersion（发布新版本，对齐 tcb fn publish-version）、updateFunctionAliasConfig（更新别名/流量路由，对齐 tcb fn config-route）。层名推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）",
     "schema.manage.func": "createFunction / updateFunctionCode 的函数配置。镜像/构建部署通过 func.buildStrategy（zip/cloud/local/image）区分，镜像相关字段收敛在 func.imageConfig 命名空间下。",
     "schema.manage.functionRootPath": "创建或更新函数代码时默认推荐的本地目录方式。必须是直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions 或 /abs/path/functions），不要传项目根目录（如 /abs/path），也不要传到函数名子目录（如 /abs/path/cloudfunctions/hello）。本地应按 cloudfunctions/<functionName>/index.js 或 functions/<functionName>/index.js 布局，此参数传 cloudfunctions 或 functions 目录的绝对路径。SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。",
     "schema.manage.force": "createFunction 时是否覆盖",
-    "schema.manage.functionName": "目标函数名称（顶层）。updateFunctionCode / updateFunctionConfig / invokeFunction 等 action 使用此字段。不要只写在 func.name：createFunction 用 func.name，其它 action 用顶层 functionName。若误传 func.name，也会被识别为 functionName。",
+    "schema.manage.functionName": "目标函数名称（顶层）。updateFunctionCode / updateFunctionConfig / invokeFunction / publishVersion / updateFunctionAliasConfig 等 action 使用此字段。不要只写在 func.name：createFunction 用 func.name，其它 action 用顶层 functionName。若误传 func.name，也会被识别为 functionName。",
     "schema.manage.zipFile": "仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。",
     "schema.manage.handler": "函数入口",
     "schema.manage.timeout": "配置更新时的超时时间",
@@ -251,7 +266,7 @@ export const functions = defineModule(
     "schema.manage.contentPath": "层内容路径，可为目录或 ZIP 文件",
     "schema.manage.base64Content": "层内容的 base64 编码",
     "schema.manage.runtimes": "层适用的运行时列表",
-    "schema.manage.description": "层版本描述",
+    "schema.manage.description": "描述信息。createLayerVersion 时为层版本描述；publishVersion / updateFunctionAliasConfig 时为版本或别名描述",
     "schema.manage.licenseInfo": "层许可证信息",
     "schema.manage.layers": "updateFunctionLayers 的目标层列表，顺序即最终顺序",
     "schema.manage.codeSecret": "层绑定时的代码保护密钥",
@@ -260,13 +275,24 @@ export const functions = defineModule(
     "schema.manage.autoGrant": "镜像部署是否允许 manager-node 自动补齐固定白名单 CAM 策略。默认 false；仅在明确确认权限变更时设为 true。",
     "schema.manage.confirm": "危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作以及镜像构建部署（func.buildStrategy=cloud/local）真实执行需要显式传入 confirm=true",
     "schema.manage.incrementalFile": "incrementalDeployFunction 增量部署时的变更文件路径",
+    "schema.manage.aliasName": "`updateFunctionAliasConfig` 的别名名称。省略时默认 `$DEFAULT`（与 tcb fn config-route 一致）",
+    "schema.manage.functionVersion": "`updateFunctionAliasConfig` 的主版本。可为具体版本号或 `$LATEST`",
+    "schema.manage.routingConfig": "`updateFunctionAliasConfig` 的流量路由配置。AdditionalVersionWeights 用于灰度权重；AddtionVersionMatchs 为 SCF/SDK 历史字段名（含拼写）",
+    "schema.routing.version": "附加流量版本号",
+    "schema.routing.weight": "附加流量权重（0-1 或百分比，按 SCF 约定）",
+    "schema.routing.matchVersion": "匹配规则指向的版本号",
+    "schema.routing.matchKey": "匹配规则的 Header/Query Key",
+    "schema.routing.matchMethod": "匹配方法，如 Exact / Regex",
+    "schema.routing.matchExpression": "匹配表达式",
+    "schema.routing.additionalWeights": "附加版本权重列表（灰度发布）",
+    "schema.routing.additionalMatches": "附加版本匹配规则列表（字段名保持 SCF AddtionVersionMatchs）",
   },
   {
     // ---- Tool meta ----
     queryTitle: "Query CloudBase Cloud Functions",
     queryDescription:
-      "Unified read-only entry for CloudBase cloud functions. Query function lists, function details, execution logs, layers, triggers, and code download URLs through self-explanatory actions." +
-      "\n\n**Pagination**: `listFunctions` and `listLayers` support `limit` and `offset` parameters." +
+      "Unified read-only entry for CloudBase cloud functions. Query function lists, function details, execution logs, layers, triggers, code download URLs, published versions, and traffic aliases through self-explanatory actions." +
+      "\n\n**Pagination**: `listFunctions`, `listLayers`, and `listVersionByFunction` support `limit` and `offset` parameters." +
       "\n- `limit`: page size, the default is decided by the backend" +
       "\n- `offset`: pagination offset, starting from 0" +
       "\n- Example: `queryFunctions(action=\"listFunctions\", offset=10, limit=10)`" +
@@ -274,6 +300,7 @@ export const functions = defineModule(
       "\n- Example: `queryFunctions(action=\"listFunctionLogs\", functionName=\"my-function\")`" +
       "\n- To view log details: `queryFunctions(action=\"getFunctionLogDetail\", requestId=\"xxx\")`" +
       "\n\n**Scheduled tasks / cron / timers**: use `listFunctionTriggers` to query a function's timer trigger configuration." +
+      "\n\n**Versions and traffic routing**: `listVersionByFunction` lists published versions (aligns with tcb fn list-function-versions); `getFunctionAlias` views alias / canary config (aligns with tcb fn get-route; aliasName defaults to `$DEFAULT`)." +
       "\n\n**Layers**:" +
       "\n- Layers are account-level shared namespaces in SCF: same-named layers created in different environments share one version sequence; deleting a version affects functions in every environment bound to it" +
       "\n- When creating a layer, use a unique name with the environment suffix, in the fixed format `{layerName}_{current envId}` (e.g. `common_cloud1-d9ghadgak3edf6b36`). Do not reuse the same bare layer name across environments; check with `listLayers` before creating" +
@@ -283,8 +310,9 @@ export const functions = defineModule(
       "\n- The `queryLogs` tool searches the CLS log service (cross-service log aggregation)",
     manageTitle: "Manage CloudBase Cloud Functions",
     manageDescription:
-      "Unified write entry for CloudBase cloud functions. Supports creating functions, updating code, updating configuration, invoking functions, and managing timer triggers (scheduled jobs / cron) and layer bindings." +
+      "Unified write entry for CloudBase cloud functions. Supports creating functions, updating code, updating configuration, invoking functions, publishing versions, configuring traffic aliases, and managing timer triggers (scheduled jobs / cron) and layer bindings." +
       " To create a cron scheduled task, first create the function with createFunction, then create the timer trigger with createFunctionTrigger (7-field cron expression supported), and delete triggers with deleteFunctionTrigger." +
+      " Version publish: `publishVersion` aligns with tcb fn publish-version / SDK publishVersion; canary / traffic shift: `updateFunctionAliasConfig` aligns with tcb fn config-route / SDK updateFunctionAliasConfig (aliasName defaults to `$DEFAULT`)." +
       " HTTP function image build & deploy: createFunction / updateFunctionCode distinguish via func.buildStrategy." +
       " func.buildStrategy=image (existing image, set func.imageConfig.imageUri) creates/updates the HTTP function directly;" +
       " func.buildStrategy=local (local Docker build & push) and cloud (CloudApp cloud build) go through the image build/deploy orchestration (func.imageConfig required; build optional — missing registry coordinates are auto-filled: namespace defaults to envId, repository defaults to the function name)," +
@@ -395,6 +423,12 @@ export const functions = defineModule(
     "reason.imageNextIteration": "For later iterations, just call updateFunctionCode with the new image tag to update the image",
     "reason.imageGatewayRoute": "To access the image HTTP function via URL, explicitly create a Domain/Route access entry and pass type=\"HTTP\" (mapped to WEB_SCF)",
     "reason.latestConfig": "Confirm the latest function configuration",
+    "reason.publishVersion": "Publish a new function version (aligns with tcb fn publish-version)",
+    "reason.getFunctionAlias": "View function traffic alias config (aligns with tcb fn get-route)",
+    "reason.updateFunctionAlias": "Update function traffic alias / canary routing (aligns with tcb fn config-route)",
+    "reason.listVersions": "List published function versions (aligns with tcb fn list-function-versions)",
+    "reason.routeTraffic": "Shift traffic to the new version or configure canary weights",
+    "reason.confirmAlias": "Confirm the alias and traffic config have taken effect",
 
     // ---- Success messages ----
     listedFunctions: "Retrieved {count} cloud functions",
@@ -407,6 +441,10 @@ export const functions = defineModule(
     gotLayerVersionDetail: "Retrieved details of layer {layerName} version {layerVersion}",
     gotFunctionTriggers: "Retrieved the trigger list of function {fnName}",
     gotDownloadUrl: "Retrieved the code download URL of function {fnName}",
+    gotFunctionVersions: "Retrieved the version list of function {fnName}",
+    gotFunctionAlias: "Retrieved alias {aliasName} of function {fnName}",
+    publishedVersion: "Published new version {version} of function {fnName}",
+    updatedFunctionAlias: "Updated alias {aliasName} of function {fnName} (primary version {version})",
     createdHttpFunctionMessage: "Created HTTP function {fnName} from the image. If URL access is needed later, explicitly call manageGateway(action=\"createRoute\") with upstreamResourceType=\"WEB_SCF\", then create the access entry according to the actual path and auth requirements. Evaluators or other external callers may access anonymously, and failures may not feed EXCEED_AUTHORITY back to the AI; before delivery, proactively confirm the access path and the function security rules. If EXCEED_AUTHORITY has already appeared, first call queryPermissions(action=\"getResourcePermission\", resourceType=\"function\", resourceId=\"{fnName}\") to view the current rules, then adjust permissions with managePermissions(action=\"updateResourcePermission\") as needed.",
     createdFunction: "Created function {fnName}",
     imageCreatedMessage: "Created HTTP function {fnName} from image {imageUri}. Please confirm TCR, SCF, and the build pipeline are in the same region; for URL access, explicitly call manageGateway(action=\"createRoute\", upstreamResourceType=\"WEB_SCF\") and adjust the function security rules as needed. After deployment, use queryFunctions(action=\"getFunctionDetail\") to confirm the function is ready.",
@@ -478,8 +516,8 @@ export const functions = defineModule(
     "schema.create.layers": "Layer configuration",
     "schema.manageLayer.name": "Layer name",
     "schema.manageLayer.version": "Layer version number",
-    "schema.query.action": "Read-only action type:\n- `listFunctions`: list all CloudBase cloud functions\n- `getFunctionDetail`: get function details (requires functionName)\n- `listFunctionLogs`: query function execution logs (requires functionName)\n- `getFunctionLogDetail`: get log details (requires requestId)\n- `listFunctionLayers`: list layers bound to a function\n- `listLayers`: list all layers (account-level view, including layers from other environments)\n- `listLayerVersions`: list layer versions (Versions, not Version; account-level view)\n- `getLayerVersionDetail`: get layer version details (account-level view)\n- `listFunctionTriggers`: list function triggers (scheduled task / cron / timer configuration)\n- `getFunctionDownloadUrl`: get the function code download URL\n- `getFunctionDeployStatus`: query async deployment status, stage progress, and final result by taskId. Returns data.build, data.deploy, and data.progress. While status=running, data.result and data.error are null and deployment must not be reported as complete. Keep polling until status=succeeded/failed. status=expired means the task exceeded the 2-hour retention limit; cloud deployment may still be running, so confirm with getFunctionDetail. Tasks exist only in MCP process memory; expired tasks or a restarted MCP Server return errorCode=DEPLOY_TASK_NOT_FOUND. Tasks are isolated by environment. This action is unavailable in cloud mode because real cloud/local builds cannot run there, while image deployment is synchronous and creates no taskId.",
-    "schema.query.functionName": "CloudBase cloud function name. Required for `getFunctionDetail`, `listFunctionLogs`, `listFunctionLayers`, `listFunctionTriggers`, and `getFunctionDownloadUrl`.",
+    "schema.query.action": "Read-only action type:\n- `listFunctions`: list all CloudBase cloud functions\n- `getFunctionDetail`: get function details (requires functionName)\n- `listFunctionLogs`: query function execution logs (requires functionName)\n- `getFunctionLogDetail`: get log details (requires requestId)\n- `listFunctionLayers`: list layers bound to a function\n- `listLayers`: list all layers (account-level view, including layers from other environments)\n- `listLayerVersions`: list layer versions (Versions, not Version; account-level view)\n- `getLayerVersionDetail`: get layer version details (account-level view)\n- `listFunctionTriggers`: list function triggers (scheduled task / cron / timer configuration)\n- `getFunctionDownloadUrl`: get the function code download URL\n- `getFunctionDeployStatus`: query async deployment status, stage progress, and final result by taskId. Returns data.build, data.deploy, and data.progress. While status=running, data.result and data.error are null and deployment must not be reported as complete. Keep polling until status=succeeded/failed. status=expired means the task exceeded the 2-hour retention limit; cloud deployment may still be running, so confirm with getFunctionDetail. Tasks exist only in MCP process memory; expired tasks or a restarted MCP Server return errorCode=DEPLOY_TASK_NOT_FOUND. Tasks are isolated by environment. This action is unavailable in cloud mode because real cloud/local builds cannot run there, while image deployment is synchronous and creates no taskId.\n- `listVersionByFunction`: list published function versions (aligns with tcb fn list-function-versions / SDK listVersionByFunction; requires functionName)\n- `getFunctionAlias`: get function alias and traffic routing (aligns with tcb fn get-route / SDK getFunctionAlias; requires functionName; aliasName defaults to $DEFAULT)",
+    "schema.query.functionName": "CloudBase cloud function name. Required for `getFunctionDetail`, `listFunctionLogs`, `listFunctionLayers`, `listFunctionTriggers`, `getFunctionDownloadUrl`, `listVersionByFunction`, and `getFunctionAlias`.",
     "schema.query.limit": "Page size (limit). Optional for list actions; the backend determines the default.",
     "schema.query.offset": "Pagination offset. Optional for list actions; defaults to 0.",
     "schema.query.codeSecret": "Code protection secret used to decrypt function code.",
@@ -493,11 +531,14 @@ export const functions = defineModule(
     "schema.query.layerName": "Layer name. Required for `listLayerVersions` and `getLayerVersionDetail`. Layers use an account-level shared namespace; use the fixed format `{layerName}_{current envId}` (for example, common_cloud1-d9ghadgak3edf6b36).",
     "schema.query.layerVersion": "Layer version number. Required for `getLayerVersionDetail`.",
     "schema.query.taskId": "Async deployment task ID for `getFunctionDeployStatus` (returned by manageFunctions with wait=false). Tasks exist only in current MCP process memory: terminal tasks are retained for about 30 minutes and running tasks for at most 2 hours.",
-    "schema.manage.action": "Write action type, such as createFunction, updateFunctionCode, incrementalDeployFunction, invokeFunction, deleteFunction, createFunctionTrigger (scheduled task / cron / timer), deleteFunctionTrigger, createLayerVersion, deleteLayerVersion, attachLayer, detachLayer, or updateFunctionLayers. Use the fixed layer naming format `{layerName}_{current envId}` (for example, common_cloud1-d9ghadgak3edf6b36).",
+    "schema.query.order": "Sort direction for `listVersionByFunction`, such as ASC / DESC.",
+    "schema.query.orderBy": "Sort field for `listVersionByFunction`, such as AddTime / ModTime.",
+    "schema.query.aliasName": "Alias name for `getFunctionAlias`. Defaults to `$DEFAULT` when omitted (same as tcb fn get-route).",
+    "schema.manage.action": "Write action type, such as createFunction, updateFunctionCode, incrementalDeployFunction, invokeFunction, deleteFunction, createFunctionTrigger (scheduled task / cron / timer), deleteFunctionTrigger, createLayerVersion, deleteLayerVersion, attachLayer, detachLayer, updateFunctionLayers, publishVersion (publish a new version; aligns with tcb fn publish-version), or updateFunctionAliasConfig (update alias / traffic routing; aligns with tcb fn config-route). Use the fixed layer naming format `{layerName}_{current envId}` (for example, common_cloud1-d9ghadgak3edf6b36).",
     "schema.manage.func": "Function configuration for createFunction / updateFunctionCode. Image/build deployment is selected by func.buildStrategy (zip/cloud/local/image), with image fields under func.imageConfig.",
     "schema.manage.functionRootPath": "Recommended local-directory input for creating or updating function code. It must be the absolute directory that directly contains function folders (for example, /abs/path/cloudfunctions or /abs/path/functions), not the project root or the function subdirectory. Local layout should be cloudfunctions/<functionName>/index.js or functions/<functionName>/index.js. Pass the absolute cloudfunctions/functions directory; the SDK appends the function subdirectory. Do not precompress ZIP or base64 content.",
     "schema.manage.force": "Whether createFunction overwrites an existing function.",
-    "schema.manage.functionName": "Target function name at the top level. Used by updateFunctionCode, updateFunctionConfig, invokeFunction, and similar actions. createFunction uses func.name; other actions use top-level functionName. A mistakenly supplied func.name is also recognized as functionName.",
+    "schema.manage.functionName": "Target function name at the top level. Used by updateFunctionCode, updateFunctionConfig, invokeFunction, publishVersion, updateFunctionAliasConfig, and similar actions. createFunction uses func.name; other actions use top-level functionName. A mistakenly supplied func.name is also recognized as functionName.",
     "schema.manage.zipFile": "Compatibility only: base64-encoded prebuilt code package. For ordinary createFunction/updateFunctionCode, do not create a ZIP first; prefer functionRootPath.",
     "schema.manage.handler": "Function entry point",
     "schema.manage.timeout": "Timeout used for configuration updates.",
@@ -511,7 +552,7 @@ export const functions = defineModule(
     "schema.manage.contentPath": "Layer content path, either a directory or ZIP file.",
     "schema.manage.base64Content": "Base64-encoded layer content.",
     "schema.manage.runtimes": "Runtimes supported by the layer.",
-    "schema.manage.description": "Layer version description.",
+    "schema.manage.description": "Description. Layer version description for createLayerVersion; version or alias description for publishVersion / updateFunctionAliasConfig.",
     "schema.manage.licenseInfo": "Layer license information.",
     "schema.manage.layers": "Target layer list for updateFunctionLayers; array order becomes final order.",
     "schema.manage.codeSecret": "Code protection secret used when binding a layer.",
@@ -520,5 +561,16 @@ export const functions = defineModule(
     "schema.manage.autoGrant": "Whether manager-node may automatically add the fixed allowlist of CAM policies for image deployment. Defaults to false; set true only after explicitly confirming permission changes.",
     "schema.manage.confirm": "Dangerous-operation confirmation. deleteFunction, deleteFunctionTrigger, deleteLayerVersion, detachLayer, other delete actions, and real image build deployment (func.buildStrategy=cloud/local) require confirm=true.",
     "schema.manage.incrementalFile": "Changed-file path for incrementalDeployFunction incremental deployment.",
+    "schema.manage.aliasName": "Alias name for `updateFunctionAliasConfig`. Defaults to `$DEFAULT` when omitted (same as tcb fn config-route).",
+    "schema.manage.functionVersion": "Primary version for `updateFunctionAliasConfig`. May be a concrete version number or `$LATEST`.",
+    "schema.manage.routingConfig": "Traffic routing config for `updateFunctionAliasConfig`. AdditionalVersionWeights is used for canary weights; AddtionVersionMatchs keeps the SCF/SDK historical field name (including the typo).",
+    "schema.routing.version": "Additional traffic version number",
+    "schema.routing.weight": "Additional traffic weight (0-1 or percentage per SCF convention)",
+    "schema.routing.matchVersion": "Version targeted by a match rule",
+    "schema.routing.matchKey": "Header/Query key for a match rule",
+    "schema.routing.matchMethod": "Match method, such as Exact / Regex",
+    "schema.routing.matchExpression": "Match expression",
+    "schema.routing.additionalWeights": "Additional version weight list (canary release)",
+    "schema.routing.additionalMatches": "Additional version match rules (field name keeps SCF AddtionVersionMatchs)",
   },
 );

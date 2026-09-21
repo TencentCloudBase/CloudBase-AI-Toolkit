@@ -125,6 +125,8 @@ export const QUERY_FUNCTION_ACTIONS = [
   "listFunctionTriggers",
   "getFunctionDownloadUrl",
   "getFunctionDeployStatus",
+  "listVersionByFunction",
+  "getFunctionAlias",
 ] as const;
 
 export const MANAGE_FUNCTION_ACTIONS = [
@@ -140,8 +142,13 @@ export const MANAGE_FUNCTION_ACTIONS = [
   "attachLayer",
   "detachLayer",
   "updateFunctionLayers",
+  "publishVersion",
+  "updateFunctionAliasConfig",
   "incrementalDeployFunction",  // 增量部署，需通过 pluginOptions.functions 注入实现
 ] as const;
+
+/** Default SCF traffic alias used by CloudBase CLI `fn get-route` / `fn config-route`. */
+export const DEFAULT_FUNCTION_ALIAS = "$DEFAULT";
 
 type QueryFunctionsAction = (typeof QUERY_FUNCTION_ACTIONS)[number];
 type ManageFunctionsAction = (typeof MANAGE_FUNCTION_ACTIONS)[number];
@@ -211,6 +218,24 @@ export function buildCreateLayerNameWarning(
   return LAYER_SOFT_WARN.createNameFormat(envId);
 }
 
+type FunctionVersionWeight = {
+  Version: string;
+  Weight: number;
+};
+
+type FunctionVersionMatch = {
+  Version: string;
+  Key: string;
+  Method: string;
+  Expression: string;
+};
+
+type FunctionRoutingConfig = {
+  AdditionalVersionWeights?: FunctionVersionWeight[];
+  /** SDK / SCF field name keeps the historical typo `AddtionVersionMatchs`. */
+  AddtionVersionMatchs?: FunctionVersionMatch[];
+};
+
 type QueryFunctionsInput = {
   action: QueryFunctionsAction;
   functionName?: string;
@@ -227,6 +252,9 @@ type QueryFunctionsInput = {
   layerName?: string;
   layerVersion?: number;
   taskId?: string;
+  order?: string;
+  orderBy?: string;
+  aliasName?: string;
 };
 
 type ManageFunctionsInput = {
@@ -270,6 +298,9 @@ type ManageFunctionsInput = {
   dryRun?: boolean;
   wait?: boolean;
   autoGrant?: boolean;
+  aliasName?: string;
+  functionVersion?: string;
+  routingConfig?: FunctionRoutingConfig;
 };
 
 /** 环境变量脱敏后的占位值（不保留任何明文片段）。 */
@@ -421,6 +452,30 @@ const CREATE_FUNCTION_SCHEMA = z.object({
 const MANAGE_LAYER_SCHEMA = z.object({
   layerName: z.string().describe("functions.schema.manageLayer.name"),
   layerVersion: z.number().describe("functions.schema.manageLayer.version"),
+});
+
+const FUNCTION_VERSION_WEIGHT_SCHEMA = z.object({
+  Version: z.string().describe("functions.schema.routing.version"),
+  Weight: z.number().describe("functions.schema.routing.weight"),
+});
+
+const FUNCTION_VERSION_MATCH_SCHEMA = z.object({
+  Version: z.string().describe("functions.schema.routing.matchVersion"),
+  Key: z.string().describe("functions.schema.routing.matchKey"),
+  Method: z.string().describe("functions.schema.routing.matchMethod"),
+  Expression: z.string().describe("functions.schema.routing.matchExpression"),
+});
+
+const FUNCTION_ROUTING_CONFIG_SCHEMA = z.object({
+  AdditionalVersionWeights: z
+    .array(FUNCTION_VERSION_WEIGHT_SCHEMA)
+    .optional()
+    .describe("functions.schema.routing.additionalWeights"),
+  // Keep SCF/SDK historical field name (typo included) as the public contract.
+  AddtionVersionMatchs: z
+    .array(FUNCTION_VERSION_MATCH_SCHEMA)
+    .optional()
+    .describe("functions.schema.routing.additionalMatches"),
 });
 
 /**
@@ -1170,6 +1225,86 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           raw: result,
         },
         t("functions.gotDownloadUrl", { fnName: input.functionName }),
+      );
+    }
+    case "listVersionByFunction": {
+      if (!input.functionName) {
+        throw new Error(t("functions.paramRequired", { action: input.action, param: "functionName" }));
+      }
+      const cloudbase = await getManager();
+      const result = await cloudbase.functions.listVersionByFunction({
+        functionName: input.functionName,
+        offset: input.offset,
+        limit: input.limit,
+        order: input.order,
+        orderBy: input.orderBy,
+      });
+      logCloudBaseResult(server.logger, result);
+      return buildEnvelope(
+        {
+          action: input.action,
+          functionName: input.functionName,
+          functionVersions: result.FunctionVersion || [],
+          versions: result.Versions || [],
+          totalCount: result.TotalCount,
+          requestId: result.RequestId,
+          raw: result,
+        },
+        t("functions.gotFunctionVersions", { fnName: input.functionName }),
+        [
+          {
+            tool: "manageFunctions",
+            action: "publishVersion",
+            reason: t("functions.reason.publishVersion"),
+          },
+          {
+            tool: "queryFunctions",
+            action: "getFunctionAlias",
+            reason: t("functions.reason.getFunctionAlias"),
+          },
+        ],
+      );
+    }
+    case "getFunctionAlias": {
+      if (!input.functionName) {
+        throw new Error(t("functions.paramRequired", { action: input.action, param: "functionName" }));
+      }
+      const aliasName = input.aliasName || DEFAULT_FUNCTION_ALIAS;
+      const cloudbase = await getManager();
+      const result = await cloudbase.functions.getFunctionAlias({
+        functionName: input.functionName,
+        name: aliasName,
+      });
+      logCloudBaseResult(server.logger, result);
+      return buildEnvelope(
+        {
+          action: input.action,
+          functionName: input.functionName,
+          aliasName,
+          functionVersion: result.FunctionVersion,
+          routingConfig: result.RoutingConfig,
+          description: result.Description,
+          addTime: result.AddTime,
+          modTime: result.ModTime,
+          requestId: result.RequestId,
+          raw: result,
+        },
+        t("functions.gotFunctionAlias", {
+          fnName: input.functionName,
+          aliasName,
+        }),
+        [
+          {
+            tool: "manageFunctions",
+            action: "updateFunctionAliasConfig",
+            reason: t("functions.reason.updateFunctionAlias"),
+          },
+          {
+            tool: "queryFunctions",
+            action: "listVersionByFunction",
+            reason: t("functions.reason.listVersions"),
+          },
+        ],
       );
     }
     default:
@@ -2254,6 +2389,104 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         bindWarnings,
       );
     }
+    case "publishVersion": {
+      if (!input.functionName) {
+        throw new Error(t("functions.paramRequired", { action: input.action, param: "functionName" }));
+      }
+      const cloudbase = await getManager();
+      const result = await cloudbase.functions.publishVersion({
+        functionName: input.functionName,
+        description: input.description,
+      });
+      logCloudBaseResult(server.logger, result);
+      return buildEnvelope(
+        {
+          action: input.action,
+          functionName: input.functionName,
+          functionVersion: result.FunctionVersion,
+          description: result.Description,
+          codeSize: result.CodeSize,
+          memorySize: result.MemorySize,
+          handler: result.Handler,
+          timeout: result.Timeout,
+          runtime: result.Runtime,
+          namespace: result.Namespace,
+          requestId: result.RequestId,
+          raw: result,
+        },
+        t("functions.publishedVersion", {
+          fnName: input.functionName,
+          version: result.FunctionVersion,
+        }),
+        [
+          {
+            tool: "queryFunctions",
+            action: "listVersionByFunction",
+            reason: t("functions.reason.listVersions"),
+          },
+          {
+            tool: "manageFunctions",
+            action: "updateFunctionAliasConfig",
+            reason: t("functions.reason.routeTraffic"),
+            suggested_args: {
+              functionName: input.functionName,
+              functionVersion: result.FunctionVersion,
+              aliasName: DEFAULT_FUNCTION_ALIAS,
+            },
+          },
+        ],
+      );
+    }
+    case "updateFunctionAliasConfig": {
+      if (!input.functionName) {
+        throw new Error(t("functions.paramRequired", { action: input.action, param: "functionName" }));
+      }
+      if (!input.functionVersion) {
+        throw new Error(
+          t("functions.paramRequired", {
+            action: input.action,
+            param: "functionVersion",
+          }),
+        );
+      }
+      const aliasName = input.aliasName || DEFAULT_FUNCTION_ALIAS;
+      const cloudbase = await getManager();
+      const result = await cloudbase.functions.updateFunctionAliasConfig({
+        functionName: input.functionName,
+        name: aliasName,
+        functionVersion: input.functionVersion,
+        description: input.description,
+        routingConfig: input.routingConfig,
+      });
+      logCloudBaseResult(server.logger, result);
+      return buildEnvelope(
+        {
+          action: input.action,
+          functionName: input.functionName,
+          aliasName,
+          functionVersion: input.functionVersion,
+          routingConfig: input.routingConfig,
+          requestId: result.RequestId,
+          raw: result,
+        },
+        t("functions.updatedFunctionAlias", {
+          fnName: input.functionName,
+          aliasName,
+          version: input.functionVersion,
+        }),
+        [
+          {
+            tool: "queryFunctions",
+            action: "getFunctionAlias",
+            reason: t("functions.reason.confirmAlias"),
+            suggested_args: {
+              functionName: input.functionName,
+              aliasName,
+            },
+          },
+        ],
+      );
+    }
     default:
       // incrementalDeployFunction：无默认实现，必须通过 pluginOptions 注入
       if (input.action === 'incrementalDeployFunction') {
@@ -2318,6 +2551,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           .string()
           .optional()
           .describe("functions.schema.query.taskId"),
+        order: z.string().optional().describe("functions.schema.query.order"),
+        orderBy: z.string().optional().describe("functions.schema.query.orderBy"),
+        aliasName: z
+          .string()
+          .optional()
+          .describe("functions.schema.query.aliasName"),
       },
       annotations: {
         readOnlyHint: true,
@@ -2391,6 +2630,17 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           .describe("functions.schema.manage.autoGrant"),
         confirm: z.boolean().optional().describe("functions.schema.manage.confirm"),
         incrementalFile: z.string().optional().describe("functions.schema.manage.incrementalFile"),
+        aliasName: z
+          .string()
+          .optional()
+          .describe("functions.schema.manage.aliasName"),
+        functionVersion: z
+          .string()
+          .optional()
+          .describe("functions.schema.manage.functionVersion"),
+        routingConfig: FUNCTION_ROUTING_CONFIG_SCHEMA.optional().describe(
+          "functions.schema.manage.routingConfig",
+        ),
       },
       annotations: {
         readOnlyHint: false,

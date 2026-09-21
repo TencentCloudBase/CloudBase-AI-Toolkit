@@ -1074,9 +1074,9 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
 ---
 
 ### `queryFunctions`
-CloudBase 云函数统一只读入口。通过更自解释的 action 查询 CloudBase 云函数列表、函数详情、执行日志、层、触发器和代码下载地址。
+CloudBase 云函数统一只读入口。通过更自解释的 action 查询 CloudBase 云函数列表、函数详情、执行日志、层、触发器、代码下载地址、已发布版本与流量别名。
 
-**分页说明**：`listFunctions`、`listLayers` 支持 `limit` 和 `offset` 参数。
+**分页说明**：`listFunctions`、`listLayers`、`listVersionByFunction` 支持 `limit` 和 `offset` 参数。
 - `limit`: 分页数量，默认值由后端决定
 - `offset`: 分页偏移，从 0 开始
 - 示例：`queryFunctions(action="listFunctions", offset=10, limit=10)`
@@ -1086,6 +1086,8 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
 - 如需查看日志详情：`queryFunctions(action="getFunctionLogDetail", requestId="xxx")`
 
 **定时任务 / cron / 定时跑**：使用 `listFunctionTriggers` 查询函数的 timer 触发器配置。
+
+**版本与流量路由**：`listVersionByFunction` 列出已发布版本（对齐 tcb fn list-function-versions）；`getFunctionAlias` 查看别名/灰度配置（对齐 tcb fn get-route，aliasName 默认 `$DEFAULT`）。
 
 **层（Layer）说明**：
 - 层为 SCF 账号级共享命名空间：不同环境创建同名层会共享同一层的版本序列；删除某版本会影响所有绑定该版本的环境的函数
@@ -1104,12 +1106,12 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
       name: "action",
       type: "string",
       required: true,
-      description: `只读操作类型： - \`listFunctions\`: 列出所有 CloudBase 云函数 - \`getFunctionDetail\`: 获取 CloudBase 云函数详情（需要 functionName） - \`listFunctionLogs\`: 查询 CloudBase 云函数执行日志（需要 functionName） - \`getFunctionLogDetail\`: 获取日志详情（需要 requestId） - \`listFunctionLayers\`: 列出函数绑定的层 - \`listLayers\`: 列出所有层（账号级视图，含其他环境创建的层） - \`listLayerVersions\`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图） - \`getLayerVersionDetail\`: 获取层版本详情（账号级视图） - \`listFunctionTriggers\`: 列出函数触发器（用于查看定时任务 / cron / timer 配置） - \`getFunctionDownloadUrl\`: 获取函数代码下载地址 - \`getFunctionDeployStatus\`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl", "getFunctionDeployStatus"`,
+      description: `只读操作类型： - \`listFunctions\`: 列出所有 CloudBase 云函数 - \`getFunctionDetail\`: 获取 CloudBase 云函数详情（需要 functionName） - \`listFunctionLogs\`: 查询 CloudBase 云函数执行日志（需要 functionName） - \`getFunctionLogDetail\`: 获取日志详情（需要 requestId） - \`listFunctionLayers\`: 列出函数绑定的层 - \`listLayers\`: 列出所有层（账号级视图，含其他环境创建的层） - \`listLayerVersions\`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图） - \`getLayerVersionDetail\`: 获取层版本详情（账号级视图） - \`listFunctionTriggers\`: 列出函数触发器（用于查看定时任务 / cron / timer 配置） - \`getFunctionDownloadUrl\`: 获取函数代码下载地址 - \`getFunctionDeployStatus\`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。 - \`listVersionByFunction\`: 列出函数已发布版本（对齐 tcb fn list-function-versions / SDK listVersionByFunction；需要 functionName） - \`getFunctionAlias\`: 查询函数别名与流量路由（对齐 tcb fn get-route / SDK getFunctionAlias；需要 functionName；aliasName 默认 $DEFAULT） 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl", "getFunctionDeployStatus", "listVersionByFunction", "getFunctionAlias"`,
     },
     {
       name: "functionName",
       type: "string",
-      description: `CloudBase 云函数名称。\`getFunctionDetail\`、\`listFunctionLogs\`、\`listFunctionLayers\`、\`listFunctionTriggers\`、\`getFunctionDownloadUrl\` 时必填`,
+      description: `CloudBase 云函数名称。\`getFunctionDetail\`、\`listFunctionLogs\`、\`listFunctionLayers\`、\`listFunctionTriggers\`、\`getFunctionDownloadUrl\`、\`listVersionByFunction\`、\`getFunctionAlias\` 时必填`,
     },
     {
       name: "limit",
@@ -1175,6 +1177,21 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
       name: "taskId",
       type: "string",
       description: `\`getFunctionDeployStatus\` 操作时的异步部署任务 ID（由 manageFunctions 的 wait=false 返回）。任务仅保存在当前 MCP 进程内存中：终态任务保留约 30 分钟，运行中任务最长保留 2 小时。`,
+    },
+    {
+      name: "order",
+      type: "string",
+      description: `\`listVersionByFunction\` 排序方向，如 ASC / DESC`,
+    },
+    {
+      name: "orderBy",
+      type: "string",
+      description: `\`listVersionByFunction\` 排序字段，如 AddTime / ModTime`,
+    },
+    {
+      name: "aliasName",
+      type: "string",
+      description: `\`getFunctionAlias\` 的别名名称。省略时默认 \`$DEFAULT\`（与 tcb fn get-route 一致）`,
     }
   ]}
 />
@@ -1182,7 +1199,7 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
 ---
 
 ### `manageFunctions`
-CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。HTTP 云函数镜像构建部署：createFunction / updateFunctionCode 通过 func.buildStrategy 区分。func.buildStrategy=image（已有镜像，填 func.imageConfig.imageUri）直接创建/更新 HTTP 函数；func.buildStrategy=local（本地 Docker 构建推送）、cloud（CloudApp 云端构建）走镜像构建部署编排（需要 func.imageConfig；build 非必填，缺省仓库坐标自动补齐：namespace 默认 envId、repository 默认函数名），默认仅生成 dry-run 计划；传入 dryRun=false 且 confirm=true 后执行真实部署。真实部署可传 wait=false 立即返回 taskId，再通过 queryFunctions 的 getFunctionDeployStatus 查询进度和结果。wait=false 仅表示当前 Tool 不等待完整部署；调用方不得在 status=running 时结束流程，必须自动轮询到 succeeded/failed 后再向用户汇报，除非达到轮询上限。local 始终要求本地 MCP 模式；cloud 的真实执行需要读取本地构建上下文，也要求本地 MCP 模式；cloud mode 仅支持 cloud dry-run 和 image 策略。func.buildStrategy 省略或为 zip 时按传统代码包部署。危险操作需要显式 confirm=true。
+CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、发布版本、配置流量别名、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。版本发布：`publishVersion` 对齐 tcb fn publish-version / SDK publishVersion；灰度/切流：`updateFunctionAliasConfig` 对齐 tcb fn config-route / SDK updateFunctionAliasConfig（aliasName 默认 `$DEFAULT`）。HTTP 云函数镜像构建部署：createFunction / updateFunctionCode 通过 func.buildStrategy 区分。func.buildStrategy=image（已有镜像，填 func.imageConfig.imageUri）直接创建/更新 HTTP 函数；func.buildStrategy=local（本地 Docker 构建推送）、cloud（CloudApp 云端构建）走镜像构建部署编排（需要 func.imageConfig；build 非必填，缺省仓库坐标自动补齐：namespace 默认 envId、repository 默认函数名），默认仅生成 dry-run 计划；传入 dryRun=false 且 confirm=true 后执行真实部署。真实部署可传 wait=false 立即返回 taskId，再通过 queryFunctions 的 getFunctionDeployStatus 查询进度和结果。wait=false 仅表示当前 Tool 不等待完整部署；调用方不得在 status=running 时结束流程，必须自动轮询到 succeeded/failed 后再向用户汇报，除非达到轮询上限。local 始终要求本地 MCP 模式；cloud 的真实执行需要读取本地构建上下文，也要求本地 MCP 模式；cloud mode 仅支持 cloud dry-run 和 image 策略。func.buildStrategy 省略或为 zip 时按传统代码包部署。危险操作需要显式 confirm=true。
 
 **个人版 TCR 凭证**：imageType=personal 的 local/cloud 构建需要推送凭证。若 MCP 配置的 env 中已设置 TCB_TCR_USERNAME 与 TCB_TCR_PASSWORD（与 TENCENTCLOUD_SECRETID 等密钥同样的配置方式），则不需要在请求参数中传递 func.imageConfig.build.registryCredential，留空即可自动读取。不要向用户索要密码明文，也不要把密码写进工具参数。
 注意这条 env 通道只在**本地 stdio MCP、且客户端的 mcp.json 支持自定义 env 块**时可用：部分 GUI 客户端不继承 shell 的 export，IDE 内置型 MCP 的凭据注入通常是硬编码白名单（例如只放行 TENCENTCLOUD_*），这类用户没有配置自定义 env 的通道，「在 MCP 配置的 env 中设置」对他们是无效指引。面向内置 MCP 用户应改为引导：使用企业版（imageType=enterprise，走实例临时令牌，不需要固定密码），或改用 buildStrategy=image 直接部署已推送的镜像。
@@ -1201,7 +1218,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
       name: "action",
       type: "string",
       required: true,
-      description: `写操作类型，例如 createFunction、updateFunctionCode、incrementalDeployFunction、invokeFunction、deleteFunction、createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、createLayerVersion、deleteLayerVersion、attachLayer、detachLayer、updateFunctionLayers。层名推荐固定格式 \`{layerName}_{当前envId}\`（如 common_cloud1-d9ghadgak3edf6b36） 可填写的值: "createFunction", "updateFunctionCode", "updateFunctionConfig", "invokeFunction", "deleteFunction", "createFunctionTrigger", "deleteFunctionTrigger", "createLayerVersion", "deleteLayerVersion", "attachLayer", "detachLayer", "updateFunctionLayers", "incrementalDeployFunction"`,
+      description: `写操作类型，例如 createFunction、updateFunctionCode、incrementalDeployFunction、invokeFunction、deleteFunction、createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、createLayerVersion、deleteLayerVersion、attachLayer、detachLayer、updateFunctionLayers、publishVersion（发布新版本，对齐 tcb fn publish-version）、updateFunctionAliasConfig（更新别名/流量路由，对齐 tcb fn config-route）。层名推荐固定格式 \`{layerName}_{当前envId}\`（如 common_cloud1-d9ghadgak3edf6b36） 可填写的值: "createFunction", "updateFunctionCode", "updateFunctionConfig", "invokeFunction", "deleteFunction", "createFunctionTrigger", "deleteFunctionTrigger", "createLayerVersion", "deleteLayerVersion", "attachLayer", "detachLayer", "updateFunctionLayers", "publishVersion", "updateFunctionAliasConfig", "incrementalDeployFunction"`,
     },
     {
       name: "func",
@@ -1503,7 +1520,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "functionName",
       type: "string",
-      description: `目标函数名称（顶层）。updateFunctionCode / updateFunctionConfig / invokeFunction 等 action 使用此字段。不要只写在 func.name：createFunction 用 func.name，其它 action 用顶层 functionName。若误传 func.name，也会被识别为 functionName。`,
+      description: `目标函数名称（顶层）。updateFunctionCode / updateFunctionConfig / invokeFunction / publishVersion / updateFunctionAliasConfig 等 action 使用此字段。不要只写在 func.name：createFunction 用 func.name，其它 action 用顶层 functionName。若误传 func.name，也会被识别为 functionName。`,
     },
     {
       name: "zipFile",
@@ -1573,7 +1590,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "description",
       type: "string",
-      description: `层版本描述`,
+      description: `描述信息。createLayerVersion 时为层版本描述；publishVersion / updateFunctionAliasConfig 时为版本或别名描述`,
     },
     {
       name: "licenseInfo",
@@ -1628,6 +1645,73 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
       name: "incrementalFile",
       type: "string",
       description: `incrementalDeployFunction 增量部署时的变更文件路径`,
+    },
+    {
+      name: "aliasName",
+      type: "string",
+      description: `\`updateFunctionAliasConfig\` 的别名名称。省略时默认 \`$DEFAULT\`（与 tcb fn config-route 一致）`,
+    },
+    {
+      name: "functionVersion",
+      type: "string",
+      description: `\`updateFunctionAliasConfig\` 的主版本。可为具体版本号或 \`$LATEST\``,
+    },
+    {
+      name: "routingConfig",
+      type: "object",
+      description: `\`updateFunctionAliasConfig\` 的流量路由配置。AdditionalVersionWeights 用于灰度权重；AddtionVersionMatchs 为 SCF/SDK 历史字段名（含拼写）`,
+      children: [
+        {
+          name: "AdditionalVersionWeights",
+          type: "array of object",
+          description: `附加版本权重列表（灰度发布）`,
+          children: [
+            {
+              name: "Version",
+              type: "string",
+              required: true,
+              description: `附加流量版本号`,
+            },
+            {
+              name: "Weight",
+              type: "number",
+              required: true,
+              description: `附加流量权重（0-1 或百分比，按 SCF 约定）`,
+            }
+          ],
+        },
+        {
+          name: "AddtionVersionMatchs",
+          type: "array of object",
+          description: `附加版本匹配规则列表（字段名保持 SCF AddtionVersionMatchs）`,
+          children: [
+            {
+              name: "Version",
+              type: "string",
+              required: true,
+              description: `匹配规则指向的版本号`,
+            },
+            {
+              name: "Key",
+              type: "string",
+              required: true,
+              description: `匹配规则的 Header/Query Key`,
+            },
+            {
+              name: "Method",
+              type: "string",
+              required: true,
+              description: `匹配方法，如 Exact / Regex`,
+            },
+            {
+              name: "Expression",
+              type: "string",
+              required: true,
+              description: `匹配表达式`,
+            }
+          ],
+        }
+      ],
     }
   ]}
 />
@@ -3508,7 +3592,7 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
       name: "service",
       type: "string",
       required: true,
-      description: `腾讯云产品标识，**取值只能来自本字段的 enum 白名单（共 57 个）**，决定请求域名 https://<service>.tencentcloudapi.com。名单外的取值一律拒绝，不要臆造；COS 不在云 API 体系内。产品名与 Action 对照见 skill cloud-api-operations。云托管统一走 tcbr。 可填写的值: "tcb", "tcbr", "scf", "sts", "cam", "cloudaudit", "tag", "billing", "region", "cvm", "lighthouse", "tke", "cbs", "cfs", "tcr", "cdb", "mariadb", "postgres", "sqlserver", "redis", "mongodb", "cynosdb", "dcdb", "tcaplusdb", "keewidb", "vpc", "clb", "cdn", "ecdn", "dnspod", "privatedns", "domain", "ssl", "teo", "gaap", "kms", "ssm", "waf", "cwp", "tcss", "ckafka", "tdmq", "tdmysql", "apigateway", "monitor", "cls", "apm", "tsf", "tat", "hunyuan", "lkeap", "tts", "trtc", "live", "vod", "sms", "ses"`,
+      description: `腾讯云产品标识，**取值只能来自本字段的 enum 白名单（共 58 个）**，决定请求域名 https://<service>.tencentcloudapi.com。名单外的取值一律拒绝，不要臆造；COS 不在云 API 体系内。产品名与 Action 对照见 skill cloud-api-operations。云托管统一走 tcbr。 可填写的值: "tcb", "tcbr", "scf", "sts", "cam", "cloudaudit", "tag", "billing", "region", "ba", "cvm", "lighthouse", "tke", "cbs", "cfs", "tcr", "cdb", "mariadb", "postgres", "sqlserver", "redis", "mongodb", "cynosdb", "dcdb", "tcaplusdb", "keewidb", "vpc", "clb", "cdn", "ecdn", "dnspod", "privatedns", "domain", "ssl", "teo", "gaap", "kms", "ssm", "waf", "cwp", "tcss", "ckafka", "tdmq", "tdmysql", "apigateway", "monitor", "cls", "apm", "tsf", "tat", "hunyuan", "lkeap", "tts", "trtc", "live", "vod", "sms", "ses"`,
     },
     {
       name: "action",

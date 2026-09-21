@@ -36,6 +36,10 @@ const {
   mockCheckDeployConfig,
   mockDeployFunction,
   mockProbeCamCapabilityForLogin,
+  mockPublishVersion,
+  mockListVersionByFunction,
+  mockUpdateFunctionAliasConfig,
+  mockGetFunctionAlias,
 } = vi.hoisted(() => ({
   mockCreateFunction: vi.fn(),
   mockUpdateFunctionCode: vi.fn(),
@@ -49,6 +53,10 @@ const {
   mockCheckDeployConfig: vi.fn(),
   mockDeployFunction: vi.fn(),
   mockProbeCamCapabilityForLogin: vi.fn(),
+  mockPublishVersion: vi.fn(),
+  mockListVersionByFunction: vi.fn(),
+  mockUpdateFunctionAliasConfig: vi.fn(),
+  mockGetFunctionAlias: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
@@ -142,6 +150,10 @@ describe("functions tool helpers", () => {
         updateFunctionCode: mockUpdateFunctionCode,
         updateFunctionConfig: mockUpdateFunctionConfig,
         getFunctionDetail: mockGetFunctionDetail,
+        publishVersion: mockPublishVersion,
+        listVersionByFunction: mockListVersionByFunction,
+        updateFunctionAliasConfig: mockUpdateFunctionAliasConfig,
+        getFunctionAlias: mockGetFunctionAlias,
       },
       functionDeployer: {
         checkConfig: mockCheckDeployConfig,
@@ -1480,6 +1492,147 @@ describe("functions tool helpers", () => {
           "localFallback",
         ].sort(),
       );
+    });
+  });
+
+  describe("function version and alias actions", () => {
+    beforeEach(() => {
+      mockPublishVersion.mockResolvedValue({
+        FunctionVersion: "3",
+        Description: "release",
+        CodeSize: 1024,
+        MemorySize: 256,
+        Handler: "index.main",
+        Timeout: 20,
+        Runtime: "Nodejs18.15",
+        Namespace: "env-test",
+        RequestId: "req-publish",
+      });
+      mockListVersionByFunction.mockResolvedValue({
+        FunctionVersion: ["$LATEST", "1", "2", "3"],
+        Versions: [
+          { Version: "3", Description: "release", Status: "Active" },
+          { Version: "2", Description: "", Status: "Active" },
+        ],
+        TotalCount: 4,
+        RequestId: "req-list-versions",
+      });
+      mockGetFunctionAlias.mockResolvedValue({
+        FunctionVersion: "$LATEST",
+        Name: "$DEFAULT",
+        RoutingConfig: {
+          AdditionalVersionWeights: [{ Version: "2", Weight: 0.1 }],
+        },
+        Description: "",
+        AddTime: "2026-01-01",
+        ModTime: "2026-01-02",
+        RequestId: "req-get-alias",
+      });
+      mockUpdateFunctionAliasConfig.mockResolvedValue({
+        RequestId: "req-update-alias",
+      });
+    });
+
+    it("exposes publishVersion and listVersionByFunction in action enums", () => {
+      const queryActions =
+        tools.queryFunctions.meta.inputSchema.action._def.values;
+      const manageActions =
+        tools.manageFunctions.meta.inputSchema.action._def.values;
+      expect(queryActions).toContain("listVersionByFunction");
+      expect(queryActions).toContain("getFunctionAlias");
+      expect(manageActions).toContain("publishVersion");
+      expect(manageActions).toContain("updateFunctionAliasConfig");
+    });
+
+    it("publishes a function version via manageFunctions publishVersion", async () => {
+      const result = await tools.manageFunctions.handler({
+        action: "publishVersion",
+        functionName: "demo-fn",
+        description: "release",
+      });
+      const payload = JSON.parse(result.content[0].text);
+
+      expect(mockPublishVersion).toHaveBeenCalledWith({
+        functionName: "demo-fn",
+        description: "release",
+      });
+      expect(payload.success).toBe(true);
+      expect(payload.data.action).toBe("publishVersion");
+      expect(payload.data.functionVersion).toBe("3");
+      expect(payload.message).toContain("demo-fn");
+    });
+
+    it("lists function versions via queryFunctions listVersionByFunction", async () => {
+      const result = await tools.queryFunctions.handler({
+        action: "listVersionByFunction",
+        functionName: "demo-fn",
+        limit: 20,
+        offset: 0,
+      });
+      const payload = JSON.parse(result.content[0].text);
+
+      expect(mockListVersionByFunction).toHaveBeenCalledWith({
+        functionName: "demo-fn",
+        limit: 20,
+        offset: 0,
+        order: undefined,
+        orderBy: undefined,
+      });
+      expect(payload.success).toBe(true);
+      expect(payload.data.versions).toHaveLength(2);
+      expect(payload.data.totalCount).toBe(4);
+    });
+
+    it("defaults aliasName to $DEFAULT for getFunctionAlias", async () => {
+      const result = await tools.queryFunctions.handler({
+        action: "getFunctionAlias",
+        functionName: "demo-fn",
+      });
+      const payload = JSON.parse(result.content[0].text);
+
+      expect(mockGetFunctionAlias).toHaveBeenCalledWith({
+        functionName: "demo-fn",
+        name: "$DEFAULT",
+      });
+      expect(payload.data.aliasName).toBe("$DEFAULT");
+      expect(payload.data.routingConfig.AdditionalVersionWeights[0].Weight).toBe(
+        0.1,
+      );
+    });
+
+    it("updates function alias config via manageFunctions", async () => {
+      const routingConfig = {
+        AdditionalVersionWeights: [{ Version: "3", Weight: 0.2 }],
+      };
+      const result = await tools.manageFunctions.handler({
+        action: "updateFunctionAliasConfig",
+        functionName: "demo-fn",
+        functionVersion: "$LATEST",
+        routingConfig,
+      });
+      const payload = JSON.parse(result.content[0].text);
+
+      expect(mockUpdateFunctionAliasConfig).toHaveBeenCalledWith({
+        functionName: "demo-fn",
+        name: "$DEFAULT",
+        functionVersion: "$LATEST",
+        description: undefined,
+        routingConfig,
+      });
+      expect(payload.success).toBe(true);
+      expect(payload.data.action).toBe("updateFunctionAliasConfig");
+    });
+
+    it("requires functionVersion for updateFunctionAliasConfig", async () => {
+      const result = await tools.manageFunctions.handler({
+        action: "updateFunctionAliasConfig",
+        functionName: "demo-fn",
+      });
+      const payload = JSON.parse(result.content[0].text);
+
+      expect(payload.success).toBe(false);
+      expect(payload.message).toContain("functionVersion");
+      expect(mockUpdateFunctionAliasConfig).not.toHaveBeenCalled();
     });
   });
 });
