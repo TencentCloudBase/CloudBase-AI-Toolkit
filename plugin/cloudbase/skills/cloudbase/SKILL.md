@@ -19,6 +19,7 @@ Infer it when you can (console domain, envId, an existing error); otherwise **as
 | Remote MCP (preferred) | `https://tcb-api.cloud.tencent.com/mcp/v1` | `https://tcb-api.tencentcloud.com/mcp/v1` |
 | Local stdio MCP | default — nothing to set | `TCB_SITE=intl` + `TCB_REGION=ap-singapore` |
 | `tcb` CLI | default | `TCB_IS_INTL=true` (or `tcb config set isIntl true`) |
+| Project record `.cloudbase/project.json` | `site` omitted, or `"domestic"` | `"site": "intl"`, `"region": "ap-singapore"` |
 | Console | `tcb.cloud.tencent.com` | `tcb.tencentcloud.com` |
 | Default region | `ap-shanghai` | `ap-singapore` |
 | NoSQL / document DB tools | available | **not available** |
@@ -26,8 +27,9 @@ Infer it when you can (console domain, envId, an existing error); otherwise **as
 - **International users: connect the international remote MCP endpoint directly** — `https://tcb-api.tencentcloud.com/mcp/v1`. It is a first-class hosted endpoint; OAuth covers the login. The site is decided by the host, so there is no `site` query parameter to pass.
 - Domestic remote MCP is the same shape at `https://tcb-api.cloud.tencent.com/mcp/v1` — that stays the default for domestic users.
 - `TCB_IS_INTL` (CLI) and `TCB_SITE` (MCP) are **different variable names for different tools**. Set the one matching the tool in use; setting the wrong one silently does nothing.
+- On a first run, **settle the site once and persist it** — the CLI switch is machine-global, the MCP switch is per-client, and only `.cloudbase/project.json` is project-scoped and readable by MCP after a restart. Follow `references/site-onboarding.md`; do not re-ask on later sessions.
 
-Details and copy-paste configs: `references/mcp-setup.md`. CLI specifics: `references/tooling-fallback.md`.
+Details and copy-paste configs: `references/mcp-setup.md`. CLI specifics: `references/tooling-fallback.md`. First-run orchestration (trigger/skip, conflict arbitration, MCP-down fallback): `references/site-onboarding.md`.
 
 ## Workflow
 
@@ -130,6 +132,7 @@ Prefer CloudBase MCP for management/deploy when tools are loaded in the current 
 Load only when needed (do not expand this entry):
 
 - `references/tooling-fallback.md` — MCP vs `tcb` CLI decision tree for first session / missing tools
+- `references/site-onboarding.md` — first-run site onboarding: trigger/skip, persistence, conflict arbitration, MCP-down fallback
 - `references/deployment-workflow.md` — deploy backend/frontend, `manageApps` vs hosting, URL/docs updates, optional post-deployment Deployment Share offer (§5)
 - `references/console-links.md` — console hash paths after creating resources
 - `references/scenarios.md` — user-need → CloudBase capability mapping
@@ -145,4 +148,5 @@ All packaged reference files (required for skill lint reachability):
 - [deployment-workflow.md](references/deployment-workflow.md)
 - [mcp-setup.md](references/mcp-setup.md)
 - [scenarios.md](references/scenarios.md)
+- [site-onboarding.md](references/site-onboarding.md)
 - [tooling-fallback.md](references/tooling-fallback.md)

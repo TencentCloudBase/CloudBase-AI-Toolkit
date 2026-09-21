@@ -89,6 +89,8 @@ Always confirm `tcb --version` (or equivalent) before `tcb login`.
 
 ### International site (国际站)
 
+First run: settle **and persist** the site before installing MCP — the CLI switch is machine-global, the MCP switch is per-client, and only the project record is read after a restart. Procedure, conflict arbitration and fallback: `site-onboarding.md`.
+
 The CLI and the local MCP server use **different switches** for the site. Setting the wrong one fails silently.
 
 | Tool | Switch | Verify |
