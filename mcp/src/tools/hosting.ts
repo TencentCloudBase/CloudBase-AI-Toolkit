@@ -857,7 +857,12 @@ export function registerHostingTools(server: ExtendedMcpServer) {
     'manageHosting',
     {
       title: 'hosting.manageTitle',
-      description: 'hosting.manageDescription',
+      // cloud mode 下注册期即切换描述：upload/download 系 action 不可用、部署引导走
+      // manageApps 云端链路（getUploadUrl → PUT zip → deployApp(cosTimestamp)），
+      // 让 agent 在 tools/list 阶段就避开必败调用，而不是等报错后浪费一轮。
+      description: isCloudMode()
+        ? 'hosting.manageDescriptionCloud'
+        : 'hosting.manageDescription',
       inputSchema: manageHostingInputSchema,
       annotations: {
         readOnlyHint: false,

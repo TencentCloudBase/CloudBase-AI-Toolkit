@@ -1045,6 +1045,10 @@ describe('hosting tools', () => {
 
     expect(uploadPayload.success).toBe(false);
     expect(uploadPayload.message).toContain('cloud mode');
+    // 报错必须闭环：给出云端部署替代链路（getUploadUrl → PUT zip → deployApp），
+    // 避免 agent 撞墙后靠摸索才找到 manageApps（曾浪费一整轮调用的 UX 缺口）。
+    expect(uploadPayload.message).toContain('getUploadUrl');
+    expect(uploadPayload.message).toContain('deployApp');
     expect(downloadPayload.success).toBe(false);
     expect(downloadPayload.message).toContain('cloud mode');
     expect(mockUploadFiles).not.toHaveBeenCalled();
@@ -1061,6 +1065,24 @@ describe('hosting tools', () => {
 
     expect(payload.success).toBe(true);
     expect(mockCreateStaticStore).toHaveBeenCalled();
+  });
+
+  it('manageHosting description should switch to the cloud variant when registered in cloud mode', () => {
+    process.env.CLOUDBASE_MCP_CLOUD_MODE = 'true';
+    const tools = createMockServer();
+
+    // 注册期（isCloudMode 已确定）切换描述 key：cloud mode 下 agent 在 tools/list
+    // 阶段就看到 upload/download 不可用 + manageApps 云端部署链路，零浪费调用。
+    expect(tools.manageHosting.meta.description).toBe('hosting.manageDescriptionCloud');
+    const description = t('hosting.manageDescriptionCloud');
+    expect(description).toContain('upload / downloadFile / downloadDirectory');
+    expect(description).toContain('getUploadUrl');
+    expect(description).toContain('deployApp');
+    expect(description).toContain('cosTimestamp');
+    // 可用 action 仍需列全，避免 agent 误以为整个工具不可用
+    expect(description).toContain('delete');
+    expect(description).toContain('setWebsiteDocument');
+    expect(description).toContain('queryHosting');
   });
 
   it('manageHosting(action=downloadFile/downloadDirectory) should call the hosting SDK with local paths', async () => {
