@@ -36,6 +36,15 @@ This skill describes how to apply them consistently across agents/editors withou
    - keep changes minimal and localized
 4. If a workflow implies external side effects (push/PR/release), request explicit confirmation right before performing the side effect.
 
+## Repo-specific gotchas (CloudBase-MCP)
+
+- **Sync dependencies before building on `main`.** A stale `node_modules` shows up as a type error in code that is actually correct (seen: `@cloudbase/manager-node` 5.8.6 installed vs 5.8.8 locked → `Property 'ExternalStorage' does not exist on type 'CreateEnvParams'`). Verify with `npm pack <pkg>@<locked-version>` and read the `.d.ts` before touching code.
+- **`pnpm install` fails inside the sandbox** with `ERR_PNPM_CODEBUDDY_BROKER_DENY` (symlink ENOENT), and the failed run deletes the package directory that was previously there. Re-run the same command with sandbox disabled before concluding anything about the build.
+- **`npm run build` succeeds even when the last step is blocked.** The build's `rm -rf dist/types` is refused by the safe-delete hook (325 files > threshold), so the log ends with a `SAFE_DELETE_BULK_CONFIRM_REQUIRED` line and `dist/types/` is left behind. Judge the build by whether webpack printed `ERROR in`, not by that trailing message.
+- **Release-note scope is `git log <previous-tag>..HEAD`**, including merge commits. A PR number lower than the current version does not mean it already shipped — PRs often merge after the tag that "should" have contained them.
+- **`CHANGELOG.md`'s `## Unreleased` is not rotated on release** in this repo; publish a GitHub Release and leave the changelog alone unless asked.
+- **Version bump surface**: `mcp/package.json` + `config/source/**` skill versions (`node scripts/sync-skill-versions.mjs --version X.Y.Z`) + `config/.claude/skills` mirror (`npm run sync:claude-skills-mirror`) + optional README bullets (patch: only for clearly user-visible capability, and both `README.md` and `README.zh-CN.md`, verified with `npm run check:readme-sync`).
+
 ## Command mapping
 
 See `references/command-catalog.md`.

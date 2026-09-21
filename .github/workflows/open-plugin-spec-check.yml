@@ -12,6 +12,8 @@ on:
       - 'scripts/build-open-plugin-spec.mjs'
       - 'scripts/check-plugin-marketplaces.mjs'
       - 'scripts/check-plugin-quality.mjs'
+      - 'scripts/pack-agent-plugins.mjs'
+      - 'scripts/pack-claude-plugin.mjs'
       - '.github/workflows/open-plugin-spec-check.yml'
   push:
     branches:
@@ -26,6 +28,8 @@ on:
       - 'scripts/build-open-plugin-spec.mjs'
       - 'scripts/check-plugin-marketplaces.mjs'
       - 'scripts/check-plugin-quality.mjs'
+      - 'scripts/pack-agent-plugins.mjs'
+      - 'scripts/pack-claude-plugin.mjs'
       - '.github/workflows/open-plugin-spec-check.yml'
 
 jobs:
@@ -56,3 +60,8 @@ jobs:
         working-directory: plugin/cloudbase
         run: |
           npx -y plugins discover . --remote
+
+      - name: Verify release zip packers produce conformant output
+        run: |
+          node scripts/pack-claude-plugin.mjs --out-dir /tmp/release-zips
+          node scripts/pack-agent-plugins.mjs --out-dir /tmp/release-zips

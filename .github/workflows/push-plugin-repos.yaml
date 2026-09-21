@@ -101,6 +101,7 @@ jobs:
             /tmp/cloudbase-plugin/
 
           # Guardrail: OPS-only dedicated repo
+          test -f /tmp/cloudbase-plugin/plugin.json
           test -f /tmp/cloudbase-plugin/.plugin/plugin.json
           test -f /tmp/cloudbase-plugin/mcp.json
           test -f /tmp/cloudbase-plugin/generated/skill-manifest.json
@@ -150,6 +151,7 @@ jobs:
             "${{ github.workspace }}/.plugin-repo-output/cloudbase-sites/" \
             /tmp/cloudbase-sites-plugin/
 
+          test -f /tmp/cloudbase-sites-plugin/plugin.json
           test -f /tmp/cloudbase-sites-plugin/.plugin/plugin.json
           test -f /tmp/cloudbase-sites-plugin/mcp.json
           test -f /tmp/cloudbase-sites-plugin/.github/workflows/sync-to-cnb.yml
