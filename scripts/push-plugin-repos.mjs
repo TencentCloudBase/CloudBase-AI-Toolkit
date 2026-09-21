@@ -3,7 +3,7 @@
 /**
  * Build plugin repository output for syncing to dedicated plugin repos.
  *
- * Dedicated repos are Open Plugin Spec only (`npx plugins add`).
+ * Dedicated repos carry the Agent Plugins layout only (`npx plugins add`).
  * Vendor-native marketplace manifests stay in the main CloudBase-MCP repo:
  *   - `.claude-plugin/`  → Claude Code marketplace
  *   - `.codex-plugin/`   → Codex marketplace
@@ -153,9 +153,10 @@ npx plugins add ${plugin.repoName} -y --scope user
 npx plugins add ${cnbUrl} -y --scope user
 \`\`\`
 
-## Open Plugin Specification
+## Agent Plugins
 
-This plugin conforms to the [Open Plugin Specification v1.0.0](https://open-plugins.com/plugin-builders/specification).
+This plugin conforms to the [Agent Plugins 1.0.0 specification](https://agent-plugins.org/specification)
+(the standard previously published as Open Plugin Spec).
 
 ## License
 
@@ -213,8 +214,11 @@ function checkPlugin(plugin) {
     }
   }
 
-  // Required Open Plugin Spec artifacts
+  // Required Agent Plugins artifacts. The root manifest is the location the
+  // spec defines; `.plugin/plugin.json` is the pre-rename layout, kept so the
+  // existing `npx plugins add` path keeps working.
   const required = [
+    ["plugin.json", path.join(outDir, "plugin.json")],
     [".plugin/plugin.json", path.join(outDir, ".plugin", "plugin.json")],
     ["mcp.json", path.join(outDir, "mcp.json")],
     [".github/workflows/sync-to-cnb.yml", path.join(outDir, ".github", "workflows", "sync-to-cnb.yml")],
