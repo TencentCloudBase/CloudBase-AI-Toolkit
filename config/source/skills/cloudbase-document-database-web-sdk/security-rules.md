@@ -295,7 +295,7 @@ await managePermissions({
 });
 ```
 
-> Warning: This owner-only pattern is not the best fit for CMS article collections that need app-level admin override. For article collections with admin override, prefer a `CUSTOM` rule that combines `get('database.user_roles.' + auth.uid).role == 'admin'` with `doc.authorId == auth.uid`, and keep frontend writes on `.doc(id).update()` / `.doc(id).remove()`.
+> Warning: This owner-only pattern is not the best fit for CMS article collections that need app-level admin override. For article collections with admin override, prefer a `CUSTOM` rule that combines ``get(`database.user_roles.${auth.uid}`).role == 'admin'`` with `doc.authorId == auth.uid`, and keep frontend writes on `.doc(id).update()` / `.doc(id).remove()`.
 
 **Example 2A: Keep owner-only CUSTOM rule and switch the client write path to `where(...)`**
 
@@ -379,7 +379,7 @@ Custom rules support JavaScript-like expressions:
 | **&&** | Logical AND | `auth.uid == 'zzz' && doc.age > 10` | User's uid is zzz AND query condition's age property is greater than 10 |
 | **\|\|** | Logical OR | `auth.uid == 'zzz' \|\| doc.age > 10` | User's uid is zzz OR query condition's age property is greater than 10 |
 | **.** | Object element access | `auth.uid` | User's uid |
-| **[]** | Array access operator | `get('database.collection_a.user')[auth.uid] == 'zzz'` | In collection_a, document with id 'user', key is user uid, property value is zzz |
+| **[]** | Array access operator | ``get(`database.collection_a.user`)[auth.uid] == 'zzz'`` | In collection_a, document with id 'user', key is user uid, property value is zzz |
 
 ### Supported Database Commands
 
@@ -438,15 +438,16 @@ Security rules support the following database commands:
 
 The `get()` function allows accessing other document data during permission verification, enabling complex cross-document permission control.
 
-**Syntax:** `get('database.collectionName.documentId')`
+**Syntax:** ``get(`database.collectionName.documentId`)`` — the argument is a JS template literal,
+so interpolate with `${...}` (see the form table below).
 
 **Usage Examples:**
 
 **Role-based Permission Control:**
 ```json
 {
-  "read": "get('database.user_roles.' + auth.uid).role in ['admin', 'editor']",
-  "write": "get('database.user_roles.' + auth.uid).role == 'admin'"
+  "read": "get(`database.user_roles.${auth.uid}`).role in ['admin', 'editor']",
+  "write": "get(`database.user_roles.${auth.uid}`).role == 'admin'"
 }
 ```
 
@@ -454,39 +455,43 @@ The `get()` function allows accessing other document data during permission veri
 
 ```json
 {
-  "write": "get('database.user_roles.' + auth.uid).role == 'admin'"
+  "write": "get(`database.user_roles.${auth.uid}`).role == 'admin'"
 }
 ```
 
-Do **not** write:
+Do **not** put the field name inside the path:
 
 ```json
 {
-  "write": "get('database.user_roles.' + auth.uid + '.role') == 'admin'"
+  "write": "get(`database.user_roles.${auth.uid}.role`) == 'admin'"
 }
 ```
 
-Do **not** use JS template-literal placeholders inside the rule string either:
+**The path argument must be a template literal** — use backticks, including for constant paths that need no interpolation:
 
 ```json
 {
-  "write": "get('database.user_roles.${auth.uid}').role == 'admin'"
+  "write": "get(`database.admin_locks.article_lock`).holder == auth.uid"
 }
 ```
 
-Security rules are expression strings, so use concatenation:
+**Accepted and rejected forms** (verified against the document database HTTP API — same behaviour on read, create and update):
 
-```json
-{
-  "write": "get('database.user_roles.' + auth.uid).role == 'admin'"
-}
-```
+| Form | Result |
+|------|--------|
+| ``get(`database.user_roles.${auth.uid}`)`` | Accepted, evaluates normally |
+| ``get(`database.admin_locks.article_lock`)`` — template literal, no interpolation | Accepted, evaluates normally |
+| `get('database.user_roles.${auth.uid}')` — `${...}` inside a quoted string | Accepted; the engine upgrades it to a template literal |
+| `get('database.admin_locks.article_lock')` — plain quoted literal | Rule saves fine, but **every request fails with HTTP 500 `SYS_ERR`** |
+| `get('database.user_roles.' + auth.uid)` — string concatenation | **Rejected when saving the rule** (`rule invalid`) |
+
+> The last two rows are the two forms that look most natural, and both are broken: concatenation never reaches the database, and a plain quoted literal crashes the rule engine on the first request. Write the path as a template literal.
 
 **Admin-or-owner control:**
 ```json
 {
-  "update": "get('database.users.' + auth.uid).role == 'admin' || doc.authorId == auth.uid",
-  "delete": "get('database.users.' + auth.uid).role == 'admin' || doc.authorId == auth.uid"
+  "update": "get(`database.users.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid",
+  "delete": "get(`database.users.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid"
 }
 ```
 
@@ -496,8 +501,8 @@ If this collection only needs simple owner-only writes, `READONLY` may be enough
 {
   "read": "auth.uid != null",
   "create": "auth.uid != null",
-  "update": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)",
-  "delete": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)"
+  "update": "auth.uid != null && (get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid)",
+  "delete": "auth.uid != null && (get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid)"
 }
 ```
 
@@ -506,7 +511,7 @@ For that CMS pattern, `.doc(id).update()` / `.doc(id).remove()` is a validated p
 **Associated Data Permissions:**
 ```json
 {
-  "read": "auth.uid == get('database.projects.' + doc.projectId).owner"
+  "read": "auth.uid == get(`database.projects.${doc.projectId}`).owner"
 }
 ```
 
