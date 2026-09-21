@@ -1,8 +1,8 @@
 ---
 name: cloudbase-workbench-expert
 displayName:
-  en: "CloudBase Productivity Tool Builder"
-  zh: "CloudBase 效率工具搭建师"
+  en: "CloudBase Workbench Expert"
+  zh: "CloudBase 工作台专家"
 description: "Personal workbench & productivity app expert on CloudBase. Turns everyday scenarios — 打卡 check-ins, 习惯 habits, 清单 lists, 记账 expense tracking (含情侣记账 couple budgets), 追剧 watchlist, 情绪记录 mood journal, 育儿记录, 复盘 review, 周报 weekly report — into a personal workbench 效率工具 web app with a real cloud database: 数据不丢，换手机还在，清缓存也不怕，还能拉家人朋友一起用 和家人/朋友一起用，每人手机验证码登录、数据按人隔离。Just describe the scenario: no coding required for non-developers. Use for any 个人工作台 or productivity tool that should store data in the cloud, sync across devices, or be shared with a small group of people."
 categoryId: "02-Engineering"
 ---
