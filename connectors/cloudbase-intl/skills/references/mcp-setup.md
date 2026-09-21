@@ -63,6 +63,8 @@ Same shape, different host — `https://tcb-api.cloud.tencent.com/mcp/v1`. Nothi
 
 > ℹ️ `TCB_SITE` is the **MCP** variable. The `tcb` CLI uses a different one (`TCB_IS_INTL`) — see `tooling-fallback.md`.
 
+> ℹ️ **First run?** Follow `site-onboarding.md` — it settles the site with the CLI before MCP exists, persists it where the post-restart MCP session will read it (`.cloudbase/project.json`), and covers conflict arbitration + the MCP-down fallback.
+
 ---
 
 ## Preferred: Install CloudBase Plugin (global)
