@@ -63,26 +63,49 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Rebuild the connector package
-        run: pnpm run build:connector:intl
-
-      # Runs after the rebuild on purpose: it compares the working tree against the last tag, so
-      # it sees the freshly regenerated tree. The zip produced above therefore carries the
-      # pre-bump version — harmless, because this job never publishes; the release build in
-      # release-plugin-zips.yml re-zips from the bumped source.
-      - name: Bump the package version when its content changed
-        run: node scripts/bump-connector-versions.mjs
-
-      # GITHUB_TOKEN pushes do not retrigger workflows, so the [skip ci] marker is
-      # documentation rather than a loop guard — kept so the intent is explicit.
-      - name: Commit and push if the package drifted
+      # Rebuild → bump → commit → push, retried as one unit.
+      #
+      # These phases are a single step rather than three because a rejected push has to redo all
+      # of them. Several bots push main in parallel — this repo has about a dozen such workflows —
+      # and a `concurrency:` group only serializes jobs that share its group name, so each
+      # workflow naming its own group does not order them. A bare `git push` therefore loses that
+      # race eventually: the first real run of this job was rejected with
+      # "! [rejected] main -> main (fetch first)". Recovery is a reset onto origin/main plus a
+      # clean regeneration, the shape sync-cloudbase-plugin-skills.yml already uses.
+      #
+      # The bump is inside the loop, not before it: it compares the working tree against the last
+      # tag, so a reset that discards the rebuild would discard the bump's input too. The rebuild
+      # runs scripts/build-allinone-skill.ts through tsx (hence the install step above), and the
+      # zip it produces carries the pre-bump version — harmless, since this job never publishes;
+      # release-plugin-zips.yml re-zips from source.
+      - name: Rebuild, bump, and push if the package drifted
         run: |
-          if [[ -z "$(git status --porcelain connectors/cloudbase-intl)" ]]; then
-            echo "Generated mirror and version already up to date."
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add connectors/cloudbase-intl
-          git commit -m "chore(connectors): sync generated cloudbase-intl package [skip ci]"
-          git push
+          pushed=false
+          for i in 1 2 3; do
+            pnpm run build:connector:intl
+            node scripts/bump-connector-versions.mjs
+            if [[ -z "$(git status --porcelain connectors/cloudbase-intl)" ]]; then
+              echo "Generated mirror and version already up to date."
+              exit 0
+            fi
+            git add connectors/cloudbase-intl
+            # GITHUB_TOKEN pushes do not retrigger workflows, so this marker is documentation
+            # rather than a loop guard — kept so the intent stays explicit.
+            git commit -m "chore(connectors): sync generated cloudbase-intl package [skip ci]"
+            if git push; then
+              pushed=true
+              break
+            fi
+            echo "Push rejected (attempt $i); resetting onto origin/main and regenerating..."
+            # Fetch first: the rejection means the remote moved, so the local origin/main ref is
+            # stale and resetting onto it would just lose the race again.
+            git fetch origin main
+            git reset --hard origin/main
+            sleep $((i * 2))
+          done
+          if [ "$pushed" != "true" ]; then
+            echo "Failed to push after retries"
+            exit 1
+          fi
