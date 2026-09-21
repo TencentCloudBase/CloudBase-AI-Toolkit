@@ -47,8 +47,14 @@ jobs:
       #   - cloudbase-intl-connector.zip WorkBuddy connector (international site). Built by the
       #                                  pack-connector job below, not here: it aggregates
       #                                  config/source/** and needs a full install.
-      # IDE plugins that already ship through dedicated repos/marketplaces
-      # (.claude-plugin, .cursor-plugin, .codex-plugin, .plugin) are NOT zipped here.
+      #   - <plugin>-claude-plugin.zip   Claude Code plugin (.claude-plugin manifest + components)
+      #   - <plugin>-agent-plugin.zip    Portable Agent Plugins 1.0.0 core (root plugin.json +
+      #                                  skills/ + mcp.json)
+      # The Claude and Agent Plugins zips are a pair, not alternatives: Claude Code does not
+      # implement the Agent Plugins 1.0 specification, so one archive cannot serve both. The
+      # same skills ship under each format's own manifest.
+      # Clients reached only through a dedicated repo or marketplace (.cursor-plugin,
+      # .codex-plugin, .qoder-plugin, .plugin) are NOT zipped here.
       - name: Pack Kimi plugin zip
         run: node scripts/pack-kimi-plugin.mjs
 
@@ -60,6 +66,12 @@ jobs:
 
       - name: Pack expert package zips
         run: node scripts/pack-experts.mjs
+
+      - name: Pack Claude Code plugin zips
+        run: node scripts/pack-claude-plugin.mjs
+
+      - name: Pack Agent Plugins portable core zips
+        run: node scripts/pack-agent-plugins.mjs
 
       - name: Verify release exists
         env:

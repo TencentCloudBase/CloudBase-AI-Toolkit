@@ -1,16 +1,29 @@
 #!/usr/bin/env node
 
 /**
- * Build Open Plugin Specification v1.0.0 compliant artifacts.
+ * Build vendor-neutral plugin specification artifacts.
  *
  * Generates for each plugin (cloudbase + cloudbase-sites):
- *   - .plugin/plugin.json  (vendor-neutral manifest)
- *   - mcp.json             (spec-standard MCP config, copied from .mcp.json)
+ *   - plugin.json          (Agent Plugins 1.0.0 portable manifest, at plugin root)
+ *   - .plugin/plugin.json  (legacy dotted layout, retained for `npx plugins add`)
+ *   - mcp.json             (copied from .mcp.json; consumed as the Cursor MCP config)
  *   - .cursor-plugin/plugin.json (Cursor Marketplace manifest)
  *   - .qoder-plugin/plugin.json (Qoder / QoderWork plugin marketplace)
  *
  * Also generates:
  *   - .cursor-plugin/marketplace.json (repo-root multi-plugin marketplace)
+ *
+ * Manifest locations are NOT interchangeable, so both layouts ship side by side:
+ *   - Agent Plugins 1.0.0 §5.1: "Clients MUST check for a manifest at plugin.json
+ *     in the plugin root." There is no dot-directory concept in the spec.
+ *   - `.plugin/plugin.json` is the pre-1.0 layout. It is kept byte-stable so the
+ *     existing `npx plugins add TencentCloudBase/cloudbase-plugin` path keeps
+ *     working; clients that predate the rename still read it.
+ *
+ * The Agent Plugins spec was published as "Open Plugin Spec" under
+ * open-plugins.com, which now 308-redirects to agent-plugins.org. Root
+ * manifests therefore carry the canonical agent-plugins.org `$schema` value,
+ * which the spec requires to match exactly.
  *
  * Usage:
  *   node scripts/build-open-plugin-spec.mjs          Generate artifacts
@@ -26,13 +39,27 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, "..");
 
+// Legacy (pre-rename) schema identifier, still used by `.plugin/plugin.json`.
 const SPEC_SCHEMA_URL = "https://open-plugins.com/schemas/1.0.0/plugin.schema.json";
+// Canonical Agent Plugins 1.0.0 identifier. The spec requires this exact value.
+const AGENT_PLUGIN_SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
 const REPO_URL = "https://github.com/TencentCloudBase/CloudBase-MCP";
 
 const SPEC_ALLOWED_FIELDS = new Set([
   "$schema", "name", "version", "description",
   "author", "homepage", "repository", "license", "keywords", "logo", "extensions",
 ]);
+
+// Root plugin.json is a closed schema: any field outside this set is reported and
+// ignored by clients, so shipping one would only add noise.
+const AGENT_PLUGIN_ALLOWED_FIELDS = new Set([
+  "$schema", "name", "version", "description",
+  "author", "homepage", "repository", "license", "keywords", "extensions",
+]);
+
+// Agent Plugins §5.5 — 1-64 chars, lowercase alphanumerics/hyphens/periods,
+// must not contain `--` or `..`.
+const AGENT_PLUGIN_NAME_RE = /^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/;
 
 function resolveLogoPath(pluginDir) {
   const logoSvg = path.join(pluginDir, "assets", "logo.svg");
@@ -68,6 +95,42 @@ function writeJson(p, data) {
 
 function jsonEqual(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * Build the portable Agent Plugins 1.0.0 manifest written to the plugin root.
+ *
+ * Deliberately narrower than buildSpecManifest: the root manifest is a closed
+ * schema, so `logo` (defined only by the legacy/Vercel tooling) is dropped and
+ * `author` is restricted to the spec's name/email/url object.
+ */
+function buildRootAgentManifest(claudeManifestPath) {
+  const cm = readJson(claudeManifestPath);
+  const manifest = { $schema: AGENT_PLUGIN_SCHEMA_URL };
+  for (const key of Object.keys(cm)) {
+    if (AGENT_PLUGIN_ALLOWED_FIELDS.has(key)) manifest[key] = cm[key];
+  }
+
+  if (!manifest.name) throw new Error(`Missing 'name' in ${claudeManifestPath}`);
+  if (!AGENT_PLUGIN_NAME_RE.test(manifest.name) || manifest.name.length > 64) {
+    throw new Error(
+      `Plugin name "${manifest.name}" does not conform to Agent Plugins naming constraints`,
+    );
+  }
+
+  if (manifest.author) {
+    const authorAllowed = new Set(["name", "email", "url"]);
+    for (const key of Object.keys(manifest.author)) {
+      if (!authorAllowed.has(key)) {
+        throw new Error(
+          `author.${key} is not permitted by the Agent Plugins manifest schema ` +
+            `(allowed: name, email, url) in ${claudeManifestPath}`,
+        );
+      }
+    }
+  }
+
+  return manifest;
 }
 
 function buildSpecManifest(claudeManifestPath, pluginDir) {
@@ -222,6 +285,7 @@ function main() {
     }
 
     const claudeManifest = path.join(dir, ".claude-plugin", "plugin.json");
+    const rootManifest = path.join(dir, "plugin.json");
     const specManifest = path.join(dir, ".plugin", "plugin.json");
     const cursorManifest = path.join(dir, ".cursor-plugin", "plugin.json");
     const qoderManifest = path.join(dir, ".qoder-plugin", "plugin.json");
@@ -233,14 +297,16 @@ function main() {
       continue;
     }
 
+    const rootAgent = buildRootAgentManifest(claudeManifest);
     const spec = buildSpecManifest(claudeManifest, dir);
     const cursor = buildCursorManifest(claudeManifest, dir);
     const qoder = buildQoderManifest(claudeManifest, dir);
     const mcp = readJson(mcpSource);
-    console.log(`[${name}] fields: ${Object.keys(spec).join(", ")}, mcp servers: ${Object.keys(mcp.mcpServers || {}).join(", ")}, qoder skills: ${(qoder.skills || []).length}`);
+    console.log(`[${name}] root fields: ${Object.keys(rootAgent).join(", ")}, mcp servers: ${Object.keys(mcp.mcpServers || {}).join(", ")}, qoder skills: ${(qoder.skills || []).length}`);
 
     if (check) {
       for (const [p, expected, label] of [
+        [rootManifest, rootAgent, "plugin.json (Agent Plugins root manifest)"],
         [specManifest, spec, ".plugin/plugin.json"],
         [mcpTarget, mcp, "mcp.json"],
         [cursorManifest, cursor, ".cursor-plugin/plugin.json"],
@@ -254,11 +320,12 @@ function main() {
         }
       }
     } else {
+      writeJson(rootManifest, rootAgent);
       writeJson(specManifest, spec);
       writeJson(mcpTarget, mcp);
       writeJson(cursorManifest, cursor);
       writeJson(qoderManifest, qoder);
-      console.log(`✓ [${name}] Generated: .plugin/plugin.json + mcp.json + .cursor-plugin/plugin.json + .qoder-plugin/plugin.json`);
+      console.log(`✓ [${name}] Generated: plugin.json + .plugin/plugin.json + mcp.json + .cursor-plugin/plugin.json + .qoder-plugin/plugin.json`);
     }
   }
 
