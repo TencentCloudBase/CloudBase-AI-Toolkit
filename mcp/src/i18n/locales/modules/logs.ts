@@ -8,6 +8,7 @@ export const logs = defineModule(
       "\n\n**重要区分**：" +
       "\n- 查询云函数日志：使用 `queryFunctions(action=\"listFunctionLogs\", functionName=\"xxx\")`" +
       "\n- 查询 CLS 日志（跨服务日志聚合）：使用本工具 `queryLogs(action=\"searchLogs\")`" +
+      "\n- 开通 CLS 日志服务：使用 `manageLogs(action=\"createLogService\", confirm=true)`" +
       "\n\n**适用场景**：" +
       "\n- 检查 CLS 日志服务是否开通：`action=\"checkLogService\"`" +
       "\n- 跨服务日志搜索（如搜索所有 ERROR 日志）：`action=\"searchLogs\"`" +
@@ -57,6 +58,26 @@ export const logs = defineModule(
     "schema.limit": "返回日志条数限制，默认 20",
     "schema.context": "翻页上下文，用于继续上一次查询",
     "schema.sort": "按时间排序：`asc` 升序，`desc` 降序",
+    "manage.title": "管理 CloudBase 日志服务",
+    "manage.description":
+      "CloudBase 日志域写入入口。用于开通 CLS 日志服务（对齐 Manager SDK `log.createLogService` / CreateEnvResource Resources=['log']）。" +
+      "\n\n**适用场景**：" +
+      "\n- 开通 CLS 日志服务：`action=\"createLogService\", confirm=true`" +
+      "\n\n开通为异步操作：接口成功不代表立即可用，请随后用 `queryLogs(action=\"checkLogService\")` 轮询确认。",
+    "manage.schema.action":
+      "操作类型：" +
+      "\n- `createLogService`: 开通 CLS 日志服务（需 `confirm=true`）",
+    "manage.schema.confirm":
+      "开通日志服务前的显式确认。必须传 `confirm=true`；未传时返回 CONFIRM_REQUIRED。",
+    "manage.create.confirmRequired":
+      "开通日志服务会创建 CLS 日志资源。请使用 `confirm: true` 重新执行以继续。",
+    "manage.create.needsConfirmation": "开通日志服务前需要显式确认。",
+    "manage.create.alreadyEnabled": "当前环境日志服务已开通，无需重复开通。",
+    "manage.create.submitted":
+      "日志服务开通请求已提交。请使用 queryLogs(action=\"checkLogService\") 轮询直至 enabled=true。",
+    "manage.create.nextCheck": "轮询日志服务是否已就绪。",
+    "manage.create.nextSearch": "日志服务已就绪，可开始搜索 CLS 日志。",
+    "manage.unsupportedAction": "不支持的日志管理 action：{action}",
   },
   {
     title: "Query CloudBase log service",
@@ -65,6 +86,7 @@ export const logs = defineModule(
       "\n\n**Important distinction**:" +
       "\n- Query cloud function logs: use `queryFunctions(action=\"listFunctionLogs\", functionName=\"xxx\")`" +
       "\n- Query CLS logs (cross-service log aggregation): use this tool `queryLogs(action=\"searchLogs\")`" +
+      "\n- Enable the CLS log service: use `manageLogs(action=\"createLogService\", confirm=true)`" +
       "\n\n**Use cases**:" +
       "\n- Check whether the CLS log service is enabled: `action=\"checkLogService\"`" +
       "\n- Cross-service log search (e.g. find all ERROR logs): `action=\"searchLogs\"`" +
@@ -114,5 +136,25 @@ export const logs = defineModule(
     "schema.limit": "Maximum number of log entries to return; defaults to 20.",
     "schema.context": "Pagination context used to continue the previous query.",
     "schema.sort": "Time sort order: `asc` for ascending or `desc` for descending.",
+    "manage.title": "Manage CloudBase log service",
+    "manage.description":
+      "Write entry for the CloudBase logs domain. Enables the CLS log service (aligned with Manager SDK `log.createLogService` / CreateEnvResource Resources=['log'])." +
+      "\n\n**Use cases**:" +
+      "\n- Enable CLS log service: `action=\"createLogService\", confirm=true`" +
+      "\n\nProvisioning is asynchronous: API success does not mean the service is immediately ready. Poll with `queryLogs(action=\"checkLogService\")` afterward.",
+    "manage.schema.action":
+      "Operation type:" +
+      "\n- `createLogService`: Enable the CLS log service (requires `confirm=true`)",
+    "manage.schema.confirm":
+      "Explicit confirmation before enabling the log service. Must pass `confirm=true`; omitting it returns CONFIRM_REQUIRED.",
+    "manage.create.confirmRequired":
+      "Enabling the log service creates CLS log resources. Re-run with `confirm: true` to continue.",
+    "manage.create.needsConfirmation": "Explicit confirmation is required before enabling the log service.",
+    "manage.create.alreadyEnabled": "The log service is already enabled for this environment; no need to enable again.",
+    "manage.create.submitted":
+      "Log service enablement request submitted. Poll with queryLogs(action=\"checkLogService\") until enabled=true.",
+    "manage.create.nextCheck": "Poll whether the log service is ready.",
+    "manage.create.nextSearch": "Log service is ready; you can start searching CLS logs.",
+    "manage.unsupportedAction": "Unsupported log manage action: {action}",
   },
 );

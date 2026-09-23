@@ -2,7 +2,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 
 # MCP 工具
 
-当前包含 42 个工具，按功能分组如下。
+当前包含 43 个工具，按功能分组如下。
 
 源数据: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.json)
 
@@ -100,6 +100,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 ### 日志
 
 - [`queryLogs`](#querylogs)
+- [`manageLogs`](#managelogs)
 
 ### AI Agent
 
@@ -958,7 +959,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
 ---
 
 ### `queryMysqlDatabase`
-查询 CloudBase MySQL 数据库信息。支持执行只读 SQL、查询 MySQL 开通结果、查询 MySQL 任务状态，以及获取当前实例生命周期上下文。标准 getInstanceInfo/describeInstance 不返回连接凭据；仅 getConnectionInfo 透传原始连接/集群载荷（含可能的凭据），且仅用于显式 TCP 迁移。业务 CRUD 优先使用 SDK 或 runQuery/runStatement。
+查询 CloudBase MySQL 数据库信息。支持执行只读 SQL、查询 MySQL 开通结果、查询 MySQL 任务状态、获取当前实例生命周期上下文，以及查询实例慢查询/错误日志（对齐 Manager SDK describeInstanceSlowQueries / describeInstanceErrorLogs）。标准 getInstanceInfo/describeInstance 不返回连接凭据；仅 getConnectionInfo 透传原始连接/集群载荷（含可能的凭据），且仅用于显式 TCP 迁移。业务 CRUD 优先使用 SDK 或 runQuery/runStatement。
 
 #### 参数
 
@@ -968,7 +969,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "action",
       type: "string",
       required: true,
-      description: `runQuery=执行只读 SQL；describeCreateResult=查询 CreateMySQL 结果；describeTaskStatus=查询 MySQL 任务状态；getInstanceInfo=获取不含连接凭据的生命周期上下文；describeInstance=getInstanceInfo 的别名；getConnectionInfo=透传可能包含凭据的原始连接/集群载荷（仅限 TCP 迁移例外场景） 可填写的值: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo", "describeInstance", "getConnectionInfo"`,
+      description: `runQuery=执行只读 SQL；describeCreateResult=查询 CreateMySQL 结果；describeTaskStatus=查询 MySQL 任务状态；getInstanceInfo=获取不含连接凭据的生命周期上下文；describeInstance=getInstanceInfo 的别名；getConnectionInfo=透传可能包含凭据的原始连接/集群载荷（仅限 TCP 迁移例外场景）；describeInstanceSlowQueries=查询实例慢查询日志；describeInstanceErrorLogs=查询实例错误日志 可填写的值: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo", "describeInstance", "getConnectionInfo", "describeInstanceSlowQueries", "describeInstanceErrorLogs"`,
     },
     {
       name: "sql",
@@ -978,12 +979,12 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "request",
       type: "object",
-      description: `describeCreateResult/describeTaskStatus 使用的官方请求载荷`,
+      description: `describeCreateResult/describeTaskStatus/describeInstanceSlowQueries/describeInstanceErrorLogs 使用的官方请求载荷（可含 InstanceId 等）`,
     },
     {
       name: "dbInstance",
       type: "object",
-      description: `runQuery 可选的 SQL 数据库实例上下文`,
+      description: `runQuery / 慢查/错误日志可选的 SQL 数据库实例上下文`,
       children: [
         {
           name: "instanceId",
@@ -994,6 +995,66 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
           type: "string",
         }
       ],
+    },
+    {
+      name: "startTime",
+      type: "string",
+      description: `慢查/错误日志查询开始时间（YYYY-MM-DD HH:mm:ss）`,
+    },
+    {
+      name: "endTime",
+      type: "string",
+      description: `慢查/错误日志查询结束时间（YYYY-MM-DD HH:mm:ss）`,
+    },
+    {
+      name: "limit",
+      type: "number",
+      description: `慢查/错误日志返回条数限制`,
+    },
+    {
+      name: "offset",
+      type: "number",
+      description: `慢查/错误日志分页偏移`,
+    },
+    {
+      name: "username",
+      type: "string",
+      description: `慢查过滤：用户名`,
+    },
+    {
+      name: "host",
+      type: "string",
+      description: `慢查过滤：客户端 host`,
+    },
+    {
+      name: "database",
+      type: "string",
+      description: `慢查过滤：数据库名`,
+    },
+    {
+      name: "orderBy",
+      type: "string",
+      description: `排序字段。慢查支持 QueryTime/LockTime/RowsExamined/RowsSent；错误日志支持 Timestamp 可填写的值: "QueryTime", "LockTime", "RowsExamined", "RowsSent", "Timestamp"`,
+    },
+    {
+      name: "orderByType",
+      type: "string",
+      description: `排序方向：asc/desc（大小写均可） 可填写的值: "asc", "desc", "ASC", "DESC"`,
+    },
+    {
+      name: "sqlText",
+      type: "string",
+      description: `慢查过滤：SQL 文本片段`,
+    },
+    {
+      name: "logLevels",
+      type: "array of string",
+      description: `错误日志等级过滤，可选值：error / warning / note`,
+    },
+    {
+      name: "keyWords",
+      type: "array of string",
+      description: `错误日志关键字模糊搜索列表`,
     }
   ]}
 />
@@ -2146,7 +2207,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 
       返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。
 
-      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 31 个，API 共 8 个）。
+      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 32 个，API 共 8 个）。
 
       注意：OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。
 
@@ -2163,7 +2224,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "skillName",
       type: "string",
-      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-best-practices-cloudbase", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
+      description: `mode=skill 时指定。技能名称。 可填写的值: "skills", "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-best-practices-cloudbase", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
     },
     {
       name: "apiName",
@@ -3409,6 +3470,7 @@ CloudBase 日志域统一只读入口。支持检查日志服务状态并搜索 
 **重要区分**：
 - 查询云函数日志：使用 `queryFunctions(action="listFunctionLogs", functionName="xxx")`
 - 查询 CLS 日志（跨服务日志聚合）：使用本工具 `queryLogs(action="searchLogs")`
+- 开通 CLS 日志服务：使用 `manageLogs(action="createLogService", confirm=true)`
 
 **适用场景**：
 - 检查 CLS 日志服务是否开通：`action="checkLogService"`
@@ -3459,6 +3521,34 @@ CloudBase 日志域统一只读入口。支持检查日志服务状态并搜索 
       name: "sort",
       type: "string",
       description: `按时间排序：\`asc\` 升序，\`desc\` 降序 可填写的值: "asc", "desc"`,
+    }
+  ]}
+/>
+
+---
+
+### `manageLogs`
+CloudBase 日志域写入入口。用于开通 CLS 日志服务（对齐 Manager SDK `log.createLogService` / CreateEnvResource Resources=['log']）。
+
+**适用场景**：
+- 开通 CLS 日志服务：`action="createLogService", confirm=true`
+
+开通为异步操作：接口成功不代表立即可用，请随后用 `queryLogs(action="checkLogService")` 轮询确认。
+
+#### 参数
+
+<ParameterTable
+  parameters={[
+    {
+      name: "action",
+      type: "string",
+      required: true,
+      description: `操作类型： - \`createLogService\`: 开通 CLS 日志服务（需 \`confirm=true\`） 可填写的值: "createLogService"`,
+    },
+    {
+      name: "confirm",
+      type: "boolean",
+      description: `开通日志服务前的显式确认。必须传 \`confirm=true\`；未传时返回 CONFIRM_REQUIRED。`,
     }
   ]}
 />

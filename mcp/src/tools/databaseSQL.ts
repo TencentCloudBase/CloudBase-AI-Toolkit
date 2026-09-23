@@ -59,7 +59,20 @@ const QUERY_ACTIONS = [
   "getInstanceInfo",
   "describeInstance",
   "getConnectionInfo",
+  "describeInstanceSlowQueries",
+  "describeInstanceErrorLogs",
 ] as const;
+
+const SLOW_QUERY_ORDER_BY = [
+  "QueryTime",
+  "LockTime",
+  "RowsExamined",
+  "RowsSent",
+] as const;
+
+const ERROR_LOG_LEVELS = ["error", "warning", "note"] as const;
+
+const ORDER_BY_TYPE = ["asc", "desc", "ASC", "DESC"] as const;
 
 const MANAGE_ACTIONS = [
   "provisionMySQL",
@@ -135,6 +148,18 @@ type QuerySqlDatabaseArgs = {
   sql?: string;
   request?: Record<string, unknown>;
   dbInstance?: DbInstanceInput;
+  startTime?: string;
+  endTime?: string;
+  limit?: number;
+  offset?: number;
+  username?: string;
+  host?: string;
+  database?: string;
+  orderBy?: (typeof SLOW_QUERY_ORDER_BY)[number] | "Timestamp";
+  orderByType?: (typeof ORDER_BY_TYPE)[number];
+  sqlText?: string;
+  logLevels?: Array<(typeof ERROR_LOG_LEVELS)[number]>;
+  keyWords?: string[];
 };
 
 type ManageSqlDatabaseArgs = {
@@ -867,6 +892,192 @@ async function handleGetConnectionInfo(
   });
 }
 
+function resolveMysqlInstanceId(
+  instanceInfo: InstanceInfoResult,
+  args: QuerySqlDatabaseArgs,
+): string | null {
+  const fromRequest =
+    typeof args.request?.InstanceId === "string"
+      ? args.request.InstanceId
+      : undefined;
+  const fromDbInstance = args.dbInstance?.instanceId;
+  const candidate = fromRequest || fromDbInstance || instanceInfo.instanceId;
+  if (!candidate || candidate === "default") {
+    return null;
+  }
+  return candidate;
+}
+
+async function requireReadyMysqlInstance(
+  args: QuerySqlDatabaseArgs,
+  context: QueryManageContext,
+): Promise<
+  | { ok: true; instanceInfo: InstanceInfoResult; instanceId: string }
+  | { ok: false; payload: ToolResult }
+> {
+  const instanceInfo = await getSqlInstanceInfo(context);
+  if (!instanceInfo.exists) {
+    return {
+      ok: false,
+      payload: buildSqlToolResult({
+        success: false,
+        errorCode: "MYSQL_NOT_CREATED",
+        data: sanitizeInstanceInfo(instanceInfo),
+        message: t("databaseSQL.instanceLogs.notProvisioned"),
+        nextActions: [
+          buildNextAction(
+            MANAGE_MYSQL_DATABASE,
+            "provisionMySQL",
+            t("databaseSQL.next.provisionBeforeSql"),
+            { action: "provisionMySQL", confirm: true },
+          ),
+        ],
+      }),
+    };
+  }
+
+  const instanceId = resolveMysqlInstanceId(instanceInfo, args);
+  if (!instanceId) {
+    return {
+      ok: false,
+      payload: buildSqlToolResult({
+        success: false,
+        errorCode: "MYSQL_INSTANCE_ID_REQUIRED",
+        data: sanitizeInstanceInfo(instanceInfo),
+        message: t("databaseSQL.instanceLogs.instanceIdRequired"),
+        nextActions: [
+          buildNextAction(
+            QUERY_MYSQL_DATABASE,
+            "getInstanceInfo",
+            t("databaseSQL.instanceLogs.resolveInstanceId"),
+            { action: "getInstanceInfo" },
+          ),
+        ],
+      }),
+    };
+  }
+
+  return { ok: true, instanceInfo, instanceId };
+}
+
+async function handleDescribeInstanceSlowQueries(
+  args: QuerySqlDatabaseArgs,
+  context: QueryManageContext,
+): Promise<ToolResult> {
+  const ready = await requireReadyMysqlInstance(args, context);
+  if (!ready.ok) {
+    return ready.payload;
+  }
+
+  const request = args.request || {};
+  const cloudbase = await context.getManager();
+  const result = await cloudbase.mysql.describeInstanceSlowQueries({
+    InstanceId: ready.instanceId,
+    StartTime:
+      (typeof request.StartTime === "string" ? request.StartTime : undefined) ??
+      args.startTime,
+    EndTime:
+      (typeof request.EndTime === "string" ? request.EndTime : undefined) ??
+      args.endTime,
+    Limit:
+      (typeof request.Limit === "number" ? request.Limit : undefined) ??
+      args.limit,
+    Offset:
+      (typeof request.Offset === "number" ? request.Offset : undefined) ??
+      args.offset,
+    Username:
+      (typeof request.Username === "string" ? request.Username : undefined) ??
+      args.username,
+    Host:
+      (typeof request.Host === "string" ? request.Host : undefined) ??
+      args.host,
+    Database:
+      (typeof request.Database === "string" ? request.Database : undefined) ??
+      args.database,
+    OrderBy:
+      (typeof request.OrderBy === "string" ? request.OrderBy : undefined) ??
+      args.orderBy,
+    OrderByType:
+      (typeof request.OrderByType === "string"
+        ? request.OrderByType
+        : undefined) ?? args.orderByType,
+    SqlText:
+      (typeof request.SqlText === "string" ? request.SqlText : undefined) ??
+      args.sqlText,
+  });
+  logCloudBaseResult(context.server.logger, result);
+
+  return buildSqlToolResult({
+    success: true,
+    data: {
+      action: "describeInstanceSlowQueries",
+      instanceId: ready.instanceId,
+      totalCount: result.TotalCount ?? 0,
+      slowQueries: result.SlowQueries ?? [],
+      requestId: result.RequestId,
+      raw: result,
+    },
+    message: t("databaseSQL.instanceLogs.slowQueriesSuccess"),
+  });
+}
+
+async function handleDescribeInstanceErrorLogs(
+  args: QuerySqlDatabaseArgs,
+  context: QueryManageContext,
+): Promise<ToolResult> {
+  const ready = await requireReadyMysqlInstance(args, context);
+  if (!ready.ok) {
+    return ready.payload;
+  }
+
+  const request = args.request || {};
+  const cloudbase = await context.getManager();
+  const result = await cloudbase.mysql.describeInstanceErrorLogs({
+    InstanceId: ready.instanceId,
+    Limit:
+      (typeof request.Limit === "number" ? request.Limit : undefined) ??
+      args.limit,
+    Offset:
+      (typeof request.Offset === "number" ? request.Offset : undefined) ??
+      args.offset,
+    StartTime:
+      (typeof request.StartTime === "string" ? request.StartTime : undefined) ??
+      args.startTime,
+    EndTime:
+      (typeof request.EndTime === "string" ? request.EndTime : undefined) ??
+      args.endTime,
+    OrderBy:
+      (typeof request.OrderBy === "string" ? request.OrderBy : undefined) ??
+      (args.orderBy === "Timestamp" ? args.orderBy : undefined),
+    OrderByType:
+      (typeof request.OrderByType === "string"
+        ? request.OrderByType
+        : undefined) ?? args.orderByType,
+    LogLevels:
+      (Array.isArray(request.LogLevels)
+        ? (request.LogLevels as string[])
+        : undefined) ?? args.logLevels,
+    KeyWords:
+      (Array.isArray(request.KeyWords)
+        ? (request.KeyWords as string[])
+        : undefined) ?? args.keyWords,
+  });
+  logCloudBaseResult(context.server.logger, result);
+
+  return buildSqlToolResult({
+    success: true,
+    data: {
+      action: "describeInstanceErrorLogs",
+      instanceId: ready.instanceId,
+      totalCount: result.TotalCount ?? 0,
+      errorLogs: result.ErrorLogs ?? [],
+      requestId: result.RequestId,
+      raw: result,
+    },
+    message: t("databaseSQL.instanceLogs.errorLogsSuccess"),
+  });
+}
+
 async function handleProvisionMySQL(
   args: ManageSqlDatabaseArgs,
   context: QueryManageContext,
@@ -1345,6 +1556,54 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
           })
           .optional()
           .describe("databaseSQL.schema.query.dbInstance"),
+        startTime: z
+          .string()
+          .optional()
+          .describe("databaseSQL.schema.query.startTime"),
+        endTime: z
+          .string()
+          .optional()
+          .describe("databaseSQL.schema.query.endTime"),
+        limit: z
+          .number()
+          .optional()
+          .describe("databaseSQL.schema.query.limit"),
+        offset: z
+          .number()
+          .optional()
+          .describe("databaseSQL.schema.query.offset"),
+        username: z
+          .string()
+          .optional()
+          .describe("databaseSQL.schema.query.username"),
+        host: z
+          .string()
+          .optional()
+          .describe("databaseSQL.schema.query.host"),
+        database: z
+          .string()
+          .optional()
+          .describe("databaseSQL.schema.query.database"),
+        orderBy: z
+          .enum([...SLOW_QUERY_ORDER_BY, "Timestamp"] as const)
+          .optional()
+          .describe("databaseSQL.schema.query.orderBy"),
+        orderByType: z
+          .enum(ORDER_BY_TYPE)
+          .optional()
+          .describe("databaseSQL.schema.query.orderByType"),
+        sqlText: z
+          .string()
+          .optional()
+          .describe("databaseSQL.schema.query.sqlText"),
+        logLevels: z
+          .array(z.enum(ERROR_LOG_LEVELS))
+          .optional()
+          .describe("databaseSQL.schema.query.logLevels"),
+        keyWords: z
+          .array(z.string())
+          .optional()
+          .describe("databaseSQL.schema.query.keyWords"),
       },
       annotations: {
         readOnlyHint: true,
@@ -1368,6 +1627,10 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
           return handleGetInstanceInfo(context);
         case "getConnectionInfo":
           return handleGetConnectionInfo(context);
+        case "describeInstanceSlowQueries":
+          return handleDescribeInstanceSlowQueries(args, context);
+        case "describeInstanceErrorLogs":
+          return handleDescribeInstanceErrorLogs(args, context);
         default:
           throw new Error(t("databaseSQL.unsupportedQueryAction", { action: args.action }));
       }
