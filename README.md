@@ -375,7 +375,10 @@ Credentials are stored per site (`credential.domestic` / `credential.intl`) so d
 
 ## Activity
 
-![Repo Activity](https://repobeats.axiom.co/api/embed/6cd6ed00da4384e43b24805c197f584626946dda.svg "Repobeats analytics image")
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/TencentCloudBase/CloudBase-AI-Toolkit/main/scripts/assets/activity-card-dark.svg">
+  <img alt="Repository activity: 52-week commit trend, monthly npm downloads, and project health" src="https://raw.githubusercontent.com/TencentCloudBase/CloudBase-AI-Toolkit/main/scripts/assets/activity-card-light.svg">
+</picture>
 
 ## Contributors
 
