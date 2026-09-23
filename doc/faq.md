@@ -482,8 +482,9 @@ CloudBase AI ToolKit 与微信开发者工具可以完美配合使用，提供�
 ### 遇到问题如何获取帮助？
 
 1. 查看常见问题 FAQ
-2. 在 [GitHub Issues](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues) 提交问题
-3. 加入微信技术交流群获取社区支持
+2. 产品问题（云环境、云函数、数据库、云托管、存储、支付等）→ [云开发社区](https://cnb.cool/tencent/cloud/cloudbase/community/-/issues)
+3. 本工具问题（CloudBase MCP、skills、CLI）→ [GitHub Issues](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues)，GitHub 打不开时请用云开发社区
+4. 加入微信技术交流群获取社区支持
 
 ### 如何参与社区？
 

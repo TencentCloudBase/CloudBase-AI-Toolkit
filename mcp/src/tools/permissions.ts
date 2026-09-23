@@ -402,7 +402,8 @@ function extractRiskyDocFieldOperations(securityRule: string | undefined): Array
       continue;
     }
     const referencesNonIdDocField = /doc\.(?!_id\b)[A-Za-z_][A-Za-z0-9_]*/.test(expression);
-    const usesGetByDocId = /get\('database\.[^']+'\s*\+\s*doc\._id\)/.test(expression);
+    const usesGetByDocId =
+      /get\(('database\.[^']+'\s*\+\s*doc\._id|`database\.[^`]*\$\{\s*doc\._id\s*\})\)/.test(expression);
     if (referencesNonIdDocField && !usesGetByDocId) {
       operations.push(operation);
     }
@@ -415,9 +416,9 @@ function buildRecommendedOwnerWriteRule(resourceId: string): string {
   return JSON.stringify({
     create: "auth.uid != null",
     update:
-      "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)",
+      "auth.uid != null && (get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid)",
     delete:
-      "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)",
+      "auth.uid != null && (get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid)",
   });
 }
 
@@ -499,8 +500,10 @@ function buildInvalidGetPathHint(
     return undefined;
   }
 
+  // get() 的 path 里嵌了字段名：拼接形态，或反引号模板里在 ${} 之后又接字段
   const hasFieldEmbeddedInsideGetPath =
-    /get\('database\.[^']+'\s*\+\s*[^)]*\+\s*'\.[A-Za-z_][A-Za-z0-9_]*'\)/.test(securityRule);
+    /get\('database\.[^']+'\s*\+\s*[^)]*\+\s*'\.[A-Za-z_][A-Za-z0-9_]*'\)/.test(securityRule) ||
+    /get\(`database\.[^`]*\.\$\{[^}]+\}\.[A-Za-z_][A-Za-z0-9_]*`\)/.test(securityRule);
   if (!hasFieldEmbeddedInsideGetPath) {
     return undefined;
   }
@@ -526,9 +529,10 @@ function buildTemplateLiteralRuleHint(
     return undefined;
   }
 
-  const usesTemplateLiteralPlaceholderInRule = /\$\{(?:auth\.uid|doc\._id|doc\.[A-Za-z_][A-Za-z0-9_]*)\}/.test(
-    securityRule,
-  );
+  // 反引号模板字符串是官方形态，必须先剥掉再判——否则会把正确的写法误报成错误
+  const withoutTemplateLiterals = securityRule.replace(/`[^`]*`/g, '');
+  const usesTemplateLiteralPlaceholderInRule =
+    /['"][^'"]*\$\{(?:auth\.uid|doc\._id|doc\.[A-Za-z_][A-Za-z0-9_]*)\}/.test(withoutTemplateLiterals);
   if (!usesTemplateLiteralPlaceholderInRule) {
     return undefined;
   }

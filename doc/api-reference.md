@@ -2,7 +2,7 @@
 
 > - 数据源：[API 概览](https://cloud.tencent.com/document/api/876/34809) · [依赖产品接口指引](https://cloud.tencent.com/document/api/876/34808)
 > - 所有接口均为腾讯云 API 3.0 管控面接口，支持各语言官方 SDK 调用；也可通过 CloudBase MCP 的 `callCloudApi` 工具或 [API Explorer](https://console.cloud.tencent.com/api/explorer) 直接调用
-> - 最近同步：2026-09-22
+> - 最近同步：2026-09-23
 
 ## API 概览
 
@@ -170,6 +170,9 @@
 | [RunSql](https://cloud.tencent.com/document/api/876/127880) | 执行MySQL语句 | 100 |
 | [ExecutePGSql](https://cloud.tencent.com/document/api/876/130469) | 在PostgreSQL数据库上执行SQL查询 | 20 |
 | [ModifyPGInstanceSpec](https://cloud.tencent.com/document/api/876/137349) | 修改 PG 独享实例规格 | 20 |
+| [UpgradePGInstanceToDedicated](https://cloud.tencent.com/document/api/876/138617) | 发起共享升级独享 | 20 |
+| [ResetPGAccountPassword](https://cloud.tencent.com/document/api/876/138618) | 修改 PG 实例用户角色密码 | 20 |
+| [DescribeTaskResult](https://cloud.tencent.com/document/api/876/138619) | 查看任务结果 | 20 |
 
 ### 云函数相关接口
 

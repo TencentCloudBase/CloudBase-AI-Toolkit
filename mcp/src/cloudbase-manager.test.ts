@@ -87,6 +87,29 @@ describe("cloudbase manager auth gate", () => {
     });
   });
 
+  it("getEnvId should also fail fast with AUTH_REQUIRED when login is missing", async () => {
+    const { getEnvId } = await import("./cloudbase-manager.js");
+
+    // 未登录时不能落到 ENV_REQUIRED：那条文案写死「当前已登录，但还没有可用环境」，
+    // 会把「没登录」误诊成「登录了但缺环境」，调用方据此去 set_env 选环境而永远选不到。
+    try {
+      await getEnvId();
+      expect.unreachable("AUTH_REQUIRED should be thrown");
+    } catch (error: any) {
+      expect(error).toMatchObject({
+        name: "ToolPayloadError",
+        payload: expect.objectContaining({
+          code: "AUTH_REQUIRED",
+          next_step: expect.objectContaining({
+            tool: "auth",
+            action: "start_auth",
+          }),
+        }),
+      });
+      expect(error?.payload?.message ?? "").not.toContain("当前已登录");
+    }
+  });
+
   it("should fail fast with AUTH_PENDING when device auth is in progress", async () => {
     mockAuthGetProgressState.mockResolvedValue({
       status: "PENDING",
