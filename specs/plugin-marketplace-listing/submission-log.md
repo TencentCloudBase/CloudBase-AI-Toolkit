@@ -165,6 +165,43 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 - Confirmed `cloudbase` **absent** from https://github.com/github/awesome-copilot/blob/main/plugins/external.json → still **not listed**.
 - Nothing to do on our side; the ball is with maintainer `aaronpowell`. Next poll point: watch for `/approve` on #2645, then verify the auto-opened listing PR merges and `cloudbase` appears in `external.json`.
 
+## Awesome DSH Plugin (DeepSeek Harness)
+
+| Field | Value |
+|-------|-------|
+| Status | **Listed / merged** |
+| Upstream | https://github.com/awesome-dsh-plugin/awesome-dsh-plugin (community main; `deepseek-ai/awesome-dsh-plugin` = 404) |
+| PR | https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5120 |
+| Author | binggg |
+| Merged at | 2026-09-15T04:12:13Z |
+| Entry file | `data/plugins/TencentCloudBase__CloudBase-AI-Toolkit--dsh-plugin.yml` |
+| List name | `TencentCloudBase/CloudBase-AI-Toolkit#dsh-plugin` |
+| Category | `tools` |
+| Plugin path | https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/tree/main/dsh-plugin |
+| npm | `@cloudbase/dsh-plugin` (publish recommended for prebuilt install) |
+| Verified at | 2026-09-23 |
+
+### Submission rules (do not dual-edit README)
+
+1. **Source of truth** = one YAML under `data/plugins/`. README.md / README.zh.md are **generated** (`scripts/generate-readme.mjs` + `sync-readme.yml`).
+2. Monorepo subpackage filename pattern: `owner__repo--path-with-dashes.yml` (e.g. `TencentCloudBase__CloudBase-AI-Toolkit--dsh-plugin.yml`).
+3. Must declare `dsh.bundle` (not only `dsh.client`) + `cordis.patch.yml`.
+4. Guide: https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md
+
+### How to check progress (Awesome DSH)
+
+1. PR state: `gh api repos/awesome-dsh-plugin/awesome-dsh-plugin/pulls/5120 --jq '{state,merged,merged_at}'`
+2. YAML: `curl -fsSL https://raw.githubusercontent.com/awesome-dsh-plugin/awesome-dsh-plugin/main/data/plugins/TencentCloudBase__CloudBase-AI-Toolkit--dsh-plugin.yml`
+3. README: `curl -fsSL https://raw.githubusercontent.com/awesome-dsh-plugin/awesome-dsh-plugin/main/README.md | rg -i 'cloudbase|@cloudbase/dsh-plugin'`
+4. Flip `markets.yaml` `awesome-dsh-plugin.community_directory` → `listed` when confirmed (done 2026-09-23)
+
+### 2026-09-23 — Confirm listed
+
+- An earlier submission attempt expired 2026-09-08 (approval timeout), not a content rejection.
+- Between the 2026-09-08 check and this one, PR #5120 was opened and **merged** 2026-09-15.
+- README EN/ZH line ~2319 and `data/plugins/...yml` both contain CloudBase / `#dsh-plugin` (not only COS/CloudQ).
+- Termination: **success** — no further PR / poll required. Do not re-submit duplicate.
+
 ## Composio awesome-claude-plugins (Claude discovery)
 
 | Field | Value |
