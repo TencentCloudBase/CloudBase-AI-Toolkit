@@ -1,5 +1,7 @@
 # Realtime Database with CloudBase
 
+> **Scope:** this page documents document-database `collection.watch()` only — module `@cloudbase/js-sdk/realtime` (`registerRealtime`). PostgreSQL realtime through `app.realtime()` (Broadcast / Presence / Postgres CDC) is a **separate module** — `@cloudbase/js-sdk/realtime-js` (`registerRealtimeJs`) — and the two are not interchangeable. If the project is in PG mode, or the request mentions broadcast / presence / live table changes, read `../postgresql-development-cloudbase/references/realtime.md` instead.
+
 CloudBase document database supports **real-time push** functionality that allows applications to listen to all update events for documents in a specified collection that match query conditions. When monitored documents undergo any changes (such as addition, modification, deletion), the client receives notifications in real-time, enabling real-time data synchronization and updates.
 
 ## Core Features
