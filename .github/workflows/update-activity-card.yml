@@ -1,0 +1,62 @@
+name: Update README activity card
+
+on:
+  schedule:
+    - cron: "41 3 * * 1" # every Monday 03:41 UTC (11:41 Beijing)
+  workflow_dispatch: # manual trigger
+
+permissions:
+  contents: write
+
+concurrency:
+  group: activity-card
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "20"
+
+      # Generate → commit → push, retried as one unit.
+      #
+      # Several bots push main in parallel and a `concurrency:` group only orders jobs that share
+      # its group name, so a bare `git push` eventually loses that race with
+      # "! [rejected] main -> main (fetch first)". Recovery is a fetch + reset onto origin/main
+      # plus a clean regeneration, the shape sync-connector-intl-package.yml uses. The generate
+      # step sits inside the loop because the reset discards the SVGs it just wrote.
+      - name: Generate card and push if it changed
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          pushed=false
+          for i in 1 2 3; do
+            node scripts/gen-activity-card.mjs
+            if [[ -z "$(git status --porcelain scripts/assets)" ]]; then
+              echo "Activity card already up to date."
+              exit 0
+            fi
+            git add scripts/assets/activity-card-light.svg scripts/assets/activity-card-dark.svg
+            # GITHUB_TOKEN pushes do not retrigger workflows; the marker is documentation.
+            git commit -m "chore: update README activity card [skip ci]"
+            if git push; then
+              pushed=true
+              break
+            fi
+            echo "Push rejected (attempt $i); resetting onto origin/main and regenerating..."
+            git fetch origin main
+            git reset --hard origin/main
+            sleep $((i * 2))
+          done
+          if [ "$pushed" != "true" ]; then
+            echo "Failed to push after retries"
+            exit 1
+          fi
