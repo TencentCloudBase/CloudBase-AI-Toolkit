@@ -146,6 +146,33 @@ export function isDirectCliInvocation({
   return path.resolve(fileURLToPath(moduleUrl)) === path.resolve(argv[1]);
 }
 
+/**
+ * 刷新 compat baseline。
+ *
+ * bump 改的是每个入口的 `version:` 行，而这些入口都会进派生产物 ⇒ 所有文本面哈希都会变。
+ * 也就是说 `update-compat-baseline` 是 bump 的自然后续步骤，而不是另一件要记住的事：
+ * 漏掉它 baseline 会静默过期（文本面哈希只 report），报告里堆噪声，真正的兼容面变化被淹没。
+ * 所以 bump 与刷新绑在一个动作里；没有版本变化时不写 baseline，避免无谓的生成物改动。
+ */
+export async function refreshCompatBaseline() {
+  const { updateCompatBaseline } = await import("./update-compat-baseline.mjs");
+  return updateCompatBaseline();
+}
+
+export async function syncSkillVersionsAndBaseline({
+  rootDir = ROOT_DIR,
+  version,
+  refreshBaseline = refreshCompatBaseline,
+} = {}) {
+  const result = syncSkillVersions({ rootDir, version });
+
+  if (result.updatedFiles.length === 0) {
+    return { ...result, baseline: null };
+  }
+
+  return { ...result, baseline: await refreshBaseline() };
+}
+
 if (isDirectCliInvocation()) {
   const args = process.argv.slice(2);
   const argVersionIndex = args.indexOf("--version");
@@ -173,11 +200,19 @@ if (isDirectCliInvocation()) {
     process.exit(1);
   }
 
-  const result = syncSkillVersions({ version: cliVersion });
+  const result = await syncSkillVersionsAndBaseline({ version: cliVersion });
   console.log(
     `Synced skill versions to ${result.version} across ${result.updatedFiles.length} files.`,
   );
   for (const file of result.updatedFiles) {
     console.log(`  ${path.relative(ROOT_DIR, file)}`);
+  }
+
+  if (result.baseline) {
+    console.log(
+      `Refreshed compat baseline: ${path.relative(ROOT_DIR, result.baseline.baselineFile)} (${result.baseline.totalFiles} files tracked).`,
+    );
+  } else {
+    console.log("Skill versions already in sync; compat baseline left untouched.");
   }
 }
