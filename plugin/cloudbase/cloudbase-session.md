@@ -19,12 +19,16 @@ CloudBase has 4 scenarios — the detected scenario should guide your primary ap
 
 ## Mandatory first step
 
-When CloudBase MCP tools are available in this session, call `queryEnv({ action: "info" })` first to get:
-- `envId` — use in all subsequent config files and code
-- `RuntimeMode` — `"postgresql"` or `"nosql"` (determines database skill routing)
-- `RuntimeModeHints.RecommendedSkills` — backend-recommended skills for this environment
+When CloudBase MCP tools are available in this session, resolve the session in this order — every management tool fails with `AUTH_REQUIRED` / `ENV_REQUIRED` until steps 1 and 2 are done:
 
-If MCP tools are not available yet, configure MCP for the next session and resolve envId via `tcb` CLI (`tcb login` → `tcb env list` / `tcb env use`) per `tooling-fallback.md`. Skip the MCP `queryEnv` call only when envId is already known from this session.
+1. `auth({ action: "status" })` — confirm the login; if not logged in, complete `auth({ action: "start_auth" })` first.
+2. `auth({ action: "set_env", envId: "<EnvId>" })` — bind the target environment when none is bound yet.
+3. `queryEnv({ action: "info" })` — then resolve:
+   - `envId` — use in all subsequent config files and code
+   - `RuntimeMode` — `"postgresql"` or `"nosql"` (determines database skill routing)
+   - `RuntimeModeHints.RecommendedSkills` — backend-recommended skills for this environment
+
+If MCP tools are not available yet, configure MCP for the next session and resolve envId via `tcb` CLI (`tcb login` → `tcb env list` / `tcb env use`) per `tooling-fallback.md`. Skip these steps only when envId is already known from this session.
 
 ## Platform auth (critical — never mix)
 

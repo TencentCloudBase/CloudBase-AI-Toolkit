@@ -316,7 +316,7 @@ export async function resolveEnvCandidateByEnvId(options: {
     return undefined;
 }
 
-function throwAuthRequiredError() {
+function throwAuthRequiredError(): never {
     throwToolPayloadError({
         ok: false,
         code: "AUTH_REQUIRED",
@@ -445,6 +445,15 @@ class EnvironmentManager {
                 debug('使用登录态中的环境ID:', { envId: loginState.envId });
                 this._setCachedEnvId(loginState.envId);
                 return loginState.envId;
+            }
+
+            // 3.1 未登录必须交回 AUTH_REQUIRED，不能继续往下走「选环境」。
+            // 未登录时拿不到任何环境候选，落到 throwEnvRequiredError 会输出
+            // 「当前已登录，但还没有可用环境」——把「没登录」误诊成「登录了但缺环境」。
+            // 调用方读到这句会去 set_env 选环境，而候选列表永远为空，只能原样重试。
+            // 与 getCloudBaseManager 的登录态分流保持同构。
+            if (!loginState) {
+                throwAuthRequiredError();
             }
 
             // 4. 单环境自动绑定；多环境时返回结构化引导，不再触发交互弹窗
