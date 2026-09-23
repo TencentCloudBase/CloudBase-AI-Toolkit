@@ -85,8 +85,13 @@ var RULES_BLOCK = `## CloudBase Plugin (plugin-injected, MUST follow)
 
 ### Hard Rules
 
-1. **Environment Check (FIRST).** Before any CloudBase work, resolve envId + RuntimeMode + RecommendedSkills.
-   When CloudBase MCP tools are available in this session, call \`queryEnv({ action: "info" })\`.
+1. **Auth + Environment Check (FIRST — hard gate).** Before any CloudBase work, resolve the session in
+   this order. Every management tool fails with \`AUTH_REQUIRED\` / \`ENV_REQUIRED\` until (a) and (b) are done:
+   (a) \`auth({ action: "status" })\` — confirm the login; if not logged in, complete \`auth({ action: "start_auth" })\`;
+   (b) \`auth({ action: "set_env", envId: "<EnvId>" })\` — bind the target environment when none is bound yet;
+   (c) then \`queryEnv({ action: "info" })\` to resolve envId + RuntimeMode + RecommendedSkills.
+   On those two errors, follow \`next_step\` in the payload instead of retrying the same call — repeating an
+   \`AUTH_REQUIRED\` / \`ENV_REQUIRED\` call cannot succeed.
    If MCP is missing or not yet loaded (first session / post-install before restart), configure MCP for
    the next session and use \`tcb\` CLI now (\`tcb login\` → \`tcb env list\` / \`tcb env use\`; see
    \`skills/cloudbase/references/tooling-fallback.md\`). Do not stall waiting for restart.
