@@ -45,6 +45,18 @@ This skill describes how to apply them consistently across agents/editors withou
 - **`CHANGELOG.md`'s `## Unreleased` is not rotated on release** in this repo; publish a GitHub Release and leave the changelog alone unless asked.
 - **Version bump surface**: `mcp/package.json` + `config/source/**` skill versions (`node scripts/sync-skill-versions.mjs --version X.Y.Z`) + `config/.claude/skills` mirror (`npm run sync:claude-skills-mirror`) + optional README bullets (patch: only for clearly user-visible capability, and both `README.md` and `README.zh-CN.md`, verified with `npm run check:readme-sync`).
 
+## Redacting internal references from a pushed PR
+
+Public-repo PR metadata — the title, the body, each commit headline, each commit message — is as public as the diff, yet it never appears *in* the diff, so no file-layer guard covers it. `npm run check:internal-refs` enforces this in CI (see `internal-docs-guard.yml`). When a reference has already been pushed, fix it in place:
+
+1. **Enumerate every source before editing anything.** `gh pr view <n> --json commits` *truncates* headlines — read messages from git instead (`git log --format='%s%n%b' origin/main..<branch>`) and the body via `gh api repos/<owner>/<repo>/pulls/<n> --jq .body`. Body and commit messages are separate fixes; doing only one is the usual miss.
+2. **Amend the message, then prove nothing else moved:** `git commit --amend -F -`, followed by `git diff --stat <old-sha> HEAD` — it must be empty.
+3. **Force-push with `--force-with-lease`.** The repo rule says "no `--force`", but rewriting an already-pushed message has no alternative; the lease form still refuses to clobber a concurrent update.
+4. **Rewrite the body** with `gh pr edit <n> --body-file -`.
+5. **Clear local-only commits** carrying the same problem: back up first (`git diff > /tmp/residual.patch`), then `git reset --hard origin/main`. The content is normally already in the PR it was split out of, so nothing is lost — verify each file is covered by a branch before resetting.
+
+A `--force-with-lease` push re-triggers CI, and this repo's `Publish MCP Package to pkg.pr.new` job runs live cloud integration tests that flake on timeouts (seen: cloud-function create/call at 60s). Read the failed test name before assuming the rewrite broke something — a message-only amend cannot.
+
 ## Command mapping
 
 See `references/command-catalog.md`.

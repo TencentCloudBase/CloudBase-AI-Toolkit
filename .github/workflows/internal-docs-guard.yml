@@ -1,9 +1,18 @@
 name: Internal Docs Guard
 
-# 拦截两个本地内部目录重新入库：specs/ 与 .workbuddy/。
-#   - specs/      内部规格 / 设计 / 审视报告，含内部任务 ID
-#   - .workbuddy/ IDE 本地状态（AI 记忆、plans、expert 会话历史），
-#                 类比 .idea/ / .vscode/，本就不该进版本控制
+# 内部信息的两层守门，缺一不可：
+#
+#   1. 文件层（step: Check for internal dirs entering the repository）
+#      拦截两个本地内部目录重新入库：specs/ 与 .workbuddy/。
+#        - specs/      内部规格 / 设计 / 审视报告，含内部任务 ID
+#        - .workbuddy/ IDE 本地状态（AI 记忆、plans、expert 会话历史），
+#                      类比 .idea/ / .vscode/，本就不该进版本控制
+#
+#   2. 元信息层（step: Check PR metadata and commit messages）
+#      PR 标题、PR 正文、提交信息同样是公开可见的对外文案，文件层干净不等于
+#      元信息干净。内部任务编排流程自动建 PR 时，会把 `ato-task:<uuid>` 写进
+#      正文、把任务短号以 `(<8 位 hex>)` 追加到提交 headline —— 这两类只能靠
+#      事后人工回看才能发现，所以由 CI 兜底。判据见 scripts/check-internal-refs.mjs。
 #
 # 本地 lefthook 的 specs-guard 只能保护「包含新版 lefthook.yml 的分支」，
 # 挡不住基于旧 main 切出的 worktree —— 那里的 .gitignore 和 lefthook.yml
@@ -14,6 +23,8 @@ name: Internal Docs Guard
 
 on:
   pull_request:
+    # `edited` 是必要的：PR 标题和正文是元信息检查的输入，改标题/正文后必须重跑。
+    types: [opened, synchronize, reopened, edited]
   push:
     branches:
       - main
@@ -26,6 +37,18 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
         with:
           fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+
+      - name: Check PR metadata and commit messages for internal references
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/check-internal-refs.mjs --base "$BASE_SHA"
 
       - name: Check for internal dirs entering the repository
         env:
