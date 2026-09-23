@@ -131,7 +131,7 @@ Only add rules that are backed by stable SDK/API documentation, repeated evaluat
 | NOSQL-013 | warning | LLM | READONLY 允许匿名读，但新环境默认禁用匿名登录 |
 | NOSQL-014 | warning | lint | 嵌套字段更新必须用点号表示法 |
 | NOSQL-015 | error | LLM | .doc(authorId).update() 对非 _id 字段不可用 |
-| NOSQL-016 | warning | LLM | get('database.user_roles.'+auth.uid) 仅 _id=uid 时有效 |
+| NOSQL-016 | warning | LLM | get(`database.user_roles.${auth.uid}`) 仅 _id=uid 时有效 |
 
 ### MiniProgram (NOSQL-MP-)
 

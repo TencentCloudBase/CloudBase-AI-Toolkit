@@ -31,9 +31,9 @@ export const permissions = defineModule(
       "底层错误：{message}",
     mustBeArray: "{label} 必须是数组",
     roleLookupNote:
-      "如果你需要 app-level admin override（例如 CMS 中 admin 可编辑所有文章，而 editor 只能编辑自己的文章），CUSTOM 规则通常是必要的。一个已验证可用的模式是：角色集合文档主键就是 auth.uid，并在文章权限里写 get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid。若现有 schema 已经有 users / profiles / user_roles 其一，请复用已存在且能通过 _id == auth.uid 直接 get() 到的那一份；不要把 where({ uid }) 查询得到的集合误写成 get('database.users.' + auth.uid)。",
+      "如果你需要 app-level admin override（例如 CMS 中 admin 可编辑所有文章，而 editor 只能编辑自己的文章），CUSTOM 规则通常是必要的。一个已验证可用的模式是：角色集合文档主键就是 auth.uid，并在文章权限里写 get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid。若现有 schema 已经有 users / profiles / user_roles 其一，请复用已存在且能通过 _id == auth.uid 直接 get() 到的那一份；不要把 where({ uid }) 查询得到的集合误写成 get(`database.users.${auth.uid}`)。",
     recommendedClientWritePattern:
-      "对于 CMS 文章这类使用 app-level admin override 的 CUSTOM 规则，前端可继续使用 db.collection('{resourceId}').doc(id).update(...) / remove(...)。关键是安全规则要采用已验证模式：get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid，并且文章文档中要真实写入 authorId。",
+      "对于 CMS 文章这类使用 app-level admin override 的 CUSTOM 规则，前端可继续使用 db.collection('{resourceId}').doc(id).update(...) / remove(...)。关键是安全规则要采用已验证模式：get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid，并且文章文档中要真实写入 authorId。",
     createRuleSummary: "create 规则不应引用 doc.*，因为 create 时文档尚未存在。",
     createRuleDetail:
       "CloudBase 的 create 规则验证的是写入数据（request.data），此时文档尚不存在，doc.* 不可用。" +
@@ -42,13 +42,13 @@ export const permissions = defineModule(
       "read / update / delete 规则可以使用 doc.* 引用已有文档字段，且客户端查询条件必须是规则约束的子集（如 _openid: '{openid}'）。",
     docIdWriteSummary: "当前安全规则在 document-id 写入场景下可能被后端直接拒绝。",
     docIdWriteDetail:
-      "这类规则经常在 owner-only 集合里被写错，但对于 CMS 文章这种“admin 可编辑所有文章、editor 只能编辑自己的文章”的场景，已验证可用的做法是保留 doc.authorId，并通过独立角色集合做 admin override：get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid。不要默认改成 where(...)，也不要把同集合 owner 判断重写成 get('database.collection.' + doc._id)。",
+      "这类规则经常在 owner-only 集合里被写错，但对于 CMS 文章这种“admin 可编辑所有文章、editor 只能编辑自己的文章”的场景，已验证可用的做法是保留 doc.authorId，并通过独立角色集合做 admin override：get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid。不要默认改成 where(...)，也不要把同集合 owner 判断重写成 ``get(`database.collection.${doc._id}`)``。",
     invalidGetPathSummary: "get() 的 path 只应包含 collection 和 documentId，不应把字段名拼进 path 字符串。",
     invalidGetPathDetail:
-      "请写成 get('database.collection.' + doc._id).fieldName，而不是 get('database.collection.' + doc._id + '.fieldName')。但在 CMS 文章权限里，不要把 get('database.collection.' + doc._id) 当成默认首选方案；更稳的已验证模式是读取单独的角色集合：get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid。",
-    templateLiteralSummary: "CloudBase security rule 表达式不支持把 ${...} 当作 JS 模板字符串插值。",
+      "请写成 ``get(`database.collection.${doc._id}`).fieldName``，而不是把字段名拼进 path。安全规则的表达式不支持用 + 拼接 get() 的 path 参数——形如 get('database.collection.' + doc._id) 的规则在保存时就会被判 rule invalid，请改用反引号模板字符串。但在 CMS 文章权限里，不要把同集合文档当成默认首选方案；更稳的模式是读取单独的角色集合：``get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid``。",
+    templateLiteralSummary: "${...} 出现在引号字符串里也能被引擎识别，但官方形态是反引号模板字符串。",
     templateLiteralDetail:
-      "在 securityRule 字符串里，请使用表达式拼接，例如 get('database.user_roles.' + auth.uid).role，而不是 get('database.user_roles.${auth.uid}').role。对于 CMS 文章这类需要 app-level admin override 的规则，请优先使用已验证的 user_roles + doc.authorId 模式。",
+      "推荐统一写成 ``get(`database.user_roles.${auth.uid}`).role == 'admin'``。真正会被拒绝的不是 ${...}，而是另外两种写法：不含 ${...} 的裸引号字面量（如 get('database.admin_locks.article_lock')，请求时会返回 500），以及用 + 拼接的 get(`database.user_roles.${auth.uid}`)（保存规则时判 rule invalid）。对于 CMS 文章这类需要 app-level admin override 的规则，请优先使用 user_roles + doc.authorId 模式。",
     bucketMissing: "存储 Bucket {bucket} 不存在",
     bucketsMissing: "以下存储 Bucket 不存在: {buckets}",
     paramRequired: "action={action} 时必须提供 {param}",
@@ -126,9 +126,9 @@ export const permissions = defineModule(
       "Underlying error: {message}",
     mustBeArray: "{label} must be an array",
     roleLookupNote:
-      "If you need app-level admin override (e.g. in a CMS, admins can edit all articles while editors can only edit their own), a CUSTOM rule is usually required. A verified pattern is: make the role collection's document primary key auth.uid itself, and in the article permission write get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid. If the existing schema already has users / profiles / user_roles, reuse the one that exists and can be fetched directly via _id == auth.uid with get(); do not mistakenly write the collection obtained by a where({ uid }) query as get('database.users.' + auth.uid).",
+      "If you need app-level admin override (e.g. in a CMS, admins can edit all articles while editors can only edit their own), a CUSTOM rule is usually required. A verified pattern is: make the role collection's document primary key auth.uid itself, and in the article permission write get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid. If the existing schema already has users / profiles / user_roles, reuse the one that exists and can be fetched directly via _id == auth.uid with get(); do not mistakenly write the collection obtained by a where({ uid }) query as get(`database.users.${auth.uid}`).",
     recommendedClientWritePattern:
-      "For CMS articles using CUSTOM rules with app-level admin override, the frontend can keep using db.collection('{resourceId}').doc(id).update(...) / remove(...). The key is that the security rule uses the verified pattern: get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid, and the article document must actually contain the authorId field.",
+      "For CMS articles using CUSTOM rules with app-level admin override, the frontend can keep using db.collection('{resourceId}').doc(id).update(...) / remove(...). The key is that the security rule uses the verified pattern: get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid, and the article document must actually contain the authorId field.",
     createRuleSummary: "The create rule should not reference doc.*, because the document does not exist yet at create time.",
     createRuleDetail:
       "CloudBase's create rule validates the written data (request.data); the document does not exist yet, so doc.* is unavailable. " +
@@ -137,13 +137,13 @@ export const permissions = defineModule(
       "read / update / delete rules may use doc.* to reference existing document fields, and the client's query conditions must be a subset of the rule constraints (e.g. _openid: '{openid}').",
     docIdWriteSummary: "The current security rule may be rejected by the backend in document-id write scenarios.",
     docIdWriteDetail:
-      "Such rules are often written incorrectly in owner-only collections, but for the CMS article scenario where \"admins can edit all articles and editors can only edit their own\", the verified approach is to keep doc.authorId and do admin override through a separate role collection: get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid. Do not default to where(...), and do not rewrite the same-collection owner check as get('database.collection.' + doc._id).",
+      "Such rules are often written incorrectly in owner-only collections, but for the CMS article scenario where \"admins can edit all articles and editors can only edit their own\", the verified approach is to keep doc.authorId and do admin override through a separate role collection: get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid. Do not default to where(...), and do not rewrite the same-collection owner check as ``get(`database.collection.${doc._id}`)``.",
     invalidGetPathSummary: "The get() path should only contain the collection and documentId; do not concatenate field names into the path string.",
     invalidGetPathDetail:
-      "Write get('database.collection.' + doc._id).fieldName instead of get('database.collection.' + doc._id + '.fieldName'). However, for CMS article permissions, do not treat get('database.collection.' + doc._id) as the default first choice; the more robust verified pattern is reading a separate role collection: get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid.",
-    templateLiteralSummary: "CloudBase security rule expressions do not support ${...} as JS template string interpolation.",
+      "Write ``get(`database.collection.${doc._id}`).fieldName`` instead of embedding the field name in the path. Security rule expressions do not support concatenating the get() path with +: a rule such as get('database.collection.' + doc._id) is rejected with rule invalid when the rule is saved, so use a backtick template literal. However, for CMS article permissions, do not treat a same-collection document as the default first choice; the more robust pattern is reading a separate role collection: ``get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid``.",
+    templateLiteralSummary: "${...} inside a quoted string is understood by the engine, but the official form is a backtick template literal.",
     templateLiteralDetail:
-      "In the securityRule string, use expression concatenation, e.g. get('database.user_roles.' + auth.uid).role, instead of get('database.user_roles.${auth.uid}').role. For rules needing app-level admin override like CMS articles, prefer the verified user_roles + doc.authorId pattern.",
+      "Prefer ``get(`database.user_roles.${auth.uid}`).role == 'admin'``. What actually breaks is not ${...} but two other spellings: a bare quoted literal with no ${...} (e.g. get('database.admin_locks.article_lock'), which returns 500 at request time), and a concatenated path such as get(`database.user_roles.${auth.uid}`) (rejected with rule invalid when the rule is saved). For rules needing app-level admin override like CMS articles, prefer the user_roles + doc.authorId pattern.",
     bucketMissing: "Storage bucket {bucket} does not exist",
     bucketsMissing: "The following storage buckets do not exist: {buckets}",
     paramRequired: "{param} is required when action={action}",
