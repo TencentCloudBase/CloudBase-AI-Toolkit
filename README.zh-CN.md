@@ -365,7 +365,10 @@ Toolkit（含 MCP）开源，MIT。云开发环境有免费额度；超出后按
 
 ## 项目活跃度
 
-![Repo Activity](https://repobeats.axiom.co/api/embed/6cd6ed00da4384e43b24805c197f584626946dda.svg "Repobeats analytics image")
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/TencentCloudBase/CloudBase-AI-Toolkit/main/scripts/assets/activity-card-dark.svg">
+  <img alt="仓库活跃度：52 周提交趋势、月度 npm 下载量与项目健康度" src="https://raw.githubusercontent.com/TencentCloudBase/CloudBase-AI-Toolkit/main/scripts/assets/activity-card-light.svg">
+</picture>
 
 ## Contributors
 
