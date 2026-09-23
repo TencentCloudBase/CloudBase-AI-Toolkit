@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-09-18 01:58:39
+最近更新时间：2026-09-23 03:34:38
 
 -   微信扫一扫 
 -   QQ
@@ -193,6 +193,9 @@ _我的收藏_
 | [RunSql](/document/api/876/127880) | 执行MySQL语句 | 100 |
 | [ExecutePGSql](/document/api/876/130469) | 在PostgreSQL数据库上执行SQL查询 | 20 |
 | [ModifyPGInstanceSpec](/document/api/876/137349) | 修改 PG 独享实例规格 | 20 |
+| [UpgradePGInstanceToDedicated](/document/api/876/138617) | 发起共享升级独享 | 20 |
+| [ResetPGAccountPassword](/document/api/876/138618) | 修改 PG 实例用户角色密码 | 20 |
+| [DescribeTaskResult](/document/api/876/138619) | 查看任务结果 | 20 |
 
 ## 云函数相关接口
 

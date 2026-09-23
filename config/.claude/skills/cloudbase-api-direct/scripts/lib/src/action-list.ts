@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 138
+ * Action 数量: 141
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -96,6 +96,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DescribeStaticStore',
   'DescribeTable',
   'DescribeTables',
+  'DescribeTaskResult',
   'DescribeUserList',
   'DescribeVersionDetail',
   'DestroyEnv',
@@ -132,6 +133,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'ReleaseGray',
   'RenewEnv',
   'RepairPGUserMigrationHistory',
+  'ResetPGAccountPassword',
   'RunCommands',
   'RunSql',
   'SearchClsLog',
@@ -145,6 +147,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'UpdateFunctionCode',
   'UpdateFunctionConfiguration',
   'UpdateTable',
+  'UpgradePGInstanceToDedicated',
   'VerifyHTTPServiceRoute',
 ];
 

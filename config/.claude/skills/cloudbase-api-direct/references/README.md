@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-09-22T07:43:03.399Z
+爬取时间: 2026-09-23T07:44:13.674Z
 
 ## 文档列表
 
@@ -116,6 +116,9 @@
 - [云开发 CloudBase 执行MySQL语句_腾讯云](./876-127880-云开发-CloudBase-执行MySQL语句_腾讯云.md)
 - [云开发 CloudBase 在PostgreSQL数据库上执行S](./876-130469-云开发-CloudBase-在PostgreSQL数据库上执行S.md)
 - [云开发 CloudBase 修改 PG 独享实例规格_腾讯云](./876-137349-云开发-CloudBase-修改-PG-独享实例规格_腾讯云.md)
+- [云开发 CloudBase 发起共享升级独享_腾讯云](./876-138617-云开发-CloudBase-发起共享升级独享_腾讯云.md)
+- [云开发 CloudBase 修改 PG 实例用户角色密码_腾讯云](./876-138618-云开发-CloudBase-修改-PG-实例用户角色密码_腾讯云.md)
+- [云开发 CloudBase 查看任务结果_腾讯云](./876-138619-云开发-CloudBase-查看任务结果_腾讯云.md)
 - [云开发 CloudBase 创建云函数_腾讯云](./876-137951-云开发-CloudBase-创建云函数_腾讯云.md)
 - [云开发 CloudBase 删除云函数_腾讯云](./876-137950-云开发-CloudBase-删除云函数_腾讯云.md)
 - [云开发 CloudBase 更新函数配置_腾讯云](./876-137946-云开发-CloudBase-更新函数配置_腾讯云.md)
