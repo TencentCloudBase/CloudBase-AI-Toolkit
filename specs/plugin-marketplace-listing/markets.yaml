@@ -119,6 +119,51 @@ markets:
       master Integrations still only connect-apps + kaggle-skill. Peer PRs #304/#306
       took ~5 weeks to merge; no ping this round.
 
+  # DeepSeek Harness community plugin directory (canonical; upstream deepseek-ai/awesome-dsh-plugin is 404).
+  # Submission is YAML-only under data/plugins/; README.md / README.zh.md are generated (do not dual-edit).
+  - id: awesome-dsh-plugin
+    product: DeepSeek Harness (DSH)
+    region: global
+    channel_type: community_plugin_directory
+    listing_statuses:
+      official_curated: not_applicable
+      community_directory: listed
+      self_marketplace: not_applicable
+      native_connector_or_builtin: not_applicable
+      open_plugin_spec: not_applicable
+      mcp_or_skill_registry: not_applicable
+      docs_only: listed
+    submit_url_or_process: |
+      Community main repo: awesome-dsh-plugin/awesome-dsh-plugin (not deepseek-ai/awesome-dsh-plugin — 404).
+      Add ONE file: data/plugins/<owner>__<repo>.yml (monorepo subpkg: owner__repo--path-segments.yml).
+      Do NOT edit README.md / README.zh.md by hand — sync-readme.yml regenerates after merge.
+      Requires dsh.bundle in package.json (+ cordis.patch.yml); dsh.client alone is rejected.
+      Status 2026-09-15: PR #5120 merged. Entry live in data/plugins + generated READMEs (category tools).
+    eligibility: public_github_pr_required
+    blockers: []
+    evidence_links:
+      - https://github.com/awesome-dsh-plugin/awesome-dsh-plugin
+      - https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5120
+      - https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/data/plugins/TencentCloudBase__CloudBase-AI-Toolkit--dsh-plugin.yml
+      - https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md
+      - https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/tree/main/dsh-plugin
+    local_evidence: []
+    submit_checklist:
+      - One YAML under data/plugins/ (no hand-edit of README)
+      - package.json declares dsh.bundle + cordis.patch.yml
+      - Accurate description (no superlatives); category tools
+      - Repo topic dsh-plugin; npm @cloudbase/dsh-plugin optional but recommended
+    recommended_install_path: dsh-plugin/README.md
+    priority_hint: listed
+    last_reviewed_at: "2026-09-23"
+    owner: cloudbase-ai-toolkit
+    notes: |
+      2026-09-08: README had no CloudBase at that time (an earlier submission attempt had expired on
+      approval timeout, not a content rejection).
+      2026-09-15: binggg PR #5120 merged — TencentCloudBase/CloudBase-AI-Toolkit#dsh-plugin listed.
+      2026-09-23: Confirmed listing — README L2319 + YAML both hit CloudBase; no open re-submit PR
+      needed. Upstream deepseek-ai/awesome-dsh-plugin remains 404.
+
   - id: cursor-marketplace
     product: Cursor
     region: global
