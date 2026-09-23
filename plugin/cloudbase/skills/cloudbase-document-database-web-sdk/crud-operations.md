@@ -138,7 +138,7 @@ console.log('Updated:', result.updated, 'document(s)');
 
 - Treat the update as successful only when `result.updated > 0`.
 - If the SDK returns a result object with fields such as `code` or `message`, surface that as an error instead of navigating as if the save succeeded.
-- For simple owner-only collections, be careful with `.doc(id).update()` when your rule depends on non-_id fields. But for CMS-style article collections that use the validated app-role pattern `get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid`, `.doc(id).update()` / `.doc(id).remove()` is an acceptable path.
+- For simple owner-only collections, be careful with `.doc(id).update()` when your rule depends on non-_id fields. But for CMS-style article collections that use the validated app-role pattern ``get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid``, `.doc(id).update()` / `.doc(id).remove()` is an acceptable path.
 
 ```javascript
 const result = await db.collection('posts')
@@ -197,12 +197,14 @@ CloudBase security rules can be tricky around document-ID writes. For many owner
 {
   "read": "auth.uid != null",
   "create": "auth.uid != null",
-  "update": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)",
-  "delete": "auth.uid != null && (get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid)"
+  "update": "auth.uid != null && (get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid)",
+  "delete": "auth.uid != null && (get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid)"
 }
 ```
 
 With that rule shape, `.doc(id).update()` / `.doc(id).remove()` is a validated implementation path for CMS-style article management.
+
+> **Prerequisite:** this shape resolves the caller's role document on **every** request, and a `get()` whose target document is missing fails the request with HTTP 500 rather than evaluating to `false`. So every caller must have a `user_roles` document. If the application cannot guarantee that, keep the role list in a single shared document and test array membership instead — see "get() Failure Mode" in `security-rules.md`.
 
 **Problematic rule for document-ID writes:**
 
@@ -239,7 +241,7 @@ await db.collection('posts')
   .update({ title: 'Updated Title' });
 ```
 
-Only use `get('database.user_roles.' + auth.uid)` or `get('database.users.' + auth.uid)` when that role collection's document `_id` is exactly the current `auth.uid`. If your users collection is queried by `where({ uid })`, then `get('database.users.' + auth.uid)` is not equivalent and will not resolve the same document. Do not treat `get('database.posts.' + doc._id)` as the default first-choice fix for owner writes.
+Only use ``get(`database.user_roles.${auth.uid}`)`` or ``get(`database.users.${auth.uid}`)`` when that role collection's document `_id` is exactly the current `auth.uid`. If your users collection is queried by `where({ uid })`, then ``get(`database.users.${auth.uid}`)`` is not equivalent and will not resolve the same document. Do not treat ``get(`database.posts.${doc._id}`)`` as the default first-choice fix for owner writes.
 
 ### Nested Field Updates (Important)
 

@@ -126,9 +126,10 @@ Important rules:
 3. **Respect security rules**
    - Collection rules can reject requests before data is read.
    - If the requirement is simple owner-only write access, `READONLY` can be enough.
-   - If the requirement is “app-level admin can edit/delete all, editor only own”, use a `CUSTOM` rule. A validated CMS pattern is `get('database.user_roles.' + auth.uid).role == 'admin' || doc.authorId == auth.uid`.
+   - If the requirement is “app-level admin can edit/delete all, editor only own”, use a `CUSTOM` rule. A validated CMS pattern is ``get(`database.user_roles.${auth.uid}`).role == 'admin' || doc.authorId == auth.uid``.
    - For that CMS pattern, frontend writes can stay on `.doc(id).update()` / `.doc(id).remove()`.
    - Reuse whichever role collection already exists and can be addressed by `_id == auth.uid`. In this CMS pattern, `user_roles` keyed by uid is acceptable.
+   - A `get()` whose target document is missing fails the request with HTTP 500 — it does not evaluate to `false`, and `||` does not skip it. If the app cannot guarantee a role document per user, keep the role list in one shared document and test ``auth.uid in get(`database.admin_registry.lock`).admins`` instead.
    - If the task fails with permission issues, inspect the rule model rather than assuming the query syntax is wrong.
 
 4. **Return user-friendly errors**
