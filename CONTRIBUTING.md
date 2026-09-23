@@ -212,6 +212,7 @@ CloudBase AI ToolKit 的对外 Skill（例如对外发布的 Skill 仓库、IDE 
    - `diff-compat-config.mjs` 现在采用分层校验：
      - machine configs：缺失 / 多出 / 内容变化都会阻断
      - text surfaces：缺失 / 多出会阻断，内容变化仅报告；如需清理后续报告，可再执行 `npm run update:compat-baseline`
+   - 版本声明（skill / guideline 入口的 `version:` 行）会进入派生产物，所以**改了版本就必须在同一变更里刷新 baseline**。这条由 CI 的 `check:compat-baseline-sync` 拦截；跑 `node scripts/sync-skill-versions.mjs --version X.Y.Z` 会连带刷新，手改 frontmatter 时记得补 `npm run update:compat-baseline`。
 2. 如需将配置同步到外部模板 / 示例仓库，可使用：
    ```bash
    node scripts/sync-config.mjs

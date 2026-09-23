@@ -7,6 +7,7 @@ import {
   checkSkillVersions,
   isDirectCliInvocation,
   syncSkillVersions,
+  syncSkillVersionsAndBaseline,
   updateVersionInSkill,
 } from '../scripts/sync-skill-versions.mjs';
 
@@ -166,6 +167,42 @@ describe('sync skill versions', () => {
     );
 
     expect(checkSkillVersions({ rootDir }).version).toBe('9.9.9');
+  });
+
+  test('a bump refreshes the compat baseline in the same run', async () => {
+    const rootDir = makeTempRepo();
+    let refreshes = 0;
+
+    const result = await syncSkillVersionsAndBaseline({
+      rootDir,
+      version: '2.34.7',
+      refreshBaseline: async () => {
+        refreshes += 1;
+        return { baselineFile: '/tmp/compat-baseline.json', totalFiles: 2 };
+      },
+    });
+
+    expect(result.updatedFiles).toHaveLength(2);
+    expect(refreshes).toBe(1);
+    expect(result.baseline.totalFiles).toBe(2);
+  });
+
+  test('a no-op sync leaves the compat baseline untouched', async () => {
+    const rootDir = makeTempRepo();
+    let refreshes = 0;
+
+    const result = await syncSkillVersionsAndBaseline({
+      rootDir,
+      version: '1.0.0',
+      refreshBaseline: async () => {
+        refreshes += 1;
+        return { baselineFile: '/tmp/compat-baseline.json', totalFiles: 2 };
+      },
+    });
+
+    expect(result.updatedFiles).toHaveLength(0);
+    expect(result.baseline).toBeNull();
+    expect(refreshes).toBe(0);
   });
 
   test('release workflow documents the sync script after version bump', () => {
