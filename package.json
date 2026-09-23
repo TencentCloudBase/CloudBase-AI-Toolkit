@@ -10,6 +10,8 @@
     "check:compat-diff": "node scripts/diff-compat-config.mjs",
     "sync:claude-skills-mirror": "node scripts/sync-claude-skills-mirror.mjs",
     "check:claude-skills-mirror": "node scripts/sync-claude-skills-mirror.mjs --check",
+    "sync:skill-versions": "node scripts/sync-skill-versions.mjs",
+    "check:skill-versions": "node scripts/sync-skill-versions.mjs --check",
     "build:mcp": "cd mcp && npm run build && cd ..",
     "build": "npm run build:mcp && npm run build:tools-json && npm run build:tools-doc && npm run build:prompts-data && npm run build:rules-sync",
     "build:tools-json": "cd mcp && npm run build && cd .. && node scripts/generate-tools-json.mjs",
