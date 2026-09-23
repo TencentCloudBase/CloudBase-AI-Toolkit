@@ -8,9 +8,58 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, "..");
 const VERSION_LINE_RE = /^version:\s*.+$/m;
+const VERSION_VALUE_RE = /^version:\s*(.+?)\s*$/m;
 const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---(?=\r?\n|$)/;
+const SKILL_FILE_RE = /^skill\.md$/i;
 
-function collectSkillFiles(rootDir) {
+/**
+ * Skills ship with the published MCP package, so `mcp/package.json` is the
+ * authoritative version. The monorepo root `package.json` keeps its own version
+ * line and is only used as a fallback.
+ */
+function resolveVersion(rootDir, version) {
+  if (version) {
+    return version;
+  }
+
+  for (const relativePath of [path.join("mcp", "package.json"), "package.json"]) {
+    const packageFile = path.join(rootDir, relativePath);
+    if (!fs.existsSync(packageFile)) continue;
+    const parsed = JSON.parse(fs.readFileSync(packageFile, "utf8"));
+    if (parsed.version) {
+      return parsed.version;
+    }
+  }
+
+  throw new Error("Unable to determine release version for skill sync");
+}
+
+/**
+ * Recursively collect skill entrypoints.
+ * Matches `SKILL.md` / `skill.md` case-insensitively so nested skills such as
+ * `cloudbase-agent/{py,ts}/skill.md` are not silently skipped.
+ */
+function walkSkillFiles(dir, out) {
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walkSkillFiles(fullPath, out);
+      continue;
+    }
+    if (SKILL_FILE_RE.test(entry.name) && fs.existsSync(fullPath)) {
+      out.push(fullPath);
+    }
+  }
+}
+
+export function collectSkillFiles(rootDir = ROOT_DIR) {
   const files = [];
   const skillsDir = path.join(rootDir, "config", "source", "skills");
   const guidelineFile = path.join(
@@ -23,13 +72,7 @@ function collectSkillFiles(rootDir) {
   );
 
   if (fs.existsSync(skillsDir)) {
-    for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const skillFile = path.join(skillsDir, entry.name, "SKILL.md");
-      if (fs.existsSync(skillFile)) {
-        files.push(skillFile);
-      }
-    }
+    walkSkillFiles(skillsDir, files);
   }
 
   if (fs.existsSync(guidelineFile)) {
@@ -37,6 +80,11 @@ function collectSkillFiles(rootDir) {
   }
 
   return files;
+}
+
+function readVersion(raw) {
+  const match = raw.match(VERSION_VALUE_RE);
+  return match ? match[1] : null;
 }
 
 export function updateVersionInSkill(raw, version) {
@@ -58,14 +106,9 @@ export function updateVersionInSkill(raw, version) {
 }
 
 export function syncSkillVersions({ rootDir = ROOT_DIR, version } = {}) {
-  const resolvedVersion =
-    version || JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8")).version;
-
-  if (!resolvedVersion) {
-    throw new Error("Unable to determine release version for skill sync");
-  }
-
+  const resolvedVersion = resolveVersion(rootDir, version);
   const updatedFiles = [];
+
   for (const file of collectSkillFiles(rootDir)) {
     const before = fs.readFileSync(file, "utf8");
     const after = updateVersionInSkill(before, resolvedVersion);
@@ -76,6 +119,20 @@ export function syncSkillVersions({ rootDir = ROOT_DIR, version } = {}) {
   }
 
   return { version: resolvedVersion, updatedFiles };
+}
+
+export function checkSkillVersions({ rootDir = ROOT_DIR, version } = {}) {
+  const resolvedVersion = resolveVersion(rootDir, version);
+  const stale = [];
+
+  for (const file of collectSkillFiles(rootDir)) {
+    const current = readVersion(fs.readFileSync(file, "utf8"));
+    if (current !== resolvedVersion) {
+      stale.push({ file, current });
+    }
+  }
+
+  return { version: resolvedVersion, stale };
 }
 
 export function isDirectCliInvocation({
@@ -90,14 +147,37 @@ export function isDirectCliInvocation({
 }
 
 if (isDirectCliInvocation()) {
-  const argVersionIndex = process.argv.indexOf("--version");
+  const args = process.argv.slice(2);
+  const argVersionIndex = args.indexOf("--version");
   const cliVersion =
-    argVersionIndex >= 0 && process.argv[argVersionIndex + 1]
-      ? process.argv[argVersionIndex + 1]
+    argVersionIndex >= 0 && args[argVersionIndex + 1]
+      ? args[argVersionIndex + 1]
       : undefined;
+
+  if (args.includes("--check")) {
+    const { version, stale } = checkSkillVersions({ version: cliVersion });
+    if (stale.length === 0) {
+      console.log(`All skill versions match ${version}.`);
+      process.exit(0);
+    }
+
+    console.error(`Skill version drift detected (expected ${version}):`);
+    for (const { file, current } of stale) {
+      console.error(
+        `  ${path.relative(ROOT_DIR, file)} — ${current ?? "missing version field"}`,
+      );
+    }
+    console.error(
+      `\nFix with: node scripts/sync-skill-versions.mjs --version ${version}`,
+    );
+    process.exit(1);
+  }
 
   const result = syncSkillVersions({ version: cliVersion });
   console.log(
     `Synced skill versions to ${result.version} across ${result.updatedFiles.length} files.`,
   );
+  for (const file of result.updatedFiles) {
+    console.log(`  ${path.relative(ROOT_DIR, file)}`);
+  }
 }

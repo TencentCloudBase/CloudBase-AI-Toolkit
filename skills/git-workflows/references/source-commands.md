@@ -285,7 +285,8 @@ When user inputs `/version_publish_main`
 4. Return to repo root and sync all repo-managed CloudBase skill versions to the same release version:
    - `cd ..`
    - `node scripts/sync-skill-versions.mjs --version X.Y.Z`
-   - This updates `config/source/skills/*/SKILL.md` and `config/source/guideline/cloudbase/SKILL.md`
+   - This updates every skill entrypoint under `config/source/skills/` — recursively, matching `SKILL.md` or `skill.md`, including the root all-in-one `SKILL.md` and nested `cloudbase-agent/{py,ts}/skill.md` — plus `config/source/guideline/cloudbase/SKILL.md`.
+   - Verify with `npm run check:skill-versions` (adds `--check`); it lists every drifted file and exits non-zero. Run it whenever a release touches skills.
 5. After bump, commit the version change on `main` and push:
    - Example: `chore(release): bump version to vX.Y.Z`
    - `git push origin main`
