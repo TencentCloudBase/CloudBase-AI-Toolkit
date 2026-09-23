@@ -787,11 +787,19 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     EnvList?: Array<{ Storages?: EnvStorageInfo[] }>;
     EnvInfo?: { Storages?: EnvStorageInfo[] };
   };
+  type DescribeEnvInfoStorageResult = {
+    EnvInfo?: { EnvBaseInfo?: { Storages?: EnvStorageInfo[] } };
+  };
 
   /**
    * 解析当前环境的自有存储桶（DescribeEnvs → Storages[0]）。
    * 两段式部署的上传桶必须用环境自己的桶：共享 build 桶会被 SCF 拉
    * 代码时的 -appid 拼接判死（R1 探针实测）。无存储的环境直接报错引导。
+   *
+   * DescribeEnvs 是账号级动作，环境级凭据（如 API Key 换取的 STS，
+   * remote MCP 临时 API Key 即此类）调用会被网关拒绝（invalid token），
+   * 此时回退到环境级的 DescribeEnvInfo —— 其 EnvBaseInfo.Storages 与
+   * DescribeEnvs 的 Storages 同构（实测两者均含 Bucket/Region/Status）。
    */
   const resolveEnvFunctionCosStorage = async (): Promise<{
     bucket: string;
@@ -799,14 +807,31 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
   }> => {
     const cloudbase = await getManager();
     const envId = cloudBaseOptions?.envId ?? (await getEnvId(cloudBaseOptions));
-    const envsResult = (await cloudbase
-      .commonService("tcb", "2018-06-08")
-      .call({
-        Action: "DescribeEnvs",
+    const tcbService = cloudbase.commonService("tcb", "2018-06-08");
+    const fetchStorages = async (): Promise<EnvStorageInfo[]> => {
+      try {
+        const envsResult = (await tcbService.call({
+          Action: "DescribeEnvs",
+          Param: { EnvId: envId },
+        })) as DescribeEnvsStorageResult;
+        const storages: EnvStorageInfo[] =
+          envsResult?.EnvList?.[0]?.Storages ?? envsResult?.EnvInfo?.Storages ?? [];
+        if (storages.length > 0) {
+          return storages;
+        }
+      } catch (e) {
+        debug(
+          "resolveEnvFunctionCosStorage: DescribeEnvs failed, falling back to DescribeEnvInfo",
+          { envId, error: e instanceof Error ? e.message : String(e) },
+        );
+      }
+      const infoResult = (await tcbService.call({
+        Action: "DescribeEnvInfo",
         Param: { EnvId: envId },
-      })) as DescribeEnvsStorageResult;
-    const storages: EnvStorageInfo[] =
-      envsResult?.EnvList?.[0]?.Storages ?? envsResult?.EnvInfo?.Storages ?? [];
+      })) as DescribeEnvInfoStorageResult;
+      return infoResult?.EnvInfo?.EnvBaseInfo?.Storages ?? [];
+    };
+    const storages: EnvStorageInfo[] = await fetchStorages();
     const bucket = storages[0]?.Bucket ?? "";
     const region = storages[0]?.Region ?? "";
     if (!bucket || !region) {

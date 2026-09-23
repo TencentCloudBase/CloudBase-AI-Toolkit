@@ -1656,8 +1656,13 @@ describe("function zip two-phase deployment", () => {
       commonService: (service: string) => ({
         call: async (args: { Action: string }) => {
           expect(service).toBe("tcb");
-          expect(args.Action).toBe("DescribeEnvs");
-          return { EnvList: [{ Storages: storages }] };
+          // DescribeEnvs 是账号级动作（API Key 等环境级凭据会被拒），
+          // 真实现会回退到环境级 DescribeEnvInfo（EnvBaseInfo.Storages 同构）
+          if (args.Action === "DescribeEnvs") {
+            return { EnvList: [{ Storages: storages }] };
+          }
+          expect(args.Action).toBe("DescribeEnvInfo");
+          return { EnvInfo: { EnvBaseInfo: { Storages: storages } } };
         },
       }),
       currentEnvironment: () => ({
