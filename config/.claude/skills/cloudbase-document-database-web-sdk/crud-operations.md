@@ -204,6 +204,8 @@ CloudBase security rules can be tricky around document-ID writes. For many owner
 
 With that rule shape, `.doc(id).update()` / `.doc(id).remove()` is a validated implementation path for CMS-style article management.
 
+> **Prerequisite:** this shape resolves the caller's role document on **every** request, and a `get()` whose target document is missing fails the request with HTTP 500 rather than evaluating to `false`. So every caller must have a `user_roles` document. If the application cannot guarantee that, keep the role list in a single shared document and test array membership instead — see "get() Failure Mode" in `security-rules.md`.
+
 **Problematic rule for document-ID writes:**
 
 ```javascript

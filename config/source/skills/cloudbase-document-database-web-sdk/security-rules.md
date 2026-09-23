@@ -506,7 +506,7 @@ If this collection only needs simple owner-only writes, `READONLY` may be enough
 }
 ```
 
-For that CMS pattern, `.doc(id).update()` / `.doc(id).remove()` is a validated path, as long as article documents really store `authorId` and `user_roles` documents are keyed by `uid`.
+For that CMS pattern, `.doc(id).update()` / `.doc(id).remove()` is a validated path, as long as article documents really store `authorId` and `user_roles` documents are keyed by `uid`. It also requires that every caller actually has a `user_roles` document — see the failure mode below.
 
 **Associated Data Permissions:**
 ```json
@@ -515,10 +515,52 @@ For that CMS pattern, `.doc(id).update()` / `.doc(id).remove()` is a validated p
 }
 ```
 
+### get() Failure Mode: A Missing Target Document Fails the Request
+
+If a `get()` path points at a document that does **not exist**, the result is not `false` and not a permission denial — the request fails with HTTP 500 `SYS_ERR`. `get()` calls are resolved **eagerly**, before the expression is evaluated, so a `get()` sitting in a branch that logically would not be taken still runs. `||` does not short-circuit around it.
+
+That makes the natural "owner, or else look up the role" shape unsafe:
+
+```json
+{
+  "read": "doc.userId == auth.uid || get(`database.user_roles.${auth.uid}`).role == 'admin'"
+}
+```
+
+This rule fails for every caller who has no `user_roles` document — including callers reading their own rows, where the left side is already `true`. A per-user role collection therefore has to guarantee that every user has a document, or the collection goes down for the users who do not.
+
+**Preferred shape: one shared document, membership by array membership.**
+
+Keep the role list in a single document that always exists, and have the rule test array membership instead of fetching per user:
+
+```json
+{
+  "read": "auth.uid != null && (doc.userId == auth.uid || auth.uid in get(`database.admin_registry.lock`).admins)",
+  "update": "auth.uid != null && (doc.userId == auth.uid || auth.uid in get(`database.admin_registry.lock`).admins)",
+  "delete": "auth.uid != null && (doc.userId == auth.uid || auth.uid in get(`database.admin_registry.lock`).admins)"
+}
+```
+
+with a single document in `admin_registry`:
+
+```json
+{ "_id": "lock", "admins": ["uid-1", "uid-2"] }
+```
+
+As long as that one document exists, the rule cannot fail on a missing target, whichever user calls it. Create it when the collection is created, and never delete it.
+
+**Existence cannot be tested from a rule.** `get(x) != null` and `get(x) == null` are rejected (`INVALID_BINARY`) — the operands of `==` / `!=` must be an identifier or a member expression, not a function call. Attaching `!= null` to a field (`get(x).role != null`) parses, but does not help: by the time the engine reads that field, a missing document has already failed the request.
+
+**Checklist for every `get()` in a rule:** is the target document guaranteed to exist for every request?
+
+- Constant path (`` get(`database.admin_registry.lock`) ``) — safe once the document is seeded.
+- Interpolated path (`` get(`database.user_roles.${auth.uid}`) ``) — safe only if the application guarantees a document per user; otherwise use the shared-document shape above.
+
 **Usage Limitations:**
 
 > **Important:** When using the `get()` function, note the following limitations:
 - **Variable restrictions in get parameters**: Variables `doc` that exist in get parameters must appear in query conditions in `==` or `in` format. If using `in` format, only `in` with a single value is allowed, i.e., `doc.shopId in array, array.length == 1`
+- **Target document must exist**: a `get()` pointing at a missing document fails the request with HTTP 500 rather than evaluating to `false` (see the failure-mode section above)
 - Maximum 3 `get` functions per expression
 - Maximum access to 10 different documents
 - Maximum nesting depth of 2 levels (i.e., `get(get(path))`)
