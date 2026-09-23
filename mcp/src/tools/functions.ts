@@ -29,6 +29,10 @@ import {
   resolveEffectiveImageType,
 } from "./function-deploy-schema.js";
 import {
+  buildFunctionZipUpload,
+  stripAppIdSuffix,
+} from "./function-cos-upload.js";
+import {
   buildFunctionUpdatingPayload,
   getErrorMessage,
   isFunctionUpdatingError,
@@ -127,6 +131,7 @@ export const QUERY_FUNCTION_ACTIONS = [
   "getFunctionDeployStatus",
   "listVersionByFunction",
   "getFunctionAlias",
+  "getFunctionUploadUrl",
 ] as const;
 
 export const MANAGE_FUNCTION_ACTIONS = [
@@ -301,6 +306,16 @@ type ManageFunctionsInput = {
   aliasName?: string;
   functionVersion?: string;
   routingConfig?: FunctionRoutingConfig;
+  /**
+   * ZIP 两段式部署阶段 B：代码包已通过 queryFunctions getFunctionUploadUrl
+   * 上传到环境 COS 桶。传入后 createFunction/updateFunctionCode 不再读取
+   * 本地目录（functionRootPath / zipFile 均不需要）。
+   */
+  code?: {
+    cosBucketName: string;
+    cosObjectName: string;
+    cosBucketRegion?: string;
+  };
 };
 
 /** 环境变量脱敏后的占位值（不保留任何明文片段）。 */
@@ -453,6 +468,26 @@ const MANAGE_LAYER_SCHEMA = z.object({
   layerName: z.string().describe("functions.schema.manageLayer.name"),
   layerVersion: z.number().describe("functions.schema.manageLayer.version"),
 });
+
+/**
+ * ZIP 两段式部署阶段 B 的 code 入参（camelCase，映射为 SDK 的 PascalCase code 三元组）。
+ * 三件套均来自 queryFunctions getFunctionUploadUrl 的返回体，原样透传即可。
+ * strict：拼错字段名直接报错，而不是被静默丢弃后按本地目录语义执行。
+ */
+const FUNCTION_CODE_SCHEMA = z
+  .object({
+    cosBucketName: z
+      .string()
+      .describe("functions.schema.code.cosBucketName"),
+    cosObjectName: z
+      .string()
+      .describe("functions.schema.code.cosObjectName"),
+    cosBucketRegion: z
+      .string()
+      .optional()
+      .describe("functions.schema.code.cosBucketRegion"),
+  })
+  .strict();
 
 const FUNCTION_VERSION_WEIGHT_SCHEMA = z.object({
   Version: z.string().describe("functions.schema.routing.version"),
@@ -746,6 +781,40 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     }
   };
 
+  /** DescribeEnvs 里函数代码上传需要的存储桶信息。 */
+  type EnvStorageInfo = { Bucket?: string; Region?: string };
+  type DescribeEnvsStorageResult = {
+    EnvList?: Array<{ Storages?: EnvStorageInfo[] }>;
+    EnvInfo?: { Storages?: EnvStorageInfo[] };
+  };
+
+  /**
+   * 解析当前环境的自有存储桶（DescribeEnvs → Storages[0]）。
+   * 两段式部署的上传桶必须用环境自己的桶：共享 build 桶会被 SCF 拉
+   * 代码时的 -appid 拼接判死（R1 探针实测）。无存储的环境直接报错引导。
+   */
+  const resolveEnvFunctionCosStorage = async (): Promise<{
+    bucket: string;
+    region: string;
+  }> => {
+    const cloudbase = await getManager();
+    const envId = cloudBaseOptions?.envId ?? (await getEnvId(cloudBaseOptions));
+    const envsResult = (await cloudbase
+      .commonService("tcb", "2018-06-08")
+      .call({
+        Action: "DescribeEnvs",
+        Param: { EnvId: envId },
+      })) as DescribeEnvsStorageResult;
+    const storages: EnvStorageInfo[] =
+      envsResult?.EnvList?.[0]?.Storages ?? envsResult?.EnvInfo?.Storages ?? [];
+    const bucket = storages[0]?.Bucket ?? "";
+    const region = storages[0]?.Region ?? "";
+    if (!bucket || !region) {
+      throw new Error(t("functions.storageMissing"));
+    }
+    return { bucket, region };
+  };
+
   const ensureActionAllowedInCloudMode = (input: ManageFunctionsInput) => {
     if (!isCloudMode()) {
       return;
@@ -761,6 +830,11 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           (buildStrategy && buildStrategy !== "zip"),
       );
       if (hasImageDeploy) {
+        return;
+      }
+      // 两段式部署阶段 B：代码包已上传到环境 COS 桶，全程不依赖本地目录，
+      // 与镜像部署同属可在 cloud mode 下真实执行的路径。
+      if (Boolean(input.code)) {
         return;
       }
       throw new Error(
@@ -1307,6 +1381,50 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         ],
       );
     }
+    case "getFunctionUploadUrl": {
+      // ZIP 两段式部署阶段 A：环境自有存储桶 + 用户凭据本地铸 COS 预签名 PUT URL。
+      // functionName 可选，仅用于生成可读的对象 key。
+      const cloudbase = await getManager();
+      const authConfig = cloudbase.currentEnvironment().getAuthConfig();
+      if (!authConfig?.secretId || !authConfig?.secretKey) {
+        throw new Error(t("functions.credentialMissing"));
+      }
+      const storage = await resolveEnvFunctionCosStorage();
+      const upload = buildFunctionZipUpload({
+        storage,
+        credential: {
+          secretId: authConfig.secretId,
+          secretKey: authConfig.secretKey,
+          // 永久密钥时 token 为空串，转 undefined 才不签入 token 头
+          token: authConfig.token || undefined,
+        },
+        functionName: input.functionName,
+      });
+      // uploadUrl 内含凭据绑定的签名（临时凭据还绑定 token），禁止落日志
+      debug(
+        `[getFunctionUploadUrl] envId=${authConfig.envId ?? "n/a"}, cosObjectName=${upload.cosObjectName}, expiresIn=${upload.expiresInSeconds}s`,
+      );
+      return buildEnvelope(
+        {
+          action: input.action,
+          ...(input.functionName ? { functionName: input.functionName } : {}),
+          uploadUrl: upload.uploadUrl,
+          uploadHeaders: upload.uploadHeaders,
+          cosBucketName: upload.cosBucketName,
+          cosBucketRegion: upload.cosBucketRegion,
+          cosObjectName: upload.cosObjectName,
+          expiresInSeconds: upload.expiresInSeconds,
+        },
+        t("functions.gotUploadUrl", { seconds: upload.expiresInSeconds }),
+        [
+          {
+            tool: "manageFunctions",
+            action: "createFunction",
+            reason: t("functions.reason.cosCreate"),
+          },
+        ],
+      );
+    }
     default:
       throw new Error(t("functions.unsupportedAction", { action: input.action }));
     }
@@ -1642,6 +1760,75 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         );
       }
 
+      // code 入参（ZIP 两段式部署阶段 B）：代码包已由 getFunctionUploadUrl 上传到
+      // 环境 COS 桶，直接 deployMode=cos 提交，跳过本地目录 / 依赖安装逻辑。
+      if (input.code) {
+        const storage = await resolveEnvFunctionCosStorage();
+        const cosBucketName = stripAppIdSuffix(
+          input.code.cosBucketName || storage.bucket,
+        );
+        const cosBucketRegion = input.code.cosBucketRegion ?? storage.region;
+        const codeFunc: Record<string, unknown> = { ...func };
+        // 用户 zip 自带依赖语义（装没装由上传方决定），默认不触发云端依赖安装
+        delete (codeFunc as { installDependency?: unknown }).installDependency;
+        if (input.func?.installDependency !== undefined) {
+          codeFunc.installDependency = input.func.installDependency;
+        }
+        if (codeFunc.type !== "HTTP") {
+          codeFunc.runtime = resolveEventFunctionRuntime(codeFunc.runtime);
+        }
+
+        let cosCreateResult: unknown;
+        try {
+          cosCreateResult = await cloudbase.functions.createFunction({
+            func: codeFunc,
+            code: {
+              CosBucketName: cosBucketName,
+              CosBucketRegion: cosBucketRegion,
+              CosObjectName: input.code.cosObjectName,
+            },
+            deployMode: "cos",
+            force: Boolean(input.force),
+          } as any);
+        } catch (error) {
+          throw wrapFunctionOperationError(
+            "createFunction",
+            functionName,
+            undefined,
+            error,
+          );
+        }
+        logCloudBaseResult(server.logger, cosCreateResult);
+        return buildEnvelope(
+          {
+            action: input.action,
+            functionName,
+            deployMode: "cos",
+            cosBucketName,
+            cosBucketRegion,
+            cosObjectName: input.code.cosObjectName,
+            raw: cosCreateResult as Record<string, unknown>,
+          },
+          t("functions.cosCreatedMessage", { fnName: functionName }),
+          [
+            {
+              tool: "queryFunctions",
+              action: "getFunctionDetail",
+              reason: t("functions.reason.confirmConfig"),
+            },
+            ...(codeFunc.type === "HTTP"
+              ? [
+                  {
+                    tool: "manageGateway",
+                    action: "createRoute",
+                    reason: t("functions.reason.gatewayRouteForHttp"),
+                  },
+                ]
+              : []),
+          ],
+        );
+      }
+
       if (func.type !== "HTTP") {
         const originalRuntime = typeof func.runtime === "string" ? func.runtime : undefined;
         func.runtime = resolveEventFunctionRuntime(func.runtime);
@@ -1904,6 +2091,69 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
               tool: "queryFunctions",
               action: "getFunctionDetail",
               reason: t("functions.reason.imageUpdateReady"),
+            },
+          ],
+        );
+      }
+
+      // code 入参（ZIP 两段式部署阶段 B）：zip 已在环境 COS 桶，直接 deployMode=cos
+      // 更新代码包，跳过 functionRootPath / zipFile 本地语义。
+      if (input.code) {
+        const storage = await resolveEnvFunctionCosStorage();
+        const cosBucketName = stripAppIdSuffix(
+          input.code.cosBucketName || storage.bucket,
+        );
+        const cosBucketRegion = input.code.cosBucketRegion ?? storage.region;
+        let cosUpdateResult: unknown;
+        try {
+          cosUpdateResult = await cloudbase.functions.updateFunctionCode({
+            func: {
+              name: input.functionName,
+              // 与 create 的 code 分支一致：默认不触发云端依赖安装，显式传参才覆盖
+              ...(input.func?.installDependency !== undefined
+                ? { installDependency: input.func.installDependency }
+                : {}),
+              ...(input.handler ? { handler: input.handler } : {}),
+            },
+            code: {
+              CosBucketName: cosBucketName,
+              CosBucketRegion: cosBucketRegion,
+              CosObjectName: input.code.cosObjectName,
+            },
+            deployMode: "cos",
+          } as any);
+        } catch (error) {
+          if (isFunctionUpdatingError(error)) {
+            return buildFunctionUpdatingPayload({
+              action: "updateFunctionCode",
+              functionName: input.functionName,
+              rawMessage: getErrorMessage(error),
+            });
+          }
+          throw wrapFunctionOperationError(
+            "updateFunctionCode",
+            input.functionName,
+            undefined,
+            error,
+          );
+        }
+        logCloudBaseResult(server.logger, cosUpdateResult);
+        return buildEnvelope(
+          {
+            action: input.action,
+            functionName: input.functionName,
+            deployMode: "cos",
+            cosBucketName,
+            cosBucketRegion,
+            cosObjectName: input.code.cosObjectName,
+            raw: cosUpdateResult as Record<string, unknown>,
+          },
+          t("functions.cosUpdatedMessage", { fnName: input.functionName }),
+          [
+            {
+              tool: "queryFunctions",
+              action: "getFunctionDetail",
+              reason: t("functions.reason.confirmConfig"),
             },
           ],
         );
@@ -2585,6 +2835,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           .optional()
           .describe("functions.schema.manage.functionName"),
         zipFile: z.string().optional().describe("functions.schema.manage.zipFile"),
+        code: FUNCTION_CODE_SCHEMA.optional().describe("functions.schema.manage.code"),
         handler: z.string().optional().describe("functions.schema.manage.handler"),
         timeout: z.number().optional().describe("functions.schema.manage.timeout"),
         envVariables: z
