@@ -47,7 +47,9 @@ Full-import users get both registered automatically. On-demand imports must regi
 
 ```js
 const realtime = app.realtime();
-const channel = realtime.channel("room:42", { config: { private: true } });
+const channel = realtime.channel("room:42", {
+  config: { private: true, presence: { key: currentUserId } },
+});
 
 channel
   .on("broadcast", { event: "move" }, (payload) => { /* ... */ })
@@ -64,6 +66,7 @@ Rules that the SDK does not enforce for you:
 
 - **Bind `presence` and `postgres_changes` listeners before `subscribe()`.** Broadcast handlers may be added later; these two may not.
 - `send()` / `track()` are only valid after `SUBSCRIBED`.
+- `config.presence.key` is the **connection identity**, not a payload field: `presenceState()` groups tracked state by it. Two clients sharing one key collapse into a single entry, so the online count comes out wrong with no error raised. Use a stable per-user value — the logged-in user id — never a hard-coded constant such as `"user-1"`, and never a random value, which makes one user show up as many.
 - Always clean up, or you leak connections: `await channel.unsubscribe()` then `await realtime.removeChannel(channel)`. Use `realtime.removeAllChannels()` to tear everything down.
 - The same `app` instance reuses one realtime client.
 - Node.js needs the optional `ws` dependency. WeChat mini programs must use `app.realtime()` — never `new RealtimeClient()` — and need a base library supporting `wx.connectSocket`.
