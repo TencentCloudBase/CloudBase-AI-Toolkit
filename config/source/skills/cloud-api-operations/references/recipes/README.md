@@ -14,7 +14,8 @@
 | --- | --- | --- | --- |
 | 1 | PostgreSQL 存储空间使用率告警 | [pg-storage-alarm.md](./pg-storage-alarm.md) | ✅ 生产实证（2026-09-08） |
 | 2 | ICP 备案提交前自查与等待期查询 | [icp-filing-readiness.md](./icp-filing-readiness.md) | ✅ 生产实证（2026-09-21） |
-| 3 | PostgreSQL 实例变配、升级独享与账号密码 | [pg-instance-spec-and-password.md](./pg-instance-spec-and-password.md) | 🟡 文档核对，未实跑 |
+| 3 | PostgreSQL 实例变配、升级独享与账号密码 | [pg-instance-spec-and-password.md](./pg-instance-spec-and-password.md) | ✅ 生产实证（2026-09-24） |
+| 4 | 自定义域名接入云开发 | [custom-domain.md](./custom-domain.md) | ✅ 生产实证（2026-09-24） |
 
 ## 没有独立 recipe 的场景
 
