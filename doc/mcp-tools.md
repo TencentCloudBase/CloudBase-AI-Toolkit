@@ -1106,12 +1106,12 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
       name: "action",
       type: "string",
       required: true,
-      description: `只读操作类型： - \`listFunctions\`: 列出所有 CloudBase 云函数 - \`getFunctionDetail\`: 获取 CloudBase 云函数详情（需要 functionName） - \`listFunctionLogs\`: 查询 CloudBase 云函数执行日志（需要 functionName） - \`getFunctionLogDetail\`: 获取日志详情（需要 requestId） - \`listFunctionLayers\`: 列出函数绑定的层 - \`listLayers\`: 列出所有层（账号级视图，含其他环境创建的层） - \`listLayerVersions\`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图） - \`getLayerVersionDetail\`: 获取层版本详情（账号级视图） - \`listFunctionTriggers\`: 列出函数触发器（用于查看定时任务 / cron / timer 配置） - \`getFunctionDownloadUrl\`: 获取函数代码下载地址 - \`getFunctionDeployStatus\`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。 - \`listVersionByFunction\`: 列出函数已发布版本（对齐 tcb fn list-function-versions / SDK listVersionByFunction；需要 functionName） - \`getFunctionAlias\`: 查询函数别名与流量路由（对齐 tcb fn get-route / SDK getFunctionAlias；需要 functionName；aliasName 默认 $DEFAULT） 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl", "getFunctionDeployStatus", "listVersionByFunction", "getFunctionAlias"`,
+      description: `只读操作类型： - \`listFunctions\`: 列出所有 CloudBase 云函数 - \`getFunctionDetail\`: 获取 CloudBase 云函数详情（需要 functionName） - \`listFunctionLogs\`: 查询 CloudBase 云函数执行日志（需要 functionName） - \`getFunctionLogDetail\`: 获取日志详情（需要 requestId） - \`listFunctionLayers\`: 列出函数绑定的层 - \`listLayers\`: 列出所有层（账号级视图，含其他环境创建的层） - \`listLayerVersions\`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图） - \`getLayerVersionDetail\`: 获取层版本详情（账号级视图） - \`listFunctionTriggers\`: 列出函数触发器（用于查看定时任务 / cron / timer 配置） - \`getFunctionDownloadUrl\`: 获取函数代码下载地址 - \`getFunctionDeployStatus\`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。 - \`listVersionByFunction\`: 列出函数已发布版本（对齐 tcb fn list-function-versions / SDK listVersionByFunction；需要 functionName） - \`getFunctionAlias\`: 查询函数别名与流量路由（对齐 tcb fn get-route / SDK getFunctionAlias；需要 functionName；aliasName 默认 $DEFAULT） - \`getFunctionUploadUrl\`: 获取函数代码包的 COS 预签名上传地址（ZIP 两段式部署阶段 A）：PUT 代码 zip 到 uploadUrl（uploadHeaders 非空时须随请求携带对应请求头），再调用 manageFunctions 的 createFunction/updateFunctionCode 并传 code 三元组（阶段 B）。functionName 可选，仅用于生成上传对象 key。返回的 uploadUrl 含凭据签名，不得写入日志或持久化 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl", "getFunctionDeployStatus", "listVersionByFunction", "getFunctionAlias", "getFunctionUploadUrl"`,
     },
     {
       name: "functionName",
       type: "string",
-      description: `CloudBase 云函数名称。\`getFunctionDetail\`、\`listFunctionLogs\`、\`listFunctionLayers\`、\`listFunctionTriggers\`、\`getFunctionDownloadUrl\`、\`listVersionByFunction\`、\`getFunctionAlias\` 时必填`,
+      description: `CloudBase 云函数名称。\`getFunctionDetail\`、\`listFunctionLogs\`、\`listFunctionLayers\`、\`listFunctionTriggers\`、\`getFunctionDownloadUrl\`、\`listVersionByFunction\`、\`getFunctionAlias\` 时必填；\`getFunctionUploadUrl\` 可选（仅用于生成上传对象 key）`,
     },
     {
       name: "limit",
@@ -1526,6 +1526,30 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
       name: "zipFile",
       type: "string",
       description: `仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。`,
+    },
+    {
+      name: "code",
+      type: "object",
+      description: `ZIP 两段式部署阶段 B：代码包已通过 queryFunctions action=getFunctionUploadUrl 上传到环境 COS 桶。三元组（cosBucketName/cosObjectName/cosBucketRegion）直接使用 getFunctionUploadUrl 返回值原样透传。传入 code 后 createFunction/updateFunctionCode 不再读取本地目录（functionRootPath/zipFile 均不需要），默认不触发云端依赖安装（可用 func.installDependency 覆盖）。`,
+      children: [
+        {
+          name: "cosBucketName",
+          type: "string",
+          required: true,
+          description: `环境存储桶短名（不含 -appid 后缀），直接使用 getFunctionUploadUrl 返回的 cosBucketName，不要自填`,
+        },
+        {
+          name: "cosObjectName",
+          type: "string",
+          required: true,
+          description: `上传对象 key，直接使用 getFunctionUploadUrl 返回的 cosObjectName`,
+        },
+        {
+          name: "cosBucketRegion",
+          type: "string",
+          description: `存储桶地域，省略时自动使用当前环境存储桶地域`,
+        }
+      ],
     },
     {
       name: "handler",
@@ -2146,7 +2170,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 
       返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。
 
-      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 31 个，API 共 8 个）。
+      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 32 个，API 共 8 个）。
 
       注意：OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。
 
@@ -2163,7 +2187,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "skillName",
       type: "string",
-      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-best-practices-cloudbase", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
+      description: `mode=skill 时指定。技能名称。 可填写的值: "skills", "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-best-practices-cloudbase", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
     },
     {
       name: "apiName",

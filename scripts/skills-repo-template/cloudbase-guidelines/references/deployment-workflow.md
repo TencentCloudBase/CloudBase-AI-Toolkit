@@ -27,9 +27,12 @@ When users request deployment to CloudBase:
 
 - After backend deployment completes, update frontend API endpoints using the returned API addresses
 - Build the frontend application
-- **Determine whether this is a new or existing project**:
-  - **New project (first-time deployment)**: Use `manageApps(action="createApp", ...)` to deploy to an independent subdomain. Each app gets its own `*.webapps.tcloudbase.com` subdomain — no path collisions between projects. If MCP is unavailable, read `cloudbase-cli` → `hosting.md` (build locally, then hosting deploy). Do **not** use `tcb deploy`.
-  - **Existing project (re-deployment)**: Use `manageApps(action="updateApp", ...)` to update the existing app. If the original project was deployed via `manageHosting` (shared domain path), continue using `manageHosting` for consistency. CLI parity: hosting / app commands in `cloudbase-cli`.
+- **Determine which deployment path the project is on**:
+  - `manageApps` has exactly four actions: `deployApp`, `getUploadUrl`, `deleteApp`, `deleteAppVersion`. There is **no** `createApp` and no `updateApp` — first deploy and re-deploy both go through `deployApp`.
+  - **New app (first-time deployment)**: `manageApps(action="deployApp", serviceName="<new-app-name>", filePath="<project-root>")`. Each `serviceName` gets its own `*.webapps.tcloudbase.com` subdomain — no path collisions between projects. In cloud mode (no local filesystem) `filePath` is replaced by `cosTimestamp` from `manageApps(action="getUploadUrl")`. If MCP is unavailable, read `cloudbase-cli` → `hosting.md` (build locally, then hosting deploy). Do **not** use `tcb deploy`.
+  - **Existing app (re-deployment)**: reuse the **same** `serviceName`. `deployApp` adds a new deployment version and rebuilds — it does not delete and recreate the app. Poll `queryApps(action="getAppVersion")` and take the URL from the returned `accessUrl` / `app.Domain`; do not assemble the domain yourself.
+  - **Project deployed via `manageHosting`** (shared environment domain path `<envId>-<appId>.tcloudbaseapp.com/<path>`): continue using `manageHosting` for consistency — switching to `manageApps` produces a new URL and breaks the old one. `queryHosting` tells you which path a project is on. CLI parity: hosting / app commands in `cloudbase-cli`.
+  - **Both URL shapes are default domains.** The shared environment domain and the independent `*.webapps.tcloudbase.com` subdomain both show the "default domain is for development and testing only" notice page until a custom domain is bound. The independent subdomain does **not** skip that page — do not present it as the better experience on that ground.
 - After uploading via MCP, call `setWebsiteDocument` to configure SPA routing — set both `indexDocument` and `errorDocument` to `"index.html"`.
 - If `manageApps` fails persistently, fall back to `manageHosting` (or CLI hosting). Remind the user the URL will share the env domain path and CDN has a few minutes of cache.
 

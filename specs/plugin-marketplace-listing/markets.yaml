@@ -688,22 +688,29 @@ markets:
       organization upload SKILL.md or a ZIP and publish it to its own members after an admin review, and the
       enterprise AI asset console manages skills, connectors and expert kits.
       Status 2026-09-15: CloudBase absent from the market; self-serve custom connector works today.
+      Status 2026-09-24: unchanged. Third-party entries reach the public catalog through vendor onboarding —
+      CamScanner (合合信息) listed a skill and a connector together on 2026-09-22 — not through a portal form.
     eligibility: partner_outreach_required
     blockers:
       - No public connector submission form; market entries are onboarded with the vendor
       - CloudBase not present in the 连接器 market yet
+      - The public catalog carries platform-curated resources only; the Extensions FAQ states that individual
+        users cannot publish custom skills to the public marketplace
     evidence_links:
       - https://help.aliyun.com/zh/qwenwork/qw-connectors
       - https://help.aliyun.com/zh/qwenwork/skills
       - https://help.aliyun.com/zh/qwenwork/skills-management
       - https://help.aliyun.com/zh/qwenwork/enterprise-ultimate-ai-assets/
+      - https://help.aliyun.com/zh/qwenwork/expert-kit
+      - https://www.alibabacloud.com/help/en/qwenwork/qwenwork-extensions
+      - https://www.cnfin.com/gs-lb/detail/20260922/4473408_1.html
     local_evidence: []
     submit_checklist:
       - Confirm connector onboarding terms with the QwenWork partner team
       - Add a QwenWork section to doc/ide-setup once the config path is written up
     recommended_install_path: null
     priority_hint: needs_partner_outreach
-    last_reviewed_at: "2026-09-15"
+    last_reviewed_at: "2026-09-24"
     owner: cloudbase-ai-toolkit
     notes: |
       Alibaba's 千问办公 workspace is the consolidated product that went to public beta on 2026-08-03 and folds
@@ -715,6 +722,98 @@ markets:
       already lists Supabase / Vercel / Neon, which are the closest peers of CloudBase.
       No public form for a third-party vendor to enter the public 连接器 market or Skill 广场 was found; the
       documented self-serve paths are organization-scoped only.
+      2026-09-24 re-review: unchanged. The vendor partner tier is the only route seen — CamScanner listed a skill
+      and a connector together on 2026-09-22. The vendor also runs a three-track partner program
+      (delivery / co-build R&D / reseller) and a public ambassador program; neither publishes a marketplace
+      submission form. The plugin equivalent here is 专家套件 (Expert Kit): a ZIP whose manifest may live at
+      .qwen-plugin/plugin.json or .claude-plugin/plugin.json with name required, so the existing repo plugin
+      package is uploadable as-is for local install. A separate Alibaba platform, 千问开放平台, is tracked below.
+
+  - id: qwen-open-platform
+    product: Qwen Open Platform (千问开放平台)
+    region: cn
+    channel_type: skill_registry
+    listing_statuses:
+      official_curated: submittable
+      community_directory: not_applicable
+      self_marketplace: not_applicable
+      native_connector_or_builtin: not_applicable
+      open_plugin_spec: not_applicable
+      mcp_or_skill_registry: unknown
+      docs_only: listed
+    submit_url_or_process: |
+      Distinct from QwenWork: this onboards third-party services into the Qwen assistant app
+      (mobile / PC / AI glasses). Entry point is https://open.qianwen.com/ with a 申请入驻 button.
+      Two tracks — AI 智能体接入 (live, marked recommended: a brand agent in its own conversation space, with
+      account / AI payment / order infrastructure, front-end components and end-to-end debugging provided) and
+      Skill 接入 (marked 即将开放 / 敬请期待, i.e. not submittable yet). agent.flow, an enterprise knowledge
+      base and MCP services are listed as platform capabilities.
+      Status 2026-09-24: intent form plus review; no in-product submission path reviewed.
+    eligibility: public_self_serve_submission
+    blockers:
+      - Skill 接入 is marked 即将开放, so a skill package cannot be submitted yet
+      - The live track onboards brand agents, not a distributable skill or connector package
+    evidence_links:
+      - https://open.qianwen.com/
+      - https://baike.baidu.com/item/千问开放平台/68538985
+      - https://www.cinn.cn/xf/2026/08-10/gD7OpAqD.html
+    local_evidence: []
+    submit_checklist:
+      - Decide whether an assistant-app entry point is wanted; if so submit the 申请入驻 form
+      - Re-check whether Skill 接入 has opened before packaging a skill for it
+    recommended_install_path: null
+    priority_hint: null
+    last_reviewed_at: "2026-09-24"
+    owner: cloudbase-ai-toolkit
+    notes: |
+      Frequently confused with QwenWork: QwenWork is the office-agent workspace, while this platform belongs to
+      the assistant app and lists consumer brands from logistics, housing, local services and finance as its
+      partner set. Launched 2026-08-10; 200+ partners applied within four days; finance agents landed 2026-09-07.
+
+  - id: aliyun-marketplace-bailian-plugins
+    product: Alibaba Cloud Marketplace → Model Studio (百炼) plugin plaza
+    region: cn
+    channel_type: official_curated_marketplace
+    listing_statuses:
+      official_curated: submittable
+      community_directory: not_applicable
+      self_marketplace: not_applicable
+      native_connector_or_builtin: not_applicable
+      open_plugin_spec: not_applicable
+      mcp_or_skill_registry: submittable
+      docs_only: listed
+    submit_url_or_process: |
+      A documented self-serve route onto an official Alibaba Cloud recommendation surface. Prerequisites: the
+      API is already published on Alibaba Cloud API Gateway, and an API product is live (status 已上架) on the
+      Marketplace under the 数据与API category. Then, on the Data Exchange platform, select the published API and
+      choose 插件输出 — the API group is converted to OAS 3.0 (one group becomes one plugin), the result enters
+      插件审核, and once approved it is synced automatically into the Model Studio (百炼) official plugin plaza
+      and the add-plugin recommendation area.
+      Status 2026-09-24: not attempted. Recorded as the only self-serve, review-based public listing flow found
+      in the Alibaba stack.
+    eligibility: public_self_serve_submission
+    blockers:
+      - Needs Alibaba Cloud Marketplace supplier onboarding, which is a company-level commitment
+        (business licence ≥ 1 year, registered capital ≥ ¥1,000,000 for 数据与API, 5x8 support, deposit)
+      - Targets Model Studio agent plugins rather than AI coding clients, so it is a different surface from the
+        MCP / plugin listings elsewhere in this matrix
+    evidence_links:
+      - https://help.aliyun.com/document_detail/2866083.html
+      - https://help.aliyun.com/zh/marketplace/cloud-market-category-qualification
+      - https://developer.aliyun.com/article/1483445
+    local_evidence: []
+    submit_checklist:
+      - Decide whether a Model Studio plugin listing justifies Marketplace supplier onboarding
+      - If yes: publish the API on API Gateway, list the API product, then run 插件输出 on Data Exchange
+      - Adjacent lower-commitment route: the 通义大模型合作计划 application (covers 插件中心 / 应用广场)
+    recommended_install_path: null
+    priority_hint: unknown
+    last_reviewed_at: "2026-09-24"
+    owner: cloudbase-ai-toolkit
+    notes: |
+      Recorded because it is the one Alibaba-side channel with a documented self-serve submission form that does
+      not require partner outreach first. The 通义大模型合作计划 runs submit intent → qualification review →
+      framework agreement → implementation and explicitly covers 插件中心 / 应用广场 integration.
 
   - id: doubao-work-connector
     product: Doubao Work (豆包工作)
@@ -1121,6 +1220,10 @@ markets:
       Publish via mcp-publisher CLI to registry.modelcontextprotocol.io; aggregators may ingest afterward.
       Status 2026-08-17: listed as io.github.TencentCloudBase/cloudbase-mcp v2.27.0 (hosted remotes).
       npm packages[] will attach on the next npm release after mcpName ships in @cloudbase/cloudbase-mcp.
+      Status 2026-09-24: registry now carries every release up to v2.34.6, with both hosted remotes
+      (domestic + international) and the npm package records attached. Publishing is fully automated in
+      .github/workflows/npm-publish.yaml: sync the server.json version, then mcp-publisher login github-oidc,
+      then publish (with retries while the npm package propagates).
     eligibility: mcp_publisher_cli
     blockers: []
     evidence_links:
@@ -1131,7 +1234,7 @@ markets:
     submit_checklist: []
     recommended_install_path: mcp/server.json
     priority_hint: listed
-    last_reviewed_at: "2026-08-17"
+    last_reviewed_at: "2026-09-24"
     owner: cloudbase-ai-toolkit
     notes: |
       2026-08-17: Published io.github.TencentCloudBase/cloudbase-mcp@2.27.0 via GitHub org admin auth.
@@ -1179,7 +1282,9 @@ markets:
       open_plugin_spec: not_applicable
       mcp_or_skill_registry: unknown
       docs_only: unknown
-    submit_url_or_process: Publish hosted HTTPS MCP or rely on registry ingest; see smithery.ai/new.
+    submit_url_or_process: |
+      Publish hosted HTTPS MCP or rely on registry ingest; see smithery.ai/new.
+      Status 2026-09-24: no CloudBase entry surfaced in a public search; presence not verified in-product.
     eligibility: hosted_http_mcp_or_registry
     blockers: []
     evidence_links:
@@ -1190,7 +1295,7 @@ markets:
       - Complete Smithery publish flow if needed
     recommended_install_path: null
     priority_hint: null
-    last_reviewed_at: "2026-07-27"
+    last_reviewed_at: "2026-09-24"
     owner: cloudbase-ai-toolkit
 
   - id: pulsemcp
@@ -1235,13 +1340,18 @@ markets:
     blockers: []
     evidence_links:
       - https://glama.ai/mcp/servers
-    local_evidence: []
-    submit_checklist:
-      - Public MCP server repo discoverable
+      - https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-MCP
+    local_evidence:
+      - mcp_registry_server_json
+    submit_checklist: []
     recommended_install_path: null
-    priority_hint: null
-    last_reviewed_at: "2026-07-27"
+    priority_hint: listed
+    last_reviewed_at: "2026-09-24"
     owner: cloudbase-ai-toolkit
+    notes: |
+      2026-09-24: Listing confirmed live. The server page renders the repo README, directory tree,
+      tool-schema changelog and the hosted endpoints, with maintainers claimed via glama.json.
+      No submission was required beyond having a public GitHub MCP repo.
 
   - id: mcp-so
     product: mcp.so

@@ -78,7 +78,7 @@ Overrides convenience. Full rationale lives in `{web-development}`.
 - **`ai.createModel(...)` / `wx.cloud.extend.AI.createModel(provider)` takes a GroupName**, not a vendor/model id. Legal: `"cloudbase"`, `"hunyuan-exp"`, or `"custom-<name>"`. Model ids go in `generateText` / `streamText` `model`. See `{ai-model-web}` / `{ai-model-nodejs}` / `{ai-model-wechat}`.
 - **PostgreSQL / CloudBase PG / `app.rdb()`** → `{postgresql-development}`; do not use NoSQL or MySQL MCP for that path.
 - **Web auth proof:** `auth.getSession()` with `data.session`. Do not use deprecated `getLoginState()` / `auth.getUser()` as login proof.
-- **First frontend deploy** of a new app: `manageApps(action="createApp", ...)`. `manageHosting` is only for incremental updates of hosting-origin projects.
+- **First frontend deploy** of a new app: `manageApps(action="deployApp", ...)` — the only deploy action (there is no `createApp` / `updateApp`; a re-deploy reuses the same `serviceName`). `manageHosting` is only for incremental updates of hosting-origin projects.
 
 ## High-priority routing table
 
@@ -123,7 +123,7 @@ Prefer CloudBase MCP for manage/deploy when tools are loaded in **this** session
 Full steps live in `{web-development}` / guideline `deployment-workflow` reference. Short form:
 
 1. Backend first when the frontend depends on it (`manageFunctions` / `manageCloudRun`).
-2. New static/Web apps: `manageApps` create/deploy path; do not silently switch an existing `manageHosting` site to a new URL shape.
+2. New static/Web apps: `manageApps(action="deployApp")` path; do not silently switch an existing `manageHosting` site to a new URL shape. Both shapes are default domains — both show the default-domain notice until a custom domain is bound.
 3. After deploy, give CDN-cache-aware URLs (random query) and update README with env resources.
 
 ## Console links

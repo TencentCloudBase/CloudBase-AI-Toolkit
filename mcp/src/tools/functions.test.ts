@@ -1636,3 +1636,174 @@ describe("functions tool helpers", () => {
     });
   });
 });
+
+/**
+ * 云函数 ZIP 两段式部署：阶段 A（getFunctionUploadUrl 预签名上传）与
+ * 阶段 B（code 三元组 → deployMode=cos）。真实上传链路已由 R1 探针在
+ * 真实环境验证，这里守住 MCP 侧的接线契约。
+ */
+describe("function zip two-phase deployment", () => {
+  let tools: ReturnType<typeof createMockServer>["tools"];
+  const originalSleep = functionUpdatingRuntime.sleep;
+
+  const mockManagerWith = (storages: unknown[]) => {
+    mockGetCloudBaseManager.mockResolvedValue({
+      functions: {
+        createFunction: mockCreateFunction,
+        updateFunctionCode: mockUpdateFunctionCode,
+        getFunctionDetail: mockGetFunctionDetail,
+      },
+      commonService: (service: string) => ({
+        call: async (args: { Action: string }) => {
+          expect(service).toBe("tcb");
+          // DescribeEnvs 是账号级动作（API Key 等环境级凭据会被拒），
+          // 真实现会回退到环境级 DescribeEnvInfo（EnvBaseInfo.Storages 同构）
+          if (args.Action === "DescribeEnvs") {
+            return { EnvList: [{ Storages: storages }] };
+          }
+          expect(args.Action).toBe("DescribeEnvInfo");
+          return { EnvInfo: { EnvBaseInfo: { Storages: storages } } };
+        },
+      }),
+      currentEnvironment: () => ({
+        getAuthConfig: () => ({
+          envId: "env-test",
+          // 非 AKID 前缀占位符，避免 GitHub Push Protection 误判为真实 SecretId
+          secretId: "FIXTURE_COS_SECRET_ID_PLACEHOLDER_000002",
+          secretKey: "FIXTURE_COS_SECRET_KEY_PLACEHOLDER_000002",
+          token: "two-phase-token",
+          proxy: "",
+          region: "ap-guangzhou",
+        }),
+      }),
+    });
+    return mockGetCloudBaseManager;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    functionUpdatingRuntime.sleep = async () => undefined;
+    mockIsCloudMode.mockReturnValue(false);
+    mockGetEnvId.mockResolvedValue("env-test");
+
+    ({ tools } = createMockServer());
+  });
+
+  afterEach(() => {
+    functionUpdatingRuntime.sleep = originalSleep;
+  });
+
+  it("getFunctionUploadUrl returns presigned URL, token headers, and stage-B triplet", async () => {
+    mockManagerWith([
+      { Bucket: "envtest-bucket-1258016615", Region: "ap-guangzhou" },
+    ]);
+
+    const result = await tools.queryFunctions.handler({
+      action: "getFunctionUploadUrl",
+      functionName: "helloWorld",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(payload.data.uploadUrl).toMatch(
+      /^https:\/\/envtest-bucket-1258016615\.cos\.ap-guangzhou\.myqcloud\.com\/fnzip-upload\/\d+-[0-9a-f]+\/helloWorld\.zip\?q-sign-algorithm=sha1&/,
+    );
+    // 阶段 B 直接回传的三元组：短桶名 + 地域 + 对象 key
+    expect(payload.data.cosBucketName).toBe("envtest-bucket");
+    expect(payload.data.cosBucketRegion).toBe("ap-guangzhou");
+    expect(payload.data.cosObjectName).toMatch(
+      /^fnzip-upload\/\d+-[0-9a-f]+\/helloWorld\.zip$/,
+    );
+    // CloudBase 临时凭据：token 头必须暴露给调用方（否则 PUT 会 InvalidAccessKeyId）
+    expect(payload.data.uploadHeaders).toEqual([
+      { Key: "x-cos-security-token", Value: "two-phase-token" },
+    ]);
+    // 引导语必须说清阶段 B 怎么走
+    expect(payload.message).toContain("manageFunctions");
+    expect(payload.message).toContain("code");
+  });
+
+  it("getFunctionUploadUrl errors with storage guidance when env has no bucket", async () => {
+    mockManagerWith([]);
+
+    const result = await tools.queryFunctions.handler({
+      action: "getFunctionUploadUrl",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("Storages");
+  });
+
+  it("code schema is strict and rejects unknown fields", () => {
+    const schema = tools.manageFunctions.meta.inputSchema.code;
+    const ok = schema.safeParse({
+      cosBucketName: "envtest-bucket",
+      cosObjectName: "fnzip-upload/1/x.zip",
+    });
+    expect(ok.success).toBe(true);
+    const bad = schema.safeParse({
+      cosBucketName: "envtest-bucket",
+      cosObjectName: "fnzip-upload/1/x.zip",
+      cosObjectKey: "typo-field",
+    });
+    expect(bad.success).toBe(false);
+  });
+
+  it("cloud mode does not block createFunction when code triplet is provided", async () => {
+    mockIsCloudMode.mockReturnValue(true);
+    mockManagerWith([
+      { Bucket: "envtest-bucket-1258016615", Region: "ap-guangzhou" },
+    ]);
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: { name: "zipDemo" },
+      code: {
+        cosBucketName: "envtest-bucket",
+        cosObjectName: "fnzip-upload/1/zipDemo.zip",
+      },
+      force: false,
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    // 关键：不能命中 cloudMode.localOnly
+    expect(payload.message).not.toContain("cloud mode");
+    expect(mockCreateFunction).toHaveBeenCalledTimes(1);
+    const args = mockCreateFunction.mock.calls[0][0];
+    expect(args.deployMode).toBe("cos");
+    expect(args.code).toEqual({
+      CosBucketName: "envtest-bucket",
+      CosBucketRegion: "ap-guangzhou",
+      CosObjectName: "fnzip-upload/1/zipDemo.zip",
+    });
+    expect(payload.data.deployMode).toBe("cos");
+  });
+
+  it("updateFunctionCode with code triplet passes deployMode=cos through", async () => {
+    mockManagerWith([
+      { Bucket: "envtest-bucket-1258016615", Region: "ap-guangzhou" },
+    ]);
+    mockGetFunctionDetail.mockResolvedValue({
+      Status: "Active",
+      Environment: { Variables: [] },
+    });
+
+    const result = await tools.manageFunctions.handler({
+      action: "updateFunctionCode",
+      functionName: "zipDemo",
+      code: {
+        cosBucketName: "envtest-bucket",
+        cosObjectName: "fnzip-upload/2/zipDemo.zip",
+      },
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(mockUpdateFunctionCode).toHaveBeenCalledTimes(1);
+    const args = mockUpdateFunctionCode.mock.calls[0][0];
+    expect(args.deployMode).toBe("cos");
+    expect(args.code.CosObjectName).toBe("fnzip-upload/2/zipDemo.zip");
+    expect(args.func.name).toBe("zipDemo");
+  });
+});

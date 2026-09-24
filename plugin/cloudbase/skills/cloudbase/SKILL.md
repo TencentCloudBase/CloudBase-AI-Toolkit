@@ -76,7 +76,7 @@ Follow relative `references/...` paths from the current skill. If MCP is unavail
 - When the environment identifier is an alias, nickname, or other short form, **do not pass it directly** to `auth.set_env`, SDK init, console URLs, or generated config. First resolve it to the canonical full `EnvId` with `queryEnv(action=list, alias=..., aliasExact=true)`. If multiple environments match or no exact alias exists, stop and clarify with the user.
 - When writing MCP/tool results to a file, pass serialized text (`JSON.stringify(result, null, 2)`), not raw objects. If a write tool says `content` expected a string but received an object, do not retry with the same raw object. Serialize the object first, then retry once with the serialized text, and make sure the retried call actually passes the serialized string rather than the original object.
 - Keep scenario-specific pitfalls in child skills — do not expand this entry file.
-- **First frontend deploy must use `manageApps(action="createApp", ...)`.** `manageHosting` is only for incremental updates of projects originally deployed via hosting.
+- **First frontend deploy must use `manageApps(action="deployApp", ...)`.** There is no `createApp` / `updateApp` action — first deploy and re-deploy both use `deployApp`, and a re-deploy reuses the same `serviceName`. `manageHosting` is only for incremental updates of projects originally deployed via hosting.
 
 ### Engineering constitution (applies to every scenario)
 
