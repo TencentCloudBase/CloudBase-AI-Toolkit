@@ -62,6 +62,17 @@
 
 环境还没有自定义域名时，步骤 1 只会回一条 `Domain: "*"`。它代表**默认 HTTP 域名**（`*.{region}.app.tcloudbase.com`），里面挂着"没指定域名"创建的那些路由 —— 判断「有没有自定义域名」时把它排除，但它的 `Routes[]` 是有效信息，别当成空。
 
+### A2. 两套同形接口，按维度选
+
+域名相关的 action 都有「环境维度」和「平台维度」两份，形状几乎一样：
+
+| 维度 | action 前缀 | 关键参数 | 什么时候用 |
+| --- | --- | --- | --- |
+| 环境 | `*HTTPServiceRoute`（`Create` / `Verify` / `Describe` / `Modify` / `Delete`） | `EnvId` | 给某个云开发环境绑域名 —— **本 recipe 讲的是这套** |
+| 平台 | `*PlatformHTTPServiceRoute`（同名五个） | `PlatformId`（如 `pf-t960szfwv1cs`） | 平台统管的域名池 |
+
+平台版有两点不同：**请求地域要按平台选的地域传**（不能跟随 `envId`，否则不符合平台维度语义）；暂时没有域名级自定义 Headers（控制台的「Headers 设置」入口据此隐藏）。别把两套的参数混着传 —— 后果是报参数缺失，很难一眼看出是维度选错了。
+
 ### B. 绑定前先跑只读预检
 
 `callCloudApi(service="tcb", action="VerifyHTTPServiceRoute")`：**只读预检，不创建任何资源**。
@@ -90,7 +101,7 @@
 | `RouteConflict` | 同域名下路径是否被占 | 请求里没带 `Routes` |
 | `Blacklist` | 域名是否在黑名单 | — |
 | `InternalAccount` | 内部域名与当前账号是否匹配 | 不是内部域名 |
-| `CDNResource` | 云开发 CDN 资源状态 | `AccessType` 不是 `CDN` |
+| `CDNResource` | 云开发 CDN 资源状态。域名还没接进来时返回 `PASS` + 一句「备案由 CDN 后端在创建时校验」的说明（原话见 E 节） | 未实测 |
 | `EO` | 边缘加速域名归属权 | `AccessType` 不是 `EO` |
 
 失败项里 `Code` 的完整取值（照这张表分流，不用逐个试）：
@@ -121,7 +132,7 @@
 | --- | --- |
 | `domain` | 必填。普通域名；控制台也接受 `*.example.com` 这种通配写法 |
 | `certificateId` | 建议显式传（先在 B 里确认真实证书 ID）。不传时按域名调 `ssl/DescribeCertificates(SearchKey=<domain>)`：单张自动选用、**没有则报错**、多张返回选择指引 —— MCP 侧没有交互，多张时得自己决定 |
-| `accessType` | 默认 `DIRECT`（云开发接入、不开启边缘加速，普通绑定就用这个）。`EO` = 云开发接入 + 边缘加速；`CUSTOM` = 用户自有 CDN / WAF（要传 `customCname`）；**`CDN` 是已下线的存量接入方式，不要用** —— 后果见下方 |
+| `accessType` | 默认 `DIRECT`（云开发接入、不开启边缘加速，普通绑定就用这个）。`EO` = 云开发接入 + 边缘加速；`CUSTOM` = 用户自有 CDN / WAF（要传 `customCname`）；`CDN` = 云开发 CDN（**存量接入方式，官方已不再支持**，只给了存量迁移路径）—— 新建不要用，后果见下方 |
 | `customCname` | 仅 `accessType="CUSTOM"` 时必填，值来自 CDN / WAF 控制台分配的 CNAME。**它不是用户域名要解析到的那个 CNAME** |
 
 `createRoute` / `bindCustomDomain` 创建前都会再跑一次 `VerifyHTTPServiceRoute`（探测 → 创建），失败时返回 `data.checks` 与同一份 TXT 指引。
@@ -139,11 +150,11 @@
 }
 ```
 
-`Domain` 写成字符串（`"Domain": "www.example.com"`）不会报「参数缺失」，而是报 **`The parameter \`CertId\` is not recognized.`** —— 因为 `CertId` 被当成顶层参数去找了。看到这条错误先回来查嵌套层级，**不要**去改 `CertId` 的值。
+`Domain` 写成字符串（`"Domain": "www.example.com"`）不会报「参数缺失」，而是报 **`The parameter \`CertId\` is not recognized.`**（实测 2026-09-24）—— 报的字段是 `CertId`，但错的是 `Domain` 的层级。看到这条先回去把 `Domain` 改成对象，**不要**去动 `CertId` 的值。
 
 实测返回（2026-09-24，域名 + 有效证书）：`{"OwnershipVerification": null, "RequestId": "…"}`。**`OwnershipVerification` 为 `null` 就表示归属权已过、不需要再补 TXT**；非空时给出的才是要补的记录。
 
-**别拿 `CDN` 当接入方式试**（实测 2026-09-24）：`AccessType: "CDN"` 是**存量云开发 CDN**，官方已写明不再支持。用它提交不会报错、域名也会进清单，但**一直停在 `Status: PROCESSING`** —— 实测从创建到删除的整段时间都没走到 `SUCCESS`。普通绑定一律用 `DIRECT`；需要加速再上 `EO`（要标准版及以上套餐）。
+**别拿 `CDN` 当接入方式新建**（实测 2026-09-24）：`AccessType: "CDN"` 是**存量云开发 CDN**，官方文档原话是「原『云开发 CDN』接入方式已不再支持」，只给出存量迁移到边缘加速的路径。注意**控制台的下拉里仍然保留着这一项** —— 接入方式选项一共四个：默认接入（`DIRECT`）/ 自定义接入（`CUSTOM`）/ 云开发 CDN 接入（`CDN`）/ 云开发 EdgeOne 接入（`EO`），默认值是 `DIRECT`。所以别以为「下拉里能选到就没问题」。用它提交不会报错、域名也会进清单，但**一直停在 `Status: PROCESSING`** —— 实测从创建到删除的整段时间都没走到 `SUCCESS`。普通绑定一律用 `DIRECT`；需要加速再上 `EO`（要标准版及以上套餐）。
 
 ### C2. 解绑（写）
 
@@ -153,14 +164,21 @@
 
 两个容易踩空的地方：
 
-- **不要用 `tcb/DeleteCustomDomain`。** 实测（2026-09-24）它不会报错、会返回 `{"Status": "", "RequestId": "…"}`，看着像成功，但域名**一直留在清单里**。MCP 侧 action 名叫 `deleteCustomDomain`（`manageGateway(action="deleteCustomDomain")`）是另一回事 —— 它底下调的就是 `DeleteHTTPServiceRoute`。
-- **删除不是同步的，别拿「立刻复查还在」当失败。** 实测（2026-09-24）发出 `DeleteHTTPServiceRoute`、拿到 `RequestId` 后，紧接着重查域名仍在清单里（`Status: PROCESSING`），**约 5 分钟后才消失**（`DescribeHTTPServiceRoute` 的 `TotalCount` 归零）。这个域名是从 `PROCESSING` 状态删的，平台要等接入流程收尾才真正移除。所以：**发一次就够，隔几分钟复查一次**，不要连发、也不要改判成权限问题。
+- **不要用 `tcb/DeleteCustomDomain`。** 实测（2026-09-24）它不会报错、会返回 `{"Status": "", "RequestId": "…"}`，看着像成功，但域名**一直留在清单里**。MCP 侧 action 名叫 `deleteCustomDomain`（`manageGateway(action="deleteCustomDomain")`）是另一回事 —— 它底下调的就是 `DeleteHTTPServiceRoute`。（`DeleteCustomDomain` 在控制台的域名页里一次都没出现，控制台只发 `DeleteHTTPServiceRoute`。）
+- **删除是异步的，别拿「立刻复查还在」当失败。** 控制台自己给的提示语就是「**操作成功，域名删除中！**」，删完只做一次列表刷新、把状态交给轮询。实测（2026-09-24）发出 `DeleteHTTPServiceRoute`、拿到 `RequestId` 后紧接着重查，域名仍在清单里（`Status: PROCESSING`），要过一段时间才从 `DescribeHTTPServiceRoute` 的 `TotalCount` 里消失。**发一次就够**，隔几分钟复查一次，不要连发、也不要改判成权限问题。
+- **别在 `PROCESSING` 期间删，删不动。** 平台对处理中的域名有一层保护 —— `ModifyHTTPServiceRoute` 专门有 `OperationDenied.HTTPServiceDomainProcessing`「操作失败，http访问服务域名处理中，稍后再试」，删除同理：域名还在 `PROCESSING` 时发删除，请求正常返回 `RequestId`、`UpdateTime` 也会动，但域名不出清单，**不是权限问题**。先 `listCustomDomains` 等 `Status` 离开 `PROCESSING`（控制台对该状态的口径是「约 10-20 分钟生效」），再删。
 
 复查用哪只眼睛：`DescribeHTTPServiceRoute` 带 `Filters: [{Name: "Domain", Values: ["<域名>"]}]`，看 `TotalCount` 是否归零；或 `queryGateway(action="listCustomDomains")` 里该域名是否还在。
 
-域名下还有 `Routes[]` 时，也可以先逐个删路由（`manageGateway(action="deleteRoute")`）再删域名，效果等同。
+**云 API 允许带路由一起删**（`Paths` 留空就是这个语义），所以裸调 `DeleteHTTPServiceRoute` **不要求**先清路由。但 **MCP 的 `deleteCustomDomain` 会多一道坎**：它底层是 SDK 的 `cloudbase.env.deleteCustomDomain`，实现里先查该域名的 `Routes[]`，非空直接抛错 ——
 
-**已经有自定义域名时不要再 `bindCustomDomain`** —— 直接 `manageGateway(action="createRoute", domain=<已有域名>, …)` 挂路由，省掉证书这一步。
+```
+Domain X has N route binding(s) (/a, /b). Please delete the routes before deleting the domain.
+```
+
+也就是说：走 MCP 工具时得先 `manageGateway(action="deleteRoute")` 逐个删路由、再删域名；走裸云 API 可以一次删掉域名和它的全部路由。（MCP 把这个错转成了带 `nextActions` 的提示，照它给的 `listRoutes` → `deleteRoute` 顺序做即可。）
+
+**已经有自定义域名、只是要挂路由时，不要再走 `bindCustomDomain`** —— 直接用 `manageGateway(action="createRoute", domain=<已有域名>, …)`。控制台就是这个做法：它的「绑定自定义域名」弹窗对**新域名和已有域名用的是同一个** `tcb/CreateHTTPServiceRoute`，要带路由就在 `Domain.Routes[]` 里一起传，不存在「先绑域名、再加路由」两个接口。MCP 的 `bindCustomDomain` 会额外跑一遍证书解析（`ssl/DescribeCertificates`），对已经有域名的场景是多余且可能失败的一步。
 
 ### D. 轮询到生效
 
@@ -168,7 +186,7 @@
 
 | `Status` | 含义 | 下一步 |
 | --- | --- | --- |
-| `PROCESSING` | 处理中 | 等。轮询间隔别比 30 秒更短 |
+| `PROCESSING` | 处理中（控制台对这个状态的标注是「约 10-20 分钟生效」） | 等。控制台自己按 3 秒一轮轮询，AI 侧不必这么密，隔几十秒看一次足够 |
 | `SUCCESS` | 已接入 | 看 `DNSStatus` 与 `Cname`，确认解析指对了 |
 | `FAIL` | 接入失败 | 先看 `DNSStatus`：`OK` = 已命中目标 CNAME / `EMPTY` = 还没加解析 / `INVALID` = 解析到了别的地址 |
 | `EO_PENDING_VERIFICATION` | 还要做**边缘加速**域名归属权校验 | 按页面指引再加一条 TXT。它与云开发首次域名归属校验**不通用** |
@@ -181,7 +199,18 @@
 
 实测补充（2026-09-24，**已下线的 CDN 接入**，创建后立刻查询）：`Status` 是 `PROCESSING`，但 `Cname` 字段已经给出（`<域名>.cdn.dnsv1.com`）；同一时刻 `DNSStatus` 与 `PlatformCnameDNSStatus` 也已经是 `OK`。
 
-这两条**不要外推到普通绑定**：官方口径是云开发接入（`DIRECT`）要等域名关联完成（约 3-5 分钟）才给出 CNAME 值。判断「接入是否完成」只看 `Status` —— `PROCESSING` 阶段那两个 DNS 字段就可能是 `OK`，它们回答的是「解析指对没有」，不是「接入做完没有」。
+这两条**不要外推到普通绑定**：官方口径是云开发接入（`DIRECT`）要等域名关联完成（约 3-5 分钟）才给出 CNAME 值。
+
+判断「接入是否完成」只看 `Status`。那两个 DNS 字段**测的是另一件事** —— 控制台给的定义原文是：
+
+| 字段 | 取值 | 含义（原文） |
+| --- | --- | --- |
+| `DNSStatus` | `OK` / `EMPTY` / `INVALID` | `OK` = 解析正常，命中目标 CNAME；`EMPTY` = 解析为空，域名尚未配置 CNAME 或未生效；`INVALID` = 解析异常，解析到其他非目标地址 |
+| `PlatformCnameDNSStatus` | `OK` / `EMPTY` / `INVALID` | 是否 CNAME 到平台任一网关入口（默认接入 / CDN / EO，不含 `CustomCname`） |
+
+所以它们不但不能当完成判据，还可能**因为域名过去的解析残留而显示 `OK`** —— 实测（2026-09-24）那个测试域名在接入之前就已经 CNAME 到云开发网关，删除接入记录后解析依然在，`DNSStatus` 于是一直是 `OK`，跟本次接入没有任何关系。（控制台文档里这两个字段用的是小驼峰 `DNSStatus` / `platformCnameDNSStatus`，云 API 返回是 `DNSStatus` / `PlatformCnameDNSStatus`，同一组。）
+
+时长上别只记一个数：控制台把 `PROCESSING` 直接标成「**处理中（约 10-20 分钟生效）**」，并按 **3 秒一轮**轮询等它流转完；文档里的「3-5 分钟」指的是云开发接入（`DIRECT`）的**域名关联**环节。两者不是同一段，报给用户时以接口返回的 `Status` 为准，别报「马上好」。
 
 所以提交后**先读一次现状再回答用户**：`Cname` 有值就直接给，没有就按上面三档口径报等待时间。
 
@@ -196,7 +225,8 @@
 
 **备案在链路的哪一步校验**（实测口径，回答用户「没备案能不能先绑」时用）：
 
-- **预检不查备案。** `CDNResource` 这一项在域名还没接进来时返回的是 `PASS`，原话 `CDN resource not exist yet; ICP filing will be verified by CDN backend at create time` —— 备案是**创建时**由 CDN 后端校验的，预检的九项里看不到它。
+- **预检不会因为备案没过而 `FAIL` 拦住你。** `CDNResource` 这一项在域名还没接进来时返回的是 `PASS`，原话 `CDN resource not exist yet; ICP filing will be verified by CDN backend at create time` —— 平台自己说备案是**创建时**由 CDN 后端校验的。别把这句读成「预检不看备案」：检查项返回里的 `Message` 字段（`SKIPPED` 时给跳过原因），文档举的例子就是「**域名尚未备案**」，所以备案更可能以「跳过 + 一句说明」的形态出现，而不是拦。
+- **但官方对使用者的要求是硬的。** 文档「使用限制」原话「**自定义域名必须已完成 ICP 备案**」；控制台在大陆地域的绑定弹窗也会先列一条「在绑定自定义域名时，需要先办理网站备案」。
 - **创建那一刻也不拦。** 实测（2026-09-24）一个归属权与证书都通过的真实域名，`CreateHTTPServiceRoute` 返回成功、域名进清单，**没有返回任何备案相关的错误**。但**别把这句读成「备案没问题」**：同一个域名此后一直停在 `PROCESSING`、从没走到 `SUCCESS` —— 后端到底卡在哪一步（备案、CDN 资源、还是接入方式）从返回里看不出来。**没有备案结论时不要对用户下判断。**
 - **边缘加速（EO）接入**有专门的错误码 `EO_DOMAIN_NOT_ICP`，会在预检的 `EO` 项或接入过程中报出来。个人版套餐连 `Quota` 都过不去（见踩坑清单），到不了这一步。
 
@@ -224,12 +254,14 @@
 | 在静态托管页找绑定入口 | 静态托管「自定义域名」区提示**已下线**，只能删不能加 | 新绑定统一走 HTTP 网关 `#/env/http-access`；静态托管页上的存量域名只支持「先删除再重绑」 |
 | 把 `customCname` 当成解析目标 | `accessType="CUSTOM"` 时把 `customCname` 填成用户域名要解析到的地址 | `customCname` 是**回源 / 回填**地址（CDN / WAF 分配的那个 CNAME）；用户域名的 CNAME 解析在 DNS 侧配，两者不是一回事 |
 | 想提前报出 CNAME 值 | 绑定刚提交就问「解析到哪」，于是按分钟数答「等 3-5 分钟」 | 先读一次现状再回答：`listCustomDomains` 里 `Cname` 有值就直接报，没有才按 D 节的分钟数口径说。**别把某一档的分钟数当成所有接入方式的规则** |
-| 用 `DNSStatus` 判断接入完成 | 看到 `DNSStatus: OK` 就回「已接入」 | `PROCESSING` 阶段这两个 DNS 字段就已经是 `OK`。接入完成只看 `Status` |
+| 用 `DNSStatus` 判断接入完成 | 看到 `DNSStatus: OK` 就回「已接入」 | 这两个 DNS 字段测的是**解析现状**（`OK` = 解析正常、命中目标 CNAME），不是接入进度，还可能因为域名旧解析残留而显示 `OK`。接入完成只看 `Status` |
 | `Domain` 传成字符串 | 报 `The parameter \`CertId\` is not recognized.`，于是去换证书 | 是嵌套层级错了：`Domain` 是对象，`CertId` 在它里面。改层级，不要改证书 |
-| 以为预检会告诉你备案没过 | 预检九项全 `PASS`，以为备案也没问题 | 预检**不查备案**。CDN 接入的备案校验在创建时由 CDN 后端做（`CDNResource` 项的原话），EO 接入才有 `EO_DOMAIN_NOT_ICP` 这个错误码 |
+| 以为预检会告诉你备案没过 | 预检九项全 `PASS`，以为备案也没问题 | 预检**不会因备案 `FAIL`**（`CDNResource` 项自述备案由 CDN 后端在创建时校验），但官方硬要求「自定义域名必须已完成 ICP 备案」。EO 接入才有 `EO_DOMAIN_NOT_ICP` 这个错误码 |
+| 以为解绑也得先清路由 | 走 MCP `deleteCustomDomain` 时域名下还有路由，报 `has N route binding(s) … Please delete the routes before deleting the domain`，于是判断「必须逐个删路由再删域名」 | 那是 **SDK 自己**加的门槛，不是云 API 的要求。`DeleteHTTPServiceRoute` 的 `Paths` 留空本来就是「删域名及所有路由」。走 MCP 工具时按提示先 `deleteRoute`；裸调云 API 可以一次删干净 |
+| 把环境维度和平台维度搞混 | 拿 `PlatformId` 去调 `CreateHTTPServiceRoute`（或反之），报参数缺失 | 两套同形接口：`*HTTPServiceRoute` 传 `EnvId`、`*PlatformHTTPServiceRoute` 传 `PlatformId`（如 `pf-t960szfwv1cs`）。给云开发环境绑域名用前者；平台统管域名用后者，且请求地域要按平台选的地域传、不能跟随 envId |
 | 用 `DeleteCustomDomain` 解绑 | 不报错，返回 `{"Status": "", "RequestId": "…"}`，看着像成功，但域名始终留在 `listCustomDomains` 里 | 解绑接口是 `tcb/DeleteHTTPServiceRoute`，`Paths` 留空即删域名。MCP 的 `manageGateway(action="deleteCustomDomain")` 底下调的就是它 |
-| 拿「立刻复查还在」当删除失败 | 发完 `DeleteHTTPServiceRoute`、`RequestId` 到手，马上重查域名还在（`Status: PROCESSING`），于是连发好几次删除 | 删除是**异步**的，实测约 5 分钟后才消失。**发一次就等**，隔几分钟用 `DescribeHTTPServiceRoute` 的 `TotalCount` 或 `listCustomDomains` 复查 |
-| 用 `CDN` 接入方式 | 绑定不报错、域名进清单，但一直停在 `Status: PROCESSING`，走不到 `SUCCESS` | `CDN` 是**存量云开发 CDN，官方已不再支持**。普通绑定用 `DIRECT`；要加速用 `EO`（标准版及以上套餐）；自有 CDN/WAF 才用 `CUSTOM` + `customCname` |
+| 拿「立刻复查还在」当删除失败 | 发完 `DeleteHTTPServiceRoute`、`RequestId` 到手，马上重查域名还在（`Status: PROCESSING`），于是连发好几次删除 | 删除是**异步**的（控制台提示语就是「操作成功，域名删除中！」），而且**域名还在 `PROCESSING` 时删不动**（平台对处理中域名有保护，`ModifyHTTPServiceRoute` 有专门的 `OperationDenied.HTTPServiceDomainProcessing`）。等 `Status` 流转完再删，发一次就够 |
+| 用 `CDN` 接入方式新建 | 绑定不报错、域名进清单，但一直停在 `Status: PROCESSING`，走不到 `SUCCESS` | `CDN` 是**存量云开发 CDN**，官方文档「原『云开发 CDN』接入方式已不再支持」；控制台下拉里仍保留这一项，别被它误导。普通绑定用 `DIRECT`；要加速用 `EO`（标准版及以上套餐）；自有 CDN/WAF 才用 `CUSTOM` + `customCname` |
 
 ## 验证步骤
 
@@ -238,5 +270,5 @@
 3. **序列 C**：`CreateHTTPServiceRoute` 返回 `RequestId`（`OwnershipVerification` 为 `null` 即无需补 TXT）；随后 `listCustomDomains` 里能看到该域名，`CertId` / `AccessType` / `Cname` 与提交值一致；再重跑一次 B，同一套输入应当全 `PASS`。
 4. **序列 D**：轮询到该域名 `Status = SUCCESS`，`Cname` 非空。`DNSStatus` 在 `PROCESSING` 阶段就已是 `OK`，不能当判据；`FAIL` 时按 D 表的 `DNSStatus` 三态分流。
 5. **端到端**：`nslookup <自定义域名>` 能解析到 `Cname` 给出的地址，浏览器打开该域名能看到目标服务内容 —— 官方文档给的自检命令就是 `nslookup`。
-6. **序列 C2（收尾）**：验证完把测试用的域名删掉 —— `DeleteHTTPServiceRoute` 传 `{EnvId, Domain}`、不传 `Paths`，**隔几分钟**再用 `DescribeHTTPServiceRoute` 看 `TotalCount` 归零 / `listCustomDomains` 里该域名不在。拿到 `RequestId` 就立刻复查会看到域名还在，那是正常的异步延迟，**不要因此重发**（见 C2）。写操作只有序列 C / C2，**提交前确认真实目标环境**；A / B / D 全是只读，可以放心反复跑。
+6. **序列 C2（收尾）**：验证完把测试用的域名删掉 —— 先确认该域名的 `Status` 不是 `PROCESSING`（处理中删不动），再 `DeleteHTTPServiceRoute` 传 `{EnvId, Domain}`、不传 `Paths`；然后**隔几分钟**用 `DescribeHTTPServiceRoute` 看 `TotalCount` 归零、或 `listCustomDomains` 里该域名不在。拿到 `RequestId` 就立刻复查会看到域名还在，那是正常的异步延迟（控制台自己的提示语就是「操作成功，域名删除中！」），**不要因此重发**（见 C2）。写操作只有序列 C / C2，**提交前确认真实目标环境**；A / B / D 全是只读，可以放心反复跑。
 7. **权限判定**：调用报 `UnauthorizedOperation` 时，先 `sts/GetCallerIdentity` 确认调用者身份，再决定是给角色的一键授权链接（解析只读优先）还是让用户去控制台 —— 不要直接判定「域名不可用」。绑定本身只需要 `tcb` + `ssl`（已实测），缺权限的是 DNS 那一段。
