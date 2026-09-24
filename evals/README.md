@@ -6,9 +6,12 @@ CloudRun, and hosting. It runs coding agents against real CloudBase tasks
 (building a schema, wiring up sign-in, fixing a broken security rule) and
 scores what actually happened in a real environment.
 
-**Status: work in progress.** This directory currently contains the design
-and the first example scenarios. The runner (agent harnesses, sandbox
-lifecycle, result collection) is landing in an upcoming PR.
+**Status: work in progress.** Scenario authoring is still early (2 examples).
+The runner can load a scenario, execute its scorer in dry-run, and write
+`results/<experiment>/<eval>/run-<n>/result.json`. CodeBuddy Code can be
+invoked headless (`cbc -p`); model ids on the board are canonical names,
+and the `-ioa` channel id is only passed to `--model`. This runner never
+creates a CloudBase environment.
 
 ## Why
 
@@ -26,8 +29,24 @@ evals/
     benchmark/              # public benchmark scenarios (breadth)
     regression/             # known failure modes, tracked internally (depth)
   experiments/              # model + harness configurations
+  packages/                 # core, framework, sandbox
   results/                  # run outputs: results/<experiment>/<eval>/run-<n>/
 ```
+
+## Run one scenario
+
+From the repository root, with no CloudBase credentials:
+
+```bash
+node --experimental-strip-types evals/packages/framework/src/cli.ts \
+  run build-auth-001-username-signin --experiment fixture-dry
+```
+
+That is the 30-minute path: it loads the scenario, runs the scorer against a
+fake environment, and writes `evals/results/`. Checks fail on purpose in
+dry-run, because nothing was built in a real env. A live run requires
+`CLOUDBASE_ENV_ID` pointing at an environment you already have; the runner
+will not create one.
 
 ## Scenario format
 

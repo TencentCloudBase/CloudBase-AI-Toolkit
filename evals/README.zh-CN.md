@@ -2,7 +2,7 @@
 
 一个用于测试 AI agent 能否用好 [CloudBase](https://cloudbase.net) 的基准测试与评测框架——覆盖数据库、登录认证、存储、云函数、CloudRun 与静态托管。它让 coding agent 完成真实的 CloudBase 任务（建表、接登录、修安全规则），并对真实环境中实际发生的结果打分。
 
-**状态：建设中。** 当前目录包含设计与首批示例场景。评测 runner（agent harness、环境生命周期、结果收集）将在后续 PR 中落地。
+**状态：建设中。** 场景仍是首批 2 个示例。runner 已能加载场景、用干跑执行评分器，并写出 `results/<experiment>/<eval>/run-<n>/result.json`。CodeBuddy Code 可以 headless 调用（`cbc -p`）；榜单上的模型名是标准名，`-ioa` 只在传给 `--model` 时使用。本 runner 不会创建 CloudBase 环境。
 
 ## 为什么做
 
@@ -17,8 +17,20 @@ evals/
     benchmark/              # 公开榜单场景（广度）
     regression/             # 已知失败模式追踪（深度）
   experiments/              # 被测配置：模型 + harness 组合
+  packages/                 # core、framework、sandbox
   results/                  # 运行产物：results/<experiment>/<eval>/run-<n>/
 ```
+
+## 跑通一个场景
+
+在仓库根目录执行，不需要 CloudBase 凭证：
+
+```bash
+node --experimental-strip-types evals/packages/framework/src/cli.ts \
+  run build-auth-001-username-signin --experiment fixture-dry
+```
+
+这是 30 分钟验收入口：加载场景、对假环境跑评分器、写下 `evals/results/`。干跑的检查会失败，因为没有真实环境里的实现。真跑需要你已有的 `CLOUDBASE_ENV_ID`；runner 不会自己创建环境。
 
 ## 场景格式
 

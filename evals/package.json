@@ -1,0 +1,6 @@
+{
+  "name": "@cloudbase/evals",
+  "private": true,
+  "type": "module",
+  "description": "CloudBase agent evals. Not a workspace package; run with node --experimental-strip-types."
+}
