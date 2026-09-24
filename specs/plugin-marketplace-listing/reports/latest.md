@@ -1,21 +1,21 @@
 # CloudBase Plugin Marketplace Analysis
 
-Generated: 2026-09-15T02:24:42.999Z
+Generated: 2026-09-24T00:22:42.349Z
 
 > This report does not auto-submit to any marketplace. All submissions are manual.
 
 ## Summary
 
-Total markets: **48**
+Total markets: **51**
 
 | Priority | Count |
 |----------|------:|
 | ready_to_submit | 6 |
-| needs_packaging_or_manifest | 3 |
-| needs_partner_outreach | 14 |
-| listed | 9 |
+| needs_packaging_or_manifest | 4 |
+| needs_partner_outreach | 13 |
+| listed | 11 |
 | not_applicable | 15 |
-| unknown | 1 |
+| unknown | 2 |
 
 ## Stale reviews
 
@@ -454,6 +454,52 @@ Evidence:
 
 Recommended install docs: `doc/ide-setup/qoder.mdx`
 
+### qwen-open-platform — Qwen Open Platform (千问开放平台)
+
+- Region: cn
+- Channel: `skill_registry`
+- Eligibility: `public_self_serve_submission`
+- Last reviewed: 2026-09-24
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: submittable
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: unknown
+- `docs_only`: listed
+
+Blockers:
+
+- Skill 接入 is marked 即将开放, so a skill package cannot be submitted yet
+- The live track onboards brand agents, not a distributable skill or connector package
+
+Submit checklist:
+
+- [ ] Decide whether an assistant-app entry point is wanted; if so submit the 申请入驻 form
+- [ ] Re-check whether Skill 接入 has opened before packaging a skill for it
+
+Process:
+
+```
+Distinct from QwenWork: this onboards third-party services into the Qwen assistant app
+(mobile / PC / AI glasses). Entry point is https://open.qianwen.com/ with a 申请入驻 button.
+Two tracks — AI 智能体接入 (live, marked recommended: a brand agent in its own conversation space, with
+account / AI payment / order infrastructure, front-end components and end-to-end debugging provided) and
+Skill 接入 (marked 即将开放 / 敬请期待, i.e. not submittable yet). agent.flow, an enterprise knowledge
+base and MCP services are listed as platform capabilities.
+Status 2026-09-24: intent form plus review; no in-product submission path reviewed.
+```
+
+Evidence:
+
+- https://open.qianwen.com/
+- https://baike.baidu.com/item/千问开放平台/68538985
+- https://www.cinn.cn/xf/2026/08-10/gD7OpAqD.html
+
 ## needs_partner_outreach
 
 ### claude-code-official — Claude Code
@@ -717,7 +763,7 @@ Evidence:
 - Region: cn
 - Channel: `native_connector_or_builtin`
 - Eligibility: `partner_outreach_required`
-- Last reviewed: 2026-09-15
+- Last reviewed: 2026-09-24
 - Manual submit only: yes
 
 Statuses:
@@ -734,6 +780,7 @@ Blockers:
 
 - No public connector submission form; market entries are onboarded with the vendor
 - CloudBase not present in the 连接器 market yet
+- The public catalog carries platform-curated resources only; the Extensions FAQ states that individual users cannot publish custom skills to the public marketplace
 
 Submit checklist:
 
@@ -752,6 +799,8 @@ Enterprise-scoped self-serve rails exist but do not reach the public catalog: �
 organization upload SKILL.md or a ZIP and publish it to its own members after an admin review, and the
 enterprise AI asset console manages skills, connectors and expert kits.
 Status 2026-09-15: CloudBase absent from the market; self-serve custom connector works today.
+Status 2026-09-24: unchanged. Third-party entries reach the public catalog through vendor onboarding —
+CamScanner (合合信息) listed a skill and a connector together on 2026-09-22 — not through a portal form.
 ```
 
 Evidence:
@@ -760,6 +809,9 @@ Evidence:
 - https://help.aliyun.com/zh/qwenwork/skills
 - https://help.aliyun.com/zh/qwenwork/skills-management
 - https://help.aliyun.com/zh/qwenwork/enterprise-ultimate-ai-assets/
+- https://help.aliyun.com/zh/qwenwork/expert-kit
+- https://www.alibabacloud.com/help/en/qwenwork/qwenwork-extensions
+- https://www.cnfin.com/gs-lb/detail/20260922/4473408_1.html
 
 ### doubao-work-connector — Doubao Work (豆包工作)
 
@@ -918,7 +970,7 @@ Recommended install docs: `doc/ide-setup/trae.mdx`
 - Region: global
 - Channel: `mcp_registry_or_aggregator`
 - Eligibility: `hosted_http_mcp_or_registry`
-- Last reviewed: 2026-07-27
+- Last reviewed: 2026-09-24
 - Manual submit only: yes
 
 Statuses:
@@ -940,6 +992,7 @@ Process:
 
 ```
 Publish hosted HTTPS MCP or rely on registry ingest; see smithery.ai/new.
+Status 2026-09-24: no CloudBase entry surfaced in a public search; presence not verified in-product.
 ```
 
 Evidence:
@@ -978,38 +1031,6 @@ Evidence:
 
 - https://www.pulsemcp.com
 
-### glama — Glama
-
-- Region: global
-- Channel: `mcp_registry_or_aggregator`
-- Eligibility: `public_github_mcp`
-- Last reviewed: 2026-07-27
-- Manual submit only: yes
-
-Statuses:
-
-- `official_curated`: not_applicable
-- `community_directory`: not_applicable
-- `self_marketplace`: not_applicable
-- `native_connector_or_builtin`: not_applicable
-- `open_plugin_spec`: not_applicable
-- `mcp_or_skill_registry`: unknown
-- `docs_only`: unknown
-
-Submit checklist:
-
-- [ ] Public MCP server repo discoverable
-
-Process:
-
-```
-Indexes public GitHub MCP repos / registry.
-```
-
-Evidence:
-
-- https://glama.ai/mcp/servers
-
 ### mcp-so — mcp.so
 
 - Region: global
@@ -1043,6 +1064,51 @@ Evidence:
 - https://mcp.so
 
 ## listed
+
+### awesome-dsh-plugin — DeepSeek Harness (DSH)
+
+- Region: global
+- Channel: `community_plugin_directory`
+- Eligibility: `public_github_pr_required`
+- Last reviewed: 2026-09-23
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: not_applicable
+- `community_directory`: listed
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: not_applicable
+- `docs_only`: listed
+
+Submit checklist:
+
+- [ ] One YAML under data/plugins/ (no hand-edit of README)
+- [ ] package.json declares dsh.bundle + cordis.patch.yml
+- [ ] Accurate description (no superlatives); category tools
+- [ ] Repo topic dsh-plugin; npm @cloudbase/dsh-plugin optional but recommended
+
+Process:
+
+```
+Community main repo: awesome-dsh-plugin/awesome-dsh-plugin (not deepseek-ai/awesome-dsh-plugin — 404).
+Add ONE file: data/plugins/<owner>__<repo>.yml (monorepo subpkg: owner__repo--path-segments.yml).
+Do NOT edit README.md / README.zh.md by hand — sync-readme.yml regenerates after merge.
+Requires dsh.bundle in package.json (+ cordis.patch.yml); dsh.client alone is rejected.
+Status 2026-09-15: PR #5120 merged. Entry live in data/plugins + generated READMEs (category tools).
+```
+
+Evidence:
+
+- https://github.com/awesome-dsh-plugin/awesome-dsh-plugin
+- https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5120
+- https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/data/plugins/TencentCloudBase__CloudBase-AI-Toolkit--dsh-plugin.yml
+- https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md
+- https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/tree/main/dsh-plugin
+
+Recommended install docs: `dsh-plugin/README.md`
 
 ### github-copilot-cli — GitHub Copilot CLI
 
@@ -1296,7 +1362,7 @@ Recommended install docs: `doc/ide-setup/codex.mdx`
 - Region: global
 - Channel: `mcp_registry_or_aggregator`
 - Eligibility: `mcp_publisher_cli`
-- Last reviewed: 2026-08-17
+- Last reviewed: 2026-09-24
 - Manual submit only: yes
 
 Statuses:
@@ -1319,6 +1385,10 @@ Process:
 Publish via mcp-publisher CLI to registry.modelcontextprotocol.io; aggregators may ingest afterward.
 Status 2026-08-17: listed as io.github.TencentCloudBase/cloudbase-mcp v2.27.0 (hosted remotes).
 npm packages[] will attach on the next npm release after mcpName ships in @cloudbase/cloudbase-mcp.
+Status 2026-09-24: registry now carries every release up to v2.34.6, with both hosted remotes
+(domestic + international) and the npm package records attached. Publishing is fully automated in
+.github/workflows/npm-publish.yaml: sync the server.json version, then mcp-publisher login github-oidc,
+then publish (with retries while the npm package propagates).
 ```
 
 Evidence:
@@ -1357,6 +1427,39 @@ Hunyuan 3D, Tencent Maps, Lighthouse, Puppeteer and a memory module.
 Evidence:
 
 - https://tcb.cloud.tencent.com/mcp-server
+
+### glama — Glama
+
+- Region: global
+- Channel: `mcp_registry_or_aggregator`
+- Eligibility: `public_github_mcp`
+- Last reviewed: 2026-09-24
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: not_applicable
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: unknown
+- `docs_only`: unknown
+
+Local evidence:
+
+- `mcp_registry_server_json`: **present** — mcp/server.json matches npm mcpName io.github.TencentCloudBase/cloudbase-mcp
+
+Process:
+
+```
+Indexes public GitHub MCP repos / registry.
+```
+
+Evidence:
+
+- https://glama.ai/mcp/servers
+- https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-MCP
 
 ## not_applicable
 
@@ -1805,6 +1908,54 @@ Evidence:
 Recommended install docs: `doc/ide-setup/openclaw.mdx`
 
 ## unknown
+
+### aliyun-marketplace-bailian-plugins — Alibaba Cloud Marketplace → Model Studio (百炼) plugin plaza
+
+- Region: cn
+- Channel: `official_curated_marketplace`
+- Eligibility: `public_self_serve_submission`
+- Last reviewed: 2026-09-24
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: submittable
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: submittable
+- `docs_only`: listed
+
+Blockers:
+
+- Needs Alibaba Cloud Marketplace supplier onboarding, which is a company-level commitment (business licence ≥ 1 year, registered capital ≥ ¥1,000,000 for 数据与API, 5x8 support, deposit)
+- Targets Model Studio agent plugins rather than AI coding clients, so it is a different surface from the MCP / plugin listings elsewhere in this matrix
+
+Submit checklist:
+
+- [ ] Decide whether a Model Studio plugin listing justifies Marketplace supplier onboarding
+- [ ] [object Object]
+- [ ] [object Object]
+
+Process:
+
+```
+A documented self-serve route onto an official Alibaba Cloud recommendation surface. Prerequisites: the
+API is already published on Alibaba Cloud API Gateway, and an API product is live (status 已上架) on the
+Marketplace under the 数据与API category. Then, on the Data Exchange platform, select the published API and
+choose 插件输出 — the API group is converted to OAS 3.0 (one group becomes one plugin), the result enters
+插件审核, and once approved it is synced automatically into the Model Studio (百炼) official plugin plaza
+and the add-plugin recommendation area.
+Status 2026-09-24: not attempted. Recorded as the only self-serve, review-based public listing flow found
+in the Alibaba stack.
+```
+
+Evidence:
+
+- https://help.aliyun.com/document_detail/2866083.html
+- https://help.aliyun.com/zh/marketplace/cloud-market-category-qualification
+- https://developer.aliyun.com/article/1483445
 
 ### clawhub — ClawHub
 
