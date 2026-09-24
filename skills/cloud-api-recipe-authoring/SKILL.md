@@ -131,6 +131,7 @@ recipe 里出现的 service 要能在 `callCloudApi` 直接调通。白名单是
 - **`callCloudApi` 有环境绑定门禁**：账号级登录后首个调用仍会返回 `ENV_REQUIRED`（「已登录，但尚未绑定环境」）。先 `auth(set_env, envId=…)` 绑一个正常环境即可 —— 备案这类账号级业务与环境无关，绑定只是为了过门禁。
 - **用 stdio 探针直接驱动本地 `mcp/dist/cli.cjs`**（`initialize` → `tools/call`），比挂进客户端快得多；本地 MCP 起法与探针脚本见 skill `cloudbase-mcp-local-probe`。
 - **只跑 `Describe*` / `Check*` / `Validate*`**，写操作一律留给使用者手动执行。写路径如果必须靠订单流程内的参数才能发起，正好说明它不进主序列。
+- **但有自己可自由支配的测试环境时，写操作要真跑，跑完还原** —— 否则写操作之后的回查步骤永远停在「文档核对」，整篇也只好标 `🟡 部分实证`。挑按量计费、可重建、不影响他人的环境，走完整条序列（提交 → 轮询进度 → 回查结果 → **改回原值并再次确认**）；**两个方向都要跑**，升与降常走不同分支、耗时也不同（实测升 174 s / 降 67 s，同规格同地域）。真跑还会暴露只读永远看不到的东西：任务步骤表会边跑边长、入参与任务详情对同一个字段用两套枚举。
 - **写接口自带「只校验」开关时（`DryRun` / `预检`），可以按只读口径实测** —— 但两个条件都要满足：(1) 官方文档或控制台自己的实现明确说明它**不产生订单、不发起变更**；(2) 参数挑「目标值 = 当前值」，万一开关没生效，也只会命中幂等分支、不会真改。跑完必须再读一次现状确认没变（例：变配预检后重读实例属性，比对规格与 `UpdateTime`）。
 - **控制台的真实路由与「它在调哪个 Action」都是可查的**，不用靠猜：前端仓库里 `src/framework/routes/groups/**` 是路由真源（拿到页面 hash 路径），`src/services/capi-action-definitions/**` 是「控制台调哪个云 API、每个字段什么语义、返回体的空值约定」的真源；页面自己的 hook / utils 还能看到数据来源与**单位换算**（字段名相同但单位不同，多半只有这里写着）。写 recipe 前先读这三处，比只读官方文档多拿到「真实调用序列 + 字段语义 + 踩坑」三样东西。
 - **把「缺哪个必填参数」当成判据**，不是当成障碍：返回 `missing the required parameter Skey / IcpOrderID / Uin` 这类只能从内部流程拿到的参数，就等于宣告该接口无法独立使用 —— 它该写进「踩坑清单」的反面做法，而不是主序列。
@@ -168,7 +169,9 @@ recipe 里出现的 service 要能在 `callCloudApi` 直接调通。白名单是
 - **不写**：出处与验证过程（取自哪份文档/源码、比对过哪些版本、我们怎么核对的）、测试状态叙述、维护者待办
 - **不写**：内部标识（AppId / Uin / 内部环境名 / 仓内路径）
 - **「实测」是值级标记**：贴在具体参数、接口或返回值上，最多一个；**不要**给整节或整表贴「（全部实测）」——它没有逐行分辨率，后来补进的未验证内容会继承这个标签，正好让 AI 高置信采信未验证的东西
-- **可信度只记一处**：`recipes/README.md` 目录表的「状态」列（`✅ 生产实证（日期）` / `🟡 文档核对，未实跑`），SKILL.md 条目与 recipe 正文都不重复
+- **可信度只记一处**：`recipes/README.md` 目录表的「状态」列（`✅ 生产实证（日期）` / `🟡 部分实证（日期）` / `🟡 文档核对，未实跑`），SKILL.md 条目与 recipe 正文都不重复
+- **状态按实际跑到的范围分档，不要整篇贴 `✅`**：一篇里「跑过」与「没跑过」混着是常态 —— 写操作要真实破坏、权限或计费限制都可能挡住。`✅` 要求整条接口序列端到端跑过；只跑到一部分（只跑通其中一条路径、或只跑了只读步骤）就用 `🟡 部分实证`，**并把没跑到的部分写在状态列里**，使用者才知道该对哪几条保持谨慎。整篇贴 `✅` 的代价与给整节贴「（全部实测）」相同：后来补进的未验证内容会继承它没挣到的置信度。（2026-09-24 教训：两篇 recipe 都只有部分路径真跑过，先误贴 `✅`，自查时才发现 —— 写完状态列要回头拿「这条序列里哪几步真的执行过」核一遍。）
+- **界面口径既不是「实测」也不是「官方文档」，要单独标**：控制台给用户看的提示语可以原文转述；用量估算里的单价常量写成「控制台提交页的用量推算就按这个口径给」，让使用者能在界面上自己复核。别贴「实测」标签（那不是跑出来的），也别当官方文档契约引用 —— 两类都会让使用者按错误的前提去依赖它。这一类新增内容同样要写进状态列点名未实跑，免得跟着接口序列的 `✅` 一起被高置信采信。（2026-09-25：往 PG recipe 里补「无需升级套餐」时带进了控制台的资源点单价常量，正文标明是界面口径、状态列另点一条未实跑。）
 - 以上对外规则的权威副本在 `config/source/skills/cloud-api-operations/references/recipes/README.md`，改结构/红线时两处一起看
 
 ## 索引维护
@@ -192,10 +195,17 @@ $NODE scripts/generate-prompts-data.mjs && $NODE scripts/generate-prompts.mjs
 $NODE scripts/sync-claude-skills-mirror.mjs && $NODE scripts/build-compat-config.mjs
 $NODE scripts/check-prompts-sync.mjs && $NODE scripts/sync-claude-skills-mirror.mjs --check
 $NODE scripts/diff-compat-config.mjs     # Has blocking diff: NO
+$NODE skills/cloud-api-recipe-authoring/scripts/check-recipes.mjs   # 表格结构 + 编号交叉引用
 ```
 
+- **动过接口序列的结构（删节、加节、重排步骤号）之后，必跑 `check-recipes.mjs`。** 步骤号在两个互不相干的位置各写一遍 ——「步」列的单元格、正文里的「步骤 N」句子 —— 改一处不会让另一处报错，只会让读者照着一个不存在（或指向别的步骤）的编号去找。脚本还会检查表格列数（含 `\|` 转义、分隔行、表格后空行）与反引号配对，退出码非 0 即有问题。**不要用眼睛代替它**：编号差一位看起来完全正常。
+
 - **新增或删除**文本面都会让 compat-diff 报 blocking，必须刷 `config/source/editor-config/compat-baseline.json`
-- 刷 baseline 用**定向合并**（只取目标 skill 的 key，其余保留已提交值，key 顺序以生成器为准）；整份 `npm run update:compat-baseline` 会把别人的历史漂移一起吞掉
+- **新写一篇 recipe = 新增文件，只能用全量刷新。** `update-compat-baseline.mjs --only <skill>` 只改**已存在**的 key；匹配到新文件时会把它记进 `unseen` 并提示走全量 —— 不会替你加进去（existence 级变更只能整体重算）。所以：
+  - 改现有 recipe 的正文 → 定向刷新够用（`--only cloud-api-operations`），也避免顺手洗白别人的漂移
+  - 新增 / 删除 recipe → 全量 `npm run update:compat-baseline`
+- **全量刷新后先看 diff 范围再提交**，别默认它吞了别人的漂移。实测（2026-09-24，新增一篇 recipe 后全量刷新）：baseline diff 的改动路径全部落在本次动过的两个 skill 上，无一条落在别的 skill —— 因为分叉点上的 baseline 与源是一致的。判据是可机械检查的：把 diff 里的路径去重，只应出现你改过的 skill 名；出现第三个就停下查那个 skill 的源与 baseline 谁过期。
+- 新 recipe 还要带上两份派生产物：`config/.claude/skills/**` 镜像与 `doc/prompts/cloud-api-operations.mdx`。跑测试时注意 `/usr/local/bin/node` 会让 vitest 直接起不来，绕法见 skill `cloudbase-mcp-artifact-pipeline`
 - 校验完成前不要宣称改完：三项预检全过 + `git diff` 里非目标改动行为空
 
 ## 常见坑
@@ -204,3 +214,4 @@ $NODE scripts/diff-compat-config.mjs     # Has blocking diff: NO
 - 授权指引必须落到「角色名 + 策略名 + 可点击链接」；写"去 CAM 控制台追加策略"等于把找路成本丢回用户
 - 沙箱 PATH 不含 `/usr/local/bin`（git-lfs 在那里），`git checkout <file>` 会返回非零并断掉 `&&` 链
 - 删除 recipe 时，除源文件与 `config/.claude/` 镜像，还要清掉 SKILL.md 与 README 里的引用，再跑产物链
+- **删节或重排编号后，表格的「步」列要单独再改一遍**：正文里的「步骤 N」和表格单元格是两套独立文本，只改一处不会有任何报错。实测（2026-09-25）删掉一整节后正文已重排成 8/9/10，表格仍停在 9/10/11 —— 差一位，读者按 8 去表格里找会落到别的步骤上。跑 `scripts/check-recipes.mjs` 检出，别靠复查时"看着没问题"

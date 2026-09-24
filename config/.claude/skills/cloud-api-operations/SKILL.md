@@ -57,7 +57,8 @@ Recipes encode the exact call sequence, required parameters, and empirically dis
 
 - **PostgreSQL storage-usage alarm**: `./references/recipes/pg-storage-alarm.md`
 - **ICP filing readiness and wait-time checks**: `./references/recipes/icp-filing-readiness.md`
-- **PostgreSQL instance spec change, shared-to-dedicated upgrade, and account password reset**: `./references/recipes/pg-instance-spec-and-password.md`
+- **PostgreSQL instance spec change and shared-to-dedicated upgrade**: `./references/recipes/pg-instance-spec.md`
+- **Custom domain onboarding for an env (HTTP access domain, certificate, DNS binding)**: `./references/recipes/custom-domain.md`
 
 **Done when**: every parameter value in the call sequence traces to a recipe value marked as verified (实测) or to official docs.
 
