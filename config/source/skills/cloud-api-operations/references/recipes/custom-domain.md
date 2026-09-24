@@ -24,7 +24,25 @@
 | `dnspod` | 解析记录的增删查 | **未授权** |
 | `ba` | 备案订单 / 主体 / 域名状态 | **未授权** |
 
-这张表的用法：**云开发侧（`tcb` + `ssl`）能自己做完，域名侧三段（买、解析、备案）默认做不了** —— 账号级 device 登录拿到的身份没有域名 / 解析 / 备案策略。碰到 `UnauthorizedOperation` 时按 [calling-methods.md §3](../calling-methods.md) 给出该身份的一键授权链接补策略，或直接引导用户去控制台；**不要因为调不通就判定「这个域名不能用」**，云开发侧的绑定照旧能走。
+这张表的用法：**云开发侧（`tcb` + `ssl`）能自己做完；域名侧三段（买、解析、备案）默认做不了**。但「调不通」不等于「这个域名不能用」—— 云开发侧的绑定照旧能走。
+
+缺权限时先认清是**谁**缺。实测（2026-09-24，账号级 device 登录）：`sts/GetCallerIdentity` 返回 `Type: CAMRole`、`UserId: <ownerUin>:TCB_QcsRole-<uin>-<ts>` —— 调用者是以 **`TCB_QcsRole`** 换来的临时密钥，缺的是挂在**这个角色**上的策略，而不是「用户没授权」。落点定了，补权限就有明确做法（链接拼法与使用边界见 [calling-methods.md §3.2](../calling-methods.md)）：
+
+**加解析** —— 最高频的一段（代加归属校验的 TXT、或接入成功后代加 CNAME）：
+
+- 只读（先看现状、判断解析配对没有）：
+  `https://console.cloud.tencent.com/cam/role/grant?roleName=TCB_QcsRole&policyName=QcloudDNSPodReadOnlyAccess&principal=eyJzZXJ2aWNlIjpbInRjYi5jbG91ZC50ZW5jZW50LmNvbSJdfQ%3D%3D`
+- 需要**代写**解析记录，把 `policyName` 换成 `QcloudDNSPodFullAccess`，其余不变
+- 想让用户授权完跳回原页面，在末尾加 `&s_url=` + URL 编码后的当前地址
+
+两条链接都是**账号下全部域名解析**的口子，给之前先跟用户讲清代价（见 §3.2 的第二条边界）。
+
+**买域名 / 备案这两段故意不给链接**：
+
+- 买域名是**消费操作**。给服务角色开下单权限，等于把花钱的能力交出去 —— 让用户自己在 https://console.cloud.tencent.com/domain 完成。
+- 备案不在 CAM 策略体系里，没有「加一条策略就能调 API」的入口，只能走控制台或备案小程序。自查与等待期见 [Recipe 2](./icp-filing-readiness.md)。
+
+给链接时一并说清**用哪个账号点**：授权页要主账号或具备 CAM 写权限的身份登录，子账号点开同样授不了 —— 别只丢一条 URL 就当交代完了。
 
 ## 接口序列
 
@@ -116,12 +134,12 @@
 
 ### E. 域名侧三段：默认做不了，怎么指路
 
-| 段 | 在哪里做 | 判据 |
-| --- | --- | --- |
-| **买域名** | 域名注册控制台 https://console.cloud.tencent.com/domain | 身份有 `domain` 策略才可 `domain/CheckDomain`（可注册性）、`domain/DescribeDomainPriceList`（价格）、`domain/CreateDomainBatch`（下单）；没有就引导用户买 |
-| **实名认证** | 注册后按提示完成 | 必须做。没实名不能加解析、不能备案 |
-| **加解析** | DNSPod 控制台 https://console.cloud.tencent.com/cns | 要加两条：归属校验用的 **TXT `_cloudbase-challenge`**，以及**接入成功后页面给出的 CNAME**（云开发接入的接入点是 `cdn.dnsv1.com`） |
-| **备案** | 云开发平台「备案管理」 https://tcb.cloud.tencent.com/dev#/env/filing-manage 或腾讯云备案控制台 | **自定义域名必须已完成 ICP 备案**（官方硬要求）。所以通常是**先备案、再绑域名**；自查与等多久转 [Recipe 2](./icp-filing-readiness.md) |
+| 段 | 在哪里做 | AI 能否代做 | 判据 |
+| --- | --- | --- | --- |
+| **买域名** | 域名注册控制台 https://console.cloud.tencent.com/domain | **不给** —— 消费操作，不把下单权交给服务角色 | 要有 `domain` 策略才能调 `domain/CheckDomain`（可注册性）、`domain/DescribeDomainPriceList`（价格）、`domain/CreateDomainBatch`（下单）。这一段正确做法是引导用户自己买，别去补权限 |
+| **实名认证** | 注册后按提示完成 | 不能 | 必须做。没实名不能加解析、不能备案 |
+| **加解析** | DNSPod 控制台 https://console.cloud.tencent.com/cns | **可以** —— 补策略后由 AI 代写 | 要加两条：归属校验用的 **TXT `_cloudbase-challenge`**，以及**接入成功后页面给出的 CNAME**（云开发接入的接入点是 `cdn.dnsv1.com`）。补权限链接见「前置权限」 |
+| **备案** | 云开发平台「备案管理」 https://tcb.cloud.tencent.com/dev#/env/filing-manage 或腾讯云备案控制台 | 不能 —— 备案不在 CAM 策略体系里 | **自定义域名必须已完成 ICP 备案**（官方硬要求）。所以通常是**先备案、再绑域名**；自查与等多久转 [Recipe 2](./icp-filing-readiness.md) |
 
 顺序上有一条容易踩反：**先用 TXT 过归属校验，再用 CNAME 接流量**。CNAME 值要等域名关联完成（约 3-5 分钟）才由接口给出，提前猜一个填进去没用。
 
@@ -136,7 +154,8 @@
 | 在个人版套餐上开边缘加速 | 预检 `Quota` 报 `FAIL` `QUOTA_EXCEEDED`「当前套餐不支持边缘加速（EO）」 | 边缘加速需要**标准版及以上**套餐；个人版只能走「不开启边缘加速」的云开发接入 |
 | 自己拼归属校验记录 | 记录名凭印象写，校验一直不过 | 记录名与值只从预检返回的 `OwnershipVerification.DnsVerification[]` 取（`_cloudbase-challenge` / `TXT` / `EnvId`） |
 | 域名已被别的环境占用 | `DomainConflict` 报 `FAIL` `DOMAIN_IN_USE`（"already occupied by other environment"） | 先到占用方环境 `listCustomDomains` 确认，从那边解绑后再绑；同一域名不能同时接两个环境 |
-| 以为是技术问题，其实是权限 | `domain` / `dnspod` / `ba` 一调就 `UnauthorizedOperation`（`qcs::domain::…:domainId/* has no permission`） | 不是域名不可用。这三段要么按 [calling-methods.md §3](../calling-methods.md) 给身份补策略，要么引导用户去控制台；云开发侧继续用 `tcb` + `ssl` |
+| 以为是技术问题，其实是权限 | `domain` / `dnspod` / `ba` 一调就 `UnauthorizedOperation`（`qcs::domain::…:domainId/* has no permission`） | 不是域名不可用。先用 `sts/GetCallerIdentity` 确认调用者是不是 `TCB_QcsRole`，是就按「前置权限」给解析的一键授权链接（只读优先）；买域名与备案引导去控制台。云开发侧继续用 `tcb` + `ssl` |
+| 把一键授权链接当成万能兜底 | 用户（或子账号）点开链接也授不了，回头来问为什么没生效 | 授权页要主账号或具备 CAM 写权限的身份；给链接时同时说明用哪个账号点，必要时退回控制台手工加策略 |
 | 在静态托管页找绑定入口 | 静态托管「自定义域名」区提示**已下线**，只能删不能加 | 新绑定统一走 HTTP 网关 `#/env/http-access`；静态托管页上的存量域名只支持「先删除再重绑」 |
 | 把 `customCname` 当成解析目标 | `accessType="CUSTOM"` 时把 `customCname` 填成用户域名要解析到的地址 | `customCname` 是**回源 / 回填**地址（CDN / WAF 分配的那个 CNAME）；用户域名的 CNAME 解析在 DNS 侧配，两者不是一回事 |
 | 想提前报出 CNAME 值 | 绑定刚提交就问「解析到哪」 | CNAME 值要等域名关联完成（约 3-5 分钟）由接口给出；预检阶段只会有归属校验的 TXT |
@@ -149,3 +168,4 @@
 4. **序列 D**：轮询到该域名 `Status = SUCCESS` 且 `DNSStatus = OK`，`Cname` 非空。`FAIL` 时按 D 表的 `DNSStatus` 三态分流。
 5. **端到端**：`nslookup <自定义域名>` 能解析到 `Cname` 给出的地址，浏览器打开该域名能看到目标服务内容 —— 官方文档给的自检命令就是 `nslookup`。
 6. 全链路只有序列 C 是写操作，**提交前确认真实目标环境**；A / B / D 全是只读，可以放心反复跑。
+7. **权限判定**：调用报 `UnauthorizedOperation` 时，先 `sts/GetCallerIdentity` 确认调用者身份，再决定是给角色的一键授权链接（解析只读优先）还是让用户去控制台 —— 不要直接判定「域名不可用」。

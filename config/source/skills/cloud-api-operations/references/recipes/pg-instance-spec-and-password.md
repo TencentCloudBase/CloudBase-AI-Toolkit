@@ -32,9 +32,9 @@
 
 一键授权链接（以 `TCB_QcsRole` 为例，`principal` 是该角色载体的 base64）：
 
-- `https://console.cloud.tencent.com/cam/role/grant?roleName=TCB_QcsRole&policyName=QcloudPostgreSQLReadOnlyAccess&principal=eyJzZXJ2aWNlIjoidGNiLmNsb3VkLnRlbmNlbnQuY29tIn0%3D`
+- `https://console.cloud.tencent.com/cam/role/grant?roleName=TCB_QcsRole&policyName=QcloudPostgreSQLReadOnlyAccess&principal=eyJzZXJ2aWNlIjpbInRjYi5jbG91ZC50ZW5jZW50LmNvbSJdfQ%3D%3D`
 
-账号级身份缺权限时，由主账号给**这个身份**追加策略，别去点角色的链接。链接拼法与角色载体的读法见 [calling-methods.md §3](../calling-methods.md)。
+账号级身份缺权限时，由主账号给**这个身份**追加策略，别去点角色的链接。链接拼法、`principal` 的固定取值与使用边界见 [calling-methods.md §3.2](../calling-methods.md)。
 
 官方接口文档：云开发 API 概览 https://cloud.tencent.com/document/api/876/34809 （请求域名 `tcb.tencentcloudapi.com`）；云数据库 PostgreSQL API 概览 https://cloud.tencent.com/document/api/409/16761 （请求域名 `postgres.tencentcloudapi.com`）。
 
