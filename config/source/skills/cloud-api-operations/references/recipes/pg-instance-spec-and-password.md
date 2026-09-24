@@ -20,8 +20,8 @@
 
 | service | version | 用途 |
 | --- | --- | --- |
-| `tcb` | `2018-06-08` | 环境的 PG 实例管控面：变配 / 升独享 / 重置账号密码 / 查任务 |
-| `postgres` | `2017-03-12` | 读实例现状与可售规格 |
+| `tcb` | `2018-06-08` | 环境的 PG 实例管控面：变配 / 升独享 / 查任务 |
+| `postgres` | `2017-03-12` | 读实例现状与可售规格；**重置账号密码（写）** |
 
 **凭据身份：账号级。** 实例挂在云开发环境上，但读它的现状要走 `postgres` 产品接口。`callCloudApi` 有环境绑定门禁，账号级登录后先 `auth(action="set_env", envId=…)` 绑到目标环境；实例不在默认地域时，`postgres` 的读接口要在顶层传 `region`。
 
@@ -93,22 +93,51 @@
 }
 ```
 
+**前置条件是硬门槛，不满足会被直接拒掉**（实测 2026-09-24）：这个接口只接受 **`shared`（多租户共享）** 形态的实例，其它形态报错且不产生任何任务：
+
+```
+only shared (multi-tenant) instance can be upgraded to dedicated, current form: small_tenant
+```
+
+要注意**「云开发侧写着独享」和「PG 侧是什么形态」是两套话**：实测一个 `DescribeEnvInfo` 里 `TenantType: DEDICATED` 的实例，PG 侧形态是 `small_tenant`，调这个接口就被上面那句拒了。所以动手前先看 `TenantType` —— 只有 `SHARED` 才走 B2，`DEDICATED` 走 B1 调规格。
+
+能升独享的是**早期环境遗留的共享形态**；新开的云开发 PG 基本已经是独享。手上只有 `DEDICATED` 实例时，这条链路的正确动作是**不要调**，直接告诉用户当前实例不需要升独享 —— 别把「接口报错」讲成「升级失败」。
+
 返回 `TaskId`，用序列 D 回查进度。
 
 ### C. 重置 PG 账号密码
 
+有**两个入口**，它们改的不是同一个账号 —— 选错了会「调用成功但密码没变」：
+
 | 步 | Action | service / version | 关键参数 | 取什么 |
 | --- | --- | --- | --- | --- |
-| 8 | ResetPGAccountPassword | `tcb` / `2018-06-08` | `{ "EnvId": …, "Password": "<新密码>" }` | 只有 `RequestId` |
+| 8 | ResetAccountPassword | `postgres` / `2017-03-12` | `{ "DBInstanceId": "<A2 的 DBInstanceId>", "UserName": "<账号名>", "Password": "<新密码>" }`，地域走顶层 `region` | 只有 `RequestId` |
+| 8b | ResetPGAccountPassword | `tcb` / `2018-06-08` | `{ "EnvId": …, "Password": "<新密码>" }` | 只有 `RequestId`（**不影响** `DescribeAccounts` 里的账号） |
 
 ```json
 {
-  "EnvId": "<envId>",
+  "DBInstanceId": "postgres-l4xa5uq4",
+  "UserName": "admin",
   "Password": "A8b!C2d#E4f&"
 }
 ```
 
-`Password` 的硬性要求：**8 ~ 32 位**，不能以 `/` 开头，且必须**同时**包含小写字母、大写字母、数字、特殊字符四类。改完只返回 `RequestId`，**没有**任何回查接口——生效与否只能用新密码连一次库来确认。
+**要改 `DescribeAccounts` 里列出的那个账号**（`UserName` 通常是 `admin`、`UserType` 是 `tencentDBSuper`）**就用步骤 8** —— 它带 `UserName`，指哪个改哪个。步骤 8b 不带 `UserName`，指的是环境级的另一个账号。
+
+实测对照（2026-09-24，同一实例、同一次会话内）：
+
+| 调用 | 返回 | `DescribeAccounts[].PasswordUpdateTime` |
+| --- | --- | --- |
+| 步骤 8b（先后调两次） | 两次都是 `RequestId` | **始终不动** |
+| 步骤 8 | `RequestId` | `2026-05-27 15:19:37` → **`2026-09-24 18:10:59`** |
+
+结论有两条：**「返回 `RequestId`」不等于改成功了**；确认改没改只能读 `PasswordUpdateTime`。
+
+`Password` 的硬性要求：**8 ~ 32 位**，不能以 `/` 开头，且必须**同时**包含小写字母、大写字母、数字、特殊字符四类。
+
+**改完怎么确认**：读 `postgres/DescribeAccounts` 的 `PasswordUpdateTime`。这类实例通常只有内网地址（外网访问默认关闭），拿新密码连库这条常规验证在环境外做不了。
+
+控制台走的是步骤 8 那条路，并且对这条 API 额外要求 **MFA**（控制台会弹窗验证）。经 `callCloudApi` 调用时账号级身份没有被 MFA 拦下，直接返回成功。
 
 ### D. 回查：任务、进度与规格
 
@@ -208,6 +237,8 @@
 | `Region` 传错位置 | `Region is not recognized`（`tcb` 的这几个接口文档注明「本接口不需要传递此参数」） | `tcb` 的变配族把地域交给环境绑定；`postgres` 的读接口要地域，且必须在 `callCloudApi` **顶层** `region` 传，不要写进 `params` |
 | 账号级登录仍被拦 | 首个调用返回 `ENV_REQUIRED`（「当前已登录，但尚未绑定环境」） | 先 `auth(action="set_env", envId=…)` 绑定目标环境 |
 | 密码不合规 | 只给大小写字母 + 数字，报参数校验失败 | 生成时保证四类字符齐全（小写、大写、数字、特殊字符），长度落在 8 ~ 32 位且首字符不是 `/` |
+| 以为 `ResetPGAccountPassword` 改的是 `DescribeAccounts` 里的账号 | 调用返回 `RequestId`，看着像成功了，但 `PasswordUpdateTime` 一直不变，说不清密码到底变没变 | 要改 `admin` 这类账号就用 `postgres/ResetAccountPassword`（带 `UserName`）。实测 `tcb/ResetPGAccountPassword` 连调两次都不动 `PasswordUpdateTime` —— **返回 `RequestId` 不等于改成功** |
+| 在独享实例上试升独享 | `only shared (multi-tenant) instance can be upgraded to dedicated, current form: small_tenant` | 这是「不适用」，不是「升级失败」。先用步骤 1 的 `TenantType` 判断：`DEDICATED` 的实例根本没有升独享这回事，如实告诉用户不需要升 |
 | 把"提交成功"当成"已完成" | 变配 / 升独享提交后立刻去连库，规格还是旧的 | 两个入口都是异步：升独享按序列 D 步骤 9 轮询 `Status`，调规格先按步骤 10 看 `Progress`、再按步骤 11 比对规格字段与 `UpdateTime` |
 | 找错控制台入口 | 在环境设置页 `#/env/env-setting` 里翻规格与密码 | 规格与账号密码在 PG 实例页 `#/db/postgres/setting`；任务列表在 `#/db/postgres/tasks`。`#/db/mysql/setting` 是 MySQL 的页，两者不通用 |
 
@@ -218,6 +249,6 @@
 3. **序列 B 预检**：步骤 4 的 `DryRun: true` **没有报错**即为通过；返回的 `DealName` / `BillId` 为空串表示没有产生订单。报错就改参数重来。
 4. **序列 B 正式提交后看进度**：返回 `DealName` / `BillId` 非空只代表订单已受理。立刻用步骤 10 查一次 —— `TaskSet` 里应出现一条新的 `TaskType = "ModifyInstanceSpec"`、`StartTime` 最晚的任务，且 `Status` 为运行中。一分钟后再查，`Progress` 应向前推进。查不到新任务就先确认 `DBInstanceId` 与地域传对。
 5. **序列 B 正式提交后回查规格**：步骤 11 返回的 `DBInstanceCpu` / `DBInstanceMemory` / `DBInstanceStorage` 等于目标值，且 `UpdateTime` 晚于提交时间，**这三项都对上才算变配完成**（不要拿 `Zone` 或主备角色当判据）。同时步骤 10 里那条任务的 `Status` 应为 `Success`、`Progress = 100`、`EndTime` 非空。
-6. **序列 B2**：`UpgradePGInstanceToDedicated` 返回的 `TaskId` 非空；步骤 9 轮询到 `Status = Succeed` 即为完成，`Failed` 时读 `Reason` 定位。完成后步骤 1 的 `TenantType` 应变为 `DEDICATED`。`DescribeTasks` 在升独享期间同样能看到迁移类任务，可作为附加观察，但完成判据仍以步骤 9 为准。
-7. **序列 C**：`ResetPGAccountPassword` 返回 `RequestId`；用新密码连一次库（应用连接串、`psql` 或 SQL 编辑器均可）确认能连上，旧密码应连不上。
-8. 全链路的读步骤只调用 `Describe*`；只有 B1 / B2 / C 三处是写操作，各自提交前先确认真实目标环境。
+6. **序列 B2（先确认前提）**：步骤 1 的 `TenantType` 必须是 `SHARED`，不是就直接停手（实测 `DEDICATED` 的实例会报 `current form: small_tenant`）。满足时 `UpgradePGInstanceToDedicated` 返回的 `TaskId` 非空；步骤 9 轮询到 `Status = Succeed` 即为完成，`Failed` 时读 `Reason` 定位。完成后步骤 1 的 `TenantType` 应变为 `DEDICATED`。
+7. **序列 C**：`ResetAccountPassword` 返回 `RequestId` **不算完成** —— 紧接着读 `DescribeAccounts`，`PasswordUpdateTime` 应晚于提交时间，这才是生效判据。实例通常只有内网地址（外网访问默认关闭），连库验证在环境外做不了，不要因为连不上就断定改密失败。
+8. 全链路的读步骤只调用 `Describe*`；写操作只有 B1 / B2 / C 三处，各自提交前先确认真实目标环境。

@@ -20,8 +20,8 @@
 | --- | --- | --- | --- |
 | 1 | PostgreSQL 存储空间使用率告警 | [pg-storage-alarm.md](./pg-storage-alarm.md) | ✅ 生产实证（2026-09-08） |
 | 2 | ICP 备案提交前自查与等待期查询 | [icp-filing-readiness.md](./icp-filing-readiness.md) | ✅ 生产实证（2026-09-21） |
-| 3 | PostgreSQL 实例变配、升级独享与账号密码 | [pg-instance-spec-and-password.md](./pg-instance-spec-and-password.md) | 🟡 部分实证（2026-09-24）：`ModifyPGInstanceSpec` 升配 + 降配已跑通；共享升独享、账号改密未跑 |
-| 4 | 自定义域名接入云开发 | [custom-domain.md](./custom-domain.md) | 🟡 部分实证（2026-09-24）：现状查询、只读预检、证书读取已跑通；真实绑定、DNS 生效、备案未跑 |
+| 3 | PostgreSQL 实例变配、升级独享与账号密码 | [pg-instance-spec-and-password.md](./pg-instance-spec-and-password.md) | 🟡 部分实证（2026-09-24）：`ModifyPGInstanceSpec` 升配 + 降配、账号改密（`postgres/ResetAccountPassword`）已跑通；**共享升独享未跑**（账号下的 PG 实例全是独享形态，该接口只接受共享实例，只拿到前置条件报错原文） |
+| 4 | 自定义域名接入云开发 | [custom-domain.md](./custom-domain.md) | 🟡 部分实证（2026-09-24）：现状查询、只读预检、证书读取、真实绑定与解绑（含收尾）已跑通；**未跑**——轮询到 `Status = SUCCESS`（测试域名一直停在 `PROCESSING`）、代改 DNS 解析、备案（`dnspod` / `ba` 未授权） |
 
 ## 没有独立 recipe 的场景
 
