@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import COS from "cos-nodejs-sdk-v5";
 import {
   buildCosPutAuthorization,
   buildFunctionZipUpload,
@@ -19,41 +18,27 @@ const FIXTURE = {
 };
 
 /**
- * 黄金值对照：同一输入下，本地复刻签名必须与 cos-nodejs-sdk-v5 getAuth 的输出
- * 逐字节一致。SDK ForceSignHost 默认 true 会签入 Host 头，与我们的实现一致。
+ * 黄金值对照：期望值由 cos-nodejs-sdk-v5 getAuth 对同一输入的输出固化而来
+ *（SDK ForceSignHost 默认 true 会签入 Host 头，与本实现一致）。
+ * 固化成字面量以避免测试构建期引入 cos-nodejs-sdk-v5 依赖。
  */
 describe("buildCosPutAuthorization", () => {
-  it("matches cos-nodejs-sdk-v5 getAuth output (permanent keys)", () => {
+  it("matches cos-nodejs-sdk-v5 getAuth golden value (permanent keys)", () => {
     const ours = buildCosPutAuthorization(FIXTURE);
-    const sdk = COS.getAuthorization({
-      SecretId: FIXTURE.secretId,
-      SecretKey: FIXTURE.secretKey,
-      Method: "put",
-      Key: FIXTURE.objectKey,
-      Bucket: FIXTURE.bucket,
-      Region: FIXTURE.region,
-      KeyTime: FIXTURE.keyTime,
-    });
-    expect(ours).toBe(sdk);
+    expect(ours).toBe(
+      "q-sign-algorithm=sha1&q-ak=FIXTURE_COS_SECRET_ID_PLACEHOLDER_000001&q-sign-time=1690000000;1690003600&q-key-time=1690000000;1690003600&q-header-list=host&q-url-param-list=&q-signature=debc7cf487e7b443e5297b38b591a78bb781eeb6",
+    );
   });
 
-  it("matches cos-nodejs-sdk-v5 getAuth output (with security token signed into headers)", () => {
+  it("matches cos-nodejs-sdk-v5 getAuth golden value (security token signed into headers)", () => {
     const token = "fixture-session-token-abc123";
     const ours = buildCosPutAuthorization({
       ...FIXTURE,
       securityToken: token,
     });
-    const sdk = COS.getAuthorization({
-      SecretId: FIXTURE.secretId,
-      SecretKey: FIXTURE.secretKey,
-      Method: "put",
-      Key: FIXTURE.objectKey,
-      Bucket: FIXTURE.bucket,
-      Region: FIXTURE.region,
-      KeyTime: FIXTURE.keyTime,
-      Headers: { "x-cos-security-token": token },
-    });
-    expect(ours).toBe(sdk);
+    expect(ours).toBe(
+      "q-sign-algorithm=sha1&q-ak=FIXTURE_COS_SECRET_ID_PLACEHOLDER_000001&q-sign-time=1690000000;1690003600&q-key-time=1690000000;1690003600&q-header-list=host;x-cos-security-token&q-url-param-list=&q-signature=089ae4e3c39994d8664ba921c3e6ebef5c48fad5",
+    );
     // token 必须真实参与签名：带 token 与不带 token 的签名串必然不同
     expect(ours).not.toBe(buildCosPutAuthorization(FIXTURE));
     expect(ours).toContain("x-cos-security-token");
