@@ -1,0 +1,179 @@
+# CloudBase 小程序集成参考
+
+本文补充 `SKILL.md`，提供实用的 **微信小程序 + CloudBase** 集成指引。
+
+## 如何使用本参考（面向 coding agent）
+
+1. **理解平台差异**
+   - 微信小程序与 Web 的认证方式完全不同。
+   - 必须严格区分平台。
+   - 绝不要把 Web 认证方法混入小程序项目。
+   - 使用 CloudBase 的小程序天然免登录。
+
+2. **遵循 CloudBase 最佳实践**
+   - 小程序客户端使用 `wx.cloud` API。
+   - 依赖客户端写入前，先配置合适的数据库权限。
+   - 跨集合操作与特权写入优先走云函数。
+   - 服务端用 `cloud.getWXContext()` 取得的 `OPENID` 作为稳定用户标识。
+
+3. **使用正确的 SDK 与 API**
+   - 小程序客户端按需使用 `wx.cloud.database()`、`wx.cloud.callFunction()`、`wx.cloud.uploadFile()`。
+   - 不要在小程序中使用 Web SDK 认证模式。
+   - 可用时通过 `queryEnv` 获取环境 ID。
+
+4. **选择正确的云执行面**
+   - **微信云开发 = CloudBase × 微信。** Nightly 开发者工具 Skills 可用时，日常小程序云操作（环境列表、NoSQL、云函数、云存储）优先用 `wechatide` / `cloudbase-operator` + 微信登录。见 [devtools-debug-preview.md](devtools-debug-preview.md) 与 [wxide-vs-cloudbase-mcp.md](wxide-vs-cloudbase-mcp.md)。
+   - Nightly 未覆盖的缺口（进阶权限、数据模型、MySQL/PG、更广的环境治理），或 Nightly / `wechatide` 不可用时，使用 **CloudBase MCP**（IDE MCP 或下方 mcporter）。
+   - **不要** 为 `wechatide` 已能完成的日常操作强制单独做腾讯云 MCP 登录。
+
+5. **IDE MCP 不可用 / Nightly 路径不够时，经 mcporter（CLI）使用 CloudBase MCP**
+   - **无需** 在配置中硬编码 Secret ID / Secret Key / Env ID。
+   - CloudBase MCP 支持通过 `auth` 工具做 device-code 登录，可交互获取凭证。
+   - 在 `config/mcporter.json` 中添加 CloudBase MCP server：
+     若已有其他 MCP server，保留它们，仅追加 `cloudbase` 条目。
+     ```json
+     {
+       "mcpServers": {
+         "cloudbase": {
+           "command": "npx",
+           "args": ["@cloudbase/cloudbase-mcp@latest"],
+           "description": "CloudBase MCP",
+           "lifecycle": "keep-alive"
+         }
+       }
+     }
+     ```
+   - 发现工具与 schema：
+     - `npx mcporter list` — 列出已配置 server
+     - `npx mcporter describe cloudbase --all-parameters` — 检查 CloudBase server 配置并获取含全部参数的完整工具 schema（⚠️ **必须加 `--all-parameters` 才能获取完整参数信息**）
+     - `npx mcporter list cloudbase --schema` — 获取全部 CloudBase 工具的完整 JSON schema
+     - `npx mcporter call cloudbase.help --output json` — 发现可用 CloudBase 工具及其 schema
+   - 调用 CloudBase 工具（鉴权流程示例）：
+     - `npx mcporter call cloudbase.auth action=status --output json`
+     - `npx mcporter call cloudbase.auth action=start_auth authMode=device --output json`
+     - `npx mcporter call cloudbase.auth action=set_env envId=env-xxx --output json`
+
+## 0. 账号与环境前置（动手前先确认）
+
+### 0.1 账号与主体：注册这一步就要定
+
+- 先确认用户用的是**正式注册的小程序账号**：微信测试号不支持云开发，开发者工具里「云开发」按钮为灰色，容易被误判为云开发故障。
+- **主体类型选定后不能直接改**，所以推荐注册之前先问一句：这个小程序卖的是**实物 / 线下服务**，还是**虚拟商品**（会员、点券、解锁功能这类）？
+  - 卖实物或线下服务 → 必须**个体工商户或企业**主体。普通微信支付商户号只面向企业、个体工商户、政府及事业单位、民办非企业、社会团体、基金会开放，**个人主体不在受理范围内**。
+  - 只卖虚拟商品、且服务类目能选到**「工具」** → **个人主体也可以**，走[虚拟支付](https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/business-capabilities/virtual-payment/person)：需完成小程序认证与备案，全终端月支付限额 10 万元，费率 Android 1% / iOS 12%。**个人主体在小程序内收款只能走这条**，它与普通微信支付是两套独立链路（详见 [virtual-payment.md](../../cloudbase-wechat-integration/references/virtual-payment.md)）。不要因为「个人开不了微信支付」就把这类需求也推去注册企业号。
+  - 不涉及任何收款 → 个人主体够用。但不要因为「免费」就把它当默认推荐，先问清上面这两个分支。
+- 已有**已认证的企业/个体户公众号**时，走「**快速注册并认证小程序**」最省事：免重复提交主体材料、免对公打款、免 300 元认证费，新建的小程序直接继承该公众号主体，能力与独立注册的小程序一致。注意该入口**只对已认证的非个人主体公众号开放**——个人主体公众号没有这个入口，「先用个人号注册、以后再交给公司」走不通。
+- 主体已经用错：个人 → 企业要走[小程序主体变更](https://fuwu.weixin.qq.com/community/develop/doc/000a06d7dd80a03f9941153c16d809)。因为有一方是个人，不能用法人扫脸，**必须上传公证书**，另加审核服务费 300 元、审核约 7 个工作日、通过后双方管理员 7 日内确认（超时作废）。变更不换 AppID，已有代码与数据都保留。
+
+### 0.2 开通环境：优先在开发者工具里点
+
+- 优先在微信开发者工具里点「**云开发**」按钮，环境自动与当前小程序关联；弹出登录页时选择**「微信公众平台登录」**。
+- 开通前提：腾讯云账号已完成**实名认证**——未实名会创建失败且报错不明显（只在控制台右上角小字提示）。
+- ⚠️ 在开发者工具里创建小程序项目时**务必勾选「不使用云服务」**，否则会自动新建一个腾讯云账号——这是后面「环境看不到」最常见的来源。
+
+### 0.3 工具里看不到环境 / 选不到环境
+
+- 成因一句话：微信开发者工具里的云开发控制台，是拿**小程序绑定的那个腾讯云账号**登录的；两边账号不一致，环境就不显示。这是账号问题，不是故障，也不用重装工具。
+- 先核对账号是否一致：腾讯云账号中心 → 账号信息 → 登录方式 → 微信公众平台。
+- 一致但环境没出来 → 导入：微信开发者工具 → 云开发控制台 → 设置 → 环境设置 → 展开环境列表 → 管理我的环境 → **使用已有腾讯云环境**（选择环境 → 确认转换 → 扫码）。
+- 不一致 → 把小程序绑到目标腾讯云账号（腾讯云账号中心 → 登录方式 → 微信公众平台 → 关联）。前提：该小程序**此前未绑定过其他腾讯云账号**，且**一个腾讯云账号只能绑一个小程序**。
+- 能力边界：微信侧创建的环境，小程序端 + Web 端都能用；腾讯云侧创建的环境**只支持 Web 端**，要在小程序端用得先走上面的导入。环境**不支持跨账号迁移**。
+- 另外四种置灰成因（测试号 / 授权过第三方服务商 / 非管理员 / 公众号项目）及判据见 [pitfalls.md](pitfalls.md) §6。
+
+官方文档：[创建云开发环境](https://docs.cloudbase.net/quick-start/create-env)、[账号相关 FAQ](https://docs.cloudbase.net/faq/account)。
+
+## 1. 环境初始化
+
+使用 CloudBase 的小程序应在应用启动时初始化一次 `wx.cloud`。
+
+```js
+App({
+  onLaunch() {
+    wx.cloud.init({
+      env: "your-env-id",
+      traceUser: true,
+    });
+  },
+});
+```
+
+### 规则
+
+- 可用时始终通过 `queryEnv` 获取环境 ID。
+- 优先在应用级初始化一次，避免在页面级反复初始化。
+- 除非有明确理由，使用 `traceUser: true`，以便 CloudBase 将请求与当前微信用户关联。
+
+## 2. 认证模型
+
+小程序 CloudBase **天然免登录**。
+
+### 必须遵守的行为
+
+- **不要** 生成登录页或登录流程。
+- **不要** 把 Web 认证模式移植到小程序。
+- 在云函数中用 `cloud.getWXContext().OPENID` 获取用户身份。
+
+```js
+const cloud = require("wx-server-sdk");
+cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
+
+exports.main = async () => {
+  const wxContext = cloud.getWXContext();
+  return {
+    openid: wxContext.OPENID,
+  };
+};
+```
+
+## 3. 推荐能力边界
+
+在正确的层级使用正确的 CloudBase 能力。
+
+### 客户端
+
+- `wx.cloud.database()` — 客户端安全读、用户作用域写
+- `wx.cloud.uploadFile()` — 用户生成资源
+- `wx.cloud.callFunction()` — 调用后端编排
+
+### 云函数
+
+- 特权写入
+- 跨集合事务或工作流
+- 第三方 API 集成
+- 数据规范化 / 校验
+- 经 `OPENID` 访问可信用户身份
+
+## 4. 环境选择
+
+- 不要硬编码随意的环境 ID。
+- 优先从 `queryEnv` 等工具获取环境 ID。
+- 通常在 `app.js` / `app.ts` 中初始化一次 CloudBase。
+
+## 5. 微信开发者工具与项目形态
+
+- 请用户打开项目前，确认 `project.config.json` 含有 `appid`。
+- 小程序源码通常在 `miniprogram/` 下。
+- 云函数通常在 `cloudfunctions/` 下。
+- 生成的页面应包含配套配置文件，如 `index.json`。
+
+## 6. AI 与模型使用
+
+- 在支持的基础库版本上，小程序可使用 `wx.cloud.extend.AI`。
+- 保持 prompt 与模型选择明确。
+- 若使用流式输出，应完整消费流，并在合适处增量更新 UI。
+
+## 7. IDE MCP / Nightly Skills 不可用时的回退
+
+若 Nightly `wechatide` 不可用，且 IDE 原生 MCP 集成也不可用，则通过 `mcporter` 使用 CloudBase MCP，用 device-code 鉴权完成登录，而不是把密钥写进配置。小程序日常操作仍尽量安装 Nightly：https://developers.weixin.qq.com/miniprogram/dev/devtools/nightly_backup.html
+
+## 8. 控制台与运维链接
+
+相关时，引导用户前往 CloudBase 控制台查看：
+
+- 环境设置
+- 数据库权限规则
+- 云函数部署状态
+- 存储管理
+- 计费 / 套餐信息
+
+优先用控制台指引，不要臆测权限或环境状态。
