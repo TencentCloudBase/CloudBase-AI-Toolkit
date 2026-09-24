@@ -8,6 +8,7 @@
 - 环境用的是**共享** PG，要升级成**独享**实例
 - 已经提交了变配 / 升独享，要知道**任务跑完没有、跑到哪、失败原因是什么**
 - 变配 / 升独享**还没提交或刚提交**，用户先问「要多久、业务会不会断」—— 这类「给用户的预期」按序列 D 的口径回答，不要自己估
+- 用户问「是不是得先升套餐才能升配」「升完每月多花多少」—— 按「费用与套餐」一节的结论与口径回答，不要凭感觉
 
 本篇管 PG 的**实例管控面**：租户形态、规格、存储、异步任务。
 
@@ -36,6 +37,25 @@
 账号级身份缺权限时，由主账号给**这个身份**追加策略，别去点角色的链接。链接拼法、`principal` 的固定取值与使用边界见 [calling-methods.md §3.2](../calling-methods.md)。
 
 官方接口文档：云开发 API 概览 https://cloud.tencent.com/document/api/876/34809 （请求域名 `tcb.tencentcloudapi.com`）；云数据库 PostgreSQL API 概览 https://cloud.tencent.com/document/api/409/16761 （请求域名 `postgres.tencentcloudapi.com`）。
+
+## 费用与套餐：变配不需要先升级套餐
+
+**改规格、升独享都没有套餐门槛。** 调用条件只有两类：实例状态可操作、目标规格合法。没有「套餐档位」「计费模式」这类前置 —— 个人版环境照样能调。
+
+别把边缘加速那道门槛套到这里。边缘加速确实要求「标准版及以上套餐 + 环境处于资源点计费模式」（见 [Recipe 4](./custom-domain.md)），那是**加速能力**的准入要求；PG 变配是**实例自身**的规格调整，两件事。
+
+费用按**实例规格**扣资源点，与访问量无关（没人连库也照扣）：
+
+| 项 | 口径 |
+| --- | --- |
+| CPU | **342 资源点 / CU / 小时** |
+| 存储 | **0.5 资源点 / GB / 小时** |
+
+按这个口径，2 核 4 GiB + 50 GB 的独享实例是 **709 资源点/小时**（约 1.7 万/天）；从 1 核 2 GiB + 10 GB 升到它，每小时多 362 资源点。控制台提交页的「用量推算」就按这个口径给，细则可以引其中的「PostgreSQL 数据库计量说明」链接给用户。
+
+所以「要不要升套餐」只有一条判据：**资源点够不够扣**。升配后消耗变快，扣到不足时才需要升套餐或加购资源包 —— 那是**额度**问题，不是变配的前置条件。回答用户时把这两件事分开说，别让「先升套餐」变成一次白忙。
+
+这一节的口径只适用于**独享**实例：共享实例的计费规则不同，升独享提交时的提示就是「升级后按独享实例的计费规则计量计费」。
 
 ## 接口序列
 
@@ -213,14 +233,17 @@ only shared (multi-tenant) instance can be upgraded to dedicated, current form: 
 | 账号级登录仍被拦 | 首个调用返回 `ENV_REQUIRED`（「当前已登录，但尚未绑定环境」） | 先 `auth(action="set_env", envId=…)` 绑定目标环境 |
 | 在独享实例上试升独享 | `only shared (multi-tenant) instance can be upgraded to dedicated, current form: small_tenant` | 这是「不适用」，不是「升级失败」。先用步骤 1 的 `TenantType` 判断：`DEDICATED` 的实例根本没有升独享这回事，如实告诉用户不需要升 |
 | 把"提交成功"当成"已完成" | 变配 / 升独享提交后立刻去连库，规格还是旧的 | 两个入口都是异步：升独享按序列 C 步骤 8 轮询 `Status`，调规格先按步骤 9 看 `Progress`、再按步骤 10 比对规格字段与 `UpdateTime` |
+| 选了与当前相同的规格 | 前端提示「请选择与当前不同的规格」、提交按钮点不动；绕过界面直接提交，接口回 `unchanged` | 这是**没发生变更**，不是变配成功：既不产生订单、也不产生任务，别拿它去轮询进度或复查规格。提交前先把目标规格与现状比一遍（见「验证步骤」第 3 条） |
+| 以为变配要先升级套餐 | 用户问「是不是得先升套餐才能调规格 / 升独享」，于是先去推套餐、改计费模式 | 改规格与升独享都**没有套餐前置**，调用条件只有实例状态与规格合法性。费用按实例规格扣资源点（342 资源点/CU/小时 + 0.5 资源点/GB/小时）；只有资源点扣不够时才需要升套餐或加购资源包 —— 那是额度问题。详见「费用与套餐」一节 |
 | 找错控制台入口 | 在环境设置页 `#/env/env-setting` 里翻实例规格 | 规格在 PG 实例页 `#/db/postgres/setting`；任务列表在 `#/db/postgres/tasks`。`#/db/mysql/setting` 是 MySQL 的页，两者不通用 |
 
 ## 验证步骤
 
 1. **序列 A**：`DescribeEnvInfo` 返回的 `EnvBaseInfo.PostgreSQL` 非空，取到 `InstanceName`；`DescribeDBInstanceAttribute` 能按它查到 `DBInstanceStatus = running`。查不到就先确认环境是否真的开通了 PG。
 2. **序列 B 选规格**：目标 CPU / 内存能在 `ClassInfoSet` 里找到同一行，`State = 1`，且目标存储落在该行 `MinStorage` ~ `MaxStorage` 之间。找不到就别提交。
-3. **序列 B 预检**：步骤 4 的 `DryRun: true` **没有报错**即为通过；返回的 `DealName` / `BillId` 为空串表示没有产生订单。报错就改参数重来。
-4. **序列 B 正式提交后看进度**：返回 `DealName` / `BillId` 非空只代表订单已受理。立刻用步骤 9 查一次 —— `TaskSet` 里应出现一条新的 `TaskType = "ModifyInstanceSpec"`、`StartTime` 最晚的任务，且 `Status` 为运行中。一分钟后再查，`Progress` 应向前推进。查不到新任务就先确认 `DBInstanceId` 与地域传对。
-5. **序列 B 正式提交后回查规格**：步骤 10 返回的 `DBInstanceCpu` / `DBInstanceMemory` / `DBInstanceStorage` 等于目标值，且 `UpdateTime` 晚于提交时间，**这三项都对上才算变配完成**（不要拿 `Zone` 或主备角色当判据）。同时步骤 9 里那条任务的 `Status` 应为 `Success`、`Progress = 100`、`EndTime` 非空。
-6. **序列 B2（先确认前提）**：步骤 1 的 `TenantType` 必须是 `SHARED`，不是就直接停手（实测 `DEDICATED` 的实例会报 `current form: small_tenant`）。满足时 `UpgradePGInstanceToDedicated` 返回的 `TaskId` 非空；步骤 8 轮询到 `Status = Succeed` **还不是终点** —— 再按步骤 10 确认 CPU / 内存已是目标规格（云开发任务成功不等于 PG 升级完成），`Failed` 时读 `Reason` 定位。完成后重走步骤 1，`TenantType` 应变为 `DEDICATED`；期间若实例状态是 `migrated`，旧实例 ID 可能已过时，要重新 `DescribeEnvInfo` 取新 ID 再查。
-7. 全链路的读步骤只调用 `Describe*`；写操作只有 B1 / B2 两处，各自提交前先确认真实目标环境。
+3. **序列 B 比对现状**：拿步骤 2 的 `DBInstanceCpu` / `DBInstanceMemory` 与步骤 3 选中的目标规格比一遍。**与当前完全一致就停手** —— 接口对「目标 = 现状」回 `unchanged`，既不产生订单、也不产生任务，不要提交完再去轮询任务。只有目标确实不同才继续。
+4. **序列 B 预检**：步骤 4 的 `DryRun: true` **没有报错**即为通过；返回的 `DealName` / `BillId` 为空串表示没有产生订单。报错就改参数重来。
+5. **序列 B 正式提交后看进度**：返回 `DealName` / `BillId` 非空只代表订单已受理。立刻用步骤 9 查一次 —— `TaskSet` 里应出现一条新的 `TaskType = "ModifyInstanceSpec"`、`StartTime` 最晚的任务，且 `Status` 为运行中。一分钟后再查，`Progress` 应向前推进。查不到新任务就先确认 `DBInstanceId` 与地域传对。
+6. **序列 B 正式提交后回查规格**：步骤 10 返回的 `DBInstanceCpu` / `DBInstanceMemory` / `DBInstanceStorage` 等于目标值，且 `UpdateTime` 晚于提交时间，**这三项都对上才算变配完成**（不要拿 `Zone` 或主备角色当判据）。同时步骤 9 里那条任务的 `Status` 应为 `Success`、`Progress = 100`、`EndTime` 非空。
+7. **序列 B2（先确认前提）**：步骤 1 的 `TenantType` 必须是 `SHARED`，不是就直接停手（实测 `DEDICATED` 的实例会报 `current form: small_tenant`）。满足时 `UpgradePGInstanceToDedicated` 返回的 `TaskId` 非空；步骤 8 轮询到 `Status = Succeed` **还不是终点** —— 再按步骤 10 确认 CPU / 内存已是目标规格（云开发任务成功不等于 PG 升级完成），`Failed` 时读 `Reason` 定位。完成后重走步骤 1，`TenantType` 应变为 `DEDICATED`；期间若实例状态是 `migrated`，旧实例 ID 可能已过时，要重新 `DescribeEnvInfo` 取新 ID 再查。
+8. 全链路的读步骤只调用 `Describe*`；写操作只有 B1 / B2 两处，各自提交前先确认真实目标环境。
