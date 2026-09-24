@@ -194,7 +194,10 @@ $NODE scripts/generate-prompts-data.mjs && $NODE scripts/generate-prompts.mjs
 $NODE scripts/sync-claude-skills-mirror.mjs && $NODE scripts/build-compat-config.mjs
 $NODE scripts/check-prompts-sync.mjs && $NODE scripts/sync-claude-skills-mirror.mjs --check
 $NODE scripts/diff-compat-config.mjs     # Has blocking diff: NO
+$NODE skills/cloud-api-recipe-authoring/scripts/check-recipes.mjs   # 表格结构 + 编号交叉引用
 ```
+
+- **动过接口序列的结构（删节、加节、重排步骤号）之后，必跑 `check-recipes.mjs`。** 步骤号在两个互不相干的位置各写一遍 ——「步」列的单元格、正文里的「步骤 N」句子 —— 改一处不会让另一处报错，只会让读者照着一个不存在（或指向别的步骤）的编号去找。脚本还会检查表格列数（含 `\|` 转义、分隔行、表格后空行）与反引号配对，退出码非 0 即有问题。**不要用眼睛代替它**：编号差一位看起来完全正常。
 
 - **新增或删除**文本面都会让 compat-diff 报 blocking，必须刷 `config/source/editor-config/compat-baseline.json`
 - **新写一篇 recipe = 新增文件，只能用全量刷新。** `update-compat-baseline.mjs --only <skill>` 只改**已存在**的 key；匹配到新文件时会把它记进 `unseen` 并提示走全量 —— 不会替你加进去（existence 级变更只能整体重算）。所以：
@@ -210,3 +213,4 @@ $NODE scripts/diff-compat-config.mjs     # Has blocking diff: NO
 - 授权指引必须落到「角色名 + 策略名 + 可点击链接」；写"去 CAM 控制台追加策略"等于把找路成本丢回用户
 - 沙箱 PATH 不含 `/usr/local/bin`（git-lfs 在那里），`git checkout <file>` 会返回非零并断掉 `&&` 链
 - 删除 recipe 时，除源文件与 `config/.claude/` 镜像，还要清掉 SKILL.md 与 README 里的引用，再跑产物链
+- **删节或重排编号后，表格的「步」列要单独再改一遍**：正文里的「步骤 N」和表格单元格是两套独立文本，只改一处不会有任何报错。实测（2026-09-25）删掉一整节后正文已重排成 8/9/10，表格仍停在 9/10/11 —— 差一位，读者按 8 去表格里找会落到别的步骤上。跑 `scripts/check-recipes.mjs` 检出，别靠复查时"看着没问题"
