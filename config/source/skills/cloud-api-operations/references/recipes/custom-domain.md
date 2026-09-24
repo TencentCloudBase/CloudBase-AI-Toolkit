@@ -154,7 +154,7 @@
 
 实测返回（2026-09-24，域名 + 有效证书）：`{"OwnershipVerification": null, "RequestId": "…"}`。**`OwnershipVerification` 为 `null` 就表示归属权已过、不需要再补 TXT**；非空时给出的才是要补的记录。
 
-**别拿 `CDN` 当接入方式新建**（实测 2026-09-24）：`AccessType: "CDN"` 是**存量云开发 CDN**，官方文档原话是「原『云开发 CDN』接入方式已不再支持」，只给出存量迁移到边缘加速的路径。注意**控制台的下拉里仍然保留着这一项** —— 接入方式选项一共四个：默认接入（`DIRECT`）/ 自定义接入（`CUSTOM`）/ 云开发 CDN 接入（`CDN`）/ 云开发 EdgeOne 接入（`EO`），默认值是 `DIRECT`。所以别以为「下拉里能选到就没问题」。用它提交不会报错、域名也会进清单，但**一直停在 `Status: PROCESSING`** —— 实测从创建到删除的整段时间都没走到 `SUCCESS`。普通绑定一律用 `DIRECT`；需要加速再上 `EO`（要标准版及以上套餐）。
+**别拿 `CDN` 当接入方式新建**（实测 2026-09-24）：`AccessType: "CDN"` 是**存量云开发 CDN**，官方文档原话是「原『云开发 CDN』接入方式已不再支持」，只给出存量迁移到边缘加速的路径。注意**控制台的下拉里仍然保留着这一项** —— 接入方式选项一共四个：默认接入（`DIRECT`）/ 自定义接入（`CUSTOM`）/ 云开发 CDN 接入（`CDN`）/ 云开发 EdgeOne 接入（`EO`），默认值是 `DIRECT`。所以别以为「下拉里能选到就没问题」。用它提交不会报错、域名也会进清单，但**一直停在 `Status: PROCESSING`** —— 实测从创建到删除的整段时间都没走到 `SUCCESS`。普通绑定一律用 `DIRECT`；需要加速再上 `EO`。上 `EO` 前先确认两道前置，官方文档对这两条是写在「前置准备」里的硬要求：**套餐为「标准版及以上」**，且环境处于**资源点计费模式** —— 边缘加速本身就是按资源点计费的，当前不是资源点模式时要先到控制台「套餐用量」页**转换计费模式**，转完才能开。
 
 ### C2. 解绑（写）
 
@@ -228,7 +228,7 @@ Domain X has N route binding(s) (/a, /b). Please delete the routes before deleti
 - **预检不会因为备案没过而 `FAIL` 拦住你。** `CDNResource` 这一项在域名还没接进来时返回的是 `PASS`，原话 `CDN resource not exist yet; ICP filing will be verified by CDN backend at create time` —— 平台自己说备案是**创建时**由 CDN 后端校验的。别把这句读成「预检不看备案」：检查项返回里的 `Message` 字段（`SKIPPED` 时给跳过原因），文档举的例子就是「**域名尚未备案**」，所以备案更可能以「跳过 + 一句说明」的形态出现，而不是拦。
 - **但官方对使用者的要求是硬的。** 文档「使用限制」原话「**自定义域名必须已完成 ICP 备案**」；控制台在大陆地域的绑定弹窗也会先列一条「在绑定自定义域名时，需要先办理网站备案」。
 - **创建那一刻也不拦。** 实测（2026-09-24）一个归属权与证书都通过的真实域名，`CreateHTTPServiceRoute` 返回成功、域名进清单，**没有返回任何备案相关的错误**。但**别把这句读成「备案没问题」**：同一个域名此后一直停在 `PROCESSING`、从没走到 `SUCCESS` —— 后端到底卡在哪一步（备案、CDN 资源、还是接入方式）从返回里看不出来。**没有备案结论时不要对用户下判断。**
-- **边缘加速（EO）接入**有专门的错误码 `EO_DOMAIN_NOT_ICP`，会在预检的 `EO` 项或接入过程中报出来。个人版套餐连 `Quota` 都过不去（见踩坑清单），到不了这一步。
+- **边缘加速（EO）接入**有专门的错误码 `EO_DOMAIN_NOT_ICP`，会在预检的 `EO` 项或接入过程中报出来。而 `EO` 这条路径本身还有套餐门槛（标准版及以上 + 资源点计费模式，见踩坑清单），个人版连 `Quota` 那关都过不去，到不了这一步。
 
 要确认域名到底备案没有，只能去备案控制台 https://console.cloud.tencent.com/beian 或备案小程序查 —— `ba` 未授权，AI 侧查不了；自查口径见 [Recipe 2](./icp-filing-readiness.md)。
 
@@ -246,7 +246,7 @@ Domain X has N route binding(s) (/a, /b). Please delete the routes before deleti
 | --- | --- | --- |
 | 把 `*` 当成已有域名 | 环境没绑过域名，`listCustomDomains` 返回 `Domain: "*"`，被拿去 `createRoute` | `*` 是默认 HTTP 域名的占位。判断「有没有自定义域名」时排除它，但可以读它的 `Routes[]` |
 | 以为预检通过 = 证书没问题 | `CertId` 传空，预检照样 `Passed: true` | `Cert` 项此时是 `SKIPPED`。证书单独看 `Cert`，绑定时显式传 `certificateId` |
-| 在个人版套餐上开边缘加速 | 预检 `Quota` 报 `FAIL` `QUOTA_EXCEEDED`「当前套餐不支持边缘加速（EO）」 | 边缘加速需要**标准版及以上**套餐；个人版只能走「不开启边缘加速」的云开发接入 |
+| 在个人版套餐上开边缘加速 | 预检 `Quota` 报 `FAIL`，`Code` 为 `QUOTA_EXCEEDED` | 官方「前置准备」原话是**「边缘加速需要标准版及以上套餐」**，另外还要求环境**处于资源点计费模式**（否则先去控制台「套餐用量」页转换）。个人版只能走「不开启边缘加速」的云开发接入。注意 `Quota` 项的 `Code` 与「域名 / 路径数量超配额」共用，别只按 quota 数量去理解 |
 | 自己拼归属校验记录 | 记录名凭印象写，校验一直不过 | 记录名与值只从预检返回的 `OwnershipVerification.DnsVerification[]` 取（`_cloudbase-challenge` / `TXT` / `EnvId`） |
 | 域名已被别的环境占用 | `DomainConflict` 报 `FAIL` `DOMAIN_IN_USE`（"already occupied by other environment"） | 先到占用方环境 `listCustomDomains` 确认，从那边解绑后再绑；同一域名不能同时接两个环境 |
 | 以为是技术问题，其实是权限 | `domain` / `dnspod` / `ba` 一调就 `UnauthorizedOperation`（`qcs::domain::…:domainId/* has no permission`） | 不是域名不可用。先用 `sts/GetCallerIdentity` 确认调用者是不是 `TCB_QcsRole`，是就按「前置权限」给解析的一键授权链接（只读优先）；买域名与备案引导去控制台。云开发侧继续用 `tcb` + `ssl` |
@@ -261,7 +261,7 @@ Domain X has N route binding(s) (/a, /b). Please delete the routes before deleti
 | 把环境维度和平台维度搞混 | 拿 `PlatformId` 去调 `CreateHTTPServiceRoute`（或反之），报参数缺失 | 两套同形接口：`*HTTPServiceRoute` 传 `EnvId`、`*PlatformHTTPServiceRoute` 传 `PlatformId`（如 `pf-t960szfwv1cs`）。给云开发环境绑域名用前者；平台统管域名用后者，且请求地域要按平台选的地域传、不能跟随 envId |
 | 用 `DeleteCustomDomain` 解绑 | 不报错，返回 `{"Status": "", "RequestId": "…"}`，看着像成功，但域名始终留在 `listCustomDomains` 里 | 解绑接口是 `tcb/DeleteHTTPServiceRoute`，`Paths` 留空即删域名。MCP 的 `manageGateway(action="deleteCustomDomain")` 底下调的就是它 |
 | 拿「立刻复查还在」当删除失败 | 发完 `DeleteHTTPServiceRoute`、`RequestId` 到手，马上重查域名还在（`Status: PROCESSING`），于是连发好几次删除 | 删除是**异步**的（控制台提示语就是「操作成功，域名删除中！」），而且**域名还在 `PROCESSING` 时删不动**（平台对处理中域名有保护，`ModifyHTTPServiceRoute` 有专门的 `OperationDenied.HTTPServiceDomainProcessing`）。等 `Status` 流转完再删，发一次就够 |
-| 用 `CDN` 接入方式新建 | 绑定不报错、域名进清单，但一直停在 `Status: PROCESSING`，走不到 `SUCCESS` | `CDN` 是**存量云开发 CDN**，官方文档「原『云开发 CDN』接入方式已不再支持」；控制台下拉里仍保留这一项，别被它误导。普通绑定用 `DIRECT`；要加速用 `EO`（标准版及以上套餐）；自有 CDN/WAF 才用 `CUSTOM` + `customCname` |
+| 用 `CDN` 接入方式新建 | 绑定不报错、域名进清单，但一直停在 `Status: PROCESSING`，走不到 `SUCCESS` | `CDN` 是**存量云开发 CDN**，官方文档「原『云开发 CDN』接入方式已不再支持」；控制台下拉里仍保留这一项，别被它误导。普通绑定用 `DIRECT`；要加速用 `EO`（需标准版及以上套餐 + 资源点计费模式）；自有 CDN/WAF 才用 `CUSTOM` + `customCname` |
 
 ## 验证步骤
 
