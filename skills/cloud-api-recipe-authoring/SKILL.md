@@ -195,7 +195,11 @@ $NODE scripts/diff-compat-config.mjs     # Has blocking diff: NO
 ```
 
 - **新增或删除**文本面都会让 compat-diff 报 blocking，必须刷 `config/source/editor-config/compat-baseline.json`
-- 刷 baseline 用**定向合并**（只取目标 skill 的 key，其余保留已提交值，key 顺序以生成器为准）；整份 `npm run update:compat-baseline` 会把别人的历史漂移一起吞掉
+- **新写一篇 recipe = 新增文件，只能用全量刷新。** `update-compat-baseline.mjs --only <skill>` 只改**已存在**的 key；匹配到新文件时会把它记进 `unseen` 并提示走全量 —— 不会替你加进去（existence 级变更只能整体重算）。所以：
+  - 改现有 recipe 的正文 → 定向刷新够用（`--only cloud-api-operations`），也避免顺手洗白别人的漂移
+  - 新增 / 删除 recipe → 全量 `npm run update:compat-baseline`
+- **全量刷新后先看 diff 范围再提交**，别默认它吞了别人的漂移。实测（2026-09-24，新增一篇 recipe 后全量刷新）：baseline diff 的改动路径全部落在本次动过的两个 skill 上，无一条落在别的 skill —— 因为分叉点上的 baseline 与源是一致的。判据是可机械检查的：把 diff 里的路径去重，只应出现你改过的 skill 名；出现第三个就停下查那个 skill 的源与 baseline 谁过期。
+- 新 recipe 还要带上两份派生产物：`config/.claude/skills/**` 镜像与 `doc/prompts/cloud-api-operations.mdx`。跑测试时注意 `/usr/local/bin/node` 会让 vitest 直接起不来，绕法见 skill `cloudbase-mcp-artifact-pipeline`
 - 校验完成前不要宣称改完：三项预检全过 + `git diff` 里非目标改动行为空
 
 ## 常见坑
