@@ -67,7 +67,8 @@ alwaysApply: true
    - 某个目录中只要有 `AGENTS.md`、`CLAUDE.md` 和 `.agents/skills`、`.claude/skills` 中的任意一个，就需要自动补齐
 
 4. 项目子目录规则
-   - `mcp/` 子目录同样适用本约定：`mcp/AGENTS.md` 为源，`mcp/CLAUDE.md`、`mcp/CODEBUDDY.md` 为软链
+   - `dsh-plugin/` 已有自己的 `AGENTS.md`（源）+ `CLAUDE.md`、`CODEBUDDY.md` 软链；新增子包照此补齐
+   - `mcp/` **不设**自己的 `AGENTS.md` —— mcp 包的约定已全部写在根文件里（`mcp_tool_schema_rules`、`add_aiide`、`ide_mcp_upgrade`、`cloud_api_backend_rules` 等段都是针对它的），该目录下不得出现任何 IDE 兼容产物
 </project_rules>
 
 <experts>
