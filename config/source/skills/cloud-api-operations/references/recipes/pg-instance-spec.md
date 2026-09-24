@@ -117,9 +117,9 @@ only shared (multi-tenant) instance can be upgraded to dedicated, current form: 
 
 | 步 | Action | service / version | 关键参数 | 取什么 |
 | --- | --- | --- | --- | --- |
-| 9 | DescribeTaskResult | `tcb` / `2018-06-08` | `{ "EnvId": …, "TaskId": "<B2 的 TaskId>" }` | `Status` / `Phase` / `Reason` / `CreatedAt` / `UpdatedAt` |
-| 10 | DescribeTasks | `postgres` / `2017-03-12` | `{ "DBInstanceId": "<A2 的 DBInstanceId>", "Limit": 20, "OrderBy": "StartTime", "OrderByType": "desc" }` | `TaskSet[]` 每条任务的 `TaskType` / `Status` / `Progress` / `StartTime` / `EndTime` / `TaskDetail.AllSteps` / `.CurrentStep` |
-| 11 | DescribeDBInstanceAttribute | `postgres` / `2017-03-12` | 同步骤 2 | 规格是否已变成目标值 |
+| 8 | DescribeTaskResult | `tcb` / `2018-06-08` | `{ "EnvId": …, "TaskId": "<B2 的 TaskId>" }` | `Status` / `Phase` / `Reason` / `CreatedAt` / `UpdatedAt` |
+| 9 | DescribeTasks | `postgres` / `2017-03-12` | `{ "DBInstanceId": "<A2 的 DBInstanceId>", "Limit": 20, "OrderBy": "StartTime", "OrderByType": "desc" }` | `TaskSet[]` 每条任务的 `TaskType` / `Status` / `Progress` / `StartTime` / `EndTime` / `TaskDetail.AllSteps` / `.CurrentStep` |
+| 10 | DescribeDBInstanceAttribute | `postgres` / `2017-03-12` | 同步骤 2 | 规格是否已变成目标值 |
 
 三个入口的分工：
 
