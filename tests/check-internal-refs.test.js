@@ -7,10 +7,17 @@ import {
   TEXT_RULES,
   TITLE_RULES,
   collectCommits,
+  collectTrackedFiles,
+  isScannableFile,
   parseArgs,
   runCheck,
+  scanFileText,
   scanText,
 } from "../scripts/check-internal-refs.mjs";
+
+// 内网串不能以字面量写在这个文件里 —— 仓库自己的文件内容扫描会命中它。
+const INTERNAL_HOST = ["tst", "woa", "com"].join(".");
+const INTERNAL_IP = ["9", "138", "237", "216"].join(".");
 
 const tempDirs = [];
 
@@ -216,6 +223,112 @@ describe("runCheck over commits", () => {
     const result = silentRun({ base, cwd: dir });
     expect(result.status).toBe("ok");
     expect(collectCommits({ base, cwd: dir })).toEqual([]);
+  });
+});
+
+describe("runCheck over tracked files", () => {
+  test("fails when a committed file names an internal host", () => {
+    const { dir, git } = createRepo();
+    const base = git("rev-parse", "HEAD").trim();
+    fs.writeFileSync(path.join(dir, "NOTES.md"), `- see http://${INTERNAL_HOST}/flag.html\n`);
+    git("add", "NOTES.md");
+    git("commit", "-q", "-m", "docs: add integration notes");
+
+    const result = silentRun({ base, cwd: dir });
+    expect(result.status).toBe("failed");
+    expect(result.findings.map((f) => f.label)).toEqual(["internal hostname"]);
+    expect(result.findings[0].source).toBe("NOTES.md:1");
+  });
+
+  test("points at the right line of a multi-line file", () => {
+    const { dir, git } = createRepo();
+    const base = git("rev-parse", "HEAD").trim();
+    fs.writeFileSync(
+      path.join(dir, "NOTES.md"),
+      `# Notes\n\nNothing to see.\n\nhttp://${INTERNAL_IP}/flag.html\n`,
+    );
+    git("add", "NOTES.md");
+    git("commit", "-q", "-m", "docs: add notes");
+
+    const result = silentRun({ base, cwd: dir });
+    expect(result.findings[0].source).toBe("NOTES.md:5");
+    expect(result.output).toContain("NOTES.md:5");
+  });
+
+  test("passes when neither metadata nor files carry internal references", () => {
+    const { dir, git } = createRepo();
+    const base = git("rev-parse", "HEAD").trim();
+    commit(dir, "fix(cloudrun): 🐛 accept absolute targetPath\n");
+
+    const result = silentRun({ base, cwd: dir });
+    expect(result.status).toBe("ok");
+    expect(result.output).toContain("tracked files");
+  });
+});
+
+describe("scanFileText", () => {
+  test("flags an internal hostname", () => {
+    const findings = scanFileText(`- Test domains: \`http://${INTERNAL_HOST}/flag.html\``);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].label).toBe("internal hostname");
+    expect(findings[0].line).toBe(1);
+  });
+
+  test("flags an internal network address", () => {
+    const findings = scanFileText(`- Test IPs: \`http://${INTERNAL_IP}/flag.html\``);
+    expect(findings.map((f) => f.label)).toEqual(["internal network address"]);
+  });
+
+  test("reports the line number of the offending line", () => {
+    const findings = scanFileText(`first\nsecond\nsee http://${INTERNAL_HOST}/\n`);
+    expect(findings.map((f) => f.line)).toEqual([3]);
+  });
+
+  test("leaves public hosts, private ranges and version strings alone", () => {
+    for (const text of [
+      "https://cloud.tencent.com/document/api/243/",
+      "http://localhost:3000/dev",
+      "http://169.254.169.254/latest/meta-data/",
+      "http://10.0.0.1/flag.html",
+      "http://192.168.1.1/flag.html",
+      "bumped to v9.1.2.3",
+    ]) {
+      expect(scanFileText(text), text).toEqual([]);
+    }
+  });
+});
+
+describe("file selection", () => {
+  test("skips dependency and generated directories at any depth", () => {
+    for (const rel of [
+      "node_modules/pkg/README.md",
+      "mcp/dist/cli.cjs",
+      "coverage/lcov.info",
+      ".generated/compat/x.json",
+      ".git/config",
+    ]) {
+      expect(isScannableFile(rel), rel).toBe(false);
+    }
+  });
+
+  test("keeps ordinary tracked files", () => {
+    for (const rel of ["README.md", "skills/a/SKILL.md", "mcp/src/server.ts"]) {
+      expect(isScannableFile(rel), rel).toBe(true);
+    }
+  });
+
+  test("lists tracked files and drops the excluded ones", () => {
+    const { dir, git } = createRepo();
+    fs.mkdirSync(path.join(dir, "node_modules", "pkg"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "node_modules", "pkg", "README.md"), "vendored\n");
+    fs.writeFileSync(path.join(dir, "NOTES.md"), "notes\n");
+    git("add", "-f", "NOTES.md", "node_modules/pkg/README.md");
+    git("commit", "-q", "-m", "docs: add notes");
+
+    const files = collectTrackedFiles({ cwd: dir });
+    expect(files).toContain("NOTES.md");
+    expect(files).toContain("README.md");
+    expect(files).not.toContain("node_modules/pkg/README.md");
   });
 });
 

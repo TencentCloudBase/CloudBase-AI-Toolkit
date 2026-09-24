@@ -146,7 +146,7 @@ When discovering videos via search (no specific URL provided), the raw `cloudbas
 
 `TutorialsGrid.tsx` is **mirrored** into the docs site repo. The CloudBase-MCP PR alone does not update the live site — the entry must be ported separately.
 
-- **Repo**: `~/Projects/cloudbase-docs-sync-ce945d51` (remote `git@git.woa.com:QBase/cloudbase-docs.git`)
+- **Repo**: a local clone of `QBase/cloudbase-docs` (internal Git remote — clone it with your own credentials and path; both are machine-specific)
 - **Two mirrored copies, both need the same entry** (they are byte-identical today; `TutorialsGrid` is a known untranslated component, so the "English" copy keeps the Chinese video titles — `check-en-components.mjs` classifies it as `Warn`, never `Fail`):
   - `docs/ai/cloudbase-ai-toolkit/components/TutorialsGrid.tsx`
   - `i18n/en/docusaurus-plugin-content-docs/current/ai/cloudbase-ai-toolkit/components/TutorialsGrid.tsx`
