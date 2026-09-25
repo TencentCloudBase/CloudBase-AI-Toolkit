@@ -1,6 +1,6 @@
 ---
 name: git-workflows
-description: Reusable git delivery workflows derived from local slash commands (commit, push, PR, release notes, and GitHub Actions failure triage with worktree-based fixes).
+description: Reusable git delivery workflows derived from local slash commands (commit, push, PR, release notes, GitHub Actions failure triage with worktree-based fixes, and isolating your own changes from a shared dirty workspace).
 ---
 
 # Git Workflows (from local commands)
@@ -16,6 +16,7 @@ Use this skill when the user asks to:
 - generate release notes from git history / GitHub context
 - publish a version from `main` (including bilingual README Recent updates on minor bumps)
 - analyze the latest failed GitHub Actions workflow, attempt a fix in an isolated worktree, and submit a PR
+- move your own uncommitted changes onto a clean branch when the current workspace also holds someone else's edits
 - check IDE icon configuration consistency across document components and source files
 
 ## Source of truth
@@ -77,6 +78,20 @@ After a force-push (`synchronize`) while the base was still the stale stacked br
 
 - **Judge with the API, not the UI:** `gh api "repos/<owner>/<repo>/actions/runs?branch=<branch>" --jq '.workflow_runs[] | "\(.name) \(.event) \(.conclusion)"'`. A workflow missing from that list was skipped, not passed.
 - **Fix:** `gh pr close <n>` then `gh pr reopen <n>`. The `reopened` event recomputes against the new base and triggers the filtered workflows normally.
+
+## Isolating your own changes from a shared dirty workspace
+
+A workspace can hold several people's uncommitted work at once, sometimes on a branch whose PR already merged. Committing there means either shipping their work or fighting the index. Move your files onto a clean branch instead.
+
+1. **Split by ownership before anything else.** `git status --porcelain` lists the whole workspace; `git diff --stat -- <your paths>` against `git diff --stat -- . ':(exclude)<your paths>'` separates yours from theirs. Trace each of your files back to the edit that produced it — a workspace is not yours just because you were the last one in it.
+2. **Snapshot your files as a patch, not a stash.** `git diff -- <your paths> > /tmp/<name>.patch`, then confirm the set with `grep -E '^diff --git' /tmp/<name>.patch`. A patch travels between worktrees; a stash is per-worktree and easy to strand.
+3. **Base the new branch on the fetched `origin/main`.** `git fetch origin` then `git worktree add -b <new-branch> .worktrees/<dir> origin/main`. Never base it on the current branch — if that branch's PR was squash-merged, its commits are already on `main` under new shas.
+4. **Give the new worktree `node_modules`.** A fresh worktree has none. Check scripts that import only node builtins still run, but `sync-skill-versions.mjs` and vitest die with `MODULE_NOT_FOUND`: `ln -sfn <main-worktree>/node_modules node_modules`.
+5. **Apply, then check what is staged.** `git apply --check <patch>` before `git apply <patch>`; `git add` only your paths; `git status --porcelain | grep -v '^M '` must come back empty, because anything left unstaged or untracked silently misses the PR.
+6. **Clean the original workspace with `git restore <your paths>` only.** Not `git checkout -- .`, not `git stash` — either takes the other person's work with it. Their files must stay modified exactly as they were.
+7. **Rule out a duplicate before starting.** `git worktree list` can show a `prunable` entry whose branch overlaps yours; `gh pr list --head <branch> --state all` says whether it already merged. An overlapping branch is more often the precedent to extend than parallel work.
+
+Run the repo's gates in the new worktree, not the original one — the new tree is the only one being pushed.
 
 ## Command mapping
 
