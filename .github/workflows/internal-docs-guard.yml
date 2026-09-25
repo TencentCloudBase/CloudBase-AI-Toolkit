@@ -1,6 +1,6 @@
 name: Internal Docs Guard
 
-# 内部信息的两层守门，缺一不可：
+# 内部信息的三层守门，缺一不可：
 #
 #   1. 文件层（step: Check for internal dirs entering the repository）
 #      拦截两个本地内部目录重新入库：specs/ 与 .workbuddy/。
@@ -8,18 +8,23 @@ name: Internal Docs Guard
 #        - .workbuddy/ IDE 本地状态（AI 记忆、plans、expert 会话历史），
 #                      类比 .idea/ / .vscode/，本就不该进版本控制
 #
-#   2. 元信息层（step: Check PR metadata and commit messages）
+#   2. 元信息层（step: Check public surfaces for internal references）
 #      PR 标题、PR 正文、提交信息同样是公开可见的对外文案，文件层干净不等于
 #      元信息干净。内部任务编排流程自动建 PR 时，会把 `ato-task:<uuid>` 写进
 #      正文、把任务短号以 `(<8 位 hex>)` 追加到提交 headline —— 这两类只能靠
-#      事后人工回看才能发现，所以由 CI 兜底。判据见 scripts/check-internal-refs.mjs。
+#      事后人工回看才能发现，所以由 CI 兜底。
+#
+#   3. 文件内容层（同上 step）
+#      仓库是公开的，内网主机名 / 内网地址写进任何被跟踪的文件就等于已经发布了。
+#      这一层扫全量已跟踪文件（不只扫改动行），所以 main 上遗留的老问题也会在
+#      下一个 PR 上暴露出来。判据见 scripts/check-internal-refs.mjs。
 #
 # 本地 lefthook 的 specs-guard 只能保护「包含新版 lefthook.yml 的分支」，
 # 挡不住基于旧 main 切出的 worktree —— 那里的 .gitignore 和 lefthook.yml
 # 都还是旧版，git add 完全不受限。CI 跑在 GitHub 上，只看 PR diff，
 # 跟本地 hook 版本无关，所以这一层是真正的兜底。
 #
-# 只检查新增/修改（ACMR）：删除这些目录的 PR（历史清理）不受影响。
+# step 1 只检查新增/修改（ACMR）：删除这些目录的 PR（历史清理）不受影响。
 
 on:
   pull_request:
@@ -43,7 +48,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Check PR metadata and commit messages for internal references
+      - name: Check public surfaces for internal references
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           PR_TITLE: ${{ github.event.pull_request.title }}

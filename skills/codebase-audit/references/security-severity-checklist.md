@@ -159,7 +159,7 @@ Checklist:
 **Conditions:**
 - [ ] Can target Tencent internal network (not just public endpoints)
 - [ ] Response is returned to the attacker (not blind)
-- [ ] Test domains: `http://tst.woa.com/flag.html` (domain), `http://9.138.237.216/flag.html` (IP)
+- [ ] Test domains: `http://<internal-host>/flag.html` (hostname), `http://<internal-ip>/flag.html` (IP) — pick endpoints reachable only from the target's own network, never public ones
 
 **Scoring:**
 - Full response returned → High 7 points
