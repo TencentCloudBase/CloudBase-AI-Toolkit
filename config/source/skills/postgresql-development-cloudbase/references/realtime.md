@@ -134,7 +134,12 @@ FROM realtime.subscription ORDER BY created_at DESC;
 
 ## Postgres CDC — database-side setup
 
-`postgres_changes` rides on logical replication. Publishing a table requires all of the following; skip any one and **the subscription succeeds but no events ever arrive**, which is easy to misread as an SDK bug.
+`postgres_changes` rides on logical replication. Publishing a table requires all of the following. A missing prerequisite shows up in one of two ways, and they need opposite debugging:
+
+- **Subscription rejected** (`CHANNEL_ERROR`) — the table is not in the publication, or the subscription role has no `SELECT` on it. The error object is usually empty, so read that status as "not published / not readable" rather than as a network or SDK fault.
+- **Subscribed but no events arrive** — the table's own RLS filters the subscribing role out, or the table was added less than ~10 seconds ago.
+
+The silent case is the less common of the two: do not assume it by default.
 
 ```sql
 DO $$
@@ -151,7 +156,9 @@ BEGIN
   END IF;
 END $$;
 
+-- No-op when the poller's role already owns the table; kept because it is idempotent
 GRANT SELECT ON public.todos TO "cloudbase_realtime_admin";
+-- Optional: only needed when you want the full previous row in payload.old
 ALTER TABLE public.todos REPLICA IDENTITY FULL;
 
 GRANT SELECT ON public.todos TO anon, authenticated;
@@ -160,8 +167,9 @@ CREATE POLICY todos_select ON public.todos FOR SELECT TO authenticated
   USING (owner_id = auth.uid());
 ```
 
-- The `GRANT` to `cloudbase_realtime_admin` is the connector role that reads the WAL. Without it the poller sees nothing.
-- `REPLICA IDENTITY FULL` is what makes `payload.old` populated for `UPDATE` / `DELETE`. Omitting it is the usual cause of "`old_record` is empty".
+- `cloudbase_realtime` is a default, not a constant — the publication name is tenant-configurable. Confirm it (`SELECT pubname FROM pg_publication;`) before running a setup script instead of hardcoding the default.
+- The `GRANT` to `cloudbase_realtime_admin` covers the connector role that reads the WAL. Whether it is needed depends on who owns the table: when the poller's own role already owns the table, the grant adds nothing. Keep it in the script — it is idempotent — but do not treat its absence as the first suspect when a subscription is rejected.
+- `REPLICA IDENTITY FULL` is what makes `payload.old` carry the **full previous row** for `UPDATE` / `DELETE`. Without it `payload.old` still carries the primary key; only a table without a primary key yields an empty `old_record`. It also costs: the whole old row enters the WAL and the replication stream, so skip it on tables with large text or binary columns unless you actually need the old values.
 - Change events are filtered **per subscriber** by the business table's own RLS, so the table needs RLS plus `SELECT` for the subscribing role. Without a `SELECT` grant the client subscription is rejected outright.
 - Subscription role comes from the JWT: `anon` / `authenticated` / `service_role`.
 - Adding a table takes roughly **10 seconds** to start delivering — the poller notices publication changes on its next cycle. Do not "fix" it by redeploying.
@@ -200,5 +208,5 @@ Published rate limits, per-channel message rates and payload ceilings are **not*
 3. `presence` / `postgres_changes` bound before `subscribe()`, and the client actually reaches `SUBSCRIBED`.
 4. A round-trip message is observed by a second client (remember `self: false`).
 5. Private channel: policies exist on `realtime.messages`, and a non-member is actually rejected.
-6. CDC: table present in `pg_publication_tables`, `REPLICA IDENTITY FULL` set, connector and subscriber grants present, and an `UPDATE` actually arrives with `payload.old` populated.
+6. CDC: table present in `pg_publication_tables`, subscribing role has `SELECT`, and an `UPDATE` actually arrives with `payload.old` carrying at least the primary key. The connector grant and `REPLICA IDENTITY FULL` are conditional — see above.
 7. Channels and the realtime client are released on teardown.
