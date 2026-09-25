@@ -7,11 +7,13 @@ const {
   mockLogCloudBaseResult,
   mockCheckLogServiceEnabled,
   mockSearchClsLog,
+  mockCreateLogService,
 } = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
   mockLogCloudBaseResult: vi.fn(),
   mockCheckLogServiceEnabled: vi.fn(),
   mockSearchClsLog: vi.fn(),
+  mockCreateLogService: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
@@ -47,10 +49,12 @@ describe("log tools", () => {
       },
       RequestId: "req-search-logs",
     });
+    mockCreateLogService.mockResolvedValue({ RequestId: "req-create-log" });
     mockGetCloudBaseManager.mockResolvedValue({
       log: {
         checkLogServiceEnabled: mockCheckLogServiceEnabled,
         searchClsLog: mockSearchClsLog,
+        createLogService: mockCreateLogService,
       },
     });
     ({ tools } = createMockServer());
@@ -94,6 +98,53 @@ describe("log tools", () => {
       success: true,
       data: {
         action: "searchLogs",
+      },
+    });
+  });
+
+  it("manageLogs(action=createLogService) requires confirm", async () => {
+    const result = await tools.manageLogs.handler({ action: "createLogService" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCreateLogService).not.toHaveBeenCalled();
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "CONFIRM_REQUIRED",
+    });
+  });
+
+  it("manageLogs(action=createLogService) maps createLogService when confirmed", async () => {
+    mockCheckLogServiceEnabled.mockResolvedValue(false);
+    const result = await tools.manageLogs.handler({
+      action: "createLogService",
+      confirm: true,
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCreateLogService).toHaveBeenCalled();
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "createLogService",
+        requestId: "req-create-log",
+      },
+    });
+  });
+
+  it("manageLogs(action=createLogService) short-circuits when already enabled", async () => {
+    mockCheckLogServiceEnabled.mockResolvedValue(true);
+    const result = await tools.manageLogs.handler({
+      action: "createLogService",
+      confirm: true,
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockCreateLogService).not.toHaveBeenCalled();
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "createLogService",
+        alreadyEnabled: true,
       },
     });
   });
