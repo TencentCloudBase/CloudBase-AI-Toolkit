@@ -300,32 +300,36 @@ function checkIfAgentProject(projectPath: string): boolean {
 
 /**
  * Validate and normalize file path.
- * Accepts absolute paths as-is; for relative paths, resolves against CWD and
- * ensures the result does not escape the CWD (path-traversal protection).
+ * Accepts absolute paths as-is (CloudRun deploy/download/init commonly targets
+ * project dirs outside the MCP process cwd, e.g. ~/.codex vs ~/Desktop/project).
+ * For relative paths, resolves against CWD and ensures the result does not
+ * escape the CWD (path-traversal protection).
  * @param inputPath User provided path
  * @returns Absolute path
  */
-function validateAndNormalizePath(inputPath: string): string {
+export function validateAndNormalizePath(inputPath: string): string {
+  const cwd = process.cwd();
   const normalizedPath = path.resolve(inputPath);
 
-  // On Windows, path.resolve may return a path on a different drive/UNC share.
-  // That is safe — the user explicitly provided an absolute path there.
-  // Only apply the traversal check when the resolved path shares the same root
-  // as CWD (i.e. the path was relative or on the same drive).
-  const cwd = process.cwd();
+  // Absolute paths: accept as-is. MCP server cwd is often an IDE/runtime home
+  // (e.g. ~/.codex, ~/.workbuddy), while targetPath points at the user project.
+  // Rejecting same-root absolute paths caused false negatives in deploy/download.
+  if (path.isAbsolute(inputPath)) {
+    return normalizedPath;
+  }
+
+  // Relative paths: resolve against CWD and block "../" traversal.
   const cwdRoot = path.parse(cwd).root;
   const pathRoot = path.parse(normalizedPath).root;
 
   if (cwdRoot === pathRoot) {
-    // Same filesystem root — ensure the resolved path is still inside CWD
-    // (or is exactly CWD) to block "../" traversal.
     const prefix = cwd.endsWith(path.sep) ? cwd : cwd + path.sep;
     if (!normalizedPath.startsWith(prefix) && normalizedPath !== cwd) {
-      throw new Error(t("cloudrun.error.pathOutsideCwd", { cwd }));
+      throw new Error(
+        t("cloudrun.error.pathOutsideCwd", { cwd, resolvedPath: normalizedPath }),
+      );
     }
   }
-  // Cross-root absolute paths (e.g. D:\ on Windows when CWD is C:\) are
-  // allowed — the user own the machine and the path is explicitly absolute.
 
   return normalizedPath;
 }

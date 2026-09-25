@@ -12,7 +12,8 @@ export const cloudrun = defineModule(
     "error.managerInitFailed":
       "CloudBase Manager 初始化失败，请检查凭据与环境配置。",
     "error.unsupportedAction": "不支持的操作：{action}",
-    "error.pathOutsideCwd": "路径必须在当前工作目录内：{cwd}",
+    "error.pathOutsideCwd":
+      "路径必须在当前工作目录内：{cwd}。允许：`{cwd}` 下的路径，或传入项目目录的绝对路径（相对路径不能通过 `../` 逃逸 CWD）。收到的解析路径：{resolvedPath}。建议：将 targetPath 设为项目绝对路径（deploy/download/init）。",
     "error.commonServiceQueryEnv":
       "当前 CloudBase Manager 不支持 commonService，无法查询云托管环境开通状态。",
     "error.commonServiceInitEnv":
@@ -367,7 +368,8 @@ export const cloudrun = defineModule(
     "error.managerInitFailed":
       "Failed to initialize CloudBase manager. Please check your credentials and environment configuration.",
     "error.unsupportedAction": "Unsupported action: {action}",
-    "error.pathOutsideCwd": "Path must be within current working directory: {cwd}",
+    "error.pathOutsideCwd":
+      "Path must be within current working directory: {cwd}. Allowed: paths under `{cwd}`, or pass an absolute path to the project directory (relative paths cannot escape CWD via `../`). Received resolved path: {resolvedPath}. Suggestion: set targetPath to the absolute project path (deploy/download/init).",
     "error.commonServiceQueryEnv":
       "Current CloudBase Manager does not support commonService; cannot query CloudRun env status.",
     "error.commonServiceInitEnv":
