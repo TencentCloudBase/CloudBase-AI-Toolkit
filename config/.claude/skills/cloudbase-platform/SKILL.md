@@ -128,6 +128,7 @@ When working with domain-related tasks, use the correct tool based on the requir
 - Task mentions "浏览器上传" or "CORS" or "安全域名" → Use `manageEnv(action="addSecurityDomain" / "removeSecurityDomain")`
 - Task mentions "public access" or "HTTPS" with domain → Prefer reuse via `createRoute` when possible; only `bindCustomDomain` for first-time domain bind
 - Task mentions "关闭/禁用静态托管默认域名" / `*.tcloudbaseapp.com` → `queryGateway(listRoutes)` then `manageGateway(disableRoute)` with that STATIC_STORE domain; never invent `ModifyGatewayRoute`
+- Task asks about the **whole onboarding flow** (能不能绑、要等多久、解析怎么配、备案是不是前置) or a bound domain is not reachable → follow `../cloud-api-operations/references/recipes/custom-domain.md`: run the read-only `VerifyHTTPServiceRoute` pre-check first, then bind, then poll `Status` / `DNSStatus`. That recipe also covers why domain registration / DNS / ICP calls may return `UnauthorizedOperation` for an account-level identity.
 
 ### Error Code Troubleshooting: Route Through Official Docs
 
