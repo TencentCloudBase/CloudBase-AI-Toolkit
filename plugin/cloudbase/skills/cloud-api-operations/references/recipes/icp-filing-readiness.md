@@ -5,11 +5,12 @@
 准备用云开发环境作为备案云资源，或已在备案流程中需要把「能不能提、要等多久、被什么卡住」查清楚时：
 
 - 提交前想知道当前云开发环境够不够格当备案云资源（套餐、剩余有效期、固定 IP）
+- 判定出「未开启云托管固定 IP」后，要把它开启（序列 E；前置是环境已开通云托管，没开通先走 0a–0c）
 - 想知道**现在能不能提交下一条备案**（同一主体下多条备案不能并行）
 - 想知道某个省大概要审多少天、这个省对个人/企业有什么硬性限制
 - 想知道某个域名的备案状态（管局是否通过、是否已落地、是否被拦）
 
-本篇管到「查清楚」为止。**提交备案、上传材料、人脸/视频核身**在腾讯云备案小程序里完成，不走云 API；域名注册 / 实名转 [domain](../service-versions.md)；证书申请转 `ssl`；备案通过后往云开发绑自定义域名转 `manageHosting` / HTTP 网关。
+本篇覆盖「判定能不能备」和「把环境调到能备（开固定 IP）」，到此为止。**提交备案、上传材料、人脸/视频核身**在腾讯云备案小程序里完成，不走云 API；域名注册 / 实名转 [domain](../service-versions.md)；证书申请转 `ssl`；备案通过后往云开发绑自定义域名转 `manageHosting` / HTTP 网关。
 
 ## 前置权限
 
@@ -17,12 +18,13 @@
 
 | service | version | 用途 |
 | --- | --- | --- |
-| `tcb` | `2018-06-08` | 读云开发环境套餐与到期时间 |
+| `tcb` | `2018-06-08` | 读环境准入判定（备案资源与不符合项） |
+| `tcbr` | `2022-02-17` | 读 / 改云托管固定 IP 状态（前置：该环境已开通云托管） |
 | `ba` | `2020-07-20` | 读备案订单、主体、省份规则、域名状态 |
 
 **凭据身份：账号级。** 备案数据挂在腾讯云账号下，与环境无关 —— 但 `callCloudApi` 有环境绑定门禁，账号级登录后仍需先 `auth(action="set_env", envId=…)` 绑一个环境（任一正常环境即可，不参与备案判定），否则首个调用返回 `ENV_REQUIRED`。
 
-`ba` 的接口是**操作级**授权。账号读自己的备案数据一般不需要额外策略；出现 `UnauthorizedOperation` 时，给**该身份**追加 ICP 备案（`ba`）的读权限，链接拼法与角色载体读法见 [calling-methods.md §3](../calling-methods.md)。
+`ba` 的接口是**操作级**授权，而且**结果强依赖凭据所属账号**：备案数据挂在**备案主体所属账号**下，用不含该主体的账号级凭据调用，序列 B–D 的九个只读接口会**全部**返回 `UnauthorizedOperation`（`resource (*) has no permission`）—— action 名被正常识别，卡在策略层，看起来像「这批接口不可用」，其实只是账号不对；换回备案主体所属账号即正常返回数据。所以第一步是确认凭据与备案主体同账号，再给该身份追加 ICP 备案（`ba`）的读权限。链接拼法与角色载体读法见 [calling-methods.md §3](../calling-methods.md)。
 
 官方接口文档：https://cloud.tencent.com/document/api/243/ （请求域名 `ba.tencentcloudapi.com`）。
 
@@ -32,14 +34,23 @@
 
 | 步 | Action | service | 关键参数 | 取什么 |
 | --- | --- | --- | --- | --- |
-| 1 | DescribeEnvInfo | `tcb` | `{ "EnvId": "<envId>" }` | `EnvInfo.BillingInfo.PackageId`、`ExpireTime` |
+| 1 | DescribeICPResourcesInfo | `tcb` | `{ "EnvId": "<envId>" }` | `IcpNotAllowedReason[]`、`ICPResources[]`、`Total` |
 
-判定两条可判定的准入条件：
+**一条调用给出三项准入的完整判定**，不用逐项去查。`IcpNotAllowedReason` 是**不符合项**的枚举数组，三项都满足时为空数组：
 
-- **套餐**：`PackageId` 为 `baas_personal` 及以上（免费体验环境不带套餐，不能备案）。
-- **剩余有效期 > 6 个月**：`ExpireTime` 距今必须大于 6 个月。这条最容易不自知 —— 环境刚创建或快到期时，`ExpireTime` 可能只余几周。
+| 值 | 含义 | 解法 |
+| --- | --- | --- |
+| `packageUnsupported` | 当前套餐不支持备案 | 升级套餐 |
+| `validPeriod` | 剩余有效期不足（需大于 6 个月） | 续费环境 |
+| `fixedIpNotEnabled` | 未开启云托管固定 IP | 开启固定 IP（序列 E） |
 
-第三条「环境已开启云托管固定 IP」公开面没有对应的读 Action，判据只能在控制台读：进入目标环境的**备案管理**页，页面会直接列出三项的状态（例如「剩余有效期不足」「未开启云托管固定 IP」），并给出「续费环境」「开启固定IP」入口。三项都满足时该页才出现「去备案」。
+`ICPResources[]` 是可用于备案的资源列表，每项含 `ResourceId`（云托管服务 ID）、`ResourceIp`（**备案时要填的那个 IP**）、`Region`；有任一项不满足时该数组为空。
+
+⚠️ **够格判据是「`IcpNotAllowedReason` 为空 **且** `ICPResources` 非空」，两者同时成立才算** —— 只看前者会被误判。传进来的环境不属于当前凭据（账号不对、envId 写错）时，这个接口同样返回 `success` + 空数组 + `Total: 0`（实测），与「三项全满足」长得一模一样；同一批探测里只有 `tcb/DescribeEnvInfo` 会明确报 `env not found`。判准入前先用它确认环境可达。
+
+会同时出现的是 `packageUnsupported` + `validPeriod`（套餐不对时有效期必然也不够）—— 按「先解决 `packageUnsupported`」的顺序推进，否则续完费仍然备案不了。
+
+需要看页面时，该环境的**备案管理**页 `https://tcb.cloud.tencent.com/dev?envId=<envId>#/env/filing-manage` 会把上述状态与对应操作入口一并列出。要单独读套餐与到期时间的原始值，用 `tcb/DescribeEnvInfo` 的 `EnvInfo.BillingInfo.PackageId` 与 `ExpireTime`；但准入判定以 `DescribeICPResourcesInfo` 为准，不要自己按天数算 —— 边界（是否严格大于 6 个月）由服务端定。
 
 ### B. 现在能不能提交备案（同主体互斥判定）
 
@@ -76,6 +87,34 @@
 
 步骤 8 的四个布尔字段分别对应：管局是否已通过、是否已落地到腾讯云、是否有核查工单、是否被拦。域名不是自己的、已在别处备案未接入、被列入限制名单，都会在这里体现，不必等到提交后才被打回。
 
+### E. 开启云托管固定 IP（写操作）
+
+序列 A 判定出 `fixedIpNotEnabled` 时走到这里。
+
+固定 IP 是**同一个环境上的云托管能力**，不是另一个环境、也不是另一个产品 —— `tcbr` 接口的 `EnvId` 就是云开发环境 ID。但**云托管本身可能还没开通**，没开通时后面的固定 IP 三步无从谈起。判断开通状态有专用工具，不要为它走裸云 API：
+
+| 步 | 工具 | 关键参数 | 取什么 |
+| --- | --- | --- | --- |
+| 0a | `queryCloudRun(action="envStatus")` | `envId` | `status`：`normal` = 已开通 / `creating` = 开通中 / `unopened` = 未开通 |
+| 0b | `manageCloudRun(action="initEnv")` | `envId` | 异步开通、幂等；只在 `unopened` / `creating` 时调 |
+| 0c | 再跑一次 0a | `envId` | 轮询到 `status: "normal"` 才往下走 |
+
+控制台上对应的入口是「环境 → 云托管 → 开通」，`https://tcb.cloud.tencent.com/dev?envId=<envId>#/platform-run`。
+
+`status` 为 `normal` 之后，固定 IP 也只能走裸云 API：两个云托管专用工具都没有固定 IP 的 action（`queryCloudRun` 是 `list` / `detail` / `templates` / `getDeployLog` / `getProcessLog` / `getDeployRecords` / `envStatus` / `getManageTask`，`manageCloudRun` 是 `init` / `download` / `run` / `deploy` / `delete` / `createAgent` / `updateConfig` / `initEnv` / `traffic`），Manager SDK 也没有对应方法。
+
+| 步 | Action | service | 关键参数 | 取什么 |
+| --- | --- | --- | --- | --- |
+| 12 | DescribeStableIP | `tcbr` | `{ "EnvId": "<envId>" }` | `Status`（`normal` = 已开启，其余值含空串 = 未开启）、`Address`、`ExpireTime` |
+| 13 | ModifyStableIPStatus | `tcbr` | `{ "EnvId": "<envId>", "Status": "ON" }` | `TaskId` |
+| 14 | DescribeStableIPTask | `tcbr` | `{ "EnvId": "<envId>", "TaskId": <TaskId> }` | `Result`（`running` / `success` / `failed`） |
+
+步骤 12 先确认现状：`Status` 只有 `normal` 算已开启，其余值（含空串）都按未开启处理，`Address` 是已分配的固定 IP。但**这个字段不是充分判据** —— 实测在一个不属于当前凭据的 envId 上，这一步照样返回成功、`Status` 也是空串，与「环境已开通云托管、但固定 IP 没开」从返回值上区分不出来，所以先用 `tcb/DescribeEnvInfo` 确认环境可达，再走 0a 判云托管开通状态。
+
+步骤 13 是**异步任务**，只返回 `TaskId`，不等于已生效；步骤 14 用它轮询，`Result` 仍为 `running` 就继续等（间隔 2 秒量级）。生效后重跑序列 A，`fixedIpNotEnabled` 才会消失。
+
+关闭固定 IP 把步骤 13 的 `Status` 换成 `OFF`，轮询同一套。
+
 ## 踩坑清单
 
 | 坑 | 现象 | 正确做法 |
@@ -88,14 +127,21 @@
 | 域名详情查不了 | `ba/DescribeIcpDomainInfo` 缺 `Type`，补上后又缺 `Value` | 只想看域名备案状态时用 `ba/DescribeDomainIcpStatus`，只需 `Domain` |
 | APP 备案状态查询 | `ba/DescribeAppIcpStatus` → `missing the required parameter CertificateNumber` | 该接口按备案号查，需先有备案号；新申请阶段查不到 |
 | 管局时长查询 | `ba/DescribeAvgAuditDaysByAh` → `missing the required parameter OrderType` | 按省份量级预期用 `ba/DescribeEvaluateAuditDays`（无需参数） |
-| 备案管理页与环境设置页不一致 | 个人版环境：备案管理页给「开启固定IP」入口，但环境设置页**没有**固定公网 IP 卡片 | 固定 IP 的准入以备案管理页的状态为准；环境设置页看不到不代表不可开启，按备案管理页的入口走 |
+| 以为准入判定只能翻控制台 | 只读 `tcb/DescribeEnvInfo` 拿不到「固定 IP 是否开启」，就以为要人工看页面 | `tcb/DescribeICPResourcesInfo` 一条就返回三项判定（含 `fixedIpNotEnabled`），备案管理页展示的是同一份数据 |
+| 以为固定 IP 属于「另一个产品」 | 想找一个独立入口，或在云开发环境设置里翻 | 它是同一环境上的云托管能力，`tcbr` 接口的 `EnvId` 就是云开发环境 ID；只是这套开关挂在云托管侧，开通状态用 `queryCloudRun` / `manageCloudRun` 判 |
+| 环境不在当前凭据下却照常读 | 传一个不属于当前凭据的 envId：`tcb/DescribeICPResourcesInfo` 返回 `success` + `IcpNotAllowedReason: []`（像「够格」）、`tcbr/DescribeStableIP` 返回 `success` + `Status: ""`（像「没开固定 IP」）、`queryCloudRun(action="envStatus")` 返回 `status: "unopened"`（像「云托管没开通」）—— 三个接口都给出可误读的正常结果，只有 `tcb/DescribeEnvInfo` 报 `env not found` | 判准入前先用 `tcb/DescribeEnvInfo` 确认环境存在且属于当前凭据；够格判据是「`IcpNotAllowedReason` 为空 **且** `ICPResources` 非空」 |
+| 云托管没开通就直接读固定 IP | 未开通时固定 IP 三步无从谈起，且 `Status` 非 `normal` 与「已开通但没开」从这一步区分不出来 | 先 `queryCloudRun(action="envStatus")`；`unopened` / `creating` 就先 `manageCloudRun(action="initEnv")` 并等到 `normal`，再读固定 IP |
+| 拿云托管专用工具找固定 IP | `queryCloudRun`、`manageCloudRun` 的 action 列表里都没有固定 IP | 固定 IP 只能 `callCloudApi` + `tcbr`（序列 E 的 12–14）；专用工具只管开通状态（0a–0c） |
+| 去环境设置页找固定 IP 开关 | `#/env/env-setting` 只有环境信息、QPS、预览状态，没有固定 IP 卡片 | 备案管理页只是入口（点「开启固定IP」会跳到云托管的 `#/platform-run/env-setting`）；AI 侧直接走序列 E，不必进控制台 |
+| 按 API 概览清单找接口 | 本篇用到的 `tcb/DescribeICPResourcesInfo` 与 `tcbr` 的三个固定 IP 接口，都不在各自产品的官方 API 概览页接口清单里 —— 按概览页检索会把这几个接口全部漏掉 | 以实际可调为准：这些 Action 已在公开云 API 上可用，概览页收录滞后；先试调再判定「没有这个接口」 |
 | 用环境级凭据路径去查 | 环境级 API Key 只能看到绑定环境，备案数据看不到 | 备案查询用账号级登录取凭据 |
 | 把 `ba` 当成国际站能力 | 国际站账号查不到国内备案数据 | 备案是腾讯云国内站业务，走国内站身份查询 |
 
 ## 验证步骤
 
-1. **序列 A**：`DescribeEnvInfo` 返回的 `BillingInfo.PackageId` 非空、`ExpireTime` 可解析为日期，且 `ExpireTime - 今天 > 6 个月`；不满足就先续费 / 升级，不要往下走。
+1. **序列 A**：先 `tcb/DescribeEnvInfo` 确认环境存在且属于当前凭据 —— 环境不可达时后面的读接口会静默返回空值、不会报错。再调 `DescribeICPResourcesInfo`：**`IcpNotAllowedReason` 为空数组 且 `ICPResources` 非空**（每项都有 `ResourceId` / `ResourceIp` / `Region`）才算够格备案；`IcpNotAllowedReason` 非空就按上表逐项解决，不要往下走。两者同时为空通常是环境不可达，不是「够格」。
 2. **序列 B**：`DescribeLastIcpOrderInProgress` 返回 `IcpOrderId` —— 空串即「无进行中订单」，非空则停下来先处理这条订单，不要提交第二条。
 3. **序列 C**：`DescribeEvaluateAuditDays` 的 `Result` 能解析成 `ProvinceCode` → 天数的数组，且能对上自己省份的行政区划码；`DescribeProvinceRules` 里能定位到自己省份的 `Personal` / `Enterprise` 段落。
 4. **序列 D**：`DescribeDomainIcpStatus` 返回四个布尔字段。任意一项为 `true` 时，先按对应语义处理（`GovStatus` 已通过、`LandedStatus` 已落地、`AuditTicket` 有工单、`Ban` 被拦），再决定是否发起新订单。
-5. 全链路只调用 `Describe*`，不应产生任何订单或状态变更；若某步返回了订单号或写操作结果，说明参数传错，停止并复核。
+5. **序列 E 是唯一会改状态的一段**：先 `queryCloudRun(action="envStatus")` 确认云托管已开通（`status: "normal"`）—— 是 `unopened` / `creating` 就先 `initEnv` 并轮询到位，否则后面的固定 IP 读写没有意义；再用 `DescribeStableIP` 确认当前状态，避免误开或误关；`ModifyStableIPStatus` 拿到 `TaskId` 后必须轮询 `DescribeStableIPTask` 到 `Result` 不再是 `running`，再重跑序列 A 确认 `fixedIpNotEnabled` 已消失。只轮询到一半就收工，等于把「到底开没开上」留给下一个人。
+6. 序列 A–D 只调用 `Describe*`，不产生订单或状态变更；若这几步返回了订单号或写操作结果，说明参数传错，停止并复核。
