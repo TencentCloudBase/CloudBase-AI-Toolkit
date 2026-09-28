@@ -1008,7 +1008,7 @@
     },
     {
       "name": "queryMysqlDatabase",
-      "description": "查询 CloudBase MySQL 数据库信息。支持执行只读 SQL、查询 MySQL 开通结果、查询 MySQL 任务状态，以及获取当前实例生命周期上下文。标准 getInstanceInfo/describeInstance 不返回连接凭据；仅 getConnectionInfo 透传原始连接/集群载荷（含可能的凭据），且仅用于显式 TCP 迁移。业务 CRUD 优先使用 SDK 或 runQuery/runStatement。",
+      "description": "查询 CloudBase MySQL 数据库信息。支持执行只读 SQL、查询 MySQL 开通结果、查询 MySQL 任务状态、获取当前实例生命周期上下文，以及查询实例慢查询/错误日志（对齐 Manager SDK describeInstanceSlowQueries / describeInstanceErrorLogs）。标准 getInstanceInfo/describeInstance 不返回连接凭据；仅 getConnectionInfo 透传原始连接/集群载荷（含可能的凭据），且仅用于显式 TCP 迁移。业务 CRUD 优先使用 SDK 或 runQuery/runStatement。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1020,9 +1020,11 @@
               "describeTaskStatus",
               "getInstanceInfo",
               "describeInstance",
-              "getConnectionInfo"
+              "getConnectionInfo",
+              "describeInstanceSlowQueries",
+              "describeInstanceErrorLogs"
             ],
-            "description": "runQuery=执行只读 SQL；describeCreateResult=查询 CreateMySQL 结果；describeTaskStatus=查询 MySQL 任务状态；getInstanceInfo=获取不含连接凭据的生命周期上下文；describeInstance=getInstanceInfo 的别名；getConnectionInfo=透传可能包含凭据的原始连接/集群载荷（仅限 TCP 迁移例外场景）"
+            "description": "runQuery=执行只读 SQL；describeCreateResult=查询 CreateMySQL 结果；describeTaskStatus=查询 MySQL 任务状态；getInstanceInfo=获取不含连接凭据的生命周期上下文；describeInstance=getInstanceInfo 的别名；getConnectionInfo=透传可能包含凭据的原始连接/集群载荷（仅限 TCP 迁移例外场景）；describeInstanceSlowQueries=查询实例慢查询日志；describeInstanceErrorLogs=查询实例错误日志"
           },
           "sql": {
             "type": "string",
@@ -1031,7 +1033,7 @@
           "request": {
             "type": "object",
             "additionalProperties": {},
-            "description": "describeCreateResult/describeTaskStatus 使用的官方请求载荷"
+            "description": "describeCreateResult/describeTaskStatus/describeInstanceSlowQueries/describeInstanceErrorLogs 使用的官方请求载荷（可含 InstanceId 等）"
           },
           "dbInstance": {
             "type": "object",
@@ -1044,7 +1046,79 @@
               }
             },
             "additionalProperties": false,
-            "description": "runQuery 可选的 SQL 数据库实例上下文"
+            "description": "runQuery / 慢查/错误日志可选的 SQL 数据库实例上下文"
+          },
+          "startTime": {
+            "type": "string",
+            "description": "慢查/错误日志查询开始时间（YYYY-MM-DD HH:mm:ss）"
+          },
+          "endTime": {
+            "type": "string",
+            "description": "慢查/错误日志查询结束时间（YYYY-MM-DD HH:mm:ss）"
+          },
+          "limit": {
+            "type": "number",
+            "description": "慢查/错误日志返回条数限制"
+          },
+          "offset": {
+            "type": "number",
+            "description": "慢查/错误日志分页偏移"
+          },
+          "username": {
+            "type": "string",
+            "description": "慢查过滤：用户名"
+          },
+          "host": {
+            "type": "string",
+            "description": "慢查过滤：客户端 host"
+          },
+          "database": {
+            "type": "string",
+            "description": "慢查过滤：数据库名"
+          },
+          "orderBy": {
+            "type": "string",
+            "enum": [
+              "QueryTime",
+              "LockTime",
+              "RowsExamined",
+              "RowsSent",
+              "Timestamp"
+            ],
+            "description": "排序字段。慢查支持 QueryTime/LockTime/RowsExamined/RowsSent；错误日志支持 Timestamp"
+          },
+          "orderByType": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc",
+              "ASC",
+              "DESC"
+            ],
+            "description": "排序方向：asc/desc（大小写均可）"
+          },
+          "sqlText": {
+            "type": "string",
+            "description": "慢查过滤：SQL 文本片段"
+          },
+          "logLevels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "error",
+                "warning",
+                "note"
+              ]
+            },
+            "description": "错误日志等级过滤，可选值：error / warning / note"
+          },
+          "keyWords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "错误日志关键字模糊搜索列表"
           }
         },
         "required": [
@@ -3674,7 +3748,7 @@
     },
     {
       "name": "queryLogs",
-      "description": "CloudBase 日志域统一只读入口。支持检查日志服务状态并搜索 CLS 日志。\n\n**重要区分**：\n- 查询云函数日志：使用 `queryFunctions(action=\"listFunctionLogs\", functionName=\"xxx\")`\n- 查询 CLS 日志（跨服务日志聚合）：使用本工具 `queryLogs(action=\"searchLogs\")`\n\n**适用场景**：\n- 检查 CLS 日志服务是否开通：`action=\"checkLogService\"`\n- 跨服务日志搜索（如搜索所有 ERROR 日志）：`action=\"searchLogs\"`\n- 按 CLS 语法检索特定服务的日志：`action=\"searchLogs\", service=\"tcb|tcbr\"`",
+      "description": "CloudBase 日志域统一只读入口。支持检查日志服务状态并搜索 CLS 日志。\n\n**重要区分**：\n- 查询云函数日志：使用 `queryFunctions(action=\"listFunctionLogs\", functionName=\"xxx\")`\n- 查询 CLS 日志（跨服务日志聚合）：使用本工具 `queryLogs(action=\"searchLogs\")`\n- 开通 CLS 日志服务：使用 `manageLogs(action=\"createLogService\", confirm=true)`\n\n**适用场景**：\n- 检查 CLS 日志服务是否开通：`action=\"checkLogService\"`\n- 跨服务日志搜索（如搜索所有 ERROR 日志）：`action=\"searchLogs\"`\n- 按 CLS 语法检索特定服务的日志：`action=\"searchLogs\", service=\"tcb|tcbr\"`",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3721,6 +3795,31 @@
               "desc"
             ],
             "description": "按时间排序：`asc` 升序，`desc` 降序"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "manageLogs",
+      "description": "CloudBase 日志域写入入口。用于开通 CLS 日志服务（对齐 Manager SDK `log.createLogService` / CreateEnvResource Resources=['log']）。\n\n**适用场景**：\n- 开通 CLS 日志服务：`action=\"createLogService\", confirm=true`\n\n开通为异步操作：接口成功不代表立即可用，请随后用 `queryLogs(action=\"checkLogService\")` 轮询确认。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "createLogService"
+            ],
+            "description": "操作类型：\n- `createLogService`: 开通 CLS 日志服务（需 `confirm=true`）"
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "开通日志服务前的显式确认。必须传 `confirm=true`；未传时返回 CONFIRM_REQUIRED。"
           }
         },
         "required": [

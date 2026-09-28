@@ -702,4 +702,125 @@ describe("SQL database tools", () => {
     });
     expect(payload.data?.clusterDetail).toBeUndefined();
   });
+
+  it("queryMysqlDatabase(describeInstanceSlowQueries) maps SDK describeInstanceSlowQueries", async () => {
+    const mockDescribeInstanceSlowQueries = vi.fn().mockResolvedValue({
+      TotalCount: 1,
+      SlowQueries: [{ SqlText: "SELECT 1", QueryTime: 1.2 }],
+      RequestId: "req-slow",
+    });
+    mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+      if (Action === "DescribeCreateMySQLResult") {
+        return { RequestId: "req-create", Status: "SUCCESS" };
+      }
+      if (Action === "DescribeMySQLClusterDetail") {
+        return {
+          RequestId: "req-cluster",
+          Data: {
+            DbClusterId: "cluster-1",
+            InstanceId: "cynosdbmysql-abc",
+            DbInfo: { Status: "running" },
+          },
+        };
+      }
+      return {};
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { getEnvInfo: mockGetEnvInfo },
+      commonService: vi.fn(() => ({ call: mockCommonServiceCall })),
+      mysql: { describeInstanceSlowQueries: mockDescribeInstanceSlowQueries },
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.queryMysqlDatabase.handler({
+      action: "describeInstanceSlowQueries",
+      startTime: "2026-04-01 00:00:00",
+      endTime: "2026-04-01 23:59:59",
+      orderBy: "QueryTime",
+      orderByType: "desc",
+      limit: 5,
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockDescribeInstanceSlowQueries).toHaveBeenCalledWith({
+      InstanceId: "cynosdbmysql-abc",
+      StartTime: "2026-04-01 00:00:00",
+      EndTime: "2026-04-01 23:59:59",
+      Limit: 5,
+      Offset: undefined,
+      Username: undefined,
+      Host: undefined,
+      Database: undefined,
+      OrderBy: "QueryTime",
+      OrderByType: "desc",
+      SqlText: undefined,
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "describeInstanceSlowQueries",
+        instanceId: "cynosdbmysql-abc",
+        totalCount: 1,
+      },
+    });
+  });
+
+  it("queryMysqlDatabase(describeInstanceErrorLogs) maps SDK describeInstanceErrorLogs", async () => {
+    const mockDescribeInstanceErrorLogs = vi.fn().mockResolvedValue({
+      TotalCount: 2,
+      ErrorLogs: [{ Content: "disk full", Level: "error" }],
+      RequestId: "req-err",
+    });
+    mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
+      if (Action === "DescribeCreateMySQLResult") {
+        return { RequestId: "req-create", Status: "SUCCESS" };
+      }
+      if (Action === "DescribeMySQLClusterDetail") {
+        return {
+          RequestId: "req-cluster",
+          Data: {
+            DbClusterId: "cluster-1",
+            InstanceId: "cynosdbmysql-xyz",
+            DbInfo: { Status: "running" },
+          },
+        };
+      }
+      return {};
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { getEnvInfo: mockGetEnvInfo },
+      commonService: vi.fn(() => ({ call: mockCommonServiceCall })),
+      mysql: { describeInstanceErrorLogs: mockDescribeInstanceErrorLogs },
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.queryMysqlDatabase.handler({
+      action: "describeInstanceErrorLogs",
+      logLevels: ["error", "warning"],
+      keyWords: ["disk"],
+      orderBy: "Timestamp",
+      orderByType: "DESC",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(mockDescribeInstanceErrorLogs).toHaveBeenCalledWith({
+      InstanceId: "cynosdbmysql-xyz",
+      Limit: undefined,
+      Offset: undefined,
+      StartTime: undefined,
+      EndTime: undefined,
+      OrderBy: "Timestamp",
+      OrderByType: "DESC",
+      LogLevels: ["error", "warning"],
+      KeyWords: ["disk"],
+    });
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "describeInstanceErrorLogs",
+        instanceId: "cynosdbmysql-xyz",
+        totalCount: 2,
+      },
+    });
+  });
 });
