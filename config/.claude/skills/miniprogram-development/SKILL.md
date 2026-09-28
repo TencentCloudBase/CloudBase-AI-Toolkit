@@ -22,10 +22,12 @@ If a referenced sibling skill file is missing from this environment, ask the use
 ### Use this first when
 
 - The request is about WeChat Mini Program structure, pages, preview, publishing, or CloudBase mini program integration.
+- The user asks about mini program account registration or subject type (个人 / 个体工商户 / 企业主体, 快速注册并认证小程序, 小程序主体变更), or reports that the DevTools 云开发 entry is grayed out or their environment cannot be found.
 
 ### Read before writing code if
 
 - The user mentions `wx.cloud`, CloudBase mini programs, OPENID, mini program deployment/debug workflows, Nightly DevTools, `wechatide`, or WeChat IDE Skills.
+- The user mentions 测试号 / trial accounts, a grayed-out 云开发 entry, or a mini program environment that is invisible in DevTools.
 - The user mentions message push (消息推送), customer-service auto-reply (客服消息/自动回复), or binding MsgType/Event callbacks to cloud functions.
 
 ### Then also read
@@ -50,7 +52,8 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Inventing `wechatide` tool names or flags instead of using `--help` / Nightly `tools.yaml`.
 - Bypassing wxide CLI / IDE for message-push ops with low-level transport before `cloud_*_msg_push` is exposed (see [message-push-customer-service.md](references/message-push-customer-service.md)).
 - Assuming cloud-function return values auto-reply to customer-service chats (must use `cloud.openapi.customerServiceMessage.send`).
-- Treating a grayed-out 云开发 button as a DevTools bug — trial/test accounts do not support CloudBase; confirm a registered mini program account first (see [CloudBase integration reference](references/cloudbase-integration.md), section 环境开通).
+- Treating a grayed-out 云开发 entry, or an environment missing from DevTools, as a DevTools bug — trial/test accounts do not support CloudBase, and when the mini program's bound Tencent Cloud account differs from the account that created the environment, the environment is simply not listed. Diagnose the cause before touching the project (see [Common Pitfalls](references/pitfalls.md) §6).
+- Recommending a personal-subject (个人主体) mini program account because registration is free — personal subjects cannot bind a WeChat Pay merchant account, so physical goods and offline services are out; they also have far fewer service categories, and switching subject later requires notarization plus a paid review. The reverse mistake is just as bad: do not push a virtual-goods-only idea to a company account on the grounds that "personal cannot take payments" — 虚拟支付 is open to personal subjects whose service category includes 工具. Ask what the app will sell before recommending a subject (see [CloudBase integration reference](references/cloudbase-integration.md) §0.1).
 - Making code or configuration changes without first following the Change Safety Protocol (`cloudbase-platform/references/protocols/change-safety-protocol.md`).
 - Performing mini program upload/publish without first completing the checks in `cloudbase-platform/references/protocols/deployment-gate.md`.
 
@@ -87,6 +90,7 @@ Use this skill for **WeChat Mini Program development** when you need to:
    - If the task involves debugging, previewing, publishing, opening DevTools, console/network, or `wechatide`, read [debug and preview reference](references/devtools-debug-preview.md) first
    - If choosing between WeChat IDE Skills and CloudBase MCP, read [WeChat IDE Skills vs CloudBase MCP](references/wxide-vs-cloudbase-mcp.md)
    - If the task involves CloudBase, `wx.cloud`, cloud functions, CloudBase database/storage, or CloudBase identity handling, read [CloudBase integration reference](references/cloudbase-integration.md)
+   - If the task hits account / subject prerequisites (小程序尚未注册、主体选择、测试号、云开发入口置灰、环境看不到), read [CloudBase integration reference](references/cloudbase-integration.md) section 0 first
    - If the task involves mini program SEO / WeChat search optimization / page indexing / search promotion (小程序搜索优化、页面收录、搜索推广、关键词排名), read [Mini Program SEO & WeChat Search Optimization](references/seo-search-optimization.md) first
    - If the task involves message push (消息推送), customer-service auto-reply (客服消息自动回复), MsgType/Event → cloud function binding, or push-related function logs, read [Message Push & Customer Service Auto-Reply](references/message-push-customer-service.md) first
    - If the task involves `tabBar`, icon assets, or label spacing, prefer the text-only custom `tabBar` default below unless the user explicitly requires icons
@@ -222,4 +226,4 @@ Page({
 - [WeChat IDE Skills vs CloudBase MCP](references/wxide-vs-cloudbase-mcp.md) — layering and when to use which execution surface
 - [Message Push & Customer Service Auto-Reply](references/message-push-customer-service.md) — 消息推送 / 客服自动回复 via wxide CLI + IDE (no low-level bypass; pending `cloud_*_msg_push`)
 - [Mini Program SEO & WeChat Search Optimization](references/seo-search-optimization.md) — 小程序搜索优化 / page indexing / search promotion (`mpcrawler`, URL reachability, `navigator` jumps, titles & thumbnails)
-- [Common Pitfalls](references/pitfalls.md) — read before generating code for optional chaining, TDesign styling, Canvas + storage, and environment issues
+- [Common Pitfalls](references/pitfalls.md) — read before generating code for optional chaining, TDesign styling, Canvas + storage, and the 云开发 entry / environment issues (§6)

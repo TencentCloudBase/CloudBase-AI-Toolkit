@@ -31,7 +31,6 @@ Awesome Copilot installs the **full plugin**, so remote sibling fetch is unneces
    - Keep human `docs.cloudbase.net` references
 2. **Guideline / templates** — **done**
    - `config/source/guideline/cloudbase/SKILL.md`
-   - `scripts/skills-repo-template/cloudbase-guidelines/SKILL.md`
 3. **Tests** — **done**
    - Invert `tests/single-skill-fallback-links.test.js` to assert **absence** of skill raw-fetch URLs
 4. **Mirrors / plugin** — **done**
