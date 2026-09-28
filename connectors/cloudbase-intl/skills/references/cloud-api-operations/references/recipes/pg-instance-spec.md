@@ -36,7 +36,7 @@
 
 账号级身份缺权限时，由主账号给**这个身份**追加策略，别去点角色的链接。链接拼法、`principal` 的固定取值与使用边界见 [calling-methods.md §3.2](../calling-methods.md)。
 
-官方接口文档：云开发 API 概览 https://cloud.tencent.com/document/api/876/34809 （请求域名 `tcb.tencentcloudapi.com`）；云数据库 PostgreSQL API 概览 https://cloud.tencent.com/document/api/409/16761 （请求域名 `postgres.tencentcloudapi.com`）。
+官方接口文档：云开发 API 概览 https://cloud.tencent.com/document/api/876/34809 （请求域名 `tcb.intl.tencentcloudapi.com`）；云数据库 PostgreSQL API 概览 https://cloud.tencent.com/document/api/409/16761 （请求域名 `postgres.tencentcloudapi.com`）。
 
 ## 费用与套餐：变配不需要先升级套餐
 
@@ -149,7 +149,7 @@ only shared (multi-tenant) instance can be upgraded to dedicated, current form: 
 
 步骤 9 的 `Limit` 上限 100；不传 `MinStartTime` 时**默认只展示 180 天内**的任务。
 
-想用图形界面看这两条，控制台入口是：PG 实例页 `https://tcb.cloud.tencent.com/dev?envId=<envId>#/db/postgres/setting`（规格），任务列表 `https://tcb.cloud.tencent.com/dev?envId=<envId>#/db/postgres/tasks`。
+想用图形界面看这两条，控制台入口是：PG 实例页 `https://tcb.tencentcloud.com/dev?envId=<envId>#/db/postgres/setting`（规格），任务列表 `https://tcb.tencentcloud.com/dev?envId=<envId>#/db/postgres/tasks`。
 
 ### D. 给用户的预期提示
 

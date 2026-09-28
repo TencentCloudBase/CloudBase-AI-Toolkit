@@ -221,7 +221,7 @@ Domain X has N route binding(s) (/a, /b). Please delete the routes before deleti
 | **买域名** | 域名注册控制台 https://console.cloud.tencent.com/domain | **不给** —— 消费操作，不把下单权交给服务角色 | 要有 `domain` 策略才能调 `domain/CheckDomain`（可注册性）、`domain/DescribeDomainPriceList`（价格）、`domain/CreateDomainBatch`（下单）。这一段正确做法是引导用户自己买，别去补权限 |
 | **实名认证** | 注册后按提示完成 | 不能 | 必须做。没实名不能加解析、不能备案 |
 | **加解析** | DNSPod 控制台 https://console.cloud.tencent.com/cns | **可以** —— 补策略后由 AI 代写 | 要加两条：归属校验用的 **TXT `_cloudbase-challenge`**，以及**接入成功后接口 / 页面给出的 CNAME**。CNAME 值**只能从接口或页面取、不要自己拼格式** —— 实测同一个账号下两种接入方式给出的长得不一样：云开发接入是 `<域名>.tcbaccess.tencentcloudbase.com`，CDN 接入是 `<域名>.cdn.dnsv1.com`。补权限链接见「前置权限」 |
-| **备案** | 云开发平台「备案管理」 https://tcb.cloud.tencent.com/dev#/env/filing-manage 或腾讯云备案控制台 | 不能 —— 备案不在 CAM 策略体系里 | **自定义域名必须已完成 ICP 备案**（官方硬要求）。所以通常是**先备案、再绑域名**；自查与等多久转 [Recipe 2](./icp-filing-readiness.md) |
+| **备案** | 云开发平台「备案管理」 https://tcb.tencentcloud.com/dev#/env/filing-manage 或腾讯云备案控制台 | 不能 —— 备案不在 CAM 策略体系里 | **自定义域名必须已完成 ICP 备案**（官方硬要求）。所以通常是**先备案、再绑域名**；自查与等多久转 [Recipe 2](./icp-filing-readiness.md) |
 
 **备案在链路的哪一步校验**（实测口径，回答用户「没备案能不能先绑」时用）：
 
