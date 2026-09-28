@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-09-15T02:24:42.999Z",
+  "generated_at": "2026-09-24T00:22:42.349Z",
   "matrix_version": 1,
   "reviewed_stale_days": 90,
-  "total_markets": 48,
+  "total_markets": 51,
   "summary": {
     "ready_to_submit": 6,
-    "needs_packaging_or_manifest": 3,
-    "needs_partner_outreach": 14,
-    "listed": 9,
+    "needs_packaging_or_manifest": 4,
+    "needs_partner_outreach": 13,
+    "listed": 11,
     "not_applicable": 15,
-    "unknown": 1
+    "unknown": 2
   },
   "stale_ids": [],
   "online": [],
@@ -652,6 +652,53 @@
         "priority": "needs_packaging_or_manifest",
         "stale": false,
         "manual_submit_only": true
+      },
+      {
+        "id": "qwen-open-platform",
+        "product": "Qwen Open Platform (千问开放平台)",
+        "region": "cn",
+        "channel_type": "skill_registry",
+        "listing_statuses": {
+          "official_curated": "submittable",
+          "community_directory": "not_applicable",
+          "self_marketplace": "not_applicable",
+          "native_connector_or_builtin": "not_applicable",
+          "open_plugin_spec": "not_applicable",
+          "mcp_or_skill_registry": "unknown",
+          "docs_only": "listed"
+        },
+        "eligibility": "public_self_serve_submission",
+        "blockers": [
+          "Skill 接入 is marked 即将开放, so a skill package cannot be submitted yet",
+          "The live track onboards brand agents, not a distributable skill or connector package"
+        ],
+        "evidence_links": [
+          "https://open.qianwen.com/",
+          "https://baike.baidu.com/item/千问开放平台/68538985",
+          "https://www.cinn.cn/xf/2026/08-10/gD7OpAqD.html"
+        ],
+        "submit_url_or_process": "Distinct from QwenWork: this onboards third-party services into the Qwen assistant app\n(mobile / PC / AI glasses). Entry point is https://open.qianwen.com/ with a 申请入驻 button.\nTwo tracks — AI 智能体接入 (live, marked recommended: a brand agent in its own conversation space, with\naccount / AI payment / order infrastructure, front-end components and end-to-end debugging provided) and\nSkill 接入 (marked 即将开放 / 敬请期待, i.e. not submittable yet). agent.flow, an enterprise knowledge\nbase and MCP services are listed as platform capabilities.\nStatus 2026-09-24: intent form plus review; no in-product submission path reviewed.\n",
+        "recommended_install_path": null,
+        "last_reviewed_at": "2026-09-24",
+        "owner": "cloudbase-ai-toolkit",
+        "local_evidence": [],
+        "submit_checklist": [
+          "Decide whether an assistant-app entry point is wanted; if so submit the 申请入驻 form",
+          "Re-check whether Skill 接入 has opened before packaging a skill for it"
+        ],
+        "materials": [
+          {
+            "item": "Decide whether an assistant-app entry point is wanted; if so submit the 申请入驻 form",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Re-check whether Skill 接入 has opened before packaging a skill for it",
+            "status": "manual_or_external"
+          }
+        ],
+        "priority": "needs_packaging_or_manifest",
+        "stale": false,
+        "manual_submit_only": true
       }
     ],
     "needs_partner_outreach": [
@@ -977,17 +1024,21 @@
         "eligibility": "partner_outreach_required",
         "blockers": [
           "No public connector submission form; market entries are onboarded with the vendor",
-          "CloudBase not present in the 连接器 market yet"
+          "CloudBase not present in the 连接器 market yet",
+          "The public catalog carries platform-curated resources only; the Extensions FAQ states that individual users cannot publish custom skills to the public marketplace"
         ],
         "evidence_links": [
           "https://help.aliyun.com/zh/qwenwork/qw-connectors",
           "https://help.aliyun.com/zh/qwenwork/skills",
           "https://help.aliyun.com/zh/qwenwork/skills-management",
-          "https://help.aliyun.com/zh/qwenwork/enterprise-ultimate-ai-assets/"
+          "https://help.aliyun.com/zh/qwenwork/enterprise-ultimate-ai-assets/",
+          "https://help.aliyun.com/zh/qwenwork/expert-kit",
+          "https://www.alibabacloud.com/help/en/qwenwork/qwenwork-extensions",
+          "https://www.cnfin.com/gs-lb/detail/20260922/4473408_1.html"
         ],
-        "submit_url_or_process": "Self-serve: 左侧「扩展」→「连接器」→ 右上 + 添加 →「粘贴 JSON 配置」/「手动填写配置」.\nThe manual form's server-type dropdown includes STDIO (a 命令 field plus env vars; the official example is\n`npx -y @modelcontextprotocol/server-filesystem`), and Streamable HTTP / SSE are supported as well.\nOfficial 连接器 market is partner-curated — the production tier already carries Supabase, Vercel and Neon\n— with no public submission form. Skills install to `~/.qwenworkcn/skills/`.\nEnterprise-scoped self-serve rails exist but do not reach the public catalog: 组织技能库 lets an\norganization upload SKILL.md or a ZIP and publish it to its own members after an admin review, and the\nenterprise AI asset console manages skills, connectors and expert kits.\nStatus 2026-09-15: CloudBase absent from the market; self-serve custom connector works today.\n",
+        "submit_url_or_process": "Self-serve: 左侧「扩展」→「连接器」→ 右上 + 添加 →「粘贴 JSON 配置」/「手动填写配置」.\nThe manual form's server-type dropdown includes STDIO (a 命令 field plus env vars; the official example is\n`npx -y @modelcontextprotocol/server-filesystem`), and Streamable HTTP / SSE are supported as well.\nOfficial 连接器 market is partner-curated — the production tier already carries Supabase, Vercel and Neon\n— with no public submission form. Skills install to `~/.qwenworkcn/skills/`.\nEnterprise-scoped self-serve rails exist but do not reach the public catalog: 组织技能库 lets an\norganization upload SKILL.md or a ZIP and publish it to its own members after an admin review, and the\nenterprise AI asset console manages skills, connectors and expert kits.\nStatus 2026-09-15: CloudBase absent from the market; self-serve custom connector works today.\nStatus 2026-09-24: unchanged. Third-party entries reach the public catalog through vendor onboarding —\nCamScanner (合合信息) listed a skill and a connector together on 2026-09-22 — not through a portal form.\n",
         "recommended_install_path": null,
-        "last_reviewed_at": "2026-09-15",
+        "last_reviewed_at": "2026-09-24",
         "owner": "cloudbase-ai-toolkit",
         "local_evidence": [],
         "submit_checklist": [
@@ -1202,9 +1253,9 @@
         "evidence_links": [
           "https://smithery.ai/docs/build/publish.md"
         ],
-        "submit_url_or_process": "Publish hosted HTTPS MCP or rely on registry ingest; see smithery.ai/new.",
+        "submit_url_or_process": "Publish hosted HTTPS MCP or rely on registry ingest; see smithery.ai/new.\nStatus 2026-09-24: no CloudBase entry surfaced in a public search; presence not verified in-product.\n",
         "recommended_install_path": null,
-        "last_reviewed_at": "2026-07-27",
+        "last_reviewed_at": "2026-09-24",
         "owner": "cloudbase-ai-toolkit",
         "local_evidence": [],
         "submit_checklist": [
@@ -1263,43 +1314,6 @@
         "manual_submit_only": true
       },
       {
-        "id": "glama",
-        "product": "Glama",
-        "region": "global",
-        "channel_type": "mcp_registry_or_aggregator",
-        "listing_statuses": {
-          "official_curated": "not_applicable",
-          "community_directory": "not_applicable",
-          "self_marketplace": "not_applicable",
-          "native_connector_or_builtin": "not_applicable",
-          "open_plugin_spec": "not_applicable",
-          "mcp_or_skill_registry": "unknown",
-          "docs_only": "unknown"
-        },
-        "eligibility": "public_github_mcp",
-        "blockers": [],
-        "evidence_links": [
-          "https://glama.ai/mcp/servers"
-        ],
-        "submit_url_or_process": "Indexes public GitHub MCP repos / registry.",
-        "recommended_install_path": null,
-        "last_reviewed_at": "2026-07-27",
-        "owner": "cloudbase-ai-toolkit",
-        "local_evidence": [],
-        "submit_checklist": [
-          "Public MCP server repo discoverable"
-        ],
-        "materials": [
-          {
-            "item": "Public MCP server repo discoverable",
-            "status": "manual_or_external"
-          }
-        ],
-        "priority": "needs_partner_outreach",
-        "stale": false,
-        "manual_submit_only": true
-      },
-      {
         "id": "mcp-so",
         "product": "mcp.so",
         "region": "global",
@@ -1338,6 +1352,62 @@
       }
     ],
     "listed": [
+      {
+        "id": "awesome-dsh-plugin",
+        "product": "DeepSeek Harness (DSH)",
+        "region": "global",
+        "channel_type": "community_plugin_directory",
+        "listing_statuses": {
+          "official_curated": "not_applicable",
+          "community_directory": "listed",
+          "self_marketplace": "not_applicable",
+          "native_connector_or_builtin": "not_applicable",
+          "open_plugin_spec": "not_applicable",
+          "mcp_or_skill_registry": "not_applicable",
+          "docs_only": "listed"
+        },
+        "eligibility": "public_github_pr_required",
+        "blockers": [],
+        "evidence_links": [
+          "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin",
+          "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5120",
+          "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/data/plugins/TencentCloudBase__CloudBase-AI-Toolkit--dsh-plugin.yml",
+          "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md",
+          "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/tree/main/dsh-plugin"
+        ],
+        "submit_url_or_process": "Community main repo: awesome-dsh-plugin/awesome-dsh-plugin (not deepseek-ai/awesome-dsh-plugin — 404).\nAdd ONE file: data/plugins/<owner>__<repo>.yml (monorepo subpkg: owner__repo--path-segments.yml).\nDo NOT edit README.md / README.zh.md by hand — sync-readme.yml regenerates after merge.\nRequires dsh.bundle in package.json (+ cordis.patch.yml); dsh.client alone is rejected.\nStatus 2026-09-15: PR #5120 merged. Entry live in data/plugins + generated READMEs (category tools).\n",
+        "recommended_install_path": "dsh-plugin/README.md",
+        "last_reviewed_at": "2026-09-23",
+        "owner": "cloudbase-ai-toolkit",
+        "local_evidence": [],
+        "submit_checklist": [
+          "One YAML under data/plugins/ (no hand-edit of README)",
+          "package.json declares dsh.bundle + cordis.patch.yml",
+          "Accurate description (no superlatives); category tools",
+          "Repo topic dsh-plugin; npm @cloudbase/dsh-plugin optional but recommended"
+        ],
+        "materials": [
+          {
+            "item": "One YAML under data/plugins/ (no hand-edit of README)",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "package.json declares dsh.bundle + cordis.patch.yml",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Accurate description (no superlatives); category tools",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "Repo topic dsh-plugin; npm @cloudbase/dsh-plugin optional but recommended",
+            "status": "manual_or_external"
+          }
+        ],
+        "priority": "listed",
+        "stale": false,
+        "manual_submit_only": true
+      },
       {
         "id": "github-copilot-cli",
         "product": "GitHub Copilot CLI",
@@ -1661,9 +1731,9 @@
           "https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase",
           "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit"
         ],
-        "submit_url_or_process": "Publish via mcp-publisher CLI to registry.modelcontextprotocol.io; aggregators may ingest afterward.\nStatus 2026-08-17: listed as io.github.TencentCloudBase/cloudbase-mcp v2.27.0 (hosted remotes).\nnpm packages[] will attach on the next npm release after mcpName ships in @cloudbase/cloudbase-mcp.\n",
+        "submit_url_or_process": "Publish via mcp-publisher CLI to registry.modelcontextprotocol.io; aggregators may ingest afterward.\nStatus 2026-08-17: listed as io.github.TencentCloudBase/cloudbase-mcp v2.27.0 (hosted remotes).\nnpm packages[] will attach on the next npm release after mcpName ships in @cloudbase/cloudbase-mcp.\nStatus 2026-09-24: registry now carries every release up to v2.34.6, with both hosted remotes\n(domestic + international) and the npm package records attached. Publishing is fully automated in\n.github/workflows/npm-publish.yaml: sync the server.json version, then mcp-publisher login github-oidc,\nthen publish (with retries while the npm package propagates).\n",
         "recommended_install_path": "mcp/server.json",
-        "last_reviewed_at": "2026-08-17",
+        "last_reviewed_at": "2026-09-24",
         "owner": "cloudbase-ai-toolkit",
         "local_evidence": [
           {
@@ -1706,6 +1776,47 @@
         "last_reviewed_at": "2026-09-15",
         "owner": "cloudbase-ai-toolkit",
         "local_evidence": [],
+        "submit_checklist": [],
+        "materials": [],
+        "priority": "listed",
+        "stale": false,
+        "manual_submit_only": true
+      },
+      {
+        "id": "glama",
+        "product": "Glama",
+        "region": "global",
+        "channel_type": "mcp_registry_or_aggregator",
+        "listing_statuses": {
+          "official_curated": "not_applicable",
+          "community_directory": "not_applicable",
+          "self_marketplace": "not_applicable",
+          "native_connector_or_builtin": "not_applicable",
+          "open_plugin_spec": "not_applicable",
+          "mcp_or_skill_registry": "unknown",
+          "docs_only": "unknown"
+        },
+        "eligibility": "public_github_mcp",
+        "blockers": [],
+        "evidence_links": [
+          "https://glama.ai/mcp/servers",
+          "https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-MCP"
+        ],
+        "submit_url_or_process": "Indexes public GitHub MCP repos / registry.",
+        "recommended_install_path": null,
+        "last_reviewed_at": "2026-09-24",
+        "owner": "cloudbase-ai-toolkit",
+        "local_evidence": [
+          {
+            "id": "mcp_registry_server_json",
+            "status": "present",
+            "detail": "mcp/server.json matches npm mcpName io.github.TencentCloudBase/cloudbase-mcp",
+            "paths": [
+              "mcp/server.json",
+              "mcp/package.json"
+            ]
+          }
+        ],
         "submit_checklist": [],
         "materials": [],
         "priority": "listed",
@@ -2165,6 +2276,62 @@
     ],
     "unknown": [
       {
+        "id": "aliyun-marketplace-bailian-plugins",
+        "product": "Alibaba Cloud Marketplace → Model Studio (百炼) plugin plaza",
+        "region": "cn",
+        "channel_type": "official_curated_marketplace",
+        "listing_statuses": {
+          "official_curated": "submittable",
+          "community_directory": "not_applicable",
+          "self_marketplace": "not_applicable",
+          "native_connector_or_builtin": "not_applicable",
+          "open_plugin_spec": "not_applicable",
+          "mcp_or_skill_registry": "submittable",
+          "docs_only": "listed"
+        },
+        "eligibility": "public_self_serve_submission",
+        "blockers": [
+          "Needs Alibaba Cloud Marketplace supplier onboarding, which is a company-level commitment (business licence ≥ 1 year, registered capital ≥ ¥1,000,000 for 数据与API, 5x8 support, deposit)",
+          "Targets Model Studio agent plugins rather than AI coding clients, so it is a different surface from the MCP / plugin listings elsewhere in this matrix"
+        ],
+        "evidence_links": [
+          "https://help.aliyun.com/document_detail/2866083.html",
+          "https://help.aliyun.com/zh/marketplace/cloud-market-category-qualification",
+          "https://developer.aliyun.com/article/1483445"
+        ],
+        "submit_url_or_process": "A documented self-serve route onto an official Alibaba Cloud recommendation surface. Prerequisites: the\nAPI is already published on Alibaba Cloud API Gateway, and an API product is live (status 已上架) on the\nMarketplace under the 数据与API category. Then, on the Data Exchange platform, select the published API and\nchoose 插件输出 — the API group is converted to OAS 3.0 (one group becomes one plugin), the result enters\n插件审核, and once approved it is synced automatically into the Model Studio (百炼) official plugin plaza\nand the add-plugin recommendation area.\nStatus 2026-09-24: not attempted. Recorded as the only self-serve, review-based public listing flow found\nin the Alibaba stack.\n",
+        "recommended_install_path": null,
+        "last_reviewed_at": "2026-09-24",
+        "owner": "cloudbase-ai-toolkit",
+        "local_evidence": [],
+        "submit_checklist": [
+          "Decide whether a Model Studio plugin listing justifies Marketplace supplier onboarding",
+          {
+            "If yes": "publish the API on API Gateway, list the API product, then run 插件输出 on Data Exchange"
+          },
+          {
+            "Adjacent lower-commitment route": "the 通义大模型合作计划 application (covers 插件中心 / 应用广场)"
+          }
+        ],
+        "materials": [
+          {
+            "item": "Decide whether a Model Studio plugin listing justifies Marketplace supplier onboarding",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "[object Object]",
+            "status": "manual_or_external"
+          },
+          {
+            "item": "[object Object]",
+            "status": "manual_or_external"
+          }
+        ],
+        "priority": "unknown",
+        "stale": false,
+        "manual_submit_only": true
+      },
+      {
         "id": "clawhub",
         "product": "ClawHub",
         "region": "global",
@@ -2406,6 +2573,62 @@
         }
       ],
       "priority": "needs_packaging_or_manifest",
+      "stale": false,
+      "manual_submit_only": true
+    },
+    {
+      "id": "awesome-dsh-plugin",
+      "product": "DeepSeek Harness (DSH)",
+      "region": "global",
+      "channel_type": "community_plugin_directory",
+      "listing_statuses": {
+        "official_curated": "not_applicable",
+        "community_directory": "listed",
+        "self_marketplace": "not_applicable",
+        "native_connector_or_builtin": "not_applicable",
+        "open_plugin_spec": "not_applicable",
+        "mcp_or_skill_registry": "not_applicable",
+        "docs_only": "listed"
+      },
+      "eligibility": "public_github_pr_required",
+      "blockers": [],
+      "evidence_links": [
+        "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin",
+        "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5120",
+        "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/data/plugins/TencentCloudBase__CloudBase-AI-Toolkit--dsh-plugin.yml",
+        "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md",
+        "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/tree/main/dsh-plugin"
+      ],
+      "submit_url_or_process": "Community main repo: awesome-dsh-plugin/awesome-dsh-plugin (not deepseek-ai/awesome-dsh-plugin — 404).\nAdd ONE file: data/plugins/<owner>__<repo>.yml (monorepo subpkg: owner__repo--path-segments.yml).\nDo NOT edit README.md / README.zh.md by hand — sync-readme.yml regenerates after merge.\nRequires dsh.bundle in package.json (+ cordis.patch.yml); dsh.client alone is rejected.\nStatus 2026-09-15: PR #5120 merged. Entry live in data/plugins + generated READMEs (category tools).\n",
+      "recommended_install_path": "dsh-plugin/README.md",
+      "last_reviewed_at": "2026-09-23",
+      "owner": "cloudbase-ai-toolkit",
+      "local_evidence": [],
+      "submit_checklist": [
+        "One YAML under data/plugins/ (no hand-edit of README)",
+        "package.json declares dsh.bundle + cordis.patch.yml",
+        "Accurate description (no superlatives); category tools",
+        "Repo topic dsh-plugin; npm @cloudbase/dsh-plugin optional but recommended"
+      ],
+      "materials": [
+        {
+          "item": "One YAML under data/plugins/ (no hand-edit of README)",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "package.json declares dsh.bundle + cordis.patch.yml",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Accurate description (no superlatives); category tools",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Repo topic dsh-plugin; npm @cloudbase/dsh-plugin optional but recommended",
+          "status": "manual_or_external"
+        }
+      ],
+      "priority": "listed",
       "stale": false,
       "manual_submit_only": true
     },
@@ -3229,17 +3452,21 @@
       "eligibility": "partner_outreach_required",
       "blockers": [
         "No public connector submission form; market entries are onboarded with the vendor",
-        "CloudBase not present in the 连接器 market yet"
+        "CloudBase not present in the 连接器 market yet",
+        "The public catalog carries platform-curated resources only; the Extensions FAQ states that individual users cannot publish custom skills to the public marketplace"
       ],
       "evidence_links": [
         "https://help.aliyun.com/zh/qwenwork/qw-connectors",
         "https://help.aliyun.com/zh/qwenwork/skills",
         "https://help.aliyun.com/zh/qwenwork/skills-management",
-        "https://help.aliyun.com/zh/qwenwork/enterprise-ultimate-ai-assets/"
+        "https://help.aliyun.com/zh/qwenwork/enterprise-ultimate-ai-assets/",
+        "https://help.aliyun.com/zh/qwenwork/expert-kit",
+        "https://www.alibabacloud.com/help/en/qwenwork/qwenwork-extensions",
+        "https://www.cnfin.com/gs-lb/detail/20260922/4473408_1.html"
       ],
-      "submit_url_or_process": "Self-serve: 左侧「扩展」→「连接器」→ 右上 + 添加 →「粘贴 JSON 配置」/「手动填写配置」.\nThe manual form's server-type dropdown includes STDIO (a 命令 field plus env vars; the official example is\n`npx -y @modelcontextprotocol/server-filesystem`), and Streamable HTTP / SSE are supported as well.\nOfficial 连接器 market is partner-curated — the production tier already carries Supabase, Vercel and Neon\n— with no public submission form. Skills install to `~/.qwenworkcn/skills/`.\nEnterprise-scoped self-serve rails exist but do not reach the public catalog: 组织技能库 lets an\norganization upload SKILL.md or a ZIP and publish it to its own members after an admin review, and the\nenterprise AI asset console manages skills, connectors and expert kits.\nStatus 2026-09-15: CloudBase absent from the market; self-serve custom connector works today.\n",
+      "submit_url_or_process": "Self-serve: 左侧「扩展」→「连接器」→ 右上 + 添加 →「粘贴 JSON 配置」/「手动填写配置」.\nThe manual form's server-type dropdown includes STDIO (a 命令 field plus env vars; the official example is\n`npx -y @modelcontextprotocol/server-filesystem`), and Streamable HTTP / SSE are supported as well.\nOfficial 连接器 market is partner-curated — the production tier already carries Supabase, Vercel and Neon\n— with no public submission form. Skills install to `~/.qwenworkcn/skills/`.\nEnterprise-scoped self-serve rails exist but do not reach the public catalog: 组织技能库 lets an\norganization upload SKILL.md or a ZIP and publish it to its own members after an admin review, and the\nenterprise AI asset console manages skills, connectors and expert kits.\nStatus 2026-09-15: CloudBase absent from the market; self-serve custom connector works today.\nStatus 2026-09-24: unchanged. Third-party entries reach the public catalog through vendor onboarding —\nCamScanner (合合信息) listed a skill and a connector together on 2026-09-22 — not through a portal form.\n",
       "recommended_install_path": null,
-      "last_reviewed_at": "2026-09-15",
+      "last_reviewed_at": "2026-09-24",
       "owner": "cloudbase-ai-toolkit",
       "local_evidence": [],
       "submit_checklist": [
@@ -3257,6 +3484,109 @@
         }
       ],
       "priority": "needs_partner_outreach",
+      "stale": false,
+      "manual_submit_only": true
+    },
+    {
+      "id": "qwen-open-platform",
+      "product": "Qwen Open Platform (千问开放平台)",
+      "region": "cn",
+      "channel_type": "skill_registry",
+      "listing_statuses": {
+        "official_curated": "submittable",
+        "community_directory": "not_applicable",
+        "self_marketplace": "not_applicable",
+        "native_connector_or_builtin": "not_applicable",
+        "open_plugin_spec": "not_applicable",
+        "mcp_or_skill_registry": "unknown",
+        "docs_only": "listed"
+      },
+      "eligibility": "public_self_serve_submission",
+      "blockers": [
+        "Skill 接入 is marked 即将开放, so a skill package cannot be submitted yet",
+        "The live track onboards brand agents, not a distributable skill or connector package"
+      ],
+      "evidence_links": [
+        "https://open.qianwen.com/",
+        "https://baike.baidu.com/item/千问开放平台/68538985",
+        "https://www.cinn.cn/xf/2026/08-10/gD7OpAqD.html"
+      ],
+      "submit_url_or_process": "Distinct from QwenWork: this onboards third-party services into the Qwen assistant app\n(mobile / PC / AI glasses). Entry point is https://open.qianwen.com/ with a 申请入驻 button.\nTwo tracks — AI 智能体接入 (live, marked recommended: a brand agent in its own conversation space, with\naccount / AI payment / order infrastructure, front-end components and end-to-end debugging provided) and\nSkill 接入 (marked 即将开放 / 敬请期待, i.e. not submittable yet). agent.flow, an enterprise knowledge\nbase and MCP services are listed as platform capabilities.\nStatus 2026-09-24: intent form plus review; no in-product submission path reviewed.\n",
+      "recommended_install_path": null,
+      "last_reviewed_at": "2026-09-24",
+      "owner": "cloudbase-ai-toolkit",
+      "local_evidence": [],
+      "submit_checklist": [
+        "Decide whether an assistant-app entry point is wanted; if so submit the 申请入驻 form",
+        "Re-check whether Skill 接入 has opened before packaging a skill for it"
+      ],
+      "materials": [
+        {
+          "item": "Decide whether an assistant-app entry point is wanted; if so submit the 申请入驻 form",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "Re-check whether Skill 接入 has opened before packaging a skill for it",
+          "status": "manual_or_external"
+        }
+      ],
+      "priority": "needs_packaging_or_manifest",
+      "stale": false,
+      "manual_submit_only": true
+    },
+    {
+      "id": "aliyun-marketplace-bailian-plugins",
+      "product": "Alibaba Cloud Marketplace → Model Studio (百炼) plugin plaza",
+      "region": "cn",
+      "channel_type": "official_curated_marketplace",
+      "listing_statuses": {
+        "official_curated": "submittable",
+        "community_directory": "not_applicable",
+        "self_marketplace": "not_applicable",
+        "native_connector_or_builtin": "not_applicable",
+        "open_plugin_spec": "not_applicable",
+        "mcp_or_skill_registry": "submittable",
+        "docs_only": "listed"
+      },
+      "eligibility": "public_self_serve_submission",
+      "blockers": [
+        "Needs Alibaba Cloud Marketplace supplier onboarding, which is a company-level commitment (business licence ≥ 1 year, registered capital ≥ ¥1,000,000 for 数据与API, 5x8 support, deposit)",
+        "Targets Model Studio agent plugins rather than AI coding clients, so it is a different surface from the MCP / plugin listings elsewhere in this matrix"
+      ],
+      "evidence_links": [
+        "https://help.aliyun.com/document_detail/2866083.html",
+        "https://help.aliyun.com/zh/marketplace/cloud-market-category-qualification",
+        "https://developer.aliyun.com/article/1483445"
+      ],
+      "submit_url_or_process": "A documented self-serve route onto an official Alibaba Cloud recommendation surface. Prerequisites: the\nAPI is already published on Alibaba Cloud API Gateway, and an API product is live (status 已上架) on the\nMarketplace under the 数据与API category. Then, on the Data Exchange platform, select the published API and\nchoose 插件输出 — the API group is converted to OAS 3.0 (one group becomes one plugin), the result enters\n插件审核, and once approved it is synced automatically into the Model Studio (百炼) official plugin plaza\nand the add-plugin recommendation area.\nStatus 2026-09-24: not attempted. Recorded as the only self-serve, review-based public listing flow found\nin the Alibaba stack.\n",
+      "recommended_install_path": null,
+      "last_reviewed_at": "2026-09-24",
+      "owner": "cloudbase-ai-toolkit",
+      "local_evidence": [],
+      "submit_checklist": [
+        "Decide whether a Model Studio plugin listing justifies Marketplace supplier onboarding",
+        {
+          "If yes": "publish the API on API Gateway, list the API product, then run 插件输出 on Data Exchange"
+        },
+        {
+          "Adjacent lower-commitment route": "the 通义大模型合作计划 application (covers 插件中心 / 应用广场)"
+        }
+      ],
+      "materials": [
+        {
+          "item": "Decide whether a Model Studio plugin listing justifies Marketplace supplier onboarding",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "[object Object]",
+          "status": "manual_or_external"
+        },
+        {
+          "item": "[object Object]",
+          "status": "manual_or_external"
+        }
+      ],
+      "priority": "unknown",
       "stale": false,
       "manual_submit_only": true
     },
@@ -3810,9 +4140,9 @@
         "https://registry.modelcontextprotocol.io/v0/servers?search=cloudbase",
         "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit"
       ],
-      "submit_url_or_process": "Publish via mcp-publisher CLI to registry.modelcontextprotocol.io; aggregators may ingest afterward.\nStatus 2026-08-17: listed as io.github.TencentCloudBase/cloudbase-mcp v2.27.0 (hosted remotes).\nnpm packages[] will attach on the next npm release after mcpName ships in @cloudbase/cloudbase-mcp.\n",
+      "submit_url_or_process": "Publish via mcp-publisher CLI to registry.modelcontextprotocol.io; aggregators may ingest afterward.\nStatus 2026-08-17: listed as io.github.TencentCloudBase/cloudbase-mcp v2.27.0 (hosted remotes).\nnpm packages[] will attach on the next npm release after mcpName ships in @cloudbase/cloudbase-mcp.\nStatus 2026-09-24: registry now carries every release up to v2.34.6, with both hosted remotes\n(domestic + international) and the npm package records attached. Publishing is fully automated in\n.github/workflows/npm-publish.yaml: sync the server.json version, then mcp-publisher login github-oidc,\nthen publish (with retries while the npm package propagates).\n",
       "recommended_install_path": "mcp/server.json",
-      "last_reviewed_at": "2026-08-17",
+      "last_reviewed_at": "2026-09-24",
       "owner": "cloudbase-ai-toolkit",
       "local_evidence": [
         {
@@ -3880,9 +4210,9 @@
       "evidence_links": [
         "https://smithery.ai/docs/build/publish.md"
       ],
-      "submit_url_or_process": "Publish hosted HTTPS MCP or rely on registry ingest; see smithery.ai/new.",
+      "submit_url_or_process": "Publish hosted HTTPS MCP or rely on registry ingest; see smithery.ai/new.\nStatus 2026-09-24: no CloudBase entry surfaced in a public search; presence not verified in-product.\n",
       "recommended_install_path": null,
-      "last_reviewed_at": "2026-07-27",
+      "last_reviewed_at": "2026-09-24",
       "owner": "cloudbase-ai-toolkit",
       "local_evidence": [],
       "submit_checklist": [
@@ -3957,23 +4287,27 @@
       "eligibility": "public_github_mcp",
       "blockers": [],
       "evidence_links": [
-        "https://glama.ai/mcp/servers"
+        "https://glama.ai/mcp/servers",
+        "https://glama.ai/mcp/servers/TencentCloudBase/CloudBase-MCP"
       ],
       "submit_url_or_process": "Indexes public GitHub MCP repos / registry.",
       "recommended_install_path": null,
-      "last_reviewed_at": "2026-07-27",
+      "last_reviewed_at": "2026-09-24",
       "owner": "cloudbase-ai-toolkit",
-      "local_evidence": [],
-      "submit_checklist": [
-        "Public MCP server repo discoverable"
-      ],
-      "materials": [
+      "local_evidence": [
         {
-          "item": "Public MCP server repo discoverable",
-          "status": "manual_or_external"
+          "id": "mcp_registry_server_json",
+          "status": "present",
+          "detail": "mcp/server.json matches npm mcpName io.github.TencentCloudBase/cloudbase-mcp",
+          "paths": [
+            "mcp/server.json",
+            "mcp/package.json"
+          ]
         }
       ],
-      "priority": "needs_partner_outreach",
+      "submit_checklist": [],
+      "materials": [],
+      "priority": "listed",
       "stale": false,
       "manual_submit_only": true
     },

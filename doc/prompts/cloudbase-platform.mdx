@@ -409,7 +409,7 @@ The CloudBase console is updated frequently. If a live, logged-in console shows 
 - MySQL Database: `#/db/mysql` · Tables `#/db/mysql/table/default/` (must be enabled in console first)
 - PostgreSQL Database: `#/db/postgres` · Data editor `#/db/postgres/data-editor` · SQL editor `#/db/postgres/sql-editor` · Settings `#/db/postgres/setting` (instance spec, account password) · Tasks `#/db/postgres/tasks` (async task list: spec change, share-to-dedicated upgrade) · Backups `#/db/postgres/backups` · Migrations `#/db/postgres/migrations`
 - Cloud Functions: `#/scf` · Detail `#/scf/detail?id=${functionName}&NameSpace=${envId}`
-- CloudRun: `#/platform-run`
+- CloudRun: `#/platform-run` (a per-environment capability that must be provisioned first — `manageCloudRun(action="initEnv")`, then poll `queryCloudRun(action="envStatus")` until `normal`; an env can exist without CloudRun, and in that case CloudRun APIs still return success with empty fields)
 - Cloud Storage: `#/storage`
 - AI+: `#/ai`
 - Static Hosting: `#/static-hosting` (alt: `https://console.cloud.tencent.com/tcb/hosting`)
