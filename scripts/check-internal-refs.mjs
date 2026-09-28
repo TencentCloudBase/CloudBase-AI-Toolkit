@@ -2,10 +2,13 @@
 /**
  * 拦截「对外文本里的内部标识」。
  *
- * 与 internal-docs-guard.yml 是互补的两层，缺一不可：
+ * 与 internal-docs-guard.yml 是互补的三层，缺一不可：
  *   - internal-docs-guard.yml  管「文件能否入库」（specs/、.workbuddy/）
- *   - 本脚本                   管「PR 标题 / 正文 / 提交信息里有没有内部痕迹」
+ *   - 本脚本「元信息档」        管「PR 标题 / 正文 / 提交信息里有没有内部痕迹」
+ *   - 本脚本「文件内容档」      管「已跟踪文件里有没有内网主机名 / 内网地址」
  * 文件层干净不代表元信息干净 —— PR 标题、正文与提交信息同样是公开可见的对外文案。
+ * 反过来元信息干净也不代表文件干净 —— 内网地址一旦写进被跟踪的文件就已经发布了。
+ * 三层各自都会漏，所以要同时存在。
  *
  * 触发场景：自动化建 PR 的流程会把内部任务标记（`ato-task:<uuid>`）写进 PR 正文，
  * 把内部短号以 `(<8 位 hex>)` 追加到提交 headline。这类痕迹不出现在 diff 里，
@@ -20,6 +23,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -90,6 +94,29 @@ export const TITLE_RULES = [
   },
 ];
 
+/**
+ * 只扫「已跟踪文件内容」的项。
+ *
+ * 与 TEXT_RULES 互补：TEXT_RULES 管 PR 元信息，这里管已经写进仓库的字。本仓库是
+ * 公开的，下面这两类串在任何被跟踪的文件里都没有正当用法，出现即泄漏 —— 所以不需要
+ * 基线比较，也不需要「只在改动行上判」这种降噪手段。
+ *
+ * 边界：判据刻意收得很窄。私有网段、`localhost`、`169.254.169.254` 这类在文档和测试里
+ * 是正常内容（SSRF 防护代码就在用），收进来会天天误报；这里只放「内部域名 + 内部网段」。
+ */
+export const FILE_RULES = [
+  {
+    label: "internal hostname",
+    pattern: /[a-z0-9-]+\.woa\.com\b/gi,
+    hint: "drop the internal hostname — use a public URL or a placeholder instead",
+  },
+  {
+    label: "internal network address",
+    pattern: /\b9\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
+    hint: "drop the internal address — use a placeholder such as 10.0.0.1 instead",
+  },
+];
+
 function globalize(pattern) {
   return pattern.flags.includes("g")
     ? pattern
@@ -126,6 +153,70 @@ export function scanText(text, rules) {
 
 function defaultGit(args, cwd) {
   return execFileSync("git", args, { cwd, encoding: "utf8" });
+}
+
+/**
+ * 扫描一段文件正文，按行给出位置。
+ */
+export function scanFileText(text) {
+  const findings = [];
+  text.split("\n").forEach((line, index) => {
+    for (const finding of scanText(line, FILE_RULES)) {
+      findings.push({ ...finding, line: index + 1 });
+    }
+  });
+  return findings;
+}
+
+/** 依赖目录与生成产物不参与内容扫描（体积大、非人工维护）。 */
+const UNSCANNED_DIR_SEGMENTS = new Set([
+  ".generated",
+  ".git",
+  ".skills-repo-output",
+  "coverage",
+  "dist",
+  "node_modules",
+]);
+
+export function isScannableFile(relPath) {
+  return relPath
+    .split("/")
+    .slice(0, -1)
+    .every((segment) => !UNSCANNED_DIR_SEGMENTS.has(segment));
+}
+
+/**
+ * 仓库里所有应参与扫描的已跟踪文件。
+ *
+ * 扫全量而不是只扫改动行：残留一旦写下去，之后的 PR 没人会再回头看它。全量扫描让
+ * 「main 里已经存在的问题」也能被下一个 PR 暴露出来，代价是每次 CI 多读一遍树。
+ */
+export function collectTrackedFiles({ cwd = ROOT_DIR, git = defaultGit } = {}) {
+  return git(["ls-files", "-z"], cwd)
+    .split("\0")
+    .filter((rel) => rel.length > 0 && isScannableFile(rel));
+}
+
+export function scanTrackedFiles({
+  cwd = ROOT_DIR,
+  git = defaultGit,
+  readFile = (rel) => readFileSync(path.join(cwd, rel), "utf8"),
+} = {}) {
+  const findings = [];
+
+  for (const rel of collectTrackedFiles({ cwd, git })) {
+    let text;
+    try {
+      text = readFile(rel);
+    } catch {
+      continue; // 读不到的文件（权限、断链软链）跳过，别让扫描本身把 CI 弄红
+    }
+    for (const finding of scanFileText(text)) {
+      findings.push({ source: `${rel}:${finding.line}`, ...finding });
+    }
+  }
+
+  return findings;
 }
 
 /**
@@ -195,28 +286,48 @@ export function runCheck({
     collect(`commit ${commit.sha} message`, commit.body, TEXT_RULES);
   }
 
+  const metadataFindings = [...findings];
+  const fileFindings = scanTrackedFiles({ cwd, git });
+  findings.push(...fileFindings);
+
   if (findings.length === 0) {
-    log("OK: no internal references in PR metadata or commit messages.");
+    log("OK: no internal references in PR metadata, commit messages, or tracked files.");
     return { status: "ok", findings };
   }
 
-  log("ERROR: internal references in PR metadata or commit messages:");
+  log("ERROR: internal references on public surfaces:");
   for (const finding of findings) {
     log(`  - ${finding.source}: ${finding.label} — "${finding.match}"`);
   }
-  log("");
-  log("These surfaces are public. Describe the change itself instead of citing the");
-  log("internal tracker, review round, or local path.");
-  log("");
-  log("How to fix:");
-  log("");
-  log("  1. Amend the commit messages:");
-  log("       git commit --amend   # for the tip commit");
-  log("       git rebase -i <base> # for older commits, then reword");
-  log("");
-  log("  2. Update the PR title and body on the pull request page.");
-  log("");
-  log("  3. Re-push the branch so this check re-runs.");
+
+  if (metadataFindings.length > 0) {
+    log("");
+    log("PR titles, PR bodies and commit messages are public. Describe the change");
+    log("itself instead of citing the internal tracker, review round, or local path.");
+    log("");
+    log("How to fix:");
+    log("");
+    log("  1. Amend the commit messages:");
+    log("       git commit --amend   # for the tip commit");
+    log("       git rebase -i <base> # for older commits, then reword");
+    log("");
+    log("  2. Update the PR title and body on the pull request page.");
+    log("");
+    log("  3. Re-push the branch so this check re-runs.");
+  }
+
+  if (fileFindings.length > 0) {
+    log("");
+    log("Every tracked file in this repository is public. Rewrite the flagged lines so");
+    log("they no longer name internal hosts, addresses, trackers, or local paths — and");
+    log("do not just move the reference to another file.");
+    log("");
+    log("How to fix:");
+    log("");
+    log("  1. Edit the lines listed above.");
+    log("");
+    log("  2. Commit and push again — this check re-runs on every push.");
+  }
 
   return { status: "failed", findings };
 }
