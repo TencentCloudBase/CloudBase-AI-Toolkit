@@ -78,6 +78,19 @@ After a force-push (`synchronize`) while the base was still the stale stacked br
 - **Judge with the API, not the UI:** `gh api "repos/<owner>/<repo>/actions/runs?branch=<branch>" --jq '.workflow_runs[] | "\(.name) \(.event) \(.conclusion)"'`. A workflow missing from that list was skipped, not passed.
 - **Fix:** `gh pr close <n>` then `gh pr reopen <n>`. The `reopened` event recomputes against the new base and triggers the filtered workflows normally.
 
+### When the PR is not stacked and `main` simply moved
+
+A plain PR turns `CONFLICTING` the same way — usually on `config/source/editor-config/compat-baseline.json` alone, since every branch that regenerates it rewrites the same lines. `git merge origin/main` is fine here: the squash on merge erases the extra merge commit, and there is no already-merged commit to drop. Watch the direction — during a **merge** `main` is `--theirs` (`git checkout --theirs …`); during a **rebase** it is `--ours`.
+
+Then regenerate the whole chain on top of the merge rather than hand-resolving the generated side:
+
+1. `node scripts/generate-prompts-data.mjs`, then `node scripts/generate-prompts.mjs`
+2. `node scripts/sync-claude-skills-mirror.mjs`
+3. `node scripts/build-compat-config.mjs`
+4. `node scripts/update-compat-baseline.mjs`
+
+Merging `main` typically brings changes under `config/source/skills/**` as well, and those propagate into every IDE mirror and every generated surface — recomputing only the baseline leaves `compat-diff` or `prompts-sync` red. Close with `node scripts/diff-compat-config.mjs` (`Has blocking diff: NO`), `node scripts/check-prompts-sync.mjs`, and `node scripts/sync-claude-skills-mirror.mjs --check`.
+
 ## Command mapping
 
 See `references/command-catalog.md`.
