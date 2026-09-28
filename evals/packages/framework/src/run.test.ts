@@ -52,11 +52,10 @@ test('fixture-dry writes result.json without a cloud env', async () => {
 });
 
 test('ioa channel ids normalize to canonical model names', () => {
-  assert.equal(toCbcModelId('hy4'), 'hy4-preview-ioa');
-  assert.equal(toCanonicalModelId('hy4-preview-ioa'), 'hy4');
+  assert.equal(toCbcModelId('hy4-preview'), 'hy4-preview-ioa');
+  assert.equal(toCanonicalModelId('hy4-preview-ioa'), 'hy4-preview');
   assert.equal(toCanonicalModelId('glm-5.2-ioa'), 'glm-5.2');
-  assert.equal(toCbcModelId('hy4').includes('hy4'), true);
-  assert.equal(toCanonicalModelId('glm-5.2-ioa').includes('ioa'), false);
+  assert.equal(toCanonicalModelId('hy4-preview-ioa').endsWith('ioa'), false);
 });
 
 test('claude stream-json usage sums assistant events only', () => {

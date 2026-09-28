@@ -40,9 +40,9 @@ export const EXPERIMENTS: Experiment[] = [
     suite: 'benchmark',
   },
   {
-    id: 'cbc-hy4-no-skills',
+    id: 'cbc-hy4-preview-no-skills',
     harness: 'codebuddy-code',
-    modelId: 'hy4',
+    modelId: 'hy4-preview',
     skills: false,
     suite: 'no-skills',
   },

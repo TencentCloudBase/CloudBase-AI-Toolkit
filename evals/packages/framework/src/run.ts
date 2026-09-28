@@ -65,7 +65,7 @@ export async function runScenario(options: {
     apiKey: 'dry-run',
     promptPath,
     reasoningEffort: 'high',
-    timeoutSec: options.maxTurns ? 180 : 60,
+    timeoutSec: runner.id === 'codebuddy-code' ? 1800 : 60,
     maxTurns: options.maxTurns,
     skills: options.experiment.skills,
   });
@@ -102,9 +102,6 @@ export async function runScenario(options: {
   }
   if (execResult.command.stderr) {
     await writeFile(path.join(outDir, 'stderr.txt'), execResult.command.stderr);
-  }
-  if (execResult.raw?.includes('Authentication required')) {
-    throw new Error('cbc is not logged in. Run `cbc /login` and retry.');
   }
   return result;
 }

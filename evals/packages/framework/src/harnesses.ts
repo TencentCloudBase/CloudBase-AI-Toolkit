@@ -68,26 +68,23 @@ function execCbc(args: RunnerExecArgs): Promise<RunnerExecResult> {
       new Promise((resolve, reject) => {
         mkdtemp(path.join(tmpdir(), 'cbc-eval-'))
           .then((cwd) => {
-            const child = spawn(
-              'cbc',
-              [
-                '-p',
-                '--output-format',
-                'stream-json',
-                '--model',
-                providerModelId,
-                '--strict-mcp-config',
-                '--mcp-config',
-                '{"mcpServers":{}}',
-                '--permission-mode',
-                'bypassPermissions',
-                '--max-turns',
-                String(args.maxTurns ?? 1),
-                '--',
-                prompt,
-              ],
-              { cwd, env: process.env },
-            );
+            const argv = [
+              '-p',
+              '--output-format',
+              'stream-json',
+              '--model',
+              providerModelId,
+              '--strict-mcp-config',
+              '--mcp-config',
+              '{"mcpServers":{}}',
+              '--permission-mode',
+              'bypassPermissions',
+            ];
+            if (args.maxTurns !== undefined) {
+              argv.push('--max-turns', String(args.maxTurns));
+            }
+            argv.push('--', prompt);
+            const child = spawn('cbc', argv, { cwd, env: process.env });
             let stdout = '';
             let stderr = '';
             const timer = setTimeout(() => {
@@ -125,7 +122,7 @@ export const codebuddyCodeRunner: AgentRunner = {
   apiKeyEnvVar: 'CODEBUDDY_API_KEY',
   cliPackage: '@tencent-ai/codebuddy-code',
   defaultCliVersion: '2.95.0',
-  defaultModel: 'hy4',
+  defaultModel: 'hy4-preview',
   async install() {},
   exec: execCbc,
   extractUsage: parseClaudeStreamUsage,

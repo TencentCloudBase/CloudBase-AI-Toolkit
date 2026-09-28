@@ -1,10 +1,10 @@
 /**
  * cbc --model 带 -ioa 的是内网通道标识。
  * 实验和 result.json 只用标准模型名，调用时再映射回去。
- * hy4 免费，用来把流程跑通。
+ * 榜单名只去掉 -ioa。hy4-preview 免费，用来把流程跑通。
  */
 const CBC_MODEL_IDS: Record<string, string> = {
-  hy4: 'hy4-preview-ioa',
+  'hy4-preview': 'hy4-preview-ioa',
   hy3: 'hy3-ioa',
   'glm-5.2': 'glm-5.2-ioa',
   'glm-5.3': 'glm-5.3-ioa',
