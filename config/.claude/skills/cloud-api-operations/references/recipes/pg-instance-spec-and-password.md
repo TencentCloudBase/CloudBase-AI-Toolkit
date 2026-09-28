@@ -1,15 +1,14 @@
-# Recipe 3 — PostgreSQL 实例变配、升级独享与账号密码
+# Recipe 3 — PostgreSQL 实例变配与升级独享
 
 ## When to use
 
-要让云开发环境的 PostgreSQL 实例改变**租户形态或规格**、或要**重置它的账号密码**时：
+要让云开发环境的 PostgreSQL 实例改变**租户形态或规格**时：
 
 - 规格撑不住：CPU / 内存打满、慢查询变多，要调大（或调小）实例规格
 - 环境用的是**共享** PG，要升级成**独享**实例
-- 要**重置 PG 账号密码**（密码泄露、忘了密码、交付前轮换）
 - 已经提交了变配 / 升独享，要知道**任务跑完没有、失败原因是什么**
 
-本篇管 PG 的**实例管控面**：租户形态、规格、存储、账号密码、异步任务。
+本篇管 PG 的**实例管控面**：租户形态、规格、存储、异步任务。
 
 - 数据面（建表、跑 SQL、schema、migration）转 `queryPgDatabase` / `managePgDatabase`
 - 存储空间告警转 [Recipe 1](./pg-storage-alarm.md)
@@ -19,7 +18,7 @@
 
 | service | version | 用途 |
 | --- | --- | --- |
-| `tcb` | `2018-06-08` | 环境的 PG 实例管控面：变配 / 升独享 / 重置账号密码 / 查任务 |
+| `tcb` | `2018-06-08` | 环境的 PG 实例管控面：变配 / 升独享 / 查任务 |
 | `postgres` | `2017-03-12` | 读实例现状与可售规格 |
 
 **凭据身份：账号级。** 实例挂在云开发环境上，但读它的现状要走 `postgres` 产品接口。`callCloudApi` 有环境绑定门禁，账号级登录后先 `auth(action="set_env", envId=…)` 绑到目标环境；实例不在默认地域时，`postgres` 的读接口要在顶层传 `region`。
@@ -72,7 +71,7 @@
 }
 ```
 
-返回 `DealName`（账单名）与 `BillId`（账单标识）。**变配是异步的：拿到订单号 ≠ 已经变完**，规格要按序列 D 回查。
+返回 `DealName`（账单名）与 `BillId`（账单标识）。**变配是异步的：拿到订单号 ≠ 已经变完**，规格要按序列 C 回查。
 
 ### B2. 共享实例升级为独享
 
@@ -92,24 +91,9 @@
 }
 ```
 
-返回 `TaskId`，用序列 D 回查进度。
+返回 `TaskId`，用序列 C 回查进度。
 
-### C. 重置 PG 账号密码
-
-| 步 | Action | service / version | 关键参数 | 取什么 |
-| --- | --- | --- | --- | --- |
-| 8 | ResetPGAccountPassword | `tcb` / `2018-06-08` | `{ "EnvId": …, "Password": "<新密码>" }` | 只有 `RequestId` |
-
-```json
-{
-  "EnvId": "<envId>",
-  "Password": "A8b!C2d#E4f&"
-}
-```
-
-`Password` 的硬性要求：**8 ~ 32 位**，不能以 `/` 开头，且必须**同时**包含小写字母、大写字母、数字、特殊字符四类。改完只返回 `RequestId`，**没有**任何回查接口——生效与否只能用新密码连一次库来确认。
-
-### D. 回查：任务与规格
+### C. 回查：任务与规格
 
 | 步 | Action | service / version | 关键参数 | 取什么 |
 | --- | --- | --- | --- | --- |
@@ -121,7 +105,7 @@
 - **升独享（B2）** 有 `TaskId` → 用步骤 9 看 `Status`（`Accepted` / `Running` / `Succeed` / `Failed`）与 `Phase`，失败读 `Reason`。
 - **调规格（B1）不返回 `TaskId`** → 用步骤 10 比对 `DBInstanceCpu` / `DBInstanceMemory` / `DBInstanceStorage`，看 `UpdateTime` 是否晚于提交时间。
 
-想用图形界面看这两条，控制台入口是：PG 实例页 `https://tcb.cloud.tencent.com/dev?envId=<envId>#/db/postgres/setting`（规格、账号密码），任务列表 `https://tcb.cloud.tencent.com/dev?envId=<envId>#/db/postgres/tasks`。
+想用图形界面看这两条，控制台入口是：PG 实例页 `https://tcb.cloud.tencent.com/dev?envId=<envId>#/db/postgres/setting`（规格），任务列表 `https://tcb.cloud.tencent.com/dev?envId=<envId>#/db/postgres/tasks`。
 
 ## 踩坑清单
 
@@ -136,9 +120,8 @@
 | 在共享实例上直接调调规格接口 | `FailedOperation.InstanceStatusConflict`（Instance status does not match the required status for this operation） | 先看步骤 1 的 `TenantType`：`SHARED` 先走 B2 升独享，变 `DEDICATED` 之后再走 B1 调规格。升独享是单向的 |
 | `Region` 传错位置 | `Region is not recognized`（`tcb` 的这几个接口文档注明「本接口不需要传递此参数」） | `tcb` 的变配族把地域交给环境绑定；`postgres` 的读接口要地域，且必须在 `callCloudApi` **顶层** `region` 传，不要写进 `params` |
 | 账号级登录仍被拦 | 首个调用返回 `ENV_REQUIRED`（「当前已登录，但尚未绑定环境」） | 先 `auth(action="set_env", envId=…)` 绑定目标环境 |
-| 密码不合规 | 只给大小写字母 + 数字，报参数校验失败 | 生成时保证四类字符齐全（小写、大写、数字、特殊字符），长度落在 8 ~ 32 位且首字符不是 `/` |
-| 把"提交成功"当成"已完成" | 变配 / 升独享提交后立刻去连库，规格还是旧的 | 两个入口都是异步：升独享按序列 D 步骤 9 轮询 `Status`，调规格按步骤 10 比对规格字段与 `UpdateTime` |
-| 找错控制台入口 | 在环境设置页 `#/env/env-setting` 里翻规格与密码 | 规格与账号密码在 PG 实例页 `#/db/postgres/setting`；任务列表在 `#/db/postgres/tasks`。`#/db/mysql/setting` 是 MySQL 的页，两者不通用 |
+| 把"提交成功"当成"已完成" | 变配 / 升独享提交后立刻去连库，规格还是旧的 | 两个入口都是异步：升独享按序列 C 步骤 9 轮询 `Status`，调规格按步骤 10 比对规格字段与 `UpdateTime` |
+| 找错控制台入口 | 在环境设置页 `#/env/env-setting` 里翻规格 | 规格在 PG 实例页 `#/db/postgres/setting`；任务列表在 `#/db/postgres/tasks`。`#/db/mysql/setting` 是 MySQL 的页，两者不通用 |
 
 ## 验证步骤
 
@@ -147,5 +130,4 @@
 3. **序列 B 预检**：步骤 4 的 `DryRun: true` **没有报错**即为通过；返回的 `DealName` / `BillId` 为空串表示没有产生订单。报错就改参数重来。
 4. **序列 B 正式提交后回查**：步骤 10 返回的 `DBInstanceCpu` / `DBInstanceMemory` / `DBInstanceStorage` 等于目标值，且 `UpdateTime` 晚于提交时间。三项都对上才算变配完成。
 5. **序列 B2**：`UpgradePGInstanceToDedicated` 返回的 `TaskId` 非空；步骤 9 轮询到 `Status = Succeed` 即为完成，`Failed` 时读 `Reason` 定位。完成后步骤 1 的 `TenantType` 应变为 `DEDICATED`。
-6. **序列 C**：`ResetPGAccountPassword` 返回 `RequestId`；用新密码连一次库（应用连接串、`psql` 或 SQL 编辑器均可）确认能连上，旧密码应连不上。
-7. 全链路的读步骤只调用 `Describe*`；只有 B1 / B2 / C 三处是写操作，各自提交前先确认真实目标环境。
+6. 全链路的读步骤只调用 `Describe*`；只有 B1 / B2 两处是写操作，各自提交前先确认真实目标环境。
