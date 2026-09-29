@@ -268,7 +268,7 @@ https://tcb-api.cloud.tencent.com/mcp/v1?env_id=YOUR_ENV_ID&enable_plugins=env,d
 https://tcb-api.cloud.tencent.com/mcp/v1?env_id=YOUR_ENV_ID&disable_plugins=rag,env
 ```
 
-当前可配置的插件名以 `mcp/src/server.ts` 为准，建议优先使用 canonical 名称：`env`, `database`, `pg_database`, `pg_storage`, `mysql_database`, `functions`, `hosting`, `storage`, `setup`, `rag`, `download`, `gateway`, `cloudrun`, `app-auth`, `permissions`, `logs`, `agents`, `apps`, `capi`, `database-nosql`, `database-sql`, `data-model`。
+当前可配置的插件名以 `mcp/src/server.ts` 为准，建议优先使用 canonical 名称：`env`, `database`, `pg_database`, `pg_storage`, `mysql_database`, `functions`, `hosting`, `storage`, `setup`, `rag`, `download`, `gateway`, `cloudrun`, `app-auth`, `permissions`, `logs`, `agents`, `apps`, `capi`, `feedback`, `database-nosql`, `database-sql`, `data-model`。
 
 > ⚠️ **没有 `site` 参数，也没有 `region` 参数。** 站点由你使用的**域名**决定——用国内站地址就是国内站，即使环境位于 `ap-singapore`；写成 `site=domestic` 不会生效。`region` 则随环境走：OAuth 接入时由 token 绑定的环境决定，需要查询其他地域时在工具调用里传 `region` 参数。
 
@@ -474,6 +474,7 @@ TCB_AUTH_OAUTH_ENDPOINT=https://auth.your-domain.com/oauth
 | `agents` | 是 | Agent 查询与管理 |
 | `apps` | 是 | CloudApp 应用与版本管理 |
 | `capi` | 是 | 通用云 API 调用 |
+| `feedback` | 是 | 记录本次会话的工具调用结果，供生成案例或复盘草稿。本变更不新增客户端可见工具 |
 | `database-nosql` | 否 | 仅 NoSQL 数据库（`database` 的子集） |
 | `database-sql` | 否 | 仅 SQL 数据库（`mysql_database` 的子集） |
 | `data-model` | 否 | 仅数据模型（`database` 的子集） |

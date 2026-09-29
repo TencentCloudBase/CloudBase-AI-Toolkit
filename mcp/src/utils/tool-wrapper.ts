@@ -7,8 +7,9 @@ import { CloudBaseOptions } from '../types.js';
 import { shouldRegisterTool } from './cloud-mode.js';
 import { debug } from './logger.js';
 import { reportToolCall, readMcpClientInfoFromServer } from './telemetry.js';
-import { isToolPayloadError, ToolPayloadError, withBusinessFailureIsError } from "./tool-result.js";
-import { applyRepeatGuardToPayload, resetRepeatGuard } from "./repeat-error-guard.js";
+import { isBusinessFailureToolResult, isToolPayloadError, ToolPayloadError, withBusinessFailureIsError } from "./tool-result.js";
+import { applyRepeatGuardToPayload, getRepeatGuardSnapshot, resetRepeatGuard } from "./repeat-error-guard.js";
+import { noteRepeatCount, recordToolOutcome } from "./feedback-session.js";
 import { enhanceErrorMessage, resolveRequestId } from "./error-guidance.js";
 
 
@@ -162,6 +163,8 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
     return async (args: any) => {
         const startTime = Date.now();
         let success = false;
+        let businessFailed = false;
+        let repeatCountSeen = 0;
         let errorMessage: string | undefined;
         let requestId: string | undefined;
 
@@ -177,7 +180,11 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             // 执行原始处理函数
             const result = await handler(args);
 
+            // Returned { success: false } is a business failure for the local
+            // session log. The telemetry flag below stays on the existing path.
+            businessFailed = isBusinessFailureToolResult(result);
             success = true;
+            repeatCountSeen = getRepeatGuardSnapshot().consecutiveCount;
             // 任一工具成功说明重复错误循环已被打破，清零连续错误计数
             resetRepeatGuard();
             requestId = extractRequestIdFromToolResult(result);
@@ -214,8 +221,11 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             if (isToolPayloadError(error)) {
                 // 连续相同结构化错误达到阈值时注入 repeat_guard 升级提示，
                 // 打断无头客户端的原样重试循环（不改写 message，保持遥测聚合稳定）
-                throw new ToolPayloadError(applyRepeatGuardToPayload(error.payload));
+                const payload = applyRepeatGuardToPayload(error.payload);
+                repeatCountSeen = getRepeatGuardSnapshot().consecutiveCount;
+                throw new ToolPayloadError(payload);
             }
+            repeatCountSeen = getRepeatGuardSnapshot().consecutiveCount;
 
             // In tests, avoid any extra work that may block (envId lookup, issue link generation, etc.)
             if (isTestEnvironment) {
@@ -245,6 +255,19 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             // 重新抛出增强的错误
             throw enhancedError;
         } finally {
+            try {
+                noteRepeatCount(server, repeatCountSeen);
+                recordToolOutcome(server, {
+                    toolName: name,
+                    durationMs: Date.now() - startTime,
+                    failed: Boolean(errorMessage) || businessFailed,
+                });
+            } catch (recordError) {
+                debug("feedback session record failed", {
+                    toolName: name,
+                    error: recordError instanceof Error ? recordError.message : String(recordError),
+                });
+            }
             // 上报工具调用数据（测试环境中跳过，避免阻塞）
             const isTestEnvironment =
               process.env.NODE_ENV === "test" || process.env.VITEST === "true";

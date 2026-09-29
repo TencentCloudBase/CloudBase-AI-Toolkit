@@ -22,6 +22,7 @@ import { registerAppTools } from "./tools/apps.js";
 import { registerLogTools } from "./tools/logs.js";
 import { registerPermissionTools } from "./tools/permissions.js";
 import { registerMsgPushTools } from "./tools/msg-push.js";
+import { registerFeedbackTools } from "./tools/feedback.js";
 import { CloudBaseOptions, Logger, PluginOptions } from "./types.js";
 import type { AuthOptions } from "./auth.js";
 import { isMessageKey, resolveInstanceLang, setInstanceLang, t, type Lang } from "./i18n/index.js";
@@ -60,6 +61,7 @@ const DEFAULT_PLUGINS = [
   "logs",
   "agents",
   "capi",
+  "feedback",
 ];
 
 function registerDatabase(server: ExtendedMcpServer) {
@@ -113,6 +115,7 @@ const AVAILABLE_PLUGINS: Record<string, PluginDefinition> = {
   deploy: { name: "deploy", register: registerDeployTools },
   capi: { name: "capi", register: registerCapiTools },
   "msg-push": { name: "msg-push", register: registerMsgPushTools },
+  feedback: { name: "feedback", register: registerFeedbackTools },
 };
 
 const PLUGIN_ALIASES: Record<string, string> = {
