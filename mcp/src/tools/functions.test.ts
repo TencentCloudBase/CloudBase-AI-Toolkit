@@ -1384,6 +1384,45 @@ describe("functions tool helpers", () => {
       });
     });
 
+    it("masks env variable values in listFunctionLayers raw payload", async () => {
+      mockGetFunctionDetail.mockResolvedValue(detailWithSecret);
+
+      const result = await tools.queryFunctions.handler({
+        action: "listFunctionLayers",
+        functionName: "hello",
+      });
+
+      const payload = JSON.parse(result.content[0].text);
+      // 这个 action 只想取 Layers，但 raw 里带着 getFunctionDetail 的完整返回，
+      // 明文环境变量不能从这里漏出去
+      expect(JSON.stringify(payload)).not.toContain("super-secret-value");
+      expect(payload.data.raw.Environment.Variables[0]).toMatchObject({
+        Key: "DB_PASSWORD",
+        Value: "***",
+        ValueLength: "super-secret-value".length,
+      });
+      const logged = mockLogCloudBaseResult.mock.calls.at(-1)?.[1];
+      expect(logged.Environment.Variables[0].Value).toBe("***");
+    });
+
+    it("listFunctionLayers reveals plaintext only when revealEnvValues=true, logs stay masked", async () => {
+      mockGetFunctionDetail.mockResolvedValue(detailWithSecret);
+
+      const result = await tools.queryFunctions.handler({
+        action: "listFunctionLayers",
+        functionName: "hello",
+        revealEnvValues: true,
+      });
+
+      const payload = JSON.parse(result.content[0].text);
+      expect(payload.data.raw.Environment.Variables[0]).toMatchObject({
+        Key: "DB_PASSWORD",
+        Value: "super-secret-value",
+      });
+      const logged = mockLogCloudBaseResult.mock.calls.at(-1)?.[1];
+      expect(logged.Environment.Variables[0].Value).toBe("***");
+    });
+
     it("documents the default-masking behavior in the queryFunctions schema", () => {
       const schema = tools.queryFunctions.meta.inputSchema;
       expect(schema.revealEnvValues).toBeDefined();
