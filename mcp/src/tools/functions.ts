@@ -1137,7 +1137,14 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         input.functionName,
         input.codeSecret,
       );
-      logCloudBaseResult(server.logger, result);
+      // 与 getFunctionDetail / listFunctionTriggers 一致：本 action 只想取 Layers，
+      // 但 getFunctionDetail 的返回里带着环境变量明文，日志与 raw 都必须脱敏 ——
+      // 否则一个只读的「看层」动作会把明文环境变量带进模型上下文与持久化日志。
+      logCloudBaseResult(server.logger, maskFunctionDetailEnvValues(result));
+      const detail =
+        input.revealEnvValues === true
+          ? result
+          : maskFunctionDetailEnvValues(result);
       const layers = normalizeFunctionLayers(result.Layers);
       return buildEnvelope(
         {
@@ -1146,7 +1153,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           layers,
           count: layers.length,
           requestId: result.RequestId,
-          raw: result,
+          raw: detail,
         },
         t("functions.gotFunctionLayers", { fnName: input.functionName }),
         [
