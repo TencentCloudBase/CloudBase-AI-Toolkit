@@ -9,8 +9,9 @@ import {
 } from "../utils/feedback-session.js";
 import { wrapServerWithTelemetry } from "../utils/tool-wrapper.js";
 import {
-  buildCasePrefillUrl,
+  buildFeedbackIssueUrl,
   buildFeedbackPayload,
+  FEEDBACK_ISSUE_NEW_URL,
   FEEDBACK_TOOL_NAME,
   registerFeedbackTools,
   resolveMcpVersion,
@@ -26,6 +27,7 @@ function makeServer() {
     ide: undefined as string | undefined,
     client: undefined as string | undefined,
     cloudBaseOptions: {
+      site: "domestic",
       envId: ENV_ID,
       secretId: SECRET_ID,
       secretKey: "secret-key-should-not-appear",
@@ -37,14 +39,12 @@ describe("feedback drafts", () => {
   const previousPackageVersion = process.env.npm_package_version;
   const previousIde = process.env.INTEGRATION_IDE;
   const previousClient = process.env.CLOUDBASE_MCP_CLIENT;
-  const previousCaseUrl = process.env.CLOUDBASE_FEEDBACK_CNB_NEW_ISSUE_URL;
 
   beforeEach(() => {
     __resetRepeatGuardForTests();
     process.env.npm_package_version = "2.34.5-test";
     delete process.env.INTEGRATION_IDE;
     delete process.env.CLOUDBASE_MCP_CLIENT;
-    delete process.env.CLOUDBASE_FEEDBACK_CNB_NEW_ISSUE_URL;
   });
 
   afterEach(() => {
@@ -63,11 +63,6 @@ describe("feedback drafts", () => {
     } else {
       process.env.CLOUDBASE_MCP_CLIENT = previousClient;
     }
-    if (previousCaseUrl === undefined) {
-      delete process.env.CLOUDBASE_FEEDBACK_CNB_NEW_ISSUE_URL;
-    } else {
-      process.env.CLOUDBASE_FEEDBACK_CNB_NEW_ISSUE_URL = previousCaseUrl;
-    }
   });
 
   it("does not register a tool until the public name is set", () => {
@@ -78,7 +73,6 @@ describe("feedback drafts", () => {
   });
 
   it("returns a draft only before the user confirms", () => {
-    process.env.CLOUDBASE_FEEDBACK_CNB_NEW_ISSUE_URL = "https://example.test/issues/new";
     const server = makeServer();
     const payload = buildFeedbackPayload({
       server,
@@ -176,9 +170,11 @@ describe("feedback drafts", () => {
     expect(payload.draft).not.toContain(HIDDEN_COLLECTION);
     expect(payload.draft).not.toContain(HIDDEN_FUNCTION);
     expect(payload.draft).not.toMatch(/envId|secretId|secretKey/i);
-    expect(payload.url).toBeUndefined();
-    expect(payload.nextStep).toContain("复制");
-    expect(payload.submittable).toBe(false);
+    expect(payload.url).toContain(FEEDBACK_ISSUE_NEW_URL.domestic);
+    expect(payload.url).toContain("template=2-dev-retrospective.yml");
+    expect(payload.url).not.toContain(ENV_ID);
+    expect(payload.submittable).toBe(true);
+    expect(payload.nextStep).toContain("不要代为提交");
   });
 
   it("leaves turn counts blank when there is no local signal", () => {
@@ -264,10 +260,10 @@ describe("feedback drafts", () => {
       server: mcpServer,
       channel: "case",
       confirmed: true,
-      caseIssueBaseUrl: "https://example.test/issues/new",
     });
 
     expect(payload.submittable).toBe(true);
+    expect(payload.url?.startsWith(FEEDBACK_ISSUE_NEW_URL.domestic)).toBe(true);
     expect(payload.url).toContain("template=1-case-showcase.yml");
     expect(payload.url).toContain("issue[description]=");
     expect(payload.draft).toContain("deployBuild");
@@ -280,23 +276,29 @@ describe("feedback drafts", () => {
     clearToolOutcomes(mcpServer);
   });
 
-  it("does not emit a case link when the collection repository is unset", () => {
+  it("uses GitHub and English for the international site", () => {
+    const server = makeServer();
+    server.cloudBaseOptions.site = "intl";
+    server.ide = "Cursor";
     const payload = buildFeedbackPayload({
-      server: makeServer(),
+      server,
       channel: "case",
       confirmed: true,
     });
-    expect(payload.confirmed).toBe(true);
-    expect(payload.submittable).toBe(false);
-    expect(payload.url).toBeUndefined();
-    expect(JSON.stringify(payload)).not.toContain("http");
+    expect(payload.draft).toContain("Work name: blank");
+    expect(payload.draft).toContain("Agent / CLI: Cursor");
+    expect(payload.draft).not.toContain("作品名称");
+    expect(payload.url?.startsWith(FEEDBACK_ISSUE_NEW_URL.intl)).toBe(true);
+    expect(payload.url).toContain("title=");
+    expect(payload.url).toContain("body=");
+    expect(payload.url).not.toContain("template=");
   });
 
-  it("keeps the prefill query on the configured base", () => {
-    const url = buildCasePrefillUrl("https://example.test/issues/new?unused=1", "作品名称：留空");
-    expect(url.startsWith("https://example.test/issues/new?")).toBe(true);
+  it("keeps the domestic prefill query on the community issue page", () => {
+    const url = buildFeedbackIssueUrl("domestic", "case", "作品名称：留空");
+    expect(url.startsWith(`${FEEDBACK_ISSUE_NEW_URL.domestic}?`)).toBe(true);
     expect(url).toContain("template=1-case-showcase.yml");
-    expect(url).not.toContain("unused=1");
+    expect(url).toContain("issue[description]=");
   });
 
   it("drops outcomes beyond the session buffer", () => {

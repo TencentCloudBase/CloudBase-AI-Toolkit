@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { ExtendedMcpServer } from "../server.js";
 import { readRepeatPeak, readToolOutcomes, type ToolOutcome } from "../utils/feedback-session.js";
 import { jsonContent } from "../utils/json-content.js";
+import { resolveSiteAndRegion, type SiteId } from "../utils/site-map.js";
 
 /**
  * Public tool name is intentionally blank.
@@ -12,28 +13,33 @@ export const FEEDBACK_TOOL_NAME: string = "";
 
 const CASE_TEMPLATE_FILE = "1-case-showcase.yml";
 const RETROSPECTIVE_TEMPLATE_FILE = "2-dev-retrospective.yml";
-const CASE_ISSUE_BASE_URL_ENV = "CLOUDBASE_FEEDBACK_CNB_NEW_ISSUE_URL";
 
-const RESOURCE_BY_TOOL: Record<string, string> = {
-  queryHosting: "静态托管",
-  manageHosting: "静态托管",
-  readNoSqlDatabaseStructure: "云数据库（文档型）",
-  writeNoSqlDatabaseStructure: "云数据库（文档型）",
-  readNoSqlDatabaseContent: "云数据库（文档型）",
-  writeNoSqlDatabaseContent: "云数据库（文档型）",
-  queryMysqlDatabase: "云数据库（MySQL）",
-  manageMysqlDatabase: "云数据库（MySQL）",
-  queryPgDatabase: "云数据库（PostgreSQL）",
-  managePgDatabase: "云数据库（PostgreSQL）",
-  queryFunctions: "云函数",
-  manageFunctions: "云函数",
-  queryStorage: "云存储",
-  manageStorage: "云存储",
-  queryPgStorage: "云存储",
-  queryAppAuth: "身份认证",
-  manageAppAuth: "身份认证",
-  queryCloudRun: "CloudRun",
-  manageCloudRun: "CloudRun",
+/** Fixed new-issue pages. Intl uses GitHub. Domestic uses the CNB community. */
+export const FEEDBACK_ISSUE_NEW_URL: Record<SiteId, string> = {
+  intl: "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues/new",
+  domestic: "https://cnb.cool/tencent/cloud/cloudbase/community/-/issues/new",
+};
+
+const RESOURCE_BY_TOOL: Record<string, { zh: string; en: string }> = {
+  queryHosting: { zh: "静态托管", en: "Static hosting" },
+  manageHosting: { zh: "静态托管", en: "Static hosting" },
+  readNoSqlDatabaseStructure: { zh: "云数据库（文档型）", en: "Document database" },
+  writeNoSqlDatabaseStructure: { zh: "云数据库（文档型）", en: "Document database" },
+  readNoSqlDatabaseContent: { zh: "云数据库（文档型）", en: "Document database" },
+  writeNoSqlDatabaseContent: { zh: "云数据库（文档型）", en: "Document database" },
+  queryMysqlDatabase: { zh: "云数据库（MySQL）", en: "MySQL" },
+  manageMysqlDatabase: { zh: "云数据库（MySQL）", en: "MySQL" },
+  queryPgDatabase: { zh: "云数据库（PostgreSQL）", en: "PostgreSQL" },
+  managePgDatabase: { zh: "云数据库（PostgreSQL）", en: "PostgreSQL" },
+  queryFunctions: { zh: "云函数", en: "Cloud functions" },
+  manageFunctions: { zh: "云函数", en: "Cloud functions" },
+  queryStorage: { zh: "云存储", en: "Cloud storage" },
+  manageStorage: { zh: "云存储", en: "Cloud storage" },
+  queryPgStorage: { zh: "云存储", en: "Cloud storage" },
+  queryAppAuth: { zh: "身份认证", en: "Auth" },
+  manageAppAuth: { zh: "身份认证", en: "Auth" },
+  queryCloudRun: { zh: "CloudRun", en: "CloudRun" },
+  manageCloudRun: { zh: "CloudRun", en: "CloudRun" },
 };
 
 const REPORTABLE_TOOL_NAMES = new Set<string>([
@@ -70,10 +76,14 @@ export type FeedbackPayload = {
   url?: string;
 };
 
+type FeedbackLang = "zh" | "en";
+
 type FeedbackServerContext = {
   ide?: string;
   client?: string;
   cloudBaseOptions?: {
+    site?: string;
+    region?: string;
     envId?: string;
     secretId?: string;
     secretKey?: string;
@@ -99,8 +109,19 @@ function readDeclaredMcpVersion(): string | undefined {
   return typeof __MCP_VERSION__ !== "undefined" ? __MCP_VERSION__ : undefined;
 }
 
-function blank(value: string): string {
-  return value.trim().length > 0 ? value.trim() : "留空";
+function blank(value: string, lang: FeedbackLang): string {
+  return value.trim().length > 0 ? value.trim() : (lang === "en" ? "blank" : "留空");
+}
+
+function feedbackSite(server: FeedbackServerContext): SiteId {
+  return resolveSiteAndRegion({
+    site: server.cloudBaseOptions?.site,
+    region: server.cloudBaseOptions?.region,
+  }).site;
+}
+
+function feedbackLang(site: SiteId): FeedbackLang {
+  return site === "intl" ? "en" : "zh";
 }
 
 function uniqueJoin(parts: string[]): string {
@@ -139,14 +160,14 @@ function toLocalIso(iso: string): string {
   );
 }
 
-function resourceTypesFrom(outcomes: readonly ToolOutcome[]): string[] {
+function resourceTypesFrom(outcomes: readonly ToolOutcome[], lang: FeedbackLang): string[] {
   const seen = new Set<string>();
   const types: string[] = [];
   for (const outcome of outcomes) {
     if (outcome.failed) {
       continue;
     }
-    const resourceType = RESOURCE_BY_TOOL[outcome.toolName];
+    const resourceType = RESOURCE_BY_TOOL[outcome.toolName]?.[lang];
     if (!resourceType || seen.has(resourceType)) {
       continue;
     }
@@ -156,7 +177,7 @@ function resourceTypesFrom(outcomes: readonly ToolOutcome[]): string[] {
   return types;
 }
 
-function formatDeployDuration(outcomes: readonly ToolOutcome[]): string {
+function formatDeployDuration(outcomes: readonly ToolOutcome[], lang: FeedbackLang): string {
   const build = outcomes.filter((item) => !item.failed && item.toolName === "deployBuild");
   const apply = outcomes.filter((item) => !item.failed && item.toolName === "deployApply");
   if (build.length === 0 && apply.length === 0) {
@@ -170,7 +191,10 @@ function formatDeployDuration(outcomes: readonly ToolOutcome[]): string {
   if (apply.length > 0) {
     parts.push(`deployApply ${sum(apply)}ms`);
   }
-  return `${parts.join("；")}。无法区分云端构建与端到端，只记录上述工具耗时，未补另一项`;
+  const joined = parts.join(lang === "en" ? "; " : "；");
+  return lang === "en"
+    ? `${joined}. Cloud build time and end-to-end time cannot be separated from these tool names.`
+    : `${joined}。无法区分云端构建与端到端，只记录上述工具耗时，未补另一项`;
 }
 
 function latestDeployTime(outcomes: readonly ToolOutcome[]): string {
@@ -184,7 +208,7 @@ function latestDeployTime(outcomes: readonly ToolOutcome[]): string {
   return toLocalIso(latest.at);
 }
 
-function failureLines(server: object, outcomes: readonly ToolOutcome[]): string[] {
+function failureLines(server: object, outcomes: readonly ToolOutcome[], lang: FeedbackLang): string[] {
   const counts = new Map<string, number>();
   let hiddenFailures = 0;
   for (const outcome of outcomes) {
@@ -199,17 +223,25 @@ function failureLines(server: object, outcomes: readonly ToolOutcome[]): string[
   }
   const lines: string[] = [];
   for (const [toolName, count] of counts) {
-    lines.push(`- 可验证事实：工具调用失败 ${toolName} ×${count}`);
+    lines.push(lang === "en"
+      ? `- Verified: tool call failed ${toolName} ×${count}`
+      : `- 可验证事实：工具调用失败 ${toolName} ×${count}`);
     if (count >= 2) {
-      lines.push(`- 可验证事实：${toolName} 失败不少于 2 次`);
+      lines.push(lang === "en"
+        ? `- Verified: ${toolName} failed at least twice`
+        : `- 可验证事实：${toolName} 失败不少于 2 次`);
     }
   }
   if (hiddenFailures > 0) {
-    lines.push(`- 可验证事实：另有 ${hiddenFailures} 次失败未列出工具名（名称不在已知工具表内）`);
+    lines.push(lang === "en"
+      ? `- Verified: ${hiddenFailures} more failure(s) omitted because the tool name is not in the known list`
+      : `- 可验证事实：另有 ${hiddenFailures} 次失败未列出工具名（名称不在已知工具表内）`);
   }
   const repeatPeak = readRepeatPeak(server);
   if (repeatPeak > 0) {
-    lines.push(`- 可验证事实：连续相同结构化错误峰值 ${repeatPeak}`);
+    lines.push(lang === "en"
+      ? `- Verified: peak consecutive identical structured errors ${repeatPeak}`
+      : `- 可验证事实：连续相同结构化错误峰值 ${repeatPeak}`);
   }
   return lines;
 }
@@ -229,38 +261,104 @@ function redact(text: string, secrets: string[]): string {
   return redacted;
 }
 
-function buildCaseDraft(server: FeedbackServerContext, outcomes: readonly ToolOutcome[]): string {
-  const resources = resourceTypesFrom(outcomes);
-  const lines = [
-    "作品名称：留空",
-    "一句话简介：留空",
-    "公网访问地址：留空",
-    "封面 / 截图地址：留空",
-    `Agent / CLI：${blank(readAgentLabel(server))}`,
-    "所用模型：留空",
-    `MCP 版本：${blank(resolveMcpVersion(readDeclaredMcpVersion(), process.env.npm_package_version))}`,
-    `部署耗时：${blank(formatDeployDuration(outcomes))}`,
-    `用到的云资源：${resources.length > 0 ? resources.join("、") : "留空"}`,
-    `部署时间：${blank(latestDeployTime(outcomes))}`,
-    "作者署名 / 主页：留空",
-    "开发过程中踩到的坑：留空",
-    "其他补充：留空",
-  ];
-  return lines.join("\n");
+function buildCaseDraft(
+  server: FeedbackServerContext,
+  outcomes: readonly ToolOutcome[],
+  lang: FeedbackLang,
+): string {
+  const resources = resourceTypesFrom(outcomes, lang);
+  const empty = blank("", lang);
+  const resourceText = resources.length > 0 ? resources.join(lang === "en" ? ", " : "、") : empty;
+  const version = blank(resolveMcpVersion(readDeclaredMcpVersion(), process.env.npm_package_version), lang);
+  if (lang === "en") {
+    return [
+      `Work name: ${empty}`,
+      `One-line summary: ${empty}`,
+      `Public URL: ${empty}`,
+      `Cover / screenshot: ${empty}`,
+      `Agent / CLI: ${blank(readAgentLabel(server), lang)}`,
+      `Model: ${empty}`,
+      `MCP version: ${version}`,
+      `Deploy duration: ${blank(formatDeployDuration(outcomes, lang), lang)}`,
+      `Cloud resources: ${resourceText}`,
+      `Deploy time: ${blank(latestDeployTime(outcomes), lang)}`,
+      `Author: ${empty}`,
+      `Pitfalls: ${empty}`,
+      `Other notes: ${empty}`,
+    ].join("\n");
+  }
+  return [
+    `作品名称：${empty}`,
+    `一句话简介：${empty}`,
+    `公网访问地址：${empty}`,
+    `封面 / 截图地址：${empty}`,
+    `Agent / CLI：${blank(readAgentLabel(server), lang)}`,
+    `所用模型：${empty}`,
+    `MCP 版本：${version}`,
+    `部署耗时：${blank(formatDeployDuration(outcomes, lang), lang)}`,
+    `用到的云资源：${resourceText}`,
+    `部署时间：${blank(latestDeployTime(outcomes), lang)}`,
+    `作者署名 / 主页：${empty}`,
+    `开发过程中踩到的坑：${empty}`,
+    `其他补充：${empty}`,
+  ].join("\n");
 }
 
-function buildRetrospectiveDraft(server: object, outcomes: readonly ToolOutcome[]): string {
-  const resources = resourceTypesFrom(outcomes);
-  const failures = failureLines(server, outcomes);
+function buildRetrospectiveDraft(
+  server: object,
+  outcomes: readonly ToolOutcome[],
+  lang: FeedbackLang,
+): string {
+  const resources = resourceTypesFrom(outcomes, lang);
+  const failures = failureLines(server, outcomes, lang);
+  const empty = blank("", lang);
+  if (lang === "en") {
+    const failureBlock = failures.length > 0
+      ? failures.join("\n")
+      : "blank (no listed tool failures and no repeated-error count)";
+    const resourceBlock = resources.length > 0
+      ? `Verified: ${resources.join(", ")}`
+      : empty;
+    return [
+      "Check that this draft has no environment ID, secrets, credentials, collection names, or function names. List cloud resources by type only.",
+      "",
+      "## 1. Conversation turns",
+      "Total turns: blank (no conversation-turn signal; no estimated number)",
+      "Phase split: blank (no verifiable phase signal)",
+      "Extra turns from errors or misunderstandings: blank (tool failures are not conversation turns)",
+      "Verified failure signals:",
+      failureBlock,
+      "",
+      "## 2. Task completion",
+      "blank (not filled from the conversation)",
+      "",
+      "## 3. Implementation overview",
+      "blank (not filled from the conversation)",
+      "",
+      "## 4. Cloud resources",
+      resourceBlock,
+      "",
+      "## 5. Problems and resolutions",
+      "blank (not filled from the conversation)",
+      "",
+      "## 6. Improvements",
+      "Tool: blank",
+      "Problem type: blank",
+      "Platform / MCP feedback: blank",
+      "Code or architecture notes: blank",
+      "",
+      "## 7. Follow-up",
+      "blank (this section is not finalized)",
+    ].join("\n");
+  }
   const failureBlock = failures.length > 0
     ? failures.join("\n")
     : "留空（本次没有可列出的工具失败，也没有重复错误计数）";
   const resourceBlock = resources.length > 0
     ? `可验证事实：${resources.join("、")}`
-    : "留空";
+    : empty;
   return [
-    "这份草稿可能包含业务信息。确认后若粘贴提交，会进入团队可见的内部通道，不会公开。",
-    "请确认其中没有环境 ID、密钥、凭证，也没有集合名或函数名。云资源只保留类型。",
+    "请确认草稿里没有环境 ID、密钥、凭证，也没有集合名或函数名。云资源只保留类型。",
     "",
     "## 1. 对话轮次统计",
     "总轮次：留空（没有对话轮次信号，不估算数字）",
@@ -292,17 +390,19 @@ function buildRetrospectiveDraft(server: object, outcomes: readonly ToolOutcome[
   ].join("\n");
 }
 
-function caseIssueBaseUrl(override?: string): string {
-  const value = override ?? process.env[CASE_ISSUE_BASE_URL_ENV] ?? "";
-  return value.trim();
-}
-
-export function buildCasePrefillUrl(baseUrl: string, description: string): string {
-  const base = baseUrl.trim().replace(/\?.*$/, "");
+export function buildFeedbackIssueUrl(site: SiteId, channel: FeedbackChannel, draft: string): string {
+  const title = site === "intl"
+    ? (channel === "case" ? "[case] " : "[retrospective] ")
+    : (channel === "case" ? "[案例] " : "[复盘] ");
+  const base = FEEDBACK_ISSUE_NEW_URL[site];
+  if (site === "intl") {
+    return `${base}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(draft)}`;
+  }
+  const template = channel === "case" ? CASE_TEMPLATE_FILE : RETROSPECTIVE_TEMPLATE_FILE;
   const query = [
-    `template=${encodeURIComponent(CASE_TEMPLATE_FILE)}`,
-    `title=${encodeURIComponent("[案例] ")}`,
-    `issue[description]=${encodeURIComponent(description)}`,
+    `template=${encodeURIComponent(template)}`,
+    `title=${encodeURIComponent(title)}`,
+    `issue[description]=${encodeURIComponent(draft)}`,
   ].join("&");
   return `${base}?${query}`;
 }
@@ -311,14 +411,15 @@ export function buildFeedbackPayload(input: {
   server: FeedbackServerContext;
   channel: FeedbackChannel;
   confirmed: boolean;
-  caseIssueBaseUrl?: string;
 }): FeedbackPayload {
+  const site = feedbackSite(input.server);
+  const lang = feedbackLang(site);
   const outcomes = readToolOutcomes(input.server);
   const secrets = collectSecretValues(input.server);
   const draft = redact(
     input.channel === "case"
-      ? buildCaseDraft(input.server, outcomes)
-      : buildRetrospectiveDraft(input.server, outcomes),
+      ? buildCaseDraft(input.server, outcomes, lang)
+      : buildRetrospectiveDraft(input.server, outcomes, lang),
     secrets,
   );
   if (!input.confirmed) {
@@ -328,39 +429,21 @@ export function buildFeedbackPayload(input: {
       confirmed: false,
       submittable: false,
       draft,
-      nextStep: "把 draft 全文展示给用户。用户明确确认之前，不要给出提交链接，也不要要求粘贴提交。",
-    };
-  }
-  if (input.channel === "retrospective") {
-    return {
-      success: true,
-      channel: input.channel,
-      confirmed: true,
-      submittable: false,
-      draft,
-      nextStep:
-        `用户已确认。请让用户复制 draft，粘贴到私有反馈仓的模板 ${RETROSPECTIVE_TEMPLATE_FILE}。不要代为提交。`,
-    };
-  }
-  const baseUrl = caseIssueBaseUrl(input.caseIssueBaseUrl);
-  if (!baseUrl) {
-    return {
-      success: true,
-      channel: "case",
-      confirmed: true,
-      submittable: false,
-      draft,
-      nextStep: "用户已确认，但收集仓库地址未配置，因此没有可点击链接。不要编造地址，不要代为提交。",
+      nextStep: lang === "en"
+        ? "Show the full draft to the user. Do not give a submission link before they explicitly confirm."
+        : "把 draft 全文展示给用户。用户明确确认之前，不要给出提交链接。",
     };
   }
   return {
     success: true,
-    channel: "case",
+    channel: input.channel,
     confirmed: true,
     submittable: true,
     draft,
-    url: buildCasePrefillUrl(baseUrl, draft),
-    nextStep: "用户已确认。可以把 url 交给用户自行打开。不要代为提交。",
+    url: buildFeedbackIssueUrl(site, input.channel, draft),
+    nextStep: lang === "en"
+      ? "The user confirmed. Give them the url to open. Do not submit it for them."
+      : "用户已确认。可以把 url 交给用户自行打开。不要代为提交。",
   };
 }
 
