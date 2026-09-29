@@ -298,6 +298,41 @@ describe("wrapServerWithTelemetry", () => {
     });
   });
 
+  it("reports a returned business failure to telemetry as success", async () => {
+    // Records current behavior. A handler that returns { success: false }
+    // still reaches reportToolCall with success=true, and the return path
+    // does not attach the prefilled issue link built in the throw path.
+    await withTelemetryEnabled(async () => {
+      vi.mocked(reportToolCall).mockClear();
+      let wrappedHandler: ((args: any) => Promise<any>) | undefined;
+
+      const server = {
+        registerTool: vi.fn((_name: string, _meta: any, handler: (args: any) => Promise<any>) => {
+          wrappedHandler = handler;
+          return undefined;
+        }),
+        logger: vi.fn(),
+        cloudBaseOptions: undefined,
+        ide: "Cursor",
+      } as any;
+
+      wrapServerWithTelemetry(server);
+      server.registerTool("demo", {}, async () => ({ success: false }));
+
+      const result = await wrappedHandler?.({});
+
+      expect(result?.isError).toBe(true);
+      expect(result?.success).toBe(false);
+      expect(JSON.stringify(result)).not.toContain("github.com");
+      expect(reportToolCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toolName: "demo",
+          success: true,
+        }),
+      );
+    });
+  });
+
   it("builds the issue banner with a version line and no source-comment leakage", async () => {
     // 这条 banner 只在**非测试环境**分支生成（`isTestEnvironment` 直接 rethrow），
     // 所以必须用 withTelemetryEnabled 临时摘掉 NODE_ENV / VITEST。

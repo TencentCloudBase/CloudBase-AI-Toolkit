@@ -27,6 +27,7 @@ import { msgPush } from "./modules/msgPush.js";
 import { setup } from "./modules/setup.js";
 import { envSetup } from "./modules/envSetup.js";
 import { interactive } from "./modules/interactive.js";
+import { feedback } from "./modules/feedback.js";
 
 export const en = {
   env: env.en,
@@ -57,4 +58,5 @@ export const en = {
   setup: setup.en,
   envSetup: envSetup.en,
   interactive: interactive.en,
+  feedback: feedback.en,
 };

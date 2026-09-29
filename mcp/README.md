@@ -100,7 +100,7 @@ Remote auth takes one of two paths:
 
 Remote trade-off: local-filesystem features (upload, template download) are unavailable, and the international site does not yet expose NoSQL tools.
 
-Remote URLs accept `site` for one case only—a China-site environment in `ap-singapore`, where the region is ambiguous—plus `enable_plugins` / `disable_plugins` (comma-separated). Canonical plugin names: see `src/server.ts` in this package (e.g. `env`, `database`, `functions`, `hosting`, `storage`, `pg_database`, `cloudrun`, `logs`).
+Remote URLs accept `site` for one case only—a China-site environment in `ap-singapore`, where the region is ambiguous—plus `enable_plugins` / `disable_plugins` (comma-separated). Canonical plugin names: see `src/server.ts` in this package (e.g. `env`, `database`, `functions`, `hosting`, `storage`, `pg_database`, `cloudrun`, `logs`, `feedback`).
 
 **Self-hosted Cloud Mode**: set `CLOUDBASE_MCP_CLOUD_MODE=true` (or `MCP_CLOUD_MODE=true`) so local file and process tools are disabled for remote callers.
 

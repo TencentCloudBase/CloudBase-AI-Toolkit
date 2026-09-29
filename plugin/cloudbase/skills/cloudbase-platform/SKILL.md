@@ -16,7 +16,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Deployment Gate: `references/protocols/deployment-gate.md`
 - Sensitive Runtime Data Protection: `references/protocols/sensitive-runtime-data-protection.md`
 
-**Post-deployment (optional, non-intrusive)**: after a deployment is verified successful, you may offer at most once to generate anonymized shareables (Deployment Share) — see `references/protocols/deployment-share.md`. Never follow up if declined; never publish on the user's behalf.
+**Post-deployment (optional, non-intrusive)**: after a deployment is verified successful, you may offer at most once to generate anonymized shareables and, in that same offer, optionally submit the work to the case wall (Deployment Share) — see `references/protocols/deployment-share.md`. Never follow up if declined; never publish or submit on the user's behalf.
 
 ## Activation Contract
 

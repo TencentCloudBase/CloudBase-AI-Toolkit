@@ -16,7 +16,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Deployment Gate: `references/protocols/deployment-gate.md`
 - Sensitive Runtime Data Protection: `references/protocols/sensitive-runtime-data-protection.md`
 
-**Post-deployment (optional, non-intrusive)**: after a deployment is verified successful, you may offer at most once to generate anonymized shareables (Deployment Share) — see `references/protocols/deployment-share.md`. Never follow up if declined; never publish on the user's behalf.
+**Post-deployment (optional, non-intrusive)**: after a deployment is verified successful, you may offer at most once to generate anonymized shareables and, in that same offer, optionally submit the work to the case wall (Deployment Share) — see `references/protocols/deployment-share.md`. Never follow up if declined; never publish or submit on the user's behalf.
 
 ## Activation Contract
 
@@ -359,7 +359,7 @@ See also: CLI equivalent commands in `cloudbase-cli/references/permission.md`
 
 ## Console Management
 
-After creating/deploying resources, provide corresponding console links. All console URLs follow the pattern: `https://tcb.tencentcloud.com/dev?envId=${envId}#/{path}` — replace `${envId}` with the real EnvId resolved via `queryEnv` (resolve aliases first; see Environment and Authentication below), and resource names with actual values.
+After creating/deploying resources, provide corresponding console links. All console URLs follow the pattern: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/{path}` — replace `${envId}` with the real EnvId resolved via `queryEnv` (resolve aliases first; see Environment and Authentication below), and resource names with actual values.
 
 The CloudBase console is updated frequently. If a live, logged-in console shows a different hash path from this list, prefer the live console path over stale documentation and then update this skill to match.
 

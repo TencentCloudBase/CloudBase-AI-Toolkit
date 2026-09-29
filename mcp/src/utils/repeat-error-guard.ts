@@ -26,6 +26,18 @@ export type RepeatGuardInfo = {
 let lastKey: string | null = null;
 let consecutiveCount = 0;
 
+export type RepeatGuardSnapshot = {
+  consecutiveCount: number;
+};
+
+/**
+ * Live streak only. Does not expose the dedup key: that key contains the raw
+ * error message, which may include secrets or identifiers.
+ */
+export function getRepeatGuardSnapshot(): RepeatGuardSnapshot {
+  return { consecutiveCount };
+}
+
 function buildRepeatGuardKey(payload: ToolPayload): string {
   const code = typeof payload.code === "string" ? payload.code : "";
   const message = typeof payload.message === "string" ? payload.message : "";
@@ -55,7 +67,6 @@ export function applyRepeatGuardToPayload(payload: ToolPayload): ToolPayload {
     lastKey = key;
     consecutiveCount = 1;
   }
-
   if (consecutiveCount < REPEAT_GUARD_THRESHOLD) {
     return payload;
   }
