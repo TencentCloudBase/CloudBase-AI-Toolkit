@@ -1,21 +1,21 @@
 # CloudBase Plugin Marketplace Analysis
 
-Generated: 2026-09-24T00:22:42.349Z
+Generated: 2026-09-24T03:02:55.621Z
 
 > This report does not auto-submit to any marketplace. All submissions are manual.
 
 ## Summary
 
-Total markets: **51**
+Total markets: **56**
 
 | Priority | Count |
 |----------|------:|
-| ready_to_submit | 6 |
+| ready_to_submit | 7 |
 | needs_packaging_or_manifest | 4 |
-| needs_partner_outreach | 13 |
+| needs_partner_outreach | 14 |
 | listed | 11 |
-| not_applicable | 15 |
-| unknown | 2 |
+| not_applicable | 16 |
+| unknown | 4 |
 
 ## Stale reviews
 
@@ -249,6 +249,88 @@ Evidence:
 - https://github.com/xai-org/plugin-marketplace/pull/151
 - https://x.ai/news/grok-plugin-marketplace
 
+### qianwen-ai-platform-hub — QianWen AI Platform hubs (千问AI平台 Skills / MCP hub)
+
+- Region: cn
+- Channel: `skill_registry`
+- Eligibility: `public_self_serve_submission`
+- Last reviewed: 2026-09-24
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: not_applicable
+- `community_directory`: not_applicable
+- `self_marketplace`: submittable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: submittable
+- `docs_only`: unknown
+
+Blockers:
+
+- Publishing needs an Alibaba Cloud account that has passed real-name verification (individual or enterprise)
+- The publisher must accept the 千问AI平台技能市场服务协议 and set a public marketplace display name
+- Each upload is a single-skill ZIP, so a multi-skill set has to be published skill by skill
+- No direct upload path to the MCP hub — it mirrors 云市场 / 百炼
+
+Local evidence:
+
+- `config/source/skills (every SKILL.md already carries name and description frontmatter)`: **invalid** — Unknown local_evidence id "config/source/skills (every SKILL.md already carries name and description frontmatter)"
+
+Submit checklist:
+
+- [ ] Finish real-name verification on the Alibaba Cloud account and accept the marketplace agreement
+- [ ] Pick the skills to publish and decide the marketplace display name
+- [ ] Publish one ZIP per skill, then confirm the entries render under 我的 Skills
+
+Process:
+
+```
+Skills hub, https://www.qianwenai.com/hub/skills. The platform documents a fully self-serve public publish
+flow at https://platform.qianwenai.com/docs/agent-infra/skills/publish and states that the marketplace is
+an open skill-sharing community any user may publish to. Verified in-product on 2026-09-24:
+  1. Click 「Skill 发布」 on the hub; while logged out it bounces through Aliyun SSO
+     (account.aliyun.com/sso/login.htm, client_id=qianwenai) and returns to the hub.
+  2. First-time publishers set a marketplace display name and accept the 千问AI平台技能市场服务协议, after
+     which a 「管理 Skills」 entry appears next to 「Skill 发布」.
+  3. Real-name verification (individual or enterprise) is required before uploading.
+  4. Upload one ZIP. A pre-check validates the SKILL.md frontmatter inside it for name and description.
+  5. Confirm the metadata fields, then submit for review.
+Review runs 安全检测 → 人工审核 → 发布上线. A 危险 safety result cannot proceed and must be fixed and
+resubmitted; a 提醒/可疑 result leaves the choice to the publisher. Versions are managed at
+https://www.qianwenai.com/hub/skills/manage with statuses 待处置 / 审核中 / 已上线 / 已下线.
+Package rules (https://platform.qianwenai.com/docs/agent-infra/skills/introduction): SKILL.md at the ZIP
+root carrying name and description in YAML frontmatter, whole ZIP <= 10 MiB, name unique per account.
+Metadata fields: 英文标识 (auto-namespaced as @user_xxx/<name>), Skill 名称, optional 图标, 简介
+(<= 200 chars, defaults to description), 版本, and 开源协议 limited to MIT or Apache-2.0.
+Install side (https://platform.qianwenai.com/docs/agent-infra/skills/custom): published skills are consumed
+by skill-capable agents such as Qoder and Claude Code — via a prompt pointing at
+https://www.qianwenai.com/hub/install/skillshub.md, via CLI (`npm install -g @qianwenai/qianwen-cli@latest`
+then `qianwen skills install @<scope>/<name>`), or via direct ZIP download. Multi-skill sets are grouped as
+技能包 on the platform rather than uploaded as a single ZIP.
+MCP hub, https://www.qianwenai.com/hub/mcp — 105 entries at review time, every one observed carrying
+提供方：云市场 or 提供方：阿里云百炼, i.e. the hub mirrors Alibaba Cloud Marketplace and Model Studio rather
+than accepting uploads. The console's 自定义 MCP 服务 path (script deploy / AI gateway import / OpenAPI
+import) mounts services onto one's own Managed Agents and does not reach this hub.
+Status 2026-09-24: CloudBase absent from both hubs. The Skills side is a genuine self-serve public
+marketplace; the MCP side still requires a 云市场 or 百炼 listing first.
+```
+
+Evidence:
+
+- https://www.qianwenai.com/hub/skills
+- https://www.qianwenai.com/hub/skills/manage
+- https://www.qianwenai.com/hub/mcp
+- https://platform.qianwenai.com/skills
+- https://platform.qianwenai.com/docs/agent-infra/skills/introduction
+- https://platform.qianwenai.com/docs/agent-infra/skills/publish
+- https://platform.qianwenai.com/docs/agent-infra/skills/custom
+- https://platform.qianwenai.com/docs/agent-infra/mcp/official-services
+- https://platform.qianwenai.com/docs/agent-infra/mcp/custom-services
+- https://www.qianwenai.com/hub/install/skillshub.md
+- https://terms.alicdn.com/legal-agreement/terms/common_platform_service/20260917200955495/20260917200955495.html
+
 ### coze-skill-and-plugin-store — Coze (扣子)
 
 - Region: cn
@@ -469,18 +551,20 @@ Statuses:
 - `self_marketplace`: not_applicable
 - `native_connector_or_builtin`: not_applicable
 - `open_plugin_spec`: not_applicable
-- `mcp_or_skill_registry`: unknown
+- `mcp_or_skill_registry`: blocked
 - `docs_only`: listed
 
 Blockers:
 
 - Skill 接入 is marked 即将开放, so a skill package cannot be submitted yet
+- MCP服务Skill is 待上线 as well, so the MCP-shaped track is still closed
 - The live track onboards brand agents, not a distributable skill or connector package
+- 申请入驻 requires an Alibaba/Tongyi account login before the form appears
 
 Submit checklist:
 
 - [ ] Decide whether an assistant-app entry point is wanted; if so submit the 申请入驻 form
-- [ ] Re-check whether Skill 接入 has opened before packaging a skill for it
+- [ ] Re-check whether Skill 接入 / MCP服务Skill has opened before packaging for it
 
 Process:
 
@@ -492,11 +576,21 @@ account / AI payment / order infrastructure, front-end components and end-to-end
 Skill 接入 (marked 即将开放 / 敬请期待, i.e. not submittable yet). agent.flow, an enterprise knowledge
 base and MCP services are listed as platform capabilities.
 Status 2026-09-24: intent form plus review; no in-product submission path reviewed.
+Status 2026-09-24, later (official 接入文档 read directly, https://open.qianwen.com/guide):
+the published process is 了解平台 → 选择接入模式 → 提交入驻资料 → 审核通过 → 技术对接 → 上线, with the
+review stated as taking about 7 days and a DingTalk 官方入驻服务助手 available for progress questions.
+Step 2 is described as filling in company/brand details plus qualification material.
+The capability tables split by phase: 第一阶段 AI智能体 已开放接入 (its entry is 左侧导航栏 > AI能力 >
+AI智能体); 第二阶段 知识库 SKILL 与 MCP服务SKILL are 即将开放, and the 子能力一览表 marks Skill and
+MCP服务Skill as 待上线. So the MCP-shaped track exists on the roadmap but cannot be submitted today.
+Both the 申请入驻 and 入驻申请 controls pull in a Tongyi login iframe first, so the form is account-gated.
+Public contact address in the site footer: openqianwen.feedback@service.alibaba.com
 ```
 
 Evidence:
 
 - https://open.qianwen.com/
+- https://open.qianwen.com/guide
 - https://baike.baidu.com/item/千问开放平台/68538985
 - https://www.cinn.cn/xf/2026/08-10/gD7OpAqD.html
 
@@ -805,13 +899,57 @@ CamScanner (合合信息) listed a skill and a connector together on 2026-09-22 
 
 Evidence:
 
-- https://help.aliyun.com/zh/qwenwork/qw-connectors
+- https://help.aliyun.com/zh/qwenwork/desktop-connectors
 - https://help.aliyun.com/zh/qwenwork/skills
 - https://help.aliyun.com/zh/qwenwork/skills-management
 - https://help.aliyun.com/zh/qwenwork/enterprise-ultimate-ai-assets/
 - https://help.aliyun.com/zh/qwenwork/expert-kit
 - https://www.alibabacloud.com/help/en/qwenwork/qwenwork-extensions
 - https://www.cnfin.com/gs-lb/detail/20260922/4473408_1.html
+
+### aliyun-blossom-partner-plan — Alibaba Cloud AI product partner plan (繁花计划)
+
+- Region: cn
+- Channel: `official_curated_marketplace`
+- Eligibility: `partner_outreach_required`
+- Last reviewed: 2026-09-24
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: submittable
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: submittable
+- `docs_only`: listed
+
+Blockers:
+
+- Gated on Alibaba Cloud Marketplace partner status with corporate qualification thresholds
+- Applies as a company entity, so it is a business decision rather than a repo task
+
+Process:
+
+```
+Public recruitment page at https://www.qianwenai.com/partner-recruitment, linked from the site footer as
+「AI 伙伴招募计划」. Its 立即加入 button resolves to
+https://aps.aliyun.com/partnerApply/#/identityInfo?param=27Partner, which requires an Alibaba Cloud login.
+Five stated cooperation tracks: Skills; 数据类型 covering MCP, APIs and datasets; Connector 类型 covering
+SaaS interfaces such as CRM/ERP that connect to and act on systems; Agent 类型; and 行业共创类. MCP and
+Connector are therefore first-class categories rather than an afterthought.
+Three-step onboarding: 1) join the product ecosystem as a 云市场 partner — trading for at least one year,
+at least 20 employees and registered capital of at least 1M CNY; 2) list the product, where MCP, API, SaaS
+and AI model are all supported commodity types with pricing and service-level configuration; 3) product
+adaptation, including token-usage telemetry if the product calls Alibaba Cloud models through Model Studio.
+Benefit tiers run L1 注册级 → L2 优选级 → L3 精选级 → L4 旗舰级.
+```
+
+Evidence:
+
+- https://www.qianwenai.com/partner-recruitment
+- https://aps.aliyun.com/partnerApply/#/identityInfo?param=27Partner
 
 ### doubao-work-connector — Doubao Work (豆包工作)
 
@@ -1463,6 +1601,46 @@ Evidence:
 
 ## not_applicable
 
+### qianwen-device-platform — QianWen AI Hardware Open Platform (千问AI硬件开放平台)
+
+- Region: cn
+- Channel: `skill_registry`
+- Eligibility: `public_self_serve_submission`
+- Last reviewed: 2026-09-24
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: unknown
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: submittable
+- `docs_only`: listed
+
+Blockers:
+
+- Console and docs both require sign-in (千问 App QR code)
+- The surface is AI glasses; documented cases are industrial inspection, retail shelf checks, real-estate sales assist and in-car voice, none of which match CloudBase tooling
+
+Process:
+
+```
+device.qianwen.com publishes a four-step developer flow: 01 成为开发者 (signing in to the open platform
+completes developer verification — "填写基本信息即可开始开发"), 02 开发 Skill (create or import),
+03 测试和审核 (cloud sandbox plus on-device verification, then a one-click review submission),
+04 发布上线 (auto-publish after approval, then usable by voice).
+Creation modes are 对话创建 / 模板创建 / 空白文档, followed by a 插件工具 configuration step.
+The console is at /aistudio/skill-dev and the docs at /docs; both gate on login and offer
+「用千问APP扫码登录」. There is also a public 立即加入 developer-kit entry.
+```
+
+Evidence:
+
+- https://device.qianwen.com/
+- https://device.qianwen.com/aistudio/skill-dev
+
 ### trae-ide-extension — Trae IDE
 
 - Region: cn
@@ -1956,6 +2134,80 @@ Evidence:
 - https://help.aliyun.com/document_detail/2866083.html
 - https://help.aliyun.com/zh/marketplace/cloud-market-category-qualification
 - https://developer.aliyun.com/article/1483445
+
+### qianwen-ai-github-org — QianWen-AI GitHub organisation
+
+- Region: global
+- Channel: `community_plugin_directory`
+- Eligibility: `public_github_pr_required`
+- Last reviewed: 2026-09-24
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: not_applicable
+- `community_directory`: submittable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: unknown
+- `docs_only`: unknown
+
+Blockers:
+
+- The org hosts the vendor's own skills; nothing indicates a third-party product listing would be accepted
+
+Process:
+
+```
+github.com/QianWen-AI is the public org behind the 千问AI平台 skill pack. Its project page invites three
+kinds of contribution: report a bug through an Issue with reproduction steps, request features, or fork and
+open a Pull Request.
+Repos at review time: qianwen-ai (the skill pack), qianwen-cli, qianwenai-deploy, homebrew-tap and
+apsara-conference-2026.
+```
+
+Evidence:
+
+- https://github.com/QianWen-AI
+- https://platform.qianwenai.com/skills
+
+### aliyun-mse-ai-registry — Alibaba Cloud MSE AI Registry (AI 注册中心)
+
+- Region: cn
+- Channel: `skill_registry`
+- Eligibility: `public_self_serve_submission`
+- Last reviewed: 2026-09-24
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: not_applicable
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: submittable
+- `docs_only`: unknown
+
+Blockers:
+
+- Consumers are AgentScope / Nacos clients, not the AI coding clients we target
+- Needs an Alibaba Cloud account plus AI Security Guardrail activation
+
+Process:
+
+```
+Documented self-serve skill publishing: import a preset skill or upload a zipped skill directory (a draft
+version is generated on import) → 提交审核, which runs a content security scan covering prompt-injection
+detection and compliance → on approval the version sits 待发布, then 发布版本 and enable it.
+The security scan requires Alibaba Cloud AI Security Guardrail to be activated first.
+Consumption paths are Nacos CLI, the Java SDK or AgentScope, over public or VPC endpoints.
+```
+
+Evidence:
+
+- https://help.aliyun.com/en/mse/user-guide/ai-registry-skill-quick-start-guide
 
 ### clawhub — ClawHub
 
