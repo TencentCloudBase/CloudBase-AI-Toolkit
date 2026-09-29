@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 141
+ * Action 数量: 146
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -29,6 +29,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'CreateHostingDomain',
   'CreateMySQL',
   'CreatePlatformEnv',
+  'CreatePlatformHTTPServiceRoute',
   'CreateStaticStore',
   'CreateTable',
   'CreateUser',
@@ -41,6 +42,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DeleteCloudRunVersions',
   'DeleteFunction',
   'DeleteHTTPServiceRoute',
+  'DeletePlatformHTTPServiceRoute',
   'DeleteProvider',
   'DeleteTable',
   'DeleteUsers',
@@ -87,6 +89,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DescribePlatformCreditsUsage',
   'DescribePlatformCreditsUsageDetail',
   'DescribePlatformEnvUsage',
+  'DescribePlatformHTTPServiceRoute',
   'DescribePlatforms',
   'DescribeQuotaData',
   'DescribeReleaseOrder',
@@ -120,6 +123,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'ModifyLoginConfig',
   'ModifyPGInstanceSpec',
   'ModifyPlatformEnv',
+  'ModifyPlatformHTTPServiceRoute',
   'ModifyProvider',
   'ModifyResourcePermission',
   'ModifySafeRule',
@@ -149,6 +153,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'UpdateTable',
   'UpgradePGInstanceToDedicated',
   'VerifyHTTPServiceRoute',
+  'VerifyPlatformHTTPServiceRoute',
 ];
 
 export default TCB_ALLOWED_ACTIONS;

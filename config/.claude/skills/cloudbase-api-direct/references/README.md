@@ -1,6 +1,6 @@
 # CloudBase API 文档索引
 
-爬取时间: 2026-09-28T08:39:50.264Z
+爬取时间: 2026-09-29T08:23:20.410Z
 
 ## 文档列表
 
@@ -62,6 +62,11 @@
 - [云开发 CloudBase 修改HTTP访问服务路由_腾讯云](./876-129797-云开发-CloudBase-修改HTTP访问服务路由_腾讯云.md)
 - [云开发 CloudBase 查询HTTP访问服务缓存清除任务_腾](./876-137742-云开发-CloudBase-查询HTTP访问服务缓存清除任务_腾.md)
 - [云开发 CloudBase 清除HTTP服务域名缓存_腾讯云](./876-137741-云开发-CloudBase-清除HTTP服务域名缓存_腾讯云.md)
+- [云开发 CloudBase 创建平台HTTP访问服务路由_腾讯云](./876-138911-云开发-CloudBase-创建平台HTTP访问服务路由_腾讯云.md)
+- [云开发 CloudBase 校验平台HTTP访问服务路由_腾讯云](./876-138907-云开发-CloudBase-校验平台HTTP访问服务路由_腾讯云.md)
+- [云开发 CloudBase 删除平台HTTP访问服务路由_腾讯云](./876-138910-云开发-CloudBase-删除平台HTTP访问服务路由_腾讯云.md)
+- [云开发 CloudBase 查询平台HTTP访问服务路由信息_腾](./876-138909-云开发-CloudBase-查询平台HTTP访问服务路由信息_腾.md)
+- [云开发 CloudBase 修改平台HTTP访问服务路由_腾讯云](./876-138908-云开发-CloudBase-修改平台HTTP访问服务路由_腾讯云.md)
 - [云开发 CloudBase 查询云托管服务版本的详情_腾讯云](./876-49739-云开发-CloudBase-查询云托管服务版本的详情_腾讯云.md)
 - [云开发 CloudBase 获取云托管代码上传和下载url_腾讯](./876-48345-云开发-CloudBase-获取云托管代码上传和下载url_腾讯.md)
 - [云开发 CloudBase 创建环境_腾讯云](./876-128592-云开发-CloudBase-创建环境_腾讯云.md)

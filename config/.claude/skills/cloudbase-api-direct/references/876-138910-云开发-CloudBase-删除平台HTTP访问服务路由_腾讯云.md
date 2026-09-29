@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 查询云应用服务版本信息
+## 删除平台HTTP访问服务路由
 
-最近更新时间：2026-09-29 02:57:03
+最近更新时间：2026-09-29 02:58:00
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-查询云应用服务版本信息
+本接口DeleteHTTPServiceRoute用于删除平台版HTTP访问服务域名或者路由。可批量删除多条path路由、删除域名及所有path路由，如果Paths字段为空则删除域名及所有path路由，如果Paths不为空则仅删除path路由。
 
 默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeCloudAppVersion)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DeletePlatformHTTPServiceRoute)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,115 +34,36 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeCloudAppVersion。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DeletePlatformHTTPServiceRoute。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| EnvId | 是 | String | 
-环境ID
+| PlatformId | 是 | String | 
+平台id
 
   
-示例值：lowcode- ******\*\*\*\******* |
-| ServiceName | 是 | String | 
+示例值：pf-t960szfwv1cs |
+| Domain | 是 | String | 
 
-服务名
-
-  
-示例值：html |
-| DeployType | 是 | String | 
-
-部署类型
+域名
 
   
-示例值：static-hosting |
-| VersionName | 否 | String | 
+示例值：_.rgw.******\*\*******_.cn |
+| Paths.N | 否 | Array of String | 
 
-版本名
-
-  
-示例值：html-002 |
-| BuildId | 否 | String | 
-
-构建id
+路径列表。为空则表示删除此域名和所有路由
 
   
-示例值：1212376236544 |
+示例值：\["/"\] |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| BuildType | String | 
-构建类型
-
-  
-示例值：ZIP |
-| BuildId | String | 
-
-构建Id
-
-  
-示例值：2 ****\***** |
-| Status | String | 
-
-构建状态
-
-  
-示例值：FAILED |
-| Framework | String | 
-
-框架
-
-  
-示例值：other |
-| StaticConfig | [StaticConfig](/document/api/876/34822#StaticConfig) | 
-
-静态托管配置信息
-
- |
-| BuildTime | String | 
-
-构建时间
-
-  
-示例值：2026-07-29 15:13:36 |
-| Steps | Array of [BuildStepStatus](/document/api/876/34822#BuildStepStatus) | 
-
-\[\]BuildStepStatus 的 JSON 序列化
-
- |
-| Snapshot | String | 
-
-服务版本快照
-
-  
-示例值：{"Source":\[\]} |
-| TrafficPercent | Integer | 
-
-服务版本流量比例
-
-  
-示例值：0 |
-| VersionDomain | String | 
-
-服务版本域名
-
-  
-示例值：cl _u_ ap _\- ******************************\*\*\*******************************_ |
-| Resources | Array of [CloudAppResourceItem](/document/api/876/34822#CloudAppResourceItem) | 
-
-服务管理资源列表
-
- |
-| Artifacts | Array of [BuildArtifactInfo](/document/api/876/34822#BuildArtifactInfo) | 
-
-\[\]ArtifactInfo 的 JSON 序列化
-
- |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 查询云应用信息
+### 示例1 删除平台域名
 
 #### 输入示例
 
@@ -150,14 +71,15 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 POST / HTTP/1.1
 Host: tcb.tencentcloudapi.com
 Content-Type: application/json
-X-TC-Action: DescribeCloudAppVersion
+X-TC-Action: DeletePlatformHTTPServiceRoute
 <公共请求参数>
 
 {
-    "EnvId": "lowcode-****************",
-    "ServiceName": "html",
-    "DeployType": "static-hosting",
-    "VersionName": "html-002"
+    "PlatformId": "pf-t960szfwv1cs",
+    "Domain": "*.rgw.***************.cn",
+    "Paths": [
+        "/"
+    ]
 }
 ```
 
@@ -166,35 +88,7 @@ X-TC-Action: DescribeCloudAppVersion
 ```json
 {
     "Response": {
-        "BuildId": "2*********",
-        "BuildTime": "2026-07-29 15:13:36",
-        "BuildType": "ZIP",
-        "Framework": "other",
-        "StaticConfig": {
-            "AppPath": "/html",
-            "BuildPath": "",
-            "CodeBranch": "",
-            "CodeRepo": "",
-            "CodeSource": "",
-            "CosSuffix": "zip",
-            "CosTimestamp": "1*********",
-            "Framework": "other",
-            "NodeJsVersion": "18",
-            "StaticCmd": {
-                "BuildCmd": "",
-                "DeployCmd": "tcb hosting deploy ./ /html",
-                "InstallCmd": ""
-            },
-            "StaticEnv": {
-                "Variables": null
-            },
-            "ZipFileUrl": ""
-        },
-        "Status": "FAILED",
-        "Steps": null,
-        "RequestId": "b47866f0-2863-4721-818a-34a6ecd37cf7",
-        "VersionDomain": "cl*u*ap*-****************************************************************",
-        "Snapshot": "{\"Source\":{\"Type\":\"zip\",\"Repo\":\"\",\"Ref\":\"\",\"Commit\":\"\",\"PackageFileName\":\"\"},\"TriggerType\":\"manual\",\"Steps\":[{\"Name\":\"build-image\",\"Command\":\"D=/tmp/ctx-probe; curl -fsSL \\\"$ZIP_FILE_URL\\\" -o /tmp/c.zip \\u0026\\u0026 mkdir -p $D \\u0026\\u0026 unzip -o -q /tmp/c.zip -d $D \\u0026\\u0026 ls -la $D \\u0026\\u0026 tar -C $D -cf - . | docker build --platform linux/amd64 -t \\\"$CLOUDBASE_IMAGE_URL\\\" -\"},{\"Name\":\"push-image\",\"Command\":\"printf '%s' \\\"$CLOUDBASE_TCR_PASSWORD\\\" | docker login -u \\\"$CLOUDBASE_TCR_USERNAME\\\" --password-stdin \\\"$CLOUDBASE_TCR_REGISTRY\\\" \\u0026\\u0026 docker push \\\"$CLOUDBASE_IMAGE_URL\\\"\"}],\"ServiceList\":[],\"Env\":[]}"
+        "RequestId": "f8aec3a6-eae0-4fee-bdd3-0fdbcf7ed168"
     }
 }
 ```
@@ -232,7 +126,5 @@ X-TC-Action: DescribeCloudAppVersion
 
 | 错误码 | 描述 |
 | --- | --- |
-| FailedOperation | 操作失败。 |
-| InternalError | 内部错误。 |
 | InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
-| ResourceNotFound | 资源不存在。 |
+| InvalidParameter.EnvId | 环境ID非法。 |

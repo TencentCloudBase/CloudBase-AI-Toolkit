@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 查询云应用服务版本信息
+## 查询平台HTTP访问服务路由信息
 
-最近更新时间：2026-09-29 02:57:03
+最近更新时间：2026-09-29 02:57:59
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,13 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-查询云应用服务版本信息
+本接口DescribeHTTPServiceRoute用于查询平台版下HTTP访问服务路由信息。可通过Filters过滤。如果不存在不会返回错误。HTTP访问服务提供了默认域名，通过本接口可直接获取默认域名。前置需已开通 HTTP 访问服务；调用CreateHTTPServiceRoute或者ModifyHTTPServiceRoute后可使用本接口查询创建或者修改结果
 
 默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeCloudAppVersion)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribePlatformHTTPServiceRoute)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,115 +34,57 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeCloudAppVersion。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribePlatformHTTPServiceRoute。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| EnvId | 是 | String | 
-环境ID
+| PlatformId | 是 | String | 
+平台id
 
   
-示例值：lowcode- ******\*\*\*\******* |
-| ServiceName | 是 | String | 
+示例值：pf- ****\*\*\*\***** |
+| Filters.N | 否 | Array of [Filter](/document/api/876/34822#Filter) | 
 
-服务名
+过滤条件。Key的含义参考对应字段，Value精确匹配。可过滤: Domain、Path、DomainType、UpstreamResourceType。可过滤的Values单条不超过100
 
-  
-示例值：html |
-| DeployType | 是 | String | 
+ |
+| Offset | 否 | Integer | 
 
-部署类型
-
-  
-示例值：static-hosting |
-| VersionName | 否 | String | 
-
-版本名
+分页偏移量。默认 0
 
   
-示例值：html-002 |
-| BuildId | 否 | String | 
+示例值：0 |
+| Limit | 否 | Integer | 
 
-构建id
+分页限制。默认20，最大值1000
 
   
-示例值：1212376236544 |
+示例值：20 |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| BuildType | String | 
-构建类型
-
-  
-示例值：ZIP |
-| BuildId | String | 
-
-构建Id
-
-  
-示例值：2 ****\***** |
-| Status | String | 
-
-构建状态
-
-  
-示例值：FAILED |
-| Framework | String | 
-
-框架
-
-  
-示例值：other |
-| StaticConfig | [StaticConfig](/document/api/876/34822#StaticConfig) | 
-
-静态托管配置信息
+| Domains | Array of [HTTPServiceDomain](/document/api/876/34822#HTTPServiceDomain) | 
+域名路由信息列表
 
  |
-| BuildTime | String | 
+| OriginDomain | String | 
 
-构建时间
-
-  
-示例值：2026-07-29 15:13:36 |
-| Steps | Array of [BuildStepStatus](/document/api/876/34822#BuildStepStatus) | 
-
-\[\]BuildStepStatus 的 JSON 序列化
-
- |
-| Snapshot | String | 
-
-服务版本快照
+自定义接入的源站域名（HTTPService接入层域名）
 
   
-示例值：{"Source":\[\]} |
-| TrafficPercent | Integer | 
+示例值： ******\*\*\*******.****\***** -expr.tencentcloudbase.com |
+| TotalCount | Integer | 
 
-服务版本流量比例
-
-  
-示例值：0 |
-| VersionDomain | String | 
-
-服务版本域名
+域名总数，分页查询使用总数判断是否已经拉取到所有数据
 
   
-示例值：cl _u_ ap _\- ******************************\*\*\*******************************_ |
-| Resources | Array of [CloudAppResourceItem](/document/api/876/34822#CloudAppResourceItem) | 
-
-服务管理资源列表
-
- |
-| Artifacts | Array of [BuildArtifactInfo](/document/api/876/34822#BuildArtifactInfo) | 
-
-\[\]ArtifactInfo 的 JSON 序列化
-
- |
+示例值：1 |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 查询云应用信息
+### 示例1 平台下域名路由信息
 
 #### 输入示例
 
@@ -150,14 +92,13 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 POST / HTTP/1.1
 Host: tcb.tencentcloudapi.com
 Content-Type: application/json
-X-TC-Action: DescribeCloudAppVersion
+X-TC-Action: DescribePlatformHTTPServiceRoute
 <公共请求参数>
 
 {
-    "EnvId": "lowcode-****************",
-    "ServiceName": "html",
-    "DeployType": "static-hosting",
-    "VersionName": "html-002"
+    "PlatformId": "pf-************",
+    "Offset": 0,
+    "Limit": 20
 }
 ```
 
@@ -166,35 +107,26 @@ X-TC-Action: DescribeCloudAppVersion
 ```json
 {
     "Response": {
-        "BuildId": "2*********",
-        "BuildTime": "2026-07-29 15:13:36",
-        "BuildType": "ZIP",
-        "Framework": "other",
-        "StaticConfig": {
-            "AppPath": "/html",
-            "BuildPath": "",
-            "CodeBranch": "",
-            "CodeRepo": "",
-            "CodeSource": "",
-            "CosSuffix": "zip",
-            "CosTimestamp": "1*********",
-            "Framework": "other",
-            "NodeJsVersion": "18",
-            "StaticCmd": {
-                "BuildCmd": "",
-                "DeployCmd": "tcb hosting deploy ./ /html",
-                "InstallCmd": ""
-            },
-            "StaticEnv": {
-                "Variables": null
-            },
-            "ZipFileUrl": ""
-        },
-        "Status": "FAILED",
-        "Steps": null,
-        "RequestId": "b47866f0-2863-4721-818a-34a6ecd37cf7",
-        "VersionDomain": "cl*u*ap*-****************************************************************",
-        "Snapshot": "{\"Source\":{\"Type\":\"zip\",\"Repo\":\"\",\"Ref\":\"\",\"Commit\":\"\",\"PackageFileName\":\"\"},\"TriggerType\":\"manual\",\"Steps\":[{\"Name\":\"build-image\",\"Command\":\"D=/tmp/ctx-probe; curl -fsSL \\\"$ZIP_FILE_URL\\\" -o /tmp/c.zip \\u0026\\u0026 mkdir -p $D \\u0026\\u0026 unzip -o -q /tmp/c.zip -d $D \\u0026\\u0026 ls -la $D \\u0026\\u0026 tar -C $D -cf - . | docker build --platform linux/amd64 -t \\\"$CLOUDBASE_IMAGE_URL\\\" -\"},{\"Name\":\"push-image\",\"Command\":\"printf '%s' \\\"$CLOUDBASE_TCR_PASSWORD\\\" | docker login -u \\\"$CLOUDBASE_TCR_USERNAME\\\" --password-stdin \\\"$CLOUDBASE_TCR_REGISTRY\\\" \\u0026\\u0026 docker push \\\"$CLOUDBASE_IMAGE_URL\\\"\"}],\"ServiceList\":[],\"Env\":[]}"
+        "Domains": [
+            {
+                "AccessType": "EO",
+                "CertId": "afCtB6as",
+                "Cname": "3usgm1731e24.****************hou.cn.eo.dnse5.com",
+                "CreateTime": "2026-09-09T16:07:24+08:00",
+                "DNSStatus": "INVALID",
+                "Domain": "*.rgw.***************.cn",
+                "DomainType": "HTTPSERVICE",
+                "Enable": true,
+                "IsDefault": false,
+                "PlatformCnameDNSStatus": "INVALID",
+                "Protocol": "HTTP_AND_HTTPS",
+                "Status": "SUCCESS",
+                "UpdateTime": "2026-09-09T16:15:59+08:00"
+            }
+        ],
+        "OriginDomain": "***************.*********-expr.tencentcloudbase.com",
+        "TotalCount": 1,
+        "RequestId": "c989cae9-a075-4deb-8f99-af7189b9c5e0"
     }
 }
 ```
@@ -232,7 +164,9 @@ X-TC-Action: DescribeCloudAppVersion
 
 | 错误码 | 描述 |
 | --- | --- |
-| FailedOperation | 操作失败。 |
+| FailedOperation.ThirdServiceError | 请求第三方服务，第三方服务返回报错信息 |
 | InternalError | 内部错误。 |
+| InternalError.Database | 数据库错误。 |
+| InternalError.Timeout | 服务超时。 |
 | InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
-| ResourceNotFound | 资源不存在。 |
+| InvalidParameter.EnvId | 环境ID非法。 |

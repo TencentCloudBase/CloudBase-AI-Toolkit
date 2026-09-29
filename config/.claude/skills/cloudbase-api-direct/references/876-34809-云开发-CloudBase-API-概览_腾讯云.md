@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-09-23 03:34:38
+最近更新时间：2026-09-29 02:58:02
 
 -   微信扫一扫 
 -   QQ
@@ -99,6 +99,11 @@ _我的收藏_
 | [ModifyHTTPServiceRoute](/document/api/876/129797) | 修改HTTP访问服务路由 | 20 |
 | [DescribeHTTPServiceCachePurgeTask](/document/api/876/137742) | 查询HTTP访问服务缓存清除任务 | 20 |
 | [PurgeHTTPServiceCache](/document/api/876/137741) | 清除HTTP服务域名缓存 | 20 |
+| [CreatePlatformHTTPServiceRoute](/document/api/876/138911) | 创建平台HTTP访问服务路由 | 20 |
+| [VerifyPlatformHTTPServiceRoute](/document/api/876/138907) | 校验平台HTTP访问服务路由 | 20 |
+| [DeletePlatformHTTPServiceRoute](/document/api/876/138910) | 删除平台HTTP访问服务路由 | 20 |
+| [DescribePlatformHTTPServiceRoute](/document/api/876/138909) | 查询平台HTTP访问服务路由信息 | 20 |
+| [ModifyPlatformHTTPServiceRoute](/document/api/876/138908) | 修改平台HTTP访问服务路由 | 20 |
 
 ## 云托管相关接口
 

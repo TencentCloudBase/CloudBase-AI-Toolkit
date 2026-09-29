@@ -1,8 +1,8 @@
 [API 中心](/document/api)
 
-## 查询云应用服务版本信息
+## 校验平台HTTP访问服务路由
 
-最近更新时间：2026-09-29 02:57:03
+最近更新时间：2026-09-29 02:57:58
 
 -   微信扫一扫 
 -   QQ
@@ -18,13 +18,30 @@ _我的收藏_
 
 接口请求域名： tcb.tencentcloudapi.com 。
 
-查询云应用服务版本信息
+本接口VerifyPlatformHTTPServiceRoute用于前置校验平台版HTTP访问服务域名或者路由。覆盖的校验项包括：
+
+1.  Ownership：域名所有权（TXT/CNAME 记录）；
+2.  Cert：证书与域名匹配（CertId 为空时跳过）；
+3.  Quota：环境下域名/路径数量配额；
+4.  RouteConflict：同域名下路由路径冲突；
+5.  DomainConflict：域名被其他环境占用；
+6.  InternalAccount：内部域名且非内部账号；
+7.  Blacklist：域名黑名单；
+8.  CDNResource：AccessType=CDN 时 CDN 资源存在性 / 状态（含 ICP 未备案提示）；
+9.  EO：AccessType=EO 时 EdgeOne 侧域名冲突 / 备案 / 归属权预检。
+
+使用方式：
+
+-   调用本接口前置校验，若 Passed=true 表示所有启用检查项均通过，可继续调用 CreateHTTPServiceRoute 正式创建；
+-   若 Passed=false，前端应根据各 CheckItem 的 Code 精确渲染对应的错误提示与用户操作指引（如 DNS 归属权配置、ICP 备案指引等），用户修正参数后可重复调用本接口，直到通过后再进行创建。
+
+注意：本接口为只读 dry-run 操作，不落库、不创建任何资源，仅返回各项检查的详细结果。本接口通过不代表 CreateHTTPServiceRoute 必然成功（例如证书运行时状态、并发抢占等仍需创建时最终判定），但本接口不通过则 CreateHTTPServiceRoute 必然不通过。
 
 默认接口请求频率限制：20次/秒。
 
 推荐使用 API Explorer
 
-[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=DescribeCloudAppVersion)
+[点击调试](https://console.cloud.tencent.com/api/explorer?Product=tcb&Version=2018-06-08&Action=VerifyPlatformHTTPServiceRoute)
 
 API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检索接口等能力。您可查看每次调用的请求内容和返回结果以及自动生成 SDK 调用示例。
 
@@ -34,115 +51,79 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 
 | 参数名称 | 必选 | 类型 | 描述 |
 | --- | --- | --- | --- |
-| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：DescribeCloudAppVersion。 |
+| Action | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：VerifyPlatformHTTPServiceRoute。 |
 | Version | 是 | String | [公共参数](/document/api/876/34812) ，本接口取值：2018-06-08。 |
 | Region | 否 | String | [公共参数](/document/api/876/34812) ，本接口不需要传递此参数。 |
-| EnvId | 是 | String | 
-环境ID
+| PlatformId | 是 | String | 
+平台id
 
   
-示例值：lowcode- ******\*\*\*\******* |
-| ServiceName | 是 | String | 
+示例值：pf-t960szfwv1cs |
+| Domain | 是 | [HTTPServiceDomainParam](/document/api/876/34822#HTTPServiceDomainParam) | 
 
-服务名
+域名路由信息
 
-  
-示例值：html |
-| DeployType | 是 | String | 
-
-部署类型
-
-  
-示例值：static-hosting |
-| VersionName | 否 | String | 
-
-版本名
-
-  
-示例值：html-002 |
-| BuildId | 否 | String | 
-
-构建id
-
-  
-示例值：1212376236544 |
+ |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| BuildType | String | 
-构建类型
+| Passed | Boolean | 
+前置校验总开关。所有启用的检查项均为 PASS 或 SKIPPED 时为 true，任一检查项为 FAIL 时为 false。当为 false 时，前端应根据各 CheckItem 的 Code 精确渲染错误提示和操作指引；当为 true 时可继续调用 CreateHTTPServiceRoute 完成创建。 示例值：false
 
   
-示例值：ZIP |
-| BuildId | String | 
+示例值：true |
+| Ownership | [VerifyHTTPServiceRouteCheckItem](/document/api/876/34822#VerifyHTTPServiceRouteCheckItem) | 
 
-构建Id
-
-  
-示例值：2 ****\***** |
-| Status | String | 
-
-构建状态
-
-  
-示例值：FAILED |
-| Framework | String | 
-
-框架
-
-  
-示例值：other |
-| StaticConfig | [StaticConfig](/document/api/876/34822#StaticConfig) | 
-
-静态托管配置信息
+域名归属权校验结果
 
  |
-| BuildTime | String | 
+| Cert | [VerifyHTTPServiceRouteCheckItem](/document/api/876/34822#VerifyHTTPServiceRouteCheckItem) | 
 
-构建时间
-
-  
-示例值：2026-07-29 15:13:36 |
-| Steps | Array of [BuildStepStatus](/document/api/876/34822#BuildStepStatus) | 
-
-\[\]BuildStepStatus 的 JSON 序列化
+证书校验结果；CertId 为空时 Status=SKIPPED
 
  |
-| Snapshot | String | 
+| Quota | [VerifyHTTPServiceRouteCheckItem](/document/api/876/34822#VerifyHTTPServiceRouteCheckItem) | 
 
-服务版本快照
-
-  
-示例值：{"Source":\[\]} |
-| TrafficPercent | Integer | 
-
-服务版本流量比例
-
-  
-示例值：0 |
-| VersionDomain | String | 
-
-服务版本域名
-
-  
-示例值：cl _u_ ap _\- ******************************\*\*\*******************************_ |
-| Resources | Array of [CloudAppResourceItem](/document/api/876/34822#CloudAppResourceItem) | 
-
-服务管理资源列表
+域名/路径数量配额校验结果
 
  |
-| Artifacts | Array of [BuildArtifactInfo](/document/api/876/34822#BuildArtifactInfo) | 
+| RouteConflict | [VerifyHTTPServiceRouteCheckItem](/document/api/876/34822#VerifyHTTPServiceRouteCheckItem) | 
 
-\[\]ArtifactInfo 的 JSON 序列化
+同域名下路由路径冲突校验结果
+
+ |
+| DomainConflict | [VerifyHTTPServiceRouteCheckItem](/document/api/876/34822#VerifyHTTPServiceRouteCheckItem) | 
+
+域名被其他环境占用校验结果
+
+ |
+| InternalAccount | [VerifyHTTPServiceRouteCheckItem](/document/api/876/34822#VerifyHTTPServiceRouteCheckItem) | 
+
+内部域名且非内部账号校验结果
+
+ |
+| Blacklist | [VerifyHTTPServiceRouteCheckItem](/document/api/876/34822#VerifyHTTPServiceRouteCheckItem) | 
+
+域名黑名单校验结果
+
+ |
+| CDNResource | [VerifyHTTPServiceRouteCheckItem](/document/api/876/34822#VerifyHTTPServiceRouteCheckItem) | 
+
+AccessType=CDN 时 CDN 资源存在性 / 状态校验结果（含 ICP 未备案的提示）
+
+ |
+| EO | [VerifyHTTPServiceRouteCheckItem](/document/api/876/34822#VerifyHTTPServiceRouteCheckItem) | 
+
+AccessType=EO 时的 EdgeOne 预检结果（域名冲突/备案/归属权）
 
  |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
 ## 4\. 示例
 
-### 示例1 查询云应用信息
+### 示例1 校验域名
 
 #### 输入示例
 
@@ -150,14 +131,14 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 POST / HTTP/1.1
 Host: tcb.tencentcloudapi.com
 Content-Type: application/json
-X-TC-Action: DescribeCloudAppVersion
+X-TC-Action: VerifyPlatformHTTPServiceRoute
 <公共请求参数>
 
 {
-    "EnvId": "lowcode-****************",
-    "ServiceName": "html",
-    "DeployType": "static-hosting",
-    "VersionName": "html-002"
+    "PlatformId": "pf-t960szfwv1cs",
+    "Domain": {
+        "Domain": "*.rgw.***************.cn"
+    }
 }
 ```
 
@@ -166,35 +147,44 @@ X-TC-Action: DescribeCloudAppVersion
 ```json
 {
     "Response": {
-        "BuildId": "2*********",
-        "BuildTime": "2026-07-29 15:13:36",
-        "BuildType": "ZIP",
-        "Framework": "other",
-        "StaticConfig": {
-            "AppPath": "/html",
-            "BuildPath": "",
-            "CodeBranch": "",
-            "CodeRepo": "",
-            "CodeSource": "",
-            "CosSuffix": "zip",
-            "CosTimestamp": "1*********",
-            "Framework": "other",
-            "NodeJsVersion": "18",
-            "StaticCmd": {
-                "BuildCmd": "",
-                "DeployCmd": "tcb hosting deploy ./ /html",
-                "InstallCmd": ""
-            },
-            "StaticEnv": {
-                "Variables": null
-            },
-            "ZipFileUrl": ""
+        "Blacklist": {
+            "Message": "not in blacklist",
+            "Status": "PASS"
         },
-        "Status": "FAILED",
-        "Steps": null,
-        "RequestId": "b47866f0-2863-4721-818a-34a6ecd37cf7",
-        "VersionDomain": "cl*u*ap*-****************************************************************",
-        "Snapshot": "{\"Source\":{\"Type\":\"zip\",\"Repo\":\"\",\"Ref\":\"\",\"Commit\":\"\",\"PackageFileName\":\"\"},\"TriggerType\":\"manual\",\"Steps\":[{\"Name\":\"build-image\",\"Command\":\"D=/tmp/ctx-probe; curl -fsSL \\\"$ZIP_FILE_URL\\\" -o /tmp/c.zip \\u0026\\u0026 mkdir -p $D \\u0026\\u0026 unzip -o -q /tmp/c.zip -d $D \\u0026\\u0026 ls -la $D \\u0026\\u0026 tar -C $D -cf - . | docker build --platform linux/amd64 -t \\\"$CLOUDBASE_IMAGE_URL\\\" -\"},{\"Name\":\"push-image\",\"Command\":\"printf '%s' \\\"$CLOUDBASE_TCR_PASSWORD\\\" | docker login -u \\\"$CLOUDBASE_TCR_USERNAME\\\" --password-stdin \\\"$CLOUDBASE_TCR_REGISTRY\\\" \\u0026\\u0026 docker push \\\"$CLOUDBASE_IMAGE_URL\\\"\"}],\"ServiceList\":[],\"Env\":[]}"
+        "CDNResource": {
+            "Message": "access type is not CDN, cdn resource check skipped",
+            "Status": "SKIPPED"
+        },
+        "Cert": {
+            "Message": "CertId is empty, cert verify skipped",
+            "Status": "SKIPPED"
+        },
+        "DomainConflict": {
+            "Message": "no domain conflict",
+            "Status": "PASS"
+        },
+        "EO": {
+            "Message": "access type is not EO, EO check skipped",
+            "Status": "SKIPPED"
+        },
+        "InternalAccount": {
+            "Message": "not an internal domain, skipped",
+            "Status": "SKIPPED"
+        },
+        "Ownership": {
+            "Message": "domain ownership verified",
+            "Status": "PASS"
+        },
+        "Passed": true,
+        "Quota": {
+            "Message": "quota check passed",
+            "Status": "PASS"
+        },
+        "RouteConflict": {
+            "Message": "no routes provided, route conflict check skipped",
+            "Status": "SKIPPED"
+        },
+        "RequestId": "0de3dab3-6917-4a6b-a243-432aa4cd8ed3"
     }
 }
 ```
@@ -232,7 +222,4 @@ X-TC-Action: DescribeCloudAppVersion
 
 | 错误码 | 描述 |
 | --- | --- |
-| FailedOperation | 操作失败。 |
-| InternalError | 内部错误。 |
 | InvalidParameter | 参数格式或类型错误，如 Uin、EnvId、Domain 缺失或非法。 |
-| ResourceNotFound | 资源不存在。 |
