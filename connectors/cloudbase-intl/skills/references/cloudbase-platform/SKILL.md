@@ -359,7 +359,7 @@ See also: CLI equivalent commands in `cloudbase-cli/references/permission.md`
 
 ## Console Management
 
-After creating/deploying resources, provide corresponding console links. All console URLs follow the pattern: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/{path}` — replace `${envId}` with the real EnvId resolved via `queryEnv` (resolve aliases first; see Environment and Authentication below), and resource names with actual values.
+After creating/deploying resources, provide corresponding console links. All console URLs follow the pattern: `https://tcb.tencentcloud.com/dev?envId=${envId}#/{path}` — replace `${envId}` with the real EnvId resolved via `queryEnv` (resolve aliases first; see Environment and Authentication below), and resource names with actual values.
 
 The CloudBase console is updated frequently. If a live, logged-in console shows a different hash path from this list, prefer the live console path over stale documentation and then update this skill to match.
 
