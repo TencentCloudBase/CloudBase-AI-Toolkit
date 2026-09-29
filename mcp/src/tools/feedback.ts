@@ -5,11 +5,10 @@ import { jsonContent } from "../utils/json-content.js";
 import { resolveSiteAndRegion, type SiteId } from "../utils/site-map.js";
 
 /**
- * Public tool name is intentionally blank.
- * Feedback is not a CloudBase resource, so it does not join the query* / manage*
- * pair. registerFeedbackTools does nothing until this is set to a confirmed name.
+ * Not a CloudBase resource, so this does not use the query* / manage* pair.
+ * The feedback plugin is in the default set and always registers this tool.
  */
-export const FEEDBACK_TOOL_NAME: string = "";
+export const FEEDBACK_TOOL_NAME = "prepareFeedback";
 
 const CASE_TEMPLATE_FILE = "1-case-showcase.yml";
 const RETROSPECTIVE_TEMPLATE_FILE = "2-dev-retrospective.yml";
@@ -448,10 +447,6 @@ export function buildFeedbackPayload(input: {
 }
 
 export function registerFeedbackTools(server: ExtendedMcpServer): void {
-  if (!FEEDBACK_TOOL_NAME) {
-    return;
-  }
-
   server.registerTool(
     FEEDBACK_TOOL_NAME,
     {

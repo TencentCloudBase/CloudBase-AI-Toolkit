@@ -474,7 +474,7 @@ TCB_AUTH_OAUTH_ENDPOINT=https://auth.your-domain.com/oauth
 | `agents` | 是 | Agent 查询与管理 |
 | `apps` | 是 | CloudApp 应用与版本管理 |
 | `capi` | 是 | 通用云 API 调用 |
-| `feedback` | 是 | 记录本次会话的工具调用结果，供生成案例或复盘草稿。本变更不新增客户端可见工具 |
+| `feedback` | 是 | 默认注册 `prepareFeedback`，生成案例或开发复盘草稿，确认后给出提交链接，不代为提交 |
 | `database-nosql` | 否 | 仅 NoSQL 数据库（`database` 的子集） |
 | `database-sql` | 否 | 仅 SQL 数据库（`mysql_database` 的子集） |
 | `data-model` | 否 | 仅数据模型（`database` 的子集） |

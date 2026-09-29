@@ -65,11 +65,15 @@ describe("feedback drafts", () => {
     }
   });
 
-  it("does not register a tool until the public name is set", () => {
+  it("registers prepareFeedback when the feedback plugin loads", () => {
     const registerTool = vi.fn();
     registerFeedbackTools({ registerTool } as any);
-    expect(FEEDBACK_TOOL_NAME).toBe("");
-    expect(registerTool).not.toHaveBeenCalled();
+    expect(FEEDBACK_TOOL_NAME).toBe("prepareFeedback");
+    expect(registerTool).toHaveBeenCalledWith(
+      "prepareFeedback",
+      expect.objectContaining({ title: "feedback.title" }),
+      expect.any(Function),
+    );
   });
 
   it("returns a draft only before the user confirms", () => {
