@@ -1,15 +1,15 @@
-import { installBundledSkills, listInstalledSkills } from "./skill-sync.js";
+import { bundledSkillNames, installBundledSkills } from "./skill-sync.js";
 
 const command = process.argv[2] ?? "help";
 
 if (command === "sync" || command === "install") {
   const target = installBundledSkills();
-  const names = listInstalledSkills(target);
+  const names = bundledSkillNames();
   process.stdout.write(`Installed CloudBase skills → ${target}\n${names.join("\n")}\n`);
 } else {
   process.stdout.write(
     [
-      "cloudbase-skills — install CloudBase skills into ~/.dsh/skills/cloudbase/",
+      "cloudbase-skills — install CloudBase skills into ~/.dsh/skills/",
       "",
       "Usage:",
       "  cloudbase-skills sync",
