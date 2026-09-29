@@ -13,10 +13,10 @@ export const FEEDBACK_TOOL_NAME = "prepareFeedback";
 const CASE_TEMPLATE_FILE = "1-case-showcase.yml";
 const RETROSPECTIVE_TEMPLATE_FILE = "2-dev-retrospective.yml";
 
-/** Fixed new-issue pages. Intl uses GitHub. Domestic uses the CNB community. */
+/** Fixed new-issue pages. Intl uses GitHub. Domestic uses the CNB CloudBase-AI-ToolKit repo. */
 export const FEEDBACK_ISSUE_NEW_URL: Record<SiteId, string> = {
   intl: "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues/new",
-  domestic: "https://cnb.cool/tencent/cloud/cloudbase/community/-/issues/new",
+  domestic: "https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-ToolKit/-/issues/new",
 };
 
 const RESOURCE_BY_TOOL: Record<string, { zh: string; en: string }> = {

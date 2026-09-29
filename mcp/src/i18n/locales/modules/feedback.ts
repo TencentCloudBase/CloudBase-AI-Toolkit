@@ -13,7 +13,7 @@ export const feedback = defineModule(
       "\n- 第一次不要传 `confirmed`。先把返回的草稿全文给用户看。" +
       "\n- 用户明确同意后，再以 `confirmed=true` 调用。这时才会返回可打开的链接。" +
       "\n- 本工具不会替用户提交。取不到的内容会留空，不要编造作品名、简介、公网地址或对话轮次。" +
-      "\n- 国际站链接指向 GitHub，正文为英文；国内站链接指向云开发社区，正文为中文。",
+      "\n- 国际站链接指向 GitHub，正文为英文；国内站链接指向 CNB 上的 CloudBase-AI-ToolKit 仓库，正文为中文。",
     "schema.channel":
       "反馈用途：`case` 是把已完成的作品整理成案例；`retrospective` 是把这次不顺利的开发整理成复盘。",
     "schema.confirmed":
@@ -31,7 +31,7 @@ export const feedback = defineModule(
       "\n- Do not pass `confirmed` on the first call. Show the returned draft to the user in full." +
       "\n- Call again with `confirmed=true` only after the user explicitly agrees. That call returns the link." +
       "\n- This tool does not submit the issue. Fields it cannot verify are left blank. Do not invent a title, summary, public URL, or conversation turn count." +
-      "\n- International site: English draft and a GitHub link. China site: Chinese draft and a CloudBase community link.",
+      "\n- International site: English draft and a GitHub link. China site: Chinese draft and a link to the CloudBase-AI-ToolKit repo on CNB.",
     "schema.channel":
       "What the feedback is for: `case` turns a finished work into a showcase entry; `retrospective` turns a difficult session into a write-up.",
     "schema.confirmed":

@@ -298,7 +298,7 @@ describe("feedback drafts", () => {
     expect(payload.url).not.toContain("template=");
   });
 
-  it("keeps the domestic prefill query on the community issue page", () => {
+  it("keeps the domestic prefill query on the CloudBase-AI-ToolKit issue page", () => {
     const url = buildFeedbackIssueUrl("domestic", "case", "作品名称：留空");
     expect(url.startsWith(`${FEEDBACK_ISSUE_NEW_URL.domestic}?`)).toBe(true);
     expect(url).toContain("template=1-case-showcase.yml");
