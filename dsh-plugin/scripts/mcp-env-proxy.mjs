@@ -96,7 +96,19 @@ function parseFrames(buffer) {
   let rest = buffer;
   while (rest.length > 0) {
     const headerEnd = rest.indexOf("\r\n\r\n");
-    if (headerEnd === -1) break;
+    if (headerEnd === -1) {
+      const nl = rest.indexOf(0x0a);
+      if (nl === -1) break;
+      const line = rest.subarray(0, nl).toString("utf8").trim();
+      rest = rest.subarray(nl + 1);
+      if (!line) continue;
+      try {
+        messages.push(JSON.parse(line));
+      } catch {
+        break;
+      }
+      continue;
+    }
     const header = rest.subarray(0, headerEnd).toString("utf8");
     const match = /Content-Length:\s*(\d+)/i.exec(header);
     if (!match) {
