@@ -225,6 +225,8 @@ export const env = defineModule(
     "auth.invalidSite": "site 取值无效：{site}。可选值：domestic（国内站）、intl（国际站）。",
     "auth.devicePending":
       "设备码授权进行中，请完成浏览器授权后再次调用 auth(action=\"status\")",
+    "auth.deviceFailed":
+      "上一次授权失败：{error}。请重新执行 auth(action=\"start_auth\")；若反复失败，请检查 API Key/站点配置或网络。",
     "auth.notLoggedInCodeBuddy":
       "当前未登录。CodeBuddy 暂不支持在 tool 内发起认证，请在外部完成认证后再次调用 auth(action=\"status\")。",
     "auth.notLoggedIn": "当前未登录，请先执行 auth(action=\"start_auth\")",
@@ -588,6 +590,8 @@ export const env = defineModule(
       "Invalid site value: {site}. Allowed values: domestic (China site), intl (international site).",
     "auth.devicePending":
       "Device-code authorization in progress. Complete the browser authorization, then call auth(action=\"status\") again",
+    "auth.deviceFailed":
+      "The last authorization failed: {error}. Call auth(action=\"start_auth\") to retry; if it keeps failing, check the API Key/site configuration or the network.",
     "auth.notLoggedInCodeBuddy":
       "Not logged in. CodeBuddy does not yet support in-tool authentication; complete authentication externally, then call auth(action=\"status\") again.",
     "auth.notLoggedIn": "Not logged in. Call auth(action=\"start_auth\") first",
