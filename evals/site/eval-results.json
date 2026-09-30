@@ -1,3 +1,12 @@
 {
-  "models": []
+  "models": [
+    {
+      "model": "hy4-preview",
+      "tool": "CodeBuddy Code",
+      "successRate": "100%",
+      "sampleSize": "45",
+      "cost": "146036201 in / 2363991 out tokens",
+      "docsSkill": "no"
+    }
+  ]
 }
