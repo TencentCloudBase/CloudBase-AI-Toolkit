@@ -6,7 +6,7 @@
 >
 > `@cloudbase/dsh-plugin` 把 CloudBase 后端搬进 DSH：
 >
-> - **数据库**：文档库、MySQL、PostgreSQL，对话里建表和查询
+> - **数据库**：文档库和 PostgreSQL，对话里建表和查询
 > - **存储与认证**：上传文件，配置登录
 > - **前后端部署**：前端托管和后端部署，拿到可访问地址
 >
