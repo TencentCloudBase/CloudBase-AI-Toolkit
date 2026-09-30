@@ -51,10 +51,11 @@ When users request deployment to CloudBase:
 
 ## 5. Post-deployment: Deployment Share (optional, non-intrusive)
 
-After the deployment is verified successful (URL reachable, or mini program published), you may — **at most once** — offer to generate anonymized shareables (a visual card + paste-ready share copy). Rules:
+After the deployment is verified successful (URL reachable, or mini program published), you may — **at most once** — offer to generate anonymized shareables (a visual card + paste-ready share copy) and, in that same offer, optionally submit the work to the case wall. Rules:
 
-- If the user declines or ignores, stop immediately; never follow up in the same session.
+- If the user declines or ignores, stop immediately; never follow up in the same session, and do not ask about the case wall later.
 - Generate shareables only after the user explicitly agrees; publishing is always a manual user action — never post on the user's behalf.
+- The case-wall step is not a second prompt. Show the full draft and wait for confirmation before a link or a paste step. Never submit on the user's behalf. If the user only wants the shareables, stop after delivering them.
 - Required info: agent/CLI used, project type, CloudBase resources, deploy duration (cloud build vs end-to-end), at least one piece of real process evidence, a reproduction path complete down to connector / account authorization prerequisite steps (plus https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/), and 1–2 key pitfalls resolved (optional but strongly recommended).
 - Anonymization red lines: environment ID, secrets, credentials, private source code, user data, internal domains. Public URL only if the user confirms it is meant to be public.
 

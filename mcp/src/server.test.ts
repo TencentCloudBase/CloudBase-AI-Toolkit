@@ -21,6 +21,7 @@ const {
   mockRegisterAgentTools,
   mockRegisterAppTools,
   mockRegisterMsgPushTools,
+  mockRegisterFeedbackTools,
   mockResolveSiteAndRegion,
 } = vi.hoisted(() => ({
   mockRegisterEnvTools: vi.fn(),
@@ -43,6 +44,7 @@ const {
   mockRegisterAgentTools: vi.fn(),
   mockRegisterAppTools: vi.fn(),
   mockRegisterMsgPushTools: vi.fn(),
+  mockRegisterFeedbackTools: vi.fn(),
   mockResolveSiteAndRegion: vi.fn(() => ({ site: "domestic", region: "ap-shanghai" })),
 }));
 
@@ -66,6 +68,7 @@ vi.mock("./tools/logs.js", () => ({ registerLogTools: mockRegisterLogTools }));
 vi.mock("./tools/agents.js", () => ({ registerAgentTools: mockRegisterAgentTools }));
 vi.mock("./tools/apps.js", () => ({ registerAppTools: mockRegisterAppTools }));
 vi.mock("./tools/msg-push.js", () => ({ registerMsgPushTools: mockRegisterMsgPushTools }));
+vi.mock("./tools/feedback.js", () => ({ registerFeedbackTools: mockRegisterFeedbackTools }));
 vi.mock("./utils/tool-wrapper.js", () => ({
   wrapServerWithTelemetry: vi.fn(),
   applyCategoryAnnotationMeta: (config: unknown) => config,
@@ -109,6 +112,7 @@ describe("server plugin registration", () => {
     expect(mockRegisterPgDatabaseTools).toHaveBeenCalledTimes(1);
     expect(mockRegisterPgStorageTools).toHaveBeenCalledTimes(1);
     expect(mockRegisterSqlDatabaseTools).toHaveBeenCalledTimes(1);
+    expect(mockRegisterFeedbackTools).toHaveBeenCalledTimes(1);
   });
 
   it("should allow MySQL tools to be explicitly enabled with PG plugins", async () => {

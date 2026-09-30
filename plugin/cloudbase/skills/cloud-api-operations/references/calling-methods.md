@@ -94,33 +94,46 @@ TCB 服务角色族挂的是 TCB 自己声明的策略集（`QcloudAccessForTCBR
 
 自己在哪一行，用 `auth(action="status")` 看 `credential_scope`：`account` = 账号级登录，`single_env` = 环境级 API Key。
 
-**角色挂载的策略会随产品迭代变化**，别照着文档里的旧结论判断。要确认当前覆盖范围，直接读（cam service 已放行）：
+**角色挂载的策略会随产品迭代变化**，别照着文档里的旧结论判断。确认当前覆盖范围要现场读，但**读 cam 需要调用身份自己就有 cam 策略**：
 
 1. `ListAttachedRolePolicies`：看角色挂了哪些策略
 2. `GetPolicy(PolicyId=…)`：读该策略的 `PolicyDocument`，逐条看 `action` 数组里有没有你要的 Action
+
+实测边界（2026-09-24，账号级 device 登录）：`cam/GetRole`、`cam/ListAttachedRolePolicies`、`cam/ListPolicies` **三个都返回 `UnauthorizedOperation`**（`qcs::cam:::role/<roleId> has no permission`、`resource (*) has no permission`）。原因是调用者拿的正是 `TCB_QcsRole` 换来的临时密钥，而该角色自己没有 cam 读权限 —— 于是「想查清楚缺什么权限」这件事本身就要先有权限。所以**不要指望现场读出角色载体**，§3.2 的 `principal` 用固定值；真要读 cam，让用户换一个有 `QcloudCamReadOnlyAccess` 的身份。
+
+**确认「我到底是谁」用 `sts/GetCallerIdentity`，不依赖 cam**：返回 `Type`（`CAMRole` / `Account`）、`Arn`、`UserId`；以 `TCB_QcsRole` 调用时 `UserId` 形如 `<ownerUin>:TCB_QcsRole-<uin>-<timestamp>`。哪一行身份由此判定，比 `credential_scope` 更准 —— `credential_scope: account` 只说明「不是环境级 API Key」，实际落地仍可能是角色扮演身份。
 
 临时密钥用于代码侧调用：`auth(action="get_temp_credentials", confirm="yes", reveal=true)` 返回明文 STS 三元组，直接喂官方 SDK / TC3 手工签名，即 §2 代码管控路径。
 
 ### 3.2 一键授权链接（交给用户点一下）
 
+调不通、且身份落在上表「服务角色」那一行时，直接给用户一条链接，比让他自己去 CAM 里找入口快得多 —— 控制台自己就是这么做的：捕获到 `AuthFailure.UnauthorizedOperation` 且 message 含 `Check your CAM policies` 后弹「CAM 授权提示」，点「前往 CAM 授权」跳的就是这个页面。
+
 ```
-https://console.cloud.tencent.com/cam/role/grant?roleName=<角色名>&policyName=<预设策略名>&principal=<URL 编码后的 base64>
+https://console.cloud.tencent.com/cam/role/grant?roleName=<角色名>&policyName=<策略名>&principal=<URL 编码后的 base64>&serviceType=<展示用>&s_url=<授权后回跳地址>
 ```
 
-`principal` 是角色载体的 base64：`base64('{"service":"<角色载体>"}')`，末位 `=` 写成 `%3D`。
-
-| 角色 | 角色载体 | `principal` 参数值 |
+| 参数 | 必填 | 说明 |
 | --- | --- | --- |
-| `TCB_QcsRole` | `tcb.cloud.tencent.com` | `eyJzZXJ2aWNlIjoidGNiLmNsb3VkLnRlbmNlbnQuY29tIn0%3D` |
-| `SCF_QcsRole` | `scf.qcloud.com` | `eyJzZXJ2aWNlIjoic2NmLnFjbG91ZC5jb20ifQ%3D%3D` |
+| `roleName` | 是 | 要补策略的角色，如 `TCB_QcsRole` |
+| `policyName` | 是 | 预设策略名。**可以逗号连接多个**（`A,B,C`），一条链接一次挂多个 —— 控制台建角色时就是把 5 个策略拼成一条 |
+| `principal` | 是 | 角色载体的 base64，见下表 |
+| `serviceType` / `s_url` / `roleDesc` | 否 | 页面展示与授权后回跳；`s_url` 给用户当前页面地址即可 |
 
-不要硬编码角色名和载体 —— 两个都能现场读出来（cam service 已放行）：
+`principal` = `URLEncode(base64('{"service":["<角色载体>"]}'))`，末位 `=` 写成 `%3D`。注意 **`service` 是数组**（与角色信任策略里 `statement[].principal.service[]` 同构），不是字符串。下面这些值取自 CloudBase 控制台的实现（建角色走 `src/constants/cam/role.ts`，告警场景追加策略走 `cam-aurh-request.ts`），照抄即可：
 
-1. `callCloudApi(service="cam", version="2019-01-16", action="GetRole", params={ "RoleName": "TCB_QcsRole" })`
-2. `RoleInfo.PolicyDocument` 是该角色的**信任策略** JSON，`statement[].principal.service[]` 就是角色载体（`PolicyDocument` 是字符串，需再解析一层）
-3. `RoleInfo.RoleId` 用于拼角色详情页 `https://console.cloud.tencent.com/cam/role/detail?roleId=<RoleId>` —— 挂**自定义**策略时走这个页面
+| 用途 | `principal` 参数值 | 解出来是什么 |
+| --- | --- | --- |
+| `TCB_QcsRole` 追加式（单载体） | `eyJzZXJ2aWNlIjpbInRjYi5jbG91ZC50ZW5jZW50LmNvbSJdfQ%3D%3D` | `{"service":["tcb.cloud.tencent.com"]}` |
+| `TCB_QcsRole` 建角色式（三载体全量） | `eyJzZXJ2aWNlIjpbInNjZi5xY2xvdWQuY29tIiwidGNiLmNsb3VkLnRlbmNlbnQuY29tIiwiY3ZtLnFjbG91ZC5jb20iXX0%3D` | `{"service":["scf.qcloud.com","tcb.cloud.tencent.com","cvm.qcloud.com"]}` |
+| `SCF_QcsRole` 追加式 | `eyJzZXJ2aWNlIjpbInNjZi5xY2xvdWQuY29tIl19` | `{"service":["scf.qcloud.com"]}` |
 
-一条链接挂一个策略；需要多个策略就分别给几条链接。链接是**一次性操作**，授权完成后重试原调用即可。
+链接是**一次性操作**：用户点完授权，重试原调用即可。
+
+两条使用边界，写进给用户的说明里：
+
+- **点链接的人得有权授**。授权页要主账号或具备 CAM 写权限的身份登录；子账号点开同样授不了 —— 别把这条链接当万能兜底。
+- **给服务角色加策略 = 扩大这个角色的权限面**，不只是「让这一次调用通过」。拿到该角色临时密钥的任何调用方都会带上这份新权限。跨产品策略尽量先选**只读**版本（如 `QcloudDNSPodReadOnlyAccess`），确需写再升级；涉及消费的操作（买域名、买资源）不要给角色授权，让用户自己在控制台做。
 
 ### 3.3 策略名怎么选
 

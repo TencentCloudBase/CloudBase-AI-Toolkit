@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   applyRepeatGuardToPayload,
+  getRepeatGuardSnapshot,
   resetRepeatGuard,
   REPEAT_GUARD_THRESHOLD,
   __resetRepeatGuardForTests,
@@ -86,6 +87,16 @@ describe("repeat-error-guard", () => {
   it("should pass through non-object payloads untouched", () => {
     const passthrough = applyRepeatGuardToPayload(null as any);
     expect(passthrough).toBeNull();
+  });
+
+  it("getter returns the live streak and not the error text", () => {
+    applyRepeatGuardToPayload(buildEnvRequiredPayload());
+    applyRepeatGuardToPayload(buildEnvRequiredPayload());
+    expect(getRepeatGuardSnapshot()).toEqual({ consecutiveCount: 2 });
+
+    resetRepeatGuard();
+    expect(getRepeatGuardSnapshot()).toEqual({ consecutiveCount: 0 });
+    expect(JSON.stringify(getRepeatGuardSnapshot())).not.toContain("尚未绑定环境");
   });
 
   it("resetRepeatGuard should clear the streak", () => {

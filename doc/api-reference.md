@@ -2,7 +2,7 @@
 
 > - 数据源：[API 概览](https://cloud.tencent.com/document/api/876/34809) · [依赖产品接口指引](https://cloud.tencent.com/document/api/876/34808)
 > - 所有接口均为腾讯云 API 3.0 管控面接口，支持各语言官方 SDK 调用；也可通过 CloudBase MCP 的 `callCloudApi` 工具或 [API Explorer](https://console.cloud.tencent.com/api/explorer) 直接调用
-> - 最近同步：2026-09-24
+> - 最近同步：2026-09-29
 
 ## API 概览
 
@@ -76,6 +76,11 @@
 | [ModifyHTTPServiceRoute](https://cloud.tencent.com/document/api/876/129797) | 修改HTTP访问服务路由 | 20 |
 | [DescribeHTTPServiceCachePurgeTask](https://cloud.tencent.com/document/api/876/137742) | 查询HTTP访问服务缓存清除任务 | 20 |
 | [PurgeHTTPServiceCache](https://cloud.tencent.com/document/api/876/137741) | 清除HTTP服务域名缓存 | 20 |
+| [CreatePlatformHTTPServiceRoute](https://cloud.tencent.com/document/api/876/138911) | 创建平台HTTP访问服务路由 | 20 |
+| [VerifyPlatformHTTPServiceRoute](https://cloud.tencent.com/document/api/876/138907) | 校验平台HTTP访问服务路由 | 20 |
+| [DeletePlatformHTTPServiceRoute](https://cloud.tencent.com/document/api/876/138910) | 删除平台HTTP访问服务路由 | 20 |
+| [DescribePlatformHTTPServiceRoute](https://cloud.tencent.com/document/api/876/138909) | 查询平台HTTP访问服务路由信息 | 20 |
+| [ModifyPlatformHTTPServiceRoute](https://cloud.tencent.com/document/api/876/138908) | 修改平台HTTP访问服务路由 | 20 |
 
 ### 云托管相关接口
 

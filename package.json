@@ -43,6 +43,8 @@
     "internal:archive": "bash scripts/internal-sync.sh push",
     "internal:archive:all": "python3 scripts/internal-archive-all.py",
     "internal:status": "bash scripts/internal-sync.sh status",
+    "internal:check-secrets": "bash scripts/internal-sync.sh check",
+    "internal:prune-evidence": "bash scripts/internal-sync.sh prune-evidence",
     "prepare": "husky",
     "test:hosted-mcp:e2e": "vitest run tests/hosted-mcp-e2e/"
   },

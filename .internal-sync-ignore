@@ -1,0 +1,16 @@
+# specs/ → 私有归档仓 的密钥自检豁免名单
+#
+# 用法：一行一个路径前缀（相对仓库根，写成 specs/... 或 .workbuddy/...），
+#       `#` 之后是注释。被列到的文件不会参与「像含密钥」自检。
+#
+# 什么时候用它：`npm run internal:check-secrets` 报了某个文件，但你确认那是
+# 示例值 / 占位符 / 文档说明，而不是真凭证。优先用它，而不是
+# `npm run internal:archive -- --skip-secret-check`（那是跳过整道闸）。
+#
+# 判据本身（见 scripts/internal-sync.sh 顶部）：
+#   · 键值形态：secret / password / token / api_key / authorization … 后跟 16 位以上且含数字的值
+#   · 厂商前缀：AKID / sk- / ghp_ / glpat- / xox / AIza / BEGIN … PRIVATE KEY
+# 已内置豁免：verifyOnly / placeholder / EXAMPLE / YOUR_ / xxxx / dummy / fake / redacted …
+#
+# 示例（取消注释即生效）：
+# specs/cb-ide-mcp-upgrade/README.html

@@ -16,7 +16,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Deployment Gate: `references/protocols/deployment-gate.md`
 - Sensitive Runtime Data Protection: `references/protocols/sensitive-runtime-data-protection.md`
 
-**Post-deployment (optional, non-intrusive)**: after a deployment is verified successful, you may offer at most once to generate anonymized shareables (Deployment Share) — see `references/protocols/deployment-share.md`. Never follow up if declined; never publish on the user's behalf.
+**Post-deployment (optional, non-intrusive)**: after a deployment is verified successful, you may offer at most once to generate anonymized shareables and, in that same offer, optionally submit the work to the case wall (Deployment Share) — see `references/protocols/deployment-share.md`. Never follow up if declined; never publish or submit on the user's behalf.
 
 ## Activation Contract
 
@@ -128,6 +128,7 @@ When working with domain-related tasks, use the correct tool based on the requir
 - Task mentions "浏览器上传" or "CORS" or "安全域名" → Use `manageEnv(action="addSecurityDomain" / "removeSecurityDomain")`
 - Task mentions "public access" or "HTTPS" with domain → Prefer reuse via `createRoute` when possible; only `bindCustomDomain` for first-time domain bind
 - Task mentions "关闭/禁用静态托管默认域名" / `*.tcloudbaseapp.com` → `queryGateway(listRoutes)` then `manageGateway(disableRoute)` with that STATIC_STORE domain; never invent `ModifyGatewayRoute`
+- Task asks about the **whole onboarding flow** (能不能绑、要等多久、解析怎么配、备案是不是前置) or a bound domain is not reachable → follow `../cloud-api-operations/references/recipes/custom-domain.md`: run the read-only `VerifyHTTPServiceRoute` pre-check first, then bind, then poll `Status` / `DNSStatus`. That recipe also covers why domain registration / DNS / ICP calls may return `UnauthorizedOperation` for an account-level identity.
 
 ### Error Code Troubleshooting: Route Through Official Docs
 
@@ -368,15 +369,18 @@ The CloudBase console is updated frequently. If a live, logged-in console shows 
 - Template Center: `#/cloud-template/market`
 - Document Database: `#/db/doc` · Collections `#/db/doc/collection/${collectionName}` · Models `#/db/doc/model/${modelName}`
 - MySQL Database: `#/db/mysql` · Tables `#/db/mysql/table/default/` (must be enabled in console first)
+- PostgreSQL Database: `#/db/postgres` · Data editor `#/db/postgres/data-editor` · SQL editor `#/db/postgres/sql-editor` · Settings `#/db/postgres/setting` (instance spec, account password) · Tasks `#/db/postgres/tasks` (async task list: spec change, share-to-dedicated upgrade) · Backups `#/db/postgres/backups` · Migrations `#/db/postgres/migrations`
 - Cloud Functions: `#/scf` · Detail `#/scf/detail?id=${functionName}&NameSpace=${envId}`
-- CloudRun: `#/platform-run`
+- CloudRun: `#/platform-run` (a per-environment capability that must be provisioned first — `manageCloudRun(action="initEnv")`, then poll `queryCloudRun(action="envStatus")` until `normal`; an env can exist without CloudRun, and in that case CloudRun APIs still return success with empty fields)
 - Cloud Storage: `#/storage`
 - AI+: `#/ai`
 - Static Hosting: `#/static-hosting` (alt: `https://console.cloud.tencent.com/tcb/hosting`)
 - Identity Authentication: `#/identity` · Login management `#/identity/login-manage` · Token management `#/identity/token-management`
 - Weida Low-Code: `#/lowcode/apps`
 - Logs & Monitoring: `#/devops/log`
-- Environment Settings: `#/env/http-access` (security domains, CORS, env vars, quotas)
+- Environment Settings: `#/env/env-setting` (env info, QPS overage, preview state)
+- HTTP Access: `#/env/http-access` (security domains, CORS, env vars, quotas)
+- ICP Filing: `#/env/filing-manage` (whether this env qualifies as a filing resource: package tier, remaining validity > 6 months, CloudRun fixed IP; unmet items carry their own "renew" / "enable fixed IP" buttons)
 
 For configuration pages (like login management), guide users through the setup process rather than only dropping a link.
 

@@ -2,7 +2,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 
 # MCP 工具
 
-当前包含 42 个工具，按功能分组如下。
+当前包含 44 个工具，按功能分组如下。
 
 源数据: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.json)
 
@@ -27,6 +27,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 - [`deployApply`](#deployapply)
 - [`queryApps`](#queryapps)
 - [`manageApps`](#manageapps)
+- [`prepareFeedback`](#preparefeedback)
 
 ### NoSQL 数据库
 
@@ -100,6 +101,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 ### 日志
 
 - [`queryLogs`](#querylogs)
+- [`manageLogs`](#managelogs)
 
 ### AI Agent
 
@@ -958,7 +960,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
 ---
 
 ### `queryMysqlDatabase`
-查询 CloudBase MySQL 数据库信息。支持执行只读 SQL、查询 MySQL 开通结果、查询 MySQL 任务状态，以及获取当前实例生命周期上下文。标准 getInstanceInfo/describeInstance 不返回连接凭据；仅 getConnectionInfo 透传原始连接/集群载荷（含可能的凭据），且仅用于显式 TCP 迁移。业务 CRUD 优先使用 SDK 或 runQuery/runStatement。
+查询 CloudBase MySQL 数据库信息。支持执行只读 SQL、查询 MySQL 开通结果、查询 MySQL 任务状态、获取当前实例生命周期上下文，以及查询实例慢查询/错误日志（对齐 Manager SDK describeInstanceSlowQueries / describeInstanceErrorLogs）。标准 getInstanceInfo/describeInstance 不返回连接凭据；仅 getConnectionInfo 透传原始连接/集群载荷（含可能的凭据），且仅用于显式 TCP 迁移。业务 CRUD 优先使用 SDK 或 runQuery/runStatement。
 
 #### 参数
 
@@ -968,7 +970,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "action",
       type: "string",
       required: true,
-      description: `runQuery=执行只读 SQL；describeCreateResult=查询 CreateMySQL 结果；describeTaskStatus=查询 MySQL 任务状态；getInstanceInfo=获取不含连接凭据的生命周期上下文；describeInstance=getInstanceInfo 的别名；getConnectionInfo=透传可能包含凭据的原始连接/集群载荷（仅限 TCP 迁移例外场景） 可填写的值: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo", "describeInstance", "getConnectionInfo"`,
+      description: `runQuery=执行只读 SQL；describeCreateResult=查询 CreateMySQL 结果；describeTaskStatus=查询 MySQL 任务状态；getInstanceInfo=获取不含连接凭据的生命周期上下文；describeInstance=getInstanceInfo 的别名；getConnectionInfo=透传可能包含凭据的原始连接/集群载荷（仅限 TCP 迁移例外场景）；describeInstanceSlowQueries=查询实例慢查询日志；describeInstanceErrorLogs=查询实例错误日志 可填写的值: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo", "describeInstance", "getConnectionInfo", "describeInstanceSlowQueries", "describeInstanceErrorLogs"`,
     },
     {
       name: "sql",
@@ -978,12 +980,12 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "request",
       type: "object",
-      description: `describeCreateResult/describeTaskStatus 使用的官方请求载荷`,
+      description: `describeCreateResult/describeTaskStatus/describeInstanceSlowQueries/describeInstanceErrorLogs 使用的官方请求载荷（可含 InstanceId 等）`,
     },
     {
       name: "dbInstance",
       type: "object",
-      description: `runQuery 可选的 SQL 数据库实例上下文`,
+      description: `runQuery / 慢查/错误日志可选的 SQL 数据库实例上下文`,
       children: [
         {
           name: "instanceId",
@@ -994,6 +996,66 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
           type: "string",
         }
       ],
+    },
+    {
+      name: "startTime",
+      type: "string",
+      description: `慢查/错误日志查询开始时间（YYYY-MM-DD HH:mm:ss）`,
+    },
+    {
+      name: "endTime",
+      type: "string",
+      description: `慢查/错误日志查询结束时间（YYYY-MM-DD HH:mm:ss）`,
+    },
+    {
+      name: "limit",
+      type: "number",
+      description: `慢查/错误日志返回条数限制`,
+    },
+    {
+      name: "offset",
+      type: "number",
+      description: `慢查/错误日志分页偏移`,
+    },
+    {
+      name: "username",
+      type: "string",
+      description: `慢查过滤：用户名`,
+    },
+    {
+      name: "host",
+      type: "string",
+      description: `慢查过滤：客户端 host`,
+    },
+    {
+      name: "database",
+      type: "string",
+      description: `慢查过滤：数据库名`,
+    },
+    {
+      name: "orderBy",
+      type: "string",
+      description: `排序字段。慢查支持 QueryTime/LockTime/RowsExamined/RowsSent；错误日志支持 Timestamp 可填写的值: "QueryTime", "LockTime", "RowsExamined", "RowsSent", "Timestamp"`,
+    },
+    {
+      name: "orderByType",
+      type: "string",
+      description: `排序方向：asc/desc（大小写均可） 可填写的值: "asc", "desc", "ASC", "DESC"`,
+    },
+    {
+      name: "sqlText",
+      type: "string",
+      description: `慢查过滤：SQL 文本片段`,
+    },
+    {
+      name: "logLevels",
+      type: "array of string",
+      description: `错误日志等级过滤，可选值：error / warning / note`,
+    },
+    {
+      name: "keyWords",
+      type: "array of string",
+      description: `错误日志关键字模糊搜索列表`,
     }
   ]}
 />
@@ -1106,12 +1168,12 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
       name: "action",
       type: "string",
       required: true,
-      description: `只读操作类型： - \`listFunctions\`: 列出所有 CloudBase 云函数 - \`getFunctionDetail\`: 获取 CloudBase 云函数详情（需要 functionName） - \`listFunctionLogs\`: 查询 CloudBase 云函数执行日志（需要 functionName） - \`getFunctionLogDetail\`: 获取日志详情（需要 requestId） - \`listFunctionLayers\`: 列出函数绑定的层 - \`listLayers\`: 列出所有层（账号级视图，含其他环境创建的层） - \`listLayerVersions\`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图） - \`getLayerVersionDetail\`: 获取层版本详情（账号级视图） - \`listFunctionTriggers\`: 列出函数触发器（用于查看定时任务 / cron / timer 配置） - \`getFunctionDownloadUrl\`: 获取函数代码下载地址 - \`getFunctionDeployStatus\`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。 - \`listVersionByFunction\`: 列出函数已发布版本（对齐 tcb fn list-function-versions / SDK listVersionByFunction；需要 functionName） - \`getFunctionAlias\`: 查询函数别名与流量路由（对齐 tcb fn get-route / SDK getFunctionAlias；需要 functionName；aliasName 默认 $DEFAULT） 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl", "getFunctionDeployStatus", "listVersionByFunction", "getFunctionAlias"`,
+      description: `只读操作类型： - \`listFunctions\`: 列出所有 CloudBase 云函数 - \`getFunctionDetail\`: 获取 CloudBase 云函数详情（需要 functionName） - \`listFunctionLogs\`: 查询 CloudBase 云函数执行日志（需要 functionName） - \`getFunctionLogDetail\`: 获取日志详情（需要 requestId） - \`listFunctionLayers\`: 列出函数绑定的层 - \`listLayers\`: 列出所有层（账号级视图，含其他环境创建的层） - \`listLayerVersions\`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图） - \`getLayerVersionDetail\`: 获取层版本详情（账号级视图） - \`listFunctionTriggers\`: 列出函数触发器（用于查看定时任务 / cron / timer 配置） - \`getFunctionDownloadUrl\`: 获取函数代码下载地址 - \`getFunctionDeployStatus\`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。 - \`listVersionByFunction\`: 列出函数已发布版本（对齐 tcb fn list-function-versions / SDK listVersionByFunction；需要 functionName） - \`getFunctionAlias\`: 查询函数别名与流量路由（对齐 tcb fn get-route / SDK getFunctionAlias；需要 functionName；aliasName 默认 $DEFAULT） - \`getFunctionUploadUrl\`: 获取函数代码包的 COS 预签名上传地址（ZIP 两段式部署阶段 A）：PUT 代码 zip 到 uploadUrl（uploadHeaders 非空时须随请求携带对应请求头），再调用 manageFunctions 的 createFunction/updateFunctionCode 并传 code 三元组（阶段 B）。functionName 可选，仅用于生成上传对象 key。返回的 uploadUrl 含凭据签名，不得写入日志或持久化 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl", "getFunctionDeployStatus", "listVersionByFunction", "getFunctionAlias", "getFunctionUploadUrl"`,
     },
     {
       name: "functionName",
       type: "string",
-      description: `CloudBase 云函数名称。\`getFunctionDetail\`、\`listFunctionLogs\`、\`listFunctionLayers\`、\`listFunctionTriggers\`、\`getFunctionDownloadUrl\`、\`listVersionByFunction\`、\`getFunctionAlias\` 时必填`,
+      description: `CloudBase 云函数名称。\`getFunctionDetail\`、\`listFunctionLogs\`、\`listFunctionLayers\`、\`listFunctionTriggers\`、\`getFunctionDownloadUrl\`、\`listVersionByFunction\`、\`getFunctionAlias\` 时必填；\`getFunctionUploadUrl\` 可选（仅用于生成上传对象 key）`,
     },
     {
       name: "limit",
@@ -1131,7 +1193,7 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
     {
       name: "revealEnvValues",
       type: "boolean",
-      description: `getFunctionDetail / listFunctionTriggers 时是否返回环境变量明文值。默认 false：Value 脱敏为 ***，仅保留 Key 与 ValueLength，足以确认配置了哪些变量及变更是否生效；true 时返回明文，敏感变量会进入模型上下文，谨慎使用。如需查看明文，建议优先使用控制台或 CLI`,
+      description: `getFunctionDetail / listFunctionTriggers / listFunctionLayers 时是否返回环境变量明文值。默认 false：Value 脱敏为 ***，仅保留 Key 与 ValueLength，足以确认配置了哪些变量及变更是否生效；true 时返回明文，敏感变量会进入模型上下文，谨慎使用。如需查看明文，建议优先使用控制台或 CLI`,
     },
     {
       name: "startTime",
@@ -1526,6 +1588,30 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
       name: "zipFile",
       type: "string",
       description: `仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。`,
+    },
+    {
+      name: "code",
+      type: "object",
+      description: `ZIP 两段式部署阶段 B：代码包已通过 queryFunctions action=getFunctionUploadUrl 上传到环境 COS 桶。三元组（cosBucketName/cosObjectName/cosBucketRegion）直接使用 getFunctionUploadUrl 返回值原样透传。传入 code 后 createFunction/updateFunctionCode 不再读取本地目录（functionRootPath/zipFile 均不需要），默认不触发云端依赖安装（可用 func.installDependency 覆盖）。`,
+      children: [
+        {
+          name: "cosBucketName",
+          type: "string",
+          required: true,
+          description: `环境存储桶短名（不含 -appid 后缀），直接使用 getFunctionUploadUrl 返回的 cosBucketName，不要自填`,
+        },
+        {
+          name: "cosObjectName",
+          type: "string",
+          required: true,
+          description: `上传对象 key，直接使用 getFunctionUploadUrl 返回的 cosObjectName`,
+        },
+        {
+          name: "cosBucketRegion",
+          type: "string",
+          description: `存储桶地域，省略时自动使用当前环境存储桶地域`,
+        }
+      ],
     },
     {
       name: "handler",
@@ -3409,6 +3495,7 @@ CloudBase 日志域统一只读入口。支持检查日志服务状态并搜索 
 **重要区分**：
 - 查询云函数日志：使用 `queryFunctions(action="listFunctionLogs", functionName="xxx")`
 - 查询 CLS 日志（跨服务日志聚合）：使用本工具 `queryLogs(action="searchLogs")`
+- 开通 CLS 日志服务：使用 `manageLogs(action="createLogService", confirm=true)`
 
 **适用场景**：
 - 检查 CLS 日志服务是否开通：`action="checkLogService"`
@@ -3459,6 +3546,34 @@ CloudBase 日志域统一只读入口。支持检查日志服务状态并搜索 
       name: "sort",
       type: "string",
       description: `按时间排序：\`asc\` 升序，\`desc\` 降序 可填写的值: "asc", "desc"`,
+    }
+  ]}
+/>
+
+---
+
+### `manageLogs`
+CloudBase 日志域写入入口。用于开通 CLS 日志服务（对齐 Manager SDK `log.createLogService` / CreateEnvResource Resources=['log']）。
+
+**适用场景**：
+- 开通 CLS 日志服务：`action="createLogService", confirm=true`
+
+开通为异步操作：接口成功不代表立即可用，请随后用 `queryLogs(action="checkLogService")` 轮询确认。
+
+#### 参数
+
+<ParameterTable
+  parameters={[
+    {
+      name: "action",
+      type: "string",
+      required: true,
+      description: `操作类型： - \`createLogService\`: 开通 CLS 日志服务（需 \`confirm=true\`） 可填写的值: "createLogService"`,
+    },
+    {
+      name: "confirm",
+      type: "boolean",
+      description: `开通日志服务前的显式确认。必须传 \`confirm=true\`；未传时返回 CONFIRM_REQUIRED。`,
     }
   ]}
 />
@@ -3614,6 +3729,39 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
       name: "region",
       type: "string",
       description: `云 API 地域（X-TC-Region），如 ap-shanghai。跨地域必须传此顶层参数，不要写进 params。⚠️ ap-singapore 同属国内站与国际站，未指定站点按国际站（site=intl）处理：要操作国内站该地域环境，先 auth(action="start_auth", site="domestic") 或设 TCB_SITE=domestic。`,
+    }
+  ]}
+/>
+
+---
+
+### `prepareFeedback`
+把当前这次 CloudBase 开发整理成用户可以自己提交的反馈。作品做出来了，用它生成案例，方便展示；开发不顺利，用它生成复盘，方便把卡点反馈给平台。
+
+**什么时候用**：
+- `channel="case"`：部署或发布已经成功，用户愿意把作品放到案例墙时使用。返回案例草稿；用户确认后附上预填好的新建 issue 链接。
+- `channel="retrospective"`：用户表示这次开发不顺利、想反馈时使用。根据本会话里真实的工具调用失败生成复盘草稿；用户确认后同样附上预填链接。
+
+**怎么用**：
+- 第一次不要传 `confirmed`。先把返回的草稿全文给用户看。
+- 用户明确同意后，再以 `confirmed=true` 调用。这时才会返回可打开的链接。
+- 本工具不会替用户提交。取不到的内容会留空，不要编造作品名、简介、公网地址或对话轮次。
+- 国际站链接指向 GitHub，正文为英文；国内站链接指向 CNB 上的 CloudBase-AI-ToolKit 仓库，正文为中文。
+
+#### 参数
+
+<ParameterTable
+  parameters={[
+    {
+      name: "channel",
+      type: "string",
+      required: true,
+      description: `反馈用途：\`case\` 是把已完成的作品整理成案例；\`retrospective\` 是把这次不顺利的开发整理成复盘。 可填写的值: "case", "retrospective"`,
+    },
+    {
+      name: "confirmed",
+      type: "boolean",
+      description: `用户是否已经看过草稿全文并明确同意提交。省略或 false 时只返回草稿、不给链接。`,
     }
   ]}
 />
