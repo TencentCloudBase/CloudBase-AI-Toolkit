@@ -38,6 +38,11 @@ on:
         required: false
         default: 'latest'
         type: string
+      owner:
+        description: 'Optional publish owner (org handle) passed to clawhub publish as --owner. Leave empty to use the signed-in account default.'
+        required: false
+        default: ''
+        type: string
       dry_run:
         description: 'Build and validate only, skip registry publish'
         required: false
@@ -59,6 +64,7 @@ jobs:
       BUMP: ${{ github.event_name == 'workflow_dispatch' && inputs.bump || 'minor' }}
       CHANGELOG: ${{ github.event_name == 'workflow_dispatch' && inputs.changelog || '' }}
       TAGS: ${{ github.event_name == 'workflow_dispatch' && inputs.tags || 'latest' }}
+      OWNER: ${{ github.event_name == 'workflow_dispatch' && inputs.owner || '' }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
 
     steps:
@@ -107,10 +113,14 @@ jobs:
         env:
           CLAWDHUB_TOKEN: ${{ secrets.CLAWDHUB_TOKEN }}
         run: |
+          args=(--manifest .clawhub-publish-output/manifest.json --bump "$BUMP" --changelog "$CHANGELOG" --tags "$TAGS")
+          if [ -n "$OWNER" ]; then
+            args+=(--owner "$OWNER")
+          fi
           if [ "$DRY_RUN" = "true" ]; then
-            node scripts/publish-to-clawhub.mjs --manifest .clawhub-publish-output/manifest.json --bump "$BUMP" --changelog "$CHANGELOG" --tags "$TAGS" --dry-run
+            node scripts/publish-to-clawhub.mjs "${args[@]}" --dry-run
           else
-            node scripts/publish-to-clawhub.mjs --manifest .clawhub-publish-output/manifest.json --bump "$BUMP" --changelog "$CHANGELOG" --tags "$TAGS"
+            node scripts/publish-to-clawhub.mjs "${args[@]}"
           fi
 
       - name: Publish to SkillHub
