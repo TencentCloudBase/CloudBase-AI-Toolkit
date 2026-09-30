@@ -26,4 +26,4 @@ Client bundle **must** wrap `window.__ModuleLoader__.load({id, factory})`. Do no
 
 ## Compatibility
 
-DSH `>=0.1.0-rc.6 <0.2.0`. Runtime dependencies must stay empty; CodeMirror and esbuild are build-time only.
+DSH `>=0.1.0-rc.6 <0.3.0` (verified on `0.2.0-rc.2`). Runtime dependencies must stay empty; CodeMirror and esbuild are build-time only.

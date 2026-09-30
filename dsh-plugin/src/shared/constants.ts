@@ -30,4 +30,4 @@ export const URL_TOOLS = [
 ] as const;
 /** 兼容旧名：部署即"返回 URL"的一类工具。 */
 export const DEPLOY_TOOLS = URL_TOOLS;
-export const DSH_COMPAT = ">=0.1.0-rc.6 <0.2.0";
+export const DSH_COMPAT = ">=0.1.0-rc.6 <0.3.0";

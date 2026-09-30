@@ -1,6 +1,6 @@
 {
   "name": "@cloudbase/dsh-plugin",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "CloudBase backend for DeepSeek Harness — database, storage, authentication, and frontend/backend deployment",
   "icon": "./icon.png",
   "type": "module",

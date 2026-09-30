@@ -6,13 +6,13 @@
 >
 > `@cloudbase/dsh-plugin` 把 CloudBase 后端搬进 DSH：
 >
-> - **数据库**：文档库、MySQL、PostgreSQL，对话里建表和查询
+> - **数据库**：文档库和 PostgreSQL，对话里建表和查询
 > - **存储与认证**：上传文件，配置登录
 > - **前后端部署**：前端托管和后端部署，拿到可访问地址
 >
 > 你的模型（DeepSeek / Claude / 随便换）、你的后端（自己的 CloudBase 环境）、你的数据（本地会话 + 自己数据库）。
 
-CloudBase backend for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Compatible with **DSH `>=0.1.0-rc.6 <0.2.0`** · Node `>=18` · MCP tools follow `@cloudbase/cloudbase-mcp@latest`.
+CloudBase backend for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Compatible with **DSH `>=0.1.0-rc.6 <0.3.0`** (verified on `0.2.0-rc.2`) · Node `>=18` · MCP tools follow `@cloudbase/cloudbase-mcp@latest`.
 
 ## 安装
 
