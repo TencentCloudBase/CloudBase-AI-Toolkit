@@ -1,9 +1,95 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { homedir } from "node:os";
+import { delimiter, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { loadEnvVariables } from "@cloudbase/toolbox";
+import { t } from "../i18n/index.js";
 import type { ProjectConfig } from "./site-map.js";
 
 const CLOUDBASE_RC_FILENAME = "cloudbaserc.json";
+
+const PROJECT_ROOT_ENV_KEYS = [
+  "WORKSPACE_FOLDER_PATHS",
+  "PROJECT_ROOT",
+  "GITHUB_WORKSPACE",
+  "CI_PROJECT_DIR",
+  "BUILD_SOURCESDIRECTORY",
+] as const;
+
+/** Thrown when the resolved directory is a host config root, not a project. */
+export class ProjectRootError extends Error {
+  readonly dir: string;
+
+  constructor(dir: string) {
+    super("setup.projectRoot.hostConfigDir");
+    this.name = "ProjectRootError";
+    this.dir = dir;
+  }
+}
+
+function firstPathSegment(value: string): string | undefined {
+  return value
+    .split(delimiter)
+    .map((segment) => segment.trim())
+    .find((segment) => segment.length > 0);
+}
+
+function isUnderHostConfig(candidate: string): boolean {
+  const hostRoot = resolve(homedir(), ".dsh");
+  const resolved = resolve(candidate);
+  const rel = relative(hostRoot, resolved);
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+/**
+ * Project directory for reads and writes.
+ *
+ * Explicit path, then host-injected workspace env vars, then process.cwd().
+ * A result under ~/.dsh is refused so tools do not treat the host profile as a project.
+ */
+export function resolveProjectRoot(explicit?: string): string {
+  const trimmed = explicit?.trim();
+  let chosen: string;
+  if (trimmed) {
+    chosen = resolve(trimmed);
+  } else {
+    let fromEnv: string | undefined;
+    for (const key of PROJECT_ROOT_ENV_KEYS) {
+      const raw = process.env[key];
+      if (!raw?.trim()) continue;
+      const first = firstPathSegment(raw);
+      if (first) {
+        fromEnv = resolve(first);
+        break;
+      }
+    }
+    chosen = fromEnv ?? resolve(process.cwd());
+  }
+  if (isUnderHostConfig(chosen)) {
+    throw new ProjectRootError(chosen);
+  }
+  return chosen;
+}
+
+/** Same as resolveProjectRoot, with the refusal already translated for tool output. */
+export function requireProjectRoot(explicit?: string): string {
+  try {
+    return resolveProjectRoot(explicit);
+  } catch (error) {
+    if (error instanceof ProjectRootError) {
+      throw new Error(t("setup.projectRoot.hostConfigDir", { dir: error.dir }));
+    }
+    throw error;
+  }
+}
+
+function projectRootForConfig(cwd?: string): string | undefined {
+  try {
+    return resolveProjectRoot(cwd);
+  } catch (error) {
+    if (error instanceof ProjectRootError) return undefined;
+    throw error;
+  }
+}
 
 /**
  * `cloudbaserc.json` 中对绑定有效的字段。
@@ -75,7 +161,8 @@ function resolveBindingValue(raw: string, projectRoot: string): string | undefin
  */
 export function readCloudbaseRcBinding(cwd?: string): CloudBaseRcBinding | undefined {
   try {
-    const projectRoot = cwd ?? process.env.WORKSPACE_FOLDER_PATHS ?? process.cwd();
+    const projectRoot = projectRootForConfig(cwd);
+    if (!projectRoot) return undefined;
     const configPath = join(projectRoot, CLOUDBASE_RC_FILENAME);
     if (!existsSync(configPath)) {
       return undefined;
@@ -109,7 +196,8 @@ export function readCloudbaseRcBinding(cwd?: string): CloudBaseRcBinding | undef
  */
 export function readProjectConfig(cwd?: string): ProjectConfig | undefined {
   try {
-    const projectRoot = cwd ?? process.env.WORKSPACE_FOLDER_PATHS ?? process.cwd();
+    const projectRoot = projectRootForConfig(cwd);
+    if (!projectRoot) return undefined;
     const configPath = join(projectRoot, ".cloudbase", "project.json");
     if (!existsSync(configPath)) {
       return undefined;
@@ -161,7 +249,8 @@ export function writeProjectConfig(
   cwd?: string,
 ): boolean {
   try {
-    const projectRoot = cwd ?? process.env.WORKSPACE_FOLDER_PATHS ?? process.cwd();
+    const projectRoot = projectRootForConfig(cwd);
+    if (!projectRoot) return false;
     const configPath = join(projectRoot, ".cloudbase", "project.json");
     let existing: Record<string, unknown> = {};
     if (existsSync(configPath)) {
