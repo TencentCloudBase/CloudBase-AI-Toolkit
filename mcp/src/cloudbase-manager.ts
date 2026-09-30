@@ -10,7 +10,7 @@ import { debug, error } from './utils/logger.js';
 import { buildAuthNextStep, throwToolPayloadError } from './utils/tool-result.js';
 import { resolveSiteAndRegion, TCB_QUERY_REGIONS } from './utils/site-map.js';
 import { readProjectEnvId } from './utils/project-config.js';
-import { createLocalCloudApiRequestFn } from './local-endpoint.js';
+import { createLocalCloudApiRequestFn, resolveLocalEndpoint } from './local-endpoint.js';
 
 // Timeout for envId auto-resolution flow.
 // 10 minutes (600 seconds) - matches InteractiveServer timeout
@@ -514,7 +514,7 @@ export async function getEnvId(cloudBaseOptions?: CloudBaseOptions): Promise<str
         return cloudBaseOptions.envId;
     }
 
-    if (process.env.CLOUDBASE_LOCAL_ENDPOINT) {
+    if (resolveLocalEndpoint()) {
         return 'local';
     }
 
@@ -675,7 +675,7 @@ export async function getCloudBaseManager(options: GetManagerOptions = {}): Prom
         authStrategy = 'fail_fast',
     } = options;
     let cloudBaseOptions = options.cloudBaseOptions;
-    const localEndpoint = process.env.CLOUDBASE_LOCAL_ENDPOINT;
+    const localEndpoint = resolveLocalEndpoint();
     if (localEndpoint && !cloudBaseOptions?.requestFn) {
         cloudBaseOptions = {
             ...cloudBaseOptions,
