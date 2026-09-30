@@ -33,6 +33,8 @@ export interface RunnerExecArgs {
   timeoutSec: number;
   maxTurns?: number;
   skills: boolean;
+  /** 预先写好的 MCP 配置。空对象表示不加载本机其他 MCP。 */
+  mcpConfig?: string;
 }
 
 export interface RunnerExecResult {
@@ -67,6 +69,14 @@ export interface EvalContext {
   runDriver: (args: string[]) => Promise<Record<string, { userId?: string; displayName?: string; threw?: string }>>;
   asEndUser: () => Promise<SdkHandle>;
   asAnonymous: () => Promise<SdkHandle>;
+  /** 现网凭证。没有则评分器保持干跑。 */
+  live?: {
+    envId: string;
+    secretId: string;
+    secretKey: string;
+  };
+  /** 模型改过的题目副本。评分器据此查文件结果。 */
+  workspace?: string;
 }
 
 export interface SdkHandle {

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CloudBase Evals</title>
+<script>
+(function(){
+  var t = localStorage.getItem("cb-evals-theme");
+  if(!t) t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", t);
+  var l = localStorage.getItem("cb-evals-lang") || "zh";
+  document.documentElement.setAttribute("data-lang", l);
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --f-body:"Inter","Noto Sans SC",sans-serif;
+  --f-disp:"JetBrains Mono","Noto Sans SC",monospace;
+  --f-mono:"JetBrains Mono",monospace;
+}
+:root[data-theme="light"]{
+  --paper:#F6F8FB; --card:#FFFFFF; --card2:#F2F4F7;
+  --ink:#1A1F26; --ink2:#515863; --mut:#8A919C;
+  --rule:#E6E9EE; --rule2:#EFF1F4;
+  --accent:#0052D9; --accent-soft:#EDF3FC;
+  --nav:rgba(255,255,255,.86); --hover:#F6F8FA;
+  --btn:#0052D9; --btn-ink:#FFFFFF;
+  --shadow-sm:0 1px 2px rgba(15,23,42,.04);
+  --shadow-md:0 1px 2px rgba(15,23,42,.04),0 4px 14px -4px rgba(15,23,42,.08);
+  --shadow-lg:0 2px 4px rgba(15,23,42,.04),0 16px 40px -12px rgba(15,23,42,.14);
+  --glow:radial-gradient(ellipse 70% 55% at 42% 0%,rgba(0,82,217,.055),transparent 70%);
+}
+:root[data-theme="dark"]{
+  --paper:#0D0F13; --card:#16191F; --card2:#1E2228;
+  --ink:#EDEFF2; --ink2:#A9AFB8; --mut:#6E7580;
+  --rule:#272C33; --rule2:#1D2126;
+  --accent:#6FA0FF; --accent-soft:#1A2537;
+  --nav:rgba(13,15,19,.85); --hover:#1B1F25;
+  --btn:#2E63E7; --btn-ink:#FFFFFF;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.28);
+  --shadow-md:0 1px 2px rgba(0,0,0,.28),0 4px 14px -4px rgba(0,0,0,.36);
+  --shadow-lg:0 2px 4px rgba(0,0,0,.28),0 16px 40px -12px rgba(0,0,0,.5);
+  --glow:radial-gradient(ellipse 70% 55% at 42% 0%,rgba(96,148,255,.07),transparent 70%);
+}
+[hidden]{display:none!important}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--f-body);background:var(--paper);color:var(--ink);font-size:14.5px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1160px;margin:0 auto;padding:0 32px}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:12px;box-shadow:var(--shadow-sm)}
+nav{position:sticky;top:0;z-index:50;background:var(--nav);backdrop-filter:blur(16px) saturate(1.4);border-bottom:1px solid var(--rule)}
+nav .wrap{display:flex;align-items:center;gap:34px;height:62px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-disp);font-weight:800;font-size:18px;letter-spacing:-.03em}
+.brand em{font-style:normal;color:var(--accent)}
+.brand svg{width:20px;height:20px;flex:none}
+.navlinks{display:flex;gap:22px}
+.navlinks button{background:none;border:none;font:inherit;font-size:13.5px;font-weight:500;color:var(--ink2);cursor:pointer;padding:20px 2px 18px;border-bottom:2px solid transparent}
+.navlinks button.on{color:var(--ink);font-weight:600;border-bottom-color:var(--accent)}
+.navright{margin-left:auto;display:flex;align-items:center;gap:10px}
+.langseg{display:flex;border:1px solid var(--rule);border-radius:7px;overflow:hidden;background:var(--card);box-shadow:var(--shadow-sm)}
+.langseg button{background:none;border:none;font:inherit;font-size:12px;font-weight:600;color:var(--mut);cursor:pointer;padding:6px 13px}
+.langseg button.on{background:var(--card2);color:var(--ink)}
+.tgl{background:var(--card);border:1px solid var(--rule);color:var(--ink2);cursor:pointer;font:inherit;font-size:12px;padding:7px 13px;border-radius:8px;box-shadow:var(--shadow-sm)}
+.hero{padding:76px 0 62px;position:relative}
+.hero::before{content:"";position:absolute;inset:0;pointer-events:none;background:var(--glow)}
+.hero .wrap{position:relative}
+.vol{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--mut);margin-bottom:22px}
+.hero h1{font-family:var(--f-disp);font-weight:800;font-size:clamp(31px,3.9vw,48px);line-height:1.16;letter-spacing:-.03em;margin-bottom:18px}
+.hero h1 .kw{color:var(--accent)}
+.hero p.lead{color:var(--ink2);font-size:15px;max-width:62ch}
+.notice{margin-top:14px;font-family:var(--f-mono);font-size:12px;color:var(--mut)}
+.stats{display:flex;border:1px solid var(--rule);background:var(--card);border-radius:12px;overflow:hidden;max-width:520px;margin-top:28px;box-shadow:var(--shadow-md)}
+.stats .st{flex:1;padding:16px 20px;border-left:1px solid var(--rule)}
+.stats .st:first-child{border-left:none}
+.stats b{display:block;font-family:var(--f-disp);font-weight:800;font-size:27px}
+.stats span{font-size:11.5px;color:var(--mut)}
+main{padding-bottom:72px;border-top:1px solid var(--rule)}
+section{padding:40px 0 8px}
+.sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.sec-head h2{font-family:var(--f-disp);font-weight:800;font-size:23px}
+.sec-head .sub{font-size:12.5px;color:var(--mut)}
+.tablecard{padding:4px 20px 16px;box-shadow:var(--shadow-md)}
+table{width:100%;border-collapse:collapse}
+thead th{text-align:left;font-family:var(--f-mono);font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);padding:14px 12px 11px;border-bottom:1px solid var(--rule);white-space:nowrap}
+tbody td{padding:18px 12px;color:var(--ink2)}
+.empty{font-size:14px}
+.filters{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--rule)}
+.filters button{background:none;border:none;font:inherit;font-size:13px;font-weight:500;color:var(--mut);cursor:pointer;padding:8px 2px 10px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.filters button.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.taskcard{padding:20px 24px;margin-bottom:12px}
+.taskcard h4{font-family:var(--f-mono);font-weight:600;font-size:14px;margin-bottom:6px}
+.taskcard p{color:var(--ink2);font-size:13.5px}
+.ttags{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.ttag{font-family:var(--f-mono);font-size:10.5px;color:var(--ink2);border:1px solid var(--rule);padding:3px 8px;border-radius:5px}
+.group{margin-top:28px}
+.group h3{font-family:var(--f-disp);font-size:16px;margin-bottom:8px}
+.group li{margin-left:18px;color:var(--ink2);font-size:13.5px}
+.group code{font-family:var(--f-mono);font-size:12.5px;color:var(--ink)}
+.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.hcard{padding:26px 28px}
+.hcard h3{font-family:var(--f-disp);font-size:18px;margin-bottom:8px}
+.hcard p{color:var(--ink2);font-size:13.5px}
+.cmd{margin-top:14px;font-family:var(--f-mono);font-size:12px;background:#0D1F3C;color:#DCE7F7;border-radius:10px;padding:14px 16px;overflow-x:auto;line-height:1.7}
+footer{border-top:1px solid var(--rule);background:var(--card);padding:28px 0 48px;font-size:12.5px;color:var(--mut)}
+footer a{color:var(--accent)}
+@media(max-width:900px){
+  .navlinks{display:none}
+  .hgrid{grid-template-columns:1fr}
+  .wrap{padding:0 18px}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="./">
+      <svg viewBox="0 0 36 36" fill="none" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M-0.00195272 13.364C-0.0021879 13.0869 0.100481 12.8097 0.306053 12.5947L8.64438 4.25689C8.74869 4.15259 8.89015 4.09399 9.03766 4.09399H19.6942C20.1894 4.09399 20.4377 4.69236 20.088 5.04296L11.7889 13.364H-0.00195272Z" fill="#67E9E9"/><path fill-rule="evenodd" clip-rule="evenodd" d="M-0.00195272 13.366C-0.00218796 13.6431 0.100474 13.9203 0.306033 14.1353L8.64438 22.4731C8.74869 22.5774 8.89015 22.636 9.03766 22.636H19.6942C20.1894 22.636 20.4377 22.0376 20.088 21.687L11.7889 13.366H-0.00195272Z" fill="#2BCCCC"/><path fill-rule="evenodd" clip-rule="evenodd" d="M35.999 22.2539C35.9993 21.9781 35.8977 21.7023 35.6942 21.4877L27.3527 13.1468C27.2484 13.0425 27.1069 12.9839 26.9594 12.9839H16.3029C15.8077 12.9839 15.5594 13.5823 15.9091 13.9328L24.2081 22.2539H35.999Z" fill="#4896FF"/><path fill-rule="evenodd" clip-rule="evenodd" d="M35.999 22.2534C35.9994 22.526 35.9002 22.7987 35.7015 23.0123L27.3527 31.3605C27.2484 31.4648 27.1069 31.5234 26.9594 31.5234H16.3029C15.8077 31.5234 15.5594 30.9251 15.9091 30.5745L24.2081 22.2534H35.999Z" fill="#0052D9"/></svg>
+      <span>CloudBase <em>Evals</em></span>
+    </a>
+    <div class="navlinks">
+      <button class="on" data-view="viewBoard" data-i18n="nav.board">榜单</button>
+      <button data-view="viewTasks" data-i18n="nav.tasks">任务</button>
+      <button data-view="viewHow" data-i18n="nav.how">怎么跑</button>
+    </div>
+    <div class="navright">
+      <div class="langseg">
+        <button id="langZh" class="on" type="button">中文</button>
+        <button id="langEn" type="button">EN</button>
+      </div>
+      <button class="tgl" id="themeBtn" type="button" data-i18n="theme">暗色</button>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="vol">CLOUDBASE EVALS</div>
+    <h1 data-i18n-html="hero.title">衡量 AI Agent 用 CloudBase <span class="kw">做出真实结果</span> 的能力</h1>
+    <p class="lead" data-i18n="hero.lead">每道计分题都在真实环境里完成。评分只看结果：库里的行、能登录的用户、能访问的文件。首批模型成绩尚未公布。</p>
+    <p class="notice" data-i18n="hero.notice">公开榜不收录内部代跑。Own key 自跑提交尚未开放。</p>
+    <div class="stats">
+      <div class="st"><b id="statTasks">15</b><span data-i18n="st.tasks">道计分任务</span></div>
+      <div class="st"><b id="statModels">0</b><span data-i18n="st.models">个已公布模型</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="viewBoard">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 data-i18n="board.title">榜单</h2>
+        <span class="sub" data-i18n="board.sub">成功率、样本量、成本，以及 docs / skill 对照。有成绩之后才会出现行。</span>
+      </div>
+      <div class="card tablecard">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="th.model">模型 · Agent 工具</th>
+              <th data-i18n="th.pass">成功率</th>
+              <th data-i18n="th.n">样本量</th>
+              <th data-i18n="th.cost">成本</th>
+              <th data-i18n="th.docs">docs / skill</th>
+            </tr>
+          </thead>
+          <tbody id="boardBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="viewTasks" hidden>
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 data-i18n="tasks.title">任务</h2>
+        <span class="sub" data-i18n="tasks.sub">索引由题目说明生成。未计分的题留在仓库里，不进成功率。</span>
+      </div>
+      <div class="filters" id="filters"></div>
+      <div id="taskList"></div>
+      <div id="unscored"></div>
+      <div id="absent"></div>
+    </div>
+  </section>
+
+  <section id="viewHow" hidden>
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 data-i18n="how.title">怎么跑</h2>
+      </div>
+      <div class="hgrid">
+        <div class="card hcard">
+          <h3 data-i18n="how.dryTitle">不需要云凭证</h3>
+          <p data-i18n="how.dry">在仓库根目录跑一道干跑。它加载题目并对假环境打分，检查会失败。</p>
+          <pre class="cmd">node --experimental-strip-types evals/packages/framework/src/cli.ts \
+  run build-auth-001-username-signin --experiment fixture-dry</pre>
+        </div>
+        <div class="card hcard">
+          <h3 data-i18n="how.liveTitle">真跑用你自己的环境</h3>
+          <p data-i18n="how.live">需要 CLOUDBASE_ENV_ID 和腾讯云密钥。runner 不会创建环境。score 只打分，不启动模型。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/tree/main/evals">GitHub · evals/</a>
+  </div>
+</footer>
+
+<script>
+var I18N = {
+  zh: {
+    "nav.board":"榜单","nav.tasks":"任务","nav.how":"怎么跑","theme":"暗色",
+    "hero.title":"衡量 AI Agent 用 CloudBase <span class=\"kw\">做出真实结果</span> 的能力",
+    "hero.lead":"每道计分题都在真实环境里完成。评分只看结果：库里的行、能登录的用户、能访问的文件。首批模型成绩尚未公布。",
+    "hero.notice":"公开榜不收录内部代跑。Own key 自跑提交尚未开放。",
+    "st.tasks":"道计分任务","st.models":"个已公布模型",
+    "board.title":"榜单","board.sub":"成功率、样本量、成本，以及 docs / skill 对照。有成绩之后才会出现行。",
+    "board.empty":"首批成绩尚未公布。",
+    "th.model":"模型 · Agent 工具","th.pass":"成功率","th.n":"样本量","th.cost":"成本","th.docs":"docs / skill",
+    "tasks.title":"任务","tasks.sub":"索引由题目说明生成。未计分的题留在仓库里，不进成功率。",
+    "tasks.unscored":"未计分","tasks.absent":"不在本榜","tasks.all":"全部",
+    "how.title":"怎么跑","how.dryTitle":"不需要云凭证","how.liveTitle":"真跑用你自己的环境",
+    "how.dry":"在仓库根目录跑一道干跑。它加载题目并对假环境打分，检查会失败。",
+    "how.live":"需要 CLOUDBASE_ENV_ID 和腾讯云密钥。runner 不会创建环境。score 只打分，不启动模型。"
+  },
+  en: {
+    "nav.board":"Board","nav.tasks":"Tasks","nav.how":"Run","theme":"Dark",
+    "hero.title":"How well agents <span class=\"kw\">ship real CloudBase results</span>",
+    "hero.lead":"Each scored task runs in a real environment. Scoring checks outcomes only: rows, signed-in users, files that can be read. The first public model scores are not in yet.",
+    "hero.notice":"Internal runs are not on this board. Own key submission is not open.",
+    "st.tasks":"scored tasks","st.models":"published models",
+    "board.title":"Board","board.sub":"Success rate, sample size, cost, and a docs / skill column. Rows appear after scores are published.",
+    "board.empty":"The first scores are not published yet.",
+    "th.model":"Model · Agent tool","th.pass":"Success rate","th.n":"Sample size","th.cost":"Cost","th.docs":"docs / skill",
+    "tasks.title":"Tasks","tasks.sub":"The index is generated from the task files. Unscored tasks stay in the repo and are left out of the success rate.",
+    "tasks.unscored":"Unscored","tasks.absent":"Not on this board","tasks.all":"All",
+    "how.title":"Run","how.dryTitle":"No cloud credentials","how.liveTitle":"A live run uses your environment",
+    "how.dry":"From the repository root, one dry run loads a task and scores a fake environment. Checks fail on purpose.",
+    "how.live":"A live run needs CLOUDBASE_ENV_ID and Tencent Cloud keys. The runner does not create an environment. score grades without starting a model."
+  }
+};
+var LANG = document.documentElement.getAttribute("data-lang") === "en" ? "en" : "zh";
+var THEME = document.documentElement.getAttribute("data-theme") || "light";
+var DATA = { scored: [], unscored: [], absent: [] };
+var FILTER = "all";
+
+function t(k){ return (I18N[LANG] && I18N[LANG][k]) || k; }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+function applyLang(){
+  document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
+  document.querySelectorAll("[data-i18n]").forEach(function(el){
+    el.textContent = t(el.getAttribute("data-i18n"));
+  });
+  document.querySelectorAll("[data-i18n-html]").forEach(function(el){
+    el.innerHTML = t(el.getAttribute("data-i18n-html"));
+  });
+  document.getElementById("langZh").classList.toggle("on", LANG === "zh");
+  document.getElementById("langEn").classList.toggle("on", LANG === "en");
+  document.getElementById("themeBtn").textContent = THEME === "dark" ? (LANG === "zh" ? "亮色" : "Light") : t("theme");
+  renderBoard(); renderFilters(); renderTasks(); renderNotes();
+}
+document.getElementById("langZh").onclick = function(){ LANG = "zh"; localStorage.setItem("cb-evals-lang","zh"); applyLang(); };
+document.getElementById("langEn").onclick = function(){ LANG = "en"; localStorage.setItem("cb-evals-lang","en"); applyLang(); };
+document.getElementById("themeBtn").onclick = function(){
+  THEME = THEME === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", THEME);
+  localStorage.setItem("cb-evals-theme", THEME);
+  applyLang();
+};
+document.querySelectorAll("[data-view]").forEach(function(btn){
+  btn.onclick = function(){
+    document.querySelectorAll(".navlinks button").forEach(function(el){
+      el.classList.toggle("on", el === btn);
+    });
+    ["viewBoard","viewTasks","viewHow"].forEach(function(id){
+      document.getElementById(id).hidden = id !== btn.dataset.view;
+    });
+  };
+});
+
+function renderBoard(){
+  var models = (window.EVAL_RESULTS && window.EVAL_RESULTS.models) || [];
+  document.getElementById("statModels").textContent = String(models.length);
+  var body = document.getElementById("boardBody");
+  if (!models.length) {
+    body.innerHTML = '<tr><td class="empty" colspan="5">' + esc(t("board.empty")) + "</td></tr>";
+    return;
+  }
+  body.innerHTML = models.map(function(row){
+    return "<tr><td>" + esc(row.model || "") + " · " + esc(row.tool || "") + "</td><td>"
+      + esc(row.successRate ?? "") + "</td><td>" + esc(row.sampleSize ?? "") + "</td><td>"
+      + esc(row.cost ?? "") + "</td><td>" + esc(row.docsSkill ?? "") + "</td></tr>";
+  }).join("");
+}
+
+function products(){
+  var set = {};
+  DATA.scored.forEach(function(task){ (task.product || []).forEach(function(p){ set[p] = true; }); });
+  return Object.keys(set).sort();
+}
+function renderFilters(){
+  var cats = ["all"].concat(products());
+  document.getElementById("filters").innerHTML = cats.map(function(cat){
+    var label = cat === "all" ? t("tasks.all") : cat;
+    return '<button type="button" data-cat="' + esc(cat) + '" class="' + (cat === FILTER ? "on" : "") + '">' + esc(label) + "</button>";
+  }).join("");
+}
+document.getElementById("filters").onclick = function(event){
+  var btn = event.target.closest("button");
+  if (!btn) return;
+  FILTER = btn.dataset.cat;
+  renderFilters(); renderTasks();
+};
+function renderTasks(){
+  document.getElementById("statTasks").textContent = String(DATA.scored.length);
+  var list = DATA.scored.filter(function(task){
+    return FILTER === "all" || (task.product || []).indexOf(FILTER) !== -1;
+  });
+  document.getElementById("taskList").innerHTML = list.map(function(task){
+    var tags = [task.stage, task.interface].concat(task.product || []).filter(Boolean);
+    return '<article class="card taskcard"><h4>' + esc(task.id) + "</h4><p>" + esc(task.summary || "")
+      + '</p><div class="ttags">' + tags.map(function(tag){ return '<span class="ttag">' + esc(tag) + "</span>"; }).join("")
+      + "</div></article>";
+  }).join("");
+}
+function renderNotes(){
+  var unscored = document.getElementById("unscored");
+  unscored.innerHTML = '<div class="group"><h3>' + esc(t("tasks.unscored")) + "</h3><ul>"
+    + DATA.unscored.map(function(task){
+      var reason = task.reason && (task.reason[LANG] || task.reason.en) || "";
+      return "<li><code>" + esc(task.id) + "</code> — " + esc(reason) + "</li>";
+    }).join("") + "</ul></div>";
+  document.getElementById("absent").innerHTML = '<div class="group"><h3>' + esc(t("tasks.absent")) + "</h3>"
+    + DATA.absent.map(function(group){
+      var title = group[LANG] || group.en;
+      var items = (group.items || []).map(function(item){
+        var note = item.note && (item.note[LANG] || item.note.en);
+        return "<li><code>" + esc(item.id) + "</code>" + (note ? " — " + esc(note) : "") + "</li>";
+      }).join("");
+      return "<h3>" + esc(title) + "</h3><ul>" + items + "</ul>";
+    }).join("") + "</div>";
+}
+
+Promise.all([
+  fetch("tasks.json").then(function(res){ return res.json(); }),
+  fetch("eval-results.json").then(function(res){ return res.json(); })
+]).then(function(pair){
+  DATA = pair[0];
+  window.EVAL_RESULTS = pair[1];
+  applyLang();
+}).catch(function(){
+  applyLang();
+});
+</script>
+</body>
+</html>

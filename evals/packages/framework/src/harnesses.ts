@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { chmod, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { AgentRunner, AgentUsage, RunnerExecArgs, RunnerExecResult } from '../../core/src/types.ts';
 import { toCbcModelId } from './models.ts';
@@ -63,59 +62,60 @@ export const opencodeRunner: AgentRunner = {
 
 function execCbc(args: RunnerExecArgs): Promise<RunnerExecResult> {
   const providerModelId = toCbcModelId(args.model);
-  return readFile(args.promptPath, 'utf8').then(
-    (prompt) =>
-      new Promise((resolve, reject) => {
-        mkdtemp(path.join(tmpdir(), 'cbc-eval-'))
-          .then((cwd) => {
-            const argv = [
-              '-p',
-              '--output-format',
-              'stream-json',
-              '--model',
-              providerModelId,
-              '--strict-mcp-config',
-              '--mcp-config',
-              '{"mcpServers":{}}',
-              '--permission-mode',
-              'bypassPermissions',
-            ];
-            if (args.maxTurns !== undefined) {
-              argv.push('--max-turns', String(args.maxTurns));
-            }
-            argv.push('--', prompt);
-            const child = spawn('cbc', argv, { cwd, env: process.env });
-            let stdout = '';
-            let stderr = '';
-            const timer = setTimeout(() => {
-              child.kill('SIGTERM');
-            }, args.timeoutSec * 1000);
-            child.stdout.setEncoding('utf8');
-            child.stderr.setEncoding('utf8');
-            child.stdout.on('data', (chunk: string) => {
-              stdout += chunk;
-            });
-            child.stderr.on('data', (chunk: string) => {
-              stderr += chunk;
-            });
-            child.on('error', (error) => {
-              clearTimeout(timer);
-              reject(error);
-            });
-            child.on('close', (exitCode) => {
-              clearTimeout(timer);
-              resolve({
-                command: { exitCode: exitCode ?? 1, stdout, stderr },
-                raw: stdout,
-              });
-            });
-          })
-          .catch(reject);
+  if (args.workspace.length === 0) {
+    return Promise.reject(new Error('cbc requires a fixture workspace'));
+  }
+  const mcpPath = path.join(args.workspace, '.eval-mcp.json');
+  return writeFile(mcpPath, args.mcpConfig ?? '{"mcpServers":{}}', { mode: 0o600 })
+    .then(() => chmod(mcpPath, 0o600))
+    .then(() => readFile(args.promptPath, 'utf8'))
+    .then(
+      (prompt) =>
+        new Promise((resolve, reject) => {
+          const argv = [
+            '-p',
+            '--output-format',
+            'stream-json',
+            '--model',
+            providerModelId,
+            '--strict-mcp-config',
+            '--mcp-config',
+            mcpPath,
+            '--permission-mode',
+            'bypassPermissions',
+          ];
+          if (args.maxTurns !== undefined) {
+            argv.push('--max-turns', String(args.maxTurns));
+          }
+          argv.push('--', prompt);
+          const child = spawn('cbc', argv, { cwd: args.workspace, env: process.env });
+        let stdout = '';
+        let stderr = '';
+        const timer = setTimeout(() => {
+          child.kill('SIGTERM');
+        }, args.timeoutSec * 1000);
+        child.stdout.setEncoding('utf8');
+        child.stderr.setEncoding('utf8');
+        child.stdout.on('data', (chunk: string) => {
+          stdout += chunk;
+        });
+        child.stderr.on('data', (chunk: string) => {
+          stderr += chunk;
+        });
+        child.on('error', (error) => {
+          clearTimeout(timer);
+          reject(error);
+        });
+        child.on('close', (exitCode) => {
+          clearTimeout(timer);
+          resolve({
+            command: { exitCode: exitCode ?? 1, stdout, stderr },
+            raw: stdout,
+          });
+        });
       }),
   );
 }
-
-/** 本机 cbc -V。结果里的模型名走标准名，--model 才用 -ioa id。 */
 export const codebuddyCodeRunner: AgentRunner = {
   id: 'codebuddy-code',
   displayName: 'CodeBuddy Code',

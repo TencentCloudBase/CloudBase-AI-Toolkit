@@ -8,6 +8,7 @@ import { loadScenario } from '../../core/src/load-scenario.ts';
 import { parsePromptMarkdown } from '../../core/src/metadata.ts';
 import { findExperiment } from '../../../experiments/presets.ts';
 import { toCanonicalModelId, toCbcModelId } from './models.ts';
+import { copyFixture, workspaceInsideRepo } from './workspace.ts';
 import { parseClaudeStepCount, parseClaudeStreamUsage } from './parsers.ts';
 import { runScenario } from './run.ts';
 
@@ -48,6 +49,20 @@ test('fixture-dry writes result.json without a cloud env', async () => {
     assert.equal(JSON.parse(written).eval, scenario.id);
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('fixture copy is outside the repo and hides the scorer', async () => {
+  const scenario = await loadScenario(evalsRoot, 'build-auth-001-username-signin');
+  const workspace = await copyFixture(scenario.dir);
+  try {
+    assert.equal(workspaceInsideRepo(workspace, evalsRoot), false);
+    assert.equal(workspaceInsideRepo(evalsRoot, evalsRoot), true);
+    const prompt = await readFile(path.join(workspace, 'PROMPT.md'), 'utf8');
+    assert.match(prompt, /username/);
+    await assert.rejects(readFile(path.join(workspace, 'EVAL.ts'), 'utf8'));
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
   }
 });
 
