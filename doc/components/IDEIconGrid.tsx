@@ -28,20 +28,6 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy',
   },
   {
-    id: 'doubao',
-    name: '豆包',
-    platform: '桌面端 / 网页版',
-    iconSlug: 'doubao',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/doubao',
-  },
-  {
-    id: 'minimax-code',
-    name: 'MiniMax Code',
-    platform: '桌面端 / 终端 CLI',
-    iconSlug: 'minimax',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/minimax-code',
-  },
-  {
     id: 'deepseek-harness',
     name: 'DeepSeek Harness',
     platform: '桌面应用',
@@ -68,6 +54,20 @@ const IDES: IDE[] = [
     platform: '独立 IDE',
     iconUrl: 'https://zcode.z.ai/icon.svg?v=3.0.0',
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/zcode',
+  },
+  {
+    id: 'doubao',
+    name: '豆包',
+    platform: '桌面端 / 网页版',
+    iconUrl: 'https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@latest/icons/doubao-color.svg',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/doubao',
+  },
+  {
+    id: 'minimax-code',
+    name: 'MiniMax Code',
+    platform: '桌面端 / 终端 CLI',
+    iconSlug: 'minimax',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/minimax-code',
   },
   {
     id: 'codex-app',
