@@ -679,6 +679,7 @@ export async function getCloudBaseManager(options: GetManagerOptions = {}): Prom
     if (localEndpoint && !cloudBaseOptions?.requestFn) {
         cloudBaseOptions = {
             ...cloudBaseOptions,
+            envId: cloudBaseOptions?.envId || 'local',
             requestFn: createLocalCloudApiRequestFn(localEndpoint),
         };
     }

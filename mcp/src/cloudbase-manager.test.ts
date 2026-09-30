@@ -708,13 +708,14 @@ describe("project-pinned envId (.cloudbase/project.json)", () => {
   it("routes cloud API calls to CLOUDBASE_LOCAL_ENDPOINT without a Tencent login", async () => {
     process.env.CLOUDBASE_LOCAL_ENDPOINT = "http://127.0.0.1:8797";
     mockCommonServiceCall.mockResolvedValue({
-      EnvList: [{ EnvId: "local", Alias: "local", Region: "ap-shanghai" }],
+      EnvList: [{ EnvId: "other-env", Alias: "other", Region: "ap-shanghai" }],
     });
 
     const { getCloudBaseManager } = await import("./cloudbase-manager.js");
     await getCloudBaseManager();
 
     expect(mockPeekLoginState).not.toHaveBeenCalled();
+    expect(mockCommonServiceCall).not.toHaveBeenCalled();
     expect(mockCloudBaseCtor).toHaveBeenCalledWith(
       expect.objectContaining({
         envId: "local",
