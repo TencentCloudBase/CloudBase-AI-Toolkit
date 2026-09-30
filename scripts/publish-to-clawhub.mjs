@@ -40,6 +40,7 @@ function parseArgs(argv) {
   let changelog = "";
   let tags = "latest";
   let bump = "minor";
+  let owner = "";
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -67,6 +68,13 @@ function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--owner") {
+      // 空值等同于未指定，便于 CI 无条件透传一个可能为空的变量。
+      owner = (argv[index + 1] || "").trim();
+      index += 1;
+      continue;
+    }
+
     if (arg === "--bump") {
       bump = argv[index + 1] || bump;
       index += 1;
@@ -83,7 +91,7 @@ function parseArgs(argv) {
     );
   }
 
-  return { manifestPath, dryRun, changelog, tags, bump };
+  return { manifestPath, dryRun, changelog, tags, bump, owner };
 }
 
 function readManifest(manifestPath) {
@@ -156,19 +164,47 @@ export function normalizeClawhubChangelog(changelog) {
 }
 
 export function buildPublishCommand(target, options) {
+  // 发布主体（owner）：条目自带 owner 优先，便于发布主体迁移期间逐条切换；
+  // 否则用 --owner 传入的默认主体；两者都没有时沿用 CLI 自身的默认主体。
+  // --slug 始终显式传入，所以换主体不会改变已发布条目的 slug。
+  const owner = String(target.owner || options.owner || "").trim();
+
+  // 展示名（--name）：ClawHub 的检索面就是 displayName —— 不传的话线上展示的就是
+  // slug 本身，名字里的中文一个字都搜不到。取条目自带的 displayName。
+  const displayName = String(target.displayName || "").trim();
+
+  // 主题词（--topics）：逗号分隔，同样只影响检索与展示。
+  const topics = (Array.isArray(target.topics) ? target.topics : [])
+    .map((topic) => String(topic).trim())
+    .filter(Boolean);
+
+  const args = [
+    "skill",
+    "publish",
+    target.artifactDir,
+    "--slug",
+    target.registrySlug,
+    "--changelog",
+    normalizeClawhubChangelog(options.changelog),
+    "--tags",
+    options.tags,
+  ];
+
+  if (displayName) {
+    args.push("--name", displayName);
+  }
+
+  if (topics.length > 0) {
+    args.push("--topics", topics.join(","));
+  }
+
+  if (owner) {
+    args.push("--owner", owner);
+  }
+
   return {
     command: "clawhub",
-    args: [
-      "skill",
-      "publish",
-      target.artifactDir,
-      "--slug",
-      target.registrySlug,
-      "--changelog",
-      normalizeClawhubChangelog(options.changelog),
-      "--tags",
-      options.tags,
-    ],
+    args,
   };
 }
 
@@ -279,6 +315,7 @@ export function publishToClawhub({
   changelog = "",
   tags = "latest",
   bump = "minor",
+  owner = "",
   runPublish = runClawhubPublish,
   sleepMs = defaultSleepMs,
 }) {
@@ -297,6 +334,7 @@ export function publishToClawhub({
       changelog: resolvedChangelog,
       tags,
       bump,
+      owner,
     });
 
     console.log(`发布目标 / Publishing target: ${target.targetKey}`);
@@ -426,7 +464,7 @@ export function publishToClawhub({
 }
 
 function main() {
-  const { manifestPath, dryRun, changelog, tags, bump } = parseArgs(
+  const { manifestPath, dryRun, changelog, tags, bump, owner } = parseArgs(
     process.argv.slice(2),
   );
   const results = publishToClawhub({
@@ -435,6 +473,7 @@ function main() {
     changelog,
     tags,
     bump,
+    owner,
   });
 
   console.log(`已完成 ${results.length} 个 ClawHub 发布操作 / Completed ${results.length} ClawHub publish operation(s).`);

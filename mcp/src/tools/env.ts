@@ -2371,11 +2371,19 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           const apiKeyFromEnv = getCloudBaseApiKeyFromEnv();
           const isApiKeyMode = !!(apiKeyFromEnv && process.env.CLOUDBASE_ENV_ID);
 
+          // 授权失败的真实原因（DENIED/EXPIRED/ERROR）必须原样透出，
+          // 否则调用方无法区分"未登录"与"授权了但失败"
+          const authFlowFailed =
+            authFlowState.status === "DENIED" ||
+            authFlowState.status === "EXPIRED" ||
+            authFlowState.status === "ERROR";
           const authStatus = loginState
             ? "READY"
             : authFlowState.status === "PENDING"
               ? "PENDING"
-              : "REQUIRED";
+              : authFlowFailed
+                ? authFlowState.status
+                : "REQUIRED";
           let envPreparation:
             | AuthEnvPreparationResult
             | undefined;
@@ -2396,9 +2404,15 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 : credentialBoundary.scope_note
               : authStatus === "PENDING"
                 ? t("env.auth.devicePending", undefined, outLang)
-                : isCodeBuddyIde(server)
-                  ? t("env.auth.notLoggedInCodeBuddy", undefined, outLang)
-                  : t("env.auth.notLoggedIn", undefined, outLang);
+                : authFlowFailed
+                  ? t(
+                      "env.auth.deviceFailed",
+                      { error: authFlowState.lastError ?? "" },
+                      outLang,
+                    )
+                  : isCodeBuddyIde(server)
+                    ? t("env.auth.notLoggedInCodeBuddy", undefined, outLang)
+                    : t("env.auth.notLoggedIn", undefined, outLang);
 
           return buildJsonToolResult({
             ok: true,
@@ -2406,6 +2420,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             auth_status: authStatus,
             ...(toolSite ? { site: toolSite } : {}),
             ...(isApiKeyMode ? { auth_mode: "api_key" } : {}),
+            ...(authFlowFailed && authFlowState.lastError
+              ? { auth_error: authFlowState.lastError }
+              : {}),
             ...credentialBoundary,
             auth_config: authConfigSummary,
             ...(envPreparation
@@ -2421,13 +2438,13 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 : undefined,
             message: statusMessage,
             next_step:
-              authStatus === "REQUIRED"
-                ? buildAuthRequiredNextStep(server)
-                : authStatus === "PENDING"
-                  ? buildAuthNextStep("status", {
-                      suggestedArgs: { action: "status" },
-                    })
-                  : envPreparation?.nextStep,
+              authStatus === "PENDING"
+                ? buildAuthNextStep("status", {
+                    suggestedArgs: { action: "status" },
+                  })
+                : authStatus === "READY"
+                  ? envPreparation?.nextStep
+                  : buildAuthRequiredNextStep(server),
           });
         }
 
