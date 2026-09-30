@@ -75,6 +75,8 @@ export interface EvalContext {
     secretId: string;
     secretKey: string;
   };
+  /** 本地评测进程。设置后 MCP 走该地址，不注入腾讯云密钥。 */
+  localEndpoint?: string;
   /** 模型改过的题目副本。评分器据此查文件结果。 */
   workspace?: string;
 }

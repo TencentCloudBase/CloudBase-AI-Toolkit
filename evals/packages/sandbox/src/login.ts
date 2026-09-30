@@ -17,6 +17,23 @@ export function readCloudBaseCreds(env: NodeJS.ProcessEnv = process.env): CloudB
   return { envId, secretId, secretKey };
 }
 
+export function buildLocalMcpConfig(endpoint: string, mcpBin: string): string {
+  return JSON.stringify({
+    mcpServers: {
+      cloudbase: {
+        command: 'node',
+        args: [mcpBin],
+        env: {
+          CLOUDBASE_GUIDE_PROMPT: 'false',
+          CLOUDBASE_EVALUATE_MODE: '1',
+          CLOUDBASE_LOCAL_ENDPOINT: endpoint,
+        },
+      },
+    },
+  });
+}
+
+
 export function buildMcpConfig(creds: CloudBaseCreds): string {
   return JSON.stringify({
     mcpServers: {
