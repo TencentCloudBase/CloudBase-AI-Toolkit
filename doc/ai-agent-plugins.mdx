@@ -150,6 +150,31 @@ codebuddy plugin install cloudbase@tencent-cloudbase
 ![WorkBuddy 内置 CloudBase 连接器](https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/assets/workbuddy-connector-full.png)
 
   </TabItem>
+  <TabItem value="doubao" label="豆包">
+
+1. 左侧导航点击 **插件·技能·伙伴**
+2. 顶部切换到 **插件** 标签，分类选择 **精选**
+3. 找到 **腾讯云 CloudBase** 卡片，点击右侧按钮完成安装
+4. 点击右上角 **管理**，确认插件开关已打开
+
+首次使用会跳转到 CloudBase 授权页，选择一个环境并授权即可。详见 [豆包配置指南](ide-setup/doubao)。
+
+  </TabItem>
+  <TabItem value="minimax-code" label="MiniMax Code">
+
+1. 左侧导航点击 **Plugins**
+2. 顶部切换到 **Market** 标签
+3. 搜索 `cloud`，找到 **Tencent CloudBase** 卡片
+4. 点击卡片右侧的 **Install**
+
+终端 CLI 则执行 `mcode plugin add cloudbase@official`。装的是 CloudBase 官方插件，自带 MCP 服务与 31 个技能，自动注册、不需要手工配置。详见 [MiniMax Code 配置指南](ide-setup/minimax-code)。
+
+  </TabItem>
+  <TabItem value="deepseek-harness" label="DeepSeek Harness">
+
+Web UI 装 `dsh plugin --profile web add @cloudbase/dsh-plugin`，只要 MCP 工具则用 `dsh plugin --profile headless add @cloudbase/dsh-plugin`。详见 [DeepSeek Harness 配置指南](ide-setup/deepseek-harness)。
+
+  </TabItem>
   <TabItem value="kimi-code" label="Kimi Code">
 
 1. 在 Kimi Code 中输入 `/plugins` 打开插件面板

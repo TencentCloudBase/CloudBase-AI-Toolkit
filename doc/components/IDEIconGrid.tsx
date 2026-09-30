@@ -28,6 +28,27 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy',
   },
   {
+    id: 'doubao',
+    name: '豆包',
+    platform: '桌面端 / 网页版',
+    iconSlug: 'doubao',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/doubao',
+  },
+  {
+    id: 'minimax-code',
+    name: 'MiniMax Code',
+    platform: '桌面端 / 终端 CLI',
+    iconSlug: 'minimax',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/minimax-code',
+  },
+  {
+    id: 'deepseek-harness',
+    name: 'DeepSeek Harness',
+    platform: '桌面应用',
+    iconSlug: 'deepseek',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/deepseek-harness',
+  },
+  {
     id: 'kimi-code',
     name: 'Kimi Code',
     platform: '命令行工具',

@@ -145,6 +145,9 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
 | [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce) | CLI | [指引](https://docs.cloudbase.net/cli-v1/ai/introduce) |
 | [OpenClaw](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) | CLI | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) |
 | [WorkBuddy](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) | 独立 IDE | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) |
+| [豆包](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/doubao) | 桌面端 / 网页版（插件市场） | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/doubao) |
+| [MiniMax Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/minimax-code) | 桌面端 / 终端 CLI（插件市场） | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/minimax-code) |
+| [DeepSeek Harness](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/deepseek-harness) | 桌面应用（插件） | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/deepseek-harness) |
 | [ZCode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/zcode) | 独立 IDE（≥ 3.4.1 内置插件） | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/zcode) |
 | [Kimi Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) | CLI（插件市场） | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) |
 | [Kimi Work](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) | 桌面应用（插件面板） | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) |

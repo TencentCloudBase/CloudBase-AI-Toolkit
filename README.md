@@ -146,6 +146,9 @@ Skills shape structure and practice; MCP handles environment and resources. You 
 | [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce) | CLI | [Guide](https://docs.cloudbase.net/cli-v1/ai/introduce) |
 | [OpenClaw](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) | CLI | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) |
 | [WorkBuddy](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) | Standalone IDE | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) |
+| [Doubao](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/doubao) | Desktop & web (plugin marketplace) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/doubao) |
+| [MiniMax Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/minimax-code) | Desktop app & terminal CLI (plugin marketplace) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/minimax-code) |
+| [DeepSeek Harness](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/deepseek-harness) | Desktop app (plugin) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/deepseek-harness) |
 | [ZCode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/zcode) | Standalone IDE (≥ 3.4.1 built-in) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/zcode) |
 | [Kimi Code](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) | CLI (plugin marketplace) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) |
 | [Kimi Work](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) | Desktop app (plugin panel) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/kimi-code) |
