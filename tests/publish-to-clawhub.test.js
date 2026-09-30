@@ -85,6 +85,120 @@ describe('publish-to-clawhub command construction', () => {
     expect(command.args[changelogIndex]).not.toMatch(/[\r\n]/);
   });
 
+  test('omits --owner when neither the target nor the options set one', () => {
+    const command = buildPublishCommand(
+      { artifactDir: '/tmp/artifact/skills/cloudbase', registrySlug: 'cloudbase' },
+      { tags: 'latest', changelog: 'x', owner: '' },
+    );
+
+    expect(command.args).not.toContain('--owner');
+    expect(command.args[command.args.indexOf('--slug') + 1]).toBe('cloudbase');
+  });
+
+  test('passes --owner through without changing the registry slug', () => {
+    const command = buildPublishCommand(
+      { artifactDir: '/tmp/artifact/skills/cloudbase', registrySlug: 'cloudbase' },
+      { tags: 'latest', changelog: 'x', owner: 'example-org' },
+    );
+
+    expect(command.args[command.args.indexOf('--owner') + 1]).toBe('example-org');
+    // 换主体不能改 slug：已发布条目的持续更新必须落在同一个 slug 上
+    expect(command.args[command.args.indexOf('--slug') + 1]).toBe('cloudbase');
+  });
+
+  test('lets a target-level owner override the --owner default', () => {
+    const command = buildPublishCommand(
+      {
+        artifactDir: '/tmp/artifact/skills/web-development',
+        registrySlug: 'web-development',
+        owner: 'target-org',
+      },
+      { tags: 'latest', changelog: 'x', owner: 'cli-default-org' },
+    );
+
+    expect(command.args.filter((arg) => arg === '--owner')).toHaveLength(1);
+    expect(command.args[command.args.indexOf('--owner') + 1]).toBe('target-org');
+  });
+
+  test('passes --name from the target displayName (ClawHub 的检索面只有它)', () => {
+    const command = buildPublishCommand(
+      {
+        artifactDir: '/tmp/artifact/skills/miniprogram-development',
+        registrySlug: 'miniprogram-development',
+        displayName: '微信小程序开发 · WeChat Mini Program Development',
+      },
+      { tags: 'latest', changelog: 'x' },
+    );
+
+    expect(command.args[command.args.indexOf('--name') + 1]).toBe(
+      '微信小程序开发 · WeChat Mini Program Development',
+    );
+    // 名字（--name）不能顶掉 slug 身份
+    expect(command.args[command.args.indexOf('--slug') + 1]).toBe('miniprogram-development');
+  });
+
+  test('omits --name when the target has no displayName', () => {
+    const command = buildPublishCommand(
+      { artifactDir: '/tmp/artifact/skills/cloudbase', registrySlug: 'cloudbase' },
+      { tags: 'latest', changelog: 'x' },
+    );
+
+    expect(command.args).not.toContain('--name');
+  });
+
+  test('passes --topics as a comma-separated list and drops empty entries', () => {
+    const command = buildPublishCommand(
+      {
+        artifactDir: '/tmp/artifact/skills/web-development',
+        registrySlug: 'web-development',
+        topics: ['cloudbase', '腾讯云开发', '', '   '],
+      },
+      { tags: 'latest', changelog: 'x' },
+    );
+
+    expect(command.args[command.args.indexOf('--topics') + 1]).toBe('cloudbase,腾讯云开发');
+  });
+
+  test('omits --topics when the target has none', () => {
+    const command = buildPublishCommand(
+      { artifactDir: '/tmp/artifact/skills/cloudbase', registrySlug: 'cloudbase' },
+      { tags: 'latest', changelog: 'x' },
+    );
+
+    expect(command.args).not.toContain('--topics');
+  });
+
+  test('threads --owner through publishToClawhub into the actual publish command', () => {
+    const manifestPath = createManifest([
+      { targetKey: 'web-development', registrySlug: 'web-development' },
+    ]);
+    const publishCalls = [];
+    const previousToken = process.env.CLAWDHUB_TOKEN;
+    process.env.CLAWDHUB_TOKEN = 'test-token';
+
+    try {
+      publishToClawhub({
+        manifestPath,
+        owner: 'example-org',
+        runPublish: (_command, args) => {
+          publishCalls.push(args);
+          return { status: 'ok', output: 'OK. web-development@1.0.0 published\n' };
+        },
+        sleepMs: () => {},
+      });
+    } finally {
+      if (previousToken === undefined) {
+        delete process.env.CLAWDHUB_TOKEN;
+      } else {
+        process.env.CLAWDHUB_TOKEN = previousToken;
+      }
+    }
+
+    expect(publishCalls).toHaveLength(1);
+    expect(publishCalls[0][publishCalls[0].indexOf('--owner') + 1]).toBe('example-org');
+    expect(publishCalls[0][publishCalls[0].indexOf('--slug') + 1]).toBe('web-development');
+  });
+
   test('detects clawhub version-already-exists errors as idempotent', () => {
     expect(
       isClawhubVersionExistsError(

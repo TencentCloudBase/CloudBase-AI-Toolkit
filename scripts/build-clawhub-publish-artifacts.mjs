@@ -205,7 +205,11 @@ function buildTargetArtifact(target, outputDir) {
     registrySlug: target.registrySlug,
     displayName: target.displayName || validation.metadata.name,
     summary: target.summary || validation.metadata.description,
+    // 作为 `clawhub skill publish --topics` 传入的主题词；不设置则不发该参数。
+    topics: Array.isArray(target.topics) ? target.topics : [],
     iconUrl: target.iconUrl,
+    // 可选的发布主体；不设置则由 publish-to-clawhub.mjs 回落默认主体。
+    owner: target.owner,
     artifactRootDir,
     artifactDir,
     sourceType: target.type,

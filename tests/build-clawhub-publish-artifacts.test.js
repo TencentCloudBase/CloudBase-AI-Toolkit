@@ -169,11 +169,11 @@ test('buildClawhubPublishArtifacts rejects invalid targets', () => {
   ).toThrow(/Unknown publish targets/);
 });
 
-test('buildClawhubPublishArtifacts propagates curated displayName / summary / iconUrl to manifest', () => {
-  // The manifest is the single source of truth for SkillHub marketplace
-  // metadata. Each target entry must surface displayName, summary, and iconUrl
-  // so publish-to-skillhub.mjs can pass them to the SkillHub API instead of
-  // falling back to the raw SKILL.md `name` slug and English description.
+test('buildClawhubPublishArtifacts propagates curated displayName / summary / topics / iconUrl to manifest', () => {
+  // The manifest is the single source of truth for marketplace metadata.
+  // SkillHub consumes displayName / summary / iconUrl; ClawHub additionally
+  // consumes displayName as `--name` (its only searchable field) and topics as
+  // `--topics`.
   const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'clawhub-meta-'));
   tempDirs.push(outputDir);
 
@@ -185,17 +185,26 @@ test('buildClawhubPublishArtifacts propagates curated displayName / summary / ic
   expect(manifest.targets).toHaveLength(3);
 
   const allInOne = manifest.targets.find((t) => t.targetKey === 'all-in-one');
-  expect(allInOne.displayName).toBe('腾讯云 CloudBase / Tencent CloudBase');
+  expect(allInOne.displayName).toBe('腾讯云 CloudBase · Tencent CloudBase');
   expect(allInOne.summary).toMatch(/后端一体化平台/);
   expect(allInOne.iconUrl).toMatch(/logo-dark\.png$/);
+  expect(allInOne.topics).toContain('cloudbase');
 
   const miniprogram = manifest.targets.find((t) => t.targetKey === 'miniprogram-development');
-  expect(miniprogram.displayName).toMatch(/腾讯云 CloudBase 微信小程序开发/);
+  // 中文能力词必须落在名字里（ClawHub 的检索面只有 displayName），
+  // 且不再以品牌开头 —— 品牌由 owner 位承载。
+  expect(miniprogram.displayName).toMatch(/微信小程序开发/);
+  expect(miniprogram.displayName).toMatch(/WeChat Mini Program/);
+  expect(miniprogram.displayName).not.toMatch(/^腾讯云 CloudBase /);
   expect(miniprogram.summary).toMatch(/wx\.cloud/);
   expect(miniprogram.iconUrl).toMatch(/logo-dark\.png$/);
+  expect(miniprogram.topics).toContain('微信小程序');
 
   const web = manifest.targets.find((t) => t.targetKey === 'web-development');
-  expect(web.displayName).toMatch(/腾讯云 CloudBase Web 开发/);
+  expect(web.displayName).toMatch(/^Web 开发 · /);
   expect(web.summary).toMatch(/React|@cloudbase\/js-sdk/);
   expect(web.iconUrl).toMatch(/logo-dark\.png$/);
+  // topics 上限 5（见 docs.openclaw.ai/clawhub/publishing），所以能力词只留
+  // 三个；web-development 留 web / react / vue，frontend 由 web 覆盖。
+  expect(web.topics).toEqual(['cloudbase', '腾讯云开发', 'web', 'react', 'vue']);
 });
