@@ -2,10 +2,23 @@ import type { CheckResult, EvalContext } from '../../../packages/core/src/types.
 import { flag, scoreSql } from '../../../packages/sandbox/src/live-score.ts';
 
 const SQL = `select
-  (exists (
-    select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-    where n.nspname='public' and p.proname='edge_secret' and p.prosecdef
-  ))::text as fn,
+  (
+    exists (
+      select 1 from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where p.proname = 'edge_secret'
+        and p.prosecdef
+        and n.nspname not in ('pg_catalog', 'information_schema')
+    )
+    and not exists (
+      select 1 from pg_proc p
+      where p.proname = 'edge_secret'
+        and (
+          has_function_privilege('anon', p.oid, 'execute')
+          or has_function_privilege('authenticated', p.oid, 'execute')
+        )
+    )
+  )::text as fn,
   (to_regclass('public.edge_secret') is null)::text as not_table
 `;
 

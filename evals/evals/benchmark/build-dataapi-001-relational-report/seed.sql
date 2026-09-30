@@ -1,8 +1,11 @@
-create table if not exists public.customers (id text primary key, name text not null);
-create table if not exists public.orders (
-  id text primary key,
-  customer_id text not null,
-  total int not null
-);
-insert into public.customers (id, name) values ('c1','Ada') on conflict (id) do nothing;
-insert into public.orders (id, customer_id, total) values ('o1','c1',10) on conflict (id) do nothing;
+-- Live customers.id is bigint. orders.customer_id is text.
+-- Do not recreate customers with a text primary key.
+insert into public.customers (id, name, owner_id)
+values (91001, 'Ada', 'eval-seed')
+on conflict (id) do nothing;
+
+insert into public.orders (id, customer_id, total)
+values ('o1', '91001', 10)
+on conflict (id) do update
+set customer_id = excluded.customer_id,
+    total = excluded.total;

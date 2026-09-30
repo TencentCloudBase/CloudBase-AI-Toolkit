@@ -2,7 +2,7 @@
 
 一个用于测试 AI agent 能否用好 [CloudBase](https://cloudbase.net) 的基准测试与评测框架——覆盖数据库、登录认证、存储、云函数、CloudRun 与静态托管。它让 coding agent 完成真实的 CloudBase 任务（建表、接登录、修安全规则），并对真实环境中实际发生的结果打分。
 
-**状态：建设中。** 公开榜在 [CloudBase Evals](https://tencentcloudbase.github.io/CloudBase-AI-Toolkit/evals/)。上面列出下面这 15 道计分题，模型成绩公布前榜是空的。仓库里有 20 个场景目录：15 道可以公开计分，3 道在仓库里但未计分（见下），另外 2 道草案不上榜。runner 会加载场景并写出 `results/<experiment>/<eval>/run-<n>/result.json`，不会创建 CloudBase 环境。榜单上的模型名去掉 `-ioa` 通道后缀。
+**状态：建设中。** 公开榜在 [CloudBase Evals](https://tencentcloudbase.github.io/CloudBase-AI-Toolkit/evals/)。上面列出下面这 17 道计分题，模型成绩公布前榜是空的。仓库里有 20 个场景目录：17 道可以公开计分，1 道在仓库里但未计分（见下），另外 2 道草案不上榜。runner 会加载场景并写出 `results/<experiment>/<eval>/run-<n>/result.json`，不会创建 CloudBase 环境。榜单上的模型名去掉 `-ioa` 通道后缀。
 
 ## 跑通一个场景
 
@@ -26,7 +26,7 @@ node --experimental-strip-types evals/packages/framework/src/cli.ts \
 
 ## 计分题
 
-公开任务索引是这 15 道：
+公开任务索引是这 17 道：
 
 - `build-auth-001-email-password-flow`
 - `build-cli-001-bootstrap-app`
@@ -39,9 +39,11 @@ node --experimental-strip-types evals/packages/framework/src/cli.ts \
 - `build-storage-001-private-bucket-access`
 - `build-tests-001-rls-tenant-isolation`
 - `build-vectors-001-rag-with-permissions`
+- `deploy-functions-001-edge-function-secrets`
 - `investigate-auth-001-deleted-user-access`
 - `investigate-realtime-001-subscribed-no-events`
 - `resolve-dataapi-001-empty-results`
+- `resolve-database-001-migration-history-mismatch`
 - `resolve-security-002-rls-cross-tenant-leak`
 
 ## 未计分的题
@@ -49,8 +51,6 @@ node --experimental-strip-types evals/packages/framework/src/cli.ts \
 这些题留在仓库里，不上公开榜：
 
 - `build-dataapi-001-relational-report`：`orders` 的行级安全没有打开。
-- `resolve-database-001-migration-history-mismatch`：现网没有 `public.profiles`。
-- `deploy-functions-001-edge-function-secrets`：函数落在 `app_private.edge_secret`，评分器认的是 `public.edge_secret`。
 
 ## 为什么做
 

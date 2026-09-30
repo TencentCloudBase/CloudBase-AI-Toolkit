@@ -15,14 +15,6 @@ const UNSCORED_REASON = {
     zh: 'orders 的行级安全没有打开。',
     en: 'orders row security was left off.',
   },
-  'resolve-database-001-migration-history-mismatch': {
-    zh: '现网没有 public.profiles。',
-    en: 'The live database has no public.profiles.',
-  },
-  'deploy-functions-001-edge-function-secrets': {
-    zh: '函数落在 app_private.edge_secret，评分器认的是 public.edge_secret。',
-    en: 'The function landed as app_private.edge_secret; the scorer looks for public.edge_secret.',
-  },
 };
 
 const DRAFTS = {
