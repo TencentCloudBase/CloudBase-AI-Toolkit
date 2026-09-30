@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import * as esbuild from "esbuild";
 import { chmodSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -5,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+execFileSync(process.execPath, [join(root, "scripts/generate-skills.mjs")], { stdio: "inherit" });
 mkdirSync(join(root, "dist"), { recursive: true });
 
 await esbuild.build({

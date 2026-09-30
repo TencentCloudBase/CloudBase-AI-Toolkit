@@ -43,12 +43,7 @@ if [ "$PROFILE" = "web" ]; then
   fi
 fi
 
-echo "==> Installing CloudBase skills into ~/.dsh/skills/cloudbase/"
-npx --yes -p "$PKG" cloudbase-skills sync 2>/dev/null || true
-if command -v cloudbase-skills >/dev/null 2>&1; then
-  cloudbase-skills sync || true
-fi
-
+echo "==> CloudBase skill is registered by the plugin. Nothing is copied into ~/.dsh/skills/."
 echo
 echo "Done. Next:"
 echo "  dsh --profile $PROFILE"

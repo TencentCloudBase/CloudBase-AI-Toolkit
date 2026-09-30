@@ -27,7 +27,7 @@ function proxyArgsExpression(): string {
 
 describe("cordis patch: proxy path resolution", () => {
   const expr = proxyArgsExpression();
-  const suffix = "node_modules/@cloudbase/dsh-plugin/scripts/mcp-env-proxy.mjs";
+  const suffix = "node_modules/@cloudbase/dsh-plugin/scripts/mcp-launch.mjs";
 
   // `baseUrl` comes from `pathToFileURL(<profile dir>).href`, so a home
   // directory containing a space or non-ASCII character arrives percent-encoded

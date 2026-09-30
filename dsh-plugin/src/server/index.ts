@@ -1,23 +1,14 @@
 import { PLUGIN_NAME } from "../shared/constants.js";
 import type { CloudBaseData } from "../shared/types.js";
-import {
-  SessionEnvCache,
-  cloudbaseRawToolName,
-  cloudbaseToolNeedsEnv,
-  isCloudbasePublicTool,
-  loginHint,
-  parseToolArguments,
-  resolveSessionId,
-  writeEnvHint,
-} from "./mcp-bridge.js";
+import { SessionEnvCache, resolveSessionId } from "./mcp-bridge.js";
 import { CloudBaseMcpBridge } from "./mcp-client.js";
 import { createCloudBaseDataService } from "./data-service.js";
 import { buildCloudBaseTypertContribution, CloudBaseRemoteService } from "./remote-service.js";
-import { installBundledSkills } from "./skill-sync.js";
+import { registerBundledSkill, type SkillRegistry } from "./skill-provider.js";
 
 export const name = PLUGIN_NAME;
 // Cordis service 依赖须显式声明（否则访问 ctx.xxx 报 "without inject"）
-export const inject: string[] = ["systemPrompt", "sessions", "typert"];
+export const inject: string[] = ["systemPrompt", "sessions", "typert", "skills"];
 
 interface PluginContext {
   logger?: { info?: (message: string) => void; warn?: (message: string) => void };
@@ -34,6 +25,7 @@ interface PluginContext {
     get?: (sessionId: string) => unknown;
   };
   on?: (event: string, handler: (...args: unknown[]) => unknown) => void;
+  skills?: SkillRegistry;
 }
 
 function createAppend(ctx: PluginContext): (text: string) => Promise<void> {
@@ -83,37 +75,13 @@ export function apply(ctx: PluginContext): void {
     );
   }
 
-  ctx.on?.("tools/pre-execute", async (exec, next) => {
-    const proceed = next as () => Promise<{ kind: string } | undefined>;
-    const toolExec = exec as { name?: string; arguments?: unknown; args?: unknown };
-    const toolName = toolExec.name ?? "";
-    if (!isCloudbasePublicTool(toolName)) return proceed();
-
-    const sessionId = resolveCurrentSessionId(ctx);
-    const args = parseToolArguments(toolExec.arguments ?? toolExec.args);
-    const rawName = cloudbaseRawToolName(toolName);
-
-    if (rawName === "auth" && args.action === "set_env" && typeof args.envId === "string") {
-      sessionEnvCache.set(sessionId, args.envId);
-      writeEnvHint(sessionEnvCache, sessionId, args.envId);
-      return proceed();
-    }
-
-    const bound = sessionEnvCache.get(sessionId);
-    if (bound?.envId && cloudbaseToolNeedsEnv(rawName, args)) {
-      writeEnvHint(sessionEnvCache, sessionId, bound.envId);
-    }
-    return proceed();
-  });
-
   ctx.effect?.(() => () => bridge.dispose());
 
   try {
-    const target = installBundledSkills();
-    ctx.logger?.info?.(`[cloudbase] skills installed at ${target}`);
+    registerBundledSkill(ctx.skills);
   } catch (error) {
     ctx.logger?.warn?.(
-      `[cloudbase] skill install skipped: ${error instanceof Error ? error.message : String(error)}`,
+      `[cloudbase] skill register skipped: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 
@@ -125,23 +93,13 @@ export function apply(ctx: PluginContext): void {
       "You have CloudBase MCP tools named mcp__cloudbase__*.",
       "Reuse the local tcb login state. Never ask for an API Key if auth status is ready.",
       "If auth is missing, call mcp__cloudbase__auth with action=start_auth and authMode=device, then show the verification URL.",
-      "Bind an environment once per session with mcp__cloudbase__auth action=set_env envId=<id>. Subsequent query/manage tools reuse the session binding automatically — do not call set_env before every query.",
-      "To inspect the current session binding, call mcp__cloudbase__auth action=list_bound_envs.",
+      "Bind an environment with mcp__cloudbase__auth action=set_env envId=<id>. cloudbase-mcp remembers it for later tool calls — do not call set_env before every query.",
+      "To inspect auth and the current environment, call mcp__cloudbase__auth action=status.",
       "For a new web app: downloadTemplate(react) → local Vite preview → create PG tables with managePgDatabase → manageHosting upload → return the real domain.",
       "Do not mention internal codes FLEXDB, SCF, or TDSQL in user-facing text.",
     ].join(" "),
   });
 
-  void data
-    .authStatus()
-    .then((status) => {
-      ctx.logger?.info?.(loginHint(status.signedIn));
-    })
-    .catch((error: unknown) => {
-      ctx.logger?.warn?.(
-        `[cloudbase] auth status: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    });
 }
 
 export { buildMcpClientConfig, loginHint, SessionEnvCache } from "./mcp-bridge.js";
