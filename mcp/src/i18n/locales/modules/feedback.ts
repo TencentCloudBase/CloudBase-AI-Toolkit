@@ -12,8 +12,9 @@ export const feedback = defineModule(
       "\n\n**怎么用**：" +
       "\n- 第一次不要传 `confirmed`。先把返回的草稿全文给用户看。" +
       "\n- 用户明确同意后，再以 `confirmed=true` 调用。这时才会返回可打开的链接。" +
-      "\n- 本工具不会替用户提交。取不到的内容会留空，不要编造作品名、简介、公网地址或对话轮次。" +
-      "\n- 国际站链接指向 GitHub，正文为英文；国内站链接指向 CNB 上的 CloudBase-AI-ToolKit 仓库，正文为中文。",
+      "\n- 本工具不会替用户提交。链接里的正文就是本次返回的 draft，不要改写成另一份再让用户提交。" +
+      "\n- 不采集对话轮次，不要编造轮次、作品名、简介或公网地址。" +
+      "\n- 国际站是英文草稿和 GitHub 链接（body 参数）。国内站是中文草稿，链接指向 CNB 上公开的 CloudBase-AI-ToolKit 仓库，正文放在模板字段 session。若页面没自动填上，把 draft 粘贴到「本次会话记录」。",
     "schema.channel":
       "反馈用途：`case` 是把已完成的作品整理成案例；`retrospective` 是把这次不顺利的开发整理成复盘。",
     "schema.confirmed":
@@ -30,8 +31,9 @@ export const feedback = defineModule(
       "\n\n**How to use**:" +
       "\n- Do not pass `confirmed` on the first call. Show the returned draft to the user in full." +
       "\n- Call again with `confirmed=true` only after the user explicitly agrees. That call returns the link." +
-      "\n- This tool does not submit the issue. Fields it cannot verify are left blank. Do not invent a title, summary, public URL, or conversation turn count." +
-      "\n- International site: English draft and a GitHub link. China site: Chinese draft and a link to the CloudBase-AI-ToolKit repo on CNB.",
+      "\n- This tool does not submit the issue. The link body is the draft in this response. Do not rewrite it and ask the user to submit the rewrite." +
+      "\n- Conversation turns are not collected. Do not invent a turn count, title, summary, or public URL." +
+      "\n- International site: English draft and a GitHub link (body parameter). China site: Chinese draft and a link to the public CloudBase-AI-ToolKit repo on CNB. The draft is placed in the template field id session. If the page does not fill it, paste the draft into that field.",
     "schema.channel":
       "What the feedback is for: `case` turns a finished work into a showcase entry; `retrospective` turns a difficult session into a write-up.",
     "schema.confirmed":

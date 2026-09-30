@@ -1,0 +1,32 @@
+name: 案例提交
+description: 把这次用 CloudBase 做出来的作品记下来。本仓库的 Issue 公开可见。
+title: "[案例] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交后这条 Issue 在本仓库公开可见。不要填写环境 ID、密钥、凭证或用户数据。
+        作品名称和一句话简介请自己写，不要粘贴模型生成的套话。
+  - type: textarea
+    id: session
+    attributes:
+      label: 本次会话记录
+      description: 由 prepareFeedback 预填。请核对；若页面是空的，把工具返回的 draft 粘贴到这里。
+      render: text
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: 作品名称
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 一句话简介
+      description: 写给浏览者看。做什么用的、解决谁的什么问题。
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: 公网访问地址
+      description: 确认可以公开再填。不确定就留空。
