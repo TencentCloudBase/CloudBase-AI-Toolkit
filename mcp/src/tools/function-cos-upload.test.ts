@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCosPutAuthorization,
+  buildFunctionZipObjectKey,
   buildFunctionZipUpload,
   camSafeUrlEncode,
+  isFunctionZipObjectKey,
   stripAppIdSuffix,
 } from "./function-cos-upload.js";
 
@@ -221,5 +223,77 @@ describe("camSafeUrlEncode", () => {
     expect(camSafeUrlEncode("fnzip-upload/1/x.zip")).toBe(
       "fnzip-upload%2F1%2Fx.zip",
     );
+  });
+});
+
+describe("buildFunctionZipObjectKey / isFunctionZipObjectKey", () => {
+  /**
+   * 漂移守卫：阶段 A 铸造的 key 必须永远能通过阶段 B 的形状校验。两者共用同一个
+   * 拼装函数，但仍在这里逐分支对照一次 —— 一旦有人只改其中一边（比如把随机后缀
+   * 从 16 位 hex 换成 base64），这条用例会立刻红，而不是等到线上部署被拒。
+   */
+  it("accepts every key the minter produces", () => {
+    const minted = [
+      buildFunctionZipObjectKey({
+        ts: 1759200000,
+        rand: "0123456789abcdef",
+        functionName: "helloWorld",
+      }),
+      buildFunctionZipObjectKey({
+        ts: 1759200000,
+        rand: "0123456789abcdef",
+      }),
+      buildFunctionZipObjectKey({
+        ts: 1759200000,
+        rand: "0123456789abcdef",
+        functionName: "../escape",
+      }),
+    ];
+
+    for (const key of minted) {
+      expect(isFunctionZipObjectKey(key)).toBe(true);
+    }
+    expect(minted[0]).toBe(
+      "fnzip-upload/1759200000-0123456789abcdef/helloWorld.zip",
+    );
+    // 不安全的名字回落为 code，不能逃出 fnzip-upload/ 前缀
+    expect(minted[2]).toBe("fnzip-upload/1759200000-0123456789abcdef/code.zip");
+  });
+
+  it("rejects keys that are not shaped like a minted upload target", () => {
+    const rejected = [
+      "fnzip-upload/1/zipDemo.zip", // 缺时间戳-随机后缀层级
+      "fnzip-upload/1759200000-0123456789ABCDEF/x.zip", // 后缀不是小写 hex
+      "fnzip-upload/1759200000-0123456789abcdef/x.zip/../../etc/passwd",
+      "fnzip-upload/1759200000-0123456789abcdef/x.tar.gz", // 非 .zip
+      "other-prefix/1759200000-0123456789abcdef/x.zip",
+      "data/backup.zip", // 环境桶里已有的其它对象
+      "",
+    ];
+
+    for (const key of rejected) {
+      expect(isFunctionZipObjectKey(key)).toBe(false);
+    }
+  });
+
+  it("keeps the minted key usable end to end", () => {
+    // 刻意不注入随机后缀：这条同时守着 randomBytes(8) 的真实产物仍能过形状校验
+    const upload = buildFunctionZipUpload({
+      storage: { bucket: FIXTURE.bucket, region: FIXTURE.region },
+      credential: { secretId: FIXTURE.secretId, secretKey: FIXTURE.secretKey },
+      functionName: "helloWorld",
+      now: 1690000000,
+    });
+
+    expect(upload.cosObjectName).toMatch(
+      /^fnzip-upload\/1690000000-[0-9a-f]{16}\/helloWorld\.zip$/,
+    );
+    expect(isFunctionZipObjectKey(upload.cosObjectName)).toBe(true);
+    // 路径不进 url-encode（签名按原始 pathname 计算），地址里就是原样的 key
+    expect(
+      upload.uploadUrl.startsWith(
+        `https://${FIXTURE.bucket}.cos.${FIXTURE.region}.myqcloud.com/${upload.cosObjectName}?`,
+      ),
+    ).toBe(true);
   });
 });

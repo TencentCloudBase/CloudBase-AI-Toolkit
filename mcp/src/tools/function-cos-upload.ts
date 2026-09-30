@@ -170,9 +170,42 @@ export interface BuildFunctionZipUploadParams {
 }
 
 /**
+ * 上传对象 key 的形状：`fnzip-upload/{10 位秒级时间戳}-{16 位 hex}/{名字}.zip`。
+ *
+ * 阶段 B 用它判断「code.cosObjectName 是不是本工具铸造出来的地址」。校验与铸造
+ * 放在同一模块、共用 {@link buildFunctionZipObjectKey}，改 key 格式时不会只改一边
+ * （`function-cos-upload.test.ts` 有一条漂移用例守着）。
+ *
+ * 刻意不额外维护「本进程铸造过哪些 key」的登记表：托管形态是每请求无状态、
+ * 可由多副本承载（BFF 每个请求新建 transport，MCP Server 实例只是 LRU 缓存），
+ * 任何「必须由本进程铸造」的判断都会在跨进程时把正常部署误判成非法。
+ */
+export const FUNCTION_ZIP_OBJECT_KEY_PATTERN =
+  /^fnzip-upload\/\d{10}-[0-9a-f]{16}\/[A-Za-z0-9_-]{1,64}\.zip$/;
+
+/** 判断对象 key 是否为上传代码包该有的形状。 */
+export function isFunctionZipObjectKey(objectKey: string): boolean {
+  return FUNCTION_ZIP_OBJECT_KEY_PATTERN.test(objectKey);
+}
+
+/**
+ * 拼出上传对象 key。functionName 只用于让 key 可读，必须收窄：否则 "../" 之类
+ * 能把对象写到 `fnzip-upload/` 前缀之外。
+ */
+export function buildFunctionZipObjectKey(params: {
+  ts: number;
+  rand: string;
+  functionName?: string;
+}): string {
+  const safeFunctionName =
+    params.functionName && /^[A-Za-z0-9_-]{1,64}$/.test(params.functionName)
+      ? params.functionName
+      : "code";
+  return `fnzip-upload/${params.ts}-${params.rand}/${safeFunctionName}.zip`;
+}
+
+/**
  * 生成两段式部署阶段 A 的完整返回体：预签名 PUT URL + 阶段 B 所需的 COS 三元组。
- * 对象 key 形如 `fnzip-upload/{ts}-{rand}/{functionName|code}.zip`。functionName 会被
- * 收窄到 COS 签名安全字符（字母数字与 -_），保证签名 pathname 与请求 URL 一致。
  */
 export function buildFunctionZipUpload(
   params: BuildFunctionZipUploadParams,
@@ -181,15 +214,10 @@ export function buildFunctionZipUpload(
   const expiresIn = params.expiresIn ?? 300;
 
   const ts = params.now ?? Math.floor(Date.now() / 1000);
-  const rand =
-    params.randomSuffix ?? randomBytes(8).toString("hex");
-  // functionName 只用于让对象 key 可读，必须收窄：否则 "../" 之类能把对象写到
-  // fnzip-upload/ 前缀之外
-  const safeFunctionName =
-    functionName && /^[A-Za-z0-9_-]{1,64}$/.test(functionName)
-      ? functionName
-      : "code";
-  const objectKey = `fnzip-upload/${ts}-${rand}/${safeFunctionName}.zip`;
+  const rand = params.randomSuffix ?? randomBytes(8).toString("hex");
+  // functionName 会被收窄到 COS 签名安全字符（字母数字与 -_），保证签名 pathname
+  // 与请求 URL 一致
+  const objectKey = buildFunctionZipObjectKey({ ts, rand, functionName });
 
   const keyTime =
     params.keyTime ?? `${ts - 1};${ts + expiresIn}`;
