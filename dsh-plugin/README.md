@@ -6,9 +6,9 @@
 >
 > `@cloudbase/dsh-plugin` 把 CloudBase 后端搬进 DSH：
 >
-> - **对话里建全栈应用**：说需求 → AI 拉模板、建 PG 表、写前端、部署拿域名
-> - **查询结果变卡片**：数据库 / MySQL / NoSQL 查询直接渲染成表格——分页、排序、导出 CSV；部署后有 iframe 预览和打开按钮
-> - **38 个 MCP 工具**：建表、查询、托管、认证、环境配置，全在对话里调用
+> - **数据库**：文档库、MySQL、PostgreSQL，对话里建表和查询
+> - **存储与认证**：上传文件，配置登录
+> - **前后端部署**：前端托管和后端部署，拿到可访问地址
 >
 > 你的模型（DeepSeek / Claude / 随便换）、你的后端（自己的 CloudBase 环境）、你的数据（本地会话 + 自己数据库）。
 
@@ -93,7 +93,7 @@ MIT
 
 # English
 
-CloudBase backend for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Brings the whole backend into DSH: full-stack apps from chat (scaffold → PG tables → frontend → deploy with a domain), query results rendered as table cards (paginate / sort / export CSV), deploy preview with iframe, and 38 MCP tools (`mcp__cloudbase__*`).
+CloudBase backend for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Database, storage, authentication, and frontend/backend deployment from chat, through the CloudBase MCP tools.
 
 ## Install
 
