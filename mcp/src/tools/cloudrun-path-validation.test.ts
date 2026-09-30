@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import path from "path";
 import os from "os";
 import { validateAndNormalizePath } from "./cloudrun.js";
+import { requireProjectRoot } from "../utils/project-config.js";
 
 describe("validateAndNormalizePath", () => {
   it("accepts absolute paths outside MCP process cwd (CloudRun deploy/download)", () => {
@@ -16,10 +17,11 @@ describe("validateAndNormalizePath", () => {
     expect(validateAndNormalizePath(inside)).toBe(path.resolve(inside));
   });
 
-  it("accepts relative paths that stay within cwd", () => {
-    expect(validateAndNormalizePath(".")).toBe(path.resolve("."));
+  it("accepts relative paths that stay within the project root", () => {
+    const root = requireProjectRoot();
+    expect(validateAndNormalizePath(".")).toBe(path.resolve(root, "."));
     expect(validateAndNormalizePath("./local-cloudrun")).toBe(
-      path.resolve("./local-cloudrun"),
+      path.resolve(root, "./local-cloudrun"),
     );
   });
 
