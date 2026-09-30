@@ -2,7 +2,35 @@
 
 一个用于测试 AI agent 能否用好 [CloudBase](https://cloudbase.net) 的基准测试与评测框架——覆盖数据库、登录认证、存储、云函数、CloudRun 与静态托管。它让 coding agent 完成真实的 CloudBase 任务（建表、接登录、修安全规则），并对真实环境中实际发生的结果打分。
 
-**状态：建设中。** 场景仍是首批 2 个示例。runner 已能加载场景、用干跑执行评分器，并写出 `results/<experiment>/<eval>/run-<n>/result.json`。CodeBuddy Code 可以 headless 调用（`cbc -p`）；榜单上的模型名是标准名，`-ioa` 只在传给 `--model` 时使用。本 runner 不会创建 CloudBase 环境。
+**状态：建设中。** 仓库里有 20 道 benchmark 题。其中 15 道可以公开计分，3 道在仓库里但未计分（见下）。runner 会加载场景并写出 `results/<experiment>/<eval>/run-<n>/result.json`，不会创建 CloudBase 环境。榜单上的模型名去掉 `-ioa` 通道后缀。
+
+## 跑通一个场景
+
+在仓库根目录执行，不需要 CloudBase 凭证：
+
+```bash
+node --experimental-strip-types evals/packages/framework/src/cli.ts \
+  run build-auth-001-username-signin --experiment fixture-dry
+```
+
+这是 30 分钟验收入口。它加载场景，对假环境打分，并写下 `evals/results/`。检查会失败，因为没有真实实现。
+
+只打分、不启动模型：
+
+```bash
+node --experimental-strip-types evals/packages/framework/src/cli.ts \
+  score resolve-security-002-rls-cross-tenant-leak
+```
+
+真跑需要你自己的 `CLOUDBASE_ENV_ID`、`TENCENTCLOUD_SECRETID` 和 `TENCENTCLOUD_SECRETKEY`。runner 不会创建环境。
+
+## 未计分的题
+
+这些题留在仓库里，不上公开榜：
+
+- `build-dataapi-001-relational-report`：`orders` 的行级安全没有打开。
+- `resolve-database-001-migration-history-mismatch`：现网没有 `public.profiles`。
+- `deploy-functions-001-edge-function-secrets`：函数落在 `app_private.edge_secret`，评分器认的是 `public.edge_secret`。
 
 ## 为什么做
 
@@ -20,17 +48,6 @@ evals/
   packages/                 # core、framework、sandbox
   results/                  # 运行产物：results/<experiment>/<eval>/run-<n>/
 ```
-
-## 跑通一个场景
-
-在仓库根目录执行，不需要 CloudBase 凭证：
-
-```bash
-node --experimental-strip-types evals/packages/framework/src/cli.ts \
-  run build-auth-001-username-signin --experiment fixture-dry
-```
-
-这是 30 分钟验收入口：加载场景、对假环境跑评分器、写下 `evals/results/`。干跑的检查会失败，因为没有真实环境里的实现。真跑需要你已有的 `CLOUDBASE_ENV_ID`；runner 不会自己创建环境。
 
 ## 场景格式
 
@@ -53,11 +70,11 @@ topic:
 
 ## 运行与计分规则
 
-- 每个场景都跑在真实 CloudBase 环境上，一次运行独占一个环境，跑前创建、跑后销毁。
-- 榜单分数为 3 次独立运行的平均值。
-- harness 版本固定；升级 harness 后全量重跑再切换榜单。
+- 真跑使用你已经有的环境。本 runner 不会创建环境。
+- 在固定重复采样协议落地前，公开分数是单次运行。
+- Agent 工具版本固定；升级后全量重跑再切换榜单。
 - 各 harness 统一上下文窗口与压缩配置。
 
 ## 参与贡献
 
-欢迎通过 PR 贡献场景和实验配置。CONTRIBUTING.md（如何选题、如何写评分器、结果如何复核）将随 runner 一起落地。
+见 [CONTRIBUTING.md](CONTRIBUTING.md)。

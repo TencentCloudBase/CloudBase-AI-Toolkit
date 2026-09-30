@@ -1,12 +1,13 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { EvalContext, RunResult, SdkHandle } from '../../core/src/types.ts';
 import type { Scenario } from '../../core/src/load-scenario.ts';
 import { openSandbox, type SandboxEnv } from '../../sandbox/src/env.ts';
+import { buildMcpConfig, preseedCliLogin, readCloudBaseCreds } from '../../sandbox/src/login.ts';
 import type { Experiment } from '../../../experiments/presets.ts';
 import { RUNNERS } from './harnesses.ts';
 import { toCbcModelId } from './models.ts';
+import { copyFixture } from './workspace.ts';
 
 const emptyDoc = {
   async create() {
@@ -57,10 +58,16 @@ export async function runScenario(options: {
   const runner = RUNNERS[options.experiment.harness];
   const providerModelId =
     runner.id === 'codebuddy-code' ? toCbcModelId(options.experiment.modelId) : undefined;
-  const promptPath = path.join(tmpdir(), `cb-eval-${options.scenario.id}.md`);
+  const workspace = await copyFixture(options.scenario.dir);
+  const creds = readCloudBaseCreds(options.env);
+  const mcpConfig = creds ? buildMcpConfig(creds) : '{"mcpServers":{}}';
+  if (creds) {
+    await preseedCliLogin(workspace, creds);
+  }
+  const promptPath = path.join(workspace, 'TASK.md');
   await writeFile(promptPath, `${options.scenario.body}\n`);
   const execResult = await runner.exec({
-    workspace: options.scenario.dir,
+    workspace,
     model: options.experiment.modelId,
     apiKey: 'dry-run',
     promptPath,
@@ -68,9 +75,13 @@ export async function runScenario(options: {
     timeoutSec: runner.id === 'codebuddy-code' ? 1800 : 60,
     maxTurns: options.maxTurns,
     skills: options.experiment.skills,
+    mcpConfig,
   });
 
-  const checks = await options.scenario.scorer(dryEvalContext(sandbox.envId));
+  const scoreCtx = dryEvalContext(sandbox.envId);
+  if (creds) scoreCtx.live = creds;
+  scoreCtx.workspace = workspace;
+  const checks = await options.scenario.scorer(scoreCtx);
   const result: RunResult = {
     experiment: options.experiment.id,
     eval: options.scenario.id,

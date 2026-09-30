@@ -2,7 +2,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { listScenarioIds, loadScenario } from '../../core/src/load-scenario.ts';
 import { EXPERIMENTS, findExperiment } from '../../../experiments/presets.ts';
-import { runScenario } from './run.ts';
+import { dryEvalContext, runScenario } from './run.ts';
+import { readCloudBaseCreds } from '../../sandbox/src/login.ts';
 
 const evalsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -22,8 +23,21 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === 'score' && scenarioId) {
+    const scenario = await loadScenario(evalsRoot, scenarioId);
+    const creds = readCloudBaseCreds();
+    const ctx = dryEvalContext(creds?.envId ?? 'dry-run');
+    if (creds) ctx.live = creds;
+    const checks = await scenario.scorer(ctx);
+    for (const check of checks) {
+      process.stdout.write(`${check.passed ? 'pass' : 'fail'} ${check.name}\n`);
+    }
+    process.stdout.write(`${JSON.stringify({ eval: scenario.id, passed: checks.every((check) => check.passed), checks: checks.length })}\n`);
+    return;
+  }
+
   if (command !== 'run' || !scenarioId) {
-    throw new Error('Usage: cli.ts list | cli.ts run <scenario-id> --experiment <id> [--run N]');
+    throw new Error('Usage: cli.ts list | cli.ts score <scenario-id> | cli.ts run <scenario-id> --experiment <id> [--run N]');
   }
 
   const experimentId = flag(rest, '--experiment');
