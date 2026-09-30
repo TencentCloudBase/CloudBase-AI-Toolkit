@@ -417,6 +417,44 @@ describe("env tools - auth", () => {
     });
   });
 
+  it("auth(action=status) should surface device-flow failure instead of masking it as REQUIRED", async () => {
+    const lastError = "Request failed with status 500 (mock device-flow polling error)";
+    mockGetAuthProgressState.mockResolvedValue({
+      status: "ERROR",
+      lastError,
+      updatedAt: Date.now(),
+    });
+
+    const result = await tools.auth.handler({ action: "status" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toHaveProperty("auth_status", "ERROR");
+    expect(payload).toHaveProperty("auth_error", lastError);
+    expect(payload).toHaveProperty("ok", true);
+    expect(payload.next_step).toMatchObject({
+      tool: "auth",
+      action: "start_auth",
+    });
+  });
+
+  it("auth(action=status) should surface expired device code as EXPIRED", async () => {
+    mockGetAuthProgressState.mockResolvedValue({
+      status: "EXPIRED",
+      lastError: "设备码已过期，请重新发起授权",
+      updatedAt: Date.now(),
+    });
+
+    const result = await tools.auth.handler({ action: "status" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toHaveProperty("auth_status", "EXPIRED");
+    expect(payload).toHaveProperty(
+      "auth_error",
+      "设备码已过期，请重新发起授权",
+    );
+    expect(payload).not.toHaveProperty("auth_challenge");
+  });
+
   it("auth(action=status) should report NOT_NEEDED when login already has envId", async () => {
     mockPeekLoginState.mockResolvedValue({
       secretId: "sid",
