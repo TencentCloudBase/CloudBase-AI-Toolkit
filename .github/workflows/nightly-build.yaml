@@ -15,8 +15,10 @@ on:
     - cron: '30 21 * * *'
 
 jobs:
-  # 构建和发布到pkg.pr.new
-  build-and-publish:
+  # 门禁 job：构建 + 单测（含真云 E2E）+ hooks。
+  # 发布预览包（pkg.pr.new）只是附带动作，上游抖动不应把门禁判红（见该步骤的 continue-on-error）。
+  build-and-test:
+    name: build-and-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -60,6 +62,8 @@ jobs:
         run: pnpm run test:hooks
           
       - name: Publish to pkg.pr.new
+        # Preview-only artifact: an upstream pkg.pr.new outage must not turn the gate red.
+        continue-on-error: true
         working-directory: ./mcp
         # Not a workspace dependency; keep npx for one-shot publish tooling.
         run: npx pkg-pr-new publish --comment=off
