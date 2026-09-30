@@ -53,4 +53,4 @@ These skills are maintained in the main [CloudBase AI ToolKit](https://github.co
 
 ## License
 
-Same as the [CloudBase AI ToolKit](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit) project.
+MIT — see [LICENSE](./LICENSE). Same as the [CloudBase AI ToolKit](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit) project.

@@ -4,6 +4,8 @@
  * Build Agent Skills Repository Script
  * Collects all agent skills from config/source/skills/ and outputs them
  * to .skill-repo-output/skills/ for publishing to a separate repository.
+ * Also emits README.md and LICENSE, which the generated repository needs as
+ * its own files (see the LICENSE step below).
  */
 
 import fs from "fs";
@@ -39,6 +41,7 @@ const GUIDELINE_SOURCE_DIR = path.join(
   "guideline",
   "cloudbase",
 );
+const LICENSE_SOURCE_PATH = path.join(projectRoot, "LICENSE");
 
 /**
  * Parse SKILL.md frontmatter
@@ -313,6 +316,23 @@ async function buildSkillsRepo() {
   fs.writeFileSync(readmePath, readmeContent, "utf8");
   console.log(
     `${colors.GREEN}✅ README.md 已生成到: ${OUTPUT_DIR}/README.md${colors.NC}`,
+  );
+
+  // Copy LICENSE
+  //
+  // The publishing workflow removes every root entry of the target repository
+  // except its whitelisted local skills, then rsyncs this output over it, so a
+  // LICENSE committed by hand in the target repository is deleted on the next
+  // sync. Emitting it here is the only way the published repository keeps a
+  // detectable license.
+  console.log(`\n${colors.BLUE}📄 复制 LICENSE...${colors.NC}`);
+  if (!fs.existsSync(LICENSE_SOURCE_PATH)) {
+    throw new Error(`License file not found: ${LICENSE_SOURCE_PATH}`);
+  }
+  const licenseOutputPath = path.join(outputPath, "LICENSE");
+  fs.copyFileSync(LICENSE_SOURCE_PATH, licenseOutputPath);
+  console.log(
+    `${colors.GREEN}✅ LICENSE 已生成到: ${OUTPUT_DIR}/LICENSE${colors.NC}`,
   );
 
   console.log(

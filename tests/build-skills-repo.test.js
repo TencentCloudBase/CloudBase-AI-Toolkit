@@ -45,4 +45,12 @@ test('build-skills-repo publishes skills and guideline from minimal sources', ()
   const readme = fs.readFileSync(path.join(OUTPUT_DIR, 'README.md'), 'utf8');
   expect(readme).toContain('cloudbase');
   expect(readme).toContain('auth-web-cloudbase');
+  expect(readme).toContain('MIT — see [LICENSE](./LICENSE)');
+
+  // The target repository's root is wiped by the publishing workflow before the
+  // rsync, so the license has to come from this build output.
+  const license = fs.readFileSync(path.join(OUTPUT_DIR, 'LICENSE'), 'utf8');
+  const rootLicense = fs.readFileSync(path.join(ROOT_DIR, 'LICENSE'), 'utf8');
+  expect(license).toBe(rootLicense);
+  expect(license).toContain('MIT License');
 });
