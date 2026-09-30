@@ -5,7 +5,7 @@ export const apps = defineModule(
     queryTitle: "查询 CloudBase 应用部署状态",
     queryDescription:
       "查询 CloudBase 应用部署的应用和版本。可查应用列表/详情、版本列表/详情；部署后用 getAppVersion 按 buildId 轮询构建状态；getBuildLog 可查询构建日志用于诊断失败原因。\n" +
-      "action=getUploadUrl（只读）可获取预签名上传 URL：无本地文件系统时（cloud mode），先拿到 uploadUrl 自行 PUT 代码 zip，再用返回的 unixTimestamp 调 manageApps(action=deployApp, cosTimestamp) 触发部署。",
+      "action=getUploadUrl（只读）可获取预签名上传 URL：无本地文件系统时（cloud mode），先拿到 uploadUrl 自行 PUT 代码 zip，再用返回的 unixTimestamp 调 manageApps(action=deployApp, cosTimestamp) 触发部署。uploadUrl 是一次性上传凭据，不要外传或写进工单。",
     manageTitle: "部署应用到 CloudBase（独立子域名）",
     manageDescription:
       "部署 Web 应用到 CloudBase（构建前后端，部署到独立子域名）。\n" +
@@ -40,7 +40,7 @@ export const apps = defineModule(
     uploadStep2: "2. 用 PUT 方法把 zip 上传到 uploadUrl，请求头带 Content-Type: application/zip 以及 uploadHeaders 中的每个 header",
     uploadStep3: "3. 调用 manageApps(action=\"deployApp\", serviceName=\"{serviceName}\", cosTimestamp=<unixTimestamp>) 触发部署",
     getUploadUrlSuccess:
-      "预签名上传 URL 获取成功。请将代码 zip PUT 上传到 uploadUrl（携带 uploadHeaders 与 Content-Type: application/zip），然后用返回的 unixTimestamp 作为 cosTimestamp 调用 manageApps(action=deployApp) 触发部署。",
+      "预签名上传 URL 获取成功。请将代码 zip PUT 上传到 uploadUrl（携带 uploadHeaders 与 Content-Type: application/zip），然后用返回的 unixTimestamp 作为 cosTimestamp 调用 manageApps(action=deployApp) 触发部署。uploadUrl 是一次性上传凭据，不要外传或写进工单。",
     getSuccess: "CloudBase 应用详情查询成功",
     listVersionsSuccess: "CloudBase 应用版本列表查询成功",
     buildIdRequired: "action=getBuildLog 时必须提供 buildId",
@@ -113,7 +113,7 @@ export const apps = defineModule(
     queryTitle: "Query CloudBase app deployment status",
     queryDescription:
       "Query CloudBase deployed apps and versions. Supports app list/detail and version list/detail; after deployment, poll build status by buildId with getAppVersion; getBuildLog retrieves build logs to diagnose failures.\n" +
-      "action=getUploadUrl (read-only) returns a pre-signed upload URL: without a local filesystem (cloud mode), fetch the uploadUrl, PUT the code zip yourself, then call manageApps(action=deployApp, cosTimestamp) with the returned unixTimestamp to trigger deployment.",
+      "action=getUploadUrl (read-only) returns a pre-signed upload URL: without a local filesystem (cloud mode), fetch the uploadUrl, PUT the code zip yourself, then call manageApps(action=deployApp, cosTimestamp) with the returned unixTimestamp to trigger deployment. The uploadUrl is a one-time upload credential; do not forward it or paste it into tickets.",
     manageTitle: "Deploy app to CloudBase (dedicated subdomain)",
     manageDescription:
       "Deploy web apps to CloudBase (builds frontend and backend, deploys to a dedicated subdomain).\n" +
@@ -148,7 +148,7 @@ export const apps = defineModule(
     uploadStep2: "2. PUT the zip to uploadUrl with header Content-Type: application/zip and every header from uploadHeaders",
     uploadStep3: "3. Call manageApps(action=\"deployApp\", serviceName=\"{serviceName}\", cosTimestamp=<unixTimestamp>) to trigger deployment",
     getUploadUrlSuccess:
-      "Pre-signed upload URL obtained. PUT the code zip to uploadUrl (with uploadHeaders and Content-Type: application/zip), then call manageApps(action=deployApp) with the returned unixTimestamp as cosTimestamp to trigger deployment.",
+      "Pre-signed upload URL obtained. PUT the code zip to uploadUrl (with uploadHeaders and Content-Type: application/zip), then call manageApps(action=deployApp) with the returned unixTimestamp as cosTimestamp to trigger deployment. The uploadUrl is a one-time upload credential; do not forward it or paste it into tickets.",
     getSuccess: "CloudBase app details retrieved successfully",
     listVersionsSuccess: "CloudBase app version list retrieved successfully",
     buildIdRequired: "buildId is required when action=getBuildLog",

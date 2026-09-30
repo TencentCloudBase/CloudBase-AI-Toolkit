@@ -114,7 +114,7 @@ describe("buildFunctionZipUpload", () => {
       )}`,
     );
     expect(result.uploadHeaders).toEqual([]);
-    expect(result.expiresInSeconds).toBe(3600);
+    expect(result.expiresInSeconds).toBe(300);
   });
 
   it("exposes token header only for temporary credentials", () => {
@@ -161,6 +161,19 @@ describe("buildFunctionZipUpload", () => {
     });
     expect(result.expiresInSeconds).toBe(600);
     expect(result.uploadUrl).toContain("q-sign-time=1689999999;1690000600");
+  });
+
+  it("defaults to a 300 second upload window", () => {
+    // 上传地址等同一次性凭据：默认窗口从 3600 收到 300，够传一个代码包，
+    // 又不给泄露出去的签名留一整小时的可利用时间
+    const result = buildFunctionZipUpload({
+      storage,
+      credential,
+      now: 1690000000,
+      randomSuffix: "x",
+    });
+    expect(result.expiresInSeconds).toBe(300);
+    expect(result.uploadUrl).toContain("q-sign-time=1689999999;1690000300");
   });
 });
 

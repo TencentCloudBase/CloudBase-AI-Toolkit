@@ -65,7 +65,7 @@ export interface CosPutAuthOptions {
   securityToken?: string;
   /** 形如 "1690000000;1690003600"；测试注入固定值以获得确定性签名。缺省按 now 推导。 */
   keyTime?: string;
-  /** keyTime 未指定时的有效期（秒），默认 3600。 */
+  /** keyTime 未指定时的有效期（秒），默认 300。 */
   expiresInSeconds?: number;
   /** Unix 秒，仅测试注入。 */
   now?: number;
@@ -88,7 +88,7 @@ export function buildCosPutAuthorization(options: CosPutAuthOptions): string {
     region,
     objectKey,
     securityToken,
-    expiresInSeconds = 3600,
+    expiresInSeconds = 300,
   } = options;
 
   if (!secretId) throw new Error("missing param SecretId");
@@ -175,7 +175,7 @@ export function buildFunctionZipUpload(
   params: BuildFunctionZipUploadParams,
 ): FunctionZipUploadResult {
   const { storage, credential, functionName } = params;
-  const expiresIn = params.expiresIn ?? 3600;
+  const expiresIn = params.expiresIn ?? 300;
 
   const ts = params.now ?? Math.floor(Date.now() / 1000);
   const rand =
