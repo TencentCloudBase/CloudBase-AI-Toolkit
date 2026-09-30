@@ -3035,6 +3035,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 cloudBaseOptions.envId.length > 0;
               const envIdFromEnv =
                 !cloudBaseOptions?.requestFn &&
+                !process.env.CLOUDBASE_LOCAL_ENDPOINT &&
                 (process.env.CLOUDBASE_ENV_ID ||
                   (isEnvScopedCredential ? cloudBaseOptions.envId : undefined));
               const shouldPinToEnvVar = Boolean(
