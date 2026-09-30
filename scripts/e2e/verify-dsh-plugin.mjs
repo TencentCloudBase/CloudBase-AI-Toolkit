@@ -73,11 +73,13 @@ const missingTerms = termPairs.filter(([, label]) => !termMap.includes(label));
 if (missingTerms.length > 0) fail(`term-map missing ${missingTerms.map((pair) => pair.join("→")).join(", ")}`);
 else pass("term-map product names present");
 
+execFileSync("node", ["scripts/generate-skills.mjs"], { cwd: plugin, stdio: "inherit" });
 const skills = join(plugin, "skills/cloudbase");
-const requiredSkills = ["sites", "web-development", "postgresql", "cloud-functions", "auth-web", "cloud-storage"];
-const missingSkills = requiredSkills.filter((name) => !existsSync(join(skills, name, "SKILL.md")));
-if (missingSkills.length > 0) fail(`missing bundled skill ${missingSkills.join(", ")}`);
-else pass("bundled skills present");
+if (!existsSync(join(skills, "SKILL.md"))) fail("missing generated skills/cloudbase/SKILL.md");
+else pass("generated parent CloudBase skill present");
+if (!existsSync(join(skills, "references", "web-development", "SKILL.md"))) {
+  fail("missing generated references/web-development/SKILL.md");
+} else pass("generated skill references present");
 
 execFileSync("npm", ["run", "typecheck"], { cwd: plugin, stdio: "inherit" });
 execFileSync("npm", ["test"], { cwd: plugin, stdio: "inherit" });

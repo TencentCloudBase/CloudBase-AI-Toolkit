@@ -14,9 +14,9 @@ describe("mcp bridge env", () => {
   it("routes session MCP through env proxy without API key env", () => {
     const config = buildMcpClientConfig({ CLOUDBASE_API_KEY: "sk-test" });
     expect(config.command).toBe("node");
-    expect(config.args[0]).toContain("mcp-env-proxy.mjs");
+    expect(config.args[0]).toContain("mcp-launch.mjs");
     expect("CLOUDBASE_API_KEY" in config.env).toBe(false);
-    expect(config.env.CLOUDBASE_DSH_ENV_HINT_FILE).toBeTruthy();
+    expect(config.env.CLOUDBASE_DSH_ENV_HINT_FILE).toBeUndefined();
   });
 
   it("parses Content-Length MCP frames", () => {

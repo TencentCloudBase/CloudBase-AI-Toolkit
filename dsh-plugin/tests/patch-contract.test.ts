@@ -9,7 +9,8 @@ describe("cordis patch contract", () => {
   it("forwards no CloudBase credentials and uses env proxy for session MCP", () => {
     const patch = readFileSync(join(root, "cordis.patch.yml"), "utf8");
     expect(patch).toContain("serverName: cloudbase");
-    expect(patch).toContain("mcp-env-proxy.mjs");
+    expect(patch).toContain("mcp-launch.mjs");
+    expect(patch).not.toContain("mcp-env-proxy.mjs");
     expect(patch).not.toContain("CLOUDBASE_ENV_ID");
     expect(patch).not.toContain("CLOUDBASE_API_KEY");
     expect(patch).not.toMatch(/TENCENTCLOUD_SECRET/);

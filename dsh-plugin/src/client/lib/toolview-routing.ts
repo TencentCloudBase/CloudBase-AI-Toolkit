@@ -75,7 +75,7 @@ export function resolveToolViewKind(toolName: string, block?: ToolBlock): ToolVi
   if (canonical === "auth") {
     const action = str(args.action);
     if (action === "set_env") return "env-bound";
-    if (action === "status" || action === "start_auth" || action === "list_bound_envs") {
+    if (action === "status" || action === "start_auth") {
       return "auth-status";
     }
     return "auth-status";
