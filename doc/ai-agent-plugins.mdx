@@ -1,6 +1,4 @@
 import IDESelector from './components/IDESelector';
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
 
 # CloudBase AI 插件
 
@@ -82,138 +80,11 @@ npx plugins add https://cnb.cool/tencent/cloud/cloudbase/cloudbase-sites-plugin.
 
 </details>
 
-### 方式 2：按 IDE 手动安装
+### 方式 2：按客户端安装
 
-适用于有自己插件市场、或希望走各 IDE 原生插件机制的场景 —— 从下面选你的工具：
+不在上面 targets 列表里的工具，在这里选 —— 有插件市场的优先走插件市场，其余按 MCP 配置连接：
 
-<Tabs>
-  <TabItem value="codex-app" label="Codex App">
-
-1. 在 Codex App 右上角点 `+` → **添加插件市场**
-2. 来源填 `TencentCloudBase/CloudBase-MCP`，Git 引用 `main`
-3. 稀疏路径填两行（不要留空，否则会全量 clone，体积大且易失败）：
-   - `.agents/plugins`
-   - `plugin`
-4. 在 **Tencent CloudBase** 市场中安装 `cloudbase`
-5. 新开线程验证
-
-  </TabItem>
-  <TabItem value="codex-cli" label="Codex CLI">
-
-```bash
-codex plugin marketplace add TencentCloudBase/CloudBase-MCP --ref main \
-  --sparse .agents/plugins \
-  --sparse plugin
-codex plugin add cloudbase@tencent-cloudbase
-```
-
-> Codex 认的是 `.agents/plugins/marketplace.json`（优先）或 `.claude-plugin/marketplace.json`。稀疏只拉 `plugin` 不够；全量 clone 约百兆级，弱网易失败。
-
-新开线程后可用 `codex plugin list` 确认。
-
-  </TabItem>
-  <TabItem value="claude-code" label="Claude Code">
-
-```bash
-claude plugin marketplace add TencentCloudBase/CloudBase-MCP
-claude plugin install cloudbase@tencent-cloudbase
-```
-
-安装后执行 `/reload-plugins`。默认 `--scope user`；团队共享可用 `--scope project`。
-
-  </TabItem>
-  <TabItem value="codebuddy" label="CodeBuddy">
-
-1. 打开 CodeBuddy **插件市场** → **添加市场源**
-2. 填入 `https://github.com/TencentCloudBase/CloudBase-AI-Toolkit`
-3. 安装并启用 `cloudbase` 插件
-
-CLI（CodeBuddy Code）等价命令：
-
-```bash
-codebuddy plugin marketplace add TencentCloudBase/CloudBase-AI-Toolkit
-codebuddy plugin install cloudbase@tencent-cloudbase
-```
-
-**登录：**
-
-- **有腾讯云账号**：直接对话，按提示完成 Device 登录
-- **无腾讯云账号**：先 `npm i -g @cloudbase/cli`，再执行  
-  `tcb login --cloudbase-api-key <cloudbaseApiKey> -e <cloudbaseEnvId>`
-
-详见 [CodeBuddy 配置指南](ide-setup/codebuddy)。
-
-  </TabItem>
-  <TabItem value="workbuddy" label="WorkBuddy">
-
-1. 对话输入框左下角点 **连接器**
-2. 找到 **腾讯云 CloudBase** → **连接**
-
-也可输入 `/cloudbase` 选择 Skill。详见 [WorkBuddy 配置指南](ide-setup/workbuddy)。
-
-![WorkBuddy 内置 CloudBase 连接器](https://7463-tcb-advanced-a656fc-1257967285.tcb.qcloud.la/assets/workbuddy-connector-full.png)
-
-  </TabItem>
-  <TabItem value="doubao" label="豆包">
-
-1. 左侧导航点击 **插件·技能·伙伴**
-2. 顶部切换到 **插件** 标签，分类选择 **精选**
-3. 找到 **腾讯云 CloudBase** 卡片，点击右侧按钮完成安装
-4. 点击右上角 **管理**，确认插件开关已打开
-
-首次使用会跳转到 CloudBase 授权页，选择一个环境并授权即可。详见 [豆包配置指南](ide-setup/doubao)。
-
-  </TabItem>
-  <TabItem value="minimax-code" label="MiniMax Code">
-
-1. 左侧导航点击 **Plugins**
-2. 顶部切换到 **Market** 标签
-3. 搜索 `cloud`，找到 **Tencent CloudBase** 卡片
-4. 点击卡片右侧的 **Install**
-
-终端 CLI 则执行 `mcode plugin add cloudbase@official`。装的是 CloudBase 官方插件，自带 MCP 服务与 31 个技能，自动注册、不需要手工配置。详见 [MiniMax Code 配置指南](ide-setup/minimax-code)。
-
-  </TabItem>
-  <TabItem value="deepseek-harness" label="DeepSeek Harness">
-
-Web UI 装 `dsh plugin --profile web add @cloudbase/dsh-plugin`，只要 MCP 工具则用 `dsh plugin --profile headless add @cloudbase/dsh-plugin`。详见 [DeepSeek Harness 配置指南](ide-setup/deepseek-harness)。
-
-  </TabItem>
-  <TabItem value="kimi-code" label="Kimi Code">
-
-1. 在 Kimi Code 中输入 `/plugins` 打开插件面板
-2. 切换到 **Curated** 标签页
-3. 找到 **Tencent CloudBase**（id: `cloudbase`），回车选择 **install**
-4. 安装完成后重启 Kimi Code 或新开对话
-
-详见 [Kimi Code 配置指南](ide-setup/kimi-code)。
-
-  </TabItem>
-  <TabItem value="kimi-work" label="Kimi Work">
-
-1. 打开 Kimi Work，点击左侧 **设置**（齿轮图标）
-2. 进入 **插件** 面板
-3. 在列表中找到 **Tencent CloudBase**，点击右侧开关启用
-
-详见 [Kimi 配置指南](ide-setup/kimi-code)。
-
-  </TabItem>
-  <TabItem value="zcode" label="ZCode">
-
-ZCode（≥ 3.4.1）设置 → **插件** → **开发者工具** → 启用 **cloudbase-skills**。
-
-也可在 **MCP 服务器** 中手动添加：命令 `npx`，参数 `-y @cloudbase/cloudbase-mcp@latest`。详见 [ZCode 配置指南](ide-setup/zcode)。
-
-  </TabItem>
-</Tabs>
-
-### 其他 IDE
-
-不走上述原生插件路径的工具（Cursor、WindSurf 等）可配置 MCP + Skills。选择你的工具查看步骤：
-
-<IDESelector defaultIDE="cursor" />
-
-> CodeBuddy / WorkBuddy / Kimi Code / Kimi Work / ZCode 尚未实现 Open Plugin Specification，因此暂不支持 `npx plugins` 一键安装；请用各自原生路径（CodeBuddy 用插件市场，WorkBuddy 用连接器，Kimi Code 用 `/plugins` 插件市场，Kimi Work 用设置→插件面板，ZCode 用内置插件）。
+<IDESelector defaultIDE="codex-app" />
 
 ## 插件里有什么
 
