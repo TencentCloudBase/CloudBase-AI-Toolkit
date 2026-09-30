@@ -59,7 +59,7 @@ const IDES: IDE[] = [
     id: 'doubao',
     name: '豆包',
     platform: '桌面端 / 网页版',
-    iconUrl: 'https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@latest/icons/doubao-color.svg',
+    iconUrl: 'https://lf-flow-web-cdn.doubao.com/obj/flow-doubao/favicon/new-doubao/192x192.png',
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/doubao',
   },
   {

@@ -124,7 +124,7 @@ const IDES: IDE[] = [
     name: '豆包',
     platform: '桌面端 / 网页版',
     configPath: '插件·技能·伙伴 → 插件',
-    iconUrl: 'https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@latest/icons/doubao-color.svg',
+    iconUrl: 'https://lf-flow-web-cdn.doubao.com/obj/flow-doubao/favicon/new-doubao/192x192.png',
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/doubao',
     supportsProjectMCP: false,
     useCommandInsteadOfConfig: true,
