@@ -156,7 +156,10 @@ export interface BuildFunctionZipUploadParams {
   /** 环境自有存储桶（DescribeEnvs → Storages[0]）。 */
   storage: { bucket: string; region: string };
   credential: { secretId: string; secretKey: string; token?: string };
-  /** 可选，仅用于生成可读的对象 key（如 `fnzip-upload/.../helloWorld.zip`）。 */
+  /**
+   * 可选，仅用于生成可读的对象 key（如 `fnzip-upload/.../helloWorld.zip`）。
+   * 只接受字母数字与 -_（1-64 字符），其余回落为 `code`。
+   */
   functionName?: string;
   expiresIn?: number;
   /** 仅测试注入。 */
@@ -168,8 +171,8 @@ export interface BuildFunctionZipUploadParams {
 
 /**
  * 生成两段式部署阶段 A 的完整返回体：预签名 PUT URL + 阶段 B 所需的 COS 三元组。
- * 对象 key 形如 `fnzip-upload/{ts}-{rand}/{functionName|code}.zip`，全部为 COS 签名
- * 安全字符（字母数字与 -_. /），保证签名 pathname 与请求 URL 一致。
+ * 对象 key 形如 `fnzip-upload/{ts}-{rand}/{functionName|code}.zip`。functionName 会被
+ * 收窄到 COS 签名安全字符（字母数字与 -_），保证签名 pathname 与请求 URL 一致。
  */
 export function buildFunctionZipUpload(
   params: BuildFunctionZipUploadParams,
@@ -180,7 +183,13 @@ export function buildFunctionZipUpload(
   const ts = params.now ?? Math.floor(Date.now() / 1000);
   const rand =
     params.randomSuffix ?? randomBytes(8).toString("hex");
-  const objectKey = `fnzip-upload/${ts}-${rand}/${functionName || "code"}.zip`;
+  // functionName 只用于让对象 key 可读，必须收窄：否则 "../" 之类能把对象写到
+  // fnzip-upload/ 前缀之外
+  const safeFunctionName =
+    functionName && /^[A-Za-z0-9_-]{1,64}$/.test(functionName)
+      ? functionName
+      : "code";
+  const objectKey = `fnzip-upload/${ts}-${rand}/${safeFunctionName}.zip`;
 
   const keyTime =
     params.keyTime ?? `${ts - 1};${ts + expiresIn}`;

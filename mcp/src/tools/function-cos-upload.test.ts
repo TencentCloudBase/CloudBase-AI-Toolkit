@@ -145,6 +145,29 @@ describe("buildFunctionZipUpload", () => {
     expect(result.cosObjectName).toMatch(/^fnzip-upload\/\d+-x\/code\.zip$/);
   });
 
+  it("narrows functionName to signature-safe characters", () => {
+    // functionName 只用来让 key 可读，带路径分隔符或非法字符时回落到 code，
+    // 避免 "../" 把对象写到 fnzip-upload/ 前缀之外
+    const build = (functionName: string) =>
+      buildFunctionZipUpload({
+        storage,
+        credential,
+        functionName,
+        keyTime: FIXTURE.keyTime,
+        randomSuffix: "x",
+        now: 1690000000,
+      });
+
+    for (const bad of ["../../escape", "a/b.zip", "a\\b", "with space", "x".repeat(65), "."]) {
+      const result = build(bad);
+      expect(result.cosObjectName).toBe("fnzip-upload/1690000000-x/code.zip");
+    }
+
+    expect(build("helloWorld-v2").cosObjectName).toBe(
+      "fnzip-upload/1690000000-x/helloWorld-v2.zip",
+    );
+  });
+
   it("generates unique keys across calls without fixed randomSuffix", () => {
     const a = buildFunctionZipUpload({ storage, credential });
     const b = buildFunctionZipUpload({ storage, credential });
