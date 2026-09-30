@@ -49,6 +49,27 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/zcode',
   },
   {
+    id: 'doubao',
+    name: '豆包',
+    platform: '桌面端 / 网页版',
+    iconUrl: 'https://lf-flow-web-cdn.doubao.com/obj/flow-doubao/favicon/new-doubao/192x192.png',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/doubao',
+  },
+  {
+    id: 'minimax-code',
+    name: 'MiniMax Code',
+    platform: '桌面端 / 终端 CLI',
+    iconUrl: '/img/ide-logos/minimax-code.png',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/minimax-code',
+  },
+  {
+    id: 'deepseek-harness',
+    name: 'DeepSeek Harness',
+    platform: '桌面应用',
+    iconUrl: 'https://www.deepseek.com/favicon.ico',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/deepseek-harness',
+  },
+  {
     id: 'codex-app',
     name: 'Codex App',
     platform: '独立应用',

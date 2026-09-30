@@ -1097,7 +1097,9 @@ markets:
       local desktop client — not the web, mobile or cloud-PC clients.
       Official 连接器 list (200+, curated, includes Tencent Meeting and Tencent Docs) has no public submission
       form; skills can be uploaded locally or created in chat.
-      Status 2026-09-15: CloudBase absent from the official list.
+      Status 2026-09-15: CloudBase absent from the official 连接器 list.
+      That list is separate from the client's 插件 market, where CloudBase is now listed as an official
+      curated plugin — see doubao-plugin-marketplace below.
     eligibility: partner_outreach_required
     blockers:
       - Custom connectors are desktop-client only (web / mobile / cloud PC unsupported)
@@ -1110,7 +1112,7 @@ markets:
       - Add a Doubao Work section to doc/ide-setup once the config path is written up
     recommended_install_path: null
     priority_hint: needs_partner_outreach
-    last_reviewed_at: "2026-09-15"
+    last_reviewed_at: "2026-09-30"
     owner: cloudbase-ai-toolkit
     notes: |
       ByteDance's Doubao Work client. Tencent products already appear in its official connector list
@@ -1120,6 +1122,80 @@ markets:
       https://www.doubao.com/open/* ; https://developer.doubao.com/ exists (page title 豆包开发者平台) but
       publishes no process for listing a connector or a skill.
       The client also accepts a whole MCP JSON config pasted into chat and configures the connector itself.
+
+  - id: doubao-plugin-marketplace
+    product: Doubao (豆包)
+    region: cn
+    channel_type: official_curated_marketplace
+    listing_statuses:
+      official_curated: listed
+      community_directory: not_applicable
+      self_marketplace: not_applicable
+      native_connector_or_builtin: not_applicable
+      open_plugin_spec: not_applicable
+      mcp_or_skill_registry: not_applicable
+      docs_only: listed
+    submit_url_or_process: |
+      Listed as an official curated plugin in the client's 插件 market: 插件·技能·伙伴 → 插件 tab → 精选 category,
+      under the 研发运维 group (same group as GitHub, Neon and PostgreSQL). No public submission form was found;
+      the listing came through partner outreach.
+    eligibility: unknown_or_partner
+    blockers: []
+    evidence_links:
+      - https://www.doubao.com/
+    local_evidence: []
+    submit_checklist:
+      - Confirm the external wording for 官方精选 before announcing
+    recommended_install_path: doc/ide-setup/doubao.mdx
+    priority_hint: listed
+    last_reviewed_at: "2026-09-30"
+    owner: cloudbase-ai-toolkit
+    notes: |
+      Desktop app and web app both expose the plugin market.
+      The installed plugin is one connector (Tencent CloudBase) plus a same-named skill; the card showed
+      1754 users on 2026-09-30.
+      Card affordance note: an already-installed card replaces the 安装 button with a chat-entry icon, so a
+      missing 安装 button means "already installed", not "not installable".
+
+  - id: minimax-code-marketplace
+    product: MiniMax Code
+    region: cn
+    channel_type: official_curated_marketplace
+    listing_statuses:
+      official_curated: listed
+      community_directory: not_applicable
+      self_marketplace: not_applicable
+      native_connector_or_builtin: not_applicable
+      open_plugin_spec: listed
+      mcp_or_skill_registry: not_applicable
+      docs_only: not_applicable
+    submit_url_or_process: |
+      The client's plugin market has two sources: `official` (a registry) and `local` (a directory).
+      Desktop: Plugins → Market → Install. CLI: `mcode plugin list -m official --available` to browse,
+      `mcode plugin add cloudbase@official` to install.
+      No public submission form was found; the listing came through partner outreach.
+    eligibility: unknown_or_partner
+    blockers: []
+    evidence_links:
+      - https://agent.minimax.io/
+    local_evidence:
+      - open_plugin_spec_cloudbase
+    submit_checklist: []
+    recommended_install_path: doc/ide-setup/minimax-code.mdx
+    priority_hint: listed
+    last_reviewed_at: "2026-09-30"
+    owner: cloudbase-ai-toolkit
+    notes: |
+      Verified 2026-09-30 from the installed CLI (@minimax-ai/code@0.5.10): `mcode plugin list -m official
+      --available` returns 40 plugins and includes `cloudbase@official`.
+      The client consumes the Agent Plugins manifest: it validates `plugin.json` against
+      https://agent-plugins.org/schemas/1.0.0/plugin.schema.json (plus mcp.schema.json), reads the package's
+      `.mcp.json`, and stages plugin data under `<dataDir>/v2/plugin-data/agent-plugins/<name>`. Our standard
+      plugin package matches that shape, so the listing is the same package other clients receive.
+      Desktop app and terminal CLI share config under `~/.minimax/`; the CLI itself installs to `~/.minimax-code/`.
+      The official registry has both lanes (agent.minimax.cn / agent.minimax.io); the installed desktop app
+      resolved to agent.minimax.io. No `cloudbase` string is hardcoded in the CLI, so the entry comes from the registry.
+      Marketplace selector syntax: `name[@official|@local]`, the suffix is optional unless the name is ambiguous.
 
   - id: coze-skill-and-plugin-store
     product: Coze (扣子)
