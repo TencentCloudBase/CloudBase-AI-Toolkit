@@ -11,7 +11,6 @@ import {
   shouldInstallDependencyForFunction,
 } from "./functions.js";
 import { FUNCTION_IMAGE_CONFIG_COMMON_FIELDS } from "./function-deploy-schema.js";
-import { resetFunctionUploadTargets } from "./function-upload-target-store.js";
 import {
   FUNCTION_UPDATING_ERROR_CODE,
   FUNCTION_UPDATING_RETRY_AFTER_SECONDS,
@@ -1725,8 +1724,6 @@ describe("function zip two-phase deployment", () => {
     functionUpdatingRuntime.sleep = async () => undefined;
     mockIsCloudMode.mockReturnValue(false);
     mockGetEnvId.mockResolvedValue("env-test");
-    // 上传目标登记表是模块级进程内状态，用例之间必须隔离
-    resetFunctionUploadTargets();
 
     ({ tools } = createMockServer());
   });
@@ -1796,8 +1793,8 @@ describe("function zip two-phase deployment", () => {
     mockManagerWith([
       { Bucket: "envtest-bucket-1258016615", Region: "ap-guangzhou" },
     ]);
-    // 先走阶段 A 铸造上传目标，再打开 cloud mode：
-    // cloud mode 放行的是「已登记的三元组」，不是「任意三元组」
+    // 先走阶段 A 取上传地址，再打开 cloud mode：
+    // cloud mode 放行的是「本环境自有桶里的合法三元组」，不是「任意三元组」
     const upload = JSON.parse(
       (
         await tools.queryFunctions.handler({
@@ -1868,7 +1865,7 @@ describe("function zip two-phase deployment", () => {
     expect(args.func.name).toBe("zipDemo");
   });
 
-  it("rejects a code object key that was never minted in this process", async () => {
+  it("rejects a hand-built code object key", async () => {
     mockManagerWith([
       { Bucket: "envtest-bucket-1258016615", Region: "ap-guangzhou" },
     ]);
@@ -1889,6 +1886,78 @@ describe("function zip two-phase deployment", () => {
     expect(payload.message).toContain("getFunctionUploadUrl");
     // 被拒的调用不该落到云端
     expect(mockCreateFunction).not.toHaveBeenCalled();
+  });
+
+  it("rejects a code object key outside the environment bucket even when it is well shaped", async () => {
+    mockManagerWith([
+      { Bucket: "envtest-bucket-1258016615", Region: "ap-guangzhou" },
+    ]);
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: { name: "zipDemo" },
+      code: {
+        cosBucketName: "attacker-bucket",
+        cosBucketRegion: "ap-guangzhou",
+        cosObjectName: "fnzip-upload/1759200000-0123456789abcdef/zipDemo.zip",
+      },
+      force: false,
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.errorCode).toBe("FUNCTION_UPLOAD_TARGET_NOT_FOUND");
+    expect(payload.data.expectedCosBucketName).toBe("envtest-bucket");
+    expect(mockCreateFunction).not.toHaveBeenCalled();
+  });
+
+  it("rejects a code object key from another region", async () => {
+    mockManagerWith([
+      { Bucket: "envtest-bucket-1258016615", Region: "ap-guangzhou" },
+    ]);
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: { name: "zipDemo" },
+      code: {
+        cosBucketName: "envtest-bucket",
+        cosBucketRegion: "ap-shanghai",
+        cosObjectName: "fnzip-upload/1759200000-0123456789abcdef/zipDemo.zip",
+      },
+      force: false,
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(false);
+    expect(payload.errorCode).toBe("FUNCTION_UPLOAD_TARGET_NOT_FOUND");
+    expect(payload.data.expectedCosBucketRegion).toBe("ap-guangzhou");
+    expect(mockCreateFunction).not.toHaveBeenCalled();
+  });
+
+  it("accepts a well-shaped key in the environment bucket without any in-process registration", async () => {
+    // 校验刻意不依赖「本进程铸造过」：托管形态可多副本，跨进程的登记必然丢。
+    // 这条用例把这个取舍写死在测试里 —— 形状 + 环境自有桶就是通过条件。
+    mockManagerWith([
+      { Bucket: "envtest-bucket-1258016615", Region: "ap-guangzhou" },
+    ]);
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: { name: "zipDemo" },
+      code: {
+        cosBucketName: "envtest-bucket-1258016615",
+        cosBucketRegion: "ap-guangzhou",
+        cosObjectName: "fnzip-upload/1759200000-0123456789abcdef/zipDemo.zip",
+      },
+      force: false,
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(mockCreateFunction).toHaveBeenCalledTimes(1);
+    expect(mockCreateFunction.mock.calls[0][0].code.CosObjectName).toBe(
+      "fnzip-upload/1759200000-0123456789abcdef/zipDemo.zip",
+    );
   });
 
   it("rejects a minted object key pointed at a different bucket", async () => {

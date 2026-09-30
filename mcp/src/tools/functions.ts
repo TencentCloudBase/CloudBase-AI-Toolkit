@@ -30,13 +30,9 @@ import {
 } from "./function-deploy-schema.js";
 import {
   buildFunctionZipUpload,
+  isFunctionZipObjectKey,
   stripAppIdSuffix,
 } from "./function-cos-upload.js";
-import {
-  findFunctionUploadTarget,
-  FUNCTION_UPLOAD_TARGET_NOT_FOUND_ERROR_CODE,
-  registerFunctionUploadTarget,
-} from "./function-upload-target-store.js";
 import {
   buildFunctionUpdatingPayload,
   getErrorMessage,
@@ -49,33 +45,59 @@ import { IEnvVariable } from "@cloudbase/manager-node/types/function/types.js";
 import { existsSync } from "fs";
 import path from "path";
 
+export const FUNCTION_UPLOAD_TARGET_NOT_FOUND_ERROR_CODE =
+  "FUNCTION_UPLOAD_TARGET_NOT_FOUND";
+
 /**
- * 阶段 B 校验：code 三元组必须是本进程阶段 A 登记过的上传目标。
+ * 阶段 B 校验：code 三元组必须是当前环境自有存储桶里的代码包地址。
  *
- * 未命中时统一按「目标不在登记里」返回，不区分「没登记」与「登记在别的环境」——
- * 与部署任务表同款取舍，调用方只需要知道下一步该重新取上传地址。
+ * 三层判断全是无状态的，基准是服务端自己解析出来的 storage，客户端改不了：
+ * - 桶：code.cosBucketName 省略时即 storage.bucket；传了就必须等于它 —— 否则等于
+ *   把 SCF 的拉取目标指向别的桶（包括调用方自己的桶）。
+ * - 地域：同上，桶与地域必须来自同一个环境。
+ * - key 形状：必须是 getFunctionUploadUrl 铸造的 `fnzip-upload/...`，挡住「随手指向
+ *   环境桶里某个已有对象」。
+ *
+ * 刻意不维护「本进程铸造过哪些 key」的登记表：托管形态是每请求无状态、可由多副本
+ * 承载，进程内状态会让正常部署随机失败（理由与取值见 function-cos-upload.ts 的形状
+ * 常量注释）。代价是「必须是本会话刚取的那一个 key」不再可验证 —— 利用它得能往本
+ * 环境自己的桶里写对象，而那正是持环境凭据的调用方本来就能做的事，不构成提权。
  */
 function assertFunctionUploadTarget(input: {
-  envId: string;
-  bucketName: string;
-  region: string;
-  objectKey: string;
+  storage: { bucket: string; region: string };
+  code: {
+    cosBucketName?: string;
+    cosBucketRegion?: string;
+    cosObjectName: string;
+  };
   action: string;
 }): void {
-  if (findFunctionUploadTarget(input)) {
+  const expectedBucket = stripAppIdSuffix(input.storage.bucket);
+  const expectedRegion = input.storage.region;
+  const bucketOk =
+    stripAppIdSuffix(input.code.cosBucketName || input.storage.bucket) ===
+    expectedBucket;
+  const regionOk =
+    (input.code.cosBucketRegion || input.storage.region) === expectedRegion;
+  const objectKeyOk = isFunctionZipObjectKey(input.code.cosObjectName);
+
+  if (bucketOk && regionOk && objectKeyOk) {
     return;
   }
+
   throwToolPayloadError({
     success: false,
     errorCode: FUNCTION_UPLOAD_TARGET_NOT_FOUND_ERROR_CODE,
     data: {
       action: input.action,
-      cosBucketName: input.bucketName,
-      cosBucketRegion: input.region,
-      cosObjectName: input.objectKey,
+      expectedCosBucketName: expectedBucket,
+      expectedCosBucketRegion: expectedRegion,
+      cosBucketName: input.code.cosBucketName ?? expectedBucket,
+      cosBucketRegion: input.code.cosBucketRegion ?? expectedRegion,
+      cosObjectName: input.code.cosObjectName,
     },
     message: t("functions.uploadTargetNotFound", {
-      objectName: input.objectKey,
+      objectName: input.code.cosObjectName,
     }),
   });
 }
@@ -1472,14 +1494,6 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         },
         functionName: input.functionName,
       });
-      // 阶段 A 在进程内登记本次铸造的上传目标：阶段 B 只接受登记过的
-      // (envId, bucket, region, objectKey)，cosObjectName 因此不再是任意字符串。
-      registerFunctionUploadTarget({
-        envId: storage.envId,
-        bucket: storage.bucket,
-        region: storage.region,
-        objectKey: upload.cosObjectName,
-      });
       // uploadUrl 内含凭据绑定的签名（临时凭据还绑定 token），禁止落日志
       debug(
         `[getFunctionUploadUrl] envId=${authConfig.envId ?? "n/a"}, cosObjectName=${upload.cosObjectName}, expiresIn=${upload.expiresInSeconds}s`,
@@ -1849,10 +1863,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         );
         const cosBucketRegion = input.code.cosBucketRegion ?? storage.region;
         assertFunctionUploadTarget({
-          envId: storage.envId,
-          bucketName: input.code.cosBucketName || storage.bucket,
-          region: cosBucketRegion,
-          objectKey: input.code.cosObjectName,
+          storage,
+          code: input.code,
           action: input.action,
         });
         const codeFunc: Record<string, unknown> = { ...func };
@@ -2192,10 +2204,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         );
         const cosBucketRegion = input.code.cosBucketRegion ?? storage.region;
         assertFunctionUploadTarget({
-          envId: storage.envId,
-          bucketName: input.code.cosBucketName || storage.bucket,
-          region: cosBucketRegion,
-          objectKey: input.code.cosObjectName,
+          storage,
+          code: input.code,
           action: input.action,
         });
         let cosUpdateResult: unknown;
