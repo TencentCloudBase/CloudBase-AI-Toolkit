@@ -80,6 +80,39 @@ describe('local cloud api request', () => {
     await close();
   });
 
+  it('rejects an origin that already includes /capi', () => {
+    expect(() => assertLocalEndpoint('http://127.0.0.1:8797/capi')).toThrow(/\/capi/);
+  });
+
+  it('names the endpoint when the local process is down', async () => {
+    const request = createLocalCloudApiRequestFn('http://127.0.0.1:1');
+    await expect(request(requestInput)).rejects.toThrow(/CLOUDBASE_LOCAL_ENDPOINT/);
+    await expect(request(requestInput)).rejects.toThrow(/http:\/\/127\.0\.0\.1:1\/capi/);
+    await expect(request(requestInput)).rejects.not.toThrow(/创建 CloudBase 环境/);
+    await expect(request(requestInput)).rejects.not.toThrow(/当前已登录/);
+  });
+
+  it('names the endpoint when the body is not JSON or has no Response', async () => {
+    const html = await listen((_req, res) => {
+      res.statusCode = 502;
+      res.setHeader('content-type', 'text/html');
+      res.end('<html>down</html>');
+    });
+    const htmlRequest = createLocalCloudApiRequestFn(`http://127.0.0.1:${html.port}`);
+    await expect(htmlRequest(requestInput)).rejects.toThrow(/was not JSON/);
+    await expect(htmlRequest(requestInput)).rejects.toThrow(/CLOUDBASE_LOCAL_ENDPOINT/);
+    await html.close();
+
+    const empty = await listen((_req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end('{"ok":true}');
+    });
+    const emptyRequest = createLocalCloudApiRequestFn(`http://127.0.0.1:${empty.port}`);
+    await expect(emptyRequest(requestInput)).rejects.toThrow(/missing Response/);
+    await expect(emptyRequest(requestInput)).rejects.toThrow(new RegExp(`http://127\\.0\\.0\\.1:${empty.port}/capi`));
+    await empty.close();
+  });
+
   it('resolveLocalEndpoint is undefined when unset and throws on an invalid value', () => {
     delete process.env.CLOUDBASE_LOCAL_ENDPOINT;
     expect(resolveLocalEndpoint()).toBeUndefined();

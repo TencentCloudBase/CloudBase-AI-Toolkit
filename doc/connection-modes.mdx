@@ -358,6 +358,7 @@ CloudBase MCP 针对不同部署场景提供分层安全保护：
 | `CLOUDBASE_API_KEY` | CloudBase 环境级 API Key（推荐用于 CI/CD、MCP Server） | 与 `CLOUDBASE_ENV_ID` 配合使用，优先级高于 `TENCENTCLOUD_*` 密钥；兼容读取 `CLOUDBASE_APIKEY`（与 `@cloudbase/js-sdk` / `@cloudbase/node-sdk` 对齐，优先使用带下划线的 `CLOUDBASE_API_KEY`）；[在控制台创建](https://tcb.cloud.tencent.com/dev) |
 | `CLOUDBASE_ENV_ID` | 云开发环境 ID（可选） | 未设置时首次调用会引导登录并选择环境 |
 | `CLOUDBASE_API_ENDPOINT` | 自定义 API Key 换取凭证的 Endpoint（高级可选） | 不设则使用默认 `https://<envId>.<region>.tcb-api.tencentcloudapi.com` |
+| `CLOUDBASE_LOCAL_ENDPOINT` | 把云 API 改打到本机进程的源站，例如 `http://127.0.0.1:8797` | 不设则走腾讯云。值是源站，不要带 `/capi`（会自动补上）。设置后跳过登录、不需要密钥，环境 ID 为 `local`。与上面的 `CLOUDBASE_API_ENDPOINT` 不是同一个地址 |
 | `TENCENTCLOUD_SECRETID` | 腾讯云 SecretId（可选） | 不设则通过登录引导获取；[获取腾讯云 API 密钥](https://console.cloud.tencent.com/cam/capi) |
 | `TENCENTCLOUD_SECRETKEY` | 腾讯云 SecretKey（可选） | 同上 |
 | `TENCENTCLOUD_SESSIONTOKEN` | 腾讯云临时密钥 Token（可选） | 仅在使用临时密钥时需要，可通过 [STS 服务](https://console.cloud.tencent.com/cam/capi) 获取 |
