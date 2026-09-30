@@ -114,7 +114,7 @@ describe("buildFunctionZipUpload", () => {
       )}`,
     );
     expect(result.uploadHeaders).toEqual([]);
-    expect(result.expiresInSeconds).toBe(3600);
+    expect(result.expiresInSeconds).toBe(300);
   });
 
   it("exposes token header only for temporary credentials", () => {
@@ -145,6 +145,29 @@ describe("buildFunctionZipUpload", () => {
     expect(result.cosObjectName).toMatch(/^fnzip-upload\/\d+-x\/code\.zip$/);
   });
 
+  it("narrows functionName to signature-safe characters", () => {
+    // functionName 只用来让 key 可读，带路径分隔符或非法字符时回落到 code，
+    // 避免 "../" 把对象写到 fnzip-upload/ 前缀之外
+    const build = (functionName: string) =>
+      buildFunctionZipUpload({
+        storage,
+        credential,
+        functionName,
+        keyTime: FIXTURE.keyTime,
+        randomSuffix: "x",
+        now: 1690000000,
+      });
+
+    for (const bad of ["../../escape", "a/b.zip", "a\\b", "with space", "x".repeat(65), "."]) {
+      const result = build(bad);
+      expect(result.cosObjectName).toBe("fnzip-upload/1690000000-x/code.zip");
+    }
+
+    expect(build("helloWorld-v2").cosObjectName).toBe(
+      "fnzip-upload/1690000000-x/helloWorld-v2.zip",
+    );
+  });
+
   it("generates unique keys across calls without fixed randomSuffix", () => {
     const a = buildFunctionZipUpload({ storage, credential });
     const b = buildFunctionZipUpload({ storage, credential });
@@ -161,6 +184,19 @@ describe("buildFunctionZipUpload", () => {
     });
     expect(result.expiresInSeconds).toBe(600);
     expect(result.uploadUrl).toContain("q-sign-time=1689999999;1690000600");
+  });
+
+  it("defaults to a 300 second upload window", () => {
+    // 上传地址等同一次性凭据：默认窗口从 3600 收到 300，够传一个代码包，
+    // 又不给泄露出去的签名留一整小时的可利用时间
+    const result = buildFunctionZipUpload({
+      storage,
+      credential,
+      now: 1690000000,
+      randomSuffix: "x",
+    });
+    expect(result.expiresInSeconds).toBe(300);
+    expect(result.uploadUrl).toContain("q-sign-time=1689999999;1690000300");
   });
 });
 
