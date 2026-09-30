@@ -127,3 +127,39 @@ describe("downloadTemplate redirect handling", () => {
     expect(mockedGet).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("downloadTemplate project root", () => {
+  const envKeys = ["WORKSPACE_FOLDER_PATHS", "PROJECT_ROOT", "GITHUB_WORKSPACE", "CI_PROJECT_DIR", "BUILD_SOURCESDIRECTORY"] as const;
+  const saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const key of envKeys) saved[key] = process.env[key];
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.doUnmock("https");
+    for (const key of envKeys) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+  });
+
+  it("does not copy files when the resolved root is the DSH profile", async () => {
+    const hostDir = path.join(os.homedir(), ".dsh", "profiles", "desktop");
+    for (const key of envKeys) delete process.env[key];
+    process.env.WORKSPACE_FOLDER_PATHS = hostDir;
+    const marker = path.join(hostDir, `download-template-should-not-write-${Date.now()}.txt`);
+
+    const tools = await createMockServer();
+    const result = await tools.downloadTemplate.handler({
+      template: "rules",
+      ide: "cursor",
+    });
+
+    expect(result.content[0].text).toContain(hostDir);
+    expect(result.content[0].text).toContain("WORKSPACE_FOLDER_PATHS");
+    await expect(fs.access(marker)).rejects.toThrow();
+  });
+});

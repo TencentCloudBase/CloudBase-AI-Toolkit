@@ -10,6 +10,7 @@ import { z } from "zod";
 import { t, type MessageKey } from "../i18n/index.js";
 import { ExtendedMcpServer } from "../server.js";
 import { prepareSafeRemoteRequest } from "../utils/remote-url-safety.js";
+import { ProjectRootError, resolveProjectRoot } from "../utils/project-config.js";
 
 // CloudBase 模板配置
 const TEMPLATES: Record<string, { description: MessageKey; url: string }> = {
@@ -618,6 +619,23 @@ export function registerSetupTools(server: ExtendedMcpServer) {
 
         const resolvedIDE = ideResolution.resolvedIDE;
 
+        let workspaceFolder: string;
+        try {
+          workspaceFolder = resolveProjectRoot();
+        } catch (error) {
+          if (error instanceof ProjectRootError) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: t("setup.projectRoot.hostConfigDir", { dir: error.dir }),
+                },
+              ],
+            };
+          }
+          throw error;
+        }
+
         // 验证IDE类型
         const ideValidation = validateIDE(resolvedIDE);
         if (!ideValidation.valid) {
@@ -667,8 +685,6 @@ export function registerSetupTools(server: ExtendedMcpServer) {
         );
 
         // 检查是否需要复制到项目目录
-        const workspaceFolder =
-          process.env.WORKSPACE_FOLDER_PATHS || process.cwd();
         let finalFiles: string[] = [];
         let createdCount = 0;
         let overwrittenCount = 0;

@@ -68,6 +68,7 @@ export const setup = defineModule(
     "schema.template": "要下载的模板类型",
     "schema.ide": "指定要下载的IDE类型。",
     "schema.overwrite": "是否覆盖已存在的文件，默认为false（不覆盖）",
+    "projectRoot.hostConfigDir": "拒绝把 {dir} 当作项目根目录。这是宿主配置目录，不是项目。请由宿主设置 WORKSPACE_FOLDER_PATHS 为项目目录后再试。",
   },
   {
     "downloadTemplate.title": "Download project template",
@@ -143,5 +144,7 @@ export const setup = defineModule(
     "schema.ide": "The IDE type whose configuration should be downloaded.",
     "schema.overwrite":
       "Whether to overwrite existing files. Defaults to false (do not overwrite).",
+    "projectRoot.hostConfigDir":
+      "Refusing to use {dir} as the project root. That directory belongs to the host, not a project. Set WORKSPACE_FOLDER_PATHS to the project directory and retry.",
   },
 );

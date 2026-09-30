@@ -7,6 +7,7 @@ import { t } from '../i18n/index.js';
 import { ExtendedMcpServer } from '../server.js';
 import type { CloudBaseOptions } from '../types.js';
 import { debug } from '../utils/logger.js';
+import { requireProjectRoot } from '../utils/project-config.js';
 import { preferGatewayOrFallback, resolveGatewayAccessUrls } from '../utils/gateway-access-urls.js';
 import { sendDeployNotification } from '../utils/notification.js';
 import { buildCamAuthGuidance, isCamAuthError } from './capi.js';
@@ -299,36 +300,22 @@ function checkIfAgentProject(projectPath: string): boolean {
 }
 
 /**
- * Validate and normalize file path.
- * Accepts absolute paths as-is (CloudRun deploy/download/init commonly targets
- * project dirs outside the MCP process cwd, e.g. ~/.codex vs ~/Desktop/project).
- * For relative paths, resolves against CWD and ensures the result does not
- * escape the CWD (path-traversal protection).
- * @param inputPath User provided path
- * @returns Absolute path
+ * Validate and normalize a file path.
+ * Absolute paths are accepted as-is. Relative paths resolve against the project
+ * root and must stay inside it.
  */
 export function validateAndNormalizePath(inputPath: string): string {
-  const cwd = process.cwd();
-  const normalizedPath = path.resolve(inputPath);
-
-  // Absolute paths: accept as-is. MCP server cwd is often an IDE/runtime home
-  // (e.g. ~/.codex, ~/.workbuddy), while targetPath points at the user project.
-  // Rejecting same-root absolute paths caused false negatives in deploy/download.
   if (path.isAbsolute(inputPath)) {
-    return normalizedPath;
+    return path.resolve(inputPath);
   }
 
-  // Relative paths: resolve against CWD and block "../" traversal.
-  const cwdRoot = path.parse(cwd).root;
-  const pathRoot = path.parse(normalizedPath).root;
-
-  if (cwdRoot === pathRoot) {
-    const prefix = cwd.endsWith(path.sep) ? cwd : cwd + path.sep;
-    if (!normalizedPath.startsWith(prefix) && normalizedPath !== cwd) {
-      throw new Error(
-        t("cloudrun.error.pathOutsideCwd", { cwd, resolvedPath: normalizedPath }),
-      );
-    }
+  const projectRoot = requireProjectRoot();
+  const normalizedPath = path.resolve(projectRoot, inputPath);
+  const prefix = projectRoot.endsWith(path.sep) ? projectRoot : projectRoot + path.sep;
+  if (!normalizedPath.startsWith(prefix) && normalizedPath !== projectRoot) {
+    throw new Error(
+      t("cloudrun.error.pathOutsideCwd", { cwd: projectRoot, resolvedPath: normalizedPath }),
+    );
   }
 
   return normalizedPath;
