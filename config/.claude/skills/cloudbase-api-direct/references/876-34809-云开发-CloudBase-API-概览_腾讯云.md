@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-09-29 02:58:02
+最近更新时间：2026-09-30 03:26:40
 
 -   微信扫一扫 
 -   QQ
@@ -21,7 +21,6 @@ _我的收藏_
 -   [HTTP网关相关接口](#HTTP.E7.BD.91.E5.85.B3.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "HTTP网关相关接口")
 -   [云托管相关接口](#.E4.BA.91.E6.89.98.E7.AE.A1.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "云托管相关接口")
 -   [计费相关接口](#.E8.AE.A1.E8.B4.B9.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "计费相关接口")
--   [其他接口](#.E5.85.B6.E4.BB.96.E6.8E.A5.E5.8F.A3 "其他接口")
 -   [文档型云数据库相关接口](#.E6.96.87.E6.A1.A3.E5.9E.8B.E4.BA.91.E6.95.B0.E6.8D.AE.E5.BA.93.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "文档型云数据库相关接口")
 -   [静态托管相关接口](#.E9.9D.99.E6.80.81.E6.89.98.E7.AE.A1.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "静态托管相关接口")
 -   [AI模型相关接口](#AI.E6.A8.A1.E5.9E.8B.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "AI模型相关接口")
@@ -104,6 +103,8 @@ _我的收藏_
 | [DeletePlatformHTTPServiceRoute](/document/api/876/138910) | 删除平台HTTP访问服务路由 | 20 |
 | [DescribePlatformHTTPServiceRoute](/document/api/876/138909) | 查询平台HTTP访问服务路由信息 | 20 |
 | [ModifyPlatformHTTPServiceRoute](/document/api/876/138908) | 修改平台HTTP访问服务路由 | 20 |
+| [DescribeGatewayVersions](/document/api/876/129795) | 查询网关版本信息 | 20 |
+| [DeleteAuthDomain](/document/api/876/128960) | 删除合法域名 | 20 |
 
 ## 云托管相关接口
 
@@ -125,16 +126,6 @@ _我的收藏_
 | [DescribePlatformCreditsUsage](/document/api/876/138301) | 获取平台版资源点用量 | 20 |
 | [DescribePlatformCreditsUsageDetail](/document/api/876/138300) | 获取平台版资源点用量明细 | 20 |
 | [DescribePlatformEnvUsage](/document/api/876/138299) | 查询平台版资源用量 | 20 |
-
-## 其他接口
-
-| 接口名称 | 接口功能 | 频率限制（次/秒） |
-| --- | --- | --- |
-| [DescribeGatewayVersions](/document/api/876/129795) | 查询网关版本信息 | 20 |
-| [ModifyClsTopic](/document/api/876/81547) | 修改日志主题 | 20 |
-| [DescribeCurveData](/document/api/876/129258) | 查询环境监控曲线 | 100 |
-| [DeleteAuthDomain](/document/api/876/128960) | 删除合法域名 | 20 |
-| [DescribeCloudBaseRunBuildLog](/document/api/876/135707) | 查询构建日志 | 20 |
 
 ## 文档型云数据库相关接口
 
@@ -163,6 +154,7 @@ _我的收藏_
 | [DescribeCloudAppList](/document/api/876/132936) | 查询云应用服务列表 | 20 |
 | [DescribeCloudAppVersion](/document/api/876/135276) | 查询云应用服务版本信息 | 20 |
 | [DescribeCloudAppVersionList](/document/api/876/135275) | 查询云应用服务版本列表 | 20 |
+| [DescribeCloudBaseRunBuildLog](/document/api/876/135707) | 查询构建日志 | 20 |
 
 ## AI模型相关接口
 
@@ -180,6 +172,8 @@ _我的收藏_
 | --- | --- | --- |
 | [BindCls](/document/api/876/136527) | 绑定用户自定义CLS日志主题 | 20 |
 | [SearchClsLog](/document/api/876/128127) | 搜索CLS日志 | 20 |
+| [ModifyClsTopic](/document/api/876/81547) | 修改日志主题 | 20 |
+| [DescribeCurveData](/document/api/876/129258) | 查询环境监控曲线 | 100 |
 
 ## SQL型云数据库相关接口
 
