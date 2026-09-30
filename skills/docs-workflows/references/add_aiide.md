@@ -9,10 +9,13 @@ When user inputs `/add-aiide` or needs to add support for a new AI IDE
 ## Workflow
 
 ### Step 1: Create IDE-specific Configuration Files
+
 Create the necessary configuration files for the new IDE:
-- Create IDE-specific configuration files (e.g., `.mcp.json`, `CLAUDE.md`, or IDE-specific rules files)
-- Place them in the appropriate directory structure under `config/` directory
+
+- Create IDE-specific configuration files (e.g. `*.mcp.json`, `*.settings.json`, `*.toml`, or a rules file)
+- Place machine config under `config/source/editor-config/files/` and rules / instructions under `config/source/editor-config/guides/`
 - Ensure file naming follows the existing conventions
+- **Skip this step when the client has no project-level config file** — marketplace, built-in-connector and CLI-plugin clients (WorkBuddy, 豆包, MiniMax Code, DeepSeek Harness, …) only need `doc/ide-setup/` plus the list updates
 
 ### Step 2: Fetch and Upload IDE Icon
 Get the IDE icon from the official website and upload it to cloud storage:
@@ -75,32 +78,49 @@ Get the IDE icon from the official website and upload it to cloud storage:
 - This avoids the need to upload custom icons
 - Common icon slugs: `cursor`, `claude`, `gemini`, `windsurf`, `cline`, `qwen`, etc.
 
-### Step 3: Update Hardlink Script
-Update `scripts/fix-config-hardlinks.mjs` to add new target files to the hardlink list:
-- Add new rule file paths to `RULES_TARGETS` array (if applicable)
-- Add new MCP config paths to `MCP_TARGETS` array (if applicable)
-- Ensure the source files are correctly referenced
+### Step 3: Source Edits Only — No Hardlink Step
 
-### Step 4: Execute Hardlink Script
-Run the hardlink script to ensure rule files are synchronized:
+⚠️ **`scripts/fix-config-hardlinks.mjs` is deprecated** — running it prints a notice and exits 1.
+Editor compatibility files are no longer hard-linked. Edit the source directories directly:
+
+- `config/source/skills/`
+- `config/source/guideline/`
+- `config/source/editor-config/`
+
+Generation and publication are enforced by CI. Run the pipeline by hand only when you need local
+verification or an explicit external sync:
+
 ```bash
-node scripts/fix-config-hardlinks.mjs
+node scripts/sync-claude-skills-mirror.mjs   # only if skills changed
+node scripts/build-compat-config.mjs
+node scripts/sync-config.mjs
 ```
 
-### Step 5: Create IDE Setup Documentation
-Create `doc/ide-setup/{ide-name}.md` configuration documentation:
-- Follow the existing IDE setup documentation format
-- Include installation instructions
-- Include configuration steps
-- Include usage examples
+**Gate:** `compat-check.yml` triggers on `config/source/editor-config/**` (among others), so a new
+editor config file requires a refreshed `compat-baseline.json`. Pure `doc/` + list changes do not
+trigger it.
 
-### Step 6: Update Documentation Lists and UI Components
+### Step 4: Create IDE Setup Documentation
+
+Create `doc/ide-setup/{ide-name}.mdx` — copy the structure of `doc/ide-setup/_template.mdx`, or of a
+recent sibling such as `kimi-code.mdx`:
+
+- Front-matter-free `.mdx` with `import IDESelector` and `import RelatedResources`
+- `## 前置条件` in a `<details>` block, then `<IDESelector defaultIDE="{ide-name}" />`
+- Installation steps, `## 验证连接`, `## 常见问题`, and `<RelatedResources />` at the end
+- Reference screenshots with relative paths: `![alt](./assets/{ide-name}-xxx.png)` (put the files in `doc/ide-setup/assets/`)
+- Follow rule 7 for same-vendor products: **one page, one section per form** (e.g. desktop app + terminal CLI)
+
+### Step 5: Update Documentation Lists and UI Components
 Update AI IDE support lists in:
-- `README.md` - Add to IDE support list, **pay attention to detail section content**
-- `doc/index.mdx` - Add to IDE listing
+- `README.md` - Add to the "Supported AI IDEs" table, **pay attention to the detail column**
+- `README.zh-CN.md`, `mcp/README.md`, `mcp/README.zh-CN.md` - Keep the support lists in sync
+- `doc/ai-agent-plugins.mdx` - Add a `<TabItem>` when the client has its own plugin market
+- `doc/sidebar.json` - Register the new page
 - `doc/faq.md` - Add relevant FAQ entries if needed
+- `doc/index.mdx` - **nothing to do**: the IDE grid there renders `<IDEIconGrid />`, which reads its own array
 
-#### 6.1 Update IDESelector Component
+#### 5.1 Update IDESelector Component
 Add the new IDE to `doc/components/IDESelector.tsx` in the `IDES` array:
 ```typescript
 const IDES: IDE[] = [
@@ -152,7 +172,7 @@ const IDES: IDE[] = [
 - `oneClickInstallUrl`: One-click install URL
 - `oneClickInstallImage`: One-click install image URL
 
-#### 6.2 Update IDEIconGrid Component
+#### 5.2 Update IDEIconGrid Component
 Add the new IDE to `doc/components/IDEIconGrid.tsx` in the `IDES` array:
 ```typescript
 const IDES: IDE[] = [
@@ -174,10 +194,10 @@ const IDES: IDE[] = [
 - `iconSlug` or `iconUrl`: Icon source
 - `docUrl`: Link to setup documentation
 
-### Step 7: Update IDE File Mappings in Code
+### Step 6: Update IDE File Mappings in Code
 Update IDE mappings in `mcp/src/tools/setup.ts`:
 
-#### 7.1 Add to IDE_TYPES Array
+#### 6.1 Add to IDE_TYPES Array
 Add the new IDE type to the `IDE_TYPES` constant array:
 ```typescript
 const IDE_TYPES = [
@@ -186,7 +206,7 @@ const IDE_TYPES = [
 ] as const;
 ```
 
-#### 7.2 Add to RAW_IDE_FILE_MAPPINGS
+#### 6.2 Add to RAW_IDE_FILE_MAPPINGS
 Add file mapping in `RAW_IDE_FILE_MAPPINGS` object:
 ```typescript
 export const RAW_IDE_FILE_MAPPINGS: Record<string, IdeFileDescriptor[]> = {
@@ -198,7 +218,7 @@ export const RAW_IDE_FILE_MAPPINGS: Record<string, IdeFileDescriptor[]> = {
 };
 ```
 
-#### 7.3 Add to IDE_DESCRIPTIONS
+#### 6.3 Add to IDE_DESCRIPTIONS
 Add description in `IDE_DESCRIPTIONS` object:
 ```typescript
 const IDE_DESCRIPTIONS: Record<string, string> = {
@@ -207,7 +227,7 @@ const IDE_DESCRIPTIONS: Record<string, string> = {
 };
 ```
 
-#### 7.4 Add to INTEGRATION_IDE_MAPPING
+#### 6.4 Add to INTEGRATION_IDE_MAPPING
 Add environment variable mapping in `INTEGRATION_IDE_MAPPING` object:
 ```typescript
 const INTEGRATION_IDE_MAPPING: Record<string, string> = {
@@ -218,20 +238,17 @@ const INTEGRATION_IDE_MAPPING: Record<string, string> = {
 
 **Note**: `ALL_IDE_FILES` is automatically calculated from `IDE_FILE_MAPPINGS`, so no manual update needed.
 
-### Step 7: Update Documentation Components
-Update React components that display IDE lists:
-- **IDESelector.tsx**: Add full IDE configuration with all required and optional fields
-- **IDEIconGrid.tsx**: Add simplified IDE entry for icon grid display
+**Important**: Ensure the `INTEGRATION_IDE` value in `configExample` matches the value in `INTEGRATION_IDE_MAPPING` from Step 6.4.
 
-**Important**: Ensure the `INTEGRATION_IDE` value in `configExample` matches the value in `INTEGRATION_IDE_MAPPING` from Step 7.4.
+### Step 7: Verify Documentation and Lists
 
-### Step 9: Verify Hardlink Status and Documentation
-- Verify that hardlinks are correctly created
-- Check that all configuration files are properly linked
-- Ensure documentation is complete and accurate
-- Verify that IDE appears correctly in UI components
+- Every IDE list carries the new entry in the same relative position (see rule 6)
+- `doc/sidebar.json` still parses, and the page appears exactly once
+- Every image reference in the new page resolves to a real file under `doc/ide-setup/assets/`
+- `.tsx` / `.js` edits are syntax-checked (e.g. `npx esbuild <file> --outfile=/dev/null`)
+- No stale `config/` hardlink expectation is left in the diff
 
-### Step 10: Test IDE-specific Download Functionality
+### Step 8: Test IDE-specific Download Functionality
 Test the IDE-specific download feature:
 - Test downloading templates with the new IDE type
 - Verify that only relevant files are included
@@ -246,6 +263,7 @@ Test the IDE-specific download feature:
 4. **Documentation**: Always update all relevant documentation files
 5. **Testing**: Thoroughly test the new IDE support before marking as complete
 6. **⭐ Sorting Rule — 新增 IDE 放在 WorkBuddy 后面**：所有 IDE 列表（IDEIconGrid、IDESelector、AiIdeWall、_docsHome、ErrorCodeIDEButton 等）中，新增的 IDE 条目统一放在 `workbuddy` 条目之后、`zcode` 之前。这是 CloudBase 生态优先级排序（WorkBuddy > 合作伙伴 > 第三方）。**不要追加到列表末尾。**
+   - 注：`ErrorCodeIDEButton` 的 `POPULAR_IDES` 是个 7 项的小集合（连 `workbuddy` 都没有），套不上这条排序 —— 要不要往里加，**单独判断**，别硬按「WorkBuddy 后」处理。
 7. **⭐ 同一厂商的多个产品合写一篇文档**：CLI 与桌面端、编辑器与 App 这类同一厂商的多形态产品（例：Kimi Code + Kimi Work），`doc/ide-setup/` 下只建 **一篇** 文档（以主打产品命名，如 `kimi-code.mdx`），用二级标题分节（`## Kimi Code（终端 CLI）` / `## Kimi Work（桌面端）`），开头放一张对照表说明各形态的插件入口与 MCP 配置路径。
    - **文档首页列表（`_docsHome.js` 的 `HERO_AI_AGENTS`，即「打开 AI Agent」那排 IDE 图标）同一厂商只放一个条目**：用合并后的厂商名（如 `Kimi`）作为 `id`，`docUrl`/`href` 指向那唯一一篇文档。不要在这里把每个产品都展开成独立 chip（否则首页会显得重复）。
    - 其余 IDE 选择类组件（IDEIconGrid / IDESelector / AiIdeWall / ErrorCodeIDEButton）**仍保留各自的条目**（`setup.ts` 里也是各自的 IDE type，因为配置路径不同），但 `docUrl` / `href` **统一指向那唯一一篇文档**。
@@ -255,9 +273,18 @@ Test the IDE-specific download feature:
 8. **⭐ 品牌名简化 — 合作/集成内容用短名 `CloudBase`**：在 Kimi 这类合作伙伴集成的内容（配置文档、官网博客、首页文案）里，统一用短品牌名 **`CloudBase`**，不要写全称 **`CloudBase AI Toolkit`**。理由：合作语境下「CloudBase 是 Kimi 接入的平台」比「CloudBase AI Toolkit 是…」更自然、更短。该约定只针对合作/集成叙事内容；产品自身概述页、能力列表等仍以官方全称 `CloudBase AI Toolkit` 为准。
    - 参考实现：Kimi 博客标题 `CloudBase 现已成为 Kimi Code 与 Kimi Work 上的官方精选插件`（原 `CloudBase AI Toolkit 现已成为…` 已简化）。
 
-### Step 11: Update cloudbase-docs (官网 + 文档站)
+### Step 9: Update cloudbase-docs (官网 + 文档站)
 
-CloudBase-MCP 的 `doc/` 目录通过 CI rsync 同步到 `cloudbase-docs` 仓库的 `docs/ai/cloudbase-ai-toolkit/`。但以下文件是 **cloudbase-docs 独有**，不会自动同步，必须手动更新：
+CloudBase-MCP 的 `doc/` 通过 CI 流水线同步到 `cloudbase-docs` 仓库，**两个目录都在流水线覆盖范围内**（`qcifile-sync-cloudbase-mcp.yml` + `scripts/sync-cloudbase-mcp-docs.sh`）：
+
+| 目标 | 内容 | 谁产出 |
+| --- | --- | --- |
+| `docs/ai/cloudbase-ai-toolkit/` | 中文文档页 | 从 MCP `main` rsync |
+| `i18n/en/docusaurus-plugin-content-docs/current/ai/cloudbase-ai-toolkit/` | 英文文档页 | **流水线跑 `/translate-mcp` 自动翻译** |
+
+⚠️ **这两处都不要手写、也不要提交**：中文页会被 rsync 覆盖；手写的英文页会被翻译流水线覆盖（**英文文档页保留配图**，与博客「英文不配图」相反）。流水线产出在固定分支 `feature/update-mcp-doc`，**要等 MCP 仓的 PR 合并后才会跑**。
+
+以下 6 个文件是 **cloudbase-docs 独有**、不在这两个目录里，必须手动更新：
 
 | # | 文件 | 用途 | 排序规则 |
 |---|------|------|----------|
@@ -269,10 +296,10 @@ CloudBase-MCP 的 `doc/` 目录通过 CI rsync 同步到 `cloudbase-docs` 仓库
 | 6 | `i18n/en/.../components/ErrorCodeIDEButton.tsx` | 英文版 ErrorCodeIDEButton | 同上 |
 
 **操作流程：**
-1. 在 CloudBase-MCP worktree 完成上述 Step 1-10
-2. 切换到 cloudbase-docs 仓库，编辑上述 6 个文件
-3. 将 worktree 中改动过的 `doc/` 文件手动 cp 到 `docs/ai/cloudbase-ai-toolkit/` 和 `i18n/en/docusaurus-plugin-content-docs/current/ai/cloudbase-ai-toolkit/`（供本地预览，CI 正式同步需等 PR 合并）
-4. 两边分别 commit & push
+1. 在 CloudBase-MCP worktree 完成上述 Step 1-8
+2. 切到 cloudbase-docs 仓库，编辑上述 6 个文件
+3. 需要在本地预览文档页时，把改动过的 `doc/` 文件 cp 到 `docs/ai/cloudbase-ai-toolkit/`（**仅供本地预览，不要 commit**）
+4. 先提 MCP 仓的 PR，合并后流水线才会生成文档站中文页与英文页；再提 cloudbase-docs 仓那条 MR
 
 ### Blog 链接规范（写博客时必看）
 
@@ -284,7 +311,7 @@ CloudBase-MCP 的 `doc/` 目录通过 CI rsync 同步到 `cloudbase-docs` 仓库
 - 博客配图用 `static/img/blog/xxx.png`，Markdown 里写 `/img/blog/xxx.png`（静态资源，站内有效）。
 - **验收博客 = 跑一次官网生产构建**：`yarn clear && NODE_OPTIONS=--max-old-space-size=8192 yarn docusaurus build --config docusaurus.website.config.ts --out-dir build-website`。`onBrokenLinks: "throw"` 会抓出所有断链；zh+en 两个 locale 都构建通过才算过。注意构建与文档站 dev 实例共用 `.docusaurus` 缓存，构建前先 kill 文档站实例、清缓存，避免互相污染。
 
-### Step 12: Regenerate ide-support-grid.png (如需要)
+### Step 10: Regenerate ide-support-grid.png (如需要)
 
 `scripts/assets/ide-support-grid.png` 是 README 中引用的静态 IDE 网格图。新增 IDE 后需重新生成：
 
@@ -300,21 +327,20 @@ CloudBase-MCP 的 `doc/` 目录通过 CI rsync 同步到 `cloudbase-docs` 仓库
 
 ```
 /add-aiide I need to add support for "NewIDE" AI editor
-→ Guide through all 12 steps to add complete IDE support
+→ Guide through all 10 steps to add complete IDE support
 ```
 
 ## Success Criteria
 
-- [ ] IDE-specific configuration files created
-- [ ] IDE icon fetched from official website and uploaded to cloud storage
-- [ ] Hardlink script updated and executed
-- [ ] IDE setup documentation created
-- [ ] All documentation files updated (README.md, doc/index.mdx, doc/faq.md, ai-agent-plugins.mdx)
-- [ ] UI components updated with correct icon URLs (IDESelector.tsx, IDEIconGrid.tsx) — **排序在 WorkBuddy 后**
-- [ ] Code mappings updated (IDE_TYPES, RAW_IDE_FILE_MAPPINGS, IDE_DESCRIPTIONS, INTEGRATION_IDE_MAPPING)
-- [ ] cloudbase-docs 独有文件已更新（_docsHome.js / AiIdeWall/ides.js / _websiteHomeCopy.js / developers/index.js / ErrorCodeIDEButton.tsx ×2）
-- [ ] cloudbase-docs docs/ 与 i18n/en/ 已同步（供本地预览）
-- [ ] Hardlinks verified
-- [ ] IDE-specific download functionality tested and working
-- [ ] IDE appears correctly in documentation UI with proper icon display
+- [ ] IDE-specific configuration files created — **or explicitly not needed** (no project-level config for this client)
+- [ ] IDE icon resolved: `iconSlug` verified against lobe-icons, or an icon uploaded to cloud storage
+- [ ] IDE setup documentation created (`doc/ide-setup/{ide-name}.mdx` + assets)
+- [ ] All documentation lists updated (README.md, README.zh-CN.md, mcp/README*.md, doc/faq.md, doc/ai-agent-plugins.mdx, doc/sidebar.json)
+- [ ] UI components updated (IDESelector.tsx, IDEIconGrid.tsx) — **排序在 WorkBuddy 后**
+- [ ] `IDESelector` 的 `defaultIDE` 与组件里的 `id` 一致；新增条目已登记 `CHANNEL_BY_ID`
+- [ ] Code mappings updated when the client has a project-level config (IDE_TYPES, RAW_IDE_FILE_MAPPINGS, IDE_DESCRIPTIONS, INTEGRATION_IDE_MAPPING)
+- [ ] `compat-baseline.json` refreshed **only if** a config source under `config/source/**` changed
+- [ ] cloudbase-docs 独有文件已更新（_docsHome.js / AiIdeWall/ides.js / _websiteHomeCopy.js / developers/index.js）
+- [ ] 文档站页面**没有**手动提交（中文页与英文页都由流水线产出）
+- [ ] IDE-specific download functionality tested when applicable
 - [ ] ide-support-grid.png 已重新生成（或确认待办）
