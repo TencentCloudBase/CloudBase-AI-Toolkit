@@ -626,6 +626,7 @@ describe("project-pinned envId (.cloudbase/project.json)", () => {
     vi.resetModules();
     vi.clearAllMocks();
     delete process.env.CLOUDBASE_ENV_ID;
+    delete process.env.CLOUDBASE_LOCAL_ENDPOINT;
     delete process.env.TCB_REGION;
     delete process.env.TCB_SITE;
     mockReadProjectConfig.mockReturnValue(undefined);
@@ -653,6 +654,7 @@ describe("project-pinned envId (.cloudbase/project.json)", () => {
     mockReadProjectEnvId.mockReturnValue(undefined);
     mockReadCloudbaseRcBinding.mockReturnValue(undefined);
     delete process.env.CLOUDBASE_ENV_ID;
+    delete process.env.CLOUDBASE_LOCAL_ENDPOINT;
   });
 
   it("should pin project envId in a fresh process without asking for set_env", async () => {
