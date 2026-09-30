@@ -1,5 +1,6 @@
 import { AuthSupervisor, authStore, refreshTmpToken, resolveCredential } from "@cloudbase/toolbox";
 import { debug } from "./utils/logger.js";
+import { requireProjectRoot } from "./utils/project-config.js";
 import {
   getSite,
   normalizeSite,
@@ -590,8 +591,7 @@ export async function peekLoginState(options?: {
     if ('_type' in envVarLoginState && envVarLoginState._type === 'api_key') {
       debug("peekLoginState: detected CLOUDBASE_API_KEY env var");
       try {
-        // 优先使用 IDE 注入的工作目录，其次 process.cwd()
-        const projectCwd = process.env.WORKSPACE_FOLDER_PATHS || process.cwd();
+        const projectCwd = requireProjectRoot();
         // 换取网关按站点选型：显式 intl → ap-singapore；domestic/歧义 → toolbox 默认
         // ap-shanghai（国内站多地域环境均经其全局路由，详见 resolveApiKeyExchangeRegion）
         const exchangeRegion = resolveApiKeyExchangeRegion({
@@ -764,7 +764,7 @@ export async function logout(options?: { site?: string }) {
     delete slotted[site];
     await authStore.set("credential", slotted);
   } else if (site === LEGACY_SITE) {
-    const cwd = process.env.WORKSPACE_FOLDER_PATHS || process.cwd();
+    const cwd = requireProjectRoot();
     await auth.logout({ cwd });
   }
   resetAuthProgressState();

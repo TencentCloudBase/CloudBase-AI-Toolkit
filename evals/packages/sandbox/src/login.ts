@@ -33,6 +33,7 @@ export function buildLocalMcpConfig(endpoint: string, mcpBin: string): string {
   });
 }
 
+
 export function buildMcpConfig(creds: CloudBaseCreds): string {
   return JSON.stringify({
     mcpServers: {

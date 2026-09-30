@@ -1,0 +1,2 @@
+# Exists so npm publish does not inherit the repo .gitignore.
+# skills/cloudbase is generated at build time and must be in the tarball.

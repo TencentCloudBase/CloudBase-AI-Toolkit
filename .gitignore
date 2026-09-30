@@ -1,5 +1,7 @@
 
 .codebuddy/
+# Generated at dsh-plugin build time from config/source/skills. Ships via npm, not git.
+dsh-plugin/skills/cloudbase/
 .DS_Store
 .env.local
 .generated

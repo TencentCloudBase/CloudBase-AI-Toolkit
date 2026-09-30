@@ -1,7 +1,8 @@
 {
   "name": "@cloudbase/dsh-plugin",
-  "version": "0.1.3",
-  "description": "CloudBase backend for DeepSeek Harness — full-stack apps from chat, DB/Storage/Auth panel, one-click deploy",
+  "version": "0.2.2",
+  "description": "CloudBase backend for DeepSeek Harness — database, storage, authentication, and frontend/backend deployment",
+  "icon": "./icon.png",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,9 +23,11 @@
     "cordis.patch.example.yml",
     "skills",
     "scripts/install.sh",
-    "scripts/mcp-env-proxy.mjs",
+    "scripts/mcp-launch.mjs",
+    "scripts/generate-skills.mjs",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "icon.png"
   ],
   "bin": {
     "cloudbase-skills": "./dist/skill-cli.js"
@@ -32,6 +35,8 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "node build.mjs",
+    "generate:skills": "node scripts/generate-skills.mjs",
+    "pretest": "node scripts/generate-skills.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "e2e:live": "node scripts/e2e-live.mjs",

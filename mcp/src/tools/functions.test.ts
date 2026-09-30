@@ -11,6 +11,7 @@ import {
   shouldInstallDependencyForFunction,
 } from "./functions.js";
 import { FUNCTION_IMAGE_CONFIG_COMMON_FIELDS } from "./function-deploy-schema.js";
+import { resetFunctionUploadTargets } from "./function-upload-target-store.js";
 import {
   FUNCTION_UPDATING_ERROR_CODE,
   FUNCTION_UPDATING_RETRY_AFTER_SECONDS,
@@ -1724,6 +1725,8 @@ describe("function zip two-phase deployment", () => {
     functionUpdatingRuntime.sleep = async () => undefined;
     mockIsCloudMode.mockReturnValue(false);
     mockGetEnvId.mockResolvedValue("env-test");
+    // 上传目标登记表是模块级进程内状态，用例之间必须隔离
+    resetFunctionUploadTargets();
 
     ({ tools } = createMockServer());
   });
@@ -1790,7 +1793,82 @@ describe("function zip two-phase deployment", () => {
   });
 
   it("cloud mode does not block createFunction when code triplet is provided", async () => {
+    mockManagerWith([
+      { Bucket: "envtest-bucket-1258016615", Region: "ap-guangzhou" },
+    ]);
+    // 先走阶段 A 铸造上传目标，再打开 cloud mode：
+    // cloud mode 放行的是「已登记的三元组」，不是「任意三元组」
+    const upload = JSON.parse(
+      (
+        await tools.queryFunctions.handler({
+          action: "getFunctionUploadUrl",
+          functionName: "zipDemo",
+        })
+      ).content[0].text,
+    );
     mockIsCloudMode.mockReturnValue(true);
+
+    const result = await tools.manageFunctions.handler({
+      action: "createFunction",
+      func: { name: "zipDemo" },
+      code: {
+        cosBucketName: upload.data.cosBucketName,
+        cosObjectName: upload.data.cosObjectName,
+      },
+      force: false,
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    // 关键：不能命中 cloudMode.localOnly
+    expect(payload.message).not.toContain("cloud mode");
+    expect(mockCreateFunction).toHaveBeenCalledTimes(1);
+    const args = mockCreateFunction.mock.calls[0][0];
+    expect(args.deployMode).toBe("cos");
+    expect(args.code).toEqual({
+      CosBucketName: "envtest-bucket",
+      CosBucketRegion: "ap-guangzhou",
+      CosObjectName: upload.data.cosObjectName,
+    });
+    expect(payload.data.deployMode).toBe("cos");
+  });
+
+  it("updateFunctionCode with code triplet passes deployMode=cos through", async () => {
+    mockManagerWith([
+      { Bucket: "envtest-bucket-1258016615", Region: "ap-guangzhou" },
+    ]);
+    mockGetFunctionDetail.mockResolvedValue({
+      Status: "Active",
+      Environment: { Variables: [] },
+    });
+
+    const upload = JSON.parse(
+      (
+        await tools.queryFunctions.handler({
+          action: "getFunctionUploadUrl",
+          functionName: "zipDemo",
+        })
+      ).content[0].text,
+    );
+
+    const result = await tools.manageFunctions.handler({
+      action: "updateFunctionCode",
+      functionName: "zipDemo",
+      code: {
+        cosBucketName: upload.data.cosBucketName,
+        cosObjectName: upload.data.cosObjectName,
+      },
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(mockUpdateFunctionCode).toHaveBeenCalledTimes(1);
+    const args = mockUpdateFunctionCode.mock.calls[0][0];
+    expect(args.deployMode).toBe("cos");
+    expect(args.code.CosObjectName).toBe(upload.data.cosObjectName);
+    expect(args.func.name).toBe("zipDemo");
+  });
+
+  it("rejects a code object key that was never minted in this process", async () => {
     mockManagerWith([
       { Bucket: "envtest-bucket-1258016615", Region: "ap-guangzhou" },
     ]);
@@ -1806,43 +1884,38 @@ describe("function zip two-phase deployment", () => {
     });
     const payload = JSON.parse(result.content[0].text);
 
-    // 关键：不能命中 cloudMode.localOnly
-    expect(payload.message).not.toContain("cloud mode");
-    expect(mockCreateFunction).toHaveBeenCalledTimes(1);
-    const args = mockCreateFunction.mock.calls[0][0];
-    expect(args.deployMode).toBe("cos");
-    expect(args.code).toEqual({
-      CosBucketName: "envtest-bucket",
-      CosBucketRegion: "ap-guangzhou",
-      CosObjectName: "fnzip-upload/1/zipDemo.zip",
-    });
-    expect(payload.data.deployMode).toBe("cos");
+    expect(payload.success).toBe(false);
+    expect(payload.errorCode).toBe("FUNCTION_UPLOAD_TARGET_NOT_FOUND");
+    expect(payload.message).toContain("getFunctionUploadUrl");
+    // 被拒的调用不该落到云端
+    expect(mockCreateFunction).not.toHaveBeenCalled();
   });
 
-  it("updateFunctionCode with code triplet passes deployMode=cos through", async () => {
+  it("rejects a minted object key pointed at a different bucket", async () => {
     mockManagerWith([
       { Bucket: "envtest-bucket-1258016615", Region: "ap-guangzhou" },
     ]);
-    mockGetFunctionDetail.mockResolvedValue({
-      Status: "Active",
-      Environment: { Variables: [] },
-    });
+    const upload = JSON.parse(
+      (
+        await tools.queryFunctions.handler({
+          action: "getFunctionUploadUrl",
+          functionName: "zipDemo",
+        })
+      ).content[0].text,
+    );
 
     const result = await tools.manageFunctions.handler({
       action: "updateFunctionCode",
       functionName: "zipDemo",
       code: {
-        cosBucketName: "envtest-bucket",
-        cosObjectName: "fnzip-upload/2/zipDemo.zip",
+        cosBucketName: "attacker-bucket",
+        cosObjectName: upload.data.cosObjectName,
       },
     });
     const payload = JSON.parse(result.content[0].text);
 
-    expect(payload.success).toBe(true);
-    expect(mockUpdateFunctionCode).toHaveBeenCalledTimes(1);
-    const args = mockUpdateFunctionCode.mock.calls[0][0];
-    expect(args.deployMode).toBe("cos");
-    expect(args.code.CosObjectName).toBe("fnzip-upload/2/zipDemo.zip");
-    expect(args.func.name).toBe("zipDemo");
+    expect(payload.success).toBe(false);
+    expect(payload.errorCode).toBe("FUNCTION_UPLOAD_TARGET_NOT_FOUND");
+    expect(mockUpdateFunctionCode).not.toHaveBeenCalled();
   });
 });

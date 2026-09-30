@@ -28,3 +28,4 @@ test('local endpoint config does not carry Tencent cloud secrets', () => {
   assert.equal(env.TENCENTCLOUD_SECRETKEY, undefined);
   assert.equal(config.mcpServers.cloudbase.args[0], '/tmp/mcp/dist/cli.cjs');
 });
+

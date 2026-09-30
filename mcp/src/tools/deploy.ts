@@ -11,6 +11,7 @@ import { getCloudBaseManager, getEnvId } from "../cloudbase-manager.js";
 import { t } from "../i18n/index.js";
 import type { ExtendedMcpServer } from "../server.js";
 import { jsonContent } from "../utils/json-content.js";
+import { requireProjectRoot } from "../utils/project-config.js";
 import { findDestructiveStatements } from "../utils/sql-risk.js";
 import {
   HOSTING_BUILD_ERROR_CODES,
@@ -353,7 +354,7 @@ export function registerDeployTools(server: ExtendedMcpServer) {
     },
     async ({ cwd, mode }: { cwd?: string; mode?: string }) => {
       try {
-        const projectRoot = cwd ?? process.cwd();
+        const projectRoot = requireProjectRoot(cwd);
         const config = await resolveDeployConfig({ cwd: projectRoot, mode });
         assertConfigValid(config);
 
@@ -460,7 +461,7 @@ export function registerDeployTools(server: ExtendedMcpServer) {
       yes?: boolean;
     }) => {
       try {
-        const projectRoot = cwd ?? process.cwd();
+        const projectRoot = requireProjectRoot(cwd);
         const config = await resolveDeployConfig({ cwd: projectRoot, mode });
         assertConfigValid(config);
         const envId = await resolveDeployEnvId({
@@ -582,7 +583,7 @@ export function registerDeployTools(server: ExtendedMcpServer) {
           );
         }
 
-        const projectRoot = cwd ?? process.cwd();
+        const projectRoot = requireProjectRoot(cwd);
         const config = await resolveDeployConfig({ cwd: projectRoot, mode });
         assertConfigValid(config);
         const envId = await resolveDeployEnvId({

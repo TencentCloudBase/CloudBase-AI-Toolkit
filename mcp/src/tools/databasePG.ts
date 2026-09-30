@@ -8,6 +8,7 @@ import {
   type EnvRuntimeBackendSnapshot,
 } from "./env.js";
 import { t } from "../i18n/index.js";
+import { requireProjectRoot } from "../utils/project-config.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
 import {
   getSqlVerb,
@@ -494,20 +495,7 @@ function validateMigrationName(
 }
 
 function getMigrationProjectRoot(): string {
-  const fromEnv =
-    process.env.WORKSPACE_FOLDER_PATHS ||
-    process.env.PROJECT_ROOT ||
-    process.env.GITHUB_WORKSPACE ||
-    process.env.CI_PROJECT_DIR ||
-    process.env.BUILD_SOURCESDIRECTORY;
-  if (fromEnv && fromEnv.trim()) {
-    // IDEs may inject multiple folders separated by path.delimiter.
-    const first = fromEnv.split(path.delimiter).map((p) => p.trim()).find(Boolean);
-    if (first) {
-      return first;
-    }
-  }
-  return process.cwd();
+  return requireProjectRoot();
 }
 
 function buildLocalMigrationFileName(version: string, name: string): string {

@@ -55,6 +55,7 @@ describe("cloudbase manager auth gate", () => {
     vi.resetModules();
     vi.clearAllMocks();
     delete process.env.CLOUDBASE_ENV_ID;
+    delete process.env.CLOUDBASE_LOCAL_ENDPOINT;
     mockReadProjectConfig.mockReturnValue(undefined);
     mockReadProjectEnvId.mockReturnValue(undefined);
     mockReadCloudbaseRcBinding.mockReturnValue(undefined);
@@ -625,6 +626,7 @@ describe("project-pinned envId (.cloudbase/project.json)", () => {
     vi.resetModules();
     vi.clearAllMocks();
     delete process.env.CLOUDBASE_ENV_ID;
+    delete process.env.CLOUDBASE_LOCAL_ENDPOINT;
     delete process.env.TCB_REGION;
     delete process.env.TCB_SITE;
     mockReadProjectConfig.mockReturnValue(undefined);
@@ -652,6 +654,7 @@ describe("project-pinned envId (.cloudbase/project.json)", () => {
     mockReadProjectEnvId.mockReturnValue(undefined);
     mockReadCloudbaseRcBinding.mockReturnValue(undefined);
     delete process.env.CLOUDBASE_ENV_ID;
+    delete process.env.CLOUDBASE_LOCAL_ENDPOINT;
   });
 
   it("should pin project envId in a fresh process without asking for set_env", async () => {
@@ -702,6 +705,25 @@ describe("project-pinned envId (.cloudbase/project.json)", () => {
     const { getEnvId } = await import("./cloudbase-manager.js");
 
     await expect(getEnvId()).resolves.toBe("env-from-host");
+  });
+
+  it("routes cloud API calls to CLOUDBASE_LOCAL_ENDPOINT without a Tencent login", async () => {
+    process.env.CLOUDBASE_LOCAL_ENDPOINT = "http://127.0.0.1:8797";
+    mockCommonServiceCall.mockResolvedValue({
+      EnvList: [{ EnvId: "other-env", Alias: "other", Region: "ap-shanghai" }],
+    });
+
+    const { getCloudBaseManager } = await import("./cloudbase-manager.js");
+    await getCloudBaseManager();
+
+    expect(mockPeekLoginState).not.toHaveBeenCalled();
+    expect(mockCommonServiceCall).not.toHaveBeenCalled();
+    expect(mockCloudBaseCtor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        envId: "local",
+        requestFn: expect.any(Function),
+      }),
+    );
   });
 
   it("should prefer explicit envId and runtime set_env over project envId", async () => {

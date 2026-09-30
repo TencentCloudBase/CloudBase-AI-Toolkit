@@ -1168,7 +1168,7 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
       name: "action",
       type: "string",
       required: true,
-      description: `只读操作类型： - \`listFunctions\`: 列出所有 CloudBase 云函数 - \`getFunctionDetail\`: 获取 CloudBase 云函数详情（需要 functionName） - \`listFunctionLogs\`: 查询 CloudBase 云函数执行日志（需要 functionName） - \`getFunctionLogDetail\`: 获取日志详情（需要 requestId） - \`listFunctionLayers\`: 列出函数绑定的层 - \`listLayers\`: 列出所有层（账号级视图，含其他环境创建的层） - \`listLayerVersions\`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图） - \`getLayerVersionDetail\`: 获取层版本详情（账号级视图） - \`listFunctionTriggers\`: 列出函数触发器（用于查看定时任务 / cron / timer 配置） - \`getFunctionDownloadUrl\`: 获取函数代码下载地址 - \`getFunctionDeployStatus\`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。 - \`listVersionByFunction\`: 列出函数已发布版本（对齐 tcb fn list-function-versions / SDK listVersionByFunction；需要 functionName） - \`getFunctionAlias\`: 查询函数别名与流量路由（对齐 tcb fn get-route / SDK getFunctionAlias；需要 functionName；aliasName 默认 $DEFAULT） - \`getFunctionUploadUrl\`: 获取函数代码包的 COS 预签名上传地址（ZIP 两段式部署阶段 A）：PUT 代码 zip 到 uploadUrl（uploadHeaders 非空时须随请求携带对应请求头），再调用 manageFunctions 的 createFunction/updateFunctionCode 并传 code 三元组（阶段 B）。functionName 可选，仅用于生成上传对象 key。返回的 uploadUrl 含凭据签名，不得写入日志或持久化 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl", "getFunctionDeployStatus", "listVersionByFunction", "getFunctionAlias", "getFunctionUploadUrl"`,
+      description: `只读操作类型： - \`listFunctions\`: 列出所有 CloudBase 云函数 - \`getFunctionDetail\`: 获取 CloudBase 云函数详情（需要 functionName） - \`listFunctionLogs\`: 查询 CloudBase 云函数执行日志（需要 functionName） - \`getFunctionLogDetail\`: 获取日志详情（需要 requestId） - \`listFunctionLayers\`: 列出函数绑定的层 - \`listLayers\`: 列出所有层（账号级视图，含其他环境创建的层） - \`listLayerVersions\`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图） - \`getLayerVersionDetail\`: 获取层版本详情（账号级视图） - \`listFunctionTriggers\`: 列出函数触发器（用于查看定时任务 / cron / timer 配置） - \`getFunctionDownloadUrl\`: 获取函数代码下载地址 - \`getFunctionDeployStatus\`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。 - \`listVersionByFunction\`: 列出函数已发布版本（对齐 tcb fn list-function-versions / SDK listVersionByFunction；需要 functionName） - \`getFunctionAlias\`: 查询函数别名与流量路由（对齐 tcb fn get-route / SDK getFunctionAlias；需要 functionName；aliasName 默认 $DEFAULT） - \`getFunctionUploadUrl\`: 获取函数代码包的 COS 预签名上传地址（ZIP 两段式部署阶段 A）：PUT 代码 zip 到 uploadUrl（uploadHeaders 非空时须随请求携带对应请求头），再调用 manageFunctions 的 createFunction/updateFunctionCode 并传 code 三元组（阶段 B）。functionName 可选，仅用于生成上传对象 key。返回的 uploadUrl 含凭据签名，不得写入日志或持久化；阶段 A 与阶段 B 必须落在同一个 MCP 进程（MCP Server 重启后需重新取地址并重新上传）；地址默认 300 秒内有效 可填写的值: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl", "getFunctionDeployStatus", "listVersionByFunction", "getFunctionAlias", "getFunctionUploadUrl"`,
     },
     {
       name: "functionName",
@@ -1592,7 +1592,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "code",
       type: "object",
-      description: `ZIP 两段式部署阶段 B：代码包已通过 queryFunctions action=getFunctionUploadUrl 上传到环境 COS 桶。三元组（cosBucketName/cosObjectName/cosBucketRegion）直接使用 getFunctionUploadUrl 返回值原样透传。传入 code 后 createFunction/updateFunctionCode 不再读取本地目录（functionRootPath/zipFile 均不需要），默认不触发云端依赖安装（可用 func.installDependency 覆盖）。`,
+      description: `ZIP 两段式部署阶段 B：代码包已通过 queryFunctions action=getFunctionUploadUrl 上传到环境 COS 桶。三元组（cosBucketName/cosObjectName/cosBucketRegion）直接使用 getFunctionUploadUrl 返回值原样透传。传入 code 后 createFunction/updateFunctionCode 不再读取本地目录（functionRootPath/zipFile 均不需要），默认不触发云端依赖安装（可用 func.installDependency 覆盖）。code 三元组必须是同一个 MCP 进程的 getFunctionUploadUrl 刚返回的那一组（该 process 会在阶段 A 登记上传目标），自行拼装或跨环境复用会被拒绝并要求重新取地址。`,
       children: [
         {
           name: "cosBucketName",
@@ -3135,7 +3135,7 @@ CloudBase 应用侧认证配置写入口。用于修改登录方式、provider�
 
 ### `queryApps`
 查询 CloudBase 应用部署的应用和版本。可查应用列表/详情、版本列表/详情；部署后用 getAppVersion 按 buildId 轮询构建状态；getBuildLog 可查询构建日志用于诊断失败原因。
-action=getUploadUrl（只读）可获取预签名上传 URL：无本地文件系统时（cloud mode），先拿到 uploadUrl 自行 PUT 代码 zip，再用返回的 unixTimestamp 调 manageApps(action=deployApp, cosTimestamp) 触发部署。
+action=getUploadUrl（只读）可获取预签名上传 URL：无本地文件系统时（cloud mode），先拿到 uploadUrl 自行 PUT 代码 zip，再用返回的 unixTimestamp 调 manageApps(action=deployApp, cosTimestamp) 触发部署。uploadUrl 是一次性上传凭据，不要外传或写进工单。
 
 #### 参数
 
@@ -3745,8 +3745,9 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
 **怎么用**：
 - 第一次不要传 `confirmed`。先把返回的草稿全文给用户看。
 - 用户明确同意后，再以 `confirmed=true` 调用。这时才会返回可打开的链接。
-- 本工具不会替用户提交。取不到的内容会留空，不要编造作品名、简介、公网地址或对话轮次。
-- 国际站链接指向 GitHub，正文为英文；国内站链接指向 CNB 上的 CloudBase-AI-ToolKit 仓库，正文为中文。
+- 本工具不会替用户提交。链接里的正文就是本次返回的 draft，不要改写成另一份再让用户提交。
+- 不采集对话轮次，不要编造轮次、作品名、简介或公网地址。
+- 国际站是英文草稿和 GitHub 链接（body 参数）。国内站是中文草稿，链接指向 CNB 上公开的 CloudBase-AI-ToolKit 仓库，正文放在模板字段 session。若页面没自动填上，把 draft 粘贴到「本次会话记录」。
 
 #### 参数
 

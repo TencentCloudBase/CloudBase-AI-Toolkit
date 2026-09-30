@@ -10,7 +10,7 @@
 
 ```bash
 node --experimental-strip-types evals/packages/framework/src/cli.ts \
-  run build-auth-001-username-signin --experiment fixture-dry
+  run resolve-security-002-rls-cross-tenant-leak --experiment fixture-dry
 ```
 
 这是 30 分钟验收入口。它加载场景，对假环境打分，并写下 `evals/results/`。检查会失败，因为没有真实实现。

@@ -1,22 +1,7 @@
-import { installBundledSkills, listInstalledSkills } from "./skill-sync.js";
+const message = [
+  "cloudbase-skills — the CloudBase skill is registered by @cloudbase/dsh-plugin.",
+  "It is read from the package and is not copied into ~/.dsh/skills/.",
+  "",
+].join("\n");
 
-const command = process.argv[2] ?? "help";
-
-if (command === "sync" || command === "install") {
-  const target = installBundledSkills();
-  const names = listInstalledSkills(target);
-  process.stdout.write(`Installed CloudBase skills → ${target}\n${names.join("\n")}\n`);
-} else {
-  process.stdout.write(
-    [
-      "cloudbase-skills — install CloudBase skills into ~/.dsh/skills/cloudbase/",
-      "",
-      "Usage:",
-      "  cloudbase-skills sync",
-      "",
-      "P0 copies the bundle-carried skill set. Pulling live SKILL.md from",
-      "CloudBase-AI-Toolkit is a P1 syncer.",
-      "",
-    ].join("\n"),
-  );
-}
+process.stdout.write(`${message}\n`);

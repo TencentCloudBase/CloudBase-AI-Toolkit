@@ -10,6 +10,7 @@ import { debug, error } from './utils/logger.js';
 import { buildAuthNextStep, throwToolPayloadError } from './utils/tool-result.js';
 import { resolveSiteAndRegion, TCB_QUERY_REGIONS } from './utils/site-map.js';
 import { readProjectEnvId } from './utils/project-config.js';
+import { createLocalCloudApiRequestFn, resolveLocalEndpoint } from './local-endpoint.js';
 
 // Timeout for envId auto-resolution flow.
 // 10 minutes (600 seconds) - matches InteractiveServer timeout
@@ -228,7 +229,7 @@ export async function listAvailableEnvCandidates(options?: {
 
         // When CLOUDBASE_ENV_ID is set and credentials are not explicit, skip DescribeEnvs.
         const hasExplicitCredentials = !!(cloudBaseOptions?.secretId && cloudBaseOptions?.secretKey);
-        if (process.env.CLOUDBASE_ENV_ID && !hasExplicitCredentials) {
+        if (process.env.CLOUDBASE_ENV_ID && !hasExplicitCredentials && !cloudBaseOptions?.requestFn && !process.env.CLOUDBASE_LOCAL_ENDPOINT) {
             return [{
                 envId: process.env.CLOUDBASE_ENV_ID,
             }];
@@ -241,7 +242,7 @@ export async function listAvailableEnvCandidates(options?: {
     }).region;
 
     let cloudbase: CloudBase | undefined;
-    if (cloudBaseOptions?.secretId && cloudBaseOptions?.secretKey) {
+    if (cloudBaseOptions?.requestFn || (cloudBaseOptions?.secretId && cloudBaseOptions?.secretKey)) {
         cloudbase = createCloudBaseManagerWithOptions({
             ...cloudBaseOptions,
             region,
@@ -508,10 +509,13 @@ const envManager = new EnvironmentManager();
 
 // 导出环境ID获取函数
 export async function getEnvId(cloudBaseOptions?: CloudBaseOptions): Promise<string> {
-    // 如果传入了 cloudBaseOptions 且包含 envId，直接返回
     if (cloudBaseOptions?.envId) {
         debug('使用传入的 envId:', { envId: cloudBaseOptions.envId });
         return cloudBaseOptions.envId;
+    }
+
+    if (resolveLocalEndpoint()) {
+        return 'local';
     }
 
     const cachedEnvId = envManager.getCachedEnvId() || process.env.CLOUDBASE_ENV_ID;
@@ -668,9 +672,17 @@ export async function getDatabaseInstanceId(options?: {
 export async function getCloudBaseManager(options: GetManagerOptions = {}): Promise<CloudBase> {
     const {
         requireEnvId = true,
-        cloudBaseOptions,
         authStrategy = 'fail_fast',
     } = options;
+    let cloudBaseOptions = options.cloudBaseOptions;
+    const localEndpoint = resolveLocalEndpoint();
+    if (localEndpoint && !cloudBaseOptions?.requestFn) {
+        cloudBaseOptions = {
+            ...cloudBaseOptions,
+            envId: cloudBaseOptions?.envId || 'local',
+            requestFn: createLocalCloudApiRequestFn(localEndpoint),
+        };
+    }
 
     const hasDirectCredentials = !!(cloudBaseOptions?.secretId && cloudBaseOptions?.secretKey);
     const hasRequestFn = !!(cloudBaseOptions?.requestFn);

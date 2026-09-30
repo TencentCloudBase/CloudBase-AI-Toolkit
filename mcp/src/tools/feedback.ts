@@ -41,29 +41,10 @@ const RESOURCE_BY_TOOL: Record<string, { zh: string; en: string }> = {
   manageCloudRun: { zh: "CloudRun", en: "CloudRun" },
 };
 
-const REPORTABLE_TOOL_NAMES = new Set<string>([
-  ...Object.keys(RESOURCE_BY_TOOL),
-  "deployBuild",
-  "deployPlan",
-  "deployApply",
-  "queryEnv",
-  "auth",
-  "searchKnowledgeBase",
-  "downloadTemplate",
-  "callCloudApi",
-  "queryLogs",
-  "manageLogs",
-  "queryGateway",
-  "manageGateway",
-  "queryApps",
-  "manageApps",
-  "queryAgents",
-  "manageAgents",
-  "queryPermissions",
-  "managePermissions",
-]);
-
 export type FeedbackChannel = "case" | "retrospective";
+
+/** Stay under common browser and proxy URL limits. Longer drafts are pasted by the user. */
+export const FEEDBACK_PREFILL_URL_LIMIT = 6000;
 
 export type FeedbackPayload = {
   success: true;
@@ -209,13 +190,8 @@ function latestDeployTime(outcomes: readonly ToolOutcome[]): string {
 
 function failureLines(server: object, outcomes: readonly ToolOutcome[], lang: FeedbackLang): string[] {
   const counts = new Map<string, number>();
-  let hiddenFailures = 0;
   for (const outcome of outcomes) {
     if (!outcome.failed) {
-      continue;
-    }
-    if (!REPORTABLE_TOOL_NAMES.has(outcome.toolName)) {
-      hiddenFailures += 1;
       continue;
     }
     counts.set(outcome.toolName, (counts.get(outcome.toolName) ?? 0) + 1);
@@ -225,16 +201,6 @@ function failureLines(server: object, outcomes: readonly ToolOutcome[], lang: Fe
     lines.push(lang === "en"
       ? `- Verified: tool call failed ${toolName} ×${count}`
       : `- 可验证事实：工具调用失败 ${toolName} ×${count}`);
-    if (count >= 2) {
-      lines.push(lang === "en"
-        ? `- Verified: ${toolName} failed at least twice`
-        : `- 可验证事实：${toolName} 失败不少于 2 次`);
-    }
-  }
-  if (hiddenFailures > 0) {
-    lines.push(lang === "en"
-      ? `- Verified: ${hiddenFailures} more failure(s) omitted because the tool name is not in the known list`
-      : `- 可验证事实：另有 ${hiddenFailures} 次失败未列出工具名（名称不在已知工具表内）`);
   }
   const repeatPeak = readRepeatPeak(server);
   if (repeatPeak > 0) {
@@ -271,6 +237,7 @@ function buildCaseDraft(
   const version = blank(resolveMcpVersion(readDeclaredMcpVersion(), process.env.npm_package_version), lang);
   if (lang === "en") {
     return [
+      "This issue will be public. Do not add an environment ID, secrets, or user data.",
       `Work name: ${empty}`,
       `One-line summary: ${empty}`,
       `Public URL: ${empty}`,
@@ -287,6 +254,7 @@ function buildCaseDraft(
     ].join("\n");
   }
   return [
+    "这条 Issue 会公开。不要补充环境 ID、密钥或用户数据。",
     `作品名称：${empty}`,
     `一句话简介：${empty}`,
     `公网访问地址：${empty}`,
@@ -314,96 +282,63 @@ function buildRetrospectiveDraft(
   if (lang === "en") {
     const failureBlock = failures.length > 0
       ? failures.join("\n")
-      : "blank (no listed tool failures and no repeated-error count)";
+      : "No tool failures recorded in this session.";
     const resourceBlock = resources.length > 0
-      ? `Verified: ${resources.join(", ")}`
+      ? resources.join(", ")
       : empty;
     return [
-      "Check that this draft has no environment ID, secrets, credentials, collection names, or function names. List cloud resources by type only.",
+      "This issue will be public. Do not add an environment ID, secrets, collection names, or function names.",
+      "Conversation turns are not collected. Do not invent a turn count.",
       "",
-      "## 1. Conversation turns",
-      "Total turns: blank (no conversation-turn signal; no estimated number)",
-      "Phase split: blank (no verifiable phase signal)",
-      "Extra turns from errors or misunderstandings: blank (tool failures are not conversation turns)",
-      "Verified failure signals:",
+      "Tool failures:",
       failureBlock,
       "",
-      "## 2. Task completion",
-      "blank (not filled from the conversation)",
-      "",
-      "## 3. Implementation overview",
-      "blank (not filled from the conversation)",
-      "",
-      "## 4. Cloud resources",
+      "Cloud resources:",
       resourceBlock,
-      "",
-      "## 5. Problems and resolutions",
-      "blank (not filled from the conversation)",
-      "",
-      "## 6. Improvements",
-      "Tool: blank",
-      "Problem type: blank",
-      "Platform / MCP feedback: blank",
-      "Code or architecture notes: blank",
-      "",
-      "## 7. Follow-up",
-      "blank (this section is not finalized)",
     ].join("\n");
   }
   const failureBlock = failures.length > 0
     ? failures.join("\n")
-    : "留空（本次没有可列出的工具失败，也没有重复错误计数）";
+    : "本次会话没有记录到工具失败。";
   const resourceBlock = resources.length > 0
-    ? `可验证事实：${resources.join("、")}`
+    ? resources.join("、")
     : empty;
   return [
-    "请确认草稿里没有环境 ID、密钥、凭证，也没有集合名或函数名。云资源只保留类型。",
+    "这条 Issue 会公开。不要补充环境 ID、密钥、集合名或函数名。",
+    "不采集对话轮次。不要把失败次数写成轮次，也不要补一个数字。",
     "",
-    "## 1. 对话轮次统计",
-    "总轮次：留空（没有对话轮次信号，不估算数字）",
-    "阶段分布：留空（没有可验证的阶段信号）",
-    "因错误或误解产生的额外轮次：留空（工具失败次数不是对话轮次）",
-    "可验证的失败信号：",
+    "工具失败：",
     failureBlock,
     "",
-    "## 2. 任务完成情况",
-    "留空（不根据对话补写完成状态）",
-    "",
-    "## 3. 技术实现概览",
-    "留空（不根据对话补写技术栈或文件）",
-    "",
-    "## 4. 云资源使用情况",
+    "云资源：",
     resourceBlock,
-    "",
-    "## 5. 遇到的问题与解决方案",
-    "留空（不根据对话补写问题与解法）",
-    "",
-    "## 6. 改进建议",
-    "反馈主要涉及哪个工具：留空",
-    "问题类型：留空",
-    "对平台 / MCP 的具体反馈：留空",
-    "代码或架构层面的优化建议：留空",
-    "",
-    "## 7. 后续工作",
-    "留空（这一节的结构尚未定稿）",
   ].join("\n");
 }
 
 export function buildFeedbackIssueUrl(site: SiteId, channel: FeedbackChannel, draft: string): string {
+  return buildFeedbackIssueLink(site, channel, draft).url;
+}
+
+export function buildFeedbackIssueLink(
+  site: SiteId,
+  channel: FeedbackChannel,
+  draft: string,
+): { url: string; prefilled: boolean } {
   const title = site === "intl"
     ? (channel === "case" ? "[case] " : "[retrospective] ")
     : (channel === "case" ? "[案例] " : "[复盘] ");
   const base = FEEDBACK_ISSUE_NEW_URL[site];
-  if (site === "intl") {
-    return `${base}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(draft)}`;
+  const draftQuery = site === "intl"
+    ? `body=${encodeURIComponent(draft)}`
+    : `session=${encodeURIComponent(draft)}`;
+  const head = site === "intl"
+    ? `${base}?title=${encodeURIComponent(title)}`
+    : `${base}?template=${encodeURIComponent(channel === "case" ? CASE_TEMPLATE_FILE : RETROSPECTIVE_TEMPLATE_FILE)}&title=${encodeURIComponent(title)}`;
+  const prefilled = `${head}&${draftQuery}`;
+  if (prefilled.length <= FEEDBACK_PREFILL_URL_LIMIT) {
+    return { url: prefilled, prefilled: true };
   }
-  const template = channel === "case" ? CASE_TEMPLATE_FILE : RETROSPECTIVE_TEMPLATE_FILE;
-  const query = [
-    `template=${encodeURIComponent(template)}`,
-    `title=${encodeURIComponent(title)}`,
-    `issue[description]=${encodeURIComponent(draft)}`,
-  ].join("&");
-  return `${base}?${query}`;
+  return { url: head, prefilled: false };
 }
 
 export function buildFeedbackPayload(input: {
@@ -429,20 +364,26 @@ export function buildFeedbackPayload(input: {
       submittable: false,
       draft,
       nextStep: lang === "en"
-        ? "Show the full draft to the user. Do not give a submission link before they explicitly confirm."
-        : "把 draft 全文展示给用户。用户明确确认之前，不要给出提交链接。",
+        ? "Show this draft to the user unchanged. Do not give a submission link before they explicitly confirm. Do not rewrite it into a different write-up."
+        : "把这份 draft 原样给用户看。用户明确确认之前，不要给出提交链接，也不要改写成另一份说明。",
     };
   }
+  const link = buildFeedbackIssueLink(site, input.channel, draft);
+  const pasteHint = link.prefilled
+    ? ""
+    : (lang === "en"
+      ? " The link does not include the draft because the URL would be too long. Paste the draft into the session field."
+      : " 链接没有带上正文，因为地址过长。请把 draft 粘贴到「本次会话记录」。");
   return {
     success: true,
     channel: input.channel,
     confirmed: true,
     submittable: true,
     draft,
-    url: buildFeedbackIssueUrl(site, input.channel, draft),
-    nextStep: lang === "en"
-      ? "The user confirmed. Give them the url to open. Do not submit it for them."
-      : "用户已确认。可以把 url 交给用户自行打开。不要代为提交。",
+    url: link.url,
+    nextStep: (lang === "en"
+      ? "The user confirmed. The link body is this draft. Do not submit a rewritten version, and do not submit it for them."
+      : "用户已确认。链接里的正文就是这份 draft。不要另写一版再提交，也不要代为提交。") + pasteHint,
   };
 }
 

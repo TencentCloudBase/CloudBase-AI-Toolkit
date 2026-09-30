@@ -22,7 +22,7 @@ From the repository root, with no CloudBase credentials:
 
 ```bash
 node --experimental-strip-types evals/packages/framework/src/cli.ts \
-  run build-auth-001-username-signin --experiment fixture-dry
+  run resolve-security-002-rls-cross-tenant-leak --experiment fixture-dry
 ```
 
 That is the 30-minute path. It loads the scenario, scores it against a

@@ -103,22 +103,19 @@ export function readEnvHint(): EnvHintPayload | undefined {
   }
 }
 
-export function mcpEnvProxyScriptPath(): string {
-  return join(PACKAGE_ROOT, "scripts", "mcp-env-proxy.mjs");
+export function mcpLaunchScriptPath(): string {
+  return join(PACKAGE_ROOT, "scripts", "mcp-launch.mjs");
 }
 
 export function buildMcpClientConfig(
   _env: NodeJS.ProcessEnv = process.env,
 ): McpClientPatchConfig {
-  const hintFile = envHintFilePath();
   return {
     serverName: "cloudbase",
     transport: "stdio",
     command: "node",
-    args: [mcpEnvProxyScriptPath()],
-    env: {
-      CLOUDBASE_DSH_ENV_HINT_FILE: hintFile,
-    },
+    args: [mcpLaunchScriptPath()],
+    env: {},
   };
 }
 
