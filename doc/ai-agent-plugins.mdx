@@ -31,7 +31,8 @@ npx plugins add TencentCloudBase/cloudbase-plugin -y --scope user
 npx plugins add TencentCloudBase/cloudbase-sites-plugin -y --scope user
 ```
 
-### 支持的 AI IDE（`npx plugins targets`）
+<details>
+<summary><strong>支持的 AI IDE（npx plugins targets）</strong></summary>
 
 | `--target` ID | AI IDE | 说明 |
 |---------------|--------|------|
@@ -57,13 +58,16 @@ npx plugins add TencentCloudBase/cloudbase-plugin -y --scope user --target curso
 
 安装后重启 / reload 对应工具即可。
 
+</details>
+
 > Agent 总入口（决策树 + 验收）：https://docs.cloudbase.net/skill.md
 
 > Claude Code / Codex 的原生 marketplace 请用主仓库 `TencentCloudBase/CloudBase-MCP`；`cloudbase-plugin` 仓库由 CI 同步 OPS 标准内容，不含 marketplace 元数据。
 
 > ⚠️ 已通过方式 2（`claude plugin install` / `codex plugin add` 等）安装过时，**不要**再对同一 IDE 执行 `npx plugins add`，以免重复实例。二选一即可。
 
-### GitHub 不可达时（CNB 镜像）
+<details>
+<summary><strong>GitHub 不可达时（CNB 镜像）</strong></summary>
 
 `owner/repo` 短名会固定解析到 GitHub。若 `git clone` GitHub 失败，改用 **完整 CNB URL**（由 CI 从 OPS 产物同步，不含 marketplace 元数据）：
 
@@ -78,9 +82,11 @@ npx plugins add https://cnb.cool/tencent/cloud/cloudbase/cloudbase-sites-plugin.
 
 若插件仍无法安装，可退回 Skills CNB 或 npm MCP，见 [skill.md](https://docs.cloudbase.net/skill.md)。
 
+</details>
+
 ### 方式 2：按 IDE 手动安装
 
-适用于 CodeBuddy（插件市场）、WorkBuddy、豆包（插件市场）、MiniMax Code（Market / `mcode plugin add`）、DeepSeek Harness（`dsh plugin add`）、Kimi Code（`/plugins` 插件市场）、Kimi Work（设置→插件面板）、ZCode，或希望走 IDE 原生插件机制的场景：
+适用于有自己插件市场、或希望走各 IDE 原生插件机制的场景 —— 从下面选你的工具：
 
 <Tabs>
   <TabItem value="codex-app" label="Codex App">
