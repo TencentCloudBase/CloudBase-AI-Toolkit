@@ -36,10 +36,10 @@
             "items": [
               "ai/cloudbase-ai-toolkit/ide-setup/wechat-devtools",
               "ai/cloudbase-ai-toolkit/ide-setup/workbuddy",
-              "ai/cloudbase-ai-toolkit/ide-setup/deepseek-harness",
               "ai/cloudbase-ai-toolkit/ide-setup/zcode",
               "ai/cloudbase-ai-toolkit/ide-setup/doubao",
               "ai/cloudbase-ai-toolkit/ide-setup/minimax-code",
+              "ai/cloudbase-ai-toolkit/ide-setup/deepseek-harness",
               "ai/cloudbase-ai-toolkit/ide-setup/codex",
               "ai/cloudbase-ai-toolkit/ide-setup/openai-codex-cli",
               "ai/cloudbase-ai-toolkit/ide-setup/cursor",

@@ -28,13 +28,6 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy',
   },
   {
-    id: 'deepseek-harness',
-    name: 'DeepSeek Harness',
-    platform: '桌面应用',
-    iconSlug: 'deepseek',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/deepseek-harness',
-  },
-  {
     id: 'kimi-code',
     name: 'Kimi Code',
     platform: '命令行工具',
@@ -66,8 +59,15 @@ const IDES: IDE[] = [
     id: 'minimax-code',
     name: 'MiniMax Code',
     platform: '桌面端 / 终端 CLI',
-    iconSlug: 'minimax',
+    iconUrl: 'https://agent.minimax.io/assets/logo/apple-touch_v2.png?v=5',
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/minimax-code',
+  },
+  {
+    id: 'deepseek-harness',
+    name: 'DeepSeek Harness',
+    platform: '桌面应用',
+    iconUrl: 'https://www.deepseek.com/favicon.ico',
+    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/deepseek-harness',
   },
   {
     id: 'codex-app',
