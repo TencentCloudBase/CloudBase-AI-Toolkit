@@ -6,7 +6,15 @@ interface StreamEvent {
   usage?: { input_tokens?: number; output_tokens?: number };
 }
 
-/** Claude Code `--output-format stream-json` 的用量。只加总 assistant/result 事件。 */
+function parseStreamLine(line: string): StreamEvent | undefined {
+  try {
+    return JSON.parse(line) as StreamEvent;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Claude Code `--output-format stream-json` usage. Sum assistant and result events only. */
 export function parseClaudeStreamUsage(raw: string | undefined): AgentUsage | undefined {
   if (!raw) return undefined;
   let inputTokens = 0;
@@ -14,7 +22,8 @@ export function parseClaudeStreamUsage(raw: string | undefined): AgentUsage | un
   let seen = false;
   for (const line of raw.split('\n')) {
     if (!line.trim()) continue;
-    const event = JSON.parse(line) as StreamEvent;
+    const event = parseStreamLine(line);
+    if (!event) continue;
     const usage = event.message?.usage ?? event.usage;
     if (!usage) continue;
     if (event.type !== 'assistant' && event.type !== 'result') continue;
@@ -30,8 +39,8 @@ export function parseClaudeStepCount(raw: string | undefined): number | undefine
   let steps = 0;
   for (const line of raw.split('\n')) {
     if (!line.trim()) continue;
-    const event = JSON.parse(line) as StreamEvent;
-    if (event.type === 'assistant') steps += 1;
+    const event = parseStreamLine(line);
+    if (event?.type === 'assistant') steps += 1;
   }
   return steps;
 }

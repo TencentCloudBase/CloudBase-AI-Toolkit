@@ -82,3 +82,12 @@ test('claude stream-json usage sums assistant events only', () => {
   assert.deepEqual(parseClaudeStreamUsage(raw), { inputTokens: 14, outputTokens: 7 });
   assert.equal(parseClaudeStepCount(raw), 2);
 });
+
+test('claude stream-json skips lines that are not events', () => {
+  const raw = [
+    '可能正确编码: gbk',
+    JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 2, output_tokens: 1 } } }),
+  ].join('\n');
+  assert.deepEqual(parseClaudeStreamUsage(raw), { inputTokens: 2, outputTokens: 1 });
+  assert.equal(parseClaudeStepCount(raw), 1);
+});
