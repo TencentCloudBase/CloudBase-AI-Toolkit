@@ -59,7 +59,7 @@ const IDES: IDE[] = [
     id: 'minimax-code',
     name: 'MiniMax Code',
     platform: '桌面端 / 终端 CLI',
-    iconUrl: 'https://agent.minimax.io/assets/logo/apple-touch_v2.png?v=5',
+    iconUrl: 'https://docs.cloudbase.net/img/ide-logos/minimax-code.png',
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/minimax-code',
   },
   {

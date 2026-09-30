@@ -124,7 +124,7 @@ const IDES: IDE[] = [
     name: 'MiniMax Code',
     platform: '桌面端 / 终端 CLI',
     configPath: 'Plugins → Market 或 mcode plugin',
-    iconUrl: 'https://agent.minimax.io/assets/logo/apple-touch_v2.png?v=5',
+    iconUrl: 'https://docs.cloudbase.net/img/ide-logos/minimax-code.png',
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/minimax-code',
     supportsProjectMCP: false,
     useCommandInsteadOfConfig: true,
