@@ -2,7 +2,7 @@
 
 一个用于测试 AI agent 能否用好 [CloudBase](https://cloudbase.net) 的基准测试与评测框架——覆盖数据库、登录认证、存储、云函数、CloudRun 与静态托管。它让 coding agent 完成真实的 CloudBase 任务（建表、接登录、修安全规则），并对真实环境中实际发生的结果打分。
 
-**状态：建设中。** 仓库里有 20 道 benchmark 题。其中 15 道可以公开计分，3 道在仓库里但未计分（见下）。runner 会加载场景并写出 `results/<experiment>/<eval>/run-<n>/result.json`，不会创建 CloudBase 环境。榜单上的模型名去掉 `-ioa` 通道后缀。
+**状态：建设中。** 公开榜在 [CloudBase Evals](https://tencentcloudbase.github.io/CloudBase-AI-Toolkit/evals/)。上面列出下面这 15 道计分题，模型成绩公布前榜是空的。仓库里有 20 个场景目录：15 道可以公开计分，3 道在仓库里但未计分（见下），另外 2 道草案不上榜。runner 会加载场景并写出 `results/<experiment>/<eval>/run-<n>/result.json`，不会创建 CloudBase 环境。榜单上的模型名去掉 `-ioa` 通道后缀。
 
 ## 跑通一个场景
 
@@ -22,7 +22,27 @@ node --experimental-strip-types evals/packages/framework/src/cli.ts \
   score resolve-security-002-rls-cross-tenant-leak
 ```
 
-真跑需要你自己的 `CLOUDBASE_ENV_ID`、`TENCENTCLOUD_SECRETID` 和 `TENCENTCLOUD_SECRETKEY`。runner 不会创建环境。
+真跑需要你自己的 `CLOUDBASE_ENV_ID`、`TENCENTCLOUD_SECRETID` 和 `TENCENTCLOUD_SECRETKEY`。runner 不会创建环境。干跑仍用 `fixture-dry`。接本地评测进程时设置 `CLOUDBASE_LOCAL_ENDPOINT`，并用 `CLOUDBASE_MCP_BIN` 指向已构建的 `mcp/dist/cli.cjs`。不要同时注入 `TENCENTCLOUD_SECRETID` / `TENCENTCLOUD_SECRETKEY`。
+
+## 计分题
+
+公开任务索引是这 15 道：
+
+- `build-auth-001-email-password-flow`
+- `build-cli-001-bootstrap-app`
+- `build-cli-002-declarative-schema`
+- `build-dataapi-002-restock-alert-report`
+- `build-database-001-migrate-postgres-to-supabase`
+- `build-functions-004-service-role-bypass`
+- `build-functions-005-dual-auth-user-secret`
+- `build-rls-003-org-roles-permissions`
+- `build-storage-001-private-bucket-access`
+- `build-tests-001-rls-tenant-isolation`
+- `build-vectors-001-rag-with-permissions`
+- `investigate-auth-001-deleted-user-access`
+- `investigate-realtime-001-subscribed-no-events`
+- `resolve-dataapi-001-empty-results`
+- `resolve-security-002-rls-cross-tenant-leak`
 
 ## 未计分的题
 
@@ -46,6 +66,7 @@ evals/
     regression/             # 已知失败模式追踪（深度）
   experiments/              # 被测配置：模型 + harness 组合
   packages/                 # core、framework、sandbox
+  site/                     # 公开榜，路径 /evals/
   results/                  # 运行产物：results/<experiment>/<eval>/run-<n>/
 ```
 

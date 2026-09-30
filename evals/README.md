@@ -6,9 +6,12 @@ CloudRun, and hosting. It runs coding agents against real CloudBase tasks
 (building a schema, wiring up sign-in, fixing a broken security rule) and
 scores what actually happened in a real environment.
 
-**Status: work in progress.** Twenty benchmark scenarios are in the tree.
-Fifteen are eligible for a public score. Three are present but unscored
-(see below). The runner loads a scenario, writes
+**Status: work in progress.** The public board is
+[CloudBase Evals](https://tencentcloudbase.github.io/CloudBase-AI-Toolkit/evals/).
+It lists the scored tasks below and stays empty until model scores are published.
+Twenty scenario directories are in the tree. Fifteen are eligible for a public
+score. Three are present but unscored (see below). Two drafts are not on the
+board. The runner loads a scenario, writes
 `results/<experiment>/<eval>/run-<n>/result.json`, and does not create a
 CloudBase environment. Model names on a board drop the `-ioa` channel
 suffix.
@@ -35,6 +38,26 @@ node --experimental-strip-types evals/packages/framework/src/cli.ts \
 A live `run` needs your own `CLOUDBASE_ENV_ID`, `TENCENTCLOUD_SECRETID`,
 and `TENCENTCLOUD_SECRETKEY`. The runner will not create an environment.
 
+## Scored scenarios
+
+These fifteen are the public task index:
+
+- `build-auth-001-email-password-flow`
+- `build-cli-001-bootstrap-app`
+- `build-cli-002-declarative-schema`
+- `build-dataapi-002-restock-alert-report`
+- `build-database-001-migrate-postgres-to-supabase`
+- `build-functions-004-service-role-bypass`
+- `build-functions-005-dual-auth-user-secret`
+- `build-rls-003-org-roles-permissions`
+- `build-storage-001-private-bucket-access`
+- `build-tests-001-rls-tenant-isolation`
+- `build-vectors-001-rag-with-permissions`
+- `investigate-auth-001-deleted-user-access`
+- `investigate-realtime-001-subscribed-no-events`
+- `resolve-dataapi-001-empty-results`
+- `resolve-security-002-rls-cross-tenant-leak`
+
 ## Unscored scenarios
 
 These stay in the repo and are not on the public board:
@@ -60,10 +83,13 @@ evals/
     regression/             # known failure modes, tracked internally (depth)
   experiments/              # model + harness configurations
   packages/                 # core, framework, sandbox
+  site/                     # public board at /evals/
   results/                  # run outputs: results/<experiment>/<eval>/run-<n>/
 ```
 
 ## Scenario format
+
+Each scenario is a directory with a `PROMPT.md` (task description and frontmatter
 metadata) and an `EVAL.ts` (scorer):
 
 ```markdown
