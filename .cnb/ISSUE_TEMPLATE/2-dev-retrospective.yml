@@ -1,0 +1,27 @@
+name: 开发过程复盘
+description: 这次开发不顺利时提交。本仓库的 Issue 公开可见。
+title: "[复盘] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交后这条 Issue 在本仓库公开可见。不要填写环境 ID、密钥、凭证、集合名或函数名。
+        对话轮次本工具不采集。问题和解法请写在下面，不要把模型补写的数字当成记录。
+  - type: textarea
+    id: session
+    attributes:
+      label: 本次会话记录
+      description: 由 prepareFeedback 预填，只包含真实的工具调用结果。若页面是空的，把工具返回的 draft 粘贴到这里。
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 问题与解法
+      description: 哪件事让这次开发变长，最后怎么处理的。
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 希望平台改进的地方
+      description: 写清卡在哪个工具或哪篇文档。

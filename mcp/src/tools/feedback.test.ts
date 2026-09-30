@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __resetRepeatGuardForTests } from "../utils/repeat-error-guard.js";
 import { ToolPayloadError } from "../utils/tool-result.js";
 import {
+  __resetFeedbackSessionsForTests,
   clearToolOutcomes,
   FEEDBACK_SESSION_LIMIT,
   readRepeatPeak,
@@ -42,6 +43,7 @@ describe("feedback drafts", () => {
 
   beforeEach(() => {
     __resetRepeatGuardForTests();
+    __resetFeedbackSessionsForTests();
     process.env.npm_package_version = "2.34.5-test";
     delete process.env.INTEGRATION_IDE;
     delete process.env.CLOUDBASE_MCP_CLIENT;
@@ -89,7 +91,7 @@ describe("feedback drafts", () => {
     expect(payload.draft.length).toBeGreaterThan(0);
     expect(JSON.stringify(payload)).not.toContain("http");
     expect(payload.draft).toContain("作品名称：留空");
-    expect(payload.nextStep).toContain("展示给用户");
+    expect(payload.nextStep).toContain("原样给用户看");
   });
 
   it("leaves unknown fields blank", () => {
@@ -171,8 +173,8 @@ describe("feedback drafts", () => {
     expect(payload.draft).not.toContain(ENV_ID);
     expect(payload.draft).not.toContain(SECRET_ID);
     expect(payload.draft).not.toContain("secret-key-should-not-appear");
-    expect(payload.draft).not.toContain(HIDDEN_COLLECTION);
-    expect(payload.draft).not.toContain(HIDDEN_FUNCTION);
+    expect(payload.draft).toContain(HIDDEN_COLLECTION);
+    expect(payload.draft).toContain(HIDDEN_FUNCTION);
     expect(payload.draft).not.toMatch(/envId|secretId|secretKey/i);
     expect(payload.url).toContain(FEEDBACK_ISSUE_NEW_URL.domestic);
     expect(payload.url).toContain("template=2-dev-retrospective.yml");
@@ -188,9 +190,7 @@ describe("feedback drafts", () => {
       confirmed: false,
     });
 
-    expect(payload.draft).toContain("总轮次：留空");
-    expect(payload.draft).toContain("阶段分布：留空");
-    expect(payload.draft).toContain("额外轮次：留空");
+    expect(payload.draft).toContain("不采集对话轮次");
     expect(payload.draft).not.toMatch(/总轮次：\s*\d+/);
     expect(payload.draft).not.toMatch(/阶段分布：.*\d+/);
     expect(payload.submittable).toBe(false);
@@ -228,7 +228,7 @@ describe("feedback drafts", () => {
     });
 
     expect(readRepeatPeak(mcpServer)).toBe(3);
-    expect(payload.draft).toContain("总轮次：留空");
+    expect(payload.draft).toContain("不采集对话轮次");
     expect(payload.draft).toContain("deployApply ×3");
     expect(payload.draft).toContain("峰值 3");
     expect(payload.draft).not.toContain(errorMessage);
@@ -269,7 +269,7 @@ describe("feedback drafts", () => {
     expect(payload.submittable).toBe(true);
     expect(payload.url?.startsWith(FEEDBACK_ISSUE_NEW_URL.domestic)).toBe(true);
     expect(payload.url).toContain("template=1-case-showcase.yml");
-    expect(payload.url).toContain("issue[description]=");
+    expect(payload.url).toContain("session=");
     expect(payload.draft).toContain("deployBuild");
     expect(payload.draft).toContain("无法区分云端构建与端到端");
     expect(payload.draft).toContain("Agent / CLI：Cursor / cursor");
@@ -302,7 +302,7 @@ describe("feedback drafts", () => {
     const url = buildFeedbackIssueUrl("domestic", "case", "作品名称：留空");
     expect(url.startsWith(`${FEEDBACK_ISSUE_NEW_URL.domestic}?`)).toBe(true);
     expect(url).toContain("template=1-case-showcase.yml");
-    expect(url).toContain("issue[description]=");
+    expect(url).toContain("session=");
   });
 
   it("drops outcomes beyond the session buffer", () => {
@@ -321,5 +321,31 @@ describe("feedback drafts", () => {
       confirmed: false,
     });
     expect(payload.draft).toContain("静态托管");
+  });
+
+  it("keeps tool history when a new server object uses the same credential", () => {
+    const first = makeServer();
+    recordToolOutcome(first, {
+      toolName: "manageHosting",
+      durationMs: 10,
+      failed: false,
+      at: "2026-09-29T06:00:00.000Z",
+    });
+    const second = makeServer();
+    const payload = buildFeedbackPayload({
+      server: second,
+      channel: "case",
+      confirmed: false,
+    });
+    expect(payload.draft).toContain("静态托管");
+
+    const other = makeServer();
+    other.cloudBaseOptions.secretId = "AKIDothercredential999";
+    const isolated = buildFeedbackPayload({
+      server: other,
+      channel: "case",
+      confirmed: false,
+    });
+    expect(isolated.draft).toContain("用到的云资源：留空");
   });
 });
