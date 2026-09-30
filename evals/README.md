@@ -9,8 +9,8 @@ scores what actually happened in a real environment.
 **Status: work in progress.** The public board is
 [CloudBase Evals](https://tencentcloudbase.github.io/CloudBase-AI-Toolkit/evals/).
 It lists the scored tasks below and stays empty until model scores are published.
-Twenty scenario directories are in the tree. Fifteen are eligible for a public
-score. Three are present but unscored (see below). Two drafts are not on the
+Twenty scenario directories are in the tree. Seventeen are eligible for a public
+score. One is present but unscored (see below). Two drafts are not on the
 board. The runner loads a scenario, writes
 `results/<experiment>/<eval>/run-<n>/result.json`, and does not create a
 CloudBase environment. Model names on a board drop the `-ioa` channel
@@ -40,7 +40,7 @@ and `TENCENTCLOUD_SECRETKEY`. The runner will not create an environment.
 
 ## Scored scenarios
 
-These fifteen are the public task index:
+These seventeen are the public task index:
 
 - `build-auth-001-email-password-flow`
 - `build-cli-001-bootstrap-app`
@@ -53,9 +53,11 @@ These fifteen are the public task index:
 - `build-storage-001-private-bucket-access`
 - `build-tests-001-rls-tenant-isolation`
 - `build-vectors-001-rag-with-permissions`
+- `deploy-functions-001-edge-function-secrets`
 - `investigate-auth-001-deleted-user-access`
 - `investigate-realtime-001-subscribed-no-events`
 - `resolve-dataapi-001-empty-results`
+- `resolve-database-001-migration-history-mismatch`
 - `resolve-security-002-rls-cross-tenant-leak`
 
 ## Unscored scenarios
@@ -63,8 +65,6 @@ These fifteen are the public task index:
 These stay in the repo and are not on the public board:
 
 - `build-dataapi-001-relational-report` — `orders` row security was left off.
-- `resolve-database-001-migration-history-mismatch` — the live database has no `public.profiles`.
-- `deploy-functions-001-edge-function-secrets` — the function landed as `app_private.edge_secret`; the scorer looks for `public.edge_secret`.
 
 ## Why
 

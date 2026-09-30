@@ -101,6 +101,15 @@
       "summary": "`document_sections.embedding` must be a vector column, with an HNSW index. Row security must stay on so a user cannot search another user's sections."
     },
     {
+      "id": "deploy-functions-001-edge-function-secrets",
+      "stage": "build",
+      "interface": "cli",
+      "product": [
+        "functions"
+      ],
+      "summary": "A database setting `app.edge_secret` must exist for server-side use. It must not be readable by the `anon` or `authenticated` roles through a public table. Store it with `alter database` or a server-only function, not..."
+    },
+    {
       "id": "investigate-auth-001-deleted-user-access",
       "stage": "investigate",
       "interface": "mcp",
@@ -128,6 +137,15 @@
       "summary": "Signed-in users get zero rows from `bookmarks` even though rows exist. Fix the policies so a user can read their own bookmarks. Do not turn row security off and do not grant the table to anonymous."
     },
     {
+      "id": "resolve-database-001-migration-history-mismatch",
+      "stage": "resolve",
+      "interface": "cli",
+      "product": [
+        "database"
+      ],
+      "summary": "The live `profiles` table is missing `avatar_url`, and the migration history does not match the schema. Repair history so `profiles.avatar_url` exists."
+    },
+    {
       "id": "resolve-security-002-rls-cross-tenant-leak",
       "stage": "resolve",
       "interface": "mcp",
@@ -149,32 +167,6 @@
       "reason": {
         "zh": "orders 的行级安全没有打开。",
         "en": "orders row security was left off."
-      }
-    },
-    {
-      "id": "deploy-functions-001-edge-function-secrets",
-      "stage": "build",
-      "interface": "cli",
-      "product": [
-        "functions"
-      ],
-      "summary": "A database setting `app.edge_secret` must exist for server-side use. It must not be readable by the `anon` or `authenticated` roles through a public table. Store it with `alter database` or a server-only function, not...",
-      "reason": {
-        "zh": "函数落在 app_private.edge_secret，评分器认的是 public.edge_secret。",
-        "en": "The function landed as app_private.edge_secret; the scorer looks for public.edge_secret."
-      }
-    },
-    {
-      "id": "resolve-database-001-migration-history-mismatch",
-      "stage": "resolve",
-      "interface": "cli",
-      "product": [
-        "database"
-      ],
-      "summary": "The live `profiles` table is missing `avatar_url`, and the migration history does not match the schema. Repair history so `profiles.avatar_url` exists.",
-      "reason": {
-        "zh": "现网没有 public.profiles。",
-        "en": "The live database has no public.profiles."
       }
     }
   ],
