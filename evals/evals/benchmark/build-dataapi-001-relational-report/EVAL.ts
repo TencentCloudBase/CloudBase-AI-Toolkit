@@ -3,11 +3,14 @@ import { flag, scoreSql } from '../../../packages/sandbox/src/live-score.ts';
 
 const SQL = `select
   (to_regclass('public.customer_totals') is not null)::text as view_exists,
-  coalesce((select c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='orders'), false)::text as orders_rls
+  (
+    not has_table_privilege('anon', 'public.customers', 'SELECT')
+    and not has_table_privilege('anon', 'public.orders', 'SELECT')
+  )::text as anon_closed
 `;
 
 export const scorer = (ctx?: EvalContext): Promise<CheckResult[]> =>
   scoreSql(ctx, SQL, (row) => [
     { name: 'customer-totals-exists', passed: flag(row, 'view_exists') },
-    { name: 'orders-not-world-readable', passed: flag(row, 'orders_rls') }
+    { name: 'anon-cannot-select-base-tables', passed: flag(row, 'anon_closed') }
   ]);

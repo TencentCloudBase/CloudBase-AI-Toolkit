@@ -165,8 +165,8 @@
       ],
       "summary": "`customers` and `orders` are already seeded. Add a view `customer_totals` with `customer_id` and `total`, one row per customer, ordered by `customer_id`. The base tables must stay closed to the anonymous role.",
       "reason": {
-        "zh": "orders 的行级安全没有打开。",
-        "en": "orders row security was left off."
+        "zh": "匿名角色仍能 SELECT public.orders。",
+        "en": "anon can still SELECT public.orders."
       }
     }
   ],

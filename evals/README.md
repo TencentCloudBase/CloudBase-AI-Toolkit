@@ -64,7 +64,7 @@ These seventeen are the public task index:
 
 These stay in the repo and are not on the public board:
 
-- `build-dataapi-001-relational-report` — `orders` row security was left off.
+- `build-dataapi-001-relational-report` — anon can still SELECT `public.orders`.
 
 ## Why
 

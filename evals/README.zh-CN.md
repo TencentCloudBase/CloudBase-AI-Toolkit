@@ -50,7 +50,7 @@ node --experimental-strip-types evals/packages/framework/src/cli.ts \
 
 这些题留在仓库里，不上公开榜：
 
-- `build-dataapi-001-relational-report`：`orders` 的行级安全没有打开。
+- `build-dataapi-001-relational-report`：匿名角色仍能 SELECT `public.orders`。
 
 ## 为什么做
 
