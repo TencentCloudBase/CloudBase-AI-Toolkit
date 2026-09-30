@@ -12,8 +12,8 @@ const benchmarkDir = path.resolve(siteDir, '../evals/benchmark');
 
 const UNSCORED_REASON = {
   'build-dataapi-001-relational-report': {
-    zh: 'orders 的行级安全没有打开。',
-    en: 'orders row security was left off.',
+    zh: '匿名角色仍能 SELECT public.orders。',
+    en: 'anon can still SELECT public.orders.',
   },
 };
 
