@@ -2,7 +2,7 @@
 
 > - 数据源：[API 概览](https://cloud.tencent.com/document/api/876/34809) · [依赖产品接口指引](https://cloud.tencent.com/document/api/876/34808)
 > - 所有接口均为腾讯云 API 3.0 管控面接口，支持各语言官方 SDK 调用；也可通过 CloudBase MCP 的 `callCloudApi` 工具或 [API Explorer](https://console.cloud.tencent.com/api/explorer) 直接调用
-> - 最近同步：2026-09-29
+> - 最近同步：2026-09-30
 
 ## API 概览
 
@@ -81,6 +81,8 @@
 | [DeletePlatformHTTPServiceRoute](https://cloud.tencent.com/document/api/876/138910) | 删除平台HTTP访问服务路由 | 20 |
 | [DescribePlatformHTTPServiceRoute](https://cloud.tencent.com/document/api/876/138909) | 查询平台HTTP访问服务路由信息 | 20 |
 | [ModifyPlatformHTTPServiceRoute](https://cloud.tencent.com/document/api/876/138908) | 修改平台HTTP访问服务路由 | 20 |
+| [DescribeGatewayVersions](https://cloud.tencent.com/document/api/876/129795) | 查询网关版本信息 | 20 |
+| [DeleteAuthDomain](https://cloud.tencent.com/document/api/876/128960) | 删除合法域名 | 20 |
 
 ### 云托管相关接口
 
@@ -102,16 +104,6 @@
 | [DescribePlatformCreditsUsage](https://cloud.tencent.com/document/api/876/138301) | 获取平台版资源点用量 | 20 |
 | [DescribePlatformCreditsUsageDetail](https://cloud.tencent.com/document/api/876/138300) | 获取平台版资源点用量明细 | 20 |
 | [DescribePlatformEnvUsage](https://cloud.tencent.com/document/api/876/138299) | 查询平台版资源用量 | 20 |
-
-### 其他接口
-
-| 接口名称 | 接口功能 | 频率限制（次/秒） |
-| --- | --- | --- |
-| [DescribeGatewayVersions](https://cloud.tencent.com/document/api/876/129795) | 查询网关版本信息 | 20 |
-| [ModifyClsTopic](https://cloud.tencent.com/document/api/876/81547) | 修改日志主题 | 20 |
-| [DescribeCurveData](https://cloud.tencent.com/document/api/876/129258) | 查询环境监控曲线 | 100 |
-| [DeleteAuthDomain](https://cloud.tencent.com/document/api/876/128960) | 删除合法域名 | 20 |
-| [DescribeCloudBaseRunBuildLog](https://cloud.tencent.com/document/api/876/135707) | 查询构建日志 | 20 |
 
 ### 文档型云数据库相关接口
 
@@ -140,6 +132,7 @@
 | [DescribeCloudAppList](https://cloud.tencent.com/document/api/876/132936) | 查询云应用服务列表 | 20 |
 | [DescribeCloudAppVersion](https://cloud.tencent.com/document/api/876/135276) | 查询云应用服务版本信息 | 20 |
 | [DescribeCloudAppVersionList](https://cloud.tencent.com/document/api/876/135275) | 查询云应用服务版本列表 | 20 |
+| [DescribeCloudBaseRunBuildLog](https://cloud.tencent.com/document/api/876/135707) | 查询构建日志 | 20 |
 
 ### AI模型相关接口
 
@@ -157,6 +150,8 @@
 | --- | --- | --- |
 | [BindCls](https://cloud.tencent.com/document/api/876/136527) | 绑定用户自定义CLS日志主题 | 20 |
 | [SearchClsLog](https://cloud.tencent.com/document/api/876/128127) | 搜索CLS日志 | 20 |
+| [ModifyClsTopic](https://cloud.tencent.com/document/api/876/81547) | 修改日志主题 | 20 |
+| [DescribeCurveData](https://cloud.tencent.com/document/api/876/129258) | 查询环境监控曲线 | 100 |
 
 ### SQL型云数据库相关接口
 
