@@ -726,6 +726,23 @@ describe("project-pinned envId (.cloudbase/project.json)", () => {
     );
   });
 
+  it("does not tell the user to create a cloud env when the local endpoint returns no environments", async () => {
+    process.env.CLOUDBASE_LOCAL_ENDPOINT = "http://127.0.0.1:8797";
+    mockCommonServiceCall.mockResolvedValue({ EnvList: [] });
+
+    const { getCloudBaseManager } = await import("./cloudbase-manager.js");
+
+    await expect(getCloudBaseManager({
+      cloudBaseOptions: { requestFn: async () => ({}) },
+    })).rejects.toMatchObject({
+      name: "ToolPayloadError",
+      payload: expect.objectContaining({
+        code: "LOCAL_ENDPOINT_UNAVAILABLE",
+        message: expect.stringContaining("http://127.0.0.1:8797/capi"),
+      }),
+    });
+  });
+
   it("should prefer explicit envId and runtime set_env over project envId", async () => {
     mockReadProjectEnvId.mockReturnValue("env-project-a");
 

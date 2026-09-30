@@ -28,7 +28,19 @@ export function assertLocalEndpoint(endpoint: string): string {
   if (!ALLOWED_HOSTS.has(parsed.hostname)) {
     throw new Error('CLOUDBASE_LOCAL_ENDPOINT must point at a loopback host');
   }
+  const pathname = parsed.pathname.replace(/\/+$/, '') || '/';
+  if (pathname === '/capi' || pathname.endsWith('/capi')) {
+    throw new Error(
+      'CLOUDBASE_LOCAL_ENDPOINT is the origin. Do not include /capi; it is appended automatically',
+    );
+  }
   return endpoint.replace(/\/+$/, '');
+}
+
+function localRequestError(url: string, action: string, reason: string): Error {
+  return new Error(
+    `CLOUDBASE_LOCAL_ENDPOINT request to ${url} failed for ${action}: ${reason}`,
+  );
 }
 
 /**
@@ -60,28 +72,41 @@ export function resolveLocalEndpoint(): string | undefined {
 export function createLocalCloudApiRequestFn(endpoint: string): CloudApiRequestFn {
   const base = assertLocalEndpoint(endpoint);
   return async ({ service, action, version, region, payload }) => {
-    const response = await fetch(`${base}/capi`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-tc-action': action,
-        'x-tc-version': version,
-        'x-tc-region': region,
-        'x-tc-service': service,
-      },
-      body: JSON.stringify(payload ?? {}),
-      signal: AbortSignal.timeout(ENDPOINT_TIMEOUT_MS),
-      redirect: 'manual',
-    });
+    const url = `${base}/capi`;
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-tc-action': action,
+          'x-tc-version': version,
+          'x-tc-region': region,
+          'x-tc-service': service,
+        },
+        body: JSON.stringify(payload ?? {}),
+        signal: AbortSignal.timeout(ENDPOINT_TIMEOUT_MS),
+        redirect: 'manual',
+      });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      throw localRequestError(url, action, reason);
+    }
     // With redirect: 'manual' a 3xx comes back as an opaque redirect (status 0)
     // instead of being followed, so both shapes must be rejected explicitly.
     if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
-      throw new Error('CLOUDBASE_LOCAL_ENDPOINT responded with a redirect; redirects are not followed');
+      throw localRequestError(url, action, `HTTP ${response.status} redirect`);
     }
-    const body = await response.json() as { Response?: Record<string, unknown> };
+    const text = await response.text();
+    let body: { Response?: Record<string, unknown> };
+    try {
+      body = text ? JSON.parse(text) as { Response?: Record<string, unknown> } : {};
+    } catch {
+      throw localRequestError(url, action, `HTTP ${response.status} was not JSON`);
+    }
     const inner = body.Response;
     if (!inner) {
-      const error = new Error('missing Response');
+      const error = localRequestError(url, action, `HTTP ${response.status} missing Response`);
       (error as Error & { code?: string }).code = 'InternalError';
       throw error;
     }

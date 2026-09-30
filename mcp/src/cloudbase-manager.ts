@@ -266,7 +266,10 @@ export async function listAvailableEnvCandidates(options?: {
         });
         const envList = result?.EnvList || result?.Data?.EnvList || [];
         return toEnvCandidates(envList);
-    } catch {
+    } catch (err) {
+        if (resolveLocalEndpoint()) {
+            throw err;
+        }
         try {
             const fallback = await cloudbase.env.listEnvs();
             return toEnvCandidates(fallback?.EnvList || []);
@@ -351,6 +354,14 @@ async function throwEnvRequiredError(options?: {
     loginState?: any;
     envCandidates?: EnvCandidate[];
 }) {
+    const localEndpoint = resolveLocalEndpoint();
+    if (localEndpoint) {
+        throwToolPayloadError({
+            ok: false,
+            code: "LOCAL_ENDPOINT_UNAVAILABLE",
+            message: `CLOUDBASE_LOCAL_ENDPOINT=${localEndpoint} 没有返回可用环境。请求发往 ${localEndpoint}/capi。请先启动这个地址上的本地进程。`,
+        });
+    }
     const envCandidates =
         options?.envCandidates ?? (await listAvailableEnvCandidates(options));
     const singleEnvId = envCandidates.length === 1 ? envCandidates[0].envId : undefined;
