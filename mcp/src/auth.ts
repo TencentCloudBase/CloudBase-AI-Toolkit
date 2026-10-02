@@ -343,6 +343,16 @@ export function buildAuthConfigSummary(options: ResolvedAuthOptions) {
 }
 
 /**
+ * 解析本次登录实际使用的站点（显式 site > TCB_SITE > region 映射）。
+ * 登录后的凭证分槽必须使用同一解析结果，确保凭证落到登录时实际使用的站点槽位。
+ */
+export function resolveDeviceLoginSite(
+  siteHints: { region?: string; site?: string } = {},
+): SlotId {
+  return resolveSite(siteHints.region, siteHints.site ?? process.env.TCB_SITE);
+}
+
+/**
  * 构造 device flow 的 loginByWebAuth 基础参数（onDeviceCode 由调用方按需注入）。
  *
  * 所有 device 登录路径（ensureLogin 与 auth 工具 start_auth 的 device 分支）必须
@@ -354,10 +364,7 @@ export function buildDeviceLoginOptions(
   resolvedAuthOptions: ResolvedAuthOptions,
   siteHints: { region?: string; site?: string } = {},
 ): Record<string, unknown> {
-  const resolvedSite = resolveSite(
-    siteHints.region,
-    siteHints.site ?? process.env.TCB_SITE,
-  );
+  const resolvedSite = resolveDeviceLoginSite(siteHints);
   const loginOptions: Record<string, unknown> = { flow: "device" };
 
   if (resolvedAuthOptions.clientId) {
@@ -440,7 +447,7 @@ export interface LoginState {
 // 存储结构：credential = { domestic?: {...}, intl?: {...} }
 // 旧格式（单槽 flat）视为 domestic 槽位，读取兼容、写回时升级分槽。
 
-type SlotId = "domestic" | "intl";
+export type SlotId = "domestic" | "intl";
 
 const LEGACY_SITE: SlotId = "domestic";
 
@@ -499,6 +506,29 @@ export async function ensureSlottedCredential(): Promise<Record<string, unknown>
   const slotted: Record<string, unknown> = { domestic: raw ?? {} };
   await authStore.set("credential", slotted);
   return slotted;
+}
+
+/**
+ * 将 toolbox 登录成功后写入的 flat 'credential' 并入登录站点的槽位，
+ * 保留 slotsBefore（登录前快照）中的其他槽位。
+ * ensureLogin 与 auth 工具 start_auth 的 device 分支共用，保证两条登录路径分槽行为一致。
+ */
+export async function mergeLoginResultCredential(
+  resolvedSite: SlotId,
+  slotsBefore: Record<string, unknown>,
+  loginResult?: unknown,
+): Promise<void> {
+  const newRaw = await readStoredCredentialRaw();
+  let credentialToSlot: unknown = loginResult;
+  if (isSlottedCredential(newRaw)) {
+    credentialToSlot = newRaw[resolvedSite] ?? newRaw.domestic;
+  } else if (newRaw) {
+    credentialToSlot = newRaw;
+  }
+  if (isUsableCredential(credentialToSlot)) {
+    const merged = { ...slotsBefore, [resolvedSite]: credentialToSlot };
+    await authStore.set("credential", merged);
+  }
 }
 
 function isSlotTokenExpired(
@@ -723,17 +753,7 @@ export async function ensureLogin(options?: EnsureLoginOptions) {
         loginOptions as Parameters<typeof auth.loginByWebAuth>[0],
       );
       // toolbox 将新凭证写入 flat 'credential'，将其并入对应 site 槽位，保留其他槽位
-      const newRaw = await readStoredCredentialRaw();
-      let credentialToSlot: unknown = loginResult;
-      if (isSlottedCredential(newRaw)) {
-        credentialToSlot = newRaw[resolvedSite] ?? newRaw.domestic;
-      } else if (newRaw) {
-        credentialToSlot = newRaw;
-      }
-      if (isUsableCredential(credentialToSlot)) {
-        const merged = { ...slotsBefore, [resolvedSite]: credentialToSlot };
-        await authStore.set("credential", merged);
-      }
+      await mergeLoginResultCredential(resolvedSite, slotsBefore, loginResult);
       resolveAuthProgressState();
     } catch (error) {
       rejectAuthProgressState(error);

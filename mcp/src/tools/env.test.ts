@@ -43,6 +43,7 @@ const {
   mockResolveAuthOptions,
   mockCheckAndInitTcbService,
   mockCheckAndCreateFreeEnv,
+  authStoreData,
 } = vi.hoisted(() => ({
   mockBuildAuthConfigSummary: vi.fn((options: any) => ({
     auth_mode: options.authMode,
@@ -123,6 +124,7 @@ const {
       !options.serverAuthOptions?.oauthEndpoint &&
       !(options.serverAuthOptions?.oauthCustom ?? false),
   })),
+  authStoreData: {} as Record<string, any>,
 }));
 
 vi.mock("@cloudbase/toolbox", () => ({
@@ -130,6 +132,15 @@ vi.mock("@cloudbase/toolbox", () => ({
     getInstance: vi.fn(() => ({
       loginByWebAuth: mockSupervisorLoginByWebAuth,
     })),
+  },
+  authStore: {
+    get: vi.fn(async (key: string) => authStoreData[key]),
+    set: vi.fn(async (key: string, value: any) => {
+      authStoreData[key] = value;
+    }),
+    delete: vi.fn(async (key: string) => {
+      delete authStoreData[key];
+    }),
   },
 }));
 
@@ -849,6 +860,54 @@ describe("env tools - auth", () => {
     ).toBe("https://tcb.tencentcloud.com/dev#/cli-auth?from=cli&flow=device");
     // 站点写入环境变量，供本次登录后续环节与后续工具调用按同一站点解析
     expect(process.env.TCB_SITE).toBe("intl");
+  });
+
+  it("auth(action=start_auth, site=intl) should slot the device credential into the intl slot after login", async () => {
+    mockPeekLoginState.mockResolvedValue(null);
+    // 登录前快照：国内站槽位已有凭证，device 登录国际站后必须保留
+    mockEnsureSlottedCredential.mockResolvedValueOnce({
+      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
+    });
+    mockSupervisorLoginByWebAuth.mockImplementation(
+      async ({ onDeviceCode }: { onDeviceCode: (info: any) => void }) => {
+        onDeviceCode({
+          user_code: "WDJB-MJHT",
+          verification_uri: "https://example.com/device",
+          device_code: "device-code",
+          expires_in: 600,
+        });
+        // 模拟 toolbox：登录成功后把新凭证以 flat 格式写入 credential
+        authStoreData.credential = {
+          secretId: "intl-sid",
+          secretKey: "intl-skey",
+          refreshToken: "rt",
+        };
+        return {
+          secretId: "intl-sid",
+          secretKey: "intl-skey",
+          refreshToken: "rt",
+        };
+      },
+    );
+
+    const result = await tools.auth.handler({
+      action: "start_auth",
+      authMode: "device",
+      site: "intl",
+    });
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload).toHaveProperty("code", "AUTH_PENDING");
+
+    // 等待 device flow 异步收尾：凭证应并入 intl 槽位且保留 domestic 槽
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(authStoreData.credential).toEqual({
+      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
+      intl: {
+        secretId: "intl-sid",
+        secretKey: "intl-skey",
+        refreshToken: "rt",
+      },
+    });
   });
 
   it("auth(action=status, site=<invalid>) should reject invalid site value", async () => {

@@ -679,6 +679,64 @@ describe("multi-site credential slots", () => {
     });
   });
 
+  it("mergeLoginResultCredential should slot the flat toolbox credential into the login site", async () => {
+    // toolbox 登录成功后把新凭证以 flat 格式写入 credential
+    authStoreData.credential = {
+      secretId: "flat-intl-sid",
+      secretKey: "flat-intl-skey",
+    };
+
+    const { mergeLoginResultCredential } = await import("./auth.js");
+    await mergeLoginResultCredential(
+      "intl",
+      { domestic: { secretId: "dom-sid", secretKey: "dom-skey" } },
+      { secretId: "flat-intl-sid", secretKey: "flat-intl-skey" },
+    );
+
+    expect(authStoreData.credential).toEqual({
+      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
+      intl: {
+        secretId: "flat-intl-sid",
+        secretKey: "flat-intl-skey",
+      },
+    });
+  });
+
+  it("mergeLoginResultCredential should fall back to the login result when the store is empty", async () => {
+    // 存储为空（toolbox 未写入）时退回 loginResult，避免丢登录产物
+    delete authStoreData.credential;
+
+    const { mergeLoginResultCredential } = await import("./auth.js");
+    await mergeLoginResultCredential("domestic", {}, {
+      secretId: "result-sid",
+      secretKey: "result-skey",
+    });
+
+    expect(authStoreData.credential).toEqual({
+      domestic: { secretId: "result-sid", secretKey: "result-skey" },
+    });
+  });
+
+  it("resolveDeviceLoginSite should prefer explicit site over TCB_SITE and region", async () => {
+    const { resolveDeviceLoginSite } = await import("./auth.js");
+
+    process.env.TCB_SITE = "intl";
+    try {
+      // 显式 site 优先
+      expect(
+        resolveDeviceLoginSite({ site: "domestic", region: "ap-singapore" }),
+      ).toBe("domestic");
+      // 无显式 site 时回落 TCB_SITE
+      expect(resolveDeviceLoginSite({ region: "ap-shanghai" })).toBe("intl");
+    } finally {
+      delete process.env.TCB_SITE;
+    }
+    // 均未提供时按 region 映射（ap-singapore 歧义默认 intl），缺省 domestic
+    expect(resolveDeviceLoginSite({ region: "ap-singapore" })).toBe("intl");
+    expect(resolveDeviceLoginSite({ region: "ap-shanghai" })).toBe("domestic");
+    expect(resolveDeviceLoginSite()).toBe("domestic");
+  });
+
   it("should delete only the intl slot on logout and keep domestic", async () => {
     authStoreData.credential = {
       domestic: { secretId: "dom-sid", secretKey: "dom-skey" },

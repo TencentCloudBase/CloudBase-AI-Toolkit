@@ -12,10 +12,12 @@ import {
   getCloudBaseApiKeyFromEnv,
   listUsableCredentialSites,
   logout,
+  mergeLoginResultCredential,
   peekLoginState,
   rejectAuthProgressState,
   resolveAuthOptions,
   resolveAuthProgressState,
+  resolveDeviceLoginSite,
   setPendingAuthProgressState,
   type AuthOptions,
   type DeviceFlowAuthInfo,
@@ -2576,19 +2578,30 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               // 启动 Device Flow，全流程由 toolbox 负责轮询和写入 credential，这里不等待完成。
               // 登录参数（含 TCB_SITE=intl 端点覆写与授权页改写）与 ensureLogin 共享同一 helper，
               // 避免此直连路径绕过国际站改写导致国际站账号拿到的仍是国内站链接
+              const deviceSiteHints = {
+                region: toolRegion ?? region,
+                site: toolSite ?? server.cloudBaseOptions?.site,
+              };
+              // 登录前迁移旧单槽数据为分槽格式并快照（与 ensureLogin 一致，
+              // 避免 toolbox 内部命中旧 flat 凭证而跳过新站点登录）
+              const slotsBefore = await ensureSlottedCredential();
+              // 凭证须并入本次登录实际使用的站点槽位（与 buildDeviceLoginOptions 同一解析）
+              const resolvedDeviceSite = resolveDeviceLoginSite(deviceSiteHints);
               auth
                 .loginByWebAuth({
-                  ...buildDeviceLoginOptions(resolvedAuthOptions, {
-                    region: toolRegion ?? region,
-                    site: toolSite ?? server.cloudBaseOptions?.site,
-                  }),
+                  ...buildDeviceLoginOptions(resolvedAuthOptions, deviceSiteHints),
                   onDeviceCode: deviceOnCode,
                 })
-                .then(async () => {
-                  // toolbox 将新凭证写入 flat 'credential'，这里迁移为分槽格式
-                  //（legacy flat 等价 domestic 槽位），对齐 ensureLogin() 的分槽行为
+                .then(async (loginResult: unknown) => {
+                  // toolbox 将新凭证写入 flat 'credential'，这里按登录站点并入对应槽位，
+                  // 保留其他槽位（对齐 ensureLogin() 的分槽行为，避免国际站登录凭证
+                  // 落进 domestic 槽导致后续 auth_status 恒 REQUIRED）
                   try {
-                    await ensureSlottedCredential();
+                    await mergeLoginResultCredential(
+                      resolvedDeviceSite,
+                      slotsBefore,
+                      loginResult,
+                    );
                   } catch (err) {
                     debug("device auth: slotted credential migration failed", {
                       error: err instanceof Error ? err.message : String(err),
