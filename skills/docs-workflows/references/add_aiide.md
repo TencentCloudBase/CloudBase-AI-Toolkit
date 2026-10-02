@@ -284,7 +284,7 @@ CloudBase-MCP 的 `doc/` 通过 CI 流水线同步到 `cloudbase-docs` 仓库，
 
 ⚠️ **这两处都不要手写、也不要提交**：中文页会被 rsync 覆盖；手写的英文页会被翻译流水线覆盖（**英文文档页保留配图**，与博客「英文不配图」相反）。流水线产出在固定分支 `feature/update-mcp-doc`，**要等 MCP 仓的 PR 合并后才会跑**。
 
-以下 7 处是 **cloudbase-docs 独有**、不在这两个目录里，必须手动更新：
+以下 5 处是 **cloudbase-docs 独有**、不在这两个目录里，必须手动更新：
 
 | # | 文件 | 用途 | 排序规则 |
 |---|------|------|----------|
@@ -292,15 +292,15 @@ CloudBase-MCP 的 `doc/` 通过 CI 流水线同步到 `cloudbase-docs` 仓库，
 | 2 | `src/components/AiIdeWall/ides.js` → `AI_IDES` | 官网首页 / 开发者页 IDE 图标墙（AiIdeWall 组件，两处共用这一份数据） | WorkBuddy 后 |
 | 3 | `src/pages/_websiteHomeCopy.js` → `aiToolkit.lead` | 官网 AI Toolkit 区块文案（中英双语 inline t()） | 文案加名称 |
 | 4 | `src/pages/developers/index.js` → description | 开发者页 AI Toolkit 描述文案 | 文案加名称 |
-| 5 | `docs/.../components/ErrorCodeIDEButton.tsx` → `POPULAR_IDES` | 文档页「遇到错误？使用 AI 工具排查」IDE 选择器（rsync 同步源在 MCP，但 cloudbase-docs 版本可能已独立修改，两边都要改） | WorkBuddy 后 |
-| 6 | `i18n/en/.../components/ErrorCodeIDEButton.tsx` | 英文版 ErrorCodeIDEButton | 同上 |
-| 7 | `src/data/integrations.json` → `items` | 集成中心页（`src/pages/integration-center.js`）的集成卡；`category: "3"` = AI 原生开发、`"1"` = 微信生态 | 追加到末尾即可（页面按 category 渲染） |
+| 5 | `src/data/integrations.json` → `items` | 集成中心页（`src/pages/integration-center.js`）的集成卡；`category: "3"` = AI 原生开发、`"1"` = 微信生态 | 追加到末尾即可（页面按 category 渲染） |
+
+⚠️ **`ErrorCodeIDEButton` 不在改动面内**：`docs/.../components/ErrorCodeIDEButton.tsx` 与它的英文镜像里的 `POPULAR_IDES` 是一个**固定的 7 项精选集**（openclaw / cursor / codebuddy / github-copilot / claude-code / windsurf / cline），服务于文档页「遇到错误？使用 AI 工具排查」。这两个文件同样由文档同步流水线从本仓产出，**在 cloudbase-docs 侧手改会被覆盖**；确实需要调整时，改本仓 `doc/components/ErrorCodeIDEButton.tsx`，且只在对方确实属于该精选集时才加。
 
 ⚠️ **别改错组件**：`cloudbase-docs/src/components/IDESelector.tsx` 看着像 IDE 列表，但它**当前无任何引用**（历史遗留，比文档站那份还少 `zcode`/`codex-app`）。文档站真正渲染的是 `docs/ai/cloudbase-ai-toolkit/components/IDESelector.tsx`，由 `src/theme/TOC/index.js` 引用——那是 CI 从 MCP 仓同步的产物。
 
 **操作流程：**
 1. 在 CloudBase-MCP worktree 完成上述 Step 1-8
-2. 切到 cloudbase-docs 仓库，编辑上述 7 处
+2. 切到 cloudbase-docs 仓库，编辑上述 5 处
 3. 需要在本地预览文档页时，把改动过的 `doc/` 文件 cp 到 `docs/ai/cloudbase-ai-toolkit/`（**仅供本地预览，不要 commit**）
 4. 先提 MCP 仓的 PR，合并后流水线才会生成文档站中文页与英文页；再提 cloudbase-docs 仓那条 MR
 
