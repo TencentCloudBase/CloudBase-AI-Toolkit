@@ -28,8 +28,6 @@ const {
   mockGetAuthConfigValidationError,
   mockSupervisorLoginByWebAuth,
   mockEnsureLogin,
-  mockEnsureSlottedCredential,
-  mockListUsableCredentialSites,
   mockPeekLoginState,
   mockGetAuthProgressState,
   mockLogout,
@@ -89,8 +87,6 @@ const {
   }),
   mockSupervisorLoginByWebAuth: vi.fn(),
   mockEnsureLogin: vi.fn(),
-  mockEnsureSlottedCredential: vi.fn().mockResolvedValue({}),
-  mockListUsableCredentialSites: vi.fn().mockResolvedValue([]),
   mockPeekLoginState: vi.fn(),
   mockGetAuthProgressState: vi.fn(),
   mockLogout: vi.fn(),
@@ -152,8 +148,6 @@ vi.mock("../auth.js", async (importOriginal) => {
     buildDeviceAuthChallengePayload: mockBuildDeviceAuthChallengePayload,
     buildVerificationUriComplete: mockBuildVerificationUriComplete,
     ensureLogin: mockEnsureLogin,
-    ensureSlottedCredential: mockEnsureSlottedCredential,
-    listUsableCredentialSites: mockListUsableCredentialSites,
     getAuthConfigValidationError: mockGetAuthConfigValidationError,
     getCloudBaseApiKeyFromEnv: () =>
       process.env.CLOUDBASE_API_KEY || process.env.CLOUDBASE_APIKEY || undefined,
@@ -862,12 +856,8 @@ describe("env tools - auth", () => {
     expect(process.env.TCB_SITE).toBe("intl");
   });
 
-  it("auth(action=start_auth, site=intl) should slot the device credential into the intl slot after login", async () => {
+  it("auth(action=start_auth, site=intl) should leave the toolbox flat credential unchanged", async () => {
     mockPeekLoginState.mockResolvedValue(null);
-    // 登录前快照：国内站槽位已有凭证，device 登录国际站后必须保留
-    mockEnsureSlottedCredential.mockResolvedValueOnce({
-      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
-    });
     mockSupervisorLoginByWebAuth.mockImplementation(
       async ({ onDeviceCode }: { onDeviceCode: (info: any) => void }) => {
         onDeviceCode({
@@ -898,16 +888,14 @@ describe("env tools - auth", () => {
     const payload = JSON.parse(result.content[0].text);
     expect(payload).toHaveProperty("code", "AUTH_PENDING");
 
-    // 等待 device flow 异步收尾：凭证应并入 intl 槽位且保留 domestic 槽
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(authStoreData.credential).toEqual({
-      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
-      intl: {
-        secretId: "intl-sid",
-        secretKey: "intl-skey",
-        refreshToken: "rt",
-      },
+      secretId: "intl-sid",
+      secretKey: "intl-skey",
+      refreshToken: "rt",
     });
+    expect(authStoreData.credential).not.toHaveProperty("domestic");
+    expect(authStoreData.credential).not.toHaveProperty("intl");
   });
 
   it("auth(action=status, site=<invalid>) should reject invalid site value", async () => {

@@ -1,3 +1,5 @@
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -7,22 +9,28 @@ const {
   mockAuthLogout,
   mockAuthStore,
   authStoreData,
-} = vi.hoisted(() => ({
-  mockAuthGetLoginState: vi.fn(),
-  mockAuthLoginByWebAuth: vi.fn(),
-  mockAuthLoginByApiKey: vi.fn(),
-  mockAuthLogout: vi.fn(),
-  authStoreData: {} as Record<string, any>,
-  mockAuthStore: {
-    get: vi.fn(async (key: string) => authStoreData[key]),
-    set: vi.fn(async (key: string, value: any) => {
-      authStoreData[key] = value;
-    }),
-    delete: vi.fn(async (key: string) => {
-      delete authStoreData[key];
-    }),
-  },
-}));
+  cliConfigDir,
+} = vi.hoisted(() => {
+  const { tmpdir } = require("node:os") as typeof import("node:os");
+  const { join: joinPath } = require("node:path") as typeof import("node:path");
+  return {
+    mockAuthGetLoginState: vi.fn(),
+    mockAuthLoginByWebAuth: vi.fn(),
+    mockAuthLoginByApiKey: vi.fn(),
+    mockAuthLogout: vi.fn(),
+    authStoreData: {} as Record<string, any>,
+    cliConfigDir: joinPath(tmpdir(), `cb-mcp-auth-flat-${process.pid}`),
+    mockAuthStore: {
+      get: vi.fn(async (key: string) => authStoreData[key]),
+      set: vi.fn(async (key: string, value: any) => {
+        authStoreData[key] = value;
+      }),
+      delete: vi.fn(async (key: string) => {
+        delete authStoreData[key];
+      }),
+    },
+  };
+});
 
 vi.mock("@cloudbase/toolbox", () => ({
   AuthSupervisor: {
@@ -34,6 +42,7 @@ vi.mock("@cloudbase/toolbox", () => ({
     })),
   },
   authStore: mockAuthStore,
+  cloudbaseConfigDir: cliConfigDir,
   resolveCredential: (data: any) => data,
   refreshTmpToken: vi.fn(),
 }));
@@ -67,6 +76,10 @@ vi.mock("./utils/site-map.js", () => {
       const site = normalizeSite(opts?.site) ?? normalizeSite(process.env.TCB_SITE);
       return site === "intl" ? "ap-singapore" : undefined;
     },
+    resolveSiteAndRegion: (opts?: { site?: string; region?: string }) => {
+      const site = normalizeSite(opts?.site) ?? normalizeSite(process.env.TCB_SITE) ?? "domestic";
+      return { site, region: opts?.region ?? "ap-shanghai" };
+    },
     SITE_REGION_MAP: {
       domestic: {
         authHost: "tcb.cloud.tencent.com",
@@ -86,6 +99,8 @@ vi.mock("./utils/tencent-cloud.js", () => ({
 
 beforeEach(() => {
   Object.keys(authStoreData).forEach((key) => delete authStoreData[key]);
+  mkdirSync(cliConfigDir, { recursive: true });
+  rmSync(join(cliConfigDir, "config.json"), { force: true });
   vi.clearAllMocks();
   mockAuthGetLoginState.mockResolvedValue(null);
   mockAuthLoginByWebAuth.mockResolvedValue({
@@ -492,28 +507,26 @@ describe("device auth challenge helpers", () => {
   });
 });
 
-describe("multi-site credential slots", () => {
-  it("should read credential from the intl slot when site=intl", async () => {
+describe("flat credential storage", () => {
+  it("should read the same flat credential for an explicit intl site", async () => {
     authStoreData.credential = {
-      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
-      intl: {
-        secretId: "intl-sid",
-        secretKey: "intl-skey",
-        envId: "booker-ai-i0gygeljs622ffd23",
-      },
+      secretId: "flat-sid",
+      secretKey: "flat-skey",
+      refreshToken: "rt",
     };
 
     const { peekLoginState } = await import("./auth.js");
     const loginState = await peekLoginState({ site: "intl" });
 
     expect(loginState).toMatchObject({
-      secretId: "intl-sid",
-      secretKey: "intl-skey",
-      envId: "booker-ai-i0gygeljs622ffd23",
+      secretId: "flat-sid",
+      secretKey: "flat-skey",
     });
+    expect(authStoreData.credential).not.toHaveProperty("domestic");
+    expect(authStoreData.credential).not.toHaveProperty("intl");
   });
 
-  it("should treat legacy flat credential as domestic slot", async () => {
+  it("should read a flat credential when no site is requested", async () => {
     authStoreData.credential = {
       secretId: "legacy-sid",
       secretKey: "legacy-skey",
@@ -529,16 +542,13 @@ describe("multi-site credential slots", () => {
   });
 
   it("should keep uin when refreshing an expired temp credential", async () => {
-    // 续期响应只回密钥字段（toolbox 的 refreshTmpToken 仅手动回填 envId），不带 uin
     authStoreData.credential = {
-      domestic: {
-        secretId: "old-sid",
-        secretKey: "old-skey",
-        refreshToken: "rt",
-        uin: 123811017,
-        accessTokenExpired: Date.now() - 60_000,
-        expired: Date.now() + 10 * 60_000,
-      },
+      secretId: "old-sid",
+      secretKey: "old-skey",
+      refreshToken: "rt",
+      uin: 123811017,
+      accessTokenExpired: Date.now() - 60_000,
+      expired: Date.now() + 10 * 60_000,
     };
     const toolbox = await import("@cloudbase/toolbox");
     vi.mocked(toolbox.refreshTmpToken).mockResolvedValueOnce({
@@ -548,16 +558,18 @@ describe("multi-site credential slots", () => {
     } as any);
 
     const { peekLoginState } = await import("./auth.js");
-    const loginState = await peekLoginState({ site: "domestic" });
+    const loginState = await peekLoginState();
 
     expect(loginState?.secretId).toBe("new-sid");
-    // 账号归因字段必须跨续期保留，否则每续期一次 login_uin 就丢一次
     expect(loginState?.uin).toBe(123811017);
-    expect(authStoreData.credential.domestic.uin).toBe(123811017);
+    expect(authStoreData.credential).toMatchObject({
+      secretId: "new-sid",
+      uin: 123811017,
+    });
+    expect(authStoreData.credential).not.toHaveProperty("domestic");
   });
 
-  it("should fall back to the only usable slot for ambiguous region without explicit site (issue #960)", async () => {
-    // 国内站账号 device 登录后凭证为 flat（等价 domestic 槽），绑定 ap-singapore 环境
+  it("should return the flat credential for an ambiguous region", async () => {
     authStoreData.credential = {
       secretId: "flat-sid",
       secretKey: "flat-skey",
@@ -572,88 +584,98 @@ describe("multi-site credential slots", () => {
     });
   });
 
-  it("should fall back to domestic slotted credential for ambiguous region (issue #960)", async () => {
+  it("should keep the flat credential when site is explicit", async () => {
     authStoreData.credential = {
-      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
-    };
-
-    const { peekLoginState } = await import("./auth.js");
-    const loginState = await peekLoginState({ region: "ap-singapore" });
-
-    expect(loginState).toMatchObject({
-      secretId: "dom-sid",
-      secretKey: "dom-skey",
-    });
-  });
-
-  it("should keep resolved intl slot when both slots have credentials", async () => {
-    authStoreData.credential = {
-      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
-      intl: { secretId: "intl-sid", secretKey: "intl-skey" },
-    };
-
-    const { peekLoginState } = await import("./auth.js");
-    const loginState = await peekLoginState({ region: "ap-singapore" });
-
-    expect(loginState).toMatchObject({ secretId: "intl-sid" });
-  });
-
-  it("should not fall back across slots when site is explicit (issue #960)", async () => {
-    authStoreData.credential = {
-      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
+      secretId: "flat-sid",
+      secretKey: "flat-skey",
     };
 
     const { peekLoginState } = await import("./auth.js");
     await expect(
       peekLoginState({ region: "ap-singapore", site: "intl" }),
-    ).resolves.toBeNull();
+    ).resolves.toMatchObject({ secretId: "flat-sid" });
   });
 
-  it("should not fall back across slots when TCB_SITE is set", async () => {
+  it("should collapse a slotted credential to the domestic slot by default", async () => {
+    authStoreData.credential = {
+      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
+      intl: { secretId: "intl-sid", secretKey: "intl-skey" },
+    };
+
+    const { peekLoginState } = await import("./auth.js");
+    const loginState = await peekLoginState();
+
+    expect(loginState).toMatchObject({ secretId: "dom-sid", secretKey: "dom-skey" });
+    expect(authStoreData.credential).toEqual({
+      secretId: "dom-sid",
+      secretKey: "dom-skey",
+    });
+  });
+
+  it("should collapse a slotted credential to the site selected by TCB_SITE", async () => {
     process.env.TCB_SITE = "intl";
     try {
       authStoreData.credential = {
         domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
+        intl: { secretId: "intl-sid", secretKey: "intl-skey" },
       };
 
       const { peekLoginState } = await import("./auth.js");
-      await expect(peekLoginState({ region: "ap-singapore" })).resolves.toBeNull();
+      const loginState = await peekLoginState();
+
+      expect(loginState).toMatchObject({ secretId: "intl-sid", secretKey: "intl-skey" });
+      expect(authStoreData.credential).toEqual({
+        secretId: "intl-sid",
+        secretKey: "intl-skey",
+      });
     } finally {
       delete process.env.TCB_SITE;
     }
   });
 
-  it("should list only sites with usable credentials", async () => {
-    authStoreData.credential = {
-      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
-      intl: {},
-    };
+  it("should prefer the intl slot when config.json isIntl is true", async () => {
+    writeFileSync(join(cliConfigDir, "config.json"), JSON.stringify({ isIntl: true, lang: "zh" }));
+    process.env.TCB_SITE = "domestic";
+    try {
+      authStoreData.credential = {
+        domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
+        intl: { secretId: "intl-sid", secretKey: "intl-skey" },
+      };
 
-    const { listUsableCredentialSites } = await import("./auth.js");
-    await expect(listUsableCredentialSites()).resolves.toEqual(["domestic"]);
-  });
+      const { peekLoginState } = await import("./auth.js");
+      const loginState = await peekLoginState();
 
-  it("should not fall back to intl credential when reading default domestic", async () => {
-    authStoreData.credential = {
-      intl: { secretId: "intl-sid", secretKey: "intl-skey" },
-    };
-    mockAuthGetLoginState.mockResolvedValue(null);
-
-    const { peekLoginState } = await import("./auth.js");
-    await expect(peekLoginState()).resolves.toBeNull();
-  });
-
-  it("should write login credential into resolved site slot preserving other slots", async () => {
-    mockAuthGetLoginState
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
+      expect(loginState).toMatchObject({ secretId: "intl-sid" });
+      expect(authStoreData.credential).toEqual({
         secretId: "intl-sid",
         secretKey: "intl-skey",
       });
+    } finally {
+      delete process.env.TCB_SITE;
+    }
+  });
+
+  it("should keep the only usable slot when the preferred slot is empty", async () => {
+    authStoreData.credential = {
+      domestic: {},
+      intl: { secretId: "intl-sid", secretKey: "intl-skey" },
+    };
+
+    const { peekLoginState } = await import("./auth.js");
+    const loginState = await peekLoginState();
+
+    expect(loginState).toMatchObject({ secretId: "intl-sid", secretKey: "intl-skey" });
+    expect(authStoreData.credential).toEqual({
+      secretId: "intl-sid",
+      secretKey: "intl-skey",
+    });
+  });
+
+  it("should leave the toolbox flat credential in place after login", async () => {
     mockAuthLoginByWebAuth.mockImplementation(async () => {
       authStoreData.credential = {
-        secretId: "new-intl-sid",
-        secretKey: "new-intl-skey",
+        tmpSecretId: "new-intl-sid",
+        tmpSecretKey: "new-intl-skey",
         refreshToken: "rt",
       };
       return {
@@ -662,58 +684,19 @@ describe("multi-site credential slots", () => {
         refreshToken: "rt",
       };
     });
-    authStoreData.credential = {
-      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
-    };
 
     const { ensureLogin } = await import("./auth.js");
     await ensureLogin({ site: "intl" });
 
     expect(authStoreData.credential).toEqual({
-      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
-      intl: {
-        secretId: "new-intl-sid",
-        secretKey: "new-intl-skey",
-        refreshToken: "rt",
-      },
+      tmpSecretId: "new-intl-sid",
+      tmpSecretKey: "new-intl-skey",
+      refreshToken: "rt",
     });
-  });
-
-  it("mergeLoginResultCredential should slot the flat toolbox credential into the login site", async () => {
-    // toolbox 登录成功后把新凭证以 flat 格式写入 credential
-    authStoreData.credential = {
-      secretId: "flat-intl-sid",
-      secretKey: "flat-intl-skey",
-    };
-
-    const { mergeLoginResultCredential } = await import("./auth.js");
-    await mergeLoginResultCredential(
-      "intl",
-      { domestic: { secretId: "dom-sid", secretKey: "dom-skey" } },
-      { secretId: "flat-intl-sid", secretKey: "flat-intl-skey" },
-    );
-
-    expect(authStoreData.credential).toEqual({
-      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
-      intl: {
-        secretId: "flat-intl-sid",
-        secretKey: "flat-intl-skey",
-      },
-    });
-  });
-
-  it("mergeLoginResultCredential should fall back to the login result when the store is empty", async () => {
-    // 存储为空（toolbox 未写入）时退回 loginResult，避免丢登录产物
-    delete authStoreData.credential;
-
-    const { mergeLoginResultCredential } = await import("./auth.js");
-    await mergeLoginResultCredential("domestic", {}, {
-      secretId: "result-sid",
-      secretKey: "result-skey",
-    });
-
-    expect(authStoreData.credential).toEqual({
-      domestic: { secretId: "result-sid", secretKey: "result-skey" },
+    const { resolveCredential } = await import("@cloudbase/toolbox");
+    expect(resolveCredential(authStoreData.credential)).toMatchObject({
+      tmpSecretId: "new-intl-sid",
+      tmpSecretKey: "new-intl-skey",
     });
   });
 
@@ -737,18 +720,18 @@ describe("multi-site credential slots", () => {
     expect(resolveDeviceLoginSite()).toBe("domestic");
   });
 
-  it("should delete only the intl slot on logout and keep domestic", async () => {
+  it("should log out the single credential instead of deleting one slot", async () => {
     authStoreData.credential = {
-      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
-      intl: { secretId: "intl-sid", secretKey: "intl-skey" },
+      secretId: "flat-sid",
+      secretKey: "flat-skey",
+      refreshToken: "rt",
     };
 
     const { logout } = await import("./auth.js");
     await logout({ site: "intl" });
 
-    expect(authStoreData.credential).toEqual({
-      domestic: { secretId: "dom-sid", secretKey: "dom-skey" },
-    });
+    expect(mockAuthLogout).toHaveBeenCalledWith({ cwd: expect.any(String) });
+    expect(mockAuthStore.set).not.toHaveBeenCalled();
   });
 
   it("should keep domestic auth host for domestic site with ap-singapore region", async () => {
