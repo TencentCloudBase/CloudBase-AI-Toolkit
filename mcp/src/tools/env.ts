@@ -6,11 +6,9 @@ import {
   buildDeviceLoginOptions,
   buildVerificationUriComplete,
   ensureLogin,
-  ensureSlottedCredential,
   getAuthConfigValidationError,
   getAuthProgressState,
   getCloudBaseApiKeyFromEnv,
-  listUsableCredentialSites,
   logout,
   peekLoginState,
   rejectAuthProgressState,
@@ -34,7 +32,6 @@ import {
 import { ExtendedMcpServer } from "../server.js";
 import { debug } from "../utils/logger.js";
 import {
-  getSite,
   normalizeSite,
   resolveApiKeyExchangeRegion,
   resolveSiteAndRegion,
@@ -742,35 +739,6 @@ function applyBoundEnvRegion(
   if (server.cloudBaseOptions) {
     server.cloudBaseOptions.region = region;
   }
-}
-
-/**
- * 绑定环境后固化站点：region 歧义（如 ap-singapore 同时属于 domestic 与 intl）且
- * 未显式指定 site 时，若仅一个凭证槽位可用，则将 TCB_SITE 固定为该站点，
- * 避免后续资源调用再次落入歧义默认分支（issue #960）。
- */
-async function applyBoundEnvSite(
-  server: ExtendedMcpServer,
-  region?: string,
-) {
-  if (!region || getSite(region) !== "ambiguous") {
-    return;
-  }
-  if (normalizeSite(process.env.TCB_SITE)) {
-    return; // 已显式指定 site，不覆盖
-  }
-  const usableSites = await listUsableCredentialSites();
-  if (usableSites.length !== 1) {
-    return; // 无法唯一判定时不猜测，保持既有歧义回退逻辑
-  }
-  process.env.TCB_SITE = usableSites[0];
-  if (server.cloudBaseOptions) {
-    server.cloudBaseOptions.site = usableSites[0];
-  }
-  debug("applyBoundEnvSite: pinned TCB_SITE from the only usable credential slot", {
-    region,
-    site: usableSites[0],
-  });
 }
 
 /**
@@ -2576,24 +2544,17 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               // 启动 Device Flow，全流程由 toolbox 负责轮询和写入 credential，这里不等待完成。
               // 登录参数（含 TCB_SITE=intl 端点覆写与授权页改写）与 ensureLogin 共享同一 helper，
               // 避免此直连路径绕过国际站改写导致国际站账号拿到的仍是国内站链接
+              const deviceSiteHints = {
+                region: toolRegion ?? region,
+                site: toolSite ?? server.cloudBaseOptions?.site,
+              };
+              // Site hints select the OAuth endpoint only. toolbox writes one flat credential.
               auth
                 .loginByWebAuth({
-                  ...buildDeviceLoginOptions(resolvedAuthOptions, {
-                    region: toolRegion ?? region,
-                    site: toolSite ?? server.cloudBaseOptions?.site,
-                  }),
+                  ...buildDeviceLoginOptions(resolvedAuthOptions, deviceSiteHints),
                   onDeviceCode: deviceOnCode,
                 })
-                .then(async () => {
-                  // toolbox 将新凭证写入 flat 'credential'，这里迁移为分槽格式
-                  //（legacy flat 等价 domestic 槽位），对齐 ensureLogin() 的分槽行为
-                  try {
-                    await ensureSlottedCredential();
-                  } catch (err) {
-                    debug("device auth: slotted credential migration failed", {
-                      error: err instanceof Error ? err.message : String(err),
-                    });
-                  }
+                .then(() => {
                   resolveAuthProgressState();
                 })
                 .catch((err: unknown) => {
@@ -2852,7 +2813,6 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             })
             .catch(() => {});
           applyBoundEnvRegion(server, target?.region);
-          await applyBoundEnvSite(server, target?.region);
           persistAuthBinding({
             site: toolSite,
             region: toolRegion,

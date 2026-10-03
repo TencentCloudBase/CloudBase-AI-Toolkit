@@ -28,8 +28,6 @@ const {
   mockGetAuthConfigValidationError,
   mockSupervisorLoginByWebAuth,
   mockEnsureLogin,
-  mockEnsureSlottedCredential,
-  mockListUsableCredentialSites,
   mockPeekLoginState,
   mockGetAuthProgressState,
   mockLogout,
@@ -43,6 +41,7 @@ const {
   mockResolveAuthOptions,
   mockCheckAndInitTcbService,
   mockCheckAndCreateFreeEnv,
+  authStoreData,
 } = vi.hoisted(() => ({
   mockBuildAuthConfigSummary: vi.fn((options: any) => ({
     auth_mode: options.authMode,
@@ -88,8 +87,6 @@ const {
   }),
   mockSupervisorLoginByWebAuth: vi.fn(),
   mockEnsureLogin: vi.fn(),
-  mockEnsureSlottedCredential: vi.fn().mockResolvedValue({}),
-  mockListUsableCredentialSites: vi.fn().mockResolvedValue([]),
   mockPeekLoginState: vi.fn(),
   mockGetAuthProgressState: vi.fn(),
   mockLogout: vi.fn(),
@@ -123,6 +120,7 @@ const {
       !options.serverAuthOptions?.oauthEndpoint &&
       !(options.serverAuthOptions?.oauthCustom ?? false),
   })),
+  authStoreData: {} as Record<string, any>,
 }));
 
 vi.mock("@cloudbase/toolbox", () => ({
@@ -130,6 +128,15 @@ vi.mock("@cloudbase/toolbox", () => ({
     getInstance: vi.fn(() => ({
       loginByWebAuth: mockSupervisorLoginByWebAuth,
     })),
+  },
+  authStore: {
+    get: vi.fn(async (key: string) => authStoreData[key]),
+    set: vi.fn(async (key: string, value: any) => {
+      authStoreData[key] = value;
+    }),
+    delete: vi.fn(async (key: string) => {
+      delete authStoreData[key];
+    }),
   },
 }));
 
@@ -141,8 +148,6 @@ vi.mock("../auth.js", async (importOriginal) => {
     buildDeviceAuthChallengePayload: mockBuildDeviceAuthChallengePayload,
     buildVerificationUriComplete: mockBuildVerificationUriComplete,
     ensureLogin: mockEnsureLogin,
-    ensureSlottedCredential: mockEnsureSlottedCredential,
-    listUsableCredentialSites: mockListUsableCredentialSites,
     getAuthConfigValidationError: mockGetAuthConfigValidationError,
     getCloudBaseApiKeyFromEnv: () =>
       process.env.CLOUDBASE_API_KEY || process.env.CLOUDBASE_APIKEY || undefined,
@@ -849,6 +854,48 @@ describe("env tools - auth", () => {
     ).toBe("https://tcb.tencentcloud.com/dev#/cli-auth?from=cli&flow=device");
     // 站点写入环境变量，供本次登录后续环节与后续工具调用按同一站点解析
     expect(process.env.TCB_SITE).toBe("intl");
+  });
+
+  it("auth(action=start_auth, site=intl) should leave the toolbox flat credential unchanged", async () => {
+    mockPeekLoginState.mockResolvedValue(null);
+    mockSupervisorLoginByWebAuth.mockImplementation(
+      async ({ onDeviceCode }: { onDeviceCode: (info: any) => void }) => {
+        onDeviceCode({
+          user_code: "WDJB-MJHT",
+          verification_uri: "https://example.com/device",
+          device_code: "device-code",
+          expires_in: 600,
+        });
+        // 模拟 toolbox：登录成功后把新凭证以 flat 格式写入 credential
+        authStoreData.credential = {
+          secretId: "intl-sid",
+          secretKey: "intl-skey",
+          refreshToken: "rt",
+        };
+        return {
+          secretId: "intl-sid",
+          secretKey: "intl-skey",
+          refreshToken: "rt",
+        };
+      },
+    );
+
+    const result = await tools.auth.handler({
+      action: "start_auth",
+      authMode: "device",
+      site: "intl",
+    });
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload).toHaveProperty("code", "AUTH_PENDING");
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(authStoreData.credential).toEqual({
+      secretId: "intl-sid",
+      secretKey: "intl-skey",
+      refreshToken: "rt",
+    });
+    expect(authStoreData.credential).not.toHaveProperty("domestic");
+    expect(authStoreData.credential).not.toHaveProperty("intl");
   });
 
   it("auth(action=status, site=<invalid>) should reject invalid site value", async () => {

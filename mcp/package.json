@@ -48,6 +48,7 @@
     "test": "npm run build && vitest run",
     "test:watch": "npm run build && vitest",
     "test:coverage": "npm run build && vitest run --coverage",
+    "test:auth:flat": "node ./scripts/verify-flat-auth.mjs",
     "test:pg:cloud": "npm run build && node ./scripts/verify-pg-cloud-smoke.mjs",
     "test:cli:cloud-mode": "node ./scripts/verify-cli-cloud-mode-smoke.mjs",
     "test:npm:tarball-smoke": "node ./scripts/verify-npm-tarball-smoke.mjs",

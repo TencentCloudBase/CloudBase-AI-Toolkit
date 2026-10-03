@@ -1,12 +1,14 @@
-import { AuthSupervisor, authStore, refreshTmpToken, resolveCredential } from "@cloudbase/toolbox";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { AuthSupervisor, authStore, cloudbaseConfigDir, refreshTmpToken, resolveCredential } from "@cloudbase/toolbox";
 import { debug } from "./utils/logger.js";
 import { requireProjectRoot } from "./utils/project-config.js";
 import {
-  getSite,
-  normalizeSite,
   resolveApiKeyExchangeRegion,
   resolveSite,
+  resolveSiteAndRegion,
   SITE_REGION_MAP,
+  type SiteId,
 } from "./utils/site-map.js";
 
 const auth = AuthSupervisor.getInstance({});
@@ -343,6 +345,17 @@ export function buildAuthConfigSummary(options: ResolvedAuthOptions) {
 }
 
 /**
+ * Resolve the site for this login (explicit site, then TCB_SITE, then region).
+ * The result selects the OAuth endpoint and authorization page only.
+ * The stored credential stays one flat record.
+ */
+export function resolveDeviceLoginSite(
+  siteHints: { region?: string; site?: string } = {},
+): SiteId {
+  return resolveSite(siteHints.region, siteHints.site ?? process.env.TCB_SITE);
+}
+
+/**
  * 构造 device flow 的 loginByWebAuth 基础参数（onDeviceCode 由调用方按需注入）。
  *
  * 所有 device 登录路径（ensureLogin 与 auth 工具 start_auth 的 device 分支）必须
@@ -354,10 +367,7 @@ export function buildDeviceLoginOptions(
   resolvedAuthOptions: ResolvedAuthOptions,
   siteHints: { region?: string; site?: string } = {},
 ): Record<string, unknown> {
-  const resolvedSite = resolveSite(
-    siteHints.region,
-    siteHints.site ?? process.env.TCB_SITE,
-  );
+  const resolvedSite = resolveDeviceLoginSite(siteHints);
   const loginOptions: Record<string, unknown> = { flow: "device" };
 
   if (resolvedAuthOptions.clientId) {
@@ -431,77 +441,65 @@ export interface LoginState {
   /**
    * 主账号 uin。本地凭证（`~/.config/.cloudbase/auth.json`）自带，
    * 由 `@cloudbase/toolbox` 的 `resolveCredential()` 透传。
-   * 注意：临时密钥续期响应里没有 uin，须由调用方保留旧值（见 resolveSiteLoginState）。
+   * 注意：临时密钥续期响应里没有 uin，须由调用方保留旧值（见 resolveFlatLoginState）。
    */
   uin?: string | number;
 }
 
-// ---- 多 site 凭证分槽（credential[site]）----
-// 存储结构：credential = { domestic?: {...}, intl?: {...} }
-// 旧格式（单槽 flat）视为 domestic 槽位，读取兼容、写回时升级分槽。
+// One flat credential in auth.json, shared with the CLI. Legacy slotted
+// files ({ domestic, intl }) are collapsed once on read; the other site is dropped.
 
-type SlotId = "domestic" | "intl";
-
-const LEGACY_SITE: SlotId = "domestic";
-
-function isSlottedCredential(value: unknown): value is Record<SlotId, unknown> {
+function isSlottedCredential(value: unknown): value is { domestic?: unknown; intl?: unknown } {
   if (!value || typeof value !== "object") {
     return false;
   }
   return "domestic" in value || "intl" in value;
 }
 
-async function readStoredCredentialRaw(): Promise<unknown> {
-  return authStore.get("credential");
+function hasResolvableSecrets(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const credential = resolveCredential(value as Parameters<typeof resolveCredential>[0]);
+  return Boolean(credential?.secretId && credential?.secretKey);
 }
 
-/**
- * 读取指定 site 槽位的原始凭证；旧格式（单槽 flat）视为 domestic 槽位。
- */
-async function readSiteCredentialRaw(site: SlotId): Promise<unknown> {
-  const raw = await readStoredCredentialRaw();
-  if (!raw) {
+/** Read CLI config.json isIntl. Missing or non-boolean values are ignored. Never writes the file. */
+function readCliIsIntl(): boolean | undefined {
+  try {
+    const text = readFileSync(join(cloudbaseConfigDir, "config.json"), "utf8");
+    const parsed = JSON.parse(text) as { isIntl?: unknown };
+    return typeof parsed.isIntl === "boolean" ? parsed.isIntl : undefined;
+  } catch {
     return undefined;
   }
-  if (isSlottedCredential(raw)) {
-    return raw[site];
-  }
-  return site === LEGACY_SITE ? raw : undefined;
 }
 
 /**
- * 将凭证写入指定 site 槽位，保留其他槽位数据。
- * base 缺省时读取当前存储；旧单槽数据会被迁移为 domestic 槽位（写回时升级分槽）。
+ * Collapse a legacy slotted credential to one flat record.
+ * The rewritten file is the completion marker; a crash leaves the slotted file for the next read.
  */
-async function writeSiteCredential(
-  site: SlotId,
-  credential: unknown,
-  base?: unknown,
-): Promise<void> {
-  const current = base ?? (await readStoredCredentialRaw());
-  const slotted: Partial<Record<SlotId, unknown>> =
-    current && isSlottedCredential(current)
-      ? { ...current }
-      : { domestic: current ?? {} };
-  slotted[site] = credential ?? {};
-  await authStore.set("credential", slotted);
-}
-
-/**
- * 确保存储已为分槽格式并返回槽位快照。
- * 用于登录前迁移旧单槽数据，避免 @cloudbase/toolbox 内部误命中旧凭证而跳过新站点登录。
- */
-export async function ensureSlottedCredential(): Promise<Record<string, unknown>> {
-  const raw = await readStoredCredentialRaw();
-  if (raw && isSlottedCredential(raw)) {
-    return { ...raw };
+async function migrateSlottedCredentialToFlat(): Promise<void> {
+  const raw = await authStore.get("credential");
+  if (!isSlottedCredential(raw)) {
+    return;
   }
-  const slotted: Record<string, unknown> = { domestic: raw ?? {} };
-  await authStore.set("credential", slotted);
-  return slotted;
+  const domestic = hasResolvableSecrets(raw.domestic) ? raw.domestic : undefined;
+  const intl = hasResolvableSecrets(raw.intl) ? raw.intl : undefined;
+  const isIntl = readCliIsIntl();
+  let site: SiteId;
+  if (isIntl === true && intl) {
+    site = "intl";
+  } else if (isIntl === false && domestic) {
+    site = "domestic";
+  } else {
+    site = resolveSiteAndRegion().site;
+  }
+  const chosen = site === "intl" ? (intl ?? domestic) : (domestic ?? intl);
+  await authStore.set("credential", chosen ?? {});
 }
 
-function isSlotTokenExpired(
+function isTempTokenExpired(
   credential: { accessTokenExpired?: number | string },
   gap = 120,
 ): boolean {
@@ -512,38 +510,37 @@ function isSlotTokenExpired(
 }
 
 /**
- * 读取并解析指定 site 的登录态，必要时走 refreshToken 续期（镜像 @cloudbase/toolbox 行为）。
+ * Read the single flat credential and refresh it when the temp token is expired.
+ * Refresh responses omit uin, so the previous uin is copied back onto the stored record.
  */
-async function resolveSiteLoginState(site: SlotId): Promise<LoginState | null> {
-  const raw = await readSiteCredentialRaw(site);
-  if (!raw) {
+async function resolveFlatLoginState(): Promise<LoginState | null> {
+  const raw = await authStore.get("credential");
+  if (!hasResolvableSecrets(raw)) {
     return null;
   }
-  const credential = resolveCredential(raw as any);
+  const credential = resolveCredential(raw as Parameters<typeof resolveCredential>[0]);
   if (!credential?.secretId || !credential?.secretKey) {
     return null;
   }
 
   if (credential.refreshToken) {
-    if (!isSlotTokenExpired(credential)) {
+    if (!isTempTokenExpired(credential)) {
       return credential as LoginState;
     }
     if (Date.now() < Number(credential.expired)) {
       try {
         const refreshed = await refreshTmpToken(credential);
-        // 续期响应只回密钥字段（toolbox 在 refreshTmpToken 里仅手动回填 envId），不含 uin。
-        // 直接写回会让账号归因在每次续期后丢失，因此显式沿用续期前的 uin。
         const refreshedCredential =
           refreshed &&
           (refreshed as { uin?: unknown }).uin === undefined &&
           credential.uin !== undefined
             ? { ...refreshed, uin: credential.uin }
             : refreshed;
-        await writeSiteCredential(site, refreshedCredential ?? {});
-        const resolved = resolveCredential(refreshedCredential ?? {});
+        await authStore.set("credential", refreshedCredential ?? {});
+        const resolved = resolveCredential((refreshedCredential ?? {}) as Parameters<typeof resolveCredential>[0]);
         return resolved?.secretId ? (resolved as LoginState) : null;
       } catch (e) {
-        const code = (e as any)?.code;
+        const code = (e as { code?: string })?.code;
         if (code === "AUTH_FAIL" || code === "InternalError.GetRoleError") {
           return null;
         }
@@ -554,29 +551,6 @@ async function resolveSiteLoginState(site: SlotId): Promise<LoginState | null> {
   }
 
   return credential as LoginState;
-}
-
-function isUsableCredential(value: unknown): boolean {
-  return (
-    !!value &&
-    typeof value === "object" &&
-    Object.keys(value as Record<string, unknown>).length > 0
-  );
-}
-
-/**
- * 返回当前存在可用凭证的 site 槽位列表（凭证续期失败视为不可用）。
- * 用于歧义 region（如 ap-singapore）时判定用户实际所属站点。
- */
-export async function listUsableCredentialSites(): Promise<SlotId[]> {
-  const usable: SlotId[] = [];
-  for (const site of ["domestic", "intl"] as const) {
-    const state = await resolveSiteLoginState(site).catch(() => null);
-    if (state) {
-      usable.push(site);
-    }
-  }
-  return usable;
 }
 
 export async function peekLoginState(options?: {
@@ -615,35 +589,9 @@ export async function peekLoginState(options?: {
     return envVarLoginState as LoginState;
   }
 
-  // 按 site 读取分槽凭证（缺省按 TCB_SITE/region 解析站点，默认 domestic）
-  const explicitSite = normalizeSite(options?.site) ?? normalizeSite(process.env.TCB_SITE);
-  const site: SlotId = explicitSite ?? resolveSite(options?.region);
-  let slotLoginState = await resolveSiteLoginState(site);
-
-  // 歧义 region（如 ap-singapore 同时属于 domestic 与 intl）且未显式指定 site 时，
-  // 解析槽位为空则回退检查另一槽位：仅另一槽位有可用凭证时直接使用，
-  // 避免对单站点用户误报 AUTH_REQUIRED（如国内站 ap-singapore 环境场景）。
-  if (!slotLoginState && !explicitSite && getSite(options?.region) === "ambiguous") {
-    const fallbackSite: SlotId = site === "domestic" ? "intl" : "domestic";
-    const fallbackLoginState = await resolveSiteLoginState(fallbackSite);
-    if (fallbackLoginState) {
-      debug("peekLoginState: ambiguous region, using the only usable site slot", {
-        resolvedSite: site,
-        fallbackSite,
-      });
-      return fallbackLoginState;
-    }
-  }
-
-  if (slotLoginState) {
-    return slotLoginState;
-  }
-
-  // 兼容旧单槽数据（视为 domestic），走 toolbox 读取/续期
-  if (site === LEGACY_SITE) {
-    return auth.getLoginState();
-  }
-  return null;
+  // Site selects endpoints, not which credential is stored. One flat record is shared.
+  await migrateSlottedCredentialToFlat();
+  return resolveFlatLoginState();
 }
 
 export async function ensureLogin(options?: EnsureLoginOptions) {
@@ -670,8 +618,8 @@ export async function ensureLogin(options?: EnsureLoginOptions) {
     }
 
     const mode = resolvedAuthOptions.authMode;
-    // 按显式 site > TCB_SITE > region 映射表解析站点（ap-singapore 歧义默认 intl，兼容既有国际站行为）
-    const resolvedSite: SlotId = resolveSite(
+    // Site selects the login URL only. ap-singapore is ambiguous and defaults to intl.
+    const resolvedSite: SiteId = resolveSite(
       options?.region,
       options?.site ?? process.env.TCB_SITE,
     );
@@ -716,24 +664,11 @@ export async function ensureLogin(options?: EnsureLoginOptions) {
       }
     }
     debug("beforeloginByWebAuth", { loginOptions });
-    // 登录前迁移旧单槽数据为分槽格式，避免 toolbox 内部命中旧凭证而跳过新站点登录
-    const slotsBefore = await ensureSlottedCredential();
     try {
-      const loginResult = await auth.loginByWebAuth(
+      // toolbox writes the new credential as flat auth.json. Leave that shape unchanged.
+      await auth.loginByWebAuth(
         loginOptions as Parameters<typeof auth.loginByWebAuth>[0],
       );
-      // toolbox 将新凭证写入 flat 'credential'，将其并入对应 site 槽位，保留其他槽位
-      const newRaw = await readStoredCredentialRaw();
-      let credentialToSlot: unknown = loginResult;
-      if (isSlottedCredential(newRaw)) {
-        credentialToSlot = newRaw[resolvedSite] ?? newRaw.domestic;
-      } else if (newRaw) {
-        credentialToSlot = newRaw;
-      }
-      if (isUsableCredential(credentialToSlot)) {
-        const merged = { ...slotsBefore, [resolvedSite]: credentialToSlot };
-        await authStore.set("credential", merged);
-      }
       resolveAuthProgressState();
     } catch (error) {
       rejectAuthProgressState(error);
@@ -756,16 +691,13 @@ export async function getLoginState(options?: EnsureLoginOptions) {
   return ensureLogin(options);
 }
 
-export async function logout(options?: { site?: string }) {
-  const site: SlotId = normalizeSite(options?.site) ?? "domestic";
-  const raw = await readStoredCredentialRaw();
-  if (raw && isSlottedCredential(raw)) {
-    const slotted: Record<string, unknown> = { ...raw };
-    delete slotted[site];
-    await authStore.set("credential", slotted);
-  } else if (site === LEGACY_SITE) {
-    const cwd = requireProjectRoot();
-    await auth.logout({ cwd });
+export async function logout(_options?: { site?: string }) {
+  let cwd: string | undefined;
+  try {
+    cwd = requireProjectRoot();
+  } catch {
+    cwd = undefined;
   }
+  await auth.logout(cwd ? { cwd } : undefined);
   resetAuthProgressState();
 }
