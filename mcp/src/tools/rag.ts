@@ -22,10 +22,28 @@ const CloudBaseDocsActionEnum = z.enum([
 ]);
 
 // ============ 缓存配置 ============
-const CACHE_BASE_DIR = path.join(os.homedir(), ".cloudbase-mcp");
-const CACHE_META_FILE = path.join(CACHE_BASE_DIR, "cache-meta.json");
-const LOCK_FILE = path.join(CACHE_BASE_DIR, ".download.lock");
+// Paths are resolved per call so tests (and a changed HOME) do not stick to
+// the directory captured at import time.
+function cacheBaseDir(): string {
+  return path.join(os.homedir(), ".cloudbase-mcp");
+}
+function cacheMetaFile(): string {
+  return path.join(cacheBaseDir(), "cache-meta.json");
+}
+function lockFile(): string {
+  return path.join(cacheBaseDir(), ".download.lock");
+}
+function webTemplateDir(): string {
+  return path.join(cacheBaseDir(), "web-template");
+}
+function openAPIDir(): string {
+  return path.join(cacheBaseDir(), "openapi");
+}
+
 const DEFAULT_CACHE_TTL_MS = 60 * 60 * 1000; // default 1 hour (was 24h; templates/docs refresh more often)
+/** Abort a hung template/openapi fetch. Failure then backs off for 60s. */
+const DEFAULT_RESOURCE_DOWNLOAD_TIMEOUT_MS = 30_000;
+export const RESOURCE_DOWNLOAD_FAILURE_BACKOFF_MS = 60_000;
 
 // Promise wrapper for lockfile methods
 function acquireLock(
@@ -55,21 +73,22 @@ function releaseLock(lockPath: string): Promise<void> {
     });
   });
 }
-// 支持环境变量 CLOUDBASE_MCP_CACHE_TTL_MS 控制缓存过期时间（毫秒）
-const parsedCacheTTL = process.env.CLOUDBASE_MCP_CACHE_TTL_MS
-  ? parseInt(process.env.CLOUDBASE_MCP_CACHE_TTL_MS, 10)
-  : NaN;
-const CACHE_TTL_MS =
-  Number.isNaN(parsedCacheTTL) || parsedCacheTTL < 0
-    ? DEFAULT_CACHE_TTL_MS
-    : parsedCacheTTL;
-
-if (!Number.isNaN(parsedCacheTTL) && parsedCacheTTL >= 0) {
-  debug("[cache] Using TTL from CLOUDBASE_MCP_CACHE_TTL_MS", {
-    ttlMs: CACHE_TTL_MS,
-  });
-} else {
-  debug("[cache] Using default TTL", { ttlMs: CACHE_TTL_MS });
+/**
+ * Cache TTL in milliseconds. `CLOUDBASE_MCP_CACHE_TTL_MS=0` disables the
+ * skill-index memo (every create re-reads) and expires the on-disk meta immediately.
+ * Read on each use so a process can change the env without a restart in tests.
+ */
+export function getCacheTtlMs(
+  envValue: string | undefined = process.env.CLOUDBASE_MCP_CACHE_TTL_MS,
+): number {
+  if (envValue === undefined || envValue === "") {
+    return DEFAULT_CACHE_TTL_MS;
+  }
+  const parsed = parseInt(envValue, 10);
+  if (Number.isNaN(parsed) || parsed < 0) {
+    return DEFAULT_CACHE_TTL_MS;
+  }
+  return parsed;
 }
 
 // 缓存元数据类型
@@ -111,8 +130,54 @@ interface ResolveSkillSearchRootsOptions {
   fallbackSkillsRoot?: string;
 }
 
-// 共享的下载 Promise，防止并发重复下载
+// Process-level state on the hosted path (nothing else is added):
+// - skillIndexMemo: one index result. Cleared by updateCache(), TTL expiry,
+//   or CLOUDBASE_MCP_CACHE_TTL_MS=0 (memo disabled).
+// - resourceDownloadPromise: coalesces an in-flight resource download.
+// resourceDownloadBackoffUntil is the 60s failure backoff for that download,
+// not a content cache. remoteSkillStateCache is unchanged.
 let resourceDownloadPromise: Promise<DownloadResult> | null = null;
+let resourceDownloadBackoffUntil = 0;
+let freshCacheSkipsRemaining = 0;
+let resourceDownloadTimeoutMs = DEFAULT_RESOURCE_DOWNLOAD_TIMEOUT_MS;
+let beforeDirectorySwap: (() => Promise<void> | void) | null = null;
+
+type SkillIndexEntry = { description: string; absolutePath: string };
+type SkillIndexMemo = {
+  rootsKey: string;
+  skills: SkillIndexEntry[];
+  readAt: number;
+};
+let skillIndexMemo: SkillIndexMemo | null = null;
+
+export function __setResourceDownloadTimeoutForTests(ms: number): void {
+  resourceDownloadTimeoutMs = ms;
+}
+
+export function __setBeforeDirectorySwapForTests(
+  hook: (() => Promise<void> | void) | null,
+): void {
+  beforeDirectorySwap = hook;
+}
+
+/** Writes cache-meta and drops the skill-index memo. Tests use this to observe updateCache(). */
+export async function __updateResourceCacheForTests(): Promise<void> {
+  await updateCache();
+}
+
+/** Forces the next N fresh-cache checks to miss so tests can reach the lock recheck. */
+export function __skipFreshCacheChecksForTests(count: number): void {
+  freshCacheSkipsRemaining = count;
+}
+
+export function __resetResourceDownloadStateForTests(): void {
+  resourceDownloadPromise = null;
+  resourceDownloadBackoffUntil = 0;
+  resourceDownloadTimeoutMs = DEFAULT_RESOURCE_DOWNLOAD_TIMEOUT_MS;
+  beforeDirectorySwap = null;
+  skillIndexMemo = null;
+  freshCacheSkipsRemaining = 0;
+}
 
 async function filterExistingDirs(pathsToCheck: Array<string | undefined>): Promise<string[]> {
   const resolved: string[] = [];
@@ -159,23 +224,24 @@ export async function resolveSkillSearchRoots(
 
 // 检查缓存是否可用（未过期）
 async function canUseCache(): Promise<boolean> {
+  const ttlMs = getCacheTtlMs();
   try {
-    const content = await fs.readFile(CACHE_META_FILE, "utf8");
+    const content = await fs.readFile(cacheMetaFile(), "utf8");
     const meta: CacheMeta = JSON.parse(content);
     if (!meta.timestamp) {
       debug("[cache] cache-meta missing timestamp, treating as invalid", {
-        ttlMs: CACHE_TTL_MS,
+        ttlMs,
       });
       return false;
     }
 
     const ageMs = Date.now() - meta.timestamp;
-    const isValid = ageMs <= CACHE_TTL_MS;
+    const isValid = ageMs <= ttlMs;
 
     debug("[cache] evaluated cache meta", {
       timestamp: meta.timestamp,
       ageMs,
-      ttlMs: CACHE_TTL_MS,
+      ttlMs,
       valid: isValid,
     });
 
@@ -186,11 +252,12 @@ async function canUseCache(): Promise<boolean> {
   }
 }
 
-// 更新缓存时间戳
+// 更新缓存时间戳，并让 skill 索引 memo 失效（下一次创建重新读 SKILL.md）
 async function updateCache(): Promise<void> {
-  await fs.mkdir(CACHE_BASE_DIR, { recursive: true });
+  skillIndexMemo = null;
+  await fs.mkdir(cacheBaseDir(), { recursive: true });
   await fs.writeFile(
-    CACHE_META_FILE,
+    cacheMetaFile(),
     JSON.stringify({ timestamp: Date.now() }, null, 2),
     "utf8",
   );
@@ -307,37 +374,90 @@ const OPENAPI_SOURCES: Array<{
     },
   ];
 
+function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, {
+    ...init,
+    signal: AbortSignal.timeout(resourceDownloadTimeoutMs),
+  });
+}
+
+/**
+ * Extract landed in `stagingDir`. Swap it into `targetDir` without deleting
+ * the live tree first, so a concurrent reader never observes an empty directory.
+ * The gap between the two renames is a missing path (ENOENT), not an empty dir.
+ */
+async function replaceDirectory(targetDir: string, stagingDir: string): Promise<void> {
+  const backupDir = `${targetDir}.replacing-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  let movedExisting = false;
+  try {
+    await fs.rename(targetDir, backupDir);
+    movedExisting = true;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  if (beforeDirectorySwap) {
+    await beforeDirectorySwap();
+  }
+
+  try {
+    await fs.rename(stagingDir, targetDir);
+  } catch (error) {
+    if (movedExisting) {
+      try {
+        await fs.rename(backupDir, targetDir);
+      } catch {
+        // The original tree is still at backupDir if restore fails.
+      }
+    }
+    throw error;
+  }
+
+  if (movedExisting) {
+    await fs.rm(backupDir, { recursive: true, force: true });
+  }
+}
+
 async function downloadWebTemplate() {
-  const zipPath = path.join(CACHE_BASE_DIR, "web-cloudbase-project.zip");
-  const extractDir = path.join(CACHE_BASE_DIR, "web-template");
+  const zipPath = path.join(cacheBaseDir(), "web-cloudbase-project.zip");
+  const extractDir = webTemplateDir();
+  const stagingDir = `${extractDir}.staging-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const url =
     "https://static.cloudbase.net/cloudbase-examples/web-cloudbase-project.zip";
 
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url);
   if (!response.ok) {
     throw new Error(t("rag.downloadTemplateFailed", { status: response.status }));
   }
   const buffer = Buffer.from(await response.arrayBuffer());
+  await fs.mkdir(cacheBaseDir(), { recursive: true });
   await fs.writeFile(zipPath, buffer);
 
-  await fs.rm(extractDir, { recursive: true, force: true });
-  await fs.mkdir(extractDir, { recursive: true });
-
-  const zip = new AdmZip(zipPath);
-  zip.extractAllTo(extractDir, true);
+  try {
+    await fs.mkdir(stagingDir, { recursive: true });
+    const zip = new AdmZip(zipPath);
+    zip.extractAllTo(stagingDir, true);
+    await replaceDirectory(extractDir, stagingDir);
+  } catch (error) {
+    await fs.rm(stagingDir, { recursive: true, force: true });
+    throw error;
+  }
 
   debug("[downloadResources] webTemplate 下载完成");
   return extractDir;
 }
 
 async function downloadOpenAPI() {
-  const baseDir = path.join(CACHE_BASE_DIR, "openapi");
+  const baseDir = openAPIDir();
   await fs.mkdir(baseDir, { recursive: true });
 
   const downloaded = await Promise.all(
     OPENAPI_SOURCES.map(async (source): Promise<OpenAPIInfo | undefined> => {
       try {
-        const response = await fetch(source.url);
+        const response = await fetchWithTimeout(source.url);
         if (!response.ok) {
           warn(`[downloadOpenAPI] Failed to download ${source.name}`, {
             status: response.status,
@@ -380,118 +500,165 @@ async function downloadOpenAPI() {
 // 实际执行下载所有资源的函数（webTemplate 和 openAPI 并发下载）
 async function _doDownloadResources(skipOpenAPI: boolean): Promise<DownloadResult> {
   // 并发下载 webTemplate 和 openAPIDocs
-  const [webTemplateDir, openAPIDocs] = await Promise.all([
-    // 下载 web 模板
+  const [templateDir, openAPIDocs] = await Promise.all([
     downloadWebTemplate(),
-
-    // 并发下载所有 OpenAPI 文档（云端模式跳过：openapi 直接返回远程 URL）
+    // 云端模式跳过：openapi 直接返回远程 URL，并且从不创建 openapi 目录
     skipOpenAPI ? Promise.resolve([] as OpenAPIInfo[]) : downloadOpenAPI(),
   ]);
 
   debug("[downloadResources] 所有资源下载完成");
-  return { webTemplateDir, openAPIDocs };
+  return { webTemplateDir: templateDir, openAPIDocs };
 }
 
-// 下载所有资源（带缓存和共享 Promise 机制）
+function cachedOpenAPIDocs(files: string[]): OpenAPIInfo[] {
+  const dir = openAPIDir();
+  return OPENAPI_SOURCES.map((source) => ({
+    name: source.name,
+    description: source.description,
+    absolutePath: path.join(dir, `${source.name}.openapi.yaml`),
+  })).filter((item) => files.includes(`${item.name}.openapi.yaml`));
+}
+
+/**
+ * Fresh cache hit. Cloud mode does not require the openapi directory: that
+ * mode never writes it, so requiring it forced a re-download on every lock recheck.
+ */
+async function readFreshCache(skipOpenAPI: boolean): Promise<DownloadResult | null> {
+  if (freshCacheSkipsRemaining > 0) {
+    freshCacheSkipsRemaining -= 1;
+    return null;
+  }
+  if (!(await canUseCache())) {
+    return null;
+  }
+  const templateDir = webTemplateDir();
+  try {
+    await fs.access(templateDir);
+  } catch {
+    return null;
+  }
+  if (skipOpenAPI) {
+    debug("[downloadResources] 使用 webTemplate 缓存（跳过 openapi）");
+    return { webTemplateDir: templateDir, openAPIDocs: [] };
+  }
+  try {
+    const dir = openAPIDir();
+    await fs.access(dir);
+    const files = await fs.readdir(dir);
+    if (files.length === 0) {
+      return null;
+    }
+    debug("[downloadResources] 使用缓存");
+    return { webTemplateDir: templateDir, openAPIDocs: cachedOpenAPIDocs(files) };
+  } catch {
+    return null;
+  }
+}
+
+/** Ignore TTL. Used after a failed/timed-out download so an existing tree can still serve. */
+async function readExistingTemplate(skipOpenAPI: boolean): Promise<DownloadResult | null> {
+  const templateDir = webTemplateDir();
+  try {
+    await fs.access(templateDir);
+  } catch {
+    return null;
+  }
+  if (skipOpenAPI) {
+    return { webTemplateDir: templateDir, openAPIDocs: [] };
+  }
+  try {
+    const dir = openAPIDir();
+    const files = await fs.readdir(dir);
+    if (files.length === 0) {
+      return { webTemplateDir: templateDir, openAPIDocs: [] };
+    }
+    return { webTemplateDir: templateDir, openAPIDocs: cachedOpenAPIDocs(files) };
+  } catch {
+    return { webTemplateDir: templateDir, openAPIDocs: [] };
+  }
+}
+
+function withinDownloadBackoff(): boolean {
+  return Date.now() < resourceDownloadBackoffUntil;
+}
+
+function noteDownloadFailure(): void {
+  resourceDownloadBackoffUntil = Date.now() + RESOURCE_DOWNLOAD_FAILURE_BACKOFF_MS;
+}
+
+// 下载所有资源（带缓存、失败退避和共享 Promise 机制）
 async function downloadResources(
   options: { skipOpenAPI?: boolean } = {},
 ): Promise<DownloadResult> {
   const skipOpenAPI = options.skipOpenAPI === true;
-  const webTemplateDir = path.join(CACHE_BASE_DIR, "web-template");
-  const openAPIDir = path.join(CACHE_BASE_DIR, "openapi");
 
-  // 如果已有下载任务在进行中，共享该 Promise
+  // 如果已有下载任务在进行中，共享该 Promise（含云模式持锁重查期间）
   if (resourceDownloadPromise) {
     debug("[downloadResources] 共享已有下载任务");
     return resourceDownloadPromise;
   }
 
-  // 先快速检查缓存（不需要锁，因为只是读取）
-  if (await canUseCache()) {
-    try {
-      // 检查 webTemplate 目录存在（云端模式不需要 openapi 本地文件）
-      await fs.access(webTemplateDir);
-      if (skipOpenAPI) {
-        debug("[downloadResources] 使用 webTemplate 缓存（快速路径，跳过 openapi）");
-        return { webTemplateDir, openAPIDocs: [] };
-      }
-      // 检查两个目录都存在
-      await fs.access(openAPIDir);
-      const files = await fs.readdir(openAPIDir);
-      if (files.length > 0) {
-        debug("[downloadResources] 使用缓存（快速路径）");
-        return {
-          webTemplateDir,
-          openAPIDocs: OPENAPI_SOURCES.map((source) => ({
-            name: source.name,
-            description: source.description,
-            absolutePath: path.join(
-              openAPIDir,
-              `${source.name}.openapi.yaml`,
-            ),
-          })).filter((item) =>
-            files.includes(`${item.name}.openapi.yaml`),
-          ),
-        };
-      }
-    } catch {
-      // 缓存无效，需要重新下载
-    }
+  const fresh = await readFreshCache(skipOpenAPI);
+  if (fresh) {
+    return fresh;
   }
 
-  // 创建新的下载任务，使用文件锁保护
+  if (withinDownloadBackoff()) {
+    const existing = await readExistingTemplate(skipOpenAPI);
+    if (existing) {
+      debug("[downloadResources] 下载退避中，继续使用已有目录");
+      return existing;
+    }
+    throw new Error(t("rag.downloadTemplateFailed", { status: 0 }));
+  }
+
   debug("[downloadResources] 开始新下载任务");
-  await fs.mkdir(CACHE_BASE_DIR, { recursive: true });
+  await fs.mkdir(cacheBaseDir(), { recursive: true });
 
   resourceDownloadPromise = (async () => {
-    // 尝试获取文件锁，最多等待 6 秒（30 次 × 200ms），每 200ms 轮询一次
     let lockAcquired = false;
     try {
-      await acquireLock(LOCK_FILE, {
-        wait: 30 * 200, // 总等待时间：6000ms (6 秒)
-        pollPeriod: 200, // 轮询间隔：200ms
-        stale: 5 * 60 * 1000, // 5 分钟，如果锁文件超过这个时间认为是过期的
+      await acquireLock(lockFile(), {
+        wait: 30 * 200,
+        pollPeriod: 200,
+        stale: 5 * 60 * 1000,
       });
       lockAcquired = true;
       debug("[downloadResources] 文件锁已获取");
 
-      // 在持有锁的情况下再次检查缓存（可能其他进程已经下载完成）
-      if (await canUseCache()) {
-        try {
-          // 检查两个目录都存在
-          await Promise.all([fs.access(webTemplateDir), fs.access(openAPIDir)]);
-          const files = await fs.readdir(openAPIDir);
-          if (files.length > 0) {
-            debug("[downloadResources] 使用缓存（在锁保护下检查）");
-            return {
-              webTemplateDir,
-              openAPIDocs: OPENAPI_SOURCES.map((source) => ({
-                name: source.name,
-                description: source.description,
-                absolutePath: path.join(
-                  openAPIDir,
-                  `${source.name}.openapi.yaml`,
-                ),
-              })).filter((item) =>
-                files.includes(`${item.name}.openapi.yaml`),
-              ),
-            };
-          }
-        } catch {
-          // 缓存无效，需要重新下载
+      // 持锁重查：云模式不要求 openapi 目录存在，避免 skipOpenAPI 时必然重下。
+      const cached = await readFreshCache(skipOpenAPI);
+      if (cached) {
+        debug("[downloadResources] 使用缓存（在锁保护下检查）");
+        return cached;
+      }
+
+      if (withinDownloadBackoff()) {
+        const existing = await readExistingTemplate(skipOpenAPI);
+        if (existing) {
+          return existing;
         }
       }
 
-      // 执行下载
-      const result = await _doDownloadResources(skipOpenAPI);
-      await updateCache();
-      debug("[downloadResources] 缓存已更新");
-      return result;
+      try {
+        const result = await _doDownloadResources(skipOpenAPI);
+        resourceDownloadBackoffUntil = 0;
+        await updateCache();
+        debug("[downloadResources] 缓存已更新");
+        return result;
+      } catch (error) {
+        noteDownloadFailure();
+        const existing = await readExistingTemplate(skipOpenAPI);
+        if (existing) {
+          warn("[downloadResources] 下载失败，继续使用已有目录", { error });
+          return existing;
+        }
+        throw error;
+      }
     } finally {
-      // 释放文件锁
       if (lockAcquired) {
         try {
-          await releaseLock(LOCK_FILE);
+          await releaseLock(lockFile());
           debug("[downloadResources] 文件锁已释放");
         } catch (error) {
           warn("[downloadResources] 释放文件锁失败", { error });
@@ -657,10 +824,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
     const skillRoots = await resolveSkillSearchRoots({
       fallbackSkillsRoot,
     });
-    const preferredSkillRoot = skillRoots[0];
-    if (preferredSkillRoot) {
-      skills = await collectSkillDescriptions(preferredSkillRoot);
-    }
+    skills = await loadSkillIndex(skillRoots);
   } catch (error) {
     warn("[registerRagTools] Failed to resolve local skill roots", {
       error,
@@ -1002,7 +1166,7 @@ function extractDescriptionFromFrontMatter(content: string): string | null {
   return match ? match[1].trim() : null;
 }
 
-type SkillInfo = { description: string; absolutePath: string };
+type SkillInfo = SkillIndexEntry;
 
 async function collectSkillDescriptions(rootDir: string): Promise<SkillInfo[]> {
   const result: SkillInfo[] = [];
@@ -1021,6 +1185,67 @@ async function collectSkillDescriptions(rootDir: string): Promise<SkillInfo[]> {
   }
   await walk(rootDir);
   return result;
+}
+
+/**
+ * One process-wide skill index. A hit does not re-read SKILL.md.
+ * `CLOUDBASE_MCP_CACHE_TTL_MS=0` disables the memo. A walk that fails or
+ * comes back empty while a previous index exists keeps that index, so a
+ * directory swap in progress does not surface an empty skill list.
+ */
+export async function loadSkillIndex(roots: string[]): Promise<SkillInfo[]> {
+  const rootsKey = roots.join("\0");
+  const ttl = getCacheTtlMs();
+  if (
+    ttl !== 0 &&
+    skillIndexMemo &&
+    skillIndexMemo.rootsKey === rootsKey &&
+    Date.now() - skillIndexMemo.readAt <= ttl
+  ) {
+    return skillIndexMemo.skills;
+  }
+
+  const preferred = roots[0];
+  let skills: SkillInfo[] = [];
+  if (preferred) {
+    try {
+      skills = await collectSkillDescriptions(preferred);
+    } catch (error) {
+      if (skillIndexMemo && skillIndexMemo.rootsKey === rootsKey && skillIndexMemo.skills.length > 0) {
+        return skillIndexMemo.skills;
+      }
+      throw error;
+    }
+  }
+
+  if (
+    skills.length === 0 &&
+    ttl !== 0 &&
+    skillIndexMemo &&
+    skillIndexMemo.rootsKey === rootsKey &&
+    skillIndexMemo.skills.length > 0
+  ) {
+    return skillIndexMemo.skills;
+  }
+
+  if (ttl !== 0) {
+    skillIndexMemo = { rootsKey, skills, readAt: Date.now() };
+  } else {
+    skillIndexMemo = null;
+  }
+  return skills;
+}
+
+/**
+ * Startup warmup for a hosted process: finish the resource download and build
+ * the skill index before the first request pays for it.
+ */
+export async function warmupHostedResources(): Promise<void> {
+  const { webTemplateDir: templateDir } = await downloadResources({ skipOpenAPI: true });
+  const roots = await resolveSkillSearchRoots({
+    fallbackSkillsRoot: path.join(templateDir, ".claude", "skills"),
+  });
+  await loadSkillIndex(roots);
 }
 
 // ============ 远端 skill 地址 ============
