@@ -10,6 +10,8 @@ const {
   mockAuthStore,
   authStoreData,
   cliConfigDir,
+  mockCheckAndGetCredential,
+  projectAuthDir,
 } = vi.hoisted(() => {
   const { tmpdir } = require("node:os") as typeof import("node:os");
   const { join: joinPath } = require("node:path") as typeof import("node:path");
@@ -20,6 +22,9 @@ const {
     mockAuthLogout: vi.fn(),
     authStoreData: {} as Record<string, any>,
     cliConfigDir: joinPath(tmpdir(), `cb-mcp-auth-flat-${process.pid}`),
+    mockCheckAndGetCredential: vi.fn(),
+    // 项目级凭据目录：默认不存在 ⇒ 探测一律落空、回落到全局登录态
+    projectAuthDir: joinPath(tmpdir(), `cb-mcp-auth-project-${process.pid}`),
     mockAuthStore: {
       get: vi.fn(async (key: string) => authStoreData[key]),
       set: vi.fn(async (key: string, value: any) => {
@@ -45,6 +50,8 @@ vi.mock("@cloudbase/toolbox", () => ({
   cloudbaseConfigDir: cliConfigDir,
   resolveCredential: (data: any) => data,
   refreshTmpToken: vi.fn(),
+  checkAndGetCredential: mockCheckAndGetCredential,
+  getProjectDir: vi.fn(() => projectAuthDir),
 }));
 
 vi.mock("./utils/logger.js", () => ({
@@ -101,8 +108,10 @@ beforeEach(() => {
   Object.keys(authStoreData).forEach((key) => delete authStoreData[key]);
   mkdirSync(cliConfigDir, { recursive: true });
   rmSync(join(cliConfigDir, "config.json"), { force: true });
+  rmSync(projectAuthDir, { recursive: true, force: true });
   vi.clearAllMocks();
   mockAuthGetLoginState.mockResolvedValue(null);
+  mockCheckAndGetCredential.mockResolvedValue(null);
   mockAuthLoginByWebAuth.mockResolvedValue({
     secretId: "sid",
     secretKey: "skey",
@@ -828,5 +837,149 @@ describe("flat credential storage", () => {
     const getAuthUrl = mockAuthLoginByWebAuth.mock.calls.at(-1)![0].getAuthUrl;
     const url = getAuthUrl("https://tcb.cloud.tencent.com/oauth/authorize?client_id=x");
     expect(url).toContain("https://tcb.cloud.tencent.com/login?_redirect_uri=");
+  });
+});
+
+describe("project-level credential priority", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    delete process.env.CLOUDBASE_API_KEY;
+    delete process.env.CLOUDBASE_APIKEY;
+    delete process.env.CLOUDBASE_ENV_ID;
+    mockAuthGetLoginState.mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    delete process.env.CLOUDBASE_API_KEY;
+    delete process.env.CLOUDBASE_APIKEY;
+    delete process.env.CLOUDBASE_ENV_ID;
+  });
+
+  function writeProjectCredential(credential: Record<string, unknown>) {
+    mkdirSync(projectAuthDir, { recursive: true });
+    writeFileSync(join(projectAuthDir, "auth.json"), JSON.stringify({ credential }));
+  }
+
+  it("should prefer the project credential over the global login state", async () => {
+    writeProjectCredential({
+      secretId: "proj-sid",
+      secretKey: "proj-skey",
+      token: "proj-token",
+      envId: "env-project",
+      authSource: "api_key",
+      apiKey: "proj-key",
+    });
+    mockCheckAndGetCredential.mockResolvedValue({
+      secretId: "proj-sid",
+      secretKey: "proj-skey",
+      token: "proj-token",
+      envId: "env-project",
+      authSource: "api_key",
+      apiKey: "proj-key",
+    });
+    // 全局登录态指向另一个环境：项目级必须压过它
+    authStoreData.credential = {
+      secretId: "global-sid",
+      secretKey: "global-skey",
+      envId: "env-global",
+    };
+
+    const { peekLoginState, getCredentialSource } = await import("./auth.js");
+    const loginState = await peekLoginState();
+
+    expect(loginState?.envId).toBe("env-project");
+    expect(getCredentialSource()).toBe("project");
+    // 回填进进程 env，下游 credential_scope / auth_mode 才会跟着变成环境级
+    expect(process.env.CLOUDBASE_API_KEY).toBe("proj-key");
+    expect(process.env.CLOUDBASE_ENV_ID).toBe("env-project");
+  });
+
+  it("should keep reporting project after the env backfill is re-read", async () => {
+    writeProjectCredential({
+      secretId: "proj-sid",
+      secretKey: "proj-skey",
+      envId: "env-project",
+      authSource: "api_key",
+      apiKey: "proj-key",
+    });
+    mockCheckAndGetCredential.mockResolvedValue({
+      secretId: "proj-sid",
+      secretKey: "proj-skey",
+      envId: "env-project",
+      authSource: "api_key",
+      apiKey: "proj-key",
+    });
+    mockAuthLoginByApiKey.mockResolvedValue({
+      secretId: "proj-sid",
+      secretKey: "proj-skey",
+      envId: "env-project",
+    });
+
+    const { peekLoginState, getCredentialSource } = await import("./auth.js");
+    await peekLoginState();
+    // 第二次调用会走 env 分支（env 已被回填），来源不能说成 env
+    await peekLoginState();
+
+    expect(getCredentialSource()).toBe("project");
+  });
+
+  it("should fall back to the global credential when no project file exists", async () => {
+    authStoreData.credential = {
+      secretId: "global-sid",
+      secretKey: "global-skey",
+      envId: "env-global",
+    };
+
+    const { peekLoginState, getCredentialSource } = await import("./auth.js");
+    const loginState = await peekLoginState();
+
+    expect(loginState?.envId).toBe("env-global");
+    expect(getCredentialSource()).toBe("global");
+    expect(mockCheckAndGetCredential).not.toHaveBeenCalled();
+  });
+
+  it("should fall back to the global credential when the project credential is unusable", async () => {
+    writeProjectCredential({
+      secretId: "proj-sid",
+      secretKey: "proj-skey",
+      envId: "env-project",
+      authSource: "api_key",
+      apiKey: "proj-key",
+    });
+    // 换取失败：toolbox 返回 null
+    mockCheckAndGetCredential.mockResolvedValue(null);
+    authStoreData.credential = {
+      secretId: "global-sid",
+      secretKey: "global-skey",
+      envId: "env-global",
+    };
+
+    const { peekLoginState, getCredentialSource } = await import("./auth.js");
+    const loginState = await peekLoginState();
+
+    expect(loginState?.envId).toBe("env-global");
+    expect(getCredentialSource()).toBe("global");
+    expect(process.env.CLOUDBASE_API_KEY).toBeUndefined();
+  });
+
+  it("should ignore a project file without authSource (web/device credential)", async () => {
+    writeProjectCredential({
+      secretId: "proj-sid",
+      secretKey: "proj-skey",
+      envId: "env-project",
+      refreshToken: "rt",
+    });
+    authStoreData.credential = {
+      secretId: "global-sid",
+      secretKey: "global-skey",
+      envId: "env-global",
+    };
+
+    const { peekLoginState, getCredentialSource } = await import("./auth.js");
+    const loginState = await peekLoginState();
+
+    expect(loginState?.envId).toBe("env-global");
+    expect(getCredentialSource()).toBe("global");
+    expect(mockCheckAndGetCredential).not.toHaveBeenCalled();
   });
 });
