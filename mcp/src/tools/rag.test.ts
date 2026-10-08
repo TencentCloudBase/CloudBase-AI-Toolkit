@@ -29,13 +29,22 @@ vi.mock("../cloudbase-manager.js", () => ({
 
 import {
   SKILL_REMOTE_BASE_URL,
+  RESOURCE_DOWNLOAD_FAILURE_BACKOFF_MS,
+  __resetResourceDownloadStateForTests,
+  __skipFreshCacheChecksForTests,
+  __updateResourceCacheForTests,
+  __setBeforeDirectorySwapForTests,
+  __setResourceDownloadTimeoutForTests,
   buildSkillRawUrl,
   collectSkillMarkdownFiles,
+  getCacheTtlMs,
   isDocsHtmlFallback,
+  loadSkillIndex,
   registerRagTools,
   resolveDocsMarkdownPath,
   resolveSkillSearchRoots,
   rewriteRelativeLinks,
+  warmupHostedResources,
 } from "./rag.js";
 
 function createMockServer() {
@@ -697,5 +706,214 @@ describe("CloudBase docs markdown addressing", () => {
     ["空字符串", "", false],
   ])("isDocsHtmlFallback: %s", (_label, content, expected) => {
     expect(isDocsHtmlFallback(content)).toBe(expected);
+  });
+});
+
+describe("hosted resource download and skill index", () => {
+  let home = "";
+  const originalTtl = process.env.CLOUDBASE_MCP_CACHE_TTL_MS;
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(async () => {
+    home = await fs.mkdtemp(path.join(os.tmpdir(), "rag-hosted-"));
+    skillTestState.home = home;
+    __resetResourceDownloadStateForTests();
+    delete process.env.CLOUDBASE_MCP_CACHE_TTL_MS;
+  });
+
+  afterEach(() => {
+    skillTestState.home = "";
+    __resetResourceDownloadStateForTests();
+    __setBeforeDirectorySwapForTests(null);
+    globalThis.fetch = originalFetch;
+    if (originalTtl === undefined) {
+      delete process.env.CLOUDBASE_MCP_CACHE_TTL_MS;
+    } else {
+      process.env.CLOUDBASE_MCP_CACHE_TTL_MS = originalTtl;
+    }
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  async function writeSkill(root: string): Promise<string> {
+    const skillFile = path.join(root, "demo", "SKILL.md");
+    await fs.mkdir(path.dirname(skillFile), { recursive: true });
+    await fs.writeFile(
+      skillFile,
+      "---\ndescription: demo skill for the index\n---\n# Demo\n",
+      "utf8",
+    );
+    return skillFile;
+  }
+
+  async function rewriteDescription(skillFile: string, description: string): Promise<void> {
+    await fs.writeFile(
+      skillFile,
+      `---\ndescription: ${description}\n---\n# Demo\n`,
+      "utf8",
+    );
+  }
+
+  it("does not re-read SKILL.md while the memo is fresh", async () => {
+    const root = path.join(home, "skills");
+    const skillFile = await writeSkill(root);
+
+    const first = await loadSkillIndex([root]);
+    expect(first).toEqual([
+      { description: "demo skill for the index", absolutePath: skillFile },
+    ]);
+
+    await rewriteDescription(skillFile, "changed skill");
+    expect(await loadSkillIndex([root])).toEqual(first);
+  });
+
+  it("rebuilds the skill index after TTL expiry", async () => {
+    process.env.CLOUDBASE_MCP_CACHE_TTL_MS = "20";
+    const root = path.join(home, "skills");
+    const skillFile = await writeSkill(root);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-08T00:00:00Z"));
+
+    await loadSkillIndex([root]);
+    await rewriteDescription(skillFile, "changed skill");
+    vi.advanceTimersByTime(21);
+    expect(await loadSkillIndex([root])).toEqual([
+      { description: "changed skill", absolutePath: skillFile },
+    ]);
+  });
+
+  it("disables the skill index memo when the cache TTL is 0", async () => {
+    process.env.CLOUDBASE_MCP_CACHE_TTL_MS = "0";
+    expect(getCacheTtlMs()).toBe(0);
+    const root = path.join(home, "skills");
+    const skillFile = await writeSkill(root);
+
+    await loadSkillIndex([root]);
+    await rewriteDescription(skillFile, "changed skill");
+    expect(await loadSkillIndex([root])).toEqual([
+      { description: "changed skill", absolutePath: skillFile },
+    ]);
+  });
+
+  it("invalidates the skill index when the resource cache is updated", async () => {
+    const root = path.join(home, "skills");
+    const skillFile = await writeSkill(root);
+    await loadSkillIndex([root]);
+    await rewriteDescription(skillFile, "changed skill");
+
+    await __updateResourceCacheForTests();
+    expect(await loadSkillIndex([root])).toEqual([
+      { description: "changed skill", absolutePath: skillFile },
+    ]);
+  });
+
+  it("uses an existing template directory when the download times out, then backs off for 60s", async () => {
+    const template = path.join(home, ".cloudbase-mcp", "web-template");
+    await fs.mkdir(template, { recursive: true });
+    await fs.writeFile(path.join(template, "marker.txt"), "keep", "utf8");
+    __setResourceDownloadTimeoutForTests(30);
+
+    let fetches = 0;
+    globalThis.fetch = vi.fn((_url: string, init?: RequestInit) => {
+      fetches += 1;
+      return new Promise((_resolve, reject) => {
+        const abort = () => reject(Object.assign(new Error("The operation was aborted"), { name: "TimeoutError" }));
+        if (init?.signal?.aborted) {
+          abort();
+          return;
+        }
+        init?.signal?.addEventListener("abort", abort, { once: true });
+      });
+    }) as unknown as typeof fetch;
+
+    await warmupHostedResources();
+    expect(fetches).toBe(1);
+    await fs.access(path.join(template, "marker.txt"));
+
+    await warmupHostedResources();
+    expect(fetches).toBe(1);
+
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockImplementation(() => now + RESOURCE_DOWNLOAD_FAILURE_BACKOFF_MS + 5);
+    await warmupHostedResources();
+    expect(fetches).toBe(2);
+    await fs.access(path.join(template, "marker.txt"));
+  });
+
+  it("does not fetch again during the 60s backoff when nothing is cached", async () => {
+    __setResourceDownloadTimeoutForTests(20);
+    let fetches = 0;
+    globalThis.fetch = vi.fn((_url: string, init?: RequestInit) => {
+      fetches += 1;
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(Object.assign(new Error("aborted"), { name: "TimeoutError" }));
+        }, { once: true });
+      });
+    }) as unknown as typeof fetch;
+
+    await expect(warmupHostedResources()).rejects.toThrow();
+    await expect(warmupHostedResources()).rejects.toThrow();
+    expect(fetches).toBe(1);
+  });
+
+  it("cloud-mode lock recheck reuses the template download without an openapi directory", async () => {
+    const base = path.join(home, ".cloudbase-mcp");
+    await fs.mkdir(path.join(base, "web-template"), { recursive: true });
+    await fs.writeFile(
+      path.join(base, "cache-meta.json"),
+      JSON.stringify({ timestamp: Date.now() }),
+      "utf8",
+    );
+    let fetches = 0;
+    globalThis.fetch = vi.fn(async () => {
+      fetches += 1;
+      throw new Error("should not fetch");
+    }) as unknown as typeof fetch;
+
+    __skipFreshCacheChecksForTests(1);
+
+    let release: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let secondFetchesAtJoin = -1;
+    const pending = warmupHostedResources().finally(() => release?.());
+    const joined = (async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      secondFetchesAtJoin = fetches;
+      return warmupHostedResources();
+    })();
+    await Promise.all([pending, joined, started]);
+    expect(fetches).toBe(0);
+    expect(secondFetchesAtJoin).toBe(0);
+  });
+
+  it("does not expose an empty skill list while the template directory is being replaced", async () => {
+    const skillRoot = path.join(home, ".cloudbase-mcp", "web-template", ".claude", "skills");
+    await writeSkill(skillRoot);
+    const indexed = await loadSkillIndex([skillRoot]);
+    expect(indexed.length).toBeGreaterThan(0);
+
+    let seen = 0;
+    __setBeforeDirectorySwapForTests(async () => {
+      const during = await loadSkillIndex([skillRoot]);
+      seen = during.length;
+    });
+
+    const { default: AdmZip } = await import("adm-zip");
+    const zip = new AdmZip();
+    zip.addFile("marker.txt", Buffer.from("next"));
+    const bytes = zip.toBuffer();
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () =>
+        bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+      text: async () => "",
+    })) as unknown as typeof fetch;
+
+    await warmupHostedResources();
+    expect(seen).toBeGreaterThan(0);
   });
 });

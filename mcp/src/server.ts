@@ -208,6 +208,11 @@ export interface ExtendedMcpServer extends McpServer {
   ide?: string;
   /** MCP client 来源标识（hosted 场景由上游解析注入，如 cursor / claude-code） */
   client?: string;
+  /**
+   * Metadata-only client identity used when this request has no handshake.
+   * `{ name, version }` only. Not a protocol object.
+   */
+  clientInfo?: { name: string; version?: string };
   logger?: Logger;
   enabledPlugins?: string[];
   pluginOptions?: PluginOptions;
@@ -264,6 +269,11 @@ export async function createCloudBaseMcpServer(options?: {
   cloudMode?: boolean;
   ide?: string;
   client?: string;
+  /**
+   * Client name/version to report when the MCP handshake clientInfo is empty.
+   * Metadata only. Hosted requests pass the value remembered for this credential.
+   */
+  clientInfo?: { name: string; version?: string };
   logger?: Logger;
   pluginsEnabled?: string[];
   pluginsDisabled?: string[];
@@ -284,6 +294,7 @@ export async function createCloudBaseMcpServer(options?: {
     cloudMode = false,
     ide,
     client,
+    clientInfo,
     logger,
     pluginsEnabled,
     pluginsDisabled,
@@ -388,6 +399,14 @@ export async function createCloudBaseMcpServer(options?: {
   const normalizedClient = normalizeClientName(client);
   if (normalizedClient) {
     server.client = normalizedClient;
+  }
+
+  const hintedName = typeof clientInfo?.name === "string" ? clientInfo.name.trim() : "";
+  if (hintedName) {
+    const hintedVersion = typeof clientInfo?.version === "string" ? clientInfo.version.trim() : "";
+    server.clientInfo = hintedVersion
+      ? { name: hintedName, version: hintedVersion }
+      : { name: hintedName };
   }
 
   // Store logger in server instance for tools to access

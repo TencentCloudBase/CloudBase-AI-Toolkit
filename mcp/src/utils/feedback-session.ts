@@ -37,15 +37,27 @@ type CredentialSource = {
   };
 };
 
-function credentialKey(server: object): string | undefined {
-  const options = (server as CredentialSource).cloudBaseOptions;
-  const secretId = typeof options?.secretId === "string" ? options.secretId.trim() : "";
+export function hashCredentialParts(parts: {
+  secretId?: string;
+  token?: string;
+  site?: string;
+}): string | undefined {
+  const secretId = typeof parts.secretId === "string" ? parts.secretId.trim() : "";
   if (!secretId) {
     return undefined;
   }
-  const token = typeof options?.token === "string" ? options.token.trim() : "";
-  const site = typeof options?.site === "string" ? options.site.trim() : "";
+  const token = typeof parts.token === "string" ? parts.token.trim() : "";
+  const site = typeof parts.site === "string" ? parts.site.trim() : "";
   return createHash("sha256").update(`${site}\n${secretId}\n${token}`).digest("hex");
+}
+
+export function credentialKey(server: object): string | undefined {
+  const options = (server as CredentialSource).cloudBaseOptions;
+  return hashCredentialParts({
+    secretId: options?.secretId,
+    token: options?.token,
+    site: options?.site,
+  });
 }
 
 function emptyBucket(): SessionBucket {

@@ -55,6 +55,19 @@ export {
 export { simplifyEnvList } from "./tools/env.js";
 
 export { RAW_IDE_FILE_MAPPINGS } from "./tools/setup.js";
+export { warmupHostedResources } from "./tools/rag.js";
+export {
+  handleHostedMcpRequest,
+  HOSTED_CLIENT_INFO_CACHE_CAPACITY,
+  HOSTED_CLIENT_INFO_CACHE_TTL_MS,
+} from "./hosted/index.js";
+export type {
+  CloudBaseServerOptions,
+  HostedCloudBaseOptions,
+  HostedMcpLogEvent,
+  HostedMcpRequestInput,
+  HostedClientInfoRecord,
+} from "./hosted/index.js";
 export type { InteractiveResult } from "./interactive-server.js";
 
 // Export runtime constants for multi-language support
