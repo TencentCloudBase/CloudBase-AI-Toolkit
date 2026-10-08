@@ -184,9 +184,9 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             // session log. The telemetry flag below stays on the existing path.
             businessFailed = isBusinessFailureToolResult(result);
             success = true;
-            repeatCountSeen = getRepeatGuardSnapshot().consecutiveCount;
-            // 任一工具成功说明重复错误循环已被打破，清零连续错误计数
-            resetRepeatGuard();
+            repeatCountSeen = getRepeatGuardSnapshot(server).consecutiveCount;
+            // 同一凭证的工具成功说明重复错误循环已被打破，只清零该凭证的计数
+            resetRepeatGuard(server);
             requestId = extractRequestIdFromToolResult(result);
             const duration = Date.now() - startTime;
             debug(`工具执行成功: ${name}`, { duration, requestId: requestId || undefined });
@@ -221,11 +221,11 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             if (isToolPayloadError(error)) {
                 // 连续相同结构化错误达到阈值时注入 repeat_guard 升级提示，
                 // 打断无头客户端的原样重试循环（不改写 message，保持遥测聚合稳定）
-                const payload = applyRepeatGuardToPayload(error.payload);
-                repeatCountSeen = getRepeatGuardSnapshot().consecutiveCount;
+                const payload = applyRepeatGuardToPayload(error.payload, server);
+                repeatCountSeen = getRepeatGuardSnapshot(server).consecutiveCount;
                 throw new ToolPayloadError(payload);
             }
-            repeatCountSeen = getRepeatGuardSnapshot().consecutiveCount;
+            repeatCountSeen = getRepeatGuardSnapshot(server).consecutiveCount;
 
             // In tests, avoid any extra work that may block (envId lookup, issue link generation, etc.)
             if (isTestEnvironment) {

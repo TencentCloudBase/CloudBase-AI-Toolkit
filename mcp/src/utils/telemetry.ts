@@ -305,16 +305,23 @@ export function extractMcpClientInfo(clientVersion: unknown): McpClientInfo {
 
 /**
  * Read MCP clientInfo from an McpServer after initialize.
- * Returns empty object when handshake has not completed or the accessor is unavailable.
+ * When the handshake client info is empty, use the optional clientInfo passed
+ * into createCloudBaseMcpServer (hosted metadata for a later tools/call).
+ * Returns empty object when neither source has a name or version.
  */
 export function readMcpClientInfoFromServer(server: {
     server?: { getClientVersion?: () => unknown };
+    clientInfo?: { name?: string; version?: string };
 }): McpClientInfo {
     try {
-        return extractMcpClientInfo(server?.server?.getClientVersion?.());
+        const fromHandshake = extractMcpClientInfo(server?.server?.getClientVersion?.());
+        if (fromHandshake.name || fromHandshake.version || fromHandshake.title) {
+            return fromHandshake;
+        }
     } catch {
-        return {};
+        // Handshake accessor threw; fall through to the explicit hint.
     }
+    return extractMcpClientInfo(server?.clientInfo);
 }
 
 /**

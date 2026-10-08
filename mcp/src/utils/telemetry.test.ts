@@ -323,4 +323,31 @@ describe("MCP clientInfo helpers", () => {
       }),
     ).toEqual({});
   });
+
+  it("uses clientInfo when the handshake client info is empty", () => {
+    expect(
+      readMcpClientInfoFromServer({
+        server: { getClientVersion: () => ({}) },
+        clientInfo: { name: "cursor-vscode", version: "1.2.3" },
+      }),
+    ).toEqual({ name: "cursor-vscode", version: "1.2.3" });
+  });
+
+  it("prefers handshake client info over a passed clientInfo", () => {
+    expect(
+      readMcpClientInfoFromServer({
+        server: { getClientVersion: () => ({ name: "claude-code", version: "2.0.0" }) },
+        clientInfo: { name: "other", version: "0.0.1" },
+      }),
+    ).toEqual({ name: "claude-code", version: "2.0.0" });
+  });
+
+  it("does not read clientInfo stored on a different server", () => {
+    const withHint = {
+      clientInfo: { name: "cursor", version: "9" },
+    };
+    const withoutHint = {};
+    expect(readMcpClientInfoFromServer(withHint)).toEqual({ name: "cursor", version: "9" });
+    expect(readMcpClientInfoFromServer(withoutHint)).toEqual({});
+  });
 });
