@@ -122,16 +122,10 @@ type PgClientLike = {
   end(): Promise<void>;
 };
 
-type PgReadyCheckOptions = {
-  maxAttempts?: number;
-  retryDelayMs?: number;
-};
-
 type PgToolDependencies = {
   createClient: (
     context: PgDbContext,
   ) => Promise<PgClientLike> | PgClientLike;
-  readyCheckOptions?: PgReadyCheckOptions;
 };
 
 type PgObjectSummary = {
@@ -725,6 +719,12 @@ function collectMigrationVersions(value: unknown, found: Set<string> = new Set()
     }
   }
   return found;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 /** Brief retries before concluding a pushed migration never landed (Push can be async). */
@@ -1852,66 +1852,81 @@ function createManagerPgClient(
   };
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 /**
- * 模块级 Promise 缓存：同一 server 生命周期内只探测一次 PG 就绪状态
- * 照搬 MySQL lazy 就绪检查模式，避免每次业务调用都 SELECT 1
+ * ExecutePGSql error codes from the Tencent Cloud API (tcb ExecutePGSql):
+ * - FailedOperation.PGExecuteSqlError / FailedOperation.PGResultTooLarge: the
+ *   statement ran (or was rejected as SQL). Return those as-is.
+ * - FailedOperation.PGConnectError / InstanceStatusConflict / OperationTimeout:
+ *   the instance was not usable. Check provision status once.
+ * - ResourceNotFound.RoleNotFound: role error, returned as-is.
+ * Anything else is unclassified: PG_NOT_READY, and the judgment is not cached.
  */
-let pgReadyPromise: Promise<void> | null = null;
+const PG_STATEMENT_ERROR_CODES = new Set([
+  "FailedOperation.PGExecuteSqlError",
+  "FailedOperation.PGResultTooLarge",
+]);
 
-/**
- * @internal 重置就绪探测缓存（仅供测试使用）
- */
-export function __resetPgReadyCache() {
-  pgReadyPromise = null;
-}
+const PG_INFRASTRUCTURE_ERROR_CODES = new Set([
+  "FailedOperation.PGConnectError",
+  "FailedOperation.InstanceStatusConflict",
+  "FailedOperation.OperationTimeout",
+]);
 
-/**
- * Per-env cache of successful backend snapshots. Only successful lookups are
- * cached so a transient environment-info failure never freezes the gate.
- */
-const pgProvisionCache = new Map<string, EnvRuntimeBackendSnapshot>();
-
-/**
- * @internal Reset the provisioning snapshot cache (tests only).
- */
-export function __resetPgProvisionCache() {
-  pgProvisionCache.clear();
-}
-
-/**
- * Check whether CloudBase PostgreSQL is provisioned for the resolved env.
- *
- * Returns a PG_NOT_PROVISIONED payload when the environment is confirmed to
- * have no PG backend, so callers can fail fast instead of running the ready
- * probe (20 × SELECT 1) that would only time out. Returns null when PG is
- * provisioned OR when environment info is unavailable — an unreadable env
- * must never be turned into a false block; those calls keep their existing
- * behaviour (context still returns, other actions fall through to
- * PG_NOT_READY).
- */
-async function checkPgProvisioned(
-  cloudBaseOptions: ExtendedMcpServer["cloudBaseOptions"] | undefined,
-  context: PgDbContext,
-): Promise<PgToolPayload | null> {
-  let snapshot = pgProvisionCache.get(context.envId);
-
-  if (!snapshot) {
-    try {
-      snapshot = await queryEnvRuntimeBackends(cloudBaseOptions, context.envId);
-    } catch {
-      return null;
+function readPgErrorCode(error: unknown): string {
+  if (!error || typeof error !== "object") {
+    return "";
+  }
+  const record = error as {
+    code?: unknown;
+    Code?: unknown;
+    original?: { code?: unknown; Code?: unknown };
+  };
+  for (const candidate of [
+    record.code,
+    record.Code,
+    record.original?.code,
+    record.original?.Code,
+  ]) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
     }
-    pgProvisionCache.set(context.envId, snapshot);
   }
+  return "";
+}
 
-  if (snapshot.runtimeBackends.postgresql) {
-    return null;
+function isPgStatementError(error: unknown): boolean {
+  const code = readPgErrorCode(error);
+  if (PG_STATEMENT_ERROR_CODES.has(code) || code === "ResourceNotFound.RoleNotFound") {
+    return true;
   }
+  if (PG_INFRASTRUCTURE_ERROR_CODES.has(code)) {
+    return false;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  if (isPgRoleExecutionError(message)) {
+    return true;
+  }
+  return /SQLSTATE\s+[0-9A-Z]{5}/i.test(message);
+}
 
+function buildPgNotReadyPayload(context: PgDbContext, error: unknown): PgToolPayload {
+  const reason = error instanceof Error ? error.message : String(error);
+  return {
+    success: false,
+    errorCode: "PG_NOT_READY",
+    message: t("databasePG.runtime.notReady", { reason }),
+    nextActions: [
+      buildNextAction(
+        "queryEnv",
+        "info",
+        t("databasePG.runtime.queryEnvInfo"),
+        { action: "info", envId: context.envId },
+      ),
+    ],
+  };
+}
+
+function buildPgNotProvisionedPayload(snapshot: EnvRuntimeBackendSnapshot): PgToolPayload {
   return {
     success: false,
     errorCode: "PG_NOT_PROVISIONED",
@@ -1919,7 +1934,6 @@ async function checkPgProvisioned(
     data: {
       envId: snapshot.envId,
       runtimeMode: snapshot.runtimeMode,
-      // Public casing, matches queryEnv(action="info") EnvInfo.RuntimeBackends.
       RuntimeBackends: { ...snapshot.runtimeBackends },
     },
     nextActions: [
@@ -1934,46 +1948,40 @@ async function checkPgProvisioned(
 }
 
 /**
- * 首次 SQL 调用时探测 PG 就绪，Promise 缓存避免重复探测
- * 探测失败抛错，由调用方捕获返回 PG_NOT_READY 错误码
+ * One provision lookup for a non-statement failure. The result is not cached:
+ * an environment that is provisioned later succeeds on the next call.
+ * A lookup that throws, or an error we cannot classify, stays PG_NOT_READY.
  */
-async function ensurePgReadyOnce(
+async function classifyPgInfrastructureFailure(
+  error: unknown,
   cloudBaseOptions: ExtendedMcpServer["cloudBaseOptions"] | undefined,
-  deps: PgToolDependencies,
-): Promise<void> {
-  if (pgReadyPromise) {
-    return pgReadyPromise;
-  }
-
-  pgReadyPromise = (async () => {
-    const context = await resolvePgDbContext(cloudBaseOptions);
-    const maxAttempts = deps.readyCheckOptions?.maxAttempts ?? 20;
-    const retryDelayMs = deps.readyCheckOptions?.retryDelayMs ?? 1000;
-    let lastError: unknown;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      try {
-        await withPgClient(context, deps, async (client) => {
-          await client.query("SELECT 1");
-        });
-        return;
-      } catch (error) {
-        lastError = error;
-        if (attempt === maxAttempts) {
-          break;
-        }
-        await sleep(retryDelayMs);
-      }
+  context: PgDbContext,
+): Promise<PgToolPayload> {
+  try {
+    const snapshot = await queryEnvRuntimeBackends(cloudBaseOptions, context.envId);
+    if (!snapshot.runtimeBackends.postgresql) {
+      return buildPgNotProvisionedPayload(snapshot);
     }
+  } catch {
+    return buildPgNotReadyPayload(context, error);
+  }
+  return buildPgNotReadyPayload(context, error);
+}
 
-    const reason =
-      lastError instanceof Error ? lastError.message : String(lastError);
-    throw new Error(
-      t("databasePG.runtime.probeFailed", { maxAttempts, reason }),
-    );
-  })();
-
-  return pgReadyPromise;
+async function resolvePgSqlFailure(
+  error: unknown,
+  cloudBaseOptions: ExtendedMcpServer["cloudBaseOptions"] | undefined,
+  context: PgDbContext,
+  statementPayload: PgToolPayload,
+): Promise<PgToolPayload> {
+  const rolePayload = tryBuildPgRoleErrorPayload(error, context.role);
+  if (rolePayload) {
+    return rolePayload;
+  }
+  if (isPgStatementError(error)) {
+    return statementPayload;
+  }
+  return classifyPgInfrastructureFailure(error, cloudBaseOptions, context);
 }
 
 async function handleQueryContext(context: PgDbContext) {
@@ -2083,6 +2091,7 @@ async function handleReadOnlySql(
   args: QueryPgDatabaseArgs,
   context: PgDbContext,
   deps: PgToolDependencies,
+  cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
 ) {
   if (!args.sql?.trim()) {
     return buildPgToolResult({
@@ -2120,20 +2129,18 @@ async function handleReadOnlySql(
       client.query(limitedSql),
     );
   } catch (error) {
-    const rolePayload = tryBuildPgRoleErrorPayload(error, context.role);
-    if (rolePayload) {
-      return buildPgToolResult(rolePayload);
-    }
     const reason = error instanceof Error ? error.message : String(error);
-    return buildPgToolResult({
-      success: false,
-      errorCode: "PG_SQL_EXEC_FAILED",
-      message: t("databasePG.readOnly.execFailed", { reason }),
-      data: {
-        role: context.role,
-        sqlPreview: args.sql.trim().slice(0, 500),
-      },
-    });
+    return buildPgToolResult(
+      await resolvePgSqlFailure(error, cloudBaseOptions, context, {
+        success: false,
+        errorCode: "PG_SQL_EXEC_FAILED",
+        message: t("databasePG.readOnly.execFailed", { reason }),
+        data: {
+          role: context.role,
+          sqlPreview: args.sql.trim().slice(0, 500),
+        },
+      }),
+    );
   }
   const summary = summarizeQueryResult(result, limit);
 
@@ -2164,6 +2171,7 @@ async function handleExecuteSql(
   args: ManagePgDatabaseArgs,
   context: PgDbContext,
   deps: PgToolDependencies,
+  cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
 ) {
   if (!args.sql?.trim()) {
     return buildPgToolResult({
@@ -2252,20 +2260,18 @@ async function handleExecuteSql(
       client.query(args.sql!),
     );
   } catch (error) {
-    const rolePayload = tryBuildPgRoleErrorPayload(error, context.role);
-    if (rolePayload) {
-      return buildPgToolResult(rolePayload);
-    }
     const reason = error instanceof Error ? error.message : String(error);
-    return buildPgToolResult({
-      success: false,
-      errorCode: "PG_SQL_EXEC_FAILED",
-      message: t("databasePG.execute.execFailed", { reason }),
-      data: {
-        role: context.role,
-        sqlPreview: args.sql.trim().slice(0, 500),
-      },
-    });
+    return buildPgToolResult(
+      await resolvePgSqlFailure(error, cloudBaseOptions, context, {
+        success: false,
+        errorCode: "PG_SQL_EXEC_FAILED",
+        message: t("databasePG.execute.execFailed", { reason }),
+        data: {
+          role: context.role,
+          sqlPreview: args.sql.trim().slice(0, 500),
+        },
+      }),
+    );
   }
 
   const targetTable = parseTargetTableFromSql(args.sql, context.defaultSchema);
@@ -3363,52 +3369,41 @@ export function registerPGDatabaseTools(
     async (args: QueryPgDatabaseArgs) => {
       const context = await resolvePgDbContext(server.cloudBaseOptions);
 
-      const notProvisioned = await checkPgProvisioned(
-        server.cloudBaseOptions,
-        context,
-      );
-      if (notProvisioned) {
-        return buildPgToolResult(notProvisioned);
-      }
-
       if (args.action === "context") {
         return handleQueryContext(context);
       }
 
       try {
-        await ensurePgReadyOnce(server.cloudBaseOptions, deps);
+        switch (args.action) {
+          case "objects":
+            return await handleListObjects(args, context, deps);
+          case "metadata":
+            return await handleMetadata(args, context, deps);
+          case "schema":
+            return await handleGetPgSchema(args, context, deps);
+          case "sql":
+            return await handleReadOnlySql(
+              args,
+              context,
+              deps,
+              server.cloudBaseOptions,
+            );
+          default:
+            return buildPgToolResult({
+              success: false,
+              errorCode: "UNSUPPORTED_ACTION",
+              message: t("databasePG.unsupportedQueryAction", { action: args.action }),
+            });
+        }
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        return buildPgToolResult({
-          success: false,
-          errorCode: "PG_NOT_READY",
-          message: t("databasePG.runtime.notReady", { reason }),
-          nextActions: [
-            buildNextAction(
-              "queryEnv",
-              "info",
-              t("databasePG.runtime.queryEnvInfo"),
-              { action: "info", envId: context.envId },
-            ),
-          ],
-        });
-      }
-
-      switch (args.action) {
-        case "objects":
-          return handleListObjects(args, context, deps);
-        case "metadata":
-          return handleMetadata(args, context, deps);
-        case "schema":
-          return handleGetPgSchema(args, context, deps);
-        case "sql":
-          return handleReadOnlySql(args, context, deps);
-        default:
-          return buildPgToolResult({
+        return buildPgToolResult(
+          await resolvePgSqlFailure(error, server.cloudBaseOptions, context, {
             success: false,
-            errorCode: "UNSUPPORTED_ACTION",
-            message: t("databasePG.unsupportedQueryAction", { action: args.action }),
-          });
+            errorCode: "PG_SQL_EXEC_FAILED",
+            message: t("databasePG.readOnly.execFailed", { reason }),
+          }),
+        );
       }
     },
   );
@@ -3526,51 +3521,28 @@ export function registerPGDatabaseTools(
       const context = await resolvePgDbContext(server.cloudBaseOptions, args);
       const cbOpts = server.cloudBaseOptions;
 
-      const notProvisioned = await checkPgProvisioned(cbOpts, context);
-      if (notProvisioned) {
-        return buildPgToolResult(notProvisioned);
-      }
-
       switch (args.action) {
         case "execute": {
-          // Soft-block schema DDL before readiness probe so agents get migration guidance immediately.
+          // Schema DDL is rejected before any SQL call so agents get migration guidance immediately.
           if (args.sql?.trim()) {
             const classification = classifySqlRisk(args.sql);
             if (
               isSchemaDdlRisk(classification.risk, args.sql) &&
               args.allowDdlViaExecute !== true
             ) {
-              return handleExecuteSql(args, context, deps);
+              return handleExecuteSql(args, context, deps, cbOpts);
             }
           }
 
-          // Reject known-bad Role values before readiness probe / ExecutePGSql SET ROLE.
+          // Reject known-bad Role values before ExecutePGSql SET ROLE.
           if (args.role !== undefined && isLikelyInvalidPgExecuteRole(args.role)) {
             return buildPgToolResult(
               buildPgRoleErrorPayload(args.role.trim() || "(empty)"),
             );
           }
 
-          try {
-            await ensurePgReadyOnce(cbOpts, deps);
-          } catch (error) {
-            const reason = error instanceof Error ? error.message : String(error);
-            return buildPgToolResult({
-              success: false,
-              errorCode: "PG_NOT_READY",
-              message: t("databasePG.runtime.notReady", { reason }),
-              nextActions: [
-                buildNextAction(
-                  "queryEnv",
-                  "info",
-                  t("databasePG.runtime.queryEnvInfo"),
-                  { action: "info", envId: context.envId },
-                ),
-              ],
-            });
-          }
-
-          return handleExecuteSql(args, context, deps);
+          // One ExecutePGSql. Do not retry: execute has side effects.
+          return handleExecuteSql(args, context, deps, cbOpts);
         }
         case "dryRun":
           return handleDryRun(args);

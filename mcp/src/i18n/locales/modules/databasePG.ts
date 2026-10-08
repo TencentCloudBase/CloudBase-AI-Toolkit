@@ -62,7 +62,7 @@ export const databasePG = defineModule(
     "schema.manageAllowDdlViaExecute":
       "可选，默认 false。仅当需要故意绕过 migration history 时设为 true，才允许 schema DDL 走 execute；正常建表/改 schema 必须用 applyMigration。",
     "runtime.probeFailed": "PostgreSQL 在 {maxAttempts} 次探测后仍未就绪。最近错误：{reason}",
-    "runtime.notReady": "CloudBase PostgreSQL 尚未就绪。{reason}",
+    "runtime.notReady": "CloudBase PostgreSQL 尚未就绪，实例可能仍在初始化，请稍后重试。{reason}",
     "runtime.queryEnvInfo": "检查当前环境 PostgreSQL 实例状态。",
     "runtime.notProvisioned":
       "环境 {envId} 未开通 CloudBase PostgreSQL（EnvInfo.RuntimeBackends.postgresql=false），queryPgDatabase / managePgDatabase 的所有 action 均不可用。请先为该环境开通 PostgreSQL，或改用该环境实际可用的数据后端；在开通前不要重试 PG 工具。",
@@ -324,7 +324,7 @@ export const databasePG = defineModule(
       "Optional, defaults to false. Set it to true only when intentionally bypassing migration history, which is the only case where schema DDL is allowed through execute; normal CREATE TABLE / schema changes must use applyMigration.",
     "runtime.probeFailed":
       "PostgreSQL is not ready after {maxAttempts} attempts. Last error: {reason}",
-    "runtime.notReady": "CloudBase PostgreSQL is not ready. {reason}",
+    "runtime.notReady": "CloudBase PostgreSQL is not ready. The instance may still be initializing; retry later. {reason}",
     "runtime.queryEnvInfo":
       "Check the current environment's PostgreSQL instance status.",
     "runtime.notProvisioned":
