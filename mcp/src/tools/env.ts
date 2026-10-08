@@ -9,6 +9,7 @@ import {
   getAuthConfigValidationError,
   getAuthProgressState,
   getCloudBaseApiKeyFromEnv,
+  getCredentialSource,
   logout,
   peekLoginState,
   rejectAuthProgressState,
@@ -723,6 +724,10 @@ function buildCredentialBoundaryPayload(cloudBaseOptions?: {
 
   return {
     credential_scope: credentialScope,
+    // 凭据来源：env=进程环境变量（宿主注入或 login_by_api_key 显式传入）、
+    // project=项目级 projects/<项目根>/auth.json 按工作目录自动采纳、
+    // global=全局 auth.json 的账号级登录态。只回答「从哪来」，不改范围语义。
+    credential_source: getCredentialSource(),
     current_region: currentRegion,
     scope_note: scopeNote,
   };

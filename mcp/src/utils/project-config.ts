@@ -10,6 +10,10 @@ const CLOUDBASE_RC_FILENAME = "cloudbaserc.json";
 const PROJECT_ROOT_ENV_KEYS = [
   "WORKSPACE_FOLDER_PATHS",
   "PROJECT_ROOT",
+  // 宿主（CodeBuddy / WorkBuddy / Claude Code）注入的工作区目录。
+  // 只认进程 cwd 是不够的：宿主明明已经把工作区告诉了我们，不接就白白丢掉。
+  "CODEBUDDY_PROJECT_DIR",
+  "CLAUDE_PROJECT_DIR",
   "GITHUB_WORKSPACE",
   "CI_PROJECT_DIR",
   "BUILD_SOURCESDIRECTORY",

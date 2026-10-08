@@ -1,6 +1,14 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { AuthSupervisor, authStore, cloudbaseConfigDir, refreshTmpToken, resolveCredential } from "@cloudbase/toolbox";
+import {
+  AuthSupervisor,
+  authStore,
+  checkAndGetCredential,
+  cloudbaseConfigDir,
+  getProjectDir,
+  refreshTmpToken,
+  resolveCredential,
+} from "@cloudbase/toolbox";
 import { debug } from "./utils/logger.js";
 import { requireProjectRoot } from "./utils/project-config.js";
 import {
@@ -446,6 +454,30 @@ export interface LoginState {
   uin?: string | number;
 }
 
+/**
+ * 本轮生效的凭据从哪来。只回答「来源」，不改变权限范围——
+ * 范围仍由 `credential_scope`（account / single_env）表达。
+ *
+ * - `env`：进程环境变量。宿主按工作区注入，或 `login_by_api_key` 显式传入。
+ * - `project`：项目级文件 `~/.config/.cloudbase/projects/<项目根>/auth.json`，
+ *   按工作目录自动采纳。
+ * - `global`：全局 `~/.config/.cloudbase/auth.json`（账号级登录态）。
+ */
+export type CredentialSource = "env" | "project" | "global";
+
+let credentialSource: CredentialSource | null = null;
+/**
+ * 从项目级凭据回填进进程 env 的那一份 key/envId。
+ * 用来区分「宿主注入的 env」与「我们自己回填的 env」——否则
+ * `peekLoginState` 第二次调用会走 env 分支，把项目级来源报成 `env`。
+ */
+let adoptedProjectApiKey: string | null = null;
+let adoptedProjectEnvId: string | null = null;
+
+export function getCredentialSource(): CredentialSource | null {
+  return credentialSource;
+}
+
 // One flat credential in auth.json, shared with the CLI. Legacy slotted
 // files ({ domestic, intl }) are collapsed once on read; the other site is dropped.
 
@@ -553,11 +585,98 @@ async function resolveFlatLoginState(): Promise<LoginState | null> {
   return credential as LoginState;
 }
 
+/**
+ * 读项目级凭据文件 `~/.config/.cloudbase/projects/<项目根>/auth.json` 的原始内容。
+ *
+ * 只读、不建目录——没绑定的项目不该因为我们探一下就多出一个空目录。
+ * 判据与 `@cloudbase/toolbox` 的 `getProjectApiKeyCredential()` 一致：必须同时有
+ * 密钥与 `authSource`，也就是只有 API Key 来源的凭据会落到项目级（web/device
+ * 登录态永远进全局），这样两边的判据不会分叉。
+ */
+function readProjectCredentialFile(projectRoot: string): Record<string, unknown> | null {
+  try {
+    const raw = readFileSync(join(getProjectDir(projectRoot), "auth.json"), "utf8");
+    const parsed = JSON.parse(raw) as { credential?: Record<string, unknown> };
+    const stored = parsed?.credential;
+    if (!stored || typeof stored !== "object") {
+      return null;
+    }
+    if (!stored.secretId || !stored.authSource) {
+      return null;
+    }
+    return stored;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 项目级凭据优先于账号级全局登录态。
+ *
+ * 与 `readProjectEnvId()`「项目配置优先于账号级登录态」保持同一原则：项目级凭据是
+ * API Key 登录按 cwd 落下的那一份，随仓库走、跨进程存活，新起的 stdio 进程不必重复登录。
+ *
+ * 命中后把 apiKey/envId 回填进进程 env（与 `login_by_api_key` 同一做法），
+ * 让下游的 credential_scope / auth_mode / 环境候选 / 绑定校验保持同一套判断，
+ * 不必各自再认一遍项目级文件。
+ *
+ * 过期与续期交给 toolbox 的 `checkAndGetCredential()`：API Key 凭据用 apiKey 重换，
+ * 换取结果回写项目级（refreshToken 续期仍写全局——项目级凭据只有 API Key 一种来源）。
+ * 不可用（换取失败、密钥失效）时返回 null，由调用方回落全局登录态。
+ */
+async function resolveProjectLoginState(): Promise<LoginState | null> {
+  let projectRoot: string;
+  try {
+    projectRoot = requireProjectRoot();
+  } catch {
+    // 宿主配置目录等非法项目根：不参与项目级凭据
+    return null;
+  }
+  if (!readProjectCredentialFile(projectRoot)) {
+    return null;
+  }
+  const credential = (await checkAndGetCredential({ cwd: projectRoot })) as
+    | (LoginState & { apiKey?: string; authSource?: string })
+    | null;
+  if (!credential?.secretId) {
+    debug("peekLoginState: project credential unusable, falling back to global", {
+      projectRoot,
+    });
+    return null;
+  }
+  if (credential.authSource === "api_key" && credential.apiKey && credential.envId) {
+    process.env.CLOUDBASE_API_KEY = credential.apiKey;
+    process.env.CLOUDBASE_ENV_ID = credential.envId;
+    adoptedProjectApiKey = credential.apiKey;
+    adoptedProjectEnvId = credential.envId;
+  }
+  return credential as LoginState;
+}
+
+/** 清掉我们回填进 env 的那一份，别把已失效的 key 留在进程里。 */
+function clearAdoptedProjectEnv(): void {
+  if (adoptedProjectApiKey !== null && process.env.CLOUDBASE_API_KEY === adoptedProjectApiKey) {
+    delete process.env.CLOUDBASE_API_KEY;
+    delete process.env.CLOUDBASE_ENV_ID;
+  }
+  adoptedProjectApiKey = null;
+  adoptedProjectEnvId = null;
+}
+
+/**
+ * env 里的这一份 key 是不是我们自己从项目级回填的。
+ * 是的话来源报 `project`，别报成 `env`——否则第二次调用就会把来源说反。
+ */
+function isAdoptedProjectCredential(apiKey: string, envId: string): boolean {
+  return adoptedProjectApiKey !== null && apiKey === adoptedProjectApiKey && envId === adoptedProjectEnvId;
+}
+
 export async function peekLoginState(options?: {
   ignoreEnvVars?: boolean;
   site?: string;
   region?: string;
 }): Promise<LoginState | null> {
+  credentialSource = null;
   const envVarLoginState = normalizeLoginStateFromEnvVars(options);
 
   if (envVarLoginState) {
@@ -577,6 +696,13 @@ export async function peekLoginState(options?: {
           envVarLoginState.envId,
           { cwd: projectCwd, ...(exchangeRegion ? { region: exchangeRegion } : {}) }
         );
+        // 这一份 env 如果是我们上一轮从项目级回填的，来源仍算 project
+        credentialSource = isAdoptedProjectCredential(
+          envVarLoginState.apiKey,
+          envVarLoginState.envId,
+        )
+          ? "project"
+          : "env";
         return credential;
       } catch (e) {
         debug("peekLoginState: API Key login failed", { error: e instanceof Error ? e.message : String(e) });
@@ -586,12 +712,22 @@ export async function peekLoginState(options?: {
 
     // 腾讯云密钥模式：直接返回
     debug("loginByApiSecret");
+    credentialSource = "env";
     return envVarLoginState as LoginState;
+  }
+
+  // 项目级凭据优先于账号级登录态（与 readProjectEnvId 同一原则）
+  const projectLoginState = await resolveProjectLoginState();
+  if (projectLoginState) {
+    credentialSource = "project";
+    return projectLoginState;
   }
 
   // Site selects endpoints, not which credential is stored. One flat record is shared.
   await migrateSlottedCredentialToFlat();
-  return resolveFlatLoginState();
+  const flatLoginState = await resolveFlatLoginState();
+  credentialSource = flatLoginState ? "global" : null;
+  return flatLoginState;
 }
 
 export async function ensureLogin(options?: EnsureLoginOptions) {
@@ -699,5 +835,7 @@ export async function logout(_options?: { site?: string }) {
     cwd = undefined;
   }
   await auth.logout(cwd ? { cwd } : undefined);
+  clearAdoptedProjectEnv();
+  credentialSource = null;
   resetAuthProgressState();
 }

@@ -9,6 +9,8 @@ import { ProjectRootError, resolveProjectRoot } from "./project-config.js";
 const ENV_KEYS = [
   "WORKSPACE_FOLDER_PATHS",
   "PROJECT_ROOT",
+  "CODEBUDDY_PROJECT_DIR",
+  "CLAUDE_PROJECT_DIR",
   "GITHUB_WORKSPACE",
   "CI_PROJECT_DIR",
   "BUILD_SOURCESDIRECTORY",
@@ -64,12 +66,43 @@ describe("resolveProjectRoot", () => {
     const github = mkdtempSync(join(tmpdir(), "project-root-github-only-"));
     delete process.env.WORKSPACE_FOLDER_PATHS;
     delete process.env.PROJECT_ROOT;
+    // 宿主会话里这两个可能带值：本用例要的是「前面的都空」，
+    // 不清就会拿宿主的 CODEBUDDY_PROJECT_DIR 当成结果
+    delete process.env.CODEBUDDY_PROJECT_DIR;
+    delete process.env.CLAUDE_PROJECT_DIR;
     process.env.GITHUB_WORKSPACE = github;
     process.env.CI_PROJECT_DIR = join(tmpdir(), "ignored-ci");
     try {
       expect(resolveProjectRoot()).toBe(github);
     } finally {
       rmSync(github, { recursive: true, force: true });
+    }
+  });
+
+  it("honors the host-injected CODEBUDDY_PROJECT_DIR before CI workspace vars", () => {
+    saveEnv();
+    const workspace = mkdtempSync(join(tmpdir(), "project-root-cbdir-"));
+    const github = mkdtempSync(join(tmpdir(), "project-root-cbdir-github-"));
+    for (const key of ENV_KEYS) delete process.env[key];
+    process.env.CODEBUDDY_PROJECT_DIR = workspace;
+    process.env.GITHUB_WORKSPACE = github;
+    try {
+      expect(resolveProjectRoot()).toBe(workspace);
+    } finally {
+      rmSync(workspace, { recursive: true, force: true });
+      rmSync(github, { recursive: true, force: true });
+    }
+  });
+
+  it("honors CLAUDE_PROJECT_DIR when CODEBUDDY_PROJECT_DIR is unset", () => {
+    saveEnv();
+    const workspace = mkdtempSync(join(tmpdir(), "project-root-claudedir-"));
+    for (const key of ENV_KEYS) delete process.env[key];
+    process.env.CLAUDE_PROJECT_DIR = workspace;
+    try {
+      expect(resolveProjectRoot()).toBe(workspace);
+    } finally {
+      rmSync(workspace, { recursive: true, force: true });
     }
   });
 
