@@ -123,22 +123,30 @@ const {
   authStoreData: {} as Record<string, any>,
 }));
 
-vi.mock("@cloudbase/toolbox", () => ({
-  AuthSupervisor: {
-    getInstance: vi.fn(() => ({
-      loginByWebAuth: mockSupervisorLoginByWebAuth,
-    })),
-  },
-  authStore: {
-    get: vi.fn(async (key: string) => authStoreData[key]),
-    set: vi.fn(async (key: string, value: any) => {
-      authStoreData[key] = value;
-    }),
-    delete: vi.fn(async (key: string) => {
-      delete authStoreData[key];
-    }),
-  },
-}));
+vi.mock("@cloudbase/toolbox", () => {
+  // `auth.ts` 用 toolbox 的 `cloudbaseConfigDir` 定位共用凭据文件，缺这个导出会让
+  // 本文件（以及任何 spread 真实 `auth.js` 的 mock）在加载阶段直接失败。
+  const { tmpdir } = require("node:os") as typeof import("node:os");
+  const { join } = require("node:path") as typeof import("node:path");
+  return {
+    AuthSupervisor: {
+      getInstance: vi.fn(() => ({
+        loginByWebAuth: mockSupervisorLoginByWebAuth,
+      })),
+    },
+    authStore: {
+      get: vi.fn(async (key: string) => authStoreData[key]),
+      set: vi.fn(async (key: string, value: any) => {
+        authStoreData[key] = value;
+      }),
+      delete: vi.fn(async (key: string) => {
+        delete authStoreData[key];
+      }),
+    },
+    // 只被 `join()` 用来拼路径，后续 walk 都有 try/catch ⇒ 目录不存在也无妨
+    cloudbaseConfigDir: join(tmpdir(), `cb-env-test-config-${process.pid}`),
+  };
+});
 
 vi.mock("../auth.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../auth.js")>();
