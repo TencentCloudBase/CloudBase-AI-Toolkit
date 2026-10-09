@@ -386,7 +386,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "packageId",
       type: "string",
-      description: `套餐 ID（action=create/modifyPlan 时必填）。可选值如 baas_personal(个人版)、baas_pf_standard(标准版)、baas_pf_enterprise(企业版)`,
+      description: `套餐 ID（action=create/modifyPlan 时必填）。取值以 manageEnv(action="listPackages") 返回的 PackageName 为准，各站点可售套餐不同，不要凭记忆填写。`,
     },
     {
       name: "resources",
