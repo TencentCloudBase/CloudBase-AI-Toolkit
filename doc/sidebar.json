@@ -152,6 +152,7 @@
               "ai/cloudbase-ai-toolkit/prompts/spec-workflow",
               "ai/cloudbase-ai-toolkit/prompts/cloudbase-platform",
               "ai/cloudbase-ai-toolkit/prompts/cloudbase-cli",
+              "ai/cloudbase-ai-toolkit/prompts/cloudbase-mcp",
               "ai/cloudbase-ai-toolkit/prompts/cloudbase-code-review",
               "ai/cloudbase-ai-toolkit/prompts/ops-inspector"
             ]

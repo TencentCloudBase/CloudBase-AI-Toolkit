@@ -13,8 +13,8 @@ import { credentialKey } from "./feedback-session.js";
  * - 同一凭证的工具调用成功即清零该凭证的计数（说明循环已被打破）。
  *
  * Process-level mutable state:
- * - byCredential: Map keyed by feedback-session credentialKey (sha256 of
- *   site, secretId, and token). Value is { lastKey, consecutiveCount } only.
+ * - byCredential: Map keyed by credentialKey (sha256 of site, secretId, and
+ *   token). Value is { lastKey, consecutiveCount } only.
  *   Does not store protocol objects or raw credentials.
  * - localBucket: the no-credential streak. One bucket for the whole process,
  *   matching the previous single-process counter used by local mode.
