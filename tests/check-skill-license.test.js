@@ -2,7 +2,11 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { findMissingLicense, readLicense } from "../scripts/check-skill-license.mjs";
+import {
+  findLicenseFile,
+  findMissingLicense,
+  readLicense,
+} from "../scripts/check-skill-license.mjs";
 
 describe("readLicense", () => {
   test("reads the license value from frontmatter", () => {
@@ -38,6 +42,38 @@ describe("readLicense", () => {
   });
 });
 
+describe("findLicenseFile", () => {
+  let dir;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "skill-license-file-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("finds a LICENSE file next to SKILL.md", () => {
+    fs.writeFileSync(path.join(dir, "LICENSE"), "MIT License\n");
+    expect(findLicenseFile(dir)).toBe("LICENSE");
+  });
+
+  test("accepts LICENCE.md and lowercase spellings", () => {
+    fs.writeFileSync(path.join(dir, "licence.md"), "MIT\n");
+    expect(findLicenseFile(dir)).toBe("licence.md");
+  });
+
+  test("does not accept a directory named LICENSE", () => {
+    fs.mkdirSync(path.join(dir, "LICENSE"));
+    expect(findLicenseFile(dir)).toBeNull();
+  });
+
+  test("returns null when the directory has no license file", () => {
+    fs.writeFileSync(path.join(dir, "SKILL.md"), "# Demo\n");
+    expect(findLicenseFile(dir)).toBeNull();
+  });
+});
+
 describe("findMissingLicense", () => {
   let root;
 
@@ -49,57 +85,71 @@ describe("findMissingLicense", () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  function writeSkill(relativePath, frontmatterLines) {
-    const file = path.join(root, relativePath);
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, ["---", ...frontmatterLines, "---", "", "# Demo", ""].join("\n"));
+  function writeSkill(relativeDir, frontmatterLines, { licenseFile = true } = {}) {
+    const dir = path.join(root, relativeDir);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, "SKILL.md"),
+      ["---", ...frontmatterLines, "---", "", "# Demo", ""].join("\n"),
+    );
+    if (licenseFile) {
+      fs.writeFileSync(path.join(dir, "LICENSE"), "MIT License\n");
+    }
   }
 
-  test("reports only the entries that omit license", () => {
+  test("passes when frontmatter and LICENSE file are both present", () => {
+    writeSkill("config/source/skills/ok", ["name: ok", "version: 1.0.0", "license: MIT"]);
+    expect(findMissingLicense(root)).toEqual([]);
+  });
+
+  test("reports an entry whose package root has no LICENSE file", () => {
     writeSkill(
-      "config/source/skills/with-license/SKILL.md",
-      ["name: with-license", "version: 1.0.0", "license: MIT"],
+      "config/source/skills/no-file",
+      ["name: no-file", "version: 1.0.0", "license: MIT"],
+      { licenseFile: false },
     );
+
+    const problems = findMissingLicense(root);
+    expect(problems).toHaveLength(1);
+    expect(problems[0].file).toBe(path.join("config", "source", "skills", "no-file", "SKILL.md"));
+    expect(problems[0].missing.join(" ")).toContain("LICENSE");
+  });
+
+  test("reports an entry whose frontmatter omits license", () => {
+    writeSkill("config/source/skills/no-field", ["name: no-field", "version: 1.0.0"]);
+
+    const problems = findMissingLicense(root);
+    expect(problems).toHaveLength(1);
+    expect(problems[0].missing.join(" ")).toContain("frontmatter");
+  });
+
+  test("reports both problems at once", () => {
     writeSkill(
-      "config/source/skills/without-license/SKILL.md",
-      ["name: without-license", "version: 1.0.0"],
+      "config/source/skills/bare",
+      ["name: bare", "version: 1.0.0"],
+      { licenseFile: false },
     );
-    // Nested entrypoints count too (cloudbase-agent/{py,ts}/skill.md).
+
+    const problems = findMissingLicense(root);
+    expect(problems).toHaveLength(1);
+    expect(problems[0].missing).toHaveLength(2);
+  });
+
+  test("covers nested entrypoints and the guideline entry", () => {
+    writeSkill("config/source/skills/parent", ["name: parent", "version: 1.0.0", "license: MIT"]);
     writeSkill(
-      "config/source/skills/parent/py/skill.md",
+      "config/source/skills/parent/py",
       ["name: parent-py", "version: 1.0.0", "license: MIT"],
+      { licenseFile: false },
     );
     writeSkill(
-      "config/source/guideline/cloudbase/SKILL.md",
+      "config/source/guideline/cloudbase",
       ["name: cloudbase", "version: 1.0.0", "license: MIT"],
     );
 
-    expect(findMissingLicense(root)).toEqual([
-      path.join("config", "source", "skills", "without-license", "SKILL.md"),
+    const problems = findMissingLicense(root);
+    expect(problems.map((problem) => problem.file)).toEqual([
+      path.join("config", "source", "skills", "parent", "py", "SKILL.md"),
     ]);
-  });
-
-  test("flags the guideline entry as well", () => {
-    writeSkill(
-      "config/source/skills/only-skill/SKILL.md",
-      ["name: only-skill", "version: 1.0.0", "license: MIT"],
-    );
-    writeSkill(
-      "config/source/guideline/cloudbase/SKILL.md",
-      ["name: cloudbase", "version: 1.0.0"],
-    );
-
-    expect(findMissingLicense(root)).toEqual([
-      path.join("config", "source", "guideline", "cloudbase", "SKILL.md"),
-    ]);
-  });
-
-  test("returns an empty list when every entry declares a license", () => {
-    writeSkill(
-      "config/source/skills/only-skill/SKILL.md",
-      ["name: only-skill", "version: 1.0.0", "license: MIT"],
-    );
-
-    expect(findMissingLicense(root)).toEqual([]);
   });
 });

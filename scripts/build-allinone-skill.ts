@@ -38,6 +38,7 @@ const SOURCES = {
   mainRules: 'config/source/guideline/cloudbase/SKILL.md',
   skillsDir: 'config/source/skills',
   guidelineReferences: 'config/source/guideline/cloudbase/references',
+  license: 'config/source/guideline/cloudbase/LICENSE',
 };
 
 // Skills to exclude from the bundle
@@ -268,6 +269,18 @@ export function buildAllInOneSkill(
 
   fs.writeFileSync(path.join(outputDir, "SKILL.md"), skillContent);
   console.log("✅ Created: cloudbase/SKILL.md");
+
+  // The marketplace reads the bundle's own LICENSE file sitting next to
+  // SKILL.md — a frontmatter field is not enough — so every generated bundle
+  // ships the same MIT text as the repository root.
+  const licenseSource = path.join(TOOLKIT_ROOT, SOURCES.license);
+  if (!fs.existsSync(licenseSource)) {
+    throw new Error(
+      `缺少 LICENSE 源文件 / missing LICENSE source: ${SOURCES.license}`,
+    );
+  }
+  fs.copyFileSync(licenseSource, path.join(outputDir, "LICENSE"));
+  console.log("✅ Created: cloudbase/LICENSE");
 
   // 4. Copy all sub-skills to references/
   const subSkillFile = noSubSkill

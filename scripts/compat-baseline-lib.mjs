@@ -19,6 +19,10 @@ export const BASELINE_FILE = path.join(
 const STRICT_HASH_EXTENSIONS = new Set([".json", ".toml"]);
 const TEXT_SURFACE_EXTENSIONS = new Set([".md", ".mdc", ".mdr", ".yaml", ".yml"]);
 
+// skill 包自带一份无扩展名的许可原文（LICENSE），随 skill 镜像分发给用户。
+// 按文本面归类：内容漂移只提示、不阻断。
+const LICENSE_FILE_RE = /^licen[cs]e(\.(md|txt))?$/i;
+
 export const COMPAT_SURFACE_GROUPS = {
   machine: {
     description:
@@ -94,7 +98,11 @@ export function classifyGeneratedFile(relativePath) {
     return "machine";
   }
 
-  if (TEXT_SURFACE_EXTENSIONS.has(extension) || normalized === ".augment-guidelines") {
+  if (
+    TEXT_SURFACE_EXTENSIONS.has(extension) ||
+    normalized === ".augment-guidelines" ||
+    LICENSE_FILE_RE.test(path.basename(normalized))
+  ) {
     return "textSurface";
   }
 

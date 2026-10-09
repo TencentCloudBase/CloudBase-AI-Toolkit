@@ -87,6 +87,10 @@ function shouldSkip(name) {
   return name === ".DS_Store";
 }
 
+// IDE 规则目录只承载给 AI 读的规则文本。LICENSE 是 skill 包自身的文件，
+// 投影进 rules/ 只会在用户项目的规则目录里留下没有用途的许可副本。
+const LICENSE_FILE_RE = /^licen[cs]e(\.(md|txt))?$/i;
+
 function assertCompatGuideSize(guidelineContent) {
   const bytes = Buffer.byteLength(guidelineContent, "utf8");
   if (bytes >= MAX_COMPAT_GUIDE_BYTES) {
@@ -105,11 +109,16 @@ function copyFile(sourcePath, targetPath) {
   fs.copyFileSync(sourcePath, targetPath);
 }
 
-function copyDir(sourceDir, targetDir, transformName = (name) => name) {
+function copyDir(
+  sourceDir,
+  targetDir,
+  transformName = (name) => name,
+  shouldSkipEntry = () => false,
+) {
   ensureDir(targetDir);
 
   for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
-    if (shouldSkip(entry.name)) {
+    if (shouldSkip(entry.name) || shouldSkipEntry(entry.name)) {
       continue;
     }
 
@@ -118,7 +127,7 @@ function copyDir(sourceDir, targetDir, transformName = (name) => name) {
     const targetPath = path.join(targetDir, nextName);
 
     if (entry.isDirectory()) {
-      copyDir(sourcePath, targetPath, transformName);
+      copyDir(sourcePath, targetPath, transformName, shouldSkipEntry);
       continue;
     }
 
@@ -147,7 +156,12 @@ function buildRulesDirectory(outputDir, skillNames) {
     const sourceDir = path.join(SKILLS_DIR, skillName);
     const targetDir = path.join(rulesDir, skillName);
 
-    copyDir(sourceDir, targetDir, (name) => (name === "SKILL.md" ? "rule.md" : name));
+    copyDir(
+      sourceDir,
+      targetDir,
+      (name) => (name === "SKILL.md" ? "rule.md" : name),
+      (name) => LICENSE_FILE_RE.test(name),
+    );
   }
 }
 
