@@ -1,16 +1,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolAnnotations as SdkToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
-import os from 'os';
-import { getCachedEnvId, getEnvId } from '../cloudbase-manager.js';
+import { getCachedEnvId } from '../cloudbase-manager.js';
 import { ExtendedMcpServer } from "../server.js";
-import { CloudBaseOptions } from '../types.js';
 import { shouldRegisterTool } from './cloud-mode.js';
 import { debug } from './logger.js';
 import { reportToolCall, readMcpClientInfoFromServer } from './telemetry.js';
-import { isBusinessFailureToolResult, isToolPayloadError, ToolPayloadError, withBusinessFailureIsError } from "./tool-result.js";
-import { applyRepeatGuardToPayload, getRepeatGuardSnapshot, resetRepeatGuard } from "./repeat-error-guard.js";
-import { noteRepeatCount, recordToolOutcome } from "./feedback-session.js";
+import { isToolPayloadError, ToolPayloadError, withBusinessFailureIsError } from "./tool-result.js";
+import { applyRepeatGuardToPayload, resetRepeatGuard } from "./repeat-error-guard.js";
 import { enhanceErrorMessage, resolveRequestId } from "./error-guidance.js";
+import { resolveSiteAndRegion } from "./site-map.js";
 
 
 /**
@@ -69,91 +67,32 @@ export function applyCategoryAnnotationMeta<T extends ToolConfigWithCategory>(co
 // 构建时注入的版本号
 declare const __MCP_VERSION__: string;
 
+const GITHUB_REPO = "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit";
+const CNB_REPO = "https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-ToolKit";
+
 /**
- * 生成 GitHub Issue 创建链接
- * @param toolName 工具名称
- * @param errorMessage 错误消息
- * @param args 工具参数
- * @param cloudBaseOptions CloudBase 配置选项
- * @returns GitHub Issue 创建链接
+ * Point toolkit bugs at a pull request and platform problems at a blank issue page.
+ * The URL carries no environment ID, arguments, or error text.
  */
-async function generateGitHubIssueLink(toolName: string, errorMessage: string, args: any, cloudBaseOptions?: CloudBaseOptions, payload?: {
-    requestId: string;
-    ide: string;
-}): Promise<string> {
-    const { requestId, ide } = payload || {};
-    const baseUrl = 'https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/issues/new';
-
-    const isTestEnvironment =
-      process.env.NODE_ENV === "test" || process.env.VITEST === "true";
-
-    // 尝试获取环境ID（测试环境跳过，避免交互/阻塞）
-    let envIdSection = '';
-    if (!isTestEnvironment) {
-        try {
-            // Avoid blocking forever on envId lookup
-            const envId = await Promise.race([
-                getEnvId(cloudBaseOptions),
-                new Promise<string>((resolve) => setTimeout(() => resolve(''), 2000)),
-            ]);
-            if (envId) {
-                envIdSection = `
-## 环境ID
-${envId}
-`;
-            }
-        } catch (error) {
-            // 如果获取 envId 失败，不添加环境ID部分
-            debug('无法获取环境ID:', error instanceof Error ? error : new Error(String(error)));
-        }
+function contributionHint(server: ExtendedMcpServer): string {
+    const site = resolveSiteAndRegion({
+        site: server.cloudBaseOptions?.site,
+        region: server.cloudBaseOptions?.region,
+    }).site;
+    if (site === "intl") {
+        return [
+            "If this is a bug in this repo's MCP server, skills, or CLI, open a pull request:",
+            `${GITHUB_REPO}/blob/main/CONTRIBUTING.md`,
+            "If it is the cloud platform, permissions, or the account, open an issue and fill it in yourself. Do not include the environment ID or secrets:",
+            `${GITHUB_REPO}/issues/new`,
+        ].join("\n");
     }
-
-    // 构建标题
-    const title = `MCP工具错误: ${toolName}`;
-
-    // 构建问题描述
-    // ⚠️ MCP 版本必须优先取构建期注入的 __MCP_VERSION__：hosted 场景下进程是 BFF 的进程，
-    // process.env.npm_package_version 是**宿主应用**的版本（实测报出 0.0.1，与 MCP 自身
-    // 版本 2.34.2 自相矛盾）；仅在未注入（源码直跑）时才回退到它。
-    const body = `## 错误描述
-工具 \`${toolName}\` 执行时发生错误
-
-## 错误信息
-\`\`\`
-${errorMessage}
-\`\`\`
-${envIdSection}
-## 环境信息
-- 操作系统: ${os.type()} ${os.release()}
-- Node.js版本: ${process.version}
-- MCP 版本：${(typeof __MCP_VERSION__ !== 'undefined' ? __MCP_VERSION__ : '') || process.env.npm_package_version || 'unknown'}
-- 系统架构: ${os.arch()}
-- 时间: ${new Date().toISOString()}
-- 请求ID: ${requestId}
-- 集成IDE: ${ide}
-
-## 工具参数
-\`\`\`json
-${JSON.stringify(sanitizeArgs(args), null, 2)}
-\`\`\`
-
-## 复现步骤
-1. 使用工具: ${toolName}
-2. 传入参数: 上述参数信息
-3. 出现错误
-
-## 期望行为
-[请描述您期望的正确行为]
-
-## 其他信息
-[如有其他相关信息，请在此补充]
-`;
-
-    // URL 编码
-    const encodedTitle = encodeURIComponent(title);
-    const encodedBody = encodeURIComponent(body);
-
-    return `${baseUrl}?title=${encodedTitle}&body=${encodedBody}`;
+    return [
+        "如果问题出在本仓库的 MCP、skill 或 CLI，请按贡献指南提 Pull Request：",
+        `${CNB_REPO}/-/blob/main/CONTRIBUTING.md`,
+        "如果是云平台、权限或账号问题，请打开 issue 页面自行填写。不要把环境 ID 或密钥写进去：",
+        `${CNB_REPO}/-/issues/new`,
+    ].join("\n");
 }
 
 /**
@@ -163,8 +102,6 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
     return async (args: any) => {
         const startTime = Date.now();
         let success = false;
-        let businessFailed = false;
-        let repeatCountSeen = 0;
         let errorMessage: string | undefined;
         let requestId: string | undefined;
 
@@ -180,11 +117,7 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             // 执行原始处理函数
             const result = await handler(args);
 
-            // Returned { success: false } is a business failure for the local
-            // session log. The telemetry flag below stays on the existing path.
-            businessFailed = isBusinessFailureToolResult(result);
             success = true;
-            repeatCountSeen = getRepeatGuardSnapshot(server).consecutiveCount;
             // 同一凭证的工具成功说明重复错误循环已被打破，只清零该凭证的计数
             resetRepeatGuard(server);
             requestId = extractRequestIdFromToolResult(result);
@@ -222,24 +155,17 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
                 // 连续相同结构化错误达到阈值时注入 repeat_guard 升级提示，
                 // 打断无头客户端的原样重试循环（不改写 message，保持遥测聚合稳定）
                 const payload = applyRepeatGuardToPayload(error.payload, server);
-                repeatCountSeen = getRepeatGuardSnapshot(server).consecutiveCount;
                 throw new ToolPayloadError(payload);
             }
-            repeatCountSeen = getRepeatGuardSnapshot(server).consecutiveCount;
 
             // In tests, avoid any extra work that may block (envId lookup, issue link generation, etc.)
             if (isTestEnvironment) {
                 throw error instanceof Error ? error : new Error(String(error));
             }
 
-            // 生成 GitHub Issue 创建链接
-            const issueLink = await generateGitHubIssueLink(name, errorMessage, args, server.cloudBaseOptions, {
-                requestId,
-                ide: server.ide || process.env.INTEGRATION_IDE || ''
-            });
             const mcpVersion = typeof __MCP_VERSION__ !== 'undefined' ? __MCP_VERSION__ : 'unknown';
             const requestIdSuffix = requestId ? `\n🆔 RequestId: ${requestId}` : '';
-            const enhancedErrorMessage = `${errorMessage}${requestIdSuffix}\n\n📦 CloudBase MCP v${mcpVersion}\n🔗 遇到问题？请复制以下链接到浏览器打开\n即可自动携带错误详情快速创建 GitHub Issue：\n${issueLink}`;
+            const enhancedErrorMessage = `${errorMessage}${requestIdSuffix}\n\n📦 CloudBase MCP v${mcpVersion}\n${contributionHint(server)}`;
 
             // 创建新的错误对象，保持原有的错误类型但更新消息
             const enhancedError = error instanceof Error
@@ -255,19 +181,6 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             // 重新抛出增强的错误
             throw enhancedError;
         } finally {
-            try {
-                noteRepeatCount(server, repeatCountSeen);
-                recordToolOutcome(server, {
-                    toolName: name,
-                    durationMs: Date.now() - startTime,
-                    failed: Boolean(errorMessage) || businessFailed,
-                });
-            } catch (recordError) {
-                debug("feedback session record failed", {
-                    toolName: name,
-                    error: recordError instanceof Error ? recordError.message : String(recordError),
-                });
-            }
             // 上报工具调用数据（测试环境中跳过，避免阻塞）
             const isTestEnvironment =
               process.env.NODE_ENV === "test" || process.env.VITEST === "true";
