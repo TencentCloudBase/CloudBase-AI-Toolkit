@@ -73,6 +73,9 @@ function parseFrontmatter(skillContent) {
   const frontmatter = frontmatterMatch[1];
   const nameMatch = frontmatter.match(/^name:\s*(.+)$/m);
   const descriptionMatch = frontmatter.match(/^description:\s*(.+)$/m);
+  // SkillHub 的发布规范把 license 列为 SKILL.md frontmatter 字段，缺了它管理端审核
+  // 不通过 —— 所以在这里拦住，而不是把缺字段的包发出去再等审核打回。
+  const licenseMatch = frontmatter.match(/^license:\s*(.+)$/m);
 
   if (!nameMatch || !nameMatch[1].trim()) {
     throw new Error("SKILL.md frontmatter 缺少 name / SKILL.md frontmatter is missing name");
@@ -82,9 +85,16 @@ function parseFrontmatter(skillContent) {
     throw new Error("SKILL.md frontmatter 缺少 description / SKILL.md frontmatter is missing description");
   }
 
+  if (!licenseMatch || !licenseMatch[1].trim()) {
+    throw new Error(
+      "SKILL.md frontmatter 缺少 license / SKILL.md frontmatter is missing license（SkillHub 发布规范要求，见 https://skillhub.cn/tutorials#cli-publish）",
+    );
+  }
+
   return {
     name: nameMatch[1].trim(),
     description: descriptionMatch[1].trim(),
+    license: licenseMatch[1].trim(),
   };
 }
 
@@ -121,8 +131,18 @@ function validateArtifactDir(targetKey, artifactDir) {
 
   const metadata = parseFrontmatter(fs.readFileSync(skillFile, "utf8"));
 
+  // 管理端审核读的是包根与 SKILL.md 同级的 LICENSE 文件（完整协议原文），
+  // 而不是 frontmatter 里的字段 —— 缺文件直接拦在产物生成阶段。
+  const licenseFile = path.join(artifactDir, "LICENSE");
+  if (!fs.existsSync(licenseFile)) {
+    throw new Error(
+      `${targetKey}: 发布包根目录缺少 LICENSE 文件（与 SKILL.md 同级）/ missing LICENSE file at artifact root: ${artifactDir}`,
+    );
+  }
+
   return {
     skillFile,
+    licenseFile,
     metadata,
   };
 }
