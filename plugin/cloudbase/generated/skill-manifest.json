@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generatedAt": "2026-10-09T05:41:23.437Z",
+  "generatedAt": "2026-10-09T09:58:51.403Z",
   "skills": {
     "ai-model-nodejs": {
       "name": "ai-model-nodejs",
@@ -1140,6 +1140,72 @@
         "examples": [
           "web nosql 查询",
           "前端 collection 操作"
+        ]
+      },
+      "pathRegexSources": [],
+      "bashPatterns": []
+    },
+    "cloudbase-mcp": {
+      "name": "cloudbase-mcp",
+      "description": "CloudBase MCP reference. Use when connecting local or remote MCP, calling tools from the shell with mcporter, reading tool schemas, choosing the domestic or international endpoint, setting site, region, cloud mode, or plugin flags, or contributing a fix to the open-source MCP server, skills, or CLI.",
+      "version": "2.35.0",
+      "metadata": {
+        "priority": 5
+      },
+      "promptSignals": {
+        "phrases": [
+          "cloudbase mcp",
+          "mcp 连接",
+          "mcporter",
+          "mcp 工具 schema",
+          "mcp 站点切换",
+          "mcp 国际站地址",
+          "mcp 插件开关"
+        ],
+        "allOf": [
+          [
+            "mcp",
+            "cloudbase"
+          ],
+          [
+            "mcp",
+            "连接"
+          ],
+          [
+            "mcp",
+            "配置"
+          ]
+        ],
+        "anyOf": [
+          "mcporter",
+          "mcp server",
+          "mcp endpoint",
+          "enable_plugins",
+          "disable_plugins"
+        ],
+        "minScore": 6,
+        "noneOf": []
+      },
+      "retrieval": {
+        "aliases": [
+          "云开发 mcp",
+          "cloudbase mcp server"
+        ],
+        "intents": [
+          "连接 cloudbase mcp",
+          "在命令行调用 mcp 工具",
+          "查看 mcp 工具入参",
+          "切换 mcp 站点或区域"
+        ],
+        "entities": [
+          "@cloudbase/cloudbase-mcp",
+          "mcporter",
+          "CLOUDBASE_MCP_PLUGINS_ENABLED"
+        ],
+        "examples": [
+          "怎么把 cloudbase mcp 接到 cursor",
+          "用 mcporter 调一下 queryenv",
+          "mcp 想连国际站怎么配"
         ]
       },
       "pathRegexSources": [],
