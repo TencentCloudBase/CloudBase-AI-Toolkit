@@ -42,6 +42,7 @@
     "./skills/cloudbase-declarative-deploy/",
     "./skills/cloudbase-document-database-in-wechat-miniprogram/",
     "./skills/cloudbase-document-database-web-sdk/",
+    "./skills/cloudbase-mcp/",
     "./skills/cloudbase-platform/",
     "./skills/cloudbase-wechat-integration/",
     "./skills/cloudbase/",

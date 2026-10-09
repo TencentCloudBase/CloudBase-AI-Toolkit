@@ -802,6 +802,65 @@
         ]
       }
     },
+    "cloudbase-mcp": {
+      "priority": 5,
+      "promptSignals": {
+        "phrases": [
+          "cloudbase mcp",
+          "mcp 连接",
+          "mcporter",
+          "mcp 工具 schema",
+          "mcp 站点切换",
+          "mcp 国际站地址",
+          "mcp 插件开关"
+        ],
+        "allOf": [
+          [
+            "mcp",
+            "cloudbase"
+          ],
+          [
+            "mcp",
+            "连接"
+          ],
+          [
+            "mcp",
+            "配置"
+          ]
+        ],
+        "anyOf": [
+          "mcporter",
+          "mcp server",
+          "mcp endpoint",
+          "enable_plugins",
+          "disable_plugins"
+        ],
+        "minScore": 6,
+        "noneOf": []
+      },
+      "retrieval": {
+        "aliases": [
+          "云开发 mcp",
+          "cloudbase mcp server"
+        ],
+        "intents": [
+          "连接 cloudbase mcp",
+          "在命令行调用 mcp 工具",
+          "查看 mcp 工具入参",
+          "切换 mcp 站点或区域"
+        ],
+        "entities": [
+          "@cloudbase/cloudbase-mcp",
+          "mcporter",
+          "CLOUDBASE_MCP_PLUGINS_ENABLED"
+        ],
+        "examples": [
+          "怎么把 cloudbase mcp 接到 cursor",
+          "用 mcporter 调一下 queryenv",
+          "mcp 想连国际站怎么配"
+        ]
+      }
+    },
     "cloudbase-declarative-deploy": {
       "priority": 6,
       "promptSignals": {
