@@ -1,7 +1,7 @@
 ---
 name: cloudbase-mcp
 description: CloudBase MCP reference. Use when connecting local or remote MCP, calling tools from the shell with mcporter, reading tool schemas, choosing the domestic or international endpoint, setting site, region, cloud mode, or plugin flags, or contributing a fix to the open-source MCP server, skills, or CLI.
-version: 2.35.0
+version: 2.35.1
 license: MIT
 alwaysApply: false
 ---
