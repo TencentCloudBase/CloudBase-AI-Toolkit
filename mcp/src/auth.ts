@@ -684,7 +684,9 @@ function isAdoptedProjectCredential(apiKey: string, envId: string): boolean {
  * 2. 更危险：本进程后续任何一次写回（临时密钥续期、logout）都会把**陈旧快照整个序列化回盘**，
  *    直接覆盖外部刚写入的凭据。
  *
- * 因此每次读写凭据前比对该文件的 mtime，变了就丢弃缓存强制重读。
+ * 因此把检查放在两个凭据入口上——`peekLoginState()`（登录态读取，以及它之后发生的续期写回）
+ * 与 `logout()`（删除）——比对文件 mtime，变了就丢弃缓存强制重读。
+ * MCP 内没有绕过这两个入口的凭据读写路径，所以二者覆盖了全部读写。
  */
 const globalCredentialFile = join(cloudbaseConfigDir, "auth.json");
 let lastSeenCredentialMtimeMs: number | undefined;

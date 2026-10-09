@@ -1091,8 +1091,16 @@ describe("global credential cache freshness", () => {
     // 外部进程在我们登出之前又写了一次
     writeGlobalCredential({ secretId: "external-sid", secretKey: "external-skey" });
 
+    // 记录 toolbox 真正执行登出那一刻的缓存状态：失效必须发生在这之前，
+    // 否则登出仍会把本进程启动时的陈旧快照写回盘、覆盖外部凭据。
+    let dbAtLogout: unknown = "logout-not-called";
+    mockAuthLogout.mockImplementationOnce(async () => {
+      dbAtLogout = mockAuthStore.db;
+    });
+
     await logout();
 
+    expect(dbAtLogout).toBeUndefined();
     expect(mockAuthStore.db).toBeUndefined();
   });
 });
