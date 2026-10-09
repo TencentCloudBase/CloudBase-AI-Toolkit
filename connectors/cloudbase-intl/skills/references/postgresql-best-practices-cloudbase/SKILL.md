@@ -2,6 +2,7 @@
 name: postgresql-best-practices-cloudbase
 description: "CloudBase PostgreSQL access-pattern and slow-query quality guidance. Use when designing how tables are read and written, eliminating per-row database calls, adding indexes for filters or joins, reviewing high-traffic data access, or explaining a slow SQL query. Not for first-time PG SDK setup, login UI, or NoSQL collections."
 version: 2.35.0
+license: MIT
 alwaysApply: false
 ---
 

@@ -4,6 +4,7 @@ description: "Use this skill when you develop, design, build, deploy, debug, mig
 description_zh: 为你的小程序和 Web/H5 提供一体化运行与部署环境，包括数据库、云函数、云存储、身份权限和静态托管
 description_en: An all-in-one runtime and deployment environment for WeChat Mini Programs and Web/H5 apps, including database, cloud functions, cloud storage, identity and access control, and static hosting.
 version: 2.35.0
+license: MIT
 ---
 
 # CloudBase Development Guidelines
