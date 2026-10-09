@@ -142,7 +142,12 @@ let freshCacheSkipsRemaining = 0;
 let resourceDownloadTimeoutMs = DEFAULT_RESOURCE_DOWNLOAD_TIMEOUT_MS;
 let beforeDirectorySwap: (() => Promise<void> | void) | null = null;
 
-type SkillIndexEntry = { description: string; absolutePath: string };
+type SkillIndexEntry = {
+  /** 对外名字：frontmatter 的 `name`，搜索根一级子目录才回落到目录名。 */
+  name: string;
+  description: string;
+  absolutePath: string;
+};
 type SkillIndexMemo = {
   rootsKey: string;
   skills: SkillIndexEntry[];
@@ -831,9 +836,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
     });
   }
 
-  const skillNames = skills.map((skill) =>
-    path.basename(path.dirname(skill.absolutePath)),
-  );
+  const skillNames = skills.map((skill) => skill.name);
   const openapiNames = openapis.map((api) => api.name);
 
   const getDocsManager = () =>
@@ -1014,7 +1017,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
               t("rag.skillCatalogHeader", { count: skillNames.length }),
               ...skills.map((item) =>
                 t("rag.skillListItem", {
-                  name: path.basename(path.dirname(item.absolutePath)),
+                  name: item.name,
                   description: item.description,
                 }),
               ),
@@ -1022,8 +1025,9 @@ export async function registerRagTools(server: ExtendedMcpServer) {
           );
         }
 
-        const skill = skills.find((item) =>
-          item.absolutePath.includes(skillName!),
+        const skill = skills.find(
+          (item) =>
+            item.name === skillName || item.absolutePath.includes(skillName!),
         );
 
         if (!skill) {
@@ -1048,7 +1052,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
         }
 
         const skillDir = path.dirname(skill.absolutePath);
-        const remoteSkillName = path.basename(skillDir);
+        const remoteSkillName = skill.name;
         const markdownFiles = await collectSkillMarkdownFiles(skillDir);
         const remoteState = await getRemoteSkillState(remoteSkillName);
         const localContent = (await fs.readFile(skill.absolutePath)).toString();
@@ -1154,36 +1158,65 @@ export async function registerRagTools(server: ExtendedMcpServer) {
   );
 }
 
-function extractDescriptionFromFrontMatter(content: string): string | null {
+/** front matter 区块正文（不含首尾 `---` 行）；没有 front matter 时返回 null。 */
+function frontMatterBody(content: string): string | null {
   const lines = content.split(/\r?\n/);
   if (lines[0]?.trim() !== "---") return null;
   const fm: string[] = [];
   for (let i = 1; i < lines.length && lines[i].trim() !== "---"; i++)
     fm.push(lines[i]);
-  const match = fm
-    .join("\n")
-    .match(/^description\s*:\s*(.*)$/m);
+  return fm.join("\n");
+}
+
+function extractDescriptionFromFrontMatter(content: string): string | null {
+  const body = frontMatterBody(content);
+  if (body === null) return null;
+  const match = body.match(/^description\s*:\s*(.*)$/m);
   return match ? match[1].trim() : null;
+}
+
+/**
+ * skill 的对外名字。优先 frontmatter 的 `name`——搜索根自己也可以放一份 SKILL.md
+ * （`config/source/skills/SKILL.md` 是 all-in-one 索引），那份没有可用的目录名。
+ */
+function extractNameFromFrontMatter(content: string): string | null {
+  const body = frontMatterBody(content);
+  if (body === null) return null;
+  const match = body.match(/^name\s*:\s*(.*)$/m);
+  return match && match[1].trim() ? match[1].trim() : null;
 }
 
 type SkillInfo = SkillIndexEntry;
 
 async function collectSkillDescriptions(rootDir: string): Promise<SkillInfo[]> {
   const result: SkillInfo[] = [];
-  async function walk(dir: string): Promise<void> {
-    const entries = await fs.readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) await walk(fullPath);
-      else if (entry.isFile() && entry.name === "SKILL.md") {
-        const desc = extractDescriptionFromFrontMatter(
-          await fs.readFile(fullPath, "utf8"),
-        );
-        if (desc) result.push({ description: desc, absolutePath: fullPath });
-      }
+  const subDirs = (await fs.readdir(rootDir, { withFileTypes: true })).filter(
+    (entry) => entry.isDirectory(),
+  );
+  // 常规形态是搜索根的一级子目录；搜索根自己也可以放一份 SKILL.md
+  // （config/source/skills/SKILL.md 是 all-in-one 索引），它没有可用的目录名，
+  // 因此只认 frontmatter 的 `name`，认不出来就不收——否则会按目录名冒出 "skills"。
+  const candidates: Array<{ skillFile: string; fallbackName: string | null }> = [
+    { skillFile: path.join(rootDir, "SKILL.md"), fallbackName: null },
+    ...subDirs.map((entry) => ({
+      skillFile: path.join(rootDir, entry.name, "SKILL.md"),
+      fallbackName: entry.name,
+    })),
+  ];
+
+  for (const { skillFile, fallbackName } of candidates) {
+    let content: string;
+    try {
+      content = await fs.readFile(skillFile, "utf8");
+    } catch {
+      continue; // 没有 SKILL.md（或读不到）就不是 skill
     }
+    const name = extractNameFromFrontMatter(content) ?? fallbackName;
+    if (!name) continue;
+    const description = extractDescriptionFromFrontMatter(content);
+    if (description)
+      result.push({ name, description, absolutePath: skillFile });
   }
-  await walk(rootDir);
   return result;
 }
 
