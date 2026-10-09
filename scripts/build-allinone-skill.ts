@@ -38,7 +38,7 @@ const SOURCES = {
   mainRules: 'config/source/guideline/cloudbase/SKILL.md',
   skillsDir: 'config/source/skills',
   guidelineReferences: 'config/source/guideline/cloudbase/references',
-  license: 'config/source/guideline/cloudbase/LICENSE',
+  license: 'config/source/guideline/cloudbase/LICENSE.md',
 };
 
 // Skills to exclude from the bundle
@@ -279,8 +279,8 @@ export function buildAllInOneSkill(
       `缺少 LICENSE 源文件 / missing LICENSE source: ${SOURCES.license}`,
     );
   }
-  fs.copyFileSync(licenseSource, path.join(outputDir, "LICENSE"));
-  console.log("✅ Created: cloudbase/LICENSE");
+  fs.copyFileSync(licenseSource, path.join(outputDir, "LICENSE.md"));
+  console.log("✅ Created: cloudbase/LICENSE.md");
 
   // 4. Copy all sub-skills to references/
   const subSkillFile = noSubSkill
