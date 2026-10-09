@@ -13,6 +13,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 
+// 包根的许可文件：`LICENSE.md` / `LICENSE.txt` / `LICENCE` 都认。用带扩展名的形态，
+// 因为 SkillHub 的上传接口只接受带扩展名的文件类型，无扩展名的 `LICENSE` 会被
+// 400 拒绝（file type not allowed）。
+const LICENSE_FILE_RE = /^licen[cs]e(\.(md|txt))?$/i;
+
 function parseArgs(argv) {
   let targets = "";
   let outputDir = path.join(projectRoot, ".clawhub-publish-output");
@@ -131,10 +136,11 @@ function validateArtifactDir(targetKey, artifactDir) {
 
   const metadata = parseFrontmatter(fs.readFileSync(skillFile, "utf8"));
 
-  // 管理端审核读的是包根与 SKILL.md 同级的 LICENSE 文件（完整协议原文），
-  // 而不是 frontmatter 里的字段 —— 缺文件直接拦在产物生成阶段。
-  const licenseFile = path.join(artifactDir, "LICENSE");
-  if (!fs.existsSync(licenseFile)) {
+  // 包根与 SKILL.md 同级的 LICENSE 文件承载完整协议原文 —— 缺文件直接拦在产物生成阶段。
+  const licenseName = fs
+    .readdirSync(artifactDir)
+    .find((name) => LICENSE_FILE_RE.test(name));
+  if (!licenseName) {
     throw new Error(
       `${targetKey}: 发布包根目录缺少 LICENSE 文件（与 SKILL.md 同级）/ missing LICENSE file at artifact root: ${artifactDir}`,
     );
@@ -142,7 +148,7 @@ function validateArtifactDir(targetKey, artifactDir) {
 
   return {
     skillFile,
-    licenseFile,
+    licenseFile: path.join(artifactDir, licenseName),
     metadata,
   };
 }

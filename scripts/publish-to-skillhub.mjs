@@ -266,11 +266,17 @@ function readCurrentVersion(skillFile) {
 }
 
 function parseFrontmatter(skillContent) {
-  const nameMatch = skillContent.match(/^name:\s*(.+)$/m);
-  const descriptionMatch = skillContent.match(/^description:\s*(.+)$/m);
+  const frontmatterMatch = skillContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  const frontmatter = frontmatterMatch ? frontmatterMatch[1] : "";
+  const nameMatch = frontmatter.match(/^name:\s*(.+)$/m);
+  const descriptionMatch = frontmatter.match(/^description:\s*(.+)$/m);
+  const licenseMatch = frontmatter.match(/^license:\s*(.+)$/m);
   return {
     name: nameMatch ? nameMatch[1].trim() : "",
     description: descriptionMatch ? descriptionMatch[1].trim() : "",
+    // SkillHub 把许可作为条目的 `license` 字段（官方 CLI 的 publish payload 同样带
+    // 这个字段），所以从 SKILL.md frontmatter 读出来一并上传，条目才有许可信息。
+    license: licenseMatch ? licenseMatch[1].trim() : "",
   };
 }
 
@@ -328,6 +334,7 @@ async function uploadVersionToSkillhub({
   displayName,
   summary,
   iconUrl,
+  license,
   files,
 }) {
   const url = `${apiBase}/api/v1/orgs/${orgId}/skills/${slug}/versions`;
@@ -342,6 +349,7 @@ async function uploadVersionToSkillhub({
     displayName: displayName || undefined,
     summary: summary || undefined,
     iconUrl: iconUrl || undefined,
+    license: license || undefined,
     securityScan: false,
   });
   formData.append("payload", payload);
@@ -443,6 +451,7 @@ export async function publishToSkillhub({
     // CloudBase logo, instead of the raw English agent-trigger description and
     // raw SKILL.md `name` slug.
     const { displayName, summary, iconUrl } = selectMarketplaceMetadata(target, metadata);
+    const license = metadata.license || "";
 
     const files = collectFiles(artifactDir, artifactDir);
 
@@ -526,6 +535,7 @@ export async function publishToSkillhub({
           displayName,
           summary,
           iconUrl,
+          license,
           files,
         });
 
