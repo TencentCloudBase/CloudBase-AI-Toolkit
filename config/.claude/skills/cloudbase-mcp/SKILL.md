@@ -12,6 +12,8 @@ Open source:
 - GitHub: https://github.com/TencentCloudBase/CloudBase-AI-ToolKit
 - Domestic mirror: https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-ToolKit
 
+The server source is `mcp/` in that repo. The package name is `@cloudbase/cloudbase-mcp`.
+
 ## When to use
 
 - The user is connecting MCP, or choosing local versus remote.
