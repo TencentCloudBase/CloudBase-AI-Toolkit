@@ -1,7 +1,7 @@
 ---
 name: relational-database-web-cloudbase
 description: "[Deprecated] Use when building frontend Web apps that talk to CloudBase Relational Database via @cloudbase/js-sdk – provides the canonical init pattern so you can then use Supabase-style queries from the browser. New environments should use PostgreSQL with app.rdb() — see postgresql-development skill instead."
-version: 2.34.8
+version: 2.35.0
 alwaysApply: false
 metadata:
   priority: "5"
@@ -36,7 +36,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Do NOT use for
 
-- MCP-based SQL provisioning, schema changes, or permissions management.
+- MCP-based SQL management, schema changes, or permissions management (provisioning is not offered through MCP).
 - Backend/Node service access.
 - Document database operations.
 
@@ -51,7 +51,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 - Confirm the caller is a Web frontend.
 - Keep one shared CloudBase app and one shared relational DB client.
-- Route MySQL provisioning/schema work to `relational-database-mcp-cloudbase`. If the task says PostgreSQL, CloudBase PG, PG mode, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, or RLS, route to `postgresql-development-cloudbase` instead.
+- Route MySQL management/schema work on an existing instance to `relational-database-mcp-cloudbase` (it does not provision). If the task says PostgreSQL, CloudBase PG, PG mode, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, or RLS, route to `postgresql-development-cloudbase` instead.
 - Handle auth separately before data access.
 
 ## Overview

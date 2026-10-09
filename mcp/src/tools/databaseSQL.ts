@@ -8,6 +8,7 @@ import {
 import { ExtendedMcpServer } from "../server.js";
 import { t } from "../i18n/index.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
+import { getConsoleDevUrl } from "../utils/site-map.js";
 
 const CATEGORY = "SQL database";
 const MYSQL_GATE_CACHE = new Map<string, boolean>();
@@ -75,7 +76,6 @@ const ERROR_LOG_LEVELS = ["error", "warning", "note"] as const;
 const ORDER_BY_TYPE = ["asc", "desc", "ASC", "DESC"] as const;
 
 const MANAGE_ACTIONS = [
-  "provisionMySQL",
   "destroyMySQL",
   "runStatement",
   "initializeSchema",
@@ -106,6 +106,8 @@ type SqlToolPayload = {
   data?: Record<string, unknown>;
   message: string;
   errorCode?: string;
+  /** Console entry for outcomes that must be handled outside the tool. */
+  helpUrl?: string;
   nextActions?: ToolNextStep[];
 };
 
@@ -218,6 +220,30 @@ function buildNextAction(
 
 function buildSqlToolResult(payload: SqlToolPayload) {
   return buildJsonToolResult(payload);
+}
+
+/**
+ * Standard result for "this environment has no MySQL instance".
+ *
+ * Provisioning was retired from the MCP surface, so this result deliberately
+ * carries **no** next-action. The old `provisionMySQL` hint is what led agents
+ * to create instances in environments that never asked for one; the message and
+ * the console entry are the only handoff left.
+ */
+function buildNotCreatedResult(
+  message: string,
+  options: {
+    envId?: string;
+    data?: Record<string, unknown>;
+  } = {},
+): ToolResult {
+  return buildSqlToolResult({
+    success: false,
+    errorCode: "MYSQL_NOT_CREATED",
+    ...(options.data ? { data: options.data } : {}),
+    message,
+    ...(options.envId ? { helpUrl: getConsoleDevUrl(options.envId) } : {}),
+  });
 }
 
 function stripLeadingSqlComments(sql: string) {
@@ -579,7 +605,13 @@ async function getSqlInstanceInfo({
   }
 }
 
-function buildProvisionNextActions(
+/**
+ * Next actions for a create/teardown task that is already in flight.
+ *
+ * Create tasks can only originate outside this tool now (console), so this
+ * keeps a running task pollable without ever suggesting a provisioning call.
+ */
+function buildCreateStatusNextActions(
   status: SqlLifecycleStatus,
   request?: Record<string, unknown>,
 ) {
@@ -601,7 +633,7 @@ function buildProvisionNextActions(
     buildNextAction(
       QUERY_MYSQL_DATABASE,
       "describeCreateResult",
-      t("databaseSQL.next.provisionStillRunning"),
+      t("databaseSQL.next.createStillRunning"),
       request
         ? { action: "describeCreateResult", request }
         : { action: "describeCreateResult" },
@@ -615,6 +647,8 @@ function inferTaskKind(request?: Record<string, unknown>) {
     return "destroy";
   }
 
+  // Everything else is a create task. MCP no longer starts one; this branch
+  // only describes tasks that were kicked off in the console.
   return "provision";
 }
 
@@ -712,18 +746,8 @@ async function handleRunQuery(
   } catch (error: any) {
     const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
     if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
-      return buildSqlToolResult({
-        success: false,
-        errorCode: "MYSQL_NOT_CREATED",
-        message: t("databaseSQL.runQuery.notProvisioned"),
-        nextActions: [
-          buildNextAction(
-            MANAGE_MYSQL_DATABASE,
-            "provisionMySQL",
-            t("databaseSQL.next.provisionBeforeQuery"),
-            { action: "provisionMySQL", confirm: true },
-          ),
-        ],
+      return buildNotCreatedResult(t("databaseSQL.runQuery.notProvisioned"), {
+        envId: dbContext.envId,
       });
     }
     throw error;
@@ -783,7 +807,7 @@ async function handleDescribeCreateResult(
         : status === "FAILED"
           ? t("databaseSQL.describeCreateResult.failed")
           : t("databaseSQL.describeCreateResult.pending"),
-    nextActions: buildProvisionNextActions(status, buildTaskRequest(request, result)),
+    nextActions: buildCreateStatusNextActions(status, buildTaskRequest(request, result)),
   });
 }
 
@@ -837,16 +861,9 @@ async function handleGetInstanceInfo(
     message: instanceInfo.exists
       ? t("databaseSQL.getInstanceInfo.exists")
       : t("databaseSQL.getInstanceInfo.notExists"),
-    nextActions: instanceInfo.exists
-      ? undefined
-      : [
-          buildNextAction(
-            MANAGE_MYSQL_DATABASE,
-            "provisionMySQL",
-            t("databaseSQL.next.provisionBeforeSql"),
-            { action: "provisionMySQL", confirm: true },
-          ),
-        ],
+    // No next-action when the instance is missing: there is no provisioning
+    // call left to suggest, so the console entry is the only handoff.
+    ...(instanceInfo.exists ? {} : { helpUrl: getConsoleDevUrl(instanceInfo.envId) }),
   });
 }
 
@@ -856,19 +873,9 @@ async function handleGetConnectionInfo(
   const instanceInfo = await getSqlInstanceInfo(context);
 
   if (!instanceInfo.exists) {
-    return buildSqlToolResult({
-      success: false,
-      errorCode: "MYSQL_NOT_CREATED",
+    return buildNotCreatedResult(t("databaseSQL.getConnectionInfo.notExists"), {
+      envId: instanceInfo.envId,
       data: sanitizeInstanceInfo(instanceInfo),
-      message: t("databaseSQL.getConnectionInfo.notExists"),
-      nextActions: [
-        buildNextAction(
-          MANAGE_MYSQL_DATABASE,
-          "provisionMySQL",
-          t("databaseSQL.getConnectionInfo.provisionFirst"),
-          { action: "provisionMySQL", confirm: true },
-        ),
-      ],
     });
   }
 
@@ -919,20 +926,13 @@ async function requireReadyMysqlInstance(
   if (!instanceInfo.exists) {
     return {
       ok: false,
-      payload: buildSqlToolResult({
-        success: false,
-        errorCode: "MYSQL_NOT_CREATED",
-        data: sanitizeInstanceInfo(instanceInfo),
-        message: t("databaseSQL.instanceLogs.notProvisioned"),
-        nextActions: [
-          buildNextAction(
-            MANAGE_MYSQL_DATABASE,
-            "provisionMySQL",
-            t("databaseSQL.next.provisionBeforeSql"),
-            { action: "provisionMySQL", confirm: true },
-          ),
-        ],
-      }),
+      payload: buildNotCreatedResult(
+        t("databaseSQL.instanceLogs.notProvisioned"),
+        {
+          envId: instanceInfo.envId,
+          data: sanitizeInstanceInfo(instanceInfo),
+        },
+      ),
     };
   }
 
@@ -1078,89 +1078,6 @@ async function handleDescribeInstanceErrorLogs(
   });
 }
 
-async function handleProvisionMySQL(
-  args: ManageSqlDatabaseArgs,
-  context: QueryManageContext,
-): Promise<ToolResult> {
-  if (args.confirm !== true) {
-    return buildSqlToolResult({
-      success: false,
-      errorCode: "CONFIRM_REQUIRED",
-      message: t("databaseSQL.provision.confirmRequired"),
-      nextActions: [
-        buildNextAction(
-          MANAGE_MYSQL_DATABASE,
-          "provisionMySQL",
-          t("databaseSQL.provision.needsConfirmation"),
-          { action: "provisionMySQL", confirm: true },
-        ),
-      ],
-    });
-  }
-
-  const existing = await getSqlInstanceInfo(context);
-  if (
-    existing.status === "READY" ||
-    existing.status === "PENDING" ||
-    existing.status === "RUNNING"
-  ) {
-    return buildSqlToolResult({
-      success: true,
-      data: sanitizeInstanceInfo(existing),
-      message: t("databaseSQL.provision.alreadyExists"),
-      nextActions:
-        existing.status === "READY"
-          ? [
-              buildNextAction(
-                MANAGE_MYSQL_DATABASE,
-                "initializeSchema",
-                t("databaseSQL.provision.existsCanInitialize"),
-              ),
-            ]
-          : undefined,
-    });
-  }
-
-  const cloudbase = await context.getManager();
-  const envId = await getEnvId(context.cloudBaseOptions);
-  const request = args.request || {};
-  const result = await callSqlControlPlane(cloudbase, "CreateMySQL", {
-    DbInstanceType: "MYSQL",
-    ...request,
-    EnvId: envId,
-  });
-  logCloudBaseResult(context.server.logger, result);
-
-  const rawStatus = pickLifecycleSource(result);
-  const status = normalizeTaskStatus(rawStatus);
-
-  const taskRequest = buildTaskRequest(request, result);
-
-  return buildSqlToolResult({
-    success: true,
-    data: {
-      status,
-      rawStatus,
-      instance: {
-        envId,
-        instanceId:
-          (result.InstanceId as string | undefined) ||
-          (request.InstanceId as string | undefined) ||
-          "default",
-      },
-      task: {
-        request: taskRequest,
-        requestId: result.RequestId,
-      },
-    },
-    message:
-      status === "READY"
-        ? t("databaseSQL.provision.completedImmediately")
-        : t("databaseSQL.provision.submitted"),
-    nextActions: buildProvisionNextActions(status, taskRequest),
-  });
-}
-
 async function handleDestroyMySQL(
   args: ManageSqlDatabaseArgs,
   context: QueryManageContext,
@@ -1256,18 +1173,8 @@ async function handleRunStatement(
 
   const instanceInfo = await getSqlInstanceInfo(context);
   if (!instanceInfo.exists) {
-    return buildSqlToolResult({
-      success: false,
-      errorCode: "MYSQL_NOT_CREATED",
-      message: t("databaseSQL.runStatement.notProvisioned"),
-      nextActions: [
-        buildNextAction(
-          MANAGE_MYSQL_DATABASE,
-          "provisionMySQL",
-          t("databaseSQL.runStatement.provisionBeforeWrite"),
-          { action: "provisionMySQL", confirm: true },
-        ),
-      ],
+    return buildNotCreatedResult(t("databaseSQL.runStatement.notProvisioned"), {
+      envId: instanceInfo.envId,
     });
   }
 
@@ -1307,19 +1214,10 @@ async function handleRunStatement(
   } catch (error: any) {
     const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
     if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
-      return buildSqlToolResult({
-        success: false,
-        errorCode: "MYSQL_NOT_CREATED",
-        message: t("databaseSQL.runStatement.notProvisionedNotFound"),
-        nextActions: [
-          buildNextAction(
-            MANAGE_MYSQL_DATABASE,
-            "provisionMySQL",
-            t("databaseSQL.next.provisionBeforeStatements"),
-            { action: "provisionMySQL", confirm: true },
-          ),
-        ],
-      });
+      return buildNotCreatedResult(
+        t("databaseSQL.runStatement.notProvisionedNotFound"),
+        { envId: dbContext.envId },
+      );
     }
     throw error;
   }
@@ -1347,19 +1245,10 @@ async function resolveInitializationReadiness(
   if (!instanceInfo.exists) {
     return {
       ready: false,
-      payload: buildSqlToolResult({
-        success: false,
-        errorCode: "MYSQL_NOT_CREATED",
-        message: t("databaseSQL.initializeSchema.notProvisioned"),
-        nextActions: [
-          buildNextAction(
-            MANAGE_MYSQL_DATABASE,
-            "provisionMySQL",
-            t("databaseSQL.initializeSchema.provisionFirst"),
-            { action: "provisionMySQL", confirm: true },
-          ),
-        ],
-      }),
+      payload: buildNotCreatedResult(
+        t("databaseSQL.initializeSchema.notProvisioned"),
+        { envId: instanceInfo.envId },
+      ),
     };
   }
 
@@ -1472,19 +1361,10 @@ async function handleInitializeSchema(
       } catch (error: any) {
         const errorCode = typeof error === "object" && error && "code" in error ? (error as any).code : "";
         if (errorCode === "FailedOperation.DataSourceNotExist" || error.message?.includes("Database instance not found")) {
-          return buildSqlToolResult({
-            success: false,
-            errorCode: "MYSQL_NOT_CREATED",
-            message: t("databaseSQL.initializeSchema.notProvisionedNotFound"),
-            nextActions: [
-              buildNextAction(
-                MANAGE_MYSQL_DATABASE,
-                "provisionMySQL",
-                t("databaseSQL.next.provisionBeforeStatements"),
-                { action: "provisionMySQL", confirm: true },
-              ),
-            ],
-          });
+          return buildNotCreatedResult(
+            t("databaseSQL.initializeSchema.notProvisionedNotFound"),
+            { envId: dbContext.envId },
+          );
         }
         throw error;
       }
@@ -1693,8 +1573,6 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
       const gate = await checkMysqlGate(server);
       if (gate) return gate;
       switch (args.action) {
-        case "provisionMySQL":
-          return handleProvisionMySQL(args, context);
         case "destroyMySQL":
           return handleDestroyMySQL(args, context);
         case "runStatement":
