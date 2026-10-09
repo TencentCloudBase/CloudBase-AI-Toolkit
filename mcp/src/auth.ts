@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
   AuthSupervisor,
@@ -671,11 +671,48 @@ function isAdoptedProjectCredential(apiKey: string, envId: string): boolean {
   return adoptedProjectApiKey !== null && apiKey === adoptedProjectApiKey && envId === adoptedProjectEnvId;
 }
 
+/**
+ * 全局凭据文件 `~/.config/.cloudbase/auth.json` 与 CloudBase CLI 共用一份：用户会在终端里
+ * `tcb login`，宿主连接器的登录按钮执行的也是 `tcb login --flow web --yes`，两者都在
+ * **另一个进程**里重写这个文件。
+ *
+ * 而 `@cloudbase/toolbox` 的 `LocalStore` 把文件解析结果缓存在实例字段上、生命周期内不失效
+ * （`lib/localstore.js`：`getDB() { const db = this.db || await getAsyncDB(...) }`），
+ * 于是这里有两个方向的问题：
+ *
+ * 1. 外部刚写入的凭据读不到——本进程仍按启动时那份快照判断登录态；
+ * 2. 更危险：本进程后续任何一次写回（临时密钥续期、logout）都会把**陈旧快照整个序列化回盘**，
+ *    直接覆盖外部刚写入的凭据。
+ *
+ * 因此每次读写凭据前比对该文件的 mtime，变了就丢弃缓存强制重读。
+ */
+const globalCredentialFile = join(cloudbaseConfigDir, "auth.json");
+let lastSeenCredentialMtimeMs: number | undefined;
+
+function dropStaleCredentialStoreCache(): void {
+  let mtimeMs: number | undefined;
+  try {
+    mtimeMs = statSync(globalCredentialFile).mtimeMs;
+  } catch {
+    // 文件不存在（或不可读）：外部可能刚清空凭据，同样要让缓存失效
+    mtimeMs = undefined;
+  }
+  if (mtimeMs === lastSeenCredentialMtimeMs) {
+    return;
+  }
+  lastSeenCredentialMtimeMs = mtimeMs;
+  // `db` 是 @cloudbase/toolbox LocalStore 的私有缓存字段，没有公开的失效接口；
+  // 清掉它，下一次 get/set/delete 就会重新读盘。字段若被上游改名，
+  // 这里退化为旧行为（缓存不失效），不会抛错。
+  delete (authStore as unknown as { db?: unknown }).db;
+}
+
 export async function peekLoginState(options?: {
   ignoreEnvVars?: boolean;
   site?: string;
   region?: string;
 }): Promise<LoginState | null> {
+  dropStaleCredentialStoreCache();
   credentialSource = null;
   const envVarLoginState = normalizeLoginStateFromEnvVars(options);
 
@@ -828,6 +865,9 @@ export async function getLoginState(options?: EnsureLoginOptions) {
 }
 
 export async function logout(_options?: { site?: string }) {
+  // 先同步缓存再删：否则 toolbox 会把本进程启动时的陈旧快照写回盘，
+  // 把外部（CLI / 宿主登录按钮）刚写入的凭据一起抹掉。
+  dropStaleCredentialStoreCache();
   let cwd: string | undefined;
   try {
     cwd = requireProjectRoot();
