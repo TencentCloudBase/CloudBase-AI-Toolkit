@@ -51,6 +51,16 @@ Open source:
 
 The server source is `mcp/` in that repo. The package name is `@cloudbase/cloudbase-mcp`.
 
+## Sibling skills (local only)
+
+Sibling CloudBase skills ship beside this skill. Use local relative paths such as `../cloudbase-cli/SKILL.md`.
+
+If a referenced sibling skill file is missing from this environment, ask the user to install the full CloudBase plugin (or the missing skill). Do **not** HTTP-fetch remote skill or protocol markdown into the agent context.
+
+- MCP setup, mcporter commands, and auth examples: `../cloudbase/references/mcp-setup.md`
+- CLI fallback when MCP tools are not loaded: `../cloudbase-cli/SKILL.md`
+- MCP vs CLI decision tree: `../cloudbase/references/tooling-fallback.md`
+
 ## When to use
 
 - The user is connecting MCP, or choosing local versus remote.
@@ -60,7 +70,7 @@ The server source is `mcp/` in that repo. The package name is `@cloudbase/cloudb
 
 ## Do not use this for
 
-- Creating or changing cloud resources. Use the matching domain skill, or `./cloudbase-cli/SKILL.md` when MCP tools are not loaded.
+- Creating or changing cloud resources. Use the matching domain skill, or `../cloudbase-cli/SKILL.md` when MCP tools are not loaded.
 - Cloud platform, permission, or account problems that are not code in this repo. Those go to an issue, not a pull request.
 
 ## Connection
@@ -81,7 +91,7 @@ Remote mode cannot upload local files or download templates. The international s
 
 ## Calling tools with mcporter
 
-When this session has no native MCP tools, use mcporter. The command list and the auth examples live in `config/source/guideline/cloudbase/references/mcp-setup.md`. Read that file before login, environment binding, or `manageEnv`.
+When this session has no native MCP tools, use mcporter. The command list and the auth examples live in `../cloudbase/references/mcp-setup.md`. Read that file before login, environment binding, or `manageEnv`.
 
 Check whether the server is configured:
 
