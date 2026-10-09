@@ -754,13 +754,51 @@ describe("hosted resource download and skill index", () => {
     );
   }
 
+  it("names a root-level SKILL.md from its front matter instead of the directory", async () => {
+    const root = path.join(home, "skills");
+    const skillFile = await writeSkill(root);
+    // All-in-one 索引的形态：一份 SKILL.md 直接躺在搜索根里，没有自己的目录
+    const rootIndexFile = path.join(root, "SKILL.md");
+    await fs.writeFile(
+      rootIndexFile,
+      "---\nname: cloudbase-all-in-one\ndescription: all-in-one index\n---\n",
+      "utf8",
+    );
+
+    const skills = await loadSkillIndex([root]);
+
+    expect(skills).toEqual([
+      {
+        name: "cloudbase-all-in-one",
+        description: "all-in-one index",
+        absolutePath: rootIndexFile,
+      },
+      { name: "demo", description: "demo skill for the index", absolutePath: skillFile },
+    ]);
+    // 旧实现按「SKILL.md 的父目录名」取名，根目录那份会变成 "skills"
+    expect(skills.map((skill) => skill.name)).not.toContain("skills");
+  });
+
+  it("skips a root-level SKILL.md that declares no name", async () => {
+    const root = path.join(home, "skills");
+    await fs.mkdir(root, { recursive: true });
+    await fs.writeFile(
+      path.join(root, "SKILL.md"),
+      "---\ndescription: unnamed index\n---\n",
+      "utf8",
+    );
+
+    // 根目录里没有可用的目录名，frontmatter 也不给名字 ⇒ 不收（而不是收成 "skills"）
+    expect(await loadSkillIndex([root])).toEqual([]);
+  });
+
   it("does not re-read SKILL.md while the memo is fresh", async () => {
     const root = path.join(home, "skills");
     const skillFile = await writeSkill(root);
 
     const first = await loadSkillIndex([root]);
     expect(first).toEqual([
-      { description: "demo skill for the index", absolutePath: skillFile },
+      { name: "demo", description: "demo skill for the index", absolutePath: skillFile },
     ]);
 
     await rewriteDescription(skillFile, "changed skill");
@@ -778,7 +816,7 @@ describe("hosted resource download and skill index", () => {
     await rewriteDescription(skillFile, "changed skill");
     vi.advanceTimersByTime(21);
     expect(await loadSkillIndex([root])).toEqual([
-      { description: "changed skill", absolutePath: skillFile },
+      { name: "demo", description: "changed skill", absolutePath: skillFile },
     ]);
   });
 
@@ -791,7 +829,7 @@ describe("hosted resource download and skill index", () => {
     await loadSkillIndex([root]);
     await rewriteDescription(skillFile, "changed skill");
     expect(await loadSkillIndex([root])).toEqual([
-      { description: "changed skill", absolutePath: skillFile },
+      { name: "demo", description: "changed skill", absolutePath: skillFile },
     ]);
   });
 
@@ -803,7 +841,7 @@ describe("hosted resource download and skill index", () => {
 
     await __updateResourceCacheForTests();
     expect(await loadSkillIndex([root])).toEqual([
-      { description: "changed skill", absolutePath: skillFile },
+      { name: "demo", description: "changed skill", absolutePath: skillFile },
     ]);
   });
 
