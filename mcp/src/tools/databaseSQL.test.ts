@@ -129,18 +129,15 @@ describe("SQL database tools", () => {
     );
   });
 
-  it("manageMysqlDatabase(provisionMySQL) requires explicit confirmation", async () => {
+  it("manageMysqlDatabase no longer accepts provisionMySQL", () => {
     const { tools } = createMockServer();
+    const actionSchema = tools.manageMysqlDatabase.meta.inputSchema.action;
 
-    const result = await tools.manageMysqlDatabase.handler({
-      action: "provisionMySQL",
-    });
-    const payload = JSON.parse(result.content[0].text);
-
-    expect(payload).toMatchObject({
-      success: false,
-      errorCode: "CONFIRM_REQUIRED",
-    });
+    // Provisioning was retired, so the action must not survive schema validation.
+    expect(actionSchema.safeParse("provisionMySQL").success).toBe(false);
+    expect(actionSchema.safeParse("destroyMySQL").success).toBe(true);
+    expect(actionSchema.safeParse("runStatement").success).toBe(true);
+    expect(actionSchema.safeParse("initializeSchema").success).toBe(true);
   });
 
   it("manageMysqlDatabase(destroyMySQL) requires explicit confirmation", async () => {
@@ -157,7 +154,7 @@ describe("SQL database tools", () => {
     });
   });
 
-  it("queryMysqlDatabase(getInstanceInfo) suggests provisioning when instance is missing", async () => {
+  it("queryMysqlDatabase(getInstanceInfo) offers no provisioning hint when the instance is missing", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeCreateMySQLResult") {
         return {
@@ -183,10 +180,10 @@ describe("SQL database tools", () => {
         status: "NOT_CREATED",
       },
     });
-    expect(payload.nextActions?.[0]).toMatchObject({
-      tool: "manageMysqlDatabase",
-      action: "provisionMySQL",
-    });
+    // A missing instance must not hand the agent a way to create one.
+    expect(payload.nextActions).toBeUndefined();
+    expect(JSON.stringify(payload)).not.toContain("provisionMySQL");
+    expect(payload.helpUrl).toContain("env-test");
   });
 
   it("queryMysqlDatabase(describeInstance) should behave as getInstanceInfo alias", async () => {
@@ -402,7 +399,7 @@ describe("SQL database tools", () => {
     expect(payload.nextActions).toEqual([]);
   });
 
-  it("manageMysqlDatabase(provisionMySQL) sends DbInstanceType and carries TaskId forward", async () => {
+  it("manageMysqlDatabase(runStatement) reports MYSQL_NOT_CREATED without a provisioning hint", async () => {
     mockCommonServiceCall.mockImplementation(async ({ Action }: { Action: string }) => {
       if (Action === "DescribeCreateMySQLResult") {
         return {
@@ -412,53 +409,26 @@ describe("SQL database tools", () => {
           },
         };
       }
-      if (Action === "CreateMySQL") {
-        return {
-          RequestId: "req-provision",
-          Data: {
-            TaskId: "38661",
-          },
-        };
-      }
       throw new Error(`unexpected action: ${Action}`);
     });
 
     const { tools } = createMockServer();
     const result = await tools.manageMysqlDatabase.handler({
-      action: "provisionMySQL",
-      confirm: true,
+      action: "runStatement",
+      sql: "CREATE TABLE demo (id INT)",
     });
     const payload = JSON.parse(result.content[0].text);
 
-    expect(mockCommonServiceCall).toHaveBeenCalledWith(
-      expect.objectContaining({
-        Action: "CreateMySQL",
-        Param: expect.objectContaining({
-          EnvId: "env-test",
-          DbInstanceType: "MYSQL",
-        }),
-      }),
-    );
     expect(payload).toMatchObject({
-      success: true,
-      data: {
-        task: {
-          request: {
-            TaskId: "38661",
-          },
-        },
-      },
+      success: false,
+      errorCode: "MYSQL_NOT_CREATED",
     });
-    expect(payload.nextActions?.[0]).toMatchObject({
-      tool: "queryMysqlDatabase",
-      action: "describeCreateResult",
-      suggested_args: {
-        action: "describeCreateResult",
-        request: {
-          TaskId: "38661",
-        },
-      },
-    });
+    expect(payload.nextActions).toBeUndefined();
+    expect(JSON.stringify(payload)).not.toContain("provisionMySQL");
+    // This MCP process must never reach the provisioning control-plane action.
+    expect(mockCommonServiceCall).not.toHaveBeenCalledWith(
+      expect.objectContaining({ Action: "CreateMySQL" }),
+    );
   });
 
   it("manageMysqlDatabase(destroyMySQL) blocks when no instance exists", async () => {

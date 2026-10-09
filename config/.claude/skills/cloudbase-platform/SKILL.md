@@ -1,7 +1,7 @@
 ---
 name: cloudbase-platform
 description: CloudBase platform overview and routing guide. This skill should be used when users need high-level capability selection, platform concepts, console navigation, realtime (broadcast / presence / live database changes), or cross-platform best practices before choosing a more specific implementation skill.
-version: 2.34.8
+version: 2.35.0
 alwaysApply: false
 ---
 
@@ -227,9 +227,9 @@ When a task explicitly requires recording operation steps or results to a file (
    manageEnv(action="listPackages")
    ```
 
-   **Changing plan (e.g. personal → standard):**
+   **Changing plan (use a `packageId` from `listPackages`):**
    ```
-   manageEnv(action="modifyPlan", envId="your-env-id", packageId="baas_pf_standard", confirm="yes")
+   manageEnv(action="modifyPlan", envId="your-env-id", packageId="<packageId>", confirm="yes")
    ```
 
    **Renewing an environment:**

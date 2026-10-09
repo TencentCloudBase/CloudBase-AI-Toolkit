@@ -386,7 +386,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "packageId",
       type: "string",
-      description: `套餐 ID（action=create/modifyPlan 时必填）。可选值如 baas_personal(个人版)、baas_pf_standard(标准版)、baas_pf_enterprise(企业版)`,
+      description: `套餐 ID（action=create/modifyPlan 时必填）。取值以 manageEnv(action="listPackages") 返回的 PackageName 为准，各站点可售套餐不同，不要凭记忆填写。`,
     },
     {
       name: "resources",
@@ -960,7 +960,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
 ---
 
 ### `queryMysqlDatabase`
-查询 CloudBase MySQL 数据库信息。支持执行只读 SQL、查询 MySQL 开通结果、查询 MySQL 任务状态、获取当前实例生命周期上下文，以及查询实例慢查询/错误日志（对齐 Manager SDK describeInstanceSlowQueries / describeInstanceErrorLogs）。标准 getInstanceInfo/describeInstance 不返回连接凭据；仅 getConnectionInfo 透传原始连接/集群载荷（含可能的凭据），且仅用于显式 TCP 迁移。业务 CRUD 优先使用 SDK 或 runQuery/runStatement。
+查询 CloudBase MySQL 数据库信息。支持执行只读 SQL、查询实例创建任务结果（控制台发起）、查询 MySQL 任务状态、获取当前实例生命周期上下文，以及查询实例慢查询/错误日志（对齐 Manager SDK describeInstanceSlowQueries / describeInstanceErrorLogs）。标准 getInstanceInfo/describeInstance 不返回连接凭据；仅 getConnectionInfo 透传原始连接/集群载荷（含可能的凭据），且仅用于显式 TCP 迁移。业务 CRUD 优先使用 SDK 或 runQuery/runStatement。
 
 #### 参数
 
@@ -970,7 +970,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "action",
       type: "string",
       required: true,
-      description: `runQuery=执行只读 SQL；describeCreateResult=查询 CreateMySQL 结果；describeTaskStatus=查询 MySQL 任务状态；getInstanceInfo=获取不含连接凭据的生命周期上下文；describeInstance=getInstanceInfo 的别名；getConnectionInfo=透传可能包含凭据的原始连接/集群载荷（仅限 TCP 迁移例外场景）；describeInstanceSlowQueries=查询实例慢查询日志；describeInstanceErrorLogs=查询实例错误日志 可填写的值: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo", "describeInstance", "getConnectionInfo", "describeInstanceSlowQueries", "describeInstanceErrorLogs"`,
+      description: `runQuery=执行只读 SQL；describeCreateResult=查询实例创建任务结果（控制台发起）；describeTaskStatus=查询 MySQL 任务状态；getInstanceInfo=获取不含连接凭据的生命周期上下文；describeInstance=getInstanceInfo 的别名；getConnectionInfo=透传可能包含凭据的原始连接/集群载荷（仅限 TCP 迁移例外场景）；describeInstanceSlowQueries=查询实例慢查询日志；describeInstanceErrorLogs=查询实例错误日志 可填写的值: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo", "describeInstance", "getConnectionInfo", "describeInstanceSlowQueries", "describeInstanceErrorLogs"`,
     },
     {
       name: "sql",
@@ -1063,7 +1063,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
 ---
 
 ### `manageMysqlDatabase`
-管理 CloudBase MySQL 数据库资源。支持开通 MySQL、销毁 MySQL、执行写入 SQL/DDL，以及初始化数据库 Schema。注意：必须先开通 MySQL（action=provisionMySQL，confirm=true）才能执行 runStatement 或 initializeSchema。若 MySQL 尚未开通，工具会返回 MYSQL_NOT_CREATED 并给出开通的 nextAction 提示。
+管理既有 CloudBase MySQL 实例：支持销毁实例、执行写入 SQL/DDL、初始化数据库 Schema。注意：MySQL 开通能力已下线，本工具不再创建实例——需要新开通请前往云开发控制台。环境内没有实例时返回 MYSQL_NOT_CREATED 并给出控制台入口，不再提供开通引导。新环境请优先使用 CloudBase PostgreSQL（managePgDatabase / queryPgDatabase）。
 
 #### 参数
 
@@ -1073,12 +1073,12 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "action",
       type: "string",
       required: true,
-      description: `provisionMySQL=创建 MySQL 实例；destroyMySQL=销毁 MySQL 实例；runStatement=执行写入 SQL 或 DDL；initializeSchema=按顺序执行 Schema 初始化语句 可填写的值: "provisionMySQL", "destroyMySQL", "runStatement", "initializeSchema"`,
+      description: `destroyMySQL=销毁 MySQL 实例；runStatement=执行写入 SQL 或 DDL；initializeSchema=按顺序执行 Schema 初始化语句 可填写的值: "destroyMySQL", "runStatement", "initializeSchema"`,
     },
     {
       name: "confirm",
       type: "boolean",
-      description: `action=provisionMySQL 或 action=destroyMySQL 所需的显式确认`,
+      description: `action=destroyMySQL 所需的显式确认`,
     },
     {
       name: "sql",
@@ -1088,7 +1088,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "request",
       type: "object",
-      description: `action=provisionMySQL 或 action=destroyMySQL 使用的官方请求载荷`,
+      description: `action=destroyMySQL 使用的官方请求载荷`,
     },
     {
       name: "statements",
@@ -1103,7 +1103,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "statusContext",
       type: "object",
-      description: `initializeSchema 前用于确认就绪状态的可选开通状态请求`,
+      description: `initializeSchema 前用于确认就绪状态的可选实例状态请求（针对控制台发起的开通/销毁任务）`,
       children: [
         {
           name: "createResultRequest",

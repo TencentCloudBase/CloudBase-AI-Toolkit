@@ -265,9 +265,9 @@ When a task explicitly requires recording operation steps or results to a file (
    manageEnv(action="listPackages")
    ```
 
-   **Changing plan (e.g. personal → standard):**
+   **Changing plan (use a `packageId` from `listPackages`):**
    ```
-   manageEnv(action="modifyPlan", envId="your-env-id", packageId="baas_pf_standard", confirm="yes")
+   manageEnv(action="modifyPlan", envId="your-env-id", packageId="<packageId>", confirm="yes")
    ```
 
    **Renewing an environment:**

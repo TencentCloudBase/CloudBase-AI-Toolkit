@@ -363,10 +363,6 @@ function createActionEntries(openapi) {
           "",
         paramKeys,
         requiredKeys,
-        exampleParams:
-          requestShape && requestShape.example && typeof requestShape.example === "object"
-            ? requestShape.example
-            : undefined,
         paramsType: buildParamsType(
           operation.operationId,
           operation["x-tcapi-action-name"] ??
@@ -400,7 +396,6 @@ export type TcbActionIndexEntry = {
   description: string;
   paramKeys: string[];
   requiredKeys: string[];
-  exampleParams?: Record<string, unknown>;
   paramsType: string;
 };
 
