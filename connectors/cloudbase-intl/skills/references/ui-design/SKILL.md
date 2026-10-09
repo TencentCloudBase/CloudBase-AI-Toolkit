@@ -1,7 +1,7 @@
 ---
 name: ui-design
 description: Use when users need visual direction, interface hierarchy, layout decisions, design specifications, or prototypes before implementing a Web or mini program UI.
-version: 2.35.0
+version: 2.35.1
 license: MIT
 alwaysApply: false
 ---

@@ -1,7 +1,7 @@
 ---
 name: relational-database-mcp-cloudbase
 description: "[Deprecated] This is the required documentation for agents operating on the CloudBase Relational Database through MCP. It defines the canonical SQL management flow with `queryMysqlDatabase`, `manageMysqlDatabase`, `queryPermissions`, and `managePermissions`, including destroy flow, async status checks, safe query execution, schema initialization, and permission updates. MySQL provisioning is no longer available through MCP; new environments should use PostgreSQL — see postgresql-development skill instead."
-version: 2.35.0
+version: 2.35.1
 license: MIT
 alwaysApply: false
 metadata:
