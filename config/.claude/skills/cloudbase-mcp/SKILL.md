@@ -1,6 +1,6 @@
 ---
 name: cloudbase-mcp
-description: CloudBase MCP reference. Use when connecting local or remote MCP, choosing the domestic or international endpoint, setting site, region, cloud mode, or plugin flags, or contributing a fix to the open-source MCP server, skills, or CLI.
+description: CloudBase MCP reference. Use when connecting local or remote MCP, calling tools from the shell with mcporter, reading tool schemas, choosing the domestic or international endpoint, setting site, region, cloud mode, or plugin flags, or contributing a fix to the open-source MCP server, skills, or CLI.
 version: 2.35.0
 alwaysApply: false
 ---
@@ -17,6 +17,7 @@ The server source is `mcp/` in that repo. The package name is `@cloudbase/cloudb
 ## When to use
 
 - The user is connecting MCP, or choosing local versus remote.
+- The user or the agent calls CloudBase tools from the shell with mcporter, or needs a tool schema before calling.
 - The user needs the site, region, cloud-mode, or plugin switches that already exist.
 - A bug is in this repo's MCP server, skills, or CLI, and the fix should be a pull request.
 
@@ -40,6 +41,46 @@ The hostname decides the site. Remote URLs do not take a `site` query parameter.
 - Local stdio for the international site: `TCB_SITE=intl` and `TCB_REGION=ap-singapore`.
 
 Remote mode cannot upload local files or download templates. The international site does not expose NoSQL tools.
+
+## Calling tools with mcporter
+
+When this session has no native MCP tools, use mcporter. The command list and the auth examples live in `config/source/guideline/cloudbase/references/mcp-setup.md`. Read that file before login, environment binding, or `manageEnv`.
+
+Check whether the server is configured:
+
+```bash
+npx mcporter list | grep cloudbase
+```
+
+If it is missing, add a stdio server named `cloudbase` in `config/mcporter.json`:
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "description": "CloudBase MCP",
+      "lifecycle": "keep-alive"
+    }
+  }
+}
+```
+
+Read the schema before the first call. `describe` without `--all-parameters` omits parameters.
+
+```bash
+npx mcporter describe cloudbase --all-parameters
+npx mcporter list cloudbase --schema
+```
+
+Call a tool with `server.tool` and `key=value` arguments:
+
+```bash
+npx mcporter call cloudbase.queryEnv action=list --output json
+```
+
+Do not put a Secret ID, Secret Key, or environment ID into `mcporter.json`. Login stays on `cloudbase.auth` or `tcb login`, as written in `mcp-setup.md`.
 
 ## Environment
 

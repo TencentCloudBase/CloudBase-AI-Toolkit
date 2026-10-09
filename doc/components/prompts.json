@@ -345,7 +345,7 @@
   {
     "id": "cloudbase-mcp",
     "title": "开发工具：CloudBase MCP",
-    "description": "连接本地或远程 CloudBase MCP，区分国内站与国际站，以及向开源仓库提交 MCP、skill 或 CLI 的修改",
+    "description": "连接本地或远程 CloudBase MCP，用 mcporter 查看工具 schema 并调用，区分国内站与国际站，以及向开源仓库提交 MCP、skill 或 CLI 的修改",
     "shortDescription": "MCP 连接方式与开源贡献",
     "category": "tools",
     "order": 3,
