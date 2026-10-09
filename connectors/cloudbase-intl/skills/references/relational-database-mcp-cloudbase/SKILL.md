@@ -1,7 +1,7 @@
 ---
 name: relational-database-mcp-cloudbase
-description: "[Deprecated] This is the required documentation for agents operating on the CloudBase Relational Database through MCP. It defines the canonical SQL management flow with `queryMysqlDatabase`, `manageMysqlDatabase`, `queryPermissions`, and `managePermissions`, including MySQL provisioning, destroy flow, async status checks, safe query execution, schema initialization, and permission updates. New environments should use PostgreSQL — see postgresql-development skill instead."
-version: 2.34.8
+description: "[Deprecated] This is the required documentation for agents operating on the CloudBase Relational Database through MCP. It defines the canonical SQL management flow with `queryMysqlDatabase`, `manageMysqlDatabase`, `queryPermissions`, and `managePermissions`, including destroy flow, async status checks, safe query execution, schema initialization, and permission updates. MySQL provisioning is no longer available through MCP; new environments should use PostgreSQL — see postgresql-development skill instead."
+version: 2.35.0
 alwaysApply: false
 metadata:
   priority: "5"
@@ -18,7 +18,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Use this first when
 
-- The agent must inspect SQL data, execute SQL statements, provision or destroy MySQL, initialize table structure, or manage table security rules through MCP tools.
+- The agent must inspect SQL data, execute SQL statements, destroy an existing MySQL instance, initialize table structure, or manage table security rules through MCP tools.
 
 ### Read before writing code if
 
@@ -36,7 +36,8 @@ If a referenced sibling skill file is missing from this environment, ask the use
 ### Common mistakes / gotchas
 
 - Initializing SDKs in an MCP management flow.
-- Running write SQL or DDL before checking whether MySQL is provisioned and ready.
+- Running write SQL or DDL before confirming the environment already has a ready MySQL instance.
+- Trying to create a MySQL instance through MCP. Provisioning has been retired from the tool surface: new environments use PostgreSQL, and instances are only created in the console.
 - Treating document database tasks as MySQL management tasks.
 - Skipping `_openid` and permissions review after creating new SQL tables.
 - Destroying MySQL without explicit confirmation or without checking whether the environment still needs the instance.
@@ -47,9 +48,8 @@ If a referenced sibling skill file is missing from this environment, ask the use
 Use this skill when an **agent** needs to operate on **CloudBase Relational Database via MCP tools**, for example:
 
 - Inspecting or querying SQL data
-- Provisioning MySQL for an environment
-- Destroying MySQL for an environment
-- Polling MySQL provisioning status
+- Destroying an existing MySQL instance
+- Polling an in-flight MySQL task (create tasks are started in the console — MCP no longer creates instances)
 - Modifying data or schema (INSERT/UPDATE/DELETE/DDL)
 - Initializing tables and indexes after MySQL is ready
 - Reading or changing table permissions
@@ -66,15 +66,15 @@ Do **NOT** use this skill for:
    - In this context, **never initialize SDKs for CloudBase Relational Database**; use MCP tools instead.
 
 2. **Pick the right tool for the job**
-   - Read-only SQL and provisioning status checks -> `queryMysqlDatabase`
-   - MySQL provisioning, MySQL destruction, write SQL, DDL, schema initialization -> `manageMysqlDatabase`
+   - Read-only SQL and create/destroy task status checks -> `queryMysqlDatabase`
+   - MySQL destruction, write SQL, DDL, schema initialization -> `manageMysqlDatabase`
    - Inspect permissions -> `queryPermissions(action="getResourcePermission")`
    - Change permissions -> `managePermissions(action="updateResourcePermission")`
 
 3. **Always be explicit about safety**
    - Before destructive operations (DELETE, DROP, etc.), summarize what you are about to run and why.
    - Prefer `queryMysqlDatabase(action="getInstanceInfo")` or a read-only SQL check before writes.
-   - Provisioning or destroying MySQL requires explicit confirmation because both actions have environment-level impact.
+   - Destroying MySQL requires explicit confirmation because it has environment-level impact; provisioning is not offered here at all.
 
 ---
 
@@ -84,11 +84,11 @@ These tools are the supported way to interact with CloudBase Relational Database
 
 ### 1. `queryMysqlDatabase`
 
-- **Purpose:** Query SQL data and provisioning state.
+- **Purpose:** Query SQL data and instance / task state.
 - **Use for:**
   - Running `SELECT` and other read-only SQL queries with `action="runQuery"`
   - Checking whether MySQL already exists with `action="getInstanceInfo"` (lifecycle only — no connection credentials)
-  - Inspecting asynchronous provisioning progress with `action="describeCreateResult"` or `action="describeTaskStatus"`
+  - Inspecting an in-flight create or destroy task with `action="describeCreateResult"` or `action="describeTaskStatus"` (create tasks originate in the console)
   - **Exception only:** `action="getConnectionInfo"` returns the raw connection/cluster payload (may include credentials) for migrating existing TCP/ORM clients. Do **not** use this for new business CRUD — prefer Web/Node SDK or `runQuery` / `runStatement`.
 
 **Example flow:**
@@ -104,12 +104,13 @@ These tools are the supported way to interact with CloudBase Relational Database
 
 ### 2. `manageMysqlDatabase`
 
-- **Purpose:** Manage SQL lifecycle and execute mutating SQL.
+- **Purpose:** Manage an existing SQL instance and execute mutating SQL.
 - **Use for:**
-  - Provisioning MySQL with `action="provisionMySQL"`
   - Destroying MySQL with `action="destroyMySQL"`
   - Executing `INSERT`, `UPDATE`, `DELETE`, `CREATE TABLE`, `ALTER TABLE`, `DROP TABLE` with `action="runStatement"`
   - Initializing tables and indexes with `action="initializeSchema"`
+
+**Provisioning is not available here.** `provisionMySQL` has been removed from the action set: a call carrying it fails schema validation, and a missing instance returns `MYSQL_NOT_CREATED` with a console entry rather than a create hint.
 
 **Important:** When creating a new table, you **must** include the `_openid` column for per-user access control:
 
@@ -121,7 +122,7 @@ Note: when a user is logged in, `_openid` is automatically populated by the serv
 
 Before calling this tool, **confirm**:
 
-- The current environment has a ready MySQL instance, or you have just provisioned one.
+- The current environment already has a ready MySQL instance.
 - The target tables and conditions are correct.
 - You have run a corresponding read-only query when appropriate.
 
@@ -158,15 +159,13 @@ When destroying MySQL, confirm:
 
 ## Recommended lifecycle flow
 
-### Scenario 1: MySQL is not provisioned yet
+### Scenario 1: The environment has no MySQL instance
 
 1. Call `queryMysqlDatabase(action="getInstanceInfo")`.
-2. If no instance exists, call `manageMysqlDatabase(action="provisionMySQL", confirm=true)`.
-3. Poll provisioning status with:
-   - `queryMysqlDatabase(action="describeCreateResult")`
-   - `queryMysqlDatabase(action="describeTaskStatus")`
-4. Only continue when the returned lifecycle status is `READY`.
-5. For MySQL provisioning, prefer `describeCreateResult`; reserve `describeTaskStatus` for destroy flows whose task response carries `TaskName`.
+2. If no instance exists, **stop**. MySQL provisioning is no longer available through MCP: the result is `MYSQL_NOT_CREATED` with a console entry and no create hint.
+3. New environments should use CloudBase PostgreSQL — see `../postgresql-development-cloudbase/SKILL.md`.
+4. An instance created outside the tool can still be observed: poll `queryMysqlDatabase(action="describeCreateResult")` or `queryMysqlDatabase(action="describeTaskStatus")`, and only continue once the lifecycle status is `READY`.
+5. Reserve `describeTaskStatus` for destroy flows whose task response carries `TaskName`.
 
 ### Scenario 2: Safely inspect data in a table
 
@@ -174,7 +173,7 @@ When destroying MySQL, confirm:
 2. Include `LIMIT` and relevant filters.
 3. Review the result set and confirm it matches expectations before any write operation.
 
-### Scenario 3: Apply schema initialization after provisioning
+### Scenario 3: Apply schema initialization on a ready instance
 
 1. Confirm MySQL is ready.
 2. Prepare ordered DDL statements.
@@ -200,7 +199,7 @@ When destroying MySQL, confirm:
 ## Key principle: MCP tools vs SDKs
 
 - **MCP tools** are for **agent operations** and **database management**:
-  - Provision MySQL.
+  - Inspect and manage an existing MySQL instance — never create one.
   - Destroy MySQL.
   - Poll lifecycle state.
   - Run ad-hoc SQL.
