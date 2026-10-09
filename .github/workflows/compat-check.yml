@@ -12,6 +12,7 @@ on:
       - 'scripts/update-compat-baseline.mjs'
       - 'scripts/sync-skill-versions.mjs'
       - 'scripts/check-compat-baseline-sync.mjs'
+      - 'scripts/check-skill-license.mjs'
       - 'scripts/sync-config.mjs'
       - '.github/workflows/compat-check.yml'
       - 'package.json'
@@ -29,6 +30,7 @@ on:
       - 'scripts/update-compat-baseline.mjs'
       - 'scripts/sync-skill-versions.mjs'
       - 'scripts/check-compat-baseline-sync.mjs'
+      - 'scripts/check-skill-license.mjs'
       - 'scripts/sync-config.mjs'
       - '.github/workflows/compat-check.yml'
       - 'package.json'
@@ -70,6 +72,11 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: node scripts/check-compat-baseline-sync.mjs --base "${BASE_SHA:-}"
+
+      - name: Fail when a skill entry omits its license
+        # SkillHub 发布规范要求 SKILL.md frontmatter 带 license，缺了会卡管理端审核。
+        # 这里把它变成可回归的门禁，而不是"发布前记得检查"。
+        run: node scripts/check-skill-license.mjs
 
       - name: Supply chain security hygiene check (non-blocking)
         run: |

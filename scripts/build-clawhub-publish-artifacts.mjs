@@ -73,6 +73,9 @@ function parseFrontmatter(skillContent) {
   const frontmatter = frontmatterMatch[1];
   const nameMatch = frontmatter.match(/^name:\s*(.+)$/m);
   const descriptionMatch = frontmatter.match(/^description:\s*(.+)$/m);
+  // SkillHub 的发布规范把 license 列为 SKILL.md frontmatter 字段，缺了它管理端审核
+  // 不通过 —— 所以在这里拦住，而不是把缺字段的包发出去再等审核打回。
+  const licenseMatch = frontmatter.match(/^license:\s*(.+)$/m);
 
   if (!nameMatch || !nameMatch[1].trim()) {
     throw new Error("SKILL.md frontmatter 缺少 name / SKILL.md frontmatter is missing name");
@@ -82,9 +85,16 @@ function parseFrontmatter(skillContent) {
     throw new Error("SKILL.md frontmatter 缺少 description / SKILL.md frontmatter is missing description");
   }
 
+  if (!licenseMatch || !licenseMatch[1].trim()) {
+    throw new Error(
+      "SKILL.md frontmatter 缺少 license / SKILL.md frontmatter is missing license（SkillHub 发布规范要求，见 https://skillhub.cn/tutorials#cli-publish）",
+    );
+  }
+
   return {
     name: nameMatch[1].trim(),
     description: descriptionMatch[1].trim(),
+    license: licenseMatch[1].trim(),
   };
 }
 
