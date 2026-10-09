@@ -29,8 +29,8 @@ Every CloudBase task follows this three-stage process:
    ├── 2a. Resource preparation → Prefer MCP to prepare backend resources
    │     (enable auth providers, create database tables, configure storage domains,
    │      set up security rules — before writing frontend code).
-   │     If MCP tools are missing in THIS session, configure MCP for next time and
-   │     use `tcb` CLI now (`./cloudbase-cli/SKILL.md`).
+   │     If MCP tools are missing in THIS session, configure MCP for next time
+   │     (`./cloudbase-mcp/SKILL.md`) and use `tcb` CLI now (`./cloudbase-cli/SKILL.md`).
    └── 2b. Frontend implementation → Write code, install deps, start server, test
 3. Close-out  →  Run cloudbase-code-review, fix all errors, declare done
 ```
@@ -76,6 +76,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 - Browser-side file upload -> `./cloud-storage-web/SKILL.md`
 - Manage/operate underlying Tencent Cloud resources via cloud APIs (monitoring & alarms, CLB, CAM roles, cross-product infra) when no dedicated MCP tool exists -> `./cloud-api-operations/SKILL.md`
 - Platform overview only when capability selection is still unclear -> `./cloudbase-platform/SKILL.md`
+- MCP connection, local versus remote, or a fix to this open-source repo -> `./cloudbase-mcp/SKILL.md`
 - If using `searchKnowledgeBase(mode="skill")`, pass the reference directory id such as `postgresql-development-cloudbase` or `minimal-web-baas-demo`, not a guessed alias.
 
 ### High-yield guardrails
@@ -127,3 +128,12 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
    - Functional closure beats exploration.
    - Avoid broad repo sweeps, UI redesign, and detached demo code.
    - Keep file discovery narrow. Prefer direct reads of the known active files over `Glob` / broad search across the whole project.
+
+## Open source
+
+The MCP server, skills, and CLI live in one public repo:
+
+- https://github.com/TencentCloudBase/CloudBase-AI-ToolKit
+- https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-ToolKit
+
+A bug in those surfaces should be a pull request. Connection steps and `CONTRIBUTING.md` are in `./cloudbase-mcp/SKILL.md`. A cloud platform, permission, or account problem should be an issue, and the text must not include an environment ID or a secret. Pull requests are how fixes land in the project.

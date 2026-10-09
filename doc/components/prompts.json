@@ -343,6 +343,19 @@
     ]
   },
   {
+    "id": "cloudbase-mcp",
+    "title": "开发工具：CloudBase MCP",
+    "description": "连接本地或远程 CloudBase MCP，用 mcporter 查看工具 schema 并调用，区分国内站与国际站，以及向开源仓库提交 MCP、skill 或 CLI 的修改",
+    "shortDescription": "MCP 连接方式与开源贡献",
+    "category": "tools",
+    "order": 3,
+    "prompts": [
+      "帮我把 IDE 接到 CloudBase 远程 MCP，国内站和国际站分别用哪个地址？",
+      "本地 MCP 和国际站远程 MCP 的环境变量有什么区别？",
+      "这个 MCP 工具的 bug 应该提到哪里？"
+    ]
+  },
+  {
     "id": "cloudbase-code-review",
     "title": "开发工具：代码审查",
     "description": "写完代码后对 CloudBase 项目做落地检查，覆盖鉴权守卫、数据表缺失、RLS 配置、存储域名与 SDK 误用等常见坑",
