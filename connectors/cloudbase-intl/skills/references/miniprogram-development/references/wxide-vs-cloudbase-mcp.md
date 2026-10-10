@@ -16,6 +16,7 @@ Nightly 内置 Skills/MCP：https://developers.weixin.qq.com/miniprogram/dev/dev
 
 1. 任务是否为小程序 **调试 / 预览 / 打开项目 / 控制台 / 网络 / 上传体验版**？
    - 是 → **微信 IDE Skills**（`wechatide`）。见 [devtools-debug-preview.md](devtools-debug-preview.md)。
+   - 缺 `wechatide` → 不要改走手动导入：先说明 Nightly 是 AI 自动开发的前提并主动提出安装，等用户决定，见 [devtools-debug-preview.md](devtools-debug-preview.md) §2。
 2. 任务是否为小程序 CloudBase 环境上的 **日常** 云操作（列举/查询集合、部署函数、列举/上传存储）？
    - Nightly 可用 → **微信 IDE Skills** 的 `cloudbase-operator` 工具。
    - Nightly 不可用 → **CloudBase MCP**（完成腾讯云登录后）。
@@ -36,6 +37,7 @@ Nightly 内置 Skills/MCP：https://developers.weixin.qq.com/miniprogram/dev/dev
 
 **禁止**
 
+- 探测到 `wechatide` 缺失就直接改走「稳定版 + 手动导入」—— 缺 CLI 是安装缺口：告知 Nightly 是 AI 自动开发的前提、主动提出安装、等用户决定，降级与否由用户定
 - 在 `wechatide` 已能用微信登录完成日常 NoSQL / 函数 / 存储操作时，仍强制单独走腾讯云 MCP 登录
 - 假定稳定版 DevTools 与 Nightly 具备相同的 Skills/MCP
 - 复制或臆造 `wechatide` 工具 schema —— 使用 `--help` 与 Nightly 的 `tools.yaml`
