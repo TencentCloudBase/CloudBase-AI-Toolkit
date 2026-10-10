@@ -35,7 +35,7 @@ Tone: product listing, not marketing. Write as a backend platform shipping an of
 |-------|-------|
 | Display name | CloudBase |
 | Technical `name` | `cloudbase` |
-| Version | From zip / `.qoder-plugin/plugin.json` (currently `0.2.0`) |
+| Version | From zip / `.qoder-plugin/plugin.json` (currently `0.2.1`) |
 | Category | Coding / DevOps / Database (if multi-select) |
 | Author | Tencent CloudBase |
 | Homepage | https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ |

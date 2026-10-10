@@ -12,7 +12,7 @@
       "name": "cloudbase",
       "source": "plugin/cloudbase",
       "description": "CloudBase platform capabilities: AI, auth, databases, cloud functions, storage, CloudRun, and Mini Program integration.",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "author": {
         "name": "Tencent CloudBase"
       },

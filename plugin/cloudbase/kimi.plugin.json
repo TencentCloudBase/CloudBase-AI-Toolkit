@@ -1,7 +1,7 @@
 {
   "$schema": "https://kimi.com/schemas/kimi.plugin.schema.json",
   "name": "cloudbase",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Tencent CloudBase \u2014 AI models, authentication, NoSQL/PostgreSQL databases, cloud functions, cloud storage, CloudRun backend services, and WeChat Mini Program integration. Powered by cloudbase-mcp.",
   "keywords": [
     "cloudbase",
