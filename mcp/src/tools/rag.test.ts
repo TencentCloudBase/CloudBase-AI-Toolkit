@@ -130,6 +130,22 @@ describe("rag tools", () => {
     );
   });
 
+  it("every skillName example in the description is a real enum value", async () => {
+    const { server, tools } = createMockServer();
+
+    await registerRagTools(server);
+
+    const meta = tools.searchKnowledgeBase.meta;
+    const options: string[] = meta.inputSchema.skillName.unwrap().options;
+    // 描述里以 `skillName=<值>` 形式的示例，模型会照抄，因此必须都在枚举里
+    const examples = [...String(meta.description).matchAll(/skillName=([a-z0-9-]+)/g)].map(
+      (match) => match[1],
+    );
+
+    expect(examples.length).toBeGreaterThan(0);
+    expect(examples.filter((name) => !options.includes(name))).toEqual([]);
+  });
+
   it("searchKnowledgeBase should expose docs mode and official app.docs actions", async () => {
     const { server, tools } = createMockServer();
 
