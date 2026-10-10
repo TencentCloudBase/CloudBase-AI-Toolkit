@@ -338,7 +338,7 @@ describe("hosted MCP adapter", () => {
     }
   });
 
-  it("omits feedback from the hosted default tools/list", async () => {
+  it("exposes feedback on the hosted default tools/list, same as local", async () => {
     __setResourceDownloadTimeoutForTests(20);
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -354,7 +354,7 @@ describe("hosted MCP adapter", () => {
       expect(listed.status).toBe(200);
       const names = listed.json.result?.tools?.map((tool) => tool.name) ?? [];
       expect(names).toContain("queryEnv");
-      expect(names).not.toContain(FEEDBACK_TOOL_NAME);
+      expect(names).toContain(FEEDBACK_TOOL_NAME);
     } finally {
       globalThis.fetch = originalFetch;
       await endpoint.close();

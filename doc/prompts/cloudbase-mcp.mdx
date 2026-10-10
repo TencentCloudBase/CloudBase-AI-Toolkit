@@ -139,7 +139,7 @@ Do not put a Secret ID, Secret Key, or environment ID into `mcporter.json`. Logi
 | `CLOUDBASE_MCP_PLUGINS_ENABLED` / `CLOUDBASE_MCP_PLUGINS_DISABLED` | Comma-separated plugin names for a local server. |
 | `enable_plugins` / `disable_plugins` | The same switch on a remote URL, comma-separated. |
 
-Plugin names are the ones in `mcp/src/server.ts` (`env`, `database`, `functions`, `hosting`, `storage`, and the rest). Hosted remote servers leave `feedback` off unless `enable_plugins` includes it. A local server includes it by default.
+Plugin names are the ones in `mcp/src/server.ts` (`env`, `database`, `functions`, `hosting`, `storage`, and the rest). A local server and a hosted remote server enable the same default set; turn one off for a given caller with `disable_plugins` on the remote URL or `CLOUDBASE_MCP_PLUGINS_DISABLED` on a local server.
 
 ## Contributing
 
