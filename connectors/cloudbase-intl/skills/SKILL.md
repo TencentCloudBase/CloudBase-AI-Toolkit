@@ -94,6 +94,7 @@ Follow relative `references/...` paths from the current skill. If MCP is unavail
 - Identify the scenario, then read the matching skill before writing code or calling CloudBase APIs.
 - Prefer semantic sources for toolkit maintenance; express runtime routing in stable skill ids.
 - Prefer MCP or mcporter for management tasks when those tools are available in **this** session; inspect tool schemas before execution. If they are not available yet, do not stall — use the CLI fallback in `references/tooling-fallback.md`.
+- Connecting MCP at all (local stdio versus remote), calling tools from the shell with mcporter, the site / region / plugin switches, or a fix to this open-source repo: read `cloudbase-mcp`.
 - UI tasks: read `ui-design` first and output the design spec before interface code.
 - Auth tasks: read `auth-tool-cloudbase` first and enable providers before frontend implementation.
 - Keep auth domains separate: management login uses `auth` (or `tcb login` when MCP auth is unavailable); app-side auth uses `queryAppAuth` / `manageAppAuth`.
