@@ -15,9 +15,10 @@ export const rag = defineModule(
 
       ⚠️ 重要：当 CloudBase skills 处于禁用状态或当前 IDE 不支持 skill 文件读取时，必须使用 searchKnowledgeBase(mode=skill, skillName=...) 来获取 CloudBase 技能文档内容，而不是尝试直接读取 skill 文件。直接读取可能返回 400 错误。示例：
       - 需要最小 Web+数据库 Demo 路径时：searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo)
-      - 需要 auth-tool 指南时：searchKnowledgeBase(mode=skill, skillName=auth-tool)
-      - 需要 auth-web 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web)
+      - 需要 auth-tool-cloudbase 指南时：searchKnowledgeBase(mode=skill, skillName=auth-tool-cloudbase)
+      - 需要 auth-web-cloudbase 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web-cloudbase)
       - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)
+      - 需要 MCP 接入方式（本地 / 远程）、用 mcporter 在命令行调用工具、或站点 / 插件开关时：searchKnowledgeBase(mode=skill, skillName=cloudbase-mcp)
 
       返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。
 
@@ -93,9 +94,10 @@ export const rag = defineModule(
 
       ⚠️ Important: when CloudBase skills are disabled or the current IDE does not support reading skill files, use searchKnowledgeBase(mode=skill, skillName=...) to get CloudBase skill doc content instead of trying to read skill files directly. Direct reads may return 400 errors. Examples:
       - Minimal Web+database demo path: searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo)
-      - auth-tool guide: searchKnowledgeBase(mode=skill, skillName=auth-tool)
-      - auth-web guide: searchKnowledgeBase(mode=skill, skillName=auth-web)
+      - auth-tool-cloudbase guide: searchKnowledgeBase(mode=skill, skillName=auth-tool-cloudbase)
+      - auth-web-cloudbase guide: searchKnowledgeBase(mode=skill, skillName=auth-web-cloudbase)
       - cloudbase-agent guide: searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)
+      - MCP connection modes (local / remote), calling tools from the shell with mcporter, or the site / plugin switches: searchKnowledgeBase(mode=skill, skillName=cloudbase-mcp)
 
       The response contains the full SKILL.md of the skill plus the list of all its .md file URLs in the remote aggregate repo (CNB raw) — SKILL.md and references/ etc., fetchable over HTTP. Relative links outside code fences are rewritten to absolute URLs; when the skill is absent from the remote repo only the inline content is returned and that is stated explicitly, so no dead links are handed out.
 

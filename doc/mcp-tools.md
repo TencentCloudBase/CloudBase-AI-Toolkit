@@ -2226,9 +2226,10 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 
       ⚠️ 重要：当 CloudBase skills 处于禁用状态或当前 IDE 不支持 skill 文件读取时，必须使用 searchKnowledgeBase(mode=skill, skillName=...) 来获取 CloudBase 技能文档内容，而不是尝试直接读取 skill 文件。直接读取可能返回 400 错误。示例：
       - 需要最小 Web+数据库 Demo 路径时：searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo)
-      - 需要 auth-tool 指南时：searchKnowledgeBase(mode=skill, skillName=auth-tool)
-      - 需要 auth-web 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web)
+      - 需要 auth-tool-cloudbase 指南时：searchKnowledgeBase(mode=skill, skillName=auth-tool-cloudbase)
+      - 需要 auth-web-cloudbase 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web-cloudbase)
       - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)
+      - 需要 MCP 接入方式（本地 / 远程）、用 mcporter 在命令行调用工具、或站点 / 插件开关时：searchKnowledgeBase(mode=skill, skillName=cloudbase-mcp)
 
       返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。
 
