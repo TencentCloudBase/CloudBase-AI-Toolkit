@@ -53,42 +53,6 @@ export type HostedMcpRequestInput = {
   logger?: (event: HostedMcpLogEvent) => void;
 };
 
-/**
- * Plugins that must not appear on the hosted default tool surface.
- * `feedback` would add `prepareFeedback` to tools/list. Callers that pass
- * `pluginsEnabled` including `feedback` opt in explicitly.
- * `createLogService` stays: it is an action on the existing logs plugin, not a
- * new default plugin.
- */
-const HOSTED_PLUGINS_DISABLED_BY_DEFAULT = ["feedback"] as const;
-
-function normalizePluginName(name: string): string {
-  return name.trim().toLowerCase();
-}
-
-function withHostedPluginDefaults(options: CloudBaseServerOptions): {
-  pluginsEnabled?: string[];
-  pluginsDisabled: string[];
-} {
-  const explicitlyEnabled = new Set(
-    (options.pluginsEnabled ?? []).map((name) => normalizePluginName(name)),
-  );
-  const disabled = new Set(
-    (options.pluginsDisabled ?? [])
-      .map((name) => normalizePluginName(name))
-      .filter((name) => name.length > 0),
-  );
-  for (const name of HOSTED_PLUGINS_DISABLED_BY_DEFAULT) {
-    if (!explicitlyEnabled.has(name)) {
-      disabled.add(name);
-    }
-  }
-  return {
-    pluginsEnabled: options.pluginsEnabled,
-    pluginsDisabled: [...disabled],
-  };
-}
-
 function readInitializeClientInfo(body: unknown): HostedClientInfoRecord | undefined {
   if (!body || typeof body !== "object") {
     return undefined;
@@ -154,7 +118,6 @@ function writeJsonRpcError(res: ServerResponse, body: unknown): void {
  * malformed `mcp-protocol-version` headers are passed through and rejected by the transport.
  */
 export async function handleHostedMcpRequest(input: HostedMcpRequestInput): Promise<void> {
-  const pluginOptions = withHostedPluginDefaults(input.serverOptions);
   const credentialHash = hashCredentialParts({
     secretId: input.serverOptions.cloudBaseOptions?.secretId,
     token: input.serverOptions.cloudBaseOptions?.token,
@@ -186,8 +149,8 @@ export async function handleHostedMcpRequest(input: HostedMcpRequestInput): Prom
       client: input.serverOptions.client,
       clientInfo,
       lang: input.serverOptions.lang,
-      pluginsEnabled: pluginOptions.pluginsEnabled,
-      pluginsDisabled: pluginOptions.pluginsDisabled,
+      pluginsEnabled: input.serverOptions.pluginsEnabled,
+      pluginsDisabled: input.serverOptions.pluginsDisabled,
     });
     input.logger?.({
       type: "cloudbase-mcp-server-create",
