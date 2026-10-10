@@ -208,9 +208,16 @@ What is collected:
 - `toolkit_plugin_dau`: at most once per UTC day when a SessionStart hook runs
 - `toolkit_plugin_first_use`: once per local user profile on first successful report
 - `pluginVersion`: included on each event so usage can be grouped by plugin version
+- `login_uin`: the CloudBase account uin, read from the local login state
+  (`~/.config/.cloudbase/auth.json`) so plugin usage can be attributed to an account
+- `envId`: the environment id recorded in that same local login state, when present
 
-What is **not** collected: prompt text, file paths, project names, account IDs,
-tool-call contents, or skill-injection details.
+Both attribution fields are read from that local file **only** — no network call and
+no credential exchange. Nothing else in it (refresh tokens, temporary secret keys)
+is read, logged or sent, and either field falls back to `unknown` when unavailable.
+
+What is **not** collected: prompt text, file paths, project names, credentials or
+secrets, tool-call contents, or skill-injection details.
 
 Disable:
 
