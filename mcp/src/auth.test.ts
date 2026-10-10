@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,25 +15,44 @@ const {
 } = vi.hoisted(() => {
   const { tmpdir } = require("node:os") as typeof import("node:os");
   const { join: joinPath } = require("node:path") as typeof import("node:path");
+  const authStoreData: Record<string, any> = {};
+  /**
+   * 忠实模拟 @cloudbase/toolbox 的 LocalStore：文件解析结果缓存在 `db` 上，此后只读缓存，
+   * 清掉 `db` 才会重新读盘——这正是被测代码要在 mtime 变化时触发的那一步。
+   * 未设置 `db` 时行为与「每次都读 authStoreData」完全一致，既有用例不受影响。
+   */
+  const mockAuthStore = {
+    db: undefined as Record<string, any> | undefined,
+    get: vi.fn(async (key: string) => {
+      const source = mockAuthStore.db ?? authStoreData;
+      return source[key];
+    }),
+    set: vi.fn(async (key: string, value: any) => {
+      authStoreData[key] = value;
+      const cache = mockAuthStore.db;
+      if (cache) {
+        cache[key] = value;
+      }
+    }),
+    delete: vi.fn(async (key: string) => {
+      delete authStoreData[key];
+      const cache = mockAuthStore.db;
+      if (cache) {
+        delete cache[key];
+      }
+    }),
+  };
   return {
     mockAuthGetLoginState: vi.fn(),
     mockAuthLoginByWebAuth: vi.fn(),
     mockAuthLoginByApiKey: vi.fn(),
     mockAuthLogout: vi.fn(),
-    authStoreData: {} as Record<string, any>,
+    authStoreData,
     cliConfigDir: joinPath(tmpdir(), `cb-mcp-auth-flat-${process.pid}`),
     mockCheckAndGetCredential: vi.fn(),
     // 项目级凭据目录：默认不存在 ⇒ 探测一律落空、回落到全局登录态
     projectAuthDir: joinPath(tmpdir(), `cb-mcp-auth-project-${process.pid}`),
-    mockAuthStore: {
-      get: vi.fn(async (key: string) => authStoreData[key]),
-      set: vi.fn(async (key: string, value: any) => {
-        authStoreData[key] = value;
-      }),
-      delete: vi.fn(async (key: string) => {
-        delete authStoreData[key];
-      }),
-    },
+    mockAuthStore,
   };
 });
 
@@ -106,6 +125,7 @@ vi.mock("./utils/tencent-cloud.js", () => ({
 
 beforeEach(() => {
   Object.keys(authStoreData).forEach((key) => delete authStoreData[key]);
+  mockAuthStore.db = undefined;
   mkdirSync(cliConfigDir, { recursive: true });
   rmSync(join(cliConfigDir, "config.json"), { force: true });
   rmSync(projectAuthDir, { recursive: true, force: true });
@@ -981,5 +1001,106 @@ describe("project-level credential priority", () => {
     expect(loginState?.envId).toBe("env-global");
     expect(getCredentialSource()).toBe("global");
     expect(mockCheckAndGetCredential).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * 全局凭据文件 `~/.config/.cloudbase/auth.json` 与 CloudBase CLI 共用一份，
+ * 用户可能在终端里 `tcb login`（宿主连接器的登录按钮跑的也是同一条命令），
+ * 也就是**另一个进程**会重写这个文件。LocalStore 的进程内缓存必须能被感知到，
+ * 否则既读不到外部写入的凭据，写回时还会用陈旧快照把它覆盖掉。
+ */
+describe("global credential cache freshness", () => {
+  const globalAuthFile = join(cliConfigDir, "auth.json");
+  /** 每次写入都推进 mtime，用例之间不依赖执行顺序。 */
+  let mtimeClock = 1_700_000_000_000;
+
+  /**
+   * 写入全局凭据文件，并把 `authStoreData` 同步成「文件当前内容」——
+   * mock 的 `authStore.get()` 在缓存被清掉后会回落到 `authStoreData`，
+   * 等价于真实 LocalStore 重新读盘拿到的值。
+   */
+  function writeGlobalCredential(credential: Record<string, unknown>) {
+    mkdirSync(cliConfigDir, { recursive: true });
+    writeFileSync(globalAuthFile, JSON.stringify({ credential }));
+    mtimeClock += 60_000;
+    const seconds = mtimeClock / 1000;
+    utimesSync(globalAuthFile, seconds, seconds);
+    authStoreData.credential = credential;
+  }
+
+  beforeEach(() => {
+    vi.resetModules();
+    rmSync(globalAuthFile, { force: true });
+    mockAuthStore.db = undefined;
+    delete process.env.CLOUDBASE_API_KEY;
+    delete process.env.CLOUDBASE_APIKEY;
+    delete process.env.CLOUDBASE_ENV_ID;
+    delete process.env.TENCENTCLOUD_SECRETID;
+    delete process.env.TENCENTCLOUD_SECRETKEY;
+    delete process.env.TENCENTCLOUD_SESSIONTOKEN;
+    mockAuthGetLoginState.mockResolvedValue(null);
+    mockCheckAndGetCredential.mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    rmSync(globalAuthFile, { force: true });
+    mockAuthStore.db = undefined;
+  });
+
+  it("should pick up a global credential rewritten by another process", async () => {
+    const { peekLoginState } = await import("./auth.js");
+
+    // 本进程早先读到并缓存了一份凭据
+    writeGlobalCredential({ secretId: "cached-sid", secretKey: "cached-skey" });
+    await peekLoginState();
+    mockAuthStore.db = { credential: authStoreData.credential };
+
+    // 另一个进程重写了同一个文件
+    writeGlobalCredential({ secretId: "external-sid", secretKey: "external-skey" });
+
+    const loginState = await peekLoginState();
+
+    expect(mockAuthStore.db).toBeUndefined();
+    expect(loginState?.secretId).toBe("external-sid");
+  });
+
+  it("should keep the cached credential when the file was not rewritten", async () => {
+    const { peekLoginState } = await import("./auth.js");
+
+    writeGlobalCredential({ secretId: "disk-sid", secretKey: "disk-skey" });
+    await peekLoginState();
+
+    mockAuthStore.db = { credential: { secretId: "cached-sid", secretKey: "cached-skey" } };
+
+    const loginState = await peekLoginState();
+
+    expect(mockAuthStore.db).toEqual({
+      credential: { secretId: "cached-sid", secretKey: "cached-skey" },
+    });
+    expect(loginState?.secretId).toBe("cached-sid");
+  });
+
+  it("should drop the cache before logging out so a stale snapshot cannot overwrite the file", async () => {
+    const { logout, peekLoginState } = await import("./auth.js");
+
+    writeGlobalCredential({ secretId: "cached-sid", secretKey: "cached-skey" });
+    await peekLoginState();
+    mockAuthStore.db = { credential: authStoreData.credential };
+
+    // 外部进程在我们登出之前又写了一次
+    writeGlobalCredential({ secretId: "external-sid", secretKey: "external-skey" });
+
+    // 记录 toolbox 真正执行登出那一刻的缓存状态：失效必须发生在这之前，
+    // 否则登出仍会把本进程启动时的陈旧快照写回盘、覆盖外部凭据。
+    let dbAtLogout: unknown = "logout-not-called";
+    mockAuthLogout.mockImplementationOnce(async () => {
+      dbAtLogout = mockAuthStore.db;
+    });
+
+    await logout();
+
+    expect(dbAtLogout).toBeUndefined();
+    expect(mockAuthStore.db).toBeUndefined();
   });
 });
