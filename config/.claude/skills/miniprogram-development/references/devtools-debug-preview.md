@@ -122,13 +122,29 @@ Nightly 可用时，**不要** 为这些日常操作强制经 CloudBase MCP 单�
 - 工具失败时：展示原始错误；不要臆造替代工具名或静默重试
 - 临时下载 URL 寿命短；绝不要提交进源码
 
-## 2. 回退：无 Nightly / 无 `wechatide`
+## 2. `wechatide` 缺失：先补前置，再谈回退
 
-Nightly Skills 不可用时：
+**缺失 `wechatide` 是一次性安装缺口，不是「环境不支持」。** 不得据此自行降级到手动路径。
 
-1. 告知用户：仅稳定版 DevTools 可能不含 Skills/MCP；推荐上方 Nightly 下载页
-2. 密钥与 IP 白名单就绪时，用 `miniprogram-ci` 做预览 / 上传 / npm 构建
-3. 需要腾讯云登录的云资源操作，用 **CloudBase MCP**（IDE MCP 或 `mcporter`）
+按顺序做，不要跳步：
+
+1. 明确告知：AI 自动开发（打开项目 / 编译 / 模拟器 / 控制台 / 网络 / 上传 / 云函数与数据库操作）依赖 Nightly 内置 Skills 与 `wechatide`；仅稳定版通常没有这些能力。
+2. **主动提出帮忙下载安装 Nightly** —— 给出下载页，说明这是一次性成本、装完后续全自动；如果用户卡在正式 AppID，一并说明。
+3. **停下来等用户决定。** 用户同意 → 走安装 + 第 1 节流程；用户明确拒绝或确实装不了 → 才进入 2.1。
+
+禁止：
+
+- 把「稳定版 + 手动导入」当作推荐默认方案抛出
+- 在用户表态之前就输出手动导入步骤，或替用户做「选最省事的」这个取舍
+- 拿 `command not found` 当自行降级的理由
+
+### 2.1 用户拒绝 / 无法安装时的回退
+
+用户明确表态后才执行：
+
+1. 用 `miniprogram-ci` 做预览 / 上传 / npm 构建（需 `appid`、项目路径、代码上传私钥、后台 IP 白名单）
+2. 需要腾讯云登录的云资源操作，用 **CloudBase MCP**（IDE MCP 或 `mcporter`）
+3. 明确说明缺失了哪些能力，别让用户以为拿到了完整的 AI 开发体验
 
 ### `miniprogram-ci` 能做什么
 
@@ -150,10 +166,11 @@ Nightly + `wechatide` 可用时：
 - 按需携带 `clientName`、绝对路径 `--project`，以及 `appid`/`env`
 - 用 `--help` 或内置 `tools.yaml` 查参数 —— 永不臆造工具
 
-不可用时：
+`wechatide` 缺失时：
 
-- 回退到 `miniprogram-ci` + CloudBase MCP
-- 明确说明缺失哪些调试能力
+- 按第 2 节走：告知缺口 → 主动提出安装 Nightly → 等用户决定
+- **不要**直接给出手动导入方案，也不要替用户选「省事」的那条
+- 用户明确拒绝后才回退到 `miniprogram-ci` + CloudBase MCP，并明确说明缺失哪些调试能力
 
 ## 4. 官方参考
 
