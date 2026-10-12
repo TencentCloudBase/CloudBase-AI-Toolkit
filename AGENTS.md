@@ -85,20 +85,26 @@ alwaysApply: true
 <internal_dirs>
 ## 本地内部目录的存放、同步与获取
 
-两个目录**都不提交到公开仓库**，只在本地维护并归档到私有仓：
+这些目录**都不提交到公开仓库**，只在本地维护：
 
 | 目录 | 内容 | 为什么不入库 |
 | --- | --- | --- |
 | `specs/` | 规格 / 设计 / 审视报告 | 含内部任务 ID、审视报告、评测/归因上下文 |
 | `.workbuddy/` | IDE 本地状态：AI 每日记忆、plans、expert 会话历史 | 类比 `.idea/` / `.vscode/`，本就不该进版本控制；记忆里带内部任务 ID 与未公开决策 |
+| `.cursor/plans/` | Cursor 的计划文件 | IDE 本地状态；正文里带本机绝对路径与未公开的计划内容 |
+| `.codebuddy/` | IDE 本地状态：`automations/`、`artifacts/`、`settings.local.json` | 同上；`artifacts/` 里是内部审视与改稿提案 |
 
-`specs/` 里仅 `specs/plugin-marketplace-listing/` 与 `specs/npm-supply-chain-security-hardening/` 两个被代码或规范依赖的子目录留在仓库里，其余全部忽略。`.workbuddy/` 全量忽略。
+`specs/` 里仅 `specs/plugin-marketplace-listing/` 与 `specs/npm-supply-chain-security-hardening/` 两个被代码或规范依赖的子目录留在仓库里，其余全部忽略。`.workbuddy/` 全量忽略。`.codebuddy/` 里只有 `skills/`（指向 `.agents/skills` 的软链投影，与 `.claude/skills` 对称）入库。`.cursor/rules/` 是项目规范，同样有意保留。
 
-**写**：新 spec 照旧写在本仓库 `specs/<name>/{requirements,design,tasks}.md`，只是不要 `git add`。`.workbuddy/` 由 IDE 自行维护，不用管。
+`docs/` 走的是相反的白名单：只放对外文档（`enterprise-auth-with-feishu.md`、`research-codex-plugin-enterprise-auth.md`），其余一律当内部工作件——门禁报告、platform-kit spec 与能力对齐表都在此列。`dsh-plugin/community/SUBMISSION.md`、`dsh-plugin/scripts/t9-results.md`、`mcp/scripts/wxide-mcp-e2e-test.md` 三个开发过程记录同理：本地保留、不入库。这几类的门禁由 `scripts/git-guard-internal.sh` 与 CI 的 Internal Docs Guard 同时把关。
+
+**写**：新 spec 照旧写在本仓库 `specs/<name>/{requirements,design,tasks}.md`，只是不要 `git add`。`.workbuddy/`、`.cursor/plans/`、`.codebuddy/` 由 IDE 自行维护，不用管。
 
 ### 切分支 / merge 后目录变空是预期行为
 
-这些目录不再被 git 跟踪，**从旧分支切到已移除它们的分支（或 merge 这类分支）时，git 会把工作区里的文件删掉**。这不是数据丢失，真源在私有归档仓里。
+这些目录不再被 git 跟踪，**从旧分支切到已移除它们的分支（或 merge 这类分支）时，git 会把工作区里的文件删掉**。这不是数据丢失：`specs/` 与 `.workbuddy/` 的真源在私有归档仓里，`.cursor/plans/` 与 `.codebuddy/` 的内容仍在 git 历史里（移出前已提交过那个版本）。
+
+后两个目录**不接归档同步**（下节的 `npm run internal:*` 只管 `specs/` 与 `.workbuddy/`）——它们是纯 IDE 状态，切分支前想留内容就自己拷走。
 
 - 提交时由 `pre-commit` 自动恢复一次（`lefthook.yml` 的 `internal-restore`）——本机 `post-checkout` / `post-merge` 被 git-lfs 的 `other-*` 链接接管，不走 lefthook，所以恢复挂在 pre-commit 上。
 - 手动恢复：`npm run internal:restore`

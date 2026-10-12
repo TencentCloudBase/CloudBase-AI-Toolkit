@@ -3,10 +3,14 @@ name: Internal Docs Guard
 # 内部信息的三层守门，缺一不可：
 #
 #   1. 文件层（step: Check for internal dirs entering the repository）
-#      拦截两个本地内部目录重新入库：specs/ 与 .workbuddy/。
-#        - specs/      内部规格 / 设计 / 审视报告，含内部任务 ID
-#        - .workbuddy/ IDE 本地状态（AI 记忆、plans、expert 会话历史），
-#                      类比 .idea/ / .vscode/，本就不该进版本控制
+#      拦截本地内部目录重新入库：
+#        - specs/         内部规格 / 设计 / 审视报告，含内部任务 ID
+#        - .workbuddy/    IDE 本地状态（AI 记忆、plans、expert 会话历史）
+#        - .cursor/plans/ Cursor 本地计划文件，含本机绝对路径
+#        - .codebuddy/    IDE 本地状态；仅 skills/ 软链投影例外
+#        - docs/          只放对外文档（集成指南、公开调研）；门禁报告 / spec /
+#                         对齐表 / 上线记录含真实环境 ID 与内部任务号，不入库
+#      后两者类比 .idea/ / .vscode/，本就不该进版本控制
 #
 #   2. 元信息层（step: Check public surfaces for internal references）
 #      PR 标题、PR 正文、提交信息同样是公开可见的对外文案，文件层干净不等于
@@ -18,6 +22,10 @@ name: Internal Docs Guard
 #      仓库是公开的，内网主机名 / 内网地址写进任何被跟踪的文件就等于已经发布了。
 #      这一层扫全量已跟踪文件（不只扫改动行），所以 main 上遗留的老问题也会在
 #      下一个 PR 上暴露出来。判据见 scripts/check-internal-refs.mjs。
+#
+#      同一层里还有一档「个人信息」：作者本机的 home 路径、账号号、环境 ID、密钥。
+#      路径与密钥命中即挡；账号号与环境 ID 只提示不挡（仓库文档与示例里已大量存在）。
+#      自己的账号 / 用户名 / 邮箱不从仓库读，走 INTERNAL_REFS_EXTRA 注入。
 #
 # 本地 lefthook 的 specs-guard 只能保护「包含新版 lefthook.yml 的分支」，
 # 挡不住基于旧 main 切出的 worktree —— 那里的 .gitignore 和 lefthook.yml
@@ -53,6 +61,9 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          # 可选：仓库 secret 里配了才生效，用来补「结构判据抓不到」的个人标识
+          # （自己的账号 uin / 用户名 / 邮箱，分号或换行分隔）。没配就是空串。
+          INTERNAL_REFS_EXTRA: ${{ secrets.INTERNAL_REFS_EXTRA }}
         run: node scripts/check-internal-refs.mjs --base "$BASE_SHA"
 
       - name: Check for internal dirs entering the repository
@@ -61,17 +72,26 @@ jobs:
         run: |
           set -uo pipefail
 
-          # 白名单：有真实功能依赖，必须留在仓库
+          # 禁入目录：本地状态，不提交到公开仓
+          BLOCKED_DIRS=(
+            "specs"
+            ".workbuddy"
+            ".cursor/plans"
+            ".codebuddy"
+          )
+
+          # 白名单：按前缀放行
           #   - plugin-marketplace-listing: analyze-plugin-marketplace 脚本与测试的数据文件
           #   - npm-supply-chain-security-hardening: AGENTS.md 强制引用的供应链安全规范
-          # 白名单只适用于 specs/；.workbuddy/ 全量禁止。
+          #   - .codebuddy/skills: 指向 .agents/skills 的软链投影，与 .claude/skills 对称，有意入库
           WHITELIST=(
             "specs/plugin-marketplace-listing/"
             "specs/npm-supply-chain-security-hardening/"
+            ".codebuddy/skills/"
           )
 
           CHANGED=""
-          for p in specs .workbuddy; do
+          for p in "${BLOCKED_DIRS[@]}"; do
             if [ -n "${BASE_SHA:-}" ] && git rev-parse --verify "$BASE_SHA" >/dev/null 2>&1; then
               CHANGED+="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD -- "$p" || true)"$'\n'
             else
@@ -92,12 +112,33 @@ jobs:
             [ "$keep" -eq 0 ] && OFFENDERS+=("$f")
           done <<< "$CHANGED"
 
+          # docs/ 是允许列表：只有这些对外文档能入库，其余都是内部工作件。
+          DOCS_ALLOWLIST=(
+            "docs/enterprise-auth-with-feishu.md"
+            "docs/research-codex-plugin-enterprise-auth.md"
+          )
+
+          if [ -n "${BASE_SHA:-}" ] && git rev-parse --verify "$BASE_SHA" >/dev/null 2>&1; then
+            DOCS_CHANGED="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD -- docs || true)"
+          else
+            DOCS_CHANGED="$(git ls-files -- docs || true)"
+          fi
+
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            keep=0
+            for a in "${DOCS_ALLOWLIST[@]}"; do
+              [ "$f" = "$a" ] && { keep=1; break; }
+            done
+            [ "$keep" -eq 0 ] && OFFENDERS+=("$f")
+          done <<< "$DOCS_CHANGED"
+
           if [ "${#OFFENDERS[@]}" -eq 0 ]; then
-            echo "OK: no internal dirs (specs/, .workbuddy/) are entering the repository."
+            echo "OK: no internal dirs (specs/, .workbuddy/, .cursor/plans/, .codebuddy/, docs/) are entering the repository."
             exit 0
           fi
 
-          echo "::error::specs/ and .workbuddy/ are local-only dirs in this repository and must not be committed."
+          echo "::error::specs/, .workbuddy/, .cursor/plans/, .codebuddy/ and non-public docs/ files are local-only in this repository and must not be committed."
           echo ""
           echo "The following files were added or modified in this PR:"
           echo ""
@@ -108,9 +149,9 @@ jobs:
           echo "How to fix:"
           echo ""
           echo "  1. Unstage and untrack them (local files are kept):"
-          echo "       git restore --staged specs/ .workbuddy/"
-          echo "       git rm -r --cached specs/ .workbuddy/"
-          echo "       git add specs/plugin-marketplace-listing specs/npm-supply-chain-security-hardening"
+          echo "       git restore --staged specs/ .workbuddy/ .cursor/plans/ .codebuddy/"
+          echo "       git rm -r --cached specs/ .workbuddy/ .cursor/plans/ .codebuddy/"
+          echo "       git add specs/plugin-marketplace-listing specs/npm-supply-chain-security-hardening .codebuddy/skills"
           echo ""
           echo "  2. If you are working in a worktree branched off an older main, merge or"
           echo "     rebase onto current main first so .gitignore and lefthook.yml pick up"

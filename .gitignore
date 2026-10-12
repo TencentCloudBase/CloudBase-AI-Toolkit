@@ -62,9 +62,28 @@ specs/*
 !specs/plugin-marketplace-listing/
 !specs/npm-supply-chain-security-hardening/
 
+# docs/: 只放对外文档（集成指南、公开调研）。内部工作件 —— 门禁报告、spec、
+# 能力对齐表 —— 含真实环境 ID、内部任务号与责任人，本地保留、不入库。
+/docs/*
+!/docs/enterprise-auth-with-feishu.md
+!/docs/research-codex-plugin-enterprise-auth.md
+
+# 开发过程记录：真实环境 ID + 任务号 + 上线进度，本地保留、不入库。
+dsh-plugin/community/SUBMISSION.md
+dsh-plugin/scripts/t9-results.md
+mcp/scripts/wxide-mcp-e2e-test.md
+
 # .workbuddy: IDE local state (AI daily memory, plans, expert session history).
 # 类比 .idea/ / .vscode/，本不该进版本控制；含内部任务 ID，私有归档另存。
 .workbuddy/
+
+# .cursor/plans: IDE 本地计划文件（含本机绝对路径与未公开的计划内容）。
+# `.cursor/rules/` 是项目规范，有意入库；只有 plans/ 这一层属本地状态。
+.cursor/plans/
+
+# codebuddy-plugin/: 本地生成的 CodeBuddy 插件投影（由 sync 脚本产出，与 plugin/ 同源）。
+# 生成物不入库，改 config/source/** 后重跑同步脚本即可重建。
+codebuddy-plugin/
 
 # 测试与构建残留
 mcp/.tmp-*/

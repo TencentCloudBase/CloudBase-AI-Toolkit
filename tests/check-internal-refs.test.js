@@ -4,20 +4,26 @@ import os from "os";
 import path from "path";
 import { afterEach, describe, expect, test } from "vitest";
 import {
+  ALLOWED_FILE_PATTERNS,
+  ALLOWED_LITERAL_VALUES,
   TEXT_RULES,
   TITLE_RULES,
   collectCommits,
   collectTrackedFiles,
+  isAllowedFile,
   isScannableFile,
+  loadExtraRules,
   parseArgs,
   runCheck,
   scanFileText,
   scanText,
 } from "../scripts/check-internal-refs.mjs";
 
-// 内网串不能以字面量写在这个文件里 —— 仓库自己的文件内容扫描会命中它。
+// 内网串与作者本机标识不能以字面量写在这个文件里 —— 仓库自己的文件内容扫描会命中它，
+// 所以统一拆成片段拼。
 const INTERNAL_HOST = ["tst", "woa", "com"].join(".");
 const INTERNAL_IP = ["9", "138", "237", "216"].join(".");
+const REAL_HOME = ["/Users/", "alice"].join("");
 
 const tempDirs = [];
 
@@ -74,7 +80,7 @@ describe("scanText", () => {
   });
 
   test("flags an internal worktree path", () => {
-    const findings = scanText("merge worktree: /Users/x/.ato/worktrees/abc", TEXT_RULES);
+    const findings = scanText(`merge worktree: ${REAL_HOME}/.ato/worktrees/abc`, TEXT_RULES);
     expect(findings.map((f) => f.label).sort()).toEqual([
       "internal worktree path",
       "local home path",
@@ -82,7 +88,7 @@ describe("scanText", () => {
   });
 
   test("flags a real home path", () => {
-    const findings = scanText("see /Users/bookerzhao/Projects/demo/README.md", TEXT_RULES);
+    const findings = scanText(`see ${REAL_HOME}/Projects/demo/README.md`, TEXT_RULES);
     expect(findings.map((f) => f.label)).toEqual(["local home path"]);
   });
 
@@ -100,6 +106,94 @@ describe("scanText", () => {
   test("returns nothing for empty input", () => {
     expect(scanText("", TEXT_RULES)).toEqual([]);
     expect(scanText(undefined, TEXT_RULES)).toEqual([]);
+  });
+});
+
+describe("personal information rules", () => {
+  const ACCOUNT = ["100", "234567890"].join("");
+  const ACCOUNT_SYNTHETIC = ["100", "012345678"].join("");
+  const ACCOUNT_REPEATED = ["100", "099999999"].join("");
+  const ENV_ID = ["ai", "native", "x1y2z3a4b5c6d7e8"].join("-");
+  // 占位环境 ID：尾段同一字符连排，判据自己会放过它
+  const ENV_ID_PLACEHOLDER = ["test", "env", "0000000000000000"].join("-");
+  // RequestId / 任务短号形态，不是环境 ID
+  const REQUEST_ID = ["e27cc40c", "58e5", "4d1a", "9e0a", "123456789abc"].join("-");
+  // 文档里的示例值，已登记在 ALLOWED_LITERAL_VALUES
+  const DOCUMENTED_ENV_ID = ["cloud1", "d9ghadgak3edf6b36"].join("-");
+  const SECRET_ID = ["AKID", "a1b2c3d4e5f6g7h8i9j0k1l2"].join("");
+  const SECRET_PLACEHOLDER = ["AKID", "shouldnotappear999"].join("");
+  const HYPHENATED_WORD = ["auth", "tool", "simplification"].join("-");
+
+  test("flags a local home path as an error", () => {
+    const findings = scanFileText(`see ${REAL_HOME}/Projects/demo/README.md`);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].label).toBe("local home path");
+    expect(findings[0].severity).toBe("error");
+  });
+
+  test("masks the matched value instead of echoing it", () => {
+    const [finding] = scanFileText(`see ${REAL_HOME}/Projects/demo/README.md`);
+    expect(finding.display).not.toContain("alice");
+  });
+
+  test("flags a credential as an error", () => {
+    const findings = scanFileText(`SecretId=${SECRET_ID}`);
+    expect(findings.map((f) => f.label)).toContain("cloud secret id");
+    expect(findings.every((f) => f.severity === "error")).toBe(true);
+  });
+
+  test("does not flag a credential that is obviously a fixture", () => {
+    expect(scanFileText(`SecretId=${SECRET_PLACEHOLDER}`)).toEqual([]);
+  });
+
+  test("does not flag an environment variable name assigned to a secret field", () => {
+    expect(scanFileText("secretId: TENCENTCLOUD_SECRET_ID")).toEqual([]);
+    expect(scanFileText("apiKey = getCloudBaseApiKeyFromEnv")).toEqual([]);
+  });
+
+  test("reports an account id and an environment id as non-blocking hints", () => {
+    const findings = scanFileText(`account ${ACCOUNT} env ${ENV_ID}`);
+    expect(findings.map((f) => f.severity)).toEqual(["warn", "warn"]);
+    expect(findings.map((f) => f.label)).toEqual(["cloud account id", "cloud environment id"]);
+  });
+
+  test("does not flag a synthetic account id from a fixture", () => {
+    expect(scanFileText(`account ${ACCOUNT_SYNTHETIC}`)).toEqual([]);
+  });
+
+  test("does not flag an account id whose digits are mostly one repeated digit", () => {
+    expect(scanFileText(`account ${ACCOUNT_REPEATED}`)).toEqual([]);
+  });
+
+  test("does not flag an environment id placeholder built from repeated characters", () => {
+    expect(scanFileText(`envId: ${ENV_ID_PLACEHOLDER}`)).toEqual([]);
+  });
+
+  test("does not flag a request id that has the shape of an environment id", () => {
+    expect(scanFileText(`RequestId: ${REQUEST_ID}`)).toEqual([]);
+  });
+
+  test("does not flag an environment id that is a documented example", () => {
+    expect(ALLOWED_LITERAL_VALUES.has(DOCUMENTED_ENV_ID)).toBe(true);
+    expect(scanFileText(`layer name: common_${DOCUMENTED_ENV_ID}`)).toEqual([]);
+  });
+
+  test("does not flag a hyphenated word that merely looks like an environment id", () => {
+    expect(scanFileText(`see ${HYPHENATED_WORD} for details`)).toEqual([]);
+  });
+
+  test("loads extra personal literals from the environment", () => {
+    const rules = loadExtraRules({
+      env: { INTERNAL_REFS_EXTRA: "somehandle" },
+      readFile: () => "",
+    });
+    expect(scanText("by somehandle", rules).map((f) => f.label)).toEqual([
+      "personal identifier",
+    ]);
+  });
+
+  test("has no extra rules when nothing is injected", () => {
+    expect(loadExtraRules({ env: {}, readFile: () => "" })).toEqual([]);
   });
 });
 
@@ -317,6 +411,17 @@ describe("file selection", () => {
     }
   });
 
+  test("skips upstream vendored and generated files", () => {
+    expect(ALLOWED_FILE_PATTERNS.length).toBeGreaterThan(0);
+    for (const rel of [
+      "mcp/assets/control-plane/tcb-openapi.yaml",
+      "mcp/src/generated/tcb-action-index.ts",
+    ]) {
+      expect(isAllowedFile(rel), rel).toBe(true);
+    }
+    expect(isAllowedFile("mcp/src/server.ts")).toBe(false);
+  });
+
   test("lists tracked files and drops the excluded ones", () => {
     const { dir, git } = createRepo();
     fs.mkdirSync(path.join(dir, "node_modules", "pkg"), { recursive: true });
@@ -342,6 +447,13 @@ describe("parseArgs", () => {
 
   test("ignores unrelated arguments", () => {
     expect(parseArgs(["--verbose"])).toEqual({});
+  });
+
+  test("parses the files-only flag alongside base and cwd", () => {
+    expect(parseArgs(["--files", "--cwd", "/tmp/x"])).toEqual({
+      filesOnly: true,
+      cwd: "/tmp/x",
+    });
   });
 
   test("throws when a value is missing", () => {
