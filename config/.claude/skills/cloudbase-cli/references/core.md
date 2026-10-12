@@ -37,8 +37,10 @@ tcb login --flow web           # Web authorization (same-machine only)
 tcb login --cloudbase-api-key <cloudbaseApiKey> -e <envId>  # Env API Key (no Tencent Cloud account)
 tcb login --apiKeyId <Id> --apiKey <Key>            # CI / Tencent Cloud SecretId+SecretKey
 tcb login --apiKeyId <Id> --apiKey <Key> --token <T> # Temp token (CI, more secure)
-tcb logout                     # Clear local credentials
+tcb logout                     # Clear account-level credentials (account-login mode only)
 ```
+
+> ⚠️ `tcb logout` clears **account-level** logins only. In **environment API Key** mode the CLI refuses it (`LOGOUT_NOT_ALLOWED`) — there is no account session to clear; remove the credential file instead (see *Where credentials are read from* below).
 
 ### Choosing a login method
 
@@ -142,6 +144,34 @@ Sub-accounts need these CAM policies to use the CLI:
 | Device code not working in CI | Use `--apiKeyId / --apiKey` credential login |
 | Sub-account web/device login fails | Grant `QcloudCamReadOnlyAccess`, or use key login |
 | Permission denied on resources | Check sub-account CAM policies for the specific TCB resource |
+| Logged in, but only one environment (or none) is visible | The project slot holds an environment credential — see *Where credentials are read from* below |
+| `tcb logout` rejected with `LOGOUT_NOT_ALLOWED` | API Key mode has no account session; remove the credential file instead |
+
+---
+
+### Where credentials are read from
+
+`tcb` does **not** hold a single global login. Before each call it picks one credential, in this order:
+
+```
+1. project slot   ~/.config/.cloudbase/projects/<escaped-project-root>/auth.json   — only if it holds a real credential
+2. global slot    ~/.config/.cloudbase/auth.json
+3. environment    CLOUDBASE_API_KEY + CLOUDBASE_ENV_ID, else TENCENTCLOUD_SECRETID / TENCENTCLOUD_SECRETKEY / TENCENTCLOUD_SESSIONTOKEN
+```
+
+1. **The slot belongs to the project root, not to the directory you happen to be in.** The root is found by walking up from `cwd` for `cloudbaserc.json` / `cloudbaserc.js` / `.cloudbaserc` / `.git`, stopping at `$HOME`; if none of them is found, `cwd` itself is the root. The slot name is that absolute path with every non-alphanumeric character replaced by `-` (over 200 chars: truncated + first 16 hex of sha256). ⇒ `cd`-ing into a subdirectory of the same repo does **not** give you a different slot.
+2. **The project slot only wins when it actually holds a credential.** An empty `{}` slot — what a first run leaves behind — does **not** shadow anything; the call falls through to the global slot (verified). A slot holding an **environment API Key** does win, and then the global login is never consulted.
+3. ⇒ *"I logged in with another account, but this directory still shows only one environment"* is this, **not** a missing CAM policy. Check `~/.config/.cloudbase/projects/<escaped-project-root>/auth.json` first. For a genuinely clean resolution use a directory **outside any project** (or clear that project's slot) — a new folder inside the same repo is still the same slot.
+
+To see who the current directory is actually authenticating as (works before any product call, so the identity has not been swapped yet):
+
+```bash
+# account-level login → CAMUser / federated-user/<id>
+# env API Key        → CAMUser / <uin>:TCB-CAPI-Configured-idaas-apikey
+tcb api sts GetCallerIdentity --api-version 2018-08-13 --json
+```
+
+The identity can change **within one session**: calling a CloudBase product API swaps the credential to the `TCB_QcsRole` service role, which reaches only the CloudBase-owned resources and **cannot touch CAM**. So when a task also needs CAM or CloudAudit, do that part **first**, from a directory holding an account-level login.
 
 ---
 
@@ -453,6 +483,17 @@ CloudBase CLI uses structured exit codes for CI/CD and agent error handling.
 | 4 | Resource not found | Wrong envId, missing function/collection | Verify with `tcb env list` / `tcb fn list` |
 | 5 | Cloud API error | Network timeout, SDK error | Retry with backoff |
 | 6 | Local file error | `cloudbaserc.json` missing/corrupt | Check config, `tcb init` |
+
+### Response-level errors (not exit codes)
+
+Exit codes classify the CLI's own outcome. The response body tells you **where** the call died:
+
+| Response shape | Meaning | Example |
+|----------------|---------|---------|
+| Structured body with `errorCode` + a real `RequestId` | Reached the service; the service refused it | `AuthFailure.UnauthorizedOperation` |
+| `invalid token`, an HTML fallback page, or `RequestId: "0"` | Rejected by an **edge layer** before reaching the service | credential from the wrong site, or an empty/stale slot |
+
+Do not read the second shape as a permission problem — no CAM policy fixes it. Check the credential itself (right site, right directory slot, not expired) instead.
 
 ### Agent Error Handling Strategy
 

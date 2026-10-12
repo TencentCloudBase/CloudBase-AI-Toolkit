@@ -97,9 +97,9 @@ TCB 服务角色族挂的是 TCB 自己声明的策略集（`QcloudAccessForTCBR
 **角色挂载的策略会随产品迭代变化**，别照着文档里的旧结论判断。确认当前覆盖范围要现场读，但**读 cam 需要调用身份自己就有 cam 策略**：
 
 1. `ListAttachedRolePolicies`：看角色挂了哪些策略
-2. `GetPolicy(PolicyId=…)`：读该策略的 `PolicyDocument`，逐条看 `action` 数组里有没有你要的 Action
+2. `GetPolicy(PolicyId=…)`：直接回 `PolicyDocument` —— 一段**字符串**，二次解析后看 `statement[].action`；`GetPolicyVersion` 也能读，但 `VersionId` **必须是数字**（传字符串报 `InvalidParameter ... should be uint64`）
 
-实测边界（2026-09-24，账号级 device 登录）：`cam/GetRole`、`cam/ListAttachedRolePolicies`、`cam/ListPolicies` **三个都返回 `UnauthorizedOperation`**（`qcs::cam:::role/<roleId> has no permission`、`resource (*) has no permission`）。原因是调用者拿的正是 `TCB_QcsRole` 换来的临时密钥，而该角色自己没有 cam 读权限 —— 于是「想查清楚缺什么权限」这件事本身就要先有权限。所以**不要指望现场读出角色载体**，§3.2 的 `principal` 用固定值；真要读 cam，让用户换一个有 `QcloudCamReadOnlyAccess` 的身份。
+⚠️ **能不能读，取决于调用那一刻的身份，而不是「登录时是谁」**：账号级身份（`federated-user`）下 `GetRole` / `ListAttachedRolePolicies` / `ListPolicies` / `GetPolicy` 都**能调通**（2026-10-12 实测）；一旦调过云开发产品接口、身份被换成 `TCB_QcsRole`，同一批调用全被拒（`resource (*) has no permission`）。⇒ **要读 cam 就先读 cam**；真读不了再让用户换一个有 `QcloudCamReadOnlyAccess` 的身份。读不了不影响 §3.2 —— 那里的 `principal` 用固定值。
 
 **确认「我到底是谁」用 `sts/GetCallerIdentity`，不依赖 cam**：返回 `Type`（`CAMRole` / `Account`）、`Arn`、`UserId`；以 `TCB_QcsRole` 调用时 `UserId` 形如 `<ownerUin>:TCB_QcsRole-<uin>-<timestamp>`。哪一行身份由此判定，比 `credential_scope` 更准 —— `credential_scope: account` 只说明「不是环境级 API Key」，实际落地仍可能是角色扮演身份。
 
@@ -130,6 +130,8 @@ https://console.cloud.tencent.com/cam/role/grant?roleName=<角色名>&policyName
 
 链接是**一次性操作**：用户点完授权，重试原调用即可。
 
+> 当前身份已经是**账号级**（`federated-user`）时，也可以不等人点，直接调 `cam/ListPolicies` → `cam/AttachRolePolicy` → `cam/ListAttachedRolePolicies` 把它挂上（可重复执行）；入参见 [`./recipes/cloud-audit-operation-trace.md`](./recipes/cloud-audit-operation-trace.md) 的「给服务角色补权限」。
+
 两条使用边界，写进给用户的说明里：
 
 - **点链接的人得有权授**。授权页要主账号或具备 CAM 写权限的身份登录；子账号点开同样授不了 —— 别把这条链接当万能兜底。
@@ -150,6 +152,8 @@ https://console.cloud.tencent.com/cam/role/grant?roleName=<角色名>&policyName
 | DNS 解析记录（DNSPod 的域名、记录增删改查） | `QcloudDNSPodFullAccess` |
 | 只读 DNS 解析记录 | `QcloudDNSPodReadOnlyAccess` |
 | 读 PostgreSQL 实例（`postgres:DescribeDBInstances` …） | `QcloudPostgreSQLReadOnlyAccess`（覆盖所有 `Describe*` / `Inquiry*`） |
+| 读操作审计事件（`cloudaudit:LookUpEvents` / `DescribeEvents` …） | `QcloudAuditReadOnlyAccess` |
+| 建/改云审计跟踪集（把日志投递到 COS / CLS） | `QcloudAuditFullAccess` |
 
 两条容易踩的：
 

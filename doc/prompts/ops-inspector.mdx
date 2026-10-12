@@ -72,6 +72,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - CloudRun issues -> `../cloudrun-development/SKILL.md`
 - Database issues -> `../postgresql-development-cloudbase/SKILL.md` for CloudBase PG / PostgreSQL, `../relational-database-mcp-cloudbase/SKILL.md` for MySQL, or `../cloudbase-document-database-web-sdk/SKILL.md` for NoSQL
 - Auth readiness (token failures) -> `../auth-tool-cloudbase/SKILL.md`
+- Environment not visible, binding fails, or only one environment shows up -> `../cloudbase-cli/references/core.md` (*Where credentials are read from*)
 - Platform overview -> `../cloudbase-platform/SKILL.md`
 
 ### Do NOT use for
@@ -83,7 +84,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Common mistakes / gotchas
 
-- Running a full inspection without first confirming the environment is bound (`auth` tool must show logged-in and env-bound state).
+- Running a full inspection without first confirming the environment is bound (`auth` tool must show logged-in and env-bound state). If binding fails or only one environment appears, credentials are being resolved **per directory** — see `../cloudbase-cli/references/core.md` (*Where credentials are read from*); it is usually neither a permissions nor a platform problem.
 - Ignoring CLS log service status — if CLS is not enabled, `queryLogs` will fail; always check first with `queryLogs(action="checkLogService")`.
 - Searching logs without a time range — this can return excessive or irrelevant results. Always scope searches to a relevant time window.
 - Treating a single error log as the root cause without correlating across resources. A function error may stem from a database or config issue.
@@ -92,7 +93,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Minimal checklist
 
-- [ ] Environment is bound and accessible (`queryEnv(action="info")`)
+- [ ] Environment is bound and accessible (`queryEnv(action="info")`) — if it fails, or only one environment shows up, confirm the current identity and credential slot first (`../cloudbase-cli/references/core.md`)
 - [ ] Metrics pulled with `queryEnv(action="metrics")` when the question involves QPS / CPU / throttle / invocation volume
 - [ ] CLS log service is enabled (`queryLogs(action="checkLogService")`) when log diagnosis is needed
 - [ ] Matching fault playbook selected when symptoms match 429 / function 404 / ACCESS_TOKEN_INVALID / 调用量为 0

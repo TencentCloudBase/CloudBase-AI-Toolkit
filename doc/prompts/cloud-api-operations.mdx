@@ -83,11 +83,23 @@ Priority rule: if `@cloudbase/manager-node` has a matching method, use it; drop 
 
 ### 3. Check credentials before the first call
 
+**Three identities produce the same error text.** Before reading anything into an `UnauthorizedOperation`, find out which one you are holding:
+
+| Identity | How it is reached | CAM / CloudAudit |
+| --- | --- | --- |
+| Account-level login (`federated-user/<id>`) | Device-code / web login, or account-level SecretId + Key | reachable, subject to that identity's CAM policies |
+| `TCB_QcsRole` service role | what CLI / MCP **become** after calling a CloudBase product API | refused (`resource (...) has no permission`) |
+| Environment API Key (`<uin>:TCB-CAPI-Configured-idaas-apikey`) | `--cloudbase-api-key -e <envId>` | refused — the API Key model has no channel to attach arbitrary CAM policies |
+
+Confirm the identity with `sts GetCallerIdentity` (`--api-version 2018-08-13`) before concluding anything: the refusal text is identical across all three rows, so it cannot tell you which row you are in.
+
+**Order matters.** Calling a CloudBase product API swaps the identity to `TCB_QcsRole` for the rest of the session, so a CAM / CloudAudit call issued *after* any product call is refused even though the login is account-level. Do the CAM / audit work **first**.
+
 - Read the current credential scope from `auth` tools: `credential_scope: account` = account-level, reaches control-plane APIs subject to that identity's CAM policies; `env` = API Key, scoped to one environment's data plane plus the fixed TCB policies.
 - Permission comes from a different place per credential identity: the account-level identity's own policies, the API Key model (no channel to attach arbitrary CAM policies), or the TCB service role that CLI / MCP assume. Which cross-product capabilities that role family already covers is not fixed — read the attached policies (`ListAttachedRolePolicies` + `GetPolicy`) instead of assuming, and treat `UnauthorizedOperation` as "this identity lacks this action", never as a broken setup.
 - On `UnauthorizedOperation` / `AuthFailure`, hand the user a **one-click CAM grant link** (role name + policy name + `principal`) instead of telling them to go find the policy in the console, then retry the original call. Role targets, the `principal` values, and which preset policy covers what: `./references/calling-methods.md` §3.
 
-**Done when**: the credential identity is known, and every permission error has been converted into a clickable authorization link carrying a concrete policy name before any retry.
+**Done when**: the credential identity has been confirmed with `sts GetCallerIdentity` (not inferred from the error text), and every permission error has been converted into a clickable authorization link carrying a concrete policy name before any retry.
 
 ### 4. Follow a proven recipe when one exists
 
@@ -97,6 +109,7 @@ Recipes encode the exact call sequence, required parameters, and empirically dis
 - **ICP filing readiness and wait-time checks**: `./references/recipes/icp-filing-readiness.md`
 - **PostgreSQL instance spec change and shared-to-dedicated upgrade**: `./references/recipes/pg-instance-spec.md`
 - **Custom domain onboarding for an env (HTTP access domain, certificate, DNS binding)**: `./references/recipes/custom-domain.md`
+- **Operation trace / 操作审计 — who did what, from which IP, with which key**: `./references/recipes/cloud-audit-operation-trace.md`
 
 **Done when**: every parameter value in the call sequence traces to a recipe value marked as verified (实测) or to official docs.
 
@@ -114,6 +127,7 @@ Recipes encode the exact call sequence, required parameters, and empirically dis
 
 - [`LICENSE.md`](https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit/-/blob/main/config/source/skills/cloud-api-operations/LICENSE.md)
 - [`references/calling-methods.md`](https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit/-/blob/main/config/source/skills/cloud-api-operations/references/calling-methods.md)
+- [`references/recipes/cloud-audit-operation-trace.md`](https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit/-/blob/main/config/source/skills/cloud-api-operations/references/recipes/cloud-audit-operation-trace.md)
 - [`references/recipes/custom-domain.md`](https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit/-/blob/main/config/source/skills/cloud-api-operations/references/recipes/custom-domain.md)
 - [`references/recipes/icp-filing-readiness.md`](https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit/-/blob/main/config/source/skills/cloud-api-operations/references/recipes/icp-filing-readiness.md)
 - [`references/recipes/pg-instance-spec.md`](https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-Toolkit/-/blob/main/config/source/skills/cloud-api-operations/references/recipes/pg-instance-spec.md)
