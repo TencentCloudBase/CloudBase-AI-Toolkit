@@ -136,7 +136,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 ## 详细规格
 
 ### `auth`
-CloudBase（腾讯云开发）开发阶段登录与环境绑定。登录后即可访问云资源；环境(env)是云函数、数据库、静态托管等资源的隔离单元，绑定环境后其他 MCP 工具才能操作该环境。支持：查询状态、发起登录、API Key登录、绑定环境(set_env)、退出登录。auth(status) 会返回 credential_scope（account=账号级 / single_env=环境级 API Key）与当前 region；环境级 API Key 只能看到绑定的 envId，查不到其他地域环境是权限边界而非环境不存在。可选 site/region/lang 参数：site=站点(domestic/intl)，region=地域，lang=输出语言(zh/en)。
+CloudBase（腾讯云开发）开发阶段登录与环境绑定。不确定该从哪开始？先调一次 auth(status)（只读、不用参数），确认登录态和当前环境。登录后即可访问云资源；环境(env)是云函数、数据库、静态托管等资源的隔离单元，绑定环境后其他 MCP 工具才能操作该环境。还没有环境时：国内站新用户可以免费开通一个体验环境，开通后再用 set_env 绑定。支持：查询状态、发起登录、API Key登录、绑定环境(set_env)、退出登录。auth(status) 会返回 credential_scope（account=账号级 / single_env=环境级 API Key）与当前 region；环境级 API Key 只能看到绑定的 envId，查不到其他地域环境是权限边界而非环境不存在。可选 site/region/lang 参数：site=站点(domestic/intl)，region=地域，lang=输出语言(zh/en)。
 
 #### 参数
 
