@@ -5,7 +5,7 @@ const { spawn } = require("node:child_process");
 
 const env = {
   ...process.env,
-  CLOUDBASE_ENV_ID: process.env.CLOUDBASE_ENV_ID || "ai-share-d2guukyxybb63b206",
+  CLOUDBASE_ENV_ID: process.env.CLOUDBASE_ENV_ID || "test-env-0000000000000000",
   CLOUDBASE_MCP_DISABLE_LOG_FILE: "true",
 };
 delete env.CLOUDBASE_API_KEY;

@@ -38,7 +38,7 @@ describe.skipIf(!runNetwork)("N — negative cases", () => {
     const fake = forgeInvalidPayloadJwt();
     const res = await verifyWithApiKey({
       sessionId,
-      envId: getEnvId() || "mcp-pg-ky5u9q-d9godppox77cd5507",
+      envId: getEnvId() || "test-env-0000000000000000",
       apiKey: fake,
     });
 

@@ -445,7 +445,7 @@ describe("CloudBase API Key env resolution", () => {
     // 国际站腾讯云密钥直登：密钥凭据与站点无关，原样透传，不触发 API Key 换取或 device flow
     process.env.TENCENTCLOUD_SECRETID = "intl-secret-id";
     process.env.TENCENTCLOUD_SECRETKEY = "intl-secret-key";
-    process.env.CLOUDBASE_ENV_ID = "soroli-i2gzw04ic6518ac3a";
+    process.env.CLOUDBASE_ENV_ID = "test-env-0000000000000000";
     process.env.TCB_SITE = "intl";
 
     const { peekLoginState } = await import("./auth.js");
@@ -456,7 +456,7 @@ describe("CloudBase API Key env resolution", () => {
     expect(loginState).toMatchObject({
       secretId: "intl-secret-id",
       secretKey: "intl-secret-key",
-      envId: "soroli-i2gzw04ic6518ac3a",
+      envId: "test-env-0000000000000000",
     });
   });
 

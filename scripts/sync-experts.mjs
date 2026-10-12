@@ -39,8 +39,9 @@ const DEFAULT_EM_SCRIPTS_DIR =
 const EM_SCRIPTS_DIR =
   process.env.EXPERT_MANAGER_SCRIPTS_DIR?.trim() || DEFAULT_EM_SCRIPTS_DIR;
 
-// 与 expert-manager skill 固定用法保持一致
-const SESSION_ID = "e568b592-4252-4e99-a552-99467f9985e5";
+// 与 expert-manager skill 固定用法保持一致。会话 ID 由调用方通过环境变量提供：
+// 每次注册用的是本地新建的会话，不该钉一个固定值在仓库里。
+const SESSION_ID = process.env.EXPERT_MANAGER_SESSION_ID?.trim() || "";
 
 function run(cmd, args, label) {
   const r = spawnSync(cmd, args, { stdio: "inherit" });
@@ -95,17 +96,23 @@ function syncExpert(name) {
     [join(EM_SCRIPTS_DIR, "validate_expert.py"), dst],
     `validate ${name}`
   );
-  run(
-    "python3",
-    [
-      join(EM_SCRIPTS_DIR, "register_expert.py"),
-      dst,
-      "--session-id",
-      SESSION_ID,
-    ],
-    `register ${name}`
-  );
-  console.log(`✅ ${name} 同步并注册完成`);
+  if (SESSION_ID) {
+    run(
+      "python3",
+      [
+        join(EM_SCRIPTS_DIR, "register_expert.py"),
+        dst,
+        "--session-id",
+        SESSION_ID,
+      ],
+      `register ${name}`
+    );
+    console.log(`✅ ${name} 同步并注册完成`);
+  } else {
+    console.log(
+      `⚠️  ${name} 已同步，跳过注册：未设置 EXPERT_MANAGER_SESSION_ID（expert-manager 的本地会话 ID）`
+    );
+  }
 }
 
 const filter = process.argv[2];

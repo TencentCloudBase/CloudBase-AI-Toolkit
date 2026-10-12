@@ -20,7 +20,7 @@ import { renderEnvSetupPage } from './templates/env-setup/index.js';
 
 const html = renderEnvSetupPage({
   envs: [{ EnvId: 'env-xxx', Alias: 'My Env' }],
-  accountInfo: { uin: '100010952056' },
+  accountInfo: { uin: 'account-id' },
   errorContext: null,
   sessionId: 'session-xxx',
   wsPort: 3000

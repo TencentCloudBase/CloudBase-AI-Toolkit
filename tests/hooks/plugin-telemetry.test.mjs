@@ -208,22 +208,22 @@ describe("resolveLocalAuthFacts · 登录态形状", () => {
 
   it("flat：直接取 uin / envId（uin 是数字也给字符串）", () => {
     const f = fixture(
-      { credential: { uin: 123811017, envId: "ai-native-d1ggefhgb8c27e3e8", tmpSecretKey: "x" } },
+      { credential: { uin: 123456789, envId: "test-env-0000000000000000", tmpSecretKey: "x" } },
     );
     expect(resolveLocalAuthFacts(f)).toEqual({
-      loginUin: "123811017",
-      envId: "ai-native-d1ggefhgb8c27e3e8",
+      loginUin: "123456789",
+      envId: "test-env-0000000000000000",
     });
   });
 
   it("flat 缺 envId（最常见）：envId 为 undefined，uin 照常", () => {
-    const f = fixture({ credential: { uin: "123811017", tmpSecretKey: "x" } });
-    expect(resolveLocalAuthFacts(f)).toEqual({ loginUin: "123811017", envId: undefined });
+    const f = fixture({ credential: { uin: "123456789", tmpSecretKey: "x" } });
+    expect(resolveLocalAuthFacts(f)).toEqual({ loginUin: "123456789", envId: undefined });
   });
 
   it("没有 credential 包裹（形状 C）也能读", () => {
-    const f = fixture({ uin: "200031025858", envId: "env-a" });
-    expect(resolveLocalAuthFacts(f)).toEqual({ loginUin: "200031025858", envId: "env-a" });
+    const f = fixture({ uin: "123456789", envId: "env-a" });
+    expect(resolveLocalAuthFacts(f)).toEqual({ loginUin: "123456789", envId: "env-a" });
   });
 
   it("slotted + isIntl=false ⇒ 取 domestic", () => {
@@ -293,7 +293,7 @@ describe("resolveLocalAuthFacts · 登录态形状", () => {
     mkdirSync(join(root, ".claude-plugin"), { recursive: true });
     writeFileSync(join(root, ".claude-plugin", "plugin.json"), JSON.stringify({ version: "1.0.0" }));
     const authFile = join(dir, "auth.json");
-    writeFileSync(authFile, JSON.stringify({ credential: { uin: 123811017, envId: "env-x" } }));
+    writeFileSync(authFile, JSON.stringify({ credential: { uin: 123456789, envId: "env-x" } }));
 
     const posts = [];
     await reportPluginSessionTelemetry({
@@ -309,7 +309,7 @@ describe("resolveLocalAuthFacts · 登录态形状", () => {
     });
     expect(posts).toHaveLength(2);
     for (const post of posts) {
-      expect(post.events[0].mapValue).toMatchObject({ login_uin: "123811017", envId: "env-x" });
+      expect(post.events[0].mapValue).toMatchObject({ login_uin: "123456789", envId: "env-x" });
     }
   });
 });

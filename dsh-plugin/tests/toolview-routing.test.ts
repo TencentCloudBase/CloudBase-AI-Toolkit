@@ -44,7 +44,7 @@ describe("resolveToolViewKind", () => {
   it("routes auth set_env to env-bound card", () => {
     const block: ToolBlock = {
       toolName: "auth",
-      args: { action: "set_env", envId: "ai-native-d1ggefhgb8c27e3e8" },
+      args: { action: "set_env", envId: "test-env-0000000000000000" },
     };
     expect(resolveToolViewKind("mcp__cloudbase__auth", block)).toBe("env-bound");
   });

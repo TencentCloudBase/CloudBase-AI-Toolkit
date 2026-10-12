@@ -38,7 +38,7 @@ function capiBridge(
 }
 
 describe("cloudbase-data mapping", () => {
-  const envId = "ai-share-d2guukyxybb63b206";
+  const envId = "test-env-0000000000000000";
   const auth = { "auth:status": { current_env_id: envId, auth_status: "READY" } };
 
   it("exports product names and a full env id via capi DescribeEnvs", async () => {

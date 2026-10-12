@@ -196,7 +196,7 @@ recipe 里出现的 service 要能在 `callCloudApi` 直接调通。白名单是
 
 ```bash
 export PATH=/usr/local/bin:$PATH   # 缺它 → git-lfs 钩子报错，&& 链会静默断掉
-NODE=/Users/bookerzhao/.workbuddy/binaries/node/versions/22.22.2-3/bin/node
+NODE="$(command -v node)"          # 需要 Node 20+；PATH 里没有 node 时换成绝对路径
 $NODE scripts/generate-prompts-data.mjs && $NODE scripts/generate-prompts.mjs
 $NODE scripts/sync-claude-skills-mirror.mjs && $NODE scripts/build-compat-config.mjs
 $NODE scripts/check-prompts-sync.mjs && $NODE scripts/sync-claude-skills-mirror.mjs --check

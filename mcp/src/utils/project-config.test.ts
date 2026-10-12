@@ -41,14 +41,14 @@ describe("readProjectConfig", () => {
     mkdirSync(join(dir, ".cloudbase"), { recursive: true });
     writeFileSync(
       join(dir, ".cloudbase", "project.json"),
-      JSON.stringify({ site: "intl", region: "ap-singapore", envId: "booker-ai-i0gygeljs622ffd23" }),
+      JSON.stringify({ site: "intl", region: "ap-singapore", envId: "test-env-0000000000000000" }),
       "utf-8",
     );
 
     expect(readProjectConfig(dir)).toEqual({
       site: "intl",
       region: "ap-singapore",
-      envId: "booker-ai-i0gygeljs622ffd23",
+      envId: "test-env-0000000000000000",
     });
   });
 

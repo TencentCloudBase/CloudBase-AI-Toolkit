@@ -36,8 +36,8 @@ describe("cordis patch: proxy path resolution", () => {
   const cases: Array<[string, string, string]> = [
     [
       "plain posix home",
-      "file:///Users/booker/.dsh/profiles/web/",
-      "/Users/booker/.dsh/profiles/web/",
+      "file:///Users/example/.dsh/profiles/web/",
+      "/Users/example/.dsh/profiles/web/",
     ],
     [
       "home directory containing a space",

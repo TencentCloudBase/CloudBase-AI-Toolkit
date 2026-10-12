@@ -27,15 +27,15 @@ describe("ensureCloudRunEnvInitialized", () => {
   });
 
   it("returns true when DescribeEnvBaseInfo reports IsExist=true (initialized)", async () => {
-    // 2026-08-13 真实凭据实测（ai-share-d2guukyxybb63b206 已开通云托管）：
+    // 2026-08-13 真实凭据实测（test-env-0000000000000000 已开通云托管）：
     // DescribeEnvBaseInfo 返回 IsExist=true + 完整 EnvBaseInfo（Status="normal"，
     // PackageType/Region/EnvType/CreateTime 等均已填充），与未开通分支（IsExist=false +
     // 空结构）可明确区分。
     mockGetCloudBaseManager.mockReturnValue(
       makeManager(async () => ({
         EnvBaseInfo: {
-          EnvId: "ai-share-d2guukyxybb63b206",
-          Alias: "ai-share-d2guukyxybb63b206",
+          EnvId: "test-env-0000000000000000",
+          Alias: "test-env-0000000000000000",
           Status: "normal",
           Region: "ap-shanghai",
           EnvType: "baas",

@@ -19,12 +19,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 URL = os.environ.get("DSH_URL", "http://127.0.0.1:3080/")
-OUT = Path(
-    os.environ.get(
-        "DSH_UI_SHOTS",
-        str(Path.home() / ".ato/workspace/e27cc40c-2864-454d-a369-09b4d954daab/screenshots"),
-    )
-)
+OUT = Path(os.environ.get("DSH_UI_SHOTS", str(Path.cwd() / "screenshots")))
 
 ROUTES = [
     ("storage", "存储"),

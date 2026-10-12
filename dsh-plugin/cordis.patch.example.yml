@@ -12,4 +12,4 @@
         command: npx
         args: ['-y', '@cloudbase/cloudbase-mcp@latest']
         env:
-          CLOUDBASE_ENV_ID: !!js (process.env.CLOUDBASE_ENV_ID || 'ai-share-d2guukyxybb63b206')
+          CLOUDBASE_ENV_ID: !!js (process.env.CLOUDBASE_ENV_ID || 'test-env-0000000000000000')

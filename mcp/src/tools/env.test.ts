@@ -990,7 +990,7 @@ describe("env tools - auth", () => {
       { envId: "env-shanghai", alias: "sh", region: "ap-shanghai" },
     ]);
     mockResolveEnvCandidateByEnvId.mockResolvedValue({
-      envId: "alfred-test-sg-d7gxpjc7g94e84f6c",
+      envId: "test-env-0000000000000000",
       alias: "sg",
       region: "ap-singapore",
     });
@@ -998,16 +998,16 @@ describe("env tools - auth", () => {
     const { tools: localTools, server } = createMockServer();
     const result = await localTools.auth.handler({
       action: "set_env",
-      envId: "alfred-test-sg-d7gxpjc7g94e84f6c",
+      envId: "test-env-0000000000000000",
     });
     const payload = JSON.parse(result.content[0].text);
 
     expect(payload).toMatchObject({
       code: "ENV_READY",
-      current_env_id: "alfred-test-sg-d7gxpjc7g94e84f6c",
+      current_env_id: "test-env-0000000000000000",
       current_region: "ap-singapore",
     });
-    expect(mockEnvManagerSetEnvId).toHaveBeenCalledWith("alfred-test-sg-d7gxpjc7g94e84f6c");
+    expect(mockEnvManagerSetEnvId).toHaveBeenCalledWith("test-env-0000000000000000");
     expect(server.cloudBaseOptions?.region).toBe("ap-singapore");
     expect(process.env.TCB_REGION).toBe("ap-singapore");
   });
@@ -1470,7 +1470,7 @@ describe("env tools - queryEnv", () => {
     const commonServiceCall = vi.fn().mockResolvedValue({
       EnvList: [
         {
-          EnvId: "alfred-test-sg-d7gxpjc7g94e84f6c",
+          EnvId: "test-env-0000000000000000",
           Alias: "sg",
           Region: "ap-singapore",
           Status: "NORMAL",
@@ -1501,7 +1501,7 @@ describe("env tools - queryEnv", () => {
         }),
       }),
     );
-    expect(payload.EnvList[0].EnvId).toBe("alfred-test-sg-d7gxpjc7g94e84f6c");
+    expect(payload.EnvList[0].EnvId).toBe("test-env-0000000000000000");
     expect(payload.AppliedFilters.region).toBe("ap-singapore");
     expect(payload.AppliedFilters.currentEnvOnly).toBe(false);
     expect(payload.query_region).toBe("ap-singapore");
@@ -1823,7 +1823,7 @@ describe("env tools - queryEnv", () => {
     // ListTables(Tag=<InstanceId>) succeeded for each of these tnt values.
     const liveDatabases = [
       {
-        envId: "ai-9gra12b5b6a3c966",
+        envId: "test-env-0000000000000000",
         entry: {
           InstanceId: "tnt-88yexwqcw",
           Status: "RUNNING",
@@ -1831,7 +1831,7 @@ describe("env tools - queryEnv", () => {
         },
       },
       {
-        envId: "ai-native-d1ggefhgb8c27e3e8",
+        envId: "test-env-0000000000000000",
         entry: {
           InstanceId: "tnt-n8pjn7tiu",
           Status: "RUNNING",
@@ -1839,7 +1839,7 @@ describe("env tools - queryEnv", () => {
         },
       },
       {
-        envId: "ai-share-d2guukyxybb63b206",
+        envId: "test-env-0000000000000000",
         entry: {
           InstanceId: "tnt-0svnxv8c6",
           Status: "RUNNING",
@@ -1859,7 +1859,7 @@ describe("env tools - queryEnv", () => {
       false,
     );
     expect(
-      [{}, { Bucket: "6169-ai-native-d1ggefhgb8c27e3e8-1251119057" }].some(
+      [{}, { Bucket: "6169-test-env-0000000000000000-1251119057" }].some(
         isUsableNoSqlDatabaseEntry,
       ),
     ).toBe(false);
@@ -2258,7 +2258,7 @@ describe("env tools - queryEnv", () => {
     const describeCreditsUsageDetail = vi.fn().mockResolvedValue({
       Usages: [
         {
-          EnvId: "ai-native-d1ggefhgb8c27e3e8",
+          EnvId: "test-env-0000000000000000",
           Module: "SCF",
           CreditsValue: 12,
           MetricUsageDetail: [{ MetricName: "Invocations", Value: 3 }],
@@ -2278,24 +2278,24 @@ describe("env tools - queryEnv", () => {
       (
         await tools.queryEnv.handler({
           action: "usage",
-          envId: "ai-native-d1ggefhgb8c27e3e8",
+          envId: "test-env-0000000000000000",
           type: ["SCF", "COS"],
         })
       ).content[0].text,
     );
 
     expect(describeEnvAccountCircle).toHaveBeenCalledWith({
-      EnvId: "ai-native-d1ggefhgb8c27e3e8",
+      EnvId: "test-env-0000000000000000",
     });
     expect(describeCreditsUsageDetail).toHaveBeenCalledWith({
-      EnvId: "ai-native-d1ggefhgb8c27e3e8",
+      EnvId: "test-env-0000000000000000",
       Modules: ["SCF", "COS"],
       StartDate: "2026-08-01",
       EndDate: "2026-08-31",
       NeedUsageDetails: true,
     });
     expect(payload).toMatchObject({
-      EnvId: "ai-native-d1ggefhgb8c27e3e8",
+      EnvId: "test-env-0000000000000000",
       Modules: ["SCF", "COS"],
       StartDate: "2026-08-01",
       EndDate: "2026-08-31",
@@ -2437,7 +2437,7 @@ describe("env tools - queryEnv", () => {
       (
         await tools.queryEnv.handler({
           action: "metrics",
-          envId: "ai-native-d1ggefhgb8c27e3e8",
+          envId: "test-env-0000000000000000",
           metricName: "FunctionInvocation",
           startTime: "2026-08-16 16:00:00",
           endTime: "2026-08-17 16:00:00",
@@ -2455,7 +2455,7 @@ describe("env tools - queryEnv", () => {
       ResourceID: "hello-word-test",
     });
     expect(payload).toMatchObject({
-      EnvId: "ai-native-d1ggefhgb8c27e3e8",
+      EnvId: "test-env-0000000000000000",
       MetricName: "FunctionInvocation",
       TimeSource: "params",
       Period: 300,
