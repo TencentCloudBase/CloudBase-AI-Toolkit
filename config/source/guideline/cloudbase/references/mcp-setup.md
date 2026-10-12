@@ -57,6 +57,19 @@ If the user needs **local stdio** instead (local file access, offline), set the 
 
 Same shape, different host — `https://tcb-api.cloud.tencent.com/mcp/v1`. Nothing site-specific to declare: `domestic` + `ap-shanghai` are the defaults for both remote and local mode.
 
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "type": "http",
+      "url": "https://tcb-api.cloud.tencent.com/mcp/v1"
+    }
+  }
+}
+```
+
+OAuth-first applies here too: the URL alone is the configuration and the browser flow binds an environment. Add `env_id` plus the domestic `X-TencentCloud-SecretId` / `X-TencentCloud-SecretKey` pair **only** for a client without OAuth or for CI — never for an interactive IDE, where a key on disk is a secret that outlives the session for no benefit.
+
 > ⚠️ **No `site` / `region` query parameter on the remote endpoint.** The host decides the site. A domestic environment located in `ap-singapore` still uses the domestic host — do not try to switch sites with a URL parameter.
 >
 > ⚠️ **International has no NoSQL / document-database tools.** Route document-DB work to the domestic site or to PostgreSQL instead.

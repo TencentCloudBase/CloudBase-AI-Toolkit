@@ -76,7 +76,20 @@ You need a [CloudBase environment](https://tcb.cloud.tencent.com/dev) and should
 
 Pick the endpoint matching the site your environment lives in—the two sites use separate accounts and credentials.
 
-**Local**: runs `npx @cloudbase/cloudbase-mcp@latest` on your machine—full features, including local filesystem upload and template download. Requires Node.js v18.15.0+.
+**OAuth (interactive, recommended)**: the URL is the whole configuration—your IDE opens the browser for login and consent, and you pick the environment there. No keys land in config files, and there is nothing to rotate.
+
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "type": "http",
+      "url": "https://tcb-api.cloud.tencent.com/mcp/v1"
+    }
+  }
+}
+```
+
+**Static credentials** (for a client without OAuth, and for CI/CD): append `env_id` and a key pair created on the same site as the endpoint.
 
 ```json
 {
@@ -93,10 +106,9 @@ Pick the endpoint matching the site your environment lives in—the two sites us
 }
 ```
 
-Remote auth takes one of two paths:
+> A static key pair stays valid until it is rotated or deleted; an OAuth session ends when you log out. Use the static form only where the browser flow is impossible—and keep it out of a repository.
 
-- **OAuth (interactive, recommended)**: add the URL only—your IDE opens the browser for login and consent, so no keys land in config files.
-- **Static credentials (CI/CD)**: add `env_id` with the `X-TencentCloud-*` headers above.
+**Local**: runs `npx @cloudbase/cloudbase-mcp@latest` on your machine—full features, including local filesystem upload and template download. Requires Node.js v18.15.0+.
 
 Remote trade-off: local-filesystem features (upload, template download) are unavailable, and the international site does not yet expose NoSQL tools.
 
