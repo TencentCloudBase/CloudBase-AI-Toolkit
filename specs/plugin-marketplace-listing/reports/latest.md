@@ -1,19 +1,19 @@
 # CloudBase Plugin Marketplace Analysis
 
-Generated: 2026-09-24T03:02:55.621Z
+Generated: 2026-10-10T08:58:40.436Z
 
 > This report does not auto-submit to any marketplace. All submissions are manual.
 
 ## Summary
 
-Total markets: **56**
+Total markets: **58**
 
 | Priority | Count |
 |----------|------:|
-| ready_to_submit | 7 |
+| ready_to_submit | 8 |
 | needs_packaging_or_manifest | 4 |
-| needs_partner_outreach | 14 |
-| listed | 11 |
+| needs_partner_outreach | 13 |
+| listed | 13 |
 | not_applicable | 16 |
 | unknown | 4 |
 
@@ -248,6 +248,58 @@ Evidence:
 - https://github.com/xai-org/plugin-marketplace
 - https://github.com/xai-org/plugin-marketplace/pull/151
 - https://x.ai/news/grok-plugin-marketplace
+
+### tencent-marvis — Tencent Marvis
+
+- Region: cn
+- Channel: `native_connector_or_builtin`
+- Eligibility: `internal_channel_or_partner_outreach`
+- Last reviewed: 2026-10-10
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: unknown
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: submittable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: listed
+- `docs_only`: unknown
+
+Blockers:
+
+- 连接(MCP/CLI) listing submitted 2026-10-10 and still in Tencent-side review
+
+Submit checklist:
+
+- [ ] [object Object]
+- [ ] Connector handed to the Tencent-side contact 2026-10-10, awaiting their review + manual listing
+- [ ] After the connector goes live, flip native_connector_or_builtin → listed and bump last_reviewed_at
+- [ ] Add a Marvis section to doc/ide-setup once the config path is written up
+
+Process:
+
+```
+Self-serve custom MCP: 技能广场 → 工具箱 → 连接(MCP/CLI) → 我的连接 → + 自定义连接, then paste an MCP
+server JSON. The paste dialog says "优先使用 NPX 或 UVX 配置" → stdio via npx is supported, so
+`npx -y @cloudbase/cloudbase-mcp@latest` works with no packaging step.
+Official 连接 list is Tencent-curated (10 first-party servers) and 技能(Skill) is curated too; no public
+submission form. Tencent products are expected to go through an internal channel.
+Status 2026-09-15: CloudBase absent from the curated list; self-serve path usable today.
+Status 2026-10-10: internal channel live, both tracks progressing.
+技能(Skill): 2 CloudBase skills are already listed in 技能广场.
+连接(MCP/CLI): the hosted Streamable HTTP remote (`https://tcb-api.cloud.tencent.com/mcp/v1` + OAuth) was
+submitted for listing the same day and is going through their review — not the local stdio paste path.
+Packet: `specs/plugin-marketplace-listing/marvis-submission-packet.md`
+Only public contact channel found: marvis@tencent.com, linked as a mailto on the official site. The product
+docs at /docs document concepts and usage only — no MCP / Skill submission process.
+```
+
+Evidence:
+
+- https://marvis.qq.com/
+- https://marvis.qq.com/docs
 
 ### qianwen-ai-platform-hub — QianWen AI Platform hubs (千问AI平台 Skills / MCP hub)
 
@@ -806,52 +858,6 @@ Evidence:
 
 - https://docs.qoder.com/zh/qoderwork/connectors
 
-### tencent-marvis — Tencent Marvis
-
-- Region: cn
-- Channel: `native_connector_or_builtin`
-- Eligibility: `internal_channel_or_partner_outreach`
-- Last reviewed: 2026-09-15
-- Manual submit only: yes
-
-Statuses:
-
-- `official_curated`: unknown
-- `community_directory`: not_applicable
-- `self_marketplace`: not_applicable
-- `native_connector_or_builtin`: submittable
-- `open_plugin_spec`: not_applicable
-- `mcp_or_skill_registry`: unknown
-- `docs_only`: unknown
-
-Blockers:
-
-- Not in the curated official 连接 / Skill lists (no Tencent Cloud MCP among the 10)
-- No public submission form for the curated lists
-
-Submit checklist:
-
-- [ ] Confirm the internal channel for the curated 连接 / Skill lists
-- [ ] Add a Marvis section to doc/ide-setup once the config path is written up
-
-Process:
-
-```
-Self-serve custom MCP: 技能广场 → 工具箱 → 连接(MCP/CLI) → 我的连接 → + 自定义连接, then paste an MCP
-server JSON. The paste dialog says "优先使用 NPX 或 UVX 配置" → stdio via npx is supported, so
-`npx -y @cloudbase/cloudbase-mcp@latest` works with no packaging step.
-Official 连接 list is Tencent-curated (10 first-party servers) and 技能(Skill) is curated too; no public
-submission form. Tencent products are expected to go through an internal channel.
-Status 2026-09-15: CloudBase absent from the curated list; self-serve path usable today.
-Only public contact channel found: marvis@tencent.com, linked as a mailto on the official site. The product
-docs at /docs document concepts and usage only — no MCP / Skill submission process.
-```
-
-Evidence:
-
-- https://marvis.qq.com/
-- https://marvis.qq.com/docs
-
 ### qwenwork-connector — QwenWork (千问办公)
 
 - Region: cn
@@ -956,7 +962,7 @@ Evidence:
 - Region: cn
 - Channel: `native_connector_or_builtin`
 - Eligibility: `partner_outreach_required`
-- Last reviewed: 2026-09-15
+- Last reviewed: 2026-09-30
 - Manual submit only: yes
 
 Statuses:
@@ -988,7 +994,9 @@ Transfer type offers HTTP and STDIO; the STDIO form exposes 服务器名称 / �
 local desktop client — not the web, mobile or cloud-PC clients.
 Official 连接器 list (200+, curated, includes Tencent Meeting and Tencent Docs) has no public submission
 form; skills can be uploaded locally or created in chat.
-Status 2026-09-15: CloudBase absent from the official list.
+Status 2026-09-15: CloudBase absent from the official 连接器 list.
+That list is separate from the client's 插件 market, where CloudBase is now listed as an official
+curated plugin — see doubao-plugin-marketplace below.
 ```
 
 Evidence:
@@ -1349,6 +1357,79 @@ Evidence:
 - doc/ai-agent-plugins.mdx
 
 Recommended install docs: `doc/ide-setup/zcode.mdx`
+
+### doubao-plugin-marketplace — Doubao (豆包)
+
+- Region: cn
+- Channel: `official_curated_marketplace`
+- Eligibility: `unknown_or_partner`
+- Last reviewed: 2026-09-30
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: listed
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: not_applicable
+- `mcp_or_skill_registry`: not_applicable
+- `docs_only`: listed
+
+Submit checklist:
+
+- [ ] Confirm the external wording for 官方精选 before announcing
+
+Process:
+
+```
+Listed as an official curated plugin in the client's 插件 market: 插件·技能·伙伴 → 插件 tab → 精选 category,
+under the 研发运维 group (same group as GitHub, Neon and PostgreSQL). No public submission form was found;
+the listing came through partner outreach.
+```
+
+Evidence:
+
+- https://www.doubao.com/
+
+Recommended install docs: `doc/ide-setup/doubao.mdx`
+
+### minimax-code-marketplace — MiniMax Code
+
+- Region: cn
+- Channel: `official_curated_marketplace`
+- Eligibility: `unknown_or_partner`
+- Last reviewed: 2026-09-30
+- Manual submit only: yes
+
+Statuses:
+
+- `official_curated`: listed
+- `community_directory`: not_applicable
+- `self_marketplace`: not_applicable
+- `native_connector_or_builtin`: not_applicable
+- `open_plugin_spec`: listed
+- `mcp_or_skill_registry`: not_applicable
+- `docs_only`: not_applicable
+
+Local evidence:
+
+- `open_plugin_spec_cloudbase`: **present** — plugin/cloudbase/.plugin/plugin.json has $schema
+
+Process:
+
+```
+The client's plugin market has two sources: `official` (a registry) and `local` (a directory).
+Desktop: Plugins → Market → Install. CLI: `mcode plugin list -m official --available` to browse,
+`mcode plugin add cloudbase@official` to install.
+No public submission form was found; the listing came through partner outreach.
+```
+
+Evidence:
+
+- https://agent.minimax.io/
+
+Recommended install docs: `doc/ide-setup/minimax-code.mdx`
 
 ### trae-mcp-deeplink — Trae IDE
 

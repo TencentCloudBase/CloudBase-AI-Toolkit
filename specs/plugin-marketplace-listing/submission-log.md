@@ -375,3 +375,25 @@ When live: set `markets.yaml` `listing_statuses.official_curated: listed`, check
 2. After live, confirm Skill marketplace entry for `cloudbase`
 3. Flip `markets.yaml` `qoder-plugin.mcp_or_skill_registry` → `listed`
 
+## Tencent Marvis (技能广场 → 连接(MCP/CLI))
+
+| Field | Value |
+|-------|-------|
+| Status | **Connector submitted 2026-10-10 — listing in review**; skills already live |
+| Skills (技能广场) | **2 CloudBase skills listed** (`mcp_or_skill_registry` → `listed`) |
+| Connector (连接 MCP/CLI) | Handed to the Tencent-side contact 2026-10-10; Tencent reviews and lists manually |
+| Packet | `specs/plugin-marketplace-listing/marvis-submission-packet.md` |
+| Transport | Streamable HTTP (hosted remote) |
+| Endpoint | `https://tcb-api.cloud.tencent.com/mcp/v1` |
+| Auth | Third-party OAuth (DCR + PKCE), API-key header pair as fallback |
+| Tools | 35 (remote-mode registry) |
+| Contact | `marvis@tencent.com` (public mailbox); conversation is Tencent-initiated |
+| Listed yet? | Skills: **yes** · Connector: not yet (in review) |
+
+### How to check progress (Tencent Marvis)
+
+1. Watch for the review outcome from the Tencent-side contact (they list the connector manually)
+2. After live, confirm CloudBase appears in 技能广场 → 工具箱 → 连接(MCP/CLI)
+3. Flip `markets.yaml` `tencent-marvis.native_connector_or_builtin` → `listed` and bump `last_reviewed_at`
+4. Record the two listed skill ids in this entry once confirmed
+

@@ -134,6 +134,16 @@ Examples of good targets:
 - [ ] **Qoder CN AppHub (optional):** https://qoder.com.cn/account/apphub-publications
 - [ ] After live: mark `qoder-plugin` `self_marketplace` / `mcp_or_skill_registry` → `listed` in `markets.yaml`
 
+### 8. Tencent Marvis — 技能广场 技能 + 连接(MCP/CLI)
+
+- [x] Skills: 2 CloudBase skills live in 技能广场
+- [x] Packet ready: `specs/plugin-marketplace-listing/marvis-submission-packet.md` (2026-10-10)
+- [x] Cover the four fields Tencent asked for: transport / endpoint / auth / tool descriptions
+- [x] Connector handed to the Tencent-side contact (2026-10-10) — conversation is Tencent-initiated
+- [ ] They review and list the connector manually — watch for the outcome
+- [ ] If asked, extend the packet with OAuth endpoint details + the international-site endpoint
+- [ ] After live: mark `tencent-marvis` `native_connector_or_builtin` → `listed` in `markets.yaml`
+
 ## Needs partner outreach (do not fake as ready)
 
 | Market | Action |
