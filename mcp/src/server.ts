@@ -27,6 +27,7 @@ import { CloudBaseOptions, Logger, PluginOptions } from "./types.js";
 import type { AuthOptions } from "./auth.js";
 import { isMessageKey, resolveInstanceLang, setInstanceLang, t, type Lang } from "./i18n/index.js";
 import { localizeZodSchemaShape } from "./i18n/schema.js";
+import { resolveServerInstructions } from "./prompts/server-instructions.js";
 import { enableCloudMode } from "./utils/cloud-mode.js";
 import { info } from './utils/logger.js';
 import { resolveSiteAndRegion, SITE_REGION_MAP } from "./utils/site-map.js";
@@ -308,6 +309,9 @@ export async function createCloudBaseMcpServer(options?: {
   }
 
   // Create server instance
+  // 实例语言必须在构造前解析：`instructions` 是 initialize 的返回字段，构造时就得定稿，
+  // 不能像工具 description 那样等注册包装层再按 lang 改写。
+  const instanceLang = resolveInstanceLang(lang);
   const server = new McpServer(
     {
       name,
@@ -318,6 +322,8 @@ export async function createCloudBaseMcpServer(options?: {
         tools: {},
         ...(ide === "CodeBuddy" ? { logging: {} } : {}),
       },
+      // 免协商的「怎么用我」自述：不占 tools/list 的上下文，客户端不支持时自然忽略。
+      instructions: resolveServerInstructions(instanceLang),
     },
   ) as ExtendedMcpServer;
 
@@ -325,7 +331,7 @@ export async function createCloudBaseMcpServer(options?: {
   server.toolDefs = [];
 
   // 实例语言解析（须在工具注册前完成：registerTool 包装层按 lang 解析词典 key 形式的 description）
-  server.lang = resolveInstanceLang(lang);
+  server.lang = instanceLang;
   // 同步到 i18n 模块级 instanceLang：否则 t() 无 langOverride 时会退化成
   // TCB_LANG/project.json/zh，导致 options.lang 只影响工具 description、不影响工具输出文案。
   setInstanceLang(server.lang);

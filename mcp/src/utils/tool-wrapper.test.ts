@@ -18,6 +18,16 @@ vi.mock("./telemetry.js", () => ({
     name: "test-client",
     version: "0.0.1",
   })),
+  // tool-wrapper 每次工具调用都会读一次客户端能力（A3）：mock 里必须存在，
+  // 否则运行时抛 "No readClientCapabilitiesFromServer export is defined on the mock"。
+  readClientCapabilitiesFromServer: vi.fn(() => ({
+    elicitationForm: true,
+    elicitationUrl: false,
+    ui: false,
+    roots: false,
+    sampling: false,
+    summary: "elicitation:form",
+  })),
 }));
 
 function withTelemetryEnabled<T>(run: () => Promise<T>) {

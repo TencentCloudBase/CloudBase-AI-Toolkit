@@ -4,7 +4,7 @@ import { getCachedEnvId } from '../cloudbase-manager.js';
 import { ExtendedMcpServer } from "../server.js";
 import { shouldRegisterTool } from './cloud-mode.js';
 import { debug } from './logger.js';
-import { reportToolCall, readMcpClientInfoFromServer } from './telemetry.js';
+import { reportToolCall, readMcpClientInfoFromServer, readClientCapabilitiesFromServer } from './telemetry.js';
 import { isToolPayloadError, ToolPayloadError, withBusinessFailureIsError } from "./tool-result.js";
 import { applyRepeatGuardToPayload, resetRepeatGuard } from "./repeat-error-guard.js";
 import { enhanceErrorMessage, resolveRequestId } from "./error-guidance.js";
@@ -209,6 +209,7 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
                     ide: server.ide || process.env.INTEGRATION_IDE, // 传递集成IDE信息
                     client: server.client || process.env.CLOUDBASE_MCP_CLIENT, // 传递 MCP client 来源标识
                     mcpClientInfo: readMcpClientInfoFromServer(server),
+                    mcpClientCapabilities: readClientCapabilitiesFromServer(server),
                 }).catch(err => {
                     // 静默处理上报错误，不影响主要功能
                     debug('遥测上报失败', { toolName: name, error: err instanceof Error ? err.message : String(err) });

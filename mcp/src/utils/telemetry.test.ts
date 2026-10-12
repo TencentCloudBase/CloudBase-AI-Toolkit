@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  extractClientCapabilities,
   extractMcpClientInfo,
   normalizeClientName,
+  readClientCapabilitiesFromServer,
   readMcpClientInfoFromServer,
+  reportElicitationResult,
   reportToolCall,
   reportToolkitLifecycle,
   telemetryReporter,
@@ -349,5 +352,129 @@ describe("MCP clientInfo helpers", () => {
     const withoutHint = {};
     expect(readMcpClientInfoFromServer(withHint)).toEqual({ name: "cursor", version: "9" });
     expect(readMcpClientInfoFromServer(withoutHint)).toEqual({});
+  });
+});
+
+describe("client capabilities (本地支持矩阵的唯一来源)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** 取某次上报的 payload；没上报过返回空对象（断言随后失败，不用 `!`） */
+  const payloadAt = (spy: { mock: { calls: any[][] } }, i: number) =>
+    (spy.mock.calls[i]?.[1] ?? {}) as Record<string, any>;
+
+  it("识别 elicitation 两种模式 / ui 扩展 / roots / sampling", () => {
+    expect(
+      extractClientCapabilities({ elicitation: { form: {} }, roots: {}, sampling: {} }),
+    ).toMatchObject({
+      elicitationForm: true,
+      elicitationUrl: false,
+      ui: false,
+      roots: true,
+      sampling: true,
+      summary: "elicitation:form,roots,sampling",
+    });
+
+    expect(
+      extractClientCapabilities({
+        elicitation: { url: {} },
+        extensions: { "io.modelcontextprotocol/ui": { mimeTypes: [] } },
+      }),
+    ).toMatchObject({
+      elicitationForm: false,
+      elicitationUrl: true,
+      ui: true,
+      summary: "elicitation:url,ui",
+    });
+  });
+
+  it("握手完成但什么都没声明 → summary=none；握手未完成 → undefined（两者必须分得开）", () => {
+    expect(extractClientCapabilities({})).toMatchObject({ summary: "none" });
+    // 未完成握手：拿不到就是拿不到，不能记成"客户端没有能力"
+    expect(extractClientCapabilities(undefined)).toBeUndefined();
+    expect(extractClientCapabilities(null)).toBeUndefined();
+    expect(extractClientCapabilities("garbage")).toBeUndefined();
+    expect(extractClientCapabilities([])).toBeUndefined();
+  });
+
+  it("elicitation 只写了未知子字段时，不伪造成 form", () => {
+    expect(extractClientCapabilities({ elicitation: { applyDefaults: true } })).toMatchObject({
+      elicitationForm: false,
+      summary: "elicitation",
+    });
+  });
+
+  it("readClientCapabilitiesFromServer 读不到或抛错都返回 undefined", () => {
+    expect(
+      readClientCapabilitiesFromServer({
+        server: { getClientCapabilities: () => ({ elicitation: { form: {} } }) },
+      }),
+    ).toMatchObject({ elicitationForm: true });
+
+    expect(readClientCapabilitiesFromServer({})).toBeUndefined();
+    expect(
+      readClientCapabilitiesFromServer({
+        server: {
+          getClientCapabilities: () => {
+            throw new Error("not initialized");
+          },
+        },
+      }),
+    ).toBeUndefined();
+  });
+
+  it("工具调用上报带上能力字段（摘要 + 两个布尔）", async () => {
+    const reportSpy = vi.spyOn(telemetryReporter, "report").mockResolvedValue(undefined);
+
+    await reportToolCall({
+      toolName: "auth",
+      success: true,
+      mcpClientCapabilities: extractClientCapabilities({
+        elicitation: { form: {} },
+        extensions: { "io.modelcontextprotocol/ui": {} },
+      }),
+    });
+
+    const payload = payloadAt(reportSpy, 0);
+    expect(payload).toMatchObject({
+      mcpCaps: "elicitation:form,ui",
+      mcpCapsElicitation: "true",
+      mcpCapsUi: "true",
+    });
+  });
+
+  it("拿不到能力时不占用字段（不要写 unknown 假值）", async () => {
+    const reportSpy = vi.spyOn(telemetryReporter, "report").mockResolvedValue(undefined);
+
+    await reportToolCall({ toolName: "auth", success: true });
+
+    const payload = payloadAt(reportSpy, 0);
+    expect(payload.mcpCaps).toBeUndefined();
+    expect(payload.mcpCapsElicitation).toBeUndefined();
+    expect(payload.mcpCapsUi).toBeUndefined();
+  });
+
+  it("elicitation 结果用独立事件上报，六个 phase 一个不少", async () => {
+    const reportSpy = vi.spyOn(telemetryReporter, "report").mockResolvedValue(undefined);
+
+    for (const phase of [
+      "requested",
+      "accepted",
+      "declined",
+      "timeout",
+      "unsupported",
+      "error",
+    ] as const) {
+      await reportElicitationResult({ phase, field: "goal", optionCount: 3, toolName: "auth" });
+    }
+
+    expect(reportSpy.mock.calls.map((c) => c[0])).toEqual(Array(6).fill("toolkit_elicitation"));
+    expect(payloadAt(reportSpy, 1)).toMatchObject({
+      phase: "accepted",
+      field: "goal",
+      optionCount: "3",
+      toolName: "auth",
+    });
   });
 });

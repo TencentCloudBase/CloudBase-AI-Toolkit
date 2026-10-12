@@ -397,6 +397,120 @@ function appendMcpClientInfoFields(
     }
 }
 
+// ---- MCP 客户端能力（capabilities）----
+//
+// 为什么要有：灯塔侧原本只记「客户端是谁」（mcpClientName / ide），**没有任何字段承载
+// 「它声明了什么能力」** ⇒ 本地 stdio 的支持矩阵完全空白，elicitation / MCP Apps 铺不铺
+// 只能靠远程日志外推（两条实现未必一致）。远程能从 CLS 事后翻 `initialize` 的
+// clientInfo，本地是我们自己的进程 —— 声明本来就在手上，不记白不记。
+
+/** MCP Apps（SEP-1865）扩展标识：宿主与服务端**双向声明**才谈得上渲染 */
+export const MCP_UI_EXTENSION = 'io.modelcontextprotocol/ui';
+
+/**
+ * 归一化后的客户端能力（字段名保持语义，报表侧再映射到列）。
+ * `undefined` = 握手未完成，与「握手完成但什么都没声明」必须分开：
+ * 后者是客户端事实，前者只是我们还没拿到。
+ */
+export type McpClientCapabilities = {
+    /** 表单模式 elicitation（客户端声明 `elicitation:{}` 或 `elicitation.form`） */
+    elicitationForm: boolean;
+    /** URL 模式 elicitation（凭据跳转用；本期不做，只记录） */
+    elicitationUrl: boolean;
+    /** 声明了 MCP Apps 扩展 */
+    ui: boolean;
+    roots: boolean;
+    sampling: boolean;
+    /** 报表友好摘要：`none` 或稳定排序的逗号串（elicitation:form / elicitation:url / ui / roots / sampling） */
+    summary: string;
+};
+
+/** 把 `getClientCapabilities()` 的原始值压成可上报的形状 */
+export function extractClientCapabilities(raw: unknown): McpClientCapabilities | undefined {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        return undefined;
+    }
+    const caps = raw as Record<string, any>;
+    const elicitation =
+        caps.elicitation && typeof caps.elicitation === 'object' && !Array.isArray(caps.elicitation)
+            ? (caps.elicitation as Record<string, unknown>)
+            : undefined;
+    const extensions =
+        caps.extensions && typeof caps.extensions === 'object' && !Array.isArray(caps.extensions)
+            ? (caps.extensions as Record<string, unknown>)
+            : undefined;
+
+    const elicitationForm = Boolean(elicitation?.form);
+    const elicitationUrl = Boolean(elicitation?.url);
+    const ui = Boolean(extensions && MCP_UI_EXTENSION in extensions);
+    const roots = Boolean(caps.roots);
+    const sampling = Boolean(caps.sampling);
+
+    const present: string[] = [];
+    // 声明了 elicitation 但两个模式都没识别出来（例如只写了未知子字段）：记一个不带模式的名字，
+    // 不要伪造成 form —— 上报宁可少一个维度，也不能多一个假的。
+    if (elicitation && !elicitationForm && !elicitationUrl) {
+        present.push('elicitation');
+    }
+    if (elicitationForm) {
+        present.push('elicitation:form');
+    }
+    if (elicitationUrl) {
+        present.push('elicitation:url');
+    }
+    if (ui) {
+        present.push('ui');
+    }
+    if (roots) {
+        present.push('roots');
+    }
+    if (sampling) {
+        present.push('sampling');
+    }
+
+    return {
+        elicitationForm,
+        elicitationUrl,
+        ui,
+        roots,
+        sampling,
+        summary: present.length > 0 ? present.join(',') : 'none',
+    };
+}
+
+/**
+ * 从 McpServer 读客户端能力。**每次工具调用都读**（不是只记首次）：
+ * SDK 在 initialize 后缓存，读取是纯内存操作；每次都记的好处是同一会话内
+ * 客户端能力变化（重连换客户端）不会只反映在第一条上。
+ *
+ * ⚠️ 与 `readMcpClientInfoFromServer` **同源同风险**：值挂在 server 实例上，而
+ * hosted/cloud 模式若把 McpServer 实例跨请求复用，读到的可能是**上一次** initialize
+ * 的值（与 BFF 的 `Already connected` 同一片区域 —— 实例生命周期没隔离）。
+ * 协议层没有按请求携带 clientInfo 的通道，这里不可能读得更准；要修得连同
+ * `mcpClientName` 一起在 BFF 侧修实例隔离。发现能力分布明显串味时先从那里查。
+ */
+export function readClientCapabilitiesFromServer(server: {
+    server?: { getClientCapabilities?: () => unknown };
+}): McpClientCapabilities | undefined {
+    try {
+        return extractClientCapabilities(server?.server?.getClientCapabilities?.());
+    } catch {
+        return undefined;
+    }
+}
+
+function appendMcpClientCapabilityFields(
+    eventData: { [key: string]: any },
+    capabilities?: McpClientCapabilities,
+) {
+    if (!capabilities) {
+        return;
+    }
+    eventData.mcpCaps = capabilities.summary;
+    eventData.mcpCapsElicitation = capabilities.elicitationForm ? 'true' : 'false';
+    eventData.mcpCapsUi = capabilities.ui ? 'true' : 'false';
+}
+
 // ---- 账号级归因（login_uin）----
 // 缓存键必须能区分凭证身份：hosted 是单进程多租户（网关按凭证缓存 MCP server 实例，
 // 同进程内并存多个租户），无键的进程级缓存会把 A 账号的 uin 上报到 B 账号的事件上。
@@ -524,6 +638,7 @@ export const reportToolCall =  async (params: {
     ide?: string; // 新增：集成IDE信息
     client?: string; // 新增：MCP client 来源标识（hosted 场景由上游解析传入）
     mcpClientInfo?: McpClientInfo; // MCP initialize clientInfo
+    mcpClientCapabilities?: McpClientCapabilities; // MCP initialize capabilities（本地支持矩阵的唯一来源）
 }) => {
     const {
         nodeVersion,
@@ -589,6 +704,7 @@ export const reportToolCall =  async (params: {
     }
 
     appendMcpClientInfoFields(eventData, params.mcpClientInfo);
+    appendMcpClientCapabilityFields(eventData, params.mcpClientCapabilities);
 
     // Debug: 打印最终上报参数
     debug('[telemetry] 工具调用上报参数', {
@@ -602,6 +718,87 @@ export const reportToolCall =  async (params: {
     });
 
     telemetryReporter.report('toolkit_tool_call', eventData);
+};
+
+// ---- elicitation 结果 ----
+//
+// 为什么单独一个事件而不是挂在 toolkit_tool_call 上：一次工具调用里 elicitation 可能
+// 发出、被拒、超时各记一条，挂在工具调用上要么丢信息、要么撑爆工具调用事件的列。
+//
+// 本地是唯一能测「表单弹出 → 用户作答」的地方（远程只能看到能力声明），
+// 所以这四个 phase 就是本地验证场的验收口径：requested / accepted / declined / timeout，
+// 另加 unsupported（客户端没声明，压根没弹）与 error（协议层异常）用于区分
+// 「没弹」和「弹了没人答」—— 这两件事的处置完全不同。
+export type ElicitationPhase =
+    | 'requested'
+    | 'accepted'
+    | 'declined'
+    | 'timeout'
+    | 'unsupported'
+    | 'error';
+
+export const reportElicitationResult = async (params: {
+    phase: ElicitationPhase;
+    /** 表单字段名，用于区分是哪一个引导问题 */
+    field: string;
+    /** 选项个数（选择题） */
+    optionCount: number;
+    /** 发起 elicitation 的工具名（如 auth） */
+    toolName?: string;
+    /** requested → 终态 的耗时（ms），仅终态上报 */
+    durationMs?: number;
+    /** 用户选择的值，仅 accepted */
+    value?: string;
+    error?: string;
+    cloudBaseOptions?: CloudBaseOptions;
+    ide?: string;
+    client?: string;
+    mcpClientInfo?: McpClientInfo;
+    mcpClientCapabilities?: McpClientCapabilities;
+}) => {
+    const {
+        nodeVersion,
+        osType,
+        osRelease,
+        arch,
+        mcpVersion
+    } = telemetryReporter.getUserAgent();
+
+    const { envId } = resolveEnvId(params.cloudBaseOptions);
+    const siteRegion = resolveTelemetrySiteRegion(params.cloudBaseOptions);
+    const loginUin = await resolveLoginUin(params.cloudBaseOptions);
+
+    const eventData: { [key: string]: any } = {
+        phase: params.phase,
+        field: params.field,
+        optionCount: String(params.optionCount),
+        toolName: params.toolName,
+        duration: params.durationMs !== undefined ? String(params.durationMs) : undefined,
+        value: params.value,
+        // 与工具调用同一套截断规则，避免长错误撑爆列
+        error: params.error ? params.error.substring(0, 200) : undefined,
+        envId: envId || 'unknown',
+        region: siteRegion.region,
+        site: siteRegion.site,
+        login_uin: loginUin,
+        nodeVersion,
+        osType,
+        osRelease,
+        arch,
+        mcpVersion,
+    };
+
+    if (params.ide) {
+        eventData.ide = params.ide;
+    }
+    const client = resolveClientName(params.client);
+    if (client) {
+        eventData.client = client;
+    }
+    appendMcpClientInfoFields(eventData, params.mcpClientInfo);
+    appendMcpClientCapabilityFields(eventData, params.mcpClientCapabilities);
+
+    telemetryReporter.report('toolkit_elicitation', eventData);
 };
 
 // Toolkit 生命周期上报
