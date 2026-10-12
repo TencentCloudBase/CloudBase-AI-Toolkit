@@ -105,7 +105,7 @@ description: Generate and publish release note using gh CLI
 ## Function
 Automatically generate and publish a user-friendly release note in Chinese by analyzing git commit history between versions.
 
-**Brand Name**: Use "CloudBase MCP" (NOT "CloudBase AI Toolkit") in all release notes.
+**Title**: Use `v{VERSION}` only. Do not repeat the product name in the GitHub release title or as a body H1 — the repository page already shows it. If body prose must name the product, write "CloudBase MCP" (NOT "CloudBase AI Toolkit").
 
 ## Trigger Condition
 When user inputs `/releasenote`
@@ -131,22 +131,38 @@ When user inputs `/releasenote`
    - `build`: Build system changes (构建优化)
    - `ci`: CI configuration changes (maintenance - 不在 release note 中显示)
 
-### Step 3: Generate Release Note Content
+### Step 3: Collect contributors
+1. List GitHub logins between the previous tag and this tag:
+   ```bash
+   gh api "repos/TencentCloudBase/CloudBase-AI-Toolkit/compare/{previous_tag}...{tag}" \
+     --jq '[.commits[].author.login] | map(select(. != null and (endswith("[bot]") | not))) | unique | .[]'
+   ```
+2. Drop `null` logins and any login ending in `[bot]` (for example `github-actions[bot]`).
+3. If no human logins remain, omit the contributors line entirely.
+4. Do not hand-write avatar `<img>` URLs. A line of `@login` mentions is enough: GitHub renders the Contributors avatar list from those mentions.
+
+### Step 4: Generate Release Note Content
 
 **Format Guidelines:**
 - Use Chinese language
 - Focus on user-facing changes and benefits
+- Open with one Chinese sentence summarizing what this release changes. Do not start with an H1; the release title already shows `v{VERSION}`
 - Group by feature categories (e.g., IDE 支持、环境管理、开发工具、文档和用户体验、数据库、云函数、AI 能力等)
 - Weaken technical implementation details
 - Exclude maintenance-related commits (chore, ci, internal refactoring) from the main highlights by default
 - If maintenance / engineering changes are worth mentioning, place them in a dedicated section at the very end and keep the wording lightweight (optional reading)
-- Highlight breaking changes if any
+- When there is a breaking change, put `## ⚠️ 不兼容变更` immediately after the summary and before `## 🎉 新功能`. Omit that section when there is none
 - Use friendly, non-technical language where possible
 - Add emoji for better readability (optional but recommended for sections)
+- End with the contributor `@mention` line (when any) and, when a previous release tag exists, the compare link. Omit the compare link when there is no previous tag
 
 **Structure:**
 ```markdown
-# CloudBase MCP v{VERSION}
+{One-sentence Chinese summary of what this release changes.}
+
+## ⚠️ 不兼容变更
+
+- {Only include this section when there is a breaking change.}
 
 ## 🎉 新功能
 
@@ -177,20 +193,26 @@ When user inputs `/releasenote`
 ## 🔧 维护与工程改进（可选阅读）
 
 - {Lightweight summary of maintenance / workflows / CI / ecosystem improvements}
+
+## 贡献者
+
+@alice @bob
+
+**完整变更**: https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/compare/{previous_tag}...{tag}
 ```
 
-### Step 4: Interactive Confirmation
+### Step 5: Interactive Confirmation
 1. Display the generated release note content
 2. Ask user to review and confirm:
    - "请查看以下 Release Note 内容，是否需要修改？"
    - Options: "确认发布" / "需要修改" / "取消"
 3. If user chooses "需要修改", allow editing before proceeding
 
-### Step 5: Publish Release
-1. Create release using gh CLI:
+### Step 6: Publish Release
+1. Create release using gh CLI. The title is the version only:
    ```bash
    gh release create {tag} \
-     --title "CloudBase MCP v{VERSION}" \
+     --title "v{VERSION}" \
      --notes "{generated_content}" \
      --verify-tag
    ```
@@ -231,12 +253,17 @@ When user inputs `/releasenote`
 - Hosting → 静态托管
 
 ## Quality Checklist
+- [ ] Release title is `v{VERSION}` with no product-name prefix
+- [ ] Body has no H1 repeating the version title
+- [ ] First line is a one-sentence Chinese summary
 - [ ] All user-facing changes are included
 - [ ] Content is written in Chinese
 - [ ] Technical jargon is minimized
 - [ ] Changes are grouped by logical categories
 - [ ] Maintenance commits are excluded
-- [ ] Breaking changes are highlighted
+- [ ] Breaking changes, when any, are the first section after the summary
+- [ ] Contributor line is `@login` mentions only, bots excluded, no avatar image URLs
+- [ ] Compare link is present when a previous release tag exists
 - [ ] Release URL is provided after publishing
 ```
 
