@@ -22,12 +22,16 @@
  *
  * bridge 的 `targetOrigin` 用 `"*"` 且不校验 `event.origin`：与规范给出的示例一致，且面板跑在
  * 沙箱 iframe 里拿不到宿主 origin，没有可信来源可校验——刻意保持现状（脚本内有同义注释）。
+ *
+ * 读回调里另写一条 `debug` 日志（uri / mimeType / 体积 / 语言）：它是**给人工验证用的服务端信号**
+ * ——"宿主确实来拉资源了"这件事在本地只有它能看到（遥测是延迟的、本地不可见），不是给用户看的输出。
  */
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ExtendedMcpServer } from "../server.js";
 import { getInstanceLang, t, type Lang, type MessageKey } from "../i18n/index.js";
 import { getCachedEnvId } from "../cloudbase-manager.js";
 import { resolveSiteAndRegion } from "../utils/site-map.js";
+import { debug } from "../utils/logger.js";
 import {
   readClientCapabilitiesFromServer,
   readMcpClientInfoFromServer,
@@ -320,16 +324,28 @@ export function registerGetStartedResource(server: ExtendedMcpServer): void {
     },
     async (uri) => {
       const startedAt = Date.now();
+      const lang = getInstanceLang();
       let success = true;
       let errorMessage: string | undefined;
       let html = "";
+      let bytes = 0;
       try {
-        html = buildGetStartedHtml(getInstanceLang(), resolveGetStartedStatus(server));
+        html = buildGetStartedHtml(lang, resolveGetStartedStatus(server));
+        bytes = Buffer.byteLength(html, "utf8");
       } catch (error) {
         success = false;
         errorMessage = error instanceof Error ? error.message : String(error);
         throw error;
       } finally {
+        // 给人工验证的服务端信号：宿主是否真的来拉 `ui://` 资源，本地只能在这里看到。
+        // 遥测是延迟的、本地不可见；这条日志让"人点了面板/宿主预取了一次"变成可观测事实。
+        // 只记 uri / mime / 体积 / 语言——都不含环境或密钥类信息。
+        debug("[mcp-ui] resource read", {
+          uri: GET_STARTED_RESOURCE_URI,
+          mimeType: GET_STARTED_MIME_TYPE,
+          bytes,
+          lang,
+        });
         // 埋点：证明「声明 → 拉取」闭环。测试环境下跳过，避免额外 I/O。
         const isTestEnvironment =
           process.env.NODE_ENV === "test" || process.env.VITEST === "true";
@@ -337,7 +353,7 @@ export function registerGetStartedResource(server: ExtendedMcpServer): void {
           reportResourceRead({
             resourceUri: GET_STARTED_RESOURCE_URI,
             mimeType: GET_STARTED_MIME_TYPE,
-            bytes: Buffer.byteLength(html, "utf8"),
+            bytes,
             durationMs: Date.now() - startedAt,
             success,
             error: errorMessage,

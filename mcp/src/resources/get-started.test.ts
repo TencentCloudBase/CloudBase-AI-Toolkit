@@ -1,14 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createCloudBaseMcpServer } from "../server.js";
 import { t } from "../i18n/index.js";
+import { debug } from "../utils/logger.js";
 import {
   GET_STARTED_MIME_TYPE,
   GET_STARTED_RESOURCE_URI,
   buildGetStartedHtml,
   type GetStartedStatus,
 } from "./get-started.js";
+
+// 只有 read 回调的本地日志会被断言；其余 logger 调用保留真实实现。
+vi.mock("../utils/logger.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../utils/logger.js")>();
+  return { ...actual, debug: vi.fn() };
+});
 
 /**
  * 面板 HTML 是「纯 ASCII 模板 + 词典注入」，因此这层只锁三件事：
@@ -192,6 +199,34 @@ describe("MCP Apps 资源声明的协议级行为（真实握手）", () => {
       expect(text).toContain(t("mcpUi.title", undefined, "en"));
       expect(text).not.toContain(t("mcpUi.title", undefined, "zh"));
       expect(text).toContain('lang="en"');
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("读资源时写一条本地 debug 日志（人工验证「宿主确实来拉了」的唯一服务端信号）", async () => {
+    const { server, client } = await handshake();
+    try {
+      await client.readResource({ uri: UI_RESOURCE_URI });
+
+      const call = vi
+        .mocked(debug)
+        .mock.calls.find(
+          (args) => (args[1] as { uri?: string } | undefined)?.uri === UI_RESOURCE_URI,
+        );
+      expect(call).toBeDefined();
+      const payload = call?.[1] as {
+        mimeType?: string;
+        bytes?: number;
+        lang?: string;
+      };
+      expect(payload.mimeType).toBe(GET_STARTED_MIME_TYPE);
+      expect(typeof payload.bytes).toBe("number");
+      expect(payload.bytes).toBeGreaterThan(0);
+      expect(["zh", "en"]).toContain(payload.lang);
+      // 日志里不得出现环境/密钥类值
+      expect(JSON.stringify(payload)).not.toMatch(/secret|token|apiKey|env-abc/i);
     } finally {
       await client.close();
       await server.close();
