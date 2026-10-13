@@ -376,8 +376,8 @@ export function buildTraeInstallUrl({ mode, siteId, ideName }: InstallLinkContex
  */
 export const WORKBUDDY_CONNECTOR_ID = 'cloudbase';
 
-/** 打开连接器时预填的提示词，让用户点完就有事可做 */
-const WORKBUDDY_DEFAULT_PROMPT = '用 CloudBase 帮我做一个应用';
+/** 打开连接器时预填的提示词：先把连接调通，再谈能做什么 */
+const WORKBUDDY_DEFAULT_PROMPT = '帮我连接 CloudBase 连接器，测通 MCP 功能并介绍可以做什么';
 
 /**
  * WorkBuddy：预选 CloudBase 连接器并新建任务。
