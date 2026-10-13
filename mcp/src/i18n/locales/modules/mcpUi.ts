@@ -42,7 +42,9 @@ export const mcpUi = defineModule(
 
     "action.pending": "正在查状态……",
     "action.error": "调用未完成：",
+    "action.timeout": "等待超时：宿主没有把结果送回来。",
 
+    "result.title": "本次调用结果",
     footnote: "此面板只读：只在本地展示连接状态，唯一会发出的调用是只读的 auth(status)。",
   },
   {
@@ -77,7 +79,9 @@ export const mcpUi = defineModule(
 
     "action.pending": "Checking status...",
     "action.error": "Call did not complete:",
+    "action.timeout": "Timed out: the host did not return a result.",
 
+    "result.title": "This call's result",
     footnote: "This panel is read-only: it only shows connection status locally, and the one call it can make is the read-only auth(status).",
   },
 );

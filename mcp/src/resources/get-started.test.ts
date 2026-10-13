@@ -12,7 +12,7 @@ import {
 
 /**
  * 面板 HTML 是「纯 ASCII 模板 + 词典注入」，因此这层只锁三件事：
- *   1. 零外链（宿主 CSP 默认 deny-all，任何外链都会被拦）；
+ *   1. 零外链（宿主默认 CSP 只允许自身与内联，并禁止一切外部网络，任何外链都会被拦）；
  *   2. bridge 需要的消息名都在（否则面板与宿主握不上手）；
  *   3. 注入值被转义、面板里没有任何密钥类字段。
  */
@@ -90,6 +90,15 @@ describe("get-started 面板 HTML", () => {
     // eslint-disable-next-line no-control-regex
     const nonAscii = html.match(/[^\x00-\x7F]/g) ?? [];
     expect(nonAscii).toEqual([]);
+  });
+
+  it("面板脚本不做 HTML 注入：不用 innerHTML / outerHTML / insertAdjacentHTML", () => {
+    const html = buildGetStartedHtml("zh", sampleStatus);
+
+    expect(html).not.toContain("innerHTML");
+    expect(html).not.toContain("outerHTML");
+    expect(html).not.toContain("insertAdjacentHTML");
+    expect(html).not.toContain("document.write");
   });
 });
 

@@ -45,6 +45,8 @@ interface PanelHarness {
   sent: Array<{ message: { jsonrpc?: string; id?: number; method?: string; params?: any; result?: any }; origin: string }>;
   /** 模拟 Host → View 的一条消息 */
   dispatch(message: unknown): void;
+  /** 触发所有尚未执行的 setTimeout 回调（面板的超时兜底靠它） */
+  fireTimers(): void;
   element(id: string): ShimmedElement;
   methodsFrom(start: number): Array<string | undefined>;
 }
@@ -87,6 +89,9 @@ function loadPanel(html: string): PanelHarness {
 
   const sent: PanelHarness["sent"] = [];
   const messageListeners: Array<(event: { data: unknown }) => void> = [];
+  // 可控的假定时器：面板的超时兜底需要能"手动到点"，而不是真等 10s
+  let timerSeq = 0;
+  let timers = new Map<number, () => void>();
   const sandbox: Record<string, unknown> = {
     document: {
       // 与浏览器一致：不存在的 id 返回 null，避免掩盖"按钮丢了"这类问题
@@ -94,6 +99,14 @@ function loadPanel(html: string): PanelHarness {
       documentElement: { scrollWidth: 480, scrollHeight: 320 },
       body: {},
       addEventListener() {},
+    },
+    setTimeout: (fn: () => void) => {
+      const id = ++timerSeq;
+      timers.set(id, fn);
+      return id;
+    },
+    clearTimeout: (id: number) => {
+      timers.delete(id);
     },
     JSON,
     String,
@@ -124,6 +137,11 @@ function loadPanel(html: string): PanelHarness {
     sent,
     dispatch(message) {
       messageListeners.forEach((fn) => fn({ data: message }));
+    },
+    fireTimers() {
+      const pendingTimers = [...timers.values()];
+      timers = new Map();
+      pendingTimers.forEach((fn) => fn());
     },
     element(id) {
       const element = elements.get(id);
@@ -229,5 +247,55 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
       content: { type: "text", text: t("mcpUi.message.deploy", undefined, "en") },
     });
     expect(panel.sent.slice(before).some((entry) => entry.message.method === "tools/call")).toBe(false);
+  });
+
+  it("消费 ui/notifications/tool-result：把那次 auth 调用的结果渲染出来", async () => {
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+
+    // 面板被当成本次 auth 调用的 UI 渲染时，宿主会把这个通知送来；忽略它，面板就会
+    // "顶掉"真实结果、只剩静态卡片——这条断言就是为那个失败而写。
+    const card = panel.element("tool-result-card");
+    expect(card.hidden).toBe(true);
+
+    panel.dispatch({
+      jsonrpc: "2.0",
+      method: "ui/notifications/tool-result",
+      params: { content: [{ type: "text", text: "LIVE-AUTH-RESULT" }] },
+    });
+    await flush();
+
+    expect(card.hidden).toBe(false);
+    expect(panel.element("tool-result-out").textContent).toBe("LIVE-AUTH-RESULT");
+  });
+
+  it("tool-result 里的 HTML 只被当作文字（渲染路径不做注入）", async () => {
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+    const payload = '<img src=x onerror="alert(1)">';
+
+    panel.dispatch({
+      jsonrpc: "2.0",
+      method: "ui/notifications/tool-result",
+      params: { content: [{ type: "text", text: payload }] },
+    });
+    await flush();
+
+    // textContent 原样保留：payload 没有被解析成元素（页面里没有 <img>，也没有 innerHTML 路径）
+    expect(panel.element("tool-result-out").textContent).toBe(payload);
+  });
+
+  it("tools/call 超时：宿主不转发时显示失败态，不会永远停在等待中", async () => {
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+    panel.dispatch(HOST_INITIALIZE_RESULT);
+    await flush();
+
+    panel.element("btn-check").click();
+    // 宿主不回应这次 tools/call —— 手动把兜底定时器推到点
+    panel.fireTimers();
+    await flush();
+
+    const out = panel.element("out");
+    expect(out.hidden).toBe(false);
+    expect(out.textContent).toBe(t("mcpUi.action.timeout", undefined, "en"));
+    expect(out.textContent).not.toBe(t("mcpUi.action.pending", undefined, "en"));
   });
 });

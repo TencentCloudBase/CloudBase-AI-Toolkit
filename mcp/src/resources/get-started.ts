@@ -6,12 +6,22 @@
  * `auth` 工具上，给声明了 `io.modelcontextprotocol/ui` 的客户端一个"能看见的入口"。
  *
  * 三条纪律（对应 specs/mcp-ui/design.md §2.1 / §3.1）：
- *   1. **零外链**：宿主 CSP 默认 deny-all（`connect-src 'none'`），面板必须完全自包含；
- *      CSS/JS 全部内联，不引任何 CDN / 字体 / 图片 / 图表库。
+ *   1. **零外链**：宿主默认 CSP 只允许自身与内联（`script-src 'self' 'unsafe-inline'`、
+ *      `style-src 'self' 'unsafe-inline'`、`img-src 'self' data:`），并禁止一切外部网络
+ *      （`connect-src 'none'`）⇒ 面板必须完全自包含；CSS/JS 全部内联，不引任何 CDN / 字体 /
+ *      图片 / 图表库（内联脚本本身正依赖上面的 `'unsafe-inline'`）。
  *   2. **模板纯 ASCII**：HTML 模板串只含结构与占位符，所有句子经 `t(key, params, lang)`
  *      注入；`t()` 在 read 回调里求值，晚于 `setInstanceLang`，英文实例自动出英文。
  *   3. **只读无密钥**：状态值只来自 `server.cloudBaseOptions` / 环境变量 / 缓存 / 站点解析，
  *      读资源时不发网络请求；唯一会发出的调用是面板按钮触发的只读 `auth(action:"status")`。
+ *   4. **也呈现"叫它来的那次调用"**：宿主会以 `ui/notifications/tool-result` 通知把「令本次
+ *      面板被渲染的那次工具调用」的结果送来。面板挂在多用途的 `auth` 上，每一次 `auth` 调用都会
+ *      渲染它，所以必须消费这条通知，否则 `auth(start_auth)` / `auth(set_env)` 的真实结果会被
+ *      静态卡片顶掉。渲染只走 `textContent`（不做 HTML 解析）；面板发起的 `tools/call` 另带
+ *      10s 超时兜底，避免宿主不转发时永远停在"等待中"。
+ *
+ * bridge 的 `targetOrigin` 用 `"*"` 且不校验 `event.origin`：与规范给出的示例一致，且面板跑在
+ * 沙箱 iframe 里拿不到宿主 origin，没有可信来源可校验——刻意保持现状（脚本内有同义注释）。
  */
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ExtendedMcpServer } from "../server.js";
@@ -100,6 +110,8 @@ export function buildGetStartedHtml(lang: Lang, status: GetStartedStatus): strin
   const messageDeploy = E(L("mcpUi.message.deploy"));
   const pendingText = E(L("mcpUi.action.pending"));
   const errorText = E(L("mcpUi.action.error"));
+  const timeoutText = E(L("mcpUi.action.timeout"));
+  const resultTitle = E(L("mcpUi.result.title"));
   const footnote = E(L("mcpUi.footnote"));
 
   return `<!doctype html>
@@ -132,6 +144,10 @@ button:hover { opacity: 0.85; }
 <main class="panel">
 <h1>${title}</h1>
 <p class="sub">${subtitle}</p>
+<section class="card" id="tool-result-card" hidden>
+<h2>${resultTitle}</h2>
+<pre id="tool-result-out" class="out"></pre>
+</section>
 <section class="card">
 <h2>${statusTitle}</h2>
 <dl>
@@ -158,7 +174,7 @@ button:hover { opacity: 0.85; }
 <p>${deployDesc}</p>
 <button id="btn-deploy" type="button" data-message="${messageDeploy}">${deployButton}</button>
 </div>
-<pre id="out" class="out" data-pending="${pendingText}" data-error="${errorText}" hidden></pre>
+<pre id="out" class="out" data-pending="${pendingText}" data-error="${errorText}" data-timeout="${timeoutText}" hidden></pre>
 </section>
 <p class="foot">${footnote}</p>
 </main>
@@ -167,19 +183,48 @@ button:hover { opacity: 0.85; }
   var host = window.parent;
   var nextId = 1;
   var pending = {};
+  var CHECK_TIMEOUT_MS = 10000;
+  // targetOrigin "*" and no origin check on incoming messages: matches the spec's own example, and a
+  // sandboxed view has no host origin to verify against. Do not "fix" this into a pinned origin.
+  function post(message) {
+    host.postMessage(message, "*");
+  }
   function request(method, params) {
     var id = nextId++;
     return new Promise(function (resolve, reject) {
       pending[id] = { resolve: resolve, reject: reject };
-      host.postMessage({ jsonrpc: "2.0", id: id, method: method, params: params }, "*");
+      post({ jsonrpc: "2.0", id: id, method: method, params: params });
     });
   }
   function notify(method, params) {
-    host.postMessage({ jsonrpc: "2.0", method: method, params: params }, "*");
+    post({ jsonrpc: "2.0", method: method, params: params });
+  }
+  function textOf(payload) {
+    try {
+      var content = payload && payload.content;
+      if (content && content.length > 0 && typeof content[0].text === "string") {
+        return content[0].text;
+      }
+      return JSON.stringify(payload);
+    } catch (err) {
+      return String(err);
+    }
   }
   window.addEventListener("message", function (event) {
     var data = event.data;
     if (!data || typeof data !== "object") { return; }
+    // The host sends the result of the tool call that rendered this view as a notification.
+    // This panel is mounted on the multi-purpose auth tool, so every auth call renders it;
+    // consuming the notification is what keeps that call's real result visible here.
+    if (data.method === "ui/notifications/tool-result") {
+      var resultCard = document.getElementById("tool-result-card");
+      var resultBox = document.getElementById("tool-result-out");
+      if (resultCard) { resultCard.hidden = false; }
+      // Plain text only: any markup in a tool result is shown as text, never parsed.
+      if (resultBox) { resultBox.textContent = textOf(data.params); }
+      reportSize();
+      return;
+    }
     if (data.id !== undefined && pending[data.id]) {
       var entry = pending[data.id];
       delete pending[data.id];
@@ -216,20 +261,23 @@ button:hover { opacity: 0.85; }
   if (checkButton) {
     checkButton.addEventListener("click", function () {
       if (out) { out.hidden = false; out.textContent = out.getAttribute("data-pending") || ""; }
+      // Timeout fallback: if the host never forwards this call, do not leave the panel sitting on
+      // "waiting" forever, which reads as broken.
+      var settled = false;
+      var timer = setTimeout(function () {
+        if (settled) { return; }
+        settled = true;
+        setOut(out ? (out.getAttribute("data-timeout") || "") : "");
+      }, CHECK_TIMEOUT_MS);
       request("tools/call", { name: "auth", arguments: { action: "status" } }).then(function (result) {
-        var text = "";
-        try {
-          var content = result && result.content;
-          if (content && content.length > 0 && typeof content[0].text === "string") {
-            text = content[0].text;
-          } else {
-            text = JSON.stringify(result);
-          }
-        } catch (err) {
-          text = String(err);
-        }
-        setOut(text);
+        if (settled) { return; }
+        settled = true;
+        clearTimeout(timer);
+        setOut(textOf(result));
       }).catch(function (err) {
+        if (settled) { return; }
+        settled = true;
+        clearTimeout(timer);
         setOut((out ? out.getAttribute("data-error") : "") + " " + JSON.stringify(err));
       });
     });
