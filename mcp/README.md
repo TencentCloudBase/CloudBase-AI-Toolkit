@@ -140,6 +140,32 @@ Typical backend work in your environment (confirm critical steps):
 
 Tool catalog: [MCP tools](../doc/mcp-tools.md) · [tools.json](../scripts/tools.json)
 
+## Confirmations before destructive calls
+
+Deleting a cloud function, a collection, the documents in one, a stored file, a CloudRun service or a MySQL instance now pauses
+the call until you answer a dialog that names the target — "about to delete the cloud function `hello` (env `env-abc`)" — instead
+of asking a bare "are you sure?". It is built on MCP form elicitation, so it can only appear where the client declares that
+capability *and* actually asks the user.
+
+| Situation | What happens |
+| --- | --- |
+| The client asks the user | You get the dialog; the call runs only after you pick "delete" |
+| The client is in a full-access / never-ask mode | It answers on its own within a few milliseconds. That is treated as "you were not asked", and the call proceeds |
+| The client cannot render forms | No dialog, and the call proceeds — the behaviour is the same as before this change |
+| You decline, dismiss it, or answer nothing for 45s | Nothing is executed, and the result says so **without** being marked as an error, so a model does not retry the same deletion |
+
+A declined call is not a failure: the tool returns "not executed" plus what to do instead. Two environment variables change the
+handling, and neither of them bypasses authentication, permissions or read-only limits — they only decide whether the question is
+asked:
+
+| Variable | Effect |
+| --- | --- |
+| `CLOUDBASE_MCP_SKIP_ELICITATIONS` | Comma-separated. Accepts a tool name (`manageFunctions`) or a single action (`manageFunctions.deleteFunction`), case-sensitive, no wildcard. Unknown entries are logged and ignored rather than failing the server |
+| `CLOUDBASE_MCP_ELICIT_AUTO_APPROVE` | `allow` (default) proceeds when the client answers for itself; `block` treats that case as not confirmed |
+
+A client's own tool-approval prompt is not this confirmation: it asks "may this tool run?", not "is this the resource you want to
+delete?".
+
 ## IDE config snippets
 
 <details>

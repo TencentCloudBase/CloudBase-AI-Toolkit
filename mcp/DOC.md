@@ -57,6 +57,11 @@
 - 需要将 `TENCENTCLOUD_SECRETID` 和 `TENCENTCLOUD_SECRETKEY`  / `TENCENTCLOUD_SESSIONTOKEN`配置为**您在云开发控制台获取的 SecretId 和 SecretKey**  （[获取腾讯云 API 密钥](https://console.cloud.tencent.com/cam/capi)）
 - 需要将 `CLOUDBASE_ENV_ID` 配置为**您在云开发控制台获取的环境 ID**, [获取云开发环境 ID](https://tcb.cloud.tencent.com/dev) 
 
+确认与开关（破坏性删除前的确认框）：
+
+- `CLOUDBASE_MCP_SKIP_ELICITATIONS`：逗号分隔，写工具名（`manageFunctions`）或单个动作（`manageFunctions.deleteFunction`）即跳过确认；区分大小写、无通配，无法识别的条目会被忽略并记日志。跳过只是不再询问，**不绕过**任何认证、权限与只读限制。
+- `CLOUDBASE_MCP_ELICIT_AUTO_APPROVE`：默认 `allow` —— 客户端处于完全访问/不询问模式时（应答耗时 < 500ms）按"未询问"放行；设为 `block` 则同样按未确认处理，不执行。
+
 
 ---
 
