@@ -37,7 +37,7 @@ describe("get-started 面板 HTML", () => {
     expect(html).not.toMatch(/\bhref=/);
   });
 
-  it("含 bridge 需要的全部消息名", () => {
+  it("含 bridge 需要的全部消息名，且只有一个 tools/call（路径 1）", () => {
     const html = buildGetStartedHtml("en", sampleStatus);
 
     for (const method of [
@@ -49,6 +49,9 @@ describe("get-started 面板 HTML", () => {
     ]) {
       expect(html).toContain(method);
     }
+
+    // 面板只有一处 tools/call 回调，恰好对应路径 1
+    expect(html.split('"tools/call"').length - 1).toBe(1);
   });
 
   it("zh / en 两个实例产出不同 HTML，且各自语言文案正确", () => {
@@ -161,6 +164,28 @@ describe("MCP Apps 资源声明的协议级行为（真实握手）", () => {
     }
   });
 
+  it("英文实例（lang=en）读资源得到英文面板", async () => {
+    const server = await createCloudBaseMcpServer({
+      pluginsEnabled: ["env"],
+      enableTelemetry: false,
+      lang: "en",
+    });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    const client = new Client({ name: "mcp-ui-client-en", version: "0.0.1" });
+    await client.connect(clientTransport);
+    try {
+      const result = await client.readResource({ uri: UI_RESOURCE_URI });
+      const text = (result.contents[0] as { text?: string }).text ?? "";
+      expect(text).toContain(t("mcpUi.title", undefined, "en"));
+      expect(text).not.toContain(t("mcpUi.title", undefined, "zh"));
+      expect(text).toContain('lang="en"');
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
   it("auth 的 tools/list 条目带 _meta.ui.resourceUri，且其余字段未变", async () => {
     const { server, client } = await handshake();
     try {
@@ -175,6 +200,10 @@ describe("MCP Apps 资源声明的协议级行为（真实握手）", () => {
       // _meta 只多了 ui 一个键，category 仍在
       expect(Object.keys(auth?._meta ?? {}).sort()).toEqual(["category", "ui"]);
       expect((auth?._meta as { category?: string } | undefined)?.category).toBe("env");
+      // visibility 未设成只含 "model"（缺省即 model + app，面板发起的 tools/call 不会被 reject）
+      expect(
+        (auth?._meta as { ui?: { visibility?: unknown } } | undefined)?.ui?.visibility,
+      ).toBeUndefined();
 
       // 回归：描述/标题仍由词典解析，逐字未变
       expect(auth?.title).toBe(t("env.authTitle", undefined, "zh"));
