@@ -140,6 +140,16 @@ Typical backend work in your environment (confirm critical steps):
 
 Tool catalog: [MCP tools](../doc/mcp-tools.md) · [tools.json](../scripts/tools.json)
 
+## Get-started panel (MCP Apps)
+
+Where the client declares the `io.modelcontextprotocol/ui` extension, `auth` also opens a small read-only panel
+(`ui://cloudbase/get-started`). It shows the bound environment, site, region and credential scope, and three
+starting paths — check status, log in and bind an environment, or wire up a project. "Check status" is the only
+call the panel makes, and it is the read-only `auth(status)`; the other two hand a sentence to the conversation.
+
+Clients that do not render MCP Apps are unaffected: `auth` keeps the same title, description, arguments and
+output, and `resources/list` stays empty, so nothing new appears in a resource browser.
+
 ## IDE config snippets
 
 <details>

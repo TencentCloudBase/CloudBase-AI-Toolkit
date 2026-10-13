@@ -34,6 +34,7 @@ import { resolveSiteAndRegion, SITE_REGION_MAP } from "./utils/site-map.js";
 import { buildJsonToolResult, isToolPayloadError } from "./utils/tool-result.js";
 import { wrapServerWithTelemetry, applyCategoryAnnotationMeta, type ToolAnnotations } from "./utils/tool-wrapper.js";
 import { normalizeClientName } from "./utils/telemetry.js";
+import { registerGetStartedResource } from "./resources/get-started.js";
 
 // 插件定义
 interface PluginDefinition {
@@ -320,6 +321,9 @@ export async function createCloudBaseMcpServer(options?: {
     {
       capabilities: {
         tools: {},
+        // MCP Apps 扩展声明：服务端按通用扩展机制用**空对象**（无 settings）。
+        // 注意不手写 `resources`——`registerResource` 会自己在 connect 前带上能力位。
+        extensions: { "io.modelcontextprotocol/ui": {} },
         ...(ide === "CodeBuddy" ? { logging: {} } : {}),
       },
       // 免协商的「怎么用我」自述：不占 tools/list 的上下文，客户端不支持时自然忽略。
@@ -439,6 +443,10 @@ export async function createCloudBaseMcpServer(options?: {
       await plugin.register(server);
     }
   }
+
+  // MCP Apps 入口面板（ui://cloudbase/get-started）。与工具同生命周期、一次性注册；
+  // 必须在 connect 前完成，否则 registerCapabilities 会抛错。resources/list 仍为空。
+  registerGetStartedResource(server);
 
   return server;
 }

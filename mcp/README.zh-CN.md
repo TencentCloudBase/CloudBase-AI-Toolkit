@@ -128,6 +128,15 @@ IDE 支持时优先用 Plugin；只需 MCP 配置时用本包即可。
 
 工具目录：[MCP 工具](../doc/mcp-tools.md) · [tools.json](../scripts/tools.json)
 
+## 起步面板（MCP Apps）
+
+当客户端声明了 `io.modelcontextprotocol/ui` 扩展时，`auth` 会额外打开一个小型只读面板
+（`ui://cloudbase/get-started`）：展示已绑定的环境、站点、地域与凭据范围，并给出三条起步路径——
+查状态、登录并绑定环境、先把项目接上。面板唯一会发出的调用是只读的 `auth(status)`，另外两条只是把一句话交给会话。
+
+不渲染 MCP Apps 的客户端不受影响：`auth` 的标题、描述、参数与输出保持不变，`resources/list` 仍为空数组，
+资源面板里不会多出任何新条目。
+
 ## IDE 配置片段
 
 <details>

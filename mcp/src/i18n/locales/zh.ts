@@ -28,6 +28,7 @@ import { setup } from "./modules/setup.js";
 import { envSetup } from "./modules/envSetup.js";
 import { interactive } from "./modules/interactive.js";
 import { feedback } from "./modules/feedback.js";
+import { mcpUi } from "./modules/mcpUi.js";
 
 export const zh = {
   env: env.zh,
@@ -59,6 +60,7 @@ export const zh = {
   envSetup: envSetup.zh,
   interactive: interactive.zh,
   feedback: feedback.zh,
+  mcpUi: mcpUi.zh,
 };
 
 export type Messages = typeof zh;

@@ -2172,6 +2172,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     {
       title: "env.authTitle",
       description: "env.authDescription",
+      // MCP Apps：把这个工具关到入口面板上（点号嵌套，旧的扁平写法已 deprecated）。
+      // 不设 visibility——缺省即 model+app；设成只含 "model" 会让宿主 reject 面板发起的 tools/call。
+      _meta: { ui: { resourceUri: "ui://cloudbase/get-started" } },
       inputSchema: {
         action: z
           .enum(authActionEnum)
