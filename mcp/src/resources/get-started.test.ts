@@ -123,6 +123,9 @@ describe("MCP Apps 资源声明的协议级行为（真实握手）", () => {
       expect(
         capabilities?.extensions?.["io.modelcontextprotocol/ui"],
       ).toBeDefined();
+      // 必须断言到值：这个 false 是我们在 registerResource 之后用 registerCapabilities
+      // 覆盖出来的，依赖 SDK「后写覆盖先写」的顺序——只断言 resources 存在会漏掉静默退回 true。
+      expect(capabilities?.resources?.listChanged).toBe(false);
     } finally {
       await client.close();
       await server.close();
@@ -214,6 +217,40 @@ describe("MCP Apps 资源声明的协议级行为（真实握手）", () => {
         properties?: { action?: { enum?: unknown[] } };
       };
       expect(schema.properties?.action?.enum ?? []).toContain("status");
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("面板式 tools/call 的参数真的到达处理器（inputSchema 不会静默裁参）", async () => {
+    const { server, client } = await handshake();
+    try {
+      // SDK 会把未写进 inputSchema 的参数静默裁掉（不报错、不日志），所以只有
+      // 「处理器实际收到什么」能发现它。这里包一层 auth 的 handler 记录 zod 校验后的 args；
+      // `_registeredTools` 是 SDK 内部注册表，字段若被改，本用例会因断言失败而显式暴露。
+      const registered = (
+        server as unknown as {
+          _registeredTools?: Record<
+            string,
+            { handler: (args: any, extra?: any) => unknown; update: (u: { callback: any }) => void }
+          >;
+        }
+      )._registeredTools?.auth;
+      expect(registered).toBeDefined();
+
+      let receivedAction: unknown;
+      const originalHandler = registered!.handler;
+      registered!.update({
+        callback: async (args: any, extra?: any) => {
+          receivedAction = args?.action;
+          return originalHandler(args, extra);
+        },
+      });
+
+      await client.callTool({ name: "auth", arguments: { action: "status" } });
+
+      expect(receivedAction).toBe("status");
     } finally {
       await client.close();
       await server.close();

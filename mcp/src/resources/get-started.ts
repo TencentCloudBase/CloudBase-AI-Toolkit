@@ -315,4 +315,10 @@ export function registerGetStartedResource(server: ExtendedMcpServer): void {
       };
     },
   );
+
+  // 我们从不发 `notifications/resources/list_changed`（列表恒空），所以不声明自己不做的事：
+  // `registerResource` 内部已写 `resources: { listChanged: true }`，这里用**公开 API** 覆盖为 false。
+  // 依赖 `mergeCapabilities` 的「后写覆盖先写」，且必须在 connect 之前调用——
+  // 该覆盖顺序依赖 SDK 内部实现，故由协议级测试断言 initialize 的最终形态为 false 钉住。
+  server.server.registerCapabilities({ resources: { listChanged: false } });
 }
