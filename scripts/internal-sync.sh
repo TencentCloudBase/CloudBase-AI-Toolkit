@@ -95,9 +95,16 @@ JUNK_RE='/\.DS_Store$|/\.[^/]*\.[A-Za-z0-9]{10}$'
 #                         且会把命中的凭证原值逐字带进去（riskCode / poc 字段）。
 EVIDENCE_RE='/(runs|agents)/'
 
+# 不参与归档的「本地状态文件」：
+#   specs/security-scan/baselines.json  安全扫描的增量基线，由每日自动化读写。
+#   它是「本地扫到哪儿」的状态，不是可归档的知识；每天都变，同步过去只会让归档仓
+#   长期停在一份旧值上、每期被报成「与本地不一致」，徒增人工判断。故双向豁免
+#   （push 不推、pull 不拉）。归档仓里那份需手工 `git rm --cached` 一次。
+LOCAL_STATE_RE='/security-scan/baselines\.json$'
+
 # 归档侧判据（rsync + 计数 + push 自检都用它）
-IGNORE_RE="$JUNK_RE|$EVIDENCE_RE"
-RSYNC_JUNK=(--exclude '.DS_Store' --exclude '.*.??????????' --exclude 'runs/' --exclude 'agents/')
+IGNORE_RE="$JUNK_RE|$EVIDENCE_RE|$LOCAL_STATE_RE"
+RSYNC_JUNK=(--exclude '.DS_Store' --exclude '.*.??????????' --exclude 'runs/' --exclude 'agents/' --exclude '/security-scan/baselines.json')
 
 # ── 密钥自检（归档前的最后一道闸）──────────────────────────────────────────
 # 背景：扫描/审计工具会把「命中的凭证原值」逐字写进产物（riskCode / poc 字段，
