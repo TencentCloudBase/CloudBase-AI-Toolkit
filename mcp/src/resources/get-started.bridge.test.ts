@@ -174,6 +174,18 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(initialize?.message.jsonrpc).toBe("2.0");
     expect(Number.isInteger(initialize?.message.id)).toBe(true);
     expect(initialize?.message.params?.appCapabilities).toBeDefined();
+    expect(initialize?.message.params?.protocolVersion).toBe("2026-01-26");
+    // `appInfo` 是宿主实际校验的字段名：实测 Codex 桌面端在缺它时回
+    // `-32603 {"path":["params","appInfo"]}`；`clientInfo` 是规范里的名字。
+    // 两个都发，因为真实宿主与已发布规范不一致——只发其中一个都会有一边不对。
+    expect(initialize?.message.params?.appInfo).toEqual({
+      name: "cloudbase-get-started",
+      version: "1.0.0",
+    });
+    expect(initialize?.message.params?.clientInfo).toEqual({
+      name: "cloudbase-get-started",
+      version: "1.0.0",
+    });
     expect(initialize?.origin).toBe("*");
 
     const before = panel.sent.length;

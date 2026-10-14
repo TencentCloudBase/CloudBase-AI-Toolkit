@@ -248,9 +248,14 @@ button:hover { opacity: 0.85; }
     out.textContent = text;
     reportSize();
   }
+  // appInfo is the field a real host validates: Codex answers -32603
+  // params.appInfo Invalid input when it is absent. clientInfo is what the
+  // published spec (2026-01-26, apps.mdx) calls the same thing. Send both:
+  // an unknown key is ignored, a missing required one is not.
   request("ui/initialize", {
     protocolVersion: "2026-01-26",
     appCapabilities: { availableDisplayModes: ["inline"] },
+    appInfo: { name: "cloudbase-get-started", version: "1.0.0" },
     clientInfo: { name: "cloudbase-get-started", version: "1.0.0" }
   }).then(function () {
     notify("ui/notifications/initialized", {});
