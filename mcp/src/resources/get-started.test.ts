@@ -29,8 +29,28 @@ const sampleStatus: GetStartedStatus = {
   envId: "env-abc123",
   site: "domestic",
   region: "ap-shanghai",
-  credentialScope: "account",
 };
+
+/**
+ * 面板正文里不允许出现的内部枚举 —— 用户在界面上看到的一律是人话。
+ * 它们只允许出现在「查看原始返回」折叠区（运行时渲染的原始 JSON）里。
+ */
+const INTERNAL_ENUMS = [
+  "domestic",
+  "intl",
+  "single_env",
+  "account",
+  "ap-",
+  "READY",
+  "auth(status)",
+];
+
+/** 可见正文 = 去掉 <script> 逻辑与原始返回折叠区之后的标记（枚举在脚本查表里是必要的）。 */
+function visibleMarkup(html: string): string {
+  return html
+    .replace(/<script>[\s\S]*?<\/script>/gi, "")
+    .replace(/<details[\s\S]*?<\/details>/gi, "");
+}
 
 describe("get-started 面板 HTML", () => {
   it("零外链：不含 http(s)、<link、以及任何外部 src=/href=", () => {
@@ -44,7 +64,7 @@ describe("get-started 面板 HTML", () => {
     expect(html).not.toMatch(/\bhref=/);
   });
 
-  it("含 bridge 需要的全部消息名，且只有一个 tools/call（路径 1）", () => {
+  it("含 bridge 需要的全部消息名，且只有一个 tools/call（「重新检查」）", () => {
     const html = buildGetStartedHtml("en", sampleStatus);
 
     for (const method of [
@@ -57,8 +77,22 @@ describe("get-started 面板 HTML", () => {
       expect(html).toContain(method);
     }
 
-    // 面板只有一处 tools/call 回调，恰好对应路径 1
+    // 面板只有一处 tools/call 回调，恰好对应「重新检查」
     expect(html.split('"tools/call"').length - 1).toBe(1);
+  });
+
+  it("正文不出现内部枚举（只允许在「查看原始返回」折叠区里）", () => {
+    for (const lang of ["zh", "en"] as const) {
+      const markup = visibleMarkup(buildGetStartedHtml(lang, sampleStatus));
+      for (const token of INTERNAL_ENUMS) {
+        expect(markup, `${lang} 正文不应出现内部枚举 ${token}`).not.toContain(token);
+      }
+    }
+    // 地图类枚举确实进了脚本查表（否则上面这条会因为"压根没翻"而虚假通过）
+    const html = buildGetStartedHtml("en", sampleStatus);
+    expect(html).toContain("ap-shanghai");
+    expect(visibleMarkup(html)).toContain("Shanghai");
+    expect(visibleMarkup(html)).toContain("China");
   });
 
   it("zh / en 两个实例产出不同 HTML，且各自语言文案正确", () => {
@@ -68,8 +102,8 @@ describe("get-started 面板 HTML", () => {
     expect(zhHtml).not.toBe(enHtml);
     expect(zhHtml).toContain(t("mcpUi.title", undefined, "zh"));
     expect(enHtml).toContain(t("mcpUi.title", undefined, "en"));
-    expect(zhHtml).toContain(t("mcpUi.paths.check.button", undefined, "zh"));
-    expect(enHtml).toContain(t("mcpUi.paths.check.button", undefined, "en"));
+    expect(zhHtml).toContain(t("mcpUi.next.action.refresh", undefined, "zh"));
+    expect(enHtml).toContain(t("mcpUi.next.action.refresh", undefined, "en"));
     // 反向：英文面板里不该出现中文标题，中文面板里不该出现英文标题
     expect(enHtml).not.toContain(t("mcpUi.title", undefined, "zh"));
     expect(zhHtml).not.toContain(t("mcpUi.title", undefined, "en"));

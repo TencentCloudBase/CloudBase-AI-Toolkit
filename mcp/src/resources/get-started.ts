@@ -5,20 +5,26 @@
  * 一期唯一的 UI 落点——一个自包含单文件 HTML，经 `_meta.ui.resourceUri` 挂在既有
  * `auth` 工具上，给声明了 `io.modelcontextprotocol/ui` 的客户端一个"能看见的入口"。
  *
- * 三条纪律（对应 specs/mcp-ui/design.md §2.1 / §3.1）：
+ * 四条纪律（对应 specs/mcp-ui/design.md §2.1 / §3.1）：
  *   1. **零外链**：宿主默认 CSP 只允许自身与内联（`script-src 'self' 'unsafe-inline'`、
  *      `style-src 'self' 'unsafe-inline'`、`img-src 'self' data:`），并禁止一切外部网络
- *      （`connect-src 'none'`）⇒ 面板必须完全自包含；CSS/JS 全部内联，不引任何 CDN / 字体 /
- *      图片 / 图表库（内联脚本本身正依赖上面的 `'unsafe-inline'`）。
+ *      （`connect-src 'none'`）⇒ 面板必须完全自包含；CSS/JS 全部内联，Logo 也内联成
+ *      `<svg>`（不用外链、也不用 data URI），不引任何 CDN / 字体 / 图片 / 图表库。
  *   2. **模板纯 ASCII**：HTML 模板串只含结构与占位符，所有句子经 `t(key, params, lang)`
  *      注入；`t()` 在 read 回调里求值，晚于 `setInstanceLang`，英文实例自动出英文。
+ *      注入分两路：HTML 文本走 `escapeHtml`，脚本里的字符串走 `jsLiteral`（JSON 转义 +
+ *      转义 `<`，避免 `</script>` 截断）。
  *   3. **只读无密钥**：状态值只来自 `server.cloudBaseOptions` / 环境变量 / 缓存 / 站点解析，
- *      读资源时不发网络请求；唯一会发出的调用是面板按钮触发的只读 `auth(action:"status")`。
- *   4. **也呈现"叫它来的那次调用"**：宿主会以 `ui/notifications/tool-result` 通知把「令本次
- *      面板被渲染的那次工具调用」的结果送来。面板挂在多用途的 `auth` 上，每一次 `auth` 调用都会
- *      渲染它，所以必须消费这条通知，否则 `auth(start_auth)` / `auth(set_env)` 的真实结果会被
- *      静态卡片顶掉。渲染只走 `textContent`（不做 HTML 解析）；面板发起的 `tools/call` 另带
- *      10s 超时兜底，避免宿主不转发时永远停在"等待中"。
+ *      读资源时不发网络请求；唯一会发出的调用是面板「重新检查」触发的只读
+ *      `auth(action:"status")`。
+ *   4. **状态吃实时结果，不吃本地猜测**：宿主会以 `ui/notifications/tool-result` 通知把
+ *      「令本次面板被渲染的那次工具调用」的结果送来。面板挂在多用途的 `auth` 上，
+ *      每一次 `auth` 调用都会渲染它，所以状态区**优先消费这条通知的 `structuredContent`**
+ *      （没有时回落到 `content[0].text` 里的 JSON），本地配置只作还没有实时结果时的兜底。
+ *      这同时消除了"静态卡按本地配置猜的凭据范围"和"实时值"互相矛盾的问题——静态那条已移除。
+ *
+ * 展示纪律：面板正文只出现人话。站点 / 地域 / 凭据范围经词典翻成中文或英文，
+ * 认不出来的原始枚举照原样显示；原始 JSON 只进「查看原始返回」折叠区。
  *
  * bridge 的 `targetOrigin` 用 `"*"` 且不校验 `event.origin`：与规范给出的示例一致，且面板跑在
  * 沙箱 iframe 里拿不到宿主 origin，没有可信来源可校验——刻意保持现状（脚本内有同义注释）。
@@ -44,13 +50,38 @@ export const GET_STARTED_RESOURCE_URI = "ui://cloudbase/get-started";
 /** MCP Apps 资源 MUST 使用此 MIME。 */
 export const GET_STARTED_MIME_TYPE = "text/html;profile=mcp-app";
 
-/** 面板状态卡的数据（全部来自本地，读资源时不发网络/文件请求）。 */
+/** 面板状态卡的静态兜底数据（全部来自本地，读资源时不发网络/文件请求）。 */
 export interface GetStartedStatus {
   envId: string | null;
   site: string;
   region: string;
-  credentialScope: "account" | "single_env";
 }
+
+/**
+ * 原始 code → 词典 key。这些 code 只允许出现在词典与本文件的脚本查表里，
+ * 不允许出现在面板正文（见下面对应的静态断言）。
+ */
+const REGION_MESSAGE_KEYS: ReadonlyArray<readonly [string, MessageKey]> = [
+  ["ap-shanghai", "mcpUi.region.apShanghai"],
+  ["ap-guangzhou", "mcpUi.region.apGuangzhou"],
+  ["ap-beijing", "mcpUi.region.apBeijing"],
+  ["ap-nanjing", "mcpUi.region.apNanjing"],
+  ["ap-chengdu", "mcpUi.region.apChengdu"],
+  ["ap-hongkong", "mcpUi.region.apHongkong"],
+  ["ap-singapore", "mcpUi.region.apSingapore"],
+  ["na-siliconvalley", "mcpUi.region.naSiliconvalley"],
+  ["eu-frankfurt", "mcpUi.region.euFrankfurt"],
+];
+
+const SITE_MESSAGE_KEYS: ReadonlyArray<readonly [string, MessageKey]> = [
+  ["domestic", "mcpUi.site.domestic"],
+  ["intl", "mcpUi.site.intl"],
+];
+
+const SCOPE_MESSAGE_KEYS: ReadonlyArray<readonly [string, MessageKey]> = [
+  ["account", "mcpUi.scope.account"],
+  ["single_env", "mcpUi.scope.singleEnv"],
+];
 
 /** 按 `& < > " '` 转义，避免环境 ID 等值破坏 HTML 结构。 */
 export function escapeHtml(value: string): string {
@@ -62,7 +93,12 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-/** 从 server 实例派生状态卡内容；只读本地状态，不发起任何请求。 */
+/** 转成可直接嵌进面板 `<script>` 的双引号 JS 字符串字面量（含 `</script>` 防护）。 */
+function jsLiteral(value: string): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
+/** 从 server 实例派生静态兜底状态；只读本地状态，不发起任何请求。 */
 export function resolveGetStartedStatus(server: ExtendedMcpServer): GetStartedStatus {
   const envId =
     server.cloudBaseOptions?.envId ||
@@ -73,50 +109,45 @@ export function resolveGetStartedStatus(server: ExtendedMcpServer): GetStartedSt
     site: server.cloudBaseOptions?.site,
     region: server.cloudBaseOptions?.region,
   });
-  return {
-    envId,
-    site,
-    region,
-    credentialScope: server.cloudBaseOptions?.credentialScope === "env" ? "single_env" : "account",
-  };
+  return { envId, site, region };
 }
 
 /**
- * 生成面板 HTML。模板串保持纯 ASCII：所有自然语言来自词典，按 `lang` 求值后转义注入。
+ * 生成面板 HTML。模板串保持纯 ASCII：所有自然语言来自词典，按 `lang` 求值后注入。
  */
 export function buildGetStartedHtml(lang: Lang, status: GetStartedStatus): string {
   const L = (key: MessageKey): string => t(key, undefined, lang);
   const E = escapeHtml;
+  const J = jsLiteral;
+  const S = (key: MessageKey): string => J(L(key));
+
+  /** 把 code → 词典 key 的表组装成脚本里的查表对象字面量。 */
+  const tableOf = (pairs: ReadonlyArray<readonly [string, MessageKey]>): string =>
+    pairs.map(([code, key]) => `${J(code)}:${S(key)}`).join(",");
+
+  const siteLabelDir = new Map(SITE_MESSAGE_KEYS);
+  const regionLabelDir = new Map(REGION_MESSAGE_KEYS);
+  /** 认不出的 code 照原样显示；认得出走词典（宁可不译，不要译错）。 */
+  const labelOf = (dir: Map<string, MessageKey>, code: string): string => {
+    const key = dir.get(code);
+    return key ? L(key) : code;
+  };
+  const siteText = labelOf(siteLabelDir, status.site);
+  const regionText = labelOf(regionLabelDir, status.region);
+  const placeText = regionText
+    ? siteText
+      ? `${regionText}${L("mcpUi.place.open")}${siteText}${L("mcpUi.place.close")}`
+      : regionText
+    : siteText;
 
   const title = E(L("mcpUi.title"));
   const subtitle = E(L("mcpUi.subtitle"));
   const statusTitle = E(L("mcpUi.status.title"));
-  const envIdLabel = E(L("mcpUi.status.envId"));
-  const siteLabel = E(L("mcpUi.status.site"));
-  const regionLabel = E(L("mcpUi.status.region"));
-  const scopeLabel = E(L("mcpUi.status.credentialScope"));
-  const envIdValue = E(status.envId ?? L("mcpUi.status.unset"));
-  const scopeValue =
-    status.credentialScope === "single_env"
-      ? E(L("mcpUi.status.scope.singleEnv"))
-      : E(L("mcpUi.status.scope.account"));
-  const pathsTitle = E(L("mcpUi.paths.title"));
-  const checkTitle = E(L("mcpUi.paths.check.title"));
-  const checkDesc = E(L("mcpUi.paths.check.desc"));
-  const checkButton = E(L("mcpUi.paths.check.button"));
-  const loginTitle = E(L("mcpUi.paths.login.title"));
-  const loginDesc = E(L("mcpUi.paths.login.desc"));
-  const loginButton = E(L("mcpUi.paths.login.button"));
-  const deployTitle = E(L("mcpUi.paths.deploy.title"));
-  const deployDesc = E(L("mcpUi.paths.deploy.desc"));
-  const deployButton = E(L("mcpUi.paths.deploy.button"));
-  const messageLogin = E(L("mcpUi.message.login"));
-  const messageDeploy = E(L("mcpUi.message.deploy"));
-  const pendingText = E(L("mcpUi.action.pending"));
-  const errorText = E(L("mcpUi.action.error"));
-  const timeoutText = E(L("mcpUi.action.timeout"));
-  const resultTitle = E(L("mcpUi.result.title"));
+  const rawLabel = E(L("mcpUi.status.raw"));
+  const nextTitle = E(L("mcpUi.next.title"));
   const footnote = E(L("mcpUi.footnote"));
+
+  const envIdText = status.envId ? E(status.envId) : E(L("mcpUi.status.unset"));
 
   return `<!doctype html>
 <html lang="${lang}">
@@ -125,60 +156,135 @@ export function buildGetStartedHtml(lang: Lang, status: GetStartedStatus): strin
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
 <style>
-:root { color-scheme: light dark; }
-body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.5; }
-.panel { padding: 16px; }
-.panel h1 { font-size: 18px; margin: 0 0 4px; }
-.panel .sub { margin: 0 0 16px; opacity: 0.75; font-size: 13px; }
-.card { border: 1px solid currentColor; border-radius: 10px; padding: 12px 14px; margin: 0 0 12px; }
-.card h2 { font-size: 14px; margin: 0 0 10px; }
-.card h3 { font-size: 13px; margin: 0 0 4px; }
-dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0 0 12px; }
-dt { opacity: 0.7; font-size: 12px; }
-dd { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; word-break: break-all; }
-.path { margin: 0 0 12px; }
-.path p { margin: 0 0 8px; font-size: 12px; opacity: 0.8; }
-button { font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 8px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; }
-button:hover { opacity: 0.85; }
-.out { margin: 10px 0 0; padding: 8px; border-radius: 8px; background: rgba(127,127,127,0.12); font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
-.foot { font-size: 12px; opacity: 0.7; margin: 0; }
+:root {
+  color-scheme: light dark;
+  --bg: #f5f5f5; --surface: #ffffff; --border: #d9d9d9; --border-2: #f0f0f0;
+  --text: #262626; --text-2: #8c8c8c;
+  --primary: #0052D9; --primary-hover: #1677ff;
+  --ok: #52c41a; --warn: #faad14; --err: #ff4d4f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141414; --surface: #1f1f1f; --border: #303030; --border-2: #262626;
+    --text: #e6e6e6; --text-2: #8c8c8c;
+    --primary: #4896FF; --primary-hover: #4096ff;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased;
+  font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.panel { width: 719px; max-width: 100%; margin: 0 auto; padding: 16px; }
+.head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+.logo { display: inline-flex; flex: 0 0 auto; }
+.logo svg { width: 22px; height: 22px; display: block; }
+.head h1 { font-size: 15px; font-weight: 600; margin: 0 0 2px; letter-spacing: .1px; }
+.head .sub { margin: 0; font-size: 12px; color: var(--text-2); }
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px; margin: 0 0 10px;
+}
+.card > h2 {
+  font-size: 12px; font-weight: 500; color: var(--text-2);
+  margin: 0 0 10px; letter-spacing: .2px;
+}
+.state { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 13px; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-2); flex: 0 0 auto; }
+.dot.ok { background: var(--ok); }
+.dot.warn { background: var(--warn); }
+.dot.err { background: var(--err); }
+.state .qual { color: var(--text-2); font-size: 12px; }
+.state .qual::before { content: "\\00B7\\00A0"; }
+.kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+.kv .row { min-width: 0; }
+.kv .row.wide { grid-column: 1 / -1; }
+.kv .k { font-size: 12px; color: var(--text-2); margin: 0 0 4px; }
+.kv .v { margin: 0; font-size: 13px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kv .v.idle { color: var(--text-2); }
+.kv .v.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--text-2); }
+.next .label { font-size: 12px; color: var(--text-2); margin: 0 0 8px; }
+.next .why { font-size: 12px; color: var(--text-2); margin: 8px 0 0; }
+.row-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+button {
+  font: inherit; font-size: 12px; height: 28px; padding: 0 12px; border-radius: 6px; cursor: pointer;
+  white-space: nowrap; background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  transition: border-color .15s, color .15s, background .15s;
+}
+button:hover { border-color: var(--primary); color: var(--primary); }
+button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+button.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: #fff; }
+button.link { border: none; background: none; padding: 0; height: auto; color: var(--text-2); text-decoration: underline; text-underline-offset: 3px; }
+button.link:hover { color: var(--primary); }
+button[disabled] { cursor: default; opacity: .6; }
+button.primary[disabled]:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+button.link[disabled]:hover { color: var(--text-2); }
+.kbd { font-size: 12px; color: var(--text-2); margin: 8px 0 0; }
+.kbd.err { color: var(--err); }
+details { margin: 8px 0 0; }
+summary {
+  font-size: 12px; color: var(--text-2); cursor: pointer; list-style: none;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "\\25B8"; font-size: 10px; }
+details[open] summary::before { content: "\\25BE"; }
+summary:hover { color: var(--primary); }
+pre {
+  margin: 6px 0 0; padding: 8px 10px; background: var(--bg); border: 1px solid var(--border-2);
+  border-radius: 6px; font-size: 12px; line-height: 1.45;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 200px; overflow: auto;
+}
+.foot { font-size: 12px; color: var(--text-2); margin: 0; padding-top: 10px; border-top: 1px solid var(--border-2); }
+/* The logo's dark blue is low-contrast on a dark page; dark mode swaps in the logo's own light blue. */
+@media (prefers-color-scheme: dark) { .logo .logo-strong { fill: #4896FF; } }
 </style>
 </head>
 <body>
 <main class="panel">
+<div class="head">
+<span class="logo" aria-hidden="true"><svg viewBox="0 0 36 36" fill="none" focusable="false">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M-0.00195272 13.364C-0.0021879 13.0869 0.100481 12.8097 0.306053 12.5947L8.64438 4.25689C8.74869 4.15259 8.89015 4.09399 9.03766 4.09399H19.6942C20.1894 4.09399 20.4377 4.69236 20.088 5.04296L11.7889 13.364H-0.00195272Z" fill="#67E9E9"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M-0.00195272 13.366C-0.00218796 13.6431 0.100474 13.9203 0.306033 14.1353L8.64438 22.4731C8.74869 22.5774 8.89015 22.636 9.03766 22.636H19.6942C20.1894 22.636 20.4377 22.0376 20.088 21.687L11.7889 13.366H-0.00195272Z" fill="#2BCCCC"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M35.999 22.2539C35.9993 21.9781 35.8977 21.7023 35.6942 21.4877L27.3527 13.1468C27.2484 13.0425 27.1069 12.9839 26.9594 12.9839H16.3029C15.8077 12.9839 15.5594 13.5823 15.9091 13.9328L24.2081 22.2539H35.999Z" fill="#4896FF"/>
+<path class="logo-strong" fill-rule="evenodd" clip-rule="evenodd" d="M35.999 22.2534C35.9994 22.526 35.9002 22.7987 35.7015 23.0123L27.3527 31.3605C27.2484 31.4648 27.1069 31.5234 26.9594 31.5234H16.3029C15.8077 31.5234 15.5594 30.9251 15.9091 30.5745L24.2081 22.2534H35.999Z" fill="#0052D9"/>
+</svg></span>
+<div>
 <h1>${title}</h1>
 <p class="sub">${subtitle}</p>
-<section class="card" id="tool-result-card" hidden>
-<h2>${resultTitle}</h2>
-<pre id="tool-result-out" class="out"></pre>
-</section>
+</div>
+</div>
 <section class="card">
 <h2>${statusTitle}</h2>
-<dl>
-<div><dt>${envIdLabel}</dt><dd>${envIdValue}</dd></div>
-<div><dt>${siteLabel}</dt><dd>${E(status.site)}</dd></div>
-<div><dt>${regionLabel}</dt><dd>${E(status.region)}</dd></div>
-<div><dt>${scopeLabel}</dt><dd>${scopeValue}</dd></div>
-</dl>
+<div class="state" id="state-row" role="status">
+<span class="dot idle" id="st-dot"></span>
+<span id="st-text">${E(L("mcpUi.status.unknown"))}</span>
+<span class="qual" id="st-qual">${E(L("mcpUi.status.unknownHint"))}</span>
+</div>
+<div class="kv">
+<div class="row"><p class="k">${E(L("mcpUi.status.place"))}</p><p class="v${placeText ? "" : " idle"}" id="k-place">${placeText ? E(placeText) : E(L("mcpUi.status.placeUnknown"))}</p></div>
+<div class="row"><p class="k">${E(L("mcpUi.status.scope"))}</p><p class="v idle" id="k-scope">${E(L("mcpUi.status.scopeAfterLogin"))}</p></div>
+<div class="row wide"><p class="k">${E(L("mcpUi.status.envId"))}</p><p class="v mono${status.envId ? "" : " idle"}" id="k-env">${envIdText}</p></div>
+</div>
+<details id="raw-box" hidden>
+<summary>${rawLabel}</summary>
+<pre id="raw-out"></pre>
+</details>
 </section>
 <section class="card">
-<h2>${pathsTitle}</h2>
-<div class="path">
-<h3>${checkTitle}</h3>
-<p>${checkDesc}</p>
-<button id="btn-check" type="button">${checkButton}</button>
+<h2>${nextTitle}</h2>
+<div class="next">
+<p class="label" id="nx-label">${E(L("mcpUi.next.label.unknown"))}</p>
+<div class="row-actions">
+<button class="primary" id="btn-main" type="button" hidden></button>
+<button class="link" id="btn-refresh" type="button">${E(L("mcpUi.next.action.refresh"))}</button>
 </div>
-<div class="path">
-<h3>${loginTitle}</h3>
-<p>${loginDesc}</p>
-<button id="btn-login" type="button" data-message="${messageLogin}">${loginButton}</button>
+<p class="why" id="nx-why">${E(L("mcpUi.next.why.unknown"))}</p>
+<p class="kbd err" id="k-err" hidden></p>
 </div>
-<div class="path">
-<h3>${deployTitle}</h3>
-<p>${deployDesc}</p>
-<button id="btn-deploy" type="button" data-message="${messageDeploy}">${deployButton}</button>
-</div>
-<pre id="out" class="out" data-pending="${pendingText}" data-error="${errorText}" data-timeout="${timeoutText}" hidden></pre>
 </section>
 <p class="foot">${footnote}</p>
 </main>
@@ -188,6 +294,78 @@ button:hover { opacity: 0.85; }
   var nextId = 1;
   var pending = {};
   var CHECK_TIMEOUT_MS = 10000;
+  var T = {
+    region: {${tableOf(REGION_MESSAGE_KEYS)}},
+    site: {${tableOf(SITE_MESSAGE_KEYS)}},
+    scope: {${tableOf(SCOPE_MESSAGE_KEYS)}},
+    placeOpen: ${S("mcpUi.place.open")},
+    placeClose: ${S("mcpUi.place.close")},
+    placeUnknown: ${S("mcpUi.status.placeUnknown")},
+    scopeAfterLogin: ${S("mcpUi.status.scopeAfterLogin")},
+    statusUnknown: ${S("mcpUi.status.unknown")},
+    statusUnknownHint: ${S("mcpUi.status.unknownHint")},
+    statusLoggedOut: ${S("mcpUi.status.loggedOut")},
+    statusLoggedOutHint: ${S("mcpUi.status.loggedOutHint")},
+    statusLoggedIn: ${S("mcpUi.status.loggedIn")},
+    statusUnboundHint: ${S("mcpUi.status.unboundHint")},
+    statusConnected: ${S("mcpUi.status.connected")},
+    statusConnectedHint: ${S("mcpUi.status.connectedHint")},
+    statusPending: ${S("mcpUi.status.pending")},
+    statusPendingHint: ${S("mcpUi.status.pendingHint")},
+    statusFailed: ${S("mcpUi.status.failed")},
+    statusFailedHint: ${S("mcpUi.status.failedHint")},
+    statusUnset: ${S("mcpUi.status.unset")},
+    nextLabelUnknown: ${S("mcpUi.next.label.unknown")},
+    nextLabelLoggedOut: ${S("mcpUi.next.label.loggedOut")},
+    nextLabelPending: ${S("mcpUi.next.label.pending")},
+    nextLabelFailed: ${S("mcpUi.next.label.failed")},
+    nextLabelUnbound: ${S("mcpUi.next.label.unbound")},
+    nextLabelReady: ${S("mcpUi.next.label.ready")},
+    nextWhyUnknown: ${S("mcpUi.next.why.unknown")},
+    nextWhyLoggedOut: ${S("mcpUi.next.why.loggedOut")},
+    nextWhyPending: ${S("mcpUi.next.why.pending")},
+    nextWhyFailed: ${S("mcpUi.next.why.failed")},
+    nextWhyUnbound: ${S("mcpUi.next.why.unbound")},
+    nextWhyReady: ${S("mcpUi.next.why.ready")},
+    actionLogin: ${S("mcpUi.next.action.login")},
+    actionSelectEnv: ${S("mcpUi.next.action.selectEnv")},
+    actionDeploy: ${S("mcpUi.next.action.deploy")},
+    actionRefresh: ${S("mcpUi.next.action.refresh")},
+    messageLogin: ${S("mcpUi.message.login")},
+    messageSelectEnv: ${S("mcpUi.message.selectEnv")},
+    messageDeploy: ${S("mcpUi.message.deploy")},
+    actionPending: ${S("mcpUi.action.pending")},
+    actionSent: ${S("mcpUi.action.sent")},
+    actionError: ${S("mcpUi.action.error")},
+    actionTimeout: ${S("mcpUi.action.timeout")}
+  };
+  // One action per screen. main === "" means: no main action for this state (the secondary
+  // re-check link is the only thing to press).
+  var STATES = {
+    unknown: { dot: "", text: T.statusUnknown, hint: T.statusUnknownHint, label: T.nextLabelUnknown, why: T.nextWhyUnknown, main: "", msg: "" },
+    loggedOut: { dot: "", text: T.statusLoggedOut, hint: T.statusLoggedOutHint, label: T.nextLabelLoggedOut, why: T.nextWhyLoggedOut, main: T.actionLogin, msg: T.messageLogin },
+    pending: { dot: "warn", text: T.statusPending, hint: T.statusPendingHint, label: T.nextLabelPending, why: T.nextWhyPending, main: "", msg: "" },
+    failed: { dot: "err", text: T.statusFailed, hint: T.statusFailedHint, label: T.nextLabelFailed, why: T.nextWhyFailed, main: T.actionLogin, msg: T.messageLogin },
+    unbound: { dot: "warn", text: T.statusLoggedIn, hint: T.statusUnboundHint, label: T.nextLabelUnbound, why: T.nextWhyUnbound, main: T.actionSelectEnv, msg: T.messageSelectEnv },
+    ready: { dot: "ok", text: T.statusConnected, hint: T.statusConnectedHint, label: T.nextLabelReady, why: T.nextWhyReady, main: T.actionDeploy, msg: T.messageDeploy }
+  };
+  // Local config only fills the gaps until the live result arrives; it never overrides a live value.
+  var FALLBACK = { place: ${J(placeText)}, env: ${J(status.envId ?? "")} };
+
+  var stDot = document.getElementById("st-dot");
+  var stText = document.getElementById("st-text");
+  var stQual = document.getElementById("st-qual");
+  var kPlace = document.getElementById("k-place");
+  var kScope = document.getElementById("k-scope");
+  var kEnv = document.getElementById("k-env");
+  var rawBox = document.getElementById("raw-box");
+  var rawOut = document.getElementById("raw-out");
+  var nxLabel = document.getElementById("nx-label");
+  var nxWhy = document.getElementById("nx-why");
+  var mainBtn = document.getElementById("btn-main");
+  var refreshBtn = document.getElementById("btn-refresh");
+  var errLine = document.getElementById("k-err");
+  var current = STATES.unknown;
   // targetOrigin "*" and no origin check on incoming messages: matches the spec's own example, and a
   // sandboxed view has no host origin to verify against. Do not "fix" this into a pinned origin.
   function post(message) {
@@ -203,16 +381,127 @@ button:hover { opacity: 0.85; }
   function notify(method, params) {
     post({ jsonrpc: "2.0", method: method, params: params });
   }
-  function textOf(payload) {
+  function setText(el, value) {
+    if (el) { el.textContent = value; }
+  }
+  function reportSize() {
+    notify("ui/notifications/size-changed", {
+      width: document.documentElement.scrollWidth,
+      height: document.documentElement.scrollHeight
+    });
+  }
+  function tryParse(text) {
     try {
-      var content = payload && payload.content;
+      return JSON.parse(text);
+    } catch (err) {
+      return null;
+    }
+  }
+  // The host hands the panel the result of the call that rendered it. Prefer structuredContent;
+  // fall back to parsing the JSON text payload, which is how this server returns tool results.
+  function readPayload(result) {
+    if (!result || typeof result !== "object") { return null; }
+    if (result.structuredContent && typeof result.structuredContent === "object") {
+      return result.structuredContent;
+    }
+    var content = result.content;
+    if (content && content.length > 0 && typeof content[0].text === "string") {
+      var parsed = tryParse(content[0].text);
+      if (parsed && typeof parsed === "object") { return parsed; }
+    }
+    return null;
+  }
+  // Raw payloads are shown as text only, inside the collapsed "view raw" area.
+  function rawTextOf(value) {
+    if (typeof value === "string") { return value; }
+    if (value && typeof value === "object") {
+      var content = value.content;
       if (content && content.length > 0 && typeof content[0].text === "string") {
         return content[0].text;
       }
-      return JSON.stringify(payload);
-    } catch (err) {
-      return String(err);
     }
+    return JSON.stringify(value, null, 2);
+  }
+  function showRaw(value) {
+    if (!rawBox || !rawOut) { return; }
+    var text = rawTextOf(value);
+    rawOut.textContent = typeof text === "string" ? text : String(text);
+    rawBox.hidden = false;
+  }
+  function stateKey(payload) {
+    if (!payload) { return "unknown"; }
+    var s = payload.auth_status;
+    if (s === "PENDING") { return "pending"; }
+    if (s === "READY") { return payload.current_env_id ? "ready" : "unbound"; }
+    if (s === "DENIED" || s === "EXPIRED" || s === "ERROR") { return "failed"; }
+    if (s === "REQUIRED") { return "loggedOut"; }
+    // The panel is mounted on every auth call, not just the status action; the other actions
+    // answer with a code instead of auth_status. Only the two unambiguous ones are mapped here:
+    // an AUTH_READY result does not say whether an environment is bound, so it stays unknown
+    // and the re-check link resolves it.
+    if (payload.code === "AUTH_PENDING") { return "pending"; }
+    if (payload.code === "AUTH_REQUIRED") { return "loggedOut"; }
+    return "unknown";
+  }
+  // Unknown codes are shown as-is: never guess a translation.
+  function codeLabel(table, code) {
+    if (!code || typeof code !== "string") { return ""; }
+    return table[code] || code;
+  }
+  function placeOf(payload) {
+    var region = codeLabel(T.region, payload.current_region);
+    var site = codeLabel(T.site, payload.site);
+    if (region && site) { return region + T.placeOpen + site + T.placeClose; }
+    return region || site;
+  }
+  // Live values win per field; the local fallback only fills a field the result does not carry.
+  // Key presence (not truthiness) decides: an explicit "current_env_id": null means "not bound"
+  // and must not be replaced by a locally cached envId.
+  function hasField(payload, key) {
+    return !!payload && typeof payload === "object" && key in payload;
+  }
+  function hideError() {
+    if (errLine) { errLine.hidden = true; errLine.textContent = ""; }
+  }
+  function showError(text) {
+    if (errLine) { errLine.hidden = false; errLine.textContent = text; }
+  }
+  function render(payload) {
+    var state = STATES[stateKey(payload)];
+    current = state;
+    hideError();
+    if (stDot) { stDot.className = "dot" + (state.dot ? " " + state.dot : ""); }
+    setText(stText, state.text);
+    setText(stQual, state.hint);
+    var place = hasField(payload, "current_region") || hasField(payload, "site")
+      ? placeOf(payload)
+      : FALLBACK.place;
+    if (kPlace) {
+      kPlace.className = place ? "v" : "v idle";
+      setText(kPlace, place || T.placeUnknown);
+    }
+    var scope = hasField(payload, "credential_scope")
+      ? codeLabel(T.scope, payload.credential_scope)
+      : "";
+    if (kScope) {
+      kScope.className = scope ? "v" : "v idle";
+      setText(kScope, scope || T.scopeAfterLogin);
+    }
+    var env = hasField(payload, "current_env_id")
+      ? (typeof payload.current_env_id === "string" ? payload.current_env_id : "")
+      : FALLBACK.env;
+    if (kEnv) {
+      kEnv.className = env ? "v mono" : "v mono idle";
+      setText(kEnv, env || T.statusUnset);
+    }
+    setText(nxLabel, state.label);
+    setText(nxWhy, state.why);
+    if (mainBtn) {
+      mainBtn.hidden = !state.main;
+      mainBtn.disabled = false;
+      setText(mainBtn, state.main);
+    }
+    if (payload) { showRaw(JSON.stringify(payload, null, 2)); }
   }
   window.addEventListener("message", function (event) {
     var data = event.data;
@@ -221,11 +510,8 @@ button:hover { opacity: 0.85; }
     // This panel is mounted on the multi-purpose auth tool, so every auth call renders it;
     // consuming the notification is what keeps that call's real result visible here.
     if (data.method === "ui/notifications/tool-result") {
-      var resultCard = document.getElementById("tool-result-card");
-      var resultBox = document.getElementById("tool-result-out");
-      if (resultCard) { resultCard.hidden = false; }
-      // Plain text only: any markup in a tool result is shown as text, never parsed.
-      if (resultBox) { resultBox.textContent = textOf(data.params); }
+      var payload = readPayload(data.params);
+      if (payload) { render(payload); } else { showRaw(data.params); }
       reportSize();
       return;
     }
@@ -235,19 +521,7 @@ button:hover { opacity: 0.85; }
       if (data.error) { entry.reject(data.error); } else { entry.resolve(data.result); }
     }
   });
-  var out = document.getElementById("out");
-  function reportSize() {
-    notify("ui/notifications/size-changed", {
-      width: document.documentElement.scrollWidth,
-      height: document.documentElement.scrollHeight
-    });
-  }
-  function setOut(text) {
-    if (!out) { return; }
-    out.hidden = false;
-    out.textContent = text;
-    reportSize();
-  }
+  render(null);
   // appInfo is the field a real host validates: Codex answers -32603
   // params.appInfo Invalid input when it is absent. clientInfo is what the
   // published spec (2026-01-26, apps.mdx) calls the same thing. Send both:
@@ -266,45 +540,69 @@ button:hover { opacity: 0.85; }
   if (typeof ResizeObserver !== "undefined") {
     new ResizeObserver(reportSize).observe(document.body);
   }
-  var checkButton = document.getElementById("btn-check");
-  if (checkButton) {
-    checkButton.addEventListener("click", function () {
-      if (out) { out.hidden = false; out.textContent = out.getAttribute("data-pending") || ""; }
-      // Timeout fallback: if the host never forwards this call, do not leave the panel sitting on
-      // "waiting" forever, which reads as broken.
+  var busy = false;
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", function () {
+      if (busy) { return; }
+      busy = true;
+      refreshBtn.disabled = true;
+      var restore = refreshBtn.textContent || T.actionRefresh;
+      setText(refreshBtn, T.actionPending);
+      hideError();
       var settled = false;
+      function finish() {
+        busy = false;
+        refreshBtn.disabled = false;
+        setText(refreshBtn, restore);
+      }
+      // Timeout fallback: if the host never forwards this call, do not leave the panel sitting on
+      // "checking" forever, which reads as broken.
       var timer = setTimeout(function () {
         if (settled) { return; }
         settled = true;
-        setOut(out ? (out.getAttribute("data-timeout") || "") : "");
+        clearTimeout(timer);
+        finish();
+        showError(T.actionTimeout);
+        reportSize();
       }, CHECK_TIMEOUT_MS);
       request("tools/call", { name: "auth", arguments: { action: "status" } }).then(function (result) {
         if (settled) { return; }
         settled = true;
         clearTimeout(timer);
-        setOut(textOf(result));
-      }).catch(function (err) {
+        finish();
+        var payload = readPayload(result);
+        if (payload) { render(payload); } else { showError(T.actionError); }
+        reportSize();
+      }).catch(function () {
         if (settled) { return; }
         settled = true;
         clearTimeout(timer);
-        setOut((out ? out.getAttribute("data-error") : "") + " " + JSON.stringify(err));
+        finish();
+        showError(T.actionError);
+        reportSize();
       });
     });
   }
-  function bindMessage(buttonId) {
-    var button = document.getElementById(buttonId);
-    if (!button) { return; }
-    button.addEventListener("click", function () {
-      var message = button.getAttribute("data-message") || "";
-      request("ui/message", { role: "user", content: { type: "text", text: message } })
-        .then(function () { setOut(message); })
-        .catch(function (err) {
-          setOut((out ? out.getAttribute("data-error") : "") + " " + JSON.stringify(err));
+  if (mainBtn) {
+    mainBtn.addEventListener("click", function () {
+      var state = current;
+      if (!state || !state.msg) { return; }
+      mainBtn.disabled = true;
+      var restore = mainBtn.textContent || state.main;
+      setText(mainBtn, T.actionSent);
+      hideError();
+      request("ui/message", { role: "user", content: { type: "text", text: state.msg } })
+        .then(function () {
+          mainBtn.disabled = false;
+          setText(mainBtn, restore);
+        })
+        .catch(function () {
+          mainBtn.disabled = false;
+          setText(mainBtn, restore);
+          showError(T.actionError);
         });
     });
   }
-  bindMessage("btn-login");
-  bindMessage("btn-deploy");
 })();
 </script>
 </body>

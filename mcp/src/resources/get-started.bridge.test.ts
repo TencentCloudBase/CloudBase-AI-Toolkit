@@ -18,7 +18,32 @@ const sampleStatus: GetStartedStatus = {
   envId: "env-abc123",
   site: "domestic",
   region: "ap-shanghai",
-  credentialScope: "account",
+};
+
+/** 内部枚举：可见正文里不允许出现，只允许在「查看原始返回」折叠区里。 */
+const INTERNAL_ENUMS = ["domestic", "intl", "single_env", "account", "ap-", "READY", "auth(status)"];
+
+const READY_STATUS = {
+  ok: true,
+  code: "STATUS",
+  auth_status: "READY",
+  auth_mode: "api_key",
+  credential_scope: "single_env",
+  site: "domestic",
+  current_region: "ap-shanghai",
+  current_env_id: "tcb-demo-a1b2c3d4",
+  env_status: "READY",
+  env_setup_status: "NOT_NEEDED",
+};
+
+const UNBOUND_STATUS = {
+  ok: true,
+  code: "STATUS",
+  auth_status: "READY",
+  credential_scope: "account",
+  site: "domestic",
+  current_region: "ap-shanghai",
+  current_env_id: null,
 };
 
 const HTML_ENTITIES: Record<string, string> = {
@@ -34,6 +59,8 @@ const decodeEntities = (value: string): string =>
 interface ShimmedElement {
   id: string;
   hidden: boolean;
+  disabled: boolean;
+  className: string;
   textContent: string;
   getAttribute(name: string): string | null;
   addEventListener(type: string, fn: () => void): void;
@@ -74,6 +101,8 @@ function loadPanel(html: string): PanelHarness {
     elements.set(elementId, {
       id: elementId,
       hidden: true,
+      disabled: false,
+      className: "",
       textContent: "",
       getAttribute(name) {
         return attributes.get(elementId)?.[name.replace(/^data-/, "")] ?? null;
@@ -162,6 +191,12 @@ const HOST_INITIALIZE_RESULT = {
   result: { protocolVersion: "2026-01-26", hostCapabilities: {}, hostInfo: {}, hostContext: {} },
 };
 
+const TOOL_RESULT = (params: unknown) => ({
+  jsonrpc: "2.0",
+  method: "ui/notifications/tool-result",
+  params,
+});
+
 /** 面板的 sent 里有 Promise（握手与按钮回调都在 .then 里发下一条），断言前先让微任务跑完 */
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -206,108 +241,185 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(typeof sizeChanged?.message.params?.height).toBe("number");
   });
 
-  it("握手与加载阶段不发 tools/call（路径 1 是唯一会调用工具的地方）", async () => {
+  it("握手与加载阶段不发 tools/call（只有「重新检查」会调工具）", async () => {
     const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
     panel.dispatch(HOST_INITIALIZE_RESULT);
     await flush();
 
     expect(panel.sent.some((entry) => entry.message.method === "tools/call")).toBe(false);
+    // 加载时没有实时结果：只给一个次级「重新检查」入口，主行动不瞎猜
+    expect(panel.element("btn-main").hidden).toBe(true);
   });
 
-  it("点路径 1：发一次只读 auth(status)，结果落到面板", async () => {
+  it("吃 ui/notifications/tool-result 的 structuredContent：状态卡与主行动跟着变", async () => {
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+
+    // 面板被当成本次 auth 调用的 UI 渲染时，宿主会把这个通知送来；忽略它，面板就会
+    // "顶掉"真实结果、只剩静态兜底——这条断言就是为那个失败而写。
+    expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.unknown", undefined, "en"));
+
+    panel.dispatch(TOOL_RESULT({ structuredContent: READY_STATUS }));
+    await flush();
+
+    expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.connected", undefined, "en"));
+    expect(panel.element("k-env").textContent).toBe("tcb-demo-a1b2c3d4");
+    expect(panel.element("k-place").textContent).toBe("Shanghai (China)");
+    expect(panel.element("k-scope").textContent).toBe("Current environment only");
+    expect(panel.element("btn-main").hidden).toBe(false);
+    expect(panel.element("btn-main").textContent).toBe(t("mcpUi.next.action.deploy", undefined, "en"));
+    expect(panel.element("nx-label").textContent).toBe(t("mcpUi.next.label.ready", undefined, "en"));
+  });
+
+  it("一屏一个主行动：未登录给登录、已登录未绑定给选环境，其余不并列", async () => {
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+
+    panel.dispatch(TOOL_RESULT({ structuredContent: { auth_status: "REQUIRED" } }));
+    await flush();
+    expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.loggedOut", undefined, "en"));
+    expect(panel.element("btn-main").textContent).toBe(t("mcpUi.next.action.login", undefined, "en"));
+    // 这次结果没带位置/环境字段 → 本地兜底（实时值优先，但缺失的字段仍要有个值）
+    expect(panel.element("k-place").textContent).toBe("Shanghai (China)");
+    expect(panel.element("k-env").textContent).toBe("env-abc123");
+    expect(panel.element("k-scope").textContent).toBe(
+      t("mcpUi.status.scopeAfterLogin", undefined, "en"),
+    );
+
+    panel.dispatch(TOOL_RESULT({ structuredContent: UNBOUND_STATUS }));
+    await flush();
+    expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.loggedIn", undefined, "en"));
+    expect(panel.element("btn-main").textContent).toBe(t("mcpUi.next.action.selectEnv", undefined, "en"));
+    // 实时结果里 current_env_id 显式为 null → 「未绑定」，不能被本地缓存的环境 ID 顶掉
+    expect(panel.element("k-env").textContent).toBe(t("mcpUi.status.unset", undefined, "en"));
+    expect(panel.element("k-scope").textContent).toBe(t("mcpUi.scope.account", undefined, "en"));
+  });
+
+  it("挂载在多用途 auth 上：只带 code 的结果也能给出对应状态", async () => {
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+
+    panel.dispatch(TOOL_RESULT({ structuredContent: { ok: true, code: "AUTH_PENDING" } }));
+    await flush();
+    expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.pending", undefined, "en"));
+    expect(panel.element("btn-main").hidden).toBe(true);
+
+    panel.dispatch(TOOL_RESULT({ structuredContent: { ok: true, code: "AUTH_REQUIRED" } }));
+    await flush();
+    expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.loggedOut", undefined, "en"));
+    expect(panel.element("btn-main").textContent).toBe(t("mcpUi.next.action.login", undefined, "en"));
+  });
+
+  it("structuredContent 优先于 content 文本（两者冲突时以结构化结果为准）", async () => {
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+
+    panel.dispatch(
+      TOOL_RESULT({
+        structuredContent: { auth_status: "READY", current_env_id: "env-structured" },
+        content: [{ type: "text", text: JSON.stringify({ auth_status: "REQUIRED" }) }],
+      }),
+    );
+    await flush();
+
+    expect(panel.element("k-env").textContent).toBe("env-structured");
+    expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.connected", undefined, "en"));
+  });
+
+  it("可见正文只出人话：内部枚举不露面，原始值只在「查看原始返回」里", async () => {
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+    panel.dispatch(TOOL_RESULT({ structuredContent: READY_STATUS }));
+    await flush();
+
+    for (const id of ["st-text", "st-qual", "k-place", "k-scope", "k-env", "nx-label", "nx-why"]) {
+      const text = panel.element(id).textContent;
+      for (const token of INTERNAL_ENUMS) {
+        expect(text, `#${id} 不应出现内部枚举 ${token}`).not.toContain(token);
+      }
+    }
+
+    expect(panel.element("raw-box").hidden).toBe(false);
+    expect(panel.element("raw-out").textContent).toContain("ap-shanghai");
+    expect(panel.element("raw-out").textContent).toContain("single_env");
+  });
+
+  it("点「重新检查」：发一次只读 auth(status)，pending 落在按钮自身，结果回填状态卡", async () => {
     const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
     panel.dispatch(HOST_INITIALIZE_RESULT);
     await flush();
 
     const before = panel.sent.length;
-    panel.element("btn-check").click();
+    panel.element("btn-refresh").click();
 
     const calls = panel.sent.slice(before).filter((entry) => entry.message.method === "tools/call");
     expect(calls).toHaveLength(1);
     expect(calls[0].message.params).toEqual({ name: "auth", arguments: { action: "status" } });
+    // pending 就落在按钮上（禁用 + 文案变「正在检查…」），不另起一行
+    expect(panel.element("btn-refresh").disabled).toBe(true);
+    expect(panel.element("btn-refresh").textContent).toBe(t("mcpUi.action.pending", undefined, "en"));
 
+    // 服务端把结果放在 content[0].text 的 JSON 里，面板要能回落到解析它
     panel.dispatch({
       jsonrpc: "2.0",
       id: calls[0].message.id,
-      result: { content: [{ type: "text", text: "RESULT-FROM-SERVER" }] },
+      result: { content: [{ type: "text", text: JSON.stringify(UNBOUND_STATUS) }] },
     });
     await flush();
 
-    const out = panel.element("out");
-    expect(out.hidden).toBe(false);
-    expect(out.textContent).toContain("RESULT-FROM-SERVER");
+    expect(panel.element("btn-refresh").disabled).toBe(false);
+    expect(panel.element("btn-refresh").textContent).toBe(
+      t("mcpUi.next.action.refresh", undefined, "en"),
+    );
+    expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.loggedIn", undefined, "en"));
+    expect(panel.element("btn-main").textContent).toBe(t("mcpUi.next.action.selectEnv", undefined, "en"));
   });
 
-  it("点路径 2 / 3：只发 ui/message，且不发 tools/call", async () => {
+  it("点主行动：只发 ui/message，且不发 tools/call", async () => {
     const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
-    panel.dispatch(HOST_INITIALIZE_RESULT);
+    panel.dispatch(TOOL_RESULT({ structuredContent: { auth_status: "REQUIRED" } }));
     await flush();
 
     const before = panel.sent.length;
-    panel.element("btn-login").click();
-    panel.element("btn-deploy").click();
+    panel.element("btn-main").click();
     await flush();
 
     const messages = panel.sent.slice(before).filter((entry) => entry.message.method === "ui/message");
-    expect(messages).toHaveLength(2);
+    expect(messages).toHaveLength(1);
     expect(messages[0].message.params).toEqual({
       role: "user",
       content: { type: "text", text: t("mcpUi.message.login", undefined, "en") },
     });
-    expect(messages[1].message.params).toEqual({
-      role: "user",
-      content: { type: "text", text: t("mcpUi.message.deploy", undefined, "en") },
-    });
-    expect(panel.sent.slice(before).some((entry) => entry.message.method === "tools/call")).toBe(false);
-  });
-
-  it("消费 ui/notifications/tool-result：把那次 auth 调用的结果渲染出来", async () => {
-    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
-
-    // 面板被当成本次 auth 调用的 UI 渲染时，宿主会把这个通知送来；忽略它，面板就会
-    // "顶掉"真实结果、只剩静态卡片——这条断言就是为那个失败而写。
-    const card = panel.element("tool-result-card");
-    expect(card.hidden).toBe(true);
-
-    panel.dispatch({
-      jsonrpc: "2.0",
-      method: "ui/notifications/tool-result",
-      params: { content: [{ type: "text", text: "LIVE-AUTH-RESULT" }] },
-    });
-    await flush();
-
-    expect(card.hidden).toBe(false);
-    expect(panel.element("tool-result-out").textContent).toBe("LIVE-AUTH-RESULT");
+    expect(
+      panel.sent.slice(before).some((entry) => entry.message.method === "tools/call"),
+    ).toBe(false);
   });
 
   it("tool-result 里的 HTML 只被当作文字（渲染路径不做注入）", async () => {
     const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
     const payload = '<img src=x onerror="alert(1)">';
 
-    panel.dispatch({
-      jsonrpc: "2.0",
-      method: "ui/notifications/tool-result",
-      params: { content: [{ type: "text", text: payload }] },
-    });
+    panel.dispatch(TOOL_RESULT({ content: [{ type: "text", text: payload }] }));
     await flush();
 
-    // textContent 原样保留：payload 没有被解析成元素（页面里没有 <img>，也没有 innerHTML 路径）
-    expect(panel.element("tool-result-out").textContent).toBe(payload);
+    // 无法解析成状态载荷 → 原样进「查看原始返回」，没有被解析成元素
+    expect(panel.element("raw-out").textContent).toBe(payload);
+    expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.unknown", undefined, "en"));
   });
 
-  it("tools/call 超时：宿主不转发时显示失败态，不会永远停在等待中", async () => {
+  it("tools/call 超时：宿主不转发时给出失败态与出路，不会永远停在等待中", async () => {
     const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
     panel.dispatch(HOST_INITIALIZE_RESULT);
     await flush();
 
-    panel.element("btn-check").click();
+    panel.element("btn-refresh").click();
     // 宿主不回应这次 tools/call —— 手动把兜底定时器推到点
     panel.fireTimers();
     await flush();
 
-    const out = panel.element("out");
-    expect(out.hidden).toBe(false);
-    expect(out.textContent).toBe(t("mcpUi.action.timeout", undefined, "en"));
-    expect(out.textContent).not.toBe(t("mcpUi.action.pending", undefined, "en"));
+    const err = panel.element("k-err");
+    expect(err.hidden).toBe(false);
+    expect(err.textContent).toBe(t("mcpUi.action.timeout", undefined, "en"));
+    expect(err.textContent).not.toBe(t("mcpUi.action.pending", undefined, "en"));
+    // 按钮从 loading 态恢复，可以再点
+    expect(panel.element("btn-refresh").disabled).toBe(false);
+    expect(panel.element("btn-refresh").textContent).toBe(
+      t("mcpUi.next.action.refresh", undefined, "en"),
+    );
   });
 });
