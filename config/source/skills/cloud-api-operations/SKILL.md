@@ -73,7 +73,10 @@ Recipes encode the exact call sequence, required parameters, and empirically dis
 - **PostgreSQL instance spec change and shared-to-dedicated upgrade**: `./references/recipes/pg-instance-spec.md`
 - **Custom domain onboarding for an env (HTTP access domain, certificate, DNS binding)**: `./references/recipes/custom-domain.md`
 - **Operation trace / 操作审计 — who did what, from which IP, with which key**: `./references/recipes/cloud-audit-operation-trace.md`
-- **Platform edition onboarding — create env, issue environment API key, hand the credential to an agent**: `./references/recipes/platform-onboarding.md`
+- **Platform edition onboarding — create env and issue the environment API key**: `./references/recipes/platform-onboarding.md`
+- **Wiring that credential into a user's agent, one env per project**: `./references/recipes/platform-agent-connect.md`
+- **Closing down the agent's tool surface — plugin trimming, gateway wrap for audit, expert-enforced constraints**: `./references/recipes/platform-agent-guardrails.md`
+- **Platform edition usage, billing cycle, and environment recycling**: `./references/recipes/platform-usage-and-recycle.md`
 
 **Done when**: every parameter value in the call sequence traces to a recipe value marked as verified (实测) or to official docs.
 
