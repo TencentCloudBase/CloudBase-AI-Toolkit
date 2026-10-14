@@ -166,6 +166,29 @@ asked:
 A client's own tool-approval prompt is not this confirmation: it asks "may this tool run?", not "is this the resource you want to
 delete?".
 
+### Credential-shaped arguments: one real check before writing
+
+When a call's arguments contain something shaped like a credential — a three-part JWT, or a `cb_secret_…` / `cb_publishable_…`
+key — the server asks the client for one check before writing: compare the value against your original source and confirm. The
+message deliberately carries **no plaintext**: only the total length, the segment lengths (for a JWT), and a fingerprint (the first
+12 hex characters of sha256). That is enough to notice a value that was changed while being copied or transcribed, and nothing that
+would put the secret into the conversation or into the logs.
+
+**What this is not.** We do not decide whether the credential is valid. There is no signature verification, no `certs`/JWKS lookup,
+no network request of any kind, and no server-side comparison — the server never sees the value you originally pasted, so the only
+side that can compare it is the client. This is a request for a real confirmation at write time, not a validity check.
+
+**Boundaries.** It only applies when the arguments actually contain a credential-shaped string (otherwise the call is unchanged: one
+shallow scan, no network). It only applies when the client supports interactive form elicitation; a client that cannot ask proceeds
+as before, so an unattended client is not blocked. And a check that returns within a few hundred milliseconds counts as "nobody
+looked at it": unlike the deletion confirmation — where a client answering for itself is treated as "you were not asked" and the call
+proceeds — a credential write is **not** executed, because a value nobody compared is exactly the case this guards against. When the
+guard declines, the result says "not executed" **without** being marked as an error, so a model does not retry it blindly.
+
+| Variable | Effect |
+| --- | --- |
+| `CLOUDBASE_MCP_SKIP_CREDENTIAL_GUARD` | Comma-separated. Accepts a tool name (`manageCloudRun`) or a single action (`manageCloudRun.updateConfig`), case-sensitive, no wildcard. Unknown entries are logged and ignored rather than failing the server |
+
 ## IDE config snippets
 
 <details>

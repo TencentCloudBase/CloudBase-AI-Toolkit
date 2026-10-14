@@ -29,6 +29,7 @@ import { envSetup } from "./modules/envSetup.js";
 import { interactive } from "./modules/interactive.js";
 import { feedback } from "./modules/feedback.js";
 import { confirmation } from "./modules/confirmation.js";
+import { credential } from "./modules/credential.js";
 
 export const zh = {
   env: env.zh,
@@ -61,6 +62,7 @@ export const zh = {
   interactive: interactive.zh,
   feedback: feedback.zh,
   confirmation: confirmation.zh,
+  credential: credential.zh,
 };
 
 export type Messages = typeof zh;
