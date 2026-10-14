@@ -15,7 +15,11 @@ import {
   type SiteId,
 } from './connectionMatrix';
 import { getRandomPrompt } from './promptsData';
-import { WORKBUDDY_FEATURED_EXPERT, WORKBUDDY_GUIDE_URL } from './workbuddyExperts';
+import {
+  WORKBUDDY_FEATURED_EXPERT,
+  WORKBUDDY_GUIDE_URL,
+  type WorkBuddyExpertChannel,
+} from './workbuddyExperts';
 
 interface IDE {
   id: string;
@@ -32,7 +36,11 @@ interface IDE {
   cliConfigExample?: string;
   alternativeConfig?: string;
   installCommand?: string;
-  installCommandDocs?: string;
+  /**
+   * 安装说明。写成函数时按推广渠道取链接 —— 只有 WorkBuddy 那条带专家推广链接，
+   * 而渠道标签是绑定的（文档站 / 博客各一套），交叉用会让推广归因失真。
+   */
+  installCommandDocs?: string | ((channel: WorkBuddyExpertChannel) => string);
   useCommandInsteadOfConfig?: boolean;
   /** 该客户端是否出「远端 / 本地」与站点开关。`builtin` 通道不出——那些客户端走自有市场，用户选了也不生效。 */
   showModeSwitch?: boolean;
@@ -67,6 +75,15 @@ function renderInlineLinks(text: string): React.ReactNode {
   return nodes;
 }
 
+/** 取安装说明正文：WorkBuddy 那条写成函数、按渠道取专家推广链接，其余是固定文案。 */
+function resolveInstallDocs(ide: IDE, channel: WorkBuddyExpertChannel): string {
+  const docs = ide.installCommandDocs;
+  if (typeof docs === 'function') {
+    return docs(channel);
+  }
+  return docs ?? '';
+}
+
 const IDES: IDE[] = [
   {
     id: 'wechat-devtools',
@@ -89,7 +106,16 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy',
     configExample: '',
     useCommandInsteadOfConfig: true,
-    installCommandDocs: '**使用内置连接器**\n\n1. 在 WorkBuddy 对话界面中，点击输入框左下角的 **连接器** 按钮\n2. 在弹窗中找到 **腾讯云 CloudBase**，点击进入详情页，点击 **连接** 启用\n\n启用后，即可在对话中直接使用 CloudBase 的各项能力。\n\n**使用快捷命令**\n\n在对话中直接输入 `/cloudbase` 选择 CloudBase Skill，然后输入需求即可。\n\n**配套专家**\n\nWorkBuddy 专家中心还有 4 个 CloudBase 专家，[' + WORKBUDDY_FEATURED_EXPERT.name + '](' + WORKBUDDY_FEATURED_EXPERT.guideUrl + ') 最通用；其余 3 个见 [WorkBuddy 配置指南](' + WORKBUDDY_GUIDE_URL + ')。',
+    installCommandDocs: (channel) =>
+      '**使用内置连接器**\n\n1. 在 WorkBuddy 对话界面中，点击输入框左下角的 **连接器** 按钮\n2. 在弹窗中找到 **腾讯云 CloudBase**，点击进入详情页，点击 **连接** 启用\n\n启用后，即可在对话中直接使用 CloudBase 的各项能力。\n\n**使用快捷命令**\n\n在对话中直接输入 `/cloudbase` 选择 CloudBase Skill，然后输入需求即可。\n\n**配套专家**\n\nWorkBuddy 专家中心还有 4 个 CloudBase 专家，[' +
+      WORKBUDDY_FEATURED_EXPERT.name +
+      '](' +
+      (channel === 'blog'
+        ? WORKBUDDY_FEATURED_EXPERT.blogUrl
+        : WORKBUDDY_FEATURED_EXPERT.guideUrl) +
+      ') 最通用；其余 3 个见 [WorkBuddy 配置指南](' +
+      WORKBUDDY_GUIDE_URL +
+      ')。',
   },
   {
     id: 'kimi-code',
@@ -733,6 +759,11 @@ interface IDESelectorProps {
   defaultMode?: ConnectionMode;
   /** 默认站点。不传则国内站。 */
   defaultSite?: SiteId;
+  /**
+   * 这块组件所在的推广渠道，决定 WorkBuddy 专家入口用哪套链接。
+   * 文档站不传（默认 docs），嵌在博客里的页面传 'blog'。
+   */
+  expertChannel?: WorkBuddyExpertChannel;
 }
 
 // i18n translations
@@ -827,7 +858,8 @@ export default function IDESelector({
   collapsibleInstallSteps = false,
   collapseStep1 = false,
   defaultMode = 'remote',
-  defaultSite = 'domestic'
+  defaultSite = 'domestic',
+  expertChannel = 'docs',
 }: IDESelectorProps) {
   const { i18n } = useDocusaurusContext();
   // Normalize locale: zh-Hans -> zh-CN, en -> en
@@ -1463,7 +1495,7 @@ export default function IDESelector({
                       {/* Install command (for command-based installation) */}
                       {ide.useCommandInsteadOfConfig && ide.installCommandDocs && (
                         <div className={styles.installCommandSection}>
-                          {ide.installCommandDocs.split(/\n\n/).map((section, idx) => {
+                          {resolveInstallDocs(ide, expertChannel).split(/\n\n/).map((section, idx) => {
                             const codeMatch = section.match(/```bash\n([^`]+)```/);
                             if (codeMatch) {
                               const textBefore = section.split('```bash')[0].trim();
@@ -1604,7 +1636,7 @@ export default function IDESelector({
                 {/* Install command (for command-based installation) */}
                 {ide.useCommandInsteadOfConfig && ide.installCommandDocs && (
                   <div className={styles.installCommandSection}>
-                    {ide.installCommandDocs.split(/\n\n/).map((section, idx) => {
+                    {resolveInstallDocs(ide, expertChannel).split(/\n\n/).map((section, idx) => {
                       const codeMatch = section.match(/```bash\n([^`]+)```/);
                       if (codeMatch) {
                         const textBefore = section.split('```bash')[0].trim();

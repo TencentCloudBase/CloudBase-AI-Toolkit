@@ -1,12 +1,22 @@
 /**
  * WorkBuddy 专家中心里的 CloudBase 专家。
  *
- * guideUrl 是对外可分享的资产链接：先打开专家详情页，再由页面引导安装，
+ * 链接都是对外可分享的资产链接：先打开专家详情页，再由页面引导安装，
  * 没装过这个专家的用户也能打开。（`workbuddy://` 深链对未安装用户没有反应，不能对外用。）
+ *
+ * ⚠️ 推广链接的渠道标签在创建时绑定、之后改不了，用于「运营数据 → 推广效果」按渠道
+ * 拆曝光量与安装量。**交叉使用会让归因失真**，所以每个渠道各存一条：
+ *   - guideUrl → 云开发文档站 · 安装指引
+ *   - blogUrl  → 博客文章
+ * 链接清单（4 个专家 × 3 个渠道）另存于推广管理 `open.workbuddy.cn/growth`；
+ * 「云开发控制台」那一套只在该控制台侧使用，站内不用，所以不放在这里。
  *
  * 专属页、IDE 选择器、上架博客都从这里读，换渠道时只改这个文件。
  * 英文侧的 name/summary 也放在这里：英文页面与英文博客共用同一份，避免两处写法各走各的。
  */
+
+/** 推广渠道。链接与渠道一一绑定，交叉使用会让归因失真 —— 所以谁用都要显式声明自己在哪。 */
+export type WorkBuddyExpertChannel = 'docs' | 'blog';
 
 export interface WorkBuddyExpert {
   /** 专家包目录名，对应 plugins/experts/<slug> */
@@ -19,8 +29,10 @@ export interface WorkBuddyExpert {
   nameEn: string;
   /** 英文页面里的一句话说明 */
   summaryEn: string;
-  /** 对外可分享的专家入口 */
+  /** 文档站 · 安装指引渠道的分享链接 */
   guideUrl: string;
+  /** 博客文章渠道的分享链接 */
+  blogUrl: string;
 }
 
 export const WORKBUDDY_EXPERTS: WorkBuddyExpert[] = [
@@ -33,6 +45,8 @@ export const WORKBUDDY_EXPERTS: WorkBuddyExpert[] = [
       'The broadest one: web apps and business systems, PostgreSQL with row-level security, cloud functions, and AI integration — the full path from requirement to deployed app.',
     guideUrl:
       'https://www.workbuddy.cn/share/asset?shareCode=INWm8JffziaPUu03h45pN0&sig=hlwCkDQGN5r_KKLW',
+    blogUrl:
+      'https://www.workbuddy.cn/share/asset?shareCode=wM3m81MktOguDC9b5xWPnw&sig=lMtJBsGcAEMuNxKg',
   },
   {
     slug: 'miniprogram-clouddev-expert',
@@ -43,6 +57,8 @@ export const WORKBUDDY_EXPERTS: WorkBuddyExpert[] = [
       'Cloud functions, cloud database, message push, AI integration, and build-preview-deploy — with virtual payment support.',
     guideUrl:
       'https://www.workbuddy.cn/share/asset?shareCode=Qm1h3644twDogAMPR5teEt&sig=fnGdahbxTKljsQBG',
+    blogUrl:
+      'https://www.workbuddy.cn/share/asset?shareCode=GYWjuKdIhAsp512ZFKMJHT&sig=6tTh6UVxXyE21HoA',
   },
   {
     slug: 'cloudbase-workbench-expert',
@@ -53,6 +69,8 @@ export const WORKBUDDY_EXPERTS: WorkBuddyExpert[] = [
       'Habit tracking, checklists, budgeting, weekly reports: everyday records turned into a small online app stored in the cloud.',
     guideUrl:
       'https://www.workbuddy.cn/share/asset?shareCode=WXYyw7eX488WAAB8RZD23L&sig=hDqX0Hhl2v7UlEXW',
+    blogUrl:
+      'https://www.workbuddy.cn/share/asset?shareCode=kA2Cqf4GPzoXKPfVwSAM7W&sig=ar4YYtGN_NqORm9L',
   },
   {
     slug: 'cloudbase-collect-form-expert',
@@ -63,6 +81,8 @@ export const WORKBUDDY_EXPERTS: WorkBuddyExpert[] = [
       'Sign-ups, registration, and data collection: generate a form, deploy it, get a QR code, and watch responses arrive.',
     guideUrl:
       'https://www.workbuddy.cn/share/asset?shareCode=uFHTgXfFTyoc1KFoKTE9ZD&sig=0GfHH0Vp_pZHHJ2Q',
+    blogUrl:
+      'https://www.workbuddy.cn/share/asset?shareCode=vlYYLRZAmiz7UV9cFiMRwk&sig=FNTNKhCPFWGreiyR',
   },
 ];
 
