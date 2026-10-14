@@ -350,7 +350,10 @@ pre {
     ready: { dot: "ok", text: T.statusConnected, hint: T.statusConnectedHint, label: T.nextLabelReady, why: T.nextWhyReady, main: T.actionDeploy, msg: T.messageDeploy }
   };
   // Local config only fills the gaps until the live result arrives; it never overrides a live value.
-  var FALLBACK = { place: ${J(placeText)}, env: ${J(status.envId ?? "")} };
+  // Region and site are kept apart (not pre-joined) because a real auth(status) result always
+  // carries current_region but carries site only when the caller passed one explicitly, so the
+  // two halves have to fall back independently.
+  var FALLBACK = { region: ${J(regionText)}, site: ${J(siteText)}, env: ${J(status.envId ?? "")} };
 
   var stDot = document.getElementById("st-dot");
   var stText = document.getElementById("st-text");
@@ -449,8 +452,16 @@ pre {
     return table[code] || code;
   }
   function placeOf(payload) {
-    var region = codeLabel(T.region, payload.current_region);
-    var site = codeLabel(T.site, payload.site);
+    // Per field: a live value wins, a missing one falls back to local config. A real
+    // auth(status) result always carries current_region but carries site only when the
+    // caller passed one explicitly, so gating the whole line on "has any location" would
+    // drop the site half on every ordinary call.
+    var region = hasField(payload, "current_region")
+      ? codeLabel(T.region, payload.current_region)
+      : FALLBACK.region;
+    var site = hasField(payload, "site")
+      ? codeLabel(T.site, payload.site)
+      : FALLBACK.site;
     if (region && site) { return region + T.placeOpen + site + T.placeClose; }
     return region || site;
   }
@@ -473,9 +484,7 @@ pre {
     if (stDot) { stDot.className = "dot" + (state.dot ? " " + state.dot : ""); }
     setText(stText, state.text);
     setText(stQual, state.hint);
-    var place = hasField(payload, "current_region") || hasField(payload, "site")
-      ? placeOf(payload)
-      : FALLBACK.place;
+    var place = placeOf(payload);
     if (kPlace) {
       kPlace.className = place ? "v" : "v idle";
       setText(kPlace, place || T.placeUnknown);

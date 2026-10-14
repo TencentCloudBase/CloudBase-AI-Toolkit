@@ -293,6 +293,29 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("k-scope").textContent).toBe(t("mcpUi.scope.account", undefined, "en"));
   });
 
+  it("位置逐字段兜底：实时结果不带 site 时仍拼出「Shanghai (China)」", async () => {
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+
+    // 真机形状：auth(status) 总是带 current_region，但只有调用方显式传了 site 才带 site。
+    panel.dispatch(
+      TOOL_RESULT({
+        structuredContent: { auth_status: "READY", current_region: "ap-shanghai", current_env_id: "env-live" },
+      }),
+    );
+    await flush();
+    expect(panel.element("k-place").textContent).toBe("Shanghai (China)");
+    expect(panel.element("k-env").textContent).toBe("env-live");
+
+    // 认不出来的 code 照原样显示，不猜（site 缺省时仍用本地兜底）
+    panel.dispatch(
+      TOOL_RESULT({
+        structuredContent: { auth_status: "READY", current_region: "us-east-9", current_env_id: "env-live" },
+      }),
+    );
+    await flush();
+    expect(panel.element("k-place").textContent).toBe("us-east-9 (China)");
+  });
+
   it("挂载在多用途 auth 上：只带 code 的结果也能给出对应状态", async () => {
     const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
 
