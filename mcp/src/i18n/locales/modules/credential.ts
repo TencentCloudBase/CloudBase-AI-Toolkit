@@ -32,7 +32,7 @@ export const credential = defineModule(
     "blocked.cancelled": "未执行：你取消了核对。请回到原始来源重新复制该凭证，或改用引用方式传入。",
     "blocked.timeout": "未执行：{seconds}s 内没有收到核对结果（超时）。请重试。",
     "blocked.error": "未执行：核对流程出错（{reason}）。请重试。",
-    "hint.release": "如需放行：把 {action} 加入 CLOUDBASE_MCP_SKIP_CREDENTIAL_GUARD。",
+    "hint.release": "如需放行：把客户端权限改成会询问，或把 {action} 加入 CLOUDBASE_MCP_SKIP_CREDENTIAL_GUARD。",
   },
   {
     "message.confirmJwt":
@@ -56,6 +56,6 @@ export const credential = defineModule(
       "Not executed: you cancelled the check. Copy the credential again from its original source, or pass it by reference instead.",
     "blocked.timeout": "Not executed: no check result within {seconds}s (timed out). Please retry.",
     "blocked.error": "Not executed: the check failed ({reason}). Please retry.",
-    "hint.release": "To allow it: add {action} to CLOUDBASE_MCP_SKIP_CREDENTIAL_GUARD.",
+    "hint.release": "To allow it: switch the client permission to ask, or add {action} to CLOUDBASE_MCP_SKIP_CREDENTIAL_GUARD.",
   },
 );
