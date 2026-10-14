@@ -4,6 +4,7 @@ import { t } from "../i18n/index.js";
 import { isFormElicitationSupported, requestChoiceElicitation } from "./elicitation.js";
 import { DESTRUCTIVE_ACTIONS, resolveDestructiveAction } from "./destructive-actions.js";
 import { debug } from "./logger.js";
+import { isSkippedByList, parseSkipList } from "./skip-list.js";
 
 /**
  * 破坏性动作的**执行前确认**（护栏，不是安全边界）。
@@ -83,14 +84,7 @@ function knownSkipNames(): Set<string> {
 }
 
 export function readSkipList(): string[] {
-    const raw = process.env[SKIP_ENV_NAME];
-    if (!raw) {
-        return [];
-    }
-    const entries = raw
-        .split(",")
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0);
+    const entries = parseSkipList(process.env[SKIP_ENV_NAME]);
     const known = knownSkipNames();
     const unknown = entries.filter((entry) => !known.has(entry));
     if (unknown.length > 0 && !warnedSkipEntries) {
@@ -105,8 +99,8 @@ export function readSkipList(): string[] {
 
 /** 本次调用是否需要跳过确认 */
 export function isSkipped(actionKey: string): boolean {
-    const entries = readSkipList();
-    return entries.includes(actionKey) || entries.includes(actionKey.slice(0, actionKey.indexOf(".")));
+    const toolName = actionKey.slice(0, actionKey.indexOf("."));
+    return isSkippedByList(readSkipList(), toolName, actionKey);
 }
 
 /** 客户端自行应答时是否放行；取值非法时告警并回落默认（放行） */

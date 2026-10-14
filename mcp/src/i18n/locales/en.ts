@@ -29,6 +29,7 @@ import { envSetup } from "./modules/envSetup.js";
 import { interactive } from "./modules/interactive.js";
 import { feedback } from "./modules/feedback.js";
 import { confirmation } from "./modules/confirmation.js";
+import { credential } from "./modules/credential.js";
 
 export const en = {
   env: env.en,
@@ -61,4 +62,5 @@ export const en = {
   interactive: interactive.en,
   feedback: feedback.en,
   confirmation: confirmation.en,
+  credential: credential.en,
 };
