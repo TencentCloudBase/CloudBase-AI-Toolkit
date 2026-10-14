@@ -69,9 +69,11 @@ declare const __MCP_VERSION__: string;
 
 const GITHUB_REPO = "https://github.com/TencentCloudBase/CloudBase-AI-ToolKit";
 const CNB_REPO = "https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-ToolKit";
+/** 云平台 / 权限 / 账号类问题统一去社区仓库，不收在本仓 issue 里 */
+const CNB_COMMUNITY_ISSUES = "https://cnb.cool/tencent/cloud/cloudbase/community/-/issues/new";
 
 /**
- * Point toolkit bugs at a pull request and platform problems at a blank issue page.
+ * Point toolkit bugs at a pull request and platform problems at the community issue tracker.
  * The URL carries no environment ID, arguments, or error text.
  */
 function contributionHint(server: ExtendedMcpServer): string {
@@ -91,7 +93,7 @@ function contributionHint(server: ExtendedMcpServer): string {
         "如果问题出在本仓库的 MCP、skill 或 CLI，请按贡献指南提 Pull Request：",
         `${CNB_REPO}/-/blob/main/CONTRIBUTING.md`,
         "如果是云平台、权限或账号问题，请打开 issue 页面自行填写。不要把环境 ID 或密钥写进去：",
-        `${CNB_REPO}/-/issues/new`,
+        CNB_COMMUNITY_ISSUES,
     ].join("\n");
 }
 
