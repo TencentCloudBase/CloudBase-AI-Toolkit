@@ -511,7 +511,10 @@ pre {
     // consuming the notification is what keeps that call's real result visible here.
     if (data.method === "ui/notifications/tool-result") {
       var payload = readPayload(data.params);
-      if (payload) { render(payload); } else { showRaw(data.params); }
+      // A result we cannot read as a status payload is never spread across the panel body: it goes
+      // into the collapsed raw area and the card falls back to its local, unconfirmed values.
+      // Unparsed text on screen is harder to read than no text at all.
+      if (payload) { render(payload); } else { render(null); showRaw(data.params); }
       reportSize();
       return;
     }
@@ -571,7 +574,14 @@ pre {
         clearTimeout(timer);
         finish();
         var payload = readPayload(result);
-        if (payload) { render(payload); } else { showError(T.actionError); }
+        if (payload) {
+          render(payload);
+        } else {
+          // Same rule as the notification path: no unreadable return in the body.
+          render(null);
+          showRaw(result);
+          showError(T.actionError);
+        }
         reportSize();
       }).catch(function () {
         if (settled) { return; }

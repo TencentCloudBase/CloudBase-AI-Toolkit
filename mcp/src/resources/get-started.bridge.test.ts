@@ -327,6 +327,11 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     panel.dispatch(TOOL_RESULT({ structuredContent: READY_STATUS }));
     await flush();
 
+    // 正面：站点的 domestic 与地域的 ap-shanghai 被翻成人话（进正文的是「Shanghai (China)」）
+    expect(panel.element("k-place").textContent).toBe("Shanghai (China)");
+    expect(panel.element("k-scope").textContent).toBe("Current environment only");
+
+    // 反面：可见文本里一个原始枚举都不许出现
     for (const id of ["st-text", "st-qual", "k-place", "k-scope", "k-env", "nx-label", "nx-why"]) {
       const text = panel.element(id).textContent;
       for (const token of INTERNAL_ENUMS) {
@@ -334,6 +339,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
       }
     }
 
+    // 而原始值确实在「查看原始返回」里（否则上一条会因为"压根没翻"而虚假通过）
     expect(panel.element("raw-box").hidden).toBe(false);
     expect(panel.element("raw-out").textContent).toContain("ap-shanghai");
     expect(panel.element("raw-out").textContent).toContain("single_env");
@@ -390,16 +396,66 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     ).toBe(false);
   });
 
-  it("tool-result 里的 HTML 只被当作文字（渲染路径不做注入）", async () => {
+  it("读不懂的返回绝不摊到正文：原文只进「查看原始返回」，卡片回到尚未确认", async () => {
     const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
-    const payload = '<img src=x onerror="alert(1)">';
+    // 先渲染一个真实状态，确认"读不懂的这次结果"能把卡片带回兜底值，而不是留着上一个状态
+    panel.dispatch(TOOL_RESULT({ structuredContent: READY_STATUS }));
+    await flush();
+    expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.connected", undefined, "en"));
 
-    panel.dispatch(TOOL_RESULT({ content: [{ type: "text", text: payload }] }));
+    const junk = '<img src=x onerror="alert(1)"> not-json';
+    panel.dispatch(TOOL_RESULT({ content: [{ type: "text", text: junk }] }));
     await flush();
 
-    // 无法解析成状态载荷 → 原样进「查看原始返回」，没有被解析成元素
-    expect(panel.element("raw-out").textContent).toBe(payload);
+    // 状态卡：本地静态兜底 + 尚未确认（没有把"解析失败"当成一个状态）
     expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.unknown", undefined, "en"));
+    expect(panel.element("k-place").textContent).toBe("Shanghai (China)");
+    expect(panel.element("k-env").textContent).toBe("env-abc123");
+    expect(panel.element("k-scope").textContent).toBe(
+      t("mcpUi.status.scopeAfterLogin", undefined, "en"),
+    );
+    // 唯一还能按下去的是「重新检查」（vm 垫片不反映 HTML 的静态文案与"默认不隐藏"，所以直接点它来验）
+    expect(panel.element("btn-main").hidden).toBe(true);
+    // 原文只落在折叠区里（且原样保留、没有被解析成元素）
+    expect(panel.element("raw-box").hidden).toBe(false);
+    expect(panel.element("raw-out").textContent).toBe(junk);
+    for (const id of ["st-text", "st-qual", "k-place", "k-scope", "k-env", "nx-label", "nx-why"]) {
+      expect(panel.element(id).textContent, `#${id} 不应出现原始返回`).not.toContain("not-json");
+      expect(panel.element(id).textContent, `#${id} 不应出现原始返回`).not.toContain("<img");
+    }
+
+    const before = panel.sent.length;
+    panel.element("btn-refresh").click();
+    const calls = panel.sent.slice(before).filter((entry) => entry.message.method === "tools/call");
+    expect(calls).toHaveLength(1);
+    expect(calls[0].message.params).toEqual({ name: "auth", arguments: { action: "status" } });
+    expect(panel.element("btn-refresh").textContent).toBe(t("mcpUi.action.pending", undefined, "en"));
+  });
+
+  it("「重新检查」拿回一段读不懂的文本：给失败态与出路，同样不摊原文", async () => {
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+    panel.dispatch(HOST_INITIALIZE_RESULT);
+    await flush();
+
+    panel.dispatch(TOOL_RESULT({ structuredContent: READY_STATUS }));
+    await flush();
+
+    const before = panel.sent.length;
+    panel.element("btn-refresh").click();
+    const call = panel.sent.slice(before).find((entry) => entry.message.method === "tools/call");
+    panel.dispatch({
+      jsonrpc: "2.0",
+      id: call?.message.id,
+      result: { content: [{ type: "text", text: "RAW-NOT-JSON" }] },
+    });
+    await flush();
+
+    expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.unknown", undefined, "en"));
+    expect(panel.element("k-err").hidden).toBe(false);
+    expect(panel.element("k-err").textContent).toBe(t("mcpUi.action.error", undefined, "en"));
+    expect(panel.element("st-text").textContent).not.toContain("RAW-NOT-JSON");
+    expect(panel.element("k-err").textContent).not.toContain("RAW-NOT-JSON");
+    expect(panel.element("raw-out").textContent).toBe("RAW-NOT-JSON");
   });
 
   it("tools/call 超时：宿主不转发时给出失败态与出路，不会永远停在等待中", async () => {
