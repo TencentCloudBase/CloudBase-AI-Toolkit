@@ -15,6 +15,7 @@ import {
   type SiteId,
 } from './connectionMatrix';
 import { getRandomPrompt } from './promptsData';
+import { WORKBUDDY_FEATURED_EXPERT, WORKBUDDY_GUIDE_URL } from './workbuddyExperts';
 
 interface IDE {
   id: string;
@@ -35,6 +36,35 @@ interface IDE {
   useCommandInsteadOfConfig?: boolean;
   /** 该客户端是否出「远端 / 本地」与站点开关。`builtin` 通道不出——那些客户端走自有市场，用户选了也不生效。 */
   showModeSwitch?: boolean;
+}
+
+/** installCommandDocs 里允许写 `[文案](链接)`：这段文本不走 markdown 解析，所以在这里把链接挑出来渲染成 <a>。 */
+function renderInlineLinks(text: string): React.ReactNode {
+  const parts = text.split(/\[([^\]]+)\]\(([^)]+)\)/g);
+  if (parts.length === 1) {
+    return text;
+  }
+  const nodes: React.ReactNode[] = [];
+  for (let i = 0; i + 2 < parts.length; i += 3) {
+    if (parts[i]) {
+      nodes.push(parts[i]);
+    }
+    const href = parts[i + 2];
+    nodes.push(
+      <a
+        key={`inline-link-${i}`}
+        href={href}
+        {...(/^https?:\/\//.test(href) ? { target: '_blank', rel: 'noreferrer' } : {})}
+      >
+        {parts[i + 1]}
+      </a>
+    );
+  }
+  const tail = parts[parts.length - 1];
+  if (tail) {
+    nodes.push(tail);
+  }
+  return nodes;
 }
 
 const IDES: IDE[] = [
@@ -59,7 +89,7 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy',
     configExample: '',
     useCommandInsteadOfConfig: true,
-    installCommandDocs: '**使用内置连接器**\n\n1. 在 WorkBuddy 对话界面中，点击输入框左下角的 **连接器** 按钮\n2. 在弹窗中找到 **腾讯云 CloudBase**，点击进入详情页，点击 **连接** 启用\n\n启用后，即可在对话中直接使用 CloudBase 的各项能力。\n\n**使用快捷命令**\n\n在对话中直接输入 `/cloudbase` 选择 CloudBase Skill，然后输入需求即可。',
+    installCommandDocs: '**使用内置连接器**\n\n1. 在 WorkBuddy 对话界面中，点击输入框左下角的 **连接器** 按钮\n2. 在弹窗中找到 **腾讯云 CloudBase**，点击进入详情页，点击 **连接** 启用\n\n启用后，即可在对话中直接使用 CloudBase 的各项能力。\n\n**使用快捷命令**\n\n在对话中直接输入 `/cloudbase` 选择 CloudBase Skill，然后输入需求即可。\n\n**配套专家**\n\nWorkBuddy 专家中心还有 4 个 CloudBase 专家，[' + WORKBUDDY_FEATURED_EXPERT.name + '](' + WORKBUDDY_FEATURED_EXPERT.guideUrl + ') 最通用；其余 3 个见 [WorkBuddy 配置指南](' + WORKBUDDY_GUIDE_URL + ')。',
   },
   {
     id: 'kimi-code',
@@ -1480,7 +1510,7 @@ export default function IDESelector({
                               return (
                                 <p key={idx} className={styles.installCommandText}>
                                   {section.split(/\*\*([^*]+)\*\*/).map((part, i) =>
-                                    i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+                                    i % 2 === 1 ? <strong key={i}>{part}</strong> : <React.Fragment key={`p-${i}`}>{renderInlineLinks(part)}</React.Fragment>
                                   )}
                                 </p>
                               );
@@ -1621,7 +1651,7 @@ export default function IDESelector({
                         return (
                           <p key={idx} className={styles.installCommandText}>
                             {section.split(/\*\*([^*]+)\*\*/).map((part, i) =>
-                              i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+                              i % 2 === 1 ? <strong key={i}>{part}</strong> : <React.Fragment key={`p-${i}`}>{renderInlineLinks(part)}</React.Fragment>
                             )}
                           </p>
                         );
