@@ -64,7 +64,7 @@ logs  agents  capi  feedback
 
 两个可以照抄的例子：
 
-**新建云函数必须挂内网 VPC。** 要求调 `manageFunctions(action="createFunction")` 时 `func.vpc` 必须传 `{ vpcId, subnetId }`（同一入口顶层的 `vpc` 字段同等对待）。这句话是可判定的：参数里没有 `vpc` 就是违规。
+**新建云函数必须挂内网 VPC。** 要求调 `manageFunctions(action="createFunction")` 时 `func.vpc` 必须传 `{ vpcId, subnetId }`。这句话是可判定的：`func.vpc` 没有就是违规。不要写成同一入口顶层的 `vpc` —— 建函数只读 `func`，顶层那个只在改配置（`updateFunctionConfig`）时生效。
 
 ```json
 {
