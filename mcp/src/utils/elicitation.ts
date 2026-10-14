@@ -114,8 +114,12 @@ export async function requestChoiceElicitation(
         return { status: 'unsupported', reason: 'client_declares_no_form_elicitation', durationMs: 0 };
     }
 
-    const elicitInput = server?.server?.elicitInput;
-    if (typeof elicitInput !== 'function') {
+    // ⚠️ 必须**保留接收者**调用（`target.elicitInput(...)`）：SDK 的 elicitInput 是原型方法，
+    // 内部读 `this._clientCapabilities`。摘成 `const fn = target.elicitInput; fn(...)` 会把 `this`
+    // 丢掉，抛 `TypeError: Cannot read properties of undefined (reading '_clientCapabilities')`,
+    // 表现为"弹不出确认框、被 fail-closed 拦下"。（2026-10-14 端到端实测）
+    const target = server?.server;
+    if (!target || typeof target.elicitInput !== 'function') {
         await report('error', { error: 'elicitInput_unavailable' });
         return { status: 'error', reason: 'elicitInput_unavailable', durationMs: 0 };
     }
@@ -124,7 +128,7 @@ export async function requestChoiceElicitation(
     const startedAt = Date.now();
 
     try {
-        const result = await elicitInput(
+        const result = await target.elicitInput(
             {
                 mode: 'form',
                 message,
