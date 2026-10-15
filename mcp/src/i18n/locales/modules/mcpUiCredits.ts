@@ -32,9 +32,7 @@ export const mcpUiCredits = defineModule(
     "field.modules": "分模块用量",
     "field.balance": "账户余额",
     "fold.raw": "查看原始返回",
-    "spark.cap": "近 7 天",
-    "spark.from": "7 天前",
-    "spark.to": "今天",
+    "spark.cap": "近期",
     "value.unavailable": "—",
 
     // 状态词（四分支 + 未确认）
@@ -55,7 +53,7 @@ export const mcpUiCredits = defineModule(
     "hint.normal": "本月资源点仍充足。",
 
     // 说明句（四分支）
-    "hint.trialExhausted": "本月资源点已用完，账户余额充足；体验版不支持资源包与按量计费。",
+    "hint.trialExhausted": "本月资源点已用完；体验版不支持资源包与按量计费，升级付费套餐是唯一恢复途径。",
     "hint.stopped": "套餐内的资源点已用完；若已购买资源包或开启了按量计费，服务可能仍在正常运行。是否停服以实际调用结果为准。",
     "hint.expired": "套餐过期后进入 15 天隔离期，逾期环境将被销毁；隔离期内续费可恢复。",
     "hint.arrears": "账户余额为负，影响变配与续费；套餐内资源点仍够用时，业务不受影响。",
@@ -68,7 +66,8 @@ export const mcpUiCredits = defineModule(
     "action.guidedTopup": "在会话里引导充值",
     "action.copyConsoleLink": "复制控制台链接",
     "action.copyExpenseLink": "复制费用中心链接",
-    "action.copied": "控制台链接已复制；无计费权限时可转给主账号管理员",
+    "action.copiedConsole": "控制台链接已复制；无计费权限时可转给主账号管理员",
+    "action.copiedExpense": "费用中心链接已复制；无计费权限时可转给主账号管理员",
 
     // 交给会话的请求（按钮 → ui/message 的原文，技能按这些入口组织引导）
     "message.upgrade": "帮我了解付费套餐，把这个环境从体验版升级",
@@ -81,6 +80,10 @@ export const mcpUiCredits = defineModule(
     "module.database": "数据库",
     "module.storage": "存储",
     "module.cdn": "CDN",
+    "module.ai": "AI",
+    "module.auth": "身份认证",
+    "module.api": "API 调用",
+    "module.other": "其它",
 
     // 套餐名（仅有这五种）
     "plan.trial": "免费体验版",
@@ -102,9 +105,7 @@ export const mcpUiCredits = defineModule(
     "field.modules": "Usage by module",
     "field.balance": "Account balance",
     "fold.raw": "View raw response",
-    "spark.cap": "Last 7 days",
-    "spark.from": "7 days ago",
-    "spark.to": "Today",
+    "spark.cap": "Recent",
     "value.unavailable": "-",
 
     "state.unknown": "Usage not confirmed",
@@ -123,7 +124,7 @@ export const mcpUiCredits = defineModule(
     "hint.normal": "This month's credits are still within the plan.",
 
     "hint.trialExhausted":
-      "This month's credits are used up while the account balance is sufficient. The trial plan supports neither credit packs nor pay-as-you-go.",
+      "This month's credits are used up. The trial plan supports neither credit packs nor pay-as-you-go, so upgrading to a paid plan is the only way back.",
     "hint.stopped":
       "The plan credits are used up. If you have a credit pack or pay-as-you-go enabled, the service may still be running; check the actual call result to confirm.",
     "hint.expired":
@@ -138,7 +139,8 @@ export const mcpUiCredits = defineModule(
     "action.guidedTopup": "Get top-up guidance in chat",
     "action.copyConsoleLink": "Copy console link",
     "action.copyExpenseLink": "Copy billing center link",
-    "action.copied": "Console link copied. Without billing permission, forward it to the account owner.",
+    "action.copiedConsole": "Console link copied. Without billing permission, forward it to the account owner.",
+    "action.copiedExpense": "Billing center link copied. Without billing permission, forward it to the account owner.",
 
     "message.upgrade": "Help me review the paid plans and upgrade this environment from the trial plan",
     "message.restore":
@@ -150,6 +152,10 @@ export const mcpUiCredits = defineModule(
     "module.database": "Database",
     "module.storage": "Storage",
     "module.cdn": "CDN",
+    "module.ai": "AI",
+    "module.auth": "Identity",
+    "module.api": "API calls",
+    "module.other": "Other",
 
     "plan.trial": "Free trial",
     "plan.personal": "Personal",

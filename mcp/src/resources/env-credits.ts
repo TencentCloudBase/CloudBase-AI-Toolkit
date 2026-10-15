@@ -222,8 +222,6 @@ body {
   transform: translate(-50%,-50%); background: var(--text-3); }
 .spark-dot.ok { background: var(--ok); }
 .spark-dot.err { background: var(--err); }
-.spark-lbl { position: absolute; top: 100%; margin-top: 2px; font-size: 11px; color: var(--text-3); }
-.spark-l { left: 0; } .spark-r { right: 0; }
 .acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
 button { font: inherit; font-size: 14px; height: 32px; padding: 0 14px; border-radius: 8px;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -302,8 +300,6 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
               <path class="spark-line" id="spark-line" d="" stroke="var(--err)"/>
             </svg>
             <i class="spark-dot" id="spark-dot" hidden></i>
-            <span class="spark-lbl spark-l">${E(L("mcpUiCredits.spark.from"))}</span>
-            <span class="spark-lbl spark-r">${E(L("mcpUiCredits.spark.to"))}</span>
           </div>
       </div>
       <div class="field" id="f-plan" hidden>
@@ -320,6 +316,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       </div>
       <p class="note" id="k-expired" hidden></p>
     </div>
+    <p class="note" id="k-copynote" hidden></p>
     <div class="acts">
       <button class="primary" type="button" id="btn-main" hidden></button>
       <button type="button" id="btn-link" hidden>
@@ -362,7 +359,8 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     modulesSep: ${S("mcpUiCredits.modules.sep")},
     currency: ${S("mcpUiCredits.value.currency")},
     unavailable: ${S("mcpUiCredits.value.unavailable")},
-    copied: ${S("mcpUiCredits.action.copied")},
+    copiedConsole: ${S("mcpUiCredits.action.copiedConsole")},
+    copiedExpense: ${S("mcpUiCredits.action.copiedExpense")},
     copyEnvId: ${S("mcpUiCredits.brand.copyEnvId")},
     copyConsoleLink: ${S("mcpUiCredits.action.copyConsoleLink")},
     copyExpenseLink: ${S("mcpUiCredits.action.copyExpenseLink")},
@@ -382,7 +380,11 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       functions: ${S("mcpUiCredits.module.functions")},
       database: ${S("mcpUiCredits.module.database")},
       storage: ${S("mcpUiCredits.module.storage")},
-      cdn: ${S("mcpUiCredits.module.cdn")}
+      cdn: ${S("mcpUiCredits.module.cdn")},
+      ai: ${S("mcpUiCredits.module.ai")},
+      auth: ${S("mcpUiCredits.module.auth")},
+      api: ${S("mcpUiCredits.module.api")},
+      other: ${S("mcpUiCredits.module.other")}
     }
   };
 
@@ -421,8 +423,8 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     return String(n).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");
   }
   function planLabel(payload) {
-    if (payload.plan && T.plan[payload.plan]) { return T.plan[payload.plan]; }
-    if (typeof payload.plan_raw === "string" && payload.plan_raw) { return payload.plan_raw; }
+    // Only names we can translate are shown; an unrecognized package id is never printed raw.
+    if (payload && payload.plan && T.plan[payload.plan]) { return T.plan[payload.plan]; }
     return "";
   }
   function sparkPath(pts) {
@@ -525,7 +527,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     if (payload && payload.modules && payload.modules.length) {
       for (var i = 0; i < payload.modules.length; i++) {
         var m = payload.modules[i];
-        var name = T.module[m.module] || m.module || "";
+        var name = T.module[m.module] || "";
         if (name) { mods.push(name + " " + fmtNumber(m.credits_value || 0)); }
       }
     }
@@ -561,6 +563,8 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     linkBtn.hidden = !current.link;
     if (current.link) { setText(el("btn-link-label"), LINK_LABEL[current.link]); }
 
+    var copyNote = el("k-copynote");
+    if (copyNote) { copyNote.hidden = true; }
     var copyEnv = el("btn-copy-env");
     copyEnv.hidden = !envId;
   }
@@ -592,8 +596,11 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     if (node.id === "btn-copy-env") { copyText(current.envId); return; }
     if (node.id === "btn-link") {
       copyText(LINKS[current.link] || "");
-      var note = el("k-expired");
-      if (current.branch === "expired") { setText(note, T.copied); } else { setText(el("c-hint"), T.copied); }
+      var copyNote = el("k-copynote");
+      if (copyNote) {
+        setText(copyNote, current.link === "expense" ? T.copiedExpense : T.copiedConsole);
+        copyNote.hidden = false;
+      }
       return;
     }
     if (node.id === "btn-main") {
