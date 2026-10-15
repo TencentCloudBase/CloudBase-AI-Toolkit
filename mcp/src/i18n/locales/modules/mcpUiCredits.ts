@@ -41,7 +41,7 @@ export const mcpUiCredits = defineModule(
     "state.unknown": "用量尚未确认",
     "state.normal": "用量正常",
     "state.trialExhausted": "体验版耗尽",
-    "state.stopped": "已停服",
+    "state.stopped": "套餐资源点已用完",
     "state.expired": "套餐已到期",
     "state.arrears": "账户欠费",
 
@@ -56,7 +56,7 @@ export const mcpUiCredits = defineModule(
 
     // 说明句（四分支）
     "hint.trialExhausted": "本月资源点已用完，账户余额充足；体验版不支持资源包与按量计费。",
-    "hint.stopped": "资源点耗尽触发停服；升配、购买资源包、开启按量计费三选一恢复。",
+    "hint.stopped": "套餐内的资源点已用完；若已购买资源包或开启了按量计费，服务可能仍在正常运行。是否停服以实际调用结果为准。",
     "hint.expired": "套餐过期后进入 15 天隔离期，逾期环境将被销毁；隔离期内续费可恢复。",
     "hint.arrears": "账户余额为负，影响变配与续费；套餐内资源点仍够用时，业务不受影响。",
     "expired.note": "隔离期剩余 {days} 天（第 15 天销毁）",
@@ -110,7 +110,7 @@ export const mcpUiCredits = defineModule(
     "state.unknown": "Usage not confirmed",
     "state.normal": "Usage is within plan",
     "state.trialExhausted": "Trial credits used up",
-    "state.stopped": "Suspended",
+    "state.stopped": "Plan credits used up",
     "state.expired": "Plan expired",
     "state.arrears": "Account in arrears",
 
@@ -125,7 +125,7 @@ export const mcpUiCredits = defineModule(
     "hint.trialExhausted":
       "This month's credits are used up while the account balance is sufficient. The trial plan supports neither credit packs nor pay-as-you-go.",
     "hint.stopped":
-      "Credits are used up and the service is suspended. Restore it by upgrading the plan, buying a credit pack, or enabling pay-as-you-go.",
+      "The plan credits are used up. If you have a credit pack or pay-as-you-go enabled, the service may still be running; check the actual call result to confirm.",
     "hint.expired":
       "The plan has expired. The environment enters a 15-day grace period and is destroyed afterwards; renewing within the grace period restores it.",
     "hint.arrears":
