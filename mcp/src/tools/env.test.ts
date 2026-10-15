@@ -2440,6 +2440,45 @@ describe("env tools - queryEnv", () => {
     });
   });
 
+  it("queryEnv(usage) 带 type 过滤时：只给 used、不给 total，结论压成 unknown", async () => {
+    const describeEnvAccountCircle = vi.fn().mockResolvedValue({
+      StartTime: "2026-08-01 00:00:00",
+      EndTime: "2026-08-31 23:59:59",
+    });
+    const describeCreditsUsageDetail = vi.fn().mockResolvedValue({
+      // 被 type 过滤后只回 SCF 一项，而配额是全套餐的 —— 两个数放一起会得出错误结论
+      Usages: [{ EnvId: "env-filtered", Module: "SCF", CreditsValue: 12 }],
+    });
+    const describeEnvInfo = vi.fn().mockResolvedValue({
+      EnvInfo: {
+        EnvBaseInfo: { EnvId: "env-filtered", PackageId: "baas_free", Region: "ap-shanghai" },
+        BillingInfo: { ExpireTime: "2099-01-01 00:00:00" },
+      },
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { describeEnvAccountCircle, describeCreditsUsageDetail, describeEnvInfo },
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.queryEnv.handler({
+      action: "usage",
+      envId: "env-filtered",
+      type: ["SCF"],
+    });
+
+    // 过滤确实发生了（否则这条用例证明不了什么）
+    expect(describeCreditsUsageDetail).toHaveBeenCalledWith(
+      expect.objectContaining({ Modules: ["SCF"] }),
+    );
+    expect(result.structuredContent).toMatchObject({
+      plan: "trial",
+      branch: "unknown",
+      credits: { used: 12 },
+      modules: [{ module: "functions", credits_value: 12 }],
+    });
+    expect(result.structuredContent.credits).not.toHaveProperty("total");
+  });
+
   it("queryEnv(usage) 环境信息取不到时逐字段降级，文本回执照常返回", async () => {
     const describeEnvAccountCircle = vi.fn().mockResolvedValue({
       StartTime: "2026-08-01 00:00:00",

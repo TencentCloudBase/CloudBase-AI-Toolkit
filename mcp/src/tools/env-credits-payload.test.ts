@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildCreditsSpark,
   buildEnvCreditsPayload,
+  CREDITS_MODULE_KEYS,
   isBillingExpired,
   mapCreditsModules,
+  moduleKeyOf,
   resolveCreditsBranch,
   resolveIsolatedDaysLeft,
   resolvePlanCode,
@@ -160,14 +162,82 @@ describe("用量换算", () => {
     expect(sumCreditsValue(undefined)).toBeNull();
   });
 
-  it("模块码走映射，认不出的原样透传；没有模块则不传", () => {
+  it("模块码一律映射成规范键，认不出的落 other，绝不透传原始码", () => {
     expect(mapCreditsModules([SCF, COS, { Module: "HOSTING", CreditsValue: 3 }])).toEqual([
       { module: "functions", credits_value: 12 },
       { module: "storage", credits_value: 30 },
-      { module: "HOSTING", credits_value: 3 },
+      { module: "hosting", credits_value: 3 },
+    ]);
+    // 认不出的码（含大小写/空白差异）也落 other，不原样出现
+    expect(moduleKeyOf("ZZZ-UNKNOWN")).toBe("other");
+    expect(moduleKeyOf("  ")).toBe("other");
+    expect(mapCreditsModules([{ Module: "ZZZ-UNKNOWN", CreditsValue: 1 }])).toEqual([
+      { module: "other", credits_value: 1 },
     ]);
     expect(mapCreditsModules([])).toBeUndefined();
     expect(mapCreditsModules(null)).toBeUndefined();
+  });
+
+  it("规范键集合覆盖每个已知模块码（含 TDSQL / EKS / VM / Workflow / HTTPInvocation）", () => {
+    const codes = [
+      "FLEXDB",
+      "TDSQL",
+      "SCF",
+      "EKS",
+      "COS",
+      "AI",
+      "HOSTING",
+      "Auth",
+      "APIInvocation",
+      "HTTPInvocation",
+      "VM",
+      "Workflow",
+      "Other",
+    ];
+    for (const code of codes) {
+      const key = moduleKeyOf(code);
+      expect(CREDITS_MODULE_KEYS, `${code} 应落在规范键集合内`).toContain(key);
+      // 规范键一律小写，且不等于云 API 的原始码（原码都是大写/驼峰形式）
+      expect(key).toBe(key.toLowerCase());
+      expect(key).not.toBe(code);
+    }
+    // 按含义映射（不是全都落 other）
+    expect(moduleKeyOf("FLEXDB")).toBe("database");
+    expect(moduleKeyOf("TDSQL")).toBe("database");
+    expect(moduleKeyOf("SCF")).toBe("functions");
+    expect(moduleKeyOf("COS")).toBe("storage");
+    expect(moduleKeyOf("AI")).toBe("ai");
+    expect(moduleKeyOf("Auth")).toBe("auth");
+    expect(moduleKeyOf("APIInvocation")).toBe("api");
+    expect(moduleKeyOf("HOSTING")).toBe("hosting");
+    expect(moduleKeyOf("VM")).toBe("vm");
+    expect(moduleKeyOf("Workflow")).toBe("workflow");
+    // 规范键里没有容器 / 网关这一类 ⇒ 明确落 other，不硬凑
+    expect(moduleKeyOf("EKS")).toBe("other");
+    expect(moduleKeyOf("HTTPInvocation")).toBe("other");
+    expect(moduleKeyOf("Other")).toBe("other");
+  });
+
+  it("缺 CreditsValue 的条目跳过，不当 0（求和 / 模块 / 曲线同一口径）", () => {
+    const valueless: CreditsUsageLike = {
+      Module: "COS",
+      MetricUsageDetail: [{ ValueDetailList: [{ CalcTime: "2026-08-09", CreditsValue: 7 }] }],
+    };
+    // 求和：跳过缺值条目，不退化成"把它当 0"
+    expect(sumCreditsValue([SCF, valueless])).toBe(12);
+    // 全缺 ⇒ 不可用，不是 0
+    expect(sumCreditsValue([{ Module: "SCF" }, valueless])).toBeNull();
+    expect(sumCreditsValue([{ Module: "SCF", CreditsValue: Number.NaN }])).toBeNull();
+    expect(sumCreditsValue([{ Module: "SCF", CreditsValue: Number.POSITIVE_INFINITY }])).toBeNull();
+    // 空列表仍是 0：查询成功、本周期确实没用量（与"拿不到"严格区分）
+    expect(sumCreditsValue([])).toBe(0);
+    // 模块与曲线同样跳过该条目（不出现 credits_value: 0 / 不贡献曲线点）
+    expect(mapCreditsModules([SCF, valueless])).toEqual([{ module: "functions", credits_value: 12 }]);
+    expect(buildCreditsSpark([SCF, valueless])).toEqual([
+      { calc_time: "2026-08-01", credits_value: 2 },
+      { calc_time: "2026-08-02", credits_value: 4 },
+      { calc_time: "2026-08-03", credits_value: 6 },
+    ]);
   });
 
   it("spark 按 CalcTime 汇总并只留最近 7 个点", () => {
@@ -180,6 +250,7 @@ describe("用量换算", () => {
     const many: CreditsUsageLike[] = [
       {
         Module: "SCF",
+        CreditsValue: 55,
         MetricUsageDetail: [
           {
             ValueDetailList: Array.from({ length: 10 }, (_, index) => ({
@@ -230,6 +301,49 @@ describe("PLAN_CREDITS_TOTAL（官方文档配额表：876/127357）", () => {
       enterprise: 1500000,
       enterpriseAdvanced: 6500000,
     });
+  });
+});
+
+describe("按 type 过滤过的查询：used 是子集，不能配全量 total", () => {
+  const base = {
+    envId: "env-filtered",
+    planRaw: "baas_free",
+    usages: [SCF],
+    site: "domestic",
+    region: "ap-shanghai",
+    expired: false,
+  };
+
+  it("过滤时只给 used、不给 total，结论压成 unknown；modules / spark 照实给", () => {
+    const payload = buildEnvCreditsPayload({ ...base, modulesFiltered: true });
+
+    expect(payload.branch).toBe("unknown");
+    expect(payload.credits).toEqual({ used: 12 });
+    expect(payload.credits).not.toHaveProperty("total");
+    // 过滤后的子集照实展示（它们本来就是被选模块的数据）
+    expect(payload.modules).toEqual([{ module: "functions", credits_value: 12 }]);
+    expect(payload.spark).toHaveLength(3);
+    // 套餐本身仍然照实给（与过滤无关）
+    expect(payload.plan).toBe("trial");
+  });
+
+  it("对照组：同一条数据不过滤时给 total 与真实结论", () => {
+    const payload = buildEnvCreditsPayload({ ...base });
+
+    expect(payload.credits).toEqual({ total: PLAN_CREDITS_TOTAL.trial, used: 12 });
+    expect(payload.branch).toBe("normal");
+  });
+
+  it("过滤 + 用量拿不到 ⇒ 连 credits 都不传（不留一个只有 used 的空壳）", () => {
+    const payload = buildEnvCreditsPayload({
+      ...base,
+      usages: [{ Module: "SCF" }],
+      modulesFiltered: true,
+    });
+
+    expect(payload).not.toHaveProperty("credits");
+    expect(payload.branch).toBe("unknown");
+    expect(payload).not.toHaveProperty("modules");
   });
 });
 

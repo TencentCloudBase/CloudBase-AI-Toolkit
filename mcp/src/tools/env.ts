@@ -3277,6 +3277,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               isolatedDaysLeft: resolveIsolatedDaysLeft(creditsBilling),
               // 余额没有只读来源（仓里没有对应调用路径）→ 传 null，面板隐藏该行。
               balance: null,
+              // 显式告知"本次查询被 type 过滤过"：此时 Usages 只是被选模块的子集，
+              // 配全量配额会得出错误结论（详见 env-credits-payload.ts）。
+              modulesFiltered: Array.isArray(type) && type.length > 0,
             });
             break;
           }
