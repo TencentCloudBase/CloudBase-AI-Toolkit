@@ -179,12 +179,28 @@ describe("用量换算", () => {
     expect(mapCreditsModules(null)).toBeUndefined();
   });
 
-  it("规范键集合固定 11 个，且覆盖每个已知模块码", () => {
+  // 镜像 ENV_USAGE_MODULE_VALUES（env.ts）的全部 13 个码
+  const codes = [
+    "FLEXDB",
+    "TDSQL",
+    "SCF",
+    "EKS",
+    "COS",
+    "AI",
+    "HOSTING",
+    "Auth",
+    "APIInvocation",
+    "HTTPInvocation",
+    "VM",
+    "Workflow",
+    "Other",
+  ];
+
+  it("规范键集合固定 10 个，且覆盖每个已知模块码", () => {
     expect([...CREDITS_MODULE_KEYS]).toEqual([
       "functions",
       "database",
       "storage",
-      "cdn",
       "ai",
       "auth",
       "api",
@@ -193,21 +209,11 @@ describe("用量换算", () => {
       "workflow",
       "other",
     ]);
-    const codes = [
-      "FLEXDB",
-      "TDSQL",
-      "SCF",
-      "EKS",
-      "COS",
-      "AI",
-      "HOSTING",
-      "Auth",
-      "APIInvocation",
-      "HTTPInvocation",
-      "VM",
-      "Workflow",
-      "Other",
-    ];
+    // 每个成员都必须真的有码能映射过来（不留永不产出的死键，例如曾经留过的 cdn）
+    const reachable = new Set(codes.map((code) => moduleKeyOf(code)));
+    for (const key of CREDITS_MODULE_KEYS) {
+      expect(reachable, `${key} 应有模块码映射到它`).toContain(key);
+    }
     for (const code of codes) {
       const key = moduleKeyOf(code);
       expect(CREDITS_MODULE_KEYS, `${code} 应落在规范键集合内`).toContain(key);
@@ -231,6 +237,37 @@ describe("用量换算", () => {
     expect(moduleKeyOf("EKS")).toBe("other");
     expect(moduleKeyOf("VM")).toBe("other");
     expect(moduleKeyOf("Other")).toBe("other");
+  });
+
+  it("同一规范键的多条聚合为一行（多个码落 other 时尤其重要）", () => {
+    // FLEXDB 与 TDSQL 都落 database → 一行、值累加
+    expect(
+      mapCreditsModules([
+        { Module: "FLEXDB", CreditsValue: 2 },
+        { Module: "TDSQL", CreditsValue: 3 },
+      ]),
+    ).toEqual([{ module: "database", credits_value: 5 }]);
+
+    // EKS / VM / 未知码都落 other → 只出一行「其它」，不出现重复行
+    expect(
+      mapCreditsModules([
+        { Module: "SCF", CreditsValue: 12 },
+        { Module: "EKS", CreditsValue: 5 },
+        { Module: "VM", CreditsValue: 7 },
+        { Module: "ZZZ-UNKNOWN", CreditsValue: 1 },
+      ]),
+    ).toEqual([
+      { module: "functions", credits_value: 12 },
+      { module: "other", credits_value: 13 },
+    ]);
+
+    // 行的顺序 = 各规范键首次出现的顺序
+    const rowOrder = mapCreditsModules([
+      { Module: "HOSTING", CreditsValue: 1 },
+      { Module: "SCF", CreditsValue: 2 },
+      { Module: "Workflow", CreditsValue: 3 },
+    ]) ?? [];
+    expect(rowOrder.map((row) => row.module)).toEqual(["hosting", "functions", "workflow"]);
   });
 
   it("缺 CreditsValue 的条目在求和与分模块处跳过、不当 0（曲线不受它影响，见下一条）", () => {

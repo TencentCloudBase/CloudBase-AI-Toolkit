@@ -27,19 +27,19 @@ const PAID_PLAN_CODES: readonly PlanCode[] = [
 ];
 
 /**
- * 面板模块的**规范键**集合（固定 11 个；云 API 的模块码一律不出现在载荷里）。
+ * 面板模块的**规范键**集合（固定 10 个；云 API 的模块码一律不出现在载荷里）。
  *
- * `functions` / `database` / `storage` / `cdn` 是既有四项，`ai` / `auth` / `api` / `http` /
- * `hosting` / `workflow` 是有官方依据的六项，加兜底 `other`。
+ * 每一项都必须**真的可能有码映射过来**：`functions` / `database` / `storage` 是既有三项，
+ * `ai` / `auth` / `api` / `http` / `hosting` / `workflow` 是有官方依据的六项，加兜底 `other`。
+ * 曾经留过的 `cdn` 已移除——`ENV_USAGE_MODULE_VALUES` 里没有任何码指向它，留着就是个永不产出的死键。
+ *
  * **只有含义明确才给具体键**：`VM`（找不到能确认它指什么的出处）与 `EKS`（无对应类目）
  * 以及任何未列出的码一律落 `other`——宁可少说，也不编一个不准的名字。
- * （`cdn` 目前没有任何模块码映射到它，标签留着备用。）
  */
 export type CreditsModuleKey =
   | "functions"
   | "database"
   | "storage"
-  | "cdn"
   | "ai"
   | "auth"
   | "api"
@@ -53,7 +53,6 @@ export const CREDITS_MODULE_KEYS: readonly CreditsModuleKey[] = [
   "functions",
   "database",
   "storage",
-  "cdn",
   "ai",
   "auth",
   "api",
@@ -259,8 +258,16 @@ export function sumCreditsValue(
 }
 
 /**
- * 分模块用量：模块码一律映射成**规范键**（认不出的落 `other`，绝不透传原始码）；
- * 缺 `CreditsValue` 的条目跳过（不按 0 计）。一个模块都出不来则不传。
+ * 分模块用量：模块码一律映射成**规范键**（认不出的落 `other`，绝不透传原始码），
+ * 并且**按规范键聚合**——同一键的多条累加。
+ *
+ * 为什么必须聚合：默认查询（不传 `type`）是全模块，而 `EKS` / `HOSTING` / `VM` / `Workflow`
+ * 等多个码都会落 `other`；不聚合的话面板会渲染成「其它 5 · 其它 3 · 其它 1」这种重复行。
+ * 聚合只影响**展示行**，不改变 `used` 的来源口径（`used` 仍是 `sumCreditsValue` 逐条求和，
+ * 两者数值一致）。
+ *
+ * 缺 `CreditsValue` 的条目跳过（不按 0 计）；一个模块都出不来则不传。行的顺序 = 各规范键
+ * 首次出现的顺序。
  */
 export function mapCreditsModules(
   usages?: ReadonlyArray<CreditsUsageLike> | null,
@@ -268,16 +275,20 @@ export function mapCreditsModules(
   if (!Array.isArray(usages)) {
     return undefined;
   }
-  const out: Array<{ module: CreditsModuleKey; credits_value: number }> = [];
+  const totals = new Map<CreditsModuleKey, number>();
   for (const item of usages) {
     const raw = typeof item?.Module === "string" ? item.Module.trim() : "";
     const value = finiteCreditsValue(item);
     if (!raw || value === null) {
       continue;
     }
-    out.push({ module: moduleKeyOf(raw), credits_value: value });
+    const key = moduleKeyOf(raw);
+    totals.set(key, (totals.get(key) ?? 0) + value);
   }
-  return out.length > 0 ? out : undefined;
+  if (totals.size === 0) {
+    return undefined;
+  }
+  return [...totals.entries()].map(([module, credits_value]) => ({ module, credits_value }));
 }
 
 /**
