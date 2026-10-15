@@ -43,9 +43,20 @@
 | 持续高位、长期增长 | 升配套餐，单位成本更低 |
 | 波动大、说不准 | 开启超限按量，用多少扣多少（次日结算） |
 
+## 超限按量开关（`EnableOverrun`）
+
+**默认是关的**。关着的时候，套餐内资源用量耗尽即**直接停服** —— 数据库、云函数、云存储等所有服务不可用，不是"降级"也不是"只读"。官方的原话是「**强烈建议所有生产环境开启此功能**」。
+
+- 开启后：超出套餐额度的部分自动转为按量计费，业务不中断
+- 两种开法：购买时（`CreateEnv` 传 `EnableOverrun: "TRUE"`，一步到位）；购买后（改环境附加信息的接口，传 `EnvId` + `EnableOverrun: TRUE/FALSE`）
+- 所以**付费套餐耗尽那一支，最省事的止血动作是先把开关打开**，再谈升配还是买资源包
+- 口径出处：https://docs.cloudbase.net/solutions/cloudbase-for-platforms/quota
+
+⚠️ 免费体验版**不能**开按量、也不能买资源包（见「踩坑清单」），别对体验版用户提这个开关。
+
 ## 恢复入口
 
-- **套餐 / 资源包**：云开发控制台 `https://tcb.cloud.tencent.com/dev?envId=<envId>` 的**套餐用量页**——升级套餐、购买资源包、开启超限按量都在这一页
+- **套餐 / 资源包 / 超限按量**：云开发控制台 `https://tcb.cloud.tencent.com/dev?envId=<envId>` 的**套餐用量页**——升级套餐、购买资源包、开启超限按量都在这一页
 - **价格与规则**：https://buy.cloud.tencent.com/price/tcb/overview
 - **账户充值**：腾讯云费用中心 https://console.cloud.tencent.com/expense
 
