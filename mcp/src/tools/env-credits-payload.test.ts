@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { mcpUiCredits } from "../i18n/locales/modules/mcpUiCredits.js";
+import { buildEnvCreditsHtml } from "../resources/env-credits.js";
 import {
   buildCreditsSpark,
   buildEnvCreditsPayload,
@@ -268,6 +270,25 @@ describe("用量换算", () => {
       { Module: "Workflow", CreditsValue: 3 },
     ]) ?? [];
     expect(rowOrder.map((row) => row.module)).toEqual(["hosting", "functions", "workflow"]);
+  });
+
+  it("规范集里的每个键在词典与客户端标签表里都有标签（否则该行会静默消失）", () => {
+    const zh = mcpUiCredits.zh as Record<string, string>;
+    const en = mcpUiCredits.en as Record<string, string>;
+    const panelHtml = buildEnvCreditsHtml("en", {
+      envId: null,
+      site: "domestic",
+      region: "ap-shanghai",
+    });
+
+    for (const key of CREDITS_MODULE_KEYS) {
+      // 词典（中英各一份，非空）
+      expect(zh[`module.${key}`], `zh 缺 module.${key}`).toBeTruthy();
+      expect(en[`module.${key}`], `en 缺 module.${key}`).toBeTruthy();
+      // 客户端 T.module 真的把这一键接进了面板（否则客户端兜底是空串，整行不显示）。
+      // 生成的是脚本里的 JS 对象字面量，所以是真实的双引号，不是 HTML 转义后的实体。
+      expect(panelHtml, `客户端 T.module 缺 ${key}`).toContain(`${key}: "`);
+    }
   });
 
   it("缺 CreditsValue 的条目在求和与分模块处跳过、不当 0（曲线不受它影响，见下一条）", () => {
