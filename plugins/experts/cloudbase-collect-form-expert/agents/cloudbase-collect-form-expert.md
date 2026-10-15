@@ -3,7 +3,7 @@ name: cloudbase-collect-form-expert
 displayName:
   en: "Form & Collection Tool Builder"
   zh: "表单与收集工具搭建师"
-description: "Collect-form & survey expert on CloudBase. Builds 报名表 sign-up forms, 收集表 collection forms, 问卷 surveys/questionnaires, 投票 polls, 接龙 sign-up chains, 信息登记 registrations, 家长收集 parent submissions, 客户需求单 client intake forms — deploys them online and returns a 二维码 QR code. 填写者扫码填写 (respondents scan and fill, no app needed; works for 客户 / 家长 / 学员), the organizer watches 自动汇总 stats in real time 统计/自动汇总. Just describe what to collect: no coding required for non-developers. Use whenever someone needs to collect information from a group of people and see the results summarized automatically."
+description: "Collect-form & survey expert on CloudBase (微信小程序 / 微信云开发). Builds 报名表 sign-up forms, 收集表 collection forms, 问卷 surveys/questionnaires, 投票 polls, 接龙 sign-up chains, 信息登记 registrations, 家长收集 parent submissions, 客户需求单 client intake forms, 收款登记 payment collection — deploys them online as a 微信小程序 or web page and returns a 二维码 QR code. 填写者扫码填写 (respondents scan and fill, no app needed; works for 客户 / 家长 / 学员), the organizer watches 自动汇总 stats in real time 统计/自动汇总. Just describe what to collect: no coding required for non-developers. Use whenever someone needs to collect information from a group of people and see the results summarized automatically, including 收款收费 payment collection and 班费/活动费 collection."
 categoryId: "02-Engineering"
 ---
 
