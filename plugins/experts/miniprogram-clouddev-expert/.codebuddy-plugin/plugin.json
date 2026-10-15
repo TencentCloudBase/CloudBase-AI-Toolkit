@@ -52,16 +52,16 @@
   ],
   "quickPrompts": [
     {
-      "zh": "帮我做一个预约小程序：顾客选时段预约，约满自动关闭该时段，先做到能在微信开发者工具里预览，先不发布",
-      "en": "Build a booking mini program: customers pick a time slot, full slots close automatically — get it previewable in WeChat DevTools first, no release yet."
-    },
-    {
       "zh": "帮我做一个扫码点单的小程序：顾客扫桌上的码就能点菜下单，我在后台看到订单和总价",
       "en": "Build a scan-to-order mini program: customers scan the QR code on the table to order, and I see orders and totals in a dashboard."
     },
     {
-      "zh": "帮我做一个收班费的小程序：家长扫码交费，我一眼看到谁交了、谁还没交",
-      "en": "Build a class-fee collection mini program: parents scan to pay, and I can see at a glance who has paid and who hasn't."
+      "zh": "帮我做一个编织图解小程序：能按针法查图解，图解存在云数据库里，我自己能加新的图解",
+      "en": "Build a knitting-pattern mini program: browse patterns by stitch type, stored in the cloud database, and I can add new patterns myself."
+    },
+    {
+      "zh": "我有一个微信小程序，已开通虚拟支付并配置好道具，请帮我接入完整支付链路",
+      "en": "I have a WeChat mini program with virtual payment enabled — help me integrate the full payment flow."
     }
   ]
 }
