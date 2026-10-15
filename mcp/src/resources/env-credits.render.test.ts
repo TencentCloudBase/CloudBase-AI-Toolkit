@@ -522,6 +522,8 @@ describe("env-credits 面板脚本运行时", () => {
     });
     expect(unknownRegion).toBe(`${unavailable}${open}${L("mcpUi.site.domestic")}${close}`);
     expect(unknownRegion).not.toContain("ap-unknown");
+    // 实时值"存在但译不出"不得长得和"环境就在本地"一样
+    expect(unknownRegion).not.toBe(localFallback);
 
     // ④ 两半都不可译 ⇒ 只出一个「—」（不是「—（—）」），且不含任何原始码
     const bothUnknown = place({
@@ -533,6 +535,36 @@ describe("env-credits 面板脚本运行时", () => {
     expect(bothUnknown).toBe(unavailable);
     expect(bothUnknown).not.toContain("ap-unknown");
     expect(bothUnknown).not.toContain("weird-site");
+  });
+
+  it("位置标签表与词典同源：脚本查表逐项等于词典值（不再两处各写一张表）", () => {
+    const script = HTML.match(/<script>([\s\S]*?)<\/script>/i)?.[1] ?? "";
+    const REGION_KEYS: Record<string, string> = {
+      "ap-shanghai": "apShanghai",
+      "ap-guangzhou": "apGuangzhou",
+      "ap-beijing": "apBeijing",
+      "ap-nanjing": "apNanjing",
+      "ap-chengdu": "apChengdu",
+      "ap-hongkong": "apHongkong",
+      "ap-singapore": "apSingapore",
+      "na-siliconvalley": "naSiliconvalley",
+      "eu-frankfurt": "euFrankfurt",
+    };
+
+    const regionPairs = [...(script.match(/region: \{([^}]*)\}/)?.[1] ?? "").matchAll(/"([^"]+)":"([^"]*)"/g)];
+    expect(regionPairs, "脚本里的地域表应有 9 项").toHaveLength(9);
+    for (const [, code, label] of regionPairs) {
+      expect(REGION_KEYS[code], `${code} 应在映射表里`).toBeTruthy();
+      expect(label, `${code} 的脚本标签应与词典一致`).toBe(L(`mcpUi.region.${REGION_KEYS[code]}`));
+    }
+
+    const sitePairs = [...(script.match(/site: \{([^}]*)\}/)?.[1] ?? "").matchAll(/"([^"]+)":"([^"]*)"/g)];
+    expect(sitePairs, "脚本里的站点表应有 2 项").toHaveLength(2);
+    for (const [, code, label] of sitePairs) {
+      expect(label, `${code} 的脚本标签应与词典一致`).toBe(
+        L(code === "domestic" ? "mcpUi.site.domestic" : "mcpUi.site.intl"),
+      );
+    }
   });
 
   it("读不懂的返回：状态回「未确认」、正文不含原文、原文只进折叠区", () => {
