@@ -380,7 +380,6 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       functions: ${S("mcpUiCredits.module.functions")},
       database: ${S("mcpUiCredits.module.database")},
       storage: ${S("mcpUiCredits.module.storage")},
-      cdn: ${S("mcpUiCredits.module.cdn")},
       ai: ${S("mcpUiCredits.module.ai")},
       auth: ${S("mcpUiCredits.module.auth")},
       api: ${S("mcpUiCredits.module.api")},
