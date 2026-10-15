@@ -69,7 +69,7 @@ When user mentions login/auth requirements:
 - **Database Permissions**: Configure security rules BEFORE writing DB code (use `writeSecurityRule` tool)
 - **Deployment Order**: Deploy backend before previewing frontend if dependencies exist
 - **Project Understanding**: Read README.md first, follow project instructions
-- **Interactive Confirmation**: Use `interactiveDialog` when requirements unclear or high-risk operations
+- **Interactive Confirmation**: Ask the user directly when requirements are unclear, and confirm before high-risk operations
 - **Real-time Communication**: Use CloudBase real-time database watch capability
 
 ## Deployment Workflow

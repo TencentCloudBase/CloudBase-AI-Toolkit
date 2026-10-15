@@ -68,7 +68,6 @@ export type {
   HostedMcpRequestInput,
   HostedClientInfoRecord,
 } from "./hosted/index.js";
-export type { InteractiveResult } from "./interactive-server.js";
 
 // Export runtime constants for multi-language support
 export {
@@ -81,15 +80,3 @@ export {
   DEFAULT_NODEJS_RUNTIME,
   validateTimerCron,
 } from "./tools/functions.js";
-
-/**
- * Get interactive server instance (CommonJS compatible)
- */
-export async function getInteractiveServerAsync() {
-  if (typeof require !== 'undefined' && typeof import.meta === 'undefined') {
-    throw new Error('Interactive server requires ESM environment or dynamic import. Please use: const { getInteractiveServer } = await import("@cloudbase/cloudbase-mcp")');
-  }
-  
-  const { getInteractiveServer } = await import("./interactive-server.js");
-  return getInteractiveServer(undefined);
-}
