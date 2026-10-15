@@ -480,6 +480,61 @@ describe("env-credits 面板脚本运行时", () => {
     expect(panel2.el("c-hint").textContent).toBe(L("mcpUiCredits.hint.arrears"));
   });
 
+  it("位置行：实时地域优先；缺字段才回落本地；实时值不可译时出「—」而绝不泄露原始码", () => {
+    const open = L("mcpUi.place.open");
+    const close = L("mcpUi.place.close");
+    const unavailable = L("mcpUiCredits.value.unavailable");
+    const place = (payload: unknown) => render(payload).el("k-place").textContent;
+    // 本文件的面板以 { site: "domestic", region: "ap-shanghai" } 作本地兜底
+    const localFallback = `${L("mcpUi.region.apShanghai")}${open}${L("mcpUi.site.domestic")}${close}`;
+
+    // ① 载荷问的是**另一个地域**的环境 ⇒ 位置行跟着载荷走，而不是本地兜底
+    const live = buildEnvCreditsPayload({
+      ...BASE,
+      planRaw: "baas_free",
+      usages: [usage("SCF", 1)],
+      expired: false,
+      region: "ap-guangzhou",
+      site: "domestic",
+    });
+    expect((live as { current_region?: string }).current_region).toBe("ap-guangzhou");
+    expect(place(live)).toBe(
+      `${L("mcpUi.region.apGuangzhou")}${open}${L("mcpUi.site.domestic")}${close}`,
+    );
+    expect(place(live)).not.toBe(localFallback);
+
+    // ② 载荷**不带** current_region ⇒ 该半回落本地；只带 site 时拼接形态是 `地域（站点）`
+    expect(place({ branch: "normal", credits: { total: 3000, used: 1 } })).toBe(localFallback);
+    expect(place({ branch: "normal", credits: { total: 3000, used: 1 }, site: "intl" })).toBe(
+      `${L("mcpUi.region.apShanghai")}${open}${L("mcpUi.site.intl")}${close}`,
+    );
+    // 两个都不带 ⇒ 都回落本地
+    expect(
+      place({ branch: "normal", credits: { total: 3000, used: 1 } }),
+    ).toBe(localFallback);
+
+    // ③ 实时值存在但**不可译** ⇒ 显示「—」，既不打原始码、也不冒充本地位置
+    const unknownRegion = place({
+      branch: "normal",
+      credits: { total: 3000, used: 1 },
+      current_region: "ap-unknown",
+      site: "domestic",
+    });
+    expect(unknownRegion).toBe(`${unavailable}${open}${L("mcpUi.site.domestic")}${close}`);
+    expect(unknownRegion).not.toContain("ap-unknown");
+
+    // ④ 两半都不可译 ⇒ 只出一个「—」（不是「—（—）」），且不含任何原始码
+    const bothUnknown = place({
+      branch: "normal",
+      credits: { total: 3000, used: 1 },
+      current_region: "ap-unknown",
+      site: "weird-site",
+    });
+    expect(bothUnknown).toBe(unavailable);
+    expect(bothUnknown).not.toContain("ap-unknown");
+    expect(bothUnknown).not.toContain("weird-site");
+  });
+
   it("读不懂的返回：状态回「未确认」、正文不含原文、原文只进折叠区", () => {
     const panel = loadPanel(HTML);
     panel.dispatch({ content: [{ type: "text", text: "<b>NOT-JSON-MARKER</b>" }] });
@@ -518,16 +573,15 @@ describe("env-credits 面板脚本运行时", () => {
       ].sort(),
     );
 
-    // 逐字段被面板真正消费（同一条载荷渲染出来）。
-    // 注意：`current_region` / `site` **当前不被面板脚本消费** —— 位置行 `#k-place` 是
-    // 构建期由 `buildEnvCreditsHtml(lang, fallback)` 的 fallback（本地解析）写死的静态文本，
-    // 所以这里不断言它（不把该缺口 pin 成"预期"；详见 specs/mcp-ui/env-credits-review-2026-10-15.md）。
+    // 逐字段被面板真正消费（同一条载荷渲染出来）
     const panel = render(payload);
     expect(panel.el("c-title").textContent).toContain("演示环境");
     expect(panel.el("k-plan").textContent).toBe(L("mcpUiCredits.plan.trial"));
     expect(panel.el("k-balance").textContent).toContain("12.50");
     expect(panel.el("k-expired").hidden).toBe(false);
     expect(panel.el("k-mods").textContent).toContain(L("mcpUiCredits.module.functions"));
+    // current_region / site 也被位置行消费（见下一条用例）
+    expect(panel.el("k-place").textContent).toContain(L("mcpUi.region.apShanghai"));
   });
 
   it("面板不发起任何 tools/call（只读面板，纯展示）", () => {
