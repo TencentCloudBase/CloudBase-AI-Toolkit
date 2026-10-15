@@ -27,11 +27,12 @@ const PAID_PLAN_CODES: readonly PlanCode[] = [
 ];
 
 /**
- * 面板模块的**规范键**集合（固定；云 API 的模块码一律不出现在载荷里）。
+ * 面板模块的**规范键**集合（固定 8 个；云 API 的模块码一律不出现在载荷里）。
  *
- * `functions` / `database` / `storage` / `cdn` 是既有四项，其余按含义映射；
- * **含义拿不准的一律落 `other`**——宁可少说，也不要把内部码或够不着的语义硬凑到某个标签上。
- * （`cdn` 目前没有任何模块码映射到它，保留在集合里备用。）
+ * `functions` / `database` / `storage` / `cdn` 是既有四项，`ai` / `auth` / `api` 是含义明确的三项，
+ * 加一个兜底 `other`。**只有含义明确才给具体键**：`HOSTING`（云托管还是静态托管不确定）、
+ * `VM`（形态不确定）、`Workflow` 以及任何未列出的码一律落 `other`——宁可少说，
+ * 也不要编一个不准的名字。（`cdn` 目前没有任何模块码映射到它，保留在集合里备用。）
  */
 export type CreditsModuleKey =
   | "functions"
@@ -41,23 +42,8 @@ export type CreditsModuleKey =
   | "ai"
   | "auth"
   | "api"
-  | "hosting"
-  | "workflow"
-  | "vm"
   | "other";
 
-/**
- * 云 API 模块码 → 规范键。按 `ENV_USAGE_MODULE_VALUES`（`env.ts`）逐项映射：
- *   FLEXDB(文档型数据库) / TDSQL(关系型数据库) → database；SCF(云函数) → functions
- *   COS(对象存储) → storage；AI → ai；Auth(身份认证) → auth
- *   APIInvocation(小程序 / 云开发 API 调用) → api；HOSTING(静态网站托管) → hosting
- *   VM → vm；Workflow(工作流) → workflow
- *   EKS(容器类) / HTTPInvocation(HTTP 网关) / Other → other
- *     —— 后两者不是"没看懂"，而是规范键里没有容器 / 网关这一类，按口径落 `other` 而不是硬凑。
- *
- * 默认查询（不传 `type`）是**全模块**，所以这张表必须覆盖全部 13 个模块码；漏掉任何一个都会被
- * `?? "other"` 兜底，不会再原样透传给用户。
- */
 /** 规范键集合的数组形式（测试用来断言"结果一定落在集合内、绝无原始码"）。 */
 export const CREDITS_MODULE_KEYS: readonly CreditsModuleKey[] = [
   "functions",
@@ -67,25 +53,35 @@ export const CREDITS_MODULE_KEYS: readonly CreditsModuleKey[] = [
   "ai",
   "auth",
   "api",
-  "hosting",
-  "workflow",
-  "vm",
   "other",
 ];
 
+/**
+ * 云 API 模块码 → 规范键。按 `ENV_USAGE_MODULE_VALUES`（`env.ts`）逐项映射，
+ * **只有含义明确的才给具体键**：
+ *   FLEXDB(文档型数据库) / TDSQL(关系型数据库) → database；SCF(云函数) → functions
+ *   COS(对象存储) → storage；AI → ai；Auth(身份认证) → auth
+ *   APIInvocation(小程序 / 云开发 API 调用) → api
+ *   EKS / HOSTING / HTTPInvocation / VM / Workflow / Other → other
+ *     —— 不是"没看懂"，而是这些码对应的产品形态 / 类目在本面板里没有把握，
+ *        按口径落 `other`（"其它"）而不是编一个不准的名字。
+ *
+ * 默认查询（不传 `type`）是**全模块**，所以这张表必须覆盖全部 13 个模块码；漏掉任何一个都会被
+ * `?? "other"` 兜底，不会再原样透传给用户。
+ */
 const MODULE_KEY_MAP: Record<string, CreditsModuleKey> = {
   FLEXDB: "database",
   TDSQL: "database",
   SCF: "functions",
-  EKS: "other",
   COS: "storage",
   AI: "ai",
-  HOSTING: "hosting",
   AUTH: "auth",
   APIINVOCATION: "api",
+  EKS: "other",
+  HOSTING: "other",
   HTTPINVOCATION: "other",
-  VM: "vm",
-  WORKFLOW: "workflow",
+  VM: "other",
+  WORKFLOW: "other",
   OTHER: "other",
 };
 

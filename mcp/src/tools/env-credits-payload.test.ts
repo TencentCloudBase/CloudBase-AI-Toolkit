@@ -166,7 +166,8 @@ describe("用量换算", () => {
     expect(mapCreditsModules([SCF, COS, { Module: "HOSTING", CreditsValue: 3 }])).toEqual([
       { module: "functions", credits_value: 12 },
       { module: "storage", credits_value: 30 },
-      { module: "hosting", credits_value: 3 },
+      // HOSTING 的产品形态拿不准 ⇒ 落 other，不编 "hosting" 这种名字
+      { module: "other", credits_value: 3 },
     ]);
     // 认不出的码（含大小写/空白差异）也落 other，不原样出现
     expect(moduleKeyOf("ZZZ-UNKNOWN")).toBe("other");
@@ -178,7 +179,17 @@ describe("用量换算", () => {
     expect(mapCreditsModules(null)).toBeUndefined();
   });
 
-  it("规范键集合覆盖每个已知模块码（含 TDSQL / EKS / VM / Workflow / HTTPInvocation）", () => {
+  it("规范键集合固定 8 个，且覆盖每个已知模块码", () => {
+    expect([...CREDITS_MODULE_KEYS]).toEqual([
+      "functions",
+      "database",
+      "storage",
+      "cdn",
+      "ai",
+      "auth",
+      "api",
+      "other",
+    ]);
     const codes = [
       "FLEXDB",
       "TDSQL",
@@ -201,7 +212,7 @@ describe("用量换算", () => {
       expect(key).toBe(key.toLowerCase());
       expect(key).not.toBe(code);
     }
-    // 按含义映射（不是全都落 other）
+    // 只有含义明确的才给具体键
     expect(moduleKeyOf("FLEXDB")).toBe("database");
     expect(moduleKeyOf("TDSQL")).toBe("database");
     expect(moduleKeyOf("SCF")).toBe("functions");
@@ -209,12 +220,12 @@ describe("用量换算", () => {
     expect(moduleKeyOf("AI")).toBe("ai");
     expect(moduleKeyOf("Auth")).toBe("auth");
     expect(moduleKeyOf("APIInvocation")).toBe("api");
-    expect(moduleKeyOf("HOSTING")).toBe("hosting");
-    expect(moduleKeyOf("VM")).toBe("vm");
-    expect(moduleKeyOf("Workflow")).toBe("workflow");
-    // 规范键里没有容器 / 网关这一类 ⇒ 明确落 other，不硬凑
+    // 形态 / 类目拿不准的一律落 other（宁可少说，不编不准的名字）
     expect(moduleKeyOf("EKS")).toBe("other");
+    expect(moduleKeyOf("HOSTING")).toBe("other");
     expect(moduleKeyOf("HTTPInvocation")).toBe("other");
+    expect(moduleKeyOf("VM")).toBe("other");
+    expect(moduleKeyOf("Workflow")).toBe("other");
     expect(moduleKeyOf("Other")).toBe("other");
   });
 
