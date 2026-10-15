@@ -62,6 +62,14 @@
     {
       "zh": "我有一个微信小程序，已开通虚拟支付并配置好道具，请帮我接入完整支付链路",
       "en": "I have a WeChat mini program with virtual payment enabled — help me integrate the full payment flow."
+    },
+    {
+      "zh": "帮我做一个扫码点单的小程序：顾客扫桌上的码就能点菜下单，我在后台看到订单和总价",
+      "en": "Build a scan-to-order mini program: customers scan the QR code on the table to order, and I see orders and totals in a dashboard."
+    },
+    {
+      "zh": "帮我做一个收班费的小程序：家长扫码交费，我一眼看到谁交了、谁还没交",
+      "en": "Build a class-fee collection mini program: parents scan to pay, and I can see at a glance who has paid and who hasn't."
     }
   ]
 }
