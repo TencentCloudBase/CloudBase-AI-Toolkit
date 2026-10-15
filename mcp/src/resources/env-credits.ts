@@ -493,14 +493,19 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     return table[code] || "";
   }
   function placeOf(payload) {
-    var region = hasField(payload, "current_region")
-      ? (codeLabel(T.region, payload.current_region) || FALLBACK.region)
-      : FALLBACK.region;
-    var site = hasField(payload, "site")
-      ? (codeLabel(T.site, payload.site) || FALLBACK.site)
-      : FALLBACK.site;
-    if (region && site) { return region + T.placeOpen + site + T.placeClose; }
-    return region || site;
+    // A live value is never replaced by the local one: when we cannot translate a code the row
+    // says so, instead of quietly showing this machine's location. Only a missing field falls back.
+    var regionLive = hasField(payload, "current_region");
+    var siteLive = hasField(payload, "site");
+    var region = regionLive ? codeLabel(T.region, payload.current_region) : FALLBACK.region;
+    var site = siteLive ? codeLabel(T.site, payload.site) : FALLBACK.site;
+    if (regionLive && !region) { region = T.unavailable; }
+    if (siteLive && !site) { site = T.unavailable; }
+    if (region && site) {
+      if (region === T.unavailable && site === T.unavailable) { return T.unavailable; }
+      return region + T.placeOpen + site + T.placeClose;
+    }
+    return region || site || T.unavailable;
   }
   function hasField(payload, key) {
     return !!payload && typeof payload === "object" && key in payload;
