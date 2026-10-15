@@ -83,6 +83,9 @@ export const mcpUiCredits = defineModule(
     "module.ai": "AI",
     "module.auth": "身份认证",
     "module.api": "API 调用",
+    "module.http": "HTTP 网关",
+    "module.hosting": "托管",
+    "module.workflow": "工作流",
     "module.other": "其它",
 
     // 套餐名（仅有这五种）
@@ -155,6 +158,9 @@ export const mcpUiCredits = defineModule(
     "module.ai": "AI",
     "module.auth": "Identity",
     "module.api": "API calls",
+    "module.http": "HTTP gateway",
+    "module.hosting": "Hosting",
+    "module.workflow": "Workflow",
     "module.other": "Other",
 
     "plan.trial": "Free trial",

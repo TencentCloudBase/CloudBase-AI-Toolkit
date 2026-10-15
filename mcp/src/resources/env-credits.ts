@@ -384,6 +384,9 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       ai: ${S("mcpUiCredits.module.ai")},
       auth: ${S("mcpUiCredits.module.auth")},
       api: ${S("mcpUiCredits.module.api")},
+      http: ${S("mcpUiCredits.module.http")},
+      hosting: ${S("mcpUiCredits.module.hosting")},
+      workflow: ${S("mcpUiCredits.module.workflow")},
       other: ${S("mcpUiCredits.module.other")}
     }
   };
