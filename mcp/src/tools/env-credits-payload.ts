@@ -27,12 +27,13 @@ const PAID_PLAN_CODES: readonly PlanCode[] = [
 ];
 
 /**
- * 面板模块的**规范键**集合（固定 8 个；云 API 的模块码一律不出现在载荷里）。
+ * 面板模块的**规范键**集合（固定 11 个；云 API 的模块码一律不出现在载荷里）。
  *
- * `functions` / `database` / `storage` / `cdn` 是既有四项，`ai` / `auth` / `api` 是含义明确的三项，
- * 加一个兜底 `other`。**只有含义明确才给具体键**：`HOSTING`（云托管还是静态托管不确定）、
- * `VM`（形态不确定）、`Workflow` 以及任何未列出的码一律落 `other`——宁可少说，
- * 也不要编一个不准的名字。（`cdn` 目前没有任何模块码映射到它，保留在集合里备用。）
+ * `functions` / `database` / `storage` / `cdn` 是既有四项，`ai` / `auth` / `api` / `http` /
+ * `hosting` / `workflow` 是有官方依据的六项，加兜底 `other`。
+ * **只有含义明确才给具体键**：`VM`（找不到能确认它指什么的出处）与 `EKS`（无对应类目）
+ * 以及任何未列出的码一律落 `other`——宁可少说，也不编一个不准的名字。
+ * （`cdn` 目前没有任何模块码映射到它，标签留着备用。）
  */
 export type CreditsModuleKey =
   | "functions"
@@ -42,6 +43,9 @@ export type CreditsModuleKey =
   | "ai"
   | "auth"
   | "api"
+  | "http"
+  | "hosting"
+  | "workflow"
   | "other";
 
 /** 规范键集合的数组形式（测试用来断言"结果一定落在集合内、绝无原始码"）。 */
@@ -53,18 +57,22 @@ export const CREDITS_MODULE_KEYS: readonly CreditsModuleKey[] = [
   "ai",
   "auth",
   "api",
+  "http",
+  "hosting",
+  "workflow",
   "other",
 ];
 
 /**
  * 云 API 模块码 → 规范键。按 `ENV_USAGE_MODULE_VALUES`（`env.ts`）逐项映射，
- * **只有含义明确的才给具体键**：
+ * **只有含义明确（有官方依据）的才给具体键**：
  *   FLEXDB(文档型数据库) / TDSQL(关系型数据库) → database；SCF(云函数) → functions
  *   COS(对象存储) → storage；AI → ai；Auth(身份认证) → auth
  *   APIInvocation(小程序 / 云开发 API 调用) → api
- *   EKS / HOSTING / HTTPInvocation / VM / Workflow / Other → other
- *     —— 不是"没看懂"，而是这些码对应的产品形态 / 类目在本面板里没有把握，
- *        按口径落 `other`（"其它"）而不是编一个不准的名字。
+ *   HTTPInvocation(HTTP 网关，资源点计费文档里是独立计费项) → http
+ *   HOSTING(托管) → hosting；Workflow(工作流，独立计费项) → workflow
+ *   EKS（无对应类目）/ VM（找不到能确认它指什么的出处）/ Other → other
+ *     —— 不是"没看懂"，而是没有把握，按口径落 `other`（"其它"）而不是编一个不准的名字。
  *
  * 默认查询（不传 `type`）是**全模块**，所以这张表必须覆盖全部 13 个模块码；漏掉任何一个都会被
  * `?? "other"` 兜底，不会再原样透传给用户。
@@ -77,11 +85,11 @@ const MODULE_KEY_MAP: Record<string, CreditsModuleKey> = {
   AI: "ai",
   AUTH: "auth",
   APIINVOCATION: "api",
+  HTTPINVOCATION: "http",
+  HOSTING: "hosting",
+  WORKFLOW: "workflow",
   EKS: "other",
-  HOSTING: "other",
-  HTTPINVOCATION: "other",
   VM: "other",
-  WORKFLOW: "other",
   OTHER: "other",
 };
 
@@ -206,6 +214,22 @@ export interface CreditsUsageLike {
 }
 
 /**
+ * 求和是否**完整**：数组存在、且**每个**条目都带有限数 `CreditsValue`。
+ *
+ * 空列表视为完整（没有条目缺失，和为真实的 0）；拿不到列表视为不完整。
+ * 不完整的和不配拿去做结论——部分和配全量配额会得出错误的"用量正常"（与"按 type 过滤"
+ * 是同一类问题），所以调用方要据此省略 `total` 并把结论压成 `unknown`。
+ */
+export function isCreditsSumComplete(
+  usages?: ReadonlyArray<CreditsUsageLike> | null,
+): boolean {
+  if (!Array.isArray(usages)) {
+    return false;
+  }
+  return usages.every((item) => finiteCreditsValue(item) !== null);
+}
+
+/**
  * `Usages[].CreditsValue` 求和。三种情况严格区分：
  *   - 列表本身拿不到（不是数组）→ `null`；
  *   - **空列表 → `0`**（"查询成功，这一周期确实没用量"，是真实的值）；
@@ -260,8 +284,10 @@ export function mapCreditsModules(
  * 近 7 天逐点用量：把各模块 / 各指标的 `ValueDetailList` 按 `CalcTime` 汇总（同一时刻相加），
  * 按时间升序取最后 `limit` 个点。`CalcTime` 是有序字符串（`YYYY-MM-DD[ HH:mm:ss]`），字典序即时间序。
  *
- * 与求和同口径：缺 `CreditsValue` 的**条目**跳过（与 `sumCreditsValue` / `mapCreditsModules`
- * 保持一致，避免出现"总量不算它、曲线却算了 0"），逐点明细里缺值的点也跳过。全部为空则不传。
+ * **曲线只看逐点值，不看条目级聚合值**：逐日明细本身就是真数据，条目级 `CreditsValue` 缺失
+ * 不该让整条曲线消失。缺值的是**逐点**时才跳过那一个点（不用 0 补）。
+ * 条目级聚合值缺失的**后果**不在这里体现，而是由 `buildEnvCreditsPayload` 的"求和不完整"
+ * 保护处理：省略 `total` + 结论压成 `unknown`（见那里的注释）。
  */
 export function buildCreditsSpark(
   usages?: ReadonlyArray<CreditsUsageLike> | null,
@@ -272,9 +298,6 @@ export function buildCreditsSpark(
   }
   const byTime = new Map<string, number>();
   for (const item of usages) {
-    if (finiteCreditsValue(item) === null) {
-      continue;
-    }
     const metrics = Array.isArray(item?.MetricUsageDetail) ? item.MetricUsageDetail : [];
     for (const metric of metrics) {
       const details = Array.isArray(metric?.ValueDetailList) ? metric.ValueDetailList : [];
@@ -357,12 +380,14 @@ export function resolveIsolatedDaysLeft(
 /**
  * 组装面板载荷。只放"确实拿到"的字段；拿不到的一律省略（`balance` 例外，见下）。
  *
- * `modulesFiltered` 由调用方**显式传入**（`env.ts` 在 `type` 非空时为 true），不要靠模块数量猜：
- * 过滤过的查询里 `used` 只是被选模块的**子集**，而 `total` 是整套餐配额，两者放一起会得出
- * "环境已耗尽却显示用量正常"这种错误结论。因此过滤时：
- *   - `credits` 只带 `used`（不带 `total`）；
- *   - `branch` 一律 `unknown`（"这份数据不足以判断"）；
- *   - `modules` / `spark` 照常（它们本来就是过滤后的子集，如实展示）。
+ * 两种"数字不可比"的情形都会**省掉 `total` 并把结论压成 `unknown`**（"这份数据不足以判断"），
+ * 因为拿一个不完整的用量去对全量配额，会得出错误的"用量正常"：
+ *   1. **按 `type` 过滤过**（`modulesFiltered`，由调用方显式传入、不靠模块数量猜）：
+ *      `used` 只是被选模块的子集；
+ *   2. **求和本身不完整**（任一 `Usages[]` 条目缺有限数 `CreditsValue`，见 `isCreditsSumComplete`）：
+ *      部分和。
+ * 两种情形下 `credits` 只带 `used`（面板 `pct === null` 时不画进度条），`modules` / `spark`
+ * 照常如实展示——曲线尤其不该因为条目级聚合值缺失而整条消失。
  */
 export function buildEnvCreditsPayload(input: {
   envId: string;
@@ -377,27 +402,30 @@ export function buildEnvCreditsPayload(input: {
   modulesFiltered?: boolean;
 }): EnvCreditsPayload {
   const filtered = input.modulesFiltered === true;
+  const sumComplete = isCreditsSumComplete(input.usages);
+  // 两种情形都"不可下结论"
+  const comparable = !filtered && sumComplete;
   const { plan, plan_raw } = resolvePlanCode(input.planRaw);
   const used = sumCreditsValue(input.usages);
-  // 配额查表；被过滤的查询不给 total（子集用量配全量配额会误导），套餐码认不出也不给
-  // （见 PLAN_CREDITS_TOTAL，不拿默认值兜底）。
-  const total = !filtered && plan ? PLAN_CREDITS_TOTAL[plan] : null;
-  const credits = used === null ? null : filtered ? { used } : total !== null ? { total, used } : null;
+  // 配额查表；数字不可比时不给 total，套餐码认不出也不给（见 PLAN_CREDITS_TOTAL，不拿默认值兜底）。
+  const total = comparable && plan ? PLAN_CREDITS_TOTAL[plan] : null;
+  const credits =
+    used === null ? null : comparable && total !== null ? { total, used } : { used };
   const modules = mapCreditsModules(input.usages);
   const spark = buildCreditsSpark(input.usages);
   // 余额没有只读来源（仓里没有对应调用路径）→ 如实传 null，面板隐藏该行；不为它新增请求。
   const balance = typeof input.balance === "number" ? input.balance : null;
 
   return {
-    branch: filtered
-      ? "unknown"
-      : resolveCreditsBranch({
+    branch: comparable
+      ? resolveCreditsBranch({
           plan,
           used,
           total,
           expired: input.expired,
           balance,
-        }),
+        })
+      : "unknown",
     env_alias: typeof input.envAlias === "string" && input.envAlias !== "" ? input.envAlias : null,
     env_id: input.envId,
     plan,

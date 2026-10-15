@@ -2503,8 +2503,10 @@ describe("env tools - queryEnv", () => {
       plan_raw: null,
       balance: null,
       branch: "unknown",
+      // plan 认不出来 ⇒ 不给 total（不拿默认配额兜底），但这次真的读到的 used 照给
+      credits: { used: 3 },
     });
-    expect(result.structuredContent).not.toHaveProperty("credits");
+    expect(result.structuredContent.credits).not.toHaveProperty("total");
   });
 
   it("queryEnv(metrics) should require envId and metricName", async () => {

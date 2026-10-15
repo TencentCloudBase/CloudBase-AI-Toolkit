@@ -4,6 +4,7 @@ import {
   buildEnvCreditsPayload,
   CREDITS_MODULE_KEYS,
   isBillingExpired,
+  isCreditsSumComplete,
   mapCreditsModules,
   moduleKeyOf,
   resolveCreditsBranch,
@@ -166,8 +167,7 @@ describe("用量换算", () => {
     expect(mapCreditsModules([SCF, COS, { Module: "HOSTING", CreditsValue: 3 }])).toEqual([
       { module: "functions", credits_value: 12 },
       { module: "storage", credits_value: 30 },
-      // HOSTING 的产品形态拿不准 ⇒ 落 other，不编 "hosting" 这种名字
-      { module: "other", credits_value: 3 },
+      { module: "hosting", credits_value: 3 },
     ]);
     // 认不出的码（含大小写/空白差异）也落 other，不原样出现
     expect(moduleKeyOf("ZZZ-UNKNOWN")).toBe("other");
@@ -179,7 +179,7 @@ describe("用量换算", () => {
     expect(mapCreditsModules(null)).toBeUndefined();
   });
 
-  it("规范键集合固定 8 个，且覆盖每个已知模块码", () => {
+  it("规范键集合固定 11 个，且覆盖每个已知模块码", () => {
     expect([...CREDITS_MODULE_KEYS]).toEqual([
       "functions",
       "database",
@@ -188,6 +188,9 @@ describe("用量换算", () => {
       "ai",
       "auth",
       "api",
+      "http",
+      "hosting",
+      "workflow",
       "other",
     ]);
     const codes = [
@@ -220,16 +223,17 @@ describe("用量换算", () => {
     expect(moduleKeyOf("AI")).toBe("ai");
     expect(moduleKeyOf("Auth")).toBe("auth");
     expect(moduleKeyOf("APIInvocation")).toBe("api");
-    // 形态 / 类目拿不准的一律落 other（宁可少说，不编不准的名字）
+    // 有官方依据的三项
+    expect(moduleKeyOf("HTTPInvocation")).toBe("http");
+    expect(moduleKeyOf("HOSTING")).toBe("hosting");
+    expect(moduleKeyOf("Workflow")).toBe("workflow");
+    // 没有把握的一律落 other（宁可少说，不编不准的名字）
     expect(moduleKeyOf("EKS")).toBe("other");
-    expect(moduleKeyOf("HOSTING")).toBe("other");
-    expect(moduleKeyOf("HTTPInvocation")).toBe("other");
     expect(moduleKeyOf("VM")).toBe("other");
-    expect(moduleKeyOf("Workflow")).toBe("other");
     expect(moduleKeyOf("Other")).toBe("other");
   });
 
-  it("缺 CreditsValue 的条目跳过，不当 0（求和 / 模块 / 曲线同一口径）", () => {
+  it("缺 CreditsValue 的条目在求和与分模块处跳过、不当 0（曲线不受它影响，见下一条）", () => {
     const valueless: CreditsUsageLike = {
       Module: "COS",
       MetricUsageDetail: [{ ValueDetailList: [{ CalcTime: "2026-08-09", CreditsValue: 7 }] }],
@@ -242,13 +246,24 @@ describe("用量换算", () => {
     expect(sumCreditsValue([{ Module: "SCF", CreditsValue: Number.POSITIVE_INFINITY }])).toBeNull();
     // 空列表仍是 0：查询成功、本周期确实没用量（与"拿不到"严格区分）
     expect(sumCreditsValue([])).toBe(0);
-    // 模块与曲线同样跳过该条目（不出现 credits_value: 0 / 不贡献曲线点）
+    // 分模块同样跳过该条目（不出现 credits_value: 0）
     expect(mapCreditsModules([SCF, valueless])).toEqual([{ module: "functions", credits_value: 12 }]);
+    // 但**曲线不受条目级聚合值影响**：逐日明细是真数据，照样画
     expect(buildCreditsSpark([SCF, valueless])).toEqual([
       { calc_time: "2026-08-01", credits_value: 2 },
       { calc_time: "2026-08-02", credits_value: 4 },
       { calc_time: "2026-08-03", credits_value: 6 },
+      { calc_time: "2026-08-09", credits_value: 7 },
     ]);
+  });
+
+  it("求和完整性：每个条目都有有限聚合值才算完整（空列表完整、拿不到列表不完整）", () => {
+    expect(isCreditsSumComplete([])).toBe(true);
+    expect(isCreditsSumComplete([SCF, COS])).toBe(true);
+    expect(isCreditsSumComplete(null)).toBe(false);
+    expect(isCreditsSumComplete(undefined)).toBe(false);
+    expect(isCreditsSumComplete([{ Module: "SCF" }])).toBe(false);
+    expect(isCreditsSumComplete([SCF, { Module: "COS" }])).toBe(false);
   });
 
   it("spark 按 CalcTime 汇总并只留最近 7 个点", () => {
@@ -358,6 +373,52 @@ describe("按 type 过滤过的查询：used 是子集，不能配全量 total",
   });
 });
 
+describe("求和不完整（部分和）保护：不配全量配额、不下结论", () => {
+  const detailWithoutAggregate: CreditsUsageLike = {
+    Module: "COS",
+    MetricUsageDetail: [{ ValueDetailList: [{ CalcTime: "2026-08-09", CreditsValue: 7 }] }],
+  };
+
+  it("有条目缺聚合值 ⇒ 曲线照画、省掉 total、结论压成 unknown", () => {
+    const payload = buildEnvCreditsPayload({
+      envId: "env-partial",
+      planRaw: "baas_free",
+      usages: [SCF, detailWithoutAggregate],
+      site: "domestic",
+      region: "ap-shanghai",
+      expired: false,
+    });
+
+    expect(payload.branch).toBe("unknown");
+    // 部分和照给（面板 pct === null 时不画进度条），但不配全量配额
+    expect(payload.credits).toEqual({ used: 12 });
+    expect(payload.credits).not.toHaveProperty("total");
+    // 曲线不因条目级聚合值缺失而消失（逐日明细是真数据）
+    expect(payload.spark).toEqual([
+      { calc_time: "2026-08-01", credits_value: 2 },
+      { calc_time: "2026-08-02", credits_value: 4 },
+      { calc_time: "2026-08-03", credits_value: 6 },
+      { calc_time: "2026-08-09", credits_value: 7 },
+    ]);
+    // 分模块只出有聚合值的那一项（缺值的条目不当 0）
+    expect(payload.modules).toEqual([{ module: "functions", credits_value: 12 }]);
+  });
+
+  it("对照：每个条目都有聚合值且未过滤 ⇒ 照常出 total 与结论（保护不过度触发）", () => {
+    const payload = buildEnvCreditsPayload({
+      envId: "env-complete",
+      planRaw: "baas_free",
+      usages: [SCF, COS],
+      site: "domestic",
+      region: "ap-shanghai",
+      expired: false,
+    });
+
+    expect(payload.credits).toEqual({ total: PLAN_CREDITS_TOTAL.trial, used: 42 });
+    expect(payload.branch).toBe("normal");
+  });
+});
+
 describe("buildEnvCreditsPayload", () => {
   it("体验版：credits 带上 total（3000）与 used，模块与 spark 一并给出", () => {
     const payload = buildEnvCreditsPayload({
@@ -402,7 +463,8 @@ describe("buildEnvCreditsPayload", () => {
     expect(payload.branch).toBe("normal");
     expect(payload.modules).toEqual([{ module: "functions", credits_value: 12 }]);
 
-    // 认不出的套餐码不拿任何默认配额兜底
+    // 认不出的套餐码不拿任何默认配额兜底：不传 total（也不猜结论），但真实拿到的
+    // used 照给——面板支持"只有 used、没有 total"的形态（pct === null 时不画进度条）
     const unknownPlan = buildEnvCreditsPayload({
       envId: "env-unknown-plan",
       planRaw: "baas_ultra",
@@ -413,7 +475,8 @@ describe("buildEnvCreditsPayload", () => {
     });
     expect(unknownPlan.plan).toBeNull();
     expect(unknownPlan.plan_raw).toBe("baas_ultra");
-    expect(unknownPlan).not.toHaveProperty("credits");
+    expect(unknownPlan.credits).toEqual({ used: 12 });
+    expect(unknownPlan.credits).not.toHaveProperty("total");
     expect(unknownPlan.branch).toBe("unknown");
   });
 
