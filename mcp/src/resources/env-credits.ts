@@ -36,7 +36,7 @@ export const ENV_CREDITS_RESOURCE_URI = "ui://cloudbase/env-credits";
 /** MCP Apps 资源 MUST 使用此 MIME。 */
 export const ENV_CREDITS_MIME_TYPE = "text/html;profile=mcp-app";
 
-/** 四个停服分支 + 用量正常 + 尚未拿到结果的未确认态。 */
+/** 四个告警分支（体验版耗尽 / 套餐配额用完 / 套餐到期 / 账户欠费）+ 用量正常 + 尚未拿到结果的未确认态。 */
 export type CreditsBranch =
   | "unknown"
   | "normal"
