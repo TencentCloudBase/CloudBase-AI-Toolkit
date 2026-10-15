@@ -8,7 +8,7 @@ import {
   resolveIsolatedDaysLeft,
   resolvePlanCode,
   sumCreditsValue,
-  TRIAL_CREDITS_TOTAL,
+  PLAN_CREDITS_TOTAL,
   type CreditsUsageLike,
 } from "./env-credits-payload.js";
 
@@ -98,17 +98,51 @@ describe("resolveCreditsBranch（四分支 + 信息不足）", () => {
     ).toBe("arrears");
   });
 
-  it("信息不足 → unknown（不猜）", () => {
-    // 没有 total 就判断不了"耗尽"
+  it("确认无告警 → normal（边界：total-1 是 normal、total 是耗尽）", () => {
+    expect(
+      resolveCreditsBranch({ plan: "personal", used: 39999, total: 40000, expired: false }),
+    ).toBe("normal");
+    expect(
+      resolveCreditsBranch({
+        plan: "personal",
+        used: 40000,
+        total: 40000,
+        expired: false,
+        balance: 0,
+      }),
+    ).toBe("stopped");
+    expect(
+      resolveCreditsBranch({ plan: "trial", used: 2999, total: 3000, expired: false }),
+    ).toBe("normal");
+    // 余额未知或非负都算"无告警"
+    expect(
+      resolveCreditsBranch({ plan: "trial", used: 0, total: 3000, expired: false, balance: null }),
+    ).toBe("normal");
+    expect(
+      resolveCreditsBranch({ plan: "standard", used: 1, total: 330000, expired: false, balance: 12.5 }),
+    ).toBe("normal");
+  });
+
+  it("信息不足 → unknown（不猜）：total 未知、套餐码认不出、到期未知都不给 normal", () => {
+    // 没有 total 就判断不了"耗尽"，也确认不了"够用"
     expect(resolveCreditsBranch({ plan: "standard", used: 9999, total: null })).toBe("unknown");
     // 套餐码认不出
     expect(resolveCreditsBranch({ plan: null, used: 10, total: 10 })).toBe("unknown");
     // 什么都没有
     expect(resolveCreditsBranch({ plan: null })).toBe("unknown");
-    // 用量正常（非任何告警分支）也是 unknown：面板没有"正常"这一档
+    // 用量没到顶但**到期未知**（expired 字段缺失）⇒ 不能确认无告警
     expect(resolveCreditsBranch({ plan: "trial", used: 1, total: 3000, balance: 5 })).toBe(
       "unknown",
     );
+    expect(
+      resolveCreditsBranch({ plan: "trial", used: 1, total: 3000, expired: undefined }),
+    ).toBe("unknown");
+  });
+
+  it("欠费优先于 normal：余额为负且未耗尽 → arrears", () => {
+    expect(
+      resolveCreditsBranch({ plan: "trial", used: 1, total: 3000, expired: false, balance: -3 }),
+    ).toBe("arrears");
   });
 
   it("体验版耗尽但余额为负 → unknown：trialExhausted 的话术断言「账户余额充足」，此时不成立", () => {
@@ -187,6 +221,18 @@ describe("计费时间推导", () => {
   });
 });
 
+describe("PLAN_CREDITS_TOTAL（官方文档配额表：876/127357）", () => {
+  it("五种套餐都有配额，且与文档一致（体验版 3000 / 个人版 40000 / 标准版 330000 / 企业版 1500000 / 企业高级版 6500000）", () => {
+    expect(PLAN_CREDITS_TOTAL).toEqual({
+      trial: 3000,
+      personal: 40000,
+      standard: 330000,
+      enterprise: 1500000,
+      enterpriseAdvanced: 6500000,
+    });
+  });
+});
+
 describe("buildEnvCreditsPayload", () => {
   it("体验版：credits 带上 total（3000）与 used，模块与 spark 一并给出", () => {
     const payload = buildEnvCreditsPayload({
@@ -196,17 +242,18 @@ describe("buildEnvCreditsPayload", () => {
       usages: [SCF, COS],
       site: "domestic",
       region: "ap-shanghai",
+      expired: false,
     });
 
     expect(payload).toMatchObject({
-      branch: "unknown",
+      branch: "normal",
       env_alias: "我的体验环境",
       env_id: "env-trial",
       plan: "trial",
       plan_raw: "baas_free",
       site: "domestic",
       current_region: "ap-shanghai",
-      credits: { total: TRIAL_CREDITS_TOTAL, used: 42 },
+      credits: { total: PLAN_CREDITS_TOTAL.trial, used: 42 },
       balance: null,
     });
     expect(payload.modules).toHaveLength(2);
@@ -214,20 +261,35 @@ describe("buildEnvCreditsPayload", () => {
     expect(payload.isolated_days_left).toBeUndefined();
   });
 
-  it("付费套餐：没有可读配额 ⇒ 整个 credits 不传（面板隐藏该块），但不编 total", () => {
+  it("付费套餐的 total 来自配额表（个人版 40000）；套餐码认不出才不传 credits", () => {
     const payload = buildEnvCreditsPayload({
       envId: "env-paid",
       planRaw: "baas_personal",
       usages: [SCF],
       site: "domestic",
       region: "ap-guangzhou",
+      expired: false,
       balance: null,
     });
 
     expect(payload.plan).toBe("personal");
-    expect(payload.credits).toBeUndefined();
-    expect(payload).not.toHaveProperty("credits");
+    expect(payload.credits).toEqual({ total: PLAN_CREDITS_TOTAL.personal, used: 12 });
+    expect(payload.branch).toBe("normal");
     expect(payload.modules).toEqual([{ module: "functions", credits_value: 12 }]);
+
+    // 认不出的套餐码不拿任何默认配额兜底
+    const unknownPlan = buildEnvCreditsPayload({
+      envId: "env-unknown-plan",
+      planRaw: "baas_ultra",
+      usages: [SCF],
+      site: "domestic",
+      region: "ap-guangzhou",
+      expired: false,
+    });
+    expect(unknownPlan.plan).toBeNull();
+    expect(unknownPlan.plan_raw).toBe("baas_ultra");
+    expect(unknownPlan).not.toHaveProperty("credits");
+    expect(unknownPlan.branch).toBe("unknown");
   });
 
   it("到期分支：带上隔离期剩余天数；非到期不给该字段", () => {

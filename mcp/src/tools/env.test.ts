@@ -2406,12 +2406,12 @@ describe("env tools - queryEnv", () => {
       modules: [{ module: "functions", credits_value: 12 }],
       spark: [{ calc_time: "2026-08-01", credits_value: 12 }],
       balance: null,
-      // 非告警分支：面板没有"正常"这一档，落到 unknown（契约现状，见交接说明）
-      branch: "unknown",
+      // 配额已知、用量未到顶、套餐明确未过期 ⇒ normal（能确认无告警才给 normal）
+      branch: "normal",
     });
   });
 
-  it("queryEnv(usage) 付费套餐没有可读配额 ⇒ 不传 credits，也不编 total", async () => {
+  it("queryEnv(usage) 付费套餐的 total 也走配额表（个人版 40000）", async () => {
     const describeEnvAccountCircle = vi.fn().mockResolvedValue({
       StartTime: "2026-08-01 00:00:00",
       EndTime: "2026-08-31 23:59:59",
@@ -2434,9 +2434,10 @@ describe("env tools - queryEnv", () => {
 
     expect(result.structuredContent).toMatchObject({
       plan: "personal",
+      credits: { total: 40000, used: 7 },
       modules: [{ module: "database", credits_value: 7 }],
+      branch: "normal",
     });
-    expect(result.structuredContent).not.toHaveProperty("credits");
   });
 
   it("queryEnv(usage) 环境信息取不到时逐字段降级，文本回执照常返回", async () => {
