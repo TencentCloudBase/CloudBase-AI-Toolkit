@@ -35,6 +35,7 @@ import { buildJsonToolResult, isToolPayloadError } from "./utils/tool-result.js"
 import { wrapServerWithTelemetry, applyCategoryAnnotationMeta, type ToolAnnotations } from "./utils/tool-wrapper.js";
 import { normalizeClientName } from "./utils/telemetry.js";
 import { registerGetStartedResource } from "./resources/get-started.js";
+import { registerEnvCreditsResource } from "./resources/env-credits.js";
 
 // 插件定义
 interface PluginDefinition {
@@ -447,6 +448,10 @@ export async function createCloudBaseMcpServer(options?: {
   // MCP Apps 入口面板（ui://cloudbase/get-started）。与工具同生命周期、一次性注册；
   // 必须在 connect 前完成，否则 registerCapabilities 会抛错。resources/list 仍为空。
   registerGetStartedResource(server);
+
+  // MCP Apps 环境资源用量面板（ui://cloudbase/env-credits）。同样一次性注册；
+  // 只读用量与套餐，不执行计费（引导交给会话里的技能）。
+  registerEnvCreditsResource(server);
 
   return server;
 }

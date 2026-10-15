@@ -3314,6 +3314,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
   const queryEnvToolSchema = {
     title: "env.queryTitle",
     description: "env.queryDescription",
+    // MCP Apps：把环境资源用量面板挂到查询工具上（action="usage" 时最有用；其它 action 只是同屏可见）。
+    // 不设 visibility——缺省即 model+app；设成只含 "model" 会让宿主 reject 面板发起的 tools/call。
+    _meta: { ui: { resourceUri: "ui://cloudbase/env-credits" } },
     inputSchema: {
       action: z
         .enum(["list", "info", "domains", "usage", "metrics"])
