@@ -1,4 +1,4 @@
-# Recipe 8 — 收口 Agent：工具裁剪、封装审计、专家约束
+# Recipe 9 — 收口 Agent：工具裁剪、封装审计、专家约束
 
 ## When to use
 
@@ -8,7 +8,7 @@
 - 要能审计：谁、在哪个会话、调了哪个工具、传了什么参数，事后查得到
 - 要让 Agent 遵守公司规范：新建云函数必须挂内网 VPC、对外服务必须绑自定义域名
 
-不管什么：凭证怎么进到 Agent 见 [Recipe 7](./platform-agent-connect.md)；自定义域名的具体接口序列见 [custom-domain.md](./custom-domain.md)。
+不管什么：凭证怎么进到 Agent 见 [Recipe 8](./platform-agent-connect.md)；自定义域名的具体接口序列见 [custom-domain.md](./custom-domain.md)。
 
 ## 前置权限
 

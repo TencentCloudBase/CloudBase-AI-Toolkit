@@ -23,6 +23,7 @@
 | 3 | PostgreSQL 实例变配与升级独享 | [pg-instance-spec.md](./pg-instance-spec.md) | 🟡 部分实证（2026-09-24）：`ModifyPGInstanceSpec` 升配 + 降配已跑通；**共享升独享未跑**（账号下的 PG 实例全是独享形态，该接口只接受共享实例，只拿到前置条件报错原文）；「费用与套餐」一节的资源点单价与「无需升级套餐」、以及「目标 = 现状回 `unchanged`」按文档与界面核对，**未实跑** |
 | 4 | 自定义域名接入云开发 | [custom-domain.md](./custom-domain.md) | 🟡 部分实证（2026-09-24）：现状查询、只读预检、证书读取、真实绑定与解绑（含收尾）已跑通；**未跑**——轮询到 `Status = SUCCESS`（测试域名一直停在 `PROCESSING`）、代改 DNS 解析、备案（`dnspod` / `ba` 未授权） |
 | 5 | 云开发环境的操作追溯（操作审计） | [cloud-audit-operation-trace.md](./cloud-audit-operation-trace.md) | 🟡 部分实证（2026-10-12）：账号级身份下的 `LookUpEvents` 只读查询、`cam AttachRolePolicy` 挂 `QcloudAuditReadOnlyAccess`（挂后 `ListAttachedRolePolicies` 复核条数 +1）已跑通；**未跑**——`DescribeEvents` 全序列、`GetAttributeKey`、以及**角色态（`TCB_QcsRole`）下 `cloudaudit` 是否可见**（要等一个走角色态的 MCP 会话才能验） |
+| 6 | 资源点耗尽与停服报错的判别 | [credits-exhaustion.md](./credits-exhaustion.md) | 🟡 文档核对，未实跑（2026-10-15）：判别序列与恢复路径按官方计费文档与套餐规则整理，**未在资源点耗尽的环境上实跑**；`InsufficientBalance` 的触发条件、以及无 `billing` 权限时账户余额查询的报错形态，先按「验证步骤」只读自检再用 |
 
 ## 没有独立 recipe 的场景
 

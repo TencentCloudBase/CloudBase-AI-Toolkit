@@ -1,14 +1,14 @@
-# Recipe 7 — 把环境接到用户的 Agent
+# Recipe 8 — 把环境接到用户的 Agent
 
 ## When to use
 
-环境 ID 与 API Key 已经发到用户手上（见 [Recipe 6](./platform-onboarding.md)），现在要把这份凭证真正接进 Agent：
+环境 ID 与 API Key 已经发到用户手上（见 [Recipe 7](./platform-onboarding.md)），现在要把这份凭证真正接进 Agent：
 
 - 用户在同一台机器上开发多个项目，每个项目一个环境，要求互不串
 - 想做到「用户不用手填任何东西」，甚至完全不看到密钥
 - 换过 key 或换过环境之后，Agent 还在操作旧的那个
 
-不管什么：环境还没建、凭证还没发，先做 [Recipe 6](./platform-onboarding.md)。要限制 Agent 能调哪些工具、要审计与审批，见 [Recipe 8](./platform-agent-guardrails.md)。
+不管什么：环境还没建、凭证还没发，先做 [Recipe 7](./platform-onboarding.md)。要限制 Agent 能调哪些工具、要审计与审批，见 [Recipe 9](./platform-agent-guardrails.md)。
 
 ## 前置权限
 

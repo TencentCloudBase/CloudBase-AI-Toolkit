@@ -373,7 +373,7 @@ describe("wrapServerWithTelemetry", () => {
 
       expect(message).toContain("📦 CloudBase MCP v");
       expect(message).toContain("https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-ToolKit/-/blob/main/CONTRIBUTING.md");
-      expect(message).toContain("https://cnb.cool/tencent/cloud/cloudbase/CloudBase-AI-ToolKit/-/issues/new");
+      expect(message).toContain("https://cnb.cool/tencent/cloud/cloudbase/community/-/issues/new");
       expect(message).not.toContain("body=");
       expect(message).not.toContain("env-should-not-appear-9f3c");
       expect(message).not.toContain("should-not-appear");

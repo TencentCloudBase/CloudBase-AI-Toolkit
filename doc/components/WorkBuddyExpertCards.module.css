@@ -1,0 +1,85 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+
+.card {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  background: var(--ifm-background-surface-color);
+  /* 整张卡是链接，正文不该跟着变成链接色 */
+  color: var(--ifm-font-color-base);
+  text-decoration: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  color: var(--ifm-font-color-base);
+  text-decoration: none;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  /* 覆盖 Docusaurus 给正文图片的默认边框与背景 */
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  /* --ifm-heading-color 在 Infima 里是 inherit，会把链接色继承进来 */
+  color: var(--ifm-font-color-base);
+  line-height: 1.4;
+  transition: color 0.2s ease;
+}
+
+.card:hover .name {
+  color: var(--ifm-color-primary);
+}
+
+.summary {
+  font-size: 0.8125rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.55;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+}
+
+.tag {
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 576px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

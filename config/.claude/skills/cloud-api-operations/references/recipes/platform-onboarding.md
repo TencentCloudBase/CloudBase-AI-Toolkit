@@ -1,4 +1,4 @@
-# Recipe 6 — 平台版接入：建环境、发凭证
+# Recipe 7 — 平台版接入：建环境、发凭证
 
 ## When to use
 
@@ -8,7 +8,7 @@
 - 需要一次拿到「环境 ID + 环境 API Key」这一对东西，再交给用户侧
 - 要按用户/租户批量建环境，既可能随用随建，也可能提前预创建
 
-不管什么：单个开发者自己开通自己用，走 getting-started。拿到凭证之后怎么让 Agent 用上，见 [Recipe 7](./platform-agent-connect.md)；用量、账期与环境回收见 [Recipe 9](./platform-usage-and-recycle.md)。
+不管什么：单个开发者自己开通自己用，走 getting-started。拿到凭证之后怎么让 Agent 用上，见 [Recipe 8](./platform-agent-connect.md)；用量、账期与环境回收见 [Recipe 10](./platform-usage-and-recycle.md)。
 
 ## 前置权限
 
@@ -54,7 +54,7 @@
 
 预创建的环境**建出来就开始消耗资源点**，数量按预期用户量估。
 
-### 环境生命周期（运营动作见 Recipe 9）
+### 环境生命周期（运营动作见 Recipe 10）
 
 | 操作 | Action | 关键参数 |
 | --- | --- | --- |
@@ -78,5 +78,5 @@
 
 1. `DescribePlatforms` 回查 `PlatformList[]`：`PlatformId` 与预期一致，计费状态正常。
 2. `DescribeEnvs` 按 `EnvId` 找到目标环境，`Status` = `NORMAL`。
-3. 用第 4 步发出的 key 在用户侧走一次只读查询，见 [Recipe 7](./platform-agent-connect.md) 的验证步骤。
+3. 用第 4 步发出的 key 在用户侧走一次只读查询，见 [Recipe 8](./platform-agent-connect.md) 的验证步骤。
 4. **反向验证**：换另一个环境的 key 调同一个查询，应看不到本环境的资源 —— 这一步验证的是隔离真的生效，而不只是接口能通。
