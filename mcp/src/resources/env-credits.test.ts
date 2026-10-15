@@ -117,6 +117,9 @@ describe("env-credits 面板 HTML", () => {
     expect(enHtml).not.toContain(t("mcpUiCredits.title", undefined, "zh"));
     // 四分支的行动与交给会话的请求都来自词典。
     for (const key of [
+      "mcpUiCredits.state.normal",
+      "mcpUiCredits.hint.normal",
+      "mcpUiCredits.field.modules",
       "mcpUiCredits.action.upgrade",
       "mcpUiCredits.action.recommendRestore",
       "mcpUiCredits.action.renew",

@@ -36,9 +36,10 @@ export const ENV_CREDITS_RESOURCE_URI = "ui://cloudbase/env-credits";
 /** MCP Apps 资源 MUST 使用此 MIME。 */
 export const ENV_CREDITS_MIME_TYPE = "text/html;profile=mcp-app";
 
-/** 四个停服分支 + 尚未拿到结果的未确认态。 */
+/** 四个停服分支 + 用量正常 + 尚未拿到结果的未确认态。 */
 export type CreditsBranch =
   | "unknown"
+  | "normal"
   | "trialExhausted"
   | "stopped"
   | "expired"
@@ -218,8 +219,9 @@ body {
 .spark-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .spark-area { stroke: none; }
 .spark-dot { position: absolute; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--surface);
-  transform: translate(-50%,-50%); background: var(--err); }
+  transform: translate(-50%,-50%); background: var(--text-3); }
 .spark-dot.ok { background: var(--ok); }
+.spark-dot.err { background: var(--err); }
 .spark-lbl { position: absolute; top: 100%; margin-top: 2px; font-size: 11px; color: var(--text-3); }
 .spark-l { left: 0; } .spark-r { right: 0; }
 .acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
@@ -276,9 +278,13 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       <div class="field" id="f-credits" hidden>
         <p class="k">${E(L("mcpUiCredits.field.credits"))}</p>
         <p class="v mono" id="k-credits"></p>
-        <div class="ubar" id="ubar-box"><i id="ubar"></i></div>
+        <div class="ubar" id="ubar-box" hidden><i id="ubar"></i></div>
+      </div>
+      <div class="field" id="f-mods" hidden>
+        <p class="k">${E(L("mcpUiCredits.field.modules"))}</p>
         <div class="mods" id="k-mods"></div>
-        <div class="spark">
+      </div>
+      <div class="spark" id="f-spark" hidden>
           <span class="spark-cap">${E(L("mcpUiCredits.spark.cap"))}</span>
           <div class="spark-box">
             <svg class="spark-svg" viewBox="0 0 280 56" preserveAspectRatio="none" aria-hidden="true" id="spark-svg">
@@ -299,7 +305,6 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
             <span class="spark-lbl spark-l">${E(L("mcpUiCredits.spark.from"))}</span>
             <span class="spark-lbl spark-r">${E(L("mcpUiCredits.spark.to"))}</span>
           </div>
-        </div>
       </div>
       <div class="field" id="f-plan" hidden>
         <p class="k">${E(L("mcpUiCredits.field.plan"))}</p>
@@ -363,7 +368,9 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     copyExpenseLink: ${S("mcpUiCredits.action.copyExpenseLink")},
     expiredNote: ${S("mcpUiCredits.expired.note")},
     stateUnknown: ${S("mcpUiCredits.state.unknown")},
+    stateNormal: ${S("mcpUiCredits.state.normal")},
     hintUnknown: ${S("mcpUiCredits.hint.unknown")},
+    hintNormal: ${S("mcpUiCredits.hint.normal")},
     plan: {
       trial: ${S("mcpUiCredits.plan.trial")},
       personal: ${S("mcpUiCredits.plan.personal")},
@@ -382,6 +389,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
   // One main action per screen: an empty main means this branch has nothing to press.
   var BRANCHES = {
     unknown: { dot: "", text: T.stateUnknown, hint: T.hintUnknown, main: "", msg: "", link: "" },
+    normal: { dot: "ok", text: T.stateNormal, hint: T.hintNormal, main: "", msg: "", link: "" },
     trialExhausted: {
       dot: "warn", text: ${S("mcpUiCredits.state.trialExhausted")}, hint: ${S("mcpUiCredits.hint.trialExhausted")},
       main: ${S("mcpUiCredits.action.upgrade")}, msg: ${S("mcpUiCredits.message.upgrade")}, link: "package"
@@ -427,7 +435,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     }
     return d;
   }
-  function renderSpark(values, ok) {
+  function renderSpark(values, tone) {
     var area = el("spark-area");
     var line = el("spark-line");
     var dot = el("spark-dot");
@@ -447,16 +455,16 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       pts.push([Math.round(x * 10) / 10, Math.round(y * 10) / 10]);
     }
     var d = sparkPath(pts);
-    var color = ok ? "ok" : "err";
+    var color = tone === "ok" || tone === "err" ? tone : "";
     area.setAttribute("d", d + " L278,56 L0,56 Z");
-    area.setAttribute("fill", "url(#g-" + color + ")");
+    area.setAttribute("fill", color ? "url(#g-" + color + ")" : "none");
     line.setAttribute("d", d);
-    line.setAttribute("stroke", "var(--" + color + ")");
+    line.setAttribute("stroke", color ? "var(--" + color + ")" : "var(--text-2)");
     if (dot) {
       var last = pts[pts.length - 1];
       dot.style.left = (last[0] / 280 * 100) + "%";
       dot.style.top = (last[1] / 56 * 100) + "%";
-      dot.className = "spark-dot" + (ok ? " ok" : "");
+      dot.className = "spark-dot" + (color ? " " + color : "");
       dot.hidden = false;
     }
   }
@@ -497,28 +505,41 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     var credits = payload && payload.credits ? payload.credits : null;
     var total = credits && typeof credits.total === "number" ? credits.total : null;
     var used = credits && typeof credits.used === "number" ? credits.used : null;
+    var pct = total !== null && total > 0 && used !== null ? Math.min(100, Math.round((used / total) * 100)) : null;
+
+    // Show whatever we actually have: with an unknown quota the used figure still shows,
+    // and no total is ever invented to fill the line.
     var fCredits = el("f-credits");
-    fCredits.hidden = total === null || used === null;
+    fCredits.hidden = used === null;
     if (!fCredits.hidden) {
-      setText(el("k-credits"), fmtNumber(used) + " / " + fmtNumber(total));
-      var pct = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
-      el("ubar").style.width = pct + "%";
-      el("ubar-box").className = "ubar" + (pct < 80 ? " ok" : "");
-      var mods = [];
-      if (payload.modules && payload.modules.length) {
-        for (var i = 0; i < payload.modules.length; i++) {
-          var m = payload.modules[i];
-          var name = T.module[m.module] || m.module || "";
-          if (name) { mods.push(name + " " + fmtNumber(m.credits_value || 0)); }
-        }
-      }
-      setText(el("k-mods"), mods.join(T.modulesSep));
-      var values = [];
-      if (payload.spark && payload.spark.length) {
-        for (var j = 0; j < payload.spark.length; j++) { values.push(Number(payload.spark[j].credits_value || 0)); }
-      }
-      renderSpark(values, pct < 80);
+      setText(el("k-credits"), pct === null ? fmtNumber(used) : fmtNumber(used) + " / " + fmtNumber(total));
     }
+    var ubarBox = el("ubar-box");
+    ubarBox.hidden = pct === null;
+    if (pct !== null) {
+      el("ubar").style.width = pct + "%";
+      ubarBox.className = "ubar" + (pct < 80 ? " ok" : "");
+    }
+
+    var mods = [];
+    if (payload && payload.modules && payload.modules.length) {
+      for (var i = 0; i < payload.modules.length; i++) {
+        var m = payload.modules[i];
+        var name = T.module[m.module] || m.module || "";
+        if (name) { mods.push(name + " " + fmtNumber(m.credits_value || 0)); }
+      }
+    }
+    var fMods = el("f-mods");
+    fMods.hidden = mods.length === 0;
+    if (mods.length) { setText(el("k-mods"), mods.join(T.modulesSep)); }
+
+    var values = [];
+    if (payload && payload.spark && payload.spark.length) {
+      for (var j = 0; j < payload.spark.length; j++) { values.push(Number(payload.spark[j].credits_value || 0)); }
+    }
+    var fSpark = el("f-spark");
+    fSpark.hidden = values.length < 2;
+    renderSpark(values, pct === null ? "" : (pct < 80 ? "ok" : "err"));
 
     var fBalance = el("f-balance");
     var balance = payload && typeof payload.balance === "number" ? payload.balance : null;

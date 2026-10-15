@@ -36,8 +36,28 @@ const PAID_PLAN_CODES: readonly PlanCode[] = [
   "enterpriseAdvanced",
 ];
 
-/** 体验版套餐配额（资源点）。付费套餐的配额没有可读来源 ⇒ 不传 total。 */
-export const TRIAL_CREDITS_TOTAL = 3000;
+/**
+ * 套餐 → 月度资源点配额（点/月）。
+ *
+ * 出处：腾讯云文档《云开发 CloudBase 资源点价格文档》`product/876/127357`
+ * 「套餐配额与能力项说明」表的**资源点**行（该表最近更新 2026-09-23，抓取于 2026-10-15）：
+ * 免费体验版 3000 / 个人版 40,000 / 标准版 330,000 / 企业版 1,500,000 / 企业高级版 6,500,000。
+ * 交叉印证：《云开发 CloudBase 套餐及资源包说明》`product/876/136006` 也写了个人版套餐内配额
+ * 40,000 资源点（与上表一致）。体验版 3000 另见 876/127357「免费体验」节「3000 点/月」。
+ *
+ * 口径与红线：
+ *   - 只收**套餐配额**，不把资源包、按量计费、赠送额度算进来（三者都会让"额度上限"不是固定值）；
+ *   - 配额随账期重置，所以这个数只在"当前计费周期"内可比；
+ *   - **核不到就不传**：`plan` 为空（认不出的套餐码）时不得回退到任何一个默认配额，宁可让面板留空。
+ *     要新增/修正这张表，必须给出可引用的官方出处与抓取日期。
+ */
+export const PLAN_CREDITS_TOTAL: Record<PlanCode, number> = {
+  trial: 3000,
+  personal: 40000,
+  standard: 330000,
+  enterprise: 1500000,
+  enterpriseAdvanced: 6500000,
+};
 
 /** 套餐码 → 面板套餐枚举。
  *
@@ -73,32 +93,40 @@ export interface CreditsBranchInput {
 }
 
 /**
- * 四个停服分支的判定（顺序即优先级）：
- *   1. 套餐过期（`expired`）——过期后是隔离期，先解决续费；
- *   2. 资源点耗尽：体验版 → `trialExhausted`（但该分支话术断言"账户余额充足"，
- *      余额为负时不成立 ⇒ 退回 `unknown`）；付费版 → `stopped`；
+ * 分支判定（顺序即优先级）：
+ *   1. 套餐过期（`expired === true`）——过期后是隔离期，先解决续费；
+ *   2. 资源点耗尽（`used >= total`，两者都已知）：体验版 → `trialExhausted`（该分支话术断言
+ *      "账户余额充足"，余额为负时不成立 ⇒ 退回 `unknown`）；付费版 → `stopped`；
  *   3. 余额为负且资源点未耗尽 → `arrears`（与话术"套餐内资源点仍够用时"一致）；
- *   4. 其余 → `unknown`（信息不足，不猜）。
+ *   4. 能确认"无告警"→ `normal`：配额已知、用量未到顶、**套餐明确未过期**（`expired === false`）、
+ *      余额未知或非负；
+ *   5. 其余 → `unknown`（信息不足，不猜）。
+ *
+ * 「未过期」必须是**确认**来的（`expired === false`）：到期字段缺失时 `expired` 是 undefined，
+ * 那时给 `normal` 就是在猜健康，一律落回 `unknown`。
  */
 export function resolveCreditsBranch(input: CreditsBranchInput): CreditsBranch {
   const { plan, used, total, expired, balance } = input;
   if (expired === true) {
     return "expired";
   }
-  const exhausted =
-    typeof total === "number" && total > 0 && typeof used === "number" && used >= total;
-  if (exhausted) {
+  const totalKnown = typeof total === "number" && total > 0;
+  const usedKnown = typeof used === "number";
+  const negativeBalance = typeof balance === "number" && balance < 0;
+  if (totalKnown && usedKnown && used >= total) {
     if (plan === "trial") {
-      const negativeBalance = typeof balance === "number" && balance < 0;
       return negativeBalance ? "unknown" : "trialExhausted";
     }
-    if (plan !== null && PAID_PLAN_CODES.includes(plan)) {
+    if (plan !== null) {
       return "stopped";
     }
     return "unknown";
   }
-  if (typeof balance === "number" && balance < 0) {
+  if (negativeBalance) {
     return "arrears";
+  }
+  if (totalKnown && usedKnown && expired === false) {
+    return "normal";
   }
   return "unknown";
 }
@@ -252,8 +280,8 @@ export function buildEnvCreditsPayload(input: {
 }): EnvCreditsPayload {
   const { plan, plan_raw } = resolvePlanCode(input.planRaw);
   const used = sumCreditsValue(input.usages);
-  // total 只有体验版配额是可读的常量；付费套餐没有来源 ⇒ 整块 credits 不传（面板缺一即隐藏）。
-  const total = plan === "trial" ? TRIAL_CREDITS_TOTAL : null;
+  // 配额查表；套餐码认不出（plan = null）时**不传**，不拿任何默认值兜底（见 PLAN_CREDITS_TOTAL）。
+  const total = plan ? PLAN_CREDITS_TOTAL[plan] : null;
   const credits = total !== null && used !== null ? { total, used } : null;
   const modules = mapCreditsModules(input.usages);
   const spark = buildCreditsSpark(input.usages);

@@ -29,6 +29,7 @@ export const mcpUiCredits = defineModule(
     "field.credits": "资源点",
     "field.plan": "套餐",
     "field.place": "位置",
+    "field.modules": "分模块用量",
     "field.balance": "账户余额",
     "fold.raw": "查看原始返回",
     "spark.cap": "近 7 天",
@@ -38,6 +39,7 @@ export const mcpUiCredits = defineModule(
 
     // 状态词（四分支 + 未确认）
     "state.unknown": "用量尚未确认",
+    "state.normal": "用量正常",
     "state.trialExhausted": "体验版耗尽",
     "state.stopped": "已停服",
     "state.expired": "套餐已到期",
@@ -49,7 +51,8 @@ export const mcpUiCredits = defineModule(
     "value.currency": "¥",
 
     // 说明句（四分支 + 未确认）
-    "hint.unknown": "尚未拿到这次查询的用量结果；它是只读数据，随工具返回后显示在这里。",
+    "hint.unknown": "这份数据不足以判断资源点是否充足；完整配额可在控制台查看。",
+    "hint.normal": "本月资源点仍充足。",
 
     // 说明句（四分支）
     "hint.trialExhausted": "本月资源点已用完，账户余额充足；体验版不支持资源包与按量计费。",
@@ -96,6 +99,7 @@ export const mcpUiCredits = defineModule(
     "field.credits": "Credits",
     "field.plan": "Plan",
     "field.place": "Location",
+    "field.modules": "Usage by module",
     "field.balance": "Account balance",
     "fold.raw": "View raw response",
     "spark.cap": "Last 7 days",
@@ -104,6 +108,7 @@ export const mcpUiCredits = defineModule(
     "value.unavailable": "-",
 
     "state.unknown": "Usage not confirmed",
+    "state.normal": "Usage is within plan",
     "state.trialExhausted": "Trial credits used up",
     "state.stopped": "Suspended",
     "state.expired": "Plan expired",
@@ -114,7 +119,8 @@ export const mcpUiCredits = defineModule(
     "value.currency": "CNY ",
 
     "hint.unknown":
-      "The usage result for this call has not arrived yet. It is read-only data and shows up here once the tool returns.",
+      "This data is not enough to tell whether credits are sufficient. The full quota is available in the console.",
+    "hint.normal": "This month's credits are still within the plan.",
 
     "hint.trialExhausted":
       "This month's credits are used up while the account balance is sufficient. The trial plan supports neither credit packs nor pay-as-you-go.",
