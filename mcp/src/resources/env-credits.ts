@@ -122,27 +122,37 @@ export function buildEnvCreditsHtml(lang: Lang, fallback: EnvCreditsFallback): s
   const J = jsLiteral;
   const S = (key: MessageKey): string => J(L(key));
 
-  const siteText = (() => {
-    const map: Record<string, string> = {
-      domestic: L("mcpUi.site.domestic"),
-      intl: L("mcpUi.site.intl"),
-    };
-    return map[fallback.site] || fallback.site;
-  })();
-  const regionText = (() => {
-    const map: Record<string, string> = {
-      "ap-shanghai": L("mcpUi.region.apShanghai"),
-      "ap-guangzhou": L("mcpUi.region.apGuangzhou"),
-      "ap-beijing": L("mcpUi.region.apBeijing"),
-      "ap-nanjing": L("mcpUi.region.apNanjing"),
-      "ap-chengdu": L("mcpUi.region.apChengdu"),
-      "ap-hongkong": L("mcpUi.region.apHongkong"),
-      "ap-singapore": L("mcpUi.region.apSingapore"),
-      "na-siliconvalley": L("mcpUi.region.naSiliconvalley"),
-      "eu-frankfurt": L("mcpUi.region.euFrankfurt"),
-    };
-    return map[fallback.region] || fallback.region;
-  })();
+  /**
+   * 站点与地域的 code → 词典 key：这两类 code 唯一合法的翻译落点，
+   * 面板正文与脚本查表都由它派生。**认不出的 code 返回空串**（宁可不显示，也不把内部码打到界面上）。
+   */
+  const SITE_LABEL_DIR: ReadonlyArray<readonly [string, MessageKey]> = [
+    ["domestic", "mcpUi.site.domestic"],
+    ["intl", "mcpUi.site.intl"],
+  ];
+  const REGION_LABEL_DIR: ReadonlyArray<readonly [string, MessageKey]> = [
+    ["ap-shanghai", "mcpUi.region.apShanghai"],
+    ["ap-guangzhou", "mcpUi.region.apGuangzhou"],
+    ["ap-beijing", "mcpUi.region.apBeijing"],
+    ["ap-nanjing", "mcpUi.region.apNanjing"],
+    ["ap-chengdu", "mcpUi.region.apChengdu"],
+    ["ap-hongkong", "mcpUi.region.apHongkong"],
+    ["ap-singapore", "mcpUi.region.apSingapore"],
+    ["na-siliconvalley", "mcpUi.region.naSiliconvalley"],
+    ["eu-frankfurt", "mcpUi.region.euFrankfurt"],
+  ];
+  const labelOf = (
+    dir: ReadonlyArray<readonly [string, MessageKey]>,
+    code: string,
+  ): string => {
+    const hit = dir.find(([c]) => c === code);
+    return hit ? L(hit[1]) : "";
+  };
+  const dirTable = (dir: ReadonlyArray<readonly [string, MessageKey]>): string =>
+    dir.map(([code, key]) => `${J(code)}:${S(key)}`).join(",");
+
+  const siteText = labelOf(SITE_LABEL_DIR, fallback.site);
+  const regionText = labelOf(REGION_LABEL_DIR, fallback.region);
   const placeText = regionText
     ? siteText
       ? regionText + L("mcpUi.place.open") + siteText + L("mcpUi.place.close")
@@ -355,6 +365,10 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
 
   var T = {
     title: ${S("mcpUiCredits.title")},
+    placeOpen: ${S("mcpUi.place.open")},
+    placeClose: ${S("mcpUi.place.close")},
+    region: { ${dirTable(REGION_LABEL_DIR)} },
+    site: { ${dirTable(SITE_LABEL_DIR)} },
     titleSep: ${S("mcpUiCredits.title.sep")},
     modulesSep: ${S("mcpUiCredits.modules.sep")},
     currency: ${S("mcpUiCredits.value.currency")},
@@ -417,7 +431,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
   var LINK_LABEL = { package: T.copyConsoleLink, renew: T.copyConsoleLink, expense: T.copyExpenseLink };
 
   // Local fallback only fills fields the tool result does not carry; live values always win.
-  var FALLBACK = { envAlias: "", envId: ${J(fallback.envId ?? "")}, place: ${J(placeText)} };
+  var FALLBACK = { envAlias: "", envId: ${J(fallback.envId ?? "")}, site: ${J(siteText)}, region: ${J(regionText)} };
   var current = { branch: "unknown", envId: FALLBACK.envId, link: "" };
 
   function fmtNumber(value) {
@@ -472,6 +486,22 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       dot.hidden = false;
     }
   }
+  // Live values win per field; local config only fills a field the result does not carry.
+  // A code we cannot translate is never printed raw: that field falls back to local config.
+  function codeLabel(table, code) {
+    if (!code || typeof code !== "string") { return ""; }
+    return table[code] || "";
+  }
+  function placeOf(payload) {
+    var region = hasField(payload, "current_region")
+      ? (codeLabel(T.region, payload.current_region) || FALLBACK.region)
+      : FALLBACK.region;
+    var site = hasField(payload, "site")
+      ? (codeLabel(T.site, payload.site) || FALLBACK.site)
+      : FALLBACK.site;
+    if (region && site) { return region + T.placeOpen + site + T.placeClose; }
+    return region || site;
+  }
   function hasField(payload, key) {
     return !!payload && typeof payload === "object" && key in payload;
   }
@@ -495,6 +525,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     setText(brandAlias, alias || ${J(siteText)});
     if (brandAlias) { brandAlias.title = envId ? ${S("mcpUiCredits.brand.copyEnvId")} + ": " + envId : ""; }
     setText(el("st-text"), branch.text);
+    setText(el("k-place"), placeOf(payload));
     el("st-dot").className = "dot" + (branch.dot ? " " + branch.dot : "");
     setText(el("c-hint"), branch.hint);
 
