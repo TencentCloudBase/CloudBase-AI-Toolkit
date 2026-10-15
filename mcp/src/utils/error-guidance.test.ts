@@ -56,6 +56,24 @@ describe("error-guidance", () => {
       expect(resolveErrorCode({ Response: { Error: { Code: "A.B" } } })).toBe("A.B");
       expect(resolveErrorCode(new Error("no code"))).toBeUndefined();
     });
+
+    it("guides InsufficientBalance away from the 'just top up' reading", () => {
+      // 云函数 410 的官方释义是「账号余额不足，请充值」，但云开发环境的可用量由
+      // 环境资源点与套餐状态决定，与账户余额是两个独立维度。只按 Code 命中即可，
+      // 不依赖 Message 措辞。
+      const guidance = findErrorGuidance(
+        apiError("Function invoke failed", { code: "InsufficientBalance" }),
+      );
+      expect(guidance).not.toBeNull();
+      expect(guidance?.summary).toContain("不一定是账户欠费");
+      expect(guidance?.summary).toContain("充值不会恢复环境资源点");
+    });
+
+    it("matches InsufficientBalance case-insensitively", () => {
+      expect(
+        findErrorGuidance(apiError("boom", { code: "insufficientbalance" })),
+      ).not.toBeNull();
+    });
   });
 
   describe("enhanceErrorMessage", () => {
@@ -103,6 +121,19 @@ describe("error-guidance", () => {
         code: "ResourceNotFound.Collection",
       });
       expect(enhanceErrorMessage(error, error.message)).toBe(error.message);
+    });
+
+    it("appends the plan/billing doc link for InsufficientBalance", () => {
+      const enhanced = enhanceErrorMessage(
+        apiError("[InvokeFunction] InsufficientBalance", { code: "InsufficientBalance" }),
+        "[InvokeFunction] InsufficientBalance",
+      );
+
+      expect(enhanced).toContain("[InvokeFunction] InsufficientBalance");
+      expect(enhanced).toContain("不一定是账户欠费");
+      expect(enhanced).toContain("https://cloud.tencent.com/document/product/876/136006");
+      // 体验版额度、资源包价格这类阈值随套餐变化，指引正文不得写死。
+      expect(enhanced).not.toMatch(/3000|3,000/);
     });
   });
 

@@ -52,6 +52,19 @@ const REGISTRY: ErrorGuidance[] = [
       "（例如写入配额耗尽时，单次只写 1 条同样会被拒绝），减少单次请求量并不能解决。",
     docsUrl: `${ERROR_CODE_DOCS}/EXCEED_REQUEST_LIMIT`,
   },
+  // 兜底：余额不足 ≠ 账户欠费。云开发环境的可用量由环境资源点与套餐状态决定，
+  // 与腾讯云账户余额是两个独立维度；SCF 对该码的官方释义（账号余额不足，请充值后重试）
+  // 在云开发语境下容易误导——充值不会恢复环境资源点。恢复方式因套餐类型而异
+  // （免费体验版的途径与付费套餐不同），分支细节交给官方文档，这里只给判别方向。
+  {
+    code: "InsufficientBalance",
+    summary:
+      "余额不足不一定是账户欠费：云开发环境的可用量取决于环境资源点与套餐状态，与账户余额是两个独立维度，" +
+      "给账户充值不会恢复环境资源点。请先区分三种情形——环境资源点耗尽、套餐到期、账户欠费——再决定动作，" +
+      "不要直接引导充值。判别可用只读查询对照：manageEnv(action=\"usage\") 查环境当期资源点用量，" +
+      "callCloudApi 查账户余额（billing DescribeAccountBalance）。",
+    docsUrl: "https://cloud.tencent.com/document/product/876/136006",
+  },
 ];
 
 /**
