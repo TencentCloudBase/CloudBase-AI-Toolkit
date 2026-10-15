@@ -55,6 +55,12 @@ import {
   checkAndInitTcbService,
   type EnvSetupContext,
 } from "./env-setup.js";
+import {
+  buildEnvCreditsPayload,
+  isBillingExpired,
+  resolveIsolatedDaysLeft,
+} from "./env-credits-payload.js";
+import type { EnvCreditsPayload } from "../resources/env-credits.js";
 import type { CreateEnvParams } from "@cloudbase/manager-node/types/interfaces/tcb.interface.js";
 
 /**
@@ -2995,6 +3001,10 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     }) => {
       try {
         let result;
+        // MCP Apps：queryEnv(action="usage") 额外把同一次查询换算成 `ui://cloudbase/env-credits`
+        // 面板的载荷，随结果一起返回（structuredContent）。其它 action 不带——面板会退回本地兜底态。
+        // 只读、best-effort：任何一步拿不到都不影响上面的文本回执。
+        let creditsPayload: EnvCreditsPayload | undefined;
         // region 是否真正透传到按地域的 DescribeEnvs：环境级凭证会 pin 到绑定
         // envId 改走 describeEnvInfo（见下方 list 分支），此时 region 不生效，
         // 回执必须如实告知，避免调用方据此误判环境地域。
@@ -3228,6 +3238,46 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               Usages: usageDetail?.Usages ?? [],
               RequestId: usageDetail?.RequestId,
             };
+
+            // 面板载荷：套餐码与环境别名只能从环境信息里取（DescribeEnvInfo），
+            // 这是本 action 为面板多付的一次只读调用；失败就降级，不影响回执。
+            let creditsEnvInfo: any;
+            try {
+              creditsEnvInfo = await cloudbaseUsage.env.describeEnvInfo({
+                EnvId: usageEnvId,
+              });
+              logCloudBaseResult(server.logger, creditsEnvInfo);
+            } catch (envInfoError) {
+              debug(
+                "queryEnv(usage) describeEnvInfo 失败，面板按字段缺失降级:",
+                envInfoError instanceof Error ? envInfoError : new Error(String(envInfoError)),
+              );
+            }
+            const creditsBaseInfo = creditsEnvInfo?.EnvInfo?.EnvBaseInfo;
+            const creditsBilling = creditsEnvInfo?.EnvInfo?.BillingInfo;
+            const creditsPlanRaw =
+              (typeof creditsBaseInfo?.PackageId === "string" && creditsBaseInfo.PackageId) ||
+              (typeof creditsBaseInfo?.PackageName === "string" &&
+                creditsBaseInfo.PackageName) ||
+              null;
+            const creditsPlace = resolveSiteAndRegion({
+              site: cloudBaseOptions?.site,
+              region:
+                (typeof creditsBaseInfo?.Region === "string" && creditsBaseInfo.Region) ||
+                region,
+            });
+            creditsPayload = buildEnvCreditsPayload({
+              envId: usageEnvId,
+              envAlias: typeof creditsBaseInfo?.Alias === "string" ? creditsBaseInfo.Alias : null,
+              planRaw: creditsPlanRaw,
+              usages: usageDetail?.Usages ?? null,
+              site: creditsPlace.site,
+              region: creditsPlace.region,
+              expired: isBillingExpired(creditsBilling),
+              isolatedDaysLeft: resolveIsolatedDaysLeft(creditsBilling),
+              // 余额没有只读来源（仓里没有对应调用路径）→ 传 null，面板隐藏该行。
+              balance: null,
+            });
             break;
           }
 
@@ -3299,6 +3349,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               text: responseText,
             },
           ],
+          // 面板契约（见 resources/env-credits.ts 的 EnvCreditsPayload）：只在 usage 时附带，
+          // 文本回执逐字不变，不支持 UI 的客户端拿到的是纯加法。
+          ...(creditsPayload ? { structuredContent: creditsPayload } : {}),
         };
       } catch (error) {
         const toolPayloadResult = toolPayloadErrorToResult(error);

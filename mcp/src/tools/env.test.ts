@@ -2350,6 +2350,123 @@ describe("env tools - queryEnv", () => {
     expect(payload.Modules).toEqual([...ENV_USAGE_MODULE_VALUES]);
   });
 
+  // MCP Apps：`ui://cloudbase/env-credits` 面板靠 `structuredContent` 渲染（见
+  // resources/env-credits.ts 的 EnvCreditsPayload），所以这一层必须证明载荷真的随结果返回，
+  // 且文本回执逐字不变（不支持 UI 的客户端只看文本）。site/region 由共用解析器决定，
+  // 这里不断言它们，避免受本地项目配置影响。
+  it("queryEnv(usage) 附带 env-credits 面板载荷，且文本回执不变", async () => {
+    const describeEnvAccountCircle = vi.fn().mockResolvedValue({
+      StartTime: "2026-08-01 00:00:00",
+      EndTime: "2026-08-31 23:59:59",
+    });
+    const describeCreditsUsageDetail = vi.fn().mockResolvedValue({
+      Usages: [
+        {
+          EnvId: "env-credits",
+          Module: "SCF",
+          CreditsValue: 12,
+          MetricUsageDetail: [
+            { ValueDetailList: [{ CalcTime: "2026-08-01", CreditsValue: 12 }] },
+          ],
+        },
+      ],
+    });
+    const describeEnvInfo = vi.fn().mockResolvedValue({
+      EnvInfo: {
+        EnvBaseInfo: {
+          EnvId: "env-credits",
+          Alias: "演示环境",
+          PackageId: "baas_free",
+          Region: "ap-shanghai",
+        },
+        // 未到期：ExpireTime 在未来，且没有 IsolatedTime
+        BillingInfo: { ExpireTime: "2099-01-01 00:00:00" },
+      },
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { describeEnvAccountCircle, describeCreditsUsageDetail, describeEnvInfo },
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.queryEnv.handler({ action: "usage", envId: "env-credits" });
+
+    // 文本回执完全不变
+    expect(JSON.parse(result.content[0].text)).toMatchObject({
+      EnvId: "env-credits",
+      Usages: [{ Module: "SCF", CreditsValue: 12 }],
+    });
+    expect(describeEnvInfo).toHaveBeenCalledWith({ EnvId: "env-credits" });
+
+    expect(result.structuredContent).toMatchObject({
+      env_id: "env-credits",
+      env_alias: "演示环境",
+      plan: "trial",
+      plan_raw: "baas_free",
+      credits: { total: 3000, used: 12 },
+      modules: [{ module: "functions", credits_value: 12 }],
+      spark: [{ calc_time: "2026-08-01", credits_value: 12 }],
+      balance: null,
+      // 非告警分支：面板没有"正常"这一档，落到 unknown（契约现状，见交接说明）
+      branch: "unknown",
+    });
+  });
+
+  it("queryEnv(usage) 付费套餐没有可读配额 ⇒ 不传 credits，也不编 total", async () => {
+    const describeEnvAccountCircle = vi.fn().mockResolvedValue({
+      StartTime: "2026-08-01 00:00:00",
+      EndTime: "2026-08-31 23:59:59",
+    });
+    const describeCreditsUsageDetail = vi.fn().mockResolvedValue({
+      Usages: [{ EnvId: "env-paid", Module: "FLEXDB", CreditsValue: 7 }],
+    });
+    const describeEnvInfo = vi.fn().mockResolvedValue({
+      EnvInfo: {
+        EnvBaseInfo: { EnvId: "env-paid", PackageId: "baas_personal", Region: "ap-guangzhou" },
+        BillingInfo: { ExpireTime: "2099-01-01 00:00:00" },
+      },
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { describeEnvAccountCircle, describeCreditsUsageDetail, describeEnvInfo },
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.queryEnv.handler({ action: "usage", envId: "env-paid" });
+
+    expect(result.structuredContent).toMatchObject({
+      plan: "personal",
+      modules: [{ module: "database", credits_value: 7 }],
+    });
+    expect(result.structuredContent).not.toHaveProperty("credits");
+  });
+
+  it("queryEnv(usage) 环境信息取不到时逐字段降级，文本回执照常返回", async () => {
+    const describeEnvAccountCircle = vi.fn().mockResolvedValue({
+      StartTime: "2026-08-01 00:00:00",
+      EndTime: "2026-08-31 23:59:59",
+    });
+    const describeCreditsUsageDetail = vi.fn().mockResolvedValue({
+      Usages: [{ EnvId: "env-degraded", Module: "SCF", CreditsValue: 3 }],
+    });
+    const describeEnvInfo = vi.fn().mockRejectedValue(new Error("DescribeEnvInfo denied"));
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { describeEnvAccountCircle, describeCreditsUsageDetail, describeEnvInfo },
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.queryEnv.handler({ action: "usage", envId: "env-degraded" });
+
+    expect(result.content[0].text).toContain("env-degraded");
+    expect(result.structuredContent).toMatchObject({
+      env_id: "env-degraded",
+      env_alias: null,
+      plan: null,
+      plan_raw: null,
+      balance: null,
+      branch: "unknown",
+    });
+    expect(result.structuredContent).not.toHaveProperty("credits");
+  });
+
   it("queryEnv(metrics) should require envId and metricName", async () => {
     const { tools } = createMockServer();
     const missingEnv = await tools.queryEnv.handler({ action: "metrics" });
