@@ -951,8 +951,14 @@ export const reportToolkitLifecycle = async (params: {
  *
  * **为什么复用 `toolkit_lifecycle` 而不是加新事件名**：上报通道是 Beacon 的
  * `events[].eventCode` + `mapValue`，本仓的 `report()` 对 `eventCode` 没有任何白名单/枚举校验，
- * `mapValue` 里的键也全是自由字段（现有事件已经在往里塞 `mcpCaps` / `protocolVersion` 等）。
- * 所以"新事件名"要担心后端白名单，而"同一个 eventCode + `event: 'initialized'`"不需要后端配合。
+ * `mapValue` 里的键也全是自由字段（现有事件已经在往里塞 `mcpCaps` / `mcpCapsUi` 这类键）。
+ *
+ * 边界（**已验证 / 未验证要分清**）：
+ *   - **本地已验证**：客户端侧不拦——`eventCode` 是 `string` 参数、无校验无映射表，
+ *     `event` 只是 `mapValue` 里的一个键；
+ *   - **未验证**：Beacon 后端是否接受同一个 `eventCode` 的第三个 `event` 取值、
+ *     是否丢弃未知键/取值（POST 返回 2xx ≠ 入库）。要确认只能上线用一条真实会话观测：
+ *     看 `toolkit_lifecycle` 里有没有 `event=initialized`。
  *
  * **这条上报补的是分母**：进程级 `start` 发生在握手之前（那时拿不到 client 与能力），
  * 因此"连过多少客户端 / 多少会话声明了 elicitation 或 ui"本来算不出来。与 `start` 的差别只有三处：

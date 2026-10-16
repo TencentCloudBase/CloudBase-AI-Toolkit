@@ -65,7 +65,8 @@ describe("会话建立后上报一次（真实握手）", () => {
   it("握手完成后报 `event: initialized`，并带上 client 身份与能力摘要；每会话只发一次", async () => {
     const server = await createCloudBaseMcpServer({
       pluginsEnabled: ["env"],
-      enableTelemetry: false,
+      // 钩子在 `if (enableTelemetry)` 里（S1）：要验会话上报就必须开总闸
+      enableTelemetry: true,
     });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 
@@ -117,7 +118,8 @@ describe("会话建立后上报一次（真实握手）", () => {
   it("载荷只含允许的键，且不报拿不到的字段（协议版本本版 SDK 拿不到）", async () => {
     const server = await createCloudBaseMcpServer({
       pluginsEnabled: ["env"],
-      enableTelemetry: false,
+      // 钩子在 `if (enableTelemetry)` 里（S1）：要验会话上报就必须开总闸
+      enableTelemetry: true,
     });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: "io-probe", version: "0.0.1" });
@@ -138,6 +140,99 @@ describe("会话建立后上报一次（真实握手）", () => {
       await client.close().catch(() => undefined);
       await server.close().catch(() => undefined);
     }
+  });
+});
+
+describe("`enableTelemetry: false` 是真的总闸", () => {
+  it("关掉遥测时连会话事件都不发（oninitialized 根本没被挂上）", async () => {
+    const server = await createCloudBaseMcpServer({
+      pluginsEnabled: ["env"],
+      enableTelemetry: false,
+    });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: "gate-probe", version: "0.0.1" });
+
+    try {
+      // 钩子不挂：这条断言就是"总闸"的实现细节，也是复核探针实测到的那条回归
+      expect(server.server.oninitialized).toBeUndefined();
+
+      await server.connect(serverTransport);
+      await client.connect(clientTransport);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(initializedPayloads()).toHaveLength(0);
+      expect(reportSpy.mock.calls.filter(([code]) => code === "toolkit_lifecycle")).toHaveLength(0);
+    } finally {
+      await client.close().catch(() => undefined);
+      await server.close().catch(() => undefined);
+    }
+  });
+});
+
+describe("真实出网体（打桩 https.request，覆盖非 spy report 的路径）", () => {
+  it("POST 体里 eventCode 是 toolkit_lifecycle、mapValue.event 是 initialized 且带能力", async () => {
+    const bodies: string[] = [];
+    const requestSpy = vi.spyOn(https, "request").mockImplementation(((options: any, cb: any) => {
+      return {
+        on() {
+          return this;
+        },
+        write(chunk: unknown) {
+          bodies.push(String(chunk));
+          return true;
+        },
+        end() {
+          cb?.({
+            statusCode: 200,
+            on(event: string, handler: () => void) {
+              if (event === "end") {
+                handler();
+              }
+              return this;
+            },
+          });
+          return this;
+        },
+      } as never;
+    }) as never);
+
+    // 一个"打开"的 reporter（测试环境默认关了总闸，这里造一个开的实例走完整出网路径）
+    delete process.env.CLOUDBASE_MCP_TELEMETRY_DISABLED;
+    vi.resetModules();
+    const fresh = await import("./telemetry.js");
+    expect(fresh.telemetryReporter.isEnabled()).toBe(true);
+
+    await fresh.reportToolkitSessionInitialized({
+      cloudBaseOptions: { envId: "env-body-probe" },
+      ide: "probe-ide",
+      client: "probe-client",
+      mcpClientInfo: { name: "body-probe", version: "1.2.3" },
+      mcpClientCapabilities: {
+        elicitationForm: true,
+        elicitationUrl: false,
+        ui: true,
+        roots: false,
+        sampling: false,
+        summary: "elicitation:form, ui",
+      },
+    });
+
+    expect(bodies).toHaveLength(1);
+    const payload = JSON.parse(bodies[0]);
+    expect(payload.events[0].eventCode).toBe("toolkit_lifecycle");
+    const mapValue = payload.events[0].mapValue;
+    expect(mapValue.event).toBe("initialized");
+    expect(mapValue.mcpClientName).toBe("body-probe");
+    expect(mapValue.mcpCapsElicitation).toBe("true");
+    expect(mapValue.mcpCapsUi).toBe("true");
+    expect(mapValue.envId).toBe("env-body-probe");
+    expect(mapValue.ide).toBe("probe-ide");
+    // 与既有事件同源的字段也必须真的在体里（漏一个就该红）
+    expect(typeof mapValue.site).toBe("string");
+    expect(typeof mapValue.region).toBe("string");
+    expect(typeof mapValue.mcpVersion).toBe("string");
+    expect(mapValue.mcpClientVersion).toBe("1.2.3");
+    requestSpy.mockRestore();
   });
 });
 

@@ -437,6 +437,30 @@ export async function createCloudBaseMcpServer(options?: {
   // Enable telemetry if requested
   if (enableTelemetry) {
     wrapServerWithTelemetry(server);
+
+    // 会话建立后上报一次（补"分母"：进程 start 早于握手，拿不到 client 与能力声明）。
+    // **这一个 if 就是总闸**：`enableTelemetry: false` 时连这条会话事件也不发——
+    // 关掉遥测的调用方（测试环境分支、冒烟脚本、评审 harness）本来就是为了不出网。
+    // - **每会话只发一次**：重复的 initialized 通知不再发（实例上的幂等标记）；
+    // - **fire-and-forget**：绝不 await、也不让上报失败冒泡到握手；
+    // - 字段拿不到就留空，不臆造（见 reportToolkitSessionInitialized 的注释）。
+    // 多会话同进程的场景（HTTP/托管路径的每会话回调）本期不接，留待后续。
+    let sessionInitializedReported = false;
+    server.server.oninitialized = () => {
+      if (sessionInitializedReported) {
+        return;
+      }
+      sessionInitializedReported = true;
+      void reportToolkitSessionInitialized({
+        cloudBaseOptions,
+        ide: server.ide || process.env.INTEGRATION_IDE,
+        client: server.client || process.env.CLOUDBASE_MCP_CLIENT,
+        mcpClientInfo: readMcpClientInfoFromServer(server),
+        mcpClientCapabilities: readClientCapabilitiesFromServer(server),
+      }).catch(() => {
+        /* 遥测失败不影响会话 */
+      });
+    };
   }
 
   // Register plugins based on configuration
@@ -457,28 +481,6 @@ export async function createCloudBaseMcpServer(options?: {
   // MCP Apps 环境资源用量面板（ui://cloudbase/env-credits）。同样一次性注册；
   // 只读用量与套餐，不执行计费（引导交给会话里的技能）。
   registerEnvCreditsResource(server);
-
-  // 会话建立后上报一次（补"分母"：进程 start 早于握手，拿不到 client 与能力声明）。
-  // - **每会话只发一次**：重复的 initialized 通知不再发（同一个实例上的幂等标记）；
-  // - **fire-and-forget**：绝不 await、也不让上报失败冒泡到握手；
-  // - 遥测关闭 / 字段拿不到时：不报 / 留空（由 reportToolkitSessionInitialized 内部处理）。
-  // 多会话同进程的场景（HTTP/托管路径的每会话回调）本期不接，留待后续。
-  let sessionInitializedReported = false;
-  server.server.oninitialized = () => {
-    if (sessionInitializedReported) {
-      return;
-    }
-    sessionInitializedReported = true;
-    void reportToolkitSessionInitialized({
-      cloudBaseOptions,
-      ide: server.ide || process.env.INTEGRATION_IDE,
-      client: server.client || process.env.CLOUDBASE_MCP_CLIENT,
-      mcpClientInfo: readMcpClientInfoFromServer(server),
-      mcpClientCapabilities: readClientCapabilitiesFromServer(server),
-    }).catch(() => {
-      /* 遥测失败不影响会话 */
-    });
-  };
 
   return server;
 }
