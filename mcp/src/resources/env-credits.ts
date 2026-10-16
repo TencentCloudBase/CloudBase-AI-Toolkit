@@ -554,6 +554,8 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     // Unit words come from the real console rendering (invocations -> times, runtime -> ms,
     // compute usage -> GBs / CU) plus the package page (GB / KB / 10k times / %).
     metricUnit: {
+      perSec: ${S("mcpUiCredits.metric.unit.perSec")},
+      item: ${S("mcpUiCredits.metric.unit.item")},
       count: ${S("mcpUiCredits.metric.unit.count")},
       ms: ${S("mcpUiCredits.metric.unit.ms")},
       gbs: ${S("mcpUiCredits.metric.unit.gbs")},
@@ -562,6 +564,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       percent: ${S("mcpUiCredits.metric.unit.percent")}
     },
     metricUnitWrap: ${S("mcpUiCredits.metric.unitWrap")},
+    metricUnitSuffix: ${S("mcpUiCredits.metric.unitSuffix")},
     module: {
       functions: ${S("mcpUiCredits.module.functions")},
       database: ${S("mcpUiCredits.module.database")},
@@ -708,31 +711,37 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     return BRANCHES[payload.branch] ? payload.branch : "unknown";
   }
   /**
-   * Metric -> unit key. An empty string means the unit is NOT determined: the console shows those
-   * metrics without a suffix (the QPS family), so we show none rather than inventing one. A new
-   * metric has to state its unit here explicitly - a test walks the enum and fails otherwise.
+   * Metric -> unit key. An empty string means the unit is NOT determined, and today that is exactly
+   * one metric (MysqlDbConnections: the console dashboard timed out before showing it), so we show
+   * none rather than inventing one. A new metric has to state its unit here explicitly - a test
+   * walks the enum and fails otherwise.
+   *
+   * The QPS family reads the "per second" unit because the console's QPS page states the figure as
+   * requests per second, and concurrency reads the "count of instances" unit because the dashboard's
+   * function view words it as concurrent executions (count). Both words are transcribed from those
+   * console pages - the exact Chinese wording lives in the dictionary module, never invented here.
    */
   var METRIC_UNIT_KEY = {
-    GatewayTraceEnvQPS: "",
-    EnvQPSAll: "",
+    GatewayTraceEnvQPS: "perSec",
+    EnvQPSAll: "perSec",
     FunctionInvocation: "count",
     FunctionError: "count",
     FunctionTimeout: "count",
     FunctionThrottle: "count",
     FunctionDuration: "ms",
-    FunctionConcurrentExecutions: "count",
+    FunctionConcurrentExecutions: "item",
     DbRead: "count",
     DbWrite: "count",
     DbSizepkg: "gb",
     MysqlCpuUsageRate: "percent",
     MysqlMemoryUse: "gbs",
     MysqlStorageUsage: "gb",
-    MysqlQps: "",
+    MysqlQps: "perSec",
     MysqlSlowQueries: "count",
     MysqlDbConnections: "",
     TkeCpuUsedService: "cu",
     TkeMemUsedService: "gbs",
-    TkeQPSService: "",
+    TkeQPSService: "perSec",
     TkeHttpErrorService: "count",
     TkeInvokeNumService: "count"
   };
@@ -757,7 +766,9 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     parts[0] = parts[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");
     return parts.join(".");
   }
-  function withUnit(text, unit) { return unit ? text + unit : text; }
+  function withUnit(text, unit) {
+    return unit ? T.metricUnitSuffix.replace("{value}", text).replace("{unit}", unit) : text;
+  }
 
   /** Discriminator: kind === "metrics" renders the metrics view; anything else renders credits. */
   function payloadKind(payload) {

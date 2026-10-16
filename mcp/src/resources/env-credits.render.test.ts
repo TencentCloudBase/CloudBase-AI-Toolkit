@@ -957,14 +957,13 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
     }
     // ② "单位未定"（空串）只能是这份**已知清单**：控制台对这些指标不给后缀，
     //    我们不编；其余每一个都必须指向一个真实存在的单位键
-    const undetermined = [...entries.entries()].filter(([, key]) => key === "").map(([n]) => n).sort();
-    expect(undetermined).toEqual(
-      ["EnvQPSAll", "GatewayTraceEnvQPS", "MysqlDbConnections", "MysqlQps", "TkeQPSService"].sort(),
-    );
+    // 唯一未定项：MysqlDbConnections（控制台仪表盘切到数据库时超时，没拿到它的单位）
+    const undetermined = [...entries.entries()].filter(([, key]) => key === "").map(([n]) => n);
+    expect(undetermined).toEqual(["MysqlDbConnections"]);
     const unitKeys = new Set(
-      [...HTML.matchAll(/^\s*(count|ms|gbs|cu|gb|percent):\s*"/gm)].map((m) => m[1]),
+      [...HTML.matchAll(/^\s*(count|ms|gbs|cu|gb|percent|perSec|item):\s*"/gm)].map((m) => m[1]),
     );
-    expect(unitKeys.size).toBe(6);
+    expect(unitKeys.size).toBe(8);
     for (const [, key] of entries) {
       if (key !== "") { expect(unitKeys.has(key), `未知单位键 ${key}`).toBe(true); }
     }
@@ -991,13 +990,37 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
     expect(panel.el("k-m-peak").textContent).toContain("88.3");
   });
 
-  it("单位未定（QPS 家族）：标题不加括号、数值不加后缀，也不编一个单位", () => {
-    const panel = render(metricsOf([3, 9], {}, "EnvQPSAll"));
+  it("单位未定（今日唯一：MysqlDbConnections）：标题不加括号、数值不加后缀，也不编一个单位", () => {
+    const panel = render(metricsOf([3, 9], {}, "MysqlDbConnections"));
     expect(panel.el("c-title").textContent).toBe(
-      L("mcpUiCredits.metric.EnvQPSAll") + L("mcpUiCredits.title.sep") + "生产环境",
+      L("mcpUiCredits.metric.MysqlDbConnections") + L("mcpUiCredits.title.sep") + "生产环境",
     );
     expect(panel.el("k-m-latest").textContent).toBe("9");
     expect(panel.el("k-m-avg").textContent).toBe("6");
+  });
+
+  it("新增两个单位词（控制台原文转写）：QPS 家族＝次/秒、并发＝个", () => {
+    const suffix = (value: string, unit: string) =>
+      L("mcpUiCredits.metric.unitSuffix", { value, unit });
+
+    // QPS 家族：控制台 QPS 页原文「当前环境QPS（每秒请求量）」
+    const qps = render(metricsOf([3, 9], {}, "EnvQPSAll"));
+    expect(qps.el("c-title").textContent).toBe(
+      L("mcpUiCredits.metric.unitWrap", {
+        label: L("mcpUiCredits.metric.EnvQPSAll"),
+        unit: L("mcpUiCredits.metric.unit.perSec"),
+      }) +
+        L("mcpUiCredits.title.sep") +
+        "生产环境",
+    );
+    expect(qps.el("k-m-latest").textContent).toBe(suffix("9", L("mcpUiCredits.metric.unit.perSec")));
+    expect(qps.el("k-m-avg").textContent).toBe(suffix("6", L("mcpUiCredits.metric.unit.perSec")));
+
+    // 并发：控制台云函数视图原文「并发执行个数（个）」——是「个」不是「次」
+    const conc = render(metricsOf([1, 3], {}, "FunctionConcurrentExecutions"));
+    expect(conc.el("c-title").textContent).toContain(L("mcpUiCredits.metric.unit.item"));
+    expect(conc.el("k-m-latest").textContent).toBe(suffix("3", L("mcpUiCredits.metric.unit.item")));
+    expect(conc.el("k-m-latest").textContent).not.toContain(L("mcpUiCredits.metric.unit.count"));
   });
 
   it("守卫：两个分支的渲染入口都在面板脚本里（缺一即红）", () => {

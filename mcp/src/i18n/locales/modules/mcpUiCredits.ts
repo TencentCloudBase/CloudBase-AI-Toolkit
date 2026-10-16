@@ -123,6 +123,11 @@ export const mcpUiCredits = defineModule(
     // 状态（三态：有数据 / 无流量 / 查询失败）
     // 指标单位（词表来自云开发控制台的真实呈现：调用次数（次）/ 运行时间（ms）/
     // 资源用量（GBs）/ 资源用量（CU），以及套餐用量页的 GB / KB / 万次 / %）
+    // 控制台原文：QPS 页「当前环境QPS（每秒请求量）」、仪表盘云函数视图「并发执行个数（个）」
+    // ⇒ 新增两个词按原文转写（英文取 req/s、items，控制台英文界面未核到时的稳妥写法）
+    "metric.unit.perSec": "次/秒",
+    "metric.unit.item": "个",
+
     "metric.unit.count": "次",
     "metric.unit.ms": "ms",
     "metric.unit.gbs": "GBs",
@@ -132,6 +137,8 @@ export const mcpUiCredits = defineModule(
 
     // 单位摆放（跟控制台一致：单位写在指标名后的括号里）
     "metric.unitWrap": "{label}（{unit}）",
+    // 数值后缀的拼接：中文紧贴（18次），英文要留空格（18 items）
+    "metric.unitSuffix": "{value}{unit}",
 
     "metric.state.data": "有数据",
     "metric.state.noData": "无流量",
@@ -256,6 +263,9 @@ export const mcpUiCredits = defineModule(
     "metric.TkeHttpErrorService": "CloudRun HTTP errors",
     "metric.TkeInvokeNumService": "CloudRun invocations",
 
+    "metric.unit.perSec": "req/s",
+    "metric.unit.item": "items",
+
     "metric.unit.count": "times",
     "metric.unit.ms": "ms",
     "metric.unit.gbs": "GBs",
@@ -264,6 +274,7 @@ export const mcpUiCredits = defineModule(
     "metric.unit.percent": "%",
 
     "metric.unitWrap": "{label} ({unit})",
+    "metric.unitSuffix": "{value} {unit}",
 
     "metric.state.data": "Has data",
     "metric.state.noData": "No traffic",
