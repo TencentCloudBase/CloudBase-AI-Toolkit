@@ -144,8 +144,11 @@ Tool catalog: [MCP tools](../doc/mcp-tools.md) · [tools.json](../scripts/tools.
 
 Deleting a cloud function, a collection, the documents in one, a stored file, a CloudRun service or a MySQL instance now pauses
 the call until you answer a dialog that names the target — "about to delete the cloud function `hello` (env `env-abc`)" — instead
-of asking a bare "are you sure?". It is built on MCP form elicitation, so it can only appear where the client declares that
-capability *and* actually asks the user.
+of asking a bare "are you sure?". The same deletes pause when they arrive as `callCloudApi`, but only for an explicit
+`service` + `Action` pair: `DeleteFunction` on `tcb` or `scf`, `tcb.DeleteTable`, `tcb.DeleteItem`, `tcb.DestroyEnv`, `tcb.DestroyPlatformEnv`, `tcb.DestroyMySQL`,
+`tcbr.DeleteCloudRunServer`, and `tcbr.DeleteCloudRunVersions` when `IsDeleteServer` is true. A `Delete` prefix does not
+confirm other cloud APIs. Cloud storage deletes do not go through `callCloudApi`. It is built on MCP form elicitation, so it
+can only appear where the client declares that capability *and* actually asks the user.
 
 | Situation | What happens |
 | --- | --- |
@@ -160,7 +163,7 @@ asked:
 
 | Variable | Effect |
 | --- | --- |
-| `CLOUDBASE_MCP_SKIP_ELICITATIONS` | Comma-separated. Accepts a tool name (`manageFunctions`) or a single action (`manageFunctions.deleteFunction`), case-sensitive, no wildcard. Unknown entries are logged and ignored rather than failing the server |
+| `CLOUDBASE_MCP_SKIP_ELICITATIONS` | Comma-separated. Accepts a tool name (`manageFunctions`, `callCloudApi`) or a single action (`manageFunctions.deleteFunction`, `callCloudApi.tcb.DeleteFunction`), case-sensitive, no wildcard. Unknown entries are logged and ignored rather than failing the server |
 | `CLOUDBASE_MCP_ELICIT_AUTO_APPROVE` | `allow` (default) proceeds when the client answers for itself; `block` treats that case as not confirmed |
 
 A client's own tool-approval prompt is not this confirmation: it asks "may this tool run?", not "is this the resource you want to

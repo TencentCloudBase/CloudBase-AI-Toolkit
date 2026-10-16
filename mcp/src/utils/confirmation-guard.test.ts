@@ -88,6 +88,41 @@ describe("破坏性动作执行前确认", () => {
         expect(manyMessage).not.toContain("1 条");
     });
 
+    it("callCloudApi 的已知删除会确认，查询和其它产品的删除不会", async () => {
+        const hit = makeServer({ action: "accept", content: { confirm: CONFIRM_LABEL } });
+        const decision = await guardDestructiveAction(hit.server, {
+            toolName: "callCloudApi",
+            args: {
+                service: "tcb",
+                action: "deletefunction",
+                params: { FunctionName: "hello", EnvId: "env-abc" },
+            },
+        });
+        expect(decision).toEqual({ intercept: false, status: "accepted" });
+        expect(hit.elicitInput.mock.calls[0][0].message).toContain("hello");
+
+        const miss = makeServer({ action: "accept", content: { confirm: CONFIRM_LABEL } });
+        expect(
+            await guardDestructiveAction(miss.server, {
+                toolName: "callCloudApi",
+                args: { service: "cvm", action: "TerminateInstances", params: { InstanceIds: ["ins-1"] } },
+            }),
+        ).toEqual({ intercept: false, status: "not_applicable" });
+        expect(miss.elicitInput).not.toHaveBeenCalled();
+    });
+
+    it("销毁环境时点名 params.EnvId，不把会话环境写成被删的那个", async () => {
+        const { server, elicitInput } = makeServer({ action: "accept", content: { confirm: CONFIRM_LABEL } });
+        await guardDestructiveAction(server, {
+            toolName: "callCloudApi",
+            args: { service: "tcb", action: "DestroyEnv", params: { EnvId: "env-gone" } },
+        });
+        const message = elicitInput.mock.calls[0][0].message as string;
+        expect(message).toContain("env-gone");
+        expect(message).toContain("销毁环境");
+        expect(message).not.toContain("env-abc");
+    });
+
     it("销毁 MySQL 时读出 instanceId，没有时说明是当前环境的实例", async () => {
         const named = makeServer({ action: "accept", content: { confirm: CONFIRM_LABEL } });
         await guardDestructiveAction(named.server, {

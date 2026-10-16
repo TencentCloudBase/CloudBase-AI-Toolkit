@@ -3,10 +3,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { t, type MessageKey } from "../i18n/index.js";
+import { ALLOWED_SERVICES } from "../tools/capi.js";
 import {
+    CAPI_DESTRUCTIVE_CALLS,
     DESTRUCTIVE_ACTIONS,
     DESTRUCTIVE_EXEMPT_ACTIONS,
     DESTRUCTIVE_NAME_PATTERN,
+    capiDestructiveKey,
+    resolveDestructiveAction,
 } from "./destructive-actions.js";
 
 /**
@@ -173,5 +177,162 @@ describe("破坏性动作名单与工具面保持同步", () => {
                 dbInstance: { instanceId: "mysql-1", schema: "app" },
             }),
         ).toEqual({ resource: "mysql-1" });
+    });
+});
+
+describe("callCloudApi 只确认已经对上的整资源删除", () => {
+    it("名单里的 service 都在 callCloudApi 白名单内，Action 名字本身像删除", () => {
+        const allow = new Set<string>(ALLOWED_SERVICES);
+        const keys = new Set<string>();
+        for (const spec of CAPI_DESTRUCTIVE_CALLS) {
+            expect(allow.has(spec.service), spec.service).toBe(true);
+            expect(DESTRUCTIVE_NAME_PATTERN.test(spec.action), spec.action).toBe(true);
+            const key = capiDestructiveKey(spec.service, spec.action);
+            expect(keys.has(key), key).toBe(false);
+            keys.add(key);
+            expect(() => spec.target({}), `${key} target() threw`).not.toThrow();
+        }
+    });
+
+    it("专用工具已经确认的删除，改走 callCloudApi 时命中同一条文案", () => {
+        expect(
+            resolveDestructiveAction("callCloudApi", {
+                service: "tcb",
+                action: "DeleteFunction",
+                params: { FunctionName: "hello", EnvId: "env-abc" },
+            }),
+        ).toMatchObject({
+            key: "callCloudApi.tcb.DeleteFunction",
+            spec: { messageKey: "confirmation.message.deleteFunction" },
+        });
+        expect(
+            resolveDestructiveAction("callCloudApi", {
+                service: "TCB",
+                action: "deletefunction",
+                params: { FunctionName: "hello" },
+            })?.spec.target({
+                service: "TCB",
+                action: "deletefunction",
+                params: { FunctionName: "hello" },
+            }),
+        ).toEqual({ resource: "hello" });
+
+        expect(
+            resolveDestructiveAction("callCloudApi", {
+                service: "scf",
+                action: "DeleteFunction",
+                params: { FunctionName: "hello" },
+            })?.key,
+        ).toBe("callCloudApi.scf.DeleteFunction");
+
+        expect(
+            resolveDestructiveAction("callCloudApi", {
+                service: "tcb",
+                action: "DeleteTable",
+                params: { TableName: "todos" },
+            })?.spec.target({ params: { TableName: "todos" } }),
+        ).toEqual({ resource: "todos" });
+
+        const one = resolveDestructiveAction("callCloudApi", {
+            service: "tcb",
+            action: "DeleteItem",
+            params: { TableName: "todos", MgoQuery: "{}" },
+        });
+        expect(one?.spec.target({ params: { TableName: "todos", MgoQuery: "{}" } })).toEqual({
+            resource: "todos",
+            messageKey: "confirmation.message.deleteDocumentsOne",
+        });
+        expect(
+            one?.spec.target({ params: { TableName: "todos", MgoIsMulti: true } }).messageKey,
+        ).toBe("confirmation.message.deleteDocumentsQuery");
+
+        expect(
+            resolveDestructiveAction("callCloudApi", {
+                service: "tcb",
+                action: "destroyenv",
+                params: { EnvId: "env-gone" },
+            })?.spec.target({ params: { EnvId: "env-gone" } }),
+        ).toEqual({ resource: "env-gone" });
+        expect(
+            resolveDestructiveAction("callCloudApi", {
+                service: "tcb",
+                action: "DestroyPlatformEnv",
+                params: { EnvId: "env-platform" },
+            })?.key,
+        ).toBe("callCloudApi.tcb.DestroyPlatformEnv");
+
+        expect(
+            resolveDestructiveAction("callCloudApi", {
+                service: "tcb",
+                action: "DestroyMySQL",
+                params: { EnvId: "env-abc" },
+            })?.spec.target({}),
+        ).toMatchObject({
+            messageKey: "confirmation.message.destroyMysqlEnv",
+            resource: t("confirmation.message.mysqlThisEnv"),
+        });
+
+        expect(
+            resolveDestructiveAction("callCloudApi", {
+                service: "tcbr",
+                action: "DeleteCloudRunServer",
+                params: { ServerName: "api" },
+            })?.spec.target({ params: { ServerName: "api" } }),
+        ).toEqual({ resource: "api" });
+    });
+
+    it("删版本但没说删服务时不确认；IsDeleteServer 为 true 时点出服务名", () => {
+        expect(
+            resolveDestructiveAction("callCloudApi", {
+                service: "tcbr",
+                action: "DeleteCloudRunVersions",
+                params: { SimpleVersions: [{ ServerName: "api", VersionName: "v1" }] },
+            }),
+        ).toBeUndefined();
+        expect(
+            resolveDestructiveAction("callCloudApi", {
+                service: "tcbr",
+                action: "DeleteCloudRunVersions",
+                params: {
+                    IsDeleteServer: true,
+                    SimpleVersions: [
+                        { ServerName: "api", VersionName: "v1" },
+                        { ServerName: "api", VersionName: "v2" },
+                    ],
+                },
+            })?.spec.target({
+                params: {
+                    IsDeleteServer: true,
+                    SimpleVersions: [
+                        { ServerName: "api", VersionName: "v1" },
+                        { ServerName: "web", VersionName: "v1" },
+                    ],
+                },
+            }),
+        ).toEqual({ resource: "api, web" });
+    });
+
+    it("查询和其它产品的删除不因为名字像 Delete 就被确认", () => {
+        expect(
+            resolveDestructiveAction("callCloudApi", {
+                service: "tcb",
+                action: "DescribeEnvs",
+                params: {},
+            }),
+        ).toBeUndefined();
+        expect(
+            resolveDestructiveAction("callCloudApi", {
+                service: "cvm",
+                action: "TerminateInstances",
+                params: { InstanceIds: ["ins-1"] },
+            }),
+        ).toBeUndefined();
+        expect(
+            resolveDestructiveAction("callCloudApi", {
+                service: "vpc",
+                action: "DeleteSecurityGroup",
+                params: { SecurityGroupId: "sg-1" },
+            }),
+        ).toBeUndefined();
     });
 });
