@@ -945,3 +945,74 @@ export const reportToolkitLifecycle = async (params: {
 
     telemetryReporter.report('toolkit_lifecycle', eventData);
 };
+
+/**
+ * 会话建立（initialize 握手完成、收到 `initialized` 通知）后上报**一次**。
+ *
+ * **为什么复用 `toolkit_lifecycle` 而不是加新事件名**：上报通道是 Beacon 的
+ * `events[].eventCode` + `mapValue`，本仓的 `report()` 对 `eventCode` 没有任何白名单/枚举校验，
+ * `mapValue` 里的键也全是自由字段（现有事件已经在往里塞 `mcpCaps` / `protocolVersion` 等）。
+ * 所以"新事件名"要担心后端白名单，而"同一个 eventCode + `event: 'initialized'`"不需要后端配合。
+ *
+ * **这条上报补的是分母**：进程级 `start` 发生在握手之前（那时拿不到 client 与能力），
+ * 因此"连过多少客户端 / 多少会话声明了 elicitation 或 ui"本来算不出来。与 `start` 的差别只有三处：
+ *   - `event` 取值 `'initialized'`；
+ *   - 不带 `duration` / `exitCode` / `error`（那是进程级的概念）；
+ *   - **挂上 `appendMcpClientCapabilityFields`** —— 能力只有握手完成后才拿得到。
+ *
+ * 纪律：**fire-and-forget**（调用方不 await）；**遥测关闭时不发送**（唯一网络边界是 `report()`，
+ * 它在 disabled 时第一行就 return；测试环境在 vitest 配置里关掉，因此测试里不会真的出网）；
+ * **拿不到的字段一律留空**，
+ * 不臆造（例如 `protocolVersion`：本版 SDK 的 Server 只存 capabilities 与 clientInfo，
+ * 不保留协商后的协议版本，因此这里不报它）。
+ */
+export const reportToolkitSessionInitialized = async (params: {
+    cloudBaseOptions?: CloudBaseOptions;
+    ide?: string;
+    client?: string;
+    mcpClientInfo?: McpClientInfo;
+    mcpClientCapabilities?: McpClientCapabilities;
+}) => {
+    const {
+        nodeVersion,
+        osType,
+        osRelease,
+        arch,
+        mcpVersion
+    } = telemetryReporter.getUserAgent();
+
+    const { envId } = resolveEnvId(params.cloudBaseOptions);
+    const siteRegion = resolveTelemetrySiteRegion(params.cloudBaseOptions);
+    const loginUin = await resolveLoginUin(params.cloudBaseOptions, { allowResolve: false });
+
+    const eventData: { [key: string]: any } = {
+        event: 'initialized',
+        envId: envId || 'unknown',
+        region: siteRegion.region,
+        site: siteRegion.site,
+        login_uin: loginUin,
+        nodeVersion,
+        osType,
+        osRelease,
+        arch,
+        mcpVersion
+    };
+
+    if (params.ide) {
+        eventData.ide = params.ide;
+    }
+
+    const sessionClient = resolveClientName(params.client);
+    if (sessionClient) {
+        eventData.client = sessionClient;
+    }
+
+    // 握手后才有：client 名称/版本
+    appendMcpClientInfoFields(eventData, params.mcpClientInfo);
+    // 握手后才有：能力摘要（这一支是这条上报存在的理由）
+    appendMcpClientCapabilityFields(eventData, params.mcpClientCapabilities);
+
+    debug('[telemetry] 会话 initialized 上报参数', { eventData });
+
+    telemetryReporter.report('toolkit_lifecycle', eventData);
+};

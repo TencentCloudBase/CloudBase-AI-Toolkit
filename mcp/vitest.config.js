@@ -10,7 +10,9 @@ export default defineConfig({
     env: {
       NODE_ENV: "test",
       VITEST: "true",
-      // CLOUDBASE_MCP_TELEMETRY_DISABLED: 'true'
+      // 测试里不出网：工具调用/资源读取本来就有 isTestEnvironment 守卫，这条把 `telemetryReporter`
+      // 自己也关掉（否则新增的会话级上报会在握手测试里真的 POST）。
+      CLOUDBASE_MCP_TELEMETRY_DISABLED: 'true'
     },
     // Run tests in Node.js environment
     environment: "node",
