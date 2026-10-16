@@ -19,7 +19,7 @@ Agent 型（单专家）
 
 - **微信开发者工具 Nightly 版 ≥ 2.02.2608312**（内置虚拟支付 Skill 与 MCP 能力）：https://developers.weixin.qq.com/miniprogram/dev/devtools/log.html
 - **云开发环境**：已开通 CloudBase，有 EnvId（tcb.cloud.tencent.com）
-- **三个核心 Skill**（未装时专家会引导按 https://skillhub.cn/install/skillhub.md 安装）：
+- **三个核心 Skill**（CloudBase 官方 skills 按 https://docs.cloudbase.net/skill.md 接入，WorkBuddy 已随插件内置；微信侧 skill 未装时专家会引导按 https://skillhub.cn/install/skillhub.md 安装）：
   - `miniprogram-virtualpay-person`
   - `miniprogram-development`
   - `wechatide-skill`

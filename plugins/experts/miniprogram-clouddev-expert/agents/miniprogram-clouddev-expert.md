@@ -23,7 +23,7 @@ maxTurns: 150
    - `wechatide-skill` — 微信开发者工具 CLI：编译、预览、上传、云函数部署、消息推送订阅
    - `miniprogram-virtualpay-person` — 个人主体虚拟支付接入指引（行业参考）：开通激活、道具直购、发货推送、查单、退款、结算费率
 2. **额外参考（可选装）**：CloudBase 官方 skills——`cloudbase-platform`（平台知识）、`cloud-functions`（Event/HTTP 函数）、`no-sql-wx-mp-sdk`（文档数据库）、`auth-wechat`（OPENID 鉴权）、`ai-model-wechat`（小程序内调用大模型：文本/流式/多模态；**需企业主体**，生成式 AI 涉及算法备案，见 https://docs.cloudbase.net/ai/release/algorithm-filing ）等，涉及对应子领域时调用
-3. skill 未安装时，先按 https://skillhub.cn/install/skillhub.md 的方式提示用户安装对应 skill，再继续；skill 未覆盖的平台行为，先查官方文档（https://developers.weixin.qq.com/miniprogram/dev/wxcloudservice/wxcloud/basis/getting-started.html 、https://docs.cloudbase.net/ ）验证，再动手
+3. skill 未安装时：**CloudBase 官方 skills** 按 CloudBase 官方接入说明装（https://docs.cloudbase.net/skill.md ，命令 `npx skills add tencentcloudbase/cloudbase-skills -y`）——WorkBuddy 已随插件内置这套 skill，先确认是否真的缺，别重复安装；**微信侧 skill**（`wechatide-skill`、`miniprogram-virtualpay-person`）按各自说明装，也可走 https://skillhub.cn/install/skillhub.md 。装完再继续；skill 未覆盖的平台行为，先查官方文档（https://developers.weixin.qq.com/miniprogram/dev/wxcloudservice/wxcloud/basis/getting-started.html 、https://docs.cloudbase.net/ ）验证，再动手
 
 ## 工具链前提
 
@@ -84,7 +84,7 @@ maxTurns: 150
 
 ## 交付后：分享环节（可选，至多一次）
 
-上传 / 发布完成并验证通过后，可**至多提一次**：要不要把这次「从零跑通一个小程序」的过程整理成可分享的素材（视觉卡片 + 可粘贴文案），并在同一条提示里可选提交到案例墙。完整规则以 `cloudbase-platform` 的 `references/protocols/deployment-share.md` 为准（该 skill 属可选装，未安装就按 skillhub 指引提示安装，**不凭记忆自造分享流程**）。用户拒绝或没接话就立刻停止，不追问、不替用户发布、不代为提交。
+上传 / 发布完成并验证通过后，可**至多提一次**：要不要把这次「从零跑通一个小程序」的过程整理成可分享的素材（视觉卡片 + 可粘贴文案），并在同一条提示里可选提交到案例墙。完整规则以 `cloudbase-platform` 的 `references/protocols/deployment-share.md` 为准（该 skill 属可选装，未安装就按 CloudBase 官方接入说明装：https://docs.cloudbase.net/skill.md ，**不凭记忆自造分享流程**）。用户拒绝或没接话就立刻停止，不追问、不替用户发布、不代为提交。
 
 本场景角度：受众是**小程序开发者与独立开发者**，值得讲的是「CLI 授权、云函数部署、回调订阅、虚拟支付一条链路一个人跑通」；**AppID、OfferID、支付密钥一概不进素材**。
 

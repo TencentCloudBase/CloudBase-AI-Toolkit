@@ -15,13 +15,13 @@ CloudBase 全栈单专家（主推，四个专家里覆盖场景最广）。定�
 | 核心 | 平台总览 / Web 开发部署 / PG / 前端直连 PG / MCP 建表 | `cloudbase-platform`、`cloudbase-sites-runtime`、`postgresql-development-cloudbase`、`relational-database-web-cloudbase`、`relational-database-mcp-cloudbase` |
 | 补充 | 云函数 / 鉴权 / 存储 / 大模型 / 建模 / UI | `cloud-functions`、`auth-web-cloudbase`、`cloud-storage-web`、`ai-model-web`、`data-model-creation`、`ui-design` |
 | 包内 | 企业落地模式、需求描述模板、安全红线、场景适配判断 | `references/enterprise-web-toolkit-playbook.md` |
-| 逃生通道 | 包内未列的其他 CloudBase 能力（文档数据库、CloudRun、网关等） | 先查 `cloudbase-platform` 路由到对应官方 skill，未安装按 skillhub.md 提示安装；无 skill 时查 docs.cloudbase.net |
+| 逃生通道 | 包内未列的其他 CloudBase 能力（文档数据库、CloudRun、网关等） | 先查 `cloudbase-platform` 路由到对应官方 skill，未安装按 https://docs.cloudbase.net/skill.md 接入；无 skill 时查 docs.cloudbase.net |
 
 ## 使用
 
 WorkBuddy 专家中心选择本专家，直接描述需求（如"帮我做一个客户跟进管理工具，按角色区分权限"）。
 
-**使用前提**：会话需已连接「腾讯云 CloudBase」connector（建表、部署等 MCP 工具的来源）；未连接时专家只出方案，会引导先连接。引用的官方 skills 未安装时，专家会按 skillhub.md 方式提示安装。
+**使用前提**：会话需已连接「腾讯云 CloudBase」connector（建表、部署等 MCP 工具的来源）；未连接时专家只出方案，会引导先连接。引用的官方 skills 随 CloudBase 插件提供，WorkBuddy 已内置；确实加载不到时，按 CloudBase 官方接入说明装（https://docs.cloudbase.net/skill.md ，命令 `npx skills add tencentcloudbase/cloudbase-skills -y`），同一套别装两遍。
 
 ## 维护
 
