@@ -14,9 +14,15 @@ Execute SQL, manage instances, backups, and slow queries for CloudBase MySQL via
 ## Do NOT use for
 
 - NoSQL/MongoDB operations → use `references/nosql.md` (commands are `tcb db nosql ...`)
+- **PostgreSQL** (a different data plane, not "MySQL v2") → `../postgresql-development-cloudbase/SKILL.md`
+- Data model definitions / `database-schemas/` sync → `references/schema.md` (`tcb db model`)
 - In-app MySQL queries via server SDK → use `cloud-functions` skill
 - Storage file management → use `references/storage.md`
 - Complex stored procedures or multi-statement transactions → use a MySQL client directly
+
+> ⚠️ Environment-level `db backup` targets the **MySQL** instance. NoSQL backups are the separate
+> `tcb db nosql backup ...` family (`references/nosql.md`). The two share a word, not an API.
+> `tcb db model *` is a third, unrelated thing (low-code data definitions, `references/schema.md`).
 
 ## Command Quick Reference
 
@@ -35,9 +41,12 @@ tcb db monitor slow-query   Analyze slow queries
 
 ### Global options
 
-- `-e, --envId <envId>` — target environment
+- `-e, --env-id <envId>` — target environment
 - `--json` — structured output (use for automation)
 - `--yes` — skip confirmation for destructive/confirmation-gated operations
+
+> ⚠️ Use the kebab-case `--env-id`. The old camelCase `--envId` still resolves as a hidden deprecated
+> alias, but it prints `⚠️ --envId 已废弃，请使用 --env-id` on every call — do not generate it.
 
 ⚠️ In `--json` mode, interactive prompts are suppressed — commands that need `--instance-id` or `--yes` will **fail silently** without them.
 
