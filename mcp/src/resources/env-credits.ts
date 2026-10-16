@@ -551,6 +551,17 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       "3600": ${S("mcpUiCredits.metric.period.hour")},
       "86400": ${S("mcpUiCredits.metric.period.day")}
     },
+    // Unit words come from the real console rendering (invocations -> times, runtime -> ms,
+    // compute usage -> GBs / CU) plus the package page (GB / KB / 10k times / %).
+    metricUnit: {
+      count: ${S("mcpUiCredits.metric.unit.count")},
+      ms: ${S("mcpUiCredits.metric.unit.ms")},
+      gbs: ${S("mcpUiCredits.metric.unit.gbs")},
+      cu: ${S("mcpUiCredits.metric.unit.cu")},
+      gb: ${S("mcpUiCredits.metric.unit.gb")},
+      percent: ${S("mcpUiCredits.metric.unit.percent")}
+    },
+    metricUnitWrap: ${S("mcpUiCredits.metric.unitWrap")},
     module: {
       functions: ${S("mcpUiCredits.module.functions")},
       database: ${S("mcpUiCredits.module.database")},
@@ -696,6 +707,58 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     if (!payload || typeof payload.branch !== "string") { return "unknown"; }
     return BRANCHES[payload.branch] ? payload.branch : "unknown";
   }
+  /**
+   * Metric -> unit key. An empty string means the unit is NOT determined: the console shows those
+   * metrics without a suffix (the QPS family), so we show none rather than inventing one. A new
+   * metric has to state its unit here explicitly - a test walks the enum and fails otherwise.
+   */
+  var METRIC_UNIT_KEY = {
+    GatewayTraceEnvQPS: "",
+    EnvQPSAll: "",
+    FunctionInvocation: "count",
+    FunctionError: "count",
+    FunctionTimeout: "count",
+    FunctionThrottle: "count",
+    FunctionDuration: "ms",
+    FunctionConcurrentExecutions: "count",
+    DbRead: "count",
+    DbWrite: "count",
+    DbSizepkg: "gb",
+    MysqlCpuUsageRate: "percent",
+    MysqlMemoryUse: "gbs",
+    MysqlStorageUsage: "gb",
+    MysqlQps: "",
+    MysqlSlowQueries: "count",
+    MysqlDbConnections: "",
+    TkeCpuUsedService: "cu",
+    TkeMemUsedService: "gbs",
+    TkeQPSService: "",
+    TkeHttpErrorService: "count",
+    TkeInvokeNumService: "count"
+  };
+
+  /** Unit word for this metric, or "" when the unit is not determined (never invented). */
+  function metricUnitOf(payload) {
+    if (!payload || typeof payload.metric !== "string") { return ""; }
+    var key = METRIC_UNIT_KEY[payload.metric];
+    return key ? (T.metricUnit[key] || "") : "";
+  }
+
+  /**
+   * Metric numbers keep their decimals: the console does not round them away (it shows 4.52 / 88.3),
+   * and the server already hands us floats (avg 16.043478260869566). Two decimals is enough to read
+   * a metric, and trailing zeros are dropped so whole numbers stay whole (18, not 18.00).
+   * Credits keep using fmtNumber (Math.round) - those are integer resource points, untouched here.
+   */
+  function fmtMetricValue(value) {
+    var n = Number(value);
+    if (!isFinite(n)) { return ""; }
+    var parts = String(Math.round(n * 100) / 100).split(".");
+    parts[0] = parts[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");
+    return parts.join(".");
+  }
+  function withUnit(text, unit) { return unit ? text + unit : text; }
+
   /** Discriminator: kind === "metrics" renders the metrics view; anything else renders credits. */
   function payloadKind(payload) {
     return payload && payload.kind === "metrics" ? "metrics" : "credits";
@@ -754,7 +817,11 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
 
     var brand = applyBrand(payload);
     hideAll(CREDITS_ONLY);
-    setText(el("c-title"), label + (brand.alias ? T.titleSep + brand.alias : ""));
+    var unit = metricUnitOf(payload);
+    var titleLabel = unit
+      ? T.metricUnitWrap.replace("{label}", label).replace("{unit}", unit)
+      : label;
+    setText(el("c-title"), titleLabel + (brand.alias ? T.titleSep + brand.alias : ""));
     setText(el("st-text"), T.metricState[state]);
     el("st-dot").className = "dot" + (state === "data" ? " ok" : state === "failed" ? " err" : "");
     setText(el("c-hint"), T.metricHint[state]);
@@ -763,21 +830,21 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     var latest = payload && typeof payload.latest === "number" ? payload.latest : null;
     var fLatest = el("f-m-latest");
     fLatest.hidden = latest === null;
-    if (latest !== null) { setText(el("k-m-latest"), fmtNumber(latest)); }
+    if (latest !== null) { setText(el("k-m-latest"), withUnit(fmtMetricValue(latest), unit)); }
 
     var peak = payload && typeof payload.max === "number" ? payload.max : null;
     var peakTime = payload && typeof payload.peak_time === "string" && payload.peak_time ? payload.peak_time : "";
     var fPeak = el("f-m-peak");
     fPeak.hidden = peak === null;
     if (peak !== null) {
-      setText(el("k-m-peak"), peakTime ? fmtNumber(peak) + T.modulesSep + peakTime : fmtNumber(peak));
+      setText(el("k-m-peak"), withUnit(fmtMetricValue(peak), unit) + (peakTime ? T.modulesSep + peakTime : ""));
     }
 
     // average
     var avg = payload && typeof payload.avg === "number" ? payload.avg : null;
     var fAvg = el("f-m-avg");
     fAvg.hidden = avg === null;
-    if (avg !== null) { setText(el("k-m-avg"), fmtNumber(avg)); }
+    if (avg !== null) { setText(el("k-m-avg"), withUnit(fmtMetricValue(avg), unit)); }
 
     // samples and interval: an unnameable interval shows samples only
     var samples = payload && typeof payload.sample_count === "number" ? payload.sample_count : 0;

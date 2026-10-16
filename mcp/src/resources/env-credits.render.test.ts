@@ -775,19 +775,23 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
     const panel = render(metricsOf([1, 3, 2, 5]));
 
     expect(panel.el("c-title").textContent).toBe(
-      L("mcpUiCredits.metric.FunctionError") + L("mcpUiCredits.title.sep") + "生产环境",
+      L("mcpUiCredits.metric.unitWrap", {
+        label: L("mcpUiCredits.metric.FunctionError"),
+        unit: L("mcpUiCredits.metric.unit.count"),
+      }) +
+        L("mcpUiCredits.title.sep") +
+        "生产环境",
     );
     expect(panel.el("st-text").textContent).toBe(L("mcpUiCredits.metric.state.data"));
     expect(panel.el("c-hint").textContent).toBe(L("mcpUiCredits.metric.hint.data"));
 
     expect(panel.el("f-m-latest").hidden).toBe(false);
-    expect(panel.el("k-m-latest").textContent).toBe("5");
+    expect(panel.el("k-m-latest").textContent).toBe("5" + L("mcpUiCredits.metric.unit.count"));
     expect(panel.el("f-m-peak").hidden).toBe(false);
     expect(panel.el("k-m-peak").textContent).toContain("5");
     expect(panel.el("f-m-avg").hidden).toBe(false);
-    // 数值走既有 fmtNumber（四舍五入到整数 + 千分位）：2.75 → 3。
-    // 代价是百分比/小数会被抹平——记在报告里作为已知限制（不新造一个格式化器）。
-    expect(panel.el("k-m-avg").textContent).toBe("3");
+    // 指标数值保留小数（控制台不抹小数、服务端本来就给浮点）：2.75 就是 2.75，不再取整成 3
+    expect(panel.el("k-m-avg").textContent).toBe("2.75" + L("mcpUiCredits.metric.unit.count"));
     expect(panel.el("f-m-window").hidden).toBe(false);
     expect(panel.el("k-m-window").textContent).toContain(L("mcpUiCredits.metric.period.minute"));
 
@@ -811,8 +815,8 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
     expect(panel.el("st-text").textContent).toBe(L("mcpUiCredits.metric.state.noData"));
     expect(panel.el("c-hint").textContent).toBe(L("mcpUiCredits.metric.hint.noData"));
     expect(panel.el("f-spark").hidden).toBe(true);
-    // 数值仍如实显示（0 是真实读数，不是"拿不到"）
-    expect(panel.el("k-m-latest").textContent).toBe("0");
+    // 数值仍如实显示（0 是真实读数，不是"拿不到"），且带单位
+    expect(panel.el("k-m-latest").textContent).toBe("0" + L("mcpUiCredits.metric.unit.count"));
   });
 
   it("拿不到 Summary 的字段 ⇒ 整行隐藏，不编数（latest/max/avg/window 全隐）", () => {
@@ -935,6 +939,65 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
       expect(String(en[key]).length).toBeGreaterThan(0);
       expect(String(en[key])).not.toBe(name);
     }
+  });
+
+  it("单位覆盖：指标枚举每一个都在面板的单位表里显式表态（新增指标不许静默没单位）", () => {
+    // 从生成出来的面板脚本里抽出单位表——它就是运行时真正查的那张表
+    const table = HTML.match(/var METRIC_UNIT_KEY = \{([\s\S]*?)\};/);
+    expect(table, "面板脚本里应有 METRIC_UNIT_KEY").not.toBeNull();
+    const body = table![1];
+    const entries = new Map<string, string>();
+    for (const line of body.split("\n")) {
+      const hit = line.match(/^\s*([A-Za-z][A-Za-z0-9]*):\s*"([^"]*)"/);
+      if (hit) { entries.set(hit[1], hit[2]); }
+    }
+    // ① 枚举逐个都有条目
+    for (const name of ENV_METRIC_NAME_VALUES) {
+      expect(entries.has(name), `单位表缺 ${name}`).toBe(true);
+    }
+    // ② "单位未定"（空串）只能是这份**已知清单**：控制台对这些指标不给后缀，
+    //    我们不编；其余每一个都必须指向一个真实存在的单位键
+    const undetermined = [...entries.entries()].filter(([, key]) => key === "").map(([n]) => n).sort();
+    expect(undetermined).toEqual(
+      ["EnvQPSAll", "GatewayTraceEnvQPS", "MysqlDbConnections", "MysqlQps", "TkeQPSService"].sort(),
+    );
+    const unitKeys = new Set(
+      [...HTML.matchAll(/^\s*(count|ms|gbs|cu|gb|percent):\s*"/gm)].map((m) => m[1]),
+    );
+    expect(unitKeys.size).toBe(6);
+    for (const [, key] of entries) {
+      if (key !== "") { expect(unitKeys.has(key), `未知单位键 ${key}`).toBe(true); }
+    }
+    // ③ 表里没有枚举之外的私货（枚举之外的名字只可能来自控制台新增，需显式处理）
+    const known = new Set<string>(ENV_METRIC_NAME_VALUES);
+    for (const name of entries.keys()) {
+      expect(known.has(name), `单位表里有枚举之外的名字 ${name}`).toBe(true);
+    }
+  });
+
+  it("平均值保留小数：服务端浮点 16.043478260869566 渲染成 16.04（不是 16）", () => {
+    const panel = render(
+      buildEnvMetricsPayload({
+        ...M,
+        metricName: "FunctionInvocation",
+        summary: { sampleCount: 23, avg: 16.043478260869566, latest: 18, max: 88.3 },
+        curve: { NewValues: [1, 2] },
+      }),
+    );
+    expect(panel.el("k-m-avg").textContent).toBe("16.04" + L("mcpUiCredits.metric.unit.count"));
+    // 整数不留无意义的尾零
+    expect(panel.el("k-m-latest").textContent).toBe("18" + L("mcpUiCredits.metric.unit.count"));
+    // 一位小数照原样
+    expect(panel.el("k-m-peak").textContent).toContain("88.3");
+  });
+
+  it("单位未定（QPS 家族）：标题不加括号、数值不加后缀，也不编一个单位", () => {
+    const panel = render(metricsOf([3, 9], {}, "EnvQPSAll"));
+    expect(panel.el("c-title").textContent).toBe(
+      L("mcpUiCredits.metric.EnvQPSAll") + L("mcpUiCredits.title.sep") + "生产环境",
+    );
+    expect(panel.el("k-m-latest").textContent).toBe("9");
+    expect(panel.el("k-m-avg").textContent).toBe("6");
   });
 
   it("守卫：两个分支的渲染入口都在面板脚本里（缺一即红）", () => {

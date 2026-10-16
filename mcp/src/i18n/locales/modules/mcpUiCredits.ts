@@ -121,6 +121,18 @@ export const mcpUiCredits = defineModule(
     "metric.TkeInvokeNumService": "云托管调用次数",
 
     // 状态（三态：有数据 / 无流量 / 查询失败）
+    // 指标单位（词表来自云开发控制台的真实呈现：调用次数（次）/ 运行时间（ms）/
+    // 资源用量（GBs）/ 资源用量（CU），以及套餐用量页的 GB / KB / 万次 / %）
+    "metric.unit.count": "次",
+    "metric.unit.ms": "ms",
+    "metric.unit.gbs": "GBs",
+    "metric.unit.cu": "CU",
+    "metric.unit.gb": "GB",
+    "metric.unit.percent": "%",
+
+    // 单位摆放（跟控制台一致：单位写在指标名后的括号里）
+    "metric.unitWrap": "{label}（{unit}）",
+
     "metric.state.data": "有数据",
     "metric.state.noData": "无流量",
     "metric.state.failed": "查询失败",
@@ -243,6 +255,15 @@ export const mcpUiCredits = defineModule(
     "metric.TkeQPSService": "CloudRun QPS",
     "metric.TkeHttpErrorService": "CloudRun HTTP errors",
     "metric.TkeInvokeNumService": "CloudRun invocations",
+
+    "metric.unit.count": "times",
+    "metric.unit.ms": "ms",
+    "metric.unit.gbs": "GBs",
+    "metric.unit.cu": "CU",
+    "metric.unit.gb": "GB",
+    "metric.unit.percent": "%",
+
+    "metric.unitWrap": "{label} ({unit})",
 
     "metric.state.data": "Has data",
     "metric.state.noData": "No traffic",
