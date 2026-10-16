@@ -45,6 +45,10 @@ interface PanelHarness {
   el(id: string): ShimmedElement;
   /** 模拟一次 document 级点击（面板用 `event.target.closest("button")` 取按钮） */
   clickDocument(id: string): void;
+  /** 面板发给宿主的消息（按发出顺序） */
+  posted: Array<Record<string, unknown>>;
+  /** 取某方法的最后一次请求参数（如 ui/message 的 params） */
+  lastRequest(method: string): Record<string, unknown> | undefined;
 }
 
 const FALLBACK = { envId: "my-env-3gk9ab", site: "domestic", region: "ap-shanghai" };
@@ -118,7 +122,9 @@ function loadPanel(html: string): PanelHarness {
     console,
   };
   sandbox.window = sandbox;
-  sandbox.parent = { postMessage() {} };
+  // 收集面板发往宿主的消息：ui/message 的**原文**必须能被断言（不再只断言按钮文案）
+  const posted: Array<Record<string, unknown>> = [];
+  sandbox.parent = { postMessage(message: Record<string, unknown>) { posted.push(message); } };
   sandbox.addEventListener = (type: string, fn: (event: { data: unknown }) => void) => {
     if (type === "message") {
       messageListeners.push(fn);
@@ -142,6 +148,16 @@ function loadPanel(html: string): PanelHarness {
       clickListeners.forEach((fn) =>
         fn({ target: { closest: (sel: string) => (sel === "button" ? elements.get(id) ?? null : null) } }),
       );
+    },
+    /** 面板发给宿主的消息（按发出顺序）。 */
+    posted,
+    /** 取某方法的最后一次请求参数（如 ui/message 的 params）。 */
+    lastRequest(method: string) {
+      for (let i = posted.length - 1; i >= 0; i--) {
+        const message = posted[i] as { method?: string; params?: unknown };
+        if (message.method === method) { return message.params as Record<string, unknown> | undefined; }
+      }
+      return undefined;
     },
   };
 }
@@ -742,6 +758,22 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
     expect(panel.el("raw-out").textContent).toContain("NotARealMetric");
   });
 
+  it("主行动交给会话：ui/message 原文含指标人话、且不含内部枚举码（指标卡）", () => {
+    const panel = render(metricsOf([1, 3, 2, 5]));
+    panel.clickDocument("btn-main");
+
+    const params = panel.lastRequest("ui/message");
+    const text = String((params?.content as { text?: unknown } | undefined)?.text ?? "");
+    expect(text).toBe(
+      L("mcpUiCredits.metric.message.investigate", {
+        metric: L("mcpUiCredits.metric.FunctionError"),
+      }),
+    );
+    // 人话进了消息，内部码没有
+    expect(text).toContain(L("mcpUiCredits.metric.FunctionError"));
+    expect(text).not.toContain("FunctionError");
+  });
+
   it("按 kind 分派：切回用量载荷时，指标字段全部收起、用量块恢复", () => {
     const panel = loadPanel(HTML);
     panel.dispatch({ structuredContent: metricsOf([1, 2]) });
@@ -762,6 +794,40 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
     expect(panel.el("st-text").textContent).toBe(L("mcpUiCredits.state.normal"));
     // normal 分支没有主行动（只有耗尽/到期/欠费才有），主按钮应隐藏
     expect(panel.el("btn-main").hidden).toBe(true);
+  });
+
+  it("主行动交给会话：ui/message 原文逐字等于分支话术（用量卡，两个分支）", () => {
+    const cases: Array<{ name: string; payload: unknown; message: string }> = [
+      {
+        name: "体验版耗尽",
+        payload: buildEnvCreditsPayload({
+          ...BASE,
+          planRaw: "baas_free",
+          usages: [usage("SCF", 3000)],
+          expired: false,
+        }),
+        message: L("mcpUiCredits.message.upgrade"),
+      },
+      {
+        name: "账户欠费",
+        payload: buildEnvCreditsPayload({
+          ...BASE,
+          planRaw: "baas_personal",
+          usages: [usage("SCF", 10)],
+          expired: false,
+          balance: -1,
+        }),
+        message: L("mcpUiCredits.message.topup"),
+      },
+    ];
+    for (const item of cases) {
+      const panel = render(item.payload);
+      expect(panel.el("btn-main").hidden, item.name).toBe(false);
+      panel.clickDocument("btn-main");
+      const params = panel.lastRequest("ui/message");
+      const text = String((params?.content as { text?: unknown } | undefined)?.text ?? "");
+      expect(text, item.name).toBe(item.message);
+    }
   });
 
   it("守卫：指标枚举 ↔ 词典标签齐备（未列出的枚举也必须有通用标题兜底）", () => {
