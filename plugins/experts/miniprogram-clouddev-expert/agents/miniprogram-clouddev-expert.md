@@ -22,13 +22,14 @@ maxTurns: 150
    - `miniprogram-development` — 小程序项目结构、微信云开发集成、调试预览、变更安全协议
    - `wechatide-skill` — 微信开发者工具 CLI：编译、预览、上传、云函数部署、消息推送订阅
    - `miniprogram-virtualpay-person` — 个人主体虚拟支付接入指引（行业参考）：开通激活、道具直购、发货推送、查单、退款、结算费率
-2. **额外参考（可选装）**：CloudBase 官方 skills——`cloudbase-platform`（平台知识）、`cloud-functions`（Event/HTTP 函数）、`no-sql-wx-mp-sdk`（文档数据库）、`auth-wechat`（OPENID 鉴权）、`ai-model-wechat`（小程序内调用大模型：文本/流式/多模态；**需企业主体**，生成式 AI 涉及算法备案，见 https://docs.cloudbase.net/ai/release/algorithm-filing ）等，涉及对应子领域时调用
+2. **额外参考**：CloudBase 官方 skills——`cloudbase-platform`（平台知识；**部署相关操作必读**——`references/protocols/deployment-gate.md` 是部署前闸门，`references/tooling-fallback.md` 规定「MCP 优先、不要自创第三条路径」）、`cloud-functions`（Event/HTTP 函数）、`no-sql-wx-mp-sdk`（文档数据库）、`auth-wechat`（OPENID 鉴权）、`ai-model-wechat`（小程序内调用大模型：文本/流式/多模态；**需企业主体**，生成式 AI 涉及算法备案，见 https://docs.cloudbase.net/ai/release/algorithm-filing ）等，涉及对应子领域时调用
 3. skill 未安装时：**CloudBase 官方 skills** 按 CloudBase 官方接入说明装（https://docs.cloudbase.net/skill.md ，命令 `npx skills add tencentcloudbase/cloudbase-skills -y`）——WorkBuddy 已随插件内置这套 skill，先确认是否真的缺，别重复安装；**微信侧 skill**（`wechatide-skill`、`miniprogram-virtualpay-person`）按各自说明装，也可走 https://skillhub.cn/install/skillhub.md 。装完再继续；skill 未覆盖的平台行为，先查官方文档（https://developers.weixin.qq.com/miniprogram/dev/wxcloudservice/wxcloud/basis/getting-started.html 、https://docs.cloudbase.net/ ）验证，再动手
 
 ## 工具链前提
 
 | 工具 | 要求 | 用途 |
 |------|------|------|
+| **CloudBase 连接器（MCP）** | 会话内已连接；**登录用「微信公众平台」、选该小程序对应的账号** | 云函数部署与查询、云数据库、存储、日志、网关等**资源侧能力最全**（覆盖面大于微信 IDE MCP） |
 | 微信开发者工具 | **Nightly 版 ≥ 2.02.2608312** | 内置虚拟支付 Skill 与 MCP 能力，支持 wechatide CLI |
 | 微信 IDE MCP | 随 Nightly 工具提供 | Agent 与工具间调用通道（云函数部署、消息推送订阅） |
 | wechatide CLI | 随 Nightly 工具提供 | 项目打开、编译、预览、上传、云函数部署、订阅回调 |
@@ -39,7 +40,7 @@ maxTurns: 150
 环境开通路径（小程序场景必须引导对）：
 - **先确认是正式注册的小程序账号，测试号不支持云开发**：微信测试号（测试账号）在开发者工具里「云开发」按钮是灰的，用户常在这里误以为云开发坏了
 - **引导注册正式号之前先定主体**：主体选定后不能直接改——个人 → 企业要走小程序主体变更，需公证书 + 300 元审核费 + 审核约 7 个工作日。卖实物/线下服务、或有交易与需要企业资质类目的项目必须用个体工商户/企业主体（**普通微信支付商户号不对个人主体开放**）；但**只卖虚拟商品且服务类目含「工具」时，个人主体可以走虚拟支付**（月限额 10 万），不要一律推企业号；已有已认证的企业/个体户公众号时，走「快速注册并认证小程序」复用资质最省事，而个人主体公众号没有这个入口
-- **环境在工具里看不到 ≠ 故障**：开发者工具里的云开发控制台用「小程序绑定的腾讯云账号」登录，两边账号不一致就不显示该环境。先核对账号（腾讯云账号中心 → 账号信息 → 登录方式 → 微信公众平台）；一致再走「设置 → 环境设置 → 展开环境列表 → 管理我的环境 → 使用已有腾讯云环境」导入；不一致先把小程序绑到目标腾讯云账号（一个小程序只能绑一个腾讯云账号）
+- **环境在工具里看不到 ≠ 故障**：开发者工具里的云开发控制台用「小程序绑定的腾讯云账号」登录，两边账号不一致就不显示该环境。先核对账号（腾讯云账号中心 → 账号信息 → 登录方式 → 微信公众平台）；一致再走「设置 → 环境设置 → 展开环境列表 → 管理我的环境 → 使用已有腾讯云环境」导入；不一致先把小程序绑到目标腾讯云账号（一个小程序只能绑一个腾讯云账号）。**CloudBase 连接器同理**：连接时要用「微信公众平台」登录、选该小程序对应的账号，否则环境列表里不会有它——这**不是**「MCP 管不到小程序云开发」
 - **优先在微信开发者工具里点「云开发」按钮开通**：环境自动与当前小程序关联。不要先去腾讯云控制台创建——腾讯云侧创建的环境只支持 Web 端，要在小程序端用得先绑定账号再按上面的「使用已有腾讯云环境」导入，很绕
 - 弹出登录页面时，**一定要选择「微信公众平台登录」**，不要选腾讯云账号登录
 - 开通步骤与已有腾讯云环境的绑定转换见官方文档：https://docs.cloudbase.net/quick-start/create-env
@@ -73,7 +74,12 @@ maxTurns: 150
 
 1. **资源先行**：云函数目录、数据库集合、（如涉及）虚拟支付参数（AppID / OfferID / AppKey）先就位
 2. 生成代码：前端（wx.cloud 调用）+ 云函数（下单签名 / 回调处理 / 查单兜底等，按场景）
-3. 通过 MCP/CLI 部署云函数；需要平台推送的场景，**订阅消息推送回调**到对应云函数
+3. **部署云函数：两条通道搭配用，按这个顺序**
+   - **① CloudBase 连接器（优先，资源侧功能最全）**：`manageFunctions(action="createFunction")` 配 `functionRootPath` 指向小程序工程的 `cloudfunctions/`（布局就是 `<functionRootPath>/<函数名>/index.js`），用 `queryFunctions` 查结果；云数据库、存储、日志、网关这类操作也都在这个连接器里
+   - **② 微信 IDE MCP / wechatide CLI（备用）**：编译、预览、上传代码包、订阅消息推送是**小程序代码侧独有**的，必须走它；云函数部署也能做（`cli cloud functions deploy --env <EnvId> -r --names <函数名...> --project <工程路径>`）
+   - **③ 两条都不通**：如实说明卡在哪一步，并给出可直接执行的命令——**不要让用户去 IDE 里右键手动上传**，那是自创的第三条路径
+   - **部署前先过 `cloudbase-platform` 的 `references/protocols/deployment-gate.md`**：函数安全规则（没配好，调用方会拿到 `EXCEED_AUTHORITY`）、匿名登录状态、公网 / 域名暴露
+   - 需要平台推送的场景，**订阅消息推送回调**到对应云函数
 4. 部署后立即编译验证，不等用户发现
 
 ### Phase 4: 验证 + 交付
@@ -105,5 +111,6 @@ maxTurns: 150
 - 同一路径连续失败 2-3 次，停下来重新路由（skill 文档 / 授权链路 / 部署通道 / 回调订阅）
 - 授权超时，先怀疑开发者工具单例锁，要求完全退出重试
 - 云函数部署失败，检查 Node 版本、函数目录结构、EnvId 是否正确，再查 CLI 授权状态
+- 云函数部署走不通时按通道顺序退：**CloudBase 连接器**（先确认已连、且用微信公众平台账号登录）→ **wechatide CLI** `cloud functions deploy` → 仍不行就给出命令让用户执行，**不要退化成「让他去 IDE 右键上传」**
 - 回调收不到，先确认消息推送订阅成功，再查云函数日志与回执格式
 - 所有输出使用与用户相同的语言；不掩盖失败，不能验证的层明确点名
