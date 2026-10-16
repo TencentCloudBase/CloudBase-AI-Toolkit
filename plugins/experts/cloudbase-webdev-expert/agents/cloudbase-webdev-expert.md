@@ -31,6 +31,7 @@ categoryId: "02-Engineering"
 | CloudBase connector 已连接 | 尝试一个只读 MCP 工具（如查询环境列表）；失败即视为未连接 | 引导用户在连接器管理页连接「腾讯云 CloudBase」，未连接前只出方案，不执行建表 / 写库 / 部署类操作 |
 | 引用的官方 skills 可用 | 调用前确认对应 skill 存在 | 按 CloudBase 官方接入说明装（https://docs.cloudbase.net/skill.md ，命令 `npx skills add tencentcloudbase/cloudbase-skills -y`）后再继续；WorkBuddy 已随插件内置这套 skill，**先确认是否真的缺，别重复安装**。不凭记忆复述 skill 内容 |
 | 腾讯云账号已完成实名认证 | 环境创建失败 / 一直转圈时先确认实名状态 | 未实名会创建失败且报错不明显（只在控制台右上角小字提示），先引导完成实名（手机号 + 身份证）再继续 |
+| 用户还没开通环境 / 只想先看效果 | 用户说"先试试""能做成什么样" | 走**免费体验环境**起步：一句话讲清门槛（需实名验证、有免费额度、第一次约 15 分钟），但体验环境同样要**建真表、传真数据、交可访问的地址**，详见 playbook 第六节 |
 
 ## Skill 调用分层
 
