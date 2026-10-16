@@ -458,10 +458,10 @@ export async function createCloudBaseMcpServer(options?: {
     // 多会话同进程的场景（HTTP/托管路径的每会话回调）本期不接，留待后续。
     //
     // 会话身份的取值来源（不留含糊）：**由调用点注入的 `getSessionId()`**
-    //   - 有状态 HTTP / 托管路径：`hosted/handle-hosted-mcp-request.ts:144` 注入
-    //     `() => transport?.sessionId`（transport 在 `:134` 声明、`:160` 创建、`:167` connect，
-    //     与建 server 同一作用域）；`StreamableHTTPServerTransport.sessionId` 是**公开 getter**；
-    //   - stdio（`cli.ts`）与**无状态**托管（`sessionIdGenerator: undefined`，`:161`）没有会话概念
+    //   - 有状态 HTTP / 托管路径：`hosted/handle-hosted-mcp-request.ts:154` 注入
+    //     `() => transport?.sessionId`（transport 在 `:134` 声明、`:164` 创建、`:171` connect，
+    //     与建 server（`:142`）同一作用域）；`StreamableHTTPServerTransport.sessionId` 是**公开 getter**；
+    //   - stdio（`cli.ts`）与**无状态**托管（`sessionIdGenerator: undefined`，`:165`）没有会话概念
     //     ⇒ 不注入 ⇒ 回落到常量 `single-session`，等价于"这个实例就是一个会话"。
     // 不读 SDK 的 `Protocol._transport`（那是私有的指针，本版也没有公开的 transport 访问器）。
     //
