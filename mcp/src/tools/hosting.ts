@@ -18,7 +18,6 @@ import { getConsoleDevUrl } from '../utils/site-map.js';
 import { buildJsonToolResult, toolPayloadErrorToResult } from '../utils/tool-result.js';
 import {
   buildArtifactCardPayload,
-  errorTextOf,
   resolveArtifactEnvContext,
 } from './artifact-card-payload.js';
 
@@ -607,13 +606,26 @@ function enrichRateLimitMessage(message: string): string {
   return message;
 }
 
-function buildFailureResult(action: string, error: unknown) {
+/**
+ * 失败回执里那句**富化后**的 message（限流 / 未就绪 / 未开通会追加引导句）。
+ * 单独提出来是为了让产物卡片的 `error_text` 与回执**同一句**——否则同一次失败，
+ * 会话里看到的是带引导的长句、卡片上是裸消息，两者不一致。
+ */
+function buildHostingFailureMessage(error: unknown): string {
+  return enrichHostingStatusMessage(
+    enrichRateLimitMessage(error instanceof Error ? error.message : String(error)),
+  );
+}
+
+function buildFailureResult(
+  action: string,
+  error: unknown,
+  message: string = buildHostingFailureMessage(error),
+) {
   return buildJsonToolResult({
     success: false,
     errorCode: `HOSTING_${action.toUpperCase()}_FAILED`,
-    message: enrichHostingStatusMessage(
-      enrichRateLimitMessage(error instanceof Error ? error.message : String(error)),
-    ),
+    message,
   });
 }
 
@@ -1344,7 +1356,9 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         if (toolPayloadResult) {
           return toolPayloadResult;
         }
-        const failureResult = buildFailureResult(args.action, error);
+        // 富化后的那句话与回执同源：卡片不许比回执"少一段引导"
+        const failureMessage = buildHostingFailureMessage(error);
+        const failureResult = buildFailureResult(args.action, error, failureMessage);
         if (args.action === 'upload') {
           // MCP Apps：上传失败时把失败态（含**后端原文**）也交给产物卡片，文本回执逐字不变。
           // 失败路径不再为了品牌条去初始化 manager：别名 / 套餐降级到配置那一级（逐字段降级）。
@@ -1357,7 +1371,7 @@ export function registerHostingTools(server: ExtendedMcpServer) {
             ...failureResult,
             structuredContent: buildArtifactCardPayload({
               success: false,
-              errorText: errorTextOf(error),
+              errorText: failureMessage,
               kind: 'hosting',
               artifactName: typeof args.cloudPath === 'string' ? args.cloudPath : null,
               envId: cloudBaseOptions?.envId ?? null,

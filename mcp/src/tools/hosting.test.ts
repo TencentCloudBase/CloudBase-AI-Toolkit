@@ -398,6 +398,26 @@ describe('hosting tools', () => {
     });
   });
 
+  it('manageHosting(action=upload) 的卡片失败原因与回执同一句（含富化引导）', async () => {
+    const tools = createMockServer();
+    const rawMessage = '静态网站服务【初始化中】';
+    mockUploadFiles.mockRejectedValueOnce(new Error(rawMessage));
+
+    const result = await tools.manageHosting.handler({
+      action: 'upload',
+      localPath: '/tmp/site-dist',
+      cloudPath: 'site',
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    // 回执那句是**富化过**的：命中了"未就绪"模式 ⇒ 比裸 message 长
+    expect(payload.message).not.toBe(rawMessage);
+    expect(payload.message).toContain(rawMessage);
+    // 卡片与回执同一句（这条就是"同源"的守卫：谁改回裸 error.message 就红）
+    expect(result.structuredContent.error_text).toBe(payload.message);
+  });
+
   it('manageHosting(action=upload) attaches the failure state to the artifact card payload', async () => {
     const tools = createMockServer();
     // 缺参数 → 在任何网络调用之前就失败；失败态是这张卡的主要价值，必须同样带上

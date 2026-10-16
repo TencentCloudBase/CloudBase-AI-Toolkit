@@ -375,6 +375,32 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     }
   });
 
+  it("失败态不显示地址行（即便结果里带着地址）", () => {
+    const panel = render({ state: "failed", access_url: PUBLIC_URL, error_text: FAILURE_TEXT });
+
+    expect(panel.el("st-text").textContent).toBe(L("mcpUiArtifact.state.failed"));
+    expect(panel.el("c-hint").textContent).toBe(FAILURE_TEXT);
+    expect(panel.el("f-url").hidden).toBe(true);
+    expect(panel.el("k-url").textContent).toBe("");
+  });
+
+  it("显式不可达不算失败态：地址照显、只是不给「打开」（两条别互相误伤）", () => {
+    const panel = render(
+      buildArtifactCardPayload({
+        ...BASE,
+        success: true,
+        accessUrl: PUBLIC_URL,
+        accessUrlSource: "hosting.staticDomain",
+        accessUrlReachable: false,
+      }),
+    );
+
+    expect(panel.el("st-text").textContent).toBe(L("mcpUiArtifact.state.unknown"));
+    expect(panel.el("f-url").hidden).toBe(false);
+    expect(panel.el("k-url").textContent).toBe(PUBLIC_URL);
+    expect(panel.el("btn-main").hidden).toBe(true);
+  });
+
   it("兜底：只收到失败标记（isError）时显示「部署失败」，并保留上一次的身份", () => {
     const panel = render(payloadPublished()); // 先有一次真实结果：身份（类型/名称/环境 ID）来自它
     expect(panel.el("c-title").textContent).toContain("my-blog");

@@ -423,7 +423,8 @@ body {
     var fUrl = el("f-url");
     // An address is shown whenever the result carried one; whether it can be opened is a separate
     // question (the main action only exists when the source says it is publicly reachable).
-    var showUrl = url !== "";
+    // A failed card never shows an address, even if one travelled with the result.
+    var showUrl = url !== "" && state !== "failed";
     if (fUrl) { fUrl.hidden = !showUrl; }
     if (showUrl) {
       setText(el("k-url"), url);
