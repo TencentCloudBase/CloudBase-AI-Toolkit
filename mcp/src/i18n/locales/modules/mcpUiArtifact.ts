@@ -58,13 +58,16 @@ export const mcpUiArtifact = defineModule(
     "action.refresh": "刷新进度",
     "action.copyUrl": "复制地址",
 
-    // 交给会话的请求（按钮 → ui/message 的原文；{url} 由面板脚本用实时地址替换）
-    "message.openUrl": "打开这个访问地址：{url}",
-    "message.bindDomain": "这个服务目前只有内网地址 {url}，帮我绑定一个公网域名",
-    "message.viewLog": "帮我看一下这个部署的日志",
-    "message.viewBuildLog": "帮我看一下这个部署的构建日志",
-    "message.redeploy": "帮我重新部署一次",
-    "message.refresh": "帮我看看这个部署的进度",
+    // 交给会话的请求（按钮 → ui/message 的原文）。
+    // 两个占位符由面板脚本在点击时替换：{target} = 本次部署的对象（类型 + 名称，缺失时用 targetFallback），
+    // {url} = 实时访问地址。**必须带上对象**，否则技能只能拿到一句"看下日志"，不知道查哪个服务。
+    "message.openUrl": "打开 {target} 的访问地址 {url}",
+    "message.bindDomain": "给 {target} 绑定一个公网域名（它当前只有内网地址 {url}）",
+    "message.viewLog": "帮我看一下 {target} 的日志",
+    "message.viewBuildLog": "帮我看一下 {target} 的构建日志",
+    "message.redeploy": "帮我重新部署 {target}",
+    "message.refresh": "帮我看看 {target} 的进度",
+    "message.targetFallback": "这次部署",
   },
   {
     resourceTitle: "Deployment artifact",
@@ -101,11 +104,12 @@ export const mcpUiArtifact = defineModule(
     "action.refresh": "Refresh progress",
     "action.copyUrl": "Copy address",
 
-    "message.openUrl": "Open this access address: {url}",
-    "message.bindDomain": "This service only has the internal address {url}. Help me bind a public domain",
-    "message.viewLog": "Show me the logs of this deployment",
-    "message.viewBuildLog": "Show me the build log of this deployment",
-    "message.redeploy": "Deploy it again for me",
-    "message.refresh": "Check the progress of this deployment",
+    "message.openUrl": "Open the access address of {target}: {url}",
+    "message.bindDomain": "Bind a public domain for {target} (it currently only has the internal address {url})",
+    "message.viewLog": "Show me the logs of {target}",
+    "message.viewBuildLog": "Show me the build log of {target}",
+    "message.redeploy": "Deploy {target} again for me",
+    "message.refresh": "Check the progress of {target}",
+    "message.targetFallback": "this deployment",
   },
 );

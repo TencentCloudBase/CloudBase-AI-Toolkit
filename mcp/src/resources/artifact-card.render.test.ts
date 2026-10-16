@@ -161,6 +161,13 @@ function render(payload: unknown): PanelHarness {
 }
 
 const BASE = { site: "domestic", region: "ap-shanghai" } as const;
+
+/** 面板在点击时会把 {target} 与 {url} 换掉；测试按同一规则拼期望值 */
+const fill = (template: string, target: string, url: string): string =>
+  template.replace("{target}", target).replace("{url}", url);
+/** {target} = 类型人话 + 产物名（都拿不到时用兜底词） */
+const targetOf = (kind: string, name: string): string =>
+  kind && name ? `${L(`mcpUiArtifact.kind.${kind}`)} ${name}` : name || L("mcpUiArtifact.message.targetFallback");
 const PUBLIC_URL = "https://my-blog.tcloudbaseapp.com";
 const INTERNAL_URL = "https://demo.internal.tcb";
 
@@ -306,15 +313,41 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
       role: "user",
       content: {
         type: "text",
-        text: L("mcpUiArtifact.message.bindDomain").replace("{url}", INTERNAL_URL),
+        text: fill(
+          L("mcpUiArtifact.message.bindDomain"),
+          targetOf("cloudrun", "cloudbase-demo"),
+          INTERNAL_URL,
+        ),
       },
     });
 
     const published = render(payloadPublished());
     published.clickDocument("btn-main");
     expect(published.sent.filter((entry) => entry.method === "ui/message")[0]?.params.content.text).toBe(
-      L("mcpUiArtifact.message.openUrl").replace("{url}", PUBLIC_URL),
+      fill(L("mcpUiArtifact.message.openUrl"), targetOf("hosting", "my-blog"), PUBLIC_URL),
     );
+  });
+
+  it("发给会话的话里带着本次部署的对象（否则技能不知道查哪个服务）", () => {
+    const failed = render(payloadFailed());
+    failed.clickDocument("btn-main");
+    const failedText = failed.sent.filter((entry) => entry.method === "ui/message")[0]?.params.content.text ?? "";
+    // 失败态主行动：既要有日志动作，也要点出对象
+    expect(failedText).toBe(
+      fill(L("mcpUiArtifact.message.viewLog"), targetOf("cloudrun", "cloudbase-demo"), ""),
+    );
+    expect(failedText).toContain("cloudbase-demo");
+
+    // 拿不到对象时不硬凑：落回兜底措辞
+    const bare = render(
+      buildArtifactCardPayload({ ...BASE, success: false, errorText: "boom" }),
+    );
+    bare.clickDocument("btn-main");
+    const bareText = bare.sent.filter((entry) => entry.method === "ui/message")[0]?.params.content.text ?? "";
+    expect(bareText).toBe(
+      fill(L("mcpUiArtifact.message.viewLog"), L("mcpUiArtifact.message.targetFallback"), ""),
+    );
+    expect(bareText).toContain(L("mcpUiArtifact.message.targetFallback"));
   });
 
   it("面板从不调用工具：任何一次点击后 tools/call 计数都为 0", () => {

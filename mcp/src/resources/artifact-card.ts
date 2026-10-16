@@ -304,6 +304,7 @@ body {
     messageViewBuildLog: ${S("mcpUiArtifact.message.viewBuildLog")},
     messageRedeploy: ${S("mcpUiArtifact.message.redeploy")},
     messageRefresh: ${S("mcpUiArtifact.message.refresh")},
+    messageTargetFallback: ${S("mcpUiArtifact.message.targetFallback")},
     plan: {
       trial: ${S("mcpUiCredits.plan.trial")},
       personal: ${S("mcpUiCredits.plan.personal")},
@@ -334,7 +335,7 @@ body {
   // Local config only fills the gaps until the tool result arrives; it never overrides a live value.
   var FALLBACK = { site: ${J(siteText)}, region: ${J(regionText)}, envId: ${J(fallback.envId ?? "")} };
   var SITE_TEXT = FALLBACK.site;
-  var current = { envId: FALLBACK.envId, url: "", state: "unknown" };
+  var current = { envId: FALLBACK.envId, url: "", state: "unknown", kind: "", name: "" };
   var busy = false;
 
   // Unknown codes are dropped rather than printed: an internal code on screen reads worse than a blank.
@@ -391,6 +392,8 @@ body {
     } else {
       hint = T.hint[state] || "";
     }
+    current.kind = payload && typeof payload.artifact_kind === "string" ? payload.artifact_kind : "";
+    current.name = payload && typeof payload.artifact_name === "string" ? payload.artifact_name : "";
     var hintNode = el("c-hint");
     setText(hintNode, hint);
     if (hintNode) { hintNode.hidden = !hint; }
@@ -489,10 +492,20 @@ body {
     if (refresh) { refresh.setAttribute("data-message", T.messageRefresh); }
   }
 
+  // The two placeholders are filled in at click time from what this result actually carried:
+  // {target} names the deployment (kind + name) so the conversation knows which object to act on,
+  // {url} is the live address. Missing pieces fall back to a neutral phrase, never to a guess.
+  function targetText() {
+    var kind = current.kind ? (T.kind[current.kind] || "") : "";
+    var name = current.name || "";
+    if (kind && name) { return kind + " " + name; }
+    return name || kind || T.messageTargetFallback;
+  }
   function payloadText(message) {
-    // {url} is the only placeholder; replaced with the live address at click time.
-    var url = current.url;
-    return message.indexOf("{url}") === -1 ? message : message.replace("{url}", url);
+    var text = message;
+    if (text.indexOf("{target}") !== -1) { text = text.replace("{target}", targetText()); }
+    if (text.indexOf("{url}") !== -1) { text = text.replace("{url}", current.url); }
+    return text;
   }
 
   function sendMessage(node) {
