@@ -5,7 +5,7 @@ import { ExtendedMcpServer } from "../server.js";
 import { shouldRegisterTool } from './cloud-mode.js';
 import { debug } from './logger.js';
 import { reportToolCall, readMcpClientInfoFromServer, readClientCapabilitiesFromServer } from './telemetry.js';
-import { isToolPayloadError, ToolPayloadError, withBusinessFailureIsError } from "./tool-result.js";
+import { isBusinessFailureToolResult, isToolPayloadError, ToolPayloadError, withBusinessFailureIsError } from "./tool-result.js";
 import { applyRepeatGuardToPayload, resetRepeatGuard } from "./repeat-error-guard.js";
 import { enhanceErrorMessage, resolveRequestId } from "./error-guidance.js";
 import { resolveSiteAndRegion } from "./site-map.js";
@@ -102,6 +102,105 @@ function contributionHint(server: ExtendedMcpServer): string {
 /**
  * 创建包装后的处理函数，添加数据上报功能
  */
+/**
+ * 工具自己返回的失败：结构化 `{ success: false }`（`isBusinessFailureToolResult` 已覆盖
+ * 顶层 / structuredContent / JSON 文本三种挂法），**或**已经显式带 `isError: true` 的回执。
+ * 护栏拦截的返回两样都不占（它的载荷是 `{status, executed:false}`）。
+ */
+function isReturnedFailureResult(result: unknown): boolean {
+    if (!result || typeof result !== 'object') {
+        return false;
+    }
+    if ((result as Record<string, unknown>).isError === true) {
+        return true;
+    }
+    return isBusinessFailureToolResult(result);
+}
+
+/**
+ * 失败时给客户端的最终文案：**抛错与"返回的失败"共用这一处构造**，
+ * 所以两条路径对同一个底层错误得到的文本逐字相同（🆔 RequestId + 📦 版本页脚都在这里）。
+ */
+function buildFailureClientText(
+    errorMessage: string,
+    requestId: string | undefined,
+    server: ExtendedMcpServer,
+): string {
+    const mcpVersion = typeof __MCP_VERSION__ !== 'undefined' ? __MCP_VERSION__ : 'unknown';
+    const requestIdSuffix = requestId ? `\n🆔 RequestId: ${requestId}` : '';
+    return `${errorMessage}${requestIdSuffix}\n\n📦 CloudBase MCP v${mcpVersion}\n${contributionHint(server)}`;
+}
+
+/** 从工具返回的失败结果里取"人话那句"+ 结构化错误码（用于指引匹配）。 */
+function failureMessageOf(result: unknown): { message: string; code?: string; parsed?: Record<string, unknown>; text?: string } {
+    const content = Array.isArray((result as any)?.content) ? (result as any).content : [];
+    const firstText = content.find(
+        (item: any) => item && item.type === 'text' && typeof item.text === 'string',
+    );
+    const text: string | undefined = firstText?.text;
+    if (typeof text === 'string') {
+        try {
+            const parsed = JSON.parse(text);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                const record = parsed as Record<string, unknown>;
+                const message =
+                    typeof record.message === 'string' && record.message
+                        ? record.message
+                        : typeof record.error === 'string' && record.error
+                            ? record.error
+                            : text;
+                const code =
+                    typeof record.code === 'string' ? record.code
+                        : typeof record.errorCode === 'string' ? record.errorCode
+                            : undefined;
+                return { message, code, parsed: record, text };
+            }
+        } catch {
+            // 纯文本失败回执（buildTextErrorResult）：整段就是那句话
+        }
+        return { message: text, text };
+    }
+    const record = (result ?? {}) as Record<string, unknown>;
+    const message =
+        typeof record.message === 'string' && record.message ? record.message : '工具返回了失败结果';
+    return { message, code: typeof record.code === 'string' ? record.code : undefined };
+}
+
+/**
+ * 把"返回的失败"改成与抛错同款的文案：文案本体走 `enhanceErrorMessage`（同一张指引表），
+ * 尾部接同一个 RequestId/版本页脚。**结构化契约不破**：
+ *   - 文本内容是 JSON 对象 ⇒ 只替换它的 `message` 字段，其余字段原样保留、仍可 JSON.parse；
+ *   - 纯文本失败回执 ⇒ 整段替换（与抛错路径逐字相同）。
+ */
+function withEnhancedFailureText(
+    result: any,
+    errorMessage: string,
+    requestId: string | undefined,
+    server: ExtendedMcpServer,
+): any {
+    const clientText = buildFailureClientText(errorMessage, requestId, server);
+    const info = failureMessageOf(result);
+    const content = Array.isArray(result?.content) ? result.content : [];
+    const index = content.findIndex(
+        (item: any) => item && item.type === 'text' && typeof item.text === 'string',
+    );
+
+    if (info.parsed && index >= 0) {
+        const nextContent = [...content];
+        nextContent[index] = {
+            ...nextContent[index],
+            text: JSON.stringify({ ...info.parsed, message: clientText }, null, 2),
+        };
+        return { ...result, content: nextContent };
+    }
+    if (typeof info.text === 'string' && index >= 0) {
+        const nextContent = [...content];
+        nextContent[index] = { ...nextContent[index], text: clientText };
+        return { ...result, content: nextContent };
+    }
+    return result;
+}
+
 function createWrappedHandler(name: string, handler: any, server: ExtendedMcpServer) {
     return async (args: any, extra?: { requestId?: unknown; signal?: unknown }) => {
         const startTime = Date.now();
@@ -146,14 +245,41 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             // 执行原始处理函数（extra 一并透传，工具可据此拿到在途请求 id）
             const result = await handler(args, extra);
 
-            success = true;
+            // 工具**自己返回**的失败（`{ success: false }` 结构化载荷，或已经带 `isError: true` 的
+            // 失败回执）与"抛错"是同一件事：遥测要按失败记，文案要吃同一套收尾（增强 + RequestId +
+            // 版本页脚）。护栏拦截的返回走不到这里——它在上面就 return 了，且它的载荷既没有
+            // `success: false` 也没有 `isError`（见 confirmation-guard.ts / credential-guard.ts）：
+            // 那是"用户选择不执行"，不是失败。
+            const returnedFailure = isReturnedFailureResult(result);
+            success = !returnedFailure;
             // 同一凭证的工具成功说明重复错误循环已被打破，只清零该凭证的计数
-            resetRepeatGuard(server);
+            if (!returnedFailure) {
+                resetRepeatGuard(server);
+            }
             requestId = extractRequestIdFromToolResult(result);
             const duration = Date.now() - startTime;
-            debug(`工具执行成功: ${name}`, { duration, requestId: requestId || undefined });
+            debug(returnedFailure ? `工具返回失败结果: ${name}` : `工具执行成功: ${name}`, {
+                duration,
+                requestId: requestId || undefined,
+            });
             if (!isTestEnvironment) {
-                server.logger?.({ type: 'afterToolCall', toolName: name, args: sanitizeArgs(args), result: result, duration });
+                server.logger?.({
+                    type: returnedFailure ? 'errorToolCall' : 'afterToolCall',
+                    toolName: name,
+                    args: sanitizeArgs(args),
+                    ...(returnedFailure ? { message: failureMessageOf(result).message } : { result }),
+                    duration,
+                });
+            }
+            if (returnedFailure && !isTestEnvironment) {
+                const failure = failureMessageOf(result);
+                errorMessage = enhanceErrorMessage(
+                    { message: failure.message, ...(failure.code ? { code: failure.code } : {}) },
+                    failure.message,
+                );
+                return withBusinessFailureIsError(
+                    withEnhancedFailureText(result, errorMessage, requestId, server),
+                );
             }
             // 业务失败（结构化 { success: false } 返回）必须带 MCP isError=true，
             // 否则客户端会把失败误判为成功（实测 applyMigration / 知识库查询失败均踩坑）。
@@ -192,9 +318,7 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
                 throw error instanceof Error ? error : new Error(String(error));
             }
 
-            const mcpVersion = typeof __MCP_VERSION__ !== 'undefined' ? __MCP_VERSION__ : 'unknown';
-            const requestIdSuffix = requestId ? `\n🆔 RequestId: ${requestId}` : '';
-            const enhancedErrorMessage = `${errorMessage}${requestIdSuffix}\n\n📦 CloudBase MCP v${mcpVersion}\n${contributionHint(server)}`;
+            const enhancedErrorMessage = buildFailureClientText(errorMessage, requestId, server);
 
             // 创建新的错误对象，保持原有的错误类型但更新消息
             const enhancedError = error instanceof Error

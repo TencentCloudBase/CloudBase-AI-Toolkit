@@ -308,10 +308,10 @@ describe("wrapServerWithTelemetry", () => {
     });
   });
 
-  it("reports a returned business failure to telemetry as success", async () => {
-    // Records current behavior. A handler that returns { success: false }
-    // still reaches reportToolCall with success=true, and the return path
-    // does not attach the prefilled issue link built in the throw path.
+  it("reports a returned business failure as a failure (same as a throw)", async () => {
+    // 行为变更（#50）：以前这里记 success=true，等于把"工具返回失败"记成成功。
+    // 现在与抛错同口径：success=false + error。注意这个载荷没有 content，
+    // 所以没有文本可增强——enhance 那一步对它是 no-op，message 仍进遥测。
     await withTelemetryEnabled(async () => {
       vi.mocked(reportToolCall).mockClear();
       let wrappedHandler: ((args: any) => Promise<any>) | undefined;
@@ -337,7 +337,8 @@ describe("wrapServerWithTelemetry", () => {
       expect(reportToolCall).toHaveBeenCalledWith(
         expect.objectContaining({
           toolName: "demo",
-          success: true,
+          success: false,
+          error: expect.any(String),
         }),
       );
     });
