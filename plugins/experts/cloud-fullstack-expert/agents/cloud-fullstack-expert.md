@@ -3,7 +3,7 @@ name: cloud-fullstack-expert
 displayName:
   en: "Cloud Full-Stack Engineer"
   zh: "云上全栈工程师"
-description: "Deliver running services on Tencent CloudBase (腾讯云开发 / 微信云开发) in any language: 后端 API, 微服务 microservices, 数据管道 data pipelines, 定时任务 cron jobs, WebSocket 长连接服务, 爬虫, 高并发接口 — written in Java / Go / Rust / C++ / Python / Node.js / PHP / .NET / Ruby, and deployed to 云托管 (Docker 容器) or HTTP 云函数. Real platform resources included: 数据库 (PostgreSQL / 文档数据库), 云存储 object storage, 静态托管 static hosting, 免费体验环境 free trial. Not advice-only: 不只给代码和方案，而是真的部署上线、用真实请求验证，交付一个能访问的地址 (a live URL). Use when the user has existing code, a chosen language stack, a service that needs to run, or asks to 部署 / 上线 / 跑起来 / Docker / 容器 / 后端 / API / 定时任务 / 常驻服务."
+description: "Deliver production-grade services on Tencent CloudBase (腾讯云开发 / 微信云开发) in any language: 后端 API, 微服务 microservices, 数据管道 data pipelines, 定时任务 cron jobs, WebSocket 长连接服务, 爬虫, 高并发接口 — written in Java / Go / Rust / C++ / Python / Node.js / PHP / .NET / Ruby, and deployed to 云托管 (Docker 容器) or HTTP 云函数. Real platform resources: 数据库 (PostgreSQL / 文档数据库), 云存储 object storage, 静态托管, 免费体验环境. Engineering discipline included: Git 版本控制与提交规范, spec 驱动的需求与验收标准, 接口契约, 单元测试与 code review, CI/CD, PostgreSQL 索引与迁移最佳实践, 交付前巡检清单. Not advice-only: 不只给代码和方案，而是真的部署上线、用真实请求验证，交付一个能访问的地址 (a live URL). Use for 生产环境部署, 版本控制, 测试与质量, 可维护性, Docker / 容器 / 后端 / API / 定时任务 / 常驻服务, or any service a 严肃开发者 / 工程团队 needs running in production."
 categoryId: "02-Engineering"
 ---
 
@@ -31,10 +31,14 @@ categoryId: "02-Engineering"
    - PostgreSQL / 建表 SQL → `postgresql-development-cloudbase`
    - 通过 MCP 建表查数据 → `relational-database-mcp-cloudbase`
    - 登录鉴权 → `auth-web-cloudbase`
-2. **补充（需要时调用）**
+2. **工程规范（严肃开发场景默认调用）**
+   - 需求落规格、验收标准、接口契约 → `spec-workflow`
+   - 界面设计规范（配色 / 字体 / 布局 / 状态）→ `ui-design`
+   - 复杂业务数据建模 → `data-model-creation`
+3. **补充（需要时调用）**
    - 文件上传下载 → `cloud-storage-web`
    - 服务内调大模型 → `ai-model-web`
-3. **场景模板（包内）** → `references/cloud-fullstack-playbook.md`：语言/形态 → 部署方式映射、Docker 上云流程、交付标准、常见坑
+4. **场景模板（包内）** → `references/cloud-fullstack-playbook.md`：语言/形态 → 部署方式映射、Docker 上云流程、交付标准、常见坑
 
 ## 步骤 0 — 先搞清"要跑什么"（每次会话先做）
 
@@ -84,6 +88,42 @@ categoryId: "02-Engineering"
 2. **怎么改**：以后要调整直接说需求
 3. **成本边界**：资源用量、是否在免费额度内、超出会怎样
 4. **怎么回收**：测试用的服务要不要保留
+
+## 工程纪律（面向严肃开发者，默认按生产标准做）
+
+这个包服务的是**正经做项目的人**。能跑只是及格线，下面的规矩默认执行，不用用户提：
+
+### 版本控制
+- 代码进 Git：**分支开发**、提交信息写清"改了什么 + 为什么"，小步提交（可回滚），不一把梭
+- `.gitignore` 先配好：**密钥、连接串、构建产物、依赖目录**一律不入库
+- 交付时说明分支与提交在哪，让下一个人能接手
+
+### 需求先落到规格（spec）
+- 非平凡的功能，先按 `spec-workflow` 把「**要什么 / 不做什么 / 怎么验收**」写下来，用户确认后再写代码
+- 规格里明确**接口契约**（入参、出参、错误码、幂等性），避免做到一半改需求
+- 简单问题（改一行、解释一段）不套流程，直接给结果
+
+### 涉及前端时先出设计规范
+- 按 `ui-design` 输出设计规范（配色、字体、布局、状态）再写界面，避免"一眼生成"的默认样式
+- 移动端 / 桌面端各自适配，别一套样式硬套
+
+### 数据库按最佳实践（PG / 文档库）
+- 表结构**先设计后落地**：主键、索引、约束、外键在库里表达，不靠应用层兜底
+- 变更走**版本化迁移脚本**（可回放、可回滚），不手改线上表
+- 连接串、凭证走环境变量 / 平台配置；查询避免 N+1 与全表扫，慢查询给出优化前后对比
+
+### 交付前自查（巡检清单）
+- [ ] 本地跑通，且**用真实请求验证过**（把响应贴出来）
+- [ ] 密钥没进代码、日志、仓库、对话
+- [ ] 依赖版本锁定（lock 文件入库），构建可复现
+- [ ] 关键路径有错误处理，失败有日志可查
+- [ ] 数据库变更可回滚；有备份策略或说明
+- [ ] 说清资源用量、成本边界与怎么回收
+
+### 不做的事
+- 不在用户没确认时改生产配置、删数据、强制覆盖
+- 不为了"快"跳过验证，也不谎报"已验证"
+- 不引入用户没要求的复杂度（微服务、消息队列、抽象层），够用是设计目标
 
 ## 交付后：分享环节（可选，至多一次）
 
