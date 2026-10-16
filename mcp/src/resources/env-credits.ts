@@ -60,6 +60,11 @@ export interface EnvCreditsFallback {
 
 /** 工具结果里携带的用量数据（面板按字段覆盖兜底值）。 */
 export interface EnvCreditsPayload {
+  /**
+   * 载荷判别式。`credits`（或**缺省**）走用量视图——缺省即 credits 是为了让本字段
+   * 上线前的一切既有载荷与断言**逐字不变**（旧路径不带这个键）。
+   */
+  kind?: "credits";
   branch?: CreditsBranch;
   env_alias?: string | null;
   env_id?: string | null;
@@ -73,6 +78,45 @@ export interface EnvCreditsPayload {
   balance?: number | null;
   isolated_days_left?: number | null;
 }
+
+/** 监控指标卡的三态（其余情况一律不硬凑成某一态）。 */
+export type MetricsState = "data" | "noData" | "failed";
+
+/**
+ * 监控指标卡（`queryEnv(action=metrics)`）的面板载荷。
+ *
+ * 与 `EnvCreditsPayload` 共用同一个资源（`ui://cloudbase/env-credits`）：`_meta.ui.resourceUri`
+ * 是**工具级单值**，一个工具只能挂一个资源，所以第二个视图只能靠 `kind` 在同一面板里分派。
+ *
+ * 纪律与用量卡一致：**不猜、不编数**——`summary` 里拿不到的字段一律不带（面板隐藏该行），
+ * `curve` 已在工具侧裁剪（见 `buildEnvMetricsPayload`），这里只接收裁剪后的 `spark`。
+ */
+export interface EnvMetricsPayload {
+  kind: "metrics";
+  /** 面板状态：有数据 / 无流量 / 查询失败。 */
+  state: MetricsState;
+  /** 指标枚举值（只用于映射人话；未映射的一律退化为通用标题，不打印原始码）。 */
+  metric: string;
+  env_alias?: string | null;
+  env_id?: string | null;
+  current_region?: string;
+  site?: string;
+  plan?: PlanCode | null;
+  sample_count: number;
+  period_seconds?: number | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  latest?: number | null;
+  max?: number | null;
+  min?: number | null;
+  avg?: number | null;
+  /** 峰值时间（原样字符串；拿不到就不显示，不编时间）。 */
+  peak_time?: string | null;
+  spark?: Array<{ calc_time?: string; credits_value?: number }>;
+}
+
+/** 面板可能收到的两种载荷。 */
+export type EnvPanelPayload = EnvCreditsPayload | EnvMetricsPayload;
 
 /** 控制台路径（精确 hash 路径待核，见 handoff §6.4；核完替换这里即可，面板不硬编码）。 */
 export const ENV_CREDITS_CONSOLE_LINKS = {
@@ -324,6 +368,22 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
         <p class="k">${E(L("mcpUiCredits.field.place"))}</p>
         <p class="v" id="k-place">${E(placeText)}</p>
       </div>
+      <div class="field" id="f-m-latest" hidden>
+        <p class="k">${E(L("mcpUiCredits.metric.field.latest"))}</p>
+        <p class="v mono" id="k-m-latest"></p>
+      </div>
+      <div class="field" id="f-m-peak" hidden>
+        <p class="k">${E(L("mcpUiCredits.metric.field.peak"))}</p>
+        <p class="v mono" id="k-m-peak"></p>
+      </div>
+      <div class="field" id="f-m-avg" hidden>
+        <p class="k">${E(L("mcpUiCredits.metric.field.avg"))}</p>
+        <p class="v mono" id="k-m-avg"></p>
+      </div>
+      <div class="field" id="f-m-window" hidden>
+        <p class="k">${E(L("mcpUiCredits.metric.field.window"))}</p>
+        <p class="v" id="k-m-window"></p>
+      </div>
       <p class="note" id="k-expired" hidden></p>
     </div>
     <p class="note" id="k-copynote" hidden></p>
@@ -390,6 +450,52 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       enterprise: ${S("mcpUiCredits.plan.enterprise")},
       enterpriseAdvanced: ${S("mcpUiCredits.plan.enterpriseAdvanced")}
     },
+    // Metrics labels: enum -> dict key. Unmapped enums fall back to generic; a raw code is never printed.
+    metric: {
+      generic: ${S("mcpUiCredits.metric.generic")},
+      GatewayTraceEnvQPS: ${S("mcpUiCredits.metric.GatewayTraceEnvQPS")},
+      EnvQPSAll: ${S("mcpUiCredits.metric.EnvQPSAll")},
+      FunctionInvocation: ${S("mcpUiCredits.metric.FunctionInvocation")},
+      FunctionError: ${S("mcpUiCredits.metric.FunctionError")},
+      FunctionTimeout: ${S("mcpUiCredits.metric.FunctionTimeout")},
+      FunctionThrottle: ${S("mcpUiCredits.metric.FunctionThrottle")},
+      FunctionDuration: ${S("mcpUiCredits.metric.FunctionDuration")},
+      FunctionConcurrentExecutions: ${S("mcpUiCredits.metric.FunctionConcurrentExecutions")},
+      DbRead: ${S("mcpUiCredits.metric.DbRead")},
+      DbWrite: ${S("mcpUiCredits.metric.DbWrite")},
+      DbSizepkg: ${S("mcpUiCredits.metric.DbSizepkg")},
+      MysqlCpuUsageRate: ${S("mcpUiCredits.metric.MysqlCpuUsageRate")},
+      MysqlMemoryUse: ${S("mcpUiCredits.metric.MysqlMemoryUse")},
+      MysqlStorageUsage: ${S("mcpUiCredits.metric.MysqlStorageUsage")},
+      MysqlQps: ${S("mcpUiCredits.metric.MysqlQps")},
+      MysqlSlowQueries: ${S("mcpUiCredits.metric.MysqlSlowQueries")},
+      MysqlDbConnections: ${S("mcpUiCredits.metric.MysqlDbConnections")},
+      TkeCpuUsedService: ${S("mcpUiCredits.metric.TkeCpuUsedService")},
+      TkeMemUsedService: ${S("mcpUiCredits.metric.TkeMemUsedService")},
+      TkeQPSService: ${S("mcpUiCredits.metric.TkeQPSService")},
+      TkeHttpErrorService: ${S("mcpUiCredits.metric.TkeHttpErrorService")},
+      TkeInvokeNumService: ${S("mcpUiCredits.metric.TkeInvokeNumService")}
+    },
+    metricState: {
+      data: ${S("mcpUiCredits.metric.state.data")},
+      noData: ${S("mcpUiCredits.metric.state.noData")},
+      failed: ${S("mcpUiCredits.metric.state.failed")}
+    },
+    metricHint: {
+      data: ${S("mcpUiCredits.metric.hint.data")},
+      noData: ${S("mcpUiCredits.metric.hint.noData")},
+      failed: ${S("mcpUiCredits.metric.hint.failed")}
+    },
+    metricActionInvestigate: ${S("mcpUiCredits.metric.action.investigate")},
+    metricMessageInvestigate: ${S("mcpUiCredits.metric.message.investigate")},
+    metricWindow: ${S("mcpUiCredits.metric.window")},
+    metricSamples: ${S("mcpUiCredits.metric.samples")},
+    // Interval (seconds -> words). An unnameable interval shows samples only, never an invented unit.
+    metricPeriod: {
+      "300": ${S("mcpUiCredits.metric.period.minute")},
+      "3600": ${S("mcpUiCredits.metric.period.hour")},
+      "86400": ${S("mcpUiCredits.metric.period.day")}
+    },
     module: {
       functions: ${S("mcpUiCredits.module.functions")},
       database: ${S("mcpUiCredits.module.database")},
@@ -432,7 +538,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
 
   // Local fallback only fills fields the tool result does not carry; live values always win.
   var FALLBACK = { envAlias: "", envId: ${J(fallback.envId ?? "")}, site: ${J(siteText)}, region: ${J(regionText)} };
-  var current = { branch: "unknown", envId: FALLBACK.envId, link: "" };
+  var current = { branch: "unknown", envId: FALLBACK.envId, link: "", mainMsg: "", kind: "credits", metricName: "" };
 
   function fmtNumber(value) {
     var n = Math.round(Number(value));
@@ -514,23 +620,132 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     if (!payload || typeof payload.branch !== "string") { return "unknown"; }
     return BRANCHES[payload.branch] ? payload.branch : "unknown";
   }
+  /** Discriminator: kind === "metrics" renders the metrics view; anything else renders credits. */
+  function payloadKind(payload) {
+    return payload && payload.kind === "metrics" ? "metrics" : "credits";
+  }
+  /** Metric label: enum -> dict, falling back to the generic title - never the raw code. */
+  function metricLabel(payload) {
+    if (!payload || typeof payload.metric !== "string") { return T.metric.generic; }
+    return T.metric[payload.metric] || T.metric.generic;
+  }
+  /** Brand bar + place row, shared by both views: identity does not depend on the view. */
+  function applyBrand(payload) {
+    var alias = hasField(payload, "env_alias") && payload.env_alias ? String(payload.env_alias) : FALLBACK.envAlias;
+    var envId = hasField(payload, "env_id") ? (payload.env_id ? String(payload.env_id) : "") : FALLBACK.envId;
+    current.envId = envId;
+    var brandAlias = el("brand-alias");
+    setText(brandAlias, alias || ${J(siteText)});
+    if (brandAlias) { brandAlias.title = envId ? T.copyEnvId + ": " + envId : ""; }
+    var plan = payload ? planLabel(payload) : "";
+    var brandPlan = el("brand-plan");
+    brandPlan.hidden = !plan;
+    setText(brandPlan, plan);
+    setText(el("k-place"), placeOf(payload));
+    var copyEnv = el("btn-copy-env");
+    copyEnv.hidden = !envId;
+    return { alias: alias, envId: envId, plan: plan };
+  }
+  function hideAll(ids) {
+    for (var i = 0; i < ids.length; i++) {
+      var node = el(ids[i]);
+      if (node) { node.hidden = true; }
+    }
+  }
+  /** Credits-only blocks, hidden while the metrics view renders. */
+  var CREDITS_ONLY = ["f-credits", "f-mods", "f-plan", "f-balance", "k-expired", "ubar-box"];
+  /** Metrics-only blocks, hidden while the credits view renders. */
+  var METRICS_ONLY = ["f-m-latest", "f-m-peak", "f-m-avg", "f-m-window"];
+
+  /**
+   * Metrics view (single-metric trend card): one call = one metric + one resource.
+   *
+   * The three states come from real data only, with no invented thresholds: failed is set by the panel
+   * for an error result, sampleCount 0 or all-zero is noData, otherwise data. Nothing here knows
+   * what a good value is, so the curve colour follows the state, not the value.
+   */
+  function renderMetrics(payload) {
+    var state = payload && T.metricState[payload.state] ? payload.state : "noData";
+    var label = metricLabel(payload);
+    current.kind = "metrics";
+    current.metricName = payload && typeof payload.metric === "string" ? payload.metric : "";
+    current.branch = "";
+    current.link = "";
+    current.mainMsg = T.metricMessageInvestigate.replace("{metric}", label);
+
+    var brand = applyBrand(payload);
+    hideAll(CREDITS_ONLY);
+    setText(el("c-title"), label + (brand.alias ? T.titleSep + brand.alias : ""));
+    setText(el("st-text"), T.metricState[state]);
+    el("st-dot").className = "dot" + (state === "data" ? " ok" : state === "failed" ? " err" : "");
+    setText(el("c-hint"), T.metricHint[state]);
+
+    // latest / peak (+ its time)
+    var latest = payload && typeof payload.latest === "number" ? payload.latest : null;
+    var fLatest = el("f-m-latest");
+    fLatest.hidden = latest === null;
+    if (latest !== null) { setText(el("k-m-latest"), fmtNumber(latest)); }
+
+    var peak = payload && typeof payload.max === "number" ? payload.max : null;
+    var peakTime = payload && typeof payload.peak_time === "string" && payload.peak_time ? payload.peak_time : "";
+    var fPeak = el("f-m-peak");
+    fPeak.hidden = peak === null;
+    if (peak !== null) {
+      setText(el("k-m-peak"), peakTime ? fmtNumber(peak) + T.modulesSep + peakTime : fmtNumber(peak));
+    }
+
+    // average
+    var avg = payload && typeof payload.avg === "number" ? payload.avg : null;
+    var fAvg = el("f-m-avg");
+    fAvg.hidden = avg === null;
+    if (avg !== null) { setText(el("k-m-avg"), fmtNumber(avg)); }
+
+    // samples and interval: an unnameable interval shows samples only
+    var samples = payload && typeof payload.sample_count === "number" ? payload.sample_count : 0;
+    var period = payload && payload.period_seconds ? T.metricPeriod[String(payload.period_seconds)] : "";
+    var fWindow = el("f-m-window");
+    fWindow.hidden = samples <= 0;
+    if (!fWindow.hidden) {
+      var samplesText = T.metricSamples.replace("{n}", String(samples));
+      setText(el("k-m-window"), period ? T.metricWindow.replace("{samples}", samplesText).replace("{period}", period) : samplesText);
+    }
+
+    // single line reusing spark: under 2 points is not a line, noData stays neutral
+    var values = [];
+    if (payload && payload.spark && payload.spark.length) {
+      for (var i = 0; i < payload.spark.length; i++) { values.push(Number(payload.spark[i].credits_value || 0)); }
+    }
+    var fSpark = el("f-spark");
+    // All-zero means no traffic; a flat baseline would read as "there is data", so we do not draw it.
+    fSpark.hidden = values.length < 2 || state === "noData";
+    renderSpark(values.length < 2 || state === "noData" ? [] : values, state === "failed" ? "err" : state === "data" ? "ok" : "");
+
+    // The single primary action hands the follow-up to the session; the panel calls no tools itself.
+    var mainBtn = el("btn-main");
+    mainBtn.hidden = false;
+    setText(mainBtn, T.metricActionInvestigate);
+    mainBtn.disabled = false;
+    var linkBtn = el("btn-link");
+    linkBtn.hidden = true;
+    var copyNote = el("k-copynote");
+    if (copyNote) { copyNote.hidden = true; }
+  }
 
   function render(payload) {
+    if (payloadKind(payload) === "metrics") { renderMetrics(payload); return; }
+    hideAll(METRICS_ONLY);
+    current.kind = "credits";
     var key = branchOf(payload);
     var branch = BRANCHES[key];
     current.branch = key;
     current.link = branch.link || "";
+    current.mainMsg = branch.msg || "";
 
-    var alias = hasField(payload, "env_alias") && payload.env_alias ? String(payload.env_alias) : FALLBACK.envAlias;
-    var envId = hasField(payload, "env_id") ? (payload.env_id ? String(payload.env_id) : "") : FALLBACK.envId;
-    current.envId = envId;
+    var brand = applyBrand(payload);
+    var alias = brand.alias;
 
     setText(el("c-title"), T.title + (alias ? T.titleSep + alias : ""));
-    var brandAlias = el("brand-alias");
-    setText(brandAlias, alias || ${J(siteText)});
-    if (brandAlias) { brandAlias.title = envId ? ${S("mcpUiCredits.brand.copyEnvId")} + ": " + envId : ""; }
     setText(el("st-text"), branch.text);
-    setText(el("k-place"), placeOf(payload));
     el("st-dot").className = "dot" + (branch.dot ? " " + branch.dot : "");
     setText(el("c-hint"), branch.hint);
 
@@ -538,9 +753,6 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     var fPlan = el("f-plan");
     fPlan.hidden = !plan;
     setText(el("k-plan"), plan);
-    var brandPlan = el("brand-plan");
-    brandPlan.hidden = !plan;
-    setText(brandPlan, plan);
 
     var credits = payload && payload.credits ? payload.credits : null;
     var total = credits && typeof credits.total === "number" ? credits.total : null;
@@ -603,8 +815,6 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
 
     var copyNote = el("k-copynote");
     if (copyNote) { copyNote.hidden = true; }
-    var copyEnv = el("btn-copy-env");
-    copyEnv.hidden = !envId;
   }
 
   function copyText(text) {
@@ -642,7 +852,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       return;
     }
     if (node.id === "btn-main") {
-      var msg = BRANCHES[current.branch] ? BRANCHES[current.branch].msg : "";
+      var msg = current.mainMsg || "";
       if (!msg) { return; }
       node.disabled = true;
       request("ui/message", { role: "user", content: { type: "text", text: msg } })
@@ -654,7 +864,10 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
   function readPayload(params) {
     if (!params || typeof params !== "object") { return null; }
     var candidate = params.structuredContent || params;
-    if (candidate && typeof candidate === "object" && typeof candidate.branch === "string") { return candidate; }
+    if (!candidate || typeof candidate !== "object") { return null; }
+    // Credits payloads are marked by branch, metrics payloads by kind; anything else is unreadable.
+    if (typeof candidate.branch === "string") { return candidate; }
+    if (candidate.kind === "metrics") { return candidate; }
     return null;
   }
 
@@ -664,7 +877,15 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     if (data.method === "ui/notifications/tool-result") {
       var payload = readPayload(data.params);
       // A result we cannot read is never spread across the card: it goes to the fold only.
-      if (payload) { render(payload); } else { render(null); }
+      if (payload) {
+        render(payload);
+      } else if (data.params && data.params.isError && current.kind === "metrics") {
+        // A failed metrics call carries error text but no structuredContent. The panel must not fall back
+        // to the credits view: it stays on metrics, reports the failure, and keeps the raw text in the fold.
+        renderMetrics({ kind: "metrics", state: "failed", metric: current.metricName, sample_count: 0 });
+      } else {
+        render(null);
+      }
       setText(el("raw-out"), JSON.stringify(data.params, null, 2));
       reportSize();
       return;
