@@ -1,4 +1,4 @@
-import type { MessageKey } from "../i18n/index.js";
+import { t, type MessageKey } from "../i18n/index.js";
 
 /**
  * 破坏性动作的**单一真源**。
@@ -17,8 +17,10 @@ import type { MessageKey } from "../i18n/index.js";
 export type DestructiveTarget = {
     /** 资源标识（云函数名 / 集合名 / 存储路径 / 服务名 / 实例 ID） */
     resource?: string;
-    /** 批量操作的数量（如删除文档条数），用于让文案说清规模 */
+    /** 批量操作的数量。只有入参里真有条数时才填，不要用缺省值冒充 */
     count?: number;
+    /** 同一 action 有不止一种诚实说法时，覆盖 spec.messageKey */
+    messageKey?: MessageKey;
 };
 
 export type DestructiveActionSpec = {
@@ -38,19 +40,36 @@ function asText(value: unknown): string | undefined {
     return undefined;
 }
 
-/** 批量删除的规模：优先看显式条数参数，其次看数组长度 */
-function countOf(args: Record<string, unknown>): number | undefined {
-    const direct = ["count", "num", "limit", "counts"].map((k) => args[k]).find((v) => typeof v === "number");
-    if (typeof direct === "number") {
-        return direct;
+/**
+ * Document delete is keyed by `query` plus `isMulti`, not by a count.
+ * `isMulti: true` removes every match; otherwise the API removes one match.
+ * A `documents` array on this action is ignored by the handler, so it must not become a count.
+ */
+function documentDeleteTarget(args: Record<string, unknown>): DestructiveTarget {
+    return {
+        resource: asText(args.collectionName),
+        messageKey:
+            args.isMulti === true
+                ? "confirmation.message.deleteDocumentsQuery"
+                : "confirmation.message.deleteDocumentsOne",
+    };
+}
+
+/** DestroyMySQL is scoped to the environment. `dbInstance` is an object, and only `instanceId` names it. */
+function mysqlDestroyTarget(args: Record<string, unknown>): DestructiveTarget {
+    const value = args.dbInstance;
+    const instanceId =
+        asText(value) ??
+        (value !== null && typeof value === "object" && !Array.isArray(value)
+            ? asText((value as Record<string, unknown>).instanceId)
+            : undefined);
+    if (instanceId) {
+        return { resource: instanceId };
     }
-    for (const key of ["documents", "ids", "docIds", "queryIds"]) {
-        const value = args[key];
-        if (Array.isArray(value) && value.length > 0) {
-            return value.length;
-        }
-    }
-    return undefined;
+    return {
+        resource: t("confirmation.message.mysqlThisEnv"),
+        messageKey: "confirmation.message.destroyMysqlEnv",
+    };
 }
 
 /** @todo 第一批：整资源删除（资源本身消失、影响面大且难自愈） */
@@ -64,8 +83,8 @@ export const DESTRUCTIVE_ACTIONS: Readonly<Record<string, DestructiveActionSpec>
         target: (args) => ({ resource: asText(args.collectionName) }),
     },
     "writeNoSqlDatabaseContent.delete": {
-        messageKey: "confirmation.message.deleteDocuments",
-        target: (args) => ({ resource: asText(args.collectionName), count: countOf(args) }),
+        messageKey: "confirmation.message.deleteDocumentsOne",
+        target: documentDeleteTarget,
     },
     "manageStorage.delete": {
         messageKey: "confirmation.message.deleteStorage",
@@ -77,7 +96,7 @@ export const DESTRUCTIVE_ACTIONS: Readonly<Record<string, DestructiveActionSpec>
     },
     "manageMysqlDatabase.destroyMySQL": {
         messageKey: "confirmation.message.destroyMysql",
-        target: (args) => ({ resource: asText(args.dbInstance) }),
+        target: mysqlDestroyTarget,
     },
 };
 

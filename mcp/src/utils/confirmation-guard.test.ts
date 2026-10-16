@@ -68,6 +68,44 @@ describe("破坏性动作执行前确认", () => {
         expect(elicitInput).not.toHaveBeenCalled();
     });
 
+    it("文档删除按 isMulti 说明范围，不把缺省条数写成 1", async () => {
+        const one = makeServer({ action: "accept", content: { confirm: CONFIRM_LABEL } });
+        await guardDestructiveAction(one.server, {
+            toolName: "writeNoSqlDatabaseContent",
+            args: { action: "delete", collectionName: "todos", query: { done: true }, documents: [1, 2] },
+        });
+        const oneMessage = one.elicitInput.mock.calls[0][0].message as string;
+        expect(oneMessage).toContain("一条");
+        expect(oneMessage).not.toContain("1 条");
+
+        const many = makeServer({ action: "accept", content: { confirm: CONFIRM_LABEL } });
+        await guardDestructiveAction(many.server, {
+            toolName: "writeNoSqlDatabaseContent",
+            args: { action: "delete", collectionName: "todos", query: {}, isMulti: true },
+        });
+        const manyMessage = many.elicitInput.mock.calls[0][0].message as string;
+        expect(manyMessage).toContain("所有匹配查询");
+        expect(manyMessage).not.toContain("1 条");
+    });
+
+    it("销毁 MySQL 时读出 instanceId，没有时说明是当前环境的实例", async () => {
+        const named = makeServer({ action: "accept", content: { confirm: CONFIRM_LABEL } });
+        await guardDestructiveAction(named.server, {
+            toolName: "manageMysqlDatabase",
+            args: { action: "destroyMySQL", dbInstance: { instanceId: "mysql-1" } },
+        });
+        expect(named.elicitInput.mock.calls[0][0].message).toContain("mysql-1");
+
+        const unnamed = makeServer({ action: "accept", content: { confirm: CONFIRM_LABEL } });
+        await guardDestructiveAction(unnamed.server, {
+            toolName: "manageMysqlDatabase",
+            args: { action: "destroyMySQL", dbInstance: { schema: "app" } },
+        });
+        const message = unnamed.elicitInput.mock.calls[0][0].message as string;
+        expect(message).toContain("当前环境的 MySQL 实例");
+        expect(message).not.toContain("未能从参数中取到资源名");
+    });
+
     it("用户在确认框里确认后放行，且文案带目标与受控选项", async () => {
         const { server, elicitInput } = makeServer({ action: "accept", content: { confirm: CONFIRM_LABEL } });
         const decision = await guardDestructiveAction(server, { toolName: "manageFunctions", args: DELETE_ARGS });

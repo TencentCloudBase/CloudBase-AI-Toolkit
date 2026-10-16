@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { t } from "../i18n/index.js";
+import { t, type MessageKey } from "../i18n/index.js";
 import {
     DESTRUCTIVE_ACTIONS,
     DESTRUCTIVE_EXEMPT_ACTIONS,
@@ -88,6 +88,23 @@ describe("破坏性动作名单与工具面保持同步", () => {
             expect(text, `${key} 的文案取不到（key=${spec.messageKey}）`).not.toBe(spec.messageKey);
             expect(text, `${key} 的文案必须带 {resource} 占位`).toContain("{resource}");
         }
+        const overrides = new Set<MessageKey>();
+        for (const spec of Object.values(DESTRUCTIVE_ACTIONS)) {
+            for (const args of [{}, { isMulti: true }, { dbInstance: { schema: "app" } }]) {
+                const override = spec.target(args).messageKey;
+                if (override) {
+                    overrides.add(override);
+                }
+            }
+        }
+        for (const key of overrides) {
+            const text = t(key);
+            expect(text, `${key} 的文案取不到`).not.toBe(key);
+            expect(
+                text.includes("{resource}") || text.includes("{envId}"),
+                `${key} 的文案必须点名资源或环境`,
+            ).toBe(true);
+        }
     });
 
     it("名字像破坏性的 action，要么登记、要么带理由豁免，不允许漏掉", () => {
@@ -134,11 +151,27 @@ describe("破坏性动作名单与工具面保持同步", () => {
         expect(DESTRUCTIVE_ACTIONS["manageFunctions.deleteFunction"].target({ functionName: "hello" })).toEqual({
             resource: "hello",
         });
+        const deleteDocuments = DESTRUCTIVE_ACTIONS["writeNoSqlDatabaseContent.delete"];
         expect(
-            DESTRUCTIVE_ACTIONS["writeNoSqlDatabaseContent.delete"].target({
+            deleteDocuments.target({
                 collectionName: "todos",
                 documents: [{ a: 1 }, { a: 2 }],
             }),
-        ).toEqual({ resource: "todos", count: 2 });
+        ).toEqual({
+            resource: "todos",
+            messageKey: "confirmation.message.deleteDocumentsOne",
+        });
+        expect(deleteDocuments.target({ collectionName: "todos", isMulti: true }).messageKey).toBe(
+            "confirmation.message.deleteDocumentsQuery",
+        );
+        expect(DESTRUCTIVE_ACTIONS["manageMysqlDatabase.destroyMySQL"].target({})).toMatchObject({
+            messageKey: "confirmation.message.destroyMysqlEnv",
+            resource: t("confirmation.message.mysqlThisEnv"),
+        });
+        expect(
+            DESTRUCTIVE_ACTIONS["manageMysqlDatabase.destroyMySQL"].target({
+                dbInstance: { instanceId: "mysql-1", schema: "app" },
+            }),
+        ).toEqual({ resource: "mysql-1" });
     });
 });

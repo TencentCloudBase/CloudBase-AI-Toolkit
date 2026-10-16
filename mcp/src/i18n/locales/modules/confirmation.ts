@@ -16,10 +16,13 @@ export const confirmation = defineModule(
     // 每个 message 都必须带 {resource}（这次要动什么），环境 ID 只在拿到时拼进去
     "message.deleteFunction": "即将删除云函数 {resource}（环境 {envId}）。删除后无法恢复。",
     "message.deleteCollection": "即将删除集合 {resource}（环境 {envId}）。集合及其中的数据会一并删除，无法恢复。",
-    "message.deleteDocuments": "即将删除集合 {resource} 中的 {count} 条文档（环境 {envId}）。删除后无法恢复。",
+    "message.deleteDocumentsOne": "即将删除集合 {resource} 中匹配查询的一条文档（环境 {envId}）。删除后无法恢复。",
+    "message.deleteDocumentsQuery": "即将删除集合 {resource} 中所有匹配查询的文档（环境 {envId}）。匹配到多少条就删多少条，删除后无法恢复。",
     "message.deleteStorage": "即将删除云存储文件 {resource}（环境 {envId}）。删除后无法恢复。",
     "message.deleteCloudRun": "即将删除云托管服务 {resource}（环境 {envId}）。服务会下线，需要重新部署才能恢复。",
     "message.destroyMysql": "即将销毁 MySQL 实例 {resource}（环境 {envId}）。实例与数据都会删除，无法恢复。",
+    "message.destroyMysqlEnv": "即将销毁当前环境的 MySQL 实例（环境 {envId}）。实例与数据都会删除，无法恢复。",
+    "message.mysqlThisEnv": "当前环境的 MySQL 实例",
     "message.unknownResource": "（未能从参数中取到资源名）",
     "message.unknownEnv": "未知",
 
@@ -38,10 +41,13 @@ export const confirmation = defineModule(
 
     "message.deleteFunction": "About to delete the cloud function {resource} (env {envId}). This cannot be undone.",
     "message.deleteCollection": "About to delete the collection {resource} (env {envId}). Its documents are deleted with it and cannot be recovered.",
-    "message.deleteDocuments": "About to delete {count} document(s) from the collection {resource} (env {envId}). This cannot be undone.",
+    "message.deleteDocumentsOne": "About to delete the one document in {resource} that matches the query (env {envId}). This cannot be undone.",
+    "message.deleteDocumentsQuery": "About to delete every document in {resource} that matches the query (env {envId}). However many match, they are all deleted and cannot be recovered.",
     "message.deleteStorage": "About to delete the cloud storage file {resource} (env {envId}). This cannot be undone.",
     "message.deleteCloudRun": "About to delete the CloudRun service {resource} (env {envId}). The service goes offline and needs a redeploy to come back.",
     "message.destroyMysql": "About to destroy the MySQL instance {resource} (env {envId}). The instance and its data are deleted and cannot be recovered.",
+    "message.destroyMysqlEnv": "About to destroy this environment's MySQL instance (env {envId}). The instance and its data are deleted and cannot be recovered.",
+    "message.mysqlThisEnv": "this environment's MySQL instance",
     "message.unknownResource": "(could not read the resource name from the arguments)",
     "message.unknownEnv": "unknown",
 

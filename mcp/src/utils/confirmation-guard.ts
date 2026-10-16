@@ -193,9 +193,9 @@ export async function guardDestructiveAction(
     let outcome;
     try {
         outcome = await requestChoiceElicitation(server, {
-            message: t(spec.messageKey, {
+            message: t(target.messageKey ?? spec.messageKey, {
                 resource: targetInfo.resource,
-                count: target.count ?? 1,
+                ...(typeof target.count === "number" ? { count: target.count } : {}),
                 envId: targetInfo.envId,
             }),
             field: "confirm",
