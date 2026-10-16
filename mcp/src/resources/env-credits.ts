@@ -541,8 +541,18 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       noData: ${S("mcpUiCredits.metric.hint.noData")},
       failed: ${S("mcpUiCredits.metric.hint.failed")}
     },
-    metricActionInvestigate: ${S("mcpUiCredits.metric.action.investigate")},
-    metricMessageInvestigate: ${S("mcpUiCredits.metric.message.investigate")},
+    metricAction: {
+      data: ${S("mcpUiCredits.metric.action.data")},
+      noData: ${S("mcpUiCredits.metric.action.noData")},
+      failed: ${S("mcpUiCredits.metric.action.failed")}
+    },
+    metricMessage: {
+      data: ${S("mcpUiCredits.metric.message.data")},
+      noData: ${S("mcpUiCredits.metric.message.noData")},
+      failed: ${S("mcpUiCredits.metric.message.failed")}
+    },
+    stateNearLimit: ${S("mcpUiCredits.state.nearLimit")},
+    hintNearLimit: ${S("mcpUiCredits.hint.nearLimit")},
     metricWindow: ${S("mcpUiCredits.metric.window")},
     metricSamples: ${S("mcpUiCredits.metric.samples")},
     // Interval (seconds -> words). An unnameable interval shows samples only, never an invented unit.
@@ -824,7 +834,11 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     current.metricName = payload && typeof payload.metric === "string" ? payload.metric : "";
     current.branch = "";
     current.link = "";
-    current.mainMsg = T.metricMessageInvestigate.replace("{metric}", label);
+    // One label and one message per state: "no traffic" is the state closest to losing a user,
+    // so it must not be worded as an anomaly hunt, and a failed query asks for a retry.
+    var mainLabel = T.metricAction[state] || T.metricAction.noData;
+    var mainMessage = T.metricMessage[state] || T.metricMessage.noData;
+    current.mainMsg = mainMessage.replace("{metric}", label);
 
     var brand = applyBrand(payload);
     hideAll(CREDITS_ONLY);
@@ -834,7 +848,11 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       : label;
     setText(el("c-title"), titleLabel + (brand.alias ? T.titleSep + brand.alias : ""));
     setText(el("st-text"), T.metricState[state]);
-    el("st-dot").className = "dot" + (state === "data" ? " ok" : state === "failed" ? " err" : "");
+    // Colour carries no health meaning on this card: "has data" is not "healthy" (a thousand
+    // function errors are still data), so it stays neutral; a failed query is an operation
+    // failure, not an environment problem, and red here would be read as the latter - the state
+    // word and the action button carry the meaning instead.
+    el("st-dot").className = "dot";
     setText(el("c-hint"), T.metricHint[state]);
 
     // latest / peak (+ its time)
@@ -875,12 +893,12 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     var fSpark = el("f-spark");
     // All-zero means no traffic; a flat baseline would read as "there is data", so we do not draw it.
     fSpark.hidden = values.length < 2 || state === "noData";
-    renderSpark(values.length < 2 || state === "noData" ? [] : values, state === "failed" ? "err" : state === "data" ? "ok" : "");
+    renderSpark(values.length < 2 || state === "noData" ? [] : values, "");
 
     // The single primary action hands the follow-up to the session; the panel calls no tools itself.
     var mainBtn = el("btn-main");
     mainBtn.hidden = false;
-    setText(mainBtn, T.metricActionInvestigate);
+    setText(mainBtn, mainLabel);
     mainBtn.disabled = false;
     var linkBtn = el("btn-link");
     linkBtn.hidden = true;
@@ -928,6 +946,13 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     if (pct !== null) {
       el("ubar").style.width = pct + "%";
       ubarBox.className = "ubar" + (pct < 80 ? " ok" : "");
+      // The bar already turns red from 80% (an early warning we keep), so the wording has to
+      // follow: a red bar next to "usage is within plan" is a contradiction on one screen.
+      // Only for the two states that make no claim about the level (normal / unknown).
+      if (pct >= 80 && (key === "normal" || key === "unknown")) {
+        setText(el("st-text"), T.stateNearLimit.replace("{pct}", String(pct)));
+        setText(el("c-hint"), T.hintNearLimit.replace("{pct}", String(pct)));
+      }
     }
 
     var mods = [];

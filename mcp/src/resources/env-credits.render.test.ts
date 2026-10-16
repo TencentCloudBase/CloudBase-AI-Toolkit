@@ -801,7 +801,10 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
 
     // 一屏一个主行动：交给会话深挖（标签来自词典）
     expect(panel.el("btn-main").hidden).toBe(false);
-    expect(panel.el("btn-main").textContent).toBe(L("mcpUiCredits.metric.action.investigate"));
+    expect(panel.el("btn-main").textContent).toBe(L("mcpUiCredits.metric.action.data"));
+    // ① 绿在这张卡上不携带健康含义：有数据也只是中性圆点 + 默认曲线样式
+    expect(panel.el("st-dot").className).toBe("dot");
+    expect(panel.el("spark-line").getAttribute("stroke")).toBe("var(--text-2)");
     expect(panel.el("btn-link").hidden).toBe(true);
 
     // 用量卡专有块全部收起（同一块屏上不能两套字段并排）
@@ -858,7 +861,7 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
     const params = panel.lastRequest("ui/message");
     const text = String((params?.content as { text?: unknown } | undefined)?.text ?? "");
     expect(text).toBe(
-      L("mcpUiCredits.metric.message.investigate", {
+      L("mcpUiCredits.metric.message.data", {
         metric: L("mcpUiCredits.metric.FunctionError"),
       }),
     );
@@ -1021,6 +1024,95 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
     expect(conc.el("c-title").textContent).toContain(L("mcpUiCredits.metric.unit.item"));
     expect(conc.el("k-m-latest").textContent).toBe(suffix("3", L("mcpUiCredits.metric.unit.item")));
     expect(conc.el("k-m-latest").textContent).not.toContain(L("mcpUiCredits.metric.unit.count"));
+  });
+
+  it("圆点与曲线不携带健康含义：三态都是中性圆点，失败也不染红（红在用量卡里表示环境有问题）", () => {
+    // 有数据：中性（旧行为是 ok，等于把"有数据"说成"健康"——一万次函数错误也是绿的）
+    const data = render(metricsOf([1, 3, 2, 5]));
+    expect(data.el("st-dot").className).toBe("dot");
+    expect(data.el("spark-line").getAttribute("stroke")).toBe("var(--text-2)");
+
+    // 无流量：中性
+    const noData = render(metricsOf([0, 0, 0]));
+    expect(noData.el("st-dot").className).toBe("dot");
+
+    // 查询失败：仍是中性 —— 这是"我们没问到"，不是"环境出问题了"；
+    // 用量卡里的红表示资源耗尽/欠费（环境问题），同色同义会让人读错。
+    const failed = loadPanel(HTML);
+    failed.dispatch({ structuredContent: metricsOf([2, 4]) });
+    failed.dispatch({ isError: true, content: [{ type: "text", text: "boom" }] });
+    expect(failed.el("st-text").textContent).toBe(L("mcpUiCredits.metric.state.failed"));
+    expect(failed.el("st-dot").className).toBe("dot");
+  });
+
+  it("80% 提前警告与文案一致：条/曲线已红时，状态词与说明句都换成「接近上限」", () => {
+    // 个人版 40000 配额用掉 34000 ⇒ 85%，分支仍是 normal（未耗尽）
+    const near = render(
+      buildEnvCreditsPayload({
+        ...BASE,
+        planRaw: "baas_personal",
+        // 带两点明细 ⇒ 曲线会真的画出来，才能同时断言"条红 + 曲线红 + 文案跟上"
+        usages: [usage("SCF", 34000, [["2026-08-01", 17000], ["2026-08-02", 17000]])],
+        expired: false,
+      }),
+    );
+    expect(near.el("st-text").textContent).toBe(
+      L("mcpUiCredits.state.nearLimit", { pct: 85 }),
+    );
+    expect(near.el("c-hint").textContent).toBe(L("mcpUiCredits.hint.nearLimit", { pct: 85 }));
+    // 同一条用例里两头都断：红色（提前警告保住）与文案（跟上）同时出现
+    expect(near.el("ubar-box").className).not.toContain(" ok");
+    expect(near.el("spark-line").getAttribute("stroke")).toBe("var(--err)");
+
+    // 对照：未到 80% 时文案不动（原 normal 话术）
+    const below = render(
+      buildEnvCreditsPayload({
+        ...BASE,
+        planRaw: "baas_personal",
+        usages: [usage("SCF", 1000)],
+        expired: false,
+      }),
+    );
+    expect(below.el("st-text").textContent).toBe(L("mcpUiCredits.state.normal"));
+    expect(below.el("c-hint").textContent).toBe(L("mcpUiCredits.hint.normal"));
+  });
+
+  it("主按钮三态各自的动作：文案互不相同、noData 不含「异常」、消息也按态给", () => {
+    const seen: Array<{ name: string; label: string; message: string }> = [];
+    const collect = (name: string, panel: PanelHarness) => {
+      const label = panel.el("btn-main").textContent;
+      panel.clickDocument("btn-main");
+      const text = String(
+        (panel.lastRequest("ui/message")?.content as { text?: unknown } | undefined)?.text ?? "",
+      );
+      seen.push({ name, label, message: text });
+      return label;
+    };
+
+    collect("data", render(metricsOf([1, 3, 2, 5])));
+    collect("noData", render(metricsOf([0, 0, 0])));
+    const failedPanel = loadPanel(HTML);
+    failedPanel.dispatch({ structuredContent: metricsOf([2, 4]) });
+    failedPanel.dispatch({ isError: true, content: [{ type: "text", text: "boom" }] });
+    collect("failed", failedPanel);
+
+    expect(seen.map((x) => x.label)).toEqual([
+      L("mcpUiCredits.metric.action.data"),
+      L("mcpUiCredits.metric.action.noData"),
+      L("mcpUiCredits.metric.action.failed"),
+    ]);
+    // 三条文案互不相同（含消息）
+    expect(new Set(seen.map((x) => x.label)).size).toBe(3);
+    expect(new Set(seen.map((x) => x.message)).size).toBe(3);
+    // noData 是最接近流失的状态：中性陈述，不许出现"异常"
+    const noData = seen[1];
+    expect(noData.label).not.toContain("异常");
+    expect(noData.message).not.toContain("异常");
+    // 文案里也不该再出现机制腔
+    for (const item of seen) {
+      expect(item.label).not.toContain("在会话里");
+      expect(item.message).not.toContain("在会话里");
+    }
   });
 
   it("守卫：两个分支的渲染入口都在面板脚本里（缺一即红）", () => {

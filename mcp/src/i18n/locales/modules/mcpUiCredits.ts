@@ -38,6 +38,7 @@ export const mcpUiCredits = defineModule(
     // 状态词（四分支 + 未确认）
     "state.unknown": "用量尚未确认",
     "state.normal": "用量正常",
+    "state.nearLimit": "用量接近上限（已用 {pct}%）",
     "state.trialExhausted": "体验版耗尽",
     "state.stopped": "套餐资源点已用完",
     "state.expired": "套餐已到期",
@@ -51,6 +52,7 @@ export const mcpUiCredits = defineModule(
     // 说明句（四分支 + 未确认）
     "hint.unknown": "这份数据不足以判断资源点是否充足；完整配额可在控制台查看。",
     "hint.normal": "本月资源点仍充足。",
+    "hint.nearLimit": "本月资源点已用 {pct}%，接近上限；升级套餐或购买资源包可避免中断。",
 
     // 说明句（四分支）
     "hint.trialExhausted": "本月资源点已用完；体验版不支持资源包与按量计费，升级付费套餐是唯一恢复途径。",
@@ -63,7 +65,7 @@ export const mcpUiCredits = defineModule(
     "action.upgrade": "升级付费套餐（唯一恢复途径）",
     "action.recommendRestore": "推荐恢复方案",
     "action.renew": "立即续费",
-    "action.guidedTopup": "在会话里引导充值",
+    "action.guidedTopup": "去充值",
     "action.copyConsoleLink": "复制控制台链接",
     "action.copyExpenseLink": "复制费用中心链接",
     "action.copiedConsole": "控制台链接已复制；无计费权限时可转给主账号管理员",
@@ -156,8 +158,13 @@ export const mcpUiCredits = defineModule(
     "metric.field.window": "样本与粒度",
 
     // 行动（一屏一个主行动）
-    "metric.action.investigate": "在会话里深挖这个指标的异常时段",
-    "metric.message.investigate": "帮我看这段时间「{metric}」的异常时段，并解释可能的原因",
+    // 三态各自的动作（动作腔；noData 最接近流失，不许说"异常"）
+    "metric.action.data": "看这段曲线的解释",
+    "metric.action.noData": "去日志看这段时间有没有请求",
+    "metric.action.failed": "重试这次查询",
+    "metric.message.data": "帮我解释这段时间「{metric}」这条曲线的变化",
+    "metric.message.noData": "这段时间「{metric}」没有数据，帮我看看是不是没有请求进来",
+    "metric.message.failed": "刚才查「{metric}」失败了，帮我重试并看看原因",
 
     // 值拼接（模板串保持纯 ASCII，连接一律走词典）
     "metric.window": "{samples} 个样本 · 每 {period} 采样",
@@ -184,6 +191,7 @@ export const mcpUiCredits = defineModule(
 
     "state.unknown": "Usage not confirmed",
     "state.normal": "Usage is within plan",
+    "state.nearLimit": "Usage near the limit ({pct}% used)",
     "state.trialExhausted": "Trial credits used up",
     "state.stopped": "Plan credits used up",
     "state.expired": "Plan expired",
@@ -196,6 +204,7 @@ export const mcpUiCredits = defineModule(
     "hint.unknown":
       "This data is not enough to tell whether credits are sufficient. The full quota is available in the console.",
     "hint.normal": "This month's credits are still within the plan.",
+    "hint.nearLimit": "Credits are {pct}% used and nearing the limit; upgrade the plan or add a credit pack to avoid interruption.",
 
     "hint.trialExhausted":
       "This month's credits are used up. The trial plan supports neither credit packs nor pay-as-you-go, so upgrading to a paid plan is the only way back.",
@@ -210,7 +219,7 @@ export const mcpUiCredits = defineModule(
     "action.upgrade": "Upgrade plan (the only way back)",
     "action.recommendRestore": "Recommend a recovery option",
     "action.renew": "Renew now",
-    "action.guidedTopup": "Get top-up guidance in chat",
+    "action.guidedTopup": "Top up",
     "action.copyConsoleLink": "Copy console link",
     "action.copyExpenseLink": "Copy billing center link",
     "action.copiedConsole": "Console link copied. Without billing permission, forward it to the account owner.",
@@ -289,8 +298,12 @@ export const mcpUiCredits = defineModule(
     "metric.field.avg": "Average",
     "metric.field.window": "Samples and interval",
 
-    "metric.action.investigate": "Dig into this metric's anomaly window in the session",
-    "metric.message.investigate": "Look at the anomaly window for \"{metric}\" and explain the likely cause",
+    "metric.action.data": "Explain this curve",
+    "metric.action.noData": "Check the logs for requests in this period",
+    "metric.action.failed": "Retry this query",
+    "metric.message.data": "Walk me through this curve for {metric} in the selected window",
+    "metric.message.noData": "There is no data for {metric} in this window - check whether requests ever arrived",
+    "metric.message.failed": "The last {metric} query failed - retry it and tell me why",
 
     "metric.window": "{samples} samples, every {period}",
     "metric.samples": "{n} samples",
