@@ -457,8 +457,13 @@ export function buildEnvCreditsPayload(input: {
  * 指标曲线的抽样上限。
  *
  * 为什么是 48：面板曲线画布宽 280px（`resources/env-credits.ts` 的 `spark-svg`），48 点约合
- * 每 5.8px 一个点——再密在视觉上没有区别；而默认查询（最近 24h、粒度 300s）会产生约 288 个样本，
- * 原样塞进 `structuredContent` 是 **288×2 个数**，抽样后 ≤ 96 个数，载荷体积与宿主时延都可控。
+ * 每 5.8px 一个点——再密在视觉上没有区别。
+ *
+ * 真机实测（2026-10-16，单环境凭证只读 `queryEnv(action="metrics")`，`metricName=EnvQPSAll`，
+ * **不传 startTime/endTime/period**）：`TimeSource=defaultLast24h`、**`Period=3600`（1 小时）**、
+ * **`sampleCount=23`**（24h ÷ 1h ⇒ 23 个样本）。即"默认查询"本身远低于这个上限；
+ * 上限真正起作用的是**用户显式要细粒度 + 长窗口**的组合（例如 period=300 的 24h ⇒ 288 个样本 ⇒ 压到 48），
+ * 那时原样塞进 `structuredContent` 是数百个数一组，抽样后 ≤ 96 个数，载荷体积与宿主时延可控。
  * 抽样是**均匀取点**（含首尾），不改变"峰值在哪里"这一结论——峰值本身来自 `Summary.max`，
  * 不依赖抽样是否恰好取到那个点。
  */
@@ -509,9 +514,10 @@ function pickMetricTimes(curve: { Time?: unknown } | null | undefined, length: n
 /**
  * 曲线时间点 → 可读短串。
  *
- * **未实测的假设**：值 ≥ 1e12 视为毫秒，否则视为秒（这是 `describeCurveData` 常见的两种口径）。
- * 判断错的后果只是时间显示不对，不会影响数值与状态——所以这里选择"给出可读时间"而不是"因为不确定就不给"，
- * 但把它记在报告里作为待真机确认项。
+ * 口径已由真机确认（2026-10-16 同一次只读调用）：`Curve.Time` 是**秒级 10 位整数**
+ * （如 1792054800，相邻间隔 3600 与 `Period` 一致）⇒ 走"秒"这一支。
+ * 这里仍保留 `≥ 1e12 视为毫秒` 的兜底：它不改变已确认的行为，只是让另一种口径也能读；
+ * 判断错的后果仅限时间显示，不影响数值与状态。
  */
 export function formatCurveTime(value: number): string {
   const ms = value >= 1e12 ? value : value * 1000;
