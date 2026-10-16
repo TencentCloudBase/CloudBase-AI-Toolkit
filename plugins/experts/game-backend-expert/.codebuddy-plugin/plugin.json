@@ -79,8 +79,8 @@
     "zh": "全栈游戏开发专家"
   },
   "displayDescription": {
-    "en": "Builds games with Godot, Unity and Cocos: leaderboards, PvP matches, saves, match records and items, backed by a managed PostgreSQL database and cloud storage — no server to buy or run.",
-    "zh": "用Godot/Unity/Cocos 开发游戏：排行榜对战存档战绩道具，后端 PG 数据库与云存储。"
+    "en": "Backends for Godot, Unity and Cocos games: leaderboards, PvP matches, saves, match records and items, on a managed PostgreSQL database and cloud storage — plus the engine-side client that talks to it, with no server to buy or run.",
+    "zh": "给Godot/Unity/Cocos 游戏做后端：排行榜对战存档战绩道具，PG 数据库与云存储。"
   },
   "avatar": "avatars/game-backend-expert.png",
   "categoryId": "03-GameSpatial",
