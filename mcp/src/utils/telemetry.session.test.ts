@@ -145,17 +145,19 @@ describe("会话建立后上报一次（真实握手）", () => {
 
 describe("幂等粒度是会话，不是 server 实例", () => {
   it("同一实例上的两个会话 ⇒ 各报一次（2 条）；同一会话重复通知仍只 1 条", async () => {
-    // 会话说到底就一个字：transport 上的 sessionId。有状态 HTTP 由 SDK 生成；
-    // InMemoryTransport 没有这个字段，所以这里**显式造两个 sessionId** 来模拟
-    // "一个实例服务两个会话"（真机上的有状态多会话本地只能这样构造）。
+    // 会话身份是**调用点注入**给 server 的（有状态 HTTP 注入 transport.sessionId；
+    // InMemoryTransport 没有 sessionId，所以这里注入一个可控的取值来模拟"一个实例服务两个会话"——
+    // 真机上的有状态多会话本地只能这样构造）。
+    let currentSessionId = "sess-a";
     const server = await createCloudBaseMcpServer({
       pluginsEnabled: ["env"],
       enableTelemetry: true,
+      getSessionId: () => currentSessionId,
     });
 
     const handshakeWith = async (sessionId: string, clientName: string) => {
+      currentSessionId = sessionId;
       const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-      (serverTransport as unknown as { sessionId?: string }).sessionId = sessionId;
       const client = new Client({ name: clientName, version: "0.0.1" });
       await server.connect(serverTransport);
       await client.connect(clientTransport);

@@ -148,6 +148,10 @@ export async function handleHostedMcpRequest(input: HostedMcpRequestInput): Prom
       ide: input.serverOptions.ide,
       client: input.serverOptions.client,
       clientInfo,
+      // 会话级遥测的身份来源：把**当前** transport 的 sessionId 交给 server（公开 getter）。
+      // 这里是无状态传输（`:161` `sessionIdGenerator: undefined`）⇒ 今天它恒为 undefined、
+      // 上报按"一个实例一个会话"计；将来若有状态化，sessionId 会自动出现在这里。
+      getSessionId: () => transport?.sessionId,
       lang: input.serverOptions.lang,
       pluginsEnabled: input.serverOptions.pluginsEnabled,
       pluginsDisabled: input.serverOptions.pluginsDisabled,

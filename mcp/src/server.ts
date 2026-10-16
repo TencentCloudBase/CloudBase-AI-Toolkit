@@ -282,6 +282,15 @@ export async function createCloudBaseMcpServer(options?: {
    * Metadata only. Hosted requests pass the value remembered for this credential.
    */
   clientInfo?: { name: string; version?: string };
+  /**
+   * 会话标识的取值入口（**调用点注入**，可选）。
+   *
+   * 有状态 HTTP / 托管路径把当前 transport 的 `sessionId` 传进来（那是公开 getter）；
+   * stdio、以及无状态托管（`sessionIdGenerator: undefined`）没有会话概念 ⇒ **不注入**，
+   * 会话级上报回落到常量，等价于"这个实例就是一个会话"。
+   * 只有会话级遥测用得到它；不注入时行为与"每实例一条"完全一致。
+   */
+  getSessionId?: () => string | undefined;
   logger?: Logger;
   pluginsEnabled?: string[];
   pluginsDisabled?: string[];
@@ -303,6 +312,7 @@ export async function createCloudBaseMcpServer(options?: {
     ide,
     client,
     clientInfo,
+    getSessionId,
     logger,
     pluginsEnabled,
     pluginsDisabled,
@@ -447,24 +457,29 @@ export async function createCloudBaseMcpServer(options?: {
     // - 字段拿不到就留空，不臆造（见 reportToolkitSessionInitialized 的注释）。
     // 多会话同进程的场景（HTTP/托管路径的每会话回调）本期不接，留待后续。
     //
-    // 会话身份的取值来源（不留含糊）：本实例当前挂载的 transport 上的 `sessionId`
-    //   - 有状态 HTTP / 托管路径 ⇒ SDK 的 `StreamableHTTPServerTransport.sessionId`（公开 getter）；
-    //   - stdio、以及无状态的托管路径（`sessionIdGenerator: undefined`，见
-    //     `hosted/handle-hosted-mcp-request.ts:160`）⇒ 没有会话概念 ⇒ 回落到常量
-    //     `single-session`，等价于"这个实例就是一个会话"；
-    //   - 本版 SDK 没有公开的 `transport` 访问器（协议层只在 connect 时内部持有，见
-    //     `@modelcontextprotocol/sdk/.../shared/protocol.js:219`），所以这里**窄读** `_transport`
-    //     的 `sessionId` 一个字段，不碰其它内部状态。
-    // 为什么现在改成按会话：今天托管路径每个请求都新建实例（无缓存 Map），两种粒度等价；
+    // 会话身份的取值来源（不留含糊）：**由调用点注入的 `getSessionId()`**
+    //   - 有状态 HTTP / 托管路径：`hosted/handle-hosted-mcp-request.ts:144` 注入
+    //     `() => transport?.sessionId`（transport 在 `:134` 声明、`:160` 创建、`:167` connect，
+    //     与建 server 同一作用域）；`StreamableHTTPServerTransport.sessionId` 是**公开 getter**；
+    //   - stdio（`cli.ts`）与**无状态**托管（`sessionIdGenerator: undefined`，`:161`）没有会话概念
+    //     ⇒ 不注入 ⇒ 回落到常量 `single-session`，等价于"这个实例就是一个会话"。
+    // 不读 SDK 的 `Protocol._transport`（那是私有的指针，本版也没有公开的 transport 访问器）。
+    //
+    // 为什么粒度是会话而不是实例：今天托管路径每个请求都新建实例（无缓存 Map），两种粒度等价；
     // 一旦有人把实例按凭证缓存复用，"实例级幂等"就会让 N 个会话只报 1 条、分母漏计 N−1。
+    //
+    // 内存：这个 Set 只增不减。托管路径每请求一个实例、随请求消亡；被复用的长命实例则会按
+    // 会话数累积（每个键就是一个 sessionId 字符串）。要收紧得挂在 transport 的关闭钩子上，
+    // 但 `onclose` 由 SDK 的协议层持有（`shared/protocol.js:221`），这里不为它绕路 —— 记为后续项。
     const reportedSessions = new Set<string>();
     const currentSessionKey = (): string => {
-      const transportSessionId = (
-        server.server as unknown as { _transport?: { sessionId?: unknown } }
-      )._transport?.sessionId;
-      return typeof transportSessionId === "string" && transportSessionId.length > 0
-        ? transportSessionId
-        : "single-session";
+      let injected: string | undefined;
+      try {
+        injected = getSessionId?.();
+      } catch {
+        // 注入的取值抛错不该影响会话：按"没有会话标识"处理（回落常量）
+      }
+      return typeof injected === "string" && injected.length > 0 ? injected : "single-session";
     };
     server.server.oninitialized = () => {
       const sessionKey = currentSessionKey();
