@@ -103,7 +103,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Using cloud functions as the first answer for Web login.
 - Forgetting that HTTP Functions must ship `scf_bootstrap`, listen on port `9000`, and include dependencies.
 - Assuming an HTTP Function can use CloudBase SDKs without explicit credentials. The default temporary credential path is not reliable for HTTP Functions and credential rotation can break a running service. Use a CloudBase server API Key or Tencent Cloud key pair for `@cloudbase/node-sdk`; use a Tencent Cloud key pair for `@cloudbase/manager-node`. See `references/http-function-credentials.md`.
-- Forgetting to configure function security rules after creating an HTTP Function. Default rules reject anonymous callers with `EXCEED_AUTHORITY`. Note: anonymous login is disabled by default for new environments — if the function needs public access without authentication, configure the security rule to allow all callers rather than relying on anonymous login.
+- Forgetting how an HTTP Function is meant to be reached. A call with no credential fails `401 MISSING_CREDENTIALS`; a call that carries one but is not allowed fails `403 EXCEED_AUTHORITY`. For browser, game or app clients, add a gateway route (`manageGateway(action="createRoute", auth: false)`) instead of widening the function security rule — in PostgreSQL environments that rule lives in an environment-wide `authz.user.rego` document, so editing it overwrites the policy for the whole environment. See `references/http-functions.md`.
 - **Reading an `InsufficientBalance` invoke failure as an account problem.** A cloud function answers HTTP 410 with this code and the code reads as a short account balance, but what runs out is the environment's resource points — drawn down before any account balance and not restored by a top-up. The four causes (trial points exhausted / plan points exhausted / plan expired / account in arrears) need four different answers, only the last of which involves topping up, so diagnose with `manageEnv(action="usage")` plus the account balance before advising. See `../cloud-api-operations/references/recipes/credits-exhaustion.md`.
 - Mismatching the `scf_bootstrap` Node.js binary path with the function runtime (e.g. using `/var/lang/node18/bin/node` but setting `runtime: "Nodejs16.13"`).
 - For Custom Image HTTP Functions: forgetting that TCR, the CloudApp build, and SCF must be in the same region; using `:latest` instead of a unique tag; or confusing the request-driven port-`9000` image model with a long-lived CloudRun container that listens on the injected `PORT`.
@@ -184,9 +184,9 @@ Use these rules whenever you are writing the function code itself:
 - If you do choose ES Modules (`"type": "module"` + `import ...`), do not mix in CommonJS-only globals or APIs such as `require(...)`, `module.exports`, or bare `__dirname`. In ESM, derive file paths from `import.meta.url` with `fileURLToPath(...)` only when needed.
 - With the native `http` module, parse `req.url` yourself with `new URL(...)`, collect the request body from the stream, and only then call `JSON.parse`. Empty bodies should be handled explicitly instead of assuming JSON is always present.
 - Return responses explicitly with `res.writeHead(...)` and `res.end(...)`, including `Content-Type` such as `application/json; charset=utf-8` for JSON APIs.
-- **Handle CORS headers**. Browsers block cross-origin requests without proper CORS headers. Default to allowing all origins for simple APIs:
-  - Respond to `OPTIONS` preflight with `200` and CORS headers
-  - Include `Access-Control-Allow-Origin: *` (or specific origin) on all responses
+- **Handle CORS headers — but first check who terminates CORS.** A function reached through the HTTP gateway must **not** set `Access-Control-Allow-Origin` itself: the gateway already fills it from the environment security-domain allowlist, and a second value yields `<origin>,*`, which browsers reject outright — every request fails with a CORS error that looks like the service is down. Only set CORS headers when the function is called directly, outside the gateway:
+  - Respond to `OPTIONS` preflight with an empty `204`
+  - Include `Access-Control-Allow-Origin` only for direct, non-gateway callers
   - Include `Access-Control-Allow-Methods: GET, POST, OPTIONS` as needed
   - Include `Access-Control-Allow-Headers: Content-Type` for JSON requests
 - Keep routing and method handling explicit. Unknown paths should return `404`, and known paths with unsupported methods should normally return `405`.
@@ -296,12 +296,12 @@ exports.main = async (event, context) => {
 const http = require("http");
 const { URL } = require("url");
 
-// CORS headers — default to * for simple cross-origin APIs
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+// CORS: leave this empty when the function is reached through the HTTP gateway.
+// The gateway already fills Access-Control-Allow-Origin from the environment
+// security-domain allowlist; adding a second value makes the header illegal
+// ('<origin>,*') and browsers block every request. Only set CORS headers here
+// when the function is called directly, outside the gateway.
+const CORS_HEADERS = {};
 
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {

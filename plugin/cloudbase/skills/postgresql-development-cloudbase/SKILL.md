@@ -302,7 +302,8 @@ Hard rule: never let an upload error be silently swallowed. If `uploadCoverImage
 
 - PG HTTP API is in the CloudBase relational database HTTP API family, together with MySQL. In MCP docs/search this appears under `mysqldb`.
 - Before writing raw `fetch()` code, query OpenAPI docs: `searchKnowledgeBase(mode="openapi", apiName="mysqldb", query="PostgreSQL fetch insert update rpc")`.
-- Do not construct `/api/v1/rdb/rest` or `/api/v1/rdb/rest/rpc` from memory. A guessed path that returns 404 is a hard blocker; switch back to JS SDK v3 or read the OpenAPI contract.
+- Do not construct the REST paths from memory. A guessed path that returns 404 is a hard blocker; read the OpenAPI contract for table endpoints (`fetch` / `insert` / `update` / `delete`).
+- **Database functions (RPC)** are how you perform an atomic server-side operation — a guarded counter, a conditional update, a multi-step write — that a plain REST update cannot express safely. The endpoint is `POST /v1/rdb/rest/rpc/<function>` on the same gateway base as the table endpoints; it is **not** part of the `mysqldb` OpenAPI document, so confirm it with one live call before writing it into code.
 - If environment variables expose `TCB_HTTP_API_BASE_URL` / `VITE_TCB_HTTP_API_BASE_URL`, treat them as the base only. The path, method, headers, and auth model must still come from OpenAPI docs or an existing working helper.
 
 ## Frontend Guardrails
