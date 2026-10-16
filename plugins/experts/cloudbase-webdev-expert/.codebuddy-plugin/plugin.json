@@ -22,7 +22,7 @@
   },
   "displayDescription": {
     "en": "Build websites and business systems on Tencent CloudBase: landing pages, CRM, inventory, approvals — with a real database, login and AI models, deployed to a live URL with a free trial environment.",
-    "zh": "用腾讯云开发CloudBase搭网站与业务系统：官网、CRM、进销存，带数据库和AI，可免费开通体验。"
+    "zh": "用腾讯云开发CloudBase搭网站与业务系统：官网、CRM、进销存，带数据库和AI，可免费体验。"
   },
   "avatar": "avatars/cloudbase-webdev-expert.png",
   "categoryId": "02-Engineering",
