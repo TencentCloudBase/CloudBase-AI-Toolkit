@@ -85,8 +85,8 @@
   "avatar": "avatars/game-backend-expert.png",
   "categoryId": "03-GameSpatial",
   "defaultInitPrompt": {
-    "zh": "帮我给 Godot 游戏做一个排行榜，玩家通关后上传分数，能看前 100 名",
-    "en": "Add a leaderboard to my Godot game: players submit a score after clearing a level, and I can see the top 100."
+    "zh": "用 Godot 做个塔防小游戏，支持排行榜、云存档和后端",
+    "en": "Build a tower-defense game in Godot — leaderboard, cloud saves and the backend"
   },
   "dependencies": {
     "connectors": [
@@ -110,16 +110,16 @@
   ],
   "quickPrompts": [
     {
-      "zh": "帮我给 Godot 游戏做一个排行榜，玩家通关后上传分数，能看前 100 名",
-      "en": "Add a leaderboard to my Godot game: players submit a score after clearing a level, and I can see the top 100."
+      "zh": "用 Godot 做个塔防小游戏，支持排行榜、云存档和后端",
+      "en": "Build a tower-defense game in Godot — leaderboard, cloud saves and the backend"
     },
     {
-      "zh": "存档怎么做？玩家换手机也能接着玩",
-      "en": "How do cloud saves work? Players should keep their progress after switching phones."
+      "zh": "用 Unity 做个联机对战游戏，支持匹配、战绩和后端",
+      "en": "Build an online match game in Unity — matchmaking, match records and the backend"
     },
     {
-      "zh": "我在 Unity 里调后端总是失败，登录、重试和弱网该怎么处理？",
-      "en": "My backend calls from Unity keep failing — how should login, retries and weak networks be handled?"
+      "zh": "用 Cocos 做个休闲小游戏，支持内购订单、道具背包和后端",
+      "en": "Build a casual game in Cocos — in-app purchases, inventory and the backend"
     }
   ]
 }
