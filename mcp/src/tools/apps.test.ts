@@ -178,6 +178,13 @@ describe("app tools", () => {
       artifact_kind: 'apps',
       artifact_name: 'demo-app',
     });
+    // 面板的环境上下文复用本次部署已有的实例：**不为品牌条再初始化一次 manager**。
+    // 部署本身会初始化两次（既有的两条路径）；这里钉住"总数没被面板接线多加一次"——
+    // 谁若把 `manager: cloudbase` 改回 `await getManager()`，这里就会变成 3 并红。
+    expect(mockGetCloudBaseManager).toHaveBeenCalledTimes(2);
+    // 环境信息拿不到时逐字段降级：这段 harness 没有 describeEnvInfo ⇒ 套餐留空、站点/地域仍在
+    expect(result.structuredContent.plan).toBeNull();
+    expect(result.structuredContent.site).toBeTruthy();
 
     expect(mockUploadCode).toHaveBeenCalledWith({
       deployType: "static-hosting",

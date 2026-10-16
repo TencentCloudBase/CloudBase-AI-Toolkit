@@ -708,8 +708,10 @@ export function registerAppTools(server: ExtendedMcpServer) {
           // MCP Apps：把这次部署的结果同时交给产物卡片面板（只读展示 + 把写意图交给会话）。
           // 文本回执逐字不变，只多一个 structuredContent；环境上下文 best-effort，失败不冒泡。
           const deployEnvId = await getEnvId(cloudBaseOptions);
+          // 复用本次部署已经拿到的实例：这里**不能**再 `await getManager()`——那是实参求值，
+          // 落在 helper 的 try/catch 之外，一旦初始化抛错就会把"已经成功的部署"丢掉。
           const deployCardEnv = await resolveArtifactEnvContext({
-            manager: await getManager(),
+            manager: cloudbase,
             envId: deployEnvId,
             site: cloudBaseOptions?.site,
             region: cloudBaseOptions?.region,

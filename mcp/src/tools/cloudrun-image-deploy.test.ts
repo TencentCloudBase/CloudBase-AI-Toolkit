@@ -191,26 +191,23 @@ describe("manageCloudRun deploy imageUrl branch", () => {
     expect(res.structuredContent).not.toHaveProperty('access_url');
   });
 
-  it("returns the artifact card failure state when the deploy call itself fails", async () => {
+  it("keeps the deploy failure as a throw (contract + telemetry stay with the runtime wrapper)", async () => {
     const manager = makeManager({
       deployImpl: () => Promise.reject(new Error('backend said no')),
     });
     mockGetCloudBaseManager.mockReturnValue(manager);
     const { tools } = await createCloudRunTools();
 
-    const res = await tools.manageCloudRun.handler({
+    // 必须是"抛"，不是"返回 isError 结果"：只有抛出去，wrapper 才会做错误增强 / RequestId /
+    // 版本页脚，并把这次调用记为失败。卡片那一侧的失败态由 isError 兜底承接（见
+    // resources/artifact-card.render.test.ts 的两条兜底用例）。
+    const promise = tools.manageCloudRun.handler({
       action: 'deploy',
       serverName: 'hermes-agent',
       imageUrl: 'ccr.ccs.tencentyun.com/ns/hermes:v1',
     });
 
-    // 文本与"抛给运行时包装"同源：同一句 message、isError 同为 true，只多一个 structuredContent
-    expect(res.isError).toBe(true);
-    expect(res.content[0].text).toContain('backend said no');
-    expect(res.structuredContent.state).toBe('failed');
-    expect(res.structuredContent.error_text).toBe(res.content[0].text);
-    expect(res.structuredContent.artifact_kind).toBe('cloudrun');
-    expect(res.structuredContent.artifact_name).toBe('hermes-agent');
+    await expect(promise).rejects.toThrow(/backend said no/);
   });
 
   it("documents imageUrl-first semantics in schema descriptions", async () => {

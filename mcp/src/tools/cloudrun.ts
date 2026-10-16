@@ -10,7 +10,6 @@ import { debug } from '../utils/logger.js';
 import { requireProjectRoot } from '../utils/project-config.js';
 import { preferGatewayOrFallback, resolveGatewayAccessUrls } from '../utils/gateway-access-urls.js';
 import { sendDeployNotification } from '../utils/notification.js';
-import { buildTextErrorResult } from '../utils/tool-result.js';
 import {
   buildArtifactCardPayload,
   resolveArtifactEnvContext,
@@ -2415,32 +2414,12 @@ for await (let x of res.textStream) {
             try {
               result = await cloudrunService.deploy(deployParams);
             } catch (error) {
-              // MCP Apps：部署调用失败就直接给出失败态（含**后端原文**）。文本与"抛给运行时包装"
-              // 完全一致（content 里是同一句 message、isError 同为 true），只多一个 structuredContent。
-              // 注意：这次的 message 是仓里既有的 deploy 失败呈现（buildManageCloudRunErrorMessage），
-              // 与文本回执同源，不另写一套措辞。
-              const failureMessage = buildManageCloudRunErrorMessage('deploy', input.serverName, error);
-              const failureEnvId = await getEnvId(cloudBaseOptions);
-              const failureCardEnv = await resolveArtifactEnvContext({
-                manager,
-                envId: failureEnvId,
-                site: cloudBaseOptions?.site,
-                region: cloudBaseOptions?.region,
-              });
-              return {
-                ...buildTextErrorResult(failureMessage),
-                structuredContent: buildArtifactCardPayload({
-                  success: false,
-                  errorText: failureMessage,
-                  kind: 'cloudrun',
-                  artifactName: input.serverName,
-                  envAlias: failureCardEnv.envAlias,
-                  envId: failureEnvId,
-                  planRaw: failureCardEnv.planRaw,
-                  site: failureCardEnv.site,
-                  region: failureCardEnv.region,
-                }),
-              };
+              // 部署调用失败照旧**抛**：只有抛出去，运行时的 wrapper 才会做它那套增强
+              // （错误增强、RequestId、版本页脚），遥测也才记为失败。若改成"返回一个 isError 结果"，
+              // 这些都会静默丢失（复核用真实 wrapper 对照过：抛约 300 字符 vs 返回仅后端原文）。
+              // 卡片那一侧由 `isError` 兜底承接（显示「部署失败」+ 上一次的身份），
+              // 失败原因由会话与折叠区承载 —— 这条取舍见 PR 正文。
+              throw new Error(buildManageCloudRunErrorMessage('deploy', input.serverName, error));
             }
 
             // Generate cloudbaserc.json configuration file (source-build only; image deploy has no local project dir)
