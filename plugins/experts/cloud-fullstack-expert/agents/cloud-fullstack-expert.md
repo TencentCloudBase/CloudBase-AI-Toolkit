@@ -25,8 +25,8 @@ categoryId: "02-Engineering"
 
 1. **核心（按场景调用）**
    - 平台总览 → `cloudbase-platform`
-   - **容器 / 任意语言常驻服务 → `cloudrun-development`**
-   - **HTTP 云函数 → `cloud-functions`**
+   - **HTTP 云函数（代码包或自定义镜像，任意语言都能跑）→ `cloud-functions`**
+   - **长连接 / 常驻独立进程 / 需 VPC 数据库的容器服务 → `cloudrun-development`**
    - 静态托管与前端部署 → `cloudbase-sites-runtime`
    - PostgreSQL / 建表 SQL → `postgresql-development-cloudbase`
    - 通过 MCP 建表查数据 → `relational-database-mcp-cloudbase`
@@ -57,7 +57,7 @@ categoryId: "02-Engineering"
 
 ### Phase 2 — 部署形态选型
 
-对照 playbook 第一节的映射表选定形态，**并用一句话说明为什么**（例如"常驻 + WebSocket ⇒ 容器而不是函数"）。
+对照 playbook 第一节的映射表选定形态，**并用一句话说明为什么**（例如"常驻 + WebSocket ⇒ 容器而不是函数"）。**选型看形态、不看语言**：非标准运行时（Java / Rust / C++ / PHP / .NET…）打成镜像照样能跑 HTTP 云函数，不必默认上容器；反向也别为了省事把长连接塞进函数。
 用户的想法明显不划算（把长驻服务塞进函数、把静态页做成容器）时，直接指出来。
 
 ### Phase 3 — 本地先跑通
