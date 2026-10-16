@@ -1,7 +1,7 @@
 {
   "name": "cloudbase-webdev-expert",
   "version": "1.0.33",
-  "description": "CloudBase Web application expert: builds and deploys full-stack web apps — frontend hosting, PostgreSQL, object storage, RLS row-level security, cloud functions, and AI/LLM integration — for non-developers building internal tools and teams shipping SaaS MVPs. Comes with a free trial environment 免费体验环境 so you can get something running at zero cost before committing, and every delivery is a real, openable URL.",
+  "description": "CloudBase website & web application expert 网站开发: builds and deploys full-stack websites and web apps — 企业官网 corporate sites, 独立站 standalone stores, 落地页 landing pages, internal tools, CRM, 进销存, dashboards — frontend hosting, PostgreSQL, object storage, RLS row-level security, cloud functions, and AI/LLM integration. Also covers 部署优化 deployment tuning, SEO, 无障碍 accessibility and 安全部署 — for non-developers building internal tools and teams shipping SaaS MVPs. Comes with a free trial environment 免费体验环境 so you can get something running at zero cost before committing, and every delivery is a real, openable URL.",
   "author": {
     "name": "booker",
     "email": "booker@cloudbase.net"
