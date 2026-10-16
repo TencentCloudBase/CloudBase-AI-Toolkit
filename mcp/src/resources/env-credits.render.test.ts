@@ -39,6 +39,8 @@ interface PanelHarness {
   el(id: string): ShimmedElement;
   /** 模拟一次 document 级点击（面板用 `event.target.closest("button")` 取按钮） */
   clickDocument(id: string): void;
+  /** 垫片里剪贴板不可用 ⇒ copyText 走 textarea 兜底；这里读回它实际要复制的文本 */
+  copiedText(): string | null;
 }
 
 const FALLBACK = { envId: "my-env-3gk9ab", site: "domestic", region: "ap-shanghai" };
@@ -81,12 +83,28 @@ function loadPanel(html: string): PanelHarness {
 
   const messageListeners: Array<(event: { data: unknown }) => void> = [];
   const clickListeners: Array<(event: unknown) => void> = [];
+  let copied: string | null = null;
   const sandbox: Record<string, unknown> = {
     document: {
       getElementById: (id: string) => elements.get(id) ?? null,
       documentElement: { scrollWidth: 480, scrollHeight: 320 },
       body: { appendChild() {}, removeChild() {} },
-      createElement: () => ({ setAttribute() {}, style: {}, select() {} }),
+      createElement: () => {
+        const area: {
+          value?: string;
+          setAttribute(): void;
+          style: Record<string, unknown>;
+          select(): void;
+        } = {
+          setAttribute() {},
+          style: {},
+          // copyText 先写 .value 再 .select()，所以在 select 处读回就是要复制的内容
+          select() {
+            copied = String(area.value ?? "");
+          },
+        };
+        return area;
+      },
       execCommand: () => true,
       addEventListener(type: string, fn: (event: unknown) => void) {
         if (type === "click") {
@@ -136,6 +154,9 @@ function loadPanel(html: string): PanelHarness {
       clickListeners.forEach((fn) =>
         fn({ target: { closest: (sel: string) => (sel === "button" ? elements.get(id) ?? null : null) } }),
       );
+    },
+    copiedText() {
+      return copied;
     },
   };
 }
@@ -478,6 +499,73 @@ describe("env-credits 面板脚本运行时", () => {
     panel2.clickDocument("btn-link");
     expect(panel2.el("k-copynote").textContent).toBe(L("mcpUiCredits.action.copiedExpense"));
     expect(panel2.el("c-hint").textContent).toBe(L("mcpUiCredits.hint.arrears"));
+  });
+
+  it("复制出去的是完整控制台地址：带本次载荷的 envId，且站点决定主机", () => {
+    // 环境级（package / renew）→ 云开发控制台「套餐用量」页，必须带本环境的 envId
+    const exhausted = buildEnvCreditsPayload({
+      ...BASE,
+      planRaw: "baas_free",
+      usages: [usage("SCF", 3000)],
+      expired: false,
+    });
+    const pkg = render(exhausted);
+    pkg.clickDocument("btn-link");
+    expect(pkg.copiedText()).toBe(
+      "https://tcb.cloud.tencent.com/dev?envId=env-demo#/env/package-usage",
+    );
+
+    // 载荷带另一个站点 ⇒ 换主机（不是本地兜底的 domestic）
+    const intlExpired = buildEnvCreditsPayload({
+      ...BASE,
+      envId: "env-intl",
+      site: "intl",
+      region: "ap-singapore",
+      planRaw: "baas_personal",
+      usages: [usage("SCF", 1)],
+      expired: true,
+    });
+    const renew = render(intlExpired);
+    renew.clickDocument("btn-link");
+    expect(renew.copiedText()).toBe(
+      "https://tcb.tencentcloud.com/dev?envId=env-intl#/env/package-usage",
+    );
+
+    // 账户级（arrears）→ 充值页，主机同样随站点走，且不带 envId
+    const arrears = buildEnvCreditsPayload({
+      ...BASE,
+      envId: "env-intl",
+      site: "intl",
+      region: "ap-singapore",
+      planRaw: "baas_personal",
+      usages: [usage("SCF", 1)],
+      expired: false,
+      balance: -5,
+    });
+    const expense = render(arrears);
+    expense.clickDocument("btn-link");
+    expect(expense.copiedText()).toBe("https://console.intl.cloud.tencent.com/expense/recharge");
+
+    // 载荷明确说「没有 envId」（空串）⇒ 地址里就不带查询串，绝不编一个环境出来
+    const noEnv = render(
+      buildEnvCreditsPayload({
+        envId: "",
+        site: "domestic",
+        region: "ap-shanghai",
+        planRaw: "baas_free",
+        usages: [usage("SCF", 3000)],
+        expired: false,
+      }),
+    );
+    noEnv.clickDocument("btn-link");
+    expect(noEnv.copiedText()).toBe("https://tcb.cloud.tencent.com/dev#/env/package-usage");
+  });
+
+  it("没有链接可复制的分支，点了复制按钮也不会写出半截地址", () => {
+    const panel = loadPanel(HTML); // 不放载荷：分支 = unknown，link = 空
+    expect(panel.el("btn-link").hidden).toBe(true);
+    panel.clickDocument("btn-link");
+    expect(panel.copiedText(), "不该写出 #undefined / 只有主机名之类的东西").toBe(null);
   });
 
   it("位置行：实时地域优先；缺字段才回落本地；实时值不可译时出「—」而绝不泄露原始码", () => {
