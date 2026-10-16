@@ -405,8 +405,10 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
                   <stop offset="1" style="stop-color:var(--ok);stop-opacity:0"/>
                 </linearGradient>
               </defs>
-              <path class="spark-area" id="spark-area" d="" fill="url(#g-err)"/>
-              <path class="spark-line" id="spark-line" d="" stroke="var(--err)"/>
+              <!-- Neutral initial styling on purpose: renderSpark sets both attributes in the same
+                   call, so a red initial value would only mislead whoever reads this template. -->
+              <path class="spark-area" id="spark-area" d="" fill="none"/>
+              <path class="spark-line" id="spark-line" d="" stroke="var(--text-2)"/>
             </svg>
             <i class="spark-dot" id="spark-dot" hidden></i>
           </div>

@@ -1115,6 +1115,27 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
     }
   });
 
+  it("守卫：metric.* 文案一律不含机制腔（hint 也纳入——上一轮只覆盖了 action/message）", () => {
+    const zh = mcpUiCredits.zh as Record<string, unknown>;
+    const en = mcpUiCredits.en as Record<string, unknown>;
+    const keys = Object.keys(zh).filter((k) => k.startsWith("metric."));
+    expect(keys.length).toBeGreaterThan(0);
+    // 三态 hint 必须都在，否则这条守卫会被"没有 hint"绕过
+    for (const state of ["data", "noData", "failed"]) {
+      expect(keys, `缺 metric.hint.${state}`).toContain(`metric.hint.${state}`);
+    }
+    for (const key of keys) {
+      for (const [lang, dict] of [["zh", zh], ["en", en]] as const) {
+        const value = String(dict[key] ?? "");
+        expect(value, `${lang} ${key} 含机制腔`).not.toContain("在会话里");
+        expect(value, `${lang} ${key} 含机制腔`).not.toContain("in the session");
+      }
+    }
+    // 失败态说明句不得逐字重复按钮的劝告（按钮＝重试这次查询 / Retry this query）
+    expect(String(zh["metric.hint.failed"])).not.toContain(String(zh["metric.action.failed"]));
+    expect(String(en["metric.hint.failed"])).not.toContain(String(en["metric.action.failed"]));
+  });
+
   it("守卫：两个分支的渲染入口都在面板脚本里（缺一即红）", () => {
     expect(HTML).toContain('id="f-credits"');
     expect(HTML).toContain('id="f-m-latest"');

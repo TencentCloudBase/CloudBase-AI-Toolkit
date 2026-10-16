@@ -149,7 +149,7 @@ export const mcpUiCredits = defineModule(
     // 说明句
     "metric.hint.data": "所选时段内该指标有数据。",
     "metric.hint.noData": "所选时段内该指标没有数据。",
-    "metric.hint.failed": "这次查询没有拿到数据，可以在会话里重试或查看日志。",
+    "metric.hint.failed": "这次查询没有拿到数据；可以先重试，或去日志看这段时间有没有报错。",
 
     // 字段标签
     "metric.field.latest": "最新值",
@@ -291,7 +291,7 @@ export const mcpUiCredits = defineModule(
 
     "metric.hint.data": "This metric has data in the selected window.",
     "metric.hint.noData": "This metric has no data in the selected window.",
-    "metric.hint.failed": "This query returned no data. Retry in the session or check the logs.",
+    "metric.hint.failed": "This query returned no data; retry it, or check the logs for errors in this period.",
 
     "metric.field.latest": "Latest",
     "metric.field.peak": "Peak",
