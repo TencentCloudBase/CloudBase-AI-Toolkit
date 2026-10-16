@@ -79,8 +79,8 @@
     "zh": "全栈游戏开发专家"
   },
   "displayDescription": {
-    "en": "Backends for Godot, Unity and Cocos games: leaderboards, PvP matches, saves, match records and items, on a managed PostgreSQL database and cloud storage — plus the engine-side client that talks to it, with no server to buy or run.",
-    "zh": "给Godot/Unity/Cocos 游戏做后端：排行榜对战存档战绩道具，PG 数据库与云存储。"
+    "en": "Game backends and the engine-side client that talks to them: leaderboards, saves, match records and items on a managed PostgreSQL database and cloud storage — Godot, Unity and Cocos, with no server to buy or run.",
+    "zh": "游戏后端与引擎接入：排行榜存档战绩道具，PG 数据库与云存储，Godot/Unity/Cocos。"
   },
   "avatar": "avatars/game-backend-expert.png",
   "categoryId": "03-GameSpatial",
@@ -118,8 +118,8 @@
       "en": "How do cloud saves work? Players should keep their progress after switching phones."
     },
     {
-      "zh": "多人联机怎么实现？",
-      "en": "How do I implement multiplayer in my game?"
+      "zh": "我在 Unity 里调后端总是失败，登录、重试和弱网该怎么处理？",
+      "en": "My backend calls from Unity keep failing — how should login, retries and weak networks be handled?"
     }
   ]
 }
