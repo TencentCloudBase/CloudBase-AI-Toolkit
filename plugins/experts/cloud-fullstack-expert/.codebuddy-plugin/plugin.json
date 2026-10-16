@@ -22,7 +22,7 @@
   },
   "displayDescription": {
     "en": "Give me your code and language — Java, Go, Rust, Python, Node, anything — and I deploy it to the cloud, then hand back a live URL.",
-    "zh": "把你的代码和语言交给我，任意语言都行——我部署上云，还你一个能访问的地址。"
+    "zh": "把你的代码和语言交给我，任意语言都行——我部署上云，还你一个能访问的地址，按生产标准。"
   },
   "categoryId": "02-Engineering",
   "defaultInitPrompt": {
