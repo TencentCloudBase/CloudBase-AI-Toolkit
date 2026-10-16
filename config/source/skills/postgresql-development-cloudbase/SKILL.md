@@ -175,7 +175,7 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
 - ❌ `db.from("public.public.articles")` — WRONG, double schema prefix, will fail with `PGRST205`
 - `objectName="public.articles"` in `queryPgDatabase()` is the MCP tool format — do NOT copy this into `db.from()`.
 
-Use static imports and one shared `app.rdb()` client (SDK init reference: [webv3-pg/initialization.md](https://docs.cloudbase.net/api-reference/webv3-pg/initialization.md)):
+Use static imports and one shared `app.rdb()` client (SDK init reference: [webv3/initialization.md](https://docs.cloudbase.net/api-reference/webv3/initialization.md)):
 
 ```ts
 import cloudbase from "@cloudbase/js-sdk";
@@ -215,7 +215,7 @@ const { data } = await db.rpc("function_name", { id });
 
 Common query helpers: `.eq()`, `.neq()`, `.gt()`, `.gte()`, `.lt()`, `.lte()`, `.like()`, `.ilike()`, `.in()`, `.is()`, `.contains()`, `.textSearch()`, `.or()`, `.not()`, `.match()`, `.order()`, `.limit()`, `.range()`, `.single()`.
 
-**Full cookbook (official webv3-pg API — copy these, do not re-derive from .d.ts).** Source: [webv3-pg/postgresql/fetch.md](https://docs.cloudbase.net/api-reference/webv3-pg/postgresql/fetch.md) — fetch / insert / update / delete / upsert / filters / modifiers / rpc share the same path prefix, one page per verb（URL 加 `.md` 可取 raw markdown 原文）:
+**Full cookbook (official webv3 API — copy these, do not re-derive from .d.ts).** Source: [webv3/postgresql/fetch.md](https://docs.cloudbase.net/api-reference/webv3/postgresql/fetch.md) — fetch / insert / update / delete / upsert / filters / modifiers / rpc share the same path prefix, one page per verb（URL 加 `.md` 可取 raw markdown 原文）:
 
 ```ts
 // COUNT only — no rows returned, count comes back on the result object
