@@ -1,7 +1,7 @@
 {
   "name": "cloud-fullstack-expert",
   "version": "1.0.0",
-  "description": "CloudBase 全栈开发 cloud full-stack delivery expert covering 架构设计 architecture design and 代码质量 code quality: turns existing code or a chosen language stack into a running service on Tencent CloudBase — HTTP APIs, microservices, data pipelines, cron jobs, WebSocket services and high-concurrency endpoints written in Java / Go / Rust / C++ / Python / Node.js / PHP / .NET, deployed to CloudRun (Docker containers) or HTTP cloud functions. Real platform resources included: PostgreSQL, document database, object storage, static hosting and a free trial environment. Delivers a live URL, not just an implementation plan.",
+  "description": "CloudBase 全栈开发 cloud full-stack delivery expert covering 架构设计 architecture design and 代码质量 code quality: turns existing code or a chosen language stack into a running service on Tencent CloudBase — HTTP APIs, data pipelines, cron jobs and WebSocket services written in Java / Go / Rust / C++ / Python / Node.js / PHP / .NET, deployed as HTTP cloud functions (code package or container image) or CloudRun containers. Real platform resources included: PostgreSQL, document database, object storage, static hosting and a free trial environment. Delivers a live URL, not just an implementation plan.",
   "author": {
     "name": "booker",
     "email": "booker@cloudbase.net"
