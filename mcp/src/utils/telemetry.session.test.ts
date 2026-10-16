@@ -143,6 +143,59 @@ describe("会话建立后上报一次（真实握手）", () => {
   });
 });
 
+describe("幂等粒度是会话，不是 server 实例", () => {
+  it("同一实例上的两个会话 ⇒ 各报一次（2 条）；同一会话重复通知仍只 1 条", async () => {
+    // 会话说到底就一个字：transport 上的 sessionId。有状态 HTTP 由 SDK 生成；
+    // InMemoryTransport 没有这个字段，所以这里**显式造两个 sessionId** 来模拟
+    // "一个实例服务两个会话"（真机上的有状态多会话本地只能这样构造）。
+    const server = await createCloudBaseMcpServer({
+      pluginsEnabled: ["env"],
+      enableTelemetry: true,
+    });
+
+    const handshakeWith = async (sessionId: string, clientName: string) => {
+      const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+      (serverTransport as unknown as { sessionId?: string }).sessionId = sessionId;
+      const client = new Client({ name: clientName, version: "0.0.1" });
+      await server.connect(serverTransport);
+      await client.connect(clientTransport);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      return client;
+    };
+
+    // 注意：SDK 的 `Protocol.connect()` 在已连接时会直接抛
+    // "Already connected to a transport. Call close() before connecting to a new transport" ——
+    // 所以**并发**复用同一实例在 SDK 层面就不可能；能构造的复用是"关掉上一个会话、再接下一个"
+    // （按凭证缓存实例时现实里也是这种串行复用）。
+
+    let clientA: Client | undefined;
+    let clientB: Client | undefined;
+    try {
+      clientA = await handshakeWith("sess-a", "session-a");
+      expect(initializedPayloads()).toHaveLength(1);
+
+      // 同一会话内重复的 initialized（客户端再发一次）⇒ 不重复报
+      await clientA.notification({ method: "notifications/initialized" });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(initializedPayloads()).toHaveLength(1);
+
+      // 关掉会话 A 后，用**同一个实例**再服务会话 B ⇒ 必须再报一条（实例级幂等会漏掉这条）
+      await clientA.close();
+      clientA = undefined;
+      clientB = await handshakeWith("sess-b", "session-b");
+      const payloads = initializedPayloads();
+      expect(payloads).toHaveLength(2);
+      // 载荷口径没变：仍是 initialized + 各自会话的 client 身份
+      expect(payloads.map((item) => item.mcpClientName)).toEqual(["session-a", "session-b"]);
+      expect(payloads.every((item) => item.event === "initialized")).toBe(true);
+    } finally {
+      await clientA?.close().catch(() => undefined);
+      await clientB?.close().catch(() => undefined);
+      await server.close().catch(() => undefined);
+    }
+  });
+});
+
 describe("`enableTelemetry: false` 是真的总闸", () => {
   it("关掉遥测时连会话事件都不发（oninitialized 根本没被挂上）", async () => {
     const server = await createCloudBaseMcpServer({

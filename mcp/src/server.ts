@@ -441,16 +441,37 @@ export async function createCloudBaseMcpServer(options?: {
     // 会话建立后上报一次（补"分母"：进程 start 早于握手，拿不到 client 与能力声明）。
     // **这一个 if 就是总闸**：`enableTelemetry: false` 时连这条会话事件也不发——
     // 关掉遥测的调用方（测试环境分支、冒烟脚本、评审 harness）本来就是为了不出网。
-    // - **每会话只发一次**：重复的 initialized 通知不再发（实例上的幂等标记）；
+    // - **每会话只发一次**：幂等粒度是**会话**，不是 server 实例 —— 同一会话里重复的
+    //   initialized 通知只报一次；不同会话即使共用同一个实例也各报一次；
     // - **fire-and-forget**：绝不 await、也不让上报失败冒泡到握手；
     // - 字段拿不到就留空，不臆造（见 reportToolkitSessionInitialized 的注释）。
     // 多会话同进程的场景（HTTP/托管路径的每会话回调）本期不接，留待后续。
-    let sessionInitializedReported = false;
+    //
+    // 会话身份的取值来源（不留含糊）：本实例当前挂载的 transport 上的 `sessionId`
+    //   - 有状态 HTTP / 托管路径 ⇒ SDK 的 `StreamableHTTPServerTransport.sessionId`（公开 getter）；
+    //   - stdio、以及无状态的托管路径（`sessionIdGenerator: undefined`，见
+    //     `hosted/handle-hosted-mcp-request.ts:160`）⇒ 没有会话概念 ⇒ 回落到常量
+    //     `single-session`，等价于"这个实例就是一个会话"；
+    //   - 本版 SDK 没有公开的 `transport` 访问器（协议层只在 connect 时内部持有，见
+    //     `@modelcontextprotocol/sdk/.../shared/protocol.js:219`），所以这里**窄读** `_transport`
+    //     的 `sessionId` 一个字段，不碰其它内部状态。
+    // 为什么现在改成按会话：今天托管路径每个请求都新建实例（无缓存 Map），两种粒度等价；
+    // 一旦有人把实例按凭证缓存复用，"实例级幂等"就会让 N 个会话只报 1 条、分母漏计 N−1。
+    const reportedSessions = new Set<string>();
+    const currentSessionKey = (): string => {
+      const transportSessionId = (
+        server.server as unknown as { _transport?: { sessionId?: unknown } }
+      )._transport?.sessionId;
+      return typeof transportSessionId === "string" && transportSessionId.length > 0
+        ? transportSessionId
+        : "single-session";
+    };
     server.server.oninitialized = () => {
-      if (sessionInitializedReported) {
+      const sessionKey = currentSessionKey();
+      if (reportedSessions.has(sessionKey)) {
         return;
       }
-      sessionInitializedReported = true;
+      reportedSessions.add(sessionKey);
       void reportToolkitSessionInitialized({
         cloudBaseOptions,
         ide: server.ide || process.env.INTEGRATION_IDE,
