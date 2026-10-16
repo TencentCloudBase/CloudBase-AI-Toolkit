@@ -223,4 +223,19 @@ describe("guardCredentialWrite：软确认判据", () => {
         expect(params.message).not.toContain(OPAQUE);
         expect(params.message).toContain(createHash("sha256").update(OPAQUE).digest("hex").slice(0, 12));
     });
+
+    it("被拦下的文案给出两条出路：改成会询问 / 加进跳过开关", async () => {
+        const { server } = makeServer({ action: "accept", content: { confirm: CONFIRM_LABEL } }, { delayMs: 1 });
+        const decision = await guardCredentialWrite(server, {
+            toolName: "manageCloudRun",
+            args: { action: "updateConfig", x: JWT },
+        });
+        expect(decision.intercept).toBe(true);
+        if (decision.intercept) {
+            const text = decision.result.content[0].text;
+            expect(text).toContain("会询问");
+            expect(text).toContain(CREDENTIAL_GUARD_SKIP_ENV_NAME);
+            expect(text).toContain("manageCloudRun.updateConfig");
+        }
+    });
 });

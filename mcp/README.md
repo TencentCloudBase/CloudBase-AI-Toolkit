@@ -185,6 +185,10 @@ looked at it": unlike the deletion confirmation — where a client answering for
 proceeds — a credential write is **not** executed, because a value nobody compared is exactly the case this guards against. When the
 guard declines, the result says "not executed" **without** being marked as an error, so a model does not retry it blindly.
 
+If a client always answers for itself — always inside that few-hundred-millisecond window — then credential writes on that client
+will never proceed. That is the design, and there are two ways out: switch the client's permission to ask, so the check reaches a
+person; or skip the check for that tool with `CLOUDBASE_MCP_SKIP_CREDENTIAL_GUARD`. Both are named in the message the guard returns.
+
 | Variable | Effect |
 | --- | --- |
 | `CLOUDBASE_MCP_SKIP_CREDENTIAL_GUARD` | Comma-separated. Accepts a tool name (`manageCloudRun`) or a single action (`manageCloudRun.updateConfig`), case-sensitive, no wildcard. Unknown entries are logged and ignored rather than failing the server |
