@@ -82,6 +82,8 @@ describe("谓词触发面：只有参数里确实有破坏性 SQL 才命中", ()
     expect(hit?.spec.target({ sql: script, allowDdlViaExecute: true })).toEqual({
       resource: 'DELETE FROM "b"',
       count: 2,
+      // 多条时切到带 {count} 的文案变体（护栏那行 t() 已经会把 count 传进去）
+      messageKey: "confirmation.message.pgExecuteDestructiveSqlMany",
     });
   });
 
@@ -213,6 +215,37 @@ describe("真实通道：人拒绝 ⇒ 不执行", () => {
 
     expect(handler).toHaveBeenCalledTimes(1);
     expect((result.content as Array<{ text: string }>)[0].text).toContain("handler 执行了");
+  });
+
+  it("多语句脚本：确认框里必须能看到「还有别的语句」（预览只截首条，靠条数补）", async () => {
+    const { client, handler, elicitations } = await setupGuard({ reply: { action: "decline" }, answerDelayMs: 600 });
+    const script = 'DROP TABLE "a";\nTRUNCATE TABLE "b";';
+
+    await client.callTool({
+      name: "managePgDatabase",
+      arguments: { action: "execute", sql: script, confirm: true, allowDdlViaExecute: true },
+    });
+
+    expect(elicitations).toHaveLength(1);
+    const message = String(elicitations[0].message);
+    // 首条语句仍在（预览）+ 条数信号也在（否则用户以为只跑一条就点了确认）
+    expect(message).toContain('DROP TABLE "a"');
+    expect(message).toMatch(/2 条破坏性语句/);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("单条语句：不出现「共 N 条」这类噪音", async () => {
+    const { client, elicitations } = await setupGuard({ reply: { action: "decline" }, answerDelayMs: 600 });
+
+    await client.callTool({
+      name: "managePgDatabase",
+      arguments: { action: "execute", sql: DELETE_SQL, confirm: true },
+    });
+
+    expect(elicitations).toHaveLength(1);
+    const message = String(elicitations[0].message);
+    expect(message).toContain('DELETE FROM "orders"');
+    expect(message).not.toMatch(/\d+ 条破坏性语句/);
   });
 
   it("⑥ 未命中（INSERT）⇒ 不弹确认、照常执行", async () => {

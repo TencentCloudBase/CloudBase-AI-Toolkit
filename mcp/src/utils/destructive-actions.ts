@@ -117,11 +117,23 @@ function pgApplyMigrationDestructiveStatements(args: Record<string, unknown>): s
  * 那个入口必须挂同一道闸（`when` 判 `rollbackSql`，范围同 ②）。
  */
 
-function statementsTarget(statements: string[]): DestructiveTarget {
+/**
+ * 命中的语句 → 确认框要显示的目标。
+ *
+ * 多条时除了 `count`，还要**换一份带 `{count}` 的文案**：预览只截首条（240 字），
+ * 只点名第一条会让用户以为"就这一条"就点了确认。单条则沿用原文案，不出现"共 1 条"噪音。
+ * 走的是既有机制：`DestructiveTarget.messageKey` 覆盖 spec 的 messageKey（护栏那行 `t()` 未改）。
+ */
+function statementsTarget(
+    statements: string[],
+    manyMessageKey: MessageKey,
+): DestructiveTarget {
     const first = statements[0];
     return {
         resource: first ? sqlPreview(first) : undefined,
-        ...(statements.length > 1 ? { count: statements.length } : {}),
+        ...(statements.length > 1
+            ? { count: statements.length, messageKey: manyMessageKey }
+            : {}),
     };
 }
 
@@ -198,12 +210,20 @@ export const DESTRUCTIVE_ACTIONS: Readonly<Record<string, DestructiveActionSpec>
     "managePgDatabase.execute": {
         messageKey: "confirmation.message.pgExecuteDestructiveSql",
         when: (args) => pgExecuteDestructiveStatements(args).length > 0,
-        target: (args) => statementsTarget(pgExecuteDestructiveStatements(args)),
+        target: (args) =>
+            statementsTarget(
+                pgExecuteDestructiveStatements(args),
+                "confirmation.message.pgExecuteDestructiveSqlMany",
+            ),
     },
     "managePgDatabase.applyMigration": {
         messageKey: "confirmation.message.pgApplyMigrationDestructive",
         when: (args) => pgApplyMigrationDestructiveStatements(args).length > 0,
-        target: (args) => statementsTarget(pgApplyMigrationDestructiveStatements(args)),
+        target: (args) =>
+            statementsTarget(
+                pgApplyMigrationDestructiveStatements(args),
+                "confirmation.message.pgApplyMigrationDestructiveMany",
+            ),
     },
 };
 

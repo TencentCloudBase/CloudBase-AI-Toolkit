@@ -31,6 +31,12 @@ export const confirmation = defineModule(
       "即将在环境 {envId} 上执行会改动数据的 SQL：{resource}。这条语句会删数据或删结构，执行后无法恢复，请确认它就是你要跑的那条。",
     "message.pgApplyMigrationDestructive":
       "这条 migration 里有会删结构的语句（环境 {envId}）：{resource}。执行后无法恢复，请确认这次迁移确实要这么做。",
+    // 多条时的变体：把**条数**说出来（预览只截首条，所以这个信号必须有）。单条时用上面那条，
+    // 不出现"共 1 条"这类噪音。
+    "message.pgExecuteDestructiveSqlMany":
+      "即将在环境 {envId} 上执行会改动数据的 SQL：{resource}。本次共有 {count} 条破坏性语句（这里只预览第一条），执行后无法恢复，请确认。",
+    "message.pgApplyMigrationDestructiveMany":
+      "这条 migration 里有会删结构的语句（环境 {envId}）：{resource}。本次共有 {count} 条破坏性语句（这里只预览第一条），执行后无法恢复，请确认这次迁移确实要这么做。",
     "message.unknownResource": "（未能从参数中取到资源名）",
     "message.unknownEnv": "未知",
 
@@ -60,6 +66,10 @@ export const confirmation = defineModule(
       "About to run data-changing SQL in env {envId}: {resource}. This statement drops data or schema and cannot be undone - confirm it is the one you meant to run.",
     "message.pgApplyMigrationDestructive":
       "This migration contains statements that drop schema (env {envId}): {resource}. This cannot be undone - confirm this migration should do that.",
+    "message.pgExecuteDestructiveSqlMany":
+      "About to run data-changing SQL in env {envId}: {resource}. There are {count} destructive statements in this call (only the first is previewed here) and they cannot be undone - confirm.",
+    "message.pgApplyMigrationDestructiveMany":
+      "This migration contains statements that drop schema (env {envId}): {resource}. There are {count} destructive statements in this call (only the first is previewed here) and they cannot be undone - confirm this migration should do that.",
     "message.unknownResource": "(could not read the resource name from the arguments)",
     "message.unknownEnv": "unknown",
 
