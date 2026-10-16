@@ -556,8 +556,7 @@ export function buildEnvMetricsPayload(input: {
   region: string;
   planRaw?: string | null;
   periodSeconds?: number | null;
-  startTime?: string | null;
-  endTime?: string | null;
+  /** 服务端摘要（`summarizeEnvMetricCurve` 的输出原样传进来；只读其中一部分）。 */
   summary?: {
     sampleCount?: unknown;
     max?: unknown;
@@ -565,6 +564,7 @@ export function buildEnvMetricsPayload(input: {
     avg?: unknown;
     latest?: unknown;
     peakTimestamp?: unknown;
+    /** 只作参考：**不参与状态判据**（判据只看曲线，见上面的 sawAllZeroCurve）。 */
     allZero?: unknown;
   } | null;
   curve?: { Values?: unknown; NewValues?: unknown; Time?: unknown } | null;
@@ -574,8 +574,13 @@ export function buildEnvMetricsPayload(input: {
     typeof v === "number" && Number.isFinite(v) ? v : null;
   const values = pickMetricSeries(input.curve);
   const sampleCount = num(summary.sampleCount) ?? values.length;
-  const allZero = summary.allZero === true || (sampleCount > 0 && values.every((v) => v === 0));
-  const state: MetricsState = sampleCount === 0 || allZero ? "noData" : "data";
+  // 无流量只有一种成立方式：**确实看到一段非空且全零的曲线**。
+  //   - 空数组的 every() 恒为 true，直接拿它当判据会把"曲线缺失"误报成"没流量"
+  //     （同屏还会出现"288 个样本、峰值 5"的自相矛盾）；
+  //   - 曲线与摘要 allZero 冲突时**以曲线为准**（曲线是我们实际读到的数据，allZero 只是摘要）；
+  //   - 曲线缺失时**不下"无流量"结论**：宁可按有数据处理，也不给一个无法支撑的结论。
+  const sawAllZeroCurve = values.length > 0 && values.every((v) => v === 0);
+  const state: MetricsState = sawAllZeroCurve ? "noData" : "data";
 
   // 时间轴：只为曲线与峰值时间服务；对不上就都不给
   const times = pickMetricTimes(input.curve, values.length);
@@ -604,11 +609,10 @@ export function buildEnvMetricsPayload(input: {
     plan,
     sample_count: sampleCount,
     ...(typeof input.periodSeconds === "number" ? { period_seconds: input.periodSeconds } : {}),
-    ...(input.startTime ? { start_time: input.startTime } : {}),
-    ...(input.endTime ? { end_time: input.endTime } : {}),
+    // 只产出面板会读的字段：start_time / end_time / min 曾产出但无人读，已删除
+    // （要显示时间范围或最低值时必须同时接上 UI 与用例，再加回来）。
     latest: num(summary.latest),
     max: num(summary.max),
-    min: num(summary.min),
     avg: num(summary.avg),
     peak_time: peakTime,
     ...(spark ? { spark } : {}),

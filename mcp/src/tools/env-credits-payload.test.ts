@@ -617,8 +617,6 @@ describe("buildEnvMetricsPayload（监控指标卡载荷）", () => {
     const payload = buildEnvMetricsPayload({
       ...METRICS_BASE,
       periodSeconds: 300,
-      startTime: "2026-10-15 00:00:00",
-      endTime: "2026-10-15 23:59:59",
       summary: summaryOf(values),
       curve: { NewValues: values },
     });
@@ -628,7 +626,6 @@ describe("buildEnvMetricsPayload（监控指标卡载荷）", () => {
     expect(payload.sample_count).toBe(288);
     expect(payload.latest).toBe(287);
     expect(payload.max).toBe(287);
-    expect(payload.min).toBe(0);
     expect(payload.avg).toBeCloseTo(143.5, 3);
     expect(payload.period_seconds).toBe(300);
     // 抽样上限：288 → ≤ 48，且首尾一定被取到（否则曲线两端会缺角）
@@ -649,9 +646,9 @@ describe("buildEnvMetricsPayload（监控指标卡载荷）", () => {
     expect(payload.latest).toBe(0);
   });
 
-  it("空曲线 ⇒ state=noData，且不带 spark（不编一条直线）", () => {
+  it("曲线缺失 ⇒ 不下「无流量」结论（不把 every() 对空数组恒真当成没流量）", () => {
     const payload = buildEnvMetricsPayload({ ...METRICS_BASE, summary: summaryOf([]), curve: { NewValues: [] } });
-    expect(payload.state).toBe("noData");
+    expect(payload.state).not.toBe("noData");
     expect(payload.sample_count).toBe(0);
     expect(payload).not.toHaveProperty("spark");
   });
@@ -660,7 +657,6 @@ describe("buildEnvMetricsPayload（监控指标卡载荷）", () => {
     const payload = buildEnvMetricsPayload({ ...METRICS_BASE, summary: { sampleCount: 3 }, curve: { NewValues: [1, 2, 3] } });
     expect(payload.latest).toBeNull();
     expect(payload.max).toBeNull();
-    expect(payload.min).toBeNull();
     expect(payload.avg).toBeNull();
     expect(payload.peak_time).toBeNull();
     // 有样本就不再是"无流量"
@@ -687,6 +683,49 @@ describe("buildEnvMetricsPayload（监控指标卡载荷）", () => {
     expect(payload.spark?.[0].calc_time).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
     expect(payload.peak_time).toBe(formatCurveTime(seconds));
     expect(formatCurveTime(seconds * 1000)).toBe(formatCurveTime(seconds));
+  });
+
+  // 修 1：状态判据只看曲线，摘要只作参考
+  it("无曲线但有摘要数字 ⇒ 按有数据处理（不得出现「无流量」）", () => {
+    const payload = buildEnvMetricsPayload({
+      ...METRICS_BASE,
+      summary: { sampleCount: 288, max: 5, avg: 2 },
+      curve: null,
+    });
+    expect(payload.state).toBe("data");
+    expect(payload.sample_count).toBe(288);
+    expect(payload.max).toBe(5);
+    expect(payload.avg).toBe(2);
+    expect(payload).not.toHaveProperty("spark");
+  });
+
+  it("全零曲线 ⇒ 无流量（确实看到一段非空全零）", () => {
+    const payload = buildEnvMetricsPayload({ ...METRICS_BASE, summary: { sampleCount: 3 }, curve: { NewValues: [0, 0, 0] } });
+    expect(payload.state).toBe("noData");
+  });
+
+  it("摘要说 allZero 但曲线有非零 ⇒ 以曲线为准，不是无流量", () => {
+    const payload = buildEnvMetricsPayload({
+      ...METRICS_BASE,
+      summary: { sampleCount: 3, allZero: true },
+      curve: { NewValues: [0, 7, 0] },
+    });
+    expect(payload.state).toBe("data");
+  });
+
+  it("三个没人读的字段不再产出（start_time / end_time / min）", () => {
+    const payload = buildEnvMetricsPayload({
+      ...METRICS_BASE,
+      summary: { sampleCount: 2, max: 9, min: 1, avg: 5, latest: 9 },
+      curve: { NewValues: [1, 9] },
+    });
+    expect(payload).not.toHaveProperty("start_time");
+    expect(payload).not.toHaveProperty("end_time");
+    expect(payload).not.toHaveProperty("min");
+    // 仍被读取的字段都还在
+    expect(payload.max).toBe(9);
+    expect(payload.avg).toBe(5);
+    expect(payload.latest).toBe(9);
   });
 
   it("kind 缺省即 credits：用量载荷不带 kind 键（旧路径逐字不变）", () => {

@@ -104,11 +104,9 @@ export interface EnvMetricsPayload {
   plan?: PlanCode | null;
   sample_count: number;
   period_seconds?: number | null;
-  start_time?: string | null;
-  end_time?: string | null;
+  // 只保留面板会读的字段：start_time / end_time / min 曾产出但无人读，已删除。
   latest?: number | null;
   max?: number | null;
-  min?: number | null;
   avg?: number | null;
   /** 峰值时间（原样字符串；拿不到就不显示，不编时间）。 */
   peak_time?: string | null;

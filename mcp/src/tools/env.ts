@@ -3378,8 +3378,6 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               periodSeconds:
                 resolvedPeriod ??
                 (typeof curve?.Period === "number" ? curve.Period : null),
-              startTime: timeRange.startTime,
-              endTime: timeRange.endTime,
               summary: result.Summary,
               curve,
             });

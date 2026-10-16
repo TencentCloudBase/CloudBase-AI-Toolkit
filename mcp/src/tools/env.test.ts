@@ -2463,7 +2463,6 @@ describe("env tools - queryEnv", () => {
       sample_count: 4,
       latest: 3,
       max: 3,
-      min: 0,
       avg: 1.5,
       period_seconds: 300,
     });
