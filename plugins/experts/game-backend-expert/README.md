@@ -17,7 +17,8 @@
 | 核心 | 平台总览与路由 / **PG 数据库** / 云函数 / 建模 | `cloudbase-platform`、`postgresql-development-cloudbase`、`cloud-functions`、`data-model-creation` |
 | 数据库 | **非小游戏场景以 PostgreSQL 为核心**（`app.rdb()` / PG REST / RLS / pgstore）；微信小游戏侧走文档数据库 | `postgresql-development-cloudbase`、`http-api-cloudbase`、`cloudbase-document-database-in-wechat-miniprogram` |
 | 其他能力 | 素材存储 / 长连接与常驻服务 / 引擎侧 HTTP / 登录凭据 / 小游戏 | `cloud-storage-web`、`cloudrun-development`、`http-api-cloudbase`、`auth-tool-cloudbase`、`miniprogram-development` |
-| 包内 | 数据模型建议、排行榜三档做法、防作弊、引擎侧调用样例、存档与内购的幂等要点、联机分档 | `references/game-backend-playbook.md` |
+| 包内 | 数据模型建议、排行榜三档做法、防作弊、引擎侧调用样例与接入层写法、存档与内购的幂等要点、联机分档、两个成品骨架 | `references/game-backend-playbook.md`、`references/game-backend-recipes.md` |
+| 游戏开发 | 引擎 API、玩法手感、UI、关卡、性能、本地存档格式、引擎内联机、IAP 接入 —— **加载后作答，不推走** | 官方 / 社区 skill，清单见 `references/game-dev-skills.md` |
 | 逃生通道 | 包内未列的其他 CloudBase 能力（网关、AI 模型、运维排查等） | 先查 `cloudbase-platform` 路由到对应官方 skill，未安装按 https://docs.cloudbase.net/skill.md 接入；无 skill 时查 docs.cloudbase.net |
 
 ## 使用
